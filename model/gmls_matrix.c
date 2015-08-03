@@ -15,7 +15,6 @@ struct gmls_matrix_t
   void* context;
   gmls_matrix_vtable vtable;
 
-  gmls_functional_t* lambda;
   point_weight_function_t* W;
 
   multicomp_poly_basis_t* basis;
@@ -25,7 +24,6 @@ struct gmls_matrix_t
 gmls_matrix_t* gmls_matrix_new(const char* name,
                                void* context,
                                gmls_matrix_vtable vtable,
-                               gmls_functional_t* lambda,
                                point_weight_function_t* W)
 {
   ASSERT(vtable.num_nodes != NULL);
@@ -36,13 +34,8 @@ gmls_matrix_t* gmls_matrix_new(const char* name,
   matrix->name = string_dup(name);
   matrix->context = context;
   matrix->vtable = vtable;
-  matrix->lambda = lambda;
   matrix->W = W;
 
-  // Jot some stuff down for quick reference.
-  matrix->basis = gmls_functional_basis(lambda);
-  matrix->dim = multicomp_poly_basis_dim(matrix->basis);
-  matrix->num_comp = multicomp_poly_basis_num_comp(matrix->basis);
   return matrix;
 }
 
@@ -51,15 +44,9 @@ void gmls_matrix_free(gmls_matrix_t* matrix)
   if ((matrix->context != NULL) && (matrix->vtable.dtor != NULL))
     matrix->vtable.dtor(matrix->context);
   point_weight_function_free(matrix->W);
-  gmls_functional_free(matrix->lambda);
   matrix->basis = NULL;
   polymec_free(matrix->name);
   polymec_free(matrix);
-}
-
-gmls_functional_t* gmls_matrix_functional(gmls_matrix_t* matrix)
-{
-  return matrix->lambda;
 }
 
 int gmls_matrix_num_columns(gmls_matrix_t* matrix, int row)
@@ -69,42 +56,36 @@ int gmls_matrix_num_columns(gmls_matrix_t* matrix, int row)
 }
 
 static void compute_phi_matrix(gmls_matrix_t* matrix,
-                               point_t* xjs, int num_nodes,
-                               real_t* W, real_t* phi)
+                               point_t* xjs, int num_nodes, int basis_dim,
+                               real_t* W, real_t* P, real_t* phi)
 {
-  int Q = matrix->dim;
-
-  // Compute the matrix [P]_ij = pi(xj), in column major order.
-  real_t P[num_nodes*Q];
-  for (int j = 0; j < num_nodes; ++j)
-    multicomp_poly_basis_compute(matrix->basis, 0, 0, 0, 0, &xjs[j], &P[j*Q]);
-
   // Compute the moment matrix PWPt.
-  real_t WPt[num_nodes*Q], PWPt[Q*Q];
+  real_t WPt[num_nodes*basis_dim], PWPt[basis_dim*basis_dim];
   char no_trans = 'N', trans = 'T';
   real_t alpha = 1.0, beta = 0.0;
-  rgemm(&no_trans, &trans, &num_nodes, &Q, &num_nodes, &alpha, W, 
-        &num_nodes, P, &Q, &beta, WPt, &num_nodes);
-  rgemm(&no_trans, &no_trans, &Q, &Q, &num_nodes, &alpha, P, 
-        &Q, WPt, &num_nodes, &beta, PWPt, &Q);
+  rgemm(&no_trans, &trans, &num_nodes, &basis_dim, &num_nodes, &alpha, W, 
+        &num_nodes, P, &basis_dim, &beta, WPt, &num_nodes);
+  rgemm(&no_trans, &no_trans, &basis_dim, &basis_dim, &num_nodes, &alpha, P, 
+        &basis_dim, WPt, &num_nodes, &beta, PWPt, &basis_dim);
 
   // Now form the matrix phi = (PWPt)^-1 * Pt * W.
 
   // Factor PWPt.
   char uplo = 'L';
   int info;
-  rpotrf(&uplo, &Q, PWPt, &Q, &info); 
+  rpotrf(&uplo, &basis_dim, PWPt, &basis_dim, &info); 
   ASSERT(info == 0);
 
   // Compute (PWPt)^1 * PtW.
-  rgemm(&trans, &no_trans, &Q, &num_nodes, &num_nodes, &alpha, P, 
-        &num_nodes, W, &num_nodes, &beta, phi, &Q);
+  rgemm(&trans, &no_trans, &basis_dim, &num_nodes, &num_nodes, &alpha, P, 
+        &num_nodes, W, &num_nodes, &beta, phi, &basis_dim);
   int one = 1;
-  rpotrs(&uplo, &Q, &one, PWPt, &Q, phi, &Q, &info);
+  rpotrs(&uplo, &basis_dim, &one, PWPt, &basis_dim, phi, &basis_dim, &info);
 }
 
 void gmls_matrix_compute_row(gmls_matrix_t* matrix,
                              int row, 
+                             gmls_functional_t* lambda,
                              real_t t,
                              int* columns,
                              real_t* coeffs)
@@ -112,14 +93,15 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   // In this function we use the notation in Mirzaei's 2015 paper on 
   // "A new low-cost meshfree method for two and three dimensional 
   //  problems in elasticity."
-  int num_comp = matrix->num_comp;
-  int Q = matrix->dim;
+  multicomp_poly_basis_t* poly_basis = gmls_functional_basis(lambda);
+  int basis_dim = multicomp_poly_basis_dim(poly_basis);
+  int num_comp = multicomp_poly_basis_num_comp(poly_basis);
 
   // Compute the values of the functional.
   int component = row % num_comp;
   int i = row / num_comp; // index of subdomain
-  real_t lambdas[Q];
-  gmls_functional_compute(matrix->lambda, component, i, t, lambdas);
+  real_t lambdas[basis_dim];
+  gmls_functional_compute(lambda, component, i, t, lambdas);
 
   // Get the nodes within this subdomain.
   int num_nodes = matrix->vtable.num_nodes(matrix->context, i);
@@ -128,6 +110,12 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   point_t xi, xjs[num_nodes];
   matrix->vtable.get_points(matrix->context, &i, 1, &xi);
   matrix->vtable.get_points(matrix->context, nodes, num_nodes, &xi);
+
+  // Compute the matrix [P]_ij = pi(xj), in column major order.
+  real_t P[num_nodes*basis_dim];
+  for (int j = 0; j < num_nodes; ++j)
+    multicomp_poly_basis_compute(matrix->basis, component, 0, 0, 0, 
+                                 &xjs[j], &P[j*basis_dim]);
 
   // Compute the (single-component) diagonal matrix W of MLS weights.
   real_t W[num_nodes*num_nodes];
@@ -140,15 +128,15 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   }
 
   // Compute the "Phi" matrix Phi = (Pt * W * P)^-1 * W * Pt.
-  real_t phi[Q*num_nodes];
-  compute_phi_matrix(matrix, xjs, num_nodes, W, phi);
+  real_t phi[basis_dim*num_nodes];
+  compute_phi_matrix(matrix, xjs, num_nodes, basis_dim, W, P, phi);
 
   // Now form the matrix coefficients from the product of the lambda and Phi
   // matrices.
   char no_trans = 'N';
   int M = 1; // Rows in lambda matrix.
   int N = num_nodes; // Columns in Phi matrix.
-  int K = Q; // Columns in lambda, rows in Phi.
+  int K = basis_dim; // Columns in lambda, rows in Phi.
   real_t alpha = 1.0, beta = 0.0;
   rgemm(&no_trans, &no_trans, &M, &N, &K, &alpha, lambdas, &M, phi, &K, 
         &beta, coeffs, &M);
@@ -191,8 +179,7 @@ static void sbm_dtor(void* context)
   polymec_free(sbm);
 }
 
-gmls_matrix_t* stencil_based_gmls_matrix_new(gmls_functional_t* lambda,
-                                             point_weight_function_t* W,
+gmls_matrix_t* stencil_based_gmls_matrix_new(point_weight_function_t* W,
                                              point_cloud_t* points,
                                              stencil_t* stencil)
 {
@@ -203,6 +190,6 @@ gmls_matrix_t* stencil_based_gmls_matrix_new(gmls_functional_t* lambda,
                                .get_nodes = sbm_get_nodes,
                                .get_points = sbm_get_points,
                                .dtor = sbm_dtor};
-  return gmls_matrix_new("Stencil-based GMLS matrix", sbm, vtable, lambda, W);
+  return gmls_matrix_new("Stencil-based GMLS matrix", sbm, vtable, W);
 }
 
