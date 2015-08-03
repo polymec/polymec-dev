@@ -100,7 +100,7 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   // Compute the values of the functional.
   int component = row % num_comp;
   int i = row / num_comp; // index of subdomain
-  real_t lambdas[basis_dim];
+  real_t lambdas[num_comp*basis_dim];
   gmls_functional_compute(lambda, component, i, t, lambdas);
 
   // Get the nodes within this subdomain.
@@ -136,14 +136,15 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   char no_trans = 'N';
   int M = 1; // Rows in lambda matrix.
   int N = num_nodes; // Columns in Phi matrix.
-  int K = basis_dim; // Columns in lambda, rows in Phi.
+  int K = num_comp*basis_dim; // Columns in lambda, rows in Phi.
   real_t alpha = 1.0, beta = 0.0;
   rgemm(&no_trans, &no_trans, &M, &N, &K, &alpha, lambdas, &M, phi, &K, 
         &beta, coeffs, &M);
 
   // Fill in the column indices.
   for (int n = 0; n < num_nodes; ++n)
-    columns[n] = num_comp * nodes[n] + component;
+    for (int c = 0; c < num_comp; ++c)
+      columns[num_comp*n+c] = num_comp * nodes[n] + c;
 }
 
 // Stencil-based GMLS matrix.

@@ -36,10 +36,13 @@ typedef struct
   void (*get_quadrature)(void* context, int i, int N, point_t* points, real_t* weights);
 
   // This function evaluates the integrand of the functional applied to each 
-  // of the Q polynomial basis vectors represented by the given gmls_poly_basis 
-  // object, to be evaluated for the given component at the given point x at time t. The 
-  // values of the integrands are stored in the integrands array, which should be sized 
-  // to the dimension of the given component of the polynomial basis.
+  // of the numcomp * Q polynomial basis vectors represented by the given 
+  // gmls_poly_basis object, to be evaluated for the given component at the 
+  // given point x at time t. The values of the integrands are stored in the 
+  // integrands array, which should be sized to the num_comps * dimension of 
+  // the given component of the polynomial basis, since the weak form for the 
+  // given component can involve terms from all solution components. The 
+  // integrands are stored in basis-major (component-minor) order.
   void (*eval_integrands)(void* context, int component, real_t t, point_t* x, 
                           multicomp_poly_basis_t* basis, real_t* integrands);
 
@@ -68,8 +71,9 @@ int gmls_functional_num_components(gmls_functional_t* functional);
 // Evaluates the functionals {lambda_j} consisting of the weak forms applied
 // to the polynomials within the polynomial basis for the given component
 // on the ith subdomain evaluated at time t. The functionals are placed in 
-// the lambdas array, which should be equal in length to the dimension of 
-// the polynomial basis.
+// the lambdas array, which should be equal in length to the number of 
+// components * the dimension of the polynomial basis, filled in basis-major 
+// (component-minor) order.
 void gmls_functional_compute(gmls_functional_t* functional,
                              int component,
                              int i,

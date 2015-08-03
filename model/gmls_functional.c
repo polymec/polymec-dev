@@ -71,8 +71,9 @@ void gmls_functional_compute(gmls_functional_t* functional,
 
   // Loop through the points and compute the lambda matrix of functional 
   // approximants.
-  int Q = functional->dim;
-  memset(lambdas, 0, sizeof(real_t) * Q);
+  int num_comp = functional->num_comp;
+  int basis_dim = functional->dim;
+  memset(lambdas, 0, sizeof(real_t) * basis_dim);
   for (int q = 0; q < num_quad_points; ++q)
   {
     point_t* xq = &quad_points[q];
@@ -80,12 +81,13 @@ void gmls_functional_compute(gmls_functional_t* functional,
 
     // Now compute the (multi-component) integrands for the functional at 
     // this point.
-    real_t integrands[Q];
+    real_t integrands[num_comp*basis_dim];
     functional->vtable.eval_integrands(functional->context, component, t, xq, functional->basis, integrands);
 
     // Integrate.
-    for (int i = 0; i < Q; ++i)
-      lambdas[i] += wq * integrands[i];
+    for (int i = 0; i < basis_dim; ++i)
+      for (int c = 0; c < num_comp; ++c)
+        lambdas[num_comp*i+c] += wq * integrands[num_comp*i+c];
   }
 }
 
