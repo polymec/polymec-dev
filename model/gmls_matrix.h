@@ -43,6 +43,12 @@ typedef struct
   // This function retrieves the locations of the nodes with the given indices.
   void (*get_points)(void* context, int* nodes, int num_nodes, point_t* points);
 
+  // This function retrieves the distance scale factors associated with the 
+  // nodes with the given indices. These scale factors are used to scale the 
+  // weights associated with the nodes. If this method is not provided, 
+  // the weight function will scale the distances between points.
+  void (*get_scale_factors)(void* context, int* nodes, int num_nodes, real_t* scale_factors);
+
   // This is a destructor that destroys the given context.
   void (*dtor)(void* context); // Destructor
 } gmls_matrix_vtable;

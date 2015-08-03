@@ -9,7 +9,6 @@
 #define POLYMEC_GMLS_FUNCTIONAL_H
 
 #include "core/polynomial.h"
-#include "model/point_weight_function.h"
 
 // This class represents a functional lambda(u) that represents a weak 
 // form for a solution u and or its derivatives, projected to a polynomial 

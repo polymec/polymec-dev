@@ -109,7 +109,7 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   matrix->vtable.get_nodes(matrix->context, i, nodes);
   point_t xi, xjs[num_nodes];
   matrix->vtable.get_points(matrix->context, &i, 1, &xi);
-  matrix->vtable.get_points(matrix->context, nodes, num_nodes, &xi);
+  matrix->vtable.get_points(matrix->context, nodes, num_nodes, xjs);
 
   // Compute the matrix [P]_ij = pi(xj), in column major order.
   real_t P[num_nodes*basis_dim];
@@ -120,11 +120,30 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   // Compute the (single-component) diagonal matrix W of MLS weights.
   real_t W[num_nodes*num_nodes];
   memset(W, 0.0, sizeof(real_t) * num_nodes*num_nodes);
-  for (int j = 0; j < num_nodes; ++j)
+  if (matrix->vtable.get_scale_factors != NULL)
   {
-    vector_t y;
-    point_displacement(&xi, &xjs[j], &y);
-    W[num_nodes*j+j] = point_weight_function_value(matrix->W, &y);
+    // No distance scaling needed.
+    for (int j = 0; j < num_nodes; ++j)
+    {
+      vector_t y;
+      point_displacement(&xi, &xjs[j], &y);
+      W[num_nodes*j+j] = point_weight_function_value(matrix->W, &y);
+    }
+  }
+  else
+  {
+    // We have to compute the scaling factors and scale the point distances.
+    real_t scale_factors[num_nodes];
+    matrix->vtable.get_scale_factors(matrix->context, nodes, num_nodes, 
+                                     scale_factors);
+    for (int j = 0; j < num_nodes; ++j)
+    {
+      vector_t y;
+      point_displacement(&xi, &xjs[j], &y);
+      ASSERT(scale_factors[j] != 0.0);
+      vector_scale(&y, 1.0/scale_factors[j]);
+      W[num_nodes*j+j] = point_weight_function_value(matrix->W, &y);
+    }
   }
 
   // Compute the "Phi" matrix Phi = (Pt * W * P)^-1 * W * Pt.

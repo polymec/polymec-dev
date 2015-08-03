@@ -164,7 +164,6 @@ int multicomp_poly_basis_dim(multicomp_poly_basis_t* basis);
 // Returns the degree of the multi-component polynomial basis.
 int multicomp_poly_basis_degree(multicomp_poly_basis_t* basis);
 
-
 // Steps through the vectors for the multi-component polynomial basis. p[i] 
 // is set to a polynomial representing the present vector for component i.
 // Returns true if the traversal yields another vector, false if it is 
