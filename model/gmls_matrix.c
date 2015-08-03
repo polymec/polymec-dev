@@ -143,8 +143,7 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
 
   // Fill in the column indices.
   for (int n = 0; n < num_nodes; ++n)
-    for (int c = 0; c < num_comp; ++c)
-      columns[n] = num_comp * nodes[n] + c;
+    columns[n] = num_comp * nodes[n] + component;
 }
 
 // Stencil-based GMLS matrix.
