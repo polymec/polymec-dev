@@ -44,4 +44,8 @@ real_t point_weight_function_value(point_weight_function_t* W, vector_t* y);
 // vector y = x - x0.
 vector_t point_weight_function_gradient(point_weight_function_t* W, vector_t* y);
 
+// Creates a compactly supported Gaussian weight function with a 
+// "shape parameter" epsilon determining the variance of the curve.
+point_weight_function_t* gaussian_point_weight_function_new(real_t epsilon);
+
 #endif

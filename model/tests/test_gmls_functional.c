@@ -10,12 +10,14 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
+#include "make_mlpg_lattice.h"
 #include "poisson_gmls_functional.h"
 
 void test_gmls_functional_ctor(void** state, int p)
 {
-  point_cloud_t* points = NULL; // FIXME
-  real_t* subdomain_extents = NULL; // FIXME
+  point_cloud_t* points;
+  real_t* subdomain_extents;
+  make_mlpg_lattice(10, 10, 10, 1.0*p, &points, &subdomain_extents, NULL);
   gmls_functional_t* poisson = poisson_gmls_functional_new(p, points, subdomain_extents);
   assert_int_equal(p, multicomp_poly_basis_degree(gmls_functional_basis(poisson)));
   assert_int_equal(1, gmls_functional_num_components(poisson));

@@ -10,19 +10,23 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "poisson_gmls_functional.h"
 #include "model/gmls_matrix.h"
+#include "make_mlpg_lattice.h"
+#include "poisson_gmls_functional.h"
 
 void test_gmls_matrix_ctor(void** state)
 {
-  point_cloud_t* points = NULL; // FIXME
-  stencil_t* stencil = NULL; // FIXME
-  point_weight_function_t* W = NULL; // FIXME
+  point_cloud_t* points;
+  real_t* extents;
+  stencil_t* stencil;
+  make_mlpg_lattice(10, 10, 10, 2.0, &points, &extents, &stencil);
+  point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, points, stencil);
 
   // Clean up.
   gmls_matrix_free(matrix);
   point_cloud_free(points);
+  polymec_free(extents);
   stencil_free(stencil);
 }
 

@@ -45,10 +45,39 @@ real_t point_weight_function_value(point_weight_function_t* W, vector_t* y)
   return W->vtable.value(W->context, y);
 }
 
-// Returns the gradient of the point weight function for the given displacement 
-// vector y = x - x0.
 vector_t point_weight_function_gradient(point_weight_function_t* W, vector_t* y)
 {
   return W->vtable.gradient(W->context, y);
 }
 
+static real_t gaussian_value(void* context, vector_t* y)
+{
+  real_t epsilon = *((real_t*)context);
+  real_t eps2 = epsilon*epsilon;
+  real_t y2 = vector_dot(y, y);
+  real_t exp_e2 = exp(-eps2);
+  return (exp(-eps2*y2) - exp_e2) / (1.0 - exp_e2);
+}
+
+static vector_t gaussian_gradient(void* context, vector_t* y)
+{
+  real_t epsilon = *((real_t*)context);
+  real_t eps2 = epsilon*epsilon;
+  real_t y2 = vector_dot(y, y);
+  real_t exp_e2 = exp(-eps2);
+  real_t dWdu = -eps2 * exp(-eps2*y2) / (1.0 - exp_e2);
+  vector_t grad = {.x = dWdu * y->x/y2, .y = dWdu * y->y/y2, .z = dWdu * y->z/y2};
+  return grad;
+}
+
+point_weight_function_t* gaussian_point_weight_function_new(real_t epsilon)
+{
+  real_t* shape = polymec_malloc(sizeof(real_t));
+  *shape = epsilon;
+  char name[256];
+  snprintf(name, 255, "Gaussian weight function (epsilon = %g)", epsilon);
+  point_weight_function_vtable vtable = {.value = gaussian_value,
+                                         .gradient = gaussian_gradient,
+                                         .dtor = polymec_free};
+  return point_weight_function_new(name, shape, vtable);
+}
