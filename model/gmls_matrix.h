@@ -83,6 +83,16 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
                              int* columns,
                              real_t* coeffs);
 
+// Computes the given row of the GMLS matrix in order to enforce a (collocated) 
+// Dirichlet boundary condition for the solution there. The given functional 
+// is used only to determine the polynomial basis and the number of components 
+// in the solution.
+void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
+                                       int row,
+                                       gmls_functional_t* lambda,
+                                       int* columns,
+                                       real_t* coeffs);
+
 // Creates a GMLS matrix using a point cloud and a given stencil to provide information 
 // about nodes contributing to subdomains. The point cloud and the stencil are both 
 // borrowed by the matrix, not consumed. The weight function displacement 

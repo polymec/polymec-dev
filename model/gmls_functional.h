@@ -87,4 +87,16 @@ void gmls_functional_compute(gmls_functional_t* functional,
                              real_t t,
                              real_t* lambdas);
 
+// Evaluates the integrands applied to the polynomials within the polynomial 
+// basis for the given component at time t on the point x, with the normal 
+// vector n (if the functional is defined at the boundary of the subdomain).
+// The integrands are placed in the integrands array, which should be equal in 
+// length to the number of components * the dimension of the polynomial basis, 
+// filled in basis-major (component-minor) order.
+void gmls_functional_eval_integrands(gmls_functional_t* functional,
+                                     int component,
+                                     real_t t,
+                                     point_t* x, vector_t* n,
+                                     real_t* integrands);
+
 #endif

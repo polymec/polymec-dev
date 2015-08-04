@@ -95,26 +95,15 @@ static void compute_phi_matrix(gmls_matrix_t* matrix,
   rpotrs(&uplo, &basis_dim, &one, PWPt, &basis_dim, phi, &basis_dim, &info);
 }
 
-void gmls_matrix_compute_row(gmls_matrix_t* matrix,
-                             int row, 
-                             gmls_functional_t* lambda,
-                             real_t t,
-                             int* columns,
-                             real_t* coeffs)
+static void compute_matrix_row(gmls_matrix_t* matrix, 
+                               int basis_dim,
+                               int num_comp,
+                               int component,
+                               int i, 
+                               real_t* lambdas, 
+                               int* columns, 
+                               real_t* coeffs)
 {
-  // In this function we use the notation in Mirzaei's 2015 paper on 
-  // "A new low-cost meshfree method for two and three dimensional 
-  //  problems in elasticity."
-  multicomp_poly_basis_t* poly_basis = gmls_functional_basis(lambda);
-  int basis_dim = multicomp_poly_basis_dim(poly_basis);
-  int num_comp = multicomp_poly_basis_num_comp(poly_basis);
-
-  // Compute the values of the functional.
-  int component = row % num_comp;
-  int i = row / num_comp; // index of subdomain
-  real_t lambdas[num_comp*basis_dim];
-  gmls_functional_compute(lambda, component, i, t, lambdas);
-
   // Get the nodes within this subdomain.
   int num_nodes = matrix->vtable.num_nodes(matrix->context, i);
   int nodes[num_nodes];
@@ -126,8 +115,10 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   // Compute the matrix [P]_ij = pi(xj), in column major order.
   real_t P[num_nodes*basis_dim];
   for (int j = 0; j < num_nodes; ++j)
+  {
     multicomp_poly_basis_compute(matrix->basis, component, 0, 0, 0, 
                                  &xjs[j], &P[j*basis_dim]);
+  }
 
   // Compute the (single-component) diagonal matrix W of MLS weights.
   real_t W[num_nodes*num_nodes];
@@ -157,6 +148,52 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   for (int n = 0; n < num_nodes; ++n)
     for (int c = 0; c < num_comp; ++c)
       columns[num_comp*n+c] = num_comp * nodes[n] + c;
+}
+
+void gmls_matrix_compute_row(gmls_matrix_t* matrix,
+                             int row, 
+                             gmls_functional_t* lambda,
+                             real_t t,
+                             int* columns,
+                             real_t* coeffs)
+{
+  // In this function we use the notation in Mirzaei's 2015 paper on 
+  // "A new low-cost meshfree method for two and three dimensional 
+  //  problems in elasticity."
+  multicomp_poly_basis_t* poly_basis = gmls_functional_basis(lambda);
+  int basis_dim = multicomp_poly_basis_dim(poly_basis);
+  int num_comp = multicomp_poly_basis_num_comp(poly_basis);
+
+  // Compute the values of the functional.
+  int component = row % num_comp;
+  int i = row / num_comp; // index of subdomain
+  real_t lambdas[num_comp*basis_dim];
+  gmls_functional_compute(lambda, component, i, t, lambdas);
+
+  // Compute the row using these functional values.
+  compute_matrix_row(matrix, basis_dim, num_comp, component, i, lambdas, columns, coeffs);
+}
+
+void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
+                                       int row, 
+                                       gmls_functional_t* lambda,
+                                       int* columns,
+                                       real_t* coeffs)
+{
+  // In this function we use the notation in Mirzaei's 2015 paper on 
+  // "A new low-cost meshfree method for two and three dimensional 
+  //  problems in elasticity."
+  multicomp_poly_basis_t* poly_basis = gmls_functional_basis(lambda);
+  int basis_dim = multicomp_poly_basis_dim(poly_basis);
+  int num_comp = multicomp_poly_basis_num_comp(poly_basis);
+
+  int component = row % num_comp;
+  int i = row / num_comp; 
+  real_t delta[num_comp*basis_dim];
+  memset(delta, 0, sizeof(real_t) * num_comp * basis_dim);
+  for (int j = 0; j < basis_dim; ++j)
+    delta[num_comp*j+component] = 1.0;
+  compute_matrix_row(matrix, basis_dim, num_comp, component, i, delta, columns, coeffs);
 }
 
 // Stencil-based GMLS matrix.

@@ -98,3 +98,12 @@ void gmls_functional_compute(gmls_functional_t* functional,
   }
 }
 
+void gmls_functional_eval_integrands(gmls_functional_t* functional,
+                                     int component,
+                                     real_t t,
+                                     point_t* x, vector_t* n,
+                                     real_t* integrands)
+{
+  functional->vtable.eval_integrands(functional->context, component, 
+                                     t, x, n, functional->basis, integrands);
+}
