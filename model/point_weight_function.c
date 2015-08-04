@@ -52,22 +52,35 @@ vector_t point_weight_function_gradient(point_weight_function_t* W, vector_t* y)
 
 static real_t gaussian_value(void* context, vector_t* y)
 {
-  real_t epsilon = *((real_t*)context);
-  real_t eps2 = epsilon*epsilon;
   real_t y2 = vector_dot(y, y);
-  real_t exp_e2 = exp(-eps2);
-  return (exp(-eps2*y2) - exp_e2) / (1.0 - exp_e2);
+  if (y2 < 1.0)
+  {
+    real_t epsilon = *((real_t*)context);
+    real_t eps2 = epsilon*epsilon;
+    real_t exp_e2 = exp(-eps2);
+    return (exp(-eps2*y2) - exp_e2) / (1.0 - exp_e2);
+  }
+  else
+    return 0.0;
 }
 
 static vector_t gaussian_gradient(void* context, vector_t* y)
 {
-  real_t epsilon = *((real_t*)context);
-  real_t eps2 = epsilon*epsilon;
   real_t y2 = vector_dot(y, y);
-  real_t exp_e2 = exp(-eps2);
-  real_t dWdu = -eps2 * exp(-eps2*y2) / (1.0 - exp_e2);
-  vector_t grad = {.x = dWdu * y->x/y2, .y = dWdu * y->y/y2, .z = dWdu * y->z/y2};
-  return grad;
+  if (y2 < 1.0)
+  {
+    real_t epsilon = *((real_t*)context);
+    real_t eps2 = epsilon*epsilon;
+    real_t exp_e2 = exp(-eps2);
+    real_t dWdu = -eps2 * exp(-eps2*y2) / (1.0 - exp_e2);
+    vector_t grad = {.x = dWdu * y->x/y2, .y = dWdu * y->y/y2, .z = dWdu * y->z/y2};
+    return grad;
+  }
+  else
+  {
+    vector_t grad = {.x = 0.0, .y = 0.0, .z = 0.0};
+    return grad;
+  }
 }
 
 point_weight_function_t* gaussian_point_weight_function_new(real_t epsilon)

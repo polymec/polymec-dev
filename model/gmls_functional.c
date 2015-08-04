@@ -14,6 +14,7 @@ struct gmls_functional_t
   char *name;
   void* context;
   gmls_functional_vtable vtable;
+  bool on_boundary;
 
   multicomp_poly_basis_t* basis;
   int dim, num_comp;
@@ -22,7 +23,8 @@ struct gmls_functional_t
 gmls_functional_t* gmls_functional_new(const char* name,
                                        void* context,
                                        gmls_functional_vtable vtable,
-                                       multicomp_poly_basis_t* poly_basis)
+                                       multicomp_poly_basis_t* poly_basis,
+                                       bool on_boundary)
 {
   ASSERT(vtable.num_quad_points != NULL);
   ASSERT(vtable.get_quadrature != NULL);
@@ -35,6 +37,7 @@ gmls_functional_t* gmls_functional_new(const char* name,
   functional->dim = multicomp_poly_basis_dim(poly_basis);
   functional->basis = poly_basis;
   functional->num_comp = multicomp_poly_basis_num_comp(poly_basis);
+  functional->on_boundary = on_boundary;
   return functional;
 }
 
@@ -66,8 +69,9 @@ void gmls_functional_compute(gmls_functional_t* functional,
   int num_quad_points = functional->vtable.num_quad_points(functional->context, i);
   point_t quad_points[num_quad_points];
   real_t quad_weights[num_quad_points];
+  vector_t quad_normals[num_quad_points];
   functional->vtable.get_quadrature(functional->context, i, num_quad_points, 
-                                    quad_points, quad_weights);
+                                    quad_points, quad_weights, quad_normals);
 
   // Loop through the points and compute the lambda matrix of functional 
   // approximants.
@@ -78,11 +82,14 @@ void gmls_functional_compute(gmls_functional_t* functional,
   {
     point_t* xq = &quad_points[q];
     real_t wq = quad_weights[q];
+    vector_t* nq = (functional->on_boundary) ? &quad_normals[q] : NULL;
 
     // Now compute the (multi-component) integrands for the functional at 
     // this point.
     real_t integrands[num_comp*basis_dim];
-    functional->vtable.eval_integrands(functional->context, component, t, xq, functional->basis, integrands);
+    functional->vtable.eval_integrands(functional->context, component, 
+                                       t, xq, nq, 
+                                       functional->basis, integrands);
 
     // Integrate.
     for (int i = 0; i < basis_dim; ++i)
