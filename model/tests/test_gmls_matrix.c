@@ -21,7 +21,7 @@ void test_gmls_matrix_ctor(void** state)
   stencil_t* stencil;
   make_mlpg_lattice(10, 10, 10, 2.0, &points, &extents, &stencil);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
-  gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, points, stencil);
+  gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, points, extents, stencil);
 
   // Clean up.
   gmls_matrix_free(matrix);

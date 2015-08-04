@@ -43,11 +43,15 @@ typedef struct
   // This function retrieves the locations of the nodes with the given indices.
   void (*get_points)(void* context, int* nodes, int num_nodes, point_t* points);
 
-  // This function retrieves the distance scale factors associated with the 
-  // nodes with the given indices. These scale factors are used to scale the 
-  // weights associated with the nodes. If this method is not provided, 
-  // the weight function will scale the distances between points.
-  void (*get_scale_factors)(void* context, int* nodes, int num_nodes, real_t* scale_factors);
+  // This function computes the vector y corresponding to the effective 
+  // displacement from a point xi to a point xi. This vector is to be handed 
+  // to a point_weight_function to determine the MLS weight for point xj as 
+  // it contributes to a MLS approximation on the subdomain i (centered about
+  // xi). If this method is not provided, y = xj - xi.
+  void (*compute_weight_displacement)(void* context, 
+                                      int i, point_t* xi, 
+                                      int j, point_t* xj, 
+                                      vector_t* y);
 
   // This is a destructor that destroys the given context.
   void (*dtor)(void* context); // Destructor
@@ -81,9 +85,12 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
 
 // Creates a GMLS matrix using a point cloud and a given stencil to provide information 
 // about nodes contributing to subdomains. The point cloud and the stencil are both 
-// borrowed by the matrix, not consumed.
+// borrowed by the matrix, not consumed. The weight function displacement 
+// y = |x1 - x2|/R1, where R1 is the extent of the subdomain corresponding 
+// to x1.
 gmls_matrix_t* stencil_based_gmls_matrix_new(point_weight_function_t* W,
                                              point_cloud_t* points,
+                                             real_t* extents,
                                              stencil_t* stencil);
 
 #endif

@@ -21,6 +21,16 @@ struct gmls_matrix_t
   int dim, num_comp;
 };
 
+static void simple_weight_displacement(void* context, 
+                                       int i,
+                                       point_t* xi, 
+                                       int j,
+                                       point_t* xj,
+                                       vector_t* y)
+{
+  point_displacement(xi, xj, y);
+}
+  
 gmls_matrix_t* gmls_matrix_new(const char* name,
                                void* context,
                                gmls_matrix_vtable vtable,
@@ -34,6 +44,8 @@ gmls_matrix_t* gmls_matrix_new(const char* name,
   matrix->name = string_dup(name);
   matrix->context = context;
   matrix->vtable = vtable;
+  if (vtable.compute_weight_displacement == NULL)
+    matrix->vtable.compute_weight_displacement = simple_weight_displacement;
   matrix->W = W;
 
   return matrix;
@@ -120,30 +132,11 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   // Compute the (single-component) diagonal matrix W of MLS weights.
   real_t W[num_nodes*num_nodes];
   memset(W, 0.0, sizeof(real_t) * num_nodes*num_nodes);
-  if (matrix->vtable.get_scale_factors != NULL)
+  for (int j = 0; j < num_nodes; ++j)
   {
-    // No distance scaling needed.
-    for (int j = 0; j < num_nodes; ++j)
-    {
-      vector_t y;
-      point_displacement(&xi, &xjs[j], &y);
-      W[num_nodes*j+j] = point_weight_function_value(matrix->W, &y);
-    }
-  }
-  else
-  {
-    // We have to compute the scaling factors and scale the point distances.
-    real_t scale_factors[num_nodes];
-    matrix->vtable.get_scale_factors(matrix->context, nodes, num_nodes, 
-                                     scale_factors);
-    for (int j = 0; j < num_nodes; ++j)
-    {
-      vector_t y;
-      point_displacement(&xi, &xjs[j], &y);
-      ASSERT(scale_factors[j] != 0.0);
-      vector_scale(&y, 1.0/scale_factors[j]);
-      W[num_nodes*j+j] = point_weight_function_value(matrix->W, &y);
-    }
+    vector_t y;
+    matrix->vtable.compute_weight_displacement(matrix->context, i, &xi, j, &xjs[j], &y);
+    W[num_nodes*j+j] = point_weight_function_value(matrix->W, &y);
   }
 
   // Compute the "Phi" matrix Phi = (Pt * W * P)^-1 * W * Pt.
@@ -170,6 +163,7 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
 typedef struct
 {
   point_cloud_t* points;
+  real_t* extents;
   stencil_t* stencil;
 } sbm_t;
 
@@ -192,6 +186,18 @@ static void sbm_get_points(void* context, int* nodes, int num_nodes, point_t* po
     points[i] = sbm->points->points[nodes[i]];
 }
 
+static void sbm_compute_y(void* context, 
+                          int i, point_t* xi, 
+                          int j, point_t* xj, 
+                          vector_t* y)
+{
+  sbm_t* sbm = context;
+  real_t Ri = sbm->extents[i];
+  y->x = (xj->x - xi->x) / Ri;
+  y->y = (xj->y - xi->y) / Ri;
+  y->z = (xj->z - xi->z) / Ri;
+}
+
 static void sbm_dtor(void* context)
 {
   sbm_t* sbm = context;
@@ -200,14 +206,17 @@ static void sbm_dtor(void* context)
 
 gmls_matrix_t* stencil_based_gmls_matrix_new(point_weight_function_t* W,
                                              point_cloud_t* points,
+                                             real_t* extents,
                                              stencil_t* stencil)
 {
   sbm_t* sbm = polymec_malloc(sizeof(sbm_t));
   sbm->points = points;
+  sbm->extents = extents;
   sbm->stencil = stencil;
   gmls_matrix_vtable vtable = {.num_nodes = sbm_num_nodes,
                                .get_nodes = sbm_get_nodes,
                                .get_points = sbm_get_points,
+                               .compute_weight_displacement = sbm_compute_y,
                                .dtor = sbm_dtor};
   return gmls_matrix_new("Stencil-based GMLS matrix", sbm, vtable, W);
 }
