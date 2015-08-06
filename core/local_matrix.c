@@ -20,6 +20,7 @@ local_matrix_t* local_matrix_new(const char* name,
 {
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.add_column_vector != NULL);
+  ASSERT(vtable.add_row_vector != NULL);
   ASSERT(vtable.add_identity != NULL);
   ASSERT(vtable.solve != NULL);
   ASSERT(vtable.fprintf != NULL);
@@ -64,6 +65,17 @@ void local_matrix_add_column_vector(local_matrix_t* matrix,
                                    scale_factor,
                                    column,
                                    column_vector);
+}
+
+void local_matrix_add_row_vector(local_matrix_t* matrix, 
+                                 real_t scale_factor,
+                                 int row,
+                                 real_t* row_vector)
+{
+  matrix->vtable.add_row_vector(matrix->context,
+                                scale_factor,
+                                row,
+                                row_vector);
 }
 
 void local_matrix_add_identity(local_matrix_t* matrix, 

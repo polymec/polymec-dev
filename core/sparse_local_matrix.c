@@ -170,6 +170,39 @@ static void slm_add_column_vector(void* context,
   }
 }
 
+static void slm_add_row_vector(void* context, 
+                               real_t scale_factor,
+                               int row,
+                               real_t* row_vector)
+{
+  slm_t* mat = context;
+  SuperMatrix* A = mat->A;
+
+  NCformat* data = A->Store;
+  real_t* Jij = data->nzval;
+
+  int i = row;
+
+  if (i >= mat->N) return;
+
+  // Add in the diagonal element.
+  Jij[data->colptr[i]] += scale_factor * row_vector[i];
+      
+  // Add in off-diagonal row values. FIXME
+#if 0
+  int pos = 0, j;
+  while (adj_graph_next_edge(mat->sparsity, i, &pos, &j))
+  {
+    int col_index = data->colptr[i];
+    size_t num_rows = data->colptr[i+1] - col_index;
+    int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, j);
+    ASSERT(entry != NULL);
+    size_t offset = entry - &data->rowind[col_index];
+    Jij[data->colptr[i] + offset] += scale_factor * row_vector[j];
+  }
+#endif
+}
+
 static bool slm_solve(void* context, real_t* B, real_t* x)
 {
   slm_t* mat = context;
@@ -396,6 +429,7 @@ local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
                                 .zero = slm_zero,
                                 .add_identity = slm_add_identity,
                                 .add_column_vector = slm_add_column_vector,
+                                .add_row_vector = slm_add_row_vector,
                                 .solve = slm_solve,
                                 .fprintf = slm_fprintf,
                                 .value = slm_value,

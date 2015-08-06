@@ -27,6 +27,10 @@ typedef struct local_matrix_vtable
                             real_t scale_factor,
                             int column,
                             real_t* column_vector);
+  void (*add_row_vector)(void* context,  // Adds in a scaled row vector.
+                         real_t scale_factor,
+                         int row,
+                         real_t* row_vector);
   bool (*solve)(void* context, real_t* B, real_t* x); // Solves A*x = B.
   void (*fprintf)(void* context, FILE* stream); // Prints matrix to stream.
   real_t (*value)(void* context, int i, int j); // A(i, j)
@@ -56,6 +60,12 @@ void local_matrix_add_column_vector(local_matrix_t* matrix,
                                     real_t scale_factor,
                                     int column,
                                     real_t* column_vector);
+
+// Adds a scaled row vector into a local matrix.
+void local_matrix_add_row_vector(local_matrix_t* matrix, 
+                                 real_t scale_factor,
+                                 int row,
+                                 real_t* row_vector);
 
 // Adds a scaled identity matrix into a local matrix.
 void local_matrix_add_identity(local_matrix_t* matrix, 

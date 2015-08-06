@@ -61,6 +61,33 @@ static void bdm_add_column_vector(void* context,
   }
 }
 
+static void bdm_add_row_vector(void* context,
+                               real_t scale_factor,
+                               int row,
+                               real_t* row_vector)
+{
+  bdm_t* A = context;
+  real_t* D = A->D;
+
+  int i = row;
+
+  // We have to find the right block row.
+  int block_row = 0;
+  while ((A->B_offsets[block_row] < i) && (block_row < A->num_block_rows))
+    ++block_row;
+
+  if (block_row < A->num_block_rows)
+  {
+    int bs = A->B_offsets[block_row+1] - A->B_offsets[block_row];
+    int r = i % bs;
+    for (int c = 0; c < bs; ++c)
+    {
+      int j = A->B_offsets[block_row] + c;
+      D[A->D_offsets[block_row] + c*bs + r] += scale_factor * row_vector[j];
+    }
+  }
+}
+
 static void bdm_add_column_vector_constant_bs(void* context,
                                               real_t scale_factor,
                                               int column,
@@ -298,6 +325,7 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
                                 .zero = bdm_zero,
                                 .add_identity = bdm_add_identity,
                                 .add_column_vector = bdm_add_column_vector,
+                                .add_row_vector = bdm_add_row_vector,
                                 .solve = bdm_solve,
                                 .fprintf = bdm_fprintf,
                                 .value = bdm_value,
