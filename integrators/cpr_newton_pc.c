@@ -136,7 +136,8 @@ newton_pc_t* ilu_cpr_newton_pc_from_function(MPI_Comm comm,
 {
   ASSERT(ilu_params != NULL);
   ASSERT(num_local_rows == adj_graph_num_vertices(sparsity));
-  local_matrix_t* P = ilu_sparse_local_matrix_new(sparsity, ilu_params);
+  local_matrix_t* P = sparse_local_matrix_new(sparsity);
+  sparse_local_matrix_use_ilu(P, ilu_params);
   return cpr_newton_pc_from_function_and_matrix(comm, context, F, NULL, dtor, 
                                                 sparsity, num_local_rows, 
                                                 num_remote_rows, P);
@@ -212,7 +213,8 @@ newton_pc_t* ilu_cpr_newton_pc_from_dae_function(MPI_Comm comm,
 {
   ASSERT(ilu_params != NULL);
   ASSERT(num_local_rows == adj_graph_num_vertices(sparsity));
-  local_matrix_t* P = ilu_sparse_local_matrix_new(sparsity, ilu_params);
+  local_matrix_t* P = sparse_local_matrix_new(sparsity);
+  sparse_local_matrix_use_ilu(P, ilu_params);
   return cpr_newton_pc_from_function_and_matrix(comm, context, NULL, F, dtor, 
                                                 sparsity, num_local_rows, 
                                                 num_remote_rows, P);

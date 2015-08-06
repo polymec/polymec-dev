@@ -45,6 +45,9 @@ void local_matrix_free(local_matrix_t* matrix);
 // matrix representation.
 char* local_matrix_name(local_matrix_t* matrix);
 
+// Returns the context pointer associated with this matrix.
+void* local_matrix_context(local_matrix_t* matrix);
+
 // Sets all entries in a local matrix to zero.
 void local_matrix_zero(local_matrix_t* matrix);
 

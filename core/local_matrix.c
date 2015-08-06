@@ -45,6 +45,11 @@ char* local_matrix_name(local_matrix_t* matrix)
   return matrix->name;
 }
 
+void* local_matrix_context(local_matrix_t* matrix)
+{
+  return matrix->context;
+}
+
 void local_matrix_zero(local_matrix_t* matrix)
 {
   matrix->vtable.zero(matrix->context);

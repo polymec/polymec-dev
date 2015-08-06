@@ -367,15 +367,9 @@ static void slm_dtor(void* context)
 
 local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
 {
-  return ilu_sparse_local_matrix_new(sparsity, NULL);
-}
-
-local_matrix_t* ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
-                                            ilu_params_t* ilu_params)
-{
   slm_t* mat = polymec_malloc(sizeof(slm_t));
   mat->sparsity = adj_graph_clone(sparsity); // MINE!
-  mat->ilu_params = ilu_params;
+  mat->ilu_params = NULL;
   mat->A = supermatrix_new(sparsity);
 
   // Solver data.
@@ -387,42 +381,13 @@ local_matrix_t* ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
   StatInit(&mat->stat);
   mat->cperm = NULL;
   mat->rperm = NULL;
-  if (ilu_params != NULL)
-    ilu_set_default_options(&mat->options);
-  else
-    set_default_options(&mat->options);
+  set_default_options(&mat->options);
   mat->options.ColPerm = NATURAL;
   mat->options.Fact = DOFACT;
 #ifndef NDEBUG
   mat->options.PivotGrowth = YES;
   mat->options.ConditionNumber = YES;
 #endif
-  if (ilu_params != NULL)
-  {
-    mat->options.DiagPivotThresh = ilu_params->diag_pivot_threshold;
-    if (ilu_params->row_perm == ILU_NO_ROW_PERM)
-      mat->options.RowPerm = NOROWPERM;
-    else
-      mat->options.RowPerm = LargeDiag;
-    mat->options.ILU_DropRule = ilu_params->drop_rule;
-    mat->options.ILU_DropTol = ilu_params->drop_tolerance;
-    mat->options.ILU_FillFactor = ilu_params->fill_factor;
-    if (ilu_params->milu_variant == ILU_SILU)
-      mat->options.ILU_MILU = SILU;
-    else if (ilu_params->milu_variant == ILU_MILU1)
-      mat->options.ILU_MILU = SMILU_1;
-    else if (ilu_params->milu_variant == ILU_MILU2)
-      mat->options.ILU_MILU = SMILU_2;
-    else 
-      mat->options.ILU_MILU = SMILU_3;
-    mat->options.ILU_FillTol = ilu_params->fill_tolerance;
-    if (ilu_params->norm == ILU_L1)
-      mat->options.ILU_Norm = ONE_NORM;
-    else if (ilu_params->norm == ILU_L2)
-      mat->options.ILU_Norm = TWO_NORM;
-    else
-      mat->options.ILU_Norm = INF_NORM;
-  }
   mat->etree = NULL;
 
   char name[1024];
@@ -436,5 +401,45 @@ local_matrix_t* ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
                                 .value = slm_value,
                                 .set_value = slm_set_value};
   return local_matrix_new(name, mat, vtable);
+}
+
+void sparse_local_matrix_use_ilu(local_matrix_t* matrix,
+                                 ilu_params_t* ilu_params)
+{
+  ASSERT(ilu_params != NULL);
+
+  slm_t* mat = local_matrix_context(matrix);
+  mat->ilu_params = ilu_params;
+  ilu_set_default_options(&mat->options);
+  mat->options.DiagPivotThresh = ilu_params->diag_pivot_threshold;
+  if (ilu_params->row_perm == ILU_NO_ROW_PERM)
+    mat->options.RowPerm = NOROWPERM;
+  else
+    mat->options.RowPerm = LargeDiag;
+  mat->options.ILU_DropRule = ilu_params->drop_rule;
+  mat->options.ILU_DropTol = ilu_params->drop_tolerance;
+  mat->options.ILU_FillFactor = ilu_params->fill_factor;
+  if (ilu_params->milu_variant == ILU_SILU)
+    mat->options.ILU_MILU = SILU;
+  else if (ilu_params->milu_variant == ILU_MILU1)
+    mat->options.ILU_MILU = SMILU_1;
+  else if (ilu_params->milu_variant == ILU_MILU2)
+    mat->options.ILU_MILU = SMILU_2;
+  else 
+    mat->options.ILU_MILU = SMILU_3;
+  mat->options.ILU_FillTol = ilu_params->fill_tolerance;
+  if (ilu_params->norm == ILU_L1)
+    mat->options.ILU_Norm = ONE_NORM;
+  else if (ilu_params->norm == ILU_L2)
+    mat->options.ILU_Norm = TWO_NORM;
+  else
+    mat->options.ILU_Norm = INF_NORM;
+}
+
+void sparse_local_matrix_use_lu(local_matrix_t* matrix)
+{
+  slm_t* mat = local_matrix_context(matrix);
+  mat->ilu_params = NULL;
+  set_default_options(&mat->options);
 }
 

@@ -76,10 +76,13 @@ typedef struct
 // norm = ILU_INF
 ilu_params_t* ilu_params_new();
 
-// This returns an object representing a sparse local matrix with a
-// sparsity pattern given by a graph, using incomplete LU factorization for 
-// the solution of its linear system.
-local_matrix_t* ilu_sparse_local_matrix_new(adj_graph_t* sparsity,
-                                            ilu_params_t* ilu_params);
+// This instructs the given sparse_local_matrix object to use Incomplete LU
+// factorization with the given parameters.
+void sparse_local_matrix_use_ilu(local_matrix_t* matrix,
+                                 ilu_params_t* ilu_params);
+
+// This instructs the given sparse_local_matrix object to use regular LU
+// factorization instead of ILU.
+void sparse_local_matrix_use_lu(local_matrix_t* matrix);
 
 #endif
