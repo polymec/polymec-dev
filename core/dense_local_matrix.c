@@ -123,6 +123,7 @@ local_matrix_t* dense_local_matrix_new(int N)
   dlm_t* mat = polymec_malloc(sizeof(dlm_t));
   mat->N = N;
   mat->A = polymec_malloc(sizeof(real_t) * N * N);
+  memset(mat->A, 0, sizeof(real_t) * N * N);
 
   char name[1024];
   snprintf(name, 1024, "Dense local matrix (N = %d)", mat->N);

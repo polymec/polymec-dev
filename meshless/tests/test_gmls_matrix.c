@@ -10,6 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
+#include "core/dense_local_matrix.h"
 #include "meshless/gmls_matrix.h"
 #include "make_mlpg_lattice.h"
 #include "poisson_gmls_functional.h"
@@ -44,7 +45,8 @@ void test_gmls_matrix_with_frankes_function(void** state)
   point_cloud_t* points;
   real_t* extents;
   stencil_t* stencil;
-  make_mlpg_lattice(10, 10, 1, 2.0, &points, &extents, &stencil);
+  int nx = 10, ny = 10, N = nx*ny;
+  make_mlpg_lattice(nx, ny, 1, 2.0, &points, &extents, &stencil);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, points, extents, stencil);
   gmls_functional_t* lambda = poisson_gmls_functional_new(2, points, extents);
@@ -52,7 +54,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
 
   // Set up our beloved linear system using a dense matrix.
   // FIXME: point lattice should have boundary points labeled.
-  real_t A[100*100], B[100];
+  local_matrix_t* A = dense_local_matrix_new(N);
 
   // Treat boundary nodes first.
   int_unordered_set_t* boundary_nodes = int_unordered_set_new();
@@ -66,14 +68,15 @@ void test_gmls_matrix_with_frankes_function(void** state)
     int cols[num_cols];
     real_t coeffs[num_cols];
     gmls_matrix_compute_dirichlet_row(matrix, bnode, lambda, cols, coeffs);
-    for (int c = 0; c < num_cols; ++c)
-    {
-      // FIXME
-    }
+    real_t row_vector[N];
+    memset(row_vector, 0, sizeof(real_t) * N);
+    for (int j = 0; j < num_cols; ++j)
+      row_vector[cols[j]] = coeffs[j];
+    local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
     int_unordered_set_insert(boundary_nodes, bnode);
   }
 
-  for (int r = 0; r < 100; ++r)
+  for (int r = 0; r < N; ++r)
   {
     if (!int_unordered_set_contains(boundary_nodes, r))
     {
@@ -81,14 +84,16 @@ void test_gmls_matrix_with_frankes_function(void** state)
       int cols[num_cols];
       real_t coeffs[num_cols];
       gmls_matrix_compute_row(matrix, r, lambda, 0.0, cols, coeffs);
-      for (int c = 0; c < num_cols; ++c)
-      {
-        // FIXME
-      }
+      real_t row_vector[N];
+      memset(row_vector, 0, sizeof(real_t) * N);
+      for (int j = 0; j < num_cols; ++j)
+        row_vector[cols[j]] = coeffs[j];
+      local_matrix_add_row_vector(A, 1.0, r, row_vector);
     }
   }
 
   // Fill in the RHS vector.
+  real_t B[N];
   for (int b = 0; b < num_bnodes; ++b)
   {
     int bnode = bnodes[b];
@@ -96,6 +101,9 @@ void test_gmls_matrix_with_frankes_function(void** state)
   }
 
   // Solve the linear system.
+  real_t U[N];
+  bool solved = local_matrix_solve(A, B, U);
+  assert_true(solved);
 
   // Clean up.
   gmls_matrix_free(matrix);
