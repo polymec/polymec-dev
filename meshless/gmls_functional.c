@@ -7,7 +7,7 @@
 
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
-#include "model/gmls_functional.h"
+#include "meshless/gmls_functional.h"
 
 struct gmls_functional_t 
 {

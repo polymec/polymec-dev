@@ -12,7 +12,7 @@
 #include "cmockery.h"
 #include "core/silo_file.h"
 #include "geometry/create_point_lattice.h"
-#include "model/partition_point_cloud_with_neighbors.h"
+#include "meshless/partition_point_cloud_with_neighbors.h"
 
 // This creates a neighbor pairing using a hat function.
 extern neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h);

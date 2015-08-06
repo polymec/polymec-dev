@@ -9,7 +9,7 @@
 #define POISSON_GMLS_FUNCTIONAL_H
 
 #include "core/point_cloud.h"
-#include "model/gmls_functional.h"
+#include "meshless/gmls_functional.h"
 
 // Constructs a GMLS functional for solving Poisson's equation on the 
 // interior of a domain, using a polynomial basis of the given degree.

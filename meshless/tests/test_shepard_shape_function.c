@@ -12,7 +12,7 @@
 #include "cmockery.h"
 #include "core/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
-#include "model/shepard_shape_function.h"
+#include "meshless/shepard_shape_function.h"
 
 // Helper function to construct lattices of points, stencils, h fields.
 static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,

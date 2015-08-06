@@ -10,9 +10,9 @@
 
 #include "core/polynomial.h"
 #include "core/point_cloud.h"
-#include "model/gmls_functional.h"
-#include "model/point_weight_function.h"
 #include "model/stencil.h"
+#include "model/point_weight_function.h"
+#include "meshless/gmls_functional.h"
 
 // This class uses a Generalized Moving Least Squares (GMLS) functional to construct 
 // a matrix such that 

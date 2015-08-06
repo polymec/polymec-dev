@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
-#include "model/gmls_matrix.h"
+#include "meshless/gmls_matrix.h"
 #include "make_mlpg_lattice.h"
 #include "poisson_gmls_functional.h"
 

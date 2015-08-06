@@ -10,7 +10,7 @@
 
 #include "core/point_cloud.h"
 #include "model/stencil.h"
-#include "model/shape_function.h"
+#include "meshless/shape_function.h"
 
 // Creates a moving-least-squares polynomial shape function defined on the 
 // given point cloud with neighborhoods given by the given stencil. Here,

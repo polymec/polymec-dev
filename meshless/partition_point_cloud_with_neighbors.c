@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/partition_point_cloud.h"
-#include "model/partition_point_cloud_with_neighbors.h"
+#include "meshless/partition_point_cloud_with_neighbors.h"
 
 // Defined in core/partition_mesh.c, but not part of API.
 extern int64_t* partition_graph(adj_graph_t* global_graph, 

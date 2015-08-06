@@ -15,7 +15,7 @@ def find_c_headers(dirname):
     os.path.walk(dirname, visit_c_files, headers)
     return headers
 
-polymec_libs = ['core', 'geometry', 'integrators', 'model']
+polymec_libs = ['core', 'geometry', 'integrators', 'model', 'meshless']
 
 # Generate library-specific headers.
 for lib in polymec_libs:

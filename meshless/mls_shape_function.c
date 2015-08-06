@@ -7,7 +7,7 @@
 
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
-#include "model/mls_shape_function.h"
+#include "meshless/mls_shape_function.h"
 
 typedef struct
 {

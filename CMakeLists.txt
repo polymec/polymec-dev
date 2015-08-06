@@ -180,6 +180,7 @@ add_subdirectory(core)
 add_subdirectory(geometry)
 add_subdirectory(integrators)
 add_subdirectory(model)
+add_subdirectory(meshless)
 
 # Now that we have gathered all our libraries, generate a polymec.cmake 
 # file that contains all the vital information.

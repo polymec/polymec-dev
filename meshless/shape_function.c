@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "gc/gc.h"
-#include "model/shape_function.h"
+#include "meshless/shape_function.h"
 
 struct shape_function_kernel_t
 {
