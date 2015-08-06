@@ -150,23 +150,15 @@ static void slm_add_column_vector(void* context,
   NCformat* data = A->Store;
   real_t* Jij = data->nzval;
 
-  int i = column;
+  if (column >= mat->N) return;
+  int col_index = data->colptr[column];
 
-  if (i >= mat->N) return;
-
-  // Add in the diagonal element.
-  Jij[data->colptr[i]] += scale_factor * column_vector[i];
-      
-  // Add in off-diagonal column values.
-  int pos = 0, j;
-  while (adj_graph_next_edge(mat->sparsity, i, &pos, &j))
+  // Add in the row values.
+  size_t num_rows = data->colptr[column+1] - col_index;
+  for (int r = 0; r < num_rows; ++r)
   {
-    int col_index = data->colptr[i];
-    size_t num_rows = data->colptr[i+1] - col_index;
-    int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, j);
-    ASSERT(entry != NULL);
-    size_t offset = entry - &data->rowind[col_index];
-    Jij[data->colptr[i] + offset] += scale_factor * column_vector[j];
+    int row = data->rowind[col_index+r];
+    Jij[col_index+r] += scale_factor * column_vector[row];
   }
 }
 
@@ -188,19 +180,17 @@ static void slm_add_row_vector(void* context,
   // Add in the diagonal element.
   Jij[data->colptr[i]] += scale_factor * row_vector[i];
       
-  // Add in off-diagonal row values. FIXME
-#if 0
+  // Add in off-diagonal column values. 
   int pos = 0, j;
   while (adj_graph_next_edge(mat->sparsity, i, &pos, &j))
   {
-    int col_index = data->colptr[i];
-    size_t num_rows = data->colptr[i+1] - col_index;
-    int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, j);
+    int col_index = data->colptr[j];
+    size_t num_rows = data->colptr[j+1] - col_index;
+    int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
     ASSERT(entry != NULL);
     size_t offset = entry - &data->rowind[col_index];
-    Jij[data->colptr[i] + offset] += scale_factor * row_vector[j];
+    Jij[data->colptr[j] + offset] += scale_factor * row_vector[i];
   }
-#endif
 }
 
 static bool slm_solve(void* context, real_t* B, real_t* x)
