@@ -13,7 +13,8 @@
 #include "core/st_func.h"
 
 // This class represents an interface for approximating volume integrals 
-// using a given quadrature rule / volume.
+// using a given quadrature rule / volume. Objects of this type are 
+// garbage-collected.
 typedef struct volume_integral_t volume_integral_t;
 
 // The following virtual table allows the implementation of a volume integral.
@@ -36,9 +37,6 @@ typedef struct
 volume_integral_t* volume_integral_new(const char* name,
                                        void* context,
                                        volume_integral_vtable vtable);
-
-// Destroys the given volume integral.
-void volume_integral_free(volume_integral_t* integ);
 
 // Sets up the volume integral to compute on the ith subdomain in a spatial 
 // discretization. This could be a cell within a mesh, or a point within a 

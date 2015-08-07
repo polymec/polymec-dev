@@ -14,20 +14,20 @@ struct gmls_functional_t
   char *name;
   void* context;
   gmls_functional_vtable vtable;
-  bool on_boundary;
+  volume_integral_t* volume_quad_rule;
+  surface_integral_t* surface_quad_rule;
 
   multicomp_poly_basis_t* basis;
   int dim, num_comp;
 };
 
-gmls_functional_t* gmls_functional_new(const char* name,
-                                       void* context,
-                                       gmls_functional_vtable vtable,
-                                       multicomp_poly_basis_t* poly_basis,
-                                       bool on_boundary)
+gmls_functional_t* volume_gmls_functional_new(const char* name,
+                                              void* context,
+                                              gmls_functional_vtable vtable,
+                                              multicomp_poly_basis_t* poly_basis,
+                                              volume_integral_t* quad_rule)
+            
 {
-  ASSERT(vtable.num_quad_points != NULL);
-  ASSERT(vtable.get_quadrature != NULL);
   ASSERT(vtable.eval_integrands != NULL);
 
   gmls_functional_t* functional = polymec_malloc(sizeof(gmls_functional_t));
@@ -37,7 +37,29 @@ gmls_functional_t* gmls_functional_new(const char* name,
   functional->dim = multicomp_poly_basis_dim(poly_basis);
   functional->basis = poly_basis;
   functional->num_comp = multicomp_poly_basis_num_comp(poly_basis);
-  functional->on_boundary = on_boundary;
+  functional->volume_quad_rule = quad_rule;
+  functional->surface_quad_rule = NULL;
+  return functional;
+}
+
+gmls_functional_t* surface_gmls_functional_new(const char* name,
+                                               void* context,
+                                               gmls_functional_vtable vtable,
+                                               multicomp_poly_basis_t* poly_basis,
+                                               surface_integral_t* quad_rule)
+            
+{
+  ASSERT(vtable.eval_integrands != NULL);
+
+  gmls_functional_t* functional = polymec_malloc(sizeof(gmls_functional_t));
+  functional->name = string_dup(name);
+  functional->context = context;
+  functional->vtable = vtable;
+  functional->dim = multicomp_poly_basis_dim(poly_basis);
+  functional->basis = poly_basis;
+  functional->num_comp = multicomp_poly_basis_num_comp(poly_basis);
+  functional->volume_quad_rule = NULL;
+  functional->surface_quad_rule = quad_rule;
   return functional;
 }
 
@@ -59,19 +81,16 @@ int gmls_functional_num_components(gmls_functional_t* functional)
   return functional->num_comp;
 }
 
-void gmls_functional_compute(gmls_functional_t* functional,
-                             int component, 
-                             int i,
+static void compute_integral(gmls_functional_t* functional,
+                             int component,
+                             point_t* quad_points,
+                             real_t* quad_weights,
+                             vector_t* quad_normals,
+                             int num_quad_points,
                              real_t t,
                              real_t* lambdas)
 {
-  // Compute the quadrature points/weights for this subdomain.
-  int num_quad_points = functional->vtable.num_quad_points(functional->context, i);
-  point_t quad_points[num_quad_points];
-  real_t quad_weights[num_quad_points];
-  vector_t quad_normals[num_quad_points];
-  functional->vtable.get_quadrature(functional->context, i, num_quad_points, 
-                                    quad_points, quad_weights, quad_normals);
+  bool on_boundary = (quad_normals != NULL);
 
   // Loop through the points and compute the lambda matrix of functional 
   // approximants.
@@ -82,7 +101,7 @@ void gmls_functional_compute(gmls_functional_t* functional,
   {
     point_t* xq = &quad_points[q];
     real_t wq = quad_weights[q];
-    vector_t* nq = (functional->on_boundary) ? &quad_normals[q] : NULL;
+    vector_t* nq = (on_boundary) ? &quad_normals[q] : NULL;
 
     // Now compute the (multi-component) integrands for the functional at 
     // this point.
@@ -95,6 +114,35 @@ void gmls_functional_compute(gmls_functional_t* functional,
     for (int i = 0; i < basis_dim; ++i)
       for (int c = 0; c < num_comp; ++c)
         lambdas[num_comp*i+c] += wq * integrands[num_comp*i+c];
+  }
+}
+
+void gmls_functional_compute(gmls_functional_t* functional,
+                             int component, 
+                             int i,
+                             real_t t,
+                             real_t* lambdas)
+{
+  if (functional->surface_quad_rule != NULL)
+  {
+    surface_integral_set_domain(functional->surface_quad_rule, i);
+    int num_quad_points = surface_integral_num_points(functional->surface_quad_rule);
+    point_t quad_points[num_quad_points];
+    real_t quad_weights[num_quad_points];
+    vector_t quad_normals[num_quad_points];
+    surface_integral_get_quadrature(functional->surface_quad_rule, quad_points, quad_weights, quad_normals);
+    compute_integral(functional, component, quad_points, quad_weights, quad_normals, 
+                     num_quad_points, t, lambdas);
+  }
+  else
+  {
+    volume_integral_set_domain(functional->volume_quad_rule, i);
+    int num_quad_points = volume_integral_num_points(functional->volume_quad_rule);
+    point_t quad_points[num_quad_points];
+    real_t quad_weights[num_quad_points];
+    volume_integral_get_quadrature(functional->volume_quad_rule, quad_points, quad_weights);
+    compute_integral(functional, component, quad_points, quad_weights, NULL, 
+                     num_quad_points, t, lambdas);
   }
 }
 

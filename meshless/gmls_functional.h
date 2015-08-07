@@ -9,6 +9,8 @@
 #define POLYMEC_GMLS_FUNCTIONAL_H
 
 #include "core/polynomial.h"
+#include "integrators/volume_integral.h"
+#include "integrators/surface_integral.h"
 
 // This class represents a functional lambda(u) that represents a weak 
 // form for a solution u and or its derivatives, projected to a polynomial 
@@ -26,17 +28,6 @@ typedef struct gmls_functional_t gmls_functional_t;
 // This virtual table defines the behavior of a GMLS functional.
 typedef struct
 {
-  // This function returns the number of quadrature points for the quadrature 
-  // rule underlying this functional on the ith subdomain.
-  int (*num_quad_points)(void* context, int i);
-
-  // This function computes the N quadrature points and weights for the ith 
-  // subdomain on which the functional is to be evaluated. If the weak form
-  // is integrated over the boundary of a subdomain, normals should be 
-  // populated with the normal vectors for each of the quadrature points.
-  void (*get_quadrature)(void* context, int i, int N, 
-                         point_t* points, real_t* weights, vector_t* normals);
-
   // This function evaluates the integrand of the functional applied to each 
   // of the numcomp * Q polynomial basis vectors represented by the given 
   // gmls_poly_basis object, to be evaluated for the given component at the 
@@ -56,16 +47,25 @@ typedef struct
 } gmls_functional_vtable;
 
 // Creates a generalized MLS functional with the given name, context, virtual 
-// table, and (multicomponent) polynomial basis. on_boundary should be true 
-// if the functional is integrated over the boundary of a subdomain and false 
-// otherwise. The solution is assumed to be a vector of degrees of freedom 
+// table, (multicomponent) polynomial basis, and volume integral rule.
+// The solution is assumed to be a vector of degrees of freedom 
 // expressed in node-major order.
-gmls_functional_t* gmls_functional_new(const char* name,
-                                       void* context,
-                                       gmls_functional_vtable vtable,
-                                       multicomp_poly_basis_t* poly_basis,
-                                       bool on_boundary);
+gmls_functional_t* volume_gmls_functional_new(const char* name,
+                                              void* context,
+                                              gmls_functional_vtable vtable,
+                                              multicomp_poly_basis_t* poly_basis,
+                                              volume_integral_t* quad_rule);
 
+// Creates a generalized MLS functional with the given name, context, virtual 
+// table, (multicomponent) polynomial basis, and surface integral rule.
+// The solution is assumed to be a vector of degrees of freedom 
+// expressed in node-major order.
+gmls_functional_t* surface_gmls_functional_new(const char* name,
+                                               void* context,
+                                               gmls_functional_vtable vtable,
+                                               multicomp_poly_basis_t* poly_basis,
+                                               surface_integral_t* quad_rule);
+ 
 // Destroys the given GMLS functional.
 void gmls_functional_free(gmls_functional_t* functional);
 

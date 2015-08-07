@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "gc/gc.h"
 #include "integrators/volume_integral.h"
 
 struct volume_integral_t 
@@ -19,25 +20,9 @@ struct volume_integral_t
   real_t* weights;
 };
 
-volume_integral_t* volume_integral_new(const char* name,
-                                       void* context,
-                                       volume_integral_vtable vtable)
+static void volume_integral_free(void* ctx, void* dummy)
 {
-  ASSERT(vtable.num_quad_points != NULL);
-  ASSERT(vtable.get_quadrature != NULL);
-
-  volume_integral_t* integ = polymec_malloc(sizeof(volume_integral_t));
-  integ->name = string_dup(name);
-  integ->context = context;
-  integ->vtable = vtable;
-  integ->num_points = 0;
-  integ->points = NULL;
-  integ->weights = NULL;
-  return integ;
-}
-
-void volume_integral_free(volume_integral_t* integ)
-{
+  volume_integral_t* integ = ctx;
   if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
     integ->vtable.dtor(integ->context);
   if (integ->points != NULL)
@@ -45,7 +30,24 @@ void volume_integral_free(volume_integral_t* integ)
   if (integ->weights != NULL)
     polymec_free(integ->weights);
   string_free(integ->name);
-  polymec_free(integ);
+}
+
+volume_integral_t* volume_integral_new(const char* name,
+                                       void* context,
+                                       volume_integral_vtable vtable)
+{
+  ASSERT(vtable.num_quad_points != NULL);
+  ASSERT(vtable.get_quadrature != NULL);
+
+  volume_integral_t* integ = GC_MALLOC(sizeof(volume_integral_t));
+  integ->name = string_dup(name);
+  integ->context = context;
+  integ->vtable = vtable;
+  integ->num_points = 0;
+  integ->points = NULL;
+  integ->weights = NULL;
+  GC_register_finalizer(integ, volume_integral_free, integ, NULL, NULL);
+  return integ;
 }
 
 void volume_integral_set_domain(volume_integral_t* integ, int i)

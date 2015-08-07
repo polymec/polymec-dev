@@ -53,11 +53,6 @@ static void poisson_get_quadrature_p2(void* context, int i, int N,
   normals[5].y = 1.0;
 }
 
-static void poisson_get_quadrature_p4(void* context, int i, int N, 
-                                      point_t* points, real_t* weights, vector_t* normals)
-{
-}
-
 static void poisson_eval_integrands(void* context, int component, 
                                     real_t t, point_t* x, vector_t* n,
                                     multicomp_poly_basis_t* basis, 
@@ -81,21 +76,9 @@ gmls_functional_t* poisson_gmls_functional_new(int degree,
   poisson_t* poisson = polymec_malloc(sizeof(poisson_t));
   poisson->degree = degree;
   multicomp_poly_basis_t* P = standard_multicomp_poly_basis_new(1, degree);
-  gmls_functional_vtable vtable = {.num_quad_points = poisson_num_quad_points,
-                                   .eval_integrands = poisson_eval_integrands,
+  surface_integral_t* Q = NULL; //dmlpg_box_surface_integral(points, subdomain_extents, degree, 2.0);
+  gmls_functional_vtable vtable = {.eval_integrands = poisson_eval_integrands,
                                    .dtor = polymec_free};
-  switch (degree)
-  {
-    case 2:
-    case 3:
-      vtable.get_quadrature = poisson_get_quadrature_p2;
-      break;
-    case 4:
-      vtable.get_quadrature = poisson_get_quadrature_p4;
-      break;
-    default:
-      break;
-  }
-  return gmls_functional_new("Poisson's Equation", poisson, vtable, P, true);
+  return surface_gmls_functional_new("Poisson's Equation", poisson, vtable, P, Q);
 }
 

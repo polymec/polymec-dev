@@ -13,7 +13,8 @@
 #include "core/st_func.h"
 
 // This class represents an interface for approximating surface integrals 
-// using a given quadrature rule / surface.
+// using a given quadrature rule / surface. Objects of this type are 
+// garbage-collected.
 typedef struct surface_integral_t surface_integral_t;
 
 // The following virtual table allows the implementation of a surface integral.
@@ -36,9 +37,6 @@ typedef struct
 surface_integral_t* surface_integral_new(const char* name,
                                          void* context,
                                          surface_integral_vtable vtable);
-
-// Destroys the given surface integral.
-void surface_integral_free(surface_integral_t* integ);
 
 // Sets up the surface integral to compute on the ith subdomain in a spatial 
 // discretization. This could be a cell within a mesh, or a point within a 

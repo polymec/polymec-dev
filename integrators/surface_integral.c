@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "gc/gc.h"
 #include "integrators/surface_integral.h"
 
 struct surface_integral_t 
@@ -20,26 +21,9 @@ struct surface_integral_t
   vector_t* normals;
 };
 
-surface_integral_t* surface_integral_new(const char* name,
-                                         void* context,
-                                         surface_integral_vtable vtable)
+static void surface_integral_free(void* ctx, void* dummy)
 {
-  ASSERT(vtable.num_quad_points != NULL);
-  ASSERT(vtable.get_quadrature != NULL);
-
-  surface_integral_t* integ = polymec_malloc(sizeof(surface_integral_t));
-  integ->name = string_dup(name);
-  integ->context = context;
-  integ->vtable = vtable;
-  integ->num_points = 0;
-  integ->points = NULL;
-  integ->weights = NULL;
-  integ->normals = NULL;
-  return integ;
-}
-
-void surface_integral_free(surface_integral_t* integ)
-{
+  surface_integral_t* integ = ctx;
   if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
     integ->vtable.dtor(integ->context);
   if (integ->points != NULL)
@@ -49,7 +33,25 @@ void surface_integral_free(surface_integral_t* integ)
   if (integ->normals != NULL)
     polymec_free(integ->normals);
   string_free(integ->name);
-  polymec_free(integ);
+}
+
+surface_integral_t* surface_integral_new(const char* name,
+                                         void* context,
+                                         surface_integral_vtable vtable)
+{
+  ASSERT(vtable.num_quad_points != NULL);
+  ASSERT(vtable.get_quadrature != NULL);
+
+  surface_integral_t* integ = GC_MALLOC(sizeof(surface_integral_t));
+  integ->name = string_dup(name);
+  integ->context = context;
+  integ->vtable = vtable;
+  integ->num_points = 0;
+  integ->points = NULL;
+  integ->weights = NULL;
+  integ->normals = NULL;
+  GC_register_finalizer(integ, surface_integral_free, integ, NULL, NULL);
+  return integ;
 }
 
 void surface_integral_set_domain(surface_integral_t* integ, int i)
