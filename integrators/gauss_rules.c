@@ -10,22 +10,23 @@
 
 void get_gauss_points(int n, real_t* points, real_t* weights)
 {
+  // FIXME: Need to look this over again.
   ASSERT(n >= 0);
   ASSERT(points != NULL);
   ASSERT(weights != NULL);
 
-  int m = (n+1)/2;
+  int m = 2*(n-1); // order
   real_t p1, p2, p3;
   real_t pp, z;
-  for (int i = 1; i <= m; ++i)
+  for (int i = 1; i <= n; ++i)
   {
-    z = cos(M_PI * (i - 0.25) / (n + 0.5));
+    z = cos(M_PI * (i - 0.25) / (m + 0.5));
 
     while(1)
     {
       p1 = 1;
       p2 = 0;
-      for (int j = 1; j <= n; j++)
+      for (int j = 1; j <= m; j++)
       {
         p3 = p2;
         p2 = p1;
@@ -33,7 +34,7 @@ void get_gauss_points(int n, real_t* points, real_t* weights)
       }
       // p1 is Legendre polynomial
 
-      pp = n * (z*p1-p2) / (z*z - 1);
+      pp = m * (z*p1-p2) / (z*z - 1);
 
       if (fabs(p1/pp) < 2e-16) break;
 
@@ -51,11 +52,10 @@ void get_gauss_points(int n, real_t* points, real_t* weights)
 void get_gauss_legendre_points(int n, real_t* points, real_t* weights)
 {
   ASSERT(n >= 0);
-  //  ASSERT(n <= 16);
   ASSERT(points != NULL);
   ASSERT(weights != NULL);
 
-  // Tables of points and weights up to 16.
+  // Tables of points and weights of degree up to 16.
   static const real_t x[16][8] = 
    {{0.000000000000000},
     {0.577350269189626},
@@ -92,26 +92,27 @@ void get_gauss_legendre_points(int n, real_t* points, real_t* weights)
     {0.202578241925561, 0.198431485327111, 0.186161000015562, 0.166269205816994, 0.139570677926154, 0.107159220467172, 0.070366047488108, 0.030753241996117}, 
     {0.189450610455069, 0.182603415044924, 0.169156519395003, 0.149595988816577, 0.124628971255534, 0.095158511682493, 0.062253523938648, 0.027152459411754}}; 
 
-  if ((n % 2) == 1)
+  int degree = 2 * (n - 1);
+  if ((degree % 2) == 1)
   {
-    points[0] = x[n-1][0];
-    weights[0] = w[n-1][0];
-    for (int i = 1; i < n/2+1; ++i)
+    points[0] = x[degree-1][0];
+    weights[0] = w[degree-1][0];
+    for (int i = 1; i < n; ++i)
     {
-      points[2*i-1]  = -x[n-1][i];
-      weights[2*i-1] = w[n-1][i];
-      points[2*i]    = x[n-1][i];
-      weights[2*i]   = w[n-1][i];
+      points[2*i-1]  = -x[degree-1][i];
+      weights[2*i-1] = w[degree-1][i];
+      points[2*i]    = x[degree-1][i];
+      weights[2*i]   = w[degree-1][i];
     }
   }
   else
   {
-    for (int i = 0; i < n/2; ++i)
+    for (int i = 0; i < n; ++i)
     {
-      points[2*i]    = -x[n-1][i];
-      weights[2*i]   = w[n-1][i];
-      points[2*i+1]  = x[n-1][i];
-      weights[2*i+1] = w[n-1][i];
+      points[2*i]    = -x[degree-1][i];
+      weights[2*i]   = w[degree-1][i];
+      points[2*i+1]  = x[degree-1][i];
+      weights[2*i+1] = w[degree-1][i];
     }
   }
 }
@@ -126,11 +127,13 @@ void get_gauss_radau_points(int n, real_t* points, real_t* weights)
 
 void get_gauss_lobatto_points(int n, real_t* points, real_t* weights)
 {
+  // FIXME: Have to re-examine this.
   ASSERT(n >= 2);
   ASSERT(points != NULL);
   ASSERT(weights != NULL);
 
-  if (n == 0)
+  int degree = 2*(n-1);
+  if (degree == 0)
   {
     points[0] = 0.5;
     weights[0] = 0.5;
