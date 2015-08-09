@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "meshless/mlpg_quadrature.h"
 #include "poisson_gmls_functional.h"
 
 typedef struct
@@ -76,7 +77,7 @@ gmls_functional_t* poisson_gmls_functional_new(int degree,
   poisson_t* poisson = polymec_malloc(sizeof(poisson_t));
   poisson->degree = degree;
   multicomp_poly_basis_t* P = standard_multicomp_poly_basis_new(1, degree);
-  surface_integral_t* Q = NULL; //dmlpg_box_surface_integral(points, subdomain_extents, degree, 2.0);
+  surface_integral_t* Q = mlpg_cube_surface_integral_new(points, subdomain_extents, degree, 2.0);
   gmls_functional_vtable vtable = {.eval_integrands = poisson_eval_integrands,
                                    .dtor = polymec_free};
   return surface_gmls_functional_new("Poisson's Equation", poisson, vtable, P, Q);
