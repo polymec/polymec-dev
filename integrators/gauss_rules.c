@@ -121,6 +121,7 @@ void get_gauss_radau_points(int n, real_t* points, real_t* weights)
   ASSERT(n >= 2);
   ASSERT(points != NULL);
   ASSERT(weights != NULL);
+  POLYMEC_NOT_IMPLEMENTED;
 }
 
 void get_gauss_lobatto_points(int n, real_t* points, real_t* weights)

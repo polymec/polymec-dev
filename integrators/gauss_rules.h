@@ -8,25 +8,26 @@
 #ifndef POLYMEC_GAUSS_RULES_H
 #define POLYMEC_GAUSS_RULES_H
 
+#include "core/polymec.h"
+
 // Herein are functions for computing various Gaussian quadratures.
 
-// This function fills the given array (size n+1 each) with the quadrature
-// points and weights for the order n Gauss integration rule on the 
-// interval (­1, 1).
+// This function fills the given array (size n each) with the quadrature
+// points and weights for the Gauss integration rule on the interval (-1, 1).
 void get_gauss_points(int n, real_t* points, real_t* weights);
 
-// This function fills the given array (size n+1 each) with the quadrature
-// points and weights for the order n Gauss-Legendre integration rule on the 
-// interval (­1, 1).
+// This function fills the given array (size n each) with the quadrature
+// points and weights for the Gauss-Legendre integration rule on the 
+// interval (-1, 1).
 void get_gauss_legendre_points(int n, real_t* points, real_t* weights);
 
-// This function fills the given array (size n+1 each) with the quadrature
-// points and weights for the order n Gauss-Radau integration rule on the 
+// This function fills the given array (size n each) with the quadrature
+// points and weights for the Gauss-Radau integration rule on the 
 // interval (­1, 1].
 void get_gauss_radau_points(int n, real_t* points, real_t* weights);
 
-// This function fills the given array (size n+1 each) with the quadrature
-// points and weights for the order n Gauss-Lobatto integration rule on the 
+// This function fills the given array (size n each) with the quadrature
+// points and weights for the Gauss-Lobatto integration rule on the 
 // interval [­1, 1].
 void get_gauss_lobatto_points(int n, real_t* points, real_t* weights);
 
