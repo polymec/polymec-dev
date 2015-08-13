@@ -33,13 +33,14 @@ void make_mlpg_lattice(int nx, int ny, int nz, real_t R_over_dx,
   for (int i = 0; i < num_local_points; ++i)
   {
     point_t* x = &((*domain)->points[i]);
-    if ((x->x == 0.0) || (x->x == 1.0) || 
-        (x->y == 0.0) || (x->y == 1.0) || 
-        (x->z == 0.0) || (x->z == 1.0))
+    if (((nx > 1) && ((x->x == 0.0) || (x->x == 1.0))) || 
+        ((ny > 1) && ((x->y == 0.0) || (x->y == 1.0))) || 
+        ((nz > 1) && ((x->z == 0.0) || (x->z == 1.0))))
       int_array_append(bpoints, i);
   }
   int* btag = point_cloud_create_tag(*domain, "boundary", bpoints->size);
   memcpy(btag, bpoints->data, sizeof(int) * bpoints->size);
+  int_array_free(bpoints);
 
   // Create the stencil if requested.
   if (neighborhoods != NULL)

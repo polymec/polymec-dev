@@ -61,6 +61,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
   int num_bnodes; 
   int* bnodes = point_cloud_tag(points, "boundary", &num_bnodes);
   ASSERT(bnodes != NULL);
+  log_debug("Found %d boundary nodes in point cloud.", num_bnodes);
   int_unordered_set_t* boundary_nodes = int_unordered_set_new();
   for (int b = 0; b < num_bnodes; ++b)
   {

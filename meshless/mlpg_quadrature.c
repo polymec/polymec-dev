@@ -60,35 +60,63 @@ static void cube_surf_get_quad(void* context, int i, point_t* points, real_t* we
   {
     for (int kk = 0; kk < mlpg->N; ++kk, ++m)
     {
+      real_t xj = (b - a) * gauss_pts[jj] + a;
+      real_t xk = (b - a) * gauss_pts[kk] + a;
+      real_t yj = (d - c) * gauss_pts[jj] + c;
+      real_t yk = (d - c) * gauss_pts[kk] + c;
+      real_t zj = (f - e) * gauss_pts[jj] + e;
+      real_t zk = (f - e) * gauss_pts[kk] + e;
+      real_t wjk = gauss_wts[jj] * gauss_wts[kk];
+
       // X coordinates for each of the faces.
       points[m].x       = a;
+      normals[m].x      = -1.0;
       points[m+N*N].x   = b;
-      real_t xj = (b - a) * gauss_pts[jj] + a;
+      normals[m+N*N].x  = 1.0;
       points[m+2*N*N].x = xj;
+      normals[m+2*N*N].x = 0.0;
       points[m+3*N*N].x = xj;
-      real_t xk = (b - a) * gauss_pts[kk] + a;
+      normals[m+3*N*N].x = 0.0;
       points[m+4*N*N].x = xk;
+      normals[m+4*N*N].x = 0.0;
       points[m+5*N*N].x = xk;
+      normals[m+5*N*N].x = 0.0;
 
       // Y coordinates for each of the faces.
-      real_t yj = (d - c) * gauss_pts[jj] + c;
       points[m].y = yj;
+      normals[m].y = 0.0;
       points[m+N*N].y = yj;
+      normals[m+N*N].y = 0.0;
       points[m+2*N*N].y = c;
+      normals[m+2*N*N].y = -1.0;
       points[m+3*N*N].y = d;
-      real_t yk = (f - e) * gauss_pts[kk] + c;
+      normals[m+3*N*N].y = 1.0;
       points[m+4*N*N].y = yk;
+      normals[m+4*N*N].y = 0.0;
       points[m+5*N*N].y = yk;
+      normals[m+5*N*N].y = 0.0;
 
       // Z coordinates for each of the faces.
-      real_t zj = (f - e) * gauss_pts[jj] + e;
       points[m].z = zj;
+      normals[m].z = 0.0;
       points[m+N*N].z = zj;
-      real_t zk = (f - e) * gauss_pts[kk] + e;
+      normals[m+N*N].z = 0.0;
       points[m+2*N*N].z = zk;
+      normals[m+2*N*N].z = 0.0;
       points[m+3*N*N].z = zk;
-      points[m+4*N*N].y = e;
-      points[m+5*N*N].y = f;
+      normals[m+3*N*N].z = 0.0;
+      points[m+4*N*N].z = e;
+      normals[m+4*N*N].z = -1.0;
+      points[m+5*N*N].z = f;
+      normals[m+5*N*N].z = 1.0;
+
+      // Weights.
+      weights[m] = wjk;
+      weights[m+N*N] = wjk;
+      weights[m+2*N*N] = wjk;
+      weights[m+3*N*N] = wjk;
+      weights[m+4*N*N] = wjk;
+      weights[m+5*N*N] = wjk;
     }
   }
 }
@@ -184,6 +212,8 @@ static void sphere_surf_get_quad(void* context, int i, point_t* points, real_t* 
       points[m].x = xi->x + a * cos(M_PI * eta_j);
       points[m].y = xi->y + a * sin_pietaj * cos(2.0 * M_PI * gamma_k);
       points[m].z = xi->z + a * sin_pietaj * sin(2.0 * M_PI * gamma_k);
+      point_displacement(xi, &points[m], &normals[m]);
+      vector_normalize(&normals[m]);
       weights[m] = 2.0*M_PI*M_PI*a*a*a*gauss_pts[i]*gauss_pts[i] * 
                    sin_pietaj * gauss_wts[jj]*gauss_wts[kk];
     }
