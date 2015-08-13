@@ -12,6 +12,7 @@
 #include "cmockery.h"
 #include "core/dense_local_matrix.h"
 #include "meshless/gmls_matrix.h"
+#include "meshless/mlpg_quadrature.h"
 #include "make_mlpg_lattice.h"
 #include "poisson_gmls_functional.h"
 
@@ -51,15 +52,16 @@ void test_gmls_matrix_with_frankes_function(void** state)
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, 1, points, extents, stencil);
   gmls_functional_t* lambda = poisson_gmls_functional_new(2, points, extents);
   sp_func_t* F = sp_func_from_func("Franke's function", franke, SP_INHOMOGENEOUS, 1);
+  volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, 2.0);
 
   // Set up our beloved linear system using a dense matrix.
   local_matrix_t* A = dense_local_matrix_new(N);
 
   // Treat boundary nodes first.
-  int_unordered_set_t* boundary_nodes = int_unordered_set_new();
   int num_bnodes; 
   int* bnodes = point_cloud_tag(points, "boundary", &num_bnodes);
   ASSERT(bnodes != NULL);
+  int_unordered_set_t* boundary_nodes = int_unordered_set_new();
   for (int b = 0; b < num_bnodes; ++b)
   {
     int bnode = bnodes[b];
@@ -93,10 +95,18 @@ void test_gmls_matrix_with_frankes_function(void** state)
 
   // Fill in the RHS vector.
   real_t B[N];
-  for (int b = 0; b < num_bnodes; ++b)
+  for (int r = 0; r < N; ++r)
   {
-    int bnode = bnodes[b];
-    // FIXME
+    if (int_unordered_set_contains(boundary_nodes, r))
+    {
+      point_t* xb = &points->points[r];
+      sp_func_eval(F, xb, &B[r]);
+    }
+    else
+    {
+      volume_integral_set_domain(Qv, r);
+      volume_integral_compute(Qv, F, &B[r]);
+    }
   }
 
   // Solve the linear system.
@@ -105,6 +115,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
   assert_true(solved);
 
   // Clean up.
+  int_unordered_set_free(boundary_nodes);
   gmls_matrix_free(matrix);
   point_cloud_free(points);
   polymec_free(extents);
