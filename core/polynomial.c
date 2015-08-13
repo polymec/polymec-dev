@@ -682,6 +682,7 @@ multicomp_poly_basis_t* multicomp_poly_basis_new(int num_components,
   {
     basis->bases[c] = component_bases[c];
     basis->degree = MAX(basis->degree, poly_basis_degree(component_bases[c]));
+    basis->dim = MAX(basis->degree, poly_basis_dim(component_bases[c]));
   }
   GC_register_finalizer(basis, multicomp_poly_basis_free, basis, NULL, NULL);
   return basis;

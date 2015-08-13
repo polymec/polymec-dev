@@ -16,9 +16,7 @@ struct gmls_matrix_t
   gmls_matrix_vtable vtable;
 
   point_weight_function_t* W;
-
-  multicomp_poly_basis_t* basis;
-  int dim, num_comp;
+  int num_comp;
 };
 
 static void simple_weight_displacement(void* context, 
@@ -34,11 +32,13 @@ static void simple_weight_displacement(void* context,
 gmls_matrix_t* gmls_matrix_new(const char* name,
                                void* context,
                                gmls_matrix_vtable vtable,
-                               point_weight_function_t* W)
+                               point_weight_function_t* W,
+                               int num_components)
 {
   ASSERT(vtable.num_nodes != NULL);
   ASSERT(vtable.get_nodes != NULL);
   ASSERT(vtable.get_points != NULL);
+  ASSERT(num_components > 0);
 
   gmls_matrix_t* matrix = polymec_malloc(sizeof(gmls_matrix_t));
   matrix->name = string_dup(name);
@@ -47,6 +47,7 @@ gmls_matrix_t* gmls_matrix_new(const char* name,
   if (vtable.compute_weight_displacement == NULL)
     matrix->vtable.compute_weight_displacement = simple_weight_displacement;
   matrix->W = W;
+  matrix->num_comp = num_components;
 
   return matrix;
 }
@@ -56,7 +57,6 @@ void gmls_matrix_free(gmls_matrix_t* matrix)
   if ((matrix->context != NULL) && (matrix->vtable.dtor != NULL))
     matrix->vtable.dtor(matrix->context);
   point_weight_function_free(matrix->W);
-  matrix->basis = NULL;
   polymec_free(matrix->name);
   polymec_free(matrix);
 }
@@ -96,16 +96,18 @@ static void compute_phi_matrix(gmls_matrix_t* matrix,
 }
 
 static void compute_matrix_row(gmls_matrix_t* matrix, 
-                               int basis_dim,
-                               int num_comp,
+                               multicomp_poly_basis_t* poly_basis,
                                int component,
                                int i, 
                                real_t* lambdas, 
                                int* columns, 
                                real_t* coeffs)
 {
+  int basis_dim = multicomp_poly_basis_dim(poly_basis);
+
   // Get the nodes within this subdomain.
   int num_nodes = matrix->vtable.num_nodes(matrix->context, i);
+  ASSERT(num_nodes > 0);
   int nodes[num_nodes];
   matrix->vtable.get_nodes(matrix->context, i, nodes);
   point_t xi, xjs[num_nodes];
@@ -116,7 +118,7 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
   real_t P[num_nodes*basis_dim];
   for (int j = 0; j < num_nodes; ++j)
   {
-    multicomp_poly_basis_compute(matrix->basis, component, 0, 0, 0, 
+    multicomp_poly_basis_compute(poly_basis, component, 0, 0, 0, 
                                  &xjs[j], &P[j*basis_dim]);
   }
 
@@ -139,15 +141,15 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
   char no_trans = 'N';
   int M = 1; // Rows in lambda matrix.
   int N = num_nodes; // Columns in Phi matrix.
-  int K = num_comp*basis_dim; // Columns in lambda, rows in Phi.
+  int K = matrix->num_comp*basis_dim; // Columns in lambda, rows in Phi.
   real_t alpha = 1.0, beta = 0.0;
   rgemm(&no_trans, &no_trans, &M, &N, &K, &alpha, lambdas, &M, phi, &K, 
         &beta, coeffs, &M);
 
   // Fill in the column indices.
   for (int n = 0; n < num_nodes; ++n)
-    for (int c = 0; c < num_comp; ++c)
-      columns[num_comp*n+c] = num_comp * nodes[n] + c;
+    for (int c = 0; c < matrix->num_comp; ++c)
+      columns[matrix->num_comp*n+c] = matrix->num_comp * nodes[n] + c;
 }
 
 void gmls_matrix_compute_row(gmls_matrix_t* matrix,
@@ -162,16 +164,16 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   //  problems in elasticity."
   multicomp_poly_basis_t* poly_basis = gmls_functional_basis(lambda);
   int basis_dim = multicomp_poly_basis_dim(poly_basis);
-  int num_comp = multicomp_poly_basis_num_comp(poly_basis);
+  ASSERT(matrix->num_comp == multicomp_poly_basis_num_comp(poly_basis));
 
   // Compute the values of the functional.
-  int component = row % num_comp;
-  int i = row / num_comp; // index of subdomain
-  real_t lambdas[num_comp*basis_dim];
+  int component = row % matrix->num_comp;
+  int i = row / matrix->num_comp; // index of subdomain
+  real_t lambdas[matrix->num_comp*basis_dim];
   gmls_functional_compute(lambda, component, i, t, lambdas);
 
   // Compute the row using these functional values.
-  compute_matrix_row(matrix, basis_dim, num_comp, component, i, lambdas, columns, coeffs);
+  compute_matrix_row(matrix, poly_basis, component, i, lambdas, columns, coeffs);
 }
 
 void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
@@ -185,15 +187,15 @@ void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
   //  problems in elasticity."
   multicomp_poly_basis_t* poly_basis = gmls_functional_basis(lambda);
   int basis_dim = multicomp_poly_basis_dim(poly_basis);
-  int num_comp = multicomp_poly_basis_num_comp(poly_basis);
+  ASSERT(matrix->num_comp == multicomp_poly_basis_num_comp(poly_basis));
 
-  int component = row % num_comp;
-  int i = row / num_comp; 
-  real_t delta[num_comp*basis_dim];
-  memset(delta, 0, sizeof(real_t) * num_comp * basis_dim);
+  int component = row % matrix->num_comp;
+  int i = row / matrix->num_comp; 
+  real_t delta[matrix->num_comp*basis_dim];
+  memset(delta, 0, sizeof(real_t) * matrix->num_comp * basis_dim);
   for (int j = 0; j < basis_dim; ++j)
-    delta[num_comp*j+component] = 1.0;
-  compute_matrix_row(matrix, basis_dim, num_comp, component, i, delta, columns, coeffs);
+    delta[matrix->num_comp*j+component] = 1.0;
+  compute_matrix_row(matrix, poly_basis, component, i, delta, columns, coeffs);
 }
 
 // Stencil-based GMLS matrix.
@@ -242,6 +244,7 @@ static void sbm_dtor(void* context)
 }
 
 gmls_matrix_t* stencil_based_gmls_matrix_new(point_weight_function_t* W,
+                                             int num_components,
                                              point_cloud_t* points,
                                              real_t* extents,
                                              stencil_t* stencil)
@@ -255,6 +258,6 @@ gmls_matrix_t* stencil_based_gmls_matrix_new(point_weight_function_t* W,
                                .get_points = sbm_get_points,
                                .compute_weight_displacement = sbm_compute_y,
                                .dtor = sbm_dtor};
-  return gmls_matrix_new("Stencil-based GMLS matrix", sbm, vtable, W);
+  return gmls_matrix_new("Stencil-based GMLS matrix", sbm, vtable, W, num_components);
 }
 

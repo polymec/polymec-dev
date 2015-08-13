@@ -60,11 +60,13 @@ typedef struct
 // Creates a generalized MLS functional with the given name, context, virtual 
 // table, (multicomponent) polynomial basis, and weight function. The 
 // weight function is consumed by the matrix. The solution is assumed 
-// to be a vector of degrees of freedom expressed in node-major order.
+// to be a vector of degrees of freedom with the given number of components, 
+// expressed in node-major order.
 gmls_matrix_t* gmls_matrix_new(const char* name,
                                void* context,
                                gmls_matrix_vtable vtable,
-                               point_weight_function_t* W);
+                               point_weight_function_t* W,
+                               int num_components);
 
 // Destroys the given GMLS matrix.
 void gmls_matrix_free(gmls_matrix_t* matrix);
@@ -99,6 +101,7 @@ void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
 // y = |x1 - x2|/R1, where R1 is the extent of the subdomain corresponding 
 // to x1.
 gmls_matrix_t* stencil_based_gmls_matrix_new(point_weight_function_t* W,
+                                             int num_components,
                                              point_cloud_t* points,
                                              real_t* extents,
                                              stencil_t* stencil);

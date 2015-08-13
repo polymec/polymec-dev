@@ -22,7 +22,7 @@ void test_gmls_matrix_ctor(void** state)
   stencil_t* stencil;
   make_mlpg_lattice(10, 10, 10, 2.0, &points, &extents, &stencil);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
-  gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, points, extents, stencil);
+  gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, 1, points, extents, stencil);
 
   // Clean up.
   gmls_matrix_free(matrix);
@@ -48,12 +48,11 @@ void test_gmls_matrix_with_frankes_function(void** state)
   int nx = 10, ny = 10, N = nx*ny;
   make_mlpg_lattice(nx, ny, 1, 2.0, &points, &extents, &stencil);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
-  gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, points, extents, stencil);
+  gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, 1, points, extents, stencil);
   gmls_functional_t* lambda = poisson_gmls_functional_new(2, points, extents);
   sp_func_t* F = sp_func_from_func("Franke's function", franke, SP_INHOMOGENEOUS, 1);
 
   // Set up our beloved linear system using a dense matrix.
-  // FIXME: point lattice should have boundary points labeled.
   local_matrix_t* A = dense_local_matrix_new(N);
 
   // Treat boundary nodes first.
@@ -117,7 +116,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
-    unit_test(test_gmls_matrix_ctor)
+    unit_test(test_gmls_matrix_ctor),
+    unit_test(test_gmls_matrix_with_frankes_function)
   };
   return run_tests(tests);
 }
