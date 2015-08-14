@@ -11,6 +11,7 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/tagger.h"
+#include "core/sp_func.h"
 #include "core/unordered_map.h"
 #include "core/serializer.h"
 
@@ -103,6 +104,22 @@ void point_cloud_rename_tag(point_cloud_t* cloud, const char* old_tag, const cha
 
 // Deletes the given tag. This has no effect if the tag is not found.
 void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag);
+
+// Performs an in-place union of this point cloud with another, adding any 
+// tags.
+void point_cloud_unite(point_cloud_t* cloud, point_cloud_t* other);
+
+// Performs an in-place intersection of this point cloud with another, 
+// removing tags for which there subsequently exist no points. A point in 
+// cloud is removed if it does not fall within distance_tol of a point in 
+// other.
+void point_cloud_intersect(point_cloud_t* cloud, point_cloud_t* other,
+                           real_t distance_tol);
+
+// Trims from this cloud any points that fall "outside" of the given implicit 
+// function (that is, points for which F > 0), removing tags for which there
+// subsequently exist no points.
+void point_cloud_trim(point_cloud_t* cloud, sp_func_t* F);
 
 // Returns a serializer object that can read/write point clouds from/to byte arrays.
 serializer_t* point_cloud_serializer();

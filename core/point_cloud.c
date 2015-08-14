@@ -6,6 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/point_cloud.h"
+#include "core/kd_tree.h"
+#include "core/unordered_set.h"
 
 point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points)
 {
@@ -115,6 +117,64 @@ void point_cloud_rename_tag(point_cloud_t* cloud, const char* old_tag, const cha
 void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag)
 {
   tagger_delete_tag(cloud->tags, tag);
+}
+
+void point_cloud_unite(point_cloud_t* cloud, point_cloud_t* other)
+{
+  cloud->points = polymec_realloc(cloud->points, 
+      sizeof(point_t) * (cloud->num_points + cloud->num_ghosts + 
+                         other->num_points + other->num_ghosts));
+  memcpy(&(cloud->points[cloud->num_points + cloud->num_ghosts]), 
+         other->points, sizeof(point_t) * (other->num_points + other->num_ghosts));
+}
+
+static void remove_points(point_cloud_t* cloud,
+                          int_unordered_set_t* points_to_remove)
+{
+  point_t* data = polymec_malloc(sizeof(point_t) * (cloud->num_points + cloud->num_ghosts - points_to_remove->size));
+  int j = 0;
+  for (int i = 0; i < cloud->num_points + cloud->num_ghosts; ++i, ++j)
+  {
+    if (!int_unordered_set_contains(points_to_remove, i))
+      data[j++] = cloud->points[i];
+  }
+  int_unordered_set_free(points_to_remove);
+  polymec_free(cloud->points);
+  cloud->points = data;
+}
+
+void point_cloud_intersect(point_cloud_t* cloud, 
+                           point_cloud_t* other,
+                           real_t distance_tol)
+{
+  kd_tree_t* tree = kd_tree_new(cloud->points, cloud->num_points);
+  int_unordered_set_t* points_to_remove = int_unordered_set_new();
+  for (int i = 0; i < other->num_points; ++i)
+  {
+    point_t* xi = &(cloud->points[i]);
+    int j = kd_tree_nearest(tree, xi);
+    if (point_distance(&(other->points[j]), xi) > distance_tol)
+      int_unordered_set_insert(points_to_remove, i);
+  }
+  kd_tree_free(tree);
+  remove_points(cloud, points_to_remove);
+  int_unordered_set_free(points_to_remove);
+}
+
+void point_cloud_trim(point_cloud_t* cloud, sp_func_t* F)
+{
+  ASSERT(sp_func_num_comp(F) == 1);
+  int_unordered_set_t* points_to_remove = int_unordered_set_new();
+  for (int i = 0; i < cloud->num_points; ++i)
+  {
+    point_t* xi = &(cloud->points[i]);
+    real_t Fi;
+    sp_func_eval(F, xi, &Fi);
+    if (Fi > 0)
+      int_unordered_set_insert(points_to_remove, i);
+  }
+  remove_points(cloud, points_to_remove);
+  int_unordered_set_free(points_to_remove);
 }
 
 static size_t cloud_byte_size(void* obj)
