@@ -57,9 +57,9 @@ point_cloud_t* create_uniform_point_lattice(MPI_Comm comm, int nx, int ny, int n
   ASSERT(nz > 0);
   ASSERT(bbox != NULL);
 
-  ASSERT(bbox->x2 > bbox->x1);
-  ASSERT(bbox->y2 > bbox->y1);
-  ASSERT(bbox->z2 > bbox->z1);
+  ASSERT((bbox->x2 > bbox->x1) || ((bbox->x2 == bbox->x1) && (nx == 1)));
+  ASSERT((bbox->y2 > bbox->y1) || ((bbox->y2 == bbox->y1) && (ny == 1)));
+  ASSERT((bbox->z2 > bbox->z1) || ((bbox->z2 == bbox->z1) && (nz == 1)));
 
   // Lattice spacings.
   real_t Lx = bbox->x2 - bbox->x1;

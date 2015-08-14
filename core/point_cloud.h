@@ -105,15 +105,19 @@ void point_cloud_rename_tag(point_cloud_t* cloud, const char* old_tag, const cha
 // Deletes the given tag. This has no effect if the tag is not found.
 void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag);
 
-// Performs an in-place union of this point cloud with another, adding any 
-// tags.
-void point_cloud_unite(point_cloud_t* cloud, point_cloud_t* other);
+// Performs an in-place union of this point cloud with another. If tag is not 
+// NULL, the points from other are added to the tag with the given name (and 
+// the tag is created if it dœes not already exist).
+void point_cloud_unite(point_cloud_t* cloud, 
+                       point_cloud_t* other,
+                       const char* tag);
 
 // Performs an in-place intersection of this point cloud with another, 
 // removing tags for which there subsequently exist no points. A point in 
 // cloud is removed if it does not fall within distance_tol of a point in 
 // other.
-void point_cloud_intersect(point_cloud_t* cloud, point_cloud_t* other,
+void point_cloud_intersect(point_cloud_t* cloud, 
+                           point_cloud_t* other,
                            real_t distance_tol);
 
 // Trims from this cloud any points that fall "outside" of the given implicit 

@@ -38,6 +38,10 @@ int* tagger_tag(tagger_t* tagger, const char* tag, int* num_indices);
 // Returns true if the tagger contains a tag with the given name, false if not.
 bool tagger_has_tag(tagger_t* tagger, const char* tag);
 
+// Resizes the tag with the given name if it exists in the tagger, preserving 
+// existing data. If the given tag does not exist, this function does nothing.
+void tagger_resize_tag(tagger_t* tagger, const char* tag, int new_num_indices);
+
 // Associates a "property" (of unspecified size and type) with the given tag 
 // within the tagger. A serializer should be given so that properties can be
 // copied automatically between tags.

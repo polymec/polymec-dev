@@ -149,6 +149,18 @@ bool tagger_has_tag(tagger_t* tagger, const char* tag)
   return (tagger_tag(tagger, tag, &dummy) != NULL);
 }
 
+void tagger_resize_tag(tagger_t* tagger, const char* tag, int new_num_indices)
+{
+  tagger_data_t** data_p = tagger_data_map_get(tagger->data, (char*)tag);
+  if (data_p != NULL)
+  {
+    int old_num_indices = (*data_p)->num_indices;
+    if (new_num_indices > old_num_indices)
+      (*data_p)->indices = polymec_realloc((*data_p)->indices, sizeof(int) * new_num_indices);
+    (*data_p)->num_indices = new_num_indices;
+  }
+}
+
 bool tagger_set_property(tagger_t* tagger, 
                          const char* tag, 
                          const char* property, 

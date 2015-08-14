@@ -119,13 +119,53 @@ void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag)
   tagger_delete_tag(cloud->tags, tag);
 }
 
-void point_cloud_unite(point_cloud_t* cloud, point_cloud_t* other)
+void point_cloud_unite(point_cloud_t* cloud, 
+                       point_cloud_t* other,
+                       const char* tag)
 {
   cloud->points = polymec_realloc(cloud->points, 
       sizeof(point_t) * (cloud->num_points + cloud->num_ghosts + 
                          other->num_points + other->num_ghosts));
-  memcpy(&(cloud->points[cloud->num_points + cloud->num_ghosts]), 
-         other->points, sizeof(point_t) * (other->num_points + other->num_ghosts));
+  // Re-arrange ghosts.
+  memcpy(&(cloud->points[cloud->num_points + other->num_points]), 
+         &(cloud->points[cloud->num_points]), sizeof(point_t) * cloud->num_ghosts);
+  memcpy(&(cloud->points[cloud->num_points + other->num_points + cloud->num_ghosts]), 
+         &(other->points[cloud->num_ghosts]), sizeof(point_t) * other->num_ghosts);
+  // Copy new non-ghost points into place.        
+  memcpy(&(cloud->points[cloud->num_points]), other->points, 
+         sizeof(point_t) * other->num_points);
+
+  // Add the points to the tag if given.
+  if (tag != NULL)
+  {
+    if (point_cloud_has_tag(cloud, tag))
+    {
+      // This tag already exists, so stick the new points in there.
+      int old_size;
+      int* t = point_cloud_tag(cloud, tag, &old_size);
+      int new_size = old_size + other->num_points + other->num_ghosts;
+      tagger_resize_tag(cloud->tags, tag, new_size);
+      t = point_cloud_tag(cloud, tag, &new_size);
+      for (int i = 0; i < other->num_points; ++i)
+        t[old_size + i] = cloud->num_points + i;
+      for (int i = other->num_points; i < other->num_points + other->num_ghosts; ++i)
+        t[old_size + i] = cloud->num_points + other->num_points + cloud->num_ghosts + i;
+    }
+    else
+    {
+      // Make a new tag for these points.
+      int size = other->num_points + other->num_ghosts;
+      int* t = point_cloud_create_tag(cloud, tag, size);
+      for (int i = 0; i < other->num_points; ++i)
+        t[i] = cloud->num_points + i;
+      for (int i = other->num_points; i < other->num_points + other->num_ghosts; ++i)
+        t[i] = cloud->num_points + other->num_points + cloud->num_ghosts + i;
+    }
+  }
+
+  // Update the point tallies.
+  cloud->num_points += other->num_points;
+  cloud->num_ghosts += other->num_ghosts;
 }
 
 static void remove_points(point_cloud_t* cloud,
@@ -133,14 +173,46 @@ static void remove_points(point_cloud_t* cloud,
 {
   point_t* data = polymec_malloc(sizeof(point_t) * (cloud->num_points + cloud->num_ghosts - points_to_remove->size));
   int j = 0;
+
+  // Remove all the points from our data.
+  int removed_points = 0, removed_ghosts = 0;
   for (int i = 0; i < cloud->num_points + cloud->num_ghosts; ++i, ++j)
   {
     if (!int_unordered_set_contains(points_to_remove, i))
       data[j++] = cloud->points[i];
+    else if (i < cloud->num_points)
+      ++removed_points;
+    else 
+      ++removed_ghosts;
   }
-  int_unordered_set_free(points_to_remove);
-  polymec_free(cloud->points);
   cloud->points = data;
+  cloud->num_points -= removed_points;
+  cloud->num_ghosts -= removed_ghosts;
+
+  // Remove any tags that no longer contain points.
+  int pos = 0, *indices, size;
+  char* tag_name;
+  string_unordered_set_t* tags_to_remove = string_unordered_set_new();
+  while (tagger_next_tag(cloud->tags, &pos, &tag_name, &indices, &size))
+  {
+    bool keep_tag = false;
+    for (int i = 0; i < size; ++i)
+    {
+      if (!int_unordered_set_contains(points_to_remove, indices[i]))
+      {
+        keep_tag = true;
+        break;
+      }
+    }
+    if (!keep_tag)
+      string_unordered_set_insert(tags_to_remove, tag_name);
+  }
+  pos = 0;
+  while (string_unordered_set_next(tags_to_remove, &pos, &tag_name))
+    tagger_delete_tag(cloud->tags, tag_name);
+
+  string_unordered_set_free(tags_to_remove);
+  polymec_free(cloud->points);
 }
 
 void point_cloud_intersect(point_cloud_t* cloud, 
