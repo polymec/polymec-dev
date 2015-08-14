@@ -49,8 +49,8 @@ void test_partition_linear_cloud(void** state, int N)
     real_t z = cloud->points[i].z;
     int j = lround(x/dx - 0.5);
     assert_true(fabs(x - (0.5+j)*dx) < 1e-6);
-    assert_true(fabs(y) < 1e-6);
-    assert_true(fabs(z) < 1e-6);
+    assert_true(fabs(y - 0.5) < 1e-6);
+    assert_true(fabs(z - 0.5) < 1e-6);
   }
 
   // Plot it.
