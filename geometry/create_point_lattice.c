@@ -65,9 +65,7 @@ point_cloud_t* create_uniform_point_lattice(MPI_Comm comm, int nx, int ny, int n
   real_t Lx = bbox->x2 - bbox->x1;
   real_t Ly = bbox->y2 - bbox->y1;
   real_t Lz = bbox->z2 - bbox->z1;
-  real_t dx = (nx == 1) ? 0.0 : Lx/nx, 
-         dy = (ny == 1) ? 0.0 : Ly/ny, 
-         dz = (nz == 1) ? 0.0 : Lz/nz;
+  real_t dx = Lx/nx, dy = Ly/ny, dz = Lz/nz;
 
   // Create a uniform rectilinear lattice!
   real_t* xs = polymec_malloc(sizeof(real_t) * nx);
