@@ -108,6 +108,11 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
   // Get the nodes within this subdomain. Note that we must have 
   // basis_dim <= num_nodes for the matrix to be nonsingular.
   int num_nodes = matrix->vtable.num_nodes(matrix->context, i);
+
+  if (num_nodes < basis_dim)
+    polymec_error("gmls_matrix: Singular moment matrix!\n"
+                  "gmls_matrix: Number of neighbor nodes N (%d) < polynomial basis dim Q (%d).\n"
+                  "gmls_matrix: Nonsingular matrix requires N >= Q.", num_nodes, basis_dim);
   ASSERT(num_nodes >= basis_dim); // for nonsingular matrix.
   int nodes[num_nodes];
   matrix->vtable.get_nodes(matrix->context, i, nodes);
