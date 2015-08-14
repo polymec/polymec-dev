@@ -119,6 +119,13 @@ void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag)
   tagger_delete_tag(cloud->tags, tag);
 }
 
+void point_cloud_fprintf(point_cloud_t* cloud, FILE* stream)
+{
+  fprintf(stream, "Point cloud (%d points, %d ghosts):\n", cloud->num_points, cloud->num_ghosts);
+  for (int i = 0; i < cloud->num_points + cloud->num_ghosts; ++i)
+    fprintf(stream, "%d: (%g, %g, %g)\n", i, cloud->points[i].x, cloud->points[i].y, cloud->points[i].z);
+}
+
 void point_cloud_unite(point_cloud_t* cloud, 
                        point_cloud_t* other,
                        const char* tag)

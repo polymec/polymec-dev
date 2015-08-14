@@ -105,6 +105,9 @@ void point_cloud_rename_tag(point_cloud_t* cloud, const char* old_tag, const cha
 // Deletes the given tag. This has no effect if the tag is not found.
 void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag);
 
+// Writes a text representation of the point cloud to the given file stream.
+void point_cloud_fprintf(point_cloud_t* cloud, FILE* stream);
+
 // Performs an in-place union of this point cloud with another. If tag is not 
 // NULL, the points from other are added to the tag with the given name (and 
 // the tag is created if it dœes not already exist).
