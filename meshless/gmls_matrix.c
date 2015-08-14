@@ -79,15 +79,10 @@ static void compute_phi_matrix(gmls_matrix_t* matrix,
         &num_nodes, P, &basis_dim, &beta, WPt, &num_nodes);
   rgemm(&no_trans, &no_trans, &basis_dim, &basis_dim, &num_nodes, &alpha, P, 
         &basis_dim, WPt, &num_nodes, &beta, PWPt, &basis_dim);
-matrix_fprintf(P, basis_dim, num_nodes, stdout);
-printf("\n\n\n");
-matrix_fprintf(W, num_nodes, num_nodes, stdout);
-printf("\n\n\n");
-matrix_fprintf(PWPt, basis_dim, basis_dim, stdout);
 
   // Now form the matrix phi = (PWPt)^-1 * Pt * W.
 
-  // Factor PWPt.
+  // Factor PWPt all Cholesky-like, since it should be a symmetric matrix.
   char uplo = 'L';
   int info;
   rpotrf(&uplo, &basis_dim, PWPt, &basis_dim, &info); 
@@ -110,9 +105,10 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
 {
   int basis_dim = multicomp_poly_basis_dim(poly_basis);
 
-  // Get the nodes within this subdomain.
+  // Get the nodes within this subdomain. Note that we must have 
+  // basis_dim <= num_nodes for the matrix to be nonsingular.
   int num_nodes = matrix->vtable.num_nodes(matrix->context, i);
-  ASSERT(num_nodes > 0);
+  ASSERT(num_nodes >= basis_dim); // for nonsingular matrix.
   int nodes[num_nodes];
   matrix->vtable.get_nodes(matrix->context, i, nodes);
   point_t xi, xjs[num_nodes];
