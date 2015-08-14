@@ -63,6 +63,15 @@ real_t* polynomial_coeffs(polynomial_t* p);
 // Returns the point about which the polynomial is expanded.
 point_t* polynomial_x0(polynomial_t* p);
 
+// Returns the scale factor (if any) associated with the polynomial.
+real_t polynomial_scale_factor(polynomial_t* p);
+
+// "Shifts" the polynomial so that its origin is x0.
+void polynomial_shift(polynomial_t* p, point_t* x0);
+
+// Scales the polynomial by the given scale factor.
+void polynomial_scale(polynomial_t* p, real_t factor);
+
 // Evaluates the polynomial at the given point x.
 real_t polynomial_value(polynomial_t* p, point_t* x);
 
@@ -131,6 +140,12 @@ void poly_basis_compute(poly_basis_t* basis,
                         point_t* x,
                         real_t* values);
 
+// "Shifts" the polynomial basis so that its origin is x0.
+void poly_basis_shift(poly_basis_t* basis, point_t* x0);
+
+// Scales the polynomial basis by the given scale factor.
+void poly_basis_scale(poly_basis_t* basis, real_t factor);
+
 // Returns true if the two given polynomial bases are equal, false if not.
 bool poly_basis_equals(poly_basis_t* basis1, poly_basis_t* basis2);
 
@@ -182,6 +197,12 @@ void multicomp_poly_basis_compute(multicomp_poly_basis_t* basis,
                                   int x_deriv, int y_deriv, int z_deriv,
                                   point_t* x,
                                   real_t* values);
+
+// "Shifts" the polynomial basis so that its origin is x0.
+void multicomp_poly_basis_shift(multicomp_poly_basis_t* basis, point_t* x0);
+
+// Scales the polynomial basis by the given scale factor.
+void multicomp_poly_basis_scale(multicomp_poly_basis_t* basis, real_t factor);
 
 // Returns true if the two multi-component polynomial bases are equal, 
 // false if not.

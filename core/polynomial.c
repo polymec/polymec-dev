@@ -16,6 +16,7 @@ struct polynomial_t
   real_t* coeffs;
   int *x_pow, *y_pow, *z_pow;
   point_t x0;
+  real_t factor;
 };
 
 static void polynomial_free(void* ctx, void* dummy)
@@ -122,6 +123,7 @@ polynomial_t* polynomial_new(int degree, real_t* coeffs, point_t* x0)
   {
     p->x0.x = 0.0, p->x0.y = 0.0, p->x0.z = 0.0;
   }
+  p->factor = 1.0;
   GC_register_finalizer(p, polynomial_free, p, NULL, NULL);
   return p;
 }
@@ -148,6 +150,7 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, real_t* c
   {
     p->x0.x = 0.0, p->x0.y = 0.0, p->x0.z = 0.0;
   }
+  p->factor = 1.0;
   p->num_terms = num_monomials;
   GC_register_finalizer(p, polynomial_free, p, NULL, NULL);
 
@@ -182,6 +185,7 @@ polynomial_t* scaled_polynomial_new(polynomial_t* p, real_t factor)
   q->z_pow = polymec_malloc(sizeof(int) * q->num_terms);
   memcpy(q->z_pow, p->z_pow, sizeof(int) * q->num_terms);
   q->x0 = p->x0;
+  q->factor = 1.0;
   GC_register_finalizer(q, polynomial_free, q, NULL, NULL);
   return q;
 }
@@ -205,6 +209,22 @@ point_t* polynomial_x0(polynomial_t* p)
 {
   return &p->x0;
 }
+
+real_t polynomial_scale_factor(polynomial_t* p)
+{
+  return p->factor;
+}
+
+void polynomial_shift(polynomial_t* p, point_t* x0)
+{
+  p->x0 = *x0;
+}
+
+void polynomial_scale(polynomial_t* p, real_t factor)
+{
+  p->factor = factor;
+}
+
 
 real_t polynomial_value(polynomial_t* p, point_t* x)
 {
@@ -404,6 +424,12 @@ bool polynomial_equals(polynomial_t* p, polynomial_t* q)
 {
   if (p == q) 
     return true; 
+
+  if ((p->x0.x != q->x0.x) || (p->x0.y != q->x0.y) || (p->x0.z != q->x0.z))
+    return false;
+
+  if (p->factor != q->factor)
+    return false;
 
   // Encode the x, y, z powers of p into integers, and map those integers to 
   // coefficients.
@@ -628,6 +654,18 @@ void poly_basis_compute(poly_basis_t* basis,
     values[i] = polynomial_deriv_value(basis->polynomials[i], x_deriv, y_deriv, z_deriv, x);
 }
 
+void poly_basis_shift(poly_basis_t* basis, point_t* x0)
+{
+  for (int i = 0; i < basis->dim; ++i)
+    polynomial_shift(basis->polynomials[i], x0);
+}
+
+void poly_basis_scale(poly_basis_t* basis, real_t factor)
+{
+  for (int i = 0; i < basis->dim; ++i)
+    polynomial_scale(basis->polynomials[i], factor);
+}
+
 bool poly_basis_equals(poly_basis_t* basis1, poly_basis_t* basis2)
 {
   if (basis1 == basis2) 
@@ -764,6 +802,18 @@ void multicomp_poly_basis_compute(multicomp_poly_basis_t* basis,
   ASSERT(component >= 0);
   ASSERT(component < basis->num_comp);
   poly_basis_compute(basis->bases[component], x_deriv, y_deriv, z_deriv, x, values);
+}
+
+void multicomp_poly_basis_shift(multicomp_poly_basis_t* basis, point_t* x0)
+{
+  for (int c = 0; c < basis->num_comp; ++c)
+    poly_basis_shift(basis->bases[c], x0);
+}
+
+void multicomp_poly_basis_scale(multicomp_poly_basis_t* basis, real_t factor)
+{
+  for (int c = 0; c < basis->num_comp; ++c)
+    poly_basis_scale(basis->bases[c], factor);
 }
 
 bool multicomp_poly_basis_equals(multicomp_poly_basis_t* basis1, 

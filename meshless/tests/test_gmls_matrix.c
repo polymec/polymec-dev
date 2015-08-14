@@ -21,7 +21,7 @@ void test_gmls_matrix_ctor(void** state)
   point_cloud_t* points;
   real_t* extents;
   stencil_t* stencil;
-  make_mlpg_lattice(10, 10, 10, 2.0, &points, &extents, &stencil);
+  make_mlpg_lattice(10, 10, 10, 3.0, &points, &extents, &stencil);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, 1, points, extents, stencil);
 
@@ -47,7 +47,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
   real_t* extents;
   stencil_t* stencil;
   int nx = 10, ny = 10, N = nx*ny;
-  make_mlpg_lattice(nx, ny, 1, 2.0, &points, &extents, &stencil);
+  make_mlpg_lattice(nx, ny, 1, 3.0, &points, &extents, &stencil);
   log_debug("Point cloud has %d points and %d ghosts.", points->num_points, points->num_ghosts);
   point_cloud_fprintf(points, stdout);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);

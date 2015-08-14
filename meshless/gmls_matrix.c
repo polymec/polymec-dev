@@ -79,6 +79,11 @@ static void compute_phi_matrix(gmls_matrix_t* matrix,
         &num_nodes, P, &basis_dim, &beta, WPt, &num_nodes);
   rgemm(&no_trans, &no_trans, &basis_dim, &basis_dim, &num_nodes, &alpha, P, 
         &basis_dim, WPt, &num_nodes, &beta, PWPt, &basis_dim);
+matrix_fprintf(P, basis_dim, num_nodes, stdout);
+printf("\n\n\n");
+matrix_fprintf(W, num_nodes, num_nodes, stdout);
+printf("\n\n\n");
+matrix_fprintf(PWPt, basis_dim, basis_dim, stdout);
 
   // Now form the matrix phi = (PWPt)^-1 * Pt * W.
 
@@ -121,7 +126,7 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
   matrix->vtable.get_points(matrix->context, nodes, num_nodes, xjs);
 
   // Compute the matrix [P]_ij = pi(xj), in column major order.
-  real_t P[num_nodes*basis_dim];
+  real_t P[basis_dim*num_nodes];
   for (int j = 0; j < num_nodes; ++j)
   {
     multicomp_poly_basis_compute(poly_basis, component, 0, 0, 0, 
