@@ -70,14 +70,15 @@ static void poisson_eval_integrands(void* context, int component,
 
 gmls_functional_t* poisson_gmls_functional_new(int degree,
                                                point_cloud_t* points,
-                                               real_t* subdomain_extents)
+                                               real_t* subdomain_extents,
+                                               real_t delta)
 {
   ASSERT(degree >= 2);
   ASSERT(degree <= 4);
   poisson_t* poisson = polymec_malloc(sizeof(poisson_t));
   poisson->degree = degree;
   multicomp_poly_basis_t* P = standard_multicomp_poly_basis_new(1, degree);
-  surface_integral_t* Q = mlpg_cube_surface_integral_new(points, subdomain_extents, degree, 2.0);
+  surface_integral_t* Q = mlpg_cube_surface_integral_new(points, subdomain_extents, degree, delta);
   gmls_functional_vtable vtable = {.eval_integrands = poisson_eval_integrands,
                                    .dtor = polymec_free};
   return surface_gmls_functional_new("Poisson's Equation", poisson, vtable, P, Q);

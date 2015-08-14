@@ -15,12 +15,14 @@
 // interior of a domain, using a polynomial basis of the given degree.
 gmls_functional_t* poisson_gmls_functional_new(int degree,
                                                point_cloud_t* points,
-                                               real_t* subdomain_extents);
+                                               real_t* subdomain_extents,
+                                               real_t delta);
 
 // Constructs a GMLS functional for solving Poisson's equation on a Dirichlet 
 // boundary, using a polynomial basis of the given degree.
 gmls_functional_t* poisson_dirichlet_gmls_functional_new(int degree,
                                                          point_cloud_t* points,
-                                                         real_t* subdomain_extents);
+                                                         real_t* subdomain_extents,
+                                                         real_t delta);
 
 #endif
