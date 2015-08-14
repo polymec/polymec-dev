@@ -48,11 +48,14 @@ void test_gmls_matrix_with_frankes_function(void** state)
   stencil_t* stencil;
   int nx = 10, ny = 10, N = nx*ny;
   make_mlpg_lattice(nx, ny, 1, 2.0, &points, &extents, &stencil);
+  log_debug("Point cloud has %d points and %d ghosts.", points->num_points, points->num_ghosts);
+  point_cloud_fprintf(points, stdout);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, 1, points, extents, stencil);
-  gmls_functional_t* lambda = poisson_gmls_functional_new(2, points, extents);
+  real_t delta = 0.5; // ratio of subdomain extent to point extent.
+  gmls_functional_t* lambda = poisson_gmls_functional_new(2, points, extents, delta);
   sp_func_t* F = sp_func_from_func("Franke's function", franke, SP_INHOMOGENEOUS, 1);
-  volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, 2.0);
+  volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, delta);
 
   // Set up our beloved linear system using a dense matrix.
   local_matrix_t* A = dense_local_matrix_new(N);
@@ -93,6 +96,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
       local_matrix_add_row_vector(A, 1.0, r, row_vector);
     }
   }
+  local_matrix_fprintf(A, stdout);
 
   // Fill in the RHS vector.
   real_t B[N];

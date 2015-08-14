@@ -79,6 +79,11 @@ static void compute_phi_matrix(gmls_matrix_t* matrix,
         &num_nodes, P, &basis_dim, &beta, WPt, &num_nodes);
   rgemm(&no_trans, &no_trans, &basis_dim, &basis_dim, &num_nodes, &alpha, P, 
         &basis_dim, WPt, &num_nodes, &beta, PWPt, &basis_dim);
+matrix_fprintf(P, basis_dim, num_nodes, stdout);
+printf("\n\n\n");
+matrix_fprintf(W, num_nodes, num_nodes, stdout);
+printf("\n\n\n");
+matrix_fprintf(PWPt, basis_dim, basis_dim, stdout);
 
   // Now form the matrix phi = (PWPt)^-1 * Pt * W.
 
