@@ -129,6 +129,7 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
   real_t P[basis_dim*num_nodes];
   for (int j = 0; j < num_nodes; ++j)
   {
+    multicomp_poly_basis_shift(poly_basis, &xi);
     multicomp_poly_basis_compute(poly_basis, component, 0, 0, 0, 
                                  &xjs[j], &P[j*basis_dim]);
   }

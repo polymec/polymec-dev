@@ -103,6 +103,9 @@ static void compute_integral(gmls_functional_t* functional,
     real_t wq = quad_weights[q];
     vector_t* nq = (on_boundary) ? &quad_normals[q] : NULL;
 
+    // Shift the polynomial basis to fall on this quadrature point.
+    multicomp_poly_basis_shift(functional->basis, xq);
+
     // Now compute the (multi-component) integrands for the functional at 
     // this point.
     real_t integrands[num_comp*basis_dim];
