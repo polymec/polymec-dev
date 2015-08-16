@@ -14,7 +14,14 @@ void make_mlpg_lattice(int nx, int ny, int nz, real_t R_over_dx,
                        real_t** extents,
                        stencil_t** neighborhoods)
 {
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  real_t dx = 1.0/nx, dy = 1.0/ny, dz = 1.0/nz;
+  if (nx == 1)
+    dx = MIN(dy, dz);
+  else if (ny == 1)
+    dy = MIN(dx, dz);
+  else if (nz == 1)
+    dz = MIN(dx, dy);
+  bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dy, .z1 = 0.0, .z2 = nz*dz};
 
   // Set up a lattice for interior points.
   *domain = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, nz, &bbox);
@@ -25,25 +32,25 @@ void make_mlpg_lattice(int nx, int ny, int nz, real_t R_over_dx,
   bcloud = create_uniform_point_lattice(MPI_COMM_SELF, 1, ny, nz, &bbox);
   point_cloud_unite(*domain, bcloud, "boundary");
   point_cloud_free(bcloud);
-  bbox.x1 = bbox.x2 = 1.0;
+  bbox.x1 = bbox.x2 = nx*dx;
   bcloud = create_uniform_point_lattice(MPI_COMM_SELF, 1, ny, nz, &bbox);
   point_cloud_unite(*domain, bcloud, "boundary");
   point_cloud_free(bcloud);
-  bbox.x1 = 0.0, bbox.x2 = 1.0;
+  bbox.x1 = 0.0, bbox.x2 = nx*dx;
   bbox.y1 = bbox.y2 = 0.0;
   bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, 1, nz, &bbox);
   point_cloud_unite(*domain, bcloud, "boundary");
   point_cloud_free(bcloud);
-  bbox.y1 = bbox.y2 = 1.0;
+  bbox.y1 = bbox.y2 = ny*dy;
   bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, 1, nz, &bbox);
   point_cloud_unite(*domain, bcloud, "boundary");
   point_cloud_free(bcloud);
-  bbox.y1 = 0.0, bbox.y2 = 1.0;
+  bbox.y1 = 0.0, bbox.y2 = ny*dy;
   bbox.z1 = bbox.z2 = 0.0;
   bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, 1, &bbox);
   point_cloud_unite(*domain, bcloud, "boundary");
   point_cloud_free(bcloud);
-  bbox.z1 = bbox.z2 = 1.0;
+  bbox.z1 = bbox.z2 = nz*dz;
   bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, 1, &bbox);
   point_cloud_unite(*domain, bcloud, "boundary");
   point_cloud_free(bcloud);
@@ -51,7 +58,6 @@ void make_mlpg_lattice(int nx, int ny, int nz, real_t R_over_dx,
   // Do partitioning.
   exchanger_t* ex = partition_point_cloud(domain, MPI_COMM_WORLD, NULL, 1.05);
   exchanger_free(ex);
-  real_t dx = 1.0 / nx;
 
   // Set up a "radius" field to measure point extents.
   int num_local_points = (*domain)->num_points;

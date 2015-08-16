@@ -79,11 +79,11 @@ static void compute_phi_matrix(gmls_matrix_t* matrix,
         &num_nodes, P, &basis_dim, &beta, WPt, &num_nodes);
   rgemm(&no_trans, &no_trans, &basis_dim, &basis_dim, &num_nodes, &alpha, P, 
         &basis_dim, WPt, &num_nodes, &beta, PWPt, &basis_dim);
-matrix_fprintf(P, basis_dim, num_nodes, stdout);
-printf("\n\n\n");
-matrix_fprintf(W, num_nodes, num_nodes, stdout);
-printf("\n\n\n");
-matrix_fprintf(PWPt, basis_dim, basis_dim, stdout);
+//matrix_fprintf(P, basis_dim, num_nodes, stdout);
+//printf("\n\n\n");
+//matrix_fprintf(W, num_nodes, num_nodes, stdout);
+//printf("\n\n\n");
+//matrix_fprintf(PWPt, basis_dim, basis_dim, stdout);
 
   // Now form the matrix phi = (PWPt)^-1 * Pt * W.
 
@@ -91,7 +91,11 @@ matrix_fprintf(PWPt, basis_dim, basis_dim, stdout);
   char uplo = 'L';
   int info;
   rpotrf(&uplo, &basis_dim, PWPt, &basis_dim, &info); 
-  ASSERT(info == 0);
+  if (info != 0)
+  {
+    polymec_error("gmls_matrix: Cholesky factorization of P*W*Pt failed. This often means\n"
+                  "gmls_matrix: that something is wrong with your point distribution.");
+  }
 
   // Compute (PWPt)^1 * PtW.
   rgemm(&trans, &no_trans, &basis_dim, &num_nodes, &num_nodes, &alpha, P, 
@@ -115,9 +119,11 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
   int num_nodes = matrix->vtable.num_nodes(matrix->context, i);
 
   if (num_nodes < basis_dim)
+  {
     polymec_error("gmls_matrix: Singular moment matrix!\n"
                   "gmls_matrix: Number of neighbor nodes N (%d) < polynomial basis dim Q (%d).\n"
                   "gmls_matrix: Nonsingular matrix requires N >= Q.", num_nodes, basis_dim);
+  }
   ASSERT(num_nodes >= basis_dim); // for nonsingular matrix.
   int nodes[num_nodes];
   matrix->vtable.get_nodes(matrix->context, i, nodes);
@@ -133,6 +139,10 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
     multicomp_poly_basis_compute(poly_basis, component, 0, 0, 0, 
                                  &xjs[j], &P[j*basis_dim]);
   }
+//printf("nodes: ");
+//for (int n = 0; n < num_nodes; ++n)
+//  printf("(%g, %g, %g) ", xjs[n].x, xjs[n].y, xjs[n].z);
+//printf("\n");
 
   // Compute the (single-component) diagonal matrix W of MLS weights.
   real_t W[num_nodes*num_nodes];

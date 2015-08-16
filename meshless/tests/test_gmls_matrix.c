@@ -46,10 +46,10 @@ void test_gmls_matrix_with_frankes_function(void** state)
   point_cloud_t* points;
   real_t* extents;
   stencil_t* stencil;
-  int nx = 10, ny = 10, N = nx*ny;
+  int nx = 10, ny = 10, N = 3*nx*ny + 2*nx + 2*ny;
   make_mlpg_lattice(nx, ny, 1, 3.0, &points, &extents, &stencil);
   log_debug("Point cloud has %d points and %d ghosts.", points->num_points, points->num_ghosts);
-  point_cloud_fprintf(points, stdout);
+//  point_cloud_fprintf(points, stdout);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, 1, points, extents, stencil);
   real_t delta = 0.5; // ratio of subdomain extent to point extent.
@@ -96,7 +96,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
       local_matrix_add_row_vector(A, 1.0, r, row_vector);
     }
   }
-  local_matrix_fprintf(A, stdout);
+//  local_matrix_fprintf(A, stdout);
 
   // Fill in the RHS vector.
   real_t B[N];
