@@ -43,13 +43,17 @@ static void franke(void* context, point_t* x, real_t* u)
 
 void test_gmls_matrix_with_frankes_function(void** state)
 {
+  // Construct a point cloud, set of extents, and a stencil.
   point_cloud_t* points;
   real_t* extents;
   stencil_t* stencil;
-  int nx = 10, ny = 10, N = 3*nx*ny + 2*nx + 2*ny;
+  int nx = 10, ny = 10;
   make_mlpg_lattice(nx, ny, 1, 3.0, &points, &extents, &stencil);
   log_debug("Point cloud has %d points and %d ghosts.", points->num_points, points->num_ghosts);
+  int N = points->num_points + points->num_ghosts;
 //  point_cloud_fprintf(points, stdout);
+
+  // Now set up the GMLS machinery.
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, 1, points, extents, stencil);
   real_t delta = 0.5; // ratio of subdomain extent to point extent.
@@ -90,6 +94,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
       real_t coeffs[num_cols];
       gmls_matrix_compute_row(matrix, r, lambda, 0.0, cols, coeffs);
       real_t row_vector[N];
+      memset(row_vector, 0, sizeof(real_t) * N);
       for (int j = 0; j < num_cols; ++j)
 {
 printf("coeffs[%d] = %g\n", j, coeffs[j]);
