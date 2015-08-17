@@ -90,13 +90,15 @@ void test_gmls_matrix_with_frankes_function(void** state)
       real_t coeffs[num_cols];
       gmls_matrix_compute_row(matrix, r, lambda, 0.0, cols, coeffs);
       real_t row_vector[N];
-      memset(row_vector, 0, sizeof(real_t) * N);
       for (int j = 0; j < num_cols; ++j)
+{
+printf("coeffs[%d] = %g\n", j, coeffs[j]);
         row_vector[cols[j]] = coeffs[j];
+}
       local_matrix_add_row_vector(A, 1.0, r, row_vector);
     }
   }
-//  local_matrix_fprintf(A, stdout);
+  local_matrix_fprintf(A, stdout);
 
   // Fill in the RHS vector.
   real_t B[N];

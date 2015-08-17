@@ -213,7 +213,7 @@ void matrix_fprintf(real_t* matrix, int nr, int nc, FILE* stream)
   for (int i = 0; i < nr; ++i)
   {
     if (i > 0)
-      fprintf(stream, " ");
+      fprintf(stream, "  ");
     for (int j = 0; j < nc; ++j)
       fprintf(stream, "%g ", matrix[nr*j+i]);
     if (i < (nr -1))

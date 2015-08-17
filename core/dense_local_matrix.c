@@ -56,7 +56,10 @@ static void dlm_add_row_vector(void* context,
 
   // Add in the column values.
   for (int j = 0; j < mat->N; ++j)
+{
+printf("A(%d, %d) += %g * %g\n", row, j, scale_factor, row_vector[j]);
     mat->A[mat->N*j+row] += scale_factor * row_vector[j];
+}
 }
 
 static bool dlm_solve(void* context, real_t* B, real_t* x)
@@ -84,13 +87,7 @@ static void dlm_fprintf(void* context, FILE* stream)
   dlm_t* mat = context;
   int N = mat->N;
   fprintf(stream, "\nDense matrix (N = %d):\n", mat->N);
-  for (int i = 0; i < N; ++i)
-  {
-    fprintf(stream, "[");
-    for (int j = 0; j < N-1; ++j)
-      fprintf(stream, "%g ", mat->A[N*j+i]);
-    fprintf(stream, "%g]\n", mat->A[N*(N-1)+i]);
-  }
+  matrix_fprintf(mat->A, N, N, stream);
 }
 
 static real_t dlm_value(void* context, int i, int j)
