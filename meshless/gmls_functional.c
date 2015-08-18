@@ -106,13 +106,8 @@ static void compute_integral(gmls_functional_t* functional,
 
     // Integrate.
     for (int i = 0; i < basis_dim; ++i)
-{
       for (int c = 0; c < num_comp; ++c)
-{
         lambdas[num_comp*i+c] += wq * integrands[num_comp*i+c];
-printf("lambdas[%d] -> %g\n", num_comp*i+c, lambdas[num_comp*i+c]);
-}
-}
   }
 }
 

@@ -169,10 +169,6 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
     multicomp_poly_basis_compute(matrix->basis, component, 0, 0, 0, 
                                  &xjs[j], &P[j*basis_dim]);
   }
-//printf("nodes: ");
-//for (int n = 0; n < num_nodes; ++n)
-//  printf("(%g, %g, %g) ", xjs[n].x, xjs[n].y, xjs[n].z);
-//printf("\n");
 
   // Compute the (single-component) diagonal matrix W of MLS weights.
   real_t W[num_nodes*num_nodes];
@@ -232,8 +228,6 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   // Compute the values of the functional.
   real_t lambdas[matrix->num_comp*basis_dim];
   gmls_functional_compute(lambda, component, i, t, matrix->basis, lambdas);
-for (int j = 0; j < basis_dim; ++j)
-printf("lambda[%d,%d](%g) = %g\n", i, j, t, lambdas[j]);
 
   // Compute the row using these functional values.
   compute_matrix_row(matrix, component, i, &xi, js, xjs, num_nodes, lambdas, columns, coeffs);
