@@ -64,8 +64,12 @@ static void poisson_eval_integrands(void* context, int component,
   multicomp_poly_basis_compute(basis, 0, 1, 0, 0, x, dpdx);
   multicomp_poly_basis_compute(basis, 0, 0, 1, 0, x, dpdy);
   multicomp_poly_basis_compute(basis, 0, 0, 0, 1, x, dpdz);
+
   for (int i = 0; i < dim; ++i)
+{
     integrands[i] = dpdx[i] * n->x + dpdy[i] * n->y + dpdz[i] * n->z;
+printf("I[%d](%g, %g, %g, %g) = %g\n", i, t, x->x, x->y, x->z, integrands[i]);
+}
 }
 
 gmls_functional_t* poisson_gmls_functional_new(int degree,

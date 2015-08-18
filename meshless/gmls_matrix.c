@@ -120,9 +120,9 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
 
   if (num_nodes < basis_dim)
   {
-    polymec_error("gmls_matrix: Singular moment matrix!\n"
+    polymec_error("gmls_matrix: Singular moment matrix for subdomain %d!\n"
                   "gmls_matrix: Number of neighbor nodes N (%d) < polynomial basis dim Q (%d).\n"
-                  "gmls_matrix: Nonsingular matrix requires N >= Q.", num_nodes, basis_dim);
+                  "gmls_matrix: Nonsingular matrix requires N >= Q.", i, num_nodes, basis_dim);
   }
   ASSERT(num_nodes >= basis_dim); // for nonsingular matrix.
   int nodes[num_nodes];
@@ -131,11 +131,28 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
   matrix->vtable.get_points(matrix->context, &i, 1, &xi);
   matrix->vtable.get_points(matrix->context, nodes, num_nodes, xjs);
 
+  // Determine the average nodal spacing in the neighborhood.
+  real_t dx = 0;
+  int n_dx = 0;
+  for (int j = 0; j < num_nodes; ++j)
+  {
+    real_t D = point_distance(&xi, &xjs[j]);
+    if (D > 0.0)
+    {
+      dx += D;
+      ++n_dx;
+    }
+  }
+  if (n_dx == 0)
+    polymec_error("gmls_matrix: All nodes in subdomain %d are collocated!", i);
+  dx /= n_dx;
+
   // Compute the matrix [P]_ij = pi(xj), in column major order.
   real_t P[basis_dim*num_nodes];
   for (int j = 0; j < num_nodes; ++j)
   {
     multicomp_poly_basis_shift(poly_basis, &xi);
+    multicomp_poly_basis_scale(poly_basis, 1.0/n_dx);
     multicomp_poly_basis_compute(poly_basis, component, 0, 0, 0, 
                                  &xjs[j], &P[j*basis_dim]);
   }
@@ -193,6 +210,8 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
   int i = row / matrix->num_comp; // index of subdomain
   real_t lambdas[matrix->num_comp*basis_dim];
   gmls_functional_compute(lambda, component, i, t, lambdas);
+for (int j = 0; j < basis_dim; ++j)
+printf("lambda[%d,%d](%g) = %g\n", i, j, t, lambdas[j]);
 
   // Compute the row using these functional values.
   compute_matrix_row(matrix, poly_basis, component, i, lambdas, columns, coeffs);

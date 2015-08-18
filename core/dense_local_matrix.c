@@ -56,10 +56,7 @@ static void dlm_add_row_vector(void* context,
 
   // Add in the column values.
   for (int j = 0; j < mat->N; ++j)
-{
-printf("A(%d, %d) += %g * %g\n", row, j, scale_factor, row_vector[j]);
     mat->A[mat->N*j+row] += scale_factor * row_vector[j];
-}
 }
 
 static bool dlm_solve(void* context, real_t* B, real_t* x)

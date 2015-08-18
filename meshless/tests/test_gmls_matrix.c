@@ -85,6 +85,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
     int_unordered_set_insert(boundary_nodes, bnode);
   }
 
+  // Now interior nodes.
   for (int r = 0; r < N; ++r)
   {
     if (!int_unordered_set_contains(boundary_nodes, r))
@@ -97,7 +98,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
       memset(row_vector, 0, sizeof(real_t) * N);
       for (int j = 0; j < num_cols; ++j)
 {
-printf("coeffs[%d] = %g\n", j, coeffs[j]);
+printf("%d: coeffs[%d] = %g\n", r, j, coeffs[j]);
         row_vector[cols[j]] = coeffs[j];
 }
       local_matrix_add_row_vector(A, 1.0, r, row_vector);
