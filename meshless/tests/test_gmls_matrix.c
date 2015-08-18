@@ -22,8 +22,9 @@ void test_gmls_matrix_ctor(void** state)
   real_t* extents;
   stencil_t* stencil;
   make_mlpg_lattice(10, 10, 10, 3.0, &points, &extents, &stencil);
+  multicomp_poly_basis_t* P = standard_multicomp_poly_basis_new(1, 2);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
-  gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, 1, points, extents, stencil);
+  gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(P, W, points, extents, stencil);
 
   // Clean up.
   gmls_matrix_free(matrix);
@@ -54,8 +55,9 @@ void test_gmls_matrix_with_frankes_function(void** state)
 //  point_cloud_fprintf(points, stdout);
 
   // Now set up the GMLS machinery.
+  multicomp_poly_basis_t* P = standard_multicomp_poly_basis_new(1, 2);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
-  gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(W, 1, points, extents, stencil);
+  gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(P, W, points, extents, stencil);
   real_t delta = 0.5; // ratio of subdomain extent to point extent.
   gmls_functional_t* lambda = poisson_gmls_functional_new(2, points, extents, delta);
   sp_func_t* F = sp_func_from_func("Franke's function", franke, SP_INHOMOGENEOUS, 1);

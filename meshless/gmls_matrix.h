@@ -65,8 +65,8 @@ typedef struct
 gmls_matrix_t* gmls_matrix_new(const char* name,
                                void* context,
                                gmls_matrix_vtable vtable,
-                               point_weight_function_t* W,
-                               int num_components);
+                               multicomp_poly_basis_t* poly_basis,
+                               point_weight_function_t* W);
 
 // Destroys the given GMLS matrix.
 void gmls_matrix_free(gmls_matrix_t* matrix);
@@ -100,8 +100,8 @@ void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
 // borrowed by the matrix, not consumed. The weight function displacement 
 // y = |x1 - x2|/R1, where R1 is the extent of the subdomain corresponding 
 // to x1.
-gmls_matrix_t* stencil_based_gmls_matrix_new(point_weight_function_t* W,
-                                             int num_components,
+gmls_matrix_t* stencil_based_gmls_matrix_new(multicomp_poly_basis_t* poly_basis,
+                                             point_weight_function_t* W,
                                              point_cloud_t* points,
                                              real_t* extents,
                                              stencil_t* stencil);

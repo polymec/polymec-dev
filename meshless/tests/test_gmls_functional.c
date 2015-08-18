@@ -20,7 +20,6 @@ void test_gmls_functional_ctor(void** state, int p)
   make_mlpg_lattice(10, 10, 10, 1.0*p, &points, &subdomain_extents, NULL);
   real_t delta = 0.5;
   gmls_functional_t* poisson = poisson_gmls_functional_new(p, points, subdomain_extents, delta);
-  assert_int_equal(p, multicomp_poly_basis_degree(gmls_functional_basis(poisson)));
   assert_int_equal(1, gmls_functional_num_components(poisson));
 
   // Clean up.

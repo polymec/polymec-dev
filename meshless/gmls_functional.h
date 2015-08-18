@@ -39,52 +39,52 @@ typedef struct
   // given component can involve terms from all solution components. The 
   // integrands are stored in basis-major (component-minor) order.
   void (*eval_integrands)(void* context, int component, 
-                          real_t t, point_t* x, vector_t* n,
-                          multicomp_poly_basis_t* basis, real_t* integrands);
+                          real_t t, multicomp_poly_basis_t* basis, 
+                          point_t* x, vector_t* n,
+                          real_t* integrands);
 
   // This is a destructor that destroys the given context.
   void (*dtor)(void* context); // Destructor
 } gmls_functional_vtable;
 
 // Creates a generalized MLS functional with the given name, context, virtual 
-// table, (multicomponent) polynomial basis, and volume integral rule.
+// table, number of components, and volume integral rule.
 // The solution is assumed to be a vector of degrees of freedom 
 // expressed in node-major order.
 gmls_functional_t* volume_gmls_functional_new(const char* name,
                                               void* context,
                                               gmls_functional_vtable vtable,
-                                              multicomp_poly_basis_t* poly_basis,
+                                              int num_components,
                                               volume_integral_t* quad_rule);
 
 // Creates a generalized MLS functional with the given name, context, virtual 
-// table, (multicomponent) polynomial basis, and surface integral rule.
+// table, number of components, and surface integral rule.
 // The solution is assumed to be a vector of degrees of freedom 
 // expressed in node-major order.
 gmls_functional_t* surface_gmls_functional_new(const char* name,
                                                void* context,
                                                gmls_functional_vtable vtable,
-                                               multicomp_poly_basis_t* poly_basis,
+                                               int num_components,
                                                surface_integral_t* quad_rule);
  
 // Destroys the given GMLS functional.
 void gmls_functional_free(gmls_functional_t* functional);
-
-// Returns the multi-component polynomial basis associated with this functional.
-multicomp_poly_basis_t* gmls_functional_basis(gmls_functional_t* functional);
 
 // Returns the number of solution components in the functional.
 int gmls_functional_num_components(gmls_functional_t* functional);
 
 // Evaluates the functionals {lambda_j} consisting of the weak forms applied
 // to the polynomials within the polynomial basis for the given component
-// on the ith subdomain evaluated at time t. The functionals are placed in 
-// the lambdas array, which should be equal in length to the number of 
-// components * the dimension of the polynomial basis, filled in basis-major 
-// (component-minor) order.
+// on the ith subdomain, evaluated at time t. The functionals are computed using 
+// the components (vectors) in the given multi-component polynomial basis. The values
+// are placed in the lambdas array, which should be equal in length to the number of 
+// components * the dimension of poly_basis, filled in basis-major (component-minor) 
+// order.
 void gmls_functional_compute(gmls_functional_t* functional,
                              int component,
                              int i,
                              real_t t,
+                             multicomp_poly_basis_t* poly_basis,
                              real_t* lambdas);
 
 // Evaluates the integrands applied to the polynomials within the polynomial 
@@ -96,6 +96,7 @@ void gmls_functional_compute(gmls_functional_t* functional,
 void gmls_functional_eval_integrands(gmls_functional_t* functional,
                                      int component,
                                      real_t t,
+                                     multicomp_poly_basis_t* poly_basis,
                                      point_t* x, vector_t* n,
                                      real_t* integrands);
 
