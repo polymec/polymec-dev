@@ -21,20 +21,20 @@ PLAT = _linux
 #
 #  The name of the libraries to be created/linked to
 #
-SuperLUroot	= $(HOME)/Codes/SuperLU/SuperLU_4.3
-SUPERLULIB   	= $(SuperLUroot)/lib/libsuperlu_4.3.a
-TMGLIB       	= libtmglib.a
+SuperLUroot	= $(HOME)/Dropbox/Codes/SuperLU/SuperLU
+SUPERLULIB   	= $(SuperLUroot)/lib/libsuperlu_5.0.a
 
-## BLASLIB   	= $(SuperLUroot)/lib/libblas.a
-
-BLASDEF 	= -DUSE_VENDOR_BLAS
-BLASLIB 	= -L$(HOME)/lib/GotoBLAS -lgoto
+#BLASLIB   	= $(SuperLUroot)/lib/libblas.a
 
 ## ATLAS BLAS causes single-precision to fail
+#BLASDEF = -DUSE_VENDOR_BLAS
 #BLASLIB   	= -L/usr/lib/atlas -lblas
-## This BLAS causes single-precision to fail the test in SuperLU
-#BLASLIB 	= -L/usr/lib -lblas
 
+## This BLAS causes single-precision to fail the test in SuperLU
+BLASDEF 	= -DUSE_VENDOR_BLAS
+BLASLIB 	= -L/usr/lib -lblas
+
+TMGLIB       	= libtmglib.a
 LIBS		= $(SUPERLULIB) $(BLASLIB)
 
 #
@@ -46,12 +46,12 @@ ARCHFLAGS    = cr
 RANLIB       = ranlib
 
 CC           = gcc
-CFLAGS       = -DPRNTlevel=0 -O3
+CFLAGS       = -O3 -std=c99 -g
 NOOPTS       = 
-FORTRAN	     = g77
-FFLAGS       = -O2
+FORTRAN	     = gfortran 
+FFLAGS       = -O3 -g -fopenmp
 LOADER       = $(CC)
-LOADOPTS     =
+LOADOPTS     = -fopenmp -v
 
 #
 #  C preprocessor defs for compilation for the Fortran interface
