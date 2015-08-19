@@ -233,11 +233,21 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
     char equil;
     double row_scale_factors[A->nrow], col_scale_factors[A->ncol];
     double recip_pivot_growth = 1.0;
+    GlobalLU_t glu; // "Global data structure" for SuperLU (?!)
     mem_usage_t mem_usage;
+
+    // Incomplete LU factorization seems to be aggressive enough that 
+    // we have to suspend floating point exceptions.
+    polymec_suspend_fpe();
+
     dgsisx(&mat->options, A, mat->cperm, mat->rperm,
            elim_tree, &equil, row_scale_factors, col_scale_factors,
            &mat->L, &mat->U, NULL, 0, &mat->rhs, &mat->X, &recip_pivot_growth,
-           &rcond, &mem_usage, &mat->stat, &info);
+           &rcond, &glu, &mem_usage, &mat->stat, &info);
+
+    // Back to business as usual...
+    polymec_restore_fpe();
+
     if (equil != 'N')
     {
       if (equil == 'R')

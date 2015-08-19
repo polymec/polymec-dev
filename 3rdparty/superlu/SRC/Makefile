@@ -38,20 +38,20 @@ include ../make.inc
 #######################################################################
 
 ### LAPACK 
-LAAUX 	= lsame.o xerbla.o
-SLASRC 	= slacon.o 
-DLASRC	= dlacon.o
-CLASRC	= clacon.o scsum1.o icmax1.o
-ZLASRC	= zlacon.o dzsum1.o izmax1.o
-SCLAUX 	= slamch.o
-DZLAUX 	= dlamch.o
+LAAUX 	= lsame.o  xerbla.o
+SLASRC 	= slacon2.o 
+DLASRC	= dlacon2.o
+CLASRC	= clacon2.o scsum1.o icmax1.o
+ZLASRC	= zlacon2.o dzsum1.o izmax1.o
+SCLAUX 	= smach.o    # slamch.o
+DZLAUX 	= dmach.o    # dlamch.o
 
 ### SuperLU 
 ALLAUX 	= superlu_timer.o util.o memory.o get_perm_c.o mmd.o \
 	  sp_coletree.o sp_preorder.o sp_ienv.o relax_snode.o \
 	  heap_relax_snode.o colamd.o \
 	  ilu_relax_snode.o ilu_heap_relax_snode.o mark_relax.o \
-	  mc64ad.o qselect.o
+	  mc64ad.o qselect.o input_error.o
 
 SLUSRC = \
 	sgssv.o sgssvx.o \
@@ -137,9 +137,11 @@ complex16: $(ZLUSRC) $(ALLAUX) $(LAAUX) $(ZLASRC) $(DZLAUX)
 ##################################
 # Do not optimize these routines #
 ##################################
+smach.o: ../INSTALL/smach.c ; $(CC) -c $(NOOPTS) $(CDEFS) $<
+dmach.o: ../INSTALL/dmach.c ; $(CC) -c $(NOOPTS) $(CDEFS) $<
+superlu_timer.o:  superlu_timer.c ; $(CC) -c $(NOOPTS) $<
 slamch.o: slamch.c ; $(CC) -c $(NOOPTS) $(CDEFS) $<
 dlamch.o: dlamch.c ; $(CC) -c $(NOOPTS) $(CDEFS) $<
-superlu_timer.o:  superlu_timer.c ; $(CC) -c $(NOOPTS) $<
 ##################################
 
 .c.o:
