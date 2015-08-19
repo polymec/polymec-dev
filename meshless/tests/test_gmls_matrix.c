@@ -11,6 +11,7 @@
 #include <string.h>
 #include "cmockery.h"
 #include "core/dense_local_matrix.h"
+#include "core/linear_algebra.h"
 #include "meshless/gmls_matrix.h"
 #include "meshless/mlpg_quadrature.h"
 #include "make_mlpg_lattice.h"
@@ -120,11 +121,31 @@ void test_gmls_matrix_with_frankes_function(void** state)
       volume_integral_compute(Qv, F, &B[r]);
     }
   }
+  printf("B = ");
+  vector_fprintf(B, 100, stdout);
+  printf("\n");
 
   // Solve the linear system.
   real_t U[N];
   bool solved = local_matrix_solve(A, B, U);
   assert_true(solved);
+
+  printf("U = ");
+  vector_fprintf(U, 100, stdout);
+  printf("\n");
+
+  // Measure the L2 error.
+  real_t L2 = 0.0;
+  for (int i = 0; i < points->num_points; ++i)
+  {
+    point_t* xi = &points->points[i];
+    real_t Usol;
+    sp_func_eval(F, xi, &Usol);
+    real_t err = fabs(U[i] - Usol);
+    L2 += err*err;
+  }
+  L2 = sqrt(L2);
+  printf("L2 = %g\n", L2);
 
   // Clean up.
   int_unordered_set_free(boundary_nodes);
