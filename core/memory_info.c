@@ -18,7 +18,7 @@
 #include <stdbool.h>
 #include "core/logging.h"
 
-void get_memory_info_linux(memory_info_t* info)
+static void get_memory_info_linux(memory_info_t* info)
 {
   // Available virtual memory.
   struct sysinfo mem_info;
@@ -101,7 +101,7 @@ void get_memory_info_linux(memory_info_t* info)
 #include <sys/sysctl.h>
 #include <sys/types.h>
 
-void get_memory_info_apple(memory_info_t* info)
+static void get_memory_info_apple(memory_info_t* info)
 {
   // Available virtual memory.
   struct statfs stats;
