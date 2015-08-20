@@ -219,7 +219,7 @@ void matrix_fprintf(real_t* matrix, int nr, int nc, FILE* stream)
     if (i < (nr -1))
       fprintf(stream, ";\n");
   }
-  fprintf(stream, "]");
+  fprintf(stream, "]\n");
 }
 
 void vector_fprintf(real_t* vec, int nr, FILE* stream)
@@ -228,7 +228,7 @@ void vector_fprintf(real_t* vec, int nr, FILE* stream)
   fprintf(stream, "[");
   for (int i = 0; i < nr; ++i)
     fprintf(stream, "%g ", vec[i]);
-  fprintf(stream, "]");
+  fprintf(stream, "]\n");
 }
 
 real_t matrix2_det(real_t* matrix)
