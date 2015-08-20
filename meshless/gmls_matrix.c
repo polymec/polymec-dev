@@ -201,7 +201,7 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
   memset(coeffs, 0, sizeof(real_t) * num_comp * num_nodes);
   for (int i = 0; i < basis_dim; ++i)
     for (int j = 0; j < num_nodes; ++j)
-      coeffs[num_comp * component + j] += lambdas[i] * phi[basis_dim*j+i];
+      coeffs[num_nodes * component + j] += lambdas[i] * phi[basis_dim*j+i];
 
   // Fill in the column indices.
   for (int n = 0; n < num_nodes; ++n)
