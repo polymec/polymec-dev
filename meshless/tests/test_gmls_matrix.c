@@ -104,7 +104,8 @@ void test_gmls_matrix_with_frankes_function(void** state)
       local_matrix_add_row_vector(A, 1.0, r, row_vector);
     }
   }
-//  local_matrix_fprintf(A, stdout);
+printf("A = ");
+  local_matrix_fprintf(A, stdout);
 
   // Fill in the RHS vector.
   real_t B[N];
@@ -123,7 +124,6 @@ void test_gmls_matrix_with_frankes_function(void** state)
   }
   printf("B = ");
   vector_fprintf(B, 100, stdout);
-  printf("\n");
 
   // Solve the linear system.
   real_t U[N];
@@ -132,7 +132,6 @@ void test_gmls_matrix_with_frankes_function(void** state)
 
   printf("U = ");
   vector_fprintf(U, 100, stdout);
-  printf("\n");
 
   // Measure the L2 error.
   real_t L2 = 0.0;

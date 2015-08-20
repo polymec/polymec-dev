@@ -71,41 +71,43 @@ int gmls_matrix_num_columns(gmls_matrix_t* matrix, int row)
 
 static void compute_phi_matrix(gmls_matrix_t* matrix,
                                point_t* xjs, int num_nodes, 
-                               real_t* W, real_t* P, real_t* phi)
+                               real_t* W, real_t* Pt, real_t* phi)
 {
   int basis_dim = matrix->basis_dim;
 
-  // Compute the moment matrix PWPt.
-  real_t WPt[num_nodes*basis_dim], PWPt[basis_dim*basis_dim];
+  // Compute the moment matrix PtWP.
+
+  // First form Pt*W.
+  real_t PtW[basis_dim*num_nodes]; 
+  for (int i = 0; i < basis_dim; ++i)
+    for (int j = 0; j < num_nodes; ++j)
+      PtW[j*basis_dim+i] = Pt[j*basis_dim+i] * W[j]; // PtW_ij = Pt_ij * W_j
+
+  // Now Pt*W*P.
   char no_trans = 'N', trans = 'T';
   real_t alpha = 1.0, beta = 0.0;
-  rgemm(&no_trans, &trans, &num_nodes, &basis_dim, &num_nodes, &alpha, W, 
-        &num_nodes, P, &basis_dim, &beta, WPt, &num_nodes);
-  rgemm(&no_trans, &no_trans, &basis_dim, &basis_dim, &num_nodes, &alpha, P, 
-        &basis_dim, WPt, &num_nodes, &beta, PWPt, &basis_dim);
-//matrix_fprintf(P, basis_dim, num_nodes, stdout);
-//printf("\n\n\n");
-//matrix_fprintf(W, num_nodes, num_nodes, stdout);
-//printf("\n\n\n");
-//matrix_fprintf(PWPt, basis_dim, basis_dim, stdout);
+  real_t PtWP[basis_dim*basis_dim];
+  rgemm(&no_trans, &trans, &basis_dim, &basis_dim, &num_nodes, &alpha, PtW, 
+        &basis_dim, Pt, &basis_dim, &beta, PtWP, &basis_dim);
+//printf("Pt*W*P = ");
+//matrix_fprintf(PtWP, basis_dim, basis_dim, stdout);
 
-  // Now form the matrix phi = (PWPt)^-1 * Pt * W.
+  // Now form the matrix phi = (PtWP)^-1*PtW.
 
-  // Factor PWPt all Cholesky-like, since it should be a symmetric matrix.
+  // Factor PtWP all Cholesky-like, since it should be a symmetric matrix.
   char uplo = 'L';
   int info;
-  rpotrf(&uplo, &basis_dim, PWPt, &basis_dim, &info); 
+  rpotrf(&uplo, &basis_dim, PtWP, &basis_dim, &info); 
   if (info != 0)
   {
     polymec_error("gmls_matrix: Cholesky factorization of P*W*Pt failed. This often means\n"
                   "gmls_matrix: that something is wrong with your point distribution.");
   }
 
-  // Compute (PWPt)^1 * PtW.
-  rgemm(&trans, &no_trans, &basis_dim, &num_nodes, &num_nodes, &alpha, P, 
-        &num_nodes, W, &num_nodes, &beta, phi, &basis_dim);
-  int one = 1;
-  rpotrs(&uplo, &basis_dim, &one, PWPt, &basis_dim, phi, &basis_dim, &info);
+  // Compute (PtWP)^-1 * PtW.
+  int nrhs = num_nodes;
+  memcpy(phi, PtW, sizeof(real_t) * basis_dim * num_nodes);
+  rpotrs(&uplo, &basis_dim, &nrhs, PtWP, &basis_dim, phi, &basis_dim, &info);
 }
 
 static void get_neighborhood(gmls_matrix_t* matrix, 
@@ -162,34 +164,43 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
 {
   int basis_dim = matrix->basis_dim;
 
-  // Compute the matrix [P]_ij = pi(xj), in column major order.
-  real_t P[basis_dim*num_nodes];
+  // Compute the matrix [Pt]_ij = pi(xj), in column major order.
+  real_t Pt[basis_dim*num_nodes];
   for (int j = 0; j < num_nodes; ++j)
   {
     multicomp_poly_basis_compute(matrix->basis, component, 0, 0, 0, 
-                                 &xjs[j], &P[j*basis_dim]);
+                                 &xjs[j], &Pt[j*basis_dim]);
   }
+//if (i == 0)
+//{
+//printf("Pt = ");
+//matrix_fprintf(Pt, basis_dim, num_nodes, stdout);
+//}
 
   // Compute the (single-component) diagonal matrix W of MLS weights.
-  real_t W[num_nodes*num_nodes];
-  memset(W, 0.0, sizeof(real_t) * num_nodes*num_nodes);
+  real_t W[num_nodes];
   for (int j = 0; j < num_nodes; ++j)
   {
     vector_t y;
     matrix->vtable.compute_weight_displacement(matrix->context, i, xi, j, &xjs[j], &y);
-    W[num_nodes*j+j] = point_weight_function_value(matrix->W, &y);
+    W[j] = point_weight_function_value(matrix->W, &y);
   }
+//if (i == 0)
+//{
+//printf("W = ");
+//vector_fprintf(W, num_nodes, stdout);
+//}
 
-  // Compute the "Phi" matrix Phi = (Pt * W * P)^-1 * W * Pt.
+  // Compute the "phi" matrix phi = (Pt * W * P)^-1 * Pt * W.
   real_t phi[basis_dim*num_nodes];
-  compute_phi_matrix(matrix, xjs, num_nodes, W, P, phi);
+  compute_phi_matrix(matrix, xjs, num_nodes, W, Pt, phi);
 
   // Now form the matrix coefficients from the product of the lambda and Phi
   // matrices.
   char no_trans = 'N';
   int M = 1; // Rows in lambda matrix.
   int N = num_nodes; // Columns in Phi matrix.
-  int K = matrix->num_comp*basis_dim; // Columns in lambda, rows in Phi.
+  int K = matrix->num_comp*basis_dim; // Columns in lambda, rows in phi.
   real_t alpha = 1.0, beta = 0.0;
   rgemm(&no_trans, &no_trans, &M, &N, &K, &alpha, lambdas, &M, phi, &K, 
         &beta, coeffs, &M);
