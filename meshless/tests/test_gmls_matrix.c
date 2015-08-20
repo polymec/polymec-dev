@@ -155,17 +155,17 @@ void test_gmls_matrix_with_frankes_function(void** state)
   }
 
   // Scale the L2 error by the uniform volume element.
-  real_t dV = pow(1.0/nx, 3.0);
+  real_t dV = 1.0/nx * 1.0/ny;
   L2 = sqrt(L2 * dV);
   log_urgent("L2(error) = %g\n", L2);
 
   // Super crude hard-wired success metric. :-/
   if (nx == 5)
-    assert_true(L2 < 0.0223);
+    assert_true(L2 < 0.05);
   else if (nx == 10)
-    assert_true(L2 < 0.0051);
+    assert_true(L2 < 0.0165);
   else if (nx == 20)
-    assert_true(L2 < 0.001);
+    assert_true(L2 < 0.0045);
 
   // Clean up.
   int_unordered_set_free(boundary_nodes);
