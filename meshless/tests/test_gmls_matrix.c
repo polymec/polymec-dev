@@ -56,7 +56,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
   {
     options_t* opts = options_argv();
     char* nx_str = options_value(opts, "nx");
-    if ((nx_str != NULL) && (string_is_number))
+    if ((nx_str != NULL) && (string_is_number(nx_str)))
       nx = ny = atoi(nx_str);
   }
 
@@ -169,6 +169,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
 
   // Clean up.
   int_unordered_set_free(boundary_nodes);
+  local_matrix_free(A);
   gmls_matrix_free(matrix);
   point_cloud_free(points);
   polymec_free(extents);
