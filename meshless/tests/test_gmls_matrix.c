@@ -10,6 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmockery.h"
+#include "core/options.h"
 #include "core/dense_local_matrix.h"
 #include "core/linear_algebra.h"
 #include "meshless/gmls_matrix.h"
@@ -50,6 +51,15 @@ void test_gmls_matrix_with_frankes_function(void** state)
   real_t* extents;
   stencil_t* stencil;
   int nx = 10, ny = 10;
+  
+  // Override options if desired.
+  {
+    options_t* opts = options_argv();
+    char* nx_str = options_value(opts, "nx");
+    if ((nx_str != NULL) && (string_is_number))
+      nx = ny = atoi(nx_str);
+  }
+
   make_mlpg_lattice(nx, ny, 1, 3.0, &points, &extents, &stencil);
   log_debug("Point cloud has %d points and %d ghosts.", points->num_points, points->num_ghosts);
   int N = points->num_points + points->num_ghosts;
@@ -64,7 +74,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
   sp_func_t* F = sp_func_from_func("Franke's function", franke, SP_INHOMOGENEOUS, 1);
   volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, delta);
 
-  // Set up our beloved linear system using a dense matrix.
+  // Set up our linear system using a dense matrix. This is inefficient but very simple.
   local_matrix_t* A = dense_local_matrix_new(N);
 
   // Treat boundary nodes first.
@@ -143,7 +153,10 @@ void test_gmls_matrix_with_frankes_function(void** state)
     real_t err = fabs(U[i] - Usol);
     L2 += err*err;
   }
-  L2 = sqrt(L2);
+
+  // Scale the L2 error by the uniform volume element.
+  real_t dV = pow(1.0/nx, 3.0);
+  L2 = sqrt(L2 * dV);
   log_urgent("L2(error) = %g\n", L2);
 
   // Clean up.
