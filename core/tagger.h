@@ -77,8 +77,9 @@ void tagger_delete_tag(tagger_t* tagger, const char* tag);
 // the destination is overwritten. NOTE: No properties are copied.
 void tagger_copy_tag(tagger_t* tagger, const char* source_tag, const char* destination_tag);
 
-// Replaces the given tag with its union with the other tag. If either of 
-// the given tags does not exist in this tagger, this function has no effect.
+// Replaces the given tag with its union with the other tag. If the other 
+// tag does not exist, this function has no effect. Otherwise, the given 
+// tag will be created if it does not yet exist. 
 void tagger_unite_tag(tagger_t* tagger, const char* tag, const char* other);
 
 // Replaces the given tag with its intersection with the other tag. If either 

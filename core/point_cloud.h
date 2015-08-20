@@ -123,6 +123,14 @@ void point_cloud_intersect(point_cloud_t* cloud,
                            point_cloud_t* other,
                            real_t distance_tol);
 
+// Performs an in-place differencing of this point cloud with another, 
+// removing tags for which there subsequently exist no points. A point in 
+// cloud is removed if it falls within distance_tol of a point in 
+// other.
+void point_cloud_difference(point_cloud_t* cloud, 
+                            point_cloud_t* other,
+                            real_t distance_tol);
+
 // Trims from this cloud any points that fall "outside" of the given implicit 
 // function (that is, points for which F > 0), removing tags for which there
 // subsequently exist no points.

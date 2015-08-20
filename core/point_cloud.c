@@ -240,6 +240,24 @@ void point_cloud_intersect(point_cloud_t* cloud,
   int_unordered_set_free(points_to_remove);
 }
 
+void point_cloud_difference(point_cloud_t* cloud, 
+                            point_cloud_t* other,
+                            real_t distance_tol)
+{
+  kd_tree_t* tree = kd_tree_new(cloud->points, cloud->num_points);
+  int_unordered_set_t* points_to_remove = int_unordered_set_new();
+  for (int i = 0; i < other->num_points; ++i)
+  {
+    point_t* xi = &(cloud->points[i]);
+    int j = kd_tree_nearest(tree, xi);
+    if (point_distance(&(other->points[j]), xi) <= distance_tol)
+      int_unordered_set_insert(points_to_remove, i);
+  }
+  kd_tree_free(tree);
+  remove_points(cloud, points_to_remove);
+  int_unordered_set_free(points_to_remove);
+}
+
 void point_cloud_trim(point_cloud_t* cloud, sp_func_t* F)
 {
   ASSERT(sp_func_num_comp(F) == 1);

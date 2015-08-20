@@ -252,16 +252,19 @@ void tagger_unite_tag(tagger_t* tagger, const char* tag, const char* other)
 {
   int nt1, nt2;
   int* t1 = tagger_tag(tagger, tag, &nt1);
-  int* t2 = tagger_tag(tagger, tag, &nt2);
-  if ((t1 == NULL) || (t2 == NULL))
+  int* t2 = tagger_tag(tagger, other, &nt2);
+  if (t2 == NULL)
     return;
 
   int_unordered_set_t* tag_set = int_unordered_set_new();
   int_unordered_set_t* other_set = int_unordered_set_new();
   int_unordered_set_t* union_set = int_unordered_set_new();
 
-  for (int i = 0; i < nt1; ++i)
-    int_unordered_set_insert(tag_set, t1[i]);
+  if (t1 != NULL)
+  {
+    for (int i = 0; i < nt1; ++i)
+      int_unordered_set_insert(tag_set, t1[i]);
+  }
   for (int i = 0; i < nt2; ++i)
     int_unordered_set_insert(other_set, t2[i]);
   int_unordered_set_union(tag_set, other_set, union_set);
@@ -281,7 +284,7 @@ void tagger_intersect_tag(tagger_t* tagger, const char* tag, const char* other)
 {
   int nt1, nt2;
   int* t1 = tagger_tag(tagger, tag, &nt1);
-  int* t2 = tagger_tag(tagger, tag, &nt2);
+  int* t2 = tagger_tag(tagger, other, &nt2);
   if ((t1 == NULL) || (t2 == NULL))
     return;
 
@@ -310,7 +313,7 @@ void tagger_difference_tag(tagger_t* tagger, const char* tag, const char* other)
 {
   int nt1, nt2;
   int* t1 = tagger_tag(tagger, tag, &nt1);
-  int* t2 = tagger_tag(tagger, tag, &nt2);
+  int* t2 = tagger_tag(tagger, other, &nt2);
   if ((t1 == NULL) || (t2 == NULL))
     return;
 
