@@ -104,8 +104,8 @@ void test_gmls_matrix_with_frankes_function(void** state)
       local_matrix_add_row_vector(A, 1.0, r, row_vector);
     }
   }
-printf("A = ");
-  local_matrix_fprintf(A, stdout);
+//printf("A = ");
+//local_matrix_fprintf(A, stdout);
 
   // Fill in the RHS vector.
   real_t B[N];
@@ -122,16 +122,16 @@ printf("A = ");
       volume_integral_compute(Qv, F, &B[r]);
     }
   }
-  printf("B = ");
-  vector_fprintf(B, 100, stdout);
+//printf("B = ");
+//vector_fprintf(B, nx*ny, stdout);
 
   // Solve the linear system.
   real_t U[N];
   bool solved = local_matrix_solve(A, B, U);
   assert_true(solved);
 
-  printf("U = ");
-  vector_fprintf(U, 100, stdout);
+//printf("U = ");
+//vector_fprintf(U, nx*ny, stdout);
 
   // Measure the L2 error.
   real_t L2 = 0.0;
@@ -144,7 +144,7 @@ printf("A = ");
     L2 += err*err;
   }
   L2 = sqrt(L2);
-  printf("L2 = %g\n", L2);
+  log_urgent("L2(error) = %g\n", L2);
 
   // Clean up.
   int_unordered_set_free(boundary_nodes);

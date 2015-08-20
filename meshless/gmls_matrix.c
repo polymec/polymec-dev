@@ -266,11 +266,10 @@ void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
   multicomp_poly_basis_shift(matrix->basis, &xi);
   multicomp_poly_basis_scale(matrix->basis, 1.0/dx);
 
-  // "Compute" the delta functions. :-)
+  // "Compute" the delta function version of the functional.
   real_t delta[matrix->num_comp*basis_dim];
   memset(delta, 0, sizeof(real_t) * matrix->num_comp * basis_dim);
-  for (int j = 0; j < basis_dim; ++j)
-    delta[matrix->num_comp*j+component] = 1.0;
+  delta[0] = 1.0; // constant term is unity.
   compute_matrix_row(matrix, component, i, &xi, js, xjs, num_nodes, delta, columns, coeffs);
 }
 
