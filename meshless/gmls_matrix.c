@@ -195,15 +195,13 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
   real_t phi[basis_dim*num_nodes];
   compute_phi_matrix(matrix, xjs, num_nodes, W, Pt, phi);
 
-  // Now form the matrix coefficients from the product of the lambda and Phi
-  // matrices.
-  char no_trans = 'N';
-  int M = 1; // Rows in lambda matrix.
-  int N = num_nodes; // Columns in Phi matrix.
-  int K = matrix->num_comp*basis_dim; // Columns in lambda, rows in phi.
-  real_t alpha = 1.0, beta = 0.0;
-  rgemm(&no_trans, &no_trans, &M, &N, &K, &alpha, lambdas, &M, phi, &K, 
-        &beta, coeffs, &M);
+  // Now form the coefficients in the matrix row from the product of the 
+  // lambda and phi matrices.
+  int num_comp = matrix->num_comp;
+  memset(coeffs, 0, sizeof(real_t) * num_comp * num_nodes);
+  for (int i = 0; i < basis_dim; ++i)
+    for (int j = 0; j < num_nodes; ++j)
+      coeffs[num_comp * component + j] += lambdas[i] * phi[basis_dim*j+i];
 
   // Fill in the column indices.
   for (int n = 0; n < num_nodes; ++n)
