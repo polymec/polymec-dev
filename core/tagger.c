@@ -8,6 +8,7 @@
 #include "core/tagger.h"
 #include "core/polymec.h"
 #include "core/unordered_map.h"
+#include "core/unordered_set.h"
 
 typedef struct
 {
@@ -232,6 +233,106 @@ void tagger_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_ta
 void tagger_delete_tag(tagger_t* tagger, const char* tag)
 {
   tagger_data_map_delete(tagger->data, (char*)tag);
+}
+
+void tagger_copy_tag(tagger_t* tagger, const char* source_tag, const char* destination_tag)
+{
+  int n;
+  int* t = tagger_tag(tagger, source_tag, &n);
+  if (t != NULL)
+  {
+    if (tagger_has_tag(tagger, destination_tag))
+      tagger_delete_tag(tagger, destination_tag);
+    int* t1 = tagger_create_tag(tagger, destination_tag, n);
+    memcpy(t1, t, sizeof(int) * n);
+  }
+}
+
+void tagger_unite_tag(tagger_t* tagger, const char* tag, const char* other)
+{
+  int nt1, nt2;
+  int* t1 = tagger_tag(tagger, tag, &nt1);
+  int* t2 = tagger_tag(tagger, tag, &nt2);
+  if ((t1 == NULL) || (t2 == NULL))
+    return;
+
+  int_unordered_set_t* tag_set = int_unordered_set_new();
+  int_unordered_set_t* other_set = int_unordered_set_new();
+  int_unordered_set_t* union_set = int_unordered_set_new();
+
+  for (int i = 0; i < nt1; ++i)
+    int_unordered_set_insert(tag_set, t1[i]);
+  for (int i = 0; i < nt2; ++i)
+    int_unordered_set_insert(other_set, t2[i]);
+  int_unordered_set_union(tag_set, other_set, union_set);
+  int_unordered_set_free(tag_set);
+  int_unordered_set_free(other_set);
+
+  tagger_delete_tag(tagger, tag);
+  int* union_tag = tagger_create_tag(tagger, tag, union_set->size);
+  int pos = 0, j, k = 0;
+  while (int_unordered_set_next(union_set, &pos, &j))
+    union_tag[k++] = j;
+
+  int_unordered_set_free(union_set);
+}
+
+void tagger_intersect_tag(tagger_t* tagger, const char* tag, const char* other)
+{
+  int nt1, nt2;
+  int* t1 = tagger_tag(tagger, tag, &nt1);
+  int* t2 = tagger_tag(tagger, tag, &nt2);
+  if ((t1 == NULL) || (t2 == NULL))
+    return;
+
+  int_unordered_set_t* tag_set = int_unordered_set_new();
+  int_unordered_set_t* other_set = int_unordered_set_new();
+  int_unordered_set_t* intersect_set = int_unordered_set_new();
+
+  for (int i = 0; i < nt1; ++i)
+    int_unordered_set_insert(tag_set, t1[i]);
+  for (int i = 0; i < nt2; ++i)
+    int_unordered_set_insert(other_set, t2[i]);
+  int_unordered_set_intersection(tag_set, other_set, intersect_set);
+  int_unordered_set_free(tag_set);
+  int_unordered_set_free(other_set);
+
+  tagger_delete_tag(tagger, tag);
+  int* intersect_tag = tagger_create_tag(tagger, tag, intersect_set->size);
+  int pos = 0, j, k = 0;
+  while (int_unordered_set_next(intersect_set, &pos, &j))
+    intersect_tag[k++] = j;
+
+  int_unordered_set_free(intersect_set);
+}
+
+void tagger_difference_tag(tagger_t* tagger, const char* tag, const char* other)
+{
+  int nt1, nt2;
+  int* t1 = tagger_tag(tagger, tag, &nt1);
+  int* t2 = tagger_tag(tagger, tag, &nt2);
+  if ((t1 == NULL) || (t2 == NULL))
+    return;
+
+  int_unordered_set_t* tag_set = int_unordered_set_new();
+  int_unordered_set_t* other_set = int_unordered_set_new();
+  int_unordered_set_t* diff_set = int_unordered_set_new();
+
+  for (int i = 0; i < nt1; ++i)
+    int_unordered_set_insert(tag_set, t1[i]);
+  for (int i = 0; i < nt2; ++i)
+    int_unordered_set_insert(other_set, t2[i]);
+  int_unordered_set_difference(tag_set, other_set, diff_set);
+  int_unordered_set_free(tag_set);
+  int_unordered_set_free(other_set);
+
+  tagger_delete_tag(tagger, tag);
+  int* diff_tag = tagger_create_tag(tagger, tag, diff_set->size);
+  int pos = 0, j, k = 0;
+  while (int_unordered_set_next(diff_set, &pos, &j))
+    diff_tag[k++] = j;
+
+  int_unordered_set_free(diff_set);
 }
 
 bool tagger_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, int* tag_size)

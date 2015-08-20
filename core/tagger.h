@@ -72,6 +72,25 @@ void tagger_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_ta
 // Deletes a tag from the tagger, destroying all of its information (including properties).
 void tagger_delete_tag(tagger_t* tagger, const char* tag);
 
+// Copies the indices of the given "source" tag to a "destination" tag. If 
+// the "source" tag does not exist, this function has no effect. Otherwise, 
+// the destination is overwritten. NOTE: No properties are copied.
+void tagger_copy_tag(tagger_t* tagger, const char* source_tag, const char* destination_tag);
+
+// Replaces the given tag with its union with the other tag. If either of 
+// the given tags does not exist in this tagger, this function has no effect.
+void tagger_unite_tag(tagger_t* tagger, const char* tag, const char* other);
+
+// Replaces the given tag with its intersection with the other tag. If either 
+// of the given tags does not exist in this tagger, this function has no effect.
+void tagger_intersect_tag(tagger_t* tagger, const char* tag, const char* other);
+
+// Replaces the given tag with its difference with the other tag (i.e. tag 
+// will contain no indices that appear in other after this operation). If 
+// either of the given tags does not exist in this tagger, this function has no 
+// effect.
+void tagger_difference_tag(tagger_t* tagger, const char* tag, const char* other);
+
 // Allows iteration over the tags in the tagger, returning the name, indices, 
 // and size of the tag. Returns true if a tag was found, or false if the 
 // iteration has ended. Set pos to 0 to reset the iteration.
