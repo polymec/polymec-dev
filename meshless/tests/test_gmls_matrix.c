@@ -159,6 +159,14 @@ void test_gmls_matrix_with_frankes_function(void** state)
   L2 = sqrt(L2 * dV);
   log_urgent("L2(error) = %g\n", L2);
 
+  // Super crude hard-wired success metric. :-/
+  if (nx == 5)
+    assert_true(L2 < 0.0223);
+  else if (nx == 10)
+    assert_true(L2 < 0.0051);
+  else if (nx == 20)
+    assert_true(L2 < 0.001);
+
   // Clean up.
   int_unordered_set_free(boundary_nodes);
   gmls_matrix_free(matrix);
