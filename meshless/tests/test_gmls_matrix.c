@@ -52,6 +52,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
   real_t* extents;
   stencil_t* stencil;
   int nx = 10, ny = 10;
+  bool neumann = false; // No Neumann BCs by default.
   
   // Override options if desired.
   {
@@ -59,6 +60,9 @@ void test_gmls_matrix_with_frankes_function(void** state)
     char* nx_str = options_value(opts, "nx");
     if ((nx_str != NULL) && (string_is_number(nx_str)))
       nx = ny = atoi(nx_str);
+    char* neumann_str = options_value(opts, "neumann");
+    if (neumann_str != NULL)
+      neumann = string_as_boolean(neumann_str);
   }
 
   make_mlpg_lattice(nx, ny, 1, 3.0, &points, &extents, &stencil);
@@ -79,24 +83,73 @@ void test_gmls_matrix_with_frankes_function(void** state)
   local_matrix_t* A = dense_local_matrix_new(N);
 
   // Treat boundary nodes first.
-  int num_bnodes; 
-  int* bnodes = point_cloud_tag(points, "boundary", &num_bnodes);
-  ASSERT(bnodes != NULL);
-  log_debug("Found %d boundary nodes in point cloud.", num_bnodes);
   int_unordered_set_t* boundary_nodes = int_unordered_set_new();
-  for (int b = 0; b < num_bnodes; ++b)
+  if (neumann) // Neumann BCs on -x/+x boundaries, Dirichlet on others.
   {
-    int bnode = bnodes[b];
-    int num_cols = gmls_matrix_num_columns(matrix, bnode);
-    int cols[num_cols];
-    real_t coeffs[num_cols];
-    gmls_matrix_compute_dirichlet_row(matrix, bnode, lambda, cols, coeffs);
-    real_t row_vector[N];
-    memset(row_vector, 0, sizeof(real_t) * N);
-    for (int j = 0; j < num_cols; ++j)
-      row_vector[cols[j]] = coeffs[j];
-    local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
-    int_unordered_set_insert(boundary_nodes, bnode);
+    tagger_unite_tag(points->tags, "neumann_boundary", "-x");
+    tagger_unite_tag(points->tags, "neumann_boundary", "+x");
+    tagger_unite_tag(points->tags, "dirichlet_boundary", "-y");
+    tagger_unite_tag(points->tags, "dirichlet_boundary", "+y");
+    tagger_unite_tag(points->tags, "dirichlet_boundary", "-z");
+    tagger_unite_tag(points->tags, "dirichlet_boundary", "+z");
+    int num_nbnodes, num_dbnodes; 
+    int* nbnodes = point_cloud_tag(points, "neumann_boundary", &num_nbnodes);
+    ASSERT(nbnodes != NULL);
+    log_debug("Found %d Neumann boundary nodes in point cloud.", num_nbnodes);
+    int* dbnodes = point_cloud_tag(points, "dirichlet_boundary", &num_dbnodes);
+    ASSERT(dbnodes != NULL);
+    log_debug("Found %d Dirichlet boundary nodes in point cloud.", num_dbnodes);
+
+    for (int b = 0; b < num_nbnodes; ++b) // Neumann BC nodes
+    {
+      int bnode = nbnodes[b];
+      int num_cols = gmls_matrix_num_columns(matrix, bnode);
+      int cols[num_cols];
+      real_t coeffs[num_cols];
+      gmls_matrix_compute_neumann_row(matrix, bnode, NULL, cols, coeffs);
+      real_t row_vector[N];
+      memset(row_vector, 0, sizeof(real_t) * N);
+      for (int j = 0; j < num_cols; ++j)
+        row_vector[cols[j]] = coeffs[j];
+      local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
+      int_unordered_set_insert(boundary_nodes, bnode);
+    }
+
+    for (int b = 0; b < num_dbnodes; ++b) // Dirichlet BC nodes
+    {
+      int bnode = dbnodes[b];
+      int num_cols = gmls_matrix_num_columns(matrix, bnode);
+      int cols[num_cols];
+      real_t coeffs[num_cols];
+      gmls_matrix_compute_dirichlet_row(matrix, bnode, cols, coeffs);
+      real_t row_vector[N];
+      memset(row_vector, 0, sizeof(real_t) * N);
+      for (int j = 0; j < num_cols; ++j)
+        row_vector[cols[j]] = coeffs[j];
+      local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
+      int_unordered_set_insert(boundary_nodes, bnode);
+    }
+  }
+  else // Dirichlet BCs all around.
+  {
+    int num_bnodes; 
+    int* bnodes = point_cloud_tag(points, "boundary", &num_bnodes);
+    ASSERT(bnodes != NULL);
+    log_debug("Found %d boundary nodes in point cloud.", num_bnodes);
+    for (int b = 0; b < num_bnodes; ++b)
+    {
+      int bnode = bnodes[b];
+      int num_cols = gmls_matrix_num_columns(matrix, bnode);
+      int cols[num_cols];
+      real_t coeffs[num_cols];
+      gmls_matrix_compute_dirichlet_row(matrix, bnode, cols, coeffs);
+      real_t row_vector[N];
+      memset(row_vector, 0, sizeof(real_t) * N);
+      for (int j = 0; j < num_cols; ++j)
+        row_vector[cols[j]] = coeffs[j];
+      local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
+      int_unordered_set_insert(boundary_nodes, bnode);
+    }
   }
 
   // Now interior nodes.

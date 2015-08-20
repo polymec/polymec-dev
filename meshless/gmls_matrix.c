@@ -244,7 +244,6 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
 
 void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
                                        int row, 
-                                       gmls_functional_t* lambda,
                                        int* columns,
                                        real_t* coeffs)
 {
@@ -271,6 +270,23 @@ void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
   memset(delta, 0, sizeof(real_t) * matrix->num_comp * basis_dim);
   delta[0] = 1.0; // constant term is unity.
   compute_matrix_row(matrix, component, i, &xi, js, xjs, num_nodes, delta, columns, coeffs);
+}
+
+void gmls_matrix_compute_neumann_row(gmls_matrix_t* matrix,
+                                     int row,
+                                     st_func_t* op,
+                                     int* columns,
+                                     real_t* coeffs)
+{
+}
+
+void gmls_matrix_compute_robin_row(gmls_matrix_t* matrix,
+                                   int row,
+                                   st_func_t* alpha_op,
+                                   st_func_t* beta_op,
+                                   int* columns,
+                                   real_t* coeffs)
+{
 }
 
 // Stencil-based GMLS matrix.

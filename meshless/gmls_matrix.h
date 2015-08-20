@@ -86,14 +86,50 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
                              real_t* coeffs);
 
 // Computes the given row of the GMLS matrix in order to enforce a (collocated) 
-// Dirichlet boundary condition for the solution there. The given functional 
-// is used only to determine the polynomial basis and the number of components 
-// in the solution.
+// Dirichlet boundary condition for the solution there. Column indices and 
+// coefficients are stored in the columns and coeffs arrays.
 void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
                                        int row,
-                                       gmls_functional_t* lambda,
                                        int* columns,
                                        real_t* coeffs);
+
+// Computes the given row of the GMLS matrix in order to enforce a (collocated) 
+// Neumann boundary condition for the solution there. The given operator op, 
+// represented as a space-time function, is applied as a transformation to the 
+// gradient of the polynomial basis at the boundary. It can have 3 or 6 
+// components: 
+// * If it has 3, it is interpreted as a vector to be dotted into the 
+//   polynomial gradient.
+// * If it has 6, it is interpreted as a symmetric tensor to be dotted into the 
+//   polynomial gradient.
+// * If it has 9, it is interpreted as a nonsymmetric tensor to be dotted into 
+//   the polynomial gradient.
+// The form of the boundary condition reads op(grad u) = value.
+// Column indices and coefficients are stored in the columns and coeffs arrays.
+void gmls_matrix_compute_neumann_row(gmls_matrix_t* matrix,
+                                     int row,
+                                     st_func_t* op,
+                                     int* columns,
+                                     real_t* coeffs);
+
+// Computes the given row of the GMLS matrix in order to enforce a (collocated) 
+// Robin boundary condition for the solution there. The given operators op1 and 
+// op2, represented as a space-time functions, are applied as transformations 
+// to the value and gradient of the polynomial basis at the boundary. op1, 
+// which multiplies the value of the polynomial basis itself, must have exactly 
+// one component. op2 can have 3 or 6 components: 
+// * If it has 3, it is interpreted as a vector to be dotted into the 
+//   polynomial gradient.
+// * If it has 6, it is interpreted as a symmetric tensor to be dotted into the 
+//   polynomial gradient.
+// The form of the boundary condition reads op1(u) + op2(grad u) = value.
+// Column indices and coefficients are stored in the columns and coeffs arrays.
+void gmls_matrix_compute_robin_row(gmls_matrix_t* matrix,
+                                   int row,
+                                   st_func_t* alpha_op,
+                                   st_func_t* beta_op,
+                                   int* columns,
+                                   real_t* coeffs);
 
 // Creates a GMLS matrix using a point cloud and a given stencil to provide information 
 // about nodes contributing to subdomains. The point cloud and the stencil are both 
