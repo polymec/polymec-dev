@@ -160,7 +160,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
       int num_cols = gmls_matrix_num_columns(matrix, r);
       int cols[num_cols];
       real_t coeffs[num_cols];
-      gmls_matrix_compute_row(matrix, r, lambda, 0.0, cols, coeffs);
+      gmls_matrix_compute_row(matrix, r, lambda, 0.0, NULL, cols, coeffs);
       real_t row_vector[N];
       memset(row_vector, 0, sizeof(real_t) * N);
       for (int j = 0; j < num_cols; ++j)

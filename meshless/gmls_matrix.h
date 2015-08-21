@@ -78,10 +78,13 @@ int gmls_matrix_num_columns(gmls_matrix_t* matrix, int row);
 // evaluated at time t, placing the indices of the nonzero columns into the 
 // columns array, and the coefficients into the coefficients array. These 
 // arrays should both sized using gmls_matrix_num_columns(matrix, row).
+// The values of the solution may be given in a component-minor-ordered array
+// for nonlinear problems; for linear problems solution may be set to NULL.
 void gmls_matrix_compute_row(gmls_matrix_t* matrix,
                              int row,
                              gmls_functional_t* lambda,
                              real_t t,
+                             real_t* solution,
                              int* columns,
                              real_t* coeffs);
 

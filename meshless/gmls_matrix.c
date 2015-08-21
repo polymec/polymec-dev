@@ -213,6 +213,7 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
                              int row, 
                              gmls_functional_t* lambda,
                              real_t t,
+                             real_t* solution,
                              int* columns,
                              real_t* coeffs)
 {
@@ -236,7 +237,7 @@ void gmls_matrix_compute_row(gmls_matrix_t* matrix,
 
   // Compute the values of the functional.
   real_t lambdas[matrix->num_comp*basis_dim];
-  gmls_functional_compute(lambda, component, i, t, matrix->basis, lambdas);
+  gmls_functional_compute(lambda, component, i, t, matrix->basis, solution, lambdas);
 
   // Compute the row using these functional values.
   compute_matrix_row(matrix, component, i, &xi, js, xjs, num_nodes, lambdas, columns, coeffs);

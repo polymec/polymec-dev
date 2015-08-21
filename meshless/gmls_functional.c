@@ -79,6 +79,7 @@ static void compute_integral(gmls_functional_t* functional,
                              int component,
                              real_t t,
                              multicomp_poly_basis_t* poly_basis,
+                             real_t* solution, 
                              point_t* quad_points,
                              real_t* quad_weights,
                              vector_t* quad_normals,
@@ -102,7 +103,8 @@ static void compute_integral(gmls_functional_t* functional,
     // this point.
     real_t integrands[num_comp*basis_dim];
     functional->vtable.eval_integrands(functional->context, component, 
-                                       t, poly_basis, xq, nq, integrands);
+                                       t, poly_basis, xq, nq, solution, 
+                                       integrands);
 
     // Integrate.
     for (int i = 0; i < basis_dim; ++i)
@@ -116,6 +118,7 @@ void gmls_functional_compute(gmls_functional_t* functional,
                              int i,
                              real_t t,
                              multicomp_poly_basis_t* poly_basis,
+                             real_t* solution,
                              real_t* lambdas)
 {
   if (functional->surface_quad_rule != NULL)
@@ -126,8 +129,9 @@ void gmls_functional_compute(gmls_functional_t* functional,
     real_t quad_weights[num_quad_points];
     vector_t quad_normals[num_quad_points];
     surface_integral_get_quadrature(functional->surface_quad_rule, quad_points, quad_weights, quad_normals);
-    compute_integral(functional, component, t, poly_basis, quad_points, quad_weights, 
-                     quad_normals, num_quad_points, lambdas);
+    compute_integral(functional, component, t, poly_basis, solution,
+                     quad_points, quad_weights, quad_normals, num_quad_points, 
+                     lambdas);
   }
   else
   {
@@ -136,8 +140,9 @@ void gmls_functional_compute(gmls_functional_t* functional,
     point_t quad_points[num_quad_points];
     real_t quad_weights[num_quad_points];
     volume_integral_get_quadrature(functional->volume_quad_rule, quad_points, quad_weights);
-    compute_integral(functional, component, t, poly_basis, quad_points, quad_weights, 
-                     NULL, num_quad_points, lambdas);
+    compute_integral(functional, component, t, poly_basis, solution, 
+                     quad_points, quad_weights, NULL, num_quad_points, 
+                     lambdas);
   }
 }
 
@@ -146,8 +151,10 @@ void gmls_functional_eval_integrands(gmls_functional_t* functional,
                                      real_t t,
                                      multicomp_poly_basis_t* poly_basis,
                                      point_t* x, vector_t* n,
+                                     real_t* solution,
                                      real_t* integrands)
 {
   functional->vtable.eval_integrands(functional->context, component,
-                                     t, poly_basis, x, n, integrands);
+                                     t, poly_basis, x, n, solution, 
+                                     integrands);
 }
