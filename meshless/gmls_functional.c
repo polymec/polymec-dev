@@ -158,3 +158,4 @@ void gmls_functional_eval_integrands(gmls_functional_t* functional,
                                      t, poly_basis, x, n, solution, 
                                      integrands);
 }
+

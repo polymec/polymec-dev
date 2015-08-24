@@ -57,6 +57,44 @@ typedef struct
   void (*dtor)(void* context); // Destructor
 } gmls_matrix_vtable;
 
+// This class represents an operator that is applied to a solution at the boundary 
+// to represent part or all of an expression for a boundary condition. It may be a 
+// scalar or tensor operator, time dependent or independent, and nonlinear (dependent 
+// on the solution itself) or linear (not so). Objects of this type are garbage-collected.
+typedef struct gmls_matrix_bc_operator_t gmls_matrix_bc_operator_t;
+
+// This virtual table defines an interface that describes the behavior of a boundary 
+// condition operator.
+typedef struct
+{
+  // This function computes the value of the operator at (x, t), and (for nonlinear 
+  // operators only) given the value of the solution. It computes a 
+  void (*compute)(void* context, point_t* x, real_t t, real_t* solution, real_t* operator_matrix);
+
+  // This is a destructor that destroys the given context.
+  void (*dtor)(void* context); 
+} gmls_matrix_bc_operator_vtable;
+
+// Creates a boundary condition operator, given a name, a context, a virtual table,
+// and corresponding to the given number of solution components.
+gmls_matrix_bc_operator_t* gmls_bc_operator_new(const char* name, 
+                                                void* context,
+                                                gmls_matrix_bc_operator_vtable vtable,
+                                                int num_components);
+
+// Returns the number of components for the solutions compatible with this operator.
+int gmls_matrix_bc_operator_num_components(gmls_matrix_bc_operator_t* op);
+
+// Computes an NxN operator matrix to be used in the application of boundary conditions,
+// evaluated at the point x and the time t and (for nonlinear operators) the given 
+// solution. The resulting matrix is stored in column-major format and placed into the 
+// op_matrix array.
+void gmls_matrix_bc_operator_compute(gmls_matrix_bc_operator_t* op, 
+                                     point_t* x,
+                                     real_t t,
+                                     real_t* solution,
+                                     real_t* op_matrix);
+
 // Creates a generalized MLS functional with the given name, context, virtual 
 // table, (multicomponent) polynomial basis, and weight function. The 
 // weight function is consumed by the matrix. The solution is assumed 
@@ -71,68 +109,51 @@ gmls_matrix_t* gmls_matrix_new(const char* name,
 // Destroys the given GMLS matrix.
 void gmls_matrix_free(gmls_matrix_t* matrix);
 
-// Returns the number of nonzero columns for the given row in the matrix.
-int gmls_matrix_num_columns(gmls_matrix_t* matrix, int row);
+// Returns the number of matrix coefficients that correspond to the ith 
+// node in the GMLS approximation.
+int gmls_matrix_num_coeffs(gmls_matrix_t* matrix, int i);
 
-// Evaluates the given row of the GMLS matrix at using the given functional 
-// evaluated at time t, placing the indices of the nonzero columns into the 
-// columns array, and the coefficients into the coefficients array. These 
+// Evaluates the coefficients of the GMLS matrix for the solution components 
+// at node i, using the given functional evaluated at time t. The indices 
+// of the rows and columns for these coefficients are placed into the given 
+// rows and columns arrays, and the coefficients into the coefficients array. These 
 // arrays should both sized using gmls_matrix_num_columns(matrix, row).
 // The values of the solution may be given in a component-minor-ordered array
 // for nonlinear problems; for linear problems solution may be set to NULL.
-void gmls_matrix_compute_row(gmls_matrix_t* matrix,
-                             int row,
-                             gmls_functional_t* lambda,
-                             real_t t,
-                             real_t* solution,
-                             int* columns,
-                             real_t* coeffs);
+void gmls_matrix_compute_coeffs(gmls_matrix_t* matrix,
+                                int i,
+                                gmls_functional_t* lambda,
+                                real_t t,
+                                real_t* solution,
+                                int* rows,
+                                int* columns,
+                                real_t* coeffs);
 
-// Computes the given row of the GMLS matrix in order to enforce a (collocated) 
-// Dirichlet boundary condition for the solution there. Column indices and 
-// coefficients are stored in the columns and coeffs arrays.
-void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
-                                       int row,
-                                       int* columns,
-                                       real_t* coeffs);
+// Creates a functional that can be used with this matrix to enforce a very 
+// simple Dirichlet boundary condition on each component of the solution.
+// NOTE: This functional only works properly on the standard multicomponent 
+// NOTE: polynomial basis.
+gmls_functional_t* gmls_matrix_dirichlet_bc_new(gmls_matrix_t* matrix);
 
-// Computes the given row of the GMLS matrix in order to enforce a (collocated) 
-// Neumann boundary condition for the solution there. The given operator op, 
-// represented as a space-time function, is applied as a transformation to the 
-// gradient of the polynomial basis at the boundary. It can have 3 or 6 
-// components: 
-// * If it has 3, it is interpreted as a vector to be dotted into the 
-//   polynomial gradient.
-// * If it has 6, it is interpreted as a symmetric tensor to be dotted into the 
-//   polynomial gradient.
-// * If it has 9, it is interpreted as a nonsymmetric tensor to be dotted into 
-//   the polynomial gradient.
-// The form of the boundary condition reads op(grad u) = value.
-// Column indices and coefficients are stored in the columns and coeffs arrays.
-void gmls_matrix_compute_neumann_row(gmls_matrix_t* matrix,
-                                     int row,
-                                     st_func_t* op,
-                                     int* columns,
-                                     real_t* coeffs);
+// Creates a functional that can be used with this matrix to enforce a very 
+// simple Neumann boundary condition on each component of the solution, 
+// given a (3-component) boundary normal vector n(x, t).
+// NOTE: This functional only works properly on the standard multicomponent 
+// NOTE: polynomial basis.
+gmls_functional_t* gmls_matrix_neumann_bc_new(gmls_matrix_t* matrix,
+                                              st_func_t* n);
 
-// Computes the given row of the GMLS matrix in order to enforce a (collocated) 
-// Robin boundary condition for the solution there. The given operators op1 and 
-// op2, represented as a space-time functions, are applied as transformations 
-// to the value and gradient of the polynomial basis at the boundary. op1, 
-// which multiplies the value of the polynomial basis itself, must have exactly 
-// one component. op2 can have 3 or 6 components: 
-// * If it has 3, it is interpreted as a vector to be dotted into the 
-//   polynomial gradient.
-// * If it has 6, it is interpreted as a symmetric tensor to be dotted into the 
-//   polynomial gradient.
-// The form of the boundary condition reads op1(u) + op2(grad u) = value.
-// Column indices and coefficients are stored in the columns and coeffs arrays.
-void gmls_matrix_compute_robin_row(gmls_matrix_t* matrix,
-                                   int row,
-                                   st_func_t* alpha_op,
-                                   st_func_t* beta_op,
-                                   int* columns,
-                                   real_t* coeffs);
+// Creates a functional that can be used with this matrix to enforce a very 
+// simple Robin boundary condition on each component of the solution, 
+// given a (3-component) boundary normal vector n(x, t) and coefficients 
+// alpha and beta that multiply the solution components and their gradients, 
+// respectively.
+// NOTE: This functional only works properly on the standard multicomponent 
+// NOTE: polynomial basis.
+gmls_functional_t* gmls_matrix_robin_bc_new(gmls_matrix_t* matrix,
+                                            st_func_t* n,
+                                            real_t alpha,
+                                            real_t beta);
 
 // Creates a GMLS matrix using a point cloud and a given stencil to provide information 
 // about nodes contributing to subdomains. The point cloud and the stencil are both 
