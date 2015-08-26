@@ -129,6 +129,21 @@ void gmls_matrix_compute_coeffs(gmls_matrix_t* matrix,
                                 int* columns,
                                 real_t* coeffs);
 
+// Creates a GMLS matrix using a point cloud and a given stencil to provide information 
+// about nodes contributing to subdomains. The point cloud and the stencil are both 
+// borrowed by the matrix, not consumed. The weight function displacement 
+// y = |x1 - x2|/R1, where R1 is the extent of the subdomain corresponding 
+// to x1.
+gmls_matrix_t* stencil_based_gmls_matrix_new(multicomp_poly_basis_t* poly_basis,
+                                             point_weight_function_t* W,
+                                             point_cloud_t* points,
+                                             real_t* extents,
+                                             stencil_t* stencil);
+
+// Creates a quadrature rule that can be used to enforce boundary conditions
+// for this matrix.
+volume_integral_t* gmls_matrix_bc_quadrature_new(gmls_matrix_t* matrix);
+
 // Creates a functional that can be used with this matrix to enforce a very 
 // simple Dirichlet boundary condition on each component of the solution.
 // NOTE: This functional only works properly on the standard multicomponent 
@@ -154,16 +169,5 @@ gmls_functional_t* gmls_matrix_robin_bc_new(gmls_matrix_t* matrix,
                                             st_func_t* n,
                                             real_t alpha,
                                             real_t beta);
-
-// Creates a GMLS matrix using a point cloud and a given stencil to provide information 
-// about nodes contributing to subdomains. The point cloud and the stencil are both 
-// borrowed by the matrix, not consumed. The weight function displacement 
-// y = |x1 - x2|/R1, where R1 is the extent of the subdomain corresponding 
-// to x1.
-gmls_matrix_t* stencil_based_gmls_matrix_new(multicomp_poly_basis_t* poly_basis,
-                                             point_weight_function_t* W,
-                                             point_cloud_t* points,
-                                             real_t* extents,
-                                             stencil_t* stencil);
 
 #endif

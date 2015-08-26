@@ -30,18 +30,21 @@ typedef struct
 {
   // This function evaluates the integrand of the functional applied to each 
   // of the numcomp * Q polynomial basis vectors represented by the given 
-  // gmls_poly_basis object, to be evaluated for the given component at the 
-  // given point x at time t. If the weak form is integrated over the boundary 
-  // of the subdomain, n will point to the normal vector corresponding to x; 
-  // otherwise it will be NULL. The values of the solution may be given in 
-  // the component-minor-ordered array solution; if not given, solution will 
-  // be NULL. The values of the integrands are stored in the integrands array, 
-  // which should be sized to the num_comps * dimension of the given component 
-  // of the polynomial basis, since the weak form for the given component can 
-  // involve terms from all solution components. The integrands are stored in 
-  // basis-major (component-minor) order.
-  void (*eval_integrands)(void* context, int component, 
-                          real_t t, multicomp_poly_basis_t* basis, 
+  // gmls_poly_basis object, to be evaluated at the given point x at time t. 
+  // If the weak form is integrated over the boundary of the subdomain, n will 
+  // point to the normal vector corresponding to x; otherwise it will be NULL. 
+  // The values of the solution may be given in the component-minor-ordered 
+  // array solution; if not given, solution will be NULL. The values of the 
+  // integrands are stored in the integrands array, which should be sized to 
+  // Nc * Nc * dim, where Nc is the number of solution components and dim 
+  // is the (maximum) dimension of the polynomial basis, since the weak form 
+  // for the given component can involve terms from all solution components. 
+  // The integrands are stored in component-minor order, meaning that they 
+  // can be interpreted as a 3D array I in which I[i][j][k] refers to the 
+  // coefficient of the kth basis vector for the jth component of the weak 
+  // form corresponding to the the ith component of the solution.
+  void (*eval_integrands)(void* context, real_t t, 
+                          multicomp_poly_basis_t* basis, 
                           point_t* x, vector_t* n, real_t* solution,
                           real_t* integrands);
 
@@ -76,16 +79,15 @@ void gmls_functional_free(gmls_functional_t* functional);
 int gmls_functional_num_components(gmls_functional_t* functional);
 
 // Evaluates the functionals {lambda_j} consisting of the weak forms applied
-// to the polynomials within the polynomial basis for the given component
-// on the ith subdomain, evaluated at time t. The value of the solution may 
-// be given as an array in component-minor form (for nonlinear problems), or 
-// may be NULL (for linear ones). The functionals are computed using the 
-// components (vectors) in the given multi-component polynomial basis. The 
-// values are placed in the lambdas array, which should be equal in length to 
-// the number of components * the dimension of poly_basis, filled in 
-// basis-major (component-minor) order.
+// to the polynomials within the polynomial basis on the ith subdomain, 
+// evaluated at time t. The value of the solution may be given as an array in 
+// component-minor form (for nonlinear problems), or may be NULL (for linear 
+// ones). The functionals are computed using the components (vectors) in the 
+// given multi-component polynomial basis. The values are placed in the 
+// lambdas array in component-minor form, which should be equal in length to 
+// Nc * Nc * dim, where Nc is the number of solution components and dim 
+// is the (maximum) dimension of the polynomial basis.
 void gmls_functional_compute(gmls_functional_t* functional,
-                             int component,
                              int i,
                              real_t t,
                              multicomp_poly_basis_t* poly_basis,
@@ -93,15 +95,17 @@ void gmls_functional_compute(gmls_functional_t* functional,
                              real_t* lambdas);
 
 // Evaluates the integrands applied to the polynomials within the polynomial 
-// basis for the given component at time t on the point x, with the normal 
-// vector n (if the functional is defined at the boundary of the subdomain).
-// The value of the solution may be given as an array in component-minor form 
-// (for nonlinear problems), or may be NULL (for linear ones). 
-// The integrands are placed in the integrands array, which should be equal in 
-// length to the number of components * the dimension of the polynomial basis, 
-// filled in basis-major (component-minor) order.
+// basis at time t on the point x, with the normal vector n (if the functional 
+// is defined at the boundary of the subdomain). The value of the solution may 
+// be given as an array in component-minor form (for nonlinear problems), or 
+// may be NULL (for linear ones). The integrands are placed in the integrands 
+// array, which should be equal in length to Nc * Nc * dim, where Nc is the 
+// number of solution components and dim is the (maximum) dimension of the 
+// polynomial basis. The integrands are stored in component-minor order, 
+// meaning that they can be interpreted as a 3D array I in which I[i][j][k] 
+// refers to the coefficient of the kth basis vector for the jth component of 
+// the weak form corresponding to the the ith component of the solution.
 void gmls_functional_eval_integrands(gmls_functional_t* functional,
-                                     int component,
                                      real_t t,
                                      multicomp_poly_basis_t* poly_basis,
                                      point_t* x, vector_t* n, 

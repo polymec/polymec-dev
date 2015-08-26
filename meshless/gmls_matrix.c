@@ -7,6 +7,7 @@
 
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
+#include "core/declare_nd_array.h"
 #include "meshless/gmls_matrix.h"
 
 struct gmls_matrix_t 
@@ -17,6 +18,7 @@ struct gmls_matrix_t
 
   point_weight_function_t* W;
   multicomp_poly_basis_t* basis; 
+  bool basis_comps_same;
   int basis_dim, num_comp;
 };
 
@@ -46,6 +48,7 @@ gmls_matrix_t* gmls_matrix_new(const char* name,
   matrix->vtable = vtable;
   matrix->basis = poly_basis;
   matrix->basis_dim = multicomp_poly_basis_dim(poly_basis);
+  matrix->basis_comps_same = multicomp_poly_basis_components_equal(poly_basis);
   if (vtable.compute_weight_displacement == NULL)
     matrix->vtable.compute_weight_displacement = simple_weight_displacement;
   matrix->W = W;
@@ -63,51 +66,10 @@ void gmls_matrix_free(gmls_matrix_t* matrix)
   polymec_free(matrix);
 }
 
-int gmls_matrix_num_columns(gmls_matrix_t* matrix, int row)
+int gmls_matrix_num_coeffs(gmls_matrix_t* matrix, int i)
 {
-  int i = row / matrix->num_comp; // index of subdomain
-  return matrix->num_comp * matrix->vtable.num_nodes(matrix->context, i);
-}
-
-static void compute_phi_matrix(gmls_matrix_t* matrix,
-                               point_t* xjs, int num_nodes, 
-                               real_t* W, real_t* Pt, real_t* phi)
-{
-  int basis_dim = matrix->basis_dim;
-
-  // Compute the moment matrix PtWP.
-
-  // First form Pt*W.
-  real_t PtW[basis_dim*num_nodes]; 
-  for (int i = 0; i < basis_dim; ++i)
-    for (int j = 0; j < num_nodes; ++j)
-      PtW[j*basis_dim+i] = Pt[j*basis_dim+i] * W[j]; // PtW_ij = Pt_ij * W_j
-
-  // Now Pt*W*P.
-  char no_trans = 'N', trans = 'T';
-  real_t alpha = 1.0, beta = 0.0;
-  real_t PtWP[basis_dim*basis_dim];
-  rgemm(&no_trans, &trans, &basis_dim, &basis_dim, &num_nodes, &alpha, PtW, 
-        &basis_dim, Pt, &basis_dim, &beta, PtWP, &basis_dim);
-//printf("Pt*W*P = ");
-//matrix_fprintf(PtWP, basis_dim, basis_dim, stdout);
-
-  // Now form the matrix phi = (PtWP)^-1*PtW.
-
-  // Factor PtWP all Cholesky-like, since it should be a symmetric matrix.
-  char uplo = 'L';
-  int info;
-  rpotrf(&uplo, &basis_dim, PtWP, &basis_dim, &info); 
-  if (info != 0)
-  {
-    polymec_error("gmls_matrix: Cholesky factorization of P*W*Pt failed. This often means\n"
-                  "gmls_matrix: that something is wrong with your point distribution.");
-  }
-
-  // Compute (PtWP)^-1 * PtW.
-  int nrhs = num_nodes;
-  memcpy(phi, PtW, sizeof(real_t) * basis_dim * num_nodes);
-  rpotrs(&uplo, &basis_dim, &nrhs, PtWP, &basis_dim, phi, &basis_dim, &info);
+printf("# coeffs = %d\n", matrix->num_comp * matrix->num_comp * matrix->vtable.num_nodes(matrix->context, i));
+  return matrix->num_comp * matrix->num_comp * matrix->vtable.num_nodes(matrix->context, i);
 }
 
 static void get_neighborhood(gmls_matrix_t* matrix, 
@@ -151,16 +113,10 @@ static void get_neighborhood(gmls_matrix_t* matrix,
   *dx /= n_dx;
 }
 
-static void compute_matrix_row(gmls_matrix_t* matrix, 
-                               int component,
-                               int i,
-                               point_t* xi,
-                               int* js,
-                               point_t* xjs,
-                               int num_nodes,
-                               real_t* lambdas, 
-                               int* columns, 
-                               real_t* coeffs)
+static void compute_phi_matrix(gmls_matrix_t* matrix, int component,
+                               int i, point_t* xi, 
+                               point_t* xjs, int num_nodes, 
+                               real_t* phi)
 {
   int basis_dim = matrix->basis_dim;
 
@@ -190,207 +146,133 @@ static void compute_matrix_row(gmls_matrix_t* matrix,
 //printf("W = ");
 //vector_fprintf(W, num_nodes, stdout);
 //}
+  // Compute the moment matrix PtWP.
+
+  // First form Pt*W.
+  real_t PtW[basis_dim*num_nodes]; 
+  for (int i = 0; i < basis_dim; ++i)
+    for (int j = 0; j < num_nodes; ++j)
+      PtW[j*basis_dim+i] = Pt[j*basis_dim+i] * W[j]; // PtW_ij = Pt_ij * W_j
+
+  // Now Pt*W*P.
+  char no_trans = 'N', trans = 'T';
+  real_t alpha = 1.0, beta = 0.0;
+  real_t PtWP[basis_dim*basis_dim];
+  rgemm(&no_trans, &trans, &basis_dim, &basis_dim, &num_nodes, &alpha, PtW, 
+        &basis_dim, Pt, &basis_dim, &beta, PtWP, &basis_dim);
+//printf("Pt*W*P = ");
+//matrix_fprintf(PtWP, basis_dim, basis_dim, stdout);
+
+  // Now form the matrix phi = (PtWP)^-1*PtW.
+
+  // Factor PtWP all Cholesky-like, since it should be a symmetric matrix.
+  char uplo = 'L';
+  int info;
+  rpotrf(&uplo, &basis_dim, PtWP, &basis_dim, &info); 
+  if (info != 0)
+  {
+    polymec_error("gmls_matrix: Cholesky factorization of P*W*Pt failed. This often means\n"
+                  "gmls_matrix: that something is wrong with your point distribution.");
+  }
+
+  // Compute (PtWP)^-1 * PtW.
+  int nrhs = num_nodes;
+  memcpy(phi, PtW, sizeof(real_t) * basis_dim * num_nodes);
+  rpotrs(&uplo, &basis_dim, &nrhs, PtWP, &basis_dim, phi, &basis_dim, &info);
+}
+
+static void compute_coeffs_for_identical_bases(gmls_matrix_t* matrix, 
+                                               int i,
+                                               point_t* xi,
+                                               int* js,
+                                               point_t* xjs,
+                                               int num_nodes,
+                                               real_t* lambdas, 
+                                               int* rows, 
+                                               int* columns, 
+                                               real_t* coeffs)
+{
+  int basis_dim = matrix->basis_dim;
+  int num_comp = matrix->num_comp;
+printf("%d comps\n", num_comp);
 
   // Compute the "phi" matrix phi = (Pt * W * P)^-1 * Pt * W.
   real_t phi[basis_dim*num_nodes];
-  compute_phi_matrix(matrix, xjs, num_nodes, W, Pt, phi);
+  compute_phi_matrix(matrix, 0, i, xi, xjs, num_nodes, phi);
 
-  // Now form the coefficients in the matrix row from the product of the 
-  // lambda and phi matrices.
+  memset(coeffs, 0, sizeof(real_t) * num_comp * num_nodes * num_comp);
+printf("sizey = %d\n", num_comp * num_nodes * num_comp);
+  DECLARE_3D_ARRAY(real_t, co, coeffs, num_comp, num_nodes, num_comp);
+printf("%p vs %p (%p)\n", co, coeffs, coeffs + sizeof(real_t) * num_comp * num_nodes * num_comp);
+  int k = 0;
+  for (int c = 0; c < num_comp; ++c)
+  {
+    // Form the coefficients in the matrix from the product of the 
+    // lambda and phi matrices. NOTE: phi is stored in column-major order!
+    real_t* lam = &(lambdas[c*num_comp*basis_dim]);
+    for (int i = 0; i < basis_dim; ++i)
+{
+      for (int j = 0; j < num_nodes; ++j)
+{
+printf("(%d, %d, %d)\n", c, j, c);
+printf("co(%d, %d, %d) = %g (%p)\n", c, j, c, co[c][j][c], &co[c][j][c]);
+        co[c][j][c] += lam[i] * phi[basis_dim*j+i];
+printf("booga\n");
+}
+}
+
+    // Fill in the row and column indices.
+    for (int n = 0; n < num_nodes; ++n)
+    {
+      for (int cc = 0; cc < matrix->num_comp; ++cc, ++k)
+      {
+        rows[k] = matrix->num_comp * i + c;
+        columns[k] = matrix->num_comp * js[n] + cc;
+      }
+    }
+  }
+}
+
+static void compute_coeffs_for_different_bases(gmls_matrix_t* matrix, 
+                                               int i,
+                                               point_t* xi,
+                                               int* js,
+                                               point_t* xjs,
+                                               int num_nodes,
+                                               real_t* lambdas, 
+                                               int* rows, 
+                                               int* columns, 
+                                               real_t* coeffs)
+{
+  int basis_dim = matrix->basis_dim;
   int num_comp = matrix->num_comp;
-  memset(coeffs, 0, sizeof(real_t) * num_comp * num_nodes);
-  for (int i = 0; i < basis_dim; ++i)
-    for (int j = 0; j < num_nodes; ++j)
-      coeffs[num_nodes * component + j] += lambdas[i] * phi[basis_dim*j+i];
 
-  // Fill in the column indices.
-  for (int n = 0; n < num_nodes; ++n)
-    for (int c = 0; c < matrix->num_comp; ++c)
-      columns[matrix->num_comp*n+c] = matrix->num_comp * js[n] + c;
-}
-
-void gmls_matrix_compute_row(gmls_matrix_t* matrix,
-                             int row, 
-                             gmls_functional_t* lambda,
-                             real_t t,
-                             real_t* solution,
-                             int* columns,
-                             real_t* coeffs)
-{
-  // In this function we use the notation in Mirzaei's 2015 paper on 
-  // "A new low-cost meshfree method for two and three dimensional 
-  //  problems in elasticity."
-  int basis_dim = matrix->basis_dim;
-  int component = row % matrix->num_comp;
-  int i = row / matrix->num_comp; // index of subdomain
-
-  // Get the neighbor of node i.
-  int num_nodes = matrix->vtable.num_nodes(matrix->context, i);
-  int js[num_nodes];
-  point_t xi, xjs[num_nodes];
-  real_t dx;
-  get_neighborhood(matrix, i, &xi, js, xjs, num_nodes, &dx);
-
-  // Shift / scale our polynomial basis.
-  multicomp_poly_basis_shift(matrix->basis, &xi);
-  multicomp_poly_basis_scale(matrix->basis, 1.0/dx);
-
-  // Compute the values of the functional.
-  real_t lambdas[matrix->num_comp*basis_dim];
-  gmls_functional_compute(lambda, component, i, t, matrix->basis, solution, lambdas);
-
-  // Compute the row using these functional values.
-  compute_matrix_row(matrix, component, i, &xi, js, xjs, num_nodes, lambdas, columns, coeffs);
-}
-
-void gmls_matrix_compute_dirichlet_row(gmls_matrix_t* matrix,
-                                       int row, 
-                                       int* columns,
-                                       real_t* coeffs)
-{
-  // In this function we use the notation in Mirzaei's 2015 paper on 
-  // "A new low-cost meshfree method for two and three dimensional 
-  //  problems in elasticity."
-  int basis_dim = matrix->basis_dim;
-  int component = row % matrix->num_comp;
-  int i = row / matrix->num_comp; 
-
-  // Get the neighbor of node i.
-  int num_nodes = matrix->vtable.num_nodes(matrix->context, i);
-  int js[num_nodes];
-  point_t xi, xjs[num_nodes];
-  real_t dx;
-  get_neighborhood(matrix, i, &xi, js, xjs, num_nodes, &dx);
-
-  // Shift / scale our polynomial basis.
-  multicomp_poly_basis_shift(matrix->basis, &xi);
-  multicomp_poly_basis_scale(matrix->basis, 1.0/dx);
-
-  // "Compute" the delta function version of the functional.
-  real_t delta[matrix->num_comp*basis_dim];
-  memset(delta, 0, sizeof(real_t) * matrix->num_comp * basis_dim);
-  delta[0] = 1.0; // constant term is unity.
-  compute_matrix_row(matrix, component, i, &xi, js, xjs, num_nodes, delta, columns, coeffs);
-}
-
-static void compute_matrix_coeffs_for_identical_bases(gmls_matrix_t* matrix, 
-                                                      int i,
-                                                      point_t* xi,
-                                                      int* js,
-                                                      point_t* xjs,
-                                                      int num_nodes,
-                                                      real_t* lambdas, 
-                                                      int* rows, 
-                                                      int* columns, 
-                                                      real_t* coeffs)
-{
-  int basis_dim = matrix->basis_dim;
-
-  // Compute the matrix [Pt]_ij = pi(xj), in column major order.
-  real_t Pt[basis_dim*num_nodes];
-  for (int j = 0; j < num_nodes; ++j)
+  memset(coeffs, 0, sizeof(real_t) * num_comp * num_nodes * num_comp);
+  DECLARE_3D_ARRAY(real_t, co, coeffs, num_comp, num_nodes, num_comp);
+  int k = 0;
+  for (int c = 0; c < num_comp; ++c)
   {
-    multicomp_poly_basis_compute(matrix->basis, component, 0, 0, 0, 
-                                 &xjs[j], &Pt[j*basis_dim]);
+    // Compute the "phi" matrix phi = (Pt * W * P)^-1 * Pt * W.
+    real_t phi[basis_dim*num_nodes];
+    compute_phi_matrix(matrix, c, i, xi, xjs, num_nodes, phi);
+
+    // Now form the coefficients in the matrix from the product of the 
+    // lambda and phi matrices. NOTE: phi is stored in column-major order!
+    real_t* lam = &(lambdas[c*num_comp*basis_dim]);
+    for (int i = 0; i < basis_dim; ++i)
+      for (int j = 0; j < num_nodes; ++j)
+        co[c][j][c] += lam[i] * phi[basis_dim*j+i];
+
+    // Fill in the row and column indices.
+    for (int n = 0; n < num_nodes; ++n)
+    {
+      for (int cc = 0; cc < matrix->num_comp; ++cc, ++k)
+      {
+        rows[k] = matrix->num_comp * i + c;
+        columns[k] = matrix->num_comp * js[n] + cc;
+      }
+    }
   }
-//if (i == 0)
-//{
-//printf("Pt = ");
-//matrix_fprintf(Pt, basis_dim, num_nodes, stdout);
-//}
-
-  // Compute the (single-component) diagonal matrix W of MLS weights.
-  real_t W[num_nodes];
-  for (int j = 0; j < num_nodes; ++j)
-  {
-    vector_t y;
-    matrix->vtable.compute_weight_displacement(matrix->context, i, xi, j, &xjs[j], &y);
-    W[j] = point_weight_function_value(matrix->W, &y);
-  }
-//if (i == 0)
-//{
-//printf("W = ");
-//vector_fprintf(W, num_nodes, stdout);
-//}
-
-  // Compute the "phi" matrix phi = (Pt * W * P)^-1 * Pt * W.
-  real_t phi[basis_dim*num_nodes];
-  compute_phi_matrix(matrix, xjs, num_nodes, W, Pt, phi);
-
-  // Now form the coefficients in the matrix row from the product of the 
-  // lambda and phi matrices.
-  int num_comp = matrix->num_comp;
-  memset(coeffs, 0, sizeof(real_t) * num_comp * num_nodes);
-  for (int i = 0; i < basis_dim; ++i)
-    for (int j = 0; j < num_nodes; ++j)
-      coeffs[num_nodes * component + j] += lambdas[i] * phi[basis_dim*j+i];
-
-  // Fill in the row and column indices.
-  for (int c = 0; c < matrix->num_comp; ++c)
-    rows[matrix->num_comp*i+c] = matrix->num_comp * i + c;
-  for (int n = 0; n < num_nodes; ++n)
-    for (int c = 0; c < matrix->num_comp; ++c)
-      columns[matrix->num_comp*n+c] = matrix->num_comp * js[n] + c;
-}
-
-static void compute_matrix_coeffs_for_different_bases(gmls_matrix_t* matrix, 
-                                                      int i,
-                                                      point_t* xi,
-                                                      int* js,
-                                                      point_t* xjs,
-                                                      int num_nodes,
-                                                      real_t* lambdas, 
-                                                      int* rows, 
-                                                      int* columns, 
-                                                      real_t* coeffs)
-{
-  int basis_dim = matrix->basis_dim;
-
-  // Compute the matrix [Pt]_ij = pi(xj), in column major order.
-  real_t Pt[basis_dim*num_nodes];
-  for (int j = 0; j < num_nodes; ++j)
-  {
-    multicomp_poly_basis_compute(matrix->basis, component, 0, 0, 0, 
-                                 &xjs[j], &Pt[j*basis_dim]);
-  }
-//if (i == 0)
-//{
-//printf("Pt = ");
-//matrix_fprintf(Pt, basis_dim, num_nodes, stdout);
-//}
-
-  // Compute the (single-component) diagonal matrix W of MLS weights.
-  real_t W[num_nodes];
-  for (int j = 0; j < num_nodes; ++j)
-  {
-    vector_t y;
-    matrix->vtable.compute_weight_displacement(matrix->context, i, xi, j, &xjs[j], &y);
-    W[j] = point_weight_function_value(matrix->W, &y);
-  }
-//if (i == 0)
-//{
-//printf("W = ");
-//vector_fprintf(W, num_nodes, stdout);
-//}
-
-  // Compute the "phi" matrix phi = (Pt * W * P)^-1 * Pt * W.
-  real_t phi[basis_dim*num_nodes];
-  compute_phi_matrix(matrix, xjs, num_nodes, W, Pt, phi);
-
-  // Now form the coefficients in the matrix row from the product of the 
-  // lambda and phi matrices.
-  int num_comp = matrix->num_comp;
-  memset(coeffs, 0, sizeof(real_t) * num_comp * num_nodes);
-  for (int i = 0; i < basis_dim; ++i)
-    for (int j = 0; j < num_nodes; ++j)
-      coeffs[num_nodes * component + j] += lambdas[i] * phi[basis_dim*j+i];
-
-  // Fill in the row and column indices.
-  for (int c = 0; c < matrix->num_comp; ++c)
-    rows[matrix->num_comp*i+c] = matrix->num_comp * i + c;
-  for (int n = 0; n < num_nodes; ++n)
-    for (int c = 0; c < matrix->num_comp; ++c)
-      columns[matrix->num_comp*n+c] = matrix->num_comp * js[n] + c;
 }
 
 void gmls_matrix_compute_coeffs(gmls_matrix_t* matrix,
@@ -406,8 +288,6 @@ void gmls_matrix_compute_coeffs(gmls_matrix_t* matrix,
   // "A new low-cost meshfree method for two and three dimensional 
   //  problems in elasticity."
   int basis_dim = matrix->basis_dim;
-  int component = row % matrix->num_comp;
-  int i = row / matrix->num_comp; // index of subdomain
 
   // Get the neighbor of node i.
   int num_nodes = matrix->vtable.num_nodes(matrix->context, i);
@@ -421,9 +301,20 @@ void gmls_matrix_compute_coeffs(gmls_matrix_t* matrix,
   multicomp_poly_basis_scale(matrix->basis, 1.0/dx);
 
   // Compute the values of the functional.
-  real_t lambdas[matrix->num_comp*basis_dim];
-  gmls_functional_compute(lambda, component, i, t, matrix->basis, solution, lambdas);
+  real_t lambdas[matrix->num_comp*matrix->num_comp*basis_dim];
+  gmls_functional_compute(lambda, i, t, matrix->basis, solution, lambdas);
 
+  // Now compute the matrix coefficients.
+  if (matrix->basis_comps_same)
+  {
+    compute_coeffs_for_identical_bases(matrix, i, &xi, js, xjs, num_nodes,
+                                       lambdas, rows, columns, coeffs);
+  }
+  else
+  {
+    compute_coeffs_for_different_bases(matrix, i, &xi, js, xjs, num_nodes,
+                                       lambdas, rows, columns, coeffs);
+  }
 }
 
 // Stencil-based GMLS matrix.
@@ -491,13 +382,13 @@ gmls_matrix_t* stencil_based_gmls_matrix_new(multicomp_poly_basis_t* poly_basis,
 
 gmls_functional_t* gmls_matrix_dirichlet_bc_new(gmls_matrix_t* matrix)
 {
-  return robin_gmls_functional_new(matrix, NULL, 1.0, 0.0);
+  return gmls_matrix_robin_bc_new(matrix, NULL, 1.0, 0.0);
 }
 
 gmls_functional_t* gmls_matrix_neumann_bc_new(gmls_matrix_t* matrix,
                                               st_func_t* n)
 {
-  return robin_gmls_functional_new(matrix, n, 0.0, 1.0);
+  return gmls_matrix_robin_bc_new(matrix, n, 0.0, 1.0);
 }
 
 // Collocation volume integral for Robin BC.
@@ -513,32 +404,39 @@ static void colocation_get_quadrature(void* context, int i, point_t* points, rea
   weights[0] = 1.0;
 }
 
-static volume_integral_t* colocation_integral_new(gmls_matrix_t* matrix)
+volume_integral_t* gmls_matrix_bc_quadrature_new(gmls_matrix_t* matrix)
 {
   volume_integral_vtable vtable = {.num_quad_points = colocation_num_quad_points,
                                    .get_quadrature = colocation_get_quadrature};
-  return volume_integral_new("Colocation integral", matrix, vtable);
+  return volume_integral_new("GMLS BC integral", matrix, vtable);
 }
 
 typedef struct
 {
   real_t alpha, beta;
   st_func_t* n;
-  volume_integral_t* Qv;
+  int num_comp;
 } gmls_robin_t;
 
-static void robin_eval_integrands(void* context, int component,
-                                  real_t t, multicomp_poly_basis_t* basis,
+static void robin_eval_integrands(void* context, real_t t, 
+                                  multicomp_poly_basis_t* basis,
                                   point_t* x, vector_t* n, real_t* solution,
                                   real_t* integrands)
 {
-  robin_t* robin = context;
   int basis_dim = multicomp_poly_basis_dim(basis);
-  memset(integrands, 0, sizeof(int) * basis_dim);
-  integrands[0] = alpha;
-  integrands[1] = beta;
-  integrands[2] = beta;
-  integrands[3] = beta;
+  ASSERT(basis_dim >= 4);
+
+  gmls_robin_t* robin = context;
+  int num_comp = robin->num_comp;
+  memset(integrands, 0, sizeof(real_t) * num_comp * basis_dim * num_comp);
+  DECLARE_3D_ARRAY(real_t, I, integrands, num_comp, basis_dim, num_comp);
+  for (int c = 0; c < num_comp; ++c)
+  {
+    I[c][0][c] = robin->alpha;
+    I[c][1][c] = robin->beta;
+    I[c][2][c] = robin->beta;
+    I[c][3][c] = robin->beta;
+  }
 }
 
 gmls_functional_t* gmls_matrix_robin_bc_new(gmls_matrix_t* matrix,
@@ -549,12 +447,13 @@ gmls_functional_t* gmls_matrix_robin_bc_new(gmls_matrix_t* matrix,
   ASSERT((alpha != 0.0) || (beta != 0.0));
   ASSERT((n != NULL) || (beta == 0.0));
 
+  int num_comp = multicomp_poly_basis_num_comp(matrix->basis);
+
 #ifndef NDEBUG
   // This functional only works on the standard polynomial basis!
-  int degree = multicomp_poly_basis_degree(basis);
-  int num_comp = multicomp_poly_basis_num_comp(basis);
+  int degree = multicomp_poly_basis_degree(matrix->basis);
   multicomp_poly_basis_t* std_basis = standard_multicomp_poly_basis_new(num_comp, degree); 
-  ASSERT(multicomp_poly_basis_equals(basis, std_basis));
+  ASSERT(multicomp_poly_basis_equals(matrix->basis, std_basis));
 #endif
 
   gmls_functional_vtable vtable = {.eval_integrands = robin_eval_integrands,
@@ -563,7 +462,8 @@ gmls_functional_t* gmls_matrix_robin_bc_new(gmls_matrix_t* matrix,
   robin->alpha = alpha;
   robin->beta = beta;
   robin->n = n;
-  robin->Qv = colocation_integral_new(matrix);
+  robin->num_comp = num_comp;
+  volume_integral_t* Qv = gmls_matrix_bc_quadrature_new(matrix);
   char name[1024];
   if (beta == 0.0)
     snprintf(name, 1023, "Dirichlet BC");
@@ -571,5 +471,5 @@ gmls_functional_t* gmls_matrix_robin_bc_new(gmls_matrix_t* matrix,
     snprintf(name, 1023, "Neumann BC");
   else
     snprintf(name, 1023, "Robin BC (alpha = %g, beta = %g)", alpha, beta);
-  return gmls_functional(name, robin, vtable);
+  return volume_gmls_functional_new(name, robin, vtable, num_comp, Qv);
 }

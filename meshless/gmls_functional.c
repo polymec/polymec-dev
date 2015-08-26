@@ -7,6 +7,7 @@
 
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
+#include "core/declare_nd_array.h"
 #include "meshless/gmls_functional.h"
 
 struct gmls_functional_t 
@@ -76,7 +77,6 @@ int gmls_functional_num_components(gmls_functional_t* functional)
 }
 
 static void compute_integral(gmls_functional_t* functional,
-                             int component,
                              real_t t,
                              multicomp_poly_basis_t* poly_basis,
                              real_t* solution, 
@@ -92,7 +92,8 @@ static void compute_integral(gmls_functional_t* functional,
   // approximants.
   int num_comp = functional->num_comp;
   int basis_dim = multicomp_poly_basis_dim(poly_basis);
-  memset(lambdas, 0, sizeof(real_t) * basis_dim);
+  memset(lambdas, 0, sizeof(real_t) * num_comp * basis_dim * num_comp);
+  DECLARE_3D_ARRAY(real_t, lam, lambdas, num_comp, basis_dim, num_comp);
   for (int q = 0; q < num_quad_points; ++q)
   {
     point_t* xq = &quad_points[q];
@@ -101,20 +102,27 @@ static void compute_integral(gmls_functional_t* functional,
 
     // Now compute the (multi-component) integrands for the functional at 
     // this point.
-    real_t integrands[num_comp*basis_dim];
-    functional->vtable.eval_integrands(functional->context, component, 
-                                       t, poly_basis, xq, nq, solution, 
-                                       integrands);
+    real_t integrands[num_comp*basis_dim*num_comp];
+    functional->vtable.eval_integrands(functional->context, t, poly_basis, 
+                                       xq, nq, solution, integrands);
 
     // Integrate.
-    for (int i = 0; i < basis_dim; ++i)
-      for (int c = 0; c < num_comp; ++c)
-        lambdas[num_comp*i+c] += wq * integrands[num_comp*i+c];
+    DECLARE_3D_ARRAY(real_t, I, integrands, num_comp, basis_dim, num_comp);
+    for (int i = 0; i < num_comp; ++i)
+{
+      for (int j = 0; j < basis_dim; ++j)
+{
+        for (int k = 0; k < num_comp; ++k)
+{
+printf("lam(%d, %d, %d) -> %g + %g\n", i, j, k, lam[i][j][k], I[i][j][k]);
+          lam[i][j][k] += wq * I[i][j][k];
+}
+}
+}
   }
 }
 
 void gmls_functional_compute(gmls_functional_t* functional,
-                             int component, 
                              int i,
                              real_t t,
                              multicomp_poly_basis_t* poly_basis,
@@ -129,7 +137,7 @@ void gmls_functional_compute(gmls_functional_t* functional,
     real_t quad_weights[num_quad_points];
     vector_t quad_normals[num_quad_points];
     surface_integral_get_quadrature(functional->surface_quad_rule, quad_points, quad_weights, quad_normals);
-    compute_integral(functional, component, t, poly_basis, solution,
+    compute_integral(functional, t, poly_basis, solution,
                      quad_points, quad_weights, quad_normals, num_quad_points, 
                      lambdas);
   }
@@ -140,22 +148,20 @@ void gmls_functional_compute(gmls_functional_t* functional,
     point_t quad_points[num_quad_points];
     real_t quad_weights[num_quad_points];
     volume_integral_get_quadrature(functional->volume_quad_rule, quad_points, quad_weights);
-    compute_integral(functional, component, t, poly_basis, solution, 
+    compute_integral(functional, t, poly_basis, solution, 
                      quad_points, quad_weights, NULL, num_quad_points, 
                      lambdas);
   }
 }
 
 void gmls_functional_eval_integrands(gmls_functional_t* functional,
-                                     int component,
                                      real_t t,
                                      multicomp_poly_basis_t* poly_basis,
                                      point_t* x, vector_t* n,
                                      real_t* solution,
                                      real_t* integrands)
 {
-  functional->vtable.eval_integrands(functional->context, component,
-                                     t, poly_basis, x, n, solution, 
-                                     integrands);
+  functional->vtable.eval_integrands(functional->context, t, poly_basis, 
+                                     x, n, solution, integrands);
 }
 

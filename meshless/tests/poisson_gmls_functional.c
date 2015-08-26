@@ -54,8 +54,8 @@ static void poisson_get_quadrature_p2(void* context, int i, int N,
   normals[5].y = 1.0;
 }
 
-static void poisson_eval_integrands(void* context, int component, 
-                                    real_t t, multicomp_poly_basis_t* basis, 
+static void poisson_eval_integrands(void* context, real_t t, 
+                                    multicomp_poly_basis_t* basis, 
                                     point_t* x, vector_t* n, real_t* solution,
                                     real_t* integrands)
 {
@@ -65,6 +65,7 @@ static void poisson_eval_integrands(void* context, int component,
   multicomp_poly_basis_compute(basis, 0, 0, 1, 0, x, dpdy);
   multicomp_poly_basis_compute(basis, 0, 0, 0, 1, x, dpdz);
 
+  memset(integrands, 0, sizeof(int) * dim);
   for (int i = 0; i < dim; ++i)
     integrands[i] = dpdx[i] * n->x + dpdy[i] * n->y + dpdz[i] * n->z;
 }

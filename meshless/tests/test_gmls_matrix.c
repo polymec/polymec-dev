@@ -100,16 +100,28 @@ void test_gmls_matrix_with_frankes_function(void** state)
     ASSERT(dbnodes != NULL);
     log_debug("Found %d Dirichlet boundary nodes in point cloud.", num_dbnodes);
 
+    // Boundary functionals.
+    gmls_functional_t* dirichlet_bc = gmls_matrix_dirichlet_bc_new(matrix);
+    st_func_t* n = NULL; // FIXME: Normal vector function!
+    gmls_functional_t* neumann_bc = gmls_matrix_neumann_bc_new(matrix, n);
+
     for (int b = 0; b < num_nbnodes; ++b) // Neumann BC nodes
     {
       int bnode = nbnodes[b];
-      int num_cols = gmls_matrix_num_columns(matrix, bnode);
-      int cols[num_cols];
-      real_t coeffs[num_cols];
-      gmls_matrix_compute_neumann_row(matrix, bnode, NULL, cols, coeffs);
+      int num_coeffs = gmls_matrix_num_coeffs(matrix, bnode);
+      int rows[num_coeffs], cols[num_coeffs];
+      real_t coeffs[num_coeffs];
+      gmls_matrix_compute_coeffs(matrix, bnode, neumann_bc, 0.0, NULL, 
+                                 rows, cols, coeffs);
+
+      // Make sure all the coefficients go in the same row.
+      for (int j = 1; j < num_coeffs; ++j)
+        assert_true(rows[j] == rows[0]);
+
+      // Now dump the coefficients into our matrix.
       real_t row_vector[N];
       memset(row_vector, 0, sizeof(real_t) * N);
-      for (int j = 0; j < num_cols; ++j)
+      for (int j = 0; j < num_coeffs; ++j)
         row_vector[cols[j]] = coeffs[j];
       local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
       int_unordered_set_insert(boundary_nodes, bnode);
@@ -118,13 +130,20 @@ void test_gmls_matrix_with_frankes_function(void** state)
     for (int b = 0; b < num_dbnodes; ++b) // Dirichlet BC nodes
     {
       int bnode = dbnodes[b];
-      int num_cols = gmls_matrix_num_columns(matrix, bnode);
-      int cols[num_cols];
-      real_t coeffs[num_cols];
-      gmls_matrix_compute_dirichlet_row(matrix, bnode, cols, coeffs);
+      int num_coeffs = gmls_matrix_num_coeffs(matrix, bnode);
+      int rows[num_coeffs], cols[num_coeffs];
+      real_t coeffs[num_coeffs];
+      gmls_matrix_compute_coeffs(matrix, bnode, dirichlet_bc, 0.0, NULL, 
+                                 rows, cols, coeffs);
+
+      // Make sure all the coefficients go in the same row.
+      for (int j = 1; j < num_coeffs; ++j)
+        assert_true(rows[j] == rows[0]);
+
+      // Now dump the coefficients into our matrix.
       real_t row_vector[N];
       memset(row_vector, 0, sizeof(real_t) * N);
-      for (int j = 0; j < num_cols; ++j)
+      for (int j = 0; j < num_coeffs; ++j)
         row_vector[cols[j]] = coeffs[j];
       local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
       int_unordered_set_insert(boundary_nodes, bnode);
@@ -136,16 +155,27 @@ void test_gmls_matrix_with_frankes_function(void** state)
     int* bnodes = point_cloud_tag(points, "boundary", &num_bnodes);
     ASSERT(bnodes != NULL);
     log_debug("Found %d boundary nodes in point cloud.", num_bnodes);
+
+    // Boundary functional.
+    gmls_functional_t* dirichlet_bc = gmls_matrix_dirichlet_bc_new(matrix);
+
     for (int b = 0; b < num_bnodes; ++b)
     {
       int bnode = bnodes[b];
-      int num_cols = gmls_matrix_num_columns(matrix, bnode);
-      int cols[num_cols];
-      real_t coeffs[num_cols];
-      gmls_matrix_compute_dirichlet_row(matrix, bnode, cols, coeffs);
+      int num_coeffs = gmls_matrix_num_coeffs(matrix, bnode);
+      int rows[num_coeffs], cols[num_coeffs];
+      real_t coeffs[num_coeffs];
+      gmls_matrix_compute_coeffs(matrix, bnode, dirichlet_bc, 0.0, NULL, 
+                                 rows, cols, coeffs);
+
+      // Make sure all the coefficients go in the same row.
+      for (int j = 1; j < num_coeffs; ++j)
+        assert_true(rows[j] == rows[0]);
+
+      // Now dump the coefficients into our matrix.
       real_t row_vector[N];
       memset(row_vector, 0, sizeof(real_t) * N);
-      for (int j = 0; j < num_cols; ++j)
+      for (int j = 0; j < num_coeffs; ++j)
         row_vector[cols[j]] = coeffs[j];
       local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
       int_unordered_set_insert(boundary_nodes, bnode);
@@ -153,19 +183,26 @@ void test_gmls_matrix_with_frankes_function(void** state)
   }
 
   // Now interior nodes.
-  for (int r = 0; r < N; ++r)
+  for (int i = 0; i < N; ++i)
   {
-    if (!int_unordered_set_contains(boundary_nodes, r))
+    if (!int_unordered_set_contains(boundary_nodes, i))
     {
-      int num_cols = gmls_matrix_num_columns(matrix, r);
-      int cols[num_cols];
-      real_t coeffs[num_cols];
-      gmls_matrix_compute_row(matrix, r, lambda, 0.0, NULL, cols, coeffs);
+      int num_coeffs = gmls_matrix_num_coeffs(matrix, i);
+      int rows[num_coeffs], cols[num_coeffs];
+      real_t coeffs[num_coeffs];
+      gmls_matrix_compute_coeffs(matrix, i, lambda, 0.0, NULL, 
+                                 rows, cols, coeffs);
+
+      // Make sure all the coefficients go in the same row.
+      for (int j = 1; j < num_coeffs; ++j)
+        assert_true(rows[j] == rows[0]);
+
+      // Now dump the coefficients into our matrix.
       real_t row_vector[N];
       memset(row_vector, 0, sizeof(real_t) * N);
-      for (int j = 0; j < num_cols; ++j)
+      for (int j = 0; j < num_coeffs; ++j)
         row_vector[cols[j]] = coeffs[j];
-      local_matrix_add_row_vector(A, 1.0, r, row_vector);
+      local_matrix_add_row_vector(A, 1.0, i, row_vector);
     }
   }
 //printf("A = ");
