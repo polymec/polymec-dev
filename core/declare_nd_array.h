@@ -29,16 +29,16 @@
 // We go to 7D just to make Fortran feel less special. :-)
 //
 #define DECLARE_2D_ARRAY(type, array_var, storage, dim1, dim2) \
-type (*array_var)[dim1] = (void*)storage
+type (*array_var)[dim2] = (void*)storage
 #define DECLARE_3D_ARRAY(type, array_var, storage, dim1, dim2, dim3) \
-type (*array_var)[dim1][dim2] = (void*)storage
+type (*array_var)[dim2][dim3] = (void*)storage
 #define DECLARE_4D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4) \
-type (*array_var)[dim1][dim2][dim3] = (void*)storage
+type (*array_var)[dim2][dim3][dim4] = (void*)storage
 #define DECLARE_5D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4, dim5) \
-type (*array_var)[dim1][dim2][dim3][dim4] = (void*)storage
+type (*array_var)[dim2][dim3][dim4][dim5] = (void*)storage
 #define DECLARE_6D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4, dim5, dim6) \
-type (*array_var)[dim1][dim2][dim3][dim4][dim5] = (void*)storage
+type (*array_var)[dim2][dim3][dim4][dim5][dim6] = (void*)storage
 #define DECLARE_7D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4, dim5, dim6, dim7) \
-type (*array_var)[dim1][dim2][dim3][dim4][dim5][dim6] = (void*)storage
+type (*array_var)[dim2][dim3][dim4][dim5][dim6][dim7] = (void*)storage
 
 #endif

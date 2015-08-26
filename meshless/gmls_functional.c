@@ -109,16 +109,9 @@ static void compute_integral(gmls_functional_t* functional,
     // Integrate.
     DECLARE_3D_ARRAY(real_t, I, integrands, num_comp, basis_dim, num_comp);
     for (int i = 0; i < num_comp; ++i)
-{
       for (int j = 0; j < basis_dim; ++j)
-{
         for (int k = 0; k < num_comp; ++k)
-{
-printf("lam(%d, %d, %d) -> %g + %g\n", i, j, k, lam[i][j][k], I[i][j][k]);
           lam[i][j][k] += wq * I[i][j][k];
-}
-}
-}
   }
 }
 

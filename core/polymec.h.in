@@ -152,6 +152,9 @@ typedef uint64_t index_t;
 for (int i = start; i < start + num; ++i) \
   array[i] = val
 
+// This BOUNDS macro returns the bounds of a given dimension in a multidimensional array.
+#define BOUNDS(a) ((sizeof(a)) / (sizeof ((a)[0])))
+
 #include "core/allocators.h"
 #include "core/logging.h"
 #include "core/arch.h"

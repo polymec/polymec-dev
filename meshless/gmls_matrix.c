@@ -68,7 +68,6 @@ void gmls_matrix_free(gmls_matrix_t* matrix)
 
 int gmls_matrix_num_coeffs(gmls_matrix_t* matrix, int i)
 {
-printf("# coeffs = %d\n", matrix->num_comp * matrix->num_comp * matrix->vtable.num_nodes(matrix->context, i));
   return matrix->num_comp * matrix->num_comp * matrix->vtable.num_nodes(matrix->context, i);
 }
 
@@ -194,16 +193,13 @@ static void compute_coeffs_for_identical_bases(gmls_matrix_t* matrix,
 {
   int basis_dim = matrix->basis_dim;
   int num_comp = matrix->num_comp;
-printf("%d comps\n", num_comp);
 
   // Compute the "phi" matrix phi = (Pt * W * P)^-1 * Pt * W.
   real_t phi[basis_dim*num_nodes];
   compute_phi_matrix(matrix, 0, i, xi, xjs, num_nodes, phi);
 
   memset(coeffs, 0, sizeof(real_t) * num_comp * num_nodes * num_comp);
-printf("sizey = %d\n", num_comp * num_nodes * num_comp);
   DECLARE_3D_ARRAY(real_t, co, coeffs, num_comp, num_nodes, num_comp);
-printf("%p vs %p (%p)\n", co, coeffs, coeffs + sizeof(real_t) * num_comp * num_nodes * num_comp);
   int k = 0;
   for (int c = 0; c < num_comp; ++c)
   {
@@ -211,15 +207,8 @@ printf("%p vs %p (%p)\n", co, coeffs, coeffs + sizeof(real_t) * num_comp * num_n
     // lambda and phi matrices. NOTE: phi is stored in column-major order!
     real_t* lam = &(lambdas[c*num_comp*basis_dim]);
     for (int i = 0; i < basis_dim; ++i)
-{
       for (int j = 0; j < num_nodes; ++j)
-{
-printf("(%d, %d, %d)\n", c, j, c);
-printf("co(%d, %d, %d) = %g (%p)\n", c, j, c, co[c][j][c], &co[c][j][c]);
         co[c][j][c] += lam[i] * phi[basis_dim*j+i];
-printf("booga\n");
-}
-}
 
     // Fill in the row and column indices.
     for (int n = 0; n < num_nodes; ++n)
