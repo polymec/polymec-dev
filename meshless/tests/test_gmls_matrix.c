@@ -267,21 +267,40 @@ void test_gmls_matrix_with_frankes_function(void** state)
   stencil_free(stencil);
 }
 
-#if 0
-void test_gmls_matrix_with_frankes_function(void** state)
+typedef struct
+{
+  real_t L, D, P, E, nu;
+} cantileaver_t;
+
+// The solution for a 2D cantileaver beam problem.
+static void cantileaver_beam(void* context, point_t* x, real_t* u)
+{
+  cantileaver_t* c = context;
+  real_t X = x->x, Y = x->y;
+  real_t L = c->L, D = c->D, P = c->P, E = c->E, nu = c->nu;
+  real_t I = D*D*D/12.0;
+  u[0] = -P/(6.0*E*I) * (Y-0.5*D) * (3.0*X * (2.0*L - X) + (2.0 + nu) * Y * (Y - D));
+  u[1] = -P/(6.0*E*I) * (X*X * (3.0*L - X) + 3.0*nu * (L - X) * (Y - 0.5*D) * (Y - 0.5*D) + 0.25*(4.0 + 5.0*nu) *D*D * X);
+  u[2] = 0.0;
+}
+
+void test_gmls_matrix_with_cantileaver_beam(void** state)
 {
   // Construct a point cloud, set of extents, and a stencil.
   point_cloud_t* points;
   real_t* extents;
   stencil_t* stencil;
-  int nx = 10, ny = 10;
+  int nx = 33, ny = 5, nz = 5;
   
   // Override options if desired.
   {
     options_t* opts = options_argv();
     char* nx_str = options_value(opts, "nx");
     if ((nx_str != NULL) && (string_is_number(nx_str)))
-      nx = ny = atoi(nx_str);
+      nx = atoi(nx_str);
+    char* ny_str = options_value(opts, "ny");
+    if ((ny_str != NULL) && (string_is_number(ny_str)))
+      ny = nz = atoi(ny_str);
   }
 
   make_mlpg_lattice(nx, ny, 1, 3.0, &points, &extents, &stencil);
@@ -294,8 +313,8 @@ void test_gmls_matrix_with_frankes_function(void** state)
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(P, W, points, extents, stencil);
   real_t delta = 0.5; // ratio of subdomain extent to point extent.
-  gmls_functional_t* lambda = poisson_gmls_functional_new(2, points, extents, delta);
-  sp_func_t* F = sp_func_from_func("Franke's function", franke, SP_INHOMOGENEOUS, 1);
+  gmls_functional_t* lambda = elasticity_gmls_functional_new(2, points, extents, delta);
+  sp_func_t* F = sp_func_from_func("Cantileaver beam solution", cantileaver_beam, SP_INHOMOGENEOUS, 3);
   volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, delta);
 
   // Set up our linear system using a dense matrix. This is inefficient but very simple.
@@ -305,37 +324,52 @@ void test_gmls_matrix_with_frankes_function(void** state)
   int num_bnodes; 
   int* bnodes = point_cloud_tag(points, "boundary", &num_bnodes);
   ASSERT(bnodes != NULL);
+  gmls_functional_t* dirichlet_bc = gmls_matrix_dirichlet_bc_new(matrix);
   log_debug("Found %d boundary nodes in point cloud.", num_bnodes);
   int_unordered_set_t* boundary_nodes = int_unordered_set_new();
   for (int b = 0; b < num_bnodes; ++b)
   {
     int bnode = bnodes[b];
-    int num_cols = gmls_matrix_num_columns(matrix, bnode);
-    int cols[num_cols];
-    real_t coeffs[num_cols];
-    gmls_matrix_compute_dirichlet_row(matrix, bnode, lambda, cols, coeffs);
+    int num_coeffs = gmls_matrix_num_coeffs(matrix, bnode);
+    int rows[num_coeffs], cols[num_coeffs];
+    real_t coeffs[num_coeffs];
+    gmls_matrix_compute_coeffs(matrix, bnode, dirichlet_bc, 0.0, NULL, 
+                               rows, cols, coeffs);
+
+    // Make sure all the coefficients go in the same row.
+    for (int j = 1; j < num_coeffs; ++j)
+      assert_true(rows[j] == rows[0]);
+
+    // Now dump the coefficients into our matrix.
     real_t row_vector[N];
     memset(row_vector, 0, sizeof(real_t) * N);
-    for (int j = 0; j < num_cols; ++j)
+    for (int j = 0; j < num_coeffs; ++j)
       row_vector[cols[j]] = coeffs[j];
     local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
     int_unordered_set_insert(boundary_nodes, bnode);
   }
 
   // Now interior nodes.
-  for (int r = 0; r < N; ++r)
+  for (int i = 0; i < points->num_points; ++i)
   {
-    if (!int_unordered_set_contains(boundary_nodes, r))
+    if (!int_unordered_set_contains(boundary_nodes, i))
     {
-      int num_cols = gmls_matrix_num_columns(matrix, r);
-      int cols[num_cols];
-      real_t coeffs[num_cols];
-      gmls_matrix_compute_row(matrix, r, lambda, 0.0, cols, coeffs);
+      int num_coeffs = gmls_matrix_num_coeffs(matrix, i);
+      int rows[num_coeffs], cols[num_coeffs];
+      real_t coeffs[num_coeffs];
+      gmls_matrix_compute_coeffs(matrix, i, lambda, 0.0, NULL, 
+                                 rows, cols, coeffs);
+
+      // Make sure all the coefficients go in the same row.
+      for (int j = 1; j < num_coeffs; ++j)
+        assert_true(rows[j] == rows[0]);
+
+      // Now dump the coefficients into our matrix.
       real_t row_vector[N];
       memset(row_vector, 0, sizeof(real_t) * N);
-      for (int j = 0; j < num_cols; ++j)
+      for (int j = 0; j < num_coeffs; ++j)
         row_vector[cols[j]] = coeffs[j];
-      local_matrix_add_row_vector(A, 1.0, r, row_vector);
+      local_matrix_add_row_vector(A, 1.0, i, row_vector);
     }
   }
 //printf("A = ");
@@ -399,7 +433,6 @@ void test_gmls_matrix_with_frankes_function(void** state)
   polymec_free(extents);
   stencil_free(stencil);
 }
-#endif
 
 int main(int argc, char* argv[]) 
 {
@@ -407,7 +440,8 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_gmls_matrix_ctor),
-    unit_test(test_gmls_matrix_with_frankes_function)
+    unit_test(test_gmls_matrix_with_frankes_function),
+    unit_test(test_gmls_matrix_with_cantileaver_beam)
   };
   return run_tests(tests);
 }
