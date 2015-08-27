@@ -149,6 +149,10 @@ void test_gmls_matrix_with_frankes_function(void** state)
       local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
       int_unordered_set_insert(boundary_nodes, bnode);
     }
+
+    // Clean up the boundary functionals.
+    gmls_functional_free(dirichlet_bc);
+    gmls_functional_free(neumann_bc);
   }
   else // Dirichlet BCs all around.
   {
@@ -181,6 +185,9 @@ void test_gmls_matrix_with_frankes_function(void** state)
       local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
       int_unordered_set_insert(boundary_nodes, bnode);
     }
+
+    // Clean up the boundary functional.
+    gmls_functional_free(dirichlet_bc);
   }
 
   // Now interior nodes.
@@ -206,6 +213,9 @@ void test_gmls_matrix_with_frankes_function(void** state)
       local_matrix_add_row_vector(A, 1.0, i, row_vector);
     }
   }
+
+  // Clean up the Poisson functional.
+  gmls_functional_free(lambda);
 //printf("A = ");
 //local_matrix_fprintf(A, stdout);
 
@@ -386,6 +396,10 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
   }
 //printf("A = ");
 //local_matrix_fprintf(A, stdout);
+
+  // Clean up the functionals.
+  gmls_functional_free(dirichlet_bc);
+  gmls_functional_free(lambda);
 
   // Fill in the RHS vector.
   real_t B[N];
