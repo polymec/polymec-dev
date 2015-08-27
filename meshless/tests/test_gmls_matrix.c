@@ -17,6 +17,7 @@
 #include "meshless/mlpg_quadrature.h"
 #include "make_mlpg_lattice.h"
 #include "poisson_gmls_functional.h"
+#include "elasticity_gmls_functional.h"
 
 void test_gmls_matrix_ctor(void** state)
 {
@@ -292,6 +293,14 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
   stencil_t* stencil;
   int nx = 33, ny = 5, nz = 5;
   
+  // Material properties.
+  cantileaver_t* cantileaver = polymec_malloc(sizeof(cantileaver_t));
+  cantileaver->L = 8.0;
+  cantileaver->D = 1.0;
+  cantileaver->P = 1.0;
+  cantileaver->E = 1.0;
+  cantileaver->nu = 0.25;
+
   // Override options if desired.
   {
     options_t* opts = options_argv();
@@ -313,8 +322,11 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(P, W, points, extents, stencil);
   real_t delta = 0.5; // ratio of subdomain extent to point extent.
-  gmls_functional_t* lambda = elasticity_gmls_functional_new(2, points, extents, delta);
-  sp_func_t* F = sp_func_from_func("Cantileaver beam solution", cantileaver_beam, SP_INHOMOGENEOUS, 3);
+  gmls_functional_t* lambda = elasticity_gmls_functional_new(cantileaver->E, cantileaver->nu,
+                                                             2, points, extents, delta);
+  sp_vtable cantileaver_vtable = {.eval = cantileaver_beam, .dtor = polymec_free};
+  sp_func_t* F = sp_func_new("Cantileaver beam solution", cantileaver, 
+                             cantileaver_vtable, SP_INHOMOGENEOUS, 3);
   volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, delta);
 
   // Set up our linear system using a dense matrix. This is inefficient but very simple.
@@ -440,8 +452,8 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_gmls_matrix_ctor),
-    unit_test(test_gmls_matrix_with_frankes_function),
-    unit_test(test_gmls_matrix_with_cantileaver_beam)
+    unit_test(test_gmls_matrix_with_frankes_function)
+//    unit_test(test_gmls_matrix_with_cantileaver_beam)
   };
   return run_tests(tests);
 }
