@@ -140,6 +140,24 @@ void test_bessel_dydx(void** state)
     test_bessel_dyndx(state, n);
 }
 
+void test_hermite_hn(void** state)
+{
+  // Test the first 11 Hermite polynomials against those listed on 
+  // Wikipedia.
+  real_t x = 1.5; // an interesting point.
+  assert_true(fabs(hermite_hn(0, x) - (1.0)) < 1e-14);
+  assert_true(fabs(hermite_hn(1, x) - (2.0*x)) < 1e-14);
+  assert_true(fabs(hermite_hn(2, x) - (4.0*x*x-2.0)) < 1e-14);
+  assert_true(fabs(hermite_hn(3, x) - (8.0*pow(x, 3)-12.0*x)) < 1e-14);
+  assert_true(fabs(hermite_hn(4, x) - (16.0*pow(x, 4)-48.0*x*x+12.0)) < 1e-14);
+  assert_true(fabs(hermite_hn(5, x) - (32.0*pow(x, 5)-160.0*pow(x,3)+120.0*x)) < 1e-14);
+  assert_true(fabs(hermite_hn(6, x) - (64.0*pow(x, 6)-480.0*pow(x,4)+720.0*x*x-120.0)) < 1e-14);
+  assert_true(fabs(hermite_hn(7, x) - (128.0*pow(x, 7)-1344.0*pow(x, 5)+3360.0*pow(x,3)-1680.0*x)) < 1e-14);
+  assert_true(fabs(hermite_hn(8, x) - (256.0*pow(x, 8)-3584.0*pow(x, 6)+13440.0*pow(x,4)-13440.0*pow(x,2) + 1680.0)) < 1e-14);
+  assert_true(fabs(hermite_hn(9, x) - (512.0*pow(x, 9)-9216.0*pow(x, 7)+48384.0*pow(x,5)-80640.0*pow(x,3) + 30240.0*x)) < 1e-14);
+  assert_true(fabs(hermite_hn(10, x) - (1024.0*pow(x, 10)-23040.0*pow(x, 8)+161280.0*pow(x,6)-403200.0*pow(x,4) + 302400.0*x*x - 30240.0)) < 1e-14);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -150,7 +168,8 @@ int main(int argc, char* argv[])
     unit_test(test_bessel_djdx),
     unit_test(test_bessel_find_yn_roots),
     unit_test(test_bessel_y),
-    unit_test(test_bessel_dydx)
+    unit_test(test_bessel_dydx),
+    unit_test(test_hermite_hn)
   };
   return run_tests(tests);
 }

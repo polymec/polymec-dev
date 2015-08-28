@@ -9,9 +9,9 @@
 #define POLYMEC_SPECIAL_FUNCTIONS_H
 
 // These functions implement special functions not available in the 
-// standard C math library. They are adapted from the Fortran 77 subroutines 
-// that accompany "Computation of Special Functions" by Shanjie Zhang and 
-// Jianming Jin (Copyright (c) 1996, John Wiley and Sons, Inc).
+// standard C math library. Several of them are adapted from the Fortran 77 
+// subroutines that accompany "Computation of Special Functions" by Shanjie 
+// Zhang and Jianming Jin (Copyright (c) 1996, John Wiley and Sons, Inc).
 // This copyright/attribution must accompany any reproduction of these 
 // functions.
 

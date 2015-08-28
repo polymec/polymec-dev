@@ -561,11 +561,11 @@ double bessel_dkndx(int n, double x)
 
 double chebyshev_tn(int n, double x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
   if (n == 0)
     return 1.0;
   else if (n == 1)
     return x;
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
   double tn;
   for (int k = 2; k <= n; ++k)
   {
@@ -579,12 +579,12 @@ double chebyshev_tn(int n, double x)
 
 double chebyshev_dtndx(int n, double x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
-  double dy0 = 0.0, dy1 = 1.0;
   if (n == 0)
     return 1.0;
   else if (n == 1)
     return 1.0;
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
+  double dy0 = 0.0, dy1 = 1.0;
   double dtndx;
   for (int k = 2; k <= n; ++k)
   {
@@ -601,11 +601,11 @@ double chebyshev_dtndx(int n, double x)
 
 double chebyshev_un(int n, double x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
   if (n == 0)
     return 1.0;
   else if (n == 1)
     return 2.0*x;
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
   double un;
   for (int k = 2; k <= n; ++k)
   {
@@ -619,12 +619,12 @@ double chebyshev_un(int n, double x)
 
 double chebyshev_dundx(int n, double x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
-  double dy0 = 0.0, dy1 = 2.0;
   if (n == 0)
     return 1.0;
   else if (n == 1)
     return 2.0;
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
+  double dy0 = 0.0, dy1 = 2.0;
   double dundx;
   for (int k = 2; k <= n; ++k)
   {
@@ -641,11 +641,11 @@ double chebyshev_dundx(int n, double x)
 
 double laguerre_ln(int n, double x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
   if (n == 0)
     return 1.0;
   else if (n == 1)
     return 1.0 - x;
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
   double ln;
   for (int k = 2; k <= n; ++k)
   {
@@ -662,12 +662,12 @@ double laguerre_ln(int n, double x)
 
 double laguerre_dlndx(int n, double x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
-  double dy0 = 0.0, dy1 = -1.0;
   if (n == 0)
     return 0.0;
   else if (n == 1)
     return -1.0;
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
+  double dy0 = 0.0, dy1 = -1.0;
   double dlndx;
   for (int k = 2; k <= n; ++k)
   {
@@ -687,44 +687,29 @@ double laguerre_dlndx(int n, double x)
 
 double hermite_hn(int n, double x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
+  ASSERT(n >= 0);
   if (n == 0)
-    return 0.0;
+    return 1.0;
   else if (n == 1)
     return 2.0*x;
+  double h0 = 1.0, h1 = 2.0*x;
   double hn;
   for (int k = 2; k <= n; ++k)
   {
-    C = 2.0 * (k - 1.0);
-    double yn = (A*x*B)*y1-C*y0;
-    hn = yn;
-    y0 = y1;
-    y1 = yn;
+    hn = 2.0*(x*h1 - (k-1)*h0);
+    h0 = h1;
+    h1 = hn;
   }
   return hn;
 }
 
 double hermite_dhndx(int n, double x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
-  double dy0 = 0.0, dy1 = 2.0;
+  ASSERT(n >= 0);
   if (n == 0)
     return 0.0;
-  else if (n == 1)
-    return 2.0;
-  double dhndx;
-  for (int k = 2; k <= n; ++k)
-  {
-    C = 2.0 * (k - 1.0);
-    double yn = (A*x*B)*y1-C*y0;
-    double dyn = A*y1+(A*x+B)*dy1-C*dy0;
-    dhndx = dyn;
-    y0 = y1;
-    y1 = yn;
-    dy0 = dy1;
-    dy1 = dyn;
-  }
-  return dhndx;
+  else 
+    return 2.0 * n * hermite_hn(n-1, x);
 }
 
 #ifndef __cplusplus
