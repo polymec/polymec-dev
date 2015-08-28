@@ -559,6 +559,174 @@ double bessel_dkndx(int n, double x)
   POLYMEC_NOT_IMPLEMENTED
 }
 
+double chebyshev_tn(int n, double x)
+{
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
+  if (n == 0)
+    return 1.0;
+  else if (n == 1)
+    return x;
+  double tn;
+  for (int k = 2; k <= n; ++k)
+  {
+    double yn = (A*x*B)*y1-C*y0;
+    tn = yn;
+    y0 = y1;
+    y1 = yn;
+  }
+  return tn;
+}
+
+double chebyshev_dtndx(int n, double x)
+{
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
+  double dy0 = 0.0, dy1 = 1.0;
+  if (n == 0)
+    return 1.0;
+  else if (n == 1)
+    return 1.0;
+  double dtndx;
+  for (int k = 2; k <= n; ++k)
+  {
+    double yn = (A*x*B)*y1-C*y0;
+    double dyn = A*y1+(A*x+B)*dy1-C*dy0;
+    dtndx = dyn;
+    y0 = y1;
+    y1 = yn;
+    dy0 = dy1;
+    dy1 = dyn;
+  }
+  return dtndx;
+}
+
+double chebyshev_un(int n, double x)
+{
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
+  if (n == 0)
+    return 1.0;
+  else if (n == 1)
+    return 2.0*x;
+  double un;
+  for (int k = 2; k <= n; ++k)
+  {
+    double yn = (A*x*B)*y1-C*y0;
+    un = yn;
+    y0 = y1;
+    y1 = yn;
+  }
+  return un;
+}
+
+double chebyshev_dundx(int n, double x)
+{
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
+  double dy0 = 0.0, dy1 = 2.0;
+  if (n == 0)
+    return 1.0;
+  else if (n == 1)
+    return 2.0;
+  double dundx;
+  for (int k = 2; k <= n; ++k)
+  {
+    double yn = (A*x*B)*y1-C*y0;
+    double dyn = A*y1+(A*x+B)*dy1-C*dy0;
+    dundx = dyn;
+    y0 = y1;
+    y1 = yn;
+    dy0 = dy1;
+    dy1 = dyn;
+  }
+  return dundx;
+}
+
+double laguerre_ln(int n, double x)
+{
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
+  if (n == 0)
+    return 1.0;
+  else if (n == 1)
+    return 1.0 - x;
+  double ln;
+  for (int k = 2; k <= n; ++k)
+  {
+    A = -1.0/k;
+    B = 2.0 + A;
+    C = 1.0 + A;
+    double yn = (A*x*B)*y1-C*y0;
+    ln = yn;
+    y0 = y1;
+    y1 = yn;
+  }
+  return ln;
+}
+
+double laguerre_dlndx(int n, double x)
+{
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
+  double dy0 = 0.0, dy1 = -1.0;
+  if (n == 0)
+    return 0.0;
+  else if (n == 1)
+    return -1.0;
+  double dlndx;
+  for (int k = 2; k <= n; ++k)
+  {
+    A = -1.0/k;
+    B = 2.0 + A;
+    C = 1.0 + A;
+    double yn = (A*x*B)*y1-C*y0;
+    double dyn = A*y1+(A*x+B)*dy1-C*dy0;
+    dlndx = dyn;
+    y0 = y1;
+    y1 = yn;
+    dy0 = dy1;
+    dy1 = dyn;
+  }
+  return dlndx;
+}
+
+double hermite_hn(int n, double x)
+{
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
+  if (n == 0)
+    return 0.0;
+  else if (n == 1)
+    return 2.0*x;
+  double hn;
+  for (int k = 2; k <= n; ++k)
+  {
+    C = 2.0 * (k - 1.0);
+    double yn = (A*x*B)*y1-C*y0;
+    hn = yn;
+    y0 = y1;
+    y1 = yn;
+  }
+  return hn;
+}
+
+double hermite_dhndx(int n, double x)
+{
+  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
+  double dy0 = 0.0, dy1 = 2.0;
+  if (n == 0)
+    return 0.0;
+  else if (n == 1)
+    return 2.0;
+  double dhndx;
+  for (int k = 2; k <= n; ++k)
+  {
+    C = 2.0 * (k - 1.0);
+    double yn = (A*x*B)*y1-C*y0;
+    double dyn = A*y1+(A*x+B)*dy1-C*dy0;
+    dhndx = dyn;
+    y0 = y1;
+    y1 = yn;
+    dy0 = dy1;
+    dy1 = dyn;
+  }
+  return dhndx;
+}
+
 #ifndef __cplusplus
 #include <complex.h>
 
