@@ -13,11 +13,14 @@
 #include "core/options.h"
 #include "core/dense_local_matrix.h"
 #include "core/linear_algebra.h"
+#include "core/special_functions.h"
 #include "meshless/gmls_matrix.h"
 #include "meshless/mlpg_quadrature.h"
 #include "make_mlpg_lattice.h"
 #include "poisson_gmls_functional.h"
 #include "elasticity_gmls_functional.h"
+
+#undef I // no imaginary stuff here!
 
 void test_gmls_matrix_ctor(void** state)
 {
@@ -40,10 +43,34 @@ void test_gmls_matrix_ctor(void** state)
 static void franke(void* context, point_t* x, real_t* u)
 {
   real_t X = x->x, Y = x->y;
-  u[0] = 0.75 * exp(-0.25 * (pow(9.0*X - 2.0, 2.0) + pow(9.0*Y - 2.0, 2.0))) + 
-         0.75 * exp(-1.0/49.0 * pow(9.0*X + 1.0, 2.0) - 1.0/10.0 * pow(9.0*Y + 1.0, 2.0)) + 
-         0.50 * exp(-0.25 * (pow(9.0*X - 7.0, 2.0) + pow(9.0*Y - 3.0, 2.0))) - 
-         0.20 * exp(-pow(9.0*X - 4.0, 2.0) - pow(9.0*Y - 7.0, 2.0));
+  real_t term1 = 0.75 * exp(-0.25 * (pow(9.0*X - 2.0, 2.0) + pow(9.0*Y - 2.0, 2.0)));
+  real_t term2 = 0.75 * exp(-1.0/49.0 * pow(9.0*X + 1.0, 2.0) - 1.0/10.0 * pow(9.0*Y + 1.0, 2.0));
+  real_t term3 = 0.50 * exp(-0.25 * (pow(9.0*X - 7.0, 2.0) + pow(9.0*Y - 3.0, 2.0)));
+  real_t term4 = 0.20 * exp(-pow(9.0*X - 4.0, 2.0) - pow(9.0*Y - 7.0, 2.0));
+  u[0] = term1 + term2 + term3 + term4;
+}
+
+// Here's its gradient.
+static void grad_franke(void* context, point_t* x, real_t* grad_u)
+{
+  real_t X = x->x, Y = x->y;
+  real_t h1_X = hermite_hn(1, X);
+  real_t h1_Y = hermite_hn(1, Y);
+  real_t term1 = 0.75 * exp(-0.25 * (pow(9.0*X - 2.0, 2.0) + pow(9.0*Y - 2.0, 2.0)));
+  real_t ddx_term1 = 0.25 * h1_X * term1 * 9.0;
+  real_t ddy_term1 = 0.25 * h1_Y * term1 * 9.0;
+  real_t term2 = 0.75 * exp(-1.0/49.0 * pow(9.0*X + 1.0, 2.0) - 1.0/10.0 * pow(9.0*Y + 1.0, 2.0));
+  real_t ddx_term2 = 1.0/49.0 * h1_X * term2 * 9.0;
+  real_t ddy_term2 = 1.0/49.0 * h1_Y * term2 * 9.0;
+  real_t term3 = 0.50 * exp(-0.25 * (pow(9.0*X - 7.0, 2.0) + pow(9.0*Y - 3.0, 2.0)));
+  real_t ddx_term3 = 0.25 * h1_X * term3 * 9.0;
+  real_t ddy_term3 = 0.25 * h1_Y * term3 * 9.0;
+  real_t term4 = 0.20 * exp(-pow(9.0*X - 4.0, 2.0) - pow(9.0*Y - 7.0, 2.0));
+  real_t ddx_term4 = h1_X * term4 * 9.0;
+  real_t ddy_term4 = h1_Y * term4 * 9.0;
+  grad_u[0] = ddx_term1 + ddx_term2 + ddx_term3 + ddx_term4;
+  grad_u[1] = ddy_term1 + ddy_term2 + ddy_term3 + ddy_term4;
+  grad_u[2] = 0.0;
 }
 
 void test_gmls_matrix_with_frankes_function(void** state)
@@ -82,6 +109,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
 
   // Set up our linear system using a dense matrix. This is inefficient but very simple.
   local_matrix_t* A = dense_local_matrix_new(N);
+  real_t B[N]; // RHS vector.
 
   // Treat boundary nodes first.
   int_unordered_set_t* boundary_nodes = int_unordered_set_new();
@@ -103,7 +131,10 @@ void test_gmls_matrix_with_frankes_function(void** state)
 
     // Boundary functionals.
     gmls_functional_t* dirichlet_bc = gmls_matrix_dirichlet_bc_new(matrix);
-    st_func_t* n = NULL; // FIXME: Normal vector function!
+    point_t x0 = {.x = 0.5, .y = 0.5, .z = 0.5/nx};
+    st_func_t* box = rect_prism_new(&x0, 1.0, 1.0, 1.0/nx, 0.0, 0.0, 0.0);
+    ASSERT(st_func_has_deriv(box, 1));
+    st_func_t* n = st_func_deriv(box); // Normal vector function.
     gmls_functional_t* neumann_bc = gmls_matrix_neumann_bc_new(matrix, n);
 
     for (int b = 0; b < num_nbnodes; ++b) // Neumann BC nodes
@@ -126,6 +157,13 @@ void test_gmls_matrix_with_frankes_function(void** state)
         row_vector[cols[j]] = coeffs[j];
       local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
       int_unordered_set_insert(boundary_nodes, bnode);
+
+      // RHS contribution.
+      point_t* xb = &points->points[bnode];
+      real_t dF[3], nb[3];
+      sp_func_eval(grad_F, xb, dF);
+      sp_func_eval(n, xb, nb); 
+      B[bnode] = nb[0]*dF[0] + nb[1]*dF[1] + nb[2]*dF[2];
     }
 
     for (int b = 0; b < num_dbnodes; ++b) // Dirichlet BC nodes
@@ -148,6 +186,10 @@ void test_gmls_matrix_with_frankes_function(void** state)
         row_vector[cols[j]] = coeffs[j];
       local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
       int_unordered_set_insert(boundary_nodes, bnode);
+
+      // RHS contribution.
+      point_t* xb = &points->points[bnode];
+      sp_func_eval(F, xb, &B[bnode]);
     }
 
     // Clean up the boundary functionals.
@@ -184,6 +226,10 @@ void test_gmls_matrix_with_frankes_function(void** state)
         row_vector[cols[j]] = coeffs[j];
       local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
       int_unordered_set_insert(boundary_nodes, bnode);
+
+      // RHS contribution.
+      point_t* xb = &points->points[bnode];
+      sp_func_eval(F, xb, &B[bnode]);
     }
 
     // Clean up the boundary functional.
@@ -211,6 +257,10 @@ void test_gmls_matrix_with_frankes_function(void** state)
       for (int j = 0; j < num_coeffs; ++j)
         row_vector[cols[j]] = coeffs[j];
       local_matrix_add_row_vector(A, 1.0, i, row_vector);
+
+      // Interior RHS.
+      volume_integral_set_domain(Qv, i);
+      volume_integral_compute(Qv, F, &B[i]);
     }
   }
 
@@ -219,21 +269,6 @@ void test_gmls_matrix_with_frankes_function(void** state)
 //printf("A = ");
 //local_matrix_fprintf(A, stdout);
 
-  // Fill in the RHS vector.
-  real_t B[N];
-  for (int r = 0; r < N; ++r)
-  {
-    if (int_unordered_set_contains(boundary_nodes, r))
-    {
-      point_t* xb = &points->points[r];
-      sp_func_eval(F, xb, &B[r]);
-    }
-    else
-    {
-      volume_integral_set_domain(Qv, r);
-      volume_integral_compute(Qv, F, &B[r]);
-    }
-  }
 //printf("B = ");
 //vector_fprintf(B, nx*ny, stdout);
 
