@@ -559,17 +559,17 @@ double bessel_dkndx(int n, double x)
   POLYMEC_NOT_IMPLEMENTED
 }
 
-double chebyshev_tn(int n, double x)
+real_t chebyshev_tn(int n, real_t x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
+  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
   if (n == 0)
     return 1.0;
   else if (n == 1)
     return x;
-  double tn;
+  real_t tn;
   for (int k = 2; k <= n; ++k)
   {
-    double yn = (A*x*B)*y1-C*y0;
+    real_t yn = (A*x*B)*y1-C*y0;
     tn = yn;
     y0 = y1;
     y1 = yn;
@@ -577,19 +577,19 @@ double chebyshev_tn(int n, double x)
   return tn;
 }
 
-double chebyshev_dtndx(int n, double x)
+real_t chebyshev_dtndx(int n, real_t x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
-  double dy0 = 0.0, dy1 = 1.0;
+  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
+  real_t dy0 = 0.0, dy1 = 1.0;
   if (n == 0)
     return 1.0;
   else if (n == 1)
     return 1.0;
-  double dtndx;
+  real_t dtndx;
   for (int k = 2; k <= n; ++k)
   {
-    double yn = (A*x*B)*y1-C*y0;
-    double dyn = A*y1+(A*x+B)*dy1-C*dy0;
+    real_t yn = (A*x*B)*y1-C*y0;
+    real_t dyn = A*y1+(A*x+B)*dy1-C*dy0;
     dtndx = dyn;
     y0 = y1;
     y1 = yn;
@@ -599,17 +599,17 @@ double chebyshev_dtndx(int n, double x)
   return dtndx;
 }
 
-double chebyshev_un(int n, double x)
+real_t chebyshev_un(int n, real_t x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
+  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
   if (n == 0)
     return 1.0;
   else if (n == 1)
     return 2.0*x;
-  double un;
+  real_t un;
   for (int k = 2; k <= n; ++k)
   {
-    double yn = (A*x*B)*y1-C*y0;
+    real_t yn = (A*x*B)*y1-C*y0;
     un = yn;
     y0 = y1;
     y1 = yn;
@@ -617,19 +617,19 @@ double chebyshev_un(int n, double x)
   return un;
 }
 
-double chebyshev_dundx(int n, double x)
+real_t chebyshev_dundx(int n, real_t x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
-  double dy0 = 0.0, dy1 = 2.0;
+  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
+  real_t dy0 = 0.0, dy1 = 2.0;
   if (n == 0)
     return 1.0;
   else if (n == 1)
     return 2.0;
-  double dundx;
+  real_t dundx;
   for (int k = 2; k <= n; ++k)
   {
-    double yn = (A*x*B)*y1-C*y0;
-    double dyn = A*y1+(A*x+B)*dy1-C*dy0;
+    real_t yn = (A*x*B)*y1-C*y0;
+    real_t dyn = A*y1+(A*x+B)*dy1-C*dy0;
     dundx = dyn;
     y0 = y1;
     y1 = yn;
@@ -639,20 +639,20 @@ double chebyshev_dundx(int n, double x)
   return dundx;
 }
 
-double laguerre_ln(int n, double x)
+real_t laguerre_ln(int n, real_t x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
+  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
   if (n == 0)
     return 1.0;
   else if (n == 1)
     return 1.0 - x;
-  double ln;
+  real_t ln;
   for (int k = 2; k <= n; ++k)
   {
     A = -1.0/k;
     B = 2.0 + A;
     C = 1.0 + A;
-    double yn = (A*x*B)*y1-C*y0;
+    real_t yn = (A*x*B)*y1-C*y0;
     ln = yn;
     y0 = y1;
     y1 = yn;
@@ -660,22 +660,22 @@ double laguerre_ln(int n, double x)
   return ln;
 }
 
-double laguerre_dlndx(int n, double x)
+real_t laguerre_dlndx(int n, real_t x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
-  double dy0 = 0.0, dy1 = -1.0;
+  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
+  real_t dy0 = 0.0, dy1 = -1.0;
   if (n == 0)
     return 0.0;
   else if (n == 1)
     return -1.0;
-  double dlndx;
+  real_t dlndx;
   for (int k = 2; k <= n; ++k)
   {
     A = -1.0/k;
     B = 2.0 + A;
     C = 1.0 + A;
-    double yn = (A*x*B)*y1-C*y0;
-    double dyn = A*y1+(A*x+B)*dy1-C*dy0;
+    real_t yn = (A*x*B)*y1-C*y0;
+    real_t dyn = A*y1+(A*x+B)*dy1-C*dy0;
     dlndx = dyn;
     y0 = y1;
     y1 = yn;
@@ -685,18 +685,18 @@ double laguerre_dlndx(int n, double x)
   return dlndx;
 }
 
-double hermite_hn(int n, double x)
+real_t hermite_hn(int n, real_t x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
+  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
   if (n == 0)
     return 0.0;
   else if (n == 1)
     return 2.0*x;
-  double hn;
+  real_t hn;
   for (int k = 2; k <= n; ++k)
   {
     C = 2.0 * (k - 1.0);
-    double yn = (A*x*B)*y1-C*y0;
+    real_t yn = (A*x*B)*y1-C*y0;
     hn = yn;
     y0 = y1;
     y1 = yn;
@@ -704,20 +704,20 @@ double hermite_hn(int n, double x)
   return hn;
 }
 
-double hermite_dhndx(int n, double x)
+real_t hermite_dhndx(int n, real_t x)
 {
-  double A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
-  double dy0 = 0.0, dy1 = 2.0;
+  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
+  real_t dy0 = 0.0, dy1 = 2.0;
   if (n == 0)
     return 0.0;
   else if (n == 1)
     return 2.0;
-  double dhndx;
+  real_t dhndx;
   for (int k = 2; k <= n; ++k)
   {
     C = 2.0 * (k - 1.0);
-    double yn = (A*x*B)*y1-C*y0;
-    double dyn = A*y1+(A*x+B)*dy1-C*dy0;
+    real_t yn = (A*x*B)*y1-C*y0;
+    real_t dyn = A*y1+(A*x+B)*dy1-C*dy0;
     dhndx = dyn;
     y0 = y1;
     y1 = yn;
