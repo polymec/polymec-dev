@@ -127,35 +127,35 @@ double bessel_dkndx(int n, double x);
 
 // Returns the value of Tn, the Chebyshev polynomial of order n, at the given 
 // value of x.
-double chebyshev_tn(int n, double x);
+real_t chebyshev_tn(int n, real_t x);
 
 // Returns the value of the first derivative of Tn, the Chebyshev polynomial
 // of order n, at the given value of x.
-double chebyshev_dtndx(int n, double x);
+real_t chebyshev_dtndx(int n, real_t x);
 
 // Returns the value of Un, the Chebyshev polynomial of order n, at the given 
 // value of x.
-double chebyshev_un(int n, double x);
+real_t chebyshev_un(int n, real_t x);
 
 // Returns the value of the first derivative of Un, the Chebyshev polynomial 
 // of order n, at the given value of x.
-double chebyshev_dundx(int n, double x);
+real_t chebyshev_dundx(int n, real_t x);
 
 // Returns the value of Ln, the Laguerre polynomial of order n, at the given 
 // value of x.
-double laguerre_ln(int n, double x);
+real_t laguerre_ln(int n, real_t x);
 
 // Returns the value of the first derivative of Ln, the Laguerre polynomial 
 // of order n, at the given value of x.
-double laguerre_dlndx(int n, double x);
+real_t laguerre_dlndx(int n, real_t x);
 
 // Returns the value of Hn, the Hermite polynomial of order n, at the given 
 // value of x.
-double hermite_hn(int n, double x);
+real_t hermite_hn(int n, real_t x);
 
 // Returns the value of dHndx, the first derivative of the Hermite polynomial 
 // of order n, at the given value of x.
-double hermite_dhndx(int n, double x);
+real_t hermite_dhndx(int n, real_t x);
 
 // C++ doesn't have complex datatypes, so we don't expose them to C++ compilers.
 #ifndef __cplusplus
