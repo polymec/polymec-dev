@@ -2225,7 +2225,7 @@ static st_func_t* scalarfunction_from_lua_func(struct lua_State* lua,
   register_new_deferred_global_symbol(lua, func->function_name, lua_absindex(lua, index));
 
   // Now create and return our function.
-  st_vtable vtable = {.eval = lua_scalarfunction_eval, .dtor = polymec_free};
+  st_func_vtable vtable = {.eval = lua_scalarfunction_eval, .dtor = polymec_free};
   return st_func_new("Lua scalar function", func, vtable, ST_INHOMOGENEOUS,
                      ST_NONCONSTANT, 1);
 }

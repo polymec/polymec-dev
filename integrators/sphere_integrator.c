@@ -373,19 +373,19 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
   int basis_degree = MIN(integ->degree, 2); // FIXME: Div-free poly basis tops out at degree 2.
   div_free_poly_basis_t* df_basis = spherical_div_free_poly_basis_new(basis_degree, x0, R);
   int M = div_free_poly_basis_dim(df_basis);
-printf("N = %d, M = %d\n", N, M);
+//printf("N = %d, M = %d\n", N, M);
   while ((basis_degree > 0) && (N <= M))
   {
     --basis_degree;
     df_basis = spherical_div_free_poly_basis_new(basis_degree, x0, R);
     M = div_free_poly_basis_dim(df_basis);
-printf("N = %d, M = %d\n", N, M);
+//printf("N = %d, M = %d\n", N, M);
   }
 
   // Set up a spatial function that computes F o n for the right hand side.
   radial_F Fr;
   Fr.x0 = *x0;
-  sp_vtable vtable = {.eval = eval_F_o_n};
+  sp_func_vtable vtable = {.eval = eval_F_o_n};
   sp_func_t* F_o_n = sp_func_new("F_o_n", &Fr, vtable, SP_INHOMOGENEOUS, 1);
 
   // Construct an orthonormal basis for the sphere. We need this to get the 

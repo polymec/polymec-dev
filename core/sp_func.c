@@ -12,7 +12,7 @@ struct sp_func_t
 {
   char* name;
   void* context;
-  sp_vtable vtable;
+  sp_func_vtable vtable;
   int num_comp;
   bool homogeneous;
 
@@ -29,7 +29,7 @@ static void sp_func_free(void* ctx, void* dummy)
   polymec_free(func->name);
 }
 
-sp_func_t* sp_func_new(const char* name, void* context, sp_vtable vtable,
+sp_func_t* sp_func_new(const char* name, void* context, sp_func_vtable vtable,
                        sp_func_homogeneity_t homogeneity,
                        int num_comp)
 {
@@ -189,7 +189,7 @@ static void constant_dtor(void* ctx)
 
 static sp_func_t* create_constant_sp_func(real_t components[], int num_components)
 {
-  sp_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
+  sp_func_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
   char name[1025];
   snprintf(name, 1024, "constant spatial function (");
   for (int i = 0; i < num_components; ++i)

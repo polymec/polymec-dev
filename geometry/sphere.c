@@ -42,14 +42,14 @@ sp_func_t* sphere_new(point_t* x, real_t r, normal_orient_t normal_orientation)
   char sphere_str[1024];
   sprintf(sphere_str, "Sphere (x = (%g %g %g), r = %g)", 
           x->x, x->y, x->z, r);
-  sp_vtable vtable = {.eval = sphere_eval, .dtor = polymec_free};
+  sp_func_vtable vtable = {.eval = sphere_eval, .dtor = polymec_free};
   sp_func_t* sphere = sp_func_new(sphere_str, s, vtable, SP_INHOMOGENEOUS, 1);
 
   // Register the gradient function.
   char sphere_grad_str[1024];
   sprintf(sphere_grad_str, "Sphere gradient (x = (%g %g %g), r = %g)", 
           x->x, x->y, x->z, r);
-  sp_vtable vtable_g = {.eval = sphere_eval_gradient}; // Notice no dtor.
+  sp_func_vtable vtable_g = {.eval = sphere_eval_gradient}; // Notice no dtor.
   sp_func_t* sphere_grad = sp_func_new(sphere_grad_str, s, vtable_g, SP_INHOMOGENEOUS, 3);
   sp_func_register_deriv(sphere, 1, sphere_grad);
 

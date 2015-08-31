@@ -30,7 +30,7 @@ sp_func_t* plane_new(vector_t* n, point_t* x)
 {
   // Set up a plane signed distance function.
   plane_t* p = polymec_malloc(sizeof(plane_t));
-  sp_vtable vtable = {.eval = plane_eval, .dtor = polymec_free};
+  sp_func_vtable vtable = {.eval = plane_eval, .dtor = polymec_free};
   sp_func_t* plane = sp_func_new("Plane (uninitialized)", p, vtable, SP_INHOMOGENEOUS, 1);
 
   // Set up all the innards.

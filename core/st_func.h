@@ -44,10 +44,10 @@ typedef struct
 {
   st_eval_func              eval;
   st_dtor                   dtor;
-} st_vtable;
+} st_func_vtable;
 
 // Constructs a space-time function from the given context, metadata and vtable.
-st_func_t* st_func_new(const char* name, void* context, st_vtable vtable,
+st_func_t* st_func_new(const char* name, void* context, st_func_vtable vtable,
                        st_func_homogeneity_t homogeneity,
                        st_func_constancy_t constancy,
                        int num_comp);

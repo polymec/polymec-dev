@@ -45,10 +45,10 @@ typedef struct
   sp_eval_deriv_func        eval_deriv; // Optional
   sp_has_deriv_func         has_deriv; // Optional, but must be given if eval_deriv is given
   sp_dtor                   dtor;
-} sp_vtable;
+} sp_func_vtable;
 
 // Construct a space-time function from the given context, metadata and vtable.
-sp_func_t* sp_func_new(const char* name, void* context, sp_vtable vtable,
+sp_func_t* sp_func_new(const char* name, void* context, sp_func_vtable vtable,
                        sp_func_homogeneity_t homogeneity,
                        int num_comp);
 

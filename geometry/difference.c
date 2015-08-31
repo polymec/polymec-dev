@@ -57,7 +57,7 @@ sp_func_t* difference_new(sp_func_t* surface1, sp_func_t* surface2)
 
   char diff_str[4096];
   sprintf(diff_str, "Difference (%s, %s)", sp_func_name(surface1), sp_func_name(surface2));
-  sp_vtable vtable = {.eval = diff_eval, .dtor = polymec_free};
+  sp_func_vtable vtable = {.eval = diff_eval, .dtor = polymec_free};
   sp_func_t* difference = sp_func_new(diff_str, diff, vtable, SP_INHOMOGENEOUS, 1);
 
   // Register the gradient function if we have it.
@@ -65,7 +65,7 @@ sp_func_t* difference_new(sp_func_t* surface1, sp_func_t* surface2)
   {
     char diff_grad_str[4096];
     sprintf(diff_grad_str, "grad %s", diff_str);
-    sp_vtable vtable_g = {.eval = diff_eval_gradient}; // Notice no dtor.
+    sp_func_vtable vtable_g = {.eval = diff_eval_gradient}; // Notice no dtor.
     sp_func_t* diff_grad = sp_func_new(diff_grad_str, diff, vtable_g, SP_INHOMOGENEOUS, 3);
     sp_func_register_deriv(difference, 1, diff_grad);
   }

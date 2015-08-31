@@ -504,10 +504,10 @@ static bool wrap_has_deriv(void* context, int deriv)
 
 sp_func_t* polynomial_sp_func(polynomial_t* p)
 {
-  sp_vtable vtable = {.eval = wrap_eval,
-                      .eval_deriv = wrap_eval_deriv,
-                      .has_deriv = wrap_has_deriv,
-                      .dtor = NULL};
+  sp_func_vtable vtable = {.eval = wrap_eval,
+                           .eval_deriv = wrap_eval_deriv,
+                           .has_deriv = wrap_has_deriv,
+                           .dtor = NULL};
   char name[128];
   snprintf(name, 128, "polynomial (p = %d)", p->degree);
   return sp_func_new(name, p, vtable, SP_INHOMOGENEOUS, 1);

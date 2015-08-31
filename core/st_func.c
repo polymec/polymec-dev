@@ -12,7 +12,7 @@ struct st_func_t
 {
   char* name;
   void* context;
-  st_vtable vtable;
+  st_func_vtable vtable;
   int num_comp;
   bool homogeneous;
   bool constant;
@@ -30,7 +30,7 @@ static void st_func_free(void* ctx, void* dummy)
   polymec_free(func->name);
 }
 
-st_func_t* st_func_new(const char* name, void* context, st_vtable vtable,
+st_func_t* st_func_new(const char* name, void* context, st_func_vtable vtable,
                        st_func_homogeneity_t homogeneity,
                        st_func_constancy_t constancy,
                        int num_comp)
@@ -102,7 +102,7 @@ static st_func_t* sp_func_deriv(sp_func_t* func, int d)
   st_func_sp_deriv_t* F = polymec_malloc(sizeof(st_func_sp_deriv_t));
   F->func = func;
   F->deriv = d;
-  st_vtable vtable = {.eval = st_func_sp_deriv_eval, .dtor = st_func_sp_deriv_free};
+  st_func_vtable vtable = {.eval = st_func_sp_deriv_eval, .dtor = st_func_sp_deriv_free};
   char name[1024];
   snprintf(name, 1024, "deriv(%s, %d)", sp_func_name(func), d);
   st_func_homogeneity_t homo = (sp_func_is_homogeneous(func)) ? ST_HOMOGENEOUS : ST_INHOMOGENEOUS;
@@ -207,7 +207,7 @@ static void st_frozen_dtor(void* ctx)
 
 sp_func_t* st_func_freeze(st_func_t* func, real_t t)
 {
-  sp_vtable vtable = {.eval = &st_frozen_eval, .dtor = &st_frozen_dtor };
+  sp_func_vtable vtable = {.eval = &st_frozen_eval, .dtor = &st_frozen_dtor };
   char name[1024];
   snprintf(name, 1024, "%s (frozen at %g)", st_func_name(func), t);
   st_frozen_ctx* c = polymec_malloc(sizeof(st_frozen_ctx));
@@ -265,7 +265,7 @@ st_func_t* multicomp_st_func_from_funcs(const char* name,
     if (!st_func_is_constant(functions[i]))
       constancy = ST_NONCONSTANT;
   }
-  st_vtable vtable = {.eval = multicomp_eval, .dtor = multicomp_dtor};
+  st_func_vtable vtable = {.eval = multicomp_eval, .dtor = multicomp_dtor};
   return st_func_new(name, (void*)mc, vtable, 
                      homogeneity, constancy, num_comp);
 }
@@ -306,7 +306,7 @@ st_func_t* st_func_from_component(st_func_t* multicomp_func,
   else
   {
     // We'll have to wrap this st_func.
-    st_vtable vtable = {.eval = extractedcomp_eval, .dtor = extractedcomp_dtor};
+    st_func_vtable vtable = {.eval = extractedcomp_eval, .dtor = extractedcomp_dtor};
     int name_len = strlen(st_func_name(multicomp_func)) + 10;
     char name[name_len];
     st_func_homogeneity_t homogeneity = st_func_is_homogeneous(multicomp_func) ? ST_HOMOGENEOUS : ST_INHOMOGENEOUS;
@@ -345,7 +345,7 @@ static void constant_dtor(void* ctx)
 
 static st_func_t* create_constant_st_func(real_t components[], int num_components)
 {
-  st_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
+  st_func_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
   char name[1024];
   snprintf(name, 1024, "constant space-time function (");
   for (int i = 0; i < num_components; ++i)

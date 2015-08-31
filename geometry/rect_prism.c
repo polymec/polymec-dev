@@ -91,10 +91,10 @@ sp_func_t* rect_prism_new(point_t* x0,
   p->prism = intersection_new(planes, 6);
 
   // Set up the spatial function.
-  sp_vtable vtable = {.eval = prism_eval, 
-                      .eval_deriv = prism_eval_deriv, 
-                      .has_deriv = prism_has_deriv, 
-                      .dtor = prism_free};
+  sp_func_vtable vtable = {.eval = prism_eval, 
+                           .eval_deriv = prism_eval_deriv, 
+                           .has_deriv = prism_has_deriv, 
+                           .dtor = prism_free};
   char str[1024];
   snprintf(str, 1024, "Rectangular prism (x0 = (%g, %g, %g), L1 = %g, L2 = %g, L3 = %g,"
                       " alpha = %g, beta = %g, gamma = %g)", 

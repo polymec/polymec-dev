@@ -44,7 +44,7 @@ sp_func_t* scaled_new(sp_func_t* func, real_t scale_factor)
   sc->scale_factor = scale_factor;
   char sc_str[1024];
   snprintf(sc_str, 1024, "scaled(%s)", sp_func_name(func)); 
-  sp_vtable vtable = {.eval = sc_eval, .dtor = polymec_free};
+  sp_func_vtable vtable = {.eval = sc_eval, .dtor = polymec_free};
   sp_func_t* sc_func = sp_func_new(sc_str, sc, vtable, SP_INHOMOGENEOUS, 1);
 
   // Register the gradient function if we have it.
@@ -52,7 +52,7 @@ sp_func_t* scaled_new(sp_func_t* func, real_t scale_factor)
   {
     char sc_grad_str[1024];
     snprintf(sc_grad_str, 1024, "grad %s", sc_str);
-    sp_vtable vtable_g = {.eval = sc_eval_gradient}; // Notice no dtor.
+    sp_func_vtable vtable_g = {.eval = sc_eval_gradient}; // Notice no dtor.
     sp_func_t* sc_grad = sp_func_new(sc_grad_str, sc, vtable_g, SP_INHOMOGENEOUS, 3);
     sp_func_register_deriv(sc_func, 1, sc_grad);
   }
