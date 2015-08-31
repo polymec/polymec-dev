@@ -105,6 +105,7 @@ void test_gmls_matrix_with_frankes_function(void** state)
   real_t delta = 0.5; // ratio of subdomain extent to point extent.
   gmls_functional_t* lambda = poisson_gmls_functional_new(2, points, extents, delta);
   sp_func_t* F = sp_func_from_func("Franke's function", franke, SP_INHOMOGENEOUS, 1);
+  sp_func_t* grad_F = sp_func_from_func("Franke's function gradient", grad_franke, SP_INHOMOGENEOUS, 3);
   volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, delta);
 
   // Set up our linear system using a dense matrix. This is inefficient but very simple.
@@ -131,11 +132,9 @@ void test_gmls_matrix_with_frankes_function(void** state)
 
     // Boundary functionals.
     gmls_functional_t* dirichlet_bc = gmls_matrix_dirichlet_bc_new(matrix);
-    point_t x0 = {.x = 0.5, .y = 0.5, .z = 0.5/nx};
-    st_func_t* box = rect_prism_new(&x0, 1.0, 1.0, 1.0/nx, 0.0, 0.0, 0.0);
-    ASSERT(st_func_has_deriv(box, 1));
-    st_func_t* n = st_func_deriv(box); // Normal vector function.
-    gmls_functional_t* neumann_bc = gmls_matrix_neumann_bc_new(matrix, n);
+    sp_func_t* n = point_cloud_property(points, "normal");
+    st_func_t* nt = st_func_from_sp_func(n);
+    gmls_functional_t* neumann_bc = gmls_matrix_neumann_bc_new(matrix, nt);
 
     for (int b = 0; b < num_nbnodes; ++b) // Neumann BC nodes
     {
@@ -369,7 +368,7 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
   real_t delta = 0.5; // ratio of subdomain extent to point extent.
   gmls_functional_t* lambda = elasticity_gmls_functional_new(cantileaver->E, cantileaver->nu,
                                                              2, points, extents, delta);
-  sp_vtable cantileaver_vtable = {.eval = cantileaver_beam, .dtor = polymec_free};
+  sp_func_vtable cantileaver_vtable = {.eval = cantileaver_beam, .dtor = polymec_free};
   sp_func_t* F = sp_func_new("Cantileaver beam solution", cantileaver, 
                              cantileaver_vtable, SP_INHOMOGENEOUS, 3);
   volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, delta);

@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/partition_point_cloud.h"
+#include "core/st_func.h"
 #include "geometry/create_point_lattice.h"
 #include "make_mlpg_lattice.h"
 
@@ -66,6 +67,11 @@ void make_mlpg_lattice(int nx, int ny, int nz, real_t R_over_dx,
   // Do partitioning.
   exchanger_t* ex = partition_point_cloud(domain, MPI_COMM_WORLD, NULL, 1.05);
   exchanger_free(ex);
+
+  // Set up a normal vector field for the boundary of the domain.
+  point_t x0 = {.x = 0.5, .y = 0.5, .z = 0.5/nx};
+  sp_func_t* n = sp_func_from_func("mlpg lattice normal", ...);
+  point_cloud_set_property(*domain, "normal", n, NULL);
 
   // Set up a "radius" field to measure point extents.
   int num_local_points = (*domain)->num_points;
