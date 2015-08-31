@@ -23,6 +23,23 @@ static point_cloud_t* create_subcloud(MPI_Comm comm,
   point_cloud_t* subcloud = point_cloud_new(comm, num_indices);
   for (int i = 0; i < num_indices; ++i)
     subcloud->points[i] = cloud->points[indices[i]];
+
+  // Now copy properties using their serializers.
+  int pos = 0;
+  char* prop_name;
+  void* prop_data;
+  serializer_t* prop_ser;
+  while (point_cloud_next_property(cloud, &pos, &prop_name, &prop_data, &prop_ser))
+  {
+    if (prop_ser != NULL)
+    {
+      void* prop_data_copy = serializer_clone_object(prop_ser, prop_data);
+      point_cloud_set_property(subcloud, prop_name, prop_data_copy, prop_ser);
+    }
+    else
+      log_debug("create_subcloud: property '%s' has no serializer.", prop_name);
+  }
+
   STOP_FUNCTION_TIMER();
   return subcloud;
 }

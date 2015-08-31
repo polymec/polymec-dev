@@ -52,9 +52,9 @@ void point_cloud_set_num_ghosts(point_cloud_t* cloud, int num_ghosts);
 
 // Associates a named piece of metadata (a "property") with the point cloud itself.
 // This can be used to store information about (for example) how the cloud 
-// was generated, which can sometimes be useful. A destructor function can be 
-// passed in to handle freeing of resources. If the given property exists 
-// on the cloud, it is overwritten.
+// was generated, which can sometimes be useful. A (non-NULL) serializer 
+// can be given to pass properties between processes. If the given property 
+// exists on the cloud, it is overwritten.
 void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, serializer_t* serializer);
 
 // Retrieves the given property from the cloud, if any. If the 

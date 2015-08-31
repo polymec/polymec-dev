@@ -123,7 +123,7 @@ mesh_t* mesh_clone(mesh_t* mesh);
 
 // Associates a named piece of metadata (a "property") with the mesh itself.
 // This can be used to store information about (for example) how the mesh 
-// was generated, which can sometimes be useful. A serializer should 
+// was generated, which can sometimes be useful. A serializer can 
 // be given so that any partitioning or repartitioning of the mesh can 
 // preserve this property on subdomains. If the given property exists on the 
 // mesh, it is overwritten.
