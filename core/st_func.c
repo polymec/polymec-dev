@@ -183,11 +183,15 @@ bool st_func_has_deriv(st_func_t* func, int n)
 
 void st_func_eval_deriv(st_func_t* func, int n, point_t* x, real_t t, real_t* result)
 {
+  ASSERT(n > 0);
+  ASSERT(n <= 4);
   st_func_eval(func->derivs[n-1], x, t, result);
 }
 
 st_func_t* st_func_deriv(st_func_t* func, int n)
 {
+  ASSERT(n > 0);
+  ASSERT(n <= 4);
   return func->derivs[n-1];
 }
 
