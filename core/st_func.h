@@ -97,6 +97,10 @@ bool st_func_has_deriv(st_func_t* func, int n);
 // Evaluates the nth derivative of this function, placing the result in result.
 void st_func_eval_deriv(st_func_t* func, int n, point_t* x, real_t t, real_t* result);
 
+// Returns an st_func representing the nth derivative of this function if 
+// available, NULL if not.
+st_func_t* st_func_deriv(st_func_t* func, int n);
+
 // Creates an sp_func from this st_func by "freezing" it at the given time.
 sp_func_t* st_func_freeze(st_func_t* func, real_t t);
 

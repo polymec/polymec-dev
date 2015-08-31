@@ -95,7 +95,7 @@ static void st_func_sp_deriv_free(void* context)
   polymec_free(F);
 }
 
-static st_func_t* sp_func_deriv(sp_func_t* func, int d)
+static st_func_t* sp_func_deriv_new(sp_func_t* func, int d)
 {
   ASSERT(d > 0);
   ASSERT(sp_func_has_deriv(func, d));
@@ -123,7 +123,7 @@ st_func_t* st_func_from_sp_func(sp_func_t* func)
   for (int i = 1; i <= 4; ++i)
   {
     if (sp_func_has_deriv(func, i))
-      st_func_register_deriv(f, i, sp_func_deriv(func, i));
+      st_func_register_deriv(f, i, sp_func_deriv_new(func, i));
   }
   GC_register_finalizer(f, &st_func_free, f, NULL, NULL);
   return f;
@@ -181,10 +181,14 @@ bool st_func_has_deriv(st_func_t* func, int n)
   return (func->derivs[n-1] != NULL);
 }
 
-// Evaluates the nth derivative of this function, placing the result in result.
 void st_func_eval_deriv(st_func_t* func, int n, point_t* x, real_t t, real_t* result)
 {
   st_func_eval(func->derivs[n-1], x, t, result);
+}
+
+st_func_t* st_func_deriv(st_func_t* func, int n)
+{
+  return func->derivs[n-1];
 }
 
 typedef struct

@@ -124,6 +124,11 @@ void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, real_t* result)
     sp_func_eval(func->derivs[n-1], x, result);
 }
 
+sp_func_t* sp_func_deriv(sp_func_t* func, int n)
+{
+  return func->derivs[n-1];
+}
+
 #if 0
 void sp_func_grad_centered_diff(sp_func_t* func, point_t* x0, vector_t* dx, vector_t* gradient)
 {
