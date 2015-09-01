@@ -19,12 +19,12 @@
 //               the array.
 //   dimX      - The extent of the Xth dimension of the array.
 
-// DEFINE_2D_ARRAY(type, array_var, storage, dim1, dim2)
-// DEFINE_3D_ARRAY(type, array_var, storage, dim1, dim2, dim3)
-// DEFINE_4D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4)
-// DEFINE_5D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4, dim5)
-// DEFINE_6D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4, dim5, dim6)
-// DEFINE_7D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4, dim5, dim6, dim7)
+// DECLARE_2D_ARRAY(type, array_var, storage, dim1, dim2)
+// DECLARE_3D_ARRAY(type, array_var, storage, dim1, dim2, dim3)
+// DECLARE_4D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4)
+// DECLARE_5D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4, dim5)
+// DECLARE_6D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4, dim5, dim6)
+// DECLARE_7D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4, dim5, dim6, dim7)
 // 
 // We go to 7D just to make Fortran feel less special. :-)
 //
