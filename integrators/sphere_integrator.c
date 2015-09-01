@@ -386,7 +386,7 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
   radial_F Fr;
   Fr.x0 = *x0;
   sp_func_vtable vtable = {.eval = eval_F_o_n};
-  sp_func_t* F_o_n = sp_func_new("F_o_n", &Fr, vtable, SP_INHOMOGENEOUS, 1);
+  sp_func_t* F_o_n = sp_func_new("F_o_n", &Fr, vtable, SP_FUNC_INHOMOGENEOUS, 1);
 
   // Construct an orthonormal basis for the sphere. We need this to get the 
   // quadrature points.

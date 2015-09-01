@@ -81,7 +81,7 @@ sp_func_t* union_new(sp_func_t** surfaces, int num_surfaces)
     strncat(un_str, surf_str, num_surfaces*1024);
   }
   sp_func_vtable vtable = {.eval = un_eval, .dtor = un_free};
-  sp_func_t* union_func = sp_func_new(un_str, un, vtable, SP_INHOMOGENEOUS, 1);
+  sp_func_t* union_func = sp_func_new(un_str, un, vtable, SP_FUNC_INHOMOGENEOUS, 1);
 
   // Register the gradient function if we have it.
   if (has_grad)
@@ -89,7 +89,7 @@ sp_func_t* union_new(sp_func_t** surfaces, int num_surfaces)
     char un_grad_str[num_surfaces*1024+1];
     snprintf(un_grad_str, num_surfaces*1024, "grad %s", un_str);
     sp_func_vtable vtable_g = {.eval = un_eval_gradient}; // Notice no dtor.
-    sp_func_t* un_grad = sp_func_new(un_grad_str, un, vtable_g, SP_INHOMOGENEOUS, 3);
+    sp_func_t* un_grad = sp_func_new(un_grad_str, un, vtable_g, SP_FUNC_INHOMOGENEOUS, 3);
     sp_func_register_deriv(union_func, 1, un_grad);
   }
 

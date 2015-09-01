@@ -104,8 +104,8 @@ void test_gmls_matrix_with_frankes_function(void** state)
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(P, W, points, extents, stencil);
   real_t delta = 0.5; // ratio of subdomain extent to point extent.
   gmls_functional_t* lambda = poisson_gmls_functional_new(2, points, extents, delta);
-  sp_func_t* F = sp_func_from_func("Franke's function", franke, SP_INHOMOGENEOUS, 1);
-  sp_func_t* grad_F = sp_func_from_func("Franke's function gradient", grad_franke, SP_INHOMOGENEOUS, 3);
+  sp_func_t* F = sp_func_from_func("Franke's function", franke, SP_FUNC_INHOMOGENEOUS, 1);
+  sp_func_t* grad_F = sp_func_from_func("Franke's function gradient", grad_franke, SP_FUNC_INHOMOGENEOUS, 3);
   volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, delta);
 
   // Set up our linear system using a dense matrix. This is inefficient but very simple.
@@ -370,7 +370,7 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
                                                              2, points, extents, delta);
   sp_func_vtable cantileaver_vtable = {.eval = cantileaver_beam, .dtor = polymec_free};
   sp_func_t* F = sp_func_new("Cantileaver beam solution", cantileaver, 
-                             cantileaver_vtable, SP_INHOMOGENEOUS, 3);
+                             cantileaver_vtable, SP_FUNC_INHOMOGENEOUS, 3);
   volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, delta);
 
   // Set up our linear system using a dense matrix. This is inefficient but very simple.

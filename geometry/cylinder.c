@@ -52,14 +52,14 @@ sp_func_t* cylinder_new(point_t* x, real_t r, normal_orient_t normal_orientation
   sprintf(cyl_str, "Cylinder (x = (%g %g %g), r = %g)", 
           x->x, x->y, x->z, r);
   sp_func_vtable vtable = {.eval = cyl_eval, .dtor = polymec_free};
-  sp_func_t* cyl = sp_func_new(cyl_str, c, vtable, SP_INHOMOGENEOUS, 1);
+  sp_func_t* cyl = sp_func_new(cyl_str, c, vtable, SP_FUNC_INHOMOGENEOUS, 1);
 
   // Register the gradient function.
   char cyl_grad_str[1024];
   sprintf(cyl_grad_str, "Cylinder gradient (x = (%g %g %g), r = %g)", 
           x->x, x->y, x->z, r);
   sp_func_vtable vtable_g = {.eval = cyl_eval_gradient}; // Notice no dtor.
-  sp_func_t* cyl_grad = sp_func_new(cyl_grad_str, c, vtable_g, SP_INHOMOGENEOUS, 3);
+  sp_func_t* cyl_grad = sp_func_new(cyl_grad_str, c, vtable_g, SP_FUNC_INHOMOGENEOUS, 3);
   sp_func_register_deriv(cyl, 1, cyl_grad);
 
   return cyl;

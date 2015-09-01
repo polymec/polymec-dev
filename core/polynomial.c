@@ -510,7 +510,7 @@ sp_func_t* polynomial_sp_func(polynomial_t* p)
                            .dtor = NULL};
   char name[128];
   snprintf(name, 128, "polynomial (p = %d)", p->degree);
-  return sp_func_new(name, p, vtable, SP_INHOMOGENEOUS, 1);
+  return sp_func_new(name, p, vtable, SP_FUNC_INHOMOGENEOUS, 1);
 }
 
 void polynomial_fprintf(polynomial_t* p, FILE* stream)

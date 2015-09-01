@@ -10,6 +10,24 @@
 #include "geometry/create_point_lattice.h"
 #include "make_mlpg_lattice.h"
 
+static void n_eval(void* context, point_t* x, real_t* n)
+{
+  bbox_t* bbox = context;
+  n[0] = n[1] = n[2] = 0.0;
+  if (x->x <= bbox->x1)
+    n[0] = -1.0;
+  else if (x->x >= bbox->x2)
+    n[0] =  1.0;
+  else if (x->y <= bbox->y1)
+    n[1] = -1.0;
+  else if (x->y >= bbox->y2)
+    n[1] =  1.0;
+  else if (x->z <= bbox->z1)
+    n[2] = -1.0;
+  else if (x->z >= bbox->z2)
+    n[2] =  1.0;
+}
+
 void make_mlpg_lattice(int nx, int ny, int nz, real_t R_over_dx,
                        point_cloud_t** domain,
                        real_t** extents,
@@ -70,7 +88,9 @@ void make_mlpg_lattice(int nx, int ny, int nz, real_t R_over_dx,
 
   // Set up a normal vector field for the boundary of the domain.
   point_t x0 = {.x = 0.5, .y = 0.5, .z = 0.5/nx};
-  sp_func_t* n = sp_func_from_func("mlpg lattice normal", ...);
+  sp_func_vtable n_vtable = {.eval = n_eval};
+  sp_func_t* n = sp_func_new("mlpg lattice normal", &bbox, n_vtable,
+                             SP_FUNC_INHOMOGENEOUS, 3);
   point_cloud_set_property(*domain, "normal", n, NULL);
 
   // Set up a "radius" field to measure point extents.

@@ -41,7 +41,7 @@ sp_func_t* sp_func_new(const char* name, void* context, sp_func_vtable vtable,
   f->name = string_dup(name);
   f->context = context;
   f->vtable = vtable;
-  f->homogeneous = (homogeneity == SP_HOMOGENEOUS);
+  f->homogeneous = (homogeneity == SP_FUNC_HOMOGENEOUS);
   f->num_comp = num_comp;
   memset(f->derivs, 0, sizeof(sp_func_t*)*4);
   GC_register_finalizer(f, sp_func_free, f, NULL, NULL);
@@ -58,7 +58,7 @@ sp_func_t* sp_func_from_func(const char* name, sp_eval_func func,
   f->name = string_dup(name);
   f->context = NULL;
   f->vtable.eval = func;
-  f->homogeneous = (homogeneity == SP_HOMOGENEOUS);
+  f->homogeneous = (homogeneity == SP_FUNC_HOMOGENEOUS);
   f->num_comp = num_comp;
   memset(f->derivs, 0, sizeof(sp_func_t*)*4);
   GC_register_finalizer(f, &sp_func_free, f, NULL, NULL);
@@ -215,7 +215,7 @@ static sp_func_t* create_constant_sp_func(real_t components[], int num_component
   f->comp = polymec_malloc(num_components*sizeof(real_t));
   for (int i = 0; i < num_components; ++i)
     f->comp[i] = components[i];
-  return sp_func_new(name, (void*)f, vtable, SP_HOMOGENEOUS, num_components);
+  return sp_func_new(name, (void*)f, vtable, SP_FUNC_HOMOGENEOUS, num_components);
 }
 
 sp_func_t* constant_sp_func_new(real_t components[], int num_components)

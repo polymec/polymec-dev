@@ -22,15 +22,15 @@ typedef struct st_func_t st_func_t;
 // Enumerated type indicating whether a function is homogeneous in space.
 typedef enum
 {
-  ST_HOMOGENEOUS,
-  ST_INHOMOGENEOUS
+  ST_FUNC_HOMOGENEOUS,
+  ST_FUNC_INHOMOGENEOUS
 } st_func_homogeneity_t;
 
 // Enumerated type indicating whether a function is constant in time.
 typedef enum
 {
-  ST_CONSTANT,
-  ST_NONCONSTANT
+  ST_FUNC_CONSTANT,
+  ST_FUNC_NONCONSTANT
 } st_func_constancy_t;
 
 // A function pointer type for evaluating the function at a point.
