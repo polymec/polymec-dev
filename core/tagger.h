@@ -43,8 +43,9 @@ bool tagger_has_tag(tagger_t* tagger, const char* tag);
 void tagger_resize_tag(tagger_t* tagger, const char* tag, int new_num_indices);
 
 // Associates a "property" (of unspecified size and type) with the given tag 
-// within the tagger. A serializer should be given so that properties can be
-// copied automatically between tags.
+// within the tagger. A serializer can be given so that the property can be
+// copied automatically between tags. If the serializer is NULL, the property
+// is not transferable to other tags.
 bool tagger_set_property(tagger_t* tagger, 
                          const char* tag, 
                          const char* property, 
@@ -74,7 +75,7 @@ void tagger_delete_tag(tagger_t* tagger, const char* tag);
 
 // Copies the indices of the given "source" tag to a "destination" tag. If 
 // the "source" tag does not exist, this function has no effect. Otherwise, 
-// the destination is overwritten. NOTE: No properties are copied.
+// the destination is overwritten. Any serializeable properties are copied.
 void tagger_copy_tag(tagger_t* tagger, const char* source_tag, const char* destination_tag);
 
 // Replaces the given tag with its union with the other tag. If the other 

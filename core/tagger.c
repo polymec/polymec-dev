@@ -21,7 +21,6 @@ static tagger_data_property_t* tagger_data_property_new(const char* key,
                                                         serializer_t* serializer)
 {
   ASSERT(data != NULL);
-  ASSERT(serializer != NULL);
   tagger_data_property_t* prop = polymec_malloc(sizeof(tagger_data_property_t));
   prop->data = data;
   prop->serializer = serializer;
@@ -30,7 +29,8 @@ static tagger_data_property_t* tagger_data_property_new(const char* key,
 
 static void tagger_data_property_free(tagger_data_property_t* prop)
 {
-  serializer_destroy_object(prop->serializer, prop->data);
+  if (prop->serializer != NULL)
+    serializer_destroy_object(prop->serializer, prop->data);
   polymec_free(prop);
 }
 
@@ -173,8 +173,7 @@ bool tagger_set_property(tagger_t* tagger,
   if (data_p == NULL) return false;
 
   // Insert the new property.
-  char* prop_name = polymec_malloc(sizeof(char)*(strlen(property)+1));
-  strcpy(prop_name, property);
+  char* prop_name = string_dup(property);
   tagger_data_property_t* prop = tagger_data_property_new(property, data, serializer);
   tagger_data_property_map_insert_with_kv_dtor((*data_p)->properties, prop_name, prop, destroy_tag_property_key_and_value);
   return true;
@@ -221,6 +220,30 @@ bool tagger_next_property(tagger_t* tagger, const char* tag, int* pos,
     return false;
 }
 
+// This helper copies all serializeable properties from a source to a 
+// destination tag within the given tagger.
+static void copy_tag_properties(tagger_t* tagger, const char* source_tag, const char* dest_tag)
+{
+  int pos = 0;
+  char* prop_name;
+  void* prop_data;
+  serializer_t* ser;
+  while (tagger_next_property(tagger, source_tag, &pos, &prop_name, &prop_data, &ser))
+  {
+    if (ser != NULL)
+    {
+      size_t offset = 0;
+      byte_array_t* bytes = byte_array_new();
+      serializer_write(ser, prop_data, bytes, &offset);
+      offset = 0;
+      void* new_prop_data = serializer_read(ser, bytes, &offset);
+      tagger_set_property(tagger, dest_tag, prop_name, new_prop_data, ser);
+    }
+    else
+      log_debug("copy_tag_properties: property '%s' of tag '%s' is not serializeable.", prop_name, source_tag);
+  }
+}
+
 void tagger_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag)
 {
   if (tagger_data_map_contains(tagger->data, (char*)old_tag))
@@ -245,6 +268,7 @@ void tagger_copy_tag(tagger_t* tagger, const char* source_tag, const char* desti
       tagger_delete_tag(tagger, destination_tag);
     int* t1 = tagger_create_tag(tagger, destination_tag, n);
     memcpy(t1, t, sizeof(int) * n);
+    copy_tag_properties(tagger, source_tag, destination_tag);
   }
 }
 
@@ -371,9 +395,12 @@ static size_t tagger_byte_size(void* obj)
     size += sizeof(int); // Number of properties.
     while (tagger_data_property_map_next(tagger_data->properties, &pos, &prop_name, &property))
     {
-      size += sizeof(int) + strlen(prop_name) + sizeof(char);        // Property name
-      size += sizeof(int) + strlen(serializer_name(property->serializer)); // Serializer name
-      size += serializer_size(property->serializer, property->data); // Property data
+      if (property->serializer != NULL)
+      {
+        size += sizeof(int) + strlen(prop_name) + sizeof(char);        // Property name
+        size += sizeof(int) + strlen(serializer_name(property->serializer)); // Serializer name
+        size += serializer_size(property->serializer, property->data); // Property data
+      }
     }
   }
   return size;
@@ -455,24 +482,33 @@ static void tagger_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
     void* property;
     serializer_t* ser;
     while (tagger_next_property(tagger, tag_name, &pos, &prop_name, &property, &ser))
-      ++num_properties;
+    {
+      // We only count serializeable properties.
+      if (ser != NULL)
+        ++num_properties;
+    }
     byte_array_write_ints(bytes, 1, &num_properties, offset);
     pos = 0;
     while (tagger_next_property(tagger, tag_name, &pos, &prop_name, &property, &ser))
     {
-      // Property name.
-      int pname_len = strlen(prop_name);
-      byte_array_write_ints(bytes, 1, &pname_len, offset);
-      byte_array_write_chars(bytes, pname_len, prop_name, offset);
+      if (ser != NULL)
+      {
+        // Property name.
+        int pname_len = strlen(prop_name);
+        byte_array_write_ints(bytes, 1, &pname_len, offset);
+        byte_array_write_chars(bytes, pname_len, prop_name, offset);
 
-      // Serializer name.
-      const char* sname = serializer_name(ser);
-      int sname_len = strlen(sname);
-      byte_array_write_ints(bytes, 1, &sname_len, offset);
-      byte_array_write_chars(bytes, sname_len, (char*)sname, offset);
+        // Serializer name.
+        const char* sname = serializer_name(ser);
+        int sname_len = strlen(sname);
+        byte_array_write_ints(bytes, 1, &sname_len, offset);
+        byte_array_write_chars(bytes, sname_len, (char*)sname, offset);
 
-      // Property data.
-      serializer_write(ser, property, bytes, offset);
+        // Property data.
+        serializer_write(ser, property, bytes, offset);
+      }
+      else
+        log_debug("tagger_byte_write: property '%s' is not serializeable.", prop_name);
     }
   }
 }
