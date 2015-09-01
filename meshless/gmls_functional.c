@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/timer.h"
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
 #include "core/declare_nd_array.h"
@@ -86,6 +87,7 @@ static void compute_integral(gmls_functional_t* functional,
                              int num_quad_points,
                              real_t* lambdas)
 {
+  START_FUNCTION_TIMER();
   bool on_boundary = (quad_normals != NULL);
 
   // Loop through the points and compute the lambda matrix of functional 
@@ -113,6 +115,7 @@ static void compute_integral(gmls_functional_t* functional,
         for (int k = 0; k < num_comp; ++k)
           lam[i][j][k] += wq * I[i][j][k];
   }
+  STOP_FUNCTION_TIMER();
 }
 
 void gmls_functional_compute(gmls_functional_t* functional,
@@ -122,6 +125,7 @@ void gmls_functional_compute(gmls_functional_t* functional,
                              real_t* solution,
                              real_t* lambdas)
 {
+  START_FUNCTION_TIMER();
   if (functional->surface_quad_rule != NULL)
   {
     surface_integral_set_domain(functional->surface_quad_rule, i);
@@ -145,6 +149,7 @@ void gmls_functional_compute(gmls_functional_t* functional,
                      quad_points, quad_weights, NULL, num_quad_points, 
                      lambdas);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 void gmls_functional_eval_integrands(gmls_functional_t* functional,
@@ -154,7 +159,9 @@ void gmls_functional_eval_integrands(gmls_functional_t* functional,
                                      real_t* solution,
                                      real_t* integrands)
 {
+  START_FUNCTION_TIMER();
   functional->vtable.eval_integrands(functional->context, t, poly_basis, 
                                      x, n, solution, integrands);
+  STOP_FUNCTION_TIMER();
 }
 

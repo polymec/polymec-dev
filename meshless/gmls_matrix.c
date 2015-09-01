@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/timer.h"
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
 #include "core/declare_nd_array.h"
@@ -79,6 +80,7 @@ static void get_neighborhood(gmls_matrix_t* matrix,
                              int num_nodes,
                              real_t* dx)
 {
+  START_FUNCTION_TIMER();
   int basis_dim = matrix->basis_dim;
 
   // Get the nodes within this subdomain. Note that we must have 
@@ -110,6 +112,7 @@ static void get_neighborhood(gmls_matrix_t* matrix,
   }
   ASSERT(n_dx > 0);
   *dx /= n_dx;
+  STOP_FUNCTION_TIMER();
 }
 
 static void compute_phi_matrix(gmls_matrix_t* matrix, int component,
@@ -117,6 +120,7 @@ static void compute_phi_matrix(gmls_matrix_t* matrix, int component,
                                point_t* xjs, int num_nodes, 
                                real_t* phi)
 {
+  START_FUNCTION_TIMER();
   int basis_dim = matrix->basis_dim;
 
   // Compute the matrix [Pt]_ij = pi(xj), in column major order.
@@ -178,6 +182,7 @@ static void compute_phi_matrix(gmls_matrix_t* matrix, int component,
   int nrhs = num_nodes;
   memcpy(phi, PtW, sizeof(real_t) * basis_dim * num_nodes);
   rpotrs(&uplo, &basis_dim, &nrhs, PtWP, &basis_dim, phi, &basis_dim, &info);
+  STOP_FUNCTION_TIMER();
 }
 
 static void compute_coeffs_for_identical_bases(gmls_matrix_t* matrix, 
@@ -191,6 +196,7 @@ static void compute_coeffs_for_identical_bases(gmls_matrix_t* matrix,
                                                int* columns, 
                                                real_t* coeffs)
 {
+  START_FUNCTION_TIMER();
   int basis_dim = matrix->basis_dim;
   int num_comp = matrix->num_comp;
 
@@ -220,6 +226,7 @@ static void compute_coeffs_for_identical_bases(gmls_matrix_t* matrix,
       }
     }
   }
+  STOP_FUNCTION_TIMER();
 }
 
 static void compute_coeffs_for_different_bases(gmls_matrix_t* matrix, 
@@ -233,6 +240,7 @@ static void compute_coeffs_for_different_bases(gmls_matrix_t* matrix,
                                                int* columns, 
                                                real_t* coeffs)
 {
+  START_FUNCTION_TIMER();
   int basis_dim = matrix->basis_dim;
   int num_comp = matrix->num_comp;
 
@@ -262,6 +270,7 @@ static void compute_coeffs_for_different_bases(gmls_matrix_t* matrix,
       }
     }
   }
+  STOP_FUNCTION_TIMER();
 }
 
 void gmls_matrix_compute_coeffs(gmls_matrix_t* matrix,
@@ -273,6 +282,7 @@ void gmls_matrix_compute_coeffs(gmls_matrix_t* matrix,
                                 int* columns,
                                 real_t* coeffs)
 {
+  START_FUNCTION_TIMER();
   // In this function we use the notation in Mirzaei's 2015 paper on 
   // "A new low-cost meshfree method for two and three dimensional 
   //  problems in elasticity."
@@ -304,6 +314,7 @@ void gmls_matrix_compute_coeffs(gmls_matrix_t* matrix,
     compute_coeffs_for_different_bases(matrix, i, &xi, js, xjs, num_nodes,
                                        lambdas, rows, columns, coeffs);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 // Stencil-based GMLS matrix.
