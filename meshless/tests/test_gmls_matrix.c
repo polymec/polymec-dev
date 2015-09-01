@@ -18,7 +18,7 @@
 #include "meshless/mlpg_quadrature.h"
 #include "make_mlpg_lattice.h"
 #include "poisson_gmls_functional.h"
-#include "elasticity_gmls_functional.h"
+#include "elastic_gmls_functional.h"
 
 #undef I // no imaginary stuff here!
 
@@ -366,8 +366,8 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(P, W, points, extents, stencil);
   real_t delta = 0.5; // ratio of subdomain extent to point extent.
-  gmls_functional_t* lambda = elasticity_gmls_functional_new(cantileaver->E, cantileaver->nu,
-                                                             2, points, extents, delta);
+  gmls_functional_t* lambda = elastic_gmls_functional_new(cantileaver->E, cantileaver->nu,
+                                                          2, points, extents, delta);
   sp_func_vtable cantileaver_vtable = {.eval = cantileaver_beam, .dtor = polymec_free};
   sp_func_t* F = sp_func_new("Cantileaver beam solution", cantileaver, 
                              cantileaver_vtable, SP_FUNC_INHOMOGENEOUS, 3);
