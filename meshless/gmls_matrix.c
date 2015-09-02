@@ -174,7 +174,7 @@ static void compute_phi_matrix(gmls_matrix_t* matrix, int component,
   rpotrf(&uplo, &basis_dim, PtWP, &basis_dim, &info); 
   if (info != 0)
   {
-    polymec_error("gmls_matrix: Cholesky factorization of P*W*Pt failed. This often means\n"
+    polymec_error("gmls_matrix: Cholesky factorization of Pt*W*P failed. This often means\n"
                   "gmls_matrix: that something is wrong with your point distribution.");
   }
 
