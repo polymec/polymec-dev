@@ -374,7 +374,8 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
   volume_integral_t* Qv = mlpg_cube_volume_integral_new(points, extents, 2, delta);
 
   // Set up our linear system using a dense matrix. This is inefficient but very simple.
-  local_matrix_t* A = dense_local_matrix_new(N);
+  local_matrix_t* A = dense_local_matrix_new(3*N);
+  real_t B[3*N];
 
   // Treat boundary nodes first.
   int num_bnodes; 
@@ -397,12 +398,22 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
       assert_true(rows[j] == rows[0]);
 
     // Now dump the coefficients into our matrix.
-    real_t row_vector[N];
-    memset(row_vector, 0, sizeof(real_t) * N);
-    for (int j = 0; j < num_coeffs; ++j)
-      row_vector[cols[j]] = coeffs[j];
-    local_matrix_add_row_vector(A, 1.0, bnode, row_vector);
+    real_t row_vector[3*N];
+    memset(row_vector, 0, sizeof(real_t) * 3*N);
+    for (int c = 0; c < 3; ++c)
+    {
+      for (int j = 0; j < num_coeffs; ++j)
+      {
+        if ((rows[j] % 3) == c)
+          row_vector[cols[j]] = coeffs[j];
+      }
+      local_matrix_add_row_vector(A, 1.0, 3*bnode+c, row_vector);
+    }
     int_unordered_set_insert(boundary_nodes, bnode);
+
+    // RHS contributions.
+    point_t* xb = &points->points[bnode];
+    sp_func_eval(F, xb, &B[3*bnode]);
   }
 
   // Now interior nodes.
@@ -421,37 +432,31 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
         assert_true(rows[j] == rows[0]);
 
       // Now dump the coefficients into our matrix.
-      real_t row_vector[N];
-      memset(row_vector, 0, sizeof(real_t) * N);
-      for (int j = 0; j < num_coeffs; ++j)
-        row_vector[cols[j]] = coeffs[j];
-      local_matrix_add_row_vector(A, 1.0, i, row_vector);
+      real_t row_vector[3*N];
+      memset(row_vector, 0, sizeof(real_t) * 3*N);
+      for (int c = 0; c < 3; ++c)
+      {
+        for (int j = 0; j < num_coeffs; ++j)
+        {
+          if ((rows[j] % 3) == c)
+            row_vector[cols[j]] = coeffs[j];
+        }
+        local_matrix_add_row_vector(A, 1.0, 3*i+c, row_vector);
+      }
+
+      // Interior RHS.
+      volume_integral_set_domain(Qv, i);
+      volume_integral_compute(Qv, F, &B[3*i]);
     }
   }
 //printf("A = ");
 //local_matrix_fprintf(A, stdout);
+//printf("B = ");
+//vector_fprintf(B, nx*ny, stdout);
 
   // Clean up the functionals.
   gmls_functional_free(dirichlet_bc);
   gmls_functional_free(lambda);
-
-  // Fill in the RHS vector.
-  real_t B[N];
-  for (int r = 0; r < N; ++r)
-  {
-    if (int_unordered_set_contains(boundary_nodes, r))
-    {
-      point_t* xb = &points->points[r];
-      sp_func_eval(F, xb, &B[r]);
-    }
-    else
-    {
-      volume_integral_set_domain(Qv, r);
-      volume_integral_compute(Qv, F, &B[r]);
-    }
-  }
-//printf("B = ");
-//vector_fprintf(B, nx*ny, stdout);
 
   // Solve the linear system.
   real_t U[N];
@@ -500,8 +505,8 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_gmls_matrix_ctor),
-    unit_test(test_gmls_matrix_with_frankes_function)
-//    unit_test(test_gmls_matrix_with_cantileaver_beam)
+    unit_test(test_gmls_matrix_with_frankes_function),
+    unit_test(test_gmls_matrix_with_cantileaver_beam)
   };
   return run_tests(tests);
 }
