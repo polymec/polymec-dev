@@ -28,49 +28,50 @@ static void n_eval(void* context, point_t* x, real_t* n)
     n[2] =  1.0;
 }
 
-void make_mlpg_lattice(int nx, int ny, int nz, real_t R_over_dx,
+void make_mlpg_lattice(bbox_t* bbox, int nx, int ny, int nz, real_t R_over_dx,
                        point_cloud_t** domain,
                        real_t** extents,
                        stencil_t** neighborhoods)
 {
-  real_t dx = 1.0/nx, dy = 1.0/ny, dz = 1.0/nz;
+  real_t dx = (bbox->x2 - bbox->x1)/nx, 
+         dy = (bbox->y2 - bbox->y1)/ny, 
+         dz = (bbox->z2 - bbox->z1)/nz;
   if (nx == 1)
     dx = MIN(dy, dz);
   else if (ny == 1)
     dy = MIN(dx, dz);
   else if (nz == 1)
     dz = MIN(dx, dy);
-  bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dy, .z1 = 0.0, .z2 = nz*dz};
 
   // Set up a lattice for interior points.
-  *domain = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, nz, &bbox);
+  *domain = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, nz, bbox);
 
   // Add boundary points for all the faces of the domain.
   point_cloud_t* bcloud;
-  bbox.x1 = bbox.x2 = 0.0;
-  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, 1, ny, nz, &bbox);
+  bbox->x1 = bbox->x2 = 0.0;
+  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, 1, ny, nz, bbox);
   point_cloud_unite(*domain, bcloud, "-x");
   point_cloud_free(bcloud);
-  bbox.x1 = bbox.x2 = nx*dx;
-  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, 1, ny, nz, &bbox);
+  bbox->x1 = bbox->x2 = nx*dx;
+  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, 1, ny, nz, bbox);
   point_cloud_unite(*domain, bcloud, "+x");
   point_cloud_free(bcloud);
-  bbox.x1 = 0.0, bbox.x2 = nx*dx;
-  bbox.y1 = bbox.y2 = 0.0;
-  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, 1, nz, &bbox);
+  bbox->x1 = 0.0, bbox->x2 = nx*dx;
+  bbox->y1 = bbox->y2 = 0.0;
+  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, 1, nz, bbox);
   point_cloud_unite(*domain, bcloud, "-y");
   point_cloud_free(bcloud);
-  bbox.y1 = bbox.y2 = ny*dy;
-  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, 1, nz, &bbox);
+  bbox->y1 = bbox->y2 = ny*dy;
+  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, 1, nz, bbox);
   point_cloud_unite(*domain, bcloud, "+y");
   point_cloud_free(bcloud);
-  bbox.y1 = 0.0, bbox.y2 = ny*dy;
-  bbox.z1 = bbox.z2 = 0.0;
-  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, 1, &bbox);
+  bbox->y1 = 0.0, bbox->y2 = ny*dy;
+  bbox->z1 = bbox->z2 = 0.0;
+  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, 1, bbox);
   point_cloud_unite(*domain, bcloud, "-z");
   point_cloud_free(bcloud);
-  bbox.z1 = bbox.z2 = nz*dz;
-  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, 1, &bbox);
+  bbox->z1 = bbox->z2 = nz*dz;
+  bcloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, 1, bbox);
   point_cloud_unite(*domain, bcloud, "+z");
   point_cloud_free(bcloud);
 
@@ -89,7 +90,7 @@ void make_mlpg_lattice(int nx, int ny, int nz, real_t R_over_dx,
   // Set up a normal vector field for the boundary of the domain.
   point_t x0 = {.x = 0.5, .y = 0.5, .z = 0.5/nx};
   sp_func_vtable n_vtable = {.eval = n_eval};
-  sp_func_t* n = sp_func_new("mlpg lattice normal", &bbox, n_vtable,
+  sp_func_t* n = sp_func_new("mlpg lattice normal", bbox, n_vtable,
                              SP_FUNC_INHOMOGENEOUS, 3);
   point_cloud_set_property(*domain, "normal", n, NULL);
 

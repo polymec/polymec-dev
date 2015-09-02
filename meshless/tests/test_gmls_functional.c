@@ -17,7 +17,8 @@ void test_gmls_functional_ctor(void** state, int p)
 {
   point_cloud_t* points;
   real_t* subdomain_extents;
-  make_mlpg_lattice(10, 10, 10, 1.0*p, &points, &subdomain_extents, NULL);
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  make_mlpg_lattice(&bbox, 10, 10, 10, 1.0*p, &points, &subdomain_extents, NULL);
   real_t delta = 0.5;
   gmls_functional_t* poisson = poisson_gmls_functional_new(p, points, subdomain_extents, delta);
   assert_int_equal(1, gmls_functional_num_components(poisson));

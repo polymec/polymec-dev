@@ -10,7 +10,7 @@
 
 // Creates a point cloud, a set of extents, and (optionally) a stencil that 
 // can be used with MLPG-based methods.
-void make_mlpg_lattice(int nx, int ny, int nz, real_t R_over_dx,
+void make_mlpg_lattice(bbox_t* bbox, int nx, int ny, int nz, real_t R_over_dx,
                        point_cloud_t** domain,
                        real_t** extents,
                        stencil_t** neighborhoods);

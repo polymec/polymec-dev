@@ -174,8 +174,9 @@ static void compute_phi_matrix(gmls_matrix_t* matrix, int component,
   rpotrf(&uplo, &basis_dim, PtWP, &basis_dim, &info); 
   if (info != 0)
   {
-    polymec_error("gmls_matrix: Cholesky factorization of Pt*W*P failed. This often means\n"
-                  "gmls_matrix: that something is wrong with your point distribution.");
+    polymec_error("gmls_matrix: Cholesky factorization of Pt*W*P failed for "
+                  "subdomain %d at x = (%g, %g, %g). This often means that something "
+                  "is wrong with your point distribution.", i, xi->x, xi->y, xi->z);
   }
 
   // Compute (PtWP)^-1 * PtW.
@@ -219,10 +220,11 @@ static void compute_coeffs_for_identical_bases(gmls_matrix_t* matrix,
     // Fill in the row and column indices.
     for (int n = 0; n < num_nodes; ++n)
     {
-      for (int cc = 0; cc < matrix->num_comp; ++cc, ++k)
+      for (int cc = 0; cc < num_comp; ++cc, ++k)
       {
-        rows[k] = matrix->num_comp * i + c;
-        columns[k] = matrix->num_comp * js[n] + cc;
+        rows[k] = num_comp * i + c;
+        columns[k] = num_comp * js[n] + cc;
+//printf("%d: (%d, %d)\n", i, rows[k], columns[k]);
       }
     }
   }
@@ -282,6 +284,8 @@ void gmls_matrix_compute_coeffs(gmls_matrix_t* matrix,
                                 int* columns,
                                 real_t* coeffs)
 {
+  ASSERT(gmls_functional_num_components(lambda) == matrix->num_comp);
+
   START_FUNCTION_TIMER();
   // In this function we use the notation in Mirzaei's 2015 paper on 
   // "A new low-cost meshfree method for two and three dimensional 
@@ -427,7 +431,9 @@ static void robin_eval_integrands(void* context, real_t t,
   ASSERT(basis_dim >= 4);
 
   gmls_robin_t* robin = context;
-  int num_comp = robin->num_comp;
+  int num_comp = multicomp_poly_basis_num_comp(basis);
+  ASSERT(num_comp == robin->num_comp);
+
   memset(integrands, 0, sizeof(real_t) * num_comp * basis_dim * num_comp);
   DECLARE_3D_ARRAY(real_t, I, integrands, num_comp, basis_dim, num_comp);
   for (int c = 0; c < num_comp; ++c)

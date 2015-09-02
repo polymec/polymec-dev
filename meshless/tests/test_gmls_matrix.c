@@ -14,6 +14,7 @@
 #include "core/dense_local_matrix.h"
 #include "core/linear_algebra.h"
 #include "core/special_functions.h"
+#include "core/silo_file.h"
 #include "meshless/gmls_matrix.h"
 #include "meshless/mlpg_quadrature.h"
 #include "make_mlpg_lattice.h"
@@ -27,7 +28,8 @@ void test_gmls_matrix_ctor(void** state)
   point_cloud_t* points;
   real_t* extents;
   stencil_t* stencil;
-  make_mlpg_lattice(10, 10, 10, 3.0, &points, &extents, &stencil);
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  make_mlpg_lattice(&bbox, 10, 10, 10, 3.0, &points, &extents, &stencil);
   multicomp_poly_basis_t* P = standard_multicomp_poly_basis_new(1, 2);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(P, W, points, extents, stencil);
@@ -93,7 +95,8 @@ void test_gmls_matrix_with_frankes_function(void** state)
       neumann = string_as_boolean(neumann_str);
   }
 
-  make_mlpg_lattice(nx, ny, 1, 3.0, &points, &extents, &stencil);
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0/nx};
+  make_mlpg_lattice(&bbox, nx, ny, 1, 3.0, &points, &extents, &stencil);
   log_debug("Point cloud has %d points and %d ghosts.", points->num_points, points->num_ghosts);
   int N = points->num_points + points->num_ghosts;
 //  point_cloud_fprintf(points, stdout);
@@ -356,13 +359,15 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
       ny = nz = atoi(ny_str);
   }
 
-  make_mlpg_lattice(nx, ny, 1, 3.0, &points, &extents, &stencil);
+  real_t L = cantileaver->L;
+  bbox_t bbox = {.x1 = 0.0, .x2 = L, .y1 = 0.0, .y2 = L*ny/nx, .z1 = 0.0, .z2 = L*nz/nx};
+  make_mlpg_lattice(&bbox, nx, ny, nz, 3.0, &points, &extents, &stencil);
   log_debug("Point cloud has %d points and %d ghosts.", points->num_points, points->num_ghosts);
   int N = points->num_points + points->num_ghosts;
 //  point_cloud_fprintf(points, stdout);
 
   // Now set up the GMLS machinery.
-  multicomp_poly_basis_t* P = standard_multicomp_poly_basis_new(1, 2);
+  multicomp_poly_basis_t* P = standard_multicomp_poly_basis_new(3, 2);
   point_weight_function_t* W = gaussian_point_weight_function_new(4.0);
   gmls_matrix_t* matrix = stencil_based_gmls_matrix_new(P, W, points, extents, stencil);
   real_t delta = 0.5; // ratio of subdomain extent to point extent.
@@ -393,27 +398,24 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
     gmls_matrix_compute_coeffs(matrix, bnode, dirichlet_bc, 0.0, NULL, 
                                rows, cols, coeffs);
 
-    // Make sure all the coefficients go in the same row.
-    for (int j = 1; j < num_coeffs; ++j)
-      assert_true(rows[j] == rows[0]);
-
     // Now dump the coefficients into our matrix.
-    real_t row_vector[3*N];
-    memset(row_vector, 0, sizeof(real_t) * 3*N);
-    for (int c = 0; c < 3; ++c)
+    real_t row_vectors[3][3*N];
+    memset((void*)row_vectors, 0, sizeof(real_t) * 3*3*N);
+    for (int j = 0; j < num_coeffs; ++j)
     {
-      for (int j = 0; j < num_coeffs; ++j)
-      {
-        if ((rows[j] % 3) == c)
-          row_vector[cols[j]] = coeffs[j];
-      }
-      local_matrix_add_row_vector(A, 1.0, 3*bnode+c, row_vector);
+//printf("%d: row %d\n", bnode, rows[j] % 3);
+      int which = rows[j] % 3;
+      row_vectors[which][cols[j]] = coeffs[j];
     }
-    int_unordered_set_insert(boundary_nodes, bnode);
+    local_matrix_add_row_vector(A, 1.0, 3*bnode,   row_vectors[0]);
+    local_matrix_add_row_vector(A, 1.0, 3*bnode+1, row_vectors[1]);
+    local_matrix_add_row_vector(A, 1.0, 3*bnode+2, row_vectors[2]);
 
     // RHS contributions.
     point_t* xb = &points->points[bnode];
     sp_func_eval(F, xb, &B[3*bnode]);
+
+    int_unordered_set_insert(boundary_nodes, bnode);
   }
 
   // Now interior nodes.
@@ -427,22 +429,18 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
       gmls_matrix_compute_coeffs(matrix, i, lambda, 0.0, NULL, 
                                  rows, cols, coeffs);
 
-      // Make sure all the coefficients go in the same row.
-      for (int j = 1; j < num_coeffs; ++j)
-        assert_true(rows[j] == rows[0]);
-
       // Now dump the coefficients into our matrix.
-      real_t row_vector[3*N];
-      memset(row_vector, 0, sizeof(real_t) * 3*N);
-      for (int c = 0; c < 3; ++c)
+      real_t row_vectors[3][3*N];
+      memset((void*)row_vectors, 0, sizeof(real_t) * 3*3*N);
+      for (int j = 0; j < num_coeffs; ++j)
       {
-        for (int j = 0; j < num_coeffs; ++j)
-        {
-          if ((rows[j] % 3) == c)
-            row_vector[cols[j]] = coeffs[j];
-        }
-        local_matrix_add_row_vector(A, 1.0, 3*i+c, row_vector);
+//printf("%d: row %d\n", i, rows[j] % 3);
+        int which = rows[j] % 3;
+        row_vectors[which][cols[j]] = coeffs[j];
       }
+      local_matrix_add_row_vector(A, 1.0, 3*i,   row_vectors[0]);
+      local_matrix_add_row_vector(A, 1.0, 3*i+1, row_vectors[1]);
+      local_matrix_add_row_vector(A, 1.0, 3*i+2, row_vectors[2]);
 
       // Interior RHS.
       volume_integral_set_domain(Qv, i);
@@ -459,7 +457,7 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
   gmls_functional_free(lambda);
 
   // Solve the linear system.
-  real_t U[N];
+  real_t U[3*N];
   bool solved = local_matrix_solve(A, B, U);
   assert_true(solved);
 
@@ -471,11 +469,18 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
   for (int i = 0; i < points->num_points; ++i)
   {
     point_t* xi = &points->points[i];
-    real_t Usol;
-    sp_func_eval(F, xi, &Usol);
-    real_t err = fabs(U[i] - Usol);
-    L2 += err*err;
+    real_t Usol[3];
+    sp_func_eval(F, xi, Usol);
+    real_t ux = U[3*i], uy = U[3*i+1], uz = U[3*i+2];
+    real_t ux_sol = Usol[0], uy_sol = Usol[1], uz_sol = Usol[2];
+    real_t err2 = (ux_sol-ux)*(ux_sol-ux) + (uy_sol-uy)*(uy_sol-uy) + (uz_sol-uz)*(uz_sol-uz);
+    L2 += err2;
   }
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "gmls", ".", 1, 0, 0, 0.0);
+  silo_file_write_point_cloud(silo, "cantileaver", points);
+  const char* Unames[] = {"ux", "uy", "uz"};
+  silo_file_write_point_field(silo, (const char**)Unames, "cantileaver", U, 3, NULL);
+  silo_file_close(silo);
 
   // Scale the L2 error by the uniform volume element.
   real_t dV = 1.0/nx * 1.0/ny;
