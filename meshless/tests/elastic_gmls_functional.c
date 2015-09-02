@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/declare_nd_array.h"
+#include "core/linear_algebra.h"
 #include "meshless/mlpg_quadrature.h"
 #include "elastic_gmls_functional.h"
 
@@ -127,8 +128,15 @@ static void elastic_eval_integrands(void* context, real_t t,
     eval_basis_matrix(dpdx[k], dpdy[k], dpdz[k], P);
 
     // Compute N * D * P (a 3x3 matrix) for the kth vector.
-    real_t NDP[3*3];
-    // FIXME
+    real_t DP[6*3];
+    real_t alpha = 1.0, beta = 0.0;
+    char no_trans = 'N';
+    int six = 6, three = 3;
+    rgemm(&no_trans, &no_trans, &six, &three, &six, &alpha, D, &six, P, &six, 
+          &beta, DP, &six);
+    real_t NDP[6*3];
+    rgemm(&no_trans, &no_trans, &three, &three, &six, &alpha, N, &three, DP, &six,
+          &beta, NDP, &three);
     I[0][0][k] = NDP[0]; I[0][1][k] = NDP[3]; I[0][2][k] = NDP[6];
     I[1][0][k] = NDP[1]; I[1][1][k] = NDP[4]; I[1][2][k] = NDP[7];
     I[2][0][k] = NDP[2]; I[2][1][k] = NDP[5]; I[2][2][k] = NDP[8];
