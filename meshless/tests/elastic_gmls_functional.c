@@ -18,45 +18,6 @@ typedef struct
   real_t* subdomain_extents;
 } elastic_t;
 
-static int elastic_num_quad_points(void* context, int i)
-{
-  elastic_t* elastic = context;
-  return 6 * pow(elastic->degree-1, 3);
-}
-
-static void elastic_get_quadrature_p2(void* context, int i, int N, 
-                                      point_t* points, real_t* weights, vector_t* normals)
-{
-  elastic_t* elastic = context;
-  point_t xi = elastic->points->points[i];
-  real_t hi = elastic->subdomain_extents[i];
-  memset(normals, 0, sizeof(vector_t) * N);
-  points[0] = xi;
-  points[0].x = xi.x - 0.5*hi;
-  weights[0] = 1.0;
-  normals[0].x = -1.0;
-  points[1] = xi;
-  points[1].x = xi.x + 0.5*hi;
-  weights[1] = 1.0;
-  normals[1].x = 1.0;
-  points[2] = xi;
-  points[2].y = xi.y - 0.5*hi;
-  weights[2] = 1.0;
-  normals[2].y = -1.0;
-  points[3] = xi;
-  points[3].y = xi.y + 0.5*hi;
-  weights[3] = 1.0;
-  normals[3].y = 1.0;
-  points[4] = xi;
-  points[4].z = xi.z - 0.5*hi;
-  weights[4] = 1.0;
-  normals[4].y = -1.0;
-  points[5] = xi;
-  points[5].z = xi.z + 0.5*hi;
-  weights[5] = 1.0;
-  normals[5].y = 1.0;
-}
-
 // This helper evaluates the coefficients of the stress-strain matrix D, 
 // storing them in column-major order in the array D.
 static void eval_stress_strain_matrix(real_t E, real_t nu, real_t* D)
