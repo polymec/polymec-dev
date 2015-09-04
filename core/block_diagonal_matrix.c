@@ -268,6 +268,19 @@ static void bdm_set_value_constant_bs(void* context, int i, int j, real_t value)
   }
 }
 
+static void bdm_get_diag(void* context, real_t* diag)
+{
+  bdm_t* A = context;
+  real_t* D = A->D;
+
+  for (int i = 0; i < A->num_block_rows; ++i)
+  {
+    int bs = A->B_offsets[i+1] - A->B_offsets[i];
+    for (int j = 0; j < bs; ++j)
+      diag[i] = D[A->B_offsets[i] + j*bs + j];
+  }
+}
+
 static void bdm_dtor(void* context)
 {
   bdm_t* A = context;
@@ -329,7 +342,8 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
                                 .solve = bdm_solve,
                                 .fprintf = bdm_fprintf,
                                 .value = bdm_value,
-                                .set_value = bdm_set_value};
+                                .set_value = bdm_set_value,
+                                .get_diag = bdm_get_diag};
   if (constant_block_size)
   {
     vtable.add_column_vector = bdm_add_column_vector_constant_bs;

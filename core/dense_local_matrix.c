@@ -103,6 +103,13 @@ static void dlm_set_value(void* context, int i, int j, real_t value)
   mat->A[mat->N*j+i] = value;
 }
 
+static void dlm_get_diag(void* context, real_t* diag)
+{
+  dlm_t* mat = context;
+  for (int i = 0; i < mat->N; ++i)
+    diag[i] = mat->A[mat->N*i+i];
+}
+
 static void dlm_dtor(void* context)
 {
   dlm_t* mat = context;
@@ -129,7 +136,8 @@ local_matrix_t* dense_local_matrix_new(int N)
                                 .solve = dlm_solve,
                                 .fprintf = dlm_fprintf,
                                 .value = dlm_value,
-                                .set_value = dlm_set_value};
+                                .set_value = dlm_set_value,
+                                .get_diag = dlm_get_diag};
   return local_matrix_new(name, mat, vtable);
 }
 

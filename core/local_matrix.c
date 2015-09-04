@@ -108,3 +108,7 @@ void local_matrix_set_value(local_matrix_t* matrix, int i, int j, real_t value)
   matrix->vtable.set_value(matrix->context, i, j, value);
 }
 
+void local_matrix_get_diagonal(local_matrix_t* matrix, real_t* diag)
+{
+  matrix->vtable.get_diag(matrix->context, diag);
+}

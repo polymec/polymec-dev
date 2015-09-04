@@ -375,6 +375,17 @@ static void slm_set_value(void* context, int i, int j, real_t value)
   }
 }
 
+static void slm_get_diag(void* context, real_t* diag)
+{
+  slm_t* mat = context;
+  SuperMatrix* A = mat->A;
+  NCformat* data = A->Store;
+  real_t* Aij = data->nzval;
+
+  for (int i = 0; i < mat->N; ++i)
+    diag[i] = Aij[data->colptr[i]];
+}
+
 static void slm_dtor(void* context)
 {
   slm_t* mat = context;
@@ -433,7 +444,8 @@ local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
                                 .solve = slm_solve,
                                 .fprintf = slm_fprintf,
                                 .value = slm_value,
-                                .set_value = slm_set_value};
+                                .set_value = slm_set_value,
+                                .get_diag = slm_get_diag};
   return local_matrix_new(name, mat, vtable);
 }
 

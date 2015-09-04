@@ -35,6 +35,7 @@ typedef struct local_matrix_vtable
   void (*fprintf)(void* context, FILE* stream); // Prints matrix to stream.
   real_t (*value)(void* context, int i, int j); // A(i, j)
   void (*set_value)(void* context, int i, int j, real_t value); // A(i, j) = value
+  void (*get_diag)(void* context, real_t* diag); // diag A -> diag
 } local_matrix_vtable;
 
 // This can be used to create a new type of local matrix representation.
@@ -87,5 +88,8 @@ real_t local_matrix_value(local_matrix_t* matrix, int i, int j);
 // is useful for fiddling, but probably not for doing heavy lifting.
 // If (i, j) is not a non-zero matrix index, this call has no effect.
 void local_matrix_set_value(local_matrix_t* matrix, int i, int j, real_t value);
+
+// Fetches the diagonal of the matrix, storing it in the given array.
+void local_matrix_get_diagonal(local_matrix_t* matrix, real_t* diag);
 
 #endif
