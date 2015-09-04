@@ -270,7 +270,6 @@ void test_gmls_matrix_with_frankes_function(void** state)
   gmls_functional_free(lambda);
 //printf("A = ");
 //local_matrix_fprintf(A, stdout);
-
 //printf("B = ");
 //vector_fprintf(B, nx*ny, stdout);
 
