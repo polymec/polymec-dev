@@ -77,6 +77,11 @@ int gmls_functional_num_components(gmls_functional_t* functional)
   return functional->num_comp;
 }
 
+void* gmls_functional_context(gmls_functional_t* functional)
+{
+  return functional->context;
+}
+
 static void compute_integral(gmls_functional_t* functional,
                              real_t t,
                              multicomp_poly_basis_t* poly_basis,

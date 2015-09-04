@@ -78,6 +78,9 @@ void gmls_functional_free(gmls_functional_t* functional);
 // Returns the number of solution components in the functional.
 int gmls_functional_num_components(gmls_functional_t* functional);
 
+// Returns the context pointer for this functional.
+void* gmls_functional_context(gmls_functional_t* functional);
+
 // Evaluates the functionals {lambda_j} consisting of the weak forms applied
 // to the polynomials within the polynomial basis on the ith subdomain, 
 // evaluated at time t. The value of the solution may be given as an array in 

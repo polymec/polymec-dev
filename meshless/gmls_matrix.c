@@ -435,14 +435,14 @@ static void robin_eval_integrands(void* context, real_t t,
   int num_comp = multicomp_poly_basis_num_comp(basis);
   ASSERT(num_comp == robin->num_comp);
 
-  memset(integrands, 0, sizeof(real_t) * num_comp * basis_dim * num_comp);
-  DECLARE_3D_ARRAY(real_t, I, integrands, num_comp, basis_dim, num_comp);
+  memset(integrands, 0, sizeof(real_t) * num_comp * num_comp * basis_dim);
+  DECLARE_3D_ARRAY(real_t, I, integrands, num_comp, num_comp, basis_dim);
   for (int c = 0; c < num_comp; ++c)
   {
-    I[c][0][c] = robin->alpha;
-    I[c][1][c] = robin->beta;
-    I[c][2][c] = robin->beta;
-    I[c][3][c] = robin->beta;
+    I[c][c][0] = robin->alpha;
+    I[c][c][1] = robin->beta;
+    I[c][c][2] = robin->beta;
+    I[c][c][3] = robin->beta;
   }
 }
 
@@ -480,3 +480,14 @@ gmls_functional_t* gmls_matrix_robin_bc_new(gmls_matrix_t* matrix,
     snprintf(name, 1023, "Robin BC (alpha = %g, beta = %g)", alpha, beta);
   return volume_gmls_functional_new(name, robin, vtable, num_comp, Qv);
 }
+
+void gmls_matrix_robin_bc_set_coeffs(gmls_functional_t* robin_bc,
+                                     real_t alpha,
+                                     real_t beta)
+{
+  gmls_robin_t* robin = gmls_functional_context(robin_bc);
+  ASSERT(robin->num_comp > 0); // Probably not a valid Robin BC if this ain't so.
+  robin->alpha = alpha;
+  robin->beta = beta;
+}
+

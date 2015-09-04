@@ -170,4 +170,10 @@ gmls_functional_t* gmls_matrix_robin_bc_new(gmls_matrix_t* matrix,
                                             real_t alpha,
                                             real_t beta);
 
+// This method sets the alpha and beta coefficients on the given Robin BC 
+// functional to the given values.
+void gmls_matrix_robin_bc_set_coeffs(gmls_functional_t* robin_bc,
+                                     real_t alpha,
+                                     real_t beta);
+
 #endif
