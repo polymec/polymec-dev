@@ -84,9 +84,9 @@ int gmls_functional_num_components(gmls_functional_t* functional);
 // component-minor form (for nonlinear problems), or may be NULL (for linear 
 // ones). The functionals are computed using the components (vectors) in the 
 // given multi-component polynomial basis. The values are placed in the 
-// lambdas array in component-minor form, which should be equal in length to 
-// Nc * Nc * dim, where Nc is the number of solution components and dim 
-// is the (maximum) dimension of the polynomial basis.
+// lambdas array such that, if lambdas is interpreted as a 3D array, 
+// lambdas[i][j][k] is the kth functional component of the jth basis vector 
+// for the ith solution component.
 void gmls_functional_compute(gmls_functional_t* functional,
                              int i,
                              real_t t,

@@ -207,15 +207,16 @@ static void compute_coeffs_for_identical_bases(gmls_matrix_t* matrix,
 
   memset(coeffs, 0, sizeof(real_t) * num_comp * num_nodes * num_comp);
   DECLARE_3D_ARRAY(real_t, co, coeffs, num_comp, num_nodes, num_comp);
+  DECLARE_3D_ARRAY(real_t, lam, coeffs, num_comp, basis_dim, num_comp);
   int k = 0;
   for (int c = 0; c < num_comp; ++c)
   {
     // Form the coefficients in the matrix from the product of the 
     // lambda and phi matrices. NOTE: phi is stored in column-major order!
-    real_t* lam = &(lambdas[c*num_comp*basis_dim]);
     for (int i = 0; i < basis_dim; ++i)
       for (int j = 0; j < num_nodes; ++j)
-        co[c][j][c] += lam[i] * phi[basis_dim*j+i];
+//        for (int cc = 0; cc < num_comp; ++cc)
+          co[c][j][c] += lam[c][i][c] * phi[basis_dim*j+i];
 
     // Fill in the row and column indices.
     for (int n = 0; n < num_nodes; ++n)
