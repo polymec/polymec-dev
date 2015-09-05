@@ -87,9 +87,16 @@ void test_gmls_matrix_with_frankes_function(void** state)
   // Override options if desired.
   {
     options_t* opts = options_argv();
-    char* nx_str = options_value(opts, "nx");
-    if ((nx_str != NULL) && (string_is_number(nx_str)))
-      nx = ny = atoi(nx_str);
+    char* res_str = options_value(opts, "resolution");
+    if (res_str != NULL)
+    {
+      if (strcasecmp(res_str, "low") == 0)
+        nx = ny = 10;
+      else if (strcasecmp(res_str, "medium") == 0)
+        nx = ny = 20;
+      else if (strcasecmp(res_str, "high") == 0)
+        nx = ny = 40;
+    }
     char* neumann_str = options_value(opts, "neumann");
     if (neumann_str != NULL)
       neumann = string_as_boolean(neumann_str);
@@ -350,12 +357,25 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
   // Override options if desired.
   {
     options_t* opts = options_argv();
-    char* nx_str = options_value(opts, "nx");
-    if ((nx_str != NULL) && (string_is_number(nx_str)))
-      nx = atoi(nx_str);
-    char* ny_str = options_value(opts, "ny");
-    if ((ny_str != NULL) && (string_is_number(ny_str)))
-      ny = nz = atoi(ny_str);
+    char* res_str = options_value(opts, "resolution");
+    if (res_str != NULL)
+    {
+      if (strcasecmp(res_str, "low") == 0)
+      {
+        nx = 16;
+        ny = nz = 3;
+      }
+      else if (strcasecmp(res_str, "medium") == 0)
+      {
+        nx = 33;
+        ny = nz = 5;
+      }
+      else if (strcasecmp(res_str, "high") == 0)
+      {
+        nx = 66;
+        ny = nz = 10;
+      }
+    }
   }
 
   real_t L = cantileaver->L;
@@ -495,7 +515,10 @@ void test_gmls_matrix_with_cantileaver_beam(void** state)
   log_urgent("L2(error) = %g\n", L2);
 
   // Super crude hard-wired success metric. :-/
-  assert_true(L2 < 39.8);
+  if (nx == 16)
+    assert_true(L2 < 204.6);
+  else if (nx == 33)
+    assert_true(L2 < 39.8);
 
   // Clean up.
   int_unordered_set_free(boundary_nodes);
