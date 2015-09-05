@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/local_matrix.h"
+#include "core/timer.h"
 
 struct local_matrix_t
 {
@@ -61,10 +62,12 @@ void local_matrix_add_column_vector(local_matrix_t* matrix,
                                     int column,
                                     real_t* column_vector)
 {
+  START_FUNCTION_TIMER();
   matrix->vtable.add_column_vector(matrix->context,
                                    scale_factor,
                                    column,
                                    column_vector);
+  STOP_FUNCTION_TIMER();
 }
 
 void local_matrix_add_row_vector(local_matrix_t* matrix, 
@@ -72,21 +75,28 @@ void local_matrix_add_row_vector(local_matrix_t* matrix,
                                  int row,
                                  real_t* row_vector)
 {
+  START_FUNCTION_TIMER();
   matrix->vtable.add_row_vector(matrix->context,
                                 scale_factor,
                                 row,
                                 row_vector);
+  STOP_FUNCTION_TIMER();
 }
 
 void local_matrix_add_identity(local_matrix_t* matrix, 
                                real_t scale_factor)
 {
+  START_FUNCTION_TIMER();
   matrix->vtable.add_identity(matrix->context, scale_factor);
+  STOP_FUNCTION_TIMER();
 }
 
 bool local_matrix_solve(local_matrix_t* matrix, real_t* B, real_t* x)
 {
-  return matrix->vtable.solve(matrix->context, B, x);
+  START_FUNCTION_TIMER();
+  bool result = matrix->vtable.solve(matrix->context, B, x);
+  STOP_FUNCTION_TIMER();
+  return result;
 }
 
 void local_matrix_fprintf(local_matrix_t* matrix, FILE* stream)
@@ -110,5 +120,7 @@ void local_matrix_set_value(local_matrix_t* matrix, int i, int j, real_t value)
 
 void local_matrix_get_diagonal(local_matrix_t* matrix, real_t* diag)
 {
+  START_FUNCTION_TIMER();
   matrix->vtable.get_diag(matrix->context, diag);
+  STOP_FUNCTION_TIMER();
 }
