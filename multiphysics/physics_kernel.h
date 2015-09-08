@@ -1,0 +1,193 @@
+// Copyright (c) 2012-2015, Jeffrey N. Johnson
+// All rights reserved.
+// 
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#ifndef POLYMEC_PHYSICS_KERNEL_H
+#define POLYMEC_PHYSICS_KERNEL_H
+
+#include "core/polymec.h"
+
+// This class provides an abstract interface for a physics kernel that is 
+// responsible for evolving the state of a system according to the physics
+// for a single process.
+typedef struct physics_kernel_t physics_kernel_t;
+
+// A physics kernel can be one of three types, depending on the nature of 
+// the underlying process, and the corresponding time scale: 
+// (1) A HYPERBOLIC kernel represents a "slow" process that occurs at the 
+//     time scale of the integration. Hyperbolic processes are so named for 
+//     their complex (plane-wave) eigenvalues and represent wave-like motions.
+// (2) A PARABOLIC kernel represents a faster process or set of processes that 
+//     occur at one or more frequencies, ranging from the time scale of 
+//     integration to much faster, but still clearly evolving continously. 
+//     Parabolic processes look like diffusion.
+// (3) An ELLIPTIC kernel represents a very fast process that achieves a 
+//     steady state instantaneously at the time scale of integration. 
+//     Elliptic processes behave like relaxation process and/or constraints.
+typedef enum
+{
+  PHYSICS_KERNEL_HYPERBOLIC,
+  PHYSICS_KERNEL_PARABOLIC,
+  PHYSICS_KERNEL_ELLIPTIC
+} physics_kernel_type_t;
+
+// This virtual table determines the implementation of the kernel.
+typedef struct
+{
+  // This function returns the size of the solution vector for this kernel.
+  int (*size)(void* context);
+
+  // This function computes the time change in the given array of primary 
+  // variables, ordered as defined during its setup, at the time t. This must 
+  // be provided for HYPERBOLIC or PARABOLIC physics kernels.
+  void (*eval_dudt)(void* context, real_t t, real_t* u, real_t* dudt);
+
+  // This function computes the residual function R = F(t, u) ~ 0 that 
+  // characterizes the constraint/relaxation process represented by the 
+  // physics kernel. It must be provided for ELLIPTIC physics kernels.
+  void (*eval_residual)(void* context, real_t t, real_t* u, real_t* R);
+
+  // This function returns the maximum timestep that can be used to integrate 
+  // the physical process represented by this kernel. Must be provided for 
+  // HYPERBOLIC physics kernels.
+  real_t (*max_dt)(void* context, real_t t, real_t* u);
+
+  //------------------------------------------------------------------------
+  //                      Jacobian-related functions
+  //------------------------------------------------------------------------
+  // What is meant by the Jacobian depends on whether the physics kernel is 
+  // HYPERBOLIC/PARABOLIC or ELLIPTIC. For HYPERBOLIC/PARABOLIC kernels, 
+  // the Jacobian is the derivative of the time derivative du/dt w.r.t. u.
+  // For ELLIPTIC kernels, the Jacobian is the derivative of the residual 
+  // function R = F(t, u) ~ 0 w.r.t. u.
+  //------------------------------------------------------------------------
+
+  // This optional function computes the matrix-vector product of the 
+  // Jacobian with a vector v, given the primary variables u at time t, 
+  // placing the result in Jv. If it is not provided, a differencing 
+  // approximation will be used.
+  void compute_Jv(void* context, real_t t, real_t* u, real_t* v, real_t* Jv);
+
+  // This optional function computes the components of the Jacobian 
+  // at time t for the solution u, placing them into the given Krylov 
+  // matrix. The matrix must have been created with the proper sparsity 
+  // pattern.
+  void compute_J(void* context, real_t t, real_t* u, krylov_matrix_t* J);
+
+  // This function destroys the state (context) when the kernel 
+  // is destroyed.
+  void (*dtor)(void* context);
+
+} physics_kernel_vtable;
+
+// Creates a physics kernel of the given type that uses the given context and 
+// vtable.
+physics_kernel_t* physics_kernel_new(const char* name, 
+                                     physics_kernel_type_t type,
+                                     void* context,
+                                     physics_kernel_vtable vtable);
+
+// Frees a physics kernel.
+void physics_kernel_free(physics_kernel_t* kernel);
+
+//------------------------------------------------------------------------
+//               Basic attributes of the physics kernel
+//------------------------------------------------------------------------
+
+// Returns the name of the physics kernel (internally stored).
+char* physics_kernel_name(physics_kernel_t* kernel);
+
+// Returns the type of the physics kernel.
+physics_kernel_type_t physics_kernel_type(physics_kernel_t* kernel);
+
+// Returns the context object for this kernel.
+void* physics_kernel_context(physics_kernel_t* kernel);
+
+// Returns the size of the solution vector for this kernel.
+int physics_kernel_solution_size(physics_kernel_t* kernel);
+
+//------------------------------------------------------------------------
+//                  Construction metadata interface
+//------------------------------------------------------------------------
+// The following methods should be called only during the construction of 
+// a physics kernel.
+//------------------------------------------------------------------------
+
+// Adds a primary variable with the given number of components to the list 
+// of evolved primary variables for the physics kernel. Indexing within 
+// the primary variable vector starts from 0 and is incremented for each 
+// primary variable added.
+void physics_kernel_add_primary(physics_kernel_t* kernel,
+                                const char* var_name,
+                                int num_components);
+
+// Traverses the list of this physics kernel's primary variables, retrieving 
+// each one's name, index within the primary vector u, and its number of 
+// components. Returns true if the traveral yielded another primary varible, 
+// false if not. *pos must be set to zero for the traversal to be reset.
+bool physics_kernel_next_primary(physics_kernel_t* kernel,
+                                 int* pos,
+                                 char** var_name,
+                                 int* index,
+                                 int* num_components);
+
+// Adds a secondary variable with the given number of components to the list 
+// of maintained secondary variables for the physics kernel. Uses the given 
+// update function to update the secondary variable as needed. This update 
+// function uses the context for the kernel to perform its work, as well 
+// as the primary vector u and the time t.
+void physics_kernel_add_secondary(physics_kernel_t* kernel,
+                                  const char* var_name,
+                                  int num_components,
+                                  void (*update)(void* context, real_t t, real_t* u, real_t* secondary_var));
+
+// Traverses the list of this physics kernel's secondary variables, retrieving 
+// each one's name, number of components, and update function. Returns true 
+// if the traveral yielded another secondary varible, false if not. *pos must 
+// be set to zero for the traversal to be reset.
+bool physics_kernel_next_secondary(physics_kernel_t* kernel,
+                                   int* pos,
+                                   char** var_name,
+                                   int* num_components,
+                                   void (**update)(void* context, real_t t, real_t* u, real_t* secondary_var));
+
+//------------------------------------------------------------------------
+//                      Time integration interface
+//------------------------------------------------------------------------
+// The following methods are called to interact with a multiphysics 
+// time integrator.
+//------------------------------------------------------------------------
+
+// Returns the block size of the Jacobian matrix associated with this physics
+// kernel, which should be the sum of all of the components of the primary 
+// variables.
+int physics_kernel_jacobian_block_size(physics_kernel_t* kernel);
+
+// Computes the time derivative of the primary variable vector u at time t.
+// This may only be called on HYPERBOLIC or PARABOLIC physics kernels.
+void physics_kernel_eval_dudt(physics_kernel_t* kernel, real_t t, real_t* u, real_t* dudt);
+
+// Computes the value of the residual function R = F(t, u) for the primary 
+// variable vector u at time t. This may only be called on ELLIPTIC physics 
+// kernels.
+void physics_kernel_eval_residual(physics_kernel_t* kernel, real_t t, real_t* u, real_t* R);
+
+// Returns the maximum time step size that can be used to advance the 
+// solution using this kernel for the given solution u at the given time t, 
+// or FLT_MAX if no such maximum exists.
+real_t physics_kernel_max_dt(physics_kernel_t* kernel, real_t t, real_t* u);
+
+// Computes the matrix-vector product of the Jacobian with a vector v at 
+// the given time t for the given solution u.
+void physics_kernel_compute_Jv(void* context, real_t t, real_t* u, real_t* v, real_t* Jv);
+
+// Computes the components of the Jacobian at time t for the solution u, 
+// placing them into the given Krylov matrix. The matrix must have been 
+// created with the proper sparsity pattern.
+void physics_kernel_compute_J(void* context, real_t t, real_t* u, krylov_matrix_t* J);
+
+#endif
+
