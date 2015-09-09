@@ -197,9 +197,18 @@ bool physics_kernel_next_secondary(physics_kernel_t* kernel,
 // this physics kernel, returning true if a dependency was yielded, false if 
 // not. *pos must be set to zero for the traversal to be reset.
 bool physics_kernel_next_secondary_dep(physics_kernel_t* kernel,
-                                       char* var_name,
+                                       const char* var_name,
                                        int* pos,
                                        char** dep_name);
+
+// Updates the given secondary variable data within the given state using 
+// the update function registered within this kernel for this variable, 
+// and at the time t. It is an error for this variable not to exist in this 
+// kernel.
+void physics_kernel_update_secondary(physics_kernel_t* kernel,
+                                     const char* var_name,
+                                     real_t t,
+                                     physics_state_t* state);
 
 //------------------------------------------------------------------------
 //                      Time integration interface

@@ -237,7 +237,7 @@ void physics_kernel_add_secondary_dep(physics_kernel_t* kernel,
 }
 
 bool physics_kernel_next_secondary_dep(physics_kernel_t* kernel,
-                                       char* var_name,
+                                       const char* var_name,
                                        int* pos,
                                        char** dep_name)
 {
@@ -268,6 +268,7 @@ int physics_kernel_jacobian_block_size(physics_kernel_t* kernel)
 }
 
 static void extract_vars_from_state(physics_kernel_t* kernel, 
+                                    real_t t,
                                     physics_state_t* state)
 {
   kernel->u = polymec_realloc(kernel->u, physics_kernel_solution_vector_size(kernel));
@@ -280,36 +281,54 @@ static void extract_vars_from_state(physics_kernel_t* kernel,
   pos = 0;
   physics_kernel_update_function_t update;
   while (physics_kernel_next_secondary(kernel, &pos, &var_name, &index, &size, &num_comp, &update))
-    physics_state_extract_secondary(state, var_name, index, kernel->w);
+    physics_state_extract_secondary(state, var_name, t, index, kernel->w);
 }
+
+void physics_kernel_update_secondary(physics_kernel_t* kernel,
+                                     const char* var_name,
+                                     real_t t,
+                                     physics_state_t* state)
+{
+  extract_vars_from_state(kernel, t, state);
+
+  // Dig up this secondary variable.
+  secondary_var_t** var_p = (secondary_var_t**)string_ptr_unordered_map_get(kernel->secondary_map, (char*)var_name);
+  ASSERT(var_p != NULL)
+  secondary_var_t* var = *var_p;
+
+  // Update the secondary variable and copy it back into the state.
+  real_t* data = physics_state_secondary(state, var_name);
+  var->update(kernel->context, t, kernel->u, kernel->w, data);
+}
+
 
 void physics_kernel_eval_dudt(physics_kernel_t* kernel, real_t t, physics_state_t* state, real_t* dudt)
 {
-  extract_vars_from_state(kernel, state);
+  extract_vars_from_state(kernel, t, state);
   kernel->vtable.eval_dudt(kernel->context, t, kernel->u, kernel->w, dudt);
 }
 
 void physics_kernel_eval_residual(physics_kernel_t* kernel, real_t t, physics_state_t* state, real_t* R)
 {
-  extract_vars_from_state(kernel, state);
+  extract_vars_from_state(kernel, t, state);
   kernel->vtable.eval_dudt(kernel->context, t, kernel->u, kernel->w, R);
 }
 
 real_t physics_kernel_max_dt(physics_kernel_t* kernel, real_t t, physics_state_t* state)
 {
-  extract_vars_from_state(kernel, state);
+  extract_vars_from_state(kernel, t, state);
   return kernel->vtable.max_dt(kernel->context, t, kernel->u, kernel->w);
 }
 
 void physics_kernel_compute_Jv(physics_kernel_t* kernel, real_t t, physics_state_t* state, real_t* v, real_t* Jv)
 {
-  extract_vars_from_state(kernel->context, state);
+  extract_vars_from_state(kernel->context, t, state);
   kernel->vtable.compute_Jv(kernel->context, t, kernel->u, kernel->w, v, Jv);
 }
 
 void physics_kernel_compute_J(physics_kernel_t* kernel, real_t t, physics_state_t* state, krylov_matrix_t* J)
 {
-  extract_vars_from_state(kernel->context, state);
+  extract_vars_from_state(kernel->context, t, state);
   kernel->vtable.compute_J(kernel->context, t, kernel->u, kernel->w, J);
 }
 

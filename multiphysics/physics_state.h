@@ -87,10 +87,13 @@ void physics_state_add_secondary_dep(physics_state_t* state,
 
 // Copies data for the secondary variable with the given name within the state to the 
 // given array. The data is copied to array in a component-minor ordering, with the 
-// components starting at the given index and proceeding contiguously. If the name does 
-// not identify a secondary variable within the state, this function has no effect.
+// components starting at the given index and proceeding contiguously. The 
+// time t is required, as it may be used in the update of one or more 
+// secondary variables. If the name does not identify a secondary variable 
+// within the state, this function has no effect.
 void physics_state_extract_secondary(physics_state_t* state, 
                                      const char* var_name, 
+                                     real_t t,
                                      int index,
                                      real_t* array);
 
@@ -113,9 +116,14 @@ bool physics_state_next_secondary(physics_state_t* state,
 // the physics state, returning true if a dependency was yielded, false if 
 // not. *pos must be set to zero for the traversal to be reset.
 bool physics_state_next_secondary_dep(physics_state_t* state,
-                                      char* var_name,
+                                      const char* var_name,
                                       int* pos,
                                       char** dep_name);
+
+// Returns an internal pointer to the storage for the given secondary variable 
+// within the state, or NULL if the state doesn't contain the variable.
+real_t* physics_state_secondary(physics_state_t* state,
+                                const char* var_name);
 
 #endif
 

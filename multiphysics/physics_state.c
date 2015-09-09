@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/timer.h"
 #include "core/array.h"
 #include "core/string_utils.h"
 #include "core/unordered_map.h"
@@ -42,6 +43,10 @@ struct physics_state_t
   // Primary and secondary variable registries.
   string_ptr_unordered_map_t* primary_map;   // <-- only metadata is stored here
   string_ptr_unordered_map_t* secondary_map; // <-- metadata + data is stored here
+
+  // Sorted list of secondary variables to update.
+  string_array_t* sorted_secondaries;
+  bool updating_dependencies;
 };
 
 physics_state_t* physics_state_new()
@@ -52,6 +57,8 @@ physics_state_t* physics_state_new()
   state->max_index = 0;
   state->primary_map = string_ptr_unordered_map_new();
   state->secondary_map = string_ptr_unordered_map_new();
+  state->sorted_secondaries = NULL;
+  state->updating_dependencies = false;
   return state;
 }
 
@@ -61,6 +68,8 @@ void physics_state_free(physics_state_t* state)
     polymec_free(state->solution);
   string_ptr_unordered_map_free(state->primary_map);
   string_ptr_unordered_map_free(state->secondary_map);
+  if (state->sorted_secondaries != NULL)
+    string_array_free(state->sorted_secondaries);
   polymec_free(state);
 }
 
@@ -129,6 +138,10 @@ void physics_state_add_primary(physics_state_t* state,
                                int size,
                                int num_components)
 {
+  // This function must not be called after we have extracted data from 
+  // the state.
+  ASSERT(state->sorted_secondaries == NULL); 
+
   physics_state_add_primary_with_index(state, var_name, state->max_index, size, num_components);
   ++(state->max_index);
 }
@@ -181,6 +194,10 @@ void physics_state_add_secondary(physics_state_t* state,
                                  int num_components,
                                  physics_kernel_t* kernel)
 {
+  // This function must not be called after we have extracted data from 
+  // the state.
+  ASSERT(state->sorted_secondaries == NULL); 
+
   ASSERT(size > 0);
   ASSERT(num_components > 0);
   ASSERT(kernel != NULL);
@@ -197,6 +214,10 @@ void physics_state_add_secondary_dep(physics_state_t* state,
                                      const char* var_name,
                                      const char* dep_name)
 {
+  // This function must not be called after we have extracted data from 
+  // the state.
+  ASSERT(state->sorted_secondaries == NULL); 
+
   secondary_var_t** var_p = (secondary_var_t**)string_ptr_unordered_map_get(state->secondary_map, (char*)var_name);
   ASSERT(var_p != NULL);
   secondary_var_t* var = *var_p;
@@ -215,11 +236,79 @@ void physics_state_add_secondary_dep(physics_state_t* state,
   string_array_append(var->deps, (char*)dep_name);
 }
 
+static void update_dependencies(physics_state_t* state, real_t t)
+{
+  START_FUNCTION_TIMER();
+  // Generate a sorted list of our secondary variables if needed.
+  if (state->sorted_secondaries == NULL)
+  {
+    // Make a list of all the secondary variables, and index them.
+    string_array_t* unsorted_vars = string_array_new();
+    string_int_unordered_map_t* var_indices = string_int_unordered_map_new();
+    int pos = 0;
+    char* var;
+    void* entry;
+    while (string_ptr_unordered_map_next(state->secondary_map, &pos, &var, &entry))
+    {
+      string_int_unordered_map_insert(var_indices, var, unsorted_vars->size);
+      string_array_append(unsorted_vars, var);
+    }
+
+    // Create an adjacency graph representing the dependencies.
+    int num_secondaries = unsorted_vars->size;
+    adj_graph_t* graph = adj_graph_new(MPI_COMM_SELF, num_secondaries);
+    string_array_t* deps = string_array_new();
+    for (int i = 0; i < unsorted_vars->size; ++i)
+    {
+      string_array_clear(deps);
+      int pos = 0; 
+      char *dep;
+      while (physics_state_next_secondary_dep(state, unsorted_vars->data[i], &pos, &dep))
+        string_array_append(deps, dep);
+      adj_graph_set_num_edges(graph, i, deps->size);
+      int* edges = adj_graph_edges(graph, i);
+      for (int j = 0; j < deps->size; ++j)
+        edges[j] = *string_int_unordered_map_get(var_indices, deps->data[j]);
+    }
+    string_array_free(deps);
+    string_int_unordered_map_free(var_indices);
+
+    // Sort the graph.
+    int sorted_indices[num_secondaries];
+    bool sorted = adj_graph_sort(graph, sorted_indices);
+    if (!sorted)
+      polymec_error("physics_state: cycle detected in dependencies for secondary variables.");
+
+    // Assemble a proper list of secondaries in sorted order.
+    state->sorted_secondaries = string_array_new();
+    for (int i = 0; i < num_secondaries; ++i)
+      string_array_append(state->sorted_secondaries, unsorted_vars->data[sorted_indices[i]]);
+
+    string_array_free(unsorted_vars);
+  }
+
+  // Now update each variable.
+  state->updating_dependencies = true;
+  int pos = 0, size, num_components;
+  char* var_name;
+  physics_kernel_t* kernel;
+  while (physics_state_next_secondary(state, &pos, &var_name, &size, &num_components, &kernel))
+    physics_kernel_update_secondary(kernel, var_name, t, state);
+  state->updating_dependencies = false;
+  STOP_FUNCTION_TIMER();
+}
+
 void physics_state_extract_secondary(physics_state_t* state, 
                                      const char* var_name, 
+                                     real_t t,
                                      int index,
                                      real_t* array)
 {
+  // Make sure the dependencies are sorted and updated, but only if we're 
+  // not already being invoked during a call to update_dependencies.
+  if (!state->updating_dependencies)
+    update_dependencies(state, t);
+
   secondary_var_t** var_p = (secondary_var_t**)string_ptr_unordered_map_get(state->secondary_map, (char*)var_name);
   if (var_p != NULL)
   {
@@ -259,7 +348,7 @@ bool physics_state_next_secondary(physics_state_t* state,
 }
 
 bool physics_state_next_secondary_dep(physics_state_t* state,
-                                      char* var_name,
+                                      const char* var_name,
                                       int* pos,
                                       char** dep_name)
 {
@@ -276,5 +365,15 @@ bool physics_state_next_secondary_dep(physics_state_t* state,
   }
   else
     return false;
+}
+
+real_t* physics_state_secondary(physics_state_t* state,
+                                const char* var_name)
+{
+  secondary_var_t** var_p = (secondary_var_t**)string_ptr_unordered_map_get(state->secondary_map, (char*)var_name);
+  if (var_p == NULL) 
+    return NULL;
+
+  return (*var_p)->data;
 }
 
