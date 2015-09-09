@@ -254,21 +254,26 @@ static void update_dependencies(physics_state_t* state, real_t t)
       string_array_append(unsorted_vars, var);
     }
 
-    // Create an adjacency graph representing the dependencies.
+    // Create an adjacency graph representing the dependencies. Note that in 
+    // canonical graph theory, vertex "v depends on w" means w -> v.
     int num_secondaries = unsorted_vars->size;
     adj_graph_t* graph = adj_graph_new(MPI_COMM_SELF, num_secondaries);
     string_array_t* deps = string_array_new();
-    for (int i = 0; i < unsorted_vars->size; ++i)
+    for (int v = 0; v < unsorted_vars->size; ++v)
     {
       string_array_clear(deps);
       int pos = 0; 
       char *dep;
-      while (physics_state_next_secondary_dep(state, unsorted_vars->data[i], &pos, &dep))
+      while (physics_state_next_secondary_dep(state, unsorted_vars->data[v], &pos, &dep))
         string_array_append(deps, dep);
-      adj_graph_set_num_edges(graph, i, deps->size);
-      int* edges = adj_graph_edges(graph, i);
       for (int j = 0; j < deps->size; ++j)
-        edges[j] = *string_int_unordered_map_get(var_indices, deps->data[j]);
+      {
+        int w = *string_int_unordered_map_get(var_indices, deps->data[j]);
+        int k = adj_graph_num_edges(graph, w);
+        adj_graph_set_num_edges(graph, w, k + 1);
+        int* edges = adj_graph_edges(graph, w);
+        edges[k] = v;
+      }
     }
     string_array_free(deps);
     string_int_unordered_map_free(var_indices);
