@@ -164,6 +164,14 @@ void physics_kernel_add_secondary(physics_kernel_t* kernel,
                                   int num_components,
                                   physics_kernel_update_function_t update);
 
+// Adds a (secondary variable) dependency to the given secondary variable for 
+// the physics kernel. That is: in order for the secondary variable var_name 
+// to be updated, the secondary variable dep_name must be updated first. It is
+// an error for either of these secondary variables not to exist in the kernel.
+void physics_kernel_add_secondary_dep(physics_kernel_t* kernel,
+                                      const char* var_name,
+                                      const char* dep_name);
+
 // Returns true if the physics kernel uses and/or maintains a secondary variable with 
 // the given name, false otherwise.
 bool physics_kernel_has_secondary(physics_kernel_t* kernel, const char* var_name);
@@ -184,6 +192,14 @@ bool physics_kernel_next_secondary(physics_kernel_t* kernel,
                                    int* size,
                                    int* num_components,
                                    physics_kernel_update_function_t* update);
+
+// Traverses the list of dependencies for the given secondary variable in 
+// this physics kernel, returning true if a dependency was yielded, false if 
+// not. *pos must be set to zero for the traversal to be reset.
+bool physics_kernel_next_secondary_dep(physics_kernel_t* kernel,
+                                       char* var_name,
+                                       int* pos,
+                                       char** dep_name);
 
 //------------------------------------------------------------------------
 //                      Time integration interface

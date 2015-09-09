@@ -76,6 +76,15 @@ void physics_state_add_secondary(physics_state_t* state,
                                  int num_components,
                                  physics_kernel_t* kernel);
 
+// Adds a (secondary variable) dependency to the given secondary variable  
+// within the physics state. That is: in order for the secondary variable 
+// var_name to be updated, the secondary variable dep_name must be updated 
+// first. It is an error for either of these secondary variables not to exist 
+// within the state.
+void physics_state_add_secondary_dep(physics_state_t* state,
+                                     const char* var_name,
+                                     const char* dep_name);
+
 // Copies data for the secondary variable with the given name within the state to the 
 // given array. The data is copied to array in a component-minor ordering, with the 
 // components starting at the given index and proceeding contiguously. If the name does 
@@ -99,6 +108,14 @@ bool physics_state_next_secondary(physics_state_t* state,
                                   int* size,
                                   int* num_components,
                                   physics_kernel_t** kernel);
+
+// Traverses the list of dependencies for the given secondary variable within 
+// the physics state, returning true if a dependency was yielded, false if 
+// not. *pos must be set to zero for the traversal to be reset.
+bool physics_state_next_secondary_dep(physics_state_t* state,
+                                      char* var_name,
+                                      int* pos,
+                                      char** dep_name);
 
 #endif
 

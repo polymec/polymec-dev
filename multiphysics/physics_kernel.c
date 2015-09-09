@@ -5,14 +5,29 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/array.h"
+#include "core/string_utils.h"
 #include "core/unordered_map.h"
 #include "multiphysics/physics_kernel.h"
 
 typedef struct
 {
   int index, num_components;
+} primary_var_t;
+
+typedef struct
+{
+  int index, num_components;
   physics_kernel_update_function_t update;
-} var_t;
+  string_array_t* deps;
+} secondary_var_t;
+
+static void secondary_var_free(void* v)
+{
+  secondary_var_t* var = v;
+  string_array_free(var->deps);
+  polymec_free(var);
+}
 
 struct physics_kernel_t 
 {
@@ -22,7 +37,7 @@ struct physics_kernel_t
   physics_kernel_vtable vtable;
   void* context;
 
-  // Variable metdata.
+  // Variable metadata.
   string_ptr_unordered_map_t* primary_map;
   string_ptr_unordered_map_t* secondary_map;
 
@@ -99,7 +114,7 @@ void physics_kernel_add_primary(physics_kernel_t* kernel,
 {
   ASSERT(num_components > 0);
 
-  var_t* var = polymec_malloc(sizeof(var_t));
+  primary_var_t* var = polymec_malloc(sizeof(primary_var_t));
   var->index = 0; // FIXME: need a strategy for indexing.
   var->num_components = num_components;
   string_ptr_unordered_map_insert_with_kv_dtors(kernel->primary_map, (char*)var_name, var, string_free, polymec_free);
@@ -129,7 +144,7 @@ bool physics_kernel_next_primary(physics_kernel_t* kernel,
   bool result = string_ptr_unordered_map_next(kernel->primary_map, pos, var_name, &entry);
   if (result)
   {
-    var_t* var = entry;
+    primary_var_t* var = entry;
     *index = var->index;
     *size = kernel->vtable.primary_size(kernel, *var_name);
     *num_components = var->num_components;
@@ -157,11 +172,12 @@ void physics_kernel_add_secondary(physics_kernel_t* kernel,
   ASSERT(num_components > 0);
   ASSERT(update != NULL);
 
-  var_t* var = polymec_malloc(sizeof(var_t));
+  secondary_var_t* var = polymec_malloc(sizeof(secondary_var_t));
   var->index = 0; // FIXME: Need a strategy for indexing.
   var->num_components = num_components;
   var->update = update;
-  string_ptr_unordered_map_insert_with_kv_dtors(kernel->secondary_map, (char*)var_name, var, string_free, polymec_free);
+  var->deps = string_array_new();
+  string_ptr_unordered_map_insert_with_kv_dtors(kernel->secondary_map, (char*)var_name, var, string_free, secondary_var_free);
 }
 
 bool physics_kernel_has_secondary(physics_kernel_t* kernel, const char* var_name)
@@ -186,16 +202,58 @@ bool physics_kernel_next_secondary(physics_kernel_t* kernel,
                                    physics_kernel_update_function_t* update)
 {
   void* entry;
-  bool result = string_ptr_unordered_map_next(kernel->primary_map, pos, var_name, &entry);
+  bool result = string_ptr_unordered_map_next(kernel->secondary_map, pos, var_name, &entry);
   if (result)
   {
-    var_t* var = entry;
+    secondary_var_t* var = entry;
     *index = var->index;
     *size = kernel->vtable.secondary_size(kernel, *var_name);
     *num_components = var->num_components;
     *update = var->update;
   }
   return result;
+}
+
+void physics_kernel_add_secondary_dep(physics_kernel_t* kernel,
+                                      const char* var_name,
+                                      const char* dep_name)
+{
+  secondary_var_t** var_p = (secondary_var_t**)string_ptr_unordered_map_get(kernel->secondary_map, (char*)var_name);
+  ASSERT(var_p != NULL);
+  secondary_var_t* var = *var_p;
+
+#ifndef NDEBUG
+  {
+    // Make sure that this dependency doesn't appear already in the list of deps.
+    char* deps[var->deps->size+1];
+    for (int i = 0; i < var->deps->size; ++i)
+      deps[i] = var->deps->data[i];
+    deps[var->deps->size] = NULL;
+    ASSERT(string_find_in_list(dep_name, (const char**)deps, false) == -1);
+  }
+#endif
+
+  string_array_append(var->deps, (char*)dep_name);
+}
+
+bool physics_kernel_next_secondary_dep(physics_kernel_t* kernel,
+                                       char* var_name,
+                                       int* pos,
+                                       char** dep_name)
+{
+  secondary_var_t** var_p = (secondary_var_t**)string_ptr_unordered_map_get(kernel->secondary_map, (char*)var_name);
+  if (var_p == NULL) 
+    return false;
+
+  secondary_var_t* var = *var_p;
+  if (*pos < var->deps->size)
+  {
+    *dep_name = var->deps->data[*pos];
+    ++(*pos);
+    return true;
+  }
+  else
+    return false;
 }
 
 int physics_kernel_jacobian_block_size(physics_kernel_t* kernel)

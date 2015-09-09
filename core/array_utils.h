@@ -46,6 +46,13 @@ static inline int int_pair_bsearch_comp(const void* l, const void* r)
                    : 1;
 }
 
+// String-valued binary search comparison function.
+static inline int string_bsearch_comp(const void* l, const void* r)
+{
+  char* li = *((char**)l), *ri = *((char**)r);
+  return strcmp((const char*)li, (const char*)ri);
+}
+
 // Executes a linear search for an element in an unsorted array of integers, 
 // returning a pointer to the element if it's found and NULL if it's not.
 int* int_lsearch(int* array, int length, int element);

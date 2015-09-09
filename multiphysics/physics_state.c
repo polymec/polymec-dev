@@ -5,6 +5,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/array.h"
+#include "core/string_utils.h"
 #include "core/unordered_map.h"
 #include "multiphysics/physics_state.h"
 #include "multiphysics/physics_kernel.h"
@@ -19,12 +21,14 @@ typedef struct
   int size, num_components;
   real_t* data;
   physics_kernel_t* kernel;
+  string_array_t* deps;
 } secondary_var_t;
 
 static void secondary_var_free(void* data)
 {
   secondary_var_t* var = data;
   polymec_free(var->data);
+  string_array_free(var->deps);
   polymec_free(var);
 }
 
@@ -185,7 +189,30 @@ void physics_state_add_secondary(physics_state_t* state,
   secondary->num_components = num_components;
   secondary->data = polymec_malloc(sizeof(real_t) * size * num_components);
   secondary->kernel = kernel;
+  secondary->deps = string_array_new();
   string_ptr_unordered_map_insert_with_kv_dtors(state->secondary_map, (char*)var_name, secondary, string_free, secondary_var_free);
+}
+
+void physics_state_add_secondary_dep(physics_state_t* state,
+                                     const char* var_name,
+                                     const char* dep_name)
+{
+  secondary_var_t** var_p = (secondary_var_t**)string_ptr_unordered_map_get(state->secondary_map, (char*)var_name);
+  ASSERT(var_p != NULL);
+  secondary_var_t* var = *var_p;
+
+#ifndef NDEBUG
+  {
+    // Make sure that this dependency doesn't appear already in the list of deps.
+    char* deps[var->deps->size+1];
+    for (int i = 0; i < var->deps->size; ++i)
+      deps[i] = var->deps->data[i];
+    deps[var->deps->size] = NULL;
+    ASSERT(string_find_in_list(dep_name, (const char**)deps, false) == -1);
+  }
+#endif
+
+  string_array_append(var->deps, (char*)dep_name);
 }
 
 void physics_state_extract_secondary(physics_state_t* state, 
@@ -229,5 +256,25 @@ bool physics_state_next_secondary(physics_state_t* state,
     *kernel = var->kernel;
   }
   return result;
+}
+
+bool physics_state_next_secondary_dep(physics_state_t* state,
+                                      char* var_name,
+                                      int* pos,
+                                      char** dep_name)
+{
+  secondary_var_t** var_p = (secondary_var_t**)string_ptr_unordered_map_get(state->secondary_map, (char*)var_name);
+  if (var_p == NULL) 
+    return false;
+
+  secondary_var_t* var = *var_p;
+  if (*pos < var->deps->size)
+  {
+    *dep_name = var->deps->data[*pos];
+    ++(*pos);
+    return true;
+  }
+  else
+    return false;
 }
 
