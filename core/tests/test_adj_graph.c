@@ -39,13 +39,47 @@ void test_distributed_constructor(void** state)
   adj_graph_free(g);
 }
 
+void test_sort(void** state)
+{
+  // Test the sort of a cyclic graph.
+  int N = 10;
+  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, N);
+  for (int v = 0; v < N; ++v)
+  {
+    adj_graph_set_num_edges(g, v, 1);
+    int* edges = adj_graph_edges(g, v);
+    edges[0] = (v + 1) % N;
+  }
+  int sorted[N];
+  bool result = adj_graph_sort(g, sorted);
+  assert_false(result);
+  adj_graph_free(g);
+
+  // Now test the sort of an acyclic graph.
+  g = adj_graph_new(MPI_COMM_SELF, N);
+  for (int v = 0; v < N-1; ++v)
+  {
+    adj_graph_set_num_edges(g, v, 1);
+    int* edges = adj_graph_edges(g, v);
+    edges[0] = v + 1;
+  }
+  result = adj_graph_sort(g, sorted);
+  assert_true(result);
+  for (int v = 0; v < N; ++v)
+  {
+    assert_int_equal(sorted[v], v);
+  }
+  adj_graph_free(g);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_constructor),
-    unit_test(test_distributed_constructor)
+    unit_test(test_distributed_constructor),
+    unit_test(test_sort)
   };
   return run_tests(tests);
 }

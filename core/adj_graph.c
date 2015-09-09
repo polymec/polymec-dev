@@ -418,6 +418,10 @@ index_t* adj_graph_vertex_dist(adj_graph_t* graph)
 // This helper implements a depth-first topological sort.
 static bool topo_dfs(adj_graph_t* graph, int v, int* visited, int* topo_index, int* sorted_vertices)
 {
+  // If we've already done this one, nothing to do here.
+  if (visited[v] == 1)
+    return true;
+
   // If v has been marked temporarily, we have a cycle.
   if (visited[v] == 2) 
     return false;
@@ -434,6 +438,8 @@ static bool topo_dfs(adj_graph_t* graph, int v, int* visited, int* topo_index, i
       if (!topo_dfs(graph, w, visited, topo_index, sorted_vertices))
         return false;
     }
+    else if (visited[w] == 2)
+      return false;
   }
   // Mark this vertex as visited (permanently).
   visited[v] = 1; 
@@ -463,6 +469,7 @@ bool adj_graph_sort(adj_graph_t* graph, int* sorted_vertices)
       break;
     }
   }
+  ASSERT((topo_index == -1) || !sorted);
   STOP_FUNCTION_TIMER();
   return sorted;
 }
