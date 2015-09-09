@@ -415,6 +415,58 @@ index_t* adj_graph_vertex_dist(adj_graph_t* graph)
   return graph->vtx_dist;
 }
 
+// This helper implements a depth-first topological sort.
+static bool topo_dfs(adj_graph_t* graph, int v, int* visited, int* topo_index, int* sorted_vertices)
+{
+  // If v has been marked temporarily, we have a cycle.
+  if (visited[v] == 2) 
+    return false;
+   
+  // Mark this vertex as visited (temporarily).
+  visited[v] = 2;
+  for (int i = graph->xadj[v]; i < graph->xadj[v+1]; ++i)
+  {
+    int w = graph->adjacency[i];
+
+    // Recurse if the vertex w has not been visited.
+    if (visited[w] == 0)
+    {
+      if (!topo_dfs(graph, w, visited, topo_index, sorted_vertices))
+        return false;
+    }
+  }
+  // Mark this vertex as visited (permanently).
+  visited[v] = 1; 
+
+  // Stick v into our list of sorted vertices.
+  sorted_vertices[*topo_index] = v;
+
+  // Decrement the topological ordering index.
+  --(*topo_index);
+
+  return true;
+}
+
+bool adj_graph_sort(adj_graph_t* graph, int* sorted_vertices)
+{
+  START_FUNCTION_TIMER();
+  bool sorted = true;
+  int N = adj_graph_num_vertices(graph);
+  int topo_index = N - 1;
+  int visited[N];
+  memset(visited, 0, sizeof(int) * N);
+  for (int v = 0; v < N; ++v)
+  {
+    if (!topo_dfs(graph, v, visited, &topo_index, sorted_vertices))
+    {
+      sorted = false;
+      break;
+    }
+  }
+  STOP_FUNCTION_TIMER();
+  return sorted;
+}
+
 void adj_graph_fprintf(adj_graph_t* graph, FILE* stream)
 {
   if (stream == NULL) return;

@@ -110,6 +110,12 @@ int* adj_graph_edge_offsets(adj_graph_t* graph);
 // documentation.
 index_t* adj_graph_vertex_dist(adj_graph_t* graph);
 
+// Topologically sorts the vertices in the graph, placing them into the 
+// given array (which must be large enough to fit all the vertices). Returns
+// true if the graph was sorted successfully (i.e. if there were no cycles) 
+// and false otherwise.
+bool adj_graph_sort(adj_graph_t* graph, int* sorted_vertices);
+
 // Prints a textual representation of the graph to the given file.
 void adj_graph_fprintf(adj_graph_t* graph, FILE* stream);
 
