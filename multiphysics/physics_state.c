@@ -125,6 +125,14 @@ physics_state_t* physics_state_clone(physics_state_t* state)
     memcpy(var1->data, var->data, sizeof(real_t) * var->size * var->num_components);
   }
 
+  // Copy any established dependency data.
+  if (state->sorted_secondaries != NULL)
+  {
+    state1->sorted_secondaries = string_array_new();
+    for (int i = 0; i < state->sorted_secondaries->size; ++i)
+      string_array_append_with_dtor(state1->sorted_secondaries, state->sorted_secondaries->data[i], string_free);
+  }
+
   return state1;
 }
 
