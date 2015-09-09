@@ -36,6 +36,8 @@ physics_kernel_t* physics_kernel_new(const char* name,
 
 void physics_kernel_free(physics_kernel_t* kernel)
 {
+  if ((kernel->vtable.dtor != NULL) && (kernel->context != NULL))
+    kernel->vtable.dtor(kernel->context);
   string_ptr_unordered_map_free(kernel->primary_map);
   string_ptr_unordered_map_free(kernel->secondary_map);
   polymec_free(kernel);
