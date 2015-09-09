@@ -38,8 +38,11 @@ typedef enum
 // This virtual table determines the implementation of the kernel.
 typedef struct
 {
-  // This function returns the size of the solution vector for this kernel.
-  int (*size)(void* context);
+  // This function returns the size of the given primary variable for this kernel.
+  int (*primary_size)(void* context, const char* var_name);
+
+  // This function returns the size of the given secondary variable for this kernel.
+  int (*secondary_size)(void* context, const char* var_name);
 
   // This function computes the time change in the given array of primary 
   // variables u and the secondary variables w, ordered as defined during its setup, 
@@ -55,7 +58,7 @@ typedef struct
   // This function returns the maximum timestep that can be used to integrate 
   // the physical process represented by this kernel, given primary variables u and 
   // secondary variables w at time t. Must be provided for HYPERBOLIC physics kernels.
-  real_t (*max_dt)(void* context, real_t t, real_t* u);
+  real_t (*max_dt)(void* context, real_t t, real_t* u, real_t* w);
 
   //------------------------------------------------------------------------
   //                      Jacobian-related functions
@@ -114,7 +117,7 @@ physics_kernel_type_t physics_kernel_type(physics_kernel_t* kernel);
 void* physics_kernel_context(physics_kernel_t* kernel);
 
 // Returns the size of the solution vector for this kernel.
-int physics_kernel_solution_size(physics_kernel_t* kernel);
+int physics_kernel_solution_vector_size(physics_kernel_t* kernel);
 
 //------------------------------------------------------------------------
 //                  Construction metadata interface
@@ -135,14 +138,20 @@ void physics_kernel_add_primary(physics_kernel_t* kernel,
 // false otherwise.
 bool physics_kernel_has_primary(physics_kernel_t* kernel, const char* var_name);
 
+// Returns the size of the primary variable with the given name within the 
+// kernel, or -1 if the kernel contains no such variable.
+int physics_kernel_primary_size(physics_kernel_t* kernel, const char* var_name);
+
 // Traverses the list of this physics kernel's primary variables, retrieving 
-// each one's name, index within the primary vector u, and its number of 
-// components. Returns true if the traversal yielded another primary variable, 
-// false if not. *pos must be set to zero for the traversal to be reset.
+// each one's name, index within the primary vector u, its size (number of data)
+// and its number of components per datum. Returns true if the traversal 
+// yielded another primary variable, false if not. *pos must be set to zero 
+// for the traversal to be reset.
 bool physics_kernel_next_primary(physics_kernel_t* kernel,
                                  int* pos,
                                  char** var_name,
                                  int* index,
+                                 int* size,
                                  int* num_components);
 
 // Adds a secondary variable with the given number of components to the list 
@@ -159,14 +168,20 @@ void physics_kernel_add_secondary(physics_kernel_t* kernel,
 // the given name, false otherwise.
 bool physics_kernel_has_secondary(physics_kernel_t* kernel, const char* var_name);
 
+// Returns the size of the secondary variable with the given name within the 
+// kernel, or -1 if the kernel contains no such variable.
+int physics_kernel_secondary_size(physics_kernel_t* kernel, const char* var_name);
+
 // Traverses the list of this physics kernel's secondary variables, retrieving 
-// each one's name, index, number of components, and update function. Returns true 
-// if the traversal yielded another secondary variable, false if not. *pos must 
-// be set to zero for the traversal to be reset.
+// each one's name, index, number of data, number of components per data, and 
+// update function. Returns true if the traversal yielded another secondary 
+// variable, false if not. *pos must be set to zero for the traversal to be 
+// reset.
 bool physics_kernel_next_secondary(physics_kernel_t* kernel,
                                    int* pos,
                                    char** var_name,
                                    int* index,
+                                   int* size,
                                    int* num_components,
                                    physics_kernel_update_function_t* update);
 
@@ -176,6 +191,12 @@ bool physics_kernel_next_secondary(physics_kernel_t* kernel,
 // The following methods are called to interact with a multiphysics 
 // time integrator.
 //------------------------------------------------------------------------
+
+// Returns the current number of data for the given primary variable.
+int physics_kernel_primary_size(physics_kernel_t* kernel, const char* var_name);
+
+// Returns the current number of data for the given secondary variable.
+int physics_kernel_secondary_size(physics_kernel_t* kernel, const char* var_name);
 
 // Returns the block size of the Jacobian matrix associated with this physics
 // kernel, which should be the sum of all of the components of the primary 
@@ -197,12 +218,12 @@ real_t physics_kernel_max_dt(physics_kernel_t* kernel, real_t t, physics_state_t
 
 // Computes the matrix-vector product of the Jacobian with a vector v at 
 // the given time t for the given state.
-void physics_kernel_compute_Jv(void* context, real_t t, physics_state_t* state, real_t* v, real_t* Jv);
+void physics_kernel_compute_Jv(physics_kernel_t* kernel, real_t t, physics_state_t* state, real_t* v, real_t* Jv);
 
 // Computes the components of the Jacobian at time t for the given state,
 // placing them into the given Krylov matrix. The matrix must have been 
 // created with the proper sparsity pattern.
-void physics_kernel_compute_J(void* context, real_t t, physics_state_t* state, krylov_matrix_t* J);
+void physics_kernel_compute_J(physics_kernel_t* kernel, real_t t, physics_state_t* state, krylov_matrix_t* J);
 
 #endif
 

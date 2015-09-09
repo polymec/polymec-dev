@@ -46,7 +46,7 @@ void* physics_controller_context(physics_controller_t* controller)
 void physics_controller_add_kernel(physics_controller_t* controller,
                                    physics_kernel_t* kernel)
 {
-  ptr_array_append(controller->kernels, kernels);
+  ptr_array_append(controller->kernels, kernel);
 }
 
 physics_state_t* physics_controller_state(physics_controller_t* controller)
@@ -54,12 +54,33 @@ physics_state_t* physics_controller_state(physics_controller_t* controller)
   physics_state_t* state = physics_state_new();
   
   // Add all the primary variables from the kernels.
-  int pos = 0, index, num_components;
-  char* var_name;
-
+  for (int k = 0; k < controller->kernels->size; ++k)
+  {
+    physics_kernel_t* kernel = controller->kernels->data[k];
+    int pos = 0, index, size, num_components;
+    char* var_name;
+    while (physics_kernel_next_primary(kernel, &pos, &var_name, &index, &size, &num_components))
+    {
+      if (!physics_state_has_primary(state, var_name))
+        physics_state_add_primary(state, var_name, size, num_components);
+    }
+  }
 
   // Add all the secondary variables from the kernels. Maintenance responsibility
   // is on a first-come, first-served basis.
+  for (int k = 0; k < controller->kernels->size; ++k)
+  {
+    physics_kernel_t* kernel = controller->kernels->data[k];
+    int pos = 0, index, size, num_components;
+    char* var_name;
+    physics_kernel_update_function_t update;
+    while (physics_kernel_next_secondary(kernel, &pos, &var_name, &index, &size, &num_components, &update))
+    {
+      if (!physics_state_has_secondary(state, var_name))
+        physics_state_add_secondary(state, var_name, size, num_components, kernel);
+    }
+  }
+
   return state;
 }
 
@@ -67,7 +88,8 @@ void physics_controller_advance(physics_controller_t* controller,
                                 real_t* t, 
                                 physics_state_t* state)
 {
-  controller->vtable.advance(controller->context, controller->kernels->data,
+  controller->vtable.advance(controller->context, 
+                             (physics_kernel_t**)controller->kernels->data,
                              controller->kernels->size, t, state);
 }
 
