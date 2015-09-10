@@ -46,7 +46,7 @@ void* physics_controller_context(physics_controller_t* controller)
 void physics_controller_add_kernel(physics_controller_t* controller,
                                    physics_kernel_t* kernel)
 {
-  ptr_array_append(controller->kernels, kernel);
+  ptr_array_append_with_dtor(controller->kernels, kernel, DTOR(physics_kernel_free));
 }
 
 physics_state_t* physics_controller_state(physics_controller_t* controller)
@@ -93,3 +93,73 @@ void physics_controller_advance(physics_controller_t* controller,
                              controller->kernels->size, t, state);
 }
 
+typedef struct
+{
+  ptr_array_t* integrators;
+} op_split_ctrl_t;
+
+static void op_split_advance(void* context, 
+                             physics_kernel_t** kernels, 
+                             int num_kernels,
+                             real_t* t,
+                             physics_state_t* state)
+{
+}
+
+static void op_split_dtor(void* context)
+{
+  op_split_ctrl_t* c = context;
+  ptr_array_free(c->integrators);
+  polymec_free(c);
+}
+
+physics_controller_t* operator_split_physics_controller(physics_kernel_t** kernels,
+                                                        ode_integrator_t** integrators,
+                                                        int num_kernels)
+{
+  op_split_ctrl_t* controller = polymec_malloc(sizeof(op_split_ctrl_t));
+  controller->integrators = ptr_array_new();
+  for (int i = 0; i < num_kernels; ++i)
+    ptr_array_append_with_dtor(controller->integrators, integrators[i], DTOR(ode_integrator_free));
+
+  physics_controller_vtable vtable = {.advance = op_split_advance,
+                                      .dtor = op_split_dtor};
+  physics_controller_t* c = physics_controller_new("Operator-split", controller, vtable);
+  for (int i = 0; i < num_kernels; ++i)
+    physics_controller_add_kernel(c, kernels[i]);
+  return c;
+}
+
+typedef struct
+{
+  ode_integrator_t* integrator;
+} fc_ctrl_t;
+
+static void fc_advance(void* context, 
+                       physics_kernel_t** kernels, 
+                       int num_kernels,
+                       real_t* t,
+                       physics_state_t* state)
+{
+}
+
+static void fc_dtor(void* context)
+{
+  fc_ctrl_t* c = context;
+  ode_integrator_free(c->integrator);
+  polymec_free(c);
+}
+
+physics_controller_t* fully_coupled_physics_controller(physics_kernel_t** kernels,
+                                                       int num_kernels,
+                                                       ode_integrator_t* integrator)
+{
+  fc_ctrl_t* controller = polymec_malloc(sizeof(fc_ctrl_t));
+  controller->integrator = integrator;
+  physics_controller_vtable vtable = {.advance = fc_advance,
+                                      .dtor = fc_dtor};
+  physics_controller_t* c = physics_controller_new("Fully-coupled", controller, vtable);
+  for (int i = 0; i < num_kernels; ++i)
+    physics_controller_add_kernel(c, kernels[i]);
+  return c;
+}

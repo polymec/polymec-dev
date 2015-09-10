@@ -8,6 +8,7 @@
 #ifndef POLYMEC_PHYSICS_CONTROLLER_H
 #define POLYMEC_PHYSICS_CONTROLLER_H
 
+#include "integrators/ode_integrator.h"
 #include "multiphysics/physics_state.h"
 #include "multiphysics/physics_kernel.h"
 
@@ -46,7 +47,7 @@ void* physics_controller_context(physics_controller_t* controller);
 // Adds the given physics kernel to the list of kernels controlled by this
 // controller. The order in which kernels are added to a controller can affect
 // the indexing of the solution vector and/or the way the integration is 
-// performed on the solution.
+// performed on the solution. The kernel is consumed by the controller.
 void physics_controller_add_kernel(physics_controller_t* controller,
                                    physics_kernel_t* kernel);
 
@@ -61,6 +62,35 @@ physics_state_t* physics_controller_state(physics_controller_t* controller);
 void physics_controller_advance(physics_controller_t* controller,
                                 real_t* t, 
                                 physics_state_t* state);
+
+//------------------------------------------------------------------------
+//                 Ready-made, all purpose controllers
+//------------------------------------------------------------------------
+// Polymec ships with two general-purpose physics controllers: 
+// 1. An operator-split controller that integrates a set of kernels 
+//    in sequence, each with their own time integrator, with each kernel
+//    advancing the state before the next receives it as input.
+// 2. A fully-coupled controller that incorporates all contributions 
+//    from a set of kernels "on equal footing" into a global nonlinear 
+//    solve.
+//------------------------------------------------------------------------
+
+// Creates a physics controller that integrates contributions from each of 
+// a set of kernels (each integrated with its corresponding integrator) 
+// sequentially, in an operator-split fashion. Here, kernels[i] uses 
+// integrators[i] for its time integration. The kernels and integrators in 
+// their respective arrays are consumed by the controller.
+physics_controller_t* operator_split_physics_controller(physics_kernel_t** kernels,
+                                                        ode_integrator_t** integrators,
+                                                        int num_kernels);
+
+// Creates a physics controller that incorporates contributions from each of 
+// a set of kernels into a global, fully-coupled nonlinear system that is then
+// integrated by the given integrator. The kernels and the integrator are 
+// consumed by the controller.
+physics_controller_t* fully_coupled_physics_controller(physics_kernel_t** kernels,
+                                                       int num_kernels,
+                                                       ode_integrator_t* integrator);
 
 #endif
 
