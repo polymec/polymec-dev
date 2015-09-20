@@ -70,6 +70,21 @@ static inline int neighbor_pairing_num_pairs(neighbor_pairing_t* pairing)
   return pairing->num_pairs;
 }
 
+// Retrieves the index pair (i, j, and the weight, if weight != NULL) of 
+// the pair with the given index within the neighbor pairing.
+static inline void neighbor_pairing_get(neighbor_pairing_t* pairing,
+                                        int pair_index,
+                                        int* i, int* j, real_t* weight)
+{
+  ASSERT(pair_index >= 0);
+  ASSERT(pair_index < pairing->num_pairs);
+
+  *i = pairing->pairs[2*pair_index];
+  *j = pairing->pairs[2*pair_index+1];
+  if (weight != NULL)
+    *weight = (pairing->weights != NULL) ? pairing->weights[pair_index] : 1.0;
+}
+
 // Traverses the neighbor pairing, returning true if the traversal
 // has more pairs remaining and false if it has completed. The pos pointer 
 // must be set to zero to reset the traversal. The i, j and weight pointers 
@@ -81,10 +96,7 @@ static inline bool neighbor_pairing_next(neighbor_pairing_t* pairing, int* pos,
   int k = *pos;
   if(k >= pairing->num_pairs)
     return false;
-  *i = pairing->pairs[2*k];
-  *j = pairing->pairs[2*k+1];
-  if (weight != NULL)
-    *weight = (pairing->weights != NULL) ? pairing->weights[k] : 1.0;
+  neighbor_pairing_get(pairing, k, i, j, weight);
   ++(*pos);
   return true;
 }
