@@ -279,13 +279,13 @@ void krylov_matrix_assemble(krylov_matrix_t* A)
 
 void krylov_matrix_start_assembly(krylov_matrix_t* A)
 {
-  if (A->vtable.start_assembly != NULL);
+  if (A->vtable.start_assembly != NULL)
     A->vtable.start_assembly(A->context);
 }
 
 void krylov_matrix_finish_assembly(krylov_matrix_t* A)
 {
-  if (A->vtable.finish_assembly != NULL);
+  if (A->vtable.finish_assembly != NULL)
     A->vtable.finish_assembly(A->context);
 }
 
@@ -396,13 +396,13 @@ void krylov_vector_assemble(krylov_vector_t* v)
 
 void krylov_vector_start_assembly(krylov_vector_t* v)
 {
-  if (v->vtable.start_assembly != NULL);
+  if (v->vtable.start_assembly != NULL)
     v->vtable.start_assembly(v->context);
 }
 
 void krylov_vector_finish_assembly(krylov_vector_t* v)
 {
-  if (v->vtable.finish_assembly != NULL);
+  if (v->vtable.finish_assembly != NULL)
     v->vtable.finish_assembly(v->context);
 }
 
@@ -1051,7 +1051,6 @@ static krylov_vector_t* petsc_factory_vector(void* context,
     v->factory->methods.VecCreateMPI(comm, N, PETSC_DETERMINE, &v->v);
   PetscInt N_global;
   v->factory->methods.VecGetSize(v->v, &N_global);
-printf("Global size: %zd\n", N_global);
   // Set up the virtual table.
   krylov_vector_vtable vtable = {.clone = petsc_vector_clone,
                                  .zero = petsc_vector_zero,
@@ -1084,7 +1083,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                        const char* petsc_arch)
 {
   ASSERT(((petsc_dir == NULL) && (petsc_arch == NULL)) ||
-          (petsc_dir != NULL) && (petsc_arch != NULL));
+         ((petsc_dir != NULL) && (petsc_arch != NULL)));
 
   petsc_factory_t* factory = polymec_malloc(sizeof(petsc_factory_t));
 
