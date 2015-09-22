@@ -57,6 +57,28 @@ bool bbox_is_empty_set(bbox_t* box)
           (box->z1 == FLT_MAX) && (box->z2 == -FLT_MAX));
 }
 
+bool bbox_is_point(bbox_t* box)
+{
+  return ((box->x1 == box->x2) &&
+          (box->y1 == box->y2) &&
+          (box->z1 == box->z2));
+}
+
+bool bbox_is_line(bbox_t* box)
+{
+  return (!bbox_is_point(box) && 
+          (((box->x1 == box->x2) && (box->y1 == box->y2)) || 
+           ((box->y1 == box->y2) && (box->z1 == box->z2)) || 
+           ((box->z1 == box->z2) && (box->x1 == box->x2))));
+}
+
+bool bbox_is_plane(bbox_t* box)
+{
+  return (!bbox_is_point(box) && 
+          !bbox_is_line(box) && 
+          ((box->x1 == box->x2) || (box->y1 == box->y2) || (box->z1 == box->z2)));
+}
+
 void bbox_make_empty_set(bbox_t* box)
 {
   box->x1 = FLT_MAX;

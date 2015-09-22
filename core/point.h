@@ -175,6 +175,15 @@ bbox_t* empty_set_bbox_new();
 // Returns true if the bounding box is the empty set, false if not.
 bool bbox_is_empty_set(bbox_t* box);
 
+// Returns true if the bounding box is actually a single point, false if not.
+bool bbox_is_point(bbox_t* box);
+
+// Returns true if the bounding box is a line, false if not.
+bool bbox_is_line(bbox_t* box);
+
+// Returns true if the bounding box is a plane, false if not.
+bool bbox_is_plane(bbox_t* box);
+
 // Returns true if the given bounding box contains the given point, false otherwise.
 static inline bool bbox_contains(bbox_t* bbox, point_t* p)
 {
