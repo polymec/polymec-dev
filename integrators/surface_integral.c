@@ -57,15 +57,17 @@ surface_integral_t* surface_integral_new(const char* name,
 void surface_integral_set_domain(surface_integral_t* integ, int i)
 {
   integ->num_points = integ->vtable.num_quad_points(integ->context, i);
-  integ->points = polymec_realloc(integ->points, sizeof(point_t) * integ->num_points);
-  integ->weights = polymec_realloc(integ->weights, sizeof(real_t) * integ->num_points);
-  integ->normals = polymec_realloc(integ->normals, sizeof(vector_t) * integ->num_points);
-  integ->vtable.get_quadrature(integ->context, i, integ->points, integ->weights, integ->normals);
+  if (integ->num_points > 0)
+  {
+    integ->points = polymec_realloc(integ->points, sizeof(point_t) * integ->num_points);
+    integ->weights = polymec_realloc(integ->weights, sizeof(real_t) * integ->num_points);
+    integ->normals = polymec_realloc(integ->normals, sizeof(vector_t) * integ->num_points);
+    integ->vtable.get_quadrature(integ->context, i, integ->points, integ->weights, integ->normals);
+  }
 }
 
 void surface_integral_compute(surface_integral_t* integ, sp_func_t* f, real_t* integral)
 {
-  ASSERT(integ->num_points > 0); // call surface_integral_set_domain!
   int num_comp = sp_func_num_comp(f);
   memset(integral, 0, num_comp * sizeof(real_t));
   for (int q = 0; q < integ->num_points; ++q)
@@ -79,7 +81,6 @@ void surface_integral_compute(surface_integral_t* integ, sp_func_t* f, real_t* i
 
 void surface_integral_compute_at_time(surface_integral_t* integ, real_t t, st_func_t* f, real_t* integral)
 {
-  ASSERT(integ->num_points > 0); // call surface_integral_set_domain!
   int num_comp = st_func_num_comp(f);
   memset(integral, 0, num_comp * sizeof(real_t));
   for (int q = 0; q < integ->num_points; ++q)
@@ -93,7 +94,6 @@ void surface_integral_compute_at_time(surface_integral_t* integ, real_t t, st_fu
 
 real_t surface_integral_dot(surface_integral_t* integ, sp_func_t* f)
 {
-  ASSERT(integ->num_points > 0); // call surface_integral_set_domain!
   int num_comp = sp_func_num_comp(f);
   ASSERT(num_comp == 3); // Must be a 3D vector function!
   real_t integral = 0.0;
@@ -110,7 +110,6 @@ real_t surface_integral_dot(surface_integral_t* integ, sp_func_t* f)
 real_t surface_integral_dot_at_time(surface_integral_t* integ, 
                                     real_t t, st_func_t* f)
 {
-  ASSERT(integ->num_points > 0); // call surface_integral_set_domain!
   int num_comp = st_func_num_comp(f);
   ASSERT(num_comp == 3); // Must be a 3D vector function!
   real_t integral = 0.0;
@@ -126,7 +125,6 @@ real_t surface_integral_dot_at_time(surface_integral_t* integ,
 
 int surface_integral_num_points(surface_integral_t* integ)
 {
-  ASSERT(integ->num_points > 0); // call surface_integral_set_domain!
   return integ->num_points;
 }
 
@@ -135,17 +133,18 @@ void surface_integral_get_quadrature(surface_integral_t* integ,
                                      real_t* weights,
                                      vector_t* normals)
 {
-  ASSERT(integ->num_points > 0); // call surface_integral_set_domain!
-  memcpy(points, integ->points, sizeof(point_t) * integ->num_points);
-  memcpy(weights, integ->weights, sizeof(real_t) * integ->num_points);
-  memcpy(normals, integ->normals, sizeof(vector_t) * integ->num_points);
+  if (integ->num_points > 0)
+  {
+    memcpy(points, integ->points, sizeof(point_t) * integ->num_points);
+    memcpy(weights, integ->weights, sizeof(real_t) * integ->num_points);
+    memcpy(normals, integ->normals, sizeof(vector_t) * integ->num_points);
+  }
 }
 
 
 bool surface_integral_next_quad_point(surface_integral_t* integ, int* pos,
                                       point_t* point, real_t* weight, vector_t* normal)
 {
-  ASSERT(integ->num_points > 0); // call surface_integral_set_domain!
   if (*pos >= integ->num_points)
     return false;
   *point = integ->points[*pos];

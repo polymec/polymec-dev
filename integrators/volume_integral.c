@@ -53,14 +53,16 @@ volume_integral_t* volume_integral_new(const char* name,
 void volume_integral_set_domain(volume_integral_t* integ, int i)
 {
   integ->num_points = integ->vtable.num_quad_points(integ->context, i);
-  integ->points = polymec_realloc(integ->points, sizeof(point_t) * integ->num_points);
-  integ->weights = polymec_realloc(integ->weights, sizeof(real_t) * integ->num_points);
-  integ->vtable.get_quadrature(integ->context, i, integ->points, integ->weights);
+  if (integ->num_points > 0)
+  {
+    integ->points = polymec_realloc(integ->points, sizeof(point_t) * integ->num_points);
+    integ->weights = polymec_realloc(integ->weights, sizeof(real_t) * integ->num_points);
+    integ->vtable.get_quadrature(integ->context, i, integ->points, integ->weights);
+  }
 }
 
 void volume_integral_compute(volume_integral_t* integ, sp_func_t* f, real_t* integral)
 {
-  ASSERT(integ->num_points > 0); // call volume_integral_set_domain!
   int num_comp = sp_func_num_comp(f);
   memset(integral, 0, num_comp * sizeof(real_t));
   for (int q = 0; q < integ->num_points; ++q)
@@ -74,7 +76,6 @@ void volume_integral_compute(volume_integral_t* integ, sp_func_t* f, real_t* int
 
 void volume_integral_compute_at_time(volume_integral_t* integ, real_t t, st_func_t* f, real_t* integral)
 {
-  ASSERT(integ->num_points > 0); // call volume_integral_set_domain!
   int num_comp = st_func_num_comp(f);
   memset(integral, 0, num_comp * sizeof(real_t));
   for (int q = 0; q < integ->num_points; ++q)
@@ -88,7 +89,6 @@ void volume_integral_compute_at_time(volume_integral_t* integ, real_t t, st_func
 
 int volume_integral_num_points(volume_integral_t* integ)
 {
-  ASSERT(integ->num_points > 0); // call volume_integral_set_domain!
   return integ->num_points;
 }
 
@@ -96,16 +96,17 @@ void volume_integral_get_quadrature(volume_integral_t* integ,
                                     point_t* points,
                                     real_t* weights)
 {
-  ASSERT(integ->num_points > 0); // call volume_integral_set_domain!
-  memcpy(points, integ->points, sizeof(point_t) * integ->num_points);
-  memcpy(weights, integ->weights, sizeof(real_t) * integ->num_points);
+  if (integ->num_points > 0)
+  {
+    memcpy(points, integ->points, sizeof(point_t) * integ->num_points);
+    memcpy(weights, integ->weights, sizeof(real_t) * integ->num_points);
+  }
 }
 
 
 bool volume_integral_next_quad_point(volume_integral_t* integ, int* pos,
                                      point_t* point, real_t* weight)
 {
-  ASSERT(integ->num_points > 0); // call volume_integral_set_domain!
   if (*pos >= integ->num_points)
     return false;
   *point = integ->points[*pos];
