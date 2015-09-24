@@ -11,7 +11,8 @@
 #include "core/point.h"
 
 // This class provides a mechanism for estimating a "spacing" dx in the 
-// vicinity of a given point within some discretization.
+// vicinity of a given point within some discretization. Objects of this 
+// type are garbage-collected.
 typedef struct point_spacing_estimator_t point_spacing_estimator_t;
 
 // This virtual table must be implemented by a point spacing estimator.
@@ -28,9 +29,6 @@ typedef struct
 point_spacing_estimator_t* point_spacing_estimator_new(const char* name,
                                                        void* context,
                                                        point_spacing_estimator_vtable vtable);
-
-// Destroys the given point spacing estimator.
-void point_spacing_estimator_free(point_spacing_estimator_t* estimator);
 
 // Returns the point spacing in the vicinity of the ith point for this 
 // estimator.
