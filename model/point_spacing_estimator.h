@@ -9,6 +9,7 @@
 #define POLYMEC_POINT_SPACING_ESTIMATOR_H
 
 #include "core/point.h"
+#include "model/stencil.h"
 
 // This class provides a mechanism for estimating a "spacing" dx in the 
 // vicinity of a given point within some discretization. Objects of this 
@@ -33,6 +34,13 @@ point_spacing_estimator_t* point_spacing_estimator_new(const char* name,
 // Returns the point spacing in the vicinity of the ith point for this 
 // estimator.
 real_t point_spacing_estimator_dx(point_spacing_estimator_t* estimator, int i);
+
+// Shake-n-bake stencil-based point-spacing estimator. Given a point cloud
+// a stencil object identifying neighbor relations between points, this estimates
+// the average distance between the neighbors of a point. The point cloud and 
+// stencil are not consumed by the estimator.
+point_spacing_estimator_t* stencil_point_spacing_estimator_new(point_cloud_t* points,
+                                                               stencil_t* stencil);
 
 #endif
 

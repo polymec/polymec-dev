@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <gc/gc.h>
-#include "core/point_spacing_estimator.h"
+#include "model/point_spacing_estimator.h"
 
 struct point_spacing_estimator_t 
 {
@@ -39,5 +39,40 @@ point_spacing_estimator_t* point_spacing_estimator_new(const char* name,
 real_t point_spacing_estimator_dx(point_spacing_estimator_t* estimator, int i)
 {
   return estimator->vtable.dx(estimator->context, i);
+}
+
+typedef struct
+{
+  point_cloud_t* points;
+  stencil_t* stencil;
+} stencil_dx_t;
+
+static real_t stencil_dx(void* context, int i)
+{
+  stencil_dx_t* est = context;
+  real_t dx = 0.0;
+  int pos = 0, j, N = 0;
+  point_t* xi = &(est->points->points[i]);
+  while (stencil_next(est->stencil, i, &pos, &j, NULL))
+  {
+    point_t* xj = &(est->points->points[j]);
+    dx += point_distance(xi, xj);
+    ++N;
+  }
+  ASSERT(N > 0);
+  dx /= N;
+  return dx;
+}
+
+point_spacing_estimator_t* stencil_point_spacing_estimator_new(point_cloud_t* points,
+                                                               stencil_t* stencil)
+{
+  ASSERT(points->num_points == stencil_num_indices(stencil));
+  stencil_dx_t* est = polymec_malloc(sizeof(stencil_dx_t));
+  est->points = points;
+  est->stencil = stencil;
+  point_spacing_estimator_vtable vtable = {.dx = stencil_dx, .dtor = polymec_free};
+  return point_spacing_estimator_new("Stencil-based point spacing estimator",
+                                     est, vtable);
 }
 
