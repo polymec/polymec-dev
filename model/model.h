@@ -102,12 +102,21 @@ char* model_name(model_t* model);
 // Returns the context object associated with the model (if any).
 void* model_context(model_t* model);
 
-// The interpreter that the model uses to parse input files.
+// Returns an internal pointer to the interpreter that the model uses to 
+// parse input files.
 interpreter_t* model_interpreter(model_t* model);
 
 // Enables an interpreter for the model with the given set of variables
 // to validate against types.
 void model_enable_interpreter(model_t* model, interpreter_validation_t* valid_inputs);
+
+// Call this method to allege that the given model is thread-safe (i.e., that 
+// it can be run using more than one thread). If this method is not called on 
+// a model, that model is assumed not to be thread-safe.
+void model_set_thread_safe(model_t* model);
+
+// Returns true if this model is allegedly thread-safe, false otherwise.
+bool model_is_thread_safe(model_t* model);
 
 // Prints usage information for the model to the given file stream.
 void model_usage(model_t* model, FILE* stream);

@@ -14,6 +14,10 @@
 #include "core/timer.h"
 #include "model/model.h"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 // This helper writes the given message out to stderr on rank 0.
 static void print_to_rank0(const char* message, ...)
 {
@@ -59,6 +63,7 @@ struct model_t
   char* name;
   model_vtable vtable;
   docstring_t* doc; // Documentation string.
+  bool thread_safe;
   model_benchmark_map_t* benchmarks;
 
   int save_every;    // Save frequency (steps).
@@ -125,6 +130,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, docstri
   model->context = context;
   model->name = string_dup(name);
   model->doc = doc;
+  model->thread_safe = false;
   model->benchmarks = model_benchmark_map_new();
   model->sim_name = NULL;
   model->sim_path = NULL;
@@ -195,6 +201,16 @@ void model_enable_interpreter(model_t* model, interpreter_validation_t* valid_in
   if (model->interpreter != NULL)
     interpreter_free(model->interpreter);
   model->interpreter = interpreter_new(valid_inputs);
+}
+
+void model_set_thread_safe(model_t* model)
+{
+  model->thread_safe = true;
+}
+
+bool model_is_thread_safe(model_t* model)
+{
+  return model->thread_safe;
 }
 
 void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, docstring_t* description)
@@ -596,10 +612,26 @@ static void model_do_periodic_work(model_t* model)
   }
 }
 
+static void check_thread_safety(model_t* model)
+{
+#ifdef _OPENMP
+  int num_threads = omp_get_num_threads();
+#else
+  int num_threads = 1;
+#endif
+  if ((num_threads > 1) && (!model->thread_safe))
+  {
+    polymec_error("Model %s is not thread safe but is being invoked with %d threads.",
+                  model->name, num_threads);
+  }
+}
+
 // Initialize the model at the given time.
 void model_init(model_t* model, real_t t)
 {
   START_FUNCTION_TIMER();
+  check_thread_safety(model);
+
   log_detail("%s: Initializing at time %g.", model->name, t);
   model->vtable.init(model->context, t);
   model->step = 0;
@@ -751,6 +783,8 @@ void model_finalize(model_t* model)
 void model_load(model_t* model, int step)
 {
   START_FUNCTION_TIMER();
+  check_thread_safety(model);
+
   // Is loading supported by this model?
   if (model->vtable.load == NULL)
     polymec_error("Loading from save files is not supported by this model.");
