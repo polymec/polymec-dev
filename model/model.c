@@ -7,6 +7,7 @@
 
 #include <stdarg.h>
 #include "core/polymec.h"
+#include "core/unordered_set.h"
 #include "core/unordered_map.h"
 #include "core/array.h"
 #include "core/array_utils.h"
@@ -63,7 +64,7 @@ struct model_t
   char* name;
   model_vtable vtable;
   docstring_t* doc; // Documentation string.
-  bool thread_safe;
+  model_parallelism_t parallelism;
   model_benchmark_map_t* benchmarks;
 
   int save_every;    // Save frequency (steps).
@@ -94,6 +95,55 @@ struct model_t
   interpreter_t* interpreter;
 };
 
+// Here's a static set of all named model instances.
+static string_unordered_set_t* model_singletons = NULL;
+
+// This helper ensures that the given model is the only instance of its 
+// type in memory if it has parallelism type MPI_SERIAL_SINGLETON or 
+// MPI_PARALLEL_SINGLETON.
+static void enforce_singleton_instances(model_t* model)
+{
+  if ((model->parallelism == MODEL_SERIAL_SINGLETON) || 
+      (model->parallelism == MODEL_MPI_SINGLETON))
+  {
+    if (model_singletons == NULL)
+      model_singletons = string_unordered_set_new();
+    if (string_unordered_set_contains(model_singletons, model->name))
+      polymec_error("Model %s is a singleton: only 1 instance can exist in memory.", model->name);
+
+    // NOTE: the model itself outlives its entry in the list of singletons, 
+    // NOTE: so we don't need to insert a copy of the name.
+    string_unordered_set_insert(model_singletons, model->name);
+  }
+}
+
+static void enforce_mpi_parallelism(model_t* model)
+{
+  if ((model->parallelism == MODEL_SERIAL) || 
+      (model->parallelism == MODEL_SERIAL_SINGLETON))
+  {
+    int nprocs;
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    if (nprocs > 1)
+      polymec_error("Model %s is a serial model and can only be run on a single process.", model->name);
+  }
+}
+
+// This helper checks the given model for thread safety.
+static void check_thread_safety(model_t* model)
+{
+#ifdef _OPENMP
+  int num_threads = omp_get_num_threads();
+#else
+  int num_threads = 1;
+#endif
+  if ((num_threads > 1) && (model->parallelism != MODEL_MPI_THREAD_SAFE))
+  {
+    polymec_error("Model %s is not thread-safe but is being invoked with %d threads.",
+                  model->name, num_threads);
+  }
+}
+
 // This helper parses a comma-delimited list of observation times, returning 
 // an array of times.
 static real_t* parse_observation_times(char* observation_time_str, int* num_times)
@@ -117,7 +167,11 @@ static real_t* parse_observation_times(char* observation_time_str, int* num_time
   return times;
 }
 
-model_t* model_new(const char* name, void* context, model_vtable vtable, docstring_t* doc)
+model_t* model_new(const char* name, 
+                   void* context, 
+                   model_vtable vtable, 
+                   docstring_t* doc,
+                   model_parallelism_t parallelism)
 {
   // First, inspect the virtual table.
 
@@ -130,7 +184,7 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, docstri
   model->context = context;
   model->name = string_dup(name);
   model->doc = doc;
-  model->thread_safe = false;
+  model->parallelism = parallelism;
   model->benchmarks = model_benchmark_map_new();
   model->sim_name = NULL;
   model->sim_path = NULL;
@@ -153,11 +207,30 @@ model_t* model_new(const char* name, void* context, model_vtable vtable, docstri
   model->num_obs_times = 0;
   model->obs_times = NULL;
 
+  // Enforce our given parallelism model.
+  enforce_singleton_instances(model);
+  enforce_mpi_parallelism(model);
+
   return model;
 }
 
 void model_free(model_t* model)
 {
+  // If the model is a singleton, we remove its instance from 
+  // our set of running singletons.
+  if ((model->parallelism == MODEL_SERIAL_SINGLETON) || 
+      (model->parallelism == MODEL_MPI_SINGLETON))
+  {
+    string_unordered_set_delete(model_singletons, model->name);
+
+    // If this is the last singleton, delete our set of instances.
+    if (string_unordered_set_empty(model_singletons))
+    {
+      string_unordered_set_free(model_singletons);
+      model_singletons = NULL;
+    }
+  }
+
   if ((model->context != NULL) && (model->vtable.dtor != NULL))
     model->vtable.dtor(model->context);
   polymec_free(model->name);
@@ -203,14 +276,9 @@ void model_enable_interpreter(model_t* model, interpreter_validation_t* valid_in
   model->interpreter = interpreter_new(valid_inputs);
 }
 
-void model_set_thread_safe(model_t* model)
+model_parallelism_t model_parallelism(model_t* model)
 {
-  model->thread_safe = true;
-}
-
-bool model_is_thread_safe(model_t* model)
-{
-  return model->thread_safe;
+  return model->parallelism;
 }
 
 void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, docstring_t* description)
@@ -609,20 +677,6 @@ static void model_do_periodic_work(model_t* model)
     if ((obs_time_index < model->num_obs_times) && 
         (fabs(model->time - model->obs_times[obs_time_index]) < 1e-12)) // FIXME: Good enough?
       model_record_observations(model);
-  }
-}
-
-static void check_thread_safety(model_t* model)
-{
-#ifdef _OPENMP
-  int num_threads = omp_get_num_threads();
-#else
-  int num_threads = 1;
-#endif
-  if ((num_threads > 1) && (!model->thread_safe))
-  {
-    polymec_error("Model %s is not thread safe but is being invoked with %d threads.",
-                  model->name, num_threads);
   }
 }
 
