@@ -169,6 +169,21 @@ typedef struct
 // Allocates a bounding box with the given extents on the heap. 
 bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z2);
 
+// Allocates a bounding box that is understood to be the empty set.
+bbox_t* empty_set_bbox_new();
+
+// Returns true if the bounding box is the empty set, false if not.
+bool bbox_is_empty_set(bbox_t* box);
+
+// Returns true if the bounding box is actually a single point, false if not.
+bool bbox_is_point(bbox_t* box);
+
+// Returns true if the bounding box is a line, false if not.
+bool bbox_is_line(bbox_t* box);
+
+// Returns true if the bounding box is a plane, false if not.
+bool bbox_is_plane(bbox_t* box);
+
 // Returns true if the given bounding box contains the given point, false otherwise.
 static inline bool bbox_contains(bbox_t* bbox, point_t* p)
 {
@@ -203,8 +218,15 @@ static inline bool bbox_intersects_bbox(bbox_t* box1, bbox_t* box2)
           (fabs(x1.z - x2.z) * 2.0 <= (box1->z2 - box1->z1 + box2->z2 - box2->z1)));
 }
 
+// Intersects box1 with box2, overwriting the bounding coordinates in intersection. If box1 and box2
+// do not intersect, intersection will be the empty set.
+void bbox_intersect_bbox(bbox_t* box1, bbox_t* box2, bbox_t* intersection);
+
 // Grows the given bounding box to accommodate the given point.
 void bbox_grow(bbox_t* box, point_t* p);
+
+// Sets the given bounding box to the empty set.
+void bbox_make_empty_set(bbox_t* box);
 
 // Writes a text representation of the bounding box to the given file.
 void bbox_fprintf(bbox_t* box, FILE* stream);

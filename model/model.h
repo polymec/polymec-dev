@@ -87,11 +87,42 @@ typedef struct
 // This is used to terminate the table passed to multi_model_main(), below.
 static const model_dispatch_t END_OF_MODELS = {(char*)"END", NULL};
 
+// This type is used to identify the degree of parallelism that a given 
+// model can take advantage of. We distinguish between five different "types"
+// of parallelism, based on the implementation of the underlying model:
+// 1. MODEL_SERIAL_SINGLETON: a model that is only intended to be run serially,
+//    and of which only a single instance is allowed per process, likely because
+//    of the use of global variables/resources.
+// 2. MODEL_SERIAL: a model that is only intended to be run serially, but of 
+//    which several instances can coexist in memory.
+// 3. MODEL_MPI_SINGLETON: a model that uses MPI, of which only a single 
+//    instance is allowed per process, likely because of the use of global 
+//    variables/resources.
+// 4. MODEL_MPI: a model that uses MPI, of which several instances can coexist
+//    within a process, likely running different physics. Models of this type 
+//    are not assumed to be thread-safe, however.
+// 5. MODEL_MPI_THREAD_SAFE: a model that uses MPI and is also thread-safe, 
+//    so that several threads can be active within model methods simultaneously.
+typedef enum
+{
+  MODEL_SERIAL_SINGLETON, 
+  MODEL_SERIAL, 
+  MODEL_MPI_SINGLETON,
+  MODEL_MPI, 
+  MODEL_MPI_THREAD_SAFE 
+} model_parallelism_t;
+
 // Creates an instance of a model with the given name and characteristics.
-// Constructors that use this function should return objects that can be 
-// safely destroyed with model_free below. This means that all data members 
-// should be properly initialized in a way that they can be destroyed.
-model_t* model_new(const char* name, void* context, model_vtable vtable, docstring_t* doc);
+// The name should uniquely identify the model, BUT SHOULD NOT BE SPECIFIC 
+// TO THE INSTANCE OF THE MODEL. Constructors that use this function should 
+// return objects that can be safely destroyed with model_free below. This 
+// means that all data members should be properly initialized in a way that 
+// they can be destroyed.
+model_t* model_new(const char* name, 
+                   void* context, 
+                   model_vtable vtable, 
+                   docstring_t* doc,
+                   model_parallelism_t parallelism);
 
 // Destroys the model.
 void model_free(model_t* model);
@@ -102,12 +133,16 @@ char* model_name(model_t* model);
 // Returns the context object associated with the model (if any).
 void* model_context(model_t* model);
 
-// The interpreter that the model uses to parse input files.
+// Returns an internal pointer to the interpreter that the model uses to 
+// parse input files.
 interpreter_t* model_interpreter(model_t* model);
 
 // Enables an interpreter for the model with the given set of variables
 // to validate against types.
 void model_enable_interpreter(model_t* model, interpreter_validation_t* valid_inputs);
+
+// Returns the degree of parallelism supported by this model.
+model_parallelism_t model_parallelism(model_t* model);
 
 // Prints usage information for the model to the given file stream.
 void model_usage(model_t* model, FILE* stream);

@@ -43,6 +43,52 @@ bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z
   return b;
 }
 
+bbox_t* empty_set_bbox_new()
+{
+  bbox_t* b = GC_MALLOC(sizeof(bbox_t));
+  bbox_make_empty_set(b);
+  return b;
+}
+
+bool bbox_is_empty_set(bbox_t* box)
+{
+  return ((box->x1 == FLT_MAX) && (box->x2 == -FLT_MAX) && 
+          (box->y1 == FLT_MAX) && (box->y2 == -FLT_MAX) &&
+          (box->z1 == FLT_MAX) && (box->z2 == -FLT_MAX));
+}
+
+bool bbox_is_point(bbox_t* box)
+{
+  return ((box->x1 == box->x2) &&
+          (box->y1 == box->y2) &&
+          (box->z1 == box->z2));
+}
+
+bool bbox_is_line(bbox_t* box)
+{
+  return (!bbox_is_point(box) && 
+          (((box->x1 == box->x2) && (box->y1 == box->y2)) || 
+           ((box->y1 == box->y2) && (box->z1 == box->z2)) || 
+           ((box->z1 == box->z2) && (box->x1 == box->x2))));
+}
+
+bool bbox_is_plane(bbox_t* box)
+{
+  return (!bbox_is_point(box) && 
+          !bbox_is_line(box) && 
+          ((box->x1 == box->x2) || (box->y1 == box->y2) || (box->z1 == box->z2)));
+}
+
+void bbox_make_empty_set(bbox_t* box)
+{
+  box->x1 = FLT_MAX;
+  box->x2 = -FLT_MAX;
+  box->y1 = FLT_MAX;
+  box->y2 = -FLT_MAX;
+  box->z1 = FLT_MAX;
+  box->z2 = -FLT_MAX;
+}
+
 void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3)
 {
   ASSERT(fabs(vector_mag(e1) - 1.0) < 1e-14);
@@ -69,6 +115,51 @@ void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3)
   // e3 = e1 x e2.
   vector_cross(e1, e2, e3);
   ASSERT(vector_mag(e3) > 1e-14);
+}
+
+static inline void intersect_segment(real_t x1_1, real_t x2_1, 
+                                     real_t x1_2, real_t x2_2,
+                                     real_t* x1_i, real_t* x2_i)
+{
+  // First end of the intersection segment.
+  if (x1_1 < x1_2)
+  {
+    if (x2_1 < x1_2) 
+    {
+      *x1_i = FLT_MAX;
+      *x2_i = -FLT_MAX;
+    }
+    else 
+    {
+      *x1_i = x1_2;
+      *x2_i = x2_1;
+    }
+  }
+  else if (x1_1 == x1_2)
+  {
+    *x1_i = x1_1;
+    *x2_i = MIN(x2_1, x2_2);
+  }
+  else 
+  {
+    if (x2_2 < x1_1) 
+    {
+      *x1_i = FLT_MAX;
+      *x2_i = -FLT_MAX;
+    }
+    else 
+    {
+      *x1_i = x2_2;
+      *x2_i = x2_1;
+    }
+  }
+}
+
+void bbox_intersect_bbox(bbox_t* box1, bbox_t* box2, bbox_t* intersection)
+{
+  intersect_segment(box1->x1, box1->x2, box2->x1, box2->x2, &(intersection->x1), &(intersection->x2));
+  intersect_segment(box1->y1, box1->y2, box2->y1, box2->y2, &(intersection->y1), &(intersection->y2));
+  intersect_segment(box1->z1, box1->z2, box2->z1, box2->z2, &(intersection->z1), &(intersection->z2));
 }
 
 void bbox_grow(bbox_t* box, point_t* p)

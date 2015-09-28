@@ -396,7 +396,7 @@ static model_t* gol_ctor()
                          .finalize = gol_finalize,
                          .dtor = gol_dtor};
   docstring_t* gol_doc = docstring_from_string(gol_desc);
-  return model_new("game_of_life", gol, vtable, gol_doc);
+  return model_new("game_of_life", gol, vtable, gol_doc, MODEL_MPI);
 }
 
 // Main program.
