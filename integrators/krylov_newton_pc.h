@@ -131,6 +131,11 @@ newton_pc_t* dae_tfqmr_newton_pc_new(MPI_Comm comm,
 // false if not.
 bool newton_pc_is_krylov_newton_pc(newton_pc_t* pc);
 
+// Sets up an "inner" preconditioner WITHIN this Krylov preconditioner. Yes, 
+// indeed!
+void krylov_newton_pc_set_inner_preconditioner(newton_pc_t* krylov_pc, 
+                                               newton_pc_t* inner_pc);
+
 // Sets the scaling factors to be applied (componentwise) to z and r in the 
 // preconditioner equation P*z = r, or NULL if z and r are not to be scaled.
 void krylov_newton_pc_set_scaling(newton_pc_t* pc, 
