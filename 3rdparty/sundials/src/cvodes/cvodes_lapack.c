@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4499 $
+ * $Date: 2015-05-13 14:36:05 -0700 (Wed, 13 May 2015) $
  * ----------------------------------------------------------------- 
  * Programmer: Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -664,7 +664,7 @@ static void cvLapackBandFree(CVodeMem cv_mem)
  */
 
 /*
- * CVLapackDenseB is a wraper around CVLapackDense. It attaches the
+ * CVLapackDenseB is a wrapper around CVLapackDense. It attaches the
  * dense CVSLAPACK linear solver to the backward problem memory block.
  */
 
@@ -748,7 +748,7 @@ static void cvLapackDenseFreeB(CVodeBMem cvB_mem)
 }
 
 /*
- * CVLapackBandB is a wraper around CVLapackBand. It attaches the band
+ * CVLapackBandB is a wrapper around CVLapackBand. It attaches the band
  * CVSLAPACK linear solver to the backward problem memory block.
  */
 

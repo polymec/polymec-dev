@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4074 $
-# $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+# $Revision: 4511 $
+# $Date: 2015-06-29 16:48:09 -0700 (Mon, 29 Jun 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -70,7 +70,7 @@ if(MPIF_PERFORM_TEST)
   # Create a CMakeLists.txt file which will generate the "mpiftest" executable
   if(MPI_MPIF77)
     file(WRITE ${MPITest_DIR}/CMakeLists.txt
-      "CMAKE_MINIMUM_REQUIRED(VERSION 2.2)\n"
+      "CMAKE_MINIMUM_REQUIRED(VERSION 2.4)\n"
       "PROJECT(mpiftest Fortran)\n"
       "SET(CMAKE_VERBOSE_MAKEFILE ON)\n"
       "SET(CMAKE_Fortran_COMPILER ${MPI_MPIF77})\n"
@@ -78,7 +78,7 @@ if(MPIF_PERFORM_TEST)
       "ADD_EXECUTABLE(mpiftest mpiftest.f)\n")
   else(MPI_MPIF77)
     file(WRITE ${MPITest_DIR}/CMakeLists.txt
-      "CMAKE_MINIMUM_REQUIRED(VERSION 2.2)\n"
+      "CMAKE_MINIMUM_REQUIRED(VERSION 2.4)\n"
       "PROJECT(mpiftest Fortran)\n"
       "SET(CMAKE_VERBOSE_MAKEFILE ON)\n"
       "SET(CMAKE_Fortran_FLAGS \"${TMP_Fortran_FLAGS}\")\n"

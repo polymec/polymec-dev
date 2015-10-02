@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4074 $
-# $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+# $Revision: 4511 $
+# $Date: 2015-06-29 16:48:09 -0700 (Mon, 29 Jun 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Steven Smith @ LLNL
 # ---------------------------------------------------------------
@@ -25,7 +25,7 @@ if(KLU_LIBRARIES)
   file(MAKE_DIRECTORY ${KLUTest_DIR})
   # Create a CMakeLists.txt file 
   file(WRITE ${KLUTest_DIR}/CMakeLists.txt
-    "CMAKE_MINIMUM_REQUIRED(VERSION 2.2)\n"
+    "CMAKE_MINIMUM_REQUIRED(VERSION 2.4)\n"
     "PROJECT(ltest C)\n"
     "SET(CMAKE_VERBOSE_MAKEFILE ON)\n"
     "SET(CMAKE_BUILD_TYPE \"${CMAKE_BUILD_TYPE}\")\n"

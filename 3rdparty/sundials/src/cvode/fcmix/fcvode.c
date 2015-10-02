@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4401 $
- * $Date: 2015-02-28 18:03:17 -0800 (Sat, 28 Feb 2015) $
+ * $Revision: 4474 $
+ * $Date: 2015-04-03 10:14:53 -0700 (Fri, 03 Apr 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Alan C. Hindmarsh, Radu Serban and
  *                Aaron Collier @ LLNL
@@ -532,12 +532,13 @@ void FCV_DKY (realtype *t, int *k, realtype *dky, int *ier)
      F2C_CVODE_vec is the N_Vector containing the solution derivative on return 
   */
 
+  realtype *f2c_data = N_VGetArrayPointer(F2C_CVODE_vec);
   N_VSetArrayPointer(dky, F2C_CVODE_vec);
 
   *ier = 0;
   *ier = CVodeGetDky(CV_cvodemem, *t, *k, F2C_CVODE_vec);
 
-  N_VSetArrayPointer(NULL, F2C_CVODE_vec);
+  N_VSetArrayPointer(f2c_data, F2C_CVODE_vec);
 
 }
 
@@ -546,13 +547,14 @@ void FCV_DKY (realtype *t, int *k, realtype *dky, int *ier)
 void FCV_GETERRWEIGHTS(realtype *eweight, int *ier)
 {
   /* Attach user data to vector */
+  realtype *f2c_data = N_VGetArrayPointer(F2C_CVODE_vec);
   N_VSetArrayPointer(eweight, F2C_CVODE_vec);
 
   *ier = 0;
   *ier = CVodeGetErrWeights(CV_cvodemem, F2C_CVODE_vec);
 
   /* Reset data pointers */
-  N_VSetArrayPointer(NULL, F2C_CVODE_vec);
+  N_VSetArrayPointer(f2c_data, F2C_CVODE_vec);
 
   return;
 }
@@ -562,13 +564,14 @@ void FCV_GETERRWEIGHTS(realtype *eweight, int *ier)
 void FCV_GETESTLOCALERR(realtype *ele, int *ier)
 {
   /* Attach user data to vector */
+  realtype *f2c_data = N_VGetArrayPointer(F2C_CVODE_vec);
   N_VSetArrayPointer(ele, F2C_CVODE_vec);
 
   *ier = 0;
   *ier = CVodeGetEstLocalErrors(CV_cvodemem, F2C_CVODE_vec);
 
   /* Reset data pointers */
-  N_VSetArrayPointer(NULL, F2C_CVODE_vec);
+  N_VSetArrayPointer(f2c_data, F2C_CVODE_vec);
 
   return;
 }

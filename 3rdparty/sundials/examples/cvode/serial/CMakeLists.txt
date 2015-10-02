@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4209 $
-# $Date: 2014-08-21 08:23:16 -0700 (Thu, 21 Aug 2014) $
+# $Revision: 4483 $
+# $Date: 2015-04-22 16:30:17 -0700 (Wed, 22 Apr 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -141,13 +141,11 @@ IF(EXAMPLES_INSTALL)
   ENDIF(LAPACK_FOUND)
 
   IF(KLU_FOUND)
-    LIST(APPEND EXAMPLES " ")
-    LIST(APPEND EXAMPLES ${CVODE_examples_KLU})
+    LIST2STRING(CVODE_examples_KLU EXAMPLES)
   ENDIF(KLU_FOUND)
 
   IF(SUPERLUMT_FOUND)
-    LIST(APPEND EXAMPLES " ")
-    LIST(APPEND EXAMPLES ${CVODE_examples_SUPERLUMT})
+    LIST2STRING(CVODE_examples_SUPERLUMT EXAMPLES)
   ENDIF(SUPERLUMT_FOUND)
 
   STRING (REPLACE ";" " " TMP_STR ${EXAMPLES})

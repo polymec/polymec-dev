@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4199 $
-# $Date: 2014-08-08 16:10:58 -0700 (Fri, 08 Aug 2014) $
+# $Revision: 4511 $
+# $Date: 2015-06-29 16:48:09 -0700 (Mon, 29 Jun 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Eddy Banks @ LLNL
 # ---------------------------------------------------------------
@@ -31,7 +31,7 @@ if(SUPERLUMT_LIBRARIES)
   file(MAKE_DIRECTORY ${SUPERLUMT_TEST_DIR})
   # Create a CMakeLists.txt file 
   file(WRITE ${SUPERLUMT_TEST_DIR}/CMakeLists.txt
-    "CMAKE_MINIMUM_REQUIRED(VERSION 2.2)\n"
+    "CMAKE_MINIMUM_REQUIRED(VERSION 2.4)\n"
     "PROJECT(ltest C)\n"
     "SET(CMAKE_VERBOSE_MAKEFILE ON)\n"
     "SET(CMAKE_BUILD_TYPE \"${CMAKE_BUILD_TYPE}\")\n"
