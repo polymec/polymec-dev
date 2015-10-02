@@ -32,11 +32,25 @@ static void bj_compute_p(void* context,
 }
 
 static bool bj_solve(void* context, 
-                     real_t t, real_t* x, real_t* xdot,
-                     real_t* r, real_t* z)
+                     real_t t, real_t* x, real_t* xdot, real_t tolerance,
+                     real_t* r, real_t* z, real_t* error_L2_norm)
 {
   bj_pc_t* pc = context;
-  return local_matrix_solve(pc->D, r, z);
+  bool solved = local_matrix_solve(pc->D, r, z);
+  if (solved)
+  {
+    // Compute the L2 norm and measure against tolerance.
+    int N = local_matrix_num_rows(pc->D);
+    real_t Pz[N];
+    local_matrix_matvec(pc->D, z, Pz);
+    *error_L2_norm = 0.0;
+    for (int i = 0; i < N; ++i)
+      *error_L2_norm += (Pz[i]-r[i])*(Pz[i]-r[i]);
+    *error_L2_norm = sqrt(*error_L2_norm);
+    if (*error_L2_norm >= tolerance)
+      solved = false;
+  }
+  return solved;
 }
 
 static void bj_free(void* context)

@@ -171,14 +171,14 @@ static void slm_add_row_vector(void* context,
   SuperMatrix* A = mat->A;
 
   NCformat* data = A->Store;
-  real_t* Jij = data->nzval;
+  real_t* Aij = data->nzval;
 
   int i = row;
 
   if (i >= mat->N) return;
 
   // Add in the diagonal element.
-  Jij[data->colptr[i]] += scale_factor * row_vector[i];
+  Aij[data->colptr[i]] += scale_factor * row_vector[i];
       
   // Add in off-diagonal column values. 
   int pos = 0, j;
@@ -189,7 +189,7 @@ static void slm_add_row_vector(void* context,
     int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
     ASSERT(entry != NULL);
     size_t offset = entry - &data->rowind[col_index];
-    Jij[data->colptr[j] + offset] += scale_factor * row_vector[i];
+    Aij[data->colptr[j] + offset] += scale_factor * row_vector[i];
   }
 }
 
@@ -386,6 +386,33 @@ static void slm_get_diag(void* context, real_t* diag)
     diag[i] = Aij[data->colptr[i]];
 }
 
+static void slm_matvec(void* context, real_t* x, real_t* Ax)
+{
+  slm_t* mat = context;
+  SuperMatrix* A = mat->A;
+
+  NCformat* data = A->Store;
+  real_t* Aij = data->nzval;
+
+  for (int i = 0; i < mat->N; ++i)
+  {
+    // Add in the diagonal element.
+    Ax[i] = Aij[data->colptr[i]] * x[i];
+      
+    // Add in off-diagonal column values. 
+    int pos = 0, j;
+    while (adj_graph_next_edge(mat->sparsity, i, &pos, &j))
+    {
+      int col_index = data->colptr[j];
+      size_t num_rows = data->colptr[j+1] - col_index;
+      int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
+      ASSERT(entry != NULL);
+      size_t offset = entry - &data->rowind[col_index];
+      Ax[i] += Aij[data->colptr[j] + offset] * x[j];
+    }
+  }
+}
+
 static void slm_dtor(void* context)
 {
   slm_t* mat = context;
@@ -445,8 +472,9 @@ local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
                                 .fprintf = slm_fprintf,
                                 .value = slm_value,
                                 .set_value = slm_set_value,
-                                .get_diag = slm_get_diag};
-  return local_matrix_new(name, mat, vtable);
+                                .get_diag = slm_get_diag,
+                                .matvec = slm_matvec};
+  return local_matrix_new(name, mat, vtable, mat->N);
 }
 
 void sparse_local_matrix_use_ilu(local_matrix_t* matrix,

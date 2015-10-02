@@ -252,7 +252,6 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
-  START_FUNCTION_TIMER();
   bdf_ode_t* integ = context;
   if (!jacobian_is_current)
   {
@@ -263,7 +262,6 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   }
   else
     *jacobian_was_updated = 0;
-  STOP_FUNCTION_TIMER();
   return 0;
 }
 
@@ -276,17 +274,18 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
                                        int lr, void* context, 
                                        N_Vector work)
 {
-  START_FUNCTION_TIMER();
   ASSERT(lr == 1); // Left preconditioning only.
 
   bdf_ode_t* integ = context;
   
   // FIXME: Apply scaling if needed.
 
+  // Set the preconditioner's L2 norm tolerance.
+  newton_pc_set_tolerance(integ->precond, delta);
+
   // Solve it.
   int result = (newton_pc_solve(integ->precond, t, NV_DATA(x), NULL,
                                 NV_DATA(r), NV_DATA(z))) ? 0 : 1;
-  STOP_FUNCTION_TIMER();
   return result;
 }
 

@@ -36,12 +36,14 @@ typedef struct local_matrix_vtable
   real_t (*value)(void* context, int i, int j); // A(i, j)
   void (*set_value)(void* context, int i, int j, real_t value); // A(i, j) = value
   void (*get_diag)(void* context, real_t* diag); // diag A -> diag
+  void (*matvec)(void* context, real_t* x, real_t* Ax); // A * x -> Ax
 } local_matrix_vtable;
 
 // This can be used to create a new type of local matrix representation.
 local_matrix_t* local_matrix_new(const char* name,
                                  void* context,
-                                 local_matrix_vtable vtable);
+                                 local_matrix_vtable vtable,
+                                 int num_rows);
  
 // Frees a local matrix.
 void local_matrix_free(local_matrix_t* matrix);
@@ -52,6 +54,9 @@ char* local_matrix_name(local_matrix_t* matrix);
 
 // Returns the context pointer associated with this matrix.
 void* local_matrix_context(local_matrix_t* matrix);
+
+// Returns the number of (local) rows in the matrix.
+int local_matrix_num_rows(local_matrix_t* matrix);
 
 // Sets all entries in a local matrix to zero.
 void local_matrix_zero(local_matrix_t* matrix);
@@ -91,5 +96,8 @@ void local_matrix_set_value(local_matrix_t* matrix, int i, int j, real_t value);
 
 // Fetches the diagonal of the matrix, storing it in the given array.
 void local_matrix_get_diagonal(local_matrix_t* matrix, real_t* diag);
+
+// Computes the product of the matrix with the vector x, placing it into Ax.
+void local_matrix_matvec(local_matrix_t* matrix, real_t* x, real_t* Ax);
 
 #endif

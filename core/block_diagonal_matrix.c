@@ -136,7 +136,7 @@ static bool bdm_solve(void* context, real_t* B, real_t* x)
 
     // Solve the linear system.
     int one = 1, ipiv[bs], info;
-    dgesv(&bs, &one, Aij, &bs, ipiv, bi, &bs, &info);
+    rgesv(&bs, &one, Aij, &bs, ipiv, bi, &bs, &info);
     success = (info == 0);
 
     if (success)
@@ -147,7 +147,7 @@ static bool bdm_solve(void* context, real_t* B, real_t* x)
     else
     {
       ASSERT(info > 0);
-      log_debug("bdm_solve: call to dgesv failed for block row %d.", i);
+      log_debug("bdm_solve: call to rgesv failed for block row %d.", i);
       log_debug("bdm_solve: (U is singular.)");
       break;
     }
@@ -281,6 +281,22 @@ static void bdm_get_diag(void* context, real_t* diag)
   }
 }
 
+static void bdm_matvec(void* context, real_t* x, real_t* Ax)
+{
+  bdm_t* A = context;
+  for (int i = 0; i < A->num_block_rows; ++i)
+  {
+    int bs = A->B_offsets[i+1] - A->B_offsets[i];
+    real_t* Ai = &A->D[A->D_offsets[i]];
+    real_t* xi = &x[A->B_offsets[i]];
+    real_t* Axi = &Ax[A->B_offsets[i]];
+    char no_trans = 'N';
+    real_t one = 1.0, zero = 0.0;
+    int incx = 1;
+    rgemv(&no_trans, &bs, &bs, &one, Ai, &bs, xi, &incx, &zero, Axi, &incx);
+  }
+}
+
 static void bdm_dtor(void* context)
 {
   bdm_t* A = context;
@@ -343,14 +359,15 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
                                 .fprintf = bdm_fprintf,
                                 .value = bdm_value,
                                 .set_value = bdm_set_value,
-                                .get_diag = bdm_get_diag};
+                                .get_diag = bdm_get_diag,
+                                .matvec = bdm_matvec};
   if (constant_block_size)
   {
     vtable.add_column_vector = bdm_add_column_vector_constant_bs;
     vtable.value = bdm_value_constant_bs;
     vtable.set_value = bdm_set_value_constant_bs;
   }
-  return local_matrix_new(name, A, vtable);
+  return local_matrix_new(name, A, vtable, A->B_offsets[num_block_rows]);
 }
 
 real_t* block_diagonal_matrix_row(local_matrix_t* matrix, int block_row)

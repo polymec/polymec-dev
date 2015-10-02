@@ -110,6 +110,15 @@ static void dlm_get_diag(void* context, real_t* diag)
     diag[i] = mat->A[mat->N*i+i];
 }
 
+static void dlm_matvec(void* context, real_t* x, real_t* Ax)
+{
+  dlm_t* mat = context;
+  char no_trans = 'N';
+  real_t one = 1.0, zero = 0.0;
+  int incx = 1;
+  rgemv(&no_trans, &mat->N, &mat->N, &one, mat->A, &mat->N, x, &incx, &zero, Ax, &incx);
+}
+
 static void dlm_dtor(void* context)
 {
   dlm_t* mat = context;
@@ -137,7 +146,8 @@ local_matrix_t* dense_local_matrix_new(int N)
                                 .fprintf = dlm_fprintf,
                                 .value = dlm_value,
                                 .set_value = dlm_set_value,
-                                .get_diag = dlm_get_diag};
-  return local_matrix_new(name, mat, vtable);
+                                .get_diag = dlm_get_diag,
+                                .matvec = dlm_matvec};
+  return local_matrix_new(name, mat, vtable, N);
 }
 

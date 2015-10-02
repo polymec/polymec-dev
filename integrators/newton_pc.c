@@ -14,6 +14,9 @@ struct newton_pc_t
   void* context;
   newton_pc_vtable vtable;
 
+  // Solver tolerance.
+  real_t tolerance;
+
   // Fixed coefficients.
   bool coeffs_fixed;
   real_t alpha0, beta0, gamma0;
@@ -31,6 +34,7 @@ newton_pc_t* newton_pc_new(const char* name,
   pc->vtable = vtable;
   pc->coeffs_fixed = false;
   pc->alpha0 = pc->beta0 = pc->gamma0 = 0.0;
+  pc->tolerance = 1.0;
   
   return pc;
 }
@@ -63,6 +67,12 @@ void newton_pc_reset(newton_pc_t* precond, real_t t)
   }
 }
 
+void newton_pc_set_tolerance(newton_pc_t* precond, real_t tolerance)
+{
+  ASSERT(tolerance > 0.0);
+  precond->tolerance = tolerance;
+}
+
 void newton_pc_setup(newton_pc_t* precond, 
                      real_t alpha, real_t beta, real_t gamma,
                      real_t t, real_t* x, real_t* xdot)
@@ -93,8 +103,16 @@ bool newton_pc_solve(newton_pc_t* precond,
                      real_t* r, real_t* z)
 {
   START_FUNCTION_TIMER();
-  log_debug("newton_pc: solving preconditioner system...");
-  bool status = precond->vtable.solve(precond->context, t, x, xdot, r, z);
+  log_debug("newton_pc: solving preconditioner system (error tolerance = %g)", precond->tolerance);
+  real_t L2_norm;
+  bool status = precond->vtable.solve(precond->context, t, x, xdot, precond->tolerance, r, z, &L2_norm);
+  if (log_level() == LOG_DEBUG)
+  {
+    if (status)
+      log_debug("  newton_pc: succeeded (error L2 norm = %g)", L2_norm);
+    else
+      log_debug("  newton_pc: failed (error L2 norm = %g)", L2_norm);
+  }
   STOP_FUNCTION_TIMER();
   return status;
 }

@@ -357,14 +357,13 @@ static krylov_pc_t* dae_krylov_pc_new(MPI_Comm comm,
   krylov->temp2 = NULL;
   krylov->temp3 = NULL;
   krylov->temp4 = NULL;
-  krylov->delta = 1e-4;
   krylov->inner_pc = NULL;
   return krylov;
 }
 
 static bool gmres_solve(void* context, 
-                        real_t t, real_t* x, real_t* x_dot,
-                        real_t* r, real_t* z)
+                        real_t t, real_t* x, real_t* x_dot, real_t tolerance,
+                        real_t* r, real_t* z, real_t* error_L2_norm)
 {
   krylov_pc_t* krylov = context;
   krylov->t = t;
@@ -373,7 +372,6 @@ static bool gmres_solve(void* context,
   memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
   if (x_dot != NULL)
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
-  real_t res_norm;
   int nli, nps;
 
   int pretype = PREC_NONE;
@@ -386,12 +384,12 @@ static bool gmres_solve(void* context,
   }
 
   int status = SpgmrSolve(krylov->gmr, krylov, krylov->z, krylov->r, pretype, krylov->gs,
-                          krylov->delta, krylov->max_restarts, krylov, krylov->r_scaling, krylov->z_scaling,
-                          krylov->Atimes, psolve, &res_norm, &nli, &nps);
+                          tolerance, krylov->max_restarts, krylov, krylov->r_scaling, krylov->z_scaling,
+                          krylov->Atimes, psolve, error_L2_norm, &nli, &nps);
   switch(status)
   {
     case SPGMR_RES_REDUCED:
-      log_debug("  GMRES: Residual norm was reduced (%g), but not below tolerance (%g)", res_norm, krylov->delta);
+      log_debug("  GMRES: Residual norm was reduced (%g), but not below tolerance (%g)", *error_L2_norm, tolerance);
       break;
     case SPGMR_CONV_FAIL:
       log_debug("  GMRES: Failed to converge.");
@@ -466,8 +464,8 @@ newton_pc_t* dae_gmres_newton_pc_new(MPI_Comm comm,
 }
 
 static bool bicgstab_solve(void* context, 
-                           real_t t, real_t* x, real_t* x_dot,
-                           real_t* r, real_t* z)
+                           real_t t, real_t* x, real_t* x_dot, real_t tolerance,
+                           real_t* r, real_t* z, real_t* error_L2_norm)
 {
   krylov_pc_t* krylov = context;
   krylov->t = t;
@@ -476,7 +474,6 @@ static bool bicgstab_solve(void* context,
   memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
   if (x_dot != NULL)
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
-  real_t res_norm;
   int nli, nps;
 
   int pretype = PREC_NONE;
@@ -488,13 +485,13 @@ static bool bicgstab_solve(void* context,
     newton_pc_setup(krylov->inner_pc, krylov->alpha, krylov->beta, krylov->gamma, krylov->t, x, x_dot);
   }
 
-  int status = SpbcgSolve(krylov->bcg, krylov, krylov->z, krylov->r, pretype, krylov->delta, 
+  int status = SpbcgSolve(krylov->bcg, krylov, krylov->z, krylov->r, pretype, tolerance,
                           krylov, krylov->z_scaling, krylov->r_scaling, krylov->Atimes, psolve, 
-                          &res_norm, &nli, &nps);
+                          error_L2_norm, &nli, &nps);
   switch(status)
   {
     case SPBCG_RES_REDUCED:
-      log_debug("  Bi-CGSTAB: Residual norm was reduced (%g), but not below tolerance (%g)", res_norm, krylov->delta);
+      log_debug("  Bi-CGSTAB: Residual norm was reduced (%g), but not below tolerance (%g)", *error_L2_norm, tolerance);
       break;
     case SPBCG_CONV_FAIL:
       log_debug("  Bi-CGSTAB: Failed to converge.");
@@ -550,8 +547,8 @@ newton_pc_t* dae_bicgstab_newton_pc_new(MPI_Comm comm,
 }
 
 static bool tfqmr_solve(void* context, 
-                        real_t t, real_t* x, real_t* x_dot,
-                        real_t* r, real_t* z)
+                        real_t t, real_t* x, real_t* x_dot, real_t tolerance,
+                        real_t* r, real_t* z, real_t* error_L2_norm)
 {
   krylov_pc_t* krylov = context;
   memcpy(NV_DATA(krylov->r), r, sizeof(real_t) * krylov->N_local);
@@ -559,7 +556,6 @@ static bool tfqmr_solve(void* context,
   memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
   if (x_dot != NULL)
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
-  real_t res_norm;
   int nli, nps;
 
   int pretype = PREC_NONE;
@@ -571,13 +567,13 @@ static bool tfqmr_solve(void* context,
     newton_pc_setup(krylov->inner_pc, krylov->alpha, krylov->beta, krylov->gamma, krylov->t, x, x_dot);
   }
 
-  int status = SptfqmrSolve(krylov->tfqmr, krylov, krylov->z, krylov->r, pretype, krylov->delta, 
+  int status = SptfqmrSolve(krylov->tfqmr, krylov, krylov->z, krylov->r, pretype, tolerance,
                             krylov, krylov->z_scaling, krylov->r_scaling, krylov->Atimes, psolve, 
-                            &res_norm, &nli, &nps);
+                            error_L2_norm, &nli, &nps);
   switch(status)
   {
     case SPTFQMR_RES_REDUCED:
-      log_debug("  TFQMR: Residual norm was reduced (%g), but not below tolerance (%g)", res_norm, krylov->delta);
+      log_debug("  TFQMR: Residual norm was reduced (%g), but not below tolerance (%g)", *error_L2_norm, tolerance);
       break;
     case SPTFQMR_CONV_FAIL:
       log_debug("  TFQMR: Failed to converge.");

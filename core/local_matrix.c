@@ -13,11 +13,13 @@ struct local_matrix_t
   char* name;
   void* context;
   local_matrix_vtable vtable;
+  int num_rows;
 };
 
 local_matrix_t* local_matrix_new(const char* name,
                                  void* context,
-                                 local_matrix_vtable vtable)
+                                 local_matrix_vtable vtable,
+                                 int num_rows)
 {
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.add_column_vector != NULL);
@@ -27,10 +29,14 @@ local_matrix_t* local_matrix_new(const char* name,
   ASSERT(vtable.fprintf != NULL);
   ASSERT(vtable.value != NULL);
   ASSERT(vtable.set_value != NULL);
+  ASSERT(vtable.get_diag != NULL);
+  ASSERT(vtable.matvec != NULL);
+  ASSERT(num_rows > 0);
   local_matrix_t* matrix = polymec_malloc(sizeof(local_matrix_t));
   matrix->name = string_dup(name);
   matrix->context = context;
   matrix->vtable = vtable;
+  matrix->num_rows = num_rows;
   return matrix;
 }
  
@@ -50,6 +56,11 @@ char* local_matrix_name(local_matrix_t* matrix)
 void* local_matrix_context(local_matrix_t* matrix)
 {
   return matrix->context;
+}
+
+int local_matrix_num_rows(local_matrix_t* matrix)
+{
+  return matrix->num_rows;
 }
 
 void local_matrix_zero(local_matrix_t* matrix)
@@ -122,5 +133,12 @@ void local_matrix_get_diagonal(local_matrix_t* matrix, real_t* diag)
 {
   START_FUNCTION_TIMER();
   matrix->vtable.get_diag(matrix->context, diag);
+  STOP_FUNCTION_TIMER();
+}
+
+void local_matrix_matvec(local_matrix_t* matrix, real_t* x, real_t* Ax)
+{
+  START_FUNCTION_TIMER();
+  matrix->vtable.matvec(matrix->context, x, Ax);
   STOP_FUNCTION_TIMER();
 }
