@@ -186,10 +186,13 @@ static void slm_add_row_vector(void* context,
   {
     int col_index = data->colptr[j];
     size_t num_rows = data->colptr[j+1] - col_index;
-    int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
-    ASSERT(entry != NULL);
-    size_t offset = entry - &data->rowind[col_index];
-    Aij[data->colptr[j] + offset] += scale_factor * row_vector[i];
+    if (num_rows > 1)
+    {
+      int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
+      ASSERT(entry != NULL);
+      size_t offset = entry - &data->rowind[col_index];
+      Aij[data->colptr[j] + offset] += scale_factor * row_vector[i];
+    }
   }
 }
 
@@ -405,10 +408,13 @@ static void slm_matvec(void* context, real_t* x, real_t* Ax)
     {
       int col_index = data->colptr[j];
       size_t num_rows = data->colptr[j+1] - col_index;
-      int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
-      ASSERT(entry != NULL);
-      size_t offset = entry - &data->rowind[col_index];
-      Ax[i] += Aij[data->colptr[j] + offset] * x[j];
+      if (num_rows > 1)
+      {
+        int* entry = int_bsearch(&data->rowind[col_index+1], num_rows - 1, i);
+        ASSERT(entry != NULL);
+        size_t offset = entry - &data->rowind[col_index];
+        Ax[i] += Aij[data->colptr[j] + offset] * x[j];
+      }
     }
   }
 }
