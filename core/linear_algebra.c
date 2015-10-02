@@ -12,8 +12,8 @@
 // dispatches to their LAPACK functions.
 
 void rgemv(char* trans, int* m, int* n, real_t* alpha,
-           void* a, int* lda, void* x, int* incx,
-           real_t* beta, void* y, int* incy)
+           real_t* a, int* lda, real_t* x, int* incx,
+           real_t* beta, real_t* y, int* incy)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
   dgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy);

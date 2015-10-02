@@ -53,14 +53,14 @@
 
 // Matrix-vector multiplication: y := alpha*A*x + beta*y.
 void dgemv(char* trans, int* m, int* n, double* alpha,
-           void* a, int* lda, void* x, int* incx,
-           double* beta, void* y, int* incy);
+           double* a, int* lda, double* x, int* incx,
+           double* beta, double* y, int* incy);
 void sgemv(char* trans, int* m, int* n, float* alpha,
-           void* a, int* lda, void* x, int* incx,
-           float* beta, void* y, int* incy);
+           float* a, int* lda, float* x, int* incx,
+           float* beta, float* y, int* incy);
 void rgemv(char* trans, int* m, int* n, real_t* alpha,
-           void* a, int* lda, void* x, int* incx,
-           real_t* beta, void* y, int* incy);
+           real_t* a, int* lda, real_t* x, int* incx,
+           real_t* beta, real_t* y, int* incy);
 
 // Matrix-matrix multiplication: C := alpha*op(A)*op(B) + beta*C.
 void dgemm(char* transa, char* transB, int* m, int* n, int* k, double* alpha,
