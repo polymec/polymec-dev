@@ -34,7 +34,7 @@ newton_pc_t* newton_pc_new(const char* name,
   pc->vtable = vtable;
   pc->coeffs_fixed = false;
   pc->alpha0 = pc->beta0 = pc->gamma0 = 0.0;
-  pc->tolerance = 1.0;
+  pc->tolerance = FLT_MAX;
   
   return pc;
 }
