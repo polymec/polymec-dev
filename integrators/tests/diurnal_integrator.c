@@ -301,7 +301,7 @@ static ode_integrator_t* bdf_diurnal_integrator_new(diurnal_t* data, newton_pc_t
   ode_integrator_t* integ = jfnk_bdf_ode_integrator_new(2, MPI_COMM_SELF, NEQ, 0,
                                                         data, diurnal_rhs, NULL, 
                                                         diurnal_dtor, precond, 
-                                                        JFNK_BDF_GMRES, 5);
+                                                        JFNK_BDF_GMRES, 15);
 
   return integ;
 }

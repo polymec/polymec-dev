@@ -43,13 +43,15 @@ void test_diurnal_step(void** state, ode_integrator_t* integ)
   bdf_ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
   real_t* u = diurnal_initial_conditions(integ);
 
-  // Integrate it.
+  // Integrate it out to t = 86400 s (24 hours).
   real_t t = 0.0;
-  while (t < 7200.0)
+  int step = 0;
+  while (t < 86400.0)
   {
-    bool integrated = ode_integrator_step(integ, 7200.0, &t, u);
-//    preconditioner_matrix_fprintf(ode_integrator_preconditioner_matrix(integ), stdout);
+    log_detail("Step %d: t = %g", step, t);
+    bool integrated = ode_integrator_step(integ, 86400.0, &t, u);
     assert_true(integrated);
+    ++step;
   }
 //printf("u = [");
 //for (int i = 0; i < 200; ++i)
