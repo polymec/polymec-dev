@@ -61,7 +61,7 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
   while (t < 86400.0)
   {
     log_detail("Step %d: t = %g", step, t);
-    bool integrated = ode_integrator_step(integ, 86400.0, &t, u);
+    bool integrated = ode_integrator_step(integ, 7200.0, &t, u);
     assert_true(integrated);
     ++step;
 
@@ -72,6 +72,7 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
 //for (int i = 0; i < 200; ++i)
 //printf("%g ", u[i]);
 //printf("]\n");
+  printf("Final time: %g\n", t);
   bdf_ode_integrator_diagnostics_t diags;
   bdf_ode_integrator_get_diagnostics(integ, &diags);
   bdf_ode_integrator_diagnostics_fprintf(&diags, stdout);
@@ -85,13 +86,13 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
 void test_block_jacobi_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = block_jacobi_precond_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-  test_diurnal_step(state, integ, 1000);
+  test_diurnal_step(state, integ, 700);
 }
 
 void test_block_jacobi_precond_diurnal_step_right(void** state)
 {
   ode_integrator_t* integ = block_jacobi_precond_bdf_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  test_diurnal_step(state, integ, 1000);
+  test_diurnal_step(state, integ, 500);
 }
 
 void test_lu_precond_diurnal_step_left(void** state)
@@ -103,7 +104,7 @@ void test_lu_precond_diurnal_step_left(void** state)
 void test_lu_precond_diurnal_step_right(void** state)
 {
   ode_integrator_t* integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  test_diurnal_step(state, integ, 1000);
+  test_diurnal_step(state, integ, 500);
 }
 
 void test_ilu_precond_diurnal_step_left(void** state)

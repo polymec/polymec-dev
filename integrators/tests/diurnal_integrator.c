@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/polymec.h"
+#include "core/declare_nd_array.h"
 #include "integrators/bdf_ode_integrator.h"
 #include "integrators/ark_ode_integrator.h"
 #include "integrators/cpr_newton_pc.h"
@@ -87,29 +88,6 @@
 #define ATOL    (RTOL*FLOOR)      /* scalar absolute tolerance */
 #define NEQ     (NUM_SPECIES*MM)  /* NEQ = number of equations */
 
-/* User-defined vector and matrix accessor macros: IJKth, IJth */
-
-/* IJKth is defined in order to isolate the translation from the
-   mathematical 3-dimensional structure of the dependent variable vector
-   to the underlying 1-dimensional storage. IJth is defined in order to
-   write code which indexes into small dense matrices with a (row,column)
-   pair, where 1 <= row, column <= NUM_SPECIES.   
-   
-   IJKth(vdata,i,j,k) references the element in the vdata array for
-   species i at mesh point (j,k), where 1 <= i <= NUM_SPECIES,
-   0 <= j <= MX-1, 0 <= k <= MY-1. The vdata array is obtained via
-   the macro call vdata = NV_DATA_S(v), where v is an N_Vector. 
-   For each mesh point (j,k), the elements for species i and i+1 are
-   contiguous within vdata.
-
-   IJth(a,i,j) references the (i,j)th entry of the small matrix real_t **a,
-   where 1 <= i,j <= NUM_SPECIES. The small matrix routines in sundials_dense.h
-   work with matrices stored by column in a 2-dimensional array. In C,
-   arrays are indexed starting at 0, not 1. */
-
-#define IJKth(vdata,i,j,k) (vdata[i-1 + (j)*NUM_SPECIES + (k)*NSMX])
-#define IJth(a,i,j)        (a[j-1][i-1])
-
 typedef struct 
 {
   real_t q4, om, dx, dy, hdco, haco, vdco;
@@ -121,7 +99,7 @@ typedef struct
 // Newly initialized data context.
 static diurnal_t* diurnal_new()
 {
-  diurnal_t* data = malloc(sizeof(diurnal_t));
+  diurnal_t* data = polymec_malloc(sizeof(diurnal_t));
 
   data->om = PI/HALFDAY;
   data->dx = (XMAX-XMIN)/(MX-1);
@@ -176,6 +154,8 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
   real_t q4coef, dely, verdco, hordco, horaco;
   int jx, jy, idn, iup, ileft, iright;
   diurnal_t* data = context;
+  DECLARE_3D_ARRAY(real_t, u_ijk, u, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, udot_ijk, udot, MX, MY, NUM_SPECIES);
 
   // We don't bother with FPE for now.
   polymec_suspend_fpe();
@@ -215,8 +195,8 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
 
       /* Extract c1 and c2, and set kinetic rate terms. */
 
-      c1 = IJKth(u,1,jx,jy); 
-      c2 = IJKth(u,2,jx,jy);
+      c1 = u_ijk[jx][jy][0]; 
+      c2 = u_ijk[jx][jy][1];
       qq1 = Q1*c1*C3;
       qq2 = Q2*c1*c2;
       qq3 = q3*C3;
@@ -226,10 +206,10 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
 
       /* Set vertical diffusion terms. */
 
-      c1dn = IJKth(u,1,jx,jy+idn);
-      c2dn = IJKth(u,2,jx,jy+idn);
-      c1up = IJKth(u,1,jx,jy+iup);
-      c2up = IJKth(u,2,jx,jy+iup);
+      c1dn = u_ijk[jx][jy+idn][0];
+      c2dn = u_ijk[jx][jy+idn][1];
+      c1up = u_ijk[jx][jy+iup][0];
+      c2up = u_ijk[jx][jy+iup][1];
       vertd1 = cyup*(c1up - c1) - cydn*(c1 - c1dn);
       vertd2 = cyup*(c2up - c2) - cydn*(c2 - c2dn);
 
@@ -237,10 +217,10 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
 
       ileft = (jx == 0) ? 1 : -1;
       iright =(jx == MX-1) ? -1 : 1;
-      c1lt = IJKth(u,1,jx+ileft,jy); 
-      c2lt = IJKth(u,2,jx+ileft,jy);
-      c1rt = IJKth(u,1,jx+iright,jy);
-      c2rt = IJKth(u,2,jx+iright,jy);
+      c1lt = u_ijk[jx+ileft][jy][0]; 
+      c2lt = u_ijk[jx+ileft][jy][1];
+      c1rt = u_ijk[jx+iright][jy][0];
+      c2rt = u_ijk[jx+iright][jy][1];
       hord1 = hordco*(c1rt - TWO*c1 + c1lt);
       hord2 = hordco*(c2rt - TWO*c2 + c2lt);
       horad1 = horaco*(c1rt - c1lt);
@@ -248,8 +228,8 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
 
       /* Load all terms into udot. */
 
-      IJKth(udot, 1, jx, jy) = vertd1 + hord1 + horad1 + rkin1; 
-      IJKth(udot, 2, jx, jy) = vertd2 + hord2 + horad2 + rkin2;
+      udot_ijk[jx][jy][0] = vertd1 + hord1 + horad1 + rkin1; 
+      udot_ijk[jx][jy][1] = vertd2 + hord2 + horad2 + rkin2;
     }
   }
 
@@ -264,7 +244,7 @@ static void diurnal_dtor(void* context)
 {
   diurnal_t* data = context;
   adj_graph_free(data->sparsity);
-  free(data);
+  polymec_free(data);
 }
 
 // Returns initial conditions.
@@ -272,33 +252,33 @@ real_t* diurnal_initial_conditions(ode_integrator_t* integ)
 {
   diurnal_t* data = bdf_ode_integrator_context(integ);
   real_t dx = data->dx, dy = data->dy;
-  int jx, jy;
-  real_t x, y, cx, cy;
-  real_t* udata = malloc(sizeof(real_t) * NEQ);
+  real_t* u_data = polymec_malloc(sizeof(real_t) * NEQ);
+  DECLARE_3D_ARRAY(real_t, u_ijk, u_data, MX, MY, NUM_SPECIES);
 
   // Load initial profiles of c1 and c2 into u vector 
-
-  for (jy=0; jy < MY; jy++) {
-    y = YMIN + jy*dy;
-    cy = SUNSQR(RCONST(0.1)*(y - YMID));
+  for (int jy=0; jy < MY; jy++) 
+  {
+    real_t y = YMIN + jy*dy;
+    real_t cy = SUNSQR(RCONST(0.1)*(y - YMID));
     cy = ONE - cy + RCONST(0.5)*SUNSQR(cy);
-    for (jx=0; jx < MX; jx++) {
-      x = XMIN + jx*dx;
-      cx = SUNSQR(RCONST(0.1)*(x - XMID));
+    for (int jx=0; jx < MX; jx++) 
+    {
+      real_t x = XMIN + jx*dx;
+      real_t cx = SUNSQR(RCONST(0.1)*(x - XMID));
       cx = ONE - cx + RCONST(0.5)*SUNSQR(cx);
-      IJKth(udata,1,jx,jy) = C1_SCALE*cx*cy; 
-      IJKth(udata,2,jx,jy) = C2_SCALE*cx*cy;
+      u_ijk[jx][jy][0] = C1_SCALE*cx*cy; 
+      u_ijk[jx][jy][1] = C2_SCALE*cx*cy;
     }
   }
-  return udata; 
+  return u_data; 
 }
 
 // Constructor for a BDF diurnal integrator with the given preconditioner.
 static ode_integrator_t* bdf_diurnal_integrator_new(diurnal_t* data, newton_pc_t* precond)
 {
-  // Set up a time integrator using GMRES with a maximum order of 2 and 
-  // a Krylov space of maximum dimension 5.
-  ode_integrator_t* integ = jfnk_bdf_ode_integrator_new(2, MPI_COMM_SELF, NEQ, 0,
+  // Set up a time integrator using GMRES with a maximum order of 5 and 
+  // a Krylov space of maximum dimension 15.
+  ode_integrator_t* integ = jfnk_bdf_ode_integrator_new(5, MPI_COMM_SELF, NEQ, 0,
                                                         data, diurnal_rhs, NULL, 
                                                         diurnal_dtor, precond, 
                                                         JFNK_BDF_GMRES, 15);
@@ -345,7 +325,7 @@ static ode_integrator_t* ark_diurnal_integrator_new(diurnal_t* data, newton_pc_t
     integ = jfnk_ark_ode_integrator_new(3, MPI_COMM_SELF, NEQ, 0,
                                         data, NULL, diurnal_rhs, false, false, 
                                         NULL, NULL, diurnal_dtor, precond, 
-                                        JFNK_ARK_GMRES, 5);
+                                        JFNK_ARK_GMRES, 15);
   }
   else
   {

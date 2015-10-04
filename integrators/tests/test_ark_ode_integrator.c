@@ -67,7 +67,7 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, real_t max_dt, int 
   int step = 0;
   while (t < 86400.0)
   {
-    bool integrated = ode_integrator_step(integ, MIN(86400.0, max_dt), &t, u);
+    bool integrated = ode_integrator_step(integ, MIN(7200.0, max_dt), &t, u);
 //    preconditioner_matrix_fprintf(ode_integrator_preconditioner_matrix(integ), stdout);
     assert_true(integrated);
 
