@@ -106,7 +106,7 @@ static ode_integrator_t* stiffly_accurate_kinetics_integrator()
   adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, 1);
   adj_graph_t* bg = adj_graph_new_with_block_size(g, 3);
   adj_graph_free(g);
-  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_function(MPI_COMM_WORLD, NULL, kinetics_rhs, NULL, bg, 1, 0, 3);
+  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_function(MPI_COMM_WORLD, NULL, kinetics_rhs, NULL, NEWTON_PC_LEFT, bg, 1, 0, 3);
   adj_graph_free(bg);
   return newton_euler_ode_integrator_new(MPI_COMM_WORLD, 3, 0, NULL, 
                                          kinetics_rhs, NULL, precond,

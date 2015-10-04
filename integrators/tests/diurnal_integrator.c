@@ -307,29 +307,29 @@ static ode_integrator_t* bdf_diurnal_integrator_new(diurnal_t* data, newton_pc_t
 }
 
 // Constructor for block-Jacobi-preconditioned BDF diurnal integrator.
-ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new()
+ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
-  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
+  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
   ode_integrator_t* integ = bdf_diurnal_integrator_new(data, precond);
   return integ;
 }
 
 // Constructor for LU-preconditioned BDF diurnal integrator.
-ode_integrator_t* lu_precond_bdf_diurnal_integrator_new()
+ode_integrator_t* lu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
-  newton_pc_t* precond = lu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ, 0);
+  newton_pc_t* precond = lu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ, 0);
   ode_integrator_t* integ = bdf_diurnal_integrator_new(data, precond);
   return integ;
 }
 
 // Constructor for ILU-preconditioned BDF diurnal integrator.
-ode_integrator_t* ilu_precond_bdf_diurnal_integrator_new()
+ode_integrator_t* ilu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
   ilu_params_t* ilu_params = ilu_params_new();
-  newton_pc_t* precond = ilu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ, 0, ilu_params);
+  newton_pc_t* precond = ilu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ, 0, ilu_params);
   ode_integrator_t* integ = bdf_diurnal_integrator_new(data, precond);
   return integ;
 }
@@ -366,29 +366,29 @@ ode_integrator_t* functional_ark_diurnal_integrator_new()
 }
 
 // Constructor for block-Jacobi-preconditioned ARK diurnal integrator.
-ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new()
+ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
-  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
+  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
   ode_integrator_t* integ = ark_diurnal_integrator_new(data, precond);
   return integ;
 }
 
 // Constructor for LU-preconditioned ARK diurnal integrator.
-ode_integrator_t* lu_precond_ark_diurnal_integrator_new()
+ode_integrator_t* lu_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
-  newton_pc_t* precond = lu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ, 0);
+  newton_pc_t* precond = lu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ, 0);
   ode_integrator_t* integ = ark_diurnal_integrator_new(data, precond);
   return integ;
 }
 
 // Constructor for ILU-preconditioned ARK diurnal integrator.
-ode_integrator_t* ilu_precond_ark_diurnal_integrator_new()
+ode_integrator_t* ilu_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
   ilu_params_t* ilu_params = ilu_params_new();
-  newton_pc_t* precond = ilu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, data->sparsity, NEQ, 0, ilu_params);
+  newton_pc_t* precond = ilu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ, 0, ilu_params);
   ode_integrator_t* integ = ark_diurnal_integrator_new(data, precond);
   return integ;
 }

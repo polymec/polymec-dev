@@ -86,6 +86,7 @@ newton_pc_t* ssor_newton_pc_new(void* context,
                                 real_t (*f)(void* context, int i, real_t t, real_t* x),
                                 real_t (*DJ)(void* context, int i, real_t t, real_t* x),
                                 void (*dtor)(void* context),
+                                newton_pc_side_t side,
                                 int num_local_values,
                                 real_t omega)
 {
@@ -109,7 +110,7 @@ newton_pc_t* ssor_newton_pc_new(void* context,
 
   newton_pc_vtable vtable = {.solve = ssor_newton_pc_solve,
                              .dtor = ssor_newton_pc_free};
-  return newton_pc_new("SSOR preconditioner", ssor, vtable);
+  return newton_pc_new("SSOR preconditioner", ssor, vtable, side);
 }
                                         
 bool newton_pc_is_ssor_newton_pc(newton_pc_t* newton_pc)

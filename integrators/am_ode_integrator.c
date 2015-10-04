@@ -408,17 +408,31 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
   CVodeSetUserData(integ->cvode, integ);
   CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->x);
 
+  newton_pc_side_t newton_side = newton_pc_side(integ->precond);
+  int side;
+  switch (newton_side)
+  {
+    case NEWTON_PC_LEFT:
+      side = PREC_LEFT;
+      break;
+    case NEWTON_PC_RIGHT:
+      side = PREC_RIGHT;
+      break;
+    case NEWTON_PC_BOTH:
+      side = PREC_BOTH;
+  }
+
   // Set up the solver type.
   if (solver_type == JFNK_AM_GMRES)
   {
-    CVSpgmr(integ->cvode, PREC_LEFT, max_krylov_dim); 
+    CVSpgmr(integ->cvode, side, max_krylov_dim); 
     // We use modified Gram-Schmidt orthogonalization.
     CVSpilsSetGSType(integ->cvode, MODIFIED_GS);
   }
   else if (solver_type == JFNK_AM_BICGSTAB)
-    CVSpbcg(integ->cvode, PREC_LEFT, max_krylov_dim);
+    CVSpbcg(integ->cvode, side, max_krylov_dim);
   else
-    CVSptfqmr(integ->cvode, PREC_LEFT, max_krylov_dim);
+    CVSptfqmr(integ->cvode, side, max_krylov_dim);
 
   // Set up the Jacobian function and preconditioner.
   if (Jy_func != NULL)

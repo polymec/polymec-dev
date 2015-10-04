@@ -315,6 +315,26 @@ static krylov_pc_t* krylov_pc_new(MPI_Comm comm,
   return krylov;
 }
 
+static int get_pc_side(newton_pc_t* precond)
+{
+  if (precond == NULL)
+    return PREC_NONE;
+  newton_pc_side_t newton_side = newton_pc_side(precond);
+  int side;
+  switch (newton_side)
+  {
+    case NEWTON_PC_LEFT:
+      side = PREC_LEFT;
+      break;
+    case NEWTON_PC_RIGHT:
+      side = PREC_RIGHT;
+      break;
+    case NEWTON_PC_BOTH:
+      side = PREC_BOTH;
+  }
+  return side;
+}
+
 static krylov_pc_t* dae_krylov_pc_new(MPI_Comm comm,
                                       void* context,
                                       int (*F)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F),
@@ -374,11 +394,10 @@ static bool gmres_solve(void* context,
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
   int nli, nps;
 
-  int pretype = PREC_NONE;
+  int pretype = get_pc_side(krylov->inner_pc);
   PSolveFn psolve = NULL;
   if (krylov->inner_pc != NULL)
   {
-    pretype = PREC_LEFT;
     psolve = solve_inner_preconditioner_system;
     newton_pc_setup(krylov->inner_pc, krylov->alpha, krylov->beta, krylov->gamma, krylov->t, x, x_dot);
   }
@@ -421,6 +440,7 @@ newton_pc_t* gmres_newton_pc_new(MPI_Comm comm,
                                            real_t alpha, real_t beta, real_t gamma, 
                                            real_t t, real_t* x, real_t* v, real_t* Jv),
                                  void (*dtor)(void* context),
+                                 newton_pc_side_t side,
                                  int num_local_values, 
                                  int num_remote_values,
                                  int krylov_dim,
@@ -435,7 +455,7 @@ newton_pc_t* gmres_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = gmres_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov preconditioner (GMRES)", krylov, vtable);
+  return newton_pc_new("Krylov preconditioner (GMRES)", krylov, vtable, side);
 }
                                         
 newton_pc_t* dae_gmres_newton_pc_new(MPI_Comm comm,
@@ -460,7 +480,7 @@ newton_pc_t* dae_gmres_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = gmres_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov DAE preconditioner (GMRES)", krylov, vtable);
+  return newton_pc_new("Krylov DAE preconditioner (GMRES)", krylov, vtable, NEWTON_PC_LEFT);
 }
 
 static bool bicgstab_solve(void* context, 
@@ -476,11 +496,10 @@ static bool bicgstab_solve(void* context,
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
   int nli, nps;
 
-  int pretype = PREC_NONE;
+  int pretype = get_pc_side(krylov->inner_pc);
   PSolveFn psolve = NULL;
   if (krylov->inner_pc != NULL)
   {
-    pretype = PREC_LEFT;
     psolve = solve_inner_preconditioner_system;
     newton_pc_setup(krylov->inner_pc, krylov->alpha, krylov->beta, krylov->gamma, krylov->t, x, x_dot);
   }
@@ -514,6 +533,7 @@ newton_pc_t* bicgstab_newton_pc_new(MPI_Comm comm,
                                               real_t alpha, real_t beta, real_t gamma, 
                                               real_t t, real_t* x, real_t* v, real_t* Jv),
                                     void (*dtor)(void* context),
+                                    newton_pc_side_t side,
                                     int num_local_values, 
                                     int num_remote_values,
                                     int krylov_dim)
@@ -523,7 +543,7 @@ newton_pc_t* bicgstab_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = bicgstab_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov preconditioner (Bi-CGSTAB)", krylov, vtable);
+  return newton_pc_new("Krylov preconditioner (Bi-CGSTAB)", krylov, vtable, side);
 }
 
 newton_pc_t* dae_bicgstab_newton_pc_new(MPI_Comm comm,
@@ -543,7 +563,7 @@ newton_pc_t* dae_bicgstab_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = bicgstab_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov DAE preconditioner (Bi-CGSTAB)", krylov, vtable);
+  return newton_pc_new("Krylov DAE preconditioner (Bi-CGSTAB)", krylov, vtable, NEWTON_PC_LEFT);
 }
 
 static bool tfqmr_solve(void* context, 
@@ -558,11 +578,10 @@ static bool tfqmr_solve(void* context,
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
   int nli, nps;
 
-  int pretype = PREC_NONE;
+  int pretype = get_pc_side(krylov->inner_pc);
   PSolveFn psolve = NULL;
   if (krylov->inner_pc != NULL)
   {
-    pretype = PREC_LEFT;
     psolve = solve_inner_preconditioner_system;
     newton_pc_setup(krylov->inner_pc, krylov->alpha, krylov->beta, krylov->gamma, krylov->t, x, x_dot);
   }
@@ -596,6 +615,7 @@ newton_pc_t* tfqmr_newton_pc_new(MPI_Comm comm,
                                            real_t alpha, real_t beta, real_t gamma, 
                                            real_t t, real_t* x, real_t* v, real_t* Jv),
                                  void (*dtor)(void* context),
+                                 newton_pc_side_t side,
                                  int num_local_values, 
                                  int num_remote_values,
                                  int krylov_dim)
@@ -605,7 +625,7 @@ newton_pc_t* tfqmr_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = tfqmr_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov preconditioner (TFQMR)", krylov, vtable);
+  return newton_pc_new("Krylov preconditioner (TFQMR)", krylov, vtable, side);
 }
 
 newton_pc_t* dae_tfqmr_newton_pc_new(MPI_Comm comm,
@@ -625,7 +645,7 @@ newton_pc_t* dae_tfqmr_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = tfqmr_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov DAE preconditioner (TFQMR)", krylov, vtable);
+  return newton_pc_new("Krylov DAE preconditioner (TFQMR)", krylov, vtable, NEWTON_PC_LEFT);
 }
 
 bool newton_pc_is_krylov_newton_pc(newton_pc_t* pc)

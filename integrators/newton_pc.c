@@ -14,6 +14,9 @@ struct newton_pc_t
   void* context;
   newton_pc_vtable vtable;
 
+  // Left, right, or both.
+  newton_pc_side_t side;
+
   // Solver tolerance.
   real_t tolerance;
 
@@ -24,7 +27,8 @@ struct newton_pc_t
 
 newton_pc_t* newton_pc_new(const char* name,
                            void* context,
-                           newton_pc_vtable vtable)
+                           newton_pc_vtable vtable,
+                           newton_pc_side_t side)
 {
   ASSERT(vtable.solve != NULL);
 
@@ -32,6 +36,7 @@ newton_pc_t* newton_pc_new(const char* name,
   pc->name = string_dup(name);
   pc->context = context;
   pc->vtable = vtable;
+  pc->side = side;
   pc->coeffs_fixed = false;
   pc->alpha0 = pc->beta0 = pc->gamma0 = 0.0;
   pc->tolerance = FLT_MAX;
@@ -55,6 +60,11 @@ char* newton_pc_name(newton_pc_t* precond)
 void* newton_pc_context(newton_pc_t* precond)
 {
   return precond->context;
+}
+
+newton_pc_side_t newton_pc_side(newton_pc_t* precond)
+{
+  return precond->side;
 }
 
 void newton_pc_reset(newton_pc_t* precond, real_t t)
