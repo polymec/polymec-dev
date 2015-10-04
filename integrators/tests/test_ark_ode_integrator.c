@@ -79,6 +79,7 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, real_t max_dt, int 
 //for (int i = 0; i < 200; ++i)
 //printf("%g ", u[i]);
 //printf("]\n");
+  printf("Final time: %g\n", t);
   ark_ode_integrator_diagnostics_t diags;
   ark_ode_integrator_get_diagnostics(integ, &diags);
   ark_ode_integrator_diagnostics_fprintf(&diags, stdout);
@@ -98,25 +99,25 @@ void test_functional_diurnal_step(void** state)
 void test_block_jacobi_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = block_jacobi_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
-  test_diurnal_step(state, integ, FLT_MAX, 5000);
+  test_diurnal_step(state, integ, FLT_MAX, 500);
 }
 
 void test_block_jacobi_precond_diurnal_step_right(void** state)
 {
   ode_integrator_t* integ = block_jacobi_precond_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  test_diurnal_step(state, integ, FLT_MAX, 5000);
+  test_diurnal_step(state, integ, FLT_MAX, 500);
 }
 
 void test_lu_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = lu_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
-  test_diurnal_step(state, integ, FLT_MAX, 5000);
+  test_diurnal_step(state, integ, FLT_MAX, 2000);
 }
 
 void test_lu_precond_diurnal_step_right(void** state)
 {
   ode_integrator_t* integ = lu_precond_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  test_diurnal_step(state, integ, FLT_MAX, 5000);
+  test_diurnal_step(state, integ, FLT_MAX, 500);
 }
 
 void test_ilu_precond_diurnal_step_left(void** state)

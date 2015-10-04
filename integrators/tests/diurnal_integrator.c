@@ -317,8 +317,8 @@ ode_integrator_t* ilu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
 // Constructor for an ARK diurnal integrator with the given preconditioner.
 static ode_integrator_t* ark_diurnal_integrator_new(diurnal_t* data, newton_pc_t* precond)
 {
-  // Set up a time integrator using GMRES with a maximum order of 2 and 
-  // a Krylov space of maximum dimension 5.
+  // Set up a time integrator using GMRES with a maximum order of 4 and 
+  // a Krylov space of maximum dimension 15.
   ode_integrator_t* integ;
   if (precond != NULL)
   {
