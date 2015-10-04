@@ -320,8 +320,6 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
                                        int lr, void* context, 
                                        N_Vector work)
 {
-  ASSERT(lr == 1); // Left preconditioning only.
-
   ark_ode_t* integ = context;
   
   // FIXME: Apply scaling if needed.
