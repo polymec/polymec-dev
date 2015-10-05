@@ -109,35 +109,31 @@ static diurnal_t* diurnal_new()
   data->vdco = (ONE/SUNSQR(data->dy))*KV0;
 
   // Construct a sparsity graph.
+  int idx[MX*MY];
+  idx[0] = 0;
+  for (int i = 1; i < MX*MY; ++i)
+    idx[i] = idx[i-1] + 1;
+  DECLARE_2D_ARRAY(int, idx_ij, idx, MX, MY);
   adj_graph_t* sparsity = adj_graph_new(MPI_COMM_SELF, MX*MY);
-  for (int jy = 0; jy < MY; jy++) 
+  for (int jx = 0; jx < MX; ++jx) 
   {
-    // Set lower/upper index shifts, special at boundaries. 
-    int idyd = (jy == 0   ) ?  MX : -MX;
-    int idyu = (jy == MY-1) ?  -MX : MX;
-    
-    for (int jx = 0; jx < MX; jx++) 
+    for (int jy = 0; jy < MY; ++jy) 
     {
-      // Set left/right index shifts, special at boundaries. 
-      int idxl = (jx ==  0  ) ?  1 : -1;
-      int idxr = (jx == MX-1) ?  -1 : 1;
-
       // Find the edges for the vertex corresponding to (jx, jy).
-      int idx = jx + MX*jy;
       int num_edges = 0;
       int edges[4];
       if (jy > 0)
-        edges[num_edges++] = idx + idyd; // lower
+        edges[num_edges++] = idx_ij[jx][jy-1]; // lower
       if (jy < (MY-1))
-        edges[num_edges++] = idx + idyu; // upper
+        edges[num_edges++] = idx_ij[jx][jy+1]; // upper
       if (jx > 0)
-        edges[num_edges++] = idx + idxl; // left
+        edges[num_edges++] = idx_ij[jx-1][jy]; // left
       if (jx < (MX-1))
-        edges[num_edges++] = idx + idxr; // right
+        edges[num_edges++] = idx_ij[jx+1][jy]; // right
 
       // Set the edges within the sparsity graph.
-      adj_graph_set_num_edges(sparsity, idx, num_edges);
-      memcpy(adj_graph_edges(sparsity, idx), edges, sizeof(int) * num_edges);
+      adj_graph_set_num_edges(sparsity, idx_ij[jx][jy], num_edges);
+      memcpy(adj_graph_edges(sparsity, idx_ij[jx][jy]), edges, sizeof(int) * num_edges);
     }
   }
   data->sparsity = adj_graph_new_with_block_size(sparsity, NUM_SPECIES);
@@ -152,7 +148,7 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
   real_t c1rt, c2rt, cydn, cyup, hord1, hord2, horad1, horad2;
   real_t qq1, qq2, qq3, qq4, rkin1, rkin2, s, vertd1, vertd2, ydn, yup;
   real_t q4coef, dely, verdco, hordco, horaco;
-  int jx, jy, idn, iup, ileft, iright;
+  int idn, iup, ileft, iright;
   diurnal_t* data = context;
   DECLARE_3D_ARRAY(real_t, u_ijk, u, MX, MY, NUM_SPECIES);
   DECLARE_3D_ARRAY(real_t, udot_ijk, udot, MX, MY, NUM_SPECIES);
@@ -181,8 +177,8 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
 
   /* Loop over all grid points. */
 
-  for (jy=0; jy < MY; jy++) {
-
+  for (int jy=0; jy < MY; ++jy) 
+  {
     /* Set vertical diffusion coefficients at jy +- 1/2 */
 
     ydn = YMIN + (jy - RCONST(0.5))*dely;
@@ -191,7 +187,7 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
     cyup = verdco*SUNRexp(RCONST(0.2)*yup);
     idn = (jy == 0) ? 1 : -1;
     iup = (jy == MY-1) ? -1 : 1;
-    for (jx=0; jx < MX; jx++) {
+    for (int jx=0; jx < MX; jx++) {
 
       /* Extract c1 and c2, and set kinetic rate terms. */
 
