@@ -31,6 +31,19 @@ static void dlm_add_identity(void* context, real_t scale_factor)
     mat->A[mat->N*i + i] += scale_factor;
 }
 
+static int dlm_num_columns(void* context, int row)
+{
+  dlm_t* mat = context;
+  return mat->N;
+}
+
+static void dlm_get_columns(void* context, int row, int* columns)
+{
+  dlm_t* mat = context;
+  for (int j = 0; j < mat->N; ++j)
+    columns[j] = mat->A[mat->N*j+row];
+}
+
 static void dlm_add_column_vector(void* context, 
                                   real_t scale_factor,
                                   int column,
@@ -139,6 +152,8 @@ local_matrix_t* dense_local_matrix_new(int N)
   snprintf(name, 1024, "Dense local matrix (N = %d)", mat->N);
   local_matrix_vtable vtable = {.dtor = dlm_dtor,
                                 .zero = dlm_zero,
+                                .num_columns = dlm_num_columns,
+                                .get_columns = dlm_get_columns,
                                 .add_identity = dlm_add_identity,
                                 .add_column_vector = dlm_add_column_vector,
                                 .add_row_vector = dlm_add_row_vector,

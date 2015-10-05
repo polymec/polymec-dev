@@ -14,6 +14,9 @@
 #include "core/polymec.h"
 #include "integrators/bdf_ode_integrator.h"
 
+#include "integrators/cpr_newton_pc.h"
+#include "core/local_matrix.h"
+
 extern ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new();
 extern ode_integrator_t* lu_precond_bdf_diurnal_integrator_new();
 extern ode_integrator_t* ilu_precond_bdf_diurnal_integrator_new();
@@ -60,6 +63,15 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
   int step = 0;
   while (t < 86400.0)
   {
+if (step == 400)
+{
+  newton_pc_t* pc = bdf_ode_integrator_preconditioner(integ);
+  local_matrix_t* P = cpr_newton_pc_matrix(pc);
+  char filename[FILENAME_MAX];
+  sprintf(filename, "P_%s.txt", newton_pc_name(pc));
+  local_matrix_export(P, MATRIX_MARKET_FORMAT, filename);
+}
+
     log_detail("Step %d: t = %g", step, t);
     bool integrated = ode_integrator_step(integ, 7200.0, &t, u);
     assert_true(integrated);

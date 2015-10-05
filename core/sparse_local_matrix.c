@@ -123,6 +123,20 @@ static void slm_zero(void* context)
   memset(Aij, 0, data->colptr[num_cols]);
 }
 
+static int slm_num_columns(void* context, int row)
+{
+  slm_t* mat = context;
+  return 1 + adj_graph_num_edges(mat->sparsity, row);
+}
+
+static void slm_get_columns(void* context, int row, int* columns)
+{
+  slm_t* mat = context;
+  columns[0] = row;
+  memcpy(&columns[1], adj_graph_edges(mat->sparsity, row), 
+         sizeof(int) * adj_graph_num_edges(mat->sparsity, row));
+}
+
 static void slm_add_identity(void* context, real_t scale_factor)
 {
   slm_t* mat = context;
@@ -471,6 +485,8 @@ local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
   snprintf(name, 1024, "Sparse local matrix (N = %d)", mat->N);
   local_matrix_vtable vtable = {.dtor = slm_dtor,
                                 .zero = slm_zero,
+                                .num_columns = slm_num_columns,
+                                .get_columns = slm_get_columns,
                                 .add_identity = slm_add_identity,
                                 .add_column_vector = slm_add_column_vector,
                                 .add_row_vector = slm_add_row_vector,

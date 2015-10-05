@@ -22,6 +22,35 @@ static void bdm_zero(void* context)
   memset(A->D, 0, sizeof(real_t) * A->D_offsets[A->num_block_rows]);
 }
 
+static int bdm_num_columns(void* context, int row)
+{
+  bdm_t* A = context;
+
+  // We have to find the right block column.
+  int block_col = 0;
+  while ((A->B_offsets[block_col+1] < row) && (block_col < A->num_block_rows))
+    ++block_col;
+
+  if (block_col < A->num_block_rows)
+    return A->B_offsets[block_col+1] - A->B_offsets[block_col];
+  else
+    return 0;
+}
+
+static void bdm_get_columns(void* context, int row, int* columns)
+{
+  bdm_t* A = context;
+
+  // We have to find the right block column.
+  int block_col = 0;
+  while ((A->B_offsets[block_col+1] < row) && (block_col < A->num_block_rows))
+    ++block_col;
+
+  int bs = A->B_offsets[block_col+1] - A->B_offsets[block_col];
+  for (int i = 0; i < bs; ++i)
+    columns[i] = bs*block_col + i;
+}
+
 static void bdm_add_identity(void* context, real_t scale_factor)
 {
   bdm_t* A = context;
@@ -352,6 +381,8 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
     snprintf(name, 1024, "Variable block diagonal matrix");
   local_matrix_vtable vtable = {.dtor = bdm_dtor,
                                 .zero = bdm_zero,
+                                .num_columns = bdm_num_columns,
+                                .get_columns = bdm_get_columns,
                                 .add_identity = bdm_add_identity,
                                 .add_column_vector = bdm_add_column_vector,
                                 .add_row_vector = bdm_add_row_vector,
