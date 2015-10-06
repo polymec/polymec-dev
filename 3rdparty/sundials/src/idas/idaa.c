@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4501 $
+ * $Date: 2015-05-22 15:12:41 -0700 (Fri, 22 May 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -1924,7 +1924,7 @@ static booleantype IDAAckpntAllocVectors(IDAMem IDA_mem, CkpntMem ck_mem)
   for (j=0; j<phi_alloc_; j++) {
     phi_[j] = N_VClone(tempv);
     if(phi_[j] == NULL) {    
-      for(jj=0; jj<j; j++) N_VDestroy(phi_[jj]);
+      for(jj=0; jj<j; jj++) N_VDestroy(phi_[jj]);
       return(FALSE);
     }
   }
@@ -1934,9 +1934,9 @@ static booleantype IDAAckpntAllocVectors(IDAMem IDA_mem, CkpntMem ck_mem)
     for (j=0; j<phi_alloc_; j++) {
       phiQ_[j] = N_VClone(tempvQ);
       if(phiQ_[j] == NULL)  {        
-        for (jj=0; jj<j; j++) N_VDestroy(phiQ_[jj]);
+        for (jj=0; jj<j; jj++) N_VDestroy(phiQ_[jj]);
 
-        for(jj=0; jj<phi_alloc_; j++) N_VDestroy(phi_[jj]);
+        for(jj=0; jj<phi_alloc_; jj++) N_VDestroy(phi_[jj]);
 
         return(FALSE);
       }

@@ -32,11 +32,25 @@ static void bj_compute_p(void* context,
 }
 
 static bool bj_solve(void* context, 
-                     real_t t, real_t* x, real_t* xdot,
-                     real_t* r, real_t* z)
+                     real_t t, real_t* x, real_t* xdot, real_t tolerance,
+                     real_t* r, real_t* z, real_t* error_L2_norm)
 {
   bj_pc_t* pc = context;
-  return local_matrix_solve(pc->D, r, z);
+  bool solved = local_matrix_solve(pc->D, r, z);
+  if (solved)
+  {
+    // Compute the L2 norm and measure against tolerance.
+    int N = local_matrix_num_rows(pc->D);
+    real_t Pz[N];
+    local_matrix_matvec(pc->D, z, Pz);
+    *error_L2_norm = 0.0;
+    for (int i = 0; i < N; ++i)
+      *error_L2_norm += (Pz[i]-r[i])*(Pz[i]-r[i]);
+    *error_L2_norm = sqrt(*error_L2_norm);
+    if (*error_L2_norm >= tolerance)
+      solved = false;
+  }
+  return solved;
 }
 
 static void bj_free(void* context)
@@ -49,6 +63,7 @@ static void bj_free(void* context)
 newton_pc_t* block_jacobi_newton_pc_new(void* context,
                                         void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                                         void (*dtor)(void* context),
+                                        newton_pc_side_t side,
                                         int num_block_rows,
                                         int block_size)
 {
@@ -66,13 +81,14 @@ newton_pc_t* block_jacobi_newton_pc_new(void* context,
   newton_pc_vtable vtable = {.compute_p = bj_compute_p,
                              .solve = bj_solve,
                              .dtor = bj_free};
-  return newton_pc_new("Block Jacobi preconditioner", pc, vtable);
+  return newton_pc_new("Block Jacobi preconditioner", pc, vtable, side);
 
 }
                                         
 newton_pc_t* var_block_jacobi_newton_pc_new(void* context,
                                             void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                                             void (*dtor)(void* context),
+                                            newton_pc_side_t side,
                                             int num_block_rows,
                                             int* block_sizes)
 {
@@ -90,7 +106,7 @@ newton_pc_t* var_block_jacobi_newton_pc_new(void* context,
   newton_pc_vtable vtable = {.compute_p = bj_compute_p,
                              .solve = bj_solve,
                              .dtor = bj_free};
-  return newton_pc_new("Variable Block Jacobi preconditioner", pc, vtable);
+  return newton_pc_new("Variable Block Jacobi preconditioner", pc, vtable, side);
 
 }
                                         

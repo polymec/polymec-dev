@@ -21,6 +21,7 @@
 newton_pc_t* block_jacobi_newton_pc_new(void* context,
                                         void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                                         void (*dtor)(void* context),
+                                        newton_pc_side_t side,
                                         int num_block_rows,
                                         int block_size);
  
@@ -28,6 +29,7 @@ newton_pc_t* block_jacobi_newton_pc_new(void* context,
 newton_pc_t* var_block_jacobi_newton_pc_new(void* context,
                                             void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                                             void (*dtor)(void* context),
+                                            newton_pc_side_t side,
                                             int num_block_rows,
                                             int* block_sizes);
 

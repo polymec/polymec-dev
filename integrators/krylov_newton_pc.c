@@ -39,6 +39,9 @@ typedef struct
   // Preconditioning parameters.
   real_t alpha, beta, gamma;
 
+  // Inner preconditioner (if any).
+  newton_pc_t* inner_pc;
+
   // Bookkeeping.
   N_Vector z, r, z_scaling, r_scaling, temp1, temp2, temp3, temp4;
   real_t delta;
@@ -250,6 +253,22 @@ static int Atimes_Jv_adaptor(void* A_data, N_Vector v, N_Vector Av)
             NV_DATA(v), NV_DATA(Av));
 }
 
+static int solve_inner_preconditioner_system(void* context, N_Vector r, N_Vector z, int lr)
+{
+  krylov_pc_t* pc = context;
+  if (newton_pc_solve(pc->inner_pc, pc->t, NV_DATA(pc->x), NV_DATA(pc->x_dot),
+                      NV_DATA(r), NV_DATA(pc->temp1)))
+  {
+    return 0;
+  }
+  else 
+  {
+    // Recoverable error.
+    log_debug("krylov_newton_pc: inner preconditioner solve failed.");
+    return 1; 
+  }
+}
+
 static krylov_pc_t* krylov_pc_new(MPI_Comm comm,
                                   void* context,
                                   int (*F)(void* context, real_t t, real_t* x, real_t* F),
@@ -292,7 +311,28 @@ static krylov_pc_t* krylov_pc_new(MPI_Comm comm,
   krylov->temp3 = NULL;
   krylov->temp4 = NULL;
   krylov->delta = 1e-4;
+  krylov->inner_pc = NULL;
   return krylov;
+}
+
+static int get_pc_side(newton_pc_t* precond)
+{
+  if (precond == NULL)
+    return PREC_NONE;
+  newton_pc_side_t newton_side = newton_pc_side(precond);
+  int side;
+  switch (newton_side)
+  {
+    case NEWTON_PC_LEFT:
+      side = PREC_LEFT;
+      break;
+    case NEWTON_PC_RIGHT:
+      side = PREC_RIGHT;
+      break;
+    case NEWTON_PC_BOTH:
+      side = PREC_BOTH;
+  }
+  return side;
 }
 
 static krylov_pc_t* dae_krylov_pc_new(MPI_Comm comm,
@@ -337,13 +377,13 @@ static krylov_pc_t* dae_krylov_pc_new(MPI_Comm comm,
   krylov->temp2 = NULL;
   krylov->temp3 = NULL;
   krylov->temp4 = NULL;
-  krylov->delta = 1e-4;
+  krylov->inner_pc = NULL;
   return krylov;
 }
 
 static bool gmres_solve(void* context, 
-                        real_t t, real_t* x, real_t* x_dot,
-                        real_t* r, real_t* z)
+                        real_t t, real_t* x, real_t* x_dot, real_t tolerance,
+                        real_t* r, real_t* z, real_t* error_L2_norm)
 {
   krylov_pc_t* krylov = context;
   krylov->t = t;
@@ -352,15 +392,23 @@ static bool gmres_solve(void* context,
   memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
   if (x_dot != NULL)
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
-  real_t res_norm;
   int nli, nps;
-  int status = SpgmrSolve(krylov->gmr, krylov, krylov->z, krylov->r, PREC_NONE, krylov->gs,
-                          krylov->delta, krylov->max_restarts, NULL, krylov->r_scaling, krylov->z_scaling,
-                          krylov->Atimes, NULL, &res_norm, &nli, &nps);
+
+  int pretype = get_pc_side(krylov->inner_pc);
+  PSolveFn psolve = NULL;
+  if (krylov->inner_pc != NULL)
+  {
+    psolve = solve_inner_preconditioner_system;
+    newton_pc_setup(krylov->inner_pc, krylov->alpha, krylov->beta, krylov->gamma, krylov->t, x, x_dot);
+  }
+
+  int status = SpgmrSolve(krylov->gmr, krylov, krylov->z, krylov->r, pretype, krylov->gs,
+                          tolerance, krylov->max_restarts, krylov, krylov->r_scaling, krylov->z_scaling,
+                          krylov->Atimes, psolve, error_L2_norm, &nli, &nps);
   switch(status)
   {
     case SPGMR_RES_REDUCED:
-      log_debug("  GMRES: Residual norm was reduced (%g), but not below tolerance (%g)", res_norm, krylov->delta);
+      log_debug("  GMRES: Residual norm was reduced (%g), but not below tolerance (%g)", *error_L2_norm, tolerance);
       break;
     case SPGMR_CONV_FAIL:
       log_debug("  GMRES: Failed to converge.");
@@ -392,6 +440,7 @@ newton_pc_t* gmres_newton_pc_new(MPI_Comm comm,
                                            real_t alpha, real_t beta, real_t gamma, 
                                            real_t t, real_t* x, real_t* v, real_t* Jv),
                                  void (*dtor)(void* context),
+                                 newton_pc_side_t side,
                                  int num_local_values, 
                                  int num_remote_values,
                                  int krylov_dim,
@@ -406,7 +455,7 @@ newton_pc_t* gmres_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = gmres_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov preconditioner (GMRES)", krylov, vtable);
+  return newton_pc_new("Krylov preconditioner (GMRES)", krylov, vtable, side);
 }
                                         
 newton_pc_t* dae_gmres_newton_pc_new(MPI_Comm comm,
@@ -431,12 +480,12 @@ newton_pc_t* dae_gmres_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = gmres_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov DAE preconditioner (GMRES)", krylov, vtable);
+  return newton_pc_new("Krylov DAE preconditioner (GMRES)", krylov, vtable, NEWTON_PC_LEFT);
 }
 
 static bool bicgstab_solve(void* context, 
-                           real_t t, real_t* x, real_t* x_dot,
-                           real_t* r, real_t* z)
+                           real_t t, real_t* x, real_t* x_dot, real_t tolerance,
+                           real_t* r, real_t* z, real_t* error_L2_norm)
 {
   krylov_pc_t* krylov = context;
   krylov->t = t;
@@ -445,15 +494,23 @@ static bool bicgstab_solve(void* context,
   memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
   if (x_dot != NULL)
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
-  real_t res_norm;
   int nli, nps;
-  int status = SpbcgSolve(krylov->bcg, krylov, krylov->z, krylov->r, PREC_NONE, krylov->delta, 
-                          NULL, krylov->z_scaling, krylov->r_scaling, krylov->Atimes, NULL, 
-                          &res_norm, &nli, &nps);
+
+  int pretype = get_pc_side(krylov->inner_pc);
+  PSolveFn psolve = NULL;
+  if (krylov->inner_pc != NULL)
+  {
+    psolve = solve_inner_preconditioner_system;
+    newton_pc_setup(krylov->inner_pc, krylov->alpha, krylov->beta, krylov->gamma, krylov->t, x, x_dot);
+  }
+
+  int status = SpbcgSolve(krylov->bcg, krylov, krylov->z, krylov->r, pretype, tolerance,
+                          krylov, krylov->z_scaling, krylov->r_scaling, krylov->Atimes, psolve, 
+                          error_L2_norm, &nli, &nps);
   switch(status)
   {
     case SPBCG_RES_REDUCED:
-      log_debug("  Bi-CGSTAB: Residual norm was reduced (%g), but not below tolerance (%g)", res_norm, krylov->delta);
+      log_debug("  Bi-CGSTAB: Residual norm was reduced (%g), but not below tolerance (%g)", *error_L2_norm, tolerance);
       break;
     case SPBCG_CONV_FAIL:
       log_debug("  Bi-CGSTAB: Failed to converge.");
@@ -476,6 +533,7 @@ newton_pc_t* bicgstab_newton_pc_new(MPI_Comm comm,
                                               real_t alpha, real_t beta, real_t gamma, 
                                               real_t t, real_t* x, real_t* v, real_t* Jv),
                                     void (*dtor)(void* context),
+                                    newton_pc_side_t side,
                                     int num_local_values, 
                                     int num_remote_values,
                                     int krylov_dim)
@@ -485,7 +543,7 @@ newton_pc_t* bicgstab_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = bicgstab_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov preconditioner (Bi-CGSTAB)", krylov, vtable);
+  return newton_pc_new("Krylov preconditioner (Bi-CGSTAB)", krylov, vtable, side);
 }
 
 newton_pc_t* dae_bicgstab_newton_pc_new(MPI_Comm comm,
@@ -505,12 +563,12 @@ newton_pc_t* dae_bicgstab_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = bicgstab_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov DAE preconditioner (Bi-CGSTAB)", krylov, vtable);
+  return newton_pc_new("Krylov DAE preconditioner (Bi-CGSTAB)", krylov, vtable, NEWTON_PC_LEFT);
 }
 
 static bool tfqmr_solve(void* context, 
-                        real_t t, real_t* x, real_t* x_dot,
-                        real_t* r, real_t* z)
+                        real_t t, real_t* x, real_t* x_dot, real_t tolerance,
+                        real_t* r, real_t* z, real_t* error_L2_norm)
 {
   krylov_pc_t* krylov = context;
   memcpy(NV_DATA(krylov->r), r, sizeof(real_t) * krylov->N_local);
@@ -518,15 +576,23 @@ static bool tfqmr_solve(void* context,
   memcpy(NV_DATA(krylov->x), x, sizeof(real_t) * krylov->N_local);
   if (x_dot != NULL)
     memcpy(NV_DATA(krylov->x_dot), x, sizeof(real_t) * krylov->N_local);
-  real_t res_norm;
   int nli, nps;
-  int status = SptfqmrSolve(krylov->tfqmr, krylov, krylov->z, krylov->r, PREC_NONE, krylov->delta, 
-                            NULL, krylov->z_scaling, krylov->r_scaling, krylov->Atimes, NULL, 
-                            &res_norm, &nli, &nps);
+
+  int pretype = get_pc_side(krylov->inner_pc);
+  PSolveFn psolve = NULL;
+  if (krylov->inner_pc != NULL)
+  {
+    psolve = solve_inner_preconditioner_system;
+    newton_pc_setup(krylov->inner_pc, krylov->alpha, krylov->beta, krylov->gamma, krylov->t, x, x_dot);
+  }
+
+  int status = SptfqmrSolve(krylov->tfqmr, krylov, krylov->z, krylov->r, pretype, tolerance,
+                            krylov, krylov->z_scaling, krylov->r_scaling, krylov->Atimes, psolve, 
+                            error_L2_norm, &nli, &nps);
   switch(status)
   {
     case SPTFQMR_RES_REDUCED:
-      log_debug("  TFQMR: Residual norm was reduced (%g), but not below tolerance (%g)", res_norm, krylov->delta);
+      log_debug("  TFQMR: Residual norm was reduced (%g), but not below tolerance (%g)", *error_L2_norm, tolerance);
       break;
     case SPTFQMR_CONV_FAIL:
       log_debug("  TFQMR: Failed to converge.");
@@ -549,6 +615,7 @@ newton_pc_t* tfqmr_newton_pc_new(MPI_Comm comm,
                                            real_t alpha, real_t beta, real_t gamma, 
                                            real_t t, real_t* x, real_t* v, real_t* Jv),
                                  void (*dtor)(void* context),
+                                 newton_pc_side_t side,
                                  int num_local_values, 
                                  int num_remote_values,
                                  int krylov_dim)
@@ -558,7 +625,7 @@ newton_pc_t* tfqmr_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = tfqmr_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov preconditioner (TFQMR)", krylov, vtable);
+  return newton_pc_new("Krylov preconditioner (TFQMR)", krylov, vtable, side);
 }
 
 newton_pc_t* dae_tfqmr_newton_pc_new(MPI_Comm comm,
@@ -578,12 +645,18 @@ newton_pc_t* dae_tfqmr_newton_pc_new(MPI_Comm comm,
   newton_pc_vtable vtable = {.solve = tfqmr_solve,
                              .compute_p = krylov_compute_p,
                              .dtor = krylov_pc_dtor};
-  return newton_pc_new("Krylov DAE preconditioner (TFQMR)", krylov, vtable);
+  return newton_pc_new("Krylov DAE preconditioner (TFQMR)", krylov, vtable, NEWTON_PC_LEFT);
 }
 
 bool newton_pc_is_krylov_newton_pc(newton_pc_t* pc)
 {
   return string_contains(newton_pc_name(pc), "Krylov");
+}
+
+void krylov_newton_pc_set_inner_preconditioner(newton_pc_t* krylov_pc, 
+                                               newton_pc_t* inner_pc)
+{
+  ASSERT(newton_pc_is_krylov_newton_pc(krylov_pc));
 }
 
 void krylov_newton_pc_set_scaling(newton_pc_t* pc, 

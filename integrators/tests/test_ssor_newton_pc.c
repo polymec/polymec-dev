@@ -58,7 +58,7 @@ void test_ssor_pc_ctor(void** state)
   real_t b = 0.1;
   real_t c = 0.1;
   problem_t prob = {.N = N, .b = b, .c = c};
-  newton_pc_t* pc = ssor_newton_pc_new(&prob, problem_f, problem_DJ, NULL, N, 1.0);
+  newton_pc_t* pc = ssor_newton_pc_new(&prob, problem_f, problem_DJ, NULL, NEWTON_PC_LEFT, N, 1.0);
   newton_pc_free(pc);
 }
 
@@ -69,7 +69,7 @@ void test_ssor_pc_solve(void** state)
   real_t c = 0.1;
   real_t t = 0.0;
   problem_t prob = {.N = N, .b = b, .c = c};
-  newton_pc_t* pc = ssor_newton_pc_new(&prob, problem_f, problem_DJ, NULL, N, 1.0);
+  newton_pc_t* pc = ssor_newton_pc_new(&prob, problem_f, problem_DJ, NULL, NEWTON_PC_LEFT, N, 1.0);
   real_t u[N], z[N], r[N];
   memset(u, 0, sizeof(real_t) * N);
   for (int i = 0; i < N; ++i)

@@ -16,10 +16,55 @@ typedef struct
   int block_size; // -1 if variable, set to constant size if applicable.
 } bdm_t;
 
+static void* bdm_clone(void* context)
+{
+  bdm_t* mat = context;
+  bdm_t* clone = polymec_malloc(sizeof(bdm_t));
+  clone->num_block_rows = mat->num_block_rows;
+  clone->D_offsets = polymec_malloc(sizeof(int) * (clone->num_block_rows+1));
+  memcpy(clone->D_offsets, mat->D_offsets, sizeof(int) * (clone->num_block_rows+1));
+  clone->B_offsets = polymec_malloc(sizeof(int) * (clone->num_block_rows+1));
+  memcpy(clone->B_offsets, mat->B_offsets, sizeof(int) * (clone->num_block_rows+1));
+  int N = clone->D_offsets[clone->num_block_rows];
+  clone->D = polymec_malloc(sizeof(real_t) * N);
+  memcpy(clone->D, mat->D, sizeof(real_t) * N);
+  clone->block_size = mat->block_size;
+  return clone;
+}
+
 static void bdm_zero(void* context)
 {
   bdm_t* A = context;
   memset(A->D, 0, sizeof(real_t) * A->D_offsets[A->num_block_rows]);
+}
+
+static int bdm_num_columns(void* context, int row)
+{
+  bdm_t* A = context;
+
+  // We have to find the right block column.
+  int block_col = 0;
+  while ((A->B_offsets[block_col+1] < row) && (block_col < A->num_block_rows))
+    ++block_col;
+
+  if (block_col < A->num_block_rows)
+    return A->B_offsets[block_col+1] - A->B_offsets[block_col];
+  else
+    return 0;
+}
+
+static void bdm_get_columns(void* context, int row, int* columns)
+{
+  bdm_t* A = context;
+
+  // We have to find the right block column.
+  int block_col = 0;
+  while ((A->B_offsets[block_col+1] < row) && (block_col < A->num_block_rows))
+    ++block_col;
+
+  int bs = A->B_offsets[block_col+1] - A->B_offsets[block_col];
+  for (int i = 0; i < bs; ++i)
+    columns[i] = bs*block_col + i;
 }
 
 static void bdm_add_identity(void* context, real_t scale_factor)
@@ -136,7 +181,7 @@ static bool bdm_solve(void* context, real_t* B, real_t* x)
 
     // Solve the linear system.
     int one = 1, ipiv[bs], info;
-    dgesv(&bs, &one, Aij, &bs, ipiv, bi, &bs, &info);
+    rgesv(&bs, &one, Aij, &bs, ipiv, bi, &bs, &info);
     success = (info == 0);
 
     if (success)
@@ -147,7 +192,7 @@ static bool bdm_solve(void* context, real_t* B, real_t* x)
     else
     {
       ASSERT(info > 0);
-      log_debug("bdm_solve: call to dgesv failed for block row %d.", i);
+      log_debug("bdm_solve: call to rgesv failed for block row %d.", i);
       log_debug("bdm_solve: (U is singular.)");
       break;
     }
@@ -281,6 +326,64 @@ static void bdm_get_diag(void* context, real_t* diag)
   }
 }
 
+static void bdm_matvec(void* context, real_t* x, real_t* Ax)
+{
+  bdm_t* A = context;
+  for (int i = 0; i < A->num_block_rows; ++i)
+  {
+    int bs = A->B_offsets[i+1] - A->B_offsets[i];
+    real_t* Ai = &A->D[A->D_offsets[i]];
+    real_t* xi = &x[A->B_offsets[i]];
+    real_t* Axi = &Ax[A->B_offsets[i]];
+    char no_trans = 'N';
+    real_t one = 1.0, zero = 0.0;
+    int incx = 1;
+    rgemv(&no_trans, &bs, &bs, &one, Ai, &bs, xi, &incx, &zero, Axi, &incx);
+  }
+}
+
+static void bdm_add_matrix(void* context, real_t scale_factor, void* B)
+{
+  bdm_t* Amat = context;
+  bdm_t* Bmat = B;
+  ASSERT(Amat->num_block_rows == Bmat->num_block_rows);
+  int nnz = Amat->D_offsets[Amat->num_block_rows];
+  ASSERT(nnz == Bmat->D_offsets[Bmat->num_block_rows]);
+  for (int i = 0; i < nnz; ++i)
+    Amat->D[i] += scale_factor * Bmat->D[i];
+}
+
+static real_t bdm_norm(void* context, char n)
+{
+  bdm_t* mat = context;
+  real_t norm = 0.0;
+  if ((n == 'I') || (n == '1'))
+  {
+    for (int i = 0; i < mat->num_block_rows; ++i)
+    {
+      real_t* Ai = &mat->D[mat->D_offsets[i]];
+      int bs = mat->B_offsets[i+1] - mat->B_offsets[i];
+      real_t work[bs];
+      real_t subnorm = rlange(&n, &bs, &bs, Ai, &bs, work);
+      norm = MAX(norm, subnorm);
+    }
+  }
+  else
+  {
+    ASSERT(n == 'F');
+    for (int i = 0; i < mat->num_block_rows; ++i)
+    {
+      real_t* Ai = &mat->D[mat->D_offsets[i]];
+      int bs = mat->B_offsets[i+1] - mat->B_offsets[i];
+      real_t work[bs];
+      real_t subnorm = rlange(&n, &bs, &bs, Ai, &bs, work);
+      norm += subnorm;
+    }
+    norm = sqrt(norm);
+  }
+  return norm;
+}
+
 static void bdm_dtor(void* context)
 {
   bdm_t* A = context;
@@ -334,8 +437,11 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
     snprintf(name, 1024, "Block diagonal matrix (bs = %d)", bs0);
   else
     snprintf(name, 1024, "Variable block diagonal matrix");
-  local_matrix_vtable vtable = {.dtor = bdm_dtor,
+  local_matrix_vtable vtable = {.clone = bdm_clone,
+                                .dtor = bdm_dtor,
                                 .zero = bdm_zero,
+                                .num_columns = bdm_num_columns,
+                                .get_columns = bdm_get_columns,
                                 .add_identity = bdm_add_identity,
                                 .add_column_vector = bdm_add_column_vector,
                                 .add_row_vector = bdm_add_row_vector,
@@ -343,14 +449,17 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
                                 .fprintf = bdm_fprintf,
                                 .value = bdm_value,
                                 .set_value = bdm_set_value,
-                                .get_diag = bdm_get_diag};
+                                .get_diag = bdm_get_diag,
+                                .matvec = bdm_matvec,
+                                .add_matrix = bdm_add_matrix,
+                                .norm = bdm_norm};
   if (constant_block_size)
   {
     vtable.add_column_vector = bdm_add_column_vector_constant_bs;
     vtable.value = bdm_value_constant_bs;
     vtable.set_value = bdm_set_value_constant_bs;
   }
-  return local_matrix_new(name, A, vtable);
+  return local_matrix_new(name, A, vtable, A->B_offsets[num_block_rows]);
 }
 
 real_t* block_diagonal_matrix_row(local_matrix_t* matrix, int block_row)

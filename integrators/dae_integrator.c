@@ -196,6 +196,7 @@ dae_integrator_t* dae_integrator_new(int order,
   ASSERT(num_remote_values >= 0);
   ASSERT(vtable.residual != NULL);
   ASSERT(precond != NULL);
+  ASSERT(newton_pc_side(precond) == NEWTON_PC_LEFT); // left PC only!
   ASSERT(max_krylov_dim >= 3);
 
   dae_integrator_t* integ = polymec_malloc(sizeof(dae_integrator_t));

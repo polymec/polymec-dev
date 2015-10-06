@@ -16,6 +16,16 @@ typedef struct
   real_t* A;
 } dlm_t;
 
+static void* dlm_clone(void* context)
+{
+  dlm_t* mat = context;
+  dlm_t* clone = polymec_malloc(sizeof(dlm_t));
+  clone->N = mat->N;
+  clone->A = polymec_malloc(sizeof(real_t) * mat->N * mat->N);
+  memcpy(clone->A, mat->A, sizeof(real_t) * mat->N * mat->N);
+  return clone;
+}
+
 static void dlm_zero(void* context)
 {
   dlm_t* mat = context;
@@ -29,6 +39,19 @@ static void dlm_add_identity(void* context, real_t scale_factor)
   // Add in the diagonal values.
   for (int i = 0; i < mat->N; ++i)
     mat->A[mat->N*i + i] += scale_factor;
+}
+
+static int dlm_num_columns(void* context, int row)
+{
+  dlm_t* mat = context;
+  return mat->N;
+}
+
+static void dlm_get_columns(void* context, int row, int* columns)
+{
+  dlm_t* mat = context;
+  for (int j = 0; j < mat->N; ++j)
+    columns[j] = mat->A[mat->N*j+row];
 }
 
 static void dlm_add_column_vector(void* context, 
@@ -110,6 +133,30 @@ static void dlm_get_diag(void* context, real_t* diag)
     diag[i] = mat->A[mat->N*i+i];
 }
 
+static void dlm_matvec(void* context, real_t* x, real_t* Ax)
+{
+  dlm_t* mat = context;
+  char no_trans = 'N';
+  real_t one = 1.0, zero = 0.0;
+  int incx = 1;
+  rgemv(&no_trans, &mat->N, &mat->N, &one, mat->A, &mat->N, x, &incx, &zero, Ax, &incx);
+}
+
+static void dlm_add_matrix(void* context, real_t scale_factor, void* B)
+{
+  dlm_t* Amat = context;
+  dlm_t* Bmat = B;
+  for (int i = 0; i < Amat->N*Amat->N; ++i)
+    Amat->A[i] += scale_factor * Bmat->A[i];
+}
+
+static real_t dlm_norm(void* context, char n)
+{
+  dlm_t* mat = context;
+  real_t work[mat->N];
+  return rlange(&n, &mat->N, &mat->N, mat->A, &mat->N, work);
+}
+
 static void dlm_dtor(void* context)
 {
   dlm_t* mat = context;
@@ -128,8 +175,11 @@ local_matrix_t* dense_local_matrix_new(int N)
 
   char name[1024];
   snprintf(name, 1024, "Dense local matrix (N = %d)", mat->N);
-  local_matrix_vtable vtable = {.dtor = dlm_dtor,
+  local_matrix_vtable vtable = {.clone = dlm_clone,
+                                .dtor = dlm_dtor,
                                 .zero = dlm_zero,
+                                .num_columns = dlm_num_columns,
+                                .get_columns = dlm_get_columns,
                                 .add_identity = dlm_add_identity,
                                 .add_column_vector = dlm_add_column_vector,
                                 .add_row_vector = dlm_add_row_vector,
@@ -137,7 +187,10 @@ local_matrix_t* dense_local_matrix_new(int N)
                                 .fprintf = dlm_fprintf,
                                 .value = dlm_value,
                                 .set_value = dlm_set_value,
-                                .get_diag = dlm_get_diag};
-  return local_matrix_new(name, mat, vtable);
+                                .get_diag = dlm_get_diag,
+                                .matvec = dlm_matvec,
+                                .add_matrix = dlm_add_matrix,
+                                .norm = dlm_norm};
+  return local_matrix_new(name, mat, vtable, N);
 }
 

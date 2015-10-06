@@ -27,6 +27,7 @@ newton_pc_t* block_jacobi_cpr_newton_pc_from_function(MPI_Comm comm,
                                                       void* context,
                                                       int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                       void (*dtor)(void* context),
+                                                      newton_pc_side_t side,
                                                       adj_graph_t* sparsity,
                                                       int num_local_block_rows,
                                                       int num_remote_block_rows,
@@ -37,6 +38,7 @@ newton_pc_t* var_block_jacobi_cpr_newton_pc_from_function(MPI_Comm comm,
                                                           void* context,
                                                           int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                                           void (*dtor)(void* context),
+                                                          newton_pc_side_t side,
                                                           adj_graph_t* sparsity,
                                                           int num_local_block_rows,
                                                           int num_remote_block_rows,
@@ -47,6 +49,7 @@ newton_pc_t* lu_cpr_newton_pc_from_function(MPI_Comm comm,
                                             void* context,
                                             int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                             void (*dtor)(void* context),
+                                            newton_pc_side_t side,
                                             adj_graph_t* sparsity,
                                             int num_local_rows,
                                             int num_remote_rows);
@@ -56,6 +59,7 @@ newton_pc_t* ilu_cpr_newton_pc_from_function(MPI_Comm comm,
                                              void* context,
                                              int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
                                              void (*dtor)(void* context),
+                                             newton_pc_side_t side,
                                              adj_graph_t* sparsity,
                                              int num_local_rows,
                                              int num_remote_rows,
@@ -65,7 +69,8 @@ newton_pc_t* ilu_cpr_newton_pc_from_function(MPI_Comm comm,
 // given differential algebraic equation (DAE) function F(t, x, xdot), to 
 // construct matrices with a sparsity pattern expressed by the given sparsity 
 // graph, and number of locally- and remotely-stored rows. The preconditioner 
-// creates its own copy of the given sparsity graph.
+// creates its own copy of the given sparsity graph. Note that only left 
+// preconditioning is supported.
 
 // Block Jacobi, fixed block size.
 newton_pc_t* block_jacobi_cpr_newton_pc_from_dae_function(MPI_Comm comm,

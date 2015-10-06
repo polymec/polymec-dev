@@ -25,6 +25,7 @@ newton_pc_t* ssor_newton_pc_new(void* context,
                                 real_t (*f)(void* context, int i, real_t t, real_t* x),
                                 real_t (*DJ)(void* context, int i, real_t t, real_t* x),
                                 void (*dtor)(void* context),
+                                newton_pc_side_t side,
                                 int num_local_values,
                                 real_t omega);
                                         

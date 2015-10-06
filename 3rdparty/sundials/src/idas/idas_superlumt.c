@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4435 $
- * $Date: 2015-03-23 18:26:14 -0700 (Mon, 23 Mar 2015) $
+ * $Revision: 4494 $
+ * $Date: 2015-05-01 11:12:46 -0700 (Fri, 01 May 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -541,7 +541,7 @@ int IDASuperLUMTSetOrdering(void *ida_mem_v, int ordering_choice)
  * IDASuperLUMTB is a wrapper around IDASuperLUMT.
  */
 
-int IDASuperLUMTB(void *ida_mem, int num_threads, int which, int n, int nnz)
+int IDASuperLUMTB(void *ida_mem, int which, int num_threads, int n, int nnz)
 {
   IDAMem IDA_mem;
   IDAadjMem IDAADJ_mem;
@@ -608,6 +608,60 @@ int IDASuperLUMTB(void *ida_mem, int num_threads, int which, int n, int nnz)
 
   return(flag);
 }
+
+
+/*
+ * IDASuperLUMTSetOrderingB is a wrapper around IDASuperLUMTSetOrdering.
+ */
+int IDASuperLUMTSetOrderingB(void *ida_mem, int which, int ordering_choiceB)
+{
+  IDAMem IDA_mem;
+  IDAadjMem IDAADJ_mem;
+  IDABMem IDAB_mem;
+  IDASlsMemB idaslsB_mem;
+  void *ida_memB;
+  int flag;
+  
+  /* Is ida_mem allright? */
+  if (ida_mem == NULL) {
+    IDAProcessError(NULL, IDASLS_MEM_NULL, "IDASSLS", "IDASuperLUMTB", 
+		    MSGSP_CAMEM_NULL);
+    return(IDASLS_MEM_NULL);
+  }
+  IDA_mem = (IDAMem) ida_mem;
+
+  /* Is ASA initialized? */
+  if (IDA_mem->ida_adjMallocDone == FALSE) {
+    IDAProcessError(IDA_mem, IDASLS_NO_ADJ, "IDASSLS", "IDASuperLUMTB",  
+		    MSGSP_NO_ADJ);
+    return(IDASLS_NO_ADJ);
+  }
+  IDAADJ_mem = IDA_mem->ida_adj_mem;
+
+  /* Check the value of which */
+  if ( which >= IDAADJ_mem->ia_nbckpbs ) {
+    IDAProcessError(IDA_mem, IDASLS_ILL_INPUT, "IDASSLS", "IDASuperLUMTB", 
+		    MSGSP_BAD_WHICH);
+    return(IDASLS_ILL_INPUT);
+  }
+
+  /* Find the IDABMem entry in the linked list corresponding to 'which'. */
+  IDAB_mem = IDAADJ_mem->IDAB_mem;
+  while (IDAB_mem != NULL) {
+    if( which == IDAB_mem->ida_index ) break;
+    /* advance */
+    IDAB_mem = IDAB_mem->ida_next;
+  }
+
+  ida_memB = (void *)(IDAB_mem->IDA_mem);
+  
+  flag = IDASuperLUMTSetOrdering(ida_memB, ordering_choiceB);
+
+  return(flag);
+}
+
+
+
 
 /*
  * IDASuperLUMTFreeB frees the linear solver's memory for that backward problem passed 

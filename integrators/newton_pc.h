@@ -33,23 +33,35 @@ typedef struct
                     real_t t, real_t* x, real_t* xdot);
 
   // Method to solve the preconditioner equation P * z = r for z, given the 
-  // state (t, x, xdot).
+  // state (t, x, xdot) and a residual L2 norm tolerance. The error L2 norm 
+  // should be stored in *error_L2_norm.
   bool (*solve)(void* context, 
-                real_t t, real_t* x, real_t* xdot, 
-                real_t* r, real_t* z);
+                real_t t, real_t* x, real_t* xdot, real_t tolerance,
+                real_t* r, real_t* z, real_t* error_L2_norm);
 
   // Destructor.
   void (*dtor)(void* context);
 } newton_pc_vtable;
 
+// Preconditioner sided-ness.
+typedef enum
+{
+  NEWTON_PC_LEFT,
+  NEWTON_PC_RIGHT,
+  NEWTON_PC_BOTH
+} newton_pc_side_t;
+
 // Constructs a preconditioner that represents the linear combination
 // alpha * I + beta * dF/dx + gamma * dF/dx, where F(t, x[, xdot]) = 0 is a 
 // function representing a nonlinear ODE [or differential/algebraic) system, 
 // I is the identity matrix, and dF/dx [and dF/dxdot] are the derivatives of 
-// F with respect to x [and xdot].
+// F with respect to x [and xdot]. The last argument, side, indicates whether 
+// the preconditioner should be applied to the left, right, or both sides 
+// of the equation.
 newton_pc_t* newton_pc_new(const char* name,
                            void* context,
-                           newton_pc_vtable vtable);
+                           newton_pc_vtable vtable,
+                           newton_pc_side_t side);
 
 // Frees the preconditioner.
 void newton_pc_free(newton_pc_t* precond);
@@ -61,8 +73,15 @@ char* newton_pc_name(newton_pc_t* precond);
 // Newton preconditioner. Use at your own risk.
 void* newton_pc_context(newton_pc_t* precond);
 
+// Returns the "sidedness" of the Newton preconditioner.
+newton_pc_side_t newton_pc_side(newton_pc_t* precond);
+
 // Resets the preconditioner to its original state at time t.
 void newton_pc_reset(newton_pc_t* precond, real_t t);
+
+// Sets the tolerance to which the L2 norm of r - P*z will be compared in 
+// order for newton_pc_solve to succeed.
+void newton_pc_set_tolerance(newton_pc_t* precond, real_t tolerance);
 
 // Performs any setup required to computes the preconditioner matrix at the 
 // point (t, x, xdot) in solution space, computing 
@@ -76,7 +95,8 @@ void newton_pc_setup(newton_pc_t* precond,
 // Solves the preconditioner system P*z = r, placing the solution in z.
 // The time, solution, and (possibly) its time derivative are given.
 // This can only be called after newton_pc_setup has been called.
-// Returns true if the solve succeeded, false otherwise.
+// Returns true if the solve succeeded to within the preconditioner's 
+// given tolerance, false otherwise.
 bool newton_pc_solve(newton_pc_t* precond, 
                      real_t t, real_t* x, real_t* xdot,
                      real_t* r, real_t* z);

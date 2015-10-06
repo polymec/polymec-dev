@@ -43,8 +43,8 @@ static void ssor_compute_relaxed_value(ssor_pc_t* ssor, int i,
 }
 
 static bool ssor_newton_pc_solve(void* context, 
-                                 real_t t, real_t* x, real_t* xdot,
-                                 real_t* r, real_t* z)
+                                 real_t t, real_t* x, real_t* xdot, real_t tolerance,
+                                 real_t* r, real_t* z, real_t* error_L2_norm)
 {
   ssor_pc_t* ssor = context;
   int N = ssor->num_local_values;
@@ -60,7 +60,19 @@ static bool ssor_newton_pc_solve(void* context,
   for (int i = N-1; i >= 0; --i)
     ssor_compute_relaxed_value(ssor, i, t, x, r, z);
 
-  return true;
+  // Compute the error L2 norm.
+  *error_L2_norm = 0.0;
+  for (int i = 0; i < N; ++i)
+  {
+    real_t f_hi = ssor->f(ssor->context, i, t, ssor->x_pert);
+    real_t f_lo = ssor->f(ssor->context, i, t, x);
+    real_t Jz = (f_hi - f_lo) / ssor->d;
+    real_t Fi = Jz - r[i];
+    *error_L2_norm += Fi*Fi;
+  }
+  *error_L2_norm = sqrt(*error_L2_norm);
+
+  return (*error_L2_norm < tolerance);
 }
 
 static void ssor_newton_pc_free(void* context)
@@ -74,6 +86,7 @@ newton_pc_t* ssor_newton_pc_new(void* context,
                                 real_t (*f)(void* context, int i, real_t t, real_t* x),
                                 real_t (*DJ)(void* context, int i, real_t t, real_t* x),
                                 void (*dtor)(void* context),
+                                newton_pc_side_t side,
                                 int num_local_values,
                                 real_t omega)
 {
@@ -97,7 +110,7 @@ newton_pc_t* ssor_newton_pc_new(void* context,
 
   newton_pc_vtable vtable = {.solve = ssor_newton_pc_solve,
                              .dtor = ssor_newton_pc_free};
-  return newton_pc_new("SSOR preconditioner", ssor, vtable);
+  return newton_pc_new("SSOR preconditioner", ssor, vtable, side);
 }
                                         
 bool newton_pc_is_ssor_newton_pc(newton_pc_t* newton_pc)

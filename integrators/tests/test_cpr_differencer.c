@@ -14,6 +14,7 @@
 #include "core/polymec.h"
 #include "core/block_diagonal_matrix.h"
 #include "core/sparse_local_matrix.h"
+#include "core/dense_local_matrix.h"
 #include "integrators/cpr_differencer.h"
 
 static int F_ident(void* bs_p, real_t t, real_t* x, real_t* F)
@@ -42,48 +43,33 @@ void test_identity_jacobian_with_bs(void** state, int block_size)
   for (int i = 0; i < block_size * 10; ++i)
     x[i] = 1.0*i;
 
-  // Try a block diagonal matrix.
-  local_matrix_t* D = block_diagonal_matrix_new(10, block_size);
-  cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, D);
-  local_matrix_fprintf(D, stdout); 
+  // Try (1) a block diagonal matrix and (2) a sparse matrix.
+  local_matrix_t* matrices[2];
+  matrices[0] = block_diagonal_matrix_new(10, block_size);
+  matrices[1] = sparse_local_matrix_new(block_sparsity);
 
-  for (int i = 0; i < block_size * 10; ++i)
+  for (int m = 0; m < 2; ++m)
   {
-    for (int j = 0; j < block_size * 10; ++j)
+    local_matrix_t* J = matrices[m];
+    cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, J);
+    local_matrix_fprintf(J, stdout); 
+
+    for (int i = 0; i < block_size * 10; ++i)
     {
-      if (j == i)
+      for (int j = 0; j < block_size * 10; ++j)
       {
-        assert_true(local_matrix_value(D, i, j) == 1.0);
-      }
-      else
-      {
-        assert_true(local_matrix_value(D, i, j) == 0.0);
+        if (j == i)
+        {
+          assert_true(local_matrix_value(J, i, j) == 1.0);
+        }
+        else
+        {
+          assert_true(local_matrix_value(J, i, j) == 0.0);
+        }
       }
     }
+    local_matrix_free(J);
   }
-  local_matrix_free(D);
-
-  // Now try a sparse matrix.
-  block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
-  local_matrix_t* A = sparse_local_matrix_new(block_sparsity);
-  adj_graph_free(block_sparsity);
-  cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, A);
-  local_matrix_fprintf(A, stdout);
-  for (int i = 0; i < block_size * 10; ++i)
-  {
-    for (int j = 0; j < block_size * 10; ++j)
-    {
-      if (j == i)
-      {
-        assert_true(local_matrix_value(A, i, j) == 1.0);
-      }
-      else
-      {
-        assert_true(local_matrix_value(A, i, j) == 0.0);
-      }
-    }
-  }
-  local_matrix_free(A);
 
   // Clean up.
   adj_graph_free(sparsity);
@@ -112,18 +98,7 @@ static int F_dense(void* bs_p, real_t t, real_t* x, real_t* F)
 void test_dense_jacobian_with_bs(void** state, int block_size)
 {
   // Make a dense sparsity graph.
-  adj_graph_t* sparsity = adj_graph_new(MPI_COMM_SELF, 10);
-  for (int v = 0; v < 10; ++v)
-  {
-    adj_graph_set_num_edges(sparsity, v, 9);
-    int* edges = adj_graph_edges(sparsity, v);
-    int i = 0;
-    for (int e = 0; e < 10; ++e)
-    {
-      if (e != v)
-        edges[i++] = e;
-    }
-  }
+  adj_graph_t* sparsity = dense_adj_graph_new(MPI_COMM_SELF, 10, 0);
   adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
   // Note: block_sparsity is consumed by diff!
   cpr_differencer_t* diff = cpr_differencer_new(MPI_COMM_SELF,
@@ -161,10 +136,20 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
   }
   local_matrix_free(D);
 
-  // Now try a sparse matrix.
-  block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
+  // Now try sparse and dense matrices.
   local_matrix_t* A = sparse_local_matrix_new(block_sparsity);
-  adj_graph_free(block_sparsity);
+  cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, A);
+  local_matrix_fprintf(A, stdout);
+  for (int i = 0; i < block_size * 10; ++i)
+  {
+    for (int j = 0; j < block_size * 10; ++j)
+    {
+      assert_true(local_matrix_value(A, i, j) == 1.0);
+    }
+  }
+  local_matrix_free(A);
+
+  A = dense_local_matrix_new(10*block_size);
   cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, A);
   local_matrix_fprintf(A, stdout);
   for (int i = 0; i < block_size * 10; ++i)
@@ -177,7 +162,6 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
   local_matrix_free(A);
 
   // Clean up.
-  adj_graph_free(sparsity);
   cpr_differencer_free(diff);
 }
 
@@ -189,13 +173,91 @@ void test_dense_jacobian(void** state)
   test_dense_jacobian_with_bs(state, 4);
 }
 
+static int F_asym(void* null, real_t t, real_t* x, real_t* F)
+{
+  memset(F, 0, sizeof(real_t) * 10);
+  int counter = 1;
+  for (int i = 0; i < 10; ++i)
+    for (int j = 0; j < 10; ++j, ++counter)
+      F[i] += counter * x[j]; 
+  return 0;
+}
+
+void test_asymmetric_jacobian(void** state)
+{
+  // Make a dense sparsity graph.
+  adj_graph_t* sparsity = dense_adj_graph_new(MPI_COMM_SELF, 10, 0);
+  // Note: sparsity is consumed by diff!
+  cpr_differencer_t* diff = cpr_differencer_new(MPI_COMM_SELF,
+                                                NULL,
+                                                F_asym,
+                                                NULL,
+                                                NULL,
+                                                sparsity, 
+                                                10, 0);
+
+  // x vector.
+  real_t x[10];
+  for (int i = 0; i < 10; ++i)
+    x[i] = 1.0*i;
+
+  // Try a block diagonal matrix.
+  local_matrix_t* D = block_diagonal_matrix_new(10, 1);
+  cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, D);
+  local_matrix_fprintf(D, stdout); 
+  for (int i = 0; i < 10; ++i)
+  {
+    for (int j = 0; j < 10; ++j)
+    {
+      if (i == j)
+      {
+        assert_true(local_matrix_value(D, i, j) == (10.0*i + 1.0*j + 1.0));
+      }
+      else
+      {
+        assert_true(local_matrix_value(D, i, j) == 0.0);
+      }
+    }
+  }
+  local_matrix_free(D);
+
+  // Now try sparse and dense matrices.
+  local_matrix_t* A = sparse_local_matrix_new(sparsity);
+  cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, A);
+  local_matrix_fprintf(A, stdout);
+  for (int i = 0; i < 10; ++i)
+  {
+    for (int j = 0; j < 10; ++j)
+    {
+      assert_true(local_matrix_value(A, i, j) == (10.0*i + 1.0*j + 1.0));
+    }
+  }
+  local_matrix_free(A);
+
+  A = dense_local_matrix_new(10);
+  cpr_differencer_compute(diff, 0.0, 1.0, 0.0, 0.0, x, NULL, A);
+  local_matrix_fprintf(A, stdout);
+  for (int i = 0; i < 10; ++i)
+  {
+    for (int j = 0; j < 10; ++j)
+    {
+      assert_true(local_matrix_value(A, i, j) == (10.0*i + 1.0*j + 1.0));
+    }
+  }
+  local_matrix_free(A);
+
+  // Clean up.
+  cpr_differencer_free(diff);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const UnitTest tests[] = 
   {
     unit_test(test_identity_jacobian),
-    unit_test(test_dense_jacobian)
+    unit_test(test_dense_jacobian),
+    unit_test(test_asymmetric_jacobian)
   };
   return run_tests(tests);
 }

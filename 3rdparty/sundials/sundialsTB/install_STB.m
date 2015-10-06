@@ -12,7 +12,7 @@ function [] = install_STB
 % All rights reserved.
 % For details, see the LICENSE file.
 % LLNS Copyright End
-% $Revision: 4075 $Date: 2009/02/08 20:51:44 $
+% $Revision: 4517 $Date: 2009/02/08 20:51:44 $
 
 % MEX compiler command
 % --------------------
@@ -95,7 +95,7 @@ end
 
 mkdir('sundials');
 fi = fopen(fullfile('sundials','sundials_config.h'),'w');
-fprintf(fi,'#define SUNDIALS_PACKAGE_VERSION "2.4.0"\n');
+fprintf(fi,'#define SUNDIALS_PACKAGE_VERSION "2.6.2"\n');
 fprintf(fi,'#define SUNDIALS_DOUBLE_PRECISION 1\n');
 fprintf(fi,'#define SUNDIALS_USE_GENERIC_MATH 1\n');
 fprintf(fi,'#define SUNDIALS_EXPORT\n');

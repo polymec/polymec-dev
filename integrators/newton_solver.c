@@ -116,6 +116,8 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   ASSERT(max_krylov_dim >= 3);
   ASSERT(((solver_type != NEWTON_GMRES) && (solver_type != NEWTON_FGMRES)) || 
          (max_restarts >= 0));
+  ASSERT(precond != NULL);
+  ASSERT(newton_pc_side(precond) == NEWTON_PC_LEFT);
 
   newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
   solver->context = context;

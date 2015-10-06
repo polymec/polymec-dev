@@ -17,7 +17,7 @@ cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
 
 BUILDDIR := build/$(systype)-$(cputype)
-CONFIG_FLAGS = -DUNIX=1
+CONFIG_FLAGS = -DUNIX=1 -Wno-dev
 
 # Process configuration options.
 

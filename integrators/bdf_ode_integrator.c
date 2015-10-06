@@ -252,7 +252,6 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
-  START_FUNCTION_TIMER();
   bdf_ode_t* integ = context;
   if (!jacobian_is_current)
   {
@@ -263,7 +262,6 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   }
   else
     *jacobian_was_updated = 0;
-  STOP_FUNCTION_TIMER();
   return 0;
 }
 
@@ -276,17 +274,16 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
                                        int lr, void* context, 
                                        N_Vector work)
 {
-  START_FUNCTION_TIMER();
-  ASSERT(lr == 1); // Left preconditioning only.
-
   bdf_ode_t* integ = context;
   
   // FIXME: Apply scaling if needed.
 
+  // Set the preconditioner's L2 norm tolerance.
+  newton_pc_set_tolerance(integ->precond, delta);
+
   // Solve it.
   int result = (newton_pc_solve(integ->precond, t, NV_DATA(x), NULL,
                                 NV_DATA(r), NV_DATA(z))) ? 0 : 1;
-  STOP_FUNCTION_TIMER();
   return result;
 }
 
@@ -360,17 +357,31 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   CVodeSetUserData(integ->cvode, integ);
   CVodeInit(integ->cvode, bdf_evaluate_rhs, 0.0, integ->x);
 
+  newton_pc_side_t newton_side = newton_pc_side(precond);
+  int side;
+  switch (newton_side)
+  {
+    case NEWTON_PC_LEFT:
+      side = PREC_LEFT;
+      break;
+    case NEWTON_PC_RIGHT:
+      side = PREC_RIGHT;
+      break;
+    case NEWTON_PC_BOTH:
+      side = PREC_BOTH;
+  }
+
   // Set up the solver type.
   if (solver_type == JFNK_BDF_GMRES)
   {
-    CVSpgmr(integ->cvode, PREC_LEFT, max_krylov_dim); 
+    CVSpgmr(integ->cvode, side, max_krylov_dim); 
     // We use modified Gram-Schmidt orthogonalization.
     CVSpilsSetGSType(integ->cvode, MODIFIED_GS);
   }
   else if (solver_type == JFNK_BDF_BICGSTAB)
-    CVSpbcg(integ->cvode, PREC_LEFT, max_krylov_dim);
+    CVSpbcg(integ->cvode, side, max_krylov_dim);
   else
-    CVSptfqmr(integ->cvode, PREC_LEFT, max_krylov_dim);
+    CVSptfqmr(integ->cvode, side, max_krylov_dim);
 
   // Set up the Jacobian function and preconditioner.
   if (Jy_func != NULL)
@@ -583,5 +594,20 @@ void bdf_ode_integrator_add_observer(ode_integrator_t* integrator,
 {
   bdf_ode_t* integ = ode_integrator_context(integrator);
   ptr_array_append_with_dtor(integ->observers, observer, DTOR(bdf_ode_observer_free));
+}
+
+// This unpublished function provides direct access to the CVode object 
+// within the BDF integrator.
+void* bdf_ode_integrator_cvode(ode_integrator_t* integrator)
+{
+  bdf_ode_t* integ = ode_integrator_context(integrator);
+  return integ->cvode;
+}
+
+// This unpublished function provides direct access to the CVode right-hand
+// side function within the BDF integrator.
+int bdf_ode_integrator_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
+{
+  return bdf_evaluate_rhs(t, x, x_dot, context);
 }
 

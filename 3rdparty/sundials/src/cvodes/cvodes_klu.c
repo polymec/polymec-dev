@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4435 $
- * $Date: 2015-03-23 18:26:14 -0700 (Mon, 23 Mar 2015) $
+ * $Revision: 4495 $
+ * $Date: 2015-05-01 11:33:23 -0700 (Fri, 01 May 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -262,6 +262,11 @@ int CVKLUReInit(void *cvode_mem, int n, int nnz, int reinit_type)
     }
   }
 
+  /* Free the prior factorazation and reset for first factorization */
+  if( klu_data->s_Symbolic != NULL)
+    klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
+  if( klu_data->s_Numeric != NULL)
+    klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
   cvsls_mem->s_first_factorize = 1;
 
   cvsls_mem->s_last_flag = CVSLS_SUCCESS;
@@ -663,6 +668,105 @@ int CVKLUB(void *cvode_mem, int which, int n, int nnz)
 
   return(flag);
 }
+
+
+/*
+ * CVKLUReInitB is a wrapper around CVKLUReInit. 
+ * CVKLUReInitB pulls off the memory block associated with the
+ * which parameter and reinitializes the KLU solver associated with that block.
+ * The 'which' argument is the int returned by CVodeCreateB.
+ */
+int CVKLUReInitB(void *cvode_mem, int which, int n, int nnz, int reinit_type)
+{
+  CVodeMem cv_mem;
+  CVadjMem ca_mem;
+  CVodeBMem cvB_mem;
+  void *cvodeB_mem;
+  CVSlsMemB cvslsB_mem;
+  int flag;
+
+  /* Check if cvode_mem exists */
+  if (cvode_mem == NULL) {
+    cvProcessError(NULL, CVSLS_MEM_NULL, "CVSKLU", "CVKLUReInitB", MSGSP_CVMEM_NULL);
+    return(CVSLS_MEM_NULL);
+  }
+  cv_mem = (CVodeMem) cvode_mem;
+
+  /* Was ASA initialized? */
+  if (cv_mem->cv_adjMallocDone == FALSE) {
+    cvProcessError(cv_mem, CVSLS_NO_ADJ, "CVSKLU", "CVKLUReInitB", MSGSP_NO_ADJ);
+    return(CVSLS_NO_ADJ);
+  } 
+  ca_mem = cv_mem->cv_adj_mem;
+
+  /* Check which */
+  if ( which >= ca_mem->ca_nbckpbs ) {
+    cvProcessError(cv_mem, CVSLS_ILL_INPUT, "CVSKLU", "CVKLUReInitB", MSGSP_BAD_WHICH);
+    return(CVSLS_ILL_INPUT);
+  }
+
+  /* Find the CVodeBMem entry in the linked list corresponding to which */
+  cvB_mem = ca_mem->cvB_mem;
+  while (cvB_mem != NULL) {
+    if ( which == cvB_mem->cv_index ) break;
+    cvB_mem = cvB_mem->cv_next;
+  }
+
+  cvodeB_mem = (void *) (cvB_mem->cv_mem);
+
+  flag = CVKLUReInit(cvodeB_mem, n, nnz, reinit_type);
+
+  return(flag);
+}
+
+/*
+ * CVKLUSetOrderingB is a wrapper around CVKLUSetOrdering. 
+ * CVKLUSetOrderingB pulls off the memory block associated with the
+ * which parameter and sets the ordering for the solver associated with that block.
+ */
+int CVKLUSetOrderingB(void *cvode_mem, int which, int ordering_choice)
+{
+  CVodeMem cv_mem;
+  CVadjMem ca_mem;
+  CVodeBMem cvB_mem;
+  void *cvodeB_mem;
+  CVSlsMemB cvslsB_mem;
+  int flag;
+
+  /* Check if cvode_mem exists */
+  if (cvode_mem == NULL) {
+    cvProcessError(NULL, CVSLS_MEM_NULL, "CVSKLU", "CVKLUSetOrderingB", MSGSP_CVMEM_NULL);
+    return(CVSLS_MEM_NULL);
+  }
+  cv_mem = (CVodeMem) cvode_mem;
+
+  /* Was ASA initialized? */
+  if (cv_mem->cv_adjMallocDone == FALSE) {
+    cvProcessError(cv_mem, CVSLS_NO_ADJ, "CVSKLU", "CVKLUSetOrderingB", MSGSP_NO_ADJ);
+    return(CVSLS_NO_ADJ);
+  } 
+  ca_mem = cv_mem->cv_adj_mem;
+
+  /* Check which */
+  if ( which >= ca_mem->ca_nbckpbs ) {
+    cvProcessError(cv_mem, CVSLS_ILL_INPUT, "CVSKLU", "CVKLUSetOrderingB", MSGSP_BAD_WHICH);
+    return(CVSLS_ILL_INPUT);
+  }
+
+  /* Find the CVodeBMem entry in the linked list corresponding to which */
+  cvB_mem = ca_mem->cvB_mem;
+  while (cvB_mem != NULL) {
+    if ( which == cvB_mem->cv_index ) break;
+    cvB_mem = cvB_mem->cv_next;
+  }
+
+  cvodeB_mem = (void *) (cvB_mem->cv_mem);
+
+  flag = CVKLUSetOrdering(cvodeB_mem, ordering_choice);
+
+  return(flag);
+}
+
 
 /*
  * cvKLUFreeB frees the memory associated with the CVSKLU linear

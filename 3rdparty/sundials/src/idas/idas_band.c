@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4497 $
+ * $Date: 2015-05-06 16:55:31 -0700 (Wed, 06 May 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Alan C. Hindmarsh and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -402,7 +402,7 @@ int IDABandB(void *ida_mem, int which,
   IDAB_mem->ida_lmem  = idadlsB_mem;
   IDAB_mem->ida_lfree = IDABandFreeB;
 
-  /* Call IDABand for the IDAS data of the backward problem. */
+  /* Call IDABand to attach the IDABAND linear solver. */
   ida_memB = (void *)IDAB_mem->IDA_mem;
   flag = IDABand(ida_memB, NeqB, mupperB, mlowerB);
 

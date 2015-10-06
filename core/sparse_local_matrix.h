@@ -12,6 +12,7 @@
 #include "core/adj_graph.h"
 
 // This returns a sparse local matrix with a sparsity pattern given by a graph.
+// The sparsity graph is consumed by the matrix.
 local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity);
 
 // The following types give options to control ILU preconditioners for the 

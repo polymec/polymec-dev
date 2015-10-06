@@ -298,7 +298,6 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
-  START_FUNCTION_TIMER();
   ark_ode_t* integ = context;
   if (!jacobian_is_current)
   {
@@ -309,7 +308,6 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   }
   else
     *jacobian_was_updated = 0;
-  STOP_FUNCTION_TIMER();
   return 0;
 }
 
@@ -322,17 +320,16 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
                                        int lr, void* context, 
                                        N_Vector work)
 {
-  START_FUNCTION_TIMER();
-  ASSERT(lr == 1); // Left preconditioning only.
-
   ark_ode_t* integ = context;
   
   // FIXME: Apply scaling if needed.
 
+  // Set the preconditioner's L2 norm tolerance.
+  newton_pc_set_tolerance(integ->precond, delta);
+
   // Solve it.
   int result = (newton_pc_solve(integ->precond, t, NV_DATA(x), NULL,
                                 NV_DATA(r), NV_DATA(z))) ? 0 : 1;
-  STOP_FUNCTION_TIMER();
   return result;
 }
 
@@ -521,25 +518,39 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   else
     ARKodeSetImEx(integ->arkode);
 
+  newton_pc_side_t newton_side = newton_pc_side(precond);
+  int side;
+  switch (newton_side)
+  {
+    case NEWTON_PC_LEFT:
+      side = PREC_LEFT;
+      break;
+    case NEWTON_PC_RIGHT:
+      side = PREC_RIGHT;
+      break;
+    case NEWTON_PC_BOTH:
+      side = PREC_BOTH;
+  }
+
   // Set up the solver type.
   if (solver_type == JFNK_ARK_GMRES)
   {
-    ARKSpgmr(integ->arkode, PREC_LEFT, max_krylov_dim); 
+    ARKSpgmr(integ->arkode, side, max_krylov_dim); 
     // We use modified Gram-Schmidt orthogonalization.
     ARKSpilsSetGSType(integ->arkode, MODIFIED_GS);
   }
   else if (solver_type == JFNK_ARK_FGMRES)
   {
-    ARKSpfgmr(integ->arkode, PREC_LEFT, max_krylov_dim); 
+    ARKSpfgmr(integ->arkode, side, max_krylov_dim); 
     // We use modified Gram-Schmidt orthogonalization.
     ARKSpilsSetGSType(integ->arkode, MODIFIED_GS);
   }
   else if (solver_type == JFNK_ARK_BICGSTAB)
-    ARKSpbcg(integ->arkode, PREC_LEFT, max_krylov_dim);
+    ARKSpbcg(integ->arkode, side, max_krylov_dim);
   else if (solver_type == JFNK_ARK_PCG)
-    ARKPcg(integ->arkode, PREC_LEFT, max_krylov_dim);
+    ARKPcg(integ->arkode, side, max_krylov_dim);
   else
-    ARKSptfqmr(integ->arkode, PREC_LEFT, max_krylov_dim);
+    ARKSptfqmr(integ->arkode, side, max_krylov_dim);
 
   // Set up the Jacobian function and preconditioner.
   if (Jy_func != NULL)

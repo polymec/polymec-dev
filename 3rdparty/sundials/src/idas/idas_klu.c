@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4435 $
- * $Date: 2015-03-23 18:26:14 -0700 (Mon, 23 Mar 2015) $
+ * $Revision: 4495 $
+ * $Date: 2015-05-01 11:33:23 -0700 (Fri, 01 May 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -255,6 +255,11 @@ int IDAKLUReInit(void *ida_mem_v, int n, int nnz, int reinit_type)
     }
   }
 
+  /* Free the prior factorazation and reset for first factorization */
+  if( klu_data->s_Symbolic != NULL)
+    klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
+  if( klu_data->s_Numeric != NULL)
+    klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
   idasls_mem->s_first_factorize = 1;
 
   idasls_mem->s_last_flag = IDASLS_SUCCESS;
@@ -585,6 +590,111 @@ int IDAKLUB(void *ida_mem, int which, int n, int nnz)
 
   return(flag);
 }
+
+
+/*
+ * IDAKLUReInitB is a wrapper around IDAKLUReInit.
+ */
+
+int IDAKLUReInitB(void *ida_mem, int which, int n, int nnz, int reinit_type)
+{
+  IDAMem IDA_mem;
+  IDAadjMem IDAADJ_mem;
+  IDABMem IDAB_mem;
+  IDASlsMemB idaslsB_mem;
+  void *ida_memB;
+  int flag;
+  
+  /* Is ida_mem allright? */
+  if (ida_mem == NULL) {
+    IDAProcessError(NULL, IDASLS_MEM_NULL, "IDASSLS", "IDAKLUReInitB", 
+		    MSGSP_CAMEM_NULL);
+    return(IDASLS_MEM_NULL);
+  }
+  IDA_mem = (IDAMem) ida_mem;
+
+  /* Is ASA initialized? */
+  if (IDA_mem->ida_adjMallocDone == FALSE) {
+    IDAProcessError(IDA_mem, IDASLS_NO_ADJ, "IDASSLS", "IDAKLUReInitB",  
+		    MSGSP_NO_ADJ);
+    return(IDASLS_NO_ADJ);
+  }
+  IDAADJ_mem = IDA_mem->ida_adj_mem;
+
+  /* Check the value of which */
+  if ( which >= IDAADJ_mem->ia_nbckpbs ) {
+    IDAProcessError(IDA_mem, IDASLS_ILL_INPUT, "IDASSLS", "IDAKLUReInitB", 
+		    MSGSP_BAD_WHICH);
+    return(IDASLS_ILL_INPUT);
+  }
+
+  /* Find the IDABMem entry in the linked list corresponding to 'which'. */
+  IDAB_mem = IDAADJ_mem->IDAB_mem;
+  while (IDAB_mem != NULL) {
+    if( which == IDAB_mem->ida_index ) break;
+    /* advance */
+    IDAB_mem = IDAB_mem->ida_next;
+  }
+
+  ida_memB = (void *)(IDAB_mem->IDA_mem);
+  
+  flag = IDAKLUReInit(ida_memB, n, nnz, reinit_type);
+
+  return(flag);
+}
+
+
+/*
+ * IDAKLUSetOrderingB is a wrapper around IDAKLUSetOrdering.
+ */
+
+int IDAKLUSetOrderingB(void *ida_mem, int which, int ordering_choiceB)
+{
+  IDAMem IDA_mem;
+  IDAadjMem IDAADJ_mem;
+  IDABMem IDAB_mem;
+  IDASlsMemB idaslsB_mem;
+  void *ida_memB;
+  int flag;
+  
+  /* Is ida_mem allright? */
+  if (ida_mem == NULL) {
+    IDAProcessError(NULL, IDASLS_MEM_NULL, "IDASSLS", "IDAKLUSetOrderingB", 
+		    MSGSP_CAMEM_NULL);
+    return(IDASLS_MEM_NULL);
+  }
+  IDA_mem = (IDAMem) ida_mem;
+
+  /* Is ASA initialized? */
+  if (IDA_mem->ida_adjMallocDone == FALSE) {
+    IDAProcessError(IDA_mem, IDASLS_NO_ADJ, "IDASSLS", "IDAKLUSetOrderingB",  
+		    MSGSP_NO_ADJ);
+    return(IDASLS_NO_ADJ);
+  }
+  IDAADJ_mem = IDA_mem->ida_adj_mem;
+
+  /* Check the value of which */
+  if ( which >= IDAADJ_mem->ia_nbckpbs ) {
+    IDAProcessError(IDA_mem, IDASLS_ILL_INPUT, "IDASSLS", "IDAKLUSetOrderingB", 
+		    MSGSP_BAD_WHICH);
+    return(IDASLS_ILL_INPUT);
+  }
+
+  /* Find the IDABMem entry in the linked list corresponding to 'which'. */
+  IDAB_mem = IDAADJ_mem->IDAB_mem;
+  while (IDAB_mem != NULL) {
+    if( which == IDAB_mem->ida_index ) break;
+    /* advance */
+    IDAB_mem = IDAB_mem->ida_next;
+  }
+
+  ida_memB = (void *)(IDAB_mem->IDA_mem);
+  
+  flag = IDAKLUSetOrdering(ida_memB, ordering_choiceB);
+
+  return(flag);
+}
+
 
 /*
  * IDAKLUFreeB frees the linear solver's memory for that backward problem passed 

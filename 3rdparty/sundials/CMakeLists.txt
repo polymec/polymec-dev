@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4464 $
-# $Date: 2015-03-30 09:04:51 -0700 (Mon, 30 Mar 2015) $
+# $Revision: 4517 $
+# $Date: 2015-07-29 16:16:53 -0700 (Wed, 29 Jul 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -38,9 +38,9 @@ PROJECT(sundials C)
 
 SET(PACKAGE_BUGREPORT "woodward6@llnl.gov")
 SET(PACKAGE_NAME "SUNDIALS")
-SET(PACKAGE_STRING "SUNDIALS 2.6.0")
+SET(PACKAGE_STRING "SUNDIALS 2.6.2")
 SET(PACKAGE_TARNAME "sundials")
-SET(PACKAGE_VERSION "2.6.0")
+SET(PACKAGE_VERSION "2.6.2")
 
 # 
 SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)

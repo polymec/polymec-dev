@@ -35,6 +35,7 @@ newton_pc_t* gmres_newton_pc_new(MPI_Comm comm,
                                            real_t alpha, real_t beta, real_t gamma, 
                                            real_t t, real_t* x, real_t* v, real_t* Jv),
                                  void (*dtor)(void* context),
+                                 newton_pc_side_t side,
                                  int num_local_values, 
                                  int num_remote_values,
                                  int krylov_dim,
@@ -73,6 +74,7 @@ newton_pc_t* bicgstab_newton_pc_new(MPI_Comm comm,
                                               real_t alpha, real_t beta, real_t gamma, 
                                               real_t t, real_t* x, real_t* v, real_t* Jv),
                                     void (*dtor)(void* context),
+                                    newton_pc_side_t side,
                                     int num_local_values, 
                                     int num_remote_values,
                                     int krylov_dim);
@@ -106,6 +108,7 @@ newton_pc_t* tfqmr_newton_pc_new(MPI_Comm comm,
                                            real_t alpha, real_t beta, real_t gamma, 
                                            real_t t, real_t* x, real_t* v, real_t* Jv),
                                  void (*dtor)(void* context),
+                                 newton_pc_side_t side,
                                  int num_local_values, 
                                  int num_remote_values,
                                  int krylov_dim);
@@ -130,6 +133,11 @@ newton_pc_t* dae_tfqmr_newton_pc_new(MPI_Comm comm,
 // Returns true if the given Newton preconditioner is a Krylov preconditioner, 
 // false if not.
 bool newton_pc_is_krylov_newton_pc(newton_pc_t* pc);
+
+// Sets up an "inner" preconditioner WITHIN this Krylov preconditioner. Yes, 
+// indeed!
+void krylov_newton_pc_set_inner_preconditioner(newton_pc_t* krylov_pc, 
+                                               newton_pc_t* inner_pc);
 
 // Sets the scaling factors to be applied (componentwise) to z and r in the 
 // preconditioner equation P*z = r, or NULL if z and r are not to be scaled.

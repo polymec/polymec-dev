@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4499 $
+ * $Date: 2015-05-13 14:36:05 -0700 (Wed, 13 May 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -360,7 +360,7 @@ static void cvDenseFree(CVodeMem cv_mem)
  */
 
 /*
- * CVDenseB is a wraper around CVDense. It attaches the CVSDENSE linear solver
+ * CVDenseB is a wrapper around CVDense. It attaches the CVSDENSE linear solver
  * to the backward problem memory block.
  */
 

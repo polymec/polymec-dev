@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4096 $
-# $Date: 2014-05-02 14:49:50 -0700 (Fri, 02 May 2014) $
+# $Revision: 4511 $
+# $Date: 2015-06-29 16:48:09 -0700 (Mon, 29 Jun 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -38,7 +38,7 @@ if(LAPACK_LIBRARIES)
   file(MAKE_DIRECTORY ${LapackTest_DIR})
   # Create a CMakeLists.txt file 
   file(WRITE ${LapackTest_DIR}/CMakeLists.txt
-    "CMAKE_MINIMUM_REQUIRED(VERSION 2.2)\n"
+    "CMAKE_MINIMUM_REQUIRED(VERSION 2.4)\n"
     "PROJECT(ltest C)\n"
     "SET(CMAKE_VERBOSE_MAKEFILE ON)\n"
     "SET(CMAKE_BUILD_TYPE \"${CMAKE_BUILD_TYPE}\")\n"

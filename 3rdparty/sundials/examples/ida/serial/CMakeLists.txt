@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4333 $
-# $Date: 2015-01-23 14:28:11 -0800 (Fri, 23 Jan 2015) $
+# $Revision: 4483 $
+# $Date: 2015-04-22 16:30:17 -0700 (Wed, 22 Apr 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -145,13 +145,11 @@ IF(EXAMPLES_INSTALL)
   ENDIF(LAPACK_FOUND)
 
   IF(KLU_FOUND)
-    LIST(APPEND EXAMPLES " ")
-    LIST(APPEND EXAMPLES ${IDA_examples_KLU})
+    LIST2STRING(IDA_examples_KLU EXAMPLES)
   ENDIF(KLU_FOUND)
 
   IF(SUPERLUMT_FOUND)
-    LIST(APPEND EXAMPLES " ")
-    LIST(APPEND EXAMPLES ${IDA_examples_SUPERLUMT})
+    LIST2STRING(IDA_examples_SUPERLUMT EXAMPLES)
   ENDIF(SUPERLUMT_FOUND)
 
   STRING (REPLACE ";" " " TMP_STR ${EXAMPLES})

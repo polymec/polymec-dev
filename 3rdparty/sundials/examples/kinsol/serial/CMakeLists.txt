@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4138 $
-# $Date: 2014-06-15 13:50:39 -0700 (Sun, 15 Jun 2014) $
+# $Revision: 4483 $
+# $Date: 2015-04-22 16:30:17 -0700 (Wed, 22 Apr 2015) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -122,8 +122,7 @@ IF(EXAMPLES_INSTALL)
   ENDIF(LAPACK_FOUND)
 
   IF(SUPERLUMT_FOUND)
-    LIST(APPEND EXAMPLES " ")
-    LIST(APPEND EXAMPLES ${KINSOL_examples_SUPERLUMT})
+    LIST2STRING(KINSOL_examples_SUPERLUMT EXAMPLES)
   ENDIF(SUPERLUMT_FOUND)
 
   STRING (REPLACE ";" " " TMP_STR ${EXAMPLES})
