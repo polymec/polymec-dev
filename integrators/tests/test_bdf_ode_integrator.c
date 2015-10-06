@@ -21,6 +21,7 @@ extern ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new();
 extern ode_integrator_t* lu_precond_bdf_diurnal_integrator_new();
 extern ode_integrator_t* ilu_precond_bdf_diurnal_integrator_new();
 extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
+extern void diurnal_integrator_compute_J(ode_integrator_t* integ, real_t t, real_t* u, local_matrix_t* J);
 
 void test_block_jacobi_precond_diurnal_ctor(void** state)
 {
@@ -71,10 +72,13 @@ if (step == 400)
   sprintf(filename, "P_%s.txt", newton_pc_name(pc));
   local_matrix_export(P, MATRIX_MARKET_FORMAT, filename);
   printf("||P|| = %g\n", local_matrix_frobenius_norm(P));
-//  local_matrix_t* P1 = local_matrix_clone(P);
-//  printf("||P'|| = %g\n", local_matrix_frobenius_norm(P1));
-//  local_matrix_add(P1, -1.0, P);
-//  printf("||P'-P|| = %g\n", local_matrix_frobenius_norm(P1));
+  local_matrix_t* J = local_matrix_clone(P);
+  diurnal_integrator_compute_J(integ, t, u, J);
+  local_matrix_t* error = local_matrix_clone(P);
+  local_matrix_add(error, -1.0, J);
+  printf("||P-J|| = %g\n", local_matrix_frobenius_norm(error));
+  local_matrix_free(error);
+  local_matrix_free(J);
 }
 
     log_detail("Step %d: t = %g", step, t);
@@ -115,7 +119,7 @@ void test_block_jacobi_precond_diurnal_step_right(void** state)
 void test_lu_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-  test_diurnal_step(state, integ, 1000);
+  test_diurnal_step(state, integ, 500);
 }
 
 void test_lu_precond_diurnal_step_right(void** state)

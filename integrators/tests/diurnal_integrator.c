@@ -369,3 +369,8 @@ ode_integrator_t* ilu_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
   return integ;
 }
 
+void diurnal_integrator_compute_J(ode_integrator_t* integ, 
+                                  real_t t, real_t* u, local_matrix_t* J)
+{
+  local_matrix_zero(J);
+}

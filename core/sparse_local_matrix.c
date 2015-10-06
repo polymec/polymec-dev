@@ -117,7 +117,7 @@ static void* slm_clone(void* context)
 {
   slm_t* mat = context;
   slm_t* clone = polymec_malloc(sizeof(slm_t));
-  clone->sparsity = mat->sparsity;
+  clone->sparsity = adj_graph_clone(mat->sparsity);
   clone->A = supermatrix_new(clone->sparsity);
   int nnz = ((NCformat*)clone->A->Store)->nnz;
   real_t* Aij = ((NCformat*)clone->A->Store)->nzval;
@@ -154,7 +154,7 @@ static void slm_zero(void* context)
   int num_cols = A->ncol;
   NCformat* data = A->Store;
   real_t* Aij = data->nzval;
-  memset(Aij, 0, data->colptr[num_cols]);
+  memset(Aij, 0, sizeof(real_t) * data->nnz);
 }
 
 static int slm_num_columns(void* context, int row)
