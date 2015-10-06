@@ -21,7 +21,7 @@ extern ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new();
 extern ode_integrator_t* lu_precond_bdf_diurnal_integrator_new();
 extern ode_integrator_t* ilu_precond_bdf_diurnal_integrator_new();
 extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
-extern void diurnal_integrator_compute_J(ode_integrator_t* integ, real_t t, real_t* u, local_matrix_t* J);
+//extern void diurnal_integrator_compute_J(ode_integrator_t* integ, real_t t, real_t* u, local_matrix_t* J);
 
 void test_block_jacobi_precond_diurnal_ctor(void** state)
 {
@@ -119,7 +119,7 @@ void test_block_jacobi_precond_diurnal_step_right(void** state)
 void test_lu_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-  test_diurnal_step(state, integ, 500);
+  test_diurnal_step(state, integ, 550);
 }
 
 void test_lu_precond_diurnal_step_right(void** state)

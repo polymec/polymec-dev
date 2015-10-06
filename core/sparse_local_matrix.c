@@ -20,8 +20,10 @@ typedef struct
 
   // Matrix data.
   int* etree;
+  char equil;
   SuperMatrix rhs, X, L, U;
-  real_t *rhs_data, *X_data;
+  double *rhs_data, *X_data;
+  double *R, *C;
   int *rperm, *cperm;
   superlu_options_t options;
   SuperLUStat_t stat;
@@ -125,23 +127,22 @@ static void* slm_clone(void* context)
   memcpy(Aij, Bij, sizeof(real_t) * nnz);
 
   clone->N = mat->N;
-  clone->rhs_data = polymec_malloc(sizeof(real_t) * clone->N);
-  memcpy(clone->rhs_data, mat->rhs_data, sizeof(real_t) * clone->N);
+  clone->rhs_data = polymec_malloc(sizeof(double) * clone->N);
+  memcpy(clone->rhs_data, mat->rhs_data, sizeof(double) * clone->N);
   dCreate_Dense_Matrix(&clone->rhs, clone->N, 1, clone->rhs_data, clone->N, SLU_DN, SLU_D, SLU_GE);
-  clone->X_data = polymec_malloc(sizeof(real_t) * clone->N);
-  memcpy(clone->X_data, mat->X_data, sizeof(real_t) * clone->N);
+  clone->X_data = polymec_malloc(sizeof(double) * clone->N);
+  memcpy(clone->X_data, mat->X_data, sizeof(double) * clone->N);
   dCreate_Dense_Matrix(&clone->X, clone->N, 1, clone->X_data, clone->N, SLU_DN, SLU_D, SLU_GE);
+  clone->R = polymec_malloc(sizeof(double) * clone->N);
+  memcpy(clone->R, mat->R, sizeof(double) * clone->N);
+  clone->C = polymec_malloc(sizeof(double) * clone->N);
+  memcpy(clone->C, mat->C, sizeof(double) * clone->N);
   StatInit(&clone->stat);
 
   clone->cperm = NULL;
   clone->rperm = NULL;
-  set_default_options(&clone->options);
-  clone->options.ColPerm = NATURAL;
+  clone->options = mat->options;
   clone->options.Fact = DOFACT;
-#ifndef NDEBUG
-  clone->options.PivotGrowth = YES;
-  clone->options.ConditionNumber = YES;
-#endif
   clone->etree = NULL;
 
   return clone;
@@ -151,10 +152,12 @@ static void slm_zero(void* context)
 {
   slm_t* mat = context;
   SuperMatrix* A = mat->A;
-  int num_cols = A->ncol;
   NCformat* data = A->Store;
   real_t* Aij = data->nzval;
   memset(Aij, 0, sizeof(real_t) * data->nnz);
+
+  // We have to redo the factorization.
+  mat->options.Fact = DOFACT;
 }
 
 static int slm_num_columns(void* context, int row)
@@ -185,6 +188,9 @@ static void slm_add_identity(void* context, real_t scale_factor)
     int col_index = data->colptr[j];
     Aij[col_index] += scale_factor;
   }
+
+  // We have to redo the factorization.
+  mat->options.Fact = DOFACT;
 }
 
 static void slm_add_column_vector(void* context, 
@@ -208,6 +214,9 @@ static void slm_add_column_vector(void* context,
     int row = data->rowind[col_index+r];
     Jij[col_index+r] += scale_factor * column_vector[row];
   }
+
+  // We have to redo the factorization.
+  mat->options.Fact = DOFACT;
 }
 
 static void slm_add_row_vector(void* context, 
@@ -242,6 +251,9 @@ static void slm_add_row_vector(void* context,
       Aij[data->colptr[j] + offset] += scale_factor * row_vector[i];
     }
   }
+
+  // We have to redo the factorization.
+  mat->options.Fact = DOFACT;
 }
 
 static bool slm_solve(void* context, real_t* B, real_t* x)
@@ -251,14 +263,16 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
 
   // Copy B to the rhs vector.
   DNformat* rhs = mat->rhs.Store;
-  memcpy(rhs->nzval, B, sizeof(real_t) * mat->N);
+  double* Bi = rhs->nzval;
+  for (int i = 0; i < mat->N; ++i)
+    Bi[i] = (double)B[i];
 
   if (mat->cperm == NULL)
   {
     mat->cperm = intMalloc(mat->N);
     mat->rperm = intMalloc(mat->N);
   }
-  else if (mat->options.Fact != SamePattern)
+  else if (mat->options.Fact != FACTORED)
   {
     // Jettison the existing factorization.
     Destroy_SuperNode_Matrix(&mat->L);
@@ -266,47 +280,85 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
   }
 
   // Do the solve.
-  int info;
-  double rcond = 1.0;
+  int info = 0, lwork = 0;
+  void* work = NULL;
+  double ferr, berr;
+  GlobalLU_t glu; // "Global data structure" for SuperLU for helping with factorizations.
+  double recip_pivot_growth = 1.0, rcond = 1.0;
+  mem_usage_t mem_usage;
   if (mat->ilu_params == NULL)
   {
-    // Complete LU factorization.
-    dgssv(&mat->options, A, mat->cperm, mat->rperm, 
-          &mat->L, &mat->U, &mat->rhs, &mat->stat, &info);
+    // Factorize if necessary.
+    if (mat->options.Fact == DOFACT)
+    {
+      int rhs_ncol = mat->rhs.ncol;
+      mat->rhs.ncol = 0;
+      polymec_suspend_fpe();
+      dgssvx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
+             mat->R, mat->C, &mat->L, &mat->U, work, lwork, &mat->rhs, &mat->X, 
+             &recip_pivot_growth, &rcond, &ferr, &berr, &glu, &mem_usage, &mat->stat, &info);
+      polymec_restore_fpe();
+      mat->rhs.ncol = rhs_ncol;
 
-    // Reuse the factorization (FIXME: currently not possible)
-//    mat->options.Fact = SamePattern;
+      if (info == 0)
+      {
+        if (mat->equil != 'N')
+        {
+          if (mat->equil == 'R')
+            log_debug("slm_solve: performed row equilibration.");
+          else if (mat->equil == 'C')
+            log_debug("slm_solve: performed column equilibration.");
+          else if (mat->equil == 'B')
+            log_debug("slm_solve: performed row/column equilibration.");
+        }
+        log_debug("slm_solve: L has %d nonzeros, U has %d.", 
+                  ((SCformat*)mat->L.Store)->nnz, ((NCformat*)mat->U.Store)->nnz);
+#ifndef NDEBUG
+        log_debug("slm_solve: recip pivot growth = %g, condition number = %g.", 
+                  recip_pivot_growth, rcond);
+        if (recip_pivot_growth < 0.01)
+        {
+          log_detail("slm_solve: WARNING: recip pivot growth for ILU factorization << 1.");
+          log_detail("slm_solve: WARNING: Stability of LU factorization could be poor.");
+        }
+#endif
+
+        // Reuse the factorization.
+        mat->options.Fact = FACTORED;
+      }
+    }
+
+    // Solve the factored system.
+    if ((info == 0) || (info == A->ncol+1))
+    {
+      polymec_suspend_fpe();
+      dgssvx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
+             mat->R, mat->C, &mat->L, &mat->U, work, lwork, &mat->rhs, 
+             &mat->X, &recip_pivot_growth, &rcond, &ferr, &berr, &glu, &mem_usage, 
+             &mat->stat, &info);
+      polymec_restore_fpe();
+    }
   }
   else
   {
     // Incomplete LU factorization.
-    int elim_tree[A->ncol];
-    char equil;
-    double row_scale_factors[A->nrow], col_scale_factors[A->ncol];
-    double recip_pivot_growth = 1.0;
-    GlobalLU_t glu; // "Global data structure" for SuperLU (?!)
-    mem_usage_t mem_usage;
-
-    // Incomplete LU factorization seems to be aggressive enough that 
-    // we have to suspend floating point exceptions.
     polymec_suspend_fpe();
-
-    dgsisx(&mat->options, A, mat->cperm, mat->rperm,
-           elim_tree, &equil, row_scale_factors, col_scale_factors,
-           &mat->L, &mat->U, NULL, 0, &mat->rhs, &mat->X, &recip_pivot_growth,
-           &rcond, &glu, &mem_usage, &mat->stat, &info);
-
-    // Back to business as usual...
+    dgsisx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
+           mat->R, mat->C, &mat->L, &mat->U, NULL, 0, &mat->rhs, &mat->X, 
+           &recip_pivot_growth, &rcond, &glu, &mem_usage, &mat->stat, &info);
     polymec_restore_fpe();
 
-    if (equil != 'N')
+    if ((info == 0) || (info == A->ncol+1))
     {
-      if (equil == 'R')
-        log_debug("slm_solve: performed row equilibration.");
-      else if (equil == 'C')
-        log_debug("slm_solve: performed column equilibration.");
-      else if (equil == 'B')
-        log_debug("slm_solve: performed row/column equilibration.");
+      if (mat->equil != 'N')
+      {
+        if (mat->equil == 'R')
+          log_debug("slm_solve: performed row equilibration.");
+        else if (mat->equil == 'C')
+          log_debug("slm_solve: performed column equilibration.");
+        else if (mat->equil == 'B')
+          log_debug("slm_solve: performed row/column equilibration.");
+      }
 #ifndef NDEBUG
       log_debug("slm_solve: recip pivot growth = %g, condition number = %g.", 
                 recip_pivot_growth, rcond);
@@ -319,18 +371,13 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
     }
   }
 
-  bool success = (info == 0);
-
+  bool success = ((info == 0) || (info == A->ncol+1));
   if (success)
   {
     // Copy the output vector to x.
-    if (mat->ilu_params == NULL)
-      memcpy(x, rhs->nzval, sizeof(real_t) * mat->N);
-    else
-    {
-      DNformat* X = mat->X.Store;
-      memcpy(x, X->nzval, sizeof(real_t) * mat->N);
-    }
+    double* X = ((DNformat*)mat->X.Store)->nzval;
+    for (int i = 0; i < mat->N; ++i)
+      x[i] = (real_t)X[i];
   }
   else
   {
@@ -424,6 +471,9 @@ static void slm_set_value(void* context, int i, int j, real_t value)
       Aij[data->colptr[j] + offset] = value;
     }
   }
+
+  // We have to redo the factorization.
+  mat->options.Fact = DOFACT;
 }
 
 static void slm_get_diag(void* context, real_t* diag)
@@ -477,9 +527,12 @@ static void slm_add_matrix(void* context, real_t scale_factor, void* B)
   real_t* Bij = ((NCformat*)Bmat->A->Store)->nzval;
   for (int i = 0; i < nnz; ++i)
     Aij[i] += scale_factor * Bij[i];
+
+  // We have to redo the factorization.
+  Amat->options.Fact = DOFACT;
 }
 
-extern double dlangs(char* norm, SuperMatrix* A);
+extern double dlangs(char* norm, SuperMatrix* A); // SuperLU norm function.
 
 static real_t slm_norm(void* context, char n)
 {
@@ -497,11 +550,13 @@ static void slm_dtor(void* context)
     Destroy_SuperNode_Matrix(&mat->L);
     Destroy_CompCol_Matrix(&mat->U);
   }
+  supermatrix_free(mat->A);
   Destroy_SuperMatrix_Store(&mat->rhs);
   polymec_free(mat->rhs_data);
   Destroy_SuperMatrix_Store(&mat->X);
-  supermatrix_free(mat->A);
   polymec_free(mat->X_data);
+  polymec_free(mat->R);
+  polymec_free(mat->C);
   StatFree(&mat->stat);
   if (mat->etree != NULL)
     polymec_free(mat->etree);
@@ -519,21 +574,24 @@ local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
 
   // Solver data.
   mat->N = adj_graph_num_vertices(sparsity);
-  mat->rhs_data = polymec_malloc(sizeof(real_t) * mat->N);
+  mat->rhs_data = polymec_malloc(sizeof(double) * mat->N);
   dCreate_Dense_Matrix(&mat->rhs, mat->N, 1, mat->rhs_data, mat->N, SLU_DN, SLU_D, SLU_GE);
-  mat->X_data = polymec_malloc(sizeof(real_t) * mat->N);
+  mat->X_data = polymec_malloc(sizeof(double) * mat->N);
   dCreate_Dense_Matrix(&mat->X, mat->N, 1, mat->X_data, mat->N, SLU_DN, SLU_D, SLU_GE);
+  mat->R = polymec_malloc(sizeof(double) * mat->N);
+  mat->C = polymec_malloc(sizeof(double) * mat->N);
   StatInit(&mat->stat);
   mat->cperm = NULL;
   mat->rperm = NULL;
+  mat->etree = polymec_malloc(sizeof(int) * mat->N);
   set_default_options(&mat->options);
-  mat->options.ColPerm = NATURAL;
+  mat->options.Equil = NO;
+//  mat->options.ColPerm = NATURAL;
   mat->options.Fact = DOFACT;
 #ifndef NDEBUG
   mat->options.PivotGrowth = YES;
   mat->options.ConditionNumber = YES;
 #endif
-  mat->etree = NULL;
 
   char name[1024];
   snprintf(name, 1024, "Sparse local matrix (N = %d)", mat->N);
