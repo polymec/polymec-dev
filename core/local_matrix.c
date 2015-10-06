@@ -35,7 +35,7 @@ local_matrix_t* local_matrix_new(const char* name,
   ASSERT(vtable.set_value != NULL);
   ASSERT(vtable.get_diag != NULL);
   ASSERT(vtable.matvec != NULL);
-  ASSERT(vtable.add != NULL);
+  ASSERT(vtable.add_matrix != NULL);
   ASSERT(vtable.norm != NULL);
   ASSERT(num_rows > 0);
   local_matrix_t* matrix = polymec_malloc(sizeof(local_matrix_t));
@@ -220,11 +220,11 @@ void local_matrix_matvec(local_matrix_t* matrix, real_t* x, real_t* Ax)
   STOP_FUNCTION_TIMER();
 }
 
-void local_matrix_add(local_matrix_t* matrix, real_t scale_factor, local_matrix_t* B)
+void local_matrix_add_matrix(local_matrix_t* matrix, real_t scale_factor, local_matrix_t* B)
 {
   START_FUNCTION_TIMER();
   if (scale_factor != 0.0)
-    matrix->vtable.add(matrix->context, scale_factor, B->context);
+    matrix->vtable.add_matrix(matrix->context, scale_factor, B->context);
   STOP_FUNCTION_TIMER();
 }
 

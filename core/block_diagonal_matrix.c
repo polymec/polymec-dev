@@ -342,7 +342,7 @@ static void bdm_matvec(void* context, real_t* x, real_t* Ax)
   }
 }
 
-static void bdm_add(void* context, real_t scale_factor, void* B)
+static void bdm_add_matrix(void* context, real_t scale_factor, void* B)
 {
   bdm_t* Amat = context;
   bdm_t* Bmat = B;
@@ -451,7 +451,7 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
                                 .set_value = bdm_set_value,
                                 .get_diag = bdm_get_diag,
                                 .matvec = bdm_matvec,
-                                .add = bdm_add,
+                                .add_matrix = bdm_add_matrix,
                                 .norm = bdm_norm};
   if (constant_block_size)
   {

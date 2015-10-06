@@ -467,7 +467,7 @@ static void slm_matvec(void* context, real_t* x, real_t* Ax)
   }
 }
 
-static void slm_add(void* context, real_t scale_factor, void* B)
+static void slm_add_matrix(void* context, real_t scale_factor, void* B)
 {
   slm_t* Amat = context;
   int nnz = ((NCformat*)Amat->A->Store)->nnz;
@@ -551,7 +551,7 @@ local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
                                 .set_value = slm_set_value,
                                 .get_diag = slm_get_diag,
                                 .matvec = slm_matvec,
-                                .add = slm_add,
+                                .add_matrix = slm_add_matrix,
                                 .norm = slm_norm};
   return local_matrix_new(name, mat, vtable, mat->N);
 }
