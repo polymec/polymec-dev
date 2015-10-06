@@ -27,6 +27,7 @@ typedef enum
 // Use this with local_matrix_new to construct a new type of local matrix.
 typedef struct local_matrix_vtable
 {
+  void* (*clone)(void* context); // Clones a matrix context.
   void (*dtor)(void* context); // Destructor
   void (*zero)(void* context); // Sets all matrix entries to zero.
   int (*num_columns)(void* context, int row); // Returns number of non-zero columns in the given row.
@@ -56,6 +57,9 @@ local_matrix_t* local_matrix_new(const char* name,
                                  local_matrix_vtable vtable,
                                  int num_rows);
  
+// Creates a clone of the given matrix.
+local_matrix_t* local_matrix_clone(local_matrix_t* matrix);
+
 // Frees a local matrix.
 void local_matrix_free(local_matrix_t* matrix);
 

@@ -16,6 +16,22 @@ typedef struct
   int block_size; // -1 if variable, set to constant size if applicable.
 } bdm_t;
 
+static void* bdm_clone(void* context)
+{
+  bdm_t* mat = context;
+  bdm_t* clone = polymec_malloc(sizeof(bdm_t));
+  clone->num_block_rows = mat->num_block_rows;
+  clone->D_offsets = polymec_malloc(sizeof(int) * (clone->num_block_rows+1));
+  memcpy(clone->D_offsets, mat->D_offsets, sizeof(int) * (clone->num_block_rows+1));
+  clone->B_offsets = polymec_malloc(sizeof(int) * (clone->num_block_rows+1));
+  memcpy(clone->B_offsets, mat->B_offsets, sizeof(int) * (clone->num_block_rows+1));
+  int N = clone->D_offsets[clone->num_block_rows];
+  clone->D = polymec_malloc(sizeof(real_t) * N);
+  memcpy(clone->D, mat->D, sizeof(real_t) * N);
+  clone->block_size = mat->block_size;
+  return clone;
+}
+
 static void bdm_zero(void* context)
 {
   bdm_t* A = context;
@@ -421,7 +437,8 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
     snprintf(name, 1024, "Block diagonal matrix (bs = %d)", bs0);
   else
     snprintf(name, 1024, "Variable block diagonal matrix");
-  local_matrix_vtable vtable = {.dtor = bdm_dtor,
+  local_matrix_vtable vtable = {.clone = bdm_clone,
+                                .dtor = bdm_dtor,
                                 .zero = bdm_zero,
                                 .num_columns = bdm_num_columns,
                                 .get_columns = bdm_get_columns,

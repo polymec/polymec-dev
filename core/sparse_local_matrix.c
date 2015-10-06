@@ -113,6 +113,40 @@ static SuperMatrix* supermatrix_new(adj_graph_t* graph)
   return A;
 }
 
+static void* slm_clone(void* context)
+{
+  slm_t* mat = context;
+  slm_t* clone = polymec_malloc(sizeof(slm_t));
+  clone->sparsity = mat->sparsity;
+  clone->A = supermatrix_new(clone->sparsity);
+  int nnz = ((NCformat*)clone->A->Store)->nnz;
+  real_t* Aij = ((NCformat*)clone->A->Store)->nzval;
+  real_t* Bij = ((NCformat*)mat->A->Store)->nzval;
+  memcpy(Aij, Bij, sizeof(real_t) * nnz);
+
+  clone->N = mat->N;
+  clone->rhs_data = polymec_malloc(sizeof(real_t) * clone->N);
+  memcpy(clone->rhs_data, mat->rhs_data, sizeof(real_t) * clone->N);
+  dCreate_Dense_Matrix(&clone->rhs, clone->N, 1, clone->rhs_data, clone->N, SLU_DN, SLU_D, SLU_GE);
+  clone->X_data = polymec_malloc(sizeof(real_t) * clone->N);
+  memcpy(clone->X_data, mat->X_data, sizeof(real_t) * clone->N);
+  dCreate_Dense_Matrix(&clone->X, clone->N, 1, clone->X_data, clone->N, SLU_DN, SLU_D, SLU_GE);
+  StatInit(&clone->stat);
+
+  clone->cperm = NULL;
+  clone->rperm = NULL;
+  set_default_options(&clone->options);
+  clone->options.ColPerm = NATURAL;
+  clone->options.Fact = DOFACT;
+#ifndef NDEBUG
+  clone->options.PivotGrowth = YES;
+  clone->options.ConditionNumber = YES;
+#endif
+  clone->etree = NULL;
+
+  return clone;
+}
+
 static void slm_zero(void* context)
 {
   slm_t* mat = context;
@@ -503,7 +537,8 @@ local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
 
   char name[1024];
   snprintf(name, 1024, "Sparse local matrix (N = %d)", mat->N);
-  local_matrix_vtable vtable = {.dtor = slm_dtor,
+  local_matrix_vtable vtable = {.clone = slm_clone,
+                                .dtor = slm_dtor,
                                 .zero = slm_zero,
                                 .num_columns = slm_num_columns,
                                 .get_columns = slm_get_columns,

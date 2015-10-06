@@ -22,6 +22,7 @@ local_matrix_t* local_matrix_new(const char* name,
                                  local_matrix_vtable vtable,
                                  int num_rows)
 {
+  ASSERT(vtable.clone != NULL);
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.num_columns != NULL);
   ASSERT(vtable.get_columns != NULL);
@@ -43,6 +44,16 @@ local_matrix_t* local_matrix_new(const char* name,
   matrix->vtable = vtable;
   matrix->num_rows = num_rows;
   return matrix;
+}
+
+local_matrix_t* local_matrix_clone(local_matrix_t* matrix)
+{
+  local_matrix_t* clone = polymec_malloc(sizeof(local_matrix_t));
+  clone->name = string_dup(matrix->name);
+  clone->context = matrix->vtable.clone(matrix->context);
+  clone->vtable = matrix->vtable;
+  clone->num_rows = matrix->num_rows;
+  return clone;
 }
  
 void local_matrix_free(local_matrix_t* matrix)

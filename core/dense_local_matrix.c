@@ -16,6 +16,16 @@ typedef struct
   real_t* A;
 } dlm_t;
 
+static void* dlm_clone(void* context)
+{
+  dlm_t* mat = context;
+  dlm_t* clone = polymec_malloc(sizeof(dlm_t));
+  clone->N = mat->N;
+  clone->A = polymec_malloc(sizeof(real_t) * mat->N * mat->N);
+  memcpy(clone->A, mat->A, sizeof(real_t) * mat->N * mat->N);
+  return clone;
+}
+
 static void dlm_zero(void* context)
 {
   dlm_t* mat = context;
@@ -165,7 +175,8 @@ local_matrix_t* dense_local_matrix_new(int N)
 
   char name[1024];
   snprintf(name, 1024, "Dense local matrix (N = %d)", mat->N);
-  local_matrix_vtable vtable = {.dtor = dlm_dtor,
+  local_matrix_vtable vtable = {.clone = dlm_clone,
+                                .dtor = dlm_dtor,
                                 .zero = dlm_zero,
                                 .num_columns = dlm_num_columns,
                                 .get_columns = dlm_get_columns,

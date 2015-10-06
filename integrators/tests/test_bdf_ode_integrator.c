@@ -70,6 +70,11 @@ if (step == 400)
   char filename[FILENAME_MAX];
   sprintf(filename, "P_%s.txt", newton_pc_name(pc));
   local_matrix_export(P, MATRIX_MARKET_FORMAT, filename);
+  printf("||P|| = %g\n", local_matrix_frobenius_norm(P));
+//  local_matrix_t* P1 = local_matrix_clone(P);
+//  printf("||P'|| = %g\n", local_matrix_frobenius_norm(P1));
+//  local_matrix_add(P1, -1.0, P);
+//  printf("||P'-P|| = %g\n", local_matrix_frobenius_norm(P1));
 }
 
     log_detail("Step %d: t = %g", step, t);
