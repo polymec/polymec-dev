@@ -305,6 +305,8 @@ ode_integrator_t* ilu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
   ilu_params_t* ilu_params = ilu_params_new();
+  ilu_params->drop_tolerance = 1e-8;
+  ilu_params->fill_factor = 100.0;
   newton_pc_t* precond = ilu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ, 0, ilu_params);
   ode_integrator_t* integ = bdf_diurnal_integrator_new(data, precond);
   return integ;
@@ -369,8 +371,3 @@ ode_integrator_t* ilu_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
   return integ;
 }
 
-void diurnal_integrator_compute_J(ode_integrator_t* integ, 
-                                  real_t t, real_t* u, local_matrix_t* J)
-{
-  local_matrix_zero(J);
-}

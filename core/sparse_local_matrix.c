@@ -300,7 +300,7 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
       polymec_restore_fpe();
       mat->rhs.ncol = rhs_ncol;
 
-      if (info == 0)
+      if ((info == 0) || (info == A->ncol+1))
       {
         if (mat->equil != 'N')
         {
@@ -326,6 +326,8 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
         // Reuse the factorization.
         mat->options.Fact = FACTORED;
       }
+      else
+        log_debug("slm_solve: LU factorization failed.");
     }
 
     // Solve the factored system.
@@ -342,32 +344,55 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
   else
   {
     // Incomplete LU factorization.
-    polymec_suspend_fpe();
-    dgsisx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
-           mat->R, mat->C, &mat->L, &mat->U, NULL, 0, &mat->rhs, &mat->X, 
-           &recip_pivot_growth, &rcond, &glu, &mem_usage, &mat->stat, &info);
-    polymec_restore_fpe();
 
+    // Factorize if necessary.
+    if (mat->options.Fact == DOFACT)
+    {
+      int rhs_ncol = mat->rhs.ncol;
+      mat->rhs.ncol = 0;
+      polymec_suspend_fpe();
+      dgsisx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
+             mat->R, mat->C, &mat->L, &mat->U, NULL, 0, &mat->rhs, &mat->X, 
+             &recip_pivot_growth, &rcond, &glu, &mem_usage, &mat->stat, &info);
+      polymec_restore_fpe();
+      mat->rhs.ncol = rhs_ncol;
+
+      if ((info == 0) || (info == A->ncol+1))
+      {
+        if (mat->equil != 'N')
+        {
+          if (mat->equil == 'R')
+            log_debug("slm_solve: performed row equilibration.");
+          else if (mat->equil == 'C')
+            log_debug("slm_solve: performed column equilibration.");
+          else if (mat->equil == 'B')
+            log_debug("slm_solve: performed row/column equilibration.");
+        }
+#ifndef NDEBUG
+        log_debug("slm_solve: recip pivot growth = %g, condition number = %g.", 
+                  recip_pivot_growth, rcond);
+        if (recip_pivot_growth < 0.01)
+        {
+          log_detail("slm_solve: WARNING: recip pivot growth for ILU factorization << 1.");
+          log_detail("slm_solve: WARNING: Stability of LU factorization could be poor.");
+        }
+#endif
+
+        // Reuse the factorization.
+        mat->options.Fact = FACTORED;
+      }
+      else
+        log_debug("slm_solve: incomplete LU factorization failed.");
+    }
+
+    // Solve the factored system.
     if ((info == 0) || (info == A->ncol+1))
     {
-      if (mat->equil != 'N')
-      {
-        if (mat->equil == 'R')
-          log_debug("slm_solve: performed row equilibration.");
-        else if (mat->equil == 'C')
-          log_debug("slm_solve: performed column equilibration.");
-        else if (mat->equil == 'B')
-          log_debug("slm_solve: performed row/column equilibration.");
-      }
-#ifndef NDEBUG
-      log_debug("slm_solve: recip pivot growth = %g, condition number = %g.", 
-                recip_pivot_growth, rcond);
-      if (recip_pivot_growth < 0.01)
-      {
-        log_detail("slm_solve: WARNING: recip pivot growth for ILU factorization << 1.");
-        log_detail("slm_solve: WARNING: Stability of LU factorization could be poor.");
-      }
-#endif
+      polymec_suspend_fpe();
+      dgsisx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
+             mat->R, mat->C, &mat->L, &mat->U, NULL, 0, &mat->rhs, &mat->X, 
+             &recip_pivot_growth, &rcond, &glu, &mem_usage, &mat->stat, &info);
+      polymec_restore_fpe();
     }
   }
 
@@ -384,12 +409,12 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
     ASSERT(info > 0);
     if (mat->ilu_params == NULL)
     {
-      log_debug("slm_solve: call to dgssv failed.");
+      log_debug("slm_solve: LU solve failed.");
       log_debug("slm_solve: (U is singular: U(%d, %d) = 0.)", info-1, info-1);
     }
     else 
     {
-      log_debug("slm_solve: call to dgsisx failed.");
+      log_debug("slm_solve: ILU solve failed.");
       if (info < A->ncol)
         log_debug("slm_solve: (number of zero pivots in U = %d.)", info);
       else if (info == (A->ncol + 1))
