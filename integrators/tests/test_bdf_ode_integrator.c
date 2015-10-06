@@ -64,22 +64,22 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
   int step = 0;
   while (t < 86400.0)
   {
-if (step == 400)
-{
-  newton_pc_t* pc = bdf_ode_integrator_preconditioner(integ);
-  local_matrix_t* P = cpr_newton_pc_matrix(pc);
-  char filename[FILENAME_MAX];
-  sprintf(filename, "P_%s.txt", newton_pc_name(pc));
-  local_matrix_export(P, MATRIX_MARKET_FORMAT, filename);
-  printf("||P|| = %g\n", local_matrix_frobenius_norm(P));
-  local_matrix_t* J = local_matrix_clone(P);
-  diurnal_integrator_compute_J(integ, t, u, J);
-  local_matrix_t* error = local_matrix_clone(P);
-  local_matrix_add(error, -1.0, J);
-  printf("||P-J|| = %g\n", local_matrix_frobenius_norm(error));
-  local_matrix_free(error);
-  local_matrix_free(J);
-}
+//if (step == 400)
+//{
+//  newton_pc_t* pc = bdf_ode_integrator_preconditioner(integ);
+//  local_matrix_t* P = cpr_newton_pc_matrix(pc);
+//  char filename[FILENAME_MAX];
+//  sprintf(filename, "P_%s.txt", newton_pc_name(pc));
+//  local_matrix_export(P, MATRIX_MARKET_FORMAT, filename);
+//  printf("||P|| = %g\n", local_matrix_frobenius_norm(P));
+//  local_matrix_t* J = local_matrix_clone(P);
+//  diurnal_integrator_compute_J(integ, t, u, J);
+//  local_matrix_t* error = local_matrix_clone(P);
+//  local_matrix_add(error, -1.0, J);
+//  printf("||P-J|| = %g\n", local_matrix_frobenius_norm(error));
+//  local_matrix_free(error);
+//  local_matrix_free(J);
+//}
 
     log_detail("Step %d: t = %g", step, t);
     bool integrated = ode_integrator_step(integ, 7200.0, &t, u);
