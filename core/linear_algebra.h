@@ -31,6 +31,7 @@
 #define dgelsy dgelsy_
 #define dgelss dgelss_
 #define dgelsd dgelsd_
+#define dlange dlange_
 #define sgemv sgemv_
 #define sgemm sgemm_
 #define sgesv sgesv_
@@ -49,6 +50,7 @@
 #define sgelsy sgelsy_
 #define sgelss sgelss_
 #define sgelsd sgelsd_
+#define slange slange_
 #endif
 
 // Matrix-vector multiplication: y := alpha*A*x + beta*y.
@@ -290,6 +292,12 @@ void sgelsd(int* m, int* n, int* nrhs, float* A, int* lda, float* B, int* ldb,
 void rgelsd(int* m, int* n, int* nrhs, real_t* A, int* lda, real_t* B, int* ldb, 
             real_t* S, real_t* rcond, int* rank, real_t* work, int* lwork, 
             int* info);
+
+// Matrix norm: 'M' -> max column sum, 'I' -> Infinity, '1' -> 1-norm,
+// 'F' -> Frobenius norm.
+double dlange(char* norm, int* m, int* n, double* A, int* lda, double* work);
+float slange(char* norm, int* m, int* n, float* A, int* lda, float* work);
+real_t rlange(char* norm, int* m, int* n, real_t* A, int* lda, real_t* work);
 
 // Print a (column-major-ordered) matrix to the given file stream.
 void matrix_fprintf(real_t* matrix, int nr, int nc, FILE* stream);

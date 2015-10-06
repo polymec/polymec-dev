@@ -326,6 +326,48 @@ static void bdm_matvec(void* context, real_t* x, real_t* Ax)
   }
 }
 
+static void bdm_add(void* context, real_t scale_factor, void* B)
+{
+  bdm_t* Amat = context;
+  bdm_t* Bmat = B;
+  ASSERT(Amat->num_block_rows == Bmat->num_block_rows);
+  int nnz = Amat->D_offsets[Amat->num_block_rows];
+  ASSERT(nnz == Bmat->D_offsets[Bmat->num_block_rows]);
+  for (int i = 0; i < nnz; ++i)
+    Amat->D[i] += scale_factor * Bmat->D[i];
+}
+
+static real_t bdm_norm(void* context, char n)
+{
+  bdm_t* mat = context;
+  real_t norm = 0.0;
+  if ((n == 'I') || (n == '1'))
+  {
+    for (int i = 0; i < mat->num_block_rows; ++i)
+    {
+      real_t* Ai = &mat->D[mat->D_offsets[i]];
+      int bs = mat->B_offsets[i+1] - mat->B_offsets[i];
+      real_t work[bs];
+      real_t subnorm = rlange(&n, &bs, &bs, Ai, &bs, work);
+      norm = MAX(norm, subnorm);
+    }
+  }
+  else
+  {
+    ASSERT(n == 'F');
+    for (int i = 0; i < mat->num_block_rows; ++i)
+    {
+      real_t* Ai = &mat->D[mat->D_offsets[i]];
+      int bs = mat->B_offsets[i+1] - mat->B_offsets[i];
+      real_t work[bs];
+      real_t subnorm = rlange(&n, &bs, &bs, Ai, &bs, work);
+      norm += subnorm;
+    }
+    norm = sqrt(norm);
+  }
+  return norm;
+}
+
 static void bdm_dtor(void* context)
 {
   bdm_t* A = context;
@@ -391,7 +433,9 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
                                 .value = bdm_value,
                                 .set_value = bdm_set_value,
                                 .get_diag = bdm_get_diag,
-                                .matvec = bdm_matvec};
+                                .matvec = bdm_matvec,
+                                .add = bdm_add,
+                                .norm = bdm_norm};
   if (constant_block_size)
   {
     vtable.add_column_vector = bdm_add_column_vector_constant_bs;

@@ -46,6 +46,8 @@ typedef struct local_matrix_vtable
   void (*set_value)(void* context, int i, int j, real_t value); // A(i, j) = value
   void (*get_diag)(void* context, real_t* diag); // diag A -> diag
   void (*matvec)(void* context, real_t* x, real_t* Ax); // A * x -> Ax
+  void (*add)(void* context, real_t scale_factor, void* B); // A <- A + scale_factor * B
+  real_t (*norm)(void* context, char n); // 'I', '1', 'F' norm of the matrix.
 } local_matrix_vtable;
 
 // This can be used to create a new type of local matrix representation.
@@ -119,5 +121,17 @@ void local_matrix_get_diagonal(local_matrix_t* matrix, real_t* diag);
 
 // Computes the product of the matrix with the vector x, placing it into Ax.
 void local_matrix_matvec(local_matrix_t* matrix, real_t* x, real_t* Ax);
+
+// Computes the in-place sum of this matrix with scale_factor * B.
+void local_matrix_add(local_matrix_t* matrix, real_t scale_factor, local_matrix_t* B);
+
+// Returns the Inf-norm of the matrix.
+real_t local_matrix_infinity_norm(local_matrix_t* matrix);
+
+// Returns the 1-norm of the matrix.
+real_t local_matrix_1_norm(local_matrix_t* matrix);
+
+// Returns the Frobenius norm of the matrix.
+real_t local_matrix_frobenius_norm(local_matrix_t* matrix);
 
 #endif

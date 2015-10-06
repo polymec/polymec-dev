@@ -274,3 +274,12 @@ void solve_3x3(real_t* A, real_t* b, real_t* x)
           (A[4]*A[0]-A[1]*A[3]) * b2);
 }
 
+real_t rlange(char* norm, int* m, int* n, real_t* A, int* lda, real_t* work)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  return dlange(norm, m, n, A, lda, work);
+#else
+  return slange(norm, m, n, A, lda, work);
+#endif
+}
+

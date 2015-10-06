@@ -433,6 +433,26 @@ static void slm_matvec(void* context, real_t* x, real_t* Ax)
   }
 }
 
+static void slm_add(void* context, real_t scale_factor, void* B)
+{
+  slm_t* Amat = context;
+  int nnz = ((NCformat*)Amat->A->Store)->nnz;
+  real_t* Aij = ((NCformat*)Amat->A->Store)->nzval;
+  slm_t* Bmat = context;
+  ASSERT(nnz == ((NCformat*)Bmat->A->Store)->nnz);
+  real_t* Bij = ((NCformat*)Bmat->A->Store)->nzval;
+  for (int i = 0; i < nnz; ++i)
+    Aij[i] += scale_factor * Bij[i];
+}
+
+extern double dlangs(char* norm, SuperMatrix* A);
+
+static real_t slm_norm(void* context, char n)
+{
+  slm_t* mat = context;
+  return (real_t)dlangs(&n, mat->A);
+}
+
 static void slm_dtor(void* context)
 {
   slm_t* mat = context;
@@ -495,7 +515,9 @@ local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
                                 .value = slm_value,
                                 .set_value = slm_set_value,
                                 .get_diag = slm_get_diag,
-                                .matvec = slm_matvec};
+                                .matvec = slm_matvec,
+                                .add = slm_add,
+                                .norm = slm_norm};
   return local_matrix_new(name, mat, vtable, mat->N);
 }
 

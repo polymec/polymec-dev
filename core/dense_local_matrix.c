@@ -132,6 +132,21 @@ static void dlm_matvec(void* context, real_t* x, real_t* Ax)
   rgemv(&no_trans, &mat->N, &mat->N, &one, mat->A, &mat->N, x, &incx, &zero, Ax, &incx);
 }
 
+static void dlm_add(void* context, real_t scale_factor, void* B)
+{
+  dlm_t* Amat = context;
+  dlm_t* Bmat = B;
+  for (int i = 0; i < Amat->N*Amat->N; ++i)
+    Amat->A[i] += scale_factor * Bmat->A[i];
+}
+
+static real_t dlm_norm(void* context, char n)
+{
+  dlm_t* mat = context;
+  real_t work[mat->N];
+  return rlange(&n, &mat->N, &mat->N, mat->A, &mat->N, work);
+}
+
 static void dlm_dtor(void* context)
 {
   dlm_t* mat = context;
@@ -162,7 +177,9 @@ local_matrix_t* dense_local_matrix_new(int N)
                                 .value = dlm_value,
                                 .set_value = dlm_set_value,
                                 .get_diag = dlm_get_diag,
-                                .matvec = dlm_matvec};
+                                .matvec = dlm_matvec,
+                                .add = dlm_add,
+                                .norm = dlm_norm};
   return local_matrix_new(name, mat, vtable, N);
 }
 
