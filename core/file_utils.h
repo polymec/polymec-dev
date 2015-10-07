@@ -22,6 +22,9 @@ void parse_path(const char* path, char* dirname, char* filename);
 // storing the result in path.
 void join_paths(const char* dirname, const char* filename, char* path);
 
+// Returns true if the given file exists (and is readable), false if not.
+bool file_exists(const char* filename);
+
 // Returns true if the given directory exists, false if not.
 bool directory_exists(const char* dirname);
 

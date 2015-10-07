@@ -70,6 +70,15 @@ bool create_directory(const char* dirname, mode_t mode)
   return (mkdir(path, mode) == 0);
 }
 
+bool file_exists(const char* filename)
+{
+  FILE* file = fopen(filename, "r");
+  bool result = (file != NULL);
+  if (result)
+    fclose(file);
+  return result;
+}
+
 bool directory_exists(const char* dirname)
 {
   DIR* dir = opendir(dirname);

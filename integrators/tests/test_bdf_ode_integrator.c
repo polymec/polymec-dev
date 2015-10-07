@@ -119,7 +119,7 @@ void test_block_jacobi_precond_diurnal_step_right(void** state)
 void test_lu_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-  test_diurnal_step(state, integ, 550);
+  test_diurnal_step(state, integ, 600);
 }
 
 void test_lu_precond_diurnal_step_right(void** state)
