@@ -12,6 +12,7 @@
 
 #include "cmockery.h"
 #include "core/polymec.h"
+#include "core/file_utils.h"
 #include "core/krylov_solver.h"
 
 void test_petsc_krylov_factory(void** state)
@@ -22,14 +23,25 @@ void test_petsc_krylov_factory(void** state)
     char* petsc_arch = getenv("PETSC_ARCH");
     if (petsc_arch != NULL)
     {
-      krylov_factory_t* petsc = petsc_krylov_factory(petsc_dir, petsc_arch);
-      if (petsc != NULL)
+      // Check for the existence of the PETSc dynamic library.
+#ifdef APPLE
+      const char* dl_suffix = "dylib";
+#else
+      const char* dl_suffix = "so";
+#endif
+      char petsc_path[FILENAME_MAX+1];
+      snprintf(petsc_path, FILENAME_MAX, "%s/%s/lib/libpetsc.%s", petsc_dir, petsc_arch, dl_suffix);
+      if (file_exists(petsc_path))
       {
-        assert_true(krylov_factory_name(petsc) != NULL);
-        krylov_factory_free(petsc);
+        krylov_factory_t* petsc = petsc_krylov_factory(petsc_dir, petsc_arch);
+        if (petsc != NULL)
+        {
+          assert_true(krylov_factory_name(petsc) != NULL);
+          krylov_factory_free(petsc);
+        }
+        else
+          log_urgent("Could not load PETSc. Skipping test_petsc_krylov_factory.");
       }
-      else
-        log_urgent("Could not load PETSc. Skipping test_petsc_krylov_factory.");
     }
     else
       log_urgent("PETSC_ARCH not set. Skipping test_petsc_krylov_factory.");
