@@ -2330,3 +2330,15 @@ int* silo_file_read_int_array(silo_file_t* file,
     return NULL;
 }
 
+//-------------------------------------------------------------------------
+// The following unpublished functions are not part of the formal silo_file 
+// API, and offer access to low-level Silo internals that can be used 
+// directly in other polymec-based libraries.
+//-------------------------------------------------------------------------
+
+// Access the underlying SILO file descriptor.
+DBfile* silo_file_dbfile(silo_file_t* file)
+{
+  return file->dbfile;
+}
+
