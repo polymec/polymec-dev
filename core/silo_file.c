@@ -274,6 +274,8 @@ static void pmpio_close_file(void* file, void* user_data)
   DBClose((DBfile*)file);
 }
 
+#endif
+
 // Object representing data in a multi-mesh.
 typedef struct
 {
@@ -330,8 +332,6 @@ static void multivar_free(multivar_t* var)
   free_metadata_optlist(var->optlist);
   polymec_free(var);
 }
-
-#endif
 
 bool silo_file_query(const char* file_prefix,
                      const char* directory,
@@ -581,9 +581,12 @@ static void write_multivars_to_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
 
+#if POLYMEC_HAVE_MPI
   if (file->rank_in_group != 0) return;
-
   int num_chunks = file->nproc / file->num_files;
+#else
+  int num_chunks = 1;
+#endif
 
   // Stick in cycle/time information if needed.
   DBoptlist* optlist = DBMakeOptlist(2);
@@ -1123,8 +1126,6 @@ void silo_file_close(silo_file_t* file)
     }
     MPI_Barrier(file->comm);
 
-    ptr_array_free(file->multimeshes);
-    ptr_array_free(file->multivars);
   }
   else
   {
@@ -1150,6 +1151,8 @@ void silo_file_close(silo_file_t* file)
 #endif
 
   // Clean up.
+  ptr_array_free(file->multimeshes);
+  ptr_array_free(file->multivars);
   if (file->expressions != NULL)
     string_ptr_unordered_map_free(file->expressions);
   polymec_free(file);
