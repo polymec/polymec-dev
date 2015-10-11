@@ -22,6 +22,16 @@
 #define SILO_FLOAT_TYPE DB_FLOAT
 #endif
 
+void silo_file_add_multimesh(silo_file_t* file,
+                             const char* mesh_name, 
+                             int silo_mesh_type);
+
+void silo_file_add_multivar(silo_file_t* file,
+                            const char* mesh_name, 
+                            const char* field_name,
+                            int silo_var_type,
+                            DBoptlist* optlist);
+
 void silo_enable_compression(int level)
 {
   ASSERT(level >= 0);
@@ -1271,38 +1281,6 @@ exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_n
   return ex;
 }
 
-static void silo_file_add_multimesh(silo_file_t* file,
-                                    const char* mesh_name, 
-                                    int silo_mesh_type)
-{
-  ASSERT(file->mode == DB_CLOBBER);
-
-#if POLYMEC_HAVE_MPI
-  if (file->nproc > 1)
-  {
-    multimesh_t* mesh = multimesh_new(mesh_name, silo_mesh_type);
-    ptr_array_append_with_dtor(file->multimeshes, mesh, DTOR(multimesh_free));
-  }
-#endif
-}
-
-static void silo_file_add_multivar(silo_file_t* file,
-                                   const char* mesh_name, 
-                                   const char* field_name,
-                                   int silo_var_type,
-                                   DBoptlist* optlist)
-{
-  ASSERT((file->mode == DB_CLOBBER) || (file->mode == DB_APPEND));
-
-#if POLYMEC_HAVE_MPI
-  if (file->nproc > 1)
-  {
-    multivar_t* var = multivar_new(mesh_name, field_name, silo_var_type, optlist);
-    ptr_array_append_with_dtor(file->multivars, var, DTOR(multivar_free));
-  }
-#endif
-}
-
 void silo_file_write_mesh(silo_file_t* file,
                           const char* mesh_name,
                           mesh_t* mesh)
@@ -1433,8 +1411,11 @@ void silo_file_write_mesh(silo_file_t* file,
   // Clean up.
   DBFreeOptlist(optlist);
 
-  // Add a multi-object entry.
-  silo_file_add_multimesh(file, mesh_name, DB_UCDMESH);
+  // For parallel environments, add a multi-object entry.
+#if POLYMEC_HAVE_MPI
+  if (file->nproc > 1)
+    silo_file_add_multimesh(file, mesh_name, DB_UCDMESH);
+#endif
 
   STOP_FUNCTION_TIMER();
 }
@@ -1554,8 +1535,11 @@ void silo_file_write_scalar_cell_field(silo_file_t* file,
   DBPutUcdvar1(file->dbfile, field_name, mesh_name, field_data, num_cells, 0, 0, SILO_FLOAT_TYPE, DB_ZONECENT, optlist);
   free_metadata_optlist(optlist);
 
-  // Add a multi-object entry.
-  silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR, optlist);
+  // Add a multi-object entry for parallel environments.
+#if POLYMEC_HAVE_MPI
+  if (file->nproc > 1)
+    silo_file_add_multivar(file, mesh_name, field_name, DB_UCDVAR, optlist);
+#endif
   STOP_FUNCTION_TIMER();
 }
 
@@ -1988,8 +1972,12 @@ void silo_file_write_point_cloud(silo_file_t* file,
     silo_file_write_tags(file, cloud->tags, tag_name);
   }
 
-  // Add a multi-object entry.
-  silo_file_add_multimesh(file, cloud_name, DB_POINTMESH);
+  // Add a multi-object entry for parallel environments.
+#if POLYMEC_HAVE_MPI
+  if (file->nproc > 1)
+    silo_file_add_multimesh(file, cloud_name, DB_POINTMESH);
+#endif
+
   STOP_FUNCTION_TIMER();
 }
 
@@ -2058,8 +2046,11 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
   DBPutPointvar1(file->dbfile, field_name, cloud_name, field_data, num_points, SILO_FLOAT_TYPE, NULL);
   free_metadata_optlist(optlist);
 
-  // Add a multi-object entry.
-  silo_file_add_multivar(file, cloud_name, field_name, DB_POINTVAR, optlist);
+  // Add a multi-object entry for parallel environments.
+#if POLYMEC_HAVE_MPI
+  if (file->nproc > 1)
+    silo_file_add_multivar(file, cloud_name, field_name, DB_POINTVAR, optlist);
+#endif
   STOP_FUNCTION_TIMER();
 }
 
@@ -2340,5 +2331,33 @@ int* silo_file_read_int_array(silo_file_t* file,
 DBfile* silo_file_dbfile(silo_file_t* file)
 {
   return file->dbfile;
+}
+
+// Writes metadata identifying a portion of a "multi-block" mesh of the given 
+// type to the given SILO file. This can be used for domain decompositions and 
+// for segmenting a mesh on a single process.
+void silo_file_add_multimesh(silo_file_t* file,
+                             const char* mesh_name, 
+                             int silo_mesh_type)
+{
+  ASSERT(file->mode == DB_CLOBBER);
+
+  multimesh_t* mesh = multimesh_new(mesh_name, silo_mesh_type);
+  ptr_array_append_with_dtor(file->multimeshes, mesh, DTOR(multimesh_free));
+}
+
+// Writes metadata identifying a portion of a "multi-block" variable of the given 
+// type to the given SILO file. This can be used for domain decompositions and 
+// for segmenting a mesh on a single process.
+void silo_file_add_multivar(silo_file_t* file,
+                            const char* mesh_name, 
+                            const char* field_name,
+                            int silo_var_type,
+                            DBoptlist* optlist)
+{
+  ASSERT((file->mode == DB_CLOBBER) || (file->mode == DB_APPEND));
+
+  multivar_t* var = multivar_new(mesh_name, field_name, silo_var_type, optlist);
+  ptr_array_append_with_dtor(file->multivars, var, DTOR(multivar_free));
 }
 
