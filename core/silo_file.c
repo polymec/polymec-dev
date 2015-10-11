@@ -24,7 +24,8 @@
 
 void silo_file_add_multimesh(silo_file_t* file,
                              const char* mesh_name, 
-                             int silo_mesh_type);
+                             int silo_mesh_type,
+                             DBoptlist* optlist);
 
 void silo_file_add_multivar(silo_file_t* file,
                             const char* mesh_name, 
@@ -176,7 +177,7 @@ static DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata)
 static DBoptlist* optlist_clone(DBoptlist* optlist)
 {
   DBoptlist* clone = NULL;
-  if (clone != NULL)
+  if (optlist != NULL)
   {
     clone = DBMakeOptlist(4);
     char* label = DBGetOption(optlist, DBOPT_LABEL);
@@ -278,13 +279,17 @@ typedef struct
 {
   char* name;
   int type;
+  DBoptlist* optlist;
 } multimesh_t;
 
-static multimesh_t* multimesh_new(const char* mesh_name, int mesh_type)
+static multimesh_t* multimesh_new(const char* mesh_name, 
+                                  int mesh_type, 
+                                  DBoptlist* optlist)
 {
   multimesh_t* mesh = polymec_malloc(sizeof(multimesh_t));
   mesh->name = string_dup(mesh_name);
   mesh->type = mesh_type;
+  mesh->optlist = optlist_clone(optlist);
   return mesh;
 }
 
@@ -292,6 +297,7 @@ static void multimesh_free(multimesh_t* mesh)
 {
   polymec_free(mesh->name);
   polymec_free(mesh);
+  free_metadata_optlist(mesh->optlist);
 }
 
 // Object representing data in a multi-mesh.
@@ -516,9 +522,11 @@ struct silo_file_t
   PMPIO_baton_t* baton;
   MPI_Comm comm;
   int num_files, mpi_tag, nproc, rank, group_rank, rank_in_group;
+#endif
+
+  // Multi-block data.
   ptr_array_t* multimeshes;
   ptr_array_t* multivars;
-#endif
 };
 
 // Expression struct.
@@ -569,7 +577,6 @@ static void write_provenance_to_file(silo_file_t* file)
   string_free(provenance_str);
 }
 
-#if POLYMEC_HAVE_MPI
 static void write_multivars_to_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
@@ -642,6 +649,7 @@ static void write_multivars_to_file(silo_file_t* file)
   }
 }
 
+#if POLYMEC_HAVE_MPI
 static void write_master_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
@@ -836,9 +844,6 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     char silo_dir_name[FILENAME_MAX];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
-
-    file->multimeshes = ptr_array_new();
-    file->multivars = ptr_array_new();
   }
   else
   {
@@ -874,6 +879,9 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
   DBSetDir(file->dbfile, "/");
 #endif
+
+  file->multimeshes = ptr_array_new();
+  file->multivars = ptr_array_new();
   file->mode = DB_CLOBBER;
   file->cycle = cycle;
   file->time = time;
@@ -1027,8 +1035,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     char silo_dir_name[FILENAME_MAX];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
-    file->multimeshes = ptr_array_new();
-    file->multivars = ptr_array_new();
 
     show_provenance_on_debug_log(file);
   }
@@ -1067,6 +1073,9 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
   show_provenance_on_debug_log(file);
 #endif
+
+  file->multimeshes = ptr_array_new();
+  file->multivars = ptr_array_new();
 
   // Get cycle/time information.
   if (DBInqVarExists(file->dbfile, "dtime"))
@@ -1121,6 +1130,8 @@ void silo_file_close(silo_file_t* file)
   {
     if (file->mode == DB_CLOBBER)
     {
+      // Write multi-block objects to the file if needed.
+      write_multivars_to_file(file);
       write_expressions_to_file(file, file->dbfile);
       write_provenance_to_file(file);
     }
@@ -1130,6 +1141,8 @@ void silo_file_close(silo_file_t* file)
   // Write the file.
   if (file->mode == DB_CLOBBER)
   {
+    // Write multi-block objects to the file if needed.
+    write_multivars_to_file(file);
     write_expressions_to_file(file, file->dbfile);
     write_provenance_to_file(file);
   }
@@ -1414,7 +1427,7 @@ void silo_file_write_mesh(silo_file_t* file,
   // For parallel environments, add a multi-object entry.
 #if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
-    silo_file_add_multimesh(file, mesh_name, DB_UCDMESH);
+    silo_file_add_multimesh(file, mesh_name, DB_UCDMESH, NULL);
 #endif
 
   STOP_FUNCTION_TIMER();
@@ -1975,7 +1988,7 @@ void silo_file_write_point_cloud(silo_file_t* file,
   // Add a multi-object entry for parallel environments.
 #if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
-    silo_file_add_multimesh(file, cloud_name, DB_POINTMESH);
+    silo_file_add_multimesh(file, cloud_name, DB_POINTMESH, NULL);
 #endif
 
   STOP_FUNCTION_TIMER();
@@ -2338,11 +2351,12 @@ DBfile* silo_file_dbfile(silo_file_t* file)
 // for segmenting a mesh on a single process.
 void silo_file_add_multimesh(silo_file_t* file,
                              const char* mesh_name, 
-                             int silo_mesh_type)
+                             int silo_mesh_type,
+                             DBoptlist* optlist)
 {
   ASSERT(file->mode == DB_CLOBBER);
 
-  multimesh_t* mesh = multimesh_new(mesh_name, silo_mesh_type);
+  multimesh_t* mesh = multimesh_new(mesh_name, silo_mesh_type, optlist);
   ptr_array_append_with_dtor(file->multimeshes, mesh, DTOR(multimesh_free));
 }
 
