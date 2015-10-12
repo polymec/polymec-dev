@@ -31,22 +31,22 @@
 // Access the underlying SILO file descriptor.
 DBfile* silo_file_dbfile(silo_file_t* file);
 
-// Writes metadata identifying a portion of a "multi-block" mesh of the given 
+// Writes metadata identifying a subdomain of a global mesh of the given 
 // type to the given SILO file. This is used for objects that appear on more 
 // than 1 process via domain decomposition.
-void silo_file_add_multimesh(silo_file_t* file,
-                             const char* mesh_name, 
-                             int silo_mesh_type,
-                             DBoptlist* optlist);
+void silo_file_add_subdomain_mesh(silo_file_t* file,
+                                  const char* mesh_name, 
+                                  int silo_mesh_type,
+                                  DBoptlist* optlist);
 
-// Writes metadata identifying a portion of a "multi-block" variable of the given 
+// Writes metadata identifying a subdomain of a global field of the given 
 // type to the given SILO file. This is used for objects that appear on more 
 // than 1 process via domain decomposition.
-void silo_file_add_multivar(silo_file_t* file,
-                            const char* mesh_name, 
-                            const char* field_name,
-                            int silo_var_type,
-                            DBoptlist* optlist);
+void silo_file_add_subdomain_field(silo_file_t* file,
+                                   const char* mesh_name, 
+                                   const char* field_name,
+                                   int silo_var_type,
+                                   DBoptlist* optlist);
 
 //-------------------------------------------------------------------------
 // End unpublished functions
@@ -295,26 +295,26 @@ static void pmpio_close_file(void* file, void* user_data)
 
 #endif
 
-// Object representing data in a multi-mesh.
+// Object representing data in a subdomain.
 typedef struct
 {
   char* name;
   int type;
   DBoptlist* optlist;
-} multimesh_t;
+} subdomain_mesh_t;
 
-static multimesh_t* multimesh_new(const char* mesh_name, 
-                                  int mesh_type, 
-                                  DBoptlist* optlist)
+static subdomain_mesh_t* subdomain_mesh_new(const char* mesh_name, 
+                                            int mesh_type, 
+                                            DBoptlist* optlist)
 {
-  multimesh_t* mesh = polymec_malloc(sizeof(multimesh_t));
+  subdomain_mesh_t* mesh = polymec_malloc(sizeof(subdomain_mesh_t));
   mesh->name = string_dup(mesh_name);
   mesh->type = mesh_type;
   mesh->optlist = optlist_clone(optlist);
   return mesh;
 }
 
-static void multimesh_free(multimesh_t* mesh)
+static void subdomain_mesh_free(subdomain_mesh_t* mesh)
 {
   polymec_free(mesh->name);
   polymec_free(mesh);
@@ -328,28 +328,28 @@ typedef struct
   char* name;
   int type;
   DBoptlist* optlist;
-} multivar_t;
+} subdomain_field_t;
 
-// Constructors for various multi-objects.
-static multivar_t* multivar_new(const char* mesh_name,
-                                const char* var_name,
-                                int var_type,
-                                DBoptlist* optlist)
+// Constructors for various subdomain-related objects.
+static subdomain_field_t* subdomain_field_new(const char* mesh_name,
+                                              const char* field_name,
+                                              int field_type,
+                                              DBoptlist* optlist)
 {
-  multivar_t* var = polymec_malloc(sizeof(multivar_t));
-  var->mesh_name = string_dup(mesh_name);
-  var->name = string_dup(var_name);
-  var->type = var_type;
-  var->optlist = optlist_clone(optlist);
-  return var;
+  subdomain_field_t* field = polymec_malloc(sizeof(subdomain_field_t));
+  field->mesh_name = string_dup(mesh_name);
+  field->name = string_dup(field_name);
+  field->type = field_type;
+  field->optlist = optlist_clone(optlist);
+  return field;
 }
 
-static void multivar_free(multivar_t* var)
+static void subdomain_field_free(subdomain_field_t* field)
 {
-  polymec_free(var->mesh_name);
-  polymec_free(var->name);
-  free_metadata_optlist(var->optlist);
-  polymec_free(var);
+  polymec_free(field->mesh_name);
+  polymec_free(field->name);
+  free_metadata_optlist(field->optlist);
+  polymec_free(field);
 }
 
 bool silo_file_query(const char* file_prefix,
@@ -426,10 +426,10 @@ bool silo_file_query(const char* file_prefix,
       int my_num_mpi_procs = -1;
       for (int f = 0; f < toc->nmultimesh; ++f)
       {
-        DBmultimesh* multimesh = DBGetMultimesh(file, toc->multimesh_names[f]);
+        DBmultimesh* subdomain_mesh = DBGetMultimesh(file, toc->multimesh_names[f]);
         if (my_num_mpi_procs == -1)
-          my_num_mpi_procs = multimesh->nblocks;
-        ASSERT(my_num_mpi_procs == multimesh->nblocks);
+          my_num_mpi_procs = subdomain_mesh->nblocks;
+        ASSERT(my_num_mpi_procs == subdomain_mesh->nblocks);
       }
       *num_mpi_processes = my_num_mpi_procs;
 
@@ -543,8 +543,8 @@ struct silo_file_t
   int num_files, mpi_tag, nproc, rank, group_rank, rank_in_group;
 
   // Data appearing on more than one proc within a domain decomposition.
-  ptr_array_t* multimeshes;
-  ptr_array_t* multivars;
+  ptr_array_t* subdomain_meshes;
+  ptr_array_t* subdomain_fields;
 #endif
 };
 
@@ -597,7 +597,7 @@ static void write_provenance_to_file(silo_file_t* file)
 }
 
 #if POLYMEC_HAVE_MPI
-static void write_multivars_to_file(silo_file_t* file)
+static void write_subdomains_to_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
 
@@ -615,10 +615,10 @@ static void write_multivars_to_file(silo_file_t* file)
     DBAddOption(optlist, DBOPT_DTIME, &t);
   }
 
-  // Write out multi meshes.
-  for (int i = 0; i < file->multimeshes->size; ++i)
+  // Write out subdomain meshes.
+  for (int i = 0; i < file->subdomain_meshes->size; ++i)
   {
-    multimesh_t* mesh = file->multimeshes->data[i];
+    subdomain_mesh_t* mesh = file->subdomain_meshes->data[i];
 
     char* mesh_names[num_chunks];
     int mesh_types[num_chunks];
@@ -641,31 +641,31 @@ static void write_multivars_to_file(silo_file_t* file)
   }
   DBFreeOptlist(optlist);
 
-  // Multi variables.
-  for (int i = 0; i < file->multivars->size; ++i)
+  // Subdomain fields.
+  for (int i = 0; i < file->subdomain_fields->size; ++i)
   {
-    multivar_t* var = file->multivars->data[i];
+    subdomain_field_t* field = file->subdomain_fields->data[i];
 
     // Fields and associated meshes.
-    char* var_names[num_chunks];
-    int var_types[num_chunks];
+    char* field_names[num_chunks];
+    int field_types[num_chunks];
     for (int j = 0; j < num_chunks; ++j)
     {
       // Field name.
-      char var_name[FILENAME_MAX];
-      snprintf(var_name, FILENAME_MAX, "domain_%d/%s", j, var->name);
-      var_names[j] = string_dup(var_name);
-      var_types[j] = var->type;
+      char field_name[FILENAME_MAX];
+      snprintf(field_name, FILENAME_MAX, "domain_%d/%s", j, field->name);
+      field_names[j] = string_dup(field_name);
+      field_types[j] = field->type;
     }
 
-    // Write the variable data.
+    // Write the field data.
     DBSetDir(file->dbfile, "/");
-    DBPutMultivar(file->dbfile, var->name, num_chunks, 
-                  (char const* const*)var_names, var_types, var->optlist); 
+    DBPutMultivar(file->dbfile, field->name, num_chunks, 
+                  (char const* const*)field_names, field_types, field->optlist); 
 
     // Clean up.
     for (int j = 0; j < num_chunks; ++j)
-      polymec_free(var_names[j]);
+      polymec_free(field_names[j]);
   }
 }
 
@@ -704,9 +704,9 @@ static void write_master_file(silo_file_t* file)
   int num_chunks = file->nproc / num_files;
 
   // Meshes.
-  for (int i = 0; i < file->multimeshes->size; ++i)
+  for (int i = 0; i < file->subdomain_meshes->size; ++i)
   {
-    multimesh_t* mesh = file->multimeshes->data[i];
+    subdomain_mesh_t* mesh = file->subdomain_meshes->data[i];
 
     // Mesh.
     char* mesh_names[file->num_files*num_chunks];
@@ -725,7 +725,7 @@ static void write_master_file(silo_file_t* file)
       }
     }
 
-    // Write the multimesh.
+    // Write the subdomain_mesh.
     int stat = DBPutMultimesh(master, mesh->name, file->num_files*num_chunks, 
                               (char const* const*)mesh_names, mesh_types, 
                               optlist);
@@ -738,34 +738,34 @@ static void write_master_file(silo_file_t* file)
   }
 
   // Variables.
-  for (int i = 0; i < file->multivars->size; ++i)
+  for (int i = 0; i < file->subdomain_fields->size; ++i)
   {
-    multivar_t* var = file->multivars->data[i];
+    subdomain_field_t* field = file->subdomain_fields->data[i];
 
     // Fields.
-    char* var_names[file->num_files*num_chunks];
-    int var_types[num_files*num_chunks];
+    char* field_names[file->num_files*num_chunks];
+    int field_types[num_files*num_chunks];
     for (int j = 0; j < file->num_files; ++j)
     {
       for (int c = 0; c < num_chunks; ++c)
       {
-        char var_name[FILENAME_MAX];
+        char field_name[FILENAME_MAX];
         if (file->cycle == -1)
-          snprintf(var_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, var->name);
+          snprintf(field_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, field->name);
         else
-          snprintf(var_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->cycle, c, var->name);
-        var_names[num_chunks*j+c] = string_dup(var_name);
-        var_types[num_chunks*j+c] = var->type;
+          snprintf(field_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->cycle, c, field->name);
+        field_names[num_chunks*j+c] = string_dup(field_name);
+        field_types[num_chunks*j+c] = field->type;
       }
     }
 
-    // Write the multivariable data.
-    DBPutMultivar(master, var->name, num_files*num_chunks, 
-                  (char const* const *)var_names, var_types, optlist);
+    // Write the subdomain_fieldiable data.
+    DBPutMultivar(master, field->name, num_files*num_chunks, 
+                  (char const* const *)field_names, field_types, optlist);
 
     // Clean up.
     for (int j = 0; j < num_files*num_chunks; ++j)
-      polymec_free(var_names[j]);
+      polymec_free(field_names[j]);
   }
 
   // Finally, write the number of files to the master file.
@@ -864,8 +864,8 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
 
-    file->multimeshes = ptr_array_new();
-    file->multivars = ptr_array_new();
+    file->subdomain_meshes = ptr_array_new();
+    file->subdomain_fields = ptr_array_new();
   }
   else
   {
@@ -1057,8 +1057,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
     show_provenance_on_debug_log(file);
 
-    file->multimeshes = ptr_array_new();
-    file->multivars = ptr_array_new();
+    file->subdomain_meshes = ptr_array_new();
+    file->subdomain_fields = ptr_array_new();
   }
   else
   {
@@ -1127,7 +1127,7 @@ void silo_file_close(silo_file_t* file)
     if (file->mode == DB_CLOBBER)
     {
       // Write multi-block objects to the file if needed.
-      write_multivars_to_file(file);
+      write_subdomains_to_file(file);
       write_expressions_to_file(file, file->dbfile);
       write_provenance_to_file(file);
     }
@@ -1142,14 +1142,13 @@ void silo_file_close(silo_file_t* file)
     }
     MPI_Barrier(file->comm);
 
-    ptr_array_free(file->multimeshes);
-    ptr_array_free(file->multivars);
+    ptr_array_free(file->subdomain_meshes);
+    ptr_array_free(file->subdomain_fields);
   }
   else
   {
     if (file->mode == DB_CLOBBER)
     {
-      // Write multi-block objects to the file if needed.
       write_expressions_to_file(file, file->dbfile);
       write_provenance_to_file(file);
     }
@@ -1159,7 +1158,6 @@ void silo_file_close(silo_file_t* file)
   // Write the file.
   if (file->mode == DB_CLOBBER)
   {
-    // Write multi-block objects to the file if needed.
     write_expressions_to_file(file, file->dbfile);
     write_provenance_to_file(file);
   }
@@ -1445,10 +1443,10 @@ void silo_file_write_mesh(silo_file_t* file,
   // Clean up.
   DBFreeOptlist(optlist);
 
-  // For parallel environments, add a multi-object entry.
 #if POLYMEC_HAVE_MPI
+  // For parallel environments, add a subdomain entry.
   if (file->nproc > 1)
-    silo_file_add_multimesh(file, mesh_name, DB_UCDMESH, NULL);
+    silo_file_add_subdomain_mesh(file, mesh_name, DB_UCDMESH, NULL);
 #endif
 
   STOP_FUNCTION_TIMER();
@@ -1588,9 +1586,9 @@ static void silo_file_write_mesh_field(silo_file_t* file,
     DBPutUcdvar1(file->dbfile, field_component_names[0], mesh_name, field_data, num_elems, NULL, 0, SILO_FLOAT_TYPE, cent, optlist);
 
 #if POLYMEC_HAVE_MPI
-  // Add a multi-object entry for parallel environments.
+  // Add a subdomain entry for parallel environments.
   if (file->nproc > 1)
-    silo_file_add_multivar(file, mesh_name, field_component_names[0], DB_UCDVAR, optlist);
+    silo_file_add_subdomain_field(file, mesh_name, field_component_names[0], DB_UCDVAR, optlist);
 #endif
   }
   else
@@ -1605,9 +1603,9 @@ static void silo_file_write_mesh_field(silo_file_t* file,
       DBPutUcdvar1(file->dbfile, field_component_names[c], mesh_name, comp_data, num_elems, NULL, 0, SILO_FLOAT_TYPE, cent, optlist);
 
 #if POLYMEC_HAVE_MPI
-  // Add a multi-object entry for parallel environments.
+  // Add a subdomain entry for parallel environments.
   if (file->nproc > 1)
-    silo_file_add_multivar(file, mesh_name, field_component_names[c], DB_UCDVAR, optlist);
+    silo_file_add_subdomain_field(file, mesh_name, field_component_names[c], DB_UCDVAR, optlist);
 #endif
     }
     polymec_free(comp_data);
@@ -1992,10 +1990,9 @@ void silo_file_write_point_cloud(silo_file_t* file,
     silo_file_write_tags(file, cloud->tags, tag_name);
   }
 
-  // Add a multi-object entry for parallel environments.
 #if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
-    silo_file_add_multimesh(file, cloud_name, DB_POINTMESH, NULL);
+    silo_file_add_subdomain_mesh(file, cloud_name, DB_POINTMESH, NULL);
 #endif
 
   STOP_FUNCTION_TIMER();
@@ -2073,10 +2070,9 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
   DBPutPointvar1(file->dbfile, field_name, cloud_name, field_data, num_points, SILO_FLOAT_TYPE, NULL);
   free_metadata_optlist(optlist);
 
-  // Add a multi-object entry for parallel environments.
 #if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
-    silo_file_add_multivar(file, cloud_name, field_name, DB_POINTVAR, optlist);
+    silo_file_add_subdomain_field(file, cloud_name, field_name, DB_POINTVAR, optlist);
 #endif
   STOP_FUNCTION_TIMER();
 }
@@ -2367,35 +2363,35 @@ DBfile* silo_file_dbfile(silo_file_t* file)
   return file->dbfile;
 }
 
-void silo_file_add_multimesh(silo_file_t* file,
-                             const char* mesh_name, 
-                             int silo_mesh_type,
-                             DBoptlist* optlist)
+void silo_file_add_subdomain_mesh(silo_file_t* file,
+                                  const char* mesh_name, 
+                                  int silo_mesh_type,
+                                  DBoptlist* optlist)
 {
 #if POLYMEC_HAVE_MPI
   ASSERT(file->mode == DB_CLOBBER);
 
   if (file->nproc > 1)
   {
-    multimesh_t* mesh = multimesh_new(mesh_name, silo_mesh_type, optlist);
-    ptr_array_append_with_dtor(file->multimeshes, mesh, DTOR(multimesh_free));
+    subdomain_mesh_t* mesh = subdomain_mesh_new(mesh_name, silo_mesh_type, optlist);
+    ptr_array_append_with_dtor(file->subdomain_meshes, mesh, DTOR(subdomain_mesh_free));
   }
 #endif
 }
 
-void silo_file_add_multivar(silo_file_t* file,
-                            const char* mesh_name, 
-                            const char* field_name,
-                            int silo_var_type,
-                            DBoptlist* optlist)
+void silo_file_add_subdomain_field(silo_file_t* file,
+                                   const char* mesh_name, 
+                                   const char* field_name,
+                                   int silo_var_type,
+                                   DBoptlist* optlist)
 {
 #if POLYMEC_HAVE_MPI
   ASSERT((file->mode == DB_CLOBBER) || (file->mode == DB_APPEND));
 
   if (file->nproc > 1)
   {
-    multivar_t* var = multivar_new(mesh_name, field_name, silo_var_type, optlist);
-    ptr_array_append_with_dtor(file->multivars, var, DTOR(multivar_free));
+    subdomain_field_t* field = subdomain_field_new(mesh_name, field_name, silo_var_type, optlist);
+    ptr_array_append_with_dtor(file->subdomain_fields, field, DTOR(subdomain_field_free));
   }
 #endif
 }
