@@ -120,6 +120,10 @@ void silo_file_write_mesh(silo_file_t* file,
 mesh_t* silo_file_read_mesh(silo_file_t* file,
                             const char* mesh_name);
 
+// Returns true if the given Silo file contains an arbitrary polyhedral mesh 
+// with the given name, false otherwise.
+bool silo_file_contains_mesh(silo_file_t* file, const char* mesh_name);
+
 // Writes a named scalar cell-centered field, understood to exist on 
 // the mesh with the given name, to the given Silo file. If a silo_field_metadata
 // object is passed as the last argument, the metadata for the field will also 
@@ -160,6 +164,12 @@ real_t* silo_file_read_cell_field(silo_file_t* file,
                                   const char* mesh_name,
                                   int num_components,
                                   silo_field_metadata_t** field_metadata);
+
+// Returns true if the given Silo file contains a (scalar) cell-centered field 
+// with the given name and associated with the given mesh, false otherwise.
+bool silo_file_contains_cell_field(silo_file_t* file, 
+                                   const char* field_name,
+                                   const char* mesh_name);
 
 // Writes a named scalar face-centered field, understood to exist on 
 // the mesh with the given name, to the given Silo file. If a silo_field_metadata
@@ -202,6 +212,12 @@ real_t* silo_file_read_face_field(silo_file_t* file,
                                   int num_components,
                                   silo_field_metadata_t** field_metadata);
 
+// Returns true if the given Silo file contains a (scalar) face-centered field 
+// with the given name and associated with the given mesh, false otherwise.
+bool silo_file_contains_face_field(silo_file_t* file, 
+                                   const char* field_name,
+                                   const char* mesh_name);
+
 // Writes a named scalar node-centered field, understood to exist on 
 // the mesh with the given name, to the given Silo file. If a silo_field_metadata
 // object is passed as the last argument, the metadata for the field will also 
@@ -242,6 +258,12 @@ real_t* silo_file_read_node_field(silo_file_t* file,
                                   const char* mesh_name,
                                   int num_components,
                                   silo_field_metadata_t** field_metadata);
+
+// Returns true if the given Silo file contains a (scalar) node-centered field 
+// with the given name and associated with the given mesh, false otherwise.
+bool silo_file_contains_node_field(silo_file_t* file, 
+                                   const char* field_name,
+                                   const char* mesh_name);
 
 // Writes a named scalar edge-centered field, understood to exist on 
 // the mesh with the given name, to the given Silo file. If a silo_field_metadata object is 
@@ -284,14 +306,24 @@ real_t* silo_file_read_edge_field(silo_file_t* file,
                                   int num_components,
                                   silo_field_metadata_t** field_metadata);
 
-// Adds a point mesh to the given Silo file.
+// Returns true if the given Silo file contains a (scalar) node-centered field 
+// with the given name and associated with the given mesh, false otherwise.
+bool silo_file_contains_edge_field(silo_file_t* file, 
+                                   const char* field_name,
+                                   const char* mesh_name);
+
+// Adds a point cloud to the given Silo file.
 void silo_file_write_point_cloud(silo_file_t* file,
                                  const char* cloud_name,
                                  point_cloud_t* cloud);
 
-// Reads a point mesh from the Silo file.
+// Reads a point cloud from the Silo file.
 point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
                                           const char* cloud_name);
+
+// Returns true if the given Silo file contains a point cloud 
+// with the given name, false otherwise.
+bool silo_file_contains_point_cloud(silo_file_t* file, const char* cloud_name);
 
 // Writes a named scalar point field to the given Silo file, associated with 
 // the given point cloud. If a silo_field_metadata object is passed as the 
@@ -332,6 +364,12 @@ real_t* silo_file_read_point_field(silo_file_t* file,
                                    const char* cloud_name,
                                    int num_components,
                                    silo_field_metadata_t** field_metadata);
+
+// Returns true if the given Silo file contains a (scalar) point field 
+// with the given name and associated with the given cloud, false otherwise.
+bool silo_file_contains_point_field(silo_file_t* file, 
+                                    const char* field_name,
+                                    const char* cloud_name);
 
 // Adds a scalar expression (a definition of a new scalar variable in terms 
 // of existing variables) to this Silo file. See the Silo manual for
