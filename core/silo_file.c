@@ -22,16 +22,35 @@
 #define SILO_FLOAT_TYPE DB_FLOAT
 #endif
 
+//-------------------------------------------------------------------------
+// The following unpublished functions are not part of the formal silo_file 
+// API, and offer access to low-level Silo internals that can be used 
+// directly in other polymec-based libraries.
+//-------------------------------------------------------------------------
+
+// Access the underlying SILO file descriptor.
+DBfile* silo_file_dbfile(silo_file_t* file);
+
+// Writes metadata identifying a portion of a "multi-block" mesh of the given 
+// type to the given SILO file. This is used for objects that appear on more 
+// than 1 process via domain decomposition.
 void silo_file_add_multimesh(silo_file_t* file,
                              const char* mesh_name, 
                              int silo_mesh_type,
                              DBoptlist* optlist);
 
+// Writes metadata identifying a portion of a "multi-block" variable of the given 
+// type to the given SILO file. This is used for objects that appear on more 
+// than 1 process via domain decomposition.
 void silo_file_add_multivar(silo_file_t* file,
                             const char* mesh_name, 
                             const char* field_name,
                             int silo_var_type,
                             DBoptlist* optlist);
+
+//-------------------------------------------------------------------------
+// End unpublished functions
+//-------------------------------------------------------------------------
 
 void silo_enable_compression(int level)
 {
@@ -522,11 +541,11 @@ struct silo_file_t
   PMPIO_baton_t* baton;
   MPI_Comm comm;
   int num_files, mpi_tag, nproc, rank, group_rank, rank_in_group;
-#endif
 
-  // Multi-block data.
+  // Data appearing on more than one proc within a domain decomposition.
   ptr_array_t* multimeshes;
   ptr_array_t* multivars;
+#endif
 };
 
 // Expression struct.
@@ -577,16 +596,14 @@ static void write_provenance_to_file(silo_file_t* file)
   string_free(provenance_str);
 }
 
+#if POLYMEC_HAVE_MPI
 static void write_multivars_to_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
 
-#if POLYMEC_HAVE_MPI
+  if (file->nproc == 1) return;
   if (file->rank_in_group != 0) return;
   int num_chunks = file->nproc / file->num_files;
-#else
-  int num_chunks = 1;
-#endif
 
   // Stick in cycle/time information if needed.
   DBoptlist* optlist = DBMakeOptlist(2);
@@ -652,7 +669,6 @@ static void write_multivars_to_file(silo_file_t* file)
   }
 }
 
-#if POLYMEC_HAVE_MPI
 static void write_master_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
@@ -847,6 +863,9 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     char silo_dir_name[FILENAME_MAX];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
+
+    file->multimeshes = ptr_array_new();
+    file->multivars = ptr_array_new();
   }
   else
   {
@@ -883,8 +902,6 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   DBSetDir(file->dbfile, "/");
 #endif
 
-  file->multimeshes = ptr_array_new();
-  file->multivars = ptr_array_new();
   file->mode = DB_CLOBBER;
   file->cycle = cycle;
   file->time = time;
@@ -980,7 +997,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   }
 
 #if POLYMEC_HAVE_MPI
-
   // The way these things are defined for a file has to do with how the 
   // file was generated, not how we are currently running.
   file->comm = comm; // ...for lack of a better value. Plus, might be useful.
@@ -1040,6 +1056,9 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
 
     show_provenance_on_debug_log(file);
+
+    file->multimeshes = ptr_array_new();
+    file->multivars = ptr_array_new();
   }
   else
   {
@@ -1076,9 +1095,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
   show_provenance_on_debug_log(file);
 #endif
-
-  file->multimeshes = ptr_array_new();
-  file->multivars = ptr_array_new();
 
   // Get cycle/time information.
   if (DBInqVarExists(file->dbfile, "dtime"))
@@ -1126,13 +1142,14 @@ void silo_file_close(silo_file_t* file)
     }
     MPI_Barrier(file->comm);
 
+    ptr_array_free(file->multimeshes);
+    ptr_array_free(file->multivars);
   }
   else
   {
     if (file->mode == DB_CLOBBER)
     {
       // Write multi-block objects to the file if needed.
-      write_multivars_to_file(file);
       write_expressions_to_file(file, file->dbfile);
       write_provenance_to_file(file);
     }
@@ -1143,7 +1160,6 @@ void silo_file_close(silo_file_t* file)
   if (file->mode == DB_CLOBBER)
   {
     // Write multi-block objects to the file if needed.
-    write_multivars_to_file(file);
     write_expressions_to_file(file, file->dbfile);
     write_provenance_to_file(file);
   }
@@ -1151,8 +1167,6 @@ void silo_file_close(silo_file_t* file)
 #endif
 
   // Clean up.
-  ptr_array_free(file->multimeshes);
-  ptr_array_free(file->multivars);
   if (file->expressions != NULL)
     string_ptr_unordered_map_free(file->expressions);
   polymec_free(file);
@@ -2337,44 +2351,41 @@ int* silo_file_read_int_array(silo_file_t* file,
     return NULL;
 }
 
-//-------------------------------------------------------------------------
-// The following unpublished functions are not part of the formal silo_file 
-// API, and offer access to low-level Silo internals that can be used 
-// directly in other polymec-based libraries.
-//-------------------------------------------------------------------------
-
-// Access the underlying SILO file descriptor.
 DBfile* silo_file_dbfile(silo_file_t* file)
 {
   return file->dbfile;
 }
 
-// Writes metadata identifying a portion of a "multi-block" mesh of the given 
-// type to the given SILO file. This can be used for domain decompositions and 
-// for segmenting a mesh on a single process.
 void silo_file_add_multimesh(silo_file_t* file,
                              const char* mesh_name, 
                              int silo_mesh_type,
                              DBoptlist* optlist)
 {
+#if POLYMEC_HAVE_MPI
   ASSERT(file->mode == DB_CLOBBER);
 
-  multimesh_t* mesh = multimesh_new(mesh_name, silo_mesh_type, optlist);
-  ptr_array_append_with_dtor(file->multimeshes, mesh, DTOR(multimesh_free));
+  if (file->nproc > 1)
+  {
+    multimesh_t* mesh = multimesh_new(mesh_name, silo_mesh_type, optlist);
+    ptr_array_append_with_dtor(file->multimeshes, mesh, DTOR(multimesh_free));
+  }
+#endif
 }
 
-// Writes metadata identifying a portion of a "multi-block" variable of the given 
-// type to the given SILO file. This can be used for domain decompositions and 
-// for segmenting a mesh on a single process.
 void silo_file_add_multivar(silo_file_t* file,
                             const char* mesh_name, 
                             const char* field_name,
                             int silo_var_type,
                             DBoptlist* optlist)
 {
+#if POLYMEC_HAVE_MPI
   ASSERT((file->mode == DB_CLOBBER) || (file->mode == DB_APPEND));
 
-  multivar_t* var = multivar_new(mesh_name, field_name, silo_var_type, optlist);
-  ptr_array_append_with_dtor(file->multivars, var, DTOR(multivar_free));
+  if (file->nproc > 1)
+  {
+    multivar_t* var = multivar_new(mesh_name, field_name, silo_var_type, optlist);
+    ptr_array_append_with_dtor(file->multivars, var, DTOR(multivar_free));
+  }
+#endif
 }
 
