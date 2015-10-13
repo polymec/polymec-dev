@@ -25,6 +25,8 @@
 // x* x_array_find(x_array_t* array, x value, cmp_func comparator) - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
 // void x_array_append(x_array_t* array, x value) - Appends an x to the end of the array.
 // void x_array_append_with_dtor(x_array_t* array, x value, destructor dtor) - Appends an x to the end of the array, using dtor to destroy when finished.
+// void x_array_insert(x_array_t* array, int i, x value) - Inserts an x at position i within the array, resizing as necessary.
+// void x_array_insert_with_dtor(x_array_t* array, int i, x value, destructor dtor) - Inserts an x at position i within the array, using dtor to destroy when finished.
 // bool x_array_empty(x_array_t* array) - Returns true if empty, false otherwise.
 // void x_array_clear(x_array_t* array) - Clears the given array, making it empty.
 // void x_array_resize(x_array_t* array, int new_size) - Resizes the array, keeping data intact if possible.
@@ -158,6 +160,34 @@ static inline void array_name##_append_with_dtor(array_name##_t* array, element 
 static inline void array_name##_append(array_name##_t* array, element value) \
 { \
   array_name##_append_with_dtor(array, value, NULL); \
+} \
+\
+static inline void array_name##_insert_with_dtor(array_name##_t* array, int i, element value, array_name##_dtor dtor) \
+{ \
+  ASSERT(i <= array->size); \
+  array_name##_resize(array, array->size + 1); \
+  if (i < array->size-1) \
+    memmove(&array->data[i+1], &array->data[i], sizeof(element) * (array->size-i)); \
+  array->data[i] = value; \
+  if (dtor != NULL) \
+  { \
+    if (array->dtors == NULL) \
+    { \
+      array->dtors = (array_name##_dtor*)polymec_malloc(sizeof(array_name##_dtor) * array->capacity); \
+      memset(array->dtors, 0, sizeof(array_name##_dtor) * array->capacity); \
+    } \
+    else \
+    { \
+      array->dtors = (array_name##_dtor*)polymec_realloc(array->dtors, sizeof(array_name##_dtor) * array->capacity); \
+      memmove(&array->dtors[i+1], &array->dtors[i], sizeof(array_name##_dtor) * (array->size-i)); \
+    } \
+    array->dtors[i] = dtor; \
+  } \
+} \
+\
+static inline void array_name##_insert(array_name##_t* array, int i, element value) \
+{ \
+  array_name##_insert_with_dtor(array, i, value, NULL); \
 } \
 \
 static inline bool array_name##_next(array_name##_t* array, int* pos, element* value) \
