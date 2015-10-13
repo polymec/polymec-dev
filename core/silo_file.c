@@ -31,6 +31,15 @@
 // Access the underlying SILO file descriptor.
 DBfile* silo_file_dbfile(silo_file_t* file);
 
+// Creates a SILO options list from the given metadata object.
+DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata);
+
+// Clones a metadata-related SILO options list.
+DBoptlist* optlist_clone(DBoptlist* optlist);
+
+// Frees memory associated with a metadata-related SILO options list.
+void optlist_free(DBoptlist* optlist);
+
 // Writes metadata identifying a subdomain of a global mesh of the given 
 // type to the given SILO file. This is used for objects that appear on more 
 // than 1 process via domain decomposition.
@@ -172,8 +181,7 @@ static void read_point_metadata(DBmeshvar* var, silo_field_metadata_t* metadata)
   }
 }
 
-// These helpers are used in the read/write operations.
-static DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata)
+DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata)
 {
   DBoptlist* optlist = NULL;
   if (metadata != NULL)
@@ -193,7 +201,8 @@ static DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata)
   return optlist;
 }
 
-static DBoptlist* optlist_clone(DBoptlist* optlist)
+// These helpers are used in the read/write operations.
+DBoptlist* optlist_clone(DBoptlist* optlist)
 {
   DBoptlist* clone = NULL;
   if (optlist != NULL)
@@ -223,7 +232,7 @@ static DBoptlist* optlist_clone(DBoptlist* optlist)
   return clone;
 }
 
-static void free_metadata_optlist(DBoptlist* optlist)
+void optlist_free(DBoptlist* optlist)
 {
   if (optlist != NULL)
   {
@@ -318,7 +327,7 @@ static void subdomain_mesh_free(subdomain_mesh_t* mesh)
 {
   polymec_free(mesh->name);
   polymec_free(mesh);
-  free_metadata_optlist(mesh->optlist);
+  optlist_free(mesh->optlist);
 }
 
 // Object representing data in a multi-mesh.
@@ -348,7 +357,7 @@ static void subdomain_field_free(subdomain_field_t* field)
 {
   polymec_free(field->mesh_name);
   polymec_free(field->name);
-  free_metadata_optlist(field->optlist);
+  optlist_free(field->optlist);
   polymec_free(field);
 }
 
@@ -2068,7 +2077,7 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
   // Write the field.
   DBoptlist* optlist = optlist_from_metadata(field_metadata);
   DBPutPointvar1(file->dbfile, field_name, cloud_name, field_data, num_points, SILO_FLOAT_TYPE, NULL);
-  free_metadata_optlist(optlist);
+  optlist_free(optlist);
 
 #if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
