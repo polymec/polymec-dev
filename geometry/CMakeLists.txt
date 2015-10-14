@@ -7,7 +7,7 @@ set(MESH_GENERATION_SOURCES create_boundary_generators.c
     create_uniform_mesh.c create_pebi_mesh.c create_tetgen_mesh.c 
     create_voronoi_mesh.c create_dual_mesh.c crop_mesh.c)
 
-add_library(polymec_geometry mapping.c plane.c cylinder.c sphere.c 
+add_library(polymec_geometry coord_mapping.c plane.c cylinder.c sphere.c 
             intersection.c union.c difference.c scaled.c rect_prism.c 
             giftwrap_hull.c polygon2.c polygon.c tetrahedron.c 
             ${MESH_GENERATION_SOURCES} cubic_lattice.c
