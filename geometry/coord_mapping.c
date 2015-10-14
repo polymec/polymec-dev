@@ -26,7 +26,8 @@ static void coord_mapping_free(void* ctx, void* dummy)
 coord_mapping_t* coord_mapping_new(const char* name, void* context, coord_mapping_vtable vtable)
 {
   ASSERT(context != NULL);
-  ASSERT(vtable.map != NULL);
+  ASSERT(vtable.map_point != NULL);
+  ASSERT(vtable.map_vector != NULL);
   ASSERT(vtable.jacobian != NULL);
   coord_mapping_t* m = GC_MALLOC(sizeof(coord_mapping_t));
   m->name = string_dup(name);
@@ -46,9 +47,9 @@ void* coord_mapping_context(coord_mapping_t* mapping)
   return mapping->context;
 }
 
-void coord_mapping_map(coord_mapping_t* mapping, point_t* x, point_t* y)
+void coord_mapping_map_point(coord_mapping_t* mapping, point_t* x, point_t* y)
 {
-  mapping->vtable.map(mapping->context, x, y);
+  mapping->vtable.map_point(mapping->context, x, y);
 }
 
 void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v, vector_t* v1)

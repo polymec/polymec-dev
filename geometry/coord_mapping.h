@@ -19,10 +19,10 @@
 // sp_func." Objects of this type are garbage-collected.
 typedef struct coord_mapping_t coord_mapping_t;
 
-// A function pointer type for evaluating the function at a point.
-typedef void (*coord_mapping_map_func)(void*, point_t*, point_t*);
+// A function pointer type for mapping a point.
+typedef void (*coord_mapping_map_point_func)(void*, point_t*, point_t*);
 
-// A function pointer type for transforming a vector the Jacobian at a point.
+// A function pointer type for mapping a vector at a point.
 typedef void (*coord_mapping_map_vector_func)(void*, point_t*, vector_t*, vector_t*);
 
 // A function pointer type for evaluating the (3x3) Jacobian at a point.
@@ -35,7 +35,7 @@ typedef void (*coord_mapping_dtor)(void*);
 // This virtual table must be implemented by any coord_mapping.
 typedef struct 
 {
-  coord_mapping_map_func              map;
+  coord_mapping_map_point_func        map_point;
   coord_mapping_map_vector_func       map_vector;
   coord_mapping_jacobian_func         jacobian;
   coord_mapping_dtor                  dtor;
@@ -52,7 +52,7 @@ const char* coord_mapping_name(coord_mapping_t* mapping);
 void* coord_mapping_context(coord_mapping_t* mapping);
 
 // Maps the point x to the point y.
-void coord_mapping_map(coord_mapping_t* mapping, point_t* x, point_t* y);
+void coord_mapping_map_point(coord_mapping_t* mapping, point_t* x, point_t* y);
 
 // Maps the vector v to the vector v1 at the point x.
 void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v, vector_t* v1);

@@ -47,6 +47,13 @@ void silo_field_metadata_set_conserved(silo_field_metadata_t* metadata,
 void silo_field_metadata_set_extensive(silo_field_metadata_t* metadata,
                                        bool is_extensive);
 
+// Sets parameters that indicate that the field for this metadata is 
+// a component in a (three-dimensional) vector. The value should 
+// be 0 for the first component, 1 for the second, 2 for the third, 
+// and -1 if the field is not to be considered a vector component.
+void silo_field_metadata_set_vector_component(silo_field_metadata_t* metadata,
+                                              int component);
+
 // Returns the internal string containing any label associated with the 
 // field for this metadata, or NULL if there are none.
 char* silo_field_metadata_label(silo_field_metadata_t* metadata);
@@ -62,6 +69,14 @@ bool silo_field_metadata_conserved(silo_field_metadata_t* metadata);
 // Returns a flag that indicates whether the field for this metadata is 
 // extensive.
 bool silo_field_metadata_extensive(silo_field_metadata_t* metadata);
+
+// Returns true if the field for this metadata is a vector component, 
+// false otherwise.
+bool silo_field_metadata_is_vector_component(silo_field_metadata_t* metadata);
+
+// Returns the vector component associated with the field for this metadata, 
+// or -1 if it is not a vector component.
+int silo_field_metadata_vector_component(silo_field_metadata_t* metadata);
 
 // A Silo file can store various geometries (meshes) and data, using 
 // "Poor Man's Parallel I/O" (PMPIO) to achieve scalable throughput.
