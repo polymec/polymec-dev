@@ -29,6 +29,14 @@ typedef void (*coord_mapping_map_vector_func)(void*, point_t*, vector_t*, vector
 // matrix at a point, storing them in column-major order in the given array.
 typedef void (*coord_mapping_jacobian_func)(void*, point_t*, real_t*);
 
+// A function pointer type for computing the determinant of J directly. 
+// If this is not supplied, the determinant of J will be computed from J itself.
+typedef real_t (*coord_mapping_det_J_func)(void*, point_t*);
+
+// A function pointer type for computing the components of the metric directly.
+// If this is not supplied, the metric will be computed from J itself.
+typedef void (*coord_mapping_metric_func)(void*, point_t*, real_t*);
+
 // A destructor for any given context object.
 typedef void (*coord_mapping_dtor)(void*);
 
@@ -38,6 +46,8 @@ typedef struct
   coord_mapping_map_point_func        map_point;
   coord_mapping_map_vector_func       map_vector;
   coord_mapping_jacobian_func         jacobian;
+  coord_mapping_det_J_func            det_J; // Optional
+  coord_mapping_metric_func           metric; // Optional
   coord_mapping_dtor                  dtor;
 } coord_mapping_vtable;
 
