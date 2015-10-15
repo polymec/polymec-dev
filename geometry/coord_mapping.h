@@ -25,8 +25,8 @@ typedef void (*coord_mapping_map_point_func)(void*, point_t*, point_t*);
 // A function pointer type for mapping a vector at a point.
 typedef void (*coord_mapping_map_vector_func)(void*, point_t*, vector_t*, vector_t*);
 
-// A function pointer type for evaluating the (3x3) Jacobian at a point.
-// The Jacobian is stored in column-major order in the (final) array argument.
+// A function pointer type for evaluating the components of the Jacobian 
+// matrix at a point, storing them in column-major order in the given array.
 typedef void (*coord_mapping_jacobian_func)(void*, point_t*, real_t*);
 
 // A destructor for any given context object.
@@ -57,9 +57,17 @@ void coord_mapping_map_point(coord_mapping_t* mapping, point_t* x, point_t* y);
 // Maps the vector v to the vector v1 at the point x.
 void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v, vector_t* v1);
 
-// Computes the Jacobian at the point x, writing its components (in column-
-// major order) to the array J.
+// Computes the components of the (3 x 3) Jacobian matrix at the point x, 
+// storing them in column-major order in J. The Jacobian matrix represents the 
+// coordinate transformation matrix for this coordinate mapping.
 void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, real_t* J);
+
+// Returns the Jacobian determinant at the point x.
+real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x);
+
+// Computes the components of the (3 x 3) metric tensor at the point x, 
+// storing them in column-major order in G. 
+void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x, real_t* G);
 
 #endif
 

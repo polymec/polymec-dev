@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <gc/gc.h>
+#include "core/linear_algebra.h"
 #include "geometry/coord_mapping.h"
 
 struct coord_mapping_t 
@@ -62,3 +63,21 @@ void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, real_t
   mapping->vtable.jacobian(mapping->context, x, J);
 }
 
+real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x)
+{
+  real_t J[9];
+  mapping->vtable.jacobian(mapping->context, x, J);
+  return matrix3_det(J);
+}
+
+void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x, real_t* G)
+{
+  // The metric G is just J^T * J.
+  real_t J[9];
+  mapping->vtable.jacobian(mapping->context, x, J);
+  char trans = 'T', no_trans = 'N';
+  int three = 3;
+  real_t one = 1.0, zero = 0.0;
+  rgemm(&trans, &no_trans, &three, &three, &three, &one, J, &three, J, &three, 
+        &zero, G, &three);
+}
