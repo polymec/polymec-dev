@@ -43,6 +43,11 @@ bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z
   return b;
 }
 
+bbox_t* bbox_clone(bbox_t* box)
+{
+  return bbox_new(box->x1, box->x2, box->y1, box->y2, box->z1, box->z2);
+}
+
 bbox_t* empty_set_bbox_new()
 {
   bbox_t* b = GC_MALLOC(sizeof(bbox_t));
