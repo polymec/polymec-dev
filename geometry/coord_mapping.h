@@ -79,5 +79,8 @@ real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x);
 // storing them in column-major order in G. 
 void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x, real_t* G);
 
+// Creates a coord_mapping by composing two coord mappings (map <-- map1 o map2).
+coord_mapping_t* composite_coord_mapping_new(coord_mapping_t* map1, coord_mapping_t* map2);
+
 #endif
 
