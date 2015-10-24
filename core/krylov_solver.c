@@ -1158,7 +1158,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
     while (text_buffer_next_nonempty(buffer, &pos, &line, &length))
     {
       char text[length+1];
-      string_copy_from_raw(line, length+1, text);
+      string_copy_from_raw(line, length, text);
       if (string_contains(text, "PETSC_USE_64BIT_INDICES"))
       {
         petsc_uses_64bit_indices = true;
