@@ -34,7 +34,8 @@ void neighbor_pairing_free(neighbor_pairing_t* pairing)
   polymec_free(pairing->pairs);
   if (pairing->weights != NULL)
     polymec_free(pairing->weights);
-  exchanger_free(pairing->ex);
+  if (pairing->ex != NULL)
+    exchanger_free(pairing->ex);
   polymec_free(pairing);
 }
 
@@ -45,17 +46,22 @@ exchanger_t* neighbor_pairing_exchanger(neighbor_pairing_t* pairing)
 
 void neighbor_pairing_exchange(neighbor_pairing_t* pairing, void* data, int stride, int tag, MPI_Datatype type)
 {
-  exchanger_exchange(pairing->ex, data, stride, tag, type);
+  if (pairing->ex != NULL)
+    exchanger_exchange(pairing->ex, data, stride, tag, type);
 }
 
 int neighbor_pairing_start_exchange(neighbor_pairing_t* pairing, void* data, int stride, int tag, MPI_Datatype type)
 {
-  return exchanger_start_exchange(pairing->ex, data, stride, tag, type);
+  if (pairing->ex != NULL)
+    return exchanger_start_exchange(pairing->ex, data, stride, tag, type);
+  else
+    return -1;
 }
 
 void neighbor_pairing_finish_exchange(neighbor_pairing_t* pairing, int token)
 {
-  exchanger_finish_exchange(pairing->ex, token);
+  if (pairing->ex != NULL)
+    exchanger_finish_exchange(pairing->ex, token);
 }
 
 static size_t np_byte_size(void* obj)
