@@ -13,6 +13,7 @@ neighbor_pairing_t* neighbor_pairing_new(const char* name, int num_pairs,
                                          exchanger_t* ex)
 {
   ASSERT(pairs != NULL);
+  ASSERT(ex != NULL);
   neighbor_pairing_t* p = polymec_malloc(sizeof(neighbor_pairing_t));
   p->name = string_dup(name);
   p->num_pairs = num_pairs;
@@ -34,8 +35,7 @@ void neighbor_pairing_free(neighbor_pairing_t* pairing)
   polymec_free(pairing->pairs);
   if (pairing->weights != NULL)
     polymec_free(pairing->weights);
-  if (pairing->ex != NULL)
-    exchanger_free(pairing->ex);
+  exchanger_free(pairing->ex);
   polymec_free(pairing);
 }
 
@@ -46,22 +46,17 @@ exchanger_t* neighbor_pairing_exchanger(neighbor_pairing_t* pairing)
 
 void neighbor_pairing_exchange(neighbor_pairing_t* pairing, void* data, int stride, int tag, MPI_Datatype type)
 {
-  if (pairing->ex != NULL)
-    exchanger_exchange(pairing->ex, data, stride, tag, type);
+  exchanger_exchange(pairing->ex, data, stride, tag, type);
 }
 
 int neighbor_pairing_start_exchange(neighbor_pairing_t* pairing, void* data, int stride, int tag, MPI_Datatype type)
 {
-  if (pairing->ex != NULL)
-    return exchanger_start_exchange(pairing->ex, data, stride, tag, type);
-  else
-    return -1;
+  return exchanger_start_exchange(pairing->ex, data, stride, tag, type);
 }
 
 void neighbor_pairing_finish_exchange(neighbor_pairing_t* pairing, int token)
 {
-  if (pairing->ex != NULL)
-    exchanger_finish_exchange(pairing->ex, token);
+  exchanger_finish_exchange(pairing->ex, token);
 }
 
 static size_t np_byte_size(void* obj)

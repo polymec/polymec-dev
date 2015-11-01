@@ -35,7 +35,7 @@ typedef struct
 // associated with the ith pair. Returns a newly-allocated neighbor pairing. 
 // The arrays must be allocated using polymec_malloc, and are consumed by the 
 // pairing. Likewise, the pairing's exchanger is consumed and is used for its 
-// exchanges.
+// exchanges. An exchanger must be given even for serial configurations.
 neighbor_pairing_t* neighbor_pairing_new(const char* name, int num_pairs,
                                          int* pairs, real_t* weights,
                                          exchanger_t* ex);
