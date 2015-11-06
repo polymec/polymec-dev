@@ -9,7 +9,8 @@ compiler:
 addons:
   apt:
     sources:
-    - kalakris-cmake
+    - george-edison55-precise-backports  # For CMake 3.2
+
     packages:
     - cmake
     - libopenmpi-dev
