@@ -1,11 +1,17 @@
 language: c
 
+sudo: false
+
 compiler:
   - clang
   - gcc
 
-before_install:
-  - sudo apt-get install -qq libopenmpi-dev gfortran
+addons:
+  apt:
+    packages:
+    - cmake
+    - libopenmpi-dev
+    - gfortran
 
 script: 
   - make config debug=1 mpi=0 && make debug=1 mpi=0
