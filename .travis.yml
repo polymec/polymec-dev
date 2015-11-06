@@ -8,6 +8,12 @@ compiler:
   - clang
   - gcc
 
+env:
+  - debug=0 mpi=0
+  - debug=0 mpi=1
+  - debug=1 mpi=0
+  - debug=1 mpi=1
+
 # Travis CI is powered with Ubuntu 12.04, whose toolchain is outdated.
 addons:
   apt:
@@ -28,8 +34,5 @@ addons:
       - gfortran
 
 script: 
-  - make config debug=1 mpi=0 && make debug=1 mpi=0
-  - make config debug=0 mpi=0 && make debug=0 mpi=0
-  - make config debug=1 mpi=1 && make debug=1 mpi=1
-  - make config debug=0 mpi=1 && make debug=0 mpi=1
+  - make config && make -j4 
 
