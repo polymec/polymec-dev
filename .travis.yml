@@ -1,0 +1,30 @@
+language: c
+
+sudo: required
+
+dist: trusty # Ubuntu 14.04.
+
+compiler:
+  - clang
+  - gcc
+
+env:
+  - DEBUG=0 MPI=0
+  - DEBUG=0 MPI=1
+  - DEBUG=1 MPI=0
+  - DEBUG=1 MPI=1
+
+addons:
+  apt:
+    # Travis whitelist of packages.
+    # https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-trusty
+    packages:
+      - cmake
+      - gcc
+      - clang
+      - libopenmpi-dev
+      - gfortran
+
+script: 
+  - make config debug=$DEBUG mpi=$MPI && make -j4 debug=$DEBUG mpi=$MPI 
+

@@ -27,6 +27,8 @@
 // void x_array_append_with_dtor(x_array_t* array, x value, destructor dtor) - Appends an x to the end of the array, using dtor to destroy when finished.
 // void x_array_insert(x_array_t* array, int i, x value) - Inserts an x at position i within the array, resizing as necessary.
 // void x_array_insert_with_dtor(x_array_t* array, int i, x value, destructor dtor) - Inserts an x at position i within the array, using dtor to destroy when finished.
+// void x_array_assign(x_array_t* array, int i, x value) - Assigns an x to position i within the array.
+// void x_array_assign_with_dtor(x_array_t* array, int i, x value, destructor dtor) - Assigns an x to position i within the array, using dtor to destroy when finished.
 // bool x_array_empty(x_array_t* array) - Returns true if empty, false otherwise.
 // void x_array_clear(x_array_t* array) - Clears the given array, making it empty.
 // void x_array_resize(x_array_t* array, int new_size) - Resizes the array, keeping data intact if possible.
@@ -188,6 +190,20 @@ static inline void array_name##_insert_with_dtor(array_name##_t* array, int i, e
 static inline void array_name##_insert(array_name##_t* array, int i, element value) \
 { \
   array_name##_insert_with_dtor(array, i, value, NULL); \
+} \
+\
+static inline void array_name##_assign_with_dtor(array_name##_t* array, int i, element value, array_name##_dtor dtor) \
+{ \
+  ASSERT(i < array->size); \
+  if (array->dtors[i] != NULL) \
+    array->dtors[i](array->data[i]); \
+  array->data[i] = value; \
+  array->dtors[i] = dtor; \
+} \
+\
+static inline void array_name##_assign(array_name##_t* array, int i, element value) \
+{ \
+  array_name##_assign_with_dtor(array, i, value, NULL); \
 } \
 \
 static inline bool array_name##_next(array_name##_t* array, int* pos, element* value) \

@@ -69,7 +69,7 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
   bool got_one = text_buffer_next_nonempty(text, &pos, &raw_line, &len);
   if (got_one == false)
     polymec_error("Input file was empty.");
-  string_copy_from_raw(raw_line, len+1, line);
+  string_copy_from_raw(raw_line, len, line);
   if (strstr((const char*)line, "#Life 1.05") == NULL)
     polymec_error("Invalid file format -- should be Life 1.05.");
 
@@ -80,7 +80,7 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
     got_one = text_buffer_next_nonempty(text, &pos, &raw_line, &len);
     if (got_one == false)
       polymec_error("Life 1.05 file has no content!");
-    string_copy_from_raw(raw_line, len+1, line);
+    string_copy_from_raw(raw_line, len, line);
     if ((line[0] != '#') || ((line[1] != 'D')))
       break;
     ++num_desc_lines;
@@ -136,7 +136,7 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
     got_one = text_buffer_next_nonempty(text, &pos, &raw_line, &len);
   if (got_one == false)
     polymec_error("Life 1.05 file has no cell blocks!");
-  string_copy_from_raw(raw_line, len+1, line);
+  string_copy_from_raw(raw_line, len, line);
   
   // Now we move on to cell blocks.
   gol->xy_pairs = int_tuple_unordered_set_new();
@@ -157,7 +157,7 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
     bool found_coords = string_next_token(&line[3], " ", &spos, &str, &slen);
     if (!found_coords)
       polymec_error("Invalid cell block offset: %s", line);
-    string_copy_from_raw(str, slen+1, num_buf);
+    string_copy_from_raw(str, slen, num_buf);
     int t = string_trim(num_buf);
     if (!string_is_number(&num_buf[t]))
       polymec_error("Invalid x position of cell block: %s", &num_buf[t]);
@@ -165,7 +165,7 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
     found_coords = string_next_token(&line[3], " ", &spos, &str, &slen);
     if (!found_coords)
       polymec_error("Invalid cell block offset: %s", line);
-    string_copy_from_raw(str, slen+1, num_buf);
+    string_copy_from_raw(str, slen, num_buf);
     t = string_trim(num_buf);
     if (!string_is_number(&num_buf[t]))
       polymec_error("Invalid y position of cell block: %s", &num_buf[t]);
@@ -182,7 +182,7 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
     {
       got_one = text_buffer_next_nonempty(text, &pos, &raw_line, &len);
       if (!got_one) break;
-      string_copy_from_raw(raw_line, len+1, line);
+      string_copy_from_raw(raw_line, len, line);
       for (int i = 0; i < len; ++i)
       {
         char c = line[i];

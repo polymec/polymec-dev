@@ -82,6 +82,7 @@ struct silo_field_metadata_t
   char* units;
   bool conserved;
   bool extensive;
+  int vector_component;
 };
 
 static void silo_field_metadata_free(void* ctx, void* dummy)
@@ -100,6 +101,7 @@ silo_field_metadata_t* silo_field_metadata_new()
   metadata->units = NULL;
   metadata->conserved = false;
   metadata->extensive = false;
+  metadata->vector_component = -1;
   GC_register_finalizer(metadata, silo_field_metadata_free, metadata, NULL, NULL);
   return metadata;
 }
@@ -138,6 +140,14 @@ void silo_field_metadata_set_extensive(silo_field_metadata_t* metadata,
   metadata->extensive = is_extensive;
 }
 
+void silo_field_metadata_set_vector_component(silo_field_metadata_t* metadata,
+                                              int component)
+{
+  ASSERT(component >= -1);
+  ASSERT(component < 3);
+  metadata->vector_component = component;
+}
+
 char* silo_field_metadata_label(silo_field_metadata_t* metadata)
 {
   return metadata->label;
@@ -156,6 +166,16 @@ bool silo_field_metadata_conserved(silo_field_metadata_t* metadata)
 bool silo_field_metadata_extensive(silo_field_metadata_t* metadata)
 {
   return metadata->extensive;
+}
+
+bool silo_field_metadata_is_vector_component(silo_field_metadata_t* metadata)
+{
+  return (metadata->vector_component != -1);
+}
+
+int silo_field_metadata_vector_component(silo_field_metadata_t* metadata)
+{
+  return metadata->vector_component;
 }
 
 // These helpers are used in the read/write operations.

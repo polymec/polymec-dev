@@ -169,6 +169,9 @@ typedef struct
 // Allocates a bounding box with the given extents on the heap. 
 bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z2);
 
+// Creates a copy of the given bbox.
+bbox_t* bbox_clone(bbox_t* box);
+
 // Allocates a bounding box that is understood to be the empty set.
 bbox_t* empty_set_bbox_new();
 
