@@ -12,18 +12,18 @@ addons:
     # Travis white list of ppa.
     # https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
     sources:
-    - ubuntu-toolchain-r-test     # For gcc 4.8
-    - kubuntu-backports           # For cmake 2.8.12
-    - llvm-toolchain-precise-3.6  # For clang 3.6
+      - ubuntu-toolchain-r-test     # For gcc 4.8
+      - kubuntu-backports           # For cmake 2.8.12
+      - llvm-toolchain-precise-3.6  # For clang 3.6
 
     # Travis whitelist of packages.
     # https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
     packages:
-    - cmake
-    - gcc-4.9
-    - clang-3.6
-    - libopenmpi-dev
-    - gfortran
+      - cmake
+      - gcc-4.9
+      - clang-3.6
+      - libopenmpi-dev
+      - gfortran
 
 script: 
   - make config debug=1 mpi=0 && make debug=1 mpi=0
