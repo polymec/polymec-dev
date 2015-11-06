@@ -1,6 +1,8 @@
 language: c
 
-sudo: false
+sudo: required
+
+dist: trusty
 
 compiler:
   - clang
@@ -9,19 +11,19 @@ compiler:
 # Travis CI is powered with Ubuntu 12.04, whose toolchain is outdated.
 addons:
   apt:
-    # Travis white list of ppa.
-    # https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
-    sources:
-      - ubuntu-toolchain-r-test     # For gcc 4.8
-      - kubuntu-backports           # For cmake 2.8.12
-      - llvm-toolchain-precise-3.6  # For clang 3.6
+#    # Travis white list of ppa.
+#    # https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
+#    sources:
+#      - ubuntu-toolchain-r-test     # For gcc 4.8
+#      - kubuntu-backports           # For cmake 2.8.12
+#      - llvm-toolchain-precise-3.6  # For clang 3.6
 
     # Travis whitelist of packages.
     # https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
     packages:
       - cmake
-      - gcc-4.9
-      - clang-3.6
+      - gcc
+      - clang
       - libopenmpi-dev
       - gfortran
 
