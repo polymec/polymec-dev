@@ -31,7 +31,7 @@ addons:
     paths:
       - $HOME/polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz
 
-  s3_region: "us-west-2"
+    s3_region: us-west-2
 
 after_success: cd $HOME; tar czvf polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz polymec-$CC-debug=$DEBUG-mpi=$MPI/* 
 
