@@ -29,9 +29,11 @@ addons:
     # We stick build artifacts onto Amazon S3 so that they can be retrieved 
     # either for deployment or for testing other polymec-based libs.
     paths:
-      - $(find $HOME/polymec-$CC-debug=$DEBUG-mpi=$MPI | tr "\n" ":")
+      - $HOME/polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz
 
   s3_region: "us-west-2"
+
+after_success: cd $HOME; tar czvf polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz polymec-$CC-debug=$DEBUG-mpi=$MPI/* 
 
 script: 
   - make config debug=$DEBUG mpi=$MPI prefix=$HOME/polymec-$CC-debug=$DEBUG-mpi=$MPI && make -j4 debug=$DEBUG mpi=$MPI install
