@@ -32,6 +32,7 @@ addons:
     access_key_id: $S3_ACCESS_KEY_ID
     secret_access_key: $S3_SECRET_KEY
     bucket: polymec-dev.travis-ci
+    region: us-west-2
     skip_cleanup: true
     local_dir: $HOME
     upload-dir: polymec-dev
