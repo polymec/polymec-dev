@@ -25,11 +25,11 @@ addons:
       - libopenmpi-dev
       - gfortran
 
-  before_deploy: 
-    - cd $HOME
-    - mkdir -p latest 
-    - tar czvf polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz polymec-$CC-debug=$DEBUG-mpi=$MPI/* 
-    - mv polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz latest
+#  before_deploy: 
+#    - cd $HOME
+#    - mkdir -p latest 
+#    - tar czvf polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz polymec-$CC-debug=$DEBUG-mpi=$MPI/* 
+#    - mv polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz latest
 
   deploy:
     provider: s3
@@ -50,7 +50,11 @@ addons:
 
     #debug: true
 
-#after_success: cd $HOME; tar czvf polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz polymec-$CC-debug=$DEBUG-mpi=$MPI/* 
+after_success: 
+  - cd $HOME
+  - mkdir -p latest 
+  - tar czvf polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz polymec-$CC-debug=$DEBUG-mpi=$MPI/* 
+  - mv polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz latest
 
 script: 
   - make config debug=$DEBUG mpi=$MPI prefix=$HOME/polymec-$CC-debug=$DEBUG-mpi=$MPI && make -j4 debug=$DEBUG mpi=$MPI install
