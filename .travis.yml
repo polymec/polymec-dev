@@ -29,6 +29,8 @@ addons:
 
   deploy:
     provider: s3
+    access_key_id: $S3_ACCESS_KEY_ID
+    secret_access_key: $S3_SECRET_KEY
     skip_cleanup: true
     local_dir: $HOME
     upload-dir: polymec-dev
