@@ -34,7 +34,6 @@ addons:
     skip_cleanup: true
     local_dir: $HOME/latest
     upload-dir: polymec-dev
-
 #  artifacts:
 #    # We stick build artifacts onto Amazon S3 so that they can be retrieved 
 #    # either for deployment or for testing other polymec-based libs.
