@@ -31,7 +31,7 @@ addons:
     provider: s3
     access_key_id: $S3_ACCESS_KEY_ID
     secret_access_key: $S3_SECRET_KEY
-    bucket: polymec-dev.travis-cl
+    bucket: polymec-dev.travis-ci
     skip_cleanup: true
     local_dir: $HOME
     upload-dir: polymec-dev
