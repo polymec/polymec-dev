@@ -25,7 +25,11 @@ addons:
       - libopenmpi-dev
       - gfortran
 
-  before_deploy: cd $HOME; tar czvf polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz polymec-$CC-debug=$DEBUG-mpi=$MPI/* 
+  before_deploy: 
+    - cd $HOME
+    - mkdir -p latest 
+    - tar czvf polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz polymec-$CC-debug=$DEBUG-mpi=$MPI/* 
+    - mv polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz latest
 
   deploy:
     provider: s3
@@ -34,7 +38,7 @@ addons:
     bucket: polymec-dev.travis-ci
     region: us-west-2
     skip_cleanup: true
-    local_dir: $HOME
+    local_dir: $HOME/latest
     upload-dir: polymec-dev
 #  artifacts:
 #    # We stick build artifacts onto Amazon S3 so that they can be retrieved 
