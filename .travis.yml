@@ -36,8 +36,8 @@ addons:
 
 # This is a workaround for a bug in Travis CI that causes rvm not to be found.
 # (rvm is needed for deployment.)
-before_deploy:
-  - export PATH="$PATH:$HOME/.rvm/bin"
+#before_deploy:
+#  - export PATH="$PATH:$HOME/.rvm/bin"
 
 deploy:
   provider: s3
