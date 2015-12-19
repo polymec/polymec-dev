@@ -168,13 +168,13 @@ static void set_up_logging()
     // Are we maybe in a test environment, in which the logging=xxx 
     // argument is the first one passed?
     char* arg = options_argument(opts, 1);
-    if ((arg != NULL) && (strstr(arg, "logging") != NULL) && (strcasecmp(arg, "logging=") != 0))
+    if ((arg != NULL) && (strstr(arg, "logging") != NULL) && (string_casecmp(arg, "logging=") != 0))
     {
       int num_words;
       char** words = string_split(arg, "=", &num_words);
       if (num_words == 2)
       {
-        ASSERT(strcasecmp(words[0], "logging") == 0);
+        ASSERT(string_casecmp(words[0], "logging") == 0);
         free_logging = true;
         logging = string_dup(words[1]);
       }
@@ -185,15 +185,15 @@ static void set_up_logging()
   }
   if (logging != NULL)
   {
-    if (!strcasecmp(logging, "debug"))
+    if (!string_casecmp(logging, "debug"))
       set_log_level(LOG_DEBUG);
-    else if (!strcasecmp(logging, "detail"))
+    else if (!string_casecmp(logging, "detail"))
       set_log_level(LOG_DETAIL);
-    else if (!strcasecmp(logging, "info"))
+    else if (!string_casecmp(logging, "info"))
       set_log_level(LOG_INFO);
-    else if (!strcasecmp(logging, "urgent"))
+    else if (!string_casecmp(logging, "urgent"))
       set_log_level(LOG_URGENT);
-    else if (!strcasecmp(logging, "off"))
+    else if (!string_casecmp(logging, "off"))
       set_log_level(LOG_NONE);
     if (free_logging)
       string_free(logging);
@@ -212,13 +212,13 @@ static void pause_if_requested()
     // Are we maybe in a test environment, in which the pause=xxx 
     // argument is the first one passed?
     char* arg = options_argument(opts, 1);
-    if ((arg != NULL) && (strstr(arg, "pause") != NULL) && (strcasecmp(arg, "pause=") != 0))
+    if ((arg != NULL) && (strstr(arg, "pause") != NULL) && (string_casecmp(arg, "pause=") != 0))
     {
       int num_words;
       char** words = string_split(arg, "=", &num_words);
       if (num_words == 2)
       {
-        ASSERT(strcasecmp(words[0], "pause") == 0);
+        ASSERT(string_casecmp(words[0], "pause") == 0);
         delay = words[1];
         free_delay = true;
       }

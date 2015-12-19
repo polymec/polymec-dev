@@ -27,6 +27,39 @@ char* string_ndup(const char* s, int n)
   return copy;
 }
 
+int string_casecmp(const char* s1, const char* s2)
+{
+  int l1 = strlen(s1), l2 = strlen(s2);
+  int lmin = MIN(l1, l2);
+  for (int i = 0; i < lmin; ++i)
+  {
+    char c1 = tolower(s1[i]), c2 = tolower(s2[i]);
+    if (c1 < c2)
+      return -1;
+    else if (c1 > c2)
+      return 1;
+  }
+  if (l1 < l2)
+    return -1;
+  else if (l1 > l2)
+    return 1;
+  else 
+    return 0;
+}
+
+int string_ncasecmp(const char* s1, const char* s2, size_t n)
+{
+  for (int i = 0; i < n; ++i)
+  {
+    char c1 = tolower(s1[i]), c2 = tolower(s2[i]);
+    if (c1 < c2)
+      return -1;
+    else if (c1 > c2)
+      return 1;
+  }
+  return 0;
+}
+
 void string_free(char* s)
 {
   polymec_free(s);
@@ -104,9 +137,9 @@ bool string_as_boolean(const char* s)
 {
   return ((s != NULL) && 
           ((strcmp(s, "1") == 0) || 
-           (strcasecmp(s, "true") == 0) ||
-           (strcasecmp(s, "yes") == 0) ||
-           (strcasecmp(s, "on") == 0)));
+           (string_casecmp(s, "true") == 0) ||
+           (string_casecmp(s, "yes") == 0) ||
+           (string_casecmp(s, "on") == 0)));
 }
 
 int string_find_in_list(const char* s, 
@@ -118,7 +151,7 @@ int string_find_in_list(const char* s,
     return -1;
 
   int i = 0;
-  int (*cmp)(const char* s1, const char* s2) = case_sensitive ? strcmp : strcasecmp;
+  int (*cmp)(const char* s1, const char* s2) = case_sensitive ? strcmp : string_casecmp;
   while (string_list[i] != NULL)
   {
     if (cmp(s, string_list[i]) == 0)

@@ -20,6 +20,37 @@ void test_string_dup(void** state)
   free(s2);
 }
 
+void test_string_ndup(void** state)
+{
+  const char* s1 = "dupe me, baby!";
+  char* s2 = string_ndup(s1, 7);
+  assert_true(!strcmp(s2, "dupe me"));
+  free(s2);
+}
+
+void test_string_casecmp(void** state)
+{
+  const char* s1 = "The case doesn't matter.";
+  const char* s2 = "THE CASE DOESN'T MATTER.";
+  const char* s3 = "THE CASE DOES MATTER.";
+  assert_true(string_casecmp(s1, s2) == 0);
+  assert_true(string_casecmp(s1, s3) > 0);
+  assert_true(string_casecmp(s3, s1) < 0);
+}
+
+void test_string_ncasecmp(void** state)
+{
+  const char* s1 = "The case doesn't matter.";
+  const char* s2 = "THE CASE DOESN'T MATTER.";
+  const char* s3 = "THE CASE DOES MATTER.";
+  assert_true(string_ncasecmp(s1, s2, 13) == 0);
+  assert_true(string_ncasecmp(s1, s3, 13) == 0);
+  assert_true(string_ncasecmp(s3, s1, 13) == 0);
+  assert_true(string_ncasecmp(s1, s2, 14) == 0);
+  assert_true(string_ncasecmp(s1, s3, 14) > 0);
+  assert_true(string_ncasecmp(s3, s1, 14) < 0);
+}
+
 void test_string_next_token(void** state)
 {
   const char* whole_string = "this,that,and the other";
@@ -100,6 +131,9 @@ int main(int argc, char* argv[])
   const UnitTest tests[] = 
   {
     unit_test(test_string_dup),
+    unit_test(test_string_ndup),
+    unit_test(test_string_casecmp),
+    unit_test(test_string_ncasecmp),
     unit_test(test_string_next_token),
     unit_test(test_string_is_number),
     unit_test(test_string_as_boolean),

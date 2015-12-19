@@ -102,15 +102,15 @@ int main(int argc, char** argv)
     char* logging = options_value(opts, "logging");
     if (logging != NULL)
     {
-      if (!strcasecmp(logging, "debug"))
+      if (!string_casecmp(logging, "debug"))
         log_lev = LOG_DEBUG;
-      else if (!strcasecmp(logging, "detail"))
+      else if (!string_casecmp(logging, "detail"))
         log_lev = LOG_DETAIL;
-      else if (!strcasecmp(logging, "info"))
+      else if (!string_casecmp(logging, "info"))
         log_lev = LOG_INFO;
-      else if (!strcasecmp(logging, "urgent"))
+      else if (!string_casecmp(logging, "urgent"))
         log_lev = LOG_URGENT;
-      else if (!strcasecmp(logging, "off"))
+      else if (!string_casecmp(logging, "off"))
         log_lev = LOG_NONE;
     }
     set_log_level(log_lev);

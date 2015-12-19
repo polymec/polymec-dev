@@ -17,6 +17,11 @@ char* string_dup(const char* s);
 // tacking an '\0' to the end.
 char* string_ndup(const char* s, int n);
 
+// Since strcasecmp and strncasecmp are not standard C, we provide surrogates 
+// here.
+int string_casecmp(const char* s1, const char* s2);
+int string_ncasecmp(const char* s1, const char* s2, size_t n);
+
 // This function copies at most n characters from a raw array to the string 
 // dest, which should be large enough to store n+1 characters. The raw array 
 // is not assumed to be NULL-terminated, but if it is, only those characters 

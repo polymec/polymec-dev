@@ -424,15 +424,15 @@ static void model_read_input(model_t* model, interpreter_t* interp)
   if (interpreter_contains(interp, "logging", INTERPRETER_STRING))
   {
     char* logging = interpreter_get_string(interp, "logging");
-    if (!strcasecmp(logging, "debug"))
+    if (!string_casecmp(logging, "debug"))
       set_log_level(LOG_DEBUG);
-    else if (!strcasecmp(logging, "detail"))
+    else if (!string_casecmp(logging, "detail"))
       set_log_level(LOG_DETAIL);
-    else if (!strcasecmp(logging, "info"))
+    else if (!string_casecmp(logging, "info"))
       set_log_level(LOG_INFO);
-    else if (!strcasecmp(logging, "urgent"))
+    else if (!string_casecmp(logging, "urgent"))
       set_log_level(LOG_URGENT);
-    else if (!strcasecmp(logging, "off"))
+    else if (!string_casecmp(logging, "off"))
       set_log_level(LOG_NONE);
     else
       polymec_error("Invalid logging: %s\nMust be one of: debug, detail, info, urgent, off", logging);
@@ -1024,15 +1024,15 @@ static void override_interpreted_values(model_t* model,
   char* logging = options_value(options, "logging");
   if (logging != NULL)
   {
-    if (!strcasecmp(logging, "debug"))
+    if (!string_casecmp(logging, "debug"))
       set_log_level(LOG_DEBUG);
-    else if (!strcasecmp(logging, "detail"))
+    else if (!string_casecmp(logging, "detail"))
       set_log_level(LOG_DETAIL);
-    else if (!strcasecmp(logging, "info"))
+    else if (!string_casecmp(logging, "info"))
       set_log_level(LOG_INFO);
-    else if (!strcasecmp(logging, "urgent"))
+    else if (!string_casecmp(logging, "urgent"))
       set_log_level(LOG_URGENT);
-    else if (!strcasecmp(logging, "off"))
+    else if (!string_casecmp(logging, "off"))
       set_log_level(LOG_NONE);
   }
   

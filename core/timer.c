@@ -69,9 +69,9 @@ polymec_timer_t* polymec_timer_get(const char* name)
     char* timers_on = options_value(options, "timers");
     if ((timers_on != NULL) && 
         ((strcmp(timers_on, "1") == 0) || 
-         (strcasecmp(timers_on, "yes") == 0) ||
-         (strcasecmp(timers_on, "on") == 0) ||
-         (strcasecmp(timers_on, "true") == 0)))
+         (string_casecmp(timers_on, "yes") == 0) ||
+         (string_casecmp(timers_on, "on") == 0) ||
+         (string_casecmp(timers_on, "true") == 0)))
     {
       use_timers = true;
       log_debug("polymec: Enabled timers.");

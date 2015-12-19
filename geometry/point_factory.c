@@ -213,8 +213,8 @@ int point_factory_cylinder(lua_State* lua)
     return luaL_error(lua, "nr and nz must all be positive.");
 
   if ((radial_spacing != NULL) && 
-      !strcasecmp(radial_spacing, "linear") &&
-      !strcasecmp(radial_spacing, "log"))
+      !string_casecmp(radial_spacing, "linear") &&
+      !string_casecmp(radial_spacing, "log"))
   {
     return luaL_error(lua, "radial_spacing must be 'linear' or 'log'.");
   }
@@ -231,7 +231,7 @@ int point_factory_cylinder(lua_State* lua)
   // Determine the radial spacing.
   real_t linear_dr = radius / (1.0*nr - 0.5);
   real_t r[nr-1+ng], dr[nr-1+ng];
-  if ((radial_spacing == NULL) || (!strcasecmp(radial_spacing, "linear")))
+  if ((radial_spacing == NULL) || (!string_casecmp(radial_spacing, "linear")))
   {
     for (int j = 0; j < nr-1+ng; ++j)
     {
@@ -611,7 +611,7 @@ int point_factory_import_from_cad(lua_State* lua)
   // Make sure the suffix indicates a supported format.
   static const char* supported_suffixes[] = {".stl", NULL};
   int i = 0;
-  while ((supported_suffixes[i] != NULL) && strcasecmp(suffix, supported_suffixes[i]))
+  while ((supported_suffixes[i] != NULL) && string_casecmp(suffix, supported_suffixes[i]))
     ++i;
   if (supported_suffixes[i] == NULL)
     return luaL_error(lua, "Unsupported file format: %s", suffix);
@@ -627,7 +627,7 @@ int point_factory_import_from_cad(lua_State* lua)
   vector_t* normals = NULL;
   char error_message[1024];
   int num_points;
-  if (!strcasecmp(suffix, ".stl"))
+  if (!string_casecmp(suffix, ".stl"))
     import_points_from_stl(cad_file_name, &num_points, &points, &normals, error_message);
 
   if (points == NULL)
