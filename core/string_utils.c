@@ -49,6 +49,10 @@ int string_casecmp(const char* s1, const char* s2)
 
 int string_ncasecmp(const char* s1, const char* s2, size_t n)
 {
+  int l1 = strlen(s1), l2 = strlen(s2);
+  int lmin = MIN(l1, l2);
+  if (lmin < n)
+    return string_casecmp(s1, s2);
   for (int i = 0; i < n; ++i)
   {
     char c1 = tolower(s1[i]), c2 = tolower(s2[i]);

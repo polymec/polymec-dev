@@ -49,6 +49,11 @@ void test_string_ncasecmp(void** state)
   assert_true(string_ncasecmp(s1, s2, 14) == 0);
   assert_true(string_ncasecmp(s1, s3, 14) > 0);
   assert_true(string_ncasecmp(s3, s1, 14) < 0);
+
+  const char* s4 = "THE CASE";
+  assert_true(string_ncasecmp(s1, s4, 13) > 0);
+  assert_true(string_ncasecmp(s4, s1, 13) < 0);
+  assert_true(string_ncasecmp(s1, s4, 8) == 0);
 }
 
 void test_string_next_token(void** state)
