@@ -1,6 +1,0 @@
-surface = point_factory.import_from_cad('sphere.stl')
-mesh = mesh_factory.cvt({sphere = surface}, 
-                        {num_interior_points = 1000,
-                         iteration_method = 'lloyd',
-                         num_iterations = 10})
-

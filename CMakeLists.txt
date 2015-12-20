@@ -203,6 +203,3 @@ else()
   message("Installation is not enabled. Please rerun make config with prefix=/your/prefix.")
 endif()
 
-# Mesher.
-add_subdirectory(polymesher)
-
