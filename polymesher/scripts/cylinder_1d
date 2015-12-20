@@ -1,3 +1,0 @@
-mesh = cylindrical_1d.uniform(0, 1, 20)
-print(mesh)
-write_silo_mesh(mesh, 'cyl1d')

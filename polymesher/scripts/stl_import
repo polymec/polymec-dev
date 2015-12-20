@@ -1,3 +1,0 @@
-surface = point_factory.import_from_cad('sphere.stl')
-print(surface.points)
-print(surface.normals)
