@@ -54,6 +54,7 @@ extern void exactinit();
 // Command line arguments (used for provenance information).
 int polymec_argc = 0;
 char** polymec_argv = NULL;
+char polymec_exe_name[FILENAME_MAX+1];
 
 // Invocation string, time, directory.
 char* polymec_invoc_str = NULL;
@@ -285,6 +286,10 @@ void polymec_init(int argc, char** argv)
     polymec_argv = malloc(sizeof(char*) * argc);
     for (int i = 0; i < argc; ++i)
       polymec_argv[i] = string_dup(argv[i]);
+
+    // Figure out the name (and only the name) of the executable.
+    char dir[FILENAME_MAX+1];
+    parse_path(polymec_argv[0], dir, polymec_exe_name);
 
     // Construct the invocation string.
     int invoc_len = 2;
@@ -641,6 +646,12 @@ void polymec_provenance_fprintf(FILE* stream)
   options = NULL;
 
   fprintf(stream, "=======================================================================\n\n");
+}
+
+const char* polymec_executable_name()
+{
+  ASSERT(polymec_initialized);
+  return (const char*)polymec_exe_name;
 }
 
 const char* polymec_invocation()
