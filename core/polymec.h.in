@@ -228,6 +228,11 @@ void polymec_version_fprintf(const char* exe_name, FILE* stream);
 // This function writes provenance information to the given file descriptor.
 void polymec_provenance_fprintf(FILE* stream);
 
+// Returns an internal string containing the actual name of the executable 
+// polymec application. This string contains just the name of the executable, 
+// without any path information.
+const char* polymec_executable_name();
+
 // Returns an internal string containing the command that invoked the 
 // present instance of a polymec application.
 const char* polymec_invocation();
