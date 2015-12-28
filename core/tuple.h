@@ -61,15 +61,19 @@ static inline int tuple_name##_length(element* tuple) \
 static inline int tuple_name##_cmp(element* tuple1, element* tuple2) \
 { \
   int N1 = tuple_name##_length(tuple1); \
-  ASSERT(N1 > 0); \
-  ASSERT(tuple_name##_length(tuple2) > 0); \
-  ASSERT(N1 == tuple_name##_length(tuple2)); \
+  int N2 = tuple_name##_length(tuple2); \
+  int N_min = MIN(N1, N2); \
+  ASSERT(N_min > 0); \
   int cmp = element_cmp(tuple1[0], tuple2[0]); \
   int i = 1; \
-  while ((cmp == 0) && (i < N1)) \
+  while ((cmp == 0) && (i < N_min)) \
   { \
     cmp = element_cmp(tuple1[i], tuple2[i]); \
     ++i; \
+  } \
+  if (cmp == 0) \
+  { \
+    cmp = (N_min < N1) ? 1 : (N_min < N2) ? -1 : 0; \
   } \
   return cmp; \
 } \
