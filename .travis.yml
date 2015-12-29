@@ -23,6 +23,7 @@ addons:
       - gcc
       - clang
       - libopenmpi-dev
+      - openmpi-bin
       - gfortran
 
 #  artifacts:
