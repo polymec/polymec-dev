@@ -524,10 +524,31 @@ void interpreter_register_function(interpreter_t* interp, const char* function_n
 void interpreter_register_global_table(interpreter_t* interp, const char* table_name, docstring_t* doc)
 {
   ASSERT(interp->num_globals < 1024);
-  interp->global_names[interp->num_globals] = string_dup(table_name);
-  interp->global_docs[interp->num_globals] = doc;
-  interp->num_global_methods[interp->num_globals] = 0;
-  interp->num_globals++;
+
+  // Find the index of an existing table with the same name.
+  int index = 0;
+  while (index < interp->num_globals)
+  {
+    if (strcmp(table_name, interp->global_names[index]) == 0)
+      break;
+    ++index;
+  }
+  if (index < interp->num_globals)
+  {
+    // Free the docstring.
+    if (interp->global_docs[index] != NULL)
+      docstring_dtor(interp->global_docs[index]);
+  }
+  else
+  {
+    // Set the name.
+    interp->global_names[index] = string_dup(table_name);
+    interp->num_globals++;
+  }
+
+  // Set the docstring.
+  interp->global_docs[index] = doc;
+  interp->num_global_methods[index] = 0;
 }
 
 void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*), docstring_t* doc)
