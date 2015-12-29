@@ -100,6 +100,10 @@ void interpreter_free(interpreter_t* interp);
 // A docstring may be associated with the function, and is consumed if given.
 void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(struct lua_State*), docstring_t* doc);
 
+// Returns true if given user-defined global table has been registered with 
+// the interpreter, false if not.
+bool interpreter_has_global_table(interpreter_t* interp, const char* table_name);
+
 // Register an empty user-defined global table with the interpreter.
 // A docstring may be associated with the function, and is consumed if given.
 void interpreter_register_global_table(interpreter_t* interp, const char* table_name, docstring_t* doc);

@@ -521,6 +521,19 @@ void interpreter_register_function(interpreter_t* interp, const char* function_n
   interp->num_functions++;
 }
 
+bool interpreter_has_global_table(interpreter_t* interp, const char* table_name)
+{
+  // Find the index of an existing table with the same name.
+  int index = 0;
+  while (index < interp->num_globals)
+  {
+    if (strcmp(table_name, interp->global_names[index]) == 0)
+      break;
+    ++index;
+  }
+  return (index < interp->num_globals);
+}
+
 void interpreter_register_global_table(interpreter_t* interp, const char* table_name, docstring_t* doc)
 {
   ASSERT(interp->num_globals < 1024);
