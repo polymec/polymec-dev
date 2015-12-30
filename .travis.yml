@@ -46,12 +46,14 @@ deploy:
   upload-dir: polymec-dev
   acl: public_read
 
+script: 
+  - make config debug=$DEBUG mpi=$MPI prefix=$HOME/polymec-$CC-debug=$DEBUG-mpi=$MPI && make -j4 debug=$DEBUG mpi=$MPI install && make debug=$DEBUG mpi=$MPI test
+
 after_success: 
   - cd $HOME
   - mkdir -p latest 
   - tar czvf polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz polymec-$CC-debug=$DEBUG-mpi=$MPI/* 
   - mv polymec-$CC-debug=$DEBUG-mpi=$MPI.tar.gz latest
 
-script: 
-  - make config debug=$DEBUG mpi=$MPI prefix=$HOME/polymec-$CC-debug=$DEBUG-mpi=$MPI && make -j4 debug=$DEBUG mpi=$MPI install
-
+after_failure: 
+  - cat build/*/Testing/Temporary/LastTest.log
