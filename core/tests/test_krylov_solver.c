@@ -24,13 +24,8 @@ void test_petsc_krylov_factory(void** state)
     if (petsc_arch != NULL)
     {
       // Check for the existence of the PETSc dynamic library.
-#ifdef APPLE
-      const char* dl_suffix = "dylib";
-#else
-      const char* dl_suffix = "so";
-#endif
       char petsc_path[FILENAME_MAX+1];
-      snprintf(petsc_path, FILENAME_MAX, "%s/%s/lib/libpetsc.%s", petsc_dir, petsc_arch, dl_suffix);
+      snprintf(petsc_path, FILENAME_MAX, "%s/%s/lib/libpetsc%s", petsc_dir, petsc_arch, SHARED_LIBRARY_SUFFIX);
       if (file_exists(petsc_path))
       {
         krylov_factory_t* petsc = petsc_krylov_factory(petsc_dir, petsc_arch);
@@ -58,27 +53,33 @@ void test_petsc_krylov_vector(void** state)
     char* petsc_arch = getenv("PETSC_ARCH");
     if (petsc_arch != NULL)
     {
-      krylov_factory_t* petsc = petsc_krylov_factory(petsc_dir, petsc_arch);
-      if (petsc != NULL)
+      // Check for the existence of the PETSc dynamic library.
+      char petsc_path[FILENAME_MAX+1];
+      snprintf(petsc_path, FILENAME_MAX, "%s/%s/lib/libpetsc%s", petsc_dir, petsc_arch, SHARED_LIBRARY_SUFFIX);
+      if (file_exists(petsc_path))
       {
-        // Create a vector.
-        krylov_vector_t* vec = krylov_factory_vector(petsc, MPI_COMM_WORLD, 100);
-        assert_int_equal(100, krylov_vector_local_size(vec));
-        int nprocs;
-        MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-        assert_int_equal(100*nprocs, krylov_vector_global_size(vec));
+        krylov_factory_t* petsc = petsc_krylov_factory(petsc_dir, petsc_arch);
+        if (petsc != NULL)
+        {
+          // Create a vector.
+          krylov_vector_t* vec = krylov_factory_vector(petsc, MPI_COMM_WORLD, 100);
+          assert_int_equal(100, krylov_vector_local_size(vec));
+          int nprocs;
+          MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+          assert_int_equal(100*nprocs, krylov_vector_global_size(vec));
 
-        // Clone it.
-        krylov_vector_t* vec1 = krylov_vector_clone(vec);
-        assert_int_equal(100, krylov_vector_local_size(vec1));
+          // Clone it.
+          krylov_vector_t* vec1 = krylov_vector_clone(vec);
+          assert_int_equal(100, krylov_vector_local_size(vec1));
 
-        // Put everything away.
-        krylov_vector_free(vec);
-        krylov_vector_free(vec1);
-        krylov_factory_free(petsc);
+          // Put everything away.
+          krylov_vector_free(vec);
+          krylov_vector_free(vec1);
+          krylov_factory_free(petsc);
+        }
+        else
+          log_urgent("Could not load PETSc. Skipping test_petsc_krylov_vector.");
       }
-      else
-        log_urgent("Could not load PETSc. Skipping test_petsc_krylov_vector.");
     }
     else
       log_urgent("PETSC_ARCH not set. Skipping test_petsc_krylov_vector.");
