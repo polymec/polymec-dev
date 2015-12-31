@@ -82,21 +82,21 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 
 // This returns the minimum of a and b.
 #ifndef MIN
-#define MIN(a, b) ((a < b) ? a : b)
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
 // This returns the maximum of a and b.
 #ifndef MAX
-#define MAX(a, b) ((a > b) ? a : b)
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
 // This returns the absolute value of a.
 #ifndef ABS
-#define ABS(a) ((a >= 0.0) ? a : -a)
+#define ABS(a) (((a) >= 0.0) ? (a) : -(a))
 #endif
 
 // This returns the sign (+1/-1) of the given quantity x.
-#define SIGN(x) ((x > 0) ? 1 : (x < 0) ? -1 : 0)
+#define SIGN(x) (((x) > 0) ? 1 : ((x) < 0) ? -1 : 0)
 
 // Machine epsilon.
 #ifndef REAL_EPSILON
