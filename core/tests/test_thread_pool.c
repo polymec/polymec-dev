@@ -36,8 +36,8 @@ static void crunch_numbers(void* context)
 static void do_number_crunching_test(void** state, thread_pool_t* pool)
 {
   int num_numbers = 20;
-  global_array = malloc(sizeof(double) * 20);
-  global_indices = malloc(sizeof(int) * 20);
+  global_array = malloc(sizeof(double) * num_numbers);
+  global_indices = malloc(sizeof(int) * num_numbers);
   for (int i = 0; i < num_numbers; ++i)
   {
     global_indices[i] = i;
@@ -55,9 +55,12 @@ static void do_number_crunching_test(void** state, thread_pool_t* pool)
 
 void test_number_crunching(void** state)
 {
-  thread_pool_t* pool = thread_pool_new();
-  do_number_crunching_test(state, pool);
-  thread_pool_free(pool);
+  for (int iter = 0; iter < 1000; ++iter)
+  {
+    thread_pool_t* pool = thread_pool_new();
+    do_number_crunching_test(state, pool);
+    thread_pool_free(pool);
+  }
 }
 
 void test_N_executions(void** state, int N)
@@ -71,8 +74,11 @@ void test_N_executions(void** state, int N)
 
 void test_several_executions(void** state)
 {
-  for (int N = 2; N <= 10; ++N)
-    test_N_executions(state, N);
+  for (int iter = 0; iter < 100; ++iter)
+  {
+    for (int N = 2; N <= 10; ++N)
+      test_N_executions(state, N);
+  }
 }
 
 int main(int argc, char* argv[]) 

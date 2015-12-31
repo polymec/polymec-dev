@@ -43,6 +43,7 @@ struct thread_pool_t
   // Task queue and number of remaining items. 
   ptr_slist_t* queue;
   int work_remaining;
+  int work_in_progress;
 
 #if USE_PTHREADS
   // Mutexes for controlling access to the queue and the information 
@@ -75,6 +76,24 @@ struct thread_pool_t
   bool* thread_started;
 };
 
+static inline void lock_queue(thread_pool_t* pool)
+{
+#if USE_PTHREADS
+    pthread_mutex_lock(&pool->queue_lock);
+#else
+    mtx_lock(&pool->queue_lock);
+#endif
+}
+
+static inline void unlock_queue(thread_pool_t* pool)
+{
+#if USE_PTHREADS
+    pthread_mutex_unlock(&pool->queue_lock);
+#else
+    mtx_unlock(&pool->queue_lock);
+#endif
+}
+
 // It's a thread's life! This function represents the entire lifetime of 
 // a worker thread.
 #if USE_PTHREADS
@@ -90,11 +109,7 @@ static int thread_life(void* context)
   while (true)
   {
     // Acquire the queue lock.
-#if USE_PTHREADS
-    pthread_mutex_lock(&pool->queue_lock);
-#else
-    mtx_lock(&pool->queue_lock);
-#endif
+    lock_queue(pool);
 
     // Wait on the condition variable for work to show up in the queue.
 #if USE_PTHREADS
@@ -105,37 +120,36 @@ static int thread_life(void* context)
       cnd_wait(&pool->queue_cond, &pool->queue_lock);
 #endif
 
+    // If the thread pool was told to shut down, we leave quietly.
     if (pool->shutting_down)
       break;
 
-#if USE_PTHREADS
     if (pool->work_remaining == 0)
-      pthread_mutex_unlock(&pool->queue_lock);
-#else
-    if (pool->work_remaining == 0)
-      mtx_unlock(&pool->queue_lock);
-#endif
+      unlock_queue(pool);
     else
     {
-      // Grab the next item in the queue and process it.
+      // Grab the next item in the queue.
       void (*dtor)(void*);
       thread_work_t* work = ptr_slist_pop(pool->queue, &dtor);
 
-      // Decrement the work remaining while we have the lock.
+      // Decrement the work remaining in the queue, and increment the
+      // work in progress.
       --pool->work_remaining;
+      ++pool->work_in_progress;
 
       // Surrender the queue lock.
-#if USE_PTHREADS
-      pthread_mutex_unlock(&pool->queue_lock);
-#else
-      mtx_unlock(&pool->queue_lock);
-#endif
+      unlock_queue(pool);
 
       // Do the work.
       work->do_work(work->context);
 
       // Delete the work unit.
       dtor(work);
+
+      // Get the queue lock and decrement the remaining work.
+      lock_queue(pool);
+      --pool->work_in_progress;
+      unlock_queue(pool);
 
       // Mark the job as completed.
 #if USE_PTHREADS
@@ -146,25 +160,24 @@ static int thread_life(void* context)
 
       // If there's no more work, tell the host thread that we're finished.
 #if USE_PTHREADS
-      if (pool->work_remaining == 0)
+      if ((pool->work_remaining == 0) && (pool->work_in_progress == 0))
         pthread_cond_signal(&pool->finished_cond);
       pthread_mutex_unlock(&pool->finished_lock);
 #else
-      if (pool->work_remaining == 0)
+      if ((pool->work_remaining == 0) && (pool->work_in_progress == 0))
         cnd_signal(&pool->finished_cond);
       mtx_unlock(&pool->finished_lock);
 #endif
     }
   }
 
-#if USE_PTHREADS
-  pthread_mutex_unlock(&pool->queue_lock);
+  unlock_queue(pool);
   polymec_free(thread); // Kill the thread's context.
+
+#if USE_PTHREADS
   pthread_exit(NULL);
   return NULL;
 #else
-  mtx_unlock(&pool->queue_lock);
-  polymec_free(thread); // Kill the thread's context.
   thrd_exit(0);
   return 0;
 #endif
@@ -185,6 +198,7 @@ thread_pool_t* thread_pool_with_threads(int num_threads)
   pool->queue = ptr_slist_new();
   pool->shutting_down = false;
   pool->work_remaining = 0;
+  pool->work_in_progress = 0;
 
 #if USE_PTHREADS
   // Thread creation attribute(s).
@@ -309,7 +323,7 @@ void thread_pool_schedule(thread_pool_t* pool,
                           void* context,
                           void (*do_work)(void*))
 {
-  if (pool->work_remaining != 0)
+  if ((pool->work_remaining != 0) || (pool->work_in_progress != 0))
     polymec_error("thread_pool_schedule() called within thread_pool_execute().");
 
   thread_work_t* work = polymec_malloc(sizeof(thread_work_t));
@@ -317,11 +331,11 @@ void thread_pool_schedule(thread_pool_t* pool,
   work->do_work = do_work;
 #if USE_PTHREADS
   pthread_mutex_lock(&pool->queue_lock);
-  ptr_slist_append_with_dtor(pool->queue, work, free);
+  ptr_slist_append_with_dtor(pool->queue, work, polymec_free);
   pthread_mutex_unlock(&pool->queue_lock);
 #else
   mtx_lock(&pool->queue_lock);
-  ptr_slist_append_with_dtor(pool->queue, work, free);
+  ptr_slist_append_with_dtor(pool->queue, work, polymec_free);
   mtx_unlock(&pool->queue_lock);
 #endif
 }
@@ -334,6 +348,7 @@ void thread_pool_execute(thread_pool_t* pool)
   // Signal the threads that there's work in the pool.
   pthread_mutex_lock(&pool->queue_lock);
   pool->work_remaining = pool->queue->size;
+  pool->work_in_progress = 0;
   pthread_cond_broadcast(&pool->queue_cond);
   pthread_mutex_unlock(&pool->queue_lock);
 
