@@ -44,7 +44,7 @@ static void average_points(point_t* points, int num_points, point_t* average)
 // Simple weighting function: W(x, x0) = 1/((|x-x0|/h) + B)^A
 typedef struct
 {
-  double A, B, h;
+  real_t A, B, h;
 } simple_W;
 
 static void simple_W_set_domain(void* context, point_t* x0, point_t* points, int num_points)
@@ -60,10 +60,10 @@ static void simple_W_set_domain(void* context, point_t* x0, point_t* points, int
   wf->h /= (num_points*(num_points+1)/2 - num_points);
 }
 
-static void simple_W_eval(void* context, vector_t* y, double* W, vector_t* gradient)
+static void simple_W_eval(void* context, vector_t* y, real_t* W, vector_t* gradient)
 {
   simple_W* wf = context;
-  double D = vector_mag(y) / wf->h;
+  real_t D = vector_mag(y) / wf->h;
   *W = 1.0 / (pow(D, wf->A) + pow(wf->B, wf->A));
   if (D == 0.0)
   {
@@ -71,15 +71,15 @@ static void simple_W_eval(void* context, vector_t* y, double* W, vector_t* gradi
   }
   else
   {
-    double dDdx = y->x / D, dDdy = y->y / D, dDdz = y->z / D;
-    double deriv_term = -(*W)*(*W) * 2.0 * D;
+    real_t dDdx = y->x / D, dDdy = y->y / D, dDdz = y->z / D;
+    real_t deriv_term = -(*W)*(*W) * 2.0 * D;
     gradient->x = deriv_term * dDdx;
     gradient->y = deriv_term * dDdy;
     gradient->z = deriv_term * dDdz;
   }
 }
 
-static ls_weight_func_t* simple_w_new(int A, double B)
+static ls_weight_func_t* simple_w_new(int A, real_t B)
 {
   ASSERT(A > 0);
   ASSERT(B > 0.0);
@@ -93,18 +93,18 @@ static ls_weight_func_t* simple_w_new(int A, double B)
   return ls_weight_func_new("Simple", W_data, vtable);
 }
 
-void test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_points, double* coeffs, bool weighted)
+void test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_points, real_t* coeffs, bool weighted)
 {
   polynomial_t* poly = polynomial_new(p, coeffs, x0);
 
   // Create scatter data using a polynomial with the given coefficients.
-  double data[num_points];
+  real_t data[num_points];
   for (int i = 0; i < num_points; ++i)
     data[i] = polynomial_value(poly, &points[i]);
 
   // Assemble the linear system to recover the coefficients.
   int dim = polynomial_num_terms(poly);
-  double A[dim*dim], b[dim];
+  real_t A[dim*dim], b[dim];
   if (weighted)
   {
     ls_weight_func_t* W = simple_w_new(2, 1e-4);
@@ -117,40 +117,48 @@ void test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_po
   // Solve the system.
   int lda = dim, ldb = dim, pivot[dim], info, one = 1;
   char trans = 'N';
-  dgetrf(&dim, &dim, A, &lda, pivot, &info);
+  rgetrf(&dim, &dim, A, &lda, pivot, &info);
   assert_int_equal(0, info);
-  dgetrs(&trans, &dim, &one, A, &lda, pivot, b, &ldb, &info);
+  rgetrs(&trans, &dim, &one, A, &lda, pivot, b, &ldb, &info);
   assert_int_equal(0, info);
 
-  // Make sure we've recovered the coefficients.
-  for (int i = 0; i < dim; ++i)
+  // Pick a random point (x_star) near the geometric mean (x_bar) of our points. 
+  point_t x_bar = {.x = 0.0, .y = 0.0, .z = 0.0};
+  for (int i = 0; i < num_points; ++i)
   {
-    // We need to pay attention to rounding errors (I think).
-//  printf("%d %g %g %g\n", p, b[i], coeffs[i], fabs(b[i] - coeffs[i]));
-    if (p == 0)
-    {
-      assert_true(fabs(b[i] - coeffs[i]) < 5e-15);
-    }
-    if (p == 1)
-    {
-      assert_true(fabs(b[i] - coeffs[i]) < 5e-14);
-    }
-    else if (p == 2)
-    {
-      assert_true(fabs(b[i] - coeffs[i]) < 5e-13);
-    }
-    else 
-    {
-      assert_true(fabs(b[i] - coeffs[i]) < 5e-11);
-    }
+    x_bar.x += points[i].x;
+    x_bar.y += points[i].y;
+    x_bar.z += points[i].z;
   }
+  x_bar.x /= num_points;
+  x_bar.y /= num_points;
+  x_bar.z /= num_points;
+  real_t L = -FLT_MAX;
+  for (int i = 0; i < num_points; ++i)
+    L = MAX(L, MAX(ABS(points[i].x - x_bar.x), MAX(ABS(points[i].y - x_bar.y), ABS(points[i].z - x_bar.z))));
+  vector_t dx;
+  rng_t* rng = host_rng_new();
+  vector_randomize(&dx, rng, 0.2*L);
+  point_t x_star = {.x = x_bar.x + dx.x, .y = x_bar.y + dx.y, .z = x_bar.z + dx.z};
+
+  // Compute the "actual" and fitted values at x_star, and make sure we 
+  // recover the approximation to within the accuracy of the linear
+  // solve (say ~5e-12).
+  real_t actual_value = polynomial_value(poly, &x_star);
+  polynomial_t* fitted_poly = polynomial_new(p, b, x0);
+  real_t fitted_value = polynomial_value(fitted_poly, &x_star);
+  if (weighted)
+    assert_true(ABS(fitted_value - actual_value) < 5e-12);
+  else
+    assert_true(ABS(fitted_value - actual_value) < 5e-12);
 
   poly = NULL;
+  fitted_poly = NULL;
 }
 
 void test_p0_fit(void** state)
 {
-  static double coeffs[] = {1.0};
+  static real_t coeffs[] = {1.0};
   point_t x0, points[4];
   generate_random_points(4, points);
   test_poly_fit(state, 0, NULL, points, 4, coeffs, false);
@@ -160,7 +168,7 @@ void test_p0_fit(void** state)
 
 void test_weighted_p0_fit(void** state)
 {
-  static double coeffs[] = {1.0};
+  static real_t coeffs[] = {1.0};
   point_t x0, points[4];
   generate_random_points(4, points);
   test_poly_fit(state, 0, NULL, points, 4, coeffs, true);
@@ -170,7 +178,7 @@ void test_weighted_p0_fit(void** state)
 
 void test_p1_fit(void** state)
 {
-  static double coeffs[] = {1.0, 2.0, 3.0, 4.0};
+  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
   point_t x0, points[8];
   generate_random_points(8, points);
   test_poly_fit(state, 1, NULL, points, 8, coeffs, false);
@@ -180,7 +188,7 @@ void test_p1_fit(void** state)
 
 void test_weighted_p1_fit(void** state)
 {
-  static double coeffs[] = {1.0, 2.0, 3.0, 4.0};
+  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
   point_t x0, points[8];
   generate_random_points(8, points);
   test_poly_fit(state, 1, NULL, points, 8, coeffs, true);
@@ -190,7 +198,7 @@ void test_weighted_p1_fit(void** state)
 
 void test_p2_fit(void** state)
 {
-  static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
   point_t x0, points[16];
   generate_random_points(16, points);
   test_poly_fit(state, 2, NULL, points, 16, coeffs, false);
@@ -200,7 +208,7 @@ void test_p2_fit(void** state)
 
 void test_weighted_p2_fit(void** state)
 {
-  static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
   point_t x0, points[16];
   generate_random_points(16, points);
   test_poly_fit(state, 2, NULL, points, 16, coeffs, true);
@@ -210,7 +218,7 @@ void test_weighted_p2_fit(void** state)
 
 void test_p3_fit(void** state)
 {
-  static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
+  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
                             11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0};
   point_t x0, points[30];
   generate_random_points(30, points);
@@ -221,7 +229,7 @@ void test_p3_fit(void** state)
 
 void test_weighted_p3_fit(void** state)
 {
-  static double coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
+  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
                             11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0};
   point_t x0, points[30];
   generate_random_points(30, points);
