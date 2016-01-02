@@ -29,7 +29,90 @@ typedef struct krylov_solver_t krylov_solver_t;
 typedef struct krylov_factory_t krylov_factory_t;
 
 //------------------------------------------------------------------------
-//                  Factories for creating Krylov solvers
+//        Machinery for implementing third-party Krylov solvers.
+//------------------------------------------------------------------------
+
+// This virtual table must be filled out for any subclass of krylov_factory.
+typedef struct 
+{
+  krylov_solver_t* (*solver)(void* context, MPI_Comm comm, string_string_unordered_map_t* options);
+  krylov_matrix_t* (*matrix)(void* context, adj_graph_t* sparsity);
+  krylov_matrix_t* (*block_matrix)(void* context, adj_graph_t* sparsity, int block_size);
+  krylov_vector_t* (*vector)(void* context, MPI_Comm comm, int N);
+  void (*dtor)(void* context);
+} krylov_factory_vtable;
+
+// This constructor should be called with a context pointer and a virtual 
+// table to create an instance of a krylov_factory subclass.
+krylov_factory_t* krylov_factory_new(const char* name,
+                                     void* context,
+                                     krylov_factory_vtable vtable);
+
+// This virtual table must be filled out for any subclass of krylov_solver.
+typedef struct
+{
+  void (*set_tolerances)(void* context, real_t rel_tol, real_t abs_tol, real_t div_tol);
+  void (*set_max_iterations)(void* context, int max_iters);
+  void (*set_operator)(void* context, void* op);
+  bool (*solve)(void* context, void* x, void* b, real_t* res_norm, int* num_iters);
+  void (*dtor)(void* context);
+} krylov_solver_vtable;
+
+// This constructor should be called with a context pointer and a virtual 
+// table to create an instance of a krylov_solver subclass.
+krylov_solver_t* krylov_solver_new(const char* name,
+                                   void* context,
+                                   krylov_solver_vtable vtable);
+
+// This virtual table must be filled out for any subclass of krylov_matrix.
+typedef struct
+{
+  void* (*clone)(void* context);
+  void (*zero)(void* context);
+  void (*scale)(void* context, real_t scale_factor);
+  void (*add_identity)(void* context, real_t scale_factor);
+  void (*add_diagonal)(void* context, void* D);
+  void (*set_diagonal)(void* context, void* D);
+  void (*set_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*add_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*start_assembly)(void* context);
+  void (*finish_assembly)(void* context);
+  void (*get_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*dtor)(void* context);
+} krylov_matrix_vtable;
+
+// This constructor should be called with a context pointer and a virtual 
+// table to create an instance of a krylov_matrix subclass.
+krylov_matrix_t* krylov_matrix_new(void* context,
+                                   krylov_matrix_vtable vtable,
+                                   int num_local_rows,
+                                   int num_global_rows);
+
+// This virtual table must be filled out for any subclass of krylov_matrix.
+typedef struct
+{
+  void* (*clone)(void* context);
+  void (*zero)(void* context);
+  void (*set_value)(void* context, real_t value);
+  void (*scale)(void* context, real_t scale_factor);
+  void (*set_values)(void* context, int num_values, int* indices, real_t* values);
+  void (*add_values)(void* context, int num_values, int* indices, real_t* values);
+  void (*start_assembly)(void* context);
+  void (*finish_assembly)(void* context);
+  void (*get_values)(void* context, int num_values, int* indices, real_t* values);
+  real_t (*norm)(void* context, int p);
+  void (*dtor)(void* context);
+} krylov_vector_vtable;
+
+// This constructor should be called with a context pointer and a virtual 
+// table to create an instance of a krylov_vector subclass.
+krylov_vector_t* krylov_vector_new(void* context,
+                                   krylov_vector_vtable vtable,
+                                   int local_size,
+                                   int global_size);
+
+//------------------------------------------------------------------------
+//                  Bundled third-party Krylov factories 
 //------------------------------------------------------------------------
 
 // This creates a PETSc-based Krylov factory that can be used for constructing
@@ -42,9 +125,13 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
 
 // This creates a HYPRE-based Krylov factory that can be used for constructing
 // matrices, vectors, solvers, using the HYPRE library located in the given 
-// path. If no such underlying implementation can be found, this function 
+// directory. If no such underlying implementation can be found, this function 
 // returns NULL.
-krylov_factory_t* hypre_krylov_factory(const char* library_path);
+krylov_factory_t* hypre_krylov_factory(const char* hypre_dir);
+
+//------------------------------------------------------------------------
+//                    Krylov factory interface
+//------------------------------------------------------------------------
 
 // Destroys an existing krylov_factory.
 void krylov_factory_free(krylov_factory_t* factory);
@@ -76,7 +163,7 @@ krylov_solver_t* krylov_factory_solver(krylov_factory_t* factory,
                                        string_string_unordered_map_t* options);
 
 //------------------------------------------------------------------------
-//                          Krylov solver
+//                      Krylov solver interface
 //------------------------------------------------------------------------
 
 // Frees a solver.
@@ -118,7 +205,7 @@ bool krylov_solver_solve(krylov_solver_t* solver,
                          int* num_iterations);
 
 //------------------------------------------------------------------------
-//                          Krylov matrix
+//                      Krylov matrix interface
 //------------------------------------------------------------------------
 
 // Frees a matrix.
@@ -194,7 +281,7 @@ void krylov_matrix_get_values(krylov_matrix_t* A,
                               real_t* values);
 
 //------------------------------------------------------------------------
-//                          Krylov vector
+//                      Krylov vector interface
 //------------------------------------------------------------------------
 
 // Frees a vector.
@@ -261,6 +348,6 @@ void krylov_vector_get_values(krylov_vector_t* v,
 // Computes and returns the Lp norm for this vector, where p can be 
 // 0 (infinity/max norm), 1, or 2.
 real_t krylov_vector_norm(krylov_vector_t* v, int p);
-                              
+ 
 #endif
 
