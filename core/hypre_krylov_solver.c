@@ -17,18 +17,6 @@
 // This file implements the dynamically-loadable HYPRE Krylov solver.
 //------------------------------------------------------------------------
 
-// Use this to retrieve symbols from dynamically loaded libraries.
-#define FETCH_SYMBOL(dylib, symbol_name, function_ptr, fail_label) \
-  { \
-    void* ptr = dlsym(dylib, symbol_name); \
-    if (ptr == NULL) \
-    { \
-      log_urgent("%s: unable to find %s in dynamic library.", __func__, symbol_name); \
-      goto fail_label; \
-    } \
-    *((void**)&(function_ptr)) = ptr; \
-  } 
-
 // HYPRE types.
 typedef double HYPRE_Real;
 typedef double _Complex HYPRE_Complex;
@@ -38,12 +26,12 @@ typedef void* HYPRE_IJMatrix;
 typedef void* HYPRE_IJVector;
 typedef void* HYPRE_ParCSRMatrix;
 typedef void* HYPRE_ParVector;
+typedef HYPRE_Int (*HYPRE_PtrToParSolverFcn)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
 #if POLYMEC_HAVE_MPI
 typedef MPI_Comm HYPRE_MPI_Comm;
 #else
 typedef HYPRE_Int HYPRE_MPI_Comm;
 #endif
-typedef HYPRE_Int (*HYPRE_PtrToParSolverFcn)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
 
 // Here's a table of function pointers for the HYPRE library.
 typedef struct
@@ -56,6 +44,11 @@ typedef struct
   HYPRE_Int (*HYPRE_ParCSRGMRESSetTol)(HYPRE_Solver, HYPRE_Real);
   HYPRE_Int (*HYPRE_ParCSRGMRESSetAbsoluteTol)(HYPRE_Solver, HYPRE_Real);
   HYPRE_Int (*HYPRE_ParCSRGMRESSetMaxIter)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParCSRGMRESSetStopCrit)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParCSRGMRESSetPrecond)(HYPRE_Solver, HYPRE_PtrToParSolverFcn, HYPRE_PtrToParSolverFcn, HYPRE_Solver);
+  HYPRE_Int (*HYPRE_ParCSRGMRESGetPrecond)(HYPRE_Solver, HYPRE_Solver*);
+  HYPRE_Int (*HYPRE_ParCSRGMRESGetNumIterations)(HYPRE_Solver, HYPRE_Int*);
+  HYPRE_Int (*HYPRE_ParCSRGMRESGetFinalRelativeResidualNorm)(HYPRE_Solver, HYPRE_Real*);
 
   HYPRE_Int (*HYPRE_ParCSRBiCGSTABCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_ParCSRBiCGSTABDestroy)(HYPRE_Solver);
@@ -86,7 +79,6 @@ typedef struct
   HYPRE_Int (*HYPRE_BoomerAMGSetStrongThreshold)(HYPRE_Solver, HYPRE_Real);
   HYPRE_Int (*HYPRE_BoomerAMGSetMaxRowSum)(HYPRE_Solver, HYPRE_Real);
   HYPRE_Int (*HYPRE_BoomerAMGSetCoarsenType)(HYPRE_Solver, HYPRE_Int);
-  HYPRE_Int (*HYPRE_BoomerAMGSetNonGalerkTol)(HYPRE_Solver, HYPRE_Int, HYPRE_Real*);
   HYPRE_Int (*HYPRE_BoomerAMGSetMeasureType)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_BoomerAMGSetAggNumLevels)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_BoomerAMGSetNumPaths)(HYPRE_Solver, HYPRE_Int);
@@ -648,6 +640,18 @@ static void hypre_factory_dtor(void* context)
   polymec_free(factory);
 }
 
+// Use these to retrieve symbols from dynamically loaded libraries.
+#define FETCH_SYMBOL(dylib, symbol_name, function_ptr, fail_label) \
+  { \
+    void* ptr = dlsym(dylib, symbol_name); \
+    if (ptr == NULL) \
+    { \
+      log_urgent("%s: unable to find %s in dynamic library.", __func__, symbol_name); \
+      goto fail_label; \
+    } \
+    *((void**)&(function_ptr)) = ptr; \
+  } 
+
 krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
 {
   hypre_factory_t* factory = polymec_malloc(sizeof(hypre_factory_t));
@@ -665,63 +669,34 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
     polymec_error("hypre_krylov_factory: %s.", msg);
   }
 
-  // Fetch the version.
-  char version[128];
-#if 0
-  PetscErrorCode (*PetscGetVersion)(char* version, size_t len);
-  FETCH_SYMBOL(hypre, "PetscGetVersion", PetscGetVersion, failure);
-  PetscErrorCode err = PetscGetVersion(version, 128);
-  if (err != 0)
+  // If the HYPRE library is parallel, it will contain a reference to MPI symbols, 
+  // even if those symbols are not defined within the library itself.
+  bool hypre_is_parallel = (dlsym(hypre, "MPI_Abort") != NULL);
+#if POLYMEC_HAVE_MPI
+  if (!hypre_is_parallel)
   {
-    log_urgent("hypre_krylov_factory: Error getting PETSc version string.");
+    log_urgent("hypre_krylov_factory: Polymec is configured to use MPI, but HYPRE is not.\n"
+               "  HYPRE must be built using -DHYPRE_SEQUENTIAL=OFF."); 
     goto failure;
   }
-
-  log_debug("hypre_krylov_factory: Got PETSc version: %s", version);
-
-  // In the absence of another mechanism to determine whether PETSc was 
-  // configured to use 64-bit indexing, we read through hypreconf.h
-  // to check for the presence of PETSC_USE_64BIT_INDICES.
-  bool hypre_uses_64bit_indices = false;
+#else
+  if (hypre_is_parallel)
   {
-    char hypre_arch_incdir[FILENAME_MAX];
-    snprintf(hypre_arch_incdir, FILENAME_MAX, "%s/%s/include", hypre_dir, hypre_arch);
-    if (!directory_exists(hypre_arch_incdir))
-    {
-      log_urgent("hypre_krylov_factory: Could not find directory %s.", hypre_arch_incdir);
-      goto failure;
-    }
-    char hypreconf_h[FILENAME_MAX];
-    snprintf(hypreconf_h, FILENAME_MAX, "%s/hypreconf.h", hypre_arch_incdir);
-    text_buffer_t* buffer = text_buffer_from_file(hypreconf_h);
-    if (buffer == NULL)
-    {
-      log_urgent("hypre_krylov_factory: Could not read hypreconf.h.");
-      goto failure;
-    }
-
-    // Look for PETSC_USE_64BIT_INDICES.
-    int pos = 0, length;
-    char* line;
-    while (text_buffer_next_nonempty(buffer, &pos, &line, &length))
-    {
-      char text[length+1];
-      string_copy_from_raw(line, length, text);
-      if (string_contains(text, "PETSC_USE_64BIT_INDICES"))
-      {
-        hypre_uses_64bit_indices = true;
-        break;
-      }
-    }
-    text_buffer_free(buffer);
+    log_urgent("hypre_krylov_factory: Polymec is configured serially, but HYPRE is not.\n"
+               "  HYPRE must be built using -DHYPRE_SEQUENTIAL=ON."); 
+    goto failure;
   }
-#if 0
+#endif
+  log_debug("hypre_krylov_factory: Succeeded.");
+
+  // HYPRE defines a function called hypre_printf if it is configured for "big" (64-bit) integers.
+  bool hypre_uses_64bit_indices = (dlsym(hypre, "hypre_printf") != NULL);
   if (sizeof(index_t) == sizeof(int64_t))
   {
     if (!hypre_uses_64bit_indices)
     {
       log_urgent("hypre_krylov_factory: Since polymec is configured for 64-bit indices,\n"
-                 "  PETSc must be built using --with-64-bit-indices.");
+                 "  HYPRE must be built using -DHYPRE_BIGINT=ON.");
       goto failure;
     }
   }
@@ -730,94 +705,112 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
     if (hypre_uses_64bit_indices)
     {
       log_urgent("hypre_krylov_factory: Since polymec is configured for 32-bit indices,\n"
-                 "  PETSc must be built with 32-bit indices (not using --with-64-bit-indices).");
+                 "  HYPRE must be built using -DHYPRE_BIGINT=OFF.");
       goto failure;
     }
   }
-#endif
-  if (hypre_uses_64bit_indices)
-  {
-    log_urgent("hypre_krylov_factory: Currently, PETSc must be configured to use 32-bit indices.");
-    goto failure;
-  }
 
-  // Get the other symbols.
-  FETCH_SYMBOL(hypre, "PetscInitialize", factory->methods.PetscInitialize, failure);
-  FETCH_SYMBOL(hypre, "PetscInitialized", factory->methods.PetscInitialized, failure);
-  FETCH_SYMBOL(hypre, "PetscFinalize", factory->methods.PetscFinalize, failure);
+  // Get the symbols.
+#define FETCH_HYPRE_SYMBOL(symbol_name) \
+  FETCH_SYMBOL(hypre, #symbol_name, factory->methods.symbol_name, failure);
 
-  FETCH_SYMBOL(hypre, "KSPCreate", factory->methods.KSPCreate, failure);
-  FETCH_SYMBOL(hypre, "KSPSetType", factory->methods.KSPSetType, failure);
-  FETCH_SYMBOL(hypre, "KSPSetFromOptions", factory->methods.KSPSetFromOptions, failure);
-  FETCH_SYMBOL(hypre, "KSPSetUp", factory->methods.KSPSetUp, failure);
-  FETCH_SYMBOL(hypre, "KSPGetPC", factory->methods.KSPGetPC, failure);
-  FETCH_SYMBOL(hypre, "PCSetFromOptions", factory->methods.PCSetFromOptions, failure);
-  FETCH_SYMBOL(hypre, "KSPSetTolerances", factory->methods.KSPSetTolerances, failure);
-  FETCH_SYMBOL(hypre, "KSPGetTolerances", factory->methods.KSPGetTolerances, failure);
-  FETCH_SYMBOL(hypre, "KSPSetOperators", factory->methods.KSPSetOperators, failure);
-  FETCH_SYMBOL(hypre, "KSPSolve", factory->methods.KSPSolve, failure);
-  FETCH_SYMBOL(hypre, "KSPGetConvergedReason", factory->methods.KSPGetConvergedReason, failure);
-  FETCH_SYMBOL(hypre, "KSPGetIterationNumber", factory->methods.KSPGetIterationNumber, failure);
-  FETCH_SYMBOL(hypre, "KSPGetResidualNorm", factory->methods.KSPGetResidualNorm, failure);
-  FETCH_SYMBOL(hypre, "KSPDestroy", factory->methods.KSPDestroy, failure);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESCreate);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESDestroy);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESSetup);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESSolve);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESSetKDim);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESSetTol);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESSetAbsoluteTol);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESSetMaxIter);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESSetStopCrit);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESSetPrecond);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESGetPrecond);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESGetNumIterations);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESGetFinalRelativeResidualNorm);
 
-  FETCH_SYMBOL(hypre, "MatCreate", factory->methods.MatCreate, failure);
-  FETCH_SYMBOL(hypre, "MatConvert", factory->methods.MatConvert, failure);
-  FETCH_SYMBOL(hypre, "MatSetType", factory->methods.MatSetType, failure);
-  FETCH_SYMBOL(hypre, "MatSetSizes", factory->methods.MatSetSizes, failure);
-  FETCH_SYMBOL(hypre, "MatSeqAIJSetPreallocation", factory->methods.MatSeqAIJSetPreallocation, failure);
-  FETCH_SYMBOL(hypre, "MatMPIAIJSetPreallocation", factory->methods.MatMPIAIJSetPreallocation, failure);
-  FETCH_SYMBOL(hypre, "MatSeqBAIJSetPreallocation", factory->methods.MatSeqBAIJSetPreallocation, failure);
-  FETCH_SYMBOL(hypre, "MatMPIBAIJSetPreallocation", factory->methods.MatMPIBAIJSetPreallocation, failure);
-  FETCH_SYMBOL(hypre, "MatSetBlockSize", factory->methods.MatSetBlockSize, failure);
-  FETCH_SYMBOL(hypre, "MatSetUp", factory->methods.MatSetUp, failure);
-  FETCH_SYMBOL(hypre, "MatDestroy", factory->methods.MatDestroy, failure);
-  FETCH_SYMBOL(hypre, "MatScale", factory->methods.MatScale, failure);
-  FETCH_SYMBOL(hypre, "MatShift", factory->methods.MatShift, failure);
-  FETCH_SYMBOL(hypre, "MatDiagonalSet", factory->methods.MatDiagonalSet, failure);
-  FETCH_SYMBOL(hypre, "MatZeroEntries", factory->methods.MatZeroEntries, failure);
-  FETCH_SYMBOL(hypre, "MatGetSize", factory->methods.MatGetSize, failure);
-  FETCH_SYMBOL(hypre, "MatGetLocalSize", factory->methods.MatGetLocalSize, failure);
-  FETCH_SYMBOL(hypre, "MatSetValues", factory->methods.MatSetValues, failure);
-  FETCH_SYMBOL(hypre, "MatGetValues", factory->methods.MatGetValues, failure);
-  FETCH_SYMBOL(hypre, "MatAssemblyBegin", factory->methods.MatAssemblyBegin, failure);
-  FETCH_SYMBOL(hypre, "MatAssemblyEnd", factory->methods.MatAssemblyEnd, failure);
-  
-  FETCH_SYMBOL(hypre, "VecCreateSeq", factory->methods.VecCreateSeq, failure);
-  FETCH_SYMBOL(hypre, "VecCreateMPI", factory->methods.VecCreateMPI, failure);
-  FETCH_SYMBOL(hypre, "VecDuplicate", factory->methods.VecDuplicate, failure);
-  FETCH_SYMBOL(hypre, "VecCopy", factory->methods.VecCopy, failure);
-  FETCH_SYMBOL(hypre, "VecSetUp", factory->methods.VecSetUp, failure);
-  FETCH_SYMBOL(hypre, "VecDestroy", factory->methods.VecDestroy, failure);
-  FETCH_SYMBOL(hypre, "VecGetSize", factory->methods.VecGetSize, failure);
-  FETCH_SYMBOL(hypre, "VecZeroEntries", factory->methods.VecZeroEntries, failure);
-  FETCH_SYMBOL(hypre, "VecScale", factory->methods.VecScale, failure);
-  FETCH_SYMBOL(hypre, "VecSet", factory->methods.VecSet, failure);
-  FETCH_SYMBOL(hypre, "VecSetValues", factory->methods.VecSetValues, failure);
-  FETCH_SYMBOL(hypre, "VecGetValues", factory->methods.VecGetValues, failure);
-  FETCH_SYMBOL(hypre, "VecAssemblyBegin", factory->methods.VecAssemblyBegin, failure);
-  FETCH_SYMBOL(hypre, "VecAssemblyEnd", factory->methods.VecAssemblyEnd, failure);
-  FETCH_SYMBOL(hypre, "VecNorm", factory->methods.VecNorm, failure);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABCreate);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABDestroy);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABSetup);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABSolve);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABSetTol);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABSetAbsoluteTol);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABSetMaxIter);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABSetStopCrit);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABSetPrecond);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABGetPrecond);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABGetNumIterations);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABGetFinalRelativeResidualNorm);
 
-  log_debug("hypre_krylov_factory: Got PETSc symbols.");
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGCreate);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGDestroy);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetup);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSolve);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGGetNumIterations);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGGetFinalRelativeResidualNorm);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetNumFunctions);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetDofFunc);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetTol);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMaxIter);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMaxCoarseSize);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMinCoarseSize);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMaxLevels);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetStrongThreshold);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMaxRowSum);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetCoarsenType);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMeasureType);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetAggNumLevels);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetNumPaths);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetCGCIts);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetNodal);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetNodalDiag);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetInterpType);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetTruncFactor);
+  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetPMaxElmts);
 
-  // Initialize PETSc if needed.
-  PetscBool initialized;
-  factory->methods.PetscInitialized(&initialized);
-  if (initialized == PETSC_FALSE)
-  {
-    log_debug("hypre_krylov_factory: Initializing PETSc.");
-    // Build a list of command line arguments.
-    options_t* opts = options_argv();
-    int argc = options_num_arguments(opts);
-    char** argv = polymec_malloc(sizeof(char*));
-    for (int i = 0; i < argc; ++i)
-      argv[i] = options_argument(opts, i);
-    factory->methods.PetscInitialize(&argc, &argv, NULL, NULL);
-    polymec_free(argv);
-    factory->finalize_hypre = true;
-  }
-#endif
+  FETCH_HYPRE_SYMBOL(HYPRE_EuclidCreate);
+  FETCH_HYPRE_SYMBOL(HYPRE_EuclidDestroy);
+  FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetup);
+  FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetParams);
+  FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetLevel);
+  FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetBJ);
+  FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetSparseA);
+  FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetRowScale);
+  FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetILUT);
+
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsCreate);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsDestroy);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetup);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSolve);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetParams);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetFilter);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetSym);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetLoadbal);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetReuse);
+
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixCreate);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixDestroy);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixInitialize);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixSetValues);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixAddToValues);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixAssemble);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixGetValues);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixSetObjectType);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixGetObject);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixSetRowSizes);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixSetDiagOffdSizes);
+
+  FETCH_HYPRE_SYMBOL(HYPRE_IJVectorCreate);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJVectorDestroy);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJVectorInitialize);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJVectorSetValues);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJVectorAddToValues);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJVectorAssemble);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJVectorGetValues);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJVectorSetObjectType);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJVectorGetObject);
+#undef FETCH_HYPRE_SYMBOL
+
+  log_debug("hypre_krylov_factory: Got HYPRE symbols.");
 
   // Stash the library.
   factory->hypre = hypre; 
@@ -828,7 +821,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
                                   .block_matrix = hypre_factory_block_matrix,
                                   .vector = hypre_factory_vector,
                                   .dtor = hypre_factory_dtor};
-  return krylov_factory_new(version, factory, vtable);
+  return krylov_factory_new("2.10", factory, vtable);
 
 failure:
   dlclose(hypre);
