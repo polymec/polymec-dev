@@ -124,9 +124,9 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                        const char* petsc_arch);
 
 // This creates a HYPRE-based Krylov factory that can be used for constructing
-// matrices, vectors, solvers, using the HYPRE library located in the given 
-// directory. If no such underlying implementation can be found, this function 
-// returns NULL.
+// matrices, vectors, solvers, using the HYPRE library (libHYPRE.so, etc) 
+// located in the given directory. If no such library can be found or loaded, 
+// this function returns NULL.
 krylov_factory_t* hypre_krylov_factory(const char* hypre_dir);
 
 //------------------------------------------------------------------------

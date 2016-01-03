@@ -33,70 +33,111 @@
 typedef double HYPRE_Real;
 typedef double _Complex HYPRE_Complex;
 typedef long long HYPRE_Int;
+typedef void* HYPRE_Solver;
 typedef void* HYPRE_IJMatrix;
 typedef void* HYPRE_IJVector;
+typedef void* HYPRE_ParCSRMatrix;
+typedef void* HYPRE_ParVector;
+#if POLYMEC_HAVE_MPI
+typedef MPI_Comm HYPRE_MPI_Comm;
+#else
+typedef HYPRE_Int HYPRE_MPI_Comm;
+#endif
+typedef HYPRE_Int (*HYPRE_PtrToParSolverFcn)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
 
 // Here's a table of function pointers for the HYPRE library.
 typedef struct
 {
-  int nothing;
-#if 0
-  HYPRE_Int (*PetscInitialize)(int*, char***, const char[], const char[]);
-  PetscErrorCode (*PetscInitialized)(PetscBool*);
-  PetscErrorCode (*PetscFinalize)();
+  HYPRE_Int (*HYPRE_ParCSRGMRESCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
+  HYPRE_Int (*HYPRE_ParCSRGMRESDestroy)(HYPRE_Solver);
+  HYPRE_Int (*HYPRE_ParCSRGMRESSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParCSRGMRESSolve)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParCSRGMRESSetKDim)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParCSRGMRESSetTol)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_ParCSRGMRESSetAbsoluteTol)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_ParCSRGMRESSetMaxIter)(HYPRE_Solver, HYPRE_Int);
 
-  PetscErrorCode (*KSPCreate)(MPI_Comm,KSP *);
-  PetscErrorCode (*KSPSetType)(KSP,KSPType);
-  PetscErrorCode (*KSPSetUp)(KSP);
-  PetscErrorCode (*KSPGetPC)(KSP,PC*);
-  PetscErrorCode (*KSPSetFromOptions)(KSP);
-  PetscErrorCode (*PCSetFromOptions)(PC);
-  PetscErrorCode (*KSPSetTolerances)(KSP,PetscReal,PetscReal,PetscReal,PetscInt);
-  PetscErrorCode (*KSPGetTolerances)(KSP,PetscReal*,PetscReal*,PetscReal*,PetscInt*);
-  PetscErrorCode (*KSPSetOperators)(KSP,Mat,Mat);
-  PetscErrorCode (*KSPSolve)(KSP,Vec,Vec);
-  PetscErrorCode (*KSPGetConvergedReason)(KSP,int*);
-  PetscErrorCode (*KSPGetIterationNumber)(KSP,PetscInt*);
-  PetscErrorCode (*KSPGetResidualNorm)(KSP,PetscReal*);
-  PetscErrorCode (*KSPDestroy)(KSP*);
-  PetscErrorCode (*MatCreate)(MPI_Comm,Mat*);
-  PetscErrorCode (*MatConvert)(Mat, MatType, MatReuse, Mat*);
-  PetscErrorCode (*MatSetType)(Mat, MatType);
-  PetscErrorCode (*MatSetSizes)(Mat, PetscInt m, PetscInt n, PetscInt M, PetscInt N);
-  PetscErrorCode (*MatSeqAIJSetPreallocation)(Mat, PetscInt, PetscInt[]);
-  PetscErrorCode (*MatMPIAIJSetPreallocation)(Mat, PetscInt, PetscInt[], PetscInt, PetscInt[]);
-  PetscErrorCode (*MatSeqBAIJSetPreallocation)(Mat, PetscInt, PetscInt, PetscInt[]);
-  PetscErrorCode (*MatMPIBAIJSetPreallocation)(Mat, PetscInt, PetscInt, PetscInt[], PetscInt, PetscInt[]);
-  PetscErrorCode (*MatSetBlockSize)(Mat, PetscInt);
-  PetscErrorCode (*MatSetUp)(Mat);
-  PetscErrorCode (*MatDestroy)(Mat*);
-  PetscErrorCode (*MatScale)(Mat,PetscScalar);
-  PetscErrorCode (*MatShift)(Mat,PetscScalar);
-  PetscErrorCode (*MatDiagonalSet)(Mat,Vec,InsertMode);
-  PetscErrorCode (*MatZeroEntries)(Mat);
-  PetscErrorCode (*MatGetSize)(Mat,PetscInt*,PetscInt*);
-  PetscErrorCode (*MatGetLocalSize)(Mat,PetscInt*,PetscInt*);
-  PetscErrorCode (*MatSetValues)(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],const PetscScalar[],InsertMode);
-  PetscErrorCode (*MatAssemblyBegin)(Mat,MatAssemblyType);
-  PetscErrorCode (*MatAssemblyEnd)(Mat,MatAssemblyType);
-  PetscErrorCode (*MatGetValues)(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],PetscScalar[]);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABDestroy)(HYPRE_Solver);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABSolve)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABSetTol)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABSetAbsoluteTol)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABSetMaxIter)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABSetStopCrit)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABSetPrecond)(HYPRE_Solver, HYPRE_PtrToParSolverFcn, HYPRE_PtrToParSolverFcn, HYPRE_Solver);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABGetPrecond)(HYPRE_Solver, HYPRE_Solver*);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABGetNumIterations)(HYPRE_Solver, HYPRE_Int*);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABGetFinalRelativeResidualNorm)(HYPRE_Solver, HYPRE_Real*);
 
-  PetscErrorCode (*VecCreateSeq)(MPI_Comm,PetscInt,Vec*);
-  PetscErrorCode (*VecCreateMPI)(MPI_Comm,PetscInt,PetscInt,Vec*);
-  PetscErrorCode (*VecDuplicate)(Vec,Vec*);
-  PetscErrorCode (*VecCopy)(Vec,Vec);
-  PetscErrorCode (*VecSetUp)(Vec);
-  PetscErrorCode (*VecDestroy)(Vec*);
-  PetscErrorCode (*VecGetSize)(Vec, PetscInt*);
-  PetscErrorCode (*VecZeroEntries)(Vec);
-  PetscErrorCode (*VecScale)(Vec,PetscScalar);
-  PetscErrorCode (*VecSet)(Vec,PetscScalar);
-  PetscErrorCode (*VecSetValues)(Vec,PetscInt,const PetscInt[],const PetscScalar[],InsertMode);
-  PetscErrorCode (*VecGetValues)(Vec,PetscInt,const PetscInt[],PetscScalar[]);
-  PetscErrorCode (*VecAssemblyBegin)(Vec);
-  PetscErrorCode (*VecAssemblyEnd)(Vec);
-  PetscErrorCode (*VecNorm)(Vec,NormType,PetscReal *);
-#endif
+  HYPRE_Int (*HYPRE_BoomerAMGCreate)(HYPRE_Solver*);
+  HYPRE_Int (*HYPRE_BoomerAMGDestroy)(HYPRE_Solver);
+  HYPRE_Int (*HYPRE_BoomerAMGSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_BoomerAMGSolve)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_BoomerAMGGetNumIterations)(HYPRE_Solver, HYPRE_Int*);
+  HYPRE_Int (*HYPRE_BoomerAMGGetFinalRelativeResidualNorm)(HYPRE_Solver, HYPRE_Real*);
+  HYPRE_Int (*HYPRE_BoomerAMGSetNumFunctions)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetDofFunc)(HYPRE_Solver, HYPRE_Int*);
+  HYPRE_Int (*HYPRE_BoomerAMGSetTol)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_BoomerAMGSetMaxIter)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetMaxCoarseSize)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetMinCoarseSize)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetMaxLevels)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetStrongThreshold)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_BoomerAMGSetMaxRowSum)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_BoomerAMGSetCoarsenType)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetNonGalerkTol)(HYPRE_Solver, HYPRE_Int, HYPRE_Real*);
+  HYPRE_Int (*HYPRE_BoomerAMGSetMeasureType)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetAggNumLevels)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetNumPaths)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetCGCIts)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetNodal)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetNodalDiag)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetInterpType)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_BoomerAMGSetTruncFactor)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_BoomerAMGSetPMaxElmts)(HYPRE_Solver, HYPRE_Int);
+
+  HYPRE_Int (*HYPRE_EuclidCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
+  HYPRE_Int (*HYPRE_EuclidDestroy)(HYPRE_Solver);
+  HYPRE_Int (*HYPRE_EuclidSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_EuclidSetParams)(HYPRE_Solver, int argc, char* argv[]);
+  HYPRE_Int (*HYPRE_EuclidSetLevel)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_EuclidSetBJ)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_EuclidSetSparseA)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_EuclidSetRowScale)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_EuclidSetILUT)(HYPRE_Solver, HYPRE_Real);
+
+  HYPRE_Int (*HYPRE_ParCSRParaSailsCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
+  HYPRE_Int (*HYPRE_ParCSRParaSailsDestroy)(HYPRE_Solver); 
+  HYPRE_Int (*HYPRE_ParCSRParaSailsSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParCSRParaSailsSolve)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParCSRParaSailsSetParams)(HYPRE_Solver, HYPRE_Real, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParCSRParaSailsSetFilter)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_ParCSRParaSailsSetSym)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParCSRParaSailsSetLoadbal)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_ParCSRParaSailsSetReuse)(HYPRE_Solver, HYPRE_Int);
+
+  HYPRE_Int (*HYPRE_IJMatrixCreate)(HYPRE_MPI_Comm, HYPRE_Int, HYPRE_Int, HYPRE_Int, HYPRE_Int, HYPRE_IJMatrix*);
+  HYPRE_Int (*HYPRE_IJMatrixDestroy)(HYPRE_IJMatrix);
+  HYPRE_Int (*HYPRE_IJMatrixInitialize)(HYPRE_IJMatrix);
+  HYPRE_Int (*HYPRE_IJMatrixSetValues)(HYPRE_IJMatrix, HYPRE_Int, HYPRE_Int*, const HYPRE_Int*, const HYPRE_Int*, const HYPRE_Real*);
+  HYPRE_Int (*HYPRE_IJMatrixAddToValues)(HYPRE_IJMatrix, HYPRE_Int, HYPRE_Int*, const HYPRE_Int*, const HYPRE_Int*, const HYPRE_Real*);
+  HYPRE_Int (*HYPRE_IJMatrixAssemble)(HYPRE_IJMatrix);
+  HYPRE_Int (*HYPRE_IJMatrixGetValues)(HYPRE_IJMatrix, HYPRE_Int, HYPRE_Int*, HYPRE_Int*, HYPRE_Int*, HYPRE_Real*);
+  HYPRE_Int (*HYPRE_IJMatrixSetObjectType)(HYPRE_IJMatrix, HYPRE_Int);
+  HYPRE_Int (*HYPRE_IJMatrixGetObject)(HYPRE_IJMatrix, void**);
+  HYPRE_Int (*HYPRE_IJMatrixSetRowSizes)(HYPRE_IJMatrix, const HYPRE_Int*);
+  HYPRE_Int (*HYPRE_IJMatrixSetDiagOffdSizes)(HYPRE_IJMatrix, const HYPRE_Int*, const HYPRE_Int*);
+
+  HYPRE_Int (*HYPRE_IJVectorCreate)(HYPRE_MPI_Comm, HYPRE_Int, HYPRE_Int, HYPRE_IJVector*);
+  HYPRE_Int (*HYPRE_IJVectorDestroy)(HYPRE_IJVector);
+  HYPRE_Int (*HYPRE_IJVectorInitialize)(HYPRE_IJVector);
+  HYPRE_Int (*HYPRE_IJVectorSetValues)(HYPRE_IJVector, HYPRE_Int, const HYPRE_Int*, const HYPRE_Real*);
+  HYPRE_Int (*HYPRE_IJVectorAddToValues)(HYPRE_IJVector, HYPRE_Int, const HYPRE_Int*, const HYPRE_Real*);
+  HYPRE_Int (*HYPRE_IJVectorAssemble)(HYPRE_IJVector);
+  HYPRE_Int (*HYPRE_IJVectorGetValues)(HYPRE_IJVector, HYPRE_Int, HYPRE_Int*, HYPRE_Real*);
+  HYPRE_Int (*HYPRE_IJVectorSetObjectType)(HYPRE_IJVector, HYPRE_Int);
+  HYPRE_Int (*HYPRE_IJVectorGetObject)(HYPRE_IJVector, void**);
 } hypre_methods_table;
 
 typedef struct
