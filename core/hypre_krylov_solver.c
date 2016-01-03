@@ -640,7 +640,7 @@ static void hypre_factory_dtor(void* context)
   polymec_free(factory);
 }
 
-// Use these to retrieve symbols from dynamically loaded libraries.
+// Use this to retrieve symbols from dynamically loaded libraries.
 #define FETCH_SYMBOL(dylib, symbol_name, function_ptr, fail_label) \
   { \
     void* ptr = dlsym(dylib, symbol_name); \

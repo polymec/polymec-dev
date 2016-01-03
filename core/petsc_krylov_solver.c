@@ -17,18 +17,6 @@
 // This file implements the dynamically-loadable PETSc Krylov solver.
 //------------------------------------------------------------------------
 
-// Use this to retrieve symbols from dynamically loaded libraries.
-#define FETCH_SYMBOL(dylib, symbol_name, function_ptr, fail_label) \
-  { \
-    void* ptr = dlsym(dylib, symbol_name); \
-    if (ptr == NULL) \
-    { \
-      log_urgent("%s: unable to find %s in dynamic library.", __func__, symbol_name); \
-      goto fail_label; \
-    } \
-    *((void**)&(function_ptr)) = ptr; \
-  } 
-
 // Here's a table of function pointers for the PETSc library.
 typedef real_t PetscScalar;
 typedef real_t PetscReal;
@@ -611,6 +599,18 @@ static void petsc_factory_dtor(void* context)
   polymec_free(factory);
 }
 
+// Use this to retrieve symbols from dynamically loaded libraries.
+#define FETCH_SYMBOL(dylib, symbol_name, function_ptr, fail_label) \
+  { \
+    void* ptr = dlsym(dylib, symbol_name); \
+    if (ptr == NULL) \
+    { \
+      log_urgent("%s: unable to find %s in dynamic library.", __func__, symbol_name); \
+      goto fail_label; \
+    } \
+    *((void**)&(function_ptr)) = ptr; \
+  } 
+
 krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                        const char* petsc_arch)
 {
@@ -720,63 +720,67 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
     goto failure;
   }
 
-  // Get the other symbols.
-  FETCH_SYMBOL(petsc, "PetscInitialize", factory->methods.PetscInitialize, failure);
-  FETCH_SYMBOL(petsc, "PetscInitialized", factory->methods.PetscInitialized, failure);
-  FETCH_SYMBOL(petsc, "PetscFinalize", factory->methods.PetscFinalize, failure);
+  // Get the symbols.
+#define FETCH_PETSC_SYMBOL(symbol_name) \
+  FETCH_SYMBOL(petsc, #symbol_name, factory->methods.symbol_name, failure);
 
-  FETCH_SYMBOL(petsc, "KSPCreate", factory->methods.KSPCreate, failure);
-  FETCH_SYMBOL(petsc, "KSPSetType", factory->methods.KSPSetType, failure);
-  FETCH_SYMBOL(petsc, "KSPSetFromOptions", factory->methods.KSPSetFromOptions, failure);
-  FETCH_SYMBOL(petsc, "KSPSetUp", factory->methods.KSPSetUp, failure);
-  FETCH_SYMBOL(petsc, "KSPGetPC", factory->methods.KSPGetPC, failure);
-  FETCH_SYMBOL(petsc, "PCSetFromOptions", factory->methods.PCSetFromOptions, failure);
-  FETCH_SYMBOL(petsc, "KSPSetTolerances", factory->methods.KSPSetTolerances, failure);
-  FETCH_SYMBOL(petsc, "KSPGetTolerances", factory->methods.KSPGetTolerances, failure);
-  FETCH_SYMBOL(petsc, "KSPSetOperators", factory->methods.KSPSetOperators, failure);
-  FETCH_SYMBOL(petsc, "KSPSolve", factory->methods.KSPSolve, failure);
-  FETCH_SYMBOL(petsc, "KSPGetConvergedReason", factory->methods.KSPGetConvergedReason, failure);
-  FETCH_SYMBOL(petsc, "KSPGetIterationNumber", factory->methods.KSPGetIterationNumber, failure);
-  FETCH_SYMBOL(petsc, "KSPGetResidualNorm", factory->methods.KSPGetResidualNorm, failure);
-  FETCH_SYMBOL(petsc, "KSPDestroy", factory->methods.KSPDestroy, failure);
+  FETCH_PETSC_SYMBOL(PetscInitialize);
+  FETCH_PETSC_SYMBOL(PetscInitialized);
+  FETCH_PETSC_SYMBOL(PetscFinalize);
 
-  FETCH_SYMBOL(petsc, "MatCreate", factory->methods.MatCreate, failure);
-  FETCH_SYMBOL(petsc, "MatConvert", factory->methods.MatConvert, failure);
-  FETCH_SYMBOL(petsc, "MatSetType", factory->methods.MatSetType, failure);
-  FETCH_SYMBOL(petsc, "MatSetSizes", factory->methods.MatSetSizes, failure);
-  FETCH_SYMBOL(petsc, "MatSeqAIJSetPreallocation", factory->methods.MatSeqAIJSetPreallocation, failure);
-  FETCH_SYMBOL(petsc, "MatMPIAIJSetPreallocation", factory->methods.MatMPIAIJSetPreallocation, failure);
-  FETCH_SYMBOL(petsc, "MatSeqBAIJSetPreallocation", factory->methods.MatSeqBAIJSetPreallocation, failure);
-  FETCH_SYMBOL(petsc, "MatMPIBAIJSetPreallocation", factory->methods.MatMPIBAIJSetPreallocation, failure);
-  FETCH_SYMBOL(petsc, "MatSetBlockSize", factory->methods.MatSetBlockSize, failure);
-  FETCH_SYMBOL(petsc, "MatSetUp", factory->methods.MatSetUp, failure);
-  FETCH_SYMBOL(petsc, "MatDestroy", factory->methods.MatDestroy, failure);
-  FETCH_SYMBOL(petsc, "MatScale", factory->methods.MatScale, failure);
-  FETCH_SYMBOL(petsc, "MatShift", factory->methods.MatShift, failure);
-  FETCH_SYMBOL(petsc, "MatDiagonalSet", factory->methods.MatDiagonalSet, failure);
-  FETCH_SYMBOL(petsc, "MatZeroEntries", factory->methods.MatZeroEntries, failure);
-  FETCH_SYMBOL(petsc, "MatGetSize", factory->methods.MatGetSize, failure);
-  FETCH_SYMBOL(petsc, "MatGetLocalSize", factory->methods.MatGetLocalSize, failure);
-  FETCH_SYMBOL(petsc, "MatSetValues", factory->methods.MatSetValues, failure);
-  FETCH_SYMBOL(petsc, "MatGetValues", factory->methods.MatGetValues, failure);
-  FETCH_SYMBOL(petsc, "MatAssemblyBegin", factory->methods.MatAssemblyBegin, failure);
-  FETCH_SYMBOL(petsc, "MatAssemblyEnd", factory->methods.MatAssemblyEnd, failure);
+  FETCH_PETSC_SYMBOL(KSPCreate);
+  FETCH_PETSC_SYMBOL(KSPSetType);
+  FETCH_PETSC_SYMBOL(KSPSetFromOptions);
+  FETCH_PETSC_SYMBOL(KSPSetUp);
+  FETCH_PETSC_SYMBOL(KSPGetPC);
+  FETCH_PETSC_SYMBOL(PCSetFromOptions);
+  FETCH_PETSC_SYMBOL(KSPSetTolerances);
+  FETCH_PETSC_SYMBOL(KSPGetTolerances);
+  FETCH_PETSC_SYMBOL(KSPSetOperators);
+  FETCH_PETSC_SYMBOL(KSPSolve);
+  FETCH_PETSC_SYMBOL(KSPGetConvergedReason);
+  FETCH_PETSC_SYMBOL(KSPGetIterationNumber);
+  FETCH_PETSC_SYMBOL(KSPGetResidualNorm);
+  FETCH_PETSC_SYMBOL(KSPDestroy);
+
+  FETCH_PETSC_SYMBOL(MatCreate);
+  FETCH_PETSC_SYMBOL(MatConvert);
+  FETCH_PETSC_SYMBOL(MatSetType);
+  FETCH_PETSC_SYMBOL(MatSetSizes);
+  FETCH_PETSC_SYMBOL(MatSeqAIJSetPreallocation);
+  FETCH_PETSC_SYMBOL(MatMPIAIJSetPreallocation);
+  FETCH_PETSC_SYMBOL(MatSeqBAIJSetPreallocation);
+  FETCH_PETSC_SYMBOL(MatMPIBAIJSetPreallocation);
+  FETCH_PETSC_SYMBOL(MatSetBlockSize);
+  FETCH_PETSC_SYMBOL(MatSetUp);
+  FETCH_PETSC_SYMBOL(MatDestroy);
+  FETCH_PETSC_SYMBOL(MatScale);
+  FETCH_PETSC_SYMBOL(MatShift);
+  FETCH_PETSC_SYMBOL(MatDiagonalSet);
+  FETCH_PETSC_SYMBOL(MatZeroEntries);
+  FETCH_PETSC_SYMBOL(MatGetSize);
+  FETCH_PETSC_SYMBOL(MatGetLocalSize);
+  FETCH_PETSC_SYMBOL(MatSetValues);
+  FETCH_PETSC_SYMBOL(MatGetValues);
+  FETCH_PETSC_SYMBOL(MatAssemblyBegin);
+  FETCH_PETSC_SYMBOL(MatAssemblyEnd);
   
-  FETCH_SYMBOL(petsc, "VecCreateSeq", factory->methods.VecCreateSeq, failure);
-  FETCH_SYMBOL(petsc, "VecCreateMPI", factory->methods.VecCreateMPI, failure);
-  FETCH_SYMBOL(petsc, "VecDuplicate", factory->methods.VecDuplicate, failure);
-  FETCH_SYMBOL(petsc, "VecCopy", factory->methods.VecCopy, failure);
-  FETCH_SYMBOL(petsc, "VecSetUp", factory->methods.VecSetUp, failure);
-  FETCH_SYMBOL(petsc, "VecDestroy", factory->methods.VecDestroy, failure);
-  FETCH_SYMBOL(petsc, "VecGetSize", factory->methods.VecGetSize, failure);
-  FETCH_SYMBOL(petsc, "VecZeroEntries", factory->methods.VecZeroEntries, failure);
-  FETCH_SYMBOL(petsc, "VecScale", factory->methods.VecScale, failure);
-  FETCH_SYMBOL(petsc, "VecSet", factory->methods.VecSet, failure);
-  FETCH_SYMBOL(petsc, "VecSetValues", factory->methods.VecSetValues, failure);
-  FETCH_SYMBOL(petsc, "VecGetValues", factory->methods.VecGetValues, failure);
-  FETCH_SYMBOL(petsc, "VecAssemblyBegin", factory->methods.VecAssemblyBegin, failure);
-  FETCH_SYMBOL(petsc, "VecAssemblyEnd", factory->methods.VecAssemblyEnd, failure);
-  FETCH_SYMBOL(petsc, "VecNorm", factory->methods.VecNorm, failure);
+  FETCH_PETSC_SYMBOL(VecCreateSeq);
+  FETCH_PETSC_SYMBOL(VecCreateMPI);
+  FETCH_PETSC_SYMBOL(VecDuplicate);
+  FETCH_PETSC_SYMBOL(VecCopy);
+  FETCH_PETSC_SYMBOL(VecSetUp);
+  FETCH_PETSC_SYMBOL(VecDestroy);
+  FETCH_PETSC_SYMBOL(VecGetSize);
+  FETCH_PETSC_SYMBOL(VecZeroEntries);
+  FETCH_PETSC_SYMBOL(VecScale);
+  FETCH_PETSC_SYMBOL(VecSet);
+  FETCH_PETSC_SYMBOL(VecSetValues);
+  FETCH_PETSC_SYMBOL(VecGetValues);
+  FETCH_PETSC_SYMBOL(VecAssemblyBegin);
+  FETCH_PETSC_SYMBOL(VecAssemblyEnd);
+  FETCH_PETSC_SYMBOL(VecNorm);
+#undef FETCH_PETSC_SYMBOL
 
   log_debug("petsc_krylov_factory: Got PETSc symbols.");
 
