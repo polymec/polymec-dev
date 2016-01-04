@@ -72,17 +72,15 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
   return s;
 }
 
-stencil_t* cell_halo_stencil_new(mesh_t* mesh, int radius)
+stencil_t* cell_halo_stencil_new(mesh_t* mesh)
 {
-  ASSERT(radius > 0);
-
   // Construct a slightly-bigger star stencil.
-  stencil_t* s = cell_star_stencil_new(mesh, radius+1);
+  stencil_t* s = cell_star_stencil_new(mesh, 2);
 
   // Rename it.
   polymec_free(s->name);
   char name[1025];
-  snprintf(name, 1024, "cell halo stencil (R = %d)", radius);
+  snprintf(name, 1024, "cell halo stencil");
   s->name = string_dup(name);
 
   // Now filter out the non-halo cells. 
