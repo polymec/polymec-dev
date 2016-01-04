@@ -12,6 +12,11 @@
 #include "core/adj_graph.h"
 #include "core/unordered_map.h"
 
+// The Krylov solver interface is an abstract interface that can be used with 
+// third-party parallel sparse linear solvers. The linkage to these solvers is 
+// achieved with dynamic loading, so this interface is only useful on platforms
+// that support dynamic loading.
+
 // Objects of this type store distributed vectors for use with Krylov solvers.
 typedef struct krylov_vector_t krylov_vector_t;
 
@@ -38,7 +43,7 @@ typedef struct
   krylov_solver_t* (*solver)(void* context, MPI_Comm comm, string_string_unordered_map_t* options);
   krylov_matrix_t* (*matrix)(void* context, adj_graph_t* sparsity);
   krylov_matrix_t* (*block_matrix)(void* context, adj_graph_t* sparsity, int block_size);
-  krylov_vector_t* (*vector)(void* context, MPI_Comm comm, int N);
+  krylov_vector_t* (*vector)(void* context, adj_graph_t* dist_graph);
   void (*dtor)(void* context);
 } krylov_factory_vtable;
 
@@ -73,11 +78,11 @@ typedef struct
   void (*add_identity)(void* context, real_t scale_factor);
   void (*add_diagonal)(void* context, void* D);
   void (*set_diagonal)(void* context, void* D);
-  void (*set_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
-  void (*add_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*set_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
+  void (*add_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*start_assembly)(void* context);
   void (*finish_assembly)(void* context);
-  void (*get_values)(void* context, int num_rows, int* num_columns, int* rows, int* columns, real_t* values);
+  void (*get_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*dtor)(void* context);
 } krylov_matrix_vtable;
 
@@ -86,7 +91,7 @@ typedef struct
 krylov_matrix_t* krylov_matrix_new(void* context,
                                    krylov_matrix_vtable vtable,
                                    int num_local_rows,
-                                   int num_global_rows);
+                                   index_t num_global_rows);
 
 // This virtual table must be filled out for any subclass of krylov_matrix.
 typedef struct
@@ -95,11 +100,11 @@ typedef struct
   void (*zero)(void* context);
   void (*set_value)(void* context, real_t value);
   void (*scale)(void* context, real_t scale_factor);
-  void (*set_values)(void* context, int num_values, int* indices, real_t* values);
-  void (*add_values)(void* context, int num_values, int* indices, real_t* values);
+  void (*set_values)(void* context, index_t num_values, index_t* indices, real_t* values);
+  void (*add_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*start_assembly)(void* context);
   void (*finish_assembly)(void* context);
-  void (*get_values)(void* context, int num_values, int* indices, real_t* values);
+  void (*get_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   real_t (*norm)(void* context, int p);
   void (*dtor)(void* context);
 } krylov_vector_vtable;
@@ -109,7 +114,7 @@ typedef struct
 krylov_vector_t* krylov_vector_new(void* context,
                                    krylov_vector_vtable vtable,
                                    int local_size,
-                                   int global_size);
+                                   index_t global_size);
 
 //------------------------------------------------------------------------
 //                  Bundled third-party Krylov factories 
@@ -151,10 +156,11 @@ krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory,
                                              adj_graph_t* sparsity,
                                              int block_size);
 
-// Constructs a vector on the given communicator with the given dimension N.
+// Constructs a vector on the given communicator with its local and global 
+// dimensions defined by the given distributed graph. This graph is typically 
+// the same as the sparsity graph passed to a corresponding matrix.
 krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
-                                       MPI_Comm comm,
-                                       int N);
+                                       adj_graph_t* dist_graph);
 
 // Constructs a Krylov solver with the given (optional) table of options, 
 // and/or options passed to the command line.
@@ -236,28 +242,39 @@ void krylov_matrix_scale(krylov_matrix_t* A,
 void krylov_matrix_add_identity(krylov_matrix_t* A,
                                 real_t scale_factor);
 
-// Adds the entries of the given vector to the diagonal of the given matrix.
+// Adds the entries of the given vector (D) to the diagonal of the given matrix (A).
 void krylov_matrix_add_diagonal(krylov_matrix_t* A,
-                                krylov_matrix_t* D);
+                                krylov_vector_t* D);
 
-// Sets the diagonal entries in the given matrix to those in the given vector.
+// Sets the diagonal entries in the given matrix (A) to those in the given vector (D).
 void krylov_matrix_set_diagonal(krylov_matrix_t* A,
-                                krylov_matrix_t* D);
+                                krylov_vector_t* D);
 
 // Sets the values of the elements in the matrix identified by the given 
-// (globally-indexed) rows and columns.
+// (globally-indexed) rows and columns. The rows and columns being set must 
+// exist on the local process. num_columns and rows are arrays of size num_rows, 
+// and contain the numbers of columns and the row indices for each row. columns
+// is an array containing the indices of all the columns, in row-major, column-minor
+// order. values is an array with values corresponding to the entries in the columns 
+// array.
 void krylov_matrix_set_values(krylov_matrix_t* A,
-                              int num_rows,
-                              int* num_columns,
-                              int* rows, int* columns,
+                              index_t num_rows,
+                              index_t* num_columns,
+                              index_t* rows, 
+                              index_t* columns,
                               real_t* values);
                               
 // Adds the given values of the elements to those in the matrix.
 // The values are identified by the given (globally-indexed) rows and columns.
+// These rows and columns must exist on the local process. num_columns and rows are 
+// arrays of size num_rows, and contain the numbers of columns and the row indices for 
+// each row. columns is an array containing the indices of all the columns, in row-major, 
+// column-minor order. values is an array with values corresponding to the entries in the 
+// columns array.
 void krylov_matrix_add_values(krylov_matrix_t* A,
-                              int num_rows,
-                              int* num_columns,
-                              int* rows, int* columns,
+                              index_t num_rows,
+                              index_t* num_columns,
+                              index_t* rows, index_t* columns,
                               real_t* values);
                               
 // Assemble the matrix. This should be called after setting or adding to its 
@@ -275,9 +292,9 @@ void krylov_matrix_finish_assembly(krylov_matrix_t* A);
 // Retrieves the values of the elements in the matrix identified by the 
 // given (globally-indexed) rows and columns, storing them in the values array.
 void krylov_matrix_get_values(krylov_matrix_t* A,
-                              int num_rows,
-                              int* num_columns,
-                              int* rows, int* columns,
+                              index_t num_rows,
+                              index_t* num_columns,
+                              index_t* rows, index_t* columns,
                               real_t* values);
 
 //------------------------------------------------------------------------
@@ -313,17 +330,17 @@ void krylov_vector_scale(krylov_vector_t* v,
                          real_t scale_factor);
 
 // Sets the values of the elements in the vector identified by the given 
-// indices.
+// (globally-indexed) indices.
 void krylov_vector_set_values(krylov_vector_t* v,
-                              int num_values,
-                              int* indices,
+                              index_t num_values,
+                              index_t* indices,
                               real_t* values);
                               
 // Adds the given values of the elements to those in the vector.
-// The values are identified by the given indices.
+// The values are identified by the given (globally-indexed) indices.
 void krylov_vector_add_values(krylov_vector_t* v,
-                              int num_values,
-                              int* indices,
+                              index_t num_values,
+                              index_t* indices,
                               real_t* values);
                               
 // Assemble the vector. This should be called after setting or adding to its 
@@ -339,10 +356,11 @@ void krylov_vector_start_assembly(krylov_vector_t* v);
 void krylov_vector_finish_assembly(krylov_vector_t* v);
 
 // Retrieves the values of the elements in the vector identified by the 
-// given indices, storing them in the values array.
+// given (global) indices, storing them in the values array. The values 
+// must exist on the local process.
 void krylov_vector_get_values(krylov_vector_t* v,
-                              int num_values,
-                              int* indices,
+                              index_t num_values,
+                              index_t* indices,
                               real_t* values);
 
 // Computes and returns the Lp norm for this vector, where p can be 

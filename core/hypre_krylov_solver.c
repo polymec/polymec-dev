@@ -17,7 +17,8 @@
 // This file implements the dynamically-loadable HYPRE Krylov solver.
 //------------------------------------------------------------------------
 
-// HYPRE types.
+// HYPRE types and definitions.
+#define HYPRE_PARCSR  5555
 typedef double HYPRE_Real;
 typedef double _Complex HYPRE_Complex;
 typedef long long HYPRE_Int;
@@ -120,6 +121,7 @@ typedef struct
   HYPRE_Int (*HYPRE_IJMatrixGetObject)(HYPRE_IJMatrix, void**);
   HYPRE_Int (*HYPRE_IJMatrixSetRowSizes)(HYPRE_IJMatrix, const HYPRE_Int*);
   HYPRE_Int (*HYPRE_IJMatrixSetDiagOffdSizes)(HYPRE_IJMatrix, const HYPRE_Int*, const HYPRE_Int*);
+  HYPRE_Int (*HYPRE_IJMatrixGetRowCounts)(HYPRE_IJMatrix, HYPRE_Int, HYPRE_Int*, HYPRE_Int*);
 
   HYPRE_Int (*HYPRE_IJVectorCreate)(HYPRE_MPI_Comm, HYPRE_Int, HYPRE_Int, HYPRE_IJVector*);
   HYPRE_Int (*HYPRE_IJVectorDestroy)(HYPRE_IJVector);
@@ -130,6 +132,10 @@ typedef struct
   HYPRE_Int (*HYPRE_IJVectorGetValues)(HYPRE_IJVector, HYPRE_Int, HYPRE_Int*, HYPRE_Real*);
   HYPRE_Int (*HYPRE_IJVectorSetObjectType)(HYPRE_IJVector, HYPRE_Int);
   HYPRE_Int (*HYPRE_IJVectorGetObject)(HYPRE_IJVector, void**);
+
+  // Internals needed for scaling and zeroing matrices.
+  HYPRE_Int (*HYPRE_ParCSRMatrixGetRow)(void*, HYPRE_Int, HYPRE_Int*, HYPRE_Int**, HYPRE_Real**);
+  HYPRE_Int (*HYPRE_ParCSRMatrixRestoreRow)(void*, HYPRE_Int, HYPRE_Int*, HYPRE_Int**, HYPRE_Real**);
 } hypre_methods_table;
 
 typedef struct
@@ -141,18 +147,25 @@ typedef struct
 typedef struct
 {
   hypre_factory_t* factory;
+  HYPRE_Solver solver;
 } hypre_solver_t;
 
 typedef struct
 {
+  MPI_Comm comm;
+  index_t ilow, ihigh;
   hypre_factory_t* factory;
-  HYPRE_IJMatrix* A;
+  HYPRE_IJMatrix A;
+  bool initialized;
 } hypre_matrix_t;
 
 typedef struct
 {
+  MPI_Comm comm;
+  index_t ilow, ihigh;
   hypre_factory_t* factory;
-  HYPRE_IJVector* v;
+  HYPRE_IJVector v;
+  bool initialized;
 } hypre_vector_t;
 
 static void hypre_solver_set_tolerances(void* context,
@@ -254,229 +267,317 @@ static krylov_solver_t* hypre_factory_solver(void* context,
   return krylov_solver_new("HYPRE", solver, vtable);
 }
 
+static void hypre_matrix_set_values(void* context, index_t num_rows,
+                                    index_t* num_columns, index_t* rows, index_t* columns,
+                                    real_t* values)
+{
+  hypre_matrix_t* A = context;
+  if (!A->initialized)
+  {
+    A->factory->methods.HYPRE_IJMatrixInitialize(A->A);
+    A->initialized = true;
+  }
+  if (sizeof(real_t) == sizeof(HYPRE_Real))
+    A->factory->methods.HYPRE_IJMatrixSetValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, (HYPRE_Real*)values);
+  else
+  {
+    // We have to convert to HYPRE_Real.
+    int tot_num_values = 0;
+    for (int r = 0; r < num_rows; ++r)
+      tot_num_values += num_columns[r];
+    HYPRE_Real dvals[tot_num_values];
+    for (int i = 0; i < tot_num_values; ++i)
+      dvals[i] = (HYPRE_Real)values[i];
+    A->factory->methods.HYPRE_IJMatrixSetValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, dvals);
+  }
+}
+
+static void hypre_matrix_add_values(void* context, index_t num_rows,
+                                    index_t* num_columns, index_t* rows, index_t* columns,
+                                    real_t* values)
+{
+  hypre_matrix_t* A = context;
+  if (!A->initialized)
+  {
+    A->factory->methods.HYPRE_IJMatrixInitialize(A->A);
+    A->initialized = true;
+  }
+  if (sizeof(real_t) == sizeof(HYPRE_Real))
+    A->factory->methods.HYPRE_IJMatrixAddToValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, values);
+  else
+  {
+    // We have to convert to HYPRE_Real.
+    int tot_num_values = 0;
+    for (int r = 0; r < num_rows; ++r)
+      tot_num_values += num_columns[r];
+    HYPRE_Real dvals[tot_num_values];
+    for (int i = 0; i < tot_num_values; ++i)
+      dvals[i] = (HYPRE_Real)values[i];
+    A->factory->methods.HYPRE_IJMatrixAddToValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, dvals);
+  }
+}
+
+static void hypre_matrix_start_assembly(void* context)
+{
+  // Nothing to do!
+}
+
+static void hypre_matrix_finish_assembly(void* context)
+{
+  hypre_matrix_t* A = context;
+  A->factory->methods.HYPRE_IJMatrixAssemble(A->A);
+  A->initialized = false;
+}
+
 static void* hypre_matrix_clone(void* context)
 {
   hypre_matrix_t* A = context;
   hypre_matrix_t* clone = polymec_malloc(sizeof(hypre_matrix_t));
+  clone->comm = A->comm;
   clone->factory = A->factory;
-//  PetscErrorCode err = A->factory->methods.MatConvert(A->A, MATSAME, MAT_INITIAL_MATRIX, &(clone->A));
-//  if (err != 0)
-//    polymec_error("hypre_matrix_clone: Error!");
+  clone->ilow = A->ilow;
+  clone->ihigh = A->ihigh;
+  HYPRE_MPI_Comm hypre_comm = A->comm;
+  clone->factory->methods.HYPRE_IJMatrixCreate(hypre_comm, 
+                                               clone->ilow, clone->ihigh, 
+                                               clone->ilow, clone->ihigh,
+                                               &clone->A);
+  clone->factory->methods.HYPRE_IJMatrixSetObjectType(clone->A, HYPRE_PARCSR);
+  clone->factory->methods.HYPRE_IJMatrixInitialize(clone->A);
+
+  // Copy over the nonzero structure and values of A.
+  index_t num_rows = clone->ihigh - clone->ilow + 1;
+  index_t num_columns[num_rows], rows[num_rows];
+  index_t tot_num_columns = 0;
+  for (index_t r = 0; r < num_rows; ++r)
+  {
+    HYPRE_Int row = clone->ilow + r, ncols;
+    clone->factory->methods.HYPRE_IJMatrixGetRowCounts(A->A, 1, &row, &ncols);
+    num_columns[r] = ncols;
+    rows[r] = row;
+    tot_num_columns += ncols;
+  }
+  index_t columns[tot_num_columns];
+  real_t values[tot_num_columns];
+  void* par_mat;
+  clone->factory->methods.HYPRE_IJMatrixGetObject(A->A, &par_mat);
+  index_t col_offset = 0;
+  for (index_t r = 0; r < num_rows; ++r)
+  {
+    HYPRE_Int ncols, *cols;
+    HYPRE_Real* vals;
+    HYPRE_Int row = clone->ilow + r;
+    clone->factory->methods.HYPRE_ParCSRMatrixGetRow(par_mat, row, &ncols, &cols, &vals);
+    for (HYPRE_Int c = 0; c < ncols; ++c, ++col_offset)
+    {
+      columns[col_offset] = cols[c];
+      values[col_offset] = (real_t)vals[c];
+    }
+    clone->factory->methods.HYPRE_ParCSRMatrixRestoreRow(par_mat, row, &ncols, &cols, &vals);
+  }
+  ASSERT(col_offset == tot_num_columns);
+
+  // Stuff the values in.
+  clone->initialized = false;
+  hypre_matrix_set_values(clone, num_rows, num_columns, rows, columns, values);
+  hypre_matrix_finish_assembly(clone);
+
   return clone;
 }
 
 static void hypre_matrix_zero(void* context)
 {
   hypre_matrix_t* A = context;
-//  A->factory->methods.MatZeroEntries(A->A);
+
+  // Get the information about the matrix's nonzero structure.
+  index_t num_rows = A->ihigh - A->ilow + 1;
+  index_t num_columns[num_rows], rows[num_rows];
+  index_t tot_num_columns = 0;
+  for (index_t r = 0; r < num_rows; ++r)
+  {
+    HYPRE_Int row = A->ilow + r, ncols;
+    A->factory->methods.HYPRE_IJMatrixGetRowCounts(A->A, 1, &row, &ncols);
+    tot_num_columns += ncols; 
+  }
+  index_t columns[tot_num_columns];
+  void* par_mat;
+  A->factory->methods.HYPRE_IJMatrixGetObject(A->A, &par_mat);
+  index_t col_offset = 0;
+  for (index_t r = 0; r < num_rows; ++r)
+  {
+    HYPRE_Int ncols, *cols;
+    HYPRE_Real* vals;
+    index_t row = A->ilow + r;
+    A->factory->methods.HYPRE_ParCSRMatrixGetRow(par_mat, row, &ncols, &cols, &vals);
+    for (HYPRE_Int c = 0; c < ncols; ++c, ++col_offset)
+      columns[col_offset] = cols[c];
+    A->factory->methods.HYPRE_ParCSRMatrixRestoreRow(par_mat, row, &ncols, &cols, &vals);
+  }
+
+  // Stuff a bunch of zeros in.
+  real_t zeros[tot_num_columns];
+  memset(zeros, 0, sizeof(real_t) * tot_num_columns);
+  hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, zeros);
+  hypre_matrix_finish_assembly(context);
 }
 
 static void hypre_matrix_scale(void* context, real_t scale_factor)
 {
   hypre_matrix_t* A = context;
-//  A->factory->methods.MatScale(A->A, scale_factor);
+
+  // Get the information about the matrix's nonzero structure.
+  index_t num_rows = A->ihigh - A->ilow + 1;
+  index_t num_columns[num_rows], rows[num_rows];
+  index_t tot_num_columns = 0;
+  for (index_t r = 0; r < num_rows; ++r)
+  {
+    HYPRE_Int row = A->ilow + r, ncols;
+    A->factory->methods.HYPRE_IJMatrixGetRowCounts(A->A, 1, &row, &ncols);
+    tot_num_columns += ncols; 
+  }
+  index_t columns[tot_num_columns];
+  real_t values[tot_num_columns];
+  void* par_mat;
+  A->factory->methods.HYPRE_IJMatrixGetObject(A->A, &par_mat);
+  index_t col_offset = 0;
+  for (index_t r = 0; r < num_rows; ++r)
+  {
+    HYPRE_Int ncols, *cols;
+    HYPRE_Real* vals;
+    index_t row = A->ilow + r;
+    A->factory->methods.HYPRE_ParCSRMatrixGetRow(par_mat, row, &ncols, &cols, &vals);
+    for (HYPRE_Int c = 0; c < ncols; ++c, ++col_offset)
+    {
+      columns[col_offset] = cols[c];
+      values[col_offset] = (real_t)(scale_factor * vals[c]);
+    }
+    A->factory->methods.HYPRE_ParCSRMatrixRestoreRow(par_mat, row, &ncols, &cols, &vals);
+  }
+
+  // Scale the values in the matrix.
+  hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values);
+  hypre_matrix_finish_assembly(context);
 }
 
 static void hypre_matrix_add_identity(void* context, real_t scale_factor)
 {
   hypre_matrix_t* A = context;
-//  A->factory->methods.MatShift(A->A, scale_factor);
+  index_t num_rows = A->ihigh - A->ilow + 1;
+  index_t num_columns[num_rows], rows[num_rows], columns[num_rows];
+  real_t values[num_rows];
+  for (int r = 0; r < num_rows; ++r)
+  {
+    num_columns[r] = 1;
+    rows[r] = A->ilow + r;
+    columns[r] = A->ilow + r;
+    values[r] = scale_factor;
+  }
+  hypre_matrix_add_values(context, num_rows, num_columns, rows, columns, values); 
+  hypre_matrix_finish_assembly(context);
 }
+
+// This is used for the diagonal methods below, and defined later in the file.
+static void hypre_vector_get_values(void* context, index_t num_values,
+                                    index_t* indices, real_t* values);
 
 static void hypre_matrix_set_diagonal(void* context, void* D)
 {
   hypre_matrix_t* A = context;
-//  Vec diag = D;
-//  A->factory->methods.MatDiagonalSet(A->A, diag, INSERT_VALUES);
+  index_t num_rows = A->ihigh - A->ilow + 1;
+  index_t num_columns[num_rows], rows[num_rows], columns[num_rows];
+  real_t values[num_rows];
+  for (int r = 0; r < num_rows; ++r)
+  {
+    num_columns[r] = 1;
+    rows[r] = A->ilow + r;
+    columns[r] = A->ilow + r;
+  }
+  hypre_vector_get_values(context, num_rows, rows, values); // get values from D
+  hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values); // set diag A.
+  hypre_matrix_finish_assembly(context);
 }
 
 static void hypre_matrix_add_diagonal(void* context, void* D)
 {
   hypre_matrix_t* A = context;
-//  Vec diag = D;
-//  A->factory->methods.MatDiagonalSet(A->A, diag, INSERT_VALUES);
-}
-
-static void hypre_matrix_set_values(void* context, int num_rows,
-                                    int* num_columns, int* rows, int* columns,
-                                    real_t* values)
-{
-  hypre_matrix_t* A = context;
-  int col_offset = 0;
+  index_t num_rows = A->ihigh - A->ilow + 1;
+  index_t num_columns[num_rows], rows[num_rows], columns[num_rows];
+  real_t values[num_rows];
   for (int r = 0; r < num_rows; ++r)
   {
-    int num_cols = num_columns[r];
-    HYPRE_Int row = rows[r];
-    HYPRE_Int cols[num_cols];
-    real_t vals[num_cols];
-    for (int c = 0; c < num_cols; ++c, ++col_offset)
-    {
-      cols[c] = columns[col_offset];
-      vals[c] = values[col_offset];
-    }
-//    A->factory->methods.MatSetValues(A->A, 1, &row, num_cols, cols, vals, insert_mode);
+    num_columns[r] = 1;
+    rows[r] = A->ilow + r;
+    columns[r] = A->ilow + r;
   }
+  hypre_vector_get_values(context, num_rows, rows, values); // get values from D
+  hypre_matrix_add_values(context, num_rows, num_columns, rows, columns, values); // add to diag A.
+  hypre_matrix_finish_assembly(context);
 }
 
-static void hypre_matrix_add_values(void* context, int num_rows,
-                                    int* num_columns, int* rows, int* columns,
+static void hypre_matrix_get_values(void* context, index_t num_rows,
+                                    index_t* num_columns, index_t* rows, index_t* columns,
                                     real_t* values)
 {
   hypre_matrix_t* A = context;
-  int col_offset = 0;
-  for (int r = 0; r < num_rows; ++r)
+  if (sizeof(real_t) == sizeof(HYPRE_Real))
+    A->factory->methods.HYPRE_IJMatrixGetValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, values);
+  else
   {
-    int num_cols = num_columns[r];
-    HYPRE_Int row = rows[r];
-    HYPRE_Int cols[num_cols];
-    real_t vals[num_cols];
-    for (int c = 0; c < num_cols; ++c, ++col_offset)
-    {
-      cols[c] = columns[col_offset];
-      vals[c] = values[col_offset];
-    }
-//    A->factory->methods.MatSetValues(A->A, 1, &row, num_cols, cols, vals, insert_mode);
-  }
-}
-
-static void hypre_matrix_start_assembly(void* context)
-{
-  hypre_matrix_t* A = context;
-//  A->factory->methods.MatAssemblyBegin(A->A, MAT_FINAL_ASSEMBLY);
-}
-
-static void hypre_matrix_finish_assembly(void* context)
-{
-  hypre_matrix_t* A = context;
-//  A->factory->methods.MatAssemblyEnd(A->A, MAT_FINAL_ASSEMBLY);
-}
-
-static void hypre_matrix_get_values(void* context, int num_rows,
-                                    int* num_columns, int* rows, int* columns,
-                                    real_t* values)
-{
-  hypre_matrix_t* A = context;
-  int col_offset = 0;
-  for (int r = 0; r < num_rows; ++r)
-  {
-    int num_cols = num_columns[r];
-    HYPRE_Int row = rows[r];
-    HYPRE_Int cols[num_cols];
-    for (int c = 0; c < num_cols; ++c, ++col_offset)
-      cols[c] = columns[col_offset];
-//    A->factory->methods.MatGetValues(A->A, 1, &row, num_cols, cols, &values[col_offset-num_cols]);
+    // We have to convert from HYPRE_Real.
+    int tot_num_values = 0;
+    for (int r = 0; r < num_rows; ++r)
+      tot_num_values += num_columns[r];
+    HYPRE_Real dvals[tot_num_values];
+    A->factory->methods.HYPRE_IJMatrixGetValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, dvals);
+    for (int i = 0; i < tot_num_values; ++i)
+      values[i] = (real_t)dvals[i];
   }
 }
 
 static void hypre_matrix_dtor(void* context)
 {
   hypre_matrix_t* A = context;
-//  A->factory->methods.MatDestroy(&(A->A));
+  A->factory->methods.HYPRE_IJMatrixDestroy(A->A);
   A->factory = NULL;
   polymec_free(A);
-}
-
-static krylov_matrix_t* hypre_factory_matrix(void* context,
-                                             adj_graph_t* sparsity)
-{
-  hypre_matrix_t* A = polymec_malloc(sizeof(hypre_matrix_t));
-  A->factory = context;
-  int N_local = adj_graph_num_vertices(sparsity);
-  index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
-  MPI_Comm comm = adj_graph_comm(sparsity);
-  int nprocs;
-  MPI_Comm_size(comm, &nprocs);
-  int N_global = (int)vtx_dist[nprocs];
-#if 0
-  A->factory->methods.MatCreate(comm, &A->A);
-  if (nprocs == 1)
-    A->factory->methods.MatSetType(A->A, MATSEQAIJ);
-  else
-    A->factory->methods.MatSetType(A->A, MATMPIAIJ);
-  A->factory->methods.MatSetSizes(A->A, N_local, N_local, N_global, N_global);
-
-  // Perform preallocation.
-  if (nprocs == 1)
-  {
-    PetscInt nnz[N_local];
-    for (int v = 0; v < N_local; ++v)
-      nnz[v] = (PetscInt)(1 + adj_graph_num_edges(sparsity, v));
-      A->factory->methods.MatSeqAIJSetPreallocation(A->A, PETSC_DEFAULT, nnz);
-  }
-  else
-  {
-    PetscInt d_nnz[N_local], o_nnz[N_local];
-    for (int v = 0; v < N_local; ++v)
-    {
-      d_nnz[v] = 1; // Diagonal entry.
-      o_nnz[v] = 0; // Diagonal entry.
-      int num_edges = adj_graph_num_edges(sparsity, v);
-      int* edges = adj_graph_edges(sparsity, v);
-      for (int e = 0; e < num_edges; ++e)
-      {
-        int edge = edges[e];
-        if (edge >= N_local)
-          o_nnz[v] += 1;
-        else
-          d_nnz[v] += 1;
-      }
-    }
-    A->factory->methods.MatMPIAIJSetPreallocation(A->A, PETSC_DEFAULT, d_nnz, PETSC_DEFAULT, o_nnz);
-  }
-  A->factory->methods.MatSetUp(A->A);
-#endif
-
-  // Set up the virtual table.
-  krylov_matrix_vtable vtable = {.clone = hypre_matrix_clone,
-                                 .zero = hypre_matrix_zero,
-                                 .scale = hypre_matrix_scale,
-                                 .add_identity = hypre_matrix_add_identity,
-                                 .add_diagonal = hypre_matrix_add_diagonal,
-                                 .set_diagonal = hypre_matrix_set_diagonal,
-                                 .set_values = hypre_matrix_set_values,
-                                 .add_values = hypre_matrix_add_values,
-                                 .start_assembly = hypre_matrix_start_assembly,
-                                 .finish_assembly = hypre_matrix_finish_assembly,
-                                 .get_values = hypre_matrix_get_values,
-                                 .dtor = hypre_matrix_dtor};
-  return krylov_matrix_new(A, vtable, N_local, N_global);
 }
 
 static krylov_matrix_t* hypre_factory_block_matrix(void* context,
                                                    adj_graph_t* sparsity,
                                                    int block_size)
 {
+  ASSERT(block_size >= 1);
+
   hypre_matrix_t* A = polymec_malloc(sizeof(hypre_matrix_t));
   A->factory = context;
-  int N_local = adj_graph_num_vertices(sparsity);
+  A->comm = adj_graph_comm(sparsity);
+  int rank, nprocs;
+  MPI_Comm_rank(A->comm, &rank);
+  MPI_Comm_size(A->comm, &nprocs);
   index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
-  MPI_Comm comm = adj_graph_comm(sparsity);
-  int nprocs;
-  MPI_Comm_size(comm, &nprocs);
-  int N_global = (int)vtx_dist[nprocs];
-#if 0
-  A->factory->methods.MatCreate(comm, &A->A);
-  if (nprocs == 1)
-    A->factory->methods.MatSetType(A->A, MATSEQBAIJ);
-  else
-    A->factory->methods.MatSetType(A->A, MATMPIBAIJ);
-  A->factory->methods.MatSetSizes(A->A, N_local, N_local, N_global, N_global);
-  A->factory->methods.MatSetBlockSize(A->A, block_size);
+  A->ilow = vtx_dist[rank];
+  A->ihigh = vtx_dist[rank+1] - 1;
+  HYPRE_MPI_Comm hypre_comm = A->comm;
+  A->factory->methods.HYPRE_IJMatrixCreate(hypre_comm, 
+                                           A->ilow, A->ihigh, A->ilow, A->ihigh,
+                                           &A->A);
+  A->factory->methods.HYPRE_IJMatrixSetObjectType(A->A, HYPRE_PARCSR);
 
-  // Perform preallocation.
+  // Preallocate non-zero storage.
+  HYPRE_Int N_local = block_size * (vtx_dist[rank+1] - vtx_dist[rank]);
   if (nprocs == 1)
   {
-    PetscInt nnz[N_local];
+    HYPRE_Int nnz[N_local];
     for (int v = 0; v < N_local; ++v)
-      nnz[v] = (PetscInt)(1 + adj_graph_num_edges(sparsity, v));
-      A->factory->methods.MatSeqBAIJSetPreallocation(A->A, (PetscInt)block_size, PETSC_DEFAULT, nnz);
+      nnz[v] = block_size * (HYPRE_Int)(1 + adj_graph_num_edges(sparsity, v/block_size));
+    A->factory->methods.HYPRE_IJMatrixSetRowSizes(A->A, nnz);
   }
   else
   {
-    PetscInt d_nnz[N_local], o_nnz[N_local];
+    HYPRE_Int d_nnz[N_local], o_nnz[N_local];
     for (int v = 0; v < N_local; ++v)
     {
-      d_nnz[v] = 1; // Diagonal entry.
+      d_nnz[v] = block_size; // Diagonal entry.
       o_nnz[v] = 0; // Diagonal entry.
       int num_edges = adj_graph_num_edges(sparsity, v);
       int* edges = adj_graph_edges(sparsity, v);
@@ -484,15 +585,47 @@ static krylov_matrix_t* hypre_factory_block_matrix(void* context,
       {
         int edge = edges[e];
         if (edge >= N_local)
-          o_nnz[v] += 1;
+          o_nnz[v] += block_size;
         else
-          d_nnz[v] += 1;
+          d_nnz[v] += block_size;
       }
     }
-    A->factory->methods.MatMPIBAIJSetPreallocation(A->A, (PetscInt)block_size, PETSC_DEFAULT, d_nnz, PETSC_DEFAULT, o_nnz);
+    A->factory->methods.HYPRE_IJMatrixSetDiagOffdSizes(A->A, d_nnz, o_nnz);
   }
-  A->factory->methods.MatSetUp(A->A);
-#endif
+
+  // We're ready to set values.
+  A->factory->methods.HYPRE_IJMatrixInitialize(A->A);
+  A->initialized = true;
+
+  // Set the "non-zero" values to zero initially. This constructs the specific non-zero structure.
+  index_t num_rows = A->ihigh - A->ilow + 1;
+  index_t num_columns[num_rows], rows[num_rows];
+  for (int r = 0; r < num_rows; ++r)
+  {
+    rows[r] = A->ilow + r;
+    num_columns[r] = block_size * (1 + adj_graph_num_edges(sparsity, r));
+  }
+  int tot_num_values = 0;
+  for (int r = 0; r < num_rows; ++r)
+    tot_num_values += num_columns[r];
+
+  index_t col_offset = 0;
+  index_t columns[tot_num_values];
+  for (int r = 0; r < num_rows; ++r)
+  {
+    columns[col_offset++] = A->ilow + r;
+    int* edges = adj_graph_edges(sparsity, r);
+    for (int c = 0; c < num_columns[r]-1; ++c, ++col_offset)
+      columns[col_offset] = A->ilow + edges[c];
+  }
+  ASSERT(col_offset == tot_num_values);
+
+  real_t zeros[tot_num_values];
+  memset(zeros, 0, sizeof(real_t) * tot_num_values);
+  hypre_matrix_set_values(A, num_rows, num_columns, rows, columns, zeros);
+
+  // Assemble the matrix.
+  hypre_matrix_finish_assembly(A);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = hypre_matrix_clone,
@@ -507,111 +640,205 @@ static krylov_matrix_t* hypre_factory_block_matrix(void* context,
                                  .finish_assembly = hypre_matrix_finish_assembly,
                                  .get_values = hypre_matrix_get_values,
                                  .dtor = hypre_matrix_dtor};
+  HYPRE_Int N_global = block_size * vtx_dist[nprocs];
   return krylov_matrix_new(A, vtable, N_local, N_global);
 }
 
-static void* hypre_vector_clone(void* context)
+static krylov_matrix_t* hypre_factory_matrix(void* context,
+                                             adj_graph_t* sparsity)
 {
-  hypre_vector_t* v = context;
-  hypre_vector_t* clone = polymec_malloc(sizeof(hypre_vector_t));
-  clone->factory = v->factory;
-//  PetscErrorCode err = v->factory->methods.VecDuplicate(v->v, &(clone->v));
-//  if (err != 0)
-//    polymec_error("hypre_vector_clone: Error in VecDuplicate!");
-//  err = v->factory->methods.VecCopy(v->v, clone->v);
-//  if (err != 0)
-//    polymec_error("hypre_vector_clone: Error in VecCopy!");
-  return clone;
+  return hypre_factory_block_matrix(context, sparsity, 1);
 }
 
-static void hypre_vector_zero(void* context)
+static void hypre_vector_set_values(void* context, index_t num_values,
+                                    index_t* indices, real_t* values)
 {
   hypre_vector_t* v = context;
-//  v->factory->methods.VecZeroEntries(v->v);
+  if (sizeof(real_t) == sizeof(HYPRE_Real))
+    v->factory->methods.HYPRE_IJVectorSetValues(v->v, num_values, (HYPRE_Int*)indices, values);
+  else
+  {
+    // We need to convert to HYPRE_Real.
+    HYPRE_Real dvals[num_values];
+    for (int i = 0; i < num_values; ++i)
+      dvals[i] = (HYPRE_Real)values[i];
+    v->factory->methods.HYPRE_IJVectorSetValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
+  }
 }
 
-static void hypre_vector_set_value(void* context, real_t value)
+static void hypre_vector_add_values(void* context, index_t num_values,
+                                    index_t* indices, real_t* values)
 {
   hypre_vector_t* v = context;
-//  v->factory->methods.VecSet(v->v, value);
-}
-
-static void hypre_vector_scale(void* context, real_t scale_factor)
-{
-  hypre_vector_t* v = context;
-//  v->factory->methods.VecScale(v->v, scale_factor);
-}
-
-static void hypre_vector_set_values(void* context, int num_values,
-                                    int* indices, real_t* values)
-{
-  hypre_vector_t* v = context;
-//  v->factory->methods.VecSetValues(v->v, num_values, indices, values, INSERT_VALUES);
-}
-
-static void hypre_vector_add_values(void* context, int num_values,
-                                    int* indices, real_t* values)
-{
-  hypre_vector_t* v = context;
-//  v->factory->methods.VecSetValues(v->v, num_values, indices, values, ADD_VALUES);
+  if (sizeof(real_t) == sizeof(HYPRE_Real))
+    v->factory->methods.HYPRE_IJVectorAddToValues(v->v, num_values, (HYPRE_Int*)indices, values);
+  else
+  {
+    // We need to convert to HYPRE_Real.
+    HYPRE_Real dvals[num_values];
+    for (int i = 0; i < num_values; ++i)
+      dvals[i] = (HYPRE_Real)values[i];
+    v->factory->methods.HYPRE_IJVectorAddToValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
+  }
 }
 
 static void hypre_vector_start_assembly(void* context)
 {
-  hypre_vector_t* v = context;
-//  v->factory->methods.VecAssemblyBegin(v->v);
+  // Nothing to do!
 }
 
 static void hypre_vector_finish_assembly(void* context)
 {
   hypre_vector_t* v = context;
-//  v->factory->methods.VecAssemblyEnd(v->v);
+  v->factory->methods.HYPRE_IJVectorAssemble(v->v);
+  v->initialized = false;
 }
 
-static void hypre_vector_get_values(void* context, int num_values,
-                                    int* indices, real_t* values)
+static void hypre_vector_get_values(void* context, index_t num_values,
+                                    index_t* indices, real_t* values)
 {
   hypre_vector_t* v = context;
-//  v->factory->methods.VecGetValues(v->v, num_values, indices, values);
+  if (sizeof(real_t) == sizeof(HYPRE_Real))
+    v->factory->methods.HYPRE_IJVectorGetValues(v->v, num_values, (HYPRE_Int*)indices, values);
+  else
+  {
+    // We have to convert from HYPRE_Real.
+    HYPRE_Real dvals[num_values];
+    v->factory->methods.HYPRE_IJVectorGetValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
+    for (int i = 0; i < num_values; ++i)
+      values[i] = (real_t)dvals[i];
+  }
+}
+
+static void* hypre_vector_clone(void* context)
+{
+  hypre_vector_t* v = context;
+
+  // Get data from the original vector and use it to create a new one.
+  hypre_vector_t* clone = polymec_malloc(sizeof(hypre_vector_t));
+  clone->comm = v->comm;
+  clone->factory = v->factory;
+  clone->ilow = v->ilow;
+  clone->ihigh = v->ihigh;
+  clone->initialized = v->initialized;
+  HYPRE_MPI_Comm hypre_comm = clone->comm;
+  clone->factory->methods.HYPRE_IJVectorCreate(hypre_comm, clone->ilow, clone->ihigh, &clone->v);
+  clone->factory->methods.HYPRE_IJVectorSetObjectType(clone->v, HYPRE_PARCSR);
+  clone->factory->methods.HYPRE_IJVectorInitialize(clone->v);
+
+  index_t num_rows = clone->ihigh - clone->ilow + 1;
+  index_t rows[num_rows];
+  for (index_t r = 0; r < num_rows; ++r)
+    rows[r] = clone->ilow + r;
+  real_t vals[num_rows];
+  hypre_vector_get_values(v, num_rows, rows, vals);
+  hypre_vector_set_values(clone, num_rows, rows, vals);
+  return clone;
+}
+
+
+static void hypre_vector_set_value(void* context, real_t value)
+{
+  hypre_vector_t* v = context;
+  index_t num_rows = v->ihigh - v->ilow + 1;
+  index_t rows[num_rows];
+  real_t values[num_rows];
+  for (index_t r = 0; r < num_rows; ++r) 
+  {
+    rows[r] = v->ilow + r;
+    values[r] = value;
+  }
+  hypre_vector_set_values(context, num_rows, rows, values);
+  hypre_vector_finish_assembly(context);
+}
+
+static void hypre_vector_zero(void* context)
+{
+  hypre_vector_set_value(context, 0.0);
+}
+
+static void hypre_vector_scale(void* context, real_t scale_factor)
+{
+  hypre_vector_t* v = context;
+  index_t num_rows = v->ihigh - v->ilow + 1;
+  index_t rows[num_rows];
+  real_t values[num_rows];
+  for (index_t r = 0; r < num_rows; ++r) 
+    rows[r] = v->ilow + r;
+  hypre_vector_get_values(context, num_rows, rows, values);
+  for (index_t r = 0; r < num_rows; ++r) 
+    values[r] *= scale_factor;
+  hypre_vector_set_values(context, num_rows, rows, values);
+  hypre_vector_finish_assembly(context);
 }
 
 static real_t hypre_vector_norm(void* context, int p)
 {
+  // SIGH. HYPRE doesn't do vector norms, so we have to do this manually.
   hypre_vector_t* v = context;
-  real_t norm;
-//  NormType norm_type;
-//  if (p == 0)
-//    norm_type = NORM_INFINITY;
-//  else if (p == 1)
-//    norm_type = NORM_1;
-////  else
-//    norm_type = NORM_2;
-//  v->factory->methods.VecNorm(v->v, norm_type, &norm);
-  return norm;
+  
+  // Accumulate the local part of the norm.
+  real_t local_norm = 0.0;
+  index_t num_rows = v->ihigh - v->ilow + 1;
+  index_t rows[num_rows];
+  real_t values[num_rows];
+  for (index_t r = 0; r < num_rows; ++r) 
+    rows[r] = v->ilow + r;
+  hypre_vector_get_values(context, num_rows, rows, values);
+  if (p == 0)
+  {
+    for (index_t r = 0; r < num_rows; ++r) 
+      local_norm = MAX(local_norm, values[r]);
+  }
+  else if (p == 1)
+  {
+    for (index_t r = 0; r < num_rows; ++r) 
+      local_norm += ABS(values[r]);
+  }
+  else
+  {
+    for (index_t r = 0; r < num_rows; ++r) 
+      local_norm += values[r] * values[r];
+  }
+
+  // Now mash together all the parallel portions.
+  real_t global_norm = 0.0;
+  if (p == 0)
+    MPI_Allreduce(&local_norm, &global_norm, 1, MPI_REAL_T, MPI_MAX, v->comm);
+  else
+    MPI_Allreduce(&local_norm, &global_norm, 1, MPI_REAL_T, MPI_SUM, v->comm);
+
+  if (p == 2)
+    global_norm = sqrt(global_norm);
+  return global_norm;
 }
 
 static void hypre_vector_dtor(void* context)
 {
   hypre_vector_t* v = context;
-//  v->factory->methods.VecDestroy(&(v->v));
+  v->factory->methods.HYPRE_IJVectorDestroy(v->v);
   v->factory = NULL;
   polymec_free(v);
 }
 
 static krylov_vector_t* hypre_factory_vector(void* context,
-                                             MPI_Comm comm,
-                                             int N)
+                                             adj_graph_t* dist_graph)
 {
   hypre_vector_t* v = polymec_malloc(sizeof(hypre_vector_t));
   v->factory = context;
-  int nprocs;
-  MPI_Comm_size(comm, &nprocs);
-//  if (nprocs == 1)
-//    v->factory->methods.VecCreateSeq(comm, N, &v->v);
-//  else
-//    v->factory->methods.VecCreateMPI(comm, N, PETSC_DETERMINE, &v->v);
-  HYPRE_Int N_global;
-//  v->factory->methods.VecGetSize(v->v, &N_global);
+  v->comm = adj_graph_comm(dist_graph);
+  int rank, nprocs;
+  MPI_Comm_rank(v->comm, &rank);
+  MPI_Comm_size(v->comm, &nprocs);
+  index_t* vtx_dist = adj_graph_vertex_dist(dist_graph);
+  v->ilow = vtx_dist[rank];
+  v->ihigh = vtx_dist[rank+1]-1;
+  HYPRE_MPI_Comm hypre_comm = v->comm;
+  v->factory->methods.HYPRE_IJVectorCreate(hypre_comm, v->ilow, v->ihigh, &v->v);
+  v->factory->methods.HYPRE_IJVectorSetObjectType(v->v, HYPRE_PARCSR);
+  v->factory->methods.HYPRE_IJVectorInitialize(v->v);
+  v->initialized = true;
+
   // Set up the virtual table.
   krylov_vector_vtable vtable = {.clone = hypre_vector_clone,
                                  .zero = hypre_vector_zero,
@@ -624,17 +851,12 @@ static krylov_vector_t* hypre_factory_vector(void* context,
                                  .get_values = hypre_vector_get_values,
                                  .norm = hypre_vector_norm,
                                  .dtor = hypre_vector_dtor};
-  return krylov_vector_new(v, vtable, N, N_global);
+  return krylov_vector_new(v, vtable, vtx_dist[rank+1]-vtx_dist[rank], vtx_dist[nprocs]);
 }
 
 static void hypre_factory_dtor(void* context)
 {
   hypre_factory_t* factory = context;
-//  if (factory->finalize_hypre)
-//  {
-//    log_debug("hypre_krylov_factory: Finalizing PETSc.");
-//    factory->methods.PetscFinalize();
-//  }
   log_debug("hypre_krylov_factory: Closing HYPRE library.");
   dlclose(factory->hypre);
   polymec_free(factory);
@@ -798,6 +1020,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixGetObject);
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixSetRowSizes);
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixSetDiagOffdSizes);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixGetRowCounts);
 
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorDestroy);
@@ -808,6 +1031,9 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorGetValues);
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorSetObjectType);
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorGetObject);
+
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixGetRow);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixRestoreRow);
 #undef FETCH_HYPRE_SYMBOL
 
   log_debug("hypre_krylov_factory: Got HYPRE symbols.");

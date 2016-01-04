@@ -21,7 +21,7 @@
 typedef real_t PetscScalar;
 typedef real_t PetscReal;
 typedef int PetscMPIInt;
-typedef int PetscInt; // 32-bit indices for PETSc.
+typedef index_t PetscInt; 
 typedef enum { PETSC_FALSE,PETSC_TRUE } PetscBool;
 typedef int PetscErrorCode;
 typedef void* KSP;
@@ -264,11 +264,11 @@ static void petsc_matrix_add_diagonal(void* context, void* D)
 {
   petsc_matrix_t* A = context;
   Vec diag = D;
-  A->factory->methods.MatDiagonalSet(A->A, diag, INSERT_VALUES);
+  A->factory->methods.MatDiagonalSet(A->A, diag, ADD_VALUES);
 }
 
-static void petsc_matrix_enter_values(void* context, int num_rows,
-                                      int* num_columns, int* rows, int* columns,
+static void petsc_matrix_enter_values(void* context, index_t num_rows,
+                                      index_t* num_columns, index_t* rows, index_t* columns,
                                       real_t* values, InsertMode insert_mode)
 {
   petsc_matrix_t* A = context;
@@ -288,15 +288,15 @@ static void petsc_matrix_enter_values(void* context, int num_rows,
   }
 }
 
-static void petsc_matrix_set_values(void* context, int num_rows,
-                                    int* num_columns, int* rows, int* columns,
+static void petsc_matrix_set_values(void* context, index_t num_rows,
+                                    index_t* num_columns, index_t* rows, index_t* columns,
                                     real_t* values)
 {
   petsc_matrix_enter_values(context, num_rows, num_columns, rows, columns, values, INSERT_VALUES);
 }
 
-static void petsc_matrix_add_values(void* context, int num_rows,
-                                    int* num_columns, int* rows, int* columns,
+static void petsc_matrix_add_values(void* context, index_t num_rows,
+                                    index_t* num_columns, index_t* rows, index_t* columns,
                                     real_t* values)
 {
   petsc_matrix_enter_values(context, num_rows, num_columns, rows, columns, values, ADD_VALUES);
@@ -314,8 +314,8 @@ static void petsc_matrix_finish_assembly(void* context)
   A->factory->methods.MatAssemblyEnd(A->A, MAT_FINAL_ASSEMBLY);
 }
 
-static void petsc_matrix_get_values(void* context, int num_rows,
-                                    int* num_columns, int* rows, int* columns,
+static void petsc_matrix_get_values(void* context, index_t num_rows,
+                                    index_t* num_columns, index_t* rows, index_t* columns,
                                     real_t* values)
 {
   petsc_matrix_t* A = context;
@@ -501,15 +501,15 @@ static void petsc_vector_scale(void* context, real_t scale_factor)
   v->factory->methods.VecScale(v->v, scale_factor);
 }
 
-static void petsc_vector_set_values(void* context, int num_values,
-                                    int* indices, real_t* values)
+static void petsc_vector_set_values(void* context, index_t num_values,
+                                    index_t* indices, real_t* values)
 {
   petsc_vector_t* v = context;
   v->factory->methods.VecSetValues(v->v, num_values, indices, values, INSERT_VALUES);
 }
 
-static void petsc_vector_add_values(void* context, int num_values,
-                                    int* indices, real_t* values)
+static void petsc_vector_add_values(void* context, index_t num_values,
+                                    index_t* indices, real_t* values)
 {
   petsc_vector_t* v = context;
   v->factory->methods.VecSetValues(v->v, num_values, indices, values, ADD_VALUES);
@@ -527,8 +527,8 @@ static void petsc_vector_finish_assembly(void* context)
   v->factory->methods.VecAssemblyEnd(v->v);
 }
 
-static void petsc_vector_get_values(void* context, int num_values,
-                                    int* indices, real_t* values)
+static void petsc_vector_get_values(void* context, index_t num_values,
+                                    index_t* indices, real_t* values)
 {
   petsc_vector_t* v = context;
   v->factory->methods.VecGetValues(v->v, num_values, indices, values);
@@ -558,19 +558,20 @@ static void petsc_vector_dtor(void* context)
 }
 
 static krylov_vector_t* petsc_factory_vector(void* context,
-                                             MPI_Comm comm,
-                                             int N)
+                                             adj_graph_t* dist_graph)
 {
   petsc_vector_t* v = polymec_malloc(sizeof(petsc_vector_t));
   v->factory = context;
-  int nprocs;
+  MPI_Comm comm = adj_graph_comm(dist_graph);
+  int rank, nprocs;
+  MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nprocs);
+  index_t* vtx_dist = adj_graph_vertex_dist(dist_graph);
   if (nprocs == 1)
-    v->factory->methods.VecCreateSeq(comm, N, &v->v);
+    v->factory->methods.VecCreateSeq(comm, vtx_dist[1], &v->v);
   else
-    v->factory->methods.VecCreateMPI(comm, N, PETSC_DETERMINE, &v->v);
-  PetscInt N_global;
-  v->factory->methods.VecGetSize(v->v, &N_global);
+    v->factory->methods.VecCreateMPI(comm, vtx_dist[nprocs], vtx_dist[rank+1]-vtx_dist[rank], &v->v);
+
   // Set up the virtual table.
   krylov_vector_vtable vtable = {.clone = petsc_vector_clone,
                                  .zero = petsc_vector_zero,
@@ -583,7 +584,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
                                  .get_values = petsc_vector_get_values,
                                  .norm = petsc_vector_norm,
                                  .dtor = petsc_vector_dtor};
-  return krylov_vector_new(v, vtable, N, N_global);
+  return krylov_vector_new(v, vtable, vtx_dist[rank+1]-vtx_dist[rank], vtx_dist[nprocs]);
 }
 
 static void petsc_factory_dtor(void* context)

@@ -34,7 +34,7 @@ struct krylov_vector_t
   void* context;
   krylov_vector_vtable vtable;
   int local_size;
-  int global_size;
+  index_t global_size;
 };
 
 struct krylov_factory_t
@@ -121,7 +121,7 @@ bool krylov_solver_solve(krylov_solver_t* solver,
 krylov_matrix_t* krylov_matrix_new(void* context,
                                    krylov_matrix_vtable vtable,
                                    int num_local_rows,
-                                   int num_global_rows)
+                                   index_t num_global_rows)
 {
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.add_diagonal != NULL);
@@ -130,7 +130,7 @@ krylov_matrix_t* krylov_matrix_new(void* context,
   ASSERT(vtable.add_values != NULL);
   ASSERT(vtable.get_values != NULL);
   ASSERT(num_local_rows > 0);
-  ASSERT(num_global_rows > 0);
+  ASSERT(num_global_rows >= num_local_rows);
   krylov_matrix_t* A = polymec_malloc(sizeof(krylov_matrix_t));
   A->context = context;
   A->vtable = vtable;
@@ -189,30 +189,30 @@ void krylov_matrix_scale(krylov_matrix_t* A,
 }
 
 void krylov_matrix_add_diagonal(krylov_matrix_t* A,
-                                krylov_matrix_t* D)
+                                krylov_vector_t* D)
 {
   A->vtable.add_diagonal(A->context, D->context);
 }
 
 void krylov_matrix_set_diagonal(krylov_matrix_t* A,
-                                krylov_matrix_t* D)
+                                krylov_vector_t* D)
 {
   A->vtable.set_diagonal(A->context, D->context);
 }
 
 void krylov_matrix_set_values(krylov_matrix_t* A,
-                              int num_rows,
-                              int* num_columns,
-                              int* rows, int* columns,
+                              index_t num_rows,
+                              index_t* num_columns,
+                              index_t* rows, index_t* columns,
                               real_t* values)
 {
   A->vtable.set_values(A->context, num_rows, num_columns, rows, columns, values);
 }
                               
 void krylov_matrix_add_values(krylov_matrix_t* A,
-                              int num_rows,
-                              int* num_columns,
-                              int* rows, int* columns,
+                              index_t num_rows,
+                              index_t* num_columns,
+                              index_t* rows, index_t* columns,
                               real_t* values)
 {
   A->vtable.add_values(A->context, num_rows, num_columns, rows, columns, values);
@@ -237,9 +237,9 @@ void krylov_matrix_finish_assembly(krylov_matrix_t* A)
 }
 
 void krylov_matrix_get_values(krylov_matrix_t* A,
-                              int num_rows,
-                              int* num_columns,
-                              int* rows, int* columns,
+                              index_t num_rows,
+                              index_t* num_columns,
+                              index_t* rows, index_t* columns,
                               real_t* values)
 {
   A->vtable.get_values(A->context, num_rows, num_columns, rows, columns, values);
@@ -252,7 +252,7 @@ void krylov_matrix_get_values(krylov_matrix_t* A,
 krylov_vector_t* krylov_vector_new(void* context,
                                    krylov_vector_vtable vtable,
                                    int local_size,
-                                   int global_size)
+                                   index_t global_size)
 {
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.set_value != NULL);
@@ -261,7 +261,7 @@ krylov_vector_t* krylov_vector_new(void* context,
   ASSERT(vtable.add_values != NULL);
   ASSERT(vtable.get_values != NULL);
   ASSERT(local_size > 0);
-  ASSERT(global_size > 0);
+  ASSERT(global_size >= local_size);
   krylov_vector_t* v = polymec_malloc(sizeof(krylov_vector_t));
   v->context = context;
   v->vtable = vtable;
@@ -320,16 +320,16 @@ void krylov_vector_scale(krylov_vector_t* v,
 }
 
 void krylov_vector_set_values(krylov_vector_t* v,
-                              int num_values,
-                              int* indices,
+                              index_t num_values,
+                              index_t* indices,
                               real_t* values)
 {
   v->vtable.set_values(v->context, num_values, indices, values);
 }
                               
 void krylov_vector_add_values(krylov_vector_t* v,
-                              int num_values,
-                              int* indices,
+                              index_t num_values,
+                              index_t* indices,
                               real_t* values)
 {
   v->vtable.add_values(v->context, num_values, indices, values);
@@ -354,8 +354,8 @@ void krylov_vector_finish_assembly(krylov_vector_t* v)
 }
 
 void krylov_vector_get_values(krylov_vector_t* v,
-                              int num_values,
-                              int* indices,
+                              index_t num_values,
+                              index_t* indices,
                               real_t* values)
 {
   v->vtable.get_values(v->context, num_values, indices, values);
@@ -414,11 +414,9 @@ krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory,
 }
 
 krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
-                                       MPI_Comm comm,
-                                       int N)
+                                       adj_graph_t* dist_graph)
 {
-  ASSERT(N > 0);
-  return factory->vtable.vector(factory->context, comm, N);
+  return factory->vtable.vector(factory->context, dist_graph);
 }
 
 krylov_solver_t* krylov_factory_solver(krylov_factory_t* factory,
