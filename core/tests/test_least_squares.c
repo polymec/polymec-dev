@@ -150,7 +150,7 @@ void test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_po
   if (weighted)
     assert_true(ABS(fitted_value - actual_value) < 5e-12);
   else
-    assert_true(ABS(fitted_value - actual_value) < 5e-12);
+    assert_true(ABS(fitted_value - actual_value) < 1e-11);
 
   poly = NULL;
   fitted_poly = NULL;
