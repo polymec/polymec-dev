@@ -34,6 +34,21 @@ typedef MPI_Comm HYPRE_MPI_Comm;
 typedef HYPRE_Int HYPRE_MPI_Comm;
 #endif
 
+// Types of supported solver methods.
+typedef enum
+{
+  HYPRE_GMRES,
+  HYPRE_BICGSTAB,
+  HYPRE_BOOMERANG,
+} hypre_solver_method_t;
+
+// Types of supported preconditioners.
+typedef enum
+{
+  HYPRE_EUCLID,
+  HYPRE_PARASAILS
+} hypre_solver_pc_t;
+
 // Here's a table of function pointers for the HYPRE library.
 typedef struct
 {
@@ -147,7 +162,9 @@ typedef struct
 typedef struct
 {
   hypre_factory_t* factory;
+  hypre_solver_method_t type;
   HYPRE_Solver solver;
+  HYPRE_ParCSRMatrix op;
 } hypre_solver_t;
 
 typedef struct
@@ -175,31 +192,58 @@ static void hypre_solver_set_tolerances(void* context,
 
 {
   hypre_solver_t* solver = context;
-//  HYPRE_Real r, a, d;
-//  HYPRE_Int iters;
-//  solver->factory->methods.KSPGetTolerances(solver->ksp, &r, &a, &d, &iters);
-//  solver->factory->methods.KSPSetTolerances(solver->ksp, rel_tol, abs_tol, 
-//                                            div_tol, iters);
+
+  // Dispatch.
+  HYPRE_Int (*set_tol)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*set_abs_tol)(HYPRE_Solver, HYPRE_Real);
+  switch(solver->type)
+  {
+    case HYPRE_GMRES: 
+      set_tol = solver->factory->methods.HYPRE_ParCSRGMRESSetTol; 
+      set_abs_tol = solver->factory->methods.HYPRE_ParCSRGMRESSetAbsoluteTol; 
+      break;
+    case HYPRE_BICGSTAB:
+      set_tol = solver->factory->methods.HYPRE_ParCSRBiCGSTABSetTol; 
+      set_abs_tol = solver->factory->methods.HYPRE_ParCSRBiCGSTABSetAbsoluteTol; 
+      break;
+    case HYPRE_BOOMERANG:
+      set_tol = solver->factory->methods.HYPRE_BoomerAMGSetTol; 
+      set_abs_tol = NULL;
+  }
+  set_tol(solver->solver, (HYPRE_Real)rel_tol);
+  if (set_abs_tol != NULL)
+    set_abs_tol(solver->solver, (HYPRE_Real)abs_tol);
 }
 
 static void hypre_solver_set_max_iterations(void* context,
                                             int max_iters)
 {
   hypre_solver_t* solver = context;
-//  PetscReal r, a, d;
-//  PetscInt iters;
-//  solver->factory->methods.KSPGetTolerances(solver->ksp, &r, &a, &d, &iters);
-//  solver->factory->methods.KSPSetTolerances(solver->ksp, r, a, d, max_iters);
+
+  // Dispatch.
+  HYPRE_Int (*set_max_iters)(HYPRE_Solver, HYPRE_Int);
+  switch(solver->type)
+  {
+    case HYPRE_GMRES: 
+      set_max_iters = solver->factory->methods.HYPRE_ParCSRGMRESSetMaxIter; 
+      break;
+    case HYPRE_BICGSTAB:
+      set_max_iters = solver->factory->methods.HYPRE_ParCSRBiCGSTABSetMaxIter; 
+      break;
+    case HYPRE_BOOMERANG:
+      set_max_iters = solver->factory->methods.HYPRE_BoomerAMGSetMaxIter; 
+  }
+  set_max_iters(solver->solver, (HYPRE_Int)max_iters);
 }
 
 static void hypre_solver_set_operator(void* context,
                                       void* op)
 {
   hypre_solver_t* solver = context;
-//  Mat A = op;
-//  PetscErrorCode err = solver->factory->methods.KSPSetOperators(solver->ksp, A, A);
-//  if (err != 0)
-//    polymec_error("hypre_solver_set_operator failed!");
+  HYPRE_IJMatrix A = op;
+  solver->factory->methods.HYPRE_IJMatrixGetObject(A, &solver->op);
+
+  // NOTE: We can't do setup here, since we don't have x or b.
 }
 
 static bool hypre_solver_solve(void* context,
@@ -209,54 +253,91 @@ static bool hypre_solver_solve(void* context,
                                int* num_iters)
 {
   hypre_solver_t* solver = context;
-  return false;
-//  Vec X = x;
-//  Vec B = b;
-//  PetscErrorCode err = solver->factory->methods.KSPSolve(solver->ksp, X, B);
-//  if (err != 0)
-//    polymec_error("petsc_solver_solve: Call to linear solve failed!");
-//  int code;
-//  PetscInt niters;
-//  solver->factory->methods.KSPGetConvergedReason(solver->ksp, &code);
-//  solver->factory->methods.KSPGetIterationNumber(solver->ksp, &niters);
-//  *num_iters = (int)niters;
-//  solver->factory->methods.KSPGetResidualNorm(solver->ksp, res_norm);
-//  return (code > 0);
+
+  // Get our objects.
+  HYPRE_IJVector X = x;
+  HYPRE_IJVector B = b;
+  HYPRE_ParVector par_X, par_B;
+  solver->factory->methods.HYPRE_IJVectorGetObject(X, &par_X);
+  solver->factory->methods.HYPRE_IJVectorGetObject(B, &par_B);
+
+  // Dispatch.
+  HYPRE_Int (*setup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*solve)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*get_num_iters)(HYPRE_Solver, HYPRE_Int*);
+  HYPRE_Int (*get_norm)(HYPRE_Solver, HYPRE_Real*);
+  switch(solver->type)
+  {
+    case HYPRE_GMRES: 
+      setup = solver->factory->methods.HYPRE_ParCSRGMRESSetup; 
+      solve = solver->factory->methods.HYPRE_ParCSRGMRESSolve; 
+      get_num_iters = solver->factory->methods.HYPRE_ParCSRGMRESGetNumIterations;
+      get_norm = solver->factory->methods.HYPRE_ParCSRGMRESGetFinalRelativeResidualNorm;
+      break;
+    case HYPRE_BICGSTAB:
+      setup = solver->factory->methods.HYPRE_ParCSRBiCGSTABSetup; 
+      solve = solver->factory->methods.HYPRE_ParCSRBiCGSTABSolve; 
+      get_num_iters = solver->factory->methods.HYPRE_ParCSRBiCGSTABGetNumIterations; 
+      get_norm = solver->factory->methods.HYPRE_ParCSRBiCGSTABGetFinalRelativeResidualNorm; 
+      break;
+    case HYPRE_BOOMERANG:
+      setup = solver->factory->methods.HYPRE_BoomerAMGSetup; 
+      solve = solver->factory->methods.HYPRE_BoomerAMGSolve; 
+      get_num_iters = solver->factory->methods.HYPRE_BoomerAMGGetNumIterations; 
+      get_norm = solver->factory->methods.HYPRE_BoomerAMGGetFinalRelativeResidualNorm; 
+  }
+  HYPRE_Int result = setup(solver->solver, solver->op, par_B, par_X);
+  if (result != 0)
+    return false;
+
+  result = solve(solver->solver, solver->op, par_B, par_X);
+  bool success = (result == 0);
+  if (success)
+  {
+    HYPRE_Int iters;
+    get_num_iters(solver->solver, &iters);
+    *num_iters = iters;
+    HYPRE_Real norm;
+    get_norm(solver->solver, &norm);
+    *res_norm = norm;
+  }
+
+  return success;
 }
 
 static void hypre_solver_dtor(void* context)
 {
   hypre_solver_t* solver = context;
-//  solver->factory->methods.KSPDestroy(&solver->ksp);
-//  solver->factory = NULL;
+
+  // Dispatch.
+  HYPRE_Int (*destroy)(HYPRE_Solver);
+  switch(solver->type)
+  {
+    case HYPRE_GMRES: 
+      destroy = solver->factory->methods.HYPRE_ParCSRGMRESDestroy; 
+      break;
+    case HYPRE_BICGSTAB:
+      destroy = solver->factory->methods.HYPRE_ParCSRBiCGSTABDestroy; 
+      break;
+    case HYPRE_BOOMERANG:
+      destroy = solver->factory->methods.HYPRE_BoomerAMGDestroy; 
+  }
+  destroy(solver->solver);
+  solver->factory = NULL;
   polymec_free(solver);
 }
 
-static krylov_solver_t* hypre_factory_solver(void* context,
-                                             MPI_Comm comm,
-                                             string_string_unordered_map_t* options)
+static krylov_solver_t* hypre_factory_gmres_solver(void* context,
+                                                   MPI_Comm comm,
+                                                   int krylov_dimension)
+     
 {
   hypre_solver_t* solver = polymec_malloc(sizeof(hypre_solver_t));
   solver->factory = context;
-//  solver->factory->methods.KSPCreate(comm, &solver->ksp);
-
-#if 0
-  // Default KSP type is GMRES.
-  char** type_p = (options != NULL) ? string_string_unordered_map_get(options, "type") : NULL;
-  if (type_p == NULL)
-    solver->factory->methods.KSPSetType(solver->ksp, "gmres");
-  else
-    solver->factory->methods.KSPSetType(solver->ksp, *type_p);
-
-  // Handle the preconditioner's options.
-  PC pc;
-  solver->factory->methods.KSPGetPC(solver->ksp, &pc);
-  solver->factory->methods.PCSetFromOptions(pc);
-
-  // Set the thing up.
-  solver->factory->methods.KSPSetFromOptions(solver->ksp);
-  solver->factory->methods.KSPSetUp(solver->ksp);
-#endif
+  solver->type = HYPRE_GMRES;
+  HYPRE_MPI_Comm hypre_comm = comm;
+  solver->factory->methods.HYPRE_ParCSRGMRESCreate(hypre_comm, &solver->solver);
+  solver->factory->methods.HYPRE_ParCSRGMRESSetKDim(solver->solver, (HYPRE_Int)krylov_dimension);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
@@ -264,7 +345,51 @@ static krylov_solver_t* hypre_factory_solver(void* context,
                                  .set_operator = hypre_solver_set_operator,
                                  .solve = hypre_solver_solve,
                                  .dtor = hypre_solver_dtor};
-  return krylov_solver_new("HYPRE", solver, vtable);
+  return krylov_solver_new("HYPRE GMRES", solver, vtable);
+}
+
+static krylov_solver_t* hypre_factory_bicgstab_solver(void* context,
+                                                      MPI_Comm comm)
+{
+  hypre_solver_t* solver = polymec_malloc(sizeof(hypre_solver_t));
+  solver->factory = context;
+  solver->type = HYPRE_BICGSTAB;
+  HYPRE_MPI_Comm hypre_comm = comm;
+  solver->factory->methods.HYPRE_ParCSRBiCGSTABCreate(hypre_comm, &solver->solver);
+
+  // Set up the virtual table.
+  krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
+                                 .set_max_iterations = hypre_solver_set_max_iterations,
+                                 .set_operator = hypre_solver_set_operator,
+                                 .solve = hypre_solver_solve,
+                                 .dtor = hypre_solver_dtor};
+  return krylov_solver_new("HYPRE Bi-CGSTAB", solver, vtable);
+}
+
+static krylov_solver_t* hypre_factory_special_solver(void* context,
+                                                     MPI_Comm comm,
+                                                     const char* solver_name,
+                                                     string_string_unordered_map_t* options)
+{
+  hypre_solver_t* solver = polymec_malloc(sizeof(hypre_solver_t));
+  solver->factory = context;
+
+  if ((string_casecmp(solver_name, "boomerang") == 0) ||
+      (string_casecmp(solver_name, "boomeramg") == 0))
+  {
+    solver->type = HYPRE_BOOMERANG;
+    solver->factory->methods.HYPRE_BoomerAMGCreate(&solver->solver);
+  }
+  else
+    return NULL;
+
+  // Set up the virtual table.
+  krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
+                                 .set_max_iterations = hypre_solver_set_max_iterations,
+                                 .set_operator = hypre_solver_set_operator,
+                                 .solve = hypre_solver_solve,
+                                 .dtor = hypre_solver_dtor};
+  return krylov_solver_new(solver_name, solver, vtable);
 }
 
 static void hypre_matrix_set_values(void* context, index_t num_rows,
@@ -1042,7 +1167,9 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   factory->hypre = hypre; 
 
   // Construct the factory.
-  krylov_factory_vtable vtable = {.solver = hypre_factory_solver,
+  krylov_factory_vtable vtable = {.gmres_solver = hypre_factory_gmres_solver,
+                                  .bicgstab_solver = hypre_factory_bicgstab_solver,
+                                  .special_solver = hypre_factory_special_solver,
                                   .matrix = hypre_factory_matrix,
                                   .block_matrix = hypre_factory_block_matrix,
                                   .vector = hypre_factory_vector,

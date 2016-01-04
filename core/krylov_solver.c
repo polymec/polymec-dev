@@ -375,7 +375,8 @@ krylov_factory_t* krylov_factory_new(const char* name,
                                      void* context,
                                      krylov_factory_vtable vtable)
 {
-  ASSERT(vtable.solver != NULL);
+  ASSERT(vtable.gmres_solver != NULL);
+  ASSERT(vtable.bicgstab_solver != NULL);
   ASSERT(vtable.matrix != NULL);
   ASSERT(vtable.block_matrix != NULL);
   ASSERT(vtable.vector != NULL);
@@ -419,10 +420,28 @@ krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
   return factory->vtable.vector(factory->context, dist_graph);
 }
 
-krylov_solver_t* krylov_factory_solver(krylov_factory_t* factory,
-                                       MPI_Comm comm,
-                                       string_string_unordered_map_t* options)
+krylov_solver_t* krylov_factory_gmres_solver(krylov_factory_t* factory,
+                                             MPI_Comm comm,
+                                             int krylov_dimension)
 {
-  return factory->vtable.solver(factory->context, comm, options);
+  ASSERT(krylov_dimension >= 3);
+  return factory->vtable.gmres_solver(factory->context, comm, krylov_dimension);
+}
+
+krylov_solver_t* krylov_factory_bicgstab_solver(krylov_factory_t* factory,
+                                                MPI_Comm comm)
+{
+  return factory->vtable.bicgstab_solver(factory->context, comm);
+}
+
+krylov_solver_t* krylov_factory_special_solver(krylov_factory_t* factory,
+                                               MPI_Comm comm,
+                                               const char* solver_name,
+                                               string_string_unordered_map_t* options)
+{
+  if (factory->vtable.special_solver != NULL)
+    return factory->vtable.special_solver(factory->context, comm, solver_name, options);
+  else
+    return NULL;
 }
 

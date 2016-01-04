@@ -40,7 +40,9 @@ typedef struct krylov_factory_t krylov_factory_t;
 // This virtual table must be filled out for any subclass of krylov_factory.
 typedef struct 
 {
-  krylov_solver_t* (*solver)(void* context, MPI_Comm comm, string_string_unordered_map_t* options);
+  krylov_solver_t* (*gmres_solver)(void* context, MPI_Comm comm, int krylov_dimension);
+  krylov_solver_t* (*bicgstab_solver)(void* context, MPI_Comm comm);
+  krylov_solver_t* (*special_solver)(void* context, MPI_Comm comm, const char* solver_name, string_string_unordered_map_t* options);
   krylov_matrix_t* (*matrix)(void* context, adj_graph_t* sparsity);
   krylov_matrix_t* (*block_matrix)(void* context, adj_graph_t* sparsity, int block_size);
   krylov_vector_t* (*vector)(void* context, adj_graph_t* dist_graph);
@@ -162,11 +164,23 @@ krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory,
 krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
                                        adj_graph_t* dist_graph);
 
-// Constructs a Krylov solver with the given (optional) table of options, 
-// and/or options passed to the command line.
-krylov_solver_t* krylov_factory_solver(krylov_factory_t* factory,
-                                       MPI_Comm comm,
-                                       string_string_unordered_map_t* options);
+// Constructs a GMRES Krylov solver with the given Krylov subspace dimension.
+krylov_solver_t* krylov_factory_gmres_solver(krylov_factory_t* factory,
+                                             MPI_Comm comm,
+                                             int krylov_dimension);
+                                             
+// Constructs a stabilized bi-conjugate Krylov solver.
+krylov_solver_t* krylov_factory_bicgstab_solver(krylov_factory_t* factory,
+                                                MPI_Comm comm);
+
+// Constructs a special Krylov solver supported by the backend in use, 
+// identified by its name, with options specified in string key-value 
+// pairs. If the solver with the given name is not available, this 
+// function returns NULL.
+krylov_solver_t* krylov_factory_special_solver(krylov_factory_t* factory,
+                                               MPI_Comm comm,
+                                               const char* solver_name,
+                                               string_string_unordered_map_t* options);
 
 //------------------------------------------------------------------------
 //                      Krylov solver interface
