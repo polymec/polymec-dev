@@ -42,13 +42,6 @@ typedef enum
   HYPRE_BOOMERANG,
 } hypre_solver_method_t;
 
-// Types of supported preconditioners.
-typedef enum
-{
-  HYPRE_EUCLID,
-  HYPRE_PARASAILS
-} hypre_solver_pc_t;
-
 // Here's a table of function pointers for the HYPRE library.
 typedef struct
 {
@@ -108,22 +101,21 @@ typedef struct
   HYPRE_Int (*HYPRE_EuclidCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_EuclidDestroy)(HYPRE_Solver);
   HYPRE_Int (*HYPRE_EuclidSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
-  HYPRE_Int (*HYPRE_EuclidSetParams)(HYPRE_Solver, int argc, char* argv[]);
   HYPRE_Int (*HYPRE_EuclidSetLevel)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_EuclidSetBJ)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_EuclidSetSparseA)(HYPRE_Solver, HYPRE_Real);
   HYPRE_Int (*HYPRE_EuclidSetRowScale)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_EuclidSetILUT)(HYPRE_Solver, HYPRE_Real);
 
-  HYPRE_Int (*HYPRE_ParCSRParaSailsCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
-  HYPRE_Int (*HYPRE_ParCSRParaSailsDestroy)(HYPRE_Solver); 
-  HYPRE_Int (*HYPRE_ParCSRParaSailsSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
-  HYPRE_Int (*HYPRE_ParCSRParaSailsSolve)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
-  HYPRE_Int (*HYPRE_ParCSRParaSailsSetParams)(HYPRE_Solver, HYPRE_Real, HYPRE_Int);
-  HYPRE_Int (*HYPRE_ParCSRParaSailsSetFilter)(HYPRE_Solver, HYPRE_Real);
-  HYPRE_Int (*HYPRE_ParCSRParaSailsSetSym)(HYPRE_Solver, HYPRE_Int);
-  HYPRE_Int (*HYPRE_ParCSRParaSailsSetLoadbal)(HYPRE_Solver, HYPRE_Real);
-  HYPRE_Int (*HYPRE_ParCSRParaSailsSetReuse)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParaSailsCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
+  HYPRE_Int (*HYPRE_ParaSailsDestroy)(HYPRE_Solver); 
+  HYPRE_Int (*HYPRE_ParaSailsSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParaSailsSolve)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParaSailsSetParams)(HYPRE_Solver, HYPRE_Real, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParaSailsSetFilter)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_ParaSailsSetSym)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParaSailsSetLoadbal)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_ParaSailsSetReuse)(HYPRE_Solver, HYPRE_Int);
 
   HYPRE_Int (*HYPRE_IJMatrixCreate)(HYPRE_MPI_Comm, HYPRE_Int, HYPRE_Int, HYPRE_Int, HYPRE_Int, HYPRE_IJMatrix*);
   HYPRE_Int (*HYPRE_IJMatrixDestroy)(HYPRE_IJMatrix);
@@ -390,6 +382,94 @@ static krylov_solver_t* hypre_factory_special_solver(void* context,
                                  .solve = hypre_solver_solve,
                                  .dtor = hypre_solver_dtor};
   return krylov_solver_new(solver_name, solver, vtable);
+}
+
+static krylov_pc_t* hypre_factory_pc(void* context,
+                                     MPI_Comm comm,
+                                     const char* pc_name,
+                                     string_string_unordered_map_t* options)
+{
+  hypre_factory_t* factory = context;
+  HYPRE_Solver pc;
+  void (*dtor)(void*);
+
+  if ((string_casecmp(pc_name, "boomerang") == 0) ||
+      (string_casecmp(pc_name, "boomeramg") == 0) || 
+      (string_casecmp(pc_name, "amg") == 0))
+  {
+    factory->methods.HYPRE_BoomerAMGCreate(&pc);
+    dtor = DTOR(factory->methods.HYPRE_BoomerAMGDestroy);
+    if (options != NULL)
+    {
+      int pos = 0;
+      char *key, *value;
+      while (string_string_unordered_map_next(options, &pos, &key, &value))
+      {
+        if ((strcmp(key, "num_functions") == 0) && string_is_number(value))
+          factory->methods.HYPRE_BoomerAMGSetNumFunctions(pc, atoi(value));
+        // FIXME: etc etc
+      }
+    }
+  }
+  else if (string_casecmp(pc_name, "euclid") == 0)
+  {
+    HYPRE_MPI_Comm hypre_comm = comm;
+    factory->methods.HYPRE_EuclidCreate(hypre_comm, &pc);
+    dtor = DTOR(factory->methods.HYPRE_EuclidDestroy);
+    if (options != NULL)
+    {
+      int pos = 0;
+      char *key, *value;
+      while (string_string_unordered_map_next(options, &pos, &key, &value))
+      {
+        if ((strcmp(key, "level") == 0) && string_is_number(value))
+          factory->methods.HYPRE_EuclidSetLevel(pc, atoi(value));
+        else if (strcmp(key, "bj") == 0)
+          factory->methods.HYPRE_EuclidSetBJ(pc, string_as_boolean(value));
+        else if ((strcmp(key, "sparseA") == 0) && string_is_number(value))
+          factory->methods.HYPRE_EuclidSetSparseA(pc, atof(value));
+        else if (strcmp(key, "rowScale") == 0)
+          factory->methods.HYPRE_EuclidSetRowScale(pc, string_as_boolean(value));
+        else if ((strcmp(key, "ilut") == 0) && string_is_number(value))
+          factory->methods.HYPRE_EuclidSetILUT(pc, atof(value));
+      }
+    }
+  }
+  else if (string_casecmp(pc_name, "parasails") == 0)
+  {
+    HYPRE_MPI_Comm hypre_comm = comm;
+    factory->methods.HYPRE_ParaSailsCreate(hypre_comm, &pc);
+    dtor = DTOR(factory->methods.HYPRE_ParaSailsDestroy);
+    HYPRE_Int nlevel = 1;
+    HYPRE_Real thresh = 0.1;
+    if (options != NULL)
+    {
+      int pos = 0;
+      char *key, *value;
+      while (string_string_unordered_map_next(options, &pos, &key, &value))
+      {
+        if ((strcmp(key, "symmetry") == 0) && string_is_number(value))
+          factory->methods.HYPRE_ParaSailsSetSym(pc, atoi(value));
+        else if ((strcmp(key, "thresh") == 0) && string_is_number(value))
+          thresh = atof(value);
+        else if ((strcmp(key, "nlevel") == 0) && string_is_number(value))
+          nlevel = atoi(value);
+        else if ((strcmp(key, "filter") == 0) && string_is_number(value))
+          factory->methods.HYPRE_ParaSailsSetFilter(pc, atof(value));
+        else if ((strcmp(key, "loadbal") == 0) && string_is_number(value))
+          factory->methods.HYPRE_ParaSailsSetLoadbal(pc, atof(value));
+        else if (strcmp(key, "reuse") == 0)
+          factory->methods.HYPRE_ParaSailsSetReuse(pc, string_as_boolean(value));
+      }
+    }
+    factory->methods.HYPRE_ParaSailsSetParams(pc, thresh, nlevel);
+  }
+  else
+    return NULL;
+
+  // Set up the virtual table.
+  krylov_pc_vtable vtable = {.dtor = dtor};
+  return krylov_pc_new(pc_name, pc, vtable);
 }
 
 static void hypre_matrix_set_values(void* context, index_t num_rows,
@@ -1117,22 +1197,21 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidDestroy);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetup);
-  FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetParams);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetLevel);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetBJ);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetSparseA);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetRowScale);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetILUT);
 
-  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsCreate);
-  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsDestroy);
-  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetup);
-  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSolve);
-  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetParams);
-  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetFilter);
-  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetSym);
-  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetLoadbal);
-  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRParaSailsSetReuse);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParaSailsCreate);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParaSailsDestroy);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParaSailsSetup);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParaSailsSolve);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParaSailsSetParams);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParaSailsSetFilter);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParaSailsSetSym);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParaSailsSetLoadbal);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParaSailsSetReuse);
 
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixDestroy);
@@ -1170,6 +1249,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   krylov_factory_vtable vtable = {.gmres_solver = hypre_factory_gmres_solver,
                                   .bicgstab_solver = hypre_factory_bicgstab_solver,
                                   .special_solver = hypre_factory_special_solver,
+                                  .preconditioner = hypre_factory_pc,
                                   .matrix = hypre_factory_matrix,
                                   .block_matrix = hypre_factory_block_matrix,
                                   .vector = hypre_factory_vector,

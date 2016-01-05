@@ -19,6 +19,14 @@ struct krylov_solver_t
   char* name;
   void* context;
   krylov_solver_vtable vtable;
+  krylov_pc_t* pc;
+};
+
+struct krylov_pc_t
+{
+  char* name;
+  void* context;
+  krylov_pc_vtable vtable;
 };
 
 struct krylov_matrix_t
@@ -56,6 +64,7 @@ krylov_solver_t* krylov_solver_new(const char* name,
   solver->name = string_dup(name);
   solver->context = context;
   solver->vtable = vtable;
+  solver->pc = NULL;
   return solver;
 }
 
@@ -63,6 +72,8 @@ void krylov_solver_free(krylov_solver_t* solver)
 {
   if ((solver->context != NULL) && (solver->vtable.dtor != NULL))
     solver->vtable.dtor(solver->context);
+  if (solver->pc != NULL)
+    krylov_pc_free(solver->pc);
   string_free(solver->name);
   polymec_free(solver);
 }
@@ -104,6 +115,19 @@ void krylov_solver_set_operator(krylov_solver_t* solver,
   solver->vtable.set_operator(solver->context, op->context);
 }
 
+void krylov_solver_set_preconditioner(krylov_solver_t* solver,
+                                      krylov_pc_t* preconditioner)
+{
+  if (solver->pc != NULL)
+    krylov_pc_free(solver->pc);
+  solver->pc = preconditioner;
+}
+
+krylov_pc_t* krylov_solver_preconditioner(krylov_solver_t* solver)
+{
+  return solver->pc;
+}
+
 bool krylov_solver_solve(krylov_solver_t* solver, 
                          krylov_vector_t* x, 
                          krylov_vector_t* b, 
@@ -112,6 +136,33 @@ bool krylov_solver_solve(krylov_solver_t* solver,
 {
   return solver->vtable.solve(solver->context, x->context, b->context,
                               residual_norm, num_iterations);
+}
+
+//------------------------------------------------------------------------
+//                          Krylov preconditioner
+//------------------------------------------------------------------------
+
+krylov_pc_t* krylov_pc_new(const char* name,
+                           void* context,
+                           krylov_pc_vtable vtable)
+{
+  krylov_pc_t* pc = polymec_malloc(sizeof(krylov_pc_t));
+  pc->name = string_dup(name);
+  pc->context = context;
+  pc->vtable = vtable;
+  return pc;
+}
+
+void krylov_pc_free(krylov_pc_t* preconditioner)
+{
+  if ((preconditioner->context != NULL) && (preconditioner->vtable.dtor != NULL))
+    preconditioner->vtable.dtor(preconditioner->context);
+  polymec_free(preconditioner);
+}
+
+char* krylov_pc_name(krylov_solver_t* preconditioner)
+{
+  return preconditioner->name;
 }
 
 //------------------------------------------------------------------------
@@ -377,6 +428,7 @@ krylov_factory_t* krylov_factory_new(const char* name,
 {
   ASSERT(vtable.gmres_solver != NULL);
   ASSERT(vtable.bicgstab_solver != NULL);
+  ASSERT(vtable.preconditioner != NULL);
   ASSERT(vtable.matrix != NULL);
   ASSERT(vtable.block_matrix != NULL);
   ASSERT(vtable.vector != NULL);
@@ -443,5 +495,13 @@ krylov_solver_t* krylov_factory_special_solver(krylov_factory_t* factory,
     return factory->vtable.special_solver(factory->context, comm, solver_name, options);
   else
     return NULL;
+}
+
+krylov_pc_t* krylov_factory_pc(krylov_factory_t* factory,
+                               MPI_Comm comm,
+                               const char* pc_name,
+                               string_string_unordered_map_t* options)
+{
+  return factory->vtable.preconditioner(factory->context, comm, pc_name, options);
 }
 

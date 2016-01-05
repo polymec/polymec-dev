@@ -27,6 +27,9 @@ typedef struct krylov_matrix_t krylov_matrix_t;
 // preconditioned Krylov subspace methods.
 typedef struct krylov_solver_t krylov_solver_t;
 
+// Objects of this type are preconditioners for the krylov_solvers.
+typedef struct krylov_pc_t krylov_pc_t;
+
 // Objects of this type construct Krylov matrices, vectors, and solvers. 
 // A Krylov factory exposes capabilities within a given library (PETSc, HYPRE, 
 // etc). The factory must continue to exist as long as any of the solvers, 
@@ -43,6 +46,7 @@ typedef struct
   krylov_solver_t* (*gmres_solver)(void* context, MPI_Comm comm, int krylov_dimension);
   krylov_solver_t* (*bicgstab_solver)(void* context, MPI_Comm comm);
   krylov_solver_t* (*special_solver)(void* context, MPI_Comm comm, const char* solver_name, string_string_unordered_map_t* options);
+  krylov_pc_t* (*preconditioner)(void* context, MPI_Comm comm, const char* pc_name, string_string_unordered_map_t* options);
   krylov_matrix_t* (*matrix)(void* context, adj_graph_t* sparsity);
   krylov_matrix_t* (*block_matrix)(void* context, adj_graph_t* sparsity, int block_size);
   krylov_vector_t* (*vector)(void* context, adj_graph_t* dist_graph);
@@ -61,6 +65,7 @@ typedef struct
   void (*set_tolerances)(void* context, real_t rel_tol, real_t abs_tol, real_t div_tol);
   void (*set_max_iterations)(void* context, int max_iters);
   void (*set_operator)(void* context, void* op);
+  void (*set_preconditioner)(void* context, void* pc);
   bool (*solve)(void* context, void* x, void* b, real_t* res_norm, int* num_iters);
   void (*dtor)(void* context);
 } krylov_solver_vtable;
@@ -70,6 +75,18 @@ typedef struct
 krylov_solver_t* krylov_solver_new(const char* name,
                                    void* context,
                                    krylov_solver_vtable vtable);
+
+// This virtual table must be filled out for any subclass of krylov_pc.
+typedef struct
+{
+  void (*dtor)(void* context);
+} krylov_pc_vtable;
+
+// This constructor should be called with a context pointer and a virtual table 
+// to create an instance of a krylov_pc subclass.
+krylov_pc_t* krylov_pc_new(const char* name,
+                           void* context,
+                           krylov_pc_vtable vtable);
 
 // This virtual table must be filled out for any subclass of krylov_matrix.
 typedef struct
@@ -182,6 +199,15 @@ krylov_solver_t* krylov_factory_special_solver(krylov_factory_t* factory,
                                                const char* solver_name,
                                                string_string_unordered_map_t* options);
 
+// Constructs a preconditioner supported by the backend in use, 
+// identified by its name, with options specified in string key-value
+// pairs. If the preconditioner with the given name is not available, this 
+// function returns NULL.
+krylov_pc_t* krylov_factory_pc(krylov_factory_t* factory,
+                               MPI_Comm comm,
+                               const char* pc_name,
+                               string_string_unordered_map_t* options);
+
 //------------------------------------------------------------------------
 //                      Krylov solver interface
 //------------------------------------------------------------------------
@@ -212,6 +238,15 @@ void krylov_solver_set_max_iterations(krylov_solver_t* solver,
 void krylov_solver_set_operator(krylov_solver_t* solver, 
                                 krylov_matrix_t* op);
 
+// Sets the preconditioner for the linear solver. The solver assumes 
+// responsibility for destroying the preconditioner.
+void krylov_solver_set_preconditioner(krylov_solver_t* solver,
+                                      krylov_pc_t* preconditioner);
+
+// Returns an internal pointer to the preconditioner for the linear solver, 
+// or NULL if no preconditioner is set.
+krylov_pc_t* krylov_solver_preconditioner(krylov_solver_t* solver);
+
 // Solves the linear system of equations A * x = b, storing the solution
 // in the vector b. Returns true if the solution was obtained, false if not.
 // The operator matrix A must be set using krylov_solver_set_operator before
@@ -223,6 +258,16 @@ bool krylov_solver_solve(krylov_solver_t* solver,
                          krylov_vector_t* b, 
                          real_t* residual_norm, 
                          int* num_iterations);
+
+//------------------------------------------------------------------------
+//                      Krylov preconditioner interface
+//------------------------------------------------------------------------
+
+// Frees a preconditioner.
+void krylov_pc_free(krylov_pc_t* preconditioner);
+
+// Returns an internal string containing the name of the preconditioner.
+char* krylov_pc_name(krylov_solver_t* preconditioner);
 
 //------------------------------------------------------------------------
 //                      Krylov matrix interface
