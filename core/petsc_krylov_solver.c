@@ -54,7 +54,6 @@ typedef struct
   PetscErrorCode (*KSPSetUp)(KSP);
   PetscErrorCode (*KSPGetPC)(KSP,PC*);
   PetscErrorCode (*KSPSetFromOptions)(KSP);
-  PetscErrorCode (*PCSetFromOptions)(PC);
   PetscErrorCode (*KSPSetTolerances)(KSP,PetscReal,PetscReal,PetscReal,PetscInt);
   PetscErrorCode (*KSPGetTolerances)(KSP,PetscReal*,PetscReal*,PetscReal*,PetscInt*);
   PetscErrorCode (*KSPSetOperators)(KSP,Mat,Mat);
@@ -63,6 +62,11 @@ typedef struct
   PetscErrorCode (*KSPGetIterationNumber)(KSP,PetscInt*);
   PetscErrorCode (*KSPGetResidualNorm)(KSP,PetscReal*);
   PetscErrorCode (*KSPDestroy)(KSP*);
+
+  PetscErrorCode (*PCCreate)(MPI_Comm,PC*);
+  PetscErrorCode (*PCSetType)(PC, const char*);
+  PetscErrorCode (*PCSetFromOptions)(PC);
+
   PetscErrorCode (*MatCreate)(MPI_Comm,Mat*);
   PetscErrorCode (*MatConvert)(Mat, MatType, MatReuse, Mat*);
   PetscErrorCode (*MatSetType)(Mat, MatType);
@@ -272,6 +276,24 @@ static krylov_solver_t* petsc_factory_special_solver(void* context,
                                  .solve = petsc_solver_solve,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new(solver_name, solver, vtable);
+}
+
+static krylov_pc_t* petsc_factory_pc(void* context,
+                                     MPI_Comm comm,
+                                     const char* pc_name,
+                                     string_string_unordered_map_t* options)
+{
+  petsc_factory_t* factory = context;
+
+  PC pc;
+  factory->methods.PCCreate(comm, &pc);
+  factory->methods.PCSetType(pc, pc_name);
+
+  // FIXME: Options go here.
+
+  // Set up the virtual table.
+  krylov_pc_vtable vtable = {.dtor = NULL}; // FIXME: leak?
+  return krylov_pc_new(pc_name, pc, vtable);
 }
 
 static void* petsc_matrix_clone(void* context)
@@ -784,7 +806,6 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(KSPSetFromOptions);
   FETCH_PETSC_SYMBOL(KSPSetUp);
   FETCH_PETSC_SYMBOL(KSPGetPC);
-  FETCH_PETSC_SYMBOL(PCSetFromOptions);
   FETCH_PETSC_SYMBOL(KSPSetTolerances);
   FETCH_PETSC_SYMBOL(KSPGetTolerances);
   FETCH_PETSC_SYMBOL(KSPSetOperators);
@@ -793,6 +814,10 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(KSPGetIterationNumber);
   FETCH_PETSC_SYMBOL(KSPGetResidualNorm);
   FETCH_PETSC_SYMBOL(KSPDestroy);
+
+  FETCH_PETSC_SYMBOL(PCCreate);
+  FETCH_PETSC_SYMBOL(PCSetType);
+  FETCH_PETSC_SYMBOL(PCSetFromOptions);
 
   FETCH_PETSC_SYMBOL(MatCreate);
   FETCH_PETSC_SYMBOL(MatConvert);
@@ -859,6 +884,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   krylov_factory_vtable vtable = {.gmres_solver = petsc_factory_gmres_solver,
                                   .bicgstab_solver = petsc_factory_bicgstab_solver,
                                   .special_solver = petsc_factory_special_solver,
+                                  .preconditioner = petsc_factory_pc,
                                   .matrix = petsc_factory_matrix,
                                   .block_matrix = petsc_factory_block_matrix,
                                   .vector = petsc_factory_vector,
