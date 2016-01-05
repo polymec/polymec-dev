@@ -23,10 +23,13 @@ typedef double HYPRE_Real;
 typedef double _Complex HYPRE_Complex;
 typedef long long HYPRE_Int;
 typedef void* HYPRE_Solver;
+typedef void* HYPRE_Matrix;
+typedef void* HYPRE_Vector;
 typedef void* HYPRE_IJMatrix;
 typedef void* HYPRE_IJVector;
 typedef void* HYPRE_ParCSRMatrix;
 typedef void* HYPRE_ParVector;
+typedef HYPRE_Int (*HYPRE_PtrToSolverFcn)(HYPRE_Solver, HYPRE_Matrix, HYPRE_Vector, HYPRE_Vector);
 typedef HYPRE_Int (*HYPRE_PtrToParSolverFcn)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
 #if POLYMEC_HAVE_MPI
 typedef MPI_Comm HYPRE_MPI_Comm;
@@ -101,6 +104,7 @@ typedef struct
   HYPRE_Int (*HYPRE_EuclidCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_EuclidDestroy)(HYPRE_Solver);
   HYPRE_Int (*HYPRE_EuclidSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_EuclidSolve)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
   HYPRE_Int (*HYPRE_EuclidSetLevel)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_EuclidSetBJ)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_EuclidSetSparseA)(HYPRE_Solver, HYPRE_Real);
@@ -158,6 +162,14 @@ typedef struct
   HYPRE_Solver solver;
   HYPRE_ParCSRMatrix op;
 } hypre_solver_t;
+
+typedef struct
+{
+  HYPRE_Solver pc;
+  HYPRE_Int (*setup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*solve)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*dtor)(HYPRE_Solver);
+} hypre_pc_t;
 
 typedef struct
 {
@@ -236,6 +248,29 @@ static void hypre_solver_set_operator(void* context,
   solver->factory->methods.HYPRE_IJMatrixGetObject(A, &solver->op);
 
   // NOTE: We can't do setup here, since we don't have x or b.
+}
+
+static void hypre_solver_set_pc(void* context,
+                                void* pc)
+{
+  hypre_solver_t* solver = context;
+  hypre_pc_t* p = pc;
+
+  // Dispatch.
+  HYPRE_Int (*set_pc)(HYPRE_Solver, HYPRE_PtrToSolverFcn, HYPRE_PtrToSolverFcn, HYPRE_Solver);
+  switch(solver->type)
+  {
+    case HYPRE_GMRES: 
+      set_pc = solver->factory->methods.HYPRE_ParCSRGMRESSetPrecond; 
+      break;
+    case HYPRE_BICGSTAB:
+      set_pc = solver->factory->methods.HYPRE_ParCSRBiCGSTABSetPrecond; 
+      break;
+    default:
+      set_pc = NULL;
+  }
+  if (set_pc != NULL)
+    set_pc(solver, (HYPRE_PtrToSolverFcn)p->solve, (HYPRE_PtrToSolverFcn)p->setup, p->pc);
 }
 
 static bool hypre_solver_solve(void* context,
@@ -335,6 +370,7 @@ static krylov_solver_t* hypre_factory_gmres_solver(void* context,
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
                                  .set_max_iterations = hypre_solver_set_max_iterations,
                                  .set_operator = hypre_solver_set_operator,
+                                 .set_preconditioner = hypre_solver_set_pc,
                                  .solve = hypre_solver_solve,
                                  .dtor = hypre_solver_dtor};
   return krylov_solver_new("HYPRE GMRES", solver, vtable);
@@ -353,6 +389,7 @@ static krylov_solver_t* hypre_factory_bicgstab_solver(void* context,
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
                                  .set_max_iterations = hypre_solver_set_max_iterations,
                                  .set_operator = hypre_solver_set_operator,
+                                 .set_preconditioner = hypre_solver_set_pc,
                                  .solve = hypre_solver_solve,
                                  .dtor = hypre_solver_dtor};
   return krylov_solver_new("HYPRE Bi-CGSTAB", solver, vtable);
@@ -379,9 +416,18 @@ static krylov_solver_t* hypre_factory_special_solver(void* context,
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
                                  .set_max_iterations = hypre_solver_set_max_iterations,
                                  .set_operator = hypre_solver_set_operator,
+                                 .set_preconditioner = hypre_solver_set_pc,
                                  .solve = hypre_solver_solve,
                                  .dtor = hypre_solver_dtor};
   return krylov_solver_new(solver_name, solver, vtable);
+}
+
+static void hypre_pc_free(void* pc)
+{
+  hypre_pc_t* p = pc;
+  if ((p->dtor != NULL) && (p->pc != NULL))
+    p->dtor(p->pc);
+  polymec_free(p);
 }
 
 static krylov_pc_t* hypre_factory_pc(void* context,
@@ -390,15 +436,16 @@ static krylov_pc_t* hypre_factory_pc(void* context,
                                      string_string_unordered_map_t* options)
 {
   hypre_factory_t* factory = context;
-  HYPRE_Solver pc;
-  void (*dtor)(void*);
+  hypre_pc_t* pc = polymec_malloc(sizeof(hypre_pc_t));
 
   if ((string_casecmp(pc_name, "boomerang") == 0) ||
       (string_casecmp(pc_name, "boomeramg") == 0) || 
       (string_casecmp(pc_name, "amg") == 0))
   {
-    factory->methods.HYPRE_BoomerAMGCreate(&pc);
-    dtor = DTOR(factory->methods.HYPRE_BoomerAMGDestroy);
+    factory->methods.HYPRE_BoomerAMGCreate(&pc->pc);
+    pc->setup = factory->methods.HYPRE_BoomerAMGSetup;
+    pc->solve = factory->methods.HYPRE_BoomerAMGSolve;
+    pc->dtor = factory->methods.HYPRE_BoomerAMGDestroy;
     if (options != NULL)
     {
       int pos = 0;
@@ -406,7 +453,7 @@ static krylov_pc_t* hypre_factory_pc(void* context,
       while (string_string_unordered_map_next(options, &pos, &key, &value))
       {
         if ((strcmp(key, "num_functions") == 0) && string_is_number(value))
-          factory->methods.HYPRE_BoomerAMGSetNumFunctions(pc, atoi(value));
+          factory->methods.HYPRE_BoomerAMGSetNumFunctions(pc->pc, atoi(value));
         // FIXME: etc etc
       }
     }
@@ -414,8 +461,10 @@ static krylov_pc_t* hypre_factory_pc(void* context,
   else if (string_casecmp(pc_name, "euclid") == 0)
   {
     HYPRE_MPI_Comm hypre_comm = comm;
-    factory->methods.HYPRE_EuclidCreate(hypre_comm, &pc);
-    dtor = DTOR(factory->methods.HYPRE_EuclidDestroy);
+    factory->methods.HYPRE_EuclidCreate(hypre_comm, &pc->pc);
+    pc->setup = factory->methods.HYPRE_EuclidSetup;
+    pc->solve = factory->methods.HYPRE_EuclidSolve;
+    pc->dtor = factory->methods.HYPRE_EuclidDestroy;
     if (options != NULL)
     {
       int pos = 0;
@@ -423,23 +472,25 @@ static krylov_pc_t* hypre_factory_pc(void* context,
       while (string_string_unordered_map_next(options, &pos, &key, &value))
       {
         if ((strcmp(key, "level") == 0) && string_is_number(value))
-          factory->methods.HYPRE_EuclidSetLevel(pc, atoi(value));
+          factory->methods.HYPRE_EuclidSetLevel(pc->pc, atoi(value));
         else if (strcmp(key, "bj") == 0)
-          factory->methods.HYPRE_EuclidSetBJ(pc, string_as_boolean(value));
+          factory->methods.HYPRE_EuclidSetBJ(pc->pc, string_as_boolean(value));
         else if ((strcmp(key, "sparseA") == 0) && string_is_number(value))
-          factory->methods.HYPRE_EuclidSetSparseA(pc, atof(value));
+          factory->methods.HYPRE_EuclidSetSparseA(pc->pc, atof(value));
         else if (strcmp(key, "rowScale") == 0)
-          factory->methods.HYPRE_EuclidSetRowScale(pc, string_as_boolean(value));
+          factory->methods.HYPRE_EuclidSetRowScale(pc->pc, string_as_boolean(value));
         else if ((strcmp(key, "ilut") == 0) && string_is_number(value))
-          factory->methods.HYPRE_EuclidSetILUT(pc, atof(value));
+          factory->methods.HYPRE_EuclidSetILUT(pc->pc, atof(value));
       }
     }
   }
   else if (string_casecmp(pc_name, "parasails") == 0)
   {
     HYPRE_MPI_Comm hypre_comm = comm;
-    factory->methods.HYPRE_ParaSailsCreate(hypre_comm, &pc);
-    dtor = DTOR(factory->methods.HYPRE_ParaSailsDestroy);
+    factory->methods.HYPRE_ParaSailsCreate(hypre_comm, &pc->pc);
+    pc->setup = factory->methods.HYPRE_ParaSailsSetup;
+    pc->solve = factory->methods.HYPRE_ParaSailsSolve;
+    pc->dtor = factory->methods.HYPRE_ParaSailsDestroy;
     HYPRE_Int nlevel = 1;
     HYPRE_Real thresh = 0.1;
     if (options != NULL)
@@ -449,26 +500,26 @@ static krylov_pc_t* hypre_factory_pc(void* context,
       while (string_string_unordered_map_next(options, &pos, &key, &value))
       {
         if ((strcmp(key, "symmetry") == 0) && string_is_number(value))
-          factory->methods.HYPRE_ParaSailsSetSym(pc, atoi(value));
+          factory->methods.HYPRE_ParaSailsSetSym(pc->pc, atoi(value));
         else if ((strcmp(key, "thresh") == 0) && string_is_number(value))
           thresh = atof(value);
         else if ((strcmp(key, "nlevel") == 0) && string_is_number(value))
           nlevel = atoi(value);
         else if ((strcmp(key, "filter") == 0) && string_is_number(value))
-          factory->methods.HYPRE_ParaSailsSetFilter(pc, atof(value));
+          factory->methods.HYPRE_ParaSailsSetFilter(pc->pc, atof(value));
         else if ((strcmp(key, "loadbal") == 0) && string_is_number(value))
-          factory->methods.HYPRE_ParaSailsSetLoadbal(pc, atof(value));
+          factory->methods.HYPRE_ParaSailsSetLoadbal(pc->pc, atof(value));
         else if (strcmp(key, "reuse") == 0)
-          factory->methods.HYPRE_ParaSailsSetReuse(pc, string_as_boolean(value));
+          factory->methods.HYPRE_ParaSailsSetReuse(pc->pc, string_as_boolean(value));
       }
     }
-    factory->methods.HYPRE_ParaSailsSetParams(pc, thresh, nlevel);
+    factory->methods.HYPRE_ParaSailsSetParams(pc->pc, thresh, nlevel);
   }
   else
     return NULL;
 
   // Set up the virtual table.
-  krylov_pc_vtable vtable = {.dtor = dtor};
+  krylov_pc_vtable vtable = {.dtor = hypre_pc_free};
   return krylov_pc_new(pc_name, pc, vtable);
 }
 
@@ -1197,6 +1248,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidDestroy);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetup);
+  FETCH_HYPRE_SYMBOL(HYPRE_EuclidSolve);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetLevel);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetBJ);
   FETCH_HYPRE_SYMBOL(HYPRE_EuclidSetSparseA);

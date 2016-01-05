@@ -53,6 +53,7 @@ typedef struct
   PetscErrorCode (*KSPSetType)(KSP,KSPType);
   PetscErrorCode (*KSPSetUp)(KSP);
   PetscErrorCode (*KSPGetPC)(KSP,PC*);
+  PetscErrorCode (*KSPSetPC)(KSP,PC);
   PetscErrorCode (*KSPSetFromOptions)(KSP);
   PetscErrorCode (*KSPSetTolerances)(KSP,PetscReal,PetscReal,PetscReal,PetscInt);
   PetscErrorCode (*KSPGetTolerances)(KSP,PetscReal*,PetscReal*,PetscReal*,PetscInt*);
@@ -166,6 +167,16 @@ static void petsc_solver_set_operator(void* context,
     polymec_error("petsc_solver_set_operator failed!");
 }
 
+static void petsc_solver_set_pc(void* context,
+                                void* pc)
+{
+  petsc_solver_t* solver = context;
+  PC p = pc;
+  PetscErrorCode err = solver->factory->methods.KSPSetPC(solver->ksp, p);
+  if (err != 0)
+    polymec_error("petsc_solver_set_pc failed!");
+}
+
 static bool petsc_solver_solve(void* context,
                                void* x,
                                void* b,
@@ -219,6 +230,7 @@ static krylov_solver_t* petsc_factory_gmres_solver(void* context,
   krylov_solver_vtable vtable = {.set_tolerances = petsc_solver_set_tolerances,
                                  .set_max_iterations = petsc_solver_set_max_iterations,
                                  .set_operator = petsc_solver_set_operator,
+                                 .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new("PETSc GMRES", solver, vtable);
@@ -245,6 +257,7 @@ static krylov_solver_t* petsc_factory_bicgstab_solver(void* context,
   krylov_solver_vtable vtable = {.set_tolerances = petsc_solver_set_tolerances,
                                  .set_max_iterations = petsc_solver_set_max_iterations,
                                  .set_operator = petsc_solver_set_operator,
+                                 .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new("PETSc Bi-CGSTAB", solver, vtable);
@@ -273,6 +286,7 @@ static krylov_solver_t* petsc_factory_special_solver(void* context,
   krylov_solver_vtable vtable = {.set_tolerances = petsc_solver_set_tolerances,
                                  .set_max_iterations = petsc_solver_set_max_iterations,
                                  .set_operator = petsc_solver_set_operator,
+                                 .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new(solver_name, solver, vtable);
@@ -806,6 +820,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(KSPSetFromOptions);
   FETCH_PETSC_SYMBOL(KSPSetUp);
   FETCH_PETSC_SYMBOL(KSPGetPC);
+  FETCH_PETSC_SYMBOL(KSPSetPC);
   FETCH_PETSC_SYMBOL(KSPSetTolerances);
   FETCH_PETSC_SYMBOL(KSPGetTolerances);
   FETCH_PETSC_SYMBOL(KSPSetOperators);
