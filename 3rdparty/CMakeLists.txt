@@ -2,7 +2,12 @@ include_directories(${PROJECT_BINARY_DIR}/include)
 
 # Build libgc, the C garbage collector library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
-  set(GC_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static --disable-shared --enable-threads=pthreads --disable-gcj-support)
+  if (BUILD_SHARED_LIBS AND LINUX)
+    set(SHARED_OPTS --enable-shared --disable-static)
+  else()
+    set(SHARED_OPTS --enable-static --disable-shared)
+  endif()
+  set(GC_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} ${SHARED_OPTS} --enable-threads=pthreads --disable-gcj-support)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(GC_CONFIG_OPTS ${GC_CONFIG_OPTS} --enable-gc-debug)
   endif()
@@ -15,7 +20,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
   endif()
 
   message("Configuring gc...")
-  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} ./configure ${GC_CONFIG_OPTS}
+  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} ./configure ${GC_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc
                   OUTPUT_VARIABLE gc_config_log ERROR_VARIABLE gc_config_err
                   RESULT_VARIABLE stat)
