@@ -1153,6 +1153,8 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
     polymec_error("hypre_krylov_factory: %s.", msg);
   }
 
+#if APPLE
+  // Mac-specific trick: 
   // If the HYPRE library is parallel, it will contain a reference to MPI symbols, 
   // even if those symbols are not defined within the library itself.
   bool hypre_is_parallel = (dlsym(hypre, "MPI_Abort") != NULL);
@@ -1170,6 +1172,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
                "  HYPRE must be built using -DHYPRE_SEQUENTIAL=ON."); 
     goto failure;
   }
+#endif
 #endif
   log_debug("hypre_krylov_factory: Succeeded.");
 
