@@ -7,7 +7,7 @@ endif()
 
 # Build libgc, the C garbage collector library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
-  if (BUILD_SHARED_LIBS AND LINUX)
+  if (BUILD_SHARED_LIBS)
     set(SHARED_OPTS --enable-shared --disable-static)
   else()
     set(SHARED_OPTS --enable-static --disable-shared)
@@ -121,7 +121,7 @@ set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 # Build the HDF5 parallel I/O library. 
 if (${SILO_LIBRARY} MATCHES "h5")
   if (NOT EXISTS ${HDF5_LIBRARY})
-    if (BUILD_SHARED_LIBS AND LINUX)
+    if (BUILD_SHARED_LIBS)
       set(SHARED_OPTS --enable-shared --disable-static)
     else()
       set(SHARED_OPTS --enable-static --disable-shared)
