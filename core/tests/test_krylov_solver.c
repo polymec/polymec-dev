@@ -17,14 +17,13 @@
 
 // This helper creates a distributed graph for a 1D finite difference 
 // discretization of the Laplacian operator.
-static adj_graph_t* create_1d_laplacian_graph(int N_local)
+static adj_graph_t* create_1d_laplacian_graph(MPI_Comm comm, int N_local)
 {
-  MPI_Comm comm = MPI_COMM_WORLD;
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
 
-  adj_graph_t* graph = adj_graph_new(MPI_COMM_WORLD, N_local);
+  adj_graph_t* graph = adj_graph_new(comm, N_local);
 
   // Set interior edges.
   for (int i = 1; i < N_local-1; ++i)
@@ -138,14 +137,16 @@ static void test_krylov_matrix(void** state, krylov_factory_t* factory)
 {
   if (factory != NULL)
   {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
     // Create a distributed graph with 1000 local vertices.
-    adj_graph_t* graph = create_1d_laplacian_graph(1000);
+    adj_graph_t* graph = create_1d_laplacian_graph(comm, 1000);
 
     // Create a matrix for this graph.
     krylov_matrix_t* mat = krylov_factory_matrix(factory, graph);
     assert_int_equal(1000, krylov_matrix_num_local_rows(mat));
     int nprocs;
-    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    MPI_Comm_size(comm, &nprocs);
     assert_int_equal(1000*nprocs, krylov_matrix_num_global_rows(mat));
 
     // Clone it.
@@ -163,14 +164,16 @@ static void test_krylov_vector(void** state, krylov_factory_t* factory)
 {
   if (factory != NULL)
   {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
     // Create a distributed graph with 1000 local vertices.
-    adj_graph_t* graph = create_1d_laplacian_graph(1000);
+    adj_graph_t* graph = create_1d_laplacian_graph(comm, 1000);
 
     // Create a vector for this graph.
     krylov_vector_t* vec = krylov_factory_vector(factory, graph);
     assert_int_equal(1000, krylov_vector_local_size(vec));
     int nprocs;
-    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    MPI_Comm_size(comm, &nprocs);
     assert_int_equal(1000*nprocs, krylov_vector_global_size(vec));
 
     // Clone it.
@@ -188,9 +191,11 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
 {
   if (factory != NULL)
   {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
     // Create a distributed graph with 1000 local vertices.
     int N = 1000;
-    adj_graph_t* graph = create_1d_laplacian_graph(N);
+    adj_graph_t* graph = create_1d_laplacian_graph(comm, N);
 
     // Create a Laplace operator from the graph.
     krylov_matrix_t* A = krylov_factory_matrix(factory, graph);
@@ -229,7 +234,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
 
     // Create a GMRES solver.
     krylov_solver_t* solver = krylov_factory_gmres_solver(factory, 
-                                                          MPI_COMM_WORLD, 
+                                                          comm, 
                                                           15);
     assert_true(solver != NULL);
 
