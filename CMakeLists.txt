@@ -109,6 +109,14 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SYS_FLAGS}")
 
+# Considerations for shared libraries.
+if (BUILD_SHARED_LIBS)
+  if (LINUX)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+  endif()
+endif()
+
 # Address sanitizer.
 if (ADDRESS_SANITIZER EQUAL 1)
   if (NOT LINUX EQUAL 1)

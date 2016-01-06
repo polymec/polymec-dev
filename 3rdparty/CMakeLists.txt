@@ -15,7 +15,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
   endif()
 
   message("Configuring gc...")
-  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} ./configure ${GC_CONFIG_OPTS}
+  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} ./configure ${GC_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc
                   OUTPUT_VARIABLE gc_config_log ERROR_VARIABLE gc_config_err
                   RESULT_VARIABLE stat)
@@ -79,7 +79,7 @@ if (NOT EXISTS ${Z_LIBRARY})
   endif()
 
   message("Configuring zlib...")
-  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} ./configure ${ZLIB_CONFIG_OPTS}
+  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} ./configure ${ZLIB_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib
                   OUTPUT_VARIABLE zlib_config_log ERROR_VARIABLE zlib_config_err
                   RESULT_VARIABLE stat)
@@ -111,7 +111,12 @@ set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 # Build the HDF5 parallel I/O library. 
 if (${SILO_LIBRARY} MATCHES "h5")
   if (NOT EXISTS ${HDF5_LIBRARY})
-    set(HDF5_CONFIG_OPTS --enable-static --disable-shared --with-zlib=${PROJECT_BINARY_DIR} --disable-dependency-tracking)
+    if (BUILD_SHARED_LIBS AND LINUX)
+      set(SHARED_OPTS --enable-shared --disable-static)
+    else()
+      set(SHARED_OPTS --enable-static --disable-shared)
+    endif()
+    set(HDF5_CONFIG_OPTS ${SHARED_OPTS} --with-zlib=${PROJECT_BINARY_DIR} --disable-dependency-tracking)
     set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
     if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
       set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-debug=all)
@@ -130,7 +135,7 @@ if (${SILO_LIBRARY} MATCHES "h5")
     endif()
 
     message("Configuring hdf5...")
-    execute_process(COMMAND env CC=${CMAKE_C_COMPILER} FC=${MAKE_Fortran_COMPILER} ./configure ${HDF5_CONFIG_OPTS}
+    execute_process(COMMAND env CC=${CMAKE_C_COMPILER} FC=${CMAKE_Fortran_COMPILER} ./configure ${HDF5_CONFIG_OPTS}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
                     OUTPUT_VARIABLE hdf5_config_log ERROR_VARIABLE hdf5_config_err
                     RESULT_VARIABLE stat)
@@ -203,6 +208,9 @@ if (NOT EXISTS ${SILO_LIBRARY})
   else()
     set(SILO_C_FLAGS -g)
   endif()
+  if (BUILD_SHARED_LIBS AND LINUX)
+    set(SILO_C_FLAGS "${SILO_C_FLAGS} -fPIC")
+  endif()
   set(SILO_ENV CC=${CC} CXX=${CXX} CFLAGS=${SILO_C_FLAGS})
   if (LINUX EQUAL 1)
    # Note: Linux needs -ldl when building Silo because of HDF5's new 
@@ -254,6 +262,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
   string(REPLACE "gcc" ${CMAKE_C_COMPILER} superlu_makeinc ${superlu_makeinc})
   string(REPLACE "$(HOME)/Dropbox/Codes/SuperLU/SuperLU" ${PROJECT_BINARY_DIR} superlu_makeinc ${superlu_makeinc})
   string(REPLACE "libsuperlu_5.0.a" "libsuperlu.a" superlu_makeinc ${superlu_makeinc})
+
+  # SuperLU has some non-standard C, so we have to be careful about adjusting its 
+  # C compiler flags. :-/
   if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
       set(superlu_debug_flags "-O0 -g3")
@@ -261,6 +272,10 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
       set(superlu_debug_flags "-O0 -g")
     endif()
     string(REPLACE "-O3" "${superlu_debug_flags}" superlu_makeinc ${superlu_makeinc})
+  endif()
+  if (BUILD_SHARED_LIBS AND LINUX)
+    string(REPLACE "-std=c99" "-std=c99 -fPIC" superlu_makeinc ${superlu_makeinc})
+    string(REPLACE "NOOPTS       =" "NOOPTS       =-fPIC" superlu_makeinc ${superlu_makeinc})
   endif()
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu/make.inc ${superlu_makeinc})
 
