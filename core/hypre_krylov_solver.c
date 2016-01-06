@@ -313,14 +313,17 @@ static bool hypre_solver_solve(void* context,
       get_num_iters = solver->factory->methods.HYPRE_BoomerAMGGetNumIterations; 
       get_norm = solver->factory->methods.HYPRE_BoomerAMGGetFinalRelativeResidualNorm; 
   }
+  log_debug("hypre_solver_solve: Setting up linear system.");
   HYPRE_Int result = setup(solver->solver, solver->op, par_B, par_X);
   if (result != 0)
     return false;
 
+  log_debug("hypre_solver_solve: Solving linear system.");
   result = solve(solver->solver, solver->op, par_B, par_X);
   bool success = (result == 0);
   if (success)
   {
+    log_debug("hypre_solver_solve: Success!");
     HYPRE_Int iters;
     get_num_iters(solver->solver, &iters);
     *num_iters = iters;
@@ -328,6 +331,8 @@ static bool hypre_solver_solve(void* context,
     get_norm(solver->solver, &norm);
     *res_norm = norm;
   }
+  else
+    log_debug("hypre_solver_solve: Failure!");
 
   return success;
 }
@@ -365,6 +370,7 @@ static krylov_solver_t* hypre_factory_gmres_solver(void* context,
   HYPRE_MPI_Comm hypre_comm = comm;
   solver->factory->methods.HYPRE_ParCSRGMRESCreate(hypre_comm, &solver->solver);
   solver->factory->methods.HYPRE_ParCSRGMRESSetKDim(solver->solver, (HYPRE_Int)krylov_dimension);
+  log_debug("hypre_factory_gmres_solver: Created solver with Krylov dim = %d", krylov_dimension);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,

@@ -38,38 +38,27 @@ static adj_graph_t* create_1d_laplacian_graph(int N_local)
   // Set boundary edges.
   if (nprocs == 1)
   {
-    adj_graph_set_num_edges(graph, 0, 1);
-    int* edges = adj_graph_edges(graph, 0);
-    edges[0] = 1;
-
-    adj_graph_set_num_edges(graph, N_local-1, 1);
-    edges = adj_graph_edges(graph, N_local-1);
-    edges[0] = N_local-2;
+    // No edges -- ends are fixed.
   }
   else if (rank == 0)
   {
-    adj_graph_set_num_edges(graph, 0, 1);
-    int* edges = adj_graph_edges(graph, 0);
-    edges[0] = 1;
-
+    // Left end is fixed. Right is coupled.
     adj_graph_set_num_edges(graph, N_local-1, 2);
-    edges = adj_graph_edges(graph, N_local-1);
+    int* edges = adj_graph_edges(graph, N_local-1);
     edges[0] = N_local-2;
     edges[1] = N_local+1;
   }
   else if (rank == (nprocs-1))
   {
+    // Right end is fixed. Left is coupled.
     adj_graph_set_num_edges(graph, 0, 2);
     int* edges = adj_graph_edges(graph, 0);
     edges[0] = N_local;
     edges[1] = 1;
-
-    adj_graph_set_num_edges(graph, N_local-1, 1);
-    edges = adj_graph_edges(graph, N_local-1);
-    edges[0] = N_local-2;
   }
   else
   {
+    // Both ends are coupled.
     adj_graph_set_num_edges(graph, 0, 2);
     int* edges = adj_graph_edges(graph, 0);
     edges[0] = N_local;
@@ -195,6 +184,70 @@ static void test_krylov_vector(void** state, krylov_factory_t* factory)
   }
 }
 
+static void test_laplace_eqn(void** state, krylov_factory_t* factory)
+{
+  if (factory != NULL)
+  {
+    // Create a distributed graph with 1000 local vertices.
+    int N = 1000;
+    adj_graph_t* graph = create_1d_laplacian_graph(N);
+
+    // Create a Laplace operator from the graph.
+    krylov_matrix_t* A = krylov_factory_matrix(factory, graph);
+    real_t Aij[3];
+    index_t rows[3], cols[3], num_cols;
+
+    num_cols = 1, rows[0] = 0, cols[0] = 0, Aij[0] = 1.0;
+    krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+    for (int i = 1; i < N; ++i)
+    {
+      num_cols = 3;
+      rows[0] = i, cols[0] = i-1, Aij[0] = 1.0;
+      rows[1] = i, cols[1] = i,   Aij[1] = -2.0;
+      rows[2] = i, cols[2] = i+1, Aij[2] = 1.0;
+      krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+    }
+    num_cols = 1, rows[0] = N-1, cols[0] = N-1, Aij[0] = 1.0;
+    krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+
+    krylov_matrix_start_assembly(A);
+    krylov_matrix_finish_assembly(A);
+
+    // Create a RHS vector.
+    krylov_vector_t* b = krylov_factory_vector(factory, graph);
+    real_t bi[1];
+    rows[0] = 0, bi[0] = 0.0;
+    krylov_vector_set_values(b, 1, rows, bi);
+    rows[0] = N-1, bi[0] = 1.0;
+    krylov_vector_set_values(b, 1, rows, bi);
+
+    krylov_vector_start_assembly(b);
+    krylov_vector_finish_assembly(b);
+
+    // Create a solution vector.
+    krylov_vector_t* x = krylov_factory_vector(factory, graph);
+
+    // Create a GMRES solver.
+    krylov_solver_t* solver = krylov_factory_gmres_solver(factory, 
+                                                          MPI_COMM_WORLD, 
+                                                          15);
+
+    // Solve the equation.
+    krylov_solver_set_operator(solver, A);
+    real_t res_norm;
+    int num_iters;
+    bool solved = krylov_solver_solve(solver, x, b, &res_norm, &num_iters);
+    assert_true(solved);
+
+    // Put everything away.
+    krylov_solver_free(solver);
+    krylov_matrix_free(A);
+    krylov_vector_free(x);
+    krylov_vector_free(b);
+    krylov_factory_free(factory);
+  }
+}
+
 void test_petsc_krylov_factory(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
@@ -211,6 +264,12 @@ void test_petsc_krylov_vector(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
   test_krylov_vector(state, petsc);
+}
+
+void test_petsc_laplace_eqn(void** state)
+{
+  krylov_factory_t* petsc = create_petsc_krylov_factory();
+  test_laplace_eqn(state, petsc);
 }
 
 void test_hypre_krylov_factory(void** state)
@@ -231,6 +290,12 @@ void test_hypre_krylov_vector(void** state)
   test_krylov_vector(state, hypre);
 }
 
+void test_hypre_laplace_eqn(void** state)
+{
+  krylov_factory_t* hypre = create_hypre_krylov_factory();
+  test_laplace_eqn(state, hypre);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -241,7 +306,8 @@ int main(int argc, char* argv[])
     unit_test(test_petsc_krylov_vector),
     unit_test(test_hypre_krylov_factory),
     unit_test(test_hypre_krylov_matrix),
-    unit_test(test_hypre_krylov_vector)
+    unit_test(test_hypre_krylov_vector),
+    unit_test(test_hypre_laplace_eqn)
   };
   return run_tests(tests);
 }
