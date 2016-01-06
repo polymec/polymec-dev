@@ -1386,6 +1386,8 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   if (nprocs == 1)
     return exchanger_new(m->comm);
 
+  POLYMEC_NOT_IMPLEMENTED;
+
   // Generate a local adjacency graph for the mesh.
   adj_graph_t* local_graph = graph_from_mesh_cells(m);
 
