@@ -247,7 +247,7 @@ static void hypre_solver_set_operator(void* context,
                                       void* op)
 {
   hypre_solver_t* solver = context;
-  HYPRE_IJMatrix A = op;
+  HYPRE_IJMatrix A = ((hypre_matrix_t*)op)->A;
   solver->factory->methods.HYPRE_IJMatrixGetObject(A, &solver->op);
 
   // NOTE: We can't do setup here, since we don't have x or b.
@@ -285,8 +285,8 @@ static bool hypre_solver_solve(void* context,
   hypre_solver_t* solver = context;
 
   // Get our objects.
-  HYPRE_IJVector X = x;
-  HYPRE_IJVector B = b;
+  HYPRE_IJVector X = ((hypre_vector_t*)x)->v;
+  HYPRE_IJVector B = ((hypre_vector_t*)b)->v;
   HYPRE_ParVector par_X, par_B;
   solver->factory->methods.HYPRE_IJVectorGetObject(X, &par_X);
   solver->factory->methods.HYPRE_IJVectorGetObject(B, &par_B);
