@@ -325,17 +325,16 @@ static bool hypre_solver_solve(void* context,
   result = solve(solver->solver, solver->op, par_B, par_X);
   bool success = (result == 0);
   if (success)
-  {
     log_debug("hypre_solver_solve: Success!");
-    HYPRE_Int iters;
-    get_num_iters(solver->solver, &iters);
-    *num_iters = iters;
-    HYPRE_Real norm;
-    get_norm(solver->solver, &norm);
-    *res_norm = norm;
-  }
   else
-    log_debug("hypre_solver_solve: Failure!");
+    log_debug("hypre_solver_solve: Failure (error code = %d)", result);
+
+  HYPRE_Int iters;
+  get_num_iters(solver->solver, &iters);
+  *num_iters = iters;
+  HYPRE_Real norm;
+  get_norm(solver->solver, &norm);
+  *res_norm = norm;
 
   return success;
 }

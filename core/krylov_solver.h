@@ -203,10 +203,10 @@ krylov_solver_t* krylov_factory_special_solver(krylov_factory_t* factory,
 // identified by its name, with options specified in string key-value
 // pairs. If the preconditioner with the given name is not available, this 
 // function returns NULL.
-krylov_pc_t* krylov_factory_pc(krylov_factory_t* factory,
-                               MPI_Comm comm,
-                               const char* pc_name,
-                               string_string_unordered_map_t* options);
+krylov_pc_t* krylov_factory_preconditioner(krylov_factory_t* factory,
+                                           MPI_Comm comm,
+                                           const char* pc_name,
+                                           string_string_unordered_map_t* options);
 
 //------------------------------------------------------------------------
 //                      Krylov solver interface

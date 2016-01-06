@@ -220,11 +220,10 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
 
     // Create a RHS vector.
     krylov_vector_t* b = krylov_factory_vector(factory, graph);
-    real_t bi[1];
+    real_t bi[2];
     rows[0] = 0, bi[0] = 0.0;
-    krylov_vector_set_values(b, 1, rows, bi);
-    rows[0] = N-1, bi[0] = 1.0;
-    krylov_vector_set_values(b, 1, rows, bi);
+    rows[1] = N-1, bi[1] = 1.0;
+    krylov_vector_set_values(b, 2, rows, bi);
 
     krylov_vector_start_assembly(b);
     krylov_vector_finish_assembly(b);
@@ -243,6 +242,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     real_t res_norm;
     int num_iters;
     bool solved = krylov_solver_solve(solver, x, b, &res_norm, &num_iters);
+    log_debug("residual norm is %g, # iterations is %d", res_norm, num_iters);
     assert_true(solved);
 
     // Put everything away.
