@@ -1,5 +1,6 @@
-add_library(polymec_multiphysics 
-            physics_kernel.c physics_state.c physics_controller.c)
+include(add_polymec_library)
+add_polymec_library(polymec_multiphysics 
+                    physics_kernel.c physics_state.c physics_controller.c)
 
 set(POLYMEC_LIBRARIES polymec_multiphysics;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_multiphysics;${POLYMEC_LIBRARIES})

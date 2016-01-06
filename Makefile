@@ -3,6 +3,7 @@
 # Options set on command line.
 debug      = not-set
 mpi        = not-set
+shared     = not-set
 precision  = not-set
 verbose    = not-set
 prefix     = not-set
@@ -44,6 +45,15 @@ else
     FC = gfortran
   endif
   CONFIG_FLAGS += -DHAVE_MPI=0
+endif
+
+# Shared libs?
+ifeq ($(shared), 1)
+  BUILDDIR := ${BUILDDIR}-shared
+  CONFIG_FLAGS += -DBUILD_SHARED_LIBS=ON
+else
+  BUILDDIR := ${BUILDDIR}-static
+  CONFIG_FLAGS += -DBUILD_SHARED_LIBS=OFF
 endif
 
 # Precision.

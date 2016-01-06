@@ -50,8 +50,12 @@ else()
 endif()
 message("-- Real number representation is ${POLYMEC_REAL_TYPE}")
 
-# Build everything as static libs.
-set (BUILD_SHARED_LIBS OFF)
+# Report shared library status.
+if (BUILD_SHARED_LIBS)
+  message("-- Building shared libraries with dynamic loading enabled.")
+else()
+  message("-- Building static libraries with dynamic loading disabled.")
+endif()
 
 # Add a custom target (always out of date) that generates polymec_version.h.
 add_custom_target(update_version_h ALL
@@ -65,6 +69,7 @@ add_custom_target(generate_headers ALL
 if (APPLE EQUAL 1)
   set(SYS_FLAGS "-DAPPLE=1")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Accelerate")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -framework Accelerate")
 else ()
   if (LINUX EQUAL 1)
     set(SYS_FLAGS "-DLINUX=1")

@@ -7,12 +7,13 @@ set(MESH_GENERATION_SOURCES create_boundary_generators.c
     create_uniform_mesh.c create_pebi_mesh.c 
     create_voronoi_mesh.c create_dual_mesh.c crop_mesh.c)
 
-add_library(polymec_geometry coord_mapping.c plane.c cylinder.c sphere.c 
-            intersection.c union.c difference.c scaled.c rect_prism.c 
-            giftwrap_hull.c polygon2.c polygon.c tetrahedron.c 
-            ${MESH_GENERATION_SOURCES} cubic_lattice.c
-            symmetry_1d.c interpreter_register_geometry_functions.c 
-            interpreter_register_spfuncs.c)
+include(add_polymec_library)
+add_polymec_library(polymec_geometry coord_mapping.c plane.c cylinder.c sphere.c 
+                    intersection.c union.c difference.c scaled.c rect_prism.c 
+                    giftwrap_hull.c polygon2.c polygon.c tetrahedron.c 
+                    ${MESH_GENERATION_SOURCES} cubic_lattice.c
+                    symmetry_1d.c interpreter_register_geometry_functions.c 
+                    interpreter_register_spfuncs.c)
 
 set(POLYMEC_LIBRARIES polymec_geometry;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_geometry;${POLYMEC_LIBRARIES})
