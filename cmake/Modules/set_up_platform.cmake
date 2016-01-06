@@ -2,12 +2,26 @@
 # for particular hosts.
 macro(set_up_platform)
 
+  # We build some 3rd-party libraries as shared libraries.
+  # We have to determine the suffix manually here because this macro 
+  # gets executed before CMake can figure things out.
+  if (BUILD_SHARED_LIBS)
+    if (APPLE)
+      set(LIB_SUFFIX .dylib)
+    else()
+      set(LIB_SUFFIX .so)
+    endif()
+  else()
+    set(LIB_SUFFIX .a)
+  endif()
+
   # Set defaults for the various third-party libraries. These defaults
   # are hardwired because the project can't have been defined before 
   # this macro is executed, and so PROJECT_BINARY_DIR is unavailable.
   set(Z_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libz.a")
-  set(HDF5_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libhdf5.a")
-  set(HDF5_HL_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libhdf5_hl.a")
+  set(HDF5_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX}")
+message("HDF5's at ${HDF5_LIBRARY}")
+  set(HDF5_HL_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libhdf5_hl${LIB_SUFFIX}")
   set(HDF5_LIBRARIES hdf5_hl;hdf5)
   set(HDF5_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
   set(SILO_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libsiloh5.a")

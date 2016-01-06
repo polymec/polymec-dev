@@ -199,7 +199,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
 
     num_cols = 1, rows[0] = 0, cols[0] = 0, Aij[0] = 1.0;
     krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
-    for (int i = 1; i < N; ++i)
+    for (int i = 1; i < N-1; ++i)
     {
       num_cols = 3;
       rows[0] = i, cols[0] = i-1, Aij[0] = 1.0;
@@ -231,6 +231,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     krylov_solver_t* solver = krylov_factory_gmres_solver(factory, 
                                                           MPI_COMM_WORLD, 
                                                           15);
+    assert_true(solver != NULL);
 
     // Solve the equation.
     krylov_solver_set_operator(solver, A);

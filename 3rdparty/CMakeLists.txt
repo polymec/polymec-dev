@@ -1,7 +1,12 @@
 include_directories(${PROJECT_BINARY_DIR}/include)
+if (BUILD_SHARED_LIBS)
+  set(LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
+else()
+  set(LIB_SUFFIX .a)
+endif()
 
 # Build libgc, the C garbage collector library.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc.a)
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
   if (BUILD_SHARED_LIBS AND LINUX)
     set(SHARED_OPTS --enable-shared --disable-static)
   else()

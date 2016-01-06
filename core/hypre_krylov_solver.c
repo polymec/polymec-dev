@@ -48,6 +48,9 @@ typedef enum
 // Here's a table of function pointers for the HYPRE library.
 typedef struct
 {
+  HYPRE_Int (*HYPRE_GetError)();
+  HYPRE_Int (*HYPRE_ClearAllErrors)();
+
   HYPRE_Int (*HYPRE_ParCSRGMRESCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_ParCSRGMRESDestroy)(HYPRE_Solver);
   HYPRE_Int (*HYPRE_ParCSRGMRESSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
@@ -368,8 +371,21 @@ static krylov_solver_t* hypre_factory_gmres_solver(void* context,
   solver->factory = context;
   solver->type = HYPRE_GMRES;
   HYPRE_MPI_Comm hypre_comm = comm;
-  solver->factory->methods.HYPRE_ParCSRGMRESCreate(hypre_comm, &solver->solver);
-  solver->factory->methods.HYPRE_ParCSRGMRESSetKDim(solver->solver, (HYPRE_Int)krylov_dimension);
+  HYPRE_Int result;
+  result = solver->factory->methods.HYPRE_ParCSRGMRESCreate(hypre_comm, &solver->solver);
+  if (result != 0)
+  {
+    log_urgent("hypre_factory_gmres_solver: Failed to create GMRES solver (error = %d).", result);
+    polymec_free(solver);
+    return NULL;
+  }
+  result = solver->factory->methods.HYPRE_ParCSRGMRESSetKDim(solver->solver, (HYPRE_Int)krylov_dimension);
+  if (result != 0)
+  {
+    log_urgent("hypre_factory_gmres_solver: Failed to set Krylov dimension (error = %d).", result);
+    polymec_free(solver);
+    return NULL;
+  }
   log_debug("hypre_factory_gmres_solver: Created solver with Krylov dim = %d", krylov_dimension);
 
   // Set up the virtual table.
@@ -389,7 +405,13 @@ static krylov_solver_t* hypre_factory_bicgstab_solver(void* context,
   solver->factory = context;
   solver->type = HYPRE_BICGSTAB;
   HYPRE_MPI_Comm hypre_comm = comm;
-  solver->factory->methods.HYPRE_ParCSRBiCGSTABCreate(hypre_comm, &solver->solver);
+  HYPRE_Int result = solver->factory->methods.HYPRE_ParCSRBiCGSTABCreate(hypre_comm, &solver->solver);
+  if (result != 0)
+  {
+    log_urgent("hypre_factory_bicgstab_solver: Failed to create BiCGSTAB solver (error = %d).", result);
+    polymec_free(solver);
+    return NULL;
+  }
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
@@ -409,14 +431,22 @@ static krylov_solver_t* hypre_factory_special_solver(void* context,
   hypre_solver_t* solver = polymec_malloc(sizeof(hypre_solver_t));
   solver->factory = context;
 
+  HYPRE_Int result;
   if ((string_casecmp(solver_name, "boomerang") == 0) ||
       (string_casecmp(solver_name, "boomeramg") == 0))
   {
     solver->type = HYPRE_BOOMERANG;
-    solver->factory->methods.HYPRE_BoomerAMGCreate(&solver->solver);
+    result = solver->factory->methods.HYPRE_BoomerAMGCreate(&solver->solver);
   }
   else
     return NULL;
+
+  if (result != 0)
+  {
+    log_urgent("hypre_factory_special_solver: Failed to create %s solver (error = %d).", solver_name, result);
+    polymec_free(solver);
+    return NULL;
+  }
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
@@ -552,6 +582,9 @@ static void hypre_matrix_set_values(void* context, index_t num_rows,
       dvals[i] = (HYPRE_Real)values[i];
     A->factory->methods.HYPRE_IJMatrixSetValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, dvals);
   }
+  HYPRE_Int error = A->factory->methods.HYPRE_GetError();
+  if (error != 0)
+    log_urgent("hypre_matrix_set_values: error occurred (%d)", error);
 }
 
 static void hypre_matrix_add_values(void* context, index_t num_rows,
@@ -577,6 +610,9 @@ static void hypre_matrix_add_values(void* context, index_t num_rows,
       dvals[i] = (HYPRE_Real)values[i];
     A->factory->methods.HYPRE_IJMatrixAddToValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, dvals);
   }
+  HYPRE_Int error = A->factory->methods.HYPRE_GetError();
+  if (error != 0)
+    log_urgent("hypre_matrix_add_values: error occurred (%d)", error);
 }
 
 static void hypre_matrix_start_assembly(void* context)
@@ -589,6 +625,9 @@ static void hypre_matrix_finish_assembly(void* context)
   hypre_matrix_t* A = context;
   A->factory->methods.HYPRE_IJMatrixAssemble(A->A);
   A->initialized = false;
+  HYPRE_Int error = A->factory->methods.HYPRE_GetError();
+  if (error != 0)
+    log_urgent("hypre_matrix_finish_assembly: error occurred (%d)", error);
 }
 
 static void* hypre_matrix_clone(void* context)
@@ -926,6 +965,9 @@ static void hypre_vector_set_values(void* context, index_t num_values,
       dvals[i] = (HYPRE_Real)values[i];
     v->factory->methods.HYPRE_IJVectorSetValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
   }
+  HYPRE_Int error = v->factory->methods.HYPRE_GetError();
+  if (error != 0)
+    log_urgent("hypre_vector_set_values: error occurred (%d)", error);
 }
 
 static void hypre_vector_add_values(void* context, index_t num_values,
@@ -942,6 +984,9 @@ static void hypre_vector_add_values(void* context, index_t num_values,
       dvals[i] = (HYPRE_Real)values[i];
     v->factory->methods.HYPRE_IJVectorAddToValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
   }
+  HYPRE_Int error = v->factory->methods.HYPRE_GetError();
+  if (error != 0)
+    log_urgent("hypre_vector_add_values: error occurred (%d)", error);
 }
 
 static void hypre_vector_start_assembly(void* context)
@@ -954,6 +999,9 @@ static void hypre_vector_finish_assembly(void* context)
   hypre_vector_t* v = context;
   v->factory->methods.HYPRE_IJVectorAssemble(v->v);
   v->initialized = false;
+  HYPRE_Int error = v->factory->methods.HYPRE_GetError();
+  if (error != 0)
+    log_urgent("hypre_vector_finish_assembly: error occurred (%d)", error);
 }
 
 static void hypre_vector_get_values(void* context, index_t num_values,
@@ -1200,6 +1248,9 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   // Get the symbols.
 #define FETCH_HYPRE_SYMBOL(symbol_name) \
   FETCH_SYMBOL(hypre, #symbol_name, factory->methods.symbol_name, failure);
+
+  FETCH_HYPRE_SYMBOL(HYPRE_GetError);
+  FETCH_HYPRE_SYMBOL(HYPRE_ClearAllErrors);
 
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESDestroy);
