@@ -426,6 +426,7 @@ krylov_factory_t* krylov_factory_new(const char* name,
                                      void* context,
                                      krylov_factory_vtable vtable)
 {
+  ASSERT(vtable.pcg_solver != NULL);
   ASSERT(vtable.gmres_solver != NULL);
   ASSERT(vtable.bicgstab_solver != NULL);
   ASSERT(vtable.preconditioner != NULL);
@@ -470,6 +471,12 @@ krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
                                        adj_graph_t* dist_graph)
 {
   return factory->vtable.vector(factory->context, dist_graph);
+}
+
+krylov_solver_t* krylov_factory_pcg_solver(krylov_factory_t* factory,
+                                           MPI_Comm comm)
+{
+  return factory->vtable.pcg_solver(factory->context, comm);
 }
 
 krylov_solver_t* krylov_factory_gmres_solver(krylov_factory_t* factory,

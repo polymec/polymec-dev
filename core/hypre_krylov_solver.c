@@ -8,7 +8,6 @@
 #include <float.h>
 #include <dlfcn.h>
 #include "core/krylov_solver.h"
-#include "core/options.h"
 #include "core/timer.h"
 #include "core/text_buffer.h"
 #include "core/string_utils.h"
@@ -40,6 +39,7 @@ typedef HYPRE_Int HYPRE_MPI_Comm;
 // Types of supported solver methods.
 typedef enum
 {
+  HYPRE_PCG,
   HYPRE_GMRES,
   HYPRE_BICGSTAB,
   HYPRE_BOOMERANG,
@@ -50,6 +50,19 @@ typedef struct
 {
   HYPRE_Int (*HYPRE_GetError)();
   HYPRE_Int (*HYPRE_ClearAllErrors)();
+
+  HYPRE_Int (*HYPRE_ParCSRPCGCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
+  HYPRE_Int (*HYPRE_ParCSRPCGDestroy)(HYPRE_Solver);
+  HYPRE_Int (*HYPRE_ParCSRPCGSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParCSRPCGSolve)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParCSRPCGSetTol)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_ParCSRPCGSetAbsoluteTol)(HYPRE_Solver, HYPRE_Real);
+  HYPRE_Int (*HYPRE_ParCSRPCGSetMaxIter)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParCSRPCGSetStopCrit)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_ParCSRPCGSetPrecond)(HYPRE_Solver, HYPRE_PtrToParSolverFcn, HYPRE_PtrToParSolverFcn, HYPRE_Solver);
+  HYPRE_Int (*HYPRE_ParCSRPCGGetPrecond)(HYPRE_Solver, HYPRE_Solver*);
+  HYPRE_Int (*HYPRE_ParCSRPCGGetNumIterations)(HYPRE_Solver, HYPRE_Int*);
+  HYPRE_Int (*HYPRE_ParCSRPCGGetFinalRelativeResidualNorm)(HYPRE_Solver, HYPRE_Real*);
 
   HYPRE_Int (*HYPRE_ParCSRGMRESCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_ParCSRGMRESDestroy)(HYPRE_Solver);
@@ -147,6 +160,10 @@ typedef struct
   HYPRE_Int (*HYPRE_IJVectorSetObjectType)(HYPRE_IJVector, HYPRE_Int);
   HYPRE_Int (*HYPRE_IJVectorGetObject)(HYPRE_IJVector, void**);
 
+  // Boneheaded built-in preconditioner.
+  HYPRE_Int (*HYPRE_ParCSRDiagScaleSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+  HYPRE_Int (*HYPRE_ParCSRDiagScale)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
+
   // Internals needed for scaling and zeroing matrices.
   HYPRE_Int (*HYPRE_ParCSRMatrixGetRow)(void*, HYPRE_Int, HYPRE_Int*, HYPRE_Int**, HYPRE_Real**);
   HYPRE_Int (*HYPRE_ParCSRMatrixRestoreRow)(void*, HYPRE_Int, HYPRE_Int*, HYPRE_Int**, HYPRE_Real**);
@@ -205,6 +222,10 @@ static void hypre_solver_set_tolerances(void* context,
   HYPRE_Int (*set_abs_tol)(HYPRE_Solver, HYPRE_Real);
   switch(solver->type)
   {
+    case HYPRE_PCG: 
+      set_tol = solver->factory->methods.HYPRE_ParCSRPCGSetTol; 
+      set_abs_tol = solver->factory->methods.HYPRE_ParCSRPCGSetAbsoluteTol; 
+      break;
     case HYPRE_GMRES: 
       set_tol = solver->factory->methods.HYPRE_ParCSRGMRESSetTol; 
       set_abs_tol = solver->factory->methods.HYPRE_ParCSRGMRESSetAbsoluteTol; 
@@ -231,6 +252,9 @@ static void hypre_solver_set_max_iterations(void* context,
   HYPRE_Int (*set_max_iters)(HYPRE_Solver, HYPRE_Int);
   switch(solver->type)
   {
+    case HYPRE_PCG: 
+      set_max_iters = solver->factory->methods.HYPRE_ParCSRPCGSetMaxIter; 
+      break;
     case HYPRE_GMRES: 
       set_max_iters = solver->factory->methods.HYPRE_ParCSRGMRESSetMaxIter; 
       break;
@@ -263,6 +287,9 @@ static void hypre_solver_set_pc(void* context,
   HYPRE_Int (*set_pc)(HYPRE_Solver, HYPRE_PtrToSolverFcn, HYPRE_PtrToSolverFcn, HYPRE_Solver);
   switch(solver->type)
   {
+    case HYPRE_PCG: 
+      set_pc = solver->factory->methods.HYPRE_ParCSRPCGSetPrecond; 
+      break;
     case HYPRE_GMRES: 
       set_pc = solver->factory->methods.HYPRE_ParCSRGMRESSetPrecond; 
       break;
@@ -298,6 +325,12 @@ static bool hypre_solver_solve(void* context,
   HYPRE_Int (*get_norm)(HYPRE_Solver, HYPRE_Real*);
   switch(solver->type)
   {
+    case HYPRE_PCG: 
+      setup = solver->factory->methods.HYPRE_ParCSRPCGSetup; 
+      solve = solver->factory->methods.HYPRE_ParCSRPCGSolve; 
+      get_num_iters = solver->factory->methods.HYPRE_ParCSRPCGGetNumIterations;
+      get_norm = solver->factory->methods.HYPRE_ParCSRPCGGetFinalRelativeResidualNorm;
+      break;
     case HYPRE_GMRES: 
       setup = solver->factory->methods.HYPRE_ParCSRGMRESSetup; 
       solve = solver->factory->methods.HYPRE_ParCSRGMRESSolve; 
@@ -347,6 +380,9 @@ static void hypre_solver_dtor(void* context)
   HYPRE_Int (*destroy)(HYPRE_Solver);
   switch(solver->type)
   {
+    case HYPRE_PCG: 
+      destroy = solver->factory->methods.HYPRE_ParCSRPCGDestroy; 
+      break;
     case HYPRE_GMRES: 
       destroy = solver->factory->methods.HYPRE_ParCSRGMRESDestroy; 
       break;
@@ -359,6 +395,47 @@ static void hypre_solver_dtor(void* context)
   destroy(solver->solver);
   solver->factory = NULL;
   polymec_free(solver);
+}
+
+static krylov_solver_t* hypre_factory_pcg_solver(void* context,
+                                                 MPI_Comm comm)
+     
+{
+  hypre_solver_t* solver = polymec_malloc(sizeof(hypre_solver_t));
+  solver->factory = context;
+  solver->type = HYPRE_PCG;
+  HYPRE_MPI_Comm hypre_comm = comm;
+  HYPRE_Int result;
+  result = solver->factory->methods.HYPRE_ParCSRPCGCreate(hypre_comm, &solver->solver);
+  if (result != 0)
+  {
+    log_urgent("hypre_factory_pcg_solver: Failed to create PCG solver (error = %d).", result);
+    polymec_free(solver);
+    return NULL;
+  }
+  log_debug("hypre_factory_pcg_solver: Created PCG solver");
+
+  // Set up diagonal scaling till someone tells us otherwise.
+  solver->factory->methods.HYPRE_ParCSRPCGSetPrecond(solver->solver, 
+                                                     (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScale, 
+                                                     (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScaleSetup, 
+                                                     solver->solver);
+  if (result != 0)
+  {
+    log_urgent("hypre_factory_pcg_solver: Failed to set up diagonal scaling PC (error = %d).", result);
+    solver->factory->methods.HYPRE_ParCSRPCGDestroy(solver->solver);
+    polymec_free(solver);
+    return NULL;
+  }
+
+  // Set up the virtual table.
+  krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
+                                 .set_max_iterations = hypre_solver_set_max_iterations,
+                                 .set_operator = hypre_solver_set_operator,
+                                 .set_preconditioner = hypre_solver_set_pc,
+                                 .solve = hypre_solver_solve,
+                                 .dtor = hypre_solver_dtor};
+  return krylov_solver_new("HYPRE PCG", solver, vtable);
 }
 
 static krylov_solver_t* hypre_factory_gmres_solver(void* context,
@@ -387,6 +464,19 @@ static krylov_solver_t* hypre_factory_gmres_solver(void* context,
   }
   log_debug("hypre_factory_gmres_solver: Created solver with Krylov dim = %d", krylov_dimension);
 
+  // Set up diagonal scaling till someone tells us otherwise.
+  solver->factory->methods.HYPRE_ParCSRGMRESSetPrecond(solver->solver, 
+                                                       (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScale, 
+                                                       (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScaleSetup, 
+                                                       solver->solver);
+  if (result != 0)
+  {
+    log_urgent("hypre_factory_gmres_solver: Failed to set up diagonal scaling PC (error = %d).", result);
+    solver->factory->methods.HYPRE_ParCSRGMRESDestroy(solver->solver);
+    polymec_free(solver);
+    return NULL;
+  }
+
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
                                  .set_max_iterations = hypre_solver_set_max_iterations,
@@ -411,6 +501,20 @@ static krylov_solver_t* hypre_factory_bicgstab_solver(void* context,
     polymec_free(solver);
     return NULL;
   }
+
+  // Set up diagonal scaling till someone tells us otherwise.
+  solver->factory->methods.HYPRE_ParCSRBiCGSTABSetPrecond(solver->solver, 
+                                                          (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScale, 
+                                                          (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScaleSetup, 
+                                                          solver->solver);
+  if (result != 0)
+  {
+    log_urgent("hypre_factory_bicgstab_solver: Failed to set up diagonal scaling PC (error = %d).", result);
+    solver->factory->methods.HYPRE_ParCSRBiCGSTABDestroy(solver->solver);
+    polymec_free(solver);
+    return NULL;
+  }
+
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
@@ -1251,6 +1355,19 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_GetError);
   FETCH_HYPRE_SYMBOL(HYPRE_ClearAllErrors);
 
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGCreate);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGDestroy);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetup);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSolve);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetTol);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetAbsoluteTol);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetMaxIter);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetStopCrit);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetPrecond);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGGetPrecond);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGGetNumIterations);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGGetFinalRelativeResidualNorm);
+
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESDestroy);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESSetup);
@@ -1347,6 +1464,9 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorSetObjectType);
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorGetObject);
 
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRDiagScaleSetup);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRDiagScale);
+
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixGetRow);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixRestoreRow);
 #undef FETCH_HYPRE_SYMBOL
@@ -1357,7 +1477,8 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   factory->hypre = hypre; 
 
   // Construct the factory.
-  krylov_factory_vtable vtable = {.gmres_solver = hypre_factory_gmres_solver,
+  krylov_factory_vtable vtable = {.pcg_solver = hypre_factory_pcg_solver,
+                                  .gmres_solver = hypre_factory_gmres_solver,
                                   .bicgstab_solver = hypre_factory_bicgstab_solver,
                                   .special_solver = hypre_factory_special_solver,
                                   .preconditioner = hypre_factory_pc,

@@ -207,9 +207,9 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     for (int i = 1; i < N-1; ++i)
     {
       num_cols = 3;
-      rows[0] = i, cols[0] = i-1, Aij[0] = 1.0;
-      rows[1] = i, cols[1] = i,   Aij[1] = -2.0;
-      rows[2] = i, cols[2] = i+1, Aij[2] = 1.0;
+      rows[0] = i, cols[0] = i-1, Aij[0] = -1.0;
+      rows[1] = i, cols[1] = i,   Aij[1] = 2.0;
+      rows[2] = i, cols[2] = i+1, Aij[2] = -1.0;
       krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
     }
     num_cols = 1, rows[0] = N-1, cols[0] = N-1, Aij[0] = 1.0;
@@ -232,10 +232,14 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     krylov_vector_t* x = krylov_factory_vector(factory, graph);
 
     // Create a GMRES solver.
-    krylov_solver_t* solver = krylov_factory_gmres_solver(factory, 
-                                                          comm, 
-                                                          15);
+    krylov_solver_t* solver = krylov_factory_pcg_solver(factory, comm);
+//    krylov_solver_t* solver = krylov_factory_bicgstab_solver(factory, comm);
+//    krylov_solver_t* solver = krylov_factory_gmres_solver(factory, 
+//                                                          comm, 
+//                                                          30);
     assert_true(solver != NULL);
+    krylov_pc_t* pc = krylov_factory_preconditioner(factory, comm, "parasails", NULL);
+    krylov_solver_set_preconditioner(solver, pc);
 
     // Solve the equation.
     krylov_solver_set_operator(solver, A);
@@ -243,6 +247,20 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     int num_iters;
     bool solved = krylov_solver_solve(solver, x, b, &res_norm, &num_iters);
     log_debug("residual norm is %g, # iterations is %d", res_norm, num_iters);
+real_t X[N], B[N];
+index_t I[N];
+for (int i = 0; i < N; ++i)
+I[i] = i;
+krylov_vector_get_values(x, N, I, X);
+krylov_vector_get_values(b, N, I, B);
+printf("x = [ ");
+for (int i = 0; i < N; ++i)
+printf("%g ", X[i]);
+printf("]\n");
+printf("b = [ ");
+for (int i = 0; i < N; ++i)
+printf("%g ", B[i]);
+printf("]\n");
     assert_true(solved);
 
     // Put everything away.

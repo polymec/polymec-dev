@@ -43,6 +43,7 @@ typedef struct krylov_factory_t krylov_factory_t;
 // This virtual table must be filled out for any subclass of krylov_factory.
 typedef struct 
 {
+  krylov_solver_t* (*pcg_solver)(void* context, MPI_Comm comm);
   krylov_solver_t* (*gmres_solver)(void* context, MPI_Comm comm, int krylov_dimension);
   krylov_solver_t* (*bicgstab_solver)(void* context, MPI_Comm comm);
   krylov_solver_t* (*special_solver)(void* context, MPI_Comm comm, const char* solver_name, string_string_unordered_map_t* options);
@@ -181,6 +182,12 @@ krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory,
 krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
                                        adj_graph_t* dist_graph);
 
+// Constructs a preconditioned conjugate gradient (PCG) Krylov solver. Keep in 
+// mind that this method can only be used for systems having symmetric, 
+// positive-definite matrices.
+krylov_solver_t* krylov_factory_pcg_solver(krylov_factory_t* factory,
+                                           MPI_Comm comm);
+                                             
 // Constructs a GMRES Krylov solver with the given Krylov subspace dimension.
 krylov_solver_t* krylov_factory_gmres_solver(krylov_factory_t* factory,
                                              MPI_Comm comm,

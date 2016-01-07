@@ -206,6 +206,35 @@ static void petsc_solver_dtor(void* context)
   polymec_free(solver);
 }
 
+static krylov_solver_t* petsc_factory_pcg_solver(void* context,
+                                                 MPI_Comm comm)
+{
+  petsc_solver_t* solver = polymec_malloc(sizeof(petsc_solver_t));
+  solver->factory = context;
+  solver->factory->methods.KSPCreate(comm, &solver->ksp);
+  solver->factory->methods.KSPSetType(solver->ksp, "pcg");
+  // FIXME: We ignore the Krylov subspace dimension for now.
+  // FIXME: Consider altering orthogonalization scheme?
+
+  // Handle the preconditioner's options.
+  PC pc;
+  solver->factory->methods.KSPGetPC(solver->ksp, &pc);
+  solver->factory->methods.PCSetFromOptions(pc);
+
+  // Set the thing up.
+  solver->factory->methods.KSPSetFromOptions(solver->ksp);
+  solver->factory->methods.KSPSetUp(solver->ksp);
+
+  // Set up the virtual table.
+  krylov_solver_vtable vtable = {.set_tolerances = petsc_solver_set_tolerances,
+                                 .set_max_iterations = petsc_solver_set_max_iterations,
+                                 .set_operator = petsc_solver_set_operator,
+                                 .set_preconditioner = petsc_solver_set_pc,
+                                 .solve = petsc_solver_solve,
+                                 .dtor = petsc_solver_dtor};
+  return krylov_solver_new("PETSc PCG", solver, vtable);
+}
+
 static krylov_solver_t* petsc_factory_gmres_solver(void* context,
                                                    MPI_Comm comm,
                                                    int krylov_dimension)
@@ -896,7 +925,8 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   factory->petsc = petsc; 
 
   // Construct the factory.
-  krylov_factory_vtable vtable = {.gmres_solver = petsc_factory_gmres_solver,
+  krylov_factory_vtable vtable = {.pcg_solver = petsc_factory_pcg_solver,
+                                  .gmres_solver = petsc_factory_gmres_solver,
                                   .bicgstab_solver = petsc_factory_bicgstab_solver,
                                   .special_solver = petsc_factory_special_solver,
                                   .preconditioner = petsc_factory_pc,
