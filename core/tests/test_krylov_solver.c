@@ -241,20 +241,6 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     int num_iters;
     bool solved = krylov_solver_solve(solver, b, x, &res_norm, &num_iters);
     log_debug("residual norm is %g, # iterations is %d", res_norm, num_iters);
-real_t X[N], B[N];
-index_t I[N];
-for (int i = 0; i < N; ++i)
-I[i] = i;
-krylov_vector_get_values(x, N, I, X);
-krylov_vector_get_values(b, N, I, B);
-printf("x = [ ");
-for (int i = 0; i < N; ++i)
-printf("%g ", X[i]);
-printf("]\n");
-printf("b = [ ");
-for (int i = 0; i < N; ++i)
-printf("%g ", B[i]);
-printf("]\n");
     assert_true(solved);
 
     // Put everything away.

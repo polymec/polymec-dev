@@ -357,7 +357,13 @@ static bool hypre_solver_solve(void* context,
     return false;
 
   log_debug("hypre_solver_solve: Solving linear system.");
+
+  // HYPRE's Krylov methods can produce some pretty small numbers, which can be 
+  // interpreted as denormalized garbage by polymec, so we tell polymec to chill.
+  polymec_suspend_fpe();
   result = solve(solver->solver, solver->op, par_B, par_X);
+  polymec_restore_fpe();
+
   bool success = (result == 0);
   if (success)
     log_debug("hypre_solver_solve: Success!");
