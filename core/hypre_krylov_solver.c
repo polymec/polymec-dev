@@ -149,6 +149,7 @@ typedef struct
   HYPRE_Int (*HYPRE_IJMatrixSetRowSizes)(HYPRE_IJMatrix, const HYPRE_Int*);
   HYPRE_Int (*HYPRE_IJMatrixSetDiagOffdSizes)(HYPRE_IJMatrix, const HYPRE_Int*, const HYPRE_Int*);
   HYPRE_Int (*HYPRE_IJMatrixGetRowCounts)(HYPRE_IJMatrix, HYPRE_Int, HYPRE_Int*, HYPRE_Int*);
+  HYPRE_Int (*HYPRE_IJMatrixPrint)(HYPRE_IJMatrix, const char*);
 
   HYPRE_Int (*HYPRE_IJVectorCreate)(HYPRE_MPI_Comm, HYPRE_Int, HYPRE_Int, HYPRE_IJVector*);
   HYPRE_Int (*HYPRE_IJVectorDestroy)(HYPRE_IJVector);
@@ -159,6 +160,7 @@ typedef struct
   HYPRE_Int (*HYPRE_IJVectorGetValues)(HYPRE_IJVector, HYPRE_Int, HYPRE_Int*, HYPRE_Real*);
   HYPRE_Int (*HYPRE_IJVectorSetObjectType)(HYPRE_IJVector, HYPRE_Int);
   HYPRE_Int (*HYPRE_IJVectorGetObject)(HYPRE_IJVector, void**);
+  HYPRE_Int (*HYPRE_IJVectorPrint)(HYPRE_IJVector, const char*);
 
   // Boneheaded built-in preconditioner.
   HYPRE_Int (*HYPRE_ParCSRDiagScaleSetup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
@@ -304,16 +306,16 @@ static void hypre_solver_set_pc(void* context,
 }
 
 static bool hypre_solver_solve(void* context,
-                               void* x,
                                void* b,
+                               void* x,
                                real_t* res_norm,
                                int* num_iters)
 {
   hypre_solver_t* solver = context;
 
   // Get our objects.
-  HYPRE_IJVector X = ((hypre_vector_t*)x)->v;
   HYPRE_IJVector B = ((hypre_vector_t*)b)->v;
+  HYPRE_IJVector X = ((hypre_vector_t*)x)->v;
   HYPRE_ParVector par_X, par_B;
   solver->factory->methods.HYPRE_IJVectorGetObject(X, &par_X);
   solver->factory->methods.HYPRE_IJVectorGetObject(B, &par_B);
@@ -1252,6 +1254,9 @@ static krylov_vector_t* hypre_factory_vector(void* context,
   v->factory->methods.HYPRE_IJVectorInitialize(v->v);
   v->initialized = true;
 
+  // Set all the entries of the vector to zero.
+  hypre_vector_zero(v);
+
   // Set up the virtual table.
   krylov_vector_vtable vtable = {.clone = hypre_vector_clone,
                                  .zero = hypre_vector_zero,
@@ -1453,6 +1458,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixSetRowSizes);
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixSetDiagOffdSizes);
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixGetRowCounts);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixPrint);
 
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorDestroy);
@@ -1463,6 +1469,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorGetValues);
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorSetObjectType);
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorGetObject);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJVectorPrint);
 
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRDiagScaleSetup);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRDiagScale);

@@ -233,17 +233,13 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
 
     // Create a GMRES solver.
     krylov_solver_t* solver = krylov_factory_pcg_solver(factory, comm);
-//    krylov_solver_t* solver = krylov_factory_bicgstab_solver(factory, comm);
-//    krylov_solver_t* solver = krylov_factory_gmres_solver(factory, 
-//                                                          comm, 
-//                                                          30);
     assert_true(solver != NULL);
 
     // Solve the equation.
     krylov_solver_set_operator(solver, A);
     real_t res_norm;
     int num_iters;
-    bool solved = krylov_solver_solve(solver, x, b, &res_norm, &num_iters);
+    bool solved = krylov_solver_solve(solver, b, x, &res_norm, &num_iters);
     log_debug("residual norm is %g, # iterations is %d", res_norm, num_iters);
 real_t X[N], B[N];
 index_t I[N];

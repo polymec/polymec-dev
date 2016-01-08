@@ -181,8 +181,8 @@ static void petsc_solver_set_pc(void* context,
 }
 
 static bool petsc_solver_solve(void* context,
-                               void* x,
                                void* b,
+                               void* x,
                                real_t* res_norm,
                                int* num_iters)
 {

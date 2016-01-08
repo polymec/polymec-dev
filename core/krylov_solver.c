@@ -129,12 +129,12 @@ krylov_pc_t* krylov_solver_preconditioner(krylov_solver_t* solver)
 }
 
 bool krylov_solver_solve(krylov_solver_t* solver, 
-                         krylov_vector_t* x, 
                          krylov_vector_t* b, 
+                         krylov_vector_t* x, 
                          real_t* residual_norm, 
                          int* num_iterations)
 {
-  return solver->vtable.solve(solver->context, x->context, b->context,
+  return solver->vtable.solve(solver->context, b->context, x->context, 
                               residual_norm, num_iterations);
 }
 

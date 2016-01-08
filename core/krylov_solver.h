@@ -67,7 +67,7 @@ typedef struct
   void (*set_max_iterations)(void* context, int max_iters);
   void (*set_operator)(void* context, void* op);
   void (*set_preconditioner)(void* context, void* pc);
-  bool (*solve)(void* context, void* x, void* b, real_t* res_norm, int* num_iters);
+  bool (*solve)(void* context, void* b, void* x, real_t* res_norm, int* num_iters);
   void (*dtor)(void* context);
 } krylov_solver_vtable;
 
@@ -261,8 +261,8 @@ krylov_pc_t* krylov_solver_preconditioner(krylov_solver_t* solver);
 // num_iterations upon success. If the solve is unsuccessful, the vector b 
 // will NOT contain the solution unless the residual was reduced.
 bool krylov_solver_solve(krylov_solver_t* solver, 
-                         krylov_vector_t* x, 
                          krylov_vector_t* b, 
+                         krylov_vector_t* x, 
                          real_t* residual_norm, 
                          int* num_iterations);
 
