@@ -238,8 +238,6 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
 //                                                          comm, 
 //                                                          30);
     assert_true(solver != NULL);
-    krylov_pc_t* pc = krylov_factory_preconditioner(factory, comm, "parasails", NULL);
-    krylov_solver_set_preconditioner(solver, pc);
 
     // Solve the equation.
     krylov_solver_set_operator(solver, A);
@@ -328,6 +326,7 @@ int main(int argc, char* argv[])
     unit_test(test_petsc_krylov_factory),
     unit_test(test_petsc_krylov_matrix),
     unit_test(test_petsc_krylov_vector),
+    unit_test(test_petsc_laplace_eqn),
     unit_test(test_hypre_krylov_factory),
     unit_test(test_hypre_krylov_matrix),
     unit_test(test_hypre_krylov_vector),

@@ -48,16 +48,17 @@ typedef struct
   PetscErrorCode (*PetscInitialize)(int*, char***, const char[], const char[]);
   PetscErrorCode (*PetscInitialized)(PetscBool*);
   PetscErrorCode (*PetscFinalize)();
+  PetscErrorCode (*PetscPushErrorHandler)(PetscErrorCode (*handler)(MPI_Comm comm, int, const char*, const char*, PetscErrorCode, int, const char*, void*), void*);
 
   PetscErrorCode (*KSPCreate)(MPI_Comm,KSP *);
   PetscErrorCode (*KSPSetType)(KSP,KSPType);
-  PetscErrorCode (*KSPSetUp)(KSP);
   PetscErrorCode (*KSPGetPC)(KSP,PC*);
   PetscErrorCode (*KSPSetPC)(KSP,PC);
   PetscErrorCode (*KSPSetFromOptions)(KSP);
   PetscErrorCode (*KSPSetTolerances)(KSP,PetscReal,PetscReal,PetscReal,PetscInt);
   PetscErrorCode (*KSPGetTolerances)(KSP,PetscReal*,PetscReal*,PetscReal*,PetscInt*);
   PetscErrorCode (*KSPSetOperators)(KSP,Mat,Mat);
+  PetscErrorCode (*KSPSetUp)(KSP);
   PetscErrorCode (*KSPSolve)(KSP,Vec,Vec);
   PetscErrorCode (*KSPGetConvergedReason)(KSP,int*);
   PetscErrorCode (*KSPGetIterationNumber)(KSP,PetscInt*);
@@ -77,7 +78,6 @@ typedef struct
   PetscErrorCode (*MatSeqBAIJSetPreallocation)(Mat, PetscInt, PetscInt, PetscInt[]);
   PetscErrorCode (*MatMPIBAIJSetPreallocation)(Mat, PetscInt, PetscInt, PetscInt[], PetscInt, PetscInt[]);
   PetscErrorCode (*MatSetBlockSize)(Mat, PetscInt);
-  PetscErrorCode (*MatSetUp)(Mat);
   PetscErrorCode (*MatDestroy)(Mat*);
   PetscErrorCode (*MatScale)(Mat,PetscScalar);
   PetscErrorCode (*MatShift)(Mat,PetscScalar);
@@ -161,10 +161,13 @@ static void petsc_solver_set_operator(void* context,
                                       void* op)
 {
   petsc_solver_t* solver = context;
-  Mat A = op;
-  PetscErrorCode err = solver->factory->methods.KSPSetOperators(solver->ksp, A, A);
+  petsc_matrix_t* A = op;
+  PetscErrorCode err = solver->factory->methods.KSPSetOperators(solver->ksp, A->A, A->A);
   if (err != 0)
-    polymec_error("petsc_solver_set_operator failed!");
+    polymec_error("petsc_solver_set_operator failed setting operator.");
+  err = solver->factory->methods.KSPSetUp(solver->ksp);
+  if (err != 0)
+    polymec_error("petsc_solver_set_operator failed setting up solver.");
 }
 
 static void petsc_solver_set_pc(void* context,
@@ -184,9 +187,9 @@ static bool petsc_solver_solve(void* context,
                                int* num_iters)
 {
   petsc_solver_t* solver = context;
-  Vec X = x;
-  Vec B = b;
-  PetscErrorCode err = solver->factory->methods.KSPSolve(solver->ksp, X, B);
+  petsc_vector_t* B = b;
+  petsc_vector_t* X = x;
+  PetscErrorCode err = solver->factory->methods.KSPSolve(solver->ksp, B->v, X->v);
   if (err != 0)
     polymec_error("petsc_solver_solve: Call to linear solve failed!");
   int code;
@@ -212,7 +215,7 @@ static krylov_solver_t* petsc_factory_pcg_solver(void* context,
   petsc_solver_t* solver = polymec_malloc(sizeof(petsc_solver_t));
   solver->factory = context;
   solver->factory->methods.KSPCreate(comm, &solver->ksp);
-  solver->factory->methods.KSPSetType(solver->ksp, "pcg");
+  solver->factory->methods.KSPSetType(solver->ksp, "cg");
   // FIXME: We ignore the Krylov subspace dimension for now.
   // FIXME: Consider altering orthogonalization scheme?
 
@@ -223,7 +226,6 @@ static krylov_solver_t* petsc_factory_pcg_solver(void* context,
 
   // Set the thing up.
   solver->factory->methods.KSPSetFromOptions(solver->ksp);
-  solver->factory->methods.KSPSetUp(solver->ksp);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = petsc_solver_set_tolerances,
@@ -253,7 +255,6 @@ static krylov_solver_t* petsc_factory_gmres_solver(void* context,
 
   // Set the thing up.
   solver->factory->methods.KSPSetFromOptions(solver->ksp);
-  solver->factory->methods.KSPSetUp(solver->ksp);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = petsc_solver_set_tolerances,
@@ -280,7 +281,6 @@ static krylov_solver_t* petsc_factory_bicgstab_solver(void* context,
 
   // Set the thing up.
   solver->factory->methods.KSPSetFromOptions(solver->ksp);
-  solver->factory->methods.KSPSetUp(solver->ksp);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = petsc_solver_set_tolerances,
@@ -309,7 +309,6 @@ static krylov_solver_t* petsc_factory_special_solver(void* context,
 
   // Set the thing up.
   solver->factory->methods.KSPSetFromOptions(solver->ksp);
-  solver->factory->methods.KSPSetUp(solver->ksp);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = petsc_solver_set_tolerances,
@@ -382,18 +381,18 @@ static void petsc_matrix_add_diagonal(void* context, void* D)
   A->factory->methods.MatDiagonalSet(A->A, diag, ADD_VALUES);
 }
 
-static void petsc_matrix_enter_values(void* context, index_t num_rows,
-                                      index_t* num_columns, index_t* rows, index_t* columns,
-                                      real_t* values, InsertMode insert_mode)
+static void petsc_matrix_insert_values(void* context, index_t num_rows,
+                                       index_t* num_columns, index_t* rows, index_t* columns,
+                                       real_t* values, InsertMode insert_mode)
 {
   petsc_matrix_t* A = context;
   int col_offset = 0;
   for (int r = 0; r < num_rows; ++r)
   {
-    int num_cols = num_columns[r];
+    PetscInt num_cols = num_columns[r];
     PetscInt row = rows[r];
     PetscInt cols[num_cols];
-    real_t vals[num_cols];
+    PetscReal vals[num_cols];
     for (int c = 0; c < num_cols; ++c, ++col_offset)
     {
       cols[c] = columns[col_offset];
@@ -407,14 +406,14 @@ static void petsc_matrix_set_values(void* context, index_t num_rows,
                                     index_t* num_columns, index_t* rows, index_t* columns,
                                     real_t* values)
 {
-  petsc_matrix_enter_values(context, num_rows, num_columns, rows, columns, values, INSERT_VALUES);
+  petsc_matrix_insert_values(context, num_rows, num_columns, rows, columns, values, INSERT_VALUES);
 }
 
 static void petsc_matrix_add_values(void* context, index_t num_rows,
                                     index_t* num_columns, index_t* rows, index_t* columns,
                                     real_t* values)
 {
-  petsc_matrix_enter_values(context, num_rows, num_columns, rows, columns, values, ADD_VALUES);
+  petsc_matrix_insert_values(context, num_rows, num_columns, rows, columns, values, ADD_VALUES);
 }
 
 static void petsc_matrix_start_assembly(void* context)
@@ -437,12 +436,15 @@ static void petsc_matrix_get_values(void* context, index_t num_rows,
   int col_offset = 0;
   for (int r = 0; r < num_rows; ++r)
   {
-    int num_cols = num_columns[r];
+    PetscInt num_cols = num_columns[r];
     PetscInt row = rows[r];
     PetscInt cols[num_cols];
     for (int c = 0; c < num_cols; ++c, ++col_offset)
       cols[c] = columns[col_offset];
-    A->factory->methods.MatGetValues(A->A, 1, &row, num_cols, cols, &values[col_offset-num_cols]);
+    PetscReal vals[num_cols];
+    A->factory->methods.MatGetValues(A->A, 1, &row, num_cols, cols, vals);
+    for (int c = 0; c < num_cols; ++c)
+      values[col_offset-num_cols+c] = vals[c];
   }
 }
 
@@ -478,7 +480,7 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
     PetscInt nnz[N_local];
     for (int v = 0; v < N_local; ++v)
       nnz[v] = (PetscInt)(1 + adj_graph_num_edges(sparsity, v));
-      A->factory->methods.MatSeqAIJSetPreallocation(A->A, PETSC_DEFAULT, nnz);
+    A->factory->methods.MatSeqAIJSetPreallocation(A->A, PETSC_DEFAULT, nnz);
   }
   else
   {
@@ -500,7 +502,40 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
     }
     A->factory->methods.MatMPIAIJSetPreallocation(A->A, PETSC_DEFAULT, d_nnz, PETSC_DEFAULT, o_nnz);
   }
-  A->factory->methods.MatSetUp(A->A);
+
+  // Set the "non-zero" values to zero initially. This constructs the specific non-zero structure.
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+  index_t ilow = vtx_dist[rank], ihigh = vtx_dist[rank+1] - 1;
+  index_t num_rows = ihigh - ilow + 1;
+  index_t num_columns[num_rows], rows[num_rows];
+  for (int r = 0; r < num_rows; ++r)
+  {
+    rows[r] = ilow + r;
+    num_columns[r] = 1 + adj_graph_num_edges(sparsity, r);
+  }
+  int tot_num_values = 0;
+  for (int r = 0; r < num_rows; ++r)
+    tot_num_values += num_columns[r];
+
+  index_t col_offset = 0;
+  index_t columns[tot_num_values];
+  for (int r = 0; r < num_rows; ++r)
+  {
+    columns[col_offset++] = r; // diagonal
+    int* edges = adj_graph_edges(sparsity, r);
+    for (int c = 0; c < num_columns[r] - 1; ++c, ++col_offset)
+      columns[col_offset] = ilow + edges[c];
+  }
+  ASSERT(col_offset == tot_num_values);
+
+  real_t zeros[tot_num_values];
+  memset(zeros, 0, sizeof(real_t) * tot_num_values);
+  petsc_matrix_set_values(A, num_rows, num_columns, rows, columns, zeros);
+
+  // Assemble the matrix.
+  A->factory->methods.MatAssemblyBegin(A->A, MAT_FINAL_ASSEMBLY);
+  A->factory->methods.MatAssemblyEnd(A->A, MAT_FINAL_ASSEMBLY);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
@@ -544,7 +579,7 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
     PetscInt nnz[N_local];
     for (int v = 0; v < N_local; ++v)
       nnz[v] = (PetscInt)(1 + adj_graph_num_edges(sparsity, v));
-      A->factory->methods.MatSeqBAIJSetPreallocation(A->A, (PetscInt)block_size, PETSC_DEFAULT, nnz);
+    A->factory->methods.MatSeqBAIJSetPreallocation(A->A, (PetscInt)block_size, PETSC_DEFAULT, nnz);
   }
   else
   {
@@ -566,7 +601,36 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
     }
     A->factory->methods.MatMPIBAIJSetPreallocation(A->A, (PetscInt)block_size, PETSC_DEFAULT, d_nnz, PETSC_DEFAULT, o_nnz);
   }
-  A->factory->methods.MatSetUp(A->A);
+
+  // Set the "non-zero" values to zero initially. This constructs the specific non-zero structure.
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+  index_t ilow = vtx_dist[rank], ihigh = vtx_dist[rank+1] - 1;
+  index_t num_rows = ihigh - ilow + 1;
+  index_t num_columns[num_rows], rows[num_rows];
+  for (int r = 0; r < num_rows; ++r)
+  {
+    rows[r] = ilow + r;
+    num_columns[r] = block_size * (1 + adj_graph_num_edges(sparsity, r));
+  }
+  int tot_num_values = 0;
+  for (int r = 0; r < num_rows; ++r)
+    tot_num_values += num_columns[r];
+
+  index_t col_offset = 0;
+  index_t columns[tot_num_values];
+  for (int r = 0; r < num_rows; ++r)
+  {
+    columns[col_offset++] = ilow + r;
+    int* edges = adj_graph_edges(sparsity, r);
+    for (int c = 0; c < num_columns[r]-1; ++c, ++col_offset)
+      columns[col_offset] = ilow + edges[c];
+  }
+  ASSERT(col_offset == tot_num_values);
+
+  // Assemble the matrix.
+  A->factory->methods.MatAssemblyBegin(A->A, MAT_FINAL_ASSEMBLY);
+  A->factory->methods.MatAssemblyEnd(A->A, MAT_FINAL_ASSEMBLY);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
@@ -727,6 +791,19 @@ static void petsc_factory_dtor(void* context)
     *((void**)&(function_ptr)) = ptr; \
   } 
 
+// This handles PETSc errors as Polymec errors.
+static PetscErrorCode polymec_petsc_error_handler(MPI_Comm comm,
+                                                  int line,
+                                                  const char* func,
+                                                  const char* file,
+                                                  PetscErrorCode n,
+                                                  int p,
+                                                  const char* mess,
+                                                  void* ctx)
+{
+  polymec_error("PETSC error detected in %s (%s:%d): %s", func, file, line, mess);
+}
+
 krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                        const char* petsc_arch)
 {
@@ -810,7 +887,6 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
     }
     text_buffer_free(buffer);
   }
-#if 0
   if (sizeof(index_t) == sizeof(int64_t))
   {
     if (!petsc_uses_64bit_indices)
@@ -829,12 +905,6 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
       goto failure;
     }
   }
-#endif
-  if (petsc_uses_64bit_indices)
-  {
-    log_urgent("petsc_krylov_factory: Currently, PETSc must be configured to use 32-bit indices.");
-    goto failure;
-  }
 
   // Get the symbols.
 #define FETCH_PETSC_SYMBOL(symbol_name) \
@@ -843,16 +913,17 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(PetscInitialize);
   FETCH_PETSC_SYMBOL(PetscInitialized);
   FETCH_PETSC_SYMBOL(PetscFinalize);
+  FETCH_PETSC_SYMBOL(PetscPushErrorHandler);
 
   FETCH_PETSC_SYMBOL(KSPCreate);
   FETCH_PETSC_SYMBOL(KSPSetType);
   FETCH_PETSC_SYMBOL(KSPSetFromOptions);
-  FETCH_PETSC_SYMBOL(KSPSetUp);
   FETCH_PETSC_SYMBOL(KSPGetPC);
   FETCH_PETSC_SYMBOL(KSPSetPC);
   FETCH_PETSC_SYMBOL(KSPSetTolerances);
   FETCH_PETSC_SYMBOL(KSPGetTolerances);
   FETCH_PETSC_SYMBOL(KSPSetOperators);
+  FETCH_PETSC_SYMBOL(KSPSetUp);
   FETCH_PETSC_SYMBOL(KSPSolve);
   FETCH_PETSC_SYMBOL(KSPGetConvergedReason);
   FETCH_PETSC_SYMBOL(KSPGetIterationNumber);
@@ -872,7 +943,6 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(MatSeqBAIJSetPreallocation);
   FETCH_PETSC_SYMBOL(MatMPIBAIJSetPreallocation);
   FETCH_PETSC_SYMBOL(MatSetBlockSize);
-  FETCH_PETSC_SYMBOL(MatSetUp);
   FETCH_PETSC_SYMBOL(MatDestroy);
   FETCH_PETSC_SYMBOL(MatScale);
   FETCH_PETSC_SYMBOL(MatShift);
@@ -921,6 +991,9 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
     factory->finalize_petsc = true;
   }
 
+  // Hook into polymec's error handler.
+  factory->methods.PetscPushErrorHandler(polymec_petsc_error_handler, NULL);
+
   // Stash the library.
   factory->petsc = petsc; 
 
@@ -934,7 +1007,9 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                   .block_matrix = petsc_factory_block_matrix,
                                   .vector = petsc_factory_vector,
                                   .dtor = petsc_factory_dtor};
-  return krylov_factory_new(version, factory, vtable);
+  char name[1024];
+  snprintf(name, 1023, "PETSc v%s", version);
+  return krylov_factory_new(name, factory, vtable);
 
 failure:
   dlclose(petsc);
