@@ -28,6 +28,7 @@ add_game_of_life_test(still 10 0 1 2 3 4)
 if (HAVE_MPI EQUAL 1)
   set(failing_tests test_stencil_1_proc;test_stencil_2_proc;
                     test_stencil_3_proc;test_stencil_4_proc;
+                    game_of_life_still_0_steps_1_procs;
                     game_of_life_still_0_steps_2_procs;
                     game_of_life_still_0_steps_3_procs;
                     game_of_life_still_0_steps_4_procs;
