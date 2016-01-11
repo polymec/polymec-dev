@@ -61,6 +61,32 @@ typedef struct
 } mpi_message_t;
 
 #if POLYMEC_HAVE_MPI
+static size_t mpi_size(MPI_Datatype type)
+{
+  size_t size = 0;
+  if (type == MPI_REAL_T)
+    size = sizeof(real_t);
+  else if (type == MPI_DOUBLE)
+    size = sizeof(double);
+  else if (type == MPI_FLOAT)
+    size = sizeof(float);
+  else if (type == MPI_INT)
+    size = sizeof(int);
+  else if (type == MPI_LONG)
+    size = sizeof(long);
+  else if (type == MPI_LONG_LONG)
+    size = sizeof(long long);
+  else if (type == MPI_UINT64_T)
+    size = sizeof(uint64_t);
+  else if (type == MPI_CHAR)
+    size = sizeof(char);
+  else if (type == MPI_BYTE)
+    size = sizeof(uint8_t);
+  else 
+    polymec_error("Unsupported MPI data type used.");
+  return size;
+}
+
 static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
 {
   ASSERT(stride > 0);
@@ -68,27 +94,17 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
   msg->type = type;
   msg->stride = stride;
   msg->tag = tag;
-  if (type == MPI_REAL_T)
-    msg->data_size = sizeof(real_t);
-  else if (type == MPI_DOUBLE)
-    msg->data_size = sizeof(double);
-  else if (type == MPI_FLOAT)
-    msg->data_size = sizeof(float);
-  else if (type == MPI_INT)
-    msg->data_size = sizeof(int);
-  else if (type == MPI_LONG)
-    msg->data_size = sizeof(long);
-  else if (type == MPI_LONG_LONG)
-    msg->data_size = sizeof(long long);
-  else if (type == MPI_UINT64_T)
-    msg->data_size = sizeof(uint64_t);
-  else if (type == MPI_CHAR)
-    msg->data_size = sizeof(char);
-  else if (type == MPI_BYTE)
-    msg->data_size = sizeof(uint8_t);
-  else 
-    polymec_error("Unsupported MPI data type used to construct MPI message.");
+  msg->data_size = mpi_size(type);
+  msg->num_sends = 0;
+  msg->num_receives = 0;
+  msg->num_requests = 0;
   msg->requests = NULL;
+  msg->send_buffers = NULL;
+  msg->send_buffer_sizes = NULL;
+  msg->dest_procs = NULL;
+  msg->receive_buffers = NULL;
+  msg->receive_buffer_sizes = NULL;
+  msg->source_procs = NULL;
   return msg;
 }
 
@@ -297,22 +313,32 @@ static void mpi_message_unpack(mpi_message_t* msg,
 
 static void mpi_message_free(mpi_message_t* msg)
 {
-  for (int i = 0; i < msg->num_sends; ++i)
+  if (msg->send_buffers != NULL)
   {
-    if (msg->send_buffers[i] != NULL)
-      polymec_free(msg->send_buffers[i]);
+    for (int i = 0; i < msg->num_sends; ++i)
+    {
+      if (msg->send_buffers[i] != NULL)
+        polymec_free(msg->send_buffers[i]);
+    }
+    polymec_free(msg->send_buffers);
   }
-  polymec_free(msg->send_buffers);
-  polymec_free(msg->send_buffer_sizes);
-  polymec_free(msg->dest_procs);
-  for (int i = 0; i < msg->num_receives; ++i)
+  if (msg->send_buffer_sizes != NULL)
+    polymec_free(msg->send_buffer_sizes);
+  if (msg->dest_procs != NULL)
+    polymec_free(msg->dest_procs);
+  if (msg->receive_buffers != NULL)
   {
-    if (msg->receive_buffers[i] != NULL)
-      polymec_free(msg->receive_buffers[i]);
+    for (int i = 0; i < msg->num_receives; ++i)
+    {
+      if (msg->receive_buffers[i] != NULL)
+        polymec_free(msg->receive_buffers[i]);
+    }
+    polymec_free(msg->receive_buffers);
   }
-  polymec_free(msg->receive_buffers);
-  polymec_free(msg->receive_buffer_sizes);
-  polymec_free(msg->source_procs);
+  if (msg->receive_buffer_sizes != NULL)
+    polymec_free(msg->receive_buffer_sizes);
+  if (msg->source_procs != NULL)
+    polymec_free(msg->source_procs);
   if (msg->requests != NULL)
     polymec_free(msg->requests);
   polymec_free(msg);
@@ -695,14 +721,10 @@ void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Da
   STOP_FUNCTION_TIMER();
 }
 
-int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type)
-{
 #if POLYMEC_HAVE_MPI
+static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* msg)
+{
   START_FUNCTION_TIMER();
-  // Create a message for this array.
-  mpi_message_t* msg = mpi_message_new(type, stride, tag);
-  mpi_message_pack(msg, data, ex->send_offset, ex->send_map, ex->receive_map);
-
   // If we are expecting data, post asynchronous receives. 
   int j = 0;
   for (int i = 0; i < msg->num_receives; ++i)
@@ -744,7 +766,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   }
   msg->num_requests = j;
 
-  // Allocate a token for the transmission and store the pending message.
+  // Allocate a token.
   int token = 0;
   while ((token < ex->num_pending_msgs) && (ex->pending_msgs[token] != NULL))
     ++token;
@@ -758,6 +780,21 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   }
   ex->pending_msgs[token] = msg;
   ex->orig_buffers[token] = data;
+  STOP_FUNCTION_TIMER();
+  return token;
+}
+#endif
+
+int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type)
+{
+#if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
+  // Create a message for this array.
+  mpi_message_t* msg = mpi_message_new(type, stride, tag);
+  mpi_message_pack(msg, data, ex->send_offset, ex->send_map, ex->receive_map);
+  
+  // Begin the transmission and allocate a token for it.
+  int token = exchanger_send_message(ex, data, msg);
   STOP_FUNCTION_TIMER();
   return token;
 #else
@@ -957,7 +994,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   START_FUNCTION_TIMER();
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
-  ASSERT(ex->transfer_counts[token] == NULL); // We can't finishing a transfer as an exchange!
+  ASSERT(ex->transfer_counts[token] == NULL); // We can't finish a transfer as an exchange!
 
   // Retrieve the message for the given token.
   mpi_message_t* msg = ex->pending_msgs[token];
@@ -1004,8 +1041,6 @@ void exchanger_finish_transfer(exchanger_t* ex, int token)
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
   ASSERT(ex->transfer_counts[token] != NULL); // We can't finish an exchange as a transfer!
-
-  // This is like exchanger_finish_exchange, but with some rearranging.
 
   // Retrieve the message for the given token.
   mpi_message_t* msg = ex->pending_msgs[token];
@@ -1364,3 +1399,162 @@ exchanger_t* create_migrator(MPI_Comm comm,
   return migrator;
 }
 
+void** exchanger_create_metadata_send_arrays(exchanger_t* ex,
+                                             MPI_Datatype type,
+                                             int stride)
+{
+#if POLYMEC_HAVE_MPI
+  int num_arrays = exchanger_num_sends(ex);
+  uint8_t** arrays = polymec_malloc(sizeof(void*) * num_arrays);
+  int pos = 0, i = 0, proc, *indices, num_indices;
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+    arrays[i] = polymec_malloc(mpi_size(type) * num_indices);
+  return (void**)arrays;
+#else
+  return NULL;
+#endif
+}
+
+void exchanger_free_metadata_send_arrays(exchanger_t* ex, 
+                                         void** arrays)
+{
+#if POLYMEC_HAVE_MPI
+  int num_arrays = exchanger_num_sends(ex);
+  for (int i = 0; i < num_arrays; ++i)
+    polymec_free(arrays[i]);
+  polymec_free(arrays);
+#endif
+}
+
+void** exchanger_create_metadata_receive_arrays(exchanger_t* ex,
+                                                MPI_Datatype type,
+                                                int stride)
+{
+#if POLYMEC_HAVE_MPI
+  int num_arrays = exchanger_num_receives(ex);
+  uint8_t** arrays = polymec_malloc(sizeof(void*) * num_arrays);
+  int pos = 0, i = 0, proc, *indices, num_indices;
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+    arrays[i] = polymec_malloc(mpi_size(type) * num_indices);
+  return (void**)arrays;
+#else
+  return NULL;
+#endif
+}
+
+void exchanger_free_metadata_receive_arrays(exchanger_t* ex, 
+                                            void** arrays)
+{
+#if POLYMEC_HAVE_MPI
+  int num_arrays = exchanger_num_receives(ex);
+  for (int i = 0; i < num_arrays; ++i)
+    polymec_free(arrays[i]);
+  polymec_free(arrays);
+#endif
+}
+
+int exchanger_start_metadata_transfer(exchanger_t* ex,
+                                      void** send_arrays,
+                                      void** receive_arrays,
+                                      int stride,
+                                      int tag,
+                                      MPI_Datatype type,
+                                      exchanger_metadata_dir direction)
+{
+#if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
+
+  // Create a message using these metadata arrays, and set it up manually.
+  mpi_message_t* msg = mpi_message_new(type, stride, tag);
+
+  int num_sends = exchanger_num_sends(ex);
+  int* dest_procs = polymec_malloc(sizeof(int) * num_sends);
+  int* send_buffer_sizes = polymec_malloc(sizeof(int) * num_sends);
+  int pos = 0, proc, *indices, num_indices, i = 0;
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+  {
+    dest_procs[i] = proc;
+    send_buffer_sizes[i++] = num_indices;
+  }
+
+  int num_receives = exchanger_num_receives(ex);
+  int* source_procs = polymec_malloc(sizeof(int) * num_receives);
+  int* receive_buffer_sizes = polymec_malloc(sizeof(int) * num_receives);
+  pos = 0, i = 0;
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+  {
+    source_procs[i] = proc;
+    receive_buffer_sizes[i++] = num_indices;
+  }
+
+  // Set things up based on the direction.
+  if (direction == EX_METADATA_FORWARD)
+  {
+    msg->num_sends = num_sends;
+    msg->dest_procs = dest_procs;
+    msg->send_buffer_sizes = send_buffer_sizes;
+    msg->send_buffers = send_arrays;
+    msg->source_procs = source_procs;
+    msg->receive_buffer_sizes = receive_buffer_sizes;
+    msg->receive_buffers = receive_arrays;
+  }
+  else
+  {
+    // Reverse!
+    msg->num_sends = num_receives;
+    msg->dest_procs = source_procs;
+    msg->send_buffer_sizes = receive_buffer_sizes;
+    msg->send_buffers = receive_arrays;
+    msg->source_procs = dest_procs;
+    msg->receive_buffer_sizes = send_buffer_sizes;
+    msg->receive_buffers = send_arrays;
+  }
+
+  // Allocate requests.
+  msg->requests = polymec_malloc((msg->num_sends+msg->num_receives)*sizeof(MPI_Request));
+
+  int token = exchanger_send_message(ex, NULL, msg);
+  STOP_FUNCTION_TIMER();
+  return token;
+#else
+  return 0;
+#endif
+}
+
+void exchanger_finish_metadata_transfer(exchanger_t* ex,
+                                        int token)
+{
+#if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
+  ASSERT(token >= 0);
+  ASSERT(token < ex->num_pending_msgs);
+  ASSERT(ex->transfer_counts[token] == NULL); // We can't finish a transfer as an exchange!
+  ASSERT(ex->orig_buffers[token] == NULL); // This is a metadata transfer, right?
+
+  // Retrieve the message for the given token.
+  mpi_message_t* msg = ex->pending_msgs[token];
+  int err = exchanger_waitall(ex, msg);
+  if (err != MPI_SUCCESS) return;
+
+  // Release the send/receive buffers.
+  msg->send_buffers = NULL;
+  msg->receive_buffers = NULL;
+
+  // Pull the message out of our list of pending messages and delete it.
+  ex->pending_msgs[token] = NULL;
+  mpi_message_free(msg);
+  STOP_FUNCTION_TIMER();
+#endif
+}
+
+void exchanger_transfer_metadata(exchanger_t* ex,
+                                 void** send_arrays,
+                                 void** receive_arrays,
+                                 int stride,
+                                 int tag,
+                                 MPI_Datatype type,
+                                 exchanger_metadata_dir direction)
+{
+  int token = exchanger_start_metadata_transfer(ex, send_arrays, receive_arrays, stride, tag, type, direction);
+  exchanger_finish_metadata_transfer(ex, token);
+}

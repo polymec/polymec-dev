@@ -166,4 +166,73 @@ exchanger_t* create_migrator(MPI_Comm comm,
                              int64_t* local_partition,
                              int num_vertices);
 
+//------------------------------------------------------------------------
+//                      Exchanging parallel metadata
+//------------------------------------------------------------------------
+// It is often expedient to send metadata between communicating processes
+// instead of performing an exchange on full data arrays. The following 
+// methods allow the transfer of metadata from a set of "send arrays" 
+// to a set of "receive arrays", based on the topology established within 
+// the given exchanger.
+//------------------------------------------------------------------------
+
+// Create a set of arrays to use in sending metadata of the given type. This 
+// allocates and returns a set of exchanger_num_sends(ex) arrays, each sized 
+// and indexed appropriately for sending metadata with the given stride using 
+// the given exchanger.
+void** exchanger_create_metadata_send_arrays(exchanger_t* ex,
+                                             MPI_Datatype type,
+                                             int stride);
+
+// Frees the storage associated with the metadata send arrays created with 
+// exchanger_create_metadata_send_arrays.
+void exchanger_free_metadata_send_arrays(exchanger_t* ex,
+                                         void** arrays);
+
+// Create a set of arrays to use for receiving metadata of the given type. 
+// This allocates and returns a set of exchanger_num_receives(ex) arrays, each 
+// sized and indexed appropriately for receiving metadata with the given stride 
+// using the given exchanger.
+void** exchanger_create_metadata_receive_arrays(exchanger_t* ex,
+                                                MPI_Datatype type,
+                                                int stride);
+
+// Frees the storage associated with the metadata receive arrays created with 
+// exchanger_create_metadata_receive_arrays.
+void exchanger_free_metadata_receive_arrays(exchanger_t* ex,
+                                            void** arrays);
+ 
+// This enumerated type indicates the direction of metadata transfer. 
+// EX_METADATA_FORWARD indicates a "forward" transfer (from sends to receives), 
+// while EX_METADATA_REVERSE indicates a "reverse" transer (from receives to sends).
+typedef enum
+{
+  EX_METADATA_FORWARD,
+  EX_METADATA_REVERSE
+} exchanger_metadata_dir;
+
+// Performs a transfer of metadata of the given type, with the given stride, 
+// in the given direction.
+void exchanger_transfer_metadata(exchanger_t* ex,
+                                 void** send_arrays,
+                                 void** receive_arrays,
+                                 int stride,
+                                 int tag,
+                                 MPI_Datatype type,
+                                 exchanger_metadata_dir direction);
+
+// Starts an asyncronous transfer of metadata, returning a token that can be used 
+// to finish it.
+int exchanger_start_metadata_transfer(exchanger_t* ex,
+                                      void** send_arrays,
+                                      void** receive_arrays,
+                                      int stride,
+                                      int tag,
+                                      MPI_Datatype type,
+                                      exchanger_metadata_dir direction);
+
+// Finishes the asyncronous metadata transfer associated with the given token.
+void exchanger_finish_metadata_transfer(exchanger_t* ex,
+                                        int token);
+
 #endif
