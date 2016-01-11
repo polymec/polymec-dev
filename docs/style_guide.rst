@@ -272,7 +272,7 @@ argument object in its construction process.
 Methods 
 -------
 
-A method for a class should have be named ``<CLASS>_<METHOD>`` and should 
+A method for a class should be named ``<CLASS>_<METHOD>`` and should 
 always take a pointer to the struct representing an instance of 
 that class as its first argument. For example, the following method returns 
 the distance between the given point and another point:
@@ -486,9 +486,9 @@ The following formatting rules are non-negotiable for source code in Polymec:
 
 The following guidelines are offered for readably formatted code:
 
-* If a function doesn't fit neatly on a line, break the line after an argument 
-  and align the following argument with its first. As long as the declaration 
-  and definition are clearly readable, it's fine.
+* If a function declaration doesn't fit neatly on a line, break the line after 
+  an argument and align the following argument with its first. As long as the 
+  declaration and definition are clearly readable, it's fine.
 * Curly braces that open and close new scopes each go on their own line, not 
   at the end of a line containing other code.
 * If a line is excessively long (in other words, if it doesn't fit on a single 
