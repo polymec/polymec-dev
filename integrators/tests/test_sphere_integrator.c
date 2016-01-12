@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "geometry/plane.h"
 #include "integrators/sphere_integrator.h"
@@ -270,18 +270,18 @@ void test_compute_boundary_surface_weights(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_ctor),
-    unit_test(test_cap_area),
-    unit_test(test_cap_r),
-    unit_test(test_cap_r2),
-    unit_test(test_cap_r3),
-    unit_test(test_cap_r4),
-    unit_test(test_cap_linear_growth),
-    unit_test(test_cap_quadratic_growth),
-    unit_test(test_compute_boundary_surface_weights)
-//    unit_test(test_cap_at_time)
+    cmocka_unit_test(test_ctor),
+    cmocka_unit_test(test_cap_area),
+    cmocka_unit_test(test_cap_r),
+    cmocka_unit_test(test_cap_r2),
+    cmocka_unit_test(test_cap_r3),
+    cmocka_unit_test(test_cap_r4),
+    cmocka_unit_test(test_cap_linear_growth),
+    cmocka_unit_test(test_cap_quadratic_growth),
+    cmocka_unit_test(test_compute_boundary_surface_weights)
+//    cmocka_unit_test(test_cap_at_time)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

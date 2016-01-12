@@ -1,16 +1,16 @@
 include_directories(${PROJECT_SOURCE_DIR}/tests;${PROJECT_BINARY_DIR}/include)
 link_directories(${PROJECT_BINARY_DIR}/lib)
 
-# This function adds a (serial) unit test executable to be built using cmockery.
+# This function adds a (serial) unit test executable to be built using cmocka.
 function(add_polymec_test exe)
   add_executable(${exe} ${ARGN})
-  target_link_libraries(${exe} cmockery ${POLYMEC_LIBRARIES})
+  target_link_libraries(${exe} cmocka ${POLYMEC_LIBRARIES})
   set_target_properties(${exe} PROPERTIES COMPILE_FLAGS "-DCMAKE_CURRENT_SOURCE_DIR=\\\"${CMAKE_CURRENT_SOURCE_DIR}\\\"")
   add_test(${exe} ${exe})
   set_tests_properties(${exe} PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endfunction()
 
-# This function adds a parallel unit test executable to be built using cmockery.
+# This function adds a parallel unit test executable to be built using cmocka.
 # Arguments are source files and numbers of processes (in no particular order, 
 # but usually with process counts following source files by convention).
 # 1 test run will be generated for each processor number value.
@@ -23,7 +23,7 @@ function(add_mpi_polymec_test exe)
     endif()
   endforeach()
   add_executable(${exe} ${sources})
-  target_link_libraries(${exe} cmockery ${POLYMEC_LIBRARIES})
+  target_link_libraries(${exe} cmocka ${POLYMEC_LIBRARIES})
   set_target_properties(${exe} PROPERTIES COMPILE_FLAGS "-DCMAKE_CURRENT_SOURCE_DIR=\\\"${CMAKE_CURRENT_SOURCE_DIR}\\\"")
   if (HAVE_MPI EQUAL 1)
     foreach (proc ${procs})

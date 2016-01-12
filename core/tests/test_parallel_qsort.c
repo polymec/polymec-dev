@@ -10,7 +10,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/parallel_qsort.h"
 
 static int compare_ints(const void* l, const void* r)
@@ -140,9 +140,9 @@ int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
 
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_regular_sampling)
+    cmocka_unit_test(test_regular_sampling)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -10,7 +10,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polynomial.h"
 #include "core/rng.h"
 
@@ -197,18 +197,18 @@ int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
 
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_p0_ctor),
-    unit_test(test_p1_ctor),
-    unit_test(test_p2_ctor),
-    unit_test(test_p3_ctor),
-    unit_test(test_p4_ctor),
-    unit_test(test_p0_basis),
-    unit_test(test_p1_basis),
-    unit_test(test_p2_basis),
-    unit_test(test_p3_basis),
-    unit_test(test_p4_basis)
+    cmocka_unit_test(test_p0_ctor),
+    cmocka_unit_test(test_p1_ctor),
+    cmocka_unit_test(test_p2_ctor),
+    cmocka_unit_test(test_p3_ctor),
+    cmocka_unit_test(test_p4_ctor),
+    cmocka_unit_test(test_p0_basis),
+    cmocka_unit_test(test_p1_basis),
+    cmocka_unit_test(test_p2_basis),
+    cmocka_unit_test(test_p3_basis),
+    cmocka_unit_test(test_p4_basis)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

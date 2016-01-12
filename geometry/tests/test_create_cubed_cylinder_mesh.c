@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/silo_file.h"
 #include "geometry/create_cubed_cylinder_mesh.h"
 
@@ -71,11 +71,11 @@ void test_create_cubed_cylindrical_shell_mesh(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_create_cubed_cylinder_mesh),
-    unit_test(test_create_circular_cubed_cylinder_mesh),
-    unit_test(test_create_cubed_cylindrical_shell_mesh)
+    cmocka_unit_test(test_create_cubed_cylinder_mesh),
+    cmocka_unit_test(test_create_circular_cubed_cylinder_mesh),
+    cmocka_unit_test(test_create_cubed_cylindrical_shell_mesh)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

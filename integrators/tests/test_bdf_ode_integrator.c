@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "integrators/bdf_ode_integrator.h"
 
@@ -143,18 +143,18 @@ void test_ilu_precond_diurnal_step_right(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_block_jacobi_precond_diurnal_ctor),
-    unit_test(test_lu_precond_diurnal_ctor),
-    unit_test(test_ilu_precond_diurnal_ctor),
-    unit_test(test_block_jacobi_precond_diurnal_step_left),
-    unit_test(test_block_jacobi_precond_diurnal_step_right),
-    unit_test(test_lu_precond_diurnal_step_left),
-    unit_test(test_lu_precond_diurnal_step_right)
+    cmocka_unit_test(test_block_jacobi_precond_diurnal_ctor),
+    cmocka_unit_test(test_lu_precond_diurnal_ctor),
+    cmocka_unit_test(test_ilu_precond_diurnal_ctor),
+    cmocka_unit_test(test_block_jacobi_precond_diurnal_step_left),
+    cmocka_unit_test(test_block_jacobi_precond_diurnal_step_right),
+    cmocka_unit_test(test_lu_precond_diurnal_step_left),
+    cmocka_unit_test(test_lu_precond_diurnal_step_right)
     // FIXME: ILU preconditioner is finicky on this problem.
-//    unit_test(test_ilu_precond_diurnal_step_left),
-//    unit_test(test_ilu_precond_diurnal_step_right)
+//    cmocka_unit_test(test_ilu_precond_diurnal_step_left),
+//    cmocka_unit_test(test_ilu_precond_diurnal_step_right)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

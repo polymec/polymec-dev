@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "core/linear_algebra.h"
 #include "integrators/ssor_newton_pc.h"
@@ -82,10 +82,10 @@ void test_ssor_pc_solve(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_ssor_pc_ctor),
-    unit_test(test_ssor_pc_solve)
+    cmocka_unit_test(test_ssor_pc_ctor),
+    cmocka_unit_test(test_ssor_pc_solve)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

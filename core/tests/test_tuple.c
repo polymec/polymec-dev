@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/tuple.h"
 
 int int_values[] = {0, 1, 2, 3, 4, 5};
@@ -81,10 +81,10 @@ DEFINE_TUPLE_TEST(real_tuple, real)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_int_tuple),
-    unit_test(test_real_tuple)
+    cmocka_unit_test(test_int_tuple),
+    cmocka_unit_test(test_real_tuple)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

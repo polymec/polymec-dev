@@ -11,7 +11,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include <time.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/least_squares.h"
 #include "core/linear_algebra.h"
 #include "core/polynomial.h"
@@ -245,16 +245,16 @@ int main(int argc, char* argv[])
   // Initialize the random number generator.
   srand((unsigned)time(NULL));
 
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_p0_fit),
-    unit_test(test_p1_fit),
-    unit_test(test_p2_fit), 
-    unit_test(test_p3_fit),
-    unit_test(test_weighted_p0_fit),
-    unit_test(test_weighted_p1_fit),
-    unit_test(test_weighted_p2_fit), 
-    unit_test(test_weighted_p3_fit)
+    cmocka_unit_test(test_p0_fit),
+    cmocka_unit_test(test_p1_fit),
+    cmocka_unit_test(test_p2_fit), 
+    cmocka_unit_test(test_p3_fit),
+    cmocka_unit_test(test_weighted_p0_fit),
+    cmocka_unit_test(test_weighted_p1_fit),
+    cmocka_unit_test(test_weighted_p2_fit), 
+    cmocka_unit_test(test_weighted_p3_fit)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

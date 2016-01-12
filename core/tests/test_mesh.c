@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/mesh.h"
 #include "geometry/create_uniform_mesh.h"
 
@@ -51,10 +51,10 @@ void test_single_cell_mesh_serialization(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_single_cell_mesh_no_topo),
-    unit_test(test_single_cell_mesh_serialization),
+    cmocka_unit_test(test_single_cell_mesh_no_topo),
+    cmocka_unit_test(test_single_cell_mesh_serialization),
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

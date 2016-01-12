@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/declare_nd_array.h"
 
 void test_int_array2(void** state) 
@@ -342,20 +342,20 @@ void test_real_array7(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_int_array2),
-    unit_test(test_int_array3),
-    unit_test(test_int_array4),
-    unit_test(test_int_array5),
-    unit_test(test_int_array6),
-    unit_test(test_int_array7),
-    unit_test(test_real_array2),
-    unit_test(test_real_array3),
-    unit_test(test_real_array4),
-    unit_test(test_real_array5),
-    unit_test(test_real_array6),
-    unit_test(test_real_array7)
+    cmocka_unit_test(test_int_array2),
+    cmocka_unit_test(test_int_array3),
+    cmocka_unit_test(test_int_array4),
+    cmocka_unit_test(test_int_array5),
+    cmocka_unit_test(test_int_array6),
+    cmocka_unit_test(test_int_array7),
+    cmocka_unit_test(test_real_array2),
+    cmocka_unit_test(test_real_array3),
+    cmocka_unit_test(test_real_array4),
+    cmocka_unit_test(test_real_array5),
+    cmocka_unit_test(test_real_array6),
+    cmocka_unit_test(test_real_array7)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

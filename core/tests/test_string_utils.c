@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 
 void test_string_dup(void** state)
@@ -133,17 +133,17 @@ void test_string_substitute(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_string_dup),
-    unit_test(test_string_ndup),
-    unit_test(test_string_casecmp),
-    unit_test(test_string_ncasecmp),
-    unit_test(test_string_next_token),
-    unit_test(test_string_is_number),
-    unit_test(test_string_as_boolean),
-    unit_test(test_string_find_in_list),
-    unit_test(test_string_substitute)
+    cmocka_unit_test(test_string_dup),
+    cmocka_unit_test(test_string_ndup),
+    cmocka_unit_test(test_string_casecmp),
+    cmocka_unit_test(test_string_ncasecmp),
+    cmocka_unit_test(test_string_next_token),
+    cmocka_unit_test(test_string_is_number),
+    cmocka_unit_test(test_string_as_boolean),
+    cmocka_unit_test(test_string_find_in_list),
+    cmocka_unit_test(test_string_substitute)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

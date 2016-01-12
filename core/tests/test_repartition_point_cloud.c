@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/silo_file.h"
 #include "core/partition_point_cloud.h"
 
@@ -75,9 +75,9 @@ printf("%d: %d %d %g\n", rank, cloud->num_points, Np, fabs(1.0*(cloud->num_point
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_repartition_linear_cloud)
+    cmocka_unit_test(test_repartition_linear_cloud)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

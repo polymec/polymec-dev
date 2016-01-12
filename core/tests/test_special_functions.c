@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "core/special_functions.h"
 
@@ -161,15 +161,15 @@ void test_hermite_hn(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_bessel_find_jn_roots),
-    unit_test(test_bessel_j),
-    unit_test(test_bessel_djdx),
-    unit_test(test_bessel_find_yn_roots),
-    unit_test(test_bessel_y),
-    unit_test(test_bessel_dydx),
-    unit_test(test_hermite_hn)
+    cmocka_unit_test(test_bessel_find_jn_roots),
+    cmocka_unit_test(test_bessel_j),
+    cmocka_unit_test(test_bessel_djdx),
+    cmocka_unit_test(test_bessel_find_yn_roots),
+    cmocka_unit_test(test_bessel_y),
+    cmocka_unit_test(test_bessel_dydx),
+    cmocka_unit_test(test_hermite_hn)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

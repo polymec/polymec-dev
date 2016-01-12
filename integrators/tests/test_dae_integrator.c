@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "integrators/dae_integrator.h"
 
@@ -87,14 +87,14 @@ void test_ilu_precond_heat2d_step(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_block_jacobi_precond_heat2d_ctor),
-    unit_test(test_lu_precond_heat2d_ctor),
-    unit_test(test_ilu_precond_heat2d_ctor),
-    unit_test(test_block_jacobi_precond_heat2d_step),
-    unit_test(test_lu_precond_heat2d_step),
-//    unit_test(test_ilu_precond_heat2d_step)  <-- not cooperating.
+    cmocka_unit_test(test_block_jacobi_precond_heat2d_ctor),
+    cmocka_unit_test(test_lu_precond_heat2d_ctor),
+    cmocka_unit_test(test_ilu_precond_heat2d_ctor),
+    cmocka_unit_test(test_block_jacobi_precond_heat2d_step),
+    cmocka_unit_test(test_lu_precond_heat2d_step),
+//    cmocka_unit_test(test_ilu_precond_heat2d_step)  <-- not cooperating.
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

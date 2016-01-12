@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/silo_file.h"
 #include "geometry/create_uniform_mesh.h"
 
@@ -105,11 +105,11 @@ void test_plot_uniform_mesh_to_n_files(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_create_uniform_mesh),
-    unit_test(test_plot_uniform_mesh_to_single_file),
-    unit_test(test_plot_uniform_mesh_to_n_files)
+    cmocka_unit_test(test_create_uniform_mesh),
+    cmocka_unit_test(test_plot_uniform_mesh_to_single_file),
+    cmocka_unit_test(test_plot_uniform_mesh_to_n_files)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

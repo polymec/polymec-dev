@@ -5,6 +5,31 @@ else()
   set(LIB_SUFFIX .a)
 endif()
 
+# Build cmocka, a C unit testing library.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
+  message("Configuring cmocka...")
+  execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/cmocka
+                  RESULT_VARIABLE stat)
+  set(CMOCKA_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DWITH_STATIC_LIB=ON)
+  execute_process(COMMAND cmake ${CMOCKA_CMAKE_OPTS} ${CMAKE_CURRENT_SOURCE_DIR}/cmocka
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cmocka
+                  OUTPUT_VARIABLE cmocka_config.log
+                  RESULT_VARIABLE stat)
+  message("Building and installing cmocka...")
+  execute_process(COMMAND make install -j4
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cmocka
+                  OUTPUT_VARIABLE cmocka_build_log ERROR_VARIABLE cmocka_build_err
+                  RESULT_VARIABLE stat)
+endif()
+add_library(cmocka STATIC IMPORTED GLOBAL)
+set_target_properties(cmocka PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
+if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  foreach(header cmocka.h;cmocka_pbc.h;cmocka_private.h)
+    install(FILES ${PROJECT_BINARY_DIR}/include/${header} DESTINATION include)
+  endforeach()
+  install(FILES ${PROJECT_BINARY_DIR}/src/libcmocka.a DESTINATION lib)
+endif()
+
 # Build libgc, the C garbage collector library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
   if (BUILD_SHARED_LIBS)
@@ -414,14 +439,6 @@ if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   install(TARGETS jrs_predicates DESTINATION lib)
 endif()
 set(POLYMEC_TP_LIBS jrs_predicates;${POLYMEC_TP_LIBS})
-
-# Build cmockery, a C unit testing library.
-add_library(cmockery cmockery/cmockery.c)
-set_target_properties(cmockery PROPERTIES COMPILE_FLAGS "-Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/cmockery/cmockery.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(TARGETS cmockery DESTINATION lib)
-endif()
 
 # If we're building a parallel code, build INRIA's Scotch library.
 if (HAVE_MPI EQUAL 1)

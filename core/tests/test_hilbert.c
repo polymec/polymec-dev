@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/hilbert.h"
 
 void test_ctor(void** state)
@@ -105,13 +105,13 @@ void test_sort_points_and_indices(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_ctor),
-    unit_test(test_index),
-    unit_test(test_reproduce_point),
-    unit_test(test_sort_points),
-    unit_test(test_sort_points_and_indices)
+    cmocka_unit_test(test_ctor),
+    cmocka_unit_test(test_index),
+    cmocka_unit_test(test_reproduce_point),
+    cmocka_unit_test(test_sort_points),
+    cmocka_unit_test(test_sort_points_and_indices)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

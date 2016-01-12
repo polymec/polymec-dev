@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "core/array_utils.h"
 #include "integrators/cpr_newton_pc.h"
@@ -75,10 +75,10 @@ void test_lu_ctor(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_block_jacobi_ctor),
-    unit_test(test_lu_ctor)
+    cmocka_unit_test(test_block_jacobi_ctor),
+    cmocka_unit_test(test_lu_ctor)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "core/thread_pool.h"
 
@@ -84,11 +84,11 @@ void test_several_executions(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_constructors),
-    unit_test(test_number_crunching),
-    unit_test(test_several_executions)
+    cmocka_unit_test(test_constructors),
+    cmocka_unit_test(test_number_crunching),
+    cmocka_unit_test(test_several_executions)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

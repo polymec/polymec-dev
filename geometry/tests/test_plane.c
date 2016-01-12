@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "geometry/plane.h"
 #include "generate_octave_script_for_surface.h"
 
@@ -37,10 +37,10 @@ void test_plot(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_construct),
-    unit_test(test_plot)
+    cmocka_unit_test(test_construct),
+    cmocka_unit_test(test_plot)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

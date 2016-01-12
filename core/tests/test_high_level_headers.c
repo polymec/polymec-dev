@@ -10,7 +10,6 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
 #include "polymec.h"  // High-level polymec header!
 
 // This simply tests whether a program can be built and linked with polymec 

@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/unordered_map.h"
 #include "core/hash_functions.h"
 #include "core/comparators.h"
@@ -58,10 +58,10 @@ DEFINE_UNORDERED_MAP_TEST(double_unordered_map, double)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_int_unordered_map),
-    unit_test(test_double_unordered_map)
+    cmocka_unit_test(test_int_unordered_map),
+    cmocka_unit_test(test_double_unordered_map)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

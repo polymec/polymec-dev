@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "core/norms.h"
 #include "integrators/newton_solver.h"
@@ -92,15 +92,15 @@ void test_ilu_precond_foodweb_solve(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_block_jacobi_precond_foodweb_ctor),
-    unit_test(test_lu_precond_foodweb_ctor),
-    unit_test(test_ilu_precond_foodweb_ctor),
-    unit_test(test_block_jacobi_precond_foodweb_solve),
-    unit_test(test_lu_precond_foodweb_solve)
+    cmocka_unit_test(test_block_jacobi_precond_foodweb_ctor),
+    cmocka_unit_test(test_lu_precond_foodweb_ctor),
+    cmocka_unit_test(test_ilu_precond_foodweb_ctor),
+    cmocka_unit_test(test_block_jacobi_precond_foodweb_solve),
+    cmocka_unit_test(test_lu_precond_foodweb_solve)
     // FIXME: ILU preconditioner got more finicky.
-//    unit_test(test_ilu_precond_foodweb_solve)
+//    cmocka_unit_test(test_ilu_precond_foodweb_solve)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

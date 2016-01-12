@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "core/least_squares.h"
 #include "integrators/euler_ode_integrator.h"
@@ -167,10 +167,10 @@ void test_stiffly_accurate_kinetics(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_symplectic_central_force),
-    unit_test(test_stiffly_accurate_kinetics)
+    cmocka_unit_test(test_symplectic_central_force),
+    cmocka_unit_test(test_stiffly_accurate_kinetics)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

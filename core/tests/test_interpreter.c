@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/interpreter.h"
 
 void test_interpreter_with_long_string(void** state)
@@ -328,16 +328,16 @@ void test_scalarfunction_parsing(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_interpreter_with_long_string),
-    unit_test(test_point_parsing),
-    unit_test(test_vector_parsing),
-    unit_test(test_boundingbox_parsing),
-    unit_test(test_pointlist_parsing),
-    unit_test(test_vectorlist_parsing),
-    unit_test(test_table_parsing),
-    unit_test(test_scalarfunction_parsing)
+    cmocka_unit_test(test_interpreter_with_long_string),
+    cmocka_unit_test(test_point_parsing),
+    cmocka_unit_test(test_vector_parsing),
+    cmocka_unit_test(test_boundingbox_parsing),
+    cmocka_unit_test(test_pointlist_parsing),
+    cmocka_unit_test(test_vectorlist_parsing),
+    cmocka_unit_test(test_table_parsing),
+    cmocka_unit_test(test_scalarfunction_parsing)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/ordered_set.h"
 
 int int_values[] = {0, 1, 2, 3, 4, 5};
@@ -51,10 +51,10 @@ DEFINE_ORDERED_SET_TEST(real_ordered_set, real)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_int_ordered_set),
-    unit_test(test_real_ordered_set)
+    cmocka_unit_test(test_int_ordered_set),
+    cmocka_unit_test(test_real_ordered_set)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polynomial.h"
 #include "model/polynomial_fit.h"
 
@@ -175,13 +175,13 @@ void test_polynomial_fit_linear_vector(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_polynomial_fit_new),
-    unit_test(test_polynomial_fit_constant_scalar),
-    unit_test(test_polynomial_fit_constant_vector),
-    unit_test(test_polynomial_fit_linear_scalar),
-    unit_test(test_polynomial_fit_linear_vector)
+    cmocka_unit_test(test_polynomial_fit_new),
+    cmocka_unit_test(test_polynomial_fit_constant_scalar),
+    cmocka_unit_test(test_polynomial_fit_constant_vector),
+    cmocka_unit_test(test_polynomial_fit_linear_scalar),
+    cmocka_unit_test(test_polynomial_fit_linear_vector)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include <time.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/kd_tree.h"
 
 void test_construct(void** state) 
@@ -127,11 +127,11 @@ void test_find_ghost_points(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_construct),
-    unit_test(test_find_nearest),
-    unit_test(test_find_ghost_points)
+    cmocka_unit_test(test_construct),
+    cmocka_unit_test(test_find_nearest),
+    cmocka_unit_test(test_find_ghost_points)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

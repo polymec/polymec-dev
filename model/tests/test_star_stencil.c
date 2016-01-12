@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/unordered_set.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_uniform_mesh.h"
@@ -118,17 +118,17 @@ void test_parallel_10x10x10_cell_star_stencil(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_serial_1x1x1_cell_star_stencil),
-    unit_test(test_serial_10x1x1_cell_star_stencil),
-    unit_test(test_serial_10x10x1_cell_star_stencil),
-    unit_test(test_serial_10x10x10_cell_star_stencil)
+    cmocka_unit_test(test_serial_1x1x1_cell_star_stencil),
+    cmocka_unit_test(test_serial_10x1x1_cell_star_stencil),
+    cmocka_unit_test(test_serial_10x10x1_cell_star_stencil),
+    cmocka_unit_test(test_serial_10x10x10_cell_star_stencil)
 #if POLYMEC_HAVE_MPI
-   ,unit_test(test_parallel_10x1x1_cell_star_stencil),
-    unit_test(test_parallel_10x10x1_cell_star_stencil),
-    unit_test(test_parallel_10x10x10_cell_star_stencil)
+   ,cmocka_unit_test(test_parallel_10x1x1_cell_star_stencil),
+    cmocka_unit_test(test_parallel_10x10x1_cell_star_stencil),
+    cmocka_unit_test(test_parallel_10x10x10_cell_star_stencil)
 #endif
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

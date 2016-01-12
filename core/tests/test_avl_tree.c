@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/avl_tree.h"
 
 int int_values[] = {0, 1, 2, 3, 4, 5};
@@ -49,10 +49,10 @@ DEFINE_AVL_TREE_TEST(real_avl_tree, real)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_int_tree),
-    unit_test(test_real_tree)
+    cmocka_unit_test(test_int_tree),
+    cmocka_unit_test(test_real_tree)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

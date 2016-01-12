@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "integrators/div_free_poly_basis.h"
 
@@ -84,11 +84,11 @@ void test_divergence(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_ctor),
-    unit_test(test_compute),
-    unit_test(test_divergence)
+    cmocka_unit_test(test_ctor),
+    cmocka_unit_test(test_compute),
+    cmocka_unit_test(test_divergence)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

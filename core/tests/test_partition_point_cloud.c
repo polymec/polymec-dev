@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/silo_file.h"
 #include "core/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
@@ -180,14 +180,14 @@ void test_partition_large_cubic_cloud(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_partition_small_linear_cloud),
-    unit_test(test_partition_large_linear_cloud),
-    unit_test(test_partition_small_planar_cloud),
-    unit_test(test_partition_large_planar_cloud),
-    unit_test(test_partition_small_cubic_cloud),
-    unit_test(test_partition_large_cubic_cloud)
+    cmocka_unit_test(test_partition_small_linear_cloud),
+    cmocka_unit_test(test_partition_large_linear_cloud),
+    cmocka_unit_test(test_partition_small_planar_cloud),
+    cmocka_unit_test(test_partition_large_planar_cloud),
+    cmocka_unit_test(test_partition_small_cubic_cloud),
+    cmocka_unit_test(test_partition_large_cubic_cloud)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

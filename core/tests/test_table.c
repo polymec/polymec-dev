@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/table.h"
 
 int rows[] = {0, 1, 2, 4, 8, 16};
@@ -112,10 +112,10 @@ DEFINE_TABLE_TEST(real_table, real)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_int_table),
-    unit_test(test_real_table)
+    cmocka_unit_test(test_int_table),
+    cmocka_unit_test(test_real_table)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

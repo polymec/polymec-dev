@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "polymec.h"
 
 void test_polymec_version_fprintf(void** state)
@@ -46,15 +46,15 @@ int main(int argc, char* argv[])
 {
   polymec_init(argc, argv);
 
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_polymec_version_fprintf),
-    unit_test(test_polymec_provenance_fprintf),
-    unit_test(test_polymec_executable_name),
-    unit_test(test_polymec_invocation),
-    unit_test(test_polymec_invocation_time),
-    unit_test(test_polymec_num_cores),
+    cmocka_unit_test(test_polymec_version_fprintf),
+    cmocka_unit_test(test_polymec_provenance_fprintf),
+    cmocka_unit_test(test_polymec_executable_name),
+    cmocka_unit_test(test_polymec_invocation),
+    cmocka_unit_test(test_polymec_invocation_time),
+    cmocka_unit_test(test_polymec_num_cores),
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
   return 0;
 }

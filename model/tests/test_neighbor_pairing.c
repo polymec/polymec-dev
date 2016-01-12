@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/array_utils.h"
 #include "geometry/create_point_lattice.h"
 #include "model/point_weight_function.h"
@@ -118,12 +118,12 @@ void test_serial_10x10x10_lattice(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_serial_1x1x1_lattice),
-    unit_test(test_serial_10x1x1_lattice),
-    unit_test(test_serial_10x10x1_lattice),
-    unit_test(test_serial_10x10x10_lattice)
+    cmocka_unit_test(test_serial_1x1x1_lattice),
+    cmocka_unit_test(test_serial_10x1x1_lattice),
+    cmocka_unit_test(test_serial_10x10x1_lattice),
+    cmocka_unit_test(test_serial_10x10x10_lattice)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

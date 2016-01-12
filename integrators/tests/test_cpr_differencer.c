@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "core/block_diagonal_matrix.h"
 #include "core/sparse_local_matrix.h"
@@ -253,11 +253,11 @@ void test_asymmetric_jacobian(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_identity_jacobian),
-    unit_test(test_dense_jacobian),
-    unit_test(test_asymmetric_jacobian)
+    cmocka_unit_test(test_identity_jacobian),
+    cmocka_unit_test(test_dense_jacobian),
+    cmocka_unit_test(test_asymmetric_jacobian)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

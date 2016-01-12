@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "core/file_utils.h"
 #include "core/krylov_solver.h"
@@ -303,17 +303,17 @@ void test_hypre_laplace_eqn(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_petsc_krylov_factory),
-    unit_test(test_petsc_krylov_matrix),
-    unit_test(test_petsc_krylov_vector),
-    unit_test(test_petsc_laplace_eqn),
-    unit_test(test_hypre_krylov_factory),
-    unit_test(test_hypre_krylov_matrix),
-    unit_test(test_hypre_krylov_vector),
-    unit_test(test_hypre_laplace_eqn)
+    cmocka_unit_test(test_petsc_krylov_factory),
+    cmocka_unit_test(test_petsc_krylov_matrix),
+    cmocka_unit_test(test_petsc_krylov_vector),
+    cmocka_unit_test(test_petsc_laplace_eqn),
+    cmocka_unit_test(test_hypre_krylov_factory),
+    cmocka_unit_test(test_hypre_krylov_matrix),
+    cmocka_unit_test(test_hypre_krylov_vector),
+    cmocka_unit_test(test_hypre_laplace_eqn)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }
 

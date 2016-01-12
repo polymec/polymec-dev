@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 #include "geometry/create_uniform_mesh.h"
 #include "integrators/polyhedron_integrator.h"
@@ -127,12 +127,12 @@ void test_cube_surface_integrals(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_ctor),
-    unit_test(test_cube_volume_integrals),
-    unit_test(test_cube_surface_integrals)
+    cmocka_unit_test(test_ctor),
+    cmocka_unit_test(test_cube_volume_integrals),
+    cmocka_unit_test(test_cube_surface_integrals)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }
 

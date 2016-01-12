@@ -9,7 +9,6 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
 #include "polymec.h"
 
 // This just tests the ability of the Polymec headers to successfully compile 

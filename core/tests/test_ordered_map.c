@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/ordered_map.h"
 
 const char* keys[] = {"0", "1", "2", "3", "4", "5"};
@@ -54,10 +54,10 @@ DEFINE_ORDERED_MAP_TEST(double_ordered_map, double)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_int_ordered_map),
-    unit_test(test_double_ordered_map)
+    cmocka_unit_test(test_int_ordered_map),
+    cmocka_unit_test(test_double_ordered_map)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

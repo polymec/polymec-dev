@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/silo_file.h"
 #include "core/partition_mesh.h"
 #include "geometry/create_uniform_mesh.h"
@@ -219,11 +219,11 @@ void test_partition_box_mesh(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_partition_linear_mesh),
-    unit_test(test_partition_slab_mesh),
-    unit_test(test_partition_box_mesh)
+    cmocka_unit_test(test_partition_linear_mesh),
+    cmocka_unit_test(test_partition_slab_mesh),
+    cmocka_unit_test(test_partition_box_mesh)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

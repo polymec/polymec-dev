@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/mesh.h"
 #include "core/partition_mesh.h"
 #include "geometry/create_uniform_mesh.h"
@@ -212,14 +212,14 @@ void test_1v_node_exchanger_in_cube(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_nv_node_exchanger_on_line),
-//    unit_test(test_1v_node_exchanger_on_line),
-    unit_test(test_nv_node_exchanger_in_plane),
-//    unit_test(test_1v_node_exchanger_in_plane),
-    unit_test(test_nv_node_exchanger_in_cube),
-//    unit_test(test_1v_node_exchanger_in_cube)
+    cmocka_unit_test(test_nv_node_exchanger_on_line),
+//    cmocka_unit_test(test_1v_node_exchanger_on_line),
+    cmocka_unit_test(test_nv_node_exchanger_in_plane),
+//    cmocka_unit_test(test_1v_node_exchanger_in_plane),
+    cmocka_unit_test(test_nv_node_exchanger_in_cube),
+//    cmocka_unit_test(test_1v_node_exchanger_in_cube)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

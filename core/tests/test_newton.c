@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/newton.h"
 
 static double cubic_poly(void* context, double x)
@@ -158,15 +158,15 @@ void test_newton_solve_system_3_with_jacobian(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_brent),
-    unit_test(test_newton_solve_system_1),
-    unit_test(test_newton_solve_system_1_with_jacobian),
-    unit_test(test_newton_solve_system_2),
-    unit_test(test_newton_solve_system_2_with_jacobian),
-    unit_test(test_newton_solve_system_3),
-    unit_test(test_newton_solve_system_3_with_jacobian)
+    cmocka_unit_test(test_brent),
+    cmocka_unit_test(test_newton_solve_system_1),
+    cmocka_unit_test(test_newton_solve_system_1_with_jacobian),
+    cmocka_unit_test(test_newton_solve_system_2),
+    cmocka_unit_test(test_newton_solve_system_2_with_jacobian),
+    cmocka_unit_test(test_newton_solve_system_3),
+    cmocka_unit_test(test_newton_solve_system_3_with_jacobian)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

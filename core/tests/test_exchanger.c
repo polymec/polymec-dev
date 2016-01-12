@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/exchanger.h"
 
 void test_exchanger_new(void** state)
@@ -68,11 +68,11 @@ void test_exchanger_construct_and_delete(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_exchanger_new),
-    unit_test(test_exchanger_construct),
-    unit_test(test_exchanger_construct_and_delete)
+    cmocka_unit_test(test_exchanger_new),
+    cmocka_unit_test(test_exchanger_construct),
+    cmocka_unit_test(test_exchanger_construct_and_delete)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }

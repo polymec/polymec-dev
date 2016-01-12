@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include "cmockery.h"
+#include "cmocka.h"
 #include "core/polymec.h"
 
 void test_parse_path(void** state)
@@ -71,12 +71,12 @@ void test_make_temp_directory(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  const UnitTest tests[] = 
+  const struct CMUnitTest tests[] = 
   {
-    unit_test(test_parse_path),
-    unit_test(test_join_paths),
-    unit_test(test_make_temp_file),
-    unit_test(test_make_temp_directory)
+    cmocka_unit_test(test_parse_path),
+    cmocka_unit_test(test_join_paths),
+    cmocka_unit_test(test_make_temp_file),
+    cmocka_unit_test(test_make_temp_directory)
   };
-  return run_tests(tests);
+  return cmocka_run_group_tests(tests, NULL, NULL);
 }
