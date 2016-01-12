@@ -97,7 +97,7 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
   bdf_ode_integrator_diagnostics_t diags;
   bdf_ode_integrator_get_diagnostics(integ, &diags);
   bdf_ode_integrator_diagnostics_fprintf(&diags, stdout);
-  assert_true(step < max_steps);
+  assert_true(step <= max_steps);
 
   ode_integrator_free(integ);
   free(u);
