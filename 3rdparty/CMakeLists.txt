@@ -27,7 +27,7 @@ if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   foreach(header cmocka.h;cmocka_pbc.h)
     install(FILES ${PROJECT_BINARY_DIR}/include/${header} DESTINATION include)
   endforeach()
-  install(FILES ${PROJECT_BINARY_DIR}/src/libcmocka.a DESTINATION lib)
+  install(FILES ${PROJECT_BINARY_DIR}/lib/libcmocka.a DESTINATION lib)
 endif()
 
 # Build libgc, the C garbage collector library.
