@@ -25,6 +25,7 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
 // and returns an exchanger object that can be used to migrate data from the 
 // old partition to the new. The mesh is consumed and replaced with a 
 // repartitioned mesh.
+// NOTE: This is not currently implemented.
 exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol);
 
 // While partition_mesh and repartition_mesh are all-in-one mesh partitioners, the 

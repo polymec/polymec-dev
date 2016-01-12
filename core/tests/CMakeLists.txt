@@ -30,18 +30,15 @@ if (BUILD_SHARED_LIBS)
 endif()
 
 add_mpi_polymec_test(test_parallel_kd_tree test_kd_tree.c 1 2 3 4)
-#add_mpi_polymec_test(test_parallel_qsort test_parallel_qsort.c 1 2 3 4)
 add_mpi_polymec_test(test_exchanger test_exchanger.c 1 2 3 4)
 add_mpi_polymec_test(test_mesh_node_exchangers test_mesh_node_exchangers.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c 1 2 3 4)
 add_mpi_polymec_test(test_partition_mesh test_partition_mesh.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c 1 2 3 4)
-add_mpi_polymec_test(test_repartition_mesh test_repartition_mesh.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c 1 2)# 3 4)
 add_mpi_polymec_test(test_partition_point_cloud test_partition_point_cloud.c ../../geometry/create_point_lattice.c ../../geometry/cubic_lattice.c 1 2 3 4)
-#add_mpi_polymec_test(test_repartition_point_cloud test_repartition_point_cloud.c 1 2 3 4)
 
-# The following tests are currently expected to fail.
-if (HAVE_MPI EQUAL 1)
-  set(failing_tests test_repartition_mesh_2_proc)
-endif()
+# Tests for features we will add later.
+#add_mpi_polymec_test(test_parallel_qsort test_parallel_qsort.c 1 2 3 4)
+#add_mpi_polymec_test(test_repartition_mesh test_repartition_mesh.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c 1 2 3 4)
+#add_mpi_polymec_test(test_repartition_point_cloud test_repartition_point_cloud.c 1 2 3 4)
 
 # Mark tests expected to fail as such.
 foreach (failing_test ${failing_tests})

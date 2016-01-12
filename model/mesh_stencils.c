@@ -37,6 +37,9 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
 {
   ASSERT(radius > 0);
 
+  if (radius > 1)
+    polymec_not_implemented("cell_star_stencil_new (radius > 1)");
+
   // First, we'll exchange the mesh cell centers to make sure they're 
   // consistent.
   exchanger_t* cell_ex = mesh_exchanger(mesh);
@@ -74,7 +77,9 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
 
 stencil_t* cell_halo_stencil_new(mesh_t* mesh)
 {
-  // Construct a 1-deep star stencil.
+  POLYMEC_NOT_IMPLEMENTED;
+
+  // Construct a 2-deep star stencil to start from.
   stencil_t* star = cell_star_stencil_new(mesh, 1);
 
   // Now find the extra cells. The additional cells of a cell i are the 

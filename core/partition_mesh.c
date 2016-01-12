@@ -1370,6 +1370,8 @@ exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_parti
 
 exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 {
+  POLYMEC_NOT_IMPLEMENTED;
+
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
   mesh_t* m = *mesh;
@@ -1385,8 +1387,6 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   // On a single process, repartitioning has no meaning.
   if (nprocs == 1)
     return exchanger_new(m->comm);
-
-  POLYMEC_NOT_IMPLEMENTED;
 
   // Generate a local adjacency graph for the mesh.
   adj_graph_t* local_graph = graph_from_mesh_cells(m);
