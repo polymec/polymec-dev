@@ -97,7 +97,7 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
   bdf_ode_integrator_diagnostics_t diags;
   bdf_ode_integrator_get_diagnostics(integ, &diags);
   bdf_ode_integrator_diagnostics_fprintf(&diags, stdout);
-  assert_true(step <= max_steps);
+  assert_true(step < max_steps);
 
   ode_integrator_free(integ);
   free(u);
@@ -119,7 +119,7 @@ void test_block_jacobi_precond_diurnal_step_right(void** state)
 void test_lu_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-  test_diurnal_step(state, integ, 600);
+  test_diurnal_step(state, integ, 610);
 }
 
 void test_lu_precond_diurnal_step_right(void** state)
