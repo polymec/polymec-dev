@@ -164,6 +164,14 @@ static inline void tensor2_set(tensor2_t* t,
   t->zx = zx; t->zy = zy; t->zz = zz;
 }
 
+// Returns the determinant of the tensor.
+static inline real_t tensor2_det(tensor2_t* t)
+{
+  return t->xx * (t->yy*t->zz - t->zy*t->yz) - 
+         t->xy * (t->yx*t->zz - t->zx*t->yz) + 
+         t->xz * (t->yx*t->zy - t->zx*t->yy);
+}
+
 // Returns the trace of the tensor.
 static inline real_t tensor2_trace(tensor2_t* t)
 {
@@ -211,6 +219,14 @@ static inline void sym_tensor2_set(sym_tensor2_t* t,
   t->xx = xx; t->xy = xy; t->xz = xz;
               t->yy = yy; t->yz = yz;
                           t->zz = zz;
+}
+
+// Returns the determinant of the symmetric tensor.
+static inline real_t sym_tensor2_det(sym_tensor2_t* t)
+{
+  return t->xx * (t->yy*t->zz - t->yz*t->yz) - 
+         t->xy * (t->xy*t->zz - t->xz*t->yz) + 
+         t->xz * (t->xy*t->yz - t->xz*t->yy);
 }
 
 // Returns the trace of the symmetric tensor.
