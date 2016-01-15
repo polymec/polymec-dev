@@ -54,7 +54,7 @@ static inline void point_copy(point_t* dest, point_t* source)
 // Writes a text representation of the point to the given file.
 void point_fprintf(point_t* x, FILE* stream);
 
-// A vector in 1, 2, or 3D space.
+// A vector in 3D space.
 typedef struct
 {
   real_t x, y, z;
@@ -135,6 +135,96 @@ static inline void vector_scale(vector_t* v, real_t s)
   v->x *= s;
   v->y *= s;
   v->z *= s;
+}
+
+// A rank-2 general (non-symmetric) tensor in 3D space. You can cast this to 
+// and from an array of 9 real_t.
+typedef struct
+{
+  real_t xx, xy, xz,
+         yx, yy, yz,
+         zx, zy, zz;
+} tensor2_t;
+
+// Allocates a new tensor2 on the heap with the given components. Not 
+// necessary if you are allocating a tensor2 on the stack. Objects of this 
+// type are garbage-collected when allocated on the heap.
+tensor2_t* tensor2_new(real_t xx, real_t xy, real_t xz,
+                       real_t yx, real_t yy, real_t yz,
+                       real_t zx, real_t zy, real_t zz);
+
+// Sets the components of the given tensor.
+static inline void tensor2_set(tensor2_t* t, 
+                               real_t xx, real_t xy, real_t xz, 
+                               real_t yx, real_t yy, real_t yz,
+                               real_t zx, real_t zy, real_t zz)
+{
+  t->xx = xx; t->xy = xy; t->xz = xz;
+  t->yx = yx; t->yy = yy; t->yz = yz;
+  t->zx = zx; t->zy = zy; t->zz = zz;
+}
+
+// Returns the trace of the tensor.
+static inline real_t tensor2_trace(tensor2_t* t)
+{
+  return t->xx + t->yy + t->zz;
+}
+
+// Computes the (vector-valued) tensor-vector product.
+static inline void tensor2_dot_vector(tensor2_t* t, vector_t* v, vector_t* tv)
+{
+  tv->x = t->xx*v->x + t->xy*v->y + t->xz*v->z;
+  tv->y = t->yx*v->x + t->yy*v->y + t->yz*v->z;
+  tv->z = t->zx*v->x + t->zy*v->y + t->zz*v->z;
+}
+
+// Computes the (vector-valued) transposed tensor-vector product.
+static inline void tensor2_dot_vector_t(tensor2_t* t, vector_t* v, vector_t* tv)
+{
+  tv->x = t->xx*v->x + t->yx*v->y + t->zx*v->z;
+  tv->y = t->xy*v->x + t->yy*v->y + t->zy*v->z;
+  tv->z = t->xz*v->x + t->yz*v->y + t->zz*v->z;
+}
+
+// A rank-2 symmetric tensor in 3D space. You can cast this to and from 
+// an array of 6 real_t.
+typedef struct
+{
+  real_t xx, xy, xz,
+             yy, yz,
+                 zz;
+} sym_tensor2_t;
+
+// Allocates a new symmetric tensor2 on the heap with the given components. Not 
+// necessary if you are allocating a symmetric tensor2 on the stack. Objects of 
+// this type are garbage-collected when allocated on the heap.
+sym_tensor2_t* sym_tensor2_new(real_t xx, real_t xy, real_t xz,
+                                          real_t yy, real_t yz,
+                                                     real_t zz);
+
+// Sets the components of the given symmetric tensor.
+static inline void sym_tensor2_set(sym_tensor2_t* t, 
+                                   real_t xx, real_t xy, real_t xz, 
+                                              real_t yy, real_t yz,
+                                                         real_t zz)
+{
+  t->xx = xx; t->xy = xy; t->xz = xz;
+              t->yy = yy; t->yz = yz;
+                          t->zz = zz;
+}
+
+// Returns the trace of the symmetric tensor.
+static inline real_t sym_tensor2_trace(sym_tensor2_t* t)
+{
+  return t->xx + t->yy + t->zz;
+}
+
+// Computes the (vector-valued) symmetric-tensor-vector product.
+static inline void sym_tensor2_dot_vector(sym_tensor2_t* t, vector_t* v, vector_t* tv)
+{
+  tv->x = t->xx*v->x + t->xy*v->y + t->xz*v->z;
+  tv->y = t->xy*v->x + t->yy*v->y + t->yz*v->z;
+  tv->z = t->xz*v->x + t->yz*v->y + t->zz*v->z;
 }
 
 // Returns true if points p1, p2, and p3 are (approximately) colinear, false 

@@ -28,6 +28,25 @@ vector_t* vector_new(real_t vx, real_t vy, real_t vz)
   return v;
 }
 
+tensor2_t* tensor2_new(real_t xx, real_t xy, real_t xz,
+                       real_t yx, real_t yy, real_t yz,
+                       real_t zx, real_t zy, real_t zz)
+{
+  tensor2_t* t = GC_MALLOC(sizeof(tensor2_t));
+  tensor2_set(t, xx, xy, xz, yx, yy, yz, zx, zy, zz);
+  return t;
+}
+
+sym_tensor2_t* sym_tensor2_new(real_t xx, real_t xy, real_t xz,
+                                          real_t yy, real_t yz,
+                                                     real_t zz)
+{
+  sym_tensor2_t* t = GC_MALLOC(sizeof(sym_tensor2_t));
+  sym_tensor2_set(t, xx, xy, xz, yy, yz, zz);
+  return t;
+}
+
+
 bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z2)
 {
   ASSERT(x1 < x2);
