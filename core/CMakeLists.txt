@@ -11,7 +11,7 @@ endif()
 
 include(add_polymec_library)
 add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c memory_info.c
-                    special_functions.c point.c point2.c tagger.c mesh.c 
+                    special_functions.c point.c point2.c tensor2.c tagger.c mesh.c 
                     point_cloud.c hilbert.c kd_tree.c octree.c rng.c #parallel_qsort.c
                     permutations.c adj_graph.c sp_func.c st_func.c polynomial.c 
                     least_squares.c index_space.c newton.c options.c interpreter.c 

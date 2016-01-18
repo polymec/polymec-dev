@@ -283,3 +283,12 @@ real_t rlange(char* norm, int* m, int* n, real_t* A, int* lda, real_t* work)
 #endif
 }
 
+void rsyev(char* jobz, char* uplo, int* n, real_t* A, int* lda, real_t* W,
+           real_t* work, int* lwork, int* info)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  dsyev(jobz, uplo, n, A, lda, W, work, lwork, info);
+#else
+  ssyev(jobz, uplo, n, A, lda, W, work, lwork, info);
+#endif
+}
