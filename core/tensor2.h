@@ -39,6 +39,15 @@ static inline void tensor2_set(tensor2_t* t,
   t->zx = zx; t->zy = zy; t->zz = zz;
 }
 
+// Sets the the given tensor to the 3x3 identity tensor, scaled by the 
+// given factor.
+static inline void tensor2_set_identity(tensor2_t* t, real_t factor)
+{
+  t->xx = factor; t->xy = 0.0;    t->xz = 0.0;
+  t->yx = 0.0;    t->yy = factor; t->yz = 0.0;
+  t->zx = 0.0;    t->zy = 0.0;    t->zz = factor;
+}
+
 // Scales the components of the given tensor.
 static inline void tensor2_scale(tensor2_t* t, real_t factor)
 {
@@ -118,6 +127,15 @@ static inline void sym_tensor2_set(sym_tensor2_t* t,
   t->xx = xx; t->xy = xy; t->xz = xz;
               t->yy = yy; t->yz = yz;
                           t->zz = zz;
+}
+
+// Sets the given symmetric tensor to a 3x3 identity tensor scaled by 
+// the given factor.
+static inline void sym_tensor2_set_identity(sym_tensor2_t* t, real_t factor)
+{
+  t->xx = factor; t->xy = 0.0;    t->xz = 0.0;
+                  t->yy = factor; t->yz = 0.0;
+                                  t->zz = factor;
 }
 
 // Scales the components of the given symmetric tensor.
