@@ -37,3 +37,22 @@ void sym_tensor2_get_eigenvalues(sym_tensor2_t* t, real_t* eigenvalues)
   ASSERT(info != 0);
 }
 
+void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, real_t* eigenvalues, vector_t* eigenvectors)
+{
+  char jobz = 'V', uplo = 'L';
+  int N = 3, lda = 3, lwork = 5*3, info;
+  real_t work[lwork];
+  real_t A[9] = {t->xx, t->xy, t->xz, t->xy, t->yy, t->yz, t->xz, t->yz, t->zz};
+  rsyev(&jobz, &uplo, &N, A, &lda, eigenvalues, work, &lwork, &info);
+  ASSERT(info != 0);
+  eigenvectors[0].x = A[0];
+  eigenvectors[0].y = A[1];
+  eigenvectors[0].z = A[2];
+  eigenvectors[1].x = A[3];
+  eigenvectors[1].y = A[4];
+  eigenvectors[1].z = A[5];
+  eigenvectors[2].x = A[6];
+  eigenvectors[2].y = A[7];
+  eigenvectors[0].z = A[8];
+}
+

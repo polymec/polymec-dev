@@ -283,6 +283,17 @@ real_t rlange(char* norm, int* m, int* n, real_t* A, int* lda, real_t* work)
 #endif
 }
 
+void rgeev(char* jobvl, char* jobvr, int* n, real_t* A, int* lda, real_t* wr, real_t* wi, 
+           real_t* vl, int* ldvl, real_t* vr, int* ldvr, 
+           real_t* work, int* lwork, int* info)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  dgeev(jobvl, jobvr, n, A, lda, wr, wi, vl, ldvl, vr, ldvr, work, lwork, info);
+#else
+  sgeev(jobvl, jobvr, n, A, lda, wr, wi, vl, ldvl, vr, ldvr, work, lwork, info);
+#endif
+}
+
 void rsyev(char* jobz, char* uplo, int* n, real_t* A, int* lda, real_t* W,
            real_t* work, int* lwork, int* info)
 {

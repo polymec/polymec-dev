@@ -167,6 +167,11 @@ static inline void sym_tensor2_invert(sym_tensor2_t* t, sym_tensor2_t* t_inverse
 // given array.
 void sym_tensor2_get_eigenvalues(sym_tensor2_t* t, real_t* eigenvalues);
 
+// Computes the 3 eigenvalues and eigenvectors of the symmetric tensor, 
+// storing the former as scalars in the given array and the later as 
+// vectors in the array eigenvectors.
+void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, real_t* eigenvalues, vector_t* eigenvectors);
+
 // Arrays of tensors.
 DEFINE_ARRAY(tensor2_array, tensor2_t)
 DEFINE_ARRAY(sym_tensor2_array, sym_tensor2_t)
