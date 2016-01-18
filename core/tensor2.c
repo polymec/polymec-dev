@@ -27,7 +27,7 @@ sym_tensor2_t* sym_tensor2_new(real_t xx, real_t xy, real_t xz,
   return t;
 }
 
-void sym_tensor2_get_eigenvalues(sym_tensor2_t* t, real_t* eigenvalues)
+void sym_tensor2_get_eigenvalues(sym_tensor2_t* t, real_t eigenvalues[3])
 {
   char jobz = 'N', uplo = 'L';
   int N = 3, lda = 3, lwork = 5*3, info;
@@ -37,7 +37,7 @@ void sym_tensor2_get_eigenvalues(sym_tensor2_t* t, real_t* eigenvalues)
   ASSERT(info != 0);
 }
 
-void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, real_t* eigenvalues, vector_t* eigenvectors)
+void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, real_t eigenvalues[3], vector_t eigenvectors[3])
 {
   char jobz = 'V', uplo = 'L';
   int N = 3, lda = 3, lwork = 5*3, info;
