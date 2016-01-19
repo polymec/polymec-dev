@@ -28,6 +28,12 @@ tensor2_t* tensor2_new(real_t xx, real_t xy, real_t xz,
                        real_t yx, real_t yy, real_t yz,
                        real_t zx, real_t zy, real_t zz);
 
+// Copies tensor components from src to dest.
+static inline void tensor2_copy(tensor2_t* src, tensor2_t* dest)
+{
+  memcpy(dest, src, 9*sizeof(real_t));
+}
+
 // Sets the components of the given tensor.
 static inline void tensor2_set(tensor2_t* t, 
                                real_t xx, real_t xy, real_t xz, 
@@ -120,6 +126,12 @@ typedef struct
 sym_tensor2_t* sym_tensor2_new(real_t xx, real_t xy, real_t xz,
                                           real_t yy, real_t yz,
                                                      real_t zz);
+
+// Copies symmetric tensor components from src to dest.
+static inline void sym_tensor2_copy(sym_tensor2_t* src, sym_tensor2_t* dest)
+{
+  memcpy(dest, src, 6*sizeof(real_t));
+}
 
 // Sets the components of the given symmetric tensor.
 static inline void sym_tensor2_set(sym_tensor2_t* t, 
