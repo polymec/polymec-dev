@@ -239,6 +239,17 @@ void test_sym_tensor2_get_eigenvalues(void** state)
   assert_approx_equal(lambdas[2], 3.0, 1e-14);
 }
 
+// This helper returns true if u is an eigenvector of A corresponding to 
+// the eigenvalue lambda, false if not.
+static bool is_eigenvector(sym_tensor2_t* A, real_t lambda, vector_t* u)
+{
+  vector_t Au;
+  sym_tensor2_dot_vector(A, u, &Au);
+  return ((fabs(Au.x - lambda*u->x) < 1e-14) &&
+          (fabs(Au.y - lambda*u->y) < 1e-14) &&
+          (fabs(Au.z - lambda*u->z) < 1e-14));
+}
+
 void test_sym_tensor2_get_eigenvectors(void** state)
 {
   sym_tensor2_t A;
@@ -251,16 +262,15 @@ void test_sym_tensor2_get_eigenvectors(void** state)
   assert_approx_equal(lambdas[0], 1.0, 1e-14);
   assert_approx_equal(lambdas[1], 2.0, 1e-14);
   assert_approx_equal(lambdas[2], 3.0, 1e-14);
-  real_t sqrt2 = sqrt(2.0);
-  assert_approx_equal(us[0].x, 1.0/sqrt2, 1e-14);
-  assert_approx_equal(us[0].y, 0.0, 1e-14);
-  assert_approx_equal(us[0].z, -1.0/sqrt2, 1e-14);
-  assert_approx_equal(us[1].x, 0.0, 1e-14);
-  assert_approx_equal(us[1].y, 1.0, 1e-14);
-  assert_approx_equal(us[1].z, 0.0, 1e-14);
-  assert_approx_equal(us[2].x, 1.0/sqrt2, 1e-14);
-  assert_approx_equal(us[2].y, 0.0, 1e-14);
-  assert_approx_equal(us[2].z, 1.0/sqrt2, 1e-14);
+  assert_true(is_eigenvector(&A, lambdas[0], &us[0]) || 
+              is_eigenvector(&A, lambdas[1], &us[0]) || 
+              is_eigenvector(&A, lambdas[2], &us[0]));
+  assert_true(is_eigenvector(&A, lambdas[0], &us[1]) || 
+              is_eigenvector(&A, lambdas[1], &us[1]) || 
+              is_eigenvector(&A, lambdas[2], &us[1]));
+  assert_true(is_eigenvector(&A, lambdas[0], &us[2]) || 
+              is_eigenvector(&A, lambdas[1], &us[2]) || 
+              is_eigenvector(&A, lambdas[2], &us[2]));
 }
 
 int main(int argc, char* argv[]) 
@@ -284,11 +294,9 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_sym_tensor2_det),
     cmocka_unit_test(test_sym_tensor2_trace),
     cmocka_unit_test(test_sym_tensor2_dot_vector),
-    cmocka_unit_test(test_sym_tensor2_invert)
-#if 0
+    cmocka_unit_test(test_sym_tensor2_invert),
     cmocka_unit_test(test_sym_tensor2_get_eigenvalues),
     cmocka_unit_test(test_sym_tensor2_get_eigenvectors)
-#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
