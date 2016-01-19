@@ -52,8 +52,8 @@ static inline void tensor2_set_identity(tensor2_t* t, real_t factor)
 static inline void tensor2_scale(tensor2_t* t, real_t factor)
 {
   t->xx *= factor; t->xy *= factor; t->xz *= factor;
-  t->xy *= factor; t->yy *= factor; t->yz *= factor;
-  t->xz *= factor; t->yz *= factor; t->zz *= factor;
+  t->yx *= factor; t->yy *= factor; t->yz *= factor;
+  t->zx *= factor; t->zy *= factor; t->zz *= factor;
 }
 
 // Returns the determinant of the tensor.
@@ -101,6 +101,9 @@ static inline void tensor2_invert(tensor2_t* t, tensor2_t* t_inverse)
   t_inverse->zy = t->xy*t->zx - t->xx*t->zy;
   t_inverse->zz = t->xx*t->yy - t->xy*t->yx;
 }
+
+// Writes a text representation of the tensor to the given stream.
+void tensor2_fprintf(tensor2_t* t, FILE* stream);
 
 // A rank-2 symmetric tensor in 3D space. You can cast this to and from an 
 // array of 6 real_t. Not castable to any Fortran matrix type.
@@ -189,6 +192,9 @@ void sym_tensor2_get_eigenvalues(sym_tensor2_t* t, real_t eigenvalues[3]);
 // storing the former as scalars in the given array and the later as 
 // vectors in the array eigenvectors.
 void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, real_t eigenvalues[3], vector_t eigenvectors[3]);
+
+// Writes a text representation of the symmetric tensor to the given stream.
+void sym_tensor2_fprintf(sym_tensor2_t* t, FILE* stream);
 
 // Arrays of tensors.
 DEFINE_ARRAY(tensor2_array, tensor2_t)

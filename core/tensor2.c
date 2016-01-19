@@ -18,6 +18,13 @@ tensor2_t* tensor2_new(real_t xx, real_t xy, real_t xz,
   return t;
 }
 
+void tensor2_fprintf(tensor2_t* t, FILE* stream)
+{
+  fprintf(stream, "[%g, %g, %g]\n", t->xx, t->xy, t->xz);
+  fprintf(stream, "[%g, %g, %g]\n", t->yx, t->yy, t->yz);
+  fprintf(stream, "[%g, %g, %g]\n", t->zx, t->zy, t->zz);
+}
+
 sym_tensor2_t* sym_tensor2_new(real_t xx, real_t xy, real_t xz,
                                           real_t yy, real_t yz,
                                                      real_t zz)
@@ -54,5 +61,12 @@ void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, real_t eigenvalues[3], vecto
   eigenvectors[2].x = A[6];
   eigenvectors[2].y = A[7];
   eigenvectors[0].z = A[8];
+}
+
+void sym_tensor2_fprintf(sym_tensor2_t* t, FILE* stream)
+{
+  fprintf(stream, "[%g, %g, %g]\n", t->xx, t->xy, t->xz);
+  fprintf(stream, "[%g, %g, %g]\n", t->xy, t->yy, t->yz);
+  fprintf(stream, "[%g, %g, %g]\n", t->xz, t->yz, t->zz);
 }
 
