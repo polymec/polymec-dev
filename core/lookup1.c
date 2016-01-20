@@ -120,7 +120,7 @@ lookup1_t* lookup1_new(real_t x_min, real_t x_max, int num_values,
       real_t y3 = table->values[num_values-1];
       
       real_t A[4] = {-dx, -2*dx, -dx*dx, -4*dx*dx};
-      real_t B[2] = {y1-y3, y2-y3};
+      real_t B[2] = {y2-y3, y1-y3};
       real_t X[2];
       solve_2x2(A, B, X);
       real_t dydx = X[0], d2ydx2 = X[1];
