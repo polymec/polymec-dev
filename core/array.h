@@ -21,7 +21,7 @@
 // x_array_t* x_array_new() - Creates a new, empty array on the heap.
 // x_array_t* x_array_new_with_capacity(int capacity) - Creates a new, empty array on the heap with the given capacity.
 // x_array_t empty_x_array() - Creates a new, empty array on the stack.
-// void x_array_free(array_t* array) - Destroys the (heap-allocated) array.
+// void x_array_free(x_array_t* array) - Destroys the (heap-allocated) array.
 // x* x_array_find(x_array_t* array, x value, cmp_func comparator) - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
 // void x_array_append(x_array_t* array, x value) - Appends an x to the end of the array.
 // void x_array_append_with_dtor(x_array_t* array, x value, destructor dtor) - Appends an x to the end of the array, using dtor to destroy when finished.
