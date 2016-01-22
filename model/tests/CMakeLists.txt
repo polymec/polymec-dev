@@ -2,6 +2,7 @@ include(add_polymec_test)
 
 add_polymec_test(test_polynomial_fit test_polynomial_fit.c)
 add_polymec_test(test_aux_state test_aux_state.c)
+add_polymec_test(test_physical_constants test_physical_constants.c)
 add_polymec_test(test_neighbor_pairing test_neighbor_pairing.c create_simple_pairing.c)
 add_mpi_polymec_test(test_star_stencil test_star_stencil.c 1 2 3 4)
 
