@@ -5,11 +5,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/interpreter.h"
 #include "core/st_func.h"
 #include "core/silo_file.h"
 #include "core/partition_mesh.h"
 #include "core/partition_point_cloud.h"
+#include "model/interpreter.h"
 
 // Lua stuff.
 #include "lua.h"

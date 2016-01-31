@@ -10,7 +10,7 @@
 
 #include "core/polymec.h"
 #include "core/options.h"
-#include "core/interpreter.h"
+#include "model/interpreter.h"
 
 // The maximum amount of storage allowed for an explanation of the 
 // time step choice.

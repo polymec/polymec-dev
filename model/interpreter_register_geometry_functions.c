@@ -8,8 +8,8 @@
 #include "core/kd_tree.h"
 #include "core/slist.h"
 #include "core/unordered_set.h"
-#include "geometry/interpreter_register_geometry_functions.h"
 #include "geometry/rect_prism.h"
+#include "model/interpreter.h"
 
 // Lua stuff.
 #include "lua.h"

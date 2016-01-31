@@ -6,10 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/array.h"
-#include "core/interpreter.h"
 #include "core/tuple.h"
 #include "core/unordered_set.h"
 #include "core/text_buffer.h"
+#include "model/interpreter.h"
 
 // Lua stuff.
 #include "lua.h"
@@ -433,6 +433,8 @@ struct interpreter_t
 };
 
 extern void interpreter_register_default_functions(interpreter_t* interp);
+extern void interpreter_register_geometry_functions(interpreter_t* interp);
+extern void interpreter_register_model_functions(interpreter_t* interp);
 
 static void interpreter_close_lua(interpreter_t* interp)
 {
@@ -454,6 +456,8 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
 
   // Add the default functions to the interpreter.
   interpreter_register_default_functions(interp);
+  interpreter_register_geometry_functions(interp);
+  interpreter_register_model_functions(interp);
 
   // Initialize the data store.
   interp->store = interpreter_map_new();

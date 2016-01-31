@@ -14,7 +14,6 @@
 #include "core/mesh.h"
 #include "core/partition_mesh.h"
 #include "core/kd_tree.h"
-#include "core/interpreter.h"
 #include "core/unordered_map.h"
 #include "core/tuple.h"
 #include "geometry/create_uniform_mesh.h"
@@ -23,6 +22,7 @@
 #include "geometry/create_dual_mesh.h"
 #include "geometry/create_boundary_generators.h"
 #include "geometry/rect_prism.h"
+#include "model/interpreter.h"
 
 // Lua stuff.
 #include "lua.h"

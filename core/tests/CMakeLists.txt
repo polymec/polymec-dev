@@ -24,7 +24,6 @@ add_polymec_test(test_special_functions test_special_functions.c)
 add_polymec_test(test_mesh test_mesh.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c)
 add_polymec_test(test_polynomial test_polynomial.c)
 add_polymec_test(test_least_squares test_least_squares.c)
-add_polymec_test(test_interpreter test_interpreter.c)
 add_polymec_test(test_cxx_program test_cxx_program.cpp)
 
 if (BUILD_SHARED_LIBS)

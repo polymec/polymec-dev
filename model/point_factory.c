@@ -11,12 +11,12 @@
 #include <strings.h>
 #include "core/polymec.h"
 #include "core/point.h"
-#include "core/interpreter.h"
 #include "core/slist.h"
 #include "core/array.h"
 #include "core/kd_tree.h"
 #include "geometry/generate_random_points.h"
 #include "geometry/create_point_lattice.h"
+#include "model/interpreter.h"
 
 // Lua stuff.
 #include "lua.h"

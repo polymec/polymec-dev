@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "core/interpreter.h"
+#include "model/interpreter.h"
 
 void test_interpreter_with_long_string(void** state)
 {
