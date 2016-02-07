@@ -189,11 +189,11 @@ void interpreter_set_vectorlist(interpreter_t* interp, const char* name, vector_
 
 // Fetches the given bounding box from the interpreter, returning NULL if it 
 // is not found or if it is not a bounding box.
-bbox_t* interpreter_get_boundingbox(interpreter_t* interp, const char* name);
+bbox_t* interpreter_get_bbox(interpreter_t* interp, const char* name);
 
 // Sets the given variable within the interpreter to the given bounding box.
 // Any existing value of this variable is overwritten.
-void interpreter_set_boundingbox(interpreter_t* interp, const char* name, bbox_t* value);
+void interpreter_set_bbox(interpreter_t* interp, const char* name, bbox_t* value);
 
 // Fetches the given mesh from the interpreter, returning NULL if it 
 // is not found or if it is not a mesh. The caller assumes responsibility

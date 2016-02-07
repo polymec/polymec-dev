@@ -159,9 +159,9 @@ void test_boundingbox_parsing(void** state)
 
   assert_true(interpreter_contains(interp, "b", INTERPRETER_BOUNDING_BOX));
   assert_true(!interpreter_contains(interp, "c", INTERPRETER_BOUNDING_BOX));
-  assert_true(interpreter_get_boundingbox(interp, "b") != NULL);
-  assert_true(interpreter_get_boundingbox(interp, "c") == NULL);
-  bbox_t* b = interpreter_get_boundingbox(interp, "b");
+  assert_true(interpreter_get_bbox(interp, "b") != NULL);
+  assert_true(interpreter_get_bbox(interp, "c") == NULL);
+  bbox_t* b = interpreter_get_bbox(interp, "b");
   assert_true(fabs(b->x1 - 0.0) < 1e-15);
   assert_true(fabs(b->x2 - 1.0) < 1e-15);
   assert_true(fabs(b->y1 - 0.0) < 1e-15);

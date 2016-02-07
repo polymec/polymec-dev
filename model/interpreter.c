@@ -1316,7 +1316,7 @@ void interpreter_set_vectorlist(interpreter_t* interp, const char* name, vector_
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
 }
 
-bbox_t* interpreter_get_boundingbox(interpreter_t* interp, const char* name)
+bbox_t* interpreter_get_bbox(interpreter_t* interp, const char* name)
 {
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
   if (storage == NULL)
@@ -1327,7 +1327,7 @@ bbox_t* interpreter_get_boundingbox(interpreter_t* interp, const char* name)
   return (bbox_t*)((*storage)->datum);
 }
 
-void interpreter_set_boundingbox(interpreter_t* interp, const char* name, bbox_t* value)
+void interpreter_set_bbox(interpreter_t* interp, const char* name, bbox_t* value)
 {
   interpreter_storage_t* storage = store_boundingbox(NULL, value);
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
