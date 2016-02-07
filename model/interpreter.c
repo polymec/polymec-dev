@@ -2264,7 +2264,7 @@ static st_func_t* scalarfunction_from_lua_func(struct lua_State* lua,
 
   // Now create and return our function.
   st_func_vtable vtable = {.eval = lua_scalarfunction_eval, .dtor = polymec_free};
-  return st_func_new("Lua scalar function", func, vtable, ST_FUNC_INHOMOGENEOUS,
+  return st_func_new("Lua scalar function", func, vtable, ST_FUNC_HETEROGENEOUS,
                      ST_FUNC_NONCONSTANT, 1);
 }
 

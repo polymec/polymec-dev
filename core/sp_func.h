@@ -21,7 +21,7 @@ typedef struct sp_func_t sp_func_t;
 typedef enum
 {
   SP_FUNC_HOMOGENEOUS,
-  SP_FUNC_INHOMOGENEOUS
+  SP_FUNC_HETEROGENEOUS
 } sp_func_homogeneity_t;
 
 // A function pointer type for evaluating the function at a point.

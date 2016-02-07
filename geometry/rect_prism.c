@@ -99,7 +99,7 @@ sp_func_t* rect_prism_new(point_t* x0,
   snprintf(str, 1024, "Rectangular prism (x0 = (%g, %g, %g), L1 = %g, L2 = %g, L3 = %g,"
                       " alpha = %g, beta = %g, gamma = %g)", 
                       x0->x, x0->y, x0->z, L1, L2, L3, alpha, beta, gamma);
-  return sp_func_new(str, p, vtable, SP_FUNC_INHOMOGENEOUS, 1);
+  return sp_func_new(str, p, vtable, SP_FUNC_HETEROGENEOUS, 1);
 }
 
 sp_func_t* rect_prism_from_bbox(bbox_t* bounding_box)

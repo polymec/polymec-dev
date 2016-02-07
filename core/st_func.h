@@ -23,7 +23,7 @@ typedef struct st_func_t st_func_t;
 typedef enum
 {
   ST_FUNC_HOMOGENEOUS,
-  ST_FUNC_INHOMOGENEOUS
+  ST_FUNC_HETEROGENEOUS
 } st_func_homogeneity_t;
 
 // Enumerated type indicating whether a function is constant in time.

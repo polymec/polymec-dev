@@ -82,7 +82,7 @@ sp_func_t* intersection_new(sp_func_t** surfaces, int num_surfaces)
     strncat(inter_str, surf_str, num_surfaces*1024);
   }
   sp_func_vtable vtable = {.eval = inter_eval, .dtor = inter_free};
-  sp_func_t* intersection = sp_func_new(inter_str, inter, vtable, SP_FUNC_INHOMOGENEOUS, 1);
+  sp_func_t* intersection = sp_func_new(inter_str, inter, vtable, SP_FUNC_HETEROGENEOUS, 1);
 
   // Register the gradient function if we have it.
   if (has_grad)
@@ -90,7 +90,7 @@ sp_func_t* intersection_new(sp_func_t** surfaces, int num_surfaces)
     char inter_grad_str[num_surfaces*1024];
     snprintf(inter_grad_str, num_surfaces*1024, "grad %s", inter_str);
     sp_func_vtable vtable_g = {.eval = inter_eval_gradient}; // Notice no dtor.
-    sp_func_t* inter_grad = sp_func_new(inter_grad_str, inter, vtable_g, SP_FUNC_INHOMOGENEOUS, 3);
+    sp_func_t* inter_grad = sp_func_new(inter_grad_str, inter, vtable_g, SP_FUNC_HETEROGENEOUS, 3);
     sp_func_register_deriv(intersection, 1, inter_grad);
   }
 
