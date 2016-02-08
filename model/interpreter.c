@@ -133,10 +133,15 @@ static int destroy_storage(lua_State* lua)
 // This destroys variables that have been parsed.
 static void destroy_variable(char* key, interpreter_storage_t* value)
 {
-  polymec_free(key);
-  if ((value->dtor != NULL) && (value->owner == POLYMEC))
+  if ((value->dtor != NULL) && (value->owner == LUA))
+  {
+    log_debug("interpreter: destroying %s (deallocating)", key);
     (*value->dtor)(value->datum);
+  }
+  else
+    log_debug("interpreter: releasing %s", key);
   value->datum = NULL;
+  polymec_free(key);
   if (value->creator == POLYMEC)
     polymec_free(value);
 }
@@ -192,7 +197,7 @@ static interpreter_storage_t* NEW_USER_DATA(lua_State* lua)
   {
     storage = polymec_malloc(sizeof(interpreter_storage_t));
     storage->creator = POLYMEC;
-    storage->owner = POLYMEC;
+    storage->owner = LUA;
   }
   else
   {
@@ -1123,7 +1128,7 @@ static void interpreter_store_chunk_contents(interpreter_t* interp)
       var = (void*)lua_topointer(lua, val_index);
     }
 
-    interpreter_map_insert_with_k_dtor(interp->store, string_dup(key), var, destroy_string); 
+    interpreter_map_insert_with_kv_dtor(interp->store, string_dup(key), var, destroy_variable); 
 
     // Removes value from stack -- key is kept for next iteration.
     lua_pop(lua, 1);
@@ -2353,7 +2358,10 @@ st_func_t* lua_toscalarfunction(struct lua_State* lua, int index)
     return NULL;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
   if (storage->type == INTERPRETER_SCALAR_FUNCTION)
+  {
+    storage->owner = POLYMEC;
     return (st_func_t*)storage->datum;
+  }
   else
     return NULL;
 }
