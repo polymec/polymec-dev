@@ -12,6 +12,7 @@
 #include "core/mesh.h"
 #include "core/st_func.h"
 #include "core/unordered_map.h"
+#include "geometry/coord_mapping.h"
 
 // Forward declaration for Lua innards.
 struct lua_State;
@@ -37,6 +38,7 @@ typedef enum
   INTERPRETER_TENSOR_FUNCTION,
   INTERPRETER_SEQUENCE,
   INTERPRETER_TABLE,
+  INTERPRETER_COORD_MAPPING,
   INTERPRETER_USER_DEFINED, // <-- on your head be it!!
   INTERPRETER_TERMINUS // Used only to terminate validation lists.
 } interpreter_var_type_t;
@@ -270,6 +272,14 @@ string_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const c
 // objects. Any existing value of this variable is overwritten.
 void interpreter_set_table(interpreter_t* interp, const char* name, string_ptr_unordered_map_t* value);
 
+// Fetches the given coordinate mapping from the interpreter, returning NULL 
+// if it is not found or if it is not a coordinate mapping.
+coord_mapping_t* interpreter_get_coord_mapping(interpreter_t* interp, const char* name);
+
+// Sets the given variable within the interpreter to the given coordinate 
+// mapping. Any existing value of this variable is overwritten.
+void interpreter_set_coord_mapping(interpreter_t* interp, const char* name, coord_mapping_t* value);
+
 // Fetches the given user-defined object from the interpreter, returning NULL 
 // if it is not found or if it is not a user-defined object. The caller 
 // assumes responsibility for destroying the user-defined object after 
@@ -448,6 +458,19 @@ void* lua_touserdefined(struct lua_State* lua, int index);
 // Pushes a user-defined object onto the interpreter's stack (as a 
 // return value for a function). dtor is a destructor for the user-defined object.
 void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(void*));
+
+// This helper returns true if the object at the given index is a coordinate
+// mapping, false if not.
+bool lua_iscoordmapping(struct lua_State* lua, int index);
+
+// This helper retrieves a coordinate mapping from the given index on an 
+// active lua interpreter, or returns NULL if the index does not point to 
+// such a thing.
+coord_mapping_t* lua_tocoordmapping(struct lua_State* lua, int index);
+
+// Pushes a coordinate mapping onto the interpreter's stack (as a 
+// return value for a function).
+void lua_pushcoordmapping(struct lua_State* lua, coord_mapping_t* mapping);
 
 // Converts the lua table at the given index to an unordered map that associates 
 // string keys with user-defined (pointer) objects. This function returns a newly-

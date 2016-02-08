@@ -339,6 +339,15 @@ static interpreter_storage_t* store_tensor_function(lua_State* lua, st_func_t* v
   return storage;
 }
 
+static interpreter_storage_t* store_coordmapping(lua_State* lua, coord_mapping_t* var)
+{
+  interpreter_storage_t* storage = NEW_USER_DATA(lua);
+  storage->type = INTERPRETER_COORD_MAPPING;
+  storage->datum = var;
+  storage->dtor = NULL;
+  return storage;
+}
+
 static void destroy_table(void* table)
 {
   string_ptr_unordered_map_free((string_ptr_unordered_map_t*)table);
@@ -1452,6 +1461,23 @@ string_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const c
 void interpreter_set_table(interpreter_t* interp, const char* name, string_ptr_unordered_map_t* value)
 {
   interpreter_storage_t* storage = store_table(NULL, value);
+  interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
+}
+
+coord_mapping_t* interpreter_get_coord_mapping(interpreter_t* interp, const char* name)
+{
+  interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
+  if (storage == NULL)
+    return NULL;
+  if ((*storage)->type != INTERPRETER_COORD_MAPPING)
+    return NULL;
+  (*storage)->owner = POLYMEC;
+  return (coord_mapping_t*)((*storage)->datum);
+}
+
+void interpreter_set_coord_mapping(interpreter_t* interp, const char* name, coord_mapping_t* value)
+{
+  interpreter_storage_t* storage = store_coordmapping(NULL, value);
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
 }
 
@@ -2724,6 +2750,31 @@ void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(
 {
   // Bundle it up and store it in the given variable.
   store_user_defined(lua, userdefined, dtor);
+}
+
+bool lua_iscoordmapping(struct lua_State* lua, int index)
+{
+  if (!lua_isuserdata(lua, index))
+    return false;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  return (storage->type == INTERPRETER_COORD_MAPPING);
+}
+
+coord_mapping_t* lua_tocoordmapping(struct lua_State* lua, int index)
+{
+  if (!lua_isuserdata(lua, index))
+    return NULL;
+  interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
+  if (storage->type == INTERPRETER_COORD_MAPPING)
+    return (coord_mapping_t*)storage->datum;
+  else
+    return NULL;
+}
+
+void lua_pushcoordmapping(struct lua_State* lua, coord_mapping_t* mapping)
+{
+  // Bundle it up and store it in the given variable.
+  store_coordmapping(lua, mapping);
 }
 
 static void destroy_table_key(char* key)
