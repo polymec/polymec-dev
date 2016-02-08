@@ -439,6 +439,9 @@ struct interpreter_t
 
   // A set of pre-existing variables in Lua that will be ignored.
   string_unordered_set_t* preexisting_vars;
+
+  // The name of the input file, if any (NULL if none).
+  char* input_file;
 };
 
 extern void interpreter_register_default_functions(interpreter_t* interp);
@@ -496,6 +499,7 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
   }
 
   interp->preexisting_vars = NULL;
+  interp->input_file = NULL;
 
   return interp;
 }
@@ -522,12 +526,15 @@ void interpreter_free(interpreter_t* interp)
   // store to see whether we should be deleting anything.
   interpreter_map_free(interp->store);
   interpreter_close_lua(interp);
+  if (interp->input_file != NULL)
+    string_free(interp->input_file);
   polymec_free(interp);
 }
 
 void interpreter_register_function(interpreter_t* interp, const char* function_name, int (*function)(lua_State*), docstring_t* doc)
 {
   ASSERT(interp->num_functions < 1024);
+  log_debug("interpreter: registering function '%s'...", function_name);
   interp->function_names[interp->num_functions] = string_dup(function_name);
   interp->functions[interp->num_functions] = function;
   interp->function_docs[interp->num_functions] = doc;
@@ -550,6 +557,7 @@ bool interpreter_has_global_table(interpreter_t* interp, const char* table_name)
 void interpreter_register_global_table(interpreter_t* interp, const char* table_name, docstring_t* doc)
 {
   ASSERT(interp->num_globals < 1024);
+  log_debug("interpreter: registering global table '%s'...", table_name);
 
   // Find the index of an existing table with the same name.
   int index = 0;
@@ -579,6 +587,7 @@ void interpreter_register_global_table(interpreter_t* interp, const char* table_
 
 void interpreter_register_global_method(interpreter_t* interp, const char* table_name, const char* method_name, int (*method)(struct lua_State*), docstring_t* doc)
 {
+  log_debug("interpreter: registering method '%s.%s'...", table_name, method_name);
   int global_index = 0;
   while (global_index < interp->num_globals)
   {
@@ -1148,7 +1157,21 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
   // Parse the input and execute it.
   int errors = luaL_dostring(interp->lua, input_string);
   if (errors != 0)
-    polymec_error(lua_tostring(interp->lua, -1));
+  {
+    const char* err_msg = lua_tostring(interp->lua, -1);
+    if (interp->input_file != NULL)
+    {
+      // We're actually parsing a file, so we munge the error message 
+      // to reflect that.
+      int my_msg_len = strlen(err_msg) + strlen(interp->input_file) + 128;
+      char message[my_msg_len];
+      char* line_no_start = strstr(err_msg, "\"]:") + 3;
+      snprintf(message, my_msg_len-1, "parsing %s, line %s", interp->input_file, line_no_start);
+      polymec_error(message);
+    }
+    else
+      polymec_error(err_msg);
+  }
 
   // Move the data from the chunk to the data store.
   interpreter_store_chunk_contents(interp);
@@ -1191,6 +1214,11 @@ void interpreter_parse_file(interpreter_t* interp, char* input_file)
       input_str[input_len] = '\0';
     }
   }
+
+  // Set the input file name.
+  if (interp->input_file != NULL)
+    string_free(interp->input_file);
+  interp->input_file = string_dup(input_file);
 
   // Parse the string locally.
   interpreter_parse_string(interp, input_str);
