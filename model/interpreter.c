@@ -1246,7 +1246,6 @@ char* interpreter_get_string(interpreter_t* interp, const char* name)
     return NULL;
   if ((*storage)->type != INTERPRETER_STRING)
     return NULL;
-  (*storage)->owner = POLYMEC;
   return (char*)((*storage)->datum);
 }
 
@@ -1521,7 +1520,6 @@ real_t* interpreter_get_sequence(interpreter_t* interp, const char* name, int* l
     return NULL;
   if ((*storage)->type != INTERPRETER_SEQUENCE)
     return NULL;
-  (*storage)->owner = POLYMEC;
   *len = (*storage)->size;
   return (real_t*)((*storage)->datum);
 }
