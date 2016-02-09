@@ -75,9 +75,15 @@ static void bnj_eval(void* context, point_t* x, real_t t, real_t* val)
   point_displacement(&bnj->x0, x, &y);
   if (vector_mag(&y) < bnj->ball_radius) // inside the ball
   {
-    if ((ABS(y.x) <= bnj->jack_thickness) || 
-        (ABS(y.y) <= bnj->jack_thickness) || 
-        (ABS(y.z) <= bnj->jack_thickness)) // inside the jack
+    if (((ABS(y.x) <= 0.5*bnj->jack_length) && 
+         (ABS(y.y) <= 0.5*bnj->jack_thickness) && 
+         (ABS(y.z) <= 0.5*bnj->jack_thickness)) || 
+        ((ABS(y.x) <= 0.5*bnj->jack_thickness) && 
+         (ABS(y.y) <= 0.5*bnj->jack_length) && 
+         (ABS(y.z) <= 0.5*bnj->jack_thickness)) || 
+        ((ABS(y.x) <= 0.5*bnj->jack_thickness) && 
+         (ABS(y.y) <= 0.5*bnj->jack_thickness) && 
+         (ABS(y.z) <= 0.5*bnj->jack_length)))
       *val = bnj->jack_value;
     else
       *val = bnj->ball_value;
@@ -102,10 +108,10 @@ static int ball_and_jack(lua_State* lua)
     return luaL_error(lua, "ball_and_jack: ball radius must be positive.");
   real_t ball_value = (real_t)lua_tonumber(lua, 3);
   real_t jack_size = (real_t)lua_tonumber(lua, 4);
-  real_t jack_thickness = jack_size / 5.0;
+  real_t jack_thickness = jack_size / 4.0;
   if (jack_size <= 0.0)
     return luaL_error(lua, "ball_and_jack: jack size must be positive.");
-  else if (sqrt(jack_size*jack_size + jack_thickness*jack_thickness) > ball_radius)
+  else if (sqrt(0.25*jack_size*jack_size + 0.25*jack_thickness*jack_thickness) > ball_radius)
     return luaL_error(lua, "ball_and_jack: jack size is too large to fit within ball radius.");
 
   real_t jack_value = (real_t)lua_tonumber(lua, 5);
