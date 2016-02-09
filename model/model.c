@@ -777,7 +777,15 @@ real_t model_max_dt(model_t* model, char* reason)
 
   // Now let the model have at it.
   if (model->vtable.max_dt != NULL)
-    dt = model->vtable.max_dt(model->context, model->time, reason);
+  {
+    char model_reason[POLYMEC_MODEL_MAXDT_REASON_SIZE+1];
+    real_t model_dt = model->vtable.max_dt(model->context, model->time, model_reason);
+    if (model_dt < dt)
+    {
+      dt = model_dt;
+      strcpy(reason, model_reason);
+    }
+  }
   return dt;
 }
 
@@ -1181,7 +1189,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
     // Now run the calculation.
     while ((model->time < t2) && (model->step < max_steps))
     {
-      char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE];
+      char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE+1];
       real_t max_dt;
       if (model->step == 0)
       {
