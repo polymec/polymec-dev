@@ -135,7 +135,7 @@ static void destroy_variable(char* key, interpreter_storage_t* value)
 {
   if ((value->dtor != NULL) && (value->owner == LUA))
   {
-    log_debug("interpreter: destroying %s (deallocating)", key);
+    log_debug("interpreter: destroying %s", key);
     (*value->dtor)(value->datum);
   }
   else
