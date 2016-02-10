@@ -187,3 +187,91 @@ real_t ode_integrator_current_time(ode_integrator_t* integ)
 {
   return integ->current_time;
 }
+
+//------------------------------------------------------------------------
+//                          "Decorated" ODE integrator
+//------------------------------------------------------------------------
+
+typedef struct
+{
+  void* context;
+  ode_integrator_t* base_integ;
+} decorated_t;
+
+static void base_reset(void* context, real_t t, real_t* x)
+{
+  decorated_t* decorated = context;
+  ode_integrator_reset(decorated->base_integ, t, x);
+}
+static bool base_step(void* context, real_t max_dt, real_t* t, real_t* x)
+{
+  decorated_t* decorated = context;
+  return ode_integrator_step(decorated->base_integ, max_dt, t, x);
+}
+
+static bool base_advance(void* context, real_t t1, real_t t2, real_t* x)
+{
+  decorated_t* decorated = context;
+  return ode_integrator_advance(decorated->base_integ, t1, t2, x);
+}
+
+static void base_copy_in(void* context, real_t* solution_data, real_t* x)
+{
+  decorated_t* decorated = context;
+  decorated->base_integ->vtable.copy_in(decorated->base_integ->context, solution_data, x);
+}
+
+static void base_copy_out(void* context, real_t* x, real_t* solution_data)
+{
+  decorated_t* decorated = context;
+  decorated->base_integ->vtable.copy_out(decorated->base_integ->context, x, solution_data);
+}
+
+static void decorated_dtor(void* context)
+{
+  decorated_t* decorated = context;
+  ode_integrator_free(decorated->base_integ);
+  polymec_free(decorated);
+}
+
+ode_integrator_t* decorated_ode_integrator_new(ode_integrator_t* base_integrator,
+                                               void* context,
+                                               ode_integrator_vtable decoration_vtable)
+{
+  decorated_t* decorated = polymec_malloc(sizeof(decorated_t));
+  decorated->context = context;
+  decorated->base_integ = base_integrator;
+
+  // Assemble the vtable with overrides and fallbacks.
+  ode_integrator_vtable vtable;
+  if (decoration_vtable.reset != NULL)
+    vtable.reset = decoration_vtable.reset;
+  else
+    vtable.reset = base_reset;
+  if (decoration_vtable.step != NULL)
+    vtable.step = decoration_vtable.step;
+  else
+    vtable.step = base_step;
+  if (decoration_vtable.advance != NULL)
+    vtable.advance = decoration_vtable.advance;
+  else
+    vtable.advance = base_advance;
+  if (decoration_vtable.copy_in != NULL)
+    vtable.copy_in = decoration_vtable.copy_in;
+  else
+    vtable.copy_in = base_copy_in;
+  if (decoration_vtable.copy_out != NULL)
+    vtable.copy_out = decoration_vtable.copy_out;
+  else
+    vtable.copy_out = base_copy_out;
+  vtable.dtor = decorated_dtor;
+
+  int name_len = strlen(base_integrator->name);
+  char name[name_len + 128];
+  snprintf(name, name_len + 127, "Decorated %s", base_integrator->name);
+  ode_integrator_t* I = ode_integrator_new(name, decorated, vtable, 
+                                           base_integrator->order,
+                                           base_integrator->solution_vector_size);
+  return I;
+}
+

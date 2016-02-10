@@ -57,6 +57,14 @@ ode_integrator_t* ode_integrator_new(const char* name,
                                      int order,
                                      int solution_vector_size);
 
+// Creates an ode_integrator that "decorates" the given integrator with 
+// another context and (partially-filled) virtual table, calling any 
+// methods specified in the vtable with the given context, and falling 
+// back to the given integrator for methods not specified.
+ode_integrator_t* decorated_ode_integrator_new(ode_integrator_t* base_integrator,
+                                               void* context,
+                                               ode_integrator_vtable decoration_vtable);
+
 // Frees an ODE integrator.
 void ode_integrator_free(ode_integrator_t* integ);
 
