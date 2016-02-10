@@ -196,35 +196,52 @@ typedef struct
 {
   void* context;
   ode_integrator_t* base_integ;
+  ode_integrator_vtable vtable;
 } decorated_t;
 
-static void base_reset(void* context, real_t t, real_t* x)
+static void decorated_reset(void* context, real_t t, real_t* x)
 {
   decorated_t* decorated = context;
-  ode_integrator_reset(decorated->base_integ, t, x);
-}
-static bool base_step(void* context, real_t max_dt, real_t* t, real_t* x)
-{
-  decorated_t* decorated = context;
-  return ode_integrator_step(decorated->base_integ, max_dt, t, x);
+  if (decorated->vtable.reset != NULL)
+    decorated->vtable.reset(decorated->context, t, x);
+  else if (decorated->base_integ->vtable.reset != NULL)
+    decorated->base_integ->vtable.reset(decorated->base_integ->context, t, x);
 }
 
-static bool base_advance(void* context, real_t t1, real_t t2, real_t* x)
+static bool decorated_step(void* context, real_t max_dt, real_t* t, real_t* x)
 {
   decorated_t* decorated = context;
-  return ode_integrator_advance(decorated->base_integ, t1, t2, x);
+  if (decorated->vtable.step != NULL)
+    return decorated->vtable.step(decorated->context, max_dt, t, x);
+  else
+    return decorated->base_integ->vtable.step(decorated->base_integ->context, max_dt, t, x);
 }
 
-static void base_copy_in(void* context, real_t* solution_data, real_t* x)
+static bool decorated_advance(void* context, real_t t1, real_t t2, real_t* x)
 {
   decorated_t* decorated = context;
-  decorated->base_integ->vtable.copy_in(decorated->base_integ->context, solution_data, x);
+  if (decorated->vtable.advance != NULL)
+    return decorated->vtable.advance(decorated->context, t1, t2, x);
+  else
+    return decorated->base_integ->vtable.advance(decorated->base_integ->context, t1, t2, x);
 }
 
-static void base_copy_out(void* context, real_t* x, real_t* solution_data)
+static void decorated_copy_in(void* context, real_t* solution_data, real_t* x)
 {
   decorated_t* decorated = context;
-  decorated->base_integ->vtable.copy_out(decorated->base_integ->context, x, solution_data);
+  if (decorated->vtable.copy_in != NULL)
+    decorated->vtable.copy_in(decorated->context, solution_data, x);
+  else if (decorated->base_integ->vtable.copy_in != NULL)
+    decorated->base_integ->vtable.copy_in(decorated->base_integ->context, solution_data, x);
+}
+
+static void decorated_copy_out(void* context, real_t* x, real_t* solution_data)
+{
+  decorated_t* decorated = context;
+  if (decorated->vtable.copy_out != NULL)
+    decorated->vtable.copy_out(decorated->context, x, solution_data);
+  else if (decorated->base_integ->vtable.copy_out != NULL)
+    decorated->base_integ->vtable.copy_out(decorated->base_integ->context, x, solution_data);
 }
 
 static void decorated_dtor(void* context)
@@ -240,30 +257,19 @@ ode_integrator_t* decorated_ode_integrator_new(ode_integrator_t* base_integrator
 {
   decorated_t* decorated = polymec_malloc(sizeof(decorated_t));
   decorated->context = context;
+  decorated->vtable = decoration_vtable;
   decorated->base_integ = base_integrator;
 
   // Assemble the vtable with overrides and fallbacks.
   ode_integrator_vtable vtable;
-  if (decoration_vtable.reset != NULL)
-    vtable.reset = decoration_vtable.reset;
-  else
-    vtable.reset = base_reset;
-  if (decoration_vtable.step != NULL)
-    vtable.step = decoration_vtable.step;
-  else
-    vtable.step = base_step;
-  if (decoration_vtable.advance != NULL)
-    vtable.advance = decoration_vtable.advance;
-  else
-    vtable.advance = base_advance;
-  if (decoration_vtable.copy_in != NULL)
-    vtable.copy_in = decoration_vtable.copy_in;
-  else
-    vtable.copy_in = base_copy_in;
-  if (decoration_vtable.copy_out != NULL)
-    vtable.copy_out = decoration_vtable.copy_out;
-  else
-    vtable.copy_out = base_copy_out;
+  if ((decoration_vtable.reset != NULL) || (base_integrator->vtable.reset != NULL))
+    vtable.reset = decorated_reset;
+  vtable.step = decorated_step;
+  vtable.advance = decorated_advance;
+  if ((decoration_vtable.copy_in != NULL) || (base_integrator->vtable.copy_in != NULL))
+    vtable.copy_in = decorated_copy_in;
+  if ((decoration_vtable.copy_out != NULL) || (base_integrator->vtable.copy_out != NULL))
+    vtable.copy_out = decorated_copy_out;
   vtable.dtor = decorated_dtor;
 
   int name_len = strlen(base_integrator->name);
