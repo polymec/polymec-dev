@@ -350,7 +350,8 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t theta,
 
   char name[1024];
   snprintf(name, 1024, "Functional Euler integrator(theta = %g)", theta);
-  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
+  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order,
+                                           num_local_values + num_remote_values);
 
   // Set default iteration criteria.
   euler_ode_integrator_set_max_iterations(I, 100);
@@ -401,7 +402,8 @@ ode_integrator_t* newton_euler_ode_integrator_new(MPI_Comm comm,
                                   .dtor = euler_dtor};
 
   int order = 1;
-  ode_integrator_t* I = ode_integrator_new("Backward Euler Newton integrator", integ, vtable, order);
+  ode_integrator_t* I = ode_integrator_new("Backward Euler Newton integrator", integ, vtable, order,
+                                           num_local_values + num_remote_values);
 
   // Set default iteration criteria.
   euler_ode_integrator_set_max_iterations(I, 100);

@@ -447,7 +447,8 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
     snprintf(name, 1024, "Additive Runge-Kutta (fixed-point, order %d)", order);
   else
     snprintf(name, 1024, "Explicit Runge-Kutta (order %d)", order);
-  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
+  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order, 
+                                           num_local_values + num_remote_values);
 
   // Set default tolerances.
   // relative error of 1e-4 means errors are controlled to 0.01%.
@@ -565,7 +566,8 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
     snprintf(name, 1024, "JFNK IMEX Additive Runge-Kutta (fixed-point, order %d)", order);
   else
     snprintf(name, 1024, "JFNK implicit Runge-Kutta (order %d)", order);
-  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
+  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order,
+                                           num_local_values + num_remote_values);
 
   // Set default tolerances.
   // relative error of 1e-4 means errors are controlled to 0.01%.

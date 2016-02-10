@@ -393,7 +393,8 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   ode_integrator_vtable vtable = {.step = bdf_step, .advance = bdf_advance, .reset = bdf_reset, .dtor = bdf_dtor};
   char name[1024];
   snprintf(name, 1024, "JFNK Backwards-Difference-Formulae (order %d)", order);
-  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order);
+  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order,
+                                           num_local_values + num_remote_values);
 
   // Set default tolerances.
   // relative error of 1e-4 means errors are controlled to 0.01%.
