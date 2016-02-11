@@ -163,11 +163,14 @@ void ark_ode_integrator_set_nonlinear_convergence_coeff(ode_integrator_t* integr
 
 // Evaluates the explicit part of the system at the given time and with the 
 // given solution X, placing the results in fe.
-void ark_ode_integrator_eval_fe(ode_integrator_t* integ, real_t t, real_t* X, real_t* fe);
+void ark_ode_integrator_eval_fe(ode_integrator_t* integrator, real_t t, real_t* X, real_t* fe);
 
 // Evaluates the implicit part of the system at the given time and with the 
 // given solution X, placing the results in fi.
-void ark_ode_integrator_eval_fi(ode_integrator_t* integ, real_t t, real_t* X, real_t* fi);
+void ark_ode_integrator_eval_fi(ode_integrator_t* integrator, real_t t, real_t* X, real_t* fi);
+
+// Returns a stable timestep for the solution X at time t.
+real_t ark_ode_integrator_stable_dt(ode_integrator_t* integrator, real_t t, real_t* X);
 
 // Returns an internal pointer to the preconditioner passed to this 
 // integrator during construction time.
