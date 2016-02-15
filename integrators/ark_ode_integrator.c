@@ -746,6 +746,15 @@ void ark_ode_integrator_eval_fi(ode_integrator_t* integrator, real_t t, real_t* 
     memset(fi, 0, sizeof(real_t) * integ->num_local_values);
 }
 
+real_t ark_ode_integrator_stable_dt(ode_integrator_t* integrator, real_t t, real_t* X)
+{
+  ark_ode_t* integ = ode_integrator_context(integrator);
+  if (integ->stable_dt != NULL)
+    return integ->stable_dt(integ->context, t, X);
+  else
+    return FLT_MAX;
+}
+
 newton_pc_t* ark_ode_integrator_preconditioner(ode_integrator_t* integrator)
 {
   ark_ode_t* integ = ode_integrator_context(integrator);
