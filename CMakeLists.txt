@@ -109,6 +109,13 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SYS_FLAGS}")
 
+# OpenMP support?
+if (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  message("-- Using Apple's Clang: OpenMP is not supported.")
+else()
+  set(HAVE_OPENMP 1)
+endif()
+
 # Considerations for shared libraries.
 if (BUILD_SHARED_LIBS)
   if (LINUX)

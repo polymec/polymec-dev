@@ -126,6 +126,7 @@ typedef uint64_t index_t;
 
 // Configuration information
 #define POLYMEC_HAVE_MPI @HAVE_MPI@
+#define POLYMEC_HAVE_OPENMP @HAVE_OPENMP@
 #define POLYMEC_C_COMPILER "@CMAKE_C_COMPILER@"
 #define POLYMEC_INCLUDE_DIR "@PROJECT_BINARY_DIR@/include"
 
