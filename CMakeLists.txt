@@ -114,6 +114,7 @@ if (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   message("-- Using Apple's Clang: OpenMP is not supported.")
 else()
   set(HAVE_OPENMP 1)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 endif()
 
 # Considerations for shared libraries.
