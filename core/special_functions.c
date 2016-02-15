@@ -8,10 +8,8 @@
 #include "core/polymec.h"
 #include "core/special_functions.h"
 
-#ifdef __INTEL_COMPILER
 #ifndef CMPLX
 #define CMPLX(x,y) ((double)(x)+I*(double)(y))
-#endif
 #endif
 
 // Much of the source code in this file originated from Fortran 77 subroutines 
