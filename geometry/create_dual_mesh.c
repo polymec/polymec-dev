@@ -8,7 +8,7 @@
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
 #include "geometry/tetrahedron.h"
-#include "geometry/plane.h"
+#include "geometry/plane_sp_func.h"
 #include "geometry/polygon.h"
 #include "geometry/create_dual_mesh.h"
 
@@ -73,7 +73,7 @@ static void order_nodes_of_dual_face(sp_func_t* plane,
       {
         // Project these nodes to our plane.
         point2_t xi;
-        plane_project(plane, &dual_nodes[i], &xi);
+        plane_sp_func_project(plane, &dual_nodes[i], &xi);
         tweener_nodes[j].angle = atan2(xi.y, xi.x);
         tweener_nodes[j].index = i;
       }
@@ -414,7 +414,7 @@ static mesh_t* create_dual_mesh_from_tet_mesh(MPI_Comm comm,
       point_displacement(x1, x2, &edge_vector);
 
       // Order the nodes of this dual face.
-      sp_func_t* edge_plane = plane_new(&edge_vector, x1);
+      sp_func_t* edge_plane = plane_sp_func_new(&edge_vector, x1);
       order_nodes_of_dual_face(edge_plane, endpoint_indices, dual_nodes, 
           num_nodes, dual_node_indices);
 

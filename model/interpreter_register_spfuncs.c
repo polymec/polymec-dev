@@ -5,8 +5,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "geometry/sphere.h"
-#include "geometry/rect_prism.h"
+#include "geometry/sphere_sp_func.h"
+#include "geometry/rect_prism_sp_func.h"
 #include "model/interpreter.h"
 
 // Lua stuff.
@@ -30,7 +30,7 @@ static int sphere(lua_State* lua)
   if (r <= 0.0)
     return luaL_error(lua, "Sphere radius must be positive.");
 
-  sp_func_t* s = sphere_new(x, r, INWARD_NORMAL);
+  sp_func_t* s = sphere_sp_func_new(x, r, INWARD_NORMAL);
   lua_pushscalarfunction(lua, st_func_from_sp_func(s));
   return 1;
 }
@@ -47,7 +47,7 @@ static int rect_prism(lua_State* lua)
 
   // Get the arguments.
   bbox_t* bbox = lua_toboundingbox(lua, 1);
-  sp_func_t* prism = rect_prism_from_bbox(bbox);
+  sp_func_t* prism = rect_prism_sp_func_from_bbox(bbox);
   lua_pushscalarfunction(lua, st_func_from_sp_func(prism));
   prism = NULL;
   return 1;

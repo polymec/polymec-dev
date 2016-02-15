@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "geometry/scaled.h"
+#include "geometry/scaled_sp_func.h"
 
 typedef struct
 {
@@ -33,7 +33,7 @@ static void sc_eval_gradient(void* ctx, point_t* x, real_t* result)
   sp_func_eval_deriv(sc->func, 1, &y, result);
 }
 
-sp_func_t* scaled_new(sp_func_t* func, real_t scale_factor)
+sp_func_t* scaled_sp_func_new(sp_func_t* func, real_t scale_factor)
 {
   ASSERT(func != NULL);
   ASSERT(sp_func_num_comp(func) == 1);

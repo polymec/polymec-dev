@@ -5,8 +5,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef POLYMEC_RECT_PRISM_H
-#define POLYMEC_RECT_PRISM_H
+#ifndef POLYMEC_RECT_PRISM_SP_FUNC_H
+#define POLYMEC_RECT_PRISM_SP_FUNC_H
 
 #include "core/sp_func.h"
 
@@ -21,12 +21,12 @@
 //              alpha - A rotation about the z axis.
 //               beta - A rotation about the N axis (line of nodes).
 //              gamma - A rotation about the Z axis.
-sp_func_t* rect_prism_new(point_t* x0, 
-                          real_t L1, real_t L2, real_t L3,
-                          real_t alpha, real_t beta, real_t gamma);
+sp_func_t* rect_prism_sp_func_new(point_t* x0, 
+                                  real_t L1, real_t L2, real_t L3,
+                                  real_t alpha, real_t beta, real_t gamma);
 
 // Creates a rectangular prism identical to the given bounding box.
-sp_func_t* rect_prism_from_bbox(bbox_t* bounding_box);
+sp_func_t* rect_prism_sp_func_from_bbox(bbox_t* bounding_box);
 
 #endif
 

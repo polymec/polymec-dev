@@ -7,8 +7,10 @@ set(MESH_GENERATION_SOURCES create_boundary_generators.c
     create_voronoi_mesh.c create_dual_mesh.c crop_mesh.c)
 
 include(add_polymec_library)
-add_polymec_library(polymec_geometry coord_mapping.c plane.c cylinder.c sphere.c 
-                    intersection.c union.c difference.c scaled.c rect_prism.c 
+add_polymec_library(polymec_geometry coord_mapping.c 
+                    plane_sp_func.c cylinder_sp_func.c sphere_sp_func.c 
+                    intersection_sp_func.c union_sp_func.c difference_sp_func.c 
+                    scaled_sp_func.c rect_prism_sp_func.c 
                     giftwrap_hull.c polygon2.c polygon.c tetrahedron.c 
                     ${MESH_GENERATION_SOURCES} cubic_lattice.c
                     symmetry_1d.c)

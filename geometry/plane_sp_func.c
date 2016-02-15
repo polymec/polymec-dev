@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/linear_algebra.h"
-#include "geometry/plane.h"
+#include "geometry/plane_sp_func.h"
 
 typedef struct
 {
@@ -26,7 +26,7 @@ static void plane_eval(void* ctx, point_t* x, real_t* result)
   result[0] = vector_dot(&p->n, &D);
 }
 
-sp_func_t* plane_new(vector_t* n, point_t* x)
+sp_func_t* plane_sp_func_new(vector_t* n, point_t* x)
 {
   // Set up a plane signed distance function.
   plane_t* p = polymec_malloc(sizeof(plane_t));
@@ -34,11 +34,11 @@ sp_func_t* plane_new(vector_t* n, point_t* x)
   sp_func_t* plane = sp_func_new("Plane (uninitialized)", p, vtable, SP_FUNC_HETEROGENEOUS, 1);
 
   // Set up all the innards.
-  plane_reset(plane, n, x);
+  plane_sp_func_reset(plane, n, x);
   return plane;
 }
 
-sp_func_t* plane_from_points(point_t* p1, point_t* p2, point_t* p3)
+sp_func_t* plane_sp_func_from_points(point_t* p1, point_t* p2, point_t* p3)
 {
   ASSERT(!points_are_colinear(p1, p2, p3));
 
@@ -47,10 +47,10 @@ sp_func_t* plane_from_points(point_t* p1, point_t* p2, point_t* p3)
   point_displacement(p1, p3, &e2);
   vector_cross(&e1, &e2, &n);
   vector_normalize(&n);
-  return plane_new(&n, p1);
+  return plane_sp_func_new(&n, p1);
 }
 
-sp_func_t* plane_new_best_fit(point_t* points, int num_points)
+sp_func_t* plane_sp_func_new_best_fit(point_t* points, int num_points)
 {
   ASSERT(num_points >= 3);
 
@@ -58,7 +58,7 @@ sp_func_t* plane_new_best_fit(point_t* points, int num_points)
   {
     // If exactly 3 points are given, we can exactly solve the equation of 
     // the plane.
-    return plane_from_points(&points[0], &points[1], &points[2]);
+    return plane_sp_func_from_points(&points[0], &points[1], &points[2]);
   }
   else
   {
@@ -113,11 +113,11 @@ sp_func_t* plane_new_best_fit(point_t* points, int num_points)
     n.x = VT[3*min_index];
     n.y = VT[3*min_index+1];
     n.z = VT[3*min_index+2];
-    return plane_new(&n, &x0);
+    return plane_sp_func_new(&n, &x0);
   }
 }
 
-void plane_reset(sp_func_t* plane, vector_t* n, point_t* x)
+void plane_sp_func_reset(sp_func_t* plane, vector_t* n, point_t* x)
 {
   plane_t* p = sp_func_context(plane);
   vector_copy(&p->n, n);
@@ -141,7 +141,7 @@ void plane_reset(sp_func_t* plane, vector_t* n, point_t* x)
   compute_orthonormal_basis(&p->e3, &p->e1, &p->e2);
 }
 
-void plane_project(sp_func_t* plane, point_t* x, point2_t* xi)
+void plane_sp_func_project(sp_func_t* plane, point_t* x, point2_t* xi)
 {
   plane_t* p = sp_func_context(plane);
   vector_t v = {.x = x->x - p->x.x, .y = x->y - p->x.y, .z = x->z - p->x.z};
@@ -151,7 +151,7 @@ void plane_project(sp_func_t* plane, point_t* x, point2_t* xi)
   xi->y = vector_dot(&v_perp, &p->e2);
 }
 
-void plane_embed(sp_func_t* plane, point2_t* xi, point_t* x)
+void plane_sp_func_embed(sp_func_t* plane, point2_t* xi, point_t* x)
 {
   plane_t* p = sp_func_context(plane);
   x->x = p->x.x + p->e1.x * xi->x + p->e2.x * xi->y;
@@ -159,7 +159,7 @@ void plane_embed(sp_func_t* plane, point2_t* xi, point_t* x)
   x->z = p->x.z + p->e1.z * xi->x * p->e2.z + xi->y;
 }
 
-real_t plane_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t)
+real_t plane_sp_func_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t)
 {
   plane_t* p = sp_func_context(plane);
   real_t not = vector_dot(&p->n, t);

@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "geometry/sphere.h"
+#include "geometry/sphere_sp_func.h"
 
 typedef struct
 {
@@ -31,7 +31,7 @@ static void sphere_eval_gradient(void* ctx, point_t* x, real_t* result)
   result[2] = sign * (x->z - s->x.z) / (D + 1e-14);
 }
 
-sp_func_t* sphere_new(point_t* x, real_t r, normal_orient_t normal_orientation)
+sp_func_t* sphere_sp_func_new(point_t* x, real_t r, normal_orient_t normal_orientation)
 {
   // Set up a sphere signed distance function.
   sphere_t* s = polymec_malloc(sizeof(sphere_t));

@@ -1,11 +1,11 @@
 include(add_polymec_test)
 
-add_polymec_test(test_plane test_plane.c)
-add_polymec_test(test_sphere test_sphere.c)
-add_polymec_test(test_cylinder test_cylinder.c)
-add_polymec_test(test_union test_union.c)
-add_polymec_test(test_intersection test_intersection.c)
-add_polymec_test(test_difference test_difference.c)
+add_polymec_test(test_plane_sp_func test_plane_sp_func.c)
+add_polymec_test(test_sphere_sp_func test_sphere_sp_func.c)
+add_polymec_test(test_cylinder_sp_func test_cylinder_sp_func.c)
+add_polymec_test(test_union_sp_func test_union_sp_func.c)
+add_polymec_test(test_intersection_sp_func test_intersection_sp_func.c)
+add_polymec_test(test_difference_sp_func test_difference_sp_func.c)
 add_polymec_test(test_graph_from_mesh_cells test_graph_from_mesh_cells.c)
 add_polymec_test(test_create_welded_block_mesh test_create_welded_block_mesh.c)
 

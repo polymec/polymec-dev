@@ -21,7 +21,6 @@
 #include "geometry/create_pebi_mesh.h"
 #include "geometry/create_dual_mesh.h"
 #include "geometry/create_boundary_generators.h"
-#include "geometry/rect_prism.h"
 #include "model/interpreter.h"
 
 // Lua stuff.

@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "geometry/cylinder.h"
+#include "geometry/cylinder_sp_func.h"
 
 typedef struct
 {
@@ -40,7 +40,7 @@ static void cyl_eval_gradient(void* ctx, point_t* x, real_t* result)
   }
 }
 
-sp_func_t* cylinder_new(point_t* x, real_t r, normal_orient_t normal_orientation)
+sp_func_t* cylinder_sp_func_new(point_t* x, real_t r, normal_orient_t normal_orientation)
 {
   // Set up a cylinder signed distance function.
   cyl_t* c = polymec_malloc(sizeof(cyl_t));

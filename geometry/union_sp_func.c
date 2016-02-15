@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "geometry/union.h"
+#include "geometry/union_sp_func.h"
 
 typedef struct
 {
@@ -52,7 +52,7 @@ static void un_eval_gradient(void* ctx, point_t* x, real_t* result)
   sp_func_eval(un->funcs[index], x, result);
 }
 
-sp_func_t* union_new(sp_func_t** surfaces, int num_surfaces)
+sp_func_t* union_sp_func_new(sp_func_t** surfaces, int num_surfaces)
 {
   ASSERT(surfaces != NULL);
   ASSERT(num_surfaces > 1);
@@ -96,11 +96,11 @@ sp_func_t* union_new(sp_func_t** surfaces, int num_surfaces)
   return union_func;
 }
 
-sp_func_t* union_new2(sp_func_t* surface1, sp_func_t* surface2)
+sp_func_t* union_sp_func_new2(sp_func_t* surface1, sp_func_t* surface2)
 {
   sp_func_t* surfs[2];
   surfs[0] = surface1;
   surfs[1] = surface2;
-  return union_new(surfs, 2);
+  return union_sp_func_new(surfs, 2);
 }
 

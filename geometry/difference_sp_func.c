@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "geometry/difference.h"
+#include "geometry/difference_sp_func.h"
 
 typedef struct
 {
@@ -44,7 +44,7 @@ static void diff_eval_gradient(void* ctx, point_t* x, real_t* result)
   }
 }
 
-sp_func_t* difference_new(sp_func_t* surface1, sp_func_t* surface2)
+sp_func_t* difference_sp_func_new(sp_func_t* surface1, sp_func_t* surface2)
 {
   ASSERT(surface1 != NULL);
   ASSERT(sp_func_num_comp(surface1) == 1);

@@ -8,7 +8,7 @@
 #include <gc/gc.h>
 #include "geometry/polygon.h"
 #include "geometry/polygon2.h"
-#include "geometry/plane.h"
+#include "geometry/plane_sp_func.h"
 #include "core/slist.h"
 
 struct polygon_t 
@@ -76,7 +76,7 @@ static void polygon_compute_plane(polygon_t* poly)
 {
   compute_normal(poly->vertices, poly->num_vertices, &poly->normal);
   compute_centroid(poly->vertices, poly->num_vertices, &poly->x0);
-  poly->plane = plane_new(&poly->normal, &poly->x0);
+  poly->plane = plane_sp_func_new(&poly->normal, &poly->x0);
 }
 
 polygon_t* polygon_new(point_t* vertices, int num_vertices)
@@ -115,12 +115,12 @@ polygon_t* polygon_giftwrap(point_t* points, int num_points)
   compute_normal(points, num_points, &normal);
   point_t x0;
   compute_centroid(points, num_points, &x0);
-  sp_func_t* plane = plane_new(&normal, &x0);
+  sp_func_t* plane = plane_sp_func_new(&normal, &x0);
 
   // Do the gift-wrapping in 2D.
   point2_t pts[num_points];
   for (int i = 0; i < num_points; ++i)
-    plane_project(plane, &points[i], &pts[i]);
+    plane_sp_func_project(plane, &points[i], &pts[i]);
   polygon2_t* poly2 = polygon2_giftwrap(pts, num_points);
 
 #if 0
@@ -167,15 +167,15 @@ polygon_t* polygon_star(point_t* x0, point_t* points, int num_points)
   compute_normal(points, num_points, &normal);
   point_t xp;
   compute_centroid(points, num_points, &xp);
-  sp_func_t* plane = plane_new(&normal, &xp);
+  sp_func_t* plane = plane_sp_func_new(&normal, &xp);
 
   // Find the angles of the points within the plane, and sort the points 
   // by this angle.
   point2_t pts[num_points];
   for (int i = 0; i < num_points; ++i)
-    plane_project(plane, &points[i], &pts[i]);
+    plane_sp_func_project(plane, &points[i], &pts[i]);
   point2_t xc;
-  plane_project(plane, x0, &xc);
+  plane_sp_func_project(plane, x0, &xc);
   polygon2_t* poly2 = polygon2_star(&xc, pts, num_points);
 
   // Read off the vertex ordering from the planar polygon. 
@@ -238,7 +238,7 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
   for (int i = 0; i < poly->num_vertices; ++i)
   {
     int I = poly->ordering[i];
-    plane_project(poly->plane, &poly->vertices[I], &pts[I]);
+    plane_sp_func_project(poly->plane, &poly->vertices[I], &pts[I]);
   }
   polygon2_t* poly2 = polygon2_new(pts, poly->num_vertices);
 
@@ -246,7 +246,7 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
   for (int i = 0; i < other->num_vertices; ++i)
   {
     int I = poly->ordering[i];
-    plane_project(other->plane, &other->vertices[I], &other_pts[I]);
+    plane_sp_func_project(other->plane, &other->vertices[I], &other_pts[I]);
   }
   polygon2_t* other2 = polygon2_new(other_pts, other->num_vertices);
 
@@ -263,7 +263,7 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
   while (polygon2_next_vertex(poly2, &pos, &vtx))
   {
     int I = ordering2[offset++];
-    plane_embed(poly->plane, vtx, &poly->vertices[I]);
+    plane_sp_func_embed(poly->plane, vtx, &poly->vertices[I]);
   }
 
   // Recompute geometry (plane remains unchanged).

@@ -8,7 +8,7 @@
 #include "core/kd_tree.h"
 #include "core/slist.h"
 #include "core/unordered_set.h"
-#include "geometry/rect_prism.h"
+#include "geometry/rect_prism_sp_func.h"
 #include "model/interpreter.h"
 
 // Lua stuff.
@@ -428,7 +428,7 @@ static int select_points(lua_State* lua)
       if (lua_isboundingbox(lua, -1))
       {
         within_bbox = lua_toboundingbox(lua, -1);
-        sp_func_t* bbox_surface = rect_prism_from_bbox(within_bbox);
+        sp_func_t* bbox_surface = rect_prism_sp_func_from_bbox(within_bbox);
         within_surface = st_func_from_sp_func(bbox_surface);
         bbox_surface = NULL;
       }
