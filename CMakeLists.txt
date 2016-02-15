@@ -116,6 +116,7 @@ if (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 else()
   set(HAVE_OPENMP 1)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 endif()
 
 # Considerations for shared libraries.

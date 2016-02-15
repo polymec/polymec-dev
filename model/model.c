@@ -1265,6 +1265,8 @@ static void print_runtime_options_help()
   print_to_rank0("logging=LEVEL               - Enables logging output at the requested level.\n");
   print_to_rank0("                              Levels are (in order of increasing verbosity):\n");
   print_to_rank0("                              urgent, info, detail, debug\n");
+  print_to_rank0("num_threads=N               - Sets the number of OpenMP threads to use within\n");
+  print_to_rank0("                              parallel code regions.\n");
   print_to_rank0("timers=1,yes,true,on        - Enables timers for performance profiling.\n");
   print_to_rank0("timer_file=FILE             - When timers are enabled, specifies the name of\n");
   print_to_rank0("                              the file to which timing summary information\n");

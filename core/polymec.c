@@ -18,6 +18,11 @@
 #include "core/array.h"
 #include "core/timer.h"
 #include "core/memory_info.h"
+#include "core/string_utils.h"
+
+#ifdef POLYMEC_HAVE_OPENMP
+#include <omp.h>
+#endif
 
 // Standard C support for floating point environment.
 #ifdef LINUX
@@ -201,6 +206,23 @@ static void set_up_logging()
   }
 }
 
+// This sets up numbers of threads, etc.
+static void set_up_threads()
+{
+#ifdef POLYMEC_HAVE_OPENMP
+  log_debug("polymec: Max number of OpenMP threads available: %d", omp_get_max_threads());
+
+  options_t* opts = options_argv();
+  char* num_threads_str = options_value(opts, "num_threads");
+  if ((num_threads_str != NULL) && string_is_number(num_threads_str))
+  {
+    int num_threads = atoi(num_threads_str);
+    log_debug("polymec: Setting number of OpenMP threads to %d.", num_threads);
+    omp_set_num_threads(num_threads);
+  }
+#endif
+}
+
 // This somewhat delicate procedure implements a simple mechanism to pause 
 // and allow a developer to attach a debugger.
 static void pause_if_requested()
@@ -341,6 +363,9 @@ void polymec_init(int argc, char** argv)
 
     // If we are asked to set a specific logging level, do so.
     set_up_logging();
+
+    // If we are asked to set up threads specifically, do so.
+    set_up_threads();
 
     // Start timing the main program.
     polymec_timer_t* polymec_timer = polymec_timer_get("polymec");
