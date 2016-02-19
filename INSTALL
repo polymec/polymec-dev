@@ -61,12 +61,12 @@ adding any additional desired flags. Then:
 
 make mpi=1 install
 
-NERSC Hopper (last updated 5/8/2015)
+NERSC Cori (last updated 2/19/2016)
 ------------------------------------
 
 Load the following modules
   cmake
-  silo
+  cray-hdf5-silo
   PrgEnv-intel
 
 and then type
