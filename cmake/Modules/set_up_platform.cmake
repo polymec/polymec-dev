@@ -95,11 +95,14 @@ macro(set_up_platform)
     if (NOT SILO_LOC)
       message(FATAL_ERROR "SILO_DIR not found. Please load the silo module.")
     endif()
-    include_directories(${SILO_LOC}/include)
-    link_directories(${SILO_LOC}/lib)
-    list(APPEND EXTRA_LINK_DIRECTORIES ${SILO_LOC}/lib)
-    set(SILO_LIBRARY ${SILO_LOC}/lib/libsiloh5.a)
-    set(SILO_LIBRARIES siloh5)
+
+    if (EXISTS ${SILO_LOC}/lib/libsiloh5.a)
+      include_directories(${SILO_LOC}/include)
+      link_directories(${SILO_LOC}/lib)
+      list(APPEND EXTRA_LINK_DIRECTORIES ${SILO_LOC}/lib)
+      set(SILO_LIBRARY ${SILO_LOC}/lib/libsiloh5.a)
+      set(SILO_LIBRARIES siloh5)
+    endif()
 
   elseif (HOSTNAME MATCHES "edison") # NERSC Edison
     # Edison likes Intel's compilers

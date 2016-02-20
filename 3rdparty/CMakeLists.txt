@@ -410,7 +410,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua_build.log ${lua_build_log})
   if (NOT stat EQUAL 0)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua_build_errors.log ${lua_build_err})
-    message(FATAL_ERROR "Build of lua library failed.")
+    message(FATAL_ERROR "Build of lua library failed. See ${CMAKE_CURRENT_BINARY_DIR}/lua_build_errors.log for details.")
   endif()
 
 endif()
