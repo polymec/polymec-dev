@@ -11,15 +11,28 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
   execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/cmocka
                   RESULT_VARIABLE stat)
   set(CMOCKA_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DWITH_STATIC_LIB=ON)
+  if (CMAKE_C_COMPILER_ID STREQUAL "Intel")
+    set(CMOCKA_CMAKE_OPTS ${CMOCKA_CMAKE_OPTS} -DWORDS_BIGENDIAN=FALSE)
+  endif()
   execute_process(COMMAND cmake ${CMOCKA_CMAKE_OPTS} ${CMAKE_CURRENT_SOURCE_DIR}/cmocka
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cmocka
-                  OUTPUT_VARIABLE cmocka_config.log
+                  OUTPUT_VARIABLE cmocka_config.log ERROR_VARIABLE cmocka_config_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmocka_config.log ${cmocka_config_log})
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmocka_config_errors.log ${cmocka_config_err})
+    message(FATAL_ERROR "Configuration of cmocka library failed.")
+  endif()
   message("Building and installing cmocka...")
   execute_process(COMMAND make install -j4
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cmocka
                   OUTPUT_VARIABLE cmocka_build_log ERROR_VARIABLE cmocka_build_err
                   RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmocka_build.log ${cmocka_build_log})
+  if (NOT stat EQUAL 0)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmocka_build_errors.log ${cmocka_build_err})
+    message(FATAL_ERROR "Build of cmocka library failed.")
+  endif()
 endif()
 add_library(cmocka STATIC IMPORTED GLOBAL)
 set_target_properties(cmocka PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
