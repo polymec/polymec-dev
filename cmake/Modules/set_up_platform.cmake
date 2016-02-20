@@ -19,10 +19,13 @@ macro(set_up_platform)
   # are hardwired because the project can't have been defined before 
   # this macro is executed, and so PROJECT_BINARY_DIR is unavailable.
   set(Z_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libz.a")
+  set(Z_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+  get_filename_component(Z_LIBRARY_DIR ${Z_LIBRARY} DIRECTORY)
   set(HDF5_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX}")
   set(HDF5_HL_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libhdf5_hl${LIB_SUFFIX}")
   set(HDF5_LIBRARIES hdf5_hl;hdf5)
   set(HDF5_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+  get_filename_component(HDF5_LIBRARY_DIR ${Z_LIBRARY} DIRECTORY)
   set(SILO_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libsiloh5.a")
   set(SILO_LIBRARIES siloh5)
   if (APPLE)
@@ -60,6 +63,8 @@ macro(set_up_platform)
 
     # We expect the following libraries to be available.
     set(Z_LIBRARY /usr/lib64/libz.a)
+    set(Z_INCLUDE_DIR /usr/include)
+    get_filename_component(Z_LIBRARY_DIR ${Z_LIBRARY} DIRECTORY)
 
     # Note that we use the hdf5 module and not cray-hdf5, since the silo 
     # module (below) is linked against hdf5 and not cray-hdf5.
@@ -83,6 +88,7 @@ macro(set_up_platform)
       list(APPEND EXTRA_LINK_DIRECTORIES ${HDF5_LOC}/lib)
       link_directories(${HDF5_LOC}/lib)
       set(HDF5_LIBRARY ${HDF5_LOC}/lib/libhdf5.a)
+      get_filename_component(HDF5_LIBRARY_DIR ${HDF5_LIBRARY} DIRECTORY)
     endif()
 
     set(SILO_LOC $ENV{SILO_DIR})
@@ -112,6 +118,8 @@ macro(set_up_platform)
 
     # We expect the following libraries to be available.
     set(Z_LIBRARY /usr/lib64/libz.a)
+    set(Z_INCLUDE_DIR /usr/include)
+    get_filename_component(Z_LIBRARY_DIR ${Z_LIBRARY} DIRECTORY)
 
     # Note that we use the hdf5 module and not cray-hdf5, since the silo 
     # module (below) is linked against hdf5 and not cray-hdf5.
@@ -135,6 +143,7 @@ macro(set_up_platform)
       list(APPEND EXTRA_LINK_DIRECTORIES ${HDF5_LOC}/lib)
       link_directories(${HDF5_LOC}/lib)
       set(HDF5_LIBRARY ${HDF5_LOC}/lib/libhdf5.a)
+      get_filename_component(HDF5_LIBRARY_DIR ${HDF5_LIBRARY} DIRECTORY)
     endif()
 
     set(SILO_LOC $ENV{SILO_DIR})
