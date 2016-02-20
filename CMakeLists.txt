@@ -110,13 +110,16 @@ endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SYS_FLAGS}")
 
 # OpenMP support?
-if (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if (APPLE AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
   message("-- Using Apple's Clang: OpenMP is not supported.")
   set(HAVE_OPENMP 0)
 else()
   set(HAVE_OPENMP 1)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+  if (CMAKE_C_COMPILER_ID STREQUAL "Intel")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -openmp")
+  endif()
 endif()
 
 # Considerations for shared libraries.
