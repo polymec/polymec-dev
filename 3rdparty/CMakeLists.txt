@@ -1,9 +1,4 @@
 include_directories(${PROJECT_BINARY_DIR}/include)
-if (BUILD_SHARED_LIBS)
-  set(LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
-else()
-  set(LIB_SUFFIX .a)
-endif()
 
 # Build cmocka, a C unit testing library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
@@ -86,7 +81,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
 
 endif()
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(FILES ${PROJECT_BINARY_DIR}/lib/libgc.a DESTINATION lib)
+  install(FILES ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX} DESTINATION lib)
 endif()
 set(POLYMEC_TP_LIBS gc;${POLYMEC_TP_LIBS})
 
@@ -109,7 +104,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
 
 endif()
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libarena.a DESTINATION lib)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libarena${LIB_SUFFIX} DESTINATION lib)
 endif()
 file(GLOB arena_sources "${CMAKE_CURRENT_BINARY_DIR}/libarena/src/*.c")
 add_library(arena ${arena_sources})

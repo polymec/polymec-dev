@@ -20,7 +20,7 @@
 #include "core/memory_info.h"
 #include "core/string_utils.h"
 
-#ifdef POLYMEC_HAVE_OPENMP
+#if POLYMEC_HAVE_OPENMP
 #include <omp.h>
 #endif
 
@@ -209,7 +209,7 @@ static void set_up_logging()
 // This sets up numbers of threads, etc.
 static void set_up_threads()
 {
-#ifdef POLYMEC_HAVE_OPENMP
+#if POLYMEC_HAVE_OPENMP
   log_debug("polymec: Max number of OpenMP threads available: %d", omp_get_max_threads());
 
   options_t* opts = options_argv();

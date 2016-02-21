@@ -122,12 +122,23 @@ else()
   endif()
 endif()
 
-# Considerations for shared libraries.
+# Considerations for shared libraries, including library suffixes.
 if (BUILD_SHARED_LIBS)
   if (LINUX)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
   endif()
+
+  # Here we make sure CMake-installed binaries use the correct runpath, and 
+  # that the path is not stripped during installation.
+  if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+  endif()
+
+  set(LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
+else()
+  set(LIB_SUFFIX .a)
 endif()
 
 # Address sanitizer.

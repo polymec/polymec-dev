@@ -2,19 +2,6 @@
 # for particular hosts.
 macro(set_up_platform)
 
-  # We build some 3rd-party libraries as shared libraries.
-  # We have to determine the suffix manually here because this macro 
-  # gets executed before CMake can figure things out.
-  if (BUILD_SHARED_LIBS)
-    if (APPLE)
-      set(LIB_SUFFIX .dylib)
-    else()
-      set(LIB_SUFFIX .so)
-    endif()
-  else()
-    set(LIB_SUFFIX .a)
-  endif()
-
   # Set defaults for the various third-party libraries. These defaults
   # are hardwired because the project can't have been defined before 
   # this macro is executed, and so PROJECT_BINARY_DIR is unavailable.
@@ -26,7 +13,7 @@ macro(set_up_platform)
   set(HDF5_LIBRARIES hdf5_hl;hdf5)
   set(HDF5_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
   get_filename_component(HDF5_LIBRARY_DIR ${Z_LIBRARY} DIRECTORY)
-  set(SILO_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libsiloh5.a")
+  set(SILO_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libsiloh5${LIB_SUFFIX}")
   set(SILO_LIBRARIES siloh5)
   if (APPLE)
     set(NEED_LAPACK FALSE)
@@ -96,11 +83,11 @@ macro(set_up_platform)
       message(FATAL_ERROR "SILO_DIR not found. Please load the silo module.")
     endif()
 
-    if (EXISTS ${SILO_LOC}/lib/libsiloh5.a)
+    if (EXISTS ${SILO_LOC}/lib/libsiloh5${LIB_SUFFIX})
       include_directories(${SILO_LOC}/include)
       link_directories(${SILO_LOC}/lib)
       list(APPEND EXTRA_LINK_DIRECTORIES ${SILO_LOC}/lib)
-      set(SILO_LIBRARY ${SILO_LOC}/lib/libsiloh5.a)
+      set(SILO_LIBRARY ${SILO_LOC}/lib/libsiloh5${LIB_SUFFIX})
       set(SILO_LIBRARIES siloh5)
     endif()
 
@@ -154,11 +141,11 @@ macro(set_up_platform)
       message(FATAL_ERROR "SILO_DIR not found. Please load the silo module.")
     endif()
 
-    if (EXISTS ${SILO_LOC}/lib/libsiloh5.a)
+    if (EXISTS ${SILO_LOC}/lib/libsiloh5${LIB_SUFFIX})
       include_directories(${SILO_LOC}/include)
       link_directories(${SILO_LOC}/lib)
       list(APPEND EXTRA_LINK_DIRECTORIES ${SILO_LOC}/lib)
-      set(SILO_LIBRARY ${SILO_LOC}/lib/libsiloh5.a)
+      set(SILO_LIBRARY ${SILO_LOC}/lib/libsiloh5${LIB_SUFFIX})
       set(SILO_LIBRARIES siloh5)
     endif()
 
