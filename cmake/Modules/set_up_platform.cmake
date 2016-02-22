@@ -2,6 +2,13 @@
 # for particular hosts.
 macro(set_up_platform)
 
+  # Set library suffix based on whether we're building shared/static.
+  if (BUILD_SHARED_LIBS)
+    set(LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
+  else()
+    set(LIB_SUFFIX .a)
+  endif()
+
   # Set defaults for the various third-party libraries. These defaults
   # are hardwired because the project can't have been defined before 
   # this macro is executed, and so PROJECT_BINARY_DIR is unavailable.
