@@ -1662,7 +1662,7 @@ static real_t* silo_file_read_mesh_field(silo_file_t* file,
 
   // How many elements does our mesh have?
   char num_elems_var[FILENAME_MAX];
-  int cent;
+  int cent = DB_ZONECENT;
   switch(centering)
   {
     case MESH_CELL: cent = DB_ZONECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name); break;

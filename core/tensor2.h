@@ -95,8 +95,10 @@ static inline void tensor2_dot_vector_t(tensor2_t* t, vector_t* v, vector_t* tv)
 // Computes the inverse of the tensor.
 static inline void tensor2_invert(tensor2_t* t, tensor2_t* t_inverse)
 {
+#ifndef NDEBUG
   real_t det_t = tensor2_det(t);
   ASSERT(det_t != 0.0);
+#endif
   t_inverse->xx = t->yy*t->zz - t->yz*t->zy;
   t_inverse->xy = t->xz*t->zy - t->xy*t->zz;
   t_inverse->xz = t->xy*t->yz - t->xz*t->yy;
@@ -186,8 +188,10 @@ static inline void sym_tensor2_dot_vector(sym_tensor2_t* t, vector_t* v, vector_
 // Computes the inverse of the symmetric tensor.
 static inline void sym_tensor2_invert(sym_tensor2_t* t, sym_tensor2_t* t_inverse)
 {
+#ifndef NDEBUG
   real_t det_t = sym_tensor2_det(t);
   ASSERT(det_t != 0.0);
+#endif
   t_inverse->xx = t->yy*t->zz - t->yz*t->yz;
   t_inverse->xy = t->xz*t->yz - t->xy*t->zz;
   t_inverse->xz = t->xy*t->yz - t->xz*t->yy;

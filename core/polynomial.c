@@ -775,7 +775,7 @@ bool multicomp_poly_basis_next(multicomp_poly_basis_t* basis,
 
   int poses[basis->num_comp];
   memset(pos, 0, sizeof(int) * basis->num_comp);
-  bool more;
+  bool more = false;
   for (int c = 0; c < basis->num_comp; ++c)
   {
     more = false;
