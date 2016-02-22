@@ -1,11 +1,11 @@
 include_directories(${PROJECT_BINARY_DIR}/include)
 
 # Build cmocka, a C unit testing library.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka${LIB_SUFFIX})
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
   message("Configuring cmocka...")
   execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/cmocka
                   RESULT_VARIABLE stat)
-  set(CMOCKA_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DWITH_STATIC_LIB=${BUILD_SHARED_LIBS} -DWITH_EXAMPLES=OFF)
+  set(CMOCKA_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DWITH_STATIC_LIB=ON -DWITH_EXAMPLES=OFF)
   if (CMAKE_C_COMPILER_ID STREQUAL "Intel")
     set(CMOCKA_CMAKE_OPTS ${CMOCKA_CMAKE_OPTS} -DWORDS_BIGENDIAN=FALSE)
   endif()
@@ -30,12 +30,12 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka${LIB_SUFFIX})
   endif()
 endif()
 add_library(cmocka STATIC IMPORTED GLOBAL)
-set_target_properties(cmocka PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcmocka${LIB_SUFFIX})
+set_target_properties(cmocka PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   foreach(header cmocka.h;cmocka_pbc.h)
     install(FILES ${PROJECT_BINARY_DIR}/include/${header} DESTINATION include)
   endforeach()
-  install(FILES ${PROJECT_BINARY_DIR}/lib/libcmocka${LIB_SUFFIX} DESTINATION lib)
+  install(FILES ${PROJECT_BINARY_DIR}/lib/libcmocka.a DESTINATION lib)
 endif()
 
 # Build libgc, the C garbage collector library.
