@@ -132,6 +132,7 @@ if (BUILD_SHARED_LIBS)
   # Here we make sure CMake-installed binaries use the correct runpath, and 
   # that the path is not stripped during installation.
   if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+    set(CMAKE_MACOSX_RPATH TRUE)
     set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
   endif()
