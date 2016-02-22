@@ -3,8 +3,17 @@
 macro(set_up_platform)
 
   # Set library suffix based on whether we're building shared/static.
+  # FIXME: We have to hack this together here, since CMAKE_SHARED_LIBRARY_SUFFIX
+  # FIXME: isn't available before project() is called, which is when set_up_platform()
+  # FIXME: is invoked. Gross.
   if (BUILD_SHARED_LIBS)
-    set(LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
+    if (APPLE)
+      set(LIB_SUFFIX .dylib)
+    elseif (WIN32)
+      set(LIB_SUFFIX .dll)
+    else()
+      set(LIB_SUFFIX .so)
+    endif()
   else()
     set(LIB_SUFFIX .a)
   endif()
