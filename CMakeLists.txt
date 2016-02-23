@@ -217,7 +217,6 @@ add_subdirectory(core)
 add_subdirectory(geometry)
 add_subdirectory(integrators)
 add_subdirectory(model)
-add_subdirectory(multiphysics)
 
 # Now that we have gathered all our libraries, generate a polymec.cmake 
 # file that contains all the vital information.
@@ -227,9 +226,37 @@ configure_file(
   @ONLY
 )
 
+# Installation.
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  # Install all source headers.
-  install(DIRECTORY ${PROJECT_BINARY_DIR}/include/ DESTINATION include/polymec)
+  file(GLOB all_headers "${PROJECT_BINARY_DIR}/include/*")
+  foreach(header ${all_headers})
+    get_filename_component(filename ${header} NAME)
+    if (${filename} MATCHES "polymec")
+      list(APPEND polymec_headers ${header})
+    elseif(${filename} MATCHES ".h")
+      list(APPEND tp_headers ${header})
+    else()
+      install(DIRECTORY ${header} DESTINATION include)
+    endif()
+  endforeach()
+
+  # Install all third-party library Polymec source headers.
+  install(FILES ${tp_headers} DESTINATION include)
+
+  # Install all third-party libraries.
+  file(GLOB tp_libs "${PROJECT_BINARY_DIR}/lib/*.a")
+  if (BUILD_SHARED_LIBS)
+    file(GLOB shared_tp_libs "${PROJECT_BINARY_DIR}/lib/*${LIB_SUFFIX}")
+    list(APPEND tp_libs ${shared_tp_libs})
+  endif()
+  file(GLOB special_tp_libs "${PROJECT_BINARY_DIR}/3rdparty/*${LIB_SUFFIX}")
+  foreach(special_tp_lib ${special_tp_libs})
+    list(APPEND tp_libs ${special_tp_lib})
+  endforeach()
+  install(FILES ${tp_libs} DESTINATION lib)
+
+  # Install all generated Polymec source headers.
+  install(FILES ${polymec_headers} DESTINATION include/polymec)
 
   # Install miscellaneous build/test files.
   install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tools/update_version_h.py DESTINATION share/polymec)
