@@ -107,6 +107,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
 endif()
 file(GLOB arena_sources "${CMAKE_CURRENT_BINARY_DIR}/libarena/src/*.c")
 add_library(arena ${arena_sources})
+if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libarena${LIB_SUFFIX} DESTINATION lib)
+endif()
 set(POLYMEC_TP_LIBS arena;${POLYMEC_TP_LIBS})
 
 # Build zlib for compression.
@@ -420,6 +423,9 @@ add_library(jrs_predicates jrs_predicates/predicates.c)
 if (LINUX EQUAL 1)
   # On Linux, rand() and random() are the same.
   set_target_properties(jrs_predicates PROPERTIES COMPILE_FLAGS "-Drandom=rand")
+endif()
+if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  install(TARGETS jrs_predicates DESTINATION lib)
 endif()
 set(POLYMEC_TP_LIBS jrs_predicates;${POLYMEC_TP_LIBS})
 
