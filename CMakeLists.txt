@@ -246,7 +246,7 @@ if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   # Install all third-party libraries.
   file(GLOB tp_libs "${PROJECT_BINARY_DIR}/lib/*.a")
   if (BUILD_SHARED_LIBS)
-    file(GLOB shared_tp_libs "${PROJECT_BINARY_DIR}/lib/*${LIB_SUFFIX}")
+    file(GLOB shared_tp_libs "${PROJECT_BINARY_DIR}/lib/*${LIB_SUFFIX}*")
     list(APPEND tp_libs ${shared_tp_libs})
   endif()
   install(FILES ${tp_libs} DESTINATION lib)
