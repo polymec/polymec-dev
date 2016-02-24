@@ -198,8 +198,12 @@ if (${SILO_LIBRARY} MATCHES "h5")
 
     # On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
     if (APPLE AND BUILD_SHARED_LIBS)
+      execute_process(COMMAND otool -DX ${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX} 
+                      OUTPUT_VARIABLE libhdf5_id)
+      string(STRIP ${libhdf5_id} libhdf5_id)
       execute_process(COMMAND install_name_tool -id @rpath/libhdf5${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX})
       execute_process(COMMAND install_name_tool -id @rpath/libhdf5_hl${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/libhdf5_hl${LIB_SUFFIX})
+      execute_process(COMMAND install_name_tool -change ${libhdf5_id} @rpath/libhdf5${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/libhdf5_hl${LIB_SUFFIX})
     endif()
 
   endif()
