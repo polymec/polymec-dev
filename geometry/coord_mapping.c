@@ -72,6 +72,14 @@ void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, real_t
   mapping->vtable.jacobian(mapping->context, x, J);
 }
 
+coord_mapping_t* coord_mapping_inverse(coord_mapping_t* mapping)
+{
+  if (mapping->vtable.inverse != NULL)
+    return mapping->vtable.inverse(mapping->context);
+  else
+    return NULL;
+}
+
 real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x)
 {
   if (mapping->vtable.det_J != NULL)

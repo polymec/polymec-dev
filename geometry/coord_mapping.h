@@ -29,6 +29,9 @@ typedef void (*coord_mapping_map_vector_func)(void*, point_t*, vector_t*, vector
 // matrix at a point, storing them in column-major order in the given array.
 typedef void (*coord_mapping_jacobian_func)(void*, point_t*, real_t*);
 
+// A function pointer type for constructing an inverse mapping from a mapping.
+typedef coord_mapping_t* (*coord_mapping_inverse_func)(void*);
+
 // A function pointer type for computing the determinant of J directly. 
 // If this is not supplied, the determinant of J will be computed from J itself.
 typedef real_t (*coord_mapping_det_J_func)(void*, point_t*);
@@ -46,6 +49,7 @@ typedef struct
   coord_mapping_map_point_func        map_point;
   coord_mapping_map_vector_func       map_vector;
   coord_mapping_jacobian_func         jacobian;
+  coord_mapping_inverse_func          inverse;
   coord_mapping_det_J_func            det_J; // Optional
   coord_mapping_metric_func           metric; // Optional
   coord_mapping_dtor                  dtor;
@@ -71,6 +75,10 @@ void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v,
 // storing them in column-major order in J. The Jacobian matrix represents the 
 // coordinate transformation matrix for this coordinate mapping.
 void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, real_t* J);
+
+// Constructs a coord_mapping function representing the inverse of the given
+// coordinate mapping. Returns NULL if the coordinate mapping is not invertible.
+coord_mapping_t* coord_mapping_inverse(coord_mapping_t* mapping);
 
 // Returns the Jacobian determinant at the point x.
 real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x);
