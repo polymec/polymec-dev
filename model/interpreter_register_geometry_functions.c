@@ -16,8 +16,11 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-// Spatial function library.
-extern void interpreter_register_spfuncs(interpreter_t* interp);
+// Various function libraries.
+extern void interpreter_register_sd_functions(interpreter_t* interp);
+extern void interpreter_register_scalar_functions(interpreter_t* interp);
+extern void interpreter_register_vector_functions(interpreter_t* interp);
+extern void interpreter_register_indicators(interpreter_t* interp);
 
 // Functions for the point factory, which manufactures sets of points.
 extern int point_factory_random_points(lua_State* lua);
@@ -585,6 +588,10 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_function(interp, "copy_points", copy_points, NULL);
   interpreter_register_function(interp, "select_points", select_points, NULL);
   interpreter_register_function(interp, "remove_points", remove_points, NULL);
-  interpreter_register_spfuncs(interp);
+
+  interpreter_register_sd_functions(interp);
+  interpreter_register_scalar_functions(interp);
+  interpreter_register_vector_functions(interp);
+  interpreter_register_indicators(interp);
 }
 

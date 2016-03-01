@@ -5,8 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "geometry/sphere_sp_func.h"
-#include "geometry/rect_prism_sp_func.h"
 #include "model/interpreter.h"
 
 // Lua stuff.
@@ -14,47 +12,8 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-static int sphere(lua_State* lua)
-{
-  // Check the arguments.
-  int num_args = lua_gettop(lua);
-  if ((num_args != 2) || !lua_ispoint(lua, 1) || !lua_isnumber(lua, 2))
-  {
-    return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "F = sphere(x, r)");
-  }
-
-  // Get the arguments.
-  point_t* x = lua_topoint(lua, 1);
-  real_t r = (real_t)lua_tonumber(lua, 2);
-  if (r <= 0.0)
-    return luaL_error(lua, "Sphere radius must be positive.");
-
-  sp_func_t* s = sphere_sp_func_new(x, r, INWARD_NORMAL);
-  lua_pushscalarfunction(lua, st_func_from_sp_func(s));
-  return 1;
-}
-
-static int rect_prism(lua_State* lua)
-{
-  // Check the arguments.
-  int num_args = lua_gettop(lua);
-  if ((num_args != 1) || !lua_isboundingbox(lua, 1))
-  {
-    return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "F = rect_prism(bbox)");
-  }
-
-  // Get the arguments.
-  bbox_t* bbox = lua_toboundingbox(lua, 1);
-  sp_func_t* prism = rect_prism_sp_func_from_bbox(bbox);
-  lua_pushscalarfunction(lua, st_func_from_sp_func(prism));
-  prism = NULL;
-  return 1;
-}
-
 static const char* ball_and_jack_usage = 
-  "U = ball_and_jack(x0, ball_radius, ball_value, jack_size, jack_value)\n"
+  "U = scalar_functions.ball_and_jack(x0, ball_radius, ball_value, jack_size, jack_value)\n"
   "  Returns a scalar function that creates a 3D pattern of a jack\n"
   "  of given extent inside a ball of a given radius, centered at the\n"
   "  point x0. Inside the jack, the function adopts the value specified\n"
@@ -133,10 +92,9 @@ static int ball_and_jack(lua_State* lua)
   return 1;
 }
 
-void interpreter_register_spfuncs(interpreter_t* interp)
+void interpreter_register_scalar_functions(interpreter_t* interp)
 {
-  interpreter_register_function(interp, "sphere", sphere, NULL);
-  interpreter_register_function(interp, "rect_prism", rect_prism, NULL);
-  interpreter_register_function(interp, "ball_and_jack", ball_and_jack, docstring_from_string(ball_and_jack_usage));
+  interpreter_register_global_table(interp, "scalar_functions", NULL);
+  interpreter_register_global_method(interp, "scalar_functions", "ball_and_jack", ball_and_jack, docstring_from_string(ball_and_jack_usage));
 }
 
