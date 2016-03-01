@@ -10,7 +10,9 @@
 #include "core/unordered_set.h"
 #include "model/periodic_bc.h"
 
-static const int periodic_bc_magic_number = 123652234;
+// The type code used to identify periodic BCs. It will be overwritten 
+// by an interpreter that registers its constructor.
+int periodic_bc_type_code = 103452990;
 
 // This function can be used by default to generate a periodic map.
 static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
@@ -88,9 +90,10 @@ static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mes
 
 struct periodic_bc_t 
 {
-  // This magic number is used to validate periodic_bc_t objects which 
-  // are cast from void pointers.
-  int magic_number;
+  // This stores the magic type code, which we use not only to enable the 
+  // interpreter to validate periodic BCs, but also to distinguish 
+  // periodic BCs from other BCs.
+  int type_code;
 
   // Essentially, this type contains the tags which are identified through 
   // a periodic boundary condition.
@@ -122,7 +125,7 @@ periodic_bc_t* periodic_bc_new_with_map_func(const char* tag1, const char* tag2,
   ASSERT(strcmp(tag1, tag2) != 0);
 
   periodic_bc_t* bc = GC_MALLOC(sizeof(periodic_bc_t));
-  bc->magic_number = periodic_bc_magic_number;
+  bc->type_code = periodic_bc_type_code;
   bc->tag1 = string_dup(tag1);
   bc->tag2 = string_dup(tag2);
   GC_register_finalizer(bc, &periodic_bc_free, bc, NULL, NULL);
@@ -136,13 +139,7 @@ periodic_bc_t* periodic_bc_new_with_map_func(const char* tag1, const char* tag2,
 
 bool periodic_bc_is_valid(periodic_bc_t* bc)
 {
-  return (bc->magic_number == periodic_bc_magic_number);
-}
-
-bool pointer_is_periodic_bc(void* ptr)
-{
-  periodic_bc_t* bc = (periodic_bc_t*)ptr;
-  return periodic_bc_is_valid(bc);
+  return (bc->type_code == periodic_bc_type_code);
 }
 
 void periodic_bc_get_tags(periodic_bc_t* bc, char** tag1, char** tag2)
@@ -159,5 +156,8 @@ int_int_unordered_map_t* periodic_bc_generate_map(periodic_bc_t* bc, mesh_t* mes
   return bc->generate_map(bc->generate_map_context, mesh, bc->tag1, bc->tag2);
 }
 
-
+periodic_bc_t* interpreter_get_periodic_bc(interpreter_t* interp, const char* name)
+{
+  return interpreter_get_user_defined(interp, name, periodic_bc_type_code);
+}
 

@@ -280,17 +280,28 @@ coord_mapping_t* interpreter_get_coord_mapping(interpreter_t* interp, const char
 // mapping. Any existing value of this variable is overwritten.
 void interpreter_set_coord_mapping(interpreter_t* interp, const char* name, coord_mapping_t* value);
 
-// Fetches the given user-defined object from the interpreter, returning NULL 
-// if it is not found or if it is not a user-defined object. The caller 
-// assumes responsibility for destroying the user-defined object after 
-// this call.
-void* interpreter_get_user_defined(interpreter_t* interp, const char* name);
+// Creates and returns an integer type code that can identify the type of a 
+// user-defined object, with the guarantee that this type code has not been 
+// returned in prior calls to this function.
+int interpreter_new_user_defined_type_code(interpreter_t* interp);
 
-// Sets the given variable within the interpreter to the given pointer.
-// Any existing value of this variable is overwritten.
-// The interpreter assumes responsibility for destroying the pointer using 
-// the supplied destructor (dtor).
-void interpreter_set_user_defined(interpreter_t* interp, const char* name, void* value, void (*dtor)(void*));
+// Fetches the given user-defined object from the interpreter, returning NULL 
+// if it is not found or if it is not a user-defined object whose type code 
+// matches that given. The caller assumes responsibility for destroying the 
+// user-defined object after this call.
+void* interpreter_get_user_defined(interpreter_t* interp, 
+                                   const char* name, 
+                                   int type_code);
+
+// Sets the given variable within the interpreter to the given pointer to a 
+// user-defined object, identified by the given unique type code. Any existing 
+// value of this variable is overwritten. The interpreter assumes responsibility 
+// for destroying the pointer using the supplied destructor (dtor).
+void interpreter_set_user_defined(interpreter_t* interp, 
+                                  const char* name, 
+                                  void* value, 
+                                  int type_code,
+                                  void (*dtor)(void*));
 
 //------------------------------------------------------------------------
 // These methods can be used to create functions that extend an 
@@ -448,16 +459,21 @@ mesh_t* lua_tomesh(struct lua_State* lua, int index);
 void lua_pushmesh(struct lua_State* lua, mesh_t* mesh);
 
 // This helper returns true if the object at the given index is a user-defined
-// object, false if not.
-bool lua_isuserdefined(struct lua_State* lua, int index);
+// object whose type matches that of the given type_code, false if not.
+bool lua_isuserdefined(struct lua_State* lua, int index, int type_code);
 
-// This helper retrieves a user-defined type from the given index on an active lua 
-// interpreter, or returns NULL if the index does not point to such a thing.
-void* lua_touserdefined(struct lua_State* lua, int index);
+// This helper retrieves a user-defined type from the given index on an active 
+// lua interpreter, or returns NULL if the index does not point to such a thing
+// or if the given type code does not match.
+void* lua_touserdefined(struct lua_State* lua, int index, int type_code);
 
 // Pushes a user-defined object onto the interpreter's stack (as a 
-// return value for a function). dtor is a destructor for the user-defined object.
-void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(void*));
+// return value for a function). type_code is a unique integer that identifies 
+// the type of the object. dtor is a destructor for the user-defined object.
+void lua_pushuserdefined(struct lua_State* lua, 
+                         void* userdefined, 
+                         int type_code,
+                         void (*dtor)(void*));
 
 // This helper returns true if the object at the given index is a coordinate
 // mapping, false if not.

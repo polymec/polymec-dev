@@ -111,6 +111,7 @@ typedef struct
   void *datum;                 // The datum associated with a variable.
   int size;                    // The size of the datum (if any).
   interpreter_var_type_t type; // The data type.
+  int type_code;               // Type code for user-defined objects.
   void (*dtor)(void*);         // Data destructor.
 
   // These indicate ownership of data (owner) and metadata (creator).
@@ -405,10 +406,14 @@ static interpreter_storage_t* store_table(lua_State* lua, string_ptr_unordered_m
   return storage;
 }
 
-static interpreter_storage_t* store_user_defined(lua_State* lua, void* user_defined, void (*dtor)(void*))
+static interpreter_storage_t* store_user_defined(lua_State* lua, 
+                                                 void* user_defined, 
+                                                 int type_code,
+                                                 void (*dtor)(void*))
 {
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->type = INTERPRETER_USER_DEFINED;
+  storage->type_code = type_code,
   storage->datum = user_defined;
   storage->dtor = dtor;
   return storage; 
@@ -437,6 +442,9 @@ struct interpreter_t
 
   // The data store.
   interpreter_map_t* store;
+
+  // The next unique user-defined type code.
+  int next_type_code;
 
   // A list of valid inputs and their types.
   int num_valid_inputs;
@@ -478,6 +486,7 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
 
   // Initialize the data store.
   interp->store = interpreter_map_new();
+  interp->next_type_code = 0;
 
   // Copy over the valid inputs.
   if (valid_inputs != NULL)
@@ -1550,20 +1559,32 @@ void interpreter_set_stringlist(interpreter_t* interp, const char* name, char** 
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
 }
 
-void* interpreter_get_user_defined(interpreter_t* interp, const char* name)
+int interpreter_new_user_defined_type_code(interpreter_t* interp)
+{
+  return interp->next_type_code++;
+}
+
+void* interpreter_get_user_defined(interpreter_t* interp, 
+                                   const char* name, 
+                                   int type_code)
 {
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
   if (storage == NULL)
     return NULL;
-  if ((*storage)->type != INTERPRETER_USER_DEFINED)
+  if (((*storage)->type != INTERPRETER_USER_DEFINED) || 
+      ((*storage)->type_code != type_code))
     return NULL;
   (*storage)->owner = POLYMEC;
   return (*storage)->datum;
 }
 
-void interpreter_set_user_defined(interpreter_t* interp, const char* name, void* value, void (*dtor)(void*))
+void interpreter_set_user_defined(interpreter_t* interp, 
+                                  const char* name, 
+                                  void* value, 
+                                  int type_code,
+                                  void (*dtor)(void*))
 {
-  interpreter_storage_t* storage = store_user_defined(NULL, value, dtor);
+  interpreter_storage_t* storage = store_user_defined(NULL, value, type_code, dtor);
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
 }
 
@@ -2761,29 +2782,34 @@ void lua_pushmesh(struct lua_State* lua, mesh_t* mesh)
   set_metatable(lua, "mesh_metatable", metatable);
 }
 
-bool lua_isuserdefined(struct lua_State* lua, int index)
+bool lua_isuserdefined(struct lua_State* lua, int index, int type_code)
 {
   if (!lua_isuserdata(lua, index))
     return false;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
-  return (storage->type == INTERPRETER_USER_DEFINED);
+  return ((storage->type == INTERPRETER_USER_DEFINED) && 
+          (storage->type_code == type_code));
 }
 
-void* lua_touserdefined(struct lua_State* lua, int index)
+void* lua_touserdefined(struct lua_State* lua, int index, int type_code)
 {
   if (!lua_isuserdata(lua, index))
     return NULL;
   interpreter_storage_t* storage = (interpreter_storage_t*)lua_topointer(lua, index);
-  if (storage->type == INTERPRETER_USER_DEFINED)
+  if ((storage->type == INTERPRETER_USER_DEFINED) && 
+      (storage->type_code == type_code))
     return (void*)storage->datum;
   else
     return NULL;
 }
 
-void lua_pushuserdefined(struct lua_State* lua, void* userdefined, void (*dtor)(void*))
+void lua_pushuserdefined(struct lua_State* lua, 
+                         void* userdefined, 
+                         int type_code,
+                         void (*dtor)(void*))
 {
   // Bundle it up and store it in the given variable.
-  store_user_defined(lua, userdefined, dtor);
+  store_user_defined(lua, userdefined, type_code, dtor);
 }
 
 bool lua_iscoordmapping(struct lua_State* lua, int index)

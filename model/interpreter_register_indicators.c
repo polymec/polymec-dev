@@ -32,10 +32,7 @@ static int box(lua_State* lua)
   // Check the arguments.
   int num_args = lua_gettop(lua);
   if ((num_args != 1) || !lua_isboundingbox(lua, 1))
-  {
-    return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "F = indicatorsbox(bbox)");
-  }
+    return luaL_error(lua, box_usage);
 
   // Get the arguments.
   bbox_t* B = lua_toboundingbox(lua, 1);
@@ -258,10 +255,13 @@ static int below_or_in_plane(lua_State* lua)
   return 1;
 }
 
+static const char* indicators_doc = 
+  "indicators -- Indicator functions that return 1 inside of a region and 0 outside.";
+
 void interpreter_register_indicators(interpreter_t* interp)
 {
-  interpreter_register_global_table(interp, "indicators", NULL);
-  interpreter_register_global_method(interp, "indicators", "box", box, NULL);
+  interpreter_register_global_table(interp, "indicators", docstring_from_string(indicators_doc));
+  interpreter_register_global_method(interp, "indicators", "box", box, docstring_from_string(box_usage));
   interpreter_register_global_method(interp, "indicators", "sphere", sphere, docstring_from_string(sphere_usage));
   interpreter_register_global_method(interp, "indicators", "above_plane", above_plane, docstring_from_string(above_plane_usage));
   interpreter_register_global_method(interp, "indicators", "above_or_in_plane", above_or_in_plane, docstring_from_string(above_or_in_plane_usage));

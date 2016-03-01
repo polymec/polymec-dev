@@ -148,7 +148,7 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_pt
       // If the boundary condition is periodic, we have to identify this 
       // boundary face with its other face, and fill in the appropriate 
       // neighbor_cells and opp_faces entries.
-      if (pointer_is_periodic_bc(bc))
+      if (periodic_bc_is_valid((periodic_bc_t*)bc))
       {
         int_int_unordered_map_t* periodic_map = *string_ptr_unordered_map_get(periodic_maps, tag);
         int other_face = *int_int_unordered_map_get(periodic_map, face);
