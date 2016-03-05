@@ -255,6 +255,107 @@ static int below_or_in_plane(lua_State* lua)
   return 1;
 }
 
+static const char* piecewise_function_usage = 
+  "F = piecewise_function{I1 = F1,\n"
+  "                       I2 = F2,\n"
+  "                       ...\n"
+  "                       In = Fn}\n"
+  "  Returns a function composed of functions F1 ... Fn, each of which define\n"
+  "  the function in a region identified by a corresponding indicator function.\n"
+  "  In other words, F = Fi for any point x for which Ii == 1. Note that this\n"
+  "  will only produce predictable behavior if the indicators I1 ... In\n"
+  "  partition the computational domain (i.e. they do not overlap).";
+
+typedef struct
+{
+  ptr_ptr_unordered_map_t* map;
+} pwf_t;
+
+static pwf_t* pwf_new()
+{
+  pwf_t* pwf = polymec_malloc(sizeof(pwf_t));
+  pwf->map = ptr_ptr_unordered_map_new();
+  return pwf;
+}
+
+static void pwf_free(void* context)
+{
+  pwf_t* pwf = context;
+  ptr_ptr_unordered_map_free(pwf->map);
+  polymec_free(pwf);
+}
+
+static void pwf_eval(void* context, point_t* x, real_t t, real_t* val)
+{
+  pwf_t* pwf = context;
+
+  // Find the (first) region containing this point and evaluate the function.
+  int pos = 0;
+  void *key, *value;
+  while (ptr_ptr_unordered_map_next(pwf->map, &pos, &key, &value))
+  {
+    st_func_t* I = key;
+    real_t I_val;
+    st_func_eval(I, x, t, &I_val);
+    if (I_val > 0.0)
+    {
+      st_func_t* F = value;
+      st_func_eval(F, x, t, val);
+      break;
+    }
+  }
+}
+
+static int piecewise_function(lua_State* lua)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(lua);
+  if ((num_args != 1) || !lua_istable(lua, 1))
+    return luaL_error(lua, piecewise_function_usage);
+
+  pwf_t* pwf = pwf_new();
+
+  int num_comp = -1;
+  st_func_constancy_t constancy = ST_FUNC_CONSTANT;
+
+  // Traverse the indicator -> function table.
+  lua_pushnil(lua);
+  while (lua_next(lua, 1))
+  {
+    int key = -2, val = -1;
+    if (!lua_isscalarfunction(lua, key) || !lua_ismulticompfunction(lua, val))
+      return luaL_error(lua, piecewise_function_usage);
+
+    st_func_t* I = lua_toscalarfunction(lua, key);
+    st_func_t* F = lua_tomulticompfunction(lua, val);
+
+    // Record or verify the number of components.
+    if (num_comp == -1)
+      num_comp = st_func_num_comp(F);
+    else if (st_func_num_comp(F) != num_comp)
+    {
+      pwf_free(pwf);
+      return luaL_error(lua, "All functions in piecewise mapping must have the same number of components.");
+    }
+
+    // Is this function constant in time?
+    if (!st_func_is_constant(F))
+      constancy = ST_FUNC_NONCONSTANT;
+
+    // Insert the entry into the table.
+    ptr_ptr_unordered_map_insert(pwf->map, I, F);
+
+    lua_pop(lua, 1); // removes value from stack.
+  }
+
+  st_func_vtable vtable = {.eval = pwf_eval, .dtor = pwf_free};
+  char name[1025];
+  snprintf(name, 1024, "Piecewise function (%d regions)", pwf->map->size);
+  st_func_t* F = st_func_new(name, pwf, vtable, SP_FUNC_HETEROGENEOUS, constancy, num_comp);
+  lua_pushmulticompfunction(lua, F);
+  return 1;
+}
+
 static const char* indicators_doc = 
   "indicators -- Indicator functions that return 1 inside of a region and 0 outside.";
 
@@ -267,5 +368,7 @@ void interpreter_register_indicators(interpreter_t* interp)
   interpreter_register_global_method(interp, "indicators", "above_or_in_plane", above_or_in_plane, docstring_from_string(above_or_in_plane_usage));
   interpreter_register_global_method(interp, "indicators", "below_plane", below_plane, docstring_from_string(below_plane_usage));
   interpreter_register_global_method(interp, "indicators", "below_or_in_plane", below_or_in_plane, docstring_from_string(below_or_in_plane_usage));
+
+  interpreter_register_function(interp, "piecewise_function", piecewise_function, docstring_from_string(piecewise_function_usage));
 }
 

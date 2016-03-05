@@ -472,6 +472,14 @@ static void interpreter_close_lua(interpreter_t* interp)
   }
 }
 
+// Type codes for miscellaneous data structures.
+static int multicomp_function_type_code = -1;
+
+static void register_type_codes(interpreter_t* interp)
+{
+  multicomp_function_type_code = interpreter_new_user_defined_type_code(interp);
+}
+
 interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
 {
   interpreter_t* interp = polymec_malloc(sizeof(interpreter_t));
@@ -514,6 +522,9 @@ interpreter_t* interpreter_new(interpreter_validation_t* valid_inputs)
 
   interp->preexisting_vars = NULL;
   interp->input_file = NULL;
+
+  // Register type codes for miscellaneous data types.
+  register_type_codes(interp);
 
   return interp;
 }
@@ -1486,6 +1497,16 @@ void interpreter_set_tensor_function(interpreter_t* interp, const char* name, st
 {
   interpreter_storage_t* storage = store_tensor_function(NULL, value);
   interpreter_map_insert_with_kv_dtor(interp->store, string_dup(name), storage, destroy_variable);
+}
+
+st_func_t* interpreter_get_multicomp_function(interpreter_t* interp, const char* name)
+{
+  return interpreter_get_user_defined(interp, name, multicomp_function_type_code);
+}
+
+void interpreter_set_multicomp_function(interpreter_t* interp, const char* name, st_func_t* value)
+{
+  interpreter_set_user_defined(interp, name, value, multicomp_function_type_code, NULL);
 }
 
 string_ptr_unordered_map_t* interpreter_get_table(interpreter_t* interp, const char* name)
@@ -2734,6 +2755,21 @@ void lua_pushtensorfunction(struct lua_State* lua, st_func_t* func)
      {"__call", tensorfunction_call},
      {NULL, NULL}};
   set_metatable(lua, "tensorfunction_metatable", metatable);
+}
+
+bool lua_ismulticompfunction(struct lua_State* lua, int index)
+{
+  return lua_isuserdefined(lua, index, multicomp_function_type_code);
+}
+
+st_func_t* lua_tomulticompfunction(struct lua_State* lua, int index)
+{
+  return lua_touserdefined(lua, index, multicomp_function_type_code);
+}
+
+void lua_pushmulticompfunction(struct lua_State* lua, st_func_t* func)
+{
+  lua_pushuserdefined(lua, func, multicomp_function_type_code, NULL);
 }
 
 bool lua_ismesh(struct lua_State* lua, int index)

@@ -243,6 +243,14 @@ st_func_t* interpreter_get_tensor_function(interpreter_t* interp, const char* na
 // A tensor function returns components (Sxx, Sxy, Sxz, Syx, Syy, Syz, Szx, Szy, Szz).
 void interpreter_set_tensor_function(interpreter_t* interp, const char* name, st_func_t* value);
 
+// Fetches the given multi-component function from the interpreter, returning 
+// NULL if it is not found or if it is such a function.
+st_func_t* interpreter_get_multicomp_function(interpreter_t* interp, const char* name);
+
+// Sets the given variable within the interpreter to the given multi-component
+// function object. Any existing value of this variable is overwritten.
+void interpreter_set_multicomp_function(interpreter_t* interp, const char* name, st_func_t* value);
+
 // Fetches the given list of strings from the interpreter, returning NULL 
 // if it is not found or if it is not a list of strings. The size of the list is 
 // stored in *len. The caller assumes responsibility for destroying the 
@@ -445,6 +453,18 @@ st_func_t* lua_totensorfunction(struct lua_State* lua, int index);
 // Pushes a tensor-valued function onto the interpreter's stack (as a 
 // return value for a function).
 void lua_pushtensorfunction(struct lua_State* lua, st_func_t* func);
+
+// This helper returns true if the object at the given index is or can be 
+// interpreted as a multi-component function, false if not.
+bool lua_ismulticompfunction(struct lua_State* lua, int index);
+
+// This helper retrieves a multi-component function from the given index on an 
+// active lua interpreter, or returns NULL if the index does not point to an st_func.
+st_func_t* lua_tomulticompfunction(struct lua_State* lua, int index);
+
+// Pushes a multi-component function onto the interpreter's stack (as a 
+// return value for a function).
+void lua_pushmulticompfunction(struct lua_State* lua, st_func_t* func);
 
 // This helper returns true if the object at the given index is a mesh,
 // false if not.
