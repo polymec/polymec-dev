@@ -59,15 +59,13 @@ void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v,
   else
   {
     // v1 = J * v.
-    real_t J[9];
-    mapping->vtable.jacobian(mapping->context, x, J);
-    v1->x = J[0]*v->x + J[3]*v->y + J[6]*v->z;
-    v1->y = J[1]*v->x + J[4]*v->y + J[7]*v->z;
-    v1->z = J[2]*v->x + J[5]*v->y + J[8]*v->z;
+    tensor2_t J;
+    mapping->vtable.jacobian(mapping->context, x, &J);
+    tensor2_dot_vector(&J, v, v1);
   }
 }
 
-void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, real_t* J)
+void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, tensor2_t* J)
 {
   mapping->vtable.jacobian(mapping->context, x, J);
 }
@@ -86,26 +84,26 @@ real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x)
     return mapping->vtable.det_J(mapping->context, x);
   else
   {
-    real_t J[9];
-    mapping->vtable.jacobian(mapping->context, x, J);
-    return matrix3_det(J);
+    tensor2_t J;
+    mapping->vtable.jacobian(mapping->context, x, &J);
+    return tensor2_det(&J);
   }
 }
 
-void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x, real_t* G)
+void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x, tensor2_t* G)
 {
   if (mapping->vtable.metric != NULL)
     mapping->vtable.metric(mapping->context, x, G);
   else
   {
     // The metric G is just J^T * J.
-    real_t J[9];
-    mapping->vtable.jacobian(mapping->context, x, J);
+    tensor2_t J;
+    mapping->vtable.jacobian(mapping->context, x, &J);
     char trans = 'T', no_trans = 'N';
     int three = 3;
     real_t one = 1.0, zero = 0.0;
-    rgemm(&trans, &no_trans, &three, &three, &three, &one, J, &three, J, &three, 
-          &zero, G, &three);
+    rgemm(&trans, &no_trans, &three, &three, &three, &one, (real_t*)&J, 
+          &three, (real_t*)&J, &three, &zero, (real_t*)G, &three);
   }
 }
 
@@ -123,18 +121,18 @@ static void comp_map_point(void* context, point_t* x, point_t* y)
   coord_mapping_map_point(comp->map2, &x1, y);
 }
 
-static void comp_jacobian(void* context, point_t* x, real_t* J)
+static void comp_jacobian(void* context, point_t* x, tensor2_t* J)
 {
   // J = J1 * J2.
   comp_cm_t* comp = context;
-  real_t J1[9], J2[9];
-  coord_mapping_compute_jacobian(comp->map1, x, J1);
-  coord_mapping_compute_jacobian(comp->map1, x, J2);
+  tensor2_t J1, J2;
+  coord_mapping_compute_jacobian(comp->map1, x, &J1);
+  coord_mapping_compute_jacobian(comp->map1, x, &J2);
   char no_trans = 'N';
   int three = 3;
   real_t one = 1.0, zero = 0.0;
-  rgemm(&no_trans, &no_trans, &three, &three, &three, &one, J1, &three, J2, 
-        &three, &zero, J, &three);
+  rgemm(&no_trans, &no_trans, &three, &three, &three, &one, (real_t*)&J1, 
+        &three, (real_t*)&J2, &three, &zero, (real_t*)J, &three);
 }
 
 coord_mapping_t* composite_coord_mapping_new(coord_mapping_t* map1, coord_mapping_t* map2)

@@ -10,6 +10,7 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
+#include "core/tensor2.h"
 
 // A coordinate mapping (coord_mapping) is a function that maps a point to 
 // another point -- the domain and the range of this function are points in 
@@ -22,12 +23,13 @@ typedef struct coord_mapping_t coord_mapping_t;
 // A function pointer type for mapping a point.
 typedef void (*coord_mapping_map_point_func)(void*, point_t*, point_t*);
 
-// A function pointer type for mapping a vector at a point.
+// A function pointer type for mapping a vector at a point. If this is not 
+// supplied, the mapping of vectors will be computed from J itself.
 typedef void (*coord_mapping_map_vector_func)(void*, point_t*, vector_t*, vector_t*);
 
 // A function pointer type for evaluating the components of the Jacobian 
 // matrix at a point, storing them in column-major order in the given array.
-typedef void (*coord_mapping_jacobian_func)(void*, point_t*, real_t*);
+typedef void (*coord_mapping_jacobian_func)(void*, point_t*, tensor2_t*);
 
 // A function pointer type for constructing an inverse mapping from a mapping.
 typedef coord_mapping_t* (*coord_mapping_inverse_func)(void*);
@@ -38,7 +40,7 @@ typedef real_t (*coord_mapping_det_J_func)(void*, point_t*);
 
 // A function pointer type for computing the components of the metric directly.
 // If this is not supplied, the metric will be computed from J itself.
-typedef void (*coord_mapping_metric_func)(void*, point_t*, real_t*);
+typedef void (*coord_mapping_metric_func)(void*, point_t*, tensor2_t*);
 
 // A destructor for any given context object.
 typedef void (*coord_mapping_dtor)(void*);
@@ -47,7 +49,7 @@ typedef void (*coord_mapping_dtor)(void*);
 typedef struct 
 {
   coord_mapping_map_point_func        map_point;
-  coord_mapping_map_vector_func       map_vector;
+  coord_mapping_map_vector_func       map_vector; // Optional
   coord_mapping_jacobian_func         jacobian;
   coord_mapping_inverse_func          inverse;
   coord_mapping_det_J_func            det_J; // Optional
@@ -72,9 +74,10 @@ void coord_mapping_map_point(coord_mapping_t* mapping, point_t* x, point_t* y);
 void coord_mapping_map_vector(coord_mapping_t* mapping, point_t* x, vector_t* v, vector_t* v1);
 
 // Computes the components of the (3 x 3) Jacobian matrix at the point x, 
-// storing them in column-major order in J. The Jacobian matrix represents the 
-// coordinate transformation matrix for this coordinate mapping.
-void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, real_t* J);
+// storing them as a rank 2 tensor (in column-major order) in J. The Jacobian 
+// matrix represents the coordinate transformation matrix for this coordinate 
+// mapping.
+void coord_mapping_compute_jacobian(coord_mapping_t* mapping, point_t* x, tensor2_t* J);
 
 // Constructs a coord_mapping function representing the inverse of the given
 // coordinate mapping. Returns NULL if the coordinate mapping is not invertible.
@@ -85,7 +88,7 @@ real_t coord_mapping_det_J(coord_mapping_t* mapping, point_t* x);
 
 // Computes the components of the (3 x 3) metric tensor at the point x, 
 // storing them in column-major order in G. 
-void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x, real_t* G);
+void coord_mapping_compute_metric(coord_mapping_t* mapping, point_t* x, tensor2_t* G);
 
 // Creates a coord_mapping by composing two coord mappings (map <-- map1 o map2).
 coord_mapping_t* composite_coord_mapping_new(coord_mapping_t* map1, coord_mapping_t* map2);
