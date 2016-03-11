@@ -32,6 +32,9 @@ prefix=[path] argument to make config. For example:
 
 Other make commands
 -------------------
+   $ make test 
+          Runs all unit tests for the library.
+
    $ make uninstall 
           Removes all files installed by 'make install'.
    
