@@ -8,6 +8,7 @@
 #ifndef POLYMEC_BDF_ODE_INTEGRATOR_H
 #define POLYMEC_BDF_ODE_INTEGRATOR_H
 
+#include "core/krylov_solver.h"
 #include "integrators/ode_integrator.h"
 #include "integrators/newton_pc.h"
 
@@ -52,6 +53,25 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
                                               newton_pc_t* precond,
                                               jfnk_bdf_krylov_t solver_type,
                                               int max_krylov_dim);
+
+// This function creates a BDF integrator that uses an inexact Newton-Krylov 
+// method to solve the underlying linearized equations. This method constructs 
+// a full Jacobian matrix and updates it only when needed, and requires a 
+// function to be specified for the update. The given Krylov solver, preconditioner,
+// matrix and vector objects will be used to conduct the solve and create 
+// workspaces, etc. The integrator assumes control of all these objects.
+ode_integrator_t* ink_bdf_ode_integrator_new(int order, 
+                                             MPI_Comm comm,
+                                             int num_local_values, 
+                                             int num_remote_values, 
+                                             void* context, 
+                                             int (*rhs_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* xdot),
+                                             int (*J_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* rhs, krylov_matrix_t* J),
+                                             void (*dtor)(void* context),
+                                             krylov_solver_t* solver,
+                                             krylov_pc_t* preconditioner,
+                                             krylov_matrix_t* matrix,
+                                             krylov_vector_t* vector);
 
 // This returns the context pointer passed to the bdf_ode_integrator 
 // constructor. In general, this will NOT return the same pointer as 

@@ -46,6 +46,16 @@ typedef struct
   newton_pc_t* precond;
   int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy);
 
+  // INK stuff.
+  int (*k_rhs_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* rhs);
+  int (*k_J_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* rhs, krylov_matrix_t* J);
+  krylov_solver_t* k_solver;
+  krylov_pc_t* k_precond;
+  krylov_matrix_t* k_J;
+  krylov_matrix_t* k_old_J;
+  krylov_vector_t* k_x;
+  krylov_vector_t* k_b;
+
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
   real_t* error_weights;
@@ -235,6 +245,20 @@ static void bdf_dtor(void* context)
   N_VDestroy(integ->x);
   CVodeFree(&integ->cvode);
 
+  // Kill the Inexact Newton-Krylov stuff.
+  if (integ->k_solver != NULL)
+    krylov_solver_free(integ->k_solver);
+  if (integ->k_precond != NULL)
+    krylov_pc_free(integ->k_precond);
+  if (integ->k_J != NULL)
+    krylov_matrix_free(integ->k_J);
+  if (integ->k_old_J != NULL)
+    krylov_matrix_free(integ->k_old_J);
+  if (integ->k_x != NULL)
+    krylov_vector_free(integ->k_x);
+  if (integ->k_b != NULL)
+    krylov_vector_free(integ->k_b);
+
   // Kill the rest.
   if (integ->status_message != NULL)
     polymec_free(integ->status_message);
@@ -315,19 +339,19 @@ static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, 
 }
 
 ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
-                                             MPI_Comm comm,
-                                             int num_local_values, 
-                                             int num_remote_values, 
-                                             void* context, 
-                                             int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
-                                             int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
-                                             void (*dtor)(void* context),
-                                             newton_pc_t* precond,
-                                             jfnk_bdf_krylov_t solver_type,
-                                             int max_krylov_dim)
+                                              MPI_Comm comm,
+                                              int num_local_values, 
+                                              int num_remote_values, 
+                                              void* context, 
+                                              int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
+                                              int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
+                                              void (*dtor)(void* context),
+                                              newton_pc_t* precond,
+                                              jfnk_bdf_krylov_t solver_type,
+                                              int max_krylov_dim)
 {
   ASSERT(order >= 1);
-  ASSERT(order <= 12);
+  ASSERT(order <= 5);
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
   ASSERT(rhs_func != NULL);
@@ -348,6 +372,13 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
+
+  integ->k_rhs_func = NULL;
+  integ->k_J_func = NULL;
+  integ->k_solver = NULL;
+  integ->k_precond = NULL;
+  integ->k_J = integ->k_old_J = NULL;
+  integ->k_x = integ->k_b = NULL;
 
   // Set up KINSol and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
@@ -610,5 +641,85 @@ void* bdf_ode_integrator_cvode(ode_integrator_t* integrator)
 int bdf_ode_integrator_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 {
   return bdf_evaluate_rhs(t, x, x_dot, context);
+}
+
+//------------------------------------------------------------------------
+//                  Inexact Newton-Krylov integrator stuff
+//------------------------------------------------------------------------
+static int ink_rhs(void* context, real_t t, real_t* x, real_t* xdot)
+{
+  return 0;
+}
+
+ode_integrator_t* ink_bdf_ode_integrator_new(int order, 
+                                             MPI_Comm comm,
+                                             int num_local_values, 
+                                             int num_remote_values, 
+                                             void* context, 
+                                             int (*rhs_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* xdot),
+                                             int (*J_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* rhs, krylov_matrix_t* J),
+                                             void (*dtor)(void* context),
+                                             krylov_solver_t* solver,
+                                             krylov_pc_t* preconditioner,
+                                             krylov_matrix_t* matrix,
+                                             krylov_vector_t* vector)
+{
+  ASSERT(order >= 1);
+  ASSERT(order <= 5);
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
+  ASSERT(rhs_func != NULL);
+  ASSERT(J_func != NULL);
+  ASSERT(solver != NULL);
+  ASSERT(preconditioner != NULL);
+  ASSERT(matrix != NULL);
+  ASSERT(vector != NULL);
+
+  bdf_ode_t* integ = polymec_malloc(sizeof(bdf_ode_t));
+  integ->comm = comm;
+  integ->num_local_values = num_local_values;
+  integ->num_remote_values = num_remote_values;
+  integ->context = context;
+  integ->rhs = ink_rhs;
+  integ->k_rhs_func = rhs_func;
+  integ->k_J_func = J_func;
+  integ->k_solver = solver;
+  integ->k_precond = preconditioner;
+  integ->k_J = matrix;
+  integ->k_old_J = krylov_matrix_clone(matrix);
+  integ->k_x = vector;
+  integ->k_b = krylov_vector_clone(vector);
+  integ->dtor = dtor;
+  integ->status_message = NULL;
+  integ->t = 0.0;
+  integ->observers = ptr_array_new();
+  integ->error_weights = NULL;
+
+  integ->max_krylov_dim = 1;
+  integ->Jy = NULL;
+
+  // Set up KINSol and accessories.
+  integ->x = N_VNew(integ->comm, integ->num_local_values);
+  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
+  integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
+  CVodeSetMaxOrd(integ->cvode, order);
+  CVodeSetUserData(integ->cvode, integ);
+  CVodeInit(integ->cvode, bdf_evaluate_rhs, 0.0, integ->x);
+
+  // Set up the linear solvers.
+  // FIXME
+
+  ode_integrator_vtable vtable = {.step = bdf_step, .advance = bdf_advance, .reset = bdf_reset, .dtor = bdf_dtor};
+  char name[1024];
+  snprintf(name, 1024, "INK Backwards-Difference-Formulae (order %d)", order);
+  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order,
+                                           num_local_values + num_remote_values);
+
+  // Set default tolerances.
+  // relative error of 1e-4 means errors are controlled to 0.01%.
+  // absolute error is set to 1 because it's completely problem dependent.
+  bdf_ode_integrator_set_tolerances(I, 1e-4, 1.0);
+
+  return I;
 }
 

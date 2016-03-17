@@ -193,7 +193,7 @@ krylov_solver_t* krylov_factory_gmres_solver(krylov_factory_t* factory,
                                              MPI_Comm comm,
                                              int krylov_dimension);
                                              
-// Constructs a stabilized bi-conjugate Krylov solver.
+// Constructs a stabilized bi-conjugate gradient Krylov solver.
 krylov_solver_t* krylov_factory_bicgstab_solver(krylov_factory_t* factory,
                                                 MPI_Comm comm);
 
