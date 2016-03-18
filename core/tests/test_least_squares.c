@@ -93,7 +93,7 @@ static ls_weight_func_t* simple_w_new(int A, real_t B)
   return ls_weight_func_new("Simple", W_data, vtable);
 }
 
-void test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_points, real_t* coeffs, bool weighted)
+bool test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_points, real_t* coeffs, bool weighted)
 {
   polynomial_t* poly = polynomial_new(p, coeffs, x0);
 
@@ -147,100 +147,173 @@ void test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_po
   real_t actual_value = polynomial_value(poly, &x_star);
   polynomial_t* fitted_poly = polynomial_new(p, b, x0);
   real_t fitted_value = polynomial_value(fitted_poly, &x_star);
+  real_t error = ABS(fitted_value - actual_value);
+  log_debug("error for order %d fit at x = (%g, %g, %g) with %d points: %g", 
+            p, x_star.x, x_star.y, x_star.z, num_points, error); 
+  bool passed;
   if (weighted)
-    assert_true(ABS(fitted_value - actual_value) < 5e-12);
+    passed = (error < 5e-12);
   else
-    assert_true(ABS(fitted_value - actual_value) < 1e-11);
+    passed = (error < 1e-11);
 
   poly = NULL;
   fitted_poly = NULL;
+
+  return passed;
 }
+
+// We want 99% reliability for randomly selected points.
 
 void test_p0_fit(void** state)
 {
-  static real_t coeffs[] = {1.0};
-  point_t x0, points[4];
-  generate_random_points(4, points);
-  test_poly_fit(state, 0, NULL, points, 4, coeffs, false);
-  average_points(points, 4, &x0);
-  test_poly_fit(state, 0, &x0, points, 4, coeffs, false);
+  int num_failures = 0;
+  for (int i = 0; i < 100; ++i) 
+  {
+    static real_t coeffs[] = {1.0};
+    point_t x0, points[4];
+    generate_random_points(4, points);
+    bool passed = test_poly_fit(state, 0, NULL, points, 4, coeffs, false);
+    average_points(points, 4, &x0);
+    bool passed_x0 = test_poly_fit(state, 0, &x0, points, 4, coeffs, false);
+
+    if (!passed || !passed_x0)
+      ++num_failures;
+  }
+  assert_true(num_failures <= 1);
 }
 
 void test_weighted_p0_fit(void** state)
 {
-  static real_t coeffs[] = {1.0};
-  point_t x0, points[4];
-  generate_random_points(4, points);
-  test_poly_fit(state, 0, NULL, points, 4, coeffs, true);
-  average_points(points, 4, &x0);
-  test_poly_fit(state, 0, &x0, points, 4, coeffs, true);
+  int num_failures = 0;
+  for (int i = 0; i < 100; ++i) 
+  {
+    static real_t coeffs[] = {1.0};
+    point_t x0, points[4];
+    generate_random_points(4, points);
+    bool passed = test_poly_fit(state, 0, NULL, points, 4, coeffs, true);
+    average_points(points, 4, &x0);
+    bool passed_x0 = test_poly_fit(state, 0, &x0, points, 4, coeffs, true);
+
+    if (!passed || !passed_x0)
+      ++num_failures;
+  }
+  assert_true(num_failures <= 1);
 }
 
 void test_p1_fit(void** state)
 {
-  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
-  point_t x0, points[8];
-  generate_random_points(8, points);
-  test_poly_fit(state, 1, NULL, points, 8, coeffs, false);
-  average_points(points, 8, &x0);
-  test_poly_fit(state, 1, &x0, points, 8, coeffs, false);
+  int num_failures = 0;
+  for (int i = 0; i < 100; ++i) 
+  {
+    static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
+    point_t x0, points[8];
+    generate_random_points(8, points);
+    bool passed = test_poly_fit(state, 1, NULL, points, 8, coeffs, false);
+    average_points(points, 8, &x0);
+    bool passed_x0 = test_poly_fit(state, 1, &x0, points, 8, coeffs, false);
+
+    if (!passed || !passed_x0)
+      ++num_failures;
+  }
+  assert_true(num_failures <= 1);
 }
 
 void test_weighted_p1_fit(void** state)
 {
-  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
-  point_t x0, points[8];
-  generate_random_points(8, points);
-  test_poly_fit(state, 1, NULL, points, 8, coeffs, true);
-  average_points(points, 8, &x0);
-  test_poly_fit(state, 1, &x0, points, 8, coeffs, true);
+  int num_failures = 0;
+  for (int i = 0; i < 100; ++i) 
+  {
+    static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
+    point_t x0, points[8];
+    generate_random_points(8, points);
+    bool passed = test_poly_fit(state, 1, NULL, points, 8, coeffs, true);
+    average_points(points, 8, &x0);
+    bool passed_x0 = test_poly_fit(state, 1, &x0, points, 8, coeffs, true);
+
+    if (!passed || !passed_x0)
+      ++num_failures;
+  }
+  assert_true(num_failures <= 1);
 }
 
 void test_p2_fit(void** state)
 {
-  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
-  point_t x0, points[16];
-  generate_random_points(16, points);
-  test_poly_fit(state, 2, NULL, points, 16, coeffs, false);
-  average_points(points, 16, &x0);
-  test_poly_fit(state, 2, &x0, points, 16, coeffs, false);
+  int num_failures = 0;
+  for (int i = 0; i < 100; ++i) 
+  {
+    static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+    point_t x0, points[16];
+    generate_random_points(16, points);
+    bool passed = test_poly_fit(state, 2, NULL, points, 16, coeffs, false);
+    average_points(points, 16, &x0);
+    bool passed_x0 = test_poly_fit(state, 2, &x0, points, 16, coeffs, false);
+
+    if (!passed || !passed_x0)
+      ++num_failures;
+  }
+  assert_true(num_failures <= 1);
 }
 
 void test_weighted_p2_fit(void** state)
 {
-  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
-  point_t x0, points[16];
-  generate_random_points(16, points);
-  test_poly_fit(state, 2, NULL, points, 16, coeffs, true);
-  average_points(points, 16, &x0);
-  test_poly_fit(state, 2, &x0, points, 16, coeffs, true);
+  int num_failures = 0;
+  for (int i = 0; i < 100; ++i) 
+  {
+    static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+    point_t x0, points[16];
+    generate_random_points(16, points);
+    bool passed = test_poly_fit(state, 2, NULL, points, 16, coeffs, true);
+    average_points(points, 16, &x0);
+    bool passed_x0 = test_poly_fit(state, 2, &x0, points, 16, coeffs, true);
+
+    if (!passed || !passed_x0)
+      ++num_failures;
+  }
+  assert_true(num_failures <= 1);
 }
 
 void test_p3_fit(void** state)
 {
-  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
-                            11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0};
-  point_t x0, points[30];
-  generate_random_points(30, points);
-  test_poly_fit(state, 3, NULL, points, 30, coeffs, false);
-  average_points(points, 30, &x0);
-  test_poly_fit(state, 3, &x0, points, 30, coeffs, false);
+  int num_failures = 0;
+  for (int i = 0; i < 100; ++i) 
+  {
+    static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
+      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0};
+    point_t x0, points[40];
+    generate_random_points(40, points);
+    bool passed = test_poly_fit(state, 3, NULL, points, 40, coeffs, false);
+    average_points(points, 40, &x0);
+    bool passed_x0 = test_poly_fit(state, 3, &x0, points, 40, coeffs, false);
+
+    if (!passed || !passed_x0)
+      ++num_failures;
+  }
+  assert_true(num_failures <= 1);
 }
 
 void test_weighted_p3_fit(void** state)
 {
-  static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
-                            11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0};
-  point_t x0, points[30];
-  generate_random_points(30, points);
-  test_poly_fit(state, 3, NULL, points, 30, coeffs, true);
-  average_points(points, 30, &x0);
-  test_poly_fit(state, 3, &x0, points, 30, coeffs, true);
+  int num_failures = 0;
+  for (int i = 0; i < 100; ++i) 
+  {
+    static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
+      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0};
+    point_t x0, points[50];
+    generate_random_points(50, points);
+    bool passed = test_poly_fit(state, 3, NULL, points, 50, coeffs, true);
+    average_points(points, 50, &x0);
+    bool passed_x0 = test_poly_fit(state, 3, &x0, points, 50, coeffs, true);
+
+    if (!passed || !passed_x0)
+      ++num_failures;
+  }
+  assert_true(num_failures <= 1);
 }
 
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
+  set_log_level(LOG_DEBUG);
 
   // Initialize the random number generator.
   srand((unsigned)time(NULL));
