@@ -877,12 +877,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     char group_dir_name[FILENAME_MAX];
     snprintf(group_dir_name, FILENAME_MAX, "%s/%d", file->directory, file->group_rank);
     if (file->rank_in_group == 0)
-    {
       create_directory(group_dir_name, S_IRWXU | S_IRWXG);
-      MPI_Barrier(file->comm);
-    }
-    else
-      MPI_Barrier(file->comm);
 
     // Determine a file name and directory name.
     if (cycle == -1)
@@ -1070,10 +1065,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
       }
       else
         closedir(group_dir);
-      MPI_Barrier(file->comm);
     }
-    else
-      MPI_Barrier(file->comm);
 
     // Determine a file name and directory name.
     if (cycle == -1)
