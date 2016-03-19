@@ -1,5 +1,9 @@
 include_directories(${PROJECT_BINARY_DIR}/include)
 
+# We use the rule of thumb that the optimal number of build threads is 
+# one more than the number of logical cores.
+math(EXPR NUM_BUILD_THREADS "${NUMBER_OF_CORES} + 1")
+
 # Build cmocka, a C unit testing library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
   message("Configuring cmocka...")
@@ -18,8 +22,8 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmocka_config_errors.log ${cmocka_config_err})
     message(FATAL_ERROR "Configuration of cmocka library failed.")
   endif()
-  message("Building and installing cmocka...")
-  execute_process(COMMAND make install -j4
+  message("Building and installing cmocka (${NUM_BUILD_THREADS} threads)...")
+  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cmocka
                   OUTPUT_VARIABLE cmocka_build_log ERROR_VARIABLE cmocka_build_err
                   RESULT_VARIABLE stat)
@@ -68,8 +72,8 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
     message(FATAL_ERROR "Configuration of gc library failed.")
   endif()
 
-  message("Building and installing gc...")
-  execute_process(COMMAND make install -j4
+  message("Building and installing gc (${NUM_BUILD_THREADS} threads)...")
+  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc
                   OUTPUT_VARIABLE gc_build_log ERROR_VARIABLE gc_build_err
                   RESULT_VARIABLE stat)
@@ -134,8 +138,8 @@ if (NOT EXISTS ${Z_LIBRARY})
     message(FATAL_ERROR "Configuration of zlib library failed.")
   endif()
 
-  message("Building and installing zlib...")
-  execute_process(COMMAND make install -j4
+  message("Building and installing zlib (${NUM_BUILD_THREADS} threads)...")
+  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib
                   OUTPUT_VARIABLE zlib_build_log ERROR_VARIABLE zlib_build_err
                   RESULT_VARIABLE stat)
@@ -185,8 +189,8 @@ if (${SILO_LIBRARY} MATCHES "h5")
       message(FATAL_ERROR "Configuration of hdf5 library failed.")
     endif()
 
-    message("Building and installing hdf5...")
-    execute_process(COMMAND make install -j4
+    message("Building and installing hdf5 (${NUM_BUILD_THREADS} threads)...")
+    execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
                     OUTPUT_VARIABLE hdf5_build_log ERROR_VARIABLE hdf5_build_err
                     RESULT_VARIABLE stat)
@@ -270,8 +274,8 @@ if (NOT EXISTS ${SILO_LIBRARY})
     message(FATAL_ERROR "Configuration of silo library failed.")
   endif()
 
-  message("Building and installing silo...")
-  execute_process(COMMAND make install -j4
+  message("Building and installing silo (${NUM_BUILD_THREADS} threads)...")
+  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo
                   OUTPUT_VARIABLE silo_build_log ERROR_VARIABLE silo_build_err
                   RESULT_VARIABLE stat)
@@ -318,7 +322,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu/make.inc ${superlu_makeinc})
 
   message("Building superlu...")
-  # Looks like SuperLU wants to be built serially, so no -j4 here.
+  # Looks like SuperLU wants to be built serially, so no -jN here.
   execute_process(COMMAND make lib
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/superlu
                   OUTPUT_VARIABLE superlu_build_log ERROR_VARIABLE superlu_build_err
@@ -353,8 +357,8 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
                   OUTPUT_VARIABLE sundials_config.log
                   RESULT_VARIABLE stat)
-  message("Building and installing sundials...")
-  execute_process(COMMAND make install -j4
+  message("Building and installing sundials (${NUM_BUILD_THREADS} threads)...")
+  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
                   OUTPUT_VARIABLE sundials_build_log ERROR_VARIABLE sundials_build_err
                   RESULT_VARIABLE stat)
