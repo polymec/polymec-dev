@@ -666,11 +666,11 @@ void polymec_provenance_fprintf(FILE* stream)
       int offset = 0;
       while (offset < end)
       {
-        fread(buff, 1, MIN(1000, end-offset), fp);
-        if (end-offset < 1000)
-          buff[end-offset] = '\0';
+        int bytes_read = fread(buff, 1, MIN(1000, end-offset), fp);
+        if (bytes_read < 1000)
+          buff[bytes_read] = '\0';
         fprintf(stream, "%s", buff);
-        offset += MIN(1000, end-offset);
+        offset += MIN(1000, bytes_read);
       }
       if (truncated)
         fprintf(stream, "\n<<< truncated >>>\n");

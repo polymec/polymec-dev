@@ -342,7 +342,7 @@ static int read_ascii_stl_file(FILE* stl_file,
       snprintf(error_message, 1024, "Problem reading outer loop header for facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
-    fscanf(stl_file, "\n");
+    status = fscanf(stl_file, "\n");
     status = fscanf(stl_file, "vertex %le %le %le\n", &v1->x, &v1->y, &v1->z);
     if (status != 3)
     {
@@ -367,7 +367,7 @@ static int read_ascii_stl_file(FILE* stl_file,
       snprintf(error_message, 1024, "Problem reading outer loop footer for facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
-    fscanf(stl_file, "\n");
+    status = fscanf(stl_file, "\n");
     status = fscanf(stl_file, "endfacet\n");
     if (status != 0)
     {
@@ -411,7 +411,12 @@ static int read_binary_stl_file(FILE* stl_file,
   
   // Read the number of triangles.
   int num_triangles;
-  fread(&num_triangles, sizeof(int), 1, stl_file);
+  int bytes_read = fread(&num_triangles, sizeof(int), 1, stl_file);
+  if (bytes_read == 0)
+  {
+    snprintf(error_message, 1024, "Unable to read number of triangles from binary STL file.");
+    return -1;
+  }
   if (num_triangles <= 0)
   {
     snprintf(error_message, 1024, "Non-positive number of triangles read from binary STL file.");

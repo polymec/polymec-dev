@@ -55,29 +55,31 @@ static void get_memory_info_linux(memory_info_t* info)
     while (!feof(proc))
     {
       char proc_line[80];
-      fgets(proc_line, 80, proc);
-
-      // Read off the values of interest (they're already in kB).
-      char* p = strstr(proc_line, "VmHWM:");
-      if (p != NULL)
+      char* proc_ptr = fgets(proc_line, 80, proc);
+      if (proc_ptr != NULL)
       {
-        long long unsigned int hwm = 0;
-        sscanf(p, "VmHWM:"" %llu", &hwm);
-        info->process_peak_resident_size = hwm;
-      }
-      p = strstr(proc_line, "VmSize:");
-      if (p != NULL)
-      {
-        long long unsigned int size = 0;
-        sscanf(p, "VmSize:"" %llu", &size);
-        info->process_virtual_size = size;
-      }
-      p = strstr(proc_line, "VmRSS:");
-      if (p != NULL)
-      {
-        long long unsigned int rss = 0;
-        sscanf(p, "VmRSS:"" %llu", &rss);
-        info->process_resident_size = rss;
+        // Read off the values of interest (they're already in kB).
+        char* p = strstr(proc_line, "VmHWM:");
+        if (p != NULL)
+        {
+          long long unsigned int hwm = 0;
+          sscanf(p, "VmHWM:"" %llu", &hwm);
+          info->process_peak_resident_size = hwm;
+        }
+        p = strstr(proc_line, "VmSize:");
+        if (p != NULL)
+        {
+          long long unsigned int size = 0;
+          sscanf(p, "VmSize:"" %llu", &size);
+          info->process_virtual_size = size;
+        }
+        p = strstr(proc_line, "VmRSS:");
+        if (p != NULL)
+        {
+          long long unsigned int rss = 0;
+          sscanf(p, "VmRSS:"" %llu", &rss);
+          info->process_resident_size = rss;
+        }
       }
     }
   }

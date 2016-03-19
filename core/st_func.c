@@ -363,7 +363,7 @@ static st_func_t* create_constant_st_func(real_t components[], int num_component
       snprintf(comp_str, 20, "%g)", components[i]);
     else
       snprintf(comp_str, 20, "%g, ", components[i]);
-    strncat(name, comp_str, 1024);
+    strncat(name, comp_str, 1023);
   }
   const_st_func_t* f = polymec_malloc(sizeof(const_st_func_t));
   f->num_comp = num_components;

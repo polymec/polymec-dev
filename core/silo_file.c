@@ -325,8 +325,6 @@ static void pmpio_close_file(void* file, void* user_data)
   DBClose((DBfile*)file);
 }
 
-#endif
-
 // Object representing data in a subdomain.
 typedef struct
 {
@@ -383,6 +381,8 @@ static void subdomain_field_free(subdomain_field_t* field)
   optlist_free(field->optlist);
   polymec_free(field);
 }
+
+#endif
 
 bool silo_file_query(const char* file_prefix,
                      const char* directory,

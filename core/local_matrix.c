@@ -143,6 +143,8 @@ void local_matrix_fprintf(local_matrix_t* matrix, FILE* stream)
 
 static void local_matrix_export_mm(local_matrix_t* matrix, FILE* file)
 {
+  (void)POLYMEC_GIT_DIFFS;
+
   // Count non-zero values.
   int nnz = 0;
   int num_rows = local_matrix_num_rows(matrix);
