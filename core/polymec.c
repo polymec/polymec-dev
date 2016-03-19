@@ -12,6 +12,7 @@
 #include <gc/gc.h>
 #include "arena/proto.h"
 #include "arena/pool.h"
+#include "silo.h"
 #include "core/polymec.h"
 #include "core/polymec_version.h"
 #include "core/options.h"
@@ -162,6 +163,12 @@ static void mpi_fatal_error_handler(MPI_Comm* comm, int* error_code, ...)
   polymec_error("%s on rank %d\n", error_string, rank);
 }
 #endif
+
+// This Silo error handler intercepts I/O-related errors.
+static void handle_silo_error(char* message)
+{
+  polymec_error((const char*)message);
+}
 
 // This sets the logging level if it is given as a command-line argument.
 static void set_up_logging()
@@ -348,6 +355,9 @@ void polymec_init(int argc, char** argv)
     MPI_Comm_create_errhandler(mpi_fatal_error_handler, &mpi_error_handler);
     MPI_Comm_set_errhandler(MPI_COMM_WORLD, mpi_error_handler);
 #endif
+
+    // Set up the Silo I/O error handler.
+    DBShowErrors(DB_ALL_AND_DRVR, handle_silo_error);
 
     // Start up the garbage collector.
     GC_INIT();

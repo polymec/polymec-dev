@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <gc/gc.h>
+#include <mpi.h>
+#include "pmpio.h"
 #include "silo.h"
 #include "core/arch.h"
 #include "core/logging.h"
