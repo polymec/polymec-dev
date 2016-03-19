@@ -167,7 +167,7 @@ static void mpi_fatal_error_handler(MPI_Comm* comm, int* error_code, ...)
 // This Silo error handler intercepts I/O-related errors.
 static void handle_silo_error(char* message)
 {
-  polymec_error((const char*)message);
+  polymec_error("%s: %s", DBErrFuncname(), message);
 }
 
 // This sets the logging level if it is given as a command-line argument.
