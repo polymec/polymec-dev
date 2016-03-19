@@ -8,8 +8,11 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <gc/gc.h>
-#include <mpi.h>
+#include "core/polymec.h"
+#if POLYMEC_HAVE_MPI
+#include "mpi.h"
 #include "pmpio.h"
+#endif
 #include "silo.h"
 #include "core/arch.h"
 #include "core/logging.h"
@@ -275,8 +278,6 @@ void optlist_free(DBoptlist* optlist)
 }
 
 #if POLYMEC_HAVE_MPI
-#include "mpi.h"
-#include "pmpio.h"
 
 static void* pmpio_create_file(const char* filename,
                                const char* dir_name,
