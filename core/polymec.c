@@ -357,7 +357,7 @@ void polymec_init(int argc, char** argv)
 #endif
 
     // Set up the Silo I/O error handler.
-    DBShowErrors(DB_ALL_AND_DRVR, handle_silo_error);
+    DBShowErrors(DB_ALL, handle_silo_error);
 
     // Start up the garbage collector.
     GC_INIT();
