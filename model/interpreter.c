@@ -147,11 +147,6 @@ static void destroy_variable(char* key, interpreter_storage_t* value)
     polymec_free(value);
 }
 
-static void destroy_string(char* key)
-{
-  polymec_free(key);
-}
-
 // A key-value pair for a metatable.
 typedef struct
 {

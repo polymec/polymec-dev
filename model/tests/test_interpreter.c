@@ -200,6 +200,7 @@ void test_pointlist_parsing(void** state)
   {
     assert_true(point_distance(&pts[i], &real_pts[i]) < 1e-15);
   }
+  polymec_free(pts);
   interpreter_free(interp);
 }
 
@@ -234,6 +235,7 @@ void test_vectorlist_parsing(void** state)
     assert_true(fabs(vecs[i].y - real_vecs[i].y) < 1e-15);
     assert_true(fabs(vecs[i].z - real_vecs[i].z) < 1e-15);
   }
+  polymec_free(vecs);
   interpreter_free(interp);
 }
 
