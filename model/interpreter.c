@@ -364,7 +364,7 @@ static interpreter_storage_t* store_sequence(lua_State* lua, real_t* sequence, i
   interpreter_storage_t* storage = NEW_USER_DATA(lua);
   storage->datum = sequence;
   storage->type = INTERPRETER_SEQUENCE;
-//  storage->dtor = polymec_free; // FIXME: Handled by __gc? Why isn't this true for vector/point lists?
+  storage->dtor = polymec_free; 
   storage->size = len;
   return storage;
 }

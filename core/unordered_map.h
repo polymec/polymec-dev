@@ -102,10 +102,13 @@ static inline void map_name##_clear(map_name##_t* map) \
       map_name##_entry_t* next = entry->next; \
       if (entry->kv_dtor != NULL) \
         (*entry->kv_dtor)(entry->key, entry->value); \
-      else if (entry->k_dtor != NULL) \
-        (*entry->k_dtor)(entry->key); \
-      else if (entry->v_dtor != NULL) \
-        (*entry->v_dtor)(entry->value); \
+      else \
+      { \
+        if (entry->k_dtor != NULL) \
+          (*entry->k_dtor)(entry->key); \
+        if (entry->v_dtor != NULL) \
+          (*entry->v_dtor)(entry->value); \
+      } \
       polymec_free(entry); \
       entry = next; \
     } \
