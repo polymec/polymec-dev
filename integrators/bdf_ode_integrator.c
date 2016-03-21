@@ -664,6 +664,8 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
                                              krylov_matrix_t* matrix,
                                              krylov_vector_t* vector)
 {
+  POLYMEC_NOT_IMPLEMENTED
+
   ASSERT(order >= 1);
   ASSERT(order <= 5);
   ASSERT(num_local_values > 0);

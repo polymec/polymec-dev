@@ -30,8 +30,6 @@ extern int point_factory_import_from_cad(lua_State* lua);
 
 extern int mesh_factory_uniform(lua_State* lua);
 extern int mesh_factory_rectilinear(lua_State* lua);
-extern int mesh_factory_pebi(lua_State* lua);
-extern int mesh_factory_dual(lua_State* lua);
 
 extern int cartesian_1d_uniform(lua_State* lua);
 extern int cartesian_1d_logarithmic(lua_State* lua);
@@ -559,8 +557,6 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_global_table(interp, "mesh_factory", NULL);
   interpreter_register_global_method(interp, "mesh_factory", "uniform", mesh_factory_uniform, NULL);
   interpreter_register_global_method(interp, "mesh_factory", "rectilinear", mesh_factory_rectilinear, NULL);
-  interpreter_register_global_method(interp, "mesh_factory", "pebi", mesh_factory_pebi, NULL);
-  interpreter_register_global_method(interp, "mesh_factory", "dual", mesh_factory_dual, NULL);
 
   // Set up a factory for generating 1D Cartesian meshes
   interpreter_register_global_table(interp, "cartesian_1d", NULL);
