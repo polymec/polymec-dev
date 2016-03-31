@@ -50,7 +50,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
     set(SHARED_OPTS --enable-static --disable-shared)
   endif()
   set(GC_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} ${SHARED_OPTS} --enable-threads=pthreads --disable-gcj-support --disable-dependency-tracking)
-  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(GC_CONFIG_OPTS ${GC_CONFIG_OPTS} --enable-gc-debug)
   endif()
 
@@ -162,12 +162,12 @@ if (${SILO_LIBRARY} MATCHES "h5")
     endif()
     set(HDF5_CONFIG_OPTS ${SHARED_OPTS} --with-zlib=${PROJECT_BINARY_DIR} --disable-dependency-tracking)
     set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
-    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
       set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-debug=all)
     else()
       set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-production)
     endif()
-    if (${HAVE_MPI} EQUAL 1)
+    if (HAVE_MPI)
       set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-parallel)
     endif()
   
@@ -211,7 +211,7 @@ if (${SILO_LIBRARY} MATCHES "h5")
     endif()
 
   endif()
-  if (${HDF5_LIBRARY} STREQUAL "${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX}")
+  if (HDF5_LIBRARY STREQUAL "${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX}")
     set(POLYMEC_HDF5_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/libhdf5${LIB_SUFFIX}" PARENT_SCOPE)
     set(POLYMEC_HDF5_HL_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_hl${LIB_SUFFIX}" PARENT_SCOPE)
     set(POLYMEC_HDF5_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" PARENT_SCOPE)
@@ -249,7 +249,7 @@ if (NOT EXISTS ${SILO_LIBRARY})
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --disable-fortran --without-readline --disable-silex)
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --disable-dependency-tracking)
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --disable-hzip --disable-fpzip)
-  if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
+  if (CMAKE_BUILD_TYPE STREQUAL "Release")
     set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-optimization)
     set(SILO_C_FLAGS -O2)
   else()
@@ -287,6 +287,62 @@ if (NOT EXISTS ${SILO_LIBRARY})
 
 endif()
 set(POLYMEC_TP_LIBS ${SILO_LIBRARIES};${POLYMEC_TP_LIBS})
+
+# Build LIS, a linear iterative solver library that allows us to bundle a 
+# built-in Krylov solver without a YUGE library like PETSc or HYPRE.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
+  if (BUILD_SHARED_LIBS)
+    set(SHARED_OPTS --enable-shared --disable-static)
+  else()
+    set(SHARED_OPTS --enable-static --disable-shared)
+  endif()
+  set(LIS_CONFIG_OPTS ${SHARED_OPTS} --prefix=${PROJECT_BINARY_DIR})
+  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(LIS_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-debug)
+  endif()
+  if (HAVE_OPENMP)
+    set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-openmp)
+  endif()
+  if (HAVE_MPI)
+    set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-mpi)
+  endif()
+  
+  message("Preparing lis...")
+  execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lis ${CMAKE_CURRENT_BINARY_DIR}/lis
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Copying library source failed.")
+  endif()
+
+  message("Configuring lis...")
+  if (HAVE_MPI)
+    set(LIS_ENV MPICC=${CMAKE_C_COMPILER})
+  else()
+    set(LIS_ENV CC=${CMAKE_C_COMPILER})
+  endif()
+  execute_process(COMMAND env ${LIS_ENV} ./configure ${LIS_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lis
+                  OUTPUT_VARIABLE lis_config_log ERROR_VARIABLE lis_config_err
+                  RESULT_VARIABLE stat)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis_config.log ${lis_config_log})
+    if (NOT stat EQUAL 0)
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis_config_errors.log ${lis_config_err})
+      message(FATAL_ERROR "Configuration of lis library failed.")
+    endif()
+
+    message("Building and installing lis (${NUM_BUILD_THREADS} threads)...")
+    execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lis
+                    OUTPUT_VARIABLE lis_build_log ERROR_VARIABLE lis_build_err
+                    RESULT_VARIABLE stat)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis_build.log ${lis_build_log})
+    if (NOT stat EQUAL 0)
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis_build_errors.log ${lis_build_err})
+      message(FATAL_ERROR "Build of lis library failed.")
+    endif()
+
+  set(POLYMEC_TP_LIBS lis;${POLYMEC_TP_LIBS})
+endif()
 
 # Build SuperLU, a (serial) direct sparse linear solver library that 
 # we will use for preconditioning.
@@ -348,7 +404,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sundials
                   RESULT_VARIABLE stat)
   set(SUNDIALS_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DEXAMPLES_ENABLE=OFF -DFCMIX_ENABLE=OFF -DSUNDIALS_PRECISION=${POLYMEC_PRECISION})
-  if (HAVE_MPI EQUAL 1)
+  if (HAVE_MPI)
     set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=ON -DMPI_MPICC=${CMAKE_C_COMPILER})
   else()
     set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=OFF)
@@ -368,7 +424,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
     message(FATAL_ERROR "Build of sundials library failed.")
   endif()
 endif()
-if (HAVE_MPI EQUAL 0)
+if (NOT HAVE_MPI)
   set (NVEC_LIBS nvecserial)
 else()
   set (NVEC_LIBS nvecparallel;nvecserial)
@@ -396,6 +452,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   file(READ ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile lua_makefile)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile.old ${lua_makefile})
   string(REPLACE "gcc" ${CMAKE_C_COMPILER} lua_makefile ${lua_makefile})
+  string(REPLACE "CC=cc" "CC=${CMAKE_C_COMPILER}" lua_makefile ${lua_makefile})
   string(REPLACE "MYCFLAGS=" "MYCFLAGS=-fPIC ${CMAKE_C_FLAGS}" lua_makefile ${lua_makefile})
   string(REPLACE "MYLDFLAGS=" "MYLDFLAGS=${CMAKE_EXE_LINKER_FLAGS}" lua_makefile ${lua_makefile})
   if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -404,7 +461,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile ${lua_makefile})
 
   message("Building lua...")
-  execute_process(COMMAND make ${LUA_ARCH}
+  execute_process(COMMAND make ${LUA_ARCH} CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lua
                   OUTPUT_VARIABLE lua_build_log ERROR_VARIABLE lua_build_err
                   RESULT_VARIABLE stat)
@@ -438,7 +495,7 @@ endif()
 set(POLYMEC_TP_LIBS jrs_predicates;${POLYMEC_TP_LIBS})
 
 # If we're building a parallel code, build INRIA's Scotch library.
-if (HAVE_MPI EQUAL 1)
+if (HAVE_MPI)
   if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libscotch.a)
     find_program(FLEX flex)
     find_program(BISON bison)

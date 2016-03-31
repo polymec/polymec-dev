@@ -1,0 +1,18 @@
+# for all subdirectories
+*.la
+*.lo
+*.o
+*.orig
+*~
+\#*#
+Makefile
+
+# autotools stuff
+autom4te.cache/
+config.*
+include/lis_config.h
+include/lisf.h
+include/stamp-h1
+libtool
+
+
