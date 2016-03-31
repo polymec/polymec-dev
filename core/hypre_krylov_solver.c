@@ -1306,7 +1306,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   char hypre_path[FILENAME_MAX+1];
   snprintf(hypre_path, FILENAME_MAX, "%s/libHYPRE%s", hypre_dir, SHARED_LIBRARY_SUFFIX);
 
-  // Try to open libPETSc and mine it for symbols.
+  // Try to open libHYPRE and mine it for symbols.
   log_debug("hypre_krylov_factory: Opening HYPRE library at %s.", hypre_path);
   void* hypre = dlopen(hypre_path, RTLD_NOW);
   if (hypre == NULL)
