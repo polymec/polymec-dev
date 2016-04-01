@@ -212,7 +212,6 @@ if (${SILO_LIBRARY} MATCHES "h5")
   # regular boring name. This prevents libraries like Silo and Exodus (which 
   # take a while to catch up to recent developments) from freaking out.
   if (NOT HDF5_LIB_NAME STREQUAL "hdf5" AND HDF5_LIBRARY MATCHES "${PROJECT_BINARY_DIR}/lib" AND NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX})
-    message("DOOT")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${HDF5_LIBRARY} ${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX})
   endif()
 
