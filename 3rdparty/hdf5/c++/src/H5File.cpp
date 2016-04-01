@@ -27,6 +27,7 @@
 #include "H5Object.h"
 #include "H5FaccProp.h"
 #include "H5FcreatProp.h"
+#include "H5OcreatProp.h"
 #include "H5DxferProp.h"
 #include "H5DcreatProp.h"
 #include "H5CommonFG.h"
@@ -50,7 +51,7 @@ namespace H5 {
 ///\brief	Default constructor: creates a stub H5File object.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-H5File::H5File() : H5Location(), id(H5I_INVALID_HID) {}
+H5File::H5File() : H5Location(), CommonFG(), id(H5I_INVALID_HID) {}
 
 //--------------------------------------------------------------------------
 // Function:	H5File overloaded constructor
@@ -73,9 +74,6 @@ H5File::H5File() : H5Location(), id(H5I_INVALID_HID) {}
 ///					exists, and fail, otherwise
 ///		\li \c H5F_ACC_RDWR - Open file for read/write, if it already
 ///					exists, and fail, otherwise
-///		\li \c H5F_ACC_DEBUG - print debug information. This flag is
-///			used only by HDF5 library developers; it is neither
-///			tested nor supported for use in applications.
 ///\par
 ///		For info on file creation in the case of an already-open file,
 ///		please refer to the \b Special \b case section in the C layer
@@ -86,7 +84,7 @@ H5File::H5File() : H5Location(), id(H5I_INVALID_HID) {}
 //		to catch then re-throw it. -BMR 2013/03/21
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-H5File::H5File( const char* name, unsigned int flags, const FileCreatPropList& create_plist, const FileAccPropList& access_plist ) : H5Location(), id(H5I_INVALID_HID)
+H5File::H5File( const char* name, unsigned int flags, const FileCreatPropList& create_plist, const FileAccPropList& access_plist ) : H5Location(), CommonFG(), id(H5I_INVALID_HID)
 {
     try {
 	p_get_file(name, flags, create_plist, access_plist);
@@ -111,7 +109,7 @@ H5File::H5File( const char* name, unsigned int flags, const FileCreatPropList& c
 //		to catch then re-throw it. -BMR 2013/03/21
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-H5File::H5File( const H5std_string& name, unsigned int flags, const FileCreatPropList& create_plist, const FileAccPropList& access_plist ) : H5Location(), id(H5I_INVALID_HID)
+H5File::H5File( const H5std_string& name, unsigned int flags, const FileCreatPropList& create_plist, const FileAccPropList& access_plist ) : H5Location(), CommonFG(), id(H5I_INVALID_HID)
 {
     try {
 	p_get_file(name.c_str(), flags, create_plist, access_plist);
@@ -133,7 +131,7 @@ void H5File::p_get_file(const char* name, unsigned int flags, const FileCreatPro
 {
     // These bits only set for creation, so if any of them are set,
     // create the file.
-    if( flags & (H5F_ACC_EXCL|H5F_ACC_TRUNC|H5F_ACC_DEBUG))
+    if( flags & (H5F_ACC_EXCL|H5F_ACC_TRUNC))
     {
 	hid_t create_plist_id = create_plist.getId();
 	hid_t access_plist_id = access_plist.getId();
@@ -155,6 +153,25 @@ void H5File::p_get_file(const char* name, unsigned int flags, const FileCreatPro
     }
 }
 
+//--------------------------------------------------------------------------
+// Function:	H5File overloaded constructor
+///\brief	Creates an H5File object using an existing file id.
+///\param	existing_id - IN: Id of an existing file
+// Programmer	Binh-Minh Ribler - 2015
+// Description
+//	Mar 29, 2015
+//		Added in responding to a request from user Jason Newton.
+//		However, it is not recommended to use the private member "id"
+//		in applications.  Unlike other situations, where similar
+//		constructor is needed by the library in order to return
+//		an object, H5File doesn't need it. -BMR (HDFFV-8766 partially)
+//--------------------------------------------------------------------------
+H5File::H5File(hid_t existing_id) : H5Location(), CommonFG()
+{
+    id = existing_id;
+    incRefCount(); // increment number of references to this id
+}
+
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
 //--------------------------------------------------------------------------
@@ -164,7 +181,7 @@ void H5File::p_get_file(const char* name, unsigned int flags, const FileCreatPro
 ///\param	original - IN: H5File instance to copy
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-H5File::H5File(const H5File& original) : H5Location(original)
+H5File::H5File(const H5File& original) : H5Location(), CommonFG()
 {
     id = original.getId();
     incRefCount(); // increment number of references to this id
@@ -211,7 +228,7 @@ bool H5File::isHdf5(const H5std_string& name )
 ///\param	name         - IN: Name of the file
 ///\param	flags        - IN: File access flags
 ///\param	access_plist - IN: File access property list.  Default to
-///		FileCreatPropList::DEFAULT
+///		FileAccPropList::DEFAULT
 ///\par Description
 ///		Valid values of \a flags include:
 ///		H5F_ACC_RDWR:   Open with read/write access. If the file is
@@ -225,6 +242,13 @@ bool H5File::isHdf5(const H5std_string& name )
 //--------------------------------------------------------------------------
 void H5File::openFile(const char* name, unsigned int flags, const FileAccPropList& access_plist)
 {
+    try {
+        close();
+    }
+    catch (Exception close_error) {
+        throw FileIException("H5File::openFile", close_error.getDetailMsg());
+    }
+
     hid_t access_plist_id = access_plist.getId();
     id = H5Fopen (name, flags, access_plist_id);
     if (id < 0)  // throw an exception when open fails
@@ -379,25 +403,6 @@ ssize_t H5File::getObjCount(unsigned types) const
 }
 
 //--------------------------------------------------------------------------
-// Function:	H5File::getObjCount
-///\brief	This is an overloaded member function, provided for convenience.
-///		It takes no parameter and returns the object count of all
-///		object types.
-///\return	Number of opened object IDs
-///\exception	H5::FileIException
-// Programmer   Binh-Minh Ribler - May 2004
-//--------------------------------------------------------------------------
-ssize_t H5File::getObjCount() const
-{
-   ssize_t num_objs = H5Fget_obj_count(id, H5F_OBJ_ALL);
-   if( num_objs < 0 )
-   {
-      throw FileIException("H5File::getObjCount", "H5Fget_obj_count failed");
-   }
-   return (num_objs);
-}
-
-//--------------------------------------------------------------------------
 // Function:	H5File::getObjIDs
 ///\brief	Retrieves a list of opened object IDs (files, datasets,
 ///		groups and datatypes) in the same file.
@@ -462,15 +467,17 @@ void H5File::getVFDHandle(const FileAccPropList& fapl, void **file_handle) const
 
 //--------------------------------------------------------------------------
 // Function:	H5File::getVFDHandle
-///\brief	This is an overloaded member function, kept for backward
-///		compatibility.  It differs from the above function in that it
-///		misses const.  This wrapper will be removed in future release.
-///\param	fapl        - File access property list
-///\param	file_handle - Pointer to the file handle being used by
-///			      the low-level virtual file driver
-///\exception	H5::FileIException
+// Purpose	This is an overloaded member function, kept for backward
+//		compatibility.  It differs from the above function in that it
+//		misses const's.  This wrapper will be removed in future release.
+// Param 	fapl        - File access property list
+// Param 	file_handle - Pointer to the file handle being used by
+//			      the low-level virtual file driver
+// Exception	H5::FileIException
 // Programmer   Binh-Minh Ribler - May 2004
-// Note:	Retiring April, 2014
+// Modification
+//		Planned for removal. -BMR, 2014/04/16
+//		Removed from documentation. -BMR, 2016/03/07
 //--------------------------------------------------------------------------
 void H5File::getVFDHandle(FileAccPropList& fapl, void **file_handle) const
 {
@@ -517,6 +524,23 @@ hsize_t H5File::getFileSize() const
    return (file_size);
 }
 
+//--------------------------------------------------------------------------
+// Function:	H5File::getId
+///\brief	Get the id of this file
+///\return	File identifier
+// Modification:
+//	May 2008 - BMR
+//		Class hierarchy is revised to address bugzilla 1068.  Class
+//		AbstractDS and Attribute are moved out of H5Object.  In
+//		addition, member IdComponent::id is moved into subclasses, and
+//		IdComponent::getId now becomes pure virtual function.
+// Programmer	Binh-Minh Ribler - May, 2008
+//--------------------------------------------------------------------------
+hid_t H5File::getId() const
+{
+   return(id);
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 //--------------------------------------------------------------------------
 // Function:	H5File::reopen
@@ -543,37 +567,18 @@ hid_t H5File::getLocId() const
 {
    return( getId() );
 }
-#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 //--------------------------------------------------------------------------
-// Function:    H5File::getId
-///\brief	Get the id of this file
-///\return	File identifier
-// Modification:
-//      May 2008 - BMR
-//              Class hierarchy is revised to address bugzilla 1068.  Class
-//              AbstractDS and Attribute are moved out of H5Object.  In
-//              addition, member IdComponent::id is moved into subclasses, and
-//              IdComponent::getId now becomes pure virtual function.
-// Programmer   Binh-Minh Ribler - May, 2008
-//--------------------------------------------------------------------------
-hid_t H5File::getId() const
-{
-   return(id);
-}
-
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-//--------------------------------------------------------------------------
-// Function:    H5File::p_setId (protected)
-///\brief       Sets the identifier of this object to a new value.
+// Function:	H5File::p_setId (protected)
+///\brief	Sets the identifier of this object to a new value.
 ///
-///\exception   H5::IdComponentException when the attempt to close the HDF5
-///             object fails
+///\exception	H5::IdComponentException when the attempt to close the HDF5
+///		object fails
 // Description:
-//              The underlaying reference counting in the C library ensures
-//              that the current valid id of this object is properly closed.
-//              Then the object's id is reset to the new id.
-// Programmer   Binh-Minh Ribler - 2000
+//		The underlaying reference counting in the C library ensures
+//		that the current valid id of this object is properly closed.
+//		Then the object's id is reset to the new id.
+// Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void H5File::p_setId(const hid_t new_id)
 {

@@ -6,11 +6,6 @@
 ! PURPOSE
 !  This module provides fortran specific helper functions for the HDF library
 !
-! USES
-!  H5LIB_PROVISIONAL - This module provides helper functions for Fortran 2003
-!                      only features. If Fortran 2003 functions are enabled then
-!                      H5_ff_F03.f90 is compiled, else H5_ff_F90.f90,
-!                      which is just a place holder blank module, is compiled.
 ! COPYRIGHT
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 !   Copyright by The HDF Group.                                               *
@@ -28,19 +23,26 @@
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 !
 ! NOTES
-!                         *** IMPORTANT ***
+!       _____ __  __ _____   ____  _____ _______       _   _ _______
+!      |_   _|  \/  |  __ \ / __ \|  __ \__   __|/\   | \ | |__   __|
+! ****   | | | \  / | |__) | |  | | |__) | | |  /  \  |  \| |  | |    ****
+! ****   | | | |\/| |  ___/| |  | |  _  /  | | / /\ \ | . ` |  | |    ****
+! ****  _| |_| |  | | |    | |__| | | \ \  | |/ ____ \| |\  |  | |    ****
+!      |_____|_|  |_|_|     \____/|_|  \_\ |_/_/    \_\_| \_|  |_|
+!
 !  If you add a new function you must add the function name to the
 !  Windows dll file 'hdf5_fortrandll.def.in' in the fortran/src directory.
 !  This is needed for Windows based operating systems.
 !
 !*****
 
+#include <H5config_f.inc>
+
 MODULE H5LIB
 
-  USE H5LIB_PROVISIONAL  ! helper functions for Fortran 2003 features:
-                         !       pre-Fortran 2003 - empty module
-                         !       Forttran 2003    - contains functions
+  USE, INTRINSIC :: ISO_C_BINDING, ONLY : c_ptr, C_INTPTR_T
   USE H5GLOBAL
+  IMPLICIT NONE
 
 CONTAINS
 !****s* H5LIB/h5open_f
@@ -68,21 +70,20 @@ CONTAINS
 !          October 13, 2011
 ! Fortran90 Interface:
   SUBROUTINE h5open_f(error)
-    USE H5GLOBAL
     IMPLICIT NONE
     INTEGER, INTENT(OUT) :: error
 !*****
-    INTEGER :: error_1, error_2, error_3
+    INTEGER ::  error_1, error_2, error_3
 
     INTERFACE
-       INTEGER FUNCTION h5init_types_c(p_types, f_types, i_types)
-         USE H5GLOBAL
+       INTEGER FUNCTION h5init_types_c(p_types, f_types, i_types) &
+            BIND(C,NAME='h5init_types_c')
+         IMPORT :: HID_T
+         IMPORT :: PREDEF_TYPES_LEN, FLOATING_TYPES_LEN, INTEGER_TYPES_LEN
+         IMPLICIT NONE
          INTEGER(HID_T), DIMENSION(PREDEF_TYPES_LEN) :: p_types
          INTEGER(HID_T), DIMENSION(FLOATING_TYPES_LEN) :: f_types
          INTEGER(HID_T), DIMENSION(INTEGER_TYPES_LEN) :: i_types
-         !DEC$IF DEFINED(HDF5F90_WINDOWS)
-         !DEC$ATTRIBUTES C,reference,decorate,alias:'H5INIT_TYPES_C'::h5init_types_c
-         !DEC$ENDIF
        END FUNCTION h5init_types_c
     END INTERFACE
     INTERFACE
@@ -104,8 +105,18 @@ CONTAINS
             i_H5S_hsize_flags, &
             i_H5T_flags, &
             i_H5Z_flags, &
-            i_H5generic_flags)
-         USE H5GLOBAL
+            i_H5generic_flags, &
+            i_H5generic_haddr_flags) &
+            BIND(C,NAME='h5init_flags_c')
+         IMPORT :: HID_T, SIZE_T, HSIZE_T, HADDR_T
+         IMPORT :: H5D_FLAGS_LEN, H5D_SIZE_FLAGS_LEN, &
+              H5E_FLAGS_LEN, H5E_HID_FLAGS_LEN, &
+              H5F_FLAGS_LEN, H5G_FLAGS_LEN, H5FD_FLAGS_LEN, &
+              H5FD_HID_FLAGS_LEN, H5I_FLAGS_LEN, H5L_FLAGS_LEN, &
+              H5O_FLAGS_LEN, H5P_FLAGS_LEN, H5P_FLAGS_INT_LEN, &
+              H5R_FLAGS_LEN, H5S_FLAGS_LEN, H5S_HSIZE_FLAGS_LEN, &
+              H5T_FLAGS_LEN, H5Z_FLAGS_LEN, H5generic_FLAGS_LEN, H5generic_haddr_FLAGS_LEN
+         IMPLICIT NONE
          INTEGER i_H5D_flags(H5D_FLAGS_LEN)
          INTEGER(SIZE_T) i_H5D_size_flags(H5D_SIZE_FLAGS_LEN)
          INTEGER i_H5E_flags(H5E_FLAGS_LEN)
@@ -125,18 +136,15 @@ CONTAINS
          INTEGER i_H5T_flags(H5T_FLAGS_LEN)
          INTEGER i_H5Z_flags(H5Z_FLAGS_LEN)
          INTEGER i_H5generic_flags(H5generic_FLAGS_LEN)
-         !DEC$IF DEFINED(HDF5F90_WINDOWS)
-         !DEC$ATTRIBUTES C,reference,decorate,alias:'H5INIT_FLAGS_C'::h5init_flags_c
-         !DEC$ENDIF
+         INTEGER(HADDR_T) i_H5generic_haddr_flags(H5generic_haddr_FLAGS_LEN)
        END FUNCTION h5init_flags_c
     END INTERFACE
     INTERFACE
-       INTEGER FUNCTION h5init1_flags_c( i_H5LIB_flags )
-         USE H5GLOBAL
+       INTEGER FUNCTION h5init1_flags_c( i_H5LIB_flags ) &
+            BIND(C,NAME='h5init1_flags_c')
+         IMPORT :: H5LIB_FLAGS_LEN
+         IMPLICIT NONE
          INTEGER i_H5LIB_flags(H5LIB_FLAGS_LEN)
-         !DEC$IF DEFINED(HDF5F90_WINDOWS)
-         !DEC$ATTRIBUTES C,reference,decorate,alias:'H5INIT1_FLAGS_C'::h5init1_flags_c
-         !DEC$ENDIF
        END FUNCTION h5init1_flags_c
     END INTERFACE
     error_1 = h5init_types_c(predef_types, floating_types, integer_types)
@@ -158,7 +166,8 @@ CONTAINS
          H5S_hsize_flags, &
          H5T_flags, &
          H5Z_flags, &
-         H5generic_flags)
+         H5generic_flags,&
+         H5generic_haddr_flags)
     error_3 = h5init1_flags_c(H5LIB_flags )
     error = error_1 + error_2 + error_3
   END SUBROUTINE h5open_f
@@ -188,7 +197,6 @@ CONTAINS
 !          October 13, 2011
 ! Fortran90 Interface:
   SUBROUTINE h5close_f(error)
-    USE H5GLOBAL
     IMPLICIT NONE
     INTEGER, INTENT(OUT) :: error
 !*****
@@ -196,17 +204,15 @@ CONTAINS
     INTERFACE
        INTEGER FUNCTION h5close_types_c(p_types, P_TYPES_LEN, &
             f_types, F_TYPES_LEN, &
-            i_types, I_TYPES_LEN )
-         USE H5GLOBAL
+            i_types, I_TYPES_LEN ) &
+            BIND(C,NAME='h5close_types_c')
+         IMPORT :: HID_T
          INTEGER P_TYPES_LEN
          INTEGER F_TYPES_LEN
          INTEGER I_TYPES_LEN
          INTEGER(HID_T), DIMENSION(P_TYPES_LEN) :: p_types
          INTEGER(HID_T), DIMENSION(F_TYPES_LEN) :: f_types
          INTEGER(HID_T), DIMENSION(I_TYPES_LEN) :: i_types
-         !DEC$IF DEFINED(HDF5F90_WINDOWS)
-         !DEC$ATTRIBUTES C,reference,decorate,alias:'H5CLOSE_TYPES_C'::h5close_types_c
-         !DEC$ENDIF
        END FUNCTION h5close_types_c
     END INTERFACE
     error_1 = h5close_types_c(predef_types, PREDEF_TYPES_LEN, &
@@ -236,15 +242,13 @@ CONTAINS
 !
 ! Fortran90 Interface:
   SUBROUTINE h5get_libversion_f(majnum, minnum, relnum, error)
-    USE H5GLOBAL
     IMPLICIT NONE
     INTEGER, INTENT(OUT) :: majnum, minnum, relnum, error
 !*****
     INTERFACE
-       INTEGER FUNCTION h5get_libversion_c(majnum, minnum, relnum)
-         !DEC$IF DEFINED(HDF5F90_WINDOWS)
-         !DEC$ATTRIBUTES C,reference,decorate,alias:'H5GET_LIBVERSION_C'::h5get_libversion_c
-         !DEC$ENDIF
+       INTEGER FUNCTION h5get_libversion_c(majnum, minnum, relnum) &
+            BIND(C,NAME='h5get_libversion_c')
+         IMPLICIT NONE
          INTEGER, INTENT(OUT) :: majnum, minnum, relnum
        END FUNCTION h5get_libversion_c
     END INTERFACE
@@ -275,16 +279,14 @@ CONTAINS
 !
 ! Fortran90 Interface:
   SUBROUTINE h5check_version_f(majnum, minnum, relnum, error)
-    USE H5GLOBAL
     IMPLICIT NONE
     INTEGER, INTENT(IN)  :: majnum, minnum, relnum
     INTEGER, INTENT(OUT) :: error
 !*****
     INTERFACE
-       INTEGER FUNCTION h5check_version_c(majnum, minnum, relnum)
-         !DEC$IF DEFINED(HDF5F90_WINDOWS)
-         !DEC$ATTRIBUTES C,reference,decorate,alias:'H5CHECK_VERSION_C'::h5check_version_c
-         !DEC$ENDIF
+       INTEGER FUNCTION h5check_version_c(majnum, minnum, relnum) &
+            BIND(C,NAME='h5check_version_c')
+         IMPLICIT NONE
          INTEGER, INTENT(IN) :: majnum, minnum, relnum
        END FUNCTION h5check_version_c
     END INTERFACE
@@ -309,15 +311,12 @@ CONTAINS
 !
 ! Fortran90 Interface:
   SUBROUTINE h5garbage_collect_f(error)
-    USE H5GLOBAL
     IMPLICIT NONE
     INTEGER, INTENT(OUT) :: error
 !*****
     INTERFACE
-       INTEGER FUNCTION h5garbage_collect_c()
-         !DEC$IF DEFINED(HDF5F90_WINDOWS)
-         !DEC$ATTRIBUTES C,reference,decorate,alias:'H5GARBAGE_COLLECT_C'::h5garbage_collect_c
-         !DEC$ENDIF
+       INTEGER FUNCTION h5garbage_collect_c() &
+            BIND(C,NAME='h5garbage_collect_c')
        END FUNCTION h5garbage_collect_c
     END INTERFACE
 
@@ -341,15 +340,12 @@ CONTAINS
 !
 ! Fortran90 Interface:
   SUBROUTINE h5dont_atexit_f(error)
-    USE H5GLOBAL
     IMPLICIT NONE
     INTEGER, INTENT(OUT) :: error
 !*****
     INTERFACE
-       INTEGER FUNCTION h5dont_atexit_c()
-         !DEC$IF DEFINED(HDF5F90_WINDOWS)
-         !DEC$ATTRIBUTES C,reference,decorate,alias:'H5DONT_ATEXIT_C'::h5dont_atexit_c
-         !DEC$ENDIF
+       INTEGER FUNCTION h5dont_atexit_c() &
+            BIND(C,NAME='h5dont_atexit_c')
        END FUNCTION h5dont_atexit_c
     END INTERFACE
 
@@ -367,43 +363,100 @@ CONTAINS
 !
 ! Inputs:
 !  kind    - Fortran KIND parameter
-!  flag    - whether KIND is of type INTEGER or REAL:
+!  flag    - Whether KIND is of type INTEGER or REAL:
 !              H5_INTEGER_KIND - integer
 !              H5_REAL_KIND    - real
 ! Outputs:
-!  h5_type - returns the type
+!  h5_type - Returns the type
 !
 ! AUTHOR
 !  M. Scot Breitenfeld
 !  August 25, 2008
 !
 ! Fortran90 Interface:
-  INTEGER(HID_T) FUNCTION h5kind_to_type(kind, flag) RESULT(h5_type)
-    USE H5GLOBAL
+  INTEGER(HID_T) FUNCTION h5kind_to_type(ikind, flag) RESULT(h5_type)
+    USE ISO_C_BINDING
     IMPLICIT NONE
-    INTEGER, INTENT(IN) :: kind
+    INTEGER, INTENT(IN) :: ikind
     INTEGER, INTENT(IN) :: flag
+#if H5_HAVE_Fortran_INTEGER_SIZEOF_16!=0
+    INTEGER :: Fortran_INTEGER_16
+    Fortran_INTEGER_16=SELECTED_INT_KIND(36) !should map to INTEGER*16 on most modern processors
+#endif
+    
+
 !*****
     IF(flag.EQ.H5_INTEGER_KIND)THEN
-       IF(kind.EQ.Fortran_INTEGER_1)THEN
+       IF(ikind.EQ.Fortran_INTEGER_1)THEN
           h5_type = H5T_NATIVE_INTEGER_1
-       ELSE IF(kind.EQ.Fortran_INTEGER_2)THEN
+       ELSE IF(ikind.EQ.Fortran_INTEGER_2)THEN
           h5_type = H5T_NATIVE_INTEGER_2
-       ELSE IF(kind.EQ.Fortran_INTEGER_4)THEN
+       ELSE IF(ikind.EQ.Fortran_INTEGER_4)THEN
           h5_type = H5T_NATIVE_INTEGER_4
-       ELSE IF(kind.EQ.Fortran_INTEGER_8)THEN
+       ELSE IF(ikind.EQ.Fortran_INTEGER_8)THEN
           h5_type = H5T_NATIVE_INTEGER_8
+#if H5_HAVE_Fortran_INTEGER_SIZEOF_16!=0
+       ELSE IF(ikind.EQ.Fortran_INTEGER_16)THEN
+          h5_type = H5T_NATIVE_INTEGER_16
+#endif
        ENDIF
     ELSE IF(flag.EQ.H5_REAL_KIND)THEN
-       IF(kind.EQ.Fortran_REAL_4)THEN
-          h5_type = H5T_NATIVE_REAL_4
-       ELSE IF(kind.EQ.Fortran_REAL_8)THEN
-          h5_type = H5T_NATIVE_REAL_8
-       ELSE IF(kind.EQ.Fortran_REAL_16)THEN
-          h5_type = H5T_NATIVE_REAL_16
+       IF(ikind.EQ.KIND(1.0_C_FLOAT))THEN
+          h5_type = H5T_NATIVE_REAL_C_FLOAT
+       ELSE IF(ikind.EQ.KIND(1.0_C_DOUBLE))THEN
+          h5_type = H5T_NATIVE_REAL_C_DOUBLE
+#if H5_FORTRAN_C_LONG_DOUBLE_IS_UNIQUE!=0
+       ELSE IF(ikind.EQ.KIND(1.0_C_LONG_DOUBLE))THEN
+          h5_type = H5T_NATIVE_REAL_C_LONG_DOUBLE
+#endif
+#if H5_PAC_FC_MAX_REAL_PRECISION > 28 
+#if H5_HAVE_FLOAT128 == 1
+       ELSE
+          h5_type = H5T_NATIVE_FLOAT_128
+#endif
+#else
+       ELSE
+          h5_type = -1
+#endif
        ENDIF
     ENDIF
 
   END FUNCTION h5kind_to_type
+
+!****f* H5LIB_PROVISIONAL/h5offsetof
+!
+! NAME
+!  h5offsetof
+!
+! PURPOSE
+!  Computes the offset in memory
+!
+! Inputs:
+!  start - starting pointer address
+!  end 	 - ending pointer address
+!
+! Outputs:
+!  offset - offset of a member within the derived type
+!
+! AUTHOR
+!  M. Scot Breitenfeld
+!  Augest 25, 2008
+!
+! ACKNOWLEDGEMENTS
+!  Joe Krahn
+!
+! Fortran2003 Interface:
+  FUNCTION h5offsetof(start,end) RESULT(offset)
+    IMPLICIT NONE
+    INTEGER(SIZE_T) :: offset
+    TYPE(C_PTR), VALUE, INTENT(IN) :: start, end
+!*****
+    INTEGER(C_INTPTR_T) :: int_address_start, int_address_end
+    int_address_start = TRANSFER(start, int_address_start)
+    int_address_end   = TRANSFER(end  , int_address_end  )
+
+    offset = int_address_end - int_address_start
+
+  END FUNCTION h5offsetof
 
 END MODULE H5LIB

@@ -13,7 +13,7 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#define H5Z_PACKAGE		/*suppress error about including H5Zpkg	  */
+#include "H5Zmodule.h"          /* This source code file is part of the H5Z module */
 
 
 #include "H5private.h"		/* Generic Functions			*/
@@ -23,8 +23,6 @@
 #include "H5Pprivate.h"         /* Property lists                       */
 #include "H5Tprivate.h"		/* Datatypes         			*/
 #include "H5Zpkg.h"		/* Data filters				*/
-
-#ifdef H5_HAVE_FILTER_SHUFFLE
 
 /* Local function prototypes */
 static herr_t H5Z_set_local_shuffle(hid_t dcpl_id, hid_t type_id, hid_t space_id);
@@ -63,9 +61,8 @@ const H5Z_class2_t H5Z_SHUFFLE[1] = {{
  *
  *-------------------------------------------------------------------------
  */
-/* ARGSUSED */
 static herr_t
-H5Z_set_local_shuffle(hid_t dcpl_id, hid_t type_id, hid_t UNUSED space_id)
+H5Z_set_local_shuffle(hid_t dcpl_id, hid_t type_id, hid_t H5_ATTR_UNUSED space_id)
 {
     H5P_genplist_t *dcpl_plist;     /* Property list pointer */
     const H5T_t	*type;                  /* Datatype */
@@ -137,7 +134,7 @@ H5Z_filter_shuffle(unsigned flags, size_t cd_nelmts, const unsigned cd_values[],
     size_t j;                   /* Local index variable */
 #endif /* NO_DUFFS_DEVICE */
     size_t leftover;            /* Extra bytes at end of buffer */
-    size_t ret_value;           /* Return value */
+    size_t ret_value = 0;       /* Return value */
 
     FUNC_ENTER_NOAPI(0)
 
@@ -291,5 +288,4 @@ H5Z_filter_shuffle(unsigned flags, size_t cd_nelmts, const unsigned cd_values[],
 done:
     FUNC_LEAVE_NOAPI(ret_value)
 }
-#endif /*H5_HAVE_FILTER_SHUFFLE */
 

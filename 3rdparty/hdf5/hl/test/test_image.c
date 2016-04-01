@@ -540,13 +540,12 @@ static int test_generate(void)
 {
     hid_t    fid;
     hsize_t  pal_dims[2] = { 256, 3 };
-    float    *data;
+    float    *data = NULL;
     int      imax, jmax, kmax;
     int      n_elements;
     float    valex, xmin, xmax, value;
     FILE     *f = NULL;
-    char     *srcdir = getenv("srcdir"); /* the source directory */
-    char     data_file[512]="";          /* buffer to hold name of existing data file */
+    const char *data_file = H5_get_srcdir_filename(DATA_FILE4);
     int      i;
     int      retval = FAIL;
 
@@ -555,17 +554,6 @@ static int test_generate(void)
         goto out;
 
     printf("Testing read and process data and make indexed images\n");
-
-    /*-------------------------------------------------------------------------
-    * compose the name of the file to open, using the srcdir, if appropriate
-    *-------------------------------------------------------------------------
-    */
-    if ( srcdir )
-    {
-        HDstrcpy(data_file, srcdir);
-        HDstrcat(data_file, "/");
-    }
-    HDstrcat(data_file,DATA_FILE4);
 
     /*-------------------------------------------------------------------------
     * read data; the file data format is described below
@@ -887,20 +875,7 @@ static int read_palette(const char* fname,
     unsigned int  green;
     unsigned int  blue;
     unsigned      nentries;
-    char          *srcdir = getenv("srcdir"); /* the source directory */
-    char          data_file[512];             /* buffer to hold name of existing data file */
-
-    /*-------------------------------------------------------------------------
-    * compose the name of the file to open, using "srcdir", if appropriate
-    *-------------------------------------------------------------------------
-    */
-    HDstrcpy(data_file, "");
-    if (srcdir)
-    {
-        HDstrcpy(data_file, srcdir);
-        HDstrcat(data_file, "/");
-    }
-    HDstrcat(data_file,fname);
+    const char *data_file = H5_get_srcdir_filename(fname);
 
     /* ensure the given palette is valid */
     if (!palette)

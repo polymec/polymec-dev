@@ -26,6 +26,7 @@
 #include "H5PropList.h"
 #include "H5Object.h"
 #include "H5PropList.h"
+#include "H5OcreatProp.h"
 #include "H5DxferProp.h"
 #include "H5DcreatProp.h"
 #include "H5FaccProp.h"
@@ -52,17 +53,23 @@ namespace H5 {
 ///\brief	Default constructor: creates a stub DataSet.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataSet::DataSet() : AbstractDs(), H5Object(), id(H5I_INVALID_HID) {}
+DataSet::DataSet() : H5Object(), AbstractDs(), id(H5I_INVALID_HID) {}
 
 //--------------------------------------------------------------------------
 // Function:	DataSet overloaded constructor
 ///\brief	Creates an DataSet object using the id of an existing dataset.
 ///\param	existing_id - IN: Id of an existing dataset
 // Programmer	Binh-Minh Ribler - 2000
+// Description
+//		incRefCount() is needed here to prevent the id from being closed
+//		prematurely.  That is, when application uses the id of an
+//		existing DataSet object to create another DataSet object.  So,
+//		when one of those objects is deleted, the id will be closed if
+//		the reference counter is only 1.
 //--------------------------------------------------------------------------
-DataSet::DataSet(const hid_t existing_id) : AbstractDs(), H5Object()
+DataSet::DataSet(const hid_t existing_id) : H5Object(), AbstractDs(), id(existing_id)
 {
-    id = existing_id;
+    incRefCount(); // increment number of references to this id
 }
 
 //--------------------------------------------------------------------------
@@ -71,9 +78,8 @@ DataSet::DataSet(const hid_t existing_id) : AbstractDs(), H5Object()
 ///\param	original - IN: DataSet instance to copy
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataSet::DataSet(const DataSet& original) : AbstractDs(original), H5Object(original)
+DataSet::DataSet(const DataSet& original) : H5Object(), AbstractDs(), id(original.id)
 {
-    id = original.getId();
     incRefCount(); // increment number of references to this id
 }
 
@@ -85,6 +91,7 @@ DataSet::DataSet(const DataSet& original) : AbstractDs(original), H5Object(origi
 ///			  object that the dataset is located within.
 ///\param	ref - IN: Reference pointer
 ///\param	ref_type - IN: Reference type - default to H5R_OBJECT
+///\param	plist - IN: Property list - default to PropList::DEFAULT
 ///\exception	H5::DataSetIException
 ///\par Description
 ///		\c loc can be DataSet, Group, H5File, or named DataType, that
@@ -94,9 +101,9 @@ DataSet::DataSet(const DataSet& original) : AbstractDs(original), H5Object(origi
 //	Jul, 2008
 //		Added for application convenience.
 //--------------------------------------------------------------------------
-DataSet::DataSet(const H5Location& loc, const void* ref, H5R_type_t ref_type) : AbstractDs(), H5Object(), id(H5I_INVALID_HID)
+DataSet::DataSet(const H5Location& loc, const void* ref, H5R_type_t ref_type, const PropList& plist) : H5Object(), AbstractDs(), id(H5I_INVALID_HID)
 {
-    id = H5Location::p_dereference(loc.getId(), ref, ref_type, "constructor - by dereferenced");
+    id = H5Location::p_dereference(loc.getId(), ref, ref_type, plist, "constructor - by dereferenced");
 }
 
 //--------------------------------------------------------------------------
@@ -106,15 +113,16 @@ DataSet::DataSet(const H5Location& loc, const void* ref, H5R_type_t ref_type) : 
 ///\param	attr - IN: Specifying location where the referenced object is in
 ///\param	ref - IN: Reference pointer
 ///\param	ref_type - IN: Reference type - default to H5R_OBJECT
+///\param	plist - IN: Property list - default to PropList::DEFAULT
 ///\exception	H5::ReferenceException
 // Programmer	Binh-Minh Ribler - Oct, 2006
 // Modification
 //	Jul, 2008
 //		Added for application convenience.
 //--------------------------------------------------------------------------
-DataSet::DataSet(const Attribute& attr, const void* ref, H5R_type_t ref_type) : AbstractDs(), H5Object(), id(H5I_INVALID_HID)
+DataSet::DataSet(const Attribute& attr, const void* ref, H5R_type_t ref_type, const PropList& plist) : H5Object(), AbstractDs(), id(H5I_INVALID_HID)
 {
-    id = H5Location::p_dereference(attr.getId(), ref, ref_type, "constructor - by dereference");
+    id = H5Location::p_dereference(attr.getId(), ref, ref_type, plist, "constructor - by dereference");
 }
 
 //--------------------------------------------------------------------------
@@ -135,7 +143,8 @@ DataSpace DataSet::getSpace() const
       throw DataSetIException("DataSet::getSpace", "H5Dget_space failed");
    }
    //create dataspace object using the existing id then return the object
-   DataSpace data_space( dataspace_id );
+   DataSpace data_space;
+   f_DataSpace_setId(&data_space, dataspace_id);
    return( data_space );
 }
 
@@ -167,9 +176,11 @@ DSetCreatPropList DataSet::getCreatePlist() const
    {
       throw DataSetIException("DataSet::getCreatePlist", "H5Dget_create_plist failed");
    }
+
    // create and return the DSetCreatPropList object
-   DSetCreatPropList create_plist( create_plist_id );
-   return( create_plist );
+   DSetCreatPropList create_plist;
+   f_PropList_setId(&create_plist, create_plist_id);
+   return(create_plist);
 }
 
 //--------------------------------------------------------------------------
@@ -312,16 +323,19 @@ hsize_t DataSet::getVlenBufSize(const DataType& type, const DataSpace& space ) c
 
 //--------------------------------------------------------------------------
 // Function:	DataSet::getVlenBufSize
-///\brief       This is an overloaded member function, kept for backward
-///		compatibility.  It differs from the above function in that it
-///             misses const's.  This wrapper will be removed in future release.
-///\return	Amount of storage
-///\exception	H5::DataSetIException
+// Purpose	This is an overloaded member function, kept for backward
+//		compatibility.  It differs from the above function in that it
+//		misses const's.  This wrapper will be removed in future release.
+// Return	Amount of storage
+// Exception	H5::DataSetIException
 // Programmer	Binh-Minh Ribler - 2000
+// Modification
+//		Modified to call its replacement. -BMR, 2014/04/16
+//		Removed from documentation. -BMR, 2016/03/07
 //--------------------------------------------------------------------------
 hsize_t DataSet::getVlenBufSize( DataType& type, DataSpace& space ) const
 {
-    return(getVlenBufSize((const DataType)type, (const DataSpace)space));
+    return(getVlenBufSize(type, space));
 }
 
 //--------------------------------------------------------------------------
@@ -607,16 +621,19 @@ void DataSet::fillMemBuf(const void *fill, const DataType& fill_type, void *buf,
 
 //--------------------------------------------------------------------------
 // Function:	DataSet::fillMemBuf
-///\brief       This is an overloaded member function, kept for backward
-///		compatibility.  It differs from the above function in that it
-///             misses const's.  This wrapper will be removed in future release.
-///\param	fill - IN: Pointer to fill value to use - default NULL
-///\param	fill_type - IN: Datatype of the fill value
-///\param	buf - IN/OUT: Memory buffer to fill selection within
-///\param	buf_type - IN: Datatype of the elements in buffer
-///\param	space - IN: Dataspace describing memory buffer & containing selection to use
-///\exception	H5::DataSetIException
+// Purpose	This is an overloaded member function, kept for backward
+//		compatibility.  It differs from the above function in that it
+//		misses const's.  This wrapper will be removed in future release.
+// Param 	fill - IN: Pointer to fill value to use - default NULL
+// Param 	fill_type - IN: Datatype of the fill value
+// Param 	buf - IN/OUT: Memory buffer to fill selection within
+// Param 	buf_type - IN: Datatype of the elements in buffer
+// Param 	space - IN: Dataspace describing memory buffer & containing selection to use
+// Exception	H5::DataSetIException
 // Programmer	Binh-Minh Ribler - 2000
+// Modification
+//		Modified to call its replacement. -BMR, 2014/04/16
+//		Removed from documentation. -BMR, 2016/03/07
 //--------------------------------------------------------------------------
 void DataSet::fillMemBuf(const void *fill, DataType& fill_type, void *buf, DataType& buf_type, DataSpace& space)
 {
@@ -645,14 +662,17 @@ void DataSet::fillMemBuf(void *buf, const DataType& buf_type, const DataSpace& s
 
 //--------------------------------------------------------------------------
 // Function:    DataSet::fillMemBuf
-///\brief       This is an overloaded member function, kept for backward
-///		compatibility.  It differs from the above function in that it
-///             misses const's.  This wrapper will be removed in future release.
-///\param       buf - IN/OUT: Memory buffer to fill selection within
-///\param       buf_type - IN: Datatype of the elements in buffer
-///\param       space - IN: Dataspace describing memory buffer & containing selection to use
-///\exception   H5::DataSetIException
+// Purpose	This is an overloaded member function, kept for backward
+//		compatibility.  It differs from the above function in that it
+//		misses const's.  This wrapper will be removed in future release.
+// Param        buf - IN/OUT: Memory buffer to fill selection within
+// Param        buf_type - IN: Datatype of the elements in buffer
+// Param        space - IN: Dataspace describing memory buffer & containing selection to use
+// Exception	H5::DataSetIException
 // Programmer   Binh-Minh Ribler - 2000
+// Modification
+//		Modified to call its replacement. -BMR, 2014/04/16
+//		Removed from documentation. -BMR, 2016/03/07
 //--------------------------------------------------------------------------
 void DataSet::fillMemBuf(void *buf, DataType& buf_type, DataSpace& space)
 {
@@ -767,6 +787,22 @@ void DataSet::p_setId(const hid_t new_id)
    // reset object's id to the given id
    id = new_id;
 }
+
+//--------------------------------------------------------------------------
+// Function:    f_PropList_setId - friend
+// Purpose:     This function is friend to class H5::PropList so that it
+//              can set PropList::id in order to work around a problem
+//              described in the JIRA issue HDFFV-7947.
+//              Applications shouldn't need to use it.
+// param        dset   - IN/OUT: DataSet object to be changed
+// param        new_id - IN: New id to set
+// Programmer   Binh-Minh Ribler - 2015
+//--------------------------------------------------------------------------
+void f_PropList_setId(PropList* plist, hid_t new_id)
+{
+    plist->p_setId(new_id);
+}
+
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
 //--------------------------------------------------------------------------

@@ -141,13 +141,11 @@ CONTAINS
           CALL h5fcreate_f(fix_filename1, H5F_ACC_TRUNC_F, file1_id, error)
                CALL check("h5fcreate_f",error,total_error)
 
-
           !
           !Create group "/G" inside file "mount1.h5".
           !
           CALL h5gcreate_f(file1_id, "/G", gid, error)
                CALL check("h5gcreate_f",error,total_error)
-
           !
           !close file and group identifiers.
           !
@@ -357,13 +355,6 @@ CONTAINS
                     dset_data(i,j) = (i-1)*6 + j;
                end do
           end do
-
-          !
-          !Initialize FORTRAN predifined datatypes
-          !
-!          CALL h5init_types_f(error)
-!               CALL check("h5init_types_f",error,total_error)
-
 
           !
           !Create file "reopen.h5" using default properties.

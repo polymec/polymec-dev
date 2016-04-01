@@ -54,9 +54,6 @@ unsigned long long packed_data_mask;  /* mask in which packed bits to display */
 
 /* module-scoped variables */
 static int  h5tools_init_g;     /* if h5tools lib has been initialized */
-#ifdef H5_HAVE_PARALLEL
-static int  h5tools_mpi_init_g; /* if MPI_Init() has been called */
-#endif /* H5_HAVE_PARALLEL */
 
 /* Names of VFDs */
 static const char *drivernames[]={
@@ -516,11 +513,14 @@ h5tools_get_fapl(hid_t fapl, const char *driver, unsigned *drivernum)
     }
 #ifdef H5_HAVE_PARALLEL
     else if(!HDstrcmp(driver, drivernames[MPIO_IDX])) {
+        int mpi_initialized, mpi_finalized;
+
         /* MPI-I/O Driver */
-        /* check if MPI has been initialized. */
-        if(!h5tools_mpi_init_g)
-            MPI_Initialized(&h5tools_mpi_init_g);
-        if(h5tools_mpi_init_g) {
+        /* check if MPI is available. */
+        MPI_Initialized(&mpi_initialized);
+        MPI_Finalized(&mpi_finalized);
+
+        if(mpi_initialized && !mpi_finalized) {
             if(H5Pset_fapl_mpio(new_fapl, MPI_COMM_WORLD, MPI_INFO_NULL) < 0)
                 goto error;
             if(drivernum)
@@ -1476,7 +1476,7 @@ render_bin_output(FILE *stream, hid_t container, hid_t tid, void *_mem,  hsize_t
 
                         for (block_index = 0; block_index < block_nelmts; block_index++) {
                             mem = ((unsigned char*)_mem) + block_index * size;
-                            region_id = H5Rdereference(container, H5R_DATASET_REGION, mem);
+                            region_id = H5Rdereference2(container, H5P_DEFAULT, H5R_DATASET_REGION, mem);
                             if (region_id >= 0) {
                                 region_space = H5Rget_region(container, H5R_DATASET_REGION, mem);
                                 if (region_space >= 0) {
@@ -1498,14 +1498,24 @@ render_bin_output(FILE *stream, hid_t container, hid_t tid, void *_mem,  hsize_t
                 }
             }
             break;
-        default:
+
+        case H5T_TIME:
+        case H5T_BITFIELD:
+        case H5T_OPAQUE:
             for (block_index = 0; block_index < block_nelmts; block_index++) {
                 mem = ((unsigned char*)_mem) + block_index * size;
                 if (size != HDfwrite(mem, sizeof(char), size, stream))
                     H5E_THROW(FAIL, H5E_tools_min_id_g, "fwrite failed");
-            }
+            } /* end for */
             break;
-    }
+
+        case H5T_NO_CLASS:
+        case H5T_NCLASSES:
+        default:
+            /* Badness */
+            H5E_THROW(FAIL, H5E_tools_min_id_g, "bad type class");
+            break;
+    } /* end switch */
 
 CATCH
     return ret_value;
@@ -1631,8 +1641,8 @@ render_bin_output_region_blocks(hid_t region_space, hid_t region_id,
     hsize_t      alloc_size;
     hsize_t     *ptdata;
     int          ndims;
-    hid_t        dtype;
-    hid_t        type_id;
+    hid_t        dtype = -1;
+    hid_t        type_id = -1;
 
     if((snblocks = H5Sget_select_hyper_nblocks(region_space)) <= 0)
         H5E_THROW(FALSE, H5E_tools_min_id_g, "H5Sget_select_hyper_nblocks failed");
@@ -1662,10 +1672,10 @@ render_bin_output_region_blocks(hid_t region_space, hid_t region_id,
  done:
     HDfree(ptdata);
 
-    if(H5Tclose(type_id) < 0)
+    if(type_id > 0 && H5Tclose(type_id) < 0)
         HERROR(H5E_tools_g, H5E_tools_min_id_g, "H5Tclose failed");
 
-    if(H5Tclose(dtype) < 0)
+    if(dtype > 0 && H5Tclose(dtype) < 0)
         HERROR(H5E_tools_g, H5E_tools_min_id_g, "H5Tclose failed");
 
     H5_LEAVE(TRUE)
@@ -1755,8 +1765,8 @@ render_bin_output_region_points(hid_t region_space, hid_t region_id,
     HERR_INIT(hbool_t, TRUE)
     hssize_t npoints;
     int      ndims;
-    hid_t    dtype;
-    hid_t    type_id;
+    hid_t    dtype = -1;
+    hid_t    type_id = -1;
 
     if((npoints = H5Sget_select_elem_npoints(region_space)) <= 0)
         H5E_THROW(FALSE, H5E_tools_min_id_g, "H5Sget_select_elem_npoints failed");
@@ -1775,10 +1785,10 @@ render_bin_output_region_points(hid_t region_space, hid_t region_id,
             stream, container, ndims, type_id, npoints);
 
  done:
-    if(H5Tclose(type_id) < 0)
+    if(type_id > 0 && H5Tclose(type_id) < 0)
         HERROR(H5E_tools_g, H5E_tools_min_id_g, "H5Tclose failed");
 
-    if(H5Tclose(dtype) < 0)
+    if(dtype > 0 && H5Tclose(dtype) < 0)
         HERROR(H5E_tools_g, H5E_tools_min_id_g, "H5Tclose failed");
 
     H5_LEAVE(ret_value)

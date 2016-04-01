@@ -16,7 +16,7 @@
 ## ----------------------------------------------------------------------
 ## Initialize configure.
 ##
-AC_REVISION($Id: configure.ac 25805 2014-11-07 13:00:29Z epourmal $)
+AC_REVISION($Id: configure.ac 22697 2012-08-19 14:35:47Z hdftest $)
 AC_PREREQ([2.69])
 
 ## AC_INIT takes the name of the package, the version number, and an
@@ -26,9 +26,10 @@ AC_PREREQ([2.69])
 ## NOTE: Do not forget to change the version number here when we do a
 ## release!!!
 ##
-AC_INIT([HDF5], [1.8.14], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.10.0], [help@hdfgroup.org])
+
 AC_CONFIG_SRCDIR([src/H5.c])
-AC_CONFIG_HEADER([src/H5config.h])
+AC_CONFIG_HEADERS([src/H5config.h])
 
 AC_CONFIG_AUX_DIR([bin])
 AC_CONFIG_MACRO_DIR([m4])
@@ -39,16 +40,20 @@ AM_INIT_AUTOMAKE([foreign])
 AM_SILENT_RULES([yes])
 
 ## AM_MAINTAINER_MODE turns off "rebuild rules" that contain dependencies
-## for Makefiles, configure, src/H5config.h, etc.  If AM_MAINTAINER_MODE
-## is *not* included here, these files will be rebuilt if out of date.
-## This is a problem because if users try to build on a machine with
+## for Makefiles, configure, src/H5config.h, etc. If AM_MAINTAINER_MODE
+## is enabled, these files will be rebuilt if out of date. This is a
+## problem because if users try to build on a machine with
 ## the wrong versions of autoconf and automake, these files will be
 ## rebuilt with the wrong versions and bad things can happen.
 ## Also, CVS doesn't preserve dependencies between timestamps, so
 ## Makefiles will often think rebuilding needs to occur when it doesn't.
-## Developers should './configure --enable-maintainer-mode' to turn on
-## rebuild rules.
-AM_MAINTAINER_MODE
+##
+## By default, it is enabled. Users can configure with
+## --disable-maintainer-mode to prevent running the autotools.
+## AM_MAINTAINER_MODE([enable])
+##
+## Maintainer mode is disabled in releases.
+AM_MAINTAINER_MODE([disable])
 
 ## ----------------------------------------------------------------------
 ## Set prefix default (install directory) to a directory in the build area.
@@ -85,14 +90,20 @@ AC_CONFIG_COMMANDS([pubconf], [
 ## configure is currently running by using the --host=foo flag.
 ## For machines on which HDF5 is often configured, it can be convenient
 ## to specify the name of the machine rather than its canonical type.
-case $host_alias in
-  redstorm)
-    host_alias=x86_64-redstorm-linux-gnu
-    ;;
-esac
+##
+## There are currently no hosts, but if there were they would be
+## listed by hostname and the alias would point to a file in
+## the config directory:
+##
+##case $host_alias in
+##  <some host>)
+##    host_alias=<config file in config directory>
+##    ;;
+##esac
 
 AC_CANONICAL_HOST
 AC_SUBST([CPPFLAGS])
+AC_SUBST([JNIFLAGS])
 
 ## H5_CFLAGS (and company) are for CFLAGS that should be used on HDF5, but
 ## not exported to h5cc (or h5fc, etc.)
@@ -100,6 +111,9 @@ AC_SUBST([H5_CFLAGS])
 AC_SUBST([H5_CPPFLAGS])
 AC_SUBST([H5_FCFLAGS])
 AC_SUBST([H5_CXXFLAGS])
+AC_SUBST([H5_JNIFLAGS])
+AC_SUBST([H5_JAVACFLAGS])
+AC_SUBST([H5_JAVAFLAGS])
 AC_SUBST([H5_LDFLAGS])
 
 ## AM_CFLAGS (and company) are for CFLAGS that should be used on HDF5,
@@ -108,23 +122,27 @@ AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_FCFLAGS])
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_CPPFLAGS])
+AC_SUBST([AM_JNIFLAGS])
+AC_SUBST([AM_JAVACFLAGS])
+AC_SUBST([AM_JAVAFLAGS])
 AC_SUBST([AM_LDFLAGS])
 
-## Make sure flags are set to something (otherwise macros may set them later).
+## Make sure flags are initialized.
 AM_CFLAGS="${AM_CFLAGS}"
 AM_CXXFLAGS="${AM_CXXFLAGS}"
 AM_FCFLAGS="${AM_FCFLAGS}"
 AM_CPPFLAGS="${AM_CPPFLAGS}"
-# Added to address HDFFV-8944
-if test "x$prefix" = xNONE; then
-  AM_LDFLAGS="$AM_LDFLAGS -L$ac_default_prefix/lib"
-else
-  AM_LDFLAGS="$AM_LDFLAGS -L$prefix/lib"
-fi
+AM_JNIFLAGS="${AM_JNIFLAGS}"
+AM_JAVACFLAGS="${AM_JAVACFLAGS}"
+AM_JAVAFLAGS="${AM_JAVAFLAGS}"
+AM_LDFLAGS="${AM_LDFLAGS}"
 CFLAGS="${CFLAGS}"
 CXXFLAGS="${CXXFLAGS}"
 FCFLAGS="${FCFLAGS}"
 CPPFLAGS="${CPPFLAGS}"
+JNIFLAGS="${JNIFLAGS}"
+JAVACFLAGS="${JAVACFLAGS}"
+JAVAFLAGS="${JAVAFLAGS}"
 LDFLAGS="${LDFLAGS}"
 
 ## Configure may need to alter any of the *FLAGS variables in order for
@@ -133,14 +151,10 @@ LDFLAGS="${LDFLAGS}"
 saved_user_CFLAGS="$CFLAGS"
 saved_user_CXXFLAGS="$CXXFLAGS"
 saved_user_FCFLAGS="$FCFLAGS"
+saved_user_JAVACFLAGS="$JAVACFLAGS"
+saved_user_JAVAFLAGS="$JAVAFLAGS"
 saved_user_LDFLAGS="$LDFLAGS"
 saved_user_CPPFLAGS="$CPPFLAGS"
-
-## Different compilers may need default libraries. They are specified in
-## the config/* files, so we put this statement here so that it'll be
-## set by the code which follows...
-##
-DEFAULT_LIBS=""
 
 ## Support F9X variable to define Fortran compiler if FC variable is
 ## not used.  This should be deprecated in the future.
@@ -155,60 +169,18 @@ AC_MSG_CHECKING([shell variables initial values])
 set >&AS_MESSAGE_LOG_FD
 AC_MSG_RESULT([done])
 
-## Define all symbol variables used for configure summary.
-## EXTERNAL_FILTERS equals all external filters. Default none.
-## MPE: whether MPE option is enabled. Default no.
-## STATIC_EXEC: whether static-exec is enabled. Default no.
-## HDF_FORTRAN: whether Fortran is enabled. Default no.
-## HDF_FORTRAN2003: whether Fortran 2003 is enabled. Default no.
-## FC: Fortran compiler.
-## HDF_CXX: whether C++ is enabled. Default no.
-## CXX: C++ compiler.
-## HDF5_HL: whether high-level library is enabled. Default is yes.
-## LARGEFILE: whether largefile support is enabled. Default yes.
-## INSTRUMENT: whether INSTRUMENT is enabled. No default set here.
-## CODESTACK: whether CODESTACK is enabled. Default no.
-## HAVE_DMALLOC: whether system has dmalloc support. Default no.
-## DIRECT_VFD: whether DIRECT_VFD is enabled. Default no.
-## THREADSAFE: whether THREADSAFE is enabled. Default no.
-## STATIC_SHARED: whether static and/or shared libraries are requested.
-## enable_shared: whether shared lib is enabled.
-## enable_static: whether static lib is enabled.
-## UNAME_INFO: System information.
-
-AC_SUBST([EXTERNAL_FILTERS])
-AC_SUBST([MPE]) MPE=no
-AC_SUBST([STATIC_EXEC]) STATIC_EXEC=no
-AC_SUBST([HDF_FORTRAN]) HDF_FORTRAN=no
-AC_SUBST([HDF_FORTRAN2003]) HDF_FORTRAN2003=no
-AC_SUBST([FC]) HDF_FORTRAN=no
-AC_SUBST([FC2003]) HDF_FORTRAN2003=no
-AC_SUBST([HDF_CXX]) HDF_CXX=no
-AC_SUBST([CXX]) HDF_CXX=no
-AC_SUBST([HDF5_HL]) HDF5_HL=yes
-AC_SUBST([LARGEFILE]) LARGEFILE=yes
-AC_SUBST([INSTRUMENT])
-AC_SUBST([CODESTACK]) CODESTACK=no
-AC_SUBST([HAVE_DMALLOC]) HAVE_DMALLOC=no
-AC_SUBST([DIRECT_VFD]) DIRECT_VFD=no
-AC_SUBST([THREADSAFE]) THREADSAFE=no
-AC_SUBST([STATIC_SHARED])
-AC_SUBST([enable_shared])
-AC_SUBST([enable_static])
-AC_SUBST([UNAME_INFO]) UNAME_INFO=`uname -a`
+## ----------------------------------------------------------------------
+## Save system information for the library settings file.
+##
+AC_SUBST([UNAME_INFO])
+UNAME_INFO=`uname -a`
 
 ## ----------------------------------------------------------------------
 ## Some platforms have broken basename, and/or xargs programs. Check
 ## that it actually does what it's supposed to do. Catch this early
-## since configure relies upon them heavily and there's no use continuing
-## if it's broken.
+## since configure and scripts relies upon them heavily and there's
+## no use continuing if it's broken.
 ##
-
-## Avoid depending upon Character Ranges.
-## These are defined by autoconf.
-## as_cr_letters='abcdefghijklmnopqrstuvwxyz'
-## as_cr_LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-
 AC_MSG_CHECKING([if basename works])
 BASENAME_TEST="`basename /foo/bar/baz/qux/basename_works`"
 if test $BASENAME_TEST != "basename_works"; then
@@ -217,6 +189,7 @@ else
   AC_MSG_RESULT([yes])
 fi
 
+## xargs basename used in configure to get the CC_BASENAME value
 AC_MSG_CHECKING([if xargs works])
 XARGS_TEST="`echo /foo/bar/baz/qux/xargs_works | xargs basename`"
 if test $XARGS_TEST != "xargs_works"; then
@@ -244,13 +217,13 @@ fi
 ## turning on debug or profiling flags for the compiler.  The search order
 ## is:
 ##
-##	CPU-VENDOR-OS
-##	VENDOR-OS
-##	CPU-OS
-##	CPU-VENDOR
-##	OS
-##	VENDOR
-##	CPU
+##    CPU-VENDOR-OS
+##    VENDOR-OS
+##    CPU-OS
+##    CPU-VENDOR
+##    OS
+##    VENDOR
+##    CPU
 ##
 ## If the `OS' ends with a version number then remove it. For instance,
 ## `freebsd3.1' would become `freebsd'
@@ -262,20 +235,8 @@ case $host_os in
   freebsd*)
     host_os_novers=freebsd
     ;;
-  irix5.*)
-    host_os_novers=irix5.x
-    ;;
-  irix6.*)
-    host_os_novers=irix6.x
-    ;;
-  osf4.*)
-    host_os_novers=osf4.x
-    ;;
-  osf5.*)
-    host_os_novers=osf5.x
-    ;;
-  solaris2.*)
-    host_os_novers=solaris2.x
+  solaris*)
+    host_os_novers=solaris
     ;;
   *)
     host_os_novers=$host_os
@@ -324,11 +285,67 @@ while test -n "$hname"; do
 done
 
 ## ----------------------------------------------------------------------
+## Determine build mode (debug, production, clean).
+## This has to be done early since the build mode is referred to
+## frequently.
+##
+AC_MSG_CHECKING([build mode])
+AC_ARG_ENABLE([build-mode],
+              [AS_HELP_STRING([--enable-build-mode=(debug|production|clean)],
+                              [Sets the build mode. Debug turns on symbols, API
+                               tracing, asserts, and debug optimization,
+                               as well as several other minor configure options
+                               that aid in debugging.
+                               Production turns high optimizations on.
+                               Clean turns nothing on and disables optimization
+                               (i.e.: a 'clean slate' configuration).
+                               All these settings can be overridden by using
+                               specific configure flags.
+                               [default=production]
+                               ])],
+              [BUILD_MODE=$enableval])
+
+## Set the default
+## Depends on branch, set via script at branch creation time
+if test "X-$BUILD_MODE" = X- ; then
+    BUILD_MODE=production
+fi
+
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([BUILD_MODE])
+
+case "X-$BUILD_MODE" in
+  X-clean)
+    AC_MSG_RESULT([clean])
+    ;;
+  X-debug)
+    AC_DEFINE([DEBUG_BUILD], [1], [Define if this is a debug build.])
+    H5_CFLAGS="$H5_CFLAGS $DEBUG_CFLAGS"
+    H5_CPPFLAGS="$H5_CPPFLAGS $DEBUG_CPPFLAGS"
+    H5_CXXFLAGS="$H5_CXXFLAGS $DEBUG_CXXFLAGS"
+    H5_FCFLAGS="$H5_FCFLAGS $DEBUG_FCFLAGS"
+    AC_MSG_RESULT([debug])
+    ;;
+  X-production)
+    H5_CFLAGS="$H5_CFLAGS $PROD_CFLAGS"
+    H5_CPPFLAGS="$H5_CPPFLAGS $PROD_CPPFLAGS"
+    H5_CXXFLAGS="$H5_CXXFLAGS $PROD_CXXFLAGS"
+    H5_FCFLAGS="$H5_FCFLAGS $PROD_FCFLAGS"
+    AC_MSG_RESULT([production])
+    ;;
+  *)
+    AC_MSG_ERROR([Unrecognized build mode: $BUILD_MODE. Use debug, production, or clean.])
+esac
+
+## ----------------------------------------------------------------------
 ## Some built-in configure checks can only see CFLAGS (not AM_CFLAGS), so
 ## we need to add this in so configure works as intended. We will need to
 ## reset this value at the end of configure, to preserve the user's settings.
 CFLAGS="${AM_CFLAGS} ${CFLAGS}"
 FCFLAGS="${AM_FCFLAGS} ${FCFLAGS}"
+JAVACFLAGS="${AM_JAVACFLAGS} ${JAVACFLAGS}"
+JAVAFLAGS="${AM_JAVAFLAGS} ${JAVAFLAGS}"
 CXXFLAGS="${AM_CXXFLAGS} ${CXXFLAGS}"
 CPPFLAGS="${AM_CPPFLAGS} ${CPPFLAGS}"
 LDFLAGS="${AM_LDFLAGS} ${LDFLAGS}"
@@ -359,7 +376,7 @@ AC_ARG_ENABLE([unsupported],
                               [Allow unsupported combinations of configure options])],
               [ALLOW_UNSUPPORTED=$enableval])
 
-case "X-$ALLOW_UNSUPPORTED" in 
+case "X-$ALLOW_UNSUPPORTED" in
   X-|X-no)
     AC_MSG_RESULT([no])
     ;;
@@ -371,13 +388,69 @@ case "X-$ALLOW_UNSUPPORTED" in
 esac
 
 ## ----------------------------------------------------------------------
+## Data types and their sizes.
+##
+AC_TYPE_OFF_T
+AC_CHECK_TYPE([size_t], [],
+        [AC_DEFINE_UNQUOTED([size_t], [unsigned long],
+                [Define to `unsigned long' if <sys/types.h> does not define.])])
+AC_CHECK_TYPE([ssize_t], [],
+        [AC_DEFINE_UNQUOTED([ssize_t], [long],
+                [Define to `long' if <sys/types.h> does not define.])])
+AC_CHECK_TYPE([ptrdiff_t], [],
+        [AC_DEFINE_UNQUOTED([ptrdiff_t], [long],
+                [Define to `long' if <sys/types.h> does not define.])])
+AC_C_BIGENDIAN
+AC_CHECK_SIZEOF([char])
+AC_CHECK_SIZEOF([short])
+AC_CHECK_SIZEOF([int])
+AC_CHECK_SIZEOF([unsigned])
+AC_CHECK_SIZEOF([long])
+AC_CHECK_SIZEOF([long long])
+AC_CHECK_SIZEOF([__int64])
+AC_CHECK_SIZEOF([float])
+AC_CHECK_SIZEOF([double])
+AC_CHECK_SIZEOF([long double])
+
+## ----------------------------------------------------------------------
+## Check for non-standard extenstion __FLOAT128
+##
+HAVE_FLOAT128=0
+HAVE_QUADMATH=0
+FLT128_DIG=0
+LDBL_DIG=0
+
+AC_CHECK_SIZEOF([__float128])
+AC_CHECK_SIZEOF([_Quad])
+AC_CHECK_HEADERS([quadmath.h], [HAVE_QUADMATH=1], [])
+PAC_FC_LDBL_DIG
+
+AC_SUBST([PAC_C_MAX_REAL_PRECISION])
+
+if test "$ac_cv_sizeof___float128" != 0 && test "$FLT128_DIG" != 0 ; then
+  AC_DEFINE([HAVE_FLOAT128], [1], [Determine if __float128 is available])
+  PAC_C_MAX_REAL_PRECISION=$FLT128_DIG
+else
+  PAC_C_MAX_REAL_PRECISION=$LDBL_DIG
+fi
+AC_DEFINE_UNQUOTED([PAC_C_MAX_REAL_PRECISION], $PAC_C_MAX_REAL_PRECISION, [Determine the maximum decimal precision in C])
+AC_MSG_RESULT([$PAC_C_MAX_REAL_PRECISION])
+
+## ----------------------------------------------------------------------
 ## Check if they would like the Fortran interface compiled
 ##
+
+## This needs to be exposed for the library info file even if Fortran is disabled.
+AC_SUBST([HDF_FORTRAN])
+
+## Default is no Fortran
+HDF_FORTRAN=no
+
 AC_SUBST([HDF5_INTERFACES]) HDF5_INTERFACES=""
 AC_MSG_CHECKING([if Fortran interface enabled])
 AC_ARG_ENABLE([fortran],
               [AS_HELP_STRING([--enable-fortran],
-                              [Compile the Fortran 77/90/95 interface [default=no]])],
+                              [Compile the Fortran interface [default=no]])],
               [HDF_FORTRAN=$enableval])
 
 if test "X$HDF_FORTRAN" = "Xyes"; then
@@ -386,44 +459,18 @@ else
   echo "no"
 fi
 
-
-## ----------------------------------------------------------------------
-## Check if they would like the Fortran 2003 interface compiled
-##
-AC_MSG_CHECKING([if Fortran 2003 interface enabled])
-AC_ARG_ENABLE([fortran2003],
-              [AS_HELP_STRING([--enable-fortran2003],
-                              [Compile the Fortran 2003 interface, must also specify --enable-fortran [default=no]])],
-              [HDF_FORTRAN2003=$enableval])
-
-## ----------------------------------------------------------------------
-## Check to make sure --enable-fortran is present if --enable-fortran2003 
-## was specified
-
-if test "X$HDF_FORTRAN2003" = "Xyes" && test "X$HDF_FORTRAN" = "Xno"; then
-  echo "no"
-  AC_MSG_ERROR([--enable-fortran must be used with --enable-fortran2003])
-else
-  echo "yes"
-fi
-
-HAVE_SIZEOF="no"
-HAVE_C_SIZEOF="no"
-HAVE_STORAGE_SIZE="no"
-FORTRAN_DEFAULT_REALisDBLE="no"
-
 if test "X$HDF_FORTRAN" = "Xyes"; then
 
-  AC_SUBST([FC]) HDF_FORTRAN=yes
-  AC_SUBST([HAVE_FORTRAN_2003])
-		
-  HDF5_INTERFACES="$HDF5_INTERFACES fortran"
+## We will output an include file for Fortran, H5config_f.inc which
+## contains various configure definitions used by the Fortran Library.
+## Prepend H5_ to all macro names. This avoids name conflict between HDF5 macro
+## names and those generated by another software package that uses the HDF5 library.
+  AC_CONFIG_HEADERS([fortran/src/H5config_f.inc],
+    [cat fortran/src/H5config_f.inc | sed '1d;s%^/\* \(.*\) \*/%\1%;s/#define /#define H5_/;s/#undef /#undef H5_/' >fortran/src/H5config_f.inc.tmp; mv -f fortran/src/H5config_f.inc.tmp fortran/src/H5config_f.inc])
 
-  ## --------------------------------------------------------------------
-  ## Default for FORTRAN 2003 compliant compilers
-  ##
-  HAVE_FORTRAN_2003="no"
-  HAVE_F2003_REQUIREMENTS="no"
+  AC_SUBST([FC])
+
+  HDF5_INTERFACES="$HDF5_INTERFACES fortran"
 
   ## --------------------------------------------------------------------
   ## HDF5 integer variables for the H5fortran_types.f90 file.
@@ -446,18 +493,21 @@ if test "X$HDF_FORTRAN" = "Xyes"; then
   AC_SUBST([FSEARCH_DIRS])
 
   ## --------------------------------------------------------------------
-  ## Check for a Fortran 9X compiler and how to include modules.
-  ## 
-  AC_PROG_FC([f90 pgf90 slf90 f95 g95 xlf95 efc ifort ftn],)
+  ## Check for a Fortran compiler and how to include modules.
+  ##
+  AC_PROG_FC([PAC_FC_SEARCH_LIST],)
   AC_F9X_MODS
-
-  ## It seems that libtool (as of Libtool 1.5.14) is trying to
-  ## configure itself for Fortran 77.
-  ## Tell it that our F77 compiler is $FC (actually a F9X compiler)
-  F77=$FC
 
   ## Change to the Fortran 90 language
   AC_LANG_PUSH(Fortran)
+
+  ## Checking if the compiler supports the required Fortran 2003 features and
+  ## stopping if it does not.
+  PAC_PROG_FC_HAVE_F2003_REQUIREMENTS
+
+  if test "X$HAVE_F2003_REQUIREMENTS" = "Xno"; then
+    AC_MSG_ERROR([Fortran compiler lacks required Fortran 2003 features; unsupported Fortran 2003 compiler, remove --enable-fortran])
+  fi
 
   ## --------------------------------------------------------------------
   ## Define wrappers for the C compiler to use Fortran function names
@@ -465,142 +515,164 @@ if test "X$HDF_FORTRAN" = "Xyes"; then
   AC_FC_WRAPPERS
 
   ## --------------------------------------------------------------------
-  ## See if the compiler will support the "-I." option
-  ##
-  dnl  AM_FCFLAGS_saved=$AM_FCFLAGS
-  dnl  AM_FCFLAGS="${AM_FCFLAGS} -I."
-
-  dnl  AC_MSG_CHECKING(if compiler supports -I. option)
-  dnl  AC_TRY_FCOMPILE([
-  dnl      program conftest
-  dnl      end
-  dnl  ], AC_MSG_RESULT(yes),
-  dnl     AC_MSG_RESULT(no)
-  dnl     AM_FCFLAGS="$AM_FCFLAGS_saved")
-
-  ## --------------------------------------------------------------------
   ## See if the fortran compiler supports the intrinsic function "SIZEOF"
-
-  AC_MSG_CHECKING([if Fortran compiler supports intrinsic SIZEOF])
-  AC_TRY_RUN([ 
-   PROGRAM main
-     i = sizeof(x)
-   END PROGRAM
-  ], [AC_MSG_RESULT([yes])
-     	HAVE_SIZEOF="yes"],
-     [AC_MSG_RESULT([no])])
+  PAC_PROG_FC_SIZEOF
 
   ## See if the fortran compiler supports the intrinsic function "C_SIZEOF"
-
-  AC_MSG_CHECKING([if Fortran compiler supports intrinsic C_SIZEOF])
-  AC_TRY_RUN([ 
-   PROGRAM main
-     USE ISO_C_BINDING
-     INTEGER(C_INT) :: a
-     INTEGER(C_SIZE_T) :: result
-     result = C_SIZEOF(a)
-   END PROGRAM
-  ], [AC_MSG_RESULT([yes])
-     	HAVE_C_SIZEOF="yes"],
-     [AC_MSG_RESULT([no])])
+  PAC_PROG_FC_C_SIZEOF
 
   ## See if the fortran compiler supports the intrinsic function "STORAGE_SIZE"
+  PAC_PROG_FC_STORAGE_SIZE
 
-  AC_MSG_CHECKING([if Fortran compiler supports intrinsic STORAGE_SIZE])
-  AC_TRY_RUN([ 
-   PROGRAM main
-     INTEGER :: a
-     INTEGER :: result
-     result = STORAGE_SIZE(a)
-   END PROGRAM
-  ], [AC_MSG_RESULT([yes])
-     	HAVE_STORAGE_SIZE="yes"],
-     [AC_MSG_RESULT([no])])
-
-  ## Check to see if -r8 was specified to determine if we need to
-  ## compile the DOUBLE PRECISION interfaces.
-
-  AC_MSG_CHECKING([if Fortran default REAL is DOUBLE PRECISION])
-  
-  AC_TRY_RUN([
-     MODULE type_mod
-       INTERFACE h5t	
-         MODULE PROCEDURE h5t_real
-         MODULE PROCEDURE h5t_dble
-       END INTERFACE
-     CONTAINS
-       SUBROUTINE h5t_real(r)
-         REAL :: r
-       END SUBROUTINE h5t_real
-       SUBROUTINE h5t_dble(d)
-         DOUBLE PRECISION :: d
-       END SUBROUTINE h5t_dble
-     END MODULE type_mod
-     PROGRAM main
-       USE type_mod
-       REAL :: r
-       DOUBLE PRECISION :: d
-       CALL h5t(r)
-       CALL h5t(d)
-     END PROGRAM main
-                  ],
-    [AC_MSG_RESULT([no])], 
-    [AC_MSG_RESULT([yes])
-        FORTRAN_DEFAULT_REALisDBLE="yes"])
-
-  if test "X$HDF_FORTRAN2003" = "Xyes"; then
-
-    ## Checking if the compiler supports the required Fortran 2003 features and
-    ## disable Fortran 2003 if it does not.
-
-    AC_MSG_CHECKING([if Fortran compiler version compatible with Fortran 2003 HDF])
-    HAVE_FORTRAN_2003="no"
-	
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[
-
-	USE iso_c_binding
-	IMPLICIT NONE
-	TYPE(C_PTR) :: ptr
-	TYPE(C_FUNPTR) :: funptr
-	CHARACTER(LEN=80, KIND=c_char), TARGET :: ichr
-
-	ptr = C_LOC(ichr(1:1))
-
-        ])], 
-      [AC_MSG_RESULT([yes])
-        HAVE_F2003_REQUIREMENTS=[yes]], 
-      [AC_MSG_RESULT([no])])
-    if test "X$HAVE_F2003_REQUIREMENTS" = "Xno"; then
-    ##  echo $HAVE_FORTRAN_2003
-      AC_MSG_ERROR([Fortran compiler lacks required Fortran 2003 features; unsupported Fortran 2003 compiler, remove --enable-fortran2003])
+  ## Set the sizeof function for use later in the fortran tests
+  if test "X$HAVE_STORAGE_SIZE_FORTRAN" = "Xyes";then
+    FC_SIZEOF_A="STORAGE_SIZE(a, c_size_t)/STORAGE_SIZE(c_char_'a',c_size_t)"
+    FC_SIZEOF_B="STORAGE_SIZE(b, c_size_t)/STORAGE_SIZE(c_char_'a',c_size_t)"
+    FC_SIZEOF_C="STORAGE_SIZE(c, c_size_t)/STORAGE_SIZE(c_char_'a',c_size_t)"
+  else
+    if test "X$HAVE_SIZEOF_FORTRAN" = "Xyes";then
+      FC_SIZEOF_A="SIZEOF(a)"
+      FC_SIZEOF_B="SIZEOF(b)"
+      FC_SIZEOF_C="SIZEOF(c)"
     else
-    ##  echo $HAVE_FORTRAN_2003
-      HAVE_FORTRAN_2003="yes"
+      ## If neither intrinsic functions SIZEOF or STORAGE_SIZE is available then stop configure with an error
+      AC_MSG_ERROR([Fortran compiler requires either intrinsic functions SIZEOF or STORAGE_SIZE])
     fi
   fi
+
+  ## See if the fortran compiler supports the intrinsic module "ISO_FORTRAN_ENV"
+  PAC_PROG_FC_ISO_FORTRAN_ENV
+  ## Check KIND and size of native integer
+  PAC_FC_NATIVE_INTEGER
+
+  ## Find all available KINDs
+  PAC_FC_AVAIL_KINDS
+  ## Find all sizeofs for available KINDs
+  PAC_FC_SIZEOF_INT_KINDS
+  PAC_FC_SIZEOF_REAL_KINDS
+
+  AC_SUBST([PAC_FC_ALL_REAL_KINDS])
+  AC_SUBST([PAC_FC_MAX_REAL_PRECISION])
+  AC_SUBST([PAC_FC_ALL_INTEGER_KINDS])
+  AC_SUBST([PAC_FC_ALL_REAL_KINDS_SIZEOF])
+  AC_SUBST([PAC_FC_ALL_INTEGER_KINDS_SIZEOF])
+  AC_SUBST([PAC_FORTRAN_NATIVE_INTEGER_KIND])
+  AC_SUBST([PAC_FORTRAN_NATIVE_INTEGER_SIZEOF])
+  AC_SUBST([PAC_FORTRAN_NATIVE_REAL_KIND])
+  AC_SUBST([PAC_FORTRAN_NATIVE_REAL_SIZEOF])
+  AC_SUBST([PAC_FORTRAN_NATIVE_DOUBLE_KIND])
+  AC_SUBST([PAC_FORTRAN_NATIVE_DOUBLE_SIZEOF])
+  AC_SUBST([HAVE_Fortran_INTEGER_SIZEOF_16])
+  AC_SUBST([FORTRAN_HAVE_C_LONG_DOUBLE])
+  AC_SUBST([FORTRAN_C_LONG_DOUBLE_IS_UNIQUE])
+  AC_SUBST([FORTRAN_SIZEOF_LONG_DOUBLE])
+  AC_SUBST([H5CONFIG_F_NUM_RKIND])
+  AC_SUBST([H5CONFIG_F_RKIND])
+  AC_SUBST([H5CONFIG_F_RKIND_SIZEOF])
+  AC_SUBST([H5CONFIG_F_NUM_IKIND])
+  AC_SUBST([H5CONFIG_F_IKIND])
+  AC_SUBST([Fortran_COMPILER_ID])
+  Fortran_COMPILER_ID=none
+  AC_DEFINE_UNQUOTED([Fortran_COMPILER_ID], $Fortran_COMPILER_ID, [Define Fortran compiler ID])
+
+  ## Setting definition if there is a 16 byte fortran integer
+  if `echo $PAC_FC_ALL_INTEGER_KINDS_SIZEOF | grep '16' >/dev/null`; then
+    HAVE_Fortran_INTEGER_SIZEOF_16="1"
+    AC_DEFINE([HAVE_Fortran_INTEGER_SIZEOF_16], [1], [Determine if INTEGER*16 is available])
+  else
+    HAVE_Fortran_INTEGER_SIZEOF_16="0"
+    AC_DEFINE([HAVE_Fortran_INTEGER_SIZEOF_16], [0], [Determine if INTEGER*16 is available])
+  fi
+
+  if test "X$HAVE_STORAGE_SIZE_FORTRAN" = "Xyes"; then
+    AC_DEFINE([FORTRAN_HAVE_STORAGE_SIZE], [1], [Define if we have Fortran intrinsic STORAGE_SIZE])
+  fi
+
+  if  test "X$HAVE_C_SIZEOF_FORTRAN" = "Xyes"; then
+    AC_DEFINE([FORTRAN_HAVE_C_SIZEOF], [1], [Define if we have Fortran intrinsic C_SIZEOF])
+  fi
+
+  if  test "X$HAVE_SIZEOF_FORTRAN" = "Xyes"; then
+    AC_DEFINE([FORTRAN_HAVE_SIZEOF], [1], [Define if we have Fortran intrinsic SIZEOF])
+  fi
+
+  ## See if C_LONG_DOUBLE is available
+  PAC_PROG_FC_HAVE_C_LONG_DOUBLE
+
+  FORTRAN_HAVE_C_LONG_DOUBLE="0"
+  if test "X$HAVE_C_LONG_DOUBLE_FORTRAN" = "Xyes"; then
+    FORTRAN_HAVE_C_LONG_DOUBLE="1"
+    AC_DEFINE([FORTRAN_HAVE_C_LONG_DOUBLE], [1], [Define if we have Fortran C_LONG_DOUBLE])
+  fi
+
+  ## Is C_LONG_DOUBLE different from C_DOUBLE
+  FORTRAN_C_LONG_DOUBLE_IS_UNIQUE="0"
+  if test "X$FORTRAN_HAVE_C_LONG_DOUBLE"; then
+    PAC_PROG_FC_C_LONG_DOUBLE_EQ_C_DOUBLE
+    if test "X$C_LONG_DOUBLE_IS_UNIQUE_FORTRAN" = "Xyes"; then
+      FORTRAN_C_LONG_DOUBLE_IS_UNIQUE="1"
+      AC_DEFINE([FORTRAN_C_LONG_DOUBLE_IS_UNIQUE], [1], [Define if Fortran C_LONG_DOUBLE is different from C_DOUBLE])
+    else
+      FORTRAN_C_LONG_DOUBLE_IS_UNIQUE="0"
+    fi
+  fi
+
+  FORTRAN_SIZEOF_LONG_DOUBLE=${ac_cv_sizeof_long_double}
+  AC_DEFINE_UNQUOTED([FORTRAN_SIZEOF_LONG_DOUBLE], ["${ac_cv_sizeof_long_double}"], [Determine the size of C long double])
+
+
+  dnl get the largest sizeof for REAL kinds
+  max_real_fortran_sizeof="`echo $PAC_FC_ALL_REAL_KINDS_SIZEOF | sed -ne 's/.*,\([[0-9]]*\)\}/\1/p'`"
+  max_real_fortran_kind="`echo \"[$]PAC_FC_ALL_REAL_KINDS\" | sed -ne 's/.*,\([[0-9]]*\)\}/\1/p'`"
+
+  dnl remove the invalid kind from the list
+  if test "$ac_cv_sizeof___float128" != 0;then
+    if test "$ac_cv_sizeof___float128" != "$max_real_fortran_sizeof" &&
+       test "${ac_cv_sizeof_long_double}" != "$max_real_fortran_sizeof" &&
+       dnl account for the fact that the C compiler can have 16-byte __float128 and the Fortran compiler only has 8-byte doubles,
+       dnl so we don't want to remove the 8-byte Fortran doubles. This is sometimes the case if different C and Fortran vendors
+       dnl are used (for example gnu and pgi).
+       test "${ac_cv_sizeof_double}" != "$max_real_fortran_sizeof" ; then
+          AC_MSG_WARN([
+           Fortran REAL(KIND=$max_real_fortran_kind) is $max_real_fortran_sizeof Bytes, but no corresponding C float type exists of that size
+                     !!! Fortran interfaces will not be generated for REAL(KIND=$max_real_fortran_kind) !!!
+          ])
+      PAC_FC_ALL_REAL_KINDS="`echo $PAC_FC_ALL_REAL_KINDS | sed -e 's/,[[0-9]]\+}/}/g'`"
+      PAC_FC_ALL_REAL_KINDS_SIZEOF="`echo $PAC_FC_ALL_REAL_KINDS_SIZEOF | sed -e 's/,[[0-9]]\+}/}/g'`"
+    fi
+  fi
+  AC_MSG_CHECKING([for Fortran interoperable KINDS with C])
+  AC_MSG_RESULT([$PAC_FC_ALL_REAL_KINDS])
+
+  dnl count the number of real kinds
+  H5CONFIG_F_NUM_RKIND="INTEGER, PARAMETER :: num_rkinds = `echo \"[$]PAC_FC_ALL_REAL_KINDS\" |  tr -d -c ',\n' | awk '{ print length + 1; }'`"
+  H5CONFIG_F_RKIND="INTEGER, DIMENSION(1:num_rkinds) :: rkind = (/`echo $PAC_FC_ALL_REAL_KINDS | sed -e 's/{//g' | sed -e 's/}//g' | sed -e 's/ /,/g'`/)"
+  H5CONFIG_F_RKIND_SIZEOF="INTEGER, DIMENSION(1:num_rkinds) :: rkind_sizeof = (/`echo $PAC_FC_ALL_REAL_KINDS_SIZEOF | sed -e 's/{//g' | sed -e 's/}//g'| sed -e 's/ /,/g'`/)"
+
+  AC_DEFINE_UNQUOTED([H5CONFIG_F_NUM_RKIND], $H5CONFIG_F_NUM_RKIND, [Define number of valid Fortran REAL KINDs])
+  AC_DEFINE_UNQUOTED([H5CONFIG_F_RKIND], $H5CONFIG_F_RKIND, [Define valid Fortran REAL KINDs])
+  AC_DEFINE_UNQUOTED([H5CONFIG_F_RKIND_SIZEOF], $H5CONFIG_F_RKIND_SIZEOF, [Define valid Fortran REAL KINDs Sizeof])
+
+## Change back to the C language
+  AC_LANG_POP(Fortran)
 else
   FC="no"
 fi
 
-## Change back to the C language
-AC_LANG_POP(Fortran)
-
-AM_CONDITIONAL([FORTRAN_HAVE_SIZEOF], [test "X$HAVE_SIZEOF" = "Xyes"])
-AM_CONDITIONAL([FORTRAN_HAVE_C_SIZEOF], [test "X$HAVE_C_SIZEOF" = "Xyes"])
-AM_CONDITIONAL([FORTRAN_HAVE_STORAGE_SIZE], [test "X$HAVE_STORAGE_SIZE" = "Xyes"])
-AM_CONDITIONAL([FORTRAN_2003_CONDITIONAL_F], [test "X$HAVE_FORTRAN_2003" = "Xyes"])
-AM_CONDITIONAL([FORTRAN_DEFAULT_REALisDBLE_F], [test "X$FORTRAN_DEFAULT_REALisDBLE" = "Xyes"])
-
-
-
 ## ----------------------------------------------------------------------
 ## Check if they would like the C++ interface compiled
 ##
+## This needs to be exposed for the library info file even if C++ is disabled.
+AC_SUBST([HDF_CXX])
+
+## Default is no C++
+HDF_CXX=no
+
 ## We need to check for a C++ compiler unconditionally, since
 ## AC_PROG_CXX defines some macros that Automake 1.9.x uses and will
 ## miss even if c++ is not enabled.
-  AC_PROG_CXX
-  AC_PROG_CXXCPP	## this is checked for when AC_HEADER_STDC is done
+AC_PROG_CXX
+AC_PROG_CXXCPP    ## this is checked for when AC_HEADER_STDC is done
 
 AC_MSG_CHECKING([if c++ interface enabled])
 
@@ -613,125 +685,72 @@ if test "X$HDF_CXX" = "Xyes"; then
   echo "yes"
   HDF5_INTERFACES="$HDF5_INTERFACES c++"
 
+  ## Expose the compiler for *.in files
+  AC_SUBST([CXX])
+
   ## Change to the C++ language
   AC_LANG_PUSH(C++)
 
-  AC_MSG_CHECKING([if $CXX needs old style header files in includes])
-  AC_TRY_RUN([
-#include <iostream>
+  ## Checking if C++ needs old style header files in includes
+  PAC_PROG_CXX_HEADERS
 
-int main(void) { return 0; }
-  ], [
-    echo no
-  ], [
-    echo yes
-    CXXFLAGS="${CXXFLAGS} -DOLD_HEADER_FILENAME"
-    AM_CXXFLAGS="${AM_CXXFLAGS} -DOLD_HEADER_FILENAME"
-  ])
+  ## Checking if C++ can handle namespaces
+  PAC_PROG_CXX_NAMESPACE
 
-  AC_MSG_CHECKING([if $CXX can handle namespaces])
-  AC_TRY_RUN([
-namespace H5 {
-int fnord;
-}
+  ## Checking if C++ has offsetof extension
+  PAC_PROG_CXX_OFFSETOF
 
-int main(void) {
-   using namespace H5;
-   fnord = 37;
-   return 0;
-} 
-  ], [
-     echo yes
-  ], [
-     echo no
-     CXXFLAGS="${CXXFLAGS} -DH5_NO_NAMESPACE"
-     AM_CXXFLAGS="${AM_CXXFLAGS} -DH5_NO_NAMESPACE"
-  ])
+  ## if C++ can handle static cast
+  PAC_PROG_CXX_STATIC_CAST
 
-  AC_MSG_CHECKING([if $CXX supports std])
-  AC_TRY_RUN([
-#include <string>
-
-using namespace std;
-
-int main(void) {
-   string myString("testing namespace std");
-   return 0;
-}
-  ], [
-     echo yes
-  ], [
-     echo no
-     CXXFLAGS="${CXXFLAGS} -DH5_NO_STD"
-     AM_CXXFLAGS="${AM_CXXFLAGS} -DH5_NO_STD"
-  ])
-
-  AC_MSG_CHECKING([if $CXX supports bool types])
-  AC_TRY_RUN([
-int main(void) {
-   bool flag;
-   return 0;
-}
-  ], [
-     echo yes
-  ], [
-     echo no
-     CXXFLAGS="${CXXFLAGS} -DBOOL_NOTDEFINED"
-     AM_CXXFLAGS="${AM_CXXFLAGS} -DBOOL_NOTDEFINED"
-  ])
-
-  AC_MSG_CHECKING([if $CXX has offsetof extension])
-    AC_TRY_COMPILE([
-  #include <stdio.h>
-  #include <stddef.h>
-    ],[
-    struct index_st
-    {
-      unsigned char type;
-      unsigned char num;
-      unsigned int len;
-    };
-    typedef struct index_st index_t;
-    int x,y;
-    x = offsetof(struct index_st, len);
-    y = offsetof(index_t, num)
-    ],
-    AC_DEFINE([CXX_HAVE_OFFSETOF], [1],
-    [Define if C++ compiler recognizes offsetof])
-    AC_MSG_RESULT([yes]),
-    AC_MSG_RESULT([no]))
-
-  AC_MSG_CHECKING([if $CXX can handle static cast])
-  AC_TRY_RUN([
-int main(void) {
-   float test_float;
-   int test_int;
-   test_float = 37.0;
-   test_int = static_cast <int> (test_float);
-   return 0;
-}
-  ], [
-    echo yes
-  ], [
-    echo no
-    CXXFLAGS="${CXXFLAGS} -DNO_STATIC_CAST"
-    AM_CXXFLAGS="${AM_CXXFLAGS} -DNO_STATIC_CAST"
-  ])
 else
-  echo "no"
+  AC_MSG_RESULT([no])
   CXX="no"
 fi
 
 ## Change back to the C language
 AC_LANG_POP(C++)
 
+
 ## ----------------------------------------------------------------------
-## Check if they have Perl installed on their system. We only need Perl
-## if they're using a GNU compiler.
+## Check if they would like the High Level library  compiled
 ##
-AC_SUBST([PERL]) PERL=""
-if test "X$GCC" = "Xyes"; then
-  AC_CHECK_PROGS([PERL], [perl],, [$PATH])
+
+## This needs to be exposed for the library info file even if the HL
+## library is disabled.
+AC_SUBST([HDF5_HL])
+
+## The high-level library is enabled unless the build mode is clean.
+if test "X-$BUILD_MODE" = "X-clean" ; then
+  HDF5_HL=no
+else
+  HDF5_HL=yes
+fi
+
+## high-level library directories (set when needed, blank until then)
+##
+## main high-level library
+AC_SUBST(HL)
+HL=""
+## Fortran high-level library
+AC_SUBST(HL_FOR)
+HL_FOR=""
+
+AC_MSG_CHECKING([if the high-level library is enabled])
+AC_ARG_ENABLE([hl],
+     [AS_HELP_STRING([--enable-hl],
+                     [Enable the high-level library.
+                     [default=yes (unless build mode = clean)]
+                     ])],
+     [HDF5_HL=$enableval])
+
+if test "X-$HDF5_HL" = "X-yes"; then
+ AC_MSG_RESULT([yes])
+ HL="hl"
+ AC_DEFINE([INCLUDE_HL], [1],
+           [Define if the high-level library headers should be included in hdf5.h])
+else
+  AC_MSG_RESULT([no])
 fi
 
 
@@ -754,20 +773,21 @@ AC_PROG_INSTALL
 
 
 ## ----------------------------------------------------------------------
-## Check that the tr utility is working properly.
+## Set up ${TR} which is used to process the package list for extra
+## debugging output in the C library.
 
 AC_PATH_PROG([TR], [tr])
-
-TR_TEST=`echo Test | ${TR} ${as_cr_letters}"," ${as_cr_LETTERS}" "`
-if test "X${TR_TEST}" != "XTEST"; then
-  AC_MSG_ERROR([tr program doesn't work])
-fi
 
 
 ## ----------------------------------------------------------------------
 ## Check that time can be used with srcdir.  This is okay on most systems,
 ## but seems to cause problems on Cygwin.
 ## The solution on Cygwin is not to record execution time for tests.
+##
+## Note: This is still true as of Cygwin 1.7.32 (Aug 2014) on both 32-
+## and 64-bit platforms. Given how long this has been true, it seems
+## unlikely to change, but we should probably re-test this periodically.
+
 AC_MSG_CHECKING([if srcdir= and time commands work together])
 
 AC_SUBST([TIME])
@@ -785,38 +805,36 @@ fi
 ## The following variables are used to distinguish between building a
 ## serial and parallel library.
 ##
-##    HAVE_PARALLEL	-- defined in H5config.h if we are building
-##			   a parallel library even if configure wasn't
-##			   able to find some header file or library that
-##			   might be required. This is defined if the
-##			   compiler looks like a parallel compiler (e.g.,
-##			   mpicc or mpcc) or if the user explicitly states
-##			   that a parallel library is being built by supplying
-##			   the `--enable-parallel' configure switch.
+##    HAVE_PARALLEL    -- defined in H5config.h if we are building
+##               a parallel library even if configure wasn't
+##               able to find some header file or library that
+##               might be required. This is defined if the
+##               user explicitly states
+##               that a parallel library is being built by supplying
+##               the `--enable-parallel' configure switch.
 ##
-##    PARALLEL		-- This variable is set to a non-null value if
-##			   configure thinks we're compiling a parallel
-##			   version of the library.
+##    PARALLEL        -- This variable is set to a non-null value if
+##               we're building a parallel version of the library.
 ##
-##    RUNSERIAL	-- This is a command which will be prepended to
-##			   the executable name to run the executable using
-##			   a single process. For serial versions of the
-##			   library this will normally be empty. For parallel
-##			   versions it might be something like `mpiexec -n 1'.
-##			   The value of this variable is substituted in *.in
-##			   files.
+##    RUNSERIAL            -- This is a command which will be prepended to
+##               the executable name to run the executable using
+##               a single process. For serial versions of the
+##               library this will normally be empty. For parallel
+##               versions it might be something like `mpiexec -n 1'.
+##               The value of this variable is substituted in *.in
+##               files.
 ##
-##    RUNPARALLEL	-- This is a command which will be prepended to
-##			   the executable name to run the executable on
-##			   multiple processors. For the serial library the
-##			   value will normally be the empty string. For
-##			   parallel library it should be something like
-##			   "mpiexec -n \$\${NPROCS:=6}" where NPROCS will
-##			   eventually contain the number of processors on which
-##			   to run the executable (the double dollarsigns are to
-##			   protect the expansion until make executes the
-##			   command).  The value of this variable is
-##			   substituted in *.in files.
+##    RUNPARALLEL    -- This is a command which will be prepended to
+##               the executable name to run the executable on
+##               multiple processors. For the serial library the
+##               value will normally be the empty string. For
+##               parallel library it should be something like
+##               "mpiexec -n \$\${NPROCS:=6}" where NPROCS will
+##               eventually contain the number of processors on which
+##               to run the executable (the double dollarsigns are to
+##               protect the expansion until make executes the
+##               command).  The value of this variable is
+##               substituted in *.in files.
 ##
 AC_SUBST([PARALLEL])
 AC_SUBST([RUNSERIAL])
@@ -824,128 +842,72 @@ AC_SUBST([RUNPARALLEL])
 AC_SUBST([TESTPARALLEL])
 
 ## ----------------------------------------------------------------------
-## If the compiler is obviously a parallel compiler then we're building
-## a parallel version of hdf5 and should define HAVE_PARALLEL. Furthermore,
-## the name of the compiler might tell us how to run the resulting
-## executable. For `mpicc' the executable should be run with `mpiexec' from
-## the same directory as mpicc if it exists.
-##
-case "$CC_BASENAME" in
-  mpicc)
-    ## The mpich compiler. Use mpiexec from the same directory if it
-    ## exists.
-    PARALLEL=mpicc
-    AC_MSG_CHECKING([for mpiexec])
+## Disable shared libraries on CYGWIN. (LK - 04/16/15)
+## A number of tests run by "make check" fail on CYGWIN, so for HDF5 v1.8.15
+## we will change the default for shared libraries to disabled.
 
-    ## Find the path where mpicc is located.
-    cmd="`echo $CC | cut -f1 -d' '`"
-    if (echo $cmd | grep / >/dev/null); then
-      path="`echo $cmd | sed 's/\(.*\)\/.*$/\1/'`"
-    else
-      for path in `echo $PATH | ${TR} ":" " "`; do
-        if test -x $path/$cmd; then
-          break
-        fi
-      done
-    fi
 
-    ## Is there an mpiexec at that path?
-    if test -x $path/mpiexec; then
-      AC_MSG_RESULT([$path/mpiexec])
-      RUNSERIAL="${RUNSERIAL:-none}"
-
-      if test -z "$RUNPARALLEL"; then
-        RUNPARALLEL="$path/mpiexec -n \$\${NPROCS:=6}"
-      fi
-    else
-      AC_MSG_RESULT([none])
-    fi
-    ;;
-
-  mpcc|mpcc_r)
-    ## The IBM compiler
-    PARALLEL="$CC_BASENAME"
-    ;;
-
-  *)
-    ## Probably not a parallel compiler, but if `--enable-parallel'
-    ## is defined below then we're still building a parallel hdf5.
+case "`uname`" in
+  CYGWIN*)
+    enable_shared="no"
+    CHECK_WARN="Shared libraries are not currently supported on CYGWIN."
     ;;
 esac
 
 ## ----------------------------------------------------------------------
-## If the Fortran compiler is obviously a parallel compiler then we're
-## building a parallel version of hdf5 and should define HAVE_PARALLEL.
-## Furthermore, the name of the compiler might tell us how to run the
-## resulting executable. For `mpif90' the executable should be run with
-## `mpiexec' from the same directory as mpif90 if it exists.
+## Check if they would like the Java native interface (JNI) compiled
 ##
 
-if test "X$HDF_FORTRAN" = "Xyes" ; then
-  ## Change to the Fortran 90 language
-  AC_LANG_PUSH(Fortran)
+## This needs to be exposed for the library info file even if Java is disabled.
+AC_SUBST([HDF_JAVA])
 
-  case "$FC" in
-    *mpif90*)
-      ## The Fortran mpich compiler. Use mpiexec from the same directory
-      ## if it exists.
-      PARALLEL=mpif90
-      AC_MSG_CHECKING([for mpiexec])
+## Default is no Java
+HDF_JAVA=no
 
-      ## Find the path where mpif90 is located.
-      cmd=`echo $FC |cut -f1 -d' '`
-      if (echo $cmd |grep / >/dev/null); then
-        path="`echo $cmd |sed 's/\(.*\)\/.*$/\1/'`"
-      else
-        for path in `echo $PATH | ${TR} ":" " "`; do
-          if test -x $path/$cmd; then
-            break;
-          fi
-        done
-      fi
+AC_SUBST([H5_CLASSPATH]) H5_CLASSPATH=""
+AC_MSG_CHECKING([if Java JNI interface enabled])
 
-      ## Is there an mpiexec at that path?
-      if test -x $path/mpiexec; then
-        AC_MSG_RESULT([$path/mpiexec])
-        RUNSERIAL="${RUNSERIAL:-none}"
+AC_ARG_ENABLE([java],
+              [AS_HELP_STRING([--enable-java],
+                              [Compile the Java JNI interface [default=no]])],
+              [HDF_JAVA=$enableval])
 
-        if test -z "$RUNPARALLEL"; then
-          RUNPARALLEL="$path/mpiexec -n \$\${NPROCS:=6}"
-        fi
-      else
-        AC_MSG_RESULT([none])
-      fi
-      ;;
+if test "X$HDF_JAVA" = "Xyes"; then
+  if test "X${enable_shared}" != "Xno"; then
+    echo "yes"
+    if test "X$CLASSPATH" = "X"; then
+      H5_CLASSPATH=".:$srcdir/java/lib"
+    else
+      H5_CLASSPATH=".:$CLASSPATH:$srcdir/java/lib"
+    fi
+    ## Checks for programs.
+    AX_JAVA_OPTIONS
+    H5_JAVACFLAGS=$JAVACFLAGS
+    H5_JAVAFLAGS=$JAVAFLAGS
+    AX_PROG_JAVAC
+    AX_PROG_JAVA
+    AX_PROG_JAR
+    AX_PROG_JAVADOC
+    ## Find the include directories needed for building JNI code
+    AX_JNI_INCLUDE_DIR()
+    for JNI_INCLUDE_DIR in $JNI_INCLUDE_DIRS
+    do
+      JNIFLAGS="$JNIFLAGS -I$JNI_INCLUDE_DIR"
+    done
+    ## Find junit for testing the JNI code
+    AX_CHECK_CLASSPATH()
+    CLASSPATH_ENV=$H5_CLASSPATH
+    AX_CHECK_JUNIT()
+    AX_CHECK_JAVA_HOME
 
-    *mpxlf* | *mpxlf_r* | *mpxlf90* | *mpxlf90_r* | *mpxlf95* | *mpxlf95_r*)
-      ## The IBM compiler
-      PARALLEL="$FC"
-      ;;
-
-    *)
-      ## Probably not a parallel compiler, but if `--enable-parallel'
-      ## is defined below then we're still building a parallel hdf5.
-      ;;
-  esac
-
-  ## Change to the C language
-  AC_LANG_POP(Fortran)
-fi
-
-## -----------------------------------------------------------------------------
-## If shared libraries are being used with parallel, disable them, unless the 
-## user explicity enables them via the '--enable-shared' option.
-
-if test "X${enable_shared}" = "X" -a "X${enable_parallel}" = "Xyes"; then
-    echo '    shared libraries disabled in parallel'
-    enable_shared="no"
-elif test "X${enable_shared}" = "Xyes" -a "X${enable_parallel}" = "Xyes"; then
-    echo '    shared libraries explicitly enabled by user'
-elif test "X${enable_shared}" = "X" -a "X${PARALLEL}" != "X"; then
-    echo '    shared libraries disabled when a parallel compiler is being used'
-    enable_shared="no"
-elif test "X${enable_shared}" = "Xyes" -a "X${PARALLEL}" != "X"; then
-    echo '    shared libraries explicitly enabled by user'
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_ERROR([Java requires shared libraries to be built])
+    HDF_JAVA="no"
+    AC_MSG_RESULT([no])
+  fi
+else
+  AC_MSG_RESULT([no])
 fi
 
 ## ----------------------------------------------------------------------
@@ -959,7 +921,7 @@ if test "X${HDF_FORTRAN}" = "Xyes" && test "X${enable_shared}" != "Xno"; then
   H5_FORTRAN_SHARED="yes"
 
   ## Disable fortran shared libraries on Mac. (MAM - 03/30/11)
-  
+
   case "`uname`" in
     Darwin*)
     H5_FORTRAN_SHARED="no"
@@ -968,7 +930,7 @@ if test "X${HDF_FORTRAN}" = "Xyes" && test "X${enable_shared}" != "Xno"; then
   esac
 
   ## Report results of check(s)
-  
+
   if test "X${H5_FORTRAN_SHARED}" = "Xno"; then
     AC_MSG_RESULT([no])
     AC_MSG_WARN([$CHECK_WARN])
@@ -990,86 +952,25 @@ fi
 AM_CONDITIONAL([FORTRAN_SHARED_CONDITIONAL], [test "X$H5_FORTRAN_SHARED" = "Xyes"])
 
 ## ----------------------------------------------------------------------
-## Disable C++ shared libraries if +DD64 flag is detected.
-##
-AC_SUBST([H5_CXX_SHARED])
-H5_CXX_SHARED="no"
-if test "X${HDF_CXX}" = "Xyes" && test "X${enable_shared}" != "Xno"; then
-  AC_MSG_CHECKING([if shared C++ libraries are supported])
-  H5_CXX_SHARED="yes"
-
-  ## Disable C++ shared libraries if DD64 flag is being used.
-  
-  if (echo dummy ${CXX} ${CXXLD} ${CFLAGS} ${CXXFLAGS} ${LDFLAGS} | grep 'DD64') > /dev/null; then
-    H5_CXX_SHARED="no"
-    CHECK_WARN="Shared C++ libraries not currently supported with +DD64 flag."
-  fi
-
-  ## Report results of check(s)
-  
-  if test "X${H5_CXX_SHARED}" = "Xno"; then
-    AC_MSG_RESULT([no])
-    AC_MSG_WARN([$CHECK_WARN])
-    if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
-      AC_MSG_WARN([Disabling shared C++ libraries.])
-      AC_MSG_WARN([To override this behavior, please use --enable-unsupported configure option.])
-      if test "X${enable_static}" = "Xno"; then
-        AC_MSG_ERROR([both static and shared C++ libraries are disabled])
-      fi
-    else
-      AC_MSG_WARN([Allowing unsupported C++ shared librares due to use of --enable-unsupported flag])
-    fi
-  else
-    AC_MSG_RESULT([yes])
-  fi
-fi
-
-AM_CONDITIONAL([CXX_SHARED_CONDITIONAL], [test "X$H5_CXX_SHARED" = "Xyes"])
-
-## ----------------------------------------------------------------------
-## pgcc version 6.0x have optimization (-O, -O2 or -O3) problem.  Detect
-## these versions and add option "-Mx,28,0x8" to the compiler to avoid
-## the problem if optimization is enabled.
-##
-
-if (${CC-cc} -V 2>&1 | grep '^pgcc 6.0') > /dev/null && test "X$enable_production" = "Xyes"; then
-    echo 'adding compiler flag to avoid optimization problem in pgcc'
-    CC="${CC-cc} -Mx,28,0x8"
-fi
-
-## ----------------------------------------------------------------------
-## Shared libraries are not currently supported under Cygwin, so configure
-## disables them unless --enable-unsupported has been supplied by the user.
-
-if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
-  case "`uname`" in
-    CYGWIN*)
-      if test "X${enable_shared}" = "Xyes"; then
-        echo '    warning: shared libraries are not supported on Cygwin!'
-        echo '    disabling shared libraries'
-        echo '    use --enable-unsupported to override this warning and keep shared libraries enabled'
-      fi
-      enable_shared="no"
-      ;;
-  esac
-fi
-
-## ----------------------------------------------------------------------
-## Windows won't create DLLs without the following macro.
-##
-AC_LIBTOOL_WIN32_DLL
-
-## ----------------------------------------------------------------------
 ## Create libtool.  If shared/static libraries are going to be enabled
 ## or disabled, it should happen before these macros.
 LT_PREREQ([2.2])
-LT_INIT([dlopen])
+
+## ----------------------------------------------------------------------
+## dlopen - This will use an improved version of libtool
+## win32-dll - This will build clean dlls on win32 platforms.
+LT_INIT([dlopen,win32-dll])
 
 ## ----------------------------------------------------------------------
 ## Check if we should install only statically linked executables.
 ##   This check needs to occur after libtool is initialized because
-##   we check a libtool cache value and may issue a warning based 
+##   we check a libtool cache value and may issue a warning based
 ##   on its result.
+AC_SUBST([STATIC_EXEC])
+
+## Default is no
+STATIC_EXEC=no
+
 AC_MSG_CHECKING([if we should install only statically linked executables])
 AC_ARG_ENABLE([static_exec],
               [AS_HELP_STRING([--enable-static-exec],
@@ -1081,8 +982,8 @@ if test "X$STATIC_EXEC" = "Xyes"; then
   echo "yes"
   ## Issue a warning if -static flag is not supported.
   if test "X$lt_cv_prog_compiler_static_works" = "Xno"; then
-      echo "    warning: -static flag not supported on this system; executable won't statically link shared system libraries."
-      LT_STATIC_EXEC=""
+    echo "    warning: -static flag not supported on this system; executable won't statically link shared system libraries."
+    LT_STATIC_EXEC=""
   else
     LT_STATIC_EXEC="-all-static"
   fi
@@ -1131,161 +1032,10 @@ case "X-$RPATH" in
 esac
 
 ## ----------------------------------------------------------------------
-## Sometimes makes think the `.PATH:' appearing before the first rule
-## with an action should override the `all' default target. So we have
-## to decide what the proper syntax is.
-##
-AC_MSG_CHECKING([how make searches directories])
-while true; do #for break
-  ## The most common method is `VPATH=DIR1 DIR2 ...'
-  cat >maketest <<EOF
-VPATH=$srcdir/config $srcdir/src $srcdir/bin
-.c.o:
-	cp $< H5.o
-
-foo: H5.o
-	rm -f H5.o
-	@echo works
-EOF
-
-  if (${MAKE-make} -f maketest foo) >/dev/null 2>&1; then
-    SEARCH_RULE='VPATH='
-    SEARCH_SEP=' '
-    AC_MSG_RESULT([VPATH=DIR1 DIR2 ...])
-    break
-  fi
-
-  ## The second most common method is like above except with the
-  ## directories separated by colons.
-  cat >maketest <<EOF
-VPATH=$srcdir/config:$srcdir/src:$srcdir/bin
-.c.o:
-	cp $< H5.o
-
-foo: H5.o
-	rm -f H5.o
-	@echo works
-EOF
-
-  if (${MAKE-make} -f maketest foo) >/dev/null 2>&1; then
-    SEARCH_RULE='VPATH='
-    SEARCH_SEP=':'
-    AC_MSG_RESULT([VPATH=DIR1:DIR2:...])
-    break
-  fi
-
-  ## pmake uses the construct `.PATH: DIR1 DIR2
-  cat >maketest <<EOF
-.PATH: $srcdir/config $srcdir/src $srcdir/bin
-.c.o:
-	cp $< H5.o
-
-foo: H5.o
-	rm -f H5.o
-	@echo works
-EOF
-
-  if (MAKE= ${MAKE-make} -f maketest foo) >/dev/null 2>&1; then
-    SEARCH_RULE='.PATH: '
-    SEARCH_SEP=' '
-    AC_MSG_RESULT([.PATH: DIR1 DIR2 ...])
-    break
-  fi
-
-  ## No way for make to search directories
-  SEARCH_RULE='## SEARCH DISABLED: '
-  SEARCH_SEP=' '
-  AC_MSG_RESULT([it doesn't])
-  if test ! -f configure; then
-    AC_MSG_ERROR([${MAKE-make} requires the build and source directories to be the same])
-  fi
-  break
-done
-rm maketest
-
-## ----------------------------------------------------------------------
-## pmake will throw an error if variables are undefined in a Makefile.
-## These errors can be changed to warnings using the -V flag.
-##
-AC_SUBST([AM_MAKEFLAGS]) AM_MAKEFLAGS=""
-
-## Don't run test if MAKE is defined but is the empty string
-if test -n "${MAKE-make}"; then 
-
-  AC_MSG_CHECKING([whether make will build with undefined variables])
-
-  cat >maketest <<EOF
-foo: \$(UNDEFINED) \$(UNDEFINED2)
-	@echo \$(UNDEFINED3) works
-EOF
-
-  if (${MAKE-make} -f maketest foo) >/dev/null 2>&1; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no, setting -V flag])
-    AM_MAKEFLAGS="\-V"
-  fi
-
-  rm maketest
-fi
-
-## ----------------------------------------------------------------------
-## Production flags?  Save the value in $CONFIG_MODE so we have it for
-## the record.
-##
-AC_MSG_CHECKING([for production mode])
-AC_ARG_ENABLE([production],
-              [AS_HELP_STRING([--enable-production],
-                              [Determines how to run the compiler.])])
-
-case "X-$enable_production" in
-  X-|X-yes)
-    enable_production="yes"
-    AC_MSG_RESULT([production])
-    CONFIG_MODE=production
-    H5_CFLAGS="$H5_CFLAGS $PROD_CFLAGS"
-    H5_CPPFLAGS="$H5_CPPFLAGS $PROD_CPPFLAGS"
-    H5_CXXFLAGS="$H5_CXXFLAGS $PROD_CXXFLAGS"
-    H5_FCFLAGS="$H5_FCFLAGS $PROD_FCFLAGS"
-    ;;
-  X-no)
-    enable_production="no"
-    AC_MSG_RESULT([development])
-    CONFIG_MODE=development
-    H5_CFLAGS="$H5_CFLAGS $DEBUG_CFLAGS"
-    H5_CPPFLAGS="$H5_CPPFLAGS $DEBUG_CPPFLAGS"
-    H5_CXXFLAGS="$H5_CXXFLAGS $DEBUG_CXXFLAGS"
-    H5_FCFLAGS="$H5_FCFLAGS $DEBUG_FCFLAGS"
-    ;;
-  X-pg|X-profile)
-    enable_production="profile"
-    AC_MSG_RESULT([profile])
-    CONFIG_MODE=profile
-    H5_CFLAGS="$H5_CFLAGS $PROFILE_CFLAGS"
-    H5_CPPFLAGS="$H5_CPPFLAGS $PROFILE_CPPFLAGS"
-    H5_CXXFLAGS="$H5_CXXFLAGS $PROFILE_CXXFLAGS"
-    H5_FCFLAGS="$H5_FCFLAGS $PROFILE_FCFLAGS"
-    ;;
-  *)
-    enable_production="user-defined"
-    AC_MSG_RESULT([user-defined])
-    CONFIG_MODE="$enableval"
-    ;;
-esac
-
-## ----------------------------------------------------------------------
 ## Check for system libraries. "dl" stands for dynamically loaded library
 ##
 AC_CHECK_LIB([m], [ceil])
 AC_CHECK_LIB([dl], [dlopen])
-
-if test "`uname`" = "SunOS" -o "`uname -sr`" = "HP-UX B.11.00"; then
-  ## ...for Solaris
-  AC_CHECK_LIB([socket], [socket])
-  AC_CHECK_LIB([nsl], [xdr_int])
-fi
-
-dnl AC_CHECK_LIB([coug], [main])		## ...for ASCI/Red
 
 ## ----------------------------------------------------------------------
 ## Check for system header files.
@@ -1293,22 +1043,13 @@ dnl AC_CHECK_LIB([coug], [main])		## ...for ASCI/Red
 AC_HEADER_STDC
 AC_HEADER_TIME
 
-## ----------------------------------------------------------------------
-## Check for these two functions before the time headers are checked
-## for, otherwise they are not detected correctly on Solaris (the
-## configure test will fail due to multiply-defined symbols).
-##
-AC_CHECK_FUNCS([difftime])
-AC_CHECK_FUNCS([gettimeofday], [have_gettime="yes"], [have_gettime="no"])
-AC_SEARCH_LIBS([clock_gettime], [rt posix4])
-AC_CHECK_FUNCS([clock_gettime],[have_clock_gettime="yes"],[have_clock_gettime="no"])
-
 ## Unix
 AC_CHECK_HEADERS([sys/resource.h sys/time.h unistd.h sys/ioctl.h sys/stat.h])
-AC_CHECK_HEADERS([sys/socket.h sys/types.h])
+AC_CHECK_HEADERS([sys/socket.h sys/types.h sys/file.h])
 AC_CHECK_HEADERS([stddef.h setjmp.h features.h])
 AC_CHECK_HEADERS([dirent.h])
 AC_CHECK_HEADERS([stdint.h], [C9x=yes])
+AC_CHECK_HEADERS([stdbool.h])
 
 ## Darwin
 AC_CHECK_HEADERS([mach/mach_time.h])
@@ -1330,24 +1071,6 @@ case "`uname`" in
     ;;
   *)
     AC_CHECK_HEADERS([io.h winsock2.h sys/timeb.h])
-    ;;
-esac
-
-case "$host" in
-  alpha*-dec*-osf*)
-    ## The <sys/sysinfo.h> and <sys/proc.h> are needed on the DEC
-    ## Alpha to turn off UAC fixing. We do *not* attempt to
-    ## locate these files on other systems because there are too
-    ## many problems with including them.
-    AC_CHECK_HEADERS([sys/sysinfo.h sys/proc.h])
-    ;;
-  mips*-sgi*-irix*)
-    ## The <sys/fpu.h> is needed on the SGI machines to turn off
-    ## denormalized floating-point values going to zero.  We do *not*
-    ## attempt to locate these files on other systems because there
-    ## may be problems with including them.
-    AC_CHECK_HEADERS([sys/fpu.h])
-    AC_CHECK_FUNCS([get_fpc_csr])
     ;;
 esac
 
@@ -1373,116 +1096,25 @@ if test "X${enable_shared}" = "Xyes"; then
 fi
 
 ## ----------------------------------------------------------------------
-## Test for Largefile support.
-##
-AC_MSG_CHECKING([if configure should try to set up large file support])
+## Use the macro _AC_SYS_LARGEFILE_MACRO_VALUE to test defines
+## that might need to be set for largefile support to behave
+## correctly. This macro is defined in acsite.m4 and overrides
+## the version provided by Autoconf (as of v2.65). The custom
+## macro additionally adds the appropriate defines to AM_CPPFLAGS
+## so that later configure checks have them visible.
 
-AC_ARG_ENABLE([largefile],
-           [AS_HELP_STRING([--disable-largefile],
-                           [omit support for large files])])
+## Check for _FILE_OFFSET_BITS
+_AC_SYS_LARGEFILE_MACRO_VALUE([_FILE_OFFSET_BITS], [64],
+  [ac_cv_sys_file_offset_bits],
+  [Number of bits in a file offset, on hosts where this is settable.],
+  [_AC_SYS_LARGEFILE_TEST_INCLUDES])
 
-## The linux-lfs option is deprecated, but if it is used to disable
-## largefile support on linux and the largefile option is not specified,
-## then go ahead and disable large-file support.
-case "$host_cpu-$host_vendor-$host_os" in
-  *linux*)
-    AC_ARG_ENABLE([linux-lfs],
-                  [AS_HELP_STRING([--disable-linux-lfs],
-                                  [Disable support for large (64-bit)
-                                   files on Linux. This option is 
-                                   deprecated in favor of
-                                   --disable-largefile.])])
-
-    if test "$enable_linux_lfs" = no; then
-      if test "$enable_largefile" != yes; then
-        enable_largefile=no
-      fi
-    fi
-    ;;
-esac
-
-## If largefile support is enabled, then set up appropriate compiler options.
-if test "$enable_largefile" != no; then
-  AC_MSG_RESULT([yes])
-
-  ## Check for needed compiler options. This check is pulled drectly 
-  ## from autoconf's AC_SYS_LARGEFILE macro, as of Autoconf v2.65.
-  AC_CACHE_CHECK([for special C compiler options needed for large files],
-    ac_cv_sys_largefile_CC,
-    [ac_cv_sys_largefile_CC=no
-     if test "$GCC" != yes; then
-       ac_save_CC=$CC
-       while :; do
-         ## IRIX 6.2 and later do not support large files by default,
-         ## so use the C compiler's -n32 option if that helps.
-         AC_LANG_CONFTEST([AC_LANG_PROGRAM([_AC_SYS_LARGEFILE_TEST_INCLUDES])])
-         AC_COMPILE_IFELSE([], [break])
-         CC="$CC -n32"
-         AC_COMPILE_IFELSE([], [ac_cv_sys_largefile_CC=' -n32'; break])
-         break
-       done
-       CC=$ac_save_CC
-       rm -f conftest.$ac_ext
-    fi])
-  if test "$ac_cv_sys_largefile_CC" != no; then
-    CC=$CC$ac_cv_sys_largefile_CC
-  fi
-
-  ## Use the macro _AC_SYS_LARGEFILE_MACRO_VALUE to test defines
-  ## that might need to be set for largefile support to behave 
-  ## correctly. This macro is defined in acsite.m4 and overrides
-  ## the version provided by Autoconf (as of v2.65). The custom
-  ## macro additionally adds the appropriate defines to AM_CPPFLAGS 
-  ## so that later configure checks have them visible. 
-
-  ## Check for _FILE_OFFSET_BITS
-  _AC_SYS_LARGEFILE_MACRO_VALUE([_FILE_OFFSET_BITS], [64],
-    [ac_cv_sys_file_offset_bits],
-    [Number of bits in a file offset, on hosts where this is settable.],
+## Check for _LARGE_FILES
+if test "$ac_cv_sys_file_offset_bits" = unknown; then
+  _AC_SYS_LARGEFILE_MACRO_VALUE([_LARGE_FILES], [1],
+    [ac_cv_sys_large_files],
+    [Define for large files, on AIX-style hosts.],
     [_AC_SYS_LARGEFILE_TEST_INCLUDES])
-
-  ## Check for _LARGE_FILES
-  if test "$ac_cv_sys_file_offset_bits" = unknown; then
-    _AC_SYS_LARGEFILE_MACRO_VALUE([_LARGE_FILES], [1],
-      [ac_cv_sys_large_files],
-      [Define for large files, on AIX-style hosts.],
-      [_AC_SYS_LARGEFILE_TEST_INCLUDES])
-  fi
-
-  ## Now actually test to see if we can create large files after we've
-  ## checked for any needed defines.
-  AC_MSG_CHECKING([if large (64-bit) files are supported on this system.])
-  AC_CACHE_VAL([hdf5_cv_have_lfs],
-    [AC_TRY_RUN([
-      #include <stdio.h>
-      #include <unistd.h>
-      #include <stdlib.h>
-      #include <fcntl.h>
-      #define BIG_FILE (off_t)0x80000000UL 
-      int main(void) {
-        int fd;
-        if ((fd=open("test.conf", O_RDWR|O_TRUNC|O_CREAT, 0666)) < 0) exit(1);
-        if (lseek(fd, BIG_FILE, SEEK_SET)!=BIG_FILE) exit(1);
-        if (5!=write(fd, "hello", (size_t)5)) exit(1);
-        if (lseek(fd, 2*BIG_FILE, SEEK_SET) != 2*BIG_FILE) exit(1);
-        if (5!=write(fd, "hello", (size_t)5)) exit(1);
-        if (unlink("test.conf") < 0) exit(1);
-        exit(0);
-      }
-    ],[hdf5_cv_have_lfs=yes],[hdf5_cv_have_lfs=no],)])
-
-  if test "X${hdf5_cv_have_lfs}" = "Xyes"; then
-    AC_MSG_RESULT([yes])
-    LARGEFILE="yes"
-  fi 
-  if test "X${hdf5_cv_have_lfs}" = "Xno"; then
-    AC_MSG_RESULT([no])
-    LARGEFILE="no"
-  fi 
-
-else
-  LARGEFILE="no"
-  AC_MSG_RESULT([no])
 fi
 
 ## ----------------------------------------------------------------------
@@ -1490,83 +1122,39 @@ fi
 ##
 case "$host_cpu-$host_vendor-$host_os" in
   *linux*)
-    ## If largefile support is enabled, then make available various
-    ## LFS-related routines using the following _LARGEFILE*_SOURCE macros.
-    if test "X$LARGEFILE" != "Xno"; then
-        AM_CPPFLAGS="-D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE $AM_CPPFLAGS"
-    fi
-
     ## Add POSIX support on Linux systems, so <features.h> defines
     ## __USE_POSIX, which is required to get the prototype for fdopen
-    ## defined correctly in <stdio.h>. 
+    ## defined correctly in <stdio.h>.
+    ##
     ## This flag was removed from h5cc as of 2009-10-17 when it was found
-    ## that the flag broke compiling netCDF-4 code with h5cc, but kept in 
+    ## that the flag broke compiling netCDF-4 code with h5cc, but kept in
     ## H5_CPPFLAGS because fdopen and HDfdopen fail without it. HDfdopen
     ## is used only by H5_debug_mask which is used only when debugging in
     ## H5_init_library (all in H5.c).  When the flag was removed this was
     ## the only compile failure noted.
+    ##
     ## This was originally defined as _POSIX_SOURCE which was updated to
     ## _POSIX_C_SOURCE=199506L to expose a greater amount of POSIX
     ## functionality so clock_gettime and CLOCK_MONOTONIC are defined
-    ## correctly.
+    ## correctly. This was later updated to 200112L so that
+    ## posix_memalign() is visible for the direct VFD code on Linux
+    ## systems.
+    ##
     ## POSIX feature information can be found in the gcc manual at:
     ## http://www.gnu.org/s/libc/manual/html_node/Feature-Test-Macros.html
-    H5_CPPFLAGS="-D_POSIX_C_SOURCE=199506L $H5_CPPFLAGS"
+    H5_CPPFLAGS="-D_POSIX_C_SOURCE=200112L $H5_CPPFLAGS"
 
-    ## Also add BSD support on Linux systems, so <features.h> defines
-    ## __USE_BSD, which is required to get the prototype for strdup
-    ## defined correctly in <string.h> and snprintf & vsnprintf defined
-    ## correctly in <stdio.h>
-    ## Linking to the bsd-compat library is required as per the gcc manual:
-    ## http://www.gnu.org/s/libc/manual/html_node/Feature-Test-Macros.html
-    ## however, we do not do this since it breaks the big test on some 
-    ## older platforms.
-    AM_CPPFLAGS="-D_BSD_SOURCE $AM_CPPFLAGS"
+    ## Need to add this so that O_DIRECT is visible for the direct
+    ## VFD on Linux systems.
+    H5_CPPFLAGS="-D_GNU_SOURCE $H5_CPPFLAGS"
     ;;
 esac
 
-## Need to add the AM_ and H5_ into CFLAGS/CPPFLAGS to make them visible 
+## Need to add the AM_ and H5_ into CFLAGS/CPPFLAGS to make them visible
 ## for configure checks.
 ## Note: Both will be restored by the end of configure.
 CPPFLAGS="$H5_CPPFLAGS $AM_CPPFLAGS $CPPFLAGS"
 CFLAGS="$H5_CFLAGS $AM_CFLAGS $CFLAGS"
-
-AC_TRY_COMPILE([#include <sys/types.h>],
-               [off64_t n = 0;],
-               [AC_CHECK_FUNCS([lseek64 fseeko64 ftello64 ftruncate64])],
-               [AC_MSG_RESULT([skipping test for lseek64(), fseeko64 , ftello64, ftruncate64() because off64_t is not defined])])
-AC_CHECK_FUNCS([fseeko ftello])
-AC_TRY_COMPILE([
-#include <sys/types.h>
-#include <sys/stat.h>],
-[struct stat64 sb;],
-[AC_CHECK_FUNCS([stat64 fstat64])],
-[AC_MSG_RESULT([skipping test for stat64() and fstat64()])])
-
-## ----------------------------------------------------------------------
-## Data types and their sizes.
-##
-AC_TYPE_OFF_T
-AC_CHECK_TYPE([size_t], [],
-        [AC_DEFINE_UNQUOTED([size_t], [unsigned long],
-                [Define to `unsigned long' if <sys/types.h> does not define.])])
-AC_CHECK_TYPE([ssize_t], [],
-        [AC_DEFINE_UNQUOTED([ssize_t], [long],
-                [Define to `long' if <sys/types.h> does not define.])])
-AC_CHECK_TYPE([ptrdiff_t], [],
-        [AC_DEFINE_UNQUOTED([ptrdiff_t], [long],
-                [Define to `long' if <sys/types.h> does not define.])])
-AC_C_BIGENDIAN
-AC_CHECK_SIZEOF([char], [1])
-AC_CHECK_SIZEOF([short], [2])
-AC_CHECK_SIZEOF([int], [4])
-AC_CHECK_SIZEOF([unsigned], [4])
-AC_CHECK_SIZEOF([long], [4])
-AC_CHECK_SIZEOF([long long], [8])
-AC_CHECK_SIZEOF([__int64], [8])
-AC_CHECK_SIZEOF([float], [4])
-AC_CHECK_SIZEOF([double], [8])
-AC_CHECK_SIZEOF([long double], [8])
 
 ## Checkpoint the cache
 AC_CACHE_SAVE
@@ -1582,43 +1170,53 @@ if test "X$C9x" = "Xyes"; then
 EOF
 fi
 
-AC_CHECK_SIZEOF(        [int8_t], [1])
-AC_CHECK_SIZEOF(       [uint8_t], [1])
-AC_CHECK_SIZEOF(  [int_least8_t], [1])
-AC_CHECK_SIZEOF( [uint_least8_t], [1])
-AC_CHECK_SIZEOF(   [int_fast8_t], [1])
-AC_CHECK_SIZEOF(  [uint_fast8_t], [1])
+AC_CHECK_SIZEOF(        [int8_t])
+AC_CHECK_SIZEOF(       [uint8_t])
+AC_CHECK_SIZEOF(  [int_least8_t])
+AC_CHECK_SIZEOF( [uint_least8_t])
+AC_CHECK_SIZEOF(   [int_fast8_t])
+AC_CHECK_SIZEOF(  [uint_fast8_t])
 
-AC_CHECK_SIZEOF(       [int16_t], [2])
-AC_CHECK_SIZEOF(      [uint16_t], [2])
-AC_CHECK_SIZEOF( [int_least16_t], [2])
-AC_CHECK_SIZEOF([uint_least16_t], [2])
-AC_CHECK_SIZEOF(  [int_fast16_t], [2])
-AC_CHECK_SIZEOF( [uint_fast16_t], [2])
+AC_CHECK_SIZEOF(       [int16_t])
+AC_CHECK_SIZEOF(      [uint16_t])
+AC_CHECK_SIZEOF( [int_least16_t])
+AC_CHECK_SIZEOF([uint_least16_t])
+AC_CHECK_SIZEOF(  [int_fast16_t])
+AC_CHECK_SIZEOF( [uint_fast16_t])
 
-AC_CHECK_SIZEOF(       [int32_t], [4])
-AC_CHECK_SIZEOF(      [uint32_t], [4])
-AC_CHECK_SIZEOF( [int_least32_t], [4])
-AC_CHECK_SIZEOF([uint_least32_t], [4])
-AC_CHECK_SIZEOF(  [int_fast32_t], [4])
-AC_CHECK_SIZEOF( [uint_fast32_t], [4])
+AC_CHECK_SIZEOF(       [int32_t])
+AC_CHECK_SIZEOF(      [uint32_t])
+AC_CHECK_SIZEOF( [int_least32_t])
+AC_CHECK_SIZEOF([uint_least32_t])
+AC_CHECK_SIZEOF(  [int_fast32_t])
+AC_CHECK_SIZEOF( [uint_fast32_t])
 
-AC_CHECK_SIZEOF(       [int64_t], [8])
-AC_CHECK_SIZEOF(      [uint64_t], [8])
-AC_CHECK_SIZEOF( [int_least64_t], [8])
-AC_CHECK_SIZEOF([uint_least64_t], [8])
-AC_CHECK_SIZEOF(  [int_fast64_t], [8])
-AC_CHECK_SIZEOF( [uint_fast64_t], [8])
+AC_CHECK_SIZEOF(       [int64_t])
+AC_CHECK_SIZEOF(      [uint64_t])
+AC_CHECK_SIZEOF( [int_least64_t])
+AC_CHECK_SIZEOF([uint_least64_t])
+AC_CHECK_SIZEOF(  [int_fast64_t])
+AC_CHECK_SIZEOF( [uint_fast64_t])
 
-AC_CHECK_SIZEOF([size_t], [4])
-AC_CHECK_SIZEOF([ssize_t], [4])
-AC_CHECK_SIZEOF([ptrdiff_t], [4])
+AC_CHECK_SIZEOF([size_t])
+AC_CHECK_SIZEOF([ssize_t])
+AC_CHECK_SIZEOF([ptrdiff_t])
 
 cat >>confdefs.h <<\EOF
 #include <sys/types.h> /*for off_t definition*/
 EOF
-AC_CHECK_SIZEOF([off_t], [4])
-AC_CHECK_SIZEOF([off64_t], [8])
+AC_CHECK_SIZEOF([off_t])
+
+if test "X$C9x" = "Xyes"; then
+  cat >>confdefs.h <<\EOF
+#ifdef HAVE_STDBOOL_H
+#include <stdbool.h> /* for bool definition */
+#else
+#define bool _Bool
+#endif
+EOF
+AC_CHECK_SIZEOF([bool])
+fi
 
 ## Checkpoint the cache
 AC_CACHE_SAVE
@@ -1627,17 +1225,16 @@ AC_CACHE_SAVE
 ## Check if the dev_t type is a scalar type (must come after the check for
 ## sys/types.h)
 AC_MSG_CHECKING([if dev_t is scalar])
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-  ],
-  [dev_t d1, d2; if(d1==d2) return 0;],
-  AC_DEFINE([DEV_T_IS_SCALAR], [1],
-            [Define if `dev_t' is a scalar])
-  AC_MSG_RESULT([yes]),
-  AC_MSG_RESULT([no])
-)
+  ]],
+  [[dev_t d1, d2; if(d1==d2) return 0;]])],
+  [AC_DEFINE([DEV_T_IS_SCALAR], [1],
+            [Define if dev_t is a scalar])
+  AC_MSG_RESULT([yes])],
+  [AC_MSG_RESULT([no])])
 
 ## ----------------------------------------------------------------------
 ## Fake --with-xxx option to allow us to create a help message for the
@@ -1661,6 +1258,11 @@ AC_ARG_WITH([fnord],
 ## command-line switch. The value is an include path and/or a library path.
 ## If the library path is specified then it must be preceded by a comma.
 ##
+AC_SUBST([HAVE_DMALLOC])
+
+## Default is not present
+HAVE_DMALLOC=no
+
 AC_ARG_WITH([dmalloc],
             [AS_HELP_STRING([--with-dmalloc=DIR],
                             [Use dmalloc memory debugging aid [default=no]])],,
@@ -1697,15 +1299,6 @@ case $withval in
         ;;
     esac
 
-    ## Trying to include -I/usr/include and -L/usr/lib is redundant and
-    ## can mess some compilers up.
-    if test "X$dmalloc_inc" = "X/usr/include"; then
-      dmalloc_inc=""
-    fi
-    if test "X$dmalloc_lib" = "X/usr/lib"; then
-      dmalloc_lib=""
-    fi
-
     saved_CPPFLAGS="$CPPFLAGS"
     saved_AM_CPPFLAGS="$AM_CPPFLAGS"
     saved_LDFLAGS="$LDFLAGS"
@@ -1732,6 +1325,14 @@ case $withval in
     fi
     ;;
 esac
+
+## ----------------------------------------------------------------------
+## Make the external filters list available to *.in files
+## At this point it's unset (no external filters by default) but it
+## will be filled in during the deflate (zlib) and szip processing
+## below.
+##
+AC_SUBST([EXTERNAL_FILTERS])
 
 ## ----------------------------------------------------------------------
 ## Is the GNU zlib present? It has a header file `zlib.h' and a library
@@ -1763,7 +1364,7 @@ case $withval in
     ;;
   no)
     HAVE_ZLIB="no"
-    AC_MSG_CHECKING([for GNU zlib])
+    AC_MSG_CHECKING([for zlib])
     AC_MSG_RESULT([suppressed])
     ;;
   *)
@@ -1780,15 +1381,6 @@ case $withval in
         fi
         ;;
     esac
-
-    ## Trying to include -I/usr/include and -L/usr/lib is redundant and
-    ## can mess some compilers up.
-    if test "X$zlib_inc" = "X/usr/include"; then
-      zlib_inc=""
-    fi
-    if test "X$zlib_lib" = "X/usr/lib"; then
-      zlib_lib=""
-    fi
 
     saved_CPPFLAGS="$CPPFLAGS"
     saved_AM_CPPFLAGS="$AM_CPPFLAGS"
@@ -1832,7 +1424,7 @@ if test "x$HAVE_ZLIB" = "xyes" -a "x$HAVE_ZLIB_H" = "xyes" -a "x$HAVE_COMPRESS2"
   if test "X$EXTERNAL_FILTERS" != "X"; then
     EXTERNAL_FILTERS="${EXTERNAL_FILTERS},"
   fi
-  EXTERNAL_FILTERS="${EXTERNAL_FILTERS}deflate(zlib)"
+    EXTERNAL_FILTERS="${EXTERNAL_FILTERS}deflate(zlib)"
 fi
 
 
@@ -1879,26 +1471,17 @@ case $withval in
         fi
         ;;
     esac
-    
-    ## Trying to include -I/usr/include and -L/usr/lib is redundant and
-    ## can mess some compilers up.
-    if test "X$szlib_inc" = "X/usr/include"; then
-      szlib_inc=""
-    fi 
-    if test "X$szlib_lib" = "X/usr/lib"; then
-      szlib_lib=""
-    fi
-    
+
     saved_CPPFLAGS="$CPPFLAGS"
     saved_AM_CPPFLAGS="$AM_CPPFLAGS"
     saved_LDFLAGS="$LDFLAGS"
     saved_AM_LDFLAGS="$AM_LDFLAGS"
-    
+
     if test -n "$szlib_inc"; then
       CPPFLAGS="$CPPFLAGS -I$szlib_inc"
       AM_CPPFLAGS="$AM_CPPFLAGS -I$szlib_inc"
     fi
-    
+
     AC_CHECK_HEADERS([szlib.h],
                      [HAVE_SZLIB_H="yes"],
                      [CPPFLAGS="$saved_CPPFLAGS"; AM_CPPFLAGS="$saved_AM_CPPFLAGS"] [unset HAVE_SZLIB])
@@ -1907,7 +1490,7 @@ case $withval in
       LDFLAGS="$LDFLAGS -L$szlib_lib"
       AM_LDFLAGS="$AM_LDFLAGS -L$szlib_lib"
     fi
-    
+
     if test "x$HAVE_SZLIB" = "xyes" -a "x$HAVE_SZLIB_H" = "xyes"; then
       AC_CHECK_LIB([sz], [SZ_BufftoBuffCompress],,
                    [LDFLAGS="$saved_LDFLAGS"; AM_LDFLAGS="$saved_AM_LDFLAGS"; unset HAVE_SZLIB])
@@ -1924,53 +1507,53 @@ if test "x$HAVE_SZLIB" = "xyes" -a "x$HAVE_SZLIB_H" = "xyes"; then
   AC_MSG_CHECKING([for szlib encoder])
 
   ## Set LD_LIBRARY_PATH so encoder test can find the library and run.
-  ## Also add LL_PATH substitution to Makefiles so they can use the 
+  ## Also add LL_PATH substitution to Makefiles so they can use the
   ## path as well, for testing examples.
   if test -z "$LD_LIBRARY_PATH"; then
     export LD_LIBRARY_PATH="$szlib_lib"
   else
-    export LD_LIBRARY_PATH="$szlib_lib:$LD_LIBRARY_PATH"
+    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$szlib_lib"
   fi
 
   AC_SUBST([LL_PATH]) LL_PATH="$LD_LIBRARY_PATH"
 
   AC_CACHE_VAL([hdf5_cv_szlib_can_encode],
-        [AC_TRY_RUN([
-        #include <szlib.h>
-        
-        int main(void)
-        {       
+        [AC_RUN_IFELSE(
+            [AC_LANG_PROGRAM([
+                #include "szlib.h"
+            ],[[
                 /* SZ_encoder_enabled returns 1 if encoder is present */
-            if(SZ_encoder_enabled() == 1)
-                exit(0);
-            else
-                exit(1);
-        }
-        ], [hdf5_cv_szlib_can_encode=yes], [hdf5_cv_szlib_can_encode=no],)])
-    
-  AC_DEFINE([HAVE_FILTER_SZIP], [1], 
+                if(SZ_encoder_enabled() == 1)
+                    exit(0);
+                else
+                    exit(1);
+            ]])]
+        , [hdf5_cv_szlib_can_encode=yes], [hdf5_cv_szlib_can_encode=no],)]
+   )
+
+  AC_DEFINE([HAVE_FILTER_SZIP], [1],
             [Define if support for szip filter is enabled])
   USE_FILTER_SZIP="yes"
 
   if test ${hdf5_cv_szlib_can_encode} = "yes"; then
     AC_MSG_RESULT([yes])
-  fi 
+  fi
   if test ${hdf5_cv_szlib_can_encode} = "no"; then
     AC_MSG_RESULT([no])
-  fi 
-    
+  fi
+
   ## Add "szip" to external filter list
   if test ${hdf5_cv_szlib_can_encode} = "yes"; then
     if test "X$EXTERNAL_FILTERS" != "X"; then
       EXTERNAL_FILTERS="${EXTERNAL_FILTERS},"
     fi
-    EXTERNAL_FILTERS="${EXTERNAL_FILTERS}szip(encoder)"
-  fi 
+      EXTERNAL_FILTERS="${EXTERNAL_FILTERS}szip(encoder)"
+  fi
   if test ${hdf5_cv_szlib_can_encode} = "no"; then
     if test "X$EXTERNAL_FILTERS" != "X"; then
       EXTERNAL_FILTERS="${EXTERNAL_FILTERS},"
     fi
-    EXTERNAL_FILTERS="${EXTERNAL_FILTERS}szip(no encoder)"
+      EXTERNAL_FILTERS="${EXTERNAL_FILTERS}szip(no encoder)"
   fi
 fi
 
@@ -1983,11 +1566,32 @@ AC_CACHE_SAVE
 ## Enable thread-safe version of library.  It requires Pthreads support
 ## on POSIX systems.
 ##
+AC_SUBST([THREADSAFE])
+
+## Default is no thread-safety
+THREADSAFE=no
+
 AC_MSG_CHECKING([for thread safe support])
 AC_ARG_ENABLE([threadsafe],
               [AS_HELP_STRING([--enable-threadsafe],
-                              [Enable thread-safe capability])],
+                              [Enable thread-safe capability. Not compatible with the high-level library, Fortran, or C++ wrappers.
+                              [default=no]])],
               [THREADSAFE=$enableval])
+
+## The high-level, C++, Fortran and Java interfaces are not compatible
+## with the thread-safety option because the lock is not hoisted
+## into the higher-level API calls.
+
+## --enable-threadsafe is incompatible with --enable-hl unless
+## --enable-unsupported has been specified on the configure line.
+##
+## Note that the high-level library is enabled by default so most
+## users will have to add --disable-hl to the configure options.
+if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+  if test "X${HDF5_HL}" = "Xyes" -a "X${enable_threadsafe}" = "Xyes"; then
+    AC_MSG_ERROR([The thread-safe library is incompatible with the high-level library. --disable-hl can be used to prevent building the high-level library (recommended). Alternatively, --enable-unsupported will allow building the high-level library, though this configuration is not supported by The HDF Group.])
+  fi
+fi
 
 ## The --enable-threadsafe flag is not compatible with --enable-cxx.
 ## If the user tried to specify both flags, throw an error, unless
@@ -1998,7 +1602,7 @@ if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
   fi
 fi
 
-## --enable-threadsafe is also incompatible with --enable-fortran, unless
+## --enable-threadsafe is also incompatible with --enable-fortran unless
 ## --enable-unsupported has been specified on the configure line.
 if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
   if test "X${HDF_FORTRAN}" = "Xyes" -a "X${enable_threadsafe}" = "Xyes"; then
@@ -2006,12 +1610,21 @@ if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
   fi
 fi
 
+## --enable-threadsafe is also incompatible with --enable-java unless
+## --enable-unsupported has been specified on the configure line.
+if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+  if test "X${HDF_JAVA}" = "Xyes" -a "X${enable_threadsafe}" = "Xyes"; then
+    AC_MSG_ERROR([--enable-java and --enable-threadsafe flags are incompatible. Use --enable-unsupported to override this error.])
+  fi
+fi
+
+
 case "X-$THREADSAFE" in
   X-|X-no)
     AC_MSG_RESULT([no])
     ;;
   X-yes)
-    THREADSAFE=yes 
+    THREADSAFE=yes
     AC_MSG_RESULT([yes])
     ;;
   *)
@@ -2024,32 +1637,31 @@ if test "X$THREADSAFE" = "Xyes"; then
     AC_DEFINE([HAVE_THREADSAFE], [1], [Define if we have thread safe support])
 
     ## ----------------------------------------------------------------------
-    ## Is the pthreads library present?  It has a header file `pthread.h' and
+    ## Is the Pthreads library present?  It has a header file `pthread.h' and
     ## a library `-lpthread' and their locations might be specified with the
     ## `--with-pthread' command-line switch.  The value is an include path
     ## and/or a library path.  If the library path is specified then it must
     ## be preceded by a comma.
     ##
     ## Thread-safety in HDF5 only uses Pthreads via configure, so the
-    ## default is "yes", though this only has an effect when
+    ## default is "check", though this only has an effect when
     ## --enable-threadsafe is specified.
     AC_SUBST([HAVE_PTHREAD]) HAVE_PTHREAD=yes
     AC_ARG_WITH([pthread],
                 [AS_HELP_STRING([--with-pthread=DIR],
-                                [Specify alternative path to Pthreads library when thread-safe capability is built])],,
-                [withval=yes])
+                                [Specify alternative path to Pthreads library when
+                                thread-safe capability is built.])],,
+                [withval=check])
 
     case "$withval" in
-      yes)
+      check | yes)
         AC_CHECK_HEADERS([pthread.h],, [unset HAVE_PTHREAD])
         if test "x$HAVE_PTHREAD" = "xyes"; then
           AC_CHECK_LIB([pthread], [pthread_self],, [unset HAVE_PTHREAD])
         fi
         ;;
       no)
-        AC_MSG_CHECKING([for pthread])
-        AC_MSG_RESULT([suppressed])
-        unset HAVE_PTHREAD
+        AC_MSG_ERROR([Must use Pthreads with thread safety])
         ;;
       *)
         case "$withval" in
@@ -2064,15 +1676,6 @@ if test "X$THREADSAFE" = "Xyes"; then
             fi
             ;;
         esac
-
-        ## Trying to include -I/usr/include and -L/usr/lib is redundant and
-        ## can mess some compilers up.
-        if test "X$pthread_inc" = "X/usr/include"; then
-          pthread_inc=""
-        fi
-        if test "X$pthread_lib" = "X/usr/lib"; then
-          pthread_lib=""
-        fi
 
         if test -n "$pthread_inc"; then
           saved_CPPFLAGS="$CPPFLAGS"
@@ -2098,11 +1701,49 @@ if test "X$THREADSAFE" = "Xyes"; then
         fi
         ;;
     esac
+
+    ## ----------------------------------------------------------------------
+    ## Check if pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM)
+    ## is supported on this system
+    ##
+    ## Unfortunately, this probably needs to be an AC_RUN_IFELSE since
+    ## it's impossible to determine if PTHREAD_SCOPE_SYSTEM is
+    ## supported a priori. POSIX.1-2001 requires that a conformant
+    ## system need only support one of SYSTEM or PROCESS scopes.
+    ##
+    ## For cross-compiling, we've added a pessimistic 'no'. You can
+    ## hand-hack the config file if you know otherwise.
+    AC_MSG_CHECKING([Pthreads supports system scope])
+    AC_CACHE_VAL([hdf5_cv_system_scope_threads],
+      [AC_RUN_IFELSE(
+        [AC_LANG_PROGRAM([
+            #if STDC_HEADERS
+            #include <stdlib.h>
+            #include <pthread.h>
+            #endif
+        ],[
+              pthread_attr_t attribute;
+              int ret;
+
+              pthread_attr_init(&attribute);
+              ret=pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM);
+              exit(ret==0 ? 0 : 1);
+        ])]
+      , [hdf5_cv_system_scope_threads=yes], [hdf5_cv_system_scope_threads=no], [hdf5_cv_system_scope_threads=no])])
+
+    if test ${hdf5_cv_system_scope_threads} = "yes"; then
+      AC_DEFINE([SYSTEM_SCOPE_THREADS], [1],
+                [Define if your system supports pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM) call.])
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no])
+      AC_MSG_NOTICE([Always 'no' if cross-compiling. Edit the config file if your platform supports pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM).])
+    fi
 fi
 
 ## ----------------------------------------------------------------------
 ## Check for MONOTONIC_TIMER support (used in clock_gettime).  This has
-## to be done after any POSIX/BSD defines to ensure that the test gets
+## to be done after any POSIX defines to ensure that the test gets
 ## the correct POSIX level on linux.
 AC_CHECK_DECL([CLOCK_MONOTONIC],[have_clock_monotonic="yes"],[have_clock_monotonic="no"],[[#include <time.h>]])
 
@@ -2113,22 +1754,13 @@ AC_CHECK_DECL([CLOCK_MONOTONIC],[have_clock_monotonic="yes"],[have_clock_monoton
 
 ## First check if `struct tm' has a `tm_gmtoff' member.
 AC_MSG_CHECKING([for tm_gmtoff in struct tm])
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
   #include <sys/time.h>
-  #include <time.h>], [struct tm tm; tm.tm_gmtoff=0;],
+  #include <time.h>
+]], [[struct tm tm; tm.tm_gmtoff=0;]])],
   [AC_DEFINE([HAVE_TM_GMTOFF], [1],
-          [Define if `tm_gmtoff' is a member of `struct tm'])
+          [Define if tm_gmtoff is a member of struct tm])
     AC_MSG_RESULT([yes])],
-  [AC_MSG_RESULT([no])])
-
-## check if `struct tm' has a `__tm_gmtoff' member.
-AC_MSG_CHECKING([for __tm_gmtoff in struct tm])
-AC_TRY_COMPILE([
-  #include <sys/time.h>
-  #include <time.h>], [struct tm tm; tm.__tm_gmtoff=0;],
-  [AC_DEFINE([HAVE___TM_GMTOFF], [1],
-          [Define if `__tm_gmtoff' is a member of `struct tm'])
-     AC_MSG_RESULT([yes])],
   [AC_MSG_RESULT([no])])
 
 ## Check whether the global variable `timezone' is defined.
@@ -2139,69 +1771,25 @@ case "`uname`" in
     AC_MSG_RESULT([disabled in CYGWIN])
     ;;
   *)
-    AC_TRY_LINK([
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
     #include <sys/time.h>
-    #include <time.h>], [timezone=0;],
+    #include <time.h>]], [[timezone=0;]])],
     [AC_DEFINE([HAVE_TIMEZONE], [1],
-              [Define if `timezone' is a global variable])
+              [Define if timezone is a global variable])
       AC_MSG_RESULT([yes])],
     [AC_MSG_RESULT([no])])
     ;;
 esac
 
-## Check whether `struct timezone' is defined.
-AC_STRUCT_TIMEZONE
-AC_MSG_CHECKING([for struct timezone])
-AC_TRY_COMPILE([
-  #include <sys/types.h>
-  #include <sys/time.h>
-  #include <time.h>], [struct timezone tz; tz.tz_minuteswest=0;],
-  [AC_DEFINE([HAVE_STRUCT_TIMEZONE], [1],
-          [Define if `struct timezone' is defined])
-    have_struct_tz="yes"
-    AC_MSG_RESULT([yes])],
-  [AC_MSG_RESULT([no])])
-
-## If gettimeofday() is going to be used, make sure it uses the timezone struct
-
-if test "$have_gettime" = "yes" -a "$have_struct_tz" = "yes"; then
-   AC_MSG_CHECKING(whether gettimeofday() gives timezone)
-   AC_CACHE_VAL([hdf5_cv_gettimeofday_tz],
-       [AC_TRY_RUN([
-          #include <time.h>
-          #include <sys/time.h>
-          int main(void)
-          {
-             struct timeval tv;
-             struct timezone tz;
-             tz.tz_minuteswest = 7777;  /* Initialize to an unreasonable number */
-             tz.tz_dsttime = 7;
-             gettimeofday(&tv, &tz);
-                /* Check whether the function returned any value at all */
-             if(tz.tz_minuteswest == 7777 && tz.tz_dsttime == 7)
-                exit(1);
-             else exit (0);
-          }], 
-          [hdf5_cv_gettimeofday_tz=yes], 
-          [hdf5_cv_gettimeofday_tz=no])])
-
-   if test ${hdf5_cv_gettimeofday_tz} = "yes"; then
-      AC_MSG_RESULT([yes])
-      AC_DEFINE([GETTIMEOFDAY_GIVES_TZ], [1],
-                [Define if gettimeofday() populates the tz pointer passed in])
-   else
-      AC_MSG_RESULT([no])
-   fi
-fi 
 
 ## ----------------------------------------------------------------------
 ## Does the struct stat have the st_blocks field?  This field is not Posix.
 ##
 AC_MSG_CHECKING([for st_blocks in struct stat])
-AC_TRY_COMPILE([
-  #include <sys/stat.h>],[struct stat sb; sb.st_blocks=0;],
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM[[
+  #include <sys/stat.h>]],[[struct stat sb; sb.st_blocks=0;]])],
   [AC_DEFINE([HAVE_STAT_ST_BLOCKS], [1],
-          [Define if `struct stat' has the `st_blocks' field])
+          [Define if struct stat has the st_blocks field])
     AC_MSG_RESULT([yes])],
   [AC_MSG_RESULT([no])])
 
@@ -2219,28 +1807,32 @@ esac
 AC_CHECK_FUNCS([_scrsize ioctl])
 
 AC_MSG_CHECKING([for struct videoconfig])
-AC_TRY_COMPILE(,[struct videoconfig w; w.numtextcols=0;],
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],[[struct videoconfig w; w.numtextcols=0;]])],
   [AC_DEFINE([HAVE_STRUCT_VIDEOCONFIG], [1],
-          [Define if `struct videoconfig' is defined])
+          [Define if struct videoconfig is defined])
     AC_MSG_RESULT([yes])],
   [AC_MSG_RESULT([no])])
 
 AC_MSG_CHECKING([for struct text_info])
-AC_TRY_COMPILE(, [struct text_info w; w.screenwidth=0;],
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[struct text_info w; w.screenwidth=0;]])],
   [AC_DEFINE([HAVE_STRUCT_TEXT_INFO], [1],
-          [Define if `struct text_info' is defined])
+          [Define if struct text_info is defined])
     AC_MSG_RESULT([yes])],
   [AC_MSG_RESULT([no])])
 
 AC_MSG_CHECKING([for TIOCGWINSZ])
-AC_TRY_COMPILE([#include <sys/ioctl.h>],[int w=TIOCGWINSZ;],
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/ioctl.h>
+]],[[int w=TIOCGWINSZ;]])],
   [AC_DEFINE([HAVE_TIOCGWINSZ], [1],
           [Define if the ioctl TIOGWINSZ is defined])
     AC_MSG_RESULT([yes])],
   [AC_MSG_RESULT([no])])
 
 AC_MSG_CHECKING([for TIOCGETD])
-AC_TRY_COMPILE([#include <sys/ioctl.h>],[int w=TIOCGETD;],
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/ioctl.h>
+]],[[int w=TIOCGETD;]])],
   [AC_DEFINE([HAVE_TIOCGETD], [1],
           [Define if the ioctl TIOCGETD is defined])
     AC_MSG_RESULT([yes])],
@@ -2250,118 +1842,63 @@ AC_TRY_COMPILE([#include <sys/ioctl.h>],[int w=TIOCGETD;],
 ## ----------------------------------------------------------------------
 ## Check for functions.
 ##
-AC_CHECK_FUNCS([alarm BSDgettimeofday fork frexpf frexpl])
-AC_CHECK_FUNCS([gethostname getpwuid getrusage lstat])
-AC_CHECK_FUNCS([rand_r random setsysinfo])
+## NOTE: clock_gettime may require linking to the rt or posix4 library
+##       so we'll search for it before calling AC_CHECK_FUNCS.
+AC_SEARCH_LIBS([clock_gettime], [rt posix4])
+AC_CHECK_FUNCS([alarm clock_gettime difftime fcntl flock fork frexpf])
+AC_CHECK_FUNCS([frexpl gethostname getpwuid getrusage gettimeofday])
+AC_CHECK_FUNCS([lstat rand_r random setsysinfo])
 AC_CHECK_FUNCS([signal longjmp setjmp siglongjmp sigsetjmp sigprocmask])
 AC_CHECK_FUNCS([snprintf srandom strdup symlink system])
-AC_CHECK_FUNCS([tmpfile asprintf vasprintf waitpid])
-
-## Check for vsnprintf() separately, so we can detect situations where it
-## doesn't return the correct size for formatted strings that are too large
-## for the buffer provided
-AC_CHECK_FUNCS([vsnprintf],
-
-    ## Check if vsnprintf() returns correct size for strings that don't fit
-    ## into the size allowed.  If vsnprintf() works correctly on this platform,
-    ## it should return a value of 42 for the test below
-    ##
-    ## Note that vsnprintf fails in two different ways:
-    ##         - In IRIX64, calls to vnsprintf() with a formatted string that
-    ##                 is larger than the buffer size allowed incorrectly
-    ##                 return the size of the buffer minus one.
-    ##         - In HP/UX, calls to vsnprintf() with a formatted string that
-    ##                 is larger than the buffer size allowed incorrectly
-    ##                 return (-1)
-    AC_MSG_CHECKING([if vsnprintf returns correct value])
-
-    AC_CACHE_VAL([hdf5_cv_vsnprintf_works],
-        AC_TRY_RUN([
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-
-int test_vsnprintf(const char *fmt,...)
-{
-    va_list     ap;
-    char *s = malloc(16);
-    int ret;
-
-    va_start(ap, fmt);
-    ret=vsnprintf(s,16,"%s",ap);
-    va_end(ap);
-
-    return(ret!=42 ? 1 : 0);
-}
-
-int main(void)
-{
-    exit(test_vsnprintf("%s","A string that is longer than 16 characters"));
-}
-   ],[hdf5_cv_vsnprintf_works=yes],[hdf5_cv_vsnprintf_works=no],))
-
-       if test ${hdf5_cv_vsnprintf_works} = "yes"; then
-          AC_MSG_RESULT([yes])
-          AC_DEFINE([VSNPRINTF_WORKS], [1],
-                    [Define if vsnprintf() returns the correct value for formatted strings that don't fit into size allowed])
-       else
-          AC_MSG_RESULT([no])
-       fi
-    ,)
-
-## ----------------------------------------------------------------------
-## Check that a lone colon can be used as an argument
-## This is not true on Cray X1, which interprets a lone colon as a
-## system command.
-##
-AC_CACHE_CHECK([if lone colon can be used as an argument],
-               [hdf5_cv_lone_colon],
-               [
-  echo "int main(int argc, char * argv[]) {return 0;}" > conftest.c
-  $CC $CFLAGS conftest.c -o a.out> /dev/null 2> /dev/null
-  echo "./a.out :" > conftest.sh
-  chmod 700 conftest.sh
-
-  ./conftest.sh 2> conftest.out
-  rm -f a.out
-  TEST_OUTPUT=`cat conftest.out`
-
-  if test "X$TEST_OUTPUT" = "X"; then
-    hdf5_cv_lone_colon=yes
-  else
-    hdf5_cv_lone_colon=no
-  fi
-               ])
-
-AC_SUBST([H5_LONE_COLON]) H5_LONE_COLON="$hdf5_cv_lone_colon"
+AC_CHECK_FUNCS([tmpfile asprintf vasprintf vsnprintf waitpid])
 
 ## ----------------------------------------------------------------------
 ## Check compiler characteristics
 ##
 AC_C_CONST
-AC_C_INLINE
+
+AC_MSG_CHECKING([if the compiler understands  __inline__])
+AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE([[static __inline__ void f(void){return;};]])],
+    [AC_DEFINE([HAVE___INLINE__], [1], [Define if the compiler understands __inline__]) AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])]
+)
+
+AC_MSG_CHECKING([if the compiler understands __inline])
+AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE([[static __inline void f(void){return;};]])],
+    [AC_DEFINE([HAVE___INLINE], [1], [Define if the compiler understands __inline]) AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])]
+)
+
+AC_MSG_CHECKING([if the compiler understands inline])
+AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE([[static inline void f(void){return;};]])],
+    [AC_DEFINE([HAVE_INLINE], [1], [Define if the compiler understands inline]) AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])]
+)
 
 AC_MSG_CHECKING([for __attribute__ extension])
-AC_TRY_COMPILE(,[int __attribute__((unused)) x],
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],[[int __attribute__((unused)) x]])],
                [AC_DEFINE([HAVE_ATTRIBUTE], [1],
                          [Define if the __attribute__(()) extension is present])
                  AC_MSG_RESULT([yes])],
                [AC_MSG_RESULT([no])])
 
 AC_MSG_CHECKING([for __func__ extension])
-AC_TRY_COMPILE(,[ const char *fname = __func__; ],
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],[[ const char *fname = __func__; ]])],
                [AC_DEFINE([HAVE_C99_FUNC], [1],
                          [Define if the compiler understands the __func__ keyword])
                  AC_MSG_RESULT([yes])],
                [AC_MSG_RESULT([no])])
 AC_MSG_CHECKING([for __FUNCTION__ extension])
-AC_TRY_COMPILE(,[ const char *fname = __FUNCTION__; ],
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],,[[ const char *fname = __FUNCTION__; ]])],
                [AC_DEFINE([HAVE_FUNCTION], [1],
                          [Define if the compiler understands the __FUNCTION__ keyword])
                  AC_MSG_RESULT([yes])],
                [AC_MSG_RESULT([no])])
 AC_MSG_CHECKING([for C99 designated initialization support])
-AC_TRY_COMPILE(,[
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[
                 typedef struct {
                     int x;
                     union {
@@ -2369,7 +1906,7 @@ AC_TRY_COMPILE(,[
                         double d;
                     } u;
                 } di_struct_t;
-                di_struct_t x = {0, { .d = 0.0}}; ],
+                di_struct_t x = {0, { .d = 0.0}}; ]])],
                [AC_DEFINE([HAVE_C99_DESIGNATED_INITIALIZER], [1],
                          [Define if the compiler understands C99 designated initialization of structs and unions])
                  AC_MSG_RESULT([yes])],
@@ -2384,105 +1921,307 @@ AC_MSG_CHECKING([how to print long long])
 AC_CACHE_VAL([hdf5_cv_printf_ll], [
 
 for hdf5_cv_printf_ll in l ll L q unknown; do
-   AC_TRY_RUN([
-     #include <stdio.h>
-     #include <stdlib.h>
-     #include <string.h>
-
-     int main(void)
-     {
-	char *s = malloc(128);
-	long long x = (long long)1048576 * (long long)1048576;
-	sprintf(s,"%${hdf5_cv_printf_ll}d",x);
-	exit(strcmp(s,"1099511627776"));
-     }
-   ], [break],,[continue])
+   AC_RUN_IFELSE(
+        [AC_LANG_PROGRAM([
+            #include <stdio.h>
+            #include <stdlib.h>
+            #include <string.h>
+        ],[[
+            char *s = malloc(128);
+            long long x = (long long)1048576 * (long long)1048576;
+            sprintf(s,"%${hdf5_cv_printf_ll}d",x);
+            exit(strcmp(s,"1099511627776"));
+        ]])]
+   , [break],,[continue])
 done])
 
 AC_MSG_RESULT([%${hdf5_cv_printf_ll}d and %${hdf5_cv_printf_ll}u])
-AC_DEFINE_UNQUOTED([PRINTF_LL_WIDTH], ["$hdf5_cv_printf_ll"], 
+AC_DEFINE_UNQUOTED([PRINTF_LL_WIDTH], ["$hdf5_cv_printf_ll"],
                    [Width for printf() for type `long long' or `__int64', use `ll'])
 
 ## ----------------------------------------------------------------------
-## Check if pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM)
-## is supported on this system
+## Deprecate old ways of determining debug/production build
+## These can probably be removed in the future (1.10.1?)
 ##
-AC_MSG_CHECKING([Threads support system scope])
-AC_CACHE_VAL([hdf5_cv_system_scope_threads],
-  [AC_TRY_RUN([
-    #if STDC_HEADERS
-    #include <stdlib.h>
-    #include <pthread.h>
-    #endif
+AC_ARG_ENABLE([debug],
+              [AS_HELP_STRING([--enable-debug],
+               [DEPRECATED: use --enable-build-mode=debug])],
+              [DEPRECATED_DEBUG=$enableval])
 
-    int main(void)
-    {
-      pthread_attr_t attribute;
-      int ret;
-
-      pthread_attr_init(&attribute);
-      ret=pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM);
-      exit(ret==0 ? 0 : 1);
-    }
-  ], [hdf5_cv_system_scope_threads=yes], [hdf5_cv_system_scope_threads=no],)])
-
-if test ${hdf5_cv_system_scope_threads} = "yes"; then
-  AC_DEFINE([SYSTEM_SCOPE_THREADS], [1],
-            [Define if your system supports pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM) call.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
+if test "X-$DEPRECATED_DEBUG" != "X-" ; then
+    AC_MSG_ERROR([--enable-debug is deprecated, use --enable-build-mode=debug instead.])
 fi
+
+AC_ARG_ENABLE([production],
+              [AS_HELP_STRING([--enable-production],
+               [DEPRECATED: use --enable-build-mode=production])],
+              [DEPRECATED_PRODUCTION=$enableval])
+
+if test "X-$DEPRECATED_PRODUCTION" != "X-" ; then
+    AC_MSG_ERROR([--enable-production is deprecated, use --enable-build-mode=production instead.])
+fi
+
 
 ## ----------------------------------------------------------------------
-## Turn on debugging by setting compiler flags
-## This must come after the enable-production since it depends on production.
+## Check if the compiler should include symbols
 ##
-AC_MSG_CHECKING([for debug flags])
-AC_ARG_ENABLE([debug],
-              [AS_HELP_STRING([--enable-debug=all],
-                              [Turn on debugging in all packages. One may
-                               also specify a comma-separated list of
-                               package names without the leading H5 or
-                               the word no. The default is most packages
-			       if production is disabled; no if it is enabled.
+AC_MSG_CHECKING([enable debugging symbols])
+AC_ARG_ENABLE([symbols],
+              [AS_HELP_STRING([--enable-symbols=(yes|no|<custom>)],
+                              [Add debug symbols to the library (e.g.: build with -g).
+                               This is independent of the build mode and optimization
+                               level. The custom string allows special settings like
+                               -ggdb, etc. to be used.
+                               [default=yes if debug build, otherwise no]
                                ])],
-              [DEBUG_PKG=$enableval])
+              [SYMBOLS=$enableval])
 
-## Default to no if producton is enabled
-if test "X-$DEBUG_PKG" = X- ; then
-    if test "$enable_production" = yes ; then
-	DEBUG_PKG=no
-    else
-	DEBUG_PKG=yes
-    fi
+## Set default
+if test "X-$SYMBOLS" = X- ; then
+  if test "X-$BUILD_MODE" = "X-debug" ; then
+    SYMBOLS=yes
+  else
+    SYMBOLS=no
+  fi
 fi
 
-AC_SUBST([DEBUG_PKG])
-all_packages="ac,b,b2,d,e,f,g,hg,hl,i,mf,mm,o,p,s,t,v,z"
-case "X-$DEBUG_PKG" in
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([SYMBOLS])
+
+case "X-$SYMBOLS" in
   X-yes)
-    DEBUG_PKG="d,e,f,g,hg,i,mm,o,p,s,t,v,z"
-    H5_CPPFLAGS="$H5_CPPFLAGS -UNDEBUG"
-    AC_MSG_RESULT([default ($DEBUG_PKG)])
+    H5_CFLAGS="$H5_CFLAGS $SYMBOLS_CFLAGS"
+    H5_CXXFLAGS="$H5_CXXFLAGS $SYMBOLS_CXXFLAGS"
+    H5_FCFLAGS="$H5_FCFLAGS $SYMBOLS_FCFLAGS"
+    AC_MSG_RESULT([yes])
     ;;
-  X-all)
-    DEBUG_PKG=$all_packages
-    H5_CPPFLAGS="$H5_CPPFLAGS -UNDEBUG"
-    AC_MSG_RESULT([all ($DEBUG_PKG)])
-    ;;
-  X-no|X-none)
-    AC_MSG_RESULT([none])
-    DEBUG_PKG=
-    H5_CPPFLAGS="$H5_CPPFLAGS -DNDEBUG"
+  X-no)
+    H5_CFLAGS="$H5_CFLAGS $NO_SYMBOLS_CFLAGS"
+    H5_CXXFLAGS="$H5_CXXFLAGS $NO_SYMBOLS_CXXFLAGS"
+    H5_FCFLAGS="$H5_FCFLAGS $NO_SYMBOLS_FCFLAGS"
+    AC_MSG_RESULT([no])
     ;;
   *)
-    AC_MSG_RESULT([$DEBUG_PKG])
+    H5_CFLAGS="$H5_CFLAGS $SYMBOLS"
+    H5_CXXFLAGS="$H5_CXXFLAGS $SYMBOLS"
+    H5_FCFLAGS="$H5_FCFLAGS $SYMBOLS"
+    SYMBOLS="custom ($SYMBOLS)"
+    AC_MSG_RESULT([$SYMBOLS])
     ;;
 esac
 
-if test -n "$DEBUG_PKG"; then
-  for pkg in `echo $DEBUG_PKG | ${TR} ${as_cr_letters}"," ${as_cr_LETTERS}" "`; do
+## ----------------------------------------------------------------------
+## Check if the assert macro should be enabled
+##
+AC_MSG_CHECKING([enable asserts])
+AC_ARG_ENABLE([asserts],
+              [AS_HELP_STRING([--enable-asserts],
+                              [Determines whether NDEBUG is defined or not, which
+                               controls assertions.
+                               This is independent of the build mode and presence
+                               of debugging symbols.
+                               [default=yes if debug build, otherwise no]
+                               ])],
+              [ASSERTS=$enableval])
+
+## Set default
+if test "X-$ASSERTS" = X- ; then
+  if test "X-$BUILD_MODE" = "X-debug" ; then
+    ASSERTS=yes
+  else
+    ASSERTS=no
+  fi
+fi
+
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([ASSERTS])
+
+case "X-$ASSERTS" in
+  X-yes)
+    H5_CPPFLAGS="$H5_CPPFLAGS -UNDEBUG"
+    AC_MSG_RESULT([yes])
+    ;;
+  X-no)
+    H5_CPPFLAGS="$H5_CPPFLAGS -DNDEBUG"
+    AC_MSG_RESULT([no])
+    ;;
+  *)
+    AC_MSG_ERROR([Unrecognized value: $ASSERTS])
+    ;;
+esac
+
+## ----------------------------------------------------------------------
+## Check if the compiler should use profiling flags/settings
+##
+AC_MSG_CHECKING([profiling])
+AC_ARG_ENABLE([profiling],
+              [AS_HELP_STRING([--enable-profiling=(yes|no|<custom>)],
+                              [Enable profiling flags (e.g.: -pg).
+                               This can be set independently from the build mode.
+                               The custom setting can be used to pass alternative
+                               profiling flags (e.g.: -P for using Prof with gcc).
+                               [default=no]
+                               ])],
+              [PROFILING=$enableval])
+
+## Default is no profiling
+if test "X-$PROFILING" = X- ; then
+    PROFILING=no
+fi
+
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([PROFILING])
+
+case "X-$PROFILING" in
+  X-yes)
+    H5_CFLAGS="$H5_CFLAGS $PROFILE_CFLAGS"
+    H5_CXXFLAGS="$H5_CXXFLAGS $PROFILE_CXXFLAGS"
+    H5_FCFLAGS="$H5_FCFLAGS $PROFILE_FCFLAGS"
+    AC_MSG_RESULT([yes])
+    ;;
+  X-no)
+    AC_MSG_RESULT([no])
+    ;;
+  *)
+    H5_CFLAGS="$H5_CFLAGS $PROFILING"
+    H5_CXXFLAGS="$H5_CXXFLAGS $PROFILING"
+    H5_FCFLAGS="$H5_FCFLAGS $PROFILING"
+    PROFILING="custom ($PROFILING)"
+    AC_MSG_RESULT([$PROFILING])
+    ;;
+esac
+
+## ----------------------------------------------------------------------
+## Check if the compiler should use a particular optimization setting
+##
+AC_MSG_CHECKING([optimization level])
+AC_ARG_ENABLE([optimization],
+              [AS_HELP_STRING([--enable-optimization=(high|debug|none|<custom>)],
+                              [Enable optimization flags/settings (e.g.: -O3).
+                               This can be set independently from the build mode.
+                               Optimizations for a given compiler can be specified
+                               at several levels: High, with aggressive optimizations
+                               turned on; debug, with optimizations that are
+                               unlikely to interfere with debugging or profiling;
+                               and none, with no optimizations at all.
+                               See the compiler-specific config/*-flags file for more
+                               details.
+                               Alternatively, optimization options can
+                               be specified directly by specifying them as a
+                               string value. These custom optimzation flags will
+                               completely replace all other optimization flags.
+                               [default depends on build mode: debug=debug,
+                                production=high, clean=none]
+                               ])],
+              [OPTIMIZATION=$enableval])
+
+## Set the default optimization level. This depends on the compiler mode.
+if test "X-$OPTIMIZATION" = X- ; then
+  case "X-$BUILD_MODE" in
+  X-debug)
+    OPTIMIZATION=debug
+    ;;
+  X-production)
+    OPTIMIZATION=high
+    ;;
+  X-clean)
+    OPTIMIZATION=none
+    ;;
+  esac
+fi
+
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([OPTIMIZATION])
+
+case "X-$OPTIMIZATION" in
+  X-high)
+    H5_CFLAGS="$H5_CFLAGS $HIGH_OPT_CFLAGS"
+    H5_CXXFLAGS="$H5_CXXFLAGS $HIGH_OPT_CXXFLAGS"
+    H5_FCFLAGS="$H5_FCFLAGS $HIGH_OPT_FCFLAGS"
+    AC_MSG_RESULT([high])
+    ;;
+  X-debug)
+    H5_CFLAGS="$H5_CFLAGS $DEBUG_OPT_CFLAGS"
+    H5_CXXFLAGS="$H5_CXXFLAGS $DEBUG_OPT_CXXFLAGS"
+    H5_FCFLAGS="$H5_FCFLAGS $DEBUG_OPT_FCFLAGS"
+    AC_MSG_RESULT([debug])
+    ;;
+  X-none)
+    H5_CFLAGS="$H5_CFLAGS $NO_OPT_CFLAGS"
+    H5_CXXFLAGS="$H5_CXXFLAGS $NO_OPT_CXXFLAGS"
+    H5_FCFLAGS="$H5_FCFLAGS $NO_OPT_FCFLAGS"
+    AC_MSG_RESULT([none])
+    ;;
+  *)
+    H5_CFLAGS="$H5_CFLAGS $OPTIMIZATION"
+    H5_CXXFLAGS="$H5_CXXFLAGS $OPTIMIZATION"
+    H5_FCFLAGS="$H5_FCFLAGS $OPTIMIZATION"
+    OPTIMIZATION="custom ($OPTIMIZATION)"
+    AC_MSG_RESULT([$OPTIMIZATION])
+    ;;
+esac
+
+## ----------------------------------------------------------------------
+## Enable/disable internal package-level debugging output
+##
+AC_MSG_CHECKING([for internal debug output])
+AC_ARG_ENABLE([internal-debug],
+              [AS_HELP_STRING([--enable-internal-debug=(yes|all|no|none|<pkg list>)],
+                              [Enable extra debugging output on HDF5 library
+                               errors. One may also specify a comma-separated
+                               list of package names without the leading H5.
+                               This is independent of the build mode
+                               and is mainly of interest to HDF Group developers.
+                               Yes/all and no/none are synonymous.
+                               [default=all if debug build, otherwise none]
+                               ])],
+              [INTERNAL_DEBUG_OUTPUT=$enableval])
+
+## Set default
+if test "X-$INTERNAL_DEBUG_OUTPUT" = X- ; then
+  if test "X-$BUILD_MODE" = "X-debug" ; then
+    INTERNAL_DEBUG_OUTPUT=all
+  else
+    INTERNAL_DEBUG_OUTPUT=none
+  fi
+fi
+
+AC_SUBST([INTERNAL_DEBUG_OUTPUT])
+
+## These are all the packages that use H5*_DEBUG.
+## There is no harm in specifying a package not in this list;
+## you'll just get an unused H5<pkg>_DEBUG symbol.
+##
+## Some packages that define debug checks or output are
+## too specialized or have huge performance hits. These
+## are not listed in the "all" packages list.
+##
+## all_packages="AC,B,B2,D,F,FA,FL,FS,HL,I,O,S,ST,T,Z"
+all_packages="AC,B2,D,F,HL,I,O,S,ST,T,Z"
+
+case "X-$INTERNAL_DEBUG_OUTPUT" in
+  X-yes|X-all)
+    INTERNAL_DEBUG_OUTPUT=$all_packages
+    DEBUG_PKG_LIST=$all_packages
+    ;;
+  X-no|X-none)
+    INTERNAL_DEBUG_OUTPUT=none
+    DEBUG_PKG_LIST=
+    ;;
+  *)
+    DEBUG_PKG_LIST=$INTERNAL_DEBUG_OUTPUT
+    ;;
+esac
+AC_MSG_RESULT([$INTERNAL_DEBUG_OUTPUT])
+
+## Define H5*_DEBUG symbols that control package output
+## NOTE: No sanity checking done here!
+if test -n "$DEBUG_PKG_LIST"; then
+  for pkg in `echo $DEBUG_PKG_LIST | ${TR} ${as_cr_letters}"," ${as_cr_LETTERS}" "`; do
     H5_CPPFLAGS="$H5_CPPFLAGS -DH5${pkg}_DEBUG"
   done
 fi
@@ -2493,19 +2232,31 @@ fi
 AC_MSG_CHECKING([whether function stack tracking is enabled])
 AC_ARG_ENABLE([codestack],
               [AS_HELP_STRING([--enable-codestack],
-                              [Enable the function stack tracing (for developer debugging).])],
+                              [Enable the function stack tracing (for developer debugging).
+                               [default=no]
+                              ])],
               [CODESTACK=$enableval])
+
+## Set the default level.
+if test "X-$CODESTACK" = X- ; then
+  CODESTACK=no
+fi
+
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([CODESTACK])
 
 case "X-$CODESTACK" in
   X-yes)
-      CODESTACK=yes
       AC_MSG_RESULT([yes])
       AC_DEFINE([HAVE_CODESTACK], [1],
                 [Define if the function stack tracing code is to be compiled in])
     ;;
-  *)
-      CODESTACK=no
+  X-no)
       AC_MSG_RESULT([no])
+    ;;
+  *)
+      AC_MSG_ERROR([Unrecognized value: $CODESTACK])
     ;;
 esac
 
@@ -2515,113 +2266,69 @@ esac
 AC_MSG_CHECKING([whether metadata trace file code is enabled])
 AC_ARG_ENABLE([metadata-trace-file],
               [AS_HELP_STRING([--enable-metadata-trace-file],
-                              [Enable metadata trace file collection.])],
+                              [Enable metadata trace file collection.
+                               [default=no]
+                              ])],
               [METADATATRACEFILE=$enableval])
+
+## Set the default level.
+if test "X-$METADATATRACEFILE" = X- ; then
+  METADATATRACEFILE=no
+fi
+
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([METADATATRACEFILE])
 
 case "X-$METADATATRACEFILE" in
   X-yes)
-      METADATATRACEFILE=yes
       AC_MSG_RESULT([yes])
       AC_DEFINE([METADATA_TRACE_FILE], [1],
                 [Define if the metadata trace file code is to be compiled in])
     ;;
-  *)
-      METADATATRACEFILE=no
+  X-no)
       AC_MSG_RESULT([no])
+    ;;
+  *)
+      AC_MSG_ERROR([Unrecognized value: $METADATATRACEFILE])
     ;;
 esac
 
 ## ----------------------------------------------------------------------
 ## Enable tracing of the API
-## This must come after the enable-debug since it depends on debug.
 ##
-AC_SUBST([TRACE_API])
 AC_MSG_CHECKING([for API tracing]);
 AC_ARG_ENABLE([trace],
               [AS_HELP_STRING([--enable-trace],
-                              [Enable API tracing capability. Default=no
-                               if debug is disabled.])],
-              [TRACE=$enableval])
+                              [Enable HDF5 API tracing capability.
+                               [default=yes if debug build, otherwise no]
+                               ])],
+              [TRACE_API=$enableval])
 
-## Default to no if debug is disabled
-if test "X-$TRACE" = X- ; then
-  if test -z "$DEBUG_PKG" ; then
-    TRACE=no
+## Set the default level.
+if test "X-$TRACE_API" = X- ; then
+  if test "X-$BUILD_MODE" = "X-debug" ; then
+    TRACE_API=yes
   else
-    TRACE=yes
+    TRACE_API=no
   fi
 fi
 
-case "X-$TRACE" in
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([TRACE_API])
+
+case "X-$TRACE_API" in
   X-yes)
     AC_MSG_RESULT([yes])
-    TRACE_API=yes
     H5_CPPFLAGS="$H5_CPPFLAGS -DH5_DEBUG_API"
     ;;
-  X-no|*)
+  X-no)
     AC_MSG_RESULT([no])
-    TRACE_API=no
     H5_CPPFLAGS="$H5_CPPFLAGS -UH5_DEBUG_API"
     ;;
-esac
-
-## ----------------------------------------------------------------------
-## Enable instrumenting of the library's internal operations
-## This must come after the enable-debug since it depends on debug.
-##
-AC_SUBST([INSTRUMENT_LIBRARY])
-AC_MSG_CHECKING([for instrumented library]);
-AC_ARG_ENABLE([instrument],
-              [AS_HELP_STRING([--enable-instrument],
-                              [Enable library instrumentation of optimization
-                                tracing.  Default=no if debug is disabled.])],
-              [INSTRUMENT=$enableval])
-
-## Default to no if debug is disabled
-if test "X-$INSTRUMENT" = X- ; then
-  if test -z "$DEBUG_PKG" ; then
-    INSTRUMENT=no
-  else
-    INSTRUMENT=yes
-  fi
-fi
-
-case "X-$INSTRUMENT" in
-  X-yes)
-    AC_MSG_RESULT([yes])
-    INSTRUMENT_LIBRARY=yes
-    AC_DEFINE([HAVE_INSTRUMENTED_LIBRARY], [1],
-              [Define if library will contain instrumentation to detect correct optimization operation])
-    ;;
-  X-no|*)
-    AC_MSG_RESULT([no])
-    INSTRUMENT_LIBRARY=no
-    ;;
-esac
-
-## ----------------------------------------------------------------------
-## Check if they would like to securely clear file buffers before they are
-##     written.
-##
-AC_SUBST([CLEARFILEBUF])
-AC_MSG_CHECKING([whether to clear file buffers])
-AC_ARG_ENABLE([clear-file-buffers],
-              [AS_HELP_STRING([--enable-clear-file-buffers],
-                              [Securely clear file buffers before writing
-                              to file.  Default=yes.])],
-              [CLEARFILEBUF=$enableval])
-
-case "X-$CLEARFILEBUF" in
   *)
-      CLEARFILEBUF=yes
-      AC_MSG_RESULT([yes])
-      AC_DEFINE([CLEAR_MEMORY], [1],
-                [Define if the memory buffers being written to disk should be
-                cleared before writing.])
-    ;;
-  X-no)
-      CLEARFILEBUF=no
-      AC_MSG_RESULT([no])
+    AC_MSG_ERROR([Unrecognized value: $TRACE_API])
     ;;
 esac
 
@@ -2631,30 +2338,85 @@ esac
 ##     more scrupulous with it's memory operations.  Enabling this also
 ##     disables the library's free space manager code.
 ##
-AC_SUBST([USINGMEMCHECKER])
 AC_MSG_CHECKING([whether a memory checking tool will be used])
 AC_ARG_ENABLE([using-memchecker],
               [AS_HELP_STRING([--enable-using-memchecker],
                               [Enable this option if a memory allocation and/or
                               bounds checking tool will be used on the HDF5
                               library.  Enabling this causes the library to be
-                              more picky about it's memory operations and also
+                              more picky about its memory operations and also
                               disables the library's free space manager code.
-                              Default=no.])],
+                              This option is orthogonal to the
+                              --enable-memory-alloc-sanity-check option.
+                              [default=no]
+                              ])],
               [USINGMEMCHECKER=$enableval])
+
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([USINGMEMCHECKER])
+
+## Set the default level.
+if test "X-$USINGMEMCHECKER" = X- ; then
+  USINGMEMCHECKER=no
+fi
 
 case "X-$USINGMEMCHECKER" in
   X-yes)
-      USINGMEMCHECKER=yes
-      AC_MSG_RESULT([yes])
       AC_DEFINE([USING_MEMCHECKER], [1],
                 [Define if a memory checking tool will be used on the library,
                 to cause library to be very picky about memory operations and
                 also disable the internal free list manager code.])
+      AC_MSG_RESULT([yes])
+    ;;
+  X-no)
+      AC_MSG_RESULT([no])
     ;;
   *)
-      USINGMEMCHECKER=no
+      AC_MSG_ERROR([Unrecognized value: $USINGMEMCHECKER])
+    ;;
+esac
+
+## ----------------------------------------------------------------------
+## Check if they would like to enable the internal memory allocation sanity
+##     checking code.
+##
+AC_MSG_CHECKING([whether internal memory allocation sanity checking is used])
+AC_ARG_ENABLE([memory-alloc-sanity-check],
+              [AS_HELP_STRING([--enable-memory-alloc-sanity-check],
+                              [Enable this option to turn on internal memory
+                              allocation sanity checking.  This could cause
+                              more memory use and somewhat slower allocation.
+                              This option is orthogonal to the
+                              --enable-using-memchecker option.
+                               [default=yes if debug build, otherwise no]
+                              ])],
+              [MEMORYALLOCSANITYCHECK=$enableval])
+
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([MEMORYALLOCSANITYCHECK])
+
+## Set default
+if test "X-$MEMORYALLOCSANITYCHECK" = X- ; then
+  if test "X-$BUILD_MODE" = "X-debug" ; then
+    MEMORYALLOCSANITYCHECK=yes
+  else
+    MEMORYALLOCSANITYCHECK=no
+  fi
+fi
+
+case "X-$MEMORYALLOCSANITYCHECK" in
+  X-yes)
+      AC_DEFINE([MEMORY_ALLOC_SANITY_CHECK], [1],
+                [Define to enable internal memory allocation sanity checking.])
+      AC_MSG_RESULT([yes])
+    ;;
+  X-no)
       AC_MSG_RESULT([no])
+    ;;
+  *)
+      AC_MSG_ERROR([Unrecognized value: $MEMORYALLOCSANITYCHECK])
     ;;
 esac
 
@@ -2663,10 +2425,7 @@ AC_CACHE_SAVE
 
 ## What header files and libraries do we have to look for for parallel
 ## support?  For the most part, search paths are already specified with
-## CPPFLAGS and LDFLAGS or are known to the compiler.  If the user says
-## `--disable-parallel' but specifies a known parallel compiler (like mpicc
-## or mpcc) then parallel support is enabled but configure doesn't search
-## for any parallel header files or libraries.
+## CPPFLAGS and LDFLAGS or are known to the compiler.
 ##
 AC_ARG_ENABLE([parallel],
               [AS_HELP_STRING([--enable-parallel],
@@ -2681,6 +2440,15 @@ if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
   fi
 fi
 
+## The --enable-parallel flag is not compatible with --enable-java.
+## If the user tried to specify both flags, throw an error, unless
+## they also provided the --enable-unsupported flag.
+if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+  if test "X${HDF_JAVA}" = "Xyes" -a "X${enable_parallel}" = "Xyes"; then
+    AC_MSG_ERROR([--enable-java and --enable-parallel flags are incompatible. Use --enable-unsupported to override this error.])
+  fi
+fi
+
 ## --enable-parallel is also incompatible with --enable-threadsafe, unless
 ## --enable-unsupported has been specified on the configure line.
 if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
@@ -2689,25 +2457,10 @@ if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
   fi
 fi
 
-## It's possible to build in parallel by specifying a parallel compiler
-## without using the --enable-parallel flag.  This isn't allowed with
-## C++ or threadsafe, either, unless the --enable-unsupported flag 
-## has also been specified.
-if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
-  if test "X${PARALLEL}" != "X" -a "X${enable_cxx}" = "Xyes" ; then
-    AC_MSG_ERROR([An MPI compiler is being used; --enable-cxx is not allowed. Use --enable-unsupported to override this error.])
-  fi
-  if test "X${PARALLEL}" != "X" -a "X${THREADSAFE}" = "Xyes"; then
-    AC_MSG_ERROR([An MPI compiler is being used; --enable-threadsafe is not allowed. Use --enable-unsupported to override this error.])
-  fi
-fi
-
 AC_MSG_CHECKING([for parallel support files])
 case "X-$enable_parallel" in
   X-|X-no|X-none)
-    ## Either we are not compiling for parallel or the header and
-    ## library files and locations are known to the compiler (this is
-    ## the case for a correct installation of mpicc for instance).
+    ## We are not compiling for parallel.
     AC_MSG_RESULT([skipped])
     ;;
 
@@ -2717,59 +2470,17 @@ case "X-$enable_parallel" in
     AC_MSG_RESULT([provided by compiler])
     PARALLEL=yes
 
-    ## Try link a simple MPI program.  If fail, try again with -lmpi and
-    ## -lmpich.
-    AC_TRY_LINK(, [MPI_Init()],,
-	[AC_CHECK_LIB([mpi], [MPI_Init],,
-	    [AC_CHECK_LIB([mpich], [MPI_Init],, [PARALLEL=no])])])
-
-    ## Then try link a simple MPI-IO program. If fail, try again with
-    ## -lmpio.
-    if test "X$PARALLEL" = "Xyes"; then
-      AC_TRY_LINK(, [MPI_File_open()],,
-                  [AC_CHECK_LIB([mpio], [MPI_File_open],, [PARALLEL=no])])
-    fi
+    ## Try link a simple MPI program.
+    AC_MSG_CHECKING([whether a simple MPI-IO C program can be linked])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <mpi.h>]],
+                   [[ MPI_Init(0, (void *)0);
+            MPI_File_open(0, (void *)0, 0, 0, (void *)0);]])],
+        [AC_MSG_RESULT([yes])],
+            [AC_MSG_RESULT([no])
+            AC_MSG_ERROR([unable to link a simple MPI-IO C program])])
 
     if test "X$HDF_FORTRAN" = "Xyes"; then
-      ## Change to the Fortran 90 language
-      AC_LANG_PUSH(Fortran)
-
-      ## Try link a simple MPI program.  If fail, try again with -lmpi.
-      AC_LINK_IFELSE([
-          program main
-          include 'mpif.h'
-          integer:: ierr
-          call mpi_file_open( ierr )
-          end],,
-          [AC_CHECK_LIB([mpi], [mpi_file_open],, [PARALLEL=no])])
-
-      ## Then try link a simple MPI-IO program.  If fail, try again with
-      ## -lmpio.
-      if test "X$PARALLEL" = "Xyes"; then
-        AC_LINK_IFELSE([
-            program main
-            include 'mpif.h'
-            integer:: ierr
-            call mpi_file_open( ierr )
-            end],,
-            [AC_CHECK_LIB([mpio], [mpi_file_open],, [PARALLEL=no])])
-      fi
-
-      ## Change to the C language
-      AC_LANG_POP(Fortran)
-    fi
-
-    ## Set RUNPARALLEL to mpiexec if not set yet.
-    ## Check for building on Cray if RUNPARALLEL is not yet set by checking
-    ## for 'aprun' command (which is the parallel job launcher, like mpiexec).
-    if test "X$PARALLEL" = "Xyes" -a -z "$RUNPARALLEL"; then
-        ## Find the path where aprun is located.
-  	for path in `echo $PATH | ${TR} ":" " "`; do
-  	  if test -x $path/aprun; then
-            RUNPARALLEL="aprun -q -n \$\${NPROCS:=6}"
-  	    break;
-  	  fi
-	done
+      PAC_PROG_FC_MPI_CHECK
     fi
 
     ## Set RUNPARALLEL to mpiexec if not set yet.
@@ -2786,8 +2497,12 @@ esac
 
 ## ----------------------------------------------------------------------
 ## Print some other parallel information and do some sanity checks.
+## Needs to be done outside of the PARALLEL block since the serial
+## build also needs to have values defined.
 ##
 AC_SUBST([ADD_PARALLEL_FILES]) ADD_PARALLEL_FILES="no"
+AC_SUBST([MPE]) MPE=no
+AC_SUBST([INSTRUMENT_LIBRARY]) INSTRUMENT_LIBRARY=no
 
 if test -n "$PARALLEL"; then
   ## The 'testpar' directory should participate in the build
@@ -2802,13 +2517,6 @@ if test -n "$PARALLEL"; then
   AC_MSG_CHECKING([prefix for running in parallel])
   AC_MSG_RESULT([$RUNPARALLEL])
 
-  ## Check that we can link a simple MPI and MPI-IO application
-  AC_MSG_CHECKING([whether a simple MPI-IO program can be linked])
-  AC_TRY_LINK(, [MPI_Init(); MPI_File_open();],
-              [AC_MSG_RESULT([yes])],
-              [AC_MSG_RESULT([no])
-              AC_MSG_ERROR([unable to link a simple MPI-IO application])])
-
   ## There *must* be some way to run in parallel even if it's just the
   ## word `none'.
   if test -z "$RUNPARALLEL"; then
@@ -2816,7 +2524,8 @@ if test -n "$PARALLEL"; then
   fi
 
   ## If RUNSERIAL or RUNPARALLEL is the word `none' then replace it with
-  ## the empty string.
+  ## the empty string. This means that no launch commands were requested,
+  ## so we will not use any launch commands.
   if test "X$RUNSERIAL" = "Xnone"; then
     RUNSERIAL=""
   fi
@@ -2828,23 +2537,64 @@ if test -n "$PARALLEL"; then
     ADD_PARALLEL_FILES="yes"
     AC_MSG_CHECKING([for MPI_Comm_c2f and MPI_Comm_f2c functions])
 
-    AC_TRY_LINK([#include <mpi.h>],
-      [MPI_Comm c_comm; MPI_Comm_c2f(c_comm)],
-      AC_DEFINE([HAVE_MPI_MULTI_LANG_Comm], [1],
-                [Define if `MPI_Comm_c2f' and `MPI_Comm_f2c' exists])
-      AC_MSG_RESULT([yes]),
-      AC_MSG_RESULT([no])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <mpi.h>
+    ]],
+      [[MPI_Comm c_comm; MPI_Comm_c2f(c_comm)]])],
+      [AC_DEFINE([HAVE_MPI_MULTI_LANG_Comm], [1],
+                 [Define if MPI_Comm_c2f and MPI_Comm_f2c exist])
+                 AC_MSG_RESULT([yes])],
+                 [AC_MSG_RESULT([no])]
     )
 
     AC_MSG_CHECKING([for MPI_Info_c2f and MPI_Info_f2c functions])
-    AC_TRY_LINK([#include <mpi.h>],
-      [MPI_Info c_info; MPI_Info_c2f(c_info)],
-      AC_DEFINE([HAVE_MPI_MULTI_LANG_Info], [1],
-                [Define if `MPI_Info_c2f' and `MPI_Info_f2c' exists])
-      AC_MSG_RESULT([yes]),
-      AC_MSG_RESULT([no])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <mpi.h>]],
+      [[MPI_Info c_info; MPI_Info_c2f(c_info)]])],
+      [AC_DEFINE([HAVE_MPI_MULTI_LANG_Info], [1],
+                [Define if MPI_Info_c2f and MPI_Info_f2c exist])
+                AC_MSG_RESULT([yes])],
+                [AC_MSG_RESULT([no])]
     )
   fi
+
+  ## ----------------------------------------------------------------------
+  ## Enable instrumenting of the library's internal operations
+  ## in parallel builds.
+  ##
+
+  ## Set default
+  if test "X-$BUILD_MODE" = "X-debug" ; then
+    INSTRUMENT_LIBRARY=yes
+  else
+    INSTRUMENT_LIBRARY=no
+  fi
+
+  AC_MSG_CHECKING([for instrumented library]);
+  AC_ARG_ENABLE([instrument],
+                [AS_HELP_STRING([--enable-instrument],
+                                [Enable library instrumentation of optimization
+                                  tracing (only used with parallel builds).
+                                  [default=yes if a parallel debug build, otherwise no]
+                                ])],
+                [INSTRUMENT_LIBRARY=$enableval])
+
+  ## Allow this variable to be substituted in
+  ## other files (src/libhdf5.settings.in, etc.)
+  AC_SUBST([INSTRUMENT_LIBRARY])
+
+  case "X-$INSTRUMENT_LIBRARY" in
+    X-yes)
+      AC_DEFINE([HAVE_INSTRUMENTED_LIBRARY], [1],
+                [Define if parallel library will contain instrumentation to detect correct optimization operation])
+      AC_MSG_RESULT([yes])
+      ;;
+    X-no)
+      AC_MSG_RESULT([no])
+      ;;
+    *)
+      AC_MSG_ERROR([Unrecognized value: $INSTRUMENT_LIBRARY])
+      ;;
+  esac
 
   ## --------------------------------------------------------------------
   ## Do we want MPE instrumentation feature on?
@@ -2867,7 +2617,6 @@ if test -n "$PARALLEL"; then
     X-yes)
       AC_CHECK_HEADERS([mpe.h],, [unset MPE])
       AC_CHECK_LIB([mpe], [MPE_Init_log],, [unset MPE])
-      AC_CHECK_LIB([lmpe], [MPE_Init_mpi_io],, [unset MPE])
       ;;
     *)
       case "$withval" in
@@ -2882,16 +2631,7 @@ if test -n "$PARALLEL"; then
           fi
           ;;
       esac
-  
-      ## Trying to include -I/usr/include and -L/usr/lib is redundant and
-      ## can mess some compilers up.
-      if test "X$mpe_inc" = "X/usr/include"; then
-        mpe_inc=""
-      fi
-      if test "X$mpe_lib" = "X/usr/lib"; then
-        mpe_lib=""
-      fi
-  
+
       if test -n "$mpe_inc"; then
         saved_CPPFLAGS="$CPPFLAGS"
         saved_AM_CPPFLAGS="$AM_CPPFLAGS"
@@ -2901,7 +2641,7 @@ if test -n "$PARALLEL"; then
       else
         AC_CHECK_HEADERS([mpe.h],, [unset MPE])
       fi
-  
+
       if test -n "$mpe_lib"; then
         saved_LDFLAGS="$LDFLAGS"
         saved_AM_LDFLAGS="$AM_LDFLAGS"
@@ -2909,12 +2649,8 @@ if test -n "$PARALLEL"; then
         AM_LDFLAGS="$AM_LDFLAGS -L$mpe_lib"
         AC_CHECK_LIB([mpe], [MPE_Init_log],,
                      [LDFLAGS="$saved_LDFLAGS"; AM_LDFLAGS="$saved_AM_LDFLAGS"; unset MPE])
-        AC_CHECK_LIB([lmpe], [MPE_Init_mpi_io],,
-                     [LDFLAGS="$saved_LDFLAGS"; AM_LDFLAGS="$saved_AM_LDFLAGS"; unset MPE])
-
       else
         AC_CHECK_LIB([mpe], [MPE_Init_log],, [unset MPE])
-        AC_CHECK_LIB([lmpe], [MPE_Init_mpi_io],, [unset MPE])
       fi
       ;;
   esac
@@ -2925,150 +2661,46 @@ if test -n "$PARALLEL"; then
 fi
 
 ## ----------------------------------------------------------------------
-## Turn on internal I/O filters by setting macros in header files
-## Internal I/O filters are contained entirely within the library and do
-## not depend on external headers or libraries.  The shuffle filter is
-## an example of an internal filter, while the gzip filter is an example of
-## an external filter.  Each external filter is controlled with an
-## "--with-foo=" configure flag.
-##
-AC_SUBST([FILTERS])
-AC_SUBST([USE_FILTER_SHUFFLE]) USE_FILTER_SHUFFLE="no"
-AC_SUBST([USE_FILTER_FLETCHER32]) USE_FILTER_FLETCHER32="no"
-AC_SUBST([USE_FILTER_NBIT]) USE_FILTER_NBIT="no"
-AC_SUBST([USE_FILTER_SCALEOFFSET]) USE_FILTER_SCALEOFFSET="no"
-AC_MSG_CHECKING([for I/O filters])
-AC_ARG_ENABLE([filters],
-              [AS_HELP_STRING([--enable-filters=all],
-                              [Turn on all internal I/O filters. One may
-                               also specify a comma-separated list of filters
-                               or the word no.  The default is all internal
-                               I/O filters.])],
-              [FILTERS=$enableval])
-
-## Eventually: all_filters="shuffle,foo,bar,baz"
-all_filters="shuffle,fletcher32,nbit,scaleoffset"
-case "X-$FILTERS" in
-  X-|X-all)
-    FILTERS=$all_filters
-    AC_MSG_RESULT([all ($FILTERS)])
-    ;;
-  X-no|X-none)
-    AC_MSG_RESULT([none])
-    FILTERS="none"
-    ;;
-  *)
-    AC_MSG_RESULT([$FILTERS])
-    ;;
-esac
-
-if test -n "$FILTERS"; then
-  for filter in `echo $FILTERS | tr ${as_cr_letters}',' ${as_cr_LETTERS}' '`; do
-    ## ------------------------------------------------------------------
-    ## Have to use separate 'if' construct for each filter, so that
-    ## autoheader can detect the AC_DEFINE for each one...
-    ##
-    if test $filter = "SHUFFLE"; then
-      AC_DEFINE([HAVE_FILTER_SHUFFLE], [1],
-                [Define if support for shuffle filter is enabled])
-      USE_FILTER_SHUFFLE="yes"
-    fi
-    if test $filter = "FLETCHER32"; then
-      AC_DEFINE([HAVE_FILTER_FLETCHER32], [1],
-                [Define if support for Fletcher32 checksum is enabled])
-      USE_FILTER_FLETCHER32="yes"
-    fi
-    if test $filter = "NBIT"; then
-      AC_DEFINE([HAVE_FILTER_NBIT], [1],
-                [Define if support for nbit filter is enabled])
-      USE_FILTER_NBIT="yes"
-    fi
-    if test $filter = "SCALEOFFSET"; then
-      AC_DEFINE([HAVE_FILTER_SCALEOFFSET], [1],
-                [Define if support for scaleoffset filter is enabled])
-      USE_FILTER_SCALEOFFSET="yes"
-    fi
-  done
-fi
-
-## ----------------------------------------------------------------------
-## This is defined only when we're using CodeWarrior, since it has a
-## broken "open()" call.
-#
-if test 1 = 2; then
-  AC_DEFINE([NO_SHARED_WRITING], [1],
-            [Define if shared writing must be disabled (CodeWarrior only)])
-fi
-
-## --------------------------------------------------------------------------
-## Should the Default Virtual File Driver be compiled?
-##
-
-AC_MSG_CHECKING([for Default Virtual File Driver definition])
-AC_ARG_WITH([default-vfd],
-            [AS_HELP_STRING([--with-default-vfd=driver],
-                            [Specify default file driver
-                             [default=sec2]])],,
-            withval=sec2)
-
-if test "X$withval" = "Xsec2"; then
-    AC_MSG_RESULT([yes])
-    default_vfd=yes
-    vfd_define=H5FD_SEC2
-elif test "X$withval" = "Xstdio"; then
-    AC_MSG_RESULT([yes])
-    default_vfd=yes
-    vfd_define=H5FD_STDIO
-else
-    AC_MSG_RESULT([no])
-    default_vfd=no
-fi
-
-if test "X$default_vfd" = "Xyes"; then
-  AC_DEFINE_UNQUOTED([DEFAULT_VFD], [$vfd_define],
-            [Define the default virtual file driver to compile])
-fi
-
-## ----------------------------------------------------------------------
 ## Check if Direct I/O driver is enabled by --enable-direct-vfd
 ##
+AC_SUBST([DIRECT_VFD])
 
-AC_MSG_CHECKING([for Direct Virtual File Driver support])
+## Default is no direct VFD
+DIRECT_VFD=no
+
+AC_CACHE_VAL([hdf5_cv_direct_io],
+    AC_CHECK_DECL([O_DIRECT], [hdf5_cv_direct_io=yes], [hdf5_cv_direct_io=no], [[#include <fcntl.h>]]))
+AC_CACHE_VAL([hdf5_cv_posix_memalign],
+    AC_CHECK_FUNC([posix_memalign], [hdf5_cv_posix_memalign=yes], [hdf5_cv_posix_memalign=no]))
+
+AC_MSG_CHECKING([if the direct I/O virtual file driver (VFD) is enabled])
 
 AC_ARG_ENABLE([direct-vfd],
               [AS_HELP_STRING([--enable-direct-vfd],
-                              [Build the Direct I/O Virtual File Driver
-                               [default=yes]])],
-              [DIRECT_VFD=$enableval], [DIRECT_VFD=yes])
+                              [Build the direct I/O virtual file driver (VFD).
+                               This is based on the POSIX (sec2) VFD and
+                               requires the open() call to take the O_DIRECT
+                               flag. [default=no]])],
+              [DIRECT_VFD=$enableval], [DIRECT_VFD=no])
 
-if test "$DIRECT_VFD" = "yes"; then
-   AC_CACHE_VAL([hdf5_cv_direct_io],
-       [AC_TRY_RUN([
-	  #include <sys/types.h>
-	  #include <sys/stat.h>
-	  #include <fcntl.h>
-          int main(void)
-          {
-             int fid; 
-             if((fid=open("tst_file", O_CREAT | O_TRUNC | O_DIRECT, 0755))<0)
-		exit(1);
-             close(fid);  
-             remove("tst_file"); 
-             exit (0);
-          }], [AC_TRY_LINK(, [posix_memalign()], [hdf5_cv_direct_io=yes], [hdf5_cv_direct_io=no])], [hdf5_cv_direct_io=no],)])
-
-   if test ${hdf5_cv_direct_io} = "yes"; then
-      AC_MSG_RESULT([yes])
-      AC_DEFINE([HAVE_DIRECT], [1],
-                [Define if the direct I/O virtual file driver should be compiled])
-   else
-      AC_MSG_RESULT([no])
-      DIRECT_VFD=no
-   fi
+if test "X$DIRECT_VFD" = "Xyes"; then
+    if test ${hdf5_cv_direct_io} = "yes" && test ${hdf5_cv_posix_memalign} = "yes" ; then
+        AC_MSG_RESULT([yes])
+        AC_DEFINE([HAVE_DIRECT], [1],
+                [Define if the direct I/O virtual file driver (VFD) should be compiled])
+    else
+        AC_MSG_RESULT([no])
+        DIRECT_VFD=no
+        AC_MSG_ERROR([The direct VFD was requested but cannot be built. This is either
+                     due to O_DIRECT not being found in fcntl.h or a lack of
+                     posix_memalign() on your system. Please re-configure without
+                     specifying --enable-direct-vfd.])
+    fi
 else
-      AC_MSG_RESULT([suppressed])
+    AC_MSG_RESULT([no])
 fi
 
+## Direct VFD files are not built if not required.
 AM_CONDITIONAL([DIRECT_VFD_CONDITIONAL], [test "X$DIRECT_VFD" = "Xyes"])
 
 ## ----------------------------------------------------------------------
@@ -3096,12 +2728,12 @@ AC_DEFINE_UNQUOTED([DEFAULT_PLUGINDIR], ["$default_plugindir"],
 ## Decide whether the presence of user's exception handling functions is
 ## checked and data conversion exceptions are returned.  This is mainly
 ## for the speed optimization of hard conversions.  Soft conversions can
-## actually benefit little.  
+## actually benefit little.
 ##
 AC_MSG_CHECKING([whether exception handling functions is checked during data conversions])
 AC_ARG_ENABLE([dconv-exception],
               [AS_HELP_STRING([--enable-dconv-exception],
-                              [if exception handling functions is checked during 
+                              [if exception handling functions is checked during
                               data conversions [default=yes]])],
               [DCONV_EXCEPTION=$enableval], [DCONV_EXCEPTION=yes])
 
@@ -3116,13 +2748,13 @@ fi
 ## ----------------------------------------------------------------------
 ## Decide whether the data accuracy has higher priority during data
 ## conversions.  If not, some hard conversions will still be prefered even
-## though the data may be wrong (for example, some compilers don't 
+## though the data may be wrong (for example, some compilers don't
 ## support denormalized floating values) to maximize speed.
-## 
+##
 AC_MSG_CHECKING([whether data accuracy is guaranteed during data conversions])
 AC_ARG_ENABLE([dconv-accuracy],
               [AS_HELP_STRING([--enable-dconv-accuracy],
-                              [if data accuracy is guaranteed during 
+                              [if data accuracy is guaranteed during
                               data conversions [default=yes]])],
               [DATA_ACCURACY=$enableval], [DATA_ACCURACY=yes])
 
@@ -3132,40 +2764,6 @@ if test "$DATA_ACCURACY" = "yes"; then
             [Data accuracy is prefered to speed during data conversions])
 else
   AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can handle converting
-## denormalized floating-point values.
-## (This flag should be set for all machines, except for the Crays, where
-## the cache value is set in it's config file)
-##
-AC_MSG_CHECKING([if converting denormalized floating-point values is possible])
-AC_CACHE_VAL([hdf5_cv_convert_denormal_float], [hdf5_cv_convert_denormal_float=yes])
-
-if test ${hdf5_cv_convert_denormal_float} = "yes"; then
-  AC_DEFINE([CONVERT_DENORMAL_FLOAT], [1],
-            [Define if your system can handle converting denormalized floating-point values.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can handle converting
-## floating-point to long long values.
-## (This flag should be _unset_ for all machines, except for Windows, where
-## it's set in the custom Windows H5pubconf.h file)
-##
-AC_MSG_CHECKING([if converting floating-point values to long long is not working])
-AC_CACHE_VAL([hdf5_cv_convert_float_llong_not_works], [hdf5_cv_convert_float_llong_not_works=no])
-
-if test ${hdf5_cv_convert_float_llong_not_works} = "yes"; then
-  AC_DEFINE([HW_FP_TO_LLONG_NOT_WORKS], [1],
-            [Define if your system can't handle converting floating-point values to long long.])
-  AC_MSG_RESULT([true])
-else
-  AC_MSG_RESULT([false])
 fi
 
 ## ----------------------------------------------------------------------
@@ -3187,520 +2785,11 @@ case "`uname`" in
     ;;
 esac
 
-## -----------------------------------------------------------------------
-## Set flag to indicate that the machine can handle conversion from 
-## long double to integers accurately.  This flag should be set "yes" for 
-## all machines except all SGIs.  For SGIs, some conversions are
-## incorrect and its cache value is set "no" in its config/irix6.x and 
-## irix5.x.
-##
-AC_MSG_CHECKING([if converting from long double to integers is accurate])
-
-if test ${ac_cv_sizeof_long_double} = 0; then
-   hdf5_cv_ldouble_to_integer_accurate=${hdf5_cv_ldouble_to_integer_accurate=no}
-else
-   AC_CACHE_VAL([hdf5_cv_ldouble_to_integer_accurate], [hdf5_cv_ldouble_to_integer_accurate=yes])
-fi
-
-if test "${hdf5_cv_ldouble_to_integer_accurate}" = "yes"; then
-  AC_DEFINE([LDOUBLE_TO_INTEGER_ACCURATE], [1],
-            [Define if your system can convert long double to integers accurately.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## -----------------------------------------------------------------------
-## Set flag to indicate that the machine can do conversion from 
-## long double to integers regardless of accuracy.  This flag should be 
-## set "yes" for all machines except HP-UX 11.00.  For HP-UX 11.00, the
-## compiler has 'floating exception' when converting 'long double' to all 
-## integers except 'unsigned long long'.  Other HP-UX systems are unknown
-## yet. (1/8/05 - SLU)
-
-AC_MSG_CHECKING([if converting from long double to integers works])
-
-if test ${ac_cv_sizeof_long_double} = 0; then
-   hdf5_cv_ldouble_to_integer_works=${hdf5_cv_ldouble_to_integer_works=no}
-else
-   AC_CACHE_VAL([hdf5_cv_ldouble_to_integer_works],
-        [AC_TRY_RUN([
-        int main(void)
-        {
-            void *align;
-            long double ld= 9701917572145405952.00L;
-            unsigned char v1;
-            short v2;
-            unsigned int v3;
-            int  ret = 0;
-
-            align = (void*)malloc(sizeof(long double));
-            memcpy(align, &ld, sizeof(long double));
-
-            /*For HU-UX11.00, there's floating exception(core dump) when doing some of casting
-             *from 'long double' to integers*/
-            v1=(unsigned char)(*((long double*)align));
-            v2=(short)(*((long double*)align));
-            v3=(unsigned int)(*((long double*)align));
-
-    done:
-            exit(ret);
-        }
-        ], [hdf5_cv_ldouble_to_integer_works=yes], [hdf5_cv_ldouble_to_integer_works=no],)])
-fi
-
-if test ${hdf5_cv_ldouble_to_integer_works} = "yes"; then
-  AC_DEFINE([LDOUBLE_TO_INTEGER_WORKS], [1],
-            [Define if your system can convert from long double to integer values.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## -----------------------------------------------------------------------
-## Set flag to indicate that the machine can handle conversion from 
-## integers to long double.  (This flag should be set "yes" for all 
-## machines except all SGIs, where some conversions are
-## incorrect and its cache value is set "no" in its config/irix6.x and 
-## irix5.x) 
-##
-AC_MSG_CHECKING([if accurately converting from integers to long double])
-
-if test ${ac_cv_sizeof_long_double} = 0; then
-   hdf5_cv_integer_to_ldouble_accurate=${hdf5_cv_integer_to_ldouble_accurate=no}
-else
-   AC_CACHE_VAL([hdf5_cv_integer_to_ldouble_accurate], [hdf5_cv_integer_to_ldouble_accurate=yes])
-fi
-
-if test ${hdf5_cv_integer_to_ldouble_accurate} = "yes"; then
-  AC_DEFINE([INTEGER_TO_LDOUBLE_ACCURATE], [1],
-            [Define if your system can accurately convert from integers to long double values.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can accurately convert
-## 'unsigned long' to 'float' values.
-## (This flag should be set for all machines, except for Pathscale compiler
-## on Sandia's Linux machine where the compiler interprets 'unsigned long'
-## values as negative when the first bit of 'unsigned long' is on during 
-## the conversion to float.) 
-##
-AC_MSG_CHECKING([if accurately converting unsigned long to float values])
-
-AC_CACHE_VAL([hdf5_cv_ulong_to_float_accurate],
-    [AC_TRY_RUN([
-    int main(void)
-    {
-        int           ret = 0;
-        unsigned long l1;
-        unsigned long l2;
-        unsigned long l3;
-        float f1;
-        float f2;
-        float f3;
-
-
-        if(sizeof(unsigned long)==8) {
-            l1 = 0xffffffffffffffffUL;
-            l2 = 0xffffffffffff0000UL;
-            l3 = 0xf000000000000000UL;
-
-            f1 = (float)l1;
-            f2 = (float)l2;
-            f3 = (float)l3;
-
-            if((f1 < 0) || (f2 < 0) || (f3 < 0))
-                ret = 1;
-        }
-
-done:
-        exit(ret);
-    }
-    ], [hdf5_cv_ulong_to_float_accurate=yes], [hdf5_cv_ulong_to_float_accurate=no],)])
-
-if test ${hdf5_cv_ulong_to_float_accurate} = "yes"; then
-  AC_DEFINE([ULONG_TO_FLOAT_ACCURATE], [1],
-            [Define if your system accurately converting unsigned long to float values.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can accurately convert
-## 'unsigned (long) long' values to 'float' and 'double' values.
-## (This flag should be set for all machines, except for the SGIs, where
-## the cache value is set in the config/irix6.x config file) and Solaris
-## 64-bit machines, where the short program below tests if round-up is 
-## correctly handled.
-##
-AC_MSG_CHECKING([if accurately converting unsigned long long to floating-point values])
-
-if test ${host_os_novers} = "solaris2.x"; then
-    AC_CACHE_VAL([hdf5_cv_ulong_to_fp_bottom_bit_accurate],
-    [AC_TRY_RUN([
-    int main(void)
-    {
-        unsigned long l1;
-        unsigned long l2;
-        unsigned long l3;
-        unsigned long l4;
-        unsigned long long ld1;
-        unsigned long long ld2;
-        unsigned long long ld3;
-        unsigned long long ld4;
-        double        d1, d2, d3, d4;
-        unsigned char s[8];
-        int           ret = 0;
-
-        if(sizeof(unsigned long)==8) {
-            l1 = 0xf000000000000b00UL; /*Round-down case*/
-            l2 = 0xf000000000000401UL; /*Round-up case*/
-            l3 = 0xf000000000000400UL; /*Round-down case*/
-            l4 = 0xf000000000000c00UL; /*Round-up case*/
-            
-            d1 = (double)l1;
-            d2 = (double)l2;
-            d3 = (double)l3;
-            d4 = (double)l4;
-        } else if(sizeof(unsigned long long)==8) { 
-            ld1 = 0xf000000000000b00ULL; /*Round-down case*/
-            ld2 = 0xf000000000000401ULL; /*Round-up case*/
-            ld3 = 0xf000000000000400ULL; /*Round-down case*/
-            ld4 = 0xf000000000000c00ULL; /*Round-up case*/
-            
-            d1 = (double)ld1;
-            d2 = (double)ld2;
-            d3 = (double)ld3;
-            d4 = (double)ld4;
-        } else {
-            ret = 1;
-            goto done;
-        }
-        
-        memcpy(s, &d1, 8);
-        if(s[7]!=1)
-            ret = 1;
-
-        memcpy(s, &d2, 8);
-        if(s[7]!=1)
-            ret = 1;
-
-        memcpy(s, &d3, 8);
-        if(s[7]!=0)
-            ret = 1;
-
-        memcpy(s, &d4, 8);
-        if(s[7]!=2)
-            ret = 1;
-
-done:
-        exit(ret);
-    }
-    ], [hdf5_cv_ulong_to_fp_bottom_bit_accurate=yes], [hdf5_cv_ulong_to_fp_bottom_bit_accurate=no],)])
-else
-    AC_CACHE_VAL([hdf5_cv_ulong_to_fp_bottom_bit_accurate], [hdf5_cv_ulong_to_fp_bottom_bit_accurate=yes])
-fi
-
-if test ${hdf5_cv_ulong_to_fp_bottom_bit_accurate} = "yes"; then
-  AC_DEFINE([ULONG_TO_FP_BOTTOM_BIT_ACCURATE], [1],
-            [Define if your system can accurately convert unsigned (long) long values to floating-point values.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can accurately convert
-## 'float' or 'double' to 'unsigned long long' values.
-## (This flag should be set for all machines, except for PGI compiler 
-## where round-up happens when the fraction of float-point value is greater 
-## than 0.5.
-##
-AC_MSG_CHECKING([if accurately roundup converting floating-point to unsigned long long values])
-
-AC_CACHE_VAL([hdf5_cv_fp_to_ullong_accurate],
-    [AC_TRY_RUN([
-    int main(void)
-    {
-        float  f = 111.60f;
-        double d = 222.55L;
-        unsigned long long l1 = (unsigned long long)f;
-        unsigned long long l2 = (unsigned long long)d;
-        int           ret = 0;
-
-        if(l1 == 112) 
-            ret = 1;
-        if(l2 == 223) 
-            ret = 1;
-
-done:
-        exit(ret);
-    }
-    ], [hdf5_cv_fp_to_ullong_accurate=yes], [hdf5_cv_fp_to_ullong_accurate=no],)])
-
-if test ${hdf5_cv_fp_to_ullong_accurate} = "yes"; then
-  AC_DEFINE([FP_TO_ULLONG_ACCURATE], [1],
-            [Define if your system roundup accurately converting floating-point to unsigned long long values.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can accurately convert
-## 'float', 'double' or 'long double' to 'unsigned long long' values.
-## (This flag should be set for all machines, except for HP-UX machines
-## where the maximal number for unsigned long long is 0x7fffffffffffffff
-## during conversion.
-##
-AC_MSG_CHECKING([if right maximum converting floating-point to unsigned long long values])
-
-AC_CACHE_VAL([hdf5_cv_fp_to_ullong_right_maximum],
-    [AC_TRY_RUN([
-    int main(void)
-    {
-        float  f = 9701917572145405952.00f;
-        double d1 = 9701917572145405952.00L;
-        long double d2 = 9701917572145405952.00L;
-        double d3 = 2e40L;
-        unsigned long long l1 = (unsigned long long)f;
-        unsigned long long l2 = (unsigned long long)d1;
-        unsigned long long l3 = (unsigned long long)d2;
-        unsigned long long l4;
-        unsigned long long l5 = 0x7fffffffffffffffULL;
-        int           ret = 0;
-
-        if(l1 <= l5 || l2 <= l5 || l3 <= l5) 
-            ret = 1;
-
-        l4 = (unsigned long long)d3;
-        if(l4 <= l5)
-            ret = 1;
-
-done:
-        exit(ret);
-    }
-    ], [hdf5_cv_fp_to_ullong_right_maximum=yes], [hdf5_cv_fp_to_ullong_right_maximum=no],)])
-
-if test ${hdf5_cv_fp_to_ullong_right_maximum} = "yes"; then
-  AC_DEFINE([FP_TO_ULLONG_RIGHT_MAXIMUM], [1],
-            [Define if your system has right maximum convert floating-point to unsigned long long values.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can accurately convert
-## 'long double' to 'unsigned int' values.  (This flag should be set for 
-## all machines, except for some Intel compilers on some Linux.)
-##
-AC_MSG_CHECKING([if correctly converting long double to unsigned int values])
-
-if test ${ac_cv_sizeof_long_double} = 0; then
-   hdf5_cv_ldouble_to_uint_accurate=${hdf5_cv_ldouble_to_uint_accurate=no}
-else
-   AC_CACHE_VAL([hdf5_cv_ldouble_to_uint_accurate],
-        [AC_TRY_RUN([
-        int main(void)
-        {
-            long double ld = 2733248032.9183987530L;
-            unsigned int i;
-            int           ret = 0;
-
-            i = (unsigned int)ld;
-            if(i!=2733248032 && i!=2733248031 && i!=2733248033)
-                ret = 1;
-
-    done:
-            exit(ret);
-        }
-        ], [hdf5_cv_ldouble_to_uint_accurate=yes], [hdf5_cv_ldouble_to_uint_accurate=no],)])
-fi
-
-if test ${hdf5_cv_ldouble_to_uint_accurate} = "yes"; then
-  AC_DEFINE([LDOUBLE_TO_UINT_ACCURATE], [1],
-            [Define if your system can convert long double to unsigned int values correctly.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can _compile_
-## 'unsigned long long' to 'float' and 'double' typecasts.
-## (This flag should be set for all machines, except for under Windows when
-## compiled with Visual Studio 6, where the macro value is set in the
-## src/H5pubconf.h file)
-##
-AC_MSG_CHECKING([if compiling unsigned long long to floating-point typecasts work])
-AC_CACHE_VAL([hdf5_cv_ullong_to_fp_cast_works], [hdf5_cv_ullong_to_fp_cast_works=yes])
-
-if test ${hdf5_cv_ullong_to_fp_cast_works} = "yes"; then
-  AC_DEFINE([ULLONG_TO_FP_CAST_WORKS], [1],
-            [Define if your system can compile unsigned long long to floating-point casts.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can _compile_
-## 'long long' to 'float' and 'double' typecasts.
-## (This flag should be set for all machines, except for under Windows when
-## compiled with Visual Studio 6, where the macro value is set in the
-## src/H5pubconf.h file)
-##
-AC_MSG_CHECKING([if compiling long long to floating-point typecasts work])
-AC_CACHE_VAL([hdf5_cv_llong_to_fp_cast_works], [hdf5_cv_llong_to_fp_cast_works=yes])
-
-if test ${hdf5_cv_llong_to_fp_cast_works} = "yes"; then
-  AC_DEFINE([LLONG_TO_FP_CAST_WORKS], [1],
-            [Define if your system can compile long long to floating-point casts.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can convert from
-## 'unsigned long long' to 'long double' without precision loss.
-## (This flag should be set for all machines, except for FreeBSD(sleipnir)
-## where the last 2 bytes of mantissa are lost when compiler tries to do 
-## the conversion, and Cygwin where compiler doesn't do rounding correctly.)
-##
-AC_MSG_CHECKING([if converting unsigned long long to long double with precision])
-
-if test ${ac_cv_sizeof_long_double} = 0; then
-   hdf5_cv_ullong_to_ldouble_precision=${hdf5_cv_ullong_to_ldouble_precision=no}
-else
-   AC_CACHE_VAL([hdf5_cv_ullong_to_ldouble_precision],
-        [AC_TRY_RUN([
-        #include <stdlib.h>
-        #include <string.h>
-
-        int main(void)
-        {
-            /* General variables */
-            int endian;
-            int tst_value = 1; 
-            int ret = 0;
-
-            /* For FreeBSD */
-            unsigned long long l = 0xa601e80bda85fcefULL;
-            long double ld;
-            unsigned char *c1, *c2;
-            size_t size;
-
-            /* For Cygwin */
-            unsigned long long l_cyg = 0xfffffffffffffff0ULL;
-            long double ld_cyg;
-            unsigned char *c2_cyg;
-            size_t size_cyg;
-            
-            
-            /* Determine this system's endianess */
-            c1 = (unsigned char*)calloc(1, sizeof(int));
-            memcpy((void*)c1, &tst_value, sizeof(int));
-            if(c1[0]==1)
-                endian = 0;  /* little endian */
-            else 
-                endian = 1;  /* big endian */
-            
-            /* For FreeBSD */     
-            size = sizeof(long double);
-            memset(&ld, 0, size); 
-            ld = (long double)l;
-
-            c2 = (unsigned char*)calloc(1, size);
-            memcpy((void*)c2, &ld, size);
-
-            /* Test if the last 2 bytes of mantissa are lost.  Mainly for FreeBSD on Intel
-             * architecture(sleipnir) where it happens. */        
-            /*if(endian==0 && c2[0]==0 && c2[1]==0)*/ /*little endian*/
-            if(endian==0 && c2[0]==0) { /*little endian*/
-                ret = 1;
-                goto done;
-            }
-
-            /* For Cygwin */
-            size_cyg = sizeof(long double);
-            memset(&ld_cyg, 0, size); 
-            ld_cyg = (long double)l_cyg;
-
-            c2_cyg = (unsigned char*)calloc(1, size_cyg);
-            memcpy((void*)c2_cyg, &ld_cyg, size_cyg);
-
-            /* Test if the last 4 bytes(roughly) of mantissa are rounded up.  Mainly for Cygwin
-             * where the values like 0xffffffffffffffff,  0xfffffffffffffffe, ..., 
-             * 0xfffffffffffff000 ... are rounded up as 0x0000403f8000000000000000 
-             * instead of 0x0000403effffffffffffffff, 0x0000403efffffffffffffffe, ..., 
-             * 0x0000403efffffffffffff000 ...
-             */    
-            if(endian==0 && c2_cyg[0]==0 && c2_cyg[1]==0 && c2_cyg[2]==0 && c2_cyg[3]==0)
-                ret = 1;
-
-    done:
-            if(c1)
-                free(c1);
-            if(c2)
-                free(c2);
-            if(c2_cyg)
-                free(c2_cyg);
-            exit(ret);
-        }
-        ], [hdf5_cv_ullong_to_ldouble_precision=yes], [hdf5_cv_ullong_to_ldouble_precision=no],)])
-fi
-
-if test ${hdf5_cv_ullong_to_ldouble_precision} = "yes"; then
-  AC_DEFINE([ULLONG_TO_LDOUBLE_PRECISION], [1],
-            [Define if your system can convert unsigned long long to long double with correct precision.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine can handle overflow converting
-## all floating-point to all integer types.
-## (This flag should be set for all machines, except for Cray X1 where
-## floating exception is generated when the floating-point value is greater
-## than the maximal integer value).
-##
-AC_MSG_CHECKING([if overflows normally converting floating-point to integer values])
-
-AC_CACHE_VAL([hdf5_cv_fp_to_integer_overflow_works],
-    [AC_TRY_RUN([
-    int main(void)
-    {
-        float  f = 2147483648.0f;
-        int    i;
-
-        i = (int)f;
-
-done:
-        exit(0);
-    }
-    ], [hdf5_cv_fp_to_integer_overflow_works=yes], [hdf5_cv_fp_to_integer_overflow_works=no],)])
-
-if test ${hdf5_cv_fp_to_integer_overflow_works} = "yes"; then
-  AC_DEFINE([FP_TO_INTEGER_OVERFLOW_WORKS], [1],
-            [Define if your system can handle overflow converting floating-point to integer values.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
 ## ----------------------------------------------------------------------
 ## Set the flag to indicate that the machine is using a special algorithm to convert
-## 'long double' to '(unsigned) long' values.  (This flag should only be set for 
-## the IBM Power6 Linux.  When the bit sequence of long double is 
-## 0x4351ccf385ebc8a0bfcc2a3c3d855620, the converted value of (unsigned)long 
+## 'long double' to '(unsigned) long' values.  (This flag should only be set for
+## the IBM Power6 Linux.  When the bit sequence of long double is
+## 0x4351ccf385ebc8a0bfcc2a3c3d855620, the converted value of (unsigned)long
 ## is 0x004733ce17af227f, not the same as the library's conversion to 0x004733ce17af2282.
 ## The machine's conversion gets the correct value.  We define the macro and disable
 ## this kind of test until we figure out what algorithm they use.
@@ -3711,61 +2800,60 @@ if test ${ac_cv_sizeof_long_double} = 0; then
    hdf5_cv_ldouble_to_long_special=${hdf5_cv_ldouble_to_long_special=no}
 else
    AC_CACHE_VAL([hdf5_cv_ldouble_to_long_special],
-        [AC_TRY_RUN([
-        int main(void)
-        {
-            long double         ld = 20041683600089727.779961L;
-            long                ll;
-            unsigned long       ull;
-            unsigned char       s[16];
-            unsigned char       s2[8];
-            int                 ret = 1;
-            
-            if(sizeof(long double) == 16 && sizeof(long) == 8) {
-                /*make sure the long double type has 16 bytes in size and 
-                 * 11 bits of exponent.  If it is,
-                 *the bit sequence should be like below.  It's not 
-                 *a decent way to check but this info isn't available. */   
-                memcpy(s, &ld, 16);
-                if(s[0]==0x43 && s[1]==0x51 && s[2]==0xcc && s[3]==0xf3 &&
-                    s[4]==0x85 && s[5]==0xeb && s[6]==0xc8 && s[7]==0xa0 &&
-                    s[8]==0xbf && s[9]==0xcc && s[10]==0x2a && s[11]==0x3c) {
+        [AC_RUN_IFELSE(
+            [AC_LANG_PROGRAM([
+                #include <string.h>
+            ],[[
+                long double         ld = 20041683600089727.779961L;
+                long                ll;
+                unsigned long       ull;
+                unsigned char       s[16];
+                unsigned char       s2[8];
+                int                 ret = 1;
 
-                    /* Assign the hexadecimal value of long double type. */
-                    s[0]=0x43; s[1]=0x51; s[2]=0xcc; s[3]=0xf3;
-                    s[4]=0x85; s[5]=0xeb; s[6]=0xc8; s[7]=0xa0;
-                    s[8]=0xbf; s[9]=0xcc; s[10]=0x2a; s[11]=0x3c;
-                    s[12]=0x3d; s[13]=0x85; s[14]=0x56; s[15]=0x20;
+                if(sizeof(long double) == 16 && sizeof(long) == 8) {
+                    /*make sure the long double type has 16 bytes in size and
+                     * 11 bits of exponent.  If it is,
+                     *the bit sequence should be like below.  It's not
+                     *a decent way to check but this info isn't available. */
+                    memcpy(s, &ld, 16);
+                    if(s[0]==0x43 && s[1]==0x51 && s[2]==0xcc && s[3]==0xf3 &&
+                        s[4]==0x85 && s[5]==0xeb && s[6]==0xc8 && s[7]==0xa0 &&
+                        s[8]==0xbf && s[9]==0xcc && s[10]==0x2a && s[11]==0x3c) {
 
-                    memcpy(&ld, s, 16);
+                        /* Assign the hexadecimal value of long double type. */
+                        s[0]=0x43; s[1]=0x51; s[2]=0xcc; s[3]=0xf3;
+                        s[4]=0x85; s[5]=0xeb; s[6]=0xc8; s[7]=0xa0;
+                        s[8]=0xbf; s[9]=0xcc; s[10]=0x2a; s[11]=0x3c;
+                        s[12]=0x3d; s[13]=0x85; s[14]=0x56; s[15]=0x20;
 
-                    ll = (long)ld;
-                    memcpy(s2, &ll, 8);
+                        memcpy(&ld, s, 16);
 
-                    /* The library's algorithm converts it to 0x 00 47 33 ce 17 af 22 82
-                     * and gets wrong value 20041683600089730 on the IBM Power6 Linux.
-                     * But the IBM Power6 Linux converts it to 0x00 47 33 ce 17 af 22 7f
-                     * and gets the correct value 20041683600089727.  It uses some special
-                     * algorithm.  We're going to define the macro and skip the test until
-                     * we can figure out how they do it. */
-                    if(s2[0]==0x00 && s2[1]==0x47 && s2[2]==0x33 && s2[3]==0xce &&
-                       s2[4]==0x17 && s2[5]==0xaf && s2[6]==0x22 && s2[7]==0x7f)
-                        ret = 0;
+                        ll = (long)ld;
+                        memcpy(s2, &ll, 8);
 
-                    ull = (unsigned long)ld;
-                    memcpy(s2, &ull, 8);
+                        /* The library's algorithm converts it to 0x 00 47 33 ce 17 af 22 82
+                         * and gets wrong value 20041683600089730 on the IBM Power6 Linux.
+                         * But the IBM Power6 Linux converts it to 0x00 47 33 ce 17 af 22 7f
+                         * and gets the correct value 20041683600089727.  It uses some special
+                         * algorithm.  We're going to define the macro and skip the test until
+                         * we can figure out how they do it. */
+                        if(s2[0]==0x00 && s2[1]==0x47 && s2[2]==0x33 && s2[3]==0xce &&
+                           s2[4]==0x17 && s2[5]==0xaf && s2[6]==0x22 && s2[7]==0x7f)
+                            ret = 0;
 
-                    /* The unsigned long is the same as signed long. */
-                    if(s2[0]==0x00 && s2[1]==0x47 && s2[2]==0x33 && s2[3]==0xce &&
-                       s2[4]==0x17 && s2[5]==0xaf && s2[6]==0x22 && s2[7]==0x7f)
-                        ret = 0;
-                }    
-            }   
-            
-    done:
-            exit(ret);
-        }
-        ], [hdf5_cv_ldouble_to_long_special=yes], [hdf5_cv_ldouble_to_long_special=no],)])
+                        ull = (unsigned long)ld;
+                        memcpy(s2, &ull, 8);
+
+                        /* The unsigned long is the same as signed long. */
+                        if(s2[0]==0x00 && s2[1]==0x47 && s2[2]==0x33 && s2[3]==0xce &&
+                           s2[4]==0x17 && s2[5]==0xaf && s2[6]==0x22 && s2[7]==0x7f)
+                            ret = 0;
+                    }
+                }
+                exit(ret);
+        ]])]
+    , [hdf5_cv_ldouble_to_long_special=yes], [hdf5_cv_ldouble_to_long_special=no],)])
 fi
 
 if test ${hdf5_cv_ldouble_to_long_special} = "yes"; then
@@ -3778,10 +2866,10 @@ fi
 
 ## ----------------------------------------------------------------------
 ## Set the flag to indicate that the machine is using a special algorithm
-## to convert some values of '(unsigned) long' to 'long double' values.  
-## (This flag should be off for all machines, except for IBM Power6 Linux, 
-## when the bit sequences are 003fff..., 007fff..., 00ffff..., 01ffff..., 
-## ..., 7fffff..., the compiler uses a unknown algorithm.  We define a 
+## to convert some values of '(unsigned) long' to 'long double' values.
+## (This flag should be off for all machines, except for IBM Power6 Linux,
+## when the bit sequences are 003fff..., 007fff..., 00ffff..., 01ffff...,
+## ..., 7fffff..., the compiler uses a unknown algorithm.  We define a
 ## macro and skip the test for now until we know about the algorithm.
 ##
 AC_MSG_CHECKING([if using special algorithm to convert (unsigned) long to long double values])
@@ -3790,63 +2878,63 @@ if test ${ac_cv_sizeof_long_double} = 0; then
    hdf5_cv_long_to_ldouble_special=${hdf5_cv_long_to_ldouble_special=no}
 else
    AC_CACHE_VAL([hdf5_cv_long_to_ldouble_special],
-        [AC_TRY_RUN([
-        int main(void)
-        {
-            long double         ld;
-            long                ll;
-            unsigned long       ull;
-            unsigned char       s[16];
-            int                 flag=0, ret=1;
-        
-            /*Determine if long double has 16 byte in size, 11 bit exponent, and
-             *the bias is 0x3ff */ 
-            if(sizeof(long double) == 16) { 
-                ld = 1.0L;
-                memcpy(s, &ld, 16);
-                if(s[0]==0x3f && s[1]==0xf0 && s[2]==0x00 && s[3]==0x00 &&
-                    s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00) 
-                    flag = 1; 
-            }
-             
-            if(flag==1 && sizeof(long)==8) {
-                ll = 0x003fffffffffffffL;
-                ld = (long double)ll;
-                memcpy(s, &ld, 16);
-                /* The library converts the value to 0x434fffffffffffff8000000000000000.
-                 * In decimal it is 18014398509481982.000000, one value short of the original.
-                 * The IBM Power6 Linux converts it to 0x4350000000000000bff0000000000000.
-                 * The value is correct in decimal. It uses some special
-                 * algorithm.  We're going to define the macro and skip the test until
-                 * we can figure out how they do it. */
-                if(s[0]==0x43 && s[1]==0x50 && s[2]==0x00 && s[3]==0x00 &&
-                    s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00 &&
-                    s[8]==0xbf && s[9]==0xf0 && s[10]==0x00 && s[11]==0x00 &&
-                    s[12]==0x00 && s[13]==0x00 && s[14]==0x00 && s[15]==0x00)
-                    ret = 0;
-            }        
-            if(flag==1 && sizeof(unsigned long)==8) {
-                ull = 0xffffffffffffffffUL;
-                ld = (long double)ull;
-                memcpy(s, &ld, 16);
-                /* Use a different value from signed long to test. The problem is the same
-                 * for both long and unsigned long. The value is 18446744073709551615.
-                 * The library converts the value to 0x43effffffffffffffe000000000000000.
-                 * In decimal it's 18446744073709548544.000000, very different from the original.
-                 * The IBM Power6 Linux converts it to 0x43f0000000000000bff0000000000000.
-                 * The value is correct in decimal. It uses some special
-                 * algorithm.  We're going to define the macro and skip the test until
-                 * we can figure out how they do it. */
-                if(s[0]==0x43 && s[1]==0xf0 && s[2]==0x00 && s[3]==0x00 &&
-                    s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00 &&
-                    s[8]==0xbf && s[9]==0xf0 && s[10]==0x00 && s[11]==0x00 &&
-                    s[12]==0x00 && s[13]==0x00 && s[14]==0x00 && s[15]==0x00)
-                    ret = 0;
-            }        
-    done:
-            exit(ret);
-        }
-        ], [hdf5_cv_long_to_ldouble_special=yes], [hdf5_cv_long_to_ldouble_special=no],)])
+        [AC_RUN_IFELSE(
+            [AC_LANG_PROGRAM([
+                #include <string.h>
+            ],[[
+                long double         ld;
+                long                ll;
+                unsigned long       ull;
+                unsigned char       s[16];
+                int                 flag=0, ret=1;
+
+                /*Determine if long double has 16 byte in size, 11 bit exponent, and
+                 *the bias is 0x3ff */
+                if(sizeof(long double) == 16) {
+                    ld = 1.0L;
+                    memcpy(s, &ld, 16);
+                    if(s[0]==0x3f && s[1]==0xf0 && s[2]==0x00 && s[3]==0x00 &&
+                        s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00)
+                        flag = 1;
+                }
+
+                if(flag==1 && sizeof(long)==8) {
+                    ll = 0x003fffffffffffffL;
+                    ld = (long double)ll;
+                    memcpy(s, &ld, 16);
+                    /* The library converts the value to 0x434fffffffffffff8000000000000000.
+                     * In decimal it is 18014398509481982.000000, one value short of the original.
+                     * The IBM Power6 Linux converts it to 0x4350000000000000bff0000000000000.
+                     * The value is correct in decimal. It uses some special
+                     * algorithm.  We're going to define the macro and skip the test until
+                     * we can figure out how they do it. */
+                    if(s[0]==0x43 && s[1]==0x50 && s[2]==0x00 && s[3]==0x00 &&
+                        s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00 &&
+                        s[8]==0xbf && s[9]==0xf0 && s[10]==0x00 && s[11]==0x00 &&
+                        s[12]==0x00 && s[13]==0x00 && s[14]==0x00 && s[15]==0x00)
+                        ret = 0;
+                }
+                if(flag==1 && sizeof(unsigned long)==8) {
+                    ull = 0xffffffffffffffffUL;
+                    ld = (long double)ull;
+                    memcpy(s, &ld, 16);
+                    /* Use a different value from signed long to test. The problem is the same
+                     * for both long and unsigned long. The value is 18446744073709551615.
+                     * The library converts the value to 0x43effffffffffffffe000000000000000.
+                     * In decimal it's 18446744073709548544.000000, very different from the original.
+                     * The IBM Power6 Linux converts it to 0x43f0000000000000bff0000000000000.
+                     * The value is correct in decimal. It uses some special
+                     * algorithm.  We're going to define the macro and skip the test until
+                     * we can figure out how they do it. */
+                    if(s[0]==0x43 && s[1]==0xf0 && s[2]==0x00 && s[3]==0x00 &&
+                        s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00 &&
+                        s[8]==0xbf && s[9]==0xf0 && s[10]==0x00 && s[11]==0x00 &&
+                        s[12]==0x00 && s[13]==0x00 && s[14]==0x00 && s[15]==0x00)
+                        ret = 0;
+                }
+                exit(ret);
+        ]])]
+    , [hdf5_cv_long_to_ldouble_special=yes], [hdf5_cv_long_to_ldouble_special=no],)])
 fi
 
 if test ${hdf5_cv_long_to_ldouble_special} = "yes"; then
@@ -3859,12 +2947,14 @@ fi
 
 ## ----------------------------------------------------------------------
 ## Set the flag to indicate that the machine can accurately convert
-## 'long double' to '(unsigned) long long' values.  (This flag should be set for 
-## all machines, except for Mac OS 10.4 and SGI IRIX64 6.5.  When the bit sequence
-## of long double is 0x4351ccf385ebc8a0bfcc2a3c..., the values of (unsigned)long long
-## start to go wrong on these two machines.  Adjusting it higher to 
-## 0x4351ccf385ebc8a0dfcc... or 0x4351ccf385ebc8a0ffcc... will make the converted 
-## values wildly wrong.  This test detects this wrong behavior and disable the test.  
+## 'long double' to '(unsigned) long long' values.  (This flag should
+## be set for all machines, except for Mac OS 10.4, SGI IRIX64 6.5 and
+## Powerpc Linux using XL compilers.
+## When the bit sequence of long double is 0x4351ccf385ebc8a0bfcc2a3c...,
+## the values of (unsigned)long long start to go wrong on these
+## two machines.  Adjusting it higher to 0x4351ccf385ebc8a0dfcc... or
+## 0x4351ccf385ebc8a0ffcc... will make the converted values wildly wrong.
+## This test detects this wrong behavior and disable the test.
 ##
 AC_MSG_CHECKING([if correctly converting long double to (unsigned) long long values])
 
@@ -3872,7 +2962,7 @@ if test ${ac_cv_sizeof_long_double} = 0; then
    hdf5_cv_ldouble_to_llong_accurate=${hdf5_cv_ldouble_to_llong_accurate=no}
 else
    AC_CACHE_VAL([hdf5_cv_ldouble_to_llong_accurate],
-        [AC_TRY_RUN([
+        [AC_RUN_IFELSE([AC_LANG_SOURCE([[
         int main(void)
         {
             long double         ld = 20041683600089727.779961L;
@@ -3880,19 +2970,19 @@ else
             unsigned long long  ull;
             unsigned char       s[16];
             int                 ret = 0;
-            
+
             if(sizeof(long double) == 16) {
-                /*make sure the long double type is the same as the failing type 
+                /*make sure the long double type is the same as the failing type
                  *which has 16 bytes in size and 11 bits of exponent.  If it is,
-                 *the bit sequence should be like below.  It's not 
-                 *a decent way to check but this info isn't available. */   
+                 *the bit sequence should be like below.  It's not
+                 *a decent way to check but this info isn't available. */
                 memcpy(s, &ld, 16);
                 if(s[0]==0x43 && s[1]==0x51 && s[2]==0xcc && s[3]==0xf3 &&
                     s[4]==0x85 && s[5]==0xeb && s[6]==0xc8 && s[7]==0xa0 &&
                     s[8]==0xbf && s[9]==0xcc && s[10]==0x2a && s[11]==0x3c) {
 
                     /*slightly adjust the bit sequence (s[8]=0xdf).  The converted
-                     *values will go wild on Mac OS 10.4 and IRIX64 6.5.*/ 
+                     *values will go wild on Mac OS 10.4 and IRIX64 6.5.*/
                     s[0]=0x43; s[1]=0x51; s[2]=0xcc; s[3]=0xf3;
                     s[4]=0x85; s[5]=0xeb; s[6]=0xc8; s[7]=0xa0;
                     s[8]=0xdf; s[9]=0xcc; s[10]=0x2a; s[11]=0x3c;
@@ -3901,15 +2991,15 @@ else
                     memcpy(&ld, s, 16);
                     ll = (long long)ld;
                     ull = (unsigned long long)ld;
-                    
+
                     if(ll != 20041683600089728 || ull != 20041683600089728)
                         ret = 1;
-                }    
-            }    
+                }
+            }
     done:
             exit(ret);
         }
-        ], [hdf5_cv_ldouble_to_llong_accurate=yes], [hdf5_cv_ldouble_to_llong_accurate=no],)])
+        ]])], [hdf5_cv_ldouble_to_llong_accurate=yes], [hdf5_cv_ldouble_to_llong_accurate=no],[])])
 fi
 
 if test ${hdf5_cv_ldouble_to_llong_accurate} = "yes"; then
@@ -3923,10 +3013,11 @@ fi
 
 ## ----------------------------------------------------------------------
 ## Set the flag to indicate that the machine can accurately convert
-## '(unsigned) long long' to 'long double' values.  (This flag should be set for 
-## all machines, except for Mac OS 10.4, when the bit sequences are 003fff...,
-## 007fff..., 00ffff..., 01ffff..., ..., 7fffff..., the converted values are twice
-## as big as they should be. 
+## '(unsigned) long long' to 'long double' values.  (This flag should be
+## set for all machines, except for Mac OS 10.4 and Powerpc Linux using
+## XL compilers.
+## When the bit sequences are 003fff..., 007fff..., 00ffff..., 01ffff...,
+## ..., 7fffff..., the converted values are twice as big as they should be.
 ##
 AC_MSG_CHECKING([if correctly converting (unsigned) long long to long double values])
 
@@ -3934,7 +3025,7 @@ if test ${ac_cv_sizeof_long_double} = 0; then
    hdf5_cv_llong_to_ldouble_correct=${hdf5_cv_llong_to_ldouble_correct=no}
 else
    AC_CACHE_VAL([hdf5_cv_llong_to_ldouble_correct],
-        [AC_TRY_RUN([
+        [AC_RUN_IFELSE([AC_LANG_SOURCE([[
         int main(void)
         {
             long double         ld;
@@ -3942,17 +3033,17 @@ else
             unsigned long long  ull;
             unsigned char       s[16];
             int                 flag=0, ret=0;
-        
+
             /*Determine if long double has 16 byte in size, 11 bit exponent, and
-             *the bias is 0x3ff */ 
-            if(sizeof(long double) == 16) { 
+             *the bias is 0x3ff */
+            if(sizeof(long double) == 16) {
                 ld = 1.0L;
                 memcpy(s, &ld, 16);
                 if(s[0]==0x3f && s[1]==0xf0 && s[2]==0x00 && s[3]==0x00 &&
-                    s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00) 
-                    flag = 1; 
+                    s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00)
+                    flag = 1;
             }
-             
+
             if(flag==1 && sizeof(long long)==8) {
                 ll = 0x01ffffffffffffffLL;
                 ld = (long double)ll;
@@ -3962,7 +3053,7 @@ else
                     s[4]!=0xff || s[5]!=0xff || s[6]!=0xff || s[7]!=0xff ||
                     s[8]!=0xf0 || s[9]!=0x00 || s[10]!=0x00 || s[11]!=0x00)
                     ret = 1;
-            }        
+            }
             if(flag==1 && sizeof(unsigned long long)==8) {
                 ull = 0x01ffffffffffffffULL;
                 ld = (long double)ull;
@@ -3971,11 +3062,11 @@ else
                     s[4]!=0xff || s[5]!=0xff || s[6]!=0xff || s[7]!=0xff ||
                     s[8]!=0xf0 || s[9]!=0x00 || s[10]!=0x00 || s[11]!=0x00)
                     ret = 1;
-            }        
+            }
     done:
             exit(ret);
         }
-        ], [hdf5_cv_llong_to_ldouble_correct=yes], [hdf5_cv_llong_to_ldouble_correct=no],)])
+        ]])],[hdf5_cv_llong_to_ldouble_correct=yes], [hdf5_cv_llong_to_ldouble_correct=no],[])])
 fi
 
 if test ${hdf5_cv_llong_to_ldouble_correct} = "yes"; then
@@ -3987,25 +3078,8 @@ else
 fi
 
 ## ----------------------------------------------------------------------
-## Set the flag to indicate that the machine generates bad code
-## for the H5VM_log2_gen() routine in src/H5VMprivate.h
-## (This flag should be set to no for all machines, except for SGI IRIX64,
-## where the cache value is set to yes in it's config file)
-##
-AC_MSG_CHECKING([if bad code for log2 routine is generated])
-AC_CACHE_VAL([hdf5_cv_bad_log2_code_generated], [hdf5_cv_bad_log2_code_generated=no])
-
-if test ${hdf5_cv_bad_log2_code_generated} = "yes"; then
-  AC_DEFINE([BAD_LOG2_CODE_GENERATED], [1],
-            [Define if your system generates wrong code for log2 routine.])
-  AC_MSG_RESULT([yes])
-else
-  AC_MSG_RESULT([no])
-fi
-
-## ----------------------------------------------------------------------
 ## Set some variables for general configuration information to be saved
-## and installed with the libraries.
+## and installed with the libraries (used to generate libhdf5.settings).
 ##
 
 ## HDF5 version from the first line of the README.txt file.
@@ -4021,7 +3095,7 @@ if test -n "$ORGANIZATION"; then
   CONFIG_USER="$CONFIG_USER at $ORGANIZATION"
 fi
 
-## Configuration mode (production, development, profile, etc) saved above.
+## Configuration mode (production, debug, etc.) saved above.
 AC_SUBST([CONFIG_MODE])
 
 ## Byte sex from the AC_C_BIGENDIAN macro.
@@ -4090,7 +3164,7 @@ CXX_NOFLAGS=`echo $CXX | sed 's/ -.*//'`
 if `echo $CXX_NOFLAGS | grep ^/ >/dev/null 2>&1`; then
   CXX_VERSION="$CXX"
 else
-  CXX_VERSION="$FC";
+  CXX_VERSION="$CXX";
   for x in `echo $PATH | sed -e 's/:/ /g'`; do
     if test -x $x/$CXX_NOFLAGS; then
       CXX_VERSION="$x/$CXX"
@@ -4100,6 +3174,27 @@ else
 fi
 if test -n "$cxx_version_info"; then
   CXX_VERSION="$CXX_VERSION ( $cxx_version_info)"
+fi
+
+AC_SUBST([JAVA_VERSION])
+## Strip anything that looks like a flag off of $JAVA
+JAVA_NOFLAGS=`echo $JAVA | sed 's/ -.*//'`
+
+if `echo $JAVA_NOFLAGS | grep ^/ >/dev/null 2>&1`; then
+  JAVA_VERSION="$JAVA"
+else
+  JAVA_VERSION="$JAVA";
+  for x in `echo $PATH | sed -e 's/:/ /g'`; do
+    if test -x $x/$JAVA_NOFLAGS; then
+      JAVA_VERSION="$x/$JAVA"
+      break
+    fi
+  done
+fi
+java_version_info=`$JAVA -version 2>&1 |\
+  grep 'version' | sed -e 's/version "//' | sed -e 's/"//'`
+if test -n "$java_version_info"; then
+  JAVA_VERSION="$JAVA_VERSION ($java_version_info)"
 fi
 
 ## ----------------------------------------------------------------------
@@ -4114,82 +3209,6 @@ else
   pwd=pwd
 fi
 AC_SUBST([ROOT]) ROOT="`$pwd`"
-
-## ----------------------------------------------------------------------
-## Move any compiler-specific libraries into the main LIBS varaible.
-## 
-LIBS="$DEFAULT_LIBS $LIBS"
-
-## ----------------------------------------------------------------------
-## Determine the runtime libraries we may need to include in the
-## libtools command so that executables will find the correct dynamic
-## libraries.
-## 
-AC_SUBST([DYNAMIC_DIRS]) DYNAMIC_DIRS=""
-
-if test -n "$AM_LDFLAGS $LDFLAGS"; then
-  for d in $AM_LDFLAGS $LDFLAGS ; do
-    case "$d" in
-      -L*)
-        d="`echo $d | sed -e 's/-L//g'`"
-        case "$d" in
-          .*)
-            ## If the path isn't absolute, make it so by
-            ## prepending the ROOT directory to it.
-            d=${ROOT}/$d
-            ;;
-        esac
-        DYNAMIC_DIRS="-R${d} $DYNAMIC_DIRS"
-        ;;
-    esac
-  done
-fi
-
-if test -n "$AM_CPPFLAGS"; then
-  TEMP_CPPFLAGS=""
-  for d in $AM_CPPFLAGS ; do
-    case "$d" in
-      -I.*)
-        ## If the path isn't absolute, make it so by prepending
-        ## the ROOT directory to it.
-        d="`echo $d | sed -e 's/-I//g'`"
-        d="-I${ROOT}/${d}"
-        ;;
-    esac
-    TEMP_CPPFLAGS="$d $TEMP_CPPFLAGS"
-  done
-  AM_CPPFLAGS=$TEMP_CPPFLAGS
-fi
-
-## ----------------------------------------------------------------------
-## Check if they would like the High Level library  compiled
-##
-
-AC_SUBST(HL) HL=""
-## name of fortran folder inside "hl", if FORTRAN compile is requested
-AC_SUBST(HL_FOR) HL_FOR=""
-AC_MSG_CHECKING([if high level library is enabled])
-AC_ARG_ENABLE([hl],
-     [AS_HELP_STRING([--enable-hl],
-                     [Enable the high level library [default=yes]])],
-     [HDF5_HL=$enableval],
-     [HDF5_HL=yes])
-
-if test "X$HDF5_HL" = "Xyes"; then
- echo "yes"
- HL="hl"
- AC_DEFINE([INCLUDE_HL], [1],
-           [Define if HDF5's high-level library headers should be included in hdf5.h])
-
-## Check if Fortran's default real is double precision. If it is and HL is being built then configure
-## should fail due to bug HDFFV-889.
-  if test "X$FORTRAN_DEFAULT_REALisDBLE" = "Xyes"; then
-    AC_MSG_ERROR([Fortran high-level routines are not supported when the default REAL is DOUBLE PRECISION, use configure option --disable-hl.])
-  fi
-else
- echo "no"
-fi
-
 
 ## ----------------------------------------------------------------------
 ## Some programs shouldn't be built by default (e.g., programs to generate
@@ -4213,13 +3232,22 @@ AM_CONDITIONAL([BUILD_ALL_CONDITIONAL], [test "X$BUILD_ALL" = "Xyes"])
 ## ----------------------------------------------------------------------
 ## Enable deprecated public API symbols
 ##
+
+## Enabled unless the build mode is clean.
+if test "X-$BUILD_MODE" = "X-clean" ; then
+  DEPREC_SYMBOLS=no
+else
+  DEPREC_SYMBOLS=yes
+fi
+
 AC_SUBST([DEPRECATED_SYMBOLS])
 AC_MSG_CHECKING([if deprecated public symbols are available]);
 AC_ARG_ENABLE([deprecated-symbols],
               [AS_HELP_STRING([--enable-deprecated-symbols],
-                     [Enable deprecated public API symbols [default=yes]])],
-             [DEPREC_SYMBOLS=$enableval],
-             [DEPREC_SYMBOLS=yes])
+                     [Enable deprecated public API symbols.
+                     [default=yes (unless build mode = clean)]
+                     ])],
+              [DEPREC_SYMBOLS=$enableval])
 
 case "X-$DEPREC_SYMBOLS" in
   X-yes)
@@ -4243,8 +3271,8 @@ AC_MSG_CHECKING([which version of public symbols to use by default])
 AC_ARG_WITH([default-api-version],
             [AS_HELP_STRING([--with-default-api-version=(v16|v18|v110)],
                             [Specify default release version of public symbols
-                             [default=v18]])],,
-            withval=v18)
+                             [default=v110]])],,
+            [withval=v110])
 
 if test "X$withval" = "Xv16"; then
     AC_MSG_RESULT([v16])
@@ -4254,6 +3282,11 @@ if test "X$withval" = "Xv16"; then
 elif test "X$withval" = "Xv18"; then
     AC_MSG_RESULT([v18])
     DEFAULT_API_VERSION=v18
+    AC_DEFINE([USE_18_API_DEFAULT], [1],
+              [Define using v1.8 public API symbols by default])
+elif test "X$withval" = "Xv110"; then
+    AC_MSG_RESULT([v110])
+    DEFAULT_API_VERSION=v110
 else
     AC_MSG_ERROR([invalid version of public symbols given])
 fi
@@ -4263,7 +3296,7 @@ fi
 ## if the user insists on doing this via the --enable-unsupported configure
 ## flag, we'll let them.
 if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
-  if test "X${DEFAULT_API_VERSION}" != "Xv18" -a "X${DEPRECATED_SYMBOLS}" = "Xno" ; then
+  if test "X${DEFAULT_API_VERSION}" != "Xv110" -a "X${DEPRECATED_SYMBOLS}" = "Xno" ; then
     AC_MSG_ERROR([Removing old public API symbols not allowed when using them as default public API symbols. Use --enable-unsupported to override this error.])
   fi
 fi
@@ -4275,29 +3308,31 @@ AC_SUBST([STRICT_FORMAT_CHECKS])
 AC_MSG_CHECKING([whether to perform strict file format checks]);
 AC_ARG_ENABLE([strict-format-checks],
               [AS_HELP_STRING([--enable-strict-format-checks],
-                     [Enable strict file format checks, default=yes if
-                        debug flag is enabled, no otherwise])],
-             [STRICT_CHECKS=$enableval])
+                     [Enable strict file format checks.
+                      [default=yes if debug build, otherwise no]
+                     ])],
+             [STRICT_FORMAT_CHECKS=$enableval])
 
-## Default to yes if debug is enabled
-if test "X-$STRICT_CHECKS" = X- ; then
-  if test -z "$DEBUG_PKG" ; then
-    STRICT_CHECKS=no
+## Set the default level. This depends on the compiler mode.
+if test "X-$STRICT_FORMAT_CHECKS" = X- ; then
+  if test "X-$BUILD_MODE" = "X-debug" ; then
+    STRICT_FORMAT_CHECKS=yes
   else
-    STRICT_CHECKS=yes
+    STRICT_FORMAT_CHECKS=no
   fi
 fi
 
-case "X-$STRICT_CHECKS" in
+case "X-$STRICT_FORMAT_CHECKS" in
   X-yes)
     AC_MSG_RESULT([yes])
-    STRICT_FORMAT_CHECKS=yes
     AC_DEFINE([STRICT_FORMAT_CHECKS], [1],
               [Define if strict file format checks are enabled])
     ;;
-  X-no|*)
+  X-no)
     AC_MSG_RESULT([no])
-    STRICT_FORMAT_CHECKS=no
+    ;;
+  *)
+    AC_MSG_ERROR([Unrecognized value: $STRICT_FORMAT_CHECKS])
     ;;
 esac
 
@@ -4308,9 +3343,9 @@ esac
 AC_MSG_CHECKING([whether to have library information embedded in the executables])
 AC_ARG_ENABLE([embedded-libinfo],
     [AS_HELP_STRING([--enable-embedded-libinfo],
-	[Enable embedded library information [default=yes]])],
-	[enable_embedded_libinfo=$enableval],
-	[enable_embedded_libinfo=yes])
+    [Enable embedded library information [default=yes]])],
+    [enable_embedded_libinfo=$enableval],
+    [enable_embedded_libinfo=yes])
 
    if test "${enable_embedded_libinfo}" = "yes"; then
       AC_MSG_RESULT([yes])
@@ -4375,6 +3410,8 @@ CFLAGS="$saved_user_CFLAGS"
 FCFLAGS="$saved_user_FCFLAGS"
 CXXFLAGS="$saved_user_CXXFLAGS"
 CPPFLAGS="$saved_user_CPPFLAGS"
+JAVACFLAGS="$saved_user_JAVACFLAGS"
+JAVAFLAGS="$saved_user_JAVAFLAGS"
 LDFLAGS="$saved_user_LDFLAGS"
 
 
@@ -4385,6 +3422,7 @@ LDFLAGS="$saved_user_LDFLAGS"
 AM_CONDITIONAL([BUILD_CXX_CONDITIONAL], [test "X$HDF_CXX" = "Xyes"])
 AM_CONDITIONAL([BUILD_PARALLEL_CONDITIONAL], [test -n "$TESTPARALLEL"])
 AM_CONDITIONAL([BUILD_FORTRAN_CONDITIONAL], [test "X$HDF_FORTRAN" = "Xyes"])
+AM_CONDITIONAL([BUILD_JAVA_CONDITIONAL], [test "X$HDF_JAVA" = "Xyes"])
 AM_CONDITIONAL([BUILD_HDF5_HL_CONDITIONAL], [test "X$HDF5_HL" = "Xyes"])
 
 
@@ -4394,17 +3432,7 @@ AM_CONDITIONAL([BUILD_HDF5_HL_CONDITIONAL], [test "X$HDF5_HL" = "Xyes"])
 
 ## The directory search list
 AC_SUBST([SEARCH]) SEARCH='$(srcdir) $(top_builddir)/src $(top_srcdir)/src'
-cmd='echo $SEARCH |sed "s/ /'$SEARCH_SEP'/g"'
-SEARCH="$SEARCH_RULE`eval $cmd`"
 export SEARCH
-
-## We don't need to say when we're entering directories if we're using
-## GNU make because make does it for us.
-if test "X$GMAKE" = "Xyes"; then
-  AC_SUBST([SETX]) SETX=":"
-else
-  AC_SUBST([SETX]) SETX="set -x"
-fi
 
 ## Some cleanup stuff
 rm -f conftest conftest.o conftest.c dummy.o *.mod
@@ -4441,23 +3469,6 @@ touch ./config/stamp2
 ## Finally the makefiles
 test "$no_create" = yes || ${CONFIG_SHELL-/bin/sh} $CONFIG_STATUS || exit 1
 
-## Post processing to patch up some deficiencies in libtool
-case $host_os in
-  linux* | freebsd* )
-    ## If gcc is not used, need to set $wl to use "-Wl,"
-    if $CC -v 2>&1 | grep '^gcc' > /dev/null ; then
-      : using gcc
-    else
-      echo 'fixing $wl in' $ofile
-ed - $ofile <<EOF 2> /dev/null
-g/^wl=""/s//wl="-Wl,"/
-w
-q
-EOF
-    fi
-    ;;
-esac
-
 ## Are we compiling static libraries, shared libraries, or both?  This
 ## is only used for the libhdf5.settings file. We can't just look at
 ## $enable_static and $enable_shared because if they're yes the ltconfig
@@ -4475,6 +3486,11 @@ if (./libtool --features | grep '^enable static libraries' > /dev/null); then
 else
   enable_static=no
 fi
+
+## Expose things for *.in markup
+AC_SUBST([STATIC_SHARED])
+AC_SUBST([enable_shared])
+AC_SUBST([enable_static])
 
 if test "X$enable_static" = "Xyes" && test "X$enable_shared" = "Xyes"; then
   STATIC_SHARED="static, shared"
@@ -4497,18 +3513,23 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  test/Makefile
                  test/testcheck_version.sh
                  test/testerror.sh
+		        test/testflushrefresh.sh
                  test/H5srcdir_str.h
                  test/testlibinfo.sh
                  test/testlinks_env.sh
+                 test/testswmr.sh
                  test/test_plugin.sh
+                 test/test_usecases.sh
+                 test/testvdsswmr.sh
                  testpar/Makefile
-                 perform/Makefile
                  tools/Makefile
                  tools/h5dump/Makefile
                  tools/h5dump/testh5dump.sh
                  tools/h5dump/testh5dumppbits.sh
+                 tools/h5dump/testh5dumpvds.sh
                  tools/h5dump/testh5dumpxml.sh
                  tools/h5ls/testh5ls.sh
+                 tools/h5ls/testh5lsvds.sh
                  tools/h5import/Makefile
                  tools/h5import/h5importtestutil.sh
                  tools/h5diff/Makefile
@@ -4525,10 +3546,15 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  tools/lib/Makefile
                  tools/misc/Makefile
                  tools/misc/h5cc
+		 tools/misc/testh5clear.sh
                  tools/misc/testh5mkgrp.sh
                  tools/misc/testh5repart.sh
+                 tools/misc/vds/Makefile
                  tools/h5stat/testh5stat.sh
                  tools/h5stat/Makefile
+                 tools/h5format_convert/Makefile
+                 tools/h5format_convert/testh5fc.sh
+                 tools/perform/Makefile
                  examples/Makefile
                  examples/run-c-ex.sh
                  examples/testh5cc.sh
@@ -4543,11 +3569,26 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  fortran/Makefile
                  fortran/src/h5fc
                  fortran/src/Makefile
+                 fortran/src/H5fort_type_defines.h
                  fortran/test/Makefile
                  fortran/testpar/Makefile
                  fortran/examples/Makefile
                  fortran/examples/run-fortran-ex.sh
                  fortran/examples/testh5fc.sh
+                 java/Makefile
+                 java/src/Makefile
+                 java/src/jni/Makefile
+                 java/test/Makefile
+                 java/test/junit.sh
+                 java/examples/Makefile
+                 java/examples/intro/Makefile
+                 java/examples/intro/runExample.sh
+                 java/examples/datasets/Makefile
+                 java/examples/datasets/runExample.sh
+                 java/examples/datatypes/Makefile
+                 java/examples/datatypes/runExample.sh
+                 java/examples/groups/Makefile
+                 java/examples/groups/runExample.sh
                  hl/Makefile
                  hl/src/Makefile
                  hl/test/Makefile
@@ -4555,6 +3596,8 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  hl/tools/Makefile
                  hl/tools/gif2h5/Makefile
                  hl/tools/gif2h5/h52giftest.sh
+		 hl/tools/h5watch/Makefile
+                 hl/tools/h5watch/testh5watch.sh
                  hl/examples/Makefile
                  hl/examples/run-hlc-ex.sh
                  hl/c++/Makefile
@@ -4568,6 +3611,13 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  hl/fortran/examples/Makefile
                  hl/fortran/examples/run-hlfortran-ex.sh])
 
+AC_CONFIG_COMMANDS([.classes], [], [$MKDIR_P java/src/.classes;
+                $MKDIR_P java/test/.classes;
+                $MKDIR_P java/examples/intro/.classes;
+                $MKDIR_P java/examples/datasets/.classes;
+                $MKDIR_P java/examples/datatypes/.classes;
+                $MKDIR_P java/examples/groups/.classes])
+
 AC_OUTPUT
 
 chmod 755 tools/misc/h5cc
@@ -4580,15 +3630,11 @@ if test "X$HDF_CXX" = "Xyes"; then
   chmod 755 c++/src/h5c++
 fi
 
-## We don't want inline defined for C++ compilers
-## Don't worry about the C++ ifdef wrappers in the H5pubconf file, since
-## 'H5_inline' isn't a C++ keyword.
-cat >> src/H5config.h <<EOF
-
-#if defined(__cplusplus) && defined(inline)
-#undef inline
-#endif
-EOF
+## HDF5 configure code created by autotools with gcc 4.9.2 is adding problematic
+## linker flags:  -l with no library name; -l <libname>, specifically gfortran or m.
+## This sed script corrects "-l <libname>" first and then "-l " with no library name.
+## If the order is not preserved, all instances of "-l " will be removed.
+sed -e '/^postdeps/ s/-l \([a-zA-Z]\)/-l\1/g' -e '/^postdeps/ s/-l //g' -i libtool
 
 ## show the configure settings
 cat src/libhdf5.settings

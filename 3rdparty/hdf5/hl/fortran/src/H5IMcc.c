@@ -470,7 +470,7 @@ herr_t H5IM_get_palette(hid_t loc_id,
  hid_t      attr_space_id;
  hid_t      attr_class;
  hssize_t   n_refs;
- hsize_t    dim_ref;
+ size_t    dim_ref;
  hobj_ref_t *refbuf;     /* buffer to read references */
  hid_t      pal_id;
 
@@ -503,15 +503,15 @@ herr_t H5IM_get_palette(hid_t loc_id,
 
    n_refs = H5Sget_simple_extent_npoints(attr_space_id);
 
-   dim_ref = n_refs;
+   dim_ref = (size_t)n_refs;
 
-   refbuf = malloc(sizeof(hobj_ref_t) * (int)dim_ref);
+   refbuf = (hobj_ref_t *)HDmalloc(sizeof(hobj_ref_t) * dim_ref);
 
    if(H5Aread(attr_id, attr_type, refbuf) < 0)
     goto out;
 
    /* Get the palette id */
-   if((pal_id = H5Rdereference(image_id, H5R_OBJECT, &refbuf[pal_number])) < 0)
+   if((pal_id = H5Rdereference2(image_id, H5P_DEFAULT, H5R_OBJECT, &refbuf[pal_number])) < 0)
     goto out;
 
    /* Read the palette dataset using the memory type TID */
@@ -525,7 +525,7 @@ herr_t H5IM_get_palette(hid_t loc_id,
    if(H5Dclose(pal_id) < 0)
     goto out;
 
-   free(refbuf);
+   HDfree(refbuf);
 
   } /* H5T_REFERENCE */
 

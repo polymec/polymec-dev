@@ -1,7 +1,7 @@
-!****h* root/fortran/test/tH5P_F03.f90
+!****h* root/fortran/test/TH5P_F03
 !
 ! NAME
-!  tH5P_F03.f90
+!  tH5P_F03.F90
 !
 ! FUNCTION
 !  Test FORTRAN HDF5 H5P APIs which are dependent on FORTRAN 2003
@@ -43,7 +43,7 @@ MODULE test_genprop_cls_cb1_mod
   USE ISO_C_BINDING
   IMPLICIT NONE
   
-  TYPE, BIND(C) :: cop_cb_struct_ ! /* Struct for iterations */
+  TYPE, BIND(C) :: cop_cb_struct_ !  Struct for iterations 
     INTEGER :: count
     INTEGER(HID_T) :: id
   END TYPE cop_cb_struct_
@@ -52,8 +52,6 @@ CONTAINS
   
   INTEGER FUNCTION test_genprop_cls_cb1_f(list_id, create_data ) bind(C)
     
-    USE HDF5
-    USE ISO_C_BINDING
     IMPLICIT NONE
 
     INTEGER(HID_T), INTENT(IN), VALUE :: list_id
@@ -71,9 +69,14 @@ END MODULE test_genprop_cls_cb1_mod
 
 MODULE TH5P_F03
 
+  USE HDF5 
+  USE TH5_MISC 
+  USE TH5_MISC_GEN
+  USE ISO_C_BINDING
+
 CONTAINS
 
-!/*-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
 ! * Function:	test_create
 ! *
 ! * Purpose:	Tests H5Pset_fill_value_f and H5Pget_fill_value_f
@@ -88,13 +91,10 @@ CONTAINS
 ! * Modifications:
 ! *
 ! *-------------------------------------------------------------------------
-! */
+! 
 
 SUBROUTINE test_create(total_error)
 
-  USE HDF5 
-  USE TH5_MISC
-  USE ISO_C_BINDING
   IMPLICIT NONE
 
   INTEGER, INTENT(INOUT) :: total_error
@@ -110,15 +110,14 @@ SUBROUTINE test_create(total_error)
   INTEGER :: error
   INTEGER(SIZE_T) :: h5off
   TYPE(C_PTR) :: f_ptr
-  LOGICAL :: differ1, differ2
   CHARACTER(LEN=1) :: cfill
   INTEGER :: ifill
   REAL :: rfill
   REAL(KIND=dp) :: dpfill
 
-  !/*
+  !
   ! * Create a file.
-  ! */
+  ! 
   CALL h5fcreate_f(filename,H5F_ACC_TRUNC_F,file,error)
   CALL check("h5fcreate_f", error, total_error)   
 
@@ -131,7 +130,7 @@ SUBROUTINE test_create(total_error)
   CALL h5pset_chunk_f(dcpl, 5, ch_size, error)
   CALL check("h5pset_chunk_f",error, total_error)
 
-  ! /* Create a compound datatype */
+  !  Create a compound datatype 
   CALL h5tcreate_f(H5T_COMPOUND_F, H5_SIZEOF(fill_ctype), comp_type_id, error)
   CALL check("h5tcreate_f", error, total_error)
   h5off = H5OFFSETOF(C_LOC(fill_ctype), C_LOC(fill_ctype%a))
@@ -152,7 +151,7 @@ SUBROUTINE test_create(total_error)
   CALL H5Pset_fill_time_f(dcpl, H5D_FILL_TIME_ALLOC_F, error)
   CALL check("H5Pset_fill_time_f",error, total_error)
 
-  ! /* Compound datatype test */
+  !  Compound datatype test 
 
   f_ptr = C_LOC(fill_ctype)
 
@@ -187,18 +186,12 @@ SUBROUTINE test_create(total_error)
   CALL check("H5Pset_fill_value_f",error, total_error)
   CALL h5pget_fill_value_f(dcpl, H5T_NATIVE_DOUBLE, dpfill, error)
   CALL check("H5Pget_fill_value_f",error, total_error)
-  IF(.NOT.dreal_eq( REAL(dpfill,dp), 1.0_dp))THEN
-     PRINT*,"***ERROR: Returned wrong fill value (double)"
-     total_error = total_error + 1
-  ENDIF
+  CALL VERIFY("***ERROR: Returned wrong fill value (double)", dpfill, 1.0_dp, total_error)
   CALL H5Pset_fill_value_f(dcpl, H5T_NATIVE_REAL, 2.0, error)
   CALL check("H5Pset_fill_value_f",error, total_error)
   CALL h5pget_fill_value_f(dcpl, H5T_NATIVE_REAL, rfill, error)
   CALL check("H5Pget_fill_value_f",error, total_error)
-  IF(.NOT.dreal_eq( REAL(rfill,dp), REAL(2.0,dp)))THEN
-     PRINT*,"***ERROR: Returned wrong fill value (real)"
-     total_error = total_error + 1
-  ENDIF
+  CALL VERIFY("***ERROR: Returned wrong fill value (real)", rfill, 2.0, total_error)
 
   ! For the actual compound type
   CALL H5Pset_fill_value_f(dcpl, comp_type_id, f_ptr, error)
@@ -213,7 +206,7 @@ SUBROUTINE test_create(total_error)
   CALL h5fclose_f(file,error)
   CALL check("h5fclose_f", error, total_error)
 
-  ! /* Open the file and get the dataset fill value from each dataset */
+  !  Open the file and get the dataset fill value from each dataset 
   CALL H5Pcreate_f(H5P_FILE_ACCESS_F, fapl, error)
   CALL check("H5Pcreate_f",error, total_error)
 
@@ -223,9 +216,12 @@ SUBROUTINE test_create(total_error)
   CALL h5fopen_f (FILENAME, H5F_ACC_RDONLY_F, file, error, fapl)
   CALL check("h5fopen_f", error, total_error)
 
-  !/* Compound datatype test */
+  ! Compound datatype test 
   CALL h5dopen_f(file, "dset9", dset9, error)
   CALL check("h5dopen_f", error, total_error)
+
+  CALL H5Pclose_f(dcpl, error)
+  CALL check("H5Pclose_f", error, total_error)
 
   CALL H5Dget_create_plist_f(dset9, dcpl, error)
   CALL check("H5Dget_create_plist_f", error, total_error)
@@ -234,10 +230,10 @@ SUBROUTINE test_create(total_error)
 
   CALL H5Pget_fill_value_f(dcpl, comp_type_id, f_ptr, error)
   CALL check("H5Pget_fill_value_f", error, total_error)
+  CALL verify("***ERROR: Returned wrong fill value", rd_c%a, fill_ctype%a, total_error)
+  CALL verify("***ERROR: Returned wrong fill value", rd_c%y, fill_ctype%y, total_error)
 
-  IF( .NOT.dreal_eq( REAL(rd_c%a,dp), REAL(fill_ctype%a, dp)) .OR. &
-      .NOT.dreal_eq( REAL(rd_c%y,dp), REAL(fill_ctype%y, dp)) .OR. &
-      rd_c%x .NE. fill_ctype%x .OR. &
+  IF( rd_c%x .NE. fill_ctype%x .OR. &
       rd_c%z .NE. fill_ctype%z )THEN
 
      PRINT*,"***ERROR: Returned wrong fill value"
@@ -269,22 +265,18 @@ SUBROUTINE test_genprop_class_callback(total_error)
   !
   !
 
-  USE HDF5
-  USE TH5_MISC
-  USE ISO_C_BINDING
   USE test_genprop_cls_cb1_mod
   IMPLICIT NONE
 
   INTEGER, INTENT(INOUT) :: total_error
 
-  INTEGER(hid_t) :: cid1 !/* Generic Property class ID */
-  INTEGER(hid_t) :: lid1 !/* Generic Property list ID */
-  INTEGER(hid_t) :: lid2 !/* 2nd Generic Property list ID */
-  INTEGER(size_t) :: nprops !/* Number of properties in class */
+  INTEGER(hid_t) :: cid1, cid2 ! Generic Property class ID 
+  INTEGER(hid_t) :: lid1, lid2 ! Generic Property list ID 
+  INTEGER(size_t) :: nprops ! Number of properties in class 
 
   TYPE(cop_cb_struct_), TARGET :: crt_cb_struct, cls_cb_struct
-
-  CHARACTER(LEN=7) :: CLASS1_NAME = "Class 1"
+  INTEGER :: CLASS1_NAME_SIZE = 7 ! length of class string
+  CHARACTER(LEN=7) :: CLASS1_NAME = "Class 1", CLASS1_NAME_BUF
   TYPE(C_FUNPTR) :: f1, f5
   TYPE(C_PTR) :: f2, f6
 
@@ -301,7 +293,8 @@ SUBROUTINE test_genprop_class_callback(total_error)
   INTEGER :: PROP3_DEF_VALUE = 10
   INTEGER :: PROP4_DEF_VALUE = 10
 
-  INTEGER :: error ! /* Generic RETURN value	*/
+  INTEGER :: error !  Generic RETURN value	
+  LOGICAL :: flag  ! for tests
 
   f1 = C_FUNLOC(test_genprop_cls_cb1_f)
   f5 = C_FUNLOC(test_genprop_cls_cb1_f)
@@ -309,79 +302,100 @@ SUBROUTINE test_genprop_class_callback(total_error)
   f2 = C_LOC(crt_cb_struct)
   f6 = C_LOC(cls_cb_struct)
 
-  !/* Create a new generic class, derived from the root of the class hierarchy */
-  CALL h5pcreate_class_f(h5p_ROOT_F,CLASS1_NAME, cid1, error, f1, f2, c_null_funptr, c_null_ptr, f5, f6)
+  ! Create a new generic class, derived from the root of the class hierarchy 
+  CALL h5pcreate_class_f(h5p_ROOT_F, CLASS1_NAME, cid1, error, f1, f2, c_null_funptr, c_null_ptr, f5, f6)
   CALL check("h5pcreate_class_f", error, total_error)
 
-  !/* Insert first property into class (with no callbacks) */
+  ! Insert first property into class (with no callbacks) 
   CALL h5pregister_f(cid1, PROP1_NAME, PROP1_SIZE, PROP1_DEF_VALUE, error)
   CALL check("h5pregister_f", error, total_error)
-  !/* Insert second property into class (with no callbacks) */
+  ! Insert second property into class (with no callbacks) 
   CALL h5pregister_f(cid1, PROP2_NAME, PROP2_SIZE, PROP2_DEF_VALUE, error)
   CALL check("h5pregister_f", error, total_error)
-  !/* Insert third property into class (with no callbacks) */
+  ! Insert third property into class (with no callbacks) 
   CALL h5pregister_f(cid1, PROP3_NAME, PROP3_SIZE, PROP3_DEF_VALUE, error)
   CALL check("h5pregister_f", error, total_error)
 
-  !/* Insert fourth property into class (with no callbacks) */
+  ! Insert fourth property into class (with no callbacks) 
   CALL h5pregister_f(cid1, PROP4_NAME, PROP4_SIZE, PROP4_DEF_VALUE, error)
   CALL check("h5pregister_f", error, total_error)
 
-  ! /* Check the number of properties in class */
+  !  Check the number of properties in class 
   CALL h5pget_nprops_f(cid1, nprops, error)
   CALL check("h5pget_nprops_f", error, total_error)
-  CALL VERIFY("h5pget_nprops_f", INT(nprops), 4, total_error)
+  CALL verify("h5pget_nprops_f", INT(nprops), 4, total_error)
 
-  ! /* Initialize class callback structs */
+  !  Initialize class callback structs 
 
   crt_cb_struct%count = 0
   crt_cb_struct%id    = -1
   cls_cb_struct%count = 0
   cls_cb_struct%id    = -1
 
-  !/* Create a property list from the class */
+  ! Create a property list from the class 
   CALL h5pcreate_f(cid1, lid1, error)
   CALL check("h5pcreate_f", error, total_error)
 
-  !/* Verify that the creation callback occurred */
-  CALL VERIFY("h5pcreate_f", crt_cb_struct%count, 1, total_error)
-  CALL VERIFY("h5pcreate_f", INT(crt_cb_struct%id), INT(lid1), total_error)
+  ! Get the list's class 
+  CALL H5Pget_class_f(lid1, cid2, error)
+  CALL check("H5Pget_class_f", error, total_error)
 
-  ! /* Check the number of properties in list */
+  !  Check that the list's class is correct 
+  CALL H5Pequal_f(cid2, cid1, flag, error)
+  CALL check("H5Pequal_f", error, total_error)
+  CALL verify("H5Pequal_f", flag, .TRUE., total_error)
+
+  ! Check the class name
+  CALL H5Pget_class_name_f(cid2, CLASS1_NAME_BUF, CLASS1_NAME_SIZE, error)
+  CALL check("H5Pget_class_name_f", error, total_error)
+  CALL verify("H5Pget_class_name_f", CLASS1_NAME_BUF, CLASS1_NAME, error)
+  IF(error.NE.0)THEN
+     WRITE(*,*) 'Class names do not match! name=',CLASS1_NAME_BUF, 'CLASS1_NAME=',CLASS1_NAME
+     total_error = total_error + 1
+  ENDIF
+  ! Close class 
+  CALL h5pclose_class_f(cid2, error)
+  CALL check("h5pclose_class_f", error, total_error)
+
+  ! Verify that the creation callback occurred 
+  CALL verify("h5pcreate_f", crt_cb_struct%count, 1, total_error)
+  CALL verify("h5pcreate_f", crt_cb_struct%id, lid1, total_error)
+
+  !  Check the number of properties in list 
   CALL h5pget_nprops_f(lid1,nprops, error)
   CALL check("h5pget_nprops_f", error, total_error)
-  CALL VERIFY("h5pget_nprops_f", INT(nprops), 4, total_error)
+  CALL verify("h5pget_nprops_f", INT(nprops), 4, total_error)
 
-  ! /* Create another property list from the class */
+  !  Create another property list from the class 
   CALL h5pcreate_f(cid1, lid2, error)
   CALL check("h5pcreate_f", error, total_error)
 
-  ! /* Verify that the creation callback occurred */
-  CALL VERIFY("h5pcreate_f", crt_cb_struct%count, 2, total_error)
-  CALL VERIFY("h5pcreate_f", INT(crt_cb_struct%id), INT(lid2), total_error)
+  !  Verify that the creation callback occurred 
+  CALL verify("h5pcreate_f", crt_cb_struct%count, 2, total_error)
+  CALL verify("h5pcreate_f", crt_cb_struct%id, lid2, total_error)
 
-  ! /* Check the number of properties in list */
+  !  Check the number of properties in list 
   CALL h5pget_nprops_f(lid2,nprops, error)
   CALL check("h5pget_nprops_f", error, total_error)
-  CALL VERIFY("h5pget_nprops_f", INT(nprops), 4, total_error)
+  CALL verify("h5pget_nprops_f", INT(nprops), 4, total_error)
 
-  ! /* Close first list */
+  !  Close first list 
   CALL h5pclose_f(lid1, error);
   CALL check("h5pclose_f", error, total_error)
 
-  !/* Verify that the close callback occurred */
-  CALL VERIFY("h5pcreate_f", cls_cb_struct%count, 1, total_error)
-  CALL VERIFY("h5pcreate_f", INT(cls_cb_struct%id), INT(lid1), total_error)
+  ! Verify that the close callback occurred 
+  CALL verify("h5pcreate_f", cls_cb_struct%count, 1, total_error)
+  CALL verify("h5pcreate_f", cls_cb_struct%id, lid1, total_error)
 
-  !/* Close second list */
+  ! Close second list 
   CALL h5pclose_f(lid2, error);
   CALL check("h5pclose_f", error, total_error)
 
-  !/* Verify that the close callback occurred */
-  CALL VERIFY("h5pcreate_f", cls_cb_struct%count, 2, total_error)
-  CALL VERIFY("h5pcreate_f", INT(cls_cb_struct%id), INT(lid2), total_error)
+  ! Verify that the close callback occurred
+  CALL verify("h5pcreate_f", cls_cb_struct%count, 2, total_error)
+  CALL verify("h5pcreate_f", cls_cb_struct%id, lid2, total_error)
 
-  !/* Close class */
+  ! Close class 
   CALL h5pclose_class_f(cid1, error)
   CALL check("h5pclose_class_f", error, total_error)
 
@@ -402,8 +416,6 @@ END SUBROUTINE test_genprop_class_callback
 
 SUBROUTINE test_h5p_file_image(total_error)
 
-  USE HDF5
-  USE TH5_MISC
   USE, INTRINSIC :: iso_c_binding
   IMPLICIT NONE
   INTEGER, INTENT(INOUT) :: total_error
@@ -454,11 +466,11 @@ SUBROUTINE test_h5p_file_image(total_error)
   CALL check("h5pget_file_image_f", error, total_error)
 
   ! Check that sizes are the same, and that the buffers are identical but separate
-  CALL VERIFY("h5pget_file_image_f", INT(temp_size), INT(size), total_error)
+  CALL verify("h5pget_file_image_f", INT(temp_size), INT(size), total_error)
   
   ! Verify the image data is correct
   DO i = 1, count
-     CALL VERIFY("h5pget_file_image_f", temp(i), buffer(i), total_error)
+     CALL verify("h5pget_file_image_f", temp(i), buffer(i), total_error)
   ENDDO
 
 END SUBROUTINE test_h5p_file_image
@@ -477,10 +489,6 @@ END SUBROUTINE test_h5p_file_image
 !-------------------------------------------------------------------------
 !
 SUBROUTINE external_test_offset(cleanup,total_error)
-
-  USE ISO_C_BINDING
-  USE TH5_MISC
-  USE HDF5 ! This module contains all necessary modules
 
   IMPLICIT NONE
   INTEGER, INTENT(INOUT) :: total_error
@@ -608,4 +616,473 @@ SUBROUTINE external_test_offset(cleanup,total_error)
   CALL check("h5_cleanup_f", error, total_error)
 
 END SUBROUTINE external_test_offset
+
+!-------------------------------------------------------------------------
+! NAME
+!  test_vds
+!
+! FUNCTION
+!  Tests VDS API wrappers
+!
+! RETURNS:
+!   Success:	0
+!   Failure:	number of errors
+!
+! FORTRAN Programmer:  M. Scot Breitenfeld
+!                      February 1, 2016
+!
+!-------------------------------------------------------------------------
+!
+SUBROUTINE test_vds(total_error)
+
+  USE ISO_C_BINDING
+  IMPLICIT NONE
+
+  INTEGER, INTENT(INOUT) :: total_error
+
+  INTEGER, PARAMETER :: int_kind_8 = SELECTED_INT_KIND(9)   !should map to INTEGER*4 on most modern processors
+  INTEGER, PARAMETER :: int_kind_16 = SELECTED_INT_KIND(18) !should map to INTEGER*8 on most modern processors
+
+  CHARACTER(LEN=6), PARAMETER ::  VFILENAME="vds.h5"
+  CHARACTER(LEN=3), PARAMETER :: DATASET="VDS"
+  INTEGER :: VDSDIM0
+  INTEGER, PARAMETER :: VDSDIM1 = 10
+  INTEGER, PARAMETER :: VDSDIM2 = 15 
+
+  INTEGER :: DIM0
+  INTEGER, PARAMETER :: DIM0_1= 4  ! Initial size of the source datasets
+  INTEGER, PARAMETER :: DIM1 = 10 
+  INTEGER, PARAMETER :: DIM2 = 15 
+  INTEGER, PARAMETER :: RANK =  3
+  INTEGER(hsize_t), PARAMETER :: PLANE_STRIDE = 4
+
+  CHARACTER(LEN=4), DIMENSION(1:PLANE_STRIDE) :: SRC_FILE = (/"a.h5","b.h5","c.h5","d.h5"/)
+  CHARACTER(LEN=3), DIMENSION(1:PLANE_STRIDE) :: SRC_DATASET = (/"AAA","BBB","CCC","DDD"/)
+
+
+  INTEGER(hid_t) :: vfile, file, src_space, mem_space, vspace, vdset, dset !Handles
+  INTEGER(hid_t) :: dcpl, dapl
+  INTEGER :: error
+  INTEGER(hsize_t), DIMENSION(1:3) :: vdsdims = (/4*DIM0_1, VDSDIM1, VDSDIM2/), &
+                 vdsdims_max, &
+                 dims = (/DIM0_1, DIM1, DIM2/), &
+                 memdims = (/DIM0_1, DIM1, DIM2/), &
+                 extdims = (/0, DIM1, DIM2/), & ! Dimensions of the extended source datasets
+                 chunk_dims = (/DIM0_1, DIM1, DIM2/), &
+                 dims_max, &
+                 vdsdims_out, vdsdims_max_out, &
+                 start, &                   ! Hyperslab parameters
+                 stride, &
+                 count, &
+                 src_count, block
+  INTEGER(hsize_t), DIMENSION(1:2,1:3) :: vdsdims_out_correct
+
+  INTEGER(hsize_t), DIMENSION(1:3) :: start_out, &  !Hyperslab PARAMETER out 
+                 stride_out, count_out, block_out
+  INTEGER(hsize_t), DIMENSION(1:3,1:PLANE_STRIDE) :: start_correct
+
+  INTEGER :: i, j
+  INTEGER :: layout                     ! Storage layout
+  INTEGER(size_t) :: num_map            ! Number of mappings 
+  INTEGER(size_t) :: len                ! Length of the string also a RETURN value 
+  ! Different sized character buffers
+  CHARACTER(len=LEN(SRC_FILE(1))-3)  :: SRC_FILE_LEN_TINY
+  CHARACTER(len=LEN(SRC_FILE(1))-1)  :: SRC_FILE_LEN_SMALL
+  CHARACTER(len=LEN(SRC_FILE(1)))    :: SRC_FILE_LEN_EXACT
+  CHARACTER(len=LEN(SRC_FILE(1))+1)  :: SRC_FILE_LEN_LARGE
+  CHARACTER(len=LEN(SRC_FILE(1))+10) :: SRC_FILE_LEN_HUGE
+  CHARACTER(len=LEN(SRC_DATASET(1))) :: SRC_DATASET_LEN_EXACT
+
+  INTEGER(HID_T) :: space_out 
+
+  INTEGER :: s_type, virtual_view
+  INTEGER :: type1, type2
+
+  INTEGER, DIMENSION(DIM0_1*DIM1*DIM2), TARGET :: wdata
+  TYPE(C_PTR) :: f_ptr
+  INTEGER(SIZE_T) :: nsize
+  LOGICAL :: IsRegular
+  INTEGER(HSIZE_T) :: gap_size 
+
+  ! For testing against
+  vdsdims_out_correct(1,1) = DIM0_1*5
+  vdsdims_out_correct(2,1) = DIM0_1*8
+  vdsdims_out_correct(1:2,2) = VDSDIM1 
+  vdsdims_out_correct(1:2,3) = VDSDIM2 
+
+  VDSDIM0 = H5S_UNLIMITED_F
+  DIM0 = H5S_UNLIMITED_F
+  vdsdims_max = (/VDSDIM0, VDSDIM1, VDSDIM2/)
+  dims_max = (/DIM0, DIM1, DIM2/)
+
+  !
+  ! Create source files and datasets. 
+  !
+  DO i = 1, PLANE_STRIDE
+     !
+     ! Initialize data for i-th source dataset.
+     DO j = 1, DIM0_1*DIM1*DIM2
+        wdata(j) = i
+     ENDDO
+     !
+     ! Create the source files and  datasets. Write data to each dataset and 
+     ! close all resources.
+     CALL h5fcreate_f(SRC_FILE(i), H5F_ACC_TRUNC_F, file, error)
+     CALL check("h5fcreate_f", error, total_error)
+
+     CALL h5screate_simple_f(RANK, dims,  src_space, error, dims_max)
+     CALL check("h5screate_simple_f", error, total_error)
+     CALL h5pcreate_f(H5P_DATASET_CREATE_F, dcpl, error)
+     CALL check("h5pcreate_f", error, total_error)
+     CALL h5pset_chunk_f(dcpl, RANK, chunk_dims, error)
+     CALL check("h5pset_chunk_f",error, total_error)
+     
+     CALL h5dcreate_f(file, SRC_DATASET(i), H5T_NATIVE_INTEGER, src_space, dset, error, dcpl, H5P_DEFAULT_F, H5P_DEFAULT_F)
+     CALL check("h5dcreate_f",error, total_error)
+     f_ptr = C_LOC(wdata(1))
+     CALL H5Dwrite_f(dset, H5T_NATIVE_INTEGER, f_ptr, error)
+     CALL check("H5Dwrite_f",error, total_error)
+     CALL H5Sclose_f(src_space, error)
+     CALL check("H5Sclose_f",error, total_error)
+     CALL H5Pclose_f(dcpl, error)
+     CALL check("H5Pclose_f",error, total_error)
+     CALL H5Dclose_f(dset, error)
+     CALL check("H5Dclose_f",error, total_error)
+     CALL H5Fclose_f(file, error)
+     CALL check("H5Fclose_f",error, total_error)
+  ENDDO
+
+  CALL h5fcreate_f(VFILENAME, H5F_ACC_TRUNC_F, vfile, error)
+  CALL check("h5fcreate_f", error, total_error)
+
+  ! Create VDS dataspace.
+  CALL H5Screate_simple_f(RANK, vdsdims, vspace, error, vdsdims_max)
+  CALL check("H5Screate_simple_f", error, total_error)
+
+  ! Create dataspaces for the source dataset.
+  CALL H5Screate_simple_f(RANK, dims, src_space, error, dims_max)
+  CALL check("H5Screate_simple_f", error, total_error)
+  
+  ! Create VDS creation property
+  CALL H5Pcreate_f (H5P_DATASET_CREATE_F, dcpl, error)
+  CALL check("H5Pcreate_f", error, total_error)
+     
+  ! Initialize hyperslab values 
+  start(1:3) = 0
+  stride(1:3) = (/PLANE_STRIDE,1_hsize_t,1_hsize_t/) ! we will select every fifth plane in VDS 
+  count(1:3) = (/H5S_UNLIMITED_F,1_hsize_t,1_hsize_t/)
+  src_count(1:3) = (/H5S_UNLIMITED_F,1_hsize_t,1_hsize_t/)
+  block(1:3) = (/1, DIM1, DIM2/)
+  
+  ! 
+  ! Build the mappings 
+  !
+  start_correct = 0
+  CALL H5Sselect_hyperslab_f(src_space, H5S_SELECT_SET_F, start, src_count, error, block=block)
+  CALL check("H5Sselect_hyperslab_f", error, total_error)
+  DO i = 1, PLANE_STRIDE
+     start_correct(1,i) = start(1)
+     CALL H5Sselect_hyperslab_f(vspace, H5S_SELECT_SET_F, start, count, error, stride=stride, block=block)
+     CALL check("H5Sselect_hyperslab_f", error, total_error)
+
+     IF(i.eq.1)THEN ! check src_file and src_dataset with trailing blanks
+        CALL H5Pset_virtual_f (dcpl, vspace, SRC_FILE(i)//"   ", SRC_DATASET(i)//"   ", src_space, error)
+     ELSE
+        CALL H5Pset_virtual_f (dcpl, vspace, SRC_FILE(i), SRC_DATASET(i), src_space, error)
+     ENDIF
+     CALL check("H5Pset_virtual_f", error, total_error)
+     start(1) = start(1) + 1
+  ENDDO
+
+  CALL H5Sselect_none_f(vspace, error) 
+  CALL check("H5Sselect_none_f", error, total_error)
+
+  ! Create a virtual dataset 
+  CALL H5Dcreate_f(vfile, DATASET, H5T_NATIVE_INTEGER, vspace, vdset, error, dcpl, H5P_DEFAULT_F, H5P_DEFAULT_F)
+  CALL check("H5Dcreate_f", error, total_error)
+  CALL H5Sclose_f(vspace, error)
+  CALL check("H5Sclose_f", error, total_error)
+  CALL H5Sclose_f(src_space, error)
+  CALL check("H5Sclose_f", error, total_error)
+  CALL H5Pclose_f(dcpl, error)
+  CALL check("H5Pclose_f", error, total_error)
+
+  ! Let's add data to the source datasets and check new dimensions for VDS 
+  ! We will add only one plane to the first source dataset, two planes to the
+  ! second one, three to the third, and four to the forth.                 
+
+  DO i = 1, PLANE_STRIDE
+     !
+     ! Initialize data for i-th source dataset.
+     DO j = 1, i*DIM1*DIM2
+        wdata(j) = 10*i
+     ENDDO
+
+     !
+     ! Open the source files and datasets. Append data to each dataset and 
+     ! close all resources.
+     CALL H5Fopen_f (SRC_FILE(i), H5F_ACC_RDWR_F, file, error)
+     CALL check("H5Fopen_f", error, total_error)
+     CALL H5Dopen_f (file, SRC_DATASET(i), dset, error)
+     CALL check("H5Dopen_f", error, total_error)
+     extdims(1) = DIM0_1+i
+     CALL H5Dset_extent_f(dset, extdims, error)  
+     CALL check("H5Dset_extent_f", error, total_error)     
+     CALL H5Dget_space_f(dset, src_space, error)
+     CALL check("H5Dget_space_f", error, total_error)
+
+     start(1:3) = (/DIM0_1,0,0/)
+     count(1:3) = 1
+     block(1:3) = (/i, DIM1, DIM2/)
+
+     memdims(1) = i
+
+     CALL H5Screate_simple_f(RANK, memdims, mem_space, error) 
+     CALL check("H5Screate_simple_f", error, total_error)
+
+     CALL H5Sselect_hyperslab_f(src_space, H5S_SELECT_SET_F, start,count, error,block=block) 
+     CALL check("H5Sselect_hyperslab_f", error, total_error)
+     f_ptr = C_LOC(wdata(1))
+     CALL H5Dwrite_f(dset, H5T_NATIVE_INTEGER, f_ptr, error, mem_space, src_space, H5P_DEFAULT_F) 
+     CALL check("H5Dwrite_f", error, total_error)
+     CALL H5Sclose_f(src_space, error)
+     CALL check("H5Sclose_f", error, total_error)
+     call H5Dclose_f(dset, error)
+     CALL check("H5Dclose_f", error, total_error)
+     call H5Fclose_f(file, error)
+     CALL check("H5Fclose_f", error, total_error)
+  ENDDO
+
+  call H5Dclose_f(vdset, error)
+  CALL check("H5Dclose_f", error, total_error)
+  call H5Fclose_f(vfile, error) 
+  CALL check("H5Fclose_f", error, total_error)
+   
+  !
+  ! begin the read section
+  !
+  ! Open file and dataset using the default properties.
+  CALL H5Fopen_f(VFILENAME, H5F_ACC_RDONLY_F, vfile, error)
+  CALL check("H5Fopen_f", error, total_error) 
+    
+  ! 
+  ! Open VDS using different access properties to use max or
+  ! min extents depending on the sizes of the underlying datasets
+  CALL H5Pcreate_f(H5P_DATASET_ACCESS_F, dapl, error)
+  CALL check("H5Pcreate_f", error, total_error) 
+
+  DO i = 1, 2
+
+     IF(i.NE.1)THEN
+        CALL H5Pset_virtual_view_f(dapl, H5D_VDS_LAST_AVAILABLE_F, error)
+        CALL check("H5Pset_virtual_view_f", error, total_error) 
+     ELSE
+        CALL H5Pset_virtual_view_f(dapl, H5D_VDS_FIRST_MISSING_F, error)
+        CALL check("H5Pset_virtual_view_f", error, total_error) 
+     ENDIF
+     
+     CALL H5Dopen_f(vfile, DATASET, vdset, error, dapl)
+     CALL check("H5Dopen_f", error, total_error) 
+
+     ! Let's get space of the VDS and its dimension we should get 32(or 20)x10x10
+     CALL H5Dget_space_f(vdset, vspace, error)
+     CALL check("H5Dget_space_f", error, total_error) 
+     CALL H5Sget_simple_extent_dims_f(vspace, vdsdims_out, vdsdims_max_out, error)
+     CALL check("H5Sget_simple_extent_dims_f", error, total_error)
+
+     ! check VDS dimensions
+     DO j = 1, RANK
+        IF(vdsdims_out(j).NE.vdsdims_out_correct(i,j))THEN
+           total_error = total_error + 1
+           EXIT 
+        ENDIF
+     ENDDO
+
+     CALL H5Pget_virtual_view_f(dapl, virtual_view, error)
+     CALL check("h5pget_virtual_view_f", error, total_error) 
+
+     IF(i.EQ.1)THEN
+        IF(virtual_view .NE. H5D_VDS_FIRST_MISSING_F)THEN
+           total_error = total_error + 1
+        ENDIF
+     ELSE
+        IF(virtual_view .NE. H5D_VDS_LAST_AVAILABLE_F)THEN
+           total_error = total_error + 1
+        ENDIF
+        
+     ENDIF
+
+     ! Close 
+     CALL H5Dclose_f(vdset, error)
+     CALL check("H5Dclose_f", error, total_error)
+     CALL H5Sclose_f(vspace, error)
+     CALL check("H5Sclose_f", error, total_error)
+  ENDDO
+
+  CALL H5Dopen_f(vfile, DATASET, vdset, error)
+  CALL check("H5Dopen_f", error, total_error)
+
+  !
+  ! Get creation property list and mapping properties.
+  !   
+  CALL H5Dget_create_plist_f (vdset, dcpl, error)
+  CALL check("H5Dget_create_plist_f", error, total_error)
+
+  !
+  ! Get storage layout.
+  CALL H5Pget_layout_f(dcpl, layout, error)
+  CALL check("H5Pget_layout_f", error, total_error)
+
+  IF (H5D_VIRTUAL_F .NE. layout) THEN
+     PRINT*,"Wrong layout found"
+     total_error = total_error + 1
+  ENDIF
+
+  !
+  ! Find number of mappings.
+      
+  CALL H5Pget_virtual_count_f(dcpl, num_map, error)
+  CALL check("H5Pget_virtual_count_f", error, total_error)
+
+  IF(num_map.NE.4_size_t)THEN
+     PRINT*,"Number of mappings is incorrect"
+     total_error = total_error + 1
+  ENDIF
+  ! 
+  ! Get mapping parameters for each mapping.
+  !
+  DO i = 1, num_map
+     CALL H5Pget_virtual_vspace_f(dcpl, INT(i-1,size_t), vspace, error)
+     CALL check("H5Pget_virtual_vspace_f", error, total_error)
+
+     CALL h5sget_select_type_f(vspace, s_type, error)
+     CALL check("h5sget_select_type_f", error, total_error)
+     IF(s_type.EQ.H5S_SEL_HYPERSLABS_F)THEN
+        CALL H5Sis_regular_hyperslab_f(vspace, IsRegular, error)
+        CALL check("H5Sis_regular_hyperslab_f", error, total_error)
+
+        IF(IsRegular)THEN
+           CALL H5Sget_regular_hyperslab_f(vspace, start_out, stride_out, count_out, block_out, error)
+           CALL check("H5Sget_regular_hyperslab_f", error, total_error)
+           DO j = 1, 3
+              IF(start_out(j).NE.start_correct(j,i) .OR. &
+                   stride_out(j).NE.stride(j).OR. &
+                   count_out(j).NE.src_count(j))THEN
+                 total_error = total_error + 1
+                 EXIT
+              ENDIF
+           ENDDO
+        ENDIF
+     END IF
+
+     ! Get source file name
+     CALL H5Pget_virtual_filename_f(dcpl, INT(i-1, size_t), SRC_FILE_LEN_EXACT, error, nsize)
+     CALL check("H5Pget_virtual_count_f", error, total_error)
+
+     IF(nsize.NE.LEN(SRC_FILE_LEN_EXACT))THEN
+        PRINT*,"virtual filenname size is incorrect"
+        total_error = total_error + 1
+     ENDIF
+     ! check passing a buffer that is very small
+     CALL H5Pget_virtual_filename_f(dcpl, INT(i-1, size_t), SRC_FILE_LEN_TINY, error)
+     CALL check("H5Pget_virtual_filename_f", error, total_error)
+     IF(SRC_FILE_LEN_TINY.NE.SRC_FILE(i)(1:LEN(SRC_FILE_LEN_TINY)))THEN
+        PRINT*,"virtual filenname returned is incorrect"
+        total_error = total_error + 1
+     ENDIF
+     ! check passing a buffer that small by one
+     CALL H5Pget_virtual_filename_f(dcpl, INT(i-1, size_t), SRC_FILE_LEN_SMALL, error)
+     CALL check("H5Pget_virtual_filename_f", error, total_error)
+     IF(SRC_FILE_LEN_SMALL.NE.SRC_FILE(i)(1:LEN(SRC_FILE_LEN_SMALL)))THEN
+        PRINT*,"virtual filenname returned is incorrect"
+        total_error = total_error + 1
+     ENDIF
+     ! check passing a buffer that is exact
+     CALL H5Pget_virtual_filename_f(dcpl, INT(i-1, size_t), SRC_FILE_LEN_EXACT, error)
+     CALL check("H5Pget_virtual_filename_f", error, total_error)
+     IF(SRC_FILE_LEN_EXACT.NE.SRC_FILE(i)(1:LEN(SRC_FILE_LEN_EXACT)))THEN
+        PRINT*,"virtual filenname returned is incorrect"
+        total_error = total_error + 1
+     ENDIF
+     ! check passing a buffer that bigger by one
+     CALL H5Pget_virtual_filename_f(dcpl, INT(i-1, size_t), SRC_FILE_LEN_LARGE, error)
+     CALL check("H5Pget_virtual_filename_f", error, total_error)
+     IF(SRC_FILE_LEN_LARGE(1:LEN(SRC_FILE_LEN_EXACT)).NE.SRC_FILE(i)(1:LEN(SRC_FILE_LEN_EXACT)).AND. &
+         SRC_FILE_LEN_LARGE(LEN(SRC_FILE_LEN_EXACT):).NE.'')THEN
+        PRINT*,"virtual filenname returned is incorrect"
+        total_error = total_error + 1
+     ENDIF
+     ! check passing a buffer that is very big
+     CALL H5Pget_virtual_filename_f(dcpl, INT(i-1, size_t), SRC_FILE_LEN_HUGE, error)
+     CALL check("H5Pget_virtual_filename_f", error, total_error)
+     IF(SRC_FILE_LEN_HUGE(1:LEN(SRC_FILE_LEN_EXACT)).NE.SRC_FILE(i)(1:LEN(SRC_FILE_LEN_EXACT)).AND. &
+         SRC_FILE_LEN_HUGE(LEN(SRC_FILE_LEN_EXACT):).NE.'')THEN
+        PRINT*,"virtual filenname returned is incorrect"
+        total_error = total_error + 1
+     ENDIF
+     ! Get source dataset name
+     CALL H5Pget_virtual_dsetname_f(dcpl, INT(i-1, size_t), SRC_DATASET_LEN_EXACT, error, nsize)
+     CALL check("H5Pget_virtual_dsetname_f", error, total_error)
+
+     CALL H5Pget_virtual_dsetname_f(dcpl, INT(i-1, size_t), SRC_DATASET_LEN_EXACT, error)
+     CALL check("H5Pget_virtual_dsetname_f", error, total_error)
+     IF(SRC_DATASET_LEN_EXACT(1:LEN(SRC_DATASET_LEN_EXACT)).NE.SRC_DATASET(i)(1:LEN(SRC_DATASET_LEN_EXACT)).AND. &
+         SRC_DATASET_LEN_EXACT(LEN(SRC_DATASET_LEN_EXACT):).NE.'')THEN
+        PRINT*,"virtual dataset returned is incorrect"
+        total_error = total_error + 1
+     ENDIF
+
+     CALL h5pget_virtual_srcspace_f(dcpl, INT(i-1,size_t), space_out, error)
+     CALL check("H5Pget_virtual_srcspace_f", error, total_error)
+
+     CALL h5sget_select_type_f(space_out, type1, error)
+     CALL check("H5Sget_select_type_f", error, total_error)
+     CALL h5sget_select_type_f(vspace, type2, error)
+     CALL check("H5Sget_select_type_f", error, total_error)
+
+     IF(type1.NE.type2)THEN
+        total_error = total_error + 1
+     ENDIF
+
+  ENDDO
+  !
+  ! Close and release resources.
+
+  ! Clear virtual layout in DCPL
+  CALL h5pset_layout_f(dcpl, H5D_VIRTUAL_F,error)
+  CALL check("H5Pset_layout_f", error, total_error)
+
+  CALL H5Pclose_f(dcpl, error)
+  CALL check("H5Pclose_f", error, total_error)
+  CALL H5Dclose_f(vdset, error)
+  CALL check("H5Dclose_f", error, total_error)
+
+  ! Reopen VDS with printf gap set to 1
+
+  CALL H5Pset_virtual_printf_gap_f(dapl, 1_hsize_t, error)
+  CALL check("H5Pset_virtual_printf_gap_f", error, total_error)
+
+  CALL H5Dopen_f(vfile, DATASET, vdset, error, dapl)
+  CALL check("H5Dopen_f", error, total_error)
+
+  CALL H5Pget_virtual_printf_gap_f(dapl, gap_size, error)
+  CALL check("H5Pget_virtual_printf_gap_f", error, total_error)
+
+  IF(gap_size.NE.1_hsize_t)THEN
+     PRINT*,"gapsize is incorrect"
+     total_error = total_error + 1
+  ENDIF
+     
+  CALL H5Dclose_f(vdset, error)
+  CALL check("H5Dclose_f", error, total_error)
+  CALL H5Sclose_f(vspace, error)
+  CALL check("H5Sclose_f", error, total_error)
+  CALL H5Pclose_f(dapl, error)
+  CALL check("H5Pclose_f", error, total_error)
+  CALL H5Fclose_f(vfile, error)
+  CALL check("H5Fclose_f", error, total_error)
+ 
+END SUBROUTINE test_vds
+
+
 END MODULE TH5P_F03

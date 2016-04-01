@@ -30,7 +30,8 @@ typedef void (*attr_operator_t)( H5Location& loc/*in*/,
                                  const H5std_string attr_name/*in*/,
                                  void *operator_data/*in,out*/);
 
-class UserData4Aiterate { // user data for attribute iteration
+//! User data for attribute iteration
+class UserData4Aiterate {
    public:
 	attr_operator_t op;
 	void* opData;
@@ -115,7 +116,7 @@ class H5_DLLCPP H5Location : public IdComponent {
 	// in this object.
 	void reference(void* ref, const char* name, 
 			H5R_type_t ref_type = H5R_OBJECT) const;
-	void reference(void* ref, const H5std_string& name, 
+	void reference(void* ref, const H5std_string& name,
 			H5R_type_t ref_type = H5R_OBJECT) const;
 	void reference(void* ref, const char* name, const DataSpace& dataspace,
 			H5R_type_t ref_type = H5R_DATASET_REGION) const;
@@ -124,8 +125,8 @@ class H5_DLLCPP H5Location : public IdComponent {
 
 	// Open a referenced object whose location is specified by either
 	// a file, an HDF5 object, or an attribute.
-	void dereference(const H5Location& loc, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
-	void dereference(const Attribute& attr, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
+	void dereference(const H5Location& loc, const void* ref, H5R_type_t ref_type = H5R_OBJECT, const PropList& plist = PropList::DEFAULT);
+	void dereference(const Attribute& attr, const void* ref, H5R_type_t ref_type = H5R_OBJECT, const PropList& plist = PropList::DEFAULT);
 
 	// Retrieves a dataspace with the region pointed to selected.
 	DataSpace getRegion(void *ref, H5R_type_t ref_type = H5R_DATASET_REGION) const;
@@ -134,21 +135,26 @@ class H5_DLLCPP H5Location : public IdComponent {
 	virtual hid_t getId() const = 0;
 
    protected:
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-	// Default constructor,
+	// Default constructor
 	H5Location();
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+	// *** Deprecation warning ***
+	// The following two constructors are no longer appropriate after the
+	// data member "id" had been moved to the sub-classes.
+	// The copy constructor is a noop and is removed in 1.8.15 and the
+	// other will be removed from 1.10 release, and then from 1.8 if its
+	// removal does not raise any problems in two 1.10 releases.
 
 	// Creates a copy of an existing object giving the location id.
 	H5Location(const hid_t loc_id);
-
-	// Copy constructor.
-	H5Location(const H5Location& original);
 
 	// Creates a reference to an HDF5 object or a dataset region.
 	void p_reference(void* ref, const char* name, hid_t space_id, H5R_type_t ref_type) const;
 
 	// Dereferences a ref into an HDF5 id.
-	hid_t p_dereference(hid_t loc_id, const void* ref, H5R_type_t ref_type, const char* from_func);
+	hid_t p_dereference(hid_t loc_id, const void* ref, H5R_type_t ref_type, const PropList& plist, const char* from_func);
 
 #ifndef H5_NO_DEPRECATED_SYMBOLS
 	// Retrieves the type of object that an object reference points to.
@@ -157,6 +163,10 @@ class H5_DLLCPP H5Location : public IdComponent {
 
 	// Retrieves the type of object that an object reference points to.
 	H5O_type_t p_get_ref_obj_type(void *ref, H5R_type_t ref_type) const;
+
+        // Sets the identifier of this object to a new value. - this one
+        // doesn't increment reference count
+        virtual void p_setId(const hid_t new_id) = 0;
 
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 

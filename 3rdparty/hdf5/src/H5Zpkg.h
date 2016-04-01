@@ -13,7 +13,7 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef H5Z_PACKAGE
+#if !(defined H5Z_FRIEND || defined H5Z_MODULE)
 #error "Do not include this file outside the H5Z package!"
 #endif
 
@@ -23,48 +23,35 @@
 /* Include private header file */
 #include "H5Zprivate.h"          /* Filter functions                */
 
+/********************/
+/* Internal filters */
+/********************/
 
+/* Shuffle filter */
+H5_DLLVAR const H5Z_class2_t H5Z_SHUFFLE[1];
+
+/* Fletcher32 filter */
+H5_DLLVAR const H5Z_class2_t H5Z_FLETCHER32[1];
+
+/* n-bit filter */
+H5_DLLVAR H5Z_class2_t H5Z_NBIT[1];
+
+/* Scale/offset filter */
+H5_DLLVAR H5Z_class2_t H5Z_SCALEOFFSET[1];
+
+/********************/
+/* External filters */
+/********************/
+
+/* Deflate filter */
 #ifdef H5_HAVE_FILTER_DEFLATE
-/*
- * Deflate filter
- */
 H5_DLLVAR const H5Z_class2_t H5Z_DEFLATE[1];
 #endif /* H5_HAVE_FILTER_DEFLATE */
 
-#ifdef H5_HAVE_FILTER_SHUFFLE
-/*
- * Shuffle filter
- */
-H5_DLLVAR const H5Z_class2_t H5Z_SHUFFLE[1];
-#endif /* H5_HAVE_FILTER_SHUFFLE */
-
-#ifdef H5_HAVE_FILTER_FLETCHER32
-/*
- * Fletcher32 filter
- */
-H5_DLLVAR const H5Z_class2_t H5Z_FLETCHER32[1];
-#endif /* H5_HAVE_FILTER_FLETCHER32 */
-
+/* szip filter */
 #ifdef H5_HAVE_FILTER_SZIP
-/*
- * szip filter
- */
 H5_DLLVAR H5Z_class2_t H5Z_SZIP[1];
 #endif /* H5_HAVE_FILTER_SZIP */
-
-#ifdef H5_HAVE_FILTER_NBIT
-/*
- * nbit filter
- */
-H5_DLLVAR H5Z_class2_t H5Z_NBIT[1];
-#endif /* H5_HAVE_FILTER_NBIT */
-
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
-/*
- * scaleoffset filter
- */
-H5_DLLVAR H5Z_class2_t H5Z_SCALEOFFSET[1];
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
 
 #endif /* _H5Zpkg_H */
 

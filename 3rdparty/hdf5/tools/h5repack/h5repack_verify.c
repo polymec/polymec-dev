@@ -49,16 +49,21 @@ static int verify_filters(hid_t pid, hid_t tid, int nfilters, filter_info_t *fil
  */
 
 int
-h5repack_verify(const char *out_fname, pack_opt_t *options)
+h5repack_verify(const char *in_fname, const char *out_fname, pack_opt_t *options)
 {
-    hid_t        fidout; /* file ID for output file*/
-    hid_t        did;    /* dataset ID */
-    hid_t        pid;    /* dataset creation property list ID */
-    hid_t        sid;    /* space ID */
-    hid_t        tid;    /* type ID */
+    hid_t        fidin      = -1;	/* file ID for input file*/
+    hid_t        fidout     = -1;   /* file ID for output file*/
+    hid_t        did        = -1;   /* dataset ID */
+    hid_t        pid        = -1;   /* dataset creation property list ID */
+    hid_t        sid        = -1;   /* space ID */
+    hid_t        tid        = -1;   /* type ID */
     unsigned int i;
     trav_table_t *travt = NULL;
     int          ok = 1;
+    hid_t       fcpl_in     = -1;   /* file creation property for input file */
+    hid_t   	fcpl_out    = -1;   /* file creation property for output file */
+    H5F_file_space_type_t in_strat, out_strat;	/* file space handling strategy for in/output file */
+    hsize_t	in_thresh, out_thresh;		/* free space section threshold for in/output file */
 
     /* open the output file */
     if((fidout = H5Fopen(out_fname, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0 )
@@ -195,10 +200,81 @@ h5repack_verify(const char *out_fname, pack_opt_t *options)
     }
 
    /*-------------------------------------------------------------------------
-    * close
+    * Verify that file space strategy and free space threshold
+    * are set as expected
     *-------------------------------------------------------------------------
     */
 
+    /* open the input file */
+    if((fidin = H5Fopen(in_fname, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0 )
+	goto error;
+
+    /* Get file creation property list for input file */
+    if((fcpl_in = H5Fget_create_plist(fidin)) < 0) {
+	error_msg("failed to retrieve file creation property list\n");
+	goto error;
+    }
+
+    /* Get file space management info for input file */
+    if(H5Pget_file_space(fcpl_in, &in_strat, &in_thresh) < 0) {
+	error_msg("failed to retrieve file space strategy & threshold\n");
+	goto error;
+    }
+
+    /* Output file is already opened */
+    /* Get file creation property list for output file */
+    if((fcpl_out = H5Fget_create_plist(fidout)) < 0) {
+	error_msg("failed to retrieve file creation property list\n");
+	goto error;
+    }
+
+    /* Get file space management info for output file */
+    if(H5Pget_file_space(fcpl_out, &out_strat, &out_thresh) < 0) {
+	error_msg("failed to retrieve file space strategy & threshold\n");
+	goto error;
+    }
+
+    /*
+     * If the strategy option is not set,
+     * file space handling strategy should be the same for both
+     * input & output files.
+     * If the strategy option is set,
+     * the output file's file space handling strategy should be the same
+     * as what is set via the strategy option
+     */
+    if(!options->fs_strategy && out_strat != in_strat) {
+	error_msg("file space strategy not set as unexpected\n");
+	goto error;
+
+    } else if(options->fs_strategy && out_strat!= options->fs_strategy)  {
+	error_msg("file space strategy not set as unexpectec\n");
+	goto error;
+    }
+
+    /*
+     * If the threshold option is not set,
+     * the free space section threshold should be the same for both
+     * input & output files.
+     * If the threshold option is set,
+     * the output file's free space section threshold should be the same
+     * as what is set via the threshold option.
+     */
+    if(!options->fs_threshold && out_thresh != in_thresh) {
+	error_msg("free space threshold not set as unexpected\n");
+	goto error;
+
+    } else if(options->fs_threshold && out_thresh != options->fs_threshold) {
+	error_msg("free space threshold not set as unexpectec\n");
+	goto error;
+    }
+
+    /* Closing */
+    if (H5Pclose(fcpl_in) < 0)
+	goto error;
+    if (H5Pclose(fcpl_out) < 0)
+	goto error;
+    if (H5Fclose(fidin) < 0)
+	goto error;
     if (H5Fclose(fidout) < 0)
 	goto error;
 
@@ -206,9 +282,12 @@ h5repack_verify(const char *out_fname, pack_opt_t *options)
 
 error:
     H5E_BEGIN_TRY {
+        H5Pclose(fcpl_in);
+        H5Pclose(fcpl_out);
         H5Pclose(pid);
         H5Sclose(sid);
         H5Dclose(did);
+        H5Fclose(fidin);
         H5Fclose(fidout);
         if (travt)
             trav_table_free(travt);

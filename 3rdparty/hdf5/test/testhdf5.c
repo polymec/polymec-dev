@@ -66,9 +66,8 @@ main(int argc, char *argv[])
     AddTest("array", test_array, cleanup_array,  "Array Datatypes", NULL);
     AddTest("genprop", test_genprop, cleanup_genprop,  "Generic Properties", NULL);
     AddTest("unicode", test_unicode, cleanup_unicode,  "UTF-8 Encoding", NULL);
-    AddTest("misc", test_misc, cleanup_misc,  "Miscellaneous", NULL);
-    /* id test needs to be the last test. */
     AddTest("id", test_ids, NULL,  "User-Created Identifiers", NULL);
+    AddTest("misc", test_misc, cleanup_misc,  "Miscellaneous", NULL);
 
     /* Display testing information */
     TestInfo(argv[0]);
@@ -90,8 +89,7 @@ main(int argc, char *argv[])
     /* Exit failure if errors encountered; else exit success. */
     /* No need to print anything since PerformTests() already does. */
     if (GetTestNumErrs() > 0)
-	/* Since exiting failed, don't do at_exit stuff by calling _exit */
-	_exit(EXIT_FAILURE);
+	exit(EXIT_FAILURE);
     else
 	exit(EXIT_SUCCESS);
 }   /* end main() */

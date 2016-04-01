@@ -311,6 +311,7 @@ static void build_match_list (const char *objname1, trav_info_t *info1, const ch
     trav_table_t *table;
     size_t  idx;
 
+    h5difftrace("build_match_list start\n");
     /* init */
     trav_table_init( &table );
 
@@ -415,6 +416,7 @@ static void build_match_list (const char *objname1, trav_info_t *info1, const ch
     free_exclude_path_list (options);
 
     *table_out = table;
+    h5difftrace("build_match_list finish\n");
 }
 
 
@@ -547,7 +549,7 @@ static herr_t trav_grp_symlinks(const char *path, const H5L_info_t *linfo,
 
 done:    
     if (lnk_info.trg_path)
-        HDfree((char *)lnk_info.trg_path);
+        HDfree(lnk_info.trg_path);
     return 0;
 }    
 
@@ -592,8 +594,8 @@ hsize_t h5diff(const char *fname1,
     trav_info_t  *info1_grp = NULL;
     trav_info_t  *info2_grp = NULL;
     /* local pointer */
-    trav_info_t  *info1_lp;
-    trav_info_t  *info2_lp;
+    trav_info_t  *info1_lp = NULL;
+    trav_info_t  *info2_lp = NULL;
     /* link info from specified object */
     H5L_info_t src_linfo1;
     H5L_info_t src_linfo2;
@@ -603,6 +605,7 @@ hsize_t h5diff(const char *fname1,
     /* list for common objects */
     trav_table_t *match_list = NULL;
 
+    h5difftrace("h5diff start\n");
     /* init filenames */
     HDmemset(filenames, 0, MAX_FILENAME * 2);
     /* init link info struct */
@@ -651,6 +654,7 @@ hsize_t h5diff(const char *fname1,
     trav_info_init(fname1, file1_id, &info1_obj);
     trav_info_init(fname2, file2_id, &info2_obj);
 
+    h5difftrace("trav_info_init initialized\n");
     /* if any object is specified */
     if (objname1)
     {
@@ -689,6 +693,7 @@ hsize_t h5diff(const char *fname1,
         /*----------------------------------------------------------
          * check if obj1 is root, group, single object or symlink
          */
+        h5difftrace("h5diff check if obj1 is root, group, single object or symlink\n");
         if(!HDstrcmp(obj1fullname, "/"))
         {
             obj1type = H5TRAV_TYPE_GROUP;
@@ -748,6 +753,7 @@ hsize_t h5diff(const char *fname1,
         /*----------------------------------------------------------
          * check if obj2 is root, group, single object or symlink
          */
+        h5difftrace("h5diff check if obj2 is root, group, single object or symlink\n");
         if(!HDstrcmp(obj2fullname, "/"))
         {
             obj2type = H5TRAV_TYPE_GROUP;
@@ -807,6 +813,7 @@ hsize_t h5diff(const char *fname1,
     /* if no object specified */
     else
     {
+        h5difftrace("h5diff no object specified\n");
         /* set root group */
         obj1fullname = (char*)HDstrdup("/");
         obj1type = H5TRAV_TYPE_GROUP;
@@ -831,9 +838,11 @@ hsize_t h5diff(const char *fname1,
         /*-------------------------------
          * check symbolic link (object1)
          */
+        h5difftrace("h5diff check symbolic link (object1)\n");
         /* dangling link */
         if (l_ret1 == 0)
         {
+            h5difftrace("h5diff ... dangling link\n");
             if (options->no_dangle_links)
             {
                 /* treat dangling link is error */
@@ -863,22 +872,26 @@ hsize_t h5diff(const char *fname1,
         else if(l_ret1 != 2) /* symbolic link */
         {
             obj1type = (h5trav_type_t)trg_linfo1.trg_type;
+            h5difftrace("h5diff ... ... trg_linfo1.trg_type == H5L_TYPE_HARD\n");
             if (info1_lp != NULL) {
                 size_t idx = info1_lp->nused - 1;
 
+                h5difftrace("h5diff ... ... ... info1_obj not null\n");
                 info1_lp->paths[idx].type = (h5trav_type_t)trg_linfo1.trg_type;
                 info1_lp->paths[idx].objno = trg_linfo1.objno;
                 info1_lp->paths[idx].fileno = trg_linfo1.fileno;
             }
+            h5difftrace("h5diff check symbolic link (object1) finished\n");
         }
 
         /*-------------------------------
          * check symbolic link (object2)
          */
-
+        h5difftrace("h5diff check symbolic link (object2)\n");
         /* dangling link */
         if (l_ret2 == 0)
         {
+            h5difftrace("h5diff ... dangling link\n");
             if (options->no_dangle_links)
             {
                 /* treat dangling link is error */
@@ -911,10 +924,12 @@ hsize_t h5diff(const char *fname1,
             if (info2_lp != NULL) {
                 size_t idx = info2_lp->nused - 1;
 
+                h5difftrace("h5diff ... ... ... info2_obj not null\n");
                 info2_lp->paths[idx].type = (h5trav_type_t)trg_linfo2.trg_type;
                 info2_lp->paths[idx].objno = trg_linfo2.objno;
                 info2_lp->paths[idx].fileno = trg_linfo2.fileno;
             }
+            h5difftrace("h5diff check symbolic link (object1) finished\n");
         }
     } /* end of if follow symlinks */
 
@@ -927,6 +942,7 @@ hsize_t h5diff(const char *fname1,
 
     if(!(options->m_verbose || options->m_report))
     {
+        h5difftrace("h5diff NOT (options->m_verbose || options->m_report)\n");
         /* if no danglink links */
         if ( l_ret1 > 0 && l_ret2 > 0 )
             if (h5tools_is_obj_same(file1_id, obj1fullname, file2_id, obj2fullname)!=0)
@@ -936,6 +952,7 @@ hsize_t h5diff(const char *fname1,
     both_objs_grp = (obj1type == H5TRAV_TYPE_GROUP && obj2type == H5TRAV_TYPE_GROUP);
     if (both_objs_grp)
     {
+        h5difftrace("h5diff both_objs_grp TRUE\n");
         /*
          * traverse group1
          */
@@ -1047,9 +1064,9 @@ out:
 
     /* free link info buffer */
     if (trg_linfo1.trg_path)
-        HDfree((char *)trg_linfo1.trg_path);
+        HDfree(trg_linfo1.trg_path);
     if (trg_linfo2.trg_path)
-        HDfree((char *)trg_linfo2.trg_path);
+        HDfree(trg_linfo2.trg_path);
 
     /* close */
     H5E_BEGIN_TRY
@@ -1057,6 +1074,7 @@ out:
         H5Fclose(file1_id);
         H5Fclose(file2_id);
     } H5E_END_TRY;
+    h5difftrace("h5diff finish\n");
 
     return nfound;
 }
@@ -1104,6 +1122,7 @@ hsize_t diff_match(hid_t file1_id, const char *grp1, trav_info_t *info1,
     size_t idx2 = 0;
 
 
+    h5difftrace("diff_match start\n");
     /* 
      * if not root, prepare object name to be pre-appended to group path to
      * make full path
@@ -1210,6 +1229,7 @@ hsize_t diff_match(hid_t file1_id, const char *grp1, trav_info_t *info1,
             {
                 int workerFound = 0;
 
+                h5difftrace("Beginning of big else block\n");
                 /* We're in parallel mode */
                 /* Since the data type of diff value is hsize_t which can
                 * be arbitary large such that there is no MPI type that
@@ -1380,6 +1400,7 @@ hsize_t diff_match(hid_t file1_id, const char *grp1, trav_info_t *info1,
                 HDfree(obj2_fullpath);
         } /* end if */
     } /* end for */
+    h5difftrace("done with for loop\n");
 
 #ifdef H5_HAVE_PARALLEL
     if(g_Parallel)
@@ -1466,6 +1487,7 @@ hsize_t diff_match(hid_t file1_id, const char *grp1, trav_info_t *info1,
         /* Print any final data waiting in our queue */
         print_incoming_data();
     } /* end if */
+    h5difftrace("done with if block\n");
 
     HDfree(workerTasks);
     }
@@ -1474,6 +1496,7 @@ hsize_t diff_match(hid_t file1_id, const char *grp1, trav_info_t *info1,
     /* free table */
     if (table)
         trav_table_free(table);
+    h5difftrace("diff_match finish\n");
 
     return nfound;
 }
@@ -1528,6 +1551,8 @@ hsize_t diff(hid_t file1_id,
     /* to get link info */
     h5tool_link_info_t linkinfo1;
     h5tool_link_info_t linkinfo2;
+
+    h5difftrace("diff start\n");
 
     /*init link info struct */
     HDmemset(&linkinfo1,0,sizeof(h5tool_link_info_t));
@@ -1628,6 +1653,7 @@ hsize_t diff(hid_t file1_id,
      */
      if (argdata->is_same_trgobj)
      {
+        h5difftrace("argdata->is_same_trgobj\n");
         is_hard_link = (object_type == H5TRAV_TYPE_DATASET ||
                         object_type == H5TRAV_TYPE_NAMED_DATATYPE ||
                         object_type == H5TRAV_TYPE_GROUP);
@@ -1879,9 +1905,9 @@ hsize_t diff(hid_t file1_id,
 
     /* free link info buffer */
     if (linkinfo1.trg_path)
-        HDfree((char *)linkinfo1.trg_path);
+        HDfree(linkinfo1.trg_path);
     if (linkinfo2.trg_path)
-        HDfree((char *)linkinfo2.trg_path);
+        HDfree(linkinfo2.trg_path);
 
     return nfound;
 
@@ -1922,9 +1948,9 @@ out2:
 
     /* free link info buffer */
     if (linkinfo1.trg_path)
-        HDfree((char *)linkinfo1.trg_path);
+        HDfree(linkinfo1.trg_path);
     if (linkinfo2.trg_path)
-        HDfree((char *)linkinfo2.trg_path);
+        HDfree(linkinfo2.trg_path);
 
     /* close */
     /* disable error reporting */
@@ -1935,6 +1961,7 @@ out2:
         H5Tclose(grp2_id);
         /* enable error reporting */
     } H5E_END_TRY;
+    h5difftrace("diff finish\n");
 
     return nfound;
 }

@@ -38,16 +38,17 @@ typedef struct dump_functions_t {
 } dump_functions;
 
 /* List of table structures.  There is one table structure for each file */
+typedef struct h5dump_table_items_t {
+    unsigned long   fileno;         /* File number that these tables refer to */
+    hid_t           oid;            /* ID of an object in this file, held open so fileno is consistent */
+    table_t         *group_table;   /* Table of groups */
+    table_t         *dset_table;    /* Table of datasets */
+    table_t         *type_table;    /* Table of datatypes */
+} h5dump_table_items_t;
 typedef struct h5dump_table_list_t {
-    size_t      nalloc;
-    size_t      nused;
-    struct {
-        unsigned long   fileno;         /* File number that these tables refer to */
-        hid_t           oid;            /* ID of an object in this file, held open so fileno is consistent */
-        table_t         *group_table;   /* Table of groups */
-        table_t         *dset_table;    /* Table of datasets */
-        table_t         *type_table;    /* Table of datatypes */
-    } *tables;
+    size_t                  nalloc;
+    size_t                  nused;
+    h5dump_table_items_t    *tables;
 } h5dump_table_list_t;
 
 h5dump_table_list_t  table_list = {0, 0, NULL};
@@ -77,6 +78,8 @@ int          enable_error_stack= FALSE; /* re-enable error stack */
 int          disable_compact_subset= FALSE; /* disable compact form of subset notation */
 int          display_packed_bits = FALSE; /*print 1-8 byte numbers as packed bits*/
 int          include_attrs     = TRUE; /* Display attributes */
+int          display_vds_first = FALSE; /* vds display to all by default*/
+int          vds_gap_size       = 0; /* vds skip missing files default is none */
 
 /* sort parameters */
 H5_index_t   sort_by           = H5_INDEX_NAME; /*sort_by [creation_order | name]  */

@@ -14,9 +14,6 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-// Class VarLenType inherits from DataType and provides wrappers for
-// the HDF5 C's Variable-length Datatypes.
-
 #ifndef __H5VarLenType_H
 #define __H5VarLenType_H
 
@@ -43,7 +40,6 @@ class H5_DLLCPP VarLenType : public DataType {
 	// Noop destructor
 	virtual ~VarLenType();
 
-   protected:
 	// Default constructor
 	VarLenType();
 };

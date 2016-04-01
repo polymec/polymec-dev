@@ -35,11 +35,11 @@ Exception::Exception() : detail_message(""), func_name("") {}
 // Function:	Exception overloaded constructor
 ///\brief	Creates an exception with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-Exception::Exception(const H5std_string& func_name, const H5std_string& message) : detail_message(message), func_name(func_name) {}
+Exception::Exception(const H5std_string& func, const H5std_string& message) : detail_message(message), func_name(func) {}
 
 //--------------------------------------------------------------------------
 // Function:	Exception copy constructor
@@ -47,11 +47,7 @@ Exception::Exception(const H5std_string& func_name, const H5std_string& message)
 ///\param	orig - IN: Exception instance to copy
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-Exception::Exception( const Exception& orig )
-{
-   detail_message = orig.detail_message;
-   func_name = orig.func_name;
-}
+Exception::Exception( const Exception& orig ) : detail_message(orig.detail_message), func_name(orig.func_name) {}
 
 //--------------------------------------------------------------------------
 // Function:	Exception::getMajorString
@@ -305,7 +301,7 @@ const char* Exception::getCFuncName() const
 ///\brief	Prints the error stack in a default manner.
 ///\param	stream    - IN: File pointer, default to stderr
 ///\param	err_stack - IN: Error stack ID, default to H5E_DEFAULT(0)
-// Programmer	Binh-Minh Ribler - Apr, 2014 (1.8.13)
+// Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void Exception::printErrorStack(FILE* stream, hid_t err_stack)
 {
@@ -350,10 +346,10 @@ FileIException::FileIException():Exception(){}
 // Function:	FileIException overloaded constructor
 ///\brief	Creates a FileIException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-FileIException::FileIException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+FileIException::FileIException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	FileIException destructor
 ///\brief	Noop destructor.
@@ -373,10 +369,10 @@ GroupIException::GroupIException():Exception(){}
 // Function:	GroupIException overloaded constructor
 ///\brief	Creates a GroupIException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-GroupIException::GroupIException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+GroupIException::GroupIException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	GroupIException destructor
 ///\brief	Noop destructor.
@@ -396,10 +392,10 @@ DataSpaceIException::DataSpaceIException():Exception(){}
 // Function:	DataSpaceIException overloaded constructor
 ///\brief	Creates a DataSpaceIException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-DataSpaceIException::DataSpaceIException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+DataSpaceIException::DataSpaceIException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	DataSpaceIException destructor
 ///\brief	Noop destructor.
@@ -419,10 +415,10 @@ DataTypeIException::DataTypeIException():Exception(){}
 // Function:	DataTypeIException overloaded constructor
 ///\brief	Creates a DataTypeIException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-DataTypeIException::DataTypeIException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+DataTypeIException::DataTypeIException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	DataTypeIException destructor
 ///\brief	Noop destructor.
@@ -442,10 +438,10 @@ PropListIException::PropListIException():Exception(){}
 // Function:	PropListIException overloaded constructor
 ///\brief	Creates a PropListIException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-PropListIException::PropListIException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+PropListIException::PropListIException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	PropListIException destructor
 ///\brief	Noop destructor.
@@ -465,10 +461,10 @@ DataSetIException::DataSetIException():Exception(){}
 // Function:	DataSetIException overloaded constructor
 ///\brief	Creates a DataSetIException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-DataSetIException::DataSetIException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+DataSetIException::DataSetIException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	DataSetIException destructor
 ///\brief	Noop destructor.
@@ -488,10 +484,10 @@ AttributeIException::AttributeIException():Exception(){}
 // Function:	AttributeIException overloaded constructor
 ///\brief	Creates an AttributeIException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-AttributeIException::AttributeIException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+AttributeIException::AttributeIException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	AttributeIException destructor
 ///\brief	Noop destructor.
@@ -511,10 +507,10 @@ ReferenceException::ReferenceException():Exception(){}
 // Function:	ReferenceException overloaded constructor
 ///\brief	Creates a ReferenceException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-ReferenceException::ReferenceException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+ReferenceException::ReferenceException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	ReferenceException destructor
 ///\brief	Noop destructor.
@@ -534,10 +530,10 @@ LibraryIException::LibraryIException():Exception(){}
 // Function:	LibraryIException overloaded constructor
 ///\brief	Creates a LibraryIException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-LibraryIException::LibraryIException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+LibraryIException::LibraryIException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	LibraryIException destructor
 ///\brief	Noop destructor.
@@ -557,10 +553,10 @@ LocationException::LocationException():Exception(){}
 // Function:	LocationException overloaded constructor
 ///\brief	Creates a LocationException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-LocationException::LocationException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+LocationException::LocationException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	LocationException destructor
 ///\brief	Noop destructor.
@@ -580,10 +576,10 @@ IdComponentException::IdComponentException(): Exception() {}
 // Function:	IdComponentException overloaded constructor
 ///\brief	Creates a IdComponentException with the name of the function,
 ///		in which the failure occurs, and an optional detailed message.
-///\param	func_name - IN: Name of the function where failure occurs
+///\param	func - IN: Name of the function where failure occurs
 ///\param	message   - IN: Message on the failure
 //--------------------------------------------------------------------------
-IdComponentException::IdComponentException(const H5std_string& func_name, const H5std_string& message) : Exception(func_name, message) {}
+IdComponentException::IdComponentException(const H5std_string& func, const H5std_string& message) : Exception(func, message) {}
 //--------------------------------------------------------------------------
 // Function:	IdComponentException destructor
 ///\brief	Noop destructor.

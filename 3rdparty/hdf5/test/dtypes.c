@@ -47,7 +47,7 @@
 
 /* Alignment test stuff */
 #ifdef TEST_ALIGNMENT
-#define H5T_PACKAGE
+#define H5T_FRIEND		/*suppress error about including H5Tpkg	  */
 #include "H5Tpkg.h"
 #endif
 #define SET_ALIGNMENT(TYPE,VAL) \
@@ -65,8 +65,8 @@
         FAIL_STACK_ERROR                                                       \
     if((NMEMBS) != H5I_nmembers(H5I_DATATYPE)) {                               \
         H5_FAILED();                                                           \
-        printf("    #dtype ids expected: %d; found: %d\n", NMEMBS,             \
-            H5I_nmembers(H5I_DATATYPE));                                       \
+        printf("    #dtype ids expected: %lld; found: %lld\n",                 \
+               (long long)NMEMBS, (long long)H5I_nmembers(H5I_DATATYPE));      \
         goto error;                                                            \
     }
 
@@ -688,8 +688,9 @@ test_compound_2(void)
     const hsize_t	four = 4;
     unsigned char	*buf=NULL, *orig=NULL, *bkg=NULL;
     hid_t		st=-1, dt=-1;
-    hid_t       array_dt;
-    int			i, nmembs;
+    hid_t               array_dt;
+    int64_t		nmembs;
+    int			i;
 
     TESTING("compound element reordering");
 
@@ -768,11 +769,20 @@ test_compound_2(void)
     CHECK_NMEMBS(nmembs , st, dt)
 
     PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return 0;
 
- error:
+error:
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return 1;
 }
 
@@ -809,8 +819,9 @@ test_compound_3(void)
     const hsize_t	four = 4;
     unsigned char	*buf=NULL, *orig=NULL, *bkg=NULL;
     hid_t		st=-1, dt=-1;
-    hid_t       array_dt;
-    int			i, nmembs;
+    hid_t               array_dt;
+    int64_t		nmembs;
+    int			i;
 
     TESTING("compound subset conversions");
 
@@ -886,11 +897,19 @@ test_compound_3(void)
     CHECK_NMEMBS(nmembs, st, dt)
 
     PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
     return 0;
 
- error:
+error:
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return 1;
 }
 
@@ -931,8 +950,9 @@ test_compound_4(void)
     const hsize_t	four = 4;
     unsigned char	*buf=NULL, *orig=NULL, *bkg=NULL;
     hid_t		st=-1, dt=-1;
-    hid_t       array_dt;
-    int			i, nmembs;
+    hid_t               array_dt;
+    int64_t		nmembs;
+    int			i;
 
     TESTING("compound element shrinking & reordering");
 
@@ -1012,11 +1032,19 @@ test_compound_4(void)
     CHECK_NMEMBS(nmembs, st, dt)
 
     PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
     return 0;
 
- error:
+error:
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return 1;
 }
 
@@ -1160,7 +1188,8 @@ test_compound_6(void)
     const size_t	nelmts = NTESTELEM;
     unsigned char	*buf=NULL, *orig=NULL, *bkg=NULL;
     hid_t		st=-1, dt=-1;
-    int			i, nmembs;
+    int64_t		nmembs;
+    int			i;
 
     TESTING("compound element growing");
 
@@ -1222,11 +1251,19 @@ test_compound_6(void)
     CHECK_NMEMBS(nmembs, st, dt)
 
     PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
     return 0;
 
- error:
+error:
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return 1;
 }
 
@@ -1361,11 +1398,19 @@ test_compound_7(void)
     } /* end if */
 
     PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
     return 0;
 
- error:
+error:
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return 1;
 }
 
@@ -1744,6 +1789,13 @@ test_compound_9(void)
         goto error;
     } /* end if */
 
+    if(H5Dvlen_reclaim(dup_tid, space_id, H5P_DEFAULT, &rdata) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't reclaim read data\n");
+        goto error;
+    } /* end if */
+    rdata.str = NULL;
+
     if(H5Dclose(dset_id) < 0)
         goto error;
     if(H5Tclose(cmpd_tid) < 0)
@@ -1767,6 +1819,12 @@ test_compound_9(void)
     if((dset_id = H5Dopen2(file, "Dataset", H5P_DEFAULT)) < 0) {
         H5_FAILED(); AT();
         printf("cannot open dataset\n");
+        goto error;
+    } /* end if */
+
+    if((space_id = H5Dget_space(dset_id)) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't get space\n");
         goto error;
     } /* end if */
 
@@ -1797,9 +1855,18 @@ test_compound_9(void)
         goto error;
     } /* end if */
 
+    if(H5Dvlen_reclaim(dup_tid, space_id, H5P_DEFAULT, &rdata) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't read data\n");
+        goto error;
+    } /* end if */
+    rdata.str = NULL;
+
     if(rdata.str) HDfree(rdata.str);
 
     if(H5Dclose(dset_id) < 0)
+        goto error;
+    if(H5Sclose(space_id) < 0)
         goto error;
     if(H5Tclose(cmpd_tid) < 0)
         goto error;
@@ -1975,12 +2042,17 @@ test_compound_10(void)
             printf("incorrect VL read data\n");
             goto error;
         }
-
-        HDfree(t1);
-        HDfree(t2);
-        HDfree(wdata[i].str);
-        HDfree(rdata[i].str);
     } /* end for */
+    if(H5Dvlen_reclaim(arr_tid, space_id, H5P_DEFAULT, &rdata) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't reclaim read data\n");
+        goto error;
+    } /* end if */
+    if(H5Dvlen_reclaim(arr_tid, space_id, H5P_DEFAULT, &wdata) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't reclaim read data\n");
+        goto error;
+    } /* end if */
 
     if(H5Dclose(dset_id) < 0)
         goto error;
@@ -2045,6 +2117,8 @@ test_compound_11(void)
     hid_t big_tid, little_tid;  /* Datatype IDs for type conversion */
     hid_t big_tid2, little_tid2;  /* Datatype IDs for type conversion */
     hid_t opaq_src_tid, opaq_dst_tid;  /* Datatype IDs for type conversion */
+    hid_t space_id;             /* Dataspace for buffer elements */
+    hsize_t dim[1];             /* Dimensions for dataspace */
     void *buf = NULL;          /* Conversion buffer */
     void *buf_orig = NULL;      /* Copy of original conversion buffer */
     void *bkg = NULL;           /* Background buffer */
@@ -2093,6 +2167,13 @@ test_compound_11(void)
     /* Make copy of buffer before conversion */
     HDmemcpy(buf_orig,buf,sizeof(big_t)*NTESTELEM);
 
+    dim[0] = NTESTELEM;
+    if((space_id = H5Screate_simple(1, dim, NULL)) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't create space\n");
+        goto error;
+    } /* end if */
+
     /* Make copies of the 'big' and 'little' datatypes, so the type
      * conversion routine doesn't use the same ones this time and next time
      */
@@ -2124,8 +2205,12 @@ test_compound_11(void)
                     (unsigned)u,((big_t *)buf_orig)[u].s1,(unsigned)u,((little_t *)buf)[u].s1);
             TEST_ERROR
         } /* end if */
-        HDfree(((little_t *)buf)[u].s1);
     } /* end for */
+    if(H5Dvlen_reclaim(little_tid2, space_id, H5P_DEFAULT, buf) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't reclaim data\n");
+        goto error;
+    } /* end if */
 
     /* Build source and destination types for conversion routine */
     if((opaq_src_tid=H5Tcreate(H5T_OPAQUE, (size_t)4)) < 0) TEST_ERROR
@@ -2164,8 +2249,12 @@ test_compound_11(void)
                     (unsigned)u,((big_t *)buf_orig)[u].s1,(unsigned)u,((little_t *)buf)[u].s1);
             TEST_ERROR
         } /* end if */
-        HDfree(((little_t *)buf)[u].s1);
     } /* end for */
+    if(H5Dvlen_reclaim(little_tid, space_id, H5P_DEFAULT, buf) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't reclaim data\n");
+        goto error;
+    } /* end if */
 
     /* Unregister the conversion routine */
     if(H5Tunregister(H5T_PERS_HARD, "opaq_test", opaq_src_tid, opaq_dst_tid, convert_opaque) < 0) TEST_ERROR
@@ -2198,12 +2287,17 @@ test_compound_11(void)
                     (unsigned)u,((big_t *)buf_orig)[u].s1,(unsigned)u,((little_t *)buf)[u].s1);
             TEST_ERROR
         } /* end if */
-        HDfree(((little_t *)buf)[u].s1);
     } /* end for */
+    if(H5Dvlen_reclaim(little_tid, space_id, H5P_DEFAULT, buf) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't reclaim data\n");
+        goto error;
+    } /* end if */
 
     /* Free everything */
     for(u=0; u<NTESTELEM; u++)
         HDfree(((big_t *)buf_orig)[u].s1);
+    if(H5Sclose(space_id) < 0) TEST_ERROR
     if(H5Tclose(opaq_dst_tid) < 0) TEST_ERROR
     if(H5Tclose(opaq_src_tid) < 0) TEST_ERROR
     if(H5Tclose(little_tid2) < 0) TEST_ERROR
@@ -2682,6 +2776,18 @@ test_compound_14(void)
         goto error;
     } /* end if */
 
+    if(H5Dvlen_reclaim(cmpd_m1_tid, space_id, H5P_DEFAULT, &rdata1) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't reclaim read data\n");
+        goto error;
+    } /* end if */
+    rdata1.str = NULL;
+    if(H5Dvlen_reclaim(cmpd_m2_tid, space_id, H5P_DEFAULT, &rdata2) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't reclaim read data\n");
+        goto error;
+    } /* end if */
+    rdata2.str = NULL;
     if(H5Dclose(dset1_id) < 0)
         goto error;
     if(H5Dclose(dset2_id) < 0)
@@ -2713,6 +2819,12 @@ test_compound_14(void)
     if((dset2_id = H5Dopen2(file, "Dataset2", H5P_DEFAULT)) < 0) {
         H5_FAILED(); AT();
         printf("cannot open dataset\n");
+        goto error;
+    } /* end if */
+
+    if((space_id = H5Dget_space(dset2_id)) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't get space\n");
         goto error;
     } /* end if */
 
@@ -2751,12 +2863,24 @@ test_compound_14(void)
         goto error;
     } /* end if */
 
-    if(rdata1.str) HDfree(rdata1.str);
-    if(rdata2.str) HDfree(rdata2.str);
+    if(H5Dvlen_reclaim(cmpd_m1_tid, space_id, H5P_DEFAULT, &rdata1) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't reclaim read data\n");
+        goto error;
+    } /* end if */
+    rdata1.str = NULL;
+    if(H5Dvlen_reclaim(cmpd_m2_tid, space_id, H5P_DEFAULT, &rdata2) < 0) {
+        H5_FAILED(); AT();
+        printf("Can't reclaim read data\n");
+        goto error;
+    } /* end if */
+    rdata2.str = NULL;
 
     if(H5Dclose(dset1_id) < 0)
         goto error;
     if(H5Dclose(dset2_id) < 0)
+        goto error;
+    if(H5Sclose(space_id) < 0)
         goto error;
     if(H5Tclose(cmpd_m1_tid) < 0)
         goto error;
@@ -3004,7 +3128,7 @@ test_compound_16(void)
     if(H5Fget_obj_ids(file, H5F_OBJ_DATATYPE, (size_t)2, open_dtypes) < 0) TEST_ERROR
     if(open_dtypes[1]) {
         H5_FAILED(); AT();
-        printf("    H5Fget_obj_ids returned as second id: %d; expected: 0\n", open_dtypes[1]);
+        printf("    H5Fget_obj_ids returned as second id: %lld; expected: 0\n", (long long)open_dtypes[1]);
         goto error;
     }
 
@@ -3229,11 +3353,7 @@ test_compound_18(void)
 
     /* Open Generated File */
     /* (generated with gen_bad_compound.c) */
-#ifdef H5_VMS
-    if((file = H5Fopen(TESTFILE, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
-#else
     if((file = H5Fopen(testfile, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
-#endif
 
     /* Try to open the datatype */
     H5E_BEGIN_TRY {
@@ -3545,6 +3665,7 @@ test_transient (hid_t fapl)
     static hsize_t	ds_size[2] = {10, 20};
     hid_t		file=-1, type=-1, space=-1, dset=-1, t2=-1;
     char		filename[1024];
+    hid_t		ret_id;		/* Generic hid_t return value	*/
     herr_t		status;
 
     TESTING("transient datatypes");
@@ -3579,9 +3700,9 @@ test_transient (hid_t fapl)
 
     /* It should not be possible to create an attribute for a transient type */
     H5E_BEGIN_TRY {
-	status = H5Acreate2(type, "attr1", H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT);
+	ret_id = H5Acreate2(type, "attr1", H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT);
     } H5E_END_TRY;
-    if (status>=0) {
+    if (ret_id>=0) {
 	H5_FAILED();
 	HDputs ("    Attributes should not be allowed for transient types!");
 	goto error;
@@ -4228,6 +4349,10 @@ test_conv_str_1(void)
     HDfree(buf);
 
     PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
     return 0;
 
@@ -4240,7 +4365,11 @@ error:
     if(buf)
         HDfree(buf);
 
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return 1;
 }
 
@@ -4303,7 +4432,11 @@ error:
     if(buf)
         HDfree(buf);
 
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return ret_value;
 }
 
@@ -4417,7 +4550,11 @@ error:
     if(tag)
         H5free_memory(tag); /* Technically allocated by API call */
 
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return ret_value;  /* Number of errors */
 }
 
@@ -4489,7 +4626,11 @@ error:
     if(buf)
         HDfree(buf);
 
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return ret_value;
 }
 
@@ -4656,13 +4797,22 @@ test_conv_bitfield(void)
     H5Tclose(st);
     H5Tclose(dt);
     PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
     return 0;
 
- error:
+error:
     H5Tclose(st);
     H5Tclose(dt);
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return 1;
 }
 
@@ -4780,14 +4930,18 @@ test_bitfield_funcs(void)
 
     retval = 0;
 
- error:
-
+error:
     if (retval == -1) retval = 1;
     H5free_memory(tag);
     H5Tclose(ntype);
     H5Tclose(type);
     if (retval == 0) PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     return retval;
 }
 
@@ -4809,10 +4963,10 @@ test_bitfield_funcs(void)
  *-------------------------------------------------------------------------
  */
 static herr_t
-convert_opaque(hid_t UNUSED st, hid_t UNUSED dt, H5T_cdata_t *cdata,
-	       size_t UNUSED nelmts, size_t UNUSED buf_stride,
-               size_t UNUSED bkg_stride, void UNUSED *_buf,
-	       void UNUSED *bkg, hid_t UNUSED dset_xfer_plid)
+convert_opaque(hid_t H5_ATTR_UNUSED st, hid_t H5_ATTR_UNUSED dt, H5T_cdata_t *cdata,
+	       size_t H5_ATTR_UNUSED nelmts, size_t H5_ATTR_UNUSED buf_stride,
+               size_t H5_ATTR_UNUSED bkg_stride, void H5_ATTR_UNUSED *_buf,
+	       void H5_ATTR_UNUSED *bkg, hid_t H5_ATTR_UNUSED dset_xfer_plid)
 {
     if (H5T_CONV_CONV==cdata->command) num_opaque_conversions_g++;
     return 0;
@@ -5143,6 +5297,7 @@ test_encode(void)
     size_t      enum_buf_size = 0;
     size_t      vlstr_buf_size = 0;
     unsigned char       *cmpd_buf=NULL, *enum_buf=NULL, *vlstr_buf=NULL;
+    hid_t	ret_id;
     herr_t      ret;
 
     TESTING("functions of encoding and decoding datatypes");
@@ -5243,9 +5398,9 @@ test_encode(void)
 
     /* Try decoding bogus buffer */
     H5E_BEGIN_TRY {
-	ret = H5Tdecode(cmpd_buf);
+	ret_id = H5Tdecode(cmpd_buf);
     } H5E_END_TRY;
-    if(ret!=FAIL) {
+    if(ret_id!=FAIL) {
         H5_FAILED();
         printf("Decoded bogus buffer!\n");
         goto error;
@@ -5866,8 +6021,8 @@ typedef struct {
 } except_info_t;
 
 static H5T_conv_ret_t
-conv_except(H5T_conv_except_t except_type, hid_t UNUSED src_id, hid_t UNUSED dst_id,
-    void UNUSED *src_buf, void UNUSED *dst_buf, void *_user_data)
+conv_except(H5T_conv_except_t except_type, hid_t H5_ATTR_UNUSED src_id, hid_t H5_ATTR_UNUSED dst_id,
+    void H5_ATTR_UNUSED *src_buf, void H5_ATTR_UNUSED *dst_buf, void *_user_data)
 {
     except_info_t *user_data = (except_info_t *)_user_data;
 
@@ -6652,7 +6807,7 @@ test_delete_obj_named(hid_t fapl)
     hid_t attr = -1;            /* Attribute ID */
     hid_t dset = -1;            /* Dataset ID */
     hid_t fapl2 = -1;           /* File access property list ID */
-    hbool_t new_format;         /* Whether to use old or new format */
+    unsigned new_format;        /* Whether to use old or new format */
     char filename[1024], filename2[1024];
 
     TESTING("deleting objects that use named datatypes");
@@ -6747,7 +6902,7 @@ test_delete_obj_named_fileid(hid_t fapl)
     hid_t attr = -1;            /* Attribute ID */
     hid_t dset = -1;            /* Dataset ID */
     hid_t fapl2 = -1;           /* File access property list ID */
-    hbool_t new_format;         /* Whether to use old or new format */
+    unsigned new_format;        /* Whether to use old or new format */
     char filename[1024], filename2[1024];
 
     TESTING("deleting objects that use named datatypes");
@@ -7284,15 +7439,14 @@ main(void)
     nerrors += test_latest();
     nerrors += test_int_float_except();
     nerrors += test_named_indirect_reopen(fapl);
-#ifndef H5_CANNOT_OPEN_TWICE
     nerrors += test_delete_obj_named(fapl);
     nerrors += test_delete_obj_named_fileid(fapl);
-#endif /*H5_CANNOT_OPEN_TWICE*/
     nerrors += test_set_order_compound(fapl);
     nerrors += test_str_create();
 #ifndef H5_NO_DEPRECATED_SYMBOLS
     nerrors += test_deprec(fapl);
 #endif /* H5_NO_DEPRECATED_SYMBOLS */
+
     h5_cleanup(FILENAME, fapl); /*must happen before first reset*/
     reset_hdf5();
 

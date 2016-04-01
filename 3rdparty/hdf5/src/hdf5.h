@@ -33,7 +33,8 @@
 #include "H5Lpublic.h"		/* Links				*/
 #include "H5MMpublic.h"		/* Memory management			*/
 #include "H5Opublic.h"		/* Object headers			*/
-#include "H5Ppublic.h"		/* Property lists			*/
+#include "H5Ppublic.h"      /* Property lists           */
+#include "H5PLpublic.h"     /* Plugins           */
 #include "H5Rpublic.h"		/* References				*/
 #include "H5Spublic.h"		/* Dataspaces				*/
 #include "H5Tpublic.h"		/* Datatypes				*/
@@ -41,6 +42,7 @@
 
 /* Predefined file drivers */
 #include "H5FDcore.h"		/* Files stored entirely in memory	*/
+#include "H5FDdirect.h"     	/* Linux direct I/O			*/
 #include "H5FDfamily.h"		/* File families 			*/
 #include "H5FDlog.h"        	/* sec2 driver with I/O logging (for debugging) */
 #include "H5FDmpi.h"            /* MPI-based file drivers		*/
@@ -50,6 +52,5 @@
 #ifdef H5_HAVE_WINDOWS
 #include "H5FDwindows.h"        /* Windows buffered I/O     */
 #endif
-#include "H5FDdirect.h"     	/* Linux direct I/O			*/
 
 #endif

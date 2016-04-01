@@ -1,6 +1,6 @@
 /****h* H5Zf/H5Zf
  * PURPOSE
- *   This file contains C stubs for H5Z Fortran APIs
+ *  This file contains C stubs for H5Z Fortran APIs
  *
  * COPYRIGHT
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -25,22 +25,22 @@
 
 /****if* H5Zf/h5zunregister_c
  * NAME
- *        h5zunregister_c
+ *  h5zunregister_c
  * PURPOSE
- *     Call H5Zunregister to unregister filter
+ *  Call H5Zunregister to unregister filter
  * INPUTS
- *      filter identifier
+ *  filter identifier
  * RETURNS
- *     0 on success, -1 on failure
+ *  0 on success, -1 on failure
  * AUTHOR
  *  Elena Pourmal
- *              Wednesday, March 12, 2003
+ *  Wednesday, March 12, 2003
  * HISTORY
  *
  * SOURCE
 */
 int_f
-nh5zunregister_c (int_f *filter)
+h5zunregister_c (int_f *filter)
 /******/
 {
      int ret_value = -1;
@@ -51,34 +51,32 @@ nh5zunregister_c (int_f *filter)
       * Call H5Zunregister function.
       */
      c_filter = (H5Z_filter_t)*filter;
-     printf(" filter # %d \n", (int)c_filter);
      status = H5Zunregister(c_filter);
-     printf("From C zunregister %d \n", status);
      if (status < 0) return ret_value;
      ret_value = 0;
      return ret_value;
 }
 /****if* H5Zf/h5zfiletr_avail_c
  * NAME
- *        h5zfiletr_avail_c
+ *  h5zfiletr_avail_c
  * PURPOSE
- *     Call H5Zfilter_avail to find if filter is available
+ *  Call H5Zfilter_avail to find if filter is available
  * INPUTS
- *      filter - filter identifier
+ *  filter - filter identifier
  * OUTPUTS
- *     flag - status flag
+ *  flag - status flag
  * RETURNS
- *     0 on success, -1 on failure
+ *  0 on success, -1 on failure
  * AUTHOR
  *  Elena Pourmal
- *              Wednesday, March 12, 2003
+ *  Wednesday, March 12, 2003
  * HISTORY
  *
  * SOURCE
 */
 
 int_f
-nh5zfilter_avail_c ( int_f *filter , int_f *flag )
+h5zfilter_avail_c ( int_f *filter , int_f *flag )
 /******/
 {
   int ret_value = 0;
@@ -94,26 +92,26 @@ nh5zfilter_avail_c ( int_f *filter , int_f *flag )
 
 /****if* H5Zf/h5zget_filter_info_c
  * NAME
- *        h5zget_filter_info_c
+ *  h5zget_filter_info_c
  * PURPOSE
- *     Call H5Zget_filter_info to find if filter has its encoder
- *              and/or its decoder available
+ *  Call H5Zget_filter_info to find if filter has its encoder
+ *  and/or its decoder available
  * INPUTS
- *      filter - filter identifier
+ *  filter - filter identifier
  * OUTPUTS
- *     flag - status flag
+ *  flag - status flag
  * RETURNS
- *     0 on success, -1 on failure
+ *  0 on success, -1 on failure
  * AUTHOR
  *  Nat Furrer and James Laird
- *              Wednesday, June 16, 2004
+ *  Wednesday, June 16, 2004
  * HISTORY
  *
  * SOURCE
 */
 
 int_f
-nh5zget_filter_info_c ( int_f *filter , int_f *flag )
+h5zget_filter_info_c ( int_f *filter , int_f *flag )
 /******/
 {
   int ret_value = 0;

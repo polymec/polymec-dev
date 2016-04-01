@@ -457,7 +457,7 @@ dataset_readInd(void)
     VRFY((acc_tpl >= 0), "");
 
     /* open the file collectively */
-    fid=H5Fopen(filename,H5F_ACC_RDONLY,acc_tpl);
+    fid = H5Fopen(filename, H5F_ACC_RDONLY, acc_tpl);
     VRFY((fid >= 0), "");
 
     /* Release file-access template */
@@ -2502,7 +2502,6 @@ extend_readAll(void)
  * Example of using the parallel HDF5 library to read a compressed
  * dataset in an HDF5 file with collective parallel access support.
  */
-
 #ifdef H5_HAVE_FILTER_DEFLATE
 void
 compress_readAll(void)
@@ -2516,6 +2515,8 @@ compress_readAll(void)
     int rank=1;                 /* Dataspace rank */
     hsize_t dim=dim0;           /* Dataspace dimensions */
     unsigned u;                 /* Local index variable */
+    unsigned    chunk_opts;         /* Chunk options */
+    unsigned    disable_partial_chunk_filters; /* Whether filters are disabled on partial chunks */
     DATATYPE *data_read = NULL;	/* data buffer */
     DATATYPE *data_orig = NULL; /* expected data buffer */
     const char *filename;
@@ -2542,116 +2543,132 @@ compress_readAll(void)
     for(u=0; u<dim;u++)
         data_orig[u]=u;
 
-    /* Process zero creates the file with a compressed, chunked dataset */
-    if(mpi_rank==0) {
-        hsize_t chunk_dim;           /* Chunk dimensions */
+    /* Run test both with and without filters disabled on partial chunks */
+    for(disable_partial_chunk_filters = 0; disable_partial_chunk_filters <= 1;
+            disable_partial_chunk_filters++) {
+        /* Process zero creates the file with a compressed, chunked dataset */
+        if(mpi_rank==0) {
+            hsize_t chunk_dim;           /* Chunk dimensions */
 
-        /* Create the file */
-        fid = H5Fcreate(h5_rmprefix(filename), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-        VRFY((fid > 0), "H5Fcreate succeeded");
+            /* Create the file */
+            fid = H5Fcreate(h5_rmprefix(filename), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+            VRFY((fid > 0), "H5Fcreate succeeded");
 
-        /* Create property list for chunking and compression */
-        dcpl = H5Pcreate(H5P_DATASET_CREATE);
-        VRFY((dcpl > 0), "H5Pcreate succeeded");
+            /* Create property list for chunking and compression */
+            dcpl = H5Pcreate(H5P_DATASET_CREATE);
+            VRFY((dcpl > 0), "H5Pcreate succeeded");
 
-        ret = H5Pset_layout(dcpl, H5D_CHUNKED);
-        VRFY((ret >= 0), "H5Pset_layout succeeded");
+            ret = H5Pset_layout(dcpl, H5D_CHUNKED);
+            VRFY((ret >= 0), "H5Pset_layout succeeded");
 
-        /* Use eight chunks */
-        chunk_dim = dim / 8;
-        ret = H5Pset_chunk(dcpl, rank, &chunk_dim);
-        VRFY((ret >= 0), "H5Pset_chunk succeeded");
+            /* Use eight chunks */
+            chunk_dim = dim / 8;
+            ret = H5Pset_chunk(dcpl, rank, &chunk_dim);
+            VRFY((ret >= 0), "H5Pset_chunk succeeded");
 
-        ret = H5Pset_deflate(dcpl, 9);
-        VRFY((ret >= 0), "H5Pset_deflate succeeded");
+            /* Set chunk options appropriately */
+            if(disable_partial_chunk_filters) {
+                ret = H5Pget_chunk_opts(dcpl, &chunk_opts);
+                VRFY((ret>=0),"H5Pget_chunk_opts succeeded");
 
-        /* Create dataspace */
-        dataspace = H5Screate_simple(rank, &dim, NULL);
-        VRFY((dataspace > 0), "H5Screate_simple succeeded");
+                chunk_opts |= H5D_CHUNK_DONT_FILTER_PARTIAL_CHUNKS;
 
-        /* Create dataset */
-        dataset = H5Dcreate2(fid, "compressed_data", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, dcpl, H5P_DEFAULT);
-        VRFY((dataset > 0), "H5Dcreate2 succeeded");
+                ret = H5Pset_chunk_opts(dcpl, chunk_opts);
+                VRFY((ret>=0),"H5Pset_chunk_opts succeeded");
+            } /* end if */
 
-        /* Write compressed data */
-        ret = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, data_orig);
-        VRFY((ret >= 0), "H5Dwrite succeeded");
+            ret = H5Pset_deflate(dcpl, 9);
+            VRFY((ret >= 0), "H5Pset_deflate succeeded");
 
-        /* Close objects */
-        ret = H5Pclose(dcpl);
-        VRFY((ret >= 0), "H5Pclose succeeded");
-        ret = H5Sclose(dataspace);
-        VRFY((ret >= 0), "H5Sclose succeeded");
-        ret = H5Dclose(dataset);
-        VRFY((ret >= 0), "H5Dclose succeeded");
-        ret = H5Fclose(fid);
-        VRFY((ret >= 0), "H5Fclose succeeded");
-    }
+            /* Create dataspace */
+            dataspace = H5Screate_simple(rank, &dim, NULL);
+            VRFY((dataspace > 0), "H5Screate_simple succeeded");
 
-    /* Wait for file to be created */
-    MPI_Barrier(comm);
+            /* Create dataset */
+            dataset = H5Dcreate2(fid, "compressed_data", H5T_NATIVE_INT, dataspace, H5P_DEFAULT, dcpl, H5P_DEFAULT);
+            VRFY((dataset > 0), "H5Dcreate2 succeeded");
 
-    /* -------------------
-     * OPEN AN HDF5 FILE
-     * -------------------*/
+            /* Write compressed data */
+            ret = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, data_orig);
+            VRFY((ret >= 0), "H5Dwrite succeeded");
 
-    /* setup file access template */
-    acc_tpl = create_faccess_plist(comm, info, facc_type);
-    VRFY((acc_tpl >= 0), "");
-
-    /* open the file collectively */
-    fid=H5Fopen(filename,H5F_ACC_RDWR,acc_tpl);
-    VRFY((fid > 0), "H5Fopen succeeded");
-
-    /* Release file-access template */
-    ret = H5Pclose(acc_tpl);
-    VRFY((ret >= 0), "H5Pclose succeeded");
-
-
-    /* Open dataset with compressed chunks */
-    dataset = H5Dopen2(fid, "compressed_data", H5P_DEFAULT);
-    VRFY((dataset > 0), "H5Dopen2 succeeded");
-
-    /* Try reading & writing data */
-    if(dataset>0) {
-        /* Create dataset transfer property list */
-        xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-        VRFY((xfer_plist > 0), "H5Pcreate succeeded");
-
-        ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
-        VRFY((ret >= 0), "H5Pset_dxpl_mpio succeeded");
-        if(dxfer_coll_type == DXFER_INDEPENDENT_IO) {
-          ret = H5Pset_dxpl_mpio_collective_opt(xfer_plist,H5FD_MPIO_INDIVIDUAL_IO);
-          VRFY((ret>= 0),"set independent IO collectively succeeded");
+            /* Close objects */
+            ret = H5Pclose(dcpl);
+            VRFY((ret >= 0), "H5Pclose succeeded");
+            ret = H5Sclose(dataspace);
+            VRFY((ret >= 0), "H5Sclose succeeded");
+            ret = H5Dclose(dataset);
+            VRFY((ret >= 0), "H5Dclose succeeded");
+            ret = H5Fclose(fid);
+            VRFY((ret >= 0), "H5Fclose succeeded");
         }
 
+        /* Wait for file to be created */
+        MPI_Barrier(comm);
 
-        /* Try reading the data */
-        ret = H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, xfer_plist, data_read);
-        VRFY((ret >= 0), "H5Pset_dxpl_mpio succeeded");
+        /* -------------------
+        * OPEN AN HDF5 FILE
+        * -------------------*/
 
-        /* Verify data read */
-        for(u=0; u<dim; u++)
-            if(data_orig[u]!=data_read[u]) {
-                printf("Line #%d: written!=retrieved: data_orig[%u]=%d, data_read[%u]=%d\n",__LINE__,
-                    (unsigned)u,data_orig[u],(unsigned)u,data_read[u]);
-                nerrors++;
+        /* setup file access template */
+        acc_tpl = create_faccess_plist(comm, info, facc_type);
+        VRFY((acc_tpl >= 0), "");
+
+        /* open the file collectively */
+        fid=H5Fopen(filename,H5F_ACC_RDWR,acc_tpl);
+        VRFY((fid > 0), "H5Fopen succeeded");
+
+        /* Release file-access template */
+        ret = H5Pclose(acc_tpl);
+        VRFY((ret >= 0), "H5Pclose succeeded");
+
+
+        /* Open dataset with compressed chunks */
+        dataset = H5Dopen2(fid, "compressed_data", H5P_DEFAULT);
+        VRFY((dataset >= 0), "H5Dopen2 succeeded");
+
+        /* Try reading & writing data */
+        if(dataset>=0) {
+            /* Create dataset transfer property list */
+            xfer_plist = H5Pcreate(H5P_DATASET_XFER);
+            VRFY((xfer_plist > 0), "H5Pcreate succeeded");
+
+            ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
+            VRFY((ret >= 0), "H5Pset_dxpl_mpio succeeded");
+            if(dxfer_coll_type == DXFER_INDEPENDENT_IO) {
+            ret = H5Pset_dxpl_mpio_collective_opt(xfer_plist,H5FD_MPIO_INDIVIDUAL_IO);
+            VRFY((ret>= 0),"set independent IO collectively succeeded");
             }
 
-        /* Writing to the compressed, chunked dataset in parallel should fail */
-        H5E_BEGIN_TRY {
-            ret = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, xfer_plist, data_read);
-        } H5E_END_TRY;
-        VRFY((ret < 0), "H5Dwrite failed");
 
-        ret = H5Pclose(xfer_plist);
-        VRFY((ret >= 0), "H5Pclose succeeded");
-        ret = H5Dclose(dataset);
-        VRFY((ret >= 0), "H5Dclose succeeded");
-    } /* end if */
+            /* Try reading the data */
+            ret = H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, xfer_plist, data_read);
+            VRFY((ret >= 0), "H5Pset_dxpl_mpio succeeded");
 
-    ret = H5Fclose(fid);
-    VRFY((ret >= 0), "H5Fclose succeeded");
+            /* Verify data read */
+            for(u=0; u<dim; u++)
+                if(data_orig[u]!=data_read[u]) {
+                    printf("Line #%d: written!=retrieved: data_orig[%u]=%d, data_read[%u]=%d\n",__LINE__,
+                        (unsigned)u,data_orig[u],(unsigned)u,data_read[u]);
+                    nerrors++;
+                }
+
+            /* Writing to the compressed, chunked dataset in parallel should fail */
+            H5E_BEGIN_TRY {
+                ret = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, xfer_plist, data_read);
+            } H5E_END_TRY;
+            VRFY((ret < 0), "H5Dwrite failed");
+
+            ret = H5Pclose(xfer_plist);
+            VRFY((ret >= 0), "H5Pclose succeeded");
+            ret = H5Dclose(dataset);
+            VRFY((ret >= 0), "H5Dclose succeeded");
+        } /* end if */
+
+        /* Close file */
+        ret = H5Fclose(fid);
+        VRFY((ret >= 0), "H5Fclose succeeded");
+    } /* end for */
 
     /* release data buffers */
     if(data_read) HDfree(data_read);
@@ -3451,7 +3468,6 @@ actual_io_mode_tests(void) {
 #define DSET_NOCOLCAUSE "nocolcause"
 #define NELM          2
 #define FILE_EXTERNAL "nocolcause_extern.data"
-#undef H5_HAVE_FILTER_FLETCHER32
 static void 
 test_no_collective_cause_mode(int selection_mode) 
 {
@@ -3487,9 +3503,9 @@ test_no_collective_cause_mode(int selection_mode)
     hid_t       file_space = -1;
     hsize_t     chunk_dims[RANK];
     herr_t      ret;
-#ifdef H5_HAVE_FILTER_FLETCHER32            
+#ifdef LATER /* fletcher32 */
     H5Z_filter_t filter_info;
-#endif    
+#endif /* LATER */
     /* set to global value as default */
     int l_facc_type = facc_type;   
     char message[256];
@@ -3521,7 +3537,7 @@ test_no_collective_cause_mode(int selection_mode)
         is_chunked = 0;
     }
 
-#ifdef H5_HAVE_FILTER_FLETCHER32
+#ifdef LATER /* fletcher32 */
     if (selection_mode & TEST_FILTERS) {
         ret = H5Zfilter_avail(H5Z_FILTER_FLETCHER32);
         VRFY ((ret >=0 ), "Fletcher32 filter is available.\n");
@@ -3532,7 +3548,7 @@ test_no_collective_cause_mode(int selection_mode)
         ret = H5Pset_fletcher32(dcpl);
         VRFY((ret >= 0),"set filter (flecher32) succeeded");
     }
-#endif /* H5_HAVE_FILTER_FLETCHER32 */
+#endif /* LATER */
 
     if (selection_mode & TEST_NOT_SIMPLE_OR_SCALAR_DATASPACES) {
         sid = H5Screate(H5S_NULL);
@@ -3540,9 +3556,16 @@ test_no_collective_cause_mode(int selection_mode)
         is_chunked = 0;
     }
     else {
-        /* Create the basic Space */    
-        dims[0] = dim0;
-        dims[1] = dim1;
+        /* Create the basic Space */
+        /* if this is a compact dataset, create a small dataspace that does not exceed 64K */
+        if (selection_mode & TEST_NOT_CONTIGUOUS_OR_CHUNKED_DATASET_COMPACT) {
+            dims[0] = ROW_FACTOR * 6;
+            dims[1] = COL_FACTOR * 6;
+        }
+        else {
+            dims[0] = dim0;
+            dims[1] = dim1;
+        }
         sid = H5Screate_simple (RANK, dims, NULL);
         VRFY((sid >= 0), "H5Screate_simple succeeded");
     }
@@ -3606,13 +3629,13 @@ test_no_collective_cause_mode(int selection_mode)
         no_collective_cause_global_expected |= H5D_MPIO_NOT_CONTIGUOUS_OR_CHUNKED_DATASET;
     }
 
-#ifdef H5_HAVE_FILTER_FLETCHER32            
+#ifdef LATER /* fletcher32 */
     if (selection_mode & TEST_FILTERS) {
         test_name = "Broken Collective I/O - Filter is required";
         no_collective_cause_local_expected |= H5D_MPIO_FILTERS;
         no_collective_cause_global_expected |= H5D_MPIO_FILTERS;
     }
-#endif /* H5_HAVE_FILTER_FLETCHER32 */
+#endif /* LATER */
 
     if (selection_mode & TEST_COLLECTIVE) {
         test_name = "Broken Collective I/O - Not Broken";
@@ -3645,7 +3668,7 @@ test_no_collective_cause_mode(int selection_mode)
     }
 
     /* Get the number of elements in the selection */
-    length = dim0 * dim1;
+    length = dims[0] * dims[1];
 
     /* Allocate and initialize the buffer */
     buffer = (int *)HDmalloc(sizeof(int) * length);
@@ -3801,9 +3824,9 @@ test_no_collective_cause_mode_filter(int selection_mode)
     hid_t       file_space = -1;
     hsize_t     chunk_dims[RANK];
     herr_t      ret;
-#ifdef H5_HAVE_FILTER_FLETCHER32            
+#ifdef LATER /* fletcher32 */
     H5Z_filter_t filter_info;
-#endif    
+#endif /* LATER */
     char message[256];
 
     /* Set up MPI parameters */
@@ -3822,7 +3845,7 @@ test_no_collective_cause_mode_filter(int selection_mode)
     VRFY((dcpl >= 0), "dataset creation plist created successfully");
 
     if (selection_mode == TEST_FILTERS_READ )  {
-#ifdef H5_HAVE_FILTER_FLETCHER32            
+#ifdef LATER /* fletcher32 */
             ret = H5Zfilter_avail(H5Z_FILTER_FLETCHER32);
             VRFY ((ret >=0 ), "Fletcher32 filter is available.\n");
 
@@ -3831,7 +3854,7 @@ test_no_collective_cause_mode_filter(int selection_mode)
 
             ret = H5Pset_fletcher32(dcpl);
             VRFY((ret >= 0),"set filter (flecher32) succeeded");
-#endif /* H5_HAVE_FILTER_FLETCHER32 */
+#endif /* LATER */
     }
     else  {
         VRFY(0, "Unexpected mode, only test for TEST_FILTERS_READ.");
@@ -3869,12 +3892,12 @@ test_no_collective_cause_mode_filter(int selection_mode)
             dcpl, H5P_DEFAULT);
     VRFY((dataset >= 0), "H5Dcreate2() dataset succeeded");
 
-#ifdef H5_HAVE_FILTER_FLETCHER32            
+#ifdef LATER /* fletcher32 */
     /* Set expected cause */
     test_name = "Broken Collective I/O - Filter is required";
     no_collective_cause_local_expected = H5D_MPIO_FILTERS;
     no_collective_cause_global_expected = H5D_MPIO_FILTERS;
-#endif
+#endif /* LATER */
 
     /* Get the file dataspace */
     file_space = H5Dget_space(dataset);
@@ -4003,13 +4026,13 @@ no_collective_cause_tests(void)
     test_no_collective_cause_mode (TEST_NOT_SIMPLE_OR_SCALAR_DATASPACES);
     test_no_collective_cause_mode (TEST_NOT_CONTIGUOUS_OR_CHUNKED_DATASET_COMPACT);
     test_no_collective_cause_mode (TEST_NOT_CONTIGUOUS_OR_CHUNKED_DATASET_EXTERNAL);
-#ifdef H5_HAVE_FILTER_FLETCHER32            
+#ifdef LATER /* fletcher32 */
    /* TODO: use this instead of below TEST_FILTERS_READ when H5Dcreate and 
     * H5Dwrite is ready for mpio + filter feature.
     */
     /* test_no_collective_cause_mode (TEST_FILTERS); */
     test_no_collective_cause_mode_filter (TEST_FILTERS_READ);
-#endif    
+#endif /* LATER */ 
 
     /* 
      * Test combined causes 
@@ -4129,16 +4152,20 @@ dataset_atomicity(void)
     MPI_Barrier (comm);
 
     /* make sure setting atomicity fails on a serial file ID */
-    /* open the file collectively */
-    fid=H5Fopen(filename,H5F_ACC_RDWR,H5P_DEFAULT);
-    VRFY((fid >= 0), "H5Fopen succeeed");
+    /* file locking allows only one file open (serial) for writing */
+    if(MAINPROCESS){
+	fid=H5Fopen(filename,H5F_ACC_RDWR,H5P_DEFAULT);
+	VRFY((fid >= 0), "H5Fopen succeeed");
+    }
 
     /* should fail */
     ret = H5Fset_mpi_atomicity (fid , TRUE);
     VRFY((ret == FAIL), "H5Fset_mpi_atomicity failed");
 
-    ret = H5Fclose(fid);
-    VRFY((ret >= 0), "H5Fclose succeeded");
+    if(MAINPROCESS){
+	ret = H5Fclose(fid);
+	VRFY((ret >= 0), "H5Fclose succeeded");
+    }
 
     MPI_Barrier (comm);
 
@@ -4365,6 +4392,11 @@ test_dense_attr(void)
     hid_t atFileSpace, atid;
     hsize_t atDims[1] = {10000};
     herr_t status;
+    const char *filename;
+
+    /* get filename */
+    filename = (const char *)GetTestParameters();
+    HDassert( filename != NULL );
 
     /* set up MPI parameters */
     MPI_Comm_size(MPI_COMM_WORLD,&mpi_size);
@@ -4376,7 +4408,7 @@ test_dense_attr(void)
     VRFY((status >= 0), "H5Pset_libver_bounds succeeded");
     status = H5Pset_fapl_mpio(fpid, MPI_COMM_WORLD, MPI_INFO_NULL);
     VRFY((status >= 0), "H5Pset_fapl_mpio succeeded");
-    fid = H5Fcreate("ph5Dense.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fpid);
+    fid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fpid);
     VRFY((fid > 0), "H5Fcreate succeeded");
     status = H5Pclose(fpid);
     VRFY((status >= 0), "H5Pclose succeeded");

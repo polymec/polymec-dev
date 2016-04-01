@@ -19,6 +19,8 @@ usage: h5repack [OPTIONS] file1 file2
    -a A, --alignment=A     Alignment value for H5Pset_alignment
    -f FILT, --filter=FILT  Filter type
    -l LAYT, --layout=LAYT  Layout type
+   -S FS_STRGY, --fs_strategy=FS_STRGY  File space management strategy
+   -T FS_THRD, --fs_threshold=FS_THRD   Free-space section threshold
 
     M - is an integer greater than 1, size of dataset in bytes (default is 0) 
     E - is a filename.
@@ -30,6 +32,19 @@ usage: h5repack [OPTIONS] file1 file2
         a power of 2 (1024 default)
     F - is the shared object header message type, any of <dspace|dtype|fill|
         pline|attr>. If F is not specified, S applies to all messages
+
+    FS_STRGY is the file space management strategy to use for the output file.
+             It is a string as listed below:
+        ALL_PERSIST - Use persistent free-space managers, aggregators and virtual file driver
+                      for file space allocation
+        ALL - Use non-persistent free-space managers, aggregators and virtual file driver
+              for file space allocation
+        AGGR_VFD - Use aggregators and virtual file driver for file space allocation
+        VFD - Use virtual file driver for file space allocation
+
+    FS_THRD is the free-space section threshold to use for the output file.
+            It is the minimum size (in bytes) of free-space sections to be tracked
+            by the the library's free-space managers.
 
     FILT - is a string with the format:
 

@@ -89,15 +89,9 @@ typedef struct s1_t {
 } s1_t;
 
 
-/* 1-D array datatype */
-#define ARRAY1_RANK 1
-
-/* 2-D array datatype */
-#define ARRAY3_DIM2 3
-
 /* A UD link traversal function.  Shouldn't actually be called. */
-static hid_t UD_traverse(const char UNUSED * link_name, hid_t UNUSED cur_group,
-    const void UNUSED * udata, size_t UNUSED udata_size, hid_t UNUSED lapl_id)
+static hid_t UD_traverse(const char H5_ATTR_UNUSED * link_name, hid_t H5_ATTR_UNUSED cur_group,
+    const void H5_ATTR_UNUSED * udata, size_t H5_ATTR_UNUSED udata_size, hid_t H5_ATTR_UNUSED lapl_id)
 {
     return -1;
 }
@@ -254,7 +248,7 @@ gent_ub(const char * filename, size_t ub_size, size_t ub_fill)
   space = H5Screate_simple(1, dims, NULL);
   dataset = H5Dcreate2(group, "dset2.1", H5T_IEEE_F32BE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   for (i = 0; i < 10; i++)
-       dset2_1[i] = (float)(i*0.1+1);
+       dset2_1[i] = (float)(i*0.1F+1);
   H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset2_1);
   H5Sclose(space);
   H5Dclose(dataset);
@@ -265,7 +259,7 @@ gent_ub(const char * filename, size_t ub_size, size_t ub_fill)
   dataset = H5Dcreate2(group, "dset2.2", H5T_IEEE_F32BE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   for (i = 0; i < 3; i++)
        for (j = 0; j < 5; j++)
-            dset2_2[i][j] = (float)((i+1)*j*0.1);
+            dset2_2[i][j] = (float)((i+1)*j*0.1F);
   H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset2_2);
   H5Sclose(space);
   H5Dclose(dataset);
@@ -308,7 +302,7 @@ create_textfile(const char *name, size_t size)
 
     fd = HDcreat(name,0777);
     HDassert(fd >= 0);
-    buf = HDcalloc(size, (size_t)1);
+    buf = (char *)HDcalloc(size, (size_t)1);
     HDassert(buf);
 
     /* fill buf with pattern */

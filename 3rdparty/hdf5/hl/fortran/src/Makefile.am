@@ -30,7 +30,7 @@ AM_FCFLAGS+=-I$(top_builddir)/fortran/src $(F9XMODFLAG)$(top_builddir)/fortran/s
 lib_LTLIBRARIES=libhdf5hl_fortran.la
 
 # Add libtool numbers to the HDF5 HL Fortran library (from config/lt_vers.am)
-libhdf5hl_fortran_la_LDFLAGS= -version-info $(LT_VERS_INTERFACE):$(LT_VERS_REVISION):$(LT_VERS_AGE) $(AM_LDFLAGS)
+libhdf5hl_fortran_la_LDFLAGS= -version-info $(LT_HL_F_VERS_INTERFACE):$(LT_HL_F_VERS_REVISION):$(LT_HL_F_VERS_AGE) $(AM_LDFLAGS)
 
 # Some Fortran compilers can't build shared libraries, so sometimes we
 # want to build a shared C library and a static Fortran library.  If so,
@@ -42,14 +42,14 @@ endif
 
 # Source files for the library
 #if BUILD_PARALLEL_CONDITIONAL
-#    PARALLEL_COND_SRC=HDFDmpiof.c HDF5mpio.f90
+#    PARALLEL_COND_SRC=HDFDmpiof.c HDF5mpio.F90
 #endif
 
 # List sources to include in the HDF5 HL Fortran library.
-libhdf5hl_fortran_la_SOURCES=H5DSfc.c H5LTfc.c  H5IMfc.c H5IMcc.c H5TBfc.c \
-	H5DSff.f90 H5LTff.f90 H5IMff.f90 H5TBff.f90
+libhdf5hl_fortran_la_SOURCES=H5DSfc.c H5LTfc.c H5IMfc.c H5IMcc.c H5TBfc.c \
+	H5DSff.F90 H5LTff.F90 H5TBff.F90 H5IMff.F90 H5LTff_gen.F90 H5TBff_gen.F90
 
-# HDF5 HL Fortran library depends on HDF5 Library. 
+# HDF5 HL Fortran library depends on HDF5 Library.
 libhdf5hl_fortran_la_LIBADD=$(LIBH5_HL) $(LIBH5F)
 
 # Fortran module files can have different extensions and different names
@@ -60,7 +60,7 @@ maintainer-clean-local: clean-local
 distclean-local: clean-local
 clean-local:
 	@if test -n "$(F9XMODEXT)" && test "X$(F9XMODEXT)" != "Xo"; then \
-	  $(RM) *.$(F9XMODEXT);                                         \
+	  $(RM) *.$(F9XMODEXT) H5LTff_gen.F90 H5TBff_gen.F90; \
 	fi
 
 install-data-local:
@@ -75,13 +75,31 @@ uninstall-local:
 	  fi;                                                           \
 	fi
 
+# These are the helper programs we need to build.
+noinst_PROGRAMS = H5HL_buildiface
+
+# H5HL_buildiface.F90 generates all the APIs that have a KIND type associated
+# with them.
+
+H5LTff_gen.F90: H5HL_buildiface$(EXEEXT)
+	$(RUNSERIAL) ./H5HL_buildiface$(EXEEXT)
+
+H5TBff_gen.F90: H5HL_buildiface$(EXEEXT)
+
+#H5TBff_gen.F90: H5HL_buildiface$(EXEEXT)
+
+# H5HL_buildiface.F90 is included in the distribution, and Automake knows
+# how to compile a fortran program given its sources.
+
+H5HL_buildiface_SOURCES = H5HL_buildiface.F90
 # Hardcode the dependencies of these files. There isn't a known way of
 # determining this automagically (like we do with the C files). So, when
 # doing a parallel make, some modules could be made way before the
 # modules they depend upon are actually made. *sigh*
-H5DSff.lo:          $(srcdir)/H5DSff.f90
-H5LTff.lo:          $(srcdir)/H5LTff.f90
-H5IMff.lo:          $(srcdir)/H5IMff.f90
-H5TBff.lo:          $(srcdir)/H5TBff.f90
-
-include $(top_srcdir)/config/conclude.am
+H5DSff.lo:          $(srcdir)/H5DSff.F90
+H5LTff.lo:          $(srcdir)/H5LTff.F90
+H5IMff.lo:          $(srcdir)/H5IMff.F90
+H5TBff.lo:          $(srcdir)/H5TBff.F90
+H5LTff_gen.lo:      H5LTff.lo H5LTff_gen.F90
+H5TBff_gen.lo:      H5TBff.lo H5LTff_gen.F90 H5TBff_gen.F90
+include $(top_srcdir)/config/conclude_fc.am

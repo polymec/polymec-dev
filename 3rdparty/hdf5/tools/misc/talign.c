@@ -37,11 +37,11 @@ const char *setname = "align";
 
 int main(void)
 {
-    hid_t fil,spc,set;
-    hid_t cs6, cmp, fix;
-    hid_t cmp1, cmp2, cmp3;
-    hid_t plist;
-    hid_t array_dt;
+    hid_t fil=-1, spc=-1, set=-1;
+    hid_t cs6=-1, cmp=-1, fix=-1;
+    hid_t cmp1=-1, cmp2=-1, cmp3=-1;
+    hid_t plist=-1;
+    hid_t array_dt=-1;
 
     hsize_t dim[2];
     hsize_t cdim[4];
@@ -49,7 +49,7 @@ int main(void)
     char string5[5];
     float fok[2] = {1234.0f, 2341.0f};
     float fnok[2] = {5678.0f, 6785.0f};
-    float *fptr;
+    float *fptr = NULL;
 
     char *data = NULL;
 
@@ -137,13 +137,16 @@ int main(void)
 
     H5Dread(set, fix, spc, H5S_ALL, H5P_DEFAULT, data);
     fptr = (float *)(data + H5Tget_member_offset(fix, 1));
+    H5Dclose(set);
 
 out:
     if(error < 0) {
         result = 1;
         puts("*FAILED - HDF5 library error*");
-    } else if(fok[0] != fptr[0] || fok[1] != fptr[1]
-                    || fnok[0] != fptr[2] || fnok[1] != fptr[3]) {
+    } else if(!(H5_FLT_ABS_EQUAL(fok[0],  fptr[0]))
+           || !(H5_FLT_ABS_EQUAL(fok[1],  fptr[1]))
+           || !(H5_FLT_ABS_EQUAL(fnok[0], fptr[2]))
+           || !(H5_FLT_ABS_EQUAL(fnok[1], fptr[3]))) {
         char *mname;
 
         result = 1;
@@ -194,7 +197,9 @@ out:
     if(data)
         HDfree(data);
     H5Sclose(spc);
+    H5Tclose(cs6);
     H5Tclose(cmp);
+    H5Tclose(fix);
     H5Tclose(cmp1);
     H5Tclose(cmp2);
     H5Tclose(cmp3);

@@ -28,6 +28,7 @@
 #include "H5AbstractDs.h"
 #include "H5FaccProp.h"
 #include "H5FcreatProp.h"
+#include "H5OcreatProp.h"
 #include "H5DcreatProp.h"
 #include "H5CommonFG.h"
 #include "H5DataType.h"
@@ -45,6 +46,7 @@ namespace H5 {
 #endif
 
 class H5_DLLCPP H5Object;  // forward declaration for UserData4Aiterate
+
 //--------------------------------------------------------------------------
 // Function:	Attribute default constructor
 ///\brief	Default constructor: Creates a stub attribute
@@ -58,9 +60,8 @@ Attribute::Attribute() : AbstractDs(), IdComponent(), id(H5I_INVALID_HID) {}
 ///\param	original  - IN: Original Attribute object to copy
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-Attribute::Attribute(const Attribute& original) : AbstractDs(), IdComponent()
+Attribute::Attribute(const Attribute& original) : AbstractDs(), IdComponent(), id(original.id)
 {
-    id = original.getId();
     incRefCount(); // increment number of references to this id
 }
 
@@ -72,9 +73,9 @@ Attribute::Attribute(const Attribute& original) : AbstractDs(), IdComponent()
 ///\exception	H5::AttributeIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-Attribute::Attribute(const hid_t existing_id) : AbstractDs(), IdComponent()
+Attribute::Attribute(const hid_t existing_id) : AbstractDs(), IdComponent(), id(existing_id)
 {
-   id = existing_id;
+    incRefCount(); // increment number of references to this id
 }
 
 //--------------------------------------------------------------------------
@@ -270,8 +271,9 @@ DataSpace Attribute::getSpace() const
    // If the dataspace id is valid, create and return the DataSpace object
    if( dataspace_id > 0 )
    {
-      DataSpace dataspace( dataspace_id );
-      return( dataspace );
+	DataSpace dataspace;
+	f_DataSpace_setId(&dataspace, dataspace_id);
+	return(dataspace);
    }
    else
    {
@@ -392,10 +394,12 @@ H5std_string Attribute::getName() const
 //--------------------------------------------------------------------------
 H5std_string Attribute::getName(size_t len) const
 {
-   H5std_string attr_name;
-   ssize_t name_size = getName(attr_name, len);
-   return(attr_name);
-   // let caller catch exception if any
+    H5std_string attr_name;
+    ssize_t name_size = getName(attr_name, len);
+    if (name_size < 0)
+	return("");
+    else
+	return(attr_name);
 }
 
 //--------------------------------------------------------------------------
@@ -447,17 +451,18 @@ ssize_t Attribute::getName(H5std_string& attr_name, size_t len) const
 }
 
 //--------------------------------------------------------------------------
-// Function:    Attribute::getName
-///\brief       This function is replaced by the previous function, which
-///		provides more convenient prototype.  It will be removed
-///		in future release.
-///\param       len  -  IN: Desired length of the name
-///\param       attr_name - OUT: Buffer for the name string
-///\return      Actual length of the attribute name
-///\exception   H5::AttributeIException
-// Programmer   Binh-Minh Ribler - Nov, 2001
+// Function:	Attribute::getName
+// Purpose	This function is replaced by the previous function, which
+//		provides more convenient prototype.  It will be removed
+//		in future release.
+// Param	len  -  IN: Desired length of the name
+// Param	attr_name - OUT: Buffer for the name string
+// Return	Actual length of the attribute name
+// Exception	H5::AttributeIException
+// Programmer	Binh-Minh Ribler - Nov, 2001
 // Modification
 //		Modified to call its replacement. -BMR, 2014/04/16
+//		Removed from documentation. -BMR, 2016/03/07
 //--------------------------------------------------------------------------
 ssize_t Attribute::getName( size_t len, H5std_string& attr_name ) const
 {
@@ -490,9 +495,9 @@ hsize_t Attribute::getStorageSize() const
 ///\exception	H5::AttributeIException
 ///\par Description
 ///		This attribute is used to identify the file to be flushed.
-// Programmer	Binh-Minh Ribler - 2013
+// Programmer	Binh-Minh Ribler - 2012
 // Modification
-//	Mar 2013 - BMR
+//	Sep 2012 - BMR
 //		Duplicated from H5Location
 //--------------------------------------------------------------------------
 void Attribute::flush(H5F_scope_t scope) const
@@ -562,7 +567,7 @@ void Attribute::p_read_fixed_len(const DataType& mem_type, H5std_string& strg) c
     // If there is data, allocate buffer and read it.
     if (attr_size > 0)
     {
-	char *strg_C = new char[(size_t)attr_size+1];
+	char *strg_C = new char[attr_size+1];
 	herr_t ret_value = H5Aread(id, mem_type.getId(), strg_C);
 	if( ret_value < 0 )
 	{
@@ -606,6 +611,7 @@ void Attribute::p_read_variable_len(const DataType& mem_type, H5std_string& strg
     HDfree(strg_C);
 }
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 //--------------------------------------------------------------------------
 // Function:    Attribute::p_setId
 ///\brief       Sets the identifier of this object to a new value.
@@ -630,6 +636,7 @@ void Attribute::p_setId(const hid_t new_id)
    // reset object's id to the given id
    id = new_id;
 }
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 //--------------------------------------------------------------------------
 // Function:	Attribute::close

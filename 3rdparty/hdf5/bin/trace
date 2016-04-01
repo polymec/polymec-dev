@@ -37,16 +37,20 @@ $Source = "";
                "H5D_fill_value_t"           => "DF",
 	       "H5FD_mpio_chunk_opt_t"      => "Dh",
                "H5D_mpio_actual_io_mode_t"  => "Di",
+               "H5D_chunk_index_t"          => "Dk",
                "H5D_layout_t"               => "Dl",
                "H5D_mpio_no_collective_cause_t" => "Dn",
                "H5D_mpio_actual_chunk_opt_mode_t" => "Do",
                "H5D_space_status_t"         => "Ds",
+               "H5D_vds_view_t"             => "Dv",
                "H5FD_mpio_xfer_t"           => "Dt",
                "herr_t"                     => "e",
                "H5E_direction_t"            => "Ed",
                "H5E_error_t"                => "Ee",
 	       "H5E_type_t"                 => "Et",
 	       "H5F_close_degree_t"         => "Fd",
+	       "H5F_file_space_type_t"      => "Ff",
+	       "H5F_mem_t"                  => "Fm",
                "H5F_scope_t"                => "Fs",
 	       "H5F_libver_t"               => "Fv",
                "H5G_obj_t"                  => "Go",
@@ -98,6 +102,7 @@ $Source = "";
 	       "H5A_operator2_t"            => "x",
 	       "H5A_info_t"                 => "x",
                "H5AC_cache_config_t"        => "x",
+               "H5D_append_cb_t"            => "x",
                "H5D_gather_func_t"          => "x",
                "H5D_operator_t"             => "x",
                "H5D_scatter_func_t"         => "x",
@@ -107,7 +112,10 @@ $Source = "";
                "H5E_walk_t"                 => "x",
                "H5E_walk1_t"                => "x",
                "H5E_walk2_t"                => "x",
-	       "H5F_info_t"                 => "x",
+               "H5F_flush_cb_t"             => "x",
+	       "H5F_info1_t"                => "x",
+	       "H5F_info2_t"                => "x",
+               "H5F_retry_info_t"           => "x",
                "H5FD_t"                     => "x",
                "H5FD_class_t"               => "x",
                "H5FD_stream_fapl_t"         => "x",
@@ -115,7 +123,8 @@ $Source = "";
                "H5G_iterate_t"              => "x",
 	       "H5G_info_t"                 => "x",
 	       "H5I_free_t"                 => "x",
-               "H5L_class_t"                => "x",
+                "H5I_search_func_t"         => "x",
+                "H5L_class_t"                => "x",
                "H5L_elink_traverse_t"       => "x",
                "H5L_iterate_t"              => "x",
                "H5MM_allocate_t"            => "x",
@@ -175,7 +184,7 @@ sub argstring ($$$) {
   # Normalize the data type by removing redundant white space,
   # certain type qualifiers, and indirection.
   $atype =~ s/^\bconst\b//;
-  $atype =~ s/\bUNUSED\b//g;
+  $atype =~ s/\bH5_ATTR_UNUSED\b//g;
   $atype =~ s/\s+/ /g;
   $ptr = length $1 if  $atype =~ s/(\*+)//;
   $atype =~ s/^\s+//;
@@ -278,14 +287,10 @@ sub rewrite_func ($$$$$) {
 
   # The H5TRACE() statement
   if ($body =~ /\/\*[ \t]*NO[ \t]*TRACE[ \t]*\*\//) {
-    if ($body =~ /\s*H5TRACE\d+\s*\(/) {
-      errmesg $file, $name, "warning: trace info was not updated because of NO TRACE comment";
-    } else {
-      errmesg $file, $name, "warning: trace info was not inserted because of NO TRACE comment";
-    }
+    # Ignored due to NO TRACE comment.
   } elsif ($body =~ s/((\n[ \t]*)H5TRACE\d+\s*\(.*?\);)\n/"$2$trace"/es) {
-    # Replaced an H5TRACE macro
-  } elsif ($body=~s/((\n[ \t]*)FUNC_ENTER\w*\s*\(.*?\);??)\n/"$1$2$trace"/es) {
+    # Replaced an H5TRACE macro.
+  } elsif ($body=~s/((\n[ \t]*)FUNC_ENTER\w*\s*(\(.*?\))?;??)\n/"$1$2$trace"/es) {
     # Added an H5TRACE macro after a FUNC_ENTER macro.
   } else {
     errmesg $file, $name, "unable to insert tracing information";
@@ -314,14 +319,14 @@ for $file (@ARGV) {
 
     # Make modifications
     my $original = $Source;
-    my $napi = $Source =~ s/\n([A-Za-z]\w*(\s+[a-z]\w*)*)\s*\n #type
+    my $napi = $Source =~ s/\n([A-Za-z]\w*(\s+[A-Za-z]\w*)*\s*\**)\n #type
                               (H5[A-Z]{0,2}[^_A-Z0-9]\w*)      #name
                               \s*\((.*?)\)\s*               #args
                               (\{.*?\n\}[^\n]*)             #body
                            /rewrite_func($file,$1,$3,$4,$5)/segx;
     $total_api += $napi;
 
-    # If the source changed then print out the new version
+# If the source changed then print out the new version
     if ($original ne $Source) {
       printf "%s: instrumented %d API function%s\n", 
              $file, $napi, 1==$napi?"":"s";
@@ -332,3 +337,6 @@ for $file (@ARGV) {
     }
   }
 }
+
+printf "Finished processing HDF5 API calls\n"
+

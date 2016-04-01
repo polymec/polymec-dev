@@ -62,6 +62,8 @@ hsize_t H5TOOLS_MALLOCSIZE = (128 * 1024 * 1024);
 #define FILE18   "h5diff_ext2softlink_trg.h5"
 #define FILE19   "h5diff_dset_zero_dim_size1.h5"
 #define FILE20   "h5diff_dset_zero_dim_size2.h5"
+#define FILE21   "h5diff_dset_idx1.h5"
+#define FILE22   "h5diff_dset_idx2.h5"
 #define DANGLE_LINK_FILE1   "h5diff_danglelinks1.h5"
 #define DANGLE_LINK_FILE2   "h5diff_danglelinks2.h5"
 #define GRP_RECURSE_FILE1   "h5diff_grp_recurse1.h5"
@@ -106,8 +108,8 @@ hsize_t H5TOOLS_MALLOCSIZE = (128 * 1024 * 1024);
 #define SPACE1_DIM2 0
 
 /* A UD link traversal function.  Shouldn't actually be called. */
-static hid_t UD_traverse(UNUSED const char * link_name, UNUSED hid_t cur_group,
-                         UNUSED const void * udata, UNUSED size_t udata_size, UNUSED hid_t lapl_id)
+static hid_t UD_traverse(H5_ATTR_UNUSED const char * link_name, H5_ATTR_UNUSED hid_t cur_group,
+                         H5_ATTR_UNUSED const void * udata, H5_ATTR_UNUSED size_t udata_size, H5_ATTR_UNUSED hid_t lapl_id)
 {
     return -1;
 }
@@ -165,6 +167,7 @@ static void gen_datareg(hid_t fid,int make_diffs);
 /* utilities */
 static int write_attr(hid_t loc_id,int rank,hsize_t *dims,const char *name,hid_t tid,void *buf);
 static int write_dset(hid_t loc_id,int rank,hsize_t *dims,const char *name,hid_t tid,void *buf);
+static int gen_dataset_idx(const char *file, int format);
 
 
 /*-------------------------------------------------------------------------
@@ -210,6 +213,15 @@ int main(void)
     /* generate 2 files, the second call creates a similar file with differences */
     test_special_datasets(FILE19,0);
     test_special_datasets(FILE20,1);
+
+    /* 
+     * Generate 2 files: FILE21 with old format; FILE22 with new format
+     * 	Create 2 datasets in each file:
+     *  	One dataset: chunked layout, w/o filters, fixed dimension
+     *  	One dataset: chunked layout,  w/ filters, fixed dimension
+     */
+    gen_dataset_idx(FILE21, 0);
+    gen_dataset_idx(FILE22, 1);
 
     test_dangle_links(DANGLE_LINK_FILE1, DANGLE_LINK_FILE2);
 
@@ -317,10 +329,10 @@ int test_basic(const char *fname1, const char *fname2, const char *fname3)
     */
 
     {
-        double data1[3][2] = {{1,1},  {1,1},       {0,0}};
-        double data2[3][2] = {{0,1.1},{1.01,1.001},{0,1}};
-        double data3[3][2] = {{100,100},{100,100},{100,100}};
-        double data4[3][2] = {{105,120},{160,95},{80,40}};
+        double data1[3][2] = {{  1.0F,   1.0F}, {  1.00F,   1.000F}, {  0.0F,   0.0F}};
+        double data2[3][2] = {{  0.0F,   1.1F}, {  1.01F,   1.001F}, {  0.0F,   1.0F}};
+        double data3[3][2] = {{100.0F, 100.0F}, {100.00F, 100.000F}, {100.0F, 100.0F}};
+        double data4[3][2] = {{105.0F, 120.0F}, {160.00F,  95.000F}, { 80.0F,  40.0F}};
 
         write_dset(gid1,2,dims2,"dset1",H5T_NATIVE_DOUBLE,data1);
         write_dset(gid2,2,dims2,"dset2",H5T_NATIVE_DOUBLE,data2);
@@ -371,8 +383,8 @@ int test_basic(const char *fname1, const char *fname2, const char *fname3)
     *-------------------------------------------------------------------------
     */
     {
-        double data9[3][2] = {{100,100},{100,0},{0,100}};
-        double data10[3][2] ={{120,80}, {0,100},{0,50}};
+        double data9[3][2] = {{100.0F, 100.0F}, {100.0F,   0.0F}, {0.0F, 100.0F}};
+        double data10[3][2] ={{120.0F,  80.0F}, {  0.0F, 100.0F}, {0.0F,  50.0F}};
 
         write_dset(gid1,2,dims2,"dset9",H5T_NATIVE_DOUBLE,data9);
         write_dset(gid1,2,dims2,"dset10",H5T_NATIVE_DOUBLE,data10);
@@ -393,8 +405,14 @@ int test_basic(const char *fname1, const char *fname2, const char *fname3)
         /* epsilon = 0.0000000000000001 = 1e-16
          * system epsilon for double : DBL_EPSILON = 2.22045E-16
          */
-        double data13[3][2] ={{0.0000000000000000, 0.0000000000000001},{0.0000000000000001, 0.0000000000000000},{0.00000000000000033, 0.0000000000000001}};
-        double data14[3][2] ={{0.0000000000000000, 0.0000000000000004},{0.0000000000000002, 0.0000000000000001},{0.0000000000000001, 0.00000000000000000}};
+        double data13[3][2] ={
+            {H5_DOUBLE(0.0000000000000000),  H5_DOUBLE(0.0000000000000001)},
+            {H5_DOUBLE(0.0000000000000001),  H5_DOUBLE(0.0000000000000000)},
+            {H5_DOUBLE(0.00000000000000033), H5_DOUBLE(0.0000000000000001)}};
+        double data14[3][2] ={
+            {H5_DOUBLE(0.0000000000000000), H5_DOUBLE(0.0000000000000004)},
+            {H5_DOUBLE(0.0000000000000002), H5_DOUBLE(0.0000000000000001)},
+            {H5_DOUBLE(0.0000000000000001), H5_DOUBLE(0.00000000000000000)}};
 
         write_dset(gid1,2,dims2,"fp1",H5T_NATIVE_FLOAT,data11);
         write_dset(gid1,2,dims2,"fp2",H5T_NATIVE_FLOAT,data12);
@@ -412,7 +430,7 @@ int test_basic(const char *fname1, const char *fname2, const char *fname3)
         *-------------------------------------------------------------------------
         */
 
-        long double data15[3][2] ={{1,1},{1,1},{1,1}};
+        long double data15[3][2] ={{1.0L,1.0L},{1.0L,1.0L},{1.0L,1.0L}};
 
         write_dset(gid1,2,dims2,"ld",H5T_NATIVE_LDOUBLE,data15);
 
@@ -430,19 +448,19 @@ int test_basic(const char *fname1, const char *fname2, const char *fname3)
         float data15[6];
         float data16[6];
 
-        data15[0] = (float) sqrt( (double)-1 );
-        data15[1] = 1;
-        data15[2] = (float) sqrt( (double)-1 );
-        data15[3] = 1;
-        data15[4] = 1;
-        data15[5] = 1;
+        data15[0] = (float)HDsqrt(-1.0F);
+        data15[1] = 1.0F;
+        data15[2] = (float)HDsqrt(-1.0F);
+        data15[3] = 1.0F;
+        data15[4] = 1.0F;
+        data15[5] = 1.0F;
 
-        data16[0] = (float) sqrt( (double)-1 );
-        data16[1] = (float) sqrt( (double)-1 );
-        data16[2] = 1;
-        data16[3] = 1;
-        data16[4] = 1;
-        data16[5] = 1;
+        data16[0] = (float)HDsqrt(-1.0F);
+        data16[1] = (float)HDsqrt(-1.0F);
+        data16[2] = 1.0F;
+        data16[3] = 1.0F;
+        data16[4] = 1.0F;
+        data16[5] = 1.0F;
 
         write_dset(gid1,1,dims1,"fp15",H5T_NATIVE_FLOAT,data15);
         write_dset(gid1,1,dims1,"fp16",H5T_NATIVE_FLOAT,data16);
@@ -458,19 +476,19 @@ int test_basic(const char *fname1, const char *fname2, const char *fname3)
         double data17[6];
         double data18[6];
 
-        data17[0] = sqrt( (double)-1 );
-        data17[1] = 1;
-        data17[2] = sqrt( (double)-1 );
-        data17[3] = 1;
-        data17[4] = 1;
-        data17[5] = 1;
+        data17[0] = HDsqrt(-1.0F);
+        data17[1] = 1.0F;
+        data17[2] = HDsqrt(-1.0F);
+        data17[3] = 1.0F;
+        data17[4] = 1.0F;
+        data17[5] = 1.0F;
 
-        data18[0] = (float) sqrt( (double)-1 );
-        data18[1] = (float) sqrt( (double)-10000 );
-        data18[2] = 1;
-        data18[3] = 1;
-        data18[4] = 1;
-        data18[5] = 1;
+        data18[0] = HDsqrt(-1.0F);
+        data18[1] = HDsqrt(-10000.0F);
+        data18[2] = 1.0F;
+        data18[3] = 1.0F;
+        data18[4] = 1.0F;
+        data18[5] = 1.0F;
 
         write_dset(gid1,1,dims1,"fp17",H5T_NATIVE_DOUBLE,data17);
         write_dset(gid1,1,dims1,"fp18",H5T_NATIVE_DOUBLE,data18);
@@ -485,11 +503,11 @@ int test_basic(const char *fname1, const char *fname2, const char *fname3)
         float  data19[6];
         double data20[6];
 
-        data19[0] = data19[1] = data19[2] = log(0);
-        data19[3] = data19[4] = data19[5] = -log(0);
+        data19[0] = data19[1] = data19[2] = (float)HDlog(0.0F);
+        data19[3] = data19[4] = data19[5] = (float)-HDlog(0.0F);
 
-        data20[0] = data20[1] = data20[2] = log(0);
-        data20[3] = data20[4] = data20[5] = -log(0);
+        data20[0] = data20[1] = data20[2] = HDlog(0.0F);
+        data20[3] = data20[4] = data20[5] = -HDlog(0.0F);
 
         write_dset(gid1,1,dims1,"fp19",H5T_NATIVE_FLOAT,data19);
         write_dset(gid1,1,dims1,"fp19_COPY",H5T_NATIVE_FLOAT,data19);
@@ -514,15 +532,15 @@ int test_basic(const char *fname1, const char *fname2, const char *fname3)
         size_t   type_size;
         hid_t    tid;
 
-        buf1[0].d = sqrt( (double)-1 );
-        buf1[0].f = (float) sqrt( (double)-1 );
-        buf2[0].d = sqrt( (double)-1 );
-        buf2[0].f = (float) sqrt( (double)-1 );
+        buf1[0].d = HDsqrt(-1.0F);
+        buf1[0].f = (float)HDsqrt(-1.0F);
+        buf2[0].d = HDsqrt(-1.0F);
+        buf2[0].f = (float)HDsqrt(-1.0F);
 
-        buf1[1].d = sqrt( (double)-1 );
-        buf1[1].f = (float) sqrt( (double)-1 );
-        buf2[1].d = 0;
-        buf2[1].f = 0;
+        buf1[1].d = HDsqrt(-1.0F);
+        buf1[1].f = (float)HDsqrt(-1.0F);
+        buf2[1].d = 0.0F;
+        buf2[1].f = 0.0F;
 
         type_size = sizeof( cmp1_t );
         tid = H5Tcreate (H5T_COMPOUND, type_size );
@@ -555,7 +573,7 @@ int test_basic(const char *fname1, const char *fname2, const char *fname3)
             int i;
         } cmp3_t;
 
-        double       data2[6] = {0,0,0,0,0,0};
+        double       data2[6] = {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
         int          data3[6] = {0,0,0,0,0,0};
         int          data4[3][2] = {{0,0},{0,0},{0,0}};
         int          data5[2][2] = {{0,0},{0,0}};
@@ -770,10 +788,10 @@ int test_datatypes(const char *fname)
     int     buf3b[3][2] = {{1,1},{3,4},{5,6}};
     long    buf4a[3][2] = {{1,1},{1,1},{1,1}};
     long    buf4b[3][2] = {{1,1},{3,4},{5,6}};
-    float   buf5a[3][2] = {{1,1},{1,1},{1,1}};
-    float   buf5b[3][2] = {{1,1},{3,4},{5,6}};
-    double  buf6a[3][2] = {{1,1},{1,1},{1,1}};
-    double  buf6b[3][2] = {{1,1},{3,4},{5,6}};
+    float   buf5a[3][2] = {{1.0F, 1.0F}, {1.0F, 1.0F}, {1.0F, 1.0F}};
+    float   buf5b[3][2] = {{1.0F, 1.0F}, {3.0F, 4.0F}, {5.0F, 6.0F}};
+    double  buf6a[3][2] = {{1.0F, 1.0F}, {1.0F, 1.0F}, {1.0F, 1.0F}};
+    double  buf6b[3][2] = {{1.0F, 1.0F}, {3.0F, 4.0F}, {5.0F, 6.0F}};
 
     /*unsigned/signed test
     signed char -128 to 127
@@ -1008,14 +1026,14 @@ int test_attributes(const char *file,
 static int test_attributes_verbose_level(const char *fname1, const char *fname2)
 {
     herr_t  status = SUCCEED;
-    hid_t   fid1, fid2;
-    hid_t   f1_gid, f2_gid;
-    hid_t   f1_gid2, f2_gid2;
-    hid_t   f1_gid3, f2_gid3;
-    hid_t   f1_gid4, f2_gid4;
-    hid_t   f1_did, f2_did;
-    hid_t   f1_sid, f2_sid;
-    hid_t   f1_tid, f2_tid;
+    hid_t   fid1    = -1,   fid2 = -1;
+    hid_t   f1_gid  = -1,   f2_gid = -1;
+    hid_t   f1_gid2 = -1,   f2_gid2 = -1;
+    hid_t   f1_gid3 = -1,   f2_gid3 = -1;
+    hid_t   f1_gid4 = -1,   f2_gid4 = -1;
+    hid_t   f1_did  = -1,   f2_did = -1;
+    hid_t   f1_sid  = -1,   f2_sid = -1;
+    hid_t   f1_tid  = -1,   f2_tid = -1;
     /* dset */
     hsize_t dset_dims[1]={3};
     int dset_data[3] = {0,1,2};
@@ -1025,10 +1043,10 @@ static int test_attributes_verbose_level(const char *fname1, const char *fname2)
 
     /* file1 attr */
     int    f1_attr_idata[2]= {1,2};        /* integer */
-    float  f1_attr_fdata[2]= {1.1,2.2};    /* float */
+    float  f1_attr_fdata[2]= {1.1F,2.2F};    /* float */
     /* file2 attr */
     int    f2_attr_idata[2]= {2,3};        /* integer */
-    float  f2_attr_fdata[2]= {2.1,3.2};    /* float */
+    float  f2_attr_fdata[2]= {2.1F,3.2F};    /* float */
 
 
     /*----------------------------------------------------------------------
@@ -1246,9 +1264,9 @@ out:
     /*-----------------------------------------------------------------------
     * Close
     *-----------------------------------------------------------------------*/
-    if(fid1)
+    if(fid1 > 0)
         H5Fclose(fid1);
-    if(fid2)
+    if(fid2 > 0)
         H5Fclose(fid2);
     if(f1_gid > 0)
         H5Gclose(f1_gid);
@@ -1270,13 +1288,13 @@ out:
         H5Dclose(f1_did);
     if(f2_did > 0)
         H5Dclose(f2_did);
-    if(f1_sid >0)
+    if(f1_sid > 0)
         H5Sclose(f1_sid);
-    if(f2_sid >0)
+    if(f2_sid > 0)
         H5Sclose(f2_sid);
-    if(f1_tid >0)
+    if(f1_tid > 0)
         H5Tclose(f1_tid);
-    if(f2_tid >0)
+    if(f2_tid > 0)
         H5Tclose(f2_tid);
 
     return status;
@@ -2099,6 +2117,95 @@ out:
 }
 
 /*-------------------------------------------------------------------------
+* Function: gen_dataset_idx
+*
+* Purpose: Create a file with either the new or old format
+*	   Create two datasets in the file: 
+*		one dataset: fixed dimension, chunked layout, w/o filters
+*		one dataset: fixed dimension, chunked layout, w/ filters
+*
+*-------------------------------------------------------------------------
+*/
+static
+int gen_dataset_idx(const char *file, int format)
+{
+    hid_t   fid;		/* file id */
+    hid_t   did, did2;		/* dataset id */
+    hid_t   sid;		/* space id */
+    hid_t   fapl;		/* file access property id */
+    hid_t   dcpl;		/* dataset creation property id */
+    hsize_t dims[1] = {10};	/* dataset dimension */
+    hsize_t c_dims[1] = {2};	/* chunk dimension */
+    herr_t  status;		/* return status */
+    int     buf[10];		/* data buffer */
+    int	    i;			/* local index variable */
+
+    /* Get a copy of the file aaccess property */
+    fapl = H5Pcreate(H5P_FILE_ACCESS);
+
+    /* Set the "use the latest format" bounds for creating objects in the file */
+    if(format) {
+	status = H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
+	assert(status >= 0);
+    }
+
+    /* Create a file  */
+    if((fid = H5Fcreate(file, H5F_ACC_TRUNC, H5P_DEFAULT, fapl)) < 0)
+        return -1;
+
+    /* Create data */
+    for(i = 0; i < 10; i++)
+	buf[i] = i;
+
+    /* Set chunk */
+    dcpl = H5Pcreate(H5P_DATASET_CREATE);
+    status = H5Pset_chunk(dcpl, 1, c_dims);
+    assert(status >= 0);
+
+    /* Create a 1D dataset */
+    sid = H5Screate_simple(1, dims, NULL);
+    did  = H5Dcreate2(fid, "dset", H5T_NATIVE_INT, sid, H5P_DEFAULT, dcpl, H5P_DEFAULT);
+    
+    /* Write to the dataset */
+    status = H5Dwrite(did, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
+    assert(status >= 0);
+
+#if defined (H5_HAVE_FILTER_DEFLATE)
+    /* set deflate data */
+    status = H5Pset_deflate(dcpl, 9);
+    assert(status >= 0);
+
+    /* Create and write the dataset */
+    did2  = H5Dcreate2(fid, "dset_filter", H5T_NATIVE_INT, sid, H5P_DEFAULT, dcpl, H5P_DEFAULT);
+    status = H5Dwrite(did2, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
+    assert(status >= 0);
+
+    /* Close the dataset */
+    status = H5Dclose(did2);
+    assert(status >= 0);
+
+#endif
+
+    /* closing: dataspace, dataset, file */
+    status = H5Sclose(sid);
+    assert(status >= 0);
+
+    status = H5Dclose(did);
+    assert(status >= 0);
+
+    status = H5Fclose(fid);
+    assert(status >= 0);
+
+    status = H5Pclose(dcpl);
+    assert(status >= 0);
+
+    status = H5Pclose(fapl);
+    assert(status >= 0);
+
+    return status;
+}
+
+/*-------------------------------------------------------------------------
 *
 * Purpose: Create test files to compare dangling links in various way
 *
@@ -2791,15 +2898,18 @@ out:
 #define GRP_R_DSETNAME2 "dset2"
 static int test_group_recurse2(void)
 {
-    hid_t       fileid1;
-    hid_t       grp1=0, grp2;
-    hid_t       grp3=0;
-    hid_t       grp4=0;
-    hid_t       dset1, dset2;
-    hid_t       datatype, dataspace;   /* handles */
-    hid_t       fileid2;
-    hid_t       fileid3;
-    hid_t       fileid4;
+    hid_t       fileid1     = -1;
+    hid_t       grp1        = -1;
+    hid_t       grp2        = -1;
+    hid_t       grp3        = -1;
+    hid_t       grp4        = -1;
+    hid_t       dset1       = -1;
+    hid_t       dset2       = -1;
+    hid_t       datatype    = -1;
+    hid_t       dataspace   = -1;
+    hid_t       fileid2     = -1;
+    hid_t       fileid3     = -1;
+    hid_t       fileid4     = -1;
     hsize_t     dimsf[2];              /* dataset dimensions */
     herr_t      status=0;
     int data1[4][2] = {{0,0},{1,1},{2,2},{3,3}};
@@ -3092,12 +3202,18 @@ out:
     /*
      * Close/release resources.
      */
-    H5Sclose(dataspace);
-    H5Tclose(datatype);
-    H5Fclose(fileid1);
-    H5Fclose(fileid2);
-    H5Fclose(fileid3);
-    H5Fclose(fileid4);
+    if(dataspace > 0)
+        H5Sclose(dataspace);
+    if(datatype > 0)
+        H5Tclose(datatype);
+    if(fileid1 > 0)
+        H5Fclose(fileid1);
+    if(fileid2 > 0)
+        H5Fclose(fileid2);
+    if(fileid3 > 0)
+        H5Fclose(fileid3);
+    if(fileid4 > 0)
+        H5Fclose(fileid4);
 
     return status;
 }
@@ -3500,8 +3616,8 @@ static int test_comp_vlen_strings(const char *fname1, const char *grp_name, int 
 {
     int i;
 
-    hid_t    fid1;      /* file id */
-    hid_t    gid;
+    hid_t    fid1   = -1;      /* file id */
+    hid_t    gid    = -1;
 
     /* compound1 datatype */
     typedef struct comp1_t
@@ -4147,60 +4263,60 @@ out:
    /*-----------------------------------------------------------------------
     * Close
     *-----------------------------------------------------------------------*/
-    if(fid1)
+    if(fid1 > 0)
         H5Fclose(fid1);
-    if(gid)
+    if(gid > 0)
         H5Gclose(gid);
     /* vlen string */
-    if(tid_vlen_str)
+    if(tid_vlen_str > 0)
         H5Tclose(tid_vlen_str);
-    if(sid_vlen_str)
+    if(sid_vlen_str > 0)
         H5Sclose(sid_vlen_str);
     /* fixed len string */
-    if(tid_fixlen_str)
+    if(tid_fixlen_str > 0)
         H5Tclose(tid_fixlen_str);
-    if(sid_fixlen_str)
+    if(sid_fixlen_str > 0)
         H5Sclose(sid_fixlen_str);
     /* vlen string array */
-    if(tid_vlen_str_array_pre)
+    if(tid_vlen_str_array_pre > 0)
         H5Tclose(tid_vlen_str_array_pre);
-    if(tid_vlen_str_array)
+    if(tid_vlen_str_array > 0)
         H5Tclose(tid_vlen_str_array);
-    if(sid_vlen_str_array)
+    if(sid_vlen_str_array > 0)
         H5Sclose(sid_vlen_str_array);
     /* fixed len string array */
-    if(tid_fixlen_str_array_pre)
+    if(tid_fixlen_str_array_pre > 0)
         H5Tclose(tid_fixlen_str_array_pre);
-    if(tid_fixlen_str_array)
+    if(tid_fixlen_str_array > 0)
         H5Tclose(tid_fixlen_str_array);
-    if(sid_fixlen_str_array)
+    if(sid_fixlen_str_array > 0)
         H5Sclose(sid_fixlen_str_array);
     /* compound */
-    if(tid1_comp)
+    if(tid1_comp > 0)
         H5Tclose(tid1_comp);
-    if(tid2_comp)
+    if(tid2_comp > 0)
         H5Tclose(tid2_comp);
-    if(tid3_comp)
+    if(tid3_comp > 0)
         H5Tclose(tid3_comp);
-    if(tid4_comp)
+    if(tid4_comp > 0)
         H5Tclose(tid4_comp);
-    if(tid5_comp)
+    if(tid5_comp > 0)
         H5Tclose(tid5_comp);
-    if(tid6_comp)
+    if(tid6_comp > 0)
         H5Tclose(tid6_comp);
-    if(tid7_comp)
+    if(tid7_comp > 0)
         H5Tclose(tid7_comp);
-    if(tid8_comp)
+    if(tid8_comp > 0)
         H5Tclose(tid8_comp);
-    if(tid9_comp)
+    if(tid9_comp > 0)
         H5Tclose(tid9_comp);
-    if(did_comp)
+    if(did_comp > 0)
         H5Dclose(did_comp);
-    if(sid_comp)
+    if(sid_comp > 0)
         H5Sclose(sid_comp);
 
     return status;
-}
+} /* end test_comp_vlen_strings() */
 
 
 /*-------------------------------------------------------------------------
@@ -4363,7 +4479,7 @@ static void test_comps_array (const char *fname, const char *dset, const char *a
         for(j=0; j < SDIM_CMPD_ARRAY; j++) 
         {
             wdata[i].cmpd2[j].i2 = i*10 + diff;
-            wdata[i].cmpd2[j].f2 = (float)(i*10.5) + diff;
+            wdata[i].cmpd2[j].f2 = (float)(i*10.5F) + diff;
         } /* end for */
     }
 
@@ -4480,7 +4596,7 @@ static void test_comps_vlen (const char * fname, const char *dset, const char *a
         for(j=0; j<(i+1); j++)
         {
             ((cmpd2_t *)wdata[i].vl.p)[j].i2 = i*10 + diff;
-            ((cmpd2_t *)wdata[i].vl.p)[j].f2 = (float)(i*10.5) + diff;
+            ((cmpd2_t *)wdata[i].vl.p)[j].f2 = (float)(i*10.5F) + diff;
         } /* end for */
     } /* end for */
 
@@ -4606,7 +4722,7 @@ static void test_comps_array_vlen (const char * fname, const char *dset,const ch
             {
                 /* Initialize data of compound3 */
                 ((cmpd3_t *)wdata[i].cmpd2[j].vl.p)[k].i3 = j*10 + diff;
-                ((cmpd3_t *)wdata[i].cmpd2[j].vl.p)[k].f3 = (float)(j*10.5) + diff;
+                ((cmpd3_t *)wdata[i].cmpd2[j].vl.p)[k].f3 = (float)(j*10.5F) + diff;
             } /* end for */
         } /* end for */
     }
@@ -4753,8 +4869,8 @@ static void test_comps_vlen_arry (const char * fname, const char *dset, const ch
             for (k=0; k < SDIM_CMPD_ARRAY; k++)
             {
                 /* compound 3 data */
-                ((cmpd2_t *)(wdata[i].vl.p))[j].cmpd3[k].i3 = k*10.5 + diff;
-                ((cmpd2_t *)(wdata[i].vl.p))[j].cmpd3[k].f3 = (float)(k*10.5) + diff;
+                ((cmpd2_t *)(wdata[i].vl.p))[j].cmpd3[k].i3 = k*10.5F + diff;
+                ((cmpd2_t *)(wdata[i].vl.p))[j].cmpd3[k].f3 = (float)(k*10.5F) + diff;
             }
         } /* end for */
     } /* end for */
@@ -5017,10 +5133,10 @@ static void test_data_nocomparables (const char * fname, int make_diffs)
 
 
     /* attr2 - non-compatible : same rank, different dimention */
-    write_attr(did2,1, attr2_dim_ptr,"attr2", H5T_NATIVE_INT, data3);
+    write_attr(did2,1,(hsize_t *)attr2_dim_ptr,"attr2", H5T_NATIVE_INT, data3);
 
     /* attr3 - non-compatible : different rank */
-    write_attr(did2, rank_attr,attr3_dim_ptr,"attr3", H5T_NATIVE_INT, attr_data_ptr3);
+    write_attr(did2, rank_attr,(hsize_t *)attr3_dim_ptr,"attr3", H5T_NATIVE_INT, attr_data_ptr3);
 
     /* attr4 - compatible : different data values */
     write_attr(did2,1,dims1_1,"attr4", H5T_NATIVE_INT, attr_data_ptr4);
@@ -5246,27 +5362,27 @@ void write_attr_in(hid_t loc_id,
     char       buf1[2][STR_SIZE]= {"ab","de"};        /* string */
     char       *buf1a[2];                             /* VL string */
     char       buf2[2]= {1,2};                 /* bitfield, opaque */
-    s_t        buf3[2]= {{1,2},{3,4}};         /* compound */
+    s_t        buf3[2]= {{1,2.0F},{3,4.0F}};         /* compound */
     hobj_ref_t buf4[2];                        /* reference */
     e_t        buf45[2]= {RED,RED};            /* enum */
     hvl_t      buf5[2];                        /* vlen */
     hsize_t    dimarray[1]={3};                /* array dimension */
     int        buf6[2][3]= {{1,2,3},{4,5,6}};  /* array */
     int        buf7[2]= {1,2};                 /* integer */
-    float      buf8[2]= {1,2};                 /* float */
+    float      buf8[2]= {1.0F, 2.0F};                 /* float */
 
     /* create 2D attributes with dimension [3][2], 6 elements */
     hsize_t    dims2[2]={3,2};
-    char       buf12[3][2][STR_SIZE]= {{"ab","cd"},{"ef","gh"},{"ij","kl"}};     /* string */
-    char       *buf12a[3][2];                                               /* VL string */
-    char       buf22[3][2]= {{1,2},{3,4},{5,6}};                     /* bitfield, opaque */
-    s_t        buf32[6]= {{1,2},{3,4},{5,6},{7,8},{9,10},{11,12}};   /* compound */
-    hobj_ref_t buf42[3][2];                                          /* reference */
-    e_t        buf452[3][2];                                         /* enum */
-    hvl_t      buf52[3][2];                                          /* vlen */
-    int        buf62[6][3]= {{1,2,3},{4,5,6},{7,8,9},{10,11,12},{13,14,15},{16,17,18}};  /* array */
-    int        buf72[3][2]= {{1,2},{3,4},{5,6}};                     /* integer */
-    float      buf82[3][2]= {{1,2},{3,4},{5,6}};                     /* float */
+    char       buf12[3][2][STR_SIZE]= {{"ab","cd"},{"ef","gh"},{"ij","kl"}};            /* string */
+    char       *buf12a[3][2];                                                           /* VL string */
+    char       buf22[3][2]= {{1,2},{3,4},{5,6}};                                        /* bitfield, opaque */
+    s_t        buf32[6]= {{1,2.0F},{3,4.0F},{5,6.0F},{7,8.0F},{9,10.0F},{11,12.0F}};    /* compound */
+    hobj_ref_t buf42[3][2];                                                             /* reference */
+    e_t        buf452[3][2];                                                            /* enum */
+    hvl_t      buf52[3][2];                                                             /* vlen */
+    int        buf62[6][3]= {{1,2,3},{4,5,6},{7,8,9},{10,11,12},{13,14,15},{16,17,18}}; /* array */
+    int        buf72[3][2]= {{1,2},{3,4},{5,6}};                                        /* integer */
+    float      buf82[3][2]= {{1.0F,2.0F},{3.0F,4.0F},{5.0F,6.0F}};                      /* float */
 
     /* create 3D attributes with dimension [4][3][2], 24 elements */
     hsize_t    dims3[3]={4,3,2};
@@ -6017,7 +6133,7 @@ void write_attr_in(hid_t loc_id,
             for (k = 0; k < 2; k++) {
                 if (make_diffs) {
                     buf33[i][j][k].a=0;
-                    buf33[i][j][k].b=0;
+                    buf33[i][j][k].b=0.0F;
                 }
                 else {
                     buf33[i][j][k].a=n++;
@@ -6231,7 +6347,7 @@ void write_attr_in(hid_t loc_id,
             for (k = 0; k < 2; k++) {
                 if (make_diffs) {
                     buf73[i][j][k]=0;
-                    buf83[i][j][k]=0;
+                    buf83[i][j][k]=0.0F;
                 }
                 else {
                     buf73[i][j][k]=n++;
@@ -6303,26 +6419,26 @@ void write_dset_in(hid_t loc_id,
     char       buf1[2][STR_SIZE]= {"ab","de"}; /* string */
     char       *buf1a[2];                      /* VL string */
     char       buf2[2]= {1,2};                 /* bitfield, opaque */
-    s_t        buf3[2]= {{1,2},{3,4}};         /* compound */
+    s_t        buf3[2]= {{1,2.0F},{3,4.0F}};   /* compound */
     hobj_ref_t buf4[2];                        /* reference */
     e_t        buf45[2]= {RED,GREEN};          /* enum */
     hvl_t      buf5[2];                        /* vlen */
     hsize_t    dimarray[1]={3};                /* array dimension */
     int        buf6[2][3]= {{1,2,3},{4,5,6}};  /* array */
     int        buf7[2]= {1,2};                 /* integer */
-    float      buf8[2]= {1,2};                 /* float */
+    float      buf8[2]= {1.0F,2.0F};           /* float */
 
     /* create 2D attributes with dimension [3][2], 6 elements */
     hsize_t    dims2[2]={3,2};
     char       buf12[3][2][STR_SIZE]= {{"ab","cd"},{"ef","gh"},{"ij","kl"}};     /* string */
     char       *buf12a[3][2];                                        /* VL string */
     char       buf22[3][2]= {{1,2},{3,4},{5,6}};                     /* bitfield, opaque */
-    s_t        buf32[6]= {{1,2},{3,4},{5,6},{7,8},{9,10},{11,12}};   /* compound */
+    s_t        buf32[6]= {{1,2.0F},{3,4.0F},{5,6.0F},{7,8.0F},{9,10.0F},{11,12.0F}};   /* compound */
     hobj_ref_t buf42[3][2];                                          /* reference */
     hvl_t      buf52[3][2];                                          /* vlen */
     int        buf62[6][3]= {{1,2,3},{4,5,6},{7,8,9},{10,11,12},{13,14,15},{16,17,18}};  /* array */
     int        buf72[3][2]= {{1,2},{3,4},{5,6}};                     /* integer */
-    float      buf82[3][2]= {{1,2},{3,4},{5,6}};                     /* float */
+    float      buf82[3][2]= {{1.0F,2.0F},{3.0F,4.0F},{5.0F,6.0F}};                     /* float */
 
     /* create 3D attributes with dimension [4][3][2], 24 elements */
     hsize_t    dims3[3]={4,3,2};
@@ -6545,7 +6661,7 @@ void write_dset_in(hid_t loc_id,
 
         /* allocate and initialize array data to write */
         size = ( H5TOOLS_MALLOCSIZE / sizeof(double) + 1 ) * sizeof(double);
-        dbuf = HDmalloc( size );
+        dbuf = (double *)HDmalloc( size );
 
         for( j = 0; j < H5TOOLS_MALLOCSIZE / sizeof(double) + 1; j++)
             dbuf[j] = j;
@@ -6859,7 +6975,7 @@ void write_dset_in(hid_t loc_id,
                 if (make_diffs)
                 {
                     buf33[i][j][k].a=0;
-                    buf33[i][j][k].b=0;
+                    buf33[i][j][k].b=0.0F;
                 }
                 else {
                     buf33[i][j][k].a=n++;
@@ -6968,7 +7084,7 @@ void write_dset_in(hid_t loc_id,
             for (k = 0; k < 2; k++) {
                 if (make_diffs) {
                     buf73[i][j][k]=0;
-                    buf83[i][j][k]=0;
+                    buf83[i][j][k]=0.0F;
                 }
                 else {
                     buf73[i][j][k]=n++;
@@ -7012,10 +7128,10 @@ void gen_datareg(hid_t fid,
     int             i;
 
     /* allocate the buffer for write the references */
-    rbuf = HDcalloc((size_t)2, sizeof(hdset_reg_ref_t));
+    rbuf = (hdset_reg_ref_t *)HDcalloc((size_t)2, sizeof(hdset_reg_ref_t));
 
     /* allocate the buffer for write the data dataset */
-    buf = HDmalloc(10 * 10 * sizeof(int));
+    buf = (int *)HDmalloc(10 * 10 * sizeof(int));
 
     for(i = 0; i < 10 * 10; i++)
         buf[i] = i;

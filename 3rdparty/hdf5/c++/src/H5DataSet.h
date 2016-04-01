@@ -30,6 +30,7 @@ namespace H5 {
 */
 class H5_DLLCPP DataSet : public H5Object, public AbstractDs {
    public:
+
 	// Close this dataset.
 	virtual void close();
 
@@ -89,8 +90,8 @@ class H5_DLLCPP DataSet : public H5Object, public AbstractDs {
 	virtual H5std_string fromClass () const { return("DataSet"); }
 
 	// Creates a dataset by way of dereference.
-	DataSet(const H5Location& loc, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
-	DataSet(const Attribute& attr, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
+	DataSet(const H5Location& loc, const void* ref, H5R_type_t ref_type = H5R_OBJECT, const PropList& plist = PropList::DEFAULT);
+	DataSet(const Attribute& attr, const void* ref, H5R_type_t ref_type = H5R_OBJECT, const PropList& plist = PropList::DEFAULT);
 
 	// Default constructor.
 	DataSet();
@@ -107,6 +108,12 @@ class H5_DLLCPP DataSet : public H5Object, public AbstractDs {
 	// Destructor: properly terminates access to this dataset.
 	virtual ~DataSet();
 
+   protected:
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+        // Sets the dataset id.
+        virtual void p_setId(const hid_t new_id);
+#endif // DOXYGEN_SHOULD_SKIP_THIS
+
    private:
 	hid_t id;       // HDF5 dataset id
 
@@ -120,11 +127,9 @@ class H5_DLLCPP DataSet : public H5Object, public AbstractDs {
 	void p_read_fixed_len(const hid_t mem_type_id, const hid_t mem_space_id, const hid_t file_space_id, const hid_t xfer_plist_id, H5std_string& strg) const;
 	void p_read_variable_len(const hid_t mem_type_id, const hid_t mem_space_id, const hid_t file_space_id, const hid_t xfer_plist_id, H5std_string& strg) const;
 
-   protected:
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-        // Sets the dataset id.
-        virtual void p_setId(const hid_t new_id);
-#endif // DOXYGEN_SHOULD_SKIP_THIS
+	// Friend function to set DataSet id.  For library use only.
+	friend void f_DataSet_setId(DataSet* dset, hid_t new_id);
+
 };
 #ifndef H5_NO_NAMESPACE
 }

@@ -18,7 +18,7 @@
    same shape by H5Sselect_shape_same().
  */
 
-#define H5S_PACKAGE             /*suppress error about including H5Spkg   */
+#define H5S_FRIEND             /*suppress error about including H5Spkg   */
 
 /* Define this macro to indicate that the testing APIs should be available */
 #define H5S_TESTING
@@ -2237,8 +2237,9 @@ contig_hs_dr_pio_test(ShapeSameTestMethods sstest_type)
     int         express_test;
     int         local_express_test;
     int         mpi_rank = -1;
+    int         mpi_size;
     int	        test_num = 0;
-    int		edge_size = 10;
+    int		edge_size;
     int		chunk_edge_size = 0;
     int	        small_rank;
     int	        large_rank;
@@ -2258,7 +2259,10 @@ contig_hs_dr_pio_test(ShapeSameTestMethods sstest_type)
 
     HDcompile_assert(sizeof(uint32_t) == sizeof(unsigned));
 
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    edge_size = (mpi_size > 6 ? mpi_size : 6);
 
     local_express_test = GetTestExpress();
 
@@ -4519,7 +4523,7 @@ ckrbrd_hs_dr_pio_test(ShapeSameTestMethods sstest_type)
     int	        mpi_size = -1;
     int         mpi_rank = -1;
     int	        test_num = 0;
-    int		edge_size = 10;
+    int		edge_size;
     int         checker_edge_size = 3;
     int		chunk_edge_size = 0;
     int	        small_rank = 3;
@@ -4540,6 +4544,8 @@ ckrbrd_hs_dr_pio_test(ShapeSameTestMethods sstest_type)
 
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    edge_size = (mpi_size > 6 ? mpi_size : 6);
 
     local_express_test = GetTestExpress();
 
@@ -4942,6 +4948,10 @@ create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type)
 	/* set Parallel access with communicator */
 	ret = H5Pset_fapl_mpio(ret_pl, comm, info);
 	VRFY((ret >= 0), "");
+        ret = H5Pset_all_coll_metadata_ops(ret_pl, TRUE);
+	VRFY((ret >= 0), "");
+        ret = H5Pset_coll_metadata_write(ret_pl, TRUE);
+	VRFY((ret >= 0), "");
 	return(ret_pl);
     }
 
@@ -5031,9 +5041,11 @@ int main(int argc, char **argv)
 {
     int mpi_size, mpi_rank;				/* mpi variables */
 
+#ifndef H5_HAVE_WIN32_API
     /* Un-buffer the stdout and stderr */
-    setbuf(stderr, NULL);
-    setbuf(stdout, NULL);
+    HDsetbuf(stderr, NULL);
+    HDsetbuf(stdout, NULL);
+#endif
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
@@ -5115,7 +5127,7 @@ int main(int argc, char **argv)
         TestSummary();
 
     /* Clean up test files */
-    h5_cleanup(FILENAME, fapl);
+    h5_clean_files(FILENAME, fapl);
 
     nerrors += GetTestNumErrs();
 
@@ -5134,12 +5146,10 @@ int main(int argc, char **argv)
 	    printf("Shape Same tests finished with no errors\n");
 	printf("===================================\n");
     }
-    /* close HDF5 library */
-    H5close();
 
-    /* MPI_Finalize must be called AFTER H5close which may use MPI calls */
     MPI_Finalize();
 
     /* cannot just return (nerrors) because exit code is limited to 1byte */
     return(nerrors!=0);
 }
+

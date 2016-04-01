@@ -81,7 +81,7 @@
 #define FLETCHER32      "CHECKSUM FLETCHER32"
 #define SZIP            "COMPRESSION SZIP"
 #define NBIT            "COMPRESSION NBIT"
-#define SCALEOFFSET            "COMPRESSION SCALEOFFSET"
+#define SCALEOFFSET     "COMPRESSION SCALEOFFSET"
 #define SCALEOFFSET_MINBIT            "MIN BITS"
 #define STORAGE_LAYOUT  "STORAGE_LAYOUT"
 #define CONTIGUOUS      "CONTIGUOUS"
@@ -93,6 +93,16 @@
 #define PACKED_BITS     "PACKED_BITS"
 #define PACKED_OFFSET   "OFFSET"
 #define PACKED_LENGTH   "LENGTH"
+#define VDS_VIRTUAL     "VIRTUAL"
+#define VDS_MAPPING     "MAPPING"
+#define VDS_SOURCE      "SOURCE"
+#define VDS_REG_HYPERSLAB   "SELECTION REGULAR_HYPERSLAB"
+#define VDS_IRR_HYPERSLAB   "SELECTION IRREGULAR_HYPERSLAB"
+#define VDS_POINT       "POINT"
+#define VDS_SRC_FILE    "FILE"
+#define VDS_SRC_DATASET "DATASET"
+#define VDS_NONE        "SELECTION NONE"
+#define VDS_ALL         "SELECTION ALL"
 
 #define BEGIN           "{"
 #define END             "}"
@@ -182,7 +192,20 @@ typedef struct h5tools_dump_header_t {
     const char *dataspacedimbegin;
     const char *dataspacedimend;
 
+    const char *virtualselectionbegin;
+    const char *virtualselectionend;
+    const char *virtualselectionblockbegin;
+    const char *virtualselectionblockend;
+    const char *virtualfilenamebegin;
+    const char *virtualfilenameend;
+    const char *virtualdatasetnamebegin;
+    const char *virtualdatasetnameend;
+
 } h5tools_dump_header_t;
+
+/* Forward declaration (see declaration in h5tools_str.c) */
+struct H5LD_memb_t;
+
 
 /*
  * Information about how to format output.
@@ -319,12 +342,16 @@ typedef struct h5tool_format_t {
      *
      *   end:       a string to print after we reach the last element of
      *              each compound type. prints out before the suf.
+     *
+     *   listv:    h5watch: vector containing info about the list of compound fields to be printed.
      */
     const char  *cmpd_name;
     const char  *cmpd_sep;
     const char  *cmpd_pre;
     const char  *cmpd_suf;
     const char  *cmpd_end;
+    const struct H5LD_memb_t **cmpd_listv;
+
 
     /*
      * Fields associated with vlen data types.
@@ -491,12 +518,13 @@ typedef struct h5tools_context_t {
     hsize_t size_last_dim;                   /*the size of the last dimension,
                                               *needed so we can break after each
                                               *row */
-    int  indent_level;                 /*the number of times we need some
+    int  indent_level;                /*the number of times we need some
                                        *extra indentation */
     int  default_indent_level;        /*this is used when the indent level gets changed */
     hsize_t acc[H5S_MAX_RANK];        /* accumulator position */
     hsize_t pos[H5S_MAX_RANK];        /* matrix position */
     hsize_t sm_pos;                   /* current stripmine element position */
+    struct H5LD_memb_t **cmpd_listv;  /* h5watch: vector containing info about the list of compound fields to be printed */
 } h5tools_context_t;
 
 typedef struct subset_d {
@@ -574,8 +602,12 @@ H5TOOLS_DLL void    h5tools_region_simple_prefix(FILE *stream, const h5tool_form
                             h5tools_context_t *ctx, hsize_t elmtno, hsize_t *ptdata, int secnum);
 
 H5TOOLS_DLL int     render_bin_output(FILE *stream, hid_t container, hid_t tid, void *_mem, hsize_t nelmts);
+H5TOOLS_DLL int     render_bin_output_region_data_blocks(hid_t region_id, FILE *stream,
+                            hid_t container, int ndims, hid_t type_id, hssize_t nblocks, hsize_t *ptdata);
 H5TOOLS_DLL hbool_t render_bin_output_region_blocks(hid_t region_space, hid_t region_id,
                              FILE *stream, hid_t container);
+H5TOOLS_DLL int     render_bin_output_region_data_points(hid_t region_space, hid_t region_id,
+                            FILE* stream, hid_t container, int ndims, hid_t type_id, hssize_t npoints);
 H5TOOLS_DLL hbool_t render_bin_output_region_points(hid_t region_space, hid_t region_id,
                              FILE *stream, hid_t container);
 

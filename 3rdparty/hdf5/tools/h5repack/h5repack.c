@@ -77,13 +77,14 @@ int h5repack(const char* infile, const char* outfile, pack_opt_t *options) {
  *
  *-------------------------------------------------------------------------
  */
-
-int h5repack_init(pack_opt_t *options, int verbose) {
+int h5repack_init(pack_opt_t *options, int verbose, hbool_t latest,
+		H5F_file_space_type_t strategy, hsize_t threshold) {
 	int k, n;
 
 	HDmemset(options, 0, sizeof(pack_opt_t));
 	options->min_comp = 0;
 	options->verbose = verbose;
+    	options->latest = latest;
 	options->layout_g = H5D_LAYOUT_ERROR;
 
 	for (n = 0; n < H5_REPACK_MAX_NFILTERS; n++) {
@@ -92,6 +93,9 @@ int h5repack_init(pack_opt_t *options, int verbose) {
 		for (k = 0; k < CD_VALUES; k++)
 			options->filter_g[n].cd_values[k] = 0;
 	}
+
+	options->fs_strategy = strategy;
+	options->fs_threshold = threshold;
 
 	return (options_table_init(&(options->op_tbl)));
 }
@@ -333,7 +337,7 @@ done:
  */
 int named_datatype_free(named_dt_t **named_dt_head_p, int ignore_err) {
 	named_dt_t *dt = *named_dt_head_p;
-	hid_t ret_value = -1;
+	int ret_value = -1;
 
 	while (dt) {
 		/* Pop the datatype off the stack and free it */

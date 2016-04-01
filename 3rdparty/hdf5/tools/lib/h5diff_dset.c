@@ -218,6 +218,7 @@ hsize_t diff_datasetid( hid_t did1,
     int        i;
     unsigned int  vl_data = 0;         /*contains VL datatypes */
 
+    h5difftrace("diff_datasetid start\n");
     /* Get the dataspace handle */
     if ( (sid1 = H5Dget_space(did1)) < 0 )
         goto error;
@@ -263,6 +264,7 @@ hsize_t diff_datasetid( hid_t did1,
     * check for empty datasets
     *-------------------------------------------------------------------------
     */
+    h5difftrace("check for empty datasets\n");
 
     storage_size1=H5Dget_storage_size(did1);
     storage_size2=H5Dget_storage_size(did2);
@@ -300,6 +302,7 @@ hsize_t diff_datasetid( hid_t did1,
     * memory type and sizes
     *-------------------------------------------------------------------------
     */
+    h5difftrace("check for memory type and sizes\n");
     if ((m_tid1=h5tools_get_native_type(f_tid1)) < 0)
         goto error;
 
@@ -315,10 +318,12 @@ hsize_t diff_datasetid( hid_t did1,
     */
     if (can_compare)
     {
+        h5difftrace("can_compare for sign\n");
         sign1=H5Tget_sign(m_tid1);
         sign2=H5Tget_sign(m_tid2);
         if ( sign1 != sign2 )
         {
+            h5difftrace("sign1 != sign2\n");
             if ((options->m_verbose||options->m_list_not_cmp) && obj1_name && obj2_name)
             {
                 parallel_print("Not comparable: <%s> has sign %s ", obj1_name, get_sign(sign1));
@@ -341,6 +346,7 @@ hsize_t diff_datasetid( hid_t did1,
     */
     if(can_compare) /* it is possible to compare */
     {
+        h5difftrace("can_compare attempt\n");
 
         /*-----------------------------------------------------------------
         * get number of elements
@@ -360,6 +366,7 @@ hsize_t diff_datasetid( hid_t did1,
         * "upgrade" the smaller memory size
         *------------------------------------------------------------------
         */
+        h5difftrace("upgrade the smaller memory size?\n");
 
         if (FAIL == match_up_memsize (f_tid1, f_tid2,
                                       &m_tid1, &m_tid2, 
@@ -384,6 +391,7 @@ hsize_t diff_datasetid( hid_t did1,
         } /* end if */
 
         if(buf1 != NULL && buf2 != NULL) {
+            h5difftrace("buf1 != NULL && buf2 != NULL\n");
             if(H5Dread(did1, m_tid1, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf1) < 0)
                 goto error;
             if(H5Dread(did2, m_tid2, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf2) < 0)
@@ -504,6 +512,7 @@ hsize_t diff_datasetid( hid_t did1,
      * close
      *-------------------------------------------------------------------------
      */
+    h5difftrace("compare attributes?\n");
 
     /* free */
     if(buf1 != NULL) {
@@ -531,6 +540,7 @@ hsize_t diff_datasetid( hid_t did1,
         H5Tclose(m_tid1);
         H5Tclose(m_tid2);
     } H5E_END_TRY;
+    h5difftrace("diff_datasetid finish\n");
 
     return nfound;
 
@@ -581,6 +591,7 @@ error:
         H5Tclose(m_tid2);
         /* enable error reporting */
     } H5E_END_TRY;
+    h5difftrace("diff_datasetid errored\n");
 
     return nfound;
 }
@@ -676,31 +687,30 @@ int diff_can_type( hid_t       f_tid1, /* file data type */
     HDassert(tclass1==tclass2);
     switch (tclass1)
     {
-    case H5T_INTEGER:
-    case H5T_FLOAT:
-    case H5T_COMPOUND:
-    case H5T_STRING:
-    case H5T_ARRAY:
-    case H5T_BITFIELD:
-    case H5T_OPAQUE:
-    case H5T_ENUM:
-    case H5T_VLEN:
-    case H5T_REFERENCE:
+        case H5T_TIME:
+            if ( (options->m_verbose||options->m_list_not_cmp) && obj1_name && obj2_name) {
+                parallel_print("Not comparable: <%s> and <%s> are of class %s\n",
+                    obj1_name,obj2_name,get_class(tclass2) );
+            } /* end if */
+            can_compare = 0;
+            options->not_cmp = 1;
+            return can_compare;
 
-        break;
-
-    default: /*H5T_TIME */
-
-
-        if ( (options->m_verbose||options->m_list_not_cmp) && obj1_name && obj2_name)
-        {
-            parallel_print("Not comparable: <%s> and <%s> are of class %s\n",
-                obj1_name,obj2_name,get_class(tclass2) );
-        }
-        can_compare = 0;
-        options->not_cmp = 1;
-        return can_compare;
-    }
+        case H5T_INTEGER:
+        case H5T_FLOAT:
+        case H5T_COMPOUND:
+        case H5T_STRING:
+        case H5T_ARRAY:
+        case H5T_BITFIELD:
+        case H5T_OPAQUE:
+        case H5T_ENUM:
+        case H5T_VLEN:
+        case H5T_REFERENCE:
+        case H5T_NO_CLASS:
+        case H5T_NCLASSES:
+        default:
+            break;
+    } /* end switch */
 
     /*-------------------------------------------------------------------------
     * check for equal file datatype; warning only

@@ -41,8 +41,8 @@ class H5_DLLCPP Group : public H5Object, public CommonFG {
 	virtual hid_t getLocId() const;
 
 	// Creates a group by way of dereference.
-	Group(const H5Location& loc, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
-        Group(const Attribute& attr, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
+	Group(const H5Location& loc, const void* ref, H5R_type_t ref_type = H5R_OBJECT, const PropList& plist = PropList::DEFAULT);
+        Group(const Attribute& attr, const void* ref, H5R_type_t ref_type = H5R_OBJECT, const PropList& plist = PropList::DEFAULT);
 
 	// default constructor
 	Group();
@@ -67,7 +67,6 @@ class H5_DLLCPP Group : public H5Object, public CommonFG {
 
    private:
 	hid_t id;	// HDF5 group id
-
 };
 #ifndef H5_NO_NAMESPACE
 }

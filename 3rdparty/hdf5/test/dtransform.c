@@ -17,7 +17,7 @@
 
 #define ROWS    12
 #define COLS    18
-#define FLOAT_TOL 0.0001
+#define FLOAT_TOL 0.0001F
 
 static int init_test(hid_t file_id);
 static int test_copy(const hid_t dxpl_id_c_to_f_copy, const hid_t dxpl_id_polynomial_copy);
@@ -297,25 +297,8 @@ int main(void)
     TEST_TYPE_CONTIG(dxpl_id_utrans_inv, unsigned int, H5T_NATIVE_UINT, "uint", transformData, 0);
     TEST_TYPE_CONTIG(dxpl_id_c_to_f, long, H5T_NATIVE_LONG, "long", windchillFfloat, 1);
     TEST_TYPE_CONTIG(dxpl_id_utrans_inv, unsigned long, H5T_NATIVE_ULONG, "ulong", transformData, 0);
-
-#ifndef H5_VMS
-#ifdef H5_LLONG_TO_FP_CAST_WORKS
     TEST_TYPE_CONTIG(dxpl_id_c_to_f, long long, H5T_NATIVE_LLONG, "llong", windchillFfloat, 1);
-#else
-    TESTING("contiguous, with type conversion (float->llong)")
-    SKIPPED()
-#endif
-#else /*H5_VMS*/
-    TESTING("contiguous, with type conversion (float->llong): some problem in library's conversion")
-    SKIPPED()
-#endif /*H5_VMS*/
-
-#ifdef H5_ULLONG_TO_FP_CAST_WORKS
     TEST_TYPE_CONTIG(dxpl_id_utrans_inv, unsigned long long, H5T_NATIVE_ULLONG, "ullong", transformData, 0);
-#else
-    TESTING("contiguous, with type conversion (float->ullong)")
-    SKIPPED()
-#endif
     TEST_TYPE_CONTIG(dxpl_id_c_to_f, float, H5T_NATIVE_FLOAT, "float", windchillFfloat, 1);
     TEST_TYPE_CONTIG(dxpl_id_c_to_f, double, H5T_NATIVE_DOUBLE, "double", windchillFfloat, 1);
 #if H5_SIZEOF_LONG_DOUBLE!=0
@@ -331,19 +314,8 @@ int main(void)
     TEST_TYPE_CHUNK(dxpl_id_utrans_inv, unsigned int, H5T_NATIVE_UINT, "uint", transformData, 0);
     TEST_TYPE_CHUNK(dxpl_id_c_to_f, long, H5T_NATIVE_LONG, "long", windchillFfloat, 1);
     TEST_TYPE_CHUNK(dxpl_id_utrans_inv, unsigned long, H5T_NATIVE_ULONG, "ulong", transformData, 0);
-#ifdef H5_LLONG_TO_FP_CAST_WORKS
     TEST_TYPE_CHUNK(dxpl_id_c_to_f, long long, H5T_NATIVE_LLONG, "llong", windchillFfloat, 1);
-#else
-    TESTING("chunked, with type conversion (float->llong)")
-    SKIPPED()
-#endif
-
-#ifdef H5_ULLONG_TO_FP_CAST_WORKS
     TEST_TYPE_CHUNK(dxpl_id_utrans_inv, unsigned long long, H5T_NATIVE_ULLONG, "ullong", transformData, 0);
-#else
-    TESTING("chunked, with type conversion (float->ullong)")
-    SKIPPED()
-#endif
     TEST_TYPE_CHUNK(dxpl_id_c_to_f, float, H5T_NATIVE_FLOAT, "float", windchillFfloat, 1);
     TEST_TYPE_CHUNK(dxpl_id_c_to_f, double, H5T_NATIVE_DOUBLE, "double", windchillFfloat, 1);
 #if H5_SIZEOF_LONG_DOUBLE!=0
@@ -495,7 +467,7 @@ test_poly(const hid_t dxpl_id_polynomial)
     for(row = 0; row < ROWS; row++)
         for(col = 0; col < COLS; col++) {
             windchillC = (int) ((5.0f / 9.0f) * (windchillFfloat[row][col] - 32));
-            polyflres[row][col] = (float) ((2.0f + windchillC) * ((windchillC - 8.0f) / 2.0f));
+            polyflres[row][col] = ((2.0f + (float)windchillC) * (((float)windchillC - 8.0f) / 2.0f));
         }
 
     TESTING("data transform, polynomial transform (int->float)")

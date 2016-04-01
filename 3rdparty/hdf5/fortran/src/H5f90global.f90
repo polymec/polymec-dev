@@ -4,7 +4,7 @@
 !  MODULE H5GLOBAL
 !
 ! FILE
-!  src/fortran/H5f90global.f90
+!  src/fortran/H5f90global.F90
 !
 ! PURPOSE
 !  This module is used to pass C stubs for H5 Fortran APIs. The C stubs are
@@ -44,12 +44,21 @@
 MODULE H5GLOBAL
   USE H5FORTRAN_TYPES
 
+  IMPLICIT NONE
+
+  ! Enumerate data type that is interoperable with C.
+  ENUM, BIND(C)
+    ENUMERATOR :: enum_dtype
+  END ENUM
+  INTEGER, PARAMETER :: ENUM_T = KIND(enum_dtype)
+  
+
   ! Definitions for reference datatypes.
   ! If you change the value of these parameters, do not forget to change corresponding
   ! values in the H5f90.h file.
   INTEGER, PARAMETER :: REF_REG_BUF_LEN = 3
 
-  ! Parameters used in the function 'h5kind_to_type' located in H5_ff.f90.
+  ! Parameters used in the function 'h5kind_to_type' located in H5_ff.F90.
   ! The flag is used to tell the function whether the kind input variable
   ! is for a REAL or INTEGER data type.
 
@@ -64,7 +73,7 @@ MODULE H5GLOBAL
      INTEGER, DIMENSION(1:REF_REG_BUF_LEN) :: ref
   END TYPE hdset_reg_ref_t_f
 
-  INTEGER, PARAMETER :: PREDEF_TYPES_LEN = 17 ! Do not forget to change this
+  INTEGER, PARAMETER :: PREDEF_TYPES_LEN = 19 ! Do not forget to change this
                                               ! value when new predefined
                                               ! datatypes are added
 
@@ -80,9 +89,9 @@ MODULE H5GLOBAL
        H5T_NATIVE_INTEGER_2, &
        H5T_NATIVE_INTEGER_4, &
        H5T_NATIVE_INTEGER_8, &
-       H5T_NATIVE_REAL_4, &
-       H5T_NATIVE_REAL_8, &
-       H5T_NATIVE_REAL_16, &
+       H5T_NATIVE_REAL_C_FLOAT, &
+       H5T_NATIVE_REAL_C_DOUBLE, &
+       H5T_NATIVE_REAL_C_LONG_DOUBLE, &
        H5T_NATIVE_INTEGER, &
        H5T_NATIVE_REAL, &
        H5T_NATIVE_DOUBLE, &
@@ -106,6 +115,9 @@ MODULE H5GLOBAL
        H5T_STD_U16BE,   &
        H5T_STD_U16LE,   &
        H5T_STD_U32BE
+       
+  INTEGER(HID_T) :: H5T_NATIVE_INTEGER_16 ! NEED IFDEF -MSB-
+  INTEGER(HID_T) :: H5T_NATIVE_FLOAT_128 ! NEED IFDEF -MSB-
 
 ! NOTE: Splitting the line since the Fortran 95 standard limits the number of 
 !       continuation lines to 39; the F03/F08 standard limits the number 
@@ -142,13 +154,15 @@ MODULE H5GLOBAL
   EQUIVALENCE (predef_types(8), H5T_NATIVE_INTEGER_2)
   EQUIVALENCE (predef_types(9), H5T_NATIVE_INTEGER_4)
   EQUIVALENCE (predef_types(10), H5T_NATIVE_INTEGER_8)
-  EQUIVALENCE (predef_types(11), H5T_NATIVE_REAL_4)
-  EQUIVALENCE (predef_types(12), H5T_NATIVE_REAL_8)
-  EQUIVALENCE (predef_types(13), H5T_NATIVE_REAL_16)
+  EQUIVALENCE (predef_types(11), H5T_NATIVE_REAL_C_FLOAT)
+  EQUIVALENCE (predef_types(12), H5T_NATIVE_REAL_C_DOUBLE)
+  EQUIVALENCE (predef_types(13), H5T_NATIVE_REAL_C_LONG_DOUBLE)
   EQUIVALENCE (predef_types(14), H5T_NATIVE_B8 )
   EQUIVALENCE (predef_types(15), H5T_NATIVE_B16)
   EQUIVALENCE (predef_types(16), H5T_NATIVE_B32)
   EQUIVALENCE (predef_types(17), H5T_NATIVE_B64)  
+  EQUIVALENCE (predef_types(18), H5T_NATIVE_INTEGER_16)   ! ADDED NEW TYPE -MSB- 
+  EQUIVALENCE (predef_types(19), H5T_NATIVE_FLOAT_128)   ! ADDED NEW TYPE -MSB-
 
   INTEGER(HID_T), DIMENSION(FLOATING_TYPES_LEN) :: floating_types
   EQUIVALENCE (floating_types(1), H5T_IEEE_F32BE )
@@ -310,6 +324,16 @@ MODULE H5GLOBAL
   EQUIVALENCE(H5generic_flags(8), H5_ITER_NATIVE_F)
   EQUIVALENCE(H5generic_flags(9), H5_ITER_N_F)
 
+  INTEGER, PARAMETER :: H5generic_haddr_FLAGS_LEN = 1
+  INTEGER(HADDR_T) :: H5generic_haddr_flags(H5generic_haddr_FLAGS_LEN)
+  !DEC$if defined(BUILD_HDF5_DLL)
+  !DEC$ATTRIBUTES DLLEXPORT :: /H5generic_haddr_FLAGS/
+  !DEC$endif
+  COMMON /H5generic_haddr_FLAGS/ H5generic_haddr_flags
+
+  INTEGER(HADDR_T) :: HADDR_UNDEF_F
+
+  EQUIVALENCE(H5generic_haddr_flags(1), HADDR_UNDEF_F)
 
   !
   ! H5G flags declaration
@@ -325,8 +349,9 @@ MODULE H5GLOBAL
   INTEGER :: H5G_GROUP_F
   INTEGER :: H5G_DATASET_F
   INTEGER :: H5G_TYPE_F
-  ! XXX: Fix problems with H5G_LINK_F! - QAK
   INTEGER :: H5G_LINK_F
+  INTEGER :: H5G_UDLINK_F
+  INTEGER :: H5G_SAME_LOC_F
   INTEGER :: H5G_LINK_ERROR_F
   INTEGER :: H5G_LINK_HARD_F
   INTEGER :: H5G_LINK_SOFT_F
@@ -335,26 +360,24 @@ MODULE H5GLOBAL
   INTEGER :: H5G_STORAGE_TYPE_COMPACT_F
   INTEGER :: H5G_STORAGE_TYPE_DENSE_F
 
-  EQUIVALENCE(H5G_flags(1), H5G_UNKNOWN_F)
-  EQUIVALENCE(H5G_flags(2), H5G_GROUP_F)
-  EQUIVALENCE(H5G_flags(3), H5G_DATASET_F)
-  EQUIVALENCE(H5G_flags(4), H5G_TYPE_F)
-  ! XXX: Fix problems with H5G_LINK_F! - QAK ! these are really H5L values -MSB-
-  EQUIVALENCE(H5G_flags(5), H5G_LINK_F)
+  EQUIVALENCE(H5G_flags(1), H5G_UNKNOWN_F) ! Unknown object type
+  EQUIVALENCE(H5G_flags(2), H5G_GROUP_F)   ! Object is a group
+  EQUIVALENCE(H5G_flags(3), H5G_DATASET_F) ! Object is a dataset
+  EQUIVALENCE(H5G_flags(4), H5G_TYPE_F)    ! Object is a named data type
+  EQUIVALENCE(H5G_flags(5), H5G_SAME_LOC_F)
   EQUIVALENCE(H5G_flags(6), H5G_LINK_ERROR_F)
   EQUIVALENCE(H5G_flags(7), H5G_LINK_HARD_F)
   EQUIVALENCE(H5G_flags(8), H5G_LINK_SOFT_F)
-  ! XXX
 
   EQUIVALENCE(H5G_flags(9), H5G_STORAGE_TYPE_UNKNOWN_F )
   EQUIVALENCE(H5G_flags(10), H5G_STORAGE_TYPE_SYMBOL_TABLE_F)
   EQUIVALENCE(H5G_flags(11), H5G_STORAGE_TYPE_COMPACT_F)
   EQUIVALENCE(H5G_flags(12), H5G_STORAGE_TYPE_DENSE_F)
+
   !
   ! H5D flags declaration
   !
-
-  INTEGER, PARAMETER :: H5D_FLAGS_LEN = 25
+  INTEGER, PARAMETER :: H5D_FLAGS_LEN = 29
   INTEGER :: H5D_flags(H5D_FLAGS_LEN)
   INTEGER, PARAMETER :: H5D_SIZE_FLAGS_LEN = 2
   INTEGER(SIZE_T) :: H5D_size_flags(H5D_SIZE_FLAGS_LEN)
@@ -402,6 +425,10 @@ MODULE H5GLOBAL
   INTEGER :: H5D_MPIO_CHUNK_COLLECTIVE_F
   INTEGER :: H5D_MPIO_CHUNK_MIXED_F
   INTEGER :: H5D_MPIO_CONTIG_COLLECTIVE_F
+  INTEGER :: H5D_VDS_ERROR_F
+  INTEGER :: H5D_VDS_FIRST_MISSING_F
+  INTEGER :: H5D_VDS_LAST_AVAILABLE_F
+  INTEGER :: H5D_VIRTUAL_F
 
   EQUIVALENCE(H5D_flags(1), H5D_COMPACT_F)
   EQUIVALENCE(H5D_flags(2), H5D_CONTIGUOUS_F)
@@ -433,6 +460,10 @@ MODULE H5GLOBAL
   EQUIVALENCE(H5D_flags(23), H5D_MPIO_CHUNK_COLLECTIVE_F)
   EQUIVALENCE(H5D_flags(24), H5D_MPIO_CHUNK_MIXED_F)
   EQUIVALENCE(H5D_flags(25), H5D_MPIO_CONTIG_COLLECTIVE_F)
+  EQUIVALENCE(H5D_flags(26), H5D_VDS_ERROR_F)
+  EQUIVALENCE(H5D_flags(27), H5D_VDS_FIRST_MISSING_F)
+  EQUIVALENCE(H5D_flags(28), H5D_VDS_LAST_AVAILABLE_F)
+  EQUIVALENCE(H5D_flags(29), H5D_VIRTUAL_F)
 
   EQUIVALENCE(H5D_size_flags(1), H5D_CHUNK_CACHE_NSLOTS_DFLT_F)
   EQUIVALENCE(H5D_size_flags(2), H5D_CHUNK_CACHE_NBYTES_DFLT_F)
@@ -574,7 +605,7 @@ MODULE H5GLOBAL
   !
   ! H5O flags declaration
   !
-  INTEGER, PARAMETER :: H5O_FLAGS_LEN = 22
+  INTEGER, PARAMETER :: H5O_FLAGS_LEN = 27
   INTEGER :: H5o_flags(H5O_FLAGS_LEN)
   !DEC$if defined(BUILD_HDF5_DLL)
   !DEC$ATTRIBUTES DLLEXPORT :: /H5O_FLAGS/
@@ -603,6 +634,11 @@ MODULE H5GLOBAL
   INTEGER :: H5O_HDR_ALL_FLAGS_F
   INTEGER :: H5O_SHMESG_MAX_NINDEXES_F
   INTEGER :: H5O_SHMESG_MAX_LIST_SIZE_F
+  INTEGER :: H5O_TYPE_UNKNOWN_F
+  INTEGER :: H5O_TYPE_GROUP_F
+  INTEGER :: H5O_TYPE_DATASET_F
+  INTEGER :: H5O_TYPE_NAMED_DATATYPE_F
+  INTEGER :: H5O_TYPE_NTYPES_F
 
   EQUIVALENCE(h5o_flags(1) , H5O_COPY_SHALLOW_HIERARCHY_F)
   EQUIVALENCE(h5o_flags(2) , H5O_COPY_EXPAND_SOFT_LINK_F)
@@ -626,6 +662,11 @@ MODULE H5GLOBAL
   EQUIVALENCE(h5o_flags(20) , H5O_HDR_ALL_FLAGS_F)
   EQUIVALENCE(h5o_flags(21) , H5O_SHMESG_MAX_NINDEXES_F)
   EQUIVALENCE(h5o_flags(22) , H5O_SHMESG_MAX_LIST_SIZE_F)
+  EQUIVALENCE(h5o_flags(23) , H5O_TYPE_UNKNOWN_F)
+  EQUIVALENCE(h5o_flags(24) , H5O_TYPE_GROUP_F)
+  EQUIVALENCE(h5o_flags(25) , H5O_TYPE_DATASET_F)
+  EQUIVALENCE(h5o_flags(26) , H5O_TYPE_NAMED_DATATYPE_F)
+  EQUIVALENCE(h5o_flags(27) , H5O_TYPE_NTYPES_F)
 
   !
   ! H5P flags declaration
@@ -931,5 +972,95 @@ MODULE H5GLOBAL
 !!$      EQUIVALENCE(H5F_flags(1), H5F_SCOPE_GLOBAL_F)
 !!$      EQUIVALENCE(H5F_flags(2), H5F_SCOPE_LOCAL_F)
 
+CONTAINS
+
+  ! Copy a c string to a Fortran string
+
+  SUBROUTINE H5_Fortran_string_c2f(c_string, f_string)
+
+    USE, INTRINSIC :: ISO_C_BINDING
+    IMPLICIT NONE
+    CHARACTER(KIND=C_CHAR, LEN=*), INTENT(IN) :: c_string
+    CHARACTER(LEN=*), INTENT(OUT) :: f_string
+    INTEGER(SIZE_T) :: c_len, f_len
+
+    ! Find the length of the C string by located the null terminator
+    c_len = MAX(INDEX(c_string,C_NULL_CHAR, KIND=SIZE_T)-1,1)
+    ! Find the length of the Fortran string
+    f_len = LEN(f_string)
+
+    ! CASE (1): C string is equal to or larger then Fortran character buffer,
+    !           so fill the entire Fortran buffer. 
+    IF(c_len.GE.f_len)THEN !
+       f_string(1:f_len) = c_string(1:f_len)
+
+    ! CASE (2): C string is smaller then Fortran character buffer, 
+    !           so copy C string and blank pad remaining characters.
+    ELSE
+       f_string(1:c_len) = c_string(1:c_len)
+       f_string(c_len+1:f_len) =' '
+    ENDIF
+  END SUBROUTINE H5_Fortran_string_c2f
+
+  SUBROUTINE H5_Fortran_string_f2c(f_string, c_string)
+
+    USE, INTRINSIC :: ISO_C_BINDING
+    IMPLICIT NONE
+    CHARACTER(LEN=*), INTENT(IN) :: f_string
+    CHARACTER(KIND=C_CHAR, LEN=*), INTENT(OUT) :: c_string
+
+    c_string = TRIM(f_string)//C_NULL_CHAR
+
+  END SUBROUTINE H5_Fortran_string_f2c
+
+
+! Copy Fortran string to C charater array, assuming the C array is one-char
+! longer for the terminating null char.
+! fstring : the Fortran input string
+! cstring : the C output string (with memory already allocated)
+!!$subroutine MPIR_Fortran_string_f2c(fstring, cstring)
+!!$    implicit none
+!!$    character(len=*), intent(in) :: fstring
+!!$    character(kind=c_char), intent(out) :: cstring(:)
+!!$    integer :: i, j
+!!$    logical :: met_non_blank
+!!$
+!!$    ! Trim the leading and trailing blank characters
+!!$    j = 1
+!!$    met_non_blank = .false.
+!!$    do i = 1, len_trim(fstring)
+!!$        if (met_non_blank) then
+!!$            cstring(j) = fstring(i:i)
+!!$            j = j + 1
+!!$        else if (fstring(i:i) /= ' ') then
+!!$            met_non_blank = .true.
+!!$            cstring(j) = fstring(i:i)
+!!$            j = j + 1
+!!$        end if
+!!$    end do
+!!$
+!!$    cstring(j) = C_NULL_CHAR
+!!$end subroutine MPIR_Fortran_string_f2c
+!!$
+!!$! Copy C charater array to Fortran string
+!!$subroutine MPIR_Fortran_string_c2f(cstring, fstring)
+!!$    implicit none
+!!$    character(kind=c_char), intent(in) :: cstring(:)
+!!$    character(len=*), intent(out) :: fstring
+!!$    integer :: i, j, length
+!!$
+!!$    i = 1
+!!$    do while (cstring(i) /= C_NULL_CHAR)
+!!$        fstring(i:i) = cstring(i)
+!!$        i = i + 1
+!!$    end do
+!!$
+!!$    ! Zero out the trailing characters
+!!$    length = len(fstring)
+!!$    do j = i, length
+!!$        fstring(j:j) = ' '
+!!$    end do
+!!$end subroutine MPIR_Fortran_string_c2f
+  
 END MODULE H5GLOBAL
 

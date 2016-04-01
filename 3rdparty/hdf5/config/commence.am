@@ -37,6 +37,7 @@ LIBH5TEST=$(top_builddir)/test/libh5test.la
 LIBH5F=$(top_builddir)/fortran/src/libhdf5_fortran.la
 LIBH5FTEST=$(top_builddir)/fortran/test/libh5test_fortran.la
 LIBH5CPP=$(top_builddir)/c++/src/libhdf5_cpp.la
+LIBH5JNI=$(top_builddir)/java/src/jni/libhdf5_java.la
 LIBH5TOOLS=$(top_builddir)/tools/lib/libh5tools.la
 LIBH5_HL=$(top_builddir)/hl/src/libhdf5_hl.la
 LIBH5F_HL=$(top_builddir)/hl/fortran/src/libhdf5hl_fortran.la
@@ -89,8 +90,8 @@ F9XMODFLAG=@F9XMODFLAG@
 
 # .chkexe files are used to mark tests that have run successfully.
 # .chklog files are output from those tests.
-# *.clog are from the MPE option.
-CHECK_CLEANFILES=*.chkexe *.chklog *.clog
+# *.clog and *.clog2 are from the MPE option.
+CHECK_CLEANFILES=*.chkexe *.chklog *.clog *.clog2
 
 # List all build rules defined by HDF5 Makefiles as "PHONY" targets here.
 # This tells the Makefiles that these targets are not files to be built but

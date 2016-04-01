@@ -7,7 +7,7 @@ math(EXPR NUM_BUILD_THREADS "${NUMBER_OF_CORES} + 1")
 # Build cmocka, a C unit testing library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
   message("Configuring cmocka...")
-  execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/cmocka
+  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/cmocka
                   RESULT_VARIABLE stat)
   set(CMOCKA_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DWITH_STATIC_LIB=ON -DWITH_EXAMPLES=OFF)
   if (CMAKE_C_COMPILER_ID STREQUAL "Intel")
@@ -55,7 +55,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
   endif()
 
   message("Preparing gc...")
-  execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/gc ${CMAKE_CURRENT_BINARY_DIR}/gc
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/gc ${CMAKE_CURRENT_BINARY_DIR}/gc
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
@@ -95,7 +95,7 @@ set(POLYMEC_TP_LIBS gc;${POLYMEC_TP_LIBS})
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
 
   message("Preparing libarena...")
-  execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/libarena ${CMAKE_CURRENT_BINARY_DIR}/libarena
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/libarena ${CMAKE_CURRENT_BINARY_DIR}/libarena
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
@@ -103,9 +103,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
 
   message("Copying libarena headers into place...")
   file(GLOB arena_includes "${CMAKE_CURRENT_BINARY_DIR}/libarena/src/*.h")
-  execute_process(COMMAND cmake -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
+  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
   foreach(inc ${arena_includes})
-    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include/arena)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${inc} ${PROJECT_BINARY_DIR}/include/arena)
   endforeach()
 
 endif()
@@ -121,7 +121,7 @@ if (NOT EXISTS ${Z_LIBRARY})
   set(ZLIB_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --static)
 
   message("Preparing zlib...")
-  execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
@@ -155,31 +155,18 @@ set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 # Build the HDF5 parallel I/O library. 
 if (${SILO_LIBRARY} MATCHES "h5")
   if (NOT EXISTS ${HDF5_LIBRARY})
-    if (BUILD_SHARED_LIBS)
-      set(SHARED_OPTS --enable-shared --disable-static)
-    else()
-      set(SHARED_OPTS --enable-static --disable-shared)
-    endif()
-    set(HDF5_CONFIG_OPTS ${SHARED_OPTS} --with-zlib=${PROJECT_BINARY_DIR} --disable-dependency-tracking)
-    set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --prefix=${PROJECT_BINARY_DIR})
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-      set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-debug=all)
-    else()
-      set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-production)
-    endif()
-    if (HAVE_MPI)
-      set(HDF5_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-parallel)
-    endif()
-  
-    message("Preparing hdf5...")
-    execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/hdf5 ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-                    RESULT_VARIABLE stat)
-    if (NOT stat EQUAL 0)
-      message(FATAL_ERROR "Copying library source failed.")
-    endif()
-
     message("Configuring hdf5...")
-    execute_process(COMMAND env CC=${CMAKE_C_COMPILER} FC=${CMAKE_Fortran_COMPILER} ./configure ${HDF5_CONFIG_OPTS}
+    set(HDF5_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
+    set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}) 
+    set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DZLIB_INCLUDE_DIRS=${PROJECT_BINARY_DIR}/include -DZLIB_LIBARIES=z -DZLIB_USE_EXTERNAL=OFF -DHDF5_ENABLE_PARALLEL=${HAVE_MPI})
+    set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_CPP_LIB=OFF)
+    set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_FORTRAN=OFF)
+    if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
+      execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_CURRENT_BINARY_DIR}/hdf5/CMakeCache.txt)
+    else()
+      execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
+    endif()
+    execute_process(COMMAND ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/hdf5 ${HDF5_CMAKE_OPTS}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
                     OUTPUT_VARIABLE hdf5_config_log ERROR_VARIABLE hdf5_config_err
                     RESULT_VARIABLE stat)
@@ -202,23 +189,31 @@ if (${SILO_LIBRARY} MATCHES "h5")
 
     # On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
     if (APPLE AND BUILD_SHARED_LIBS)
-      execute_process(COMMAND otool -DX ${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX} 
+      execute_process(COMMAND otool -DX ${PROJECT_BINARY_DIR}/lib/lib${HDF5_LIB_NAME}${LIB_SUFFIX} 
                       OUTPUT_VARIABLE libhdf5_id)
       string(STRIP ${libhdf5_id} libhdf5_id)
-      execute_process(COMMAND install_name_tool -id @rpath/libhdf5${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX})
-      execute_process(COMMAND install_name_tool -id @rpath/libhdf5_hl${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/libhdf5_hl${LIB_SUFFIX})
-      execute_process(COMMAND install_name_tool -change ${libhdf5_id} @rpath/libhdf5${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/libhdf5_hl${LIB_SUFFIX})
+      execute_process(COMMAND install_name_tool -id @rpath/lib${HDF5_LIB_NAME}${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/${HDF5_LIB_NAME}${LIB_SUFFIX})
+      execute_process(COMMAND install_name_tool -id @rpath/lib${HDF5_HL_LIB_NAME}${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/lib${HDF5_HL_LIB_NAME}${LIB_SUFFIX})
+      execute_process(COMMAND install_name_tool -change ${libhdf5_id} @rpath/libhdf5${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIB_NAME}${LIB_SUFFIX})
     endif()
 
   endif()
-  if (HDF5_LIBRARY STREQUAL "${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX}")
-    set(POLYMEC_HDF5_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/libhdf5${LIB_SUFFIX}" PARENT_SCOPE)
-    set(POLYMEC_HDF5_HL_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_hl${LIB_SUFFIX}" PARENT_SCOPE)
+  if (HDF5_LIBRARY STREQUAL "${PROJECT_BINARY_DIR}/lib/lib${HDF5_LIB_NAME}${LIB_SUFFIX}")
+    set(POLYMEC_HDF5_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/lib${HDF5_LIB_NAME}${LIB_SUFFIX}" PARENT_SCOPE)
+    set(POLYMEC_HDF5_HL_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/lib${HDF5_HL_LIB_NAME}${LIB_SUFFIX}" PARENT_SCOPE)
     set(POLYMEC_HDF5_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" PARENT_SCOPE)
   else()
     set(POLYMEC_HDF5_LIBRARY ${HDF5_LIBRARY} PARENT_SCOPE)
     set(POLYMEC_HDF5_HL_LIBRARY ${HDF5_HL_LIBRARY} PARENT_SCOPE)
     set(POLYMEC_HDF5_INCLUDE_DIR ${HDF5_INCLUDE_DIR} PARENT_SCOPE)
+  endif()
+
+  # If our HDF5 library is named something weird, copy it to a file with the 
+  # regular boring name. This prevents libraries like Silo and Exodus (which 
+  # take a while to catch up to recent developments) from freaking out.
+  if (NOT HDF5_LIB_NAME STREQUAL "hdf5" AND HDF5_LIBRARY MATCHES "${PROJECT_BINARY_DIR}/lib" AND NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX})
+    message("DOOT")
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${HDF5_LIBRARY} ${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX})
   endif()
 
   set(POLYMEC_TP_LIBS ${HDF5_LIBRARIES};${POLYMEC_TP_LIBS})
@@ -228,7 +223,7 @@ endif()
 if (NOT EXISTS ${SILO_LIBRARY})
 
   message("Preparing silo...")
-  execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/silo ${CMAKE_CURRENT_BINARY_DIR}/silo
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/silo ${CMAKE_CURRENT_BINARY_DIR}/silo
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
@@ -298,7 +293,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
   endif()
   set(LIS_CONFIG_OPTS ${SHARED_OPTS} --prefix=${PROJECT_BINARY_DIR})
   if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(LIS_CONFIG_OPTS ${HDF5_CONFIG_OPTS} --enable-debug)
+    set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-debug)
   endif()
   if (HAVE_OPENMP)
     set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-openmp)
@@ -308,7 +303,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
   endif()
   
   message("Preparing lis...")
-  execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lis ${CMAKE_CURRENT_BINARY_DIR}/lis
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lis ${CMAKE_CURRENT_BINARY_DIR}/lis
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
@@ -348,7 +343,7 @@ endif()
 # we will use for preconditioning.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
   message("Preparing superlu...")
-  execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/superlu ${CMAKE_CURRENT_BINARY_DIR}/superlu
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/superlu ${CMAKE_CURRENT_BINARY_DIR}/superlu
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
@@ -392,7 +387,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
 #  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/libsuperlu.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
   file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/superlu/SRC/*.h")
   foreach(inc ${includes})
-    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
   endforeach()
 endif()
 set(POLYMEC_TP_LIBS superlu;${POLYMEC_TP_LIBS})
@@ -401,9 +396,10 @@ set(POLYMEC_TP_LIBS superlu;${POLYMEC_TP_LIBS})
 # differential-algebraic equations.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   message("Configuring sundials...")
-  execute_process(COMMAND cmake -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sundials
+  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sundials
                   RESULT_VARIABLE stat)
   set(SUNDIALS_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DEXAMPLES_ENABLE=OFF -DFCMIX_ENABLE=OFF -DSUNDIALS_PRECISION=${POLYMEC_PRECISION})
+  set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
   if (HAVE_MPI)
     set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=ON -DMPI_MPICC=${CMAKE_C_COMPILER})
   else()
@@ -442,7 +438,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
     set(LUA_ARCH generic)
   endif()
   message("Preparing lua...")
-  execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lua ${CMAKE_CURRENT_BINARY_DIR}/lua
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lua ${CMAKE_CURRENT_BINARY_DIR}/lua
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
@@ -476,7 +472,7 @@ file(GLOB lua_includes "${CMAKE_CURRENT_BINARY_DIR}/lua/src/*.h")
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua/src/liblua.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
   foreach(inc ${lua_includes})
-    execute_process(COMMAND cmake -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
   endforeach()
 endif()
 set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
@@ -523,7 +519,7 @@ if (HAVE_MPI)
     endif()
 
     message("Preparing scotch...")
-    execute_process(COMMAND cmake -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/scotch ${CMAKE_CURRENT_BINARY_DIR}/scotch
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/scotch ${CMAKE_CURRENT_BINARY_DIR}/scotch
                     RESULT_VARIABLE stat)
     if (NOT stat EQUAL 0)
       message(FATAL_ERROR "Copying library source failed.")

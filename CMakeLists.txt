@@ -1,5 +1,5 @@
-# Minimum CMake version.
-cmake_minimum_required (VERSION 2.8.5)
+# Minimum CMake version -- currently determined by HDF5.
+cmake_minimum_required (VERSION 3.1.0)
 
 # Adjust CMake's module path.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")

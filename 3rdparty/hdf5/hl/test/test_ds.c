@@ -1105,10 +1105,10 @@ herr_t test_cmp_scalename(hid_t fid, hid_t did, const char *name, const char *sc
     if((dsid = H5Dopen2(fid, name, H5P_DEFAULT)) >= 0) {
         if(H5DSis_attached(did, dsid, idx) == 1) {
             if((name_len=H5DSget_scale_name(dsid,NULL,(size_t)0)) > 0) {
-	        name_out = (char*)HDmalloc((name_len+1) * sizeof (char));
+	        name_out = (char*)HDmalloc(((size_t)name_len+1) * sizeof (char));
                 if(name_out != NULL) {
                     if(H5DSget_scale_name(dsid, name_out, (size_t)name_len+1) >= 0) {
-                        if(HDstrcmp(scalename,name_out)==0) {
+                        if(HDstrncmp(scalename, name_out, (size_t)name_len)==0) {
                             ret_value = SUCCEED;
                         }
                         HDfree(name_out);
@@ -2174,15 +2174,7 @@ static int test_foreign_scaleattached(const char *fileforeign)
     hid_t   fid = -1;
     hid_t   did = -1;
     hid_t   dsid = -1;
-    char  *srcdir = getenv("srcdir"); /* the source directory */
-    char  filename[512]="";          /* buffer to hold name of existing file */
-
-    /* compose the name of the file to open, using the srcdir, if appropriate */
-    if (srcdir) {
-        HDstrcpy(filename,srcdir);
-        HDstrcat(filename,"/");
-    }
-    HDstrcat(filename, fileforeign);
+    const char *filename = H5_get_srcdir_filename(fileforeign);
 
     TESTING2("test_foreign_scaleattached");
 
@@ -3126,7 +3118,7 @@ static int test_simple(void)
         goto out;
 
     /* allocate a  buffer */
-    name_out = (char*)HDmalloc((name_len+1) * sizeof (char));
+    name_out = (char*)HDmalloc(((size_t)name_len+1) * sizeof (char));
     if(name_out == NULL)
         goto out;
 
@@ -3134,7 +3126,7 @@ static int test_simple(void)
     if(H5DSget_scale_name(dsid, name_out, (size_t)name_len+1) < 0)
         goto out;
 
-    if(HDstrncmp("Latitude set 0",name_out, name_len)!=0)
+    if(HDstrncmp("Latitude set 0",name_out, (size_t)name_len)!=0)
         goto out;
     if(name_out) {
         HDfree(name_out);
@@ -4868,19 +4860,9 @@ static int read_data( const char* fname,
     size_t   nelms;
     FILE     *f;
     float    val;
-    char     *srcdir = getenv("srcdir");  /* the source directory */
-    char     data_file[512];              /* buffer to hold name of existing data file */
+    const char *data_file = H5_get_srcdir_filename(fname);
 
-    HDstrcpy(data_file, "");
-    /* compose the name of the file to open, using the srcdir, if appropriate */
-    if(srcdir)
-    {
-        HDstrcpy(data_file, srcdir);
-        HDstrcat(data_file, "/");
-    }
     /* read first data file */
-    HDstrcat(data_file,fname);
-
     f = HDfopen(data_file, "r");
     if( f == NULL ) {
         printf( "Could not open file %s\n", data_file );

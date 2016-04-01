@@ -21,7 +21,7 @@
 #define PROGRAMNAME "h5repack"
 
 static int parse_command_line(int argc, const char **argv, pack_opt_t* options);
-static void leave(int ret);
+static void leave(int ret) H5_ATTR_NORETURN;
 
 
 /* module-scoped variables */
@@ -33,7 +33,7 @@ const char *outfile = NULL;
  * Command-line options: The user can specify short or long-named
  * parameters.
  */
-static const char *s_opts = "hVvf:l:m:e:nLc:d:s:u:b:M:t:a:i:o:";
+static const char *s_opts = "hVvf:l:m:e:nLc:d:s:u:b:M:t:a:i:o:S:T:";
 static struct long_options l_opts[] = {
 	{ "help", no_arg, 'h' },
 	{ "version", no_arg, 'V' },
@@ -54,6 +54,8 @@ static struct long_options l_opts[] = {
 	{ "alignment", require_arg, 'a' },
 	{ "infile", require_arg, 'i' }, /* -i for backward compability */
 	{ "outfile", require_arg, 'o' }, /* -o for backward compability */
+	{ "fs_strategy", require_arg, 'S' },
+	{ "fs_threshold", require_arg, 'T' },
 	{ NULL, 0, '\0' }
 };
 
@@ -88,6 +90,8 @@ static void usage(const char *prog) {
 	printf("   -a A, --alignment=A     Alignment value for H5Pset_alignment\n");
 	printf("   -f FILT, --filter=FILT  Filter type\n");
 	printf("   -l LAYT, --layout=LAYT  Layout type\n");
+	printf("   -S FS_STRGY, --fs_strategy=FS_STRGY  File space management strategy\n");
+	printf("   -T FS_THRD, --fs_threshold=FS_THRD   Free-space section threshold\n");
 	printf("\n");
 	printf("    M - is an integer greater than 1, size of dataset in bytes (default is 0) \n");
 	printf("    E - is a filename.\n");
@@ -99,6 +103,19 @@ static void usage(const char *prog) {
 	printf("        a power of 2 (1024 default)\n");
 	printf("    F - is the shared object header message type, any of <dspace|dtype|fill|\n");
 	printf("        pline|attr>. If F is not specified, S applies to all messages\n");
+	printf("\n");
+	printf("    FS_STRGY is the file space management strategy to use for the output file.\n");
+	printf("             It is a string as listed below:\n");
+	printf("        ALL_PERSIST - Use persistent free-space managers, aggregators and virtual file driver\n");
+	printf("                      for file space allocation\n");
+	printf("        ALL - Use non-persistent free-space managers, aggregators and virtual file driver\n");
+	printf("              for file space allocation\n");
+	printf("        AGGR_VFD - Use aggregators and virtual file driver for file space allocation\n");
+	printf("        VFD - Use virtual file driver for file space allocation\n");
+	printf("\n");
+	printf("    FS_THRD is the free-space section threshold to use for the output file.\n");
+	printf("            It is the minimum size (in bytes) of free-space sections to be tracked\n");
+	printf("            by the the library's free-space managers.\n");
 	printf("\n");
 	printf("    FILT - is a string with the format:\n");
 	printf("\n");
@@ -175,6 +192,7 @@ static void usage(const char *prog) {
 	printf("   Add bzip2 filter to all datasets\n");
 	printf("\n");
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:    leave
@@ -343,7 +361,7 @@ int parse_command_line(int argc, const char **argv, pack_opt_t* options) {
 			has_i_o = 1;
 			break;
 
-			/* -o for backward compability */
+		/* -o for backward compability */
 		case 'o':
 			outfile = opt_arg;
 			has_i_o = 1;
@@ -406,19 +424,19 @@ int parse_command_line(int argc, const char **argv, pack_opt_t* options) {
 			break;
 
 		case 'L':
-			options->latest = 1;
+			options->latest = TRUE;
 			break;
 
 		case 'c':
 			options->grp_compact = HDatoi( opt_arg );
 			if (options->grp_compact > 0)
-				options->latest = 1; /* must use latest format */
+				options->latest = TRUE; /* must use latest format */
 			break;
 
 		case 'd':
 			options->grp_indexed = HDatoi( opt_arg );
 			if (options->grp_indexed > 0)
-				options->latest = 1; /* must use latest format */
+				options->latest = TRUE; /* must use latest format */
 			break;
 
 		case 's':
@@ -426,7 +444,7 @@ int parse_command_line(int argc, const char **argv, pack_opt_t* options) {
 				int idx = 0;
 				int ssize = 0;
 				char *msgPtr = HDstrchr( opt_arg, ':');
-				options->latest = 1; /* must use latest format */
+				options->latest = TRUE; /* must use latest format */
 				if (msgPtr == NULL) {
 					ssize = HDatoi( opt_arg );
 					for (idx = 0; idx < 5; idx++)
@@ -480,6 +498,32 @@ int parse_command_line(int argc, const char **argv, pack_opt_t* options) {
 				ret_value = -1;
 				goto done;
 			}
+			break;
+
+		case 'S':
+			{
+				char strategy[MAX_NC_NAME];
+
+				HDstrcpy(strategy, opt_arg);
+				if (!HDstrcmp(strategy, "ALL_PERSIST"))
+					options->fs_strategy = H5F_FILE_SPACE_ALL_PERSIST;
+				else if (!HDstrcmp(strategy, "ALL"))
+					options->fs_strategy = H5F_FILE_SPACE_ALL;
+				else if (!HDstrcmp(strategy, "AGGR_VFD"))
+					options->fs_strategy = H5F_FILE_SPACE_AGGR_VFD;
+				else if (!HDstrcmp(strategy, "VFD"))
+					options->fs_strategy = H5F_FILE_SPACE_VFD;
+				else {
+					error_msg("invalid file space management strategy\n", opt_arg);
+					h5tools_setstatus(EXIT_FAILURE);
+					ret_value = -1;
+					goto done;
+				}
+			}
+			break;
+
+		case 'T':
+			options->fs_threshold = (hsize_t) HDatol( opt_arg );
 			break;
 
 		default:
@@ -536,7 +580,7 @@ int main(int argc, const char **argv) {
 	}
 
 	/* initialize options  */
-	h5repack_init(&options, 0);
+	h5repack_init(&options, 0, FALSE, H5F_FILE_SPACE_DEFAULT, (hsize_t) 0);
 
 	if (parse_command_line(argc, argv, &options) < 0)
 		goto done;
