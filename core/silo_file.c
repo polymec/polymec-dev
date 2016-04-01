@@ -408,14 +408,14 @@ bool silo_file_query(const char* file_prefix,
     string_slist_t* files_in_dir = files_within_directory(directory);
 
     // Try to find a master file or single data file.
-    char data_file[FILENAME_MAX];
+    char data_file[FILENAME_MAX+1];
     data_file[0] = '\0';
     bool found_cycles = false;
     {
       string_slist_node_t* node = files_in_dir->front;
       while (node != NULL)
       {
-        char path[FILENAME_MAX];
+        char path[FILENAME_MAX+1];
         snprintf(path, FILENAME_MAX, "%s", file_prefix); 
         if (strstr(node->value, path) && strstr(node->value, "silo"))
         {
@@ -437,24 +437,15 @@ bool silo_file_query(const char* file_prefix,
     }
 
     // Open up the file and see whether it's a master file or a serial data file.
-    bool is_master = false;
     int driver = DB_HDF5;
     DBfile* file = DBOpen(data_file, driver, DB_READ);
 
     // What's in there?
-    DBtoc* toc = DBGetToc(file); 
-    if ((toc->nucdmesh == 0) && (toc->nptmesh == 0) && (toc->nmultimesh > 0))
-      is_master = true;
+    bool is_master = DBInqVarExists(file, "POLYMEC_SILO_MASTER_FILE");
     if (is_master)
     {
-      if (!DBInqVarExists(file, "POLYMEC_SILO_MASTER_FILE"))
-      {
-        log_urgent("silo_query_file: invalid Silo master file.");
-        DBClose(file);
-        return false;
-      }
-
       // How many MPI processes were used to construct the data set?
+      DBtoc* toc = DBGetToc(file); 
       int my_num_mpi_procs = -1;
       for (int f = 0; f < toc->nmultimesh; ++f)
       {
@@ -483,10 +474,11 @@ bool silo_file_query(const char* file_prefix,
         DBClose(file);
         return false;
       }
+      ASSERT(DBInqVarExists(file, "num_mpi_procs"));
 
-      // A single data file can only be written for a serial run.
+      // This dataset consists of a single file.
       *num_files = 1;
-      *num_mpi_processes = 1;
+      DBReadVar(file, "num_mpi_procs", num_mpi_processes);
     }
 
     DBClose(file);
@@ -498,7 +490,7 @@ bool silo_file_query(const char* file_prefix,
       string_slist_node_t* node = files_in_dir->front;
       while (node != NULL)
       {
-        char path[FILENAME_MAX];
+        char path[FILENAME_MAX+1];
         snprintf(path, FILENAME_MAX, "%s-", file_prefix); 
         char* p1 = strstr(node->value, path);
         char* p2 = strstr(node->value, ".silo");
@@ -562,7 +554,7 @@ struct silo_file_t
   DBfile* dbfile;
 
   // Metadata.
-  char prefix[FILENAME_MAX], directory[FILENAME_MAX], filename[FILENAME_MAX];
+  char prefix[FILENAME_MAX+1], directory[FILENAME_MAX+1], filename[FILENAME_MAX+1];
   int cycle;
   real_t time;
   int mode; // Open for reading (DB_READ) or writing (DB_CLOBBER)? 
@@ -656,7 +648,7 @@ static void write_subdomains_to_file(silo_file_t* file)
     int mesh_types[num_chunks];
     for (int j = 0; j < num_chunks; ++j)
     {
-      char mesh_name[FILENAME_MAX];
+      char mesh_name[FILENAME_MAX+1];
       snprintf(mesh_name, FILENAME_MAX, "domain_%d/%s", j, mesh->name);
       mesh_names[j] = string_dup(mesh_name);
       mesh_types[j] = mesh->type;
@@ -684,7 +676,7 @@ static void write_subdomains_to_file(silo_file_t* file)
     for (int j = 0; j < num_chunks; ++j)
     {
       // Field name.
-      char field_name[FILENAME_MAX];
+      char field_name[FILENAME_MAX+1];
       snprintf(field_name, FILENAME_MAX, "domain_%d/%s", j, field->name);
       field_names[j] = string_dup(field_name);
       field_types[j] = field->type;
@@ -704,11 +696,12 @@ static void write_subdomains_to_file(silo_file_t* file)
 static void write_master_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
+  if (file->num_files == 1) return;
 
   // FIXME: Should change this to use Silo's name schemes for multi-block 
   // FIXME: objects when we start to Get Real Parallel.
 
-  char master_file_name[FILENAME_MAX];
+  char master_file_name[FILENAME_MAX+1];
   if (file->cycle == -1)
     snprintf(master_file_name, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
@@ -747,7 +740,7 @@ static void write_master_file(silo_file_t* file)
     {
       for (int c = 0; c < num_chunks; ++c)
       {
-        char mesh_name[FILENAME_MAX];
+        char mesh_name[FILENAME_MAX+1];
         mesh_types[num_chunks*j+c] = mesh->type;
         if (file->cycle == -1)
           snprintf(mesh_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, mesh->name);
@@ -781,7 +774,7 @@ static void write_master_file(silo_file_t* file)
     {
       for (int c = 0; c < num_chunks; ++c)
       {
-        char field_name[FILENAME_MAX];
+        char field_name[FILENAME_MAX+1];
         if (file->cycle == -1)
           snprintf(field_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, field->name);
         else
@@ -824,12 +817,13 @@ silo_file_t* silo_file_new(MPI_Comm comm,
                            real_t time)
 {
   START_FUNCTION_TIMER();
+  ASSERT((num_files == -1) || (num_files > 0));
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->expressions = string_ptr_unordered_map_new();
 
   // Strip .silo off of the prefix if it's there.
   {
-    char prefix[FILENAME_MAX];
+    char prefix[FILENAME_MAX+1];
     strncpy(prefix, file_prefix, FILENAME_MAX);
     char* suffix = strstr(prefix, ".silo");
     if (suffix != NULL)
@@ -871,23 +865,35 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
     // Initialize poor man's I/O and figure out group ranks.
     file->baton = PMPIO_Init(file->num_files, PMPIO_WRITE, file->comm, file->mpi_tag, 
-        pmpio_create_file, pmpio_open_file, 
-        pmpio_close_file, 0);
+                             pmpio_create_file, pmpio_open_file, 
+                             pmpio_close_file, 0);
     file->group_rank = PMPIO_GroupRank(file->baton, file->rank);
     file->rank_in_group = PMPIO_RankInGroup(file->baton, file->rank);
 
-    // Create a subdirectory for each group.
-    char group_dir_name[FILENAME_MAX];
-    snprintf(group_dir_name, FILENAME_MAX, "%s/%d", file->directory, file->group_rank);
-    if (file->rank_in_group == 0)
-      create_directory(group_dir_name, S_IRWXU | S_IRWXG);
-
     // Determine a file name and directory name.
-    if (cycle == -1)
-      snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, file->prefix);
+    if (file->num_files > 1)
+    {
+      // Create a subdirectory for each group.
+      char group_dir_name[FILENAME_MAX+1];
+      snprintf(group_dir_name, FILENAME_MAX, "%s/%d", file->directory, file->group_rank);
+      if (file->rank_in_group == 0)
+        create_directory(group_dir_name, S_IRWXU | S_IRWXG);
+
+      if (cycle == -1)
+        snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, file->prefix);
+      else
+        snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, cycle);
+    }
     else
-      snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, cycle);
-    char silo_dir_name[FILENAME_MAX];
+    {
+      ASSERT(file->group_rank == 0);
+      ASSERT(file->rank_in_group == file->rank);
+      if (cycle == -1)
+        snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
+      else
+        snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, cycle);
+    }
+    char silo_dir_name[FILENAME_MAX+1];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
 
@@ -896,6 +902,9 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   }
   else
   {
+    file->group_rank = 0;
+    file->rank_in_group = 0;
+
     if (strlen(directory) == 0)
       strncpy(file->directory, ".", FILENAME_MAX);
     else
@@ -935,7 +944,24 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
   // Write our stamp of approval.
   int one = 1;
-  DBWrite(file->dbfile, "POLYMEC_SILO_FILE", &one, &one, 1, DB_INT);
+  if (file->rank_in_group == 0)
+  {
+    char dir[256];
+    DBGetDir(file->dbfile, dir);
+    DBSetDir(file->dbfile, "/");
+    DBWrite(file->dbfile, "POLYMEC_SILO_FILE", &one, &one, 1, DB_INT);
+    DBSetDir(file->dbfile, dir);
+  }
+
+  // If we're writing to a single file, encode our number of processes.
+  if ((file->num_files == 1) && (file->rank == 0))
+  {
+    char dir[256];
+    DBGetDir(file->dbfile, dir);
+    DBSetDir(file->dbfile, "/");
+    DBWrite(file->dbfile, "num_mpi_procs", &file->nproc, &one, 1, DB_INT);
+    DBSetDir(file->dbfile, dir);
+  }
 
   STOP_FUNCTION_TIMER();
   return file;
@@ -975,7 +1001,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
   // Strip .silo off of the prefix if it's there.
   {
-    char prefix[FILENAME_MAX];
+    char prefix[FILENAME_MAX+1];
     strncpy(prefix, file_prefix, FILENAME_MAX);
     char* suffix = strstr(prefix, ".silo");
     if (suffix != NULL)
@@ -1055,27 +1081,40 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     file->group_rank = PMPIO_GroupRank(file->baton, file->rank);
     file->rank_in_group = PMPIO_RankInGroup(file->baton, file->rank);
 
-    // Make sure a subdirectory exists for each group.
-    char group_dir_name[FILENAME_MAX];
-    snprintf(group_dir_name, FILENAME_MAX, "%s/%d", file->directory, file->group_rank);
-    if (file->rank_in_group == 0)
+    if (file->num_files > 1)
     {
-      DIR* group_dir = opendir(group_dir_name);
-      if (group_dir == NULL)
+      // Make sure a subdirectory exists for each group.
+      char group_dir_name[FILENAME_MAX+1];
+      snprintf(group_dir_name, FILENAME_MAX, "%s/%d", file->directory, file->group_rank);
+      if (file->rank_in_group == 0)
       {
-        polymec_error("silo_file_open: Group directory %s does not exist for file prefix %s.",
-            group_dir_name, file->prefix);
+        DIR* group_dir = opendir(group_dir_name);
+        if (group_dir == NULL)
+        {
+          polymec_error("silo_file_open: Group directory %s does not exist for file prefix %s.",
+              group_dir_name, file->prefix);
+        }
+        else
+          closedir(group_dir);
       }
+
+      // Determine a file name and directory name.
+      if (cycle == -1)
+        snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, file->prefix);
       else
-        closedir(group_dir);
+        snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, cycle);
+    }
+    else
+    {
+      ASSERT(file->group_rank == 0);
+      ASSERT(file->rank_in_group == file->rank);
+      if (cycle == -1)
+        snprintf(file->filename, FILENAME_MAX, "%s.silo", file->prefix);
+      else
+        snprintf(file->filename, FILENAME_MAX, "%s-%d.silo", file->prefix, cycle);
     }
 
-    // Determine a file name and directory name.
-    if (cycle == -1)
-      snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, file->prefix);
-    else
-      snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, cycle);
-    char silo_dir_name[FILENAME_MAX];
+    char silo_dir_name[FILENAME_MAX+1];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
 
@@ -1364,7 +1403,7 @@ void silo_file_write_mesh(silo_file_t* file,
 
   // The polyhedral zone list is referred to in the options list.
   DBoptlist* optlist = DBMakeOptlist(10);
-  char zonelist_name[FILENAME_MAX];
+  char zonelist_name[FILENAME_MAX+1];
   snprintf(zonelist_name, FILENAME_MAX, "%s_zonelist", mesh_name);
   DBAddOption(optlist, DBOPT_PHZONELIST, zonelist_name);
 
@@ -1428,14 +1467,14 @@ void silo_file_write_mesh(silo_file_t* file,
 
   // Finally, write out the face_cells array.
   {
-    char name[FILENAME_MAX];
+    char name[FILENAME_MAX+1];
     snprintf(name, FILENAME_MAX, "%s_face_cells", mesh_name);
     silo_file_write_int_array(file, name, mesh->face_cells, 2*mesh->num_faces);
   }
 
   // Write out tag information.
   {
-    char tag_name[FILENAME_MAX];
+    char tag_name[FILENAME_MAX+1];
     snprintf(tag_name, FILENAME_MAX, "%s_node_tags", mesh_name);
     silo_file_write_tags(file, mesh->node_tags, tag_name);
     snprintf(tag_name, FILENAME_MAX, "%s_edge_tags", mesh_name);
@@ -1448,14 +1487,14 @@ void silo_file_write_mesh(silo_file_t* file,
 
   // Write out exchanger information.
   {
-    char ex_name[FILENAME_MAX];
+    char ex_name[FILENAME_MAX+1];
     snprintf(ex_name, FILENAME_MAX, "%s_exchanger", mesh_name);
     silo_file_write_exchanger(file, ex_name, mesh_exchanger(mesh));
   }
 
   // Write out the number of mesh cells/faces/nodes to special variables.
-  char num_cells_var[FILENAME_MAX], num_faces_var[FILENAME_MAX],
-       num_nodes_var[FILENAME_MAX];
+  char num_cells_var[FILENAME_MAX+1], num_faces_var[FILENAME_MAX+1],
+       num_nodes_var[FILENAME_MAX+1];
   snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
   snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
   snprintf(num_nodes_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
@@ -1488,7 +1527,7 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
   ASSERT(ucd_mesh->ndims == 3);
 
   // Also get the polyhedral zone list.
-  char phzl_name[FILENAME_MAX];
+  char phzl_name[FILENAME_MAX+1];
   snprintf(phzl_name, FILENAME_MAX, "%s_zonelist", mesh_name);
   DBphzonelist* ph_zonelist = DBGetPHZonelist(file->dbfile, phzl_name);
   if (ph_zonelist == NULL)
@@ -1529,7 +1568,7 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
 
   // Read in the face_cells array.
   {
-    char name[FILENAME_MAX];
+    char name[FILENAME_MAX+1];
     snprintf(name, FILENAME_MAX, "%s_face_cells", mesh_name);
     int num_face_cells;
     int* face_cells = silo_file_read_int_array(file, name, &num_face_cells);
@@ -1548,7 +1587,7 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
 
   // Read in tag information.
   {
-    char tag_name[FILENAME_MAX];
+    char tag_name[FILENAME_MAX+1];
     snprintf(tag_name, FILENAME_MAX, "%s_node_tags", mesh_name);
     silo_file_read_tags(file, tag_name, mesh->node_tags);
     snprintf(tag_name, FILENAME_MAX, "%s_edge_tags", mesh_name);
@@ -1561,7 +1600,7 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
 
   // Read in exchanger information.
   {
-    char ex_name[FILENAME_MAX];
+    char ex_name[FILENAME_MAX+1];
     snprintf(ex_name, FILENAME_MAX, "%s_exchanger", mesh_name);
     mesh_set_exchanger(mesh, silo_file_read_exchanger(file, ex_name, mesh->comm));
   }
@@ -1591,7 +1630,7 @@ static void silo_file_write_mesh_field(silo_file_t* file,
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many elements does our mesh have?
-  char num_elems_var[FILENAME_MAX];
+  char num_elems_var[FILENAME_MAX+1];
   int cent;
   switch(centering)
   {
@@ -1656,7 +1695,7 @@ static real_t* silo_file_read_mesh_field(silo_file_t* file,
   ASSERT(file->mode == DB_READ);
 
   // How many elements does our mesh have?
-  char num_elems_var[FILENAME_MAX];
+  char num_elems_var[FILENAME_MAX+1];
   int cent = DB_ZONECENT;
   switch(centering)
   {
@@ -1722,13 +1761,13 @@ static bool silo_file_contains_mesh_field(silo_file_t* file,
   if (result)
   {
     // Make sure that our field is associated with our mesh.
-    char field_mesh_name[FILENAME_MAX];
+    char field_mesh_name[FILENAME_MAX+1];
     int stat = DBInqMeshname(file->dbfile, field_name, field_mesh_name);
     result = ((stat == 0) && (strcmp(mesh_name, field_mesh_name) == 0));
     if (result)
     {
       // Make sure the field has the right size.
-      char num_elems_var[FILENAME_MAX];
+      char num_elems_var[FILENAME_MAX+1];
       switch(centering)
       {
         case MESH_CELL: snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name); break;
@@ -2002,14 +2041,14 @@ void silo_file_write_point_cloud(silo_file_t* file,
   polymec_free(z);
 
   // Write out the number of points to a special variable.
-  char num_points_var[FILENAME_MAX];
+  char num_points_var[FILENAME_MAX+1];
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   int one = 1;
   DBWrite(file->dbfile, num_points_var, &num_points, &one, 1, DB_INT);
   
   // Write out tag information.
   {
-    char tag_name[FILENAME_MAX];
+    char tag_name[FILENAME_MAX+1];
     snprintf(tag_name, FILENAME_MAX, "%s_node_tags", cloud_name);
     silo_file_write_tags(file, cloud->tags, tag_name);
   }
@@ -2030,7 +2069,7 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
 
   // How many points does our cloud have?
   int num_points;
-  char num_points_var[FILENAME_MAX];
+  char num_points_var[FILENAME_MAX+1];
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
   DBReadVar(file->dbfile, num_points_var, &num_points);
@@ -2058,7 +2097,7 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
 
   // Read in tag information.
   {
-    char tag_name[FILENAME_MAX];
+    char tag_name[FILENAME_MAX+1];
     snprintf(tag_name, FILENAME_MAX, "%s_node_tags", cloud_name);
     silo_file_read_tags(file, tag_name, cloud->tags);
   }
@@ -2083,7 +2122,7 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many points does our mesh have?
-  char num_points_var[FILENAME_MAX];
+  char num_points_var[FILENAME_MAX+1];
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
   int num_points;
@@ -2149,7 +2188,7 @@ real_t* silo_file_read_point_field(silo_file_t* file,
   ASSERT(file->mode == DB_READ);
 
   // How many points does our mesh have?
-  char num_points_var[FILENAME_MAX];
+  char num_points_var[FILENAME_MAX+1];
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
   int num_points;
@@ -2236,7 +2275,7 @@ void silo_file_write_string(silo_file_t* file,
   ASSERT(string_data != NULL);
 
   int string_size = strlen(string_data);
-  char size_name[FILENAME_MAX];
+  char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_string_size", string_name);
   int one = 1;
   int result = DBWrite(file->dbfile, size_name, &string_size, &one, 1, DB_INT);
@@ -2244,7 +2283,7 @@ void silo_file_write_string(silo_file_t* file,
     polymec_error("silo_file_write_string: write of string '%s' (length) failed.", string_name);
   if (string_size > 0)
   {
-    char string_data_name[FILENAME_MAX];
+    char string_data_name[FILENAME_MAX+1];
     snprintf(string_data_name, FILENAME_MAX, "%s_string", string_name);
     result = DBWrite(file->dbfile, string_data_name, string_data, &string_size, 1, DB_CHAR);
     if (result != 0)
@@ -2257,14 +2296,14 @@ char* silo_file_read_string(silo_file_t* file,
 {
   ASSERT(file->mode == DB_READ);
 
-  char string_data_name[FILENAME_MAX];
+  char string_data_name[FILENAME_MAX+1];
   snprintf(string_data_name, FILENAME_MAX, "%s_string", string_name);
   if (!DBInqVarExists(file->dbfile, string_data_name))
   {
     polymec_error("silo_file_read_string: Could not read string '%s'.", string_name);
     return NULL;
   }
-  char size_name[FILENAME_MAX];
+  char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_string_size", string_name);
   ASSERT(DBInqVarExists(file->dbfile, size_name));
   int string_size;
@@ -2285,7 +2324,7 @@ void silo_file_write_real_array(silo_file_t* file,
   ASSERT(array_data != NULL);
   ASSERT(array_size >= 0);
 
-  char size_name[FILENAME_MAX];
+  char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_real_array_size", array_name);
   int one = 1;
   int result = DBWrite(file->dbfile, size_name, &array_size, &one, 1, DB_INT);
@@ -2293,7 +2332,7 @@ void silo_file_write_real_array(silo_file_t* file,
     polymec_error("silo_file_write_real_array: write of array '%s' failed.", array_name);
   if (array_size > 0)
   {
-    char real_array_name[FILENAME_MAX];
+    char real_array_name[FILENAME_MAX+1];
     snprintf(real_array_name, FILENAME_MAX, "%s_real_array", array_name);
     result = DBWrite(file->dbfile, real_array_name, array_data, &array_size, 1, SILO_FLOAT_TYPE);
     if (result != 0)
@@ -2308,14 +2347,14 @@ real_t* silo_file_read_real_array(silo_file_t* file,
   ASSERT(file->mode == DB_READ);
   ASSERT(array_size != NULL);
 
-  char real_array_name[FILENAME_MAX];
+  char real_array_name[FILENAME_MAX+1];
   snprintf(real_array_name, FILENAME_MAX, "%s_real_array", array_name);
   if (!DBInqVarExists(file->dbfile, real_array_name))
   {
     polymec_error("silo_file_read_real_array: Could not read array '%s'.", array_name);
     return NULL;
   }
-  char size_name[FILENAME_MAX];
+  char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_real_array_size", array_name);
   ASSERT(DBInqVarExists(file->dbfile, size_name));
   DBReadVar(file->dbfile, size_name, array_size);
@@ -2338,7 +2377,7 @@ void silo_file_write_int_array(silo_file_t* file,
   ASSERT(array_data != NULL);
   ASSERT(array_size >= 0);
 
-  char size_name[FILENAME_MAX];
+  char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_int_array_size", array_name);
   int one = 1;
   int result = DBWrite(file->dbfile, size_name, &array_size, &one, 1, DB_INT);
@@ -2346,7 +2385,7 @@ void silo_file_write_int_array(silo_file_t* file,
     polymec_error("silo_file_write_int_array: write of array '%s' failed.", array_name);
   if (array_size > 0)
   {
-    char int_array_name[FILENAME_MAX];
+    char int_array_name[FILENAME_MAX+1];
     snprintf(int_array_name, FILENAME_MAX, "%s_int_array", array_name);
     result = DBWrite(file->dbfile, int_array_name, array_data, &array_size, 1, DB_INT);
     if (result != 0)
@@ -2361,14 +2400,14 @@ int* silo_file_read_int_array(silo_file_t* file,
   ASSERT(file->mode == DB_READ);
   ASSERT(array_size != NULL);
 
-  char int_array_name[FILENAME_MAX];
+  char int_array_name[FILENAME_MAX+1];
   snprintf(int_array_name, FILENAME_MAX, "%s_int_array", array_name);
   if (!DBInqVarExists(file->dbfile, int_array_name))
   {
     polymec_error("silo_file_read_int_array: Could not read array '%s'.", array_name);
     return NULL;
   }
-  char size_name[FILENAME_MAX];
+  char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_int_array_size", array_name);
   ASSERT(DBInqVarExists(file->dbfile, size_name));
   DBReadVar(file->dbfile, size_name, array_size);
