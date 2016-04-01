@@ -713,7 +713,7 @@ static void write_master_file(silo_file_t* file)
     snprintf(master_file_name, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
     snprintf(master_file_name, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, file->cycle);
-  PMPIO_baton_t* baton = PMPIO_Init(file->num_files, PMPIO_WRITE, file->comm, file->mpi_tag+1, 
+  PMPIO_baton_t* baton = PMPIO_Init(1, PMPIO_WRITE, file->comm, file->mpi_tag+1, 
                                     pmpio_create_file, pmpio_open_file, 
                                     pmpio_close_file, 0);
   DBfile* master = (DBfile*)PMPIO_WaitForBaton(baton, master_file_name, "/");
