@@ -161,6 +161,7 @@ if (${SILO_LIBRARY} MATCHES "h5")
     set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DZLIB_INCLUDE_DIRS=${PROJECT_BINARY_DIR}/include -DZLIB_LIBARIES=z -DZLIB_USE_EXTERNAL=OFF -DHDF5_ENABLE_PARALLEL=${HAVE_MPI})
     set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_CPP_LIB=OFF)
     set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_FORTRAN=OFF)
+    set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DBUILD_TESTING=OFF -DHDF5_BUILD_EXAMPLES=OFF)
     if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
       execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_CURRENT_BINARY_DIR}/hdf5/CMakeCache.txt)
     else()
@@ -295,7 +296,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
     set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-debug)
   endif()
   if (HAVE_OPENMP)
-    set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-openmp)
+    set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-omp)
   endif()
   if (HAVE_MPI)
     set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-mpi)
@@ -324,8 +325,10 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
       message(FATAL_ERROR "Configuration of lis library failed.")
     endif()
 
+    # NOTE: LIS's 'make install' cannot be run on more than 1 thread reliably,
+    # NOTE: so we have to separate the build/install processes.
     message("Building and installing lis (${NUM_BUILD_THREADS} threads)...")
-    execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
+    execute_process(COMMAND make -j${NUM_BUILD_THREADS}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lis
                     OUTPUT_VARIABLE lis_build_log ERROR_VARIABLE lis_build_err
                     RESULT_VARIABLE stat)
@@ -333,6 +336,16 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
     if (NOT stat EQUAL 0)
       file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis_build_errors.log ${lis_build_err})
       message(FATAL_ERROR "Build of lis library failed.")
+    endif()
+
+    execute_process(COMMAND make install
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lis
+                    OUTPUT_VARIABLE lis_install_log ERROR_VARIABLE lis_install_err
+                    RESULT_VARIABLE stat)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis_install.log ${lis_install_log})
+    if (NOT stat EQUAL 0)
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis_install_errors.log ${lis_install_err})
+      message(FATAL_ERROR "Install of lis library failed.")
     endif()
 
   set(POLYMEC_TP_LIBS lis;${POLYMEC_TP_LIBS})
