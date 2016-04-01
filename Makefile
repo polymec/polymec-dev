@@ -11,6 +11,7 @@ sanitize   = not-set
 CC         = not-set
 CXX        = not-set
 FC         = not-set
+travis     = not-set
 
 # This proxies everything to the builddir cmake.
 
@@ -106,6 +107,11 @@ endif
 ifeq ($(sanitize), 1)
   BUILDDIR := ${BUILDDIR}-AddressSanitizer
   CONFIG_FLAGS += -DADDRESS_SANITIZER=1
+endif
+
+# Travis-CI-specific settings.
+ifeq ($(travis), 1)
+  CONFIG_FLAGS += -DTRAVIS_CI=1
 endif
 
 define run-config
