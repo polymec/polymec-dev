@@ -42,10 +42,11 @@ deploy:
   upload-dir: polymec-dev
   acl: public_read
 
-script: 
+before_script:
   - make config debug=$DEBUG mpi=$MPI shared=$SHARED prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED
-  - make -j4 debug=$DEBUG mpi=$MPI shared=$SHARED install 
-  - make debug=$DEBUG mpi=$MPI shared=$SHARED test
+
+script: 
+  - make -j4 debug=$DEBUG mpi=$MPI shared=$SHARED install && make debug=$DEBUG mpi=$MPI shared=$SHARED test
 
 after_success: 
   - cd $HOME
@@ -55,3 +56,6 @@ after_success:
 
 after_failure: 
   - cat build/*/Testing/Temporary/LastTest.log
+
+after_script:
+  - cat build/*/3rdparty/*error*.log
