@@ -944,7 +944,9 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
   // Write our stamp of approval.
   int one = 1;
+#if POLYMEC_HAVE_MPI
   if (file->rank_in_group == 0)
+#endif
   {
     char dir[256];
     DBGetDir(file->dbfile, dir);
@@ -954,12 +956,18 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   }
 
   // If we're writing to a single file, encode our number of processes.
+#if POLYMEC_HAVE_MPI
   if ((file->num_files == 1) && (file->rank == 0))
+#endif
   {
     char dir[256];
     DBGetDir(file->dbfile, dir);
     DBSetDir(file->dbfile, "/");
+#if POLYMEC_HAVE_MPI
     DBWrite(file->dbfile, "num_mpi_procs", &file->nproc, &one, 1, DB_INT);
+#else
+    DBWrite(file->dbfile, "num_mpi_procs", &one, &one, 1, DB_INT);
+#endif
     DBSetDir(file->dbfile, dir);
   }
 
