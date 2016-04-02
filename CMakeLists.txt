@@ -129,7 +129,7 @@ endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SYS_FLAGS}")
 
 # OpenMP support?
-if (APPLE AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
+if (APPLE AND CMAKE_C_COMPILER_ID MATCHES "Clang")
   message(STATUS "Using Apple's Clang: OpenMP is not supported.")
   set(HAVE_OPENMP 0)
 else()
