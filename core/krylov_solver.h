@@ -50,6 +50,7 @@ typedef struct
   krylov_pc_t* (*preconditioner)(void* context, MPI_Comm comm, const char* pc_name, string_string_unordered_map_t* options);
   krylov_matrix_t* (*matrix)(void* context, adj_graph_t* sparsity);
   krylov_matrix_t* (*block_matrix)(void* context, adj_graph_t* sparsity, int block_size);
+  krylov_matrix_t* (*var_block_matrix)(void* context, adj_graph_t* sparsity, int* block_sizes);
   krylov_vector_t* (*vector)(void* context, adj_graph_t* dist_graph);
   void (*dtor)(void* context);
 } krylov_factory_vtable;
@@ -180,6 +181,12 @@ krylov_matrix_t* krylov_factory_matrix(krylov_factory_t* factory,
 krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory, 
                                              adj_graph_t* sparsity,
                                              int block_size);
+
+// Constructs a (square) Krylov sparse block matrix with the sparsity pattern 
+// given by an adjacency graph, and different block sizes for each row.
+krylov_matrix_t* krylov_factory_var_block_matrix(krylov_factory_t* factory, 
+                                                 adj_graph_t* sparsity,
+                                                 int* block_sizes);
 
 // Constructs a vector on the given communicator with its local and global 
 // dimensions defined by the given distributed graph. This graph is typically 

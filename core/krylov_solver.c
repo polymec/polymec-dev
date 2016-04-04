@@ -467,6 +467,17 @@ krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory,
   return factory->vtable.block_matrix(factory->context, sparsity, block_size);
 }
 
+krylov_matrix_t* krylov_factory_var_block_matrix(krylov_factory_t* factory, 
+                                                 adj_graph_t* sparsity,
+                                                 int* block_sizes)
+{
+  ASSERT(block_sizes != NULL);
+  if (factory->vtable.var_block_matrix != NULL)
+    return factory->vtable.var_block_matrix(factory->context, sparsity, block_sizes);
+  else
+    polymec_error("The %s factory does not support variable block matrices.", factory->name);
+}
+
 krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
                                        adj_graph_t* dist_graph)
 {

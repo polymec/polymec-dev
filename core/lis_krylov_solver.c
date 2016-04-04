@@ -261,11 +261,50 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
 {
   lis_factory_t* factory = context;
   MPI_Comm = adj_graph_comm(sparsity); 
+  int N_local = adj_graph_num_vertices(sparsity);
+  index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
+  MPI_Comm comm = adj_graph_comm(sparsity);
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+  int N_global = (int)vtx_dist[nprocs];
 
   LIS_MATRIX A;
   lis_matrix_create(comm, &A);
   // FIXME
-  int N_local = 0, N_global = 0;
+
+  // Set up the virtual table.
+  krylov_matrix_vtable vtable = {.clone = lis_matrix_clone,
+                                 .zero = lis_matrix_zero,
+                                 .scale = lis_matrix_scale,
+                                 .add_identity = lis_matrix_add_identity,
+                                 .add_diagonal = lis_matrix_add_diagonal,
+                                 .set_diagonal = lis_matrix_set_diagonal,
+                                 .set_values = lis_matrix_set_values,
+                                 .add_values = lis_matrix_add_values,
+                                 .start_assembly = lis_matrix_start_assembly,
+                                 .finish_assembly = lis_matrix_finish_assembly,
+                                 .get_values = lis_matrix_get_values,
+                                 .dtor = lis_matrix_dtor};
+  return krylov_matrix_new(A, vtable, N_local, N_global);
+}
+
+static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
+                                                     adj_graph_t* sparsity,
+                                                     int* block_sizes)
+{
+  lis_factory_t* factory = context;
+  MPI_Comm = adj_graph_comm(sparsity); 
+  int N_local = adj_graph_num_vertices(sparsity);
+  index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
+  MPI_Comm comm = adj_graph_comm(sparsity);
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+  int N_global = (int)vtx_dist[nprocs];
+
+  LIS_MATRIX A;
+  lis_matrix_create(comm, &A);
+  // FIXME
+//  lis_matrix_set_blocksize(A, block_size, block_size, NULL, NULL);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = lis_matrix_clone,
@@ -289,12 +328,17 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
 {
   lis_factory_t* factory = context;
   MPI_Comm = adj_graph_comm(sparsity); 
+  int N_local = adj_graph_num_vertices(sparsity);
+  index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
+  MPI_Comm comm = adj_graph_comm(sparsity);
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+  int N_global = (int)vtx_dist[nprocs];
 
   LIS_MATRIX A;
   lis_matrix_create(comm, &A);
   // FIXME
   lis_matrix_set_blocksize(A, block_size, block_size, NULL, NULL);
-  int N_local = 0, N_global = 0;
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = lis_matrix_clone,
@@ -431,6 +475,7 @@ krylov_factory_t* lis_krylov_factory()
                                   .preconditioner = lis_factory_pc,
                                   .matrix = lis_factory_matrix,
                                   .block_matrix = lis_factory_block_matrix,
+                                  .var_block_matrix = lis_factory_var_block_matrix,
                                   .vector = lis_factory_vector,
                                   .dtor = lis_factory_dtor};
   return krylov_factory_new("LIS", factory, vtable);
