@@ -956,7 +956,7 @@ static void hypre_matrix_dtor(void* context)
 
 static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
                                                        adj_graph_t* sparsity,
-                                                       int block_sizes)
+                                                       int* block_sizes)
 {
   ASSERT(block_sizes != NULL);
 
@@ -1067,7 +1067,7 @@ static krylov_matrix_t* hypre_factory_block_matrix(void* context,
   MPI_Comm comm = adj_graph_comm(sparsity);
   index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
   int rank;
-  MPI_Comm_rank(A->comm, &rank);
+  MPI_Comm_rank(comm, &rank);
   int N = vtx_dist[rank+1] - vtx_dist[rank];
   int block_sizes[N];
   for (int i = 0; i < N; ++i)
