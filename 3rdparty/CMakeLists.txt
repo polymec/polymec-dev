@@ -413,8 +413,8 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
     endif()
   endif()
 
-  set(POLYMEC_TP_LIBS lis;${POLYMEC_TP_LIBS})
 endif()
+set(POLYMEC_TP_LIBS lis;${POLYMEC_TP_LIBS})
 
 # Build SuperLU, a (serial) direct sparse linear solver library that 
 # we will use for preconditioning.
