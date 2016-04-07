@@ -29,6 +29,13 @@ typedef struct
   LIS_MATRIX op;
 } lis_solver_t;
 
+typedef struct
+{
+  LIS_MATRIX A;
+  int block_size, nr, nc, bnnz, nnz, *bptr, *ptr, *row, *col, *index, *bindex;
+  LIS_SCALAR* values;
+} lis_matrix_t;
+
 static void lis_solver_set_tolerances(void* context,
                                       real_t rel_tol,
                                       real_t abs_tol,
@@ -54,7 +61,8 @@ static void lis_solver_set_operator(void* context,
                                     void* op)
 {
   lis_solver_t* solver = context;
-  solver->op = op;
+  lis_matrix_t* A = op;
+  solver->op = A->A;
 }
 
 static void lis_solver_set_pc(void* context,
@@ -167,22 +175,34 @@ static krylov_pc_t* lis_factory_pc(void* context,
   return krylov_pc_new(pc_name, text, vtable);
 }
 
+static lis_matrix_t* matrix_new(int block_size)
+{
+  ASSERT(block_size > 0);
+  lis_matrix_t* mat = polymec_malloc(sizeof(lis_matrix_t));
+  mat->block_size = block_size;
+  mat->nr = mat->nc = mat->bnnz = mat->nnz = 0;
+  mat->bptr = mat->ptr = mat->row = mat->col = mat->index = mat->bindex = NULL;
+  mat->values = NULL;
+  return mat;
+}
+
 static void* matrix_clone(void* context)
 {
-  LIS_MATRIX A = context;
-  LIS_MATRIX clone;
-  lis_matrix_duplicate(A, &clone);
-  lis_matrix_copy(A, clone);
+  lis_matrix_t* mat = context;
+  lis_matrix_t* clone = polymec_malloc(sizeof(lis_matrix_t));
+  lis_matrix_duplicate(mat->A, &clone->A);
+  lis_matrix_copy(mat->A, clone->A);
   return clone;
 }
 
 static void matrix_zero(void* context)
 {
-  LIS_MATRIX A = context;
+  lis_matrix_t* mat = context;
   LIS_INT type;
-  lis_matrix_get_type(A, &type);
+  lis_matrix_get_type(mat->A, &type);
   if (type == LIS_MATRIX_CSR)
   {
+
   }
   else if (type == LIS_MATRIX_BSR)
   {
@@ -195,25 +215,25 @@ static void matrix_zero(void* context)
 
 static void matrix_scale(void* context, real_t scale_factor)
 {
-  LIS_MATRIX A = context;
+  lis_matrix_t* mat = context;
   // FIXME
 }
 
 static void matrix_add_identity(void* context, real_t scale_factor)
 {
-  LIS_MATRIX A = context;
+  lis_matrix_t* mat = context;
   // FIXME
 }
 
 static void matrix_set_diagonal(void* context, void* D)
 {
-  LIS_MATRIX A = context;
+  lis_matrix_t* mat = context;
   // FIXME
 }
 
 static void matrix_add_diagonal(void* context, void* D)
 {
-  LIS_MATRIX A = context;
+  lis_matrix_t* mat = context;
   // FIXME
 }
 
@@ -221,7 +241,7 @@ static void matrix_set_values(void* context, index_t num_rows,
                               index_t* num_columns, index_t* rows, index_t* columns,
                               real_t* values)
 {
-  LIS_MATRIX A = context;
+  lis_matrix_t* mat = context;
   // FIXME
 }
 
@@ -229,14 +249,14 @@ static void matrix_add_values(void* context, index_t num_rows,
                               index_t* num_columns, index_t* rows, index_t* columns,
                               real_t* values)
 {
-  LIS_MATRIX A = context;
+  lis_matrix_t* mat = context;
   // FIXME
 }
 
 static void matrix_start_assembly(void* context)
 {
-  LIS_MATRIX A = context;
-  lis_matrix_assemble(A);
+  lis_matrix_t* mat = context;
+  lis_matrix_assemble(mat->A);
 }
 
 static void matrix_finish_assembly(void* context)
@@ -247,14 +267,15 @@ static void matrix_get_values(void* context, index_t num_rows,
                               index_t* num_columns, index_t* rows, index_t* columns,
                               real_t* values)
 {
-  LIS_MATRIX A = context;
+  lis_matrix_t* mat = context;
   // FIXME
 }
 
 static void matrix_dtor(void* context)
 {
-  LIS_MATRIX A = context;
-  lis_matrix_destroy(A);
+  lis_matrix_t* mat = context;
+  lis_matrix_destroy(mat->A);
+  polymec_free(mat);
 }
 
 static krylov_matrix_t* lis_factory_matrix(void* context,
@@ -267,20 +288,30 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
   int nprocs;
   MPI_Comm_size(comm, &nprocs);
   int N_global = (int)vtx_dist[nprocs];
+  int* edge_offsets = adj_graph_edge_offsets(sparsity);
 
-  LIS_MATRIX A;
-  lis_matrix_create(comm, &A);
-  lis_matrix_set_size(A, N_local, 0);
+  lis_matrix_t* mat = matrix_new(1);
+  lis_matrix_create(comm, &mat->A);
+  lis_matrix_set_size(mat->A, N_local, 0);
+  mat->nnz = edge_offsets[N_local];
+  mat->ptr = polymec_malloc(sizeof(LIS_INT) * (N_local+1));
+  mat->index = polymec_malloc(sizeof(LIS_INT) * mat->nnz);
+  mat->values = polymec_malloc(sizeof(LIS_SCALAR) * mat->nnz);
   for (int i = 0; i < N_local; ++i)
   {
-    lis_matrix_set_value(LIS_INS_VALUE, i, i, 0.0, A);
+    mat->ptr[i] = mat->nnz;
+    mat->index[mat->nnz] = i;
+    mat->nnz += 1;
 
     int ne = adj_graph_num_edges(sparsity, i);
     int* edges = adj_graph_edges(sparsity, i);
-    for (int j = 0; j < ne; ++j)
-      lis_matrix_set_value(LIS_INS_VALUE, i, edges[j], 0.0, A);
+    for (int j = 0; j < ne; ++j, ++mat->nnz)
+      mat->index[mat->nnz] = edges[j];
   }
-  lis_matrix_assemble(A);
+  mat->ptr[N_local] = mat->nnz;
+  memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
+  lis_matrix_set_csr(mat->nnz, mat->ptr, mat->index, mat->values, mat->A);
+  lis_matrix_assemble(mat->A);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = matrix_clone,
@@ -295,7 +326,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
                                  .finish_assembly = matrix_finish_assembly,
                                  .get_values = matrix_get_values,
                                  .dtor = matrix_dtor};
-  return krylov_matrix_new(A, vtable, N_local, N_global);
+  return krylov_matrix_new(mat, vtable, N_local, N_global);
 }
 
 static krylov_matrix_t* lis_factory_block_matrix(void* context,
@@ -311,32 +342,32 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
   int N_global = (int)vtx_dist[nprocs];
 
   // Initialize a Block Sparse Row (BSR) matrix with the given block size.
-  LIS_MATRIX A;
-  lis_matrix_create(comm, &A);
-  lis_matrix_set_size(A, N_local, 0);
+  lis_matrix_t* mat = matrix_new(block_size);
+  lis_matrix_create(comm, &mat->A);
+  lis_matrix_set_size(mat->A, N_local, 0);
   int* adj = adj_graph_adjacency(sparsity);
-  LIS_INT bnnz = adj[N_local];
-  LIS_INT nr = N_local, nc = N_global;
-  LIS_INT* bptr = malloc(sizeof(LIS_INT) * (nr+1));
-  LIS_INT* bindex = malloc(sizeof(LIS_INT) * bnnz);
-  LIS_SCALAR* values = malloc(sizeof(LIS_SCALAR) * block_size * block_size * bnnz);
+  mat->bnnz = adj[N_local];
+  mat->nr = N_local, mat->nc = N_global;
+  mat->bptr = malloc(sizeof(LIS_INT) * (mat->nr+1));
+  mat->bindex = malloc(sizeof(LIS_INT) * mat->bnnz);
+  mat->values = malloc(sizeof(LIS_SCALAR) * block_size * block_size * mat->bnnz);
   int boffset = 0;
-  for (int i = 0; i < nr; ++i)
+  for (int i = 0; i < mat->nr; ++i)
   {
-    bptr[i] = i;
+    mat->bptr[i] = i;
 
     int ne = adj_graph_num_edges(sparsity, i);
     int* edges = adj_graph_edges(sparsity, i);
     for (int j = 0; j < ne; ++j, ++boffset)
     {
       int jj = edges[j];
-      bindex[boffset] = jj;
-      memset(&values[block_size*block_size*boffset], 0, sizeof(LIS_SCALAR) * block_size * block_size);
+      mat->bindex[boffset] = jj;
+      memset(&mat->values[block_size*block_size*boffset], 0, sizeof(LIS_SCALAR) * block_size * block_size);
     }
   }
-  bptr[nr] = nr;
-  lis_matrix_set_bsr(block_size, block_size, bnnz, bptr, bindex, values, A);
-  lis_matrix_assemble(A);
+  mat->bptr[mat->nr] = mat->nr;
+  lis_matrix_set_bsr(block_size, block_size, mat->bnnz, mat->bptr, mat->bindex, mat->values, mat->A);
+  lis_matrix_assemble(mat->A);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = matrix_clone,
@@ -351,7 +382,7 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
                                  .finish_assembly = matrix_finish_assembly,
                                  .get_values = matrix_get_values,
                                  .dtor = matrix_dtor};
-  return krylov_matrix_new(A, vtable, N_local, N_global);
+  return krylov_matrix_new(mat, vtable, N_local, N_global);
 }
 
 static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
@@ -366,41 +397,44 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
   MPI_Comm_size(comm, &nprocs);
   int N_global = (int)vtx_dist[nprocs];
 
-  LIS_MATRIX A;
-  lis_matrix_create(comm, &A);
-  lis_matrix_set_size(A, N_local, 0);
+  lis_matrix_t* mat = matrix_new(1);
+  lis_matrix_create(comm, &mat->A);
+  lis_matrix_set_size(mat->A, N_local, 0);
+  mat->nr = N_local; 
+  mat->nc = N_global;
   int* adj = adj_graph_adjacency(sparsity);
-  LIS_INT nr = N_local, nc = N_global;
-  LIS_INT bnnz = adj[N_local];
-  LIS_INT* row = malloc(sizeof(LIS_INT) * (nr+1));
-  LIS_INT* col = malloc(sizeof(LIS_INT) * (nc+1));
-  LIS_INT* ptr = malloc(sizeof(LIS_INT) * (bnnz+1));
-  LIS_INT* bindex = malloc(sizeof(LIS_INT) * bnnz);
-  LIS_INT* bptr = malloc(sizeof(LIS_INT) * (nr+1));
-  LIS_INT boffset = 0, row_offset = 0, nnz = 0;
+  mat->bnnz = adj[N_local];
+  mat->row = malloc(sizeof(LIS_INT) * (mat->nr+1));
+  mat->col = malloc(sizeof(LIS_INT) * (mat->nc+1));
+  mat->ptr = malloc(sizeof(LIS_INT) * (mat->bnnz+1));
+  mat->bindex = malloc(sizeof(LIS_INT) * mat->bnnz);
+  mat->bptr = malloc(sizeof(LIS_INT) * (mat->nr+1));
+  LIS_INT boffset = 0, row_offset = 0;
+  mat->nnz = 0;
   for (int i = 0; i < N_local; ++i)
   {
     int block_size = block_sizes[i];
-    row[i] = row_offset;
-    col[i] = row_offset;
+    mat->row[i] = row_offset;
+    mat->col[i] = row_offset;
     row_offset += block_size;
-    bptr[i] = i;
+    mat->bptr[i] = i;
+    mat->nnz += block_size * block_size;
 
     int ne = adj_graph_num_edges(sparsity, i);
     int* edges = adj_graph_edges(sparsity, i);
     for (int j = 0; j < ne; ++j, ++boffset)
     {
       int jj = edges[j];
-      bindex[boffset] = jj;
-      ptr[boffset] = nnz;
-      nnz += block_size * block_size;
+      mat->bindex[boffset] = jj;
+      mat->ptr[boffset] = mat->nnz;
+      mat->nnz += block_size * block_size;
     }
   }
-  ptr[bnnz] = nnz;
-  LIS_SCALAR* values = malloc(sizeof(LIS_SCALAR) * nnz);
-  memset(values, 0, sizeof(LIS_SCALAR) * nnz);
-  lis_matrix_set_vbr(nnz, nr, nc, bnnz, row, col, ptr, bptr, bindex, values, A);
-  lis_matrix_assemble(A);
+  mat->ptr[mat->bnnz] = mat->nnz;
+  mat->values = malloc(sizeof(LIS_SCALAR) * mat->nnz);
+  memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
+  lis_matrix_set_vbr(mat->nnz, mat->nr, mat->nc, mat->bnnz, mat->row, mat->col, mat->ptr, mat->bptr, mat->bindex, mat->values, mat->A);
+  lis_matrix_assemble(mat->A);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = matrix_clone,
@@ -415,7 +449,7 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
                                  .finish_assembly = matrix_finish_assembly,
                                  .get_values = matrix_get_values,
                                  .dtor = matrix_dtor};
-  return krylov_matrix_new(A, vtable, N_local, N_global);
+  return krylov_matrix_new(mat, vtable, N_local, N_global);
 }
 
 static void* vector_clone(void* context)
