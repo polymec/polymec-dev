@@ -14,6 +14,9 @@
 #include "core/timer.h"
 #include "core/string_utils.h"
 
+// For some reason, this prototype didn't make it into lis.h.
+extern LIS_INT lis_matrix_shift_diagonal(LIS_MATRIX A, LIS_SCALAR alpha);
+
 //------------------------------------------------------------------------
 // This file implements the LIS Krylov solver.
 //------------------------------------------------------------------------
@@ -157,7 +160,7 @@ static krylov_solver_t* lis_factory_special_solver(void* context,
                                                    const char* solver_name,
                                                    string_string_unordered_map_t* options)
 {
-  // FIXME
+  POLYMEC_NOT_IMPLEMENTED
   return NULL;
 }
 
@@ -198,43 +201,48 @@ static void* matrix_clone(void* context)
 static void matrix_zero(void* context)
 {
   lis_matrix_t* mat = context;
-  LIS_INT type;
-  lis_matrix_get_type(mat->A, &type);
-  if (type == LIS_MATRIX_CSR)
-  {
-
-  }
-  else if (type == LIS_MATRIX_BSR)
-  {
-  }
-  else
-  {
-    ASSERT(type == LIS_MATRIX_VBR);
-  }
+  memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
 }
 
 static void matrix_scale(void* context, real_t scale_factor)
 {
   lis_matrix_t* mat = context;
-  // FIXME
+  for (int i = 0; i < mat->nnz; ++i)
+    mat->values[i] *= scale_factor;
 }
 
 static void matrix_add_identity(void* context, real_t scale_factor)
 {
   lis_matrix_t* mat = context;
-  // FIXME
+  lis_matrix_shift_diagonal(mat->A, (LIS_SCALAR)scale_factor);
 }
 
 static void matrix_set_diagonal(void* context, void* D)
 {
   lis_matrix_t* mat = context;
-  // FIXME
+  LIS_VECTOR d = D;
+  LIS_INT start, end;
+  lis_matrix_get_range(mat->A, &start, &end);
+  for (LIS_INT i = start; i < end; ++i)
+  {
+    LIS_SCALAR Di;
+    lis_vector_get_value(d, i, &Di);
+    lis_matrix_set_value(LIS_INS_VALUE, i, i, Di, mat->A);
+  }
 }
 
 static void matrix_add_diagonal(void* context, void* D)
 {
   lis_matrix_t* mat = context;
-  // FIXME
+  LIS_VECTOR d = D;
+  LIS_INT start, end;
+  lis_matrix_get_range(mat->A, &start, &end);
+  for (LIS_INT i = start; i < end; ++i)
+  {
+    LIS_SCALAR Di;
+    lis_vector_get_value(d, i, &Di);
+    lis_matrix_set_value(LIS_ADD_VALUE, i, i, Di, mat->A);
+  }
 }
 
 static void matrix_set_values(void* context, index_t num_rows,
@@ -242,7 +250,13 @@ static void matrix_set_values(void* context, index_t num_rows,
                               real_t* values)
 {
   lis_matrix_t* mat = context;
-  // FIXME
+  int k = 0;
+  for (int i = 0; i < num_rows; ++i)
+  {
+    int row = rows[i];
+    for (int j = 0; j < num_columns[i]; ++j, ++k)
+      lis_matrix_set_value(LIS_INS_VALUE, row, columns[k], values[k], mat->A);
+  }
 }
 
 static void matrix_add_values(void* context, index_t num_rows,
@@ -250,7 +264,13 @@ static void matrix_add_values(void* context, index_t num_rows,
                               real_t* values)
 {
   lis_matrix_t* mat = context;
-  // FIXME
+  int k = 0;
+  for (int i = 0; i < num_rows; ++i)
+  {
+    int row = rows[i];
+    for (int j = 0; j < num_columns[i]; ++j, ++k)
+      lis_matrix_set_value(LIS_ADD_VALUE, row, columns[k], values[k], mat->A);
+  }
 }
 
 static void matrix_start_assembly(void* context)
@@ -267,8 +287,7 @@ static void matrix_get_values(void* context, index_t num_rows,
                               index_t* num_columns, index_t* rows, index_t* columns,
                               real_t* values)
 {
-  lis_matrix_t* mat = context;
-  // FIXME
+  POLYMEC_NOT_IMPLEMENTED
 }
 
 static void matrix_dtor(void* context)
@@ -347,14 +366,17 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
   lis_matrix_set_size(mat->A, N_local, 0);
   int* adj = adj_graph_adjacency(sparsity);
   mat->bnnz = adj[N_local];
+  mat->nnz = block_size * block_size * mat->bnnz;
   mat->nr = N_local, mat->nc = N_global;
   mat->bptr = malloc(sizeof(LIS_INT) * (mat->nr+1));
   mat->bindex = malloc(sizeof(LIS_INT) * mat->bnnz);
-  mat->values = malloc(sizeof(LIS_SCALAR) * block_size * block_size * mat->bnnz);
+  mat->values = malloc(sizeof(LIS_SCALAR) * mat->nnz);
   int boffset = 0;
   for (int i = 0; i < mat->nr; ++i)
   {
     mat->bptr[i] = i;
+    mat->bindex[boffset] = i;
+    ++boffset;
 
     int ne = adj_graph_num_edges(sparsity, i);
     int* edges = adj_graph_edges(sparsity, i);
