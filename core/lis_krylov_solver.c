@@ -561,7 +561,7 @@ static krylov_vector_t* lis_factory_vector(void* context,
   MPI_Comm comm = adj_graph_comm(dist_graph);
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_size(comm, &rank);
+  MPI_Comm_rank(comm, &rank);
   int N_global = (int)vtx_dist[nprocs];
 
   LIS_VECTOR v;

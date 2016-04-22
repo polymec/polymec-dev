@@ -60,6 +60,9 @@
 #define POLYMEC_HAVE_DOUBLE_PRECISION @HAVE_DOUBLE_PRECISION@
 #define POLYMEC_PRECISION @POLYMEC_PRECISION@
 #define MPI_REAL_T @POLYMEC_MPI_REAL_TYPE@
+
+// Shared library support.
+#define POLYMEC_HAVE_SHARED_LIBS @HAVE_SHARED_LIBS@
 #define SHARED_LIBRARY_SUFFIX "@CMAKE_SHARED_LIBRARY_SUFFIX@"
 
 // In defining real_t, we have to accommodate Metis, which defines 

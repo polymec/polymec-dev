@@ -72,6 +72,7 @@ static adj_graph_t* create_1d_laplacian_graph(MPI_Comm comm, int N_local)
   return graph;
 }
 
+#if POLYMEC_HAVE_SHARED_LIBS
 static krylov_factory_t* create_petsc_krylov_factory()
 {
   krylov_factory_t* factory = NULL;
@@ -123,6 +124,7 @@ static krylov_factory_t* create_hypre_krylov_factory()
     log_urgent("HYPRE_DIR not set. Skipping HYPRE test.");
   return factory;
 }
+#endif
 
 static void test_krylov_factory(void** state, krylov_factory_t* factory)
 {
@@ -252,6 +254,31 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
   }
 }
 
+void test_lis_krylov_factory(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_krylov_factory(state, lis);
+}
+
+void test_lis_krylov_matrix(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_krylov_matrix(state, lis);
+}
+
+void test_lis_krylov_vector(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_krylov_vector(state, lis);
+}
+
+void test_lis_laplace_eqn(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_laplace_eqn(state, lis);
+}
+
+#if POLYMEC_HAVE_SHARED_LIBS
 void test_petsc_krylov_factory(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
@@ -299,12 +326,18 @@ void test_hypre_laplace_eqn(void** state)
   krylov_factory_t* hypre = create_hypre_krylov_factory();
   test_laplace_eqn(state, hypre);
 }
+#endif
 
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
+    cmocka_unit_test(test_lis_krylov_factory),
+    cmocka_unit_test(test_lis_krylov_matrix),
+    cmocka_unit_test(test_lis_krylov_vector),
+    cmocka_unit_test(test_lis_laplace_eqn),
+#if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),
     cmocka_unit_test(test_petsc_krylov_matrix),
     cmocka_unit_test(test_petsc_krylov_vector),
@@ -313,6 +346,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_hypre_krylov_matrix),
     cmocka_unit_test(test_hypre_krylov_vector),
     cmocka_unit_test(test_hypre_laplace_eqn)
+#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
