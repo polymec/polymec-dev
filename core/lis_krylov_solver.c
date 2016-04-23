@@ -312,21 +312,23 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
   lis_matrix_t* mat = matrix_new(1);
   lis_matrix_create(comm, &mat->A);
   lis_matrix_set_size(mat->A, N_local, 0);
-  mat->nnz = edge_offsets[N_local];
+  mat->nnz = N_local + edge_offsets[N_local];
   mat->ptr = polymec_malloc(sizeof(LIS_INT) * (N_local+1));
   mat->index = polymec_malloc(sizeof(LIS_INT) * mat->nnz);
   mat->values = polymec_malloc(sizeof(LIS_SCALAR) * mat->nnz);
+  int k = 0;
   for (int i = 0; i < N_local; ++i)
   {
-    mat->ptr[i] = mat->nnz;
-    mat->index[mat->nnz] = i;
-    mat->nnz += 1;
+    mat->ptr[i] = k;
+    mat->index[k] = i;
+    ++k;
 
     int ne = adj_graph_num_edges(sparsity, i);
     int* edges = adj_graph_edges(sparsity, i);
-    for (int j = 0; j < ne; ++j, ++mat->nnz)
-      mat->index[mat->nnz] = edges[j];
+    for (int j = 0; j < ne; ++j, ++k)
+      mat->index[k] = edges[j];
   }
+  ASSERT(k == mat->nnz);
   mat->ptr[N_local] = mat->nnz;
   memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
   lis_matrix_set_csr(mat->nnz, mat->ptr, mat->index, mat->values, mat->A);

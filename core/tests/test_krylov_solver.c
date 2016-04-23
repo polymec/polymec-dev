@@ -159,6 +159,7 @@ static void test_krylov_matrix(void** state, krylov_factory_t* factory)
     krylov_matrix_free(mat);
     krylov_matrix_free(mat1);
     krylov_factory_free(factory);
+    adj_graph_free(graph);
   }
 }
 
@@ -186,6 +187,7 @@ static void test_krylov_vector(void** state, krylov_factory_t* factory)
     krylov_vector_free(vec);
     krylov_vector_free(vec1);
     krylov_factory_free(factory);
+    adj_graph_free(graph);
   }
 }
 
