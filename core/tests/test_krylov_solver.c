@@ -212,10 +212,10 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
       rows[0] = i, cols[0] = i-1, Aij[0] = -1.0;
       rows[1] = i, cols[1] = i,   Aij[1] = 2.0;
       rows[2] = i, cols[2] = i+1, Aij[2] = -1.0;
-      krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+//      krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
     }
     num_cols = 1, rows[0] = N-1, cols[0] = N-1, Aij[0] = 1.0;
-    krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+//    krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
 
     krylov_matrix_start_assembly(A);
     krylov_matrix_finish_assembly(A);

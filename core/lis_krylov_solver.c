@@ -330,7 +330,6 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
   mat->ptr[N_local] = mat->nnz;
   memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
   lis_matrix_set_csr(mat->nnz, mat->ptr, mat->index, mat->values, mat->A);
-  lis_matrix_assemble(mat->A);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = matrix_clone,
@@ -389,7 +388,6 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
   }
   mat->bptr[mat->nr] = mat->nr;
   lis_matrix_set_bsr(block_size, block_size, mat->bnnz, mat->bptr, mat->bindex, mat->values, mat->A);
-  lis_matrix_assemble(mat->A);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = matrix_clone,
@@ -456,7 +454,6 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
   mat->values = malloc(sizeof(LIS_SCALAR) * mat->nnz);
   memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
   lis_matrix_set_vbr(mat->nnz, mat->nr, mat->nc, mat->bnnz, mat->row, mat->col, mat->ptr, mat->bptr, mat->bindex, mat->values, mat->A);
-  lis_matrix_assemble(mat->A);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = matrix_clone,
