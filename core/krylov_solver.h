@@ -355,16 +355,16 @@ void krylov_matrix_add_values(krylov_matrix_t* A,
                               index_t* rows, index_t* columns,
                               real_t* values);
                               
-// Assemble the matrix. This should be called after setting or adding to its 
-// values.
+// Assemble the matrix. This should be called after krylov_matrix_set_values 
+// or krylov_matrix_add_values.
 void krylov_matrix_assemble(krylov_matrix_t* A);
 
 // Start the (possibly asynchronous) matrix assembly. This should be called 
-// after setting or adding to its values.
+// after krylov_matrix_set_values or krylov_matrix_add_values.
 void krylov_matrix_start_assembly(krylov_matrix_t* A);
 
 // Finish the (possibly asynchronous) matrix assembly. This should be called 
-// after setting or adding to its values.
+// after krylov_matrix_start_assembly.
 void krylov_matrix_finish_assembly(krylov_matrix_t* A);
 
 // Retrieves the values of the elements in the matrix identified by the 
