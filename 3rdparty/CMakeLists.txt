@@ -6,7 +6,7 @@ math(EXPR NUM_BUILD_THREADS "${NUMBER_OF_CORES} + 1")
 
 # Build cmocka, a C unit testing library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
-  message("Configuring cmocka...")
+  message(STATUS "Configuring cmocka...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/cmocka
                   RESULT_VARIABLE stat)
   set(CMOCKA_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DWITH_STATIC_LIB=ON -DWITH_EXAMPLES=OFF)
@@ -27,7 +27,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
       message(FATAL_ERROR "Configuration of cmocka library failed. See ${CMAKE_CURRENT_BINARY_DIR}/cmock_config_*.log.")
     endif()
   endif()
-  message("Building and installing cmocka (${NUM_BUILD_THREADS} threads)...")
+  message(STATUS "Building and installing cmocka (${NUM_BUILD_THREADS} threads)...")
   execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cmocka
                   OUTPUT_VARIABLE cmocka_build_log ERROR_VARIABLE cmocka_build_err
@@ -64,14 +64,14 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
     set(GC_CONFIG_OPTS ${GC_CONFIG_OPTS} --enable-gc-debug)
   endif()
 
-  message("Preparing gc...")
+  message(STATUS "Preparing gc...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/gc ${CMAKE_CURRENT_BINARY_DIR}/gc
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
 
-  message("Configuring gc...")
+  message(STATUS "Configuring gc...")
   execute_process(COMMAND env CC=${CMAKE_C_COMPILER} ./configure ${GC_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc
                   OUTPUT_VARIABLE gc_config_log ERROR_VARIABLE gc_config_err
@@ -87,7 +87,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
     endif()
   endif()
 
-  message("Building and installing gc (${NUM_BUILD_THREADS} threads)...")
+  message(STATUS "Building and installing gc (${NUM_BUILD_THREADS} threads)...")
   execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc
                   OUTPUT_VARIABLE gc_build_log ERROR_VARIABLE gc_build_err
@@ -114,14 +114,14 @@ set(POLYMEC_TP_LIBS gc;${POLYMEC_TP_LIBS})
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
 
-  message("Preparing libarena...")
+  message(STATUS "Preparing libarena...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/libarena ${CMAKE_CURRENT_BINARY_DIR}/libarena
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
 
-  message("Copying libarena headers into place...")
+  message(STATUS "Copying libarena headers into place...")
   file(GLOB arena_includes "${CMAKE_CURRENT_BINARY_DIR}/libarena/src/*.h")
   execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
   foreach(inc ${arena_includes})
@@ -140,14 +140,14 @@ set(POLYMEC_TP_LIBS arena;${POLYMEC_TP_LIBS})
 if (NOT EXISTS ${Z_LIBRARY})
   set(ZLIB_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --static)
 
-  message("Preparing zlib...")
+  message(STATUS "Preparing zlib...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
 
-  message("Configuring zlib...")
+  message(STATUS "Configuring zlib...")
   execute_process(COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} ./configure ${ZLIB_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib
                   OUTPUT_VARIABLE zlib_config_log ERROR_VARIABLE zlib_config_err
@@ -163,7 +163,7 @@ if (NOT EXISTS ${Z_LIBRARY})
     endif()
   endif()
 
-  message("Building and installing zlib (${NUM_BUILD_THREADS} threads)...")
+  message(STATUS "Building and installing zlib (${NUM_BUILD_THREADS} threads)...")
   execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib
                   OUTPUT_VARIABLE zlib_build_log ERROR_VARIABLE zlib_build_err
@@ -185,7 +185,7 @@ set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 # Build the HDF5 parallel I/O library. 
 if (${SILO_LIBRARY} MATCHES "h5")
   if (NOT EXISTS ${HDF5_LIBRARY})
-    message("Configuring hdf5...")
+    message(STATUS "Configuring hdf5...")
     set(HDF5_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
     set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}) 
     set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DZLIB_INCLUDE_DIRS=${PROJECT_BINARY_DIR}/include -DZLIB_LIBARIES=z -DZLIB_USE_EXTERNAL=OFF -DHDF5_ENABLE_PARALLEL=${HAVE_MPI})
@@ -212,7 +212,7 @@ if (${SILO_LIBRARY} MATCHES "h5")
       endif()
     endif()
 
-    message("Building and installing hdf5 (${NUM_BUILD_THREADS} threads)...")
+    message(STATUS "Building and installing hdf5 (${NUM_BUILD_THREADS} threads)...")
     execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
                     OUTPUT_VARIABLE hdf5_build_log ERROR_VARIABLE hdf5_build_err
@@ -262,7 +262,7 @@ endif()
 # Install silo with HDF5 support.
 if (NOT EXISTS ${SILO_LIBRARY})
 
-  message("Preparing silo...")
+  message(STATUS "Preparing silo...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/silo ${CMAKE_CURRENT_BINARY_DIR}/silo
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
@@ -272,12 +272,11 @@ if (NOT EXISTS ${SILO_LIBRARY})
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo
                   OUTPUT_VARIABLE patchy
                   RESULT_VARIABLE stat)
-  message("${patchy}")
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Patching library source failed.")
   endif()
 
-  message("Configuring silo...")
+  message(STATUS "Configuring silo...")
   set(SILO_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR})
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --with-hdf5=${HDF5_INCLUDE_DIR},${HDF5_LIBRARY_DIR})
   set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --with-zlib=${Z_INCLUDE_DIR},${Z_LIBRARY_DIR})
@@ -314,7 +313,7 @@ if (NOT EXISTS ${SILO_LIBRARY})
     endif()
   endif()
 
-  message("Building and installing silo (${NUM_BUILD_THREADS} threads)...")
+  message(STATUS "Building and installing silo (${NUM_BUILD_THREADS} threads)...")
   execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo
                   OUTPUT_VARIABLE silo_build_log ERROR_VARIABLE silo_build_err
@@ -341,10 +340,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
   else()
     set(SHARED_OPTS --enable-static --disable-shared)
   endif()
-  set(LIS_CFLAGS ${CMAKE_C_FLAGS})
-  string(REPLACE "-Werror-implicit-function-declaration" "" LIS_CFLAGS ${LIS_CFLAGS})
-  string(REPLACE "-pedantic-errors" "" LIS_CFLAGS ${LIS_CFLAGS})
-  set(LIS_CONFIG_OPTS ${SHARED_OPTS} --prefix=${PROJECT_BINARY_DIR} CC=${CMAKE_C_COMPILER} CFLAGS=${LIS_CFLAGS})
+  set(LIS_CONFIG_OPTS ${SHARED_OPTS} --prefix=${PROJECT_BINARY_DIR})
   if (HAVE_OPENMP)
     set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-omp)
   endif()
@@ -352,19 +348,23 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
     set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-mpi)
   endif()
   
-  message("Preparing lis...")
+  message(STATUS "Preparing lis...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lis ${CMAKE_CURRENT_BINARY_DIR}/lis
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
 
-  message("Configuring lis...")
+  message(STATUS "Configuring lis...")
   if (HAVE_MPI)
     set(LIS_ENV MPICC=${CMAKE_C_COMPILER})
   else()
     set(LIS_ENV CC=${CMAKE_C_COMPILER})
   endif()
+  set(LIS_CFLAGS ${CMAKE_C_FLAGS})
+  string(REPLACE "-Werror-implicit-function-declaration" "" LIS_CFLAGS ${LIS_CFLAGS})
+  string(REPLACE "-pedantic-errors" "" LIS_CFLAGS ${LIS_CFLAGS})
+  set(LIS_ENV ${LIS_ENV} CFLAGS=${LIS_CFLAGS})
   execute_process(COMMAND env ${LIS_ENV} ./configure ${LIS_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lis
                   OUTPUT_VARIABLE lis_config_log ERROR_VARIABLE lis_config_err
@@ -382,7 +382,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
 
   # NOTE: LIS's 'make install' cannot be run on more than 1 thread reliably,
   # NOTE: so we have to separate the build/install processes.
-  message("Building and installing lis (${NUM_BUILD_THREADS} threads)...")
+  message(STATUS "Building and installing lis (${NUM_BUILD_THREADS} threads)...")
   execute_process(COMMAND make -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lis
                   OUTPUT_VARIABLE lis_build_log ERROR_VARIABLE lis_build_err
@@ -419,14 +419,14 @@ set(POLYMEC_TP_LIBS lis;${POLYMEC_TP_LIBS})
 # Build SuperLU, a (serial) direct sparse linear solver library that 
 # we will use for preconditioning.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
-  message("Preparing superlu...")
+  message(STATUS "Preparing superlu...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/superlu ${CMAKE_CURRENT_BINARY_DIR}/superlu
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
 
-  message("Adjusting superlu make.inc...")
+  message(STATUS "Adjusting superlu make.inc...")
   file(READ ${CMAKE_CURRENT_BINARY_DIR}/superlu/make.inc superlu_makeinc)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu/make.inc.old ${superlu_makeinc})
   string(REPLACE "gcc" ${CMAKE_C_COMPILER} superlu_makeinc ${superlu_makeinc})
@@ -449,7 +449,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
   endif()
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu/make.inc ${superlu_makeinc})
 
-  message("Building and installing superlu (1 thread)...")
+  message(STATUS "Building and installing superlu (1 thread)...")
   # Looks like SuperLU wants to be built serially, so no -jN here.
   execute_process(COMMAND make lib
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/superlu
@@ -477,7 +477,7 @@ set(POLYMEC_TP_LIBS superlu;${POLYMEC_TP_LIBS})
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
 # differential-algebraic equations.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
-  message("Configuring sundials...")
+  message(STATUS "Configuring sundials...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sundials
                   RESULT_VARIABLE stat)
   set(SUNDIALS_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DEXAMPLES_ENABLE=OFF -DFCMIX_ENABLE=OFF -DSUNDIALS_PRECISION=${POLYMEC_PRECISION})
@@ -502,7 +502,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
     endif()
   endif()
 
-  message("Building and installing sundials (${NUM_BUILD_THREADS} threads)...")
+  message(STATUS "Building and installing sundials (${NUM_BUILD_THREADS} threads)...")
   execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
                   OUTPUT_VARIABLE sundials_build_log ERROR_VARIABLE sundials_build_err
@@ -536,14 +536,14 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   else() 
     set(LUA_ARCH generic)
   endif()
-  message("Preparing lua...")
+  message(STATUS "Preparing lua...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lua ${CMAKE_CURRENT_BINARY_DIR}/lua
                   RESULT_VARIABLE stat)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
 
-  message("Adjusting lua Makefile...")
+  message(STATUS "Adjusting lua Makefile...")
   file(READ ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile lua_makefile)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile.old ${lua_makefile})
   string(REPLACE "gcc" ${CMAKE_C_COMPILER} lua_makefile ${lua_makefile})
@@ -555,8 +555,8 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   endif()
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile ${lua_makefile})
 
-  message("Building lua...")
-  execute_process(COMMAND make ${LUA_ARCH} CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS}
+  message(STATUS "Building lua (${NUM_BUILD_THREADS} threads)...")
+  execute_process(COMMAND make ${LUA_ARCH} CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lua
                   OUTPUT_VARIABLE lua_build_log ERROR_VARIABLE lua_build_err
                   RESULT_VARIABLE stat)
@@ -621,7 +621,7 @@ if (HAVE_MPI)
       set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -g")
     endif()
 
-    message("Preparing scotch...")
+    message(STATUS "Preparing scotch...")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/scotch ${CMAKE_CURRENT_BINARY_DIR}/scotch
                     RESULT_VARIABLE stat)
     if (NOT stat EQUAL 0)
@@ -632,10 +632,11 @@ if (HAVE_MPI)
       "${CMAKE_CURRENT_BINARY_DIR}/scotch/src/Makefile.inc"
     )
 
-    message("Building scotch...")
-    execute_process(COMMAND make ptscotch RESULT_VARIABLE stat
+    message(STATUS "Building scotch (${NUM_BUILD_THREADS} threads)...")
+    execute_process(COMMAND make ptscotch -j${NUM_BUILD_THREADS} 
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/scotch/src
-                    OUTPUT_VARIABLE scotch_build_log ERROR_VARIABLE scotch_build_err)
+                    OUTPUT_VARIABLE scotch_build_log ERROR_VARIABLE scotch_build_err
+                    RESULT_VARIABLE stat)
     if (NOT stat EQUAL 0)
       if (TRAVIS_CI)
         message(WARNING "Build of scotch library failed:")
