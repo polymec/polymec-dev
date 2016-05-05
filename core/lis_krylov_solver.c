@@ -97,7 +97,22 @@ static bool lis_solver_solve(void* context,
   LIS_VECTOR B = b;
   LIS_VECTOR X = x;
   int err = lis_solve(solver->op, B, X, solver->solver);
-  bool solved = (err == LIS_SUCCESS);
+  bool solved = false;
+  if (err == LIS_SUCCESS)
+  {
+    int status;
+    lis_solver_get_status(solver->solver, &status);
+    solved = (status == LIS_SUCCESS);
+    if (!solved)
+    {
+      if (status == LIS_BREAKDOWN)
+        log_debug("krylov_solver_solve (LIS): division by zero");
+      else if (status == LIS_OUT_OF_MEMORY)
+        log_debug("krylov_solver_solve (LIS): out of memory");
+      else if (status == LIS_MAXITER)
+        log_debug("krylov_solver_solve (LIS): max # of iterations exceeded");
+    }
+  }
   if (solved)
   {
     lis_solver_get_residualnorm(solver->solver, res_norm);
@@ -120,6 +135,8 @@ static krylov_solver_t* lis_factory_pcg_solver(void* context,
   lis_solver_create(&solver->solver);
   lis_solver_set_option("-i cg", solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
+  lis_solver_set_option("-scale jacobi", solver->solver);
+  lis_solver_set_option("-print 2", solver->solver);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -138,8 +155,12 @@ static krylov_solver_t* lis_factory_gmres_solver(void* context,
 {
   lis_solver_t* solver = polymec_malloc(sizeof(lis_solver_t));
   lis_solver_create(&solver->solver);
-  lis_solver_set_option("-i gmres", solver->solver);
+  char gmres[129];
+  snprintf(gmres, 128, "-i gmres %d", krylov_dimension);
+  lis_solver_set_option(gmres, solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
+  lis_solver_set_option("-scale jacobi", solver->solver);
+  lis_solver_set_option("-print 2", solver->solver);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -158,6 +179,8 @@ static krylov_solver_t* lis_factory_bicgstab_solver(void* context,
   lis_solver_create(&solver->solver);
   lis_solver_set_option("-i bicgstab", solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
+  lis_solver_set_option("-scale jacobi", solver->solver);
+  lis_solver_set_option("-print 2", solver->solver);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,

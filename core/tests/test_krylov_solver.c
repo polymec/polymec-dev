@@ -199,6 +199,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
 
     // Create a distributed graph with 1000 local vertices.
     int N = 1000;
+    real_t h = 1.0 / h;
     adj_graph_t* graph = create_1d_laplacian_graph(comm, N);
 
     // Create a Laplace operator from the graph.
@@ -221,6 +222,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
 
     krylov_matrix_start_assembly(A);
     krylov_matrix_finish_assembly(A);
+    krylov_matrix_scale(A, 1.0/(h*h));
 
     // Create a RHS vector.
     krylov_vector_t* b = krylov_factory_vector(factory, graph);
@@ -238,6 +240,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     // Create a solver.
     krylov_solver_t* solver = krylov_factory_pcg_solver(factory, comm);
     assert_true(solver != NULL);
+    krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 1.0);
 
     // Solve the equation.
     krylov_solver_set_operator(solver, A);
