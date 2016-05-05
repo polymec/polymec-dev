@@ -347,6 +347,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
   if (HAVE_MPI)
     set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-mpi)
   endif()
+  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(LIS_CONFIG_OPTS ${LIS_CONFIG_OPTS} --enable-debug)
+  endif()
   
   message(STATUS "Preparing lis...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lis ${CMAKE_CURRENT_BINARY_DIR}/lis
@@ -354,6 +357,12 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
+
+  message(STATUS "Adjusting lis configure script (pruning -D_DEBUG)...")
+  file(READ ${CMAKE_CURRENT_BINARY_DIR}/lis/configure lis_configure)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis/configure.old "${lis_configure}")
+  string(REPLACE "-D_DEBUG" "" lis_configure "${lis_configure}")
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis/configure "${lis_configure}")
 
   message(STATUS "Configuring lis...")
   if (HAVE_MPI)

@@ -241,6 +241,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     krylov_solver_t* solver = krylov_factory_pcg_solver(factory, comm);
     assert_true(solver != NULL);
     krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 1.0);
+    krylov_solver_set_max_iterations(solver, 10);
 
     // Solve the equation.
     krylov_solver_set_operator(solver, A);
