@@ -742,7 +742,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
                                  .start_assembly = matrix_start_assembly,
                                  .get_values = matrix_get_values_csr,
                                  .dtor = matrix_dtor};
-  return krylov_matrix_new(mat, vtable, N_local, N_global);
+  return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
 }
 
 static krylov_matrix_t* lis_factory_block_matrix(void* context,
@@ -803,7 +803,7 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
                                  .start_assembly = matrix_start_assembly,
                                  .get_values = matrix_get_values_bsr,
                                  .dtor = matrix_dtor};
-  return krylov_matrix_new(mat, vtable, N_local, N_global);
+  return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
 }
 
 static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
@@ -872,7 +872,7 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
                                  .start_assembly = matrix_start_assembly,
                                  .get_values = matrix_get_values_vbr,
                                  .dtor = matrix_dtor};
-  return krylov_matrix_new(mat, vtable, N_local, N_global);
+  return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
 }
 
 static void* vector_clone(void* context)

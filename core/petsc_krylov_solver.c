@@ -550,7 +550,7 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
                                  .finish_assembly = petsc_matrix_finish_assembly,
                                  .get_values = petsc_matrix_get_values,
                                  .dtor = petsc_matrix_dtor};
-  return krylov_matrix_new(A, vtable, N_local, N_global);
+  return krylov_matrix_new(A, vtable, comm, N_local, N_global);
 }
 
 static krylov_matrix_t* petsc_factory_block_matrix(void* context,
@@ -645,7 +645,7 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
                                  .finish_assembly = petsc_matrix_finish_assembly,
                                  .get_values = petsc_matrix_get_values,
                                  .dtor = petsc_matrix_dtor};
-  return krylov_matrix_new(A, vtable, N_local, N_global);
+  return krylov_matrix_new(A, vtable, comm, N_local, N_global);
 }
 
 static void* petsc_vector_clone(void* context)

@@ -33,6 +33,7 @@ struct krylov_matrix_t
 {
   void* context;
   krylov_matrix_vtable vtable;
+  MPI_Comm comm;
   int num_local_rows;
   int num_global_rows;
 };
@@ -171,6 +172,7 @@ char* krylov_pc_name(krylov_solver_t* preconditioner)
 
 krylov_matrix_t* krylov_matrix_new(void* context,
                                    krylov_matrix_vtable vtable,
+                                   MPI_Comm comm,
                                    int num_local_rows,
                                    index_t num_global_rows)
 {
@@ -185,9 +187,576 @@ krylov_matrix_t* krylov_matrix_new(void* context,
   krylov_matrix_t* A = polymec_malloc(sizeof(krylov_matrix_t));
   A->context = context;
   A->vtable = vtable;
+  A->comm = comm;
   A->num_local_rows = num_local_rows;
   A->num_global_rows = num_global_rows;
   return A;
+}
+
+//------------------------------------------------------------------------
+//                 Matrix Market file format logic
+//------------------------------------------------------------------------
+// This code was pulled from http://math.nist.gov/MatrixMarket.
+//------------------------------------------------------------------------
+
+#define MM_MAX_LINE_LENGTH 1025
+#define MatrixMarketBanner "%%MatrixMarket"
+#define MM_MAX_TOKEN_LENGTH 64
+
+#define mm_is_matrix(typecode)	((typecode)[0]=='M')
+
+#define mm_is_sparse(typecode)	((typecode)[1]=='C')
+#define mm_is_coordinate(typecode)((typecode)[1]=='C')
+#define mm_is_dense(typecode)	((typecode)[1]=='A')
+#define mm_is_array(typecode)	((typecode)[1]=='A')
+
+#define mm_is_complex(typecode)	((typecode)[2]=='C')
+#define mm_is_real(typecode)		((typecode)[2]=='R')
+#define mm_is_pattern(typecode)	((typecode)[2]=='P')
+#define mm_is_integer(typecode) ((typecode)[2]=='I')
+
+#define mm_is_symmetric(typecode)((typecode)[3]=='S')
+#define mm_is_general(typecode)	((typecode)[3]=='G')
+#define mm_is_skew(typecode)	((typecode)[3]=='K')
+#define mm_is_hermitian(typecode)((typecode)[3]=='H')
+
+#define MM_MTX_STR		"matrix"
+#define MM_ARRAY_STR	"array"
+#define MM_DENSE_STR	"array"
+#define MM_COORDINATE_STR "coordinate" 
+#define MM_SPARSE_STR	"coordinate"
+#define MM_COMPLEX_STR	"complex"
+#define MM_REAL_STR		"real"
+#define MM_INT_STR		"integer"
+#define MM_GENERAL_STR  "general"
+#define MM_SYMM_STR		"symmetric"
+#define MM_HERM_STR		"hermitian"
+#define MM_SKEW_STR		"skew-symmetric"
+#define MM_PATTERN_STR  "pattern"
+
+#define mm_set_matrix(typecode)	((*typecode)[0]='M')
+#define mm_set_coordinate(typecode)	((*typecode)[1]='C')
+#define mm_set_array(typecode)	((*typecode)[1]='A')
+#define mm_set_dense(typecode)	mm_set_array(typecode)
+#define mm_set_sparse(typecode)	mm_set_coordinate(typecode)
+
+#define mm_set_complex(typecode)((*typecode)[2]='C')
+#define mm_set_real(typecode)	((*typecode)[2]='R')
+#define mm_set_pattern(typecode)((*typecode)[2]='P')
+#define mm_set_integer(typecode)((*typecode)[2]='I')
+
+#define mm_set_symmetric(typecode)((*typecode)[3]='S')
+#define mm_set_general(typecode)((*typecode)[3]='G')
+#define mm_set_skew(typecode)	((*typecode)[3]='K')
+#define mm_set_hermitian(typecode)((*typecode)[3]='H')
+
+#define mm_clear_typecode(typecode) ((*typecode)[0]=(*typecode)[1]= \
+									(*typecode)[2]=' ',(*typecode)[3]='G')
+
+#define mm_initialize_typecode(typecode) mm_clear_typecode(typecode)
+
+#define MM_COULD_NOT_READ_FILE	11
+#define MM_PREMATURE_EOF		12
+#define MM_NOT_MTX				13
+#define MM_NO_HEADER			14
+#define MM_UNSUPPORTED_TYPE		15
+#define MM_LINE_TOO_LONG		16
+#define MM_COULD_NOT_WRITE_FILE	17
+
+typedef char MM_typecode[4];
+
+static char *mm_typecode_to_str(MM_typecode matcode)
+{
+  char buffer[MM_MAX_LINE_LENGTH];
+  char *types[4];
+  int error =0;
+
+  // check for MTX type 
+  if (mm_is_matrix(matcode)) 
+    types[0] = MM_MTX_STR;
+  else
+    error=1;
+
+  // check for CRD or ARR matrix 
+  if (mm_is_sparse(matcode))
+    types[1] = MM_SPARSE_STR;
+  else
+    if (mm_is_dense(matcode))
+      types[1] = MM_DENSE_STR;
+    else
+      return NULL;
+
+  // check for element data type 
+  if (mm_is_real(matcode))
+    types[2] = MM_REAL_STR;
+  else
+    if (mm_is_complex(matcode))
+      types[2] = MM_COMPLEX_STR;
+    else
+      if (mm_is_pattern(matcode))
+        types[2] = MM_PATTERN_STR;
+      else
+        if (mm_is_integer(matcode))
+          types[2] = MM_INT_STR;
+        else
+          return NULL;
+
+
+  // check for symmetry type 
+  if (mm_is_general(matcode))
+    types[3] = MM_GENERAL_STR;
+  else
+    if (mm_is_symmetric(matcode))
+      types[3] = MM_SYMM_STR;
+    else 
+      if (mm_is_hermitian(matcode))
+        types[3] = MM_HERM_STR;
+      else 
+        if (mm_is_skew(matcode))
+          types[3] = MM_SKEW_STR;
+        else
+          return NULL;
+
+  sprintf(buffer,"%s %s %s %s", types[0], types[1], types[2], types[3]);
+  return string_dup(buffer);
+}
+
+static int mm_read_banner(FILE *f, MM_typecode *matcode)
+{
+  char line[MM_MAX_LINE_LENGTH];
+  char banner[MM_MAX_TOKEN_LENGTH];
+  char mtx[MM_MAX_TOKEN_LENGTH]; 
+  char crd[MM_MAX_TOKEN_LENGTH];
+  char data_type[MM_MAX_TOKEN_LENGTH];
+  char storage_scheme[MM_MAX_TOKEN_LENGTH];
+  char *p;
+
+  mm_clear_typecode(matcode);  
+
+  if (fgets(line, MM_MAX_LINE_LENGTH, f) == NULL) 
+    return MM_PREMATURE_EOF;
+
+  if (sscanf(line, "%s %s %s %s %s", banner, mtx, crd, data_type, 
+        storage_scheme) != 5)
+    return MM_PREMATURE_EOF;
+
+  for (p=mtx; *p!='\0'; *p=tolower(*p),p++); // convert to lower case 
+  for (p=crd; *p!='\0'; *p=tolower(*p),p++);  
+  for (p=data_type; *p!='\0'; *p=tolower(*p),p++);
+  for (p=storage_scheme; *p!='\0'; *p=tolower(*p),p++);
+
+  // check for banner 
+  if (strncmp(banner, MatrixMarketBanner, strlen(MatrixMarketBanner)) != 0)
+    return MM_NO_HEADER;
+
+  // first field should be "mtx" 
+  if (strcmp(mtx, MM_MTX_STR) != 0)
+    return  MM_UNSUPPORTED_TYPE;
+  mm_set_matrix(matcode);
+
+  // second field describes whether this is a sparse matrix (in coordinate
+  // storage) or a dense array 
+
+  if (strcmp(crd, MM_SPARSE_STR) == 0)
+    mm_set_sparse(matcode);
+  else
+    if (strcmp(crd, MM_DENSE_STR) == 0)
+      mm_set_dense(matcode);
+    else
+      return MM_UNSUPPORTED_TYPE;
+
+
+  // third field 
+
+  if (strcmp(data_type, MM_REAL_STR) == 0)
+    mm_set_real(matcode);
+  else
+    if (strcmp(data_type, MM_COMPLEX_STR) == 0)
+      mm_set_complex(matcode);
+    else
+      if (strcmp(data_type, MM_PATTERN_STR) == 0)
+        mm_set_pattern(matcode);
+      else
+        if (strcmp(data_type, MM_INT_STR) == 0)
+          mm_set_integer(matcode);
+        else
+          return MM_UNSUPPORTED_TYPE;
+
+
+  // fourth field 
+
+  if (strcmp(storage_scheme, MM_GENERAL_STR) == 0)
+    mm_set_general(matcode);
+  else
+  {
+    if (strcmp(storage_scheme, MM_SYMM_STR) == 0)
+      mm_set_symmetric(matcode);
+    else
+    {
+      if (strcmp(storage_scheme, MM_HERM_STR) == 0)
+        mm_set_hermitian(matcode);
+      else
+      {
+        if (strcmp(storage_scheme, MM_SKEW_STR) == 0)
+          mm_set_skew(matcode);
+        else
+          return MM_UNSUPPORTED_TYPE;
+      }
+    }
+  }
+
+  return 0;
+}
+
+static int mm_read_mtx_crd_size(FILE *f, int *M, int *N, int *nz)
+{
+  char line[MM_MAX_LINE_LENGTH];
+  int num_items_read;
+
+  // set return null parameter values, in case we exit with errors 
+  *M = *N = *nz = 0;
+
+  // now continue scanning until you reach the end-of-comments 
+  do 
+  {
+    if (fgets(line,MM_MAX_LINE_LENGTH,f) == NULL) 
+      return MM_PREMATURE_EOF;
+  }
+  while (line[0] == '%');
+
+  // line[] is either blank or has M,N, nz 
+  if (sscanf(line, "%d %d %d", M, N, nz) == 3)
+    return 0;
+
+  else
+  {
+    do
+    { 
+      num_items_read = fscanf(f, "%d %d %d", M, N, nz); 
+      if (num_items_read == EOF) return MM_PREMATURE_EOF;
+    }
+    while (num_items_read != 3);
+  }
+
+  return 0;
+}
+
+static int mm_read_mtx_array_size(FILE *f, int *M, int *N)
+{
+  char line[MM_MAX_LINE_LENGTH];
+  int num_items_read;
+  // set return null parameter values, in case we exit with errors 
+  *M = *N = 0;
+
+  // now continue scanning until you reach the end-of-comments 
+  do 
+  {
+    if (fgets(line,MM_MAX_LINE_LENGTH,f) == NULL) 
+      return MM_PREMATURE_EOF;
+  }
+  while (line[0] == '%');
+
+  // line[] is either blank or has M,N, nz 
+  if (sscanf(line, "%d %d", M, N) == 2)
+    return 0;
+
+  else // we have a blank line 
+  {
+    do
+    { 
+      num_items_read = fscanf(f, "%d %d", M, N); 
+      if (num_items_read == EOF) return MM_PREMATURE_EOF;
+    }
+    while (num_items_read != 2);
+  }
+
+  return 0;
+}
+
+static int mm_is_valid(MM_typecode matcode)
+{
+  if (!mm_is_matrix(matcode)) return false;
+  if (mm_is_dense(matcode) && mm_is_pattern(matcode)) return false;
+  if (mm_is_real(matcode) && mm_is_hermitian(matcode)) return false;
+  if (mm_is_pattern(matcode) && (mm_is_hermitian(matcode) || 
+        mm_is_skew(matcode))) return false;
+  return true;
+}
+
+static int mm_read_mtx_crd_data(FILE *f, int M, int N, int nz, 
+                                int I[], int J[], real_t val[], 
+                                MM_typecode matcode)
+{
+  int i;
+  if (mm_is_complex(matcode))
+  {
+    for (i=0; i<nz; i++)
+      if (fscanf(f, "%d %d %lg %lg", &I[i], &J[i], &val[2*i], &val[2*i+1])
+          != 4) return MM_PREMATURE_EOF;
+  }
+  else if (mm_is_real(matcode))
+  {
+    for (i=0; i<nz; i++)
+    {
+      if (fscanf(f, "%d %d %lg\n", &I[i], &J[i], &val[i])
+          != 3) return MM_PREMATURE_EOF;
+
+    }
+  }
+
+  else if (mm_is_pattern(matcode))
+  {
+    for (i=0; i<nz; i++)
+      if (fscanf(f, "%d %d", &I[i], &J[i])
+          != 2) return MM_PREMATURE_EOF;
+  }
+  else
+    return MM_UNSUPPORTED_TYPE;
+
+  return 0;
+}
+
+static int mm_read_unsymmetric_sparse(const char *fname, 
+                                      int *M_, int *N_, int *nz_,
+                                      real_t **val_, int **I_, int **J_)
+{
+
+  FILE *f = fopen(fname, "r");
+  if (f == NULL)
+    return -1;
+
+  MM_typecode matcode;
+  if (mm_read_banner(f, &matcode) != 0)
+  {
+    printf("mm_read_unsymmetric: Could not process Matrix Market banner ");
+    printf(" in file [%s]\n", fname);
+    return -1;
+  }
+
+  if (!(mm_is_real(matcode) && mm_is_matrix(matcode) &&
+       mm_is_sparse(matcode)))
+  {
+    fprintf(stderr, "Sorry, this application does not support ");
+    fprintf(stderr, "Market Market type: [%s]\n",
+        mm_typecode_to_str(matcode));
+    return -1;
+  }
+
+  // find out size of sparse matrix: M, N, nz .... 
+  int M, N, nz;
+  if (mm_read_mtx_crd_size(f, &M, &N, &nz) !=0)
+  {
+    fprintf(stderr, "read_unsymmetric_sparse(): could not parse matrix size.\n");
+    return -1;
+  }
+
+  *M_ = M;
+  *N_ = N;
+  *nz_ = nz;
+
+  // reserve memory for matrices 
+  int* I = polymec_malloc(nz * sizeof(int));
+  int* J = polymec_malloc(nz * sizeof(int));
+  real_t* val = polymec_malloc(nz * sizeof(real_t));
+
+  *val_ = val;
+  *I_ = I;
+  *J_ = J;
+
+  // NOTE: when reading in reals, ANSI C requires the use of the "l"  
+  //   specifier as in "%lg", "%lf", "%le", otherwise errors will occur 
+  //  (ANSI C X3.159-1989, Sec. 4.9.6.2, p. 136 lines 13-15)            
+
+  for (int i = 0; i < nz; ++i)
+  {
+#if POLYMEC_HAVE_SINGLE_PRECISION
+    fscanf(f, "%d %d %g\n", &I[i], &J[i], &val[i]);
+#else
+    fscanf(f, "%d %d %lg\n", &I[i], &J[i], &val[i]);
+#endif
+    I[i]--;  // adjust from 1-based to 0-based 
+    J[i]--;
+  }
+  fclose(f);
+
+  return 0;
+}
+//------------------------------------------------------------------------
+static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory, 
+                                            krylov_matrix_t* global_A, 
+                                            adj_graph_t* global_sparsity, 
+                                            MPI_Comm comm)
+{
+  ASSERT(comm != MPI_COMM_SELF);
+
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_size(comm, &rank);
+
+  // Do a naive partitioning (since we assume a sensible partitioning was 
+  // done to create the row space for the matrix in the first place...)
+  int num_global_rows = adj_graph_num_vertices(global_sparsity);
+  int num_local_rows = num_global_rows / nprocs;
+  if (rank == (nprocs - 1))
+    num_local_rows = num_global_rows - rank * num_local_rows;
+
+  // Break up the graph.
+  adj_graph_t* local_sparsity = adj_graph_new(comm, num_local_rows);
+  int tot_num_edges = 0;
+  for (int i = 0; i < num_local_rows; ++i)
+  {
+    int I = rank * num_local_rows + i; // global vertex index
+    int num_edges = adj_graph_num_edges(global_sparsity, I);
+    int* global_edges = adj_graph_edges(global_sparsity, I);
+    adj_graph_set_num_edges(local_sparsity, i, num_edges);
+    int* local_edges = adj_graph_edges(local_sparsity, i);
+    for (int j = 0; j < num_edges; ++j)
+      local_edges[j] = global_edges[j];
+    tot_num_edges += num_edges;
+  }
+
+  // Create a local representation of the matrix.
+  krylov_matrix_t* local_A = krylov_factory_matrix(factory, local_sparsity);
+  adj_graph_free(local_sparsity);
+
+  // Shuttle the coefficients from the global into the local matrix.
+  index_t global_rows[num_local_rows], local_rows[num_local_rows], 
+          num_cols[num_local_rows], cols[tot_num_edges];
+  real_t global_vals[tot_num_edges];
+  int k = 0;
+  for (int i = 0; i < num_local_rows; ++i)
+  {
+    local_rows[i] = i;
+    index_t I = rank * num_local_rows + i; // global vertex index
+    global_rows[i] = I;
+    num_cols[i] = adj_graph_num_edges(global_sparsity, I);
+    int* global_edges = adj_graph_edges(global_sparsity, I);
+    for (int j = 0; j < num_cols[i]; ++j, ++k)
+      cols[++k] = global_edges[j];
+  }
+  ASSERT(k == tot_num_edges);
+  real_t values[tot_num_edges];
+  krylov_matrix_get_values(global_A, num_local_rows, num_cols, global_rows, 
+                           cols, values);
+  krylov_matrix_set_values(local_A, num_local_rows, num_cols, local_rows, 
+                           cols, values);
+  return local_A;
+}
+
+static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
+                                                      MPI_Comm comm,
+                                                      const char* filename)
+{
+  FILE* f = fopen(filename, "r");
+  ASSERT(f != NULL);
+
+  // Read the banner to get the type code.
+  MM_typecode matcode;
+  if (mm_read_banner(f, &matcode) != 0)
+    polymec_error("krylov_factory_matrix_from_mm: %s is not in Matrix Market format.", filename);
+
+  // We don't support complex coefficients.
+  if (mm_is_complex(matcode))
+  {
+    polymec_error("krylov_factory_matrix_from_mm: unsupported matrix type: %s", 
+                  mm_typecode_to_str(matcode));
+  }
+
+  // Size the thing up.
+  int M, N, nz;
+  if (mm_read_mtx_crd_size(f, &M, &N, &nz) != 0)
+    polymec_error("krylov_factory_matrix_from_mm: error reading matrix size.");
+
+  // Retrieve the values into a packed data structure.
+  int* I = polymec_malloc(nz * sizeof(int));
+  int* J = polymec_malloc(nz * sizeof(int));
+  real_t* val = polymec_malloc(nz * sizeof(real_t));
+  int num_offdiags[M];
+  memset(num_offdiags, 0, M * sizeof(int));
+  for (int i = 0; i < nz; ++i)
+  {
+#if POLYMEC_HAVE_SINGLE_PRECISION
+    fscanf(f, "%d %d %g\n", &I[i], &J[i], &val[i]);
+#else
+    fscanf(f, "%d %d %lg\n", &I[i], &J[i], &val[i]);
+#endif
+    // adjust from 1-based to 0-based 
+    I[i]--;  
+    J[i]--;
+
+    // Tally the off-diagonal elements.
+    if (J[i] != I[i])
+      ++num_offdiags[I[i]];
+  }
+
+  // We're through with the file.
+  fclose(f);
+
+  // Construct a local sparsity graph.
+  adj_graph_t* sparsity = adj_graph_new(MPI_COMM_WORLD, M);
+  for (int i = 0; i < M; ++i)
+    adj_graph_set_num_edges(sparsity, i, num_offdiags[i]);
+  int* edges[M], edge_counter[M];
+  for (int i = 0; i < M; ++i)
+  {
+    edges[i] = adj_graph_edges(sparsity, i);
+    edge_counter[i] = 0;
+  }
+  for (int i = 0; i < nz; ++i)
+  {
+    edges[i][edge_counter[i]] = J[i];
+    ++edge_counter[i];
+  }
+
+  // Create a fresh matrix.
+  krylov_matrix_t* global_A = krylov_factory_matrix(factory, sparsity);
+
+  // Insert the values into the matrix. This is dumb and slow, but simple.
+  // And we've already hit the disk, so it's not a big deal.
+  for (int i = 0; i < nz; ++i)
+  {
+    index_t num_columns = 1;
+    index_t row = I[i];
+    index_t column = J[i];
+    krylov_matrix_set_values(global_A, 1, &num_columns, &row, &column, &val[i]);
+  }
+
+  // Clean up.
+  polymec_free(I);
+  polymec_free(J);
+  polymec_free(val);
+
+  // Distribute as necessary.
+  if (comm != MPI_COMM_SELF)
+  {
+    krylov_matrix_t* local_A = redistribute_matrix(factory, global_A, sparsity, comm);
+    krylov_matrix_free(global_A);
+    adj_graph_free(sparsity);
+    return local_A;
+  }
+  else
+  {
+    adj_graph_free(sparsity);
+    return global_A;
+  }
+}
+
+krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,  
+                                                 MPI_Comm comm,
+                                                 const char* filename,
+                                                 krylov_matrix_format_t format)
+{
+  // Make sure the file exists.
+  if (!file_exists(filename))
+    polymec_error("krylov_factory_matrix_from_file: Could not read file %s.", filename);
+
+  krylov_matrix_t* global_A;
+  if (format == MATRIX_MARKET)
+  {
+    return krylov_factory_matrix_from_mm(factory, comm, filename);
+  }
+  else
+    polymec_error("krylov_factory_matrix_from_file: unsupported format");
 }
 
 void krylov_matrix_free(krylov_matrix_t* A)
@@ -197,11 +766,17 @@ void krylov_matrix_free(krylov_matrix_t* A)
   polymec_free(A);
 }
 
+MPI_Comm krylov_matrix_comm(krylov_matrix_t* A)
+{
+  return A->comm;
+}
+
 krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A)
 {
   krylov_matrix_t* B = polymec_malloc(sizeof(krylov_matrix_t));
   B->context = A->vtable.clone(A->context);
   B->vtable = A->vtable;
+  B->comm = A->comm;
   B->num_local_rows = A->num_local_rows;
   B->num_global_rows = A->num_global_rows;
   return B;

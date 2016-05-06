@@ -94,6 +94,7 @@ krylov_pc_t* krylov_pc_new(const char* name,
 typedef struct
 {
   void* (*clone)(void* context);
+  void (*redistribute)(void* context, MPI_Comm);
   void (*zero)(void* context);
   void (*scale)(void* context, real_t scale_factor);
   void (*add_identity)(void* context, real_t scale_factor);
@@ -111,6 +112,7 @@ typedef struct
 // table to create an instance of a krylov_matrix subclass.
 krylov_matrix_t* krylov_matrix_new(void* context,
                                    krylov_matrix_vtable vtable,
+                                   MPI_Comm comm,
                                    int num_local_rows,
                                    index_t num_global_rows);
 
@@ -187,6 +189,20 @@ krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory,
 krylov_matrix_t* krylov_factory_var_block_matrix(krylov_factory_t* factory, 
                                                  adj_graph_t* sparsity,
                                                  int* block_sizes);
+
+// Supported file formats for reading matrices.
+typedef enum
+{
+  MATRIX_MARKET
+} krylov_matrix_format_t;
+
+// Reads a matrix into memory from the given file (assuming it is the 
+// in the given supported file format), distributing it over the processes
+// in the given communicator.
+krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,
+                                                 MPI_Comm comm,
+                                                 const char* filename,
+                                                 krylov_matrix_format_t format);
 
 // Constructs a vector on the given communicator with its local and global 
 // dimensions defined by the given distributed graph. This graph is typically 
@@ -295,8 +311,16 @@ char* krylov_pc_name(krylov_solver_t* preconditioner);
 // Frees a matrix.
 void krylov_matrix_free(krylov_matrix_t* A);
 
+// Returns the communicator on which the matrix is defined.
+MPI_Comm krylov_matrix_comm(krylov_matrix_t* A);
+
 // Creates and returns a deep copy of a matrix.
 krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A);
+
+// Returns a newly created matrix with the same data, redistributed from the 
+// existing matrix's communicator to the given one.
+krylov_matrix_t* krylov_matrix_redistribute(krylov_matrix_t* A, 
+                                            MPI_Comm comm);
 
 // Returns a pointer to the underlying matrix implementation. You can use 
 // this if you have explicitly linked your program to the library providing
