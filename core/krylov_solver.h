@@ -190,25 +190,27 @@ krylov_matrix_t* krylov_factory_var_block_matrix(krylov_factory_t* factory,
                                                  adj_graph_t* sparsity,
                                                  int* block_sizes);
 
-// Supported file formats for reading matrices.
-typedef enum
-{
-  MATRIX_MARKET
-} krylov_matrix_format_t;
-
 // Reads a matrix into memory from the given file (assuming it is the 
-// in the given supported file format), distributing it over the processes
-// in the given communicator.
+// in a supported file format), distributing it over the processes
+// in the given communicator. Only the Matrix Market file format is 
+// currently supported.
 krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,
                                                  MPI_Comm comm,
-                                                 const char* filename,
-                                                 krylov_matrix_format_t format);
+                                                 const char* filename);
 
 // Constructs a vector on the given communicator with its local and global 
 // dimensions defined by the given distributed graph. This graph is typically 
 // the same as the sparsity graph passed to a corresponding matrix.
 krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
                                        adj_graph_t* dist_graph);
+
+// Reads a vector into memory from the given file (assuming it is the 
+// in a supported file format), distributing it over the processes
+// in the given communicator. Only the Matrix Market file format is 
+// currently supported.
+krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
+                                                 MPI_Comm comm,
+                                                 const char* filename);
 
 // Constructs a preconditioned conjugate gradient (PCG) Krylov solver. Keep in 
 // mind that this method can only be used for systems having symmetric, 

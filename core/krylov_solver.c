@@ -196,7 +196,7 @@ krylov_matrix_t* krylov_matrix_new(void* context,
 //------------------------------------------------------------------------
 //                 Matrix Market file format logic
 //------------------------------------------------------------------------
-// This code was pulled from http://math.nist.gov/MatrixMarket.
+// This code was adapted from http://math.nist.gov/MatrixMarket.
 //------------------------------------------------------------------------
 
 #define MM_MAX_LINE_LENGTH 1025
@@ -301,7 +301,6 @@ static char *mm_typecode_to_str(MM_typecode matcode)
         else
           return NULL;
 
-
   // check for symmetry type 
   if (mm_is_general(matcode))
     types[3] = MM_GENERAL_STR;
@@ -345,7 +344,7 @@ static int mm_read_banner(FILE *f, MM_typecode *matcode)
   for (p=data_type; *p!='\0'; *p=tolower(*p),p++);
   for (p=storage_scheme; *p!='\0'; *p=tolower(*p),p++);
 
-  // check for banner 
+  // Check for banner.
   if (strncmp(banner, MatrixMarketBanner, strlen(MatrixMarketBanner)) != 0)
     return MM_NO_HEADER;
 
@@ -354,8 +353,8 @@ static int mm_read_banner(FILE *f, MM_typecode *matcode)
     return  MM_UNSUPPORTED_TYPE;
   mm_set_matrix(matcode);
 
-  // second field describes whether this is a sparse matrix (in coordinate
-  // storage) or a dense array 
+  // Second field describes whether this is a sparse matrix (in coordinate
+  // storage) or a dense array .
 
   if (strcmp(crd, MM_SPARSE_STR) == 0)
     mm_set_sparse(matcode);
@@ -366,7 +365,7 @@ static int mm_read_banner(FILE *f, MM_typecode *matcode)
       return MM_UNSUPPORTED_TYPE;
 
 
-  // third field 
+  // Third field.
 
   if (strcmp(data_type, MM_REAL_STR) == 0)
     mm_set_real(matcode);
@@ -445,10 +444,11 @@ static int mm_read_mtx_array_size(FILE *f, int *M, int *N)
 {
   char line[MM_MAX_LINE_LENGTH];
   int num_items_read;
-  // set return null parameter values, in case we exit with errors 
+
+  // Set 0 parameter values, in case we exit with errors.
   *M = *N = 0;
 
-  // now continue scanning until you reach the end-of-comments 
+  // Now continue scanning until you reach the end-of-comments.
   do 
   {
     if (fgets(line,MM_MAX_LINE_LENGTH,f) == NULL) 
@@ -456,10 +456,9 @@ static int mm_read_mtx_array_size(FILE *f, int *M, int *N)
   }
   while (line[0] == '%');
 
-  // line[] is either blank or has M,N, nz 
+  // line[] is either blank or has M,N, nz.
   if (sscanf(line, "%d %d", M, N) == 2)
     return 0;
-
   else // we have a blank line 
   {
     do
@@ -475,113 +474,19 @@ static int mm_read_mtx_array_size(FILE *f, int *M, int *N)
 
 static int mm_is_valid(MM_typecode matcode)
 {
-  if (!mm_is_matrix(matcode)) return false;
-  if (mm_is_dense(matcode) && mm_is_pattern(matcode)) return false;
-  if (mm_is_real(matcode) && mm_is_hermitian(matcode)) return false;
-  if (mm_is_pattern(matcode) && (mm_is_hermitian(matcode) || 
-        mm_is_skew(matcode))) return false;
+  if (!mm_is_matrix(matcode)) 
+    return false;
+  if (mm_is_dense(matcode) && mm_is_pattern(matcode)) 
+    return false;
+  if (mm_is_real(matcode) && mm_is_hermitian(matcode)) 
+    return false;
+  if (mm_is_pattern(matcode) && 
+      (mm_is_hermitian(matcode) || mm_is_skew(matcode))) 
+    return false;
   return true;
 }
-
-static int mm_read_mtx_crd_data(FILE *f, int M, int N, int nz, 
-                                int I[], int J[], real_t val[], 
-                                MM_typecode matcode)
-{
-  int i;
-  if (mm_is_complex(matcode))
-  {
-    for (i=0; i<nz; i++)
-      if (fscanf(f, "%d %d %lg %lg", &I[i], &J[i], &val[2*i], &val[2*i+1])
-          != 4) return MM_PREMATURE_EOF;
-  }
-  else if (mm_is_real(matcode))
-  {
-    for (i=0; i<nz; i++)
-    {
-      if (fscanf(f, "%d %d %lg\n", &I[i], &J[i], &val[i])
-          != 3) return MM_PREMATURE_EOF;
-
-    }
-  }
-
-  else if (mm_is_pattern(matcode))
-  {
-    for (i=0; i<nz; i++)
-      if (fscanf(f, "%d %d", &I[i], &J[i])
-          != 2) return MM_PREMATURE_EOF;
-  }
-  else
-    return MM_UNSUPPORTED_TYPE;
-
-  return 0;
-}
-
-static int mm_read_unsymmetric_sparse(const char *fname, 
-                                      int *M_, int *N_, int *nz_,
-                                      real_t **val_, int **I_, int **J_)
-{
-
-  FILE *f = fopen(fname, "r");
-  if (f == NULL)
-    return -1;
-
-  MM_typecode matcode;
-  if (mm_read_banner(f, &matcode) != 0)
-  {
-    printf("mm_read_unsymmetric: Could not process Matrix Market banner ");
-    printf(" in file [%s]\n", fname);
-    return -1;
-  }
-
-  if (!(mm_is_real(matcode) && mm_is_matrix(matcode) &&
-       mm_is_sparse(matcode)))
-  {
-    fprintf(stderr, "Sorry, this application does not support ");
-    fprintf(stderr, "Market Market type: [%s]\n",
-        mm_typecode_to_str(matcode));
-    return -1;
-  }
-
-  // find out size of sparse matrix: M, N, nz .... 
-  int M, N, nz;
-  if (mm_read_mtx_crd_size(f, &M, &N, &nz) !=0)
-  {
-    fprintf(stderr, "read_unsymmetric_sparse(): could not parse matrix size.\n");
-    return -1;
-  }
-
-  *M_ = M;
-  *N_ = N;
-  *nz_ = nz;
-
-  // reserve memory for matrices 
-  int* I = polymec_malloc(nz * sizeof(int));
-  int* J = polymec_malloc(nz * sizeof(int));
-  real_t* val = polymec_malloc(nz * sizeof(real_t));
-
-  *val_ = val;
-  *I_ = I;
-  *J_ = J;
-
-  // NOTE: when reading in reals, ANSI C requires the use of the "l"  
-  //   specifier as in "%lg", "%lf", "%le", otherwise errors will occur 
-  //  (ANSI C X3.159-1989, Sec. 4.9.6.2, p. 136 lines 13-15)            
-
-  for (int i = 0; i < nz; ++i)
-  {
-#if POLYMEC_HAVE_SINGLE_PRECISION
-    fscanf(f, "%d %d %g\n", &I[i], &J[i], &val[i]);
-#else
-    fscanf(f, "%d %d %lg\n", &I[i], &J[i], &val[i]);
-#endif
-    I[i]--;  // adjust from 1-based to 0-based 
-    J[i]--;
-  }
-  fclose(f);
-
-  return 0;
-}
 //------------------------------------------------------------------------
+
 static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory, 
                                             krylov_matrix_t* global_A, 
                                             adj_graph_t* global_sparsity, 
@@ -622,7 +527,6 @@ static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory,
   // Shuttle the coefficients from the global into the local matrix.
   index_t global_rows[num_local_rows], local_rows[num_local_rows], 
           num_cols[num_local_rows], cols[tot_num_edges];
-  real_t global_vals[tot_num_edges];
   int k = 0;
   for (int i = 0; i < num_local_rows; ++i)
   {
@@ -645,15 +549,18 @@ static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory,
 
 static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
                                                       MPI_Comm comm,
-                                                      const char* filename)
+                                                      FILE* f)
 {
-  FILE* f = fopen(filename, "r");
-  ASSERT(f != NULL);
-
   // Read the banner to get the type code.
   MM_typecode matcode;
-  if (mm_read_banner(f, &matcode) != 0)
-    polymec_error("krylov_factory_matrix_from_mm: %s is not in Matrix Market format.", filename);
+  mm_read_banner(f, &matcode);
+
+  // We only support sparse matrices.
+  if (!mm_is_sparse(matcode))
+  {
+    polymec_error("krylov_factory_matrix_from_mm: Not a sparse matrix type: %s",
+                  mm_typecode_to_str(matcode));
+  }
 
   // We don't support complex coefficients.
   if (mm_is_complex(matcode))
@@ -667,7 +574,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   if (mm_read_mtx_crd_size(f, &M, &N, &nz) != 0)
     polymec_error("krylov_factory_matrix_from_mm: error reading matrix size.");
 
-  // Retrieve the values into a packed data structure.
+  // Retrieve the values into arrays.
   int* I = polymec_malloc(nz * sizeof(int));
   int* J = polymec_malloc(nz * sizeof(int));
   real_t* val = polymec_malloc(nz * sizeof(real_t));
@@ -688,9 +595,6 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
     if (J[i] != I[i])
       ++num_offdiags[I[i]];
   }
-
-  // We're through with the file.
-  fclose(f);
 
   // Construct a local sparsity graph.
   adj_graph_t* sparsity = adj_graph_new(MPI_COMM_WORLD, M);
@@ -743,20 +647,25 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
 
 krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,  
                                                  MPI_Comm comm,
-                                                 const char* filename,
-                                                 krylov_matrix_format_t format)
+                                                 const char* filename)
 {
+  FILE* f = fopen(filename, "r");
+
   // Make sure the file exists.
-  if (!file_exists(filename))
+  if (f == NULL)
     polymec_error("krylov_factory_matrix_from_file: Could not read file %s.", filename);
 
-  krylov_matrix_t* global_A;
-  if (format == MATRIX_MARKET)
-  {
-    return krylov_factory_matrix_from_mm(factory, comm, filename);
-  }
+  krylov_matrix_t* A = NULL;
+
+  // Make a guess that the format of the matrix and dispatch as necessary.
+  MM_typecode matcode;
+  if ((mm_read_banner(f, &matcode) == 0) && (mm_is_valid(matcode)))
+    A = krylov_factory_matrix_from_mm(factory, comm, f);
   else
     polymec_error("krylov_factory_matrix_from_file: unsupported format");
+
+  fclose(f);
+  return A;
 }
 
 void krylov_matrix_free(krylov_matrix_t* A)
@@ -991,6 +900,125 @@ real_t krylov_vector_norm(krylov_vector_t* v, int p)
 {
   ASSERT((p == 0) || (p == 1) || (p == 2));
   return v->vtable.norm(v->context, p);
+}
+
+static krylov_vector_t* redistribute_vector(krylov_factory_t* factory, 
+                                            krylov_vector_t* global_x, 
+                                            MPI_Comm comm)
+{
+  ASSERT(comm != MPI_COMM_SELF);
+  ASSERT(global_x->local_size == global_x->global_size);
+
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_size(comm, &rank);
+
+  // Do a naive partitioning (since we assume a sensible partitioning was 
+  // done to create the row space for the matrix in the first place...)
+  int num_global_rows = global_x->global_size;
+  int num_local_rows = num_global_rows / nprocs;
+  if (rank == (nprocs - 1))
+    num_local_rows = num_global_rows - rank * num_local_rows;
+
+  // Create a local representation of the vector.
+  adj_graph_t* graph = adj_graph_new(comm, num_local_rows);
+  krylov_vector_t* local_x = krylov_factory_vector(factory, graph);
+  adj_graph_free(graph);
+
+  // Shuttle the values from the global into the local vector.
+  index_t global_rows[num_local_rows], local_rows[num_local_rows];
+  real_t values[num_local_rows];
+  for (int i = 0; i < num_local_rows; ++i)
+  {
+    local_rows[i] = i;
+    index_t I = rank * num_local_rows + i; // global vertex index
+    global_rows[i] = I;
+  }
+  krylov_vector_get_values(global_x, num_local_rows, global_rows, values);
+  krylov_vector_set_values(local_x, num_local_rows, local_rows, values);
+  return local_x;
+}
+
+static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
+                                                      MPI_Comm comm,
+                                                      FILE* f)
+{
+  // Read the banner to get the type code.
+  MM_typecode matcode;
+  mm_read_banner(f, &matcode);
+
+  // A vector is an Nx1 dense matrix.
+  if (!mm_is_dense(matcode))
+  {
+    polymec_error("krylov_factory_vector_from_mm: Not a vector/dense matrix type: %s",
+                  mm_typecode_to_str(matcode));
+  }
+
+  // We don't support complex coefficients.
+  if (mm_is_complex(matcode))
+  {
+    polymec_error("krylov_factory_vector_from_mm: unsupported vector type: %s", 
+                  mm_typecode_to_str(matcode));
+  }
+
+  // Size the thing up.
+  int M, N;
+  if (mm_read_mtx_array_size(f, &M, &N) != 0)
+    polymec_error("krylov_factory_vector_from_mm: error reading vector size.");
+  if (N != 1)
+    polymec_error("krylov_factory_vector_from_mm: cannot create vector from %dx%d matrix.");
+
+  // Retrieve the values into an array.
+  index_t rows[M];
+  real_t values[M];
+  for (int i = 0; i < M; ++i)
+  {
+    rows[i] = (index_t)i;
+#if POLYMEC_HAVE_SINGLE_PRECISION
+    fscanf(f, "%g\n", &values[i]);
+#else
+    fscanf(f, "%lg\n", &values[i]);
+#endif
+  }
+
+  adj_graph_t* graph = adj_graph_new(comm, M);
+  krylov_vector_t* global_x = krylov_factory_vector(factory, graph);
+  adj_graph_free(graph);
+
+  // Insert the values into the vector. 
+  krylov_vector_set_values(global_x, M, rows, values);
+
+  // Distribute as necessary.
+  if (comm != MPI_COMM_SELF)
+  {
+    krylov_vector_t* local_x = redistribute_vector(factory, global_x, comm);
+    krylov_vector_free(global_x);
+    return local_x;
+  }
+  else
+    return global_x;
+}
+
+krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
+                                                 MPI_Comm comm,
+                                                 const char* filename)
+{
+  // Make sure the file exists.
+  FILE* f = fopen(filename, "r");
+  if (f == NULL)
+    polymec_error("krylov_factory_vector_from_file: Could not read file %s.", filename);
+
+  krylov_vector_t* x = NULL;
+
+  // Make a guess that the format of the vector and dispatch as necessary.
+  MM_typecode matcode;
+  if ((mm_read_banner(f, &matcode) == 0) && (mm_is_valid(matcode)))
+    x = krylov_factory_vector_from_mm(factory, comm, f);
+  else
+    polymec_error("krylov_factory_vector_from_file: unsupported format");
+
+  fclose(f);
+  return x;
 }
 
 //------------------------------------------------------------------------
