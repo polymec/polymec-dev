@@ -163,6 +163,19 @@ static void test_krylov_matrix(void** state, krylov_factory_t* factory)
   }
 }
 
+static void test_krylov_matrix_from_file(void** state, krylov_factory_t* factory, const char* filename)
+{
+  if (factory != NULL)
+  {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    // Read a matrix in from the given file.
+    krylov_matrix_t* mat = krylov_factory_matrix_from_file(factory, comm, filename);
+    assert_true(krylov_matrix_num_local_rows(mat) > 0);
+    krylov_matrix_free(mat);
+  }
+}
+
 static void test_krylov_vector(void** state, krylov_factory_t* factory)
 {
   if (factory != NULL)
@@ -188,6 +201,19 @@ static void test_krylov_vector(void** state, krylov_factory_t* factory)
     krylov_vector_free(vec1);
     krylov_factory_free(factory);
     adj_graph_free(graph);
+  }
+}
+
+static void test_krylov_vector_from_file(void** state, krylov_factory_t* factory, const char* filename)
+{
+  if (factory != NULL)
+  {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    // Read a vector in from the given file.
+    krylov_vector_t* vec = krylov_factory_vector_from_file(factory, comm, filename);
+    assert_true(krylov_vector_local_size(vec) > 0);
+    krylov_vector_free(vec);
   }
 }
 
@@ -272,10 +298,22 @@ void test_lis_krylov_matrix(void** state)
   test_krylov_matrix(state, lis);
 }
 
+void test_lis_krylov_matrix_from_file(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_krylov_matrix_from_file(state, lis, CMAKE_CURRENT_SOURCE_DIR "/sherman1.mtx");
+}
+
 void test_lis_krylov_vector(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
   test_krylov_vector(state, lis);
+}
+
+void test_lis_krylov_vector_from_file(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_krylov_vector_from_file(state, lis, CMAKE_CURRENT_SOURCE_DIR "/sherman1_b.mtx");
 }
 
 void test_lis_laplace_eqn(void** state)
@@ -341,7 +379,9 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_lis_krylov_factory),
     cmocka_unit_test(test_lis_krylov_matrix),
+    cmocka_unit_test(test_lis_krylov_matrix_from_file),
     cmocka_unit_test(test_lis_krylov_vector),
+    cmocka_unit_test(test_lis_krylov_vector_from_file),
     cmocka_unit_test(test_lis_laplace_eqn),
 #if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),

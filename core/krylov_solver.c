@@ -551,6 +551,9 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
                                                       MPI_Comm comm,
                                                       FILE* f)
 {
+  // Rewind the file descriptor in case we've used it.
+  fseek(f, 0, SEEK_SET);
+
   // Read the banner to get the type code.
   MM_typecode matcode;
   mm_read_banner(f, &matcode);
@@ -606,7 +609,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
     edges[i] = adj_graph_edges(sparsity, i);
     edge_counter[i] = 0;
   }
-  for (int i = 0; i < nz; ++i)
+  for (int i = 0; i < M; ++i)
   {
     edges[i][edge_counter[i]] = J[i];
     ++edge_counter[i];
@@ -617,7 +620,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
 
   // Insert the values into the matrix. This is dumb and slow, but simple.
   // And we've already hit the disk, so it's not a big deal.
-  for (int i = 0; i < nz; ++i)
+  for (int i = 0; i < M; ++i)
   {
     index_t num_columns = 1;
     index_t row = I[i];
@@ -943,6 +946,9 @@ static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
                                                       MPI_Comm comm,
                                                       FILE* f)
 {
+  // Rewind the file descriptor in case we've used it.
+  fseek(f, 0, SEEK_SET);
+
   // Read the banner to get the type code.
   MM_typecode matcode;
   mm_read_banner(f, &matcode);
