@@ -225,7 +225,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
 
     // Create a distributed graph with 1000 local vertices.
     int N = 1000;
-    real_t h = 1.0 / h;
+    real_t h = 1.0 / N;
     adj_graph_t* graph = create_1d_laplacian_graph(comm, N);
 
     // Create a Laplace operator from the graph.

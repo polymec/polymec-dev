@@ -496,7 +496,7 @@ static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory,
 
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_size(comm, &rank);
+  MPI_Comm_rank(comm, &rank);
 
   // Do a naive partitioning (since we assume a sensible partitioning was 
   // done to create the row space for the matrix in the first place...)
@@ -536,7 +536,7 @@ static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory,
     num_cols[i] = adj_graph_num_edges(global_sparsity, I);
     int* global_edges = adj_graph_edges(global_sparsity, I);
     for (int j = 0; j < num_cols[i]; ++j, ++k)
-      cols[++k] = global_edges[j];
+      cols[k] = global_edges[j];
   }
   ASSERT(k == tot_num_edges);
   real_t values[tot_num_edges];
@@ -914,7 +914,7 @@ static krylov_vector_t* redistribute_vector(krylov_factory_t* factory,
 
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_size(comm, &rank);
+  MPI_Comm_rank(comm, &rank);
 
   // Do a naive partitioning (since we assume a sensible partitioning was 
   // done to create the row space for the matrix in the first place...)
