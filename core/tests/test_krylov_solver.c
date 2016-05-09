@@ -163,15 +163,42 @@ static void test_krylov_matrix(void** state, krylov_factory_t* factory)
   }
 }
 
-static void test_krylov_matrix_from_file(void** state, krylov_factory_t* factory, const char* filename)
+static void test_krylov_matrix_from_file(void** state, 
+                                         krylov_factory_t* factory, 
+                                         const char* filename,
+                                         int num_global_rows,
+                                         int num_test_values,
+                                         index_t* test_rows,
+                                         index_t* test_cols,
+                                         real_t* test_values)
 {
   if (factory != NULL)
   {
     MPI_Comm comm = MPI_COMM_WORLD;
+    int rank, nprocs;
+    MPI_Comm_size(comm, &nprocs);
+    MPI_Comm_rank(comm, &rank);
+    int num_local_rows = num_global_rows / nprocs;
+    if (rank == (nprocs-1))
+      num_local_rows = num_global_rows - rank*num_local_rows;
 
     // Read a matrix in from the given file.
     krylov_matrix_t* mat = krylov_factory_matrix_from_file(factory, comm, filename);
-    assert_true(krylov_matrix_num_local_rows(mat) > 0);
+    assert_int_equal(num_local_rows, krylov_matrix_num_local_rows(mat));
+    assert_int_equal(num_global_rows, krylov_matrix_num_global_rows(mat));
+    for (int i = 0; i < num_test_values; ++i)
+    {
+      // Only test locally-maintained values.
+      index_t r = test_rows[i] - rank*num_local_rows;
+      if (r < num_local_rows)
+      {
+        index_t one = 1;
+        real_t val;
+        krylov_matrix_get_values(mat, 1, &one, 
+                                 &test_rows[i], &test_cols[i], &val);
+        assert_true(ABS(val - test_values[i]) < 1e-14);
+      }
+    }
     krylov_matrix_free(mat);
   }
 }
@@ -204,15 +231,40 @@ static void test_krylov_vector(void** state, krylov_factory_t* factory)
   }
 }
 
-static void test_krylov_vector_from_file(void** state, krylov_factory_t* factory, const char* filename)
+static void test_krylov_vector_from_file(void** state, 
+                                         krylov_factory_t* factory, 
+                                         const char* filename,
+                                         int num_global_rows,
+                                         int num_test_values,
+                                         index_t* test_indices,
+                                         real_t* test_values)
 {
   if (factory != NULL)
   {
     MPI_Comm comm = MPI_COMM_WORLD;
+    int rank, nprocs;
+    MPI_Comm_size(comm, &nprocs);
+    MPI_Comm_rank(comm, &rank);
+    int num_local_rows = num_global_rows / nprocs;
+    if (rank == (nprocs-1))
+      num_local_rows = num_global_rows - rank*num_local_rows;
 
     // Read a vector in from the given file.
     krylov_vector_t* vec = krylov_factory_vector_from_file(factory, comm, filename);
     assert_true(krylov_vector_local_size(vec) > 0);
+    assert_int_equal(num_local_rows, krylov_vector_local_size(vec));
+    assert_int_equal(num_global_rows, krylov_vector_global_size(vec));
+    for (int i = 0; i < num_test_values; ++i)
+    {
+      // Only test locally-maintained values.
+      index_t r = test_indices[i] - rank*num_local_rows;
+      if (r < num_local_rows)
+      {
+        real_t val;
+        krylov_vector_get_values(vec, 1, &test_indices[i], &val);
+        assert_true(ABS(val - test_values[i]) < 1e-14);
+      }
+    }
     krylov_vector_free(vec);
   }
 }
@@ -344,7 +396,15 @@ void test_lis_krylov_matrix(void** state)
 void test_lis_krylov_matrix_from_file(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
-  test_krylov_matrix_from_file(state, lis, CMAKE_CURRENT_SOURCE_DIR "/sherman1.mtx");
+  int num_test_values = 4;
+  index_t test_rows[] = {0, 14, 22, 238};
+  index_t test_cols[] = {0, 4, 22, 228};
+  real_t test_values[] = {-0.005649, 1.127e-5, -2.541, 0.1127};
+  test_krylov_matrix_from_file(state, 
+                               lis, 
+                               CMAKE_CURRENT_SOURCE_DIR "/sherman1.mtx",
+                               1000,
+                               num_test_values, test_rows, test_cols, test_values);
 }
 
 void test_lis_krylov_vector(void** state)
@@ -356,7 +416,14 @@ void test_lis_krylov_vector(void** state)
 void test_lis_krylov_vector_from_file(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
-  test_krylov_vector_from_file(state, lis, CMAKE_CURRENT_SOURCE_DIR "/sherman1_b.mtx");
+  int num_test_values = 4;
+  index_t test_indices[] = {4, 294, 295, 495};
+  real_t test_values[] = {2.254e-5, -9.148e-10, 0.0, 0.1127};
+  test_krylov_vector_from_file(state, 
+                               lis, 
+                               CMAKE_CURRENT_SOURCE_DIR "/sherman1_b.mtx",
+                               1000,
+                               num_test_values, test_indices, test_values);
 }
 
 void test_lis_laplace_eqn(void** state)
