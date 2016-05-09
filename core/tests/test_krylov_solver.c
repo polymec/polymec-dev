@@ -286,6 +286,49 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
   }
 }
 
+static void test_load_and_solve(void** state, 
+                                krylov_factory_t* factory, 
+                                const char* mat_filename,
+                                const char* rhs_filename)
+{
+  if (factory != NULL)
+  {
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    // Read in a matrix A from the given file.
+    krylov_matrix_t* A = krylov_factory_matrix_from_file(factory, comm, mat_filename);
+
+    // Read in a vector b from the given file.
+    krylov_vector_t* b = krylov_factory_vector_from_file(factory, comm, rhs_filename);
+
+    // Create a solution vector.
+    krylov_vector_t* x = krylov_vector_clone(b);
+    krylov_vector_zero(x);
+
+    // Create a solver.
+    krylov_solver_t* solver = krylov_factory_bicgstab_solver(factory, comm);
+    assert_true(solver != NULL);
+    krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 1.0);
+    krylov_solver_set_max_iterations(solver, 10);
+
+    // Solve the equation.
+    krylov_solver_set_operator(solver, A);
+    real_t res_norm;
+    int num_iters;
+    bool solved = krylov_solver_solve(solver, b, x, &res_norm, &num_iters);
+    log_debug("residual norm is %g, # iterations is %d", res_norm, num_iters);
+    assert_true(solved);
+
+    // Clean up.
+    krylov_solver_free(solver);
+    krylov_matrix_free(A);
+    krylov_vector_free(x);
+    krylov_vector_free(b);
+    krylov_factory_free(factory);
+  }
+}
+
+
 void test_lis_krylov_factory(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
@@ -320,6 +363,14 @@ void test_lis_laplace_eqn(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
   test_laplace_eqn(state, lis);
+}
+
+void test_lis_sherman1(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_load_and_solve(state, lis, 
+                      CMAKE_CURRENT_SOURCE_DIR "/sherman1.mtx", 
+                      CMAKE_CURRENT_SOURCE_DIR "/sherman1_b.mtx");
 }
 
 #if POLYMEC_HAVE_SHARED_LIBS
@@ -382,7 +433,8 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_krylov_matrix_from_file),
     cmocka_unit_test(test_lis_krylov_vector),
     cmocka_unit_test(test_lis_krylov_vector_from_file),
-    cmocka_unit_test(test_lis_laplace_eqn),
+//    cmocka_unit_test(test_lis_laplace_eqn),
+    cmocka_unit_test(test_lis_sherman1),
 #if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),
     cmocka_unit_test(test_petsc_krylov_matrix),
