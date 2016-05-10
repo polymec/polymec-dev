@@ -319,7 +319,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     krylov_solver_t* solver = krylov_factory_pcg_solver(factory, comm);
     assert_true(solver != NULL);
     krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 1.0);
-    krylov_solver_set_max_iterations(solver, 10);
+    krylov_solver_set_max_iterations(solver, 1000);
 
     // Solve the equation.
     krylov_solver_set_operator(solver, A);
@@ -361,7 +361,7 @@ static void test_load_and_solve(void** state,
     krylov_solver_t* solver = krylov_factory_bicgstab_solver(factory, comm);
     assert_true(solver != NULL);
     krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 1.0);
-    krylov_solver_set_max_iterations(solver, 10);
+    krylov_solver_set_max_iterations(solver, 100);
 
     // Solve the equation.
     krylov_solver_set_operator(solver, A);
@@ -417,8 +417,8 @@ void test_lis_krylov_vector_from_file(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
   int num_test_values = 4;
-  index_t test_indices[] = {4, 294, 295, 495};
-  real_t test_values[] = {2.254e-5, -9.148e-10, 0.0, 0.1127};
+  index_t test_indices[] = {4, 294, 295, 491};
+  real_t test_values[] = {2.254e-5, -9.148e-10, 0.0, -2.429e-9};
   test_krylov_vector_from_file(state, 
                                lis, 
                                CMAKE_CURRENT_SOURCE_DIR "/sherman1_b.mtx",

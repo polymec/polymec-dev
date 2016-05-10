@@ -97,9 +97,7 @@ static bool lis_solver_solve(void* context,
   lis_solver_t* solver = context;
   LIS_VECTOR B = b;
   LIS_VECTOR X = x;
-//  polymec_suspend_fpe();
   int err = lis_solve(solver->op, B, X, solver->solver);
-//  polymec_restore_fpe();
   bool solved = false;
   if (err == LIS_SUCCESS)
   {
@@ -120,7 +118,6 @@ static bool lis_solver_solve(void* context,
   {
     lis_solver_get_residualnorm(solver->solver, res_norm);
     lis_solver_get_iter(solver->solver, num_iters);
-    lis_vector_print(X);
   }
   return solved;
 }
@@ -139,7 +136,7 @@ static krylov_solver_t* lis_factory_pcg_solver(void* context,
   lis_solver_set_option("-i cg", solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
   lis_solver_set_option("-scale jacobi", solver->solver);
-  lis_solver_set_option("-print 2", solver->solver);
+//  lis_solver_set_option("-print 2", solver->solver);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -163,7 +160,7 @@ static krylov_solver_t* lis_factory_gmres_solver(void* context,
   lis_solver_set_option(gmres, solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
   lis_solver_set_option("-scale jacobi", solver->solver);
-  lis_solver_set_option("-print 2", solver->solver);
+//  lis_solver_set_option("-print 2", solver->solver);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -183,7 +180,7 @@ static krylov_solver_t* lis_factory_bicgstab_solver(void* context,
   lis_solver_set_option("-i bicgstab", solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
   lis_solver_set_option("-scale jacobi", solver->solver);
-  lis_solver_set_option("-print 2", solver->solver);
+//  lis_solver_set_option("-print 2", solver->solver);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -486,18 +483,20 @@ static void matrix_set_values_csr(void* context, index_t num_rows,
   for (int i = 0; i < num_rows; ++i)
   {
     index_t row = rows[i];
+    index_t num_cols = num_columns[i];
+
     if ((row < (index_t)start) || (row >= (index_t)finish)) continue; // skip off-proc rows.
     LIS_INT row_offset = mat->ptr[row-start];
     LIS_INT* col_start = &mat->index[row_offset];
     LIS_INT ncol = mat->ptr[row+1-start] - row_offset;
 
-    for (index_t j = 0; j < num_columns[i]; ++j, ++k)
+    for (index_t j = 0; j < num_cols; ++j, ++k)
     {
       // The columns are stored in our matrix in sorted order, 
       // so we can use a binary search to find the location of this one.
       // NOTE: This assumes that a LIS_INT is just an int.
       index_t column = columns[k];
-      int* col_ptr = int_bsearch(col_start, ncol, column);
+      int* col_ptr = int_bsearch(col_start, ncol, (int)column);
       if (col_ptr == NULL) continue; // Column not found -- skip it.
       mat->values[row_offset+(col_ptr-col_start)] = values[k];
     }
@@ -521,18 +520,20 @@ static void matrix_add_values_csr(void* context, index_t num_rows,
   for (int i = 0; i < num_rows; ++i)
   {
     index_t row = rows[i];
+    index_t num_cols = num_columns[i];
+
     if ((row < (index_t)start) || (row >= (index_t)finish)) continue; // skip off-proc rows.
     LIS_INT row_offset = mat->ptr[row-start];
     LIS_INT* col_start = &mat->index[row_offset];
     LIS_INT ncol = mat->ptr[row+1-start] - row_offset;
 
-    for (index_t j = 0; j < num_columns[i]; ++j, ++k)
+    for (index_t j = 0; j < num_cols; ++j, ++k)
     {
       // The columns are stored in our matrix in sorted order, 
       // so we can use a binary search to find the location of this one.
       // NOTE: This assumes that a LIS_INT is just an int.
       index_t column = columns[k];
-      int* col_ptr = int_bsearch(col_start, ncol, column);
+      int* col_ptr = int_bsearch(col_start, ncol, (int)column);
       if (col_ptr == NULL) continue; // Column not found -- skip it.
       mat->values[row_offset+(col_ptr-col_start)] += values[k];
     }
@@ -554,24 +555,30 @@ static void matrix_get_values_csr(void* context, index_t num_rows,
   for (int i = 0; i < num_rows; ++i)
   {
     index_t row = rows[i];
+    index_t num_cols = num_columns[i];
+
     if ((row < (index_t)start) || (row >= (index_t)finish))
     {
       // All columns in this row are set to zero.
-      memset(&values[k], 0, sizeof(real_t) * num_columns[i]);
+      memset(&values[k], 0, sizeof(real_t) * num_cols);
       continue;
     }
 
-    for (index_t j = 0; j < num_columns[i]; ++j, ++k)
+    LIS_INT row_offset = mat->ptr[row-start];
+    LIS_INT* col_start = &mat->index[row_offset];
+    LIS_INT ncol = mat->ptr[row+1-start] - row_offset;
+
+    for (index_t j = 0; j < num_cols; ++j, ++k)
     {
       // The columns are stored in our matrix in sorted order, 
       // so we can use a binary search to find the location of this one.
       // NOTE: This assumes that a LIS_INT is just an int.
       index_t column = columns[k];
-      int* col_ptr = int_bsearch(mat->index, (int)num_columns[i], column);
+      int* col_ptr = int_bsearch(col_start, ncol, (int)column);
       if (col_ptr == NULL) // Column not found 
         values[k] = 0.0;
       else
-        values[k] = mat->values[mat->ptr[row-start]+(col_ptr-mat->index)];
+        values[k] = mat->values[row_offset+(col_ptr-col_start)];
     }
   }
 }
@@ -697,34 +704,18 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
     // No exception for the diagonal.
     int ne = adj_graph_num_edges(sparsity, i);
     int* edges = adj_graph_edges(sparsity, i);
-    bool diag_set = false;
-    for (int j = 0; j < ne; ++j, ++k)
-    {
-      int col = edges[j];
-      if (col < i)
-      {
-        if (j == 0)
-          mat->ptr[i] = k;
-        mat->index[k] = col;
-      }
-      else 
-      {
-        if (!diag_set)
-        {
-          mat->index[k++] = i;
-          diag_set = true;
-        }
-        mat->index[k] = col;
-      }
-    }
 
-    // Pick up the diagonal if we haven't yet.
-    if (!diag_set)
-    {
-      mat->ptr[i] = k;
-      mat->index[k++] = i;
-      diag_set = true;
-    }
+    // Diagonal.
+    mat->ptr[i] = k;
+    mat->index[k] = i;
+    ++k;
+
+    // Off-diagonals.
+    for (int j = 0; j < ne; ++j, ++k)
+      mat->index[k] = (int)edges[j];
+
+    // Sort this row.
+    int_qsort(&mat->index[k-ne-1], ne+1);
   }
   ASSERT(k == mat->nnz);
   mat->ptr[N_local] = mat->nnz;

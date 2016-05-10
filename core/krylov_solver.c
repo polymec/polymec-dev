@@ -9,6 +9,7 @@
 #include "core/krylov_solver.h"
 #include "core/timer.h"
 #include "core/string_utils.h"
+#include "core/array_utils.h"
 
 //------------------------------------------------------------------------
 //                Krylov data types and virtual tables
@@ -526,20 +527,21 @@ static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory,
 
   // Shuttle the coefficients from the global into the local matrix.
   index_t global_rows[num_local_rows], local_rows[num_local_rows], 
-          num_cols[num_local_rows], cols[tot_num_edges];
+          num_cols[num_local_rows], cols[num_local_rows+tot_num_edges];
   int k = 0;
   for (int i = 0; i < num_local_rows; ++i)
   {
     local_rows[i] = i;
     index_t I = rank * num_local_rows + i; // global vertex index
     global_rows[i] = I;
-    num_cols[i] = adj_graph_num_edges(global_sparsity, I);
+    num_cols[i] = 1+adj_graph_num_edges(global_sparsity, I);
     int* global_edges = adj_graph_edges(global_sparsity, I);
-    for (int j = 0; j < num_cols[i]; ++j, ++k)
-      cols[k] = global_edges[j];
+    cols[k++] = I; // diagonal
+    for (int j = 0; j < num_cols[i]-1; ++j, ++k)
+      cols[k] = (index_t)global_edges[j];
   }
-  ASSERT(k == tot_num_edges);
-  real_t values[tot_num_edges];
+  ASSERT(k == (num_local_rows + tot_num_edges));
+  real_t values[num_local_rows+tot_num_edges];
   krylov_matrix_get_values(global_A, num_local_rows, num_cols, global_rows, 
                            cols, values);
   krylov_matrix_set_values(local_A, num_local_rows, num_cols, local_rows, 
@@ -591,8 +593,8 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
     fscanf(f, "%d %d %lg\n", &I[i], &J[i], &val[i]);
 #endif
     // adjust from 1-based to 0-based 
-    I[i]--;  
-    J[i]--;
+    --I[i];  
+    --J[i];
 
     // Tally the off-diagonal elements.
     if (J[i] != I[i])
@@ -601,18 +603,29 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
 
   // Construct a local sparsity graph.
   adj_graph_t* sparsity = adj_graph_new(MPI_COMM_WORLD, M);
-  for (int i = 0; i < M; ++i)
-    adj_graph_set_num_edges(sparsity, i, num_offdiags[i]);
-  int* edges[M], edge_counter[M];
-  for (int i = 0; i < M; ++i)
   {
-    edges[i] = adj_graph_edges(sparsity, i);
-    edge_counter[i] = 0;
-  }
-  for (int i = 0; i < M; ++i)
-  {
-    edges[i][edge_counter[i]] = J[i];
-    ++edge_counter[i];
+    // Set up the number of edges.
+    for (int i = 0; i < M; ++i)
+      adj_graph_set_num_edges(sparsity, i, num_offdiags[i]);
+
+    // Set up edge counters for placing edges in the graph.
+    int* edges[M], edge_counter[M];
+    for (int i = 0; i < M; ++i)
+    {
+      edges[i] = adj_graph_edges(sparsity, i);
+      edge_counter[i] = 0;
+    }
+
+    // Stick all the edges in.
+    for (int k = 0; k < nz; ++k)
+    {
+      int Ik = I[k], Jk = J[k];
+      if (Ik != Jk)
+      {
+        edges[Ik][edge_counter[Ik]] = Jk;
+        ++edge_counter[Ik];
+      }
+    }
   }
 
   // Create a fresh matrix.
@@ -620,7 +633,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
 
   // Insert the values into the matrix. This is dumb and slow, but simple.
   // And we've already hit the disk, so it's not a big deal.
-  for (int i = 0; i < M; ++i)
+  for (int i = 0; i < nz; ++i)
   {
     index_t num_columns = 1;
     index_t row = I[i];
