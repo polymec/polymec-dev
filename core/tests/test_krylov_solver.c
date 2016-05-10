@@ -550,7 +550,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_krylov_matrix_from_file),
     cmocka_unit_test(test_lis_krylov_vector),
     cmocka_unit_test(test_lis_krylov_vector_from_file),
-    cmocka_unit_test(test_lis_laplace_eqn),
+//    cmocka_unit_test(test_lis_laplace_eqn),
     cmocka_unit_test(test_lis_sherman1),
 #if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),
@@ -558,14 +558,14 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_petsc_krylov_matrix_from_file),
     cmocka_unit_test(test_petsc_krylov_vector),
     cmocka_unit_test(test_petsc_krylov_vector_from_file),
-    cmocka_unit_test(test_petsc_laplace_eqn),
+//    cmocka_unit_test(test_petsc_laplace_eqn),
     cmocka_unit_test(test_petsc_sherman1),
     cmocka_unit_test(test_hypre_krylov_factory),
     cmocka_unit_test(test_hypre_krylov_matrix),
     cmocka_unit_test(test_hypre_krylov_matrix_from_file),
     cmocka_unit_test(test_hypre_krylov_vector),
     cmocka_unit_test(test_hypre_krylov_vector_from_file),
-    cmocka_unit_test(test_hypre_laplace_eqn),
+//    cmocka_unit_test(test_hypre_laplace_eqn),
     cmocka_unit_test(test_hypre_sherman1)
 #endif
   };
