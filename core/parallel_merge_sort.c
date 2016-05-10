@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/parallel_qsort.h"
+#include "core/parallel_merge_sort.h"
 
 // This helper merges an array of sorted lists of data (having elements of 
 // the given width in bytes), merging them into a single sorted list using 
@@ -317,28 +317,16 @@ printf("]\n");
   polymec_free(class_data);
 }
 
-static void parallel_qsort_with_random_sampling(MPI_Comm comm, 
-                                                void* base, 
-                                                size_t nel, 
-                                                size_t width,
-                                                int (*compar)(const void* left, const void* right),
-                                                rng_t* rng)
-{
-  POLYMEC_NOT_IMPLEMENTED;
-}
+// This is lifted from V. J. Duvanenko's article in Dr Dobbes, 
+// "Parallel In-Place Merge Sort," September 30, 2014.
+static void merge_sort_in_place(
 
-void parallel_qsort(MPI_Comm comm, 
-                    void* base, 
-                    size_t nel, 
-                    size_t width,
-                    int (*compar)(const void* left, const void* right),
-                    rng_t* rng)
+void parallel_merge_sort(MPI_Comm comm, 
+                         void* base, 
+                         size_t nel, 
+                         size_t width,
+                         int (*compar)(const void* left, const void* right))
 {
   ASSERT(base != NULL);
-
-  if (rng == NULL)
-    parallel_qsort_with_regular_sampling(comm, base, nel, width, compar);
-  else
-    parallel_qsort_with_random_sampling(comm, base, nel, width, compar, rng);
 }
 

@@ -7,7 +7,7 @@
 
 #include "core/partition_point_cloud.h"
 #include "core/hilbert.h"
-#include "core/parallel_qsort.h"
+//#include "core/parallel_merge_sort.h"
 #include "core/timer.h"
 
 #if POLYMEC_HAVE_MPI
