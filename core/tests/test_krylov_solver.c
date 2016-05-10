@@ -269,6 +269,31 @@ static void test_krylov_vector_from_file(void** state,
   }
 }
 
+static void test_krylov_matrix_from_sherman1(void** state, krylov_factory_t* factory)
+{
+  int num_test_values = 4;
+  index_t test_rows[] = {0, 14, 22, 238};
+  index_t test_cols[] = {0, 4, 22, 228};
+  real_t test_values[] = {-0.005649, 1.127e-5, -2.541, 0.1127};
+  test_krylov_matrix_from_file(state, 
+                               factory, 
+                               CMAKE_CURRENT_SOURCE_DIR "/sherman1.mtx",
+                               1000,
+                               num_test_values, test_rows, test_cols, test_values);
+}
+
+static void test_krylov_vector_from_sherman1_b(void** state, krylov_factory_t* factory)
+{
+  int num_test_values = 4;
+  index_t test_indices[] = {4, 294, 295, 491};
+  real_t test_values[] = {2.254e-5, -9.148e-10, 0.0, -2.429e-9};
+  test_krylov_vector_from_file(state, 
+                               factory, 
+                               CMAKE_CURRENT_SOURCE_DIR "/sherman1_b.mtx",
+                               1000,
+                               num_test_values, test_indices, test_values);
+}
+
 static void test_laplace_eqn(void** state, krylov_factory_t* factory)
 {
   if (factory != NULL)
@@ -396,15 +421,7 @@ void test_lis_krylov_matrix(void** state)
 void test_lis_krylov_matrix_from_file(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
-  int num_test_values = 4;
-  index_t test_rows[] = {0, 14, 22, 238};
-  index_t test_cols[] = {0, 4, 22, 228};
-  real_t test_values[] = {-0.005649, 1.127e-5, -2.541, 0.1127};
-  test_krylov_matrix_from_file(state, 
-                               lis, 
-                               CMAKE_CURRENT_SOURCE_DIR "/sherman1.mtx",
-                               1000,
-                               num_test_values, test_rows, test_cols, test_values);
+  test_krylov_matrix_from_sherman1(state, lis);
 }
 
 void test_lis_krylov_vector(void** state)
@@ -416,14 +433,7 @@ void test_lis_krylov_vector(void** state)
 void test_lis_krylov_vector_from_file(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
-  int num_test_values = 4;
-  index_t test_indices[] = {4, 294, 295, 491};
-  real_t test_values[] = {2.254e-5, -9.148e-10, 0.0, -2.429e-9};
-  test_krylov_vector_from_file(state, 
-                               lis, 
-                               CMAKE_CURRENT_SOURCE_DIR "/sherman1_b.mtx",
-                               1000,
-                               num_test_values, test_indices, test_values);
+  test_krylov_vector_from_sherman1_b(state, lis);
 }
 
 void test_lis_laplace_eqn(void** state)
@@ -453,16 +463,36 @@ void test_petsc_krylov_matrix(void** state)
   test_krylov_matrix(state, petsc);
 }
 
+void test_petsc_krylov_matrix_from_file(void** state)
+{
+  krylov_factory_t* petsc = create_petsc_krylov_factory();
+  test_krylov_matrix_from_sherman1(state, petsc);
+}
+
 void test_petsc_krylov_vector(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
   test_krylov_vector(state, petsc);
 }
 
+void test_petsc_krylov_vector_from_file(void** state)
+{
+  krylov_factory_t* petsc = create_petsc_krylov_factory();
+  test_krylov_vector_from_sherman1_b(state, petsc);
+}
+
 void test_petsc_laplace_eqn(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
   test_laplace_eqn(state, petsc);
+}
+
+void test_petsc_sherman1(void** state)
+{
+  krylov_factory_t* petsc = create_petsc_krylov_factory();
+  test_load_and_solve(state, petsc, 
+                      CMAKE_CURRENT_SOURCE_DIR "/sherman1.mtx", 
+                      CMAKE_CURRENT_SOURCE_DIR "/sherman1_b.mtx");
 }
 
 void test_hypre_krylov_factory(void** state)
@@ -477,16 +507,36 @@ void test_hypre_krylov_matrix(void** state)
   test_krylov_matrix(state, hypre);
 }
 
+void test_hypre_krylov_matrix_from_file(void** state)
+{
+  krylov_factory_t* hypre = create_hypre_krylov_factory();
+  test_krylov_matrix_from_sherman1(state, hypre);
+}
+
 void test_hypre_krylov_vector(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
   test_krylov_vector(state, hypre);
 }
 
+void test_hypre_krylov_vector_from_file(void** state)
+{
+  krylov_factory_t* hypre = create_hypre_krylov_factory();
+  test_krylov_vector_from_sherman1_b(state, hypre);
+}
+
 void test_hypre_laplace_eqn(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
   test_laplace_eqn(state, hypre);
+}
+
+void test_hypre_sherman1(void** state)
+{
+  krylov_factory_t* hypre = create_hypre_krylov_factory();
+  test_load_and_solve(state, hypre, 
+                      CMAKE_CURRENT_SOURCE_DIR "/sherman1.mtx", 
+                      CMAKE_CURRENT_SOURCE_DIR "/sherman1_b.mtx");
 }
 #endif
 
@@ -500,17 +550,23 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_krylov_matrix_from_file),
     cmocka_unit_test(test_lis_krylov_vector),
     cmocka_unit_test(test_lis_krylov_vector_from_file),
-//    cmocka_unit_test(test_lis_laplace_eqn),
+    cmocka_unit_test(test_lis_laplace_eqn),
     cmocka_unit_test(test_lis_sherman1),
 #if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),
     cmocka_unit_test(test_petsc_krylov_matrix),
+    cmocka_unit_test(test_petsc_krylov_matrix_from_file),
     cmocka_unit_test(test_petsc_krylov_vector),
+    cmocka_unit_test(test_petsc_krylov_vector_from_file),
     cmocka_unit_test(test_petsc_laplace_eqn),
+    cmocka_unit_test(test_petsc_sherman1),
     cmocka_unit_test(test_hypre_krylov_factory),
     cmocka_unit_test(test_hypre_krylov_matrix),
+    cmocka_unit_test(test_hypre_krylov_matrix_from_file),
     cmocka_unit_test(test_hypre_krylov_vector),
-    cmocka_unit_test(test_hypre_laplace_eqn)
+    cmocka_unit_test(test_hypre_krylov_vector_from_file),
+    cmocka_unit_test(test_hypre_laplace_eqn),
+    cmocka_unit_test(test_hypre_sherman1)
 #endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

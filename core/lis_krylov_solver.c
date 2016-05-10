@@ -677,7 +677,6 @@ static void matrix_dtor(void* context)
 static krylov_matrix_t* lis_factory_matrix(void* context,
                                            adj_graph_t* sparsity)
 {
-  lis_factory_t* factory = context;
   MPI_Comm comm = adj_graph_comm(sparsity);
   int N_local = adj_graph_num_vertices(sparsity);
   index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
@@ -742,7 +741,6 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
                                                  adj_graph_t* sparsity,
                                                  int block_size)
 {
-  lis_factory_t* factory = context;
   MPI_Comm comm = adj_graph_comm(sparsity);
   int N_local = adj_graph_num_vertices(sparsity);
   index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
@@ -803,7 +801,6 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
                                                      adj_graph_t* sparsity,
                                                      int* block_sizes)
 {
-  lis_factory_t* factory = context;
   MPI_Comm comm = adj_graph_comm(sparsity); 
   int N_local = adj_graph_num_vertices(sparsity);
   index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
@@ -949,7 +946,6 @@ static void vector_dtor(void* context)
 static krylov_vector_t* lis_factory_vector(void* context,
                                            adj_graph_t* dist_graph)
 {
-  lis_factory_t* factory = context;
   int N_local = adj_graph_num_vertices(dist_graph);
   index_t* vtx_dist = adj_graph_vertex_dist(dist_graph);
   MPI_Comm comm = adj_graph_comm(dist_graph);
