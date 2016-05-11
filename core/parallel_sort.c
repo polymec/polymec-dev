@@ -112,11 +112,19 @@ void parallel_sort(MPI_Comm comm,
     }
   }
 
+  // Compute the ratio of the max to min numbers of elements for all process.
+  // The number of phases in the sort is this ratio times nprocs.
+  int N_max, N_min;
+  MPI_Allreduce(&N, &N_max, 1, MPI_INT, MPI_MAX, comm);
+  MPI_Allreduce(&N, &N_min, 1, MPI_INT, MPI_MIN, comm);
+  real_t max_min_ratio = 1.0 * N_max / N_min;
+  int nphases = (int)ceil(max_min_ratio * nprocs);
+
   // Allocate storage for the exchange.
   void* other = polymec_malloc(width * MAX(N_even, N_odd));
 
   // Sort in nprocs phases (even and odd, depending upon i's parity).
-  for (int i = 0; i < nprocs; ++i) 
+  for (int i = 0; i < nphases; ++i) 
   {
     // Sort our local data.
     qsort(base, N, width, comp);
@@ -135,7 +143,7 @@ void parallel_sort(MPI_Comm comm,
     }
 
     // If our partner process falls off one of the ends, skip this phase.
-    if ((partner < 0) || (partner >= nprocs)) 
+    if ((partner < 0) || (partner >= nprocs))
       continue;
 
     // Exchange data - even processes send first and odd processes receive 
@@ -155,7 +163,8 @@ void parallel_sort(MPI_Comm comm,
     if (rank < partner) 
     {
       // Seek smaller values.
-      while (true) 
+      int num_swaps = 0;
+      while (num_swaps < MIN(N, N_partner)) 
       {
         // Find the index of the smallest element in the other array.
         int i_min = min_index(other, N_partner, width, comp);
@@ -168,7 +177,10 @@ void parallel_sort(MPI_Comm comm,
         int8_t* base_bytes = base;
         int8_t* other_bytes = other;
         if (comp(&other_bytes[width*i_min], &base_bytes[width*i_max]) < 0)
+        {
           swap_bytes(&other_bytes[width*i_min], &base_bytes[width*i_max], width);
+          ++num_swaps;
+        }
         else 
         {
           // The smallest are now in base.
@@ -179,7 +191,8 @@ void parallel_sort(MPI_Comm comm,
     else 
     {
       // Seek larger values.
-      while (true) 
+      int num_swaps = 0;
+      while (num_swaps < MIN(N, N_partner)) 
       {
         // Find the index of the largest element in the other array.
         int i_max = max_index(other, N_partner, width, comp);
@@ -192,7 +205,10 @@ void parallel_sort(MPI_Comm comm,
         int8_t* base_bytes = base;
         int8_t* other_bytes = other;
         if (comp(&other_bytes[width*i_max], &base_bytes[width*i_min]) > 0)
+        {
           swap_bytes(&other_bytes[width*i_max], &base_bytes[width*i_min], width);
+          ++num_swaps;
+        }
         else 
         {
           // The largest are now in base.
@@ -201,6 +217,9 @@ void parallel_sort(MPI_Comm comm,
       }
     }
   }
+
+  // Sort one last time.
+  qsort(base, nel, width, comp);
 
 #else
   // Just sort our local data.
