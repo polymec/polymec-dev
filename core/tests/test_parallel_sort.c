@@ -11,7 +11,8 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "core/parallel_qsort.h"
+#include "core/rng.h"
+#include "core/parallel_sort.h"
 
 static int compare_ints(const void* l, const void* r)
 {
@@ -101,39 +102,62 @@ static bool list_is_ordered(MPI_Comm comm,
   return true;
 }
 
-void test_regular_sampling(void** state)
+void test_sort_random_ints_with_fixed_size(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   rng_t* rng = host_rng_new();
 
   // Generate and sort a list of integers, 100 per process.
-  {
-    size_t size = 100;
-    int* ints = random_ints(rng, size);
-int rank;
-MPI_Comm_rank(comm, &rank);
-//printf("%d: ", rank);
-//for (int i = 0; i < size; ++i)
-//  printf("%d ", ints[i]);
-//printf("\n");
-    parallel_qsort(comm, ints, size, sizeof(int), compare_ints, NULL);
-printf("%d (%d): ", rank, size);
-for (int i = 0; i < size; ++i)
-  printf("%d ", ints[i]);
-printf("\n");
-    assert_true(list_is_ordered(comm, ints, size, sizeof(int), compare_ints));
-    polymec_free(ints);
-  }
+  size_t size = 100;
+  int* ints = random_ints(rng, size);
+  parallel_sort(comm, ints, size, sizeof(int), compare_ints);
+  assert_true(list_is_ordered(comm, ints, size, sizeof(int), compare_ints));
+  polymec_free(ints);
+}
+
+void test_sort_random_doubles_with_fixed_size(void** state)
+{
+  MPI_Comm comm = MPI_COMM_WORLD;
+  rng_t* rng = host_rng_new();
 
   // Generate and sort a list of doubles, 100 per process.
-return;
-  {
-    size_t size = 100;
-    double* doubles = random_doubles(rng, size);
-    parallel_qsort(comm, doubles, size, sizeof(double), compare_doubles, NULL);
-    assert_true(list_is_ordered(comm, doubles, size, sizeof(double), compare_doubles));
-    polymec_free(doubles);
-  }
+  size_t size = 100;
+  double* doubles = random_doubles(rng, size);
+  parallel_sort(comm, doubles, size, sizeof(double), compare_doubles);
+  assert_true(list_is_ordered(comm, doubles, size, sizeof(double), compare_doubles));
+  polymec_free(doubles);
+}
+
+void test_sort_random_ints_with_var_size(void** state)
+{
+  MPI_Comm comm = MPI_COMM_WORLD;
+  rng_t* rng = host_rng_new();
+
+  // Generate and sort a list of integers, with variable sizes per process.
+  // Even processes get 100, odd ones get 50.
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+  size_t size = (rank % 2 == 0) ? 100 : 50;
+  int* ints = random_ints(rng, size);
+  parallel_sort(comm, ints, size, sizeof(int), compare_ints);
+  assert_true(list_is_ordered(comm, ints, size, sizeof(int), compare_ints));
+  polymec_free(ints);
+}
+
+void test_sort_random_doubles_with_var_size(void** state)
+{
+  MPI_Comm comm = MPI_COMM_WORLD;
+  rng_t* rng = host_rng_new();
+
+  // Generate and sort a list of doubles, with variable sizes per process.
+  // Even processes get 100, odd ones get 50.
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+  size_t size = (rank % 2 == 0) ? 100 : 50;
+  double* doubles = random_doubles(rng, size);
+  parallel_sort(comm, doubles, size, sizeof(double), compare_doubles);
+  assert_true(list_is_ordered(comm, doubles, size, sizeof(double), compare_doubles));
+  polymec_free(doubles);
 }
 
 int main(int argc, char* argv[]) 
@@ -142,7 +166,10 @@ int main(int argc, char* argv[])
 
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_regular_sampling)
+    cmocka_unit_test(test_sort_random_ints_with_fixed_size),
+    cmocka_unit_test(test_sort_random_doubles_with_fixed_size),
+    cmocka_unit_test(test_sort_random_ints_with_var_size),
+    cmocka_unit_test(test_sort_random_doubles_with_var_size)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
