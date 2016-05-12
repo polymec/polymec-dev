@@ -210,6 +210,15 @@ static int hilbert_comp(const void* l, const void* r)
                                            : 0;
 }
 
+// This rebalances the load on the given set of points, changing the distribution 
+// of the points on the processors but preserving their ordering. The points are 
+// assumed to be 4-wide sets of indices as ordered within repartition_point_cloud
+// below.
+static void rebalance_points(MPI_Comm comm, index_t* array, int local_array_size)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
 // This creates a local partition vector using the information in the sorted 
 // distributed array. This is to be used only with repartition_point_cloud().
 static int64_t* create_partition_from_sorted_array(MPI_Comm comm, 
@@ -233,6 +242,7 @@ static int64_t* create_partition_from_sorted_array(MPI_Comm comm,
 
   // Now find out which ranks got our points.
   // FIXME
+  POLYMEC_NOT_IMPLEMENTED
   STOP_FUNCTION_TIMER();
   return NULL;
 }
@@ -570,10 +580,17 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
     total_work = cl->num_points;
   }
 
-  // Now we have a distributed array, stored in segments on the processors in this communicator.
-  // Sort the thing all-parallel-like using regular sampling.
+  // Now we have a distributed array, stored in segments on the processors 
+  // in this communicator. Sort it so that process p holds the elements (in 
+  // ascending order) that are greater than those of p-1 and less than those 
+  // of p+1.
   parallel_sort(cl->comm, part_array, cl->num_points, 
                 4*sizeof(index_t), hilbert_comp);
+
+  // The parallel sort above doesn't change the sizes of the points held on 
+  // each process, so we might still need to balance the load.
+  if (weights != NULL)
+    rebalance_points(cl->comm, part_array, cl->num_points);
 
   // Now we create a local partition vector for each process using the elements
   // in the sorted list.
