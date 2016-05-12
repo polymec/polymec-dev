@@ -58,7 +58,7 @@ printf("%d: %d %d %g\n", rank, cloud->num_points, Np, fabs(1.0*(cloud->num_point
     p[i] = 1.0*rank;
   silo_file_t* silo = silo_file_new(comm, "linear_cloud_repartition", "linear_cloud_repartition", 1, 0, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p);
+  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);
 
   // Clean up.

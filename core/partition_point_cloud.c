@@ -7,7 +7,7 @@
 
 #include "core/partition_point_cloud.h"
 #include "core/hilbert.h"
-//#include "core/parallel_merge_sort.h"
+#include "core/parallel_sort.h"
 #include "core/timer.h"
 
 #if POLYMEC_HAVE_MPI
@@ -44,9 +44,11 @@ static point_cloud_t* create_subcloud(MPI_Comm comm,
   return subcloud;
 }
 
+// Migrate point cloud data using the given exchanger.
 static void point_cloud_migrate(point_cloud_t** cloud, 
                                 exchanger_t* migrator)
 {
+  POLYMEC_NOT_IMPLEMENTED
 }
 
 // This helper creates a Hilbert space-filling curve from a set of points.
@@ -90,9 +92,9 @@ static int hilbert_comp(const void* l, const void* r)
 
 // This creates a local partition vector using the information in the sorted 
 // distributed array. This is to be used only with repartition_point_cloud().
-static int* create_partition_from_sorted_array(MPI_Comm comm, 
-                                               index_t* array, 
-                                               int local_array_size)
+static int64_t* create_partition_from_sorted_array(MPI_Comm comm, 
+                                                   index_t* array, 
+                                                   int local_array_size)
 {
   START_FUNCTION_TIMER();
   int nprocs, rank;
@@ -397,7 +399,6 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
 #endif
 }
 
-#if 0
 exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol)
 {
   START_FUNCTION_TIMER();
@@ -451,38 +452,27 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
 
   // Now we have a distributed array, stored in segments on the processors in this communicator.
   // Sort the thing all-parallel-like using regular sampling.
-  parallel_qsort(cl->comm, part_array, cl->num_points, 
-                 4*sizeof(index_t), hilbert_comp, NULL);
+  parallel_sort(cl->comm, part_array, cl->num_points, 
+                4*sizeof(index_t), hilbert_comp);
 
   // Now we create a local partition vector for each process using the elements
   // in the sorted list.
-  int* local_partition = create_partition_from_sorted_array(cl->comm, part_array, cl->num_points);
-
-#if 0
-  // Map the graph to the different domains, producing a local partition vector
-  // (with values included for ghost cells).
-  int* local_partition = repartition_graph(local_graph, cl->num_ghost_points, 
-                                                  weights, imbalance_tol, cloud_ex);
+  int64_t* local_partition = create_partition_from_sorted_array(cl->comm, part_array, cl->num_points);
 
   // Set up an exchanger to migrate field data.
-  int num_vertices = adj_graph_num_vertices(local_graph);
-  exchanger_t* migrator = create_migrator(cl->comm, local_partition, num_vertices);
+  exchanger_t* migrator = create_migrator(cl->comm, local_partition, cl->num_points);
 
   // Migrate the point cloud.
-  point_cloud_migrate(cloud, local_graph, migrator);
+  point_cloud_migrate(cloud, migrator);
 
   // Clean up.
-  adj_graph_free(local_graph);
   polymec_free(local_partition);
 
   // Return the migrator.
   STOP_FUNCTION_TIMER();
   return (migrator == NULL) ? exchanger_new(cl->comm) : migrator;
-#endif
-  return NULL;
 #else
   return exchanger_new(cl->comm);
 #endif
 }
-#endif
 

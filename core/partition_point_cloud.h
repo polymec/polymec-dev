@@ -26,7 +26,7 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
 // It creates and returns an exchanger object that can be used to migrate 
 // data from the old partition to the new. The cloud is consumed and replaced
 // with a repartitioned cloud.
-//exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol);
+exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol);
 
 // While partition_point_cloud and repartition_point_cloud are all-in-one 
 // point cloud partitioners, the following functions allow one to mix-n-match 
