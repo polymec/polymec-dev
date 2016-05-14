@@ -18,7 +18,10 @@
 // to distribute data from rank 0 to the partitions. The cloud on rank 0 (as 
 // well as any non-NULL cloud on rank != 0) is consumed. In each case, the 
 // cloud is replaced with a partitioned cloud.
-exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* weights, real_t imbalance_tol);
+exchanger_t* partition_point_cloud(point_cloud_t** cloud, 
+                                   MPI_Comm comm, 
+                                   int* weights, 
+                                   real_t imbalance_tol);
 
 // This function repartitions the given point cloud with the given load
 // weights, alloting them to parallel domains to balance their load.

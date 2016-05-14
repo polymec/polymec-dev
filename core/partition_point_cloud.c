@@ -210,43 +210,6 @@ static int hilbert_comp(const void* l, const void* r)
                                            : 0;
 }
 
-// This rebalances the load on the given set of points, changing the distribution 
-// of the points on the processors but preserving their ordering. The points are 
-// assumed to be 4-wide sets of indices as ordered within repartition_point_cloud
-// below.
-static void rebalance_points(MPI_Comm comm, index_t* array, int local_array_size)
-{
-  POLYMEC_NOT_IMPLEMENTED
-}
-
-// This creates a local partition vector using the information in the sorted 
-// distributed array. This is to be used only with repartition_point_cloud().
-static int64_t* create_partition_from_sorted_array(MPI_Comm comm, 
-                                                   index_t* array, 
-                                                   int local_array_size)
-{
-  START_FUNCTION_TIMER();
-  int nprocs, rank;
-  MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_rank(comm, &rank);
-
-  // Find out who expects data from us.
-  int num_points_for_rank[nprocs], my_num_points_for_rank[nprocs];
-  memset(my_num_points_for_rank, 0, sizeof(int) * nprocs);
-  for (int i = 0; i < local_array_size; ++i)
-  {
-    int rank = array[4*i+1];
-    ++my_num_points_for_rank[rank];
-  }
-  MPI_Alltoall(my_num_points_for_rank, 1, MPI_INT, num_points_for_rank, 1, MPI_INT, comm);
-
-  // Now find out which ranks got our points.
-  // FIXME
-  POLYMEC_NOT_IMPLEMENTED
-  STOP_FUNCTION_TIMER();
-  return NULL;
-}
-
 #endif
 
 exchanger_t* distribute_point_cloud(point_cloud_t** cloud, 
@@ -529,14 +492,114 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
 #endif
 }
 
-exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol)
+//------------------------------------------------------------------------
+//                     Dynamic repartition code below
+//------------------------------------------------------------------------
+
+#if POLYMEC_HAVE_MPI 
+
+// This creates local partition and load vectors using the information in the sorted 
+// distributed array. This is to be used only with repartition_point_cloud().
+static void create_partition_and_load_from_sorted_array(MPI_Comm comm, 
+                                                        index_t* array, 
+                                                        int local_array_size,
+                                                        int64_t** partition_vector,
+                                                        index_t** load_vector)
 {
   START_FUNCTION_TIMER();
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+
+  // Find out who is sending us data by reading off the process ranks in our local 
+  // portion of the sorted array.
+
+  // Store the number of points we are receiving from rank p in 
+  // num_points_from_rank[p].
+  int num_points_from_rank[nprocs];
+  {
+    int my_num_points_from_rank[nprocs];
+    memset(my_num_points_from_rank, 0, sizeof(int) * nprocs);
+    for (int i = 0; i < local_array_size; ++i)
+    {
+      int rank = array[4*i+1];
+      ++my_num_points_from_rank[rank];
+    }
+    MPI_Alltoall(my_num_points_from_rank, 1, MPI_INT, num_points_from_rank, 1, MPI_INT, comm);
+  }
+
+  // Store the number of points we are sending to rank p in 
+  // num_points_to_rank[p].
+  int num_points_to_rank[nprocs];
+  MPI_Alltoall(num_points_from_rank, 1, MPI_INT, num_points_to_rank, 1, MPI_INT, comm);
+  // FIXME: Does this work???
+
+  // Post receives/sends for all nonzero sets of points.
+  for (int p = 0; p < nprocs; ++p)
+  {
+    if (num_points_from_rank[p] > 0)
+    {
+      // FIXME
+    }
+
+    if (num_points_to_rank[p] > 0)
+    {
+      // FIXME
+    }
+  }
+
+  // Wait for them to send.
+
+  // FIXME
+  POLYMEC_NOT_IMPLEMENTED
+  STOP_FUNCTION_TIMER();
+  return NULL;
+}
+
+// This rebalances the workload on the given set of points, changing the distribution 
+// of the points on the processors but preserving their ordering. The points are 
+// assumed to be 4-wide sets of indices as ordered within repartition_point_cloud
+// below. This procedure is serial, so it must be used sparingly.
+static void balance_load(MPI_Comm comm, 
+                         int64_t* local_partition, 
+                         index_t* local_load,
+                         int num_local_points,
+                         real_t imbalance_tol)
+{
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+
+  // Sum the total load on all processes, and find the ideal load per process.
+  real_t my_load = 0.0;
+  for (int i = 0; i < num_local_points; ++i)
+    my_load += 1.0 * local_load[i];
+  real_t total_load;
+  MPI_Allreduce(&my_load, &total_load, 1, MPI_REAL_T, MPI_SUM, comm);
+  real_t ideal_proc_load = total_load / nprocs;
+
+  // Now loop through the processes and carve off the ideal workload, .
+  for (int p = 0; p < nprocs; ++p)
+  {
+    if (rank == p)
+    {
+
+    }
+  }
+}
+
+#endif
+
+exchanger_t* repartition_point_cloud(point_cloud_t** cloud, 
+                                     int* weights, 
+                                     real_t imbalance_tol)
+{
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
   point_cloud_t* cl = *cloud;
 
 #if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   int nprocs, rank;
   MPI_Comm_size(cl->comm, &nprocs);
   MPI_Comm_rank(cl->comm, &rank);
@@ -587,14 +650,19 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t
   parallel_sort(cl->comm, part_array, cl->num_points, 
                 4*sizeof(index_t), hilbert_comp);
 
-  // The parallel sort above doesn't change the sizes of the points held on 
-  // each process, so we might still need to balance the load.
-  if (weights != NULL)
-    rebalance_points(cl->comm, part_array, cl->num_points);
-
-  // Now we create a local partition vector for each process using the elements
+  // Now we create local partition/load vectors for each process using the elements
   // in the sorted list.
-  int64_t* local_partition = create_partition_from_sorted_array(cl->comm, part_array, cl->num_points);
+  int64_t* local_partition;
+  index_t* local_load;
+  create_partition_and_load_from_sorted_array(cl->comm, part_array, cl->num_points,
+                                             &local_partition, &local_load);
+
+  if (weights != NULL)
+  {
+    // We make adjustments to the partition vector to accomodate variable loads.
+    balance_load(cl->comm, local_partition, local_load, 
+                 cl->num_points, imbalance_tol);
+  }
 
   // Set up an exchanger to migrate field data.
   exchanger_t* migrator = create_migrator(cl->comm, local_partition, cl->num_points);
