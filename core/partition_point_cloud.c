@@ -45,132 +45,6 @@ static point_cloud_t* create_subcloud(MPI_Comm comm,
   return subcloud;
 }
 
-// Fuse a set of subclouds into a single point cloud. Ghost points are not 
-// permitted.
-static point_cloud_t* fuse_clouds(point_cloud_t** subclouds, int num_subclouds)
-{
-  int num_points = 0;
-  for (int i = 0; i < num_subclouds; ++i)
-  {
-    ASSERT(subclouds[i]->num_ghosts == 0);
-    num_points += subclouds[i]->num_points;
-  }
-
-  point_cloud_t* fused_cloud = point_cloud_new(subclouds[0]->comm, num_points);
-  int k = 0;
-  for (int i = 0; i < num_subclouds; ++i)
-  {
-    for (int j = 0; j < subclouds[i]->num_points; ++j, ++k)
-      fused_cloud->points[k] = subclouds[i]->points[j];
-  }
-
-  return fused_cloud;
-}
-
-// Migrate point cloud data using the given exchanger.
-static void point_cloud_migrate(point_cloud_t** cloud, 
-                                exchanger_t* migrator)
-{
-  START_FUNCTION_TIMER();
-  point_cloud_t* c = *cloud;
-
-  // Post receives for buffer sizes.
-  int num_receives = exchanger_num_receives(migrator);
-  int num_sends = exchanger_num_sends(migrator);
-  int receive_buffer_sizes[num_receives], receive_procs[num_receives];
-  int pos = 0, proc, num_indices, *indices, i_req = 0;
-  MPI_Request requests[num_receives + num_sends];
-  while (exchanger_next_receive(migrator, &pos, &proc, &indices, &num_indices))
-  {
-    receive_procs[i_req] = proc;
-    MPI_Irecv(&receive_buffer_sizes[i_req], 1, MPI_INT, proc, 0, c->comm, &requests[i_req]);
-    ++i_req;
-  }
-
-  // Build point clouds to send to other processes.
-  int_unordered_set_t* sent_points = int_unordered_set_new();
-  serializer_t* ser = point_cloud_serializer();
-  byte_array_t* send_buffers[num_sends];
-  int send_procs[num_sends];
-  pos = 0;
-  while (exchanger_next_send(migrator, &pos, &proc, &indices, &num_indices))
-  {
-    send_procs[i_req-num_receives] = proc;
-    byte_array_t* bytes = byte_array_new();
-
-    // Add the indices of the cells we are sending.
-    for (int i = 0; i < num_indices; ++i)
-      int_unordered_set_insert(sent_points, indices[i]);
-
-    // Create the subcloud to send. 
-    point_cloud_t* subcloud = create_subcloud(c->comm, c, indices, num_indices);
-
-    // Serialize and send the buffer size.
-    size_t offset = 0;
-    serializer_write(ser, subcloud, bytes, &offset);
-    MPI_Isend(&bytes->size, 1, MPI_INT, proc, 0, c->comm, &requests[i_req]);
-
-    // Clean up.
-    point_cloud_free(subcloud);
-    send_buffers[i_req - num_receives] = bytes;
-    ++i_req;
-  }
-  ASSERT(i_req == num_sends + num_receives);
-
-  // Wait for the buffer sizes to be transmitted.
-  MPI_Status statuses[num_receives + num_sends];
-  MPI_Waitall(num_receives + num_sends, requests, statuses);
-
-  // Post receives for the actual messages.
-  byte_array_t* receive_buffers[num_receives];
-  for (int i = 0; i < num_receives; ++i)
-  {
-    receive_buffers[i] = byte_array_new();
-    byte_array_resize(receive_buffers[i], receive_buffer_sizes[i]);
-    MPI_Irecv(receive_buffers[i]->data, receive_buffer_sizes[i], MPI_BYTE, receive_procs[i], 0, c->comm, &requests[i]);
-  }
-
-  // Send the actual clouds and wait for receipt.
-  for (int i = 0; i < num_sends; ++i)
-    MPI_Isend(send_buffers[i]->data, send_buffers[i]->size, MPI_BYTE, send_procs[i], 0, c->comm, &requests[num_receives + i]);
-  MPI_Waitall(num_receives + num_sends, requests, statuses);
-
-  // Unpack the clouds.
-  point_cloud_t* subclouds[1+num_receives];
-  for (int i = 0; i < num_receives; ++i)
-  {
-    size_t offset = 0;
-    subclouds[i+1] = serializer_read(ser, receive_buffers[i], &offset);
-  }
-
-  // Clean up all the stuff from the exchange.
-  ser = NULL;
-  for (int i = 0; i < num_receives; ++i)
-    byte_array_free(receive_buffers[i]);
-  for (int i = 0; i < num_sends; ++i)
-    byte_array_free(send_buffers[i]);
-
-  // Construct a local subcloud and store it in subclouds[0]. This subcloud
-  // consists of all points not sent to other processes.
-  {
-    int num_local_points = c->num_points - sent_points->size;
-    int local_points[num_local_points], j = 0;
-    for (int i = 0; i < c->num_points; ++i)
-    {
-      if (!int_unordered_set_contains(sent_points, i))
-        local_points[j++] = i;
-    }
-    subclouds[0] = create_subcloud(c->comm, c, local_points, num_local_points);
-  }
-
-  // Fuse all the subclouds into a single point cloud.
-  int_unordered_set_free(sent_points);
-  point_cloud_free(c);
-  *cloud = fuse_clouds(subclouds, 1+num_receives);
-  STOP_FUNCTION_TIMER();
-  POLYMEC_NOT_IMPLEMENTED
-}
-
 // This helper creates a Hilbert space-filling curve from a set of points.
 static hilbert_t* hilbert_from_points(point_t* points, int num_points)
 {
@@ -522,7 +396,7 @@ static void create_partition_and_load_from_sorted_array(MPI_Comm comm,
     memset(my_num_points_from_rank, 0, sizeof(int) * nprocs);
     for (int i = 0; i < local_array_size; ++i)
     {
-      int rank = array[4*i+1];
+      int rank = (int)array[4*i+1];
       ++my_num_points_from_rank[rank];
     }
     MPI_Alltoall(my_num_points_from_rank, 1, MPI_INT, num_points_from_rank, 1, MPI_INT, comm);
@@ -534,26 +408,103 @@ static void create_partition_and_load_from_sorted_array(MPI_Comm comm,
   MPI_Alltoall(num_points_from_rank, 1, MPI_INT, num_points_to_rank, 1, MPI_INT, comm);
   // FIXME: Does this work???
 
-  // Post receives/sends for all nonzero sets of points.
+  // Post receives/sends for all nonzero sets of points. Of course, since we 
+  // are given only the information about who we're receiving points from 
+  // (during the migration process, that is), we need to have the receiving 
+  // processes send the sending processes those points that they are supposed 
+  // to be, uhm, sending. So this might seem backwards.
+
+  // Do a preliminary count of processes that interact with this one. Note
+  // that "sends" and "receives" here refer to the MPI_Sends and MPI_Receives
+  // below, which run in the opposite direction of the pending migration.
+  // ("Hmmmmm....")
+  int num_sends = 0, num_receives = 0;
   for (int p = 0; p < nprocs; ++p)
   {
     if (num_points_from_rank[p] > 0)
-    {
-      // FIXME
-    }
+      ++num_sends;
 
     if (num_points_to_rank[p] > 0)
+      ++num_receives;
     {
       // FIXME
     }
   }
 
-  // Wait for them to send.
+  int_ptr_unordered_map_t* sends = int_ptr_unordered_map_new();
+  int_ptr_unordered_map_t* receives = int_ptr_unordered_map_new();
+  int i_req = 0;
+  MPI_Request requests[num_receives + num_sends];
+  for (int p = 0; p < nprocs; ++p)
+  {
+    // Post receives on the sending process end.
+    if (num_points_from_rank[p] > 0)
+    {
+      int* indices = polymec_malloc(sizeof(int) * num_points_from_rank[p]);
+      int_ptr_unordered_map_insert_with_v_dtor(sends, p, indices, polymec_free);
+      MPI_Irecv(indices, num_points_from_rank[p], MPI_INT, p, 0, comm, &requests[i_req]);
+      ++i_req;
+    }
 
-  // FIXME
-  POLYMEC_NOT_IMPLEMENTED
+    if (num_points_to_rank[p] > 0)
+    {
+      int* indices = polymec_malloc(sizeof(int) * num_points_to_rank[p]);
+      int j = 0;
+      for (int i = 0; i < local_array_size; ++i)
+      {
+        int rank = (int)array[4*i+1];
+        if (rank == p)
+          indices[j++] = (int)array[4*i+2];
+      }
+      int_ptr_unordered_map_insert_with_v_dtor(receives, p, indices, polymec_free);
+      MPI_Isend(indices, num_points_to_rank[p], MPI_INT, p, 0, comm, &requests[i_req]);
+      ++i_req;
+    }
+  }
+  ASSERT(i_req == num_sends + num_receives);
+
+  // Wait for the messages to be passed.
+  MPI_Status statuses[num_receives + num_sends];
+  MPI_Waitall(num_receives + num_sends, requests, statuses);
+  int_ptr_unordered_map_free(receives);
+
+  // At this point, we have the indices we need to send to each process.
+  // We can now construct a partition vector whose values for these indices
+  // will be the corresponding process rank, and a load vector that will 
+  // contain the corresponding loads. 
+  *partition_vector = polymec_malloc(sizeof(int64_t) * local_array_size);
+  *load_vector = polymec_malloc(sizeof(index_t) * local_array_size);
+
+  // Invert the send map to tell us the destination process for each index.
+  int_int_unordered_map_t* proc_for_index = int_int_unordered_map_new();
+  {
+    int pos = 0, proc, *indices;
+    while (int_ptr_unordered_map_next(sends, &pos, &proc, (void**)&indices))
+    {
+      for (int i = 0; i < num_points_to_rank[proc]; ++i)
+        int_int_unordered_map_insert(proc_for_index, indices[i], proc);
+    }
+  }
+  int_ptr_unordered_map_free(sends);
+
+  // Now fill the partition and load vectors.
+  for (int i = 0; i < local_array_size; ++i)
+  {
+    int* proc_ptr = int_int_unordered_map_get(proc_for_index, i);
+    if (proc_ptr != NULL)
+      (*partition_vector)[i] = *proc_ptr;
+    else
+    {
+      ASSERT(rank == (int)array[4*i+1]);
+      (*partition_vector)[i] = rank;
+    }
+    (*load_vector)[i] = (index_t)array[4*i+2];
+  }
+
+  // Clean up.
+  int_int_unordered_map_free(proc_for_index);
+
   STOP_FUNCTION_TIMER();
-  return NULL;
 }
 
 // This rebalances the workload on the given set of points, changing the distribution 
@@ -586,6 +537,131 @@ static void balance_load(MPI_Comm comm,
 
     }
   }
+}
+
+// Fuse a set of subclouds into a single point cloud. Ghost points are not 
+// permitted.
+static point_cloud_t* fuse_clouds(point_cloud_t** subclouds, int num_subclouds)
+{
+  int num_points = 0;
+  for (int i = 0; i < num_subclouds; ++i)
+  {
+    ASSERT(subclouds[i]->num_ghosts == 0);
+    num_points += subclouds[i]->num_points;
+  }
+
+  point_cloud_t* fused_cloud = point_cloud_new(subclouds[0]->comm, num_points);
+  int k = 0;
+  for (int i = 0; i < num_subclouds; ++i)
+  {
+    for (int j = 0; j < subclouds[i]->num_points; ++j, ++k)
+      fused_cloud->points[k] = subclouds[i]->points[j];
+  }
+
+  return fused_cloud;
+}
+
+// Migrate point cloud data using the given exchanger.
+static void point_cloud_migrate(point_cloud_t** cloud, 
+                                exchanger_t* migrator)
+{
+  START_FUNCTION_TIMER();
+  point_cloud_t* c = *cloud;
+
+  // Post receives for buffer sizes.
+  int num_receives = exchanger_num_receives(migrator);
+  int num_sends = exchanger_num_sends(migrator);
+  int receive_buffer_sizes[num_receives], receive_procs[num_receives];
+  int pos = 0, proc, num_indices, *indices, i_req = 0;
+  MPI_Request requests[num_receives + num_sends];
+  while (exchanger_next_receive(migrator, &pos, &proc, &indices, &num_indices))
+  {
+    receive_procs[i_req] = proc;
+    MPI_Irecv(&receive_buffer_sizes[i_req], 1, MPI_INT, proc, 0, c->comm, &requests[i_req]);
+    ++i_req;
+  }
+
+  // Build point clouds to send to other processes.
+  int_unordered_set_t* sent_points = int_unordered_set_new();
+  serializer_t* ser = point_cloud_serializer();
+  byte_array_t* send_buffers[num_sends];
+  int send_procs[num_sends];
+  pos = 0;
+  while (exchanger_next_send(migrator, &pos, &proc, &indices, &num_indices))
+  {
+    send_procs[i_req-num_receives] = proc;
+    byte_array_t* bytes = byte_array_new();
+
+    // Add the indices of the cells we are sending.
+    for (int i = 0; i < num_indices; ++i)
+      int_unordered_set_insert(sent_points, indices[i]);
+
+    // Create the subcloud to send. 
+    point_cloud_t* subcloud = create_subcloud(c->comm, c, indices, num_indices);
+
+    // Serialize and send the buffer size.
+    size_t offset = 0;
+    serializer_write(ser, subcloud, bytes, &offset);
+    MPI_Isend(&bytes->size, 1, MPI_INT, proc, 0, c->comm, &requests[i_req]);
+
+    // Clean up.
+    point_cloud_free(subcloud);
+    send_buffers[i_req - num_receives] = bytes;
+    ++i_req;
+  }
+  ASSERT(i_req == num_sends + num_receives);
+
+  // Wait for the buffer sizes to be transmitted.
+  MPI_Status statuses[num_receives + num_sends];
+  MPI_Waitall(num_receives + num_sends, requests, statuses);
+
+  // Post receives for the actual messages.
+  byte_array_t* receive_buffers[num_receives];
+  for (int i = 0; i < num_receives; ++i)
+  {
+    receive_buffers[i] = byte_array_new();
+    byte_array_resize(receive_buffers[i], receive_buffer_sizes[i]);
+    MPI_Irecv(receive_buffers[i]->data, receive_buffer_sizes[i], MPI_BYTE, receive_procs[i], 0, c->comm, &requests[i]);
+  }
+
+  // Send the actual clouds and wait for receipt.
+  for (int i = 0; i < num_sends; ++i)
+    MPI_Isend(send_buffers[i]->data, send_buffers[i]->size, MPI_BYTE, send_procs[i], 0, c->comm, &requests[num_receives + i]);
+  MPI_Waitall(num_receives + num_sends, requests, statuses);
+
+  // Unpack the clouds.
+  point_cloud_t* subclouds[1+num_receives];
+  for (int i = 0; i < num_receives; ++i)
+  {
+    size_t offset = 0;
+    subclouds[i+1] = serializer_read(ser, receive_buffers[i], &offset);
+  }
+
+  // Clean up all the stuff from the exchange.
+  ser = NULL;
+  for (int i = 0; i < num_receives; ++i)
+    byte_array_free(receive_buffers[i]);
+  for (int i = 0; i < num_sends; ++i)
+    byte_array_free(send_buffers[i]);
+
+  // Construct a local subcloud and store it in subclouds[0]. This subcloud
+  // consists of all points not sent to other processes.
+  {
+    int num_local_points = c->num_points - sent_points->size;
+    int local_points[num_local_points], j = 0;
+    for (int i = 0; i < c->num_points; ++i)
+    {
+      if (!int_unordered_set_contains(sent_points, i))
+        local_points[j++] = i;
+    }
+    subclouds[0] = create_subcloud(c->comm, c, local_points, num_local_points);
+  }
+
+  // Fuse all the subclouds into a single point cloud.
+  int_unordered_set_free(sent_points);
+  point_cloud_free(c);
+  *cloud = fuse_clouds(subclouds, 1+num_receives);
+  STOP_FUNCTION_TIMER();
 }
 
 #endif
@@ -672,6 +748,7 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud,
 
   // Clean up.
   polymec_free(local_partition);
+  polymec_free(local_load);
 
   // Return the migrator.
   STOP_FUNCTION_TIMER();
