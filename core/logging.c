@@ -22,11 +22,13 @@ typedef struct
 
 static bool first_time = true;
 static log_level_t logging_level = LOG_INFO;
+static log_mode_t logging_mode = LOG_TO_SINGLE_RANK;
 static logger_t* loggers[] = {NULL, NULL, NULL, NULL, NULL};
 
 // MPI stuff.
 static int mpi_nproc = -1;
 static int mpi_rank = -1;
+static int max_mpi_rank_digits = -1;
 
 static void delete_loggers()
 {
@@ -71,7 +73,24 @@ static void logger_flush(logger_t* logger)
 
 static void logger_log(logger_t* logger, char* message)
 {
-  strncpy(&logger->buffer[logger->message_counter*(logger->message_size_limit+1)], message, logger->message_size_limit);
+  if (logging_mode == LOG_TO_ALL_RANKS)
+  {
+    int message_len = max_mpi_rank_digits + 5 + strlen(message);
+    char message_with_rank[message_len+1];
+    switch(max_mpi_rank_digits)
+    {
+      case 1: snprintf(message_with_rank, message_len, "%1d: %s", mpi_rank, message); break;
+      case 2: snprintf(message_with_rank, message_len, "%02d: %s", mpi_rank, message); break;
+      case 3: snprintf(message_with_rank, message_len, "%03d: %s", mpi_rank, message); break;
+      case 4: snprintf(message_with_rank, message_len, "%04d: %s", mpi_rank, message); break;
+      case 5: snprintf(message_with_rank, message_len, "%05d: %s", mpi_rank, message); break;
+      case 6: snprintf(message_with_rank, message_len, "%06d: %s", mpi_rank, message); break;
+      default: snprintf(message_with_rank, message_len, "%d: %s", mpi_rank, message); break;
+    }
+    strncpy(&logger->buffer[logger->message_counter*(logger->message_size_limit+1)], message_with_rank, logger->message_size_limit);
+  }
+  else
+    strncpy(&logger->buffer[logger->message_counter*(logger->message_size_limit+1)], message, logger->message_size_limit);
   logger->message_counter++;
   if (logger->message_counter == logger->flush_every)
     logger_flush(logger);
@@ -88,6 +107,7 @@ static logger_t* create_logger()
   {
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_nproc);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    max_mpi_rank_digits = (int)log10(mpi_nproc) + 1;
     polymec_atexit(delete_loggers);
     first_time = false;
   }
@@ -109,6 +129,11 @@ static logger_t* get_logger(log_level_t level)
   if (loggers[level] == NULL)
     loggers[level] = create_logger();
   return loggers[level];
+}
+
+void set_log_mode(log_mode_t mode)
+{
+  logging_mode = mode;
 }
 
 void get_log_buffering(log_level_t level, int* message_size_limit, int* num_messages_between_flush)
@@ -137,7 +162,9 @@ void set_log_buffering(log_level_t level, int message_size_limit, int num_messag
 void set_log_stream(log_level_t log_type, FILE* stream)
 {
   logger_t* logger = get_logger(log_type);
-  if ((mpi_rank == logger->mpi_rank) && (logger != NULL))
+  if (((mpi_rank == logger->mpi_rank) || 
+       (logging_mode == LOG_TO_ALL_RANKS)) && 
+      (logger != NULL))
   {
     if (logger->stream != NULL)
       fclose(logger->stream);
@@ -172,7 +199,8 @@ void log_debug(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_DEBUG);
   if (logging_level < LOG_DEBUG) return;
-  if (mpi_rank != logger->mpi_rank) return;
+  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+      (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
@@ -191,7 +219,8 @@ void log_debug_literal(const char* message)
 {
   logger_t* logger = get_logger(LOG_DEBUG);
   if (logging_level < LOG_DEBUG) return;
-  if (mpi_rank != logger->mpi_rank) return;
+  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+      (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
     // Log it directly.
@@ -203,7 +232,8 @@ void log_detail(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_DETAIL);
   if (logging_level < LOG_DETAIL) return;
-  if (mpi_rank != logger->mpi_rank) return;
+  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+      (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
@@ -222,7 +252,8 @@ void log_detail_literal(const char* message)
 {
   logger_t* logger = get_logger(LOG_DETAIL);
   if (logging_level < LOG_DETAIL) return;
-  if (mpi_rank != logger->mpi_rank) return;
+  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+      (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
     // Log it directly.
@@ -234,7 +265,8 @@ void log_info(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_INFO);
   if (logging_level < LOG_INFO) return;
-  if (mpi_rank != logger->mpi_rank) return;
+  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+      (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
@@ -253,7 +285,8 @@ void log_info_literal(const char* message)
 {
   logger_t* logger = get_logger(LOG_INFO);
   if (logging_level < LOG_INFO) return;
-  if (mpi_rank != logger->mpi_rank) return;
+  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+      (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
     // Log it directly.
@@ -265,7 +298,8 @@ void log_urgent(const char* message, ...)
 {
   logger_t* logger = get_logger(LOG_URGENT);
   if (logging_level < LOG_URGENT) return;
-  if (mpi_rank != logger->mpi_rank) return;
+  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+      (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
     // Extract the variadic arguments and splat them into a string.
@@ -284,7 +318,8 @@ void log_urgent_literal(const char* message)
 {
   logger_t* logger = get_logger(LOG_URGENT);
   if (logging_level < LOG_URGENT) return;
-  if (mpi_rank != logger->mpi_rank) return;
+  if ((logging_mode == LOG_TO_SINGLE_RANK) && 
+      (mpi_rank != logger->mpi_rank)) return;
   if (logger->stream != NULL)
   {
     // Log it directly.

@@ -175,7 +175,7 @@ static void handle_silo_error(char* message)
 }
 
 // This sets the logging level if it is given as a command-line argument.
-static void set_up_logging()
+static void set_up_logging_level()
 {
   options_t* opts = options_argv();
   bool free_logging = false;
@@ -214,6 +214,43 @@ static void set_up_logging()
       set_log_level(LOG_NONE);
     if (free_logging)
       string_free(logging);
+  }
+}
+
+// This sets the logging mode if it is given as a command-line argument.
+static void set_up_logging_mode()
+{
+  options_t* opts = options_argv();
+  bool free_logging_mode = false;
+  char* logging_mode = options_value(opts, "logging_mode");
+  if (logging_mode == NULL)
+  {
+    // Are we maybe in a test environment, in which the logging=xxx 
+    // argument is the first one passed?
+    char* arg = options_argument(opts, 1);
+    if ((arg != NULL) && (strstr(arg, "logging_mode") != NULL) && (string_casecmp(arg, "logging=") != 0))
+    {
+      int num_words;
+      char** words = string_split(arg, "=", &num_words);
+      if (num_words == 2)
+      {
+        ASSERT(string_casecmp(words[0], "logging_mode") == 0);
+        free_logging_mode = true;
+        logging_mode = string_dup(words[1]);
+      }
+      for (int i = 0; i < num_words; ++i)
+        string_free(words[i]);
+      polymec_free(words);
+    }
+  }
+  if (logging_mode != NULL)
+  {
+    if (!string_casecmp(logging_mode, "all"))
+      set_log_mode(LOG_TO_ALL_RANKS);
+    else if (!string_casecmp(logging_mode, "single"))
+      set_log_mode(LOG_TO_SINGLE_RANK);
+    if (free_logging_mode)
+      string_free(logging_mode);
   }
 }
 
@@ -378,8 +415,9 @@ void polymec_init(int argc, char** argv)
     // Parse command line options.
     options_parse(argc, argv);
 
-    // If we are asked to set a specific logging level, do so.
-    set_up_logging();
+    // If we are asked to set a specific logging level/mode, do so.
+    set_up_logging_level();
+    set_up_logging_mode();
 
     // If we are asked to set up threads specifically, do so.
     set_up_threads();

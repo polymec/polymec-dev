@@ -28,6 +28,20 @@ void set_log_level(log_level_t level);
 // Retrieves the current logging level.
 log_level_t log_level();
 
+// Logging output modes to control degrees of output.
+typedef enum
+{
+  LOG_TO_SINGLE_RANK,         // Logs all messages only to a single MPI rank
+  LOG_TO_ALL_RANKS            // Logs all messages to all MPI ranks
+} log_mode_t;
+
+// Sets the logging model. By default, LOG_TO_SINGLE_RANK (rank 0) is used.
+void set_log_mode(log_mode_t mode);
+
+// Sets the output MPI rank for parallel logging output. Output will only 
+// be reported on this rank if the log mode is set to LOG_TO_SINGLE_RANK.
+void set_log_mpi_rank(log_level_t log_type, int rank);
+
 // Retrieves the current buffering parameters for logging, including the size limit 
 // on log messages and the flush frequency. If a logger is not found at the 
 // given level, -1 is returned for each of these.
@@ -39,10 +53,6 @@ void set_log_buffering(log_level_t log_type, int size_limit, int num_messages_be
 
 // Sets the output stream for the given type of log message.
 void set_log_stream(log_level_t log_type, FILE* stream);
-
-// Sets the output MPI rank for parallel logging output. Output will only 
-// be reported on this rank.
-void set_log_mpi_rank(log_level_t log_type, int rank);
 
 // Returns the output stream for the given type of log message if the 
 // type is enabled, NULL if it is not.
