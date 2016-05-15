@@ -372,6 +372,219 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
 
 #if POLYMEC_HAVE_MPI 
 
+// This rebalances the workload on the given set of points, changing the distribution 
+// of the points on the processors but preserving their ordering. The points are 
+// assumed to be 4-wide sets of indices as ordered within repartition_point_cloud
+// below. This procedure is serial, so the function must be used sparingly. 
+// It returns true if it can balance the loads to within the imbalance toleranace,
+// false if not.
+static bool balance_loads(MPI_Comm comm, 
+                          real_t imbalance_tol,
+                          index_t** local_array,
+                          int* local_array_size)
+{
+  START_FUNCTION_TIMER();
+  int nprocs, rank;
+  MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+
+  index_t* array = *local_array;
+  int array_size = *local_array_size;
+
+  // Sum the total load on all processes, and find the ideal load per process.
+  real_t my_load = 0.0;
+  for (int i = 0; i < array_size; ++i)
+    my_load += 1.0 * array[4*i+3];
+  real_t total_load;
+  MPI_Allreduce(&my_load, &total_load, 1, MPI_REAL_T, MPI_SUM, comm);
+  int ideal_proc_load = (int)ceil(total_load / nprocs);
+
+  // Now loop through the processes and carve off the ideal workload.
+  for (int p = 0; p < nprocs; ++p)
+  {
+    if (rank == p)
+    {
+      if (rank > 0)
+      {
+        // Catch the number of points we'll be getting from process (rank - 1).
+        int num_points;
+        MPI_Recv(&num_points, 1, MPI_INT, rank-1, 0, comm, MPI_STATUS_IGNORE);
+
+        if (num_points > 0)
+        {
+          // Now catch the data for each of these points.
+          index_t buffer[4*num_points];
+          MPI_Recv(buffer, 4*num_points, MPI_INDEX_T, rank-1, 0, comm, MPI_STATUS_IGNORE);
+
+          // Prepend these indices/loads to our local array.
+          array_size += num_points;
+          *local_array_size = array_size;
+          *local_array = polymec_realloc(*local_array, 4 * sizeof(index_t) * array_size);
+          array = *local_array;
+          memmove(&(array[4*num_points]), array, 
+              4*sizeof(index_t) * array_size - num_points);
+          memcpy(array, buffer, 4*sizeof(index_t) * num_points);
+        }
+        else if (num_points < 0)
+        {
+          // If the number of points we receive is negative, the datum is 
+          // -work needed by process (rank - 1). So we count off (from the 
+          // beginning of our array) the number of points that most closely 
+          // satisfies this quantity, and send back that number of points.
+          int work_needed = -num_points; 
+          int num_points = 0, work_given = 0, delta;
+          while (work_given <= work_needed)
+          {
+            delta = (int)array[4*num_points+3];
+            work_given += delta;
+            ++num_points;
+          }
+
+          // Step back a point if it makes sense.
+          if ((work_given > work_needed) && 
+              (abs(work_given - delta - work_needed) < (work_given - work_needed)))
+          {
+            work_given -= delta;
+            --num_points;
+          }
+
+          // Send the number of points back.
+          MPI_Send(&num_points, 1, MPI_INT, rank-1, 0, comm);
+
+          // Send the data for those points.
+          MPI_Send(array, 4*num_points, MPI_INDEX_T, rank-1, 0, comm);
+
+          // If we sent back more work than was strictly requested, wait to 
+          // see whether it was rejected. A 1 response means accepted, 0 
+          // rejected. If rejected, we proceed having passed one fewer 
+          // point back.
+          int accepted;
+          MPI_Recv(&accepted, 1, MPI_INT, rank-1, 0, comm, MPI_STATUS_IGNORE);
+          if (!accepted)
+            --num_points;
+
+          // Remove the points we've sent back from our own array.
+          if (num_points > 0)
+          {
+            memmove(array, &array[4*num_points], 
+                4*sizeof(index_t) * num_points);
+            *local_array_size -= num_points;
+            array_size = *local_array_size;
+          }
+        }
+      }
+
+      // March through our points and add up the workload.
+      int load = 0;
+      int num_points_kept = 0, delta;
+      while ((load <= ideal_proc_load) && (num_points_kept <= array_size))
+      {
+        delta = (int)array[4*num_points_kept+3];
+        load += delta;
+        ++num_points_kept;
+      }
+
+      // Step back a point if it makes sense.
+      if ((load > ideal_proc_load) && 
+          (abs(load - delta - ideal_proc_load) < (load - ideal_proc_load)))
+      {
+        load -= delta;
+        --num_points_kept;
+      }
+
+      // If there's a process "to our right," dump any excess work there.
+      int excess_load = load - ideal_proc_load;
+      if (excess_load >= 0)
+      {
+        if (rank == (nprocs - 1)) // last process!
+        {
+          // Can we fit the extra work on the process and still fall under 
+          // our load imbalance tolerance?
+          real_t imbalance = (1.0 * (load + excess_load) - ideal_proc_load) / ideal_proc_load;
+          if (imbalance > imbalance_tol)
+          {
+            // This works because we don't have to communicate with anyone
+            // else at this point.
+            return false; 
+          }
+          else
+          {
+            // Just keep all the points on this process.
+            num_points_kept = array_size;
+          }
+        }
+        else // We have a sucker to pass our extra work to!
+        {
+          int num_points_sent = array_size - num_points_kept;
+          ASSERT(num_points_sent >= 0);
+
+          // Tell the sucker how many points we're giving him.
+          MPI_Send(&num_points_sent, 1, MPI_INT, rank+1, 0, comm);
+
+          if (num_points_sent > 0)
+          {
+            // Pass the data along.
+            MPI_Send(&array[num_points_kept], 4*num_points_sent, MPI_INDEX_T, 
+                rank+1, 0, comm);
+          }
+          else
+          {
+            // Just keep all the points on this process.
+            num_points_kept = array_size;
+          }
+        }
+      }
+      else if (excess_load < 0) // we need some more work!
+      {
+        // We send the negation of how much work we would like to balance our 
+        // load.
+        int needed_work = (int)(ideal_proc_load - load);
+        needed_work *= -1; // Flip the sign to signify that we want work.
+        MPI_Send(&needed_work, 1, MPI_INT, rank+1, 0, comm);
+
+        // Get back the number of points we're receiving.
+        int num_points_received;
+        MPI_Recv(&num_points_received, 1, MPI_INT, rank+1, 0, comm, MPI_STATUS_IGNORE);
+
+        // Get data for these points.
+        index_t buffer[4*num_points_received];
+        MPI_Recv(buffer, 4*num_points_received, MPI_INDEX_T, rank+1, 0, comm, MPI_STATUS_IGNORE);
+
+        // Are we now overloaded? If so, return a 0 to signify that we 
+        // reject the last of the points given, and a 1 to signify that 
+        // we accept the lot.
+        int extra_work = 0, response = 1;
+        for (int i = 0; i < num_points_received; ++i)
+          extra_work += (int)buffer[4*i+3];
+        ASSERT(extra_work - 1 + load <= ideal_proc_load); // safety guarantee!
+        if (extra_work + load > ideal_proc_load)
+        {
+          real_t imbalance = (1.0 * (load + excess_load) - ideal_proc_load) / ideal_proc_load;
+          if (imbalance > imbalance_tol)
+          {
+            response = 0; // we reject the last point.
+            --num_points_received;
+          }
+        }
+
+        // Send the response.
+        MPI_Send(&response, 1, MPI_INT, rank+1, 0, comm);
+
+        // Now append the extra points to our local array.
+        array_size += num_points_received;
+        *local_array_size = array_size;
+        *local_array = polymec_realloc(*local_array, 4 * sizeof(index_t) * array_size);
+        array = *local_array;
+        memcpy(&array[4*(array_size-num_points_received)], buffer, 
+            4*sizeof(index_t) * num_points_received);
+      }
+    }
+  }
+
+  STOP_FUNCTION_TIMER();
+  return true;
+}
+
 // This creates local partition and load vectors using the information in the sorted 
 // distributed array. This is to be used only with repartition_point_cloud().
 static void create_partition_and_load_from_sorted_array(MPI_Comm comm, 
@@ -426,9 +639,6 @@ static void create_partition_and_load_from_sorted_array(MPI_Comm comm,
 
     if (num_points_to_rank[p] > 0)
       ++num_receives;
-    {
-      // FIXME
-    }
   }
 
   int_ptr_unordered_map_t* sends = int_ptr_unordered_map_new();
@@ -505,38 +715,6 @@ static void create_partition_and_load_from_sorted_array(MPI_Comm comm,
   int_int_unordered_map_free(proc_for_index);
 
   STOP_FUNCTION_TIMER();
-}
-
-// This rebalances the workload on the given set of points, changing the distribution 
-// of the points on the processors but preserving their ordering. The points are 
-// assumed to be 4-wide sets of indices as ordered within repartition_point_cloud
-// below. This procedure is serial, so it must be used sparingly.
-static void balance_load(MPI_Comm comm, 
-                         int64_t* local_partition, 
-                         index_t* local_load,
-                         int num_local_points,
-                         real_t imbalance_tol)
-{
-  int nprocs, rank;
-  MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_rank(comm, &rank);
-
-  // Sum the total load on all processes, and find the ideal load per process.
-  real_t my_load = 0.0;
-  for (int i = 0; i < num_local_points; ++i)
-    my_load += 1.0 * local_load[i];
-  real_t total_load;
-  MPI_Allreduce(&my_load, &total_load, 1, MPI_REAL_T, MPI_SUM, comm);
-  real_t ideal_proc_load = total_load / nprocs;
-
-  // Now loop through the processes and carve off the ideal workload, .
-  for (int p = 0; p < nprocs; ++p)
-  {
-    if (rank == p)
-    {
-
-    }
-  }
 }
 
 // Fuse a set of subclouds into a single point cloud. Ghost points are not 
@@ -726,19 +904,16 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud,
   parallel_sort(cl->comm, part_array, cl->num_points, 
                 4*sizeof(index_t), hilbert_comp);
 
+  // We make adjustments to the parititioning to accomodate variable loads.
+  int balanced_num_points = cl->num_points;
+  balance_loads(cl->comm, imbalance_tol, &part_array, &balanced_num_points);
+
   // Now we create local partition/load vectors for each process using the elements
   // in the sorted list.
   int64_t* local_partition;
   index_t* local_load;
   create_partition_and_load_from_sorted_array(cl->comm, part_array, cl->num_points,
-                                             &local_partition, &local_load);
-
-  if (weights != NULL)
-  {
-    // We make adjustments to the partition vector to accomodate variable loads.
-    balance_load(cl->comm, local_partition, local_load, 
-                 cl->num_points, imbalance_tol);
-  }
+                                              &local_partition, &local_load);
 
   // Set up an exchanger to migrate field data.
   exchanger_t* migrator = create_migrator(cl->comm, local_partition, cl->num_points);
