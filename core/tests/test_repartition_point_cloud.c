@@ -23,12 +23,12 @@ void test_repartition_linear_cloud(void** state)
   // Create a 100x1x1 uniform point cloud distributed over N processes.
   int N = 100, Np;
   if (nprocs > 1) 
-    Np = (rank < nprocs-1) ? N/nprocs : N - (rank-1)*N/nprocs;
+    Np = (rank < nprocs-1) ? N/nprocs : N - rank*N/nprocs;
   else
     Np = N;
 
   real_t dx = 1.0/N;
-  point_cloud_t* cloud = point_cloud_new(comm, N);
+  point_cloud_t* cloud = point_cloud_new(comm, Np);
   for (int i = 0; i < Np; ++i)
     cloud->points[i].x = (0.5+i)*dx + (i % nprocs) * 1.0/nprocs;
 
