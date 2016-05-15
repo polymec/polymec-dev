@@ -398,8 +398,22 @@ static bool balance_loads(MPI_Comm comm,
   real_t total_load;
   MPI_Allreduce(&my_load, &total_load, 1, MPI_REAL_T, MPI_SUM, comm);
   int ideal_proc_load = (int)ceil(total_load / nprocs);
+  log_debug("balance_loads: ideal process workload is %d", ideal_proc_load);
+
+  // Are we balanced already?
+  {
+    real_t max_proc_load, min_proc_load;
+    MPI_Allreduce(&my_load, &max_proc_load, 1, MPI_REAL_T, MPI_MAX, comm);
+    MPI_Allreduce(&my_load, &min_proc_load, 1, MPI_REAL_T, MPI_MIN, comm);
+    real_t imbalance = MAX(ABS(max_proc_load - total_load/nprocs), 
+                           ABS(min_proc_load - total_load/nprocs));
+    log_debug("balance_loads: current imbalance is %g", imbalance);
+    if (imbalance <= imbalance_tol * total_load / nprocs)
+      return true;
+  }
 
   // Now loop through the processes and carve off the ideal workload.
+  int balanced = 1; // let's be optimistic!
   for (int p = 0; p < nprocs; ++p)
   {
     if (rank == p)
@@ -505,7 +519,7 @@ static bool balance_loads(MPI_Comm comm,
           {
             // This works because we don't have to communicate with anyone
             // else at this point.
-            return false; 
+            balanced = 0; 
           }
           else
           {
@@ -581,8 +595,21 @@ static bool balance_loads(MPI_Comm comm,
     }
   }
 
+  // Let's all agree on whether the load was balanced.
+  MPI_Allreduce(MPI_IN_PLACE, &balanced, 1, MPI_INT, MPI_MIN, comm);
+  if (balanced == 1)
+  {
+    log_debug("balance_loads: successfully balance workloads to within %d%%.", 
+              (int)round(imbalance_tol * 100.0));
+  }
+  else
+  {
+    log_debug("balance_loads: could not balance workloads to within %d%%.",
+              (int)round(imbalance_tol * 100.0));
+  }
+
   STOP_FUNCTION_TIMER();
-  return true;
+  return (balanced == 1);
 }
 
 // This creates local partition and load vectors using the information in the sorted 
@@ -904,9 +931,15 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud,
   parallel_sort(cl->comm, part_array, cl->num_points, 
                 4*sizeof(index_t), hilbert_comp);
 
-  // We make adjustments to the parititioning to accomodate variable loads.
+  // Try to balance the workload and bug out if we fail.
   int balanced_num_points = cl->num_points;
-  balance_loads(cl->comm, imbalance_tol, &part_array, &balanced_num_points);
+  bool balanced = balance_loads(cl->comm, imbalance_tol, &part_array, 
+                                &balanced_num_points);
+  if (!balanced)
+  {
+    polymec_free(part_array);
+    return NULL;
+  }
 
   // Now we create local partition/load vectors for each process using the elements
   // in the sorted list.
