@@ -347,8 +347,8 @@ static subdomain_mesh_t* subdomain_mesh_new(const char* mesh_name,
 static void subdomain_mesh_free(subdomain_mesh_t* mesh)
 {
   polymec_free(mesh->name);
-  polymec_free(mesh);
   optlist_free(mesh->optlist);
+  polymec_free(mesh);
 }
 
 // Object representing data in a multi-mesh.
