@@ -11,6 +11,7 @@
 #include <string.h>
 #include "cmocka.h"
 #include "core/array_utils.h"
+#include "core/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
 #include "model/point_weight_function.h"
 #include "model/neighbor_pairing.h"
@@ -19,17 +20,14 @@
 extern neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h);
 
 void test_point_lattice(void** state, 
-                        MPI_Comm comm,
-                        int nx, int ny, int nz, real_t h,
+                        point_cloud_t* cloud,
+                        neighbor_pairing_t* pairing,
+                        int nx, int ny, int nz, 
                         int num_interior_neighbors, 
                         int num_boundary_neighbors, 
                         int num_edge_neighbors,
                         int num_corner_neighbors)
 {
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  point_cloud_t* cloud = create_uniform_point_lattice(comm, nx, ny, nz, &bbox);
-  neighbor_pairing_t* pairing = create_simple_pairing(cloud, h);
-
   // Find the numbers of neighbors of each of the points. Do it collecting 
   // weights first, and then ignoring weights, and make sure we get the same
   // result.
@@ -95,24 +93,72 @@ void test_point_lattice(void** state,
   point_cloud_free(cloud);
 }
 
+static void test_serial_point_lattice(void** state,
+                                      MPI_Comm comm,
+                                      int nx, int ny, int nz, real_t h,
+                                      int num_interior_neighbors, 
+                                      int num_boundary_neighbors, 
+                                      int num_edge_neighbors,
+                                      int num_corner_neighbors)
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  point_cloud_t* cloud = create_uniform_point_lattice(comm, nx, ny, nz, &bbox);
+  neighbor_pairing_t* pairing = create_simple_pairing(cloud, h);
+  test_point_lattice(state, cloud, pairing, nx, ny, nz,
+                     num_interior_neighbors, num_boundary_neighbors,
+                     num_edge_neighbors, num_corner_neighbors);
+}
+
+static void test_parallel_point_lattice(void** state,
+                                        MPI_Comm comm,
+                                        int nx, int ny, int nz, real_t R0,
+                                        int num_interior_neighbors, 
+                                        int num_boundary_neighbors, 
+                                        int num_edge_neighbors,
+                                        int num_corner_neighbors)
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  point_cloud_t* cloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, nz, &bbox);
+  partition_point_cloud(&cloud, comm, NULL, 0.10);
+  int num_ghosts;
+  real_t R[cloud->num_points];
+  for (int i = 0; i < cloud->num_points + cloud->num_ghosts; ++i)
+    R[i] = R0;
+  neighbor_pairing_t* pairing = distance_based_neighbor_pairing_new(cloud, R, &num_ghosts);
+  point_cloud_set_num_ghosts(cloud, num_ghosts);
+  test_point_lattice(state, cloud, pairing, nx, ny, nz,
+                     num_interior_neighbors, num_boundary_neighbors,
+                     num_edge_neighbors, num_corner_neighbors);
+}
+
 void test_serial_1x1x1_lattice(void** state)
 {
-  test_point_lattice(state, MPI_COMM_SELF, 1, 1, 1, 0.1, 0, 0, 0, 0);
+  test_serial_point_lattice(state, MPI_COMM_SELF, 1, 1, 1, 0.1, 0, 0, 0, 0);
 }
 
 void test_serial_10x1x1_lattice(void** state)
 {
-  test_point_lattice(state, MPI_COMM_SELF, 10, 1, 1, 0.15, 2, 2, 2, 1);
+  test_serial_point_lattice(state, MPI_COMM_SELF, 10, 1, 1, 0.15, 2, 2, 2, 1);
 }
 
 void test_serial_10x10x1_lattice(void** state)
 {
-  test_point_lattice(state, MPI_COMM_SELF, 10, 10, 1, 0.15, 8, 8, 5, 3);
+  test_serial_point_lattice(state, MPI_COMM_SELF, 10, 10, 1, 0.15, 8, 8, 5, 3);
 }
 
 void test_serial_10x10x10_lattice(void** state)
 {
-  test_point_lattice(state, MPI_COMM_SELF, 10, 10, 10, 0.15, 18, 13, 9, 6);
+  test_serial_point_lattice(state, MPI_COMM_SELF, 10, 10, 10, 0.15, 18, 13, 9, 6);
+}
+
+void test_parallel_10x10x1_lattice(void** state)
+{
+  test_parallel_point_lattice(state, MPI_COMM_WORLD, 10, 10, 1, 0.15, 8, 8, 5, 3);
+}
+
+void test_parallel_10x10x10_lattice(void** state)
+{
+  test_parallel_point_lattice(state, MPI_COMM_WORLD, 10, 10, 10, 0.15, 18, 13, 9, 6);
 }
 
 int main(int argc, char* argv[]) 
@@ -123,7 +169,9 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_serial_1x1x1_lattice),
     cmocka_unit_test(test_serial_10x1x1_lattice),
     cmocka_unit_test(test_serial_10x10x1_lattice),
-    cmocka_unit_test(test_serial_10x10x10_lattice)
+    cmocka_unit_test(test_serial_10x10x10_lattice),
+    cmocka_unit_test(test_parallel_10x10x1_lattice),
+    cmocka_unit_test(test_parallel_10x10x1_lattice),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

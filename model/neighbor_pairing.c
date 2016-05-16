@@ -258,6 +258,16 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
   // too many ghost points, but hopefully that won't be an issue.
   exchanger_t* ex = kd_tree_find_ghost_points(tree, points->comm, R_max);
 
+  // Make parallel-sensible coordinate and radius fields with ghost candidate 
+  // values filled in.
+  int tree_size = kd_tree_size(tree);
+  point_t* x_par = polymec_malloc(sizeof(point_t) * tree_size);
+  memcpy(x_par, points->points, 3 * sizeof(real_t) * points->num_points);
+  exchanger_exchange(ex, x_par, 3, 0, MPI_REAL_T);
+  real_t* R_par = polymec_malloc(sizeof(real_t) * tree_size);
+  memcpy(R_par, R, sizeof(real_t) * points->num_points);
+  exchanger_exchange(ex, R_par, 1, 0, MPI_REAL_T);
+
   // We'll toss neighbor pairs into this expandable array.
   int_array_t* pair_array = int_array_new();
 
@@ -265,15 +275,15 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
   {
     // Find all the neighbors for this point. We only count those 
     // neighbors {j} for which j > i.
-    point_t* xi = &points->points[i];
+    point_t* xi = &x_par[i];
     int_array_t* neighbors = kd_tree_within_radius(tree, xi, R_max);
     for (int k = 0; k < neighbors->size; ++k)
     {
       int j = neighbors->data[k];
       if (j > i)
       {
-        real_t D = point_distance(xi, &points->points[j]);
-        if (D < MAX(R[i], R[j]))
+        real_t D = point_distance(xi, &x_par[j]);
+        if (D < MAX(R_par[i], R_par[j]))
         {
           int_array_append(pair_array, i);
           int_array_append(pair_array, j);
@@ -282,6 +292,8 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
     }
     int_array_free(neighbors);
   }
+  polymec_free(R_par);
+  polymec_free(x_par);
 
   // Create a neighbor pairing.
   int num_pairs = pair_array->size/2;
