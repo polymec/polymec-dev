@@ -133,38 +133,11 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
 // This fills the array given in exchanger_start_exchange with the data it expects.
 void exchanger_finish_exchange(exchanger_t* ex, int token);
 
-// Transfers data between processes, creating new received elements 
-// and deleting old sent elements where needed. The array data initially 
-// contains a number of elements compatible with the exchanger, while the 
-// final number of elements in data (the initial count minus those sent 
-// elements, which are jettisoned) is stored in count.
-void exchanger_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type);
-
-// Begins the asynchronous transfer of data between processes, returning
-// a unique token.
-int exchanger_start_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type);
-
-// Concludes the asynchronous transfer of data between processes.
-void exchanger_finish_transfer(exchanger_t* ex, int token);
-
 // This writes a string representation of the exchanger to the given file stream.
 void exchanger_fprintf(exchanger_t* ex, FILE* stream);
 
 // This creates a serializer object that can read and write exchangers to byte streams.
 serializer_t* exchanger_serializer();
-
-// This function creates an exchanger that can distribute data from the 
-// root process (0) according to the global partition vector. The partition 
-// vector is NULL on all nonzero ranks and defined on rank 0.
-exchanger_t* create_distributor(MPI_Comm comm, 
-                                int64_t* global_partition,
-                                int num_global_vertices);
-
-// This function creates an exchanger that can migrate data from all 
-// processes to others according to their respective local partition vectors.
-exchanger_t* create_migrator(MPI_Comm comm,
-                             int64_t* local_partition,
-                             int num_vertices);
 
 //------------------------------------------------------------------------
 //                      Exchanging parallel metadata
@@ -234,5 +207,85 @@ int exchanger_start_metadata_transfer(exchanger_t* ex,
 // Finishes the asyncronous metadata transfer associated with the given token.
 void exchanger_finish_metadata_transfer(exchanger_t* ex,
                                         int token);
+
+//------------------------------------------------------------------------
+//                            Data migration
+//------------------------------------------------------------------------
+// When a computational domain is repartitioned or reorganized , data often 
+// needs to be migrated from one process to another. Migrator objects help 
+// with this task. They are very similer to exchangers but move data instead
+// of exchanging it per se.
+//------------------------------------------------------------------------
+
+// Migrator class -- related to the exchanger class, but used differently.
+typedef struct migrator_t migrator_t;
+
+// Creates a migrator that does nothing, for the given MPI communicator.
+migrator_t* migrator_new(MPI_Comm comm);
+
+// This function creates a migrator that can distribute data from the 
+// root process (0) according to the global partition vector. The partition 
+// vector is NULL on all nonzero ranks and defined on rank 0.
+migrator_t* migrator_from_global_partition(MPI_Comm comm, 
+                                           int64_t* global_partition,
+                                           int num_global_vertices);
+
+// This function creates a migrator that can migrate data from all 
+// processes to others according to their respective local partition vectors.
+migrator_t* migrator_from_local_partition(MPI_Comm comm,
+                                          int64_t* local_partition,
+                                          int num_local_vertices);
+
+// Destroys a migrator.
+void migrator_free(migrator_t* ex);
+
+// Creates a complete copy of the given migrator.
+migrator_t* migrator_clone(exchanger_t* ex);
+
+// Verifies the consistency of the migrator, raising an error in the 
+// case of inconsistency, using the given error handler. Involves parallel 
+// communication, so make sure it is called by all processes on the 
+// communicator for the migrator.
+void migrator_verify(migrator_t* m, void (*handler)(const char* format, ...));
+
+// Transfers data between processes, creating new received elements 
+// and deleting old sent elements where needed. The array data initially 
+// contains a number of elements compatible with the exchanger, while the 
+// final number of elements in data (the initial count minus those sent 
+// elements, which are jettisoned) is stored in count.
+void migrator_transfer(migrator_t* m, void* data, int* count, int stride, int tag, MPI_Datatype type);
+
+// Begins the asynchronous transfer of data between processes, returning
+// a unique token.
+int migrator_start_transfer(migrator_t* m, void* data, int* count, int stride, int tag, MPI_Datatype type);
+
+// Concludes the asynchronous transfer of data between processes.
+void migrator_finish_transfer(migrator_t* m, int token);
+
+// This writes a string representation of the migrator to the given file stream.
+void migrator_fprintf(migrator_t* m, FILE* stream);
+
+// This creates a serializer object that can read and write migrators to byte streams.
+serializer_t* migrator_serializer();
+//------------------------------------------------------------------------
+
+// The following functions preceded the separation of the migrator type from 
+// the exchanger type and are provided for backwards compatibility, but 
+// are deprecated. Please use the migrator transfer functions instead.
+void exchanger_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type);
+int exchanger_start_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type);
+void migrator_finish_transfer(migrator_t* m, int token);
+
+exchanger_t* create_distributor(MPI_Comm comm, 
+                                int64_t* global_partition,
+                                int num_global_vertices);
+
+exchanger_t* create_migrator(MPI_Comm comm,
+                             int64_t* local_partition,
+                             int num_local_vertices);
+
+// Provided to extract the underlying exchanger from a migrator, again for 
+// backward compatibility.
+exchanger_t* migrator_exchanger(migrator_t* m);
 
 #endif

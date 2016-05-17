@@ -86,9 +86,9 @@ static int hilbert_comp(const void* l, const void* r)
 
 #endif
 
-exchanger_t* distribute_point_cloud(point_cloud_t** cloud, 
-                                    MPI_Comm comm,
-                                    int64_t* global_partition)
+migrator_t* distribute_point_cloud(point_cloud_t** cloud, 
+                                   MPI_Comm comm,
+                                   int64_t* global_partition)
 {
 #if POLYMEC_HAVE_MPI
   int nprocs, rank;
@@ -97,7 +97,7 @@ exchanger_t* distribute_point_cloud(point_cloud_t** cloud,
 
   // On a single process, partitioning has no meaning.
   if (nprocs == 1)
-    return exchanger_new(comm);
+    return migrator_new(comm);
 
   // Make sure we're all here.
   MPI_Barrier(comm);
@@ -191,11 +191,11 @@ exchanger_t* distribute_point_cloud(point_cloud_t** cloud,
   if (global_cloud != NULL)
     point_cloud_free(global_cloud);
 
-  exchanger_t* ex = create_distributor(comm, global_partition, num_global_points);
+  migrator_t* m = migrator_from_global_partition(comm, global_partition, num_global_points);
   STOP_FUNCTION_TIMER();
-  return ex;
+  return m;
 #else
-  return exchanger_new(comm);
+  return migrator_new(comm);
 #endif
 }
 
@@ -328,7 +328,7 @@ int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud,
 #endif
 }
 
-exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* weights, real_t imbalance_tol)
+migrator_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* weights, real_t imbalance_tol)
 {
   ASSERT((weights == NULL) || (imbalance_tol > 0.0));
   ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
@@ -346,23 +346,23 @@ exchanger_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* we
   if (nprocs == 1)
   {
     STOP_FUNCTION_TIMER();
-    return exchanger_new(comm);
+    return migrator_new(comm);
   }
 
   // Now do the space-filling curve thing.
   int64_t* global_partition = partition_vector_from_point_cloud(cl, comm, weights, imbalance_tol);
 
   // Distribute the point cloud.
-  exchanger_t* distributor = distribute_point_cloud(cloud, comm, global_partition);
+  migrator_t* migrator = distribute_point_cloud(cloud, comm, global_partition);
 
   // Clean up.
   polymec_free(global_partition);
 
   // Return the migrator.
   STOP_FUNCTION_TIMER();
-  return (distributor == NULL) ? exchanger_new(comm) : distributor;
+  return (migrator == NULL) ? migrator_new(comm) : migrator;
 #else
-  return exchanger_new(cl->comm);
+  return migrator_new(cl->comm);
 #endif
 }
 
@@ -791,20 +791,24 @@ static point_cloud_t* fuse_clouds(point_cloud_t** subclouds, int num_subclouds)
   return fused_cloud;
 }
 
-// Migrate point cloud data using the given exchanger.
+// Migrate point cloud data using the given migrator.
 static void point_cloud_migrate(point_cloud_t** cloud, 
-                                exchanger_t* migrator)
+                                migrator_t* migrator)
 {
   START_FUNCTION_TIMER();
   point_cloud_t* c = *cloud;
 
+  // FIXME: For now, we have to pull out the underlying exchanger for
+  // FIXME: the migrator.
+  exchanger_t* ex = migrator_exchanger(migrator);
+
   // Post receives for buffer sizes.
-  int num_receives = exchanger_num_receives(migrator);
-  int num_sends = exchanger_num_sends(migrator);
+  int num_receives = exchanger_num_receives(ex);
+  int num_sends = exchanger_num_sends(ex);
   int receive_buffer_sizes[num_receives], receive_procs[num_receives];
   int pos = 0, proc, num_indices, *indices, i_req = 0;
   MPI_Request requests[num_receives + num_sends];
-  while (exchanger_next_receive(migrator, &pos, &proc, &indices, &num_indices))
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
   {
     receive_procs[i_req] = proc;
     MPI_Irecv(&receive_buffer_sizes[i_req], 1, MPI_INT, proc, 0, c->comm, &requests[i_req]);
@@ -817,7 +821,7 @@ static void point_cloud_migrate(point_cloud_t** cloud,
   byte_array_t* send_buffers[num_sends];
   int send_procs[num_sends];
   pos = 0;
-  while (exchanger_next_send(migrator, &pos, &proc, &indices, &num_indices))
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
   {
     send_procs[i_req-num_receives] = proc;
     byte_array_t* bytes = byte_array_new();
@@ -896,9 +900,9 @@ static void point_cloud_migrate(point_cloud_t** cloud,
 
 #endif
 
-exchanger_t* repartition_point_cloud(point_cloud_t** cloud, 
-                                     int* weights, 
-                                     real_t imbalance_tol)
+migrator_t* repartition_point_cloud(point_cloud_t** cloud, 
+                                    int* weights, 
+                                    real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
@@ -914,7 +918,7 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud,
   if (nprocs == 1)
   {
     STOP_FUNCTION_TIMER();
-    return exchanger_new(cl->comm);
+    return migrator_new(cl->comm);
   }
 
   // Set up a Hilbert space filling curve that can map the given points to indices.
@@ -961,8 +965,8 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud,
   create_partition_from_balanced_array(cl->comm, part_array, balanced_num_points,
                                        cl->num_points, &local_partition);
 
-  // Set up an exchanger to migrate field data.
-  exchanger_t* migrator = create_migrator(cl->comm, local_partition, cl->num_points);
+  // Set up an migrator to migrate field data.
+  migrator_t* migrator = migrator_from_local_partition(cl->comm, local_partition, cl->num_points);
 
   // Migrate the point cloud.
   point_cloud_migrate(cloud, migrator);
@@ -972,9 +976,9 @@ exchanger_t* repartition_point_cloud(point_cloud_t** cloud,
 
   // Return the migrator.
   STOP_FUNCTION_TIMER();
-  return (migrator == NULL) ? exchanger_new(cl->comm) : migrator;
+  return (migrator == NULL) ? migrator_new(cl->comm) : migrator;
 #else
-  return exchanger_new(cl->comm);
+  return migrator_new(cl->comm);
 #endif
 }
 

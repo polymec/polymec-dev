@@ -18,26 +18,26 @@
 // This function partitions the given point cloud on rank 0 with the given pointwise
 // load weights, distributing it to parallel subdomains on the given communicator 
 // in such a way as to balance the load. If weights is NULL, the points are assigned 
-// equal weights. It creates and returns an exchanger object that can be used 
+// equal weights. It creates and returns a migrator object that can be used 
 // to distribute data from rank 0 to the partitions. The cloud on rank 0 (as 
 // well as any non-NULL cloud on rank != 0) is consumed. In each case, the 
 // cloud is replaced with a partitioned cloud. If the per-process workload 
 // cannot be balanced to within the imbalance tolerance, this function fails 
 // with no effect and returns NULL.
-exchanger_t* partition_point_cloud(point_cloud_t** cloud, 
-                                   MPI_Comm comm, 
-                                   int* weights, 
-                                   real_t imbalance_tol);
+migrator_t* partition_point_cloud(point_cloud_t** cloud, 
+                                  MPI_Comm comm, 
+                                  int* weights, 
+                                  real_t imbalance_tol);
 
 // This function repartitions the given point cloud with the given load
 // weights, alloting them to parallel domains to balance their load.
 // If weights is NULL, the points are assigned equal weights.
-// It creates and returns an exchanger object that can be used to migrate 
+// It creates and returns an migrator object that can be used to migrate 
 // data from the old partition to the new. The cloud is consumed and replaced
 // with a repartitioned cloud. If the per-process workload cannot be balanced 
 // to within the imbalance tolerance, the function fails with no effect and 
 // returns NULL.
-exchanger_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol);
+migrator_t* repartition_point_cloud(point_cloud_t** cloud, int* weights, real_t imbalance_tol);
 
 // While partition_point_cloud and repartition_point_cloud are all-in-one 
 // point cloud partitioners, the following functions allow one to mix-n-match 
@@ -55,7 +55,7 @@ int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud,
 // Given a global partition vector, distribute the mesh to the given communicator, and 
 // return a distributor object that can be used to distribute its data. The mesh is 
 // replaced with a partitioned mesh.
-exchanger_t* distribute_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int64_t* global_partition);
+migrator_t* distribute_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int64_t* global_partition);
 
 #endif
 

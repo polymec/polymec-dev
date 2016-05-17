@@ -26,9 +26,9 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   mesh_verify_topology(mesh, polymec_error);
 
   // Repartition it.
-  exchanger_t* migrator = repartition_mesh(&mesh, NULL, 0.05);
-  exchanger_verify(migrator, polymec_error);
-  exchanger_free(migrator);
+  migrator_t* m = repartition_mesh(&mesh, NULL, 0.05);
+  migrator_verify(m, polymec_error);
+  migrator_verify(m);
 
   // Since the mesh is uniform, we can check the properties of each cell.
   for (int c = 0; c < mesh->num_cells; ++c)

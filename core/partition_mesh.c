@@ -1086,22 +1086,27 @@ printf("node index: %d of %d\n", node_index, fused_mesh->num_nodes);
   return fused_mesh;
 }
 
+// NOTE the abuse of the exchanger as a migrator!
 static void mesh_migrate(mesh_t** mesh, 
                          adj_graph_t* local_graph, 
                          int64_t* local_partition,
-                         exchanger_t* migrator)
+                         migrator_t* migrator)
 {
   START_FUNCTION_TIMER();
   mesh_t* m = *mesh;
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
 
+  // FIXME: For now, we have to use the underlying exchanger for the 
+  // FIXME: migrator.
+  exchanger_t* ex = migrator_exchanger(migrator);
+
   // Post receives for buffer sizes.
-  int num_receives = exchanger_num_receives(migrator);
-  int num_sends = exchanger_num_sends(migrator);
+  int num_receives = exchanger_num_receives(ex);
+  int num_sends = exchanger_num_sends(ex);
   int receive_buffer_sizes[num_receives], receive_procs[num_receives];
   int pos = 0, proc, num_indices, *indices, i_req = 0;
   MPI_Request requests[num_receives + num_sends];
-  while (exchanger_next_receive(migrator, &pos, &proc, &indices, &num_indices))
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
   {
     receive_procs[i_req] = proc;
     MPI_Irecv(&receive_buffer_sizes[i_req], 1, MPI_INT, proc, 0, m->comm, &requests[i_req]);
@@ -1114,7 +1119,7 @@ static void mesh_migrate(mesh_t** mesh,
   byte_array_t* send_buffers[num_sends];
   int send_procs[num_sends];
   pos = 0;
-  while (exchanger_next_send(migrator, &pos, &proc, &indices, &num_indices))
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
   {
     send_procs[i_req-num_receives] = proc;
     byte_array_t* bytes = byte_array_new();
@@ -1197,7 +1202,7 @@ static void mesh_migrate(mesh_t** mesh,
 
 #endif
 
-exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
+migrator_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
@@ -1212,14 +1217,14 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   ASSERT((rank != 0) || (*mesh != NULL));
 
   // On a single process, partitioning has no meaning, but we do replace the communicator
-  // if needed. NOTE: the exchanger will still have its original communicator, but this 
+  // if needed. NOTE: the migrator will still have its original communicator, but this 
   // shouldn't matter in any practical sense.
   if (nprocs == 1)
   {
     if (comm != (*mesh)->comm)
       (*mesh)->comm = comm;
     STOP_FUNCTION_TIMER();
-    return exchanger_new(comm);
+    return migrator_new(comm);
   }
 
   log_debug("partition_mesh: Partitioning mesh into %d subdomains.", nprocs);
@@ -1250,9 +1255,9 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
   log_debug("partition_mesh: Distributing mesh to %d processes.", nprocs);
   mesh_distribute(mesh, comm, global_graph, global_partition);
 
-  // Set up an exchanger to distribute field data.
+  // Set up a migrator to distribute field data.
   int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
-  exchanger_t* distributor = create_distributor(comm, global_partition, num_vertices);
+  migrator_t* migrator = migrator_from_global_partition(comm, global_partition, num_vertices);
 
   // Clean up.
   if (global_graph != NULL)
@@ -1262,12 +1267,12 @@ exchanger_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t i
 
   // Return the migrator.
   STOP_FUNCTION_TIMER();
-  return distributor;
+  return migrator;
 #else
   // Replace the communicator if needed.
   if (comm != (*mesh)->comm)
     (*mesh)->comm = comm;
-  return exchanger_new(comm);
+  return migrator_new(comm);
 #endif
 }
 
@@ -1322,7 +1327,7 @@ int64_t* partition_vector_from_mesh(mesh_t* global_mesh, MPI_Comm comm, int* wei
 #endif
 }
 
-exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partition)
+migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partition)
 {
 #if POLYMEC_HAVE_MPI
   ASSERT((*mesh == NULL) || ((*mesh)->comm == MPI_COMM_SELF));
@@ -1335,7 +1340,7 @@ exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_parti
 
   // On a single process, partitioning has no meaning.
   if (nprocs == 1)
-    return exchanger_new(comm);
+    return migrator_new(comm);
 
   START_FUNCTION_TIMER();
 
@@ -1353,22 +1358,22 @@ exchanger_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_parti
   // Distribute the mesh.
   mesh_distribute(mesh, comm, global_graph, global_partition);
 
-  // Set up an exchanger to distribute field data.
+  // Set up a migrator to distribute field data.
   int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
-  exchanger_t* distributor = create_distributor(comm, global_partition, num_vertices);
+  migrator_t* migrator = migrator_from_global_partition(comm, global_partition, num_vertices);
 
   // Get rid of the graph.
   if (global_graph != NULL)
     adj_graph_free(global_graph);
 
   STOP_FUNCTION_TIMER();
-  return distributor;
+  return migrator;
 #else
-  return exchanger_new(comm);
+  return migrator_new(comm);
 #endif
 }
 
-exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
+migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 {
   POLYMEC_NOT_IMPLEMENTED;
 
@@ -1386,7 +1391,7 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 
   // On a single process, repartitioning has no meaning.
   if (nprocs == 1)
-    return exchanger_new(m->comm);
+    return migrator_new(m->comm);
 
   // Generate a local adjacency graph for the mesh.
   adj_graph_t* local_graph = graph_from_mesh_cells(m);
@@ -1404,11 +1409,11 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   // Map the graph to the different domains, producing a local partition vector.
   int64_t* local_partition = repartition_graph(local_graph, m->num_ghost_cells, weights, imbalance_tol, mesh_ex);
 
-  // Set up an exchanger to migrate field data.
+  // Set up a migrator to migrate field data.
   int num_vertices = adj_graph_num_vertices(local_graph);
-  exchanger_t* migrator = create_migrator(m->comm, local_partition, num_vertices);
+  migrator_t* migrator = migrator_from_local_partition(m->comm, local_partition, num_vertices);
 
-  // Migrate the mesh.
+  // Migrate the mesh. 
   mesh_migrate(mesh, local_graph, local_partition, migrator);
 
   // Clean up.
@@ -1419,7 +1424,7 @@ exchanger_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   STOP_FUNCTION_TIMER();
   return migrator;
 #else
-  return exchanger_new(m->comm);
+  return migrator_new(m->comm);
 #endif
 }
 

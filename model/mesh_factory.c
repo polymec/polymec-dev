@@ -57,8 +57,8 @@ int mesh_factory_uniform(lua_State* lua)
   // FIXME: working.
 //  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, bbox);
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, bbox);
-  exchanger_t* ex = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
-  exchanger_free(ex);
+  migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  migrator_free(m);
 
   // Tag its faces.
   tag_rectilinear_mesh_faces(mesh, "x1", "x2", "y1", "y2", "z1", "z2");
@@ -95,8 +95,8 @@ int mesh_factory_rectilinear(lua_State* lua)
   // FIXME: See above: this will be unnecessary for dynamic repartitioning.
 //  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, nxs, ys, nys, zs, nzs);
   mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_SELF, xs, nxs, ys, nys, zs, nzs);
-  exchanger_t* ex = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
-  exchanger_free(ex);
+  migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  migrator_free(m);
 
   // Tag its faces.
   tag_rectilinear_mesh_faces(mesh, "x1", "x2", "y1", "y2", "z1", "z2");
