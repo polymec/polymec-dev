@@ -11,7 +11,7 @@
 #include <stdio.h>
 
 // Types of log messages / log levels. The levels are increasing in amount 
-// of output: LOG_WARNING logs only warnings, LOG_INFO logs warnings and 
+// of output: LOG_URGENT logs only urgent messages, LOG_INFO logs those and 
 // informational messages, and so on and so forth.
 typedef enum
 {
