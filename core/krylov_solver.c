@@ -588,10 +588,13 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   for (int i = 0; i < nz; ++i)
   {
 #if POLYMEC_HAVE_SINGLE_PRECISION
-    fscanf(f, "%d %d %g\n", &I[i], &J[i], &val[i]);
+    int num_items = fscanf(f, "%d %d %g\n", &I[i], &J[i], &val[i]);
 #else
-    fscanf(f, "%d %d %lg\n", &I[i], &J[i], &val[i]);
+    int num_items = fscanf(f, "%d %d %lg\n", &I[i], &J[i], &val[i]);
 #endif
+    if (num_items != 3)
+      goto error;
+
     // adjust from 1-based to 0-based 
     --I[i];  
     --J[i];
@@ -659,6 +662,13 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
     adj_graph_free(sparsity);
     return global_A;
   }
+
+error:
+  polymec_free(I);
+  polymec_free(J);
+  polymec_free(val);
+  polymec_error("krylov_factory_matrix_from_mm: invalid data read.");
+  return NULL;
 }
 
 krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,  

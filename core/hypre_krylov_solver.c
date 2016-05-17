@@ -1056,7 +1056,7 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
                                  .dtor = hypre_matrix_dtor};
   HYPRE_Int N_global = 0;
   MPI_Allreduce(&N_local, &N_global, 1, MPI_LONG_LONG, MPI_SUM, A->comm);
-  return krylov_matrix_new(A, vtable, comm, N_local, N_global);
+  return krylov_matrix_new(A, vtable, A->comm, N_local, N_global);
 }
 
 static krylov_matrix_t* hypre_factory_block_matrix(void* context,

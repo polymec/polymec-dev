@@ -7,6 +7,8 @@
 
 #include "core/parallel_sort.h"
 
+#if POLYMEC_HAVE_MPI
+
 // Returns the index of the maximum element in the given array.
 static int max_index(void* data, 
                      index_t nel, 
@@ -57,6 +59,8 @@ static void swap_bytes(void* x, void* y, size_t size)
   memcpy(x, y, size);
   memcpy(y, temp, size);
 }
+
+#endif
 
 // This parallel sort is adapted from 
 // http://cs.umw.edu/~finlayson/class/fall14/cpsc425/notes/18-sorting.html.
