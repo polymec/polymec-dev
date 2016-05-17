@@ -7,8 +7,9 @@
 
 # Binary files.
 *.pdf
+*.ps
 *.eps
-*.tar.gz
+*.gz
 *.h5
 *.he5
 *.stl
