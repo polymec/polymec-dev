@@ -53,6 +53,9 @@ static inline int string_bsearch_comp(const void* l, const void* r)
   return strcmp((const char*)li, (const char*)ri);
 }
 
+// Fills an array of integers with the given value.
+void int_fill(int* array, int length, int value);
+
 // Executes a linear search for an element in an unsorted array of integers, 
 // returning a pointer to the element if it's found and NULL if it's not.
 int* int_lsearch(int* array, int length, int element);
@@ -71,6 +74,9 @@ void int_qsort(int* array, int length);
 // Sorts (in-place) the elements in an array of integer pairs. Uses qsort().
 void int_pair_qsort(int* array, int length);
 
+// Fills an array of indices with the given value.
+void index_fill(index_t* array, int length, index_t value);
+
 // Executes a linear search for an element in an unsorted array of indices, 
 // returning a pointer to the element if it's found and NULL if it's not.
 index_t* index_lsearch(index_t* array, int length, index_t element);
@@ -85,6 +91,9 @@ int index_lower_bound(index_t* array, int length, index_t element);
 
 // Sorts (in-place) the elements in an array of indices. Uses qsort().
 void index_qsort(index_t* array, int length);
+
+// Fills an array of real numbers with the given value.
+void real_fill(real_t* array, int length, real_t value);
 
 // Executes a linear search for an element in an unsorted array of real numbers, 
 // returning a pointer to the element if it's found and NULL if it's not.

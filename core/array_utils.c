@@ -28,6 +28,12 @@ static int lower_bound(void* array, int length, void* element, size_t elem_size,
   return first;
 }
 
+void int_fill(int* array, int length, int value)
+{
+  for (int i = 0; i < length; ++i)
+    array[i] = value;
+}
+
 int* int_lsearch(int* array, int length, int element)
 {
   for (int i = 0; i < length; ++i)
@@ -58,6 +64,12 @@ void int_pair_qsort(int* array, int length)
   qsort(array, (size_t)length, 2*sizeof(int), int_pair_bsearch_comp);
 }
 
+void index_fill(index_t* array, int length, index_t value)
+{
+  for (int i = 0; i < length; ++i)
+    array[i] = value;
+}
+
 index_t* index_lsearch(index_t* array, int length, index_t element)
 {
   for (int i = 0; i < length; ++i)
@@ -81,6 +93,12 @@ int index_lower_bound(index_t* array, int length, index_t element)
 void index_qsort(index_t* array, int length)
 {
   qsort(array, (size_t)length, sizeof(index_t), index_bsearch_comp);
+}
+
+void real_fill(real_t* array, int length, real_t value)
+{
+  for (int i = 0; i < length; ++i)
+    array[i] = value;
 }
 
 real_t* real_lsearch(real_t* array, int length, real_t element)
