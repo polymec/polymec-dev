@@ -7,6 +7,7 @@
 
 #include "exchanger.h"
 #include "core/unordered_map.h"
+#include "core/unordered_set.h"
 #include "core/array.h"
 #include "core/timer.h"
 
@@ -1326,8 +1327,6 @@ migrator_t* migrator_from_global_partition(MPI_Comm comm,
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
-  ASSERT((rank == 0) || (global_partition == NULL));
-  ASSERT((rank == 0) || (num_global_vertices == 0));
 
   exchanger_t* ex = exchanger_new(comm);
   
@@ -1348,13 +1347,12 @@ migrator_t* migrator_from_global_partition(MPI_Comm comm,
     for (int p = 1; p < nprocs; ++p)
     {
       ASSERT(num_vertices_to_send[p] > 0);
-      int vertices[num_vertices_to_send[p]], k = 0, p_tag = p;
+      int vertices[num_vertices_to_send[p]], k = 0;
       for (int i = 0; i < num_global_vertices; ++i)
       {
         if (global_partition[i] == p)
           vertices[k++] = i;
       }
-      MPI_Send(vertices, num_vertices_to_send[p], MPI_INT, p, p_tag, comm);
       exchanger_set_send(ex, p, vertices, num_vertices_to_send[p], true);
     }
 
@@ -1374,9 +1372,9 @@ migrator_t* migrator_from_global_partition(MPI_Comm comm,
     MPI_Scatter(NULL, 1, MPI_INT, &num_local_vertices, 1, MPI_INT, 0, comm);
 
     // Now get the vertices.
-    int local_vertices[num_local_vertices], p_tag = rank;
-    MPI_Status status;
-    MPI_Recv(local_vertices, num_local_vertices, MPI_INT, 0, p_tag, comm, &status);
+    int local_vertices[num_local_vertices];
+    for (int i = 0; i < num_local_vertices; ++i)
+      local_vertices[i] = i;
 
     // Now register all the vertices we're receiving with the distributor.
     ASSERT(num_local_vertices > 0);
@@ -1411,28 +1409,22 @@ migrator_t* migrator_from_local_partition(MPI_Comm comm,
   MPI_Alltoall(num_vertices_to_send, 1, MPI_INT, 
                num_vertices_to_receive, 1, MPI_INT, comm);
 
-  // Send and receive the actual vertices.
-  int** receive_vertices = polymec_malloc(sizeof(int*) * nprocs);
-  memset(receive_vertices, 0, sizeof(int*) * nprocs);
-  int num_requests = 0;
+  // Set up send and receive vertices.
+  int num_local_vert = num_vertices_to_receive[rank];
+  int recv_offset = 0;
   for (int p = 0; p < nprocs; ++p)
   {
-    if ((rank != p) && (num_vertices_to_receive[p] > 0)) ++num_requests;
-    if ((rank != p) && (num_vertices_to_send[p] > 0)) ++num_requests;
-  }
-  if (num_requests > 0)
-  {
-    MPI_Request requests[num_requests];
-    int r = 0;
-    for (int p = 0; p < nprocs; ++p)
+    if (p != rank)
     {
-      if (num_vertices_to_receive[p] > 0)
+      if ((num_vertices_to_receive[p] > 0) && (p != rank))
       {
-        receive_vertices[p] = polymec_malloc(sizeof(int) * num_vertices_to_receive[p]);
         if (p != rank)
         {
-          // Note that we use this rank as our tag.
-          MPI_Irecv(receive_vertices[p], num_vertices_to_receive[p], MPI_INT, p, rank, comm, &requests[r++]);
+          int num_vert = num_vertices_to_receive[p];
+          int receive_vertices[num_vertices_to_receive[p]];
+          for (int i = 0; i < num_vert; ++i, ++recv_offset)
+            receive_vertices[i] = num_local_vert + recv_offset;
+          exchanger_set_receive(ex, p, receive_vertices, num_vertices_to_receive[p], true);
         }
       }
       if (num_vertices_to_send[p] > 0)
@@ -1444,52 +1436,9 @@ migrator_t* migrator_from_local_partition(MPI_Comm comm,
             send_vertices[s++] = v;
         }
         if (p != rank)
-        {
-          // Note that we use the destination rank p as our tag.
           exchanger_set_send(ex, p, send_vertices, num_vertices_to_send[p], true);
-          MPI_Isend(send_vertices, num_vertices_to_send[p], MPI_INT, p, p, comm, &requests[r++]);
-        }
-        else
-          memcpy(receive_vertices[rank], send_vertices, sizeof(int) * num_vertices_to_receive[rank]);
       }
     }
-    ASSERT(r == num_requests);
-
-    // Wait for exchanges to finish. We can't use MPI_Waitall here because 
-    // not all processes necessary participate.
-    MPI_Status statuses[num_requests];
-    int finished[num_requests];
-    memset(finished, 0, num_requests*sizeof(int));
-    while (true)
-    {
-      bool all_finished = true;
-      for (int i = 0; i < num_requests; ++i)
-      {
-        if (!finished[i])
-        {
-          if (MPI_Test(&requests[i], &finished[i], &statuses[i]) != MPI_SUCCESS)
-            polymec_error("create_migrator: Internal error.");
-          if (!finished[i]) all_finished = false;
-        }
-      }
-
-      // If the transmissions have finished at this point, we 
-      // can break out of the loop. 
-      if (all_finished) break;
-    } 
-
-    // Now register all the vertices we're receiving with the migrator.
-    for (int p = 0; p < nprocs; ++p)
-    {
-      if (num_vertices_to_receive[p] > 0)
-      {
-        ASSERT(receive_vertices[p] != NULL);
-        if (rank != p)
-          exchanger_set_receive(ex, p, receive_vertices[p], num_vertices_to_receive[p], true);
-        polymec_free(receive_vertices[p]);
-      }
-    }
-    polymec_free(receive_vertices);
   }
 
   migrator_t* m = polymec_malloc(sizeof(migrator_t));
@@ -1527,9 +1476,11 @@ void migrator_finish_transfer(migrator_t* m, int token)
   ASSERT(token < m->ex->num_pending_msgs);
   ASSERT(m->ex->transfer_counts[token] != NULL); // We can't finish an exchange as a transfer!
 
-  // Retrieve the message for the given token.
+  // Retrieve the message and its size (in data elements) for the given token.
   mpi_message_t* msg = m->ex->pending_msgs[token];
   int* count = m->ex->transfer_counts[token];
+
+  // Wait for the transfer to finish.
   int err = exchanger_waitall(m->ex, msg);
   if (err != MPI_SUCCESS) return;
 
@@ -1537,71 +1488,62 @@ void migrator_finish_transfer(migrator_t* m, int token)
   void* orig_buffer = m->ex->orig_buffers[token];
   mpi_message_unpack(msg, orig_buffer, m->ex->receive_offset, m->ex->receive_map);
 
-  // Now cull the sent elements from the array.
-  int num_sent = 0, pos = 0, proc;
+  // Count up the elements we actually received.
+  int num_received = 0, pos = 0, proc;
   exchanger_channel_t* c;
+  while (exchanger_map_next(m->ex->receive_map, &pos, &proc, &c))
+    num_received += c->num_indices;
+
+  // We need to kill all of the sent elements that aren't overwritten by received elements.
+  // So first make a list of all the received indices.
+  int num_sent = 0;
+  int_unordered_set_t* overwritten_sends = int_unordered_set_new();
+  pos = 0;
   while (exchanger_map_next(m->ex->send_map, &pos, &proc, &c))
   {
-    // Move the sent elements to the back.
-    int stride = msg->stride;
-    if (msg->type == MPI_REAL_T)
-    {
-      real_t* array = orig_buffer;
-      for (int i = 0; i < c->num_indices; ++i)
-      {
-        for (int s = 0; s < stride; ++s)
-        {
-          array[stride*c->indices[i]+s] = array[*count-1-num_sent];
-          ++num_sent;
-        }
-      }
-    }
-    else if (msg->type == MPI_DOUBLE)
-    {
-      double* array = orig_buffer;
-      for (int i = 0; i < c->num_indices; ++i)
-      {
-        for (int s = 0; s < stride; ++s)
-        {
-          array[stride*c->indices[i]+s] = array[*count-1-num_sent];
-          ++num_sent;
-        }
-      }
-    }
-    else if (msg->type == MPI_INT)
-    {
-      int* array = orig_buffer;
-      for (int i = 0; i < c->num_indices; ++i)
-      {
-        for (int s = 0; s < stride; ++s)
-        {
-          array[stride*c->indices[i]+s] = array[*count-1-num_sent];
-          ++num_sent;
-        }
-      }
-    }
-    else if (msg->type == MPI_INDEX_T)
-    {
-      index_t* array = orig_buffer;
-      for (int i = 0; i < c->num_indices; ++i)
-      {
-        for (int s = 0; s < stride; ++s)
-        {
-          array[stride*c->indices[i]+s] = array[*count-1-num_sent];
-          ++num_sent;
-        }
-      }
-    }
-    else 
-    {
-      // FIXME: What about other data types???
-      polymec_error("migrator_finish_transfer: unimplemented data type.");
-    }
+    for (int i = 0; i < c->num_indices; ++i)
+      int_unordered_set_insert(overwritten_sends, c->indices[i]);
+    num_sent += c->num_indices;
   }
 
-  // Convey the change in count of the transferred data.
-  *count -= num_sent;
+  // Update the count.
+  *count += (num_received - num_sent);
   ASSERT(*count >= 0);
+  if (num_sent - num_received > 0)
+  {
+    log_debug("migrator_transfer: deleting %d elements locally.", 
+              num_sent - num_received);
+  }
+  else if (num_sent - num_received < 0)
+  {
+    log_debug("migrator_transfer: adding %d elements locally.", 
+              num_received - num_sent);
+  }
+
+  // Record the "width" in bytes of the type we're transferring.
+  size_t width = mpi_size(msg->type);
+
+  // Remove the send elements that aren't overwritten by received ones.
+  // We recreate the array in buffer, skipping over the elements we're removing.
+  char* array = orig_buffer;
+  int stride = msg->stride, offset = 0;
+  char* buffer = polymec_malloc(width * stride * (*count));
+  pos = 0;
+  while (exchanger_map_next(m->ex->send_map, &pos, &proc, &c))
+  {
+    for (int i = 0; i < c->num_indices; ++i)
+    {
+      int index = c->indices[i];
+      if (!int_unordered_set_contains(overwritten_sends, index))
+      {
+        memcpy(&buffer[stride*width*offset], &array[stride*width*index], stride*width);
+        ++offset;
+      }
+    }
+  }
+  memcpy(array, buffer, width*stride*offset);
+  polymec_free(buffer);
+  int_unordered_set_free(overwritten_sends);
 
   // Pull the message out of our list of pending messages and delete it.
   m->ex->pending_msgs[token] = NULL;

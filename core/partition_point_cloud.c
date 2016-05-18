@@ -510,7 +510,7 @@ static bool balance_loads(MPI_Comm comm,
 
       // If there's a process "to our right," dump any excess work there.
       int excess_load = load - ideal_proc_load;
-      if (excess_load >= 0)
+      if ((excess_load >= 0) || (num_points_kept < array_size))
       {
         if (rank == (nprocs - 1)) // last process!
         {
@@ -578,7 +578,8 @@ static bool balance_loads(MPI_Comm comm,
         int extra_work = 0, response = 1;
         for (int i = 0; i < num_points_received; ++i)
           extra_work += (int)buffer[4*i+3];
-        ASSERT(extra_work - 1 + load <= ideal_proc_load); // safety guarantee!
+        int last_load = (int)buffer[4*(num_points_received-1)+3];
+        ASSERT(extra_work - last_load + load <= ideal_proc_load); // safety guarantee!
         if (extra_work + load > ideal_proc_load)
         {
           real_t imbalance = (1.0 * (load + excess_load) - ideal_proc_load) / ideal_proc_load;
@@ -624,11 +625,10 @@ static bool balance_loads(MPI_Comm comm,
 
 // This creates local partition and load vectors using the information in the sorted 
 // distributed array. This is to be used only by repartition_point_cloud().
-static void create_partition_from_balanced_array(MPI_Comm comm, 
-                                                 index_t* balanced_array, 
-                                                 int balanced_array_size,
-                                                 int orig_array_size,
-                                                 int64_t** partition_vector)
+static int64_t* partition_vector_from_balanced_array(MPI_Comm comm, 
+                                                     index_t* balanced_array, 
+                                                     int balanced_array_size,
+                                                     int orig_array_size)
 {
   START_FUNCTION_TIMER();
   int nprocs, rank;
@@ -662,9 +662,9 @@ static void create_partition_from_balanced_array(MPI_Comm comm,
       for (int p = 0; p < nprocs; ++p)
       {
         if (num_points_from_rank[p] > 0) 
-          log_debug("Getting %d points from rank %d.", num_points_from_rank[p], p);
+          log_debug("partition_vector_from_balanced_array: Getting %d points from rank %d.", num_points_from_rank[p], p);
         if (num_points_to_rank[p] > 0)
-          log_debug("Assigning %d points to rank %d.", num_points_to_rank[p], p);
+          log_debug("partition_vector_from_balanced_array: Assigning %d points to rank %d.", num_points_to_rank[p], p);
       }
     }
   }
@@ -737,7 +737,7 @@ static void create_partition_from_balanced_array(MPI_Comm comm,
   // We can now construct a partition vector whose values for these indices
   // will be the corresponding process rank, and a load vector that will 
   // contain the corresponding loads. 
-  *partition_vector = polymec_malloc(sizeof(int64_t) * orig_array_size);
+  int64_t* partition_vector = polymec_malloc(sizeof(int64_t) * orig_array_size);
 
   // Invert the send map to tell us the destination process for each index.
   int_int_unordered_map_t* proc_for_index = int_int_unordered_map_new();
@@ -751,22 +751,23 @@ static void create_partition_from_balanced_array(MPI_Comm comm,
   }
   int_ptr_unordered_map_free(sends);
 
-  // Now fill the partition and load vectors.
+  // Now fill the partition vector.
   for (int i = 0; i < orig_array_size; ++i)
   {
     int* proc_ptr = int_int_unordered_map_get(proc_for_index, i);
     if (proc_ptr != NULL)
     {
-      (*partition_vector)[i] = (int64_t)(*proc_ptr);
+      partition_vector[i] = (int64_t)(*proc_ptr);
     }
     else
-      (*partition_vector)[i] = (int64_t)rank;
+      partition_vector[i] = (int64_t)rank;
   }
 
   // Clean up.
   int_int_unordered_map_free(proc_for_index);
 
   STOP_FUNCTION_TIMER();
+  return partition_vector;
 }
 
 // Fuse a set of subclouds into a single point cloud. Ghost points are not 
@@ -961,9 +962,9 @@ migrator_t* repartition_point_cloud(point_cloud_t** cloud,
 
   // Now we create local partition/load vectors for each process using the elements
   // in the sorted list.
-  int64_t* local_partition;
-  create_partition_from_balanced_array(cl->comm, part_array, balanced_num_points,
-                                       cl->num_points, &local_partition);
+  int64_t* local_partition = partition_vector_from_balanced_array(cl->comm, part_array, 
+                                                                  balanced_num_points,
+                                                                  cl->num_points);
 
   // Set up an migrator to migrate field data.
   migrator_t* migrator = migrator_from_local_partition(cl->comm, local_partition, cl->num_points);
