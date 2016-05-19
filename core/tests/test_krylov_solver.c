@@ -35,39 +35,15 @@ static adj_graph_t* create_1d_laplacian_graph(MPI_Comm comm, int N_local)
   }
 
   // Set boundary edges.
-  if (nprocs == 1)
-  {
-    // No edges -- ends are fixed.
-  }
-  else if (rank == 0)
-  {
-    // Left end is fixed. Right is coupled.
-    adj_graph_set_num_edges(graph, N_local-1, 2);
-    int* edges = adj_graph_edges(graph, N_local-1);
-    edges[0] = N_local-2;
-    edges[1] = N_local+1;
-  }
-  else if (rank == (nprocs-1))
-  {
-    // Right end is fixed. Left is coupled.
-    adj_graph_set_num_edges(graph, 0, 2);
-    int* edges = adj_graph_edges(graph, 0);
-    edges[0] = N_local;
-    edges[1] = 1;
-  }
-  else
-  {
-    // Both ends are coupled.
-    adj_graph_set_num_edges(graph, 0, 2);
-    int* edges = adj_graph_edges(graph, 0);
-    edges[0] = N_local;
-    edges[1] = 1;
+  adj_graph_set_num_edges(graph, 0, 2);
+  int* edges = adj_graph_edges(graph, 0);
+  edges[0] = N_local;
+  edges[1] = 1;
 
-    adj_graph_set_num_edges(graph, N_local-1, 2);
-    edges = adj_graph_edges(graph, N_local-1);
-    edges[0] = N_local-2;
-    edges[1] = N_local+1;
-  }
+  adj_graph_set_num_edges(graph, N_local-1, 2);
+  edges = adj_graph_edges(graph, N_local-1);
+  edges[0] = N_local-2;
+  edges[1] = N_local+1;
 
   return graph;
 }
@@ -294,7 +270,7 @@ static void test_krylov_vector_from_sherman1_b(void** state, krylov_factory_t* f
                                num_test_values, test_indices, test_values);
 }
 
-static void test_laplace_eqn(void** state, krylov_factory_t* factory)
+static void test_1d_laplace_eqn(void** state, krylov_factory_t* factory)
 {
   if (factory != NULL)
   {
@@ -305,22 +281,26 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     real_t h = 1.0 / N;
     adj_graph_t* graph = create_1d_laplacian_graph(comm, N);
 
-    // Create a Laplace operator from the graph.
+    // Create a 1D Laplacian operator from the graph.
     krylov_matrix_t* A = krylov_factory_matrix(factory, graph);
     real_t Aij[3];
     index_t rows[3], cols[3], num_cols;
 
-    num_cols = 1, rows[0] = 0, cols[0] = 0, Aij[0] = 1.0;
+    num_cols = 1, rows[0] = 0, cols[0] = 0, Aij[0] = -2.0;
+    krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+    num_cols = 1, rows[0] = 0, cols[0] = 1, Aij[0] = 1.0;
     krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
     for (int i = 1; i < N-1; ++i)
     {
       num_cols = 3;
-      rows[0] = i, cols[0] = i-1, Aij[0] = -1.0;
-      rows[1] = i, cols[1] = i,   Aij[1] = 2.0;
-      rows[2] = i, cols[2] = i+1, Aij[2] = -1.0;
+      rows[0] = i, cols[0] = i-1, Aij[0] = 1.0;
+      rows[1] = i, cols[1] = i,   Aij[1] = -2.0;
+      rows[2] = i, cols[2] = i+1, Aij[2] = 1.0;
       krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
     }
-    num_cols = 1, rows[0] = N-1, cols[0] = N-1, Aij[0] = 1.0;
+    num_cols = 1, rows[0] = N-1, cols[0] = N-2, Aij[0] = 1.0;
+    krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+    num_cols = 1, rows[0] = N-1, cols[0] = N-1, Aij[0] = -2.0;
     krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
 
     krylov_matrix_start_assembly(A);
@@ -331,7 +311,7 @@ static void test_laplace_eqn(void** state, krylov_factory_t* factory)
     krylov_vector_t* b = krylov_factory_vector(factory, graph);
     real_t bi[2];
     rows[0] = 0, bi[0] = 0.0;
-    rows[1] = N-1, bi[1] = 1.0;
+    rows[1] = N-1, bi[1] = -1.0/(h*h);
     krylov_vector_set_values(b, 2, rows, bi);
 
     krylov_vector_start_assembly(b);
@@ -436,10 +416,10 @@ void test_lis_krylov_vector_from_file(void** state)
   test_krylov_vector_from_sherman1_b(state, lis);
 }
 
-void test_lis_laplace_eqn(void** state)
+void test_lis_1d_laplace_eqn(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
-  test_laplace_eqn(state, lis);
+  test_1d_laplace_eqn(state, lis);
 }
 
 void test_lis_sherman1(void** state)
@@ -481,10 +461,10 @@ void test_petsc_krylov_vector_from_file(void** state)
   test_krylov_vector_from_sherman1_b(state, petsc);
 }
 
-void test_petsc_laplace_eqn(void** state)
+void test_petsc_1d_laplace_eqn(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
-  test_laplace_eqn(state, petsc);
+  test_1d_laplace_eqn(state, petsc);
 }
 
 void test_petsc_sherman1(void** state)
@@ -525,10 +505,10 @@ void test_hypre_krylov_vector_from_file(void** state)
   test_krylov_vector_from_sherman1_b(state, hypre);
 }
 
-void test_hypre_laplace_eqn(void** state)
+void test_hypre_1d_laplace_eqn(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
-  test_laplace_eqn(state, hypre);
+  test_1d_laplace_eqn(state, hypre);
 }
 
 void test_hypre_sherman1(void** state)
@@ -550,7 +530,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_krylov_matrix_from_file),
     cmocka_unit_test(test_lis_krylov_vector),
     cmocka_unit_test(test_lis_krylov_vector_from_file),
-//    cmocka_unit_test(test_lis_laplace_eqn),
+    cmocka_unit_test(test_lis_1d_laplace_eqn),
     cmocka_unit_test(test_lis_sherman1),
 #if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),
@@ -558,14 +538,14 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_petsc_krylov_matrix_from_file),
     cmocka_unit_test(test_petsc_krylov_vector),
     cmocka_unit_test(test_petsc_krylov_vector_from_file),
-//    cmocka_unit_test(test_petsc_laplace_eqn),
+    cmocka_unit_test(test_petsc_laplace_eqn),
     cmocka_unit_test(test_petsc_sherman1),
     cmocka_unit_test(test_hypre_krylov_factory),
     cmocka_unit_test(test_hypre_krylov_matrix),
     cmocka_unit_test(test_hypre_krylov_matrix_from_file),
     cmocka_unit_test(test_hypre_krylov_vector),
     cmocka_unit_test(test_hypre_krylov_vector_from_file),
-//    cmocka_unit_test(test_hypre_laplace_eqn),
+    cmocka_unit_test(test_hypre_laplace_eqn),
     cmocka_unit_test(test_hypre_sherman1)
 #endif
   };

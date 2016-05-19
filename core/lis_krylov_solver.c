@@ -97,7 +97,9 @@ static bool lis_solver_solve(void* context,
   lis_solver_t* solver = context;
   LIS_VECTOR B = b;
   LIS_VECTOR X = x;
+  polymec_suspend_fpe();
   int err = lis_solve(solver->op, B, X, solver->solver);
+  polymec_restore_fpe();
   bool solved = false;
   if (err == LIS_SUCCESS)
   {
