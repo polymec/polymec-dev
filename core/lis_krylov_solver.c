@@ -689,7 +689,17 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
 
   lis_matrix_t* mat = matrix_new(comm, 1);
   lis_matrix_create(comm, &mat->A);
-  lis_matrix_set_size(mat->A, N_local, 0);
+  int err = lis_matrix_set_size(mat->A, N_local, 0);
+  if (err != LIS_SUCCESS)
+    polymec_error("lis_factory_matrix: failed to create an %d x %d matrix.", N_global, N_global);
+#ifndef NDEBUG
+  {
+    LIS_INT Nl, Ng;
+    lis_matrix_get_size(mat->A, &Nl, &Ng);
+    ASSERT(Nl == N_local);
+    ASSERT(Ng == N_global);
+  }
+#endif
 
   // We manage all of these arrays ourself.
   lis_matrix_set_destroyflag(mat->A, LIS_FALSE);
