@@ -68,10 +68,8 @@ static void test_repartition_linear_cloud(void** state,
     m = repartition_point_cloud(&cloud, NULL, imbalance_tol);
     assert_true(m != NULL); // successful repartitioning
 
-    // Check the number of points on each domain. Give the last process a break, as it will 
-    // have the biggest discrepancy.
-    if ((nprocs > 1) && (rank < (nprocs - 1)))
-      assert_true(ABS(1.0*(nprocs*cloud->num_points - N)/N) < imbalance_tol);
+    // Check the number of points on each domain. 
+    assert_true(ABS(1.0*(nprocs*cloud->num_points - N)/N) < imbalance_tol);
   }
   else
   {
@@ -95,10 +93,7 @@ static void test_repartition_linear_cloud(void** state,
     int total_load;
     MPI_Allreduce(&my_load, &total_load, 1, MPI_INT, MPI_SUM, comm);
     int ideal_load = (int)(1.0 * total_load / nprocs);
-
-    // Give the last process a break, as it will have the biggest discrepancy.
-    if ((nprocs > 1) && (rank < (nprocs - 1)))
-      assert_true(ABS(1.0 * (my_load - ideal_load))/ideal_load < imbalance_tol);
+    assert_true(ABS(1.0 * (my_load - ideal_load))/ideal_load < imbalance_tol);
   }
   migrator_free(m);
 

@@ -399,8 +399,8 @@ static bool balance_loads(MPI_Comm comm,
 
   real_t total_load;
   MPI_Allreduce(&my_load, &total_load, 1, MPI_REAL_T, MPI_SUM, comm);
-  int ideal_proc_load = (int)ceil(total_load / nprocs);
-  log_debug("balance_loads: Ideal process workload is %d.", ideal_proc_load);
+  real_t ideal_proc_load = total_load / nprocs;
+  log_debug("balance_loads: Ideal process workload is %g.", ideal_proc_load);
 
   // Are we balanced already?
   {
@@ -491,36 +491,30 @@ static bool balance_loads(MPI_Comm comm,
       }
 
       // March through our points and add up the workload.
-      int load = 0;
-      int num_points_kept = 0, delta;
+      real_t load = 0, delta;
+      int num_points_kept = 0;
       while ((load < ideal_proc_load) && (num_points_kept < array_size))
       {
-        delta = (int)array[4*num_points_kept+3];
+        delta = (real_t)array[4*num_points_kept+3];
         load += delta;
         ++num_points_kept;
       }
 
-      // Step back a point if it makes sense.
-      if ((load > ideal_proc_load) && 
-          (abs(load - delta - ideal_proc_load) < (load - ideal_proc_load)))
-      {
-        load -= delta;
-        --num_points_kept;
-      }
-
       // If there's a process "to our right," dump any excess work there.
-      int excess_load = load - ideal_proc_load;
-      if ((excess_load >= 0) || (num_points_kept < array_size))
+      real_t excess_load = load - ideal_proc_load;
+      real_t imbalance = excess_load / ideal_proc_load;
+      if ((excess_load >= 0.0) || (num_points_kept < array_size))
       {
         if (rank == (nprocs - 1)) // last process!
         {
           // Can we fit the extra work on the process and still fall under 
           // our load imbalance tolerance?
-          real_t imbalance = (1.0 * load - ideal_proc_load) / ideal_proc_load;
           if (imbalance > imbalance_tol)
           {
-            log_debug("balance_loads: Load on last process (%d) is unbalanced (%g%%).", load, imbalance * 100.0);
+            log_debug("balance_loads: Load on last process (%d) is unbalanced (%g%%).", 
+                      (int)load, imbalance * 100.0);
             balanced = 0; 
+            break;
           }
           else
           {
@@ -555,52 +549,63 @@ static bool balance_loads(MPI_Comm comm,
           }
         }
       }
-      else if ((excess_load < 0) && (rank < (nprocs - 1))) // we need more work!
+      else if (excess_load < 0.0) 
       {
-        // We send the negation of how much work we would like to balance our 
-        // load.
-        int needed_work = (int)(ideal_proc_load - load);
-        needed_work *= -1; // Flip the sign to signify that we want work.
-        MPI_Send(&needed_work, 1, MPI_INT, rank+1, 0, comm);
-
-        // Get back the number of points we're receiving.
-        int num_points_received;
-        MPI_Recv(&num_points_received, 1, MPI_INT, rank+1, 0, comm, MPI_STATUS_IGNORE);
-        log_debug("balance_loads: Receiving %d points from next process.", num_points_received);
-
-        // Get data for these points.
-        index_t buffer[4*num_points_received];
-        MPI_Recv(buffer, 4*num_points_received, MPI_INDEX_T, rank+1, 0, comm, MPI_STATUS_IGNORE);
-
-        // Are we now overloaded? If so, return a 0 to signify that we 
-        // reject the last of the points given, and a 1 to signify that 
-        // we accept the lot.
-        int extra_work = 0, response = 1;
-        for (int i = 0; i < num_points_received; ++i)
-          extra_work += (int)buffer[4*i+3];
-        int last_load = (int)buffer[4*(num_points_received-1)+3];
-        ASSERT(extra_work - last_load + load <= ideal_proc_load); // safety guarantee!
-        if (extra_work + load > ideal_proc_load)
+        // Can we grab some work from our right-ward neighbor?
+        if (rank < (nprocs - 1)) 
         {
-          real_t imbalance = (1.0 * (load + excess_load) - ideal_proc_load) / ideal_proc_load;
-          if (imbalance > imbalance_tol)
+          // We send the negation of how much work we would like to balance our 
+          // load.
+          int needed_work = (int)ceil(ideal_proc_load - load);
+          needed_work *= -1; // Flip the sign to signify that we want work.
+          MPI_Send(&needed_work, 1, MPI_INT, rank+1, 0, comm);
+
+          // Get back the number of points we're receiving.
+          int num_points_received;
+          MPI_Recv(&num_points_received, 1, MPI_INT, rank+1, 0, comm, MPI_STATUS_IGNORE);
+          log_debug("balance_loads: Receiving %d points from next process.", num_points_received);
+
+          // Get data for these points.
+          index_t buffer[4*num_points_received];
+          MPI_Recv(buffer, 4*num_points_received, MPI_INDEX_T, rank+1, 0, comm, MPI_STATUS_IGNORE);
+
+          // Are we now overloaded? If so, return a 0 to signify that we 
+          // reject the last of the points given, and a 1 to signify that 
+          // we accept the lot.
+          int extra_work = 0, response = 1;
+          for (int i = 0; i < num_points_received; ++i)
+            extra_work += (int)buffer[4*i+3];
+          int last_load = (int)buffer[4*(num_points_received-1)+3];
+          ASSERT(extra_work - last_load + load <= ideal_proc_load); // safety guarantee!
+          if (extra_work + load > ideal_proc_load)
           {
-            response = 0; // we reject the last point.
-            --num_points_received;
-            log_debug("balance_loads: Rejecting final point from next process.");
+            real_t imbalance = (1.0 * (load + excess_load) - ideal_proc_load) / ideal_proc_load;
+            if (imbalance > imbalance_tol)
+            {
+              response = 0; // we reject the last point.
+              --num_points_received;
+              log_debug("balance_loads: Rejecting final point from next process.");
+            }
           }
+
+          // Send the response.
+          MPI_Send(&response, 1, MPI_INT, rank+1, 0, comm);
+
+          // Now append the extra points to our local array.
+          array_size += num_points_received;
+          *local_array_size = array_size;
+          *local_array = polymec_realloc(*local_array, 4 * sizeof(index_t) * array_size);
+          array = *local_array;
+          memcpy(&array[4*(array_size-num_points_received)], buffer, 
+                 4 * sizeof(index_t) * num_points_received);
         }
-
-        // Send the response.
-        MPI_Send(&response, 1, MPI_INT, rank+1, 0, comm);
-
-        // Now append the extra points to our local array.
-        array_size += num_points_received;
-        *local_array_size = array_size;
-        *local_array = polymec_realloc(*local_array, 4 * sizeof(index_t) * array_size);
-        array = *local_array;
-        memcpy(&array[4*(array_size-num_points_received)], buffer, 
-               4 * sizeof(index_t) * num_points_received);
+        else if (ABS(imbalance) > imbalance_tol) // we are the last process
+        {
+          log_debug("balance_loads: Load on last process (%d) is unbalanced (%g%%).", 
+                    (int)load, imbalance * 100.0);
+          balanced = 0; 
+          break;
+        }
       }
     }
   }
