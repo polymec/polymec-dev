@@ -1072,7 +1072,9 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
     A->factory->methods.HYPRE_IJMatrixSetDiagOffdSizes(A->A, d_nnz, o_nnz);
   }
 
-  // We're ready to set values.
+  // We're ready to set values. We set assembled to true here to force
+  // initialization.
+  A->assembled = true;
   ensure_matrix_initialization(A);
 
   // Set the "non-zero" values to zero initially. This constructs the specific non-zero structure.
@@ -1142,54 +1144,6 @@ static krylov_matrix_t* hypre_factory_matrix(void* context,
   return hypre_factory_block_matrix(context, sparsity, 1);
 }
 
-static void hypre_vector_set_values(void* context, index_t num_values,
-                                    index_t* indices, real_t* values)
-{
-  hypre_vector_t* v = context;
-  if (sizeof(real_t) == sizeof(HYPRE_Real))
-    v->factory->methods.HYPRE_IJVectorSetValues(v->v, num_values, (HYPRE_Int*)indices, values);
-  else
-  {
-    // We need to convert to HYPRE_Real.
-    HYPRE_Real dvals[num_values];
-    for (int i = 0; i < num_values; ++i)
-      dvals[i] = (HYPRE_Real)values[i];
-    v->factory->methods.HYPRE_IJVectorSetValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
-  }
-  HYPRE_Int error = v->factory->methods.HYPRE_GetError();
-  if (error != 0)
-  {
-    char msg[1024];
-    v->factory->methods.HYPRE_DescribeError(error, msg);
-    v->factory->methods.HYPRE_ClearAllErrors();
-    polymec_error("hypre_vector_set_values: %s", msg);
-  }
-}
-
-static void hypre_vector_add_values(void* context, index_t num_values,
-                                    index_t* indices, real_t* values)
-{
-  hypre_vector_t* v = context;
-  if (sizeof(real_t) == sizeof(HYPRE_Real))
-    v->factory->methods.HYPRE_IJVectorAddToValues(v->v, num_values, (HYPRE_Int*)indices, values);
-  else
-  {
-    // We need to convert to HYPRE_Real.
-    HYPRE_Real dvals[num_values];
-    for (int i = 0; i < num_values; ++i)
-      dvals[i] = (HYPRE_Real)values[i];
-    v->factory->methods.HYPRE_IJVectorAddToValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
-  }
-  HYPRE_Int error = v->factory->methods.HYPRE_GetError();
-  if (error != 0)
-  {
-    char msg[1024];
-    v->factory->methods.HYPRE_DescribeError(error, msg);
-    v->factory->methods.HYPRE_ClearAllErrors();
-    polymec_error("hypre_vector_add_values: %s", msg);
-  }
-}
-
 static void ensure_vector_assembly(hypre_vector_t* v)
 {
   if (!v->assembled)
@@ -1221,6 +1175,59 @@ static void ensure_vector_initialization(hypre_vector_t* v)
       v->factory->methods.HYPRE_ClearAllErrors();
       polymec_error("HYPRE_IJVectorInitialize: %s", msg);
     }
+  }
+}
+
+
+static void hypre_vector_set_values(void* context, index_t num_values,
+                                    index_t* indices, real_t* values)
+{
+  hypre_vector_t* v = context;
+  ensure_vector_initialization(v);
+
+  if (sizeof(real_t) == sizeof(HYPRE_Real))
+    v->factory->methods.HYPRE_IJVectorSetValues(v->v, num_values, (HYPRE_Int*)indices, values);
+  else
+  {
+    // We need to convert to HYPRE_Real.
+    HYPRE_Real dvals[num_values];
+    for (int i = 0; i < num_values; ++i)
+      dvals[i] = (HYPRE_Real)values[i];
+    v->factory->methods.HYPRE_IJVectorSetValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
+  }
+  HYPRE_Int error = v->factory->methods.HYPRE_GetError();
+  if (error != 0)
+  {
+    char msg[1024];
+    v->factory->methods.HYPRE_DescribeError(error, msg);
+    v->factory->methods.HYPRE_ClearAllErrors();
+    polymec_error("hypre_vector_set_values: %s", msg);
+  }
+}
+
+static void hypre_vector_add_values(void* context, index_t num_values,
+                                    index_t* indices, real_t* values)
+{
+  hypre_vector_t* v = context;
+  ensure_vector_initialization(v);
+
+  if (sizeof(real_t) == sizeof(HYPRE_Real))
+    v->factory->methods.HYPRE_IJVectorAddToValues(v->v, num_values, (HYPRE_Int*)indices, values);
+  else
+  {
+    // We need to convert to HYPRE_Real.
+    HYPRE_Real dvals[num_values];
+    for (int i = 0; i < num_values; ++i)
+      dvals[i] = (HYPRE_Real)values[i];
+    v->factory->methods.HYPRE_IJVectorAddToValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
+  }
+  HYPRE_Int error = v->factory->methods.HYPRE_GetError();
+  if (error != 0)
+  {
+    char msg[1024];
+    v->factory->methods.HYPRE_DescribeError(error, msg);
+    v->factory->methods.HYPRE_ClearAllErrors();
+    polymec_error("hypre_vector_add_values: %s", msg);
   }
 }
 
@@ -1370,8 +1377,10 @@ static krylov_vector_t* hypre_factory_vector(void* context,
   HYPRE_MPI_Comm hypre_comm = v->comm;
   v->factory->methods.HYPRE_IJVectorCreate(hypre_comm, v->ilow, v->ihigh, &v->v);
   v->factory->methods.HYPRE_IJVectorSetObjectType(v->v, HYPRE_PARCSR);
-  v->factory->methods.HYPRE_IJVectorInitialize(v->v);
-  v->assembled = false;
+
+  // Make sure the vector is initialized, forcing with assembled == true.
+  v->assembled = true;
+  ensure_vector_initialization(v);
 
   // Set all the entries of the vector to zero.
   hypre_vector_zero(v);
