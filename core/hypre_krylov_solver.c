@@ -64,6 +64,7 @@ typedef struct
   HYPRE_Int (*HYPRE_ParCSRPCGGetPrecond)(HYPRE_Solver, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_ParCSRPCGGetNumIterations)(HYPRE_Solver, HYPRE_Int*);
   HYPRE_Int (*HYPRE_ParCSRPCGGetFinalRelativeResidualNorm)(HYPRE_Solver, HYPRE_Real*);
+  HYPRE_Int (*HYPRE_ParCSRPCGSetPrintLevel)(HYPRE_Solver, HYPRE_Int);
 
   HYPRE_Int (*HYPRE_ParCSRGMRESCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_ParCSRGMRESDestroy)(HYPRE_Solver);
@@ -78,6 +79,7 @@ typedef struct
   HYPRE_Int (*HYPRE_ParCSRGMRESGetPrecond)(HYPRE_Solver, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_ParCSRGMRESGetNumIterations)(HYPRE_Solver, HYPRE_Int*);
   HYPRE_Int (*HYPRE_ParCSRGMRESGetFinalRelativeResidualNorm)(HYPRE_Solver, HYPRE_Real*);
+  HYPRE_Int (*HYPRE_ParCSRGMRESSetPrintLevel)(HYPRE_Solver, HYPRE_Int);
 
   HYPRE_Int (*HYPRE_ParCSRBiCGSTABCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_ParCSRBiCGSTABDestroy)(HYPRE_Solver);
@@ -91,6 +93,7 @@ typedef struct
   HYPRE_Int (*HYPRE_ParCSRBiCGSTABGetPrecond)(HYPRE_Solver, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_ParCSRBiCGSTABGetNumIterations)(HYPRE_Solver, HYPRE_Int*);
   HYPRE_Int (*HYPRE_ParCSRBiCGSTABGetFinalRelativeResidualNorm)(HYPRE_Solver, HYPRE_Real*);
+  HYPRE_Int (*HYPRE_ParCSRBiCGSTABSetPrintLevel)(HYPRE_Solver, HYPRE_Int);
 
   HYPRE_Int (*HYPRE_BoomerAMGCreate)(HYPRE_Solver*);
   HYPRE_Int (*HYPRE_BoomerAMGDestroy)(HYPRE_Solver);
@@ -151,6 +154,7 @@ typedef struct
   HYPRE_Int (*HYPRE_IJMatrixSetDiagOffdSizes)(HYPRE_IJMatrix, const HYPRE_Int*, const HYPRE_Int*);
   HYPRE_Int (*HYPRE_IJMatrixGetRowCounts)(HYPRE_IJMatrix, HYPRE_Int, HYPRE_Int*, HYPRE_Int*);
   HYPRE_Int (*HYPRE_IJMatrixPrint)(HYPRE_IJMatrix, const char*);
+  HYPRE_Int (*HYPRE_IJMatrixSetPrintLevel)(HYPRE_IJMatrix, HYPRE_Int);
 
   HYPRE_Int (*HYPRE_IJVectorCreate)(HYPRE_MPI_Comm, HYPRE_Int, HYPRE_Int, HYPRE_IJVector*);
   HYPRE_Int (*HYPRE_IJVectorDestroy)(HYPRE_IJVector);
@@ -223,6 +227,7 @@ static bool solver_error_occurred(hypre_solver_t* s,
     s->factory->methods.HYPRE_ClearAllErrors();
     log_urgent("%s: %s", func_name, msg);
   }
+  return (error != 0);
 }
 
 #define SOLVER_ERROR_OCCURRED(s) (solver_error_occurred(s, __func__))
@@ -292,7 +297,8 @@ static void hypre_solver_set_operator(void* context,
   HYPRE_IJMatrix A = ((hypre_matrix_t*)op)->A;
   solver->factory->methods.HYPRE_IJMatrixGetObject(A, &solver->op);
 
-  // NOTE: We can't do setup here, since we don't have x or b.
+  // NOTE: We can't do HYPRE's full setup here, since we don't have 
+  // NOTE: x or b.
 }
 
 static void hypre_solver_set_pc(void* context,
@@ -332,9 +338,9 @@ static bool hypre_solver_solve(void* context,
   // Get our objects.
   HYPRE_IJVector B = ((hypre_vector_t*)b)->v;
   HYPRE_IJVector X = ((hypre_vector_t*)x)->v;
-  HYPRE_ParVector par_X, par_B;
-  solver->factory->methods.HYPRE_IJVectorGetObject(X, &par_X);
+  HYPRE_ParVector par_B, par_X;
   solver->factory->methods.HYPRE_IJVectorGetObject(B, &par_B);
+  solver->factory->methods.HYPRE_IJVectorGetObject(X, &par_X);
 
   // Dispatch.
   HYPRE_Int (*setup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
@@ -368,8 +374,8 @@ static bool hypre_solver_solve(void* context,
       get_norm = solver->factory->methods.HYPRE_BoomerAMGGetFinalRelativeResidualNorm; 
   }
   log_debug("hypre_solver_solve: Setting up linear system.");
-  HYPRE_Int result = setup(solver->solver, solver->op, par_B, par_X);
-  if (result != 0)
+  setup(solver->solver, solver->op, par_B, par_X);
+  if (SOLVER_ERROR_OCCURRED(solver))
     return false;
 
   log_debug("hypre_solver_solve: Solving linear system.");
@@ -377,14 +383,14 @@ static bool hypre_solver_solve(void* context,
   // HYPRE's Krylov methods can produce some pretty small numbers, which can be 
   // interpreted as denormalized garbage by polymec, so we tell polymec to chill.
   polymec_suspend_fpe();
-  result = solve(solver->solver, solver->op, par_B, par_X);
+  int result = solve(solver->solver, solver->op, par_B, par_X);
   polymec_restore_fpe();
 
-  bool success = (result == 0);
+  int success = ((result == 0) && !SOLVER_ERROR_OCCURRED(solver));
   if (success)
     log_debug("hypre_solver_solve: Success!");
   else
-    log_debug("hypre_solver_solve: Failure (error code = %d)", result);
+    log_debug("hypre_solver_solve: Failure.");
 
   HYPRE_Int iters;
   get_num_iters(solver->solver, &iters);
@@ -546,7 +552,6 @@ static krylov_solver_t* hypre_factory_special_solver(void* context,
   hypre_solver_t* solver = polymec_malloc(sizeof(hypre_solver_t));
   solver->factory = context;
 
-  HYPRE_Int result;
   if ((string_casecmp(solver_name, "boomerang") == 0) ||
       (string_casecmp(solver_name, "boomeramg") == 0))
   {
@@ -810,43 +815,6 @@ static void* hypre_matrix_clone(void* context)
   return clone;
 }
 
-static void hypre_matrix_zero(void* context)
-{
-  hypre_matrix_t* A = context;
-  ensure_matrix_assembly(A);
-
-  // Get the information about the matrix's nonzero structure.
-  index_t num_rows = A->ihigh - A->ilow + 1;
-  index_t num_columns[num_rows], rows[num_rows];
-  index_t tot_num_columns = 0;
-  for (index_t r = 0; r < num_rows; ++r)
-  {
-    HYPRE_Int row = A->ilow + r, ncols;
-    A->factory->methods.HYPRE_IJMatrixGetRowCounts(A->A, 1, &row, &ncols);
-    tot_num_columns += ncols; 
-  }
-  index_t columns[tot_num_columns];
-  void* par_mat;
-  A->factory->methods.HYPRE_IJMatrixGetObject(A->A, &par_mat);
-  index_t col_offset = 0;
-  for (index_t r = 0; r < num_rows; ++r)
-  {
-    HYPRE_Int ncols, *cols;
-    HYPRE_Real* vals;
-    index_t row = A->ilow + r;
-    A->factory->methods.HYPRE_ParCSRMatrixGetRow(par_mat, row, &ncols, &cols, &vals);
-    for (HYPRE_Int c = 0; c < ncols; ++c, ++col_offset)
-      columns[col_offset] = cols[c];
-    A->factory->methods.HYPRE_ParCSRMatrixRestoreRow(par_mat, row, &ncols, &cols, &vals);
-  }
-
-  // Stuff a bunch of zeros in.
-  real_t zeros[tot_num_columns];
-  memset(zeros, 0, sizeof(real_t) * tot_num_columns);
-  hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, zeros);
-  ensure_matrix_assembly(A);
-}
-
 static void hypre_matrix_scale(void* context, real_t scale_factor)
 {
   hypre_matrix_t* A = context;
@@ -860,6 +828,8 @@ static void hypre_matrix_scale(void* context, real_t scale_factor)
   {
     HYPRE_Int row = A->ilow + r, ncols;
     A->factory->methods.HYPRE_IJMatrixGetRowCounts(A->A, 1, &row, &ncols);
+    rows[r] = row;
+    num_columns[r] = ncols;
     tot_num_columns += ncols; 
   }
   index_t columns[tot_num_columns];
@@ -885,6 +855,11 @@ static void hypre_matrix_scale(void* context, real_t scale_factor)
   // Scale the values in the matrix.
   hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values);
   ensure_matrix_assembly(A);
+}
+
+static void hypre_matrix_zero(void* context)
+{
+  hypre_matrix_scale(context, 0.0);
 }
 
 static void hypre_matrix_add_identity(void* context, real_t scale_factor)
@@ -1447,6 +1422,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGGetPrecond);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGGetNumIterations);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGGetFinalRelativeResidualNorm);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetPrintLevel);
 
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESDestroy);
@@ -1461,6 +1437,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESGetPrecond);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESGetNumIterations);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESGetFinalRelativeResidualNorm);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRGMRESSetPrintLevel);
 
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABDestroy);
@@ -1474,6 +1451,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABGetPrecond);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABGetNumIterations);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABGetFinalRelativeResidualNorm);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRBiCGSTABSetPrintLevel);
 
   FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGDestroy);
@@ -1534,6 +1512,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixSetDiagOffdSizes);
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixGetRowCounts);
   FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixPrint);
+  FETCH_HYPRE_SYMBOL(HYPRE_IJMatrixSetPrintLevel);
 
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorCreate);
   FETCH_HYPRE_SYMBOL(HYPRE_IJVectorDestroy);

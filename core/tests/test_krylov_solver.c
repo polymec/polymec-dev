@@ -275,7 +275,7 @@ static void test_1d_laplace_eqn(void** state, krylov_factory_t* factory)
     MPI_Comm comm = MPI_COMM_WORLD;
 
     // Create a distributed graph with 1000 local vertices.
-    int N = 1000;
+    int N = 100;
     real_t h = 1.0 / N;
     adj_graph_t* graph = create_1d_laplacian_graph(comm, N);
 
@@ -314,11 +314,20 @@ static void test_1d_laplace_eqn(void** state, krylov_factory_t* factory)
     krylov_vector_t* x = krylov_factory_vector(factory, graph);
 
     // Create a solver.
-    krylov_solver_t* solver = krylov_factory_pcg_solver(factory, comm);
+    krylov_solver_t* solver = krylov_factory_bicgstab_solver(factory, comm);
     assert_true(solver != NULL);
     krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 1.0);
     krylov_solver_set_max_iterations(solver, 1000);
 
+index_t I[N];
+for (int i = 0; i < N; ++i)
+  I[i] = (index_t)i;
+real_t bb[N];
+krylov_vector_get_values(b, N, I, bb);
+printf("b = [");
+for (int i = 0; i < N; ++i)
+printf("%g ", bb[i]);
+printf("]\n");
     // Solve the equation.
     krylov_solver_set_operator(solver, A);
     real_t res_norm;
@@ -327,13 +336,10 @@ static void test_1d_laplace_eqn(void** state, krylov_factory_t* factory)
     log_debug("residual norm is %g, # iterations is %d", res_norm, num_iters);
     assert_true(solved);
 
-index_t I[1000];
-for (int i = 0; i < 1000; ++i)
-  I[i] = (index_t)i;
-real_t xi[1000];
-krylov_vector_get_values(x, 1000, I, xi);
+real_t xi[N];
+krylov_vector_get_values(x, N, I, xi);
 printf("x = [");
-for (int i = 0; i < 1000; ++i)
+for (int i = 0; i < N; ++i)
 printf("%g ", xi[i]);
 printf("]\n");
 
