@@ -332,6 +332,16 @@ static void test_1d_laplace_eqn(void** state, krylov_factory_t* factory)
     log_debug("residual norm is %g, # iterations is %d", res_norm, num_iters);
     assert_true(solved);
 
+index_t I[1000];
+for (int i = 0; i < 1000; ++i)
+  I[i] = (index_t)i;
+real_t xi[1000];
+krylov_vector_get_values(x, 1000, I, xi);
+printf("x = [");
+for (int i = 0; i < 1000; ++i)
+printf("%g ", xi[i]);
+printf("]\n");
+
     // Put everything away.
     krylov_solver_free(solver);
     krylov_matrix_free(A);
@@ -535,14 +545,14 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_petsc_krylov_matrix_from_file),
     cmocka_unit_test(test_petsc_krylov_vector),
     cmocka_unit_test(test_petsc_krylov_vector_from_file),
-    cmocka_unit_test(test_petsc_laplace_eqn),
+    cmocka_unit_test(test_petsc_1d_laplace_eqn),
     cmocka_unit_test(test_petsc_sherman1),
     cmocka_unit_test(test_hypre_krylov_factory),
     cmocka_unit_test(test_hypre_krylov_matrix),
     cmocka_unit_test(test_hypre_krylov_matrix_from_file),
     cmocka_unit_test(test_hypre_krylov_vector),
     cmocka_unit_test(test_hypre_krylov_vector_from_file),
-    cmocka_unit_test(test_hypre_laplace_eqn),
+    cmocka_unit_test(test_hypre_1d_laplace_eqn),
     cmocka_unit_test(test_hypre_sherman1)
 #endif
   };

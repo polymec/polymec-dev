@@ -420,6 +420,7 @@ static krylov_solver_t* hypre_factory_pcg_solver(void* context,
   {
     char msg[1024];
     solver->factory->methods.HYPRE_DescribeError(result, msg);
+    solver->factory->methods.HYPRE_ClearAllErrors();
     log_urgent("hypre_factory_pcg_solver: Failed to create PCG solver: %s", msg);
     polymec_free(solver);
     return NULL;
@@ -435,6 +436,7 @@ static krylov_solver_t* hypre_factory_pcg_solver(void* context,
   {
     char msg[1024];
     solver->factory->methods.HYPRE_DescribeError(result, msg);
+    solver->factory->methods.HYPRE_ClearAllErrors();
     log_urgent("hypre_factory_pcg_solver: Failed to set up diagonal scaling PC: %s", msg);
     solver->factory->methods.HYPRE_ParCSRPCGDestroy(solver->solver);
     polymec_free(solver);
@@ -466,6 +468,7 @@ static krylov_solver_t* hypre_factory_gmres_solver(void* context,
   {
     char msg[1024];
     solver->factory->methods.HYPRE_DescribeError(result, msg);
+    solver->factory->methods.HYPRE_ClearAllErrors();
     log_urgent("hypre_factory_gmres_solver: Failed to create GMRES solver: %s", msg);
     polymec_free(solver);
     return NULL;
@@ -475,6 +478,7 @@ static krylov_solver_t* hypre_factory_gmres_solver(void* context,
   {
     char msg[1024];
     solver->factory->methods.HYPRE_DescribeError(result, msg);
+    solver->factory->methods.HYPRE_ClearAllErrors();
     log_urgent("hypre_factory_gmres_solver: Failed to set Krylov dimension: %s", msg);
     polymec_free(solver);
     return NULL;
@@ -516,6 +520,7 @@ static krylov_solver_t* hypre_factory_bicgstab_solver(void* context,
   {
     char msg[1024];
     solver->factory->methods.HYPRE_DescribeError(result, msg);
+    solver->factory->methods.HYPRE_ClearAllErrors();
     log_urgent("hypre_factory_bicgstab_solver: Failed to create BiCGSTAB solver: %s", msg);
     polymec_free(solver);
     return NULL;
@@ -530,6 +535,7 @@ static krylov_solver_t* hypre_factory_bicgstab_solver(void* context,
   {
     char msg[1024];
     solver->factory->methods.HYPRE_DescribeError(result, msg);
+    solver->factory->methods.HYPRE_ClearAllErrors();
     log_urgent("hypre_factory_bicgstab_solver: Failed to set up diagonal scaling PC: %s", msg);
     solver->factory->methods.HYPRE_ParCSRBiCGSTABDestroy(solver->solver);
     polymec_free(solver);
@@ -569,6 +575,7 @@ static krylov_solver_t* hypre_factory_special_solver(void* context,
   {
     char msg[1024];
     solver->factory->methods.HYPRE_DescribeError(result, msg);
+    solver->factory->methods.HYPRE_ClearAllErrors();
     log_urgent("hypre_factory_special_solver: Failed to create %s solver: %s", solver_name, msg);
     polymec_free(solver);
     return NULL;
@@ -713,7 +720,8 @@ static void hypre_matrix_set_values(void* context, index_t num_rows,
   {
     char msg[1024];
     A->factory->methods.HYPRE_DescribeError(error, msg);
-    log_urgent("hypre_matrix_set_values: %s", msg);
+    A->factory->methods.HYPRE_ClearAllErrors();
+    polymec_error("hypre_matrix_set_values: %s", msg);
   }
 }
 
@@ -745,16 +753,12 @@ static void hypre_matrix_add_values(void* context, index_t num_rows,
   {
     char msg[1024];
     A->factory->methods.HYPRE_DescribeError(error, msg);
-    log_urgent("hypre_matrix_add_values: %s", msg);
+    A->factory->methods.HYPRE_ClearAllErrors();
+    polymec_error("hypre_matrix_add_values: %s", msg);
   }
 }
 
 static void hypre_matrix_start_assembly(void* context)
-{
-  // Nothing to do!
-}
-
-static void hypre_matrix_finish_assembly(void* context)
 {
   hypre_matrix_t* A = context;
   A->factory->methods.HYPRE_IJMatrixAssemble(A->A);
@@ -764,7 +768,8 @@ static void hypre_matrix_finish_assembly(void* context)
   {
     char msg[1024];
     A->factory->methods.HYPRE_DescribeError(error, msg);
-    log_urgent("hypre_matrix_finish_assembly: %s", msg);
+    A->factory->methods.HYPRE_ClearAllErrors();
+    polymec_error("hypre_matrix_start_assembly: %s", msg);
   }
 }
 
@@ -819,7 +824,7 @@ static void* hypre_matrix_clone(void* context)
   // Stuff the values in.
   clone->initialized = false;
   hypre_matrix_set_values(clone, num_rows, num_columns, rows, columns, values);
-  hypre_matrix_finish_assembly(clone);
+  hypre_matrix_start_assembly(clone);
 
   return clone;
 }
@@ -857,7 +862,7 @@ static void hypre_matrix_zero(void* context)
   real_t zeros[tot_num_columns];
   memset(zeros, 0, sizeof(real_t) * tot_num_columns);
   hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, zeros);
-  hypre_matrix_finish_assembly(context);
+  hypre_matrix_start_assembly(context);
 }
 
 static void hypre_matrix_scale(void* context, real_t scale_factor)
@@ -895,7 +900,7 @@ static void hypre_matrix_scale(void* context, real_t scale_factor)
 
   // Scale the values in the matrix.
   hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values);
-  hypre_matrix_finish_assembly(context);
+  hypre_matrix_start_assembly(context);
 }
 
 static void hypre_matrix_add_identity(void* context, real_t scale_factor)
@@ -912,7 +917,7 @@ static void hypre_matrix_add_identity(void* context, real_t scale_factor)
     values[r] = scale_factor;
   }
   hypre_matrix_add_values(context, num_rows, num_columns, rows, columns, values); 
-  hypre_matrix_finish_assembly(context);
+  hypre_matrix_start_assembly(context);
 }
 
 // This is used for the diagonal methods below, and defined later in the file.
@@ -933,7 +938,7 @@ static void hypre_matrix_set_diagonal(void* context, void* D)
   }
   hypre_vector_get_values(context, num_rows, rows, values); // get values from D
   hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values); // set diag A.
-  hypre_matrix_finish_assembly(context);
+  hypre_matrix_start_assembly(context);
 }
 
 static void hypre_matrix_add_diagonal(void* context, void* D)
@@ -950,7 +955,7 @@ static void hypre_matrix_add_diagonal(void* context, void* D)
   }
   hypre_vector_get_values(context, num_rows, rows, values); // get values from D
   hypre_matrix_add_values(context, num_rows, num_columns, rows, columns, values); // add to diag A.
-  hypre_matrix_finish_assembly(context);
+  hypre_matrix_start_assembly(context);
 }
 
 static void hypre_matrix_get_values(void* context, index_t num_rows,
@@ -1066,7 +1071,7 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
   hypre_matrix_set_values(A, num_rows, num_columns, rows, columns, zeros);
 
   // Assemble the matrix.
-  hypre_matrix_finish_assembly(A);
+  hypre_matrix_start_assembly(A);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = hypre_matrix_clone,
@@ -1078,7 +1083,6 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
                                  .set_values = hypre_matrix_set_values,
                                  .add_values = hypre_matrix_add_values,
                                  .start_assembly = hypre_matrix_start_assembly,
-                                 .finish_assembly = hypre_matrix_finish_assembly,
                                  .get_values = hypre_matrix_get_values,
                                  .dtor = hypre_matrix_dtor};
   HYPRE_Int N_global = 0;
@@ -1127,7 +1131,8 @@ static void hypre_vector_set_values(void* context, index_t num_values,
   {
     char msg[1024];
     v->factory->methods.HYPRE_DescribeError(error, msg);
-    log_urgent("hypre_vector_set_values: %s", msg);
+    v->factory->methods.HYPRE_ClearAllErrors();
+    polymec_error("hypre_vector_set_values: %s", msg);
   }
 }
 
@@ -1150,16 +1155,12 @@ static void hypre_vector_add_values(void* context, index_t num_values,
   {
     char msg[1024];
     v->factory->methods.HYPRE_DescribeError(error, msg);
-    log_urgent("hypre_vector_add_values: %s", msg);
+    v->factory->methods.HYPRE_ClearAllErrors();
+    polymec_error("hypre_vector_add_values: %s", msg);
   }
 }
 
 static void hypre_vector_start_assembly(void* context)
-{
-  // Nothing to do!
-}
-
-static void hypre_vector_finish_assembly(void* context)
 {
   hypre_vector_t* v = context;
   v->factory->methods.HYPRE_IJVectorAssemble(v->v);
@@ -1169,7 +1170,8 @@ static void hypre_vector_finish_assembly(void* context)
   {
     char msg[1024];
     v->factory->methods.HYPRE_DescribeError(error, msg);
-    log_urgent("hypre_vector_finish_assembly: %s", msg);
+    v->factory->methods.HYPRE_ClearAllErrors();
+    polymec_error("hypre_vector_start_assembly: %s", msg);
   }
 }
 
@@ -1228,7 +1230,7 @@ static void hypre_vector_set_value(void* context, real_t value)
     values[r] = value;
   }
   hypre_vector_set_values(context, num_rows, rows, values);
-  hypre_vector_finish_assembly(context);
+  hypre_vector_start_assembly(context);
 }
 
 static void hypre_vector_zero(void* context)
@@ -1248,7 +1250,7 @@ static void hypre_vector_scale(void* context, real_t scale_factor)
   for (index_t r = 0; r < num_rows; ++r) 
     values[r] *= scale_factor;
   hypre_vector_set_values(context, num_rows, rows, values);
-  hypre_vector_finish_assembly(context);
+  hypre_vector_start_assembly(context);
 }
 
 static real_t hypre_vector_norm(void* context, int p)
@@ -1329,7 +1331,6 @@ static krylov_vector_t* hypre_factory_vector(void* context,
                                  .set_values = hypre_vector_set_values,
                                  .add_values = hypre_vector_add_values,
                                  .start_assembly = hypre_vector_start_assembly,
-                                 .finish_assembly = hypre_vector_finish_assembly,
                                  .get_values = hypre_vector_get_values,
                                  .norm = hypre_vector_norm,
                                  .dtor = hypre_vector_dtor};
