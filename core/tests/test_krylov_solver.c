@@ -37,13 +37,11 @@ static adj_graph_t* create_1d_laplacian_graph(MPI_Comm comm, int N_local)
   // Set boundary edges.
   adj_graph_set_num_edges(graph, 0, 2);
   int* edges = adj_graph_edges(graph, 0);
-  edges[0] = N_local;
-  edges[1] = 1;
+  edges[0] = 1;
 
   adj_graph_set_num_edges(graph, N_local-1, 2);
   edges = adj_graph_edges(graph, N_local-1);
   edges[0] = N_local-2;
-  edges[1] = N_local+1;
 
   return graph;
 }
@@ -384,7 +382,6 @@ static void test_load_and_solve(void** state,
     krylov_factory_free(factory);
   }
 }
-
 
 void test_lis_krylov_factory(void** state)
 {
