@@ -35,11 +35,11 @@ static adj_graph_t* create_1d_laplacian_graph(MPI_Comm comm, int N_local)
   }
 
   // Set boundary edges.
-  adj_graph_set_num_edges(graph, 0, 2);
+  adj_graph_set_num_edges(graph, 0, 1);
   int* edges = adj_graph_edges(graph, 0);
   edges[0] = 1;
 
-  adj_graph_set_num_edges(graph, N_local-1, 2);
+  adj_graph_set_num_edges(graph, N_local-1, 1);
   edges = adj_graph_edges(graph, N_local-1);
   edges[0] = N_local-2;
 
