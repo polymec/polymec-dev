@@ -212,6 +212,21 @@ typedef struct
   bool assembled;
 } hypre_vector_t;
 
+static bool solver_error_occurred(hypre_solver_t* s, 
+                                  const char* func_name)
+{
+  HYPRE_Int error = s->factory->methods.HYPRE_GetError();
+  if (error != 0)
+  {
+    char msg[1024];
+    s->factory->methods.HYPRE_DescribeError(error, msg);
+    s->factory->methods.HYPRE_ClearAllErrors();
+    log_urgent("%s: %s", func_name, msg);
+  }
+}
+
+#define SOLVER_ERROR_OCCURRED(s) (solver_error_occurred(s, __func__))
+
 static void hypre_solver_set_tolerances(void* context,
                                         real_t rel_tol,
                                         real_t abs_tol,
@@ -414,14 +429,9 @@ static krylov_solver_t* hypre_factory_pcg_solver(void* context,
   solver->factory = context;
   solver->type = HYPRE_PCG;
   HYPRE_MPI_Comm hypre_comm = comm;
-  HYPRE_Int result;
-  result = solver->factory->methods.HYPRE_ParCSRPCGCreate(hypre_comm, &solver->solver);
-  if (result != 0)
+  solver->factory->methods.HYPRE_ParCSRPCGCreate(hypre_comm, &solver->solver);
+  if (SOLVER_ERROR_OCCURRED(solver))
   {
-    char msg[1024];
-    solver->factory->methods.HYPRE_DescribeError(result, msg);
-    solver->factory->methods.HYPRE_ClearAllErrors();
-    log_urgent("hypre_factory_pcg_solver: Failed to create PCG solver: %s", msg);
     polymec_free(solver);
     return NULL;
   }
@@ -432,13 +442,8 @@ static krylov_solver_t* hypre_factory_pcg_solver(void* context,
                                                      (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScale, 
                                                      (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScaleSetup, 
                                                      solver->solver);
-  if (result != 0)
+  if (SOLVER_ERROR_OCCURRED(solver))
   {
-    char msg[1024];
-    solver->factory->methods.HYPRE_DescribeError(result, msg);
-    solver->factory->methods.HYPRE_ClearAllErrors();
-    log_urgent("hypre_factory_pcg_solver: Failed to set up diagonal scaling PC: %s", msg);
-    solver->factory->methods.HYPRE_ParCSRPCGDestroy(solver->solver);
     polymec_free(solver);
     return NULL;
   }
@@ -462,24 +467,16 @@ static krylov_solver_t* hypre_factory_gmres_solver(void* context,
   solver->factory = context;
   solver->type = HYPRE_GMRES;
   HYPRE_MPI_Comm hypre_comm = comm;
-  HYPRE_Int result;
-  result = solver->factory->methods.HYPRE_ParCSRGMRESCreate(hypre_comm, &solver->solver);
-  if (result != 0)
+  solver->factory->methods.HYPRE_ParCSRGMRESCreate(hypre_comm, &solver->solver);
+  if (SOLVER_ERROR_OCCURRED(solver))
   {
-    char msg[1024];
-    solver->factory->methods.HYPRE_DescribeError(result, msg);
-    solver->factory->methods.HYPRE_ClearAllErrors();
-    log_urgent("hypre_factory_gmres_solver: Failed to create GMRES solver: %s", msg);
     polymec_free(solver);
     return NULL;
   }
-  result = solver->factory->methods.HYPRE_ParCSRGMRESSetKDim(solver->solver, (HYPRE_Int)krylov_dimension);
-  if (result != 0)
+
+  solver->factory->methods.HYPRE_ParCSRGMRESSetKDim(solver->solver, (HYPRE_Int)krylov_dimension);
+  if (SOLVER_ERROR_OCCURRED(solver))
   {
-    char msg[1024];
-    solver->factory->methods.HYPRE_DescribeError(result, msg);
-    solver->factory->methods.HYPRE_ClearAllErrors();
-    log_urgent("hypre_factory_gmres_solver: Failed to set Krylov dimension: %s", msg);
     polymec_free(solver);
     return NULL;
   }
@@ -490,10 +487,8 @@ static krylov_solver_t* hypre_factory_gmres_solver(void* context,
                                                        (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScale, 
                                                        (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScaleSetup, 
                                                        solver->solver);
-  if (result != 0)
+  if (SOLVER_ERROR_OCCURRED(solver))
   {
-    log_urgent("hypre_factory_gmres_solver: Failed to set up diagonal scaling PC (error = %d).", result);
-    solver->factory->methods.HYPRE_ParCSRGMRESDestroy(solver->solver);
     polymec_free(solver);
     return NULL;
   }
@@ -515,13 +510,9 @@ static krylov_solver_t* hypre_factory_bicgstab_solver(void* context,
   solver->factory = context;
   solver->type = HYPRE_BICGSTAB;
   HYPRE_MPI_Comm hypre_comm = comm;
-  HYPRE_Int result = solver->factory->methods.HYPRE_ParCSRBiCGSTABCreate(hypre_comm, &solver->solver);
-  if (result != 0)
+  solver->factory->methods.HYPRE_ParCSRBiCGSTABCreate(hypre_comm, &solver->solver);
+  if (SOLVER_ERROR_OCCURRED(solver))
   {
-    char msg[1024];
-    solver->factory->methods.HYPRE_DescribeError(result, msg);
-    solver->factory->methods.HYPRE_ClearAllErrors();
-    log_urgent("hypre_factory_bicgstab_solver: Failed to create BiCGSTAB solver: %s", msg);
     polymec_free(solver);
     return NULL;
   }
@@ -531,17 +522,11 @@ static krylov_solver_t* hypre_factory_bicgstab_solver(void* context,
                                                           (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScale, 
                                                           (HYPRE_PtrToSolverFcn)solver->factory->methods.HYPRE_ParCSRDiagScaleSetup, 
                                                           solver->solver);
-  if (result != 0)
+  if (SOLVER_ERROR_OCCURRED(solver))
   {
-    char msg[1024];
-    solver->factory->methods.HYPRE_DescribeError(result, msg);
-    solver->factory->methods.HYPRE_ClearAllErrors();
-    log_urgent("hypre_factory_bicgstab_solver: Failed to set up diagonal scaling PC: %s", msg);
-    solver->factory->methods.HYPRE_ParCSRBiCGSTABDestroy(solver->solver);
     polymec_free(solver);
     return NULL;
   }
-
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
@@ -566,17 +551,13 @@ static krylov_solver_t* hypre_factory_special_solver(void* context,
       (string_casecmp(solver_name, "boomeramg") == 0))
   {
     solver->type = HYPRE_BOOMERANG;
-    result = solver->factory->methods.HYPRE_BoomerAMGCreate(&solver->solver);
+    solver->factory->methods.HYPRE_BoomerAMGCreate(&solver->solver);
   }
   else
     return NULL;
 
-  if (result != 0)
+  if (SOLVER_ERROR_OCCURRED(solver))
   {
-    char msg[1024];
-    solver->factory->methods.HYPRE_DescribeError(result, msg);
-    solver->factory->methods.HYPRE_ClearAllErrors();
-    log_urgent("hypre_factory_special_solver: Failed to create %s solver: %s", solver_name, msg);
     polymec_free(solver);
     return NULL;
   }
@@ -692,20 +673,28 @@ static krylov_pc_t* hypre_factory_pc(void* context,
   return krylov_pc_new(pc_name, pc, vtable);
 }
 
+static void check_for_matrix_error(hypre_matrix_t* A, 
+                                   const char* func_name)
+{
+  HYPRE_Int error = A->factory->methods.HYPRE_GetError();
+  if (error != 0)
+  {
+    char msg[1024];
+    A->factory->methods.HYPRE_DescribeError(error, msg);
+    A->factory->methods.HYPRE_ClearAllErrors();
+    polymec_error("%s: %s", func_name, msg);
+  }
+}
+
+#define CHECK_FOR_MATRIX_ERROR(A) check_for_matrix_error(A, __func__);
+
 static void ensure_matrix_assembly(hypre_matrix_t* A)
 {
   if (!A->assembled)
   {
     A->factory->methods.HYPRE_IJMatrixAssemble(A->A);
     A->assembled = true;
-    HYPRE_Int error = A->factory->methods.HYPRE_GetError();
-    if (error != 0)
-    {
-      char msg[1024];
-      A->factory->methods.HYPRE_DescribeError(error, msg);
-      A->factory->methods.HYPRE_ClearAllErrors();
-      polymec_error("HYPRE_IJMatrixAssemble: %s", msg);
-    }
+    CHECK_FOR_MATRIX_ERROR(A)
   }
 }
 
@@ -715,14 +704,7 @@ static void ensure_matrix_initialization(hypre_matrix_t* A)
   {
     A->factory->methods.HYPRE_IJMatrixInitialize(A->A);
     A->assembled = false;
-    HYPRE_Int error = A->factory->methods.HYPRE_GetError();
-    if (error != 0)
-    {
-      char msg[1024];
-      A->factory->methods.HYPRE_DescribeError(error, msg);
-      A->factory->methods.HYPRE_ClearAllErrors();
-      polymec_error("HYPRE_IJMatrixInitialize: %s", msg);
-    }
+    CHECK_FOR_MATRIX_ERROR(A)
   }
 }
 
@@ -746,14 +728,7 @@ static void hypre_matrix_set_values(void* context, index_t num_rows,
       dvals[i] = (HYPRE_Real)values[i];
     A->factory->methods.HYPRE_IJMatrixSetValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, dvals);
   }
-  HYPRE_Int error = A->factory->methods.HYPRE_GetError();
-  if (error != 0)
-  {
-    char msg[1024];
-    A->factory->methods.HYPRE_DescribeError(error, msg);
-    A->factory->methods.HYPRE_ClearAllErrors();
-    polymec_error("hypre_matrix_set_values: %s", msg);
-  }
+  CHECK_FOR_MATRIX_ERROR(A)
 }
 
 static void hypre_matrix_add_values(void* context, index_t num_rows,
@@ -776,14 +751,7 @@ static void hypre_matrix_add_values(void* context, index_t num_rows,
       dvals[i] = (HYPRE_Real)values[i];
     A->factory->methods.HYPRE_IJMatrixAddToValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, dvals);
   }
-  HYPRE_Int error = A->factory->methods.HYPRE_GetError();
-  if (error != 0)
-  {
-    char msg[1024];
-    A->factory->methods.HYPRE_DescribeError(error, msg);
-    A->factory->methods.HYPRE_ClearAllErrors();
-    polymec_error("hypre_matrix_add_values: %s", msg);
-  }
+  CHECK_FOR_MATRIX_ERROR(A)
 }
 
 static void* hypre_matrix_clone(void* context)
@@ -912,14 +880,7 @@ static void hypre_matrix_scale(void* context, real_t scale_factor)
     }
     A->factory->methods.HYPRE_ParCSRMatrixRestoreRow(par_mat, row, &ncols, &cols, &vals);
   }
-  HYPRE_Int error = A->factory->methods.HYPRE_GetError();
-  if (error != 0)
-  {
-    char msg[1024];
-    A->factory->methods.HYPRE_DescribeError(error, msg);
-    A->factory->methods.HYPRE_ClearAllErrors();
-    polymec_error("hypre_matrix_scale: %s", msg);
-  }
+  CHECK_FOR_MATRIX_ERROR(A)
 
   // Scale the values in the matrix.
   hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values);
@@ -1144,20 +1105,28 @@ static krylov_matrix_t* hypre_factory_matrix(void* context,
   return hypre_factory_block_matrix(context, sparsity, 1);
 }
 
+static void check_for_vector_error(hypre_vector_t* v, 
+                                   const char* func_name)
+{
+  HYPRE_Int error = v->factory->methods.HYPRE_GetError();
+  if (error != 0)
+  {
+    char msg[1024];
+    v->factory->methods.HYPRE_DescribeError(error, msg);
+    v->factory->methods.HYPRE_ClearAllErrors();
+    polymec_error("%s: %s", func_name, msg);
+  }
+}
+
+#define CHECK_FOR_VECTOR_ERROR(v) check_for_vector_error(v, __func__);
+
 static void ensure_vector_assembly(hypre_vector_t* v)
 {
   if (!v->assembled)
   {
     v->factory->methods.HYPRE_IJVectorAssemble(v->v);
     v->assembled = true;
-    HYPRE_Int error = v->factory->methods.HYPRE_GetError();
-    if (error != 0)
-    {
-      char msg[1024];
-      v->factory->methods.HYPRE_DescribeError(error, msg);
-      v->factory->methods.HYPRE_ClearAllErrors();
-      polymec_error("HYPRE_IJVectorAssemble: %s", msg);
-    }
+    CHECK_FOR_VECTOR_ERROR(v)
   }
 }
 
@@ -1167,14 +1136,7 @@ static void ensure_vector_initialization(hypre_vector_t* v)
   {
     v->factory->methods.HYPRE_IJVectorInitialize(v->v);
     v->assembled = false;
-    HYPRE_Int error = v->factory->methods.HYPRE_GetError();
-    if (error != 0)
-    {
-      char msg[1024];
-      v->factory->methods.HYPRE_DescribeError(error, msg);
-      v->factory->methods.HYPRE_ClearAllErrors();
-      polymec_error("HYPRE_IJVectorInitialize: %s", msg);
-    }
+    CHECK_FOR_VECTOR_ERROR(v)
   }
 }
 
@@ -1195,14 +1157,7 @@ static void hypre_vector_set_values(void* context, index_t num_values,
       dvals[i] = (HYPRE_Real)values[i];
     v->factory->methods.HYPRE_IJVectorSetValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
   }
-  HYPRE_Int error = v->factory->methods.HYPRE_GetError();
-  if (error != 0)
-  {
-    char msg[1024];
-    v->factory->methods.HYPRE_DescribeError(error, msg);
-    v->factory->methods.HYPRE_ClearAllErrors();
-    polymec_error("hypre_vector_set_values: %s", msg);
-  }
+  CHECK_FOR_VECTOR_ERROR(v)
 }
 
 static void hypre_vector_add_values(void* context, index_t num_values,
@@ -1221,14 +1176,7 @@ static void hypre_vector_add_values(void* context, index_t num_values,
       dvals[i] = (HYPRE_Real)values[i];
     v->factory->methods.HYPRE_IJVectorAddToValues(v->v, num_values, (HYPRE_Int*)indices, dvals);
   }
-  HYPRE_Int error = v->factory->methods.HYPRE_GetError();
-  if (error != 0)
-  {
-    char msg[1024];
-    v->factory->methods.HYPRE_DescribeError(error, msg);
-    v->factory->methods.HYPRE_ClearAllErrors();
-    polymec_error("hypre_vector_add_values: %s", msg);
-  }
+  CHECK_FOR_VECTOR_ERROR(v)
 }
 
 static void hypre_vector_get_values(void* context, index_t num_values,
