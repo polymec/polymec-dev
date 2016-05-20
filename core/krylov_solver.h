@@ -102,8 +102,6 @@ typedef struct
   void (*set_diagonal)(void* context, void* D);
   void (*set_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*add_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
-  void (*start_assembly)(void* context);
-  void (*finish_assembly)(void* context);
   void (*get_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*dtor)(void* context);
 } krylov_matrix_vtable;
@@ -125,8 +123,6 @@ typedef struct
   void (*scale)(void* context, real_t scale_factor);
   void (*set_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*add_values)(void* context, index_t num_values, index_t* indices, real_t* values);
-  void (*start_assembly)(void* context);
-  void (*finish_assembly)(void* context);
   void (*get_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   real_t (*norm)(void* context, int p);
   void (*dtor)(void* context);
@@ -381,18 +377,6 @@ void krylov_matrix_add_values(krylov_matrix_t* A,
                               index_t* rows, index_t* columns,
                               real_t* values);
                               
-// Assemble the matrix. This should be called after krylov_matrix_set_values 
-// or krylov_matrix_add_values.
-void krylov_matrix_assemble(krylov_matrix_t* A);
-
-// Start the (possibly asynchronous) matrix assembly. This should be called 
-// after krylov_matrix_set_values or krylov_matrix_add_values.
-void krylov_matrix_start_assembly(krylov_matrix_t* A);
-
-// Finish the (possibly asynchronous) matrix assembly. This should be called 
-// after krylov_matrix_start_assembly.
-void krylov_matrix_finish_assembly(krylov_matrix_t* A);
-
 // Retrieves the values of the elements in the matrix identified by the 
 // given (globally-indexed) rows and columns, storing them in the values array.
 void krylov_matrix_get_values(krylov_matrix_t* A,
@@ -447,18 +431,6 @@ void krylov_vector_add_values(krylov_vector_t* v,
                               index_t* indices,
                               real_t* values);
                               
-// Assemble the vector. This should be called after setting or adding to its 
-// values.
-void krylov_vector_assemble(krylov_vector_t* v);
-
-// Starts the (possibly asynchronous) vector assembly. This should be called 
-// after setting or adding to its values.
-void krylov_vector_start_assembly(krylov_vector_t* v);
-
-// Finish the (possibly asynchronous) matrix assembly. This should be called 
-// after setting or adding to its values.
-void krylov_vector_finish_assembly(krylov_vector_t* v);
-
 // Retrieves the values of the elements in the vector identified by the 
 // given (global) indices, storing them in the values array. The values 
 // must exist on the local process.

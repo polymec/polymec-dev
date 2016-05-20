@@ -779,24 +779,6 @@ void krylov_matrix_add_values(krylov_matrix_t* A,
   A->vtable.add_values(A->context, num_rows, num_columns, rows, columns, values);
 }
                               
-void krylov_matrix_assemble(krylov_matrix_t* A)
-{
-  krylov_matrix_start_assembly(A);
-  krylov_matrix_finish_assembly(A);
-}
-
-void krylov_matrix_start_assembly(krylov_matrix_t* A)
-{
-  if (A->vtable.start_assembly != NULL)
-    A->vtable.start_assembly(A->context);
-}
-
-void krylov_matrix_finish_assembly(krylov_matrix_t* A)
-{
-  if (A->vtable.finish_assembly != NULL)
-    A->vtable.finish_assembly(A->context);
-}
-
 void krylov_matrix_get_values(krylov_matrix_t* A,
                               index_t num_rows,
                               index_t* num_columns,
@@ -894,24 +876,6 @@ void krylov_vector_add_values(krylov_vector_t* v,
                               real_t* values)
 {
   v->vtable.add_values(v->context, num_values, indices, values);
-}
-
-void krylov_vector_assemble(krylov_vector_t* v)
-{
-  krylov_vector_start_assembly(v);
-  krylov_vector_finish_assembly(v);
-}
-
-void krylov_vector_start_assembly(krylov_vector_t* v)
-{
-  if (v->vtable.start_assembly != NULL)
-    v->vtable.start_assembly(v->context);
-}
-
-void krylov_vector_finish_assembly(krylov_vector_t* v)
-{
-  if (v->vtable.finish_assembly != NULL)
-    v->vtable.finish_assembly(v->context);
 }
 
 void krylov_vector_get_values(krylov_vector_t* v,

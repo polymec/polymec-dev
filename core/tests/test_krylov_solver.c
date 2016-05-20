@@ -301,8 +301,6 @@ static void test_1d_laplace_eqn(void** state, krylov_factory_t* factory)
     num_cols = 1, rows[0] = N-1, cols[0] = N-1, Aij[0] = -2.0;
     krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
 
-    krylov_matrix_start_assembly(A);
-    krylov_matrix_finish_assembly(A);
     krylov_matrix_scale(A, 1.0/(h*h));
 
     // Create a RHS vector.
@@ -311,9 +309,6 @@ static void test_1d_laplace_eqn(void** state, krylov_factory_t* factory)
     rows[0] = 0, bi[0] = 0.0;
     rows[1] = N-1, bi[1] = -1.0/(h*h);
     krylov_vector_set_values(b, 2, rows, bi);
-
-    krylov_vector_start_assembly(b);
-    krylov_vector_finish_assembly(b);
 
     // Create a solution vector.
     krylov_vector_t* x = krylov_factory_vector(factory, graph);

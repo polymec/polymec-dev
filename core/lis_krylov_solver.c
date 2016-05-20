@@ -48,6 +48,7 @@ typedef struct
   LIS_MATRIX A;
   int block_size, nr, nc, bnnz, nnz, *bptr, *ptr, *row, *col, *index, *bindex;
   LIS_SCALAR* values;
+  bool assembled;
 } lis_matrix_t;
 
 static void lis_solver_set_tolerances(void* context,
@@ -231,6 +232,7 @@ static lis_matrix_t* matrix_new(MPI_Comm comm, int block_size)
   mat->index = NULL;
   mat->bindex = NULL;
   mat->values = NULL;
+  mat->assembled = false;
   return mat;
 }
 
@@ -305,12 +307,18 @@ static void* matrix_clone(void* context)
   }
   matrix_set(clone);
   lis_matrix_assemble(clone->A);
+  clone->assembled = true;
   return clone;
 }
 
 static void matrix_zero(void* context)
 {
   lis_matrix_t* mat = context;
+  if (!mat->assembled)
+  {
+    lis_matrix_assemble(mat->A);
+    mat->assembled = true;
+  }
   lis_matrix_unset(mat->A);
   memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
   matrix_set(mat);
@@ -320,6 +328,11 @@ static void matrix_zero(void* context)
 static void matrix_scale(void* context, real_t scale_factor)
 {
   lis_matrix_t* mat = context;
+  if (!mat->assembled)
+  {
+    lis_matrix_assemble(mat->A);
+    mat->assembled = true;
+  }
   lis_matrix_unset(mat->A);
   for (int i = 0; i < mat->nnz; ++i)
     mat->values[i] *= scale_factor;
@@ -330,12 +343,23 @@ static void matrix_scale(void* context, real_t scale_factor)
 static void matrix_add_identity(void* context, real_t scale_factor)
 {
   lis_matrix_t* mat = context;
+  if (!mat->assembled)
+  {
+    lis_matrix_assemble(mat->A);
+    mat->assembled = true;
+  }
   lis_matrix_shift_diagonal(mat->A, (LIS_SCALAR)scale_factor);
 }
 
 static void matrix_set_diagonal_csr(void* context, void* D)
 {
   lis_matrix_t* mat = context;
+  if (!mat->assembled)
+  {
+    lis_matrix_assemble(mat->A);
+    mat->assembled = true;
+  }
+
   lis_matrix_unset(mat->A);
   LIS_VECTOR d = D;
   LIS_INT start, end;
@@ -358,6 +382,12 @@ static void matrix_set_diagonal_csr(void* context, void* D)
 static void matrix_add_diagonal_csr(void* context, void* D)
 {
   lis_matrix_t* mat = context;
+  if (!mat->assembled)
+  {
+    lis_matrix_assemble(mat->A);
+    mat->assembled = true;
+  }
+
   lis_matrix_unset(mat->A);
   LIS_VECTOR d = D;
   LIS_INT start, end;
@@ -380,6 +410,12 @@ static void matrix_add_diagonal_csr(void* context, void* D)
 static void matrix_set_diagonal_bsr(void* context, void* D)
 {
   lis_matrix_t* mat = context;
+  if (!mat->assembled)
+  {
+    lis_matrix_assemble(mat->A);
+    mat->assembled = true;
+  }
+
   lis_matrix_unset(mat->A);
   LIS_VECTOR d = D;
   LIS_INT start, end;
@@ -397,12 +433,20 @@ static void matrix_set_diagonal_bsr(void* context, void* D)
     }
   }
   matrix_set(mat);
+
   lis_matrix_assemble(mat->A);
 }
 
 static void matrix_add_diagonal_bsr(void* context, void* D)
 {
   lis_matrix_t* mat = context;
+
+  if (!mat->assembled)
+  {
+    lis_matrix_assemble(mat->A);
+    mat->assembled = true;
+  }
+
   lis_matrix_unset(mat->A);
   LIS_VECTOR d = D;
   LIS_INT start, end;
@@ -476,6 +520,9 @@ static void matrix_set_values_csr(void* context, index_t num_rows,
   lis_matrix_t* mat = context;
   lis_matrix_unset(mat->A);
 
+  if (mat->assembled)
+    mat->assembled = false;
+
   LIS_INT N_local, N_global;
   lis_matrix_get_size(mat->A, &N_local, &N_global);
   LIS_INT start, finish;
@@ -512,6 +559,9 @@ static void matrix_add_values_csr(void* context, index_t num_rows,
 {
   lis_matrix_t* mat = context;
   lis_matrix_unset(mat->A);
+
+  if (mat->assembled)
+    mat->assembled = false;
 
   LIS_INT N_local, N_global;
   lis_matrix_get_size(mat->A, &N_local, &N_global);
@@ -553,6 +603,12 @@ static void matrix_get_values_csr(void* context, index_t num_rows,
   LIS_INT start, finish;
   lis_matrix_get_range(mat->A, &start, &finish);
 
+  if (!mat->assembled)
+  {
+    lis_matrix_assemble(mat->A);
+    mat->assembled = true;
+  }
+
   int k = 0;
   for (int i = 0; i < num_rows; ++i)
   {
@@ -591,6 +647,10 @@ static void matrix_set_values_bsr(void* context, index_t num_rows,
 {
   lis_matrix_t* mat = context;
   lis_matrix_unset(mat->A);
+
+  if (mat->assembled)
+    mat->assembled = false;
+
   int k = 0;
   for (int i = 0; i < num_rows; ++i)
   {
@@ -610,6 +670,10 @@ static void matrix_add_values_bsr(void* context, index_t num_rows,
 {
   lis_matrix_t* mat = context;
   lis_matrix_unset(mat->A);
+
+  if (mat->assembled)
+    mat->assembled = false;
+
   int k = 0;
   for (int i = 0; i < num_rows; ++i)
   {
@@ -646,12 +710,6 @@ static void matrix_get_values_vbr(void* context, index_t num_rows,
                                   real_t* values)
 {
   POLYMEC_NOT_IMPLEMENTED
-}
-
-static void matrix_start_assembly(void* context)
-{
-  lis_matrix_t* mat = context;
-  lis_matrix_assemble(mat->A);
 }
 
 static void matrix_dtor(void* context)
@@ -733,6 +791,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
   memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
   matrix_set(mat);
   lis_matrix_assemble(mat->A);
+  mat->assembled = true;
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = matrix_clone,
@@ -743,7 +802,6 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
                                  .set_diagonal = matrix_set_diagonal_csr,
                                  .set_values = matrix_set_values_csr,
                                  .add_values = matrix_add_values_csr,
-                                 .start_assembly = matrix_start_assembly,
                                  .get_values = matrix_get_values_csr,
                                  .dtor = matrix_dtor};
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
@@ -793,6 +851,7 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
   mat->bptr[mat->nr] = mat->nr;
   matrix_set(mat);
   lis_matrix_assemble(mat->A);
+  mat->assembled = true;
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = matrix_clone,
@@ -803,7 +862,6 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
                                  .set_diagonal = matrix_set_diagonal_bsr,
                                  .set_values = matrix_set_values_bsr,
                                  .add_values = matrix_add_values_bsr,
-                                 .start_assembly = matrix_start_assembly,
                                  .get_values = matrix_get_values_bsr,
                                  .dtor = matrix_dtor};
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
@@ -861,6 +919,7 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
   memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
   matrix_set(mat);
   lis_matrix_assemble(mat->A);
+  mat->assembled = true;
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = matrix_clone,
@@ -871,7 +930,6 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
                                  .set_diagonal = matrix_set_diagonal_vbr,
                                  .set_values = matrix_set_values_vbr,
                                  .add_values = matrix_add_values_vbr,
-                                 .start_assembly = matrix_start_assembly,
                                  .get_values = matrix_get_values_vbr,
                                  .dtor = matrix_dtor};
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
