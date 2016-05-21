@@ -149,13 +149,23 @@ krylov_factory_t* lis_krylov_factory();
 // (or the environment variables PETSC_DIR and PETSC_ARCH if these strings are 
 // NULL) to find the underlying PETSc implementation. If no such 
 // underlying implementation can be found, this function returns NULL.
+// Polymec requires the following for any PETSc library with which it
+// interfaces:
+// * The PETSc library must be built as a shared library.
+// * It must be built with the --with-64-bit-indices as an option. 
+// * It must be built with support for real numbers, not complex ones.
 krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                        const char* petsc_arch);
 
 // This creates a HYPRE-based Krylov factory that can be used for constructing
 // matrices, vectors, solvers, using the HYPRE library (libHYPRE.so, etc) 
 // located in the given directory. If no such library can be found or loaded, 
-// this function returns NULL.
+// this function returns NULL. Polymec requires the following for any HYPRE 
+// library with which it interfaces:
+// * The HYPRE library must be built as a shared library
+// * It must be built with BIGINT support (64-bit indices)
+// * It must be configured to use MPI if Polymec uses it, and sequentially
+//   if Polymec is configured sequentially.
 krylov_factory_t* hypre_krylov_factory(const char* hypre_dir);
 
 //------------------------------------------------------------------------
