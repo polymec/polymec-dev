@@ -60,6 +60,7 @@ typedef struct
   HYPRE_Int (*HYPRE_ParCSRPCGSetAbsoluteTol)(HYPRE_Solver, HYPRE_Real);
   HYPRE_Int (*HYPRE_ParCSRPCGSetMaxIter)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_ParCSRPCGSetStopCrit)(HYPRE_Solver, HYPRE_Int);
+  HYPRE_Int (*HYPRE_PCGSetTwoNorm)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_ParCSRPCGSetPrecond)(HYPRE_Solver, HYPRE_PtrToParSolverFcn, HYPRE_PtrToParSolverFcn, HYPRE_Solver);
   HYPRE_Int (*HYPRE_ParCSRPCGGetPrecond)(HYPRE_Solver, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_ParCSRPCGGetNumIterations)(HYPRE_Solver, HYPRE_Int*);
@@ -453,6 +454,9 @@ static krylov_solver_t* hypre_factory_pcg_solver(void* context,
     polymec_free(solver);
     return NULL;
   }
+
+  // We use the 2-norm for stopping criteria.
+  solver->factory->methods.HYPRE_PCGSetTwoNorm(solver->solver, 1);
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = hypre_solver_set_tolerances,
@@ -1418,6 +1422,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetAbsoluteTol);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetMaxIter);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetStopCrit);
+  FETCH_HYPRE_SYMBOL(HYPRE_PCGSetTwoNorm);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGSetPrecond);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGGetPrecond);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRPCGGetNumIterations);

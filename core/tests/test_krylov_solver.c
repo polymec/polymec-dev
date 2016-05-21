@@ -268,7 +268,16 @@ static void test_krylov_vector_from_sherman1_b(void** state, krylov_factory_t* f
                                num_test_values, test_indices, test_values);
 }
 
-static void test_1d_laplace_eqn(void** state, krylov_factory_t* factory)
+typedef enum
+{
+  PCG_SOLVER,
+  GMRES_SOLVER,
+  BICGSTAB_SOLVER
+} iterative_solver_t;
+
+static void test_1d_laplace_eqn(void** state, 
+                                krylov_factory_t* factory,
+                                iterative_solver_t solver_type)
 {
   if (factory != NULL)
   {
@@ -314,7 +323,13 @@ static void test_1d_laplace_eqn(void** state, krylov_factory_t* factory)
     krylov_vector_t* x = krylov_factory_vector(factory, graph);
 
     // Create a solver.
-    krylov_solver_t* solver = krylov_factory_bicgstab_solver(factory, comm);
+    krylov_solver_t* solver;
+    switch (solver_type)
+    {
+      case PCG_SOLVER: solver = krylov_factory_pcg_solver(factory, comm); break;
+      case GMRES_SOLVER: solver = krylov_factory_gmres_solver(factory, comm, 15); break;
+      case BICGSTAB_SOLVER: solver = krylov_factory_bicgstab_solver(factory, comm); break;
+    }
     assert_true(solver != NULL);
     krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 1.0);
     krylov_solver_set_max_iterations(solver, 1000);
@@ -424,10 +439,22 @@ void test_lis_krylov_vector_from_file(void** state)
   test_krylov_vector_from_sherman1_b(state, lis);
 }
 
-void test_lis_1d_laplace_eqn(void** state)
+void test_lis_pcg_1d_laplace_eqn(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
-  test_1d_laplace_eqn(state, lis);
+  test_1d_laplace_eqn(state, lis, PCG_SOLVER);
+}
+
+void test_lis_gmres_1d_laplace_eqn(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_1d_laplace_eqn(state, lis, GMRES_SOLVER);
+}
+
+void test_lis_bicgstab_1d_laplace_eqn(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_1d_laplace_eqn(state, lis, BICGSTAB_SOLVER);
 }
 
 void test_lis_sherman1(void** state)
@@ -469,10 +496,22 @@ void test_petsc_krylov_vector_from_file(void** state)
   test_krylov_vector_from_sherman1_b(state, petsc);
 }
 
-void test_petsc_1d_laplace_eqn(void** state)
+void test_petsc_pcg_1d_laplace_eqn(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
-  test_1d_laplace_eqn(state, petsc);
+  test_1d_laplace_eqn(state, petsc, PCG_SOLVER);
+}
+
+void test_petsc_gmres_1d_laplace_eqn(void** state)
+{
+  krylov_factory_t* petsc = create_petsc_krylov_factory();
+  test_1d_laplace_eqn(state, petsc, GMRES_SOLVER);
+}
+
+void test_petsc_bicgstab_1d_laplace_eqn(void** state)
+{
+  krylov_factory_t* petsc = create_petsc_krylov_factory();
+  test_1d_laplace_eqn(state, petsc, BICGSTAB_SOLVER);
 }
 
 void test_petsc_sherman1(void** state)
@@ -513,10 +552,22 @@ void test_hypre_krylov_vector_from_file(void** state)
   test_krylov_vector_from_sherman1_b(state, hypre);
 }
 
-void test_hypre_1d_laplace_eqn(void** state)
+void test_hypre_pcg_1d_laplace_eqn(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
-  test_1d_laplace_eqn(state, hypre);
+  test_1d_laplace_eqn(state, hypre, PCG_SOLVER);
+}
+
+void test_hypre_gmres_1d_laplace_eqn(void** state)
+{
+  krylov_factory_t* hypre = create_hypre_krylov_factory();
+  test_1d_laplace_eqn(state, hypre, GMRES_SOLVER);
+}
+
+void test_hypre_bicgstab_1d_laplace_eqn(void** state)
+{
+  krylov_factory_t* hypre = create_hypre_krylov_factory();
+  test_1d_laplace_eqn(state, hypre, BICGSTAB_SOLVER);
 }
 
 void test_hypre_sherman1(void** state)
@@ -538,7 +589,9 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_krylov_matrix_from_file),
     cmocka_unit_test(test_lis_krylov_vector),
     cmocka_unit_test(test_lis_krylov_vector_from_file),
-    cmocka_unit_test(test_lis_1d_laplace_eqn),
+    cmocka_unit_test(test_lis_pcg_1d_laplace_eqn),
+    cmocka_unit_test(test_lis_gmres_1d_laplace_eqn),
+    cmocka_unit_test(test_lis_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_lis_sherman1),
 #if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),
@@ -546,14 +599,18 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_petsc_krylov_matrix_from_file),
     cmocka_unit_test(test_petsc_krylov_vector),
     cmocka_unit_test(test_petsc_krylov_vector_from_file),
-    cmocka_unit_test(test_petsc_1d_laplace_eqn),
+    cmocka_unit_test(test_petsc_pcg_1d_laplace_eqn),
+    cmocka_unit_test(test_petsc_gmres_1d_laplace_eqn),
+    cmocka_unit_test(test_petsc_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_petsc_sherman1),
     cmocka_unit_test(test_hypre_krylov_factory),
     cmocka_unit_test(test_hypre_krylov_matrix),
     cmocka_unit_test(test_hypre_krylov_matrix_from_file),
     cmocka_unit_test(test_hypre_krylov_vector),
     cmocka_unit_test(test_hypre_krylov_vector_from_file),
-    cmocka_unit_test(test_hypre_1d_laplace_eqn),
+    cmocka_unit_test(test_hypre_pcg_1d_laplace_eqn),
+    cmocka_unit_test(test_hypre_gmres_1d_laplace_eqn),
+    cmocka_unit_test(test_hypre_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_hypre_sherman1)
 #endif
   };
