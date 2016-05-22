@@ -31,6 +31,7 @@ typedef const char* PCType;
 typedef void* Mat;
 typedef const char* MatType;
 typedef void* Vec;
+typedef void* PetscViewer;
 typedef enum {NORM_1=0,NORM_2=1,NORM_FROBENIUS=2,NORM_INFINITY=3,NORM_1_AND_2=4} NormType;
 typedef enum {MAT_FLUSH_ASSEMBLY=1,MAT_FINAL_ASSEMBLY=0} MatAssemblyType;
 typedef enum {INSERT_VALUES=1,ADD_VALUES=0} InsertMode;
@@ -49,6 +50,7 @@ typedef struct
   PetscErrorCode (*PetscInitialized)(PetscBool*);
   PetscErrorCode (*PetscFinalize)();
   PetscErrorCode (*PetscPushErrorHandler)(PetscErrorCode (*handler)(MPI_Comm comm, int, const char*, const char*, PetscErrorCode, int, const char*, void*), void*);
+  void* (*PETSC_VIEWER_STDOUT_)(MPI_Comm);
 
   PetscErrorCode (*KSPCreate)(MPI_Comm,KSP *);
   PetscErrorCode (*KSPSetType)(KSP,KSPType);
@@ -64,6 +66,7 @@ typedef struct
   PetscErrorCode (*KSPGetIterationNumber)(KSP,PetscInt*);
   PetscErrorCode (*KSPGetResidualNorm)(KSP,PetscReal*);
   PetscErrorCode (*KSPDestroy)(KSP*);
+  PetscErrorCode (*KSPGMRESSetRestart)(KSP,PetscInt);
 
   PetscErrorCode (*PCCreate)(MPI_Comm,PC*);
   PetscErrorCode (*PCSetType)(PC, const char*);
@@ -89,6 +92,7 @@ typedef struct
   PetscErrorCode (*MatAssemblyBegin)(Mat,MatAssemblyType);
   PetscErrorCode (*MatAssemblyEnd)(Mat,MatAssemblyType);
   PetscErrorCode (*MatGetValues)(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],PetscScalar[]);
+  PetscErrorCode (*MatView)(Mat,PetscViewer);
 
   PetscErrorCode (*VecCreateSeq)(MPI_Comm,PetscInt,Vec*);
   PetscErrorCode (*VecCreateMPI)(MPI_Comm,PetscInt,PetscInt,Vec*);
@@ -105,6 +109,7 @@ typedef struct
   PetscErrorCode (*VecAssemblyBegin)(Vec);
   PetscErrorCode (*VecAssemblyEnd)(Vec);
   PetscErrorCode (*VecNorm)(Vec,NormType,PetscReal *);
+  PetscErrorCode (*VecView)(Vec,PetscViewer);
 
 } petsc_methods_table;
 
@@ -159,11 +164,32 @@ static void petsc_solver_set_max_iterations(void* context,
   solver->factory->methods.KSPSetTolerances(solver->ksp, r, a, d, max_iters);
 }
 
+static inline void ensure_matrix_assembly(petsc_matrix_t* A)
+{
+  if (!A->assembled)
+  {
+    A->factory->methods.MatAssemblyBegin(A->A, MAT_FINAL_ASSEMBLY);
+    A->factory->methods.MatAssemblyEnd(A->A, MAT_FINAL_ASSEMBLY);
+    A->assembled = true;
+  }
+}
+
+static inline void ensure_vector_assembly(petsc_vector_t* v)
+{
+  if (!v->assembled)
+  {
+    v->factory->methods.VecAssemblyBegin(v->v);
+    v->factory->methods.VecAssemblyEnd(v->v);
+    v->assembled = true;
+  }
+}
+
 static void petsc_solver_set_operator(void* context,
                                       void* op)
 {
   petsc_solver_t* solver = context;
   petsc_matrix_t* A = op;
+  ensure_matrix_assembly(A);
   PetscErrorCode err = solver->factory->methods.KSPSetOperators(solver->ksp, A->A, A->A);
   if (err != 0)
     polymec_error("petsc_solver_set_operator failed setting operator.");
@@ -191,6 +217,8 @@ static bool petsc_solver_solve(void* context,
   petsc_solver_t* solver = context;
   petsc_vector_t* B = b;
   petsc_vector_t* X = x;
+  ensure_vector_assembly(b);
+  ensure_vector_assembly(x);
   PetscErrorCode err = solver->factory->methods.KSPSolve(solver->ksp, B->v, X->v);
   if (err != 0)
     polymec_error("petsc_solver_solve: Call to linear solve failed!");
@@ -200,6 +228,25 @@ static bool petsc_solver_solve(void* context,
   solver->factory->methods.KSPGetIterationNumber(solver->ksp, &niters);
   *num_iters = (int)niters;
   solver->factory->methods.KSPGetResidualNorm(solver->ksp, res_norm);
+  if ((code < 0) && (log_level() == LOG_DEBUG))
+  {
+    char reason[256]; 
+    switch(code)
+    {
+      case -2: sprintf(reason, "KSP_DIVERGED_NULL"); break;
+      case -3: sprintf(reason, "max iterations exceeded"); break;
+      case -4: sprintf(reason, "residual norm exceeds divergence tolerance"); break;
+      case -5: sprintf(reason, "Krylov method breakdown (singular A or P?)"); break;
+      case -6: sprintf(reason, "Krylov method breakdown in biconjugate gradient method"); break;
+      case -7: sprintf(reason, "Nonsymmetric matrix given for symmetric Krylov method"); break;
+      case -8: sprintf(reason, "Indefinite preconditioner for method requiring SPD matrix"); break;
+      case -9: sprintf(reason, "NaN or Inf value encountered in linear solve"); break;
+      case -10: sprintf(reason, "Indefinite matrix given for method requiring SPD matrix"); break;
+      case -11: sprintf(reason, "Setup for preconditioner failed"); break;
+      default: sprintf(reason, "reason unknown");
+    }
+    log_debug("petsc_solver_solve: Linear solve failed: %s", reason);
+  }
   return (code > 0);
 }
 
@@ -218,8 +265,6 @@ static krylov_solver_t* petsc_factory_pcg_solver(void* context,
   solver->factory = context;
   solver->factory->methods.KSPCreate(comm, &solver->ksp);
   solver->factory->methods.KSPSetType(solver->ksp, "cg");
-  // FIXME: We ignore the Krylov subspace dimension for now.
-  // FIXME: Consider altering orthogonalization scheme?
 
   // Handle the preconditioner's options.
   PC pc;
@@ -247,7 +292,7 @@ static krylov_solver_t* petsc_factory_gmres_solver(void* context,
   solver->factory = context;
   solver->factory->methods.KSPCreate(comm, &solver->ksp);
   solver->factory->methods.KSPSetType(solver->ksp, "gmres");
-  // FIXME: We ignore the Krylov subspace dimension for now.
+  solver->factory->methods.KSPGMRESSetRestart(solver->ksp, (PetscInt)krylov_dimension);
   // FIXME: Consider altering orthogonalization scheme?
 
   // Handle the preconditioner's options.
@@ -274,7 +319,7 @@ static krylov_solver_t* petsc_factory_bicgstab_solver(void* context,
   petsc_solver_t* solver = polymec_malloc(sizeof(petsc_solver_t));
   solver->factory = context;
   solver->factory->methods.KSPCreate(comm, &solver->ksp);
-  solver->factory->methods.KSPSetType(solver->ksp, "bicgstab");
+  solver->factory->methods.KSPSetType(solver->ksp, "bcgs");
 
   // Handle the preconditioner's options.
   PC pc;
@@ -338,16 +383,6 @@ static krylov_pc_t* petsc_factory_pc(void* context,
   // Set up the virtual table.
   krylov_pc_vtable vtable = {.dtor = NULL}; // FIXME: leak?
   return krylov_pc_new(pc_name, pc, vtable);
-}
-
-static inline void ensure_matrix_assembly(petsc_matrix_t* A)
-{
-  if (!A->assembled)
-  {
-    A->factory->methods.MatAssemblyBegin(A->A, MAT_FINAL_ASSEMBLY);
-    A->factory->methods.MatAssemblyEnd(A->A, MAT_FINAL_ASSEMBLY);
-    A->assembled = true;
-  }
 }
 
 static void* petsc_matrix_clone(void* context)
@@ -668,16 +703,6 @@ static void* petsc_vector_clone(void* context)
   return clone;
 }
 
-static inline void ensure_vector_assembly(petsc_vector_t* v)
-{
-  if (!v->assembled)
-  {
-    v->factory->methods.VecAssemblyBegin(v->v);
-    v->factory->methods.VecAssemblyEnd(v->v);
-    v->assembled = true;
-  }
-}
-
 static void petsc_vector_zero(void* context)
 {
   petsc_vector_t* v = context;
@@ -762,6 +787,8 @@ static krylov_vector_t* petsc_factory_vector(void* context,
     v->factory->methods.VecCreateSeq(comm, vtx_dist[1], &v->v);
   else
     v->factory->methods.VecCreateMPI(comm, vtx_dist[nprocs], vtx_dist[rank+1]-vtx_dist[rank], &v->v);
+
+  petsc_vector_zero(v);
 
   // Set up the virtual table.
   krylov_vector_vtable vtable = {.clone = petsc_vector_clone,
@@ -924,6 +951,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(PetscInitialized);
   FETCH_PETSC_SYMBOL(PetscFinalize);
   FETCH_PETSC_SYMBOL(PetscPushErrorHandler);
+  FETCH_PETSC_SYMBOL(PETSC_VIEWER_STDOUT_);
 
   FETCH_PETSC_SYMBOL(KSPCreate);
   FETCH_PETSC_SYMBOL(KSPSetType);
@@ -939,6 +967,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(KSPGetIterationNumber);
   FETCH_PETSC_SYMBOL(KSPGetResidualNorm);
   FETCH_PETSC_SYMBOL(KSPDestroy);
+  FETCH_PETSC_SYMBOL(KSPGMRESSetRestart);
 
   FETCH_PETSC_SYMBOL(PCCreate);
   FETCH_PETSC_SYMBOL(PCSetType);
@@ -964,6 +993,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(MatGetValues);
   FETCH_PETSC_SYMBOL(MatAssemblyBegin);
   FETCH_PETSC_SYMBOL(MatAssemblyEnd);
+  FETCH_PETSC_SYMBOL(MatView);
   
   FETCH_PETSC_SYMBOL(VecCreateSeq);
   FETCH_PETSC_SYMBOL(VecCreateMPI);
@@ -980,6 +1010,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(VecAssemblyBegin);
   FETCH_PETSC_SYMBOL(VecAssemblyEnd);
   FETCH_PETSC_SYMBOL(VecNorm);
+  FETCH_PETSC_SYMBOL(VecView);
 #undef FETCH_PETSC_SYMBOL
 
   log_debug("petsc_krylov_factory: Got PETSc symbols.");

@@ -327,11 +327,11 @@ static void test_1d_laplace_eqn(void** state,
     switch (solver_type)
     {
       case PCG_SOLVER: solver = krylov_factory_pcg_solver(factory, comm); break;
-      case GMRES_SOLVER: solver = krylov_factory_gmres_solver(factory, comm, 15); break;
+      case GMRES_SOLVER: solver = krylov_factory_gmres_solver(factory, comm, 30); break;
       case BICGSTAB_SOLVER: solver = krylov_factory_bicgstab_solver(factory, comm); break;
     }
     assert_true(solver != NULL);
-    krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 1.0);
+    krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 2.0);
     krylov_solver_set_max_iterations(solver, 1000);
 
 index_t I[N];
@@ -389,7 +389,7 @@ static void test_load_and_solve(void** state,
     // Create a solver.
     krylov_solver_t* solver = krylov_factory_bicgstab_solver(factory, comm);
     assert_true(solver != NULL);
-    krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 1.0);
+    krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 2.0);
     krylov_solver_set_max_iterations(solver, 100);
 
     // Solve the equation.
