@@ -71,7 +71,7 @@ void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges);
 int adj_graph_num_edges(adj_graph_t* graph, int vertex);
 
 // Returns the portion of the adjacency array containing the vertices to 
-// which the given vertex is attached. this can be used to retrieve or to
+// which the given vertex is attached. This can be used to retrieve or to
 // set the adjacent vertices, but adj_graph_set_edges must be called before 
 // setting the edges for a vertex.
 int* adj_graph_edges(adj_graph_t* graph, int vertex);

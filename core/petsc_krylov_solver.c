@@ -500,17 +500,18 @@ static void petsc_matrix_dtor(void* context)
 }
 
 static krylov_matrix_t* petsc_factory_matrix(void* context,
-                                             adj_graph_t* sparsity)
+                                             matrix_sparsity_t* sparsity)
 {
   petsc_matrix_t* A = polymec_malloc(sizeof(petsc_matrix_t));
   A->factory = context;
   A->assembled = false;
-  int N_local = adj_graph_num_vertices(sparsity);
-  index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
-  MPI_Comm comm = adj_graph_comm(sparsity);
+
+  index_t N_local = matrix_sparsity_num_local_rows(sparsity);
+  index_t N_global = matrix_sparsity_num_global_rows(sparsity);
+  MPI_Comm comm = matrix_sparsity_comm(sparsity);
+
   int nprocs;
   MPI_Comm_size(comm, &nprocs);
-  int N_global = (int)vtx_dist[nprocs];
   A->factory->methods.MatCreate(comm, &A->A);
   if (nprocs == 1)
     A->factory->methods.MatSetType(A->A, MATSEQAIJ);
@@ -522,60 +523,69 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
   if (nprocs == 1)
   {
     PetscInt nnz[N_local];
-    for (int v = 0; v < N_local; ++v)
-      nnz[v] = (PetscInt)(1 + adj_graph_num_edges(sparsity, v));
+    int pos = 0;
+    index_t row, r = 0;
+    while (matrix_sparsity_next_row(sparsity, &pos, &row))
+    {
+      nnz[r] = (PetscInt)(matrix_sparsity_num_columns(sparsity, row));
+      ++r;
+    }
     A->factory->methods.MatSeqAIJSetPreallocation(A->A, PETSC_DEFAULT, nnz);
   }
   else
   {
+    // d_nnz[r] is the number of nonzeros for the "diagonal" portion of row r, 
+    // and o_nnz[r] is the number of nonzeros for the "off-diagonal" portion.
     PetscInt d_nnz[N_local], o_nnz[N_local];
-    for (int v = 0; v < N_local; ++v)
+    index_t row, r = 0;
+    int rpos = 0;
+    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
-      d_nnz[v] = 1; // Diagonal entry.
-      o_nnz[v] = 0; // Diagonal entry.
-      int num_edges = adj_graph_num_edges(sparsity, v);
-      int* edges = adj_graph_edges(sparsity, v);
-      for (int e = 0; e < num_edges; ++e)
+      int cpos = 0;
+      index_t column;
+      while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
       {
-        int edge = edges[e];
-        if (edge >= N_local)
-          o_nnz[v] += 1;
+        if (column >= N_local)
+          o_nnz[r] += 1;
         else
-          d_nnz[v] += 1;
+          d_nnz[r] += 1;
       }
+      ++r;
     }
     A->factory->methods.MatMPIAIJSetPreallocation(A->A, PETSC_DEFAULT, d_nnz, PETSC_DEFAULT, o_nnz);
   }
 
   // Set the "non-zero" values to zero initially. This constructs the specific non-zero structure.
-  int rank;
-  MPI_Comm_rank(comm, &rank);
-  index_t ilow = vtx_dist[rank], ihigh = vtx_dist[rank+1] - 1;
-  index_t num_rows = ihigh - ilow + 1;
-  index_t num_columns[num_rows], rows[num_rows];
-  for (int r = 0; r < num_rows; ++r)
+  index_t num_columns[N_local], rows[N_local];
+  index_t row, r = 0;
+  int rpos = 0;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
-    rows[r] = ilow + r;
-    num_columns[r] = 1 + adj_graph_num_edges(sparsity, r);
+    rows[r] = row;
+    num_columns[r] = matrix_sparsity_num_columns(sparsity, row);
+    ++r;
   }
-  int tot_num_values = 0;
-  for (int r = 0; r < num_rows; ++r)
-    tot_num_values += num_columns[r];
 
+  index_t nnz = matrix_sparsity_num_nonzeros(sparsity);
   index_t col_offset = 0;
-  index_t columns[tot_num_values];
-  for (int r = 0; r < num_rows; ++r)
+  index_t columns[nnz];
+  rpos = 0;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
-    columns[col_offset++] = r; // diagonal
-    int* edges = adj_graph_edges(sparsity, r);
-    for (int c = 0; c < num_columns[r] - 1; ++c, ++col_offset)
-      columns[col_offset] = ilow + edges[c];
+    int cpos = 0;
+    index_t column;
+    while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
+    {
+      columns[col_offset] = column;
+      ++col_offset;
+log_debug("(%d, %d)", row, column);
+    }
   }
-  ASSERT(col_offset == tot_num_values);
+  ASSERT(col_offset == nnz);
 
-  real_t zeros[tot_num_values];
-  memset(zeros, 0, sizeof(real_t) * tot_num_values);
-  petsc_matrix_set_values(A, num_rows, num_columns, rows, columns, zeros);
+  real_t zeros[nnz];
+  memset(zeros, 0, sizeof(real_t) * nnz);
+  petsc_matrix_set_values(A, N_local, num_columns, rows, columns, zeros);
 
   // Assemble the matrix.
   A->factory->methods.MatAssemblyBegin(A->A, MAT_FINAL_ASSEMBLY);
@@ -596,17 +606,19 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
 }
 
 static krylov_matrix_t* petsc_factory_block_matrix(void* context,
-                                                   adj_graph_t* sparsity,
+                                                   matrix_sparsity_t* sparsity,
                                                    int block_size)
 {
   petsc_matrix_t* A = polymec_malloc(sizeof(petsc_matrix_t));
   A->factory = context;
-  int N_local = adj_graph_num_vertices(sparsity);
-  index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
-  MPI_Comm comm = adj_graph_comm(sparsity);
+  A->assembled = false;
+
+  index_t N_local = matrix_sparsity_num_local_rows(sparsity);
+  index_t N_global = matrix_sparsity_num_global_rows(sparsity);
+  MPI_Comm comm = matrix_sparsity_comm(sparsity);
+
   int nprocs;
   MPI_Comm_size(comm, &nprocs);
-  int N_global = (int)vtx_dist[nprocs];
   A->factory->methods.MatCreate(comm, &A->A);
   if (nprocs == 1)
     A->factory->methods.MatSetType(A->A, MATSEQBAIJ);
@@ -619,56 +631,67 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
   if (nprocs == 1)
   {
     PetscInt nnz[N_local];
-    for (int v = 0; v < N_local; ++v)
-      nnz[v] = (PetscInt)(1 + adj_graph_num_edges(sparsity, v));
-    A->factory->methods.MatSeqBAIJSetPreallocation(A->A, (PetscInt)block_size, PETSC_DEFAULT, nnz);
+    int pos = 0, r = 0;
+    index_t row;
+    while (matrix_sparsity_next_row(sparsity, &pos, &row))
+    {
+      nnz[r] = (PetscInt)(matrix_sparsity_num_columns(sparsity, row));
+      ++r;
+    }
+    A->factory->methods.MatSeqAIJSetPreallocation(A->A, PETSC_DEFAULT, nnz);
   }
   else
   {
+    // d_nnz[r] is the number of nonzeros for the "diagonal" portion of row r, 
+    // and o_nnz[r] is the number of nonzeros for the "off-diagonal" portion.
     PetscInt d_nnz[N_local], o_nnz[N_local];
-    for (int v = 0; v < N_local; ++v)
+    index_t row, r = 0;
+    int rpos = 0;
+    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
-      d_nnz[v] = 1; // Diagonal entry.
-      o_nnz[v] = 0; // Diagonal entry.
-      int num_edges = adj_graph_num_edges(sparsity, v);
-      int* edges = adj_graph_edges(sparsity, v);
-      for (int e = 0; e < num_edges; ++e)
+      d_nnz[r] = 1; // Diagonal entry.
+      o_nnz[r] = 0; // Diagonal entry.
+      int cpos = 0;
+      index_t column;
+      while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
       {
-        int edge = edges[e];
-        if (edge >= N_local)
-          o_nnz[v] += 1;
+        if (column >= N_local)
+          o_nnz[r] += 1;
         else
-          d_nnz[v] += 1;
+          d_nnz[r] += 1;
       }
+      ++r;
     }
     A->factory->methods.MatMPIBAIJSetPreallocation(A->A, (PetscInt)block_size, PETSC_DEFAULT, d_nnz, PETSC_DEFAULT, o_nnz);
   }
 
   // Set the "non-zero" values to zero initially. This constructs the specific non-zero structure.
-  int rank;
-  MPI_Comm_rank(comm, &rank);
-  index_t ilow = vtx_dist[rank], ihigh = vtx_dist[rank+1] - 1;
-  index_t num_rows = ihigh - ilow + 1;
-  index_t num_columns[num_rows], rows[num_rows];
-  for (int r = 0; r < num_rows; ++r)
+  index_t num_columns[N_local], rows[N_local];
+  index_t row, r = 0;
+  int rpos = 0;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
-    rows[r] = ilow + r;
-    num_columns[r] = block_size * (1 + adj_graph_num_edges(sparsity, r));
+    rows[r] = row;
+    num_columns[r] = matrix_sparsity_num_columns(sparsity, row);
+    ++r;
   }
-  int tot_num_values = 0;
-  for (int r = 0; r < num_rows; ++r)
-    tot_num_values += num_columns[r];
 
+  index_t nnz = matrix_sparsity_num_nonzeros(sparsity);
   index_t col_offset = 0;
-  index_t columns[tot_num_values];
-  for (int r = 0; r < num_rows; ++r)
+  index_t columns[nnz];
+  rpos = 0;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
-    columns[col_offset++] = ilow + r;
-    int* edges = adj_graph_edges(sparsity, r);
-    for (int c = 0; c < num_columns[r]-1; ++c, ++col_offset)
-      columns[col_offset] = ilow + edges[c];
+    int cpos = 0;
+    index_t column;
+    while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
+    {
+      columns[col_offset] = column;
+      ++col_offset;
+log_debug("(%d, %d)", row, column);
+    }
   }
-  ASSERT(col_offset == tot_num_values);
+  ASSERT(col_offset == nnz);
 
   // Assemble the matrix.
   A->factory->methods.MatAssemblyBegin(A->A, MAT_FINAL_ASSEMBLY);
@@ -773,20 +796,24 @@ static void petsc_vector_dtor(void* context)
 }
 
 static krylov_vector_t* petsc_factory_vector(void* context,
-                                             adj_graph_t* dist_graph)
+                                             MPI_Comm comm,
+                                             index_t* row_dist)
 {
   petsc_vector_t* v = polymec_malloc(sizeof(petsc_vector_t));
   v->factory = context;
   v->assembled = false;
-  MPI_Comm comm = adj_graph_comm(dist_graph);
+
   int rank, nprocs;
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nprocs);
-  index_t* vtx_dist = adj_graph_vertex_dist(dist_graph);
+
+  index_t N_local = row_dist[rank+1] - row_dist[rank];
+  index_t N_global = row_dist[nprocs];
+
   if (nprocs == 1)
-    v->factory->methods.VecCreateSeq(comm, vtx_dist[1], &v->v);
+    v->factory->methods.VecCreateSeq(comm, N_global, &v->v);
   else
-    v->factory->methods.VecCreateMPI(comm, vtx_dist[nprocs], vtx_dist[rank+1]-vtx_dist[rank], &v->v);
+    v->factory->methods.VecCreateMPI(comm, N_global, N_local, &v->v);
 
   petsc_vector_zero(v);
 
@@ -800,7 +827,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
                                  .get_values = petsc_vector_get_values,
                                  .norm = petsc_vector_norm,
                                  .dtor = petsc_vector_dtor};
-  return krylov_vector_new(v, vtable, vtx_dist[rank+1]-vtx_dist[rank], vtx_dist[nprocs]);
+  return krylov_vector_new(v, vtable, N_local, N_global);
 }
 
 static void petsc_factory_dtor(void* context)
@@ -1021,14 +1048,23 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   if (initialized == PETSC_FALSE)
   {
     log_debug("petsc_krylov_factory: Initializing PETSc.");
-    // Build a list of command line arguments.
+
+    // Build a copy of our list of command line arguments.
     options_t* opts = options_argv();
     int argc = options_num_arguments(opts);
     char** argv = polymec_malloc(sizeof(char*));
     for (int i = 0; i < argc; ++i)
-      argv[i] = options_argument(opts, i);
+      argv[i] = string_dup(options_argument(opts, i));
+
+    // Feed them into PETSc.
     factory->methods.PetscInitialize(&argc, &argv, NULL, NULL);
+
+    // Clean up.
+    for (int i = 0; i < argc; ++i)
+      polymec_free(argv[i]);
     polymec_free(argv);
+
+    // Since we are the first to use this PETSc library, we must finalize it.
     factory->finalize_petsc = true;
   }
 

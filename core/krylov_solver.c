@@ -408,13 +408,13 @@ static int mm_read_banner(FILE *f, MM_typecode *matcode)
   return 0;
 }
 
-static int mm_read_mtx_crd_size(FILE *f, int *M, int *N, int *nz)
+static int mm_read_mtx_crd_size(FILE *f, index_t *M, index_t *N, index_t *nnz)
 {
   char line[MM_MAX_LINE_LENGTH];
   int num_items_read;
 
   // set return null parameter values, in case we exit with errors 
-  *M = *N = *nz = 0;
+  *M = *N = *nnz = 0;
 
   // now continue scanning until you reach the end-of-comments 
   do 
@@ -424,15 +424,15 @@ static int mm_read_mtx_crd_size(FILE *f, int *M, int *N, int *nz)
   }
   while (line[0] == '%');
 
-  // line[] is either blank or has M,N, nz 
-  if (sscanf(line, "%d %d %d", M, N, nz) == 3)
+  // line[] is either blank or has M,N, nnz 
+  if (sscanf(line, "%" PRIu64 " %" PRIu64 "%" PRIu64, M, N, nnz) == 3)
     return 0;
 
   else
   {
     do
     { 
-      num_items_read = fscanf(f, "%d %d %d", M, N, nz); 
+      num_items_read = fscanf(f, "%" PRIu64 " %" PRIu64 " %" PRIu64, M, N, nnz); 
       if (num_items_read == EOF) return MM_PREMATURE_EOF;
     }
     while (num_items_read != 3);
@@ -490,8 +490,9 @@ static int mm_is_valid(MM_typecode matcode)
 
 static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory, 
                                             krylov_matrix_t* global_A, 
-                                            adj_graph_t* global_sparsity, 
-                                            MPI_Comm comm)
+                                            matrix_sparsity_t* global_sparsity, 
+                                            MPI_Comm comm,
+                                            index_t* row_dist)
 {
   ASSERT(comm != MPI_COMM_SELF);
 
@@ -499,58 +500,41 @@ static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory,
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
 
-  // Do a naive partitioning (since we assume a sensible partitioning was 
-  // done to create the row space for the matrix in the first place...)
-  int num_global_rows = adj_graph_num_vertices(global_sparsity);
-  int num_local_rows = num_global_rows / nprocs;
-  if (rank == (nprocs - 1))
-    num_local_rows = num_global_rows - rank * num_local_rows;
-
-  // Break up the graph.
-  adj_graph_t* local_sparsity = adj_graph_new(comm, num_local_rows);
-  int tot_num_edges = 0;
-  for (int i = 0; i < num_local_rows; ++i)
-  {
-    int I = rank * num_local_rows + i; // global vertex index
-    int num_edges = adj_graph_num_edges(global_sparsity, I);
-    int* global_edges = adj_graph_edges(global_sparsity, I);
-    adj_graph_set_num_edges(local_sparsity, i, num_edges);
-    int* local_edges = adj_graph_edges(local_sparsity, i);
-    for (int j = 0; j < num_edges; ++j)
-      local_edges[j] = global_edges[j];
-    tot_num_edges += num_edges;
-  }
+  // Create a distributed sparsity pattern.
+  matrix_sparsity_t* dist_sparsity = redistributed_matrix_sparsity(global_sparsity, comm, row_dist);
 
   // Create a local representation of the matrix.
-  krylov_matrix_t* local_A = krylov_factory_matrix(factory, local_sparsity);
-  adj_graph_free(local_sparsity);
+  krylov_matrix_t* local_A = krylov_factory_matrix(factory, dist_sparsity);
 
   // Shuttle the coefficients from the global into the local matrix.
-  index_t global_rows[num_local_rows], local_rows[num_local_rows], 
-          num_cols[num_local_rows], cols[num_local_rows+tot_num_edges];
-  int k = 0;
-  for (int i = 0; i < num_local_rows; ++i)
+  index_t nnz = matrix_sparsity_num_nonzeros(dist_sparsity);
+  index_t num_local_rows = matrix_sparsity_num_local_rows(dist_sparsity);
+  index_t rows[num_local_rows], num_cols[num_local_rows], cols[nnz];
+  int k = 0, rpos = 0, r = 0;
+  index_t row;
+  while (matrix_sparsity_next_row(dist_sparsity, &rpos, &row))
   {
-    local_rows[i] = i;
-    index_t I = rank * num_local_rows + i; // global vertex index
-    global_rows[i] = I;
-    num_cols[i] = 1+adj_graph_num_edges(global_sparsity, I);
-    int* global_edges = adj_graph_edges(global_sparsity, I);
-    cols[k++] = I; // diagonal
-    for (int j = 0; j < num_cols[i]-1; ++j, ++k)
-      cols[k] = (index_t)global_edges[j];
+    rows[r] = row;
+    num_cols[r] = matrix_sparsity_num_columns(dist_sparsity, row);
+    int pos = 0;
+    index_t col;
+    while (matrix_sparsity_next_column(dist_sparsity, row, &pos, &col))
+      cols[k++] = col;
+    ++r;
   }
-  ASSERT(k == (num_local_rows + tot_num_edges));
-  real_t values[num_local_rows+tot_num_edges];
-  krylov_matrix_get_values(global_A, num_local_rows, num_cols, global_rows, 
-                           cols, values);
-  krylov_matrix_set_values(local_A, num_local_rows, num_cols, local_rows, 
-                           cols, values);
+  ASSERT(k == nnz);
+  real_t values[nnz];
+  krylov_matrix_get_values(global_A, num_local_rows, num_cols, rows, cols, values);
+  krylov_matrix_set_values(local_A, num_local_rows, num_cols, rows, cols, values);
+
+  // Clean up and get out.
+  matrix_sparsity_free(dist_sparsity);
   return local_A;
 }
 
 static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
                                                       MPI_Comm comm,
+                                                      index_t* row_dist,
                                                       FILE* f)
 {
   // Rewind the file descriptor in case we've used it.
@@ -575,22 +559,22 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   }
 
   // Size the thing up.
-  int M, N, nz;
-  if (mm_read_mtx_crd_size(f, &M, &N, &nz) != 0)
+  index_t M, N, nnz;
+  if (mm_read_mtx_crd_size(f, &M, &N, &nnz) != 0)
     polymec_error("krylov_factory_matrix_from_mm: error reading matrix size.");
 
   // Retrieve the values into arrays.
-  int* I = polymec_malloc(nz * sizeof(int));
-  int* J = polymec_malloc(nz * sizeof(int));
-  real_t* val = polymec_malloc(nz * sizeof(real_t));
-  int num_offdiags[M];
-  memset(num_offdiags, 0, M * sizeof(int));
-  for (int i = 0; i < nz; ++i)
+  index_t* I = polymec_malloc(nnz * sizeof(index_t));
+  index_t* J = polymec_malloc(nnz * sizeof(index_t));
+  real_t* val = polymec_malloc(nnz * sizeof(real_t));
+  index_t num_offdiags[M];
+  memset(num_offdiags, 0, M * sizeof(index_t));
+  for (index_t i = 0; i < nnz; ++i)
   {
 #if POLYMEC_HAVE_SINGLE_PRECISION
-    int num_items = fscanf(f, "%d %d %g\n", &I[i], &J[i], &val[i]);
+    int num_items = fscanf(f, "%" PRIu64 " %" PRIu64 " %g\n", &I[i], &J[i], &val[i]);
 #else
-    int num_items = fscanf(f, "%d %d %lg\n", &I[i], &J[i], &val[i]);
+    int num_items = fscanf(f, "%" PRIu64 " %" PRIu64 " %lg\n", &I[i], &J[i], &val[i]);
 #endif
     if (num_items != 3)
       goto error;
@@ -604,29 +588,35 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
       ++num_offdiags[I[i]];
   }
 
-  // Construct a local sparsity graph.
-  adj_graph_t* sparsity = adj_graph_new(MPI_COMM_WORLD, M);
+  // Construct a global sparsity graph.
+  index_t global_row_dist[2] = {0, M};
+  matrix_sparsity_t* sparsity = matrix_sparsity_new(MPI_COMM_SELF, global_row_dist);
   {
-    // Set up the number of edges.
-    for (int i = 0; i < M; ++i)
-      adj_graph_set_num_edges(sparsity, i, num_offdiags[i]);
-
-    // Set up edge counters for placing edges in the graph.
-    int* edges[M], edge_counter[M];
-    for (int i = 0; i < M; ++i)
+    // Set up the number of columns in each row.
+    int rpos = 0, r = 0;
+    index_t row;
+    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
-      edges[i] = adj_graph_edges(sparsity, i);
-      edge_counter[i] = 0;
+      matrix_sparsity_set_num_columns(sparsity, row, num_offdiags[r]);
+      ++r;
     }
 
-    // Stick all the edges in.
-    for (int k = 0; k < nz; ++k)
+    // Set up column counters for placing edges in the graph.
+    index_t* columns[M], column_counter[M];
+    for (int i = 0; i < M; ++i)
     {
-      int Ik = I[k], Jk = J[k];
+      columns[i] = matrix_sparsity_columns(sparsity, i);
+      column_counter[i] = 0;
+    }
+
+    // Stick all the columns in.
+    for (index_t k = 0; k < nnz; ++k)
+    {
+      index_t Ik = I[k], Jk = J[k];
       if (Ik != Jk)
       {
-        edges[Ik][edge_counter[Ik]] = Jk;
-        ++edge_counter[Ik];
+        columns[Ik][column_counter[Ik]] = Jk;
+        ++column_counter[Ik];
       }
     }
   }
@@ -636,7 +626,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
 
   // Insert the values into the matrix. This is dumb and slow, but simple.
   // And we've already hit the disk, so it's not a big deal.
-  for (int i = 0; i < nz; ++i)
+  for (int i = 0; i < nnz; ++i)
   {
     index_t num_columns = 1;
     index_t row = I[i];
@@ -652,14 +642,14 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   // Distribute as necessary.
   if (comm != MPI_COMM_SELF)
   {
-    krylov_matrix_t* local_A = redistribute_matrix(factory, global_A, sparsity, comm);
+    krylov_matrix_t* local_A = redistribute_matrix(factory, global_A, sparsity, comm, row_dist);
     krylov_matrix_free(global_A);
-    adj_graph_free(sparsity);
+    matrix_sparsity_free(sparsity);
     return local_A;
   }
   else
   {
-    adj_graph_free(sparsity);
+    matrix_sparsity_free(sparsity);
     return global_A;
   }
 
@@ -673,6 +663,7 @@ error:
 
 krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,  
                                                  MPI_Comm comm,
+                                                 index_t* row_distribution,
                                                  const char* filename)
 {
   FILE* f = fopen(filename, "r");
@@ -686,7 +677,7 @@ krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,
   // Make a guess that the format of the matrix and dispatch as necessary.
   MM_typecode matcode;
   if ((mm_read_banner(f, &matcode) == 0) && (mm_is_valid(matcode)))
-    A = krylov_factory_matrix_from_mm(factory, comm, f);
+    A = krylov_factory_matrix_from_mm(factory, comm, row_distribution, f);
   else
     polymec_error("krylov_factory_matrix_from_file: unsupported format");
 
@@ -894,7 +885,8 @@ real_t krylov_vector_norm(krylov_vector_t* v, int p)
 
 static krylov_vector_t* redistribute_vector(krylov_factory_t* factory, 
                                             krylov_vector_t* global_x, 
-                                            MPI_Comm comm)
+                                            MPI_Comm comm,
+                                            index_t* row_dist)
 {
   ASSERT(comm != MPI_COMM_SELF);
   ASSERT(global_x->local_size == global_x->global_size);
@@ -903,34 +895,26 @@ static krylov_vector_t* redistribute_vector(krylov_factory_t* factory,
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
 
-  // Do a naive partitioning (since we assume a sensible partitioning was 
-  // done to create the row space for the matrix in the first place...)
-  int num_global_rows = global_x->global_size;
-  int num_local_rows = num_global_rows / nprocs;
-  if (rank == (nprocs - 1))
-    num_local_rows = num_global_rows - rank * num_local_rows;
-
   // Create a local representation of the vector.
-  adj_graph_t* graph = adj_graph_new(comm, num_local_rows);
-  krylov_vector_t* local_x = krylov_factory_vector(factory, graph);
-  adj_graph_free(graph);
+  krylov_vector_t* local_x = krylov_factory_vector(factory, comm, row_dist);
+  index_t num_local_rows = row_dist[rank+1] - row_dist[rank];
 
   // Shuttle the values from the global into the local vector.
-  index_t global_rows[num_local_rows], local_rows[num_local_rows];
+  index_t rows[num_local_rows];
   real_t values[num_local_rows];
   for (int i = 0; i < num_local_rows; ++i)
   {
-    local_rows[i] = i;
-    index_t I = rank * num_local_rows + i; // global vertex index
-    global_rows[i] = I;
+    index_t I = row_dist[rank] + i; // global vertex index
+    rows[i] = I;
   }
-  krylov_vector_get_values(global_x, num_local_rows, global_rows, values);
-  krylov_vector_set_values(local_x, num_local_rows, local_rows, values);
+  krylov_vector_get_values(global_x, num_local_rows, rows, values);
+  krylov_vector_set_values(local_x, num_local_rows, rows, values);
   return local_x;
 }
 
 static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
                                                       MPI_Comm comm,
+                                                      index_t* row_dist,
                                                       FILE* f)
 {
   // Rewind the file descriptor in case we've used it.
@@ -974,9 +958,8 @@ static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
 #endif
   }
 
-  adj_graph_t* graph = adj_graph_new(comm, M);
-  krylov_vector_t* global_x = krylov_factory_vector(factory, graph);
-  adj_graph_free(graph);
+  index_t self_row_dist[2] = {0, M};
+  krylov_vector_t* global_x = krylov_factory_vector(factory, MPI_COMM_SELF, self_row_dist);
 
   // Insert the values into the vector. 
   krylov_vector_set_values(global_x, M, rows, values);
@@ -984,7 +967,7 @@ static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
   // Distribute as necessary.
   if (comm != MPI_COMM_SELF)
   {
-    krylov_vector_t* local_x = redistribute_vector(factory, global_x, comm);
+    krylov_vector_t* local_x = redistribute_vector(factory, global_x, comm, row_dist);
     krylov_vector_free(global_x);
     return local_x;
   }
@@ -994,6 +977,7 @@ static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
 
 krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
                                                  MPI_Comm comm,
+                                                 index_t* row_distribution,
                                                  const char* filename)
 {
   // Make sure the file exists.
@@ -1006,7 +990,7 @@ krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
   // Make a guess that the format of the vector and dispatch as necessary.
   MM_typecode matcode;
   if ((mm_read_banner(f, &matcode) == 0) && (mm_is_valid(matcode)))
-    x = krylov_factory_vector_from_mm(factory, comm, f);
+    x = krylov_factory_vector_from_mm(factory, comm, row_distribution, f);
   else
     polymec_error("krylov_factory_vector_from_file: unsupported format");
 
@@ -1050,13 +1034,13 @@ char* krylov_factory_name(krylov_factory_t* factory)
 }
 
 krylov_matrix_t* krylov_factory_matrix(krylov_factory_t* factory, 
-                                       adj_graph_t* sparsity)
+                                       matrix_sparsity_t* sparsity)
 {
   return factory->vtable.matrix(factory->context, sparsity);
 }
 
 krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory, 
-                                             adj_graph_t* sparsity,
+                                             matrix_sparsity_t* sparsity,
                                              int block_size)
 {
   ASSERT(block_size > 0);
@@ -1064,7 +1048,7 @@ krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory,
 }
 
 krylov_matrix_t* krylov_factory_var_block_matrix(krylov_factory_t* factory, 
-                                                 adj_graph_t* sparsity,
+                                                 matrix_sparsity_t* sparsity,
                                                  int* block_sizes)
 {
   ASSERT(block_sizes != NULL);
@@ -1075,9 +1059,10 @@ krylov_matrix_t* krylov_factory_var_block_matrix(krylov_factory_t* factory,
 }
 
 krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
-                                       adj_graph_t* dist_graph)
+                                       MPI_Comm comm,
+                                       index_t* row_distribution)
 {
-  return factory->vtable.vector(factory->context, dist_graph);
+  return factory->vtable.vector(factory->context, comm, row_distribution);
 }
 
 krylov_solver_t* krylov_factory_pcg_solver(krylov_factory_t* factory,

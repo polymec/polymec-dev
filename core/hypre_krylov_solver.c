@@ -960,20 +960,20 @@ static void hypre_matrix_dtor(void* context)
 }
 
 static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
-                                                       adj_graph_t* sparsity,
+                                                       matrix_sparsity_t* sparsity,
                                                        int* block_sizes)
 {
   ASSERT(block_sizes != NULL);
 
   hypre_matrix_t* A = polymec_malloc(sizeof(hypre_matrix_t));
   A->factory = context;
-  A->comm = adj_graph_comm(sparsity);
+  A->comm = matrix_sparsity_comm(sparsity);
   int rank, nprocs;
   MPI_Comm_rank(A->comm, &rank);
   MPI_Comm_size(A->comm, &nprocs);
-  index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
-  A->ilow = vtx_dist[rank];
-  A->ihigh = vtx_dist[rank+1] - 1;
+  index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
+  A->ilow = row_dist[rank];
+  A->ihigh = row_dist[rank+1] - 1;
   HYPRE_MPI_Comm hypre_comm = A->comm;
   A->factory->methods.HYPRE_IJMatrixCreate(hypre_comm, 
                                            A->ilow, A->ihigh, A->ilow, A->ihigh,
@@ -982,32 +982,37 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
 
   // Preallocate non-zero storage.
   HYPRE_Int N_local = 0;
-  for (index_t v = 0; v < vtx_dist[rank+1] - vtx_dist[rank]; ++v)
-    N_local += block_sizes[v];
+  for (index_t r = 0; r < row_dist[rank+1] - row_dist[rank]; ++r)
+    N_local += block_sizes[r];
   if (nprocs == 1)
   {
     HYPRE_Int nnz[N_local];
-    for (int v = 0; v < N_local; ++v)
-      nnz[v] = block_sizes[v] * (HYPRE_Int)(1 + adj_graph_num_edges(sparsity, v/block_sizes[v]));
+    int rpos = 0;
+    index_t row, r = 0;
+    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+    {
+      nnz[r] = block_sizes[r] * matrix_sparsity_num_columns(sparsity, row);
+      ++r;
+    }
     A->factory->methods.HYPRE_IJMatrixSetRowSizes(A->A, nnz);
   }
   else
   {
     HYPRE_Int d_nnz[N_local], o_nnz[N_local];
-    for (int v = 0; v < N_local; ++v)
+    int rpos = 0;
+    index_t row, r = 0;
+    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
-      d_nnz[v] = block_sizes[v]; // Diagonal entry.
-      o_nnz[v] = 0; // Diagonal entry.
-      int num_edges = adj_graph_num_edges(sparsity, v);
-      int* edges = adj_graph_edges(sparsity, v);
-      for (int e = 0; e < num_edges; ++e)
+      int cpos = 0;
+      index_t column;
+      while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
       {
-        int edge = edges[e];
-        if (edge >= N_local)
-          o_nnz[v] += block_sizes[v];
+        if (column >= N_local)
+          o_nnz[r] += block_sizes[r];
         else
-          d_nnz[v] += block_sizes[v];
+          d_nnz[r] += block_sizes[r];
       }
+      ++r;
     }
     A->factory->methods.HYPRE_IJMatrixSetDiagOffdSizes(A->A, d_nnz, o_nnz);
   }
@@ -1018,31 +1023,37 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
   ensure_matrix_initialization(A);
 
   // Set the "non-zero" values to zero initially. This constructs the specific non-zero structure.
-  index_t num_rows = A->ihigh - A->ilow + 1;
-  index_t num_columns[num_rows], rows[num_rows];
-  for (int r = 0; r < num_rows; ++r)
+  index_t nnz = 0;
+  index_t num_columns[N_local], rows[N_local];
+  int rpos = 0;
+  index_t row, r = 0;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
-    rows[r] = A->ilow + r;
-    num_columns[r] = block_sizes[r] * (1 + adj_graph_num_edges(sparsity, r));
+    rows[r] = row;
+    num_columns[r] = block_sizes[r] * matrix_sparsity_num_columns(sparsity, row);
+    nnz += num_columns[r];
+    ++r;
   }
-  int tot_num_values = 0;
-  for (int r = 0; r < num_rows; ++r)
-    tot_num_values += num_columns[r];
 
   index_t col_offset = 0;
-  index_t columns[tot_num_values];
-  for (int r = 0; r < num_rows; ++r)
+  index_t columns[nnz];
+  rpos = 0; 
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
-    columns[col_offset++] = A->ilow + r;
-    int* edges = adj_graph_edges(sparsity, r);
-    for (int c = 0; c < num_columns[r]-1; ++c, ++col_offset)
-      columns[col_offset] = A->ilow + edges[c];
+    columns[col_offset++] = row;
+    int cpos = 0;
+    index_t column;
+    while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
+    {
+      columns[col_offset] = column;
+      ++col_offset;
+    }
   }
-  ASSERT(col_offset == tot_num_values);
+  ASSERT(col_offset == nnz);
 
-  real_t zeros[tot_num_values];
-  memset(zeros, 0, sizeof(real_t) * tot_num_values);
-  hypre_matrix_set_values(A, num_rows, num_columns, rows, columns, zeros);
+  real_t zeros[nnz];
+  memset(zeros, 0, sizeof(real_t) * nnz);
+  hypre_matrix_set_values(A, N_local, num_columns, rows, columns, zeros);
 
   ensure_matrix_assembly(A);
 
@@ -1063,23 +1074,19 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
 }
 
 static krylov_matrix_t* hypre_factory_block_matrix(void* context,
-                                                   adj_graph_t* sparsity,
+                                                   matrix_sparsity_t* sparsity,
                                                    int block_size)
 {
   ASSERT(block_size >= 1);
-  MPI_Comm comm = adj_graph_comm(sparsity);
-  index_t* vtx_dist = adj_graph_vertex_dist(sparsity);
-  int rank;
-  MPI_Comm_rank(comm, &rank);
-  int N = vtx_dist[rank+1] - vtx_dist[rank];
-  int block_sizes[N];
-  for (int i = 0; i < N; ++i)
+  index_t N_local = matrix_sparsity_num_local_rows(sparsity);
+  int block_sizes[N_local];
+  for (int i = 0; i < N_local; ++i)
     block_sizes[i] = block_size;
   return hypre_factory_var_block_matrix(context, sparsity, block_sizes);
 }
 
 static krylov_matrix_t* hypre_factory_matrix(void* context,
-                                             adj_graph_t* sparsity)
+                                             matrix_sparsity_t* sparsity)
 {
   return hypre_factory_block_matrix(context, sparsity, 1);
 }
@@ -1290,17 +1297,17 @@ static void hypre_vector_dtor(void* context)
 }
 
 static krylov_vector_t* hypre_factory_vector(void* context,
-                                             adj_graph_t* dist_graph)
+                                             MPI_Comm comm,
+                                             index_t* row_dist)
 {
   hypre_vector_t* v = polymec_malloc(sizeof(hypre_vector_t));
   v->factory = context;
-  v->comm = adj_graph_comm(dist_graph);
+  v->comm = comm;
   int rank, nprocs;
-  MPI_Comm_rank(v->comm, &rank);
-  MPI_Comm_size(v->comm, &nprocs);
-  index_t* vtx_dist = adj_graph_vertex_dist(dist_graph);
-  v->ilow = vtx_dist[rank];
-  v->ihigh = vtx_dist[rank+1]-1;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &nprocs);
+  v->ilow = row_dist[rank];
+  v->ihigh = row_dist[rank+1]-1;
   HYPRE_MPI_Comm hypre_comm = v->comm;
   v->factory->methods.HYPRE_IJVectorCreate(hypre_comm, v->ilow, v->ihigh, &v->v);
   v->factory->methods.HYPRE_IJVectorSetObjectType(v->v, HYPRE_PARCSR);
@@ -1322,7 +1329,7 @@ static krylov_vector_t* hypre_factory_vector(void* context,
                                  .get_values = hypre_vector_get_values,
                                  .norm = hypre_vector_norm,
                                  .dtor = hypre_vector_dtor};
-  return krylov_vector_new(v, vtable, vtx_dist[rank+1]-vtx_dist[rank], vtx_dist[nprocs]);
+  return krylov_vector_new(v, vtable, row_dist[rank+1]-row_dist[rank], row_dist[nprocs]);
 }
 
 static void hypre_factory_dtor(void* context)

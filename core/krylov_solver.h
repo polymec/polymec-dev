@@ -9,7 +9,7 @@
 #define POLYMEC_KRYLOV_SOLVER_H
 
 #include "core/polymec.h"
-#include "core/adj_graph.h"
+#include "core/matrix_sparsity.h"
 #include "core/unordered_map.h"
 
 // The Krylov solver interface is an abstract interface that can be used with 
@@ -30,10 +30,10 @@ typedef struct krylov_solver_t krylov_solver_t;
 // Objects of this type are preconditioners for the krylov_solvers.
 typedef struct krylov_pc_t krylov_pc_t;
 
-// Objects of this type construct Krylov matrices, vectors, and solvers. 
-// A Krylov factory exposes capabilities within a given library (PETSc, HYPRE, 
-// etc). The factory must continue to exist as long as any of the solvers, 
-// matrices, and vectors it has created.
+// Objects of this type construct Krylov matrices, vectors, solvers, and preconditioners.
+// A Krylov factory exposes capabilities within a given library (PETSc, HYPRE, etc). The 
+// factory must continue to exist as long as any of the solvers, matrices, and vectors it 
+// has created.
 typedef struct krylov_factory_t krylov_factory_t;
 
 //------------------------------------------------------------------------
@@ -48,10 +48,10 @@ typedef struct
   krylov_solver_t* (*bicgstab_solver)(void* context, MPI_Comm comm);
   krylov_solver_t* (*special_solver)(void* context, MPI_Comm comm, const char* solver_name, string_string_unordered_map_t* options);
   krylov_pc_t* (*preconditioner)(void* context, MPI_Comm comm, const char* pc_name, string_string_unordered_map_t* options);
-  krylov_matrix_t* (*matrix)(void* context, adj_graph_t* sparsity);
-  krylov_matrix_t* (*block_matrix)(void* context, adj_graph_t* sparsity, int block_size);
-  krylov_matrix_t* (*var_block_matrix)(void* context, adj_graph_t* sparsity, int* block_sizes);
-  krylov_vector_t* (*vector)(void* context, adj_graph_t* dist_graph);
+  krylov_matrix_t* (*matrix)(void* context, matrix_sparsity_t* sparsity);
+  krylov_matrix_t* (*block_matrix)(void* context, matrix_sparsity_t* sparsity, int block_size);
+  krylov_matrix_t* (*var_block_matrix)(void* context, matrix_sparsity_t* sparsity, int* block_sizes);
+  krylov_vector_t* (*vector)(void* context, MPI_Comm comm, index_t* row_dist);
   void (*dtor)(void* context);
 } krylov_factory_vtable;
 
@@ -182,40 +182,47 @@ char* krylov_factory_name(krylov_factory_t* factory);
 // Constructs a (square) Krylov sparse matrix with the sparsity pattern given 
 // by an adjacency graph.
 krylov_matrix_t* krylov_factory_matrix(krylov_factory_t* factory, 
-                                       adj_graph_t* sparsity);
+                                       matrix_sparsity_t* sparsity);
 
 // Constructs a (square) Krylov sparse block matrix with the sparsity pattern 
 // given by an adjacency graph, and the given block size.
 krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory, 
-                                             adj_graph_t* sparsity,
+                                             matrix_sparsity_t* sparsity,
                                              int block_size);
 
 // Constructs a (square) Krylov sparse block matrix with the sparsity pattern 
 // given by an adjacency graph, and different block sizes for each row.
 krylov_matrix_t* krylov_factory_var_block_matrix(krylov_factory_t* factory, 
-                                                 adj_graph_t* sparsity,
+                                                 matrix_sparsity_t* sparsity,
                                                  int* block_sizes);
 
 // Reads a matrix into memory from the given file (assuming it is the 
 // in a supported file format), distributing it over the processes
-// in the given communicator. Only the Matrix Market file format is 
-// currently supported.
+// in the given communicator in a manner dictated by the given 
+// row_distribution array (described above). Only the Matrix Market file 
+// format is currently supported.
 krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,
                                                  MPI_Comm comm,
+                                                 index_t* row_distribution,
                                                  const char* filename);
 
 // Constructs a vector on the given communicator with its local and global 
-// dimensions defined by the given distributed graph. This graph is typically 
-// the same as the sparsity graph passed to a corresponding matrix.
+// dimensions defined by the given row distribution array (which is 
+// nprocs + 1 in length). row_distribution[p] gives the global index of the 
+// first row stored on process p, and the number of rows local to that 
+// process is given by row_distribution[p+1] - row_distribution[p].
 krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
-                                       adj_graph_t* dist_graph);
+                                       MPI_Comm comm,
+                                       index_t* row_distribution);
 
 // Reads a vector into memory from the given file (assuming it is the 
 // in a supported file format), distributing it over the processes
-// in the given communicator. Only the Matrix Market file format is 
-// currently supported.
+// in the given communicator in a manner dictated by the given 
+// row_distribution array (described above). Only the Matrix Market file 
+// format is currently supported.
 krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
                                                  MPI_Comm comm,
+                                                 index_t* row_distribution,
                                                  const char* filename);
 
 // Constructs a preconditioned conjugate gradient (PCG) Krylov solver. Keep in 
