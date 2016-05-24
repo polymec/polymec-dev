@@ -48,12 +48,45 @@ matrix_sparsity_t* matrix_sparsity_new(MPI_Comm comm,
 matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
                                               exchanger_t* ex)
 {
+  MPI_Comm comm = adj_graph_comm(graph);
+  index_t* row_dist = adj_graph_vertex_dist(graph);
+  matrix_sparsity_t* sparsity = matrix_sparsity_new(comm, row_dist);
+
+  // Create off-diagonal columns for each of the graph's edges.
+  int rpos = 0, v = 0;
+  index_t row;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+  {
+    // Set the number of columns.
+    int ne = adj_graph_num_edges(graph, v);
+    matrix_sparsity_set_num_columns(sparsity, row, (index_t)(ne + 1));
+
+    // Now add the edges.
+    index_t* columns = matrix_sparsity_columns(sparsity, row);
+    int epos = 0, e = 0, v1;
+    while (adj_graph_next_edge(graph, v, &epos, &v1))
+    {
+      columns[e] = row_dist[sparsity->rank] + v1;
+      ++e;
+    }
+  }
+
+  // Now correct the off-process column indices with the exchanger.
+  if (sparsity->nproc > 1)
+  {
+    POLYMEC_NOT_IMPLEMENTED
+  }
+
+  return sparsity;
 }
 
 matrix_sparsity_t* redistributed_matrix_sparsity(matrix_sparsity_t* sparsity,
                                                  MPI_Comm comm,
                                                  index_t* row_distribution)
 {
+  matrix_sparsity_t* sparsity1 = matrix_sparsity_new(comm, row_distribution);
+  POLYMEC_NOT_IMPLEMENTED
+  return sparsity1;
 }
 
 void matrix_sparsity_free(matrix_sparsity_t* sparsity)

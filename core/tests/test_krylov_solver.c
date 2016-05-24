@@ -15,78 +15,50 @@
 #include "core/file_utils.h"
 #include "core/krylov_solver.h"
 
-// This helper creates a distributed graph for a 1D finite difference 
+// This helper creates a sparsity pattern for a 1D finite difference 
 // discretization of the Laplacian operator.
-static adj_graph_t* create_1d_laplacian_graph(MPI_Comm comm, int N_local)
+static matrix_sparsity_t* create_1d_laplacian_sparsity(MPI_Comm comm, int N_local)
 {
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
 
-  adj_graph_t* graph = adj_graph_new(comm, N_local);
+  index_t row_dist[nprocs+1];
+  row_dist[0] = 0;
+  for (int p = 0; p < nprocs; ++p)
+    row_dist[p+1] = row_dist[p] + N_local;
+  matrix_sparsity_t* sparsity = matrix_sparsity_new(comm, row_dist);
+  index_t N_global = matrix_sparsity_num_global_rows(sparsity);
 
-  if (nprocs == 1)
+  int rpos = 0;
+  index_t row;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
-    // Set interior edges.
-    for (int i = 1; i < N_local-1; ++i)
+    if (row == 0)
     {
-      adj_graph_set_num_edges(graph, i, 2);
-      int* edges = adj_graph_edges(graph, i);
-      edges[0] = i-1;
-      edges[1] = i+1;
+      matrix_sparsity_set_num_columns(sparsity, row, 2);
+      index_t* cols = matrix_sparsity_columns(sparsity, row);
+      cols[0] = row;
+      cols[1] = row+1;
     }
-
-    // Set boundary edges.
-    adj_graph_set_num_edges(graph, 0, 1);
-    int* edges = adj_graph_edges(graph, 0);
-    edges[0] = 1;
-
-    adj_graph_set_num_edges(graph, N_local-1, 1);
-    edges = adj_graph_edges(graph, N_local-1);
-    edges[0] = N_local-2;
-  }
-  else
-  {
-    // Set interior edges.
-    for (int i = 1; i < N_local-1; ++i)
+    else if (row == (N_global-1))
     {
-      adj_graph_set_num_edges(graph, i, 2);
-      int* edges = adj_graph_edges(graph, i);
-      edges[0] = i-1;
-      edges[1] = i+1;
-    }
-
-    // Set boundary edges.
-    if (rank == 0)
-    {
-      adj_graph_set_num_edges(graph, 0, 1);
-      int* edges = adj_graph_edges(graph, 0);
-      edges[0] = 1;
+      matrix_sparsity_set_num_columns(sparsity, row, 2);
+      index_t* cols = matrix_sparsity_columns(sparsity, row);
+      cols[0] = row-1;
+      cols[1] = row;
     }
     else
     {
-      adj_graph_set_num_edges(graph, 0, 2);
-      int* edges = adj_graph_edges(graph, 0);
-      edges[0] = N_local;
-      edges[1] = 1;
-    }
-
-    if (rank == (nprocs - 1))
-    {
-      adj_graph_set_num_edges(graph, N_local-1, 1);
-      int* edges = adj_graph_edges(graph, N_local-1);
-      edges[0] = N_local-2;
-    }
-    else
-    {
-      adj_graph_set_num_edges(graph, 0, 2);
-      int* edges = adj_graph_edges(graph, 0);
-      edges[0] = N_local-2;
-      edges[1] = N_local+1;
+      matrix_sparsity_set_num_columns(sparsity, row, 3);
+      index_t* cols = matrix_sparsity_columns(sparsity, row);
+      cols[0] = row-1;
+      cols[1] = row;
+      cols[2] = row+1;
     }
   }
 
-  return graph;
+  return sparsity;
 }
 
 #if POLYMEC_HAVE_SHARED_LIBS
@@ -158,11 +130,11 @@ static void test_krylov_matrix(void** state, krylov_factory_t* factory)
   {
     MPI_Comm comm = MPI_COMM_WORLD;
 
-    // Create a distributed graph with 1000 local vertices.
-    adj_graph_t* graph = create_1d_laplacian_graph(comm, 1000);
+    // Create a sparsity pattern with 1000 local rows.
+    matrix_sparsity_t* sparsity = create_1d_laplacian_sparsity(comm, 1000);
 
-    // Create a matrix for this graph.
-    krylov_matrix_t* mat = krylov_factory_matrix(factory, graph);
+    // Create a matrix.
+    krylov_matrix_t* mat = krylov_factory_matrix(factory, sparsity);
     assert_int_equal(1000, krylov_matrix_num_local_rows(mat));
     int nprocs;
     MPI_Comm_size(comm, &nprocs);
@@ -176,7 +148,7 @@ static void test_krylov_matrix(void** state, krylov_factory_t* factory)
     krylov_matrix_free(mat);
     krylov_matrix_free(mat1);
     krylov_factory_free(factory);
-    adj_graph_free(graph);
+    matrix_sparsity_free(sparsity);
   }
 }
 
@@ -225,15 +197,17 @@ static void test_krylov_vector(void** state, krylov_factory_t* factory)
   if (factory != NULL)
   {
     MPI_Comm comm = MPI_COMM_WORLD;
-
-    // Create a distributed graph with 1000 local vertices.
-    adj_graph_t* graph = create_1d_laplacian_graph(comm, 1000);
-
-    // Create a vector for this graph.
-    krylov_vector_t* vec = krylov_factory_vector(factory, graph);
-    assert_int_equal(1000, krylov_vector_local_size(vec));
     int nprocs;
     MPI_Comm_size(comm, &nprocs);
+
+    // Create a vector with 1000 rows per process.
+    index_t N_local = 1000;
+    index_t row_dist[nprocs+1];
+    row_dist[0] = 0;
+    for (int p = 0; p < nprocs; ++p)
+      row_dist[p+1] = row_dist[p] + N_local;
+    krylov_vector_t* vec = krylov_factory_vector(factory, comm, row_dist);
+    assert_int_equal(1000, krylov_vector_local_size(vec));
     assert_int_equal(1000*nprocs, krylov_vector_global_size(vec));
 
     // Clone it.
@@ -244,7 +218,6 @@ static void test_krylov_vector(void** state, krylov_factory_t* factory)
     krylov_vector_free(vec);
     krylov_vector_free(vec1);
     krylov_factory_free(factory);
-    adj_graph_free(graph);
   }
 }
 
@@ -329,58 +302,54 @@ static void test_1d_laplace_eqn(void** state,
     MPI_Comm_size(comm, &nprocs);
     MPI_Comm_rank(comm, &rank);
 
-    // Create a distributed graph with 100 local vertices.
+    // Create a distributed matrix with 100 rows per process.
     int N = 100;
-    real_t h = 1.0 / N;
-    adj_graph_t* graph = create_1d_laplacian_graph(comm, N);
-    index_t* vtx_dist = adj_graph_vertex_dist(graph);
-
-    // Create a 1D Laplacian operator from the graph.
-    krylov_matrix_t* A = krylov_factory_matrix(factory, graph);
-    real_t Aij[3];
-    index_t rows[3], cols[3], num_cols;
-
-    int i_start = 0, i_end = 0;
-    if (rank == 0)
-    {
-      i_start = 1;
-      num_cols = 2; 
-      rows[0] = 0, cols[0] = 0, Aij[0] = -2.0;
-                   cols[1] = 1, Aij[1] = 1.0;
-      krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
-    }
-    if (rank == (nprocs-1))
-    {
-      int M = N*(rank+1);
-      i_end = 1;
-      num_cols = 2;
-      rows[0] = M-1, cols[0] = M-2, Aij[0] = 1.0;
-                     cols[1] = M-1, Aij[1] = -2.0;
-      krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
-    }
-    for (int i = vtx_dist[rank] + i_start; i < vtx_dist[rank+1] - 1 - i_end; ++i)
-    {
-      num_cols = 3;
-      rows[0] = i, cols[0] = i-1, Aij[0] = 1.0;
-      rows[1] = i, cols[1] = i,   Aij[1] = -2.0;
-      rows[2] = i, cols[2] = i+1, Aij[2] = 1.0;
-      krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
-    }
-
-    krylov_matrix_scale(A, 1.0/(h*h));
+    matrix_sparsity_t* sparsity = create_1d_laplacian_sparsity(comm, N);
+    index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
+    index_t N_global = matrix_sparsity_num_global_rows(sparsity);
+    krylov_matrix_t* A = krylov_factory_matrix(factory, sparsity);
 
     // Create a RHS vector.
-    krylov_vector_t* b = krylov_factory_vector(factory, graph);
-    if (rank == (nprocs-1))
+    krylov_vector_t* b = krylov_factory_vector(factory, comm, row_dist);
+
+    // Construct the 1D Laplacian operator and RHS.
+    real_t h = 1.0 / N;
+    int rpos = 0;
+    index_t row;
+    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
-      real_t bi[2];
-      rows[0] = 0, bi[0] = 0.0;
-      rows[1] = vtx_dist[nprocs]-1, bi[1] = -1.0/(h*h);
-      krylov_vector_set_values(b, 2, rows, bi);
+      real_t Aij[3], bi[1];
+      index_t rows[3], cols[3], num_cols;
+      if (row == 0)
+      {
+        num_cols = 2; 
+        rows[0] = 0, cols[0] = 0, Aij[0] = -2.0;
+                     cols[1] = 1, Aij[1] = 1.0;
+        krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+      }
+      else if (row == (N_global-1))
+      {
+        num_cols = 2;
+        rows[0] = row, cols[0] = row-1, Aij[0] = 1.0;
+                       cols[1] = row,   Aij[1] = -2.0;
+        krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+        bi[0] = 1.0;
+        krylov_vector_set_values(b, 1, &row, bi);
+      }
+      else
+      {
+        num_cols = 3;
+        rows[0] = row, cols[0] = row-1, Aij[0] = 1.0;
+        rows[1] = row, cols[1] = row,   Aij[1] = -2.0;
+        rows[2] = row, cols[2] = row+1, Aij[2] = 1.0;
+        krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+      }
     }
+    krylov_matrix_scale(A, 1.0/(h*h));
+    krylov_vector_scale(b, 1.0/(h*h));
 
     // Create a solution vector.
-    krylov_vector_t* x = krylov_factory_vector(factory, graph);
+    krylov_vector_t* x = krylov_factory_vector(factory, comm, row_dist);
 
     // Create a solver.
     krylov_solver_t* solver;
@@ -644,8 +613,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-#if 0
     cmocka_unit_test(test_lis_krylov_factory),
+#if 0
     cmocka_unit_test(test_lis_krylov_matrix),
     cmocka_unit_test(test_lis_krylov_matrix_from_file),
     cmocka_unit_test(test_lis_krylov_vector),
@@ -654,11 +623,9 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_gmres_1d_laplace_eqn),
     cmocka_unit_test(test_lis_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_lis_sherman1),
-#endif
 #if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),
     cmocka_unit_test(test_petsc_krylov_matrix),
-#if 0
     cmocka_unit_test(test_petsc_krylov_matrix_from_file),
     cmocka_unit_test(test_petsc_krylov_vector),
     cmocka_unit_test(test_petsc_krylov_vector_from_file),

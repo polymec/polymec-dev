@@ -198,12 +198,10 @@ krylov_matrix_t* krylov_factory_var_block_matrix(krylov_factory_t* factory,
 
 // Reads a matrix into memory from the given file (assuming it is the 
 // in a supported file format), distributing it over the processes
-// in the given communicator in a manner dictated by the given 
-// row_distribution array (described above). Only the Matrix Market file 
-// format is currently supported.
+// in the given communicator using a naive partitioning. Only the Matrix Market 
+// file format is currently supported.
 krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,
                                                  MPI_Comm comm,
-                                                 index_t* row_distribution,
                                                  const char* filename);
 
 // Constructs a vector on the given communicator with its local and global 
@@ -217,12 +215,10 @@ krylov_vector_t* krylov_factory_vector(krylov_factory_t* factory,
 
 // Reads a vector into memory from the given file (assuming it is the 
 // in a supported file format), distributing it over the processes
-// in the given communicator in a manner dictated by the given 
-// row_distribution array (described above). Only the Matrix Market file 
-// format is currently supported.
+// in the given communicator using a naive partitioning. Only the Matrix Market 
+// file format is currently supported.
 krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
                                                  MPI_Comm comm,
-                                                 index_t* row_distribution,
                                                  const char* filename);
 
 // Constructs a preconditioned conjugate gradient (PCG) Krylov solver. Keep in 

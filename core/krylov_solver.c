@@ -534,7 +534,6 @@ static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory,
 
 static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
                                                       MPI_Comm comm,
-                                                      index_t* row_dist,
                                                       FILE* f)
 {
   // Rewind the file descriptor in case we've used it.
@@ -562,6 +561,18 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   index_t M, N, nnz;
   if (mm_read_mtx_crd_size(f, &M, &N, &nnz) != 0)
     polymec_error("krylov_factory_matrix_from_mm: error reading matrix size.");
+
+  if (M != N)
+    polymec_error("krylov_factory_matrix_from_mm: only square matrices are supported.");
+
+  // Dream up a naive partitioning.
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+  index_t row_dist[nprocs+1];
+  row_dist[0] = 0;
+  for (int p = 0; p < nprocs-1; ++p)
+    row_dist[p+1] = row_dist[p] + (int)(1.0*M/nprocs);
+  row_dist[nprocs] = M;
 
   // Retrieve the values into arrays.
   index_t* I = polymec_malloc(nnz * sizeof(index_t));
@@ -663,7 +674,6 @@ error:
 
 krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,  
                                                  MPI_Comm comm,
-                                                 index_t* row_distribution,
                                                  const char* filename)
 {
   FILE* f = fopen(filename, "r");
@@ -677,7 +687,7 @@ krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,
   // Make a guess that the format of the matrix and dispatch as necessary.
   MM_typecode matcode;
   if ((mm_read_banner(f, &matcode) == 0) && (mm_is_valid(matcode)))
-    A = krylov_factory_matrix_from_mm(factory, comm, row_distribution, f);
+    A = krylov_factory_matrix_from_mm(factory, comm, f);
   else
     polymec_error("krylov_factory_matrix_from_file: unsupported format");
 
@@ -914,7 +924,6 @@ static krylov_vector_t* redistribute_vector(krylov_factory_t* factory,
 
 static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
                                                       MPI_Comm comm,
-                                                      index_t* row_dist,
                                                       FILE* f)
 {
   // Rewind the file descriptor in case we've used it.
@@ -944,6 +953,15 @@ static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
     polymec_error("krylov_factory_vector_from_mm: error reading vector size.");
   if (N != 1)
     polymec_error("krylov_factory_vector_from_mm: cannot create vector from %dx%d matrix.");
+
+  // Dream up a naive partitioning.
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+  index_t row_dist[nprocs+1];
+  row_dist[0] = 0;
+  for (int p = 0; p < nprocs-1; ++p)
+    row_dist[p+1] = row_dist[p] + (int)(1.0*M/nprocs);
+  row_dist[nprocs] = M;
 
   // Retrieve the values into an array.
   index_t rows[M];
@@ -977,7 +995,6 @@ static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
 
 krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
                                                  MPI_Comm comm,
-                                                 index_t* row_distribution,
                                                  const char* filename)
 {
   // Make sure the file exists.
@@ -990,7 +1007,7 @@ krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
   // Make a guess that the format of the vector and dispatch as necessary.
   MM_typecode matcode;
   if ((mm_read_banner(f, &matcode) == 0) && (mm_is_valid(matcode)))
-    x = krylov_factory_vector_from_mm(factory, comm, row_distribution, f);
+    x = krylov_factory_vector_from_mm(factory, comm, f);
   else
     polymec_error("krylov_factory_vector_from_file: unsupported format");
 
