@@ -118,13 +118,10 @@ static bool lis_solver_solve(void* context,
         log_debug("krylov_solver_solve (LIS): max # of iterations exceeded");
     }
   }
-  if (solved)
-  {
-    lis_solver_get_residualnorm(solver->solver, res_norm);
-    LIS_INT niters;
-    lis_solver_get_iter(solver->solver, &niters);
-    *num_iters = (int)niters;
-  }
+  lis_solver_get_residualnorm(solver->solver, res_norm);
+  LIS_INT niters;
+  lis_solver_get_iter(solver->solver, &niters);
+  *num_iters = (int)niters;
   return solved;
 }
 
