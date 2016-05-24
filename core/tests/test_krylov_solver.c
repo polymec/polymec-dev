@@ -365,7 +365,7 @@ static void test_1d_laplace_eqn(void** state,
 
 index_t I[N];
 for (int i = 0; i < N; ++i)
-  I[i] = (index_t)i;
+  I[i] = 100*rank + i;
 real_t bb[N];
 krylov_vector_get_values(b, N, I, bb);
 printf("b = [");
