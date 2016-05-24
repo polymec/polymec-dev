@@ -46,7 +46,7 @@ const char* MATSAME = "same";
 #define PETSC_DETERMINE PETSC_DECIDE
 typedef struct
 {
-  PetscErrorCode (*PetscInitialize)(int*, char***, const char[], const char[]);
+  PetscErrorCode (*PetscInitializeNoArguments)();
   PetscErrorCode (*PetscInitialized)(PetscBool*);
   PetscErrorCode (*PetscFinalize)();
   PetscErrorCode (*PetscPushErrorHandler)(PetscErrorCode (*handler)(MPI_Comm comm, int, const char*, const char*, PetscErrorCode, int, const char*, void*), void*);
@@ -974,7 +974,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
 #define FETCH_PETSC_SYMBOL(symbol_name) \
   FETCH_SYMBOL(petsc, #symbol_name, factory->methods.symbol_name, failure);
 
-  FETCH_PETSC_SYMBOL(PetscInitialize);
+  FETCH_PETSC_SYMBOL(PetscInitializeNoArguments);
   FETCH_PETSC_SYMBOL(PetscInitialized);
   FETCH_PETSC_SYMBOL(PetscFinalize);
   FETCH_PETSC_SYMBOL(PetscPushErrorHandler);
@@ -1048,21 +1048,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   if (initialized == PETSC_FALSE)
   {
     log_debug("petsc_krylov_factory: Initializing PETSc.");
-
-    // Build a copy of our list of command line arguments.
-    options_t* opts = options_argv();
-    int argc = options_num_arguments(opts);
-    char** argv = polymec_malloc(sizeof(char*));
-    for (int i = 0; i < argc; ++i)
-      argv[i] = string_dup(options_argument(opts, i));
-
-    // Feed them into PETSc.
-    factory->methods.PetscInitialize(&argc, &argv, NULL, NULL);
-
-    // Clean up.
-    for (int i = 0; i < argc; ++i)
-      polymec_free(argv[i]);
-    polymec_free(argv);
+    factory->methods.PetscInitializeNoArguments();
 
     // Since we are the first to use this PETSc library, we must finalize it.
     factory->finalize_petsc = true;
