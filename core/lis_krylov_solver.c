@@ -508,6 +508,9 @@ static void matrix_set_values_csr(void* context, index_t num_rows,
   LIS_INT start, finish;
   lis_matrix_get_range(mat->A, &start, &finish);
 
+int rank;
+MPI_Comm_rank(mat->comm, &rank);
+printf("%d: range is (%d, %d)\n", rank, start, finish);
   int k = 0;
   for (int i = 0; i < num_rows; ++i)
   {
@@ -516,7 +519,7 @@ static void matrix_set_values_csr(void* context, index_t num_rows,
 
     if ((row < (index_t)start) || (row >= (index_t)finish)) continue; // skip off-proc rows.
     LIS_INT row_offset = mat->ptr[row-start];
-    LIS_INT* col_start = &mat->index[row_offset];
+    LIS_INT* col_start = &(mat->index[row_offset]);
     LIS_INT ncol = mat->ptr[row+1-start] - row_offset;
 
     for (index_t j = 0; j < num_cols; ++j, ++k)
@@ -524,9 +527,16 @@ static void matrix_set_values_csr(void* context, index_t num_rows,
       // The columns are stored in our matrix in sorted order, 
       // so we can use a binary search to find the location of this one.
       index_t column = columns[k];
+printf("%d: Trying to set (%d, %d)...\n", rank, row, column);
+printf("%d: row %d offset is %d\n", rank, row, row_offset);
+printf("%d: row %d is [", rank, row);
+for (int i = 0; i < ncol; ++i)
+printf("%d ", col_start[i]);
+printf("]\n");
       LIS_INT* col_ptr = (LIS_INT*)index_bsearch((index_t*)col_start, (int)ncol, column);
       if (col_ptr == NULL) continue; // Column not found -- skip it.
       mat->values[row_offset+(col_ptr-col_start)] = values[k];
+printf("%d: (%d, %d) -> %g\n", rank, row, column, values[k]);
     }
   }
   matrix_set(mat);
@@ -612,6 +622,30 @@ static void matrix_get_values_csr(void* context, index_t num_rows,
     }
   }
 }
+
+static void matrix_fprintf_csr(void* context, FILE* stream)
+{
+  lis_matrix_t* mat = context;
+  ensure_matrix_assembly(mat);
+
+  LIS_INT N_local, N_global, is, ie;
+  lis_matrix_get_size(mat->A, &N_local, &N_global);
+  lis_matrix_get_range(mat->A, &is, &ie);
+  fprintf(stream, "Matrix (%" PRId64 "/%" PRId64 " rows locally):\n", N_local, N_global);
+
+  for (LIS_INT r = 0; r < N_local; ++r)
+  {
+    LIS_INT row_offset = mat->ptr[r];
+    LIS_INT row = is+r;
+    for (LIS_INT c = row_offset; c < mat->ptr[r+1]; ++c)
+    {
+      LIS_INT col = mat->index[c];
+      real_t val = mat->values[c];
+      fprintf(stream, "(%" PRId64 ", %" PRId64 "): %g\n", row, col, val);
+    }
+  }
+}
+
 
 static void matrix_set_values_bsr(void* context, index_t num_rows,
                                   index_t* num_columns, index_t* rows, index_t* columns,
@@ -752,7 +786,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
 
     // Sort this row.
     size_t nc = k - mat->ptr[r];
-    index_qsort((index_t*)(&mat->index[mat->ptr[r]]), nc);
+    index_qsort((index_t*)(&(mat->index[mat->ptr[r]])), nc);
     ++r;
   }
   ASSERT(k == mat->nnz);
@@ -772,6 +806,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
                                  .set_values = matrix_set_values_csr,
                                  .add_values = matrix_add_values_csr,
                                  .get_values = matrix_get_values_csr,
+                                 .fprintf = matrix_fprintf_csr,
                                  .dtor = matrix_dtor};
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
 }
@@ -974,6 +1009,23 @@ static real_t vector_norm(void* context, int p)
   return norm;
 }
 
+static void vec_fprintf(void* context, FILE* stream)
+{
+  LIS_VECTOR v = context;
+  LIS_INT N_local, N_global, is, ie;
+  lis_vector_get_size(v, &N_local, &N_global);
+  lis_vector_get_range(v, &is, &ie);
+  fprintf(stream, "Vector (%" PRId64 "/%" PRId64 " rows locally):\n", N_local, N_global);
+
+  index_t I[N_local];
+  real_t values[N_local];
+  for (LIS_INT i = is; i < ie; ++i)
+    I[i-is] = i;
+  vector_get_values(v, N_local, I, values);
+  for (LIS_INT i = is; i < ie; ++i)
+    fprintf(stream, "%" PRId64 ": %g\n", i, values[i-is]);
+}
+
 static void vector_dtor(void* context)
 {
   LIS_VECTOR v = context;
@@ -1004,6 +1056,7 @@ static krylov_vector_t* lis_factory_vector(void* context,
                                  .add_values = vector_add_values,
                                  .get_values = vector_get_values,
                                  .norm = vector_norm,
+                                 .fprintf = vec_fprintf,
                                  .dtor = vector_dtor};
   return krylov_vector_new(v, vtable, N_local, N_global);
 }

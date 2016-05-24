@@ -320,6 +320,7 @@ static void test_1d_laplace_eqn(void** state,
     {
       real_t Aij[3], bi[1];
       index_t rows[3], cols[3], num_cols;
+printf("%d: setting up row %d\n", rank, row);
       if (row == 0)
       {
         num_cols = 2; 
@@ -347,6 +348,8 @@ static void test_1d_laplace_eqn(void** state,
     }
     krylov_matrix_scale(A, 1.0/(h*h));
     krylov_vector_scale(b, 1.0/(h*h));
+krylov_matrix_fprintf(A, stdout);
+krylov_vector_fprintf(b, stdout);
 
     // Create a solution vector.
     krylov_vector_t* x = krylov_factory_vector(factory, comm, row_dist);

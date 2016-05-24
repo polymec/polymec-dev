@@ -788,6 +788,13 @@ void krylov_matrix_get_values(krylov_matrix_t* A,
   A->vtable.get_values(A->context, num_rows, num_columns, rows, columns, values);
 }
 
+void krylov_matrix_fprintf(krylov_matrix_t* A,
+                           FILE* stream)
+{
+  if ((A->vtable.fprintf != NULL) && (stream != NULL))
+    A->vtable.fprintf(A->context, stream);
+}
+
 //------------------------------------------------------------------------
 //                          Krylov vector
 //------------------------------------------------------------------------
@@ -890,6 +897,13 @@ real_t krylov_vector_norm(krylov_vector_t* v, int p)
 {
   ASSERT((p == 0) || (p == 1) || (p == 2));
   return v->vtable.norm(v->context, p);
+}
+
+void krylov_vector_fprintf(krylov_vector_t* v,
+                           FILE* stream)
+{
+  if ((v->vtable.fprintf != NULL) && (stream != NULL))
+    v->vtable.fprintf(v->context, stream);
 }
 
 static void distribute_vector(krylov_factory_t* factory, 

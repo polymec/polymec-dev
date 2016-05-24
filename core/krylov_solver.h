@@ -103,6 +103,7 @@ typedef struct
   void (*set_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*add_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*get_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
+  void (*fprintf)(void* context, FILE* stream);
   void (*dtor)(void* context);
 } krylov_matrix_vtable;
 
@@ -125,6 +126,7 @@ typedef struct
   void (*add_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*get_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   real_t (*norm)(void* context, int p);
+  void (*fprintf)(void* context, FILE* stream);
   void (*dtor)(void* context);
 } krylov_vector_vtable;
 
@@ -398,6 +400,11 @@ void krylov_matrix_get_values(krylov_matrix_t* A,
                               index_t* rows, index_t* columns,
                               real_t* values);
 
+// Writes a text representation of the matrix (or portion stored on the local
+// MPI process) to the given stream.
+void krylov_matrix_fprintf(krylov_matrix_t* A,
+                           FILE* stream);
+
 //------------------------------------------------------------------------
 //                      Krylov vector interface
 //------------------------------------------------------------------------
@@ -456,5 +463,10 @@ void krylov_vector_get_values(krylov_vector_t* v,
 // 0 (infinity/max norm), 1, or 2.
 real_t krylov_vector_norm(krylov_vector_t* v, int p);
  
+// Writes a text representation of the vector (or portion stored on the local
+// MPI process) to the given stream.
+void krylov_vector_fprintf(krylov_vector_t* v,
+                           FILE* stream);
+
 #endif
 
