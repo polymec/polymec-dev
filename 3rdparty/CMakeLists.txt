@@ -339,7 +339,7 @@ set(POLYMEC_TP_LIBS ${SILO_LIBRARIES};${POLYMEC_TP_LIBS})
 
 # Build LIS, a linear iterative solver library that allows us to bundle a 
 # built-in Krylov solver without a YUGE library like PETSc or HYPRE.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis.a)
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis${LIB_SUFFIX})
   if (BUILD_SHARED_LIBS)
     set(SHARED_OPTS --enable-shared --disable-static)
   else()
