@@ -51,6 +51,22 @@ matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
   MPI_Comm comm = adj_graph_comm(graph);
   index_t* row_dist = adj_graph_vertex_dist(graph);
   matrix_sparsity_t* sparsity = matrix_sparsity_new(comm, row_dist);
+  int num_local_rows = adj_graph_num_vertices(graph);
+
+  // Build a mapping from ghost indices to global indices.
+  int_index_unordered_map_t* globals = int_index_unordered_map_new();
+  if (sparsity->nproc > 1)
+  {
+    int num_padded_rows = adj_graph_max_vertex_index(graph) + 1;
+    index_t* indices = polymec_malloc(sizeof(index_t) * num_padded_rows);
+    for (int i = 0; i < num_local_rows; ++i)
+      indices[i] = row_dist[sparsity->rank] + i;
+    exchanger_exchange(ex, indices, 1, 0, MPI_INDEX_T);
+
+    for (int i = num_local_rows; i < num_padded_rows; ++i)
+      int_index_unordered_map_insert(globals, i, indices[i]);
+    polymec_free(indices);
+  }
 
   // Create off-diagonal columns for each of the graph's edges.
   int rpos = 0, v = 0;
@@ -66,27 +82,18 @@ matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
     int epos = 0, e = 0, v1;
     while (adj_graph_next_edge(graph, v, &epos, &v1))
     {
-      columns[e] = row_dist[sparsity->rank] + v1;
+      if (v1 >= num_local_rows)
+        columns[e] = *int_index_unordered_map_get(globals, v1);
+      else
+        columns[e] = row_dist[sparsity->rank] + v1;
       ++e;
     }
   }
 
-  // Now correct the off-process column indices with the exchanger.
-  if (sparsity->nproc > 1)
-  {
-    POLYMEC_NOT_IMPLEMENTED
-  }
+  // Clean up.
+  int_index_unordered_map_free(globals);
 
   return sparsity;
-}
-
-matrix_sparsity_t* redistributed_matrix_sparsity(matrix_sparsity_t* sparsity,
-                                                 MPI_Comm comm,
-                                                 index_t* row_distribution)
-{
-  matrix_sparsity_t* sparsity1 = matrix_sparsity_new(comm, row_distribution);
-  POLYMEC_NOT_IMPLEMENTED
-  return sparsity1;
 }
 
 void matrix_sparsity_free(matrix_sparsity_t* sparsity)
@@ -225,5 +232,36 @@ void matrix_sparsity_fprintf(matrix_sparsity_t* sparsity, FILE* stream)
     fprintf(stream, "\n");
   }
   fprintf(stream, "\n");
+}
+
+// This helper is not part of the "official" Polymec API, but is available for use 
+// by library functions. It replaces a global sparsity pattern with a distributed 
+// sparsity pattern using the new communicator and row distribution.
+void distribute_matrix_sparsity(matrix_sparsity_t** sparsity,
+                                MPI_Comm comm,
+                                index_t* row_distribution)
+{
+  matrix_sparsity_t* dist_sparsity = matrix_sparsity_new(comm, row_distribution);
+
+  // Just copy the data from the global pattern to the distributed one.
+  int rpos = 0;
+  index_t row;
+  while (matrix_sparsity_next_row(dist_sparsity, &rpos, &row))
+  {
+    index_t ncol = matrix_sparsity_num_columns(*sparsity, row);
+    matrix_sparsity_set_num_columns(dist_sparsity, row, ncol);
+    index_t* columns = matrix_sparsity_columns(dist_sparsity, row);
+    int cpos = 0;
+    index_t column, c = 0;
+    while (matrix_sparsity_next_column(*sparsity, row, &cpos, &column))
+    {
+      columns[c] = column;
+      ++c;
+    }
+  }
+
+  // Replace sparsity with the distributed one.
+  matrix_sparsity_free(*sparsity);
+  *sparsity = dist_sparsity;
 }
 

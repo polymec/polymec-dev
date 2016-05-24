@@ -11,6 +11,10 @@
 #include "core/string_utils.h"
 #include "core/array_utils.h"
 
+extern void distribute_matrix_sparsity(matrix_sparsity_t** sparsity,
+                                       MPI_Comm comm,
+                                       index_t* row_distribution);
+
 //------------------------------------------------------------------------
 //                Krylov data types and virtual tables
 //------------------------------------------------------------------------
@@ -487,11 +491,12 @@ static int mm_is_valid(MM_typecode matcode)
 }
 //------------------------------------------------------------------------
 
-static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory, 
-                                            krylov_matrix_t* global_A, 
-                                            matrix_sparsity_t* global_sparsity, 
-                                            MPI_Comm comm,
-                                            index_t* row_dist)
+// In-place distribution of global matrix.
+static void distribute_matrix(krylov_factory_t* factory, 
+                              krylov_matrix_t** A, 
+                              matrix_sparsity_t** sparsity, 
+                              MPI_Comm comm,
+                              index_t* row_dist)
 {
   ASSERT(comm != MPI_COMM_SELF);
 
@@ -500,35 +505,35 @@ static krylov_matrix_t* redistribute_matrix(krylov_factory_t* factory,
   MPI_Comm_rank(comm, &rank);
 
   // Create a distributed sparsity pattern.
-  matrix_sparsity_t* dist_sparsity = redistributed_matrix_sparsity(global_sparsity, comm, row_dist);
+  distribute_matrix_sparsity(sparsity, comm, row_dist);
 
-  // Create a local representation of the matrix.
-  krylov_matrix_t* local_A = krylov_factory_matrix(factory, dist_sparsity);
+  // Create a distributed representation of the matrix.
+  krylov_matrix_t* dist_A = krylov_factory_matrix(factory, *sparsity);
 
   // Shuttle the coefficients from the global into the local matrix.
-  index_t nnz = matrix_sparsity_num_nonzeros(dist_sparsity);
-  index_t num_local_rows = matrix_sparsity_num_local_rows(dist_sparsity);
+  index_t nnz = matrix_sparsity_num_nonzeros(*sparsity);
+  index_t num_local_rows = matrix_sparsity_num_local_rows(*sparsity);
   index_t rows[num_local_rows], num_cols[num_local_rows], cols[nnz];
   int k = 0, rpos = 0, r = 0;
   index_t row;
-  while (matrix_sparsity_next_row(dist_sparsity, &rpos, &row))
+  while (matrix_sparsity_next_row(*sparsity, &rpos, &row))
   {
     rows[r] = row;
-    num_cols[r] = matrix_sparsity_num_columns(dist_sparsity, row);
+    num_cols[r] = matrix_sparsity_num_columns(*sparsity, row);
     int pos = 0;
     index_t col;
-    while (matrix_sparsity_next_column(dist_sparsity, row, &pos, &col))
+    while (matrix_sparsity_next_column(*sparsity, row, &pos, &col))
       cols[k++] = col;
     ++r;
   }
   ASSERT(k == nnz);
   real_t values[nnz];
-  krylov_matrix_get_values(global_A, num_local_rows, num_cols, rows, cols, values);
-  krylov_matrix_set_values(local_A, num_local_rows, num_cols, rows, cols, values);
+  krylov_matrix_get_values(*A, num_local_rows, num_cols, rows, cols, values);
+  krylov_matrix_set_values(dist_A, num_local_rows, num_cols, rows, cols, values);
 
-  // Clean up and get out.
-  matrix_sparsity_free(dist_sparsity);
-  return local_A;
+  // Set A to dist_A.
+  krylov_matrix_free(*A);
+  *A = dist_A;
 }
 
 static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
@@ -628,7 +633,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   }
 
   // Create a fresh matrix.
-  krylov_matrix_t* global_A = krylov_factory_matrix(factory, sparsity);
+  krylov_matrix_t* A = krylov_factory_matrix(factory, sparsity);
 
   // Insert the values into the matrix. This is dumb and slow, but simple.
   // And we've already hit the disk, so it's not a big deal.
@@ -637,7 +642,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
     index_t num_columns = 1;
     index_t row = I[i];
     index_t column = J[i];
-    krylov_matrix_set_values(global_A, 1, &num_columns, &row, &column, &val[i]);
+    krylov_matrix_set_values(A, 1, &num_columns, &row, &column, &val[i]);
   }
 
   // Clean up.
@@ -648,15 +653,14 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   // Distribute as necessary.
   if ((comm != MPI_COMM_SELF) && (nprocs > 1))
   {
-    krylov_matrix_t* local_A = redistribute_matrix(factory, global_A, sparsity, comm, row_dist);
-    krylov_matrix_free(global_A);
+    distribute_matrix(factory, &A, &sparsity, comm, row_dist);
     matrix_sparsity_free(sparsity);
-    return local_A;
+    return A;
   }
   else
   {
     matrix_sparsity_free(sparsity);
-    return global_A;
+    return A;
   }
 
 error:
@@ -888,20 +892,20 @@ real_t krylov_vector_norm(krylov_vector_t* v, int p)
   return v->vtable.norm(v->context, p);
 }
 
-static krylov_vector_t* redistribute_vector(krylov_factory_t* factory, 
-                                            krylov_vector_t* global_x, 
-                                            MPI_Comm comm,
-                                            index_t* row_dist)
+static void distribute_vector(krylov_factory_t* factory, 
+                              krylov_vector_t** x, 
+                              MPI_Comm comm,
+                              index_t* row_dist)
 {
   ASSERT(comm != MPI_COMM_SELF);
-  ASSERT(global_x->local_size == global_x->global_size);
+  ASSERT((*x)->local_size == (*x)->global_size);
 
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
 
   // Create a local representation of the vector.
-  krylov_vector_t* local_x = krylov_factory_vector(factory, comm, row_dist);
+  krylov_vector_t* dist_x = krylov_factory_vector(factory, comm, row_dist);
   index_t num_local_rows = row_dist[rank+1] - row_dist[rank];
 
   // Shuttle the values from the global into the local vector.
@@ -912,9 +916,10 @@ static krylov_vector_t* redistribute_vector(krylov_factory_t* factory,
     index_t I = row_dist[rank] + i; // global vertex index
     rows[i] = I;
   }
-  krylov_vector_get_values(global_x, num_local_rows, rows, values);
-  krylov_vector_set_values(local_x, num_local_rows, rows, values);
-  return local_x;
+  krylov_vector_get_values(*x, num_local_rows, rows, values);
+  krylov_vector_set_values(dist_x, num_local_rows, rows, values);
+
+  *x = dist_x;
 }
 
 static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
@@ -972,20 +977,19 @@ static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
   }
 
   index_t self_row_dist[2] = {0, M};
-  krylov_vector_t* global_x = krylov_factory_vector(factory, MPI_COMM_SELF, self_row_dist);
+  krylov_vector_t* x = krylov_factory_vector(factory, MPI_COMM_SELF, self_row_dist);
 
   // Insert the values into the vector. 
-  krylov_vector_set_values(global_x, M, rows, values);
+  krylov_vector_set_values(x, M, rows, values);
 
   // Distribute as necessary.
   if (comm != MPI_COMM_SELF)
   {
-    krylov_vector_t* local_x = redistribute_vector(factory, global_x, comm, row_dist);
-    krylov_vector_free(global_x);
-    return local_x;
+    distribute_vector(factory, &x, comm, row_dist);
+    return x;
   }
   else
-    return global_x;
+    return x;
 }
 
 krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,

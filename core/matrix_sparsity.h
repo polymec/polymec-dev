@@ -39,13 +39,6 @@ matrix_sparsity_t* matrix_sparsity_new(MPI_Comm comm,
 matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
                                               exchanger_t* ex);
 
-// Creates a new sparsity pattern by redistributing the given sparsity 
-// pattern on the new communicator, subject to the given row distribution.
-// The original sparsity pattern is preserved.
-matrix_sparsity_t* redistributed_matrix_sparsity(matrix_sparsity_t* sparsity,
-                                                 MPI_Comm comm,
-                                                 index_t* row_distribution);
-
 // Frees the given matrix sparsity pattern.
 void matrix_sparsity_free(matrix_sparsity_t* sparsity);
 
