@@ -407,7 +407,9 @@ void polymec_init(int argc, char** argv)
     exactinit();
 
     // Initialize the LIS solver interface.
-    lis_initialize(&argc, &argv);
+    // NOTE: we must use a 64-bit integer for argc.
+    LIS_INT lis_argc = (LIS_INT)argc;
+    lis_initialize(&lis_argc, &argv);
 
     // Register a shutdown function.
     atexit(&shutdown);
