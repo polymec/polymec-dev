@@ -14,7 +14,7 @@
 #ifdef _LONG__DOUBLE
 #undef _LONG__DOUBLE  // No long doubles, thank you!
 #endif
-// NOTE: LIS_INT == long long, which is the same size as index_t.
+// NOTE: We want LIS_INT == long long, which is the same size as index_t.
 #ifndef _LONG__LONG
 #define _LONG__LONG 
 #endif
@@ -716,9 +716,10 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
 
   lis_matrix_t* mat = matrix_new(comm, 1);
   lis_matrix_create(comm, &mat->A);
-  int err = lis_matrix_set_size(mat->A, N_local, 0);
+  LIS_INT err = lis_matrix_set_size(mat->A, N_local, 0);
   if (err != LIS_SUCCESS)
     polymec_error("lis_factory_matrix: failed to create an %d x %d matrix.", N_global, N_global);
+  lis_matrix_set_type(mat->A, LIS_MATRIX_CSR);
 #ifndef NDEBUG
   {
     LIS_INT Nl, Ng;
@@ -994,7 +995,7 @@ static krylov_vector_t* lis_factory_vector(void* context,
 
   LIS_VECTOR v;
   lis_vector_create(comm, &v);
-  lis_vector_set_size(v, (int)N_local, (int)N_global);
+  lis_vector_set_size(v, N_local, 0);
   lis_vector_set_all(0.0, v);
 
   // Set up the virtual table.

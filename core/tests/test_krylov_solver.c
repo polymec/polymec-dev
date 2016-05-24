@@ -614,7 +614,6 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_lis_krylov_factory),
-#if 0
     cmocka_unit_test(test_lis_krylov_matrix),
     cmocka_unit_test(test_lis_krylov_matrix_from_file),
     cmocka_unit_test(test_lis_krylov_vector),
@@ -642,7 +641,6 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_hypre_gmres_1d_laplace_eqn),
     cmocka_unit_test(test_hypre_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_hypre_sherman1)
-#endif
 #endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

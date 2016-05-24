@@ -425,14 +425,13 @@ static int mm_read_mtx_crd_size(FILE *f, index_t *M, index_t *N, index_t *nnz)
   while (line[0] == '%');
 
   // line[] is either blank or has M,N, nnz 
-  if (sscanf(line, "%" PRIu64 " %" PRIu64 "%" PRIu64, M, N, nnz) == 3)
+  if (sscanf(line, "%" SCNu64 " %" SCNu64 " %" SCNu64, M, N, nnz) == 3)
     return 0;
-
   else
   {
     do
     { 
-      num_items_read = fscanf(f, "%" PRIu64 " %" PRIu64 " %" PRIu64, M, N, nnz); 
+      num_items_read = fscanf(f, "%" SCNu64 " %" SCNu64 " %" SCNu64, M, N, nnz); 
       if (num_items_read == EOF) return MM_PREMATURE_EOF;
     }
     while (num_items_read != 3);
@@ -578,14 +577,14 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   index_t* I = polymec_malloc(nnz * sizeof(index_t));
   index_t* J = polymec_malloc(nnz * sizeof(index_t));
   real_t* val = polymec_malloc(nnz * sizeof(real_t));
-  index_t num_offdiags[M];
-  memset(num_offdiags, 0, M * sizeof(index_t));
+  index_t num_cols[M];
+  memset(num_cols, 0, M * sizeof(index_t));
   for (index_t i = 0; i < nnz; ++i)
   {
 #if POLYMEC_HAVE_SINGLE_PRECISION
-    int num_items = fscanf(f, "%" PRIu64 " %" PRIu64 " %g\n", &I[i], &J[i], &val[i]);
+    int num_items = fscanf(f, "%" SCNu64 " %" SCNu64 " %g\n", &I[i], &J[i], &val[i]);
 #else
-    int num_items = fscanf(f, "%" PRIu64 " %" PRIu64 " %lg\n", &I[i], &J[i], &val[i]);
+    int num_items = fscanf(f, "%" SCNu64 " %" SCNu64 " %lg\n", &I[i], &J[i], &val[i]);
 #endif
     if (num_items != 3)
       goto error;
@@ -594,12 +593,11 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
     --I[i];  
     --J[i];
 
-    // Tally the off-diagonal elements.
-    if (J[i] != I[i])
-      ++num_offdiags[I[i]];
+    // Tally the columns.
+    ++num_cols[I[i]];
   }
 
-  // Construct a global sparsity graph.
+  // Construct a global sparsity pattern.
   index_t global_row_dist[2] = {0, M};
   matrix_sparsity_t* sparsity = matrix_sparsity_new(MPI_COMM_SELF, global_row_dist);
   {
@@ -608,7 +606,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
     index_t row;
     while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
-      matrix_sparsity_set_num_columns(sparsity, row, num_offdiags[r]);
+      matrix_sparsity_set_num_columns(sparsity, row, num_cols[r]);
       ++r;
     }
 
@@ -624,11 +622,8 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
     for (index_t k = 0; k < nnz; ++k)
     {
       index_t Ik = I[k], Jk = J[k];
-      if (Ik != Jk)
-      {
-        columns[Ik][column_counter[Ik]] = Jk;
-        ++column_counter[Ik];
-      }
+      columns[Ik][column_counter[Ik]] = Jk;
+      ++column_counter[Ik];
     }
   }
 
@@ -651,7 +646,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   polymec_free(val);
 
   // Distribute as necessary.
-  if (comm != MPI_COMM_SELF)
+  if ((comm != MPI_COMM_SELF) && (nprocs > 1))
   {
     krylov_matrix_t* local_A = redistribute_matrix(factory, global_A, sparsity, comm, row_dist);
     krylov_matrix_free(global_A);
