@@ -273,7 +273,7 @@ static void* matrix_clone(void* context)
   lis_matrix_create(mat->comm, &clone->A);
   LIS_INT N_local, N_global;
   lis_matrix_get_size(mat->A, &N_local, &N_global);
-  lis_matrix_set_size(clone->A, N_local, N_global);
+  lis_matrix_set_size(clone->A, N_local, 0);
   LIS_INT type;
   lis_matrix_get_type(mat->A, &type);
   lis_matrix_set_type(clone->A, type);
