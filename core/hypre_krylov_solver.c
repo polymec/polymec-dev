@@ -1040,7 +1040,6 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
   rpos = 0; 
   while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
-    columns[col_offset++] = row;
     int cpos = 0;
     index_t column;
     while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
