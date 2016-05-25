@@ -406,52 +406,6 @@ static void matrix_add_diagonal_csr(void* context, void* D)
   ensure_matrix_assembly(mat);
 }
 
-static void matrix_set_diagonal_vbr(void* context, void* D)
-{
-  POLYMEC_NOT_IMPLEMENTED;
-#if 0
-  lis_matrix_t* mat = context;
-  lis_matrix_unset(mat->A);
-  LIS_VECTOR d = D;
-  LIS_INT start, end;
-  lis_matrix_get_range(mat->A, &start, &end);
-  for (LIS_INT i = 0; i < mat->nr; ++i)
-  {
-    LIS_INT r = mat->row[i], r1 = mat->row[i+1];
-    LIS_INT c = mat->col[r], c1 = mat->col[i+1];
-    LIS_SCALAR Di;
-    lis_vector_get_value(d, i, &Di);
-    LIS_INT k = mat->ptr[i];
-    mat->values[k] = Di;
-  }
-  matrix_set(mat);
-  lis_matrix_assemble(mat->A);
-#endif
-}
-
-static void matrix_add_diagonal_vbr(void* context, void* D)
-{
-  POLYMEC_NOT_IMPLEMENTED;
-#if 0
-  lis_matrix_t* mat = context;
-  lis_matrix_unset(mat->A);
-  LIS_VECTOR d = D;
-  LIS_INT start, end;
-  lis_matrix_get_range(mat->A, &start, &end);
-  for (LIS_INT i = 0; i < mat->nr; ++i)
-  {
-    LIS_INT r = mat->row[i], r1 = mat->row[i+1];
-    LIS_INT c = mat->col[r], c1 = mat->col[i+1];
-    LIS_SCALAR Di;
-    lis_vector_get_value(d, i, &Di);
-    LIS_INT k = mat->ptr[i];
-    mat->values[k] += Di;
-  }
-  matrix_set(mat);
-  lis_matrix_assemble(mat->A);
-#endif
-}
-
 static void matrix_set_values_csr(void* context, index_t num_rows,
                                   index_t* num_columns, index_t* rows, index_t* columns,
                                   real_t* values)
@@ -852,6 +806,52 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
                                  .get_values = matrix_get_values_bsr,
                                  .dtor = matrix_dtor};
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
+}
+
+static void matrix_set_diagonal_vbr(void* context, void* D)
+{
+  POLYMEC_NOT_IMPLEMENTED;
+#if 0
+  lis_matrix_t* mat = context;
+  lis_matrix_unset(mat->A);
+  LIS_VECTOR d = D;
+  LIS_INT start, end;
+  lis_matrix_get_range(mat->A, &start, &end);
+  for (LIS_INT i = 0; i < mat->nr; ++i)
+  {
+    LIS_INT r = mat->row[i], r1 = mat->row[i+1];
+    LIS_INT c = mat->col[r], c1 = mat->col[i+1];
+    LIS_SCALAR Di;
+    lis_vector_get_value(d, i, &Di);
+    LIS_INT k = mat->ptr[i];
+    mat->values[k] = Di;
+  }
+  matrix_set(mat);
+  lis_matrix_assemble(mat->A);
+#endif
+}
+
+static void matrix_add_diagonal_vbr(void* context, void* D)
+{
+  POLYMEC_NOT_IMPLEMENTED;
+#if 0
+  lis_matrix_t* mat = context;
+  lis_matrix_unset(mat->A);
+  LIS_VECTOR d = D;
+  LIS_INT start, end;
+  lis_matrix_get_range(mat->A, &start, &end);
+  for (LIS_INT i = 0; i < mat->nr; ++i)
+  {
+    LIS_INT r = mat->row[i], r1 = mat->row[i+1];
+    LIS_INT c = mat->col[r], c1 = mat->col[i+1];
+    LIS_SCALAR Di;
+    lis_vector_get_value(d, i, &Di);
+    LIS_INT k = mat->ptr[i];
+    mat->values[k] += Di;
+  }
+  matrix_set(mat);
+  lis_matrix_assemble(mat->A);
+#endif
 }
 
 static void matrix_set_values_vbr(void* context, index_t num_rows,
