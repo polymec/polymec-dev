@@ -25,7 +25,6 @@ add_polymec_test(test_mesh test_mesh.c ../../geometry/create_uniform_mesh.c ../.
 add_polymec_test(test_polynomial test_polynomial.c)
 add_polymec_test(test_least_squares test_least_squares.c)
 add_polymec_test(test_cxx_program test_cxx_program.cpp)
-add_polymec_test(test_krylov_solver test_krylov_solver.c)
 
 add_mpi_polymec_test(test_parallel_kd_tree test_kd_tree.c 1 2 3 4)
 add_mpi_polymec_test(test_exchanger test_exchanger.c 1 2 3 4)
@@ -35,6 +34,7 @@ add_mpi_polymec_test(test_partition_mesh test_partition_mesh.c ../../geometry/cr
 add_mpi_polymec_test(test_partition_point_cloud test_partition_point_cloud.c ../../geometry/create_point_lattice.c ../../geometry/cubic_lattice.c 1 2 3 4)
 add_mpi_polymec_test(test_parallel_sort test_parallel_sort.c 1 2 3 4)
 add_mpi_polymec_test(test_repartition_point_cloud test_repartition_point_cloud.c 1 2 3 4)
+add_mpi_polymec_test(test_krylov_solver test_krylov_solver.c 1 2)
 
 # Tests for features we will add later.
 #add_mpi_polymec_test(test_repartition_mesh test_repartition_mesh.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c 1 2 3 4)
