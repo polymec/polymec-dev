@@ -308,6 +308,7 @@ static void test_1d_laplace_eqn(void** state,
     index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
     index_t N_global = matrix_sparsity_num_global_rows(sparsity);
     krylov_matrix_t* A = krylov_factory_matrix(factory, sparsity);
+krylov_matrix_fprintf(A, stdout);
 
     // Create a RHS vector.
     krylov_vector_t* b = krylov_factory_vector(factory, comm, row_dist);
