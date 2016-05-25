@@ -870,6 +870,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
 static void petsc_factory_dtor(void* context)
 {
   petsc_factory_t* factory = context;
+  MPI_Barrier(MPI_COMM_WORLD);
   if (factory->finalize_petsc)
   {
     log_debug("petsc_krylov_factory: Finalizing PETSc.");
@@ -1083,6 +1084,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   log_debug("petsc_krylov_factory: Got PETSc symbols.");
 
   // Initialize PETSc if needed.
+  factory->finalize_petsc = false;
   PetscBool initialized;
   factory->methods.PetscInitialized(&initialized);
   if (initialized == PETSC_FALSE)

@@ -171,7 +171,7 @@ static void test_krylov_matrix_from_file(void** state,
     if (rank == (nprocs-1))
       num_local_rows = num_global_rows - rank*num_local_rows;
 
-    // Read a matrix in from the given file. 
+    // Read a matrix in from the given file and evaluate its data.
     krylov_matrix_t* mat = krylov_factory_matrix_from_file(factory, comm, filename);
     assert_int_equal(num_local_rows, krylov_matrix_num_local_rows(mat));
     assert_int_equal(num_global_rows, krylov_matrix_num_global_rows(mat));
@@ -189,6 +189,7 @@ static void test_krylov_matrix_from_file(void** state,
       }
     }
     krylov_matrix_free(mat);
+    krylov_factory_free(factory);
   }
 }
 
@@ -327,6 +328,8 @@ static void test_1d_laplace_eqn(void** state,
         rows[0] = 0, cols[0] = 0, Aij[0] = -2.0;
                      cols[1] = 1, Aij[1] = 1.0;
         krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+        bi[0] = 0.0;
+        krylov_vector_set_values(b, 1, &row, bi);
       }
       else if (row == (N_global-1))
       {
@@ -344,6 +347,8 @@ static void test_1d_laplace_eqn(void** state,
         rows[1] = row, cols[1] = row,   Aij[1] = -2.0;
         rows[2] = row, cols[2] = row+1, Aij[2] = 1.0;
         krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+        bi[0] = 0.0;
+        krylov_vector_set_values(b, 1, &row, bi);
       }
     }
     krylov_matrix_scale(A, 1.0/(h*h));
