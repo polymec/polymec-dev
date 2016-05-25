@@ -47,10 +47,9 @@ typedef struct
 {
   MPI_Comm comm;
   LIS_MATRIX A;
-  LIS_INT block_size, nr, nc, bnnz, nnz, *bptr, *ptr, *row, *col, *index, *bindex;
+  LIS_INT block_size, nr, nc, bnnz, nnz, *bptr, *ptr, *row, *col, *index, *index1, *bindex;
   LIS_SCALAR* values;
   bool assembled;
-  index_index_unordered_map_t* l2g_map;
 } lis_matrix_t;
 
 static void lis_solver_set_tolerances(void* context,
@@ -231,6 +230,7 @@ static lis_matrix_t* matrix_new(MPI_Comm comm, int block_size)
   mat->row = NULL; 
   mat->col = NULL; 
   mat->index = NULL;
+  mat->index1 = NULL;
   mat->bindex = NULL;
   mat->values = NULL;
   mat->assembled = false;
@@ -311,6 +311,11 @@ static void* matrix_clone(void* context)
   {
     clone->index = polymec_malloc(sizeof(LIS_INT) * clone->nnz);
     memcpy(clone->index, mat->index, sizeof(LIS_INT) * clone->nnz);
+  }
+  if (mat->index1 != NULL)
+  {
+    clone->index1 = polymec_malloc(sizeof(LIS_INT) * clone->nnz);
+    memcpy(clone->index1, mat->index1, sizeof(LIS_INT) * clone->nnz);
   }
   if (mat->values != NULL)
   {
@@ -401,56 +406,6 @@ static void matrix_add_diagonal_csr(void* context, void* D)
   ensure_matrix_assembly(mat);
 }
 
-static void matrix_set_diagonal_bsr(void* context, void* D)
-{
-  lis_matrix_t* mat = context;
-  ensure_matrix_assembly(mat);
-
-  lis_matrix_unset(mat->A);
-  LIS_VECTOR d = D;
-  LIS_INT start, end;
-  lis_matrix_get_range(mat->A, &start, &end);
-  LIS_INT bs = mat->block_size;
-  start /= bs, end /= bs;
-  for (LIS_INT i = start; i < end; ++i)
-  {
-    LIS_INT bk = mat->bptr[i];
-    for (int j = 0; j < bs; ++j)
-    {
-      LIS_SCALAR Dij;
-      lis_vector_get_value(d, bs*i+j, &Dij);
-      mat->values[bk*bs*bs+bs*j+j] = Dij;
-    }
-  }
-  matrix_set(mat);
-  ensure_matrix_assembly(mat);
-}
-
-static void matrix_add_diagonal_bsr(void* context, void* D)
-{
-  lis_matrix_t* mat = context;
-  ensure_matrix_assembly(mat);
-
-  lis_matrix_unset(mat->A);
-  LIS_VECTOR d = D;
-  LIS_INT start, end;
-  lis_matrix_get_range(mat->A, &start, &end);
-  int bs = mat->block_size;
-  start /= bs, end /= bs;
-  for (LIS_INT i = start; i < end; ++i)
-  {
-    LIS_INT bk = mat->bptr[i];
-    for (int j = 0; j < bs; ++j)
-    {
-      LIS_SCALAR Dij;
-      lis_vector_get_value(d, bs*i+j, &Dij);
-      mat->values[bk*bs*bs+bs*j+j] += Dij;
-    }
-  }
-  matrix_set(mat);
-  ensure_matrix_assembly(mat);
-}
-
 static void matrix_set_diagonal_vbr(void* context, void* D)
 {
   POLYMEC_NOT_IMPLEMENTED;
@@ -518,7 +473,7 @@ static void matrix_set_values_csr(void* context, index_t num_rows,
     if ((row < (index_t)start) || (row >= (index_t)finish)) continue; // skip off-proc rows.
     LIS_INT row_offset = mat->ptr[row-start];
     LIS_INT ncol = mat->ptr[row+1-start] - row_offset;
-    LIS_INT* row_start = &(mat->index[row_offset]);
+    LIS_INT* row_start = &(mat->index1[row_offset]);
 
     for (index_t j = 0; j < num_cols; ++j, ++k)
     {
@@ -554,7 +509,7 @@ static void matrix_add_values_csr(void* context, index_t num_rows,
 
     if ((row < (index_t)start) || (row >= (index_t)finish)) continue; // skip off-proc rows.
     LIS_INT row_offset = mat->ptr[row-start];
-    LIS_INT* row_start = &mat->index[row_offset];
+    LIS_INT* row_start = &mat->index1[row_offset];
     LIS_INT ncol = mat->ptr[row+1-start] - row_offset;
 
     for (index_t j = 0; j < num_cols; ++j, ++k)
@@ -597,7 +552,7 @@ static void matrix_get_values_csr(void* context, index_t num_rows,
     }
 
     LIS_INT row_offset = mat->ptr[row-start];
-    LIS_INT* row_start = &mat->index[row_offset];
+    LIS_INT* row_start = &mat->index1[row_offset];
     LIS_INT ncol = mat->ptr[row+1-start] - row_offset;
 
     for (index_t j = 0; j < num_cols; ++j, ++k)
@@ -630,7 +585,7 @@ static void matrix_fprintf_csr(void* context, FILE* stream)
     LIS_INT row = is+r;
     for (LIS_INT c = row_offset; c < mat->ptr[r+1]; ++c)
     {
-      LIS_INT col = mat->index[c];
+      LIS_INT col = mat->index1[c];
       real_t val = mat->values[c];
       fprintf(stream, "(%" PRId64 ", %" PRId64 "): %g\n", row, col, val);
     }
@@ -653,6 +608,8 @@ static void matrix_dtor(void* context)
     polymec_free(mat->bindex);
   if (mat->index != NULL)
     polymec_free(mat->index);
+  if (mat->index1 != NULL)
+    polymec_free(mat->index1);
   if (mat->values != NULL)
     polymec_free(mat->values);
   lis_matrix_destroy(mat->A);
@@ -673,7 +630,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
     polymec_error("lis_factory_matrix: failed to create an %d x %d matrix.", N_global, N_global);
   lis_matrix_set_type(mat->A, LIS_MATRIX_CSR);
 #ifndef NDEBUG
-  {     if (col < 
+  {
     LIS_INT Nl, Ng;
     lis_matrix_get_size(mat->A, &Nl, &Ng);
     ASSERT(Nl == N_local);
@@ -686,6 +643,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
   mat->nnz = matrix_sparsity_num_nonzeros(sparsity);
   mat->ptr = polymec_malloc(sizeof(LIS_INT) * (N_local+1));
   mat->index = polymec_malloc(sizeof(LIS_INT) * mat->nnz);
+  mat->index1 = polymec_malloc(sizeof(LIS_INT) * mat->nnz);
   mat->values = polymec_malloc(sizeof(LIS_SCALAR) * mat->nnz);
 
   index_t k = 0, row;
@@ -715,21 +673,12 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
   memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
   matrix_set(mat);
 
-  // Assemble the matrix. This converts the global column indices
-  // to local ones within the LIS library. So we construct a reverse 
-  // mapping before the assembly.
-  mat->l2g_map = index_index_unordered_map_new();
-  index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
-  for (index_t r = 0; r < N_local; ++r)
-  {
-    for (LIS_INT c = mat->ptr[r]; c < mat->ptr[r+1]; ++c)
-    {
-      LIS_INT col = mat->index[c];
-      if (col < 
-    }
-  }
+  // Copy our column indices to an extra array that will not be modified 
+  // by LIS. We'll use this array to navigate non-zeros when we need to 
+  // modify matrix values.
+  memcpy(mat->index1, mat->index, sizeof(LIS_INT) * mat->nnz);
 
-  // Do the assembly.
+  // Assemble the matrix. 
   lis_matrix_assemble(mat->A);
   mat->assembled = true;
 
@@ -746,6 +695,56 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
                                  .fprintf = matrix_fprintf_csr,
                                  .dtor = matrix_dtor};
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
+}
+
+static void matrix_set_diagonal_bsr(void* context, void* D)
+{
+  lis_matrix_t* mat = context;
+  ensure_matrix_assembly(mat);
+
+  lis_matrix_unset(mat->A);
+  LIS_VECTOR d = D;
+  LIS_INT start, end;
+  lis_matrix_get_range(mat->A, &start, &end);
+  LIS_INT bs = mat->block_size;
+  start /= bs, end /= bs;
+  for (LIS_INT i = start; i < end; ++i)
+  {
+    LIS_INT bk = mat->bptr[i];
+    for (int j = 0; j < bs; ++j)
+    {
+      LIS_SCALAR Dij;
+      lis_vector_get_value(d, bs*i+j, &Dij);
+      mat->values[bk*bs*bs+bs*j+j] = Dij;
+    }
+  }
+  matrix_set(mat);
+  ensure_matrix_assembly(mat);
+}
+
+static void matrix_add_diagonal_bsr(void* context, void* D)
+{
+  lis_matrix_t* mat = context;
+  ensure_matrix_assembly(mat);
+
+  lis_matrix_unset(mat->A);
+  LIS_VECTOR d = D;
+  LIS_INT start, end;
+  lis_matrix_get_range(mat->A, &start, &end);
+  int bs = mat->block_size;
+  start /= bs, end /= bs;
+  for (LIS_INT i = start; i < end; ++i)
+  {
+    LIS_INT bk = mat->bptr[i];
+    for (int j = 0; j < bs; ++j)
+    {
+      LIS_SCALAR Dij;
+      lis_vector_get_value(d, bs*i+j, &Dij);
+      mat->values[bk*bs*bs+bs*j+j] += Dij;
+    }
+  }
+  matrix_set(mat);
+  ensure_matrix_assembly(mat);
 }
 
 static void matrix_set_values_bsr(void* context, index_t num_rows,

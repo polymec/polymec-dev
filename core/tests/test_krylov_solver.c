@@ -308,7 +308,6 @@ static void test_1d_laplace_eqn(void** state,
     index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
     index_t N_global = matrix_sparsity_num_global_rows(sparsity);
     krylov_matrix_t* A = krylov_factory_matrix(factory, sparsity);
-krylov_matrix_fprintf(A, stdout);
 
     // Create a RHS vector.
     krylov_vector_t* b = krylov_factory_vector(factory, comm, row_dist);
@@ -321,7 +320,6 @@ krylov_matrix_fprintf(A, stdout);
     {
       real_t Aij[3], bi[1];
       index_t rows[3], cols[3], num_cols;
-printf("%d: setting up row %d\n", rank, row);
       if (row == 0)
       {
         num_cols = 2; 
@@ -348,9 +346,9 @@ printf("%d: setting up row %d\n", rank, row);
       }
     }
     krylov_matrix_scale(A, 1.0/(h*h));
-    krylov_vector_scale(b, 1.0/(h*h));
-krylov_matrix_fprintf(A, stdout);
-krylov_vector_fprintf(b, stdout);
+    krylov_vector_scale(b, -1.0/(h*h));
+//krylov_matrix_fprintf(A, stdout);
+//krylov_vector_fprintf(b, stdout);
 
     // Create a solution vector.
     krylov_vector_t* x = krylov_factory_vector(factory, comm, row_dist);
@@ -367,15 +365,6 @@ krylov_vector_fprintf(b, stdout);
     krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 2.0);
     krylov_solver_set_max_iterations(solver, 1000);
 
-index_t I[N];
-for (int i = 0; i < N; ++i)
-  I[i] = 100*rank + i;
-real_t bb[N];
-krylov_vector_get_values(b, N, I, bb);
-printf("b = [");
-for (int i = 0; i < N; ++i)
-printf("%g ", bb[i]);
-printf("]\n");
     // Solve the equation.
     krylov_solver_set_operator(solver, A);
     real_t res_norm;
@@ -384,12 +373,8 @@ printf("]\n");
     log_debug("residual norm is %g, # iterations is %d", res_norm, num_iters);
     assert_true(solved);
 
-real_t xi[N];
-krylov_vector_get_values(x, N, I, xi);
-printf("x = [");
-for (int i = 0; i < N; ++i)
-printf("%g ", xi[i]);
-printf("]\n");
+printf("x =\n");
+krylov_vector_fprintf(x, stdout);
 
     // Put everything away.
     krylov_solver_free(solver);
