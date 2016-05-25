@@ -1009,7 +1009,6 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
                                            A->ilow, A->ihigh, A->ilow, A->ihigh,
                                            &A->A);
   A->factory->methods.HYPRE_IJMatrixSetObjectType(A->A, HYPRE_PARCSR);
-  A->factory->methods.HYPRE_IJMatrixSetPrintLevel(A->A, 1);
 
   // Preallocate non-zero storage.
   HYPRE_Int N_local = 0;

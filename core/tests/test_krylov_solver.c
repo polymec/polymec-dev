@@ -369,7 +369,10 @@ static void test_1d_laplace_eqn(void** state,
     }
     assert_true(solver != NULL);
     krylov_solver_set_tolerances(solver, 1e-5, 1e-8, 2.0);
-    krylov_solver_set_max_iterations(solver, 1000);
+    if (solver_type == GMRES_SOLVER)
+      krylov_solver_set_max_iterations(solver, nprocs * 1000);
+    else
+      krylov_solver_set_max_iterations(solver, 1000);
 
     // Solve the equation.
     krylov_solver_set_operator(solver, A);
