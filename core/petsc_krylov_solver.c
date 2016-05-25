@@ -51,6 +51,8 @@ typedef struct
   PetscErrorCode (*PetscFinalize)();
   PetscErrorCode (*PetscPushErrorHandler)(PetscErrorCode (*handler)(MPI_Comm comm, int, const char*, const char*, PetscErrorCode, int, const char*, void*), void*);
   void* (*PETSC_VIEWER_STDOUT_)(MPI_Comm);
+  PetscErrorCode (*PetscViewerASCIIOpenWithFILE)(MPI_Comm, FILE*, PetscViewer*);
+  PetscErrorCode (*PetscViewerDestroy)(PetscViewer*);
 
   PetscErrorCode (*KSPCreate)(MPI_Comm,KSP *);
   PetscErrorCode (*KSPSetType)(KSP,KSPType);
@@ -129,6 +131,7 @@ typedef struct
 typedef struct
 {
   petsc_factory_t* factory;
+  MPI_Comm comm;
   Mat A;
   bool assembled;
 } petsc_matrix_t;
@@ -136,6 +139,7 @@ typedef struct
 typedef struct
 {
   petsc_factory_t* factory;
+  MPI_Comm comm;
   Vec v;
   bool assembled;
 } petsc_vector_t;
@@ -390,6 +394,7 @@ static void* petsc_matrix_clone(void* context)
   petsc_matrix_t* A = context;
   petsc_matrix_t* clone = polymec_malloc(sizeof(petsc_matrix_t));
   clone->factory = A->factory;
+  clone->comm = A->comm;
   clone->assembled = A->assembled;
   PetscErrorCode err = A->factory->methods.MatConvert(A->A, MATSAME, MAT_INITIAL_MATRIX, &(clone->A));
   if (err != 0)
@@ -491,6 +496,15 @@ static void petsc_matrix_get_values(void* context, index_t num_rows,
   }
 }
 
+static void petsc_matrix_fprintf(void* context, FILE* stream)
+{
+  petsc_matrix_t* A = context;
+  PetscViewer viewer;
+  A->factory->methods.PetscViewerASCIIOpenWithFILE(A->comm, stream, &viewer);
+  A->factory->methods.MatView(A->A, viewer);
+  A->factory->methods.PetscViewerDestroy(&viewer);
+}
+
 static void petsc_matrix_dtor(void* context)
 {
   petsc_matrix_t* A = context;
@@ -504,6 +518,7 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
 {
   petsc_matrix_t* A = polymec_malloc(sizeof(petsc_matrix_t));
   A->factory = context;
+  A->comm = matrix_sparsity_comm(sparsity);
   A->assembled = false;
 
   index_t N_local = matrix_sparsity_num_local_rows(sparsity);
@@ -578,7 +593,6 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
     {
       columns[col_offset] = column;
       ++col_offset;
-log_debug("(%d, %d)", row, column);
     }
   }
   ASSERT(col_offset == nnz);
@@ -688,7 +702,6 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
     {
       columns[col_offset] = column;
       ++col_offset;
-log_debug("(%d, %d)", row, column);
     }
   }
   ASSERT(col_offset == nnz);
@@ -707,6 +720,7 @@ log_debug("(%d, %d)", row, column);
                                  .set_values = petsc_matrix_set_values,
                                  .add_values = petsc_matrix_add_values,
                                  .get_values = petsc_matrix_get_values,
+                                 .fprintf = petsc_matrix_fprintf,
                                  .dtor = petsc_matrix_dtor};
   return krylov_matrix_new(A, vtable, comm, N_local, N_global);
 }
@@ -716,6 +730,7 @@ static void* petsc_vector_clone(void* context)
   petsc_vector_t* v = context;
   petsc_vector_t* clone = polymec_malloc(sizeof(petsc_vector_t));
   clone->factory = v->factory;
+  clone->comm = v->comm;
   clone->assembled = v->assembled;
   PetscErrorCode err = v->factory->methods.VecDuplicate(v->v, &(clone->v));
   if (err != 0)
@@ -787,6 +802,15 @@ static real_t petsc_vector_norm(void* context, int p)
   return norm;
 }
 
+static void petsc_vector_fprintf(void* context, FILE* stream)
+{
+  petsc_vector_t* v = context;
+  PetscViewer viewer;
+  v->factory->methods.PetscViewerASCIIOpenWithFILE(v->comm, stream, &viewer);
+  v->factory->methods.VecView(v->v, viewer);
+  v->factory->methods.PetscViewerDestroy(&viewer);
+}
+
 static void petsc_vector_dtor(void* context)
 {
   petsc_vector_t* v = context;
@@ -801,6 +825,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
 {
   petsc_vector_t* v = polymec_malloc(sizeof(petsc_vector_t));
   v->factory = context;
+  v->comm = comm;
   v->assembled = false;
 
   int rank, nprocs;
@@ -826,6 +851,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
                                  .add_values = petsc_vector_add_values,
                                  .get_values = petsc_vector_get_values,
                                  .norm = petsc_vector_norm,
+                                 .fprintf = petsc_vector_fprintf,
                                  .dtor = petsc_vector_dtor};
   return krylov_vector_new(v, vtable, N_local, N_global);
 }
@@ -979,6 +1005,8 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(PetscFinalize);
   FETCH_PETSC_SYMBOL(PetscPushErrorHandler);
   FETCH_PETSC_SYMBOL(PETSC_VIEWER_STDOUT_);
+  FETCH_PETSC_SYMBOL(PetscViewerASCIIOpenWithFILE);
+  FETCH_PETSC_SYMBOL(PetscViewerDestroy);
 
   FETCH_PETSC_SYMBOL(KSPCreate);
   FETCH_PETSC_SYMBOL(KSPSetType);

@@ -11,6 +11,7 @@
 #include "core/timer.h"
 #include "core/text_buffer.h"
 #include "core/string_utils.h"
+#include "core/file_utils.h"
 
 //------------------------------------------------------------------------
 // This file implements the dynamically-loadable HYPRE Krylov solver.
@@ -951,6 +952,34 @@ static void hypre_matrix_get_values(void* context, index_t num_rows,
   }
 }
 
+static void hypre_matrix_fprintf(void* context, FILE* stream)
+{
+  // Write the vector to a temporary file and then write that file to 
+  // the stream.
+  hypre_matrix_t* A = context;
+  char temp_name[FILENAME_MAX];
+  FILE* temp = make_temp_file("hypre_matrixXXXXXX", temp_name);
+  fclose(temp);
+  A->factory->methods.HYPRE_IJMatrixPrint(A->A, temp_name);
+
+  // Read it in as text. The actual file has a suffix with the rank.
+  char actual_file[FILENAME_MAX];
+  int rank;
+  MPI_Comm_rank(A->comm, &rank);
+  snprintf(actual_file, FILENAME_MAX-1, "%s.%05d", temp_name, rank);
+  text_buffer_t* buffer = text_buffer_from_file(actual_file);
+  char* text = text_buffer_to_string(buffer);
+  text_buffer_free(buffer);
+
+  // Clean up.
+  remove(temp_name);
+  remove(actual_file);
+
+  // Write the text to the stream.
+  fprintf(stream, "%s\n", text);
+  string_free(text);
+}
+
 static void hypre_matrix_dtor(void* context)
 {
   hypre_matrix_t* A = context;
@@ -1066,6 +1095,7 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
                                  .set_values = hypre_matrix_set_values,
                                  .add_values = hypre_matrix_add_values,
                                  .get_values = hypre_matrix_get_values,
+                                 .fprintf = hypre_matrix_fprintf,
                                  .dtor = hypre_matrix_dtor};
   HYPRE_Int N_global = 0;
   MPI_Allreduce(&N_local, &N_global, 1, MPI_LONG_LONG, MPI_SUM, A->comm);
@@ -1287,6 +1317,34 @@ static real_t hypre_vector_norm(void* context, int p)
   return global_norm;
 }
 
+static void hypre_vector_fprintf(void* context, FILE* stream)
+{
+  // Write the vector to a temporary file and then write that file to 
+  // the stream.
+  hypre_vector_t* v = context;
+  char temp_name[FILENAME_MAX];
+  FILE* temp = make_temp_file("hypre_vectorXXXXXX", temp_name);
+  fclose(temp);
+  v->factory->methods.HYPRE_IJVectorPrint(v->v, temp_name);
+
+  // Read it in as text. The actual file has a suffix with the rank.
+  char actual_file[FILENAME_MAX];
+  int rank;
+  MPI_Comm_rank(v->comm, &rank);
+  snprintf(actual_file, FILENAME_MAX-1, "%s.%05d", temp_name, rank);
+  text_buffer_t* buffer = text_buffer_from_file(actual_file);
+  char* text = text_buffer_to_string(buffer);
+  text_buffer_free(buffer);
+
+  // Clean up.
+  remove(temp_name);
+  remove(actual_file);
+
+  // Write the text to the stream.
+  fprintf(stream, "%s\n", text);
+  string_free(text);
+}
+
 static void hypre_vector_dtor(void* context)
 {
   hypre_vector_t* v = context;
@@ -1327,6 +1385,7 @@ static krylov_vector_t* hypre_factory_vector(void* context,
                                  .add_values = hypre_vector_add_values,
                                  .get_values = hypre_vector_get_values,
                                  .norm = hypre_vector_norm,
+                                 .fprintf = hypre_vector_fprintf,
                                  .dtor = hypre_vector_dtor};
   return krylov_vector_new(v, vtable, row_dist[rank+1]-row_dist[rank], row_dist[nprocs]);
 }

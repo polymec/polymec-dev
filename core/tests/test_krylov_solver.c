@@ -373,8 +373,11 @@ static void test_1d_laplace_eqn(void** state,
     log_debug("residual norm is %g, # iterations is %d", res_norm, num_iters);
     assert_true(solved);
 
-printf("x =\n");
-krylov_vector_fprintf(x, stdout);
+    if (log_level() == LOG_DEBUG)
+    {
+      printf("x =\n");
+      krylov_vector_fprintf(x, stdout);
+    }
 
     // Put everything away.
     krylov_solver_free(solver);
