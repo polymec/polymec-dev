@@ -58,7 +58,7 @@ FILE* make_temp_file(const char* file_template, char* filename);
 // Create a temporary directory using the given template. This function replaces 
 // up to 6 X characters in the dirname template with a set of characters that 
 // renders it unique (in the spirit of mkdtemp). The template should have the 
-// form path/to/fileXXXXXX, with the X's all at the end. This function returns 
+// form path/to/dirXXXXXX, with the X's all at the end. This function returns 
 // true if the directory was created, false if not. All temporary files are 
 // deleted when a polymec application exits. Note that the temporary directory 
 // is created within a unique polymec-specific temporary directory.
