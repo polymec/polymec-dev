@@ -78,6 +78,7 @@ typedef struct
   PetscErrorCode (*MatConvert)(Mat, MatType, MatReuse, Mat*);
   PetscErrorCode (*MatSetType)(Mat, MatType);
   PetscErrorCode (*MatSetSizes)(Mat, PetscInt m, PetscInt n, PetscInt M, PetscInt N);
+  PetscErrorCode (*MatGetOwnershipRange)(Mat, PetscInt* m, PetscInt* n);
   PetscErrorCode (*MatSeqAIJSetPreallocation)(Mat, PetscInt, PetscInt[]);
   PetscErrorCode (*MatMPIAIJSetPreallocation)(Mat, PetscInt, PetscInt[], PetscInt, PetscInt[]);
   PetscErrorCode (*MatSeqBAIJSetPreallocation)(Mat, PetscInt, PetscInt, PetscInt[]);
@@ -525,14 +526,18 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
   index_t N_global = matrix_sparsity_num_global_rows(sparsity);
   MPI_Comm comm = matrix_sparsity_comm(sparsity);
 
-  int nprocs;
+  int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
   A->factory->methods.MatCreate(comm, &A->A);
   if (nprocs == 1)
     A->factory->methods.MatSetType(A->A, MATSEQAIJ);
   else
     A->factory->methods.MatSetType(A->A, MATMPIAIJ);
   A->factory->methods.MatSetSizes(A->A, N_local, N_local, N_global, N_global);
+
+  index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
+  PetscInt start = row_dist[rank], end = row_dist[rank+1];
 
   // Perform preallocation.
   if (nprocs == 1)
@@ -552,6 +557,8 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
     // d_nnz[r] is the number of nonzeros for the "diagonal" portion of row r, 
     // and o_nnz[r] is the number of nonzeros for the "off-diagonal" portion.
     PetscInt d_nnz[N_local], o_nnz[N_local];
+    memset(d_nnz, 0, sizeof(PetscInt) * N_local);
+    memset(o_nnz, 0, sizeof(PetscInt) * N_local);
     index_t row, r = 0;
     int rpos = 0;
     while (matrix_sparsity_next_row(sparsity, &rpos, &row))
@@ -560,7 +567,7 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
       index_t column;
       while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
       {
-        if (column >= N_local)
+        if ((column < start) || (column >= end))
           o_nnz[r] += 1;
         else
           d_nnz[r] += 1;
@@ -631,8 +638,9 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
   index_t N_global = matrix_sparsity_num_global_rows(sparsity);
   MPI_Comm comm = matrix_sparsity_comm(sparsity);
 
-  int nprocs;
+  int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
   A->factory->methods.MatCreate(comm, &A->A);
   if (nprocs == 1)
     A->factory->methods.MatSetType(A->A, MATSEQBAIJ);
@@ -640,6 +648,9 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
     A->factory->methods.MatSetType(A->A, MATMPIBAIJ);
   A->factory->methods.MatSetSizes(A->A, N_local, N_local, N_global, N_global);
   A->factory->methods.MatSetBlockSize(A->A, block_size);
+
+  index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
+  PetscInt start = row_dist[rank], end = row_dist[rank+1];
 
   // Perform preallocation.
   if (nprocs == 1)
@@ -669,7 +680,7 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
       index_t column;
       while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
       {
-        if (column >= N_local)
+        if ((column < start) || (column >= end))
           o_nnz[r] += 1;
         else
           d_nnz[r] += 1;
@@ -838,7 +849,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
   if (nprocs == 1)
     v->factory->methods.VecCreateSeq(comm, N_global, &v->v);
   else
-    v->factory->methods.VecCreateMPI(comm, N_global, N_local, &v->v);
+    v->factory->methods.VecCreateMPI(comm, N_local, N_global, &v->v);
 
   petsc_vector_zero(v);
 
@@ -1032,6 +1043,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(MatConvert);
   FETCH_PETSC_SYMBOL(MatSetType);
   FETCH_PETSC_SYMBOL(MatSetSizes);
+  FETCH_PETSC_SYMBOL(MatGetOwnershipRange);
   FETCH_PETSC_SYMBOL(MatSeqAIJSetPreallocation);
   FETCH_PETSC_SYMBOL(MatMPIAIJSetPreallocation);
   FETCH_PETSC_SYMBOL(MatSeqBAIJSetPreallocation);

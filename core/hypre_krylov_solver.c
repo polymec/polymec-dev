@@ -1028,6 +1028,8 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
   else
   {
     HYPRE_Int d_nnz[N_local], o_nnz[N_local];
+    memset(d_nnz, 0, sizeof(HYPRE_Int) * N_local);
+    memset(o_nnz, 0, sizeof(HYPRE_Int) * N_local);
     int rpos = 0;
     index_t row, r = 0;
     while (matrix_sparsity_next_row(sparsity, &rpos, &row))

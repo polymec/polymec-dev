@@ -171,7 +171,7 @@ static void test_krylov_matrix_from_file(void** state,
     if (rank == (nprocs-1))
       num_local_rows = num_global_rows - rank*num_local_rows;
 
-    // Read a matrix in from the given file.
+    // Read a matrix in from the given file. 
     krylov_matrix_t* mat = krylov_factory_matrix_from_file(factory, comm, filename);
     assert_int_equal(num_local_rows, krylov_matrix_num_local_rows(mat));
     assert_int_equal(num_global_rows, krylov_matrix_num_global_rows(mat));
@@ -256,6 +256,7 @@ static void test_krylov_vector_from_file(void** state,
       }
     }
     krylov_vector_free(vec);
+    krylov_factory_free(factory);
   }
 }
 

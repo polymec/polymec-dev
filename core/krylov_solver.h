@@ -347,21 +347,26 @@ int krylov_matrix_num_local_rows(krylov_matrix_t* A);
 int krylov_matrix_num_global_rows(krylov_matrix_t* A);
 
 // Zeros all of the entries in the given matrix.
+// This is collective and must be called by all processes.
 void krylov_matrix_zero(krylov_matrix_t* A);
 
 // Multiplies this matrix by a scale factor.
+// This is collective and must be called by all processes.
 void krylov_matrix_scale(krylov_matrix_t* A,
                          real_t scale_factor);
 
 // Adds a scaled identity matrix to this one.
+// This is collective and must be called by all processes.
 void krylov_matrix_add_identity(krylov_matrix_t* A,
                                 real_t scale_factor);
 
 // Adds the entries of the given vector (D) to the diagonal of the given matrix (A).
+// This is collective and must be called by all processes.
 void krylov_matrix_add_diagonal(krylov_matrix_t* A,
                                 krylov_vector_t* D);
 
 // Sets the diagonal entries in the given matrix (A) to those in the given vector (D).
+// This is collective and must be called by all processes.
 void krylov_matrix_set_diagonal(krylov_matrix_t* A,
                                 krylov_vector_t* D);
 
@@ -427,13 +432,16 @@ int krylov_vector_local_size(krylov_vector_t* v);
 int krylov_vector_global_size(krylov_vector_t* v);
 
 // Zeros all of the entries in the given vector.
+// This is collective, and must be called by all MPI processes.
 void krylov_vector_zero(krylov_vector_t* v);
 
 // Sets all of the entries in the given vector to the given value.
+// This is collective, and must be called by all MPI processes.
 void krylov_vector_set_value(krylov_vector_t* v,
                              real_t value);
 
 // Scales the vector by the given factor.
+// This is collective, and must be called by all MPI processes.
 void krylov_vector_scale(krylov_vector_t* v,
                          real_t scale_factor);
 
@@ -461,6 +469,7 @@ void krylov_vector_get_values(krylov_vector_t* v,
 
 // Computes and returns the Lp norm for this vector, where p can be 
 // 0 (infinity/max norm), 1, or 2.
+// This is collective, and must be called by all MPI processes.
 real_t krylov_vector_norm(krylov_vector_t* v, int p);
  
 // Writes a text representation of the vector (or portion stored on the local

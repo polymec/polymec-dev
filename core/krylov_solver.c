@@ -691,6 +691,10 @@ krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,
     polymec_error("krylov_factory_matrix_from_file: unsupported format");
 
   fclose(f);
+
+  // Force matrix assembly by adding nothing to the diagonal.
+  krylov_matrix_add_identity(A, 0.0);
+
   return A;
 }
 
@@ -1025,6 +1029,10 @@ krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
     polymec_error("krylov_factory_vector_from_file: unsupported format");
 
   fclose(f);
+
+  // Force assembly by evaluating a norm.
+  krylov_vector_norm(x, 1);
+
   return x;
 }
 
