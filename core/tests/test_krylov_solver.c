@@ -351,6 +351,8 @@ static void test_1d_laplace_eqn(void** state,
         krylov_vector_set_values(b, 1, &row, bi);
       }
     }
+    krylov_matrix_assemble(A);
+    krylov_vector_assemble(b);
     krylov_matrix_scale(A, 1.0/(h*h));
     krylov_vector_scale(b, -1.0/(h*h));
 //krylov_matrix_fprintf(A, stdout);

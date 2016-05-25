@@ -644,6 +644,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
     index_t column = J[i];
     krylov_matrix_set_values(A, 1, &num_columns, &row, &column, &val[i]);
   }
+  krylov_matrix_assemble(A);
 
   // Clean up.
   polymec_free(I);
@@ -692,8 +693,7 @@ krylov_matrix_t* krylov_factory_matrix_from_file(krylov_factory_t* factory,
 
   fclose(f);
 
-  // Force matrix assembly by adding nothing to the diagonal.
-  krylov_matrix_add_identity(A, 0.0);
+  krylov_matrix_assemble(A);
 
   return A;
 }
@@ -783,6 +783,12 @@ void krylov_matrix_add_values(krylov_matrix_t* A,
   A->vtable.add_values(A->context, num_rows, num_columns, rows, columns, values);
 }
                               
+void krylov_matrix_assemble(krylov_matrix_t* A)
+{
+  if (A->vtable.assemble != NULL)
+    A->vtable.assemble(A->context);
+}
+
 void krylov_matrix_get_values(krylov_matrix_t* A,
                               index_t num_rows,
                               index_t* num_columns,
@@ -887,6 +893,12 @@ void krylov_vector_add_values(krylov_vector_t* v,
                               real_t* values)
 {
   v->vtable.add_values(v->context, num_values, indices, values);
+}
+
+void krylov_vector_assemble(krylov_vector_t* v)
+{
+  if (v->vtable.assemble != NULL)
+    v->vtable.assemble(v->context);
 }
 
 void krylov_vector_get_values(krylov_vector_t* v,
@@ -999,6 +1011,7 @@ static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
 
   // Insert the values into the vector. 
   krylov_vector_set_values(x, M, rows, values);
+  krylov_vector_assemble(x);
 
   // Distribute as necessary.
   if (comm != MPI_COMM_SELF)
@@ -1030,8 +1043,7 @@ krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
 
   fclose(f);
 
-  // Force assembly by evaluating a norm.
-  krylov_vector_norm(x, 1);
+  krylov_vector_assemble(x);
 
   return x;
 }

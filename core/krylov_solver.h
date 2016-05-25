@@ -103,6 +103,7 @@ typedef struct
   void (*set_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*add_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*get_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
+  void (*assemble)(void* context);
   void (*fprintf)(void* context, FILE* stream);
   void (*dtor)(void* context);
 } krylov_matrix_vtable;
@@ -126,6 +127,7 @@ typedef struct
   void (*add_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*get_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   real_t (*norm)(void* context, int p);
+  void (*assemble)(void* context);
   void (*fprintf)(void* context, FILE* stream);
   void (*dtor)(void* context);
 } krylov_vector_vtable;
@@ -397,6 +399,12 @@ void krylov_matrix_add_values(krylov_matrix_t* A,
                               index_t* rows, index_t* columns,
                               real_t* values);
                               
+// Assembles added/inserted values into the matrix, allowing all the processes
+// a consistent representation of the matrix. This should be called after calls
+// to krylov_matrix_set_values and krylov_matrix_add_values, and should be 
+// placed in between sets and adds.
+void krylov_matrix_assemble(krylov_matrix_t* A);
+
 // Retrieves the values of the elements in the matrix identified by the 
 // given (globally-indexed) rows and columns, storing them in the values array.
 void krylov_matrix_get_values(krylov_matrix_t* A,
@@ -459,6 +467,12 @@ void krylov_vector_add_values(krylov_vector_t* v,
                               index_t* indices,
                               real_t* values);
                               
+// Assembles added/inserted values into the vector, allowing all the processes
+// a consistent representation of the vector. This should be called after calls
+// to krylov_vector_set_values and krylov_vector_add_values, and should be 
+// placed in between sets and adds.
+void krylov_vector_assemble(krylov_vector_t* A);
+
 // Retrieves the values of the elements in the vector identified by the 
 // given (global) indices, storing them in the values array. The values 
 // must exist on the local process.

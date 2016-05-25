@@ -206,7 +206,6 @@ typedef struct
   index_t ilow, ihigh;
   hypre_factory_t* factory;
   HYPRE_IJMatrix A;
-  bool assembled;
 } hypre_matrix_t;
 
 typedef struct
@@ -215,7 +214,6 @@ typedef struct
   index_t ilow, ihigh;
   hypre_factory_t* factory;
   HYPRE_IJVector v;
-  bool assembled;
 } hypre_vector_t;
 
 static bool solver_error_occurred(hypre_solver_t* s, 
@@ -699,24 +697,11 @@ static void check_for_matrix_error(hypre_matrix_t* A,
 
 #define CHECK_FOR_MATRIX_ERROR(A) check_for_matrix_error(A, __func__);
 
-static void ensure_matrix_assembly(hypre_matrix_t* A)
+static void hypre_matrix_assemble(void* context)
 {
-  if (!A->assembled)
-  {
-    A->factory->methods.HYPRE_IJMatrixAssemble(A->A);
-    A->assembled = true;
-    CHECK_FOR_MATRIX_ERROR(A)
-  }
-}
-
-static void ensure_matrix_initialization(hypre_matrix_t* A)
-{
-  if (A->assembled)
-  {
-    A->factory->methods.HYPRE_IJMatrixInitialize(A->A);
-    A->assembled = false;
-    CHECK_FOR_MATRIX_ERROR(A)
-  }
+  hypre_matrix_t* A = context;
+  A->factory->methods.HYPRE_IJMatrixAssemble(A->A);
+  CHECK_FOR_MATRIX_ERROR(A)
 }
 
 static void hypre_matrix_set_values(void* context, index_t num_rows,
@@ -724,7 +709,8 @@ static void hypre_matrix_set_values(void* context, index_t num_rows,
                                     real_t* values)
 {
   hypre_matrix_t* A = context;
-  ensure_matrix_initialization(A);
+  A->factory->methods.HYPRE_IJMatrixInitialize(A->A);
+  CHECK_FOR_MATRIX_ERROR(A)
 
   if (sizeof(real_t) == sizeof(HYPRE_Real))
     A->factory->methods.HYPRE_IJMatrixSetValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, (HYPRE_Real*)values);
@@ -747,7 +733,8 @@ static void hypre_matrix_add_values(void* context, index_t num_rows,
                                     real_t* values)
 {
   hypre_matrix_t* A = context;
-  ensure_matrix_initialization(A);
+  A->factory->methods.HYPRE_IJMatrixInitialize(A->A);
+  CHECK_FOR_MATRIX_ERROR(A)
 
   if (sizeof(real_t) == sizeof(HYPRE_Real))
     A->factory->methods.HYPRE_IJMatrixAddToValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, values);
@@ -770,7 +757,6 @@ static void* hypre_matrix_clone(void* context)
   hypre_matrix_t* A = context;
   hypre_matrix_t* clone = polymec_malloc(sizeof(hypre_matrix_t));
   clone->comm = A->comm;
-  clone->assembled = A->assembled;
   clone->factory = A->factory;
   clone->ilow = A->ilow;
   clone->ihigh = A->ihigh;
@@ -816,15 +802,13 @@ static void* hypre_matrix_clone(void* context)
 
   // Stuff the values in.
   hypre_matrix_set_values(clone, num_rows, num_columns, rows, columns, values);
-  ensure_matrix_assembly(clone);
-
+  hypre_matrix_assemble(clone);
   return clone;
 }
 
 static void hypre_matrix_scale(void* context, real_t scale_factor)
 {
   hypre_matrix_t* A = context;
-  ensure_matrix_assembly(A);
 
   // Get the information about the matrix's nonzero structure.
   index_t num_rows = A->ihigh - A->ilow + 1;
@@ -860,7 +844,7 @@ static void hypre_matrix_scale(void* context, real_t scale_factor)
 
   // Scale the values in the matrix.
   hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values);
-  ensure_matrix_assembly(A);
+  hypre_matrix_assemble(context);
 }
 
 static void hypre_matrix_zero(void* context)
@@ -871,7 +855,6 @@ static void hypre_matrix_zero(void* context)
 static void hypre_matrix_add_identity(void* context, real_t scale_factor)
 {
   hypre_matrix_t* A = context;
-  ensure_matrix_assembly(A);
 
   index_t num_rows = A->ihigh - A->ilow + 1;
   index_t num_columns[num_rows], rows[num_rows], columns[num_rows];
@@ -883,9 +866,8 @@ static void hypre_matrix_add_identity(void* context, real_t scale_factor)
     columns[r] = A->ilow + r;
     values[r] = scale_factor;
   }
-  ensure_matrix_initialization(A);
   hypre_matrix_add_values(context, num_rows, num_columns, rows, columns, values); 
-  ensure_matrix_assembly(A);
+  hypre_matrix_assemble(context);
 }
 
 // This is used for the diagonal methods below, and defined later in the file.
@@ -895,7 +877,6 @@ static void hypre_vector_get_values(void* context, index_t num_values,
 static void hypre_matrix_set_diagonal(void* context, void* D)
 {
   hypre_matrix_t* A = context;
-  ensure_matrix_assembly(A);
 
   index_t num_rows = A->ihigh - A->ilow + 1;
   index_t num_columns[num_rows], rows[num_rows], columns[num_rows];
@@ -908,13 +889,12 @@ static void hypre_matrix_set_diagonal(void* context, void* D)
   }
   hypre_vector_get_values(context, num_rows, rows, values); // get values from D
   hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values); // set diag A.
-  ensure_matrix_assembly(A);
+  hypre_matrix_assemble(context);
 }
 
 static void hypre_matrix_add_diagonal(void* context, void* D)
 {
   hypre_matrix_t* A = context;
-  ensure_matrix_assembly(A);
 
   index_t num_rows = A->ihigh - A->ilow + 1;
   index_t num_columns[num_rows], rows[num_rows], columns[num_rows];
@@ -926,9 +906,8 @@ static void hypre_matrix_add_diagonal(void* context, void* D)
     columns[r] = A->ilow + r;
   }
   hypre_vector_get_values(context, num_rows, rows, values); // get values from D
-  ensure_matrix_initialization(A);
   hypre_matrix_add_values(context, num_rows, num_columns, rows, columns, values); // add to diag A.
-  ensure_matrix_assembly(A);
+  hypre_matrix_assemble(context);
 }
 
 static void hypre_matrix_get_values(void* context, index_t num_rows,
@@ -936,7 +915,6 @@ static void hypre_matrix_get_values(void* context, index_t num_rows,
                                     real_t* values)
 {
   hypre_matrix_t* A = context;
-  ensure_matrix_assembly(A);
 
   if (sizeof(real_t) == sizeof(HYPRE_Real))
     A->factory->methods.HYPRE_IJMatrixGetValues(A->A, num_rows, (HYPRE_Int*)num_columns, (HYPRE_Int*)rows, (HYPRE_Int*)columns, values);
@@ -1050,10 +1028,8 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
     A->factory->methods.HYPRE_IJMatrixSetDiagOffdSizes(A->A, d_nnz, o_nnz);
   }
 
-  // We're ready to set values. We set assembled to true here to force
-  // initialization.
-  A->assembled = true;
-  ensure_matrix_initialization(A);
+  // We're ready to set values. 
+  A->factory->methods.HYPRE_IJMatrixInitialize(A->A);
 
   // Set the "non-zero" values to zero initially. This constructs the specific non-zero structure.
   index_t nnz = 0;
@@ -1086,8 +1062,7 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
   real_t zeros[nnz];
   memset(zeros, 0, sizeof(real_t) * nnz);
   hypre_matrix_set_values(A, N_local, num_columns, rows, columns, zeros);
-
-  ensure_matrix_assembly(A);
+  hypre_matrix_assemble(A);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = hypre_matrix_clone,
@@ -1099,6 +1074,7 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
                                  .set_values = hypre_matrix_set_values,
                                  .add_values = hypre_matrix_add_values,
                                  .get_values = hypre_matrix_get_values,
+                                 .assemble = hypre_matrix_assemble,
                                  .fprintf = hypre_matrix_fprintf,
                                  .dtor = hypre_matrix_dtor};
   HYPRE_Int N_global = 0;
@@ -1139,32 +1115,19 @@ static void check_for_vector_error(hypre_vector_t* v,
 
 #define CHECK_FOR_VECTOR_ERROR(v) check_for_vector_error(v, __func__);
 
-static void ensure_vector_assembly(hypre_vector_t* v)
+static void hypre_vector_assemble(void* context)
 {
-  if (!v->assembled)
-  {
-    v->factory->methods.HYPRE_IJVectorAssemble(v->v);
-    v->assembled = true;
-    CHECK_FOR_VECTOR_ERROR(v)
-  }
+  hypre_vector_t* v = context;
+  v->factory->methods.HYPRE_IJVectorAssemble(v->v);
+  CHECK_FOR_VECTOR_ERROR(v)
 }
-
-static void ensure_vector_initialization(hypre_vector_t* v)
-{
-  if (v->assembled)
-  {
-    v->factory->methods.HYPRE_IJVectorInitialize(v->v);
-    v->assembled = false;
-    CHECK_FOR_VECTOR_ERROR(v)
-  }
-}
-
 
 static void hypre_vector_set_values(void* context, index_t num_values,
                                     index_t* indices, real_t* values)
 {
   hypre_vector_t* v = context;
-  ensure_vector_initialization(v);
+  v->factory->methods.HYPRE_IJVectorInitialize(v->v);
+  CHECK_FOR_VECTOR_ERROR(v)
 
   if (sizeof(real_t) == sizeof(HYPRE_Real))
     v->factory->methods.HYPRE_IJVectorSetValues(v->v, num_values, (HYPRE_Int*)indices, values);
@@ -1183,7 +1146,8 @@ static void hypre_vector_add_values(void* context, index_t num_values,
                                     index_t* indices, real_t* values)
 {
   hypre_vector_t* v = context;
-  ensure_vector_initialization(v);
+  v->factory->methods.HYPRE_IJVectorInitialize(v->v);
+  CHECK_FOR_VECTOR_ERROR(v)
 
   if (sizeof(real_t) == sizeof(HYPRE_Real))
     v->factory->methods.HYPRE_IJVectorAddToValues(v->v, num_values, (HYPRE_Int*)indices, values);
@@ -1202,7 +1166,6 @@ static void hypre_vector_get_values(void* context, index_t num_values,
                                     index_t* indices, real_t* values)
 {
   hypre_vector_t* v = context;
-  ensure_vector_assembly(v);
 
   if (sizeof(real_t) == sizeof(HYPRE_Real))
     v->factory->methods.HYPRE_IJVectorGetValues(v->v, num_values, (HYPRE_Int*)indices, values);
@@ -1223,7 +1186,6 @@ static void* hypre_vector_clone(void* context)
   // Get data from the original vector and use it to create a new one.
   hypre_vector_t* clone = polymec_malloc(sizeof(hypre_vector_t));
   clone->comm = v->comm;
-  clone->assembled = false;
   clone->factory = v->factory;
   clone->ilow = v->ilow;
   clone->ihigh = v->ihigh;
@@ -1239,7 +1201,7 @@ static void* hypre_vector_clone(void* context)
   real_t vals[num_rows];
   hypre_vector_get_values(v, num_rows, rows, vals);
   hypre_vector_set_values(clone, num_rows, rows, vals);
-  ensure_vector_assembly(clone);
+  hypre_vector_assemble(v);
   return clone;
 }
 
@@ -1257,7 +1219,7 @@ static void hypre_vector_set_value(void* context, real_t value)
     values[r] = value;
   }
   hypre_vector_set_values(context, num_rows, rows, values);
-  ensure_vector_assembly(v);
+  hypre_vector_assemble(v);
 }
 
 static void hypre_vector_zero(void* context)
@@ -1277,7 +1239,7 @@ static void hypre_vector_scale(void* context, real_t scale_factor)
   for (index_t r = 0; r < num_rows; ++r) 
     values[r] *= scale_factor;
   hypre_vector_set_values(context, num_rows, rows, values);
-  ensure_vector_assembly(v);
+  hypre_vector_assemble(v);
 }
 
 static real_t hypre_vector_norm(void* context, int p)
@@ -1373,9 +1335,9 @@ static krylov_vector_t* hypre_factory_vector(void* context,
   v->factory->methods.HYPRE_IJVectorCreate(hypre_comm, v->ilow, v->ihigh, &v->v);
   v->factory->methods.HYPRE_IJVectorSetObjectType(v->v, HYPRE_PARCSR);
 
-  // Make sure the vector is initialized, forcing with assembled == true.
-  v->assembled = true;
-  ensure_vector_initialization(v);
+  // Make sure the vector is initialized.
+  v->factory->methods.HYPRE_IJVectorInitialize(v->v);
+  CHECK_FOR_VECTOR_ERROR(v)
 
   // Set all the entries of the vector to zero.
   hypre_vector_zero(v);
@@ -1388,6 +1350,7 @@ static krylov_vector_t* hypre_factory_vector(void* context,
                                  .set_values = hypre_vector_set_values,
                                  .add_values = hypre_vector_add_values,
                                  .get_values = hypre_vector_get_values,
+                                 .assemble = hypre_vector_assemble,
                                  .norm = hypre_vector_norm,
                                  .fprintf = hypre_vector_fprintf,
                                  .dtor = hypre_vector_dtor};
