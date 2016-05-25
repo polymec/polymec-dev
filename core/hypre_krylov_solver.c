@@ -401,6 +401,7 @@ static bool hypre_solver_solve(void* context,
   get_norm(solver->solver, &norm);
   *res_norm = norm;
 
+  solver->factory->methods.HYPRE_ClearAllErrors();
   return success;
 }
 
@@ -1008,10 +1009,12 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
                                            A->ilow, A->ihigh, A->ilow, A->ihigh,
                                            &A->A);
   A->factory->methods.HYPRE_IJMatrixSetObjectType(A->A, HYPRE_PARCSR);
+  A->factory->methods.HYPRE_IJMatrixSetPrintLevel(A->A, 1);
 
   // Preallocate non-zero storage.
   HYPRE_Int N_local = 0;
-  for (index_t r = 0; r < row_dist[rank+1] - row_dist[rank]; ++r)
+  index_t start = row_dist[rank], end = row_dist[rank+1];
+  for (index_t r = 0; r < end - start; ++r)
     N_local += block_sizes[r];
   if (nprocs == 1)
   {
@@ -1038,7 +1041,7 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
       index_t column;
       while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
       {
-        if (column >= N_local)
+        if ((column < start) || (column >= end))
           o_nnz[r] += block_sizes[r];
         else
           d_nnz[r] += block_sizes[r];
