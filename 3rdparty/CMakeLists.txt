@@ -381,7 +381,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis${LIB_SUFFIX})
     message(STATUS "Eliminating lis tests from build for Clang compiler...")
     file(READ ${CMAKE_CURRENT_BINARY_DIR}/lis/configure lis_configure)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis/configure.old "${lis_configure}")
-    string(REPLACE " test/Makefile " "" lis_configure "${lis_configure}")
+    string(REPLACE " test/Makefile " " " lis_configure "${lis_configure}")
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis/configure "${lis_configure}")
   endif()
 
