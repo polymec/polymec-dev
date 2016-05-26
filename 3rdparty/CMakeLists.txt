@@ -376,13 +376,20 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis${LIB_SUFFIX})
   # LIS's tests declare/define their main functions as 
   #   LIS_INT main(LIS_INT argc, char** argv), 
   # instead of using int, which upsets the Clang compiler. Our workaround 
-  # is to eliminate the building of tests from the configure script.
+  # is to eliminate the building of tests from the configure script and 
+  # top-level Makefile.
   if (CMAKE_C_COMPILER_ID MATCHES "Clang")
     message(STATUS "Eliminating lis tests from build for Clang compiler...")
+    # configure script
     file(READ ${CMAKE_CURRENT_BINARY_DIR}/lis/configure lis_configure)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis/configure.old "${lis_configure}")
     string(REPLACE " test/Makefile " " " lis_configure "${lis_configure}")
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis/configure "${lis_configure}")
+    # Makefile.in
+    file(READ ${CMAKE_CURRENT_BINARY_DIR}/lis/Makefile.in lis_Makefile)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis/Makefile.in.old "${lis_Makefile}")
+    string(REPLACE "SUBDIRS = include src test" "SUBDIRS = include src" lis_Makefile "${lis_Makefile}")
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lis/Makefile.in "${lis_Makefile}")
   endif()
 
   message(STATUS "Configuring lis...")
