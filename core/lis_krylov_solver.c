@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/options.h"
 #include "core/krylov_solver.h"
 
 // Set up stuff for LIS.
@@ -1045,10 +1046,30 @@ static void lis_factory_dtor(void* context)
   polymec_free(factory);
 }
 
+static bool lis_is_initialized = false;
+
 krylov_factory_t* lis_krylov_factory()
 {
   _Static_assert(sizeof(LIS_INT) == sizeof(index_t), "sizeof(LIS_INT) != sizeof(index_t)");
   _Static_assert(sizeof(LIS_REAL) == sizeof(real_t), "LIS_REAL != real_t");
+
+  if (!lis_is_initialized)
+  {
+    // Initialize the LIS solver interface.
+    options_t* opts = options_argv();
+    int argc = options_num_arguments(opts);
+    char* argv[argc];
+    for (int i = 0; i < argc; ++i)
+      argv[i] = options_argument(opts, i);
+
+    // NOTE: we must use a 64-bit integer for argc.
+    LIS_INT lis_argc = (LIS_INT)argc;
+    char** lis_argv = argv;
+    lis_initialize(&lis_argc, &lis_argv);
+    polymec_atexit((void (*)())lis_finalize);
+
+    lis_is_initialized = true;
+  }
 
   lis_factory_t* factory = polymec_malloc(sizeof(lis_factory_t));
 

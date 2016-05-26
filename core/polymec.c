@@ -12,7 +12,6 @@
 #include <gc/gc.h>
 #include "arena/proto.h"
 #include "arena/pool.h"
-#include "lis.h"
 #include "silo.h"
 #include "core/polymec.h"
 #include "core/polymec_version.h"
@@ -107,9 +106,6 @@ static void shutdown()
     log_debug("polymec: Peak memory usage: %zu kB.", 
               meminfo.process_peak_resident_size);
   }
-
-  // Shut down LIS.
-  lis_finalize();
 
   // Kill extra provenance data.
   if (polymec_extra_provenance != NULL)
@@ -405,11 +401,6 @@ void polymec_init(int argc, char** argv)
 
     // Initialize variables for exact arithmetic.
     exactinit();
-
-    // Initialize the LIS solver interface.
-    // NOTE: we must use a 64-bit integer for argc.
-    LIS_INT lis_argc = (LIS_INT)argc;
-    lis_initialize(&lis_argc, &argv);
 
     // Register a shutdown function.
     atexit(&shutdown);
