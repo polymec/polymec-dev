@@ -93,6 +93,7 @@ krylov_pc_t* krylov_pc_new(const char* name,
 // This virtual table must be filled out for any subclass of krylov_matrix.
 typedef struct
 {
+  int (*block_size)(void* context, index_t block_row);
   void* (*clone)(void* context);
   void (*redistribute)(void* context, MPI_Comm);
   void (*zero)(void* context);
@@ -103,6 +104,9 @@ typedef struct
   void (*set_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*add_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*get_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
+  void (*set_blocks)(void* context, index_t num_blocks, index_t* block_rows, index_t* block_columns, real_t* block_values);
+  void (*add_blocks)(void* context, index_t num_blocks, index_t* block_rows, index_t* block_columns, real_t* block_values);
+  void (*get_blocks)(void* context, index_t num_blocks, index_t* block_rows, index_t* block_columns, real_t* block_values);
   void (*assemble)(void* context);
   void (*fprintf)(void* context, FILE* stream);
   void (*dtor)(void* context);
@@ -119,6 +123,7 @@ krylov_matrix_t* krylov_matrix_new(void* context,
 // This virtual table must be filled out for any subclass of krylov_matrix.
 typedef struct
 {
+  int (*block_size)(void* context, index_t block_row);
   void* (*clone)(void* context);
   void (*zero)(void* context);
   void (*set_value)(void* context, real_t value);
@@ -126,6 +131,9 @@ typedef struct
   void (*set_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*add_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*get_values)(void* context, index_t num_values, index_t* indices, real_t* values);
+  void (*set_blocks)(void* context, index_t num_blocks, index_t* block_rows, real_t* block_values);
+  void (*add_blocks)(void* context, index_t num_blocks, index_t* block_rows, real_t* block_values);
+  void (*get_blocks)(void* context, index_t num_blocks, index_t* block_rows, real_t* block_values);
   real_t (*norm)(void* context, int p);
   void (*assemble)(void* context);
   void (*fprintf)(void* context, FILE* stream);
@@ -329,6 +337,10 @@ void krylov_matrix_free(krylov_matrix_t* A);
 // Returns the communicator on which the matrix is defined.
 MPI_Comm krylov_matrix_comm(krylov_matrix_t* A);
 
+// Returns the size of the given block row. If the matrix doesn't use block 
+// rows, the block size is 1.
+int krylov_matrix_block_size(krylov_matrix_t* A, index_t block_row);
+
 // Creates and returns a deep copy of a matrix.
 krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A);
 
@@ -399,12 +411,6 @@ void krylov_matrix_add_values(krylov_matrix_t* A,
                               index_t* rows, index_t* columns,
                               real_t* values);
                               
-// Assembles added/inserted values into the matrix, allowing all the processes
-// a consistent representation of the matrix. This should be called after calls
-// to krylov_matrix_set_values and krylov_matrix_add_values, and should be 
-// placed in between sets and adds.
-void krylov_matrix_assemble(krylov_matrix_t* A);
-
 // Retrieves the values of the elements in the matrix identified by the 
 // given (globally-indexed) rows and columns, storing them in the values array.
 void krylov_matrix_get_values(krylov_matrix_t* A,
@@ -412,6 +418,75 @@ void krylov_matrix_get_values(krylov_matrix_t* A,
                               index_t* num_columns,
                               index_t* rows, index_t* columns,
                               real_t* values);
+
+// Sets the values of the blocks in the matrix identified by the given 
+// (globally-indexed) block rows and columns. The block rows and columns being 
+// set must exist on the local process. block_rows and block_columns are arrays 
+// of size num_blocks, and contain the indices of the blocks being set. 
+// block_values is an array of size block_size*block_size*num_blocks whose data
+// consists of an array of num_blocks column-major-ordered blocks of data.
+void krylov_matrix_set_blocks(krylov_matrix_t* A,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              index_t* block_columns,
+                              real_t* block_values);
+                              
+// Adds in the values of the blocks in the matrix identified by the given 
+// (globally-indexed) block rows and columns. The block rows and columns being 
+// set must exist on the local process. block_rows and block_columns are arrays 
+// of size num_blocks, and contain the indices of the blocks being set. 
+// block_values is an array of size block_size*block_size*num_blocks whose data
+// consists of an array of num_blocks column-major-ordered blocks of data.
+void krylov_matrix_add_blocks(krylov_matrix_t* A,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              index_t* block_columns,
+                              real_t* block_values);
+                              
+// Retrieves the blocks of values in the matrix identified by the given 
+// (globally-indexed) block rows and columns, storing them in the block_values 
+// array (as an array of num_blocks sets of block_size*block_size 
+// column-major-ordered values). These blocks must be stored on the local 
+// process.  
+void krylov_matrix_get_blocks(krylov_matrix_t* A,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              index_t* block_columns,
+                              real_t* block_values);
+
+// Set the values of the block in the matrix identified by the given 
+// (globally-indexed) block row and column, which must exist on the local 
+// process. The block_values array contains block_size*block_size 
+// column-major-ordered elements.
+void krylov_matrix_set_block(krylov_matrix_t* A,
+                             index_t block_row, 
+                             index_t block_column,
+                             real_t* block_values);
+                              
+// Adds in the values of the block in the matrix identified by the given 
+// (globally-indexed) block row and column, which must exist on the local 
+// process. The block_values array contains block_size*block_size 
+// column-major-ordered elements.
+void krylov_matrix_add_block(krylov_matrix_t* A,
+                             index_t block_row, 
+                             index_t block_column,
+                             real_t* block_values);
+                              
+// Retrieves the block of values in the matrix identified by the given 
+// (globally-indexed) block row and column, storing it in the block_values 
+// array (as an array of block_size*block_size column-major-ordered values). 
+// The block must be stored on the local process.  
+void krylov_matrix_get_block(krylov_matrix_t* A,
+                             index_t block_row, 
+                             index_t block_column,
+                             real_t* block_values);
+
+// Assembles added/inserted values into the matrix, allowing all the processes
+// a consistent representation of the matrix. This should be called after calls
+// to krylov_matrix_set_values/krylov_matrix_add_values and 
+// krylov_matrix_set_blocks/krylov_matrix_add_blocks, and should be 
+// placed in between sets and adds.
+void krylov_matrix_assemble(krylov_matrix_t* A);
 
 // Writes a text representation of the matrix (or portion stored on the local
 // MPI process) to the given stream.
@@ -424,6 +499,10 @@ void krylov_matrix_fprintf(krylov_matrix_t* A,
 
 // Frees a vector.
 void krylov_vector_free(krylov_vector_t* v);
+
+// Returns the size of the given block row for the vector. If the vector 
+// doesn't use block rows, the block size is 1.
+int krylov_vector_block_size(krylov_vector_t* v, index_t block_row);
 
 // Creates and returns a deep copy of a vector.
 krylov_vector_t* krylov_vector_clone(krylov_vector_t* v);
@@ -467,9 +546,62 @@ void krylov_vector_add_values(krylov_vector_t* v,
                               index_t* indices,
                               real_t* values);
                               
+// Sets the values of the blocks in the vector identified by the given 
+// (globally-indexed) block rows. The block rows being set must exist on the 
+// local process. block_rows is an array of size num_blocks, and contains the 
+// indices of the blocks being set. block_values is an array of size 
+// block_size*num_blocks whose data consists of an array of num_blocks 
+// blocks of data.
+void krylov_vector_set_blocks(krylov_vector_t* v,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              real_t* block_values);
+                              
+// Adds in the values of the blocks in the vector identified by the given 
+// (globally-indexed) block rows. The block rows being set must exist on the 
+// local process. block_rows is an array of size num_blocks, and contains the 
+// indices of the blocks being set. block_values is an array of size 
+// block_size*num_blocks whose data consists of an array of num_blocks 
+// blocks of data.
+void krylov_vector_add_blocks(krylov_vector_t* v,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              real_t* block_values);
+                              
+// Retrieves the blocks of values in the vector identified by the given 
+// (globally-indexed) block rows, storing them in the block_values array (as 
+// an array of num_blocks sets of block_size values). These blocks must be 
+// stored on the local process.  
+void krylov_vector_get_blocks(krylov_vector_t* v,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              real_t* block_values);
+
+// Set the values of the block in the vector identified by the given 
+// (globally-indexed) block row, which must exist on the local process. The 
+// block_values array contains block_size elements.
+void krylov_vector_set_block(krylov_vector_t* v,
+                             index_t block_row, 
+                             real_t* block_values);
+                              
+// Adds in the values of the block in the vector identified by the given 
+// (globally-indexed) block row, which must exist on the local process. The 
+// block_values array contains block_size elements.
+void krylov_vector_add_block(krylov_vector_t* v,
+                             index_t block_row, 
+                             real_t* block_values);
+                              
+// Retrieves the block of values in the vector identified by the given 
+// (globally-indexed) block row, storing it in the block_values array (as an 
+// array of block_size values). The block must be stored on the local process.  
+void krylov_vector_get_block(krylov_vector_t* v,
+                             index_t block_row, 
+                             real_t* block_values);
+
 // Assembles added/inserted values into the vector, allowing all the processes
 // a consistent representation of the vector. This should be called after calls
-// to krylov_vector_set_values and krylov_vector_add_values, and should be 
+// to krylov_vector_set_values/krylov_vector_add_values and 
+// krylov_vector_set_blocks/krylov_vector_add_blocks, and should be 
 // placed in between sets and adds.
 void krylov_vector_assemble(krylov_vector_t* A);
 

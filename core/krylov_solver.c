@@ -187,6 +187,9 @@ krylov_matrix_t* krylov_matrix_new(void* context,
   ASSERT(vtable.set_values != NULL);
   ASSERT(vtable.add_values != NULL);
   ASSERT(vtable.get_values != NULL);
+  ASSERT(vtable.set_blocks != NULL);
+  ASSERT(vtable.add_blocks != NULL);
+  ASSERT(vtable.get_blocks != NULL);
   ASSERT(num_local_rows > 0);
   ASSERT(num_global_rows >= num_local_rows);
   krylov_matrix_t* A = polymec_malloc(sizeof(krylov_matrix_t));
@@ -710,6 +713,14 @@ MPI_Comm krylov_matrix_comm(krylov_matrix_t* A)
   return A->comm;
 }
 
+int krylov_matrix_block_size(krylov_matrix_t* A, index_t block_row)
+{
+  if (A->vtable.block_size != NULL)
+    return A->vtable.block_size(A->context, block_row);
+  else
+    return 1;
+}
+
 krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A)
 {
   krylov_matrix_t* B = polymec_malloc(sizeof(krylov_matrix_t));
@@ -783,6 +794,57 @@ void krylov_matrix_add_values(krylov_matrix_t* A,
   A->vtable.add_values(A->context, num_rows, num_columns, rows, columns, values);
 }
                               
+void krylov_matrix_set_blocks(krylov_matrix_t* A,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              index_t* block_columns,
+                              real_t* block_values)
+{
+  A->vtable.set_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
+}
+                              
+void krylov_matrix_add_blocks(krylov_matrix_t* A,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              index_t* block_columns,
+                              real_t* block_values)
+{
+  A->vtable.add_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
+}
+                              
+void krylov_matrix_get_blocks(krylov_matrix_t* A,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              index_t* block_columns,
+                              real_t* block_values)
+{
+  A->vtable.get_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
+}
+
+void krylov_matrix_set_block(krylov_matrix_t* A,
+                             index_t block_row, 
+                             index_t block_column,
+                             real_t* block_values)
+{
+  krylov_matrix_set_blocks(A, 1, &block_row, &block_column, block_values);
+}
+                              
+void krylov_matrix_add_block(krylov_matrix_t* A,
+                             index_t block_row, 
+                             index_t block_column,
+                             real_t* block_values)
+{
+  krylov_matrix_add_blocks(A, 1, &block_row, &block_column, block_values);
+}
+
+void krylov_matrix_get_block(krylov_matrix_t* A,
+                             index_t block_row, 
+                             index_t block_column,
+                             real_t* block_values)
+{
+  krylov_matrix_get_blocks(A, 1, &block_row, &block_column, block_values);
+}
+
 void krylov_matrix_assemble(krylov_matrix_t* A)
 {
   if (A->vtable.assemble != NULL)
@@ -820,6 +882,9 @@ krylov_vector_t* krylov_vector_new(void* context,
   ASSERT(vtable.set_values != NULL);
   ASSERT(vtable.add_values != NULL);
   ASSERT(vtable.get_values != NULL);
+  ASSERT(vtable.set_blocks != NULL);
+  ASSERT(vtable.add_blocks != NULL);
+  ASSERT(vtable.get_blocks != NULL);
   ASSERT(local_size > 0);
   ASSERT(global_size >= local_size);
   krylov_vector_t* v = polymec_malloc(sizeof(krylov_vector_t));
@@ -835,6 +900,14 @@ void krylov_vector_free(krylov_vector_t* v)
   if ((v->context != NULL) && (v->vtable.dtor != NULL))
     v->vtable.dtor(v->context);
   polymec_free(v);
+}
+
+int krylov_vector_block_size(krylov_vector_t* v, index_t block_row)
+{
+  if (v->vtable.block_size != NULL)
+    return v->vtable.block_size(v->context, block_row);
+  else
+    return 1;
 }
 
 krylov_vector_t* krylov_vector_clone(krylov_vector_t* v)
@@ -895,18 +968,63 @@ void krylov_vector_add_values(krylov_vector_t* v,
   v->vtable.add_values(v->context, num_values, indices, values);
 }
 
-void krylov_vector_assemble(krylov_vector_t* v)
-{
-  if (v->vtable.assemble != NULL)
-    v->vtable.assemble(v->context);
-}
-
 void krylov_vector_get_values(krylov_vector_t* v,
                               index_t num_values,
                               index_t* indices,
                               real_t* values)
 {
   v->vtable.get_values(v->context, num_values, indices, values);
+}
+
+void krylov_vector_set_blocks(krylov_vector_t* v,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              real_t* block_values)
+{
+  v->vtable.set_blocks(v->context, num_blocks, block_rows, block_values);
+}
+                              
+void krylov_vector_add_blocks(krylov_vector_t* v,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              real_t* block_values)
+{
+  v->vtable.add_blocks(v->context, num_blocks, block_rows, block_values);
+}
+                              
+void krylov_vector_get_blocks(krylov_vector_t* v,
+                              index_t num_blocks,
+                              index_t* block_rows, 
+                              real_t* block_values)
+{
+  v->vtable.get_blocks(v->context, num_blocks, block_rows, block_values);
+}
+
+void krylov_vector_set_block(krylov_vector_t* v,
+                             index_t block_row, 
+                             real_t* block_values)
+{
+  krylov_vector_set_blocks(v, 1, &block_row, block_values);
+}
+                              
+void krylov_vector_add_block(krylov_vector_t* v,
+                             index_t block_row, 
+                             real_t* block_values)
+{
+  krylov_vector_add_blocks(v, 1, &block_row, block_values);
+}
+                              
+void krylov_vector_get_block(krylov_vector_t* v,
+                             index_t block_row, 
+                             real_t* block_values)
+{
+  krylov_vector_get_blocks(v, 1, &block_row, block_values);
+}
+
+void krylov_vector_assemble(krylov_vector_t* v)
+{
+  if (v->vtable.assemble != NULL)
+    v->vtable.assemble(v->context);
 }
 
 real_t krylov_vector_norm(krylov_vector_t* v, int p)
