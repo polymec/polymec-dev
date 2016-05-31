@@ -36,6 +36,7 @@ ifeq ($(mpi), 1)
   FC = mpif90
   CONFIG_FLAGS += -DHAVE_MPI=1
 else
+  BUILDDIR := ${BUILDDIR}-serial
   ifeq ($(CC), not-set)
     CC  = cc
   endif
