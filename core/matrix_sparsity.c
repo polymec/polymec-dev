@@ -154,7 +154,7 @@ void matrix_sparsity_set_num_columns(matrix_sparsity_t* sparsity,
         sparsity->columns_cap *= 2;
       sparsity->columns = polymec_realloc(sparsity->columns, sizeof(index_t) * sparsity->columns_cap);
     }
-    for (index_t i = tot_num_columns-1; i >= sparsity->offsets[local_row]; --i)
+    for (index_t i = tot_num_columns-1; (i >= sparsity->offsets[local_row]) && (i < tot_num_columns); --i)
       sparsity->columns[i + num_columns_added] = sparsity->columns[i];
     for (index_t i = local_row + 1; i <= sparsity->num_local_rows; ++i)
       sparsity->offsets[i] += num_columns_added;
