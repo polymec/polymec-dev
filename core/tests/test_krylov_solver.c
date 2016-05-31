@@ -15,9 +15,11 @@
 #include "core/file_utils.h"
 #include "core/krylov_solver.h"
 
-// This helper creates a sparsity pattern for a 1D finite difference 
-// discretization of the Laplacian operator.
-static matrix_sparsity_t* create_1d_laplacian_sparsity(MPI_Comm comm, int N_local)
+// This helper creates a sparsity pattern for a finite difference 
+// discretization of the Laplacian operator. This pattern can be 
+// used to create a 1D non-block representation, or a 2D block 
+// representation of the laplacian operator.
+static matrix_sparsity_t* create_laplacian_sparsity(MPI_Comm comm, int N_local)
 {
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
@@ -55,53 +57,6 @@ static matrix_sparsity_t* create_1d_laplacian_sparsity(MPI_Comm comm, int N_loca
       cols[0] = row-1;
       cols[1] = row;
       cols[2] = row+1;
-    }
-  }
-
-  return sparsity;
-}
-
-// This helper creates a sparsity pattern for a 2D finite difference 
-// discretization of the Laplacian operator.
-static matrix_sparsity_t* create_2d_laplacian_sparsity(MPI_Comm comm, 
-                                                       int Nx_local,
-                                                       int Ny)
-{
-  int nprocs, rank;
-  MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_rank(comm, &rank);
-
-  index_t row_dist[nprocs+1];
-  row_dist[0] = 0;
-  for (int p = 0; p < nprocs; ++p)
-    row_dist[p+1] = row_dist[p] + Ny * Nx_local;
-  matrix_sparsity_t* sparsity = matrix_sparsity_new(comm, row_dist);
-  index_t N_global = matrix_sparsity_num_global_rows(sparsity);
-
-  int rpos = 0;
-  index_t row;
-  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
-  {
-    if (row == 0)
-    {
-      matrix_sparsity_set_num_columns(sparsity, row, 2*Ny);
-      index_t* cols = matrix_sparsity_columns(sparsity, row);
-      for (int c = 0; c < 2*Ny; ++c)
-        cols[c] = row+c;
-    }
-    else if (row == (N_global-1))
-    {
-      matrix_sparsity_set_num_columns(sparsity, row, 2*Ny);
-      index_t* cols = matrix_sparsity_columns(sparsity, row);
-      for (int c = 0; c < 2*Ny; ++c)
-        cols[c] = row-2*Ny+c+1;
-    }
-    else
-    {
-      matrix_sparsity_set_num_columns(sparsity, row, 3*Ny);
-      index_t* cols = matrix_sparsity_columns(sparsity, row);
-      for (int c = 0; c < 3*Ny; ++c)
-        cols[c] = row-2*Ny+c+1;
     }
   }
 
@@ -178,7 +133,7 @@ static void test_krylov_matrix(void** state, krylov_factory_t* factory)
     MPI_Comm comm = MPI_COMM_WORLD;
 
     // Create a sparsity pattern with 1000 local rows.
-    matrix_sparsity_t* sparsity = create_1d_laplacian_sparsity(comm, 1000);
+    matrix_sparsity_t* sparsity = create_laplacian_sparsity(comm, 1000);
 
     // Create a matrix.
     krylov_matrix_t* mat = krylov_factory_matrix(factory, sparsity);
@@ -353,7 +308,7 @@ static void test_1d_laplace_eqn(void** state,
 
     // Create a distributed matrix with 100 rows per process.
     int N = 100;
-    matrix_sparsity_t* sparsity = create_1d_laplacian_sparsity(comm, N);
+    matrix_sparsity_t* sparsity = create_laplacian_sparsity(comm, N);
     index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
     index_t N_global = matrix_sparsity_num_global_rows(sparsity);
     krylov_matrix_t* A = krylov_factory_matrix(factory, sparsity);
@@ -490,8 +445,7 @@ static void test_load_and_solve(void** state,
 
 static void test_2d_laplace_eqn(void** state, 
                                 krylov_factory_t* factory,
-                                iterative_solver_t solver_type,
-                                bool use_block_matrix)
+                                iterative_solver_t solver_type)
 {
   if (factory != NULL)
   {
@@ -516,18 +470,10 @@ static void test_2d_laplace_eqn(void** state,
     static real_t b_left[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     static real_t b_mid[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0};
     static real_t b_right[10] = {-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0};
-    matrix_sparsity_t* sparsity;
-    if (use_block_matrix)
-      sparsity = create_1d_laplacian_sparsity(comm, N);
-    else
-      sparsity = create_2d_laplacian_sparsity(comm, N*N, N*N);
+    matrix_sparsity_t* sparsity = create_laplacian_sparsity(comm, N);
     index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
     index_t N_global = matrix_sparsity_num_global_rows(sparsity);
-    krylov_matrix_t* A;
-    if (use_block_matrix)
-      A = krylov_factory_block_matrix(factory, sparsity, N);
-    else
-      A = krylov_factory_matrix(factory, sparsity);
+    krylov_matrix_t* A = krylov_factory_block_matrix(factory, sparsity, N);
 
     // Create a RHS vector.
     krylov_vector_t* b = krylov_factory_vector(factory, comm, row_dist);
@@ -536,85 +482,43 @@ static void test_2d_laplace_eqn(void** state,
     real_t h = 1.0 / N;
     int rpos = 0;
     index_t row;
-    if (use_block_matrix)
+    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
-      // The sparsity pattern uses block rows, so we insert blocks 
-      // for each row.
-      while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+      if (row == 0)
       {
-        if (row == 0)
-        {
-          krylov_matrix_set_block(A, 0, 0, T);
-          krylov_matrix_set_block(A, 0, 1, T);
-          index_t rows[N];
-          for (int i = 0; i < N; ++i)
-            rows[i] = i;
-          krylov_vector_set_values(b, N, rows, b_left);
-        }
-        else if (row == (N_global-1))
-        {
-          krylov_matrix_set_block(A, N_global-1, N_global-2, T);
-          krylov_matrix_set_block(A, N_global-1, N_global-1, T);
-          index_t rows[N];
-          for (int i = 0; i < N; ++i)
-            rows[i] = N_global - N + i;
-          krylov_vector_set_values(b, N, rows, b_right);
-        }
-        else
-        {
-          krylov_matrix_set_block(A, row, row-1, T);
-          krylov_matrix_set_block(A, row, row, T);
-          krylov_matrix_set_block(A, row, row+1, T);
-          index_t rows[N];
-          for (int i = 0; i < N; ++i)
-            rows[i] = N*row + i;
-          krylov_vector_set_values(b, N, rows, b_mid);
-        }
+        krylov_matrix_set_block(A, 0, 0, T);
+        krylov_matrix_set_block(A, 0, 1, T);
+        index_t rows[N];
+        for (int i = 0; i < N; ++i)
+          rows[i] = i;
+        krylov_vector_set_values(b, N, rows, b_left);
       }
-    }
-    else
-    {
-      // Our matrix sparsity doesn't use block rows, but we still want to 
-      // insert blocks into the matrix to show that this works, so we 
-      // loop over block rows.
-      for (index_t row = row_dist[rank]/N; row < row_dist[rank+1]/N; ++row)
+      else if (row == (N_global-1))
       {
-        if (row == 0)
-        {
-          krylov_matrix_set_block(A, 0, 0, T);
-          krylov_matrix_set_block(A, 0, 1, T);
-          index_t rows[N];
-          for (int i = 0; i < N; ++i)
-            rows[i] = i;
-          krylov_vector_set_values(b, N, rows, b_left);
-        }
-        else if (row == (N_global-1))
-        {
-          krylov_matrix_set_block(A, N_global-1, N_global-2, T);
-          krylov_matrix_set_block(A, N_global-1, N_global-1, T);
-          index_t rows[N];
-          for (int i = 0; i < N; ++i)
-            rows[i] = N_global - N + i;
-          krylov_vector_set_values(b, N, rows, b_right);
-        }
-        else
-        {
-          krylov_matrix_set_block(A, row, row-1, T);
-          krylov_matrix_set_block(A, row, row, T);
-          krylov_matrix_set_block(A, row, row+1, T);
-          index_t rows[N];
-          for (int i = 0; i < N; ++i)
-            rows[i] = N*row + i;
-          krylov_vector_set_values(b, N, rows, b_mid);
-        }
+        krylov_matrix_set_block(A, N_global-1, N_global-2, T);
+        krylov_matrix_set_block(A, N_global-1, N_global-1, T);
+        index_t rows[N];
+        for (int i = 0; i < N; ++i)
+          rows[i] = N_global - N + i;
+        krylov_vector_set_values(b, N, rows, b_right);
+      }
+      else
+      {
+        krylov_matrix_set_block(A, row, row-1, T);
+        krylov_matrix_set_block(A, row, row, T);
+        krylov_matrix_set_block(A, row, row+1, T);
+        index_t rows[N];
+        for (int i = 0; i < N; ++i)
+          rows[i] = N*row + i;
+        krylov_vector_set_values(b, N, rows, b_mid);
       }
     }
     krylov_matrix_assemble(A);
     krylov_vector_assemble(b);
     krylov_matrix_scale(A, 1.0/(h*h));
     krylov_vector_scale(b, -1.0/(h*h));
-//krylov_matrix_fprintf(A, stdout);
-//krylov_vector_fprintf(b, stdout);
+krylov_matrix_fprintf(A, stdout);
+krylov_vector_fprintf(b, stdout);
 
     // Create a solution vector.
     krylov_vector_t* x = krylov_factory_vector(factory, comm, row_dist);
@@ -716,37 +620,19 @@ void test_lis_sherman1(void** state)
 void test_lis_pcg_2d_laplace_eqn(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
-  test_2d_laplace_eqn(state, lis, PCG_SOLVER, false);
-}
-
-void test_lis_pcg_block_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_2d_laplace_eqn(state, lis, PCG_SOLVER, true);
+  test_2d_laplace_eqn(state, lis, PCG_SOLVER);
 }
 
 void test_lis_gmres_2d_laplace_eqn(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
-  test_2d_laplace_eqn(state, lis, GMRES_SOLVER, false);
-}
-
-void test_lis_gmres_block_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_2d_laplace_eqn(state, lis, GMRES_SOLVER, true);
+  test_2d_laplace_eqn(state, lis, GMRES_SOLVER);
 }
 
 void test_lis_bicgstab_2d_laplace_eqn(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
-  test_2d_laplace_eqn(state, lis, BICGSTAB_SOLVER, false);
-}
-
-void test_lis_bicgstab_block_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_2d_laplace_eqn(state, lis, BICGSTAB_SOLVER, true);
+  test_2d_laplace_eqn(state, lis, BICGSTAB_SOLVER);
 }
 
 #if POLYMEC_HAVE_SHARED_LIBS
@@ -809,37 +695,19 @@ void test_petsc_sherman1(void** state)
 void test_petsc_pcg_2d_laplace_eqn(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
-  test_2d_laplace_eqn(state, petsc, PCG_SOLVER, false);
-}
-
-void test_petsc_pcg_block_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* petsc = create_petsc_krylov_factory();
-  test_2d_laplace_eqn(state, petsc, PCG_SOLVER, true);
+  test_2d_laplace_eqn(state, petsc, PCG_SOLVER);
 }
 
 void test_petsc_gmres_2d_laplace_eqn(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
-  test_2d_laplace_eqn(state, petsc, GMRES_SOLVER, false);
-}
-
-void test_petsc_gmres_block_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* petsc = create_petsc_krylov_factory();
-  test_2d_laplace_eqn(state, petsc, GMRES_SOLVER, true);
+  test_2d_laplace_eqn(state, petsc, GMRES_SOLVER);
 }
 
 void test_petsc_bicgstab_2d_laplace_eqn(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
-  test_2d_laplace_eqn(state, petsc, BICGSTAB_SOLVER, false);
-}
-
-void test_petsc_bicgstab_block_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* petsc = create_petsc_krylov_factory();
-  test_2d_laplace_eqn(state, petsc, BICGSTAB_SOLVER, true);
+  test_2d_laplace_eqn(state, petsc, BICGSTAB_SOLVER);
 }
 
 void test_hypre_krylov_factory(void** state)
@@ -901,37 +769,19 @@ void test_hypre_sherman1(void** state)
 void test_hypre_pcg_2d_laplace_eqn(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
-  test_2d_laplace_eqn(state, hypre, PCG_SOLVER, false);
-}
-
-void test_hypre_pcg_block_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* hypre = create_hypre_krylov_factory();
-  test_2d_laplace_eqn(state, hypre, PCG_SOLVER, true);
+  test_2d_laplace_eqn(state, hypre, PCG_SOLVER);
 }
 
 void test_hypre_gmres_2d_laplace_eqn(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
-  test_2d_laplace_eqn(state, hypre, GMRES_SOLVER, false);
-}
-
-void test_hypre_gmres_block_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* hypre = create_hypre_krylov_factory();
-  test_2d_laplace_eqn(state, hypre, GMRES_SOLVER, true);
+  test_2d_laplace_eqn(state, hypre, GMRES_SOLVER);
 }
 
 void test_hypre_bicgstab_2d_laplace_eqn(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
-  test_2d_laplace_eqn(state, hypre, BICGSTAB_SOLVER, false);
-}
-
-void test_hypre_bicgstab_block_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* hypre = create_hypre_krylov_factory();
-  test_2d_laplace_eqn(state, hypre, BICGSTAB_SOLVER, true);
+  test_2d_laplace_eqn(state, hypre, BICGSTAB_SOLVER);
 }
 #endif
 
@@ -950,11 +800,8 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_lis_sherman1),
     cmocka_unit_test(test_lis_pcg_2d_laplace_eqn),
-    cmocka_unit_test(test_lis_pcg_block_2d_laplace_eqn),
     cmocka_unit_test(test_lis_gmres_2d_laplace_eqn),
-    cmocka_unit_test(test_lis_gmres_block_2d_laplace_eqn),
     cmocka_unit_test(test_lis_bicgstab_2d_laplace_eqn),
-    cmocka_unit_test(test_lis_bicgstab_block_2d_laplace_eqn),
 #if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),
     cmocka_unit_test(test_petsc_krylov_matrix),
@@ -966,11 +813,8 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_petsc_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_petsc_sherman1),
     cmocka_unit_test(test_petsc_pcg_2d_laplace_eqn),
-    cmocka_unit_test(test_petsc_pcg_block_2d_laplace_eqn),
     cmocka_unit_test(test_petsc_gmres_2d_laplace_eqn),
-    cmocka_unit_test(test_petsc_gmres_block_2d_laplace_eqn),
     cmocka_unit_test(test_petsc_bicgstab_2d_laplace_eqn),
-    cmocka_unit_test(test_petsc_bicgstab_block_2d_laplace_eqn),
     cmocka_unit_test(test_hypre_krylov_factory),
     cmocka_unit_test(test_hypre_krylov_matrix),
     cmocka_unit_test(test_hypre_krylov_matrix_from_file),
@@ -981,11 +825,8 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_hypre_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_hypre_sherman1),
     cmocka_unit_test(test_hypre_pcg_2d_laplace_eqn),
-    cmocka_unit_test(test_hypre_pcg_block_2d_laplace_eqn),
     cmocka_unit_test(test_hypre_gmres_2d_laplace_eqn),
-    cmocka_unit_test(test_hypre_gmres_block_2d_laplace_eqn),
-    cmocka_unit_test(test_hypre_bicgstab_2d_laplace_eqn),
-    cmocka_unit_test(test_hypre_bicgstab_block_2d_laplace_eqn)
+    cmocka_unit_test(test_hypre_bicgstab_2d_laplace_eqn)
 #endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

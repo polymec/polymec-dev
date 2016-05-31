@@ -187,9 +187,6 @@ krylov_matrix_t* krylov_matrix_new(void* context,
   ASSERT(vtable.set_values != NULL);
   ASSERT(vtable.add_values != NULL);
   ASSERT(vtable.get_values != NULL);
-  ASSERT(vtable.set_blocks != NULL);
-  ASSERT(vtable.add_blocks != NULL);
-  ASSERT(vtable.get_blocks != NULL);
   ASSERT(num_local_rows > 0);
   ASSERT(num_global_rows >= num_local_rows);
   krylov_matrix_t* A = polymec_malloc(sizeof(krylov_matrix_t));
@@ -800,7 +797,10 @@ void krylov_matrix_set_blocks(krylov_matrix_t* A,
                               index_t* block_columns,
                               real_t* block_values)
 {
-  A->vtable.set_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
+  if (A->vtable.set_blocks != NULL)
+    A->vtable.set_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
+  else
+    polymec_error("Non-block matrix cannot use block interface.");
 }
                               
 void krylov_matrix_add_blocks(krylov_matrix_t* A,
@@ -809,7 +809,10 @@ void krylov_matrix_add_blocks(krylov_matrix_t* A,
                               index_t* block_columns,
                               real_t* block_values)
 {
-  A->vtable.add_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
+  if (A->vtable.add_blocks != NULL)
+    A->vtable.add_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
+  else
+    polymec_error("Non-block matrix cannot use block interface.");
 }
                               
 void krylov_matrix_get_blocks(krylov_matrix_t* A,
@@ -818,7 +821,10 @@ void krylov_matrix_get_blocks(krylov_matrix_t* A,
                               index_t* block_columns,
                               real_t* block_values)
 {
-  A->vtable.get_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
+  if (A->vtable.add_blocks != NULL)
+    A->vtable.get_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
+  else
+    polymec_error("Non-block matrix cannot use block interface.");
 }
 
 void krylov_matrix_set_block(krylov_matrix_t* A,

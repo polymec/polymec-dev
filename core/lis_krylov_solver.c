@@ -509,91 +509,6 @@ static void matrix_get_values_csr(void* context, index_t num_rows,
   }
 }
 
-static void matrix_insert_blocks_csr(void* context, 
-                                     index_t num_blocks, 
-                                     index_t* block_rows, 
-                                     index_t* block_columns, 
-                                     real_t* block_values,
-                                     void (*insert)(void*, index_t, index_t*, index_t*, index_t*, real_t*))
-{
-  // We just translate each block into a sets of values.
-  for (index_t i = 0; i < num_blocks; ++i)
-  {
-    int block_size = matrix_block_size(context, block_rows[i]);
-    index_t num_rows = block_size;
-    index_t num_values = block_size * block_size;
-    index_t rows[num_rows], num_columns[num_rows], columns[num_values];
-    real_t values[num_values];
-    int l = 0;
-    for (int j = 0; j < block_size; ++j)
-    {
-      rows[j] = block_size * block_rows[i] + j;
-      num_columns[j] = block_size;
-      for (int k = 0; k < block_size; ++k, ++l)
-      {
-        index_t index = i*num_values + block_size*j+k;
-        columns[l] = block_columns[index];
-        values[l] = block_values[index];
-      }
-    }
-    insert(context, num_rows, num_columns, rows, columns, values);
-  }
-}
-
-static void matrix_set_blocks_csr(void* context, 
-                                  index_t num_blocks, 
-                                  index_t* block_rows, 
-                                  index_t* block_columns, 
-                                  real_t* block_values)
-{
-  matrix_insert_blocks_csr(context, num_blocks, 
-                           block_rows, block_columns, 
-                           block_values, matrix_set_values_csr);
-}
-
-static void matrix_add_blocks_csr(void* context, 
-                                  index_t num_blocks, 
-                                  index_t* block_rows, 
-                                  index_t* block_columns, 
-                                  real_t* block_values)
-{
-  matrix_insert_blocks_csr(context, num_blocks, 
-                           block_rows, block_columns, 
-                           block_values, matrix_add_values_csr);
-}
-
-static void matrix_get_blocks_csr(void* context, 
-                                  index_t num_blocks, 
-                                  index_t* block_rows, 
-                                  index_t* block_columns, 
-                                  real_t* block_values)
-{
-  // We just translate each block into a sets of values and fetch.
-  index_t offset = 0;
-  for (index_t i = 0; i < num_blocks; ++i)
-  {
-    int block_size = matrix_block_size(context, block_rows[i]);
-    index_t num_rows = block_size;
-    index_t num_values = block_size * block_size;
-    index_t rows[num_rows], num_columns[num_rows], columns[num_values];
-    real_t values[num_values];
-    int l = 0;
-    for (int j = 0; j < block_size; ++j)
-    {
-      rows[j] = block_size * block_rows[i] + j;
-      num_columns[j] = block_size;
-      for (int k = 0; k < block_size; ++k, ++l)
-      {
-        index_t index = i*num_values + block_size*j+k;
-        columns[l] = block_columns[index];
-        values[l] = block_values[index];
-      }
-    }
-    matrix_get_values_csr(context, num_rows, num_columns, rows, columns, &values[offset]);
-    offset += num_values;
-  }
-}
-
 static void matrix_fprintf_csr(void* context, FILE* stream)
 {
   lis_matrix_t* mat = context;
@@ -651,7 +566,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
   lis_matrix_create(comm, &mat->A);
   LIS_INT err = lis_matrix_set_size(mat->A, N_local, 0);
   if (err != LIS_SUCCESS)
-    polymec_error("lis_factory_matrix: failed to create an %d x %d matrix.", N_global, N_global);
+    polymec_error("lis_factory_matrix: failed to create a %d x %d matrix.", N_global, N_global);
   lis_matrix_set_type(mat->A, LIS_MATRIX_CSR);
 #ifndef NDEBUG
   {
@@ -705,8 +620,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
   matrix_assemble(mat);
 
   // Set up the virtual table.
-  krylov_matrix_vtable vtable = {.block_size = matrix_block_size,
-                                 .clone = matrix_clone,
+  krylov_matrix_vtable vtable = {.clone = matrix_clone,
                                  .zero = matrix_zero,
                                  .scale = matrix_scale,
                                  .add_identity = matrix_add_identity,
@@ -715,9 +629,6 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
                                  .set_values = matrix_set_values_csr,
                                  .add_values = matrix_add_values_csr,
                                  .get_values = matrix_get_values_csr,
-                                 .set_blocks = matrix_set_blocks_csr,
-                                 .add_blocks = matrix_add_blocks_csr,
-                                 .get_blocks = matrix_get_blocks_csr,
                                  .assemble = matrix_assemble,
                                  .fprintf = matrix_fprintf_csr,
                                  .dtor = matrix_dtor};
@@ -810,6 +721,27 @@ static void matrix_get_values_bsr(void* context, index_t num_rows,
   POLYMEC_NOT_IMPLEMENTED
 }
 
+static void matrix_set_blocks_bsr(void* context, index_t num_blocks,
+                                  index_t* block_rows, index_t* block_columns, 
+                                  real_t* block_values)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+static void matrix_add_blocks_bsr(void* context, index_t num_blocks,
+                                  index_t* block_rows, index_t* block_columns, 
+                                  real_t* block_values)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+static void matrix_get_blocks_bsr(void* context, index_t num_rows,
+                                  index_t* block_rows, index_t* block_columns, 
+                                  real_t* block_values)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
 static krylov_matrix_t* lis_factory_block_matrix(void* context,
                                                  matrix_sparsity_t* sparsity,
                                                  int block_size)
@@ -864,6 +796,9 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
                                  .set_values = matrix_set_values_bsr,
                                  .add_values = matrix_add_values_bsr,
                                  .get_values = matrix_get_values_bsr,
+                                 .set_blocks = matrix_set_blocks_bsr,
+                                 .add_blocks = matrix_add_blocks_bsr,
+                                 .get_blocks = matrix_get_blocks_bsr,
                                  .assemble = matrix_assemble,
                                  .dtor = matrix_dtor};
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
@@ -934,6 +869,27 @@ static void matrix_get_values_vbr(void* context, index_t num_rows,
   POLYMEC_NOT_IMPLEMENTED
 }
 
+static void matrix_set_blocks_vbr(void* context, index_t num_blocks,
+                                  index_t* block_rows, index_t* block_columns, 
+                                  real_t* block_values)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+static void matrix_add_blocks_vbr(void* context, index_t num_blocks,
+                                  index_t* block_rows, index_t* block_columns, 
+                                  real_t* block_values)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+static void matrix_get_blocks_vbr(void* context, index_t num_rows,
+                                  index_t* block_rows, index_t* block_columns, 
+                                  real_t* block_values)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
 static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
                                                      matrix_sparsity_t* sparsity,
                                                      int* block_sizes)
@@ -998,6 +954,9 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
                                  .set_values = matrix_set_values_vbr,
                                  .add_values = matrix_add_values_vbr,
                                  .get_values = matrix_get_values_vbr,
+                                 .set_blocks = matrix_set_blocks_vbr,
+                                 .add_blocks = matrix_add_blocks_vbr,
+                                 .get_blocks = matrix_get_blocks_vbr,
                                  .assemble = matrix_assemble,
                                  .dtor = matrix_dtor};
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
