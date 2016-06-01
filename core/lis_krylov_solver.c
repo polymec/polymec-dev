@@ -404,13 +404,11 @@ static void matrix_set_values_csr(void* context, index_t num_rows,
   lis_matrix_t* mat = context;
   lis_matrix_unset(mat->A);
 
-  LIS_INT N_local, N_global;
-  lis_matrix_get_size(mat->A, &N_local, &N_global);
   LIS_INT start, finish;
   lis_matrix_get_range(mat->A, &start, &finish);
 
   int k = 0;
-  for (int i = 0; i < num_rows; ++i)
+  for (index_t i = 0; i < num_rows; ++i)
   {
     index_t row = rows[i];
     index_t num_cols = num_columns[i];
@@ -439,13 +437,11 @@ static void matrix_add_values_csr(void* context, index_t num_rows,
   lis_matrix_t* mat = context;
   lis_matrix_unset(mat->A);
 
-  LIS_INT N_local, N_global;
-  lis_matrix_get_size(mat->A, &N_local, &N_global);
   LIS_INT start, finish;
   lis_matrix_get_range(mat->A, &start, &finish);
 
   int k = 0;
-  for (int i = 0; i < num_rows; ++i)
+  for (index_t i = 0; i < num_rows; ++i)
   {
     index_t row = rows[i];
     index_t num_cols = num_columns[i];
@@ -473,13 +469,11 @@ static void matrix_get_values_csr(void* context, index_t num_rows,
 {
   lis_matrix_t* mat = context;
 
-  LIS_INT N_local, N_global;
-  lis_matrix_get_size(mat->A, &N_local, &N_global);
   LIS_INT start, finish;
   lis_matrix_get_range(mat->A, &start, &finish);
 
   int k = 0;
-  for (int i = 0; i < num_rows; ++i)
+  for (index_t i = 0; i < num_rows; ++i)
   {
     index_t row = rows[i];
     index_t num_cols = num_columns[i];
@@ -683,17 +677,40 @@ static void matrix_set_values_bsr(void* context, index_t num_rows,
                                   real_t* values)
 {
   lis_matrix_t* mat = context;
-
   lis_matrix_unset(mat->A);
 
+  LIS_INT start, finish;
+  lis_matrix_get_range(mat->A, &start, &finish);
+  LIS_INT bs = mat->block_size;
+  LIS_INT bstart = start / bs;
+
   int k = 0;
-  for (int i = 0; i < num_rows; ++i)
+  for (index_t i = 0; i < num_rows; ++i)
   {
-    int row = rows[i];
-    for (int j = 0; j < num_columns[i]; ++j, ++k)
+    index_t row = rows[i];
+    if ((row < (index_t)start) || (row >= (index_t)finish)) continue; // skip off-proc rows.
+
+    index_t brow = rows[i] / bs;
+    index_t num_cols = num_columns[i];
+
+    LIS_INT brow_offset = mat->bptr[brow-bstart];
+    LIS_INT nbcol = mat->bptr[brow+1-bstart] - brow_offset;
+    LIS_INT* brow_start = &(mat->index1[brow_offset]);
+
+    for (index_t j = 0; j < num_cols; ++j, ++k)
     {
-      LIS_INT status = lis_matrix_set_value(LIS_INS_VALUE, row, columns[k], values[k], mat->A);
-      ASSERT(status == LIS_SUCCESS);
+      // The columns are stored in our matrix in sorted order, 
+      // so we can use a binary search to find the location of this one.
+      index_t column = columns[k];
+      index_t bcolumn = column / bs;
+      LIS_INT* bcol_ptr = (LIS_INT*)index_bsearch((index_t*)brow_start, (int)nbcol, bcolumn);
+      if (bcol_ptr == NULL) continue; // Column not found -- skip it.
+      index_t block_index = brow_offset+(bcol_ptr-brow_start);
+
+      // Set the value within the block.
+      real_t* block_vals = &mat->values[bs*bs*block_index];
+      index_t ii = row - brow*bs, jj = column - bcolumn*bs;
+      block_vals[bs*jj+ii] = values[k];
     }
   }
 }
@@ -705,12 +722,39 @@ static void matrix_add_values_bsr(void* context, index_t num_rows,
   lis_matrix_t* mat = context;
   lis_matrix_unset(mat->A);
 
+  LIS_INT start, finish;
+  lis_matrix_get_range(mat->A, &start, &finish);
+  LIS_INT bs = mat->block_size;
+  LIS_INT bstart = start / bs;
+
   int k = 0;
-  for (int i = 0; i < num_rows; ++i)
+  for (index_t i = 0; i < num_rows; ++i)
   {
-    int row = rows[i];
-    for (int j = 0; j < num_columns[i]; ++j, ++k)
-      lis_matrix_set_value(LIS_ADD_VALUE, row, columns[k], values[k], mat->A);
+    index_t row = rows[i];
+    if ((row < (index_t)start) || (row >= (index_t)finish)) continue; // skip off-proc rows.
+
+    index_t brow = rows[i] / bs;
+    index_t num_cols = num_columns[i];
+
+    LIS_INT brow_offset = mat->bptr[brow-bstart];
+    LIS_INT nbcol = mat->bptr[brow+1-bstart] - brow_offset;
+    LIS_INT* brow_start = &(mat->index1[brow_offset]);
+
+    for (index_t j = 0; j < num_cols; ++j, ++k)
+    {
+      // The columns are stored in our matrix in sorted order, 
+      // so we can use a binary search to find the location of this one.
+      index_t column = columns[k];
+      index_t bcolumn = column / bs;
+      LIS_INT* bcol_ptr = (LIS_INT*)index_bsearch((index_t*)brow_start, (int)nbcol, bcolumn);
+      if (bcol_ptr == NULL) continue; // Column not found -- skip it.
+      index_t block_index = brow_offset+(bcol_ptr-brow_start);
+
+      // Add the value within the block.
+      real_t* block_vals = &mat->values[bs*bs*block_index];
+      index_t ii = row - brow*bs, jj = column - bcolumn*bs;
+      block_vals[bs*jj+ii] += values[k];
+    }
   }
 }
 
@@ -718,28 +762,158 @@ static void matrix_get_values_bsr(void* context, index_t num_rows,
                                   index_t* num_columns, index_t* rows, index_t* columns,
                                   real_t* values)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  lis_matrix_t* mat = context;
+
+  LIS_INT start, finish;
+  lis_matrix_get_range(mat->A, &start, &finish);
+  LIS_INT bs = mat->block_size;
+  LIS_INT bstart = start / bs;
+
+  int k = 0;
+  for (index_t i = 0; i < num_rows; ++i)
+  {
+    index_t row = rows[i];
+    index_t brow = rows[i] / bs;
+    index_t num_cols = num_columns[i];
+
+    if ((row < (index_t)start) || (row >= (index_t)finish))
+    {
+      // All columns in this row are set to zero.
+      memset(&values[k], 0, sizeof(real_t) * num_cols);
+      continue;
+    }
+
+    LIS_INT brow_offset = mat->bptr[brow-start];
+    LIS_INT* brow_start = &mat->index1[brow_offset];
+    LIS_INT nbcol = mat->bptr[brow+1-bstart] - brow_offset;
+
+    for (index_t j = 0; j < num_cols; ++j, ++k)
+    {
+      // The columns are stored in our matrix in sorted order, 
+      // so we can use a binary search to find the location of this one.
+      index_t column = columns[k];
+      index_t bcolumn = column / bs;
+      LIS_INT* bcol_ptr = (LIS_INT*)index_bsearch((index_t*)brow_start, (int)nbcol, bcolumn);
+      if (bcol_ptr == NULL) // block column not found 
+        values[k] = 0.0;
+      else
+      {
+        // Copy the value from the block.
+        index_t block_index = brow_offset+(bcol_ptr-brow_start);
+        real_t* block_vals = &mat->values[bs*bs*block_index];
+        index_t ii = row - brow*bs, jj = column - bcolumn*bs;
+        values[k] = block_vals[bs*jj+ii];
+      }
+    }
+  }
 }
 
 static void matrix_set_blocks_bsr(void* context, index_t num_blocks,
                                   index_t* block_rows, index_t* block_columns, 
                                   real_t* block_values)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  lis_matrix_t* mat = context;
+  lis_matrix_unset(mat->A);
+
+  LIS_INT start, finish;
+  lis_matrix_get_range(mat->A, &start, &finish);
+  LIS_INT bs = mat->block_size;
+  LIS_INT bstart = start / bs, bfinish = finish / bs;
+
+  int k = 0;
+  for (index_t i = 0; i < num_blocks; ++i)
+  {
+    index_t brow = block_rows[i];
+    if ((brow < (index_t)bstart) || (brow >= (index_t)bfinish)) continue; // skip off-proc rows.
+
+    LIS_INT brow_offset = mat->bptr[brow-bstart];
+    LIS_INT nbcol = mat->bptr[brow+1-bstart] - brow_offset;
+    LIS_INT* brow_start = &(mat->index1[brow_offset]);
+
+    // The columns are stored in our matrix in sorted order, 
+    // so we can use a binary search to find the location of this one.
+    index_t bcolumn = block_columns[i];
+    LIS_INT* bcol_ptr = (LIS_INT*)index_bsearch((index_t*)brow_start, (int)nbcol, bcolumn);
+    if (bcol_ptr == NULL) continue; // Column not found -- skip it.
+    index_t block_index = brow_offset+(bcol_ptr-brow_start);
+
+    // Set the values within the block.
+    real_t* block_vals = &mat->values[bs*bs*block_index];
+    memcpy(block_vals, &block_values[bs*bs*k], sizeof(real_t)*bs*bs);
+  }
 }
 
 static void matrix_add_blocks_bsr(void* context, index_t num_blocks,
                                   index_t* block_rows, index_t* block_columns, 
                                   real_t* block_values)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  lis_matrix_t* mat = context;
+  lis_matrix_unset(mat->A);
+
+  LIS_INT start, finish;
+  lis_matrix_get_range(mat->A, &start, &finish);
+  LIS_INT bs = mat->block_size;
+  LIS_INT bstart = start / bs, bfinish = finish / bs;
+
+  int k = 0;
+  for (index_t i = 0; i < num_blocks; ++i)
+  {
+    index_t brow = block_rows[i];
+    if ((brow < (index_t)bstart) || (brow >= (index_t)bfinish)) continue; // skip off-proc rows.
+
+    LIS_INT brow_offset = mat->bptr[brow-bstart];
+    LIS_INT nbcol = mat->bptr[brow+1-bstart] - brow_offset;
+    LIS_INT* brow_start = &(mat->index1[brow_offset]);
+
+    // The columns are stored in our matrix in sorted order, 
+    // so we can use a binary search to find the location of this one.
+    index_t bcolumn = block_columns[i];
+    LIS_INT* bcol_ptr = (LIS_INT*)index_bsearch((index_t*)brow_start, (int)nbcol, bcolumn);
+    if (bcol_ptr == NULL) continue; // Column not found -- skip it.
+    index_t block_index = brow_offset+(bcol_ptr-brow_start);
+
+    // Add the values within the block.
+    real_t* block_vals = &mat->values[bs*bs*block_index];
+    real_t* in_vals = &block_values[bs*bs*k];
+    for (int ii = 0; ii < bs*bs; ++ii)
+      block_vals[ii] += in_vals[ii];
+  }
 }
 
-static void matrix_get_blocks_bsr(void* context, index_t num_rows,
+static void matrix_get_blocks_bsr(void* context, index_t num_blocks,
                                   index_t* block_rows, index_t* block_columns, 
                                   real_t* block_values)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  lis_matrix_t* mat = context;
+  lis_matrix_unset(mat->A);
+
+  LIS_INT start, finish;
+  lis_matrix_get_range(mat->A, &start, &finish);
+  LIS_INT bs = mat->block_size;
+  LIS_INT bstart = start / bs, bfinish = finish / bs;
+
+  int k = 0;
+  for (index_t i = 0; i < num_blocks; ++i)
+  {
+    index_t brow = block_rows[i];
+    if ((brow < (index_t)bstart) || (brow >= (index_t)bfinish)) continue; // skip off-proc rows.
+
+    LIS_INT brow_offset = mat->bptr[brow-bstart];
+    LIS_INT nbcol = mat->bptr[brow+1-bstart] - brow_offset;
+    LIS_INT* brow_start = &(mat->index1[brow_offset]);
+
+    // The columns are stored in our matrix in sorted order, 
+    // so we can use a binary search to find the location of this one.
+    index_t bcolumn = block_columns[i];
+    LIS_INT* bcol_ptr = (LIS_INT*)index_bsearch((index_t*)brow_start, (int)nbcol, bcolumn);
+    if (bcol_ptr == NULL) continue; // Column not found -- skip it.
+    index_t block_index = brow_offset+(bcol_ptr-brow_start);
+
+    // Read the values from the block.
+    real_t* block_vals = &mat->values[bs*bs*block_index];
+    real_t* in_vals = &block_values[bs*bs*k];
+    memcpy(in_vals, block_vals, sizeof(real_t)*bs*bs);
+  }
 }
 
 static krylov_matrix_t* lis_factory_block_matrix(void* context,
@@ -753,38 +927,63 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
   // Initialize a Block Sparse Row (BSR) matrix with the given block size.
   lis_matrix_t* mat = matrix_new(comm, block_size, NULL);
   lis_matrix_create(comm, &mat->A);
-  lis_matrix_set_size(mat->A, N_local, 0);
-#if 0
+  LIS_INT err = lis_matrix_set_size(mat->A, N_local, 0);
+  if (err != LIS_SUCCESS)
+    polymec_error("lis_factory_block_matrix: failed to create a %d x %d block matrix.", N_global, N_global);
+  lis_matrix_set_type(mat->A, LIS_MATRIX_BSR);
+#ifndef NDEBUG
+  {
+    LIS_INT Nl, Ng;
+    lis_matrix_get_size(mat->A, &Nl, &Ng);
+    ASSERT(Nl == N_local);
+    ASSERT(Ng == N_global);
+  }
+#endif
 
   // We manage all of the arrays ourself.
   lis_matrix_set_destroyflag(mat->A, LIS_FALSE);
-  int* adj = adj_graph_adjacency(sparsity);
-  mat->bnnz = adj[N_local];
+  mat->bnnz = matrix_sparsity_num_nonzeros(sparsity);
   mat->nnz = block_size * block_size * mat->bnnz;
   mat->nr = N_local, mat->nc = N_global;
   mat->bptr = polymec_malloc(sizeof(LIS_INT) * (mat->nr+1));
   mat->bindex = polymec_malloc(sizeof(LIS_INT) * mat->bnnz);
+  mat->index1 = polymec_malloc(sizeof(LIS_INT) * mat->bnnz);
   mat->values = polymec_malloc(sizeof(LIS_SCALAR) * mat->nnz);
-  int boffset = 0;
-  for (int i = 0; i < mat->nr; ++i)
-  {
-    mat->bptr[i] = i;
-    mat->bindex[boffset] = i;
-    ++boffset;
 
-    int ne = adj_graph_num_edges(sparsity, i);
-    int* edges = adj_graph_edges(sparsity, i);
-    for (int j = 0; j < ne; ++j, ++boffset)
+  index_t k = 0, row;
+  int rpos = 0, r = 0;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+  {
+    // Here's where the block row begins.
+    mat->bptr[r] = k;
+
+    // We store the block rows in strictly ascending column order, with
+    // no exception for the diagonal.
+    int cpos = 0;
+    index_t col;
+    while (matrix_sparsity_next_column(sparsity, row, &cpos, &col))
     {
-      int jj = edges[j];
-      mat->bindex[boffset] = jj;
-      memset(&mat->values[block_size*block_size*boffset], 0, sizeof(LIS_SCALAR) * block_size * block_size);
+      mat->bindex[k] = col;
+      ++k;
     }
+
+    // Sort this row.
+    size_t nc = k - mat->bptr[r];
+    index_qsort((index_t*)(&(mat->bindex[mat->bptr[r]])), nc);
+    ++r;
   }
-  mat->bptr[mat->nr] = mat->nr;
+  ASSERT(k == mat->bnnz);
+  mat->bptr[N_local] = mat->bnnz;
+  memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
+
+  // Copy our column indices to an extra array that will not be modified 
+  // by LIS. We'll use this array to navigate non-zero blocks when we need to 
+  // modify matrix values.
+  memcpy(mat->index1, mat->bindex, sizeof(LIS_INT) * mat->bnnz);
+
+  // Assemble the matrix.
   matrix_assemble(mat);
 
-#endif
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.block_size = matrix_block_size,
                                  .clone = matrix_clone,

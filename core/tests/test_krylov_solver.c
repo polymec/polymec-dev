@@ -471,11 +471,14 @@ static void test_2d_laplace_eqn(void** state,
     static real_t b_mid[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0};
     static real_t b_right[10] = {-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0};
     matrix_sparsity_t* sparsity = create_laplacian_sparsity(comm, N);
-    index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
+    index_t* block_row_dist = matrix_sparsity_row_distribution(sparsity);
     index_t N_global = matrix_sparsity_num_global_rows(sparsity);
     krylov_matrix_t* A = krylov_factory_block_matrix(factory, sparsity, N);
 
     // Create a RHS vector.
+    index_t row_dist[nprocs+1];
+    for (int p = 0; p <= nprocs; ++p)
+      row_dist[p] = N * block_row_dist[p];
     krylov_vector_t* b = krylov_factory_vector(factory, comm, row_dist);
 
     // Construct the 2D Laplacian operator and RHS.
