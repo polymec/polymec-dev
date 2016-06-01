@@ -1097,50 +1097,87 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
   index_t N_local = matrix_sparsity_num_local_rows(sparsity);
   index_t N_global = matrix_sparsity_num_global_rows(sparsity);
 
+  // Initialize a Variable Block Row (VBR) matrix.
   int* bs = polymec_malloc(sizeof(int) * N_local);
   memcpy(bs, block_sizes, sizeof(int) * N_local); 
   lis_matrix_t* mat = matrix_new(comm, 0, bs);
   lis_matrix_create(comm, &mat->A);
-  lis_matrix_set_size(mat->A, N_local, 0);
+  LIS_INT err = lis_matrix_set_size(mat->A, N_local, 0);
+  if (err != LIS_SUCCESS)
+    polymec_error("lis_factory_var_block_matrix: failed to create a %d x %d variable block matrix.", N_global, N_global);
+  lis_matrix_set_type(mat->A, LIS_MATRIX_VBR);
+#ifndef NDEBUG
+  {
+    LIS_INT Nl, Ng;
+    lis_matrix_get_size(mat->A, &Nl, &Ng);
+    ASSERT(Nl == N_local);
+    ASSERT(Ng == N_global);
+  }
+#endif
 
-#if 0
   // We manage all of the arrays ourself.
   lis_matrix_set_destroyflag(mat->A, LIS_FALSE);
   mat->nr = N_local; 
   mat->nc = N_global;
-  int* adj = adj_graph_adjacency(sparsity);
-  mat->bnnz = adj[N_local];
+  mat->bnnz = matrix_sparsity_num_nonzeros(sparsity);
   mat->row = polymec_malloc(sizeof(LIS_INT) * (mat->nr+1));
   mat->col = polymec_malloc(sizeof(LIS_INT) * (mat->nc+1));
   mat->ptr = polymec_malloc(sizeof(LIS_INT) * (mat->bnnz+1));
   mat->bindex = polymec_malloc(sizeof(LIS_INT) * mat->bnnz);
   mat->bptr = polymec_malloc(sizeof(LIS_INT) * (mat->nr+1));
-  LIS_INT boffset = 0, row_offset = 0;
-  mat->nnz = 0;
-  for (int i = 0; i < N_local; ++i)
-  {
-    int block_size = block_sizes[i];
-    mat->row[i] = row_offset;
-    mat->col[i] = row_offset;
-    row_offset += block_size;
-    mat->bptr[i] = i;
-    mat->nnz += block_size * block_size;
 
-    int ne = adj_graph_num_edges(sparsity, i);
-    int* edges = adj_graph_edges(sparsity, i);
-    for (int j = 0; j < ne; ++j, ++boffset)
+  // Compute block row/column offsets.
+  LIS_INT row_offset = 0;
+  for (LIS_INT i = 0; i < N_local; ++i)
+  {
+    mat->row[i] = row_offset;
+    int block_size = block_sizes[i];
+    row_offset += block_size;
+  }
+  int* all_block_sizes = polymec_malloc(sizeof(int) * N_global);
+// FIXME
+//  MPI_Allgatherv(...);
+  LIS_INT col_offset = 0;
+  for (LIS_INT i = 0; i < N_global; ++i)
+  {
+    mat->col[i] = col_offset;
+    int block_size = all_block_sizes[i];
+    col_offset += block_size;
+  }
+
+  // Now fill in the other blanks.
+  index_t row;
+  int rpos = 0, r = 0;
+  mat->bnnz = mat->nnz = 0;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+  {
+    // Here's where the block row begins.
+    mat->bptr[r] = mat->bnnz;
+    mat->ptr[r] = mat->nnz;
+    int block_size = block_sizes[r];
+
+    // We store the block rows in strictly ascending column order, with
+    // no exception for the diagonal.
+    int cpos = 0;
+    index_t col;
+    while (matrix_sparsity_next_column(sparsity, row, &cpos, &col))
     {
-      int jj = edges[j];
-      mat->bindex[boffset] = jj;
-      mat->ptr[boffset] = mat->nnz;
+      mat->bindex[mat->bnnz] = col;
+      mat->bnnz += 1;
       mat->nnz += block_size * block_size;
     }
+
+    // Sort this row.
+    size_t nc = mat->bnnz - mat->bptr[r];
+    index_qsort((index_t*)(&(mat->bindex[mat->bptr[r]])), nc);
+    ++r;
   }
+  mat->bptr[N_local] = mat->bnnz;
   mat->ptr[mat->bnnz] = mat->nnz;
+  memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
   mat->values = polymec_malloc(sizeof(LIS_SCALAR) * mat->nnz);
   memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
   matrix_assemble(mat);
-#endif
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.block_size = matrix_block_size,
