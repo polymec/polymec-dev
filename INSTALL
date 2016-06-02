@@ -69,7 +69,7 @@ NERSC Cori (last updated 2/19/2016)
 
 Load the following modules
   cmake
-  cray-hdf5-silo
+  cray-hdf5
   PrgEnv-intel
 
 and then type

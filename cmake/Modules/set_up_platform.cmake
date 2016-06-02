@@ -62,11 +62,6 @@ macro(set_up_platform)
     set(CMAKE_CXX_COMPILER CC)
     set(CMAKE_Fortran_COMPILER ftn)
 
-   #    set(CMAKE_ADJUSTED_C_COMPILER cc -fPIE)
-   #    set(CMAKE_ADJUSTED_C_COMPILER_ID Intel)
-   #    set(CMAKE_ADJUSTED_CXX_COMPILER CC -fPIE)
-   #    set(CMAKE_ADJUSTED_CXX_COMPILER_ID Intel)
-
     # We are cared for mathematically.
     set(NEED_LAPACK FALSE)
 
@@ -119,11 +114,6 @@ macro(set_up_platform)
     set(CMAKE_C_COMPILER cc)
     set(CMAKE_CXX_COMPILER CC)
     set(CMAKE_Fortran_COMPILER ftn)
-
-#    set(CMAKE_ADJUSTED_C_COMPILER cc -fPIE)
-#    set(CMAKE_ADJUSTED_C_COMPILER_ID Intel)
-#    set(CMAKE_ADJUSTED_CXX_COMPILER CC -fPIE)
-#    set(CMAKE_ADJUSTED_CXX_COMPILER_ID Intel)
 
     # We are cared for mathematically.
     set(NEED_LAPACK FALSE)
