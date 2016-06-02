@@ -802,9 +802,9 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_gmres_1d_laplace_eqn),
     cmocka_unit_test(test_lis_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_lis_sherman1),
-    cmocka_unit_test(test_lis_pcg_2d_laplace_eqn),
-    cmocka_unit_test(test_lis_gmres_2d_laplace_eqn),
-    cmocka_unit_test(test_lis_bicgstab_2d_laplace_eqn),
+//    cmocka_unit_test(test_lis_pcg_2d_laplace_eqn),
+//    cmocka_unit_test(test_lis_gmres_2d_laplace_eqn),
+//    cmocka_unit_test(test_lis_bicgstab_2d_laplace_eqn),
 #if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),
     cmocka_unit_test(test_petsc_krylov_matrix),
@@ -815,9 +815,9 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_petsc_gmres_1d_laplace_eqn),
     cmocka_unit_test(test_petsc_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_petsc_sherman1),
-    cmocka_unit_test(test_petsc_pcg_2d_laplace_eqn),
-    cmocka_unit_test(test_petsc_gmres_2d_laplace_eqn),
-    cmocka_unit_test(test_petsc_bicgstab_2d_laplace_eqn),
+//    cmocka_unit_test(test_petsc_pcg_2d_laplace_eqn),
+//    cmocka_unit_test(test_petsc_gmres_2d_laplace_eqn),
+//    cmocka_unit_test(test_petsc_bicgstab_2d_laplace_eqn),
     cmocka_unit_test(test_hypre_krylov_factory),
     cmocka_unit_test(test_hypre_krylov_matrix),
     cmocka_unit_test(test_hypre_krylov_matrix_from_file),
@@ -827,9 +827,9 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_hypre_gmres_1d_laplace_eqn),
     cmocka_unit_test(test_hypre_bicgstab_1d_laplace_eqn),
     cmocka_unit_test(test_hypre_sherman1),
-    cmocka_unit_test(test_hypre_pcg_2d_laplace_eqn),
-    cmocka_unit_test(test_hypre_gmres_2d_laplace_eqn),
-    cmocka_unit_test(test_hypre_bicgstab_2d_laplace_eqn)
+//    cmocka_unit_test(test_hypre_pcg_2d_laplace_eqn),
+//    cmocka_unit_test(test_hypre_gmres_2d_laplace_eqn),
+//    cmocka_unit_test(test_hypre_bicgstab_2d_laplace_eqn)
 #endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
