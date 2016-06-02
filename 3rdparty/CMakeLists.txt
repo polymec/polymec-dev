@@ -450,6 +450,11 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis${LIB_SUFFIX})
     endif()
   endif()
 
+  # On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
+  if (APPLE AND BUILD_SHARED_LIBS)
+    execute_process(COMMAND install_name_tool -id @rpath/liblis${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/liblis${LIB_SUFFIX})
+  endif()
+
 endif()
 set(POLYMEC_TP_LIBS lis;${POLYMEC_TP_LIBS})
 
