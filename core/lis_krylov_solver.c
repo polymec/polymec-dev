@@ -629,6 +629,380 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
 }
 
+// LIS's current limitations force us to fake block matrices with regular 
+// non-block ones, which sucks.
+#define FAKE_BLOCK_MATRICES 1
+#if FAKE_BLOCK_MATRICES
+static void matrix_manipulate_blocks_fake_bsr(void* context, index_t num_blocks,
+                                              index_t* block_rows, index_t* block_columns, 
+                                              real_t* block_values,
+                                              void (*manipulate)(void*, index_t, index_t*, index_t*, index_t*, real_t*),
+                                              bool copy_out)
+{
+  lis_matrix_t* mat = context;
+  lis_matrix_unset(mat->A);
+
+  index_t bs = mat->block_size;
+
+  // We simply treat the blocks one at a time.
+  for (index_t i = 0; i < num_blocks; ++i)
+  {
+
+    // Assemble the rows/columns.
+    index_t block_row = block_rows[i];
+    index_t num_rows = bs;
+    index_t rows[bs], num_columns[bs], columns[bs*bs];
+    int l = 0;
+    for (int j = 0; j < bs; ++j)
+    {
+      rows[j] = bs * block_row + j;
+      num_columns[j] = bs;
+      for (int k = 0; k < bs; ++k, ++l)
+        columns[l] = block_columns[bs*k+j];
+    }
+
+    // Copy in the values if we are inserting/adding.
+    real_t values[bs*bs];
+    if (!copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          values[l] = block_values[bs*k+j];
+      }
+    }
+
+    // Manipulate the values.
+    manipulate(context, num_rows, num_columns, rows, columns, values);
+
+    // Copy out the values if we are reading.
+    if (copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          block_values[bs*k+j] = values[l];
+      }
+    }
+  }
+}
+
+static void matrix_set_blocks_fake_bsr(void* context, index_t num_blocks,
+                                       index_t* block_rows, index_t* block_columns, 
+                                       real_t* block_values)
+{
+  matrix_manipulate_blocks_fake_bsr(context, num_blocks, 
+                                    block_rows, block_columns, block_values,
+                                    matrix_set_values_csr, false);
+}
+
+static void matrix_add_blocks_fake_bsr(void* context, index_t num_blocks,
+                                       index_t* block_rows, index_t* block_columns, 
+                                       real_t* block_values)
+{
+  matrix_manipulate_blocks_fake_bsr(context, num_blocks, 
+                                    block_rows, block_columns, block_values,
+                                    matrix_add_values_csr, false);
+}
+
+static void matrix_get_blocks_fake_bsr(void* context, index_t num_blocks,
+                                       index_t* block_rows, index_t* block_columns, 
+                                       real_t* block_values)
+{
+  matrix_manipulate_blocks_fake_bsr(context, num_blocks, 
+                                    block_rows, block_columns, block_values,
+                                    matrix_get_values_csr, true);
+}
+
+static krylov_matrix_t* lis_factory_block_matrix(void* context,
+                                                 matrix_sparsity_t* sparsity,
+                                                 int block_size)
+{
+  MPI_Comm comm = matrix_sparsity_comm(sparsity);
+  index_t N_local = matrix_sparsity_num_local_rows(sparsity);
+  index_t N_global = matrix_sparsity_num_global_rows(sparsity);
+
+  // Initialize a Block Sparse Row (BSR) matrix with the given block size.
+  lis_matrix_t* mat = matrix_new(comm, block_size, NULL);
+  lis_matrix_create(comm, &mat->A);
+  LIS_INT err = lis_matrix_set_size(mat->A, N_local, 0);
+  if (err != LIS_SUCCESS)
+    polymec_error("lis_factory_block_matrix: failed to create a %d x %d block matrix.", N_global, N_global);
+  lis_matrix_set_type(mat->A, LIS_MATRIX_CSR);
+#ifndef NDEBUG
+  {
+    LIS_INT Nl, Ng;
+    lis_matrix_get_size(mat->A, &Nl, &Ng);
+    ASSERT(Nl == N_local);
+    ASSERT(Ng == N_global);
+  }
+#endif
+
+  // We manage all of the arrays ourself.
+  lis_matrix_set_destroyflag(mat->A, LIS_FALSE);
+  mat->bnnz = matrix_sparsity_num_nonzeros(sparsity);
+  mat->nnz = block_size * block_size * mat->bnnz;
+  mat->nr = N_local, mat->nc = N_global;
+  mat->bptr = polymec_malloc(sizeof(LIS_INT) * (mat->nr+1));
+  mat->bindex = polymec_malloc(sizeof(LIS_INT) * mat->bnnz);
+  mat->index1 = polymec_malloc(sizeof(LIS_INT) * mat->bnnz);
+  mat->values = polymec_malloc(sizeof(LIS_SCALAR) * mat->nnz);
+
+  index_t k = 0, row;
+  int rpos = 0, r = 0;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+  {
+    // Here's where the block row begins.
+    mat->bptr[r] = k;
+
+    // We store the block rows in strictly ascending column order, with
+    // no exception for the diagonal.
+    int cpos = 0;
+    index_t col;
+    while (matrix_sparsity_next_column(sparsity, row, &cpos, &col))
+    {
+      mat->bindex[k] = col;
+      ++k;
+    }
+
+    // Sort this row.
+    size_t nc = k - mat->bptr[r];
+    index_qsort((index_t*)(&(mat->bindex[mat->bptr[r]])), nc);
+    ++r;
+  }
+  ASSERT(k == mat->bnnz);
+  mat->bptr[N_local] = mat->bnnz;
+  memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
+
+  // Copy our column indices to an extra array that will not be modified 
+  // by LIS. We'll use this array to navigate non-zero blocks when we need to 
+  // modify matrix values.
+  memcpy(mat->index1, mat->bindex, sizeof(LIS_INT) * mat->bnnz);
+
+  // Assemble the matrix.
+  matrix_assemble(mat);
+
+  // Set up the virtual table.
+  krylov_matrix_vtable vtable = {.block_size = matrix_block_size,
+                                 .clone = matrix_clone,
+                                 .zero = matrix_zero,
+                                 .scale = matrix_scale,
+                                 .add_identity = matrix_add_identity,
+                                 .add_diagonal = matrix_add_diagonal_csr,
+                                 .set_diagonal = matrix_set_diagonal_csr,
+                                 .set_values = matrix_set_values_csr,
+                                 .add_values = matrix_add_values_csr,
+                                 .get_values = matrix_get_values_csr,
+                                 .set_blocks = matrix_set_blocks_fake_bsr,
+                                 .add_blocks = matrix_add_blocks_fake_bsr,
+                                 .get_blocks = matrix_get_blocks_fake_bsr,
+                                 .assemble = matrix_assemble,
+                                 .dtor = matrix_dtor};
+  return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
+}
+
+static void matrix_manipulate_blocks_fake_vbr(void* context, index_t num_blocks,
+                                              index_t* block_rows, index_t* block_columns, 
+                                              real_t* block_values,
+                                              void (*manipulate)(void*, index_t, index_t*, index_t*, index_t*, real_t*),
+                                              bool copy_out)
+{
+  lis_matrix_t* mat = context;
+  lis_matrix_unset(mat->A);
+
+  // We simply treat the blocks one at a time.
+  for (index_t i = 0; i < num_blocks; ++i)
+  {
+
+    // Assemble the rows/columns.
+    index_t block_row = block_rows[i];
+    index_t bs = mat->block_sizes[block_row];
+    index_t num_rows = bs;
+    index_t rows[bs], num_columns[bs], columns[bs*bs];
+    int l = 0;
+    for (int j = 0; j < bs; ++j)
+    {
+      rows[j] = bs * block_row + j;
+      num_columns[j] = bs;
+      for (int k = 0; k < bs; ++k, ++l)
+        columns[l] = block_columns[bs*k+j];
+    }
+
+    // Copy in the values if we are inserting/adding.
+    real_t values[bs*bs];
+    if (!copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          values[l] = block_values[bs*k+j];
+      }
+    }
+
+    // Manipulate the values.
+    manipulate(context, num_rows, num_columns, rows, columns, values);
+
+    // Copy out the values if we are reading.
+    if (copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          block_values[bs*k+j] = values[l];
+      }
+    }
+  }
+}
+
+static void matrix_set_blocks_fake_vbr(void* context, index_t num_blocks,
+                                       index_t* block_rows, index_t* block_columns, 
+                                       real_t* block_values)
+{
+  matrix_manipulate_blocks_fake_vbr(context, num_blocks, 
+                                    block_rows, block_columns, block_values,
+                                    matrix_set_values_csr, false);
+}
+
+static void matrix_add_blocks_fake_vbr(void* context, index_t num_blocks,
+                                       index_t* block_rows, index_t* block_columns, 
+                                       real_t* block_values)
+{
+  matrix_manipulate_blocks_fake_vbr(context, num_blocks, 
+                                    block_rows, block_columns, block_values,
+                                    matrix_add_values_csr, false);
+}
+
+static void matrix_get_blocks_fake_vbr(void* context, index_t num_blocks,
+                                       index_t* block_rows, index_t* block_columns, 
+                                       real_t* block_values)
+{
+  matrix_manipulate_blocks_fake_vbr(context, num_blocks, 
+                                    block_rows, block_columns, block_values,
+                                    matrix_get_values_csr, true);
+}
+
+static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
+                                                     matrix_sparsity_t* sparsity,
+                                                     int* block_sizes)
+{
+  MPI_Comm comm = matrix_sparsity_comm(sparsity);
+  index_t N_local = matrix_sparsity_num_local_rows(sparsity);
+  index_t N_global = matrix_sparsity_num_global_rows(sparsity);
+
+  // Initialize a "Variable Block" matrix.
+  int* bs = polymec_malloc(sizeof(int) * N_local);
+  memcpy(bs, block_sizes, sizeof(int) * N_local); 
+  lis_matrix_t* mat = matrix_new(comm, 0, bs);
+  lis_matrix_create(comm, &mat->A);
+  LIS_INT err = lis_matrix_set_size(mat->A, N_local, 0);
+  if (err != LIS_SUCCESS)
+    polymec_error("lis_factory_var_block_matrix: failed to create a %d x %d variable block matrix.", N_global, N_global);
+  lis_matrix_set_type(mat->A, LIS_MATRIX_CSR);
+#ifndef NDEBUG
+  {
+    LIS_INT Nl, Ng;
+    lis_matrix_get_size(mat->A, &Nl, &Ng);
+    ASSERT(Nl == N_local);
+    ASSERT(Ng == N_global);
+  }
+#endif
+
+  // We manage all of the arrays ourself.
+  lis_matrix_set_destroyflag(mat->A, LIS_FALSE);
+  mat->nr = N_local; 
+  mat->nc = N_global;
+  mat->bnnz = matrix_sparsity_num_nonzeros(sparsity);
+  mat->row = polymec_malloc(sizeof(LIS_INT) * (mat->nr+1));
+  mat->col = polymec_malloc(sizeof(LIS_INT) * (mat->nc+1));
+  mat->ptr = polymec_malloc(sizeof(LIS_INT) * (mat->bnnz+1));
+  mat->bindex = polymec_malloc(sizeof(LIS_INT) * mat->bnnz);
+  mat->bptr = polymec_malloc(sizeof(LIS_INT) * (mat->nr+1));
+
+  // Compute block row/column offsets.
+  LIS_INT row_offset = 0;
+  for (LIS_INT i = 0; i < N_local; ++i)
+  {
+    mat->row[i] = row_offset;
+    int block_size = block_sizes[i];
+    row_offset += block_size;
+  }
+  int* all_block_sizes = polymec_malloc(sizeof(int) * N_global);
+// FIXME
+//  MPI_Allgatherv(...);
+  LIS_INT col_offset = 0;
+  for (LIS_INT i = 0; i < N_global; ++i)
+  {
+    mat->col[i] = col_offset;
+    int block_size = all_block_sizes[i];
+    col_offset += block_size;
+  }
+
+  // Now fill in the other blanks.
+  index_t row;
+  int rpos = 0, r = 0;
+  mat->bnnz = mat->nnz = 0;
+  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+  {
+    // Here's where the block row begins.
+    mat->bptr[r] = mat->bnnz;
+    mat->ptr[r] = mat->nnz;
+    int block_size = block_sizes[r];
+
+    // We store the block rows in strictly ascending column order, with
+    // no exception for the diagonal.
+    int cpos = 0;
+    index_t col;
+    while (matrix_sparsity_next_column(sparsity, row, &cpos, &col))
+    {
+      mat->bindex[mat->bnnz] = col;
+      mat->bnnz += 1;
+      mat->nnz += block_size * block_size;
+    }
+
+    // Sort this row.
+    size_t nc = mat->bnnz - mat->bptr[r];
+    index_qsort((index_t*)(&(mat->bindex[mat->bptr[r]])), nc);
+    ++r;
+  }
+  mat->bptr[N_local] = mat->bnnz;
+  mat->ptr[mat->bnnz] = mat->nnz;
+  memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
+  mat->values = polymec_malloc(sizeof(LIS_SCALAR) * mat->nnz);
+  memset(mat->values, 0, sizeof(LIS_SCALAR) * mat->nnz);
+  matrix_assemble(mat);
+
+  // Set up the virtual table.
+  krylov_matrix_vtable vtable = {.block_size = matrix_block_size,
+                                 .clone = matrix_clone,
+                                 .zero = matrix_zero,
+                                 .scale = matrix_scale,
+                                 .add_identity = matrix_add_identity,
+                                 .add_diagonal = matrix_add_diagonal_csr,
+                                 .set_diagonal = matrix_set_diagonal_csr,
+                                 .set_values = matrix_set_values_csr,
+                                 .add_values = matrix_add_values_csr,
+                                 .get_values = matrix_get_values_csr,
+                                 .set_blocks = matrix_set_blocks_fake_vbr,
+                                 .add_blocks = matrix_add_blocks_fake_vbr,
+                                 .get_blocks = matrix_get_blocks_fake_vbr,
+                                 .assemble = matrix_assemble,
+                                 .dtor = matrix_dtor};
+  return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
+}
+
+#else
 static void matrix_set_diagonal_bsr(void* context, void* D)
 {
   lis_matrix_t* mat = context;
@@ -1197,6 +1571,7 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
                                  .dtor = matrix_dtor};
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
 }
+#endif
 
 static void* vector_clone(void* context)
 {

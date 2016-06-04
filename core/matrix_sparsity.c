@@ -45,6 +45,38 @@ matrix_sparsity_t* matrix_sparsity_new(MPI_Comm comm,
   return sparsity;
 }
 
+matrix_sparsity_t* matrix_sparsity_with_block_size(matrix_sparsity_t* sparsity,
+                                                   int block_size)
+{
+  ASSERT(block_size > 0);
+  int nr = sparsity->num_local_rows;
+  int block_sizes[nr];
+  for (int i = 0; i < nr; ++i)
+    block_sizes[i] = block_size;
+  return matrix_sparsity_with_block_sizes(sparsity, block_sizes);
+}
+
+matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
+                                                    int* block_sizes)
+{
+  // We will create a new matrix sparsity pattern with the same layout as 
+  // the original one.
+  matrix_sparsity_t* block_sp = polymec_malloc(sizeof(matrix_sparsity_t));
+  block_sp->comm = sparsity->comm;
+  block_sp->nproc = sparsity->nproc;
+  block_sp->rank = sparsity->rank;
+  block_sp->row_dist = polymec_malloc(sizeof(index_t) * (block_sp->nproc+1));
+
+  // Count up local and global rows, and distribute them accordingly.
+  index_t num_rows[block_sp->nproc];
+  num_rows[block_sp->rank] = 0;
+  for (int i = 0; i < sparsity->num_local_rows; ++i)
+    num_rows[block_sp->rank] += block_sizes[i];
+
+  // FIXME
+  return block_sp;
+}
+
 matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
                                               exchanger_t* ex)
 {

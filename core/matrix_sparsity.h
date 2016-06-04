@@ -30,6 +30,22 @@ typedef struct matrix_sparsity_t matrix_sparsity_t;
 matrix_sparsity_t* matrix_sparsity_new(MPI_Comm comm, 
                                        index_t* row_distribution);
 
+// Creates a new matrix sparsity pattern using the given sparsity pattern, 
+// and interpreting each non-zero element as a block of the given size. The 
+// resulting sparsity pattern will contain non-zero elements for each of those
+// within the blocks of the originally given sparsity pattern.
+matrix_sparsity_t* matrix_sparsity_with_block_size(matrix_sparsity_t* sparsity,
+                                                   int block_size);
+
+// Creates a new matrix sparsity pattern using the given sparsity pattern, 
+// and interpreting each non-zero element as a block of size specified for 
+// each row. The resulting sparsity pattern will contain non-zero elements for 
+// each of those within the blocks of the originally given sparsity pattern.
+// Here, block_sizes[i] contains the block size of the ith row in the original
+// sparsity pattern.
+matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
+                                                    int* block_sizes);
+
 // Creates a new sparsity pattern using the given adjacency graph (which 
 // provides a topology connecting local indices) and an exchanger (which 
 // can be used to construct a mapping from local to global indices for 
