@@ -1,6 +1,6 @@
 # This script generates polymec.h and friends at the top level of the 
 # build directory.
-import sys, os.path
+import sys, os.path, shutil
 source_dir = sys.argv[1]
 target_dir = sys.argv[2]
 
@@ -15,13 +15,25 @@ def find_c_headers(dirname):
     os.path.walk(dirname, visit_c_files, headers)
     return headers
 
+def files_match(file1, file2):
+    try:
+        f1 = open(file1, 'r')
+        f2 = open(file2, 'r')
+        result = f1.read() == f2.read()
+        f1.close()
+        f2.close()
+    except:
+        result = False
+    return result
+
 polymec_libs = ['core', 'geometry', 'integrators', 'model', 'meshless']
 
 # Generate library-specific headers.
 for lib in polymec_libs:
     c_headers = find_c_headers('%s/%s'%(source_dir, lib))
     header_name = '%s/polymec_%s.h'%(target_dir, lib)
-    header = open(header_name, 'w')
+    staging_header_name = header_name + '.new'
+    header = open(staging_header_name, 'w')
     header.write('// polymec_%s.h -- automatically generated.\n'%lib)
     header.write('// This file is part of the polymec HPC library. See the license\n')
     header.write('// in the actual source files for details of distribution.\n\n')
@@ -42,9 +54,16 @@ for lib in polymec_libs:
     header.write('#endif\n\n')
     header.close()
 
+    # Check to see whether the new header's contents match the old one's 
+    # identically. If they don't match, copy the new one over.
+    if not files_match(header_name, staging_header_name):
+        shutil.copyfile(staging_header_name, header_name)
+    os.remove(staging_header_name)
+
 # Now generate the big guy.
 header_name = '%s/polymec.h'%target_dir
-header = open(header_name, 'w')
+staging_header_name = header_name + '.new'
+header = open(staging_header_name, 'w')
 header.write('// polymec.h -- automatically generated.\n')
 header.write('// This file is part of the polymec HPC library. See the license\n')
 header.write('// in the actual source files for details of distribution.\n\n')
@@ -56,3 +75,8 @@ header.write('\n')
 header.write('#endif\n\n')
 header.close()
 
+# Check to see whether the new header's contents match the old one's 
+# identically. If they don't match, copy the new one over.
+if not files_match(header_name, staging_header_name):
+    shutil.copyfile(staging_header_name, header_name)
+os.remove(staging_header_name)
