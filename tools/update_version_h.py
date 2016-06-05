@@ -70,7 +70,18 @@ static const int %s_NUM_GIT_DIFFS = %d;
 """%(CODE_NAME, CODE_NAME, CODE_NAME, major_version, CODE_NAME, minor_version, 
      CODE_NAME, patch_version, CODE_NAME, version_number, git_revision, 
      CODE_NAME, git_diff, CODE_NAME, num_git_diffs)
-f = open(header_file, 'w')
-f.write(contents)
-f.close()
+
+# Does an identical file exist already?
+try:
+    f = open(header_file, 'r')
+    existing_contents = f.read()
+    f.close()
+except:
+    existing_contents = ''
+
+# If not, go ahead and write the new one.
+if existing_contents != contents:
+    f = open(header_file, 'w')
+    f.write(contents)
+    f.close()
 
