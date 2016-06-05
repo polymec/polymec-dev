@@ -82,12 +82,12 @@ matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
   block_sp->num_global_rows = block_sp->row_dist[block_sp->nproc];
 
   // Allocate memory for columns.
-  sparsity->columns_cap = num_rows[block_sp->rank];
-  sparsity->columns = polymec_malloc(sizeof(index_t) * sparsity->columns_cap);
-  sparsity->offsets = polymec_malloc(sizeof(index_t) * (sparsity->num_local_rows + 1));
+  block_sp->columns_cap = num_rows[block_sp->nproc];
+  block_sp->columns = polymec_malloc(sizeof(index_t) * sparsity->columns_cap);
+  block_sp->offsets = polymec_malloc(sizeof(index_t) * (sparsity->num_local_rows + 1));
 
   // Assign column indices.
-  sparsity->offsets[0] = 0;
+  block_sp->offsets[0] = 0;
   for (index_t i = 0; i < sparsity->num_local_rows; ++i)
   {
     int bs = block_sizes[i];
