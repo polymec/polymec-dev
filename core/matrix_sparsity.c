@@ -72,8 +72,31 @@ matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
   num_rows[block_sp->rank] = 0;
   for (int i = 0; i < sparsity->num_local_rows; ++i)
     num_rows[block_sp->rank] += block_sizes[i];
+  MPI_Allgather(MPI_IN_PLACE, 
+                block_sp->nproc, MPI_INDEX_T, num_rows, 
+                block_sp->nproc, MPI_REAL_T, block_sp->comm);
+  block_sp->row_dist[0] = 0;
+  for (int p = 0; p < block_sp->nproc; ++p)
+    block_sp->row_dist[p+1] = block_sp->row_dist[p] + num_rows[p];
+  block_sp->num_local_rows = block_sp->row_dist[block_sp->rank+1] - block_sp->row_dist[block_sp->rank];
+  block_sp->num_global_rows = block_sp->row_dist[block_sp->nproc];
 
-  // FIXME
+  // Allocate memory for columns.
+  sparsity->columns_cap = num_rows[block_sp->rank];
+  sparsity->columns = polymec_malloc(sizeof(index_t) * sparsity->columns_cap);
+  sparsity->offsets = polymec_malloc(sizeof(index_t) * (sparsity->num_local_rows + 1));
+
+  // Assign column indices.
+  sparsity->offsets[0] = 0;
+  for (index_t i = 0; i < sparsity->num_local_rows; ++i)
+  {
+    int bs = block_sizes[i];
+    int l = 0;
+    for (index_t j = sparsity->offsets[i]; j < sparsity->offsets[i+1]; ++j)
+      for (int k = 0; k < bs; ++k, ++l)
+        block_sp->columns[block_sp->offsets[i]+l] = bs * sparsity->columns[j] + k;
+    block_sp->offsets[i+1] = block_sp->offsets[i] + l;
+  }
   return block_sp;
 }
 
