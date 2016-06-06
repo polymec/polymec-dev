@@ -467,6 +467,16 @@ static void test_2d_laplace_eqn(void** state,
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,-4.0, 1.0, 0.0, 
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,-4.0, 1.0, 
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,-4.0};
+    static real_t I[10*10] = {1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                              0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                              0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0};
     static real_t b_left[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     static real_t b_mid[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0};
     static real_t b_right[10] = {-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0};
@@ -490,7 +500,7 @@ static void test_2d_laplace_eqn(void** state,
       if (row == 0)
       {
         krylov_matrix_set_block(A, 0, 0, T);
-        krylov_matrix_set_block(A, 0, 1, T);
+        krylov_matrix_set_block(A, 0, 1, I);
         index_t rows[N];
         for (int i = 0; i < N; ++i)
           rows[i] = i;
@@ -498,7 +508,7 @@ static void test_2d_laplace_eqn(void** state,
       }
       else if (row == (N_global-1))
       {
-        krylov_matrix_set_block(A, N_global-1, N_global-2, T);
+        krylov_matrix_set_block(A, N_global-1, N_global-2, I);
         krylov_matrix_set_block(A, N_global-1, N_global-1, T);
         index_t rows[N];
         for (int i = 0; i < N; ++i)
@@ -507,9 +517,9 @@ static void test_2d_laplace_eqn(void** state,
       }
       else
       {
-        krylov_matrix_set_block(A, row, row-1, T);
+        krylov_matrix_set_block(A, row, row-1, I);
         krylov_matrix_set_block(A, row, row, T);
-        krylov_matrix_set_block(A, row, row+1, T);
+        krylov_matrix_set_block(A, row, row+1, I);
         index_t rows[N];
         for (int i = 0; i < N; ++i)
           rows[i] = N*row + i;

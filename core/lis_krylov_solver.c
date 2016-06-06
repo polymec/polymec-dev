@@ -7,6 +7,7 @@
 
 #include "core/options.h"
 #include "core/krylov_solver.h"
+#include "core/linear_algebra.h"
 
 // Set up stuff for LIS.
 #if POLYMEC_HAVE_MPI
@@ -659,9 +660,9 @@ static void matrix_manipulate_blocks_fake_bsr(void* context, index_t num_blocks,
   // We simply treat the blocks one at a time.
   for (index_t i = 0; i < num_blocks; ++i)
   {
-
     // Assemble the rows/columns.
     index_t block_row = block_rows[i];
+    index_t block_column = block_columns[i];
     index_t num_rows = bs;
     index_t rows[bs], num_columns[bs], columns[bs*bs];
     int l = 0;
@@ -670,7 +671,7 @@ static void matrix_manipulate_blocks_fake_bsr(void* context, index_t num_blocks,
       rows[j] = bs * block_row + j;
       num_columns[j] = bs;
       for (int k = 0; k < bs; ++k, ++l)
-        columns[l] = block_columns[bs*k+j];
+        columns[l] = bs * block_column + k;
     }
 
     // Copy in the values if we are inserting/adding.
@@ -683,7 +684,7 @@ static void matrix_manipulate_blocks_fake_bsr(void* context, index_t num_blocks,
         rows[j] = bs * block_row + j;
         num_columns[j] = bs;
         for (int k = 0; k < bs; ++k, ++l)
-          values[l] = block_values[bs*k+j];
+          values[l] = block_values[k*bs+j];
       }
     }
 
@@ -699,7 +700,7 @@ static void matrix_manipulate_blocks_fake_bsr(void* context, index_t num_blocks,
         rows[j] = bs * block_row + j;
         num_columns[j] = bs;
         for (int k = 0; k < bs; ++k, ++l)
-          block_values[bs*k+j] = values[l];
+          block_values[k*bs+j] = values[l];
       }
     }
   }
@@ -742,7 +743,9 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
   krylov_matrix_t* mat = lis_factory_matrix(context, block_sp);
   matrix_sparsity_free(block_sp);
 
-  // Override the block matrix methods.
+  // Set the block size and override the block matrix methods.
+  lis_matrix_t* A = mat->context;
+  A->block_size = block_size;
   mat->vtable.block_size = matrix_block_size;
   mat->vtable.set_blocks = matrix_set_blocks_fake_bsr;
   mat->vtable.add_blocks = matrix_add_blocks_fake_bsr;
@@ -765,6 +768,7 @@ static void matrix_manipulate_blocks_fake_vbr(void* context, index_t num_blocks,
 
     // Assemble the rows/columns.
     index_t block_row = block_rows[i];
+    index_t block_column = block_columns[i];
     index_t bs = mat->block_sizes[block_row];
     index_t num_rows = bs;
     index_t rows[bs], num_columns[bs], columns[bs*bs];
@@ -774,7 +778,7 @@ static void matrix_manipulate_blocks_fake_vbr(void* context, index_t num_blocks,
       rows[j] = bs * block_row + j;
       num_columns[j] = bs;
       for (int k = 0; k < bs; ++k, ++l)
-        columns[l] = block_columns[bs*k+j];
+        columns[l] = bs * block_column + k;
     }
 
     // Copy in the values if we are inserting/adding.
@@ -787,7 +791,7 @@ static void matrix_manipulate_blocks_fake_vbr(void* context, index_t num_blocks,
         rows[j] = bs * block_row + j;
         num_columns[j] = bs;
         for (int k = 0; k < bs; ++k, ++l)
-          values[l] = block_values[bs*k+j];
+          values[l] = block_values[k*bs+j];
       }
     }
 
@@ -803,7 +807,7 @@ static void matrix_manipulate_blocks_fake_vbr(void* context, index_t num_blocks,
         rows[j] = bs * block_row + j;
         num_columns[j] = bs;
         for (int k = 0; k < bs; ++k, ++l)
-          block_values[bs*k+j] = values[l];
+          block_values[k*bs+j] = values[l];
       }
     }
   }
@@ -846,7 +850,10 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
   krylov_matrix_t* mat = lis_factory_matrix(context, block_sp);
   matrix_sparsity_free(block_sp);
 
-  // Override the block matrix methods.
+  // Set the block size and override the block matrix methods.
+  lis_matrix_t* A = mat->context;
+  A->block_sizes = polymec_malloc(sizeof(int) * A->nr);
+  memcpy(A->block_sizes, block_sizes, sizeof(int) * A->nr);
   mat->vtable.block_size = matrix_block_size;
   mat->vtable.set_blocks = matrix_set_blocks_fake_vbr;
   mat->vtable.add_blocks = matrix_add_blocks_fake_vbr;
