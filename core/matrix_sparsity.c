@@ -72,9 +72,9 @@ matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
   num_rows[block_sp->rank] = 0;
   for (int i = 0; i < sparsity->num_local_rows; ++i)
     num_rows[block_sp->rank] += block_sizes[i];
-  MPI_Allgather(MPI_IN_PLACE, 
-                block_sp->nproc, MPI_INDEX_T, num_rows, 
-                block_sp->nproc, MPI_REAL_T, block_sp->comm);
+  MPI_Allgather(&num_rows[block_sp->rank], 
+                1, MPI_INDEX_T, num_rows, 
+                1, MPI_REAL_T, block_sp->comm);
   block_sp->row_dist[0] = 0;
   for (int p = 0; p < block_sp->nproc; ++p)
     block_sp->row_dist[p+1] = block_sp->row_dist[p] + num_rows[p];
