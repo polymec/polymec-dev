@@ -745,7 +745,7 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
   A->factory->methods.MatSetSizes(A->A, N_local, N_local, N_global, N_global);
   A->factory->methods.MatSetBlockSize(A->A, block_size);
 
-  index_t* row_dist = matrix_sparsity_row_distribution(block_sp);
+  index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
   PetscInt start = row_dist[rank], end = row_dist[rank+1];
 
   // Perform preallocation.
