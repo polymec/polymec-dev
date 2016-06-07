@@ -206,6 +206,8 @@ typedef struct
   index_t ilow, ihigh;
   hypre_factory_t* factory;
   HYPRE_IJMatrix A;
+  int block_size;
+  int* block_sizes;
 } hypre_matrix_t;
 
 typedef struct
@@ -760,6 +762,14 @@ static void* hypre_matrix_clone(void* context)
   clone->factory = A->factory;
   clone->ilow = A->ilow;
   clone->ihigh = A->ihigh;
+  clone->block_size = A->block_size;
+  if (A->block_sizes != NULL)
+  {
+    clone->block_sizes = polymec_malloc(sizeof(int) * (A->ihigh - A->ilow + 1));
+    memcpy(clone->block_sizes, A->block_sizes, sizeof(int) * (A->ihigh - A->ilow + 1));
+  }
+  else
+    clone->block_sizes = NULL;
   HYPRE_MPI_Comm hypre_comm = A->comm;
   clone->factory->methods.HYPRE_IJMatrixCreate(hypre_comm, 
                                                clone->ilow, clone->ihigh, 
@@ -967,15 +977,14 @@ static void hypre_matrix_dtor(void* context)
   polymec_free(A);
 }
 
-static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
-                                                       matrix_sparsity_t* sparsity,
-                                                       int* block_sizes)
+static krylov_matrix_t* hypre_factory_matrix(void* context,
+                                             matrix_sparsity_t* sparsity)
 {
-  ASSERT(block_sizes != NULL);
-
   hypre_matrix_t* A = polymec_malloc(sizeof(hypre_matrix_t));
   A->factory = context;
   A->comm = matrix_sparsity_comm(sparsity);
+  A->block_size = 1;
+  A->block_sizes = NULL;
   int rank, nprocs;
   MPI_Comm_rank(A->comm, &rank);
   MPI_Comm_size(A->comm, &nprocs);
@@ -989,10 +998,8 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
   A->factory->methods.HYPRE_IJMatrixSetObjectType(A->A, HYPRE_PARCSR);
 
   // Preallocate non-zero storage.
-  HYPRE_Int N_local = 0;
   index_t start = row_dist[rank], end = row_dist[rank+1];
-  for (index_t r = 0; r < end - start; ++r)
-    N_local += block_sizes[r];
+  HYPRE_Int N_local = end - start;
   if (nprocs == 1)
   {
     HYPRE_Int nnz[N_local];
@@ -1000,7 +1007,7 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
     index_t row, r = 0;
     while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
-      nnz[r] = block_sizes[r] * matrix_sparsity_num_columns(sparsity, row);
+      nnz[r] = matrix_sparsity_num_columns(sparsity, row);
       ++r;
     }
     A->factory->methods.HYPRE_IJMatrixSetRowSizes(A->A, nnz);
@@ -1019,9 +1026,9 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
       while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
       {
         if ((column < start) || (column >= end))
-          o_nnz[r] += block_sizes[r];
+          o_nnz[r] += 1;
         else
-          d_nnz[r] += block_sizes[r];
+          d_nnz[r] += 1;
       }
       ++r;
     }
@@ -1039,7 +1046,7 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
   while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
     rows[r] = row;
-    num_columns[r] = block_sizes[r] * matrix_sparsity_num_columns(sparsity, row);
+    num_columns[r] = matrix_sparsity_num_columns(sparsity, row);
     nnz += num_columns[r];
     ++r;
   }
@@ -1082,22 +1089,237 @@ static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
   return krylov_matrix_new(A, vtable, A->comm, N_local, N_global);
 }
 
+// We replicate this struct here from krylov_solver.c in order to override
+// methods in the matrix vtable to fake block matrices.
+struct krylov_matrix_t
+{
+  void* context;
+  krylov_matrix_vtable vtable;
+  MPI_Comm comm;
+  int num_local_rows;
+  int num_global_rows;
+};
+
+static int matrix_block_size(void* context, index_t block_row)
+{
+  hypre_matrix_t* mat = context;
+  if (mat->block_sizes == NULL)
+    return mat->block_size;
+  else return mat->block_sizes[block_row];
+}
+
+static void matrix_manipulate_fixed_blocks(void* context, index_t num_blocks,
+                                           index_t* block_rows, index_t* block_columns, 
+                                           real_t* block_values,
+                                           void (*manipulate)(void*, index_t, index_t*, index_t*, index_t*, real_t*),
+                                           bool copy_out)
+{
+  hypre_matrix_t* mat = context;
+  index_t bs = mat->block_size;
+
+  // We simply treat the blocks one at a time.
+  for (index_t i = 0; i < num_blocks; ++i)
+  {
+    // Assemble the rows/columns.
+    index_t block_row = block_rows[i];
+    index_t block_column = block_columns[i];
+    index_t num_rows = bs;
+    index_t rows[bs], num_columns[bs], columns[bs*bs];
+    int l = 0;
+    for (int j = 0; j < bs; ++j)
+    {
+      rows[j] = bs * block_row + j;
+      num_columns[j] = bs;
+      for (int k = 0; k < bs; ++k, ++l)
+        columns[l] = bs * block_column + k;
+    }
+
+    // Copy in the values if we are inserting/adding.
+    real_t values[bs*bs];
+    if (!copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          values[l] = block_values[k*bs+j];
+      }
+    }
+
+    // Manipulate the values.
+    manipulate(context, num_rows, num_columns, rows, columns, values);
+
+    // Copy out the values if we are reading.
+    if (copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          block_values[k*bs+j] = values[l];
+      }
+    }
+  }
+}
+
+static void matrix_set_fixed_blocks(void* context, index_t num_blocks,
+                                    index_t* block_rows, index_t* block_columns, 
+                                    real_t* block_values)
+{
+  matrix_manipulate_fixed_blocks(context, num_blocks, 
+                                 block_rows, block_columns, block_values,
+                                 hypre_matrix_set_values, false);
+}
+
+static void matrix_add_fixed_blocks(void* context, index_t num_blocks,
+                                    index_t* block_rows, index_t* block_columns, 
+                                    real_t* block_values)
+{
+  matrix_manipulate_fixed_blocks(context, num_blocks, 
+                                 block_rows, block_columns, block_values,
+                                 hypre_matrix_add_values, false);
+}
+
+static void matrix_get_fixed_blocks(void* context, index_t num_blocks,
+                                    index_t* block_rows, index_t* block_columns, 
+                                    real_t* block_values)
+{
+  matrix_manipulate_fixed_blocks(context, num_blocks, 
+                                 block_rows, block_columns, block_values,
+                                 hypre_matrix_get_values, true);
+}
+
 static krylov_matrix_t* hypre_factory_block_matrix(void* context,
                                                    matrix_sparsity_t* sparsity,
                                                    int block_size)
 {
-  ASSERT(block_size >= 1);
-  index_t N_local = matrix_sparsity_num_local_rows(sparsity);
-  int block_sizes[N_local];
-  for (int i = 0; i < N_local; ++i)
-    block_sizes[i] = block_size;
-  return hypre_factory_var_block_matrix(context, sparsity, block_sizes);
+  // Create a block matrix sparsity pattern with the given block size, 
+  // and make a matrix from that.
+  matrix_sparsity_t* block_sp = matrix_sparsity_with_block_size(sparsity, block_size);
+  krylov_matrix_t* mat = hypre_factory_matrix(context, block_sp);
+  matrix_sparsity_free(block_sp);
+
+  // Set the block size and override the block matrix methods.
+  hypre_matrix_t* A = mat->context;
+  A->block_size = block_size;
+  mat->vtable.block_size = matrix_block_size;
+  mat->vtable.set_blocks = matrix_set_fixed_blocks;
+  mat->vtable.add_blocks = matrix_add_fixed_blocks;
+  mat->vtable.get_blocks = matrix_get_fixed_blocks;
+  return mat;
 }
 
-static krylov_matrix_t* hypre_factory_matrix(void* context,
-                                             matrix_sparsity_t* sparsity)
+static void matrix_manipulate_var_blocks(void* context, index_t num_blocks,
+                                         index_t* block_rows, index_t* block_columns, 
+                                         real_t* block_values,
+                                         void (*manipulate)(void*, index_t, index_t*, index_t*, index_t*, real_t*),
+                                         bool copy_out)
 {
-  return hypre_factory_block_matrix(context, sparsity, 1);
+  hypre_matrix_t* mat = context;
+
+  // We simply treat the blocks one at a time.
+  for (index_t i = 0; i < num_blocks; ++i)
+  {
+    // Assemble the rows/columns.
+    index_t block_row = block_rows[i];
+    index_t block_column = block_columns[i];
+    index_t bs = mat->block_sizes[block_row];
+    index_t num_rows = bs;
+    index_t rows[bs], num_columns[bs], columns[bs*bs];
+    int l = 0;
+    for (int j = 0; j < bs; ++j)
+    {
+      rows[j] = bs * block_row + j;
+      num_columns[j] = bs;
+      for (int k = 0; k < bs; ++k, ++l)
+        columns[l] = bs * block_column + k;
+    }
+
+    // Copy in the values if we are inserting/adding.
+    real_t values[bs*bs];
+    if (!copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          values[l] = block_values[k*bs+j];
+      }
+    }
+
+    // Manipulate the values.
+    manipulate(context, num_rows, num_columns, rows, columns, values);
+
+    // Copy out the values if we are reading.
+    if (copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          block_values[k*bs+j] = values[l];
+      }
+    }
+  }
+}
+
+static void matrix_set_var_blocks(void* context, index_t num_blocks,
+                                  index_t* block_rows, index_t* block_columns, 
+                                  real_t* block_values)
+{
+  matrix_manipulate_var_blocks(context, num_blocks, 
+                               block_rows, block_columns, block_values,
+                               hypre_matrix_set_values, false);
+}
+
+static void matrix_add_var_blocks(void* context, index_t num_blocks,
+                                  index_t* block_rows, index_t* block_columns, 
+                                  real_t* block_values)
+{
+  matrix_manipulate_var_blocks(context, num_blocks, 
+                               block_rows, block_columns, block_values,
+                               hypre_matrix_add_values, false);
+}
+
+static void matrix_get_var_blocks(void* context, index_t num_blocks,
+                                  index_t* block_rows, index_t* block_columns, 
+                                  real_t* block_values)
+{
+  matrix_manipulate_var_blocks(context, num_blocks, 
+                               block_rows, block_columns, block_values,
+                               hypre_matrix_get_values, true);
+}
+
+static krylov_matrix_t* hypre_factory_var_block_matrix(void* context,
+                                                       matrix_sparsity_t* sparsity,
+                                                       int* block_sizes)
+{
+  ASSERT(block_sizes != NULL);
+
+  // Create a block matrix sparsity pattern with the given block sizes, 
+  // and make a CSR matrix from that.
+  matrix_sparsity_t* block_sp = matrix_sparsity_with_block_sizes(sparsity, block_sizes);
+  krylov_matrix_t* mat = hypre_factory_matrix(context, block_sp);
+  matrix_sparsity_free(block_sp);
+
+  // Set the block sizes and override the block matrix methods.
+  hypre_matrix_t* A = mat->context;
+  index_t N_local = A->ihigh - A->ilow + 1;
+  A->block_sizes = polymec_malloc(sizeof(int) * N_local);
+  memcpy(A->block_sizes, block_sizes, sizeof(int) * N_local);
+  mat->vtable.block_size = matrix_block_size;
+  mat->vtable.set_blocks = matrix_set_var_blocks;
+  mat->vtable.add_blocks = matrix_add_var_blocks;
+  mat->vtable.get_blocks = matrix_get_var_blocks;
+  return mat;
 }
 
 static void check_for_vector_error(hypre_vector_t* v, 
