@@ -357,8 +357,6 @@ static void test_1d_laplace_eqn(void** state,
     krylov_vector_assemble(b);
     krylov_matrix_scale(A, 1.0/(h*h));
     krylov_vector_scale(b, -1.0/(h*h));
-//krylov_matrix_fprintf(A, stdout);
-//krylov_vector_fprintf(b, stdout);
 
     // Create a solution vector.
     krylov_vector_t* x = krylov_factory_vector(factory, comm, row_dist);
