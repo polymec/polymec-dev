@@ -134,6 +134,8 @@ typedef struct
   petsc_factory_t* factory;
   MPI_Comm comm;
   Mat A;
+  int block_size;
+  int* block_sizes;
 } petsc_matrix_t;
 
 typedef struct
@@ -385,6 +387,16 @@ static void* petsc_matrix_clone(void* context)
   petsc_matrix_t* clone = polymec_malloc(sizeof(petsc_matrix_t));
   clone->factory = A->factory;
   clone->comm = A->comm;
+  clone->block_size = A->block_size;
+  if (A->block_sizes != NULL)
+  {
+    PetscInt N_local, N_local_col;
+    A->factory->methods.MatGetLocalSize(A->A, &N_local, &N_local_col);
+    clone->block_sizes = polymec_malloc(sizeof(int) * N_local);
+    memcpy(clone->block_sizes, A->block_sizes, sizeof(int) * N_local);
+  }
+  else
+    clone->block_sizes = NULL;
   PetscErrorCode err = A->factory->methods.MatConvert(A->A, MATSAME, MAT_INITIAL_MATRIX, &(clone->A));
   if (err != 0)
     polymec_error("petsc_matrix_clone: Error!");
@@ -490,6 +502,8 @@ static void petsc_matrix_fprintf(void* context, FILE* stream)
 static void petsc_matrix_dtor(void* context)
 {
   petsc_matrix_t* A = context;
+  if (A->block_sizes != NULL)
+    polymec_free(A->block_sizes);
   A->factory->methods.MatDestroy(&(A->A));
   A->factory = NULL;
   polymec_free(A);
@@ -501,15 +515,16 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
   petsc_matrix_t* A = polymec_malloc(sizeof(petsc_matrix_t));
   A->factory = context;
   A->comm = matrix_sparsity_comm(sparsity);
+  A->block_size = 1;
+  A->block_sizes = NULL;
 
   index_t N_local = matrix_sparsity_num_local_rows(sparsity);
   index_t N_global = matrix_sparsity_num_global_rows(sparsity);
-  MPI_Comm comm = matrix_sparsity_comm(sparsity);
 
   int nprocs, rank;
-  MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_rank(comm, &rank);
-  A->factory->methods.MatCreate(comm, &A->A);
+  MPI_Comm_size(A->comm, &nprocs);
+  MPI_Comm_rank(A->comm, &rank);
+  A->factory->methods.MatCreate(A->comm, &A->A);
   if (nprocs == 1)
     A->factory->methods.MatSetType(A->A, MATSEQAIJ);
   else
@@ -603,7 +618,102 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
                                  .get_values = petsc_matrix_get_values,
                                  .assemble = petsc_matrix_assemble,
                                  .dtor = petsc_matrix_dtor};
-  return krylov_matrix_new(A, vtable, comm, N_local, N_global);
+  return krylov_matrix_new(A, vtable, A->comm, N_local, N_global);
+}
+
+static int petsc_matrix_block_size(void* context, index_t row)
+{
+  petsc_matrix_t* mat = context;
+  if (mat->block_sizes != NULL)
+    return mat->block_sizes[row];
+  else
+    return mat->block_size;
+}
+
+static void petsc_matrix_manipulate_fixed_blocks(void* context, index_t num_blocks,
+                                                 index_t* block_rows, index_t* block_columns, 
+                                                 real_t* block_values,
+                                                 void (*manipulate)(void*, index_t, index_t*, index_t*, index_t*, real_t*),
+                                                 bool copy_out)
+{
+  petsc_matrix_t* mat = context;
+  int bs = mat->block_size;
+
+  // We simply treat the blocks one at a time.
+  for (index_t i = 0; i < num_blocks; ++i)
+  {
+    // Assemble the rows/columns.
+    index_t block_row = block_rows[i];
+    index_t block_column = block_columns[i];
+log_debug("Inserting block of size %d at (%d, %d)\n", bs, block_row, block_column);
+    index_t num_rows = bs;
+    index_t rows[bs], num_columns[bs], columns[bs*bs];
+    int l = 0;
+    for (int j = 0; j < bs; ++j)
+    {
+      rows[j] = bs * block_row + j;
+      num_columns[j] = bs;
+      for (int k = 0; k < bs; ++k, ++l)
+        columns[l] = bs * block_column + k;
+    }
+
+    // Copy in the values if we are inserting/adding.
+    real_t values[bs*bs];
+    if (!copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          values[l] = block_values[k*bs+j];
+      }
+    }
+
+    // Manipulate the values.
+    manipulate(context, num_rows, num_columns, rows, columns, values);
+
+    // Copy out the values if we are reading.
+    if (copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          block_values[k*bs+j] = values[l];
+      }
+    }
+  }
+}
+
+static void petsc_matrix_set_fixed_blocks(void* context, index_t num_blocks,
+                                          index_t* block_rows, index_t* block_columns, 
+                                          real_t* block_values)
+{
+  petsc_matrix_manipulate_fixed_blocks(context, num_blocks, 
+                                       block_rows, block_columns, block_values,
+                                       petsc_matrix_set_values, false);
+}
+
+static void petsc_matrix_add_fixed_blocks(void* context, index_t num_blocks,
+                                          index_t* block_rows, index_t* block_columns, 
+                                          real_t* block_values)
+{
+  petsc_matrix_manipulate_fixed_blocks(context, num_blocks, 
+                                       block_rows, block_columns, block_values,
+                                       petsc_matrix_add_values, false);
+}
+
+static void petsc_matrix_get_fixed_blocks(void* context, index_t num_blocks,
+                                          index_t* block_rows, index_t* block_columns, 
+                                          real_t* block_values)
+{
+  petsc_matrix_manipulate_fixed_blocks(context, num_blocks, 
+                                       block_rows, block_columns, block_values,
+                                       petsc_matrix_get_values, true);
 }
 
 static krylov_matrix_t* petsc_factory_block_matrix(void* context,
@@ -612,26 +722,34 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
 {
   petsc_matrix_t* A = polymec_malloc(sizeof(petsc_matrix_t));
   A->factory = context;
+  A->comm = matrix_sparsity_comm(sparsity);
+  A->block_size = block_size;
+  A->block_sizes = NULL;
 
-  index_t N_local = matrix_sparsity_num_local_rows(sparsity);
-  index_t N_global = matrix_sparsity_num_global_rows(sparsity);
-  MPI_Comm comm = matrix_sparsity_comm(sparsity);
+  // PETSc deals in sparsities in terms of rows/columns, not blocks rows/columns.
+  // So we have to create a block sparsity that contains the entire non-zero
+  // structure of the matrix.
+  matrix_sparsity_t* block_sp = matrix_sparsity_with_block_size(sparsity, block_size);
+  index_t N_local = matrix_sparsity_num_local_rows(block_sp);
+  index_t N_global = matrix_sparsity_num_global_rows(block_sp);
 
   int nprocs, rank;
-  MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_rank(comm, &rank);
-  A->factory->methods.MatCreate(comm, &A->A);
+  MPI_Comm_size(A->comm, &nprocs);
+  MPI_Comm_rank(A->comm, &rank);
+  A->factory->methods.MatCreate(A->comm, &A->A);
   if (nprocs == 1)
     A->factory->methods.MatSetType(A->A, MATSEQBAIJ);
   else
     A->factory->methods.MatSetType(A->A, MATMPIBAIJ);
+
   A->factory->methods.MatSetSizes(A->A, N_local, N_local, N_global, N_global);
   A->factory->methods.MatSetBlockSize(A->A, block_size);
 
-  index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
+  index_t* row_dist = matrix_sparsity_row_distribution(block_sp);
   PetscInt start = row_dist[rank], end = row_dist[rank+1];
 
   // Perform preallocation.
+  // Note that nonzeros in preallocation are counted in blocks, not nonzeros.
   if (nprocs == 1)
   {
     PetscInt nnz[N_local];
@@ -642,19 +760,19 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
       nnz[r] = (PetscInt)(matrix_sparsity_num_columns(sparsity, row));
       ++r;
     }
-    A->factory->methods.MatSeqAIJSetPreallocation(A->A, PETSC_DEFAULT, nnz);
+    A->factory->methods.MatSeqBAIJSetPreallocation(A->A, (PetscInt)block_size, PETSC_DEFAULT, nnz);
   }
   else
   {
     // d_nnz[r] is the number of nonzeros for the "diagonal" portion of row r, 
     // and o_nnz[r] is the number of nonzeros for the "off-diagonal" portion.
     PetscInt d_nnz[N_local], o_nnz[N_local];
+    memset(d_nnz, 0, sizeof(PetscInt) * N_local);
+    memset(o_nnz, 0, sizeof(PetscInt) * N_local);
     index_t row, r = 0;
     int rpos = 0;
     while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
-      d_nnz[r] = 1; // Diagonal entry.
-      o_nnz[r] = 0; // Diagonal entry.
       int cpos = 0;
       index_t column;
       while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
@@ -670,35 +788,21 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
   }
 
   // Set the "non-zero" values to zero initially. This constructs the specific non-zero structure.
-  index_t num_columns[N_local], rows[N_local];
-  index_t row, r = 0;
+  real_t B[block_size*block_size];
+  memset(B, 0, sizeof(real_t) * block_size*block_size);
+  index_t row;
   int rpos = 0;
-  while (matrix_sparsity_next_row(sparsity, &rpos, &row))
-  {
-    rows[r] = row;
-    num_columns[r] = matrix_sparsity_num_columns(sparsity, row);
-    ++r;
-  }
-
-  index_t nnz = matrix_sparsity_num_nonzeros(sparsity);
-  index_t col_offset = 0;
-  index_t columns[nnz];
-  rpos = 0;
   while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
     int cpos = 0;
     index_t column;
     while (matrix_sparsity_next_column(sparsity, row, &cpos, &column))
-    {
-      columns[col_offset] = column;
-      ++col_offset;
-    }
+      petsc_matrix_set_fixed_blocks(A, 1, &row, &column, B);
   }
-  ASSERT(col_offset == nnz);
 
   // Assemble the matrix.
-  A->factory->methods.MatAssemblyBegin(A->A, MAT_FINAL_ASSEMBLY);
-  A->factory->methods.MatAssemblyEnd(A->A, MAT_FINAL_ASSEMBLY);
+  petsc_matrix_assemble(A);
+  matrix_sparsity_free(block_sp);
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
@@ -710,10 +814,132 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
                                  .set_values = petsc_matrix_set_values,
                                  .add_values = petsc_matrix_add_values,
                                  .get_values = petsc_matrix_get_values,
+                                 .block_size = petsc_matrix_block_size,
+                                 .set_blocks = petsc_matrix_set_fixed_blocks,
+                                 .add_blocks = petsc_matrix_add_fixed_blocks,
+                                 .get_blocks = petsc_matrix_get_fixed_blocks,
                                  .assemble = petsc_matrix_assemble,
                                  .fprintf = petsc_matrix_fprintf,
                                  .dtor = petsc_matrix_dtor};
-  return krylov_matrix_new(A, vtable, comm, N_local, N_global);
+  return krylov_matrix_new(A, vtable, A->comm, N_local, N_global);
+}
+
+static void petsc_matrix_manipulate_var_blocks(void* context, index_t num_blocks,
+                                               index_t* block_rows, index_t* block_columns, 
+                                               real_t* block_values,
+                                               void (*manipulate)(void*, index_t, index_t*, index_t*, index_t*, real_t*),
+                                               bool copy_out)
+{
+  petsc_matrix_t* mat = context;
+
+  // We simply treat the blocks one at a time.
+  for (index_t i = 0; i < num_blocks; ++i)
+  {
+    // Assemble the rows/columns.
+    index_t block_row = block_rows[i];
+    index_t block_column = block_columns[i];
+    int bs = petsc_matrix_block_size(mat, block_row);
+    index_t num_rows = bs;
+    index_t rows[bs], num_columns[bs], columns[bs*bs];
+    int l = 0;
+    for (int j = 0; j < bs; ++j)
+    {
+      rows[j] = bs * block_row + j;
+      num_columns[j] = bs;
+      for (int k = 0; k < bs; ++k, ++l)
+        columns[l] = bs * block_column + k;
+    }
+
+    // Copy in the values if we are inserting/adding.
+    real_t values[bs*bs];
+    if (!copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          values[l] = block_values[k*bs+j];
+      }
+    }
+
+    // Manipulate the values.
+    manipulate(context, num_rows, num_columns, rows, columns, values);
+
+    // Copy out the values if we are reading.
+    if (copy_out)
+    {
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          block_values[k*bs+j] = values[l];
+      }
+    }
+  }
+}
+
+static void petsc_matrix_set_var_blocks(void* context, index_t num_blocks,
+                                          index_t* block_rows, index_t* block_columns, 
+                                          real_t* block_values)
+{
+  petsc_matrix_manipulate_var_blocks(context, num_blocks, 
+                                     block_rows, block_columns, block_values,
+                                     petsc_matrix_set_values, false);
+}
+
+static void petsc_matrix_add_var_blocks(void* context, index_t num_blocks,
+                                        index_t* block_rows, index_t* block_columns, 
+                                        real_t* block_values)
+{
+  petsc_matrix_manipulate_var_blocks(context, num_blocks, 
+                                     block_rows, block_columns, block_values,
+                                     petsc_matrix_add_values, false);
+}
+
+static void petsc_matrix_get_var_blocks(void* context, index_t num_blocks,
+                                        index_t* block_rows, index_t* block_columns, 
+                                        real_t* block_values)
+{
+  petsc_matrix_manipulate_var_blocks(context, num_blocks, 
+                                     block_rows, block_columns, block_values,
+                                     petsc_matrix_get_values, true);
+}
+
+// We replicate this struct here from krylov_solver.c in order to override
+// methods in the matrix vtable to fake block matrices.
+struct krylov_matrix_t
+{
+  void* context;
+  krylov_matrix_vtable vtable;
+  MPI_Comm comm;
+  int num_local_rows;
+  int num_global_rows;
+};
+
+static krylov_matrix_t* petsc_factory_var_block_matrix(void* context,
+                                                       matrix_sparsity_t* sparsity,
+                                                       int* block_sizes)
+{
+  // Create a block matrix sparsity pattern with the given block sizes, 
+  // and make a regular matrix from that.
+  matrix_sparsity_t* block_sp = matrix_sparsity_with_block_sizes(sparsity, block_sizes);
+  krylov_matrix_t* mat = petsc_factory_matrix(context, block_sp);
+  matrix_sparsity_free(block_sp);
+
+  // Set the block size and override the block matrix methods.
+  petsc_matrix_t* A = mat->context;
+  index_t N_local = matrix_sparsity_num_local_rows(sparsity);
+  A->block_sizes = polymec_malloc(sizeof(int) * N_local);
+  memcpy(A->block_sizes, block_sizes, sizeof(int) * N_local);
+  mat->vtable.block_size = petsc_matrix_block_size;
+  mat->vtable.set_blocks = petsc_matrix_set_var_blocks;
+  mat->vtable.add_blocks = petsc_matrix_add_var_blocks;
+  mat->vtable.get_blocks = petsc_matrix_get_var_blocks;
+  return mat;
 }
 
 static void* petsc_vector_clone(void* context)
@@ -1083,6 +1309,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                   .preconditioner = petsc_factory_pc,
                                   .matrix = petsc_factory_matrix,
                                   .block_matrix = petsc_factory_block_matrix,
+                                  .var_block_matrix = petsc_factory_var_block_matrix,
                                   .vector = petsc_factory_vector,
                                   .dtor = petsc_factory_dtor};
   char name[1024];
