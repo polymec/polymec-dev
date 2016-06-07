@@ -530,8 +530,7 @@ static void test_2d_laplace_eqn(void** state,
     real_t h = 1.0 / N;
     int rpos = 0;
     index_t row;
-    matrix_sparsity_t* block_sp = matrix_sparsity_with_block_size(sparsity, N);
-    while (matrix_sparsity_next_row(block_sp, &rpos, &row))
+    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
       // Fill the row of the matrix.
       if (row == 0)
@@ -539,10 +538,10 @@ static void test_2d_laplace_eqn(void** state,
         krylov_matrix_set_block(A, 0, 0, T);
         krylov_matrix_set_block(A, 0, 1, I);
       }
-      else if (row == (N_global-1))
+      else if (row == (nprocs*N-1))
       {
-        krylov_matrix_set_block(A, N_global-1, N_global-2, I);
-        krylov_matrix_set_block(A, N_global-1, N_global-1, T);
+        krylov_matrix_set_block(A, nprocs*N-1, nprocs*N-2, I);
+        krylov_matrix_set_block(A, nprocs*N-1, nprocs*N-1, T);
       }
       else
       {
@@ -550,8 +549,12 @@ static void test_2d_laplace_eqn(void** state,
         krylov_matrix_set_block(A, row, row, T);
         krylov_matrix_set_block(A, row, row+1, I);
       }
+    }
+    krylov_matrix_assemble(A);
 
-      // Fill the row of the RHS vector.
+    // Fill the rows of the RHS vector.
+    for (index_t row = row_dist[rank]; row < row_dist[rank+1]; ++row)
+    {
       real_t bi = 0.0;
       if (row >= N_global - N)
         bi = 1.0;
@@ -559,11 +562,10 @@ static void test_2d_laplace_eqn(void** state,
         bi = 1.0;
       krylov_vector_set_values(b, 1, &row, &bi);
     }
-    krylov_matrix_assemble(A);
     krylov_vector_assemble(b);
+
     krylov_matrix_scale(A, 1.0/(h*h));
     krylov_vector_scale(b, -1.0/(h*h));
-    matrix_sparsity_free(block_sp);
 
     // Create a solution vector.
     krylov_vector_t* x = krylov_factory_vector(factory, comm, row_dist);
