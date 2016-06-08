@@ -63,6 +63,13 @@
 
 #include "h5test.h"
 
+/* This test uses many POSIX things that are not available on
+ * Windows. We're using a check for fork(2) here as a proxy for
+ * all POSIX/Unix/Linux things until this test can be made
+ * more platform-independent.
+ */
+#ifdef H5_HAVE_FORK
+
 #define DATAFILE   "twriteorder.dat"
 /* #define READERS_MAX	10 */	/* max number of readers */
 #define BLOCKSIZE_DFT   1024	/* 1KB */
@@ -98,15 +105,15 @@ part_t  launch_g;
 void
 usage(const char *prog)
 {
-    fprintf(stderr, "usage: %s [OPTIONS]\n", prog);
-    fprintf(stderr, "  OPTIONS\n");
-    fprintf(stderr, "     -h            Print a usage message and exit\n");
-    fprintf(stderr, "     -l w|r        launch writer or reader only. [default: launch both]\n");
-    fprintf(stderr, "     -b N          Block size [default: %d]\n", BLOCKSIZE_DFT);
-    fprintf(stderr, "     -p N          Partition size [default: %d]\n", PARTITION_DFT);
-    fprintf(stderr, "     -n N          Number of linked blocks [default: %d]\n", NLINKEDBLOCKS_DFT);
-    fprintf(stderr, "     where N is an integer value\n");
-    fprintf(stderr, "\n");
+    HDfprintf(stderr, "usage: %s [OPTIONS]\n", prog);
+    HDfprintf(stderr, "  OPTIONS\n");
+    HDfprintf(stderr, "     -h            Print a usage message and exit\n");
+    HDfprintf(stderr, "     -l w|r        launch writer or reader only. [default: launch both]\n");
+    HDfprintf(stderr, "     -b N          Block size [default: %d]\n", BLOCKSIZE_DFT);
+    HDfprintf(stderr, "     -p N          Partition size [default: %d]\n", PARTITION_DFT);
+    HDfprintf(stderr, "     -n N          Number of linked blocks [default: %d]\n", NLINKEDBLOCKS_DFT);
+    HDfprintf(stderr, "     where N is an integer value\n");
+    HDfprintf(stderr, "\n");
 }
 
 /* Setup test parameters by parsing command line options.
@@ -129,25 +136,25 @@ parse_option(int argc, char * const argv[])
 	switch (c) {
 	  case 'h':
 	    usage(progname_g);
-	    exit(0);
+	    HDexit(0);
 	    break;
 	  case 'b':	/* number of planes to write/read */
 	    if ((blocksize_g = atoi(optarg)) <= 0){
-		fprintf(stderr, "bad blocksize %s, must be a positive integer\n", optarg);
+		HDfprintf(stderr, "bad blocksize %s, must be a positive integer\n", optarg);
 		usage(progname_g);
 		Hgoto_error(-1);
 	    };
 	    break;
 	  case 'n':	/* number of planes to write/read */
 	    if ((nlinkedblock_g = atoi(optarg)) < 2){
-		fprintf(stderr, "bad number of linked blocks %s, must be greater than 1.\n", optarg);
+		HDfprintf(stderr, "bad number of linked blocks %s, must be greater than 1.\n", optarg);
 		usage(progname_g);
 		Hgoto_error(-1);
 	    };
 	    break;
 	  case 'p':	/* number of planes to write/read */
 	    if ((part_size_g = atoi(optarg)) <= 0){
-		fprintf(stderr, "bad partition size %s, must be a positive integer\n", optarg);
+		HDfprintf(stderr, "bad partition size %s, must be a positive integer\n", optarg);
 		usage(progname_g);
 		Hgoto_error(-1);
 	    };
@@ -161,7 +168,7 @@ parse_option(int argc, char * const argv[])
 		launch_g = UC_WRITER;
 		break;
 	      default:
-		fprintf(stderr, "launch value(%c) should be w or r only.\n", *optarg);
+		HDfprintf(stderr, "launch value(%c) should be w or r only.\n", *optarg);
 		usage(progname_g);
 		Hgoto_error(-1);
 		break;
@@ -169,19 +176,19 @@ parse_option(int argc, char * const argv[])
 	    printf("launch = %d\n", launch_g);
 	    break;
 	  case '?':
-	    fprintf(stderr, "getopt returned '%c'.\n", c);
+	    HDfprintf(stderr, "getopt returned '%c'.\n", c);
 	    usage(progname_g);
 	    Hgoto_error(-1);
 	  default:
-	    fprintf(stderr, "getopt returned unexpected value.\n");
-	    fprintf(stderr, "Unexpected value is %d\n", c);
+	    HDfprintf(stderr, "getopt returned unexpected value.\n");
+	    HDfprintf(stderr, "Unexpected value is %d\n", c);
 	    Hgoto_error(-1);
 	}
     }
 
     /* verify partition size must be >= blocksize */
     if (part_size_g < blocksize_g ){
-	fprintf(stderr, "Blocksize %d should not be bigger than partition size %d\n",
+	HDfprintf(stderr, "Blocksize %d should not be bigger than partition size %d\n",
 	    blocksize_g, part_size_g);
 	Hgoto_error(-1);                                                                  
     }
@@ -362,7 +369,7 @@ main(int argc, char *argv[])
     if (launch_g != UC_READER){
 	printf("Creating skeleton data file for test...\n");
 	if (create_wo_file() < 0){
-	    fprintf(stderr, "***encounter error\n");
+	    HDfprintf(stderr, "***encounter error\n");
 	    Hgoto_error(1);
 	}else
 	    printf("File created.\n");
@@ -372,12 +379,12 @@ main(int argc, char *argv[])
 
     if (launch_g==UC_READWRITE){
 	/* fork process */
-	if((childpid = fork()) < 0) {
-	    perror("fork");
+	if((childpid = HDfork()) < 0) {
+	    HDperror("fork");
 	    Hgoto_error(1);
 	};
     };
-    mypid = getpid();
+    mypid = HDgetpid();
 
     /* ============= */
     /* launch reader */
@@ -387,12 +394,12 @@ main(int argc, char *argv[])
 	if(0 == childpid) {
 	    printf("%d: launch reader process\n", mypid);
 	    if (read_wo_file() < 0){
-		fprintf(stderr, "read_wo_file encountered error\n");
-		exit(1);
+		HDfprintf(stderr, "read_wo_file encountered error\n");
+		HDexit(1);
 	    }
 	    /* Reader is done. Clean up by removing the data file */
 	    HDremove(DATAFILE);
-	    exit(0);
+	    HDexit(0);
 	}
     }
 
@@ -402,7 +409,7 @@ main(int argc, char *argv[])
     /* this process continues to launch the writer */
     printf("%d: continue as the writer process\n", mypid);
     if (write_wo_file() < 0){
-	fprintf(stderr, "write_wo_file encountered error\n");
+	HDfprintf(stderr, "write_wo_file encountered error\n");
 	Hgoto_error(1);
     }
 
@@ -410,8 +417,8 @@ main(int argc, char *argv[])
     /* If readwrite, collect exit code of child process */
     /* ================================================ */
     if (launch_g == UC_READWRITE){
-	if ((tmppid = waitpid(childpid, &child_status, child_wait_option)) < 0){
-	    perror("waitpid");
+	if ((tmppid = HDwaitpid(childpid, &child_status, child_wait_option)) < 0){
+	    HDperror("waitpid");
 	    Hgoto_error(1);
 	}
 	if (WIFEXITED(child_status)){
@@ -436,3 +443,15 @@ done:
 
     return(ret_value);
 }
+
+#else /* H5_HAVE_FORK */
+
+int
+main(void)
+{
+    HDfprintf(stderr, "Non-POSIX platform. Skipping.\n");
+    return EXIT_SUCCESS;
+} /* end main() */
+
+#endif /* H5_HAVE_FORK */
+

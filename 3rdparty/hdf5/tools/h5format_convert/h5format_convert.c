@@ -77,31 +77,31 @@ static struct long_options l_opts[] = {
  */
 static void usage(const char *prog) 
 {
-	printf("usage: %s [OPTIONS] file_name\n", prog);
-	printf("  OPTIONS\n");
-	printf("   -h, --help				Print a usage message and exit\n");
-	printf("   -V, --version			Print version number and exit\n");
-	printf("   -v, --verbose			Turn on verbose mode\n");
-	printf("   -d dname, --dname=dataset_name	Pathname for the dataset\n");
-	printf("   -n, --noop				Perform all the steps except the actual conversion\n");
-	printf("\n");
-	printf("Examples of use:\n");
-	printf("\n");
-	printf("h5format_convert -d /group/dataset file_name\n");
-	printf("  Convert the dataset </group/dataset> in the HDF5 file <file_name>:\n");
-	printf("    a. chunked dataset: convert the chunk indexing type to version 1 B-tree\n");
-	printf("    b. compact/contiguous dataset: downgrade the layout version to 3\n");
-	printf("    c. virtual dataset: no action\n");
-	printf("\n");
-	printf("h5format_convert file_name\n");
-	printf("  Convert all datasets in the HDF5 file <file_name>:\n");
-	printf("    a. chunked dataset: convert the chunk indexing type to version 1 B-tree\n");
-	printf("    b. compact/contiguous dataset: downgrade the layout version to 3\n");
-	printf("    c. virtual dataset: no action\n");
-	printf("\n");
-	printf("h5format_convert -n -d /group/dataset file_name\n");
-	printf("  Go through all the steps except the actual conversion when \n");
-	printf("  converting the dataset </group/dataset> in the HDF5 file <file_name>.\n");
+    printf("usage: %s [OPTIONS] file_name\n", prog);
+    printf("  OPTIONS\n");
+    printf("   -h, --help                Print a usage message and exit\n");
+    printf("   -V, --version             Print version number and exit\n");
+    printf("   -v, --verbose             Turn on verbose mode\n");
+    printf("   -d dname, --dname=dataset_name    Pathname for the dataset\n");
+    printf("   -n, --noop                Perform all the steps except the actual conversion\n");
+    printf("\n");
+    printf("Examples of use:\n");
+    printf("\n");
+    printf("h5format_convert -d /group/dataset file_name\n");
+    printf("  Convert the dataset </group/dataset> in the HDF5 file <file_name>:\n");
+    printf("    a. chunked dataset: convert the chunk indexing type to version 1 B-tree\n");
+    printf("    b. compact/contiguous dataset: downgrade the layout version to 3\n");
+    printf("    c. virtual dataset: no action\n");
+    printf("\n");
+    printf("h5format_convert file_name\n");
+    printf("  Convert all datasets in the HDF5 file <file_name>:\n");
+    printf("    a. chunked dataset: convert the chunk indexing type to version 1 B-tree\n");
+    printf("    b. compact/contiguous dataset: downgrade the layout version to 3\n");
+    printf("    c. virtual dataset: no action\n");
+    printf("\n");
+    printf("h5format_convert -n -d /group/dataset file_name\n");
+    printf("  Go through all the steps except the actual conversion when \n");
+    printf("  converting the dataset </group/dataset> in the HDF5 file <file_name>.\n");
 } /* usage() */
 
 /*-------------------------------------------------------------------------

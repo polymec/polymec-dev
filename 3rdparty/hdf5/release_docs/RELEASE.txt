@@ -1,4 +1,4 @@
-HDF5 version 1.10.0 released on 2016-03-30
+HDF5 version 1.10.0-patch1 released on 2016-05-23
 ================================================================================
 
 
@@ -301,6 +301,84 @@ This release supports the following features:
 
 
 
+Issues Addressed in this Release Since 1.10.0
+=============================================
+
+     - h5diff would return from a compare attributes abnormally if one of the datatypes
+       was a vlen. This resulted in a memory leak as well as an incorrect report of
+       attribute comparison.
+
+       Fixed.
+       (ADB - 2016/04/26, HDFFV-9784)
+
+     - The JUnit-interface test may fail on Solaris platforms. The result of
+       a test for verifying the content of the error stack to stdout is
+       in a different order on Solaris then other platforms.
+
+       This test is skipped on Solaris
+       (ADB - 2016/04/21, HDFFV-9734)
+
+     - When building HDF5 with Java using CMake and specifying Debug for CMAKE_BUILD_TYPE,
+       there was a missing command argument for the tests of the examples.
+
+       Fixed.
+       (ADB - 2016/04/21, HDFFV-9743)
+
+     - Changed h5diff to print a warning when a dataset is virtual, enabling
+       the data to be compared. In addition h5repack failed to copy the data
+       of a virtual dataset to the new file. Function H5D__get_space_status changed
+       to correctly determine the H5D_space_status_t allocation value.
+
+       CMake added the Fixed Array indexing tests that were only in the autotools
+       test scripts.
+
+       Fixed and tests added for vds issues.
+       (ADB,NAF - 2016/04/21, HDFFV-9756)
+
+     - CMake added the h5format_convert tool and tests that were only in the autotools
+       build and test scripts. The autotools test script was reworked to allow CMake
+       to execute the test suite in parallel.
+
+       Also, h5clear tool and tests were added to the misc folder.
+
+       Fixed.
+       (ADB - 2016/04/21, HDFFV-9766)
+
+     - CMake added the h5watch tool and argument tests that were only in the autotools
+       build and test scripts. The POSIX only tests were not added to CMake.
+
+       CMake HL tools files were refactored to move the CMake test scripts into each tool folder.
+
+       Fixed.
+       (ADB - 2016/04/21, HDFFV-9770)
+
+     - Configure fails to detect valid real KINDs on FreeBSD 9.3 (i386) with Fortran enabled.
+
+       Fixed. Added the exponential option to SELECTED_REAL_KIND to distinguish 
+       KINDs of same precision
+       (MSB - 2016/05/14,HDFFV-9912)
+
+
+     - Corrected the f90 H5AWRITE_F integer interface's buf to be INTENT(IN).
+       (MSB - 2016/05/14) 
+
+     - Configure fails in sed command on FreeBSD 9.3 (i386) with Fortran enabled.
+  
+       Fixed.
+       (MSB - 2016/05/14,HDFFV-9912)
+
+     - Compile time error in H5f90global.F90 with IBM XL Fortran 14.1.0.13 on BG/Q with Fortran
+       enabled.
+    
+       Fixed.
+       (MSB - 2016/05/16,HDFFV-9917)
+
+     - A cmake build with Fortran enabled does not install module h5fortkit
+
+       Fixed. 
+       (MSB - 2016/05/23,HDFFV-9923)
+
+
 Issues Addressed in this Release Since alpha1
 =============================================
 
@@ -397,7 +475,7 @@ They are built with the configure process unless specified otherwise.
     (NASA G-ADA)                  xlC/xlC_r 10.1.0.5
                                   xlf90/xlf90_r 12.1.0.6
 
-    Linux 2.6.32-573.18.1.el6    GNU C (gcc), Fortran (gfortran), C++ (g++)
+    Linux 2.6.32-573.22.1.el6     GNU C (gcc), Fortran (gfortran), C++ (g++)
     #1 SMP x86_64 GNU/Linux       compilers:
     (mayll/platypus)                 Version 4.4.7 20120313 (Red Hat 4.4.7-16)
                                      Version 4.9.3, Version 5.2.0
@@ -409,7 +487,7 @@ They are built with the configure process unless specified otherwise.
                                      Version 15.0.3.187 Build 20150407
                                   MPICH 3.1.4 compiled with GCC 4.9.3
 
-    Linux 2.6.32-504.8.1.el6.ppc64 gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-11)
+    Linux 2.6.32-573.18.1.el6.ppc64 gcc (GCC) 4.4.7 20120313 (Red Hat 4.4.7-11)
     #1 SMP ppc64 GNU/Linux        g++ (GCC) 4.4.7 20120313 (Red Hat 4.4.7-11)
     (ostrich)                     GNU Fortran (GCC) 4.4.7 20120313 (Red Hat 4.4.7-11)
                                   IBM XL C/C++ V13.1
@@ -445,19 +523,19 @@ They are built with the configure process unless specified otherwise.
                                   Visual Studio 2013 w/ Intel Fortran 15 (cmake)
 
     Mac OS X Mt. Lion 10.8.5      Apple clang/clang++ version 5.1 from Xcode 5.1
-    64-bit                  gfortran GNU Fortran (GCC) 4.8.2
+    64-bit                        gfortran GNU Fortran (GCC) 4.8.2
     (swallow/kite)                Intel icc/icpc/ifort version 15.0.3
 
-    Mac OS X Mavericks 10.9.5     Apple clang/clang++ version 6.0 from Xcode 6.2.0
-    64-bit                  gfortran GNU Fortran (GCC) 4.9.2
+    Mac OS X Mavericks 10.9.5     Apple clang/clang++ version 6.0 from Xcode 6.2
+    64-bit                        gfortran GNU Fortran (GCC) 4.9.2
     (wren/quail)                  Intel icc/icpc/ifort version 15.0.3
 
-    Mac OS X Yosemite 10.10.5     Apple clang/clang++ version 6.0 from Xcode 7.0.0
-    64-bit                  gfortran GNU Fortran (GCC) 4.9.2
+    Mac OS X Yosemite 10.10.5     Apple clang/clang++ version 6.0 from Xcode 7.0
+    64-bit                        gfortran GNU Fortran (GCC) 4.9.2
     (osx1010dev/osx1010test)      Intel icc/icpc/ifort version 15.0.3
 
-    Mac OS X El Capitan 10.11.3     Apple clang/clang++ version 7.0.2 from Xcode 7.0.2
-    64-bit                  gfortran GNU Fortran (GCC) 5.2.0
+    Mac OS X El Capitan 10.11.4   Apple clang/clang++ version 7.3.0 from Xcode 7.3
+    64-bit                        gfortran GNU Fortran (GCC) 5.2.0
     (osx1010dev/osx1010test)      Intel icc/icpc/ifort version 15.0.3
 
 
@@ -585,12 +663,6 @@ an issue not listed here or at the link above, and we will provide any
 information about known workarounds that we have or add it to our list of
 known issues if it is a new issue.
 
- - The JUnit-interface test may fail on Solaris platforms. The result of
-   a test for verifying the content of the error stack to stdout is
-   in a different order on Solaris then other platforms. Use make -i option
-   to test beyond the java/test folder.
-   (ADB - 2016/03/22, HDFFV-9734)
-
  - The flush/refresh test occasionally fails on OS X platforms. This is
    being investigated but no fix or workaround is available at this time.
    (DER - 2016/03/22, HDFFV-9731)
@@ -626,19 +698,12 @@ known issues if it is a new issue.
    the mapping.
    (EIP - 2016/03/20, HDFFV-9724)
 
- - When building HDF5 with Java using CMake and specifying Debug for CMAKE_BUILD_TYPE,
-   there is a missing command argument for the tests of the examples.
-
-   This error can be avoided by not building Java with Debug, HDF5_BUILD_JAVA:BOOL=OFF, 
-   or not building Examples, HDF5_BUILD_EXAMPLES:BOOL=OFF.
-   (LRK - 2016/03/30, HDFFV-9743) 
-
- - The H5Lexists API changed behavior in HDF5-1.10 when used with a file handle 
+ - The H5Lexists API changed behavior in HDF5-1.10 when used with a file handle
    and root group name ("/"):
 
    H5Lexists(fileid, "/")
 
-   In HDF5-1.8 it returns false (0) and in HDF5-1.10 it returns true (1). 
+   In HDF5-1.8 it returns false (0) and in HDF5-1.10 it returns true (1).
    The documentation will be updated with information regarding this change.
    (LRK - 2016/03/30, HDFFV-8746)
 

@@ -29,17 +29,19 @@
 /* Headers */
 /***********/
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#include <errno.h>
+
+#if !defined(WIN32) && !defined(__MINGW32__)
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 
 /****************/
 /* Local Macros */
@@ -228,3 +230,15 @@ main(int argc, char *argv[])
 error:
     return(-1);
 } /* main() */
+
+#else /* WIN32 / MINGW32 */
+
+int
+main(void)
+{
+    printf("Non-POSIX platform. Exiting.\n");
+    return EXIT_FAILURE;
+} /* end main() */
+
+#endif /* WIN32 / MINGW32 */
+

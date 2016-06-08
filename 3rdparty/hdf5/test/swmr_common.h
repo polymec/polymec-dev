@@ -56,17 +56,25 @@ typedef struct {
 /********************/
 /* Global Variables */
 /********************/
-extern symbol_info_t *symbol_info[NLEVELS];
-extern unsigned symbol_count[NLEVELS];
+H5TEST_DLLVAR symbol_info_t *symbol_info[NLEVELS];
+H5TEST_DLLVAR unsigned symbol_count[NLEVELS];
 
 /**************/
 /* Prototypes */
 /**************/
-symbol_info_t * choose_dataset(void);
-hid_t create_symbol_datatype(void);
-int generate_name(char *name_buf, unsigned level, unsigned count);
-int generate_symbols(void);
-int shutdown_symbols(void);
-int print_metadata_retries_info(hid_t fid);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+H5TEST_DLL symbol_info_t * choose_dataset(void);
+H5TEST_DLL hid_t create_symbol_datatype(void);
+H5TEST_DLL int generate_name(char *name_buf, unsigned level, unsigned count);
+H5TEST_DLL int generate_symbols(void);
+H5TEST_DLL int shutdown_symbols(void);
+H5TEST_DLL int print_metadata_retries_info(hid_t fid);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _SWMR_COMMON_H */

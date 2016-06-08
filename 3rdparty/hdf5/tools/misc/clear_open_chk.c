@@ -60,6 +60,8 @@ main(int argc, char *argv[])
 	return EXIT_FAILURE;
     }
 
+    if(fname)
+        HDfree(fname);
     /* Close the file */
     if(H5Fclose(fid) < 0) {
 	HDfprintf(stderr, "clear_open_chk: cannot close the file\n");

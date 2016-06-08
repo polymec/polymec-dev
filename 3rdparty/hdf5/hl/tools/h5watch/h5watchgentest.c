@@ -15,12 +15,6 @@
 
 #include "hdf5.h"
 #include "H5HLprivate2.h"
-#include <time.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <string.h>
 
 /*
  *  WATCH.h5: file with various types of datasets for testing--                                   
@@ -336,7 +330,7 @@ main(void)
     if(H5Pclose(fapl) < 0) goto done;
     if(H5Fclose(fid) < 0) goto done;
 
-    exit(EXIT_SUCCESS);
+    HDexit(EXIT_SUCCESS);
 
 done:
     H5E_BEGIN_TRY
@@ -351,5 +345,6 @@ done:
 	H5Fclose(fid);
     H5E_END_TRY
 
-    exit(EXIT_FAILURE);
-} /* main() */
+    HDexit(EXIT_FAILURE);
+} /* end main() */
+

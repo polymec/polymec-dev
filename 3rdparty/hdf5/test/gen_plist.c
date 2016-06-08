@@ -17,11 +17,17 @@
  * generate plist file
  */
 
-#include <assert.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
+#ifdef H5_STDC_HEADERS
+#   include <assert.h>
+#   include <fcntl.h>
+#   include <stdio.h>
+#   include <stdlib.h>
+#endif
+
+#ifdef H5_HAVE_UNISTD_H
+#  include <unistd.h>
+#endif
+
 #include "H5private.h"
 #include "hdf5.h"
 

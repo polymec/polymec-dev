@@ -109,9 +109,6 @@ TOOLTEST() {
     # any unexpected output from that stream too.
     TESTING $H5WATCH $@
     (
-	$ECHO "#############################"
-	$ECHO " output for '$H5WATCH $@'" 
-	$ECHO "#############################"
         $RUNSERIAL $H5WATCH_BIN "$@"
     ) > $actual 2>$actual_err
     exitcode=$?
@@ -199,7 +196,6 @@ TEST_WATCH() {
         #
         # Run h5watch; put in background; collect output to a file
         TESTING $H5WATCH $OBJ
-	head -n 3 $expect > $actual			# copy the first 3 lines from $expect (just the command line)
         $RUNSERIAL $H5WATCH_BIN $2 "$TESTFILE/$1" >> $actual &
         watch_pid=$!                                    # Get h5watch process ID
         cp /dev/null $READER_MESSAGE                    # Send message to "extend" process to start work
