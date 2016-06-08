@@ -29,7 +29,7 @@ matrix:
   - os: osx
     compiler: gcc
 
-install: sh ./.travis/install-$TRAVIS_OS_NAME-deps.sh
+install: bash ./.travis/install-$TRAVIS_OS_NAME-deps.sh
 
 deploy:
   provider: s3
