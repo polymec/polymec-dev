@@ -4,11 +4,6 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.h"
 )
 
-# Certain tools are available to us only in a shared lib environment.
-if (BUILD_SHARED_LIBS)
-  set(DYLOAD_SOURCES petsc_krylov_solver.c hypre_krylov_solver.c)
-endif()
-
 include(add_polymec_library)
 add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c memory_info.c
                     special_functions.c point.c point2.c tensor2.c tagger.c mesh.c 
@@ -21,7 +16,7 @@ add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
                     local_matrix.c block_diagonal_matrix.c sparse_local_matrix.c 
                     dense_local_matrix.c silo_file.c exchanger.c
                     matrix_sparsity.c krylov_solver.c lis_krylov_solver.c
-                    ${DYLOAD_SOURCES})
+                    petsc_krylov_solver.c hypre_krylov_solver.c)
 
 # polymec.c depends on the creation of polymec_version.h.
 add_dependencies(polymec_core update_version_h)

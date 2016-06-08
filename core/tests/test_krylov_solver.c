@@ -63,7 +63,6 @@ static matrix_sparsity_t* create_laplacian_sparsity(MPI_Comm comm, int N_local)
   return sparsity;
 }
 
-#if POLYMEC_HAVE_SHARED_LIBS
 static krylov_factory_t* create_petsc_krylov_factory()
 {
   krylov_factory_t* factory = NULL;
@@ -115,7 +114,6 @@ static krylov_factory_t* create_hypre_krylov_factory()
     log_urgent("HYPRE_DIR not set. Skipping HYPRE test.");
   return factory;
 }
-#endif
 
 static void test_krylov_factory(void** state, krylov_factory_t* factory)
 {
@@ -686,7 +684,6 @@ void test_lis_bicgstab_2d_laplace_eqn(void** state)
   test_2d_laplace_eqn(state, lis, BICGSTAB_SOLVER);
 }
 
-#if POLYMEC_HAVE_SHARED_LIBS
 void test_petsc_krylov_factory(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
@@ -847,7 +844,6 @@ void test_hypre_bicgstab_2d_laplace_eqn(void** state)
   krylov_factory_t* hypre = create_hypre_krylov_factory();
   test_2d_laplace_eqn(state, hypre, BICGSTAB_SOLVER);
 }
-#endif
 
 int main(int argc, char* argv[]) 
 {
@@ -867,7 +863,6 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_pcg_2d_laplace_eqn),
     cmocka_unit_test(test_lis_gmres_2d_laplace_eqn),
     cmocka_unit_test(test_lis_bicgstab_2d_laplace_eqn),
-#if POLYMEC_HAVE_SHARED_LIBS
     cmocka_unit_test(test_petsc_krylov_factory),
     cmocka_unit_test(test_petsc_krylov_matrix),
     cmocka_unit_test(test_petsc_krylov_matrix_from_file),
@@ -894,7 +889,6 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_hypre_pcg_2d_laplace_eqn),
     cmocka_unit_test(test_hypre_gmres_2d_laplace_eqn),
     cmocka_unit_test(test_hypre_bicgstab_2d_laplace_eqn)
-#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

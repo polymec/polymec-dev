@@ -13,6 +13,8 @@
 #include "core/string_utils.h"
 #include "core/file_utils.h"
 
+#if POLYMEC_HAVE_SHARED_LIBS && POLYMEC_HAVE_MPI
+
 //------------------------------------------------------------------------
 // This file implements the dynamically-loadable HYPRE Krylov solver.
 //------------------------------------------------------------------------
@@ -1597,10 +1599,14 @@ static void hypre_factory_dtor(void* context)
       goto fail_label; \
     } \
     *((void**)&(function_ptr)) = ptr; \
-  } 
+  }
+
+#endif
 
 krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
 {
+#if POLYMEC_HAVE_SHARED_LIBS
+#if POLYMEC_HAVE_MPI
   hypre_factory_t* factory = polymec_malloc(sizeof(hypre_factory_t));
 
   // Try to find HYPRE.
@@ -1813,5 +1819,13 @@ failure:
   dlclose(hypre);
   polymec_free(factory);
   return NULL;
+#else 
+  log_urgent("hypre_krylov_factory: Polymec must be configured with MPI to use HYPRE.");
+  return NULL;
+#endif
+#else
+  log_urgent("hypre_krylov_factory: Polymec must be configured with MPI and shared library support to use HYPRE.");
+  return NULL;
+#endif
 }
 
