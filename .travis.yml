@@ -14,11 +14,11 @@ compiler:
 
 env:
   - DEBUG=0 MPI=0 SHARED=0
-  - DEBUG=0 MPI=0 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+  - DEBUG=0 MPI=0 SHARED=1 
   - DEBUG=0 MPI=1 SHARED=0
   - DEBUG=0 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
   - DEBUG=1 MPI=0 SHARED=0
-  - DEBUG=1 MPI=0 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+  - DEBUG=1 MPI=0 SHARED=1 
   - DEBUG=1 MPI=1 SHARED=0
   - DEBUG=1 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
 
