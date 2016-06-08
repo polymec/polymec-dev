@@ -13,11 +13,11 @@ wget http://computation.llnl.gov/projects/hypre-scalable-linear-solvers-multigri
 tar xzf hypre-2.10.1.tar.gz
 pushd $HYPRE_DIR
 if [ $MPI -eq 0 ]; then
-  HYPRE_SEQ=1
+  HYPRE_SEQ=ON
 else
-  HYPRE_SEQ=0
+  HYPRE_SEQ=OFF
 fi 
-cmake .. -DHYPRE_SHARED=ON -DHYPRE_BIGINT=ON -DHYPRE_SEQUENTIAL=$HYPRE_SEQ
+cmake .. -DHYPRE_SHARED=ON -DHYPRE_BIGINT=ON -DHYPRE_SEQUENTIAL=$HYPRE_SEQ -DHYPRE_USING_FEI=OFF
 make -j4
 popd
 
