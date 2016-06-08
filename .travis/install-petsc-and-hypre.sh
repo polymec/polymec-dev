@@ -12,7 +12,7 @@ popd
 wget http://computation.llnl.gov/projects/hypre-scalable-linear-solvers-multigrid-methods/download/hypre-2.10.1.tar.gz
 tar xzf hypre-2.10.1.tar.gz
 pushd $HYPRE_DIR
-if [$MPI -eq 0]; then
+if [ $MPI -eq 0 ]; then
   HYPRE_SEQ=1
 else
   HYPRE_SEQ=0

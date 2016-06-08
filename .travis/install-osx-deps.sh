@@ -8,6 +8,6 @@ ln -s /usr/local/lib/gcc/5/libgfortran.dylib /usr/local/lib/libgfortran.dylib
 ln -s /usr/local/lib/gcc/5/libgfortran.a /usr/local/lib/libgfortran.a
 
 # If we're building shared library support, install PETSc and HYPRE.
-if [$SHARED -eq 1]; then
+if [ $SHARED -eq 1 ]; then
   . ./.travis/install-petsc-and-hypre.sh
 fi 
