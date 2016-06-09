@@ -14,6 +14,12 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
+static docstring_t* signed_distance_functions_doc()
+{
+  return docstring_from_string("signed_distance_functions - A family of signed distance functions that can\n"
+                               "  be used to construct geometries based on zero level sets.");
+}
+
 static int sphere(lua_State* lua)
 {
   // Check the arguments.
@@ -21,7 +27,7 @@ static int sphere(lua_State* lua)
   if ((num_args != 2) || !lua_ispoint(lua, 1) || !lua_isnumber(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "F = sphere(x, r)");
+                      "F = sphere(x, R)");
   }
 
   // Get the arguments.
@@ -33,6 +39,12 @@ static int sphere(lua_State* lua)
   sp_func_t* s = sphere_sp_func_new(x, r, INWARD_NORMAL);
   lua_pushscalarfunction(lua, st_func_from_sp_func(s));
   return 1;
+}
+
+static docstring_t* sphere_doc()
+{
+  return docstring_from_string("sphere(x, R) - Creates a signed distance function for a sphere centered\n"
+                               "  at the point x with the radius R.");
 }
 
 static int rect_prism(lua_State* lua)
@@ -53,10 +65,16 @@ static int rect_prism(lua_State* lua)
   return 1;
 }
 
+static docstring_t* rect_prism_doc()
+{
+  return docstring_from_string("rect_prism(bbox) - Creates a signed distance function for a rectangular\n"
+                               "  prism occupying the space within the bounding box bbox.");
+}
+
 void interpreter_register_sd_functions(interpreter_t* interp)
 {
-  interpreter_register_global_table(interp, "signed_distance_functions", NULL);
-  interpreter_register_global_method(interp, "signed_distance_functions", "sphere", sphere, NULL);
-  interpreter_register_global_method(interp, "signed_distance_functions", "rect_prism", rect_prism, NULL);
+  interpreter_register_global_table(interp, "signed_distance_functions", signed_distance_functions_doc());
+  interpreter_register_global_method(interp, "signed_distance_functions", "sphere", sphere, sphere_doc());
+  interpreter_register_global_method(interp, "signed_distance_functions", "rect_prism", rect_prism, rect_prism_doc());
 }
 

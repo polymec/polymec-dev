@@ -37,8 +37,15 @@ static int periodic_bc(lua_State* lua)
   return 1;
 }
 
+static docstring_t* periodic_bc_doc()
+{
+  return docstring_from_string("periodic_bc(face_tag1, face_tag2) - \n"
+                               "  Creates a periodic boundary condition that aliases the sets of faces\n"
+                               "  identified by the two face tags in a mesh.");
+}
+
 void interpreter_register_model_functions(interpreter_t* interp)
 {
   periodic_bc_type_code = interpreter_new_user_defined_type_code(interp);
-  interpreter_register_function(interp, "periodic_bc", periodic_bc, NULL);
+  interpreter_register_function(interp, "periodic_bc", periodic_bc, periodic_bc_doc());
 }

@@ -94,7 +94,7 @@ static int ball_and_jack(lua_State* lua)
 
 void interpreter_register_scalar_functions(interpreter_t* interp)
 {
-  interpreter_register_global_table(interp, "scalar_functions", NULL);
+  interpreter_register_global_table(interp, "scalar_functions", docstring_from_string("scalar_functions - a family of convenient scalar functions."));
   interpreter_register_global_method(interp, "scalar_functions", "ball_and_jack", ball_and_jack, docstring_from_string(ball_and_jack_usage));
 }
 
