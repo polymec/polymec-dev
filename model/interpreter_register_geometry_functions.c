@@ -24,24 +24,39 @@ extern void interpreter_register_indicators(interpreter_t* interp);
 
 // Functions for the point factory, which manufactures sets of points.
 extern int point_factory_random_points(lua_State* lua);
+extern docstring_t* point_factory_random_points_doc();
 extern int point_factory_cubic_lattice(lua_State* lua);
+extern docstring_t* point_factory_cubic_lattice_doc();
 extern int point_factory_cylinder(lua_State* lua);
+extern docstring_t* point_factory_cylinder_doc();
 extern int point_factory_import_from_cad(lua_State* lua);
+extern docstring_t* point_factory_import_from_cad_doc();
 
 extern int mesh_factory_uniform(lua_State* lua);
+extern docstring_t* mesh_factory_uniform_doc();
 extern int mesh_factory_rectilinear(lua_State* lua);
+extern docstring_t* mesh_factory_rectilinear_doc();
 
 extern int cartesian_1d_uniform(lua_State* lua);
+extern docstring_t* cartesian_1d_uniform_doc();
 extern int cartesian_1d_logarithmic(lua_State* lua);
+extern docstring_t* cartesian_1d_logarithmic_doc();
 extern int cartesian_1d_nonuniform(lua_State* lua);
+extern docstring_t* cartesian_1d_nonuniform_doc();
 
 extern int cylindrical_1d_uniform(lua_State* lua);
+extern docstring_t* cylindrical_1d_uniform_doc();
 extern int cylindrical_1d_logarithmic(lua_State* lua);
+extern docstring_t* cylindrical_1d_logarithmic_doc();
 extern int cylindrical_1d_nonuniform(lua_State* lua);
+extern docstring_t* cylindrical_1d_nonuniform_doc();
 
 extern int spherical_1d_uniform(lua_State* lua);
+extern docstring_t* spherical_1d_uniform_doc();
 extern int spherical_1d_logarithmic(lua_State* lua);
+extern docstring_t* spherical_1d_logarithmic_doc();
 extern int spherical_1d_nonuniform(lua_State* lua);
+extern docstring_t* spherical_1d_nonuniform_doc();
 
 static int sample_bbox(lua_State* lua)
 {
@@ -52,8 +67,7 @@ static int sample_bbox(lua_State* lua)
       !lua_isnumber(lua, 4))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "points = sample_bounding_box(bbox, nx, ny, nz)\n"
-                      "Returns a set points on a lattice that covers a bounding box.");
+                      "points = sample_bounding_box(bbox, nx, ny, nz)");
   }
 
   bbox_t* bbox = lua_toboundingbox(lua, 1);
@@ -146,6 +160,12 @@ static int sample_bbox(lua_State* lua)
   return 1;
 }
 
+static docstring_t* sample_bbox_doc()
+{
+  return docstring_from_string("sample_bounding_box(bbox, nx, ny, nz) -\n"
+                               "  Returns a set points on a lattice that covers a bounding box.");
+}
+
 static int scaled_bounding_box(lua_State* lua)
 {
   // Check the arguments.
@@ -154,8 +174,7 @@ static int scaled_bounding_box(lua_State* lua)
       !lua_isnumber(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "bbox2 = scaled_bounding_box(bbox, factor) ->\n"
-                      "Returns a bounding box scaled by the given factor.");
+                      "bbox2 = scaled_bounding_box(bbox, factor)");
   }
 
   bbox_t* bbox = lua_toboundingbox(lua, 1);
@@ -176,6 +195,12 @@ static int scaled_bounding_box(lua_State* lua)
   return 1;
 }
 
+static docstring_t* scaled_bounding_box_doc()
+{
+  return docstring_from_string("scaled_bounding_box(bbox, factor) -\n"
+                               "  Returns a bounding box scaled by the given factor.");
+}
+
 static int sample_cyl_shell(lua_State* lua)
 {
   // Check the arguments.
@@ -187,8 +212,7 @@ static int sample_cyl_shell(lua_State* lua)
       !lua_isnumber(lua, 7))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "points = sample_cyl_shell(r1, r2, z1, z2, nr, nphi, nz)\n"
-                      "Returns a set points on a lattice that covers a cylindrical shell.");
+                      "points = sample_cyl_shell(r1, r2, z1, z2, nr, nphi, nz)");
   }
 
   real_t r1 = (real_t)lua_tonumber(lua, 1);
@@ -242,6 +266,12 @@ static int sample_cyl_shell(lua_State* lua)
   return 1;
 }
 
+static docstring_t* sample_cyl_shell_doc()
+{
+  return docstring_from_string("sample_cyl_shell(r1, r2, z1, z2, nr, nphi, nz) - \n"
+                               "  Returns a set points on a lattice that covers a cylindrical shell.");
+}
+
 static int translate_points(lua_State* lua)
 {
   // Check the arguments.
@@ -255,8 +285,7 @@ static int translate_points(lua_State* lua)
                       "translate_points(points, vector, factor) OR\n"
                       "translate_points(points, vectors) OR\n"
                       "translate_points(points, vectors, factor) OR\n"
-                      "translate_points(points, vectors, factors) ->\n"
-                      "Translates a set of points by the given constant vector or corresponding vectors.");
+                      "translate_points(points, vectors, factors)");
   }
 
   int num_points;
@@ -308,6 +337,16 @@ static int translate_points(lua_State* lua)
   return 0;
 }
 
+static docstring_t* translate_points_doc()
+{
+  return docstring_from_string("translate_points(points, vector) OR\n"
+                               "translate_points(points, vector, factor) OR\n"
+                               "translate_points(points, vectors) OR\n"
+                               "translate_points(points, vectors, factor) OR\n"
+                               "translate_points(points, vectors, factors) -\n"
+                               "  Translates a set of points by the given constant vector or corresponding vectors.");
+}
+
 static int rotate_points(lua_State* lua)
 {
   // Check the arguments.
@@ -319,8 +358,7 @@ static int rotate_points(lua_State* lua)
       ((num_args == 4) && !lua_ispoint(lua, 4)))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "rotate_points(points, angle, axis = {0, 0, 1}, origin = {0, 0, 0}) ->\n"
-                      "Rotates a set points about the axis by the given angle.");
+                      "rotate_points(points, angle, axis = {0, 0, 1}, origin = {0, 0, 0})");
   }
 
   int num_points;
@@ -358,6 +396,12 @@ static int rotate_points(lua_State* lua)
   return 0;
 }
 
+static docstring_t* rotate_points_doc()
+{
+  return docstring_from_string("rotate_points(points, angle, axis = {0, 0, 1}, origin = {0, 0, 0}) -\n"
+                               "  Rotates a set points about the axis by the given angle.");
+}
+
 static int copy_points(lua_State* lua)
 {
   // Check the arguments.
@@ -365,8 +409,7 @@ static int copy_points(lua_State* lua)
   if ((num_args != 1) || !lua_ispointlist(lua, 1))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "new_points = copy_points(points) ->\n"
-                      "Creates a new copy of a list of points.");
+                      "new_points = copy_points(points)");
   }
 
   int num_points;
@@ -378,6 +421,12 @@ static int copy_points(lua_State* lua)
   return 1;
 }
 
+static docstring_t* copy_points_doc()
+{
+  return docstring_from_string("copy_points(points) -\n"
+                               "  Creates a new copy of a list of points.");
+}
+
 static int select_points(lua_State* lua)
 {
   // Check the arguments.
@@ -385,8 +434,7 @@ static int select_points(lua_State* lua)
   if ((num_args != 2) || !lua_ispointlist(lua, 1) || !lua_istable(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "selected_points = select_points(points, options) ->\n"
-                      "Returns a list of indices of points from the given list that satisfy certain critieria.");
+                      "selected_points = select_points(points, options)");
   }
 
   // Extract arguments.
@@ -504,6 +552,18 @@ static int select_points(lua_State* lua)
   return 1;
 }
 
+static docstring_t* select_points_doc()
+{
+  return docstring_from_string("select_points(points, options) -\n"
+                               "  Returns a list of indices of points from the given list that satisfy certain criteria.\n"
+                               "  Criteria are specified by the options table, which contains one or more of the following\n"
+                               "  entries:\n"
+                               "  - near_points = [list of points] <-- selects points near those in this list\n" 
+                               "  - within_distance = D  <-- should be specified with near_points\n" 
+                               "  - within_surface = F   <-- selects points inside of the surface defined by the function F\n"
+                               "  - at_time = t <-- should be given with within_surface if F accepts a time");
+}
+
 static int remove_points(lua_State* lua)
 {
   // Check the arguments.
@@ -511,8 +571,7 @@ static int remove_points(lua_State* lua)
   if ((num_args != 2) || !lua_ispointlist(lua, 1) || !lua_issequence(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "trimmed_points = remove_points(points, selected_indices) ->\n"
-                      "Returns a copy of points with the given selected points (identified by a sequence of indices) removed.");
+                      "trimmed_points = remove_points(points, selected_indices)");
   }
 
   // Extract arguments.
@@ -544,46 +603,53 @@ static int remove_points(lua_State* lua)
   return 1;
 }
 
+static docstring_t* remove_points_doc()
+{
+  return docstring_from_string("remove_points(points, selected_indices) -\n"
+                               "  Returns a copy of points with the given selected points (identified by\n"
+                               "  a sequence of indices) removed.");
+}
+
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   // Set up a point factory for generating points in 3D.
-  interpreter_register_global_table(interp, "point_factory", NULL);
-  interpreter_register_global_method(interp, "point_factory", "random_points", point_factory_random_points, NULL);
-  interpreter_register_global_method(interp, "point_factory", "cubic_lattice", point_factory_cubic_lattice, NULL);
-  interpreter_register_global_method(interp, "point_factory", "cylinder", point_factory_cylinder, NULL);
-  interpreter_register_global_method(interp, "point_factory", "import_from_cad", point_factory_import_from_cad, NULL);
+  interpreter_register_global_table(interp, "point_factory", docstring_from_string("point_factory - Functions for generating 3D point distributions.")); 
+  interpreter_register_global_method(interp, "point_factory", "random_points", point_factory_random_points, point_factory_random_points_doc());
+  interpreter_register_global_method(interp, "point_factory", "cubic_lattice", point_factory_cubic_lattice, point_factory_cubic_lattice_doc());
+  interpreter_register_global_method(interp, "point_factory", "cylinder", point_factory_cylinder, point_factory_cylinder_doc());
+  interpreter_register_global_method(interp, "point_factory", "import_from_cad", point_factory_import_from_cad, point_factory_import_from_cad_doc());
 
   // Set up a mesh factory for generating 3D meshes.
-  interpreter_register_global_table(interp, "mesh_factory", NULL);
-  interpreter_register_global_method(interp, "mesh_factory", "uniform", mesh_factory_uniform, NULL);
-  interpreter_register_global_method(interp, "mesh_factory", "rectilinear", mesh_factory_rectilinear, NULL);
+  interpreter_register_global_table(interp, "mesh_factory", docstring_from_string("mesh_factory - Functions for generating 3D polyhedral meshes.")); 
+  interpreter_register_global_method(interp, "mesh_factory", "uniform", mesh_factory_uniform, mesh_factory_uniform_doc());
+  interpreter_register_global_method(interp, "mesh_factory", "rectilinear", mesh_factory_rectilinear, mesh_factory_rectilinear_doc());
 
   // Set up a factory for generating 1D Cartesian meshes
-  interpreter_register_global_table(interp, "cartesian_1d", NULL);
-  interpreter_register_global_method(interp, "cartesian_1d", "uniform", cartesian_1d_uniform, NULL);
-  interpreter_register_global_method(interp, "cartesian_1d", "logarithmic", cartesian_1d_logarithmic, NULL);
-  interpreter_register_global_method(interp, "cartesian_1d", "nonuniform", cartesian_1d_nonuniform, NULL);
+  interpreter_register_global_table(interp, "cartesian_1d", docstring_from_string("cartesian_1d - Functions for creating 1D point distributions."));
+  interpreter_register_global_method(interp, "cartesian_1d", "uniform", cartesian_1d_uniform, cartesian_1d_uniform_doc());
+  interpreter_register_global_method(interp, "cartesian_1d", "logarithmic", cartesian_1d_logarithmic, cartesian_1d_logarithmic_doc());
+  interpreter_register_global_method(interp, "cartesian_1d", "nonuniform", cartesian_1d_nonuniform, cartesian_1d_nonuniform_doc());
 
   // Set up a factory for generating 1D cylindrical meshes
-  interpreter_register_global_table(interp, "cylindrical_1d", NULL);
-  interpreter_register_global_method(interp, "cylindrical_1d", "uniform", cylindrical_1d_uniform, NULL);
-  interpreter_register_global_method(interp, "cylindrical_1d", "logarithmic", cylindrical_1d_logarithmic, NULL);
-  interpreter_register_global_method(interp, "cylindrical_1d", "nonuniform", cylindrical_1d_nonuniform, NULL);
+  interpreter_register_global_table(interp, "cylindrical_1d", docstring_from_string("cylindrical_1d - Functions for creating 1D cylindrically-symmetric points."));
+  interpreter_register_global_method(interp, "cylindrical_1d", "uniform", cylindrical_1d_uniform, cylindrical_1d_uniform_doc());
+  interpreter_register_global_method(interp, "cylindrical_1d", "logarithmic", cylindrical_1d_logarithmic, cylindrical_1d_logarithmic_doc());
+  interpreter_register_global_method(interp, "cylindrical_1d", "nonuniform", cylindrical_1d_nonuniform, cylindrical_1d_nonuniform_doc());
 
   // Set up a factory for generating 1D spherical meshes
-  interpreter_register_global_table(interp, "spherical_1d", NULL);
-  interpreter_register_global_method(interp, "spherical_1d", "uniform", spherical_1d_uniform, NULL);
-  interpreter_register_global_method(interp, "spherical_1d", "logarithmic", spherical_1d_logarithmic, NULL);
-  interpreter_register_global_method(interp, "spherical_1d", "nonuniform", spherical_1d_nonuniform, NULL);
+  interpreter_register_global_table(interp, "spherical_1d", docstring_from_string("spherical_1d - Functions for creating 1D spherically-symmetric points."));
+  interpreter_register_global_method(interp, "spherical_1d", "uniform", spherical_1d_uniform, spherical_1d_uniform_doc());
+  interpreter_register_global_method(interp, "spherical_1d", "logarithmic", spherical_1d_logarithmic, spherical_1d_logarithmic_doc());
+  interpreter_register_global_method(interp, "spherical_1d", "nonuniform", spherical_1d_nonuniform, spherical_1d_nonuniform_doc());
 
-  interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box, NULL);
-  interpreter_register_function(interp, "sample_bounding_box", sample_bbox, NULL);
-  interpreter_register_function(interp, "sample_cyl_shell", sample_cyl_shell, NULL);
-  interpreter_register_function(interp, "translate_points", translate_points, NULL);
-  interpreter_register_function(interp, "rotate_points", rotate_points, NULL);
-  interpreter_register_function(interp, "copy_points", copy_points, NULL);
-  interpreter_register_function(interp, "select_points", select_points, NULL);
-  interpreter_register_function(interp, "remove_points", remove_points, NULL);
+  interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box, scaled_bounding_box_doc());
+  interpreter_register_function(interp, "sample_bounding_box", sample_bbox, sample_bbox_doc());
+  interpreter_register_function(interp, "sample_cyl_shell", sample_cyl_shell, sample_cyl_shell_doc());
+  interpreter_register_function(interp, "translate_points", translate_points, translate_points_doc());
+  interpreter_register_function(interp, "rotate_points", rotate_points, rotate_points_doc());
+  interpreter_register_function(interp, "copy_points", copy_points, copy_points_doc());
+  interpreter_register_function(interp, "select_points", select_points, select_points_doc());
+  interpreter_register_function(interp, "remove_points", remove_points, remove_points_doc());
 
   interpreter_register_sd_functions(interp);
   interpreter_register_scalar_functions(interp);
