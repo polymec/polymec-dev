@@ -237,10 +237,24 @@ migrator_t* migrator_from_local_partition(MPI_Comm comm,
                                           int num_local_vertices);
 
 // Destroys a migrator.
-void migrator_free(migrator_t* ex);
+void migrator_free(migrator_t* m);
 
 // Creates a complete copy of the given migrator.
-migrator_t* migrator_clone(exchanger_t* ex);
+migrator_t* migrator_clone(migrator_t* m);
+
+// Returns the number of processes to which this migrator sends data.
+int migrator_num_sends(migrator_t* m);
+
+// Allows the traversal of the set of the migrator's send indices for remote 
+// processes.
+bool migrator_next_send(migrator_t* m, int* pos, int* remote_process, int** indices, int* num_indices);
+
+// Returns the number of processes from which this migrator receives data.
+int migrator_num_receives(migrator_t* m);
+
+// Allows the traversal of the set of the migrator's receive indices for 
+// remote processes.
+bool migrator_next_receive(migrator_t* m, int* pos, int* remote_process, int** indices, int* num_indices);
 
 // Verifies the consistency of the migrator, raising an error in the 
 // case of inconsistency, using the given error handler. Involves parallel 
@@ -267,6 +281,7 @@ void migrator_fprintf(migrator_t* m, FILE* stream);
 
 // This creates a serializer object that can read and write migrators to byte streams.
 serializer_t* migrator_serializer();
+
 //------------------------------------------------------------------------
 
 // The following functions preceded the separation of the migrator type from 

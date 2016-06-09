@@ -345,6 +345,7 @@ static void mpi_message_free(mpi_message_t* msg)
   polymec_free(msg);
 }
 
+#if 0
 static void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
 {
   if (stream == NULL) return;
@@ -376,6 +377,8 @@ static void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
   for (int i = 0; i < msg->num_receives; ++i)
     fprintf(stream, " %d: %d items\n", i, msg->receive_buffer_sizes[i]);
 }
+#endif
+
 #endif
 
 struct exchanger_t
@@ -1307,11 +1310,31 @@ void migrator_free(migrator_t* m)
   polymec_free(m);
 }
 
-migrator_t* migrator_clone(exchanger_t* ex)
+migrator_t* migrator_clone(migrator_t* m)
 {
   migrator_t* clone = polymec_malloc(sizeof(migrator_t));
-  clone->ex = exchanger_clone(ex);
+  clone->ex = exchanger_clone(m->ex);
   return clone;
+}
+
+int migrator_num_sends(migrator_t* m)
+{
+  return exchanger_num_sends(m->ex);
+}
+
+bool migrator_next_send(migrator_t* m, int* pos, int* remote_process, int** indices, int* num_indices)
+{
+  return exchanger_next_send(m->ex, pos, remote_process, indices, num_indices);
+}
+
+int migrator_num_receives(migrator_t* m)
+{
+  return exchanger_num_receives(m->ex);
+}
+
+bool migrator_next_receive(migrator_t* m, int* pos, int* remote_process, int** indices, int* num_indices)
+{
+  return exchanger_next_receive(m->ex, pos, remote_process, indices, num_indices);
 }
 
 void migrator_verify(migrator_t* m, void (*handler)(const char* format, ...))

@@ -1090,23 +1090,19 @@ printf("node index: %d of %d\n", node_index, fused_mesh->num_nodes);
 static void mesh_migrate(mesh_t** mesh, 
                          adj_graph_t* local_graph, 
                          int64_t* local_partition,
-                         migrator_t* migrator)
+                         migrator_t* mig)
 {
   START_FUNCTION_TIMER();
   mesh_t* m = *mesh;
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
 
-  // FIXME: For now, we have to use the underlying exchanger for the 
-  // FIXME: migrator.
-  exchanger_t* ex = migrator_exchanger(migrator);
-
   // Post receives for buffer sizes.
-  int num_receives = exchanger_num_receives(ex);
-  int num_sends = exchanger_num_sends(ex);
+  int num_receives = migrator_num_receives(mig);
+  int num_sends = migrator_num_sends(mig);
   int receive_buffer_sizes[num_receives], receive_procs[num_receives];
   int pos = 0, proc, num_indices, *indices, i_req = 0;
   MPI_Request requests[num_receives + num_sends];
-  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+  while (migrator_next_receive(mig, &pos, &proc, &indices, &num_indices))
   {
     receive_procs[i_req] = proc;
     MPI_Irecv(&receive_buffer_sizes[i_req], 1, MPI_INT, proc, 0, m->comm, &requests[i_req]);
@@ -1119,7 +1115,7 @@ static void mesh_migrate(mesh_t** mesh,
   byte_array_t* send_buffers[num_sends];
   int send_procs[num_sends];
   pos = 0;
-  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+  while (migrator_next_send(mig, &pos, &proc, &indices, &num_indices))
   {
     send_procs[i_req-num_receives] = proc;
     byte_array_t* bytes = byte_array_new();

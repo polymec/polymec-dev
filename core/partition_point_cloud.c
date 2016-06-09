@@ -799,22 +799,18 @@ static point_cloud_t* fuse_clouds(point_cloud_t** subclouds, int num_subclouds)
 
 // Migrate point cloud data using the given migrator.
 static void point_cloud_migrate(point_cloud_t** cloud, 
-                                migrator_t* migrator)
+                                migrator_t* m)
 {
   START_FUNCTION_TIMER();
   point_cloud_t* c = *cloud;
 
-  // FIXME: For now, we have to pull out the underlying exchanger for
-  // FIXME: the migrator.
-  exchanger_t* ex = migrator_exchanger(migrator);
-
   // Post receives for buffer sizes.
-  int num_receives = exchanger_num_receives(ex);
-  int num_sends = exchanger_num_sends(ex);
+  int num_receives = migrator_num_receives(m);
+  int num_sends = migrator_num_sends(m);
   int receive_buffer_sizes[num_receives], receive_procs[num_receives];
   int pos = 0, proc, num_indices, *indices, i_req = 0;
   MPI_Request requests[num_receives + num_sends];
-  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+  while (migrator_next_receive(m, &pos, &proc, &indices, &num_indices))
   {
     receive_procs[i_req] = proc;
     MPI_Irecv(&receive_buffer_sizes[i_req], 1, MPI_INT, proc, 0, c->comm, &requests[i_req]);
@@ -827,7 +823,7 @@ static void point_cloud_migrate(point_cloud_t** cloud,
   byte_array_t* send_buffers[num_sends];
   int send_procs[num_sends];
   pos = 0;
-  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+  while (migrator_next_send(m, &pos, &proc, &indices, &num_indices))
   {
     send_procs[i_req-num_receives] = proc;
     byte_array_t* bytes = byte_array_new();
