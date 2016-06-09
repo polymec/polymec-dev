@@ -48,13 +48,12 @@ Other make commands
                   Instructions for particular machines
 ------------------------------------------------------------------------------
 
-NERSC Edison (last updated 2/18/2015)
+NERSC Edison (last updated 6/8/2016)
 -------------------------------------
 
 Make sure the following modules are loaded:
   cmake 
   silo
-  PrgEnv-Intel
 
 and then type
 
