@@ -63,13 +63,13 @@ adding any additional desired flags. Then:
 
 make mpi=1 install
 
-NERSC Cori (last updated 2/19/2016)
+NERSC Cori (last updated 6/8/2016)
 ------------------------------------
 
 Load the following modules
   cmake
-  cray-hdf5
-  PrgEnv-intel
+  cray-hdf5-parallel
+  silo
 
 and then type
 
