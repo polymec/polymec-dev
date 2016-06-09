@@ -38,6 +38,11 @@ static int point(lua_State* lua)
   return 1;
 }
 
+static docstring_t* point_doc()
+{
+  return docstring_from_string("point(x, y, z) - creates a point in 3D space.");
+}
+
 // Creates a vector from a set of components.
 static int vector(lua_State* lua)
 {
@@ -55,6 +60,11 @@ static int vector(lua_State* lua)
   vector_t* vec = vector_new(x, y, z);
   lua_pushvector(lua, vec);
   return 1;
+}
+
+static docstring_t* vector_doc()
+{
+  return docstring_from_string("vector(vx, vy, vz) - creates a vector in 3D space.");
 }
 
 // Creates a bounding box from a table.
@@ -102,6 +112,14 @@ static int bounding_box(lua_State* lua)
   // Push the bounding box onto the stack.
   lua_pushboundingbox(lua, bbox);
   return 1;
+}
+
+static docstring_t* bounding_box_doc()
+{
+  return docstring_from_string("bounding_box{x1 = X1, x2 = X2,\n"
+                               "             y1 = Y1, y2 = Y2,\n"
+                               "             z1 = Z1, z2 = Z1} -\n"
+                               "  creates a bounding box spanning [X1,X2] x [Y1,Y2] x [Z1,Z2].");
 }
 
 // Creates a constant function from a number or a tuple.
@@ -158,6 +176,14 @@ static int constant_function(lua_State* lua)
     lua_pushtensorfunction(lua, func);
   return 1;
 }
+static docstring_t* constant_function_doc()
+{
+  return docstring_from_string("constant_function(C) OR\n"
+                               "constant_function(Vx, Vy, Vz) OR\n"
+                               "constant_function(Sxx, Sxy, Sxz, Syy, Syz, Szz) OR\n"
+                               "constant_function(Txx, Txy, Txz, Txy, Tyy, Tyz, Txz, Tyz, Tzz) - \n"
+                               "  creates a constant scalar, vector, symmetric tensor or tensor.");
+}
 
 // Creates a vector-valued function from 3 scalar functions.
 static int vector_function(lua_State* lua)
@@ -178,6 +204,12 @@ static int vector_function(lua_State* lua)
     functions[i-1] = lua_toscalarfunction(lua, i);
   lua_pushvectorfunction(lua, multicomp_st_func_from_funcs("vector function", functions, 3));
   return 1;
+}
+
+static docstring_t* vector_function_doc()
+{
+  return docstring_from_string("vector_function(Vx_func, Vy_func, Vz_func) -\n"
+                               "  creates a vector function from three scalar functions.");
 }
 
 // Evaluates the gradient of a scalar function.
@@ -231,6 +263,14 @@ static int grad(lua_State* lua)
   }
 
   return 1;
+}
+
+static docstring_t* grad_doc()
+{
+  return docstring_from_string("grad(F, x) OR\n"
+                               "grad(F, x, t) -\n"
+                               "  evaluates the gradient of the scalar function F at the point x\n"
+                               "  (and possibly the time t).");
 }
 
 // write_silo_mesh(args) -- This function writes a given mesh to a file 
@@ -377,6 +417,17 @@ static int lua_write_silo_mesh(lua_State* lua)
   return 1;
 }
 
+static docstring_t* write_silo_mesh_doc()
+{
+  return docstring_from_string("write_silo_mesh(mesh, filename) OR\n"
+                               "write_silo_mesh(mesh, file_prefix, num_files) OR\n"
+                               "write_silo_mesh(mesh, fields, filename) OR\n"
+                               "write_silo_mesh(mesh, fields, file_prefix, num_files) - \n"
+                               "  writes the given mesh (and possibly a list of fields) to the specified file or files.\n"
+                               "  If the mesh is to be written to more than one file, a prefix for the files is given,\n"
+                               "  along with the number of files.");
+}
+
 static int lua_write_silo_points(lua_State* lua)
 {
   // Check the arguments.
@@ -502,6 +553,13 @@ static int lua_write_silo_points(lua_State* lua)
   return 1;
 }
 
+static docstring_t* write_silo_points_doc()
+{
+  return docstring_from_string("write_silo_points(points, filename) OR\n"
+                               "write_silo_points(points, fields, filename) - \n"
+                               "  writes the given point cloud (and possibly a list of fields) to the specified file.");
+}
+
 static int cell_centers(lua_State* lua)
 {
   // Check the arguments.
@@ -509,8 +567,7 @@ static int cell_centers(lua_State* lua)
   if ((num_args != 1) || !lua_ismesh(lua, 1))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "xc = cell_centers(mesh) ->\n"
-                      "Returns a list of cell centers for the given mesh.");
+                      "xc = cell_centers(mesh)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
 
@@ -521,6 +578,12 @@ static int cell_centers(lua_State* lua)
   return 1;
 }
 
+static docstring_t* cell_centers_doc()
+{
+  return docstring_from_string("cell_centers(mesh) - Returns a list of points storing the geometric centers of\n"
+                               "  cells for the given mesh.");
+}
+
 static int cell_tags(lua_State* lua)
 {
   // Check the arguments.
@@ -528,8 +591,7 @@ static int cell_tags(lua_State* lua)
   if ((num_args != 1) || !lua_ismesh(lua, 1))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "tags = cell_tags(mesh) ->\n"
-                      "Returns a list of names of cell tags for the given mesh.");
+                      "tags = cell_tags(mesh)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
 
@@ -546,6 +608,11 @@ static int cell_tags(lua_State* lua)
   return 1;
 }
 
+static docstring_t* cell_tags_doc()
+{
+  return docstring_from_string("cell_tags(mesh) - Returns a list of names of cell tags for the given mesh.");
+}
+
 static int cell_tag(lua_State* lua)
 {
   // Check the arguments.
@@ -553,8 +620,7 @@ static int cell_tag(lua_State* lua)
   if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "tag = cell_tag(mesh, tag_name) ->\n"
-                      "Returns a list of cell indices associated with the given tag in the mesh.");
+                      "tag = cell_tag(mesh, tag_name)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
   const char* tag_name = lua_tostring(lua, 2);
@@ -572,6 +638,11 @@ static int cell_tag(lua_State* lua)
   return 1;
 }
 
+static docstring_t* cell_tag_doc()
+{
+  return docstring_from_string("cell_tag(mesh, tag_name) - Returns a list of cell indices associated with the given tag in the mesh.");
+}
+
 static int tag_cells(lua_State* lua)
 {
   // Check the arguments.
@@ -579,8 +650,7 @@ static int tag_cells(lua_State* lua)
   if ((num_args != 3) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2) || !lua_issequence(lua, 3))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "tag_cells(mesh, cell_indices, tag_name) ->\n"
-                      "Tags a given list of cell indices with the given name within the mesh.");
+                      "tag_cells(mesh, cell_indices, tag_name)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
   const char* tag_name = lua_tostring(lua, 2);
@@ -605,6 +675,12 @@ static int tag_cells(lua_State* lua)
   return 0;
 }
 
+static docstring_t* tag_cells_doc()
+{
+  return docstring_from_string("tag_cells(mesh, cell_indices, tag_name) - \n"
+                               "  Tags a given list of cell indices with the given name within the mesh.");
+}
+
 static int face_tags(lua_State* lua)
 {
   // Check the arguments.
@@ -612,8 +688,7 @@ static int face_tags(lua_State* lua)
   if ((num_args != 1) || !lua_ismesh(lua, 1))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "tags = face_tags(mesh) ->\n"
-                      "Returns a list of names of face tags for the given mesh.");
+                      "tags = face_tags(mesh)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
 
@@ -630,6 +705,11 @@ static int face_tags(lua_State* lua)
   return 1;
 }
 
+static docstring_t* face_tags_doc()
+{
+  return docstring_from_string("face_tags(mesh) - Returns a list of names of face tags for the given mesh.");
+}
+
 static int face_tag(lua_State* lua)
 {
   // Check the arguments.
@@ -637,8 +717,7 @@ static int face_tag(lua_State* lua)
   if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "tag = face_tag(mesh, tag_name) ->\n"
-                      "Returns a list of face indices associated with the given tag in the mesh.");
+                      "tag = face_tag(mesh, tag_name)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
   const char* tag_name = lua_tostring(lua, 2);
@@ -654,6 +733,11 @@ static int face_tag(lua_State* lua)
 
   lua_pushsequence(lua, seq, size);
   return 1;
+}
+
+static docstring_t* face_tag_doc()
+{
+  return docstring_from_string("face_tag(mesh, tag_name) - Returns a list of cell indices associated with the given tag in the mesh.");
 }
 
 static int tag_faces(lua_State* lua)
@@ -689,6 +773,12 @@ static int tag_faces(lua_State* lua)
   return 0;
 }
 
+static docstring_t* tag_faces_doc()
+{
+  return docstring_from_string("tag_faces(mesh, face_indices, tag_name) - \n"
+                               "  Tags a given list of face indices with the given name within the mesh.");
+}
+
 static int edge_tags(lua_State* lua)
 {
   // Check the arguments.
@@ -696,8 +786,7 @@ static int edge_tags(lua_State* lua)
   if ((num_args != 1) || !lua_ismesh(lua, 1))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "tags = edge_tags(mesh) ->\n"
-                      "Returns a list of names of edge tags for the given mesh.");
+                      "tags = edge_tags(mesh)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
 
@@ -714,6 +803,11 @@ static int edge_tags(lua_State* lua)
   return 1;
 }
 
+static docstring_t* edge_tags_doc()
+{
+  return docstring_from_string("edge_tags(mesh) - Returns a list of names of edge tags for the given mesh.");
+}
+
 static int edge_tag(lua_State* lua)
 {
   // Check the arguments.
@@ -721,8 +815,7 @@ static int edge_tag(lua_State* lua)
   if ((num_args != 2) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "tag = edge_tag(mesh, tag_name) ->\n"
-                      "Returns a list of edge indices associated with the given tag in the mesh.");
+                      "tag = edge_tag(mesh, tag_name)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
   const char* tag_name = lua_tostring(lua, 2);
@@ -740,6 +833,11 @@ static int edge_tag(lua_State* lua)
   return 1;
 }
 
+static docstring_t* edge_tag_doc()
+{
+  return docstring_from_string("edge_tag(mesh, tag_name) - Returns a list of edge indices associated with the given tag in the mesh.");
+}
+
 static int tag_edges(lua_State* lua)
 {
   // Check the arguments.
@@ -747,8 +845,7 @@ static int tag_edges(lua_State* lua)
   if ((num_args != 3) || !lua_ismesh(lua, 1) || !lua_isstring(lua, 2) || !lua_issequence(lua, 3))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "tag_edges(mesh, edge_indices, tag_name) ->\n"
-                      "Tags a given list of edge indices with the given name within the mesh.");
+                      "tag_edges(mesh, edge_indices, tag_name)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
   const char* tag_name = lua_tostring(lua, 2);
@@ -773,6 +870,12 @@ static int tag_edges(lua_State* lua)
   return 0;
 }
 
+static docstring_t* tag_edges_doc()
+{
+  return docstring_from_string("tag_edges(mesh, edge_indices, tag_name) - \n"
+                               "  Tags a given list of edge indices with the given name within the mesh.");
+}
+
 static int node_positions(lua_State* lua)
 {
   // Check the arguments.
@@ -780,8 +883,7 @@ static int node_positions(lua_State* lua)
   if ((num_args != 1) || !lua_ismesh(lua, 1))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "xn = node_positions(mesh) ->\n"
-                      "Returns a list of node positions for the given mesh.");
+                      "xn = node_positions(mesh)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
 
@@ -792,6 +894,12 @@ static int node_positions(lua_State* lua)
   return 1;
 }
 
+static docstring_t* node_positions_doc()
+{
+  return docstring_from_string("node_positions(mesh) - \n"
+                               "  Returns a list of node positions for the given mesh.");
+}
+
 static int node_tags(lua_State* lua)
 {
   // Check the arguments.
@@ -799,8 +907,7 @@ static int node_tags(lua_State* lua)
   if ((num_args != 1) || !lua_ismesh(lua, 1))
   {
     return luaL_error(lua, "Invalid argument(s). Usage:\n"
-                      "tags = node_tags(mesh) ->\n"
-                      "Returns a list of names of node tags for the given mesh.");
+                      "tags = node_tags(mesh)");
   }
   mesh_t* mesh = lua_tomesh(lua, 1);
 
@@ -815,6 +922,11 @@ static int node_tags(lua_State* lua)
   }
 
   return 1;
+}
+
+static docstring_t* node_tags_doc()
+{
+  return docstring_from_string("node_tags(mesh) - Returns a list of names of node tags for the given mesh.");
 }
 
 static int node_tag(lua_State* lua)
@@ -841,6 +953,11 @@ static int node_tag(lua_State* lua)
 
   lua_pushsequence(lua, seq, size);
   return 1;
+}
+
+static docstring_t* node_tag_doc()
+{
+  return docstring_from_string("node_tag(mesh, tag_name) - Returns a list of node indices associated with the given tag in the mesh.");
 }
 
 static int tag_nodes(lua_State* lua)
@@ -874,6 +991,12 @@ static int tag_nodes(lua_State* lua)
     tag[i] = indices[i];
 
   return 0;
+}
+
+static docstring_t* tag_nodes_doc()
+{
+  return docstring_from_string("tag_nodes(mesh, node_indices, tag_name) - \n"
+                               "  Tags a given list of node indices with the given name within the mesh.");
 }
 
 #if 0
@@ -938,30 +1061,30 @@ static int repartition(lua_State* lua)
 
 void interpreter_register_default_functions(interpreter_t* interp)
 {
-  interpreter_register_function(interp, "point", point, docstring_from_string("point(x, y, z) - creates a point in 3D space."));
-  interpreter_register_function(interp, "vector", vector, NULL);
-  interpreter_register_function(interp, "bounding_box", bounding_box, NULL);
-  interpreter_register_function(interp, "constant_function", constant_function, NULL);
-  interpreter_register_function(interp, "vector_function", vector_function, NULL);
-  interpreter_register_function(interp, "grad", grad, NULL);
-  interpreter_register_function(interp, "write_silo_mesh", lua_write_silo_mesh, NULL);
-  interpreter_register_function(interp, "write_silo_points", lua_write_silo_points, NULL);
+  interpreter_register_function(interp, "point", point, point_doc());
+  interpreter_register_function(interp, "vector", vector, vector_doc());
+  interpreter_register_function(interp, "bounding_box", bounding_box, bounding_box_doc());
+  interpreter_register_function(interp, "constant_function", constant_function, constant_function_doc());
+  interpreter_register_function(interp, "vector_function", vector_function, vector_function_doc());
+  interpreter_register_function(interp, "grad", grad, grad_doc());
+  interpreter_register_function(interp, "write_silo_mesh", lua_write_silo_mesh, write_silo_mesh_doc());
+  interpreter_register_function(interp, "write_silo_points", lua_write_silo_points, write_silo_points_doc());
 
   // Mesh query functions.
-  interpreter_register_function(interp, "cell_centers", cell_centers, NULL);
-  interpreter_register_function(interp, "cell_tags", cell_tags, NULL);
-  interpreter_register_function(interp, "cell_tag", cell_tag, NULL);
-  interpreter_register_function(interp, "tag_cells", tag_cells, NULL);
-  interpreter_register_function(interp, "face_tags", face_tags, NULL);
-  interpreter_register_function(interp, "face_tag", face_tag, NULL);
-  interpreter_register_function(interp, "tag_faces", tag_faces, NULL);
-  interpreter_register_function(interp, "edge_tags", edge_tags, NULL);
-  interpreter_register_function(interp, "edge_tag", edge_tag, NULL);
-  interpreter_register_function(interp, "tag_edges", tag_edges, NULL);
-  interpreter_register_function(interp, "node_positions", node_positions, NULL);
-  interpreter_register_function(interp, "node_tags", node_tags, NULL);
-  interpreter_register_function(interp, "node_tag", node_tag, NULL);
-  interpreter_register_function(interp, "tag_nodes", tag_nodes, NULL);
+  interpreter_register_function(interp, "cell_centers", cell_centers, cell_centers_doc());
+  interpreter_register_function(interp, "cell_tags", cell_tags, cell_tags_doc());
+  interpreter_register_function(interp, "cell_tag", cell_tag, cell_tag_doc());
+  interpreter_register_function(interp, "tag_cells", tag_cells, tag_cells_doc());
+  interpreter_register_function(interp, "face_tags", face_tags, face_tags_doc());
+  interpreter_register_function(interp, "face_tag", face_tag, face_tag_doc());
+  interpreter_register_function(interp, "tag_faces", tag_faces, tag_faces_doc());
+  interpreter_register_function(interp, "edge_tags", edge_tags, edge_tags_doc());
+  interpreter_register_function(interp, "edge_tag", edge_tag, edge_tag_doc());
+  interpreter_register_function(interp, "tag_edges", tag_edges, tag_edges_doc());
+  interpreter_register_function(interp, "node_positions", node_positions, node_positions_doc());
+  interpreter_register_function(interp, "node_tags", node_tags, node_tags_doc());
+  interpreter_register_function(interp, "node_tag", node_tag, node_tag_doc());
+  interpreter_register_function(interp, "tag_nodes", tag_nodes, tag_nodes_doc());
 
   // Other stuff.
 //  interpreter_register_function(interp, "repartition", repartition, NULL);
