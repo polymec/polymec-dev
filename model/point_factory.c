@@ -106,6 +106,12 @@ int point_factory_cubic_lattice(lua_State* lua)
   return 1;
 }
 
+docstring_t* point_factory_cubic_lattice_doc()
+{
+  return docstring_from_string("point_factory.cubic_lattice(nx, ny, nz, bounds) - returns a uniform lattice of\n"
+                               "  nx x ny x nz points filling the bounding box bounds.");
+}
+
 int point_factory_cylinder(lua_State* lua)
 {
   // The argument should be a single table of named values.
@@ -314,6 +320,22 @@ int point_factory_cylinder(lua_State* lua)
   // Push the points onto the stack.
   lua_pushpointlist(lua, points, num_points);
   return 1;
+}
+
+docstring_t* point_factory_cylinder_doc()
+{
+  return docstring_from_string("point_factory.cylinder{radius, length, center = {0, 0, 0},\n"
+                               "                       nr, nz, axis = {0, 0, 1},\n"
+                               "                       radial_spacing = 'linear',\n"
+                               "                       log_spacing_factor = 1.1,\n"
+                               "                       num_ghost = 1} - \n"
+                               "  Returns a list of points representing a cylinder of the given\n"
+                               "  radius and length, with the given center point, and nr radial points,\n"
+                               "  nz axial points, and an alignment defined by the given axis vector.\n"
+                               "  Additional options:\n"
+                               "  - radial_spacing = 'linear' | 'log'   <-- use linear or logarithmic radial spacing\n"
+                               "  - log_spacing_factor = F              <-- spacing factor to use if radial_spacing = 'log'\n"
+                               "  - num_ghost = NG                      <-- the number of ghost points on the outer boundaries.");
 }
 
 static int read_ascii_stl_file(FILE* stl_file, 
@@ -647,6 +669,12 @@ int point_factory_import_from_cad(lua_State* lua)
   return 1;
 }
 
+docstring_t* point_factory_import_from_cad_doc()
+{
+  return docstring_from_string("point_factory.import_from_cad(cad_file_name) -\n"
+                               "  Returns a list of points read from a CAD (STL text or binary) file.");
+}
+
 int point_factory_random_points(lua_State* lua)
 {
   // Check the arguments.
@@ -691,6 +719,14 @@ int point_factory_random_points(lua_State* lua)
   // Return the point list.
   lua_pushpointlist(lua, points, N);
   return 1;
+}
+
+docstring_t* point_factory_random_points_doc()
+{
+  return docstring_from_string("point_factory.random_points(N, bounding_box) OR\n"
+                               "points = random_points(N, density, bounding_box) -\n"
+                               "  Returns a list of N random points that fill the given bounding\n"
+                               "  box, with an optional (scalar) point density function specified.");
 }
 
 int point_factory_ccp_points(lua_State* lua)

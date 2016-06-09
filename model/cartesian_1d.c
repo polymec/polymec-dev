@@ -46,6 +46,12 @@ int cartesian_1d_uniform(lua_State* lua)
   return 1;
 }
 
+docstring_t* cartesian_1d_uniform_doc()
+{
+  return docstring_from_string("cartesian_1d.uniform(x1, x2, N) - returns a uniformly-spaced set of\n"
+                               "  N cells spanning [x1, x2].");
+}
+
 int cartesian_1d_logarithmic(lua_State* lua)
 {
   // Check the arguments.
@@ -77,6 +83,12 @@ int cartesian_1d_logarithmic(lua_State* lua)
   return 1;
 }
 
+docstring_t* cartesian_1d_logarithmic_doc()
+{
+  return docstring_from_string("cartesian_1d.logarithmic(x1, x2, log_factor, N) - returns a mesh of\n"
+                               "  N cells whose spacing is logarithmic, spanning [x1, x2].");
+}
+
 int cartesian_1d_nonuniform(lua_State* lua)
 {
   // Check the arguments.
@@ -100,5 +112,12 @@ int cartesian_1d_nonuniform(lua_State* lua)
   lua_pushmesh(lua, mesh);
 
   return 1;
+}
+
+docstring_t* cartesian_1d_nonuniform_doc()
+{
+  return docstring_from_string("cartesian_1d.nonuniform({x1, x2, ..., xN}) - returns a mesh of\n"
+                               "  N cells whose x coordinates are given, and whose y and z coordinates\n"
+                               "  are zero.");
 }
 

@@ -68,6 +68,13 @@ int mesh_factory_uniform(lua_State* lua)
   return 1;
 }
 
+docstring_t* mesh_factory_uniform_doc()
+{
+  return docstring_from_string("mesh_factory.uniform(nx, ny, nz, bounds) - returns a uniform lattice of\n"
+                               "  nx x ny x nz cells filling the bounding box bounds. The faces on the\n"
+                               "  boundary of the mesh are tagged x1, x2, y1, y2, z1, and z2 as appropriate.");
+}
+
 int mesh_factory_rectilinear(lua_State* lua)
 {
   // Check the arguments.
@@ -104,6 +111,13 @@ int mesh_factory_rectilinear(lua_State* lua)
   // Push the mesh onto the stack.
   lua_pushmesh(lua, mesh);
   return 1;
+}
+
+docstring_t* mesh_factory_rectilinear_doc()
+{
+  return docstring_from_string("mesh_factory.rectilinear(xs, ys, zs) - returns a rectilinear lattice of\n"
+                               "  cells whose x, y, and z NODAL coordinates are specified by xs, ys, and\n"
+                               "  zs, respectively.");
 }
 
 #if 0
