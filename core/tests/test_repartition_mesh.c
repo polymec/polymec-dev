@@ -28,15 +28,14 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   // Repartition it.
   migrator_t* m = repartition_mesh(&mesh, NULL, 0.05);
   migrator_verify(m, polymec_error);
-  migrator_verify(m);
 
   // Since the mesh is uniform, we can check the properties of each cell.
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     assert_int_equal(6, mesh_cell_num_faces(mesh, c));
     real_t V = dx * dx * dx;
-printf("%d: V[%d] = %g, should be %g\n", rank, c, mesh->cell_volumes[c], V);
-    assert_true(fabs(mesh->cell_volumes[c] - V)/V < 1e-14);
+log_debug("%d: V[%d] = %g, should be %g", rank, c, mesh->cell_volumes[c], V);
+    assert_true(ABS(mesh->cell_volumes[c] - V)/V < 1e-14);
   }
 
   // We can also check the properties of each face.
@@ -45,7 +44,7 @@ printf("%d: V[%d] = %g, should be %g\n", rank, c, mesh->cell_volumes[c], V);
     assert_int_equal(4, mesh_face_num_edges(mesh, f));
     assert_int_equal(4, mesh_face_num_nodes(mesh, f));
     real_t A = dx * dx;
-    assert_true(fabs(mesh->face_areas[f] - A)/A < 1e-14);
+    assert_true(ABS(mesh->face_areas[f] - A)/A < 1e-14);
   }
 
   // Check the resulting exchanger.

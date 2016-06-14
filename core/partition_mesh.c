@@ -810,7 +810,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       ASSERT((f1 >= 0) && (f1 < submeshes[m1]->num_faces));
       int flattened_cell1 = submesh_cell_offsets[m1] + submeshes[m1]->face_cells[2*f1];
       submeshes[m]->face_cells[2*f+1] = flattened_cell1;
-//printf("%d: Munging submesh[%d] face %d to attach to cell %d\n", rank, m, f, flattened_cell1);
+//log_debug("%d: Munging submesh[%d] face %d to attach to cell %d\n", m, f, flattened_cell1);
     }
 
     // Clean up.
@@ -951,7 +951,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 //        int* face_p = int_int_unordered_map_get(dup_face_map, flattened_face);
 //        int face_index = (face_p != NULL) ? face_map[*face_p] : face_map[flattened_face];
         ASSERT(face_index < fused_mesh->num_faces);
-//printf("%d: Cell %d has face %d\n", rank, cell, face_index);
+//log_debug("Cell %d has face %d\n", cell, face_index);
         if (flipped)
           face_index = ~face_index;
         fused_mesh->cell_faces[fused_mesh->cell_face_offsets[cell]+f] = face_index;
@@ -1002,7 +1002,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       }
       fused_mesh->face_cells[2*face] = flattened_cell;
       fused_mesh->face_cells[2*face+1] = flattened_cell1;
-//printf("%d: Face %d (from [%d, %d]) has cells %d, %d\n", rank, face, m, f, flattened_cell, flattened_cell1);
+//log_debug("Face %d (from [%d, %d]) has cells %d, %d\n", face, m, f, flattened_cell, flattened_cell1);
 
       // Set up the nodes of the face.
       int num_face_nodes = submesh->face_node_offsets[f+1] - submesh->face_node_offsets[f];
@@ -1013,7 +1013,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         int node_index = node_map[flattened_node];
 //        int* node_p = int_int_unordered_map_get(dup_node_map, flattened_node);
 //        int node_index = (node_p != NULL) ? node_map[*node_p] : node_map[flattened_node];
-printf("node index: %d of %d\n", node_index, fused_mesh->num_nodes);
+log_debug("node index: %d of %d", node_index, fused_mesh->num_nodes);
         ASSERT(node_index < fused_mesh->num_nodes);
         fused_mesh->face_nodes[fused_mesh->face_node_offsets[face]+n] = node_index;
       }
@@ -1086,7 +1086,6 @@ printf("node index: %d of %d\n", node_index, fused_mesh->num_nodes);
   return fused_mesh;
 }
 
-// NOTE the abuse of the exchanger as a migrator!
 static void mesh_migrate(mesh_t** mesh, 
                          adj_graph_t* local_graph, 
                          int64_t* local_partition,
@@ -1334,7 +1333,7 @@ migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partit
   ASSERT((rank != 0) || (global_partition != NULL));
   ASSERT((rank != 0) || (*mesh != NULL));
 
-  // On a single process, partitioning has no meaning.
+  // On a single process, distributing has no meaning.
   if (nprocs == 1)
     return migrator_new(comm);
 
@@ -1371,8 +1370,6 @@ migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partit
 
 migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 {
-  POLYMEC_NOT_IMPLEMENTED;
-
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
   mesh_t* m = *mesh;
@@ -1421,6 +1418,38 @@ migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   return migrator;
 #else
   return migrator_new(m->comm);
+#endif
+}
+
+migrator_t* migrate_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* local_partition)
+{
+#if POLYMEC_HAVE_MPI
+  int nprocs;
+  MPI_Comm_size(comm, &nprocs);
+
+  // On a single process, migrating has no meaning.
+  if (nprocs == 1)
+    return migrator_new(comm);
+
+  START_FUNCTION_TIMER();
+
+  // Generate a local adjacency graph for our mesh.
+  adj_graph_t* local_graph = graph_from_mesh_cells(*mesh);
+
+  // Set up a migrator to migrate the mesh and data.
+  int num_vertices = adj_graph_num_vertices(local_graph);
+  migrator_t* migrator = migrator_from_local_partition((*mesh)->comm, local_partition, num_vertices);
+
+  // Migrate the mesh.
+  mesh_migrate(mesh, local_graph, local_partition, migrator);
+
+  // Get rid of the graph.
+  adj_graph_free(local_graph);
+
+  STOP_FUNCTION_TIMER();
+  return migrator;
+#else
+  return migrator_new(comm);
 #endif
 }
 

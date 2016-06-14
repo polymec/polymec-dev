@@ -25,7 +25,6 @@ migrator_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t im
 // and returns an migrator object that can be used to migrate data from the 
 // old partition to the new. The mesh is consumed and replaced with a 
 // repartitioned mesh.
-// NOTE: This is not currently implemented.
 migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol);
 
 // While partition_mesh and repartition_mesh are all-in-one mesh partitioners, the 
@@ -46,6 +45,13 @@ int64_t* partition_vector_from_mesh(mesh_t* global_mesh,
 // The mesh on rank 0 is replaced with a partitioned mesh, and meshes are 
 // written (or overwritten) on other ranks.
 migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partition);
+
+// Given a local partition vector on each process, migrates the given distributed 
+// mesh from its current configuration on the set of processes in the given communicator 
+// to the one described by that partition vector, and returns a migrator object that can be 
+// used to migrate its data.  The mesh replaced with a repartitioned counterpart on each 
+// process.
+migrator_t* migrate_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* local_partition);
 
 #endif
 
