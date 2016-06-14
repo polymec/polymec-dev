@@ -53,6 +53,10 @@
 // This flag tells us whether polymec is already initialized.
 static bool polymec_initialized = false;
 
+// MPI_COMM_WORLD rank, nprocs.
+static int world_rank = 0;
+static int world_nprocs = 1;
+
 // This function must be called to take advantage of Jonathan Shewchuk's 
 // exact geometric predicates.
 extern void exactinit();
@@ -154,13 +158,11 @@ static void handle_sigint(int signal)
 // This MPI error handler can be used to intercept MPI errors.
 static void mpi_fatal_error_handler(MPI_Comm* comm, int* error_code, ...)
 {
-  int rank;
-  MPI_Comm_rank(*comm, &rank);
   int len;
   char error_string[1024];
   MPI_Error_string(*error_code, error_string, &len);
   ASSERT(len < 1024);
-  polymec_error("%s on rank %d\n", error_string, rank);
+  polymec_error("%s on rank %d\n", error_string, world_rank);
 }
 #endif
 
@@ -283,22 +285,19 @@ static void pause_if_requested()
     int secs = atoi((const char*)delay);
     if (secs <= 0)
       polymec_error("Cannot pause for a non-positive interval.");
-    int nprocs, rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (nprocs > 1)
+    if (world_nprocs > 1)
     {
       log_urgent("Pausing for %d seconds. PIDS: ", secs);
       int pid = (int)getpid();
       char hostname[32];
       gethostname(hostname, 32);
-      int pids[nprocs];
-      char hostnames[32*nprocs];
+      int pids[world_nprocs];
+      char hostnames[32*world_nprocs];
       MPI_Gather(&pid, 1, MPI_INT, pids, 1, MPI_INT, 0, MPI_COMM_WORLD);
       MPI_Gather(hostname, 32, MPI_CHAR, hostnames, 32, MPI_CHAR, 0, MPI_COMM_WORLD);
-      if (rank == 0)
+      if (world_rank == 0)
       {
-        for (int p = 0; p < nprocs; ++p)
+        for (int p = 0; p < world_nprocs; ++p)
           log_urgent("Rank %d (%s): %d", p, &hostnames[32*p], pids[p]);
       }
     }
@@ -368,6 +367,10 @@ void polymec_init(int argc, char** argv)
     }
 
 #if POLYMEC_HAVE_MPI
+    // Cache our rank and number of processes.
+    MPI_Comm_size(MPI_COMM_WORLD, &world_nprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
     // Set up the MPI error handler.
     MPI_Comm_create_errhandler(mpi_fatal_error_handler, &mpi_error_handler);
     MPI_Comm_set_errhandler(MPI_COMM_WORLD, mpi_error_handler);
@@ -434,9 +437,7 @@ void polymec_init(int argc, char** argv)
 // Default error handler.
 static noreturn void default_error_handler(const char* message)
 {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  printf("%d: Fatal error: %s\n", rank, message);
+  printf("%d: Fatal error: %s\n", world_rank, message);
 #if POLYMEC_HAVE_MPI
   MPI_Abort(MPI_COMM_WORLD, -1);
 #else
@@ -474,7 +475,7 @@ void polymec_abort(const char* message, ...)
   va_end(argp);
 
   // Abort.
-  fprintf(stderr, "%s\n", err);
+  fprintf(stderr, "%d: %s\n", world_rank, err);
 #if USE_MPI
   MPI_Abort(MPI_COMM_WORLD, -1); 
 #else
@@ -520,9 +521,7 @@ void polymec_warn(const char* message, ...)
 
 static void handle_fpe_signal(int signal)
 {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  polymec_error("%d: Detected a floating point exception signal.", rank);
+  polymec_error("%d: Detected a floating point exception signal.", world_rank);
 }
 
 void polymec_enable_fpe()
@@ -574,9 +573,7 @@ void polymec_restore_fpe()
 
 void polymec_not_implemented(const char* component)
 {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if (rank == 0)
+  if (world_rank == 0)
     fprintf(stderr, "polymec: not implemented: %s\n", component);
   exit(-1);
   polymec_unreachable();
