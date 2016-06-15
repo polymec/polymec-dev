@@ -33,8 +33,8 @@ add_mpi_polymec_test(test_mesh_node_exchangers test_mesh_node_exchangers.c ../..
 add_mpi_polymec_test(test_partition_mesh test_partition_mesh.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c 1 2 3 4)
 add_mpi_polymec_test(test_partition_point_cloud test_partition_point_cloud.c ../../geometry/create_point_lattice.c ../../geometry/cubic_lattice.c 1 2 3 4)
 add_mpi_polymec_test(test_parallel_sort test_parallel_sort.c 1 2 3 4)
-add_mpi_polymec_test(test_repartition_point_cloud test_repartition_point_cloud.c 1 2 3 4)
 add_mpi_polymec_test(test_repartition_mesh test_repartition_mesh.c ../../geometry/create_uniform_mesh.c ../../geometry/create_rectilinear_mesh.c ../../geometry/cubic_lattice.c 1 2 3 4)
+add_mpi_polymec_test(test_repartition_point_cloud test_repartition_point_cloud.c 1 2 3 4)
 add_mpi_polymec_test(test_krylov_solver test_krylov_solver.c 1 2)
 
 # Mark tests expected to fail as such.
