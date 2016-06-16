@@ -237,7 +237,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
 
   // Create the submesh container.
   int num_faces = face_indices->size, num_nodes = node_indices->size;
-  log_debug("Creating submesh (%d cells, %d faces, %d nodes)", 
+  log_debug("create_submesh: Creating mesh (%d cells, %d faces, %d nodes)", 
             num_cells, num_faces, num_nodes);
   mesh_t* submesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
 
@@ -797,7 +797,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       // Merge the faces by mapping the one with the higher index to the 
       // lower index. 
       int index0 = seam_face_array[nearest[0]];
-      int index1 = seam_face_array[nearest[1]];
+      int index1 = (seam_faces->size > 1) ? seam_face_array[nearest[1]] : INT_MAX;
       ASSERT(index0 != index1);
       ASSERT((index0 == j) || (index1 == j));
       int_int_unordered_map_insert(dup_face_map, MAX(index0, index1), MIN(index0, index1));
@@ -806,12 +806,15 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       // refer to the correct (flattened) interior cells. This may seem strange,
       // but it helps us to get the face->cell connectivity right later on.
       int j1 = (j == index0) ? index1 : index0;
-      int m1 = 0;
-      while (j1 >= submesh_face_offsets[m1+1]) ++m1;
-      int f1 = j1 - submesh_face_offsets[m1];
-      ASSERT((f1 >= 0) && (f1 < submeshes[m1]->num_faces));
-      int flattened_cell1 = submesh_cell_offsets[m1] + submeshes[m1]->face_cells[2*f1];
-      submeshes[m]->face_cells[2*f+1] = flattened_cell1;
+      if (j1 != INT_MAX)
+      {
+        int m1 = 0;
+        while (j1 >= submesh_face_offsets[m1+1]) ++m1;
+        int f1 = j1 - submesh_face_offsets[m1];
+        ASSERT((f1 >= 0) && (f1 < submeshes[m1]->num_faces));
+        int flattened_cell1 = submesh_cell_offsets[m1] + submeshes[m1]->face_cells[2*f1];
+        submeshes[m]->face_cells[2*f+1] = flattened_cell1;
+      }
 //log_debug("%d: Munging submesh[%d] face %d to attach to cell %d\n", m, f, flattened_cell1);
     }
 
@@ -952,8 +955,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         int face_index = face_map[flattened_face];
 //        int* face_p = int_int_unordered_map_get(dup_face_map, flattened_face);
 //        int face_index = (face_p != NULL) ? face_map[*face_p] : face_map[flattened_face];
+//log_debug("Cell %d has face %d (%d)", cell, face_index, fused_mesh->num_faces);
         ASSERT(face_index < fused_mesh->num_faces);
-//log_debug("Cell %d has face %d\n", cell, face_index);
         if (flipped)
           face_index = ~face_index;
         fused_mesh->cell_faces[fused_mesh->cell_face_offsets[cell]+f] = face_index;
@@ -1135,6 +1138,8 @@ static void mesh_migrate(mesh_t** mesh,
     // process rank in the ghost cells referenced in submesh->face_cells.
     mesh_t* submesh = create_submesh(m->comm, m, partition, vtx_dist, 
                                      indices, num_indices);
+    log_debug("mesh_migrate: Migrating %d cells to process %d.", 
+              submesh->num_cells, proc);
 
     // Serialize and send the buffer size.
     size_t offset = 0;

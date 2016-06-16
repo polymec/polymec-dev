@@ -9,6 +9,7 @@
 #include "core/polymec.h"
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
+#include "core/array.h"
 
 typedef struct
 {
@@ -515,5 +516,9 @@ static void tagger_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 
 serializer_t* tagger_serializer()
 {
+  // Make sure we can serialize certain things.
+  serializer_t* s = int_array_serializer();
+  s = NULL;
+
   return serializer_new("tagger", tagger_byte_size, tagger_byte_read, tagger_byte_write, NULL);
 }

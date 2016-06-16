@@ -72,14 +72,55 @@ static void test_migrate_4x1x1_mesh_2_proc(void** state)
   migrator_t* m = migrate_mesh(&mesh, MPI_COMM_WORLD, P);
   assert_true(m != NULL);
   migrator_free(m);
+
+  mesh_free(mesh);
 }
 
 static void test_migrate_4x1x1_mesh_3_proc(void** state)
 {
+  // Create a 4x1x1 mesh across 3 processes.
+  int nx = 4, ny = 1, nz = 1;
+
+  real_t dx = 1.0/MAX(MAX(1.0/nx, 1.0/ny), 1.0/nz);
+  bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
+  mesh_verify_topology(mesh, polymec_error);
+
+  // Move one cell to the next process.
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  int64_t P[mesh->num_cells];
+  for (int i = 0; i < mesh->num_cells-1; ++i)
+    P[i] = rank;
+  int right = (rank + 1) % 3;
+  P[mesh->num_cells-1] = right;
+  migrator_t* m = migrate_mesh(&mesh, MPI_COMM_WORLD, P);
+  assert_true(m != NULL);
+  migrator_free(m);
+
+  mesh_free(mesh);
 }
 
 static void test_migrate_4x1x1_mesh_4_proc(void** state)
 {
+  // Create a 4x1x1 mesh across 4 processes.
+  int nx = 4, ny = 1, nz = 1;
+
+  real_t dx = 1.0/MAX(MAX(1.0/nx, 1.0/ny), 1.0/nz);
+  bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
+  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
+  mesh_verify_topology(mesh, polymec_error);
+
+  // Cycle our cell to the previous process.
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  int left = (rank == 0) ? 3 : (rank - 1) % 4;
+  int64_t P[1] = {left};
+  migrator_t* m = migrate_mesh(&mesh, MPI_COMM_WORLD, P);
+  assert_true(m != NULL);
+  migrator_free(m);
+
+  mesh_free(mesh);
 }
 
 TEST_MIGRATE_MESH(test_migrate_4x1x1_mesh)
@@ -181,8 +222,8 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_migrate_4x1x1_mesh),
-//    cmocka_unit_test(test_repartition_4x1x1_uniform_mesh),
-//    cmocka_unit_test(test_repartition_2x2x1_uniform_mesh),
+    cmocka_unit_test(test_repartition_4x1x1_uniform_mesh),
+    cmocka_unit_test(test_repartition_2x2x1_uniform_mesh),
 //    cmocka_unit_test(test_repartition_4x4x1_uniform_mesh),
 //    cmocka_unit_test(test_repartition_2x2x2_uniform_mesh),
 //    cmocka_unit_test(test_repartition_4x4x4_uniform_mesh),
