@@ -814,8 +814,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         ASSERT((f1 >= 0) && (f1 < submeshes[m1]->num_faces));
         int flattened_cell1 = submesh_cell_offsets[m1] + submeshes[m1]->face_cells[2*f1];
         submeshes[m]->face_cells[2*f+1] = flattened_cell1;
-      }
 //log_debug("%d: Munging submesh[%d] face %d to attach to cell %d\n", m, f, flattened_cell1);
+      }
     }
 
     // Clean up.
@@ -875,17 +875,20 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       if (same_nodes->size > 1)
       {
         // Merge the nodes by mapping all those with higher indices to the 
-        // lowest index.
+        // lowest index. Recall that we have to map the "seam index" of the point
+        // (which the kd tree uses) to the actual node index.
         int min_index = INT_MAX;
         for (int k = 0; k < same_nodes->size; ++k)
         {
-          int index = same_nodes->data[k];
+          int seam_index = same_nodes->data[k];
+          int index = seam_node_array[seam_index];
           if (index < min_index)
             min_index = index;
         }
         for (int k = 0; k < same_nodes->size; ++k)
         {
-          int index = same_nodes->data[k];
+          int seam_index = same_nodes->data[k];
+          int index = seam_node_array[seam_index];
           if (index != min_index)
             int_int_unordered_map_insert(dup_node_map, index, min_index);
         }
@@ -917,6 +920,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
   // Allocate storage for cell faces and face nodes.
   fused_mesh->cell_face_offsets[0] = 0;
+  fused_mesh->face_node_offsets[0] = 0;
   int cell = 0;
   for (int m = 0; m < num_submeshes; ++m)
   {
@@ -1018,9 +1022,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         int subnode_index = submesh->face_nodes[submesh->face_node_offsets[f] + n];
         int flattened_node = submesh_node_offsets[m] + subnode_index;
         int node_index = node_map[flattened_node];
-//        int* node_p = int_int_unordered_map_get(dup_node_map, flattened_node);
-//        int node_index = (node_p != NULL) ? node_map[*node_p] : node_map[flattened_node];
-//log_debug("node index: %d of %d", node_index, fused_mesh->num_nodes);
+log_debug("face %d: node %d of %d", face, node_index, fused_mesh->num_nodes);
         ASSERT(node_index < fused_mesh->num_nodes);
         fused_mesh->face_nodes[fused_mesh->face_node_offsets[face]+n] = node_index;
       }

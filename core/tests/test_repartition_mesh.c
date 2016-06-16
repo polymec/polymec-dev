@@ -106,8 +106,12 @@ static void test_migrate_4x1x1_mesh_3_proc(void** state)
   assert_true(m != NULL);
   migrator_free(m);
 
+  silo_file_t* silo = silo_file_new(mesh->comm, "migrate_4x1x1", "migrate_4x1x1", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_close(silo);
+
   // Check the numbers.
-  if (rank == 1)
+  if (rank == 2)
   {
     assert_int_equal(2, mesh->num_cells);
     assert_int_equal(11, mesh->num_faces);
@@ -259,8 +263,8 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_migrate_4x1x1_mesh),
-    cmocka_unit_test(test_repartition_4x1x1_uniform_mesh),
-    cmocka_unit_test(test_repartition_2x2x1_uniform_mesh),
+//    cmocka_unit_test(test_repartition_4x1x1_uniform_mesh),
+//    cmocka_unit_test(test_repartition_2x2x1_uniform_mesh),
 //    cmocka_unit_test(test_repartition_4x4x1_uniform_mesh),
 //    cmocka_unit_test(test_repartition_2x2x2_uniform_mesh),
 //    cmocka_unit_test(test_repartition_4x4x4_uniform_mesh),
