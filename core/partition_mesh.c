@@ -910,6 +910,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   int_int_unordered_map_free(dup_node_map);
 
   // Now we create the fused mesh and fill it with the contents of the submeshes.
+  log_debug("fuse_submeshes: Creating mesh (%d cells, %d faces, %d nodes)",
+            num_cells, num_faces, num_nodes);
   mesh_t* fused_mesh = mesh_new(submeshes[0]->comm, num_cells, num_ghost_cells,
                                 num_faces, num_nodes);
 

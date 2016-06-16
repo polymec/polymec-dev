@@ -73,6 +73,14 @@ static void test_migrate_4x1x1_mesh_2_proc(void** state)
   assert_true(m != NULL);
   migrator_free(m);
 
+  // Check the numbers.
+  assert_int_equal(2, mesh->num_cells);
+  assert_int_equal(11, mesh->num_faces);
+  assert_int_equal(20, mesh->num_edges);
+  assert_int_equal(12, mesh->num_nodes);
+  assert_true(ABS(mesh->cell_volumes[0] - 1.0) < 1e-12);
+  assert_true(ABS(mesh->cell_volumes[1] - 1.0) < 1e-12);
+
   mesh_free(mesh);
 }
 
@@ -98,6 +106,25 @@ static void test_migrate_4x1x1_mesh_3_proc(void** state)
   assert_true(m != NULL);
   migrator_free(m);
 
+  // Check the numbers.
+  if (rank == 1)
+  {
+    assert_int_equal(2, mesh->num_cells);
+    assert_int_equal(11, mesh->num_faces);
+    assert_int_equal(20, mesh->num_edges);
+    assert_int_equal(12, mesh->num_nodes);
+    assert_true(ABS(mesh->cell_volumes[0] - 1.0) < 1e-12);
+    assert_true(ABS(mesh->cell_volumes[1] - 1.0) < 1e-12);
+  }
+  else
+  {
+    assert_int_equal(1, mesh->num_cells);
+    assert_int_equal(6, mesh->num_faces);
+    assert_int_equal(12, mesh->num_edges);
+    assert_int_equal(8, mesh->num_nodes);
+    assert_true(ABS(mesh->cell_volumes[0] - 1.0) < 1e-12);
+  }
+
   mesh_free(mesh);
 }
 
@@ -120,6 +147,13 @@ static void test_migrate_4x1x1_mesh_4_proc(void** state)
   assert_true(m != NULL);
   migrator_free(m);
 
+  // Check the numbers.
+  assert_int_equal(1, mesh->num_cells);
+  assert_int_equal(6, mesh->num_faces);
+  assert_int_equal(12, mesh->num_edges);
+  assert_int_equal(8, mesh->num_nodes);
+  assert_true(ABS(mesh->cell_volumes[0] - 1.0) < 1e-12);
+
   mesh_free(mesh);
 }
 
@@ -140,12 +174,15 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   migrator_t* m = repartition_mesh(&mesh, NULL, 0.05);
   migrator_verify(m, polymec_error);
 
+for (int n = 0; n < mesh->num_nodes; ++n)
+log_debug("node %d: (%g, %g, %g)", n, mesh->nodes[n].x, mesh->nodes[n].y, mesh->nodes[n].z);
+
   // Since the mesh is uniform, we can check the properties of each cell.
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     assert_int_equal(6, mesh_cell_num_faces(mesh, c));
     real_t V = dx * dx * dx;
-log_debug("%d: V[%d] = %g, should be %g", rank, c, mesh->cell_volumes[c], V);
+log_debug("cell %d at (%g, %g, %g): V = %g, should be %g", c, mesh->cell_centers[c].x, mesh->cell_centers[c].y, mesh->cell_centers[c].z, mesh->cell_volumes[c], V);
     assert_true(ABS(mesh->cell_volumes[c] - V)/V < 1e-14);
   }
 
