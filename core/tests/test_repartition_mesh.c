@@ -263,9 +263,9 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_migrate_4x1x1_mesh),
-//    cmocka_unit_test(test_repartition_4x1x1_uniform_mesh),
-//    cmocka_unit_test(test_repartition_2x2x1_uniform_mesh),
-//    cmocka_unit_test(test_repartition_4x4x1_uniform_mesh),
+    cmocka_unit_test(test_repartition_4x1x1_uniform_mesh),
+    cmocka_unit_test(test_repartition_2x2x1_uniform_mesh),
+    cmocka_unit_test(test_repartition_4x4x1_uniform_mesh),
 //    cmocka_unit_test(test_repartition_2x2x2_uniform_mesh),
 //    cmocka_unit_test(test_repartition_4x4x4_uniform_mesh),
 //    cmocka_unit_test(test_repartition_128x1x1_uniform_mesh),
