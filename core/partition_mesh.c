@@ -237,6 +237,8 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
 
   // Create the submesh container.
   int num_faces = face_indices->size, num_nodes = node_indices->size;
+  log_debug("Creating submesh (%d cells, %d faces, %d nodes)", 
+            num_cells, num_faces, num_nodes);
   mesh_t* submesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
 
   // Create mappings for faces and nodes.
@@ -1013,7 +1015,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         int node_index = node_map[flattened_node];
 //        int* node_p = int_int_unordered_map_get(dup_node_map, flattened_node);
 //        int node_index = (node_p != NULL) ? node_map[*node_p] : node_map[flattened_node];
-log_debug("node index: %d of %d", node_index, fused_mesh->num_nodes);
+//log_debug("node index: %d of %d", node_index, fused_mesh->num_nodes);
         ASSERT(node_index < fused_mesh->num_nodes);
         fused_mesh->face_nodes[fused_mesh->face_node_offsets[face]+n] = node_index;
       }
@@ -1095,6 +1097,12 @@ static void mesh_migrate(mesh_t** mesh,
   mesh_t* m = *mesh;
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
 
+  // Make a parallel-aware version of our partition vector.
+  exchanger_t* mesh_ex = mesh_exchanger(m);
+  int64_t partition[m->num_cells + m->num_ghost_cells];
+  memcpy(partition, local_partition, sizeof(int64_t) * m->num_cells);
+  exchanger_exchange(mesh_ex, partition, 1, 0, MPI_INT64_T);
+
   // Post receives for buffer sizes.
   int num_receives = migrator_num_receives(mig);
   int num_sends = migrator_num_sends(mig);
@@ -1125,7 +1133,7 @@ static void mesh_migrate(mesh_t** mesh,
 
     // Create the mesh to send. Recall that the submesh encodes the destination
     // process rank in the ghost cells referenced in submesh->face_cells.
-    mesh_t* submesh = create_submesh(m->comm, m, local_partition, vtx_dist, 
+    mesh_t* submesh = create_submesh(m->comm, m, partition, vtx_dist, 
                                      indices, num_indices);
 
     // Serialize and send the buffer size.
@@ -1184,7 +1192,7 @@ static void mesh_migrate(mesh_t** mesh,
       if (!int_unordered_set_contains(sent_cells, i))
         local_cells[j++] = i;
     }
-    submeshes[0] = create_submesh(m->comm, m, local_partition, vtx_dist, 
+    submeshes[0] = create_submesh(m->comm, m, partition, vtx_dist, 
                                   local_cells, num_local_cells);
   }
 

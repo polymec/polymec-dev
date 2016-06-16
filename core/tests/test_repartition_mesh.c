@@ -56,8 +56,8 @@ static void function_name(void** state) \
 
 static void test_migrate_4x1x1_mesh_2_proc(void** state)
 {
-  // Create a 4x1x1 mesh on 2 processes.
-  int nx = 2, ny = 1, nz = 1;
+  // Create a 4x1x1 mesh across 2 processes.
+  int nx = 4, ny = 1, nz = 1;
 
   real_t dx = 1.0/MAX(MAX(1.0/nx, 1.0/ny), 1.0/nz);
   bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
@@ -67,7 +67,7 @@ static void test_migrate_4x1x1_mesh_2_proc(void** state)
   // We'll swap the cells on the processes.
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  int other = (rank % 2);
+  int other = (rank == 1) ? 0 : 1;
   int64_t P[2] = {other, other};
   migrator_t* m = migrate_mesh(&mesh, MPI_COMM_WORLD, P);
   assert_true(m != NULL);
