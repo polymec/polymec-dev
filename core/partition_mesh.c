@@ -337,6 +337,8 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
       // the original ghost index in our parallel boundary face map.
       if (ghost_cell != -1)
       {
+log_debug("sending face at (%g, %g, %g) to proc %d", 
+          mesh->face_centers[orig_mesh_face].x, mesh->face_centers[orig_mesh_face].y, mesh->face_centers[orig_mesh_face].z, partition[ghost_cell]);
         that_cell = -partition[ghost_cell] - 2;
         int_int_unordered_map_insert(parallel_bface_map, f, ghost_cell);
       }
@@ -745,6 +747,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       }
     }
   }
+  ASSERT((seam_faces->size % 2) == 0); // Seam faces always come in pairs!
   num_ghost_cells -= seam_faces->size;
 
   // Construct mappings to remove duplicate faces by mapping redundant 
@@ -760,8 +763,8 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
         seam_face_array[i++] = j;
     }
 
-    // Make a kd-tree of face centers.
-    point_t* xf = polymec_malloc(sizeof(point_t) * seam_faces->size);
+    // Make a kd-tree of seam face centers.
+    point_t xf[seam_faces->size];
     for (int i = 0; i < seam_faces->size; ++i)
     {
       // Find the submesh that contains this face.
@@ -772,9 +775,9 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       int f = j - submesh_face_offsets[m];
       ASSERT((f >= 0) && (f < submeshes[m]->num_faces));
       xf[i] = submeshes[m]->face_centers[f];
+log_debug("seam %d at (%g, %g, %g)", j, xf[i].x, xf[i].y, xf[i].z);
     }
     kd_tree_t* face_tree = kd_tree_new(xf, seam_faces->size);
-    polymec_free(xf);
 
     // Now examine each seam face and find the 2 nearest faces to it.
     // One will be the face itself, and the other will be a duplicate. 
@@ -791,31 +794,33 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       int f = j - submesh_face_offsets[m];
       point_t* x = &submeshes[m]->face_centers[f];
 
-      // Find the 2 nearest faces.
+      // Find the 2 nearest faces, one of which is j itself, and the other 
+      // which ostensibly lies on top of it.
       kd_tree_nearest_n(face_tree, x, 2, nearest);
+      int index0 = seam_face_array[nearest[0]];
+      int index1 = seam_face_array[nearest[1]];
+      ASSERT(index0 != index1);
+      ASSERT((index0 == j) || (index1 == j));
+      static real_t epsilon = 1e-12;
+log_debug("Merging %d at (%g, %g, %g)", index0, xf[nearest[0]].x, xf[nearest[0]].y, xf[nearest[0]].z);
+log_debug("with %d at (%g, %g, %g)", index1, xf[nearest[1]].x, xf[nearest[1]].y, xf[nearest[1]].z);
+      ASSERT(point_distance(&xf[nearest[0]], &xf[nearest[1]]) < epsilon);
 
       // Merge the faces by mapping the one with the higher index to the 
       // lower index. 
-      int index0 = seam_face_array[nearest[0]];
-      int index1 = (seam_faces->size > 1) ? seam_face_array[nearest[1]] : INT_MAX;
-      ASSERT(index0 != index1);
-      ASSERT((index0 == j) || (index1 == j));
       int_int_unordered_map_insert(dup_face_map, MAX(index0, index1), MIN(index0, index1));
 
       // ALSO: Alter the submesh so that its interior ghost cells actually 
       // refer to the correct (flattened) interior cells. This may seem strange,
       // but it helps us to get the face->cell connectivity right later on.
       int j1 = (j == index0) ? index1 : index0;
-      if (j1 != INT_MAX)
-      {
-        int m1 = 0;
-        while (j1 >= submesh_face_offsets[m1+1]) ++m1;
-        int f1 = j1 - submesh_face_offsets[m1];
-        ASSERT((f1 >= 0) && (f1 < submeshes[m1]->num_faces));
-        int flattened_cell1 = submesh_cell_offsets[m1] + submeshes[m1]->face_cells[2*f1];
-        submeshes[m]->face_cells[2*f+1] = flattened_cell1;
-//log_debug("%d: Munging submesh[%d] face %d to attach to cell %d\n", m, f, flattened_cell1);
-      }
+      int m1 = 0;
+      while (j1 >= submesh_face_offsets[m1+1]) ++m1;
+      int f1 = j1 - submesh_face_offsets[m1];
+      ASSERT((f1 >= 0) && (f1 < submeshes[m1]->num_faces));
+      int flattened_cell1 = submesh_cell_offsets[m1] + submeshes[m1]->face_cells[2*f1];
+      submeshes[m]->face_cells[2*f+1] = flattened_cell1;
+      //log_debug("%d: Munging submesh[%d] face %d to attach to cell %d", m, f, flattened_cell1);
     }
 
     // Clean up.
