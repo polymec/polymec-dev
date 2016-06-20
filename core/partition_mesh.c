@@ -206,6 +206,13 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
                               int* indices, int num_indices)
 {
   START_FUNCTION_TIMER();
+
+  // Figure out the destination process for this submesh.
+  int dest_proc;
+  MPI_Comm_rank(comm, &dest_proc);
+  if (num_indices > 0)
+    dest_proc = partition[indices[0]];
+
   // Make a set of cells for querying membership in this submesh.
   int_unordered_set_t* cell_set = int_unordered_set_new();
   for (int i = 0; i < num_indices; ++i)
@@ -320,7 +327,8 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     }
     else
     {
-      // One of the cells attached to this face is a ghost cell.
+      // One of the cells attached to this face is a ghost cell, at least as far as this
+      // submesh is concerned.
       int ghost_cell;
       if (cell_p != NULL)
       {
@@ -337,8 +345,10 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
       // the original ghost index in our parallel boundary face map.
       if (ghost_cell != -1)
       {
-log_debug("sending face at (%g, %g, %g) to proc %d", 
-          mesh->face_centers[orig_mesh_face].x, mesh->face_centers[orig_mesh_face].y, mesh->face_centers[orig_mesh_face].z, partition[ghost_cell]);
+log_debug("sending cell adjacent to %d at (%g, %g, %g) for face at (%g, %g, %g) to proc %d (%d)", this_cell,
+          mesh->cell_centers[this_cell].x, mesh->cell_centers[this_cell].y, mesh->cell_centers[this_cell].z, 
+          mesh->face_centers[orig_mesh_face].x, mesh->face_centers[orig_mesh_face].y, mesh->face_centers[orig_mesh_face].z, 
+          dest_proc, partition[ghost_cell]);
         that_cell = -partition[ghost_cell] - 2;
         int_int_unordered_map_insert(parallel_bface_map, f, ghost_cell);
       }
