@@ -249,6 +249,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   mesh_t* submesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
 
   // Create mappings for faces and nodes.
+  // face_map maps a submesh face to its corresponding mesh face.
   int* face_map = polymec_malloc(sizeof(int) * num_faces);
   {
     int fpos = 0, face, f = 0;
@@ -256,6 +257,8 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
       face_map[f++] = face;
   }
   int_unordered_set_free(face_indices);
+
+  // node_map maps a submesh node to its corresponding mesh node.
   int* node_map = polymec_malloc(sizeof(int) * num_nodes);
   {
     int npos = 0, node, n = 0;
@@ -265,6 +268,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   int_unordered_set_free(node_indices);
 
   // Allocate cell faces and face nodes (and generate inverse maps).
+  // inverse_cell_map maps a mesh cell to its corresponding submesh cell.
   int_int_unordered_map_t* inverse_cell_map = int_int_unordered_map_new();
   submesh->cell_face_offsets[0] = 0;
   for (int c = 0; c < submesh->num_cells; ++c)
@@ -273,6 +277,8 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     int num_cell_faces = mesh->cell_face_offsets[indices[c]+1] - mesh->cell_face_offsets[indices[c]];
     submesh->cell_face_offsets[c+1] = submesh->cell_face_offsets[c] + num_cell_faces;
   }
+
+  // inverse_face_map maps a mesh face to its corresponding submesh face.
   int_int_unordered_map_t* inverse_face_map = int_int_unordered_map_new();
   submesh->face_node_offsets[0] = 0;
   for (int f = 0; f < submesh->num_faces; ++f)
@@ -281,6 +287,8 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     int num_face_nodes = mesh->face_node_offsets[face_map[f]+1] - mesh->face_node_offsets[face_map[f]];
     submesh->face_node_offsets[f+1] = submesh->face_node_offsets[f] + num_face_nodes;
   }
+
+  // inverse_node_map maps a mesh node to its corresponding submesh node.
   int_int_unordered_map_t* inverse_node_map = int_int_unordered_map_new();
   for (int n = 0; n < submesh->num_nodes; ++n)
     int_int_unordered_map_insert(inverse_node_map, node_map[n], n);
@@ -345,8 +353,8 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
       // the original ghost index in our parallel boundary face map.
       if (ghost_cell != -1)
       {
-log_debug("sending cell adjacent to %d at (%g, %g, %g) for face at (%g, %g, %g) to proc %d (%d)", this_cell,
-          mesh->cell_centers[this_cell].x, mesh->cell_centers[this_cell].y, mesh->cell_centers[this_cell].z, 
+log_debug("sending cell (%g, %g, %g) via face (%g, %g, %g) to proc %d (%d)", 
+          mesh->cell_centers[indices[this_cell]].x, mesh->cell_centers[indices[this_cell]].y, mesh->cell_centers[indices[this_cell]].z, 
           mesh->face_centers[orig_mesh_face].x, mesh->face_centers[orig_mesh_face].y, mesh->face_centers[orig_mesh_face].z, 
           dest_proc, partition[ghost_cell]);
         that_cell = -partition[ghost_cell] - 2;
