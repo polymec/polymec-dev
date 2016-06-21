@@ -136,6 +136,11 @@ void set_log_mode(log_mode_t mode)
   logging_mode = mode;
 }
 
+log_mode_t log_mode()
+{
+  return logging_mode;
+}
+
 void get_log_buffering(log_level_t level, int* message_size_limit, int* num_messages_between_flush)
 {
   logger_t* logger = get_logger(level);

@@ -38,6 +38,9 @@ typedef enum
 // Sets the logging model. By default, LOG_TO_SINGLE_RANK (rank 0) is used.
 void set_log_mode(log_mode_t mode);
 
+// Retrieves the current logging mode.
+log_mode_t log_mode();
+
 // Sets the output MPI rank for parallel logging output. Output will only 
 // be reported on this rank if the log mode is set to LOG_TO_SINGLE_RANK.
 void set_log_mpi_rank(log_level_t log_type, int rank);
