@@ -216,7 +216,10 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   // Make a set of cells for querying membership in this submesh.
   int_unordered_set_t* cell_set = int_unordered_set_new();
   for (int i = 0; i < num_indices; ++i)
+  {
+    ASSERT(partition[indices[i]] == dest_proc);
     int_unordered_set_insert(cell_set, indices[i]);
+  }
 
   // Count unique mesh elements.
   int num_cells = num_indices, num_ghost_cells = 0;
@@ -336,7 +339,8 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     else
     {
       // One of the cells attached to this face is a ghost cell, at least as far as this
-      // submesh is concerned.
+      // submesh is concerned. Record the index of the "ghost cell" in the 
+      // original mesh.
       int ghost_cell;
       if (cell_p != NULL)
       {
@@ -350,14 +354,20 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
       }
 
       // We encode the destination process rank in the ghost cell and stash 
-      // the original ghost index in our parallel boundary face map.
+      // the original ghost index in our parallel boundary face map. The 
+      // destination rank of the ghost cell is stored in its corresponding 
+      // entry within our partition vector.
       if (ghost_cell != -1)
       {
-log_debug("sending cell (%g, %g, %g) via face (%g, %g, %g) to proc %d (%d)", 
-          mesh->cell_centers[indices[this_cell]].x, mesh->cell_centers[indices[this_cell]].y, mesh->cell_centers[indices[this_cell]].z, 
-          mesh->face_centers[orig_mesh_face].x, mesh->face_centers[orig_mesh_face].y, mesh->face_centers[orig_mesh_face].z, 
-          dest_proc, partition[ghost_cell]);
-        that_cell = -partition[ghost_cell] - 2;
+log_debug("Non ghost cell: %d; ghost cell: %d", indices[this_cell], ghost_cell);
+        int ghost_cell_proc = partition[ghost_cell];
+log_debug("sending cell (%g, %g, %g) with ghost %d via face (%g, %g, %g) [n = (%g, %g, %g)] to proc %d (%d)", 
+mesh->cell_centers[indices[this_cell]].x, mesh->cell_centers[indices[this_cell]].y, mesh->cell_centers[indices[this_cell]].z, 
+ghost_cell,
+mesh->face_centers[orig_mesh_face].x, mesh->face_centers[orig_mesh_face].y, mesh->face_centers[orig_mesh_face].z, 
+mesh->face_normals[orig_mesh_face].x, mesh->face_normals[orig_mesh_face].y, mesh->face_normals[orig_mesh_face].z, 
+dest_proc, ghost_cell_proc);
+        that_cell = -ghost_cell_proc - 2; // encoding of dest proc
         int_int_unordered_map_insert(parallel_bface_map, f, ghost_cell);
       }
     }
@@ -715,9 +725,10 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 {
   START_FUNCTION_TIMER();
   ASSERT(num_submeshes > 0);
+  MPI_Comm comm = submeshes[0]->comm;
   int rank, nprocs;
-  MPI_Comm_rank(submeshes[0]->comm, &rank);
-  MPI_Comm_size(submeshes[0]->comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &nprocs);
 
   // First we traverse each of the submeshes and count up all the internal 
   // and ghost cells, faces, nodes.
@@ -747,7 +758,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     mesh_t* submesh = submeshes[m];
     for (int f = 0; f < submesh->num_faces; ++f)
     {
-      if (submesh->face_cells[2*f+1] == -rank - 2) // belongs to this domain
+      if (submesh->face_cells[2*f+1] == (-rank - 2)) // belongs to this domain
       {
         int_unordered_set_insert(seam_faces, submesh_face_offsets[m] + f);
 
@@ -938,7 +949,7 @@ log_debug("with %d at (%g, %g, %g)", index1, xf[nearest[1]].x, xf[nearest[1]].y,
   // Now we create the fused mesh and fill it with the contents of the submeshes.
   log_debug("fuse_submeshes: Creating mesh (%d cells, %d faces, %d nodes)",
             num_cells, num_faces, num_nodes);
-  mesh_t* fused_mesh = mesh_new(submeshes[0]->comm, num_cells, num_ghost_cells,
+  mesh_t* fused_mesh = mesh_new(comm, num_cells, num_ghost_cells,
                                 num_faces, num_nodes);
 
   // Allocate storage for cell faces and face nodes.
@@ -1120,15 +1131,61 @@ static void mesh_migrate(mesh_t** mesh,
                          int64_t* local_partition,
                          migrator_t* mig)
 {
-  START_FUNCTION_TIMER();
   mesh_t* m = *mesh;
+  if (log_level() == LOG_DEBUG)
+  {
+    char P_string[m->num_cells * 16];
+    sprintf(P_string, "P = [ ");
+    for (int i = 0; i < m->num_cells; ++i)
+    {
+      char Pi[17];
+      snprintf(Pi, 16, "%" PRIi64 " ", local_partition[i]);
+      strcat(P_string, Pi);
+    }
+    strcat(P_string, "]");
+    log_debug("mesh_migrate: %s", P_string);
+  }
+
+  START_FUNCTION_TIMER();
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
 
   // Make a parallel-aware version of our partition vector.
-  exchanger_t* mesh_ex = mesh_exchanger(m);
   int64_t partition[m->num_cells + m->num_ghost_cells];
   memcpy(partition, local_partition, sizeof(int64_t) * m->num_cells);
+  exchanger_t* mesh_ex = mesh_exchanger(m);
   exchanger_exchange(mesh_ex, partition, 1, 0, MPI_INT64_T);
+
+if (log_level() == LOG_DEBUG)
+{
+char P1_string[(m->num_cells + m->num_ghost_cells) * 16];
+sprintf(P1_string, "P1 = [ ");
+for (int i = 0; i < m->num_cells + m->num_ghost_cells; ++i)
+{
+char Pi[17];
+snprintf(Pi, 16, "%" PRIi64 " ", partition[i]);
+strcat(P1_string, Pi);
+}
+strcat(P1_string, "]");
+log_debug(P1_string);
+
+int rank;
+MPI_Comm_rank(m->comm, &rank);
+int64_t G[m->num_cells + m->num_ghost_cells];
+for (int i = 0; i < m->num_cells; ++i)
+G[i] = vtx_dist[rank] + i;
+exchanger_exchange(mesh_ex, G, 1, 0, MPI_INT64_T);
+
+char G_string[(m->num_cells + m->num_ghost_cells) * 16];
+sprintf(G_string, "G = [ ");
+for (int i = 0; i < m->num_cells + m->num_ghost_cells; ++i)
+{
+char Gi[17];
+snprintf(Gi, 16, "%" PRIi64 " ", G[i]);
+strcat(G_string, Gi);
+}
+strcat(G_string, "]");
+log_debug(G_string);
+}
 
   // Post receives for buffer sizes.
   int num_receives = migrator_num_receives(mig);
@@ -1156,7 +1213,10 @@ static void mesh_migrate(mesh_t** mesh,
 
     // Add the indices of the cells we are sending.
     for (int i = 0; i < num_indices; ++i)
+    {
+      ASSERT(!int_unordered_set_contains(sent_cells, indices[i]));
       int_unordered_set_insert(sent_cells, indices[i]);
+    }
 
     // Create the mesh to send. Recall that the submesh encodes the destination
     // process rank in the ghost cells referenced in submesh->face_cells.
@@ -1405,8 +1465,23 @@ migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partit
 #endif
 }
 
+//------------------------------------------------------------------------
+//                            Mesh repartitioning
+//------------------------------------------------------------------------
+// I believe this machinery is mostly working, actually, though it's not 
+// enabled in current code. I believe the problem lies in defining a 
+// consistent initial parallel mesh topology -- I am not convinced that 
+// create_rectilinear_mesh() does this properly yet. Specifically, I believe 
+// receive cells may not be indexed consistently with send cells. This 
+// functionality needs much more testing (and likely fixing) before we 
+// bother testing mesh repartitioning again. But the good news this time 
+// around is: I think the repartitioning algorithm is in decent shape if 
+// we are given a consistent parallel mesh topology.
+//------------------------------------------------------------------------
+
 migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 {
+  POLYMEC_NOT_IMPLEMENTED
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
   mesh_t* m = *mesh;
@@ -1432,6 +1507,9 @@ migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   index_t total_num_cells = vtx_dist[nprocs];
   ASSERT(total_num_cells >= nprocs);
 #endif
+
+  log_debug("repartition_mesh: Repartitioning mesh (%d cells) on %d domains...", 
+            m->num_cells, nprocs);
 
   // Get the exchanger for the mesh.
   exchanger_t* mesh_ex = mesh_exchanger(m);
@@ -1460,6 +1538,7 @@ migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 
 migrator_t* migrate_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* local_partition)
 {
+  POLYMEC_NOT_IMPLEMENTED
 #if POLYMEC_HAVE_MPI
   int nprocs;
   MPI_Comm_size(comm, &nprocs);

@@ -173,6 +173,7 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
   mesh_verify_topology(mesh, polymec_error);
+exchanger_fprintf(mesh_exchanger(mesh), stdout);
 
   // Repartition it.
   migrator_t* m = repartition_mesh(&mesh, NULL, 0.05);
