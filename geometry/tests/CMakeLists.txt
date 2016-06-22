@@ -10,7 +10,7 @@ add_polymec_test(test_graph_from_mesh_cells test_graph_from_mesh_cells.c)
 add_polymec_test(test_create_welded_block_mesh test_create_welded_block_mesh.c)
 
 add_mpi_polymec_test(test_create_uniform_mesh test_create_uniform_mesh.c 1 2 4)
-add_mpi_polymec_test(test_create_rectilinear_mesh test_create_rectilinear_mesh.c 1 2 4)
+add_mpi_polymec_test(test_create_rectilinear_mesh test_create_rectilinear_mesh.c 1 2 3 4)
 add_mpi_polymec_test(test_crop_mesh test_crop_mesh.c 1 2 4)
 #add_mpi_polymec_test(test_create_cubed_cylinder_mesh test_create_cubed_cylinder_mesh.c 1 2 4)
 #add_mpi_polymec_test(test_create_cubed_sphere_mesh test_create_cubed_sphere_mesh.c 1 2 4)
