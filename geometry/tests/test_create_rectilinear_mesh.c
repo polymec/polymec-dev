@@ -10,6 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
+#include "core/array_utils.h"
 #include "core/silo_file.h"
 #include "geometry/create_rectilinear_mesh.h"
 
@@ -69,7 +70,32 @@ void test_plot_rectilinear_mesh(void** state)
   mesh_free(mesh);
 }
 
-void test_create_4x4x1_rectilinear_mesh(void** state)
+static void check_cell_face_connectivity(void** state, 
+                                         mesh_t* mesh,
+                                         index_t* global_cell_indices, 
+                                         index_t global_cell_index, 
+                                         int cell_face_index, 
+                                         index_t global_opp_cell_index)
+{
+  ASSERT(cell_face_index >= 0);
+  ASSERT(cell_face_index < 6);
+
+log_debug("Validating face %d of cell %d", cell_face_index, global_cell_index);
+  // Find the given global cell index within our array.
+  int cell_array_len = mesh->num_cells + mesh->num_ghost_cells;
+  index_t* cell_p = index_lsearch(global_cell_indices, cell_array_len, global_cell_index);
+  assert_true(cell_p != NULL);
+  int cell = cell_p - global_cell_indices;
+  int face = mesh->cell_faces[6*cell + cell_face_index];
+  int opp_cell = mesh_face_opp_cell(mesh, face, cell);
+log_debug("opp cell of %d (via face %d) is %d", cell, face, opp_cell);
+  if (global_opp_cell_index == (index_t)(-1))
+    assert_int_equal(-1, opp_cell);
+  else
+    assert_int_equal(global_opp_cell_index, global_cell_indices[opp_cell]); 
+}
+
+void test_3proc_4x4x1_mesh(void** state)
 {
   // Create a 4x4x1 rectilinear mesh, which isn't a big deal in and of itself, 
   // but does seem to exhibit problems on certain numbers of processes.
@@ -79,62 +105,79 @@ void test_create_4x4x1_rectilinear_mesh(void** state)
   mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 2);
   assert_true(mesh_verify_topology(mesh, polymec_error));
 
-  int nproc, rank;
-  MPI_Comm_size(mesh->comm, &nproc);
+  int rank;
   MPI_Comm_rank(mesh->comm, &rank);
 
-  // Check for correctness on the problematic 3-process case.
-  if (nproc == 3)
+  // Create global cell indices.
+  index_t vtx_dist[4] = {0, 5, 10, 16};
+  index_t G[mesh->num_cells + mesh->num_ghost_cells];
+  for (int i = 0; i < mesh->num_cells; ++i)
+    G[i] = vtx_dist[rank] + i;
+  exchanger_exchange(mesh_exchanger(mesh), G, 1, 0, MPI_INDEX_T);
+
+  if (rank == 0)
   {
-    // Create global cell indices.
-    index_t vtx_dist[4] = {0, 5, 10, 16};
-    index_t G[mesh->num_cells + mesh->num_ghost_cells];
-    for (int i = 0; i < mesh->num_cells; ++i)
-      G[i] = vtx_dist[rank] + i;
-    exchanger_exchange(mesh_exchanger(mesh), G, 1, 0, MPI_INDEX_T);
+    assert_int_equal(5, mesh->num_cells);
+    assert_int_equal(5, mesh->num_ghost_cells);
 
-    if (rank == 0)
-    {
-      assert_int_equal(5, mesh->num_cells);
-      assert_int_equal(5, mesh->num_ghost_cells);
+    // Check the layouts of local and ghost cells.
+    // Note that ghost cells are created by walking through the 
+    // local cells and trying to add ghosts in each of the -/+ x/y/z 
+    // directions (in that order).
+    index_t G0[] = {0, 1, 2, 3, 4, 5, 5, 6, 7, 8};
+    for (int i = 0; i < 10; ++i)
+      assert_int_equal(G0[i], G[i]);
 
-      // Check the layouts of local and ghost cells.
-      // Note that ghost cells are created by walking through the 
-      // local cells and trying to add ghosts in each of the -/+ x/y/z 
-      // directions (in that order).
-      index_t G0[] = {0, 1, 2, 3, 4, 5, 5, 6, 7, 8};
-      for (int i = 0; i < 10; ++i)
-        assert_int_equal(G0[i], G[i]);
-    }
-    else if (rank == 1)
-    {
-      assert_int_equal(5, mesh->num_cells);
-      assert_int_equal(10, mesh->num_ghost_cells);
+    // Check that cell->face and face->cell connectivity are correctly and 
+    // consistently done.
+    check_cell_face_connectivity(state, mesh, G, 0, 0, -1);
+    check_cell_face_connectivity(state, mesh, G, 0, 1,  1);
+    check_cell_face_connectivity(state, mesh, G, 0, 2, -1);
+    check_cell_face_connectivity(state, mesh, G, 0, 3,  4);
 
-      // Check the layouts of local and ghost cells.
-      // Note that ghost cells are created by walking through the 
-      // local cells and trying to add ghosts in each of the -/+ x/y/z 
-      // directions (in that order).
-      index_t G1[] = {5, 6, 7, 8, 9, 1, 2, 3, 10, 4, 10, 4, 11, 12, 13};
-      for (int i = 0; i < 15; ++i)
-        assert_int_equal(G1[i], G[i]);
-    }
-    else if (rank == 2)
-    {
-      assert_int_equal(6, mesh->num_cells);
-      assert_int_equal(5, mesh->num_ghost_cells);
+    check_cell_face_connectivity(state, mesh, G, 1, 0,  0);
+    check_cell_face_connectivity(state, mesh, G, 1, 1,  2);
+  }
+  else if (rank == 1)
+  {
+    assert_int_equal(5, mesh->num_cells);
+    assert_int_equal(10, mesh->num_ghost_cells);
 
-      // Check the layouts of local and ghost cells.
-      // Note that ghost cells are created by walking through the 
-      // local cells and trying to add ghosts in each of the -/+ x/y/z 
-      // directions (in that order).
-      index_t G2[] = {10, 11, 12, 13, 14, 15, 6, 7, 8, 9, 9};
-      for (int i = 0; i < 11; ++i)
-        assert_int_equal(G2[i], G[i]);
-    }
+    // Check the layouts of local and ghost cells.
+    // Note that ghost cells are created by walking through the 
+    // local cells and trying to add ghosts in each of the -/+ x/y/z 
+    // directions (in that order).
+    index_t G1[] = {5, 6, 7, 8, 9, 1, 2, 3, 10, 4, 10, 4, 11, 12, 13};
+    for (int i = 0; i < 15; ++i)
+      assert_int_equal(G1[i], G[i]);
+  }
+  else if (rank == 2)
+  {
+    assert_int_equal(6, mesh->num_cells);
+    assert_int_equal(5, mesh->num_ghost_cells);
+
+    // Check the layouts of local and ghost cells.
+    // Note that ghost cells are created by walking through the 
+    // local cells and trying to add ghosts in each of the -/+ x/y/z 
+    // directions (in that order).
+    index_t G2[] = {10, 11, 12, 13, 14, 15, 6, 7, 8, 9, 9};
+    for (int i = 0; i < 11; ++i)
+      assert_int_equal(G2[i], G[i]);
   }
 
   mesh_free(mesh);
+}
+
+void test_problematic_meshes(void** state)
+{
+  int nproc;
+  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+
+  if (nproc == 3)
+  {
+    // Check for correctness on the problematic 3-process 4x4x1 case.
+    test_3proc_4x4x1_mesh(state);
+  }
 }
 
 int main(int argc, char* argv[]) 
@@ -144,7 +187,7 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_create_rectilinear_mesh),
     cmocka_unit_test(test_plot_rectilinear_mesh),
-    cmocka_unit_test(test_create_4x4x1_rectilinear_mesh)
+    cmocka_unit_test(test_problematic_meshes)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
