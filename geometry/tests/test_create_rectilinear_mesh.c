@@ -80,17 +80,17 @@ static void check_cell_face_connectivity(void** state,
   ASSERT(cell_face_index >= 0);
   ASSERT(cell_face_index < 6);
 
-log_debug("Validating face %d of cell %d", cell_face_index, global_cell_index);
   // Find the given global cell index within our array.
   int cell_array_len = mesh->num_cells + mesh->num_ghost_cells;
   index_t* cell_p = index_lsearch(global_cell_indices, cell_array_len, global_cell_index);
   assert_true(cell_p != NULL);
   int cell = cell_p - global_cell_indices;
   int face = mesh->cell_faces[6*cell + cell_face_index];
+  if (face < 0) 
+    face = ~face;
   int opp_cell = mesh_face_opp_cell(mesh, face, cell);
-log_debug("opp cell of %d (via face %d) is %d", cell, face, opp_cell);
-  if (global_opp_cell_index == (index_t)(-1))
-    assert_int_equal(-1, opp_cell);
+  if ((opp_cell == -1) && (global_opp_cell_index == (index_t)(-1)))
+    assert_int_equal(global_opp_cell_index, opp_cell);
   else
     assert_int_equal(global_opp_cell_index, global_cell_indices[opp_cell]); 
 }
@@ -128,15 +128,42 @@ void test_3proc_4x4x1_mesh(void** state)
     for (int i = 0; i < 10; ++i)
       assert_int_equal(G0[i], G[i]);
 
-    // Check that cell->face and face->cell connectivity are correctly and 
-    // consistently done.
+    // Check that cell->face and face->cell connectivity are 
+    // correctly and consistently done.
     check_cell_face_connectivity(state, mesh, G, 0, 0, -1);
     check_cell_face_connectivity(state, mesh, G, 0, 1,  1);
     check_cell_face_connectivity(state, mesh, G, 0, 2, -1);
     check_cell_face_connectivity(state, mesh, G, 0, 3,  4);
+    check_cell_face_connectivity(state, mesh, G, 0, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 0, 5, -1);
 
     check_cell_face_connectivity(state, mesh, G, 1, 0,  0);
     check_cell_face_connectivity(state, mesh, G, 1, 1,  2);
+    check_cell_face_connectivity(state, mesh, G, 1, 2, -1);
+    check_cell_face_connectivity(state, mesh, G, 1, 3,  5);
+    check_cell_face_connectivity(state, mesh, G, 1, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 1, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 2, 0,  1);
+    check_cell_face_connectivity(state, mesh, G, 2, 1,  3);
+    check_cell_face_connectivity(state, mesh, G, 2, 2, -1);
+    check_cell_face_connectivity(state, mesh, G, 2, 3,  6);
+    check_cell_face_connectivity(state, mesh, G, 2, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 2, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 3, 0,  2);
+    check_cell_face_connectivity(state, mesh, G, 3, 1, -1);
+    check_cell_face_connectivity(state, mesh, G, 3, 2, -1);
+    check_cell_face_connectivity(state, mesh, G, 3, 3,  7);
+    check_cell_face_connectivity(state, mesh, G, 3, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 3, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 4, 0, -1);
+    check_cell_face_connectivity(state, mesh, G, 4, 1,  5);
+    check_cell_face_connectivity(state, mesh, G, 4, 2,  0);
+    check_cell_face_connectivity(state, mesh, G, 4, 3,  8);
+    check_cell_face_connectivity(state, mesh, G, 4, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 4, 5, -1);
   }
   else if (rank == 1)
   {
@@ -150,6 +177,43 @@ void test_3proc_4x4x1_mesh(void** state)
     index_t G1[] = {5, 6, 7, 8, 9, 1, 2, 3, 10, 4, 10, 4, 11, 12, 13};
     for (int i = 0; i < 15; ++i)
       assert_int_equal(G1[i], G[i]);
+
+    // Check that cell->face and face->cell connectivity are 
+    // correctly and consistently done.
+    check_cell_face_connectivity(state, mesh, G, 5, 0,  4);
+    check_cell_face_connectivity(state, mesh, G, 5, 1,  6);
+    check_cell_face_connectivity(state, mesh, G, 5, 2,  1);
+    check_cell_face_connectivity(state, mesh, G, 5, 3,  9);
+    check_cell_face_connectivity(state, mesh, G, 5, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 5, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 6, 0,  5);
+    check_cell_face_connectivity(state, mesh, G, 6, 1,  7);
+    check_cell_face_connectivity(state, mesh, G, 6, 2,  2);
+    check_cell_face_connectivity(state, mesh, G, 6, 3, 10);
+    check_cell_face_connectivity(state, mesh, G, 6, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 6, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 7, 0,  6);
+    check_cell_face_connectivity(state, mesh, G, 7, 1, -1);
+    check_cell_face_connectivity(state, mesh, G, 7, 2,  3);
+    check_cell_face_connectivity(state, mesh, G, 7, 3, 11);
+    check_cell_face_connectivity(state, mesh, G, 7, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 7, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 8, 0, -1);
+    check_cell_face_connectivity(state, mesh, G, 8, 1,  9);
+    check_cell_face_connectivity(state, mesh, G, 8, 2,  4);
+    check_cell_face_connectivity(state, mesh, G, 8, 3, 12);
+    check_cell_face_connectivity(state, mesh, G, 8, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 8, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 9, 0,  8);
+    check_cell_face_connectivity(state, mesh, G, 9, 1, 10);
+    check_cell_face_connectivity(state, mesh, G, 9, 2,  5);
+    check_cell_face_connectivity(state, mesh, G, 9, 3, 13);
+    check_cell_face_connectivity(state, mesh, G, 9, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 9, 5, -1);
   }
   else if (rank == 2)
   {
@@ -163,6 +227,43 @@ void test_3proc_4x4x1_mesh(void** state)
     index_t G2[] = {10, 11, 12, 13, 14, 15, 6, 7, 8, 9, 9};
     for (int i = 0; i < 11; ++i)
       assert_int_equal(G2[i], G[i]);
+
+    // Check that cell->face and face->cell connectivity are 
+    // correctly and consistently done.
+    check_cell_face_connectivity(state, mesh, G, 10, 0,  9);
+    check_cell_face_connectivity(state, mesh, G, 10, 1, 11);
+    check_cell_face_connectivity(state, mesh, G, 10, 2,  6);
+    check_cell_face_connectivity(state, mesh, G, 10, 3, 14);
+    check_cell_face_connectivity(state, mesh, G, 10, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 10, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 11, 0, 10);
+    check_cell_face_connectivity(state, mesh, G, 11, 1, -1);
+    check_cell_face_connectivity(state, mesh, G, 11, 2,  7);
+    check_cell_face_connectivity(state, mesh, G, 11, 3, 15);
+    check_cell_face_connectivity(state, mesh, G, 11, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 11, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 12, 0, -1);
+    check_cell_face_connectivity(state, mesh, G, 12, 1, 13);
+    check_cell_face_connectivity(state, mesh, G, 12, 2,  8);
+    check_cell_face_connectivity(state, mesh, G, 12, 3, -1);
+    check_cell_face_connectivity(state, mesh, G, 12, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 12, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 13, 0, 12);
+    check_cell_face_connectivity(state, mesh, G, 13, 1, 14);
+    check_cell_face_connectivity(state, mesh, G, 13, 2,  9);
+    check_cell_face_connectivity(state, mesh, G, 13, 3, -1);
+    check_cell_face_connectivity(state, mesh, G, 13, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 13, 5, -1);
+
+    check_cell_face_connectivity(state, mesh, G, 14, 0, 13);
+    check_cell_face_connectivity(state, mesh, G, 14, 1, 15);
+    check_cell_face_connectivity(state, mesh, G, 14, 2, 10);
+    check_cell_face_connectivity(state, mesh, G, 14, 3, -1);
+    check_cell_face_connectivity(state, mesh, G, 14, 4, -1);
+    check_cell_face_connectivity(state, mesh, G, 14, 5, -1);
   }
 
   mesh_free(mesh);
