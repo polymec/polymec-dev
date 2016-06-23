@@ -221,7 +221,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
     int_unordered_set_insert(cell_set, indices[i]);
   }
 
-  // Count unique mesh elements.
+  // Count unique mesh elements (faces, nodes).
   int num_cells = num_indices, num_ghost_cells = 0;
   int_unordered_set_t* face_indices = int_unordered_set_new();
   int_unordered_set_t* node_indices = int_unordered_set_new();
@@ -359,14 +359,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
       // entry within our partition vector.
       if (ghost_cell != -1)
       {
-log_debug("Non ghost cell: %d; ghost cell: %d", indices[this_cell], ghost_cell);
         int ghost_cell_proc = partition[ghost_cell];
-log_debug("sending cell (%g, %g, %g) with ghost %d via face (%g, %g, %g) [n = (%g, %g, %g)] to proc %d (%d)", 
-mesh->cell_centers[indices[this_cell]].x, mesh->cell_centers[indices[this_cell]].y, mesh->cell_centers[indices[this_cell]].z, 
-ghost_cell,
-mesh->face_centers[orig_mesh_face].x, mesh->face_centers[orig_mesh_face].y, mesh->face_centers[orig_mesh_face].z, 
-mesh->face_normals[orig_mesh_face].x, mesh->face_normals[orig_mesh_face].y, mesh->face_normals[orig_mesh_face].z, 
-dest_proc, ghost_cell_proc);
         that_cell = -ghost_cell_proc - 2; // encoding of dest proc
         int_int_unordered_map_insert(parallel_bface_map, f, ghost_cell);
       }
@@ -711,7 +704,16 @@ static int* create_index_map_with_dups_removed(int num_indices,
     if (k_ptr == NULL)
       map[i] = j++;
     else
-      map[i] = *k_ptr;
+    {
+      // Follow any chain till we hit the end.
+      int index;
+      while (k_ptr != NULL)
+      {
+        index = *k_ptr;
+        k_ptr = int_int_unordered_map_get(dup_map, index);
+      }
+      map[i] = index;
+    }
   }
   STOP_FUNCTION_TIMER();
   return map;
@@ -804,7 +806,6 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       int f = j - submesh_face_offsets[m];
       ASSERT((f >= 0) && (f < submeshes[m]->num_faces));
       xf[i] = submeshes[m]->face_centers[f];
-log_debug("seam %d at (%g, %g, %g)", j, xf[i].x, xf[i].y, xf[i].z);
     }
     kd_tree_t* face_tree = kd_tree_new(xf, seam_faces->size);
 
@@ -831,8 +832,6 @@ log_debug("seam %d at (%g, %g, %g)", j, xf[i].x, xf[i].y, xf[i].z);
       ASSERT(index0 != index1);
       ASSERT((index0 == j) || (index1 == j));
       static real_t epsilon = 1e-12;
-log_debug("Merging %d at (%g, %g, %g)", index0, xf[nearest[0]].x, xf[nearest[0]].y, xf[nearest[0]].z);
-log_debug("with %d at (%g, %g, %g)", index1, xf[nearest[1]].x, xf[nearest[1]].y, xf[nearest[1]].z);
       ASSERT(point_distance(&xf[nearest[0]], &xf[nearest[1]]) < epsilon);
 
       // Merge the faces by mapping the one with the higher index to the 
@@ -870,7 +869,7 @@ log_debug("with %d at (%g, %g, %g)", index1, xf[nearest[1]].x, xf[nearest[1]].y,
     }
 
     // Make a kd-tree of node positions.
-    point_t* xn = polymec_malloc(sizeof(point_t) * seam_nodes->size);
+    point_t xn[seam_nodes->size];
     for (int i = 0; i < seam_nodes->size; ++i)
     {
       // Find the submesh that contains this face.
@@ -882,7 +881,6 @@ log_debug("with %d at (%g, %g, %g)", index1, xf[nearest[1]].x, xf[nearest[1]].y,
       xn[i] = submeshes[m]->nodes[n];
     }
     kd_tree_t* node_tree = kd_tree_new(xn, seam_nodes->size);
-    polymec_free(xn);
 
     // Now examine each seam node and find ALL NODES that appear to be 
     // the same. NOTE: for now, we find all the nodes within a distance 
@@ -993,9 +991,6 @@ log_debug("with %d at (%g, %g, %g)", index1, xf[nearest[1]].x, xf[nearest[1]].y,
         }
         int flattened_face = submesh_face_offsets[m] + subface_index;
         int face_index = face_map[flattened_face];
-//        int* face_p = int_int_unordered_map_get(dup_face_map, flattened_face);
-//        int face_index = (face_p != NULL) ? face_map[*face_p] : face_map[flattened_face];
-//log_debug("Cell %d has face %d (%d)", cell, face_index, fused_mesh->num_faces);
         ASSERT(face_index < fused_mesh->num_faces);
         if (flipped)
           face_index = ~face_index;
@@ -1040,8 +1035,6 @@ log_debug("with %d at (%g, %g, %g)", index1, xf[nearest[1]].x, xf[nearest[1]].y,
         if (submesh->face_cells[2*f+1] < -1)
           fused_mesh->face_cells[2*face+1] = submesh->face_cells[2*f+1];
       }
-log_debug("Face %d (from [%d, %d]) has cells %d, %d", face, m, f, 
-          fused_mesh->face_cells[2*face], fused_mesh->face_cells[2*face+1]);
 
       // Set up the nodes of the face.
       int num_face_nodes = submesh->face_node_offsets[f+1] - submesh->face_node_offsets[f];
@@ -1154,38 +1147,6 @@ static void mesh_migrate(mesh_t** mesh,
   memcpy(partition, local_partition, sizeof(int64_t) * m->num_cells);
   exchanger_t* mesh_ex = mesh_exchanger(m);
   exchanger_exchange(mesh_ex, partition, 1, 0, MPI_INT64_T);
-
-if (log_level() == LOG_DEBUG)
-{
-char P1_string[(m->num_cells + m->num_ghost_cells) * 16];
-sprintf(P1_string, "P1 = [ ");
-for (int i = 0; i < m->num_cells + m->num_ghost_cells; ++i)
-{
-char Pi[17];
-snprintf(Pi, 16, "%" PRIi64 " ", partition[i]);
-strcat(P1_string, Pi);
-}
-strcat(P1_string, "]");
-log_debug(P1_string);
-
-int rank;
-MPI_Comm_rank(m->comm, &rank);
-int64_t G[m->num_cells + m->num_ghost_cells];
-for (int i = 0; i < m->num_cells; ++i)
-G[i] = vtx_dist[rank] + i;
-exchanger_exchange(mesh_ex, G, 1, 0, MPI_INT64_T);
-
-char G_string[(m->num_cells + m->num_ghost_cells) * 16];
-sprintf(G_string, "G = [ ");
-for (int i = 0; i < m->num_cells + m->num_ghost_cells; ++i)
-{
-char Gi[17];
-snprintf(Gi, 16, "%" PRIi64 " ", G[i]);
-strcat(G_string, Gi);
-}
-strcat(G_string, "]");
-log_debug(G_string);
-}
 
   // Post receives for buffer sizes.
   int num_receives = migrator_num_receives(mig);
@@ -1467,16 +1428,6 @@ migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partit
 
 //------------------------------------------------------------------------
 //                            Mesh repartitioning
-//------------------------------------------------------------------------
-// I believe this machinery is mostly working, actually, though it's not 
-// enabled in current code. I believe the problem lies in defining a 
-// consistent initial parallel mesh topology -- I am not convinced that 
-// create_rectilinear_mesh() does this properly yet. Specifically, I believe 
-// receive cells may not be indexed consistently with send cells. This 
-// functionality needs much more testing (and likely fixing) before we 
-// bother testing mesh repartitioning again. But the good news this time 
-// around is: I think the repartitioning algorithm is in decent shape if 
-// we are given a consistent parallel mesh topology.
 //------------------------------------------------------------------------
 
 migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
