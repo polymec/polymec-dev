@@ -115,6 +115,32 @@ void test_3proc_4x4x1_mesh(void** state)
     G[i] = vtx_dist[rank] + i;
   exchanger_exchange(mesh_exchanger(mesh), G, 1, 0, MPI_INDEX_T);
 
+  // Here's the mesh:
+  //
+  // +------+------+------+------+
+  // |      |      |      |      |
+  // |  12  |  13  |  14  |  15  |
+  // |      |      |      |      |
+  // +------+------+------+------+
+  // |      |      |      |      |
+  // |   8  |   9  |  10  |  11  |
+  // |      |      |      |      |
+  // +------+------+------+------+
+  // |      |      |      |      |
+  // |   4  |   5  |   6  |   7  |
+  // |      |      |      |      |
+  // +------+------+------+------+
+  // |      |      |      |      |
+  // |   0  |   1  |   2  |   3  |
+  // |      |      |      |      |
+  // +------+------+------+------+
+  //
+  // Our initial partitioning is:
+  //
+  // Proc 0: cells 0-4
+  // Proc 1: cells 5-9
+  // Proc 2: cells 10-15
+
   if (rank == 0)
   {
     assert_int_equal(5, mesh->num_cells);
