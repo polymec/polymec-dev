@@ -306,6 +306,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
         }
         else
           send_indices = *send_indices_p;
+log_debug("Adding send cell %d for face %d (to proc %d)", cell, ii, ghost_proc);
         int_array_append(send_indices, cell);
 
         // Generate receive mappings.
@@ -318,6 +319,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
         }
         else
           recv_indices = *recv_indices_p;
+log_debug("Adding ghost cell %d to face %d of cell %d (from proc %d)", ghost_cell_index, ii, cell, ghost_proc);
         int_array_append(recv_indices, ghost_cell_index);
 
         ++ghost_cell_index;

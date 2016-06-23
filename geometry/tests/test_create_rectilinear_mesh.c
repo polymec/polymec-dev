@@ -89,6 +89,7 @@ static void check_cell_face_connectivity(void** state,
   if (face < 0) 
     face = ~face;
   int opp_cell = mesh_face_opp_cell(mesh, face, cell);
+log_debug("Testing cell %d face %d (%d)\n", global_cell_index, cell_face_index, global_opp_cell_index);
   if ((opp_cell == -1) && (global_opp_cell_index == (index_t)(-1)))
     assert_int_equal(global_opp_cell_index, opp_cell);
   else
@@ -114,6 +115,7 @@ void test_3proc_4x4x1_mesh(void** state)
   for (int i = 0; i < mesh->num_cells; ++i)
     G[i] = vtx_dist[rank] + i;
   exchanger_exchange(mesh_exchanger(mesh), G, 1, 0, MPI_INDEX_T);
+  exchanger_fprintf(mesh_exchanger(mesh), stdout);
 
   // Here's the mesh:
   //
