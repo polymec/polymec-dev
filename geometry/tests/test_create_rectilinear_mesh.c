@@ -89,7 +89,6 @@ static void check_cell_face_connectivity(void** state,
   if (face < 0) 
     face = ~face;
   int opp_cell = mesh_face_opp_cell(mesh, face, cell);
-log_debug("Testing cell %d face %d (%d)\n", global_cell_index, cell_face_index, global_opp_cell_index);
   if ((opp_cell == -1) && (global_opp_cell_index == (index_t)(-1)))
     assert_int_equal(global_opp_cell_index, opp_cell);
   else
@@ -98,6 +97,7 @@ log_debug("Testing cell %d face %d (%d)\n", global_cell_index, cell_face_index, 
 
 void test_3proc_4x4x1_mesh(void** state)
 {
+MPI_Barrier(MPI_COMM_WORLD);
   // Create a 4x4x1 rectilinear mesh, which isn't a big deal in and of itself, 
   // but does seem to exhibit problems on certain numbers of processes.
   double xs[] = {0.0, 1.0, 2.0, 3.0, 4.0};
@@ -115,7 +115,6 @@ void test_3proc_4x4x1_mesh(void** state)
   for (int i = 0; i < mesh->num_cells; ++i)
     G[i] = vtx_dist[rank] + i;
   exchanger_exchange(mesh_exchanger(mesh), G, 1, 0, MPI_INDEX_T);
-  exchanger_fprintf(mesh_exchanger(mesh), stdout);
 
   // Here's the mesh:
   //
@@ -147,14 +146,6 @@ void test_3proc_4x4x1_mesh(void** state)
   {
     assert_int_equal(5, mesh->num_cells);
     assert_int_equal(5, mesh->num_ghost_cells);
-
-    // Check the layouts of local and ghost cells.
-    // Note that ghost cells are created by walking through the 
-    // local cells and trying to add ghosts in each of the -/+ x/y/z 
-    // directions (in that order).
-    index_t G0[] = {0, 1, 2, 3, 4, 5, 5, 6, 7, 8};
-    for (int i = 0; i < 10; ++i)
-      assert_int_equal(G0[i], G[i]);
 
     // Check that cell->face and face->cell connectivity are 
     // correctly and consistently done.
@@ -198,14 +189,6 @@ void test_3proc_4x4x1_mesh(void** state)
     assert_int_equal(5, mesh->num_cells);
     assert_int_equal(10, mesh->num_ghost_cells);
 
-    // Check the layouts of local and ghost cells.
-    // Note that ghost cells are created by walking through the 
-    // local cells and trying to add ghosts in each of the -/+ x/y/z 
-    // directions (in that order).
-    index_t G1[] = {5, 6, 7, 8, 9, 1, 2, 3, 10, 4, 10, 4, 11, 12, 13};
-    for (int i = 0; i < 15; ++i)
-      assert_int_equal(G1[i], G[i]);
-
     // Check that cell->face and face->cell connectivity are 
     // correctly and consistently done.
     check_cell_face_connectivity(state, mesh, G, 5, 0,  4);
@@ -247,14 +230,6 @@ void test_3proc_4x4x1_mesh(void** state)
   {
     assert_int_equal(6, mesh->num_cells);
     assert_int_equal(5, mesh->num_ghost_cells);
-
-    // Check the layouts of local and ghost cells.
-    // Note that ghost cells are created by walking through the 
-    // local cells and trying to add ghosts in each of the -/+ x/y/z 
-    // directions (in that order).
-    index_t G2[] = {10, 11, 12, 13, 14, 15, 6, 7, 8, 9, 9};
-    for (int i = 0; i < 11; ++i)
-      assert_int_equal(G2[i], G[i]);
 
     // Check that cell->face and face->cell connectivity are 
     // correctly and consistently done.

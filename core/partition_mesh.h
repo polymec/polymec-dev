@@ -26,7 +26,7 @@ migrator_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t im
 // old partition to the new. The mesh is consumed and replaced with a 
 // repartitioned mesh.
 // FIXME: This is not supported presently, as it doesn't work reliably.
-//migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol);
+migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol);
 
 // While partition_mesh and repartition_mesh are all-in-one mesh partitioners, the 
 // following functions allow one to mix-n-match the pieces of the underlying algorithms.
@@ -53,7 +53,7 @@ migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partit
 // used to migrate its data.  The mesh replaced with a repartitioned counterpart on each 
 // process.
 // FIXME: This is not supported presently, as it doesn't work reliably.
-//migrator_t* migrate_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* local_partition);
+migrator_t* migrate_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* local_partition);
 
 #endif
 

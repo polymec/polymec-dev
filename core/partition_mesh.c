@@ -1481,7 +1481,6 @@ migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partit
 
 migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 {
-  POLYMEC_NOT_IMPLEMENTED
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
   mesh_t* m = *mesh;
@@ -1538,7 +1537,6 @@ migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 
 migrator_t* migrate_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* local_partition)
 {
-  POLYMEC_NOT_IMPLEMENTED
 #if POLYMEC_HAVE_MPI
   int nprocs;
   MPI_Comm_size(comm, &nprocs);

@@ -263,17 +263,25 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
         int_unordered_set_insert(processed_nodes, node_indices[n]);
       }
     }
+  }
 
-    // Hook up ghost cells.
-    index_t neighboring_cells[6];
-    neighboring_cells[0] = (i == 0) ? -1 : cubic_lattice_cell(lattice, i-1, j, k);
-    neighboring_cells[1] = (i == nx-1) ? -1 : cubic_lattice_cell(lattice, i+1, j, k);
-    neighboring_cells[2] = (j == 0) ? -1 : cubic_lattice_cell(lattice, i, j-1, k);
-    neighboring_cells[3] = (j == ny-1) ? -1 : cubic_lattice_cell(lattice, i, j+1, k);
-    neighboring_cells[4] = (k == 0) ? -1 : cubic_lattice_cell(lattice, i, j, k-1);
-    neighboring_cells[5] = (k == nz-1) ? -1 : cubic_lattice_cell(lattice, i, j, k+1);
-    for (int ii = 0; ii < 6; ++ii)
+  // Hook up ghost cells and send/receive stuff. Note that we reverse the 
+  // order of the nested loops to make things consistent across processes.
+  for (int ii = 0; ii < 6; ++ii)
+  {
+    for (int cell = 0; cell < num_cells; ++cell)
     {
+      // Figure out (i, j, k) indices for this cell.
+      index_t global_cell_index = rank*cells_per_proc + cell, i, j, k;
+      cubic_lattice_get_cell_triple(lattice, global_cell_index, &i, &j, &k);
+      index_t neighboring_cells[6];
+      neighboring_cells[0] = (i == 0) ? -1 : cubic_lattice_cell(lattice, i-1, j, k);
+      neighboring_cells[1] = (i == nx-1) ? -1 : cubic_lattice_cell(lattice, i+1, j, k);
+      neighboring_cells[2] = (j == 0) ? -1 : cubic_lattice_cell(lattice, i, j-1, k);
+      neighboring_cells[3] = (j == ny-1) ? -1 : cubic_lattice_cell(lattice, i, j+1, k);
+      neighboring_cells[4] = (k == 0) ? -1 : cubic_lattice_cell(lattice, i, j, k-1);
+      neighboring_cells[5] = (k == nz-1) ? -1 : cubic_lattice_cell(lattice, i, j, k+1);
+
       if ((neighboring_cells[ii] != -1) && 
           ((neighboring_cells[ii] < cells_per_proc*rank) || 
            (neighboring_cells[ii] >= cells_per_proc*(rank+1))))
@@ -306,7 +314,6 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
         }
         else
           send_indices = *send_indices_p;
-log_debug("Adding send cell %d for face %d (to proc %d)", cell, ii, ghost_proc);
         int_array_append(send_indices, cell);
 
         // Generate receive mappings.
@@ -319,7 +326,6 @@ log_debug("Adding send cell %d for face %d (to proc %d)", cell, ii, ghost_proc);
         }
         else
           recv_indices = *recv_indices_p;
-log_debug("Adding ghost cell %d to face %d of cell %d (from proc %d)", ghost_cell_index, ii, cell, ghost_proc);
         int_array_append(recv_indices, ghost_cell_index);
 
         ++ghost_cell_index;
