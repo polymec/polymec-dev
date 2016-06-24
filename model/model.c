@@ -1267,7 +1267,8 @@ static void print_runtime_options_help()
   print_to_rank0("                              urgent, info, detail, debug\n");
   print_to_rank0("logging_mode=MODE           - Sets the logging mode.\n");
   print_to_rank0("                              Modes are single (output to single MPI rank),\n");
-  print_to_rank0("                              all (output to all MPI ranks).\n");
+  print_to_rank0("                              all (output to all MPI ranks), or\n");
+  print_to_rank0("                              N, where N is a specific MPI rank to log.\n");
   print_to_rank0("num_threads=N               - Sets the number of OpenMP threads to use within\n");
   print_to_rank0("                              parallel code regions.\n");
   print_to_rank0("timers=1,yes,true,on        - Enables timers for performance profiling.\n");
