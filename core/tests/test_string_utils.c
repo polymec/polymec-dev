@@ -91,6 +91,17 @@ void test_string_is_number(void** state)
   }
 }
 
+void test_string_is_integer(void** state)
+{
+  const char* integers[5] = {"134245", "2", "116", "189", "0324"};
+  const char* not_integers[5] = {" ", "13.4245", "Bob", "1e16", "0.3d"};
+  for (int i = 0; i < 5; ++i)
+  {
+    assert_true(string_is_integer(integers[i]));
+    assert_false(string_is_integer(not_integers[i]));
+  }
+}
+
 void test_string_as_boolean(void** state)
 {
   const char* trues[10] = {"1", "true", "True", "TRUE", "yes", "Yes", "YES", "on", "On", "ON"};
@@ -141,6 +152,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_string_ncasecmp),
     cmocka_unit_test(test_string_next_token),
     cmocka_unit_test(test_string_is_number),
+    cmocka_unit_test(test_string_is_integer),
     cmocka_unit_test(test_string_as_boolean),
     cmocka_unit_test(test_string_find_in_list),
     cmocka_unit_test(test_string_substitute)

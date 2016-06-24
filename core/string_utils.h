@@ -59,6 +59,10 @@ int string_trim(char* s);
 // Returns true if the given string is numeric, false if not.
 bool string_is_number(const char* s);
 
+// Returns true if the given string can be interpreted as an integer,
+// false if not.
+bool string_is_integer(const char* s);
+
 // Returns true if the given string is "1", "TRUE", "YES", "ON", or any 
 // case-insensitive version thereof, and false otherwise.
 bool string_as_boolean(const char* s);

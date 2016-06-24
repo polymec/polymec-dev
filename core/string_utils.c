@@ -137,6 +137,15 @@ bool string_is_number(const char* s)
   return (*p == '\0');
 }
 
+bool string_is_integer(const char* s)
+{
+  if ((s == NULL) || (*s == '\0') || isspace(*s))
+    return false;
+  char* p;
+  strtol(s, &p, 10);
+  return (*p == '\0');
+}
+
 bool string_as_boolean(const char* s)
 {
   return ((s != NULL) && 
