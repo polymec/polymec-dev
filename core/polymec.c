@@ -224,9 +224,27 @@ static void set_up_logging()
   if (logging_mode != NULL)
   {
     if (!string_casecmp(logging_mode, "all"))
+    {
+      log_debug("polymec_init: logging all MPI ranks.");
       set_log_mode(LOG_TO_ALL_RANKS);
+    }
     else if (!string_casecmp(logging_mode, "single"))
+    {
+      log_debug("polymec_init: logging MPI rank 0.");
       set_log_mode(LOG_TO_SINGLE_RANK);
+    }
+#if POLYMEC_HAVE_MPI
+    else if (string_is_integer(logging_mode))
+    {
+      char* ptr;
+      int p = strtol(logging_mode, &ptr, 10);
+      if ((p < 0) || (p >= world_nprocs))
+        polymec_error("polymec_init: invalid logging rank: %d", p);
+      log_debug("polymec_init: logging MPI rank %d.", p);
+      set_log_mode(LOG_TO_SINGLE_RANK);
+      set_log_mpi_rank(log_level(), p);
+    }
+#endif
     if (free_logging_mode)
       string_free(logging_mode);
   }
