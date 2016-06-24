@@ -862,7 +862,6 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       ASSERT((f1 >= 0) && (f1 < submeshes[m1]->num_faces));
       int flattened_cell1 = submesh_cell_offsets[m1] + submeshes[m1]->face_cells[2*f1];
       submeshes[m]->face_cells[2*f+1] = flattened_cell1;
-      //log_debug("%d: Munging submesh[%d] face %d to attach to cell %d", m, f, flattened_cell1);
     }
 
     // Clean up.
@@ -936,10 +935,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
           int seam_index = same_nodes->data[k];
           int index = seam_node_array[seam_index];
           if (index != min_index)
-{
-log_debug("Merging node %d with %d at (%g, %g, %g)", index, min_index, x->x, x->y, x->z);
             int_int_unordered_map_insert(dup_node_map, index, min_index);
-}
         }
       }
       int_array_free(same_nodes);
@@ -1060,7 +1056,6 @@ log_debug("Merging node %d with %d at (%g, %g, %g)", index, min_index, x->x, x->
         int subnode_index = submesh->face_nodes[submesh->face_node_offsets[f] + n];
         int flattened_node = submesh_node_offsets[m] + subnode_index;
         int node_index = node_map[flattened_node];
-//log_debug("face %d: node %d of %d", face, node_index, fused_mesh->num_nodes);
         ASSERT(node_index < fused_mesh->num_nodes);
         fused_mesh->face_nodes[fused_mesh->face_node_offsets[face]+n] = node_index;
       }
