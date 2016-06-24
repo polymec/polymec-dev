@@ -922,7 +922,10 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
           int seam_index = same_nodes->data[k];
           int index = seam_node_array[seam_index];
           if (index != min_index)
+{
+log_debug("Merging node %d with %d at (%g, %g, %g)", index, min_index, x->x, x->y, x->z);
             int_int_unordered_map_insert(dup_node_map, index, min_index);
+}
         }
       }
       int_array_free(same_nodes);

@@ -106,10 +106,6 @@ static void test_migrate_4x1x1_mesh_3_proc(void** state)
   assert_true(m != NULL);
   migrator_free(m);
 
-  silo_file_t* silo = silo_file_new(mesh->comm, "migrate_4x1x1", "migrate_4x1x1", 1, 0, 0, 0.0);
-  silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_close(silo);
-
   // Check the numbers.
   if (rank == 2)
   {
@@ -179,6 +175,19 @@ exchanger_fprintf(mesh_exchanger(mesh), stdout);
   migrator_t* m = repartition_mesh(&mesh, NULL, 0.05);
   migrator_verify(m, polymec_error);
 
+{
+// Plot it.
+double r[mesh->num_cells];
+for (int c = 0; c < mesh->num_cells; ++c)
+  r[c] = 1.0*rank;
+char prefix[FILENAME_MAX];
+snprintf(prefix, FILENAME_MAX, "%dx%dx%d_uniform_mesh_repartition", nx, ny, nz);
+silo_file_t* silo = silo_file_new(mesh->comm, prefix, prefix, 1, 0, 0, 0.0);
+silo_file_write_mesh(silo, "mesh", mesh);
+silo_file_write_scalar_cell_field(silo, "rank", "mesh", r, NULL);
+silo_file_close(silo);
+}
+
 for (int n = 0; n < mesh->num_nodes; ++n)
 log_debug("node %d: (%g, %g, %g)", n, mesh->nodes[n].x, mesh->nodes[n].y, mesh->nodes[n].z);
 
@@ -187,6 +196,24 @@ log_debug("node %d: (%g, %g, %g)", n, mesh->nodes[n].x, mesh->nodes[n].y, mesh->
   {
     assert_int_equal(6, mesh_cell_num_faces(mesh, c));
     real_t V = dx * dx * dx;
+char cell_nodes[2048];
+sprintf(cell_nodes, "cell %d has %d faces:\n", c, mesh_cell_num_faces(mesh, c));
+int pos = 0, f;
+while (mesh_cell_next_face(mesh, c, &pos, &f))
+{
+char s[256];
+sprintf(s, "%d: ", f);
+int npos = 0, n;
+while (mesh_face_next_node(mesh, f, &npos, &n))
+{
+char s1[256];
+sprintf(s1, "%d ", n);
+strcat(s, s1);
+}
+strcat(cell_nodes, s);
+strcat(cell_nodes, "\n");
+}
+log_debug(cell_nodes);
 log_debug("cell %d at (%g, %g, %g): V = %g, should be %g", c, mesh->cell_centers[c].x, mesh->cell_centers[c].y, mesh->cell_centers[c].z, mesh->cell_volumes[c], V);
     assert_true(ABS(mesh->cell_volumes[c] - V)/V < 1e-14);
   }
