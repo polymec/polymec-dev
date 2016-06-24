@@ -696,13 +696,24 @@ static int* create_index_map_with_dups_removed(int num_indices,
                                                int_int_unordered_map_t* dup_map)
 {
   START_FUNCTION_TIMER();
+
+  // Count the number of holes before a given index.
+  int num_holes[num_indices];
+  num_holes[0] = 0;
+  ASSERT(!int_int_unordered_map_contains(dup_map, 0));
+  for (int i = 1; i < num_indices; ++i)
+  {
+    num_holes[i] = num_holes[i-1];
+    if (int_int_unordered_map_contains(dup_map, i))
+      ++num_holes[i];
+  }
+
   int* map = polymec_malloc(sizeof(int) * num_indices);
-  int j = 0; // Mapped index.
   for (int i = 0; i < num_indices; ++i)
   {
     int* k_ptr = int_int_unordered_map_get(dup_map, i);
     if (k_ptr == NULL)
-      map[i] = j++;
+      map[i] = i - num_holes[i];
     else
     {
       // Follow any chain till we hit the end.
@@ -712,9 +723,12 @@ static int* create_index_map_with_dups_removed(int num_indices,
         index = *k_ptr;
         k_ptr = int_int_unordered_map_get(dup_map, index);
       }
-      map[i] = index;
+      map[i] = index - num_holes[index];
     }
+    ASSERT(map[i] >= 0);
+    ASSERT(map[i] < (num_indices - dup_map->size));
   }
+
   STOP_FUNCTION_TIMER();
   return map;
 }
