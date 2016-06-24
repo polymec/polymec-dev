@@ -25,7 +25,6 @@ migrator_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t im
 // and returns an migrator object that can be used to migrate data from the 
 // old partition to the new. The mesh is consumed and replaced with a 
 // repartitioned mesh.
-// FIXME: This is not supported presently, as it doesn't work reliably.
 migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol);
 
 // While partition_mesh and repartition_mesh are all-in-one mesh partitioners, the 
@@ -52,7 +51,6 @@ migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partit
 // to the one described by that partition vector, and returns a migrator object that can be 
 // used to migrate its data.  The mesh replaced with a repartitioned counterpart on each 
 // process.
-// FIXME: This is not supported presently, as it doesn't work reliably.
 migrator_t* migrate_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* local_partition);
 
 #endif
