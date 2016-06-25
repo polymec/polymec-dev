@@ -1,0 +1,50 @@
+Fri Jun 24 21:25:33 2016  Jeffrey Johnson <jjphatt@gmail.com>
+    * polymec: version 1.1
+    * The implementation of the distance_based_neighbor_pairing_new function,
+      bundled with the neighbor_pairing class, had a bug in its parallel 
+      implementation, which has been fixed.
+    * Added support for LIS Krylov solvers (no block matrix support yet).
+    * Implemented parallel_sort.
+    * Implemented dynamic repartitioning of point clouds.
+    * Added interface support for variable-sized block krylov matrices.
+    * Added logging mode for output to all ranks.
+    * Various little enhancements for the build system.
+    * Removed support for NERSC hopper.
+    * Point cloud dynamic repartitioning now works.
+    * Also, there's a new migrator type that is distinct from the exchanger 
+      type, since having the latter do both exchanges and transfers was 
+      confusing.
+    * The Krylov matrix/vector classes no longer include assembly methods in their interfaces.
+    * Numerous bugs were fixed in the HYPRE Krylov solver. The PCG, GMRES, and BICGSTAB solvers now correctly solve the 1D Laplace equation.
+    *  LIS now builds with debugging symbols (and without optimization) under Debug builds.
+    *  HYPRE error reporting is now improved.
+    * All interfaces (LIS, PETSc, HYPRE) use 64-bit integers to store global indices.
+    * Reworked the Krylov solver unit test to be thorough for PETSc/HYPRE 
+      interfaces.
+    * New methods have been added to the krylov_matrix class for adding and 
+      inserting/getting blocks.
+    * Variable and fixed block matrices are now supported in all Krylov 
+      solver implementations.
+    * Polymec's versioning information now doesn't include diffs in tests.
+    * The build system is more selective about generating headers and version 
+      information, resulting in considerable build savings when debugging 
+      small numbers of files.
+    * Travis CI now builds PETSc/HYPRE libraries where they are to be tested.
+    * Bumped Lua to 5.3.3.
+    * Bumped HDF5 to 1.10.0-patch1.
+    * Added missing migrator methods, which allow us to use the migrator 
+      interface and avoid the deprecated portion of the exchanger interface.
+    * Simplified the logic behind the determination of HDF5 library names in 
+      the 3rd-party build system in order for successful builds on NERSC 
+      Edison/Cori.
+    * The Lua interpreter's functions are now documented.
+    * Enhanced logging features like log_mode(), more flexible ordering of log-related command line args.
+    * Failed assertions now report MPI ranks.
+    * Exchangers now support int64_t via MPI_INT64_T, and serialization/deserialization code has been tidied up.
+    * Dynamic mesh partitioning works in all test cases. We'll see.
+    * Also fixed a bug in the initial partitioning of rectilinear meshes.
+
+Mon Mar 21 18:39:00 2016  Jeffrey Johnson <jjphatt@gmail.com>
+    * polymec: version 1.0 (initial release)
+    A set of high-performance software libraries that can be used to construct
+    models for physical systems.
