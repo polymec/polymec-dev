@@ -263,6 +263,12 @@ if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   endif()
   install(FILES ${tp_libs} DESTINATION lib)
 
+  # Install all third-party executables.
+  file(GLOB tp_exes "${PROJECT_BINARY_DIR}/bin/*")
+  install(FILES ${tp_exes} DESTINATION bin
+          PERMISSIONS OWNER_READ;OWNER_WRITE;OWNER_EXECUTE;
+                      GROUP_READ;GROUP_EXECUTE;WORLD_READ;WORLD_EXECUTE)
+
   # Install all generated Polymec source headers.
   install(FILES ${polymec_headers} DESTINATION include/polymec)
 
