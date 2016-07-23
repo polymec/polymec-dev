@@ -42,7 +42,7 @@ static mesh_storage_t* mesh_storage_new(MPI_Comm comm)
 // Frees the given storage mechanism.
 static void mesh_storage_free(mesh_storage_t* storage)
 {
-  exchanger_free(storage->exchanger);
+  storage->exchanger = NULL;
   polymec_free(storage);
 }
 
@@ -336,7 +336,7 @@ void mesh_set_exchanger(mesh_t* mesh, exchanger_t* ex)
 {
   ASSERT(ex != NULL);
   if (mesh->storage->exchanger != NULL)
-    exchanger_free(mesh->storage->exchanger);
+    mesh->storage->exchanger = NULL;
   mesh->storage->exchanger = ex;
 }
 
@@ -686,7 +686,7 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_ints(bytes, 1, &storage->cell_face_capacity, offset);
   byte_array_read_ints(bytes, 1, &storage->face_edge_capacity, offset);
   byte_array_read_ints(bytes, 1, &storage->face_node_capacity, offset);
-  exchanger_free(storage->exchanger);
+  storage->exchanger = NULL;
   ser = exchanger_serializer();
   storage->exchanger = serializer_read(ser, bytes, offset);
 
@@ -788,7 +788,7 @@ exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh)
   exchanger_set_receives(ex, send_map);
   int_ptr_unordered_map_free(send_map);
   int_ptr_unordered_map_free(receive_map);
-  exchanger_free(face2_ex);
+  face2_ex = NULL;
   return ex;
 }
 

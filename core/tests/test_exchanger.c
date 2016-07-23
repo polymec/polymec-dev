@@ -15,7 +15,7 @@
 void test_exchanger_new(void** state)
 {
   exchanger_t* exchanger = exchanger_new(MPI_COMM_WORLD);
-  exchanger_free(exchanger);
+  exchanger = NULL;
 }
 
 void test_exchanger_construct(void** state)
@@ -37,7 +37,7 @@ void test_exchanger_construct(void** state)
       send_indices[i] = i;
     exchanger_set_receive(exchanger, (rank+nproc-1) % nproc, receive_indices, N/nproc, true);
   }
-  exchanger_free(exchanger);
+  exchanger = NULL;
 }
 
 void test_exchanger_construct_and_delete(void** state)
@@ -62,7 +62,7 @@ void test_exchanger_construct_and_delete(void** state)
     exchanger_delete_send(exchanger, 1);
     exchanger_delete_receive(exchanger, 1);
   }
-  exchanger_free(exchanger);
+  exchanger = NULL;
 }
 
 int main(int argc, char* argv[]) 

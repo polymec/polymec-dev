@@ -90,7 +90,7 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
   exchanger_set_receives(ex, receive_map);
   int_ptr_unordered_map_free(send_map);
   int_ptr_unordered_map_free(receive_map);
-  exchanger_free(noden_ex);
+  noden_ex = NULL;
 #endif
   return ex;
 }

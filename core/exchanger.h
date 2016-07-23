@@ -23,6 +23,7 @@ exchanger_t* exchanger_new(MPI_Comm comm);
 exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank);
 
 // Destroys an exchanger.
+// This function is deprecated.
 void exchanger_free(exchanger_t* ex);
 
 // Creates a complete copy of the given exchanger.
@@ -237,6 +238,7 @@ migrator_t* migrator_from_local_partition(MPI_Comm comm,
                                           int num_local_vertices);
 
 // Destroys a migrator.
+// This function is deprecated.
 void migrator_free(migrator_t* m);
 
 // Creates a complete copy of the given migrator.

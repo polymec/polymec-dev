@@ -63,7 +63,7 @@ void test_nv_node_exchanger_on_line(void** state)
     }
   }
 
-  exchanger_free(ex);
+  ex = NULL;
   mesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -101,7 +101,7 @@ void test_1v_node_exchanger_on_line(void** state)
     }
   }
 
-  exchanger_free(ex);
+  ex = NULL;
   mesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -137,7 +137,7 @@ void test_nv_node_exchanger_in_plane(void** state)
   }
   exchanger_fprintf(ex, stdout);
   exchanger_verify(ex, polymec_error);
-  exchanger_free(ex);
+  ex = NULL;
   mesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -152,7 +152,7 @@ void test_1v_node_exchanger_in_plane(void** state)
   exchanger_t* ex = mesh_1v_node_exchanger_new(mesh);
   exchanger_fprintf(ex, stdout);
   exchanger_verify(ex, polymec_error);
-  exchanger_free(ex);
+  ex = NULL;
   mesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -188,7 +188,7 @@ void test_nv_node_exchanger_in_cube(void** state)
   }
   exchanger_fprintf(ex, stdout);
   exchanger_verify(ex, polymec_error);
-  exchanger_free(ex);
+  ex = NULL;
   mesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -203,7 +203,7 @@ void test_1v_node_exchanger_in_cube(void** state)
   exchanger_t* ex = mesh_1v_node_exchanger_new(mesh);
   exchanger_fprintf(ex, stdout);
   exchanger_verify(ex, polymec_error);
-  exchanger_free(ex);
+  ex = NULL;
   mesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);

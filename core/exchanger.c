@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "gc/gc.h"
 #include "exchanger.h"
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
@@ -306,9 +307,30 @@ struct exchanger_t
   FILE* dl_output_stream;
 };
 
+static void exchanger_clear(exchanger_t* ex)
+{
+  exchanger_map_clear(ex->send_map);
+  exchanger_map_clear(ex->receive_map);
+
+  polymec_free(ex->pending_msgs);
+  polymec_free(ex->orig_buffers);
+  polymec_free(ex->transfer_counts);
+
+  ex->max_send = -1;
+  ex->max_receive = -1;
+}
+
+static void exchanger_destroy(void* ctx, void* dummy)
+{
+  exchanger_t* ex = ctx;
+  exchanger_clear(ex);
+  exchanger_map_free(ex->send_map);
+  exchanger_map_free(ex->receive_map);
+}
+
 exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
 {
-  exchanger_t* ex = polymec_malloc(sizeof(exchanger_t));
+  exchanger_t* ex = GC_MALLOC(sizeof(exchanger_t));
   ex->comm = comm;
   ex->rank = rank;
   MPI_Comm_size(comm, &(ex->nprocs));
@@ -329,6 +351,7 @@ exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
   memset(ex->transfer_counts, 0, ex->pending_msg_cap * sizeof(int*));
   ex->max_send = -1;
   ex->max_receive = -1;
+  GC_register_finalizer(ex, exchanger_destroy, ex, NULL, NULL);
 
   return ex;
 }
@@ -340,25 +363,9 @@ exchanger_t* exchanger_new(MPI_Comm comm)
   return exchanger_new_with_rank(comm, rank);
 }
 
-static void exchanger_clear(exchanger_t* ex)
-{
-  exchanger_map_clear(ex->send_map);
-  exchanger_map_clear(ex->receive_map);
-
-  polymec_free(ex->pending_msgs);
-  polymec_free(ex->orig_buffers);
-  polymec_free(ex->transfer_counts);
-
-  ex->max_send = -1;
-  ex->max_receive = -1;
-}
-
 void exchanger_free(exchanger_t* ex)
 {
-  exchanger_clear(ex);
-  exchanger_map_free(ex->send_map);
-  exchanger_map_free(ex->receive_map);
-  polymec_free(ex);
+  POLYMEC_DEPRECATED
 }
 
 exchanger_t* exchanger_clone(exchanger_t* ex)
@@ -1027,7 +1034,7 @@ static void ex_write(void* obj, byte_array_t* bytes, size_t* offset)
 
 serializer_t* exchanger_serializer()
 {
-  return serializer_new("exchanger", ex_size, ex_read, ex_write, DTOR(exchanger_free));
+  return serializer_new("exchanger", ex_size, ex_read, ex_write, NULL);
 }
 
 void** exchanger_create_metadata_send_arrays(exchanger_t* ex,
@@ -1195,17 +1202,23 @@ struct migrator_t
   exchanger_t* ex;
 };
 
+static void migrator_destroy(void* ctx, void* dummy)
+{
+  migrator_t* m = ctx;
+  polymec_free(m->ex);
+}
+
 migrator_t* migrator_new(MPI_Comm comm)
 {
-  migrator_t* m = polymec_malloc(sizeof(migrator_t));
+  migrator_t* m = GC_MALLOC(sizeof(migrator_t));
   m->ex = exchanger_new(comm);
+  GC_register_finalizer(m, migrator_destroy, m, NULL, NULL);
   return m;
 }
 
 void migrator_free(migrator_t* m)
 {
-  exchanger_free(m->ex);
-  polymec_free(m);
+  POLYMEC_DEPRECATED
 }
 
 migrator_t* migrator_clone(migrator_t* m)

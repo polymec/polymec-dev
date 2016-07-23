@@ -120,7 +120,7 @@ void test_find_ghost_points(void** state)
   }
 
   // Clean up.
-  exchanger_free(ex);
+  ex = NULL;
   kd_tree_free(tree);
 }
 

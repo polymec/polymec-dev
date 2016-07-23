@@ -43,7 +43,7 @@ void stencil_free(stencil_t* stencil)
   polymec_free(stencil->indices);
   if (stencil->weights != NULL)
     polymec_free(stencil->weights);
-  exchanger_free(stencil->ex);
+  stencil->ex = NULL;
   polymec_free(stencil);
 }
 
