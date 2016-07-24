@@ -2,8 +2,10 @@
                                p  o  l  y  m  e  c 
 ------------------------------------------------------------------------------
 
+---------------------
 Software Requirements
 ---------------------
+
 The polymec library requires the following software for installation:
 
   - A C compiler that adheres to (or aspires to) the C11 standard. 
@@ -14,13 +16,41 @@ The polymec library requires the following software for installation:
   - CMake 3.1.0+ (found at http://www.cmake.org)
   - GNU Make
 
+--------
+Building 
+--------
+
 To build polymec on a UNIX-like system, use the following commands:
 
-     $ make config
-     $ make
+     $ make config [options]
+     $ make [options]
 
+Available options are:
+
+    prefix=/path/to/install <-- Installation prefix
+
+    verbose=0,1 <-- selects a silent or verbose CMake/Make build.
+
+    precision=single,double <-- selects single or double precision.
+
+    mpi=0,1  <-- specifies a serial or MPI build
+
+    debug=0,1  <-- specifies a Release or Debug build
+
+    shared=0,1  <-- specifies static or shared libraries
+
+    machine=xyz <-- specifies the use of a specific machine. Check the 
+                    downloaded machines/ directory after using this option 
+                    to look for a file for your specific machine. These 
+                    files are maintained in the polymec/polymec-machines 
+                    repo on GitHub.
+
+    Compilers can also be selected with CC, CXX, FC.
+
+------------
 Installation
 ------------
+
 To install polymec, run
 
     $ make install
@@ -30,8 +60,10 @@ prefix=[path] argument to make config. For example:
 
     $ make config prefix=~/myroot/
 
+-------------------
 Other make commands
 -------------------
+
    $ make test 
           Runs all unit tests for the library.
 
@@ -44,37 +76,3 @@ Other make commands
    $ make distclean 
           Performs clean and completely removes the build directory.
 
-------------------------------------------------------------------------------
-                  Instructions for particular machines
-------------------------------------------------------------------------------
-
-NERSC Edison (last updated 6/8/2016)
--------------------------------------
-
-Make sure the following modules are loaded:
-  cmake 
-  silo
-
-and then type
-
-make config mpi=1 prefix=/prefix/for/polymec
-
-adding any additional desired flags. Then:
-
-make mpi=1 install
-
-NERSC Cori (last updated 6/8/2016)
-------------------------------------
-
-Load the following modules
-  cmake
-  cray-hdf5-parallel
-  silo
-
-and then type
-
-make config mpi=1 prefix=/prefix/for/polymec 
-
-followed by
-
-make mpi=1 install

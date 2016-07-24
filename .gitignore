@@ -20,6 +20,9 @@
 # Generated files
 build/
 
+# Machine files (maintained externally)
+machines/
+
 # Documentation kibble.
 docs/*.aux
 docs/*.bbl

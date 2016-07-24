@@ -12,6 +12,7 @@ CC         = not-set
 CXX        = not-set
 FC         = not-set
 travis     = not-set
+machine    = not-set
 
 # This proxies everything to the builddir cmake.
 
@@ -56,6 +57,12 @@ ifeq ($(shared), 1)
 else
   BUILDDIR := ${BUILDDIR}-static
   CONFIG_FLAGS += -DBUILD_SHARED_LIBS=OFF
+endif
+
+# Machine configuration.
+ifneq ($(machine), not-set)
+  BUILDDIR := build/$(machine)  # Overwritten!
+  CONFIG_FLAGS += -DPOLYMEC_MACHINE=$(machine)
 endif
 
 # Precision.
