@@ -134,6 +134,10 @@ all test clean install:
 		$(MAKE) -C $(BUILDDIR) $@ --no-print-directory $(MAKEFLAGS); \
 	fi
 
+memcheck:
+	@cd $(BUILDDIR)
+	@ctest -T memcheck
+
 config: distclean
 	$(run-config)
 

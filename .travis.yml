@@ -46,7 +46,8 @@ before_script:
   - make config debug=$DEBUG mpi=$MPI shared=$SHARED travis=1 prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED
 
 script: 
-  - make -j4 debug=$DEBUG mpi=$MPI shared=$SHARED install && make debug=$DEBUG mpi=$MPI shared=$SHARED test
+  - make -j4 debug=$DEBUG mpi=$MPI shared=$SHARED install 
+  - if ["$TRAVIS_OS_NAME" = "linux"] && ["$DEBUG" = "1"] && ["$MPI" = "0"]; then make debug=$DEBUG mpi=$MPI shared=$SHARED memcheck; else make debug=$DEBUG mpi=$MPI shared=$SHARED test; fi
 
 after_success: 
   - cd $HOME

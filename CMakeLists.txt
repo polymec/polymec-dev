@@ -12,7 +12,7 @@ set(CMAKE_Fortran_COMPILER "${FC}")
 set_up_platform()
 enable_language(C)
 enable_language(CXX)
-if (LINUX EQUAL 1)
+if (LINUX)
   enable_language(Fortran)
 endif()
 
@@ -25,7 +25,7 @@ include(adjust_compilers)
 adjust_compilers()
 message(STATUS "C compiler is ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID})")
 message(STATUS "C++ compiler is ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID})")
-if (LINUX EQUAL 1)
+if (LINUX)
   message(STATUS "Fortran compiler is ${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COMPILER_ID})")
 endif()
 
@@ -103,7 +103,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-maybe-uninitialized")
 
-  if (LINUX EQUAL 1)
+  if (LINUX)
     # Counter some of GCC's more recent stinginess on Linux.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200809L")# -D_BSD_SOURCE")
     # Pass some more needed flags to the compiler.
@@ -219,6 +219,16 @@ include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_BINARY_DIR}/include")
 link_directories("${PROJECT_BINARY_DIR}/lib")
 include_directories(${POLYMEC_INCDIRS})
+
+# Support for valgrind -- Linux only.
+if (LINUX)
+  find_program(MEMORYCHECK_COMMAND valgrind)
+  if (MEMORYCHECK_COMMAND)
+    message(STATUS "Found valgrind at ${MEMORYCHECK_COMMAND}")
+    set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full")
+    set(MEMORYCHECK_SUPPRESSIONS_FILE="${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp")
+  endif()
+endif()
 
 # Unit testing.
 enable_testing()
