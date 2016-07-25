@@ -29,13 +29,7 @@ static void options_free(void* ctx, void* dummy)
   polymec_free(opts->args);
 
   // Delete all parameter data.
-  int pos = 0;
-  char *key, *value;
-  while (string_string_unordered_map_next(opts->params, &pos, &key, &value))
-  {
-    polymec_free(key);
-    polymec_free(value);
-  }
+  string_string_unordered_map_free(opts->params);
 }
 
 static void destroy_kv(char* key, char* value)
@@ -57,6 +51,11 @@ options_t* options_new()
 options_t* options_argv()
 {
   return argv_singleton;
+}
+
+static void destroy_options()
+{
+  argv_singleton = NULL;
 }
 
 void options_parse(int argc, char** argv)
@@ -103,6 +102,8 @@ void options_parse(int argc, char** argv)
   }
 
   argv_singleton = o;
+  o = NULL;
+  polymec_atexit(destroy_options);
 }
 
 char* options_argument(options_t* opts, int i)

@@ -91,12 +91,12 @@ static bool polymec_initialized_mpi = false;
 
 // Functions to call after initialization.
 typedef void (*atinit_func)(int argc, char** argv);
-static atinit_func _atinit_funcs[32];
+static atinit_func _atinit_funcs[64];
 static int _num_atinit_funcs = 0;
 
 // Functions to call on exit.
 typedef void (*atexit_func)();
-static atexit_func _atexit_funcs[32];
+static atexit_func _atexit_funcs[64];
 static int _num_atexit_funcs = 0;
 
 static void shutdown()
@@ -210,6 +210,7 @@ static void set_up_logging()
       polymec_free(words);
     }
   }
+  opts = NULL;
   if (logging != NULL)
   {
     if (!string_casecmp(logging, "debug"))
@@ -268,6 +269,7 @@ static void set_up_threads()
     log_debug("polymec: Setting number of OpenMP threads to %d.", num_threads);
     omp_set_num_threads(num_threads);
   }
+  opts = NULL;
 #endif
 }
 
@@ -301,6 +303,7 @@ static void pause_if_requested()
       polymec_free(words);
     }
   }
+  opts = NULL;
 
   if (delay != NULL)
   {
@@ -337,7 +340,7 @@ static void pause_if_requested()
 void polymec_atinit(void (*func)(int argc, char** argv))
 {
   ASSERT(!polymec_initialized);
-  ASSERT(_num_atinit_funcs < 32);
+  ASSERT(_num_atinit_funcs < 64);
   _atinit_funcs[_num_atinit_funcs++] = func;
 }
 
@@ -603,7 +606,7 @@ void polymec_not_implemented(const char* component)
 
 void polymec_atexit(void (*func)()) 
 {
-  ASSERT(_num_atexit_funcs < 32);
+  ASSERT(_num_atexit_funcs < 64);
   _atexit_funcs[_num_atexit_funcs++] = func;
 }
 
