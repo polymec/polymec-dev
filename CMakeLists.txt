@@ -232,6 +232,9 @@ if (LINUX)
   else()
     set(VALGRIND_FOUND 0)
   endif()
+else()
+  # Valgrind doesn't work on Macs.
+  set(VALGRIND_FOUND 0)
 endif()
 
 # Unit testing.

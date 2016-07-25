@@ -351,7 +351,7 @@ static int piecewise_function(lua_State* lua)
   st_func_vtable vtable = {.eval = pwf_eval, .dtor = pwf_free};
   char name[1025];
   snprintf(name, 1024, "Piecewise function (%d regions)", pwf->map->size);
-  st_func_t* F = st_func_new(name, pwf, vtable, SP_FUNC_HETEROGENEOUS, constancy, num_comp);
+  st_func_t* F = st_func_new(name, pwf, vtable, ST_FUNC_HETEROGENEOUS, constancy, num_comp);
   lua_pushmulticompfunction(lua, F);
   return 1;
 }

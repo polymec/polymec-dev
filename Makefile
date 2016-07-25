@@ -135,8 +135,7 @@ all test clean install:
 	fi
 
 memcheck:
-	@cd $(BUILDDIR)
-	@ctest -T memcheck
+	@cd $(BUILDDIR) && ctest -T memcheck
 
 config: distclean
 	$(run-config)

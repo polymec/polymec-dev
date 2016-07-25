@@ -47,7 +47,7 @@ before_script:
 
 script: 
   - make -j4 debug=$DEBUG mpi=$MPI shared=$SHARED install 
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$MPI" = "0" ]; then make debug=$DEBUG mpi=$MPI shared=$SHARED memcheck; else make debug=$DEBUG mpi=$MPI shared=$SHARED test; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$MPI" = "0" ] && [ "$SHARED" = "0" ]; then make debug=$DEBUG mpi=$MPI shared=$SHARED memcheck; else make debug=$DEBUG mpi=$MPI shared=$SHARED test; fi
 
 after_success: 
   - cd $HOME
