@@ -53,12 +53,10 @@ Installation
 
 To install polymec, run
 
-    $ make install
+    $ make install [options]
 
-There is no default installation prefix, so you must specify one with the 
-prefix=[path] argument to make config. For example:
-
-    $ make config prefix=~/myroot/
+NOTE that there is no default installation prefix, so you must specify one 
+with the prefix=[path] argument described above.
 
 -------------------
 Other make commands
@@ -66,6 +64,10 @@ Other make commands
 
    $ make test 
           Runs all unit tests for the library.
+
+   $ make memcheck 
+          Runs all unit tests for the library using a memory checking tool
+          if available (currently only Valgrind on Linux is supported).
 
    $ make uninstall 
           Removes all files installed by 'make install'.
