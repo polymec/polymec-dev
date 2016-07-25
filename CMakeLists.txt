@@ -226,11 +226,12 @@ if (LINUX)
   if (MEMORYCHECK_COMMAND)
     message(STATUS "Found valgrind at ${MEMORYCHECK_COMMAND}")
     set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full")
-    set(MEMORYCHECK_SUPPRESSIONS_FILE="${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp")
+    set(MEMORYCHECK_SUPPRESSIONS_FILE "${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp")
   endif()
 endif()
 
 # Unit testing.
+include(CTest)
 enable_testing()
 
 # Core libraries.
