@@ -1,0 +1,1927 @@
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   obj:*
+   fun:opal_db_base_store
+   fun:ompi_modex_send_string
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:memalign
+   fun:allocate_and_init
+   fun:tls_get_addr_tail
+   obj:*
+   obj:*
+   obj:*
+   fun:hwloc_backends_notify_new_object
+   obj:/usr/lib/x86_64-linux-gnu/libhwloc.so.5.6.8
+   fun:hwloc_insert_pci_device_list
+   obj:*
+   fun:hwloc_topology_load
+   fun:opal_hwloc_base_get_topology
+   fun:ompi_mpi_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:polymec_malloc
+   fun:options_parse
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:strdup
+   obj:*
+   fun:opal_db_base_store
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:strdup
+   fun:opal_libevent2021_event_config_avoid_method
+   fun:opal_event_init
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:opal_output_init
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_op_base_op_select
+   fun:ompi_op_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:strdup
+   fun:opal_output_open
+   fun:pml_v_output_open
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:mca_base_framework_components_open
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:mca_base_framework_open
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_attr_set_fortran_mpi1
+   fun:ompi_attr_create_predefined
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   fun:mca_coll_base_comm_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   obj:*
+   fun:opal_db_base_store
+   fun:ompi_modex_send
+   obj:*
+   fun:mca_btl_base_select
+   obj:*
+   fun:mca_bml_base_init
+   obj:*
+   fun:mca_pml_base_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:malloc
+   fun:strdup
+   obj:*
+   obj:*
+   obj:*
+   fun:hwloc_topology_load
+   fun:opal_hwloc_base_get_topology
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:opal_libevent2021_evmap_io_add
+   fun:opal_libevent2021_event_add
+   fun:opal_libevent2021_event_base_new_with_config
+   fun:opal_event_base_create
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:opal_libevent2021_evmap_io_add
+   fun:opal_libevent2021_event_add
+   obj:*
+   fun:mca_btl_base_select
+   obj:*
+   fun:mca_bml_base_init
+   obj:*
+   fun:mca_pml_base_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:polymec_malloc
+   fun:string_dup
+   fun:options_parse
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:opal_output_init
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_base_component_find
+   fun:mca_base_framework_components_open
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_base_param_init
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_base_var_init
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_base_var_init
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_var_init
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_var_init
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_base_var_enum_create
+   fun:opal_dss_register_vars
+   fun:opal_register_params
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:opal_datatype_init
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:opal_dss_register
+   fun:opal_dss_open
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:opal_libevent2021_event_config_new
+   fun:opal_event_init
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:opal_libevent2021_event_base_new_with_config
+   fun:opal_event_base_create
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_base_component_find
+   fun:mca_base_framework_components_register
+   fun:mca_base_framework_register
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_component_find
+   fun:mca_base_framework_components_register
+   fun:mca_base_framework_register
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:orte_proc_info
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:/usr/lib/openmpi/lib/libopen-rte.so.12.0.2
+   fun:mca_base_framework_open
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:opal_db_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   fun:orte_grpcomm_base_comm_start
+   obj:*
+   fun:orte_grpcomm_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:opal_hwloc_base_filter_cpus
+   fun:opal_hwloc_base_get_topology
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:orte_errmgr_base_register_error_callback
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:opal_convertor_create
+   fun:ompi_datatype_default_convertors_init
+   fun:ompi_datatype_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_op_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_mpool_base_tree_init
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:mca_base_framework_open
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:ompi_rb_tree_construct
+   fun:mca_mpool_base_tree_init
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:mca_base_framework_open
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:ompi_rb_tree_construct
+   fun:mca_mpool_base_tree_init
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:mca_base_framework_open
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   fun:ompi_rb_tree_init
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:mca_base_framework_open
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   fun:ompi_rb_tree_init
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:mca_base_framework_open
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_base_pvar_register
+   obj:*
+   fun:mca_base_framework_components_register
+   fun:mca_base_framework_register
+   fun:mca_base_framework_open
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_btl_base_select
+   obj:*
+   fun:mca_bml_base_init
+   obj:*
+   fun:mca_pml_base_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_errhandler_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_mpi_errcode_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_errcode_intern_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_group_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_comm_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_file_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_win_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_attr_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:ompi_attr_create_keyval
+   fun:ompi_attr_create_predefined
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   obj:*
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   obj:*
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   obj:*
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   obj:*
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   obj:*
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   obj:*
+   obj:*
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   obj:*
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_coll_base_comm_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:_dl_close_worker.part.0
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlclose
+   obj:/usr/lib/x86_64-linux-gnu/libltdl.so.7.3.1
+   fun:lt_dlclose
+   obj:/usr/lib/x86_64-linux-gnu/libhwloc.so.5.6.8
+   obj:/usr/lib/x86_64-linux-gnu/libhwloc.so.5.6.8
+   fun:hwloc_topology_destroy
+   fun:orte_util_nidmap_finalize
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_base_component_find
+   fun:mca_base_framework_components_open
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init_util
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:event_global_setup_locks_
+   fun:opal_libevent2021_evthread_use_pthreads
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:evsig_global_setup_locks_
+   fun:event_global_setup_locks_
+   fun:opal_libevent2021_evthread_use_pthreads
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:opal_libevent2021_evutil_secure_rng_global_setup_locks_
+   fun:event_global_setup_locks_
+   fun:opal_libevent2021_evthread_use_pthreads
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:opal_libevent2021_event_base_new_with_config
+   fun:opal_event_base_create
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:orte_state_base_add_job_state
+   obj:*
+   fun:orte_state_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_components_open
+   fun:mca_base_framework_open
+   fun:opal_ifbegin
+   obj:*
+   fun:orte_oob_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:/usr/lib/openmpi/lib/libopen-rte.so.12.0.2
+   obj:*
+   fun:orte_grpcomm_base_comm_start
+   obj:*
+   fun:orte_grpcomm_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_rb_tree_construct
+   fun:mca_mpool_base_tree_init
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:mca_base_framework_open
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   obj:*
+   fun:ompi_osc_base_find_available
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:opal_free_list_grow
+   fun:ompi_message_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   fun:mca_coll_base_comm_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   fun:mca_coll_base_comm_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:polymec_malloc
+   fun:string_string_unordered_map_new_with_capacity
+   fun:string_string_unordered_map_new
+   fun:options_new
+   fun:options_parse
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:polymec_malloc
+   fun:create_logger
+   fun:get_logger
+   fun:log_debug
+   fun:polymec_disable_fpe
+   fun:shutdown
+   fun:__run_exit_handlers
+   fun:exit
+   fun:(below main)
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:strdup
+   fun:_dl_load_cache_lookup
+   fun:_dl_map_object
+   fun:openaux
+   fun:_dl_catch_error
+   fun:_dl_map_object_deps
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+   fun:openaux
+   fun:_dl_catch_error
+   fun:_dl_map_object_deps
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:__vasprintf_chk
+   fun:__asprintf_chk
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:opal_libevent2021_event_base_new_with_config
+   fun:opal_event_base_create
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:mca_base_component_repository_retain
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_component_find
+   fun:mca_base_framework_components_register
+   fun:mca_base_framework_register
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   fun:opal_db_base_store
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   fun:opal_db_base_store
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_datatype_create
+   fun:ompi_datatype_create_contiguous
+   fun:ompi_datatype_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_proc_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:*
+   fun:mca_base_framework_components_open
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:mca_base_framework_open
+   fun:mca_base_framework_open
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_request_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_info_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_info_set
+   fun:ompi_info_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_libevent2021_event_config_avoid_method
+   fun:opal_event_init
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:malloc
+   fun:realloc
+   fun:mca_bml_base_btl_array_reserve
+   obj:*
+   obj:*
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:malloc
+   fun:realloc
+   fun:mca_bml_base_btl_array_reserve
+   obj:*
+   obj:*
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:malloc
+   fun:realloc
+   fun:mca_bml_base_btl_array_reserve
+   obj:*
+   obj:*
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   obj:*
+   fun:mca_btl_base_select
+   obj:*
+   fun:mca_bml_base_init
+   obj:*
+   fun:mca_pml_base_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   obj:*
+   fun:mca_btl_base_select
+   obj:*
+   fun:mca_bml_base_init
+   obj:*
+   fun:mca_pml_base_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   obj:*
+   fun:mca_btl_base_select
+   obj:*
+   fun:mca_bml_base_init
+   obj:*
+   fun:mca_pml_base_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_db_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_db_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:calloc
+   obj:*
+   obj:*
+   obj:*
+   fun:hwloc_topology_load
+   fun:opal_hwloc_base_get_topology
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:lt__malloc
+   fun:lt__zalloc
+   obj:/usr/lib/x86_64-linux-gnu/libltdl.so.7.3.1
+   fun:lt_dlopenadvise
+   obj:*
+   obj:/usr/lib/x86_64-linux-gnu/libhwloc.so.5.6.8
+   fun:hwloc_topology_init
+   fun:opal_hwloc_base_get_topology
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   obj:*
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:opal_class_initialize
+   fun:ompi_free_list_grow
+   obj:*
+   obj:/usr/lib/openmpi/lib/libmpi.so.12.0.2
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:mca_base_component_find
+   fun:mca_base_framework_components_register
+   fun:mca_base_framework_register
+   fun:mca_base_framework_open
+   fun:opal_ifbegin
+   obj:*
+   fun:orte_oob_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   obj:/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+   obj:/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+   obj:/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
+   obj:/lib/x86_64-linux-gnu/ld-2.23.so
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:opal_libevent2021_event_base_priority_init
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:orte_util_print_jobids
+   fun:orte_util_print_name_args
+   obj:*
+   fun:orte_oob_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:ompi_errhandler_create
+   fun:PMPI_Comm_create_errhandler
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:realloc
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:opal_libevent2021_evmap_io_add
+   fun:opal_libevent2021_event_add
+   fun:opal_libevent2021_event_base_new_with_config
+   fun:opal_event_base_create
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:realloc
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:opal_libevent2021_evmap_io_add
+   fun:opal_libevent2021_event_add
+   fun:opal_libevent2021_event_base_new_with_config
+   fun:opal_event_base_create
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:realloc
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:opal_libevent2021_event_base_loop
+   fun:opal_progress
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   obj:*
+   obj:*
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_components_open
+   fun:mca_base_framework_open
+   fun:opal_ifbegin
+   obj:*
+   fun:orte_oob_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:polymec_malloc
+   fun:string_string_unordered_map_new_with_capacity
+   fun:string_string_unordered_map_new
+   fun:options_new
+   fun:options_parse
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:opal_libevent2021_event_base_new_with_config
+   fun:opal_event_base_create
+   obj:/usr/lib/openmpi/lib/libopen-pal.so.13.0.2
+   fun:mca_base_framework_open
+   fun:opal_init
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:opal_class_initialize
+   obj:*
+   fun:mca_coll_base_comm_select
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:orte_util_print_jobids
+   fun:orte_util_print_name_args
+   obj:*
+   fun:orte_oob_base_select
+   fun:orte_ess_base_app_setup
+   obj:*
+   fun:orte_init
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:calloc
+   obj:*
+   obj:*
+   obj:*
+   fun:hwloc_topology_load
+   fun:opal_hwloc_base_get_topology
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:realloc
+   fun:polymec_realloc
+   fun:logger_set_buffering
+   fun:create_logger
+   fun:get_logger
+   fun:log_debug
+   fun:polymec_disable_fpe
+   fun:shutdown
+   fun:__run_exit_handlers
+   fun:exit
+   fun:(below main)
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:_dl_check_map_versions
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+   obj:/usr/lib/x86_64-linux-gnu/libltdl.so.7.3.1
+   obj:/usr/lib/x86_64-linux-gnu/libltdl.so.7.3.1
+   obj:/usr/lib/x86_64-linux-gnu/libltdl.so.7.3.1
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+   fun:openaux
+   fun:_dl_catch_error
+   fun:_dl_map_object_deps
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:do_lookup_unique
+   fun:do_lookup_x
+   fun:_dl_lookup_symbol_x
+   fun:elf_machine_rela
+   fun:elf_dynamic_do_Rela
+   fun:_dl_relocate_object
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+   obj:/usr/lib/x86_64-linux-gnu/libltdl.so.7.3.1
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:malloc
+   fun:strdup
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:hwloc_topology_load
+   fun:opal_hwloc_base_get_topology
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.21
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+   obj:/usr/lib/x86_64-linux-gnu/libltdl.so.7.3.1
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:malloc
+   fun:strdup
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:hwloc_topology_load
+   fun:opal_hwloc_base_get_topology
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:realloc
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:hwloc_topology_load
+   fun:opal_hwloc_base_get_topology
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   obj:*
+   obj:*
+   obj:*
+   fun:hwloc_topology_load
+   fun:opal_hwloc_base_get_topology
+   fun:ompi_mpi_init
+   fun:PMPI_Init
+   fun:polymec_init
+   fun:main
+}
+

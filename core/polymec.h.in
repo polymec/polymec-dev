@@ -65,6 +65,9 @@
 #define POLYMEC_HAVE_SHARED_LIBS @HAVE_SHARED_LIBS@
 #define SHARED_LIBRARY_SUFFIX "@CMAKE_SHARED_LIBRARY_SUFFIX@"
 
+// Valgrind support.
+#define POLYMEC_HAVE_VALGRIND @VALGRIND_FOUND@
+
 // In defining real_t, we have to accommodate Metis, which defines 
 // its own.
 #ifdef _METIS_H_
@@ -252,6 +255,10 @@ void polymec_append_provenance_data(const char* provenance_data);
 // This function returns the number of cores on the system, or 1 if it cannot
 // be determined.
 int polymec_num_cores();
+
+// This function returns true if polymec is running in a valgrind process,
+// false if not.
+bool polymec_running_in_valgrind();
 
 // Use this macro to indicate that something hasn't been implemented.
 #define POLYMEC_NOT_IMPLEMENTED polymec_error("%s:\n  line %d: Function %s is not implemented!", __FILE__, __LINE__, __func__);

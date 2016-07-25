@@ -25,6 +25,10 @@
 #include <omp.h>
 #endif
 
+#if POLYMEC_HAVE_VALGRIND
+#include "valgrind.h"
+#endif
+
 // Standard C support for floating point environment.
 #ifdef LINUX
 #define _GNU_SOURCE // for older GNU compilers
@@ -750,3 +754,11 @@ int polymec_num_cores()
 #endif
 }
 
+bool polymec_running_in_valgrind()
+{
+#if POLYMEC_HAVE_VALGRIND
+  return (RUNNING_ON_VALGRIND);
+#else
+  return false;
+#endif
+}

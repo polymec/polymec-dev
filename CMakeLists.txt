@@ -222,11 +222,15 @@ include_directories(${POLYMEC_INCDIRS})
 
 # Support for valgrind -- Linux only.
 if (LINUX)
-  find_program(MEMORYCHECK_COMMAND valgrind)
-  if (MEMORYCHECK_COMMAND)
-    message(STATUS "Found valgrind at ${MEMORYCHECK_COMMAND}")
+  find_package(Valgrind)
+  if (VALGRIND_FOUND)
+    set(VALGRIND_FOUND 1) # regularize this value
+    include_directories(${VALGRIND_INCLUDE_DIR})
+    set(MEMORYCHECK_COMMAND ${VALGRIND_PROGRAM})
     set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full")
     set(MEMORYCHECK_SUPPRESSIONS_FILE "${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp")
+  else()
+    set(VALGRIND_FOUND 0)
   endif()
 endif()
 

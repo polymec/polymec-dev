@@ -55,7 +55,13 @@ static void do_number_crunching_test(void** state, thread_pool_t* pool)
 
 void test_number_crunching(void** state)
 {
-  for (int iter = 0; iter < 1000; ++iter)
+  int num_iters = 1000;
+  if (polymec_running_in_valgrind())
+  {
+    log_debug("Valgrind detected: Performing 1 iteration.");
+    num_iters = 1;
+  }
+  for (int iter = 0; iter < num_iters; ++iter)
   {
     thread_pool_t* pool = thread_pool_new();
     do_number_crunching_test(state, pool);
@@ -74,6 +80,11 @@ void test_N_executions(void** state, int N)
 
 void test_several_executions(void** state)
 {
+  if (polymec_running_in_valgrind())
+  {
+    log_debug("Valgrind detected: Skipping several executions.");
+    return;
+  }
   for (int iter = 0; iter < 100; ++iter)
   {
     for (int N = 2; N <= 10; ++N)
