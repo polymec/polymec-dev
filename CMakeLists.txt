@@ -19,10 +19,6 @@ endif()
 # We declare the project here.
 project (polymec)
 
-# After declaring the project, we might have to force some compiler settings
-# on certain machines, so do that here.
-include(adjust_compilers)
-adjust_compilers()
 message(STATUS "C compiler is ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID})")
 message(STATUS "C++ compiler is ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID})")
 if (LINUX)
@@ -197,10 +193,6 @@ set(POLYMEC_LIBRARIES ${POLYMEC_LIBRARIES};dl)
 
 # Figure out MPI.
 if (HAVE_MPI EQUAL 1)
-  # CC should already have been set in Makefile or whereever.
-  set(MPIEXEC mpirun)
-  set(MPIEXEC_NUMPROC_FLAG -np)
-
   # NOTE: Disable C++ bindings for MPI, since they have never worked for anyone. 
   set(NO_MPI_CXX_FLAGS "-DMPICH_SKIP_MPICXX -UHAVE_MPI_CPP -DLAM_WANT_MPI2CPP=0 -DLAM_BUILDING=1 -DOMPI_WANT_CXX_BINDINGS=0 -DOMPI_BUILDING=1")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NO_MPI_CXX_FLAGS}")
@@ -296,6 +288,7 @@ if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
   install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_library.cmake DESTINATION share/polymec)
   install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_test.cmake DESTINATION share/polymec)
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/FindValgrind.cmake DESTINATION share/polymec)
 else()
   message(WARNING "Installation is not enabled. Please rerun make config with prefix=/your/prefix.")
 endif()
