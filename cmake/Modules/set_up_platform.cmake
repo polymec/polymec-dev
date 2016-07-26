@@ -56,6 +56,14 @@ macro(set_up_platform)
       if (NOT ${stat} EQUAL 0)
         message(FATAL_ERROR "Failed to retrieve Polymec machine files.")
       endif()
+    else()
+      message(STATUS "Updating machine configurations in ${CMAKE_CURRENT_SOURCE_DIR}/machines...")
+      execute_process(COMMAND git pull 
+                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/machines
+                      OUTPUT_VARIABLE shhh ERROR_VARIABLE shhh RESULT_VARIABLE stat)
+      if (NOT ${stat} EQUAL 0)
+        message(FATAL_ERROR "Failed to update Polymec machine files.")
+      endif()
     endif()
 
     # See whether we have a file for the given machine.
