@@ -45,28 +45,43 @@ macro(set_up_platform)
     set(ENV{TMPDIR} "/tmp")
   endif()
 
-  # MPI execution environment
-  find_package(MPI)
-
   # Now we check for a specific machine name.
   if (DEFINED POLYMEC_MACHINE)
 
-    # Clone the polymec-machines repo into machines/.
-    execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/machines)
-    execute_process(COMMAND git clone https://github.com/polymec/polymec-machines ${CMAKE_CURRENT_SOURCE_DIR}/machines
-                    OUTPUT_VARIABLE shhh ERROR_VARIABLE shhh RESULT_VARIABLE stat)
-    if (NOT ${stat} EQUAL 0)
-      message(FATAL_ERROR "Failed to retrieve Polymec machine files.")
+    if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/machines)
+      # Clone the polymec-machines repo into machines/.
+      message(STATUS "Fetching machine configurations to ${CMAKE_CURRENT_SOURCE_DIR}/machines...")
+      execute_process(COMMAND git clone https://github.com/polymec/polymec-machines ${CMAKE_CURRENT_SOURCE_DIR}/machines
+                      OUTPUT_VARIABLE shhh ERROR_VARIABLE shhh RESULT_VARIABLE stat)
+      if (NOT ${stat} EQUAL 0)
+        message(FATAL_ERROR "Failed to retrieve Polymec machine files.")
+      endif()
     endif()
 
     # See whether we have a file for the given machine.
     if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/machines/${POLYMEC_MACHINE}.cmake")
       message(FATAL_ERROR "Invalid machine name: ${POLYMEC_MACHINE}. See machines/ for available options.")
+    else()
+      message(STATUS "Selected machine '${POLYMEC_MACHINE}'.")
+      message(STATUS "See ${MACHINE_FILE} for special build/install/test instructions.")
     endif()
 
     # Now read the machine file.
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/machines/")
     include(${POLYMEC_MACHINE})
-
   endif()
+
+  # Based on the batch system we're using, we set up our parallel 
+  # execution environment.
+  if (BATCH_SYSTEM STREQUAL "slurm")
+    find_package(SLURM)
+    set(MPIEXEC ${SLURM_SRUN_COMMAND})
+    set(MPIEXEC_NUMPROC_FLAG -n)
+    set(MPIEXEC_PREFLAGS --ntasks-per-node=${PROCS_PER_NODE})
+    set(MPIEXEC_POSTFLAGS )
+  else()
+    # Regular old MPI execution environment
+    find_package(MPI)
+  endif()
+
 endmacro()
