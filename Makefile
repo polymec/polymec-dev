@@ -61,7 +61,7 @@ endif
 
 # Machine configuration.
 ifneq ($(machine), not-set)
-  BUILDDIR := build/$(machine)  # Overwritten!
+  BUILDDIR := build/$(machine)
   CONFIG_FLAGS += -DPOLYMEC_MACHINE=$(machine)
 endif
 
