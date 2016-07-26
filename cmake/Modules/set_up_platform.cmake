@@ -45,6 +45,9 @@ macro(set_up_platform)
     set(ENV{TMPDIR} "/tmp")
   endif()
 
+  # MPI execution environment
+  find_package(MPI)
+
   # Now we check for a specific machine name.
   if (DEFINED POLYMEC_MACHINE)
 
@@ -66,5 +69,4 @@ macro(set_up_platform)
     include(${POLYMEC_MACHINE})
 
   endif()
-
 endmacro()
