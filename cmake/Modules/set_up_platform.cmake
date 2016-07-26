@@ -59,7 +59,8 @@ macro(set_up_platform)
     endif()
 
     # See whether we have a file for the given machine.
-    if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/machines/${POLYMEC_MACHINE}.cmake")
+    set(MACHINE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/machines/${POLYMEC_MACHINE}.cmake")
+    if (NOT EXISTS ${MACHINE_FILE})
       message(FATAL_ERROR "Invalid machine name: ${POLYMEC_MACHINE}. See machines/ for available options.")
     else()
       message(STATUS "Selected machine '${POLYMEC_MACHINE}'.")
