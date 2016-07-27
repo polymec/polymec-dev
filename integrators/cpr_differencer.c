@@ -93,6 +93,9 @@ void cpr_differencer_free(cpr_differencer_t* diff)
 {
   if ((diff->F_dtor != NULL) && (diff->F_context != NULL))
     diff->F_dtor(diff->F_context);
+  for (int i = 0; i < diff->num_work_vectors; ++i)
+    polymec_free(diff->work[i]);
+  polymec_free(diff->work);
   adj_graph_coloring_free(diff->coloring);
   adj_graph_free(diff->sparsity);
   polymec_free(diff->Jv);

@@ -100,6 +100,7 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
   // Make a dense sparsity graph.
   adj_graph_t* sparsity = dense_adj_graph_new(MPI_COMM_SELF, 10, 0);
   adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
+  adj_graph_free(sparsity);
   // Note: block_sparsity is consumed by diff!
   cpr_differencer_t* diff = cpr_differencer_new(MPI_COMM_SELF,
                                                 &block_size,
