@@ -27,7 +27,7 @@ static void test_migrate_mesh_1_proc(void** state)
   memset(P, 0, sizeof(int64_t) * mesh->num_cells);
   migrator_t* m = migrate_mesh(&mesh, MPI_COMM_WORLD, P);
   assert_true(m != NULL);
-  migrator_free(m);
+  m = NULL;
 
   mesh_free(mesh);
 }
@@ -71,7 +71,7 @@ static void test_migrate_4x1x1_mesh_2_proc(void** state)
   int64_t P[2] = {other, other};
   migrator_t* m = migrate_mesh(&mesh, MPI_COMM_WORLD, P);
   assert_true(m != NULL);
-  migrator_free(m);
+  m = NULL;
 
   // Check the numbers.
   assert_int_equal(2, mesh->num_cells);
@@ -104,7 +104,7 @@ static void test_migrate_4x1x1_mesh_3_proc(void** state)
   P[mesh->num_cells-1] = right;
   migrator_t* m = migrate_mesh(&mesh, MPI_COMM_WORLD, P);
   assert_true(m != NULL);
-  migrator_free(m);
+  m = NULL;
 
   // Check the numbers.
   if (rank == 2)
@@ -145,7 +145,7 @@ static void test_migrate_4x1x1_mesh_4_proc(void** state)
   int64_t P[1] = {left};
   migrator_t* m = migrate_mesh(&mesh, MPI_COMM_WORLD, P);
   assert_true(m != NULL);
-  migrator_free(m);
+  m = NULL;
 
   // Check the numbers.
   assert_int_equal(1, mesh->num_cells);

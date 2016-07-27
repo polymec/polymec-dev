@@ -221,6 +221,9 @@ void parallel_sort(MPI_Comm comm,
       }
     }
   }
+  
+  // Clean up.
+  polymec_free(other);
 
   // Sort one last time.
   qsort(base, nel, width, comp);

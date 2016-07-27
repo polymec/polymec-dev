@@ -1017,6 +1017,7 @@ static void distribute_vector(krylov_factory_t* factory,
   krylov_vector_get_values(*x, num_local_rows, rows, values);
   krylov_vector_set_values(dist_x, num_local_rows, rows, values);
 
+  krylov_vector_free(*x);
   *x = dist_x;
 }
 

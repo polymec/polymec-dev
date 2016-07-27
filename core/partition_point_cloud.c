@@ -776,7 +776,7 @@ static int64_t* partition_vector_from_balanced_array(MPI_Comm comm,
 }
 
 // Fuse a set of subclouds into a single point cloud. Ghost points are not 
-// permitted.
+// permitted. Subclouds are consumed.
 static point_cloud_t* fuse_clouds(point_cloud_t** subclouds, int num_subclouds)
 {
   int num_points = 0;
@@ -792,6 +792,13 @@ static point_cloud_t* fuse_clouds(point_cloud_t** subclouds, int num_subclouds)
   {
     for (int j = 0; j < subclouds[i]->num_points; ++j, ++k)
       fused_cloud->points[k] = subclouds[i]->points[j];
+  }
+
+  // Consume the subclouds.
+  for (int i = 0; i < num_subclouds; ++i)
+  {
+    point_cloud_free(subclouds[i]);
+    subclouds[i] = NULL;
   }
 
   return fused_cloud;
@@ -974,6 +981,7 @@ migrator_t* repartition_point_cloud(point_cloud_t** cloud,
   point_cloud_migrate(cloud, migrator);
 
   // Clean up.
+  polymec_free(part_array);
   polymec_free(local_partition);
 
   // Return the migrator.

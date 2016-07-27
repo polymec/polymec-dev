@@ -95,7 +95,7 @@ static void test_repartition_linear_cloud(void** state,
     int ideal_load = (int)(1.0 * total_load / nprocs);
     assert_true(ABS(1.0 * (my_load - ideal_load))/ideal_load < imbalance_tol);
   }
-  migrator_free(m);
+  m = NULL;
 
   // Now check data. 
   if (!random_points) // Points should all fall on dx tick marks.

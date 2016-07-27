@@ -453,6 +453,7 @@ bool silo_file_query(const char* file_prefix,
         if (my_num_mpi_procs == -1)
           my_num_mpi_procs = subdomain_mesh->nblocks;
         ASSERT(my_num_mpi_procs == subdomain_mesh->nblocks);
+        DBFreeMultimesh(subdomain_mesh);
       }
       *num_mpi_processes = my_num_mpi_procs;
 

@@ -390,6 +390,7 @@ static void test_1d_laplace_eqn(void** state,
 
     // Put everything away.
     krylov_solver_free(solver);
+    matrix_sparsity_free(sparsity);
     krylov_matrix_free(A);
     krylov_vector_free(x);
     krylov_vector_free(b);
