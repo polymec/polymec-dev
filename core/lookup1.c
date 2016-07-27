@@ -138,6 +138,7 @@ lookup1_t* lookup1_new(real_t x_min, real_t x_max, int num_values,
 
 void lookup1_free(lookup1_t* table)
 {
+  polymec_free(table->fit_data);
   polymec_free(table->values);
   polymec_free(table);
 }

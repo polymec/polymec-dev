@@ -623,6 +623,9 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
     }
   }
 
+  // Clean up.
+  polymec_free(neighbor_procs);
+
   return ex;
 #else
   return ex;
