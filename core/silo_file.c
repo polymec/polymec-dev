@@ -1657,10 +1657,11 @@ static void silo_file_write_mesh_field(silo_file_t* file,
     DBPutUcdvar1(file->dbfile, field_component_names[0], mesh_name, field_data, num_elems, NULL, 0, SILO_FLOAT_TYPE, cent, optlist);
 
 #if POLYMEC_HAVE_MPI
-  // Add a subdomain entry for parallel environments.
-  if (file->nproc > 1)
-    silo_file_add_subdomain_field(file, mesh_name, field_component_names[0], DB_UCDVAR, optlist);
+    // Add a subdomain entry for parallel environments.
+    if (file->nproc > 1)
+      silo_file_add_subdomain_field(file, mesh_name, field_component_names[0], DB_UCDVAR, optlist);
 #endif
+    optlist_free(optlist);
   }
   else
   {
@@ -1674,10 +1675,11 @@ static void silo_file_write_mesh_field(silo_file_t* file,
       DBPutUcdvar1(file->dbfile, field_component_names[c], mesh_name, comp_data, num_elems, NULL, 0, SILO_FLOAT_TYPE, cent, optlist);
 
 #if POLYMEC_HAVE_MPI
-  // Add a subdomain entry for parallel environments.
-  if (file->nproc > 1)
-    silo_file_add_subdomain_field(file, mesh_name, field_component_names[c], DB_UCDVAR, optlist);
+      // Add a subdomain entry for parallel environments.
+      if (file->nproc > 1)
+        silo_file_add_subdomain_field(file, mesh_name, field_component_names[c], DB_UCDVAR, optlist);
 #endif
+      optlist_free(optlist);
     }
     polymec_free(comp_data);
   }
@@ -2139,12 +2141,12 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
   // Write the field.
   DBoptlist* optlist = optlist_from_metadata(field_metadata);
   DBPutPointvar1(file->dbfile, field_name, cloud_name, field_data, num_points, SILO_FLOAT_TYPE, NULL);
-  optlist_free(optlist);
 
 #if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
     silo_file_add_subdomain_field(file, cloud_name, field_name, DB_POINTVAR, optlist);
 #endif
+  optlist_free(optlist);
   STOP_FUNCTION_TIMER();
 }
 

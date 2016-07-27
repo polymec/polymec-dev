@@ -25,7 +25,7 @@ void test_partition_linear_mesh(void** state)
   // Partition it.
   migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
   migrator_verify(m, polymec_error);
-  migrator_free(m);
+  m = NULL;
 
   // Check the ghost cells.
   int rank, nprocs;
@@ -108,7 +108,7 @@ void test_partition_slab_mesh(void** state)
 
   // Partition it.
   migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
-  migrator_free(m);
+  m = NULL;
 
   // Check the geometry of the mesh.
   int cell_volumes_are_ok = 1;
@@ -166,7 +166,7 @@ void test_partition_box_mesh(void** state)
 
   // Partition it.
   migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
-  migrator_free(m);
+  m = NULL;
 
   // Check the geometry of the mesh.
   real_t dx = 1.0/nx;

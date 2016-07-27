@@ -1223,8 +1223,9 @@ void migrator_free(migrator_t* m)
 
 migrator_t* migrator_clone(migrator_t* m)
 {
-  migrator_t* clone = polymec_malloc(sizeof(migrator_t));
+  migrator_t* clone = GC_MALLOC(sizeof(migrator_t));
   clone->ex = exchanger_clone(m->ex);
+  GC_register_finalizer(m, migrator_destroy, m, NULL, NULL);
   return clone;
 }
 
@@ -1315,8 +1316,9 @@ migrator_t* migrator_from_global_partition(MPI_Comm comm,
     exchanger_set_receive(ex, 0, local_vertices, num_local_vertices, true);
   }
 
-  migrator_t* m = polymec_malloc(sizeof(migrator_t));
+  migrator_t* m = GC_MALLOC(sizeof(migrator_t));
   m->ex = ex;
+  GC_register_finalizer(m, migrator_destroy, m, NULL, NULL);
   STOP_FUNCTION_TIMER();
   return m;
 }
@@ -1375,8 +1377,9 @@ migrator_t* migrator_from_local_partition(MPI_Comm comm,
     }
   }
 
-  migrator_t* m = polymec_malloc(sizeof(migrator_t));
+  migrator_t* m = GC_MALLOC(sizeof(migrator_t));
   m->ex = ex;
+  GC_register_finalizer(m, migrator_destroy, m, NULL, NULL);
   STOP_FUNCTION_TIMER();
   return m;
 }
@@ -1501,8 +1504,9 @@ static size_t m_size(void* obj)
 
 static void* m_read(byte_array_t* bytes, size_t* offset)
 {
-  migrator_t* m = polymec_malloc(sizeof(migrator_t));
+  migrator_t* m = GC_MALLOC(sizeof(migrator_t));
   m->ex = ex_read(bytes, offset);
+  GC_register_finalizer(m, migrator_destroy, m, NULL, NULL);
   return m;
 }
 
