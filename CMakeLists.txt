@@ -219,7 +219,7 @@ if (LINUX)
     set(VALGRIND_FOUND 1) # regularize this value
     include_directories(${VALGRIND_INCLUDE_DIR})
     set(MEMORYCHECK_COMMAND ${VALGRIND_PROGRAM})
-    set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full")
+    set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --error-exitcode=1")
     set(MEMORYCHECK_SUPPRESSIONS_FILE "${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp")
   else()
     set(VALGRIND_FOUND 0)
