@@ -140,11 +140,13 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
                 if ((weld_i_p != NULL) && (weld_j_p == NULL))
                 {
                   int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplej, *weld_i_p, int_tuple_free);
+                  int_tuple_free(tuplei);
                   add_new_weld = true;
                 }
                 else if ((weld_i_p == NULL) && (weld_j_p != NULL))
                 {
                   int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplei, *weld_j_p, int_tuple_free);
+                  int_tuple_free(tuplej);
                   add_new_weld = true;
                 }
                 else if ((weld_i_p == NULL) && (weld_j_p == NULL))
@@ -152,6 +154,11 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
                   int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplei, num_node_welds, int_tuple_free);
                   int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplej, num_node_welds, int_tuple_free);
                   add_new_weld = true;
+                }
+                else
+                {
+                  int_tuple_free(tuplei);
+                  int_tuple_free(tuplej);
                 }
                 if (add_new_weld)
                   ++num_node_welds;
