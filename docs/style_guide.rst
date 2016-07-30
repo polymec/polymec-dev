@@ -205,7 +205,7 @@ Scoping operators
 -----------------
 
 If a function has a large number of localized variables that perform work, 
-curly braces should be used to create a local scopes containing these variables.
+curly braces should be used to create a local scope containing these variables.
 This eases the process of debugging functions by eliminating these variables 
 from portions of the function that don't use them.
 
@@ -267,7 +267,7 @@ to the struct representing an instance of that class. For example:
 ``void point_free(point_t* point);``
 
 The destructor must completely deallocate any resources allocated to the 
-argument object in its construction process.
+argument object in its construction and during its lifetime.
 
 Methods 
 -------
@@ -332,10 +332,10 @@ methods: input arguments come before output arguments.
 Length of a Function Body
 -------------------------
 
-There is no formal limit to the length of a Polymec function. If breaking up 
-a function into separate functions is practical, feel free to do so. However, 
-creating lots of ancillary structure just to break up a long function is 
-counterproductive. Use your judgement.
+There is no formal limit to the length of a Polymec function implementation. 
+If breaking up a function into separate functions is practical, feel free to 
+do so. However, creating lots of ancillary structure just to break up a long 
+function is counterproductive. Use your judgement.
 
 The function indeed may be poorly designed if it is difficult to break up. 
 On the other hand, if the function is performing a complicated task with lots 
@@ -373,12 +373,18 @@ the data cannot be assumed to be available after the object is deleted, and
 that the integrity of the data cannot be guaranteed after the transfer of 
 ownership.
 
-Polymec does not use smart pointers. If two or more objects need access to a 
-resource that is not clearly owned by one or the other, try to consider the 
-relationship between these objects and determine whether the resource should 
-be owned by one of these objects or by another "service" object. If the 
-resource is small and/or it can safely be destroyed in a non-deterministic 
-fashion after it has been used, consider managing it with garbage collection.
+Polymec does not use smart pointers. Smart pointers require special machinery 
+to achieve thread safety, and often do not perform well when the number of 
+threads in a process becomes significant. Moreover, the excessive use of 
+smart pointers can lead to complexities in the relationships of objects to 
+one another, making a system difficult to analyze.
+
+If two or more objects need access to a resource that is not clearly owned by 
+one or the other, try to consider the relationship between these objects and 
+determine whether the resource should be owned by one of these objects or by 
+another "service" object. If the resource is small and/or it can safely be 
+destroyed in a non-deterministic fashion after it has been used, consider 
+managing it with garbage collection.
 
 In any case, any functions/methods that perform ownership transfers should 
 describe the transfer in their documentation.
@@ -437,32 +443,34 @@ lower-case characters with words separated by underscores, ending in
 ``_t``. Abbreviations are allowed if their meaning is reasonably clear. For 
 example: ``mesh_t``, ``point_t``, ``ode_integrator_t``. ``adj_graph_t``.
 
-Function names should also use only lower-case letters with 
+Function and method names should also use only lower-case letters with 
 words separated by underscores. Unintelligible abbreviations should not be 
-used for struct, class, or function names. Examples are ``point_distance``, 
-``partition_mesh``, and ``polymec_timer_start``.
+used for struct, class, or function names. Examples of good function and 
+method names are ``point_distance``, ``partition_mesh``, and 
+``polymec_timer_start``.
 
 Similarly, a variable (local or global, including fields in structs and classes)
 should strive to use only lower-case letters with words separated by 
 underscores. Exceptions can be made if it makes code clearer. For example, 
 capital letters and/or abbreviations may help a variable representing a 
 quantity resemble a mathematical symbol whose role is clear from the context 
-in which it is used. Use your judgement. Examples of variables are ``adj_graph``, 
-``mesh``, ``model``, ``precond``, ``integ``, and ``xc``.
+in which it is used. Use your judgement. Examples of good variable names are 
+``adj_graph``, ``mesh``, ``model``, ``precond``, ``integ``, and ``xc``.
 
 Constants, fields within enumerated types, and preprocessor macros should use 
 all capital letters with words separated by underscores. If these appear in 
 header files, they should have descriptive names that are unique within the 
-library. Examples of constants are  ; examples of enumerated type fields are
-``MESH_NODE``, ``MESH_EDGE``, ``MESH_FACE``, and ``MESH_CELL``. Examples of 
-preprocessor macros are ``START_FUNCTION_TIMER``, ``DECLARE_2D_ARRAY``, and
-``DEFINE_UNORDERED_SET``.
+library. An example of a good name for a constant is ``REAL_EPSILON``. 
+Examples of enumerated type fields are ``MESH_NODE``, ``MESH_EDGE``, 
+``MESH_FACE``, and ``MESH_CELL``. Examples of preprocessor macros are 
+``START_FUNCTION_TIMER``, ``DECLARE_2D_ARRAY``, and ``DEFINE_UNORDERED_SET``.
 
 Comments
 ========
 
-Use C++ style comments (``//``). C-style comments (``/* */``) are clunkier 
-and harder for editors to parse correctly.
+Use C++ style comments (``//``), which have been supported in C since the 
+C99 standard. C-style comments (``/* */``) are clunkier and harder for 
+editors to parse correctly.
 
 Polymec does not use an inline documentation generator like Doxygen, so there 
 are no documentation markup tags. Class types, structs, and enumerated types 
@@ -473,8 +481,10 @@ A function should be commented with a brief description of the function, its
 preconditions, postconditions, and return values where applicable. The 
 comments should precede the function declaration in header files.
 
-Comments for a classes and/or a function need not appear in its source file 
-unless that class and/or function appears only in that source file.
+It is not necessary to repeat comments for a class/function in its 
+implementation file if its declaration hsa been documented. However, classes 
+and functions that appear only within an implementation file should be 
+documented for completeness.
 
 Formatting
 ==========
@@ -493,3 +503,6 @@ The following guidelines are offered for readably formatted code:
   at the end of a line containing other code.
 * If a line is excessively long (in other words, if it doesn't fit on a single 
   screen on a luxuriously large monitor), consider breaking it up.
+* C preprocessor directives are not indented at all.
+* For functions with several parameters, consider linebreaks after each 
+  parameter, and consider aligning the parameters to improve readability.
