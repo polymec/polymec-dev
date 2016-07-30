@@ -15,7 +15,7 @@
 void test_migrator_new(void** state)
 {
   migrator_t* m = migrator_new(MPI_COMM_WORLD);
-  migrator_free(m);
+  m = NULL;
 }
 
 void test_migrator_from_global_partition(void** state)
@@ -44,7 +44,7 @@ void test_migrator_from_global_partition(void** state)
   for (int i = 0; i < n; ++i)
     assert_true(ABS(data[i] - (100.0 * rank + 1.0 * i)) < 1e-12);
 
-  migrator_free(m);
+  m = NULL;
 }
 
 void test_migrator_from_local_partition_full_cycle(void** state)
@@ -81,7 +81,7 @@ void test_migrator_from_local_partition_full_cycle(void** state)
       assert_true(ABS(data[i] - 1.0 * (N * (nproc-1) + i)) < 1e-12);
   }
 
-  migrator_free(m);
+  m = NULL;
 }
 
 void test_migrator_from_local_partition_half_cycle(void** state)
@@ -109,7 +109,7 @@ void test_migrator_from_local_partition_half_cycle(void** state)
   migrator_transfer(m, data, &n, 1, 0, MPI_REAL_T);
   assert_int_equal(n, 100);
 
-  migrator_free(m);
+  m = NULL;
 }
 
 int main(int argc, char* argv[]) 

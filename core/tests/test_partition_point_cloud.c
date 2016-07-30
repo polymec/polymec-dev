@@ -32,7 +32,7 @@ void test_partition_linear_cloud(void** state, int N)
 
   // Partition it.
   migrator_t* m = partition_point_cloud(&cloud, comm, NULL, 0.05);
-  migrator_free(m);
+  m = NULL;
 
   // Now check data. Points should all fall on dx tick marks.
   for (int i = 0; i < cloud->num_points; ++i)
@@ -84,7 +84,7 @@ void test_partition_planar_cloud(void** state, int nx, int ny)
 
   // Partition it.
   migrator_t* m = partition_point_cloud(&cloud, comm, NULL, 0.05);
-  migrator_free(m);
+  m = NULL;
 
   // Plot it.
   double p[cloud->num_points];
@@ -124,7 +124,7 @@ void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
 
   // Partition it.
   migrator_t* m = partition_point_cloud(&cloud, comm, NULL, 0.05);
-  migrator_free(m);
+  m = NULL;
 
   // Plot it.
   double p[cloud->num_points];

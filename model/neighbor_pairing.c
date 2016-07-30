@@ -35,7 +35,7 @@ void neighbor_pairing_free(neighbor_pairing_t* pairing)
   polymec_free(pairing->pairs);
   if (pairing->weights != NULL)
     polymec_free(pairing->weights);
-  exchanger_free(pairing->ex);
+  pairing->ex = NULL;
   polymec_free(pairing);
 }
 
