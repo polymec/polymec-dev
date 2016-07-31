@@ -30,6 +30,10 @@
 extern LIS_INT lis_matrix_shift_diagonal(LIS_MATRIX A, LIS_SCALAR alpha);
 extern LIS_INT lis_matrix_set_destroyflag(LIS_MATRIX A, LIS_INT flag);
 
+// This one is not part of the LIS public API, but we hijack it in order to 
+// prevent memory leaks when we re-assemble a previously assembled matrix.
+extern void lis_commtable_destroy(LIS_COMMTABLE table);
+
 //------------------------------------------------------------------------
 // This file implements the LIS Krylov solver.
 //------------------------------------------------------------------------
@@ -130,6 +134,7 @@ static bool lis_solver_solve(void* context,
 static void lis_solver_dtor(void* context)
 {
   lis_solver_t* solver = context;
+  lis_solver_destroy(solver->solver);
   polymec_free(solver);
 }
 
@@ -259,6 +264,8 @@ static void matrix_assemble(void* context)
   ASSERT(status == LIS_SUCCESS);
 
   // Assemble the matrix.
+  if (mat->A->commtable)
+    lis_commtable_destroy(mat->A->commtable);
   lis_matrix_assemble(mat->A);
 }
 

@@ -79,9 +79,7 @@ mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
 
   mesh->face_edge_offsets = polymec_malloc(sizeof(int)*(num_faces+1));
   memset(mesh->face_edge_offsets, 0, sizeof(int)*(num_faces+1));
-  int face_edge_cap = round_to_pow2(4 * num_faces);
-  mesh->face_edges = polymec_malloc(sizeof(int)*(face_edge_cap));
-  memset(mesh->face_edges, 0, sizeof(int)*face_edge_cap);
+  mesh->face_edges = NULL;
 
   mesh->face_cells = polymec_malloc(sizeof(int)*2*num_faces);
   for (int f = 0; f < 2*mesh->num_faces; ++f)
@@ -108,7 +106,7 @@ mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
   mesh->storage = mesh_storage_new(mesh->comm);
   mesh->storage->cell_face_capacity = cell_face_cap;
   mesh->storage->face_node_capacity = face_node_cap;
-  mesh->storage->face_edge_capacity = face_edge_cap;
+  mesh->storage->face_edge_capacity = 0;
 
   // Allocate tagging mechanisms.
   mesh->cell_tags = tagger_new();
@@ -536,6 +534,13 @@ void mesh_construct_edges(mesh_t* mesh)
   ASSERT(mesh->num_edges == 0);
   ASSERT(mesh->edge_nodes == NULL);
 
+  // Allocate initial face->edge storage.
+  if (mesh->storage->face_edge_capacity == 0)
+  {
+    mesh->storage->face_edge_capacity = mesh->storage->face_node_capacity;
+    mesh->face_edges = polymec_malloc(sizeof(int) * mesh->storage->face_edge_capacity);
+  }
+
   // Construct edge information.
   int_table_t* edge_for_nodes = int_table_new();
   memcpy(mesh->face_edge_offsets, mesh->face_node_offsets, sizeof(int) * (mesh->num_faces + 1));
@@ -545,26 +550,26 @@ void mesh_construct_edges(mesh_t* mesh)
     {
       int offset = mesh->face_edge_offsets[f];
       int num_face_edges = mesh->face_edge_offsets[f+1] - offset;
-      for (int n = 0; n < num_face_edges; ++n)
+      for (int e = 0; e < num_face_edges; ++e)
       {
         // Make room.
-        if (mesh->storage->face_edge_capacity <= offset+n)
+        if (mesh->storage->face_edge_capacity <= offset+e)
         {
-          while (mesh->storage->face_edge_capacity <= offset+n)
+          while (mesh->storage->face_edge_capacity <= offset+e)
             mesh->storage->face_edge_capacity *= 2;
           mesh->face_edges = polymec_realloc(mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity);
         }
 
-        int n1 = (int)mesh->face_nodes[offset+n];
-        int n2 = (int)mesh->face_nodes[offset+(n+1)%num_face_edges];
+        int n1 = (int)mesh->face_nodes[offset+e];
+        int n2 = (int)mesh->face_nodes[offset+(e+1)%num_face_edges];
         if (!int_table_contains(edge_for_nodes, MIN(n1, n2), MAX(n1, n2)))
         {
           int_table_insert(edge_for_nodes, MIN(n1, n2), MAX(n1, n2), num_edges);
-          mesh->face_edges[offset+n] = num_edges;
+          mesh->face_edges[offset+e] = num_edges;
           ++num_edges;
         }
         else
-          mesh->face_edges[offset+n] = *int_table_get(edge_for_nodes, MIN(n1, n2), MAX(n1, n2));
+          mesh->face_edges[offset+e] = *int_table_get(edge_for_nodes, MIN(n1, n2), MAX(n1, n2));
       }
     }
     if (num_edges > 0)

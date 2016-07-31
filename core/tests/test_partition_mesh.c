@@ -67,8 +67,8 @@ void test_partition_linear_mesh(void** state)
       break; 
     }
   }
-  MPI_Allreduce(&cell_volumes_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&face_areas_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &face_areas_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
   assert_true(cell_volumes_are_ok);
   assert_true(face_areas_are_ok);
 
@@ -129,8 +129,8 @@ void test_partition_slab_mesh(void** state)
       break; 
     }
   }
-  MPI_Allreduce(&cell_volumes_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&face_areas_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &face_areas_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
   assert_true(cell_volumes_are_ok);
   assert_true(face_areas_are_ok);
 
@@ -188,8 +188,8 @@ void test_partition_box_mesh(void** state)
       break; 
     }
   }
-  MPI_Allreduce(&cell_volumes_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&face_areas_are_ok, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &face_areas_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
   assert_true(cell_volumes_are_ok);
   assert_true(face_areas_are_ok);
 

@@ -602,6 +602,7 @@ static void test_2d_laplace_eqn(void** state,
     krylov_vector_free(x);
     krylov_vector_free(b);
     krylov_factory_free(factory);
+    matrix_sparsity_free(sparsity);
   }
 }
 
