@@ -57,6 +57,7 @@ after_success:
 
 after_failure: 
   - cat build/*/Testing/Temporary/LastTest.log
+  - cat build/*/Testing/Temporary/MemoryChecker*.log
 
 after_script:
   - cat build/*/3rdparty/*error*.log
