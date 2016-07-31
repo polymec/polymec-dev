@@ -212,6 +212,10 @@ include_directories("${PROJECT_BINARY_DIR}/include")
 link_directories("${PROJECT_BINARY_DIR}/lib")
 include_directories(${POLYMEC_INCDIRS})
 
+# Unit testing.
+include(CTest)
+enable_testing()
+
 # Support for valgrind -- Linux only.
 if (LINUX)
   find_package(Valgrind)
@@ -219,8 +223,7 @@ if (LINUX)
     set(VALGRIND_FOUND 1) # regularize this value
     include_directories(${VALGRIND_INCLUDE_DIR})
     set(MEMORYCHECK_COMMAND ${VALGRIND_PROGRAM})
-    set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --error-exitcode=1 --trace-children=yes")
-    set(MEMORYCHECK_SUPPRESSIONS_FILE "${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp")
+    set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --error-exitcode=1 --trace-children=yes --suppressions=${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp")
   else()
     set(VALGRIND_FOUND 0)
   endif()
@@ -228,10 +231,6 @@ else()
   # Valgrind doesn't work on Macs.
   set(VALGRIND_FOUND 0)
 endif()
-
-# Unit testing.
-include(CTest)
-enable_testing()
 
 # Core libraries.
 include_directories("${PROJECT_SOURCE_DIR}")

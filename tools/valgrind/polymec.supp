@@ -117,6 +117,7 @@
 {
    lis_text2args_Cond
    Memcheck:Cond
+   ...
    fun:lis_text2args
    ...
 }
