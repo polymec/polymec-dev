@@ -2,6 +2,9 @@ include(add_polymec_library)
 add_polymec_library(polymec_model model.c boundary_cell_map.c periodic_bc.c 
                     point_weight_function.c stencil.c mesh_stencils.c 
                     neighbor_pairing.c polynomial_fit.c point_spacing_estimator.c
+                    partition_point_cloud_with_neighbors.c
+                    point_kernel.c point_function.c shepard_point_function.c
+                    mls_point_function.c
                     aux_state.c physical_constants.c interpreter.c
                     interpreter_register_default_functions.c 
                     interpreter_register_geometry_functions.c
