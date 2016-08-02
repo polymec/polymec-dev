@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "model/shepard_point_function.h"
+#include "model/shepard_point_basis.h"
 
 typedef struct
 {
@@ -111,7 +111,7 @@ static void shepard_dtor(void* context)
   polymec_free(shepard);
 }
 
-point_function_t* shepard_point_function_new(point_kernel_t* kernel,
+point_basis_t* shepard_point_basis_new(point_kernel_t* kernel,
                                              point_cloud_t* domain,
                                              stencil_t* neighborhoods,
                                              real_t* kernel_lengths)
@@ -133,11 +133,11 @@ point_function_t* shepard_point_function_new(point_kernel_t* kernel,
   stencil_exchange(shepard->neighborhoods, shepard->domain->points, 3, 0, MPI_REAL_T);
   stencil_exchange(shepard->neighborhoods, shepard->kernel_lengths, 1, 0, MPI_REAL_T);
 
-  point_function_vtable vtable = {.neighborhood_size = shepard_neighborhood_size,
+  point_basis_vtable vtable = {.neighborhood_size = shepard_neighborhood_size,
                                   .get_neighborhood_points = shepard_get_neighborhood_points,
                                   .set_neighborhood = shepard_set_neighborhood,
                                   .compute = shepard_compute,
                                   .dtor = shepard_dtor};
-  return point_function_new("Shepard", shepard, vtable);
+  return point_basis_new("Shepard", shepard, vtable);
 }
 

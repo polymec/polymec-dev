@@ -7,7 +7,7 @@
 
 #include "core/polynomial.h"
 #include "core/linear_algebra.h"
-#include "model/mls_point_function.h"
+#include "model/mls_point_basis.h"
 
 typedef struct
 {
@@ -227,7 +227,7 @@ static void mls_dtor(void* context)
   polymec_free(mls);
 }
 
-point_function_t* mls_point_function_new(int polynomial_degree,
+point_basis_t* mls_point_basis_new(int polynomial_degree,
                                          point_kernel_t* kernel,
                                          point_cloud_t* domain,
                                          stencil_t* neighborhoods,
@@ -265,13 +265,13 @@ point_function_t* mls_point_function_new(int polynomial_degree,
   stencil_exchange(mls->neighborhoods, mls->domain->points, 3, 0, MPI_REAL_T);
   stencil_exchange(mls->neighborhoods, mls->kernel_lengths, 1, 0, MPI_REAL_T);
 
-  point_function_vtable vtable = {.neighborhood_size = mls_neighborhood_size,
+  point_basis_vtable vtable = {.neighborhood_size = mls_neighborhood_size,
                                   .get_neighborhood_points = mls_get_neighborhood_points,
                                   .set_neighborhood = mls_set_neighborhood,
                                   .compute = mls_compute,
                                   .dtor = mls_dtor};
   char name[1024];
   snprintf(name, 1023, "MLS shape function (p = %d)", polynomial_degree);
-  return point_function_new(name, mls, vtable);
+  return point_basis_new(name, mls, vtable);
 }
 

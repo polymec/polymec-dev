@@ -5,14 +5,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef POLYMEC_POINT_FUNCTION_H
-#define POLYMEC_POINT_FUNCTION_H
+#ifndef POLYMEC_POINT_BASIS_H
+#define POLYMEC_POINT_BASIS_H
 
 #include "core/point.h"
 
-// This class represents a shape function defined on a set of points in a 
-// neighborhood within a point cloud.
-typedef struct point_function_t point_function_t;
+// This class represents a set of basis functions defined on a point cloud
+// within a neighborhood.
+typedef struct point_basis_t point_basis_t;
 
 // Here's a virtual table used to define the behavior of a point function.
 typedef struct
@@ -31,33 +31,33 @@ typedef struct
   void (*compute)(void* context, int i, point_t* x, real_t* values, vector_t* gradients);
   // This destructor destroys the context.
   void (*dtor)(void* context);
-} point_function_vtable;
+} point_basis_vtable;
 
 // Creates an instance of a shape function with the given name and 
 // characteristics. 
-point_function_t* point_function_new(const char* name, 
+point_basis_t* point_basis_new(const char* name, 
                                      void* context, 
-                                     point_function_vtable vtable);
+                                     point_basis_vtable vtable);
 
 // Destroys the shape function.
-void point_function_free(point_function_t* phi);
+void point_basis_free(point_basis_t* phi);
 
 // Sets the point within the domain in whose vicinity the shape function 
 // will be defined, using the stencil for that point to define the neighborhood.
-void point_function_set_neighborhood(point_function_t* phi, int point_index);
+void point_basis_set_neighborhood(point_basis_t* phi, int point_index);
 
 // Returns the number of points in the current neighborhood, or -1 if the 
-// neighborhood has not been set with point_function_set_neighborhood.
-int point_function_num_points(point_function_t* phi);
+// neighborhood has not been set with point_basis_set_neighborhood.
+int point_basis_num_points(point_basis_t* phi);
 
 // Fetchs the points in the current neighborhood, filling the points array
-// (of length point_function_num_points(phi)).
-void point_function_get_points(point_function_t* phi, point_t* points);
+// (of length point_basis_num_points(phi)).
+void point_basis_get_points(point_basis_t* phi, point_t* points);
 
 // Computes the values of the shape functions for the points in the current 
 // neighborhood, evaluating them at the point x, filling the array with 
 // values. If gradients is non-NULL, the gradients will also be computed.
-void point_function_compute(point_function_t* phi, 
+void point_basis_compute(point_basis_t* phi, 
                             point_t* x,
                             real_t* values,
                             vector_t* gradients);

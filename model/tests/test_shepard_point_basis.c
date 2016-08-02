@@ -12,7 +12,7 @@
 #include "cmocka.h"
 #include "core/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
-#include "model/shepard_point_function.h"
+#include "model/shepard_point_basis.h"
 
 // Helper function to construct lattices of points, stencils, h fields.
 static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,
@@ -42,7 +42,7 @@ static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,
     (*smoothing_lengths)[i] = 0.5 * R[i];
 }
 
-void test_shepard_point_function_ctor(void** state)
+void test_shepard_point_basis_ctor(void** state)
 {
   point_cloud_t* domain;
   stencil_t* neighborhoods;
@@ -50,20 +50,20 @@ void test_shepard_point_function_ctor(void** state)
   make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths);
 
   point_kernel_t* W = spline4_point_kernel_new(2.0);
-  point_function_t* phi = shepard_point_function_new(W, domain, neighborhoods, smoothing_lengths);
+  point_basis_t* phi = shepard_point_basis_new(W, domain, neighborhoods, smoothing_lengths);
 
   // Try setting the neighborhoods.
   for (int i = 0; i < domain->num_points; ++i)
-    point_function_set_neighborhood(phi, i);
+    point_basis_set_neighborhood(phi, i);
 
   // Clean up.
-  point_function_free(phi);
+  point_basis_free(phi);
   point_cloud_free(domain);
   stencil_free(neighborhoods);
   polymec_free(smoothing_lengths);
 }
 
-void test_shepard_point_function_consistency(void** state)
+void test_shepard_point_basis_consistency(void** state)
 {
   point_cloud_t* domain;
   stencil_t* neighborhoods;
@@ -71,7 +71,7 @@ void test_shepard_point_function_consistency(void** state)
   make_lattice(10, 10, 10, 1.0, &domain, &neighborhoods, &smoothing_lengths);
 
   point_kernel_t* W = spline4_point_kernel_new(2.0);
-  point_function_t* phi = shepard_point_function_new(W, domain, neighborhoods, smoothing_lengths);
+  point_basis_t* phi = shepard_point_basis_new(W, domain, neighborhoods, smoothing_lengths);
 
   // Set up a constant field.
   int num_ghosts = stencil_num_ghosts(neighborhoods);
@@ -88,7 +88,7 @@ void test_shepard_point_function_consistency(void** state)
                        .z1 = 0.5*dx, .z2 = 1.0-0.5*dx};
   for (int i = 0; i < domain->num_points; ++i)
   {
-    point_function_set_neighborhood(phi, i);
+    point_basis_set_neighborhood(phi, i);
     point_t x = domain->points[i];
     bbox_t jitterbox = {.x1 = MAX(domain_box.x1, x.x - 0.5*dx), 
                         .x2 = MIN(domain_box.x2, x.x + 0.5*dx), 
@@ -102,10 +102,10 @@ void test_shepard_point_function_consistency(void** state)
       x = domain->points[i];
       point_randomize(&x, rng, &jitterbox);
     }
-    int N = point_function_num_points(phi);
+    int N = point_basis_num_points(phi);
     real_t phi_val[N];
     vector_t phi_grad[N];
-    point_function_compute(phi, &x, phi_val, phi_grad);
+    point_basis_compute(phi, &x, phi_val, phi_grad);
 
     real_t val = 0.0; 
     vector_t grad = {.x = 0.0, .y = 0.0, .z = 0.0}; 
@@ -128,7 +128,7 @@ void test_shepard_point_function_consistency(void** state)
   }
 
   // Clean up.
-  point_function_free(phi);
+  point_basis_free(phi);
   point_cloud_free(domain);
   stencil_free(neighborhoods);
   polymec_free(smoothing_lengths);
@@ -139,8 +139,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_shepard_point_function_ctor),
-    cmocka_unit_test(test_shepard_point_function_consistency)
+    cmocka_unit_test(test_shepard_point_basis_ctor),
+    cmocka_unit_test(test_shepard_point_basis_consistency)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
