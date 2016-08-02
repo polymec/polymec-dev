@@ -11,7 +11,7 @@
 #include "core/point.h"
 
 // Here's a "kernel" that can be used to construct approximations of quantities
-// on point clouds. By "kernel" we mean a distribution function W(x, h) that 
+// on point clouds. By "kernel" we mean a distribution function W(x, y, h) that 
 // becomes a "delta function" as the value of the kernel length h approaches 
 // zero. Objects of this type are garbage-collected.
 typedef struct point_kernel_t point_kernel_t;
@@ -20,23 +20,30 @@ typedef struct point_kernel_t point_kernel_t;
 // the compute function, and a destructor.
 point_kernel_t* point_kernel_new(const char* name,
                                  void* context,
-                                 void (*compute)(void* context, point_t* points, real_t* extents, int num_points, point_t* x, real_t* values, vector_t* gradients),
+                                 void (*compute)(void* context, point_t* points, real_t* lengths, int num_points, point_t* x, real_t* values, vector_t* gradients),
                                  void (*dtor)(void* context));
 
-// Evaluates the kernels centered on the given points (with "extents"), 
-// computing their values and (if gradients != NULL) their gradients at the 
-// point x.
+// Evaluates the kernels centered on the given points (with the given 
+// "kernel lengths"), computing their values and (if gradients != NULL) their 
+// gradients at the point x.
 void point_kernel_compute(point_kernel_t* kernel, 
                           point_t* points,
-                          real_t* extents,
+                          real_t* lengths,
                           int num_points, 
                           point_t* x, 
                           real_t* values,
                           vector_t* gradients);
 
+// This is a simple cubic B-spline kernel of the form
+// W(x, y, h) = 1 + 6 * q**2 * (q-1), 0 <= q < 1/2,
+//            = 2 * (1-q)**3,         1/2 <= q < 1,
+//            = 0,                    q >= 1 
+// where q = ||x-y||/h. This kernel is commonly used in SPH.
+point_kernel_t* cubic_bspline_point_kernel_new();
+              
 // This is a simple fourth-order spline-based kernel of the form
-// W(x, x0, h) = 1 - 6*(eta/eta_max)**2 + 8*(eta/eta_max)**3 - 3*(eta/eta_max)**4 
-// for 0 <= eta <= eta_max, 0 for eta > eta_max. Here, eta = ||x-x0||/h.
-point_kernel_t* spline4_point_kernel_new(real_t eta_max);
+// W(x, y, h) = 1 - 6*(q/q_max)**2 + 8*(q/q_max)**3 - 3*(q/q_max)**4 
+// for 0 <= q <= q_max, 0 for q > q_max. Here, q = ||x-y||/h.
+point_kernel_t* spline4_point_kernel_new(real_t q_max);
               
 #endif
