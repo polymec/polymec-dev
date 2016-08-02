@@ -12,7 +12,7 @@
 
 // Here's a "kernel" that can be used to construct approximations of quantities
 // on point clouds. By "kernel" we mean a distribution function W(x, y, h) that 
-// becomes a "delta function" as the value of the kernel length h approaches 
+// becomes a "delta function" as the value of the "kernel size" h approaches 
 // zero. Objects of this type are garbage-collected.
 typedef struct point_kernel_t point_kernel_t;
 
@@ -20,15 +20,15 @@ typedef struct point_kernel_t point_kernel_t;
 // the compute function, and a destructor.
 point_kernel_t* point_kernel_new(const char* name,
                                  void* context,
-                                 void (*compute)(void* context, point_t* points, real_t* lengths, int num_points, point_t* x, real_t* values, vector_t* gradients),
+                                 void (*compute)(void* context, point_t* points, real_t* kernel_sizes, int num_points, point_t* x, real_t* values, vector_t* gradients),
                                  void (*dtor)(void* context));
 
 // Evaluates the kernels centered on the given points (with the given 
-// "kernel lengths"), computing their values and (if gradients != NULL) their 
+// "kernel sizes"), computing their values and (if gradients != NULL) their 
 // gradients at the point x.
 void point_kernel_compute(point_kernel_t* kernel, 
                           point_t* points,
-                          real_t* lengths,
+                          real_t* kernel_sizes,
                           int num_points, 
                           point_t* x, 
                           real_t* values,

@@ -12,7 +12,7 @@ struct point_kernel_t
 {
   char* name;
   void* context;
-  void (*compute)(void* context, point_t* points, real_t* lengths, int num_points, point_t* x, real_t* value, vector_t* gradient);
+  void (*compute)(void* context, point_t* points, real_t* kernel_sizes, int num_points, point_t* x, real_t* value, vector_t* gradient);
   void (*dtor)(void* context);
 };
 
@@ -26,7 +26,7 @@ static void point_kernel_free(void* ctx, void* dummy)
 
 point_kernel_t* point_kernel_new(const char* name,
                                  void* context,
-                                 void (*compute)(void* context, point_t* points, real_t* lengths, int num_points, point_t* x, real_t* values, vector_t* gradients),
+                                 void (*compute)(void* context, point_t* points, real_t* kernel_sizes, int num_points, point_t* x, real_t* values, vector_t* gradients),
                                  void (*dtor)(void* context))
 {
   point_kernel_t* kernel = GC_MALLOC(sizeof(point_kernel_t));
@@ -40,19 +40,19 @@ point_kernel_t* point_kernel_new(const char* name,
 
 void point_kernel_compute(point_kernel_t* kernel, 
                           point_t* points, 
-                          real_t* lengths, 
+                          real_t* kernel_sizes, 
                           int num_points, 
                           point_t* x, 
                           real_t* values,
                           vector_t* gradients)
 {
-  kernel->compute(kernel->context, points, lengths, num_points, x, 
+  kernel->compute(kernel->context, points, kernel_sizes, num_points, x, 
                   values, gradients);
 }
 
 static void cubic_bspline_compute(void* context, 
                                   point_t* points, 
-                                  real_t* lengths, 
+                                  real_t* kernel_sizes, 
                                   int num_points, 
                                   point_t* x, 
                                   real_t* values, 
@@ -61,7 +61,7 @@ static void cubic_bspline_compute(void* context,
   for (int i = 0; i < num_points; ++i)
   {
     point_t* xi = &points[i];
-    real_t h = lengths[i];
+    real_t h = kernel_sizes[i];
     real_t Di = point_distance(xi, x);
     real_t q = Di/h;
     if (q < 0.5)
@@ -100,7 +100,7 @@ point_kernel_t* cubic_bspline_point_kernel_new()
 
 static void spline4_compute(void* context, 
                             point_t* points, 
-                            real_t* lengths, 
+                            real_t* kernel_sizes, 
                             int num_points, 
                             point_t* x, 
                             real_t* values, 
@@ -110,7 +110,7 @@ static void spline4_compute(void* context,
   for (int i = 0; i < num_points; ++i)
   {
     point_t* xi = &points[i];
-    real_t h = lengths[i];
+    real_t h = kernel_sizes[i];
     real_t Di = point_distance(xi, x);
     real_t q = Di/h;
     real_t X = q/q_max;
