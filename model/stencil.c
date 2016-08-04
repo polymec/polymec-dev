@@ -73,71 +73,119 @@ void stencil_set_weights(stencil_t* stencil, real_t* weights)
   stencil->weights = weights;
 }
 
-void stencil_augment(stencil_t* stencil)
+#if 0
+stencil_t* augmented_stencil(stencil_t* stencil)
 {
-  // Gather the local neighbors of neighbors.
-  int_array_t* n_of_n[stencil->num_indices]; 
-  real_array_t* n_of_n_w[stencil->num_indices]; 
-  int_unordered_set_t* old_neighbors = int_unordered_set_new();
-  int max_index = stencil->num_indices - 1;
+  MPI_Comm comm = exchanger_comm(stencil->ex);
+  int rank, nproc;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &nproc);
+
+  // Gather the local neighbors of neighbors. 
+  // n_of_n[i]->data[3*j] == rank owning the jth neighbor of i.
+  // n_of_n[i]->data[3*j+1] == index of jth neighbor of i.
+  // n_of_n[i]->data[3*j+2] == weight associated with jth neighbor of i.
+  int N_local = stencil->num_indices;
+  real_array_t* n_of_n[N_local]; 
+  int_unordered_set_t* orig_neighbors = int_unordered_set_new();
+  int max_index = N_local - 1;
   int max_nn = 0;
-  for (int i = 0; i < stencil->num_indices; ++i)
+  for (int i = 0; i < N_local; ++i)
   {
-    n_of_n[i] = int_array_new();
-    n_of_n_w[i] = real_array_new();
+    n_of_n[i] = real_array_new();
 
     int posj = 0, j;
     real_t wj;
     while (stencil_next(stencil, i, &posj, &j, &wj))
     {
+      real_array_append(n_of_n[i], 1.0*rank);
       max_index = MAX(max_index, j);
-      int_array_append(n_of_n[i], j);
-      real_array_append(n_of_n_w[i], wj);
-      int_unordered_set_insert(old_neighbors, j);
+      real_array_append(n_of_n[i], 1.0*j);
+      real_array_append(n_of_n[i], wj);
+      int_unordered_set_insert(orig_neighbors, j);
       int posk = 0, k;
       real_t wk;
       while (stencil_next(stencil, i, &posk, &k, &wk))
       {
-        if (!int_unordered_set_contains(old_neighbors, k))
+        if (!int_unordered_set_contains(orig_neighbors, k))
         {
           max_index = MAX(max_index, k);
-          int_array_append(n_of_n[i], k);
-          real_array_append(n_of_n_w[i], wk);
-          int_unordered_set_insert(old_neighbors, k);
+          real_array_append(n_of_n[i], rank);
+          real_array_append(n_of_n[i], k);
+          real_array_append(n_of_n[i], wk);
+          int_unordered_set_insert(orig_neighbors, k);
         }
       }
     }
 
     max_nn = MAX(max_nn, n_of_n[i]->size);
-    int_unordered_set_clear(old_neighbors);
+    int_unordered_set_clear(orig_neighbors);
   }
 
-  // Exchange the number of neighbors for interior indices.
-  int nn[stencil->num_indices];
-  for (int i = 0; i < stencil->num_indices; ++i)
-    nn[i] = n_of_n[i]->size;
-  exchanger_exchange(stencil->ex, nn, 1, 0, MPI_INT);
+  // Exchange n_of_n.
+  serializer_t* s = int_array_serializer();
+  exchanger_serialized_exchange(stencil->ex, n_of_n, 0, s);
 
-  // Set up a new exchanger.
-  exchanger_t* ex = exchanger_new(exchanger_comm(stencil->ex));
+  // At this point, we can read off all of the neighbors of neighbors of 
+  // each of the indices, as well as the processes that own them.
+
+  // Create an offsets array by inspecting n_of_n, and create the 
+  // exchanger for the augmented stencil.
+  int* offsets = polymec_malloc(sizeof(int) * (N_local+1));
+  offsets[0] = N_local;
+  exchanger_t* ex = exchanger_new(comm);
   int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
   int_ptr_unordered_map_t* recv_map = int_ptr_unordered_map_new();
-
+  for (int i = 0; i < N_local; ++i)
   {
-    int pos = 0, proc, *indices, num_indices;
-    while (exchanger_next_send(stencil->ex, &pos, &proc, &indices, &num_indices))
+    for (int j = 0; j < n_of_n[i]->size; ++j)
     {
+      int proc = (int)n_of_n[i]->data[3*j];
+      if (proc != rank)
+      {
+        int k = (int)n_of_n[i]->data[3*j+1];
+        int* recv_p = int_ptr_unordered_map_get(recv_map, proc);
+        int_array_t* recv;
+        if (recv_p == NULL)
+        {
+          recv = int_array_new();
+          int_ptr_unordered_map_insert_with_v_dtor(recv_map, proc, recv);
+        }
+        else
+          recv = *recv_p;
+        int_array_append(recv, k);
+        ++(offsets[i+1]);
+      }
     }
+  }
+
+  // Construct the augmented stencil and its exchanger.
+  int* indices = polymec_malloc(sizeof(int) * offsets[nproc]);
+  for (int i = 0; i < N_local; ++i)
+  {
+    for (int j = 0; j < n_of_n[i]->size; ++j)
+    {
+      int proc = (int)n_of_n[i]->data[3*j];
+      if (proc != rank)
+      {
+        int k = (int)n_of_n[i]->data[3*j+1];
+        real_t w = n_of_n[i]->data[3*j+2];
+      }
+    }
+  }
+
+  // Handle weights if needed.
+  real_t* weights = NULL;
+  if (stencil->weights != NULL)
+  {
   }
 
   // Clean up.
   for (int i = 0; i < stencil->num_indices; ++i)
-  {
-    int_array_free(n_of_n[i]);
-    real_array_free(n_of_n_w[i]);
-  }
-  int_unordered_set_free(old_neighbors);
+    real_array_free(n_of_n[i]);
+  int_unordered_set_free(orig_neighbors);
 }
+#endif
 
 static inline void swap_indices(int* i, int* j)
 {

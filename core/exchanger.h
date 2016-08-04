@@ -32,6 +32,42 @@ exchanger_t* exchanger_clone(exchanger_t* ex);
 // Returns the MPI communicator on which this exchanger is defined.
 MPI_Comm exchanger_comm(exchanger_t* ex);
 
+// Exchanges data of the given type in the given array with other processors.
+void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type);
+
+// Begins an asynchronous data exchange. This returns a unique token that can 
+// be used to finish the exchange when passed to exchanger_finish_exchange().
+int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type);
+
+// Concludes the asynchronous exchange corresponding to the given token.
+// This fills the array given in exchanger_start_exchange with the data it expects.
+void exchanger_finish_exchange(exchanger_t* ex, int token);
+
+// Returns the maximum index to be sent by this exchanger.
+int exchanger_max_send(exchanger_t* ex);
+
+// Returns the maximum index to be received by this exchanger.
+int exchanger_max_receive(exchanger_t* ex);
+
+// Enables deadlock detection, setting the threshold to the given number of 
+// seconds. Deadlocks will be reported to the given rank on the given stream.
+void exchanger_enable_deadlock_detection(exchanger_t* ex, 
+                                         real_t threshold,
+                                         int output_rank,
+                                         FILE* stream);
+
+// Disables deadlock detection.
+void exchanger_disable_deadlock_detection(exchanger_t* ex);
+
+// Returns true if deadlock detection is enabled, false otherwise.
+bool exchanger_deadlock_detection_enabled(exchanger_t* ex);
+
+// This writes a string representation of the exchanger to the given file stream.
+void exchanger_fprintf(exchanger_t* ex, FILE* stream);
+
+// This creates a serializer object that can read and write exchangers to byte streams.
+serializer_t* exchanger_serializer();
+
 // Establishes a communication pattern in which this exchanger sends data at 
 // the given indices of an array to the given remote process. Note that 
 // remote_process must differ from the local rank on the exchanger's communicator.
@@ -103,42 +139,6 @@ bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, i
 // communication, so make sure it is called by all processes on the communicator 
 // for the exchanger.
 void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...));
-
-// Returns the maximum index to be sent by this exchanger.
-int exchanger_max_send(exchanger_t* ex);
-
-// Returns the maximum index to be received by this exchanger.
-int exchanger_max_receive(exchanger_t* ex);
-
-// Enables deadlock detection, setting the threshold to the given number of 
-// seconds. Deadlocks will be reported to the given rank on the given stream.
-void exchanger_enable_deadlock_detection(exchanger_t* ex, 
-                                         real_t threshold,
-                                         int outputRank,
-                                         FILE* stream);
-
-// Disables deadlock detection.
-void exchanger_disable_deadlock_detection(exchanger_t* ex);
-
-// Returns true if deadlock detection is enabled, false otherwise.
-bool exchanger_deadlock_detection_enabled(exchanger_t* ex);
-
-// Exchanges data of the given type in the given array with other processors.
-void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type);
-
-// Begins an asynchronous data exchange. This returns a unique token that can 
-// be used to finish the exchange when passed to exchanger_finish_exchange().
-int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type);
-
-// Concludes the asynchronous exchange corresponding to the given token.
-// This fills the array given in exchanger_start_exchange with the data it expects.
-void exchanger_finish_exchange(exchanger_t* ex, int token);
-
-// This writes a string representation of the exchanger to the given file stream.
-void exchanger_fprintf(exchanger_t* ex, FILE* stream);
-
-// This creates a serializer object that can read and write exchangers to byte streams.
-serializer_t* exchanger_serializer();
 
 //------------------------------------------------------------------------
 //                      Exchanging parallel metadata

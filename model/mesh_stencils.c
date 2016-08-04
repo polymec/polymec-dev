@@ -68,9 +68,9 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
   snprintf(name, 1024, "cell star stencil (R = %d)", radius);
   stencil_t* s = stencil_from_cells(name, stencil_cells, mesh->num_cells, mesh->num_ghost_cells, ex);
 
-  // Now augment it.
-  for (int r = 0; r < radius-1; ++r)
-    stencil_augment(s);
+//  // Now augment it.
+//  for (int r = 0; r < radius-1; ++r)
+//    stencil_augment(s);
 
   return s;
 }

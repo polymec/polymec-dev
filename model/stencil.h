@@ -56,9 +56,10 @@ stencil_t* stencil_clone(stencil_t* stencil);
 // Any existing weights are deleted, and the weights array is consumed.
 void stencil_set_weights(stencil_t* stencil, real_t* weights);
 
-// This operation "augments" the given stencil by associating the neighbors
-// of neighbors to each index.
-void stencil_augment(stencil_t* stencil);
+// This operation creates an "augmented" stencil for which the neighbors of 
+// i compromise the neighbors of neighbors of i in the given stencil.
+// FIXME: Not supported yet. Needs more sophisticate exchanger machinery.
+//stencil_t* augmented_stencil(stencil_t* stencil);
 
 // Given an array of sets of neighbors to remove from each index (of length 
 // stencil->num_indices), removes those neighbors from their indices within 
@@ -70,7 +71,7 @@ void stencil_trim(stencil_t* stencil, int_unordered_set_t** neighbors_to_trim);
 // given data. This method has the same signature as exchanger_exchange().
 void stencil_exchange(stencil_t* stencil, void* data, int stride, int tag, MPI_Datatype type);
 
-// Begins a synchronous exchange of the values for this stencil for the 
+// Begins an asynchronous exchange of the values for this stencil for the 
 // given data. This method has the same signature as exchanger_start_exchange().
 int stencil_start_exchange(stencil_t* stencil, void* data, int stride, int tag, MPI_Datatype type);
 

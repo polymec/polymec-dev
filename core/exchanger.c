@@ -527,7 +527,6 @@ bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, i
   }
 }
 
-
 void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
 {
 #if POLYMEC_HAVE_MPI
