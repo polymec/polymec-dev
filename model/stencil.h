@@ -128,14 +128,12 @@ static inline int stencil_num_ghosts(stencil_t* stencil)
   return stencil->num_ghosts;
 }
 
+// Returns an adjacency graph that represents the stencil. This graph "borrows" 
+// the stencil's data and consumes minimal resources.
+adj_graph_t* stencil_as_graph(stencil_t* stencil);
 
 // Returns a serializer object that can read/write stencils from/to byte arrays.
 serializer_t* stencil_serializer();
-
-// This function creates an adjacency graph for the given point cloud with 
-// the given stencil.
-adj_graph_t* graph_from_point_cloud_and_stencil(point_cloud_t* points, 
-                                                stencil_t* stencil);
 
 // This pre-fab function creates a stencil for points in a cloud that have 
 // neighbors within a radius given by R[i] for the ith point. num_ghost_points

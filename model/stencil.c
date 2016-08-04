@@ -302,37 +302,31 @@ static void stencil_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   ser = NULL;
 }
 
+adj_graph_t* stencil_as_graph(stencil_t* stencil)
+{
+  // Create a graph whose vertices are the cloud's points.
+  MPI_Comm comm = exchanger_comm(stencil->ex);
+  int rank, nproc;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+  int N_local = stencil_num_indices(stencil), num_verts[nproc];
+#if POLYMEC_HAVE_MPI
+  MPI_Allgather(&N_local, 1, MPI_INT, num_verts, 1, MPI_INT, comm);
+#else
+  num_verts[0] = N_local;
+#endif
+  index_t vtx_dist[nproc+1];
+  vtx_dist[0] = 0;
+  for (int p = 0; p < nproc; ++p)
+    vtx_dist[p+1] = vtx_dist[p] + num_verts[p];
+  return adj_graph_from_arrays(comm, vtx_dist, 
+                               stencil->indices, stencil->offsets,
+                               false);
+}
+
 serializer_t* stencil_serializer()
 {
   return serializer_new("stencil", stencil_byte_size, stencil_byte_read, stencil_byte_write, DTOR(stencil_free));
-}
-
-adj_graph_t* graph_from_point_cloud_and_stencil(point_cloud_t* points, 
-                                                stencil_t* stencil)
-{
-  ASSERT(stencil_num_indices(stencil) == points->num_points);
-
-  // Create a graph whose vertices are the cloud's points.
-  int rank, nproc;
-  MPI_Comm_size(points->comm, &nproc);
-  MPI_Comm_rank(points->comm, &rank);
-  adj_graph_t* g = adj_graph_new(points->comm, points->num_points);
-
-  // Allocate space in the graph for the edges (stencil size).
-  int num_points = points->num_points;
-  for (int i = 0; i < num_points; ++i)
-    adj_graph_set_num_edges(g, i, stencil_size(stencil, i));
-
-  // Now fill in the edges.
-  for (int i = 0; i < num_points; ++i)
-  {
-    int* edges = adj_graph_edges(g, i);
-    int offset = 0, pos = 0, j;
-    while (stencil_next(stencil, i, &pos, &j, NULL))
-      edges[offset++] = j;
-  }
-
-  return g;
 }
 
 stencil_t* distance_based_point_stencil_new(point_cloud_t* points,

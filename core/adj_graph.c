@@ -29,6 +29,10 @@ struct adj_graph_t
 
   // The maximum vertex index referred to within the graph.
   int max_vertex_index;
+
+  // Flag set to true if arrays are to be managed by the graph,
+  // false if they are borrowed.
+  bool manages_arrays;
 };
 
 adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices)
@@ -74,6 +78,7 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
   memset(graph->xadj, 0, sizeof(int) * (num_local_vertices + 1));
 
   graph->max_vertex_index = -1;
+  graph->manages_arrays = true;
 
   return graph;
 }
@@ -271,6 +276,27 @@ adj_graph_t* dense_adj_graph_new(MPI_Comm comm,
   return graph;
 }
 
+adj_graph_t* adj_graph_from_arrays(MPI_Comm comm,
+                                   index_t* vtx_dist,
+                                   int* adjacency,
+                                   int* offsets,
+                                   bool assume_ownership)
+{
+  adj_graph_t* g = polymec_malloc(sizeof(adj_graph_t));
+  g->comm = comm;
+  MPI_Comm_rank(g->comm, &g->rank);
+  MPI_Comm_size(g->comm, &g->nproc);
+  g->adjacency = adjacency;
+  g->xadj = offsets;
+  g->vtx_dist = polymec_malloc(sizeof(index_t) * (g->nproc+1));
+  memcpy(g->vtx_dist, vtx_dist, sizeof(index_t) * (g->nproc+1));
+  g->manages_arrays = assume_ownership;
+  index_t N = vtx_dist[g->rank+1] - vtx_dist[g->rank];
+  g->edge_cap = offsets[N];
+  g->max_vertex_index = -1;
+  return g;
+}
+
 adj_graph_t* adj_graph_clone(adj_graph_t* graph)
 {
   adj_graph_t* g = polymec_malloc(sizeof(adj_graph_t));
@@ -286,15 +312,19 @@ adj_graph_t* adj_graph_clone(adj_graph_t* graph)
   g->xadj = polymec_malloc(sizeof(int) * (num_local_vertices + 1));
   memcpy(g->xadj, graph->xadj, sizeof(int) * (num_local_vertices + 1));
   g->max_vertex_index = graph->max_vertex_index;
+  g->manages_arrays = graph->manages_arrays;
   return g;
 }
 
 void adj_graph_free(adj_graph_t* graph)
 {
-  if (graph->adjacency != NULL)
-    polymec_free(graph->adjacency);
-  if (graph->xadj != NULL)
-    polymec_free(graph->xadj);
+  if (graph->manages_arrays)
+  {
+    if (graph->adjacency != NULL)
+      polymec_free(graph->adjacency);
+    if (graph->xadj != NULL)
+      polymec_free(graph->xadj);
+  }
   if (graph->vtx_dist != NULL)
     polymec_free(graph->vtx_dist);
   polymec_free(graph);
@@ -472,6 +502,11 @@ bool adj_graph_sort(adj_graph_t* graph, int* sorted_vertices)
   ASSERT((topo_index == -1) || !sorted);
   STOP_FUNCTION_TIMER();
   return sorted;
+}
+
+void adj_graph_manage_arrays(adj_graph_t* graph, bool flag)
+{
+  graph->manages_arrays = flag;
 }
 
 void adj_graph_fprintf(adj_graph_t* graph, FILE* stream)

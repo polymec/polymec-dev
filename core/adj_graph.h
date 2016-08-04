@@ -48,6 +48,17 @@ adj_graph_t* dense_adj_graph_new(MPI_Comm comm,
                                  int num_local_vertices,
                                  int num_remote_vertices);
 
+// Creates an adjacency graph using the information contained in the given 
+// adjacency and offset arrays. If assume_ownership is set to true, adjacency 
+// and offset will be managed and destroyed by the graph returned by this 
+// function; otherwise, these arrays are considered as "borrowed" from 
+// elsewhere and will not be freed when the graph is destroyed.
+adj_graph_t* adj_graph_from_arrays(MPI_Comm comm,
+                                   index_t* vtx_dist,
+                                   int* adjacency,
+                                   int* offsets,
+                                   bool assume_ownership);
+
 // Creates and returns a copy of the the given graph.
 adj_graph_t* adj_graph_clone(adj_graph_t* graph);
 
@@ -115,6 +126,15 @@ index_t* adj_graph_vertex_dist(adj_graph_t* graph);
 // true if the graph was sorted successfully (i.e. if there were no cycles) 
 // and false otherwise.
 bool adj_graph_sort(adj_graph_t* graph, int* sorted_vertices);
+
+// This function sets a flag that controls whether the graph manages its own 
+// memory (in terms of its adacency index and offset arrays). Graphs are 
+// usually constructed in a manner such that they control these resources, and 
+// free them at the end of their lifetime. This function allows more precise 
+// control to be exercised by a caller who "knows better." Use caution when 
+// calling this function, as it can cause memory leaks or crashes when used 
+// improperly.
+void adj_graph_manage_arrays(adj_graph_t* graph, bool flag);
 
 // Prints a textual representation of the graph to the given file.
 void adj_graph_fprintf(adj_graph_t* graph, FILE* stream);
