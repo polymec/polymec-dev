@@ -1,3 +1,19 @@
+Thu Aug  4 15:53:04 PDT 2016  Jeffrey Johnson <jjphatt@gmail.com>
+    * polymec: version 1.2
+    * Fixed a minor problem in HDF5 library location with polyglot.
+    * Fixed ordering of the HDF5 libraries.
+    * Disallowing serial builds on Edison/Cori, fixing some HDF5 settings.
+    * Exchangers/migrators are now garbage collected. Their destructor 
+      functions are now deprecated.
+    * Set up a more formal mechanism for supporting builds on specific 
+      machines. Machine files are stored in a polymec-machines repo.
+    * Adding Valgrind support for Travis CI via 'make memcheck'.
+    * Adding support for testing on batch systems via ctest.
+    * Machine files are now updated if they are already present.
+    * Fixed all outstanding issues reported by Valgrind.
+    * Added simple mesh-free kernels and functions back into Polymec.
+    * Removed halo stencil for unstructured grids.
+
 Fri Jun 24 21:25:33 2016  Jeffrey Johnson <jjphatt@gmail.com>
     * polymec: version 1.1
     * The implementation of the distance_based_neighbor_pairing_new function,
