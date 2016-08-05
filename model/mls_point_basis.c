@@ -101,6 +101,9 @@ static void mls_compute(void* context,
     }
   }
 
+  // Suspend floating point exceptions.
+  polymec_suspend_fpe();
+
   // Factor the moment matrix.
   char uplo = 'L';
   int info;
@@ -212,6 +215,9 @@ static void mls_compute(void* context,
       gradients[i].z = dpdz_AinvB[i] + p_dAinvBdz[i];
     }
   }
+
+  // Restore floating point exceptions.
+  polymec_restore_fpe();
 }
 
 static void mls_dtor(void* context)
