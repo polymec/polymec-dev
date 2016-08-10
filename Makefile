@@ -7,6 +7,7 @@ shared     = not-set
 precision  = not-set
 verbose    = not-set
 prefix     = not-set
+coverage   = not-set
 sanitize   = not-set
 CC         = not-set
 CXX        = not-set
@@ -88,10 +89,16 @@ else
   ifeq ($(debug), 0)
     BUILDDIR := ${BUILDDIR}-Release
     CONFIG_FLAGS += -DCMAKE_BUILD_TYPE=Release
-  else
+  else 
     BUILDDIR := ${BUILDDIR}-Debug
     CONFIG_FLAGS += -DCMAKE_BUILD_TYPE=Debug
   endif
+endif
+
+# Code coverage testing.
+ifeq ($(coverage), 1)
+  BUILDDIR := ${BUILDDIR}-Coverage
+  CONFIG_FLAGS += -DTEST_COVERAGE=1
 endif
 
 # Installation prefix.
