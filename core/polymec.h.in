@@ -16,7 +16,7 @@
 
 // We require the availability of variable-length arrays, which where 
 // mandatory in C99 but are optional in C11.
-#if !defined __STDC_NO_VLA__ && __STDC_NO_VLA__ == 1
+#if defined __STDC_NO_VLA__ && __STDC_NO_VLA__ == 1
 #error "Polymec requires the availability of variable-length arrays (VLA), which this compiler does not support."
 #endif
 
@@ -192,18 +192,18 @@ void polymec_set_error_handler(polymec_error_handler_function handler);
 void polymec_warn(const char* message, ...);
 
 // This function enables floating point exceptions where available.
-void polymec_enable_fpe();
+void polymec_enable_fpe(void);
 
 // This function disables floating point exceptions.
-void polymec_disable_fpe();
+void polymec_disable_fpe(void);
 
 // This function suspends all currently-enabled floating point exceptions. 
 // They can be restored later with polymec_restore_fpe.
-void polymec_suspend_fpe();
+void polymec_suspend_fpe(void);
 
 // This function restores the exceptions that were suspended by a prior call 
 // to polymec_suspend_fpe.
-void polymec_restore_fpe();
+void polymec_restore_fpe(void);
 
 // Call this function to indicate that something is not implemented
 // with a fatal exit.
@@ -229,7 +229,7 @@ void polymec_init(int argc, char** argv);
 // Registers a function to be called upon exit.
 // Use this function sparingly: currently only 32 functions may be registered 
 // in this fashion.
-void polymec_atexit(void (*func)());
+void polymec_atexit(void (*func)(void));
 
 // This function writes version information to the given file descriptor.
 void polymec_version_fprintf(const char* exe_name, FILE* stream);
@@ -240,15 +240,15 @@ void polymec_provenance_fprintf(FILE* stream);
 // Returns an internal string containing the actual name of the executable 
 // polymec application. This string contains just the name of the executable, 
 // without any path information.
-const char* polymec_executable_name();
+const char* polymec_executable_name(void);
 
 // Returns an internal string containing the command that invoked the 
 // present instance of a polymec application.
-const char* polymec_invocation();
+const char* polymec_invocation(void);
 
 // Returns the time at which the present instance of a polymec application 
 // was invoked.
-time_t polymec_invocation_time();
+time_t polymec_invocation_time(void);
 
 // Call this function with a string to append additional information for 
 // provenance.
@@ -256,11 +256,11 @@ void polymec_append_provenance_data(const char* provenance_data);
 
 // This function returns the number of cores on the system, or 1 if it cannot
 // be determined.
-int polymec_num_cores();
+int polymec_num_cores(void);
 
 // This function returns true if polymec is running in a valgrind process,
 // false if not.
-bool polymec_running_in_valgrind();
+bool polymec_running_in_valgrind(void);
 
 // Use this macro to indicate that something hasn't been implemented.
 #define POLYMEC_NOT_IMPLEMENTED polymec_error("%s:\n  line %d: Function %s is not implemented!", __FILE__, __LINE__, __func__);

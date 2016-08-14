@@ -40,13 +40,13 @@ typedef struct
 } polymec_allocator_vtable;
 
 // Returns an allocator that uses the standard C malloc/free functions.
-polymec_allocator_t* std_allocator_new();
+polymec_allocator_t* std_allocator_new(void);
 
 // Returns an arena allocator.
-polymec_allocator_t* arena_allocator_new();
+polymec_allocator_t* arena_allocator_new(void);
 
 // Returns a pool allocator.
-polymec_allocator_t* pool_allocator_new();
+polymec_allocator_t* pool_allocator_new(void);
 
 // Destroys the given allocator.
 void polymec_allocator_free(polymec_allocator_t* alloc);
@@ -81,6 +81,6 @@ void push_allocator(polymec_allocator_t* allocator);
 
 // Pops an allocator off of the stack, returning it and using the next one to 
 // allocate all memory with polymec_malloc(). 
-polymec_allocator_t* pop_allocator();
+polymec_allocator_t* pop_allocator(void);
 
 #endif

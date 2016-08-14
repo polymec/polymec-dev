@@ -471,7 +471,7 @@ static void tagger_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   pos = 0;
   while (tagger_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
   {
-    int tag_name_len = strlen(tag_name);
+    int tag_name_len = (int)strlen(tag_name);
     byte_array_write_ints(bytes, 1, &tag_name_len, offset);
     byte_array_write_chars(bytes, tag_name_len, tag_name, offset);
     byte_array_write_ints(bytes, 1, &tag_size, offset);
@@ -495,13 +495,13 @@ static void tagger_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
       if (ser != NULL)
       {
         // Property name.
-        int pname_len = strlen(prop_name);
+        int pname_len = (int)strlen(prop_name);
         byte_array_write_ints(bytes, 1, &pname_len, offset);
         byte_array_write_chars(bytes, pname_len, prop_name, offset);
 
         // Serializer name.
         const char* sname = serializer_name(ser);
-        int sname_len = strlen(sname);
+        int sname_len = (int)strlen(sname);
         byte_array_write_ints(bytes, 1, &sname_len, offset);
         byte_array_write_chars(bytes, sname_len, (char*)sname, offset);
 

@@ -17,9 +17,9 @@ struct polymec_allocator_t
   polymec_allocator_vtable vtable;
 };
 
-polymec_allocator_t* polymec_allocator_new(const char* name,
-                                           void* context,
-                                           polymec_allocator_vtable vtable)
+static polymec_allocator_t* polymec_allocator_new(const char* name,
+                                                  void* context,
+                                                  polymec_allocator_vtable vtable)
 {
   ASSERT(vtable.malloc != NULL);
   ASSERT(vtable.realloc != NULL);

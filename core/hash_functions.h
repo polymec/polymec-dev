@@ -60,7 +60,7 @@ static inline int index_pair_hash(index_t* i)
 
 static inline int string_hash(char* str)
 {
-  return djb2_xor_hash((unsigned char*)str, strlen(str));
+  return djb2_xor_hash((unsigned char*)str, (int)strlen(str));
 }
 
 static inline int pointer_hash(void* p)

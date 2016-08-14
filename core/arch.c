@@ -25,7 +25,7 @@ static int fmem_read(void* context, char* buf, int size)
   size_t available = mem->size - mem->pos;
   
   if (size > available) 
-    size = available;
+    size = (int)available;
 
   memcpy(buf, mem->buffer + mem->pos, sizeof(char) * size);
   mem->pos += size;
@@ -39,7 +39,7 @@ static int fmem_write(void* context, const char* buf, int size)
   size_t available = mem->size - mem->pos;
 
   if (size > available) 
-    size = available;
+    size = (int)available;
 
   memcpy(mem->buffer + mem->pos, buf, sizeof(char)*size);
   mem->pos += size;

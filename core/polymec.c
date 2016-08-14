@@ -66,17 +66,17 @@ static int world_nprocs = 1;
 extern void exactinit();
 
 // Command line arguments (used for provenance information).
-int polymec_argc = 0;
-char** polymec_argv = NULL;
-char polymec_exe_name[FILENAME_MAX+1];
+static int polymec_argc = 0;
+static char** polymec_argv = NULL;
+static char polymec_exe_name[FILENAME_MAX+1];
 
 // Invocation string, time, directory.
-char* polymec_invoc_str = NULL;
-time_t polymec_invoc_time = 0;
-char* polymec_invoc_dir = NULL;
+static char* polymec_invoc_str = NULL;
+static time_t polymec_invoc_time = 0;
+static char* polymec_invoc_dir = NULL;
 
 // Extra provenance information.
-string_array_t* polymec_extra_provenance = NULL;
+static string_array_t* polymec_extra_provenance = NULL;
 
 // Error handler.
 static polymec_error_handler_function error_handler = NULL;
@@ -160,7 +160,7 @@ static void handle_sigint(int signal)
 
 #if POLYMEC_HAVE_MPI
 // This MPI error handler can be used to intercept MPI errors.
-static void mpi_fatal_error_handler(MPI_Comm* comm, int* error_code, ...)
+static noreturn void mpi_fatal_error_handler(MPI_Comm* comm, int* error_code, ...)
 {
   int len;
   char error_string[1024];
@@ -171,7 +171,7 @@ static void mpi_fatal_error_handler(MPI_Comm* comm, int* error_code, ...)
 #endif
 
 // This Silo error handler intercepts I/O-related errors.
-static void handle_silo_error(char* message)
+static noreturn void handle_silo_error(char* message)
 {
   polymec_error("%s: %s", DBErrFuncname(), message);
 }
@@ -242,7 +242,7 @@ static void set_up_logging()
     else if (string_is_integer(logging_mode))
     {
       char* ptr;
-      int p = strtol(logging_mode, &ptr, 10);
+      int p = (int)strtol(logging_mode, &ptr, 10);
       if ((p < 0) || (p >= world_nprocs))
         polymec_error("polymec_init: invalid logging rank: %d", p);
       log_debug("polymec_init: logging MPI rank %d.", p);
@@ -473,7 +473,7 @@ static noreturn void default_error_handler(const char* message)
 
 #if POLYMEC_HAVE_MPI
 // Here are the error handlers for the Scotch partitioning library.
-void SCOTCH_errorPrint(const char* const errstr, ...)
+static noreturn void SCOTCH_errorPrint(const char* const errstr, ...)
 {
   va_list argp;
   va_start(argp, errstr);
@@ -481,7 +481,7 @@ void SCOTCH_errorPrint(const char* const errstr, ...)
   va_end(argp);
 }
 
-void SCOTCH_errorPrintW(const char* const errstr, ...)
+static void SCOTCH_errorPrintW(const char* const errstr, ...)
 {
   va_list argp;
   va_start(argp, errstr);
@@ -501,7 +501,7 @@ void polymec_abort(const char* message, ...)
 
   // Abort.
   fprintf(stderr, "%d: %s\n", world_rank, err);
-#if USE_MPI
+#if POLYMEC_HAVE_MPI
   MPI_Abort(MPI_COMM_WORLD, -1); 
 #else
   abort(); 
@@ -544,7 +544,7 @@ void polymec_warn(const char* message, ...)
   va_end(argp);
 }
 
-static void handle_fpe_signal(int signal)
+static noreturn void handle_fpe_signal(int signal)
 {
   polymec_error("%d: Detected a floating point exception signal.", world_rank);
 }
@@ -635,7 +635,7 @@ void polymec_provenance_fprintf(FILE* stream)
     for (int i = 0; i < polymec_extra_provenance->size; ++i)
     {
       char* str = polymec_extra_provenance->data[i];
-      int len = strlen(str);
+      size_t len = strlen(str);
       if (str[len-1] == '\n')
         fprintf(stream, "%s", str);
       else
@@ -691,9 +691,9 @@ void polymec_provenance_fprintf(FILE* stream)
     {
       char buff[1024];
       fseek(fp, 0L, SEEK_END);
-      int end = ftell(fp);
+      long end = ftell(fp);
       rewind(fp);
-      static const int input_len_limit = 10 * 1024 * 1024; // 10kb input limit.
+      static const long input_len_limit = 10 * 1024 * 1024; // 10kb input limit.
       bool truncated = false;
       if (input_len_limit < end)
       {
@@ -705,7 +705,7 @@ void polymec_provenance_fprintf(FILE* stream)
       int offset = 0;
       while (offset < end)
       {
-        int bytes_read = fread(buff, 1, MIN(1000, end-offset), fp);
+        size_t bytes_read = fread(buff, 1, MIN(1000, end-offset), fp);
         if (bytes_read < 1000)
           buff[bytes_read] = '\0';
         fprintf(stream, "%s", buff);
@@ -750,11 +750,7 @@ void polymec_append_provenance_data(const char* provenance_data)
 
 int polymec_num_cores()
 {
-#ifdef LINUX
-  return sysconf(_SC_NPROCESSORS_ONLN);
-#elif defined APPLE
-  return sysconf(_SC_NPROCESSORS_ONLN);
-#endif
+  return (int)sysconf(_SC_NPROCESSORS_ONLN);
 }
 
 bool polymec_running_in_valgrind()
