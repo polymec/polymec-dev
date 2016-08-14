@@ -25,10 +25,10 @@
 // x* x_array_find(x_array_t* array, x value, cmp_func comparator) - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
 // void x_array_append(x_array_t* array, x value) - Appends an x to the end of the array.
 // void x_array_append_with_dtor(x_array_t* array, x value, destructor dtor) - Appends an x to the end of the array, using dtor to destroy when finished.
-// void x_array_insert(x_array_t* array, int i, x value) - Inserts an x at position i within the array, resizing as necessary.
-// void x_array_insert_with_dtor(x_array_t* array, int i, x value, destructor dtor) - Inserts an x at position i within the array, using dtor to destroy when finished.
-// void x_array_assign(x_array_t* array, int i, x value) - Assigns an x to position i within the array.
-// void x_array_assign_with_dtor(x_array_t* array, int i, x value, destructor dtor) - Assigns an x to position i within the array, using dtor to destroy when finished.
+// void x_array_insert(x_array_t* array, size_t i, x value) - Inserts an x at position i within the array, resizing as necessary.
+// void x_array_insert_with_dtor(x_array_t* array, size_t i, x value, destructor dtor) - Inserts an x at position i within the array, using dtor to destroy when finished.
+// void x_array_assign(x_array_t* array, size_t i, x value) - Assigns an x to position i within the array.
+// void x_array_assign_with_dtor(x_array_t* array, size_t i, x value, destructor dtor) - Assigns an x to position i within the array, using dtor to destroy when finished.
 // bool x_array_empty(x_array_t* array) - Returns true if empty, false otherwise.
 // void x_array_clear(x_array_t* array) - Clears the given array, making it empty.
 // void x_array_resize(x_array_t* array, int new_size) - Resizes the array, keeping data intact if possible.
@@ -97,7 +97,7 @@ static inline void array_name##_resize(array_name##_t* array, size_t new_size) \
   { \
     if (array->dtors != NULL) \
     { \
-      for (int i = new_size; i < array->size; ++i) \
+      for (size_t i = new_size; i < array->size; ++i) \
       { \
         if (array->dtors[i] != NULL) \
         { \
@@ -132,7 +132,7 @@ static inline bool array_name##_empty(array_name##_t* array) \
 \
 static inline element* array_name##_find(array_name##_t* array, element value, array_name##_comparator comparator) \
 { \
-  for (int i = 0; i < array->size; ++i) \
+  for (size_t i = 0; i < array->size; ++i) \
   { \
     if (comparator(value, array->data[i]) == 0) \
       return &array->data[i]; \
@@ -164,7 +164,7 @@ static inline void array_name##_append(array_name##_t* array, element value) \
   array_name##_append_with_dtor(array, value, NULL); \
 } \
 \
-static inline void array_name##_insert_with_dtor(array_name##_t* array, int i, element value, array_name##_dtor dtor) \
+static inline void array_name##_insert_with_dtor(array_name##_t* array, size_t i, element value, array_name##_dtor dtor) \
 { \
   ASSERT(i <= array->size); \
   array_name##_resize(array, array->size + 1); \
@@ -187,12 +187,12 @@ static inline void array_name##_insert_with_dtor(array_name##_t* array, int i, e
   } \
 } \
 \
-static inline void array_name##_insert(array_name##_t* array, int i, element value) \
+static inline void array_name##_insert(array_name##_t* array, size_t i, element value) \
 { \
   array_name##_insert_with_dtor(array, i, value, NULL); \
 } \
 \
-static inline void array_name##_assign_with_dtor(array_name##_t* array, int i, element value, array_name##_dtor dtor) \
+static inline void array_name##_assign_with_dtor(array_name##_t* array, size_t i, element value, array_name##_dtor dtor) \
 { \
   ASSERT(i < array->size); \
   if (array->dtors[i] != NULL) \
@@ -201,7 +201,7 @@ static inline void array_name##_assign_with_dtor(array_name##_t* array, int i, e
   array->dtors[i] = dtor; \
 } \
 \
-static inline void array_name##_assign(array_name##_t* array, int i, element value) \
+static inline void array_name##_assign(array_name##_t* array, size_t i, element value) \
 { \
   array_name##_assign_with_dtor(array, i, value, NULL); \
 } \

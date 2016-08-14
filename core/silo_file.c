@@ -634,7 +634,7 @@ static void write_subdomains_to_file(silo_file_t* file)
   DBoptlist* optlist = DBMakeOptlist(2);
   if (file->cycle >= 0)
     DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
-  if (file->time != -FLT_MAX)
+  if (file->time != -REAL_MAX)
   {
     double t = (double)file->time;
     DBAddOption(optlist, DBOPT_DTIME, &t);
@@ -720,7 +720,7 @@ static void write_master_file(silo_file_t* file)
   DBoptlist* optlist = DBMakeOptlist(2);
   if (file->cycle >= 0)
     DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
-  if (file->time != -FLT_MAX)
+  if (file->time != -REAL_MAX)
   {
     double t = (double)file->time;
     DBAddOption(optlist, DBOPT_DTIME, &t);
@@ -1005,7 +1005,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->mode = DB_READ;
   file->cycle = -1;
-  file->time = -FLT_MAX;
+  file->time = -REAL_MAX;
   file->expressions = NULL;
 
   // Strip .silo off of the prefix if it's there.
@@ -1419,7 +1419,7 @@ void silo_file_write_mesh(silo_file_t* file,
   // Stick in cycle/time information if needed.
   if (file->cycle >= 0)
     DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
-  if (file->time != -FLT_MAX)
+  if (file->time != -REAL_MAX)
   {
     double t = (double)file->time;
     DBAddOption(optlist, DBOPT_DTIME, &t);

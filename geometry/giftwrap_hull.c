@@ -22,7 +22,7 @@ void giftwrap_hull_with_area(real_t* points, int num_points, int* indices, int* 
   *count = 0;
 
   // Find the "lowest" point in the set.
-  real_t ymin = FLT_MAX;
+  real_t ymin = REAL_MAX;
   int index0 = -1;
   for (int p = 0; p < num_points; ++p)
   {

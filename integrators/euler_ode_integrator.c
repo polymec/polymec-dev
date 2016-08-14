@@ -377,7 +377,7 @@ ode_integrator_t* newton_euler_ode_integrator_new(MPI_Comm comm,
   ASSERT(rhs != NULL);
 
   euler_ode_t* integ = polymec_malloc(sizeof(euler_ode_t));
-  integ->theta = -FLT_MAX;
+  integ->theta = -REAL_MAX;
   integ->comm = comm;
   integ->num_local_values = num_local_values;
   integ->num_remote_values = num_remote_values;

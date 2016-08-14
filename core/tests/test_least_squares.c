@@ -133,7 +133,7 @@ bool test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_po
   x_bar.x /= num_points;
   x_bar.y /= num_points;
   x_bar.z /= num_points;
-  real_t L = -FLT_MAX;
+  real_t L = -REAL_MAX;
   for (int i = 0; i < num_points; ++i)
     L = MAX(L, MAX(ABS(points[i].x - x_bar.x), MAX(ABS(points[i].y - x_bar.y), ABS(points[i].z - x_bar.z))));
   vector_t dx;

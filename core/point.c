@@ -56,9 +56,9 @@ bbox_t* empty_set_bbox_new()
 
 bool bbox_is_empty_set(bbox_t* box)
 {
-  return ((box->x1 == FLT_MAX) && (box->x2 == -FLT_MAX) && 
-          (box->y1 == FLT_MAX) && (box->y2 == -FLT_MAX) &&
-          (box->z1 == FLT_MAX) && (box->z2 == -FLT_MAX));
+  return ((box->x1 == REAL_MAX) && (box->x2 == -REAL_MAX) && 
+          (box->y1 == REAL_MAX) && (box->y2 == -REAL_MAX) &&
+          (box->z1 == REAL_MAX) && (box->z2 == -REAL_MAX));
 }
 
 bool bbox_is_point(bbox_t* box)
@@ -85,12 +85,12 @@ bool bbox_is_plane(bbox_t* box)
 
 void bbox_make_empty_set(bbox_t* box)
 {
-  box->x1 = FLT_MAX;
-  box->x2 = -FLT_MAX;
-  box->y1 = FLT_MAX;
-  box->y2 = -FLT_MAX;
-  box->z1 = FLT_MAX;
-  box->z2 = -FLT_MAX;
+  box->x1 = REAL_MAX;
+  box->x2 = -REAL_MAX;
+  box->y1 = REAL_MAX;
+  box->y2 = -REAL_MAX;
+  box->z1 = REAL_MAX;
+  box->z2 = -REAL_MAX;
 }
 
 void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3)
@@ -130,8 +130,8 @@ static inline void intersect_segment(real_t x1_1, real_t x2_1,
   {
     if (x2_1 < x1_2) 
     {
-      *x1_i = FLT_MAX;
-      *x2_i = -FLT_MAX;
+      *x1_i = REAL_MAX;
+      *x2_i = -REAL_MAX;
     }
     else 
     {
@@ -148,8 +148,8 @@ static inline void intersect_segment(real_t x1_1, real_t x2_1,
   {
     if (x2_2 < x1_1) 
     {
-      *x1_i = FLT_MAX;
-      *x2_i = -FLT_MAX;
+      *x1_i = REAL_MAX;
+      *x2_i = -REAL_MAX;
     }
     else 
     {

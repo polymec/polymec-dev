@@ -189,15 +189,15 @@ model_t* model_new(const char* name,
   model->sim_name = NULL;
   model->sim_path = NULL;
   model->save_every = -1;
-  model->plot_every = -FLT_MAX;
+  model->plot_every = -REAL_MAX;
   model->load_step = -1;
-  model->observe_every = -FLT_MAX;
+  model->observe_every = -REAL_MAX;
   model->wall_time = 0.0;
   model->wall_time0 = 0.0;
-  model->initial_dt = FLT_MAX;
+  model->initial_dt = REAL_MAX;
   model->dt = 0.0;
   model->step = 0;
-  model->max_dt = FLT_MAX;
+  model->max_dt = REAL_MAX;
   model->interpreter = NULL;
 
   // Initialize observation arrays.
@@ -709,11 +709,11 @@ void model_set_initial_dt(model_t* model, real_t dt0)
 
 real_t model_max_dt(model_t* model, char* reason)
 {
-  real_t dt = FLT_MAX;
+  real_t dt = REAL_MAX;
   strcpy(reason, "No time step constraints.");
 
   // If we specified a maximum timestep, apply it here.
-  if (model->max_dt < FLT_MAX)
+  if (model->max_dt < REAL_MAX)
   {
     dt = model->max_dt;
     strcpy(reason, "Max dt set in options.");
@@ -821,7 +821,7 @@ real_t model_advance(model_t* model, real_t max_dt)
   if (post_wall_time > pre_wall_time)
     model->sim_speed = model->dt / (post_wall_time - pre_wall_time); // Simulation "speed"
   else
-    model->sim_speed = FLT_MAX;
+    model->sim_speed = REAL_MAX;
   model->wall_time = post_wall_time;
 
   STOP_FUNCTION_TIMER();

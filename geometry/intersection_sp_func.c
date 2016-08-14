@@ -24,7 +24,7 @@ static void inter_free(void* ctx)
 static void inter_eval(void* ctx, point_t* x, real_t* result)
 {
   inter_t* inter = ctx;
-  real_t maxval = -FLT_MAX;
+  real_t maxval = -REAL_MAX;
   for (int i = 0; i < inter->num_funcs; ++i)
   {
     real_t ival;
@@ -37,7 +37,7 @@ static void inter_eval(void* ctx, point_t* x, real_t* result)
 static void inter_eval_gradient(void* ctx, point_t* x, real_t* result)
 {
   inter_t* inter = ctx;
-  real_t maxval = -FLT_MAX;
+  real_t maxval = -REAL_MAX;
   int index = -1;
   for (int i = 0; i < inter->num_funcs; ++i)
   {

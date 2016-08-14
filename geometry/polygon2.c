@@ -68,7 +68,7 @@ polygon2_t* polygon2_giftwrap(point2_t* points, int num_points)
   int indices[num_points], count = 0;
 
   // Find the "lowest" point in the set.
-  real_t ymin = FLT_MAX;
+  real_t ymin = REAL_MAX;
   int index0 = -1;
   for (int p = 0; p < num_points; ++p)
   {

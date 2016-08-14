@@ -40,7 +40,7 @@ void test_interpreter_with_long_string(void** state)
   assert_true(interpreter_get_scalar_function(interp, "f") != NULL);
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_VECTOR_FUNCTION));
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_NUMBER));
-  assert_true(interpreter_get_number(interp, "f") == -FLT_MAX);
+  assert_true(interpreter_get_number(interp, "f") == -REAL_MAX);
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_STRING));
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_MESH));
   st_func_t* f = interpreter_get_scalar_function(interp, "f");
@@ -56,7 +56,7 @@ void test_interpreter_with_long_string(void** state)
   assert_true(interpreter_get_vector_function(interp, "F") != NULL);
   assert_true(!interpreter_contains(interp, "F", INTERPRETER_SCALAR_FUNCTION));
   assert_true(!interpreter_contains(interp, "F", INTERPRETER_NUMBER));
-  assert_true(interpreter_get_number(interp, "F") == -FLT_MAX);
+  assert_true(interpreter_get_number(interp, "F") == -REAL_MAX);
   assert_true(!interpreter_contains(interp, "F", INTERPRETER_STRING));
   assert_true(!interpreter_contains(interp, "F", INTERPRETER_MESH));
   st_func_t* F = interpreter_get_vector_function(interp, "F");
@@ -84,7 +84,7 @@ void test_interpreter_with_long_string(void** state)
   assert_true(interpreter_get_scalar_function(interp, "Z") != NULL);
   assert_true(!interpreter_contains(interp, "Z", INTERPRETER_VECTOR_FUNCTION));
   assert_true(!interpreter_contains(interp, "Z", INTERPRETER_NUMBER));
-  assert_true(interpreter_get_number(interp, "Z") == -FLT_MAX);
+  assert_true(interpreter_get_number(interp, "Z") == -REAL_MAX);
   assert_true(!interpreter_contains(interp, "Z", INTERPRETER_STRING));
   assert_true(!interpreter_contains(interp, "Z", INTERPRETER_MESH));
   st_func_t* Z = interpreter_get_scalar_function(interp, "Z");
@@ -105,7 +105,7 @@ void test_interpreter_with_long_string(void** state)
   assert_true(interpreter_get_number(interp, "h") == 3.0);
 
   assert_true(interpreter_contains(interp, "i", INTERPRETER_STRING));
-  assert_true(interpreter_get_number(interp, "i") == -FLT_MAX);
+  assert_true(interpreter_get_number(interp, "i") == -REAL_MAX);
   assert_true(!strcmp(interpreter_get_string(interp, "i"), "string cheese"));
 
   interpreter_free(interp);

@@ -50,7 +50,7 @@ void test_find_nearest(void** state)
     int j = kd_tree_nearest(tree, &p); // Point set says: "j."
 
     // Do a linear search for the closest point.
-    double min_dist = FLT_MAX;
+    double min_dist = REAL_MAX;
     int kk = -1;
     for (int k = 0; k < N; ++k)
     {

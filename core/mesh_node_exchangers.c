@@ -202,9 +202,9 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
 
   // Sort our nodes so that they are in Hilbert order.
   {
-    bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX,
-                   .y1 = FLT_MAX, .y2 = -FLT_MAX,
-                   .z1 = FLT_MAX, .z2 = -FLT_MAX};
+    bbox_t bbox = {.x1 = REAL_MAX, .x2 = -REAL_MAX,
+                   .y1 = REAL_MAX, .y2 = -REAL_MAX,
+                   .z1 = REAL_MAX, .z2 = -REAL_MAX};
     for (int i = 0; i < my_nodes->size; ++i)
       bbox_grow(&bbox, &(my_nodes->data[i]));
     hilbert_t* curve = hilbert_new(&bbox);

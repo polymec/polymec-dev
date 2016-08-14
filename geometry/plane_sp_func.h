@@ -41,7 +41,7 @@ void plane_sp_func_embed(sp_func_t* plane, point2_t* xi, point_t* x);
 // Given a parameterized line x(s) = x0 + t*s, where t is the tangent vector, 
 // find the intersection of x(s) with the plane represented by this 
 // planar_proj object. s is returned. If x(s) does not intersect the plane, 
-// -FLT_MAX is returned.
+// -REAL_MAX is returned.
 real_t plane_sp_func_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t* t);
 
 #endif

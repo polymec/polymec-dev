@@ -330,7 +330,7 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
 
   real_t square_distances[n];
   for (int i = 0; i < n; ++i)
-    square_distances[i] = FLT_MAX;
+    square_distances[i] = REAL_MAX;
 
   // Start with the root.
   real_t pos[3];
@@ -442,9 +442,9 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
 #if POLYMEC_HAVE_MPI
 
   // Create a bounding box containing all the local points in the tree.
-  bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX, 
-                 .y1 = FLT_MAX, .y2 = -FLT_MAX,
-                 .z1 = FLT_MAX, .z2 = -FLT_MAX};
+  bbox_t bbox = {.x1 = REAL_MAX, .x2 = -REAL_MAX, 
+                 .y1 = REAL_MAX, .y2 = -REAL_MAX,
+                 .z1 = REAL_MAX, .z2 = -REAL_MAX};
   {
     int pos = 0, index;
     point_t x;

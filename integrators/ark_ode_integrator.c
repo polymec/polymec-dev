@@ -752,7 +752,7 @@ real_t ark_ode_integrator_stable_dt(ode_integrator_t* integrator, real_t t, real
   if (integ->stable_dt != NULL)
     return integ->stable_dt(integ->context, t, X);
   else
-    return FLT_MAX;
+    return REAL_MAX;
 }
 
 newton_pc_t* ark_ode_integrator_preconditioner(ode_integrator_t* integrator)

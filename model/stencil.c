@@ -390,7 +390,7 @@ stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
   kd_tree_t* tree = kd_tree_new(points->points, points->num_points);
 
   // Find the maximum radius of interaction.
-  real_t R_max = -FLT_MAX;
+  real_t R_max = -REAL_MAX;
   for (int i = 0; i < points->num_points; ++i)
     R_max = MAX(R_max, R[i]);
 

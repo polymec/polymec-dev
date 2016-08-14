@@ -26,8 +26,8 @@ static void ssor_compute_relaxed_value(ssor_pc_t* ssor, int i,
                                        real_t* z)
 {
   // Compute the perturbed value of x.
-  for (int i = 0; i < ssor->num_local_values; ++i)
-    ssor->x_pert[i] = x[i] + ssor->d * z[i];
+  for (int k = 0; k < ssor->num_local_values; ++k)
+    ssor->x_pert[k] = x[k] + ssor->d * z[k];
 
   // Compute a difference quotient to estimate J*z - r at i.
   real_t f_hi = ssor->f(ssor->context, i, t, ssor->x_pert);

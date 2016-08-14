@@ -48,9 +48,9 @@ static point_cloud_t* create_subcloud(MPI_Comm comm,
 // This helper creates a Hilbert space-filling curve from a set of points.
 static hilbert_t* hilbert_from_points(point_t* points, int num_points)
 {
-  bbox_t bbox = {.x1 = FLT_MAX, .x2 = -FLT_MAX, 
-                 .y1 = FLT_MAX, .y2 = -FLT_MAX, 
-                 .z1 = FLT_MAX, .z2 = -FLT_MAX};
+  bbox_t bbox = {.x1 = REAL_MAX, .x2 = -REAL_MAX, 
+                 .y1 = REAL_MAX, .y2 = -REAL_MAX, 
+                 .z1 = REAL_MAX, .z2 = -REAL_MAX};
   for (int i = 0; i < num_points; ++i)
     bbox_grow(&bbox, &points[i]);
 

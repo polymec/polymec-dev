@@ -151,7 +151,7 @@ void tetrahedron_compute_nearest_point(tetrahedron_t* t, point_t* x, point_t* y)
   else
   {
     // Find the planar face of the tetrahedron that is nearest to x.
-    real_t furthest_distance = -FLT_MAX;
+    real_t furthest_distance = -REAL_MAX;
     int furthest_vertex = -1;
     for (int i = 0; i < 4; ++i)
     {

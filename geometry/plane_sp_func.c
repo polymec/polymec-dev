@@ -99,7 +99,7 @@ sp_func_t* plane_sp_func_new_best_fit(point_t* points, int num_points)
 
     // The normal vector of the plane is the singular vector corresponding to 
     // the smallest singular value.
-    real_t min_s = FLT_MAX;
+    real_t min_s = REAL_MAX;
     int min_index = -1;
     for (int i = 0; i < 3; ++i)
     {
@@ -164,7 +164,7 @@ real_t plane_sp_func_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t
   plane_t* p = sp_func_context(plane);
   real_t not = vector_dot(&p->n, t);
   if (not == 0.0) // No intersection!
-    return -FLT_MAX;
+    return -REAL_MAX;
   else
   {
     real_t numer = p->n.x * (p->x.x - x0->x) +

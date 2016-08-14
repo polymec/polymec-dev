@@ -31,7 +31,7 @@ static inline real_t l2_norm(real_t* vec, int dim)
 // Computes the L infinity norm of the given vector.
 static inline real_t linf_norm(real_t* vec, int dim)
 {
-  real_t max = -FLT_MAX;
+  real_t max = -REAL_MAX;
   for (int i = 0; i < dim; ++i)
     max = MAX(max, fabs(vec[i]));
   return max;

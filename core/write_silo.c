@@ -188,7 +188,7 @@ void write_silo_mesh(MPI_Comm comm,
   double dtime = (double)time;
   if (cycle >= 0)
     DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-  if (dtime != -FLT_MAX)
+  if (dtime != -REAL_MAX)
     DBAddOption(optlist, DBOPT_DTIME, &dtime);
 
   // This is optional for now, but we'll give it anyway.
@@ -360,7 +360,7 @@ void write_silo_mesh(MPI_Comm comm,
     double dtime = (double)time;
     if (cycle >= 0)
       DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-    if (dtime != -FLT_MAX)
+    if (dtime != -REAL_MAX)
       DBAddOption(optlist, DBOPT_DTIME, &dtime);
 
     // Write the mesh and variable data.
@@ -436,7 +436,7 @@ void write_silo_mesh(MPI_Comm comm,
     double dtime = (double)time;
     if (cycle >= 0)
       DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-    if (dtime != -FLT_MAX)
+    if (dtime != -REAL_MAX)
       DBAddOption(optlist, DBOPT_DTIME, &dtime);
 
     // Write the multimesh and variable data, and close the file.
@@ -578,7 +578,7 @@ void write_silo_points(MPI_Comm comm,
   DBoptlist* optlist = DBMakeOptlist(10);
   if (cycle >= 0)
     DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-  if (time != -FLT_MAX)
+  if (time != -REAL_MAX)
     DBAddOption(optlist, DBOPT_DTIME, &time);
 
   // Point coordinates.
@@ -653,9 +653,9 @@ void write_silo_points(MPI_Comm comm,
     DBoptlist* optlist = DBMakeOptlist(10);
     if (cycle >= 0)
       DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-    if (time != -FLT_MAX)
+    if (time != -REAL_MAX)
     {
-      double dtime = time;
+      double dtime = (double)time;
       DBAddOption(optlist, DBOPT_DTIME, &dtime);
     }
 
@@ -744,7 +744,7 @@ void write_silo_points(MPI_Comm comm,
     DBoptlist* optlist = DBMakeOptlist(10);
     if (cycle >= 0)
       DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-    if (time != -FLT_MAX)
+    if (time != -REAL_MAX)
       DBAddOption(optlist, DBOPT_DTIME, &time);
 
     // Write the multimesh and variable data, and close the file.

@@ -640,7 +640,8 @@ set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
 add_library(jrs_predicates jrs_predicates/predicates.c)
 if (LINUX EQUAL 1)
   # On Linux, rand() and random() are the same.
-  set_target_properties(jrs_predicates PROPERTIES COMPILE_FLAGS "-Drandom=rand")
+  set_target_properties(jrs_predicates PROPERTIES COMPILE_OPTIONS 
+                        "-Drandom=rand -Wno-missing-variable-declarations")
 endif()
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   install(TARGETS jrs_predicates DESTINATION lib)

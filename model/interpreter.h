@@ -139,7 +139,7 @@ char* interpreter_get_string(interpreter_t* interp, const char* name);
 // string is copied to the interpreter.
 void interpreter_set_string(interpreter_t* interp, const char* name, const char* value);
 
-// Fetches the given number from the interpreter, returning -FLT_MAX if it 
+// Fetches the given number from the interpreter, returning -REAL_MAX if it 
 // is not found or if it is not a number.
 real_t interpreter_get_number(interpreter_t* interp, const char* name);
 

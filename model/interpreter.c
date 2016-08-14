@@ -1274,9 +1274,9 @@ real_t interpreter_get_number(interpreter_t* interp, const char* name)
 {
   interpreter_storage_t** storage = interpreter_map_get(interp->store, (char*)name);
   if (storage == NULL)
-    return -FLT_MAX;
+    return -REAL_MAX;
   if ((*storage)->type != INTERPRETER_NUMBER)
-    return -FLT_MAX;
+    return -REAL_MAX;
   return *((real_t*)(*storage)->datum);
 }
 

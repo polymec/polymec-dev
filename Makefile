@@ -3,6 +3,7 @@
 # Options set on command line.
 debug      = not-set
 mpi        = not-set
+openmp     = not-set
 shared     = not-set
 precision  = not-set
 verbose    = not-set
@@ -49,6 +50,11 @@ else
     FC = gfortran
   endif
   CONFIG_FLAGS += -DHAVE_MPI=0
+endif
+
+# OpenMP -- try to enable by default.
+ifneq ($(openmp), 0)
+  CONFIG_FLAGS += -DUSE_OPENMP=1
 endif
 
 # Shared libs?

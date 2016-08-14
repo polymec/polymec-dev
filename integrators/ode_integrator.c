@@ -46,8 +46,8 @@ ode_integrator_t* ode_integrator_new(const char* name,
   integ->solution_vector_size = solution_vector_size;
   integ->current_time = 0.0;
   integ->initialized = false;
-  integ->max_dt = FLT_MAX;
-  integ->stop_time = FLT_MAX;
+  integ->max_dt = REAL_MAX;
+  integ->stop_time = REAL_MAX;
 
   // We store our own copy of the solution vector if we have procedures 
   // for copying in and copying out. Otherwise, we use the actual data itself.

@@ -24,7 +24,7 @@ static void un_free(void* ctx)
 static void un_eval(void* ctx, point_t* x, real_t* result)
 {
   un_t* un = ctx;
-  real_t minval = FLT_MAX;
+  real_t minval = REAL_MAX;
   for (int i = 0; i < un->num_funcs; ++i)
   {
     real_t ival;
@@ -37,7 +37,7 @@ static void un_eval(void* ctx, point_t* x, real_t* result)
 static void un_eval_gradient(void* ctx, point_t* x, real_t* result)
 {
   un_t* un = ctx;
-  real_t minval = FLT_MAX;
+  real_t minval = REAL_MAX;
   int index = -1;
   for (int i = 0; i < un->num_funcs; ++i)
   {

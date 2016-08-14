@@ -211,7 +211,7 @@ dae_integrator_t* dae_integrator_new(int order,
   integ->precond = precond;
   integ->max_krylov_dim = max_krylov_dim;
   integ->initialized = false;
-  integ->max_dt = FLT_MAX;
+  integ->max_dt = REAL_MAX;
   integ->status_message = NULL;
 
   // Set up IDA and accessories.
