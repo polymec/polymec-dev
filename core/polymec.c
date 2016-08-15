@@ -481,13 +481,13 @@ static noreturn void SCOTCH_errorPrint(const char* const errstr, ...)
   va_end(argp);
 }
 
-static void SCOTCH_errorPrintW(const char* const errstr, ...)
-{
-  va_list argp;
-  va_start(argp, errstr);
-  polymec_warn(errstr, argp);
-  va_end(argp);
-}
+//static void SCOTCH_errorPrintW(const char* const errstr, ...)
+//{
+//  va_list argp;
+//  va_start(argp, errstr);
+//  polymec_warn(errstr, argp);
+//  va_end(argp);
+//}
 #endif
 
 void polymec_abort(const char* message, ...)

@@ -61,10 +61,10 @@ typedef void MPI_User_function(void *invec, void *inoutvec, int* len, MPI_Dataty
 
 int MPI_Initialized(int* flag);
 int MPI_Init(int* argc, char ***argv);
-int MPI_Finalize();
+int MPI_Finalize(void);
 int MPI_Abort(MPI_Comm comm, int errorcode);
-double MPI_Wtime();
-double MPI_Wtick();
+double MPI_Wtime(void);
+double MPI_Wtick(void);
 int MPI_Barrier(MPI_Comm comm);
 int MPI_Comm_create(MPI_Comm comm, MPI_Group group, MPI_Comm *newcomm);
 int MPI_Comm_dup(MPI_Comm comm, MPI_Comm *newcomm);

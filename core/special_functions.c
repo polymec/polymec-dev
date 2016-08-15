@@ -12,6 +12,10 @@
 #define CMPLX(x,y) ((double)(x)+I*(double)(y))
 #endif
 
+// FIXME: Remove these pragmas when all special functions are implemented.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=noreturn"
+
 // Much of the source code in this file originated from Fortran 77 subroutines 
 // accompanying "Computation of Special Functions" by Shanjie Zhang and 
 // Jianming Jin (Copyright 1996 by John Wiley & Sons, Inc). The Fortran code 
@@ -938,6 +942,9 @@ double complex bessel_ckn(int n, double complex z)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
+
+// FIXME: Remove this when everything is implemented.
+#pragma GCC diagnostic pop
 
 #endif
 
