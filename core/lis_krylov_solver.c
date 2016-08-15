@@ -273,14 +273,14 @@ static int matrix_block_size(void* context, index_t block_row)
 {
   lis_matrix_t* mat = context;
   if (mat->block_sizes == NULL)
-    return mat->block_size;
+    return (int)mat->block_size;
   else return mat->block_sizes[block_row];
 }
 
 static void* matrix_clone(void* context)
 {
   lis_matrix_t* mat = context;
-  lis_matrix_t* clone = matrix_new(mat->comm, mat->block_size, mat->block_sizes);
+  lis_matrix_t* clone = matrix_new(mat->comm, (int)mat->block_size, mat->block_sizes);
   lis_matrix_create(mat->comm, &clone->A);
   LIS_INT N_local, N_global;
   lis_matrix_get_size(mat->A, &N_local, &N_global);

@@ -29,11 +29,11 @@ char* string_ndup(const char* s, int n)
 
 int string_casecmp(const char* s1, const char* s2)
 {
-  int l1 = strlen(s1), l2 = strlen(s2);
+  int l1 = (int)strlen(s1), l2 = (int)strlen(s2);
   int lmin = MIN(l1, l2);
   for (int i = 0; i < lmin; ++i)
   {
-    char c1 = tolower(s1[i]), c2 = tolower(s2[i]);
+    char c1 = (char)tolower(s1[i]), c2 = (char)tolower(s2[i]);
     if (c1 < c2)
       return -1;
     else if (c1 > c2)
@@ -49,13 +49,13 @@ int string_casecmp(const char* s1, const char* s2)
 
 int string_ncasecmp(const char* s1, const char* s2, size_t n)
 {
-  int l1 = strlen(s1), l2 = strlen(s2);
+  int l1 = (int)strlen(s1), l2 = (int)strlen(s2);
   int lmin = MIN(l1, l2);
   if (lmin < n)
     return string_casecmp(s1, s2);
   for (int i = 0; i < n; ++i)
   {
-    char c1 = tolower(s1[i]), c2 = tolower(s2[i]);
+    char c1 = (char)tolower(s1[i]), c2 = (char)tolower(s2[i]);
     if (c1 < c2)
       return -1;
     else if (c1 > c2)
@@ -77,19 +77,20 @@ void string_copy_from_raw(const char* raw_array, int n, char* dest)
 
 bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, int* length)
 {
-  if (*pos >= strlen(s))
+  int slen = (int)strlen(s);
+  if (*pos >= slen)
     return false;
   char* delim = strstr((const char*)&(s[*pos]), delimiter);
   *token = (char*)&(s[*pos]);
   if (delim == NULL)
   {
-    *length = strlen(s) - *pos;
-    *pos = strlen(s);
+    *length = slen - *pos;
+    *pos = slen;
   }
   else
   {
-    *length = (delim - s) - *pos;
-    *pos = (delim - s) + strlen(delimiter);
+    *length = (int)(delim - s) - *pos;
+    *pos = (int)(delim - s) + (int)strlen(delimiter);
   }
   return true;
 }
@@ -119,9 +120,9 @@ char** string_split(const char* s, const char* delimiter, int* num_substrings)
 
 int string_trim(char* s)
 {
-  int len = strlen(s);
-  if (len == 0) return 0;
-  int l = 0, r = strlen(s) - 1;
+  int slen = (int)strlen(s);
+  if (slen == 0) return 0;
+  int l = 0, r = slen - 1;
   while ((r > 0) && isspace(s[r])) --r;
   while ((l < r) && isspace(s[l])) ++l;
   s[r+1] = '\0';
@@ -209,8 +210,8 @@ char* string_substitute(const char* string, string_substitution_t substitutions[
   int token_lengths[num_tokens], value_lengths[num_tokens];
   for (int i = 0; i < num_tokens; ++i)
   {
-    token_lengths[i] = strlen(substitutions[i].token);
-    value_lengths[i] = strlen(substitutions[i].value);
+    token_lengths[i] = (int)strlen(substitutions[i].token);
+    value_lengths[i] = (int)strlen(substitutions[i].value);
   }
 
   // Now traverse the given string and jot down where each token occurs 
@@ -220,14 +221,14 @@ char* string_substitute(const char* string, string_substitution_t substitutions[
   for (int i = 0; i < num_tokens; ++i)
   {
     const char* token = substitutions[i].token;
-    if ((token == NULL) || (strlen(token) == 0)) continue;
+    if ((token == NULL) || ((int)strlen(token) == 0)) continue;
     char* c = (char*)string;
     while (c != NULL)
     {
       c = strstr((const char*)c, token);
       if (c != NULL)
       {
-        int_slist_append(token_occ, c - (char*)string);
+        int_slist_append(token_occ, (int)(c - (char*)string));
         int_slist_append(token_which, i);
         c += 1;
       }
@@ -264,7 +265,7 @@ char* string_substitute(const char* string, string_substitution_t substitutions[
   qsort(subst_data, num_occ, sizeof(string_subst_data_t), string_subst_data_cmp);
 
   // Compute the length of the new string.
-  int old_len = strlen(string);
+  int old_len = (int)strlen(string);
   int new_len = old_len;
   for (int i = 0; i < num_occ; ++i)
   {

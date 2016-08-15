@@ -49,7 +49,7 @@ matrix_sparsity_t* matrix_sparsity_with_block_size(matrix_sparsity_t* sparsity,
                                                    int block_size)
 {
   ASSERT(block_size > 0);
-  int nr = sparsity->num_local_rows;
+  int nr = (int)sparsity->num_local_rows;
   int block_sizes[nr];
   for (int i = 0; i < nr; ++i)
     block_sizes[i] = block_size;
@@ -301,6 +301,9 @@ void matrix_sparsity_fprintf(matrix_sparsity_t* sparsity, FILE* stream)
 // This helper is not part of the "official" Polymec API, but is available for use 
 // by library functions. It replaces a global sparsity pattern with a distributed 
 // sparsity pattern using the new communicator and row distribution.
+void distribute_matrix_sparsity(matrix_sparsity_t** sparsity,
+                                MPI_Comm comm,
+                                index_t* row_distribution);
 void distribute_matrix_sparsity(matrix_sparsity_t** sparsity,
                                 MPI_Comm comm,
                                 index_t* row_distribution)

@@ -634,7 +634,7 @@ static void write_subdomains_to_file(silo_file_t* file)
   DBoptlist* optlist = DBMakeOptlist(2);
   if (file->cycle >= 0)
     DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
-  if (file->time != -REAL_MAX)
+  if (ABS(file->time - -REAL_MAX) > 1e-12)
   {
     double t = (double)file->time;
     DBAddOption(optlist, DBOPT_DTIME, &t);
@@ -720,7 +720,7 @@ static void write_master_file(silo_file_t* file)
   DBoptlist* optlist = DBMakeOptlist(2);
   if (file->cycle >= 0)
     DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
-  if (file->time != -REAL_MAX)
+  if (ABS(file->time - -REAL_MAX) > 1e-12)
   {
     double t = (double)file->time;
     DBAddOption(optlist, DBOPT_DTIME, &t);
@@ -986,7 +986,7 @@ static void show_provenance_on_debug_log(silo_file_t* file)
     // We may need to temporarily bump up the debug log's buffness.
     int max_message_size, flush_every;
     get_log_buffering(LOG_DEBUG, &max_message_size, &flush_every);
-    set_log_buffering(LOG_DEBUG, strlen(provenance)+10, 1); // SUPER DUPER!!!
+    set_log_buffering(LOG_DEBUG, (int)strlen(provenance)+10, 1); // SUPER DUPER!!!
     log_debug_literal(provenance); // No formatting.
     set_log_buffering(LOG_DEBUG, max_message_size, flush_every); // Back to normal
 
@@ -1252,11 +1252,12 @@ static void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char
   string_array_t* elem_names = string_array_new();
   int_array_t* tag_data = int_array_new();
 
-  int pos = 0, *tag, tag_size;
+  int pos = 0, *tag;
+  size_t tag_size;
   char* tag_name;
   while (mesh_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
   {
-    int_array_append(elem_lengths, tag_size);
+    int_array_append(elem_lengths, (int)tag_size);
     string_array_append(elem_names, tag_name);
     for (int i = 0; i < tag_size; ++i)
       int_array_append(tag_data, tag[i]);
@@ -1267,7 +1268,7 @@ static void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char
   {
     DBPutCompoundarray(file->dbfile, tag_list_name, 
                        (char const* const*)elem_names->data, elem_lengths->data,
-                       elem_names->size, tag_data->data, tag_data->size, DB_INT, 0);
+                       (int)elem_names->size, tag_data->data, (int)tag_data->size, DB_INT, 0);
   }
 
   // Clean up.
@@ -1292,7 +1293,7 @@ static void silo_file_read_tags(silo_file_t* file, const char* tag_list_name, ta
       int* tag = tagger_create_tag(tagger, (const char*)tag_names[i], tag_sizes[i]);
       if (tag == NULL) // Does the tag already exist?
       {
-        int size;
+        size_t size;
         tag = tagger_tag(tagger, (const char*)tag_names[i], &size);
         ASSERT(size == tag_sizes[i]);
       }
@@ -1348,7 +1349,7 @@ exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_n
 {
   START_FUNCTION_TIMER();
   // Read the exchanger array in.
-  int size;
+  size_t size;
   int* array = silo_file_read_int_array(file, exchanger_name, &size);
 
   // Create the exchanger.
@@ -1419,7 +1420,7 @@ void silo_file_write_mesh(silo_file_t* file,
   // Stick in cycle/time information if needed.
   if (file->cycle >= 0)
     DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
-  if (file->time != -REAL_MAX)
+  if (ABS(file->time - -REAL_MAX) > 1e-12)
   {
     double t = (double)file->time;
     DBAddOption(optlist, DBOPT_DTIME, &t);
@@ -1579,7 +1580,7 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
   {
     char name[FILENAME_MAX+1];
     snprintf(name, FILENAME_MAX, "%s_face_cells", mesh_name);
-    int num_face_cells;
+    size_t num_face_cells;
     int* face_cells = silo_file_read_int_array(file, name, &num_face_cells);
     ASSERT(num_face_cells == 2*mesh->num_faces);
     memcpy(mesh->face_cells, face_cells, sizeof(int) * 2 * mesh->num_faces);
@@ -1787,8 +1788,8 @@ static bool silo_file_contains_mesh_field(silo_file_t* file,
         case MESH_NODE: snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
       }
       int num_elems;
-      int stat = DBReadVar(file->dbfile, num_elems_var, &num_elems);
-      result = ((stat == 0) && (num_elems == DBGetVarLength(file->dbfile, field_name)));
+      int stat1 = DBReadVar(file->dbfile, num_elems_var, &num_elems);
+      result = ((stat1 == 0) && (num_elems == DBGetVarLength(file->dbfile, field_name)));
     }
   }
 
@@ -2285,7 +2286,7 @@ void silo_file_write_string(silo_file_t* file,
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(string_data != NULL);
 
-  int string_size = strlen(string_data);
+  int string_size = (int)strlen(string_data);
   char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_string_size", string_name);
   int one = 1;
@@ -2329,23 +2330,23 @@ char* silo_file_read_string(silo_file_t* file,
 void silo_file_write_real_array(silo_file_t* file,
                                 const char* array_name,
                                 real_t* array_data,
-                                int array_size)
+                                size_t array_size)
 {
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(array_data != NULL);
-  ASSERT(array_size >= 0);
 
   char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_real_array_size", array_name);
   int one = 1;
-  int result = DBWrite(file->dbfile, size_name, &array_size, &one, 1, DB_INT);
+  int asize = (int)array_size;
+  int result = DBWrite(file->dbfile, size_name, &asize, &one, 1, DB_INT);
   if (result != 0)
     polymec_error("silo_file_write_real_array: write of array '%s' failed.", array_name);
   if (array_size > 0)
   {
     char real_array_name[FILENAME_MAX+1];
     snprintf(real_array_name, FILENAME_MAX, "%s_real_array", array_name);
-    result = DBWrite(file->dbfile, real_array_name, array_data, &array_size, 1, SILO_FLOAT_TYPE);
+    result = DBWrite(file->dbfile, real_array_name, array_data, &asize, 1, SILO_FLOAT_TYPE);
     if (result != 0)
       polymec_error("silo_file_write_real_array: write of array '%s' failed.", array_name);
   }
@@ -2353,7 +2354,7 @@ void silo_file_write_real_array(silo_file_t* file,
 
 real_t* silo_file_read_real_array(silo_file_t* file,
                                   const char* array_name,
-                                  int* array_size)
+                                  size_t* array_size)
 {
   ASSERT(file->mode == DB_READ);
   ASSERT(array_size != NULL);
@@ -2368,7 +2369,9 @@ real_t* silo_file_read_real_array(silo_file_t* file,
   char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_real_array_size", array_name);
   ASSERT(DBInqVarExists(file->dbfile, size_name));
-  DBReadVar(file->dbfile, size_name, array_size);
+  int asize = 0;
+  DBReadVar(file->dbfile, size_name, &asize);
+  *array_size = (size_t)asize;
   if (*array_size > 0)
   {
     real_t* array = polymec_malloc(sizeof(real_t) * *array_size);
@@ -2382,23 +2385,23 @@ real_t* silo_file_read_real_array(silo_file_t* file,
 void silo_file_write_int_array(silo_file_t* file,
                                const char* array_name,
                                int* array_data,
-                               int array_size)
+                               size_t array_size)
 {
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(array_data != NULL);
-  ASSERT(array_size >= 0);
 
   char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_int_array_size", array_name);
   int one = 1;
-  int result = DBWrite(file->dbfile, size_name, &array_size, &one, 1, DB_INT);
+  int asize = (int)array_size;
+  int result = DBWrite(file->dbfile, size_name, &asize, &one, 1, DB_INT);
   if (result != 0)
     polymec_error("silo_file_write_int_array: write of array '%s' failed.", array_name);
   if (array_size > 0)
   {
     char int_array_name[FILENAME_MAX+1];
     snprintf(int_array_name, FILENAME_MAX, "%s_int_array", array_name);
-    result = DBWrite(file->dbfile, int_array_name, array_data, &array_size, 1, DB_INT);
+    result = DBWrite(file->dbfile, int_array_name, array_data, &asize, 1, DB_INT);
     if (result != 0)
       polymec_error("silo_file_write_int_array: write of array '%s' failed.", array_name);
   }
@@ -2406,7 +2409,7 @@ void silo_file_write_int_array(silo_file_t* file,
 
 int* silo_file_read_int_array(silo_file_t* file,
                               const char* array_name,
-                              int* array_size)
+                              size_t* array_size)
 {
   ASSERT(file->mode == DB_READ);
   ASSERT(array_size != NULL);
@@ -2421,7 +2424,9 @@ int* silo_file_read_int_array(silo_file_t* file,
   char size_name[FILENAME_MAX+1];
   snprintf(size_name, FILENAME_MAX, "%s_int_array_size", array_name);
   ASSERT(DBInqVarExists(file->dbfile, size_name));
-  DBReadVar(file->dbfile, size_name, array_size);
+  int asize = 0;
+  DBReadVar(file->dbfile, size_name, &asize);
+  *array_size = (size_t)asize;
   if (*array_size > 0)
   {
     int* array = polymec_malloc(sizeof(int) * *array_size);

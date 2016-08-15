@@ -40,7 +40,7 @@ struct krylov_matrix_t
   krylov_matrix_vtable vtable;
   MPI_Comm comm;
   int num_local_rows;
-  int num_global_rows;
+  index_t num_global_rows;
 };
 
 struct krylov_vector_t
@@ -344,10 +344,10 @@ static int mm_read_banner(FILE *f, MM_typecode *matcode)
         storage_scheme) != 5)
     return MM_PREMATURE_EOF;
 
-  for (p=mtx; *p!='\0'; *p=tolower(*p),p++); // convert to lower case 
-  for (p=crd; *p!='\0'; *p=tolower(*p),p++);  
-  for (p=data_type; *p!='\0'; *p=tolower(*p),p++);
-  for (p=storage_scheme; *p!='\0'; *p=tolower(*p),p++);
+  for (p=mtx; *p!='\0'; *p=(char)tolower(*p),p++); // convert to lower case 
+  for (p=crd; *p!='\0'; *p=(char)tolower(*p),p++);  
+  for (p=data_type; *p!='\0'; *p=(char)tolower(*p),p++);
+  for (p=storage_scheme; *p!='\0'; *p=(char)tolower(*p),p++);
 
   // Check for banner.
   if (strncmp(banner, MatrixMarketBanner, strlen(MatrixMarketBanner)) != 0)
@@ -739,7 +739,7 @@ int krylov_matrix_num_local_rows(krylov_matrix_t* A)
   return A->num_local_rows;
 }
 
-int krylov_matrix_num_global_rows(krylov_matrix_t* A)
+index_t krylov_matrix_num_global_rows(krylov_matrix_t* A)
 {
   return A->num_global_rows;
 }
@@ -925,7 +925,7 @@ int krylov_vector_local_size(krylov_vector_t* v)
   return v->local_size;
 }
 
-int krylov_vector_global_size(krylov_vector_t* v)
+index_t krylov_vector_global_size(krylov_vector_t* v)
 {
   return v->global_size;
 }

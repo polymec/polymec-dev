@@ -25,7 +25,7 @@ void silo_enable_compression(int level);
 typedef struct silo_field_metadata_t silo_field_metadata_t;
 
 // Creates a new empty object for storing field metadata.
-silo_field_metadata_t* silo_field_metadata_new();
+silo_field_metadata_t* silo_field_metadata_new(void);
 
 // Sets the label associated with the field for this metadata. This label 
 // appears in visualizations.
@@ -421,28 +421,28 @@ char* silo_file_read_string(silo_file_t* file,
 void silo_file_write_real_array(silo_file_t* file,
                                 const char* array_name,
                                 real_t* array_data,
-                                int array_size);
+                                size_t array_size);
 
 // Reads an array of real numbers from the silo file, allocating it with 
 // polymec_malloc, and filling in the given size. If the array exists but 
 // has zero size, NULL will be returned.
 real_t* silo_file_read_real_array(silo_file_t* file,
                                   const char* array_name,
-                                  int* array_size);
+                                  size_t* array_size);
 
 // Writes an array of integers of the given size to the silo file. If 
 // the array has zero size, an empty entry will be written.
 void silo_file_write_int_array(silo_file_t* file,
                                const char* array_name,
                                int* array_data,
-                               int array_size);
+                               size_t array_size);
 
 // Reads an array of integers from the silo file, allocating it with 
 // polymec_malloc, and filling in the given size. If the array exists, but 
 // has zero size, NULL will be returned.
 int* silo_file_read_int_array(silo_file_t* file,
                               const char* array_name,
-                              int* array_size);
+                              size_t* array_size);
 
 // Reads and returns a newly allocated exchanger from the silo file, assigning
 // it to the given communicator.

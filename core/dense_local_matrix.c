@@ -51,7 +51,7 @@ static void dlm_get_columns(void* context, int row, int* columns)
 {
   dlm_t* mat = context;
   for (int j = 0; j < mat->N; ++j)
-    columns[j] = mat->A[mat->N*j+row];
+    columns[j] = j;
 }
 
 static void dlm_add_column_vector(void* context, 

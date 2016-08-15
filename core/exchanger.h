@@ -66,7 +66,7 @@ bool exchanger_deadlock_detection_enabled(exchanger_t* ex);
 void exchanger_fprintf(exchanger_t* ex, FILE* stream);
 
 // This creates a serializer object that can read and write exchangers to byte streams.
-serializer_t* exchanger_serializer();
+serializer_t* exchanger_serializer(void);
 
 // Establishes a communication pattern in which this exchanger sends data at 
 // the given indices of an array to the given remote process. Note that 
@@ -282,7 +282,7 @@ void migrator_finish_transfer(migrator_t* m, int token);
 void migrator_fprintf(migrator_t* m, FILE* stream);
 
 // This creates a serializer object that can read and write migrators to byte streams.
-serializer_t* migrator_serializer();
+serializer_t* migrator_serializer(void);
 
 //------------------------------------------------------------------------
 
@@ -291,7 +291,7 @@ serializer_t* migrator_serializer();
 // are deprecated. Please use the migrator transfer functions instead.
 void exchanger_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type);
 int exchanger_start_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type);
-void migrator_finish_transfer(migrator_t* m, int token);
+void exchanger_finish_transfer(exchanger_t* ex, int token);
 
 exchanger_t* create_distributor(MPI_Comm comm, 
                                 int64_t* global_partition,

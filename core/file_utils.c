@@ -16,7 +16,7 @@
 
 void parse_path(const char *path, char *dirname, char *filename)
 {
-  int len = strlen(path);
+  int len = (int)strlen(path);
   char* last_sep = strrchr(path, SEPARATOR);
   // Now last_sep points to the last separator in path.
 
@@ -31,7 +31,7 @@ void parse_path(const char *path, char *dirname, char *filename)
   }
   else
   {
-    int index = last_sep - path;
+    int index = (int)(last_sep - path);
     strncpy(dirname, path, index);
     dirname[index] = '\0';
 
@@ -57,7 +57,7 @@ bool create_directory(const char* dirname, mode_t mode)
   char* delim = strstr((const char*)&(dirname[pos]), "/");
   while (delim != NULL)
   {
-    pos = delim - dirname + 1; // Include '/'
+    pos = (int)(delim - dirname) + 1; // Include '/'
     snprintf(path, pos, "%s", dirname);
     DIR* dir = opendir(path);
     if (dir == NULL)
@@ -93,12 +93,12 @@ string_slist_t* files_within_directory(const char* dirname)
   DIR* dir = opendir(dirname);
   if (dir == NULL)
     polymec_error("Directory '%s' does not exist.", dirname);
-  int path_len = strlen(dirname);
+  int path_len = (int)strlen(dirname);
   struct dirent* p;
   string_slist_t* files = string_slist_new();
   while ((p = readdir(dir)))
   {
-    int len = path_len + strlen(p->d_name) + 2; 
+    int len = path_len + (int)strlen(p->d_name) + 2; 
     char entry_name[FILENAME_MAX];
     snprintf(entry_name, len, "%s/%s", dirname, p->d_name);
     struct stat statbuf;
@@ -117,12 +117,12 @@ string_slist_t* directories_within_directory(const char* dirname)
   DIR* dir = opendir(dirname);
   if (dir == NULL)
     polymec_error("Directory '%s' does not exist.", dirname);
-  int path_len = strlen(dirname);
+  int path_len = (int)strlen(dirname);
   struct dirent* p;
   string_slist_t* dirs = string_slist_new();
   while ((p = readdir(dir)))
   {
-    int len = path_len + strlen(p->d_name) + 2; 
+    int len = path_len + (int)strlen(p->d_name) + 2; 
     char entry_name[FILENAME_MAX];
     snprintf(entry_name, len, "%s/%s", dirname, p->d_name);
     struct stat statbuf;
@@ -210,7 +210,7 @@ bool make_temp_directory(const char* dir_template, char* dirname)
 int remove_directory(const char* path)
 {
   DIR* d = opendir(path);
-  int path_len = strlen(path);
+  int path_len = (int)strlen(path);
   int r = -1;
 
   if (d != NULL)
@@ -224,7 +224,7 @@ int remove_directory(const char* path)
       if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
         continue;
 
-      int len = path_len + strlen(p->d_name) + 2; 
+      int len = path_len + (int)strlen(p->d_name) + 2; 
       char buf[FILENAME_MAX];
       struct stat statbuf;
 

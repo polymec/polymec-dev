@@ -75,7 +75,7 @@ typedef struct
 // milu_variant = ILU_SILU
 // fill_tolerance = 0.01
 // norm = ILU_INF
-ilu_params_t* ilu_params_new();
+ilu_params_t* ilu_params_new(void);
 
 // This instructs the given sparse_local_matrix object to use Incomplete LU
 // factorization with the given parameters.

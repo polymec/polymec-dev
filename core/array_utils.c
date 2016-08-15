@@ -12,14 +12,14 @@
 static int lower_bound(void* array, size_t length, void* element, size_t elem_size, int (*comp)(const void*, const void*))
 {
   int first = 0;
-  int count = length, step;
+  size_t count = length, step;
   while (count > 0)
   {
     step = count/2;
     char* bytes = (char*)array;
     if (comp((void*)&bytes[elem_size*(first+step)], element) < 0)
     {
-      first += (step+1);
+      first += (int)(step+1);
       count -= (step+1);
     }
     else
@@ -105,7 +105,7 @@ real_t* real_lsearch(real_t* array, size_t length, real_t element)
 {
   for (int i = 0; i < length; ++i)
   {
-    if (array[i] == element)
+    if (ABS(array[i] - element) < 1e-12)
       return &array[i];
   }
   return NULL;

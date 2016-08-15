@@ -169,7 +169,7 @@ static void local_matrix_export_mm(local_matrix_t* matrix, FILE* file)
   }
 }
 
-static void local_matrix_export_hb(local_matrix_t* matrix, FILE* file)
+static noreturn void local_matrix_export_hb(local_matrix_t* matrix, FILE* file)
 {
   POLYMEC_NOT_IMPLEMENTED
 }

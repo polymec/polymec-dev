@@ -98,7 +98,7 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
   msg->type = type;
   msg->stride = stride;
   msg->tag = tag;
-  msg->data_size = mpi_size(type);
+  msg->data_size = (int)mpi_size(type);
   msg->num_sends = 0;
   msg->num_receives = 0;
   msg->num_requests = 0;
@@ -408,7 +408,7 @@ void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map)
   int pos = 0, send_proc;
   int_array_t* send_indices;
   while (int_ptr_unordered_map_next(send_map, &pos, &send_proc, (void**)&send_indices))
-    exchanger_set_send(ex, send_proc, send_indices->data, send_indices->size, true);   
+    exchanger_set_send(ex, send_proc, send_indices->data, (int)send_indices->size, true);   
 }
 
 void exchanger_set_send_offset(exchanger_t* ex, ssize_t offset)
@@ -476,7 +476,7 @@ void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map)
   int pos = 0, recv_proc;
   int_array_t* recv_indices;
   while (int_ptr_unordered_map_next(recv_map, &pos, &recv_proc, (void**)&recv_indices))
-    exchanger_set_receive(ex, recv_proc, recv_indices->data, recv_indices->size, true);   
+    exchanger_set_receive(ex, recv_proc, recv_indices->data, (int)recv_indices->size, true);   
 }
 
 void exchanger_set_receive_offset(exchanger_t* ex, ssize_t offset)

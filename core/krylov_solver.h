@@ -356,7 +356,7 @@ void* krylov_matrix_impl(krylov_matrix_t* A);
 int krylov_matrix_num_local_rows(krylov_matrix_t* A);
 
 // Returns the number of globally stored rows in the matrix.
-int krylov_matrix_num_global_rows(krylov_matrix_t* A);
+index_t krylov_matrix_num_global_rows(krylov_matrix_t* A);
 
 // Zeros all of the entries in the given matrix.
 // This is collective and must be called by all processes.
@@ -510,7 +510,7 @@ void* krylov_vector_impl(krylov_vector_t* v);
 int krylov_vector_local_size(krylov_vector_t* v);
 
 // Returns the global size (dimension) of the vector.
-int krylov_vector_global_size(krylov_vector_t* v);
+index_t krylov_vector_global_size(krylov_vector_t* v);
 
 // Zeros all of the entries in the given vector.
 // This is collective, and must be called by all MPI processes.
