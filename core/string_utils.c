@@ -12,7 +12,7 @@
 
 char* string_dup(const char* s)
 {
-  int len = strlen(s);
+  int len = (int)strlen(s);
   char* copy = polymec_malloc((len+1)*sizeof(char));
   strcpy(copy, s);
   return copy;
@@ -20,7 +20,7 @@ char* string_dup(const char* s)
 
 char* string_ndup(const char* s, int n)
 {
-  int len = MIN(n, strlen(s));
+  int len = MIN(n, (int)strlen(s));
   char* copy = polymec_malloc((len+1)*sizeof(char));
   strncpy(copy, s, n);
   copy[n] = '\0';

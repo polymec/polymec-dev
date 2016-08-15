@@ -170,11 +170,11 @@ void mesh_delete_feature(mesh_t* mesh, const char* feature);
 // Returns a newly-allocated list of indices that will define a tags for 
 // cells/faces/edges/nodes with the given descriptor. If the tag already 
 // exists, returns NULL.
-int* mesh_create_tag(tagger_t* tagger, const char* tag, int num_indices);
+int* mesh_create_tag(tagger_t* tagger, const char* tag, size_t num_indices);
 
 // Retrieves the given tag, returning an array of indices if found (and 
 // writing the number of tagged elements to num_elements), or NULL if not.
-int* mesh_tag(tagger_t* tagger, const char* tag, int* num_indices);
+int* mesh_tag(tagger_t* tagger, const char* tag, size_t* num_indices);
 
 // Returns true if the given tag exists, false if not.
 bool mesh_has_tag(tagger_t* tagger, const char* tag);
@@ -208,7 +208,7 @@ void mesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag)
 void mesh_delete_tag(tagger_t* tagger, const char* tag);
 
 // Allows the traversal of all mesh tags.
-bool mesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, int* tag_size);
+bool mesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, size_t* tag_size);
 
 // Computes face areas and cell volumes for the mesh (for those that are 
 // bounded).
@@ -408,7 +408,7 @@ static inline bool mesh_face_is_external(mesh_t* mesh, int face)
 }
 
 // Returns a serializer object that can read/write meshes from/to byte arrays.
-serializer_t* mesh_serializer();
+serializer_t* mesh_serializer(void);
 
 // 1-value face exchanger: creates and returns a newly-allocated exchanger that allows the 
 // exchange of a UNIQUE face-related value from local to remote processes. The array to be 

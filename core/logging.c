@@ -71,11 +71,11 @@ static void logger_flush(logger_t* logger)
   }
 }
 
-static void logger_log(logger_t* logger, char* message)
+static void logger_log(logger_t* logger, const char* message)
 {
   if (logging_mode == LOG_TO_ALL_RANKS)
   {
-    int message_len = max_mpi_rank_digits + 5 + strlen(message);
+    size_t message_len = (size_t)max_mpi_rank_digits + 5 + strlen(message);
     char message_with_rank[message_len+1];
     switch(max_mpi_rank_digits)
     {
@@ -107,7 +107,7 @@ static logger_t* create_logger()
   {
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_nproc);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-    max_mpi_rank_digits = (int)log10(mpi_nproc) + 1;
+    max_mpi_rank_digits = (int)(log10(mpi_nproc)) + 1;
     polymec_atexit(delete_loggers);
     first_time = false;
   }
@@ -229,7 +229,7 @@ void log_debug_literal(const char* message)
   if (logger->stream != NULL)
   {
     // Log it directly.
-    logger_log(logger, (char*)message);
+    logger_log(logger, message);
   }
 }
 
@@ -262,7 +262,7 @@ void log_detail_literal(const char* message)
   if (logger->stream != NULL)
   {
     // Log it directly.
-    logger_log(logger, (char*)message);
+    logger_log(logger, message);
   }
 }
 
@@ -295,7 +295,7 @@ void log_info_literal(const char* message)
   if (logger->stream != NULL)
   {
     // Log it directly.
-    logger_log(logger, (char*)message);
+    logger_log(logger, message);
   }
 }
 
@@ -328,7 +328,7 @@ void log_urgent_literal(const char* message)
   if (logger->stream != NULL)
   {
     // Log it directly.
-    logger_log(logger, (char*)message);
+    logger_log(logger, message);
   }
 }
 

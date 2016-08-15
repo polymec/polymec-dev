@@ -118,7 +118,7 @@ static inline bool point2_is_between(point2_t* p1, point2_t* p2, point2_t* p3)
 {
   if (!point2s_are_colinear(p1, p2, p3))
     return false;
-  if (p2->x != p3->x)
+  if (ABS(p2->x - p3->x) > 0.0)
   {
     return ((p2->x <= p1->x) && (p1->x <= p3->x)) ||
            ((p2->x >= p1->x) && (p1->x >= p3->x));

@@ -173,7 +173,7 @@ bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z
 bbox_t* bbox_clone(bbox_t* box);
 
 // Allocates a bounding box that is understood to be the empty set.
-bbox_t* empty_set_bbox_new();
+bbox_t* empty_set_bbox_new(void);
 
 // Returns true if the bounding box is the empty set, false if not.
 bool bbox_is_empty_set(bbox_t* box);

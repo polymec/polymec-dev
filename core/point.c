@@ -56,31 +56,33 @@ bbox_t* empty_set_bbox_new()
 
 bool bbox_is_empty_set(bbox_t* box)
 {
-  return ((box->x1 == REAL_MAX) && (box->x2 == -REAL_MAX) && 
-          (box->y1 == REAL_MAX) && (box->y2 == -REAL_MAX) &&
-          (box->z1 == REAL_MAX) && (box->z2 == -REAL_MAX));
+  return ((box->x1 >= REAL_MAX) && (box->x2 <= -REAL_MAX) && 
+          (box->y1 >= REAL_MAX) && (box->y2 <= -REAL_MAX) &&
+          (box->z1 >= REAL_MAX) && (box->z2 <= -REAL_MAX));
 }
 
 bool bbox_is_point(bbox_t* box)
 {
-  return ((box->x1 == box->x2) &&
-          (box->y1 == box->y2) &&
-          (box->z1 == box->z2));
+  return ((ABS(box->x1 - box->x2) < 1e-12) &&
+          (ABS(box->y1 - box->y2) < 1e-12) &&
+          (ABS(box->z1 - box->z2) < 1e-12));
 }
 
 bool bbox_is_line(bbox_t* box)
 {
   return (!bbox_is_point(box) && 
-          (((box->x1 == box->x2) && (box->y1 == box->y2)) || 
-           ((box->y1 == box->y2) && (box->z1 == box->z2)) || 
-           ((box->z1 == box->z2) && (box->x1 == box->x2))));
+          (((ABS(box->x1 - box->x2) < 1e-12) && (ABS(box->y1 - box->y2) < 1e-12)) || 
+           ((ABS(box->y1 - box->y2) < 1e-12) && (ABS(box->z1 - box->z2) < 1e-12)) || 
+           ((ABS(box->z1 - box->z2) < 1e-12) && (ABS(box->x1 - box->x2) < 1e-12))));
 }
 
 bool bbox_is_plane(bbox_t* box)
 {
   return (!bbox_is_point(box) && 
           !bbox_is_line(box) && 
-          ((box->x1 == box->x2) || (box->y1 == box->y2) || (box->z1 == box->z2)));
+          ((ABS(box->x1 - box->x2) < 1e-12) || 
+           (ABS(box->y1 - box->y2) < 1e-12) || 
+           (ABS(box->z1 - box->z2) < 1e-12)));
 }
 
 void bbox_make_empty_set(bbox_t* box)
@@ -139,7 +141,7 @@ static inline void intersect_segment(real_t x1_1, real_t x2_1,
       *x2_i = x2_1;
     }
   }
-  else if (x1_1 == x1_2)
+  else if (ABS(x1_1 - x1_2) < 1e-12)
   {
     *x1_i = x1_1;
     *x2_i = MIN(x2_1, x2_2);
@@ -221,7 +223,7 @@ int* bbox_intersecting_processes(bbox_t* bbox, MPI_Comm comm, int* num_procs)
   // Clean up.
   polymec_free(all_data);
   int* procs = proc_array->data;
-  *num_procs = proc_array->size;
+  *num_procs = (int)proc_array->size;
   int_array_release_data_and_free(proc_array);
   return procs;
 

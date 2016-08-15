@@ -9,7 +9,7 @@
 #include "core/array_utils.h"
 
 // This is the generic implementation of lower_bound(). 
-static int lower_bound(void* array, int length, void* element, size_t elem_size, int (*comp)(const void*, const void*))
+static int lower_bound(void* array, size_t length, void* element, size_t elem_size, int (*comp)(const void*, const void*))
 {
   int first = 0;
   int count = length, step;
@@ -28,13 +28,13 @@ static int lower_bound(void* array, int length, void* element, size_t elem_size,
   return first;
 }
 
-void int_fill(int* array, int length, int value)
+void int_fill(int* array, size_t length, int value)
 {
   for (int i = 0; i < length; ++i)
     array[i] = value;
 }
 
-int* int_lsearch(int* array, int length, int element)
+int* int_lsearch(int* array, size_t length, int element)
 {
   for (int i = 0; i < length; ++i)
   {
@@ -44,33 +44,33 @@ int* int_lsearch(int* array, int length, int element)
   return NULL;
 }
 
-int* int_bsearch(int* array, int length, int element)
+int* int_bsearch(int* array, size_t length, int element)
 {
   return bsearch(&element, array, (size_t)length, sizeof(int), int_bsearch_comp);
 }
 
-int int_lower_bound(int* array, int length, int element)
+int int_lower_bound(int* array, size_t length, int element)
 {
   return lower_bound(array, length, &element, sizeof(int), int_bsearch_comp);
 }
 
-void int_qsort(int* array, int length)
+void int_qsort(int* array, size_t length)
 {
   qsort(array, (size_t)length, sizeof(int), int_bsearch_comp);
 }
 
-void int_pair_qsort(int* array, int length)
+void int_pair_qsort(int* array, size_t length)
 {
   qsort(array, (size_t)length, 2*sizeof(int), int_pair_bsearch_comp);
 }
 
-void index_fill(index_t* array, int length, index_t value)
+void index_fill(index_t* array, size_t length, index_t value)
 {
   for (int i = 0; i < length; ++i)
     array[i] = value;
 }
 
-index_t* index_lsearch(index_t* array, int length, index_t element)
+index_t* index_lsearch(index_t* array, size_t length, index_t element)
 {
   for (int i = 0; i < length; ++i)
   {
@@ -80,28 +80,28 @@ index_t* index_lsearch(index_t* array, int length, index_t element)
   return NULL;
 }
 
-index_t* index_bsearch(index_t* array, int length, index_t element)
+index_t* index_bsearch(index_t* array, size_t length, index_t element)
 {
   return bsearch(&element, array, (size_t)length, sizeof(index_t), index_bsearch_comp);
 }
 
-int index_lower_bound(index_t* array, int length, index_t element)
+int index_lower_bound(index_t* array, size_t length, index_t element)
 {
   return lower_bound(array, length, &element, sizeof(index_t), index_bsearch_comp);
 }
 
-void index_qsort(index_t* array, int length)
+void index_qsort(index_t* array, size_t length)
 {
   qsort(array, (size_t)length, sizeof(index_t), index_bsearch_comp);
 }
 
-void real_fill(real_t* array, int length, real_t value)
+void real_fill(real_t* array, size_t length, real_t value)
 {
   for (int i = 0; i < length; ++i)
     array[i] = value;
 }
 
-real_t* real_lsearch(real_t* array, int length, real_t element)
+real_t* real_lsearch(real_t* array, size_t length, real_t element)
 {
   for (int i = 0; i < length; ++i)
   {
@@ -111,17 +111,17 @@ real_t* real_lsearch(real_t* array, int length, real_t element)
   return NULL;
 }
 
-real_t* real_bsearch(real_t* array, int length, real_t element)
+real_t* real_bsearch(real_t* array, size_t length, real_t element)
 {
   return bsearch(&element, array, (size_t)length, sizeof(real_t), real_bsearch_comp);
 }
 
-int real_lower_bound(real_t* array, int length, real_t element)
+int real_lower_bound(real_t* array, size_t length, real_t element)
 {
   return lower_bound(array, length, &element, sizeof(real_t), real_bsearch_comp);
 }
 
-void real_qsort(real_t* array, int length)
+void real_qsort(real_t* array, size_t length)
 {
   qsort(array, (size_t)length, sizeof(real_t), real_bsearch_comp);
 }

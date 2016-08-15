@@ -170,7 +170,7 @@ void st_func_register_deriv(st_func_t* func, int n, st_func_t* nth_deriv)
   ASSERT(n > 0);
   ASSERT(n <= 4);
   ASSERT(nth_deriv != NULL);
-  ASSERT(st_func_num_comp(nth_deriv) == (func->num_comp * (int)pow(3, n))); 
+  ASSERT(st_func_num_comp(nth_deriv) == (func->num_comp * (int)(pow(3, n)))); 
   func->derivs[n-1] = nth_deriv;
 }
 
@@ -315,7 +315,7 @@ st_func_t* st_func_from_component(st_func_t* multicomp_func,
   {
     // We'll have to wrap this st_func.
     st_func_vtable vtable = {.eval = extractedcomp_eval, .dtor = extractedcomp_dtor};
-    int name_len = strlen(st_func_name(multicomp_func)) + 10;
+    int name_len = (int)strlen(st_func_name(multicomp_func)) + 10;
     char name[name_len];
     st_func_homogeneity_t homogeneity = st_func_is_homogeneous(multicomp_func) ? ST_FUNC_HOMOGENEOUS : ST_FUNC_HETEROGENEOUS;
     st_func_constancy_t constancy = st_func_is_constant(multicomp_func) ? ST_FUNC_CONSTANT : ST_FUNC_NONCONSTANT;

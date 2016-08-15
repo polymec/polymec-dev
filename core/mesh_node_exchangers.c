@@ -132,41 +132,41 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
 
     // Get the number of neighbors for our pth neighbor.
     int num_neighbors_of_neighbors[num_neighbors];
-    for (int p = 0; p < num_neighbors; ++p)
+    for (int pp = 0; pp < num_neighbors; ++pp)
     {
-      MPI_Irecv(&num_neighbors_of_neighbors[p], 1, MPI_INT, neighbors[p], 0, 
-                mesh->comm, &requests[p]);
-      MPI_Isend(&num_neighbors, 1, MPI_INT, neighbors[p], 0, 
-          mesh->comm, &requests[p + num_neighbors]);
+      MPI_Irecv(&num_neighbors_of_neighbors[pp], 1, MPI_INT, neighbors[pp], 0, 
+                mesh->comm, &requests[pp]);
+      MPI_Isend(&num_neighbors, 1, MPI_INT, neighbors[pp], 0, 
+          mesh->comm, &requests[pp + num_neighbors]);
     }
     MPI_Waitall(2 * num_neighbors, requests, statuses);
 
     // Get the ranks of the neighbors for our pth neighbor.
     int* neighbors_of_neighbors[num_neighbors];
-    for (int p = 0; p < num_neighbors; ++p)
+    for (int pp = 0; pp < num_neighbors; ++pp)
     {
-      neighbors_of_neighbors[p] = polymec_malloc(sizeof(int) * num_neighbors_of_neighbors[p]);
-      MPI_Irecv(neighbors_of_neighbors[p], num_neighbors_of_neighbors[p], 
-          MPI_INT, neighbors[p], 0, mesh->comm, &requests[p]);
-      MPI_Isend(neighbors, num_neighbors, MPI_INT, neighbors[p], 0, 
-          mesh->comm, &requests[p + num_neighbors]);
+      neighbors_of_neighbors[pp] = polymec_malloc(sizeof(int) * num_neighbors_of_neighbors[pp]);
+      MPI_Irecv(neighbors_of_neighbors[pp], num_neighbors_of_neighbors[pp], 
+          MPI_INT, neighbors[pp], 0, mesh->comm, &requests[pp]);
+      MPI_Isend(neighbors, num_neighbors, MPI_INT, neighbors[pp], 0, 
+          mesh->comm, &requests[pp + num_neighbors]);
     }
     MPI_Waitall(2 * num_neighbors, requests, statuses);
 
     // Mash them all together.
     int_unordered_set_t* neighbor_neighbor_set = int_unordered_set_new();
-    for (int p = 0; p < num_neighbors; ++p)
+    for (int pp = 0; pp < num_neighbors; ++pp)
     {
-      int_unordered_set_insert(neighbor_neighbor_set, neighbors[p]);
-      for (int pp = 0; pp < num_neighbors_of_neighbors[p]; ++pp)
+      int_unordered_set_insert(neighbor_neighbor_set, neighbors[pp]);
+      for (int ppp = 0; ppp < num_neighbors_of_neighbors[pp]; ++ppp)
       {
-        if (neighbors_of_neighbors[p][pp] != rank)
+        if (neighbors_of_neighbors[pp][ppp] != rank)
         {
           int_unordered_set_insert(neighbor_neighbor_set, 
-                                   neighbors_of_neighbors[p][pp]);
+                                   neighbors_of_neighbors[pp][ppp]);
         }
       }
-      polymec_free(neighbors_of_neighbors[p]);
+      polymec_free(neighbors_of_neighbors[pp]);
     }
     int npos = 0, neighbor;
     while (int_unordered_set_next(neighbor_neighbor_set, &npos, &neighbor))
@@ -209,12 +209,12 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
       bbox_grow(&bbox, &(my_nodes->data[i]));
     hilbert_t* curve = hilbert_new(&bbox);
     hilbert_sort_points(curve, my_nodes->data, my_node_indices->data, 
-                        my_nodes->size);
+                        (int)my_nodes->size);
   }
 
   // Now send/receive the positions of all nodes that can interact with 
   // neighbors of our neighbors. 
-  int num_neighbor_neighbors = all_neighbors_of_neighbors->size;
+  int num_neighbor_neighbors = (int)all_neighbors_of_neighbors->size;
   MPI_Request requests[2*num_neighbor_neighbors];
   MPI_Status statuses[2*num_neighbor_neighbors];
   int_ptr_unordered_map_t* neighbor_neighbor_nodes = int_ptr_unordered_map_new();
@@ -250,7 +250,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Isend(my_nodes->data, 3*my_nodes->size, MPI_REAL_T, proc, 0, 
+      MPI_Isend(my_nodes->data, (int)(3*my_nodes->size), MPI_REAL_T, proc, 0, 
                 mesh->comm, &requests[p + num_neighbor_neighbors]);
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);
@@ -318,7 +318,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
-      MPI_Isend(culled_nodes[p]->data, culled_nodes[p]->size, MPI_INT, proc, 0, 
+      MPI_Isend(culled_nodes[p]->data, (int)culled_nodes[p]->size, MPI_INT, proc, 0, 
                 mesh->comm, &requests[p + num_neighbor_neighbors]);
     }
     MPI_Waitall(2 * num_neighbor_neighbors, requests, statuses);

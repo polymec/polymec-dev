@@ -59,7 +59,7 @@ typedef struct polymec_timer_t polymec_timer_t;
 polymec_timer_t* polymec_timer_get(const char* name);
 void polymec_timer_start(polymec_timer_t* timer);
 void polymec_timer_stop(polymec_timer_t* timer);
-void polymec_timer_stop_all();
-void polymec_timer_report();
+void polymec_timer_stop_all(void);
+void polymec_timer_report(void);
 
 #endif

@@ -21,11 +21,11 @@
 
 double gamma(double x)
 {
-  ASSERT((x >= 0.0) || (x != 1.0 * (int)x));
+  ASSERT((x >= 0.0) || (ABS(x - 1.0 * (int)x) < 1e-12));
   ASSERT(x <= 171.6);
 
   // If x is an integer, we can do the easy thing.
-  if (x == 1.0*(int)x)
+  if (ABS(x - 1.0*(int)x) < 1e-12)
   {
     double ga = 1.0;
     for (int i = 2; i < (int)x; ++i)
@@ -195,15 +195,15 @@ static double msta1(double x, double mp)
   double f0 = envj(n0, a0) - mp;
   int n1 = n0 + 5;
   double f1 = envj(n1, a0) - mp;
-  double nn;
+  double nn = 0.0;
   for (int it = 1; it <= 20; ++it)
   {
     nn = n1 - 1.0*(n1-n0)/(1.0 - f0/f1);
-    double f = envj(nn, a0) - mp;
+    double f = envj((int)nn, a0) - mp;
     if (fabs(nn-n1) < 1.0) break;
     n0 = n1;
     f0 = f1;
-    n1 = nn;
+    n1 = (int)nn;
     f1 = f;
   }
   return nn;
@@ -229,18 +229,18 @@ static double msta2(double x, int n, double mp)
   double f0 = envj(n0, a0) - obj;
   int n1 = n0 + 5;
   double f1 = envj(n1, a0) - obj;
-  double nn;
+  double nn = 0.0;
   for (int it = 1; it <= 20; ++it)
   {
     nn = 1.0*n1 - 1.0*(n1 - n0)/(1.0 - f0/f1);
-    double f = envj(nn, a0) - obj;
+    double f = envj((int)nn, a0) - obj;
     if (fabs(nn-n1) < 1.0) break;
     n0 = n1;
     f0 = f1;
-    n1 = nn;
+    n1 = (int)nn;
     f1 = f;
   }
-  return nn + 10;
+  return nn + 10.0;
 }
 
 double bessel_jn(int n, double x)
@@ -253,7 +253,7 @@ double bessel_jn(int n, double x)
   if (x < 1e-100)
     return 0.0;
 
-  double val, j0_val = bessel_j0(x), j1_val = bessel_j1(x);
+  double val = 0.0, j0_val = bessel_j0(x), j1_val = bessel_j1(x);
   double jl = j0_val, jm = j1_val;
   if (n < (int)(0.9*x))
   {
@@ -268,9 +268,9 @@ double bessel_jn(int n, double x)
   else
   {
     // Determine the order from which to recurse backwards.
-    int m = msta1(x, 200.0);
+    int m = (int)(msta1(x, 200.0));
     if (m >= n)
-      m = msta2(x, n, 15.0);
+      m = (int)(msta2(x, n, 15.0));
 
     double f = 0.0, f2 = 0.0, f1 = 99.0;
     for (int k = m; k >= 0; --k)
@@ -436,7 +436,7 @@ double bessel_yn(int n, double x)
   if (x < 1e-100)
     return -1e300;
 
-  double val, y0_val = bessel_y0(x), y1_val = bessel_y1(x);
+  double val = 0.0, y0_val = bessel_y0(x), y1_val = bessel_y1(x);
   double f0 = y0_val, f1 = y1_val;
   for (int k = 2; k <= n; ++k)
   {
@@ -564,7 +564,7 @@ real_t chebyshev_tn(int n, real_t x)
   else if (n == 1)
     return x;
   real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
-  real_t tn;
+  real_t tn = 0.0;
   for (int k = 2; k <= n; ++k)
   {
     real_t yn = (A*x*B)*y1-C*y0;
@@ -583,7 +583,7 @@ real_t chebyshev_dtndx(int n, real_t x)
     return 1.0;
   real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
   real_t dy0 = 0.0, dy1 = 1.0;
-  real_t dtndx;
+  real_t dtndx = 0.0;
   for (int k = 2; k <= n; ++k)
   {
     real_t yn = (A*x*B)*y1-C*y0;
@@ -604,7 +604,7 @@ real_t chebyshev_un(int n, real_t x)
   else if (n == 1)
     return 2.0*x;
   real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
-  real_t un;
+  real_t un = 0.0;
   for (int k = 2; k <= n; ++k)
   {
     real_t yn = (A*x*B)*y1-C*y0;
@@ -623,7 +623,7 @@ real_t chebyshev_dundx(int n, real_t x)
     return 2.0;
   real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
   real_t dy0 = 0.0, dy1 = 2.0;
-  real_t dundx;
+  real_t dundx = 0.0;
   for (int k = 2; k <= n; ++k)
   {
     real_t yn = (A*x*B)*y1-C*y0;
@@ -644,7 +644,7 @@ real_t laguerre_ln(int n, real_t x)
   else if (n == 1)
     return 1.0 - x;
   real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
-  real_t ln;
+  real_t ln = 0.0;
   for (int k = 2; k <= n; ++k)
   {
     A = -1.0/k;
@@ -666,7 +666,7 @@ real_t laguerre_dlndx(int n, real_t x)
     return -1.0;
   real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 1.0 - x;
   real_t dy0 = 0.0, dy1 = -1.0;
-  real_t dlndx;
+  real_t dlndx = 0.0;
   for (int k = 2; k <= n; ++k)
   {
     A = -1.0/k;
@@ -691,7 +691,7 @@ real_t hermite_hn(int n, real_t x)
   else if (n == 1)
     return 2.0*x;
   real_t h0 = 1.0, h1 = 2.0*x;
-  real_t hn;
+  real_t hn = 0.0;
   for (int k = 2; k <= n; ++k)
   {
     hn = 2.0*(x*h1 - (k-1)*h0);
@@ -904,10 +904,11 @@ double complex bessel_ck0(double complex z)
   }
   if (creal(z) < 0.0)
   {
+    double complex i = CMPLX(0.0, 1.0);
     if (cimag(z) < 0.0)
-      k0 += I * M_PI * i0;
+      k0 += i * M_PI * i0;
     else if (cimag(z) > 0.0)
-      k0 -= I * M_PI * i0;
+      k0 -= i * M_PI * i0;
   }
   return k0;
 }
@@ -924,10 +925,11 @@ double complex bessel_ck1(double complex z)
   double complex k1 = (1.0/z1 - i1*k0) / i0;
   if (creal(z) < 0.0)
   {
+    double complex i = CMPLX(0.0, 1.0);
     if (cimag(z) < 0.0)
-      k1 = -k1 + I * M_PI * i1;
+      k1 = -k1 + i * M_PI * i1;
     else if (cimag(z) > 0.0)
-      k1 = -k1 - I * M_PI * i1;
+      k1 = -k1 - i * M_PI * i1;
   }
   return k1;
 }

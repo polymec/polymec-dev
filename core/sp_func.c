@@ -101,7 +101,7 @@ void sp_func_register_deriv(sp_func_t* func, int n, sp_func_t* nth_deriv)
   ASSERT(n > 0);
   ASSERT(n <= 4);
   ASSERT(nth_deriv != NULL);
-  ASSERT(sp_func_num_comp(nth_deriv) == (func->num_comp * (int)pow(3, n))); 
+  ASSERT(sp_func_num_comp(nth_deriv) == (func->num_comp * (int)(pow(3, n)))); 
   func->derivs[n-1] = nth_deriv;
 }
 

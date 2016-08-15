@@ -122,7 +122,7 @@ void parallel_sort(MPI_Comm comm,
   MPI_Allreduce(&N, &N_max, 1, MPI_INT, MPI_MAX, comm);
   MPI_Allreduce(&N, &N_min, 1, MPI_INT, MPI_MIN, comm);
   real_t max_min_ratio = 1.0 * N_max / N_min;
-  int nphases = (int)ceil(max_min_ratio * nprocs);
+  int nphases = (int)(ceil(max_min_ratio * nprocs));
 
   // Allocate storage for the exchange.
   void* other = polymec_malloc(width * MAX(N_even, N_odd));
@@ -137,12 +137,12 @@ void parallel_sort(MPI_Comm comm,
     int N_partner, partner;
     if (i % 2 == 0) // even phase
     {
-      N_partner = N_even;
+      N_partner = (int)N_even;
       partner = even_partner;
     }
     else // odd phase
     {
-      N_partner = N_odd;
+      N_partner = (int)N_odd;
       partner = odd_partner;
     }
 
@@ -154,13 +154,13 @@ void parallel_sort(MPI_Comm comm,
     // first, avoiding deadlock conditions.
     if (rank % 2 == 0) 
     {
-      MPI_Send(base, N*width, MPI_BYTE, partner, 0, MPI_COMM_WORLD);
-      MPI_Recv(other, N_partner*width, MPI_BYTE, partner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Send(base, (int)(N*width), MPI_BYTE, partner, 0, MPI_COMM_WORLD);
+      MPI_Recv(other, (int)(N_partner*width), MPI_BYTE, partner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     } 
     else 
     {
-      MPI_Recv(other, N_partner*width, MPI_BYTE, partner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Send(base, N*width, MPI_BYTE, partner, 0, MPI_COMM_WORLD);
+      MPI_Recv(other, (int)(N_partner*width), MPI_BYTE, partner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Send(base, (int)(N*width), MPI_BYTE, partner, 0, MPI_COMM_WORLD);
     }
 
     // Merge base and other based on our preferred range of values.

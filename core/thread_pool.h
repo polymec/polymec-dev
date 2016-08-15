@@ -15,7 +15,7 @@ typedef struct thread_pool_t thread_pool_t;
 // Creates a thread pool with a number of threads equal to the number of 
 // cores on the machine. Uses polymec_num_cores(). Upon return, the pool 
 // is created and has started a number of threads.
-thread_pool_t* thread_pool_new();
+thread_pool_t* thread_pool_new(void);
 
 // Creates a thread pool with the given number of threads. Upon return, 
 // the pool is created and has started a number of threads.

@@ -194,12 +194,13 @@ real_t brent_solve(real_t (*F)(void*, real_t), void* context, real_t x1, real_t 
   }
   real_t c = a;
   bool mflag = true;
-  real_t fs, d, s;
+  real_t fs, d = 0.0, s;
   int num_iter = 0;
   do
   {
     real_t fc = F(context, c);
-    if ((fa != fc) && (fb != fc))
+    if ((ABS(fa - fc) > 1e-12) && 
+        (ABS(fb - fc) > 1e-12))
     {
       s = a*fb*fc / ((fa-fb)*(fa-fc)) + 
           b*fa*fc / ((fb-fa)*(fb-fc)) + 
@@ -210,10 +211,10 @@ real_t brent_solve(real_t (*F)(void*, real_t), void* context, real_t x1, real_t 
       s = b - fb * (b-a)/(fb-fa);
     }
     if (!in_range(s, (3.0*a + b)/4.0, b) || 
-        (mflag && fabs(s-b) >= 0.5*fabs(b-c)) ||
-        (!mflag && fabs(s-b) >= 0.5*fabs(c-d)) || 
-        (mflag && fabs(b-c) < delta) ||
-        (!mflag && fabs(c-d) < delta))
+        (mflag && (ABS(s-b) >= 0.5*ABS(b-c))) ||
+        (!mflag && (ABS(s-b) >= 0.5*ABS(c-d))) || 
+        (mflag && (ABS(b-c) < delta)) ||
+        (!mflag && (ABS(c-d) < delta)))
     {
       s = 0.5 * (a + b);
       mflag = true;

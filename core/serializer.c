@@ -289,7 +289,7 @@ static void* string_byte_read(byte_array_t* bytes, size_t* offset)
 static void string_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
   char* s = obj;
-  int len = strlen(s);
+  int len = (int)strlen(s);
   byte_array_write_ints(bytes, 1, &len, offset);
   byte_array_write_chars(bytes, len, s, offset);
 }

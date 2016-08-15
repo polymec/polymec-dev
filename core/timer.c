@@ -24,7 +24,7 @@ struct polymec_timer_t
 };
 
 // Globals.
-int mpi_rank = -1;
+static int mpi_rank = -1;
 static bool use_timers = false;
 static ptr_array_t* all_timers = NULL;
 static polymec_timer_t* current_timer = NULL;
@@ -187,14 +187,26 @@ static void report_timer(polymec_timer_t* t, int indentation, FILE* file)
     strcpy(call_string, "calls");
   else
     strcpy(call_string, "call");
-  int name_len = strlen(t->name);
+  int name_len = (int)strlen(t->name);
   fprintf(file, "%*s%*s%10.4f s  %5.1f%%  %10lld %s\n", indentation + name_len, t->name, 
           45 - indentation - name_len, " ", t->accum_time, percent, t->count, call_string);
-  int num_children = t->children->size;
-  for (int i = 0; i < num_children; ++i)
+  size_t num_children = t->children->size;
+  for (size_t i = 0; i < num_children; ++i)
   {
     polymec_timer_t* child = t->children->data[i];
     report_timer(child, indentation+1, file);
+  }
+}
+
+static void polymec_timer_finalize()
+{
+  // Now we delete all the timers! Since they're all stored in an array, 
+  // we can delete the array and be done with it.
+  if (all_timers != NULL)
+  {
+    ptr_array_free(all_timers);
+    all_timers = NULL;
+    current_timer = NULL;
   }
 }
 
@@ -227,18 +239,7 @@ void polymec_timer_report()
       report_timer(t, 0, report_file);
       fclose(report_file);
     }
-  }
-}
-
-void polymec_timer_finalize()
-{
-  // Now we delete all the timers! Since they're all stored in an array, 
-  // we can delete the array and be done with it.
-  if (all_timers != NULL)
-  {
-    ptr_array_free(all_timers);
-    all_timers = NULL;
-    current_timer = NULL;
+    polymec_timer_finalize();
   }
 }
 

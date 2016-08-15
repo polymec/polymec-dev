@@ -79,12 +79,12 @@ bool point_cloud_next_property(point_cloud_t* cloud, int* pos,
                               prop_data, prop_serializer);
 }
 
-int* point_cloud_create_tag(point_cloud_t* cloud, const char* tag, int num_indices)
+int* point_cloud_create_tag(point_cloud_t* cloud, const char* tag, size_t num_indices)
 {
   return tagger_create_tag(cloud->tags, tag, num_indices);
 }
 
-int* point_cloud_tag(point_cloud_t* cloud, const char* tag, int* num_indices)
+int* point_cloud_tag(point_cloud_t* cloud, const char* tag, size_t* num_indices)
 {
   return tagger_tag(cloud->tags, tag, num_indices);
 }
@@ -148,9 +148,9 @@ void point_cloud_unite(point_cloud_t* cloud,
     if (point_cloud_has_tag(cloud, tag))
     {
       // This tag already exists, so stick the new points in there.
-      int old_size;
+      size_t old_size;
       int* t = point_cloud_tag(cloud, tag, &old_size);
-      int new_size = old_size + other->num_points + other->num_ghosts;
+      size_t new_size = old_size + other->num_points + other->num_ghosts;
       tagger_resize_tag(cloud->tags, tag, new_size);
       t = point_cloud_tag(cloud, tag, &new_size);
       for (int i = 0; i < other->num_points; ++i)
@@ -197,7 +197,8 @@ static void remove_points(point_cloud_t* cloud,
   cloud->num_ghosts -= removed_ghosts;
 
   // Remove any tags that no longer contain points.
-  int pos = 0, *indices, size;
+  int pos = 0, *indices;
+  size_t size;
   char* tag_name;
   string_unordered_set_t* tags_to_remove = string_unordered_set_new();
   while (tagger_next_tag(cloud->tags, &pos, &tag_name, &indices, &size))
@@ -338,7 +339,7 @@ int_ptr_unordered_map_t* point_cloud_map_points_to_objects(point_cloud_t* cloud,
   {
     // Retrieve the tag for this boundary condition.
     ASSERT(point_cloud_has_tag(cloud, tag));
-    int num_points;
+    size_t num_points;
     int* points = point_cloud_tag(cloud, tag, &num_points);
 
     // Now create an entry for each boundary points.

@@ -97,10 +97,10 @@ rng_t* posix_rng_new(size_t state_size);
 
 // Creates the standard C random number generator implemented using rand().
 // This is available on every platform.
-rng_t* rand_rng_new();
+rng_t* rand_rng_new(void);
 
 // Creates the best vanilla random number generator available on this system.
-rng_t* host_rng_new();
+rng_t* host_rng_new(void);
 
 #endif
 

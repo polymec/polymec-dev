@@ -57,7 +57,7 @@ adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices)
 }
 
 adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm, 
-                                     int num_global_vertices, 
+                                     index_t num_global_vertices, 
                                      index_t* vertex_dist)
 {
   ASSERT(num_global_vertices >= 0);
@@ -112,7 +112,7 @@ adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
 
   // Distribute the vertices in a manner analogous to the way they are 
   // distributed in the given graph.
-  int num_global_vertices = block_size * graph->vtx_dist[nproc];
+  int num_global_vertices = (int)(block_size * graph->vtx_dist[nproc]);
   index_t vtx_dist[nproc+1];
   vtx_dist[0] = 0;
   for (int p = 1; p <= nproc; ++p)
@@ -519,8 +519,8 @@ void adj_graph_fprintf(adj_graph_t* graph, FILE* stream)
     fprintf(stream, " %d: ", i);
     int num_edges = adj_graph_num_edges(graph, i);
     int* edges = adj_graph_edges(graph, i);
-    for (int i = 0; i < num_edges; ++i)
-      fprintf(stream, "%d ", edges[i]);
+    for (int j = 0; j < num_edges; ++j)
+      fprintf(stream, "%d ", edges[j]);
     fprintf(stream, "\n");
   }
   fprintf(stream, "\n");
@@ -621,7 +621,7 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
   STOP_FUNCTION_TIMER();
 }
 
-static void compute_incidence_degree_ordering(adj_graph_t* graph, int* vertices)
+static noreturn void compute_incidence_degree_ordering(adj_graph_t* graph, int* vertices)
 {
   // In this ordering, the next vertex in the ordering is the one with the  
   // largest degree of incidence with the subgraph consisting only of those 
@@ -656,9 +656,9 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
     // Determine which colors are forbidden by adjacency relations.
     if (v < num_vertices)
     {
-      int num_edges = adj_graph_num_edges(graph, v);
+      int num_v_edges = adj_graph_num_edges(graph, v);
       int* N1 = adj_graph_edges(graph, v);
-      for (int e = 0; e < num_edges; ++e)
+      for (int e = 0; e < num_v_edges; ++e)
       {
         int w = N1[e];
         if (w <= v_max)
@@ -667,9 +667,9 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
             forbidden_colors[colors[w]] = v;
           if (w < num_vertices)
           {
-            int num_edges = adj_graph_num_edges(graph, w);
+            int num_w_edges = adj_graph_num_edges(graph, w);
             int* N2 = adj_graph_edges(graph, w);
-            for (int ee = 0; ee < num_edges; ++ee)
+            for (int ee = 0; ee < num_w_edges; ++ee)
             {
               int x = N2[ee];
               if ((x != v) && (x < num_vertices) && (colors[x] >= 0))

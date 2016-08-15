@@ -55,17 +55,17 @@ static hilbert_t* hilbert_from_points(point_t* points, int num_points)
     bbox_grow(&bbox, &points[i]);
 
   // (Handle lower dimensional point distributions gracefully.)
-  if (fabs(bbox.x2 - bbox.x1) < FLT_MIN)
+  if (ABS(bbox.x2 - bbox.x1) < REAL_MIN)
   {
     bbox.x1 -= 0.5;
     bbox.x2 += 0.5;
   }
-  if (fabs(bbox.y2 - bbox.y1) < FLT_MIN)
+  if (ABS(bbox.y2 - bbox.y1) < REAL_MIN)
   {
     bbox.y1 -= 0.5;
     bbox.y2 += 0.5;
   }
-  if (fabs(bbox.z2 - bbox.z1) < FLT_MIN)
+  if (ABS(bbox.z2 - bbox.z1) < REAL_MIN)
   {
     bbox.z1 -= 0.5;
     bbox.z2 += 0.5;
@@ -153,7 +153,7 @@ migrator_t* distribute_point_cloud(point_cloud_t** cloud,
       size_t offset = 0;
       serializer_write(ser, p_cloud, bytes, &offset);
       MPI_Send(&bytes->size, 1, MPI_INT, p, p, comm);
-      MPI_Send(bytes->data, bytes->size, MPI_BYTE, p, p, comm);
+      MPI_Send(bytes->data, (int)bytes->size, MPI_BYTE, p, p, comm);
 
       // Clean up.
       byte_array_clear(bytes);
@@ -448,7 +448,7 @@ static bool balance_loads(MPI_Comm comm,
           // beginning of our array) the number of points that most closely 
           // satisfies this quantity, and send back that number of points.
           int work_needed = -num_points; 
-          int num_points_sent = 0, work_given = 0, delta;
+          int num_points_sent = 0, work_given = 0, delta = 0;
           while (work_given <= work_needed)
           {
             delta = (int)array[4*num_points_sent+3];
@@ -556,7 +556,7 @@ static bool balance_loads(MPI_Comm comm,
         {
           // We send the negation of how much work we would like to balance our 
           // load.
-          int needed_work = (int)ceil(ideal_proc_load - load);
+          int needed_work = (int)(ceil(ideal_proc_load - load));
           needed_work *= -1; // Flip the sign to signify that we want work.
           MPI_Send(&needed_work, 1, MPI_INT, rank+1, 0, comm);
 
@@ -582,8 +582,8 @@ static bool balance_loads(MPI_Comm comm,
           }
           if (extra_work + load > ideal_proc_load)
           {
-            real_t imbalance = (1.0 * (load + excess_load) - ideal_proc_load) / ideal_proc_load;
-            if (imbalance > imbalance_tol)
+            real_t new_imbalance = (1.0 * (load + excess_load) - ideal_proc_load) / ideal_proc_load;
+            if (new_imbalance > imbalance_tol)
             {
               response = 0; // we reject the last point.
               --num_points_received;
@@ -619,12 +619,12 @@ static bool balance_loads(MPI_Comm comm,
   {
     log_debug("balance_loads: Targeting %d local points.", array_size);
     log_debug("balance_loads: Successfully balanced workloads to within %d%%.", 
-              (int)round(imbalance_tol * 100.0));
+              (int)(round(imbalance_tol * 100.0)));
   }
   else
   {
     log_debug("balance_loads: Could not balance workloads to within %d%%.",
-              (int)round(imbalance_tol * 100.0));
+              (int)(round(imbalance_tol * 100.0)));
   }
 
   STOP_FUNCTION_TIMER();
@@ -723,8 +723,8 @@ static int64_t* partition_vector_from_balanced_array(MPI_Comm comm,
         int j = 0;
         for (int i = 0; i < balanced_array_size; ++i)
         {
-          int rank = (int)balanced_array[4*i+1];
-          if (rank == p)
+          int rank1 = (int)balanced_array[4*i+1];
+          if (rank1 == p)
             indices[j++] = (int)balanced_array[4*i+2];
         }
         int_ptr_unordered_map_insert_with_v_dtor(receives, p, indices, polymec_free);
@@ -872,7 +872,7 @@ static void point_cloud_migrate(point_cloud_t** cloud,
 
   // Send the actual clouds and wait for receipt.
   for (int i = 0; i < num_sends; ++i)
-    MPI_Isend(send_buffers[i]->data, send_buffers[i]->size, MPI_BYTE, send_procs[i], 0, c->comm, &requests[num_receives + i]);
+    MPI_Isend(send_buffers[i]->data, (int)send_buffers[i]->size, MPI_BYTE, send_procs[i], 0, c->comm, &requests[num_receives + i]);
   MPI_Waitall(num_receives + num_sends, requests, statuses);
 
   // Unpack the clouds.

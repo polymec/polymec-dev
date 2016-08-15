@@ -56,7 +56,7 @@ text_buffer_t* text_buffer_from_file(const char* filename)
   fseek(fp, 0, SEEK_SET);
   buffer->size = end - start + 1;
   buffer->data = polymec_malloc(sizeof(char) * buffer->size);
-  int bytes_read = fread(buffer->data, sizeof(char), buffer->size, fp);
+  size_t bytes_read = fread(buffer->data, sizeof(char), buffer->size, fp);
   buffer->data[bytes_read-1] = '\0';
 
   // We're through with the file now.
@@ -104,8 +104,8 @@ bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, int* line_le
 {
   if (*pos >= buffer->num_lines) 
     return false;
-  int offset = buffer->line_offsets[*pos];
-  *line_length = buffer->line_offsets[*pos + 1] - offset;
+  int offset = (int)buffer->line_offsets[*pos];
+  *line_length = (int)buffer->line_offsets[*pos + 1] - offset;
   *line = &buffer->data[offset];
   ++(*pos);
   return true;

@@ -74,11 +74,11 @@ bool point_cloud_next_property(point_cloud_t* cloud, int* pos,
 // Returns a newly-allocated list of indices that will define a tags for 
 // cells/faces/edges/nodes with the given descriptor. If the tag already 
 // exists, returns NULL.
-int* point_cloud_create_tag(point_cloud_t* cloud, const char* tag, int num_indices);
+int* point_cloud_create_tag(point_cloud_t* cloud, const char* tag, size_t num_indices);
 
 // Retrieves the given tag, returning an array of indices if found (and 
 // writing the number of tagged elements to num_elements), or NULL if not.
-int* point_cloud_tag(point_cloud_t* cloud, const char* tag, int* num_indices);
+int* point_cloud_tag(point_cloud_t* cloud, const char* tag, size_t* num_indices);
 
 // Returns true if the given tag exists, false if not.
 bool point_cloud_has_tag(point_cloud_t* cloud, const char* tag);
@@ -137,7 +137,7 @@ void point_cloud_difference(point_cloud_t* cloud,
 void point_cloud_trim(point_cloud_t* cloud, sp_func_t* F);
 
 // Returns a serializer object that can read/write point clouds from/to byte arrays.
-serializer_t* point_cloud_serializer();
+serializer_t* point_cloud_serializer(void);
 
 // Given a map associating tag names to objects, this constructs and returns 
 // a mapping of point indices within the given cloud to these objects. The 

@@ -25,7 +25,7 @@ adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices);
 // Allocates a new adjacency graph on the given MPI communicator 
 // with the given number of vertices distributed according to vertex_dist.
 adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm, 
-                                     int num_global_vertices,
+                                     index_t num_global_vertices,
                                      index_t* vertex_dist);
 
 // Constructs an adjacency graph that represents the connectivity between 

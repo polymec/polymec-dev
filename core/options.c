@@ -38,7 +38,7 @@ static void destroy_kv(char* key, char* value)
   polymec_free(value);
 }
 
-options_t* options_new()
+options_t* options_new(void)
 {
   options_t* o = GC_MALLOC(sizeof(options_t));
   o->num_args = 0;
@@ -53,7 +53,7 @@ options_t* options_argv()
   return argv_singleton;
 }
 
-static void destroy_options()
+static void destroy_options(void)
 {
   argv_singleton = NULL;
 }

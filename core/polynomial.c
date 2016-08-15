@@ -425,10 +425,12 @@ bool polynomial_equals(polynomial_t* p, polynomial_t* q)
   if (p == q) 
     return true; 
 
-  if ((p->x0.x != q->x0.x) || (p->x0.y != q->x0.y) || (p->x0.z != q->x0.z))
+  if ((ABS(p->x0.x - q->x0.x) > 1e-12) || 
+      (ABS(p->x0.y - q->x0.y) > 1e-12) || 
+      (ABS(p->x0.z - q->x0.z) > 1e-12))
     return false;
 
-  if (p->factor != q->factor)
+  if (ABS(p->factor - q->factor) > 1e-12)
     return false;
 
   // Encode the x, y, z powers of p into integers, and map those integers to 
@@ -453,7 +455,7 @@ bool polynomial_equals(polynomial_t* p, polynomial_t* q)
     int D1 = q->degree+1;
     int key = D1*D1*z_pow + D1*y_pow + x_pow;
     real_t* coeff_ptr = int_real_unordered_map_get(coeff_map, key);
-    if ((coeff_ptr == NULL) || (*coeff_ptr != coeff))
+    if ((coeff_ptr == NULL) || (ABS(*coeff_ptr - coeff) > 1e-12))
     {
       // q != p, since this term in q was not found in p.
       int_real_unordered_map_free(coeff_map);
@@ -479,7 +481,7 @@ static void wrap_eval(void* context, point_t* x, real_t* result)
 static void wrap_eval_deriv(void* context, int deriv, point_t* x, real_t* result)
 {
   polynomial_t* p = context;
-  int result_size = pow(3, deriv);
+  int result_size = (int)(pow(3, deriv));
   if (deriv > p->degree)
     memset(result, 0, sizeof(real_t) * result_size);
   else if (deriv == 0)

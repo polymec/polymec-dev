@@ -21,7 +21,7 @@
 // value type V) defined with 
 // DEFINE_UNORDERED_MAP(x_map, K, V, x_hash, key_equals):
 // 
-// x_map_t* x_map_new() - Creates a new empty unordered map.
+// x_map_t* x_map_new(void) - Creates a new empty unordered map.
 // x_map_t* x_map_new_with_capacity(int N) - Creates a new empty hash map with 
 //                                           initial capacity N.
 // x_map_t* x_map_copy(x_map_t* m) - Creates a (shallow) copy of m.
@@ -87,7 +87,7 @@ static inline map_name##_t* map_name##_new_with_capacity(int N) \
   return map; \
 } \
 \
-static inline map_name##_t* map_name##_new() \
+static inline map_name##_t* map_name##_new(void) \
 { \
   return map_name##_new_with_capacity(32); \
 } \
@@ -267,30 +267,27 @@ static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key
   map_name##_entry_t** p = &(map->buckets[index]); \
   map_name##_entry_t* current; \
   key_type key = old_key; \
-  value_type value; \
   map_name##_kv_dtor kv_dtor = NULL; \
   map_name##_k_dtor k_dtor = NULL; \
   map_name##_v_dtor v_dtor = NULL; \
-  bool found = false; \
   while ((current = *p) != NULL) \
   { \
     if (map_name##_keys_equal(map, current->key, current->hash, old_key, h)) \
     { \
       *p = current->next; \
       key = current->key; \
-      value = current->value; \
+      value_type value = current->value; \
       kv_dtor = current->kv_dtor; \
       k_dtor = current->k_dtor; \
       v_dtor = current->v_dtor; \
       polymec_free(current); \
       map->size--; \
-      found = true; \
+      map_name##_insert_with_dtors(map, new_key, value, kv_dtor, k_dtor, v_dtor); \
+      break; \
     }\
     else \
       p = &current->next; \
   } \
-  if (found) \
-    map_name##_insert_with_dtors(map, new_key, value, kv_dtor, k_dtor, v_dtor); \
   return key; \
 } \
 \

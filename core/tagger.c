@@ -40,14 +40,13 @@ DEFINE_UNORDERED_MAP(tagger_data_property_map, char*, tagger_data_property_t*, s
 typedef struct 
 {
   int* indices;
-  int  num_indices;
+  size_t  num_indices;
   tagger_data_property_map_t* properties;
 } tagger_data_t;
 
-static tagger_data_t* tagger_data_new(const char* key, int* indices, int num_indices)
+static tagger_data_t* tagger_data_new(const char* key, int* indices, size_t num_indices)
 {
   ASSERT(indices != NULL);
-  ASSERT(num_indices >= 0);
   tagger_data_t* data = polymec_malloc(sizeof(tagger_data_t));
   data->indices = indices; // YOINK!
   data->num_indices = num_indices;
@@ -91,7 +90,8 @@ void tagger_copy(tagger_t* dest, tagger_t* src)
 {
   // We deep-copy all tags, but we don't touch properties (since we don't
   // know their sizes).
-  int pos = 0, *tag, tag_size;
+  int pos = 0, *tag;
+  size_t tag_size;
   char* tag_name;
   while (tagger_next_tag(src, &pos, &tag_name, &tag, &tag_size))
   {
@@ -115,7 +115,7 @@ static void destroy_tag_key_and_value(char* key, tagger_data_t* value)
   tagger_data_free(value);
 }
 
-int* tagger_create_tag(tagger_t* tagger, const char* tag, int num_indices)
+int* tagger_create_tag(tagger_t* tagger, const char* tag, size_t num_indices)
 {
   ASSERT(num_indices >= 0);
 
@@ -132,7 +132,7 @@ int* tagger_create_tag(tagger_t* tagger, const char* tag, int num_indices)
   return indices;
 }
 
-int* tagger_tag(tagger_t* tagger, const char* tag, int* num_indices)
+int* tagger_tag(tagger_t* tagger, const char* tag, size_t* num_indices)
 {
   ASSERT(num_indices != NULL);
   tagger_data_t** data_p = tagger_data_map_get(tagger->data, (char*)tag);
@@ -147,16 +147,16 @@ int* tagger_tag(tagger_t* tagger, const char* tag, int* num_indices)
 
 bool tagger_has_tag(tagger_t* tagger, const char* tag)
 {
-  int dummy;
+  size_t dummy;
   return (tagger_tag(tagger, tag, &dummy) != NULL);
 }
 
-void tagger_resize_tag(tagger_t* tagger, const char* tag, int new_num_indices)
+void tagger_resize_tag(tagger_t* tagger, const char* tag, size_t new_num_indices)
 {
   tagger_data_t** data_p = tagger_data_map_get(tagger->data, (char*)tag);
   if (data_p != NULL)
   {
-    int old_num_indices = (*data_p)->num_indices;
+    size_t old_num_indices = (*data_p)->num_indices;
     if (new_num_indices > old_num_indices)
       (*data_p)->indices = polymec_realloc((*data_p)->indices, sizeof(int) * new_num_indices);
     (*data_p)->num_indices = new_num_indices;
@@ -261,7 +261,7 @@ void tagger_delete_tag(tagger_t* tagger, const char* tag)
 
 void tagger_copy_tag(tagger_t* tagger, const char* source_tag, const char* destination_tag)
 {
-  int n;
+  size_t n;
   int* t = tagger_tag(tagger, source_tag, &n);
   if (t != NULL)
   {
@@ -275,7 +275,7 @@ void tagger_copy_tag(tagger_t* tagger, const char* source_tag, const char* desti
 
 void tagger_unite_tag(tagger_t* tagger, const char* tag, const char* other)
 {
-  int nt1, nt2;
+  size_t nt1, nt2;
   int* t1 = tagger_tag(tagger, tag, &nt1);
   int* t2 = tagger_tag(tagger, other, &nt2);
   if (t2 == NULL)
@@ -307,7 +307,7 @@ void tagger_unite_tag(tagger_t* tagger, const char* tag, const char* other)
 
 void tagger_intersect_tag(tagger_t* tagger, const char* tag, const char* other)
 {
-  int nt1, nt2;
+  size_t nt1, nt2;
   int* t1 = tagger_tag(tagger, tag, &nt1);
   int* t2 = tagger_tag(tagger, other, &nt2);
   if ((t1 == NULL) || (t2 == NULL))
@@ -336,7 +336,7 @@ void tagger_intersect_tag(tagger_t* tagger, const char* tag, const char* other)
 
 void tagger_difference_tag(tagger_t* tagger, const char* tag, const char* other)
 {
-  int nt1, nt2;
+  size_t nt1, nt2;
   int* t1 = tagger_tag(tagger, tag, &nt1);
   int* t2 = tagger_tag(tagger, other, &nt2);
   if ((t1 == NULL) || (t2 == NULL))
@@ -363,7 +363,7 @@ void tagger_difference_tag(tagger_t* tagger, const char* tag, const char* other)
   int_unordered_set_free(diff_set);
 }
 
-bool tagger_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, int* tag_size)
+bool tagger_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, size_t* tag_size)
 {
   tagger_data_t* data;
   bool result = tagger_data_map_next(tagger->data, pos, tag_name, &data);
@@ -380,7 +380,8 @@ static size_t tagger_byte_size(void* obj)
   tagger_t* tagger = obj;
 
   size_t size = sizeof(int); // Number of tags.
-  int pos = 0, *tag, tag_size;
+  int pos = 0, *tag;
+  size_t tag_size;
   char* tag_name;
   while (tagger_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
   {
@@ -390,11 +391,11 @@ static size_t tagger_byte_size(void* obj)
 
     // Tag properties.
     tagger_data_t* tagger_data = *tagger_data_map_get(tagger->data, tag_name);
-    int pos = 0;
+    int pos1 = 0;
     char* prop_name;
     tagger_data_property_t* property;
     size += sizeof(int); // Number of properties.
-    while (tagger_data_property_map_next(tagger_data->properties, &pos, &prop_name, &property))
+    while (tagger_data_property_map_next(tagger_data->properties, &pos1, &prop_name, &property))
     {
       if (property->serializer != NULL)
       {
@@ -429,7 +430,7 @@ static void* tagger_byte_read(byte_array_t* bytes, size_t* offset)
     // Tag properties.
     int num_properties;
     byte_array_read_ints(bytes, 1, &num_properties, offset);
-    for (int i = 0; i < num_properties; ++i)
+    for (int j = 0; j < num_properties; ++j)
     {
       // Property name.
       int pname_len;
@@ -462,7 +463,8 @@ static void tagger_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   tagger_t* tagger = obj;
 
   // Count up the tags.
-  int pos = 0, *tag, tag_size, num_tags = 0;
+  int pos = 0, *tag, num_tags = 0;
+  size_t tag_size;
   char* tag_name;
   while (tagger_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
     ++num_tags;
@@ -474,23 +476,23 @@ static void tagger_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
     int tag_name_len = (int)strlen(tag_name);
     byte_array_write_ints(bytes, 1, &tag_name_len, offset);
     byte_array_write_chars(bytes, tag_name_len, tag_name, offset);
-    byte_array_write_ints(bytes, 1, &tag_size, offset);
+    byte_array_write_size_ts(bytes, 1, &tag_size, offset);
     byte_array_write_ints(bytes, tag_size, tag, offset);
 
     // Tag properties.
-    int num_properties = 0, pos = 0;
+    int num_properties = 0, pos1 = 0;
     char* prop_name;
     void* property;
     serializer_t* ser;
-    while (tagger_next_property(tagger, tag_name, &pos, &prop_name, &property, &ser))
+    while (tagger_next_property(tagger, tag_name, &pos1, &prop_name, &property, &ser))
     {
       // We only count serializeable properties.
       if (ser != NULL)
         ++num_properties;
     }
     byte_array_write_ints(bytes, 1, &num_properties, offset);
-    pos = 0;
-    while (tagger_next_property(tagger, tag_name, &pos, &prop_name, &property, &ser))
+    pos1 = 0;
+    while (tagger_next_property(tagger, tag_name, &pos1, &prop_name, &property, &ser))
     {
       if (ser != NULL)
       {

@@ -102,7 +102,7 @@ void hilbert_create_point(hilbert_t* curve, index_t index, point_t* x)
   }
 
   // Gray decode by H ^ (H/2).
-  uint16_t N = 2 << (num_bits-1);
+  uint16_t N = (uint16_t)(2 << (num_bits-1));
   uint16_t t = X[2] >> 1;
   for (int i = 2; i > 0; --i)
     X[i] ^= X[i-1];
@@ -119,9 +119,9 @@ void hilbert_create_point(hilbert_t* curve, index_t index, point_t* x)
       else
       {
         // exchange
-        uint16_t t = (X[0]^X[i]) & P;
-        X[0] ^= t; 
-        X[i] ^= t;
+        uint16_t t1 = (uint16_t)((X[0]^X[i]) & P);
+        X[0] ^= t1; 
+        X[i] ^= t1;
       }
     }
   }

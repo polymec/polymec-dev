@@ -22,6 +22,10 @@
 int64_t* partition_graph(adj_graph_t* global_graph, 
                          MPI_Comm comm,
                          int* weights,
+                         real_t imbalance_tol);
+int64_t* partition_graph(adj_graph_t* global_graph, 
+                         MPI_Comm comm,
+                         int* weights,
                          real_t imbalance_tol)
 {
   START_FUNCTION_TIMER();
@@ -176,7 +180,8 @@ static int64_t* repartition_graph(adj_graph_t* local_graph,
 static void create_submesh_tags(tagger_t* tagger, 
                                 int_int_unordered_map_t* element_map)
 {
-  int pos = 0, *indices, size;
+  int pos = 0, *indices;
+  size_t size;
   char* tag_name;
   int_array_t* sub_indices = int_array_new();
   while (tagger_next_tag(tagger, &pos, &tag_name, &indices, &size))
@@ -203,7 +208,7 @@ static void create_submesh_tags(tagger_t* tagger,
 // replaced with destination process ranks.
 static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, 
                               int64_t* partition, index_t* vtx_dist, 
-                              int* indices, int num_indices)
+                              int* indices, size_t num_indices)
 {
   START_FUNCTION_TIMER();
 
@@ -211,7 +216,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   int dest_proc;
   MPI_Comm_rank(comm, &dest_proc);
   if (num_indices > 0)
-    dest_proc = partition[indices[0]];
+    dest_proc = (int)partition[indices[0]];
 
   // Make a set of cells for querying membership in this submesh.
   int_unordered_set_t* cell_set = int_unordered_set_new();
@@ -222,7 +227,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   }
 
   // Count unique mesh elements (faces, nodes).
-  int num_cells = num_indices, num_ghost_cells = 0;
+  int num_cells = (int)num_indices, num_ghost_cells = 0;
   int_unordered_set_t* face_indices = int_unordered_set_new();
   int_unordered_set_t* node_indices = int_unordered_set_new();
   for (int i = 0; i < num_indices; ++i)
@@ -359,7 +364,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
       // entry within our partition vector.
       if (ghost_cell != -1)
       {
-        int ghost_cell_proc = partition[ghost_cell];
+        int ghost_cell_proc = (int)partition[ghost_cell];
         that_cell = -ghost_cell_proc - 2; // encoding of dest proc
         int_int_unordered_map_insert(parallel_bface_map, f, ghost_cell);
       }
@@ -556,7 +561,7 @@ static void mesh_distribute(mesh_t** mesh,
       size_t offset = 0;
       serializer_write(ser, p_mesh, bytes, &offset);
       MPI_Send(&bytes->size, 1, MPI_INT, p, p, comm);
-      MPI_Send(bytes->data, bytes->size, MPI_BYTE, p, p, comm);
+      MPI_Send(bytes->data, (int)bytes->size, MPI_BYTE, p, p, comm);
 
       // Clean up.
       byte_array_clear(bytes);
@@ -597,7 +602,7 @@ static void mesh_distribute(mesh_t** mesh,
   // Extract the boundary faces and the original (global) ghost cell indices
   // associated with them.
   ASSERT(mesh_has_tag(local_mesh->face_tags, "parallel_boundary_faces"));
-  int num_pbfaces;
+  size_t num_pbfaces;
   int* pbfaces = mesh_tag(local_mesh->face_tags, "parallel_boundary_faces", &num_pbfaces);
   int_array_t* pbgcells = mesh_tag_property(local_mesh->face_tags, "parallel_boundary_faces", 
                                             "ghost_cell_indices");
@@ -655,7 +660,7 @@ static void mesh_distribute(mesh_t** mesh,
     if (proc != rank)
     {
       ASSERT((indices->size > 0) && ((indices->size % 2) == 0));
-      int num_pairs = indices->size/2;
+      int num_pairs = (int)indices->size/2;
 
       // Sort the indices array lexicographically by pairs so that all of the 
       // exchanger send/receive transactions have the same order across 
@@ -717,7 +722,7 @@ static int* create_index_map_with_dups_removed(int num_indices,
     else
     {
       // Follow any chain till we hit the end.
-      int index;
+      int index = 0;
       while (k_ptr != NULL)
       {
         index = *k_ptr;
@@ -1014,17 +1019,17 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   int_int_unordered_map_free(dup_face_map);
 
   // Hook up all the interior face cells.
-  for (int cell = 0; cell < fused_mesh->num_cells; ++cell)
+  for (int icell = 0; icell < fused_mesh->num_cells; ++icell)
   {
     int fpos = 0, face;
-    while (mesh_cell_next_face(fused_mesh, cell, &fpos, &face))
+    while (mesh_cell_next_face(fused_mesh, icell, &fpos, &face))
     {
       if (fused_mesh->face_cells[2*face] == -1)
-        fused_mesh->face_cells[2*face] = cell;
+        fused_mesh->face_cells[2*face] = icell;
       else
       {
         ASSERT(fused_mesh->face_cells[2*face+1] == -1);
-        fused_mesh->face_cells[2*face+1] = cell;
+        fused_mesh->face_cells[2*face+1] = icell;
       }
     }
   }
@@ -1225,7 +1230,7 @@ static void mesh_migrate(mesh_t** mesh,
 
   // Send the actual meshes and wait for receipt.
   for (int i = 0; i < num_sends; ++i)
-    MPI_Isend(send_buffers[i]->data, send_buffers[i]->size, MPI_BYTE, send_procs[i], 0, m->comm, &requests[num_receives + i]);
+    MPI_Isend(send_buffers[i]->data, (int)send_buffers[i]->size, MPI_BYTE, send_procs[i], 0, m->comm, &requests[num_receives + i]);
   MPI_Waitall(num_receives + num_sends, requests, statuses);
 
   // Unpack the meshes.

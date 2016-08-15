@@ -141,12 +141,12 @@ void byte_array_read_vectors(byte_array_t* byte_stream, size_t n, vector_t* data
 void byte_array_write_vectors(byte_array_t* byte_stream, size_t n, vector_t* data, size_t* offset);
 
 // Speaking of primitives, we bundle serializers for some primitive types.
-serializer_t* string_serializer();
-serializer_t* bbox_serializer();
-serializer_t* int_array_serializer();
-serializer_t* index_array_serializer();
-serializer_t* real_array_serializer();
-serializer_t* string_array_serializer();
+serializer_t* string_serializer(void);
+serializer_t* bbox_serializer(void);
+serializer_t* int_array_serializer(void);
+serializer_t* index_array_serializer(void);
+serializer_t* real_array_serializer(void);
+serializer_t* string_array_serializer(void);
 // FIXME: More to come as needed.
 
 #endif

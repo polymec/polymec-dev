@@ -550,11 +550,11 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
       int proc = neighbor_procs[p];
 
       if (sent_point_indices->size > 0)
-        exchanger_set_send(ex, proc, sent_point_indices->data, sent_point_indices->size, false);
+        exchanger_set_send(ex, proc, sent_point_indices->data, (int)sent_point_indices->size, false);
       int_array_release_data_and_free(sent_point_indices);
 
       // Now send the number of points to process p.
-      int num_points_sent = points_sent[p]->size/3;
+      int num_points_sent = (int)(points_sent[p]->size/3);
       int err = MPI_Isend(&num_points_sent, 1, MPI_INT, 
                           proc, 0, comm, &requests[num_neighbor_procs + p]);
       if (err != MPI_SUCCESS)
@@ -572,7 +572,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
       real_array_resize(points_received[p], 3*num_points_received[p]);
 
       int proc = neighbor_procs[p];
-      int err = MPI_Irecv(points_received[p]->data, points_received[p]->size,
+      int err = MPI_Irecv(points_received[p]->data, (int)points_received[p]->size,
                           MPI_REAL_T, proc, 0, comm, &requests[p]);
       if (err != MPI_SUCCESS)
         polymec_error("%d: Could not receive point data from %d", rank, proc);
@@ -583,7 +583,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
     {
       // Now send the number of points to process p.
       int proc = neighbor_procs[p];
-      int err = MPI_Isend(points_sent[p]->data, points_sent[p]->size, MPI_REAL_T, 
+      int err = MPI_Isend(points_sent[p]->data, (int)points_sent[p]->size, MPI_REAL_T, 
                           proc, 0, comm, &requests[num_neighbor_procs + p]);
       if (err != MPI_SUCCESS)
         polymec_error("%d: Could not send point numbers to %d", rank, proc);
@@ -611,7 +611,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
       // Set the send information in the exchanger.
       int proc = neighbor_procs[p];
       if (received_point_indices->size > 0)
-        exchanger_set_receive(ex, proc, received_point_indices->data, received_point_indices->size, false);
+        exchanger_set_receive(ex, proc, received_point_indices->data, (int)received_point_indices->size, false);
       int_array_release_data_and_free(received_point_indices);
     }
 

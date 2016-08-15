@@ -358,12 +358,12 @@ void mesh_delete_feature(mesh_t* mesh, const char* feature)
   tagger_delete_property(mesh->cell_tags, "features", feature);
 }
 
-int* mesh_create_tag(tagger_t* tagger, const char* tag, int num_indices)
+int* mesh_create_tag(tagger_t* tagger, const char* tag, size_t num_indices)
 {
   return tagger_create_tag(tagger, tag, num_indices);
 }
 
-int* mesh_tag(tagger_t* tagger, const char* tag, int* num_indices)
+int* mesh_tag(tagger_t* tagger, const char* tag, size_t* num_indices)
 {
   return tagger_tag(tagger, tag, num_indices);
 }
@@ -406,7 +406,7 @@ void mesh_delete_tag(tagger_t* tagger, const char* tag)
   tagger_delete_tag(tagger, tag);
 }
 
-bool mesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, int* tag_size)
+bool mesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, size_t* tag_size)
 {
   return tagger_next_tag(tagger, pos, tag_name, tag_indices, tag_size);
 }
@@ -842,9 +842,9 @@ exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh)
 
     // Set up the exchange.
     if (send_faces->size > 0)
-      exchanger_set_send(ex, proc, send_faces->data, send_faces->size, true);
+      exchanger_set_send(ex, proc, send_faces->data, (int)send_faces->size, true);
     if (receive_faces->size > 0)
-      exchanger_set_receive(ex, proc, receive_faces->data, receive_faces->size, true);
+      exchanger_set_receive(ex, proc, receive_faces->data, (int)receive_faces->size, true);
   }
   int_array_free(send_faces);
   int_array_free(receive_faces);
