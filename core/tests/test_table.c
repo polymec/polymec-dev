@@ -107,7 +107,13 @@ void test_##element##_table(void** state) \
 }
 
 DEFINE_TABLE_TEST(int_table, int)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wfloat-equal"
 DEFINE_TABLE_TEST(real_table, real)
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 
 int main(int argc, char* argv[]) 
 {

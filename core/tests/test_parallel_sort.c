@@ -18,14 +18,14 @@ static int compare_ints(const void* l, const void* r)
 {
   const int* left = l;
   const int* right = r;
-  return (left[0] < right[0]) ? -1 : (left[0] == right[0]) ? 0 : 1;
+  return (left[0] < right[0]) ? -1 : (left[0] > right[0]) ? 1 : 0;
 }
 
 static int compare_doubles(const void* l, const void* r)
 {
   const double* left = l;
   const double* right = r;
-  return (left[0] < right[0]) ? -1 : (left[0] == right[0]) ? 0 : 1;
+  return (left[0] < right[0]) ? -1 : (left[0] > right[0]) ? 1 : 0;
 }
 
 static int* random_ints(rng_t* rng, size_t size)

@@ -150,31 +150,35 @@ adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points,
   int num_points = points->num_points;
   int* num_edges = polymec_malloc(sizeof(int) * num_points);
   memset(num_edges, 0, sizeof(int) * num_points);
-  int pos = 0, i, j;
-  while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
   {
-    if (i < num_points)
-      ++num_edges[i];
-    if (j < num_points)
-      ++num_edges[j];
+    int pos = 0, i, j;
+    while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+    {
+      if (i < num_points)
+        ++num_edges[i];
+      if (j < num_points)
+        ++num_edges[j];
+    }
   }
   for (int i = 0; i < num_points; ++i)
     adj_graph_set_num_edges(g, i, num_edges[i]);
 
   // Now fill in the edges.
   memset(num_edges, 0, sizeof(int) * num_points);
-  pos = 0;
-  while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
   {
-    if (i < num_points)
+    int pos = 0, i, j;
+    while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
     {
-      int* edges = adj_graph_edges(g, i);
-      edges[num_edges[i]++] = j;
-    }
-    if (j < num_points)
-    {
-      int* edges = adj_graph_edges(g, j);
-      edges[num_edges[j]++] = i;
+      if (i < num_points)
+      {
+        int* edges = adj_graph_edges(g, i);
+        edges[num_edges[i]++] = j;
+      }
+      if (j < num_points)
+      {
+        int* edges = adj_graph_edges(g, j);
+        edges[num_edges[j]++] = i;
+      }
     }
   }
 
@@ -219,13 +223,13 @@ neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
   p->name = silo_file_read_string(file, name_name);
   char pairs_name[FILENAME_MAX];
   snprintf(pairs_name, FILENAME_MAX, "%s_neighbor_pairing_pairs", neighbors_name);
-  int size;
+  size_t size;
   p->pairs = silo_file_read_int_array(file, pairs_name, &size);
   ASSERT((size % 2) == 0);
   p->num_pairs = size/2;
   char weights_name[FILENAME_MAX];
   snprintf(weights_name, FILENAME_MAX, "%s_neighbor_pairing_weights", neighbors_name);
-  int num_weights;
+  size_t num_weights;
   p->weights = silo_file_read_real_array(file, weights_name, &num_weights);
   ASSERT((num_weights == p->num_pairs) || 
          ((num_weights == 0) && (p->weights == NULL)));

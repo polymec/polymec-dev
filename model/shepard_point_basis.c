@@ -69,7 +69,7 @@ static void shepard_compute(void* context,
   real_t sum_Wi = 0.0;
   for (i = 0; i < N; ++i)
     sum_Wi += W[i];
-  if (sum_Wi == 0.0)
+  if (reals_equal(sum_Wi, 0.0))
     memset(values, 0, sizeof(real_t) * N);
   else
   {
@@ -80,7 +80,7 @@ static void shepard_compute(void* context,
   // Compute the gradients if needed.
   if (gradients != NULL)
   {
-    if (sum_Wi == 0.0)
+    if (reals_equal(sum_Wi, 0.0))
       memset(gradients, 0, sizeof(vector_t) * N);
     else
     {

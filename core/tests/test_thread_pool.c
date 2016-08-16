@@ -47,7 +47,7 @@ static void do_number_crunching_test(void** state, thread_pool_t* pool)
 
   for (int i = 0; i < num_numbers; ++i)
   {
-    assert_true(global_array[i] == 1.0*i*i);
+    assert_true(reals_equal(global_array[i], 1.0*i*i));
   }
   free(global_indices);
   free(global_array);

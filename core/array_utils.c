@@ -105,7 +105,7 @@ real_t* real_lsearch(real_t* array, size_t length, real_t element)
 {
   for (int i = 0; i < length; ++i)
   {
-    if (ABS(array[i] - element) < 1e-12)
+    if (reals_equal(array[i], element))
       return &array[i];
   }
   return NULL;

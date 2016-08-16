@@ -24,10 +24,10 @@ static void test_zero(void** state, lookup1_interpolation_t interpolation)
   memset(z, 0, sizeof(real_t) * N);
   lookup1_t* table = lookup1_new(0.0, 1.0, N, z, interpolation);
   assert_true(table != NULL);
-  assert_true(lookup1_value(table, 0.0) == 0.0);
-  assert_true(lookup1_value(table, 0.5) == 0.0);
-  assert_true(lookup1_value(table, 1.0) == 0.0);
-  assert_true(lookup1_value(table, rng_uniform_positive(rng)) == 0.0);
+  assert_true(reals_equal(lookup1_value(table, 0.0), 0.0));
+  assert_true(reals_equal(lookup1_value(table, 0.5), 0.0));
+  assert_true(reals_equal(lookup1_value(table, 1.0), 0.0));
+  assert_true(reals_equal(lookup1_value(table, rng_uniform_positive(rng)), 0.0));
   lookup1_free(table);
 }
 
@@ -52,9 +52,9 @@ static void test_line(void** state, lookup1_interpolation_t interpolation)
     z[i] = i * dx;
   lookup1_t* table = lookup1_new(0.0, 1.0, N, z, interpolation);
   assert_true(table != NULL);
-  assert_true(lookup1_value(table, 0.0) == 0.0);
-  assert_approx_equal(lookup1_value(table, 0.5), 0.5, 1e-14);
-  assert_true(lookup1_value(table, 1.0) == 1.0);
+  assert_true(reals_equal(lookup1_value(table, 0.0), 0.0));
+  assert_true(reals_nearly_equal(lookup1_value(table, 0.5), 0.5, 1e-14));
+  assert_true(reals_equal(lookup1_value(table, 1.0), 1.0));
   real_t x = rng_uniform_positive(rng);
   assert_approx_equal(lookup1_value(table, x), x, 1e-14);
   lookup1_free(table);
@@ -83,9 +83,9 @@ static void test_v(void** state, lookup1_interpolation_t interpolation)
     z[i] = 0.5 - (i-N/2) * dx;
   lookup1_t* table = lookup1_new(0.0, 1.0, N, z, interpolation);
   assert_true(table != NULL);
-  assert_true(lookup1_value(table, 0.0) == 0.0);
-  assert_approx_equal(lookup1_value(table, 0.5), 0.5, 1e-14);
-  assert_true(lookup1_value(table, 1.0) == 0.0);
+  assert_true(reals_equal(lookup1_value(table, 0.0), 0.0));
+  assert_true(reals_nearly_equal(lookup1_value(table, 0.5), 0.5, 1e-14));
+  assert_true(reals_equal(lookup1_value(table, 1.0), 0.0));
 
   real_t x = rng_uniform_positive(rng);
   // If we are using quadratic interpolation, we have to stay clear of the kink.

@@ -75,7 +75,7 @@ real_t physical_constant_conversion_factor(int physical_constant_name,
   int_real_unordered_map_t* units1 = *ptr1;
   real_t* val1 = int_real_unordered_map_get(units1, physical_constant_name);
   ASSERT(val1 != NULL);
-  ASSERT(*val1 != 0.0);
+  ASSERT(!reals_equal(*val1, 0.0));
 
   int_real_unordered_map_t** ptr2 = (int_real_unordered_map_t**)int_ptr_unordered_map_get(units_systems, units_system_2);
   ASSERT(ptr2 != NULL);

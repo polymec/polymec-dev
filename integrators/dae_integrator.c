@@ -176,6 +176,12 @@ static int eval_Jv(real_t tt, N_Vector yy, N_Vector yp, N_Vector rr,
   return status;
 }
 
+// We use floating point comparisons to assign inequality relations in this 
+// function, so we disable related compiler warnings.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wfloat-equal"
 dae_integrator_t* dae_integrator_new(int order,
                                      MPI_Comm comm,
                                      dae_equation_t* equation_types,
@@ -334,6 +340,8 @@ dae_integrator_t* dae_integrator_new(int order,
 
   return integ;
 }
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 
 void dae_integrator_free(dae_integrator_t* integ)
 {

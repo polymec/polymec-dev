@@ -129,9 +129,9 @@ void test_mls_point_basis_zero_consistency_p(void** state, int p)
       point_randomize(&x, rng, &jitterbox);
     }
            
-    int N = point_basis_num_points(phi);
-    real_t phi_val[N];
-    vector_t phi_grad[N];
+    int N1 = point_basis_num_points(phi);
+    real_t phi_val[N1];
+    vector_t phi_grad[N1];
     point_basis_compute(phi, &x, phi_val, phi_grad);
 
     real_t val = 0.0; 
@@ -145,15 +145,6 @@ void test_mls_point_basis_zero_consistency_p(void** state, int p)
       grad.z += one[j] * phi_grad[k].z;
       ++k;
     }
-
-//printf("%d neighbors\n", N);
-//printf("(%g, %g, %g), (%g, %g, %g), D/h = %g: %g %g %g %g\n", domain->points[i].x, domain->points[i].y, domain->points[i].z, x.x, x.y, x.z, point_distance(&domain->points[i], &x)/smoothing_lengths[i], val, grad.x, grad.y, grad.z);
-    // FIXME: For now, we can't put a bound on the error in the MLS calculation, 
-    // FIXME: so we can't assert the accuracy.
-//    assert_true(fabs(val - 1.0) < 1e-12);
-//    assert_true(fabs(grad.x) < 1e-12);
-//    assert_true(fabs(grad.y) < 1e-12);
-//    assert_true(fabs(grad.z) < 1e-12);
   }
 
   // Clean up.

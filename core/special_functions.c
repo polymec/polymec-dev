@@ -15,6 +15,8 @@
 // FIXME: Remove these pragmas when all special functions are implemented.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsuggest-attribute=noreturn"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsuggest-attribute=noreturn"
 
 // Much of the source code in this file originated from Fortran 77 subroutines 
 // accompanying "Computation of Special Functions" by Shanjie Zhang and 
@@ -25,11 +27,11 @@
 
 double gamma(double x)
 {
-  ASSERT((x >= 0.0) || (ABS(x - 1.0 * (int)x) < 1e-12));
+  ASSERT((x >= 0.0) || reals_equal((real_t)x, 1.0*(int)x));
   ASSERT(x <= 171.6);
 
   // If x is an integer, we can do the easy thing.
-  if (ABS(x - 1.0*(int)x) < 1e-12)
+  if (reals_equal((real_t)x, 1.0*(int)x))
   {
     double ga = 1.0;
     for (int i = 2; i < (int)x; ++i)
@@ -109,7 +111,7 @@ static double jy1_data_b[12] =
 
 double bessel_j0(double x)
 {
-  if (x == 0.0) 
+  if (reals_equal((real_t)x, 0.0)) 
     return 1.0;
   
   double x2 = x*x;
@@ -148,7 +150,7 @@ double bessel_j0(double x)
 
 double bessel_j1(double x)
 {
-  if (x == 0.0) 
+  if (reals_equal((real_t)x, 0.0)) 
     return 0.0;
   
   double x2 = x*x;
@@ -346,7 +348,7 @@ void bessel_find_jn_roots(int n, int num_roots, double* roots)
 
 double bessel_y0(double x)
 {
-  if (x == 0.0) 
+  if (reals_equal((real_t)x, 0.0)) 
     return -1.0e300;
   
   double x2 = x*x;
@@ -389,7 +391,7 @@ double bessel_y0(double x)
 
 double bessel_y1(double x)
 {
-  if (x == 0.0) 
+  if (reals_equal((real_t)x, 0.0)) 
     return -1.0e300;
   
   double x2 = x*x;
@@ -781,7 +783,7 @@ double complex bessel_ci0(double complex z)
 {
   double a0 = cabs(z);
   double complex i0 = CMPLX(1.0, 0.0);
-  if (a0 == 0.0)
+  if (reals_equal((real_t)a0, 0.0)) 
     return i0;
   double complex z1 = (creal(z) < 0.0) ? -z : z;
   double complex z2 = z * z;
@@ -820,7 +822,7 @@ double complex bessel_ci0(double complex z)
 double complex bessel_ci1(double complex z)
 {
   double a0 = cabs(z);
-  if (a0 == 0.0)
+  if (reals_equal((real_t)a0, 0.0)) 
     return CMPLX(0.0, 0.0);
   double complex z1 = (creal(z) < 0.0) ? -z : z;
   double complex z2 = z * z;
@@ -868,7 +870,7 @@ double complex bessel_cin(int n, double complex z)
 double complex bessel_ck0(double complex z)
 {
   double a0 = cabs(z);
-  if (a0 == 0.0)
+  if (reals_equal((real_t)a0, 0.0)) 
     return CMPLX(1e300, 0.0);
   double complex z1 = (creal(z) < 0.0) ? -z : z;
   double complex z2 = z * z;
@@ -920,7 +922,7 @@ double complex bessel_ck0(double complex z)
 double complex bessel_ck1(double complex z)
 {
   double a0 = cabs(z);
-  if (a0 == 0.0)
+  if (reals_equal((real_t)a0, 0.0)) 
     return CMPLX(1e300, 0.0);
   double complex z1 = (creal(z) < 0.0) ? -z : z;
   double complex i0 = bessel_ci0(z);
@@ -945,6 +947,7 @@ double complex bessel_ckn(int n, double complex z)
 
 // FIXME: Remove this when everything is implemented.
 #pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 
 #endif
 

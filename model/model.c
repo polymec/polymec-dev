@@ -363,7 +363,7 @@ void model_run_benchmark(model_t* model, const char* benchmark)
       real_t actual_rate = atof(conv_rate);
       real_t actual_rate_sigma = atof(sigma);
       log_urgent("%s: Expected convergence rate: %g", model->name, expected_rate);
-      if (actual_rate_sigma != 0.0)
+      if (reals_equal(actual_rate_sigma, 0.0))
         log_urgent("%s: Measured convergence rate: %g +/- %g", model->name, actual_rate, actual_rate_sigma);
       else
         log_urgent("%s: Measured convergence rate: %g", model->name, actual_rate);
@@ -389,7 +389,7 @@ void model_run_benchmark(model_t* model, const char* benchmark)
       // we haven't based a PASS/FAIL critierion on it.
       real_t actual_rate = atof(conv_rate);
       real_t actual_rate_sigma = atof(sigma);
-      if (actual_rate_sigma != 0.0)
+      if (reals_equal(actual_rate_sigma, 0.0))
         log_urgent("%s: Measured convergence rate: %g +/- %g", model->name, actual_rate, actual_rate_sigma);
       else
         log_urgent("%s: Measured convergence rate: %g", model->name, actual_rate);
@@ -1163,7 +1163,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
     t1 = model->time;
   }
 
-  if (t1 == t2)
+  if (reals_equal(t1, t2))
   {
     model_do_periodic_work(model);
   }

@@ -264,6 +264,28 @@ int polymec_num_cores(void);
 // false if not.
 bool polymec_running_in_valgrind(void);
 
+// This function returns true if |a - b| < epsilon, false otherwise. Here, 
+// epsilon is polymec's floating point tolerance, set by default to the 
+// machine-specific value of epsilon (smallest representable floating point 
+// number), and otherwise by set_real_epsilon.
+static real_t _polymec_epsilon = REAL_EPSILON;
+static inline bool reals_equal(real_t a, real_t b)
+{
+  return (ABS(a - b) < _polymec_epsilon);
+}
+
+// This function sets polymec's floating point tolerance.
+static inline void set_real_epsilon(real_t epsilon)
+{
+  _polymec_epsilon = epsilon;
+}
+
+// This function returns true if |a - b| < epsilon, false otherwise. 
+static inline bool reals_nearly_equal(real_t a, real_t b, real_t epsilon)
+{
+  return (ABS(a - b) < epsilon);
+}
+
 // Use this macro to indicate that something hasn't been implemented.
 #define POLYMEC_NOT_IMPLEMENTED polymec_error("%s:\n  line %d: Function %s is not implemented!", __FILE__, __LINE__, __func__);
 

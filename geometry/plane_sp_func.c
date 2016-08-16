@@ -163,7 +163,7 @@ real_t plane_sp_func_intersect_with_line(sp_func_t* plane, point_t* x0, vector_t
 {
   plane_t* p = sp_func_context(plane);
   real_t not = vector_dot(&p->n, t);
-  if (not == 0.0) // No intersection!
+  if (reals_equal(not, 0.0)) // No intersection!
     return -REAL_MAX;
   else
   {

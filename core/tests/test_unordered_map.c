@@ -53,7 +53,13 @@ void test_##element##_unordered_map(void** state) \
 }
 
 DEFINE_UNORDERED_MAP_TEST(int_unordered_map, int)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wfloat-equal"
 DEFINE_UNORDERED_MAP_TEST(double_unordered_map, double)
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 
 int main(int argc, char* argv[]) 
 {

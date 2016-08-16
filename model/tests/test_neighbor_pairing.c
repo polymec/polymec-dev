@@ -36,18 +36,20 @@ void test_serial_point_lattice(void** state,
   int num_neighbors1[nx*ny*nz], num_neighbors2[nx*ny*nz]; 
   memset(num_neighbors1, 0, nx*ny*nz * sizeof(int));
   memset(num_neighbors2, 0, nx*ny*nz * sizeof(int));
-  int pos = 0, i, j;
-  real_t wij;
-  while (neighbor_pairing_next(pairing, &pos, &i, &j, &wij))
   {
-    ++num_neighbors1[i];
-    ++num_neighbors1[j];
-  }
-  pos = 0;
-  while (neighbor_pairing_next(pairing, &pos, &i, &j, NULL))
-  {
-    ++num_neighbors2[i];
-    ++num_neighbors2[j];
+    int pos = 0, i, j;
+    real_t wij;
+    while (neighbor_pairing_next(pairing, &pos, &i, &j, &wij))
+    {
+      ++num_neighbors1[i];
+      ++num_neighbors1[j];
+    }
+    pos = 0;
+    while (neighbor_pairing_next(pairing, &pos, &i, &j, NULL))
+    {
+      ++num_neighbors2[i];
+      ++num_neighbors2[j];
+    }
   }
   for (int i = 0; i < nx*ny*nz; ++i)
   {
@@ -122,20 +124,22 @@ static void test_parallel_point_lattice(void** state,
   int num_neighbors1[num_points], num_neighbors2[num_points]; 
   memset(num_neighbors1, 0, num_points * sizeof(int));
   memset(num_neighbors2, 0, num_points * sizeof(int));
-  int pos = 0, i, j;
-  real_t wij;
-  while (neighbor_pairing_next(pairing, &pos, &i, &j, &wij))
   {
-    ++num_neighbors1[i];
-    if (j < num_points)
-      ++num_neighbors1[j];
-  }
-  pos = 0;
-  while (neighbor_pairing_next(pairing, &pos, &i, &j, NULL))
-  {
-    ++num_neighbors2[i];
-    if (j < num_points)
-      ++num_neighbors2[j];
+    int pos = 0, i, j;
+    real_t wij;
+    while (neighbor_pairing_next(pairing, &pos, &i, &j, &wij))
+    {
+      ++num_neighbors1[i];
+      if (j < num_points)
+        ++num_neighbors1[j];
+    }
+    pos = 0;
+    while (neighbor_pairing_next(pairing, &pos, &i, &j, NULL))
+    {
+      ++num_neighbors2[i];
+      if (j < num_points)
+        ++num_neighbors2[j];
+    }
   }
   for (int i = 0; i < num_points; ++i)
   {

@@ -596,7 +596,8 @@ static int cell_tags(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
 
   lua_newtable(lua);
-  int pos = 0, index = 1, *tag_indices, tag_size;
+  int pos = 0, index = 1, *tag_indices;
+  size_t tag_size;
   char* tag_name;
   while (mesh_next_tag(mesh->cell_tags, &pos, &tag_name, &tag_indices, &tag_size))
   {
@@ -628,7 +629,7 @@ static int cell_tag(lua_State* lua)
   if (!mesh_has_tag(mesh->cell_tags, tag_name))
     return luaL_error(lua, "The given mesh has no cell tag named '%s'.", tag_name);
 
-  int size;
+  size_t size;
   int* tag = mesh_tag(mesh->cell_tags, tag_name, &size);
   real_t* seq = polymec_malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
@@ -693,7 +694,8 @@ static int face_tags(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
 
   lua_newtable(lua);
-  int pos = 0, index = 1, *tag_indices, tag_size;
+  int pos = 0, index = 1, *tag_indices;
+  size_t tag_size;
   char* tag_name;
   while (mesh_next_tag(mesh->face_tags, &pos, &tag_name, &tag_indices, &tag_size))
   {
@@ -725,7 +727,7 @@ static int face_tag(lua_State* lua)
   if (!mesh_has_tag(mesh->face_tags, tag_name))
     return luaL_error(lua, "The given mesh has no face tag named '%s'.", tag_name);
 
-  int size;
+  size_t size;
   int* tag = mesh_tag(mesh->face_tags, tag_name, &size);
   real_t* seq = polymec_malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
@@ -791,7 +793,8 @@ static int edge_tags(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
 
   lua_newtable(lua);
-  int pos = 0, index = 1, *tag_indices, tag_size;
+  int pos = 0, index = 1, *tag_indices;
+  size_t tag_size;
   char* tag_name;
   while (mesh_next_tag(mesh->edge_tags, &pos, &tag_name, &tag_indices, &tag_size))
   {
@@ -823,7 +826,7 @@ static int edge_tag(lua_State* lua)
   if (!mesh_has_tag(mesh->edge_tags, tag_name))
     return luaL_error(lua, "The given mesh has no edge tag named '%s'.", tag_name);
 
-  int size;
+  size_t size;
   int* tag = mesh_tag(mesh->edge_tags, tag_name, &size);
   real_t* seq = polymec_malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)
@@ -912,7 +915,8 @@ static int node_tags(lua_State* lua)
   mesh_t* mesh = lua_tomesh(lua, 1);
 
   lua_newtable(lua);
-  int pos = 0, index = 1, *tag_indices, tag_size;
+  int pos = 0, index = 1, *tag_indices;
+  size_t tag_size;
   char* tag_name;
   while (mesh_next_tag(mesh->node_tags, &pos, &tag_name, &tag_indices, &tag_size))
   {
@@ -945,7 +949,7 @@ static int node_tag(lua_State* lua)
   if (!mesh_has_tag(mesh->node_tags, tag_name))
     return luaL_error(lua, "The given mesh has no node tag named '%s'.", tag_name);
 
-  int size;
+  size_t size;
   int* tag = mesh_tag(mesh->node_tags, tag_name, &size);
   real_t* seq = polymec_malloc(sizeof(real_t) * size);
   for (int i = 0; i < size; ++i)

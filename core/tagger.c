@@ -117,8 +117,6 @@ static void destroy_tag_key_and_value(char* key, tagger_data_t* value)
 
 int* tagger_create_tag(tagger_t* tagger, const char* tag, size_t num_indices)
 {
-  ASSERT(num_indices >= 0);
-
   // If the tag exists, this function returns NULL.
   if (tagger_data_map_contains(tagger->data, (char*)tag))
     return NULL;

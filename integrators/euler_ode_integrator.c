@@ -12,9 +12,9 @@
 static real_t relative_difference(real_t x, real_t y)
 {
   real_t diff;
-  if ((x == 0.0) && (y == 0.0))
+  if (reals_equal(x, 0.0) && reals_equal(y, 0.0))
     diff = 0.0;
-  else if ((x == 0.0) || (y == 0.0))
+  else if (reals_equal(x, 0.0) || reals_equal(y, 0.0))
   {
     real_t ref_value = MAX(fabs(x), fabs(y));
     diff = fabs((x - y)/ref_value);
@@ -161,7 +161,7 @@ static bool euler_step(void* context, real_t max_dt, real_t* t, real_t* x)
   real_t theta = integ->theta;
   int N_local = integ->num_local_values;
 
-  if (theta == 0.0)
+  if (reals_equal(theta, 0.0))
   {
     // No implicitness here! Just compute the RHS and mash it into 
     // our solution.
@@ -345,7 +345,7 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t theta,
                                   .dtor = euler_dtor};
 
   int order = 1;
-  if (theta == 0.5) 
+  if (reals_equal(theta, 0.5))
     order = 2;
 
   char name[1024];

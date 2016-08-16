@@ -24,8 +24,8 @@ static stencil_t* stencil_from_cells(const char* name,
   for (int i = 0; i < num_cells; ++i)
   {
     int_array_t* neighbors = stencil_cells[i];
-    for (int i = 0; i < neighbors->size; ++i, ++k)
-      indices[k] = neighbors->data[i];
+    for (int j = 0; j < neighbors->size; ++j, ++k)
+      indices[k] = neighbors->data[j];
     ASSERT(k == offsets[i+1]);
     int_array_free(neighbors);
   }
@@ -75,9 +75,10 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
   return s;
 }
 
-stencil_t* cell_halo_stencil_new(mesh_t* mesh)
+noreturn stencil_t* cell_halo_stencil_new(mesh_t* mesh)
 {
   POLYMEC_NOT_IMPLEMENTED;
+#if 0
 
   // Construct a 2-deep star stencil to start from.
   stencil_t* star = cell_star_stencil_new(mesh, 1);
@@ -186,5 +187,6 @@ stencil_t* cell_halo_stencil_new(mesh_t* mesh)
   stencil_free(star);
 
   return halo;
+#endif
 }
 

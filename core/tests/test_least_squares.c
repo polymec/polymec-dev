@@ -65,7 +65,7 @@ static void simple_W_eval(void* context, vector_t* y, real_t* W, vector_t* gradi
   simple_W* wf = context;
   real_t D = vector_mag(y) / wf->h;
   *W = 1.0 / (pow(D, wf->A) + pow(wf->B, wf->A));
-  if (D == 0.0)
+  if (reals_equal(D, 0.0))
   {
     gradient->x = gradient->y = gradient->z = 0.0;
   }

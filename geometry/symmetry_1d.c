@@ -144,7 +144,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   avg_dr /= N;
   real_t dz = avg_dr;
 
-  if (rs[0] == 0.0)
+  if (reals_equal(rs[0], 0.0))
   {
     // If the inner radius (rs[0]) is zero, the innermost cell will be a wedge 
     // whose edge lies at the origin. We create a mesh of N-1 regular 
@@ -323,7 +323,7 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   // sin(phi/2) = avg_dr/r.
   real_t dphi = 2.0*asin(avg_dr/rs[N-1]);
   real_t phi1 = -0.5*dphi, phi2 = 0.5*dphi;
-  int Nrad = (rs[0] == 0.0) ? N : N+1;
+  int Nrad = (reals_equal(rs[0], 0.0)) ? N : N+1;
   for (int i = 0; i < Nrad; ++i)
   {
     // The x coordinate already contains the radius.
@@ -413,7 +413,7 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   avg_dr /= N;
   real_t dz = avg_dr;
 
-  if (rs[0] == 0.0)
+  if (reals_equal(rs[0], 0.0))
   {
     // If the inner radius (rs[0]) is zero, the innermost cell will be a 
     // square pyramid whose tip lies at the origin. We create a mesh of N-1 
@@ -583,7 +583,7 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   real_t phi1 = -0.5*dphi, phi2 = 0.5*dphi;
   real_t theta = 2.0*asin(0.5*avg_dr/rs[N-1]);
   real_t theta1 = 0.5*M_PI - theta, theta2 = 0.5*M_PI + theta;
-  int Nrad = (rs[0] == 0.0) ? N : N+1;
+  int Nrad = (reals_equal(rs[0], 0.0)) ? N : N+1;
   for (int i = 0; i < Nrad; ++i)
   {
     // The x coordinate already contains the radius.

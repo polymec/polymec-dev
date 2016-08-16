@@ -43,6 +43,13 @@ static inline real_t point_distance(point_t* x, point_t* y)
   return sqrt(point_square_distance(x, y));
 }
 
+// Returns true if the two given points are coincidental to within polymec's
+// floating point tolerance, false if not.
+static inline bool points_coincide(point_t* x, point_t* y)
+{
+  return reals_equal(point_distance(x, y), 0.0);
+}
+
 // Copy the source point's components to those of the destination point.
 static inline void point_copy(point_t* dest, point_t* source)
 {
@@ -81,7 +88,7 @@ static inline real_t vector_mag(vector_t* v)
 static inline void vector_normalize(vector_t* v)
 {
   real_t vmag = vector_mag(v);
-  if (vmag != 0.0)
+  if (vmag > 0.0)
   {
     v->x /= vmag;
     v->y /= vmag;

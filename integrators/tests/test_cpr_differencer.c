@@ -60,11 +60,11 @@ void test_identity_jacobian_with_bs(void** state, int block_size)
       {
         if (j == i)
         {
-          assert_true(local_matrix_value(J, i, j) == 1.0);
+          assert_true(reals_equal(local_matrix_value(J, i, j), 1.0));
         }
         else
         {
-          assert_true(local_matrix_value(J, i, j) == 0.0);
+          assert_true(reals_equal(local_matrix_value(J, i, j), 0.0));
         }
       }
     }
@@ -127,11 +127,11 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
       int block_col = j / block_size;
       if (block_col == block_row)
       {
-        assert_true(local_matrix_value(D, i, j) == 1.0);
+        assert_true(reals_equal(local_matrix_value(D, i, j), 1.0));
       }
       else
       {
-        assert_true(local_matrix_value(D, i, j) == 0.0);
+        assert_true(reals_equal(local_matrix_value(D, i, j), 0.0));
       }
     }
   }
@@ -145,7 +145,7 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
   {
     for (int j = 0; j < block_size * 10; ++j)
     {
-      assert_true(local_matrix_value(A, i, j) == 1.0);
+      assert_true(reals_equal(local_matrix_value(A, i, j), 1.0));
     }
   }
   local_matrix_free(A);
@@ -157,7 +157,7 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
   {
     for (int j = 0; j < block_size * 10; ++j)
     {
-      assert_true(local_matrix_value(A, i, j) == 1.0);
+      assert_true(reals_equal(local_matrix_value(A, i, j), 1.0));
     }
   }
   local_matrix_free(A);
@@ -212,11 +212,11 @@ void test_asymmetric_jacobian(void** state)
     {
       if (i == j)
       {
-        assert_true(local_matrix_value(D, i, j) == (10.0*i + 1.0*j + 1.0));
+        assert_true(reals_equal(local_matrix_value(D, i, j), (10.0*i + 1.0*j + 1.0)));
       }
       else
       {
-        assert_true(local_matrix_value(D, i, j) == 0.0);
+        assert_true(reals_equal(local_matrix_value(D, i, j), 0.0));
       }
     }
   }
@@ -230,7 +230,7 @@ void test_asymmetric_jacobian(void** state)
   {
     for (int j = 0; j < 10; ++j)
     {
-      assert_true(local_matrix_value(A, i, j) == (10.0*i + 1.0*j + 1.0));
+      assert_true(reals_equal(local_matrix_value(A, i, j), (10.0*i + 1.0*j + 1.0)));
     }
   }
   local_matrix_free(A);
@@ -242,7 +242,7 @@ void test_asymmetric_jacobian(void** state)
   {
     for (int j = 0; j < 10; ++j)
     {
-      assert_true(local_matrix_value(A, i, j) == (10.0*i + 1.0*j + 1.0));
+      assert_true(reals_equal(local_matrix_value(A, i, j), (10.0*i + 1.0*j + 1.0)));
     }
   }
   local_matrix_free(A);

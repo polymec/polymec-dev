@@ -68,7 +68,7 @@ static inline real_t vector2_mag(vector2_t* v)
 static inline void vector2_normalize(vector2_t* v)
 {
   real_t vmag = vector2_mag(v);
-  if (vmag != 0.0)
+  if (vmag > 0.0)
   {
     v->x /= vmag;
     v->y /= vmag;
@@ -110,7 +110,7 @@ static inline real_t triangle_area(point2_t* x1, point2_t* x2, point2_t* x3)
 // Returns true if points p1, p2, and p3 are colinear, false otherwise.
 static inline bool point2s_are_colinear(point2_t* p1, point2_t* p2, point2_t* p3)
 {
-  return triangle_area(p1, p2, p3) == 0.0;
+  return reals_equal(triangle_area(p1, p2, p3), 0.0);
 }
 
 // Returns true if point p1 is between p2 and p3 on a line, false otherwise.

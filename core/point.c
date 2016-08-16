@@ -63,26 +63,26 @@ bool bbox_is_empty_set(bbox_t* box)
 
 bool bbox_is_point(bbox_t* box)
 {
-  return ((ABS(box->x1 - box->x2) < 1e-12) &&
-          (ABS(box->y1 - box->y2) < 1e-12) &&
-          (ABS(box->z1 - box->z2) < 1e-12));
+  return (reals_equal(box->x1, box->x2) &&
+          reals_equal(box->y1, box->y2) &&
+          reals_equal(box->z1, box->z2));
 }
 
 bool bbox_is_line(bbox_t* box)
 {
   return (!bbox_is_point(box) && 
-          (((ABS(box->x1 - box->x2) < 1e-12) && (ABS(box->y1 - box->y2) < 1e-12)) || 
-           ((ABS(box->y1 - box->y2) < 1e-12) && (ABS(box->z1 - box->z2) < 1e-12)) || 
-           ((ABS(box->z1 - box->z2) < 1e-12) && (ABS(box->x1 - box->x2) < 1e-12))));
+          ((reals_equal(box->x1, box->x2) && reals_equal(box->y1, box->y2)) || 
+           (reals_equal(box->y1, box->y2) && reals_equal(box->z1, box->z2)) || 
+           (reals_equal(box->z1, box->z2) && reals_equal(box->x1, box->x2))));
 }
 
 bool bbox_is_plane(bbox_t* box)
 {
   return (!bbox_is_point(box) && 
           !bbox_is_line(box) && 
-          ((ABS(box->x1 - box->x2) < 1e-12) || 
-           (ABS(box->y1 - box->y2) < 1e-12) || 
-           (ABS(box->z1 - box->z2) < 1e-12)));
+          (reals_equal(box->x1, box->x2) || 
+           reals_equal(box->y1, box->y2) || 
+           reals_equal(box->z1, box->z2)));
 }
 
 void bbox_make_empty_set(bbox_t* box)
@@ -101,17 +101,17 @@ void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3)
 
   // Pick an arbitrary vector, e2, that is perpendicular to e1. One of these
   // should work.
-  if (e1->x != 0.0)
+  if (!reals_equal(e1->x, 0.0))
   {
     e2->y = 1.0, e2->z = 1.0; 
     e2->x = -(e1->y + e1->z) / e1->x;
   }
-  else if (e1->y != 0.0)
+  else if (!reals_equal(e1->y, 0.0))
   {
     e2->x = 1.0, e2->z = 1.0; 
     e2->y = -(e1->x + e1->z) / e1->y;
   }
-  else if (e1->z != 0.0)
+  else if (!reals_equal(e1->z, 0.0))
   {
     e2->x = 1.0, e2->y = 1.0; 
     e2->z = -(e1->x + e1->y) / e1->z;
@@ -141,7 +141,7 @@ static inline void intersect_segment(real_t x1_1, real_t x2_1,
       *x2_i = x2_1;
     }
   }
-  else if (ABS(x1_1 - x1_2) < 1e-12)
+  else if (reals_equal(x1_1, x1_2))
   {
     *x1_i = x1_1;
     *x2_i = MIN(x2_1, x2_2);
@@ -233,6 +233,12 @@ int* bbox_intersecting_processes(bbox_t* bbox, MPI_Comm comm, int* num_procs)
 #endif
 }
 
+// points_are_coplanar uses exact floating point predicates, so it's safe 
+// to do a direct floating point comparison.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wfloat-equal"
 extern double orient3d(double* pa, double* pb, double* pc, double* pd);
 bool points_are_coplanar(point_t* p1, point_t* p2, point_t* p3, point_t* p4)
 {
@@ -247,6 +253,8 @@ bool points_are_coplanar(point_t* p1, point_t* p2, point_t* p3, point_t* p4)
   return (orient3d(da, db, dc, dd) == 0.0);
 #endif
 }
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 
 bool all_points_are_coplanar(point_t* points, int num_points)
 {

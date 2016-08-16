@@ -276,7 +276,7 @@ real_t sphere_integrator_ball(sphere_integrator_t* integ,
   int pos = 0, x_pow, y_pow, z_pow;
   while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    if ((coeff != 0.0) && (x_pow % 2 == 0) && (y_pow % 2 == 0) && (z_pow % 2 == 0))
+    if (!reals_equal(coeff, 0.0) && (x_pow % 2 == 0) && (y_pow % 2 == 0) && (z_pow % 2 == 0))
     {
       real_t sum_alpha = 1.0 * (x_pow + y_pow + z_pow);
       real_t beta1 = 0.5 * (x_pow+1);
@@ -309,7 +309,7 @@ real_t sphere_integrator_sphere(sphere_integrator_t* integ,
   int pos = 0, x_pow, y_pow, z_pow;
   while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    if ((coeff != 0.0) && (x_pow % 2 == 0) && (y_pow % 2 == 0) && (z_pow % 2 == 0))
+    if (!reals_equal(coeff, 0.0) && (x_pow % 2 == 0) && (y_pow % 2 == 0) && (z_pow % 2 == 0))
     {
       real_t beta1 = 0.5 * (x_pow+1);
       real_t beta2 = 0.5 * (y_pow+1);
@@ -428,14 +428,14 @@ void sphere_integrator_compute_boundary_surface_weights(sphere_integrator_t* int
 
       // Polynomial dot product.
       // polynomial_t* F_o_n = linear_combination_polynomial_new(3, n[0], Fx, n[1], Fy, n[2], Fz);
-      polynomial_t* F_o_n = scaled_polynomial_new(Fx, n[0]);
-      polynomial_add(F_o_n, 1.0, scaled_polynomial_new(Fy, n[1]));
-      polynomial_add(F_o_n, 1.0, scaled_polynomial_new(Fz, n[2]));
+      polynomial_t* F_o_n1 = scaled_polynomial_new(Fx, n[0]);
+      polynomial_add(F_o_n1, 1.0, scaled_polynomial_new(Fy, n[1]));
+      polynomial_add(F_o_n1, 1.0, scaled_polynomial_new(Fz, n[2]));
 printf("F o n = ");
-polynomial_fprintf(F_o_n, stdout);
-      A[M*j+i] = polynomial_value(F_o_n, &xj);
+polynomial_fprintf(F_o_n1, stdout);
+      A[M*j+i] = polynomial_value(F_o_n1, &xj);
 
-      F_o_n = NULL;
+      F_o_n1 = NULL;
     }
 
     ++i;

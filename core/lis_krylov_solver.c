@@ -685,13 +685,13 @@ static void matrix_manipulate_blocks_fake_bsr(void* context, index_t num_blocks,
     real_t values[bs*bs];
     if (!copy_out)
     {
-      int l = 0;
+      int ll = 0;
       for (int j = 0; j < bs; ++j)
       {
         rows[j] = bs * block_row + j;
         num_columns[j] = bs;
-        for (int k = 0; k < bs; ++k, ++l)
-          values[l] = block_values[k*bs+j];
+        for (int k = 0; k < bs; ++k, ++ll)
+          values[ll] = block_values[k*bs+j];
       }
     }
 
@@ -701,13 +701,13 @@ static void matrix_manipulate_blocks_fake_bsr(void* context, index_t num_blocks,
     // Copy out the values if we are reading.
     if (copy_out)
     {
-      int l = 0;
+      int ll = 0;
       for (int j = 0; j < bs; ++j)
       {
         rows[j] = bs * block_row + j;
         num_columns[j] = bs;
-        for (int k = 0; k < bs; ++k, ++l)
-          block_values[k*bs+j] = values[l];
+        for (int k = 0; k < bs; ++k, ++ll)
+          block_values[k*bs+j] = values[ll];
       }
     }
   }
@@ -792,13 +792,13 @@ static void matrix_manipulate_blocks_fake_vbr(void* context, index_t num_blocks,
     real_t values[bs*bs];
     if (!copy_out)
     {
-      int l = 0;
+      int ll = 0;
       for (int j = 0; j < bs; ++j)
       {
         rows[j] = bs * block_row + j;
         num_columns[j] = bs;
-        for (int k = 0; k < bs; ++k, ++l)
-          values[l] = block_values[k*bs+j];
+        for (int k = 0; k < bs; ++k, ++ll)
+          values[ll] = block_values[k*bs+j];
       }
     }
 
@@ -808,13 +808,13 @@ static void matrix_manipulate_blocks_fake_vbr(void* context, index_t num_blocks,
     // Copy out the values if we are reading.
     if (copy_out)
     {
-      int l = 0;
+      int ll = 0;
       for (int j = 0; j < bs; ++j)
       {
         rows[j] = bs * block_row + j;
         num_columns[j] = bs;
-        for (int k = 0; k < bs; ++k, ++l)
-          block_values[k*bs+j] = values[l];
+        for (int k = 0; k < bs; ++k, ++ll)
+          block_values[k*bs+j] = values[ll];
       }
     }
   }

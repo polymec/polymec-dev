@@ -651,6 +651,11 @@ static int ink_rhs(void* context, real_t t, real_t* x, real_t* xdot)
   return 0;
 }
 
+// FIXME
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=noreturn"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsuggest-attribute=noreturn"
 ode_integrator_t* ink_bdf_ode_integrator_new(int order, 
                                              MPI_Comm comm,
                                              int num_local_values, 
@@ -724,4 +729,6 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
 
   return I;
 }
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 

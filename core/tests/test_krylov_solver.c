@@ -525,26 +525,28 @@ static void test_2d_laplace_eqn(void** state,
 
     // Construct the 2D Laplacian operator and RHS.
     real_t h = 1.0 / N;
-    int rpos = 0;
-    index_t row;
-    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
-      // Fill the row of the matrix.
-      if (row == 0)
+      int rpos = 0;
+      index_t row;
+      while (matrix_sparsity_next_row(sparsity, &rpos, &row))
       {
-        krylov_matrix_set_block(A, 0, 0, T);
-        krylov_matrix_set_block(A, 0, 1, I);
-      }
-      else if (row == (nprocs*N-1))
-      {
-        krylov_matrix_set_block(A, nprocs*N-1, nprocs*N-2, I);
-        krylov_matrix_set_block(A, nprocs*N-1, nprocs*N-1, T);
-      }
-      else
-      {
-        krylov_matrix_set_block(A, row, row-1, I);
-        krylov_matrix_set_block(A, row, row, T);
-        krylov_matrix_set_block(A, row, row+1, I);
+        // Fill the row of the matrix.
+        if (row == 0)
+        {
+          krylov_matrix_set_block(A, 0, 0, T);
+          krylov_matrix_set_block(A, 0, 1, I);
+        }
+        else if (row == (nprocs*N-1))
+        {
+          krylov_matrix_set_block(A, nprocs*N-1, nprocs*N-2, I);
+          krylov_matrix_set_block(A, nprocs*N-1, nprocs*N-1, T);
+        }
+        else
+        {
+          krylov_matrix_set_block(A, row, row-1, I);
+          krylov_matrix_set_block(A, row, row, T);
+          krylov_matrix_set_block(A, row, row+1, I);
+        }
       }
     }
     krylov_matrix_assemble(A);

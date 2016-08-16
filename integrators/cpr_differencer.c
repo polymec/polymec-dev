@@ -202,7 +202,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
   }
   else
   {
-    ASSERT(gamma == 0.0);
+    ASSERT(reals_equal(gamma, 0.0));
     ASSERT(xdot == NULL);
     F = F_adaptor;
     F_context = diff;
@@ -212,7 +212,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
   local_matrix_zero(matrix);
 
   // If all the coefficients are zero, we're finished!
-  if ((alpha == 0.0) && (beta == 0.0) && (gamma == 0.0))
+  if (reals_equal(alpha, 0.0) && reals_equal(beta, 0.0) && reals_equal(gamma, 0.0))
   {
     STOP_FUNCTION_TIMER();
     return;
@@ -222,7 +222,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
   local_matrix_add_identity(matrix, alpha);
 
   // If beta and gamma are zero, we're finished!
-  if ((beta == 0.0) && (gamma == 0.0))
+  if (reals_equal(beta, 0.0) && reals_equal(gamma, 0.0))
   {
     STOP_FUNCTION_TIMER();
     return;
@@ -233,15 +233,15 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
 
   // We compute the system Jacobian using the method described in 
   // Curtis, Powell, and Reed.
-  if ((alpha != 0.0) && (beta != 0.0) && (gamma != 0.0))
+  if (!reals_equal(alpha, 0.0) && !reals_equal(beta, 0.0) && !reals_equal(gamma, 0.0))
     log_debug("cpr_differencer: approximating J = %g * I + %g * dF/dx + %g * dF/d(xdot)...", alpha, beta, gamma);
-  else if ((alpha == 0.0) && (beta != 0.0) && (gamma != 0.0))
+  else if (reals_equal(alpha, 0.0) && !reals_equal(beta, 0.0) && !reals_equal(gamma, 0.0))
     log_debug("cpr_differencer: approximating J = %g * dF/dx + %g * dF/d(xdot)...", beta, gamma);
-  else if ((alpha == 0.0) && (beta == 0.0) && (gamma != 0.0))
+  else if (reals_equal(alpha, 0.0) && reals_equal(beta, 0.0) && !reals_equal(gamma, 0.0))
     log_debug("cpr_differencer: approximating J = %g * dF/d(xdot)...", gamma);
-  else if ((alpha != 0.0) && (beta != 0.0))
+  else if (!reals_equal(alpha, 0.0) && !reals_equal(beta, 0.0))
     log_debug("cpr_differencer: approximating J = %g * I + %g * dF/dx...", alpha, beta);
-  else if ((alpha == 0.0) && (beta != 0.0))
+  else if (reals_equal(alpha, 0.0) && !reals_equal(beta, 0.0))
     log_debug("cpr_differencer: approximating J = %g * dF/dx...", beta);
 
   // Now iterate over all of the colors in our coloring. 
@@ -269,7 +269,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       local_matrix_add_column_vector(matrix, beta, i, diff->Jv);
 
-    if ((gamma != 0.0) && (xdot != NULL))
+    if (!reals_equal(gamma, 0.0) && (xdot != NULL))
     {
       // Now evaluate dF/d(xdot) * d.
       memset(diff->Jv, 0, sizeof(real_t) * diff->num_local_rows);
@@ -295,7 +295,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
     cpr_finite_diff_dFdx_v(F_context, F, t, x, xdot, diff->num_local_rows, 
                            diff->num_remote_rows, work[0], work, diff->Jv);
     ++num_F_evals;
-    if ((gamma != 0.0) && (xdot != NULL))
+    if (!reals_equal(gamma, 0.0) && (xdot != NULL))
     {
       cpr_finite_diff_dFdxdot_v(F_context, F, t, x, xdot, diff->num_local_rows, 
                                 diff->num_remote_rows, work[0], work, diff->Jv);

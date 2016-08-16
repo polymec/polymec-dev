@@ -40,7 +40,7 @@ void test_interpreter_with_long_string(void** state)
   assert_true(interpreter_get_scalar_function(interp, "f") != NULL);
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_VECTOR_FUNCTION));
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_NUMBER));
-  assert_true(interpreter_get_number(interp, "f") == -REAL_MAX);
+  assert_true(reals_equal(interpreter_get_number(interp, "f"), -REAL_MAX));
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_STRING));
   assert_true(!interpreter_contains(interp, "f", INTERPRETER_MESH));
   st_func_t* f = interpreter_get_scalar_function(interp, "f");
@@ -56,7 +56,7 @@ void test_interpreter_with_long_string(void** state)
   assert_true(interpreter_get_vector_function(interp, "F") != NULL);
   assert_true(!interpreter_contains(interp, "F", INTERPRETER_SCALAR_FUNCTION));
   assert_true(!interpreter_contains(interp, "F", INTERPRETER_NUMBER));
-  assert_true(interpreter_get_number(interp, "F") == -REAL_MAX);
+  assert_true(reals_equal(interpreter_get_number(interp, "F"), -REAL_MAX));
   assert_true(!interpreter_contains(interp, "F", INTERPRETER_STRING));
   assert_true(!interpreter_contains(interp, "F", INTERPRETER_MESH));
   st_func_t* F = interpreter_get_vector_function(interp, "F");
@@ -84,7 +84,7 @@ void test_interpreter_with_long_string(void** state)
   assert_true(interpreter_get_scalar_function(interp, "Z") != NULL);
   assert_true(!interpreter_contains(interp, "Z", INTERPRETER_VECTOR_FUNCTION));
   assert_true(!interpreter_contains(interp, "Z", INTERPRETER_NUMBER));
-  assert_true(interpreter_get_number(interp, "Z") == -REAL_MAX);
+  assert_true(reals_equal(interpreter_get_number(interp, "Z"), -REAL_MAX));
   assert_true(!interpreter_contains(interp, "Z", INTERPRETER_STRING));
   assert_true(!interpreter_contains(interp, "Z", INTERPRETER_MESH));
   st_func_t* Z = interpreter_get_scalar_function(interp, "Z");
@@ -102,10 +102,10 @@ void test_interpreter_with_long_string(void** state)
   assert_true((int)interpreter_get_number(interp, "g") == 2);
 
   assert_true(interpreter_contains(interp, "h", INTERPRETER_NUMBER));
-  assert_true(interpreter_get_number(interp, "h") == 3.0);
+  assert_true(reals_equal(interpreter_get_number(interp, "h"), 3.0));
 
   assert_true(interpreter_contains(interp, "i", INTERPRETER_STRING));
-  assert_true(interpreter_get_number(interp, "i") == -REAL_MAX);
+  assert_true(reals_equal(interpreter_get_number(interp, "i"), -REAL_MAX));
   assert_true(!strcmp(interpreter_get_string(interp, "i"), "string cheese"));
 
   interpreter_free(interp);
@@ -256,13 +256,13 @@ void test_table_parsing(void** state)
   assert_int_equal(3, tab->size);
   double** a = (double**)string_ptr_unordered_map_get(tab, "a");
   assert_true(a != NULL);
-  assert_true(**a == 1.0);
+  assert_true(reals_equal(**a, 1.0));
   char** b = (char**)string_ptr_unordered_map_get(tab, "b");
   assert_true(b != NULL);
   assert_int_equal(0, strcmp(*b, "bob"));
   double** c = (double**)string_ptr_unordered_map_get(tab, "c");
   assert_true(c != NULL);
-  assert_true(**c == 2.0);
+  assert_true(reals_equal(**c, 2.0));
   string_ptr_unordered_map_free(tab);
   interpreter_free(interp);
 }

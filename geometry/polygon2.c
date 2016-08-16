@@ -228,20 +228,20 @@ static char seg_set_int(point2_t* a, point2_t* b, point2_t* c,
                  c->x * (a->y - b->y);
 
   // If denom is zero, segments are parallel.
-  if (denom == 0.0)
+  if (reals_equal(denom, 0.0))
     return parallel_int(a, b, c, d, p);
 
   real_t num = a->x * (d->y - c->y) + 
                c->x * (a->y - d->y) + 
                d->x * (c->y - a->y);
-  if ((num == 0.0) || (num == denom)) 
+  if (reals_equal(num, 0.0) || reals_equal(num, denom)) 
     code = 'v';
   real_t s = num / denom;
 
   num = -(a->x * (c->y - b->y) + 
           b->x * (a->y - c->y) + 
           c->x * (b->y - a->y));
-  if ((num == 0.0) || (num == denom))
+  if (reals_equal(num, 0.0) || reals_equal(num, denom))
     code = 'v';
   real_t t = num / denom;
 
@@ -310,7 +310,7 @@ void polygon2_clip(polygon2_t* poly, polygon2_t* other)
     int a1 = (a + n - 1) % n;
     int b1 = (b + m - 1) % m;
 
-    int aa = poly->ordering[a];
+    aa = poly->ordering[a];
     int aa1 = poly->ordering[a1];
     int bb = poly->ordering[b];
     int bb1 = poly->ordering[b1];

@@ -65,7 +65,7 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
           if (strcmp(btagi, btagj) == 0)
           {
             // For each face in btagi, find the closest face in btagj.
-            int num_btagi_faces, num_btagj_faces;
+            size_t num_btagi_faces, num_btagj_faces;
             int* btagi_faces = mesh_tag(blocki->face_tags, btagi, &num_btagi_faces);
             int* btagj_faces = mesh_tag(blockj->face_tags, btagj, &num_btagj_faces);
             if (num_btagj_faces != num_btagi_faces)
@@ -115,50 +115,50 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
               while (mesh_face_next_node(blocki, face, &pos, &node))
               {
                 point_t* xn = &(blocki->nodes[node]);
-                int nearest = kd_tree_nearest(node_trees[j], xn);
-                ASSERT(nearest != -1);
-                point_t* xnn = &(blockj->nodes[nearest]);
-                real_t D = point_distance(xn, xnn);
-                if (D > weld_tolerance)
+                int nearest1 = kd_tree_nearest(node_trees[j], xn);
+                ASSERT(nearest1 != -1);
+                point_t* xnn = &(blockj->nodes[nearest1]);
+                real_t D1 = point_distance(xn, xnn);
+                if (D1 > weld_tolerance)
                 {
                   polymec_error("No match found for node %d of block %d within a distance\n"
-                                "  %g (Boundary tag: %s)", node, i, btagi, D);
+                                "  %g (Boundary tag: %s)", node, i, btagi, D1);
                 }
 
                 // Because several nodes may be welded together, we need to be careful about how we keep track 
                 // of them in order to determine the number of unique nodes in the resulting block mesh.
                 // Careful not to increment the number of welds till the end!
-                int* tuplei = int_tuple_new(2);
-                tuplei[0] = i;
-                tuplei[1] = node;
-                int* tuplej = int_tuple_new(2);
-                tuplej[0] = j;
-                tuplej[1] = nearest;
+                int* tuplei1 = int_tuple_new(2);
+                tuplei1[0] = i;
+                tuplei1[1] = node;
+                int* tuplej1 = int_tuple_new(2);
+                tuplej1[0] = j;
+                tuplej1[1] = nearest1;
                 bool add_new_weld = false;
-                int* weld_i_p = int_tuple_int_unordered_map_get(node_welds, tuplei);
-                int* weld_j_p = int_tuple_int_unordered_map_get(node_welds, tuplej);
+                int* weld_i_p = int_tuple_int_unordered_map_get(node_welds, tuplei1);
+                int* weld_j_p = int_tuple_int_unordered_map_get(node_welds, tuplej1);
                 if ((weld_i_p != NULL) && (weld_j_p == NULL))
                 {
-                  int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplej, *weld_i_p, int_tuple_free);
-                  int_tuple_free(tuplei);
+                  int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplej1, *weld_i_p, int_tuple_free);
+                  int_tuple_free(tuplei1);
                   add_new_weld = true;
                 }
                 else if ((weld_i_p == NULL) && (weld_j_p != NULL))
                 {
-                  int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplei, *weld_j_p, int_tuple_free);
-                  int_tuple_free(tuplej);
+                  int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplei1, *weld_j_p, int_tuple_free);
+                  int_tuple_free(tuplej1);
                   add_new_weld = true;
                 }
                 else if ((weld_i_p == NULL) && (weld_j_p == NULL))
                 {
-                  int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplei, num_node_welds, int_tuple_free);
-                  int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplej, num_node_welds, int_tuple_free);
+                  int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplei1, num_node_welds, int_tuple_free);
+                  int_tuple_int_unordered_map_insert_with_k_dtor(node_welds, tuplej1, num_node_welds, int_tuple_free);
                   add_new_weld = true;
                 }
                 else
                 {
-                  int_tuple_free(tuplei);
-                  int_tuple_free(tuplej);
+                  int_tuple_free(tuplei1);
+                  int_tuple_free(tuplej1);
                 }
                 if (add_new_weld)
                   ++num_node_welds;
@@ -267,8 +267,8 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
             // of a weld with another block.
             tuple[0] = i;
             tuple[1] = node;
-            int* weld_p = int_tuple_int_unordered_map_get(node_welds, tuple);
-            if ((weld_p != NULL) && (welded_node_indices[*weld_p] != -1))
+            int* weld_p1 = int_tuple_int_unordered_map_get(node_welds, tuple);
+            if ((weld_p1 != NULL) && (welded_node_indices[*weld_p1] != -1))
               node_constructed = true;
 
             if (!node_constructed)
@@ -280,22 +280,22 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
               block_mesh->nodes[next_node_index] = block->nodes[node];
 
               // Assign this weld node an index.
-              if (weld_p != NULL)
-                welded_node_indices[*weld_p] = next_node_index;
+              if (weld_p1 != NULL)
+                welded_node_indices[*weld_p1] = next_node_index;
 
               int_int_unordered_map_insert(block_node_map, node, next_node_index);
               ++next_node_index;
             }
             else
             {
-              ASSERT((node_p != NULL) || (weld_p != NULL));
+              ASSERT((node_p != NULL) || (weld_p1 != NULL));
 
               // Attach the existing node to the face.
               if (node_p != NULL)
                 block_mesh->face_nodes[face_node_offset+which_node] = *node_p;
               else
               {
-                int weld_node = welded_node_indices[*weld_p];
+                int weld_node = welded_node_indices[*weld_p1];
                 ASSERT(weld_node < block_mesh->num_nodes);
                 block_mesh->face_nodes[face_node_offset+which_node] = weld_node;
               }

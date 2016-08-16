@@ -94,8 +94,8 @@ void newton_pc_setup(newton_pc_t* precond,
     if (!precond->coeffs_fixed)
     {
       // Only certain combinations of alpha, beta, and gamma are allowed.
-      ASSERT(((alpha == 1.0) && (beta != 0.0) && (gamma == 0.0)) || 
-          ((alpha == 0.0) && (beta == 1.0)));
+      ASSERT((reals_equal(alpha, 1.0) && !reals_equal(beta, 0.0) && reals_equal(gamma, 0.0)) || 
+          (reals_equal(alpha, 0.0) && reals_equal(beta, 1.0)));
 
       precond->vtable.compute_p(precond->context, alpha, beta, gamma, t, x, xdot);
     }

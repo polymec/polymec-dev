@@ -22,6 +22,7 @@ cubic_lattice_t* cubic_lattice_new(index_t nx, index_t ny, index_t nz)
   return l;
 }
 
+#if 0
 static int_int_unordered_map_t* cubic_lattice_generate_x_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
 {
   cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
@@ -84,6 +85,7 @@ static int_int_unordered_map_t* cubic_lattice_generate_z_periodic_map(void* cont
 
   return map;
 }
+#endif
 
 static size_t cl_byte_size(void* obj)
 {

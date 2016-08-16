@@ -60,8 +60,6 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
                                      index_t num_global_vertices, 
                                      index_t* vertex_dist)
 {
-  ASSERT(num_global_vertices >= 0);
-
   adj_graph_t* graph = polymec_malloc(sizeof(adj_graph_t));
   MPI_Comm_size(comm, &graph->nproc);
   MPI_Comm_rank(comm, &graph->rank);

@@ -97,7 +97,7 @@ static inline void tensor2_invert(tensor2_t* t, tensor2_t* t_inverse)
 {
 #ifndef NDEBUG
   real_t det_t = tensor2_det(t);
-  ASSERT(det_t != 0.0);
+  ASSERT(!reals_equal(det_t, 0.0));
 #endif
   t_inverse->xx = t->yy*t->zz - t->yz*t->zy;
   t_inverse->xy = t->xz*t->zy - t->xy*t->zz;
@@ -190,7 +190,7 @@ static inline void sym_tensor2_invert(sym_tensor2_t* t, sym_tensor2_t* t_inverse
 {
 #ifndef NDEBUG
   real_t det_t = sym_tensor2_det(t);
-  ASSERT(det_t != 0.0);
+  ASSERT(!reals_equal(det_t, 0.0));
 #endif
   t_inverse->xx = t->yy*t->zz - t->yz*t->yz;
   t_inverse->xy = t->xz*t->yz - t->xy*t->zz;

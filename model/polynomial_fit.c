@@ -271,9 +271,9 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
 
   // Appeal to LAPACK to solve this least-squares system for us.
   {
-    int one = 1, info;
     if (fit->solver_type == QR_FACTORIZATION)
     {
+      int one = 1, info;
       char trans = 'N';
       int block_size = num_components;
       int lwork = MAX(1, num_rows*num_cols + MAX(num_rows*num_cols, 1) * block_size);
@@ -284,6 +284,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
     }
     else if (fit->solver_type == ORTHOGONAL_FACTORIZATION)
     {
+      int one = 1, info;
       int rank, lwork = MAX(num_rows*num_cols+3*num_rows+1, 2*num_rows*num_cols+1); // unblocked strategy
       real_t rcond = -1.0, work[lwork];
       int jpivot[num_cols];
@@ -292,6 +293,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
     }
     else if (fit->solver_type == SINGULAR_VALUE_DECOMPOSITION)
     {
+      int one = 1, info;
       real_t S[MIN(num_cols, num_components*dim)];
       int rank, lwork = 3*num_rows + MAX(2*num_rows, num_rows) + 100;
       real_t rcond = -1.0, work[lwork];
@@ -371,6 +373,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
 //   cell i is a vector containing the (3**m ­ 3)/2 spatial derivatives of 
 //   u's polynomial representation in i.
 
+#if 0
 // Given a set of N cell averages in the neighborhood W(i), performs a least 
 // squares fit to reconstruct the value of the polynomial fit at the center of 
 // celli, storing it in w00.
@@ -383,6 +386,7 @@ static void reconstruct_cls_value(real_t* cell_averages, int N, real_t* w00)
 static void construct_Jk1(int k, int N, real_t* wkk, real_t* zk1_moments, real_t* J)
 {
 }
+#endif
 
 // Given the linear map w(k|k) for the neighborhood W(i) and the moments 
 // z(k+1) for each cell in that neighborhood, this function calculates the 

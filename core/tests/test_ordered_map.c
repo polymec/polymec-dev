@@ -49,7 +49,13 @@ void test_##element##_ordered_map(void** state) \
 }
 
 DEFINE_ORDERED_MAP_TEST(int_ordered_map, int)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wfloat-equal"
 DEFINE_ORDERED_MAP_TEST(double_ordered_map, double)
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 
 int main(int argc, char* argv[]) 
 {

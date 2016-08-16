@@ -60,15 +60,15 @@ static void krylov_compute_p(void* context,
   krylov->alpha = alpha;
   krylov->beta = beta;
   krylov->gamma = gamma;
-  if ((alpha != 0.0) && (beta != 0.0) && (gamma != 0.0))
+  if (!reals_equal(alpha, 0.0) && !reals_equal(beta, 0.0) && !reals_equal(gamma, 0.0))
     log_debug("krylov_newton_pc: approximating J = %g * I + %g * dF/dx + %g * dF/d(xdot)...", alpha, beta, gamma);
-  else if ((alpha == 0.0) && (beta != 0.0) && (gamma != 0.0))
+  else if (reals_equal(alpha, 0.0) && !reals_equal(beta, 0.0) && !reals_equal(gamma, 0.0))
     log_debug("krylov_newton_pc: approximating J = %g * dF/dx + %g * dF/d(xdot)...", beta, gamma);
-  else if ((alpha == 0.0) && (beta == 0.0) && (gamma != 0.0))
+  else if (reals_equal(alpha, 0.0) && reals_equal(beta, 0.0) && !reals_equal(gamma, 0.0))
     log_debug("krylov_newton_pc: approximating J = %g * dF/d(xdot)...", gamma);
-  else if ((alpha != 0.0) && (beta != 0.0))
+  else if (!reals_equal(alpha, 0.0) && !reals_equal(beta, 0.0))
     log_debug("krylov_newton_pc: approximating J = %g * I + %g * dF/dx...", alpha, beta);
-  else if ((alpha == 0.0) && (beta != 0.0))
+  else if (reals_equal(alpha, 0.0) && !reals_equal(beta, 0.0))
     log_debug("krylov_newton_pc: approximating J = %g * dF/dx...", beta);
 }
 
@@ -192,16 +192,16 @@ static int Atimes_DQ_adaptor(void* A_data, N_Vector v, N_Vector Av)
   // Add the identity term into Av.
   N_VScale(krylov->alpha, v, Av);
 
-  if (krylov->beta != 0.0)
+  if (!reals_equal(krylov->beta, 0.0))
   {
     // Compute the value of x at which to evaluate F -> temp1.
     N_VLinearSum(1.0, krylov->x, sigma, v, krylov->temp1);
     
     // Call F -> temp2.
-    int status = F(F_context, 
-                   krylov->t, NV_DATA(krylov->temp1), NV_DATA(krylov->x_dot), 
-                   NV_DATA(krylov->temp2));
-    if (status != 0)
+    int status1 = F(F_context, 
+                    krylov->t, NV_DATA(krylov->temp1), NV_DATA(krylov->x_dot), 
+                    NV_DATA(krylov->temp2));
+    if (status1 != 0)
       return status;
 
     // Store the difference quotient in temp3 and add it into Av.
@@ -209,18 +209,18 @@ static int Atimes_DQ_adaptor(void* A_data, N_Vector v, N_Vector Av)
     N_VLinearSum(1.0, Av, krylov->beta, krylov->temp3, Av);
   }
 
-  if (krylov->gamma != 0.0)
+  if (!reals_equal(krylov->gamma, 0.0))
   {
     ASSERT(krylov->x_dot != NULL);
     // Compute the value of x_dot at which to evaluate F -> temp1.
     N_VLinearSum(1.0, krylov->x_dot, sigma, v, krylov->temp1);
     
     // Call F -> temp2.
-    int status = F(F_context, 
-                   krylov->t, NV_DATA(krylov->x), NV_DATA(krylov->temp1), 
-                   NV_DATA(krylov->temp2));
-    if (status != 0)
-      return status;
+    int status1 = F(F_context, 
+                    krylov->t, NV_DATA(krylov->x), NV_DATA(krylov->temp1), 
+                    NV_DATA(krylov->temp2));
+    if (status1 != 0)
+      return status1;
 
     // Store the difference quotient in temp3 and add it into Av.
     N_VLinearSum(sigma_inv, krylov->temp2, -sigma_inv, krylov->temp4, krylov->temp3);

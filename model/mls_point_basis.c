@@ -93,11 +93,11 @@ static void mls_compute(void* context,
   memset(A, 0, sizeof(real_t)*dim*dim);
   for (int n = 0; n < N; ++n)
   {
-    for (int i = 0; i < dim; ++i)
+    for (int k = 0; k < dim; ++k)
     {
-      AinvB[dim*n+i] = W[n] * mls->basis[dim*n+i];
+      AinvB[dim*n+k] = W[n] * mls->basis[dim*n+k];
       for (int j = 0; j < dim; ++j)
-        A[dim*j+i] += W[n] * mls->basis[dim*n+i] * mls->basis[dim*n+j];
+        A[dim*j+k] += W[n] * mls->basis[dim*n+k] * mls->basis[dim*n+k];
     }
   }
 
@@ -115,16 +115,18 @@ static void mls_compute(void* context,
   ASSERT(info == 0);
 
   // values^T = basis^T * Ainv * B (or values = (Ainv * B)^T * basis.)
-  real_t alpha = 1.0, beta = 0.0;
-  int one = 1;
-  char trans = 'T';
-  real_t basis_x[dim];
-  polynomial_compute_basis(mls->poly_degree, 0, 0, 0, x, basis_x);
-  //printf("y = %g %g %g, basis = ", y.x, y.y, y.z);
-  //for (int i = 0; i < dim; ++i)
-  //printf("%g ", basis_x[i]);
-  //printf("\n");
-  rgemv(&trans, &dim, &N, &alpha, AinvB, &dim, basis_x, &one, &beta, values, &one);
+  {
+    real_t alpha = 1.0, beta = 0.0;
+    int one = 1;
+    char trans = 'T';
+    real_t basis_x[dim];
+    polynomial_compute_basis(mls->poly_degree, 0, 0, 0, x, basis_x);
+    //printf("y = %g %g %g, basis = ", y.x, y.y, y.z);
+    //for (int i = 0; i < dim; ++i)
+    //printf("%g ", basis_x[i]);
+    //printf("\n");
+    rgemv(&trans, &dim, &N, &alpha, AinvB, &dim, basis_x, &one, &beta, values, &one);
+  }
 
   // If we are in the business of computing gradients, compute the 
   // partial derivatives of Ainv * B.
@@ -139,18 +141,18 @@ static void mls_compute(void* context,
     memset(dAdz, 0, sizeof(real_t)*dim*dim);
     for (int n = 0; n < N; ++n)
     {
-      for (int i = 0; i < dim; ++i)
+      for (int k = 0; k < dim; ++k)
       {
-        real_t basis_i = mls->basis[dim*n+i];
-        dBdx[dim*n+i] = grad_W[n].x*basis_i;
-        dBdy[dim*n+i] = grad_W[n].y*basis_i;
-        dBdz[dim*n+i] = grad_W[n].z*basis_i;
+        real_t basis_k = mls->basis[dim*n+k];
+        dBdx[dim*n+k] = grad_W[n].x*basis_k;
+        dBdy[dim*n+k] = grad_W[n].y*basis_k;
+        dBdz[dim*n+k] = grad_W[n].z*basis_k;
         for (int j = 0; j < dim; ++j)
         {
           real_t basis_j = mls->basis[dim*n+j];
-          dAdx[dim*j+i] += grad_W[n].x * basis_i * basis_j;
-          dAdy[dim*j+i] += grad_W[n].y * basis_i * basis_j;
-          dAdz[dim*j+i] += grad_W[n].z * basis_i * basis_j;
+          dAdx[dim*j+k] += grad_W[n].x * basis_k * basis_j;
+          dAdy[dim*j+k] += grad_W[n].y * basis_k * basis_j;
+          dAdz[dim*j+k] += grad_W[n].z * basis_k * basis_j;
         }
       }
     }
@@ -163,6 +165,9 @@ static void mls_compute(void* context,
     // We left-multiply Ainv*B by the gradient of A, placing the results 
     // in dAinvBdx, dAinvBdy, and dAinvBdz.
     real_t alpha = 1.0, beta = 0.0;
+    int one = 1;
+    char trans = 'T';
+    real_t basis_x[dim];
     real_t dAinvBdx[dim*N], dAinvBdy[dim*N], dAinvBdz[dim*N];
     char no_trans = 'N';
     rgemm(&no_trans, &no_trans, &dim, &N, &dim, &alpha, 
@@ -173,11 +178,11 @@ static void mls_compute(void* context,
           dAdz, &dim, AinvB, &dim, &beta, dAinvBdz, &dim);
 
     // Flip the sign of dA * Ainv * B, and add dB.
-    for (int i = 0; i < dim*N; ++i)
+    for (int k = 0; k < dim*N; ++k)
     {
-      dAinvBdx[i] = -dAinvBdx[i] + dBdx[i];
-      dAinvBdy[i] = -dAinvBdy[i] + dBdy[i];
-      dAinvBdz[i] = -dAinvBdz[i] + dBdz[i];
+      dAinvBdx[k] = -dAinvBdx[k] + dBdx[k];
+      dAinvBdy[k] = -dAinvBdy[k] + dBdy[k];
+      dAinvBdz[k] = -dAinvBdz[k] + dBdz[k];
     }
 
     // Now "left-multiply by Ainv" by solving the equation (e.g.)
@@ -208,11 +213,11 @@ static void mls_compute(void* context,
     rgemv(&trans, &dim, &N, &alpha, dAinvBdz, &dim, basis_x, &one, &beta, p_dAinvBdz, &one);
 
     // Gradients are the sum of these terms.
-    for (int i = 0; i < N; ++i)
+    for (int k = 0; k < N; ++k)
     {
-      gradients[i].x = dpdx_AinvB[i] + p_dAinvBdx[i];
-      gradients[i].y = dpdy_AinvB[i] + p_dAinvBdy[i];
-      gradients[i].z = dpdz_AinvB[i] + p_dAinvBdz[i];
+      gradients[k].x = dpdx_AinvB[k] + p_dAinvBdx[k];
+      gradients[k].y = dpdy_AinvB[k] + p_dAinvBdy[k];
+      gradients[k].z = dpdz_AinvB[k] + p_dAinvBdz[k];
     }
   }
 

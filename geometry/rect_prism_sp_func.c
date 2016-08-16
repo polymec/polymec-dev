@@ -49,7 +49,9 @@ sp_func_t* rect_prism_sp_func_new(point_t* x0,
   ASSERT(L3 > 0.0);
 
   // FOR NOW, we disable Euler angles.
-  if ((alpha != 0.0) || (beta != 0.0) || (gamma != 0.0))
+  if (!reals_equal(alpha, 0.0) || 
+      !reals_equal(beta, 0.0) || 
+      !reals_equal(gamma, 0.0))
     polymec_error("rect_prism_new: Euler angles not yet implemented!");
 
   // Set the 6 bounding planes.

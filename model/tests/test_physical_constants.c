@@ -28,12 +28,12 @@ void test_set_physical_constant(void** state)
 {
   set_physical_constant(BOLTZMANN_CONSTANT, 1.3807e-23, SI_UNITS);
   set_physical_constant(BOLTZMANN_CONSTANT, 1.3807e-16, CGS_UNITS);
-  assert_true(physical_constant_in_units(BOLTZMANN_CONSTANT, CGS_UNITS) == 1.3807e-16);
+  assert_true(reals_equal(physical_constant_in_units(BOLTZMANN_CONSTANT, CGS_UNITS), 1.3807e-16));
 
   // Recall that we're still set to the SI units system from the above test.
-  assert_true(physical_constant(BOLTZMANN_CONSTANT) == 1.3807e-23);
+  assert_true(reals_equal(physical_constant(BOLTZMANN_CONSTANT), 1.3807e-23));
   use_units_system(CGS_UNITS);
-  assert_true(physical_constant(BOLTZMANN_CONSTANT) == 1.3807e-16);
+  assert_true(reals_equal(physical_constant(BOLTZMANN_CONSTANT), 1.3807e-16));
 }
 
 void test_conversion_factor(void** state)
@@ -41,7 +41,7 @@ void test_conversion_factor(void** state)
   real_t kb1 = physical_constant_in_units(BOLTZMANN_CONSTANT, SI_UNITS);
   real_t kb2 = physical_constant_in_units(BOLTZMANN_CONSTANT, CGS_UNITS);
   real_t factor = physical_constant_conversion_factor(BOLTZMANN_CONSTANT, SI_UNITS, CGS_UNITS);
-  assert_true(factor == kb2/kb1);
+  assert_true(reals_equal(factor, kb2/kb1));
 }
 
 int main(int argc, char* argv[]) 

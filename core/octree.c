@@ -146,7 +146,7 @@ void octree_insert(octree_t* tree, point_t* point, int index)
     octree_node_t* root = tree->root;
 
     // Does the given point already exist here?
-    if (point_distance(&root->leaf_node.point, point) == 0.0)
+    if (points_coincide(&root->leaf_node.point, point)) 
       return;
 
     // We need to create a branch node here.
@@ -193,8 +193,8 @@ void octree_insert(octree_t* tree, point_t* point, int index)
   else
   {
     // Is the point already in this node?
-    if (point_distance(&leaf->leaf_node.point, point) == 0.0)
-        return;
+    if (points_coincide(&leaf->leaf_node.point, point)) 
+      return;
     else
     {
       // We have to make a new branch.

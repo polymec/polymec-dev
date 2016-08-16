@@ -175,7 +175,7 @@ static bool bdm_solve(void* context, real_t* B, real_t* x)
     static const real_t epsilon = 1e-25;
     for (int j = 0; j < bs; ++j)
     {
-      if (Aij[bs*j+j] == 0.0)
+      if (reals_equal(Aij[bs*j+j], 0.0))
         Aij[bs*j+j] = epsilon;
     }
 

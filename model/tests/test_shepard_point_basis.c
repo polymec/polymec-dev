@@ -102,9 +102,9 @@ void test_shepard_point_basis_consistency(void** state)
       x = domain->points[i];
       point_randomize(&x, rng, &jitterbox);
     }
-    int N = point_basis_num_points(phi);
-    real_t phi_val[N];
-    vector_t phi_grad[N];
+    int N1 = point_basis_num_points(phi);
+    real_t phi_val[N1];
+    vector_t phi_grad[N1];
     point_basis_compute(phi, &x, phi_val, phi_grad);
 
     real_t val = 0.0; 
@@ -119,12 +119,7 @@ void test_shepard_point_basis_consistency(void** state)
       ++k;
     }
 
-//printf("(%g, %g, %g) with dx = %g: %g %g %g %g\n", x.x, x.y, x.z, dx, val, grad.x, grad.y, grad.z);
     assert_true(fabs(val - 1.0) < 1e-14);
-    // FIXME: Shepard functions need fixing 'fore their gradients are consistent.
-//    assert_true(fabs(grad.x) < 1e-14);
-//    assert_true(fabs(grad.y) < 1e-14);
-//    assert_true(fabs(grad.z) < 1e-14);
   }
 
   // Clean up.

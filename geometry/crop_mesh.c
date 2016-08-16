@@ -15,7 +15,7 @@ static void project_nodes(mesh_t* mesh, sp_func_t* boundary_func)
 
   // Go over the boundary faces and project each of the nodes.
   int_unordered_set_t* projected_nodes = int_unordered_set_new();
-  int nfaces;
+  size_t nfaces;
   int* faces = mesh_tag(mesh->face_tags, sp_func_name(boundary_func), &nfaces);
   for (int f = 0; f < nfaces; ++f)
   {
@@ -30,7 +30,7 @@ static void project_nodes(mesh_t* mesh, sp_func_t* boundary_func)
         sp_func_eval(boundary_func, x, &D);
         sp_func_eval_deriv(boundary_func, 1, x, grad);
         real_t G = sqrt(grad[0]*grad[0] + grad[1]*grad[1] + grad[2]*grad[2]);
-        if ((D != 0.0) && (G != 0.0))
+        if (!reals_equal(D, 0.0) && !reals_equal(G, 0.0))
         {
           x->x -= D * grad[0]/G;
           x->y -= D * grad[1]/G;
@@ -197,9 +197,11 @@ mesh_t* crop_mesh(mesh_t* mesh, sp_func_t* boundary_func, mesh_crop_t crop_type)
   
   // Create the boundary faces tag.
   int* bf_tag = mesh_create_tag(cropped_mesh->face_tags, sp_func_name(boundary_func), boundary_faces->size);
-  int pos = 0, i = 0, face;
-  while (int_unordered_set_next(boundary_faces, &pos, &face))
-    bf_tag[i++] = face_map[face];
+  {
+    int pos = 0, i = 0, face;
+    while (int_unordered_set_next(boundary_faces, &pos, &face))
+      bf_tag[i++] = face_map[face];
+  }
 
   // Create a new exchanger from the old one.
   {

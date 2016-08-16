@@ -199,8 +199,7 @@ real_t brent_solve(real_t (*F)(void*, real_t), void* context, real_t x1, real_t 
   do
   {
     real_t fc = F(context, c);
-    if ((ABS(fa - fc) > 1e-12) && 
-        (ABS(fb - fc) > 1e-12))
+    if (reals_equal(fa, fc) && reals_equal(fb, fc))
     {
       s = a*fb*fc / ((fa-fb)*(fa-fc)) + 
           b*fa*fc / ((fb-fa)*(fb-fc)) + 

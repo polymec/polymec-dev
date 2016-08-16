@@ -33,7 +33,7 @@ void test_add_quantities(void** state)
   assert_false(aux_state_has_vector(S, 10));
   assert_false(aux_state_has_tensor2(S, 10));
   assert_false(aux_state_has_sym_tensor2(S, 10));
-  assert_true(aux_state_scalar(S, 10) == 0.0);
+  assert_true(reals_equal(aux_state_scalar(S, 10), 0.0));
 
   aux_state_add_vector(S, 20);
   assert_int_equal(2, aux_state_size(S));
@@ -43,9 +43,9 @@ void test_add_quantities(void** state)
   assert_false(aux_state_has_tensor2(S, 20));
   assert_false(aux_state_has_sym_tensor2(S, 20));
   vector_t* v = aux_state_vector(S, 20);
-  assert_true(v->x == 0.0);
-  assert_true(v->y == 0.0);
-  assert_true(v->z == 0.0);
+  assert_true(reals_equal(v->x, 0.0));
+  assert_true(reals_equal(v->y, 0.0));
+  assert_true(reals_equal(v->z, 0.0));
 
   aux_state_add_tensor2(S, 30);
   assert_int_equal(3, aux_state_size(S));
@@ -55,15 +55,15 @@ void test_add_quantities(void** state)
   assert_false(aux_state_has_vector(S, 30));
   assert_false(aux_state_has_sym_tensor2(S, 30));
   tensor2_t* t = aux_state_tensor2(S, 30);
-  assert_true(t->xx == 0.0);
-  assert_true(t->xy == 0.0);
-  assert_true(t->xz == 0.0);
-  assert_true(t->yx == 0.0);
-  assert_true(t->yy == 0.0);
-  assert_true(t->yz == 0.0);
-  assert_true(t->zx == 0.0);
-  assert_true(t->zy == 0.0);
-  assert_true(t->zz == 0.0);
+  assert_true(reals_equal(t->xx, 0.0));
+  assert_true(reals_equal(t->xy, 0.0));
+  assert_true(reals_equal(t->xz, 0.0));
+  assert_true(reals_equal(t->yx, 0.0));
+  assert_true(reals_equal(t->yy, 0.0));
+  assert_true(reals_equal(t->yz, 0.0));
+  assert_true(reals_equal(t->zx, 0.0));
+  assert_true(reals_equal(t->zy, 0.0));
+  assert_true(reals_equal(t->zz, 0.0));
 
   aux_state_add_sym_tensor2(S, 40);
   assert_int_equal(4, aux_state_size(S));
@@ -73,12 +73,12 @@ void test_add_quantities(void** state)
   assert_false(aux_state_has_vector(S, 40));
   assert_false(aux_state_has_tensor2(S, 40));
   sym_tensor2_t* t1 = aux_state_sym_tensor2(S, 40);
-  assert_true(t1->xx == 0.0);
-  assert_true(t1->xy == 0.0);
-  assert_true(t1->xz == 0.0);
-  assert_true(t1->yy == 0.0);
-  assert_true(t1->yz == 0.0);
-  assert_true(t1->zz == 0.0);
+  assert_true(reals_equal(t1->xx, 0.0));
+  assert_true(reals_equal(t1->xy, 0.0));
+  assert_true(reals_equal(t1->xz, 0.0));
+  assert_true(reals_equal(t1->yy, 0.0));
+  assert_true(reals_equal(t1->yz, 0.0));
+  assert_true(reals_equal(t1->zz, 0.0));
 
   aux_state_t* clone = aux_state_clone(S);
   assert_true(aux_state_has_scalar(clone, 10));
@@ -93,15 +93,15 @@ void test_set_quantities(void** state)
 
   aux_state_add_scalar(S, 10);
   aux_state_set_scalar(S, 10, 10.0);
-  assert_true(aux_state_scalar(S, 10) == 10.0);
+  assert_true(reals_equal(aux_state_scalar(S, 10), 10.0));
 
   aux_state_add_vector(S, 20);
   vector_t v = {.x = 1.0, .y = 2.0, .z = 3.0};
   aux_state_set_vector(S, 20, &v);
   vector_t* v1 = aux_state_vector(S, 20);
-  assert_true(v1->x == v.x);
-  assert_true(v1->y == v.y);
-  assert_true(v1->z == v.z);
+  assert_true(reals_equal(v1->x, v.x));
+  assert_true(reals_equal(v1->y, v.y));
+  assert_true(reals_equal(v1->z, v.z));
 
   aux_state_add_tensor2(S, 30);
   tensor2_t t = {.xx = 1.0, .xy = 2.0, .xz = 3.0,
@@ -109,15 +109,15 @@ void test_set_quantities(void** state)
                  .zx = 7.0, .zy = 8.0, .zz = 9.0};
   aux_state_set_tensor2(S, 30, &t);
   tensor2_t* t1 = aux_state_tensor2(S, 30);
-  assert_true(t1->xx == t.xx);
-  assert_true(t1->xy == t.xy);
-  assert_true(t1->xz == t.xz);
-  assert_true(t1->yx == t.yx);
-  assert_true(t1->yy == t.yy);
-  assert_true(t1->yz == t.yz);
-  assert_true(t1->zx == t.zx);
-  assert_true(t1->zy == t.zy);
-  assert_true(t1->zz == t.zz);
+  assert_true(reals_equal(t1->xx, t.xx));
+  assert_true(reals_equal(t1->xy, t.xy));
+  assert_true(reals_equal(t1->xz, t.xz));
+  assert_true(reals_equal(t1->yx, t.yx));
+  assert_true(reals_equal(t1->yy, t.yy));
+  assert_true(reals_equal(t1->yz, t.yz));
+  assert_true(reals_equal(t1->zx, t.zx));
+  assert_true(reals_equal(t1->zy, t.zy));
+  assert_true(reals_equal(t1->zz, t.zz));
 
   aux_state_add_sym_tensor2(S, 40);
   sym_tensor2_t w = {.xx = 1.0, .xy = 2.0, .xz = 3.0,
@@ -125,12 +125,12 @@ void test_set_quantities(void** state)
                                            .zz = 9.0};
   aux_state_set_sym_tensor2(S, 40, &w);
   sym_tensor2_t* w1 = aux_state_sym_tensor2(S, 40);
-  assert_true(w1->xx == w.xx);
-  assert_true(w1->xy == w.xy);
-  assert_true(w1->xz == w.xz);
-  assert_true(w1->yy == w.yy);
-  assert_true(w1->yz == w.yz);
-  assert_true(w1->zz == w.zz);
+  assert_true(reals_equal(w1->xx, w.xx));
+  assert_true(reals_equal(w1->xy, w.xy));
+  assert_true(reals_equal(w1->xz, w.xz));
+  assert_true(reals_equal(w1->yy, w.yy));
+  assert_true(reals_equal(w1->yz, w.yz));
+  assert_true(reals_equal(w1->zz, w.zz));
 }
 
 int main(int argc, char* argv[]) 

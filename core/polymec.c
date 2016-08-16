@@ -473,7 +473,10 @@ static noreturn void default_error_handler(const char* message)
 
 #if POLYMEC_HAVE_MPI
 // Here are the error handlers for the Scotch partitioning library.
-static noreturn void SCOTCH_errorPrint(const char* const errstr, ...)
+// These are not part of polymec's public API, but are used by other 
+// parts of the library, so must be available externally.
+noreturn void SCOTCH_errorPrint(const char* const errstr, ...);
+noreturn void SCOTCH_errorPrint(const char* const errstr, ...)
 {
   va_list argp;
   va_start(argp, errstr);
@@ -481,13 +484,14 @@ static noreturn void SCOTCH_errorPrint(const char* const errstr, ...)
   va_end(argp);
 }
 
-//static void SCOTCH_errorPrintW(const char* const errstr, ...)
-//{
-//  va_list argp;
-//  va_start(argp, errstr);
-//  polymec_warn(errstr, argp);
-//  va_end(argp);
-//}
+void SCOTCH_errorPrintW(const char* const errstr, ...);
+void SCOTCH_errorPrintW(const char* const errstr, ...)
+{
+  va_list argp;
+  va_start(argp, errstr);
+  polymec_warn(errstr, argp);
+  va_end(argp);
+}
 #endif
 
 void polymec_abort(const char* message, ...)

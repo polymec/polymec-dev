@@ -179,7 +179,7 @@ int point_factory_cylinder(lua_State* lua)
         if (!lua_isvector(lua, -1))
           return luaL_error(lua, "axis must be a vector.");
         axis = lua_tovector(lua, -1);
-        if (vector_mag(axis) == 0.0)
+        if (reals_equal(vector_mag(axis), 0.0))
           return luaL_error(lua, "axis must not be the zero vector.");
         vector_normalize(axis);
       }

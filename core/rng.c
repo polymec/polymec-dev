@@ -86,7 +86,7 @@ real_t rng_uniform_positive(rng_t* rng)
     while (true)
     {
       real_t val = rng_uniform(rng);
-      if (val != 0.0)
+      if (val > 0.0)
         return val;
     }
   }

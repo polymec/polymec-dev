@@ -97,8 +97,8 @@ void test_coloring_against_graph(adj_graph_coloring_t* coloring, adj_graph_t* gr
     while (adj_graph_coloring_next_vertex(coloring, color, &pos, &v))
     {
       // This color consists of those vertices not connected to v.
-      int pos = 0, v1;
-      while (adj_graph_next_edge(graph, v, &pos, &v1))
+      int pos1 = 0, v1;
+      while (adj_graph_next_edge(graph, v, &pos1, &v1))
         assert_false(adj_graph_coloring_has_vertex(coloring, color, v1));
     }
   }

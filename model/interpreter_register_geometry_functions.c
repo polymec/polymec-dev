@@ -499,7 +499,7 @@ static int select_points(lua_State* lua)
   // Take stock of our arguments.
   if (near_points != NULL) 
   {
-    if (within_distance == 0.0)
+    if (reals_equal(within_distance, 0.0))
       return luaL_error(lua, "within_distance should be given with near_points.");
     if (within_surface != NULL)
       return luaL_error(lua, "within_surface cannot be specified with near_points.");

@@ -64,8 +64,8 @@ void create_boundary_generators(ptr_array_t* surface_points,
   for (int i = 0; i < num_surface_points; ++i)
   {
     // Add any tags from this point to the set of existing boundary tags.
-    string_slist_t* tags = surface_tags->data[i];
-    for (string_slist_node_t* t_iter = tags->front; t_iter != NULL; t_iter = t_iter->next)
+    string_slist_t* btags = surface_tags->data[i];
+    for (string_slist_node_t* t_iter = btags->front; t_iter != NULL; t_iter = t_iter->next)
       string_int_unordered_map_insert(tag_indices, t_iter->value, tag_indices->size);
 
     // Retrieve the surface point.
@@ -123,7 +123,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
     }
 
     // Tag the boundary point appropriately.
-    ptr_array_append(boundary_tags, tags); // Borrowed ref to tags.
+    ptr_array_append(boundary_tags, btags); // Borrowed ref to tags.
   }
 
   // Move the surface points into a contiguous array.

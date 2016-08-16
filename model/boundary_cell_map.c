@@ -106,7 +106,7 @@ boundary_cell_map_t* boundary_cell_map_from_mesh_and_bcs(mesh_t* mesh, string_pt
   {
     // Retrieve the tag for this boundary condition.
     ASSERT(mesh_has_tag(mesh->face_tags, tag));
-    int num_faces;
+    size_t num_faces;
     int* faces = mesh_tag(mesh->face_tags, tag, &num_faces);
 
     // Now create an entry for each boundary cell.

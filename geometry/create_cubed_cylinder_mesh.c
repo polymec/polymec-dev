@@ -280,7 +280,7 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
 
   // Replace the tags.
   {
-    int N1, N2, N3, N4;
+    size_t N1, N2, N3, N4;
     int* outer1 = mesh_tag(radial_blocks[0]->face_tags, "west_outer", &N1);
     int* outer2 = mesh_tag(radial_blocks[1]->face_tags, "south_outer", &N2);
     int* outer3 = mesh_tag(radial_blocks[2]->face_tags, "east_outer", &N3);
@@ -293,7 +293,7 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
   }
 
   {
-    int N1, N2, N3, N4, N5;
+    size_t N1, N2, N3, N4, N5;
     int* bot1 = mesh_tag(radial_blocks[0]->face_tags, "west_bottom", &N1);
     int* bot2 = mesh_tag(radial_blocks[1]->face_tags, "south_bottom", &N2);
     int* bot3 = mesh_tag(radial_blocks[2]->face_tags, "east_bottom", &N3);
@@ -308,7 +308,7 @@ mesh_t* create_cubed_cylinder_mesh(MPI_Comm comm,
   }
 
   {
-    int N1, N2, N3, N4, N5;
+    size_t N1, N2, N3, N4, N5;
     int* top1 = mesh_tag(radial_blocks[0]->face_tags, "west_top", &N1);
     int* top2 = mesh_tag(radial_blocks[1]->face_tags, "south_top", &N2);
     int* top3 = mesh_tag(radial_blocks[2]->face_tags, "east_top", &N3);
@@ -360,7 +360,7 @@ mesh_t* create_cubed_cylindrical_shell_mesh(MPI_Comm comm,
 
   // Replace the tags.
   {
-    int N1, N2, N3, N4;
+    size_t N1, N2, N3, N4;
     int* outer1 = mesh_tag(radial_blocks[0]->face_tags, "west_outer", &N1);
     int* outer2 = mesh_tag(radial_blocks[1]->face_tags, "south_outer", &N2);
     int* outer3 = mesh_tag(radial_blocks[2]->face_tags, "east_outer", &N3);
@@ -373,7 +373,7 @@ mesh_t* create_cubed_cylindrical_shell_mesh(MPI_Comm comm,
   }
 
   {
-    int N1, N2, N3, N4;
+    size_t N1, N2, N3, N4;
     int* bot1 = mesh_tag(radial_blocks[0]->face_tags, "west_bottom", &N1);
     int* bot2 = mesh_tag(radial_blocks[1]->face_tags, "south_bottom", &N2);
     int* bot3 = mesh_tag(radial_blocks[2]->face_tags, "east_bottom", &N3);
@@ -386,7 +386,7 @@ mesh_t* create_cubed_cylindrical_shell_mesh(MPI_Comm comm,
   }
 
   {
-    int N1, N2, N3, N4;
+    size_t N1, N2, N3, N4;
     int* top1 = mesh_tag(radial_blocks[0]->face_tags, "west_top", &N1);
     int* top2 = mesh_tag(radial_blocks[1]->face_tags, "south_top", &N2);
     int* top3 = mesh_tag(radial_blocks[2]->face_tags, "east_top", &N3);

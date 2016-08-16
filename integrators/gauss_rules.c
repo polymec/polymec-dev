@@ -117,7 +117,7 @@ void get_gauss_legendre_points(int n, real_t* points, real_t* weights)
   }
 }
 
-void get_gauss_radau_points(int n, real_t* points, real_t* weights)
+noreturn void get_gauss_radau_points(int n, real_t* points, real_t* weights)
 {
   ASSERT(n >= 2);
   ASSERT(points != NULL);

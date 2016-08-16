@@ -48,7 +48,7 @@ void test_ctor(void** state, int p)
   double coeff;
   while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    assert_true(coeff == coeffs[index]);
+    assert_true(reals_equal(coeff, coeffs[index]));
     assert_int_equal(x_powers[p][index], x_pow);
     assert_int_equal(y_powers[p][index], y_pow);
     assert_int_equal(z_powers[p][index], z_pow);
@@ -63,7 +63,7 @@ void test_ctor(void** state, int p)
   pos = 0, index = 0;
   while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
-    assert_true(coeff == coeffs[index]);
+    assert_true(reals_equal(coeff, coeffs[index]));
     assert_int_equal(x_powers[p][index], x_pow);
     assert_int_equal(y_powers[p][index], y_pow);
     assert_int_equal(z_powers[p][index], z_pow);

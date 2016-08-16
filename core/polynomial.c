@@ -81,7 +81,7 @@ static void polynomial_trim(polynomial_t* p)
 {
   for (int i = 0; i < p->num_terms; ++i)
   {
-    if (p->coeffs[i] == 0.0)
+    if (reals_equal(p->coeffs[i], 0.0))
     {
       p->coeffs[i] = p->coeffs[p->num_terms-1];
       p->x_pow[i] = p->x_pow[p->num_terms-1];
@@ -173,7 +173,7 @@ polynomial_t* scaled_polynomial_new(polynomial_t* p, real_t factor)
   q->coeffs = polymec_malloc(sizeof(real_t) * q->num_terms);
   for (int i = 0; i < q->num_terms; ++i)
   {
-    if (factor == 1.0)
+    if (reals_equal(factor, 1.0))
       q->coeffs[i] = p->coeffs[i];
     else
       q->coeffs[i] = factor * p->coeffs[i];
@@ -425,12 +425,12 @@ bool polynomial_equals(polynomial_t* p, polynomial_t* q)
   if (p == q) 
     return true; 
 
-  if ((ABS(p->x0.x - q->x0.x) > 1e-12) || 
-      (ABS(p->x0.y - q->x0.y) > 1e-12) || 
-      (ABS(p->x0.z - q->x0.z) > 1e-12))
+  if (!reals_equal(p->x0.x, q->x0.x) || 
+      !reals_equal(p->x0.y, q->x0.y) || 
+      !reals_equal(p->x0.z, q->x0.z))
     return false;
 
-  if (ABS(p->factor - q->factor) > 1e-12)
+  if (!reals_equal(p->factor, q->factor))
     return false;
 
   // Encode the x, y, z powers of p into integers, and map those integers to 
@@ -519,15 +519,15 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
 {
   if (stream == NULL) return;
   char x_term[32], y_term[32], z_term[32];
-  if (p->x0.x != 0.0)
+  if (!reals_equal(p->x0.x, 0.0))
     snprintf(x_term, 32, "(x - %g)", p->x0.x);
   else
     snprintf(x_term, 32, "x");
-  if (p->x0.y != 0.0)
+  if (!reals_equal(p->x0.y, 0.0))
     snprintf(y_term, 32, "(y - %g)", p->x0.y);
   else
     snprintf(y_term, 32, "y");
-  if (p->x0.z != 0.0)
+  if (!reals_equal(p->x0.z, 0.0))
     snprintf(z_term, 32, "(z - %g)", p->x0.z);
   else
     snprintf(z_term, 32, "z");
@@ -544,12 +544,12 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
       else if (coeff > 0.0)
         fprintf(stream, "+ ");
     }
-    if ((coeff == 0.0) && (p->degree == 0))
+    if (reals_equal(coeff, 0.0) && (p->degree == 0))
     {
       fprintf(stream, "0");
       continue;
     }
-    else if ((coeff != 1.0) && (coeff != 0.0))
+    else if (!reals_equal(coeff, 1.0) && !reals_equal(coeff, 0.0))
     {
       if (pos > 1)
         fprintf(stream, "%g ", fabs(coeff));
@@ -558,12 +558,12 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
     }
     else if ((x_pow + y_pow + z_pow) == 0)
     {
-      if (coeff == 0.0)
+      if (reals_equal(coeff, 0.0))
         fprintf(stream, "0");
       else
         fprintf(stream, "1");
     }
-    if (coeff != 0.0)
+    if (!reals_equal(coeff, 0.0))
     {
       if (x_pow > 1)
         fprintf(stream, "%s**%d ", x_term, x_pow);

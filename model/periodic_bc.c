@@ -20,7 +20,7 @@ static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mes
   // First, we validate the periodic mapping a bit.
 
   // Are there the same number of faces in both the periodic tags?
-  int num_faces1, num_faces2;
+  size_t num_faces1, num_faces2;
   int* faces1 = mesh_tag(mesh->face_tags, (const char*)tag1, &num_faces1);
   int* faces2 = mesh_tag(mesh->face_tags, (const char*)tag2, &num_faces2);
   if (num_faces1 != num_faces2)

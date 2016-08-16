@@ -223,7 +223,7 @@ void local_matrix_matvec(local_matrix_t* matrix, real_t* x, real_t* Ax)
 void local_matrix_add_matrix(local_matrix_t* matrix, real_t scale_factor, local_matrix_t* B)
 {
   START_FUNCTION_TIMER();
-  if (scale_factor != 0.0)
+  if (!reals_equal(scale_factor, 0.0))
     matrix->vtable.add_matrix(matrix->context, scale_factor, B->context);
   STOP_FUNCTION_TIMER();
 }
