@@ -36,7 +36,7 @@ static ode_integrator_t* symplectic_central_force_integrator()
                                              central_force_rhs, NULL);
 }
 
-void test_symplectic_central_force(void** state)
+static void test_symplectic_central_force(void** state)
 {
   // We use the symplectic Crank-Nicolson method to integrate the trajectory 
   // of a particle under the influence of a central force. We test that its 
@@ -113,7 +113,7 @@ static ode_integrator_t* stiffly_accurate_kinetics_integrator()
                                          NEWTON_BICGSTAB, 15);
 }
 
-void test_stiffly_accurate_kinetics(void** state)
+static void test_stiffly_accurate_kinetics(void** state)
 {
   // We use the symplectic Crank-Nicolson method to integrate the trajectory 
   // of a particle under the influence of a central force. We test that its 

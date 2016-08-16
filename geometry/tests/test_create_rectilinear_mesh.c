@@ -14,7 +14,7 @@
 #include "core/silo_file.h"
 #include "geometry/create_rectilinear_mesh.h"
 
-void test_create_rectilinear_mesh(void** state)
+static void test_create_rectilinear_mesh(void** state)
 {
   // Create a 10x10x10 rectilinear mesh.
   double xs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
@@ -49,7 +49,7 @@ void test_create_rectilinear_mesh(void** state)
   mesh_free(mesh);
 }
 
-void test_plot_rectilinear_mesh(void** state)
+static void test_plot_rectilinear_mesh(void** state)
 {
   // Create a 4x4x4 rectilinear mesh.
   double xs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
@@ -84,7 +84,7 @@ static void check_cell_face_connectivity(void** state,
   int cell_array_len = mesh->num_cells + mesh->num_ghost_cells;
   index_t* cell_p = index_lsearch(global_cell_indices, cell_array_len, global_cell_index);
   assert_true(cell_p != NULL);
-  int cell = cell_p - global_cell_indices;
+  int cell = (int)(cell_p - global_cell_indices);
   int face = mesh->cell_faces[6*cell + cell_face_index];
   if (face < 0) 
     face = ~face;
@@ -95,7 +95,7 @@ static void check_cell_face_connectivity(void** state,
     assert_int_equal(global_opp_cell_index, global_cell_indices[opp_cell]); 
 }
 
-void test_3proc_4x4x1_mesh(void** state)
+static void test_3proc_4x4x1_mesh(void** state)
 {
 MPI_Barrier(MPI_COMM_WORLD);
   // Create a 4x4x1 rectilinear mesh, which isn't a big deal in and of itself, 
@@ -272,7 +272,7 @@ MPI_Barrier(MPI_COMM_WORLD);
   mesh_free(mesh);
 }
 
-void test_problematic_meshes(void** state)
+static void test_problematic_meshes(void** state)
 {
   int nproc;
   MPI_Comm_size(MPI_COMM_WORLD, &nproc);

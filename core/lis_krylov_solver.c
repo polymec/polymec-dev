@@ -300,7 +300,7 @@ static void* matrix_clone(void* context)
   }
   if (mat->ptr != NULL)
   {
-    int ptr_size = (type == LIS_MATRIX_CSR) ? (N_local+1) : (clone->bnnz+1);
+    int ptr_size = (int)((type == LIS_MATRIX_CSR) ? (N_local+1) : (clone->bnnz+1));
     clone->ptr = polymec_malloc(sizeof(LIS_INT) * ptr_size);
     memcpy(clone->ptr, mat->ptr, sizeof(LIS_INT) * ptr_size);
   }
@@ -634,7 +634,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
                                  .assemble = matrix_assemble,
                                  .fprintf = matrix_fprintf_csr,
                                  .dtor = matrix_dtor};
-  return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
+  return krylov_matrix_new(mat, vtable, comm, (int)N_local, N_global);
 }
 
 // LIS's current limitations force us to fake block matrices with regular 
@@ -1560,7 +1560,7 @@ static krylov_vector_t* lis_factory_vector(void* context,
                                  .norm = vector_norm,
                                  .fprintf = vec_fprintf,
                                  .dtor = vector_dtor};
-  return krylov_vector_new(v, vtable, N_local, N_global);
+  return krylov_vector_new(v, vtable, (int)N_local, N_global);
 }
 
 static void lis_factory_dtor(void* context)

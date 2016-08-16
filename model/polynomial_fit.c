@@ -253,7 +253,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
   int num_components = fit->num_components;
   ptr_array_t** equations = fit->equations;
 
-  int num_rows = equations[0]->size * num_components;
+  int num_rows = (int)equations[0]->size * num_components;
   int dim = polynomial_basis_dim(p);
   int num_cols = dim * num_components;
   ASSERT(num_rows >= num_cols);
@@ -403,10 +403,10 @@ static void construct_Jk1(int k, int N, real_t* wkk, real_t* zk1_moments, real_t
 //               There are N * (3**(k+1)-3)/2 components in this array.
 // wk1k1 - an array that will store the components of the linear map w(k+1|k+1)
 //         in column-major order.
-void reconstruct_cls_derivatives(int k, int N, real_t* wkk, 
-                                 real_t* zk1_moments, real_t* wk1k1)
-{
-}
+//static void reconstruct_cls_derivatives(int k, int N, real_t* wkk, 
+//                                        real_t* zk1_moments, real_t* wk1k1)
+//{
+//}
 
 static void solve_coupled_least_squares(polynomial_fit_t* fit)
 {
@@ -420,7 +420,7 @@ void polynomial_fit_compute(polynomial_fit_t* fit)
   START_FUNCTION_TIMER();
 #ifndef NDEBUG
   // Make sure we have the same number of equations for each component.
-  int num_eq = fit->equations[0]->size;
+  int num_eq = (int)fit->equations[0]->size;
   for (int c = 1; c < fit->num_components; ++c)
   {
     ASSERT(fit->equations[c]->size == num_eq);
@@ -429,7 +429,7 @@ void polynomial_fit_compute(polynomial_fit_t* fit)
 
   // Solve the least squares fit of N equations.
   int p = fit->p;
-  int N_per_comp = fit->equations[0]->size;
+  int N_per_comp = (int)fit->equations[0]->size;
   int dim = polynomial_basis_dim(p);
 
   if (N_per_comp > dim)
@@ -509,7 +509,7 @@ void polynomial_fit_fprintf(polynomial_fit_t* fit, FILE* stream)
   }
   else
   {
-    int num_rows = fit->equations[0]->size * fit->num_components;
+    int num_rows = (int)fit->equations[0]->size * fit->num_components;
     int dim = polynomial_basis_dim(fit->p);
     int num_cols = dim * fit->num_components;
 

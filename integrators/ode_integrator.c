@@ -272,7 +272,7 @@ ode_integrator_t* decorated_ode_integrator_new(ode_integrator_t* base_integrator
     vtable.copy_out = decorated_copy_out;
   vtable.dtor = decorated_dtor;
 
-  int name_len = strlen(base_integrator->name);
+  int name_len = (int)strlen(base_integrator->name);
   char name[name_len + 128];
   snprintf(name, name_len + 127, "Decorated %s", base_integrator->name);
   ode_integrator_t* I = ode_integrator_new(name, decorated, vtable, 

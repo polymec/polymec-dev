@@ -52,7 +52,7 @@ static real_t problem_DJ(void* context, int i, real_t t, real_t* u)
   }
 }
 
-void test_ssor_pc_ctor(void** state)
+static void test_ssor_pc_ctor(void** state)
 {
   int N = 10;
   real_t b = 0.1;
@@ -62,7 +62,7 @@ void test_ssor_pc_ctor(void** state)
   newton_pc_free(pc);
 }
 
-void test_ssor_pc_solve(void** state)
+static void test_ssor_pc_solve(void** state)
 {
   int N = 100;
   real_t b = 0.1;

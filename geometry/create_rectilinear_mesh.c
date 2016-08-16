@@ -49,10 +49,10 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   MPI_Comm_rank(comm, &rank);
   index_t total_num_cells = nx * ny * nz;
   index_t cells_per_proc = total_num_cells / nproc;
-  int_int_unordered_map_t* local_faces = int_int_unordered_map_new();
-  int_int_unordered_map_t* local_nodes = int_int_unordered_map_new();
-  int num_cells = (rank == nproc-1) ? total_num_cells - cells_per_proc*rank
-                                    : cells_per_proc;
+  index_int_unordered_map_t* local_faces = index_int_unordered_map_new();
+  index_int_unordered_map_t* local_nodes = index_int_unordered_map_new();
+  int num_cells = (int)((rank == nproc-1) ? total_num_cells - cells_per_proc*rank
+                                          : cells_per_proc);
   int num_ghost_cells = 0, num_faces = 0, num_nodes = 0;
   for (int c = 0; c < num_cells; ++c)
   {
@@ -69,8 +69,8 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
                         cubic_lattice_z_face(lattice, i, j, k+1)};
     for (int f = 0; f < 6; ++f)
     {
-      if (!int_int_unordered_map_contains(local_faces, faces[f]))
-        int_int_unordered_map_insert(local_faces, faces[f], num_faces++);
+      if (!index_int_unordered_map_contains(local_faces, faces[f]))
+        index_int_unordered_map_insert(local_faces, faces[f], num_faces++);
     }
 
     index_t nodes[8] = {cubic_lattice_node(lattice, i, j, k),
@@ -83,8 +83,8 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
                         cubic_lattice_node(lattice, i+1, j+1, k+1)};
     for (int n = 0; n < 8; ++n)
     {
-      if (!int_int_unordered_map_contains(local_nodes, nodes[n]))
-        int_int_unordered_map_insert(local_nodes, nodes[n], num_nodes++);
+      if (!index_int_unordered_map_contains(local_nodes, nodes[n]))
+        index_int_unordered_map_insert(local_nodes, nodes[n], num_nodes++);
     }
 
     // Ghost cells.
@@ -141,21 +141,21 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
     if (comm == MPI_COMM_SELF)
     {
       // Use the dirt-simple indexing scheme!
-      mesh->cell_faces[6*cell+0] = ~cubic_lattice_x_face(lattice, i, j, k);
-      mesh->cell_faces[6*cell+1] =  cubic_lattice_x_face(lattice, i+1, j, k);
-      mesh->cell_faces[6*cell+2] = ~cubic_lattice_y_face(lattice, i, j, k);
-      mesh->cell_faces[6*cell+3] =  cubic_lattice_y_face(lattice, i, j+1, k);
-      mesh->cell_faces[6*cell+4] = ~cubic_lattice_z_face(lattice, i, j, k);
-      mesh->cell_faces[6*cell+5] =  cubic_lattice_z_face(lattice, i, j, k+1);
+      mesh->cell_faces[6*cell+0] = ~((int)cubic_lattice_x_face(lattice, i, j, k));
+      mesh->cell_faces[6*cell+1] =  (int)cubic_lattice_x_face(lattice, i+1, j, k);
+      mesh->cell_faces[6*cell+2] = ~((int)cubic_lattice_y_face(lattice, i, j, k));
+      mesh->cell_faces[6*cell+3] =  (int)cubic_lattice_y_face(lattice, i, j+1, k);
+      mesh->cell_faces[6*cell+4] = ~((int)cubic_lattice_z_face(lattice, i, j, k));
+      mesh->cell_faces[6*cell+5] =  (int)cubic_lattice_z_face(lattice, i, j, k+1);
     }
     else
     {
-      mesh->cell_faces[6*cell+0] = ~(*int_int_unordered_map_get(local_faces, cubic_lattice_x_face(lattice, i, j, k)));
-      mesh->cell_faces[6*cell+1] = *int_int_unordered_map_get(local_faces, cubic_lattice_x_face(lattice, i+1, j, k));
-      mesh->cell_faces[6*cell+2] = ~(*int_int_unordered_map_get(local_faces, cubic_lattice_y_face(lattice, i, j, k)));
-      mesh->cell_faces[6*cell+3] = *int_int_unordered_map_get(local_faces, cubic_lattice_y_face(lattice, i, j+1, k));
-      mesh->cell_faces[6*cell+4] = ~(*int_int_unordered_map_get(local_faces, cubic_lattice_z_face(lattice, i, j, k)));
-      mesh->cell_faces[6*cell+5] = *int_int_unordered_map_get(local_faces, cubic_lattice_z_face(lattice, i, j, k+1));
+      mesh->cell_faces[6*cell+0] = ~(*index_int_unordered_map_get(local_faces, cubic_lattice_x_face(lattice, i, j, k)));
+      mesh->cell_faces[6*cell+1] = *index_int_unordered_map_get(local_faces, cubic_lattice_x_face(lattice, i+1, j, k));
+      mesh->cell_faces[6*cell+2] = ~(*index_int_unordered_map_get(local_faces, cubic_lattice_y_face(lattice, i, j, k)));
+      mesh->cell_faces[6*cell+3] = *index_int_unordered_map_get(local_faces, cubic_lattice_y_face(lattice, i, j+1, k));
+      mesh->cell_faces[6*cell+4] = ~(*index_int_unordered_map_get(local_faces, cubic_lattice_z_face(lattice, i, j, k)));
+      mesh->cell_faces[6*cell+5] = *index_int_unordered_map_get(local_faces, cubic_lattice_z_face(lattice, i, j, k+1));
     }
 
     // Hook up each face to its nodes.
@@ -177,25 +177,25 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
     if (comm == MPI_COMM_SELF)
     {
       // Use the dirt-simple indexing scheme!
-      node_indices[0] = cubic_lattice_node(lattice, i, j, k);
-      node_indices[1] = cubic_lattice_node(lattice, i+1, j, k);
-      node_indices[2] = cubic_lattice_node(lattice, i+1, j+1, k);
-      node_indices[3] = cubic_lattice_node(lattice, i, j+1, k);
-      node_indices[4] = cubic_lattice_node(lattice, i, j, k+1);
-      node_indices[5] = cubic_lattice_node(lattice, i+1, j, k+1);
-      node_indices[6] = cubic_lattice_node(lattice, i+1, j+1, k+1);
-      node_indices[7] = cubic_lattice_node(lattice, i, j+1, k+1);
+      node_indices[0] = (int)cubic_lattice_node(lattice, i, j, k);
+      node_indices[1] = (int)cubic_lattice_node(lattice, i+1, j, k);
+      node_indices[2] = (int)cubic_lattice_node(lattice, i+1, j+1, k);
+      node_indices[3] = (int)cubic_lattice_node(lattice, i, j+1, k);
+      node_indices[4] = (int)cubic_lattice_node(lattice, i, j, k+1);
+      node_indices[5] = (int)cubic_lattice_node(lattice, i+1, j, k+1);
+      node_indices[6] = (int)cubic_lattice_node(lattice, i+1, j+1, k+1);
+      node_indices[7] = (int)cubic_lattice_node(lattice, i, j+1, k+1);
     }
     else
     {
-      node_indices[0] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j, k));
-      node_indices[1] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j, k));
-      node_indices[2] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j+1, k));
-      node_indices[3] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j+1, k));
-      node_indices[4] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j, k+1));
-      node_indices[5] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j, k+1));
-      node_indices[6] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j+1, k+1));
-      node_indices[7] = *int_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j+1, k+1));
+      node_indices[0] = *index_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j, k));
+      node_indices[1] = *index_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j, k));
+      node_indices[2] = *index_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j+1, k));
+      node_indices[3] = *index_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j+1, k));
+      node_indices[4] = *index_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j, k+1));
+      node_indices[5] = *index_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j, k+1));
+      node_indices[6] = *index_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i+1, j+1, k+1));
+      node_indices[7] = *index_int_unordered_map_get(local_nodes, cubic_lattice_node(lattice, i, j+1, k+1));
     }
 
     // Face 0 (-x) -- backward traversal
@@ -304,7 +304,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
         mesh->face_cells[2*face+1] = ghost_cell_index;
 
         // Generate send mappings.
-        int ghost_proc = MIN(neighboring_cells[ii] / cells_per_proc, nproc-1);
+        int ghost_proc = (int)(MIN(neighboring_cells[ii] / cells_per_proc, nproc-1));
         int_array_t** send_indices_p = (int_array_t**)int_ptr_unordered_map_get(send_map, ghost_proc);
         int_array_t* send_indices = NULL;
         if (send_indices_p == NULL)
@@ -340,8 +340,8 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   exchanger_set_receives(ex, recv_map);
 
   // Clean up.
-  int_int_unordered_map_free(local_faces);
-  int_int_unordered_map_free(local_nodes);
+  index_int_unordered_map_free(local_faces);
+  index_int_unordered_map_free(local_nodes);
   int_ptr_unordered_map_free(send_map);
   int_ptr_unordered_map_free(recv_map);
   int_unordered_set_free(processed_nodes);

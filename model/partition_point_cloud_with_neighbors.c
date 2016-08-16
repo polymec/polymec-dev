@@ -184,7 +184,7 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         size_t offset = 0;
         serializer_write(ser, p_pairing, bytes, &offset);
         MPI_Send(&bytes->size, 1, MPI_INT, p, p, comm);
-        MPI_Send(bytes->data, bytes->size, MPI_BYTE, p, p, comm);
+        MPI_Send(bytes->data, (int)bytes->size, MPI_BYTE, p, p, comm);
 
         // Clean up.
         byte_array_clear(bytes);

@@ -13,7 +13,7 @@
 #include "core/polymec.h"
 #include "core/special_functions.h"
 
-void test_bessel_find_jn_roots(void** state)
+static void test_bessel_find_jn_roots(void** state)
 {
   static double jn_roots[6][5] = 
     {{2.4048, 5.5201, 8.6537, 11.7915, 14.9309},    // J0
@@ -34,7 +34,7 @@ void test_bessel_find_jn_roots(void** state)
   }
 }
 
-void test_bessel_jn(void** state, int n)
+static void test_bessel_jn(void** state, int n)
 {
   int num_roots = 10;
   double roots[num_roots];
@@ -51,13 +51,13 @@ void test_bessel_jn(void** state, int n)
   }
 }
 
-void test_bessel_j(void** state)
+static void test_bessel_j(void** state)
 {
   for (int n = 0; n < 20; ++n)
     test_bessel_jn(state, n);
 }
 
-void test_bessel_djndx(void** state, int n)
+static void test_bessel_djndx(void** state, int n)
 {
   int num_roots = 10;
   double roots[num_roots];
@@ -70,13 +70,13 @@ void test_bessel_djndx(void** state, int n)
   }
 }
 
-void test_bessel_djdx(void** state)
+static void test_bessel_djdx(void** state)
 {
   for (int n = 0; n < 20; ++n)
     test_bessel_djndx(state, n);
 }
 
-void test_bessel_find_yn_roots(void** state)
+static void test_bessel_find_yn_roots(void** state)
 {
   // These reference roots were taken from scipy.special.yn_zeros.
   static double yn_roots[6][5] = 
@@ -98,7 +98,7 @@ void test_bessel_find_yn_roots(void** state)
   }
 }
 
-void test_bessel_yn(void** state, int n)
+static void test_bessel_yn(void** state, int n)
 {
   int num_roots = 10;
   double roots[num_roots];
@@ -115,13 +115,13 @@ void test_bessel_yn(void** state, int n)
   }
 }
 
-void test_bessel_y(void** state)
+static void test_bessel_y(void** state)
 {
   for (int n = 0; n < 20; ++n)
     test_bessel_yn(state, n);
 }
 
-void test_bessel_dyndx(void** state, int n)
+static void test_bessel_dyndx(void** state, int n)
 {
   int num_roots = 10;
   double roots[num_roots];
@@ -134,13 +134,13 @@ void test_bessel_dyndx(void** state, int n)
   }
 }
 
-void test_bessel_dydx(void** state)
+static void test_bessel_dydx(void** state)
 {
   for (int n = 0; n < 20; ++n)
     test_bessel_dyndx(state, n);
 }
 
-void test_hermite_hn(void** state)
+static void test_hermite_hn(void** state)
 {
   // Test the first 11 Hermite polynomials against those listed on 
   // Wikipedia.

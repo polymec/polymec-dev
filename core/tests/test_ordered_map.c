@@ -12,21 +12,21 @@
 #include "cmocka.h"
 #include "core/ordered_map.h"
 
-const char* keys[] = {"0", "1", "2", "3", "4", "5"};
-int int_values[] = {0, 1, 2, 3, 4, 5};
-double double_values[] = {0., 1., 2., 3., 4., 5.};
+static const char* keys[] = {"0", "1", "2", "3", "4", "5"};
+static int int_values[] = {0, 1, 2, 3, 4, 5};
+static double double_values[] = {0., 1., 2., 3., 4., 5.};
 
 // Key-value destructors.
 #define DEFINE_ORDERED_MAP_TEST(map_name, element) \
 DEFINE_ORDERED_MAP(map_name, char*, element, strcmp) \
-void test_##map_name##_ctor(void** state) \
+static void test_##map_name##_ctor(void** state) \
 { \
   map_name##_t* s = map_name##_new(); \
   assert_int_equal(0, s->size); \
   map_name##_free(s); \
 } \
 \
-void test_##map_name##_insert(void** state) \
+static void test_##map_name##_insert(void** state) \
 { \
   map_name##_t* s = map_name##_new(); \
   for (int i = 0; i < 5; ++i) \
@@ -42,7 +42,7 @@ void test_##map_name##_insert(void** state) \
   map_name##_free(s); \
 } \
 \
-void test_##element##_ordered_map(void** state) \
+static void test_##element##_ordered_map(void** state) \
 { \
   test_##map_name##_ctor(state); \
   test_##map_name##_insert(state); \

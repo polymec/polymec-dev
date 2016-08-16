@@ -13,7 +13,7 @@
 #include "core/polymec.h"
 #include "core/options.h"
 
-void test_options(void** state)
+static void test_options(void** state)
 {
   int argc = 6;
   char* argv[] = {"program", "run", "input", "p1=v1", "p2=v2", "p3=v3"};

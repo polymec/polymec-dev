@@ -108,7 +108,7 @@ static void np_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   neighbor_pairing_t* np = obj;
 
   // Write the name.
-  int name_len = strlen(np->name);
+  int name_len = (int)strlen(np->name);
   byte_array_write_ints(bytes, 1, &name_len, offset);
   byte_array_write_chars(bytes, name_len, np->name, offset);
 
@@ -226,7 +226,7 @@ neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
   size_t size;
   p->pairs = silo_file_read_int_array(file, pairs_name, &size);
   ASSERT((size % 2) == 0);
-  p->num_pairs = size/2;
+  p->num_pairs = (int)size/2;
   char weights_name[FILENAME_MAX];
   snprintf(weights_name, FILENAME_MAX, "%s_neighbor_pairing_weights", neighbors_name);
   size_t num_weights;
@@ -300,7 +300,7 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
   polymec_free(x_par);
 
   // Create a neighbor pairing.
-  int num_pairs = pair_array->size/2;
+  int num_pairs = (int)pair_array->size/2;
   neighbor_pairing_t* neighbors = 
     unweighted_neighbor_pairing_new("Distance-based point pairs", 
                                     num_pairs, pair_array->data, ex);

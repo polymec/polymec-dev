@@ -23,7 +23,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
   ASSERT(surface_points->size == surface_normals->size);
   ASSERT(surface_points->size == surface_tags->size);
 
-  int num_surface_points = surface_points->size;
+  int num_surface_points = (int)surface_points->size;
 
   // Compute the minimum distance from each surface point to its neighbors.
   real_t* h_min = polymec_malloc(sizeof(real_t) * num_surface_points);
@@ -128,7 +128,7 @@ void create_boundary_generators(ptr_array_t* surface_points,
 
   // Move the surface points into a contiguous array.
   *boundary_generators = polymec_malloc(sizeof(point_t) * boundary_points->size);
-  *num_boundary_generators = boundary_points->size;
+  *num_boundary_generators = (int)boundary_points->size;
   for (int i = 0; i < boundary_points->size; ++i)
   {
     (*boundary_generators)[i] = *((point_t*)boundary_points->data[i]);

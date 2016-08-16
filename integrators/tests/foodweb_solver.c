@@ -135,6 +135,8 @@ typedef struct
 } foodweb_t;
 
 // Readability definitions used in other routines below.
+// Note that these may cause warnings.
+#pragma clang diagnostic ignored "-Wdisabled-macro-expansion"
 #define acoef  (data->acoef)
 #define bcoef  (data->bcoef)
 #define cox    (data->cox)
@@ -385,6 +387,7 @@ static newton_solver_t* foodweb_solver_new(foodweb_t* data, newton_pc_t* precond
 }
 
 // Constructor for block-Jacobi-preconditioned food web solver.
+newton_solver_t* block_jacobi_precond_foodweb_solver_new(void);
 newton_solver_t* block_jacobi_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
@@ -394,6 +397,7 @@ newton_solver_t* block_jacobi_precond_foodweb_solver_new()
 }
 
 // Constructor for LU-preconditioned food web solver.
+newton_solver_t* lu_precond_foodweb_solver_new(void);
 newton_solver_t* lu_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
@@ -402,6 +406,7 @@ newton_solver_t* lu_precond_foodweb_solver_new()
 }
 
 // Constructor for ILU-preconditioned food web solver.
+newton_solver_t* ilu_precond_foodweb_solver_new(void);
 newton_solver_t* ilu_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
@@ -412,6 +417,7 @@ newton_solver_t* ilu_precond_foodweb_solver_new()
 }
 
 // Returns initial conditions.
+real_t* foodweb_initial_conditions(void);
 real_t* foodweb_initial_conditions()
 {
   real_t* cc = malloc(sizeof(real_t) * NEQ);

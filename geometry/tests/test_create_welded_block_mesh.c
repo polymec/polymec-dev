@@ -14,7 +14,7 @@
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/create_welded_block_mesh.h"
 
-void test_2_block_weld(void** state)
+static void test_2_block_weld(void** state)
 {
   // Weld two blocks together!
   bbox_t bbox1 = {.x1 = -0.5, .x2 = 0.0,
@@ -54,7 +54,7 @@ void test_2_block_weld(void** state)
   mesh_free(weld);
 }
 
-void test_L_weld(void** state)
+static void test_L_weld(void** state)
 {
   // Weld three blocks together in an L shape!
   bbox_t bbox1 = {.x1 = -0.5, .x2 = 0.0,

@@ -31,7 +31,7 @@ static const int z_powers[5][35] = {{0},
                                     {0, 0, 0, 1, 0, 0, 1, 0, 1, 2, 0, 0, 1, 0, 1, 2, 0, 1, 2, 3},
                                     {0, 0, 0, 1, 0, 0, 1, 0, 1, 2, 0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 0, 1, 2, 3, 4}};
 
-void test_ctor(void** state, int p)
+static void test_ctor(void** state, int p)
 {
   // Set up coefficients.
   int dim = polynomial_basis_dim(p);
@@ -73,32 +73,32 @@ void test_ctor(void** state, int p)
   poly = NULL;
 }
 
-void test_p0_ctor(void** state)
+static void test_p0_ctor(void** state)
 {
   test_ctor(state, 0);
 }
 
-void test_p1_ctor(void** state)
+static void test_p1_ctor(void** state)
 {
   test_ctor(state, 1);
 }
 
-void test_p2_ctor(void** state)
+static void test_p2_ctor(void** state)
 {
   test_ctor(state, 2);
 }
 
-void test_p3_ctor(void** state)
+static void test_p3_ctor(void** state)
 {
   test_ctor(state, 3);
 }
 
-void test_p4_ctor(void** state)
+static void test_p4_ctor(void** state)
 {
   test_ctor(state, 4);
 }
 
-int factorial(int n)
+static int factorial(int n)
 {
   if (n <= 0)
     return 1;
@@ -106,7 +106,7 @@ int factorial(int n)
     return n * factorial(n-1);
 }
 
-void test_basis(void** state, int p)
+static void test_basis(void** state, int p)
 {
   // We test the polynomial with coefficients 1, 2, 3, 4, ... in the standard
   // basis.
@@ -168,27 +168,27 @@ void test_basis(void** state, int p)
   poly = NULL;
 }
 
-void test_p0_basis(void** state)
+static void test_p0_basis(void** state)
 {
   test_basis(state, 0);
 }
 
-void test_p1_basis(void** state)
+static void test_p1_basis(void** state)
 {
   test_basis(state, 1);
 }
 
-void test_p2_basis(void** state)
+static void test_p2_basis(void** state)
 {
   test_basis(state, 2);
 }
 
-void test_p3_basis(void** state)
+static void test_p3_basis(void** state)
 {
   test_basis(state, 3);
 }
 
-void test_p4_basis(void** state)
+static void test_p4_basis(void** state)
 {
   test_basis(state, 4);
 }

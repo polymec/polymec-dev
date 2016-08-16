@@ -14,20 +14,20 @@
 #include "core/hash_functions.h"
 #include "core/comparators.h"
 
-const char* keys[] = {"0", "1", "2", "3", "4", "5"};
-int int_values[] = {0, 1, 2, 3, 4, 5};
-double double_values[] = {0., 1., 2., 3., 4., 5.};
+static const char* keys[] = {"0", "1", "2", "3", "4", "5"};
+static int int_values[] = {0, 1, 2, 3, 4, 5};
+static double double_values[] = {0., 1., 2., 3., 4., 5.};
 
 #define DEFINE_UNORDERED_MAP_TEST(map_name, element) \
 DEFINE_UNORDERED_MAP(map_name, char*, element, string_hash, string_equals) \
-void test_##map_name##_ctor(void** state) \
+static void test_##map_name##_ctor(void** state) \
 { \
   map_name##_t* m = map_name##_new(); \
   assert_int_equal(0, m->size); \
   map_name##_free(m); \
 } \
 \
-void test_##map_name##_insert(void** state) \
+static void test_##map_name##_insert(void** state) \
 { \
   map_name##_t* m = map_name##_new(); \
   for (int i = 0; i < 5; ++i) \
@@ -46,7 +46,7 @@ void test_##map_name##_insert(void** state) \
   map_name##_free(m); \
 } \
 \
-void test_##element##_unordered_map(void** state) \
+static void test_##element##_unordered_map(void** state) \
 { \
   test_##map_name##_ctor(state); \
   test_##map_name##_insert(state); \

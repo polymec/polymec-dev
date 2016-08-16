@@ -56,6 +56,7 @@ typedef struct
 } heat2d_t;
 
 // Newly initialized data context.
+heat2d_t* heat2d_new(void);
 heat2d_t* heat2d_new()
 {
   heat2d_t* data = malloc(sizeof(heat2d_t));
@@ -72,14 +73,14 @@ heat2d_t* heat2d_new()
     {
       long int loc = offset + i;
       int edges[4], num_edges = 4;
-      edges[0] = loc-1;
-      edges[1] = loc+1;
-      edges[2] = loc-data->mm;
-      edges[3] = loc+data->mm;
+      edges[0] = (int)(loc-1);
+      edges[1] = (int)(loc+1);
+      edges[2] = (int)(loc-data->mm);
+      edges[3] = (int)(loc+data->mm);
 
       // Set the edges within the sparsity graph.
-      adj_graph_set_num_edges(data->sparsity, loc, num_edges);
-      memcpy(adj_graph_edges(data->sparsity, loc), edges, sizeof(int) * num_edges);
+      adj_graph_set_num_edges(data->sparsity, (int)loc, num_edges);
+      memcpy(adj_graph_edges(data->sparsity, (int)loc), edges, sizeof(int) * num_edges);
     }
   }
 
@@ -119,6 +120,7 @@ static int heat2d_res(void* context, real_t t, real_t* u, real_t* u_dot, real_t*
   return 0;
 }
 
+void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t** u_dot);
 void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t** u_dot)
 {
   heat2d_t* data = dae_integrator_context(integ);
@@ -185,6 +187,7 @@ static dae_integrator_t* heat2d_integrator_new(heat2d_t* data, newton_pc_t* prec
 }
 
 // Constructor for block-Jacobi-preconditioned heat2d integrator.
+dae_integrator_t* block_jacobi_precond_heat2d_integrator_new(void);
 dae_integrator_t* block_jacobi_precond_heat2d_integrator_new()
 {
   heat2d_t* data = heat2d_new();
@@ -193,6 +196,7 @@ dae_integrator_t* block_jacobi_precond_heat2d_integrator_new()
 }
 
 // Constructor for LU-preconditioned heat2d integrator.
+dae_integrator_t* lu_precond_heat2d_integrator_new(void);
 dae_integrator_t* lu_precond_heat2d_integrator_new()
 {
   heat2d_t* data = heat2d_new();
@@ -201,6 +205,7 @@ dae_integrator_t* lu_precond_heat2d_integrator_new()
 }
 
 // Constructor for ILU-preconditioned heat2d integrator.
+dae_integrator_t* ilu_precond_heat2d_integrator_new(void);
 dae_integrator_t* ilu_precond_heat2d_integrator_new()
 {
   heat2d_t* data = heat2d_new();

@@ -20,25 +20,25 @@ extern newton_solver_t* lu_precond_foodweb_solver_new();
 extern newton_solver_t* ilu_precond_foodweb_solver_new();
 extern real_t* foodweb_initial_conditions();
 
-void test_block_jacobi_precond_foodweb_ctor(void** state)
+static void test_block_jacobi_precond_foodweb_ctor(void** state)
 {
   newton_solver_t* newton = block_jacobi_precond_foodweb_solver_new();
   newton_solver_free(newton);
 }
 
-void test_lu_precond_foodweb_ctor(void** state)
+static void test_lu_precond_foodweb_ctor(void** state)
 {
   newton_solver_t* newton = lu_precond_foodweb_solver_new();
   newton_solver_free(newton);
 }
 
-void test_ilu_precond_foodweb_ctor(void** state)
+static void test_ilu_precond_foodweb_ctor(void** state)
 {
   newton_solver_t* newton = ilu_precond_foodweb_solver_new();
   newton_solver_free(newton);
 }
 
-void test_foodweb_solve(void** state, newton_solver_t* newton)
+static void test_foodweb_solve(void** state, newton_solver_t* newton)
 {
   // Set up the problem.
   newton_solver_set_tolerances(newton, 1e-7, 1e-13);
@@ -68,21 +68,21 @@ void test_foodweb_solve(void** state, newton_solver_t* newton)
   free(cc);
 }
 
-void test_block_jacobi_precond_foodweb_solve(void** state)
+static void test_block_jacobi_precond_foodweb_solve(void** state)
 {
   // Set up the problem.
   newton_solver_t* newton = block_jacobi_precond_foodweb_solver_new();
   test_foodweb_solve(state, newton);
 }
 
-void test_lu_precond_foodweb_solve(void** state)
+static void test_lu_precond_foodweb_solve(void** state)
 {
   // Set up the problem.
   newton_solver_t* newton = lu_precond_foodweb_solver_new();
   test_foodweb_solve(state, newton);
 }
 
-void test_ilu_precond_foodweb_solve(void** state)
+static void test_ilu_precond_foodweb_solve(void** state)
 {
   // Set up the problem.
   newton_solver_t* newton = ilu_precond_foodweb_solver_new();

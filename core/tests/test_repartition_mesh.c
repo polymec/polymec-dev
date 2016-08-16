@@ -245,42 +245,42 @@ log_debug("cell %d at (%g, %g, %g): V = %g, should be %g", c, mesh->cell_centers
   mesh_free(mesh);
 }
 
-void test_repartition_4x1x1_uniform_mesh(void** state)
+static void test_repartition_4x1x1_uniform_mesh(void** state)
 {
   test_repartition_uniform_mesh_of_size(state, 4, 1, 1);
 }
 
-void test_repartition_2x2x1_uniform_mesh(void** state)
+static void test_repartition_2x2x1_uniform_mesh(void** state)
 {
   test_repartition_uniform_mesh_of_size(state, 2, 2, 1);
 }
 
-void test_repartition_4x4x1_uniform_mesh(void** state)
+static void test_repartition_4x4x1_uniform_mesh(void** state)
 {
   test_repartition_uniform_mesh_of_size(state, 4, 4, 1);
 }
 
-void test_repartition_2x2x2_uniform_mesh(void** state)
+static void test_repartition_2x2x2_uniform_mesh(void** state)
 {
   test_repartition_uniform_mesh_of_size(state, 2, 2, 2);
 }
 
-void test_repartition_4x4x4_uniform_mesh(void** state)
+static void test_repartition_4x4x4_uniform_mesh(void** state)
 {
   test_repartition_uniform_mesh_of_size(state, 4, 4, 4);
 }
 
-void test_repartition_128x1x1_uniform_mesh(void** state)
+static void test_repartition_128x1x1_uniform_mesh(void** state)
 {
   test_repartition_uniform_mesh_of_size(state, 128, 1, 1);
 }
 
-void test_repartition_128x128x1_uniform_mesh(void** state)
+static void test_repartition_128x128x1_uniform_mesh(void** state)
 {
   test_repartition_uniform_mesh_of_size(state, 128, 128, 1);
 }
 
-void test_repartition_32x32x32_uniform_mesh(void** state)
+static void test_repartition_32x32x32_uniform_mesh(void** state)
 {
   test_repartition_uniform_mesh_of_size(state, 32, 32, 32);
 }

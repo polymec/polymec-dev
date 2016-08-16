@@ -14,7 +14,7 @@
 #include "core/partition_mesh.h"
 #include "geometry/create_uniform_mesh.h"
 
-void test_partition_linear_mesh(void** state)
+static void test_partition_linear_mesh(void** state)
 {
   // Create a 100x1x1 uniform mesh.
   int nx = 100, ny = 1, nz = 1;
@@ -98,7 +98,7 @@ void test_partition_linear_mesh(void** state)
   assert_int_equal(nprocs, num_procs);
 }
 
-void test_partition_slab_mesh(void** state)
+static void test_partition_slab_mesh(void** state)
 {
   // Create a 50x50x1 uniform mesh.
   int nx = 50, ny = 50, nz = 1;
@@ -157,7 +157,7 @@ void test_partition_slab_mesh(void** state)
   assert_int_equal(nprocs, num_procs);
 }
 
-void test_partition_box_mesh(void** state)
+static void test_partition_box_mesh(void** state)
 {
   // Create a 20x20x20 uniform mesh.
   int nx = 20, ny = 20, nz = 20;

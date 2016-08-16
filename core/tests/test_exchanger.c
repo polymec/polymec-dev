@@ -12,13 +12,13 @@
 #include "cmocka.h"
 #include "core/exchanger.h"
 
-void test_exchanger_new(void** state)
+static void test_exchanger_new(void** state)
 {
   exchanger_t* exchanger = exchanger_new(MPI_COMM_WORLD);
   exchanger = NULL;
 }
 
-void test_exchanger_construct(void** state)
+static void test_exchanger_construct(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   int nproc, rank;
@@ -40,7 +40,7 @@ void test_exchanger_construct(void** state)
   exchanger = NULL;
 }
 
-void test_exchanger_construct_and_delete(void** state)
+static void test_exchanger_construct_and_delete(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   int nproc, rank;

@@ -93,7 +93,7 @@ static ls_weight_func_t* simple_w_new(int A, real_t B)
   return ls_weight_func_new("Simple", W_data, vtable);
 }
 
-bool test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_points, real_t* coeffs, bool weighted)
+static bool test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_points, real_t* coeffs, bool weighted)
 {
   polynomial_t* poly = polynomial_new(p, coeffs, x0);
 
@@ -164,7 +164,7 @@ bool test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_po
 
 // We want 99% reliability for randomly selected points.
 
-void test_p0_fit(void** state)
+static void test_p0_fit(void** state)
 {
   int num_failures = 0;
   int num_iters = 100;
@@ -188,7 +188,7 @@ void test_p0_fit(void** state)
   assert_true((num_failures <= 1) || polymec_running_in_valgrind());
 }
 
-void test_weighted_p0_fit(void** state)
+static void test_weighted_p0_fit(void** state)
 {
   int num_failures = 0;
   int num_iters = 100;
@@ -212,7 +212,7 @@ void test_weighted_p0_fit(void** state)
   assert_true((num_failures <= 1) || polymec_running_in_valgrind());
 }
 
-void test_p1_fit(void** state)
+static void test_p1_fit(void** state)
 {
   int num_failures = 0;
   int num_iters = 100;
@@ -236,7 +236,7 @@ void test_p1_fit(void** state)
   assert_true((num_failures <= 1) || polymec_running_in_valgrind());
 }
 
-void test_weighted_p1_fit(void** state)
+static void test_weighted_p1_fit(void** state)
 {
   int num_failures = 0;
   int num_iters = 100;
@@ -260,7 +260,7 @@ void test_weighted_p1_fit(void** state)
   assert_true((num_failures <= 1) || polymec_running_in_valgrind());
 }
 
-void test_p2_fit(void** state)
+static void test_p2_fit(void** state)
 {
   int num_failures = 0;
   int num_iters = 100;
@@ -284,7 +284,7 @@ void test_p2_fit(void** state)
   assert_true((num_failures <= 1) || polymec_running_in_valgrind());
 }
 
-void test_weighted_p2_fit(void** state)
+static void test_weighted_p2_fit(void** state)
 {
   int num_failures = 0;
   int num_iters = 100;
@@ -308,7 +308,7 @@ void test_weighted_p2_fit(void** state)
   assert_true((num_failures <= 1) || polymec_running_in_valgrind());
 }
 
-void test_p3_fit(void** state)
+static void test_p3_fit(void** state)
 {
   int num_failures = 0;
   int num_iters = 100;
@@ -333,7 +333,7 @@ void test_p3_fit(void** state)
   assert_true((num_failures <= 1) || polymec_running_in_valgrind());
 }
 
-void test_weighted_p3_fit(void** state)
+static void test_weighted_p3_fit(void** state)
 {
   int num_failures = 0;
   int num_iters = 100;

@@ -12,32 +12,32 @@
 #include "cmocka.h"
 #include "polymec.h"
 
-void test_polymec_version_fprintf(void** state)
+static void test_polymec_version_fprintf(void** state)
 {
   polymec_version_fprintf("exe", stdout);
 }
 
-void test_polymec_provenance_fprintf(void** state)
+static void test_polymec_provenance_fprintf(void** state)
 {
   polymec_provenance_fprintf(stdout);
 }
 
-void test_polymec_executable_name(void** state)
+static void test_polymec_executable_name(void** state)
 {
   assert_true(strcmp(polymec_executable_name(), "test_polymec_init") == 0);
 }
 
-void test_polymec_invocation(void** state)
+static void test_polymec_invocation(void** state)
 {
   assert_true(strstr(polymec_invocation(), "test_polymec_init") != NULL);
 }
 
-void test_polymec_invocation_time(void** state)
+static void test_polymec_invocation_time(void** state)
 {
   assert_true(time(NULL) - polymec_invocation_time() >= 0);
 }
 
-void test_polymec_num_cores(void** state)
+static void test_polymec_num_cores(void** state)
 {
   assert_true(polymec_num_cores() >= 1);
 }
@@ -56,5 +56,4 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_polymec_num_cores),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
-  return 0;
 }

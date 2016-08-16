@@ -15,18 +15,18 @@
 #include "integrators/ark_ode_integrator.h"
 
 extern ode_integrator_t* functional_ark_diurnal_integrator_new();
-extern ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new();
-extern ode_integrator_t* lu_precond_ark_diurnal_integrator_new();
-extern ode_integrator_t* ilu_precond_ark_diurnal_integrator_new();
+extern ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
+extern ode_integrator_t* lu_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
+extern ode_integrator_t* ilu_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
 extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
 
-void test_functional_diurnal_ctor(void** state)
+static void test_functional_diurnal_ctor(void** state)
 {
   ode_integrator_t* integ = functional_ark_diurnal_integrator_new();
   ode_integrator_free(integ);
 }
 
-void test_block_jacobi_precond_diurnal_ctor(void** state)
+static void test_block_jacobi_precond_diurnal_ctor(void** state)
 {
   ode_integrator_t* integ = block_jacobi_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
   ode_integrator_free(integ);
@@ -36,7 +36,7 @@ void test_block_jacobi_precond_diurnal_ctor(void** state)
   ode_integrator_free(integ);
 }
 
-void test_lu_precond_diurnal_ctor(void** state)
+static void test_lu_precond_diurnal_ctor(void** state)
 {
   ode_integrator_t* integ = lu_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
   ode_integrator_free(integ);
@@ -46,7 +46,7 @@ void test_lu_precond_diurnal_ctor(void** state)
   ode_integrator_free(integ);
 }
 
-void test_ilu_precond_diurnal_ctor(void** state)
+static void test_ilu_precond_diurnal_ctor(void** state)
 {
   ode_integrator_t* integ = ilu_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
   ode_integrator_free(integ);
@@ -56,7 +56,7 @@ void test_ilu_precond_diurnal_ctor(void** state)
   ode_integrator_free(integ);
 }
 
-int test_diurnal_step(void** state, ode_integrator_t* integ, real_t max_dt, int max_step)
+static int test_diurnal_step(void** state, ode_integrator_t* integ, real_t max_dt, int max_step)
 {
   // Set up the problem.
   ark_ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
@@ -90,43 +90,43 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, real_t max_dt, int 
   return step;
 }
 
-//void test_functional_diurnal_step(void** state)
+//static void test_functional_diurnal_step(void** state)
 //{
 //  ode_integrator_t* integ = functional_ark_diurnal_integrator_new();
 //  test_diurnal_step(state, integ, 1.0, 5000);
 //}
 
-void test_block_jacobi_precond_diurnal_step_left(void** state)
+static void test_block_jacobi_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = block_jacobi_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
   test_diurnal_step(state, integ, REAL_MAX, 500);
 }
 
-void test_block_jacobi_precond_diurnal_step_right(void** state)
+static void test_block_jacobi_precond_diurnal_step_right(void** state)
 {
   ode_integrator_t* integ = block_jacobi_precond_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
   test_diurnal_step(state, integ, REAL_MAX, 500);
 }
 
-void test_lu_precond_diurnal_step_left(void** state)
+static void test_lu_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = lu_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
   test_diurnal_step(state, integ, REAL_MAX, 2000);
 }
 
-void test_lu_precond_diurnal_step_right(void** state)
+static void test_lu_precond_diurnal_step_right(void** state)
 {
   ode_integrator_t* integ = lu_precond_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
   test_diurnal_step(state, integ, REAL_MAX, 500);
 }
 
-void test_ilu_precond_diurnal_step_left(void** state)
+static void test_ilu_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = ilu_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
   test_diurnal_step(state, integ, REAL_MAX, 5000);
 }
 
-void test_ilu_precond_diurnal_step_right(void** state)
+static void test_ilu_precond_diurnal_step_right(void** state)
 {
   ode_integrator_t* integ = ilu_precond_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
   test_diurnal_step(state, integ, REAL_MAX, 5000);

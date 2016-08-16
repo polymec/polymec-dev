@@ -704,7 +704,7 @@ static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
   integ->compute_weights(integ->context, NV_DATA(y), NV_DATA(ewt));
 
   // Check that all the weights are non-negative.
-  int N = NV_LOCLENGTH(y);
+  int N = (int)NV_LOCLENGTH(y);
   for (int i = 0; i < N; ++i)
   {
     if (NV_Ith(y, i) < 0.0)

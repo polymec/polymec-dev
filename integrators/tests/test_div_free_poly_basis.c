@@ -13,7 +13,7 @@
 #include "core/polymec.h"
 #include "integrators/div_free_poly_basis.h"
 
-void test_ctor(void** state)
+static void test_ctor(void** state)
 {
   point_t x0 = {0.0, 0.0, 0.0};
   real_t R = 1.0;
@@ -25,7 +25,7 @@ void test_ctor(void** state)
   }
 }
 
-void test_compute(void** state)
+static void test_compute(void** state)
 {
   rng_t* rng = host_rng_new();
   point_t x0 = {0.0, 0.0, 0.0};
@@ -48,7 +48,7 @@ void test_compute(void** state)
 }
 
 // Tests that the divergence of each vector in the basis is zero.
-void test_divergence(void** state)
+static void test_divergence(void** state)
 {
   rng_t* rng = host_rng_new();
   point_t x0 = {0.0, 0.0, 0.0};

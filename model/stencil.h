@@ -134,7 +134,7 @@ static inline int stencil_num_ghosts(stencil_t* stencil)
 adj_graph_t* stencil_as_graph(stencil_t* stencil);
 
 // Returns a serializer object that can read/write stencils from/to byte arrays.
-serializer_t* stencil_serializer();
+serializer_t* stencil_serializer(void);
 
 // This pre-fab function creates a stencil for points in a cloud that have 
 // neighbors within a radius given by R[i] for the ith point. num_ghost_points

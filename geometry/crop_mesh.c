@@ -43,7 +43,7 @@ static void project_nodes(mesh_t* mesh, sp_func_t* boundary_func)
   int_unordered_set_free(projected_nodes);
 }
 
-static void project_faces(mesh_t* mesh, sp_func_t* boundary_func)
+static noreturn void project_faces(mesh_t* mesh, sp_func_t* boundary_func)
 {
   POLYMEC_NOT_IMPLEMENTED
 }

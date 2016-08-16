@@ -25,7 +25,7 @@ static int F_ident(void* bs_p, real_t t, real_t* x, real_t* F)
   return 0;
 }
 
-void test_identity_jacobian_with_bs(void** state, int block_size)
+static void test_identity_jacobian_with_bs(void** state, int block_size)
 {
   adj_graph_t* sparsity = adj_graph_new(MPI_COMM_SELF, 10);
   adj_graph_t* block_sparsity = adj_graph_new_with_block_size(sparsity, block_size);
@@ -76,7 +76,7 @@ void test_identity_jacobian_with_bs(void** state, int block_size)
   cpr_differencer_free(diff);
 }
 
-void test_identity_jacobian(void** state)
+static void test_identity_jacobian(void** state)
 {
   test_identity_jacobian_with_bs(state, 1);
   test_identity_jacobian_with_bs(state, 2);
@@ -95,7 +95,7 @@ static int F_dense(void* bs_p, real_t t, real_t* x, real_t* F)
   return 0;
 }
 
-void test_dense_jacobian_with_bs(void** state, int block_size)
+static void test_dense_jacobian_with_bs(void** state, int block_size)
 {
   // Make a dense sparsity graph.
   adj_graph_t* sparsity = dense_adj_graph_new(MPI_COMM_SELF, 10, 0);
@@ -166,7 +166,7 @@ void test_dense_jacobian_with_bs(void** state, int block_size)
   cpr_differencer_free(diff);
 }
 
-void test_dense_jacobian(void** state)
+static void test_dense_jacobian(void** state)
 {
   test_dense_jacobian_with_bs(state, 1);
   test_dense_jacobian_with_bs(state, 2);
@@ -184,7 +184,7 @@ static int F_asym(void* null, real_t t, real_t* x, real_t* F)
   return 0;
 }
 
-void test_asymmetric_jacobian(void** state)
+static void test_asymmetric_jacobian(void** state)
 {
   // Make a dense sparsity graph.
   adj_graph_t* sparsity = dense_adj_graph_new(MPI_COMM_SELF, 10, 0);

@@ -408,6 +408,7 @@ void dae_integrator_set_error_weight_function(dae_integrator_t* integrator,
   IDAWFtolerances(integrator->ida, compute_error_weights);
 }
 
+void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot, real_t* F);
 void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot, real_t* F)
 {
   START_FUNCTION_TIMER();

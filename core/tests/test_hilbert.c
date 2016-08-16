@@ -12,14 +12,14 @@
 #include "cmocka.h"
 #include "core/hilbert.h"
 
-void test_ctor(void** state)
+static void test_ctor(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   hilbert_t* h = hilbert_new(&bbox);
   assert_true(h != NULL);
 }
 
-void test_index(void** state)
+static void test_index(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   hilbert_t* h = hilbert_new(&bbox);
@@ -40,7 +40,7 @@ void test_index(void** state)
   assert_true(index == 201053554793325);
 }
 
-void test_reproduce_point(void** state)
+static void test_reproduce_point(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   hilbert_t* h = hilbert_new(&bbox);
@@ -51,7 +51,7 @@ void test_reproduce_point(void** state)
   assert_true(point_distance(&x, &y) < 1e-12);
 }
 
-void test_sort_points(void** state)
+static void test_sort_points(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   hilbert_t* h = hilbert_new(&bbox);
@@ -74,7 +74,7 @@ void test_sort_points(void** state)
   assert_true(reals_equal(points[3].z, 0.0));
 }
 
-void test_sort_points_and_indices(void** state)
+static void test_sort_points_and_indices(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   hilbert_t* h = hilbert_new(&bbox);

@@ -150,7 +150,7 @@ krylov_vector_t* krylov_vector_new(void* context,
 // This creates a LIS-based Krylov factory that can be used for constructing
 // matrices, vectors, solvers. LIS is included with Polymec, so factories of 
 // this sort can always be created.
-krylov_factory_t* lis_krylov_factory();
+krylov_factory_t* lis_krylov_factory(void);
 
 // This creates a PETSc-based Krylov factory that can be used for constructing
 // matrices, vectors, solvers, using the given petsc directory and architecture 

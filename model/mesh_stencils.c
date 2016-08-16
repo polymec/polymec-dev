@@ -18,7 +18,7 @@ static stencil_t* stencil_from_cells(const char* name,
   int* offsets = polymec_malloc(sizeof(int) * (num_cells+1));
   offsets[0] = 0;
   for (int i = 0; i < num_cells; ++i)
-    offsets[i+1] = offsets[i] + stencil_cells[i]->size;
+    offsets[i+1] = offsets[i] + (int)stencil_cells[i]->size;
   int* indices = polymec_malloc(sizeof(int) * offsets[num_cells]);
   int k = 0;
   for (int i = 0; i < num_cells; ++i)

@@ -417,7 +417,7 @@ static void model_read_input(model_t* model, interpreter_t* interp)
   // We always read certain inputs.
   if (interpreter_contains(interp, "load_step", INTERPRETER_NUMBER))
   {
-    model->load_step = (int)interpreter_get_number(interp, "load_step");
+    model->load_step = (int)(interpreter_get_number(interp, "load_step"));
     if (model->load_step < 0)
       polymec_error("Invalid load_step: %d (must be non-negative).", model->load_step);
   }
@@ -439,19 +439,19 @@ static void model_read_input(model_t* model, interpreter_t* interp)
   }
   if (interpreter_contains(interp, "plot_every", INTERPRETER_NUMBER))
   {
-    model->plot_every = (int)interpreter_get_number(interp, "plot_every");
+    model->plot_every = (int)(interpreter_get_number(interp, "plot_every"));
     if (model->plot_every <= 0.0)
       polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
   }
   if (interpreter_contains(interp, "save_every", INTERPRETER_NUMBER))
   {
-    model->save_every = (int)interpreter_get_number(interp, "save_every");
+    model->save_every = (int)(interpreter_get_number(interp, "save_every"));
     if (model->save_every < 1)
       polymec_error("Invalid (non-positive) save interval: %d\n", model->save_every);
   }
   if (interpreter_contains(interp, "observe_every", INTERPRETER_NUMBER))
   {
-    model->observe_every = (int)interpreter_get_number(interp, "observe_every");
+    model->observe_every = (int)(interpreter_get_number(interp, "observe_every"));
     if (model->observe_every <= 0.0)
       polymec_error("Invalid (non-positive) observation interval: %g\n", model->observe_every);
   }
@@ -601,10 +601,7 @@ static real_t built_in_observation(model_t* model, char* observation)
   else if (!strcmp("wall_time", observation))
     return model->wall_time;
   else
-  {
     polymec_error("Invalid built-in observation: %s", observation);
-    return 0.0;
-  }
 }
 
 static void key_dtor(char* key)
@@ -658,7 +655,7 @@ static void model_do_periodic_work(model_t* model)
   // Do plots and saves.
   if (model->plot_every > 0.0)
   {
-    int n = model->time / model->plot_every;
+    int n = (int)(model->time / model->plot_every);
     if (fabs(model->time - n * model->plot_every) < 1e-12) // FIXME: cheesy...
       model_plot(model);
   }
@@ -723,7 +720,7 @@ real_t model_max_dt(model_t* model, char* reason)
   // constrain the timestep.
   if (model->plot_every > 0.0)
   {
-    int n = model->time / model->plot_every;
+    int n = (int)(model->time / model->plot_every);
     real_t plot_time = (n+1) * model->plot_every;
     real_t plot_dt = plot_time - model->time;
     ASSERT(plot_dt >= 0.0);
@@ -1173,7 +1170,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
     // value for observe_every, set the observation times.
     if (model->observe_every > 0.0)
     {
-      int num_obs_times = (t2 - t1) / model->observe_every + 1;
+      int num_obs_times = (int)((t2 - t1) / model->observe_every) + 1;
       real_t* obs_times = polymec_malloc(sizeof(real_t) * num_obs_times);
       for (int i = 0; i < num_obs_times; ++i)
         obs_times[i] = i * model->observe_every;
@@ -1344,7 +1341,7 @@ static void set_sim_name_to_input_file(model_t* model, const char* input)
 {
   char dir_name[FILENAME_MAX], file_name[FILENAME_MAX];
   parse_path(input, dir_name, file_name);
-  int len = strlen(file_name), end = 0;
+  int len = (int)strlen(file_name), end = 0;
   while (end < len)
   {
     // We accept alphanumeric characters, underscores, and hyphens.
@@ -1497,7 +1494,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
     t2 = interpreter_get_number(interp, "t2");
   if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
-    max_steps = (int)interpreter_get_number(interp, "max_steps");
+    max_steps = (int)(interpreter_get_number(interp, "max_steps"));
 
   // Run the model.
   model_run(model, t1, t2, max_steps);
@@ -1753,7 +1750,7 @@ int multi_model_main(model_dispatch_t model_table[],
   if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
     t2 = interpreter_get_number(interp, "t2");
   if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
-    max_steps = (int)interpreter_get_number(interp, "max_steps");
+    max_steps = (int)(interpreter_get_number(interp, "max_steps"));
 
   // Run the model.
   model_run(model, t1, t2, max_steps);
@@ -1817,7 +1814,7 @@ int model_minimal_main(const char* model_name, model_ctor constructor, int argc,
   if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
     t2 = interpreter_get_number(interp, "t2");
   if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
-    max_steps = (int)interpreter_get_number(interp, "max_steps");
+    max_steps = (int)(interpreter_get_number(interp, "max_steps"));
 
   // Run the model.
   model_run(model, t1, t2, max_steps);

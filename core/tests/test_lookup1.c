@@ -31,12 +31,12 @@ static void test_zero(void** state, lookup1_interpolation_t interpolation)
   lookup1_free(table);
 }
 
-void test_zero_linear(void** state)
+static void test_zero_linear(void** state)
 {
   test_zero(state, LOOKUP1_LINEAR);
 }
 
-void test_zero_quadratic(void** state)
+static void test_zero_quadratic(void** state)
 {
   test_zero(state, LOOKUP1_QUADRATIC);
 }
@@ -60,12 +60,12 @@ static void test_line(void** state, lookup1_interpolation_t interpolation)
   lookup1_free(table);
 }
 
-void test_line_linear(void** state)
+static void test_line_linear(void** state)
 {
   test_line(state, LOOKUP1_LINEAR);
 }
 
-void test_line_quadratic(void** state)
+static void test_line_quadratic(void** state)
 {
   test_line(state, LOOKUP1_QUADRATIC);
 }
@@ -103,12 +103,12 @@ static void test_v(void** state, lookup1_interpolation_t interpolation)
   lookup1_free(table);
 }
 
-void test_v_linear(void** state)
+static void test_v_linear(void** state)
 {
   test_v(state, LOOKUP1_LINEAR);
 }
 
-void test_v_quadratic(void** state)
+static void test_v_quadratic(void** state)
 {
   test_v(state, LOOKUP1_QUADRATIC);
 }

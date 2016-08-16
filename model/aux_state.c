@@ -53,7 +53,7 @@ aux_state_t* aux_state_clone(aux_state_t* state)
 
 int aux_state_size(aux_state_t* state)
 {
-  return state->types->size;
+  return (int)state->types->size;
 }
 
 // Returns the variable offset for the given index, or -1 if it is not found.

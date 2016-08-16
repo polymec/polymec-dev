@@ -195,22 +195,22 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     // We define the node orderings on these new faces such that they produce
     // outward normals when traversed according to the right hand rule.
     mesh->face_nodes[total_num_face_nodes-14] = mesh->num_nodes;                      // -y face node 0 (bottom axial node -- new)
-    mesh->face_nodes[total_num_face_nodes-13] = cubic_lattice_node(lattice, 0, 0, 0); // -y face node 1
-    mesh->face_nodes[total_num_face_nodes-12] = cubic_lattice_node(lattice, 0, 0, 1); // -y face node 2
+    mesh->face_nodes[total_num_face_nodes-13] = (int)cubic_lattice_node(lattice, 0, 0, 0); // -y face node 1
+    mesh->face_nodes[total_num_face_nodes-12] = (int)cubic_lattice_node(lattice, 0, 0, 1); // -y face node 2
     mesh->face_nodes[total_num_face_nodes-11] = mesh->num_nodes + 1;                  // -y face node 3 (top axial node -- new)
 
-    mesh->face_nodes[total_num_face_nodes-10] = cubic_lattice_node(lattice, 0, 1, 0); // +y face node 0
+    mesh->face_nodes[total_num_face_nodes-10] = (int)cubic_lattice_node(lattice, 0, 1, 0); // +y face node 0
     mesh->face_nodes[total_num_face_nodes- 9] = mesh->num_nodes;                      // +y face node 1 (bottom axial node -- new)
     mesh->face_nodes[total_num_face_nodes- 8] = mesh->num_nodes + 1;                  // +y face node 2 (top axial node -- new)
-    mesh->face_nodes[total_num_face_nodes- 7] = cubic_lattice_node(lattice, 0, 1, 1); // +y face node 3
+    mesh->face_nodes[total_num_face_nodes- 7] = (int)cubic_lattice_node(lattice, 0, 1, 1); // +y face node 3
 
     mesh->face_nodes[total_num_face_nodes- 6] = mesh->num_nodes;                      // -z face node 0 (bottom axial node -- new)
-    mesh->face_nodes[total_num_face_nodes- 5] = cubic_lattice_node(lattice, 0, 1, 0); // -z face node 1 
-    mesh->face_nodes[total_num_face_nodes- 4] = cubic_lattice_node(lattice, 0, 0, 0); // -z face node 2
+    mesh->face_nodes[total_num_face_nodes- 5] = (int)cubic_lattice_node(lattice, 0, 1, 0); // -z face node 1 
+    mesh->face_nodes[total_num_face_nodes- 4] = (int)cubic_lattice_node(lattice, 0, 0, 0); // -z face node 2
 
     mesh->face_nodes[total_num_face_nodes- 3] = mesh->num_nodes + 1;                  // +z face node 0 (top axial node -- new)
-    mesh->face_nodes[total_num_face_nodes- 2] = cubic_lattice_node(lattice, 0, 1, 1); // +z face node 1 
-    mesh->face_nodes[total_num_face_nodes- 1] = cubic_lattice_node(lattice, 0, 0, 1); // +z face node 2
+    mesh->face_nodes[total_num_face_nodes- 2] = (int)cubic_lattice_node(lattice, 0, 1, 1); // +z face node 1 
+    mesh->face_nodes[total_num_face_nodes- 1] = (int)cubic_lattice_node(lattice, 0, 0, 1); // +z face node 2
 
     // Now for the face->edge connectivity.
     mesh->face_edge_offsets = polymec_realloc(mesh->face_edge_offsets, 
@@ -225,20 +225,20 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
 
     mesh->face_edges[total_num_face_edges-14] = mesh->num_edges;                        // -y face edge 0 (axial edge -- new)
     mesh->face_edges[total_num_face_edges-13] = mesh->num_edges + 1;                    // -y face edge 1 (bottom -y new edge)
-    mesh->face_edges[total_num_face_edges-12] = cubic_lattice_z_edge(lattice, 0, 0, 0); // -y face edge 2 
+    mesh->face_edges[total_num_face_edges-12] = (int)cubic_lattice_z_edge(lattice, 0, 0, 0); // -y face edge 2 
     mesh->face_edges[total_num_face_edges-11] = mesh->num_edges + 2;                    // -y face edge 3 (top -y new edge)
 
-    mesh->face_edges[total_num_face_edges-10] = cubic_lattice_z_edge(lattice, 0, 1, 0); // +y face edge 0 
+    mesh->face_edges[total_num_face_edges-10] = (int)cubic_lattice_z_edge(lattice, 0, 1, 0); // +y face edge 0 
     mesh->face_edges[total_num_face_edges- 9] = mesh->num_edges + 3;                    // +y face edge 1 (bottom +y new edge)
     mesh->face_edges[total_num_face_edges- 8] = mesh->num_edges;                        // +y face edge 2 (axial edge -- new)
     mesh->face_edges[total_num_face_edges- 7] = mesh->num_edges + 4;                    // +y face edge 3 (top +y new edge)
 
     mesh->face_edges[total_num_face_edges- 6] = mesh->num_edges + 3;                    // -z face edge 1 (bottom +y new edge)
-    mesh->face_edges[total_num_face_edges- 5] = cubic_lattice_y_edge(lattice, 0, 0, 0); // -z face edge 2
+    mesh->face_edges[total_num_face_edges- 5] = (int)cubic_lattice_y_edge(lattice, 0, 0, 0); // -z face edge 2
     mesh->face_edges[total_num_face_edges- 4] = mesh->num_edges + 1;                    // -z face edge 3 (bottom -y new edge)
 
     mesh->face_edges[total_num_face_edges- 3] = mesh->num_edges + 2;                    // +z face edge 1 (top -y new edge)
-    mesh->face_edges[total_num_face_edges- 2] = cubic_lattice_y_edge(lattice, 0, 0, 1); // +z face edge 2
+    mesh->face_edges[total_num_face_edges- 2] = (int)cubic_lattice_y_edge(lattice, 0, 0, 1); // +z face edge 2
     mesh->face_edges[total_num_face_edges- 1] = mesh->num_edges + 4;                    // +z face edge 3 (top +y new edge)
 
     // Face->cell connectivity.
@@ -286,19 +286,19 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->edge_nodes[2*mesh->num_edges- 9] = mesh->num_nodes - 1; 
 
     // Bottom -y new edge.
-    mesh->edge_nodes[2*mesh->num_edges- 8] = cubic_lattice_node(lattice, 0, 0, 0);
+    mesh->edge_nodes[2*mesh->num_edges- 8] = (int)cubic_lattice_node(lattice, 0, 0, 0);
     mesh->edge_nodes[2*mesh->num_edges- 7] = mesh->num_nodes - 2; 
 
     // Top -y new edge.
-    mesh->edge_nodes[2*mesh->num_edges- 6] = cubic_lattice_node(lattice, 0, 0, 1);
+    mesh->edge_nodes[2*mesh->num_edges- 6] = (int)cubic_lattice_node(lattice, 0, 0, 1);
     mesh->edge_nodes[2*mesh->num_edges- 5] = mesh->num_nodes - 1; 
 
     // Bottom +y new edge.
-    mesh->edge_nodes[2*mesh->num_edges- 4] = cubic_lattice_node(lattice, 0, 1, 0);
+    mesh->edge_nodes[2*mesh->num_edges- 4] = (int)cubic_lattice_node(lattice, 0, 1, 0);
     mesh->edge_nodes[2*mesh->num_edges- 3] = mesh->num_nodes - 2; 
 
     // Top +y new edge.
-    mesh->edge_nodes[2*mesh->num_edges- 2] = cubic_lattice_node(lattice, 0, 1, 1);
+    mesh->edge_nodes[2*mesh->num_edges- 2] = (int)cubic_lattice_node(lattice, 0, 1, 1);
     mesh->edge_nodes[2*mesh->num_edges- 1] = mesh->num_nodes - 1; 
   }
   else
@@ -327,11 +327,11 @@ mesh_t* create_nonuniform_cylindrical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   for (int i = 0; i < Nrad; ++i)
   {
     // The x coordinate already contains the radius.
-    int n1 = cubic_lattice_node(lattice, i, 0, 0);
+    int n1 = (int)cubic_lattice_node(lattice, i, 0, 0);
     real_t r = rs[i];
-    int n2 = cubic_lattice_node(lattice, i, 1, 0);
-    int n3 = cubic_lattice_node(lattice, i, 0, 1);
-    int n4 = cubic_lattice_node(lattice, i, 1, 1);
+    int n2 = (int)cubic_lattice_node(lattice, i, 1, 0);
+    int n3 = (int)cubic_lattice_node(lattice, i, 0, 1);
+    int n4 = (int)cubic_lattice_node(lattice, i, 1, 1);
 
     // Find the new x,y coordinates along the cylinder.
     mesh->nodes[n1].x = r * cos(phi1);
@@ -464,20 +464,20 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     // We define the node orderings on these new faces such that they produce
     // outward normals when traversed according to the right hand rule.
     mesh->face_nodes[total_num_face_nodes-12] = mesh->num_nodes;                      // -y face node 0 (origin node -- new)
-    mesh->face_nodes[total_num_face_nodes-11] = cubic_lattice_node(lattice, 0, 0, 0); // -y face node 1
-    mesh->face_nodes[total_num_face_nodes-10] = cubic_lattice_node(lattice, 0, 0, 1); // -y face node 2
+    mesh->face_nodes[total_num_face_nodes-11] = (int)cubic_lattice_node(lattice, 0, 0, 0); // -y face node 1
+    mesh->face_nodes[total_num_face_nodes-10] = (int)cubic_lattice_node(lattice, 0, 0, 1); // -y face node 2
 
-    mesh->face_nodes[total_num_face_nodes- 9] = cubic_lattice_node(lattice, 0, 1, 0); // +y face node 0
+    mesh->face_nodes[total_num_face_nodes- 9] = (int)cubic_lattice_node(lattice, 0, 1, 0); // +y face node 0
     mesh->face_nodes[total_num_face_nodes- 8] = mesh->num_nodes;                      // +y face node 1 (origin node -- new)
-    mesh->face_nodes[total_num_face_nodes- 7] = cubic_lattice_node(lattice, 0, 1, 1); // +y face node 3
+    mesh->face_nodes[total_num_face_nodes- 7] = (int)cubic_lattice_node(lattice, 0, 1, 1); // +y face node 3
 
     mesh->face_nodes[total_num_face_nodes- 6] = mesh->num_nodes;                      // -z face node 0 (origin node -- new)
-    mesh->face_nodes[total_num_face_nodes- 5] = cubic_lattice_node(lattice, 0, 1, 0); // -z face node 1 
-    mesh->face_nodes[total_num_face_nodes- 4] = cubic_lattice_node(lattice, 0, 0, 0); // -z face node 2
+    mesh->face_nodes[total_num_face_nodes- 5] = (int)cubic_lattice_node(lattice, 0, 1, 0); // -z face node 1 
+    mesh->face_nodes[total_num_face_nodes- 4] = (int)cubic_lattice_node(lattice, 0, 0, 0); // -z face node 2
 
     mesh->face_nodes[total_num_face_nodes- 3] = mesh->num_nodes;                      // +z face node 0 (origin node -- new)
-    mesh->face_nodes[total_num_face_nodes- 2] = cubic_lattice_node(lattice, 0, 1, 1); // +z face node 1 
-    mesh->face_nodes[total_num_face_nodes- 1] = cubic_lattice_node(lattice, 0, 0, 1); // +z face node 2
+    mesh->face_nodes[total_num_face_nodes- 2] = (int)cubic_lattice_node(lattice, 0, 1, 1); // +z face node 1 
+    mesh->face_nodes[total_num_face_nodes- 1] = (int)cubic_lattice_node(lattice, 0, 0, 1); // +z face node 2
 
     // Now for the face->edge connectivity.
     mesh->face_edge_offsets = polymec_realloc(mesh->face_edge_offsets, 
@@ -491,19 +491,19 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
                                        sizeof(int)*total_num_face_edges);
 
     mesh->face_edges[total_num_face_edges-12] = mesh->num_edges;                        // -y face edge 1 (bottom -y new edge)
-    mesh->face_edges[total_num_face_edges-11] = cubic_lattice_z_edge(lattice, 0, 0, 0); // -y face edge 2 
+    mesh->face_edges[total_num_face_edges-11] = (int)cubic_lattice_z_edge(lattice, 0, 0, 0); // -y face edge 2 
     mesh->face_edges[total_num_face_edges-10] = mesh->num_edges + 1;                    // -y face edge 3 (top -y new edge)
 
-    mesh->face_edges[total_num_face_edges- 9] = cubic_lattice_z_edge(lattice, 0, 1, 0); // +y face edge 0 
+    mesh->face_edges[total_num_face_edges- 9] = (int)cubic_lattice_z_edge(lattice, 0, 1, 0); // +y face edge 0 
     mesh->face_edges[total_num_face_edges- 8] = mesh->num_edges + 2;                    // +y face edge 1 (bottom +y new edge)
     mesh->face_edges[total_num_face_edges- 7] = mesh->num_edges + 3;                    // +y face edge 3 (top +y new edge)
 
     mesh->face_edges[total_num_face_edges- 6] = mesh->num_edges + 2;                    // -z face edge 1 (bottom +y new edge)
-    mesh->face_edges[total_num_face_edges- 5] = cubic_lattice_y_edge(lattice, 0, 0, 0); // -z face edge 2
+    mesh->face_edges[total_num_face_edges- 5] = (int)cubic_lattice_y_edge(lattice, 0, 0, 0); // -z face edge 2
     mesh->face_edges[total_num_face_edges- 4] = mesh->num_edges;                        // -z face edge 3 (bottom -y new edge)
 
     mesh->face_edges[total_num_face_edges- 3] = mesh->num_edges + 1;                    // +z face edge 1 (top -y new edge)
-    mesh->face_edges[total_num_face_edges- 2] = cubic_lattice_y_edge(lattice, 0, 0, 1); // +z face edge 2
+    mesh->face_edges[total_num_face_edges- 2] = (int)cubic_lattice_y_edge(lattice, 0, 0, 1); // +z face edge 2
     mesh->face_edges[total_num_face_edges- 1] = mesh->num_edges + 3;                    // +z face edge 3 (top +y new edge)
 
     // Face->cell connectivity.
@@ -540,19 +540,19 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
     mesh->edge_nodes = polymec_realloc(mesh->edge_nodes, sizeof(int)*2*(mesh->num_edges));
 
     // Bottom -y new edge.
-    mesh->edge_nodes[2*mesh->num_edges- 8] = cubic_lattice_node(lattice, 0, 0, 0);
+    mesh->edge_nodes[2*mesh->num_edges- 8] = (int)cubic_lattice_node(lattice, 0, 0, 0);
     mesh->edge_nodes[2*mesh->num_edges- 7] = mesh->num_nodes - 2; 
 
     // Top -y new edge.
-    mesh->edge_nodes[2*mesh->num_edges- 6] = cubic_lattice_node(lattice, 0, 0, 1);
+    mesh->edge_nodes[2*mesh->num_edges- 6] = (int)cubic_lattice_node(lattice, 0, 0, 1);
     mesh->edge_nodes[2*mesh->num_edges- 5] = mesh->num_nodes - 1; 
 
     // Bottom +y new edge.
-    mesh->edge_nodes[2*mesh->num_edges- 4] = cubic_lattice_node(lattice, 0, 1, 0);
+    mesh->edge_nodes[2*mesh->num_edges- 4] = (int)cubic_lattice_node(lattice, 0, 1, 0);
     mesh->edge_nodes[2*mesh->num_edges- 3] = mesh->num_nodes - 2; 
 
     // Top +y new edge.
-    mesh->edge_nodes[2*mesh->num_edges- 2] = cubic_lattice_node(lattice, 0, 1, 1);
+    mesh->edge_nodes[2*mesh->num_edges- 2] = (int)cubic_lattice_node(lattice, 0, 1, 1);
     mesh->edge_nodes[2*mesh->num_edges- 1] = mesh->num_nodes - 1; 
   }
   else
@@ -587,11 +587,11 @@ mesh_t* create_nonuniform_spherical_1d_mesh(MPI_Comm comm, real_t* rs, int N)
   for (int i = 0; i < Nrad; ++i)
   {
     // The x coordinate already contains the radius.
-    int n1 = cubic_lattice_node(lattice, i, 0, 0);
+    int n1 = (int)cubic_lattice_node(lattice, i, 0, 0);
     real_t r = rs[i];
-    int n2 = cubic_lattice_node(lattice, i, 1, 0);
-    int n3 = cubic_lattice_node(lattice, i, 0, 1);
-    int n4 = cubic_lattice_node(lattice, i, 1, 1);
+    int n2 = (int)cubic_lattice_node(lattice, i, 1, 0);
+    int n3 = (int)cubic_lattice_node(lattice, i, 0, 1);
+    int n4 = (int)cubic_lattice_node(lattice, i, 1, 1);
 
     // Find the new x,y coordinates along the sphere.
     mesh->nodes[n1].x = r * sin(theta1) * cos(phi1);

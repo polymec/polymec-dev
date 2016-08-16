@@ -29,7 +29,7 @@ typedef enum
 } aux_state_var_t;
 
 // Creates a new empty auxiliary state.
-aux_state_t* aux_state_new();
+aux_state_t* aux_state_new(void);
 
 // Creates a (deep) copy of the given auxiliary state.
 aux_state_t* aux_state_clone(aux_state_t* state);

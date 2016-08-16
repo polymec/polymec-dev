@@ -39,7 +39,7 @@ void point_kernel_compute(point_kernel_t* kernel,
 //            = 2 * (1-q)**3,         1/2 <= q < 1,
 //            = 0,                    q >= 1 
 // where q = ||x-y||/h. This kernel is commonly used in SPH.
-point_kernel_t* cubic_bspline_point_kernel_new();
+point_kernel_t* cubic_bspline_point_kernel_new(void);
               
 // This is a simple fourth-order spline-based kernel of the form
 // W(x, y, h) = 1 - 6*(q/q_max)**2 + 8*(q/q_max)**3 - 3*(q/q_max)**4 

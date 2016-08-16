@@ -12,7 +12,7 @@
 
 // The type code used to identify periodic BCs. It will be overwritten 
 // by an interpreter that registers its constructor.
-int periodic_bc_type_code = 103452990;
+static int periodic_bc_type_code = 103452990;
 
 // This function can be used by default to generate a periodic map.
 static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)

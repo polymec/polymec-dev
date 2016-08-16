@@ -13,7 +13,7 @@
 #include "cmocka.h"
 #include "core/kd_tree.h"
 
-void test_construct(void** state) 
+static void test_construct(void** state) 
 { 
   // Create a tree containing 100 random points.
   rng_t* rng = host_rng_new();
@@ -28,7 +28,7 @@ void test_construct(void** state)
   kd_tree_free(tree);
 }
 
-void test_find_nearest(void** state) 
+static void test_find_nearest(void** state) 
 { 
   // Create a point set containing 100 random points.
   rng_t* rng = host_rng_new();
@@ -69,7 +69,7 @@ void test_find_nearest(void** state)
   kd_tree_free(tree);
 }
 
-void test_find_ghost_points(void** state) 
+static void test_find_ghost_points(void** state) 
 {
   // Create a point set containing 100 random points within a bounding box 
   // [0, 1] x [0, 1] x [0, 1] on each process.

@@ -74,7 +74,7 @@ static const interpreter_validation_t END_OF_VALID_INPUTS = {(char*)"TERMINUS", 
 typedef struct docstring_t docstring_t;
 
 // Creates a new, empty docstring.
-docstring_t* docstring_new();
+docstring_t* docstring_new(void);
 
 // Creates a new docstring from the given string s, breaking it into lines 
 // at each newline.

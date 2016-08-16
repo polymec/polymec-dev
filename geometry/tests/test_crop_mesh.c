@@ -18,7 +18,7 @@
 #include "geometry/intersection_sp_func.h"
 #include "geometry/sphere_sp_func.h"
 
-void test_cylindrical_crop(void** state)
+static void test_cylindrical_crop(void** state)
 {
   // Create a cubic uniform mesh.
   int Nx = 10, Ny = 10, Nz = 10;
@@ -71,7 +71,7 @@ void test_cylindrical_crop(void** state)
   mesh_free(cropped_mesh);
 }
 
-void test_spherical_crop(void** state)
+static void test_spherical_crop(void** state)
 {
   // Create a cubic uniform mesh.
   int Nx = 10, Ny = 10, Nz = 10;

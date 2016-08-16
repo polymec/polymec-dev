@@ -12,13 +12,13 @@
 #include "cmocka.h"
 #include "core/exchanger.h"
 
-void test_migrator_new(void** state)
+static void test_migrator_new(void** state)
 {
   migrator_t* m = migrator_new(MPI_COMM_WORLD);
   m = NULL;
 }
 
-void test_migrator_from_global_partition(void** state)
+static void test_migrator_from_global_partition(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   int nproc, rank;
@@ -47,7 +47,7 @@ void test_migrator_from_global_partition(void** state)
   m = NULL;
 }
 
-void test_migrator_from_local_partition_full_cycle(void** state)
+static void test_migrator_from_local_partition_full_cycle(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   int nproc, rank;
@@ -84,7 +84,7 @@ void test_migrator_from_local_partition_full_cycle(void** state)
   m = NULL;
 }
 
-void test_migrator_from_local_partition_half_cycle(void** state)
+static void test_migrator_from_local_partition_half_cycle(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   int nproc, rank;

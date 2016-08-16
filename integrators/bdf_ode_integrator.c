@@ -520,7 +520,7 @@ static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
   integ->compute_weights(integ->context, NV_DATA(y), NV_DATA(ewt));
 
   // Check that all the weights are non-negative.
-  int N = NV_LOCLENGTH(y);
+  int N = (int)NV_LOCLENGTH(y);
   for (int i = 0; i < N; ++i)
   {
     if (NV_Ith(y, i) < 0.0)
@@ -630,6 +630,7 @@ void bdf_ode_integrator_add_observer(ode_integrator_t* integrator,
 
 // This unpublished function provides direct access to the CVode object 
 // within the BDF integrator.
+void* bdf_ode_integrator_cvode(ode_integrator_t* integrator);
 void* bdf_ode_integrator_cvode(ode_integrator_t* integrator)
 {
   bdf_ode_t* integ = ode_integrator_context(integrator);
@@ -638,6 +639,7 @@ void* bdf_ode_integrator_cvode(ode_integrator_t* integrator)
 
 // This unpublished function provides direct access to the CVode right-hand
 // side function within the BDF integrator.
+int bdf_ode_integrator_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context);
 int bdf_ode_integrator_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 {
   return bdf_evaluate_rhs(t, x, x_dot, context);

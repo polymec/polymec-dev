@@ -12,7 +12,7 @@
 #include "cmocka.h"
 #include "core/declare_nd_array.h"
 
-void test_int_array2(void** state) 
+static void test_int_array2(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*10*10);
   DECLARE_2D_ARRAY(int, a, storage, 10, 10);
@@ -29,7 +29,7 @@ void test_int_array2(void** state)
   polymec_free(storage);
 } 
 
-void test_int_array3(void** state) 
+static void test_int_array3(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*10*10*10);
   DECLARE_3D_ARRAY(int, a, storage, 10, 10, 10);
@@ -50,7 +50,7 @@ void test_int_array3(void** state)
   polymec_free(storage);
 } 
 
-void test_int_array4(void** state) 
+static void test_int_array4(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*10*10*10*10);
   DECLARE_4D_ARRAY(int, a, storage, 10, 10, 10, 10);
@@ -75,7 +75,7 @@ void test_int_array4(void** state)
   polymec_free(storage);
 } 
 
-void test_int_array5(void** state) 
+static void test_int_array5(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*2*2*2*2*2);
   DECLARE_5D_ARRAY(int, a, storage, 2, 2, 2, 2, 2);
@@ -104,7 +104,7 @@ void test_int_array5(void** state)
   polymec_free(storage);
 } 
 
-void test_int_array6(void** state) 
+static void test_int_array6(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*2*2*2*2*2*2);
   DECLARE_6D_ARRAY(int, a, storage, 2, 2, 2, 2, 2, 2);
@@ -140,7 +140,7 @@ void test_int_array6(void** state)
 #define assert_real_equal(x, y) \
   assert_true(fabs((real_t)x - y) < 1e-15)
 
-void test_int_array7(void** state) 
+static void test_int_array7(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(int)*2*2*2*2*2*2*2);
   DECLARE_7D_ARRAY(int, a, storage, 2, 2, 2, 2, 2, 2, 2);
@@ -177,7 +177,7 @@ void test_int_array7(void** state)
   polymec_free(storage);
 } 
 
-void test_real_array2(void** state) 
+static void test_real_array2(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*10*10);
   DECLARE_2D_ARRAY(real_t, a, storage, 10, 10);
@@ -194,7 +194,7 @@ void test_real_array2(void** state)
   polymec_free(storage);
 } 
 
-void test_real_array3(void** state) 
+static void test_real_array3(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*10*10*10);
   DECLARE_3D_ARRAY(real_t, a, storage, 10, 10, 10);
@@ -215,7 +215,7 @@ void test_real_array3(void** state)
   polymec_free(storage);
 } 
 
-void test_real_array4(void** state) 
+static void test_real_array4(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*10*10*10*10);
   DECLARE_4D_ARRAY(real_t, a, storage, 10, 10, 10, 10);
@@ -240,7 +240,7 @@ void test_real_array4(void** state)
   polymec_free(storage);
 } 
 
-void test_real_array5(void** state) 
+static void test_real_array5(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*2*2*2*2*2);
   DECLARE_5D_ARRAY(real_t, a, storage, 2, 2, 2, 2, 2);
@@ -269,7 +269,7 @@ void test_real_array5(void** state)
   polymec_free(storage);
 } 
 
-void test_real_array6(void** state) 
+static void test_real_array6(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*2*2*2*2*2*2);
   DECLARE_6D_ARRAY(real_t, a, storage, 2, 2, 2, 2, 2, 2);
@@ -302,7 +302,7 @@ void test_real_array6(void** state)
   polymec_free(storage);
 } 
 
-void test_real_array7(void** state) 
+static void test_real_array7(void** state) 
 { 
   void* storage = polymec_malloc(sizeof(real_t)*2*2*2*2*2*2*2);
   DECLARE_7D_ARRAY(real_t, a, storage, 2, 2, 2, 2, 2, 2, 2);

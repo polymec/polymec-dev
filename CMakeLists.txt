@@ -96,7 +96,7 @@ endif ()
 # General C compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall -pedantic-errors -Werror -Wextra -Werror-implicit-function-declaration")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow -Wfloat-equal -Wmissing-noreturn")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow -Wfloat-equal -Wmissing-noreturn -Wdouble-promotion -Wnull-dereference -Wfloat-conversion -Wmissing-prototypes")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-pragmas -Wno-format")
 

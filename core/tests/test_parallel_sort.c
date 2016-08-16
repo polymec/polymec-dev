@@ -62,18 +62,18 @@ static bool list_is_ordered(MPI_Comm comm,
   int num_requests = 0;
   if (rank > 0)
   {
-    MPI_Irecv(left, width, MPI_BYTE, rank-1, 0, comm, &requests[num_requests]);
+    MPI_Irecv(left, (int)width, MPI_BYTE, rank-1, 0, comm, &requests[num_requests]);
     ++num_requests;
   }
   if (rank < (nprocs - 1))
   {
-    MPI_Irecv(right, width, MPI_BYTE, rank+1, 0, comm, &requests[num_requests]);
+    MPI_Irecv(right, (int)width, MPI_BYTE, rank+1, 0, comm, &requests[num_requests]);
     ++num_requests;
   }
   if (rank > 0)
-    MPI_Send(list, width, MPI_BYTE, rank-1, 0, comm);
+    MPI_Send(list, (int)width, MPI_BYTE, rank-1, 0, comm);
   if (rank < (nprocs - 1))
-    MPI_Send(&list[width*(nel-1)], width, MPI_BYTE, rank+1, 0, comm);
+    MPI_Send(&list[width*(nel-1)], (int)width, MPI_BYTE, rank+1, 0, comm);
 
   MPI_Waitall(num_requests, requests, statuses);
 
@@ -102,7 +102,7 @@ static bool list_is_ordered(MPI_Comm comm,
   return true;
 }
 
-void test_sort_random_ints_with_fixed_size(void** state)
+static void test_sort_random_ints_with_fixed_size(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   rng_t* rng = host_rng_new();
@@ -115,7 +115,7 @@ void test_sort_random_ints_with_fixed_size(void** state)
   polymec_free(ints);
 }
 
-void test_sort_random_doubles_with_fixed_size(void** state)
+static void test_sort_random_doubles_with_fixed_size(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   rng_t* rng = host_rng_new();
@@ -128,7 +128,7 @@ void test_sort_random_doubles_with_fixed_size(void** state)
   polymec_free(doubles);
 }
 
-void test_sort_random_ints_with_var_size(void** state)
+static void test_sort_random_ints_with_var_size(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   rng_t* rng = host_rng_new();
@@ -144,7 +144,7 @@ void test_sort_random_ints_with_var_size(void** state)
   polymec_free(ints);
 }
 
-void test_sort_random_doubles_with_var_size(void** state)
+static void test_sort_random_doubles_with_var_size(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   rng_t* rng = host_rng_new();

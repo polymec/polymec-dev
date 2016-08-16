@@ -94,7 +94,7 @@ int polyhedron_integrator_num_surface_points(polyhedron_integrator_t* integ, int
 
 // Creates a (2nd order) midpoint quadrature rule for surface and volume 
 // integrals over polyhedra.
-polyhedron_integrator_t* midpoint_polyhedron_integrator_new();
+polyhedron_integrator_t* midpoint_polyhedron_integrator_new(void);
 
 #endif
 

@@ -1183,7 +1183,7 @@ void interpreter_parse_string(interpreter_t* interp, char* input_string)
     {
       // We're actually parsing a file, so we munge the error message 
       // to reflect that.
-      int my_msg_len = strlen(err_msg) + strlen(interp->input_file) + 128;
+      int my_msg_len = (int)(strlen(err_msg) + strlen(interp->input_file) + 128);
       char message[my_msg_len];
       char* line_no_start = strstr(err_msg, "\"]:") + 3;
       snprintf(message, my_msg_len-1, "parsing %s, line %s", interp->input_file, line_no_start);
@@ -1218,7 +1218,7 @@ void interpreter_parse_file(interpreter_t* interp, char* input_file)
   if (nproc > 1)
   {
     // Broadcast the length of the input.
-    int input_len = (rank == 0) ? strlen(input_str) : 0;
+    int input_len = (rank == 0) ? (int)strlen(input_str) : 0;
     MPI_Bcast(&input_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     // Allocate storage for the input string on rank > 0 processes.
@@ -1643,7 +1643,7 @@ real_t* lua_tosequence(struct lua_State* lua, int index, int* len)
   index = lua_absindex(lua, index);
   if (lua_istable(lua, index))
   {
-    *len = lua_rawlen(lua, index);
+    *len = (int)lua_rawlen(lua, index);
     real_t* seq = polymec_malloc(sizeof(real_t)*(*len));
     for (int i = 1; i <= *len; ++i)
     {
@@ -1759,7 +1759,7 @@ char** lua_tostringlist(struct lua_State* lua, int index, int* len)
   index = lua_absindex(lua, index);
   if (lua_istable(lua, index))
   {
-    *len = lua_rawlen(lua, index);
+    *len = (int)lua_rawlen(lua, index);
     char** list = polymec_malloc(sizeof(char*)*(*len));
     for (int i = 1; i <= *len; ++i)
     {
@@ -1901,7 +1901,7 @@ static int point_index(lua_State* lua)
   ASSERT(var->type == INTERPRETER_POINT);
   if (!lua_isnumber(lua, -1))
     return luaL_error(lua, "Non-numeric index given for point.");
-  int index = (int)lua_tonumber(lua, -1);
+  int index = (int)(lua_tonumber(lua, -1));
   if ((index < 1) || (index > 3))
     return luaL_error(lua, "Invalid index for point: %d", index);
   point_t* data = var->datum;
@@ -1916,12 +1916,12 @@ static int point_mul(lua_State* lua)
   int factor;
   if (lua_isnumber(lua, -1))
   {
-    factor = (int)lua_tonumber(lua, -1);
+    factor = (int)(lua_tonumber(lua, -1));
     var = (void*)lua_topointer(lua, -2);
   }
   else
   {
-    factor = (int)lua_tonumber(lua, -2);
+    factor = (int)(lua_tonumber(lua, -2));
     var = (void*)lua_topointer(lua, -1);
   }
   ASSERT(var->type == INTERPRETER_POINT);
@@ -2110,8 +2110,6 @@ vector_t* lua_tovector(struct lua_State* lua, int index)
   }
   else
     return NULL;
-  if (!lua_isvector(lua, index))
-    return NULL;
 }
 
 static int vector_tostring(lua_State* lua)
@@ -2131,7 +2129,7 @@ static int vector_index(lua_State* lua)
   ASSERT(var->type == INTERPRETER_VECTOR);
   if (!lua_isnumber(lua, -1))
     return luaL_error(lua, "Non-numeric index given for vector.");
-  int index = (int)lua_tonumber(lua, -1);
+  int index = (int)(lua_tonumber(lua, -1));
   if ((index < 1) || (index > 3))
     return luaL_error(lua, "Invalid index for vector: %d", index);
   vector_t* data = var->datum;

@@ -14,7 +14,7 @@
 #include "geometry/intersection_sp_func.h"
 #include "generate_octave_script_for_surface.h"
 
-void test_construct(void** state)
+static void test_construct(void** state)
 {
   // Create six planes.
   vector_t n1 = { 1.0, 0.0, 0.0}, n2 = {-1.0, 0.0, 0.0},
@@ -37,7 +37,7 @@ void test_construct(void** state)
   assert_true(sp_func_has_deriv(i, 1));
 }
 
-void test_plot(void** state)
+static void test_plot(void** state)
 {
   // Create a text file containing an Octave script that can be run to 
   // visualize this plot.

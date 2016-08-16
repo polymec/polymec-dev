@@ -12,11 +12,11 @@
 #include "cmocka.h"
 #include "core/avl_tree.h"
 
-int int_values[] = {0, 1, 2, 3, 4, 5};
-real_t real_values[] = {0., 1., 2., 3., 4., 5.};
+static int int_values[] = {0, 1, 2, 3, 4, 5};
+static real_t real_values[] = {0., 1., 2., 3., 4., 5.};
 
 #define DEFINE_AVL_TREE_TEST(tree_name, element) \
-void test_##tree_name##_ctor(void** state) \
+static void test_##tree_name##_ctor(void** state) \
 { \
   tree_name##_t* t = tree_name##_new(); \
   assert_int_equal(0, tree_name##_size(t)); \
@@ -24,7 +24,7 @@ void test_##tree_name##_ctor(void** state) \
   tree_name##_free(t); \
 } \
 \
-void test_##tree_name##_insert(void** state) \
+static void test_##tree_name##_insert(void** state) \
 { \
   tree_name##_t* t = tree_name##_new(); \
   for (int i = 0; i < 5; ++i) \
@@ -37,7 +37,7 @@ void test_##tree_name##_insert(void** state) \
   tree_name##_free(t); \
 } \
 \
-void test_##element##_tree(void** state) \
+static void test_##element##_tree(void** state) \
 { \
   test_##tree_name##_ctor(state); \
   test_##tree_name##_insert(state); \

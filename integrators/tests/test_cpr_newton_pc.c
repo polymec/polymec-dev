@@ -48,7 +48,7 @@ static int sys_func(void* context, real_t t, real_t* x, real_t* F)
   return 0;
 }
 
-void test_block_jacobi_ctor(void** state)
+static void test_block_jacobi_ctor(void** state)
 {
   int N = 10;
   int bs = 2;
@@ -60,7 +60,7 @@ void test_block_jacobi_ctor(void** state)
   adj_graph_free(g);
 }
 
-void test_lu_ctor(void** state)
+static void test_lu_ctor(void** state)
 {
   int N = 10;
   int bs = 2;

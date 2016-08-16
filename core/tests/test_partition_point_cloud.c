@@ -14,7 +14,7 @@
 #include "core/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
 
-void test_partition_linear_cloud(void** state, int N)
+static void test_partition_linear_cloud(void** state, int N)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   int rank, nprocs;
@@ -40,7 +40,7 @@ void test_partition_linear_cloud(void** state, int N)
     real_t x = cloud->points[i].x;
     real_t y = cloud->points[i].y;
     real_t z = cloud->points[i].z;
-    int j = lround(x/dx - 0.5);
+    int j = (int)lround(x/dx - 0.5);
     assert_true(fabs(x - (0.5+j)*dx) < 1e-6);
     assert_true(fabs(y - 0.5) < 1e-6);
     assert_true(fabs(z - 0.5) < 1e-6);
@@ -67,7 +67,7 @@ void test_partition_linear_cloud(void** state, int N)
   assert_int_equal(nprocs, num_procs);
 }
 
-void test_partition_planar_cloud(void** state, int nx, int ny)
+static void test_partition_planar_cloud(void** state, int nx, int ny)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   int rank, nprocs;
@@ -107,7 +107,7 @@ void test_partition_planar_cloud(void** state, int nx, int ny)
   assert_int_equal(nprocs, num_procs);
 }
 
-void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
+static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   int rank, nprocs;
@@ -147,32 +147,32 @@ void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   assert_int_equal(nprocs, num_procs);
 }
 
-void test_partition_small_linear_cloud(void** state)
+static void test_partition_small_linear_cloud(void** state)
 {
   test_partition_linear_cloud(state, 10);
 }
 
-void test_partition_large_linear_cloud(void** state)
+static void test_partition_large_linear_cloud(void** state)
 {
   test_partition_linear_cloud(state, 1000);
 }
 
-void test_partition_small_planar_cloud(void** state)
+static void test_partition_small_planar_cloud(void** state)
 {
   test_partition_planar_cloud(state, 10, 10);
 }
 
-void test_partition_large_planar_cloud(void** state)
+static void test_partition_large_planar_cloud(void** state)
 {
   test_partition_planar_cloud(state, 200, 200);
 }
 
-void test_partition_small_cubic_cloud(void** state)
+static void test_partition_small_cubic_cloud(void** state)
 {
   test_partition_cubic_cloud(state, 10, 10, 10);
 }
 
-void test_partition_large_cubic_cloud(void** state)
+static void test_partition_large_cubic_cloud(void** state)
 {
   test_partition_cubic_cloud(state, 50, 50, 50);
 }

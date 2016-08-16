@@ -14,7 +14,7 @@
 #include "geometry/create_uniform_mesh.h"
 #include "integrators/polyhedron_integrator.h"
 
-void test_ctor(void** state)
+static void test_ctor(void** state)
 {
   polyhedron_integrator_t* I = midpoint_polyhedron_integrator_new();
   polyhedron_integrator_free(I);
@@ -96,7 +96,7 @@ static real_t cube_surface_integral(polyhedron_integrator_t* I,
   return integral;
 }
 
-void test_cube_volume_integrals(void** state)
+static void test_cube_volume_integrals(void** state)
 {
   polyhedron_integrator_t* I = midpoint_polyhedron_integrator_new();
   real_t I1_1 = cube_volume_integral(I, 1.0, f1);
@@ -110,7 +110,7 @@ void test_cube_volume_integrals(void** state)
   polyhedron_integrator_free(I);
 }
 
-void test_cube_surface_integrals(void** state)
+static void test_cube_surface_integrals(void** state)
 {
   polyhedron_integrator_t* I = midpoint_polyhedron_integrator_new();
   real_t I1_1 = cube_surface_integral(I, 1.0, g1);

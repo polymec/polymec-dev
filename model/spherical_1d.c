@@ -18,6 +18,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
+int spherical_1d_uniform(lua_State* lua);
 int spherical_1d_uniform(lua_State* lua)
 {
   // Check the arguments.
@@ -48,12 +49,14 @@ int spherical_1d_uniform(lua_State* lua)
   return 1;
 }
 
+docstring_t* spherical_1d_uniform_doc(void);
 docstring_t* spherical_1d_uniform_doc()
 {
   return docstring_from_string("spherical_1d.uniform(r1, r2, N) - returns a uniformly-spaced set of\n"
                                "  N radial cells spanning [r1, r2].");
 }
 
+int spherical_1d_logarithmic(lua_State* lua);
 int spherical_1d_logarithmic(lua_State* lua)
 {
   // Check the arguments.
@@ -87,12 +90,14 @@ int spherical_1d_logarithmic(lua_State* lua)
   return 1;
 }
 
+docstring_t* spherical_1d_logarithmic_doc(void);
 docstring_t* spherical_1d_logarithmic_doc()
 {
   return docstring_from_string("spherical_1d.logarithmic(r1, r2, log_factor, N) - returns a mesh of\n"
                                "  N radial cells whose spacing is logarithmic, spanning [r1, r2].");
 }
 
+int spherical_1d_nonuniform(lua_State* lua);
 int spherical_1d_nonuniform(lua_State* lua)
 {
   // Check the arguments.
@@ -125,6 +130,7 @@ int spherical_1d_nonuniform(lua_State* lua)
   return 1;
 }
 
+docstring_t* spherical_1d_nonuniform_doc(void);
 docstring_t* spherical_1d_nonuniform_doc()
 {
   return docstring_from_string("spherical_1d.nonuniform({r1, r2, ..., rN}) - returns a mesh of\n"

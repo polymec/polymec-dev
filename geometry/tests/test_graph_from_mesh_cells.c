@@ -23,14 +23,13 @@ static adj_graph_t* graph_from_uniform_mesh()
   return g;
 }
 
-void test_graph_from_uniform_mesh_cells(void** state)
+static void test_graph_from_uniform_mesh_cells(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
 
-  int first = adj_graph_first_vertex(g);
-  int last = adj_graph_last_vertex(g);
+  int Nv = adj_graph_num_vertices(g);
   int interior_cells = 0, plane_cells = 0, edge_cells = 0, corner_cells = 0;
-  for (int v = first; v <= last; ++v)
+  for (int v = 0; v < Nv; ++v)
   {
     int ne = adj_graph_num_edges(g, v);
     if (ne == 6) ++interior_cells;
@@ -49,11 +48,10 @@ void test_graph_from_uniform_mesh_cells(void** state)
   adj_graph_free(g);
 }
 
-void test_block_graphs_from_uniform_mesh_cells(void** state)
+static void test_block_graphs_from_uniform_mesh_cells(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
-  int first = adj_graph_first_vertex(g);
-  int last = adj_graph_last_vertex(g);
+  int Nv = adj_graph_num_vertices(g);
 
   // Test with block sizes of 1-5.
   for (int b = 1; b <= 5; ++b)
@@ -63,7 +61,7 @@ void test_block_graphs_from_uniform_mesh_cells(void** state)
     int nv = adj_graph_num_vertices(bg);
     assert_int_equal(b * adj_graph_num_vertices(g), nv);
 
-    for (int v = first; v <= last; ++v)
+    for (int v = 0; v < Nv; ++v)
     {
       assert_int_equal(b * adj_graph_num_edges(g, v) + (b-1), adj_graph_num_edges(bg, b*v));
       assert_false(adj_graph_contains_edge(bg, b*v, b*v));
@@ -88,7 +86,7 @@ void test_block_graphs_from_uniform_mesh_cells(void** state)
   adj_graph_free(g);
 }
 
-void test_coloring_against_graph(adj_graph_coloring_t* coloring, adj_graph_t* graph)
+static void test_coloring_against_graph(adj_graph_coloring_t* coloring, adj_graph_t* graph)
 {
   int num_colors = adj_graph_coloring_num_colors(coloring);
   for (int color = 0; color < num_colors; ++color)
@@ -104,7 +102,7 @@ void test_coloring_against_graph(adj_graph_coloring_t* coloring, adj_graph_t* gr
   }
 }
 
-void test_smallest_last_graph_coloring_on_uniform_mesh(void** state)
+static void test_smallest_last_graph_coloring_on_uniform_mesh(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
   adj_graph_coloring_t* c = adj_graph_coloring_new(g, SMALLEST_LAST);
@@ -113,7 +111,7 @@ void test_smallest_last_graph_coloring_on_uniform_mesh(void** state)
   adj_graph_free(g);
 }
 
-void test_largest_first_graph_coloring_on_uniform_mesh(void** state)
+static void test_largest_first_graph_coloring_on_uniform_mesh(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
   adj_graph_coloring_t* c = adj_graph_coloring_new(g, LARGEST_FIRST);
@@ -122,7 +120,7 @@ void test_largest_first_graph_coloring_on_uniform_mesh(void** state)
   adj_graph_free(g);
 }
 
-void test_incidence_degree_graph_coloring_on_uniform_mesh(void** state)
+static void test_incidence_degree_graph_coloring_on_uniform_mesh(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
   adj_graph_coloring_t* c = adj_graph_coloring_new(g, INCIDENCE_DEGREE);

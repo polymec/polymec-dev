@@ -102,7 +102,7 @@ static inline bool neighbor_pairing_next(neighbor_pairing_t* pairing, int* pos,
 }
 
 // Returns a serializer object that can read/write neighbor pairings from/to byte arrays.
-serializer_t* neighbor_pairing_serializer();
+serializer_t* neighbor_pairing_serializer(void);
 
 // This function creates an adjacency graph for the given point cloud with 
 // the given neighbor pairing.

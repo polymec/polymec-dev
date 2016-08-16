@@ -13,7 +13,7 @@
 #include "core/polymec.h"
 #include "core/adj_graph.h"
 
-void test_constructor(void** state)
+static void test_constructor(void** state)
 {
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
@@ -22,7 +22,7 @@ void test_constructor(void** state)
   adj_graph_free(g);
 }
 
-void test_distributed_constructor(void** state)
+static void test_distributed_constructor(void** state)
 {
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
@@ -39,7 +39,7 @@ void test_distributed_constructor(void** state)
   adj_graph_free(g);
 }
 
-void test_sort(void** state)
+static void test_sort(void** state)
 {
   // Test the sort of a cyclic graph.
   int N = 10;

@@ -12,13 +12,13 @@
 #include "cmocka.h"
 #include "core/tuple.h"
 
-int int_values[] = {0, 1, 2, 3, 4, 5};
-int int_greater_values[] = {1, 2, 3, 4, 5, 6};
-real_t real_values[] = {0., 1., 2., 3., 4., 5.};
-real_t real_greater_values[] = {1., 2., 3., 4., 5., 6.};
+static int int_values[] = {0, 1, 2, 3, 4, 5};
+static int int_greater_values[] = {1, 2, 3, 4, 5, 6};
+static real_t real_values[] = {0., 1., 2., 3., 4., 5.};
+static real_t real_greater_values[] = {1., 2., 3., 4., 5., 6.};
 
 #define DEFINE_TUPLE_TEST(tuple_name, element) \
-void test_##tuple_name##_ctor(void** state) \
+static void test_##tuple_name##_ctor(void** state) \
 { \
   tuple_name##_value_t* t = tuple_name##_new(6); \
   assert_int_equal(6, tuple_name##_length(t)); \
@@ -28,7 +28,7 @@ void test_##tuple_name##_ctor(void** state) \
   tuple_name##_free(t); \
 } \
 \
-void test_##tuple_name##_cmp(void** state) \
+static void test_##tuple_name##_cmp(void** state) \
 { \
   tuple_name##_value_t* t1 = tuple_name##_new(6); \
   tuple_name##_value_t* t2 = tuple_name##_new(6); \
@@ -53,7 +53,7 @@ void test_##tuple_name##_cmp(void** state) \
   tuple_name##_free(t2); \
 } \
 \
-void test_##tuple_name##_hash(void** state) \
+static void test_##tuple_name##_hash(void** state) \
 { \
   tuple_name##_value_t* t1 = tuple_name##_new(6); \
   tuple_name##_value_t* t2 = tuple_name##_new(6); \
@@ -68,7 +68,7 @@ void test_##tuple_name##_hash(void** state) \
   tuple_name##_free(t1); \
   tuple_name##_free(t2); \
 } \
-void test_##tuple_name(void** state) \
+static void test_##tuple_name(void** state) \
 { \
   test_##tuple_name##_ctor(state); \
   test_##tuple_name##_cmp(state); \

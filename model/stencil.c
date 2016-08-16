@@ -322,7 +322,7 @@ static void stencil_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   stencil_t* stencil = obj;
 
   // Write the name.
-  int name_len = strlen(stencil->name);
+  int name_len = (int)strlen(stencil->name);
   byte_array_write_ints(bytes, 1, &name_len, offset);
   byte_array_write_chars(bytes, name_len, stencil->name, offset);
 
@@ -407,7 +407,7 @@ stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
     // Find all the neighbors for this point.
     point_t* xi = &points->points[i];
     int_array_t* neighbors = kd_tree_within_radius(tree, xi, R[i]);
-    offsets[i+1] = offsets[i] + neighbors->size;
+    offsets[i+1] = offsets[i] + (int)neighbors->size;
     for (int k = 0; k < neighbors->size; ++k)
     {
       int j = neighbors->data[k];

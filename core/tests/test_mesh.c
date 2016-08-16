@@ -13,7 +13,7 @@
 #include "core/mesh.h"
 #include "geometry/create_uniform_mesh.h"
 
-void test_single_cell_mesh_no_topo(void** state)
+static void test_single_cell_mesh_no_topo(void** state)
 {
   // Create a single hexahedron without topology.
   mesh_t* mesh = mesh_new_with_cell_type(MPI_COMM_SELF, 1, 0, 6, 8, 6, 4);
@@ -25,7 +25,7 @@ void test_single_cell_mesh_no_topo(void** state)
   mesh_free(mesh);
 }
 
-void test_single_cell_mesh_serialization(void** state)
+static void test_single_cell_mesh_serialization(void** state)
 {
   // Create a single hexahedron.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};

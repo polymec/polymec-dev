@@ -17,7 +17,7 @@ static double cubic_poly(void* context, double x)
   return (x + 1.0) * (x - 2.0) * (x + 3.0);
 }
 
-void test_brent(void** state)
+static void test_brent(void** state)
 {
   // Our cubic polynomial has a root x = 2 in the range [0, 10].
   double x = brent_solve(cubic_poly, NULL, 0.0, 10.0, 1e-12, 100);
@@ -39,7 +39,7 @@ static int cubic_poly_1_jac(void* context, int N, real_t* x, real_t* F,
   return 0;
 }
 
-void test_newton_solve_system_1(void** state)
+static void test_newton_solve_system_1(void** state)
 {
   dense_newton_solver_t* solver = dense_newton_solver_new(1, NULL, cubic_poly_1, NULL);
   dense_newton_solver_set_tolerances(solver, 1e-12, 1e-8);
@@ -52,7 +52,7 @@ void test_newton_solve_system_1(void** state)
   assert_true(fabs(F) < 1e-12);
 }
 
-void test_newton_solve_system_1_with_jacobian(void** state)
+static void test_newton_solve_system_1_with_jacobian(void** state)
 {
   dense_newton_solver_t* solver = dense_newton_solver_new_with_jacobian(1, NULL, cubic_poly_1, cubic_poly_1_jac, NULL);
   dense_newton_solver_set_tolerances(solver, 1e-12, 1e-8);
@@ -85,7 +85,7 @@ static int circle_2_jac(void* context, int N, real_t* x, real_t* F,
   return 0;
 }
 
-void test_newton_solve_system_2(void** state)
+static void test_newton_solve_system_2(void** state)
 {
   dense_newton_solver_t* solver = dense_newton_solver_new(2, NULL, circle_2, NULL);
   double x[] = {3.0, -2.0};
@@ -96,7 +96,7 @@ void test_newton_solve_system_2(void** state)
   assert_true((x[0]-1.0)*(x[0]-1.0) + (x[1]-1.0)*(x[1]-1.0) < 1e-3);
 }
 
-void test_newton_solve_system_2_with_jacobian(void** state)
+static void test_newton_solve_system_2_with_jacobian(void** state)
 {
   dense_newton_solver_t* solver = dense_newton_solver_new_with_jacobian(2, NULL, circle_2, circle_2_jac, NULL);
   double x[] = {3.0, -2.0};
@@ -133,7 +133,7 @@ static int sphere_3_jac(void* context, int N, real_t* x, real_t* F,
   return 0;
 }
 
-void test_newton_solve_system_3(void** state)
+static void test_newton_solve_system_3(void** state)
 {
   dense_newton_solver_t* solver = dense_newton_solver_new(3, NULL, sphere_3, NULL);
   double x[] = {3.0, -2.0, 10.0};
@@ -144,7 +144,7 @@ void test_newton_solve_system_3(void** state)
   assert_true((x[0]-1.0)*(x[0]-1.0) + (x[1]-1.0)*(x[1]-1.0) + (x[2]-1.0)*(x[2]-1.0) < 1e-3);
 }
 
-void test_newton_solve_system_3_with_jacobian(void** state)
+static void test_newton_solve_system_3_with_jacobian(void** state)
 {
   dense_newton_solver_t* solver = dense_newton_solver_new_with_jacobian(3, NULL, sphere_3, sphere_3_jac, NULL);
   double x[] = {3.0, -2.0, 10.0};

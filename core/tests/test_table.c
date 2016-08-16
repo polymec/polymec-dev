@@ -12,20 +12,20 @@
 #include "cmocka.h"
 #include "core/table.h"
 
-int rows[] = {0, 1, 2, 4, 8, 16};
-int cols[] = {0, 10, 20, 40, 80, 160};
-int int_values[] = {0, 1, 2, 3, 4, 5};
-real_t real_values[] = {0., 1., 2., 3., 4., 5.};
+static int rows[] = {0, 1, 2, 4, 8, 16};
+static int cols[] = {0, 10, 20, 40, 80, 160};
+static int int_values[] = {0, 1, 2, 3, 4, 5};
+static real_t real_values[] = {0., 1., 2., 3., 4., 5.};
 
 #define DEFINE_TABLE_TEST(table_name, element) \
-void test_##table_name##_ctor(void** state) \
+static void test_##table_name##_ctor(void** state) \
 { \
   table_name##_t* t = table_name##_new(); \
   assert_int_equal(0, t->num_rows); \
   table_name##_free(t); \
 } \
 \
-void test_##table_name##_insert(void** state) \
+static void test_##table_name##_insert(void** state) \
 { \
   table_name##_t* t = table_name##_new(); \
   for (int i = 0; i < 5; ++i) \
@@ -45,7 +45,7 @@ void test_##table_name##_insert(void** state) \
   table_name##_free(t); \
 } \
 \
-void test_##table_name##_tridiag(void** state) \
+static void test_##table_name##_tridiag(void** state) \
 { \
   table_name##_t* t = table_name##_new(); \
   for (int i = 0; i < 32; ++i) \
@@ -99,7 +99,7 @@ void test_##table_name##_tridiag(void** state) \
   table_name##_free(t); \
 } \
 \
-void test_##element##_table(void** state) \
+static void test_##element##_table(void** state) \
 { \
   test_##table_name##_ctor(state); \
   test_##table_name##_insert(state); \

@@ -12,7 +12,7 @@
 #include "cmocka.h"
 #include "core/polymec.h"
 
-void test_string_dup(void** state)
+static void test_string_dup(void** state)
 {
   const char* s1 = "dupe me, baby!";
   char* s2 = string_dup(s1);
@@ -20,7 +20,7 @@ void test_string_dup(void** state)
   free(s2);
 }
 
-void test_string_ndup(void** state)
+static void test_string_ndup(void** state)
 {
   const char* s1 = "dupe me, baby!";
   char* s2 = string_ndup(s1, 7);
@@ -28,7 +28,7 @@ void test_string_ndup(void** state)
   free(s2);
 }
 
-void test_string_casecmp(void** state)
+static void test_string_casecmp(void** state)
 {
   const char* s1 = "The case doesn't matter.";
   const char* s2 = "THE CASE DOESN'T MATTER.";
@@ -38,7 +38,7 @@ void test_string_casecmp(void** state)
   assert_true(string_casecmp(s3, s1) < 0);
 }
 
-void test_string_ncasecmp(void** state)
+static void test_string_ncasecmp(void** state)
 {
   const char* s1 = "The case doesn't matter.";
   const char* s2 = "THE CASE DOESN'T MATTER.";
@@ -56,7 +56,7 @@ void test_string_ncasecmp(void** state)
   assert_true(string_ncasecmp(s1, s4, 8) == 0);
 }
 
-void test_string_next_token(void** state)
+static void test_string_next_token(void** state)
 {
   const char* whole_string = "this,that,and the other";
   int pos = 0, len;
@@ -80,7 +80,7 @@ void test_string_next_token(void** state)
   assert_false(string_next_token(whole_string, ",", &pos, &token, &len));
 }
 
-void test_string_is_number(void** state)
+static void test_string_is_number(void** state)
 {
   const char* numbers[5] = {"13.4245", "2", "1e16", "1E89", ".324"};
   const char* not_numbers[5] = {" ", "21h8", "Bob", "2 429", "0.3d"};
@@ -91,7 +91,7 @@ void test_string_is_number(void** state)
   }
 }
 
-void test_string_is_integer(void** state)
+static void test_string_is_integer(void** state)
 {
   const char* integers[5] = {"134245", "2", "116", "189", "0324"};
   const char* not_integers[5] = {" ", "13.4245", "Bob", "1e16", "0.3d"};
@@ -102,7 +102,7 @@ void test_string_is_integer(void** state)
   }
 }
 
-void test_string_as_boolean(void** state)
+static void test_string_as_boolean(void** state)
 {
   const char* trues[10] = {"1", "true", "True", "TRUE", "yes", "Yes", "YES", "on", "On", "ON"};
   const char* falses[10] = {"0", "false", "Froggy", "off", "Wheelie", "garbage", "??", "", "radio", "dishwasher"};
@@ -113,7 +113,7 @@ void test_string_as_boolean(void** state)
   }
 }
 
-void test_string_find_in_list(void** state)
+static void test_string_find_in_list(void** state)
 {
   const char* string_list[] = {"truck", "not", "munkee", NULL};
   assert_int_equal(0, string_find_in_list("truck", string_list, true));
@@ -126,7 +126,7 @@ void test_string_find_in_list(void** state)
   assert_int_equal(-1, string_find_in_list("monkey", string_list, true));
 }
 
-void test_string_substitute(void** state)
+static void test_string_substitute(void** state)
 {
   string_substitution_t substitutions[] = {{"fox", "werewolf"}, 
                                            {"lazy", "hungry"},

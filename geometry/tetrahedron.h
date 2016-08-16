@@ -16,7 +16,7 @@ typedef struct tetrahedron_t tetrahedron_t;
 
 // Creates a new tetrahedron whose vertices are set to a default 
 // "reference state."
-tetrahedron_t* tetrahedron_new();
+tetrahedron_t* tetrahedron_new(void);
 
 // Sets the vertices (v1, v2, v3, v4) of the tetrahedron, recomputing its 
 // geometric properties.

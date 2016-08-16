@@ -146,7 +146,7 @@ static inline index_t cubic_lattice_node(cubic_lattice_t* l, index_t i, index_t 
 }
 
 // Returns a serializer for cubic lattice objects.
-serializer_t* cubic_lattice_serializer();
+serializer_t* cubic_lattice_serializer(void);
 
 // These functions can be used to generate mappings between faces on cubic 
 // lattice meshes with periodic boundary conditions. 

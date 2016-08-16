@@ -105,7 +105,7 @@ static void test_repartition_linear_cloud(void** state,
       real_t x = cloud->points[i].x;
       real_t y = cloud->points[i].y;
       real_t z = cloud->points[i].z;
-      int j = lround(x/dx - 0.5);
+      int j = (int)lround(x/dx - 0.5);
       if (j < cloud->num_points)
       {
         // j and i are the same if the point originated on this process, 
@@ -171,42 +171,42 @@ static void test_repartition_linear_cloud(void** state,
   assert_int_equal(nprocs, num_procs);
 }
 
-void test_repartition_balanced_uniform_unweighted_linear_cloud(void** state)
+static void test_repartition_balanced_uniform_unweighted_linear_cloud(void** state)
 {
   test_repartition_linear_cloud(state, true, false, false);
 }
 
-void test_repartition_unbalanced_uniform_unweighted_linear_cloud(void** state)
+static void test_repartition_unbalanced_uniform_unweighted_linear_cloud(void** state)
 {
   test_repartition_linear_cloud(state, false, false, false);
 }
 
-void test_repartition_balanced_random_unweighted_linear_cloud(void** state)
+static void test_repartition_balanced_random_unweighted_linear_cloud(void** state)
 {
   test_repartition_linear_cloud(state, true, true, false);
 }
 
-void test_repartition_unbalanced_random_unweighted_linear_cloud(void** state)
+static void test_repartition_unbalanced_random_unweighted_linear_cloud(void** state)
 {
   test_repartition_linear_cloud(state, false, true, false);
 }
 
-void test_repartition_balanced_uniform_weighted_linear_cloud(void** state)
+static void test_repartition_balanced_uniform_weighted_linear_cloud(void** state)
 {
   test_repartition_linear_cloud(state, true, false, true);
 }
 
-void test_repartition_unbalanced_uniform_weighted_linear_cloud(void** state)
+static void test_repartition_unbalanced_uniform_weighted_linear_cloud(void** state)
 {
   test_repartition_linear_cloud(state, false, false, true);
 }
 
-void test_repartition_balanced_random_weighted_linear_cloud(void** state)
+static void test_repartition_balanced_random_weighted_linear_cloud(void** state)
 {
   test_repartition_linear_cloud(state, true, true, true);
 }
 
-void test_repartition_unbalanced_random_weighted_linear_cloud(void** state)
+static void test_repartition_unbalanced_random_weighted_linear_cloud(void** state)
 {
   test_repartition_linear_cloud(state, false, true, true);
 }

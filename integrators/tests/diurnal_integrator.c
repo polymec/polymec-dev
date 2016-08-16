@@ -244,6 +244,7 @@ static void diurnal_dtor(void* context)
 }
 
 // Returns initial conditions.
+real_t* diurnal_initial_conditions(ode_integrator_t* integ);
 real_t* diurnal_initial_conditions(ode_integrator_t* integ)
 {
   diurnal_t* data = bdf_ode_integrator_context(integ);
@@ -283,6 +284,7 @@ static ode_integrator_t* bdf_diurnal_integrator_new(diurnal_t* data, newton_pc_t
 }
 
 // Constructor for block-Jacobi-preconditioned BDF diurnal integrator.
+ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new(newton_pc_side_t side);
 ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
@@ -292,6 +294,7 @@ ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new(newton_pc_side
 }
 
 // Constructor for LU-preconditioned BDF diurnal integrator.
+ode_integrator_t* lu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side);
 ode_integrator_t* lu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
@@ -301,6 +304,7 @@ ode_integrator_t* lu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
 }
 
 // Constructor for ILU-preconditioned BDF diurnal integrator.
+ode_integrator_t* ilu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side);
 ode_integrator_t* ilu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
@@ -336,6 +340,7 @@ static ode_integrator_t* ark_diurnal_integrator_new(diurnal_t* data, newton_pc_t
 }
 
 // Constructor for functional ARK diurnal integrator.
+ode_integrator_t* functional_ark_diurnal_integrator_new(void);
 ode_integrator_t* functional_ark_diurnal_integrator_new()
 {
   diurnal_t* data = diurnal_new();
@@ -344,6 +349,7 @@ ode_integrator_t* functional_ark_diurnal_integrator_new()
 }
 
 // Constructor for block-Jacobi-preconditioned ARK diurnal integrator.
+ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
 ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
@@ -353,6 +359,7 @@ ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side
 }
 
 // Constructor for LU-preconditioned ARK diurnal integrator.
+ode_integrator_t* lu_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
 ode_integrator_t* lu_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
@@ -362,6 +369,7 @@ ode_integrator_t* lu_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
 }
 
 // Constructor for ILU-preconditioned ARK diurnal integrator.
+ode_integrator_t* ilu_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
 ode_integrator_t* ilu_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();

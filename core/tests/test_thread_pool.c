@@ -13,7 +13,7 @@
 #include "core/polymec.h"
 #include "core/thread_pool.h"
 
-void test_constructors(void** state)
+static void test_constructors(void** state)
 {
   thread_pool_t* pool = thread_pool_new();
   assert_true(thread_pool_num_threads(pool) == polymec_num_cores());
@@ -53,7 +53,7 @@ static void do_number_crunching_test(void** state, thread_pool_t* pool)
   free(global_array);
 }
 
-void test_number_crunching(void** state)
+static void test_number_crunching(void** state)
 {
   int num_iters = 1000;
   if (polymec_running_in_valgrind())
@@ -69,7 +69,7 @@ void test_number_crunching(void** state)
   }
 }
 
-void test_N_executions(void** state, int N)
+static void test_N_executions(void** state, int N)
 {
   // Same as above test, but N in a row.
   thread_pool_t* pool = thread_pool_new();
@@ -78,7 +78,7 @@ void test_N_executions(void** state, int N)
   thread_pool_free(pool);
 }
 
-void test_several_executions(void** state)
+static void test_several_executions(void** state)
 {
   if (polymec_running_in_valgrind())
   {

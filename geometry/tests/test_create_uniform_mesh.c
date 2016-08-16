@@ -13,7 +13,7 @@
 #include "core/silo_file.h"
 #include "geometry/create_uniform_mesh.h"
 
-void test_create_uniform_mesh(void** state)
+static void test_create_uniform_mesh(void** state)
 {
   // Create a 10x10x10 uniform mesh.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
@@ -46,7 +46,7 @@ void test_create_uniform_mesh(void** state)
   mesh_free(mesh);
 }
 
-void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
+static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
 {
   // Create a uniform mesh.
   int nx = 10, ny = 10, nz = 10;
@@ -90,12 +90,12 @@ void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   mesh_free(mesh);
 }
 
-void test_plot_uniform_mesh_to_single_file(void** state)
+static void test_plot_uniform_mesh_to_single_file(void** state)
 {
   test_plot_uniform_mesh_with_num_files(state, 1);
 }
 
-void test_plot_uniform_mesh_to_n_files(void** state)
+static void test_plot_uniform_mesh_to_n_files(void** state)
 {
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);

@@ -12,7 +12,7 @@
 #include "cmocka.h"
 #include "core/polymec.h"
 
-void test_parse_path(void** state)
+static void test_parse_path(void** state)
 {
   const char* path = "/this/is/the/whole/path";
   char dir[FILENAME_MAX], file[FILENAME_MAX];
@@ -21,7 +21,7 @@ void test_parse_path(void** state)
   assert_true(!strcmp(file, "path"));
 }
 
-void test_join_paths(void** state)
+static void test_join_paths(void** state)
 {
   const char* dir = "/this/is/the/whole/";
   const char* file = "path";
@@ -30,7 +30,7 @@ void test_join_paths(void** state)
   assert_true(!strcmp(path, "/this/is/the/whole/path"));
 }
 
-void test_make_temp_file(void** state)
+static void test_make_temp_file(void** state)
 {
   const char* template = "temporary-file-XXXXXX";
   char actual_file[FILENAME_MAX];
@@ -46,7 +46,7 @@ void test_make_temp_file(void** state)
   fclose(temp_file);
 }
 
-void test_make_temp_directory(void** state)
+static void test_make_temp_directory(void** state)
 {
   const char* template = "temporary-dir-XXXXXX";
   char actual_dir[FILENAME_MAX];
