@@ -27,7 +27,7 @@ int MPI_Finalize()
   return MPI_SUCCESS;
 }
 
-noreturn int MPI_Abort(MPI_Comm comm, int errorcode)
+int MPI_Abort(MPI_Comm comm, int errorcode)
 {
   abort();
 }

@@ -8,6 +8,8 @@
 #ifndef POLYMEC_MPI_SERIAL_H
 #define POLYMEC_MPI_SERIAL_H
 
+#include <stdnoreturn.h>
+
 // This serves as a stub implementation of the MPI C bindings. It is not a 
 // complete MPI replacement--it basically implements only the MPI bindings
 // needed to make Polymec work.
@@ -62,7 +64,7 @@ typedef void MPI_User_function(void *invec, void *inoutvec, int* len, MPI_Dataty
 int MPI_Initialized(int* flag);
 int MPI_Init(int* argc, char ***argv);
 int MPI_Finalize(void);
-int MPI_Abort(MPI_Comm comm, int errorcode);
+noreturn int MPI_Abort(MPI_Comm comm, int errorcode);
 double MPI_Wtime(void);
 double MPI_Wtick(void);
 int MPI_Barrier(MPI_Comm comm);
