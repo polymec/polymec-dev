@@ -6,14 +6,14 @@ math(EXPR NUM_BUILD_THREADS "${NUMBER_OF_CORES} + 1")
 
 # We don't hold third-party library code to the same standard of excellence  
 # to which we adhere. :-)
-string(REPLACE "-Werror" "" TPL_C_FLAGS ${CMAKE_C_FLAGS})
+string(REPLACE "-Werror " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 
 # Build cmocka, a C unit testing library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
   message(STATUS "Configuring cmocka...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/cmocka
                   RESULT_VARIABLE stat)
-  set(CMOCKA_C_FLAGS ${TPL_C_FLAGS})
+  set(CMOCKA_C_FLAGS ${CMAKE_C_FLAGS})
   string(REPLACE "-pedantic-errors" "-Wno-format-pedantic" CMOCKA_C_FLAGS ${CMOCKA_C_FLAGS})
   set(CMOCKA_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS=${CMOCKA_C_FLAGS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DWITH_STATIC_LIB=ON -DWITH_EXAMPLES=OFF)
   if (CMAKE_C_COMPILER_ID STREQUAL "Intel" OR CMAKE_C_COMPILER_ID MATCHES "AppleClang")
@@ -157,7 +157,7 @@ if (NOT EXISTS ${Z_LIBRARY})
   endif()
 
   message(STATUS "Configuring zlib...")
-  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${TPL_C_FLAGS} ./configure ${ZLIB_CONFIG_OPTS}
+  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} ./configure ${ZLIB_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib
                   OUTPUT_VARIABLE zlib_config_log ERROR_VARIABLE zlib_config_err
                   RESULT_VARIABLE stat)
@@ -417,7 +417,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis${LIB_SUFFIX})
   else()
     set(LIS_ENV CC=${CMAKE_C_COMPILER})
   endif()
-  set(LIS_CFLAGS ${TPL_C_FLAGS})
+  set(LIS_CFLAGS ${CMAKE_C_FLAGS})
   string(REPLACE "-Werror-implicit-function-declaration" "" LIS_CFLAGS ${LIS_CFLAGS})
   string(REPLACE "-pedantic-errors" "" LIS_CFLAGS ${LIS_CFLAGS})
   set(LIS_ENV ${LIS_ENV} CFLAGS=${LIS_CFLAGS})
@@ -541,7 +541,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
   message(STATUS "Configuring sundials...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sundials
                   RESULT_VARIABLE stat)
-  set(SUNDIALS_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_C_FLAGS=${TPL_C_FLAGS} -DEXAMPLES_ENABLE=OFF -DFCMIX_ENABLE=OFF -DSUNDIALS_PRECISION=${POLYMEC_PRECISION})
+  set(SUNDIALS_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DEXAMPLES_ENABLE=OFF -DFCMIX_ENABLE=OFF -DSUNDIALS_PRECISION=${POLYMEC_PRECISION})
   set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
   if (HAVE_MPI)
     set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=ON -DMPI_MPICC=${CMAKE_C_COMPILER})
@@ -609,15 +609,15 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile.old ${lua_makefile})
   string(REPLACE "gcc" ${CMAKE_C_COMPILER} lua_makefile ${lua_makefile})
   string(REPLACE "CC=cc" "CC=${CMAKE_C_COMPILER}" lua_makefile ${lua_makefile})
-  string(REPLACE "MYCFLAGS=" "MYCFLAGS=-fPIC ${TPL_C_FLAGS}" lua_makefile ${lua_makefile})
+  string(REPLACE "MYCFLAGS=" "MYCFLAGS=-fPIC ${CMAKE_C_FLAGS}" lua_makefile ${lua_makefile})
   string(REPLACE "MYLDFLAGS=" "MYLDFLAGS=${CMAKE_EXE_LINKER_FLAGS}" lua_makefile ${lua_makefile})
   if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    string(REPLACE "-O2 -Wall" "${TPL_C_FLAGS} -g3" lua_makefile ${lua_makefile})
+    string(REPLACE "-O2 -Wall" "${CMAKE_C_FLAGS} -g3" lua_makefile ${lua_makefile})
   endif()
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile ${lua_makefile})
 
   message(STATUS "Building lua (${NUM_BUILD_THREADS} threads)...")
-  execute_process(COMMAND make ${LUA_ARCH} CC=${CMAKE_C_COMPILER} CFLAGS=${TPL_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} -j${NUM_BUILD_THREADS}
+  execute_process(COMMAND make ${LUA_ARCH} CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lua
                   OUTPUT_VARIABLE lua_build_log ERROR_VARIABLE lua_build_err
                   RESULT_VARIABLE stat)
@@ -647,21 +647,11 @@ set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
 add_library(jrs_predicates jrs_predicates/predicates.c)
 if (LINUX EQUAL 1)
   # On Linux, rand() and random() are the same.
-  if (CMAKE_C_COMPILER_ID MATCHES "Clang")
-    set_target_properties(jrs_predicates PROPERTIES COMPILE_OPTIONS 
-                          "-Drandom=rand -Wno-everything")
-  else()
-    set_target_properties(jrs_predicates PROPERTIES COMPILE_OPTIONS 
-                          "-Drandom=rand -Wno-float-equal")
-  endif()
+  set_target_properties(jrs_predicates PROPERTIES COMPILE_FLAGS 
+                        "-Drandom=rand ${CMAKE_C_FLAGS}")
 else()
-  if (CMAKE_C_COMPILER_ID MATCHES "Clang")
-    set_target_properties(jrs_predicates PROPERTIES COMPILE_OPTIONS 
-                          "-Wno-everything")
-  else()
-    set_target_properties(jrs_predicates PROPERTIES COMPILE_OPTIONS 
-                          "-Wno-float-equal")
-  endif()
+  set_target_properties(jrs_predicates PROPERTIES COMPILE_FLAGS 
+                        "${CMAKE_C_FLAGS}")
 endif()
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   install(TARGETS jrs_predicates DESTINATION lib)
@@ -680,7 +670,7 @@ if (HAVE_MPI)
     # to be a little more accommodating, use the gnu99 standard instead 
     # of c11, and turn off some error checking. I'm not wild about this, 
     # but if Scotch does its job, it doesn't much matter.
-    set(SCOTCH_C_FLAGS ${TPL_C_FLAGS})
+    set(SCOTCH_C_FLAGS ${CMAKE_C_FLAGS})
     if (NOT CMAKE_C_COMPILER_ID STREQUAL "Intel")
       string(REPLACE "c11" "gnu99" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
     endif()
