@@ -138,7 +138,7 @@ rng_t* posix_rng_new(size_t state_size)
 }
 #endif
 
-#if APPLE 
+#if defined APPLE && APPLE
 
 // ARC4 random generator.
 
@@ -186,7 +186,7 @@ rng_t* rand_rng_new()
 
 rng_t* host_rng_new()
 {
-#if APPLE 
+#if defined APPLE && APPLE
   return arc4_rng_new();
 #elif defined(_BSD_SOURCE)
   return posix_rng_new();
