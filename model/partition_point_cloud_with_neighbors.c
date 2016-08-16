@@ -14,6 +14,7 @@ extern int64_t* partition_graph(adj_graph_t* global_graph,
                                 int* weights, 
                                 real_t imbalance_tol);
 
+#if POLYMEC_HAVE_MPI
 static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
                                         MPI_Comm comm,
                                         int64_t* global_partition,
@@ -223,6 +224,7 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
   if (global_pairing != NULL)
     neighbor_pairing_free(global_pairing);
 }
+#endif
 
 migrator_t* partition_point_cloud_with_neighbors(point_cloud_t** points, 
                                                  neighbor_pairing_t** neighbors, 
