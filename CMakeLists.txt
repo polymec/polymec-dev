@@ -126,7 +126,14 @@ elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
 
   # Deal with AppleClang oddities.
   if (CMAKE_C_COMPILER_ID MATCHES "AppleClang" AND CMAKE_C_COMPILER_VERSION STRLESS "7")
+    # exit() isn't marked with noreturn, causing issues.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-invalid-noreturn")
+  endif()
+
+  # Deal with older versions of Clang.
+  if (NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang" AND CMAKE_C_COMPILER_VERSION STRLESS "5")
+    # tolower() is a recursive macro, which causes issues.
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-disabled-macro-expansion")
   endif()
 
   # Code coverage.
