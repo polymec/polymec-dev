@@ -1473,8 +1473,10 @@ static void vector_set_values(void* context, index_t num_values,
   LIS_INT ind[num_values];
   for (index_t i = 0; i < num_values; ++i)
     ind[i] = (LIS_INT)indices[i];
-  LIS_INT status = lis_vector_set_values(LIS_INS_VALUE, (LIS_INT)num_values, 
-                                         ind, values, v);
+#ifndef NDEBUG
+  LIS_INT status = 
+#endif
+    lis_vector_set_values(LIS_INS_VALUE, (LIS_INT)num_values, ind, values, v);
   ASSERT(status == LIS_SUCCESS);
 }
 
@@ -1485,8 +1487,10 @@ static void vector_add_values(void* context, index_t num_values,
   LIS_INT ind[num_values];
   for (index_t i = 0; i < num_values; ++i)
     ind[i] = (LIS_INT)indices[i];
-  LIS_INT status = lis_vector_set_values(LIS_ADD_VALUE, (LIS_INT)num_values, 
-                                         ind, values, v);
+#ifndef NDEBUG
+  LIS_INT status = 
+#endif
+    lis_vector_set_values(LIS_ADD_VALUE, (LIS_INT)num_values, ind, values, v);
   ASSERT(status == LIS_SUCCESS);
 }
 
