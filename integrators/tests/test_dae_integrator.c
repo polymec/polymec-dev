@@ -16,7 +16,6 @@
 
 extern dae_integrator_t* block_jacobi_precond_heat2d_integrator_new();
 extern dae_integrator_t* lu_precond_heat2d_integrator_new();
-extern dae_integrator_t* ilu_precond_heat2d_integrator_new();
 extern void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t** u_dot);
 
 static void test_block_jacobi_precond_heat2d_ctor(void** state)
@@ -28,12 +27,6 @@ static void test_block_jacobi_precond_heat2d_ctor(void** state)
 static void test_lu_precond_heat2d_ctor(void** state)
 {
   dae_integrator_t* integ = lu_precond_heat2d_integrator_new();
-  dae_integrator_free(integ);
-}
-
-static void test_ilu_precond_heat2d_ctor(void** state)
-{
-  dae_integrator_t* integ = ilu_precond_heat2d_integrator_new();
   dae_integrator_free(integ);
 }
 
@@ -78,12 +71,6 @@ static void test_lu_precond_heat2d_step(void** state)
   test_heat2d_step(state, integ);
 }
 
-static void test_ilu_precond_heat2d_step(void** state)
-{
-  dae_integrator_t* integ = ilu_precond_heat2d_integrator_new();
-  test_heat2d_step(state, integ);
-}
-
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -91,10 +78,8 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_block_jacobi_precond_heat2d_ctor),
     cmocka_unit_test(test_lu_precond_heat2d_ctor),
-    cmocka_unit_test(test_ilu_precond_heat2d_ctor),
     cmocka_unit_test(test_block_jacobi_precond_heat2d_step),
-    cmocka_unit_test(test_lu_precond_heat2d_step),
-//    cmocka_unit_test(test_ilu_precond_heat2d_step)  <-- not cooperating.
+    cmocka_unit_test(test_lu_precond_heat2d_step)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

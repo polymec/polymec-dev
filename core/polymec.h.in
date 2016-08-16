@@ -144,7 +144,7 @@ typedef uint64_t index_t;
 // So we have to provide it ourselves.
 #ifndef M_PI
 #include <float.h>
-#define M_PI 3.1415926535897932384626433832795L
+#define M_PI (real_t)(3.1415926535897932384626433832795L)
 #if LDBL_DIG > 32
 #error "Definition of PI doesn't use the full precision of long double"
 #endif

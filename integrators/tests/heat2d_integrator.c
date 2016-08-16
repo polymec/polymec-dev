@@ -204,13 +204,3 @@ dae_integrator_t* lu_precond_heat2d_integrator_new()
   return heat2d_integrator_new(data, precond);
 }
 
-// Constructor for ILU-preconditioned heat2d integrator.
-dae_integrator_t* ilu_precond_heat2d_integrator_new(void);
-dae_integrator_t* ilu_precond_heat2d_integrator_new()
-{
-  heat2d_t* data = heat2d_new();
-  ilu_params_t* ilu_params = ilu_params_new();
-  newton_pc_t* precond = ilu_cpr_newton_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, ilu_params);
-  return heat2d_integrator_new(data, precond);
-}
-

@@ -212,10 +212,10 @@ static void test_parallel_10x10x1_lattice(void** state)
   test_parallel_point_lattice(state, 10, 10, 1, 0.15, 8, 8, 5, 3);
 }
 
-static void test_parallel_10x10x10_lattice(void** state)
-{
-  test_parallel_point_lattice(state, 10, 10, 10, 0.15, 18, 13, 9, 6);
-}
+//static void test_parallel_10x10x10_lattice(void** state)
+//{
+//  test_parallel_point_lattice(state, 10, 10, 10, 0.15, 18, 13, 9, 6);
+//}
 
 int main(int argc, char* argv[]) 
 {

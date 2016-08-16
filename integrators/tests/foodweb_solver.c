@@ -405,17 +405,6 @@ newton_solver_t* lu_precond_foodweb_solver_new()
   return foodweb_solver_new(data, precond);
 }
 
-// Constructor for ILU-preconditioned food web solver.
-newton_solver_t* ilu_precond_foodweb_solver_new(void);
-newton_solver_t* ilu_precond_foodweb_solver_new()
-{
-  foodweb_t* data = foodweb_new();
-  ilu_params_t* ilu_params = ilu_params_new();
-  ilu_params->drop_tolerance = 1e-5;
-  newton_pc_t* precond = ilu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, NEWTON_PC_LEFT, data->sparsity, NEQ, 0, ilu_params);
-  return foodweb_solver_new(data, precond);
-}
-
 // Returns initial conditions.
 real_t* foodweb_initial_conditions(void);
 real_t* foodweb_initial_conditions()

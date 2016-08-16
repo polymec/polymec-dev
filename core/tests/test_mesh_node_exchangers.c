@@ -69,6 +69,7 @@ static void test_nv_node_exchanger_on_line(void** state)
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
+#if 0
 static void test_1v_node_exchanger_on_line(void** state)
 {
   int nprocs, rank;
@@ -106,6 +107,7 @@ static void test_1v_node_exchanger_on_line(void** state)
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
+#endif
 
 static void test_nv_node_exchanger_in_plane(void** state)
 {
@@ -143,6 +145,7 @@ static void test_nv_node_exchanger_in_plane(void** state)
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
+#if 0
 static void test_1v_node_exchanger_in_plane(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
@@ -157,6 +160,7 @@ static void test_1v_node_exchanger_in_plane(void** state)
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
+#endif
 
 static void test_nv_node_exchanger_in_cube(void** state)
 {
@@ -194,6 +198,7 @@ static void test_nv_node_exchanger_in_cube(void** state)
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
+#if 0
 static void test_1v_node_exchanger_in_cube(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
@@ -208,6 +213,7 @@ static void test_1v_node_exchanger_in_cube(void** state)
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
+#endif
 
 int main(int argc, char* argv[]) 
 {

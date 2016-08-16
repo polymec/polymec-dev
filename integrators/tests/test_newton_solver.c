@@ -32,12 +32,6 @@ static void test_lu_precond_foodweb_ctor(void** state)
   newton_solver_free(newton);
 }
 
-static void test_ilu_precond_foodweb_ctor(void** state)
-{
-  newton_solver_t* newton = ilu_precond_foodweb_solver_new();
-  newton_solver_free(newton);
-}
-
 static void test_foodweb_solve(void** state, newton_solver_t* newton)
 {
   // Set up the problem.
@@ -82,13 +76,6 @@ static void test_lu_precond_foodweb_solve(void** state)
   test_foodweb_solve(state, newton);
 }
 
-static void test_ilu_precond_foodweb_solve(void** state)
-{
-  // Set up the problem.
-  newton_solver_t* newton = ilu_precond_foodweb_solver_new();
-  test_foodweb_solve(state, newton);
-}
-
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -96,11 +83,8 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_block_jacobi_precond_foodweb_ctor),
     cmocka_unit_test(test_lu_precond_foodweb_ctor),
-    cmocka_unit_test(test_ilu_precond_foodweb_ctor),
     cmocka_unit_test(test_block_jacobi_precond_foodweb_solve),
     cmocka_unit_test(test_lu_precond_foodweb_solve)
-    // FIXME: ILU preconditioner got more finicky.
-//    cmocka_unit_test(test_ilu_precond_foodweb_solve)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

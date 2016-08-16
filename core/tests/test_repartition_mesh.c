@@ -260,6 +260,7 @@ static void test_repartition_4x4x1_uniform_mesh(void** state)
   test_repartition_uniform_mesh_of_size(state, 4, 4, 1);
 }
 
+#if 0
 static void test_repartition_2x2x2_uniform_mesh(void** state)
 {
   test_repartition_uniform_mesh_of_size(state, 2, 2, 2);
@@ -284,6 +285,7 @@ static void test_repartition_32x32x32_uniform_mesh(void** state)
 {
   test_repartition_uniform_mesh_of_size(state, 32, 32, 32);
 }
+#endif
 
 int main(int argc, char* argv[]) 
 {

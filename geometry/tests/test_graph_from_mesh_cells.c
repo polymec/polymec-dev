@@ -120,14 +120,14 @@ static void test_largest_first_graph_coloring_on_uniform_mesh(void** state)
   adj_graph_free(g);
 }
 
-static void test_incidence_degree_graph_coloring_on_uniform_mesh(void** state)
-{
-  adj_graph_t* g = graph_from_uniform_mesh();
-  adj_graph_coloring_t* c = adj_graph_coloring_new(g, INCIDENCE_DEGREE);
-  test_coloring_against_graph(c, g);
-  adj_graph_coloring_free(c);
-  adj_graph_free(g);
-}
+//static void test_incidence_degree_graph_coloring_on_uniform_mesh(void** state)
+//{
+//  adj_graph_t* g = graph_from_uniform_mesh();
+//  adj_graph_coloring_t* c = adj_graph_coloring_new(g, INCIDENCE_DEGREE);
+//  test_coloring_against_graph(c, g);
+//  adj_graph_coloring_free(c);
+//  adj_graph_free(g);
+//}
 
 int main(int argc, char* argv[]) 
 {

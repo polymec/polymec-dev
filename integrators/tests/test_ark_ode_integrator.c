@@ -17,7 +17,6 @@
 extern ode_integrator_t* functional_ark_diurnal_integrator_new();
 extern ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
 extern ode_integrator_t* lu_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
-extern ode_integrator_t* ilu_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
 extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
 
 static void test_functional_diurnal_ctor(void** state)
@@ -43,16 +42,6 @@ static void test_lu_precond_diurnal_ctor(void** state)
   integ = lu_precond_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
   ode_integrator_free(integ);
   integ = lu_precond_ark_diurnal_integrator_new(NEWTON_PC_BOTH);
-  ode_integrator_free(integ);
-}
-
-static void test_ilu_precond_diurnal_ctor(void** state)
-{
-  ode_integrator_t* integ = ilu_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
-  ode_integrator_free(integ);
-  integ = ilu_precond_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  ode_integrator_free(integ);
-  integ = ilu_precond_ark_diurnal_integrator_new(NEWTON_PC_BOTH);
   ode_integrator_free(integ);
 }
 
@@ -120,18 +109,6 @@ static void test_lu_precond_diurnal_step_right(void** state)
   test_diurnal_step(state, integ, REAL_MAX, 500);
 }
 
-static void test_ilu_precond_diurnal_step_left(void** state)
-{
-  ode_integrator_t* integ = ilu_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
-  test_diurnal_step(state, integ, REAL_MAX, 5000);
-}
-
-static void test_ilu_precond_diurnal_step_right(void** state)
-{
-  ode_integrator_t* integ = ilu_precond_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  test_diurnal_step(state, integ, REAL_MAX, 5000);
-}
-
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -140,15 +117,11 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_functional_diurnal_ctor),
     cmocka_unit_test(test_block_jacobi_precond_diurnal_ctor),
     cmocka_unit_test(test_lu_precond_diurnal_ctor),
-    cmocka_unit_test(test_ilu_precond_diurnal_ctor),
 //    cmocka_unit_test(test_functional_diurnal_step), // too stiff!
     cmocka_unit_test(test_block_jacobi_precond_diurnal_step_left),
     cmocka_unit_test(test_block_jacobi_precond_diurnal_step_right),
     cmocka_unit_test(test_lu_precond_diurnal_step_left),
     cmocka_unit_test(test_lu_precond_diurnal_step_right)
-    // FIXME: ILU preconditioner is finicky on this problem.
-//    cmocka_unit_test(test_ilu_precond_diurnal_step_left),
-//    cmocka_unit_test(test_ilu_precond_diurnal_step_right)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
