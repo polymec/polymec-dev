@@ -19,8 +19,8 @@ endif()
 # We declare the project here.
 project (polymec)
 
-message(STATUS "C compiler is ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID})")
-message(STATUS "C++ compiler is ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID})")
+message(STATUS "C compiler is ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION})")
+message(STATUS "C++ compiler is ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION})")
 if (LINUX)
   message(STATUS "Fortran compiler is ${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COMPILER_ID})")
 endif()
@@ -96,9 +96,14 @@ endif ()
 # General C compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall -pedantic-errors -Werror -Wextra -Werror-implicit-function-declaration")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow -Wfloat-equal -Wmissing-noreturn -Wdouble-promotion -Wfloat-conversion -Wmissing-prototypes")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow -Wfloat-equal -Wfloat-conversion -Wmissing-noreturn -Wmissing-prototypes")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-pragmas -Wno-format")
+
+  # Strip out recently-available warnings for older compilers.
+  if (CMAKE_C_COMPILER_VERSION STRLESS "5")
+    string(REPLACE "-Wfloat-conversion" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+  endif()
 
   if (LINUX)
     # Counter some of GCC's more recent stinginess on Linux.
@@ -117,6 +122,11 @@ elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-unused-function")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-reserved-id-macro -Wno-unused-macros -Wno-sign-conversion -Wno-padded -Wno-vla")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format-nonliteral -Wno-cast-qual -Wno-switch-enum -Wno-unknown-pragmas")
+
+  # Strip out recently-available warnings for older compilers.
+  if (CMAKE_C_COMPILER_ID MATCHES "Apple" AND CMAKE_C_COMPILER_VERSION STRLESS "7")
+    string(REPLACE "-Wno-reserved-id-macro-conversion " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+  endif()
 
   # Code coverage.
   if (TEST_COVERAGE)

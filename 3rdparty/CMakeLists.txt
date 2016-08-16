@@ -7,6 +7,8 @@ math(EXPR NUM_BUILD_THREADS "${NUMBER_OF_CORES} + 1")
 # We don't hold third-party library code to the same standard of excellence  
 # to which we adhere. :-)
 string(REPLACE "-Werror " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+string(REPLACE "-Weverything " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+string(REPLACE "-Wmissing-prototypes " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 
 # Build cmocka, a C unit testing library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
