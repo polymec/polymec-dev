@@ -97,7 +97,7 @@ static void mls_compute(void* context,
     {
       AinvB[dim*n+k] = W[n] * mls->basis[dim*n+k];
       for (int j = 0; j < dim; ++j)
-        A[dim*j+k] += W[n] * mls->basis[dim*n+k] * mls->basis[dim*n+k];
+        A[dim*j+k] += W[n] * mls->basis[dim*n+k] * mls->basis[dim*n+j];
     }
   }
 
@@ -115,11 +115,11 @@ static void mls_compute(void* context,
   ASSERT(info == 0);
 
   // values^T = basis^T * Ainv * B (or values = (Ainv * B)^T * basis.)
+  real_t basis_x[dim];
   {
     real_t alpha = 1.0, beta = 0.0;
     int one = 1;
     char trans = 'T';
-    real_t basis_x[dim];
     polynomial_compute_basis(mls->poly_degree, 0, 0, 0, x, basis_x);
     //printf("y = %g %g %g, basis = ", y.x, y.y, y.z);
     //for (int i = 0; i < dim; ++i)
@@ -167,7 +167,6 @@ static void mls_compute(void* context,
     real_t alpha = 1.0, beta = 0.0;
     int one = 1;
     char trans = 'T';
-    real_t basis_x[dim];
     real_t dAinvBdx[dim*N], dAinvBdy[dim*N], dAinvBdz[dim*N];
     char no_trans = 'N';
     rgemm(&no_trans, &no_trans, &dim, &N, &dim, &alpha, 

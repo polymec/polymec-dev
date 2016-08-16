@@ -55,17 +55,17 @@ static hilbert_t* hilbert_from_points(point_t* points, int num_points)
     bbox_grow(&bbox, &points[i]);
 
   // (Handle lower dimensional point distributions gracefully.)
-  if (ABS(bbox.x2 - bbox.x1) < REAL_MIN)
+  if (reals_equal(bbox.x2, bbox.x1))
   {
     bbox.x1 -= 0.5;
     bbox.x2 += 0.5;
   }
-  if (ABS(bbox.y2 - bbox.y1) < REAL_MIN)
+  if (reals_equal(bbox.y2, bbox.y1))
   {
     bbox.y1 -= 0.5;
     bbox.y2 += 0.5;
   }
-  if (ABS(bbox.z2 - bbox.z1) < REAL_MIN)
+  if (reals_equal(bbox.z2, bbox.z1))
   {
     bbox.z1 -= 0.5;
     bbox.z2 += 0.5;

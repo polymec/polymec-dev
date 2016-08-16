@@ -265,10 +265,9 @@ int polymec_num_cores(void);
 bool polymec_running_in_valgrind(void);
 
 // This function returns true if |a - b| < epsilon, false otherwise. Here, 
-// epsilon is polymec's floating point tolerance, set by default to the 
-// machine-specific value of epsilon (smallest representable floating point 
-// number), and otherwise by set_real_epsilon.
-static real_t _polymec_epsilon = REAL_EPSILON;
+// epsilon is polymec's floating point tolerance, set by default to 1e-50,
+// and otherwise by set_real_epsilon.
+static real_t _polymec_epsilon = 1e-50;
 static inline bool reals_equal(real_t a, real_t b)
 {
   return (ABS(a - b) < _polymec_epsilon);

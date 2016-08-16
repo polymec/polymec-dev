@@ -420,8 +420,8 @@ static void* tagger_byte_read(byte_array_t* bytes, size_t* offset)
     char tag_name[tag_name_len+1];
     byte_array_read_chars(bytes, tag_name_len, tag_name, offset);
     tag_name[tag_name_len] = '\0';
-    int tag_size;
-    byte_array_read_ints(bytes, 1, &tag_size, offset);
+    size_t tag_size;
+    byte_array_read_size_ts(bytes, 1, &tag_size, offset);
     int* tag = tagger_create_tag(tagger, tag_name, tag_size);
     byte_array_read_ints(bytes, tag_size, tag, offset);
 
