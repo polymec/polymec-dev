@@ -14,6 +14,11 @@
 
 #define SEPARATOR '/'
 
+// FIXME: These are not standard C.
+extern int mkstemp(char *template);
+extern FILE* fdopen(int fildes, const char *mode);
+extern char *mkdtemp(char *template);
+
 void parse_path(const char *path, char *dirname, char *filename)
 {
   int len = (int)strlen(path);
