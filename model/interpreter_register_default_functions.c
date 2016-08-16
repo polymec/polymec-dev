@@ -303,7 +303,7 @@ static int lua_write_silo_mesh(lua_State* lua)
   bool has_fields = (num_args == 3) ? lua_istable(lua, 2) : false;
   char* filename = (((num_args == 3) || (num_args == 4)) && lua_isstring(lua, 3)) ? 
                      string_dup(lua_tostring(lua, 3)) : string_dup(lua_tostring(lua, 2));
-  int num_files = (lua_isnumber(lua, num_args)) ? (int)lua_tonumber(lua, num_args) : -1;
+  int num_files = (lua_isnumber(lua, num_args)) ? (int)(lua_tonumber(lua, num_args)) : -1;
 
   // Check the table of fields if it's there.
   if (has_fields)
@@ -635,7 +635,7 @@ static int cell_tag(lua_State* lua)
   for (int i = 0; i < size; ++i)
     seq[i] = (real_t)tag[i];
 
-  lua_pushsequence(lua, seq, size);
+  lua_pushsequence(lua, seq, (int)size);
   return 1;
 }
 
@@ -671,7 +671,7 @@ static int tag_cells(lua_State* lua)
 
   int* tag = mesh_create_tag(mesh->cell_tags, tag_name, num_indices);
   for (int i = 0; i < num_indices; ++i)
-    tag[i] = indices[i];
+    tag[i] = (int)indices[i];
 
   return 0;
 }
@@ -733,7 +733,7 @@ static int face_tag(lua_State* lua)
   for (int i = 0; i < size; ++i)
     seq[i] = (real_t)tag[i];
 
-  lua_pushsequence(lua, seq, size);
+  lua_pushsequence(lua, seq, (int)size);
   return 1;
 }
 
@@ -770,7 +770,7 @@ static int tag_faces(lua_State* lua)
 
   int* tag = mesh_create_tag(mesh->face_tags, tag_name, num_indices);
   for (int i = 0; i < num_indices; ++i)
-    tag[i] = indices[i];
+    tag[i] = (int)indices[i];
 
   return 0;
 }
@@ -832,7 +832,7 @@ static int edge_tag(lua_State* lua)
   for (int i = 0; i < size; ++i)
     seq[i] = (real_t)tag[i];
 
-  lua_pushsequence(lua, seq, size);
+  lua_pushsequence(lua, seq, (int)size);
   return 1;
 }
 
@@ -868,7 +868,7 @@ static int tag_edges(lua_State* lua)
 
   int* tag = mesh_create_tag(mesh->edge_tags, tag_name, num_indices);
   for (int i = 0; i < num_indices; ++i)
-    tag[i] = indices[i];
+    tag[i] = (int)indices[i];
 
   return 0;
 }
@@ -955,7 +955,7 @@ static int node_tag(lua_State* lua)
   for (int i = 0; i < size; ++i)
     seq[i] = (real_t)tag[i];
 
-  lua_pushsequence(lua, seq, size);
+  lua_pushsequence(lua, seq, (int)size);
   return 1;
 }
 
@@ -992,7 +992,7 @@ static int tag_nodes(lua_State* lua)
 
   int* tag = mesh_create_tag(mesh->node_tags, tag_name, num_indices);
   for (int i = 0; i < num_indices; ++i)
-    tag[i] = indices[i];
+    tag[i] = (int)indices[i];
 
   return 0;
 }
@@ -1063,6 +1063,7 @@ static int repartition(lua_State* lua)
 }
 #endif
 
+void interpreter_register_default_functions(interpreter_t* interp);
 void interpreter_register_default_functions(interpreter_t* interp)
 {
   interpreter_register_function(interp, "point", point, point_doc());

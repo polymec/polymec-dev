@@ -8,7 +8,7 @@
 #include "core/kd_tree.h"
 #include "model/neighbor_pairing.h"
 
-neighbor_pairing_t* neighbor_pairing_new(const char* name, int num_pairs, 
+neighbor_pairing_t* neighbor_pairing_new(const char* name, size_t num_pairs, 
                                          int* pairs, real_t* weights,
                                          exchanger_t* ex)
 {
@@ -23,7 +23,7 @@ neighbor_pairing_t* neighbor_pairing_new(const char* name, int num_pairs,
   return p;
 }
 
-neighbor_pairing_t* unweighted_neighbor_pairing_new(const char* name, int num_pairs, 
+neighbor_pairing_t* unweighted_neighbor_pairing_new(const char* name, size_t num_pairs, 
                                                     int* pairs, exchanger_t* ex)
 {
   return neighbor_pairing_new(name, num_pairs, pairs, NULL, ex);
@@ -87,11 +87,11 @@ static void* np_byte_read(byte_array_t* bytes, size_t* offset)
   name[name_len] = '\0';
 
   // Read the offsets, indices, weights.
-  int num_pairs, num_weights;
-  byte_array_read_ints(bytes, 1, &num_pairs, offset);
+  size_t num_pairs, num_weights;
+  byte_array_read_size_ts(bytes, 1, &num_pairs, offset);
   int* pairs = polymec_malloc(sizeof(int) * 2 * num_pairs);
   byte_array_read_ints(bytes, 2*num_pairs, pairs, offset);
-  byte_array_read_ints(bytes, 1, &num_weights, offset);
+  byte_array_read_size_ts(bytes, 1, &num_weights, offset);
   real_t* weights = NULL;
   if (num_weights > 0)
     byte_array_read_real_ts(bytes, num_weights, weights, offset);
@@ -113,17 +113,17 @@ static void np_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_chars(bytes, name_len, np->name, offset);
 
   // Write the offsets, indices, weights.
-  byte_array_write_ints(bytes, 1, &np->num_pairs, offset);
+  byte_array_write_size_ts(bytes, 1, &np->num_pairs, offset);
   byte_array_write_ints(bytes, 2*np->num_pairs, np->pairs, offset);
   if (np->weights != NULL)
   {
-    byte_array_write_ints(bytes, 1, &np->num_pairs, offset);
+    byte_array_write_size_ts(bytes, 1, &np->num_pairs, offset);
     byte_array_write_real_ts(bytes, np->num_pairs, np->weights, offset);
   }
   else
   {
-    int zero = 0;
-    byte_array_write_ints(bytes, 1, &zero, offset);
+    size_t zero = 0;
+    byte_array_write_size_ts(bytes, 1, &zero, offset);
   }
 
   // Exchanger.
@@ -264,7 +264,7 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
 
   // Make parallel-sensible coordinate and radius fields with ghost candidate 
   // values filled in.
-  int tree_size = kd_tree_size(tree);
+  size_t tree_size = kd_tree_size(tree);
   point_t* x_par = polymec_malloc(sizeof(point_t) * tree_size);
   memcpy(x_par, points->points, 3 * sizeof(real_t) * points->num_points);
   exchanger_exchange(ex, x_par, 3, 0, MPI_REAL_T);
@@ -306,7 +306,7 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
                                     num_pairs, pair_array->data, ex);
 
   // Set the number of ghost points referred to within the neighbor pairing.
-  *num_ghost_points = kd_tree_size(tree) - points->num_points;
+  *num_ghost_points = (int)(kd_tree_size(tree) - points->num_points);
 
   // Clean up.
   int_array_release_data_and_free(pair_array); // Release control of data.

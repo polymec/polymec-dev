@@ -19,12 +19,12 @@
 // This creates a neighbor pairing using a hat function.
 extern neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h);
 
-void test_serial_point_lattice(void** state, 
-                               int nx, int ny, int nz, real_t h,
-                               int num_interior_neighbors, 
-                               int num_boundary_neighbors, 
-                               int num_edge_neighbors,
-                               int num_corner_neighbors)
+static void test_serial_point_lattice(void** state, 
+                                      int nx, int ny, int nz, real_t h,
+                                      int num_interior_neighbors, 
+                                      int num_boundary_neighbors, 
+                                      int num_edge_neighbors,
+                                      int num_corner_neighbors)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   point_cloud_t* cloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, nz, &bbox);
@@ -187,32 +187,32 @@ static void test_parallel_point_lattice(void** state,
   point_cloud_free(cloud);
 }
 
-void test_serial_1x1x1_lattice(void** state)
+static void test_serial_1x1x1_lattice(void** state)
 {
   test_serial_point_lattice(state, 1, 1, 1, 0.1, 0, 0, 0, 0);
 }
 
-void test_serial_10x1x1_lattice(void** state)
+static void test_serial_10x1x1_lattice(void** state)
 {
   test_serial_point_lattice(state, 10, 1, 1, 0.15, 2, 2, 2, 1);
 }
 
-void test_serial_10x10x1_lattice(void** state)
+static void test_serial_10x10x1_lattice(void** state)
 {
   test_serial_point_lattice(state, 10, 10, 1, 0.15, 8, 8, 5, 3);
 }
 
-void test_serial_10x10x10_lattice(void** state)
+static void test_serial_10x10x10_lattice(void** state)
 {
   test_serial_point_lattice(state, 10, 10, 10, 0.15, 18, 13, 9, 6);
 }
 
-void test_parallel_10x10x1_lattice(void** state)
+static void test_parallel_10x10x1_lattice(void** state)
 {
   test_parallel_point_lattice(state, 10, 10, 1, 0.15, 8, 8, 5, 3);
 }
 
-void test_parallel_10x10x10_lattice(void** state)
+static void test_parallel_10x10x10_lattice(void** state)
 {
   test_parallel_point_lattice(state, 10, 10, 10, 0.15, 18, 13, 9, 6);
 }

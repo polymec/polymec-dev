@@ -26,6 +26,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
+int mesh_factory_uniform(lua_State* lua);
 int mesh_factory_uniform(lua_State* lua)
 {
   // Check the arguments.
@@ -37,9 +38,9 @@ int mesh_factory_uniform(lua_State* lua)
   }
 
   // Get the arguments.
-  int nx = (int)lua_tonumber(lua, 1);
-  int ny = (int)lua_tonumber(lua, 2);
-  int nz = (int)lua_tonumber(lua, 3);
+  int nx = (int)(lua_tonumber(lua, 1));
+  int ny = (int)(lua_tonumber(lua, 2));
+  int nz = (int)(lua_tonumber(lua, 3));
   if ((nx <= 0) || (ny <= 0) || (nz <= 0))
     return luaL_error(lua, "nx, ny, and nz must all be positive.");
   if (!lua_isboundingbox(lua, 4))
@@ -68,6 +69,7 @@ int mesh_factory_uniform(lua_State* lua)
   return 1;
 }
 
+docstring_t* mesh_factory_uniform_doc(void);
 docstring_t* mesh_factory_uniform_doc()
 {
   return docstring_from_string("mesh_factory.uniform(nx, ny, nz, bounds) - returns a uniform lattice of\n"
@@ -75,6 +77,7 @@ docstring_t* mesh_factory_uniform_doc()
                                "  boundary of the mesh are tagged x1, x2, y1, y2, z1, and z2 as appropriate.");
 }
 
+int mesh_factory_rectilinear(lua_State* lua);
 int mesh_factory_rectilinear(lua_State* lua)
 {
   // Check the arguments.
@@ -113,6 +116,7 @@ int mesh_factory_rectilinear(lua_State* lua)
   return 1;
 }
 
+docstring_t* mesh_factory_rectilinear_doc(void);
 docstring_t* mesh_factory_rectilinear_doc()
 {
   return docstring_from_string("mesh_factory.rectilinear(xs, ys, zs) - returns a rectilinear lattice of\n"

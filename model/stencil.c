@@ -417,7 +417,7 @@ stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
   }
 
   // Find the number of ghost points referred to within the stencil.
-  int num_ghosts = kd_tree_size(tree) - points->num_points;
+  int num_ghosts = (int)(kd_tree_size(tree) - points->num_points);
 
   // Create an unweighted stencil.
   stencil_t* stencil = 

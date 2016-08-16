@@ -12,7 +12,18 @@
 
 // The type code used to identify periodic BCs. It will be overwritten 
 // by an interpreter that registers its constructor.
-static int periodic_bc_type_code = 103452990;
+static int _periodic_bc_type_code = 103452990;
+
+int periodic_bc_type_code(void);
+int periodic_bc_type_code()
+{
+  return _periodic_bc_type_code;
+}
+void set_periodic_bc_type_code(int code);
+void set_periodic_bc_type_code(int code)
+{
+  _periodic_bc_type_code = code;
+}
 
 // This function can be used by default to generate a periodic map.
 static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
@@ -125,7 +136,7 @@ periodic_bc_t* periodic_bc_new_with_map_func(const char* tag1, const char* tag2,
   ASSERT(strcmp(tag1, tag2) != 0);
 
   periodic_bc_t* bc = GC_MALLOC(sizeof(periodic_bc_t));
-  bc->type_code = periodic_bc_type_code;
+  bc->type_code = _periodic_bc_type_code;
   bc->tag1 = string_dup(tag1);
   bc->tag2 = string_dup(tag2);
   GC_register_finalizer(bc, &periodic_bc_free, bc, NULL, NULL);
@@ -139,7 +150,7 @@ periodic_bc_t* periodic_bc_new_with_map_func(const char* tag1, const char* tag2,
 
 bool periodic_bc_is_valid(periodic_bc_t* bc)
 {
-  return (bc->type_code == periodic_bc_type_code);
+  return (bc->type_code == _periodic_bc_type_code);
 }
 
 void periodic_bc_get_tags(periodic_bc_t* bc, char** tag1, char** tag2)
@@ -158,6 +169,6 @@ int_int_unordered_map_t* periodic_bc_generate_map(periodic_bc_t* bc, mesh_t* mes
 
 periodic_bc_t* interpreter_get_periodic_bc(interpreter_t* interp, const char* name)
 {
-  return interpreter_get_user_defined(interp, name, periodic_bc_type_code);
+  return interpreter_get_user_defined(interp, name, _periodic_bc_type_code);
 }
 

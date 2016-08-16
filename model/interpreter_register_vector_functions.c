@@ -79,6 +79,7 @@ static int rigid_body_rotation(lua_State* lua)
   return 1;
 }
 
+void interpreter_register_vector_functions(interpreter_t* interp);
 void interpreter_register_vector_functions(interpreter_t* interp)
 {
   interpreter_register_global_table(interp, "vector_functions", docstring_from_string("vector_functions - A family of convenient vector-valued functions."));

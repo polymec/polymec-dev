@@ -92,6 +92,7 @@ static int ball_and_jack(lua_State* lua)
   return 1;
 }
 
+void interpreter_register_scalar_functions(interpreter_t* interp);
 void interpreter_register_scalar_functions(interpreter_t* interp)
 {
   interpreter_register_global_table(interp, "scalar_functions", docstring_from_string("scalar_functions - a family of convenient scalar functions."));

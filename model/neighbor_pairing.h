@@ -22,7 +22,7 @@
 typedef struct 
 {
   char* name;
-  int num_pairs;
+  size_t num_pairs;
   int* pairs;
   real_t* weights;
   exchanger_t* ex; // Used to perform exchanges to fill all values for indices on a domain.
@@ -36,13 +36,13 @@ typedef struct
 // The arrays must be allocated using polymec_malloc, and are consumed by the 
 // pairing. Likewise, the pairing's exchanger is consumed and is used for its 
 // exchanges. An exchanger must be given even for serial configurations.
-neighbor_pairing_t* neighbor_pairing_new(const char* name, int num_pairs,
+neighbor_pairing_t* neighbor_pairing_new(const char* name, size_t num_pairs,
                                          int* pairs, real_t* weights,
                                          exchanger_t* ex);
 
 // Creates a neighbor pairing object with weights all equal to one. See the 
 // other constructor for details.
-neighbor_pairing_t* unweighted_neighbor_pairing_new(const char* name, int num_pairs, 
+neighbor_pairing_t* unweighted_neighbor_pairing_new(const char* name, size_t num_pairs, 
                                                     int* pairs, exchanger_t* ex);
 
 // Destroys the given neighbor pairing object.
@@ -65,7 +65,7 @@ int neighbor_pairing_start_exchange(neighbor_pairing_t* pairing, void* data, int
 void neighbor_pairing_finish_exchange(neighbor_pairing_t* pairing, int token);
 
 // Returns the number of neighbor pairs contained within this pairing.
-static inline int neighbor_pairing_num_pairs(neighbor_pairing_t* pairing)
+static inline size_t neighbor_pairing_num_pairs(neighbor_pairing_t* pairing)
 {
   return pairing->num_pairs;
 }
@@ -94,7 +94,7 @@ static inline bool neighbor_pairing_next(neighbor_pairing_t* pairing, int* pos,
                                          int* i, int* j, real_t* weight)
 {
   int k = *pos;
-  if(k >= pairing->num_pairs)
+  if(k >= (int)pairing->num_pairs)
     return false;
   neighbor_pairing_get(pairing, k, i, j, weight);
   ++(*pos);

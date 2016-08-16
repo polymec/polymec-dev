@@ -36,7 +36,7 @@ int spherical_1d_uniform(lua_State* lua)
   real_t r2 = (real_t)lua_tonumber(lua, 2);
   if (r1 >= r2)
     return luaL_error(lua, "r1 must be less than r2.");
-  int N = (int)lua_tonumber(lua, 3);
+  int N = (int)(lua_tonumber(lua, 3));
   if (N <= 0)
     return luaL_error(lua, "N must be positive.");
 
@@ -77,7 +77,7 @@ int spherical_1d_logarithmic(lua_State* lua)
   real_t log_factor = (real_t)lua_tonumber(lua, 3);
   if (log_factor <= 0.0)
     return luaL_error(lua, "log factor must be positive.");
-  int N = (int)lua_tonumber(lua, 4);
+  int N = (int)(lua_tonumber(lua, 4));
   if (N <= 0)
     return luaL_error(lua, "N must be positive.");
 

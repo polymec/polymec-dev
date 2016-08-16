@@ -12,7 +12,7 @@
 #include "cmocka.h"
 #include "model/aux_state.h"
 
-void test_ctor(void** state)
+static void test_ctor(void** state)
 {
   aux_state_t* S = aux_state_new();
   assert_int_equal(0, aux_state_size(S));
@@ -22,7 +22,7 @@ void test_ctor(void** state)
   assert_int_equal(0, aux_state_size(clone));
 }
 
-void test_add_quantities(void** state)
+static void test_add_quantities(void** state)
 {
   aux_state_t* S = aux_state_new();
 
@@ -87,7 +87,7 @@ void test_add_quantities(void** state)
   assert_true(aux_state_has_sym_tensor2(clone, 40));
 }
 
-void test_set_quantities(void** state)
+static void test_set_quantities(void** state)
 {
   aux_state_t* S = aux_state_new();
 

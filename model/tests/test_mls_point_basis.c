@@ -42,7 +42,7 @@ static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,
     (*smoothing_lengths)[i] = 0.5 * R[i];
 }
 
-void test_mls_point_basis_ctor(void** state, int p)
+static void test_mls_point_basis_ctor(void** state, int p)
 {
   point_cloud_t* domain;
   stencil_t* neighborhoods;
@@ -63,32 +63,32 @@ void test_mls_point_basis_ctor(void** state, int p)
   polymec_free(smoothing_lengths);
 }
 
-void test_mls_point_basis_ctor_0(void** state)
+static void test_mls_point_basis_ctor_0(void** state)
 {
   test_mls_point_basis_ctor(state, 0);
 }
 
-void test_mls_point_basis_ctor_1(void** state)
+static void test_mls_point_basis_ctor_1(void** state)
 {
   test_mls_point_basis_ctor(state, 1);
 }
 
-void test_mls_point_basis_ctor_2(void** state)
+static void test_mls_point_basis_ctor_2(void** state)
 {
   test_mls_point_basis_ctor(state, 2);
 }
 
-void test_mls_point_basis_ctor_3(void** state)
+static void test_mls_point_basis_ctor_3(void** state)
 {
   test_mls_point_basis_ctor(state, 3);
 }
 
-void test_mls_point_basis_ctor_4(void** state)
+static void test_mls_point_basis_ctor_4(void** state)
 {
   test_mls_point_basis_ctor(state, 4);
 }
 
-void test_mls_point_basis_zero_consistency_p(void** state, int p)
+static void test_mls_point_basis_zero_consistency_p(void** state, int p)
 {
   point_cloud_t* domain;
   stencil_t* neighborhoods;
@@ -154,29 +154,29 @@ void test_mls_point_basis_zero_consistency_p(void** state, int p)
   polymec_free(smoothing_lengths);
 }
 
-void test_mls_point_basis_zero_consistency_0(void** state)
+static void test_mls_point_basis_zero_consistency_0(void** state)
 {
   test_mls_point_basis_zero_consistency_p(state, 0);
 }
 
-void test_mls_point_basis_zero_consistency_1(void** state)
+static void test_mls_point_basis_zero_consistency_1(void** state)
 {
   test_mls_point_basis_zero_consistency_p(state, 1);
 }
 
-void test_mls_point_basis_zero_consistency_2(void** state)
+static void test_mls_point_basis_zero_consistency_2(void** state)
 {
   if (!polymec_running_in_valgrind())
     test_mls_point_basis_zero_consistency_p(state, 2);
 }
 
-void test_mls_point_basis_zero_consistency_3(void** state)
+static void test_mls_point_basis_zero_consistency_3(void** state)
 {
   if (!polymec_running_in_valgrind())
     test_mls_point_basis_zero_consistency_p(state, 3);
 }
 
-void test_mls_point_basis_zero_consistency_4(void** state)
+static void test_mls_point_basis_zero_consistency_4(void** state)
 {
   if (!polymec_running_in_valgrind())
     test_mls_point_basis_zero_consistency_p(state, 4);

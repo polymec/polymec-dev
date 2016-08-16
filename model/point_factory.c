@@ -23,6 +23,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
+int point_factory_cubic_lattice(lua_State* lua);
 int point_factory_cubic_lattice(lua_State* lua)
 {
   // The argument should be a single table of named values.
@@ -48,9 +49,9 @@ int point_factory_cubic_lattice(lua_State* lua)
 
       switch(i) 
       {
-        case 1: nx = (int)lua_tonumber(lua, -1); break;
-        case 2: ny = (int)lua_tonumber(lua, -1); break;
-        case 3: nz = (int)lua_tonumber(lua, -1); break;
+        case 1: nx = (int)(lua_tonumber(lua, -1)); break;
+        case 2: ny = (int)(lua_tonumber(lua, -1)); break;
+        case 3: nz = (int)(lua_tonumber(lua, -1)); break;
         default: break;
       }
     }
@@ -106,12 +107,14 @@ int point_factory_cubic_lattice(lua_State* lua)
   return 1;
 }
 
+docstring_t* point_factory_cubic_lattice_doc(void);
 docstring_t* point_factory_cubic_lattice_doc()
 {
   return docstring_from_string("point_factory.cubic_lattice(nx, ny, nz, bounds) - returns a uniform lattice of\n"
                                "  nx x ny x nz points filling the bounding box bounds.");
 }
 
+int point_factory_cylinder(lua_State* lua);
 int point_factory_cylinder(lua_State* lua)
 {
   // The argument should be a single table of named values.
@@ -143,9 +146,9 @@ int point_factory_cylinder(lua_State* lua)
 
       switch(i) 
       {
-        case 3: nr = (int)lua_tonumber(lua, -1); break;
-        case 4: nz = (int)lua_tonumber(lua, -1); break;
-        case 8: ng = (int)lua_tonumber(lua, -1); break;
+        case 3: nr = (int)(lua_tonumber(lua, -1)); break;
+        case 4: nz = (int)(lua_tonumber(lua, -1)); break;
+        case 8: ng = (int)(lua_tonumber(lua, -1)); break;
         default: break;
       }
     }
@@ -322,6 +325,7 @@ int point_factory_cylinder(lua_State* lua)
   return 1;
 }
 
+docstring_t* point_factory_cylinder_doc(void);
 docstring_t* point_factory_cylinder_doc()
 {
   return docstring_from_string("point_factory.cylinder{radius, length, center = {0, 0, 0},\n"
@@ -433,7 +437,7 @@ static int read_binary_stl_file(FILE* stl_file,
   
   // Read the number of triangles.
   int num_triangles;
-  int bytes_read = fread(&num_triangles, sizeof(int), 1, stl_file);
+  size_t bytes_read = fread(&num_triangles, sizeof(int), 1, stl_file);
   if (bytes_read == 0)
   {
     snprintf(error_message, 1024, "Unable to read number of triangles from binary STL file.");
@@ -451,17 +455,17 @@ static int read_binary_stl_file(FILE* stl_file,
     // Each triangle consists of 12 floats: 3 for a normal vector, and 3x3 
     // for each of the coordinates of the vertices.
     float floats[12];
-    int num_floats = fread(floats, sizeof(float), 12, stl_file);
+    size_t num_floats = fread(floats, sizeof(float), 12, stl_file);
     if (num_floats != 12)
     {
-      snprintf(error_message, 1024, "Error reading data for facet %d (%d/12 entries read).", i, num_floats);
+      snprintf(error_message, 1024, "Error reading data for facet %d (%zu/12 entries read).", i, num_floats);
       return -1;
     }
 
     // There should be 2 bytes of "attribute byte count" data that is usually 
     // not used.
     short int attr_byte_count;
-    int num_shorts = fread(&attr_byte_count, sizeof(short), 1, stl_file);
+    size_t num_shorts = fread(&attr_byte_count, sizeof(short), 1, stl_file);
     if (num_shorts != 1)
     {
       snprintf(error_message, 1024, "Error reading attribute byte count for facet %d.", i);
@@ -469,13 +473,13 @@ static int read_binary_stl_file(FILE* stl_file,
     }
 
     vector_t* n = polymec_malloc(sizeof(vector_t));
-    n->x = floats[0], n->y = floats[1], n->z = floats[2];
+    n->x = (real_t)floats[0], n->y = (real_t)floats[1], n->z = (real_t)floats[2];
     vector_t* v1 = polymec_malloc(sizeof(vector_t));
-    v1->x = floats[3], v1->y = floats[4], v1->z = floats[5];
+    v1->x = (real_t)floats[3], v1->y = (real_t)floats[4], v1->z = (real_t)floats[5];
     vector_t* v2 = polymec_malloc(sizeof(vector_t));
-    v2->x = floats[6], v2->y = floats[7], v2->z = floats[8];
+    v2->x = (real_t)floats[6], v2->y = (real_t)floats[7], v2->z = (real_t)floats[8];
     vector_t* v3 = polymec_malloc(sizeof(vector_t));
-    v3->x = floats[9], v3->y = floats[10], v3->z = floats[11];
+    v3->x = (real_t)floats[9], v3->y = (real_t)floats[10], v3->z = (real_t)floats[11];
 
     // Add the entries.
     ptr_array_append(all_normals, n);
@@ -589,7 +593,7 @@ static void import_points_from_stl(const char* stl_file_name, int* num_points, p
   ASSERT(unique_point_indices->size == averaged_normals->size);
 
   // Now build our list of points and normals.
-  *num_points = unique_point_indices->size;
+  *num_points = (int)unique_point_indices->size;
   *points = polymec_malloc(sizeof(point_t) * unique_point_indices->size);
   *normals = polymec_malloc(sizeof(vector_t) * unique_point_indices->size);
   for (int i = 0; i < unique_point_indices->size; ++i)
@@ -617,6 +621,7 @@ exit_on_error:
   return;
 }
 
+int point_factory_import_from_cad(lua_State* lua);
 int point_factory_import_from_cad(lua_State* lua)
 {
   int num_args = lua_gettop(lua);
@@ -653,7 +658,7 @@ int point_factory_import_from_cad(lua_State* lua)
   point_t* points = NULL;
   vector_t* normals = NULL;
   char error_message[1024];
-  int num_points;
+  int num_points = 0;
   if (!string_casecmp(suffix, ".stl"))
     import_points_from_stl(cad_file_name, &num_points, &points, &normals, error_message);
 
@@ -669,12 +674,14 @@ int point_factory_import_from_cad(lua_State* lua)
   return 1;
 }
 
+docstring_t* point_factory_import_from_cad_doc(void);
 docstring_t* point_factory_import_from_cad_doc()
 {
   return docstring_from_string("point_factory.import_from_cad(cad_file_name) -\n"
                                "  Returns a list of points read from a CAD (STL text or binary) file.");
 }
 
+int point_factory_random_points(lua_State* lua);
 int point_factory_random_points(lua_State* lua)
 {
   // Check the arguments.
@@ -683,7 +690,7 @@ int point_factory_random_points(lua_State* lua)
     return luaL_error(lua, "Invalid arguments. Usage:\npoints = random_points(N, bounding_box) OR\npoints = random_points(N, density, bounding_box)");
 
   // Get the arguments.
-  int N = (int)lua_tonumber(lua, 1);
+  int N = (int)(lua_tonumber(lua, 1));
   if (N <= 0)
     return luaL_error(lua, "Invalid (nonpositive) number of points.");
 
@@ -721,6 +728,7 @@ int point_factory_random_points(lua_State* lua)
   return 1;
 }
 
+docstring_t* point_factory_random_points_doc(void);
 docstring_t* point_factory_random_points_doc()
 {
   return docstring_from_string("point_factory.random_points(N, bounding_box) OR\n"
@@ -729,6 +737,7 @@ docstring_t* point_factory_random_points_doc()
                                "  box, with an optional (scalar) point density function specified.");
 }
 
+int point_factory_ccp_points(lua_State* lua);
 int point_factory_ccp_points(lua_State* lua)
 {
   // Check the arguments.
@@ -740,9 +749,9 @@ int point_factory_ccp_points(lua_State* lua)
   }
 
   // Get the arguments.
-  int Nx = (int)lua_tonumber(lua, 1);
-  int Ny = (int)lua_tonumber(lua, 2);
-  int Nz = (int)lua_tonumber(lua, 3);
+  int Nx = (int)(lua_tonumber(lua, 1));
+  int Ny = (int)(lua_tonumber(lua, 2));
+  int Nz = (int)(lua_tonumber(lua, 3));
   if ((Nx <= 0) || (Ny <= 0) || (Nz <= 0))
     return luaL_error(lua, "Nx, Ny, and Nz must all be positive.");
 

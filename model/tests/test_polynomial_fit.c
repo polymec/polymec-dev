@@ -13,7 +13,7 @@
 #include "core/polynomial.h"
 #include "model/polynomial_fit.h"
 
-void test_polynomial_fit_ctor(void** state, int num_components, int p, polynomial_fit_solver_t solver_type)
+static void test_polynomial_fit_ctor(void** state, int num_components, int p, polynomial_fit_solver_t solver_type)
 {
   polynomial_fit_t* fit = polynomial_fit_new(num_components, p, solver_type);
   assert_int_equal(num_components, polynomial_fit_num_components(fit));
@@ -23,7 +23,7 @@ void test_polynomial_fit_ctor(void** state, int num_components, int p, polynomia
   polynomial_fit_free(fit);
 }
 
-void test_polynomial_fit_new(void** state)
+static void test_polynomial_fit_new(void** state)
 {
   for (int num_comp = 1; num_comp < 8; ++num_comp)
   {
@@ -36,8 +36,8 @@ void test_polynomial_fit_new(void** state)
   }
 }
 
-void test_fit_consistency(void** state, polynomial_fit_t* fit, int component,
-                          polynomial_t* p, int num_points, bbox_t* bbox)
+static void test_fit_consistency(void** state, polynomial_fit_t* fit, int component,
+                                 polynomial_t* p, int num_points, bbox_t* bbox)
 {
   rng_t* rng = host_rng_new();
   int num_comp = polynomial_fit_num_components(fit);
@@ -71,8 +71,8 @@ void test_fit_consistency(void** state, polynomial_fit_t* fit, int component,
   }
 }
 
-void test_polynomial_fit(void** state, polynomial_t** polynomials, 
-                         int num_components, polynomial_fit_solver_t solver_type)
+static void test_polynomial_fit(void** state, polynomial_t** polynomials, 
+                                int num_components, polynomial_fit_solver_t solver_type)
 {
   rng_t* rng = host_rng_new();
   int p = polynomial_degree(polynomials[0]);
@@ -124,7 +124,7 @@ void test_polynomial_fit(void** state, polynomial_t** polynomials,
   polynomial_fit_free(fit);
 }
 
-void test_polynomial_fit_constant_scalar(void** state)
+static void test_polynomial_fit_constant_scalar(void** state)
 {
   real_t coeffs[] = {3.0};
   point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
@@ -134,7 +134,7 @@ void test_polynomial_fit_constant_scalar(void** state)
   test_polynomial_fit(state, &p0, 1, SINGULAR_VALUE_DECOMPOSITION);
 }
 
-void test_polynomial_fit_constant_vector(void** state)
+static void test_polynomial_fit_constant_vector(void** state)
 {
   real_t coeffs1[] = {1.0};
   real_t coeffs2[] = {2.0};
@@ -149,7 +149,7 @@ void test_polynomial_fit_constant_vector(void** state)
   test_polynomial_fit(state, poly, 3, SINGULAR_VALUE_DECOMPOSITION);
 }
 
-void test_polynomial_fit_linear_scalar(void** state)
+static void test_polynomial_fit_linear_scalar(void** state)
 {
   real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
   point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};
@@ -159,7 +159,7 @@ void test_polynomial_fit_linear_scalar(void** state)
   test_polynomial_fit(state, &p1, 1, SINGULAR_VALUE_DECOMPOSITION);
 }
 
-void test_polynomial_fit_linear_vector(void** state)
+static void test_polynomial_fit_linear_vector(void** state)
 {
   real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
   point_t x0 = {.x = 0.0, .y = 0.0, .z = 0.0};

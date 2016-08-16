@@ -359,6 +359,7 @@ static int piecewise_function(lua_State* lua)
 static const char* indicators_doc = 
   "indicators -- Indicator functions that return 1 inside of a region and 0 outside.";
 
+void interpreter_register_indicators(interpreter_t* interp);
 void interpreter_register_indicators(interpreter_t* interp)
 {
   interpreter_register_global_table(interp, "indicators", docstring_from_string(indicators_doc));

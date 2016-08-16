@@ -17,14 +17,14 @@
 
 #define BOLTZMANN_CONSTANT 1
 
-void test_define_units_system(void** state)
+static void test_define_units_system(void** state)
 {
   define_units_system(SI_UNITS);
   define_units_system(CGS_UNITS);
   use_units_system(SI_UNITS);
 }
 
-void test_set_physical_constant(void** state)
+static void test_set_physical_constant(void** state)
 {
   set_physical_constant(BOLTZMANN_CONSTANT, 1.3807e-23, SI_UNITS);
   set_physical_constant(BOLTZMANN_CONSTANT, 1.3807e-16, CGS_UNITS);
@@ -36,7 +36,7 @@ void test_set_physical_constant(void** state)
   assert_true(reals_equal(physical_constant(BOLTZMANN_CONSTANT), 1.3807e-16));
 }
 
-void test_conversion_factor(void** state)
+static void test_conversion_factor(void** state)
 {
   real_t kb1 = physical_constant_in_units(BOLTZMANN_CONSTANT, SI_UNITS);
   real_t kb2 = physical_constant_in_units(BOLTZMANN_CONSTANT, CGS_UNITS);

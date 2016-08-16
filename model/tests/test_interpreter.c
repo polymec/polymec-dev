@@ -12,7 +12,7 @@
 #include "cmocka.h"
 #include "model/interpreter.h"
 
-void test_interpreter_with_long_string(void** state)
+static void test_interpreter_with_long_string(void** state)
 {
   static const char* test_string = 
     "f = constant_function(5)\n"
@@ -99,7 +99,7 @@ void test_interpreter_with_long_string(void** state)
   assert_true(fabs(answer - sqrt(10.0)) < 1e-15);
 
   assert_true(interpreter_contains(interp, "g", INTERPRETER_NUMBER));
-  assert_true((int)interpreter_get_number(interp, "g") == 2);
+  assert_true((int)(interpreter_get_number(interp, "g")) == 2);
 
   assert_true(interpreter_contains(interp, "h", INTERPRETER_NUMBER));
   assert_true(reals_equal(interpreter_get_number(interp, "h"), 3.0));
@@ -111,7 +111,7 @@ void test_interpreter_with_long_string(void** state)
   interpreter_free(interp);
 }
 
-void test_point_parsing(void** state)
+static void test_point_parsing(void** state)
 {
   static const char* test_string = "p = {1.0, 2.0, 3.0}";
   interpreter_validation_t valid_inputs[] = {{"p", INTERPRETER_POINT, REQUIRED},
@@ -130,7 +130,7 @@ void test_point_parsing(void** state)
   interpreter_free(interp);
 }
 
-void test_vector_parsing(void** state)
+static void test_vector_parsing(void** state)
 {
   static const char* test_string = "v = {1.0, 2.0, 3.0}";
   interpreter_validation_t valid_inputs[] = {{"v", INTERPRETER_VECTOR, REQUIRED},
@@ -149,7 +149,7 @@ void test_vector_parsing(void** state)
   interpreter_free(interp);
 }
 
-void test_boundingbox_parsing(void** state)
+static void test_boundingbox_parsing(void** state)
 {
   static const char* test_string = "b = bounding_box{x1 = 0.0, x2 = 1.0, y1 = 0.0, y2 = 1.0, z1 = 0.0, z2 = 1.0}";
   interpreter_validation_t valid_inputs[] = {{"b", INTERPRETER_BOUNDING_BOX, REQUIRED},
@@ -171,7 +171,7 @@ void test_boundingbox_parsing(void** state)
   interpreter_free(interp);
 }
 
-void test_pointlist_parsing(void** state)
+static void test_pointlist_parsing(void** state)
 {
   static const char* test_string = 
     "pts = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, "
@@ -204,7 +204,7 @@ void test_pointlist_parsing(void** state)
   interpreter_free(interp);
 }
 
-void test_vectorlist_parsing(void** state)
+static void test_vectorlist_parsing(void** state)
 {
   static const char* test_string = 
     "vecs = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, "
@@ -239,7 +239,7 @@ void test_vectorlist_parsing(void** state)
   interpreter_free(interp);
 }
 
-void test_table_parsing(void** state)
+static void test_table_parsing(void** state)
 {
   static const char* test_string = "tab = {a = 1, b = 'bob', c = 2.0}";
   interpreter_validation_t valid_inputs[] = {{"tab", INTERPRETER_TABLE, REQUIRED},
@@ -267,7 +267,7 @@ void test_table_parsing(void** state)
   interpreter_free(interp);
 }
 
-void test_scalarfunction_parsing(void** state)
+static void test_scalarfunction_parsing(void** state)
 {
   point_t x = {.x = 1.0, .y = 2.0, .z = 3.0};
   real_t val, t = 1.0;

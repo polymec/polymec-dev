@@ -71,6 +71,7 @@ static docstring_t* rect_prism_doc()
                                "  prism occupying the space within the bounding box bbox.");
 }
 
+void interpreter_register_sd_functions(interpreter_t* interp);
 void interpreter_register_sd_functions(interpreter_t* interp)
 {
   interpreter_register_global_table(interp, "signed_distance_functions", signed_distance_functions_doc());

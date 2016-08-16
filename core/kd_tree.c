@@ -95,7 +95,7 @@ struct kd_tree_t
 {
   kd_tree_node_t* root; // Root node of 3d-tree.
   kd_tree_rect_t* rect; // Containing rectangle.
-  int size;               // Number of points.
+  size_t size;          // Number of points.
 
   // Point cache for traversal.
   real_array_t* point_cache;
@@ -133,7 +133,7 @@ static void kd_tree_insert(kd_tree_t* tree, point_t* point, int index)
   real_array_append(tree->point_cache, point->z);
 }
 
-kd_tree_t* kd_tree_new(point_t* points, int num_points)
+kd_tree_t* kd_tree_new(point_t* points, size_t num_points)
 {
   kd_tree_t* tree = polymec_malloc(sizeof(kd_tree_t));
   tree->root = NULL;
@@ -146,7 +146,7 @@ kd_tree_t* kd_tree_new(point_t* points, int num_points)
   return tree;
 }
 
-int kd_tree_size(kd_tree_t* tree)
+size_t kd_tree_size(kd_tree_t* tree)
 {
   return tree->size;
 }
@@ -603,7 +603,7 @@ exchanger_t* kd_tree_find_ghost_points(kd_tree_t* tree, MPI_Comm comm, real_t R_
         point_t x = {.x = point_data->data[3*i], 
                      .y = point_data->data[3*i+1],
                      .z = point_data->data[3*i+2]};
-        int ghost_index = tree->size;
+        int ghost_index = (int)tree->size;
         kd_tree_insert(tree, &x, ghost_index);
         int_array_append(received_point_indices, ghost_index);
       }

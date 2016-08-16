@@ -40,6 +40,7 @@ static point_weight_function_t* hat_function_new(real_t h)
   return point_weight_function_new("Hat function", Wh, vtable);
 }
 
+neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h);
 neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h)
 {
   point_weight_function_t* W = hat_function_new(h);

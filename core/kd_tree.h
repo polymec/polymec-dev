@@ -18,13 +18,13 @@
 typedef struct kd_tree_t kd_tree_t;
 
 // Constructs a kd-tree containing the given points. Data is copied into the tree.
-kd_tree_t* kd_tree_new(point_t* points, int num_points);
+kd_tree_t* kd_tree_new(point_t* points, size_t num_points);
 
 // Destroys the given tree, freeing its resources.
 void kd_tree_free(kd_tree_t* tree);
 
 // Returns the number of points in the tree.
-int kd_tree_size(kd_tree_t* tree);
+size_t kd_tree_size(kd_tree_t* tree);
 
 // Returns the index of the point in the tree that is closest to 
 // the given point, or -1 if the tree is empty.

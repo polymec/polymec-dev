@@ -42,7 +42,7 @@ static void make_lattice(int nx, int ny, int nz, real_t h_over_dx,
     (*smoothing_lengths)[i] = 0.5 * R[i];
 }
 
-void test_shepard_point_basis_ctor(void** state)
+static void test_shepard_point_basis_ctor(void** state)
 {
   point_cloud_t* domain;
   stencil_t* neighborhoods;
@@ -63,7 +63,7 @@ void test_shepard_point_basis_ctor(void** state)
   polymec_free(smoothing_lengths);
 }
 
-void test_shepard_point_basis_consistency(void** state)
+static void test_shepard_point_basis_consistency(void** state)
 {
   point_cloud_t* domain;
   stencil_t* neighborhoods;

@@ -14,7 +14,8 @@
 #include "lauxlib.h"
 
 // Type code for periodic BCs.
-extern int periodic_bc_type_code;
+extern int periodic_bc_type_code(void);
+extern void set_periodic_bc_type_code(int);
 
 // Creates a periodic boundary condition from a pair of tags.
 static int periodic_bc(lua_State* lua)
@@ -33,7 +34,7 @@ static int periodic_bc(lua_State* lua)
   const char* tag1 = lua_tostring(lua, 1);
   const char* tag2 = lua_tostring(lua, 2);
   periodic_bc_t* bc = periodic_bc_new(tag1, tag2);
-  lua_pushuserdefined(lua, bc, periodic_bc_type_code, NULL);
+  lua_pushuserdefined(lua, bc, periodic_bc_type_code(), NULL);
   return 1;
 }
 
@@ -44,8 +45,9 @@ static docstring_t* periodic_bc_doc()
                                "  identified by the two face tags in a mesh.");
 }
 
+void interpreter_register_model_functions(interpreter_t* interp);
 void interpreter_register_model_functions(interpreter_t* interp)
 {
-  periodic_bc_type_code = interpreter_new_user_defined_type_code(interp);
+  set_periodic_bc_type_code(interpreter_new_user_defined_type_code(interp));
   interpreter_register_function(interp, "periodic_bc", periodic_bc, periodic_bc_doc());
 }

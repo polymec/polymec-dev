@@ -15,14 +15,14 @@
 #include "geometry/create_uniform_mesh.h"
 #include "model/mesh_stencils.h"
 
-void test_NXxNYxNZ_star_stencil(void** state, 
-                                MPI_Comm comm,
-                                int radius,
-                                int nx, int ny, int nz,
-                                int num_interior_neighbors, 
-                                int num_boundary_neighbors, 
-                                int num_edge_neighbors,
-                                int num_corner_neighbors)
+static void test_NXxNYxNZ_star_stencil(void** state, 
+                                       MPI_Comm comm,
+                                       int radius,
+                                       int nx, int ny, int nz,
+                                       int num_interior_neighbors, 
+                                       int num_boundary_neighbors, 
+                                       int num_edge_neighbors,
+                                       int num_corner_neighbors)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* mesh = create_uniform_mesh(comm, nx, ny, nz, &bbox);
@@ -80,37 +80,37 @@ void test_NXxNYxNZ_star_stencil(void** state,
   mesh_free(mesh);
 }
 
-void test_serial_1x1x1_cell_star_stencil(void** state)
+static void test_serial_1x1x1_cell_star_stencil(void** state)
 {
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_SELF, 1, 1, 1, 1, 0, 0, 0, 0);
 }
 
-void test_serial_10x1x1_cell_star_stencil(void** state)
+static void test_serial_10x1x1_cell_star_stencil(void** state)
 {
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_SELF, 1, 10, 1, 1, 0, 0, 2, 1);
 }
 
-void test_serial_10x10x1_cell_star_stencil(void** state)
+static void test_serial_10x10x1_cell_star_stencil(void** state)
 {
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_SELF, 1, 10, 10, 1, 4, 4, 3, 2);
 }
 
-void test_serial_10x10x10_cell_star_stencil(void** state)
+static void test_serial_10x10x10_cell_star_stencil(void** state)
 {
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_SELF, 1, 10, 10, 10, 6, 5, 4, 3);
 }
 
-void test_parallel_10x1x1_cell_star_stencil(void** state)
+static void test_parallel_10x1x1_cell_star_stencil(void** state)
 {
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_WORLD, 1, 10, 1, 1, 0, 0, 2, 1);
 }
 
-void test_parallel_10x10x1_cell_star_stencil(void** state)
+static void test_parallel_10x10x1_cell_star_stencil(void** state)
 {
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_WORLD, 1, 10, 10, 1, 4, 4, 3, 2);
 }
 
-void test_parallel_10x10x10_cell_star_stencil(void** state)
+static void test_parallel_10x10x10_cell_star_stencil(void** state)
 {
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_WORLD, 1, 10, 10, 10, 6, 5, 4, 3);
 }

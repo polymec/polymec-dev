@@ -71,15 +71,15 @@ static int sample_bbox(lua_State* lua)
   }
 
   bbox_t* bbox = lua_toboundingbox(lua, 1);
-  int nx = (int)lua_tonumber(lua, 2);
+  int nx = (int)(lua_tonumber(lua, 2));
   if (nx <= 0)
     return luaL_error(lua, "nx must be a positive number of x points.");
 
-  int ny = (int)lua_tonumber(lua, 3);
+  int ny = (int)(lua_tonumber(lua, 3));
   if (ny <= 0)
     return luaL_error(lua, "ny must be a positive number of y points.");
 
-  int nz = (int)lua_tonumber(lua, 4);
+  int nz = (int)(lua_tonumber(lua, 4));
   if (nz <= 0)
     return luaL_error(lua, "nz must be a positive number of z points.");
 
@@ -228,15 +228,15 @@ static int sample_cyl_shell(lua_State* lua)
   if (z2 <= z1)
     return luaL_error(lua, "z2 must be greater than z1.");
 
-  int nr = (int)lua_tonumber(lua, 5);
+  int nr = (int)(lua_tonumber(lua, 5));
   if (nr <= 0)
     return luaL_error(lua, "nr must be a positive number of radial points.");
 
-  int nphi = (int)lua_tonumber(lua, 6);
+  int nphi = (int)(lua_tonumber(lua, 6));
   if (nphi <= 0)
     return luaL_error(lua, "nphi must be a positive number of azimuthal points.");
 
-  int nz = (int)lua_tonumber(lua, 7);
+  int nz = (int)(lua_tonumber(lua, 7));
   if (nz <= 0)
     return luaL_error(lua, "nz must be a positive number of axial points.");
 
@@ -610,6 +610,7 @@ static docstring_t* remove_points_doc()
                                "  a sequence of indices) removed.");
 }
 
+void interpreter_register_geometry_functions(interpreter_t* interp);
 void interpreter_register_geometry_functions(interpreter_t* interp)
 {
   // Set up a point factory for generating points in 3D.

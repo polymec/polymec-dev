@@ -2144,12 +2144,12 @@ static int vector_mul(lua_State* lua)
   int factor;
   if (lua_isnumber(lua, -1))
   {
-    factor = (int)lua_tonumber(lua, -1);
+    factor = (int)(lua_tonumber(lua, -1));
     var = (void*)lua_topointer(lua, -2);
   }
   else
   {
-    factor = (int)lua_tonumber(lua, -2);
+    factor = (int)(lua_tonumber(lua, -2));
     var = (void*)lua_topointer(lua, -1);
   }
   ASSERT(var->type == INTERPRETER_VECTOR);
