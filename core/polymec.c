@@ -54,6 +54,9 @@
 // _MM_MASK_DENORM          denormalized number
 #endif
 
+// FIXME: This isn't a standard C function.
+extern int gethostname(char *name, size_t len);
+
 // This flag tells us whether polymec is already initialized.
 static bool polymec_initialized = false;
 
@@ -151,7 +154,7 @@ static void shutdown()
 #endif
 }
 
-static void handle_sigint(int signal)
+static noreturn void handle_sigint(int signal)
 {
   log_detail("polymec: intercepted Ctrl-C: exiting.");
   polymec_disable_fpe();
