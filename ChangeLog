@@ -1,3 +1,13 @@
+Mon Aug 15 20:10:58 PDT 2016  Jeffrey Johnson <jjphatt@gmail.com>
+    * polymec: version 1.2.1
+    * Improved OpenMP detection.
+    * Added the ability to suppress OpenMP.
+    * Enabled more serious static analysis via compiler warnings/errors.
+    * Fixed several minor issues uncovered by static analysis.
+    * Added floating-point comparison functions
+      * reals_equal - true/false if two reals are equal/not equal
+      * set_real_epsilon - sets threshold for equality of reals 
+      * reals_nearly_equal - true/false if two reals are within a given tolerance.
 Thu Aug  4 15:53:04 PDT 2016  Jeffrey Johnson <jjphatt@gmail.com>
     * polymec: version 1.2
     * Fixed a minor problem in HDF5 library location with polyglot.

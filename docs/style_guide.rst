@@ -150,7 +150,8 @@ Functions
 
 Any function that is part of Polymec's API should be declared within a 
 header file. A function may be "inlined" using the ``static inline``
-C construct.
+C construct. Functions with no arguments must be declared with ``void`` in 
+their argument list, per the C11 standard.
 
 Global variables 
 ----------------
@@ -180,6 +181,15 @@ dynamic arrays, tuples, linked lists, unordered and ordered sets, unordered
 and ordered maps, tables, space-filling curves, space-time functions, sparse 
 matrices, random number generators, kd-trees, and so on. Please check here 
 before you decide to implement your own data structure.
+
+Floating point comparisons
+--------------------------
+
+Avoid comparing two floating point numbers to see whether they are equal. 
+Instead, use the ``reals_equal`` and ``reals_nearly_equal`` functions that 
+allow two floating point numbers to be equated when they differ by an amount 
+below some threshold. The former uses a threshold set by ``set_real_epsilon``, 
+whereas the latter uses a threshold specified in the call.
 
 Scoping
 =======
