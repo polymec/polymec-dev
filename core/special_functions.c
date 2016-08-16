@@ -9,7 +9,7 @@
 #include "core/special_functions.h"
 
 #ifndef CMPLX
-#define CMPLX(x,y) ((double)(x)+I*(double)(y))
+#define CMPLX(x,y) ((double)(x)+(double complex)I*(double)(y))
 #endif
 
 // FIXME: Remove these pragmas when all special functions are implemented.
