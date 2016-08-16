@@ -131,7 +131,7 @@ elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
   endif()
 
   # Deal with older versions of Clang.
-  if (NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang" AND CMAKE_C_COMPILER_VERSION STRLESS "5")
+  if (NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang" AND CMAKE_C_COMPILER_VERSION STRLESS "3.6")
     # tolower() is a recursive macro, which causes issues.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-disabled-macro-expansion")
   endif()

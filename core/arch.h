@@ -13,17 +13,13 @@
 // This file contains functions that are unavailable on certain target 
 // architectures.
 
-#if defined(APPLE) || defined(__INTEL_COMPILER)
-
 #include <pthread.h>
 
-// This is a port of the fmemopen function (available on Linux).
+// This is a port of the fmemopen function, which is not part of the C standard.
 FILE* fmemopen(void *buf, size_t size, const char *mode);
 
-// This is a port of open_memstream (available on Linux).
+// This is a port of open_memstream, which is not part of the C standard.
 FILE* open_memstream(char **buf, size_t *len);
-
-#endif
 
 #ifdef APPLE
 //------------------------------------------------------------------------
