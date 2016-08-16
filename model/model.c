@@ -1218,7 +1218,7 @@ void* model_context(model_t* model)
   return model->context;
 }
 
-static void driver_usage(const char* model_name)
+static noreturn void driver_usage(const char* model_name)
 {
   print_to_rank0("%s: usage:\n", model_name);
   print_to_rank0("%s [command] [args]\n\n", model_name);
@@ -1505,8 +1505,8 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   return 0;
 }
 
-static void multi_model_usage(const char* exe_name, 
-                              model_dispatch_t models[])
+static noreturn void multi_model_usage(const char* exe_name, 
+                                       model_dispatch_t models[])
 {
   print_to_rank0("%s: usage:\n", exe_name);
   print_to_rank0("%s [command] [model] [args]\n\n", exe_name);
@@ -1761,7 +1761,7 @@ int multi_model_main(model_dispatch_t model_table[],
   return 0;
 }
 
-static void minimal_driver_usage(const char* model_name)
+static noreturn void minimal_driver_usage(const char* model_name)
 {
   print_to_rank0("%s: usage:\n", model_name);
   print_to_rank0("%s input [option1=val [option2=val2 [...]]]\n\n", model_name);

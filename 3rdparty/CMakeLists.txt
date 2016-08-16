@@ -9,6 +9,7 @@ math(EXPR NUM_BUILD_THREADS "${NUMBER_OF_CORES} + 1")
 string(REPLACE "-Werror " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-Weverything " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-Wmissing-prototypes " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+string(REPLACE "-Wfloat-equal" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 
 # Build cmocka, a C unit testing library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)

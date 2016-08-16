@@ -648,16 +648,12 @@ int bdf_ode_integrator_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 //------------------------------------------------------------------------
 //                  Inexact Newton-Krylov integrator stuff
 //------------------------------------------------------------------------
-static int ink_rhs(void* context, real_t t, real_t* x, real_t* xdot)
-{
-  return 0;
-}
+//static int ink_rhs(void* context, real_t t, real_t* x, real_t* xdot)
+//{
+//  return 0;
+//}
 
-// FIXME
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsuggest-attribute=noreturn"
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wsuggest-attribute=noreturn"
+noreturn 
 ode_integrator_t* ink_bdf_ode_integrator_new(int order, 
                                              MPI_Comm comm,
                                              int num_local_values, 
@@ -672,7 +668,7 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
                                              krylov_vector_t* vector)
 {
   POLYMEC_NOT_IMPLEMENTED
-
+#if 0
   ASSERT(order >= 1);
   ASSERT(order <= 5);
   ASSERT(num_local_values > 0);
@@ -730,6 +726,7 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
   bdf_ode_integrator_set_tolerances(I, 1e-4, 1.0);
 
   return I;
+#endif
 }
 #pragma GCC diagnostic pop
 #pragma clang diagnostic pop
