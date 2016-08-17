@@ -159,6 +159,7 @@ static noreturn void handle_sigint(int signal)
   log_detail("polymec: intercepted Ctrl-C: exiting.");
   polymec_disable_fpe();
   exit(0);
+  polymec_unreachable();
 }
 
 #if POLYMEC_HAVE_MPI

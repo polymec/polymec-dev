@@ -1065,15 +1065,17 @@ static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
   // Retrieve the values into an array.
   index_t rows[M];
   real_t values[M];
+  size_t count = 0;
   for (int i = 0; i < M; ++i)
   {
     rows[i] = (index_t)i;
 #if POLYMEC_HAVE_SINGLE_PRECISION
-    fscanf(f, "%g\n", &values[i]);
+    count += fscanf(f, "%g\n", &values[i]);
 #else
-    fscanf(f, "%lg\n", &values[i]);
+    count += fscanf(f, "%lg\n", &values[i]);
 #endif
   }
+  ASSERT(count == (size_t)M);
 
   index_t self_row_dist[2] = {0, M};
   krylov_vector_t* x = krylov_factory_vector(factory, MPI_COMM_SELF, self_row_dist);

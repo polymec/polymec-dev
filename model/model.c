@@ -1236,6 +1236,7 @@ static noreturn void driver_usage(const char* model_name)
   print_to_rank0("  help list                 -- Prints a list of available functions.\n");
   print_to_rank0("  help [function/symbol]    -- Prints documentation for a function/symbol.\n");
   exit(0);
+  polymec_unreachable();
 }
 
 // General help for runtime options.
@@ -1534,6 +1535,7 @@ static noreturn void multi_model_usage(const char* exe_name,
     ++i;
   }
   exit(0);
+  polymec_unreachable();
 }
 
 // Prints model-specific help for multi-model programs.
@@ -1766,6 +1768,7 @@ static noreturn void minimal_driver_usage(const char* model_name)
   print_to_rank0("%s: usage:\n", model_name);
   print_to_rank0("%s input [option1=val [option2=val2 [...]]]\n\n", model_name);
   exit(0);
+  polymec_unreachable();
 }
 
 int model_minimal_main(const char* model_name, model_ctor constructor, int argc, char* argv[])

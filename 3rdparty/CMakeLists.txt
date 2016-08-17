@@ -319,7 +319,7 @@ if (NOT EXISTS ${SILO_LIBRARY})
   if (BUILD_SHARED_LIBS AND LINUX)
     set(SILO_C_FLAGS "${SILO_C_FLAGS} -fPIC")
   endif()
-  set(SILO_ENV CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} CFLAGS=${SILO_C_FLAGS})
+  set(SILO_ENV CC=${CMAKE_C_COMPILER} CFLAGS=${SILO_C_FLAGS})
   if (LINUX EQUAL 1)
    # Note: Linux needs -ldl when building Silo because of HDF5's new 
    # Note: dynamically-loaded filters.
