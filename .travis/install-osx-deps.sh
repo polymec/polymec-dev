@@ -1,6 +1,6 @@
 # Install required software
 brew update
-brew install gcc openmpi 
+brew install gcc openmpi autoconf
 brew upgrade cmake
 
 # Make sure the weird gfortran library links are in place.
