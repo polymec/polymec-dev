@@ -320,7 +320,7 @@ if (NOT EXISTS ${SILO_LIBRARY})
     set(SILO_C_FLAGS "${SILO_C_FLAGS} -fPIC")
   endif()
   set(SILO_ENV CC=${CMAKE_C_COMPILER} CFLAGS=${SILO_C_FLAGS})
-  if (LINUX EQUAL 1)
+  if (LINUX)
    # Note: Linux needs -ldl when building Silo because of HDF5's new 
    # Note: dynamically-loaded filters.
    set(SILO_ENV ${SILO_ENV} LIBS=-ldl)
@@ -334,6 +334,10 @@ if (NOT EXISTS ${SILO_LIBRARY})
     if (TRAVIS_CI)
       message(WARNING "Configuration of silo library failed:")
       message(WARNING "silo config command: configure ${SILO_CONFIG_OPTS}")
+      message(WARNING "silo config log:")
+      message(WARNING "${silo_config_log}")
+      message(WARNING "silo config error log:")
+      message(WARNING "${silo_config_err}")
       if (NOT EXISTS ${HDF5_LIBRARY})
         message(WARNING "HDF5 library ${HDF5_LIBRARY} not found.")
       endif()
@@ -655,7 +659,7 @@ set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
 # for arbitrary-precision geometric predicates. 
 # Since random() is not part of the C standard, we can't lean on it in general.
 add_library(jrs_predicates jrs_predicates/predicates.c)
-if (LINUX EQUAL 1)
+if (LINUX)
   # On Linux, rand() and random() are the same.
   set_target_properties(jrs_predicates PROPERTIES COMPILE_FLAGS 
                         "-Drandom=rand ${CMAKE_C_FLAGS}")

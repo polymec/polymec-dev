@@ -100,6 +100,7 @@ static void test_serial_10x10x10_cell_star_stencil(void** state)
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_SELF, 1, 10, 10, 10, 6, 5, 4, 3);
 }
 
+#if POLYMEC_HAVE_MPI
 static void test_parallel_10x1x1_cell_star_stencil(void** state)
 {
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_WORLD, 1, 10, 1, 1, 0, 0, 2, 1);
@@ -114,6 +115,7 @@ static void test_parallel_10x10x10_cell_star_stencil(void** state)
 {
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_WORLD, 1, 10, 10, 10, 6, 5, 4, 3);
 }
+#endif
 
 int main(int argc, char* argv[]) 
 {
