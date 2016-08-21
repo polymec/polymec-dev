@@ -1127,13 +1127,15 @@ static void matrix_manipulate_fixed_blocks(void* context, index_t num_blocks,
     index_t block_column = block_columns[i];
     index_t num_rows = bs;
     index_t rows[bs], num_columns[bs], columns[bs*bs];
-    int l = 0;
-    for (int j = 0; j < bs; ++j)
     {
-      rows[j] = bs * block_row + j;
-      num_columns[j] = bs;
-      for (int k = 0; k < bs; ++k, ++l)
-        columns[l] = bs * block_column + k;
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          columns[l] = bs * block_column + k;
+      }
     }
 
     // Copy in the values if we are inserting/adding.
@@ -1232,13 +1234,15 @@ static void matrix_manipulate_var_blocks(void* context, index_t num_blocks,
     index_t bs = mat->block_sizes[block_row];
     index_t num_rows = bs;
     index_t rows[bs], num_columns[bs], columns[bs*bs];
-    int l = 0;
-    for (int j = 0; j < bs; ++j)
     {
-      rows[j] = bs * block_row + j;
-      num_columns[j] = bs;
-      for (int k = 0; k < bs; ++k, ++l)
-        columns[l] = bs * block_column + k;
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          columns[l] = bs * block_column + k;
+      }
     }
 
     // Copy in the values if we are inserting/adding.
