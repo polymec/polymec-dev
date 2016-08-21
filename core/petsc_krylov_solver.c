@@ -647,16 +647,17 @@ static void petsc_matrix_manipulate_fixed_blocks(void* context, index_t num_bloc
     // Assemble the rows/columns.
     index_t block_row = block_rows[i];
     index_t block_column = block_columns[i];
-log_debug("Inserting block of size %d at (%d, %d)\n", bs, block_row, block_column);
     index_t num_rows = bs;
     index_t rows[bs], num_columns[bs], columns[bs*bs];
-    int l = 0;
-    for (int j = 0; j < bs; ++j)
     {
-      rows[j] = bs * block_row + j;
-      num_columns[j] = bs;
-      for (int k = 0; k < bs; ++k, ++l)
-        columns[l] = bs * block_column + k;
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          columns[l] = bs * block_column + k;
+      }
     }
 
     // Copy in the values if we are inserting/adding.
@@ -843,13 +844,15 @@ static void petsc_matrix_manipulate_var_blocks(void* context, index_t num_blocks
     int bs = petsc_matrix_block_size(mat, block_row);
     index_t num_rows = bs;
     index_t rows[bs], num_columns[bs], columns[bs*bs];
-    int l = 0;
-    for (int j = 0; j < bs; ++j)
     {
-      rows[j] = bs * block_row + j;
-      num_columns[j] = bs;
-      for (int k = 0; k < bs; ++k, ++l)
-        columns[l] = bs * block_column + k;
+      int l = 0;
+      for (int j = 0; j < bs; ++j)
+      {
+        rows[j] = bs * block_row + j;
+        num_columns[j] = bs;
+        for (int k = 0; k < bs; ++k, ++l)
+          columns[l] = bs * block_column + k;
+      }
     }
 
     // Copy in the values if we are inserting/adding.
