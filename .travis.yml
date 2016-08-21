@@ -22,12 +22,26 @@ env:
   - DEBUG=1 MPI=1 SHARED=0
   - DEBUG=1 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
 
-# Currently Apple doesn't use the real gcc, even if you tell it to.
-# So we exclude the gcc compiler option from Mac builds.
+# * Currently Apple doesn't use the real gcc, even if you tell it to,
+#   so we exclude the GCC compiler option from Mac builds.
+# * In addition, we exclude Clang from all MPI Linux builds, since the Ubuntu 
+#   OpenMPI package uses GCC no matter what.
 matrix:
   exclude:
   - os: osx
     compiler: gcc
+  - os: linux
+    compiler: clang
+    env: DEBUG=0 MPI=1 SHARED=0
+  - os: linux
+    compiler: clang
+    env: DEBUG=0 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+  - os: linux
+    compiler: clang
+    env: DEBUG=1 MPI=1 SHARED=0
+  - os: linux
+    compiler: clang
+    env: DEBUG=1 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
 
 install: bash ./.travis/install-$TRAVIS_OS_NAME-deps.sh
 
