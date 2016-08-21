@@ -816,7 +816,8 @@ exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh)
     // Get the receive transaction corresponding to this send one.
     int *r_indices, r_size; 
     bool have_it = exchanger_get_receive(cell_ex, proc, &r_indices, &r_size);
-    ASSERT(have_it);
+    if (!have_it)
+      polymec_error("mesh_2v_face_exchanger_new: Couldn't establish communication!");
 
     // Now find the face separating each pair of cells.
     ASSERT(r_size == s_size);
