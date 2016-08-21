@@ -387,7 +387,7 @@ static bool hypre_solver_solve(void* context,
   // HYPRE's Krylov methods can produce some pretty small numbers, which can be 
   // interpreted as denormalized garbage by polymec, so we tell polymec to chill.
   polymec_suspend_fpe();
-  int result = solve(solver->solver, solver->op, par_B, par_X);
+  HYPRE_Int result = solve(solver->solver, solver->op, par_B, par_X);
   polymec_restore_fpe();
 
   int success = ((result == 0) && !SOLVER_ERROR_OCCURRED(solver));
