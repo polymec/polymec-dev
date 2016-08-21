@@ -41,7 +41,7 @@ matrix:
     env: DEBUG=1 MPI=1 SHARED=0
   - os: linux
     compiler: clang
-    env: DEBUG=1 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    env: DEBUG=1 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
 
 install: bash ./.travis/install-$TRAVIS_OS_NAME-deps.sh
 
