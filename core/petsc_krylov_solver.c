@@ -38,11 +38,11 @@ typedef enum {NORM_1=0,NORM_2=1,NORM_FROBENIUS=2,NORM_INFINITY=3,NORM_1_AND_2=4}
 typedef enum {MAT_FLUSH_ASSEMBLY=1,MAT_FINAL_ASSEMBLY=0} MatAssemblyType;
 typedef enum {INSERT_VALUES=1,ADD_VALUES=0} InsertMode;
 typedef enum {MAT_INITIAL_MATRIX,MAT_REUSE_MATRIX,MAT_IGNORE_MATRIX} MatReuse;
-const char* MATSEQAIJ = "seqaij";
-const char* MATMPIAIJ = "mpiaij";
-const char* MATSEQBAIJ = "seqbaij";
-const char* MATMPIBAIJ = "mpibaij";
-const char* MATSAME = "same";
+static const char* MATSEQAIJ = "seqaij";
+static const char* MATMPIAIJ = "mpiaij";
+static const char* MATSEQBAIJ = "seqbaij";
+static const char* MATMPIBAIJ = "mpibaij";
+static const char* MATSAME = "same";
 #define PETSC_DEFAULT -2
 #define PETSC_DECIDE -1
 #define PETSC_DETERMINE PETSC_DECIDE
@@ -620,7 +620,7 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
                                  .get_values = petsc_matrix_get_values,
                                  .assemble = petsc_matrix_assemble,
                                  .dtor = petsc_matrix_dtor};
-  return krylov_matrix_new(A, vtable, A->comm, N_local, N_global);
+  return krylov_matrix_new(A, vtable, A->comm, (int)N_local, N_global);
 }
 
 static int petsc_matrix_block_size(void* context, index_t row)
@@ -1068,7 +1068,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
                                  .norm = petsc_vector_norm,
                                  .fprintf = petsc_vector_fprintf,
                                  .dtor = petsc_vector_dtor};
-  return krylov_vector_new(v, vtable, N_local, N_global);
+  return krylov_vector_new(v, vtable, (int)N_local, N_global);
 }
 
 static void petsc_factory_dtor(void* context)
@@ -1124,7 +1124,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
 
   // Try to find PETSc.
   char petsc_path[FILENAME_MAX+1];
-  char *my_petsc_dir, *my_petsc_arch;
+  char *my_petsc_dir = NULL, *my_petsc_arch = NULL;
   if (petsc_dir == NULL)
   {
     my_petsc_dir = getenv("PETSC_DIR");
