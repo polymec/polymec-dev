@@ -850,8 +850,10 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       int index1 = seam_face_array[nearest[1]];
       ASSERT(index0 != index1);
       ASSERT((index0 == j) || (index1 == j));
+#ifndef NDEBUG
       static real_t epsilon = 1e-12;
       ASSERT(point_distance(&xf[nearest[0]], &xf[nearest[1]]) < epsilon);
+#endif
 
       // Merge the faces by mapping the one with the higher index to the 
       // lower index. 

@@ -575,11 +575,13 @@ static bool balance_loads(MPI_Comm comm,
           int extra_work = 0, response = 1;
           for (int i = 0; i < num_points_received; ++i)
             extra_work += (int)buffer[4*i+3];
+#ifndef NDEBUG
           if (num_points_received > 0)
           {
             int last_load = (int)buffer[4*(num_points_received-1)+3];
             ASSERT(extra_work - last_load + load <= ideal_proc_load); // safety guarantee!
           }
+#endif
           if (extra_work + load > ideal_proc_load)
           {
             real_t new_imbalance = (1.0 * (load + excess_load) - ideal_proc_load) / ideal_proc_load;
