@@ -824,7 +824,7 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
                                  .assemble = petsc_matrix_assemble,
                                  .fprintf = petsc_matrix_fprintf,
                                  .dtor = petsc_matrix_dtor};
-  return krylov_matrix_new(A, vtable, A->comm, N_local, N_global);
+  return krylov_matrix_new(A, vtable, A->comm, (int)N_local, N_global);
 }
 
 static void petsc_matrix_manipulate_var_blocks(void* context, index_t num_blocks,

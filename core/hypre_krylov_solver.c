@@ -398,7 +398,7 @@ static bool hypre_solver_solve(void* context,
 
   HYPRE_Int iters;
   get_num_iters(solver->solver, &iters);
-  *num_iters = iters;
+  *num_iters = (int)iters;
   HYPRE_Real norm;
   get_norm(solver->solver, &norm);
   *res_norm = norm;
@@ -1088,7 +1088,7 @@ static krylov_matrix_t* hypre_factory_matrix(void* context,
                                  .dtor = hypre_matrix_dtor};
   HYPRE_Int N_global = 0;
   MPI_Allreduce(&N_local, &N_global, 1, MPI_LONG_LONG, MPI_SUM, A->comm);
-  return krylov_matrix_new(A, vtable, A->comm, N_local, N_global);
+  return krylov_matrix_new(A, vtable, A->comm, (int)N_local, N_global);
 }
 
 // We replicate this struct here from krylov_solver.c in order to override
@@ -1582,7 +1582,7 @@ static krylov_vector_t* hypre_factory_vector(void* context,
                                  .norm = hypre_vector_norm,
                                  .fprintf = hypre_vector_fprintf,
                                  .dtor = hypre_vector_dtor};
-  return krylov_vector_new(v, vtable, row_dist[rank+1]-row_dist[rank], row_dist[nprocs]);
+  return krylov_vector_new(v, vtable, (int)(row_dist[rank+1]-row_dist[rank]), row_dist[nprocs]);
 }
 
 static void hypre_factory_dtor(void* context)
