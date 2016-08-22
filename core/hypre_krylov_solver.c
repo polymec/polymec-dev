@@ -1626,7 +1626,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
     polymec_error("hypre_krylov_factory: %s.", msg);
   }
 
-#if APPLE
+#if defined(APPLE) && APPLE == 1
   // Mac-specific trick: 
   // If the HYPRE library is parallel, it will contain a reference to MPI symbols, 
   // even if those symbols are not defined within the library itself.
