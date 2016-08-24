@@ -318,8 +318,14 @@ static void pause_if_requested()
     {
       log_urgent("Pausing for %d seconds. PIDS: ", secs);
       int pid = (int)getpid();
-      char hostname[32];
-      gethostname(hostname, 32);
+#if POLYMEC_HAVE_MPI
+      char hostname[MPI_MAX_PROCESSOR_NAME];
+      int name_len;
+      MPI_Get_processor_name(hostname, &name_len);
+#else
+      char hostname[256];
+      gethostname(hostname, 256);
+#endif
       int pids[world_nprocs];
       char hostnames[32*world_nprocs];
       MPI_Gather(&pid, 1, MPI_INT, pids, 1, MPI_INT, 0, MPI_COMM_WORLD);
