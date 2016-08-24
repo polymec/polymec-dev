@@ -100,13 +100,13 @@ static void test_cube_volume_integrals(void** state)
 {
   polyhedron_integrator_t* I = midpoint_polyhedron_integrator_new();
   real_t I1_1 = cube_volume_integral(I, 1.0, f1);
-  assert_true(fabs(I1_1 - 0.5) < 1e-14);
+  assert_true(reals_nearly_equal(I1_1, 0.5, 1e-14));
   real_t I1_2 = cube_volume_integral(I, 0.5, f1);
-  assert_true(fabs(I1_2 - 0.03125) < 1e-14);
+  assert_true(reals_nearly_equal(I1_2, 0.03125, 1e-14));
   real_t I2_1 = cube_volume_integral(I, 1.0, f2);
-  assert_true(fabs(I2_1 - 0.75) < 1e-14);
+  assert_true(reals_nearly_equal(I2_1, 0.75, 1e-14));
   real_t I2_2 = cube_volume_integral(I, 0.5, f2);
-  assert_true(fabs(I2_2 - 0.0390625) < 1e-14);
+  assert_true(reals_nearly_equal(I2_2, 0.0390625, 1e-14));
   polyhedron_integrator_free(I);
 }
 
@@ -114,13 +114,13 @@ static void test_cube_surface_integrals(void** state)
 {
   polyhedron_integrator_t* I = midpoint_polyhedron_integrator_new();
   real_t I1_1 = cube_surface_integral(I, 1.0, g1);
-  assert_true(fabs(I1_1 - 1.0) < 1e-14);
+  assert_true(reals_nearly_equal(I1_1, 1.0, 1e-14));
   real_t I1_2 = cube_surface_integral(I, 0.5, g1);
-  assert_true(fabs(I1_2 - 0.125) < 1e-14);
+  assert_true(reals_nearly_equal(I1_2, 0.125, 1e-14));
   real_t I2_1 = cube_surface_integral(I, 1.0, g2);
-  assert_true(fabs(I2_1 - 2.0) < 1e-14);
+  assert_true(reals_nearly_equal(I2_1, 2.0, 1e-14));
   real_t I2_2 = cube_surface_integral(I, 0.5, g2);
-  assert_true(fabs(I2_2 - 0.1875) < 1e-14);
+  assert_true(reals_nearly_equal(I2_2, 0.1875, 1e-14));
   polyhedron_integrator_free(I);
 }
 

@@ -552,7 +552,7 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream)
     else if (!reals_equal(coeff, 1.0) && !reals_equal(coeff, 0.0))
     {
       if (pos > 1)
-        fprintf(stream, "%g ", fabs(coeff));
+        fprintf(stream, "%g ", ABS(coeff));
       else
         fprintf(stream, "%g ", coeff);
     }

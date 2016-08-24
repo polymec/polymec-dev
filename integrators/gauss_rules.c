@@ -36,7 +36,7 @@ void get_gauss_points(int n, real_t* points, real_t* weights)
 
       pp = m * (z*p1-p2) / (z*z - 1);
 
-      if (fabs(p1/pp) < 2e-16) break;
+      if (ABS(p1/pp) < 2e-16) break;
 
       z = z - p1/pp;
     }
@@ -190,7 +190,7 @@ void get_gauss_lobatto_points(int n, real_t* points, real_t* weights)
           }
         }
 
-        if (fabs(d0/s0) < 2e-16) break;
+        if (ABS(d0/s0) < 2e-16) break;
         ++k;
         ASSERT(k < 6);
 

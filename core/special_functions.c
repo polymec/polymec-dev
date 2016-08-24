@@ -41,9 +41,9 @@ double gamma(double x)
 
   double z, r = 1.0;
   int m;
-  if (fabs(x) > 1.0)
+  if (ABS(x) > 1.0)
   {
-    z = fabs(x);
+    z = ABS(x);
     m = (int)z;
     for (int i = 1; i <= m; ++i)
       r *= (z - i);
@@ -69,7 +69,7 @@ double gamma(double x)
   for (int i = 0; i < 25; ++i)
      gr = gr*z + g[24-i];
   double ga = 1.0 / (gr*z);
-  if (fabs(x) > 1.0)
+  if (ABS(x) > 1.0)
   {
     ga *= r;
     if (x < 0.0) 
@@ -124,7 +124,7 @@ double bessel_j0(double x)
     {
       r = -0.25*r*x2/(k*k);
       val += r;
-      if (fabs(r) < 1e-15*fabs(val)) break;
+      if (ABS(r) < 1e-15*ABS(val)) break;
     }
   }
   else
@@ -163,7 +163,7 @@ double bessel_j1(double x)
     {
       r = -0.25*r*x2/(k*(k+1));
       val += r;
-      if (fabs(r) < 1e-15*fabs(val)) break;
+      if (ABS(r) < 1e-15*ABS(val)) break;
     }
     val *= 0.5*x;
   }
@@ -196,7 +196,7 @@ static inline double envj(int n, double x)
 
 static double msta1(double x, double mp)
 {
-  double a0 = fabs(x);
+  double a0 = ABS(x);
   int n0 = (int)(1.1*a0) + 1;
   double f0 = envj(n0, a0) - mp;
   int n1 = n0 + 5;
@@ -206,7 +206,7 @@ static double msta1(double x, double mp)
   {
     nn = n1 - 1.0*(n1-n0)/(1.0 - f0/f1);
     double f = envj((int)nn, a0) - mp;
-    if (fabs(nn-n1) < 1.0) break;
+    if (ABS(nn-n1) < 1.0) break;
     n0 = n1;
     f0 = f1;
     n1 = (int)nn;
@@ -217,7 +217,7 @@ static double msta1(double x, double mp)
 
 static double msta2(double x, int n, double mp)
 {
-  double a0 = fabs(x);
+  double a0 = ABS(x);
   double hmp = 0.5 * mp;
   double ejn = envj(n, a0);
   double obj;
@@ -240,7 +240,7 @@ static double msta2(double x, int n, double mp)
   {
     nn = 1.0*n1 - 1.0*(n1 - n0)/(1.0 - f0/f1);
     double f = envj((int)nn, a0) - obj;
-    if (fabs(nn-n1) < 1.0) break;
+    if (ABS(nn-n1) < 1.0) break;
     n0 = n1;
     f0 = f1;
     n1 = (int)nn;
@@ -288,7 +288,7 @@ double bessel_jn(int n, double x)
       f1 = f;
     }
     double cs;
-    if (fabs(j0_val) > fabs(j1_val))
+    if (ABS(j0_val) > ABS(j1_val))
       cs = j0_val / f;
     else
       cs = j1_val / f2;
@@ -340,7 +340,7 @@ void bessel_find_jn_roots(int n, int num_roots, double* roots)
       double jn_val = bessel_jn(n, x), djndx_val = bessel_djndx(n, x);
       x -= jn_val/djndx_val;
     }
-    while (fabs(x-x0) > 1e-9);
+    while (ABS(x-x0) > 1e-9);
     roots[i] = x;
     x += M_PI + (0.0972 + 0.0679*n - 0.000354*n*n)/(i+1);
   }
@@ -363,7 +363,7 @@ double bessel_y0(double x)
       r0 *= -0.25*x2 / (k*k);
       double r = r0*w0;
       cs0 += r;
-      if (fabs(r) < 1e-15*fabs(cs0)) break;
+      if (ABS(r) < 1e-15*ABS(cs0)) break;
     }
     double j0_val = bessel_j0(x);
     val = jy_rp2 * (ec*j0_val - cs0);
@@ -406,7 +406,7 @@ double bessel_y1(double x)
       r1 *= -0.25*x2 / (k*(k+1));
       double r = r1 * (2.0*w1 + 1.0/(k+1));
       cs1 += r;
-      if (fabs(r) < 1e-15*fabs(cs1)) break;
+      if (ABS(r) < 1e-15*ABS(cs1)) break;
     }
     double j1_val = bessel_j1(x);
     val = jy_rp2 * (ec*j1_val - 1.0/x - 0.25*x*cs1);
@@ -497,7 +497,7 @@ void bessel_find_yn_roots(int n, int num_roots, double* roots)
       double yn_val = bessel_yn(n, x), dyndx_val = bessel_dyndx(n, x);
       x -= yn_val/dyndx_val;
     }
-    while (fabs(x-x0) > 1e-9);
+    while (ABS(x-x0) > 1e-9);
     roots[i] = x;
     x += M_PI + (0.312 + 0.0852*n - 0.000403*n*n)/(i+1);
   }

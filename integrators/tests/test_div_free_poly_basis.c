@@ -75,7 +75,7 @@ static void test_divergence(void** state)
 //      printf("   ");
 //      polynomial_fprintf(z, stdout);
 //      printf(" div f%d = %g\n", pos, divf);
-      assert_true(fabs(divf) < 1e-14);
+      assert_true(reals_nearly_equal(divf, 0.0, 1e-14));
     }
     basis = NULL;
   }

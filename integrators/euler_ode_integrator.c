@@ -16,11 +16,11 @@ static real_t relative_difference(real_t x, real_t y)
     diff = 0.0;
   else if (reals_equal(x, 0.0) || reals_equal(y, 0.0))
   {
-    real_t ref_value = MAX(fabs(x), fabs(y));
-    diff = fabs((x - y)/ref_value);
+    real_t ref_value = MAX(ABS(x), ABS(y));
+    diff = ABS((x - y)/ref_value);
   }
   else
-    diff = fabs((x - y)/x);
+    diff = ABS((x - y)/x);
   return diff;
 }
 
@@ -37,7 +37,7 @@ static void compute_l1_norms(MPI_Comm comm,
   {
     real_t xi = x[i], yi = y[i];
     real_t rel_diff = relative_difference(xi, yi);
-    real_t abs_diff = fabs(xi-yi);
+    real_t abs_diff = ABS(xi-yi);
     rel += rel_diff;
     abs += abs_diff;
   }
@@ -61,7 +61,7 @@ static void compute_l2_norms(MPI_Comm comm,
   {
     real_t xi = x[i], yi = y[i];
     real_t rel_diff = relative_difference(xi, yi);
-    real_t abs_diff = fabs(xi-yi);
+    real_t abs_diff = ABS(xi-yi);
     rel += rel_diff*rel_diff;
     abs += abs_diff*abs_diff;
   }
@@ -85,7 +85,7 @@ static void compute_linf_norms(MPI_Comm comm,
   {
     real_t xi = x[i], yi = y[i];
     real_t rel_diff = relative_difference(xi, yi);
-    real_t abs_diff = fabs(xi-yi);
+    real_t abs_diff = ABS(xi-yi);
     rel = MAX(rel, rel_diff);
     abs = MAX(abs, abs_diff);
   }

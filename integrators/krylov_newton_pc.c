@@ -186,7 +186,7 @@ static int Atimes_DQ_adaptor(void* A_data, N_Vector v, N_Vector Av)
   real_t sq1norm = N_VL1Norm(krylov->temp1);
   real_t sign = SIGN(sutsv);
   real_t sqrt_relfunc = sqrt(UNIT_ROUNDOFF);
-  real_t sigma = sign * sqrt_relfunc * MAX(fabs(sutsv), sq1norm) / vtv;
+  real_t sigma = sign * sqrt_relfunc * MAX(ABS(sutsv), sq1norm) / vtv;
   real_t sigma_inv = 1.0 / sigma;
 
   // Add the identity term into Av.

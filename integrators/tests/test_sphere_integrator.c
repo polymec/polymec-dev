@@ -41,15 +41,15 @@ void test_cap_area(void** state)
       // This should give zero.
       real_t area;
       sphere_integrator_cap(I, &x0, radius, one, &e3, 0.0, &area);
-      assert_true(fabs(area) < 1e-12);
+      assert_true(reals_nearly_equal(area, 0.0, 1e-12));
 
       // This should give the area of the entire sphere.
       sphere_integrator_cap(I, &x0, radius, one, &e3, M_PI, &area);
-      assert_true(fabs(area - 4.0*M_PI*radius*radius) < 1e-12);
+      assert_true(reals_nearly_equal(area, 4.0*M_PI*radius*radius, 1e-12));
 
       // This should give half the area of the sphere.
       sphere_integrator_cap(I, &x0, radius, one, &e3, 0.5*M_PI, &area);
-      assert_true(fabs(area - 2.0*M_PI*radius*radius) < 1e-12);
+      assert_true(reals_nearly_equal(area, 2.0*M_PI*radius*radius, 1e-12));
     }
 
     sphere_integrator_free(I);
@@ -95,7 +95,7 @@ static void test_cap_radial_function(void** state,
 
   real_t result;
   sphere_integrator_cap(I, &x0, radius, f, &e3, gamma, &result);
-  assert_true(fabs(result - answer) < 1e-12);
+  assert_true(reals_nearly_equal(result, answer, 1e-12));
 
   sphere_integrator_free(I);
 }
@@ -182,7 +182,7 @@ static void test_cap_time_dep_radial_function(void** state,
 
   real_t result;
   sphere_integrator_cap_at_time(I, &x0, radius, f, &e3, gamma, t, &result);
-  assert_true(fabs(result - answer) < tolerance);
+  assert_true(reals_nearly_equal(result, answer, tolerance));
 
   sphere_integrator_free(I);
 }

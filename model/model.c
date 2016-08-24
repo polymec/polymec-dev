@@ -656,7 +656,7 @@ static void model_do_periodic_work(model_t* model)
   if (model->plot_every > 0.0)
   {
     int n = (int)(model->time / model->plot_every);
-    if (fabs(model->time - n * model->plot_every) < 1e-12) // FIXME: cheesy...
+    if (reals_nearly_equal(model->time, n * model->plot_every, 1e-12)) // FIXME: cheesy...
       model_plot(model);
   }
 
@@ -672,7 +672,7 @@ static void model_do_periodic_work(model_t* model)
   {
     int obs_time_index = real_lower_bound(model->obs_times, model->num_obs_times, model->time);
     if ((obs_time_index < model->num_obs_times) && 
-        (fabs(model->time - model->obs_times[obs_time_index]) < 1e-12)) // FIXME: Good enough?
+        (reals_nearly_equal(model->time, model->obs_times[obs_time_index], 1e-12))) // FIXME: Good enough?
       model_record_observations(model);
   }
 }

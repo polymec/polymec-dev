@@ -69,7 +69,7 @@ static void test_symplectic_central_force(void** state)
 
     // Check energy conservation.
     real_t E = 0.5 * (X[2]*X[2] + X[3]*X[3]);
-    assert_true(fabs(E - 0.5) < 1e-3);
+    assert_true(reals_nearly_equal(E, 0.5, 1e-3));
 
     // Compute error norms.
     real_t L2 = sqrt((X[0]-R)*(X[0]-R) + X[1]*X[1] + X[2]*X[2] + (X[3]-V)*(X[3]-V));

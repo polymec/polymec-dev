@@ -48,9 +48,9 @@ static void test_partition_linear_cloud(void** state, int N)
     real_t y = cloud->points[i].y;
     real_t z = cloud->points[i].z;
     int j = (int)lround(x/dx - 0.5);
-    assert_true(fabs(x - (0.5+j)*dx) < 1e-6);
-    assert_true(fabs(y - 0.5) < 1e-6);
-    assert_true(fabs(z - 0.5) < 1e-6);
+    assert_true(reals_nearly_equal(x, (0.5+j)*dx, 1e-6));
+    assert_true(reals_nearly_equal(y, 0.5, 1e-6));
+    assert_true(reals_nearly_equal(z, 0.5, 1e-6));
   }
 
   // Plot it.
@@ -107,9 +107,9 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
     real_t y = cloud->points[i].y;
     real_t z = cloud->points[i].z;
     int j = lround(x/dx - 0.5);
-    assert_true(fabs(x - (0.5+j)*dx) < 1e-6);
-    assert_true(fabs(y) < 1e-6);
-    assert_true(fabs(z) < 1e-6);
+    assert_true(reals_nearly_equal(x, (0.5+j)*dx, 1e-6));
+    assert_true(reals_nearly_equal(y, 0.0, 1e-6));
+    assert_true(reals_nearly_equal(z, 0.0, 1e-6));
   }
 #endif
 
@@ -167,9 +167,9 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
     real_t y = cloud->points[i].y;
     real_t z = cloud->points[i].z;
     int j = lround(x/dx - 0.5);
-    assert_true(fabs(x - (0.5+j)*dx) < 1e-6);
-    assert_true(fabs(y) < 1e-6);
-    assert_true(fabs(z) < 1e-6);
+    assert_true(reals_nearly_equal(x, (0.5+j)*dx, 1e-6));
+    assert_true(reals_nearly_equal(y, 0.0, 1e-6));
+    assert_true(reals_nearly_equal(z, 0.0, 1e-6));
   }
 #endif
 

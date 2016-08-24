@@ -15,7 +15,7 @@ static inline real_t l1_norm(real_t* vec, int dim)
 {
   real_t sum = 0.0;
   for (int i = 0; i < dim; ++i)
-    sum += fabs(vec[i]);
+    sum += ABS(vec[i]);
   return sum;
 }
 
@@ -33,7 +33,7 @@ static inline real_t linf_norm(real_t* vec, int dim)
 {
   real_t max = -REAL_MAX;
   for (int i = 0; i < dim; ++i)
-    max = MAX(max, fabs(vec[i]));
+    max = MAX(max, ABS(vec[i]));
   return max;
 }
 

@@ -489,7 +489,7 @@ void mesh_compute_geometry(mesh_t* mesh)
         point_displacement(xf, &xn1, &v2);
         point_displacement(xf, &xn2, &v3);
         vector_cross(&v2, &v3, &v2xv3);
-        real_t tet_volume = fabs(vector_dot(&v1, &v2xv3))/6.0;
+        real_t tet_volume = ABS(vector_dot(&v1, &v2xv3))/6.0;
         mesh->cell_volumes[cell] += tet_volume;
 
         // Now take the face of the tet whose vertices are the face center 

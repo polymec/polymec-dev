@@ -135,7 +135,7 @@ static void test_basis(void** state, int p)
     while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
     {
       real_t term = pow(x.x, x_pow) * pow(x.y, y_pow) * pow(x.z, z_pow);
-      assert_true(fabs(term - basis[index]) < 1e-14);
+      assert_true(reals_nearly_equal(term, basis[index], 1e-14));
       ++index;
     }
   }
@@ -158,7 +158,7 @@ static void test_basis(void** state, int p)
           real_t y_term = (y_pow >= j) ? pow(x.y, y_pow - j) * factorial(y_pow) / factorial(y_pow - j) : 0.0;
           real_t z_term = (z_pow >= k) ? pow(x.z, z_pow - k) * factorial(z_pow) / factorial(z_pow - k) : 0.0;
           real_t term = (i+j+k > p) ? 0.0 : x_term * y_term * z_term;
-          assert_true(fabs(term - basis_deriv[index]) < 1e-14);
+          assert_true(reals_nearly_equal(term, basis_deriv[index], 1e-14));
           ++index;
         }
       }

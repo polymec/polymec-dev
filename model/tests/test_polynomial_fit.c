@@ -60,14 +60,14 @@ static void test_fit_consistency(void** state, polynomial_fit_t* fit, int compon
     polynomial_fit_eval_deriv(fit, 0, 1, 0, &xrand, dudy);
     polynomial_fit_eval_deriv(fit, 0, 0, 1, &xrand, dudz);
 
-//printf("u error: %g-%g=%g\n", u[component], q, fabs(u[component]-q));
-//printf("dudx error: %g\n", fabs(dudx[component]-dqdx));
-//printf("dudy error: %g\n", fabs(dudy[component]-dqdy));
-//printf("dudz error: %g\n", fabs(dudz[component]-dqdz));
-    assert_true(fabs(u[component] - q) < 5e-14);
-    assert_true(fabs(dudx[component] - dqdx) < 5e-14);
-    assert_true(fabs(dudy[component] - dqdy) < 5e-14);
-    assert_true(fabs(dudz[component] - dqdz) < 5e-14);
+//printf("u error: |%g-%g|=%g\n", u[component], q, ABS(u[component]-q));
+//printf("dudx error: %g\n", ABS(dudx[component]-dqdx));
+//printf("dudy error: %g\n", ABS(dudy[component]-dqdy));
+//printf("dudz error: %g\n", ABS(dudz[component]-dqdz));
+    assert_true(reals_nearly_equal(u[component], q, 5e-14));
+    assert_true(reals_nearly_equal(dudx[component], dqdx, 5e-14));
+    assert_true(reals_nearly_equal(dudy[component], dqdy, 5e-14));
+    assert_true(reals_nearly_equal(dudz[component], dqdz, 5e-14));
   }
 }
 

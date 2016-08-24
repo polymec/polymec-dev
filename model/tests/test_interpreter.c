@@ -50,7 +50,7 @@ static void test_interpreter_with_long_string(void** state)
   point_t x;
   double t = 0.0, five;
   st_func_eval(f, &x, t, &five);
-  assert_true(fabs(five - 5.0) < 1e-15);
+  assert_true(reals_equal(five, 5.0));
 
   assert_true(interpreter_contains(interp, "F", INTERPRETER_VECTOR_FUNCTION));
   assert_true(interpreter_get_vector_function(interp, "F") != NULL);
@@ -65,9 +65,9 @@ static void test_interpreter_with_long_string(void** state)
   assert_true(st_func_is_constant(F));
   double one_two_three[3];
   st_func_eval(F, &x, t, one_two_three);
-  assert_true(fabs(one_two_three[0] - 1.0) < 1e-15);
-  assert_true(fabs(one_two_three[1] - 2.0) < 1e-15);
-  assert_true(fabs(one_two_three[2] - 3.0) < 1e-15);
+  assert_true(reals_equal(one_two_three[0], 1.0));
+  assert_true(reals_equal(one_two_three[1], 2.0));
+  assert_true(reals_equal(one_two_three[2], 3.0));
 
   assert_true(interpreter_contains(interp, "V", INTERPRETER_VECTOR_FUNCTION));
   assert_true(interpreter_get_vector_function(interp, "V") != NULL);
@@ -76,9 +76,9 @@ static void test_interpreter_with_long_string(void** state)
   assert_true(st_func_is_homogeneous(V));
   assert_true(st_func_is_constant(V));
   st_func_eval(V, &x, t, one_two_three);
-  assert_true(fabs(one_two_three[0] - 1.0) < 1e-15);
-  assert_true(fabs(one_two_three[1] - 2.0) < 1e-15);
-  assert_true(fabs(one_two_three[2] - 3.0) < 1e-15);
+  assert_true(reals_equal(one_two_three[0], 1.0));
+  assert_true(reals_equal(one_two_three[1], 2.0));
+  assert_true(reals_equal(one_two_three[2], 3.0));
 
   assert_true(interpreter_contains(interp, "Z", INTERPRETER_SCALAR_FUNCTION));
   assert_true(interpreter_get_scalar_function(interp, "Z") != NULL);
@@ -96,7 +96,7 @@ static void test_interpreter_with_long_string(void** state)
   real_t answer;
   st_func_eval(Z, &x, t, &answer);
   printf("Z = %g\n", answer);
-  assert_true(fabs(answer - sqrt(10.0)) < 1e-15);
+  assert_true(reals_nearly_equal(answer, sqrt(10.0), 1e-15));
 
   assert_true(interpreter_contains(interp, "g", INTERPRETER_NUMBER));
   assert_true((int)(interpreter_get_number(interp, "g")) == 2);
@@ -124,9 +124,9 @@ static void test_point_parsing(void** state)
   assert_true(interpreter_get_point(interp, "p") != NULL);
   assert_true(interpreter_get_point(interp, "q") == NULL);
   point_t* p = interpreter_get_point(interp, "p");
-  assert_true(fabs(p->x - 1.0) < 1e-15);
-  assert_true(fabs(p->y - 2.0) < 1e-15);
-  assert_true(fabs(p->z - 3.0) < 1e-15);
+  assert_true(reals_equal(p->x, 1.0));
+  assert_true(reals_equal(p->y, 2.0));
+  assert_true(reals_equal(p->z, 3.0));
   interpreter_free(interp);
 }
 
@@ -143,9 +143,9 @@ static void test_vector_parsing(void** state)
   assert_true(interpreter_get_vector(interp, "v") != NULL);
   assert_true(interpreter_get_vector(interp, "w") == NULL);
   vector_t* v = interpreter_get_vector(interp, "v");
-  assert_true(fabs(v->x - 1.0) < 1e-15);
-  assert_true(fabs(v->y - 2.0) < 1e-15);
-  assert_true(fabs(v->z - 3.0) < 1e-15);
+  assert_true(reals_equal(v->x, 1.0));
+  assert_true(reals_equal(v->y, 2.0));
+  assert_true(reals_equal(v->z, 3.0));
   interpreter_free(interp);
 }
 
@@ -162,12 +162,12 @@ static void test_boundingbox_parsing(void** state)
   assert_true(interpreter_get_bbox(interp, "b") != NULL);
   assert_true(interpreter_get_bbox(interp, "c") == NULL);
   bbox_t* b = interpreter_get_bbox(interp, "b");
-  assert_true(fabs(b->x1 - 0.0) < 1e-15);
-  assert_true(fabs(b->x2 - 1.0) < 1e-15);
-  assert_true(fabs(b->y1 - 0.0) < 1e-15);
-  assert_true(fabs(b->y2 - 1.0) < 1e-15);
-  assert_true(fabs(b->z1 - 0.0) < 1e-15);
-  assert_true(fabs(b->z2 - 1.0) < 1e-15);
+  assert_true(reals_equal(b->x1, 0.0));
+  assert_true(reals_equal(b->x2, 1.0));
+  assert_true(reals_equal(b->y1, 0.0));
+  assert_true(reals_equal(b->y2, 1.0));
+  assert_true(reals_equal(b->z1, 0.0));
+  assert_true(reals_equal(b->z2, 1.0));
   interpreter_free(interp);
 }
 
@@ -231,9 +231,9 @@ static void test_vectorlist_parsing(void** state)
                                  {.x = 1.0, .y = 1.0, .z = 1.0}};
   for (int i = 0; i < 8; ++i)
   {
-    assert_true(fabs(vecs[i].x - real_vecs[i].x) < 1e-15);
-    assert_true(fabs(vecs[i].y - real_vecs[i].y) < 1e-15);
-    assert_true(fabs(vecs[i].z - real_vecs[i].z) < 1e-15);
+    assert_true(reals_equal(vecs[i].x, real_vecs[i].x));
+    assert_true(reals_equal(vecs[i].y, real_vecs[i].y));
+    assert_true(reals_equal(vecs[i].z, real_vecs[i].z));
   }
   polymec_free(vecs);
   interpreter_free(interp);
@@ -285,7 +285,7 @@ static void test_scalarfunction_parsing(void** state)
     assert_true(f != NULL);
     assert_true(st_func_num_comp(f) == 1);
     st_func_eval(f, &x, t, &val);
-    assert_true(fabs(val - 1.0) < 1e-15);
+    assert_true(reals_equal(val, 1.0));
     interpreter_free(interp);
   }
 
@@ -302,7 +302,7 @@ static void test_scalarfunction_parsing(void** state)
     assert_true(f != NULL);
     assert_true(st_func_num_comp(f) == 1);
     st_func_eval(f, &x, t, &val);
-    assert_true(fabs(val - 1.0) < 1e-15);
+    assert_true(reals_equal(val, 1.0));
     interpreter_free(interp);
   }
 
@@ -322,7 +322,7 @@ static void test_scalarfunction_parsing(void** state)
     assert_true(f != NULL);
     assert_true(st_func_num_comp(f) == 1);
     st_func_eval(f, &x, t, &val);
-    assert_true(fabs(val - sqrt(13.0)) < 1e-15);
+    assert_true(reals_nearly_equal(val, sqrt(13.0), 1e-15));
     interpreter_free(interp);
   }
 }

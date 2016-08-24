@@ -13,7 +13,7 @@
 #include "core/rng.h"
 #include "core/lookup1.h"
 
-#define assert_approx_equal(x, y, tol) assert_true(fabs((x) - (y)) < tol)
+#define assert_approx_equal(x, y, tol) assert_true(reals_nearly_equal((x), (y), tol))
 
 static void test_zero(void** state, lookup1_interpolation_t interpolation)
 {
@@ -91,7 +91,7 @@ static void test_v(void** state, lookup1_interpolation_t interpolation)
   // If we are using quadratic interpolation, we have to stay clear of the kink.
   if (interpolation == LOOKUP1_QUADRATIC) 
   {
-    while (fabs(x - 0.5) < dx)
+    while (ABS(x - 0.5) < dx)
       x = rng_uniform_positive(rng);
   }
 

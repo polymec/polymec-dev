@@ -184,7 +184,7 @@ real_t brent_solve(real_t (*F)(void*, real_t), void* context, real_t x1, real_t 
   real_t fb = F(context, b);
   if (fa * fb >= 0.0)
     polymec_error("brent_solve: Root is not bracketed by [x1, x2].");
-  if (fabs(fa) < fabs(fb))
+  if (ABS(fa) < ABS(fb))
   {
     real_t tmp1 = b, tmp2 = fb;
     b = a;
@@ -233,7 +233,7 @@ real_t brent_solve(real_t (*F)(void*, real_t), void* context, real_t x1, real_t 
       a = s;
       fa = fs;
     }
-    if (fabs(fa) < fabs(fb))
+    if (ABS(fa) < ABS(fb))
     {
       real_t tmp1 = b, tmp2 = fb;
       b = a;
@@ -243,7 +243,7 @@ real_t brent_solve(real_t (*F)(void*, real_t), void* context, real_t x1, real_t 
     }
     ++num_iter;
   }
-  while ((MAX(fabs(fb), fabs(fs)) > tolerance) && (num_iter < max_iters));
-  return (fabs(fb) < fabs(fs)) ? b : s;
+  while ((MAX(ABS(fb), ABS(fs)) > tolerance) && (num_iter < max_iters));
+  return (ABS(fb) < ABS(fs)) ? b : s;
 }
 

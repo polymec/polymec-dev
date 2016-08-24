@@ -21,7 +21,7 @@ static void test_brent(void** state)
 {
   // Our cubic polynomial has a root x = 2 in the range [0, 10].
   double x = brent_solve(cubic_poly, NULL, 0.0, 10.0, 1e-12, 100);
-  assert_true(fabs(cubic_poly(NULL, x)) < 1e-12);
+  assert_true(reals_nearly_equal(cubic_poly(NULL, x), 0.0, 1e-12));
 }
 
 static int cubic_poly_1(void* context, real_t* x, real_t* F)
@@ -49,7 +49,7 @@ static void test_newton_solve_system_1(void** state)
   dense_newton_solver_free(solver);
 
   double F = (x + 1.0) * (x - 2.0) * (x + 3.0);
-  assert_true(fabs(F) < 1e-12);
+  assert_true(reals_nearly_equal(F, 0.0, 1e-12));
 }
 
 static void test_newton_solve_system_1_with_jacobian(void** state)
@@ -62,7 +62,7 @@ static void test_newton_solve_system_1_with_jacobian(void** state)
   dense_newton_solver_free(solver);
 
   double F = (x + 1.0) * (x - 2.0) * (x + 3.0);
-  assert_true(fabs(F) < 1e-12);
+  assert_true(reals_nearly_equal(F, 0.0, 1e-12));
 }
 
 static int circle_2(void* context, real_t* x, real_t* F)

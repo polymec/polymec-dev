@@ -14,7 +14,7 @@
 // the interval [x1, x2] with the specified maximum number of iterations 
 // and desired tolerance. F is a function that takes a user-defined context and 
 // a value x and returns F(x). This function returns the solution x which 
-// satisfies fabs(F(x)) = tolerance.
+// satisfies ABS(F(x)) = tolerance.
 real_t brent_solve(real_t (*F)(void*, real_t), void* context, real_t x1, real_t x2, real_t tolerance, int max_iters); 
 
 // This class solves (dense) systems of nonlinear equations using 

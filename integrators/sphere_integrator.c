@@ -347,7 +347,7 @@ static void eval_F_o_n(void* context, point_t* x, real_t* F_o_n)
   vector_t n = {.x = cos(phi) * sin(theta), 
                 .y = sin(phi) * sin(theta),
                 .z = cos(theta)};
-  ASSERT(fabs(vector_mag(&n) - 1.0) < 1e-12);
+  ASSERT(reals_nearly_equal(vector_mag(&n), 1.0, 1e-12));
 
   // Compute the polynomial vector F at the point x.
   vector_t F = {.x = polynomial_value(Fr->Fx, x),

@@ -138,7 +138,7 @@ static void test_int_array6(void** state)
 } 
 
 #define assert_real_equal(x, y) \
-  assert_true(fabs((real_t)x - y) < 1e-15)
+  assert_true(reals_nearly_equal((real_t)x, y, 1e-15))
 
 static void test_int_array7(void** state) 
 { 

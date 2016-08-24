@@ -52,7 +52,7 @@ static void test_partition_linear_mesh(void** state)
   int cell_volumes_are_ok = 1;
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    if (fabs(mesh->cell_volumes[c] - dx*dx*dx) > 1e-12)
+    if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, 1e-12))
     {
       cell_volumes_are_ok = 0;
       break; 
@@ -61,7 +61,7 @@ static void test_partition_linear_mesh(void** state)
   int face_areas_are_ok = 1;
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    if (fabs(mesh->face_areas[f] - dx*dx) > 1e-12)
+    if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, 1e-12))
     {
       face_areas_are_ok = 0;
       break; 
@@ -114,7 +114,7 @@ static void test_partition_slab_mesh(void** state)
   int cell_volumes_are_ok = 1;
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    if (fabs(mesh->cell_volumes[c] - dx*dx*dx) > 1e-12)
+    if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, 1e-12))
     {
       cell_volumes_are_ok = 0;
       break; 
@@ -123,7 +123,7 @@ static void test_partition_slab_mesh(void** state)
   int face_areas_are_ok = 1;
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    if (fabs(mesh->face_areas[f] - dx*dx) > 1e-12)
+    if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, 1e-12))
     {
       face_areas_are_ok = 0;
       break; 
@@ -173,7 +173,7 @@ static void test_partition_box_mesh(void** state)
   int cell_volumes_are_ok = 1;
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    if (fabs(mesh->cell_volumes[c] - dx*dx*dx) > 1e-12)
+    if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, 1e-12))
     {
       cell_volumes_are_ok = 0;
       break; 
@@ -182,7 +182,7 @@ static void test_partition_box_mesh(void** state)
   int face_areas_are_ok = 1;
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    if (fabs(mesh->face_areas[f] - dx*dx) > 1e-12)
+    if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, 1e-12))
     {
       face_areas_are_ok = 0;
       break; 

@@ -119,7 +119,7 @@ static void test_shepard_point_basis_consistency(void** state)
       ++k;
     }
 
-    assert_true(fabs(val - 1.0) < 1e-14);
+    assert_true(reals_nearly_equal(val, 1.0, 1e-14));
   }
 
   // Clean up.

@@ -421,17 +421,17 @@ void tag_rectilinear_mesh_faces(mesh_t* mesh,
   {
     if (mesh->face_cells[2*f+1] == -1)
     {
-      if (fabs(mesh->face_centers[f].x - bbox->x1) < face_tol)
+      if (reals_nearly_equal(mesh->face_centers[f].x, bbox->x1, face_tol))
         int_slist_append(x1_faces, f);
-      else if (fabs(mesh->face_centers[f].x - bbox->x2) < face_tol)
+      else if (reals_nearly_equal(mesh->face_centers[f].x, bbox->x2, face_tol))
         int_slist_append(x2_faces, f);
-      if (fabs(mesh->face_centers[f].y - bbox->y1) < face_tol)
+      if (reals_nearly_equal(mesh->face_centers[f].y, bbox->y1, face_tol))
         int_slist_append(y1_faces, f);
-      else if (fabs(mesh->face_centers[f].y - bbox->y2) < face_tol)
+      else if (reals_nearly_equal(mesh->face_centers[f].y, bbox->y2, face_tol))
         int_slist_append(y2_faces, f);
-      if (fabs(mesh->face_centers[f].z - bbox->z1) < face_tol)
+      if (reals_nearly_equal(mesh->face_centers[f].z, bbox->z1, face_tol))
         int_slist_append(z1_faces, f);
-      else if (fabs(mesh->face_centers[f].z - bbox->z2) < face_tol)
+      else if (reals_nearly_equal(mesh->face_centers[f].z, bbox->z2, face_tol))
         int_slist_append(z2_faces, f);
     }
   }

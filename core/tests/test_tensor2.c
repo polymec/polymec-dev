@@ -13,7 +13,7 @@
 #include "core/polymec.h"
 #include "core/tensor2.h"
 
-#define assert_approx_equal(x, y, tol) assert_true(fabs(x - y) < tol)
+#define assert_approx_equal(x, y, tol) assert_true(reals_nearly_equal(x, y, tol))
 
 static void test_tensor2_ctor(void** state)
 {
@@ -245,9 +245,9 @@ static bool is_eigenvector(sym_tensor2_t* A, real_t lambda, vector_t* u)
 {
   vector_t Au;
   sym_tensor2_dot_vector(A, u, &Au);
-  return ((fabs(Au.x - lambda*u->x) < 1e-14) &&
-          (fabs(Au.y - lambda*u->y) < 1e-14) &&
-          (fabs(Au.z - lambda*u->z) < 1e-14));
+  return (reals_nearly_equal(Au.x, lambda*u->x, 1e-14) &&
+          reals_nearly_equal(Au.y, lambda*u->y, 1e-14) &&
+          reals_nearly_equal(Au.z, lambda*u->z, 1e-14));
 }
 
 static void test_sym_tensor2_get_eigenvectors(void** state)
