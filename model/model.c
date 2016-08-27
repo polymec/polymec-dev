@@ -127,6 +127,15 @@ static void enforce_mpi_parallelism(model_t* model)
     if (nprocs > 1)
       polymec_error("Model %s is a serial model and can only be run on a single process.", model->name);
   }
+  else
+  {
+    // set_comm must be defined for the model.
+    if (model->vtable.set_comm == NULL)
+    {
+      model_free(model);
+      polymec_error("model_run_files: model.vtable.set_comm must be defined.");
+    }
+  }
 }
 
 // This helper checks the given model for thread safety.
@@ -210,6 +219,9 @@ model_t* model_new(const char* name,
   // Enforce our given parallelism model.
   enforce_singleton_instances(model);
   enforce_mpi_parallelism(model);
+
+  // Set the communicator to MPI_COMM_WORLD by default.
+  model->vtable.set_comm(model, MPI_COMM_WORLD);
 
   return model;
 }
@@ -830,6 +842,11 @@ real_t model_time(model_t* model)
   return model->time;
 }
 
+int model_step(model_t* model)
+{
+  return model->step;
+}
+
 void model_finalize(model_t* model)
 {
   START_FUNCTION_TIMER();
@@ -1279,13 +1296,6 @@ void model_run_files(model_t* model,
                      char** input_files,
                      size_t num_input_files)
 {
-  // set_comm must be defined for the model.
-  if (model->vtable.set_comm == NULL)
-  {
-    model_free(model);
-    polymec_error("model_run_files: model.vtable.set_comm must be defined.");
-  }
-
   // Make sure that the number of processes in MPI_COMM_WORLD evenly 
   // divides the number of files given. Otherwise we will be wasting 
   // processes!
