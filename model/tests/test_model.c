@@ -19,7 +19,7 @@ typedef struct
   MPI_Comm comm;
 } simple_t;
 
-static void simple_set_comm(void* context, MPI_Comm comm)
+static void simple_set_global_comm(void* context, MPI_Comm comm)
 {
   simple_t* s = context;
   s->comm = comm;
@@ -49,7 +49,7 @@ static void simple_dtor(void* context)
 static model_t* simple_new()
 {
   simple_t* s = polymec_malloc(sizeof(simple_t));
-  model_vtable vtable = {.set_comm = simple_set_comm,
+  model_vtable vtable = {.set_global_comm = simple_set_global_comm,
                          .read_input = simple_read_input,
                          .init = simple_init,
                          .advance = simple_advance,
@@ -75,7 +75,8 @@ static void test_run(void** state)
   model_t* m = simple_new();
   model_read_input_string(m, "");
   model_run(m, 0.0, 1.0, 10);
-  assert_true((reals_nearly_equal(model_time(m), 1.0, 1e-12) || (model_step(m) == 10)));
+  assert_true((reals_nearly_equal(model_time(m), 1.0, 1e-12) || 
+              (model_step(m) == 10)));
   model_free(m);
 }
 

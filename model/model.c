@@ -129,11 +129,11 @@ static void enforce_mpi_parallelism(model_t* model)
   }
   else
   {
-    // set_comm must be defined for the model.
-    if (model->vtable.set_comm == NULL)
+    // set_global_comm must be defined for the model.
+    if (model->vtable.set_global_comm == NULL)
     {
       model_free(model);
-      polymec_error("model_run_files: model.vtable.set_comm must be defined.");
+      polymec_error("model_run_files: model.vtable.set_global_comm must be defined.");
     }
   }
 }
@@ -204,6 +204,7 @@ model_t* model_new(const char* name,
   model->wall_time = 0.0;
   model->wall_time0 = 0.0;
   model->initial_dt = REAL_MAX;
+  model->time = 0.0;
   model->dt = 0.0;
   model->step = 0;
   model->max_dt = REAL_MAX;
@@ -220,8 +221,8 @@ model_t* model_new(const char* name,
   enforce_singleton_instances(model);
   enforce_mpi_parallelism(model);
 
-  // Set the communicator to MPI_COMM_WORLD by default.
-  model->vtable.set_comm(model, MPI_COMM_WORLD);
+  // Set the global communicator to MPI_COMM_WORLD by default.
+  model->vtable.set_global_comm(model->context, MPI_COMM_WORLD);
 
   return model;
 }
@@ -1309,13 +1310,13 @@ void model_run_files(model_t* model,
                   g_nproc, num_input_files);
   }
 
-  // Set up an MPI communicator for each concurrent simulation and assign 
+  // Set up a global MPI communicator for each concurrent simulation and assign 
   // each process to a simulation group.
   size_t num_concurrent_sims = num_input_files / g_nproc;
   int sim_group = (int)(g_rank / num_concurrent_sims);
   MPI_Comm sim_comm;
   MPI_Comm_split(MPI_COMM_WORLD, sim_group, g_rank, &sim_comm);
-  model->vtable.set_comm(model->context, sim_comm);
+  model->vtable.set_global_comm(model->context, sim_comm);
 
   // Run simulations till we are finished.
   size_t simulations_finished = 0;
