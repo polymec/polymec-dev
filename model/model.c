@@ -221,8 +221,14 @@ model_t* model_new(const char* name,
   enforce_singleton_instances(model);
   enforce_mpi_parallelism(model);
 
-  // Set the global communicator to MPI_COMM_WORLD by default.
-  model->vtable.set_global_comm(model->context, MPI_COMM_WORLD);
+  // For MPI-enabled models, set the global communicator to MPI_COMM_WORLD 
+  // by default.
+  if ((model->parallelism == MODEL_MPI) || 
+      (model->parallelism == MODEL_MPI_SINGLETON) || 
+      (model->parallelism == MODEL_MPI_THREAD_SAFE))
+    model->vtable.set_global_comm(model->context, MPI_COMM_WORLD);
+  else if (model->vtable.set_global_comm != NULL)
+    model->vtable.set_global_comm(model->context, MPI_COMM_SELF);
 
   return model;
 }
