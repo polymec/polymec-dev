@@ -1213,6 +1213,120 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
   STOP_FUNCTION_TIMER();
 }
 
+static void set_sim_name_to_input_file(model_t* model, const char* input)
+{
+  char dir_name[FILENAME_MAX], file_name[FILENAME_MAX];
+  parse_path(input, dir_name, file_name);
+  int len = (int)strlen(file_name), end = 0;
+  while (end < len)
+  {
+    // We accept alphanumeric characters, underscores, and hyphens.
+    if (!isalnum(file_name[end]) && 
+        (file_name[end] != '_') && 
+        (file_name[end] != '-'))
+      break;
+    ++end;
+  }
+  char prefix[FILENAME_MAX];
+  strncpy(prefix, file_name, end);
+  prefix[end] = '\0';
+  model_set_sim_name(model, prefix);
+}
+
+static void run_model(model_t* model, char* input, char* caller)
+{
+  // We are asked to run a simulation.
+  if (input == NULL)
+  {
+    print_to_rank0("%s: No input file given! Usage:\n", caller);
+    print_to_rank0("%s run [input file]\n", caller);
+    model_free(model);
+    exit(0);
+  }
+
+  if (!file_exists(input))
+  {
+    print_to_rank0("%s: Input file not found: %s\n", caller, input);
+    model_free(model);
+    exit(0);
+  }
+
+  // By default, the simulation is named after the input file (minus its path 
+  // and anything after the first alphanumeric character).
+  set_sim_name_to_input_file(model, input);
+
+  // Read the contents of the input file into the model's interpreter.
+  model_read_input_file(model, input);
+
+  // Default time endpoints, max number of steps.
+  real_t t1 = 0.0, t2 = 1.0;
+  int max_steps = INT_MAX;
+
+  // Overwrite these defaults with interpreted values.
+  interpreter_t* interp = model_interpreter(model);
+  if (interpreter_contains(interp, "t1", INTERPRETER_NUMBER))
+    t1 = interpreter_get_number(interp, "t1");
+  if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
+    t2 = interpreter_get_number(interp, "t2");
+  if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
+    max_steps = (int)(interpreter_get_number(interp, "max_steps"));
+
+  // Run the model.
+  model_run(model, t1, t2, max_steps);
+}
+
+void model_run_files(model_t* model, 
+                     char** input_files,
+                     size_t num_input_files)
+{
+  // set_comm must be defined for the model.
+  if (model->vtable.set_comm == NULL)
+  {
+    model_free(model);
+    polymec_error("model_run_files: model.vtable.set_comm must be defined.");
+  }
+
+  // Make sure that the number of processes in MPI_COMM_WORLD evenly 
+  // divides the number of files given. Otherwise we will be wasting 
+  // processes!
+  int g_nproc, g_rank;
+  MPI_Comm_size(MPI_COMM_WORLD, &g_nproc);
+  MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
+  if ((num_input_files % g_nproc) != 0)
+  {
+    model_free(model);
+    polymec_error("model_run_files: Number of processes (%d) does not evenly divide number of files (%d).", 
+                  g_nproc, num_input_files);
+  }
+
+  // Set up an MPI communicator for each concurrent simulation and assign 
+  // each process to a simulation group.
+  size_t num_concurrent_sims = num_input_files / g_nproc;
+  int sim_group = (int)(g_rank / num_concurrent_sims);
+  MPI_Comm sim_comm;
+  MPI_Comm_split(MPI_COMM_WORLD, sim_group, g_rank, &sim_comm);
+  model->vtable.set_comm(model->context, sim_comm);
+
+  // Run simulations till we are finished.
+  size_t simulations_finished = 0;
+  while (simulations_finished < num_input_files)
+  {
+    // Select the correct input file for this rank.
+    size_t sim_index = simulations_finished + sim_group;
+    char* input = input_files[sim_index];
+
+    // Run the model with our input.
+    run_model(model, input, "model_run_files");
+
+    // Wait for all concurrent simulations to finish.
+    MPI_Barrier(MPI_COMM_WORLD);
+    simulations_finished += num_concurrent_sims;
+  }
+
+  // Clean up.
+  MPI_Comm_free(&sim_comm);
+}
+
 void* model_context(model_t* model)
 {
   return model->context;
@@ -1224,8 +1338,9 @@ static noreturn void driver_usage(const char* model_name)
   print_to_rank0("%s [command] [args]\n\n", model_name);
   print_to_rank0("Here, [command] [args] is one of the following:\n\n");
   print_to_rank0("  run [file]                -- Runs a simulation with the given input file.\n");
-  print_to_rank0("  benchmark [name]          -- Runs or queries a benchmark problem.\n");
-  print_to_rank0("  help                      -- Prints information about the given model.\n\n");
+  print_to_rank0("  batch [file]              -- Runs a batch of simulations defined by input files in the given file.\n");
+  print_to_rank0("  benchmark [name] ...      -- Runs or queries a benchmark problem.\n");
+  print_to_rank0("  help ...                  -- Prints information about the given model.\n\n");
   print_to_rank0("Benchmark commands:\n");
   print_to_rank0("  benchmark list            -- Lists all available benchmark problems.\n");
   print_to_rank0("  benchmark describe [name] -- Describes the given benchmark problem.\n");
@@ -1338,24 +1453,59 @@ void model_set_sim_path(model_t* model, const char* sim_path)
   model->sim_path = string_dup(sim_path);
 }
 
-static void set_sim_name_to_input_file(model_t* model, const char* input)
+static void run_batch(model_t* model, char* input, char* exe_name)
 {
-  char dir_name[FILENAME_MAX], file_name[FILENAME_MAX];
-  parse_path(input, dir_name, file_name);
-  int len = (int)strlen(file_name), end = 0;
-  while (end < len)
+  if (input == NULL)
   {
-    // We accept alphanumeric characters, underscores, and hyphens.
-    if (!isalnum(file_name[end]) && 
-        (file_name[end] != '_') && 
-        (file_name[end] != '-'))
-      break;
-    ++end;
+    print_to_rank0("%s: No batch file given! Usage:\n", exe_name);
+    print_to_rank0("%s run [input file]\n", exe_name);
+    model_free(model);
+    exit(0);
   }
-  char prefix[FILENAME_MAX];
-  strncpy(prefix, file_name, end);
-  prefix[end] = '\0';
-  model_set_sim_name(model, prefix);
+
+  if (!file_exists(input))
+  {
+    print_to_rank0("%s: Batch file not found: %s\n", exe_name, input);
+    model_free(model);
+    exit(0);
+  }
+
+  // On process 0, read the contents of the batch file into a list of 
+  // filenames and broadcast the contents to all other processes.
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  char* buff_str = NULL;
+  int buff_len = 0;
+  if (rank == 0)
+  {
+    text_buffer_t* buff = text_buffer_from_file(input);
+    buff_str = text_buffer_to_string(buff);
+    buff_len = (int)strlen(buff_str);
+    MPI_Bcast(&buff_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(buff_str, buff_len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+  }
+  else
+  {
+    MPI_Bcast(&buff_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    buff_str = polymec_malloc(sizeof(char) * (buff_len+1));
+    MPI_Bcast(buff_str, buff_len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+  }
+
+  // Now parse the buffer locally into a list of files.
+  text_buffer_t* buff = text_buffer_from_string(buff_str);
+  string_array_t* files = string_array_new();
+  int pos = 0, line_len = 0;
+  char* line = NULL;
+  while (text_buffer_next_nonempty(buff, &pos, &line, &line_len))
+    string_array_append(files, string_ndup(line, line_len));
+  text_buffer_free(buff);
+  polymec_free(buff_str);
+
+  // Run the batch of simulations.
+  model_run_files(model, files->data, files->size);
+
+  // Clean up.
+  string_array_free(files);
 }
 
 int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
@@ -1459,50 +1609,16 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     exit(0);
   }
 
-  // We are asked to run a simulation.
-  ASSERT(!strcmp(command, "run"));
-  if (input == NULL)
+  // We are asked to run a simulation or a batch of simulations.
+  if (!strcmp(command, "run"))
+    run_model(model, input, exe_name);
+  else
   {
-    print_to_rank0("%s: No input file given! Usage:\n", exe_name);
-    print_to_rank0("%s run [input file]\n", exe_name);
-    exit(0);
+    ASSERT(!strcmp(command, "batch"));
+    run_batch(model, input, exe_name);
   }
 
-  // Check to see whether the given file exists.
-  FILE* fp = fopen(input, "r");
-  if (fp == NULL)
-  {
-    print_to_rank0("%s: Input file not found: %s\n", exe_name, input);
-    exit(0);
-  }
-  fclose(fp);
-
-  // By default, the simulation is named after the input file (minus its path 
-  // and anything after the first alphanumeric character).
-  set_sim_name_to_input_file(model, input);
-
-  // Read the contents of the input file into the model's interpreter.
-  model_read_input_file(model, input);
-
-  // Default time endpoints, max number of steps.
-  real_t t1 = 0.0, t2 = 1.0;
-  int max_steps = INT_MAX;
-
-  // Overwrite these defaults with interpreted values.
-  interpreter_t* interp = model_interpreter(model);
-  if (interpreter_contains(interp, "t1", INTERPRETER_NUMBER))
-    t1 = interpreter_get_number(interp, "t1");
-  if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
-    t2 = interpreter_get_number(interp, "t2");
-  if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
-    max_steps = (int)(interpreter_get_number(interp, "max_steps"));
-
-  // Run the model.
-  model_run(model, t1, t2, max_steps);
-
-  // Clean up.
   model_free(model);
-
   return 0;
 }
 
@@ -1514,8 +1630,9 @@ static noreturn void multi_model_usage(const char* exe_name,
   print_to_rank0("Here, [command] [model] [args] is one of the following:\n\n");
   print_to_rank0("  run [model] [file]                -- Runs a simulation with the given\n");
   print_to_rank0("                                       input file.\n");
-  print_to_rank0("  benchmark [model] [name]          -- Runs or queries a benchmark problem.\n");
-  print_to_rank0("  help [model]                      -- Prints information about the\n");
+  print_to_rank0("  batch [model] [file]              -- Runs a batch of simulations defined by input files in the given file.\n");
+  print_to_rank0("  benchmark [model] [name] ...      -- Runs or queries a benchmark problem.\n");
+  print_to_rank0("  help [model] ...                  -- Prints information about the\n");
   print_to_rank0("                                       given model.\n\n");
   print_to_rank0("Benchmark commands:\n");
   print_to_rank0("  benchmark [model] list            -- Lists all available benchmark problems.\n");
@@ -1716,50 +1833,16 @@ int multi_model_main(model_dispatch_t model_table[],
     exit(0);
   }
 
-  // We are asked to run a simulation.
-  ASSERT(!strcmp(command, "run"));
-  if (input == NULL)
+  // We are asked to run a simulation or a batch of simulations.
+  if (!strcmp(command, "run"))
+    run_model(model, input, exe_name);
+  else
   {
-    print_to_rank0("%s: No input file given! Usage:\n", exe_name);
-    print_to_rank0("%s run %s [input file]\n", exe_name, model_name);
-    exit(0);
+    ASSERT(!strcmp(command, "batch"));
+    run_batch(model, input, exe_name);
   }
 
-  // Check to see whether the given file exists.
-  FILE* fp = fopen(input, "r");
-  if (fp == NULL)
-  {
-    print_to_rank0("%s: Input file not found: %s\n", exe_name, input);
-    exit(0);
-  }
-  fclose(fp);
-
-  // By default, the simulation is named after the input file (minus its path 
-  // and anything after the first alphanumeric character).
-  set_sim_name_to_input_file(model, input);
-
-  // Read the contents of the input file into the model's interpreter.
-  model_read_input_file(model, input);
-
-  // Default time endpoints, max number of steps.
-  real_t t1 = 0.0, t2 = 1.0;
-  int max_steps = INT_MAX;
-
-  // Overwrite these defaults with interpreted values.
-  interpreter_t* interp = model_interpreter(model);
-  if (interpreter_contains(interp, "t1", INTERPRETER_NUMBER))
-    t1 = interpreter_get_number(interp, "t1");
-  if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
-    t2 = interpreter_get_number(interp, "t2");
-  if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
-    max_steps = (int)(interpreter_get_number(interp, "max_steps"));
-
-  // Run the model.
-  model_run(model, t1, t2, max_steps);
-
-  // Clean up.
   model_free(model);
-
   return 0;
 }
 

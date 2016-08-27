@@ -22,6 +22,11 @@ typedef struct model_t model_t;
 // A model constructor function for creating an object context.
 typedef model_t* (*model_ctor)();
 
+// A function for setting the MPI communicator to be used by the model. This 
+// communicator will serve the role of MPI_COMM_WORLD in parallel communications 
+// within the model.
+typedef void (*model_set_comm_func)(void* context, MPI_Comm comm);
+
 // A function for reading input from an interpreter into the model.
 typedef void (*model_read_input_func)(void* context, interpreter_t* interpreter, options_t* options);
 
@@ -63,6 +68,7 @@ typedef void (*model_dtor)(void* context);
 // This virtual table must be implemented by any model.
 typedef struct 
 {
+  model_set_comm_func            set_comm;
   model_read_input_func          read_input;
   model_read_custom_input_func   read_custom_input;
   model_init_func                init;
@@ -244,6 +250,14 @@ void model_compute_error_norms(model_t* model, st_func_t* solution, real_t* erro
 // Runs a simulation of the model from time t1 to t2, or for a maximum of 
 // max_steps.
 void model_run(model_t* model, real_t t1, real_t t2, int max_steps);
+
+// Runs a batch of simulations whose inputs are found in files whose names 
+// appear in input_files. The simulations will be run concurrently to the 
+// degree possible. The input files will only be read by process 0 of the 
+// MPI_COMM_WORLD communicator.
+void model_run_files(model_t* model, 
+                     char** input_files,
+                     size_t num_input_files);
 
 // Sets the name of the simulation within the model. This name 
 // will be used to identify and/or generate names of plot and save files.
