@@ -1618,7 +1618,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   if (command != NULL)
   {
     int c = 0;
-    static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
+    static const char* valid_commands[] = {"run", "batch", "benchmark", "help", NULL};
     while (valid_commands[c] != NULL)
     {
       if (!strcmp(command, valid_commands[c]))
@@ -1628,7 +1628,7 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
     if (valid_commands[c] == NULL)
     {
       print_to_rank0("%s: invalid command: '%s'\n", exe_name, command);
-      print_to_rank0("%s: valid commands are: run, benchmark, help'\n", exe_name);
+      print_to_rank0("%s: valid commands are: run, batch, benchmark, help'\n", exe_name);
       exit(0);
     }
   }
@@ -1704,16 +1704,31 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   else
   {
     ASSERT(!strcmp(command, "batch"));
-    char* ppr_str = options_argument(opts, 4);
+    if ((input == NULL) || (options_num_arguments(opts) < 4))
+    {
+      print_to_rank0("%s: usage: %s batch [model] [input] [procs]\n", 
+                     exe_name, exe_name);
+      exit(0);
+    }
+    char* ppr_str = options_argument(opts, 3);
     if (!string_is_integer(ppr_str))
-      polymec_error("batch: procs should be an integer.");
+    {
+      print_to_rank0("batch: procs should be an integer.\n");
+      exit(0);
+    }
     int ppr = atoi(ppr_str);
     if (ppr < 1)
-      polymec_error("batch: procs should be at least 1.");
+    {
+      print_to_rank0("batch: procs should be at least 1.\n");
+      exit(0);
+    }
     int nproc;
     MPI_Comm_size(MPI_COMM_WORLD, &nproc);
     if (ppr > nproc)
-      polymec_error("batch: procs cannot exceed %d.", nproc);
+    {
+      print_to_rank0("batch: procs cannot exceed %d.\n", nproc);
+      exit(0);
+    }
     run_batch(model, input, ppr, exe_name);
   }
 
@@ -1817,7 +1832,7 @@ int multi_model_main(model_dispatch_t model_table[],
   if (command != NULL)
   {
     int c = 0;
-    static const char* valid_commands[] = {"run", "benchmark", "help", NULL};
+    static const char* valid_commands[] = {"run", "batch", "benchmark", "help", NULL};
     while (valid_commands[c] != NULL)
     {
       if (!strcmp(command, valid_commands[c]))
@@ -1827,7 +1842,7 @@ int multi_model_main(model_dispatch_t model_table[],
     if (valid_commands[c] == NULL)
     {
       print_to_rank0("%s: invalid command: '%s'\n", exe_name, command);
-      print_to_rank0("%s: valid commands are: run, benchmark, help'\n", exe_name);
+      print_to_rank0("%s: valid commands are: run, batch, benchmark, help'\n", exe_name);
       exit(0);
     }
 
@@ -1938,16 +1953,31 @@ int multi_model_main(model_dispatch_t model_table[],
   else
   {
     ASSERT(!strcmp(command, "batch"));
+    if ((input == NULL) || (options_num_arguments(opts) < 5))
+    {
+      print_to_rank0("%s: usage: %s batch [model] [input] [procs]\n",
+                     exe_name, exe_name);
+      exit(0);
+    }
     char* ppr_str = options_argument(opts, 4);
     if (!string_is_integer(ppr_str))
-      polymec_error("batch: procs should be an integer.");
+    {
+      print_to_rank0("batch: procs should be an integer.\n");
+      exit(0);
+    }
     int ppr = atoi(ppr_str);
     if (ppr < 1)
-      polymec_error("batch: procs should be at least 1.");
+    {
+      print_to_rank0("batch: procs should be at least 1.\n");
+      exit(0);
+    }
     int nproc;
     MPI_Comm_size(MPI_COMM_WORLD, &nproc);
     if (ppr > nproc)
-      polymec_error("batch: procs cannot exceed %d.", nproc);
+    {
+      print_to_rank0("batch: procs cannot exceed %d.\n", nproc);
+      exit(0);
+    }
     run_batch(model, input, ppr, exe_name);
   }
 

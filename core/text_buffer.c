@@ -26,6 +26,14 @@ static void find_line_breaks(text_buffer_t* buffer)
     if (buffer->data[i] == '\n')
       long_slist_append(line_list, i+1);
   }
+  {
+    // Pick up all the detritus at the end if necessary.
+    long_slist_node_t* iter = line_list->front;
+    long last;
+    while (long_slist_next(line_list, &iter, &last));
+    if (last < buffer->size)
+      long_slist_append(line_list, buffer->size);
+  }
 
   buffer->num_lines = line_list->size;
   buffer->line_offsets = polymec_malloc(sizeof(long) * (buffer->num_lines+1));
@@ -105,7 +113,7 @@ bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, int* line_le
   if (*pos >= buffer->num_lines) 
     return false;
   int offset = (int)buffer->line_offsets[*pos];
-  *line_length = (int)buffer->line_offsets[*pos + 1] - offset;
+  *line_length = (int)buffer->line_offsets[*pos + 1] - offset - 1;
   *line = &buffer->data[offset];
   ++(*pos);
   return true;
