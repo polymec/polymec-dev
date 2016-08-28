@@ -256,11 +256,13 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps);
 
 // Runs a batch of simulations whose inputs are found in files whose names 
 // appear in input_files. The simulations will be run concurrently to the 
-// degree possible. The input files will only be read by process 0 of the 
-// MPI_COMM_WORLD communicator.
+// degree possible, using procs_per_run processes for each simulation. Each 
+// input file will only be read by process 0 of the the global communicator
+// for its simulation.
 void model_run_files(model_t* model, 
                      char** input_files,
-                     size_t num_input_files);
+                     size_t num_input_files,
+                     int procs_per_run);
 
 // Sets the name of the simulation within the model. This name 
 // will be used to identify and/or generate names of plot and save files.

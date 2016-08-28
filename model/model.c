@@ -1301,25 +1301,38 @@ static void run_model(model_t* model, char* input, char* caller)
 
 void model_run_files(model_t* model, 
                      char** input_files,
-                     size_t num_input_files)
+                     size_t num_input_files,
+                     int procs_per_run)
 {
-  // Make sure that the number of processes in MPI_COMM_WORLD evenly 
-  // divides the number of files given. Otherwise we will be wasting 
-  // processes!
+  ASSERT(procs_per_run >= 1);
+
+  // Make sure that procs_per_run evenly divides the number of available 
+  // processes.
   int g_nproc, g_rank;
   MPI_Comm_size(MPI_COMM_WORLD, &g_nproc);
   MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
-  if ((num_input_files % g_nproc) != 0)
+  if ((g_nproc % procs_per_run) != 0)
   {
     model_free(model);
-    polymec_error("model_run_files: Number of processes (%d) does not evenly divide number of files (%d).", 
-                  g_nproc, num_input_files);
+    polymec_error("model_run_files: procs_per_run (%d) does not evenly divide total number of procs (%d).", 
+                  procs_per_run, g_nproc);
+  }
+
+  // Calculate the number of concurrent simulations.
+  size_t num_concurrent_sims = (size_t)(g_nproc / procs_per_run);
+
+  // Make sure that the number of concurrent simulations evenly divides the 
+  // number of files given. 
+  if ((num_input_files % num_concurrent_sims) != 0)
+  {
+    model_free(model);
+    polymec_error("model_run_files: Number of concurrent simulations (%d) does not evenly divide number of files (%d).", 
+                  (int)num_concurrent_sims, num_input_files);
   }
 
   // Set up a global MPI communicator for each concurrent simulation and assign 
   // each process to a simulation group.
-  size_t num_concurrent_sims = num_input_files / g_nproc;
-  int sim_group = (int)(g_rank / num_concurrent_sims);
+  int sim_group = (int)(g_rank % num_concurrent_sims);
   MPI_Comm sim_comm;
   MPI_Comm_split(MPI_COMM_WORLD, sim_group, g_rank, &sim_comm);
   model->vtable.set_global_comm(model->context, sim_comm);
@@ -1355,7 +1368,7 @@ static noreturn void driver_usage(const char* model_name)
   print_to_rank0("%s [command] [args]\n\n", model_name);
   print_to_rank0("Here, [command] [args] is one of the following:\n\n");
   print_to_rank0("  run [file]                -- Runs a simulation with the given input file.\n");
-  print_to_rank0("  batch [file]              -- Runs a batch of simulations defined by input files in the given file.\n");
+  print_to_rank0("  batch [file] [procs]      -- Runs a batch of simulations defined by input files in the given file.\n");
   print_to_rank0("  benchmark [name] ...      -- Runs or queries a benchmark problem.\n");
   print_to_rank0("  help ...                  -- Prints information about the given model.\n\n");
   print_to_rank0("Benchmark commands:\n");
@@ -1470,12 +1483,15 @@ void model_set_sim_path(model_t* model, const char* sim_path)
   model->sim_path = string_dup(sim_path);
 }
 
-static void run_batch(model_t* model, char* input, char* exe_name)
+static void run_batch(model_t* model, 
+                      char* input, 
+                      int procs_per_run, 
+                      char* exe_name)
 {
   if (input == NULL)
   {
     print_to_rank0("%s: No batch file given! Usage:\n", exe_name);
-    print_to_rank0("%s run [input file]\n", exe_name);
+    print_to_rank0("%s batch [input file] [rocs_per_run]\n", exe_name);
     model_free(model);
     exit(0);
   }
@@ -1519,7 +1535,7 @@ static void run_batch(model_t* model, char* input, char* exe_name)
   polymec_free(buff_str);
 
   // Run the batch of simulations.
-  model_run_files(model, files->data, files->size);
+  model_run_files(model, files->data, files->size, procs_per_run);
 
   // Clean up.
   string_array_free(files);
@@ -1632,7 +1648,17 @@ int model_main(const char* model_name, model_ctor constructor, int argc, char* a
   else
   {
     ASSERT(!strcmp(command, "batch"));
-    run_batch(model, input, exe_name);
+    char* ppr_str = options_argument(opts, 4);
+    if (!string_is_integer(ppr_str))
+      polymec_error("batch: procs should be an integer.");
+    int ppr = atoi(ppr_str);
+    if (ppr < 1)
+      polymec_error("batch: procs should be at least 1.");
+    int nproc;
+    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+    if (ppr > nproc)
+      polymec_error("batch: procs cannot exceed %d.", nproc);
+    run_batch(model, input, ppr, exe_name);
   }
 
   model_free(model);
@@ -1647,7 +1673,7 @@ static noreturn void multi_model_usage(const char* exe_name,
   print_to_rank0("Here, [command] [model] [args] is one of the following:\n\n");
   print_to_rank0("  run [model] [file]                -- Runs a simulation with the given\n");
   print_to_rank0("                                       input file.\n");
-  print_to_rank0("  batch [model] [file]              -- Runs a batch of simulations defined by input files in the given file.\n");
+  print_to_rank0("  batch [model] [file] [procs]      -- Runs a batch of simulations defined by input files in the given file.\n");
   print_to_rank0("  benchmark [model] [name] ...      -- Runs or queries a benchmark problem.\n");
   print_to_rank0("  help [model] ...                  -- Prints information about the\n");
   print_to_rank0("                                       given model.\n\n");
@@ -1856,7 +1882,17 @@ int multi_model_main(model_dispatch_t model_table[],
   else
   {
     ASSERT(!strcmp(command, "batch"));
-    run_batch(model, input, exe_name);
+    char* ppr_str = options_argument(opts, 4);
+    if (!string_is_integer(ppr_str))
+      polymec_error("batch: procs should be an integer.");
+    int ppr = atoi(ppr_str);
+    if (ppr < 1)
+      polymec_error("batch: procs should be at least 1.");
+    int nproc;
+    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+    if (ppr > nproc)
+      polymec_error("batch: procs cannot exceed %d.", nproc);
+    run_batch(model, input, ppr, exe_name);
   }
 
   model_free(model);
