@@ -187,7 +187,10 @@ FILE* make_temp_file(const char* file_template, char* filename)
   // Make the thing.
   int fd = mkstemp(full_template);
   if (fd == -1)
+  {
+    log_urgent("make_temp_file: Couldn't create temporary file at %s.", full_template);
     return NULL;
+  }
   else
     strncpy(filename, full_template, FILENAME_MAX);
   return fdopen(fd, "w");

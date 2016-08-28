@@ -46,7 +46,7 @@ bool create_directory(const char* dirname, mode_t mode);
 int remove_directory(const char* path);
 
 // Create a temporary file using the given template. This function replaces 
-// up to 6 X characters in the filename template with a set of characters that 
+// 6 X characters in the filename template with a set of characters that 
 // renders it unique (in the spirit of mkstemp), storing the result in filename. 
 // The template should have the form path/to/fileXXXXXX, with the X's all at 
 // the end. This function returns a file descriptor that is open for writing 
@@ -56,7 +56,7 @@ int remove_directory(const char* path);
 FILE* make_temp_file(const char* file_template, char* filename);
 
 // Create a temporary directory using the given template. This function replaces 
-// up to 6 X characters in the dirname template with a set of characters that 
+// 6 X characters in the dirname template with a set of characters that 
 // renders it unique (in the spirit of mkdtemp). The template should have the 
 // form path/to/dirXXXXXX, with the X's all at the end. This function returns 
 // true if the directory was created, false if not. All temporary files are 

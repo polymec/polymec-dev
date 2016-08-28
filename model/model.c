@@ -1583,8 +1583,9 @@ static void run_batch(model_t* model,
   // Now parse the buffer locally into a list of files.
   text_buffer_t* buff = text_buffer_from_string(buff_str);
   string_array_t* files = string_array_new();
-  int pos = 0, line_len = 0;
+  int pos = 0;
   char* line = NULL;
+  size_t line_len;
   while (text_buffer_next_nonempty(buff, &pos, &line, &line_len))
     string_array_append(files, string_ndup(line, line_len));
   text_buffer_free(buff);

@@ -11,42 +11,37 @@
 
 struct text_buffer_t 
 {
-  long size;
+  size_t size;
   int num_lines;
-  long* line_offsets;
+  size_t* line_offsets;
   char* data;
 };
 
 static void find_line_breaks(text_buffer_t* buffer)
 {
   // Here's why you don't want to use this for enormous files!
-  long_slist_t* line_list = long_slist_new();
-  for (long i = 0; i < buffer->size; ++i)
+  size_t_slist_t* line_list = size_t_slist_new();
+  for (size_t i = 0; i < buffer->size; ++i)
   {
     if (buffer->data[i] == '\n')
-      long_slist_append(line_list, i+1);
+      size_t_slist_append(line_list, i+1);
   }
-  {
-    // Pick up all the detritus at the end if necessary.
-    long_slist_node_t* iter = line_list->front;
-    long last;
-    while (long_slist_next(line_list, &iter, &last));
-    if (last < buffer->size)
-      long_slist_append(line_list, buffer->size);
-  }
+  // Pick up the detritus at the end if necessary.
+  if (buffer->data[buffer->size-2] != '\n')
+    size_t_slist_append(line_list, buffer->size);
 
   buffer->num_lines = line_list->size;
-  buffer->line_offsets = polymec_malloc(sizeof(long) * (buffer->num_lines+1));
+  buffer->line_offsets = polymec_malloc(sizeof(size_t) * (buffer->num_lines+1));
   buffer->line_offsets[0] = 0;
   int i = 1;
-  long line_no;
-  long_slist_node_t* iter = NULL;
-  while (long_slist_next(line_list, &iter, &line_no))
+  size_t line_no;
+  size_t_slist_node_t* iter = NULL;
+  while (size_t_slist_next(line_list, &iter, &line_no))
   {
-    buffer->line_offsets[i] = line_no; //iter->value;
+    buffer->line_offsets[i] = line_no;
     ++i;
   }
-  long_slist_free(line_list);
+  size_t_slist_free(line_list);
 }
 
 text_buffer_t* text_buffer_from_file(const char* filename)
@@ -62,7 +57,7 @@ text_buffer_t* text_buffer_from_file(const char* filename)
   fseek(fp, 0, SEEK_END);
   long end = ftell(fp);
   fseek(fp, 0, SEEK_SET);
-  buffer->size = end - start + 1;
+  buffer->size = (size_t)(end - start + 1);
   buffer->data = polymec_malloc(sizeof(char) * buffer->size);
   size_t bytes_read = fread(buffer->data, sizeof(char), buffer->size, fp);
   buffer->data[bytes_read-1] = '\0';
@@ -84,6 +79,7 @@ text_buffer_t* text_buffer_from_string(const char* string)
   buffer->size = strlen(string) + 1;
   buffer->data = polymec_malloc(sizeof(char) * buffer->size);
   memcpy(buffer->data, string, sizeof(char) * buffer->size);
+  buffer->data[buffer->size-1] = '\0';
 
   // Now find all the line breaks.
   find_line_breaks(buffer);
@@ -98,9 +94,9 @@ void text_buffer_free(text_buffer_t* buffer)
   polymec_free(buffer);
 }
 
-long text_buffer_size(text_buffer_t* buffer)
+size_t text_buffer_size(text_buffer_t* buffer)
 {
-  return buffer->size;
+  return buffer->size - 1;
 }
 
 int text_buffer_num_lines(text_buffer_t* buffer)
@@ -108,21 +104,22 @@ int text_buffer_num_lines(text_buffer_t* buffer)
   return buffer->num_lines;
 }
 
-bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, int* line_length)
+bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, size_t* line_length)
 {
   if (*pos >= buffer->num_lines) 
     return false;
-  int offset = (int)buffer->line_offsets[*pos];
-  *line_length = (int)buffer->line_offsets[*pos + 1] - offset - 1;
+  size_t offset = buffer->line_offsets[*pos];
+  size_t next_offset = buffer->line_offsets[*pos+1];
+  *line_length = next_offset - offset - 1;
   *line = &buffer->data[offset];
   ++(*pos);
   return true;
 }
 
-bool text_buffer_next_nonempty(text_buffer_t* buffer, int* pos, char** line, int* line_length)
+bool text_buffer_next_nonempty(text_buffer_t* buffer, int* pos, char** line, size_t* line_length)
 {
   bool result = text_buffer_next(buffer, pos, line, line_length);
-  while (result && (line_length == 0))
+  while (result && (*line_length == 0))
     result = text_buffer_next(buffer, pos, line, line_length);
   return result;
 }

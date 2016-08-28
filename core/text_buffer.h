@@ -24,7 +24,7 @@ text_buffer_t* text_buffer_from_string(const char* string);
 void text_buffer_free(text_buffer_t* buffer);
 
 // Returns the size (in bytes) of the buffer. 
-long text_buffer_size(text_buffer_t* buffer);
+size_t text_buffer_size(text_buffer_t* buffer);
 
 // Returns the number of lines in the buffer.
 int text_buffer_num_lines(text_buffer_t* buffer);
@@ -33,13 +33,13 @@ int text_buffer_num_lines(text_buffer_t* buffer);
 // to reset the iteration. line is not NULL-terminated--it is just the portion
 // of the buffer holding the current line. Thus, you should 
 // use line_length to determine its length.
-bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, int* line_length);
+bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, size_t* line_length);
 
 // Iterates over the file, returning the next non-empty line. Set pos to 0 
 // to reset the iteration. line is not NULL-terminated--it is just the portion
 // of the buffer holding the current line. Thus, you should 
 // use line_length to determine its length.
-bool text_buffer_next_nonempty(text_buffer_t* buffer, int* pos, char** line, int* line_length);
+bool text_buffer_next_nonempty(text_buffer_t* buffer, int* pos, char** line, size_t* line_length);
 
 // Returns a newly-allocated string containing the contents of this text buffer.
 char* text_buffer_to_string(text_buffer_t* buffer);
