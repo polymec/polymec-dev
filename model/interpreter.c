@@ -1201,46 +1201,17 @@ void interpreter_parse_file(interpreter_t* interp, char* input_file)
 {
   log_detail("interpreter: Reading input from file '%s'...", input_file);
 
-  int rank, nproc;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
-
-  // Read the contents of the file into a string on rank 0 and broadcast it 
-  // to the other processes on MPI_COMM_WORLD.
-  char* input_str = NULL;
-  if (rank == 0)
-  {
-    text_buffer_t* buffer = text_buffer_from_file(input_file);
-    input_str = text_buffer_to_string(buffer);
-    text_buffer_free(buffer);
-  }
-
-  if (nproc > 1)
-  {
-    // Broadcast the length of the input.
-    int input_len = (rank == 0) ? (int)strlen(input_str) : 0;
-    MPI_Bcast(&input_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    // Allocate storage for the input string on rank > 0 processes.
-    if (rank > 0)
-      input_str = polymec_malloc(sizeof(char) * (input_len+1));
-
-    // Broadcast the input.
-    MPI_Bcast(input_str, input_len, MPI_CHAR, 0, MPI_COMM_WORLD);
-
-    if (rank > 0)
-    {
-      // Don't forget to null-terminate!
-      input_str[input_len] = '\0';
-    }
-  }
+  // Parse the file into a string.
+  text_buffer_t* buffer = text_buffer_from_file(input_file);
+  char* input_str = text_buffer_to_string(buffer);
+  text_buffer_free(buffer);
 
   // Set the input file name.
   if (interp->input_file != NULL)
     string_free(interp->input_file);
   interp->input_file = string_dup(input_file);
 
-  // Parse the string locally.
+  // Parse the string into the interpreter.
   interpreter_parse_string(interp, input_str);
   polymec_free(input_str);
 }

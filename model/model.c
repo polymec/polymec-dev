@@ -59,6 +59,9 @@ DEFINE_UNORDERED_MAP(model_benchmark_map, char*, model_benchmark_t*, string_hash
 
 struct model_t 
 {
+  // Global communicator.
+  MPI_Comm global_comm;
+
   // Model metadata.
   void* context;
   char* name;
@@ -94,6 +97,14 @@ struct model_t
   // Interpreter for parsing input files.
   interpreter_t* interpreter;
 };
+
+// This helper function sets the model's global communicator.
+static void model_set_global_comm(model_t* model, MPI_Comm comm)
+{
+  model->global_comm = comm;
+  if (model->vtable.set_global_comm != NULL)
+    model->vtable.set_global_comm(model->context, comm);
+}
 
 // Here's a static set of all named model instances.
 static string_unordered_set_t* model_singletons = NULL;
@@ -226,9 +237,9 @@ model_t* model_new(const char* name,
   if ((model->parallelism == MODEL_MPI) || 
       (model->parallelism == MODEL_MPI_SINGLETON) || 
       (model->parallelism == MODEL_MPI_THREAD_SAFE))
-    model->vtable.set_global_comm(model->context, MPI_COMM_WORLD);
+    model_set_global_comm(model, MPI_COMM_WORLD);
   else if (model->vtable.set_global_comm != NULL)
-    model->vtable.set_global_comm(model->context, MPI_COMM_SELF);
+    model_set_global_comm(model, MPI_COMM_SELF);
 
   return model;
 }
@@ -530,22 +541,52 @@ void model_read_input_string(model_t* model, const char* input)
 
 void model_read_input_file(model_t* model, const char* file)
 {
+  // Parse the input file on rank 0 of our global communicator and broadcast
+  // the contents of the file to the other ranks.
+  int rank, nproc;
+  MPI_Comm_rank(model->global_comm, &rank);
+  MPI_Comm_size(model->global_comm, &nproc);
+  char* input_str = NULL;
+  if (rank == 0)
+  {
+    text_buffer_t* buffer = text_buffer_from_file(file);
+    input_str = text_buffer_to_string(buffer);
+    text_buffer_free(buffer);
+  }
+  if (nproc > 1)
+  {
+    // Broadcast the length of the input.
+    int input_len = (rank == 0) ? (int)strlen(input_str) : 0;
+    MPI_Bcast(&input_len, 1, MPI_INT, 0, model->global_comm);
+
+    // Allocate storage for the input string on rank > 0 processes.
+    if (rank > 0)
+      input_str = polymec_malloc(sizeof(char) * (input_len+1));
+
+    // Broadcast the input.
+    MPI_Bcast(input_str, input_len, MPI_CHAR, 0, model->global_comm);
+
+    if (rank > 0)
+    {
+      // Don't forget to null-terminate!
+      input_str[input_len] = '\0';
+    }
+  }
+
   if (model->vtable.read_input != NULL)
   {
     interpreter_t* interp = model_interpreter(model);
-    interpreter_parse_file(interp, (char*)file);
+    interpreter_parse_string(interp, input_str);
     model_read_input(model, interp);
   }
   else
   {
     log_detail("%s: Reading custom input from '%s'...", model->name, file);
-    text_buffer_t* text = text_buffer_from_file(file);
-    char* input = text_buffer_to_string(text);
-    text_buffer_free(text);
     options_t* options = options_argv();
-    model->vtable.read_custom_input(model->context, (const char*)input, options);
-    polymec_free(input);
+    model->vtable.read_custom_input(model->context, (const char*)input_str, 
+                                    options);
   }
+  string_free(input_str);
 }
 
 typedef struct 
@@ -873,7 +914,7 @@ void model_load(model_t* model, int step)
     polymec_error("Loading from save files is not supported by this model.");
 
   int nprocs;
-  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  MPI_Comm_size(model->global_comm, &nprocs);
 
   ASSERT(step >= 0);
   if (model->sim_name == NULL)
@@ -895,7 +936,7 @@ void model_save(model_t* model)
 {
   START_FUNCTION_TIMER();
   int nprocs;
-  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  MPI_Comm_size(model->global_comm, &nprocs);
 
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
@@ -914,7 +955,7 @@ void model_plot(model_t* model)
 {
   START_FUNCTION_TIMER();
   int nprocs;
-  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  MPI_Comm_size(model->global_comm, &nprocs);
 
   if (model->sim_name == NULL)
     polymec_error("No simulation name was set with model_set_sim_name.");
@@ -939,7 +980,7 @@ void model_record_observations(model_t* model)
     return;
 
   int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_rank(model->global_comm, &rank);
 
   // Open up the observation file.
   char obs_fn[FILENAME_MAX];
@@ -1335,12 +1376,27 @@ void model_run_files(model_t* model,
   int sim_group = (int)(g_rank % num_concurrent_sims);
   MPI_Comm sim_comm;
   MPI_Comm_split(MPI_COMM_WORLD, sim_group, g_rank, &sim_comm);
-  model->vtable.set_global_comm(model->context, sim_comm);
+  model_set_global_comm(model, sim_comm);
+
+  log_info("%s: Running %d simulations using %d processes each.", 
+           model->name, num_input_files, procs_per_run);
 
   // Run simulations till we are finished.
   size_t simulations_finished = 0;
   while (simulations_finished < num_input_files)
   {
+    if (num_concurrent_sims > 1)
+    {
+      log_info("%s: Running simulations %d - %d...", model->name,
+               simulations_finished + 1, 
+               simulations_finished + num_concurrent_sims);
+    }
+    else
+    {
+      log_info("%s: Running simulation %d...", model->name,
+               simulations_finished + 1);
+    }
+
     // Select the correct input file for this rank.
     size_t sim_index = simulations_finished + sim_group;
     char* input = input_files[sim_index];

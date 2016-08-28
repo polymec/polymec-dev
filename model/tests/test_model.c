@@ -178,6 +178,7 @@ static void test_run_files(void** state)
       FILE* file = fopen(filename, "w");
       fprintf(file, "index = %d\n", i);
       fprintf(file, "dt = %g\n", (i+1) * 0.1);
+      fprintf(file, "t2 = %g\n", 1.0 * (i+1));
       fclose(file);
     }
     inputs[i] = string_dup(filename);

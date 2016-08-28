@@ -9,7 +9,7 @@ add_mpi_polymec_test(test_star_stencil test_star_stencil.c 1 2 3 4)
 add_mpi_polymec_test(test_partition_point_cloud_with_neighbors test_partition_point_cloud_with_neighbors.c create_simple_pairing.c 1 2 3 4)
 add_mpi_polymec_test(test_shepard_point_basis test_shepard_point_basis.c 1 2 3 4)
 add_mpi_polymec_test(test_mls_point_basis test_mls_point_basis.c 1 2 3 4)
-add_mpi_polymec_test(test_model test_model.c 1 2 3 4)
+add_mpi_polymec_test(test_model test_model.c 1 2 4)
 
 # Tests for features we will add later.
 #add_mpi_polymec_test(test_halo_stencil test_halo_stencil.c 1 2 3 4)
