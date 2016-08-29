@@ -1587,14 +1587,24 @@ static void run_batch(model_t* model,
   char* line = NULL;
   size_t line_len;
   while (text_buffer_next_nonempty(buff, &pos, &line, &line_len))
-    string_array_append(files, string_ndup(line, line_len));
+    string_array_append_with_dtor(files, string_ndup(line, line_len), string_free);
   text_buffer_free(buff);
   polymec_free(buff_str);
 
+  // Trim leading/trailing whitespace from the filenames in the list.
+  string_array_t* trimmed_files = string_array_new();
+  for (size_t i = 0; i < files->size; ++i)
+  {
+    char* filename = files->data[i];
+    int offset = string_trim(filename);
+    string_array_append(trimmed_files, &(filename[offset]));
+  }
+
   // Run the batch of simulations.
-  model_run_files(model, files->data, files->size, procs_per_run);
+  model_run_files(model, trimmed_files->data, trimmed_files->size, procs_per_run);
 
   // Clean up.
+  string_array_free(trimmed_files);
   string_array_free(files);
 }
 

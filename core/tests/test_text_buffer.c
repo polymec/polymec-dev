@@ -87,6 +87,7 @@ static void test_next(void** state)
   assert_int_equal(strlen("This is the last line."), line_length);
   assert_int_equal(0, strncmp(line, "This is the last line.", line_length));
 
+  assert_false(text_buffer_next(buff, &pos, &line, &line_length));
   text_buffer_free(buff);
 }
 
@@ -116,6 +117,7 @@ static void test_next_nonempty(void** state)
   assert_int_equal(strlen("This is the last line."), line_length);
   assert_int_equal(0, strncmp(line, "This is the last line.", line_length));
 
+  assert_false(text_buffer_next(buff, &pos, &line, &line_length));
   text_buffer_free(buff);
 }
 
