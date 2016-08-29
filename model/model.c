@@ -1378,6 +1378,10 @@ void model_run_files(model_t* model,
   MPI_Comm_split(MPI_COMM_WORLD, sim_group, g_rank, &sim_comm);
   model_set_global_comm(model, sim_comm);
 
+  // Find our rank within the simulation group.
+  int sim_rank;
+  MPI_Comm_rank(sim_comm, &sim_rank);
+
   log_info("%s: Running %d simulations using %d processes each.", 
            model->name, num_input_files, procs_per_run);
 
@@ -1385,27 +1389,21 @@ void model_run_files(model_t* model,
   size_t simulations_finished = 0;
   while (simulations_finished < num_input_files)
   {
-    if (num_concurrent_sims > 1)
-    {
-      log_info("%s: Running simulations %d - %d...", model->name,
-               simulations_finished + 1, 
-               simulations_finished + num_concurrent_sims);
-    }
-    else
-    {
-      log_info("%s: Running simulation %d...", model->name,
-               simulations_finished + 1);
-    }
-
     // Select the correct input file for this rank.
     size_t sim_index = simulations_finished + sim_group;
     char* input = input_files[sim_index];
 
+    // Emit an informational message.
+    if (sim_rank == 0)
+    {
+      log_info("%s: Running simulation %d (%s)...", model->name, 
+               (int)sim_index, input);
+    }
+
     // Run the model with our input.
     run_model(model, input, "model_run_files");
 
-    // Wait for all concurrent simulations to finish.
-    MPI_Barrier(MPI_COMM_WORLD);
+    // Head for our next simulation.
     simulations_finished += num_concurrent_sims;
   }
 
