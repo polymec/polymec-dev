@@ -99,7 +99,8 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
     bool has_slash = (strstr(line, "/") != NULL);
     if (has_slash)
     {
-      int spos = 0, slen;
+      int spos = 0;
+      size_t slen;
       char* str;
       string_next_token(line, "/", &spos, &str, &slen);
       if (slen > 8)
@@ -152,7 +153,8 @@ static void gol_read_custom_input(void* context, const char* input, options_t* o
     // #P X Y
     if ((len < 6) || (line[0] != '#') || (line[1] != 'P'))
       polymec_error("Invalid cell block header: %s", line);
-    int spos = 0, slen;
+    int spos = 0;
+    size_t slen;
     char* str;
     bool found_coords = string_next_token(&line[3], " ", &spos, &str, &slen);
     if (!found_coords)

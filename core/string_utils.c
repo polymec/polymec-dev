@@ -18,7 +18,7 @@ char* string_dup(const char* s)
   return copy;
 }
 
-char* string_ndup(const char* s, int n)
+char* string_ndup(const char* s, size_t n)
 {
   int len = MIN(n, (int)strlen(s));
   char* copy = polymec_malloc((len+1)*sizeof(char));
@@ -69,13 +69,13 @@ void string_free(char* s)
   polymec_free(s);
 }
 
-void string_copy_from_raw(const char* raw_array, int n, char* dest)
+void string_copy_from_raw(const char* raw_array, size_t n, char* dest)
 {
   strncpy(dest, raw_array, n);
   dest[n] = '\0';
 }
 
-bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, int* length)
+bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, size_t* length)
 {
   int slen = (int)strlen(s);
   if (*pos >= slen)
@@ -84,12 +84,12 @@ bool string_next_token(const char* s, const char* delimiter, int* pos, char** to
   *token = (char*)&(s[*pos]);
   if (delim == NULL)
   {
-    *length = slen - *pos;
+    *length = (size_t)(slen - *pos);
     *pos = slen;
   }
   else
   {
-    *length = (int)(delim - s) - *pos;
+    *length = (size_t)(delim - s) - *pos;
     *pos = (int)(delim - s) + (int)strlen(delimiter);
   }
   return true;
@@ -97,7 +97,8 @@ bool string_next_token(const char* s, const char* delimiter, int* pos, char** to
 
 int string_num_tokens(const char* s, const char* delimiter)
 {
-  int num_tokens = 0, pos = 0, length;
+  int num_tokens = 0, pos = 0;
+  size_t length;
   char* token;
   while (string_next_token(s, delimiter, &pos, &token, &length))
     ++num_tokens;
@@ -110,7 +111,8 @@ char** string_split(const char* s, const char* delimiter, int* num_substrings)
   if (*num_substrings == 0)
     return NULL;
 
-  int i = 0, pos = 0, length;
+  int i = 0, pos = 0;
+  size_t length;
   char* token;
   char** strs = polymec_malloc(sizeof(char*) * (*num_substrings));
   while (string_next_token(s, delimiter, &pos, &token, &length))

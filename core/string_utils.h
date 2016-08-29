@@ -15,7 +15,7 @@ char* string_dup(const char* s);
 
 // This is a version of string_dup() that only copies n characters, also 
 // tacking an '\0' to the end.
-char* string_ndup(const char* s, int n);
+char* string_ndup(const char* s, size_t n);
 
 // Since strcasecmp and strncasecmp are not standard C, we provide surrogates 
 // here.
@@ -27,7 +27,7 @@ int string_ncasecmp(const char* s1, const char* s2, size_t n);
 // is not assumed to be NULL-terminated, but if it is, only those characters 
 // preceding the NULL character will be copied. After the copy is performed, 
 // a NULL character will be written to dest[n].
-void string_copy_from_raw(const char* raw_array, int n, char* dest);
+void string_copy_from_raw(const char* raw_array, size_t n, char* dest);
 
 // This just calls polymec_free() to free a string, but can be used as a 
 // convenience function for assigning destructors to strings in containers.
@@ -38,7 +38,7 @@ void string_free(char* s);
 // It returns false if the string has been completely traversed, true otherwise.
 // pos should be set to 0 to begin the traversal. The next token and its length
 // are stored in *token and *length, respectively.
-bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, int* length);
+bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, size_t* length);
 
 // Returns the number of substrings (separated by the given delimiter)
 // occur in the given string.

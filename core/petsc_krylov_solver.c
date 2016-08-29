@@ -1183,7 +1183,8 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
     }
 
     // Look for PETSC_USE_64BIT_INDICES.
-    int pos = 0, length;
+    int pos = 0;
+    size_t length;
     char* line;
     while (text_buffer_next_nonempty(buffer, &pos, &line, &length))
     {

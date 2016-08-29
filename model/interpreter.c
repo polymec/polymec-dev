@@ -62,7 +62,8 @@ docstring_t* docstring_from_string(const char* s)
   string_array_clear(docs->strings);
   docs->empty = false;
 
-  int pos = 0, length;
+  int pos = 0;
+  size_t length;
   char *line;
   while (string_next_token(s, "\n", &pos, &line, &length))
     string_array_append_with_dtor(docs->strings, string_ndup(line, length), string_free);

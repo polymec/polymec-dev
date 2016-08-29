@@ -59,7 +59,8 @@ static void test_string_ncasecmp(void** state)
 static void test_string_next_token(void** state)
 {
   const char* whole_string = "this,that,and the other";
-  int pos = 0, len;
+  int pos = 0;
+  size_t len;
   char* token, token_copy[128];
 
   assert_true(string_next_token(whole_string, ",", &pos, &token, &len));

@@ -80,7 +80,8 @@ void options_parse(int argc, char** argv)
   while (i < argc)
   {
     // Parse a key=value pair.
-    int pos = 0, length;
+    int pos = 0;
+    size_t length;
     char* token;
     if (string_next_token(argv[i], "=", &pos, &token, &length))
     {
