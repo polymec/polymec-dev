@@ -58,11 +58,13 @@ typedef struct fasmg_prolongator_t fasmg_prolongator_t;
 typedef struct fasmg_cycle_t fasmg_cycle_t;
 
 // Creates a fasmg_solver that uses the given algorithms to solve A(X) = B.
-fasmg_solver_t* fasmg_operator_new(fasmg_operator_t* A,
-                                   fasmg_coarsener_t* coarsener,
-                                   fasmg_restrictor_t* restrictor,
-                                   fasmg_prolongator_t* prolongator,
-                                   fasmg_cycle_t* cycle);
+// The solver assumes responsibility for managing all of the algorithms 
+// and freeing their resources.
+fasmg_solver_t* fasmg_solver_new(fasmg_operator_t* A,
+                                 fasmg_coarsener_t* coarsener,
+                                 fasmg_restrictor_t* restrictor,
+                                 fasmg_prolongator_t* prolongator,
+                                 fasmg_cycle_t* cycle);
 
 // Frees the given fasmg_solver.
 void fasmg_solver_free(fasmg_solver_t* solver);
@@ -78,11 +80,13 @@ void fasmg_solver_set_max_residual_norm(fasmg_solver_t* solver,
                                         real_t max_residual_norm);
 
 // Returns a newly-constructed representation of the discretization that can be 
-// used with this FASMG solver, created from the given underlying representation 
-// and using the given destructor to free resources for grids created by the 
-// coarsener. The given pointer is not managed by the solver, however.
+// used with this FASMG solver, created from the given underlying representation,
+// with the given number of degrees of freedom, and using the given destructor 
+// to free resources for grids created by the coarsener. The given pointer is 
+// not managed by the solver, however.
 fasmg_grid_t* fasmg_solver_grid(fasmg_solver_t* solver,
                                 void* discretization,
+                                size_t num_dof,
                                 void (*discretization_dtor)(void*));
 
 // Solves the system A(X) = B on the given discretization for the given 
@@ -96,20 +100,18 @@ bool fasmg_solver_solve(fasmg_solver_t* solver,
                         real_t* residual_norm,
                         int* num_cycles);
 
-// Performs a single multigrid cycle on the given discretization for the given 
-// vectors, storing the residual norm.
+// Performs a single multigrid cycle for A(X) = B on the given discretization.
 void fasmg_solver_cycle(fasmg_solver_t* solver,
                         fasmg_grid_t* grid,
                         real_t* B,
-                        real_t* X,
-                        real_t* residual_norm);
+                        real_t* X);
 
 //------------------------------------------------------------------------
 //                            fasmg_grid
 //------------------------------------------------------------------------
 
-// fasmg_grid objects are constructed by the fasmg_solver and its machinery, 
-// so there's no explicit constructor for objects of this type.
+// fasmg_grid objects are created by the multigrid solver as needed, so there 
+// are no explicit grid constructors.
 
 // Destroys this fasmg_grid.
 void fasmg_grid_free(fasmg_grid_t* grid);
@@ -139,6 +141,8 @@ typedef struct
   void (*relax)(void* context, void* grid, real_t* B, real_t* X);
   // Computes the residual R = B - A(X).
   void (*compute_residual)(void* context, void* grid, real_t* B, real_t* X, real_t* R);
+  // Destructor.
+  void (*dtor)(void* context);
 } fasmg_operator_vtable;
 
 // Creates a fasmg_operator that uses the given context and vtable to 
@@ -186,8 +190,11 @@ typedef struct
   // This function returns true if the given grid can be coarsened further, 
   // false if not.
   bool (*can_coarsen)(void* context, void* grid);
-  // This function returns a new, coarsened grid, given a fine grid.
-  void* (*coarsened_grid)(void* context, void* grid);
+  // This function returns a new, coarser grid, given a fine grid. It also 
+  // stores the coarse number of degrees of freedom in coarse_dof
+  void* (*coarser_grid)(void* context, void* grid, size_t* coarse_dof);
+  // Destructor.
+  void (*dtor)(void* context);
 } fasmg_coarsener_vtable;
 
 // Creates a fasmg_coarsener that uses the given context and vtable to 
@@ -209,9 +216,11 @@ void* fasmg_coarsener_context(fasmg_coarsener_t* coarsener);
 bool fasmg_coarsener_can_coarsen(fasmg_coarsener_t* coarsener,
                                  fasmg_grid_t* grid);
 
-// Creates a new coarser grid corresponding to the given grid.
-fasmg_grid_t* fasmg_coarsener_coarsened_grid(fasmg_coarsener_t* coarsener,
-                                             fasmg_grid_t* grid);
+// Creates a series of increasingly coarser grids associated with the given
+// one, terminating when fasmg_coarsener_can_coarsen(grid) returns false.
+// The coarser grids are accessible via fasmg_grid_coarser(grid).
+void fasmg_coarsener_coarsen(fasmg_coarsener_t* coarsener,
+                             fasmg_grid_t* grid);
 
 //------------------------------------------------------------------------
 //                            fasmg_restrictor
@@ -223,6 +232,8 @@ typedef struct
   // Projects the given vector on a fine grid to a new vector on a coarse 
   // grid.
   void (*project)(void* context, void* fine_grid, real_t* fine_X, void* coarse_grid, real_t* coarse_X);
+  // Destructor.
+  void (*dtor)(void* context);
 } fasmg_restrictor_vtable;
 
 // Creates a fasmg_restrictor that uses the given context and vtable to 
@@ -258,6 +269,8 @@ typedef struct
   // Interpolates the given vector on a fine grid to a new vector on a coarse 
   // grid.
   void (*interpolate)(void* context, void* coarse_grid, real_t* coarse_X, void* fine_grid, real_t* fine_X);
+  // Destructor.
+  void (*dtor)(void* context);
 } fasmg_prolongator_vtable;
 
 // Creates a fasmg_prolongator that uses the given context and vtable to 
@@ -293,11 +306,12 @@ typedef struct
   void (*execute)(void* context, 
                   fasmg_operator_t* A, 
                   fasmg_grid_t* grid, 
-                  fasmg_prologator_t* prolongator,
+                  fasmg_prolongator_t* prolongator,
                   fasmg_restrictor_t* restrictor,
                   real_t* B,
-                  real_t* X,
-                  real_t* residual_norm);
+                  real_t* X);
+  // Destructor.
+  void (*dtor)(void* context);
 } fasmg_cycle_vtable;
 
 // Creates a fasmg_cycle that uses the given context and vtable to 
@@ -316,32 +330,33 @@ char* fasmg_cycle_name(fasmg_cycle_t* cycle);
 void* fasmg_cycle_context(fasmg_cycle_t* cycle);
 
 // Performs a cycle on the given discretization for the given vectors using 
-// the given operator/grid/prolongator/restrictor, and storing the 
-// residual norm.
+// the given operator/grid/prolongator/restrictor.
 void fasmg_cycle_execute(fasmg_cycle_t* cycle,
                          fasmg_operator_t* A,
                          fasmg_grid_t* grid,
                          fasmg_prolongator_t* prolongator,
                          fasmg_restrictor_t* restrictor,
                          real_t* B,
-                         real_t* X,
-                         real_t* residual_norm);
+                         real_t* X);
 
-// Creates a new cycle object representing a V cycle with the given numbers of 
+// Creates a new cycle object representing a V cycle with nu_1 relaxation steps 
+// before the correction step, and nu_2 relaxation steps after.
+fasmg_cycle_t* v_fasmg_cycle_new(int nu_1, int nu_2);
+
+// Creates a new cycle object representing a W cycle with nu_1 relaxation steps
+// before the correction step, and nu_2 relaxation steps after.
+fasmg_cycle_t* w_fasmg_cycle_new(int nu_1, int nu_2);
+
+// Creates a new cycle object representing a "mu" cycle with mu recursive 
+// multigrid calls, nu_1 relaxation steps before the correction step, and 
+// nu_2 relaxation steps after. In particular, mu = 1 is the V cycle and mu = 2 
+// is the W cycle.
+fasmg_cycle_t* mu_fasmg_cycle_new(int mu, int nu_1, int nu_2);
+
+// Creates a new cycle object representing a full multi-grid (FMG) cycle that 
+// executes nu_0 V cycles, each with nu_1 and nu_2 pre/post-correction 
 // relaxation steps.
-fasmg_cycle_t* v_fasmg_cycle_new(int nu1, int nu2);
-
-// Creates a new cycle object representing a W cycle with the given numbers of 
-// relaxation steps.
-fasmg_cycle_t* w_fasmg_cycle_new(int nu1, int nu2);
-
-// Creates a new cycle object representing a "mu" cycle with the given numbers of 
-// relaxation steps.
-fasmg_cycle_t* mu_fasmg_cycle_new(int mu, int nu1, int nu2);
-
-// Creates a new cycle object representing a full multi-grid (FMG) cycle with the 
-// given numbers of relaxation steps.
-fasmg_cycle_t* fmg_fasmg_cycle_new(int nu1, int nu2);
+fasmg_cycle_t* fmg_fasmg_cycle_new(int nu_0, int nu_1, int nu_2);
 
 #endif
 

@@ -4,7 +4,7 @@ add_polymec_library(polymec_integrators newton_pc.c cpr_differencer.c cpr_newton
                     newton_solver.c ode_integrator.c am_ode_integrator.c bdf_ode_integrator.c 
                     ark_ode_integrator.c euler_ode_integrator.c dae_integrator.c gauss_rules.c 
                     polyhedron_integrator.c sphere_integrator.c div_free_poly_basis.c
-                    volume_integral.c surface_integral.c)
+                    volume_integral.c surface_integral.c fasmg_solver.c)
 set(POLYMEC_LIBRARIES polymec_integrators;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_integrators;${POLYMEC_LIBRARIES})
 
