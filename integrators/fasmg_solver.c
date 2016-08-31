@@ -191,11 +191,6 @@ void fasmg_grid_free(fasmg_grid_t* grid)
   polymec_free(grid);
 }
 
-real_t* fasmg_grid_vector(fasmg_grid_t* grid)
-{
-  return polymec_malloc(sizeof(real_t) * grid->num_dof);
-}
-
 fasmg_grid_t* fasmg_grid_coarser(fasmg_grid_t* grid)
 {
   return grid->coarser;
@@ -257,7 +252,9 @@ void fasmg_operator_compute_residual(fasmg_operator_t* A,
                                      real_t* X,
                                      real_t* R)
 {
-  A->vtable.compute_residual(A->context, grid->data, B, X, R);
+  A->vtable.apply(A->context, grid->data, X, R);
+  for (size_t i = 0; i < grid->num_dof; ++i)
+    R[i] = B[i] - R[i];
 }
 
 fasmg_coarsener_t* fasmg_coarsener_new(const char* name, 

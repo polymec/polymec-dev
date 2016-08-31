@@ -116,10 +116,6 @@ void fasmg_solver_cycle(fasmg_solver_t* solver,
 // Destroys this fasmg_grid.
 void fasmg_grid_free(fasmg_grid_t* grid);
 
-// Creates a new vector that has sufficient storage to store a solution 
-// on this grid.
-real_t* fasmg_grid_vector(fasmg_grid_t* grid);
-
 // Returns the adjacent coarser grid in the multigrid hierarchy, or NULL if 
 // there is no such grid.
 fasmg_grid_t* fasmg_grid_coarser(fasmg_grid_t* grid);
@@ -139,8 +135,6 @@ typedef struct
   void (*apply)(void* context, void* grid, real_t* X, real_t* AX);
   // Updates X by performing a relaxation step on A(X) = B.
   void (*relax)(void* context, void* grid, real_t* B, real_t* X);
-  // Computes the residual R = B - A(X).
-  void (*compute_residual)(void* context, void* grid, real_t* B, real_t* X, real_t* R);
   // Destructor.
   void (*dtor)(void* context);
 } fasmg_operator_vtable;
