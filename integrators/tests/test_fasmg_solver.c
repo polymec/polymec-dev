@@ -165,7 +165,7 @@ static void nl1d_project(void* context, void* fine_grid, real_t* fine_X, void* c
   int N_coarse = *((int*)coarse_grid);
   ASSERT(2*N_coarse+1 == N_fine+1);
 
-  for (int i = 0; i < N_coarse; ++i)
+  for (int i = 0; i < N_coarse-1; ++i)
     coarse_X[i] = fine_X[2*i];
 }
 
@@ -179,12 +179,9 @@ static void nl1d_interpolate(void* context, void* coarse_grid, real_t* coarse_X,
 {
   int N_fine = *((int*)fine_grid);
   int N_coarse = *((int*)coarse_grid);
-  ASSERT(2*N_coarse == N_fine);
+  ASSERT(2*N_coarse+1 == N_fine+1);
 
-  // Fill in the coarse values.
-  fine_X[0] = coarse_X[0];
-  fine_X[2*(N_coarse-1)] = coarse_X[N_coarse-1];
-  for (int i = 1; i < N_coarse-1; ++i)
+  for (int i = 0; i < N_coarse-1; ++i)
   {
     fine_X[2*i] = coarse_X[i];
     fine_X[2*i+1] = 0.5 * (coarse_X[i] + coarse_X[i+1]);
@@ -266,6 +263,15 @@ static fasmg_operator_t* nl2d_op_new(real_t gamma, bool direct_solve)
 
 static void nl2d_project(void* context, void* fine_grid, real_t* fine_X, void* coarse_grid, real_t* coarse_X)
 {
+  int N_fine = *((int*)fine_grid);
+  int N_coarse = *((int*)coarse_grid);
+  ASSERT(2*N_coarse+1 == N_fine+1);
+
+  DECLARE_2D_ARRAY(real_t, coarse_Xij, coarse_X, N_coarse, N_coarse);
+  DECLARE_2D_ARRAY(real_t, fine_Xij, fine_X, N_fine, N_fine);
+  for (int i = 0; i < N_coarse-1; ++i)
+    for (int j = 0; j < N_coarse-1; ++j)
+      coarse_Xij[i][j] = fine_Xij[2*i][2*j];
 }
 
 static fasmg_restrictor_t* nl2d_restrictor_new()
@@ -276,6 +282,23 @@ static fasmg_restrictor_t* nl2d_restrictor_new()
 
 static void nl2d_interpolate(void* context, void* coarse_grid, real_t* coarse_X, void* fine_grid, real_t* fine_X)
 {
+  int N_fine = *((int*)fine_grid);
+  int N_coarse = *((int*)coarse_grid);
+  ASSERT(2*N_coarse+1 == N_fine+1);
+
+  DECLARE_2D_ARRAY(real_t, coarse_Xij, coarse_X, N_coarse, N_coarse);
+  DECLARE_2D_ARRAY(real_t, fine_Xij, fine_X, N_fine, N_fine);
+  for (int i = 0; i < N_coarse-1; ++i)
+  {
+    for (int j = 0; j < N_coarse-1; ++j)
+    {
+      fine_Xij[2*i][2*j] = coarse_Xij[i][j];
+      fine_Xij[2*i+1][2*j] = 0.5 * (coarse_Xij[i][j] + coarse_Xij[i+1][j]);
+      fine_Xij[2*i][2*j+1] = 0.5 * (coarse_Xij[i][j] + coarse_Xij[i][j+1]);
+      fine_Xij[2*i+1][2*j+1] = 0.25 * (coarse_Xij[i][j] + coarse_Xij[i+1][j] + 
+                                       coarse_Xij[i][j+1] + coarse_Xij[i+1][j+1]);
+    }
+  }
 }
 
 static fasmg_prolongator_t* nl2d_prolongator_new()

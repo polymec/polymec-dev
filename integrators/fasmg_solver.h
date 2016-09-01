@@ -106,6 +106,21 @@ void fasmg_solver_cycle(fasmg_solver_t* solver,
                         real_t* B,
                         real_t* X);
 
+// Returns an internal pointer to the operator for this solver.
+fasmg_operator_t* fasmg_solver_operator(fasmg_solver_t* solver);
+
+// Returns an internal pointer to the coarsener for this solver.
+fasmg_coarsener_t* fasmg_solver_coarsener(fasmg_solver_t* solver);
+
+// Returns an internal pointer to the restrictor for this solver.
+fasmg_restrictor_t* fasmg_solver_restrictor(fasmg_solver_t* solver);
+
+// Returns an internal pointer to the prolongator for this solver.
+fasmg_prolongator_t* fasmg_solver_prolongator(fasmg_solver_t* solver);
+
+// Returns an internal pointer to the cycle object for this solver.
+fasmg_cycle_t* fasmg_solver_cycler(fasmg_solver_t* solver);
+
 //------------------------------------------------------------------------
 //                            fasmg_grid
 //------------------------------------------------------------------------

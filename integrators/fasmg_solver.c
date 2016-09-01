@@ -180,6 +180,31 @@ void fasmg_solver_cycle(fasmg_solver_t* solver,
                       solver->prolongator, solver->restrictor, B, X);
 }
 
+fasmg_operator_t* fasmg_solver_operator(fasmg_solver_t* solver)
+{
+  return solver->A;
+}
+
+fasmg_coarsener_t* fasmg_solver_coarsener(fasmg_solver_t* solver)
+{
+  return solver->coarsener;
+}
+
+fasmg_restrictor_t* fasmg_solver_restrictor(fasmg_solver_t* solver)
+{
+  return solver->restrictor;
+}
+
+fasmg_prolongator_t* fasmg_solver_prolongator(fasmg_solver_t* solver)
+{
+  return solver->prolongator;
+}
+
+fasmg_cycle_t* fasmg_solver_cycler(fasmg_solver_t* solver)
+{
+  return solver->cycle;
+}
+
 void fasmg_grid_free(fasmg_grid_t* grid)
 {
   // Recursively delete the coarser grids.
