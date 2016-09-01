@@ -96,7 +96,7 @@ static void* nl2d_coarser_grid(void* context, void* grid, size_t* coarse_dof)
 {
   int N = *((int*)grid);
   int* N_coarse = polymec_malloc(sizeof(int));
-  *N_coarse = N/2;
+  *N_coarse = (N-1)/2;
   *coarse_dof = (size_t)(*N_coarse * *N_coarse);
   return N_coarse;
 }
@@ -125,6 +125,8 @@ static void nl1d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
   int N = *((int*)grid);
   real_t hinv = 1.0 * N;
 
+  AX[0] = 0.0;
+  AX[N-1] = 0.0;
   for (size_t i = 1; i < N-1; ++i)
   {
     real_t Xi = X[i];
@@ -216,6 +218,13 @@ static void nl2d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
 
   DECLARE_2D_ARRAY(real_t, Xij, X, N, N);
   DECLARE_2D_ARRAY(real_t, AXij, AX, N, N);
+  for (size_t i = 0; i < N; ++i)
+  {
+    AXij[i][0] = 0.0;
+    AXij[i][N-1] = 0.0;
+    AXij[0][i] = 0.0;
+    AXij[N-1][i] = 0.0;
+  }
   for (size_t i = 1; i < N-1; ++i)
   {
     for (size_t j = 1; j < N-1; ++j)
@@ -321,7 +330,7 @@ static void test_1d_ctor(void** state)
 {
   // Read in options.
   real_t gamma = 1.0;
-  int N = 10;
+  int N = 32;
   fasmg_cycle_t* cycle;
   read_cl_args(&gamma, &N, &cycle);
 
@@ -333,14 +342,41 @@ static void test_1d_cycle(void** state, bool direct_solve)
 {
   // Read in options.
   real_t gamma = 1.0;
-  int N = 10;
+  int N = 32;
   fasmg_cycle_t* cycle;
   read_cl_args(&gamma, &N, &cycle);
 
   fasmg_solver_t* fas = fasmg_1d_new(gamma, N, cycle, direct_solve);
   fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)N, polymec_free);
-  real_t X[N], B[N];
+
+  // Set up the RHS and an initial guess, compute the initial residual.
+  real_t X[N], B[N], R[N];
+  memset(X, 0, sizeof(real_t) * N);
+  for (int i = 0; i < N; ++i)
+  {
+    real_t xi = 1.0*i/N;
+    real_t x_x2 = xi - xi*xi;
+    B[i] = 2.0 * x_x2 + gamma * x_x2 * exp(x_x2);
+  }
+  fasmg_operator_t* A = fasmg_solver_operator(fas);
+  fasmg_operator_compute_residual(A, grid, B, X, R);
+  real_t res_norm = 0.0;
+  for (int i = 0; i < N; ++i)
+    res_norm += R[i]*R[i];
+  res_norm = sqrt(res_norm);
+  log_info("test_1d_cycle: ||R0|| = %g", res_norm);
+
+  // Do a cycle.
   fasmg_solver_cycle(fas, grid, B, X);
+
+  // Now recompute the norm.
+  fasmg_operator_compute_residual(A, grid, B, X, R);
+  res_norm = 0.0;
+  for (int i = 0; i < N; ++i)
+    res_norm += R[i]*R[i];
+  res_norm = sqrt(res_norm);
+  log_info("test_1d_cycle: ||R|| = %g", res_norm);
+
   fasmg_grid_free(grid);
   fasmg_solver_free(fas);
 }
