@@ -135,6 +135,9 @@ typedef struct
   void (*apply)(void* context, void* grid, real_t* X, real_t* AX);
   // Updates X by performing a relaxation step on A(X) = B.
   void (*relax)(void* context, void* grid, real_t* B, real_t* X);
+  // Optional -- A function that produces a direct solution to A(X) = B.
+  // Here the size of the nonlinear system is given by N.
+  void (*solve_directly)(void* context, void* grid, size_t N, real_t* B, real_t* X);
   // Destructor.
   void (*dtor)(void* context);
 } fasmg_operator_vtable;
@@ -161,7 +164,9 @@ void fasmg_operator_apply(fasmg_operator_t* A,
                           real_t* AX);
 
 // Performs a relaxation step, updating X to eliminate high-frequency components 
-// of the error in A(X) = B.
+// of the error in A(X) = B. If on the coarsest possible grid and the operator 
+// implements a direct solver (via the solve_directly method), a direct solution 
+// is computed for X instead.
 void fasmg_operator_relax(fasmg_operator_t* A,
                           fasmg_grid_t* grid,
                           real_t* B,

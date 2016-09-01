@@ -243,7 +243,10 @@ void fasmg_operator_relax(fasmg_operator_t* A,
                           real_t* B,
                           real_t* X)
 {
-  A->vtable.relax(A->context, grid->data, B, X);
+  if ((grid->coarser == NULL) && (A->vtable.solve_directly != NULL))
+    A->vtable.solve_directly(A->context, grid->data, grid->num_dof, B, X);
+  else
+    A->vtable.relax(A->context, grid->data, B, X);
 }
 
 void fasmg_operator_compute_residual(fasmg_operator_t* A,

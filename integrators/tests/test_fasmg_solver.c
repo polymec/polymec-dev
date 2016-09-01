@@ -134,16 +134,39 @@ static void nl1d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
 
 static void nl1d_op_relax(void* context, void* grid, real_t* B, real_t* X)
 {
+  real_t gamma = *((real_t*)context);
+  int N = *((int*)grid);
+  real_t hinv = 1.0 * N;
+  real_t hinv2 = hinv*hinv;
+
+  for (size_t i = 1; i < N-1; ++i)
+  {
+    real_t expX = exp(X[i]);
+    X[i] = (hinv2 * (2.0*X[i] - X[i-1] - X[i+1]) + gamma * X[i] * expX - B[i]) / 
+           (2.0*hinv2 + gamma * (1.0 + X[i]) * expX);
+  }
 }
 
-static fasmg_operator_t* nl1d_op_new(real_t gamma)
+static void nl1d_op_solve_directly(void* context, void* grid, size_t N, real_t* B, real_t* X)
+{
+}
+
+static fasmg_operator_t* nl1d_op_new(real_t gamma, bool direct_solve)
 {
   fasmg_operator_vtable vtable = {.apply = nl1d_op_apply, .relax = nl1d_op_relax};
+  if (direct_solve)
+    vtable.solve_directly = nl1d_op_solve_directly;
   return fasmg_operator_new("nl1d", &gamma, vtable);
 }
 
 static void nl1d_project(void* context, void* fine_grid, real_t* fine_X, void* coarse_grid, real_t* coarse_X)
 {
+  int N_fine = *((int*)fine_grid);
+  int N_coarse = *((int*)coarse_grid);
+  ASSERT(2*N_coarse == N_fine);
+
+  for (int i = 0; i < N_coarse; ++i)
+    coarse_X[i] = fine_X[2*i];
 }
 
 static fasmg_restrictor_t* nl1d_restrictor_new()
@@ -154,6 +177,18 @@ static fasmg_restrictor_t* nl1d_restrictor_new()
 
 static void nl1d_interpolate(void* context, void* coarse_grid, real_t* coarse_X, void* fine_grid, real_t* fine_X)
 {
+  int N_fine = *((int*)fine_grid);
+  int N_coarse = *((int*)coarse_grid);
+  ASSERT(2*N_coarse == N_fine);
+
+  // Fill in the coarse values.
+  fine_X[0] = coarse_X[0];
+  fine_X[2*(N_coarse-1)] = coarse_X[N_coarse-1];
+  for (int i = 1; i < N_coarse-1; ++i)
+  {
+    fine_X[2*i] = coarse_X[i];
+    fine_X[2*i+1] = 0.5 * (coarse_X[i] + coarse_X[i+1]);
+  }
 }
 
 static fasmg_prolongator_t* nl1d_prolongator_new()
@@ -162,9 +197,10 @@ static fasmg_prolongator_t* nl1d_prolongator_new()
   return fasmg_prolongator_new("1D Nonlinear prolongator", NULL, vtable);
 }
 
-static fasmg_solver_t* fasmg_1d_new(real_t gamma, int N, fasmg_cycle_t* cycle)
+static fasmg_solver_t* fasmg_1d_new(real_t gamma, int N, fasmg_cycle_t* cycle,
+                                    bool direct_solve)
 {
-  return fasmg_solver_new(nl1d_op_new(gamma),
+  return fasmg_solver_new(nl1d_op_new(gamma, direct_solve),
                           nl1d_coarsener_new(),
                           nl1d_restrictor_new(),
                           nl1d_prolongator_new(),
@@ -187,7 +223,7 @@ static void nl2d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
   {
     for (size_t j = 1; j < N-1; ++j)
     {
-      AXij[i][j] = hinv*hinv * (2.0*Xij[i][j] - Xij[i-1][j] - Xij[i+1][j] - 
+      AXij[i][j] = hinv*hinv * (4.0*Xij[i][j] - Xij[i-1][j] - Xij[i+1][j] - 
                                     Xij[i][j-1] - Xij[i][j+1]) + 
                    gamma * Xij[i][j] * exp(Xij[i][j]);
     }
@@ -196,11 +232,35 @@ static void nl2d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
 
 static void nl2d_op_relax(void* context, void* grid, real_t* B, real_t* X)
 {
+  real_t gamma = *((real_t*)context);
+  int N = *((int*)grid);
+  real_t hinv = 1.0 * N;
+  real_t hinv2 = hinv*hinv;
+
+  DECLARE_2D_ARRAY(real_t, Xij, X, N, N);
+  DECLARE_2D_ARRAY(real_t, Bij, B, N, N);
+  for (size_t i = 1; i < N-1; ++i)
+  {
+    for (size_t j = 1; j < N-1; ++j)
+    {
+      real_t expX = exp(Xij[i][j]);
+      Xij[i][j] = (hinv2 * (4.0*Xij[i][j] - Xij[i-1][j] - Xij[i+1][j] - 
+                                Xij[i][j-1] - Xij[i][j+1]) + 
+                   gamma * Xij[i][j] * expX - Bij[i][j]) / 
+                  (4.0*hinv2 + gamma * (1.0 + Xij[i][j]) * expX);
+    }
+  }
 }
 
-static fasmg_operator_t* nl2d_op_new(real_t gamma)
+static void nl2d_op_solve_directly(void* context, void* grid, size_t N, real_t* B, real_t* X)
+{
+}
+
+static fasmg_operator_t* nl2d_op_new(real_t gamma, bool direct_solve)
 {
   fasmg_operator_vtable vtable = {.apply = nl2d_op_apply, .relax = nl2d_op_relax};
+  if (direct_solve)
+    vtable.solve_directly = nl2d_op_solve_directly;
   return fasmg_operator_new("nl2d", &gamma, vtable);
 }
 
@@ -224,9 +284,10 @@ static fasmg_prolongator_t* nl2d_prolongator_new()
   return fasmg_prolongator_new("2D Nonlinear prolongator", NULL, vtable);
 }
 
-static fasmg_solver_t* fasmg_2d_new(real_t gamma, int N, fasmg_cycle_t* cycle)
+static fasmg_solver_t* fasmg_2d_new(real_t gamma, int N, fasmg_cycle_t* cycle,
+                                    bool direct_solve)
 {
-  return fasmg_solver_new(nl2d_op_new(gamma),
+  return fasmg_solver_new(nl2d_op_new(gamma, direct_solve),
                           nl2d_coarsener_new(),
                           nl2d_restrictor_new(),
                           nl2d_prolongator_new(),
@@ -241,11 +302,11 @@ static void test_1d_ctor(void** state)
   fasmg_cycle_t* cycle;
   read_cl_args(&gamma, &N, &cycle);
 
-  fasmg_solver_t* fas = fasmg_1d_new(gamma, N, cycle);
+  fasmg_solver_t* fas = fasmg_1d_new(gamma, N, cycle, false);
   fasmg_solver_free(fas);
 }
 
-static void test_1d_cycle(void** state)
+static void test_1d_cycle(void** state, bool direct_solve)
 {
   // Read in options.
   real_t gamma = 1.0;
@@ -253,12 +314,22 @@ static void test_1d_cycle(void** state)
   fasmg_cycle_t* cycle;
   read_cl_args(&gamma, &N, &cycle);
 
-  fasmg_solver_t* fas = fasmg_1d_new(gamma, N, cycle);
+  fasmg_solver_t* fas = fasmg_1d_new(gamma, N, cycle, direct_solve);
   fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)N, polymec_free);
   real_t X[N], B[N];
   fasmg_solver_cycle(fas, grid, B, X);
   fasmg_grid_free(grid);
   fasmg_solver_free(fas);
+}
+
+static void test_1d_cycle_wo_direct_solve(void** state)
+{
+  test_1d_cycle(state, false);
+}
+
+static void test_1d_cycle_w_direct_solve(void** state)
+{
+  test_1d_cycle(state, true);
 }
 
 static void test_2d_ctor(void** state)
@@ -269,11 +340,11 @@ static void test_2d_ctor(void** state)
   fasmg_cycle_t* cycle;
   read_cl_args(&gamma, &N, &cycle);
 
-  fasmg_solver_t* fas = fasmg_2d_new(gamma, N, cycle);
+  fasmg_solver_t* fas = fasmg_2d_new(gamma, N, cycle, false);
   fasmg_solver_free(fas);
 }
 
-static void test_2d_cycle(void** state)
+static void test_2d_cycle(void** state, bool direct_solve)
 {
   // Read in options.
   real_t gamma = 1.0;
@@ -281,12 +352,22 @@ static void test_2d_cycle(void** state)
   fasmg_cycle_t* cycle;
   read_cl_args(&gamma, &N, &cycle);
 
-  fasmg_solver_t* fas = fasmg_2d_new(gamma, N, cycle);
+  fasmg_solver_t* fas = fasmg_2d_new(gamma, N, cycle, direct_solve);
   fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)(N*N), polymec_free);
   real_t X[N*N], B[N*N];
   fasmg_solver_cycle(fas, grid, B, X);
   fasmg_grid_free(grid);
   fasmg_solver_free(fas);
+}
+
+static void test_2d_cycle_wo_direct_solve(void** state)
+{
+  test_2d_cycle(state, false);
+}
+
+static void test_2d_cycle_w_direct_solve(void** state)
+{
+  test_2d_cycle(state, true);
 }
 
 int main(int argc, char* argv[]) 
@@ -295,9 +376,11 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_1d_ctor),
-    cmocka_unit_test(test_1d_cycle),
+    cmocka_unit_test(test_1d_cycle_wo_direct_solve),
+    cmocka_unit_test(test_1d_cycle_w_direct_solve),
     cmocka_unit_test(test_2d_ctor),
-    cmocka_unit_test(test_2d_cycle)
+    cmocka_unit_test(test_2d_cycle_wo_direct_solve),
+    cmocka_unit_test(test_2d_cycle_w_direct_solve)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
