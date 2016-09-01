@@ -159,6 +159,7 @@ bool fasmg_solver_solve(fasmg_solver_t* solver,
     for (int i = 0; i < N; ++i)
       R2 += R[i]*R[i];
     *residual_norm = sqrt(R2);
+    log_detail("fasmg_solver_solve: cycle %d, residual norm = %g", n_cycles, *residual_norm);
     if (*residual_norm <= solver->max_res_norm)
       break;
   }

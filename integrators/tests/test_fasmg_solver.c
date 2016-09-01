@@ -87,7 +87,7 @@ static void* nl1d_coarser_grid(void* context, void* grid, size_t* coarse_dof)
 {
   int N = *((int*)grid);
   int* N_coarse = polymec_malloc(sizeof(int));
-  *N_coarse = N/2;
+  *N_coarse = (N-1)/2 + 1;
   *coarse_dof = (size_t)(*N_coarse);
   return N_coarse;
 }
@@ -163,7 +163,7 @@ static void nl1d_project(void* context, void* fine_grid, real_t* fine_X, void* c
 {
   int N_fine = *((int*)fine_grid);
   int N_coarse = *((int*)coarse_grid);
-  ASSERT(2*N_coarse == N_fine);
+  ASSERT(2*N_coarse+1 == N_fine+1);
 
   for (int i = 0; i < N_coarse; ++i)
     coarse_X[i] = fine_X[2*i];
