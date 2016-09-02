@@ -373,7 +373,7 @@ void fasmg_restrictor_project(fasmg_restrictor_t* restrictor,
                               real_t* coarse_X)
 {
   restrictor->vtable.project(restrictor->context, fine_grid->data, 
-                             fine_X, fine_grid->coarser, coarse_X);
+                             fine_X, fine_grid->coarser->data, coarse_X);
 }
 
 fasmg_prolongator_t* fasmg_prolongator_new(const char* name, 
@@ -411,7 +411,7 @@ void fasmg_prolongator_interpolate(fasmg_prolongator_t* prolongator,
                                    real_t* fine_X)
 {
   prolongator->vtable.interpolate(prolongator->context, coarse_grid->data, 
-                                  coarse_X, coarse_grid->finer, fine_X);
+                                  coarse_X, coarse_grid->finer->data, fine_X);
 }
 
 fasmg_cycle_t* fasmg_cycle_new(const char* name, 
@@ -451,6 +451,7 @@ void fasmg_cycle_execute(fasmg_cycle_t* cycle,
                          real_t* B,
                          real_t* X)
 {
+  cycle->vtable.execute(cycle->context, A, grid, prolongator, restrictor, B, X);
 }
 
 fasmg_cycle_t* v_fasmg_cycle_new(int nu_1, int nu_2)
@@ -487,7 +488,9 @@ static void mu_execute(void* context,
     // Compute the residual on this grid.
     size_t N = grid->num_dof;
     real_t R[N];
+printf("X = %g\n", X[1]);
     fasmg_operator_compute_residual(A, grid, B, X, R);
+printf("R = %g\n", R[1]);
 
     // Restrict the residual and our current solution to our coarser grid.
     size_t N_coarse = grid->coarser->num_dof;
@@ -518,10 +521,12 @@ static void mu_execute(void* context,
     // Prolongate the coarse error to our original grid.
     real_t E[N];
     fasmg_prolongator_interpolate(prolongator, grid->coarser, E_coarse, E);
+printf("E = %g\n", E[1]);
 
     // Correct our current approximation.
     for (size_t j = 0; j < N; ++j)
       X[j] += E[N];
+printf("X' = %g\n", X[1]);
   }
 
   // Relax X nu_2 times.

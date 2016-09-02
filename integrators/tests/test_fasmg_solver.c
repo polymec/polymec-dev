@@ -141,12 +141,14 @@ static void nl1d_op_relax(void* context, void* grid, real_t* B, real_t* X)
   real_t hinv = 1.0 * N;
   real_t hinv2 = hinv*hinv;
 
+  polymec_suspend_fpe();
   for (size_t i = 1; i < N-1; ++i)
   {
     real_t expX = exp(X[i]);
     X[i] = (hinv2 * (2.0*X[i] - X[i-1] - X[i+1]) + gamma * X[i] * expX - B[i]) / 
            (2.0*hinv2 + gamma * (1.0 + X[i]) * expX);
   }
+  polymec_restore_fpe();
 }
 
 static void nl1d_op_solve_directly(void* context, void* grid, size_t N, real_t* B, real_t* X)
@@ -155,10 +157,14 @@ static void nl1d_op_solve_directly(void* context, void* grid, size_t N, real_t* 
 
 static fasmg_operator_t* nl1d_op_new(real_t gamma, bool direct_solve)
 {
-  fasmg_operator_vtable vtable = {.apply = nl1d_op_apply, .relax = nl1d_op_relax};
+  real_t *g = polymec_malloc(sizeof(real_t));
+  *g = gamma;
+  fasmg_operator_vtable vtable = {.apply = nl1d_op_apply, 
+                                  .relax = nl1d_op_relax,
+                                  .dtor = polymec_free};
   if (direct_solve)
     vtable.solve_directly = nl1d_op_solve_directly;
-  return fasmg_operator_new("nl1d", &gamma, vtable);
+  return fasmg_operator_new("nl1d", g, vtable);
 }
 
 static void nl1d_project(void* context, void* fine_grid, real_t* fine_X, void* coarse_grid, real_t* coarse_X)
@@ -167,7 +173,7 @@ static void nl1d_project(void* context, void* fine_grid, real_t* fine_X, void* c
   int N_coarse = *((int*)coarse_grid);
   ASSERT(2*N_coarse+1 == N_fine+1);
 
-  for (int i = 0; i < N_coarse-1; ++i)
+  for (int i = 0; i < N_coarse; ++i)
     coarse_X[i] = fine_X[2*i];
 }
 
@@ -218,6 +224,7 @@ static void nl2d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
 
   DECLARE_2D_ARRAY(real_t, Xij, X, N, N);
   DECLARE_2D_ARRAY(real_t, AXij, AX, N, N);
+  polymec_suspend_fpe();
   for (size_t i = 0; i < N; ++i)
   {
     AXij[i][0] = 0.0;
@@ -234,6 +241,7 @@ static void nl2d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
                    gamma * Xij[i][j] * exp(Xij[i][j]);
     }
   }
+  polymec_restore_fpe();
 }
 
 static void nl2d_op_relax(void* context, void* grid, real_t* B, real_t* X)
@@ -245,6 +253,7 @@ static void nl2d_op_relax(void* context, void* grid, real_t* B, real_t* X)
 
   DECLARE_2D_ARRAY(real_t, Xij, X, N, N);
   DECLARE_2D_ARRAY(real_t, Bij, B, N, N);
+  polymec_suspend_fpe();
   for (size_t i = 1; i < N-1; ++i)
   {
     for (size_t j = 1; j < N-1; ++j)
@@ -256,6 +265,7 @@ static void nl2d_op_relax(void* context, void* grid, real_t* B, real_t* X)
                   (4.0*hinv2 + gamma * (1.0 + Xij[i][j]) * expX);
     }
   }
+  polymec_restore_fpe();
 }
 
 static void nl2d_op_solve_directly(void* context, void* grid, size_t N, real_t* B, real_t* X)
@@ -264,10 +274,14 @@ static void nl2d_op_solve_directly(void* context, void* grid, size_t N, real_t* 
 
 static fasmg_operator_t* nl2d_op_new(real_t gamma, bool direct_solve)
 {
-  fasmg_operator_vtable vtable = {.apply = nl2d_op_apply, .relax = nl2d_op_relax};
+  real_t *g = polymec_malloc(sizeof(real_t));
+  *g = gamma;
+  fasmg_operator_vtable vtable = {.apply = nl2d_op_apply, 
+                                  .relax = nl2d_op_relax,
+                                  .dtor = polymec_free};
   if (direct_solve)
     vtable.solve_directly = nl2d_op_solve_directly;
-  return fasmg_operator_new("nl2d", &gamma, vtable);
+  return fasmg_operator_new("nl2d", g, vtable);
 }
 
 static void nl2d_project(void* context, void* fine_grid, real_t* fine_X, void* coarse_grid, real_t* coarse_X)
@@ -369,7 +383,7 @@ static void test_1d_cycle(void** state, bool direct_solve)
   // Do a cycle.
   fasmg_solver_cycle(fas, grid, B, X);
 
-  // Now recompute the norm.
+  // Now recompute the residual norm.
   fasmg_operator_compute_residual(A, grid, B, X, R);
   res_norm = 0.0;
   for (int i = 0; i < N; ++i)
@@ -413,8 +427,41 @@ static void test_2d_cycle(void** state, bool direct_solve)
 
   fasmg_solver_t* fas = fasmg_2d_new(gamma, N, cycle, direct_solve);
   fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)(N*N), polymec_free);
-  real_t X[N*N], B[N*N];
+
+  // Set up the RHS and an initial guess, compute the initial residual.
+  real_t X[N*N], B[N*N], R[N*N];
+  memset(X, 0, sizeof(real_t) * N * N);
+  DECLARE_2D_ARRAY(real_t, Bij, B, N, N);
+  for (int i = 0; i < N; ++i)
+  {
+    real_t xi = 1.0*i/N;
+    real_t x_x2 = xi - xi*xi;
+    for (int j = 0; j < N; ++j)
+    {
+      real_t yi = 1.0*j/N;
+      real_t y_y2 = yi - yi*yi;
+      Bij[i][j] = 2.0 * (x_x2 + y_y2) + gamma * x_x2 * y_y2 * exp(x_x2 * y_y2);
+    }
+  }
+  fasmg_operator_t* A = fasmg_solver_operator(fas);
+  fasmg_operator_compute_residual(A, grid, B, X, R);
+  real_t res_norm = 0.0;
+  for (int i = 0; i < N*N; ++i)
+    res_norm += R[i]*R[i];
+  res_norm = sqrt(res_norm);
+  log_info("test_2d_cycle: ||R0|| = %g", res_norm);
+
+  // Do a cycle.
   fasmg_solver_cycle(fas, grid, B, X);
+
+  // Now recompute the residual norm.
+  fasmg_operator_compute_residual(A, grid, B, X, R);
+  res_norm = 0.0;
+  for (int i = 0; i < N*N; ++i)
+    res_norm += R[i]*R[i];
+  res_norm = sqrt(res_norm);
+  log_info("test_2d_cycle: ||R|| = %g", res_norm);
+
   fasmg_grid_free(grid);
   fasmg_solver_free(fas);
 }
