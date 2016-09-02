@@ -270,7 +270,7 @@ void fasmg_operator_relax(fasmg_operator_t* A,
                           real_t* X)
 {
   if ((grid->coarser == NULL) && (A->vtable.solve_directly != NULL))
-    A->vtable.solve_directly(A->context, grid->data, grid->num_dof, B, X);
+    A->vtable.solve_directly(A->context, grid->data, B, X);
   else
     A->vtable.relax(A->context, grid->data, B, X);
 }

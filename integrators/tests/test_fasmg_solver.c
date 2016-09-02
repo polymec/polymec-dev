@@ -151,7 +151,7 @@ static void nl1d_op_relax(void* context, void* grid, real_t* B, real_t* X)
   polymec_restore_fpe();
 }
 
-static void nl1d_op_solve_directly(void* context, void* grid, size_t N, real_t* B, real_t* X)
+static void nl1d_op_solve_directly(void* context, void* grid, real_t* B, real_t* X)
 {
 }
 
@@ -268,7 +268,7 @@ static void nl2d_op_relax(void* context, void* grid, real_t* B, real_t* X)
   polymec_restore_fpe();
 }
 
-static void nl2d_op_solve_directly(void* context, void* grid, size_t N, real_t* B, real_t* X)
+static void nl2d_op_solve_directly(void* context, void* grid, real_t* B, real_t* X)
 {
 }
 
@@ -369,8 +369,7 @@ static void test_1d_cycle(void** state, bool direct_solve)
   for (int i = 0; i < N; ++i)
   {
     real_t xi = 1.0*i/N;
-    real_t x_x2 = xi - xi*xi;
-    B[i] = 2.0 * x_x2 + gamma * x_x2 * exp(x_x2);
+    B[i] = (xi*xi + 3.0*xi) * exp(xi) + gamma * (xi*xi*xi*xi - 2.0*xi*xi + xi) * exp(2.0*xi);
   }
   fasmg_operator_t* A = fasmg_solver_operator(fas);
   fasmg_operator_compute_residual(A, grid, B, X, R);

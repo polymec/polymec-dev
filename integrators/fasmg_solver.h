@@ -151,8 +151,7 @@ typedef struct
   // Updates X by performing a relaxation step on A(X) = B.
   void (*relax)(void* context, void* grid, real_t* B, real_t* X);
   // Optional -- A function that produces a direct solution to A(X) = B.
-  // Here the size of the nonlinear system is given by N.
-  void (*solve_directly)(void* context, void* grid, size_t N, real_t* B, real_t* X);
+  void (*solve_directly)(void* context, void* grid, real_t* B, real_t* X);
   // Destructor.
   void (*dtor)(void* context);
 } fasmg_operator_vtable;
