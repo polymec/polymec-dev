@@ -93,7 +93,7 @@ sp_func_t* plane_sp_func_new_best_fit(point_t* points, int num_points)
     real_t work[work_size]; // Work array.
     int one = 1, three = 3, info;
     char jobU = 'N', jobVT = 'S';
-    dgesvd(&jobU, &jobVT, &num_points, &three, M, &num_points, sigma, 
+    rgesvd(&jobU, &jobVT, &num_points, &three, M, &num_points, sigma, 
            NULL, &one, VT, &three, work, &work_size, &info);
     ASSERT(info == 0);
 

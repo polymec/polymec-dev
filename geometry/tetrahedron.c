@@ -13,7 +13,7 @@
 // Jonathan Shewchuk's geometric predicates, which are implemented in 
 // double-precision arithmetic.
 extern double orient3d(double* pa, double* pb, double* pc, double* pd);
-extern real_t insphere(real_t* pa, real_t* pb, real_t* pc, real_t* pd, real_t* pe);
+extern double insphere(double* pa, double* pb, double* pc, double* pd, double* pe);
 
 struct tetrahedron_t 
 {

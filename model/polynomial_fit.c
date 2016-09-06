@@ -322,7 +322,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
 
       // Solve the system using LU factorization (should use Cholesky factorization!).
       int single_rhs = 1, ipiv[num_cols], info;
-      dgesv(&num_cols, &single_rhs, AtA, &num_cols, ipiv, AtX, &num_cols, &info);
+      rgesv(&num_cols, &single_rhs, AtA, &num_cols, ipiv, AtX, &num_cols, &info);
       if (info > 0)
         polymec_error("Row %d of linear system AtA*X = AtB is exactly zero -- U is singular!");
 

@@ -47,7 +47,7 @@ static void test_partition_linear_cloud(void** state, int N)
   }
 
   // Plot it.
-  double p[cloud->num_points];
+  real_t p[cloud->num_points];
   for (int i = 0; i < cloud->num_points; ++i)
     p[i] = 1.0*rank;
   char filename[FILENAME_MAX];
@@ -87,7 +87,7 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
   m = NULL;
 
   // Plot it.
-  double p[cloud->num_points];
+  real_t p[cloud->num_points];
   for (int i = 0; i < cloud->num_points; ++i)
     p[i] = 1.0*rank;
   char filename[FILENAME_MAX];
@@ -127,7 +127,7 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   m = NULL;
 
   // Plot it.
-  double p[cloud->num_points];
+  real_t p[cloud->num_points];
   for (int i = 0; i < cloud->num_points; ++i)
     p[i] = 1.0*rank;
   char filename[FILENAME_MAX];

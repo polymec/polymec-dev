@@ -197,7 +197,7 @@ static void test_partition_box_mesh(void** state)
   int nprocs, rank;
   MPI_Comm_size(mesh->comm, &nprocs);
   MPI_Comm_rank(mesh->comm, &rank);
-  double p[mesh->num_cells];
+  real_t p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "box_mesh_partition", "box_mesh_partition", 1, 0, 0, 0.0);

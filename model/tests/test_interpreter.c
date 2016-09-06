@@ -48,7 +48,7 @@ static void test_interpreter_with_long_string(void** state)
   assert_true(st_func_is_homogeneous(f));
   assert_true(st_func_is_constant(f));
   point_t x;
-  double t = 0.0, five;
+  real_t t = 0.0, five;
   st_func_eval(f, &x, t, &five);
   assert_true(reals_equal(five, 5.0));
 
@@ -63,7 +63,7 @@ static void test_interpreter_with_long_string(void** state)
   assert_int_equal(3, st_func_num_comp(F));
   assert_true(st_func_is_homogeneous(F));
   assert_true(st_func_is_constant(F));
-  double one_two_three[3];
+  real_t one_two_three[3];
   st_func_eval(F, &x, t, one_two_three);
   assert_true(reals_equal(one_two_three[0], 1.0));
   assert_true(reals_equal(one_two_three[1], 2.0));
@@ -254,13 +254,13 @@ static void test_table_parsing(void** state)
   string_ptr_unordered_map_t* tab = interpreter_get_table(interp, "tab");
   assert_true(tab != NULL);
   assert_int_equal(3, tab->size);
-  double** a = (double**)string_ptr_unordered_map_get(tab, "a");
+  real_t** a = (real_t**)string_ptr_unordered_map_get(tab, "a");
   assert_true(a != NULL);
   assert_true(reals_equal(**a, 1.0));
   char** b = (char**)string_ptr_unordered_map_get(tab, "b");
   assert_true(b != NULL);
   assert_int_equal(0, strcmp(*b, "bob"));
-  double** c = (double**)string_ptr_unordered_map_get(tab, "c");
+  real_t** c = (real_t**)string_ptr_unordered_map_get(tab, "c");
   assert_true(c != NULL);
   assert_true(reals_equal(**c, 2.0));
   string_ptr_unordered_map_free(tab);

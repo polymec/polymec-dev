@@ -35,7 +35,7 @@ static void test_ctor(void** state, int p)
 {
   // Set up coefficients.
   int dim = polynomial_basis_dim(p);
-  double coeffs[dim];
+  real_t coeffs[dim];
   for (int i = 0; i < dim; ++i)
     coeffs[i] = 1.0*i;
 
@@ -45,7 +45,7 @@ static void test_ctor(void** state, int p)
   point_t origin = {.x = 0.0, .y = 0.0, .z = 0.0};
   assert_true(point_distance(&origin, polynomial_x0(poly)) < 1e-14);
   int pos = 0, x_pow, y_pow, z_pow, index = 0;
-  double coeff;
+  real_t coeff;
   while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     assert_true(reals_equal(coeff, coeffs[index]));
@@ -131,7 +131,7 @@ static void test_basis(void** state, int p)
 
     // Now check everything.
     int pos = 0, x_pow, y_pow, z_pow, index = 0;
-    double coeff;
+    real_t coeff;
     while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
     {
       real_t term = pow(x.x, x_pow) * pow(x.y, y_pow) * pow(x.z, z_pow);
@@ -151,7 +151,7 @@ static void test_basis(void** state, int p)
         polynomial_compute_basis(p, i, j, k, &x, basis_deriv);
 
         int pos = 0, x_pow, y_pow, z_pow, index = 0;
-        double coeff;
+        real_t coeff;
         while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
         {
           real_t x_term = (x_pow >= i) ? pow(x.x, x_pow - i) * factorial(x_pow) / factorial(x_pow - i) : 0.0;

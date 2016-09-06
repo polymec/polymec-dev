@@ -177,7 +177,7 @@ exchanger_fprintf(mesh_exchanger(mesh), stdout);
 
 {
 // Plot it.
-double r[mesh->num_cells];
+real_t r[mesh->num_cells];
 for (int c = 0; c < mesh->num_cells; ++c)
   r[c] = 1.0*rank;
 char prefix[FILENAME_MAX];
@@ -231,7 +231,7 @@ log_debug("cell %d at (%g, %g, %g): V = %g, should be %g", c, mesh->cell_centers
   exchanger_verify(mesh_exchanger(mesh), polymec_error);
 
   // Plot it.
-  double r[mesh->num_cells];
+  real_t r[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     r[c] = 1.0*rank;
   char prefix[FILENAME_MAX];
