@@ -17,22 +17,22 @@
 #endif
 #include "slu_util.h"
 static inline void rCreate_CompCol_Matrix(SuperMatrix* a1, int a2, int a3, int a4, real_t* a5,
-                                          int* a6, int* a7, Stype_t a8, Dtype_t a9, Mtype_t a10)
+                                          int* a6, int* a7, Stype_t a8, Mtype_t a9)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-  dCreate_CompCol_Matrix(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+  dCreate_CompCol_Matrix(a1, a2, a3, a4, a5, a6, a7, a8, SLU_D, a9);
 #else
-  sCreate_CompCol_Matrix(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+  sCreate_CompCol_Matrix(a1, a2, a3, a4, a5, a6, a7, a8, SLU_S, a9);
 #endif
 }
 
 static inline void rCreate_Dense_Matrix(SuperMatrix* a1, int a2, int a3, real_t* a4, int a5,
-                                        Stype_t a6, Dtype_t a7, Mtype_t a8)
+                                        Stype_t a6, Mtype_t a7)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-  dCreate_Dense_Matrix(a1, a2, a3, a4, a5, a6, a7, a8);
+  dCreate_Dense_Matrix(a1, a2, a3, a4, a5, a6, SLU_D, a7);
 #else
-  sCreate_Dense_Matrix(a1, a2, a3, a4, a5, a6, a7, a8);
+  sCreate_Dense_Matrix(a1, a2, a3, a4, a5, a6, SLU_S, a7);
 #endif
 }
 
@@ -178,7 +178,7 @@ static SuperMatrix* supermatrix_new(adj_graph_t* graph)
   // Hand over these resources to create the Supermatrix.
   rCreate_CompCol_Matrix(A, num_rows, num_rows, num_nz, 
                          mat_zeros, col_indices, row_ptrs, 
-                         SLU_NC, SLU_D, SLU_GE);
+                         SLU_NC, SLU_GE);
   return A;
 }
 
@@ -196,10 +196,10 @@ static void* slm_clone(void* context)
   clone->N = mat->N;
   clone->rhs_data = polymec_malloc(sizeof(double) * clone->N);
   memcpy(clone->rhs_data, mat->rhs_data, sizeof(double) * clone->N);
-  rCreate_Dense_Matrix(&clone->rhs, clone->N, 1, clone->rhs_data, clone->N, SLU_DN, SLU_D, SLU_GE);
+  rCreate_Dense_Matrix(&clone->rhs, clone->N, 1, clone->rhs_data, clone->N, SLU_DN, SLU_GE);
   clone->X_data = polymec_malloc(sizeof(double) * clone->N);
   memcpy(clone->X_data, mat->X_data, sizeof(double) * clone->N);
-  rCreate_Dense_Matrix(&clone->X, clone->N, 1, clone->X_data, clone->N, SLU_DN, SLU_D, SLU_GE);
+  rCreate_Dense_Matrix(&clone->X, clone->N, 1, clone->X_data, clone->N, SLU_DN, SLU_GE);
   clone->R = polymec_malloc(sizeof(double) * clone->N);
   memcpy(clone->R, mat->R, sizeof(double) * clone->N);
   clone->C = polymec_malloc(sizeof(double) * clone->N);
@@ -665,9 +665,9 @@ local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
   // Solver data.
   mat->N = adj_graph_num_vertices(sparsity);
   mat->rhs_data = polymec_malloc(sizeof(double) * mat->N);
-  rCreate_Dense_Matrix(&mat->rhs, mat->N, 1, mat->rhs_data, mat->N, SLU_DN, SLU_D, SLU_GE);
+  rCreate_Dense_Matrix(&mat->rhs, mat->N, 1, mat->rhs_data, mat->N, SLU_DN, SLU_GE);
   mat->X_data = polymec_malloc(sizeof(double) * mat->N);
-  rCreate_Dense_Matrix(&mat->X, mat->N, 1, mat->X_data, mat->N, SLU_DN, SLU_D, SLU_GE);
+  rCreate_Dense_Matrix(&mat->X, mat->N, 1, mat->X_data, mat->N, SLU_DN, SLU_GE);
   mat->R = polymec_malloc(sizeof(double) * mat->N);
   mat->C = polymec_malloc(sizeof(double) * mat->N);
   StatInit(&mat->stat);
