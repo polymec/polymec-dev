@@ -285,6 +285,14 @@ static inline bool reals_nearly_equal(real_t a, real_t b, real_t epsilon)
   return (ABS(a - b) < epsilon);
 }
 
+// This function computes and returns the fraction difference between the real numbers
+// a and b, defined as |a - b| / |MIN(a, b): MIN(a, b) != 0|
+static inline real_t real_frac_diff(real_t a, real_t b)
+{
+  real_t ref = (reals_equal(a, 0.0)) ? b : (reals_equal(b, 0.0)) ? a : MIN(a, b);
+  return ABS(a - b) / ABS(ref);
+}
+
 // Use this macro to indicate that something hasn't been implemented.
 #define POLYMEC_NOT_IMPLEMENTED polymec_error("%s:\n  line %d: Function %s is not implemented!", __FILE__, __LINE__, __func__);
 

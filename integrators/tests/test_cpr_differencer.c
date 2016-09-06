@@ -212,8 +212,9 @@ static void test_asymmetric_jacobian(void** state)
     {
       if (i == j)
       {
-printf("%g\n", ABS(local_matrix_value(D, i, j) - (10.0*i + 1.0*j + 1.0)));
-        assert_true(reals_equal(local_matrix_value(D, i, j), (10.0*i + 1.0*j + 1.0)));
+        assert_true(reals_nearly_equal(local_matrix_value(D, i, j), 
+                                       (10.0*i + 1.0*j + 1.0),
+                                       100.0*sqrt(REAL_EPSILON)));
       }
       else
       {
@@ -255,7 +256,6 @@ printf("%g\n", ABS(local_matrix_value(D, i, j) - (10.0*i + 1.0*j + 1.0)));
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  set_real_epsilon(2.0*REAL_EPSILON);
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_identity_jacobian),

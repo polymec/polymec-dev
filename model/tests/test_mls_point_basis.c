@@ -170,6 +170,7 @@ static void test_mls_point_basis_zero_consistency_2(void** state)
     test_mls_point_basis_zero_consistency_p(state, 2);
 }
 
+#if POLYMEC_HAVE_DOUBLE_PRECISION
 static void test_mls_point_basis_zero_consistency_3(void** state)
 {
   if (!polymec_running_in_valgrind())
@@ -181,6 +182,7 @@ static void test_mls_point_basis_zero_consistency_4(void** state)
   if (!polymec_running_in_valgrind())
     test_mls_point_basis_zero_consistency_p(state, 4);
 }
+#endif
 
 int main(int argc, char* argv[]) 
 {
@@ -195,8 +197,10 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_mls_point_basis_zero_consistency_0),
     cmocka_unit_test(test_mls_point_basis_zero_consistency_1),
     cmocka_unit_test(test_mls_point_basis_zero_consistency_2),
+#if POLYMEC_HAVE_DOUBLE_PRECISION
     cmocka_unit_test(test_mls_point_basis_zero_consistency_3),
     cmocka_unit_test(test_mls_point_basis_zero_consistency_4)
+#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
