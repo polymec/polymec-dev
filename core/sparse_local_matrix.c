@@ -6,10 +6,77 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <gc/gc.h>
-#include "slu_ddefs.h"
-#include "slu_util.h"
 #include "core/array_utils.h"
 #include "core/sparse_local_matrix.h"
+
+// SuperLU stuff.
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+#include "slu_ddefs.h"
+#else
+#include "slu_sdefs.h"
+#endif
+#include "slu_util.h"
+static inline void rCreate_CompCol_Matrix(SuperMatrix* a1, int a2, int a3, int a4, real_t* a5,
+                                          int* a6, int* a7, Stype_t a8, Dtype_t a9, Mtype_t a10)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  dCreate_CompCol_Matrix(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+#else
+  sCreate_CompCol_Matrix(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+#endif
+}
+
+static inline void rCreate_Dense_Matrix(SuperMatrix* a1, int a2, int a3, real_t* a4, int a5,
+                                        Stype_t a6, Dtype_t a7, Mtype_t a8)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  dCreate_Dense_Matrix(a1, a2, a3, a4, a5, a6, a7, a8);
+#else
+  sCreate_Dense_Matrix(a1, a2, a3, a4, a5, a6, a7, a8);
+#endif
+}
+
+static inline void rgssvx(superlu_options_t* a1, SuperMatrix* a2, int* a3, int* a4, int* a5,
+                          char* a6, real_t* a7, real_t* a8, SuperMatrix* a9, SuperMatrix* a10,
+                          void* a11, int a12, SuperMatrix* a13, SuperMatrix* a14,
+                          real_t* a15, real_t* a16, real_t* a17, real_t* a18,
+                          GlobalLU_t* a19, mem_usage_t* a20, SuperLUStat_t* a21, int* a22)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  dgssvx(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12,
+         a13, a14, a15, a16, a17, a18, a19, a20, a21, a22);
+#else
+  sgssvx(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12,
+         a13, a14, a15, a16, a17, a18, a19, a20, a21, a22);
+#endif
+}
+
+static inline void rgsisx(superlu_options_t* a1, SuperMatrix* a2, int* a3, int* a4, int* a5,
+                          char* a6, real_t* a7, real_t* a8, SuperMatrix* a9, SuperMatrix* a10,
+                          void* a11, int a12, SuperMatrix* a13, SuperMatrix* a14,
+                          real_t* a15, real_t* a16, GlobalLU_t* a17, mem_usage_t* a18, 
+                          SuperLUStat_t* a19, int* a20)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  dgsisx(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12,
+         a13, a14, a15, a16, a17, a18, a19, a20);
+#else
+  sgsisx(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12,
+         a13, a14, a15, a16, a17, a18, a19, a20);
+#endif
+}
+
+// SuperLU norm function.
+extern float slangs(char* norm, SuperMatrix* A); 
+extern double dlangs(char* norm, SuperMatrix* A);
+static inline real_t rlangs(char* norm, SuperMatrix* A)
+{
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  return dlangs(norm, A);
+#else
+  return slangs(norm, A);
+#endif
+}
 
 typedef struct 
 {
@@ -22,8 +89,8 @@ typedef struct
   int* etree;
   char equil;
   SuperMatrix rhs, X, L, U;
-  double *rhs_data, *X_data;
-  double *R, *C;
+  real_t *rhs_data, *X_data;
+  real_t *R, *C;
   int *rperm, *cperm;
   superlu_options_t options;
   SuperLUStat_t stat;
@@ -109,7 +176,7 @@ static SuperMatrix* supermatrix_new(adj_graph_t* graph)
   memset(mat_zeros, 0, sizeof(real_t) * num_nz);
 
   // Hand over these resources to create the Supermatrix.
-  dCreate_CompCol_Matrix(A, num_rows, num_rows, num_nz, 
+  rCreate_CompCol_Matrix(A, num_rows, num_rows, num_nz, 
                          mat_zeros, col_indices, row_ptrs, 
                          SLU_NC, SLU_D, SLU_GE);
   return A;
@@ -129,10 +196,10 @@ static void* slm_clone(void* context)
   clone->N = mat->N;
   clone->rhs_data = polymec_malloc(sizeof(double) * clone->N);
   memcpy(clone->rhs_data, mat->rhs_data, sizeof(double) * clone->N);
-  dCreate_Dense_Matrix(&clone->rhs, clone->N, 1, clone->rhs_data, clone->N, SLU_DN, SLU_D, SLU_GE);
+  rCreate_Dense_Matrix(&clone->rhs, clone->N, 1, clone->rhs_data, clone->N, SLU_DN, SLU_D, SLU_GE);
   clone->X_data = polymec_malloc(sizeof(double) * clone->N);
   memcpy(clone->X_data, mat->X_data, sizeof(double) * clone->N);
-  dCreate_Dense_Matrix(&clone->X, clone->N, 1, clone->X_data, clone->N, SLU_DN, SLU_D, SLU_GE);
+  rCreate_Dense_Matrix(&clone->X, clone->N, 1, clone->X_data, clone->N, SLU_DN, SLU_D, SLU_GE);
   clone->R = polymec_malloc(sizeof(double) * clone->N);
   memcpy(clone->R, mat->R, sizeof(double) * clone->N);
   clone->C = polymec_malloc(sizeof(double) * clone->N);
@@ -282,9 +349,9 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
   // Do the solve.
   int info = 0, lwork = 0;
   void* work = NULL;
-  double ferr, berr;
+  real_t ferr, berr;
   GlobalLU_t glu; // "Global data structure" for SuperLU for helping with factorizations.
-  double recip_pivot_growth = 1.0, rcond = 1.0;
+  real_t recip_pivot_growth = 1.0, rcond = 1.0;
   mem_usage_t mem_usage;
   if (mat->ilu_params == NULL)
   {
@@ -294,7 +361,7 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
       int rhs_ncol = mat->rhs.ncol;
       mat->rhs.ncol = 0;
       polymec_suspend_fpe();
-      dgssvx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
+      rgssvx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
              mat->R, mat->C, &mat->L, &mat->U, work, lwork, &mat->rhs, &mat->X, 
              &recip_pivot_growth, &rcond, &ferr, &berr, &glu, &mem_usage, &mat->stat, &info);
       polymec_restore_fpe();
@@ -334,7 +401,7 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
     if ((info == 0) || (info == A->ncol+1))
     {
       polymec_suspend_fpe();
-      dgssvx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
+      rgssvx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
              mat->R, mat->C, &mat->L, &mat->U, work, lwork, &mat->rhs, 
              &mat->X, &recip_pivot_growth, &rcond, &ferr, &berr, &glu, &mem_usage, 
              &mat->stat, &info);
@@ -351,7 +418,7 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
       int rhs_ncol = mat->rhs.ncol;
       mat->rhs.ncol = 0;
       polymec_suspend_fpe();
-      dgsisx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
+      rgsisx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
              mat->R, mat->C, &mat->L, &mat->U, NULL, 0, &mat->rhs, &mat->X, 
              &recip_pivot_growth, &rcond, &glu, &mem_usage, &mat->stat, &info);
       polymec_restore_fpe();
@@ -389,7 +456,7 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
     if ((info == 0) || (info == A->ncol+1))
     {
       polymec_suspend_fpe();
-      dgsisx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
+      rgsisx(&mat->options, A, mat->cperm, mat->rperm, mat->etree, &mat->equil, 
              mat->R, mat->C, &mat->L, &mat->U, NULL, 0, &mat->rhs, &mat->X, 
              &recip_pivot_growth, &rcond, &glu, &mem_usage, &mat->stat, &info);
       polymec_restore_fpe();
@@ -400,7 +467,7 @@ static bool slm_solve(void* context, real_t* B, real_t* x)
   if (success)
   {
     // Copy the output vector to x.
-    double* X = ((DNformat*)mat->X.Store)->nzval;
+    real_t* X = ((DNformat*)mat->X.Store)->nzval;
     for (int i = 0; i < mat->N; ++i)
       x[i] = (real_t)X[i];
   }
@@ -439,7 +506,7 @@ static void slm_fprintf(void* context, FILE* stream)
   fprintf(stream, "nrow %d, ncol %d, nnz %d\n", A->nrow,A->ncol,Astore->nnz);
   fprintf(stream, "nzval: ");
   for (int i = 0; i < Astore->colptr[n]; ++i) 
-    fprintf(stream, "%f  ", (double)dp[i]);
+    fprintf(stream, "%f  ", dp[i]);
   fprintf(stream, "\nrowind: ");
   for (int i = 0; i < Astore->colptr[n]; ++i) 
     fprintf(stream, "%d  ", Astore->rowind[i]);
@@ -557,12 +624,10 @@ static void slm_add_matrix(void* context, real_t scale_factor, void* B)
   Amat->options.Fact = DOFACT;
 }
 
-extern double dlangs(char* norm, SuperMatrix* A); // SuperLU norm function.
-
 static real_t slm_norm(void* context, char n)
 {
   slm_t* mat = context;
-  return (real_t)dlangs(&n, mat->A);
+  return (real_t)rlangs(&n, mat->A);
 }
 
 static void slm_dtor(void* context)
@@ -600,9 +665,9 @@ local_matrix_t* sparse_local_matrix_new(adj_graph_t* sparsity)
   // Solver data.
   mat->N = adj_graph_num_vertices(sparsity);
   mat->rhs_data = polymec_malloc(sizeof(double) * mat->N);
-  dCreate_Dense_Matrix(&mat->rhs, mat->N, 1, mat->rhs_data, mat->N, SLU_DN, SLU_D, SLU_GE);
+  rCreate_Dense_Matrix(&mat->rhs, mat->N, 1, mat->rhs_data, mat->N, SLU_DN, SLU_D, SLU_GE);
   mat->X_data = polymec_malloc(sizeof(double) * mat->N);
-  dCreate_Dense_Matrix(&mat->X, mat->N, 1, mat->X_data, mat->N, SLU_DN, SLU_D, SLU_GE);
+  rCreate_Dense_Matrix(&mat->X, mat->N, 1, mat->X_data, mat->N, SLU_DN, SLU_D, SLU_GE);
   mat->R = polymec_malloc(sizeof(double) * mat->N);
   mat->C = polymec_malloc(sizeof(double) * mat->N);
   StatInit(&mat->stat);
