@@ -97,7 +97,7 @@ void bbox_make_empty_set(bbox_t* box)
 
 void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3)
 {
-  ASSERT(reals_equal(vector_mag(e1), 1.0));
+  ASSERT(reals_nearly_equal(vector_mag(e1), 1.0, 10.0*REAL_EPSILON));
 
   // Pick an arbitrary vector, e2, that is perpendicular to e1. One of these
   // should work.

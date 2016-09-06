@@ -106,7 +106,7 @@ static void test_bessel_yn(void** state, int n)
   double sign = 1.0;
   for (int i = 0; i < num_roots; ++i)
   {
-    assert_true(reals_nearly_equal(bessel_yn(n, roots[i]), 0.0, 1e-12));
+    assert_true(ABS(bessel_yn(n, roots[i]) < 1e-12));
     if (i < (num_roots-1))
     {
       assert_true(sign * bessel_yn(n, 0.5*(roots[i+1]+roots[i])) > 0.0);

@@ -14,6 +14,13 @@
 #include "core/partition_mesh.h"
 #include "geometry/create_uniform_mesh.h"
 
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+static const real_t volume_tolerance = 1e-12;
+static const real_t area_tolerance = 1e-12;
+#else
+static const real_t volume_tolerance = 1e-6;
+static const real_t area_tolerance = 1e-6;
+#endif
 static void test_partition_linear_mesh(void** state)
 {
   // Create a 100x1x1 uniform mesh.
@@ -52,7 +59,7 @@ static void test_partition_linear_mesh(void** state)
   int cell_volumes_are_ok = 1;
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, 1e-12))
+    if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, volume_tolerance))
     {
       cell_volumes_are_ok = 0;
       break; 
@@ -61,7 +68,7 @@ static void test_partition_linear_mesh(void** state)
   int face_areas_are_ok = 1;
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, 1e-12))
+    if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, area_tolerance))
     {
       face_areas_are_ok = 0;
       break; 
@@ -114,7 +121,7 @@ static void test_partition_slab_mesh(void** state)
   int cell_volumes_are_ok = 1;
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, 1e-12))
+    if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, volume_tolerance))
     {
       cell_volumes_are_ok = 0;
       break; 
@@ -123,7 +130,7 @@ static void test_partition_slab_mesh(void** state)
   int face_areas_are_ok = 1;
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, 1e-12))
+    if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, area_tolerance))
     {
       face_areas_are_ok = 0;
       break; 
@@ -173,7 +180,7 @@ static void test_partition_box_mesh(void** state)
   int cell_volumes_are_ok = 1;
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, 1e-12))
+    if (!reals_nearly_equal(mesh->cell_volumes[c], dx*dx*dx, volume_tolerance))
     {
       cell_volumes_are_ok = 0;
       break; 
@@ -182,7 +189,7 @@ static void test_partition_box_mesh(void** state)
   int face_areas_are_ok = 1;
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, 1e-12))
+    if (!reals_nearly_equal(mesh->face_areas[f], dx*dx, area_tolerance))
     {
       face_areas_are_ok = 0;
       break; 

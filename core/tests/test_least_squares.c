@@ -93,6 +93,14 @@ static ls_weight_func_t* simple_w_new(int A, real_t B)
   return ls_weight_func_new("Simple", W_data, vtable);
 }
 
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+static const real_t weighted_tolerance = 5e-12;
+static const real_t unweighted_tolerance = 1e-11;
+#else
+// FIXME: These need investigating!
+static const real_t weighted_tolerance = 1e-3;
+static const real_t unweighted_tolerance = 4e-3;
+#endif
 static bool test_poly_fit(void** state, int p, point_t* x0, point_t* points, int num_points, real_t* coeffs, bool weighted)
 {
   polynomial_t* poly = polynomial_new(p, coeffs, x0);
@@ -152,9 +160,9 @@ static bool test_poly_fit(void** state, int p, point_t* x0, point_t* points, int
             p, x_star.x, x_star.y, x_star.z, num_points, error); 
   bool passed;
   if (weighted)
-    passed = (error < 5e-12);
+    passed = (error < weighted_tolerance);
   else
-    passed = (error < 1e-11);
+    passed = (error < unweighted_tolerance);
 
   poly = NULL;
   fitted_poly = NULL;
