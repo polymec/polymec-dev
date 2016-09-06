@@ -415,8 +415,18 @@ void lis_sort_di(LIS_INT is, LIS_INT ie, LIS_SCALAR *d1, LIS_INT *i1)
 	i = is; j = ie;
 	while(i<=j)
 	{
+#ifndef HAVE_COMPLEX_H
 	  while(d1[i] < v) { i++; }
 	  while(d1[j] > v) { j--; }
+#else
+#ifdef _LONG__DOUBLE
+	  while(creall(d1[i]) < creall(v)) { i++; }
+	  while(creall(d1[j]) > creall(v)) { j--; }
+#else
+	  while(creal(d1[i]) < creal(v)) { i++; }
+	  while(creal(d1[j]) > creal(v)) { j--; }
+#endif
+#endif	  
 		if( i<=j )
 		{
 			lis_swap(i1[i],i1[j],t1);
@@ -444,8 +454,18 @@ void lis_sort_d(LIS_INT is, LIS_INT ie, LIS_SCALAR *d1)
 	i = is; j = ie;
 	while(i<=j)
 	{
+#ifndef HAVE_COMPLEX_H
 	  while(d1[i] < v) { i++; }
 	  while(d1[j] > v) { j--; }
+#else	  
+#ifdef _LONG__DOUBLE	  
+	  while(creall(d1[i]) < creall(v)) { i++; }
+	  while(creall(d1[j]) > creall(v)) { j--; }
+#else
+	  while(creal(d1[i]) < creal(v)) { i++; }
+	  while(creal(d1[j]) > creal(v)) { j--; }
+#endif
+#endif	  
 		if( i<=j )
 		{
 			lis_swap(d1[i],d1[j],s1);
@@ -474,8 +494,18 @@ void lis_sort_dd(LIS_INT is, LIS_INT ie, LIS_SCALAR *d1, LIS_VECTOR *d2)
 	i = is; j = ie;
 	while(i<=j)
 	{
+#ifndef HAVE_COMPLEX_H
 	  while(d1[i] < v) { i++; }
 	  while(d1[j] > v) { j--; }
+#else
+#ifdef _LONG__DOUBLE	  	  
+	  while(creall(d1[i]) < creall(v)) { i++; }
+	  while(creall(d1[j]) > creall(v)) { j--; }
+#else
+	  while(creal(d1[i]) < creal(v)) { i++; }
+	  while(creal(d1[j]) > creal(v)) { j--; }
+#endif
+#endif	  
 		if( i<=j )
 		{
 			lis_swap(d1[i],d1[j],s1);
