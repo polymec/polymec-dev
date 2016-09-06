@@ -79,6 +79,17 @@ void fasmg_solver_set_max_cycles(fasmg_solver_t* solver,
 void fasmg_solver_set_max_residual_norm(fasmg_solver_t* solver,
                                         real_t max_residual_norm);
 
+// This virtual table must be defined for any grid object created by a FASMG 
+// solver using fasmg_solver_grid, below.
+typedef struct 
+{
+  // Computes the discrete L2 norm of the given vector V on the given grid 
+  // using its contextual data, returning that norm.
+  real_t (*l2_norm)(void* data, real_t* V);
+  // Destructor. Called on coarsened grids by the finest grid upon destruction.
+  void (*dtor)(void* data);
+} fasmg_grid_vtable;
+
 // Returns a newly-constructed representation of the discretization that can be 
 // used with this FASMG solver, created from the given underlying representation,
 // with the given number of degrees of freedom, and using the given destructor 
@@ -87,7 +98,7 @@ void fasmg_solver_set_max_residual_norm(fasmg_solver_t* solver,
 fasmg_grid_t* fasmg_solver_grid(fasmg_solver_t* solver,
                                 void* discretization,
                                 size_t num_dof,
-                                void (*discretization_dtor)(void*));
+                                fasmg_grid_vtable vtable);
 
 // Solves the system A(X) = B on the given discretization for the given 
 // vectors B and X. Returns true if the solution converged, false if not. The 
@@ -130,6 +141,12 @@ fasmg_cycle_t* fasmg_solver_cycler(fasmg_solver_t* solver);
 
 // Destroys this fasmg_grid.
 void fasmg_grid_free(fasmg_grid_t* grid);
+
+// Returns the number of degrees of freedom on this grid.
+size_t fasmg_grid_num_dof(fasmg_grid_t* grid);
+
+// Returns the discrete L2 norm of the vector V on this grid.
+real_t fasmg_grid_l2_norm(fasmg_grid_t* grid, real_t* V);
 
 // Returns the adjacent coarser grid in the multigrid hierarchy, or NULL if 
 // there is no such grid.

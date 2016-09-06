@@ -23,7 +23,7 @@ struct fasmg_grid_t
 {
   void* data;
   size_t num_dof;
-  void (*dtor)(void* data);
+  fasmg_grid_vtable vtable;
   bool free_data;
 
   fasmg_grid_t* coarser;
@@ -114,14 +114,14 @@ void fasmg_solver_set_max_residual_norm(fasmg_solver_t* solver,
 
 static fasmg_grid_t* fasmg_grid_new(void* data,
                                     size_t num_dof,
-                                    void (*data_dtor)(void* data))
+                                    fasmg_grid_vtable vtable)
 {
   ASSERT(num_dof > 0);
 
   fasmg_grid_t* grid = polymec_malloc(sizeof(fasmg_grid_t));
   grid->data = data;
   grid->num_dof = num_dof;
-  grid->dtor = data_dtor;
+  grid->vtable = vtable;
   grid->free_data = true;
   grid->coarser = grid->finer = NULL;
   return grid;
@@ -130,9 +130,10 @@ static fasmg_grid_t* fasmg_grid_new(void* data,
 fasmg_grid_t* fasmg_solver_grid(fasmg_solver_t* solver,
                                 void* discretization,
                                 size_t num_dof,
-                                void (*discretization_dtor)(void*))
+                                fasmg_grid_vtable vtable)
 {
-  fasmg_grid_t* grid = fasmg_grid_new(discretization, num_dof, discretization_dtor); 
+  ASSERT(vtable.l2_norm != NULL);
+  fasmg_grid_t* grid = fasmg_grid_new(discretization, num_dof, vtable); 
   grid->free_data = false;
   return grid;
 }
@@ -155,10 +156,7 @@ bool fasmg_solver_solve(fasmg_solver_t* solver,
     size_t N = grid->num_dof;
     real_t R[N];
     fasmg_operator_compute_residual(solver->A, grid, B, X, R);
-    real_t R2 = 0.0;
-    for (int i = 0; i < N; ++i)
-      R2 += R[i]*R[i];
-    *residual_norm = sqrt(R2);
+    *residual_norm = fasmg_grid_l2_norm(grid, R);
     log_detail("fasmg_solver_solve: cycle %d, residual norm = %g", n_cycles, *residual_norm);
     if (*residual_norm <= solver->max_res_norm)
       break;
@@ -212,9 +210,21 @@ void fasmg_grid_free(fasmg_grid_t* grid)
     fasmg_grid_free(grid->coarser);
 
   // Delete this one.
-  if ((grid->free_data) && (grid->dtor != NULL) && (grid->data != NULL))
-    grid->dtor(grid->data);
+  if ((grid->free_data) && 
+      (grid->vtable.dtor != NULL) && 
+      (grid->data != NULL))
+    grid->vtable.dtor(grid->data);
   polymec_free(grid);
+}
+
+size_t fasmg_grid_num_dof(fasmg_grid_t* grid)
+{
+  return grid->num_dof;
+}
+
+real_t fasmg_grid_l2_norm(fasmg_grid_t* grid, real_t* V)
+{
+  return grid->vtable.l2_norm(grid->data, V);
 }
 
 fasmg_grid_t* fasmg_grid_coarser(fasmg_grid_t* grid)
@@ -281,9 +291,9 @@ void fasmg_operator_compute_residual(fasmg_operator_t* A,
                                      real_t* X,
                                      real_t* R)
 {
-  A->vtable.apply(A->context, grid->data, X, R);
+  A->vtable.apply(A->context, grid->data, X, R); // R <- AX
   for (size_t i = 0; i < grid->num_dof; ++i)
-    R[i] = B[i] - R[i];
+    R[i] = B[i] - R[i]; // R <- B - AX
 }
 
 fasmg_coarsener_t* fasmg_coarsener_new(const char* name, 
@@ -331,7 +341,7 @@ void fasmg_coarsener_coarsen(fasmg_coarsener_t* coarsener,
   {
     size_t coarse_dof = 0;
     void* coarse_data = coarsener->vtable.coarser_grid(coarsener->context, G->data, &coarse_dof);
-    fasmg_grid_t* coarse_grid = fasmg_grid_new(coarse_data, coarse_dof, G->dtor);
+    fasmg_grid_t* coarse_grid = fasmg_grid_new(coarse_data, coarse_dof, G->vtable);
     G->coarser = coarse_grid;
     coarse_grid->finer = G;
     G = coarse_grid;
@@ -488,9 +498,12 @@ static void mu_execute(void* context,
     // Compute the residual on this grid.
     size_t N = grid->num_dof;
     real_t R[N];
-printf("X = %g\n", X[1]);
     fasmg_operator_compute_residual(A, grid, B, X, R);
-printf("R = %g\n", R[1]);
+    if (log_level() == LOG_DEBUG)
+    {
+      log_debug("  fasmg_cycle_execute: residual norm is %g (N=%d)", 
+                fasmg_grid_l2_norm(grid, R), N);
+    }
 
     // Restrict the residual and our current solution to our coarser grid.
     size_t N_coarse = grid->coarser->num_dof;
@@ -501,8 +514,8 @@ printf("R = %g\n", R[1]);
     // Form our right hand side on the coarse grid.
     real_t AX_coarse[N_coarse], B_coarse[N_coarse];
     fasmg_operator_apply(A, grid->coarser, X_coarse, AX_coarse);
-    for (size_t j = 0; j < N_coarse; ++j)
-      B_coarse[j] = AX_coarse[j] + R_coarse[j];
+    for (size_t i = 0; i < N_coarse; ++i)
+      B_coarse[i] = AX_coarse[i] + R_coarse[i];
 
     // Cycle on the coarse solution mu times to produce a solution Y_coarse.
     real_t Y_coarse[N_coarse];
@@ -515,18 +528,16 @@ printf("R = %g\n", R[1]);
 
     // Compute the coarse error approximation E_coarse = Y_coarse - X_coarse.
     real_t E_coarse[N_coarse];
-    for (size_t j = 0; j < N_coarse; ++j)
-      E_coarse[j] = Y_coarse[j] - X_coarse[j];
+    for (size_t i = 0; i < N_coarse; ++i)
+      E_coarse[i] = Y_coarse[i] - X_coarse[i];
 
     // Prolongate the coarse error to our original grid.
     real_t E[N];
     fasmg_prolongator_interpolate(prolongator, grid->coarser, E_coarse, E);
-printf("E = %g\n", E[1]);
 
     // Correct our current approximation.
-    for (size_t j = 0; j < N; ++j)
-      X[j] += E[N];
-printf("X' = %g\n", X[1]);
+    for (size_t i = 0; i < N; ++i)
+      X[i] += E[i];
   }
 
   // Relax X nu_2 times.
@@ -541,6 +552,9 @@ fasmg_cycle_t* mu_fasmg_cycle_new(int mu, int nu_1, int nu_2)
   ASSERT(nu_2 >= 0);
 
   mu_cycle_t* mu_cycle = polymec_malloc(sizeof(mu_cycle_t));
+  mu_cycle->mu = mu;
+  mu_cycle->nu_1 = nu_1;
+  mu_cycle->nu_2 = nu_2;
   fasmg_cycle_vtable vtable = {.execute = mu_execute, .dtor = polymec_free};
   char name[1025];
   if (mu == 1)
