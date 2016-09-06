@@ -88,6 +88,9 @@ static int circle_2_jac(void* context, int N, real_t* x, real_t* F,
 static void test_newton_solve_system_2(void** state)
 {
   dense_newton_solver_t* solver = dense_newton_solver_new(2, NULL, circle_2, NULL);
+#if !POLYMEC_HAVE_DOUBLE_PRECISION
+  dense_newton_solver_set_tolerances(solver, 1e-6, 1e-4);
+#endif
   real_t x[] = {3.0, -2.0};
   int num_iters;
   assert_true(dense_newton_solver_solve(solver, x, &num_iters));
@@ -99,6 +102,7 @@ static void test_newton_solve_system_2(void** state)
 static void test_newton_solve_system_2_with_jacobian(void** state)
 {
   dense_newton_solver_t* solver = dense_newton_solver_new_with_jacobian(2, NULL, circle_2, circle_2_jac, NULL);
+  dense_newton_solver_set_tolerances(solver, 1e-6, 1e-4);
   real_t x[] = {3.0, -2.0};
   int num_iters;
   assert_true(dense_newton_solver_solve(solver, x, &num_iters));
@@ -136,6 +140,7 @@ static int sphere_3_jac(void* context, int N, real_t* x, real_t* F,
 static void test_newton_solve_system_3(void** state)
 {
   dense_newton_solver_t* solver = dense_newton_solver_new(3, NULL, sphere_3, NULL);
+  dense_newton_solver_set_tolerances(solver, 1e-6, 1e-4);
   real_t x[] = {3.0, -2.0, 10.0};
   int num_iters;
   assert_true(dense_newton_solver_solve(solver, x, &num_iters));
@@ -147,6 +152,7 @@ static void test_newton_solve_system_3(void** state)
 static void test_newton_solve_system_3_with_jacobian(void** state)
 {
   dense_newton_solver_t* solver = dense_newton_solver_new_with_jacobian(3, NULL, sphere_3, sphere_3_jac, NULL);
+  dense_newton_solver_set_tolerances(solver, 1e-6, 1e-4);
   real_t x[] = {3.0, -2.0, 10.0};
   int num_iters;
   assert_true(dense_newton_solver_solve(solver, x, &num_iters));
