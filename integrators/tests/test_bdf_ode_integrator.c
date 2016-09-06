@@ -96,26 +96,40 @@ static int test_diurnal_step(void** state, ode_integrator_t* integ, int max_step
 static void test_block_jacobi_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = block_jacobi_precond_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-  test_diurnal_step(state, integ, 650);
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  int max_steps = 650;
+#else
+  int max_steps = 569;
+#endif
+  test_diurnal_step(state, integ, max_steps);
 }
 
 static void test_block_jacobi_precond_diurnal_step_right(void** state)
 {
   ode_integrator_t* integ = block_jacobi_precond_bdf_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  test_diurnal_step(state, integ, 500);
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  int max_steps = 500;
+#else
+  int max_steps = 639;
+#endif
+  test_diurnal_step(state, integ, max_steps);
 }
 
+#if POLYMEC_HAVE_DOUBLE_PRECISION
 static void test_lu_precond_diurnal_step_left(void** state)
 {
   ode_integrator_t* integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-  test_diurnal_step(state, integ, 610);
+  int max_steps = 610;
+  test_diurnal_step(state, integ, max_steps);
 }
 
 static void test_lu_precond_diurnal_step_right(void** state)
 {
   ode_integrator_t* integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  test_diurnal_step(state, integ, 500);
+  int max_steps = 500;
+  test_diurnal_step(state, integ, max_steps);
 }
+#endif
 
 int main(int argc, char* argv[]) 
 {
@@ -126,8 +140,10 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lu_precond_diurnal_ctor),
     cmocka_unit_test(test_block_jacobi_precond_diurnal_step_left),
     cmocka_unit_test(test_block_jacobi_precond_diurnal_step_right),
+#if POLYMEC_HAVE_DOUBLE_PRECISION
     cmocka_unit_test(test_lu_precond_diurnal_step_left),
     cmocka_unit_test(test_lu_precond_diurnal_step_right)
+#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

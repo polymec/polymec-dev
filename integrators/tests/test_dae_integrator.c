@@ -65,11 +65,13 @@ static void test_block_jacobi_precond_heat2d_step(void** state)
   test_heat2d_step(state, integ);
 }
 
+#if POLYMEC_HAVE_DOUBLE_PRECISION
 static void test_lu_precond_heat2d_step(void** state)
 {
   dae_integrator_t* integ = lu_precond_heat2d_integrator_new();
   test_heat2d_step(state, integ);
 }
+#endif
 
 int main(int argc, char* argv[]) 
 {
@@ -79,7 +81,9 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_block_jacobi_precond_heat2d_ctor),
     cmocka_unit_test(test_lu_precond_heat2d_ctor),
     cmocka_unit_test(test_block_jacobi_precond_heat2d_step),
+#if POLYMEC_HAVE_DOUBLE_PRECISION
     cmocka_unit_test(test_lu_precond_heat2d_step)
+#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
