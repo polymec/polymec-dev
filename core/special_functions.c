@@ -8,6 +8,12 @@
 #include "core/polymec.h"
 #include "core/special_functions.h"
 
+#ifdef _Imaginary_I
+#define I _Imaginary_I
+#else
+#define I _Complex_I
+#endif
+
 #ifndef CMPLX
 #define CMPLX(x,y) ((real_t)(x)+(complex_t)I*(real_t)(y))
 #endif

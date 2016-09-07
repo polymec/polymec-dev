@@ -8,6 +8,8 @@
 #ifndef POLYMEC_SPECIAL_FUNCTIONS_H
 #define POLYMEC_SPECIAL_FUNCTIONS_H
 
+#include "core/polymec.h"
+
 // These functions implement special functions not available in the 
 // standard C math library. Several of them are adapted from the Fortran 77 
 // subroutines that accompany "Computation of Special Functions" by Shanjie 
@@ -163,15 +165,9 @@ real_t hermite_hn(int n, real_t x);
 // of order n, at the given value of x.
 real_t hermite_dhndx(int n, real_t x);
 
-// C++ doesn't have complex datatypes, so we don't expose them to C++ compilers.
+// C++ doesn't have complex datatypes, so we don't expose complex functions 
+// to those compilers.
 #ifndef __cplusplus
-#include <complex.h>
-
-#if POLYMEC_HAVE_DOUBLE_PRECISION
-typedef double complex complex_t;
-#else
-typedef float complex complex_t;
-#endif
 
 // Returns the value of H0, the Bessel function of the third kind (Hankel
 // function) of order zero, at the given real value x.

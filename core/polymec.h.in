@@ -39,6 +39,19 @@
 #include <stdnoreturn.h>
 #endif
 
+// Real number representation. 
+#define POLYMEC_HAVE_SINGLE_PRECISION @HAVE_SINGLE_PRECISION@
+#define POLYMEC_HAVE_DOUBLE_PRECISION @HAVE_DOUBLE_PRECISION@
+#define POLYMEC_PRECISION @POLYMEC_PRECISION@
+#define MPI_REAL_T @POLYMEC_MPI_REAL_TYPE@
+
+// Shared library support.
+#define POLYMEC_HAVE_SHARED_LIBS @HAVE_SHARED_LIBS@
+#define SHARED_LIBRARY_SUFFIX "@CMAKE_SHARED_LIBRARY_SUFFIX@"
+
+// Valgrind support.
+#define POLYMEC_HAVE_VALGRIND @VALGRIND_FOUND@
+
 #include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,25 +67,59 @@
 #include <math.h>
 #undef gamma
 
+// We support complex numbers for non-C++ applications.
+#ifndef __cplusplus
+#include <complex.h>
+#ifdef I
+#undef I
+#endif
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+typedef double complex complex_t;
+#else
+typedef float complex complex_t;
+#endif
+#endif
+
+// Type-generic macros for dealing with various mathematical functions.
+// Also not available to C++.
+#ifndef __cplusplus
+#define cos(x) _Generic((x), \
+                        long double: cosl, \
+                        long double complex: ccosl, \
+                        float: cosf, \
+                        float complex: ccosf, \
+                        double complex: ccos, \
+                        default: cos)(x)
+#define sin(x) _Generic((x), \
+                        long double: sinl, \
+                        long double complex: csinl, \
+                        float: sinf, \
+                        float complex: csinf, \
+                        double complex: csin, \
+                        default: sin)(x)
+#define sqrt(x) _Generic((x), \
+                         long double: sqrtl, \
+                         long double complex: csqrtl, \
+                         float: sqrtf, \
+                         float complex: csqrtf, \
+                         double complex: csqrt, \
+                         default: sqrt)(x)
+#define abs(x) _Generic((x), \
+                        long double: fabsl, \
+                        long double complex: cabsl, \
+                        float: fabsf, \
+                        float complex: cabsf, \
+                        double: fabs, \
+                        double complex: cabs, \
+                        default: abs)(x)
+#endif
+
 #include <limits.h>
 #include <stddef.h>
 #include <float.h>
 #include <time.h>
 
 #include <mpi.h>
-
-// Real number representation. 
-#define POLYMEC_HAVE_SINGLE_PRECISION @HAVE_SINGLE_PRECISION@
-#define POLYMEC_HAVE_DOUBLE_PRECISION @HAVE_DOUBLE_PRECISION@
-#define POLYMEC_PRECISION @POLYMEC_PRECISION@
-#define MPI_REAL_T @POLYMEC_MPI_REAL_TYPE@
-
-// Shared library support.
-#define POLYMEC_HAVE_SHARED_LIBS @HAVE_SHARED_LIBS@
-#define SHARED_LIBRARY_SUFFIX "@CMAKE_SHARED_LIBRARY_SUFFIX@"
-
-// Valgrind support.
-#define POLYMEC_HAVE_VALGRIND @VALGRIND_FOUND@
 
 // In defining real_t, we have to accommodate Metis, which defines 
 // its own.
@@ -101,11 +148,6 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
-// This returns the absolute value of a.
-#ifndef ABS
-#define ABS(a) (((a) >= 0.0) ? (a) : -(a))
-#endif
-
 // This returns the sign (+1/-1) of the given quantity x.
 #define SIGN(x) (((x) > 0) ? 1 : ((x) < 0) ? -1 : 0)
 
@@ -124,13 +166,18 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 
 #endif
 
-// Use REAL_EXPR(C) to construct the floating point constant C manifestly 
+// Use REAL_CONSTANT(C) to construct the floating point constant C manifestly 
 // in real_t form, rather than relying on explicit casting.
 
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-#define REAL_CONSTANT(C) C##l
+#define REAL_CONSTANT(C) C
 #else
 #define REAL_CONSTANT(C) C##f
+#endif
+
+// This returns the absolute value of a.
+#ifndef ABS
+#define ABS(a) (((a) >= REAL_CONSTANT(0.0)) ? (a) : -(a))
 #endif
 
 // Use polymec_unreachable() to tell the C compiler that a line in a function 
@@ -304,13 +351,13 @@ static inline bool reals_nearly_equal(real_t a, real_t b, real_t epsilon)
 static inline real_t real_frac_diff(real_t a, real_t b)
 {
   real_t ref = ABS(MAX(a, b));
-  if (ref > 0.0)
+  if (ref > REAL_CONSTANT(0.0))
   {
     ref = (reals_equal(a, 0.0)) ? ABS(b) : (reals_equal(b, 0.0)) ? ABS(a) : ABS(MIN(a, b));
     return ABS(a - b) / ref;
   }
   else
-    return 0.0;
+    return REAL_CONSTANT(0.0);
 }
 
 // Use this macro to indicate that something hasn't been implemented.

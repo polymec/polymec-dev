@@ -356,7 +356,12 @@ static int read_ascii_stl_file(FILE* stl_file,
     v1 = polymec_malloc(sizeof(point_t));
     v2 = polymec_malloc(sizeof(point_t));
     v3 = polymec_malloc(sizeof(point_t));
-    status = fscanf(stl_file, "facet normal %le %le %le\n", &n->x, &n->y, &n->z);
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+#define REAL_TRIPLE_FMT "%le %le %le\n"
+#else
+#define REAL_TRIPLE_FMT "%e %e %e\n"
+#endif
+    status = fscanf(stl_file, "facet normal " REAL_TRIPLE_FMT, &n->x, &n->y, &n->z);
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading facet %zd.", all_normals->size/3);
@@ -369,19 +374,19 @@ static int read_ascii_stl_file(FILE* stl_file,
       goto exit_on_error;
     }
     status = fscanf(stl_file, "\n");
-    status = fscanf(stl_file, "vertex %le %le %le\n", &v1->x, &v1->y, &v1->z);
+    status = fscanf(stl_file, "vertex " REAL_TRIPLE_FMT, &v1->x, &v1->y, &v1->z);
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading vertex 1 for facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
-    status = fscanf(stl_file, "vertex %le %le %le\n", &v2->x, &v2->y, &v2->z);
+    status = fscanf(stl_file, "vertex " REAL_TRIPLE_FMT, &v2->x, &v2->y, &v2->z);
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading vertex 2 for facet %zd.", all_normals->size/3);
       goto exit_on_error;
     }
-    status = fscanf(stl_file, "vertex %le %le %le\n", &v3->x, &v3->y, &v3->z);
+    status = fscanf(stl_file, "vertex " REAL_TRIPLE_FMT, &v3->x, &v3->y, &v3->z);
     if (status != 3)
     {
       snprintf(error_message, 1024, "Problem reading vertex 3 for facet %zd.", all_normals->size/3);
