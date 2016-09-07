@@ -35,15 +35,21 @@ Available options are:
 
     mpi=0,1  <-- specifies a serial or MPI build
 
+    openmp=0,1  <-- specifies whether to use OpenMP (if supported)
+
     debug=0,1  <-- specifies a Release or Debug build
 
     shared=0,1  <-- specifies static or shared libraries
 
-    machine=xyz <-- specifies the use of a specific machine. Check the 
-                    downloaded machines/ directory after using this option 
-                    to look for a file for your specific machine. These 
-                    files are maintained in the polymec/polymec-machines 
-                    repo on GitHub.
+    machine=xyz  <-- specifies the use of a specific machine. Check the 
+                     downloaded machines/ directory after using this option 
+                     to look for a file for your specific machine. These 
+                     files are maintained in the polymec/polymec-machines 
+                     repo on GitHub.
+
+    travis=0,1  <-- Used to inform the build system when Travis CI is 
+                    attempting a build in its environment. In a perfect world
+                    we wouldn't need this, but we do.
 
     Compilers can also be selected with CC, CXX, FC.
 

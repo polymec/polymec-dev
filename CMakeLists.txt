@@ -114,12 +114,6 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # Pass some more needed flags to the compiler.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
   endif()
-
-  # Code coverage.
-  if (TEST_COVERAGE)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-arcs -ftest-coverage")
-  endif()
 elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Weverything -Werror -pedantic-errors -Werror-implicit-function-declaration -fno-builtin")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-unused-function")
@@ -131,12 +125,6 @@ elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
   if (NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang" AND CMAKE_C_COMPILER_VERSION STRLESS "3.6")
     # tolower() is a recursive macro, which causes issues.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-disabled-macro-expansion")
-  endif()
-
-  # Code coverage.
-  if (TEST_COVERAGE)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
   endif()
 elseif (CMAKE_C_COMPILER_ID STREQUAL "Intel")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall")
@@ -190,13 +178,6 @@ if (BUILD_SHARED_LIBS)
   set(LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
 else()
   set(LIB_SUFFIX .a)
-endif()
-
-# Address sanitizer.
-if (ADDRESS_SANITIZER EQUAL 1)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 endif()
 
 # Give a warning about not setting the install prefix.
