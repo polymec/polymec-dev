@@ -72,7 +72,7 @@ before_script:
 
 script: 
   - make -j4 CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION install 
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then make CC=$CC debug=1 mpi=$MPI shared=0 memcheck; else make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION test; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then make CC=$CC debug=1 mpi=$MPI shared=0 precision=$PRECISION memcheck; else make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION test; fi
 
 after_success: 
   - cd $HOME

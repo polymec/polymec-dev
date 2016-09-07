@@ -9,7 +9,7 @@ Software Requirements
 The polymec library requires the following software for installation:
 
   - A C compiler that adheres to (or aspires to) the C11 standard. 
-    Currently, GCC 4.9 and Clang 3.4 are quite usable (though others
+    Currently, GCC 4.9 and Clang 3.4 work well (though others
     may work as well).
   - On Linux, a Fortran compiler is required to link against LAPACK/BLAS.
   - A working set of LAPACK/BLAS libraries.
