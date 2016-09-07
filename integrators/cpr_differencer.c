@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/sundials_helpers.h" // For UNIT_ROUNDOFF
 #include "core/timer.h"
 #include "integrators/cpr_differencer.h"
 
@@ -116,7 +115,7 @@ static void cpr_finite_diff_dFdx_v(void* context,
                                    real_t* dFdx_v)
 {
   START_FUNCTION_TIMER();
-  real_t eps = sqrt(UNIT_ROUNDOFF);
+  real_t eps = sqrt(REAL_EPSILON);
   real_t eps_inv = 1.0 / eps;
 
   // work[0] == v
@@ -150,7 +149,7 @@ static void cpr_finite_diff_dFdxdot_v(void* context,
                                       real_t* dFdxdot_v)
 {
   START_FUNCTION_TIMER();
-  real_t eps = sqrt(UNIT_ROUNDOFF);
+  real_t eps = sqrt(REAL_EPSILON);
   real_t eps_inv = 1.0 / eps;
 
   // work[0] == v
