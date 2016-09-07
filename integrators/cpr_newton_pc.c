@@ -38,9 +38,11 @@ static bool cpr_newton_pc_solve(void* context,
     real_t Pz[N];
     local_matrix_matvec(pc->P, z, Pz);
     *error_L2_norm = 0.0;
+    polymec_suspend_fpe();
     for (int i = 0; i < N; ++i)
       *error_L2_norm += (Pz[i]-r[i])*(Pz[i]-r[i]);
     *error_L2_norm = sqrt(*error_L2_norm);
+    polymec_restore_fpe();
     if (*error_L2_norm >= tolerance)
       solved = false;
   }

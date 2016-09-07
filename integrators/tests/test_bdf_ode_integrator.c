@@ -99,7 +99,7 @@ static void test_block_jacobi_precond_diurnal_step_left(void** state)
 #if POLYMEC_HAVE_DOUBLE_PRECISION
   int max_steps = 650;
 #else
-  int max_steps = 569;
+  int max_steps = 603;
 #endif
   test_diurnal_step(state, integ, max_steps);
 }
