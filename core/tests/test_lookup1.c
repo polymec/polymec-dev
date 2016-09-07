@@ -53,10 +53,10 @@ static void test_line(void** state, lookup1_interpolation_t interpolation)
   lookup1_t* table = lookup1_new(0.0, 1.0, N, z, interpolation);
   assert_true(table != NULL);
   assert_true(reals_equal(lookup1_value(table, 0.0), 0.0));
-  assert_true(reals_nearly_equal(lookup1_value(table, 0.5), 0.5, 1e-14));
+  assert_true(reals_nearly_equal(lookup1_value(table, 0.5), 0.5, 2.0*REAL_EPSILON));
   assert_true(reals_equal(lookup1_value(table, 1.0), 1.0));
   real_t x = rng_uniform_positive(rng);
-  assert_approx_equal(lookup1_value(table, x), x, 1e-14);
+  assert_approx_equal(lookup1_value(table, x), x, 2.0*REAL_EPSILON);
   lookup1_free(table);
 }
 
@@ -84,7 +84,7 @@ static void test_v(void** state, lookup1_interpolation_t interpolation)
   lookup1_t* table = lookup1_new(0.0, 1.0, N, z, interpolation);
   assert_true(table != NULL);
   assert_true(reals_equal(lookup1_value(table, 0.0), 0.0));
-  assert_true(reals_nearly_equal(lookup1_value(table, 0.5), 0.5, 1e-14));
+  assert_true(reals_nearly_equal(lookup1_value(table, 0.5), 0.5, 2.0*REAL_EPSILON));
   assert_true(reals_equal(lookup1_value(table, 1.0), 0.0));
 
   real_t x = rng_uniform_positive(rng);
@@ -96,9 +96,9 @@ static void test_v(void** state, lookup1_interpolation_t interpolation)
   }
 
   if (x <= 0.5)
-    assert_approx_equal(lookup1_value(table, x), x, 1e-14);
+    assert_approx_equal(lookup1_value(table, x), x, 2.0*REAL_EPSILON);
   else 
-    assert_approx_equal(lookup1_value(table, x), 0.5 - (x - 0.5), 1e-14);
+    assert_approx_equal(lookup1_value(table, x), 0.5 - (x - 0.5), 2.0*REAL_EPSILON);
 
   lookup1_free(table);
 }

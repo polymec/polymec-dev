@@ -48,7 +48,11 @@ static void test_lu_precond_diurnal_ctor(void** state)
 static int test_diurnal_step(void** state, ode_integrator_t* integ, real_t max_dt, int max_step)
 {
   // Set up the problem.
+#if POLYMEC_HAVE_DOUBLE_PRECISION
   ark_ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
+#else
+  ark_ode_integrator_set_tolerances(integ, 1e-4, 1e-1);
+#endif
   real_t* u = diurnal_initial_conditions(integ);
 
   // Integrate it out to t = 86400 s (24 hours).
@@ -91,7 +95,7 @@ static void test_block_jacobi_precond_diurnal_step_left(void** state)
 #if POLYMEC_HAVE_DOUBLE_PRECISION
   int max_steps = 500;
 #else
-  int max_steps = 968;
+  int max_steps = 313;
 #endif
   test_diurnal_step(state, integ, REAL_MAX, max_steps);
 }
@@ -102,7 +106,7 @@ static void test_block_jacobi_precond_diurnal_step_right(void** state)
 #if POLYMEC_HAVE_DOUBLE_PRECISION
   int max_steps = 500;
 #else
-  int max_steps = 1039;
+  int max_steps = 344;
 #endif
   test_diurnal_step(state, integ, REAL_MAX, max_steps);
 }
