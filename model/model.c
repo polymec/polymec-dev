@@ -1407,6 +1407,9 @@ void model_run_files(model_t* model,
     simulations_finished += num_concurrent_sims;
   }
 
+  // Wait for everyone to arrive here before proceeding.
+  MPI_Barrier(MPI_COMM_WORLD);
+
   // Clean up.
   MPI_Comm_free(&sim_comm);
 }
