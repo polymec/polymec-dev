@@ -270,6 +270,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
   }
 
   // Appeal to LAPACK to solve this least-squares system for us.
+  polymec_suspend_fpe();
   {
     if (fit->solver_type == QR_FACTORIZATION)
     {
@@ -339,6 +340,7 @@ static void solve_direct_least_squares(polynomial_fit_t* fit)
     //    rgelsd(&num_rows, &num_cols, &one, A, &num_rows, X, &num_rows, S, &rcond, &rank, work, &lwork, &info);
     //    polymec_restore_fpe();
   }
+  polymec_restore_fpe();
 
   // Copy the coefficients into place.
   for (int c = 0; c < num_components; ++c)
