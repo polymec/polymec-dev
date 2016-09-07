@@ -170,17 +170,31 @@ static bool test_poly_fit(void** state, int p, point_t* x0, point_t* points, int
   return passed;
 }
 
-// We want 99% reliability for randomly selected points.
+// We want 99% reliability for randomly selected points with double precision,
+// 95% reliability for single precision.
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+static const int default_num_iters = 100;
+static const int num_allowed_failures = 1;
+#else
+static const int default_num_iters = 100;
+static const int num_allowed_failures = 5;
+#endif
 
-static void test_p0_fit(void** state)
+static int get_num_iters()
 {
-  int num_failures = 0;
-  int num_iters = 100;
+  int num_iters = default_num_iters;
   if (polymec_running_in_valgrind())
   {
     log_debug("Valgrind detected: running a single iteration.");
     num_iters = 1;
   }
+  return num_iters;
+}
+
+static void test_p0_fit(void** state)
+{
+  int num_failures = 0;
+  int num_iters = get_num_iters();
   for (int i = 0; i < num_iters; ++i) 
   {
     static real_t coeffs[] = {1.0};
@@ -193,18 +207,13 @@ static void test_p0_fit(void** state)
     if (!passed || !passed_x0)
       ++num_failures;
   }
-  assert_true((num_failures <= 1) || polymec_running_in_valgrind());
+  assert_true((num_failures <= num_allowed_failures) || polymec_running_in_valgrind());
 }
 
 static void test_weighted_p0_fit(void** state)
 {
   int num_failures = 0;
-  int num_iters = 100;
-  if (polymec_running_in_valgrind())
-  {
-    log_debug("Valgrind detected: running a single iteration.");
-    num_iters = 1;
-  }
+  int num_iters = get_num_iters();
   for (int i = 0; i < num_iters; ++i) 
   {
     static real_t coeffs[] = {1.0};
@@ -217,18 +226,13 @@ static void test_weighted_p0_fit(void** state)
     if (!passed || !passed_x0)
       ++num_failures;
   }
-  assert_true((num_failures <= 1) || polymec_running_in_valgrind());
+  assert_true((num_failures <= num_allowed_failures) || polymec_running_in_valgrind());
 }
 
 static void test_p1_fit(void** state)
 {
   int num_failures = 0;
-  int num_iters = 100;
-  if (polymec_running_in_valgrind())
-  {
-    log_debug("Valgrind detected: running a single iteration.");
-    num_iters = 1;
-  }
+  int num_iters = get_num_iters();
   for (int i = 0; i < num_iters; ++i) 
   {
     static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
@@ -241,18 +245,13 @@ static void test_p1_fit(void** state)
     if (!passed || !passed_x0)
       ++num_failures;
   }
-  assert_true((num_failures <= 1) || polymec_running_in_valgrind());
+  assert_true((num_failures <= num_allowed_failures) || polymec_running_in_valgrind());
 }
 
 static void test_weighted_p1_fit(void** state)
 {
   int num_failures = 0;
-  int num_iters = 100;
-  if (polymec_running_in_valgrind())
-  {
-    log_debug("Valgrind detected: running a single iteration.");
-    num_iters = 1;
-  }
+  int num_iters = get_num_iters();
   for (int i = 0; i < num_iters; ++i) 
   {
     static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0};
@@ -265,18 +264,13 @@ static void test_weighted_p1_fit(void** state)
     if (!passed || !passed_x0)
       ++num_failures;
   }
-  assert_true((num_failures <= 1) || polymec_running_in_valgrind());
+  assert_true((num_failures <= num_allowed_failures) || polymec_running_in_valgrind());
 }
 
 static void test_p2_fit(void** state)
 {
   int num_failures = 0;
-  int num_iters = 100;
-  if (polymec_running_in_valgrind())
-  {
-    log_debug("Valgrind detected: running a single iteration.");
-    num_iters = 1;
-  }
+  int num_iters = get_num_iters();
   for (int i = 0; i < num_iters; ++i) 
   {
     static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
@@ -289,18 +283,13 @@ static void test_p2_fit(void** state)
     if (!passed || !passed_x0)
       ++num_failures;
   }
-  assert_true((num_failures <= 1) || polymec_running_in_valgrind());
+  assert_true((num_failures <= num_allowed_failures) || polymec_running_in_valgrind());
 }
 
 static void test_weighted_p2_fit(void** state)
 {
   int num_failures = 0;
-  int num_iters = 100;
-  if (polymec_running_in_valgrind())
-  {
-    log_debug("Valgrind detected: running a single iteration.");
-    num_iters = 1;
-  }
+  int num_iters = get_num_iters();
   for (int i = 0; i < num_iters; ++i) 
   {
     static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
@@ -313,18 +302,13 @@ static void test_weighted_p2_fit(void** state)
     if (!passed || !passed_x0)
       ++num_failures;
   }
-  assert_true((num_failures <= 1) || polymec_running_in_valgrind());
+  assert_true((num_failures <= num_allowed_failures) || polymec_running_in_valgrind());
 }
 
 static void test_p3_fit(void** state)
 {
   int num_failures = 0;
-  int num_iters = 100;
-  if (polymec_running_in_valgrind())
-  {
-    log_debug("Valgrind detected: running a single iteration.");
-    num_iters = 1;
-  }
+  int num_iters = get_num_iters();
   for (int i = 0; i < num_iters; ++i) 
   {
     static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
@@ -338,18 +322,13 @@ static void test_p3_fit(void** state)
     if (!passed || !passed_x0)
       ++num_failures;
   }
-  assert_true((num_failures <= 1) || polymec_running_in_valgrind());
+  assert_true((num_failures <= num_allowed_failures) || polymec_running_in_valgrind());
 }
 
 static void test_weighted_p3_fit(void** state)
 {
   int num_failures = 0;
-  int num_iters = 100;
-  if (polymec_running_in_valgrind())
-  {
-    log_debug("Valgrind detected: running a single iteration.");
-    num_iters = 1;
-  }
+  int num_iters = get_num_iters();
   for (int i = 0; i < num_iters; ++i) 
   {
     static real_t coeffs[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
@@ -363,7 +342,7 @@ static void test_weighted_p3_fit(void** state)
     if (!passed || !passed_x0)
       ++num_failures;
   }
-  assert_true((num_failures <= 1) || polymec_running_in_valgrind());
+  assert_true((num_failures <= num_allowed_failures) || polymec_running_in_valgrind());
 }
 
 int main(int argc, char* argv[]) 

@@ -431,6 +431,7 @@ local_matrix_t* var_block_diagonal_matrix_new(int num_block_rows,
     A->block_size = -1;
   int N = A->D_offsets[A->num_block_rows];
   A->D = polymec_malloc(sizeof(real_t) * N);
+  memset(A->D, 0, sizeof(real_t) * N);
 
   char name[1024];
   if (constant_block_size)

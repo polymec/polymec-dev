@@ -297,8 +297,14 @@ static inline bool reals_nearly_equal(real_t a, real_t b, real_t epsilon)
 // a and b, defined as |a - b| / |MIN(a, b): MIN(a, b) != 0|
 static inline real_t real_frac_diff(real_t a, real_t b)
 {
-  real_t ref = (reals_equal(a, 0.0)) ? b : (reals_equal(b, 0.0)) ? a : MIN(a, b);
-  return ABS(a - b) / ABS(ref);
+  real_t ref = ABS(MAX(a, b));
+  if (ref > 0.0)
+  {
+    ref = (reals_equal(a, 0.0)) ? ABS(b) : (reals_equal(b, 0.0)) ? ABS(a) : ABS(MIN(a, b));
+    return ABS(a - b) / ref;
+  }
+  else
+    return 0.0;
 }
 
 // Use this macro to indicate that something hasn't been implemented.

@@ -245,6 +245,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
 
   // Now iterate over all of the colors in our coloring. 
   int num_colors = adj_graph_coloring_num_colors(coloring);
+
   for (int c = 0; c < num_colors; ++c)
   {
     // We construct d, the binary vector corresponding to this color, in work[0].
@@ -263,7 +264,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
                            diff->num_remote_rows, work[0], work, diff->Jv);
     ++num_F_evals;
 
-    // Add the column vector J*v into our matrix.
+    // Add the column vector dF/dx * d into our matrix.
     pos = 0;
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       local_matrix_add_column_vector(matrix, beta, i, diff->Jv);
