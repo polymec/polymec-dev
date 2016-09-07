@@ -27,31 +27,37 @@ To build polymec on a UNIX-like system, use the following commands:
 
 Available options are:
 
-    prefix=/path/to/install <-- Installation prefix
+    prefix=/path/to/install <-- Installation prefix (no default).
 
-    verbose=0,1 <-- selects a silent or verbose CMake/Make build.
+    verbose=0,1 <-- selects a silent (0) or verbose (1) CMake/Make build 
+                    (default: 0).
 
-    precision=single,double <-- selects single or double precision.
+    precision=single,double <-- selects precision of floating point numbers
+                                (default: double).
 
-    mpi=0,1  <-- specifies a serial or MPI build
+    mpi=0,1  <-- specifies a serial (0) or MPI (1) build (default: 0).
 
-    openmp=0,1  <-- specifies whether to use OpenMP (if supported)
+    openmp=0,1  <-- specifies to disable (0) or enable (1) OpenMP if 
+                    supported (default: 1).
 
-    debug=0,1  <-- specifies a Release or Debug build
+    debug=0,1  <-- specifies a Release (0) or Debug (1) build (default: 0).
 
-    shared=0,1  <-- specifies static or shared libraries
+    shared=0,1  <-- specifies static (0) or shared (1) libraries (default: 0).
 
     machine=xyz  <-- specifies the use of a specific machine. Check the 
                      downloaded machines/ directory after using this option 
                      to look for a file for your specific machine. These 
                      files are maintained in the polymec/polymec-machines 
-                     repo on GitHub.
+                     repo on GitHub (default: none).
 
-    travis=0,1  <-- Used to inform the build system when Travis CI is 
-                    attempting a build in its environment. In a perfect world
-                    we wouldn't need this, but we do.
+    travis=0,1  <-- Used to inform the build system when building within the
+                    Travis CI environment (1) or outside of it (0).
+                    In a perfect world we wouldn't need this, but we do 
+                    (default: 0).
 
-    Compilers can also be selected with CC, CXX, FC.
+    Compilers can also be selected with CC, CXX, FC. When MPI is enabled, 
+    these compilers default to mpicc, mpicxx, and mpif90, respectively. 
+    Otherwise their respective defaults are cc, c++, and gfortran.
 
 ------------
 Installation
