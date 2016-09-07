@@ -47,7 +47,13 @@
 #include <ctype.h>
 #include <inttypes.h> // for printing uint64_t, etc.
 #include <string.h>
+
+// We have to redirect the declaration of the legacy function gamma 
+// to prevent it from interfering with our own.
+#define gamma old_gamma
 #include <math.h>
+#undef gamma
+
 #include <limits.h>
 #include <stddef.h>
 #include <float.h>
