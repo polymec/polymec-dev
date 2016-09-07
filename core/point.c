@@ -85,6 +85,20 @@ bool bbox_is_plane(bbox_t* box)
            reals_equal(box->z1, box->z2)));
 }
 
+bool bbox_intersects_bbox(bbox_t* box1, bbox_t* box2)
+{
+  // The boxes intersect if their centers x1 and x2 are within the sum of 
+  // their spatial extents of one another along each axis.
+  point_t x1 = {.x = 0.5 * (box1->x1 + box1->x2),
+                .y = 0.5 * (box1->y1 + box1->y2),
+                .z = 0.5 * (box1->z1 + box1->z2)};
+  point_t x2 = {.x = 0.5 * (box2->x1 + box2->x2),
+                .y = 0.5 * (box2->y1 + box2->y2),
+                .z = 0.5 * (box2->z1 + box2->z2)};
+  return ((ABS(x1.x - x2.x) * 2.0 <= (box1->x2 - box1->x1 + box2->x2 - box2->x1)) && 
+          (ABS(x1.y - x2.y) * 2.0 <= (box1->y2 - box1->y1 + box2->y2 - box2->y1)) &&
+          (ABS(x1.z - x2.z) * 2.0 <= (box1->z2 - box1->z1 + box2->z2 - box2->z1)));
+}
 void bbox_make_empty_set(bbox_t* box)
 {
   box->x1 = REAL_MAX;

@@ -80,7 +80,6 @@
 typedef @POLYMEC_REAL_TYPE@ real_t;
 #endif
 
-
 // Bad Fortran! No biscuit!
 #ifdef MPI_REAL
 #undef MPI_REAL
@@ -117,6 +116,15 @@ typedef @POLYMEC_REAL_TYPE@ real_t;
 #define REAL_MIN FLT_MIN
 #endif
 
+#endif
+
+// Use REAL_EXPR(C) to construct the floating point constant C manifestly 
+// in real_t form, rather than relying on explicit casting.
+
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+#define REAL_CONSTANT(C) C##l
+#else
+#define REAL_CONSTANT(C) C##f
 #endif
 
 // Use polymec_unreachable() to tell the C compiler that a line in a function 

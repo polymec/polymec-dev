@@ -15,7 +15,7 @@
 
 static void test_bessel_find_jn_roots(void** state)
 {
-  static double jn_roots[6][5] = 
+  static real_t jn_roots[6][5] = 
     {{2.4048, 5.5201, 8.6537, 11.7915, 14.9309},    // J0
      {3.8317, 7.0156, 10.1735, 13.3237, 16.4706},   // J1
      {5.1356, 8.4172, 11.6198, 14.7960, 17.9598},   // J2
@@ -25,7 +25,7 @@ static void test_bessel_find_jn_roots(void** state)
    
   for (int n = 0; n <= 5; ++n)
   {
-    double roots[5];
+    real_t roots[5];
     bessel_find_jn_roots(n, 5, roots);
     for (int k = 0; k < 5; ++k)
     {
@@ -37,12 +37,12 @@ static void test_bessel_find_jn_roots(void** state)
 static void test_bessel_jn(void** state, int n)
 {
   int num_roots = 10;
-  double roots[num_roots];
+  real_t roots[num_roots];
   bessel_find_jn_roots(n, num_roots, roots);
-  double sign = -1.0;
+  real_t sign = -1.0;
   for (int i = 0; i < num_roots; ++i)
   {
-    assert_true(reals_nearly_equal(bessel_jn(n, roots[i]), 0.0, 1e-12));
+    assert_true(reals_nearly_equal(bessel_jn(n, roots[i]), 0.0, sqrt(REAL_EPSILON)));
     if (i < (num_roots-1))
     {
       assert_true(sign * bessel_jn(n, 0.5*(roots[i+1]+roots[i])) > 0.0);
@@ -60,9 +60,9 @@ static void test_bessel_j(void** state)
 static void test_bessel_djndx(void** state, int n)
 {
   int num_roots = 10;
-  double roots[num_roots];
+  real_t roots[num_roots];
   bessel_find_jn_roots(n, num_roots, roots);
-  double sign = -1.0;
+  real_t sign = -1.0;
   for (int i = 0; i < num_roots; ++i)
   {
     assert_true(sign * bessel_djndx(n, roots[i]-0.01) > 0.0);
@@ -79,7 +79,7 @@ static void test_bessel_djdx(void** state)
 static void test_bessel_find_yn_roots(void** state)
 {
   // These reference roots were taken from scipy.special.yn_zeros.
-  static double yn_roots[6][5] = 
+  static real_t yn_roots[6][5] = 
     {{0.8936,   3.9577,   7.0861,  10.2223,  13.3611},  // Y0
      {2.1971,   5.4297,   8.5960,  11.7492,  14.8974},  // Y1
      {3.3842,   6.7938,  10.0235,  13.2100,  16.3790},  // Y2
@@ -89,7 +89,7 @@ static void test_bessel_find_yn_roots(void** state)
 
   for (int n = 0; n <= 5; ++n)
   {
-    double roots[5];
+    real_t roots[5];
     bessel_find_yn_roots(n, 5, roots);
     for (int k = 0; k < 5; ++k)
     {
@@ -101,12 +101,12 @@ static void test_bessel_find_yn_roots(void** state)
 static void test_bessel_yn(void** state, int n)
 {
   int num_roots = 10;
-  double roots[num_roots];
+  real_t roots[num_roots];
   bessel_find_yn_roots(n, num_roots, roots);
-  double sign = 1.0;
+  real_t sign = 1.0;
   for (int i = 0; i < num_roots; ++i)
   {
-    assert_true(ABS(bessel_yn(n, roots[i]) < 1e-12));
+    assert_true(reals_nearly_equal(bessel_yn(n, roots[i]), 0.0, sqrt(REAL_EPSILON)));
     if (i < (num_roots-1))
     {
       assert_true(sign * bessel_yn(n, 0.5*(roots[i+1]+roots[i])) > 0.0);
@@ -124,9 +124,9 @@ static void test_bessel_y(void** state)
 static void test_bessel_dyndx(void** state, int n)
 {
   int num_roots = 10;
-  double roots[num_roots];
+  real_t roots[num_roots];
   bessel_find_yn_roots(n, num_roots, roots);
-  double sign = 1.0;
+  real_t sign = 1.0;
   for (int i = 0; i < num_roots; ++i)
   {
     assert_true(sign * bessel_dyndx(n, roots[i]-0.01) > 0.0);
