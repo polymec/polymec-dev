@@ -63,7 +63,7 @@ extern "C" {
 #if defined(SUNDIALS_SINGLE_PRECISION)
 
 typedef float realtype;
-# define RCONST(x) (realtype)(x)
+# define RCONST(x) x##F
 # define BIG_REAL FLT_MAX
 # define SMALL_REAL FLT_MIN
 # define UNIT_ROUNDOFF FLT_EPSILON
@@ -79,7 +79,7 @@ typedef double realtype;
 #elif defined(SUNDIALS_EXTENDED_PRECISION)
 
 typedef long double realtype;
-# define RCONST(x) (realtype)(x)
+# define RCONST(x) x##L
 # define BIG_REAL LDBL_MAX
 # define SMALL_REAL LDBL_MIN
 # define UNIT_ROUNDOFF LDBL_EPSILON
