@@ -98,14 +98,12 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall -pedantic-errors -Werror -Wextra -Werror-implicit-function-declaration")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow -Wfloat-equal -Wfloat-conversion -Wmissing-noreturn -Wmissing-prototypes")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-pragmas -Wno-format")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-pragmas -Wno-format -Wno-maybe-uninitialized")
 
   # Strip out impertinent warnings for older compilers.
   if (CMAKE_C_COMPILER_VERSION STRLESS "5")
     # Not available before GCC 5.
     string(REPLACE "-Wfloat-conversion" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-    # This warning isn't really a good measure of quality before GCC 5.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-maybe-uninitialized")
   endif()
 
   if (LINUX)
