@@ -1,6 +1,8 @@
 language: c
 
-sudo: false
+# We need Ubuntu 14.04 instead of 12.04.
+sudo: required
+dist: trusty
 
 os:
   - linux
@@ -16,10 +18,11 @@ addons:
   apt:
     sources:
     - ubuntu-toolchain-r-test
+    - llvm-toolchain-precise-3.6
     packages:
     - gcc-5
     - g++-5
-    - clang-3.4
+    - clang-3.6
     - cmake
     - libopenmpi-dev
     - openmpi-bin
