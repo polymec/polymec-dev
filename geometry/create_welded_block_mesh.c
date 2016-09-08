@@ -111,7 +111,7 @@ mesh_t* create_welded_block_mesh(mesh_t** blocks, int num_blocks, real_t weld_to
               ++num_face_welds;
 
               // Weld'em nodes.
-              int pos = 0, node;
+              int pos = 0, node = -1;
               while (mesh_face_next_node(blocki, face, &pos, &node))
               {
                 point_t* xn = &(blocki->nodes[node]);

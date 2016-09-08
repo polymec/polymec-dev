@@ -410,7 +410,7 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
   CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->x);
 
   newton_pc_side_t newton_side = newton_pc_side(integ->precond);
-  int side;
+  int side = PREC_LEFT;
   switch (newton_side)
   {
     case NEWTON_PC_LEFT:
