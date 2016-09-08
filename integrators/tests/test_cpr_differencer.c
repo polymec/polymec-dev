@@ -153,7 +153,6 @@ static void test_dense_jacobian_with_bs(void** state, int block_size)
   {
     for (int j = 0; j < block_size * 10; ++j)
     {
-printf("%g\n", real_frac_diff(local_matrix_value(A, i, j), 1.0));
       assert_true(real_frac_diff(local_matrix_value(A, i, j), 1.0) < frac_diff_tol);
     }
   }
