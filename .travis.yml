@@ -19,7 +19,7 @@ addons:
     packages:
     - gcc-5
     - g++-5
-    - clang-3.8
+    - clang-3.4
     - cmake
     - libopenmpi-dev
     - openmpi-bin
