@@ -65,7 +65,7 @@ static void test_fit_consistency(void** state, polynomial_fit_t* fit, int compon
 //printf("dudy error: %g\n", ABS(dudy[component]-dqdy));
 //printf("dudz error: %g\n", ABS(dudz[component]-dqdz));
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-    static const real_t tolerance = 1e-14;
+    static const real_t tolerance = 1e-12;
 #else
     static const real_t tolerance = 5e-6;
 #endif
