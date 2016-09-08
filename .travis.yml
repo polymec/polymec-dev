@@ -1,16 +1,35 @@
 language: c
 
+# We need Ubuntu 14.04 instead of 12.04.
 sudo: required
+dist: trusty
 
 os:
   - linux
   - osx
 
-dist: trusty # Ubuntu 14.04.
+osx_image: xcode8
 
 compiler:
   - clang
   - gcc
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    - llvm-toolchain-precise-3.6
+    packages:
+    - gcc-5
+    - g++-5
+    - clang-3.6
+    - cmake
+    - libopenmpi-dev
+    - openmpi-bin
+    - liblapack-dev
+    - gfortran
+    - git
+    - valgrind
 
 env:
   - DEBUG=0 MPI=0 SHARED=0 PRECISION=double
@@ -68,6 +87,8 @@ deploy:
 
 before_script:
   - if [ "$MPI" = "1" ]; then export CC="mpicc"; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$CC" = "gcc" ]; then export CC="gcc-5"; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$CC" = "clang" ]; then export CC="clang-3.6"; fi
   - make config CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION travis=1 prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION
 
 script: 

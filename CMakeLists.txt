@@ -105,7 +105,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall -pedantic-errors -Werror -Wextra -Werror-implicit-function-declaration")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow -Wfloat-equal -Wmissing-noreturn -Wmissing-prototypes")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-pragmas -Wno-format")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-pragmas -Wno-format -Wno-maybe-uninitialized")
   if (HAVE_DOUBLE_PRECISION)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wfloat-conversion")
   endif()
@@ -114,8 +114,6 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   if (CMAKE_C_COMPILER_VERSION STRLESS "5")
     # Not available before GCC 5.
     string(REPLACE "-Wfloat-conversion" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-    # This warning isn't really a good measure of quality before GCC 5.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-maybe-uninitialized")
   endif()
 
   if (LINUX)
@@ -134,8 +132,9 @@ elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-double-promotion -Wno-conversion")
   endif()
 
-  # Deal with older versions of Clang.
-  if (NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang" AND CMAKE_C_COMPILER_VERSION STRLESS "3.6")
+  # Clang proper behaves differently from Apple Clang, and requires 
+  # more suppressions.
+  if (NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang")
     # tolower() is a recursive macro, which causes issues.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-disabled-macro-expansion")
   endif()
