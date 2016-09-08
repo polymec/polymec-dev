@@ -25,6 +25,13 @@ if (LINUX)
   message(STATUS "Fortran compiler is ${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COMPILER_ID})")
 endif()
 
+# We require compilers that are pretty C11-compliant at this point.
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION STRLESS "4.9")
+  message(FATAL_ERROR "GCC v${CMAKE_C_COMPILER_VERSION} detected. v4.9 is required.")
+elseif (CMAKE_C_COMPILER_ID STREQUAL "Intel" AND CMAKE_C_COMPILER_VERSION STRLESS "16.0")
+  message(FATAL_ERROR "Intel v${CMAKE_C_COMPILER_VERSION} detected. v16.0 is required.")
+endif()
+
 # Version numbers.
 set (POLYMEC_MAJOR_VERSION 1)
 set (POLYMEC_MINOR_VERSION 3)
