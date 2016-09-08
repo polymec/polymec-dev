@@ -1,16 +1,32 @@
 language: c
 
-sudo: required
+sudo: false
 
 os:
   - linux
   - osx
 
-dist: trusty # Ubuntu 14.04.
+osx_image: xcode8
 
 compiler:
   - clang
   - gcc
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - gcc-5
+    - g++-5
+    - clang-3.8
+    - cmake
+    - libopenmpi-dev
+    - openmpi-bin
+    - liblapack-dev
+    - gfortran
+    - git
+    - valgrind
 
 env:
   - DEBUG=0 MPI=0 SHARED=0
