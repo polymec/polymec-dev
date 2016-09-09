@@ -6,6 +6,8 @@ if [ $MPI -eq 1 ]; then
   wget https://www.open-mpi.org/software/ompi/v1.10/downloads/openmpi-1.10.4.tar.gz
   tar xzf openmpi-1.10.4.tar.gz
   pushd openmpi-1.10.4
+  if [ "$CC" = "gcc" ]; then export CC="gcc-5"; fi
+  if [ "$CC" = "clang" ]; then export CC="clang-3.6"; fi
   env CC=$CC ./configure --disable-mpi-cxx --disable-mpi-fortran --disable-java --prefix=/usr
   sudo make install 
   popd
