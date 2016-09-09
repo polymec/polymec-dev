@@ -11,7 +11,7 @@ if [ $MPI -eq 1 ]; then
   echo "Configuring OpenMPI..."
   env CC=$CC ./configure --disable-mpi-cxx --disable-java --prefix=/usr &> openmpi-config.log
   echo "Building and installing OpenMPI..."
-  sudo make install &> openmpi-build.log
+  sudo make install -j 2 &> openmpi-build.log
   popd
 fi
 
