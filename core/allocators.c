@@ -87,8 +87,8 @@ void* polymec_aligned_alloc(size_t alignment, size_t size)
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
 #if defined(APPLE) || defined(__INTEL_COMPILER)
   {
-    // Mac OS X and Intel don't have this yet!
-    polymec_error("Mac OS standard allocator does not support aligned allocation.");
+    // MacOS and Intel don't have this yet!
+    polymec_error("MacOS/Intel standard allocator does not support aligned allocation.");
     return NULL;
   }
 #else
@@ -158,7 +158,7 @@ static void* std_malloc(void* context, size_t size)
 static void* std_aligned_alloc(void* context, size_t alignment, size_t size)
 {
 #if defined(APPLE) || defined(__INTEL_COMPILER)
-  polymec_error("Aligned allocations are not available on Mac OS at this time.");
+  polymec_error("Aligned allocations are not available on MacOS/Intel at this time.");
   return NULL;
 #else
   return aligned_alloc(alignment, size);

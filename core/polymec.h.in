@@ -8,9 +8,8 @@
 #ifndef POLYMEC_H
 #define POLYMEC_H
 
-// We only use standard C11 around here. Intel is a bad actor, but we try to 
-// accommodate it.
-#if !defined(__INTEL_COMPILER) && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L) && !defined(__cplusplus)
+// We only use standard C11 around here. 
+#if (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L) && !defined(__cplusplus)
 #error "Polymec requires a C11-compliant compiler."
 #endif
 
@@ -32,8 +31,7 @@
 //#error "Polymec requires the availability of the bounds-checking interfaces in Annex K, which this compiler does not support."
 //#endif
 
-// Intel doesn't do C11 stuff, so we have to be clever.
-#if defined(__INTEL_COMPILER) || defined(__cplusplus)
+#if defined(__cplusplus)
 #define noreturn
 #else
 #include <stdnoreturn.h>
