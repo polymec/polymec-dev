@@ -8,8 +8,10 @@ if [ $MPI -eq 1 ]; then
   pushd openmpi-1.10.4
   if [ "$CC" = "gcc" ]; then export CC="gcc-5"; fi
   if [ "$CC" = "clang" ]; then export CC="clang-3.6"; fi
-  env CC=$CC ./configure --disable-mpi-cxx --disable-java --prefix=/usr
-  sudo make install 
+  echo "Configuring OpenMPI..."
+  env CC=$CC ./configure --disable-mpi-cxx --disable-java --prefix=/usr &> openmpi-config.log
+  echo "Building and installing OpenMPI..."
+  sudo make install &> openmpi-build.log
   popd
 fi
 
