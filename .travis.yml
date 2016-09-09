@@ -24,8 +24,6 @@ addons:
     - g++-5
     - clang-3.6
     - cmake
-    - libopenmpi-dev
-    - openmpi-bin
     - liblapack-dev
     - gfortran
     - git
