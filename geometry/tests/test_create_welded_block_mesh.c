@@ -36,7 +36,7 @@ static void test_2_block_weld(void** state)
                              "bottom_right", "top_right");
 
   mesh_t* blocks[2] = {block1, block2};
-  mesh_t* weld = create_welded_block_mesh(blocks, 2, 1e-8);
+  mesh_t* weld = create_welded_block_mesh(blocks, 2, pow(REAL_EPSILON, 2.0/3.0));
   assert_true(mesh_verify_topology(weld, polymec_error));
   assert_true(weld->comm == MPI_COMM_SELF);
   assert_int_equal(1000, weld->num_cells);
@@ -85,7 +85,7 @@ static void test_L_weld(void** state)
                              "far_bottom_left", "far_top_left");
 
   mesh_t* blocks[3] = {block1, block2, block3};
-  mesh_t* weld = create_welded_block_mesh(blocks, 3, 1e-8);
+  mesh_t* weld = create_welded_block_mesh(blocks, 3, pow(REAL_EPSILON, 2.0/3.0));
   assert_true(mesh_verify_topology(weld, polymec_error));
   assert_int_equal(3000, weld->num_cells);
   assert_true(weld->comm == MPI_COMM_SELF);

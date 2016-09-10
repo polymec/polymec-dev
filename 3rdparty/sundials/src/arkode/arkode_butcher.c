@@ -729,8 +729,11 @@ int ARKodeLoadButcherTable(int imethod, int *s, int *q, int *p,
     b[3] = RCONST(-0.266418670647);
     b[4] = RCONST(0.435866521508);
 
-    b2[0] = RCONST((-0.7-0.5))/RCONST((-0.7-0.435866521508));
-    b2[1] = RCONST((0.5-0.435866521508))/RCONST((-0.7-0.435866521508));
+    // RCONST doesn't deal in expressions -- it uses constants ONLY.
+    // b2[0] = RCONST((-0.7-0.5))/RCONST((-0.7-0.435866521508));
+    b2[0] = RCONST(-1.2)/RCONST(-1.135866521508);
+    // b2[1] = RCONST((0.5-0.435866521508))/RCONST((-0.7-0.435866521508));
+    b2[1] = RCONST(0.06413347849200002)/RCONST(-1.135866521508);
 
     c[0] = RCONST(0.435866521508);
     c[1] = RCONST(-0.7);

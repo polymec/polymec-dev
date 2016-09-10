@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/sundials_helpers.h" // For UNIT_ROUNDOFF
 #include "core/timer.h"
 #include "integrators/cpr_differencer.h"
 
@@ -116,7 +115,7 @@ static void cpr_finite_diff_dFdx_v(void* context,
                                    real_t* dFdx_v)
 {
   START_FUNCTION_TIMER();
-  real_t eps = sqrt(UNIT_ROUNDOFF);
+  real_t eps = sqrt(REAL_EPSILON);
   real_t eps_inv = 1.0 / eps;
 
   // work[0] == v
@@ -150,7 +149,7 @@ static void cpr_finite_diff_dFdxdot_v(void* context,
                                       real_t* dFdxdot_v)
 {
   START_FUNCTION_TIMER();
-  real_t eps = sqrt(UNIT_ROUNDOFF);
+  real_t eps = sqrt(REAL_EPSILON);
   real_t eps_inv = 1.0 / eps;
 
   // work[0] == v
@@ -246,6 +245,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
 
   // Now iterate over all of the colors in our coloring. 
   int num_colors = adj_graph_coloring_num_colors(coloring);
+
   for (int c = 0; c < num_colors; ++c)
   {
     // We construct d, the binary vector corresponding to this color, in work[0].
@@ -264,7 +264,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
                            diff->num_remote_rows, work[0], work, diff->Jv);
     ++num_F_evals;
 
-    // Add the column vector J*v into our matrix.
+    // Add the column vector dF/dx * d into our matrix.
     pos = 0;
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
       local_matrix_add_column_vector(matrix, beta, i, diff->Jv);

@@ -54,7 +54,7 @@ static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
 
   // Plot it.
-  double ones[nx*ny*nz];
+  real_t ones[nx*ny*nz];
   for (int c = 0; c < ny*ny*nz; ++c)
     ones[c] = 1.0*c;
   char prefix[FILENAME_MAX];

@@ -1,20 +1,18 @@
 # Makefile -- Use this to build on *NIX systems.
 
 # Options set on command line.
-debug      = not-set
+prefix     = not-set
+verbose    = not-set
+precision  = not-set
 mpi        = not-set
 openmp     = not-set
+debug      = not-set
 shared     = not-set
-precision  = not-set
-verbose    = not-set
-prefix     = not-set
-coverage   = not-set
-sanitize   = not-set
+machine    = not-set
+travis     = not-set
 CC         = not-set
 CXX        = not-set
 FC         = not-set
-travis     = not-set
-machine    = not-set
 
 # This proxies everything to the builddir cmake.
 

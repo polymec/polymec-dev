@@ -7,10 +7,10 @@
 
 /* Define to a macro mangling the given C identifier (in lower and upper
    case), which must not contain underscores, for linking with Fortran. */
-/* #undef F77_FUNC */
+#define F77_FUNC(name,NAME) name ## _
 
 /* As F77_FUNC, but for C identifiers containing underscores. */
-/* #undef F77_FUNC_ */
+#define F77_FUNC_(name,NAME) name ## _
 
 /* Define if F77 and FC dummy `main' functions are identical. */
 /* #undef FC_DUMMY_MAIN_EQ_F77 */
@@ -74,7 +74,7 @@
 #define PACKAGE_NAME "lis"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "lis 1.5.65"
+#define PACKAGE_STRING "lis 1.6.2"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "lis"
@@ -83,7 +83,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.5.65"
+#define PACKAGE_VERSION "1.6.2"
 
 /* Test the size of a `double', as computed by sizeof. */
 #define SIZEOF_DOUBLE 8
@@ -119,7 +119,7 @@
 /* #undef USE_FMA2_SSE2 */
 
 /* Define to 1 to enable Fortran subroutines. */
-/* #undef USE_FORTRAN */
+#define USE_FORTRAN 1
 
 /* Use MAIN__ macro with Fortran. */
 /* #undef USE_MAIN__ */
@@ -137,7 +137,7 @@
 /* #undef USE_VEC_COMP */
 
 /* Version number of package */
-#define VERSION "1.5.65"
+#define VERSION "1.6.2"
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */

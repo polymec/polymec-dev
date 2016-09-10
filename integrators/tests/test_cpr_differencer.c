@@ -17,6 +17,14 @@
 #include "core/dense_local_matrix.h"
 #include "integrators/cpr_differencer.h"
 
+// Fractional difference tolerance for Jacobian entries.
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+static const real_t frac_diff_tol = 1e-12; 
+#else
+// Single precision doesn't exactly rock off the face of FD Jacobians. :-/
+static const real_t frac_diff_tol = 1e-1;
+#endif
+
 static int F_ident(void* bs_p, real_t t, real_t* x, real_t* F)
 {
   int block_size = *((int*)bs_p);
@@ -60,11 +68,11 @@ static void test_identity_jacobian_with_bs(void** state, int block_size)
       {
         if (j == i)
         {
-          assert_true(reals_equal(local_matrix_value(J, i, j), 1.0));
+          assert_true(real_frac_diff(local_matrix_value(J, i, j), 1.0) < frac_diff_tol);
         }
         else
         {
-          assert_true(reals_equal(local_matrix_value(J, i, j), 0.0));
+          assert_true(real_frac_diff(local_matrix_value(J, i, j), 0.0) < frac_diff_tol);
         }
       }
     }
@@ -127,11 +135,11 @@ static void test_dense_jacobian_with_bs(void** state, int block_size)
       int block_col = j / block_size;
       if (block_col == block_row)
       {
-        assert_true(reals_equal(local_matrix_value(D, i, j), 1.0));
+        assert_true(real_frac_diff(local_matrix_value(D, i, j), 1.0) < frac_diff_tol);
       }
       else
       {
-        assert_true(reals_equal(local_matrix_value(D, i, j), 0.0));
+        assert_true(real_frac_diff(local_matrix_value(D, i, j), 0.0) < frac_diff_tol);
       }
     }
   }
@@ -145,7 +153,7 @@ static void test_dense_jacobian_with_bs(void** state, int block_size)
   {
     for (int j = 0; j < block_size * 10; ++j)
     {
-      assert_true(reals_equal(local_matrix_value(A, i, j), 1.0));
+      assert_true(real_frac_diff(local_matrix_value(A, i, j), 1.0) < frac_diff_tol);
     }
   }
   local_matrix_free(A);
@@ -157,7 +165,7 @@ static void test_dense_jacobian_with_bs(void** state, int block_size)
   {
     for (int j = 0; j < block_size * 10; ++j)
     {
-      assert_true(reals_equal(local_matrix_value(A, i, j), 1.0));
+      assert_true(real_frac_diff(local_matrix_value(A, i, j), 1.0) < frac_diff_tol);
     }
   }
   local_matrix_free(A);
@@ -212,11 +220,12 @@ static void test_asymmetric_jacobian(void** state)
     {
       if (i == j)
       {
-        assert_true(reals_equal(local_matrix_value(D, i, j), (10.0*i + 1.0*j + 1.0)));
+        assert_true(real_frac_diff(local_matrix_value(D, i, j), 
+                                   10.0*i + 1.0*j + 1.0) < frac_diff_tol);
       }
       else
       {
-        assert_true(reals_equal(local_matrix_value(D, i, j), 0.0));
+        assert_true(real_frac_diff(local_matrix_value(D, i, j), 0.0) < frac_diff_tol);
       }
     }
   }
@@ -230,7 +239,8 @@ static void test_asymmetric_jacobian(void** state)
   {
     for (int j = 0; j < 10; ++j)
     {
-      assert_true(reals_equal(local_matrix_value(A, i, j), (10.0*i + 1.0*j + 1.0)));
+      assert_true(real_frac_diff(local_matrix_value(A, i, j), 
+                                 10.0*i + 1.0*j + 1.0) < frac_diff_tol);
     }
   }
   local_matrix_free(A);
@@ -242,7 +252,8 @@ static void test_asymmetric_jacobian(void** state)
   {
     for (int j = 0; j < 10; ++j)
     {
-      assert_true(reals_equal(local_matrix_value(A, i, j), (10.0*i + 1.0*j + 1.0)));
+      assert_true(real_frac_diff(local_matrix_value(A, i, j), 
+                                 10.0*i + 1.0*j + 1.0) < frac_diff_tol);
     }
   }
   local_matrix_free(A);

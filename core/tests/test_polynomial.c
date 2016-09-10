@@ -14,6 +14,12 @@
 #include "core/polynomial.h"
 #include "core/rng.h"
 
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+static const real_t machine_precision = 1e-14;
+#else
+static const real_t machine_precision = 1e-7;
+#endif
+
 // Powers of x, y, and z for the various polynomial degrees.
 static const int x_powers[5][35] = {{0},
                                     {0, 1, 0, 0},
@@ -35,7 +41,7 @@ static void test_ctor(void** state, int p)
 {
   // Set up coefficients.
   int dim = polynomial_basis_dim(p);
-  double coeffs[dim];
+  real_t coeffs[dim];
   for (int i = 0; i < dim; ++i)
     coeffs[i] = 1.0*i;
 
@@ -43,9 +49,9 @@ static void test_ctor(void** state, int p)
   polynomial_t* poly = polynomial_new(p, coeffs, NULL);
   assert_int_equal(dim, polynomial_num_terms(poly));
   point_t origin = {.x = 0.0, .y = 0.0, .z = 0.0};
-  assert_true(point_distance(&origin, polynomial_x0(poly)) < 1e-14);
+  assert_true(point_distance(&origin, polynomial_x0(poly)) < machine_precision);
   int pos = 0, x_pow, y_pow, z_pow, index = 0;
-  double coeff;
+  real_t coeff;
   while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     assert_true(reals_equal(coeff, coeffs[index]));
@@ -59,7 +65,7 @@ static void test_ctor(void** state, int p)
   point_t x0 = {.x = 1.0, .y = 2.0, .z = 3.0};
   poly = polynomial_new(p, coeffs, &x0);
   assert_int_equal(dim, polynomial_num_terms(poly));
-  assert_true(point_distance(&x0, polynomial_x0(poly)) < 1e-14);
+  assert_true(point_distance(&x0, polynomial_x0(poly)) < machine_precision);
   pos = 0, index = 0;
   while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
@@ -131,11 +137,11 @@ static void test_basis(void** state, int p)
 
     // Now check everything.
     int pos = 0, x_pow, y_pow, z_pow, index = 0;
-    double coeff;
+    real_t coeff;
     while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
     {
       real_t term = pow(x.x, x_pow) * pow(x.y, y_pow) * pow(x.z, z_pow);
-      assert_true(reals_nearly_equal(term, basis[index], 1e-14));
+      assert_true(reals_nearly_equal(term, basis[index], machine_precision));
       ++index;
     }
   }
@@ -151,14 +157,14 @@ static void test_basis(void** state, int p)
         polynomial_compute_basis(p, i, j, k, &x, basis_deriv);
 
         int pos = 0, x_pow, y_pow, z_pow, index = 0;
-        double coeff;
+        real_t coeff;
         while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
         {
           real_t x_term = (x_pow >= i) ? pow(x.x, x_pow - i) * factorial(x_pow) / factorial(x_pow - i) : 0.0;
           real_t y_term = (y_pow >= j) ? pow(x.y, y_pow - j) * factorial(y_pow) / factorial(y_pow - j) : 0.0;
           real_t z_term = (z_pow >= k) ? pow(x.z, z_pow - k) * factorial(z_pow) / factorial(z_pow - k) : 0.0;
           real_t term = (i+j+k > p) ? 0.0 : x_term * y_term * z_term;
-          assert_true(reals_nearly_equal(term, basis_deriv[index], 1e-14));
+          assert_true(reals_nearly_equal(term, basis_deriv[index], machine_precision));
           ++index;
         }
       }

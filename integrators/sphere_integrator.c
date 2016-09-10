@@ -451,7 +451,7 @@ printf("A = \n");
 matrix_fprintf(A, M, N, stdout);
 printf("\nb = \n");
 vector_fprintf(weights, N, stdout);
-  dgelsy(&M, &N, &nrhs, A, &lda, weights, &ldb, jpvt, &rcond, &rank, work, &lwork, &info);
+  rgelsy(&M, &N, &nrhs, A, &lda, weights, &ldb, jpvt, &rcond, &rank, work, &lwork, &info);
 
   df_basis = NULL;
   F_o_n = NULL;

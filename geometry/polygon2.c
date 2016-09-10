@@ -122,7 +122,7 @@ polygon2_t* polygon2_giftwrap(point2_t* points, int num_points)
 // This container holds an angle and the associated node index.
 typedef struct
 {
-  double angle;
+  real_t angle;
   int index;
 } star_angle_t;
 

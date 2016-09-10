@@ -124,7 +124,9 @@ static bool lis_solver_solve(void* context,
         log_debug("krylov_solver_solve (LIS): max # of iterations exceeded");
     }
   }
-  lis_solver_get_residualnorm(solver->solver, res_norm);
+  double dnorm;
+  lis_solver_get_residualnorm(solver->solver, &dnorm);
+  *res_norm = (real_t)dnorm;
   LIS_INT niters;
   lis_solver_get_iter(solver->solver, &niters);
   *num_iters = (int)niters;
@@ -1471,12 +1473,25 @@ static void vector_set_values(void* context, index_t num_values,
 {
   LIS_VECTOR v = context;
   LIS_INT ind[num_values];
+#if !POLYMEC_HAVE_DOUBLE_PRECISION
+  LIS_REAL dvalues[num_values];
+#endif
   for (index_t i = 0; i < num_values; ++i)
+  {
     ind[i] = (LIS_INT)indices[i];
+#if !POLYMEC_HAVE_DOUBLE_PRECISION
+    dvalues[i] = (LIS_REAL)values[i];
+#endif
+  }
+
 #ifndef NDEBUG
   LIS_INT status = 
 #endif
+#if POLYMEC_HAVE_DOUBLE_PRECISION
     lis_vector_set_values(LIS_INS_VALUE, (LIS_INT)num_values, ind, values, v);
+#else
+    lis_vector_set_values(LIS_INS_VALUE, (LIS_INT)num_values, ind, dvalues, v);
+#endif
   ASSERT(status == LIS_SUCCESS);
 }
 
@@ -1485,12 +1500,24 @@ static void vector_add_values(void* context, index_t num_values,
 {
   LIS_VECTOR v = context;
   LIS_INT ind[num_values];
+#if !POLYMEC_HAVE_DOUBLE_PRECISION
+  LIS_REAL dvalues[num_values];
+#endif
   for (index_t i = 0; i < num_values; ++i)
+  {
     ind[i] = (LIS_INT)indices[i];
+#if !POLYMEC_HAVE_DOUBLE_PRECISION
+    dvalues[i] = (LIS_REAL)values[i];
+#endif
+  }
 #ifndef NDEBUG
   LIS_INT status = 
 #endif
+#if POLYMEC_HAVE_DOUBLE_PRECISION
     lis_vector_set_values(LIS_ADD_VALUE, (LIS_INT)num_values, ind, values, v);
+#else
+    lis_vector_set_values(LIS_ADD_VALUE, (LIS_INT)num_values, ind, dvalues, v);
+#endif
   ASSERT(status == LIS_SUCCESS);
 }
 
@@ -1499,20 +1526,29 @@ static void vector_get_values(void* context, index_t num_values,
 {
   LIS_VECTOR v = context;
   for (index_t i = 0; i < num_values; ++i)
+  {
+#if POLYMEC_HAVE_DOUBLE_PRECISION
     lis_vector_get_values(v, (LIS_INT)indices[i], 1, &values[i]);
+#else
+    LIS_REAL dvalue;
+    lis_vector_get_values(v, (LIS_INT)indices[i], 1, &dvalue);
+    values[i] = dvalue;
+#endif
+  }
+
 }
 
 static real_t vector_norm(void* context, int p)
 {
   LIS_VECTOR v = context;
-  real_t norm;
+  LIS_REAL norm;
   if (p == 0)
     lis_vector_nrmi(v, &norm);
   else if (p == 1)
     lis_vector_nrm1(v, &norm);
   else // (p == 2)
     lis_vector_nrm2(v, &norm);
-  return norm;
+  return (real_t)norm;
 }
 
 static void vec_fprintf(void* context, FILE* stream)
@@ -1578,7 +1614,6 @@ static bool lis_is_initialized = false;
 krylov_factory_t* lis_krylov_factory()
 {
   _Static_assert(sizeof(LIS_INT) == sizeof(index_t), "sizeof(LIS_INT) != sizeof(index_t)");
-  _Static_assert(sizeof(LIS_REAL) == sizeof(real_t), "LIS_REAL != real_t");
 
   if (!lis_is_initialized)
   {

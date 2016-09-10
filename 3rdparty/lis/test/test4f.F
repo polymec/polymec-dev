@@ -72,14 +72,18 @@ C   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
      .                                        A,ierr)
         if( i<gn ) call lis_matrix_set_value(LIS_INS_VALUE,i,i+1,-1.0d0,
      .                                        A,ierr)
-        call lis_matrix_set_value(LIS_INS_VALUE,i,i,2.0d0,A,ierr)
+        call lis_matrix_set_value(LIS_INS_VALUE,i,i,2.0d0,A,ierr)   
       enddo
       call lis_matrix_set_type(A,matrix_type,ierr)
       call lis_matrix_assemble(A,ierr)
       call lis_vector_duplicate(A,u,ierr)
       call lis_vector_duplicate(A,b,ierr)
       call lis_vector_duplicate(A,x,ierr)
+#ifdef COMPLEX
+      call lis_vector_set_all((1.0d0,0.0d0),u,ierr)
+#else
       call lis_vector_set_all(1.0d0,u,ierr)
+#endif
       call lis_matvec(A,u,b,ierr)
       
       call lis_solver_create(solver,ierr)

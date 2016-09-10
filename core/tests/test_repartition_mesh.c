@@ -14,6 +14,14 @@
 #include "core/partition_mesh.h"
 #include "geometry/create_uniform_mesh.h"
 
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+static const real_t abs_tolerance = 1e-12;
+static const real_t frac_tolerance = 1e-14;
+#else
+static const real_t abs_tolerance = 1e-6;
+static const real_t frac_tolerance = 1e-6;
+#endif
+
 static void test_migrate_mesh_1_proc(void** state)
 {
   // Create a mesh.
@@ -78,8 +86,8 @@ static void test_migrate_4x1x1_mesh_2_proc(void** state)
   assert_int_equal(11, mesh->num_faces);
   assert_int_equal(20, mesh->num_edges);
   assert_int_equal(12, mesh->num_nodes);
-  assert_true(ABS(mesh->cell_volumes[0] - 1.0) < 1e-12);
-  assert_true(ABS(mesh->cell_volumes[1] - 1.0) < 1e-12);
+  assert_true(ABS(mesh->cell_volumes[0] - 1.0) < abs_tolerance);
+  assert_true(ABS(mesh->cell_volumes[1] - 1.0) < abs_tolerance);
 
   mesh_free(mesh);
 }
@@ -113,8 +121,8 @@ static void test_migrate_4x1x1_mesh_3_proc(void** state)
     assert_int_equal(11, mesh->num_faces);
     assert_int_equal(20, mesh->num_edges);
     assert_int_equal(12, mesh->num_nodes);
-    assert_true(ABS(mesh->cell_volumes[0] - 1.0) < 1e-12);
-    assert_true(ABS(mesh->cell_volumes[1] - 1.0) < 1e-12);
+    assert_true(ABS(mesh->cell_volumes[0] - 1.0) < abs_tolerance);
+    assert_true(ABS(mesh->cell_volumes[1] - 1.0) < abs_tolerance);
   }
   else
   {
@@ -122,7 +130,7 @@ static void test_migrate_4x1x1_mesh_3_proc(void** state)
     assert_int_equal(6, mesh->num_faces);
     assert_int_equal(12, mesh->num_edges);
     assert_int_equal(8, mesh->num_nodes);
-    assert_true(ABS(mesh->cell_volumes[0] - 1.0) < 1e-12);
+    assert_true(ABS(mesh->cell_volumes[0] - 1.0) < abs_tolerance);
   }
 
   mesh_free(mesh);
@@ -152,7 +160,7 @@ static void test_migrate_4x1x1_mesh_4_proc(void** state)
   assert_int_equal(6, mesh->num_faces);
   assert_int_equal(12, mesh->num_edges);
   assert_int_equal(8, mesh->num_nodes);
-  assert_true(ABS(mesh->cell_volumes[0] - 1.0) < 1e-12);
+  assert_true(ABS(mesh->cell_volumes[0] - 1.0) < abs_tolerance);
 
   mesh_free(mesh);
 }
@@ -169,53 +177,17 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   bbox_t bbox = {.x1 = 0.0, .x2 = nx*dx, .y1 = 0.0, .y2 = ny*dx, .z1 = 0.0, .z2 = nz*dx};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
   mesh_verify_topology(mesh, polymec_error);
-exchanger_fprintf(mesh_exchanger(mesh), stdout);
 
   // Repartition it.
   migrator_t* m = repartition_mesh(&mesh, NULL, 0.05);
   migrator_verify(m, polymec_error);
-
-{
-// Plot it.
-double r[mesh->num_cells];
-for (int c = 0; c < mesh->num_cells; ++c)
-  r[c] = 1.0*rank;
-char prefix[FILENAME_MAX];
-snprintf(prefix, FILENAME_MAX, "%dx%dx%d_uniform_mesh_repartition", nx, ny, nz);
-silo_file_t* silo = silo_file_new(mesh->comm, prefix, prefix, 1, 0, 0, 0.0);
-silo_file_write_mesh(silo, "mesh", mesh);
-silo_file_write_scalar_cell_field(silo, "rank", "mesh", r, NULL);
-silo_file_close(silo);
-}
-
-for (int n = 0; n < mesh->num_nodes; ++n)
-log_debug("node %d: (%g, %g, %g)", n, mesh->nodes[n].x, mesh->nodes[n].y, mesh->nodes[n].z);
 
   // Since the mesh is uniform, we can check the properties of each cell.
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     assert_int_equal(6, mesh_cell_num_faces(mesh, c));
     real_t V = dx * dx * dx;
-char cell_nodes[2048];
-sprintf(cell_nodes, "cell %d has %d faces:\n", c, mesh_cell_num_faces(mesh, c));
-int pos = 0, f;
-while (mesh_cell_next_face(mesh, c, &pos, &f))
-{
-char s[256];
-sprintf(s, "%d: ", f);
-int npos = 0, n;
-while (mesh_face_next_node(mesh, f, &npos, &n))
-{
-char s1[256];
-sprintf(s1, "%d ", n);
-strcat(s, s1);
-}
-strcat(cell_nodes, s);
-strcat(cell_nodes, "\n");
-}
-log_debug(cell_nodes);
-log_debug("cell %d at (%g, %g, %g): V = %g, should be %g", c, mesh->cell_centers[c].x, mesh->cell_centers[c].y, mesh->cell_centers[c].z, mesh->cell_volumes[c], V);
-    assert_true(ABS(mesh->cell_volumes[c] - V)/V < 1e-14);
+    assert_true(ABS(mesh->cell_volumes[c] - V)/V < frac_tolerance);
   }
 
   // We can also check the properties of each face.
@@ -224,14 +196,14 @@ log_debug("cell %d at (%g, %g, %g): V = %g, should be %g", c, mesh->cell_centers
     assert_int_equal(4, mesh_face_num_edges(mesh, f));
     assert_int_equal(4, mesh_face_num_nodes(mesh, f));
     real_t A = dx * dx;
-    assert_true(ABS(mesh->face_areas[f] - A)/A < 1e-14);
+    assert_true(ABS(mesh->face_areas[f] - A)/A < frac_tolerance);
   }
 
   // Check the resulting exchanger.
   exchanger_verify(mesh_exchanger(mesh), polymec_error);
 
   // Plot it.
-  double r[mesh->num_cells];
+  real_t r[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     r[c] = 1.0*rank;
   char prefix[FILENAME_MAX];

@@ -64,10 +64,15 @@ static void test_fit_consistency(void** state, polynomial_fit_t* fit, int compon
 //printf("dudx error: %g\n", ABS(dudx[component]-dqdx));
 //printf("dudy error: %g\n", ABS(dudy[component]-dqdy));
 //printf("dudz error: %g\n", ABS(dudz[component]-dqdz));
-    assert_true(reals_nearly_equal(u[component], q, 5e-14));
-    assert_true(reals_nearly_equal(dudx[component], dqdx, 5e-14));
-    assert_true(reals_nearly_equal(dudy[component], dqdy, 5e-14));
-    assert_true(reals_nearly_equal(dudz[component], dqdz, 5e-14));
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+    static const real_t tolerance = 1e-12;
+#else
+    static const real_t tolerance = 5e-6;
+#endif
+    assert_true(reals_nearly_equal(u[component], q, tolerance));
+    assert_true(reals_nearly_equal(dudx[component], dqdx, tolerance));
+    assert_true(reals_nearly_equal(dudy[component], dqdy, tolerance));
+    assert_true(reals_nearly_equal(dudz[component], dqdz, tolerance));
   }
 }
 

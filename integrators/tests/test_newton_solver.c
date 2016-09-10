@@ -32,6 +32,10 @@ static void test_lu_precond_foodweb_ctor(void** state)
   newton_solver_free(newton);
 }
 
+// FIXME: It looks like the food web problem was not tested at single 
+// FIXME: precision by the Sundials folks, so we can't use this test 
+// FIXME: without double precision.
+#if POLYMEC_HAVE_DOUBLE_PRECISION
 static void test_foodweb_solve(void** state, newton_solver_t* newton)
 {
   // Set up the problem.
@@ -75,6 +79,7 @@ static void test_lu_precond_foodweb_solve(void** state)
   newton_solver_t* newton = lu_precond_foodweb_solver_new();
   test_foodweb_solve(state, newton);
 }
+#endif
 
 int main(int argc, char* argv[]) 
 {
@@ -83,8 +88,10 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_block_jacobi_precond_foodweb_ctor),
     cmocka_unit_test(test_lu_precond_foodweb_ctor),
+#if POLYMEC_HAVE_DOUBLE_PRECISION
     cmocka_unit_test(test_block_jacobi_precond_foodweb_solve),
     cmocka_unit_test(test_lu_precond_foodweb_solve)
+#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

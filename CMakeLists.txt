@@ -25,6 +25,13 @@ if (LINUX)
   message(STATUS "Fortran compiler is ${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COMPILER_ID})")
 endif()
 
+# We require compilers that are pretty C11-compliant at this point.
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION STRLESS "4.9")
+  message(FATAL_ERROR "GCC v${CMAKE_C_COMPILER_VERSION} detected. v4.9 is required.")
+elseif (CMAKE_C_COMPILER_ID STREQUAL "Intel" AND CMAKE_C_COMPILER_VERSION STRLESS "16.0")
+  message(FATAL_ERROR "Intel v${CMAKE_C_COMPILER_VERSION} detected. v16.0 is required.")
+endif()
+
 # Version numbers.
 set (POLYMEC_MAJOR_VERSION 1)
 set (POLYMEC_MINOR_VERSION 3)
@@ -96,16 +103,17 @@ endif ()
 # General C compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall -pedantic-errors -Werror -Wextra -Werror-implicit-function-declaration")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow -Wfloat-equal -Wfloat-conversion -Wmissing-noreturn -Wmissing-prototypes")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow -Wfloat-equal -Wmissing-noreturn -Wmissing-prototypes")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-pragmas -Wno-format")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-pragmas -Wno-format -Wno-maybe-uninitialized")
+  if (HAVE_DOUBLE_PRECISION)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wfloat-conversion")
+  endif()
 
   # Strip out impertinent warnings for older compilers.
   if (CMAKE_C_COMPILER_VERSION STRLESS "5")
     # Not available before GCC 5.
     string(REPLACE "-Wfloat-conversion" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-    # This warning isn't really a good measure of quality before GCC 5.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-maybe-uninitialized")
   endif()
 
   if (LINUX)
@@ -114,29 +122,21 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # Pass some more needed flags to the compiler.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
   endif()
-
-  # Code coverage.
-  if (TEST_COVERAGE)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-arcs -ftest-coverage")
-  endif()
 elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Weverything -Werror -pedantic-errors -Werror-implicit-function-declaration -fno-builtin")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-unused-function")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-reserved-id-macro -Wno-unused-macros -Wno-sign-conversion -Wno-padded -Wno-vla")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format-nonliteral -Wno-cast-qual -Wno-switch-enum -Wno-unknown-pragmas -Wno-source-uses-openmp")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-warning-option -Wno-documentation-deprecated-sync")
-
-  # Deal with older versions of Clang.
-  if (NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang" AND CMAKE_C_COMPILER_VERSION STRLESS "3.6")
-    # tolower() is a recursive macro, which causes issues.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-disabled-macro-expansion")
+  if (NOT HAVE_DOUBLE_PRECISION)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-double-promotion -Wno-conversion")
   endif()
 
-  # Code coverage.
-  if (TEST_COVERAGE)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+  # Clang proper behaves differently from Apple Clang, and requires 
+  # more suppressions.
+  if (NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang")
+    # tolower() is a recursive macro, which causes issues.
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-disabled-macro-expansion")
   endif()
 elseif (CMAKE_C_COMPILER_ID STREQUAL "Intel")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall")
@@ -190,13 +190,6 @@ if (BUILD_SHARED_LIBS)
   set(LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
 else()
   set(LIB_SUFFIX .a)
-endif()
-
-# Address sanitizer.
-if (ADDRESS_SANITIZER EQUAL 1)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 endif()
 
 # Give a warning about not setting the install prefix.

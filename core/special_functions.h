@@ -8,6 +8,8 @@
 #ifndef POLYMEC_SPECIAL_FUNCTIONS_H
 #define POLYMEC_SPECIAL_FUNCTIONS_H
 
+#include "core/polymec.h"
+
 // These functions implement special functions not available in the 
 // standard C math library. Several of them are adapted from the Fortran 77 
 // subroutines that accompany "Computation of Special Functions" by Shanjie 
@@ -15,115 +17,121 @@
 // This copyright/attribution must accompany any reproduction of these 
 // functions.
 
+#ifndef __cplusplus
 // Returns the gamma function with the given real argument. The argument 
 // cannot exceed 171.6, nor can it be a negative integer.
-double gamma(double x);
+real_t gamma(real_t x);
+#endif
 
 // Returns the value of J0, the Bessel function of the first kind of order 0, 
 // at the given real value x.
-double bessel_j0(double x);
+real_t bessel_j0(real_t x);
 
 // Returns the value of J1, the Bessel function of the first kind of order 1, 
 // at the given real value x.
-double bessel_j1(double x);
+real_t bessel_j1(real_t x);
 
 // Returns the value of Jn, the Bessel function of the first kind of order n, 
 // at the given real value x.
-double bessel_jn(int n, double x);
+real_t bessel_jn(int n, real_t x);
 
 // Returns the value of the first derivative of J0, the Bessel function of 
 // the first kind of order 0, at the given real value x.
-double bessel_dj0dx(double x);
+real_t bessel_dj0dx(real_t x);
 
 // Returns the value of the first derivative of J1, the Bessel function of 
 // the first kind of order 1, at the given real value x.
-double bessel_dj1dx(double x);
+real_t bessel_dj1dx(real_t x);
 
 // Returns the value of the first derivative of Jn, the Bessel function of 
 // the first kind of order n, at the given real value x.
-double bessel_djndx(int n, double x);
+real_t bessel_djndx(int n, real_t x);
 
 // Populates the given array with the specified number of positive roots of 
 // Jn, the Bessel function of the first kind of order n. The roots array must 
 // be able to store the requested roots. 
-void bessel_find_jn_roots(int n, int num_roots, double* roots);
+void bessel_find_jn_roots(int n, 
+                          int num_roots, 
+                          real_t* roots);
 
 // Returns the value of Y0, the Bessel function of the second kind of order 0, 
 // at the given real value x.
-double bessel_y0(double x);
+real_t bessel_y0(real_t x);
 
 // Returns the value of Y1, the Bessel function of the second kind of order 1, 
 // at the given real value x.
-double bessel_y1(double x);
+real_t bessel_y1(real_t x);
 
 // Returns the value of Yn, the Bessel function of the second kind of order n, 
 // at the given real value x.
-double bessel_yn(int n, double x);
+real_t bessel_yn(int n, real_t x);
 
 // Returns the value of the first derivative of Y0, the Bessel function of 
 // the second kind of order 0, at the given real value x.
-double bessel_dy0dx(double x);
+real_t bessel_dy0dx(real_t x);
 
 // Returns the value of the first derivative of Y1, the Bessel function of 
 // the second kind of order 1, at the given real value x.
-double bessel_dy1dx(double x);
+real_t bessel_dy1dx(real_t x);
 
 // Returns the value of the first derivative of Yn, the Bessel function of 
 // the second kind of order n, at the given real value x.
-double bessel_dyndx(int n, double x);
+real_t bessel_dyndx(int n, real_t x);
 
 // Populates the given array with the specified number of positive roots of 
 // Yn, the Bessel function of the first second of order n. The roots array 
 // must be able to store the requested roots. 
-void bessel_find_yn_roots(int n, int num_roots, double* roots);
+void bessel_find_yn_roots(int n, 
+                          int num_roots, 
+                          real_t* roots);
 
 // Returns the value of I0, the modified Bessel function of the first kind of 
 // order zero, at the given real value x.
-double bessel_i0(double x);
+real_t bessel_i0(real_t x);
 
 // Returns the value of I1, the modified Bessel function of the first kind of 
 // order one, at the given real value x.
-double bessel_i1(double x);
+real_t bessel_i1(real_t x);
 
 // Returns the value of In, the modified Bessel function of the first kind of 
 // order n, at the given real value x.
-double bessel_in(int n, double x);
+real_t bessel_in(int n, real_t x);
 
 // Returns the value of the first derivative of I0, the modified Bessel function of 
 // the first kind of order 0, at the given real value x.
-double bessel_di0dx(double x);
+real_t bessel_di0dx(real_t x);
 
 // Returns the value of the first derivative of I1, the modified Bessel function of 
 // the first kind of order 1, at the given real value x.
-double bessel_di1dx(double x);
+real_t bessel_di1dx(real_t x);
 
 // Returns the value of the first derivative of In, the modified Bessel function of 
 // the first kind of order n, at the given real value x.
-double bessel_dindx(int n, double x);
+real_t bessel_dindx(int n, real_t x);
 
 // Returns the value of K0, the modified Bessel function of the second kind of 
 // order zero, at the given real value x.
-double bessel_k0(double x);
+real_t bessel_k0(real_t x);
 
 // Returns the value of K1, the modified Bessel function of the second kind of 
 // order one, at the given real value x.
-double bessel_k1(double x);
+real_t bessel_k1(real_t x);
 
 // Returns the value of Kn, the modified Bessel function of the second kind of 
 // order n, at the given real value x.
-double bessel_kn(int n, double x);
+real_t bessel_kn(int n, real_t x);
 
 // Returns the value of the first derivative of K0, the modified Bessel function of 
 // the second kind of order 0, at the given real value x.
-double bessel_dk0dx(double x);
+real_t bessel_dk0dx(real_t x);
 
 // Returns the value of the first derivative of K1, the modified Bessel function of 
 // the second kind of order 1, at the given real value x.
-double bessel_dk1dx(double x);
+real_t bessel_dk1dx(real_t x);
 
 // Returns the value of the first derivative of Kn, the modified Bessel function of 
 // the second kind of order n, at the given real value x.
-double bessel_dkndx(int n, double x);
+real_t bessel_dkndx(int n, real_t x);
 
 // Returns the value of Tn, the Chebyshev polynomial of order n, at the given 
 // value of x.
@@ -157,81 +165,81 @@ real_t hermite_hn(int n, real_t x);
 // of order n, at the given value of x.
 real_t hermite_dhndx(int n, real_t x);
 
-// C++ doesn't have complex datatypes, so we don't expose them to C++ compilers.
+// C++ doesn't have complex datatypes, so we don't expose complex functions 
+// to those compilers.
 #ifndef __cplusplus
-#include <complex.h>
 
 // Returns the value of H0, the Bessel function of the third kind (Hankel
 // function) of order zero, at the given real value x.
-double complex bessel_h0(double x);
+complex_t bessel_h0(real_t x);
 
 // Returns the value of H1, the Bessel function of the third kind (Hankel 
 // function) of order one, at the given real value x.
-double complex bessel_h1(double x);
+complex_t bessel_h1(real_t x);
 
 // Returns the value of H1, the Bessel function of the third kind (Hankel
 // function) of order n, at the given real value x.
-double complex bessel_hn(int n, double x);
+complex_t bessel_hn(int n, real_t x);
 
 // Returns the value of the first derivative of H0, the Bessel function of 
 // the third kind (Hankel function) of order 0, at the given real value x.
-double complex bessel_dh0dx(double x);
+complex_t bessel_dh0dx(real_t x);
 
 // Returns the value of the first derivative of H1, the Bessel function of 
 // the third kind (Hankel function) of order 1, at the given real value x.
-double complex bessel_dh1dx(double x);
+complex_t bessel_dh1dx(real_t x);
 
 // Returns the value of the first derivative of Hn, the Bessel function of 
 // the third kind (Hankel function) of order n, at the given real value x.
-double complex bessel_dhndx(int n, double x);
+complex_t bessel_dhndx(int n, real_t x);
 
 // Returns the value of J0, the Bessel function of the first kind of order 
 // zero, at the given complex value z.
-double complex bessel_cj0(double complex z);
+complex_t bessel_cj0(complex_t z);
 
 // Returns the value of J1, the Bessel function of the first kind of order 
 // one, at the given complex value z.
-double complex bessel_cj1(double complex z);
+complex_t bessel_cj1(complex_t z);
 
 // Returns the value of Jn, the Bessel function of the first kind of order n, 
 // at the given complex value z.
-double complex bessel_cjn(int n, double complex z);
+complex_t bessel_cjn(int n, complex_t z);
 
 // Returns the value of Y0, the Bessel function of the second kind of order 
 // zero, at the given complex value z.
-double complex bessel_cy0(double complex z);
+complex_t bessel_cy0(complex_t z);
 
 // Returns the value of Y1, the Bessel function of the second kind of order
 // one, at the given complex value z.
-double complex bessel_cy1(double complex z);
+complex_t bessel_cy1(complex_t z);
 
 // Returns the value of Yn, the Bessel function of the second kind of order n,
 // at the given complex value z.
-double complex bessel_cyn(int n, double complex z);
+complex_t bessel_cyn(int n, complex_t z);
 
 // Returns the value of I0, the modified Bessel function of the first kind of 
 // order zero, at the given complex value z.
-double complex bessel_ci0(double complex z);
+complex_t bessel_ci0(complex_t z);
 
 // Returns the value of I1, the modified Bessel function of the first kind of 
 // order one, at the given complex value z.
-double complex bessel_ci1(double complex z);
+complex_t bessel_ci1(complex_t z);
 
 // Returns the value of In, the modified Bessel function of the first kind of 
 // order n, at the given complex value z.
-double complex bessel_cin(int n, double complex z);
+complex_t bessel_cin(int n, complex_t z);
 
 // Returns the value of K0, the modified Bessel function of the second kind of 
 // order zero, at the given complex value z.
-double complex bessel_ck0(double complex z);
+complex_t bessel_ck0(complex_t z);
 
 // Returns the value of K1, the modified Bessel function of the second kind of 
 // order one, at the given complex value z.
-double complex bessel_ck1(double complex z);
+complex_t bessel_ck1(complex_t z);
 
 // Returns the value of Kn, the modified Bessel function of the second kind of 
 // order n, at the given complex value z.
-double complex bessel_ckn(int n, double complex z);
+complex_t bessel_ckn(int n, complex_t z);
 
 #endif
 

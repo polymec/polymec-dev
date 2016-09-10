@@ -133,7 +133,7 @@ static void test_repartition_linear_cloud(void** state,
   }
 
   // Plot it.
-  double p[cloud->num_points];
+  real_t p[cloud->num_points];
   for (int i = 0; i < cloud->num_points; ++i)
     p[i] = 1.0*rank;
   char balance_str[33];

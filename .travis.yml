@@ -1,26 +1,47 @@
 language: c
 
+# We need Ubuntu 14.04 instead of 12.04.
 sudo: required
+dist: trusty
 
 os:
   - linux
   - osx
 
-dist: trusty # Ubuntu 14.04.
+osx_image: xcode7.3
 
 compiler:
   - clang
   - gcc
 
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    - llvm-toolchain-precise-3.6
+    packages:
+    - gcc-5
+    - g++-5
+    - clang-3.6
+    - cmake
+    - liblapack-dev
+    - gfortran
+    - git
+    - valgrind
+
 env:
-  - DEBUG=0 MPI=0 SHARED=0
-  - DEBUG=0 MPI=0 SHARED=1 
-  - DEBUG=0 MPI=1 SHARED=0
-  - DEBUG=0 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
-  - DEBUG=1 MPI=0 SHARED=0
-  - DEBUG=1 MPI=0 SHARED=1 
-  - DEBUG=1 MPI=1 SHARED=0
-  - DEBUG=1 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+  - DEBUG=0 MPI=0 SHARED=0 PRECISION=double
+  - DEBUG=0 MPI=0 SHARED=0 PRECISION=single
+  - DEBUG=0 MPI=0 SHARED=1 PRECISION=double
+  - DEBUG=0 MPI=1 SHARED=0 PRECISION=double
+  - DEBUG=0 MPI=1 SHARED=0 PRECISION=single
+  - DEBUG=0 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+  - DEBUG=1 MPI=0 SHARED=0 PRECISION=double
+  - DEBUG=1 MPI=0 SHARED=0 PRECISION=single
+  - DEBUG=1 MPI=0 SHARED=1 PRECISION=double
+  - DEBUG=1 MPI=1 SHARED=0 PRECISION=double
+  - DEBUG=1 MPI=1 SHARED=0 PRECISION=single
+  - DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
 
 # * Currently Apple doesn't use the real gcc, even if you tell it to,
 #   so we exclude the GCC compiler option from Mac builds.
@@ -32,18 +53,24 @@ matrix:
     compiler: gcc
   - os: linux
     compiler: clang
-    env: DEBUG=0 MPI=1 SHARED=0
+    env: DEBUG=0 MPI=1 SHARED=0 PRECISION=double
   - os: linux
     compiler: clang
-    env: DEBUG=0 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    env: DEBUG=0 MPI=1 SHARED=0 PRECISION=single
   - os: linux
     compiler: clang
-    env: DEBUG=1 MPI=1 SHARED=0
+    env: DEBUG=0 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
   - os: linux
     compiler: clang
-    env: DEBUG=1 MPI=1 SHARED=1 PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    env: DEBUG=1 MPI=1 SHARED=0 PRECISION=double
+  - os: linux
+    compiler: clang
+    env: DEBUG=1 MPI=1 SHARED=0 PRECISION=single
+  - os: linux
+    compiler: clang
+    env: DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
 
-install: bash ./.travis/install-$TRAVIS_OS_NAME-deps.sh
+install: travis_wait bash ./.travis/install-$TRAVIS_OS_NAME-deps.sh
 
 deploy:
   provider: s3
@@ -58,17 +85,19 @@ deploy:
 
 before_script:
   - if [ "$MPI" = "1" ]; then export CC="mpicc"; fi
-  - make config CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED travis=1 prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$CC" = "gcc" ]; then export CC="gcc-5"; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$CC" = "clang" ]; then export CC="clang-3.6"; fi
+  - make config CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION travis=1 prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION
 
 script: 
-  - make -j4 CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED install 
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then make CC=$CC debug=1 mpi=$MPI shared=0 memcheck; else make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED test; fi
+  - make -j4 CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION install 
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then make CC=$CC debug=1 mpi=$MPI shared=0 precision=$PRECISION memcheck; else make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION test; fi
 
 after_success: 
   - cd $HOME
   - mkdir -p latest 
-  - tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED/* 
-  - mv polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED.tar.gz latest
+  - tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION/* 
+  - mv polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz latest
 
 after_failure: 
   - cat build/*/Testing/Temporary/LastTest.log

@@ -17,9 +17,9 @@
 static void test_create_rectilinear_mesh(void** state)
 {
   // Create a 10x10x10 rectilinear mesh.
-  double xs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
-  double ys[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
-  double zs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
+  real_t xs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
+  real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
+  real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 11, ys, 11, zs, 11);
   assert_true(mesh_verify_topology(mesh, polymec_error));
 
@@ -52,13 +52,13 @@ static void test_create_rectilinear_mesh(void** state)
 static void test_plot_rectilinear_mesh(void** state)
 {
   // Create a 4x4x4 rectilinear mesh.
-  double xs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
-  double ys[] = {0.0, 1.0, 2.0, 4.0, 8.0};
-  double zs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
+  real_t xs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
+  real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0};
+  real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
   mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 5);
 
   // Plot it.
-  double ones[4*4*4];
+  real_t ones[4*4*4];
   for (int c = 0; c < 4*4*4; ++c)
     ones[c] = 1.0*c;
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0, 0.0);
@@ -97,12 +97,11 @@ static void check_cell_face_connectivity(void** state,
 
 static void test_3proc_4x4x1_mesh(void** state)
 {
-MPI_Barrier(MPI_COMM_WORLD);
   // Create a 4x4x1 rectilinear mesh, which isn't a big deal in and of itself, 
   // but does seem to exhibit problems on certain numbers of processes.
-  double xs[] = {0.0, 1.0, 2.0, 3.0, 4.0};
-  double ys[] = {0.0, 1.0, 2.0, 3.0, 4.0};
-  double zs[] = {0.0, 1.0};
+  real_t xs[] = {0.0, 1.0, 2.0, 3.0, 4.0};
+  real_t ys[] = {0.0, 1.0, 2.0, 3.0, 4.0};
+  real_t zs[] = {0.0, 1.0};
   mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 2);
   assert_true(mesh_verify_topology(mesh, polymec_error));
 
