@@ -14,13 +14,10 @@
 #include "core/polymec.h"
 #include "integrators/bdf_ode_integrator.h"
 
-#include "integrators/cpr_newton_pc.h"
-#include "core/local_matrix.h"
 
 extern ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new();
 extern ode_integrator_t* lu_precond_bdf_diurnal_integrator_new();
 extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
-//extern void diurnal_integrator_compute_J(ode_integrator_t* integ, real_t t, real_t* u, local_matrix_t* J);
 
 static void test_block_jacobi_precond_diurnal_ctor(void** state)
 {
@@ -29,16 +26,6 @@ static void test_block_jacobi_precond_diurnal_ctor(void** state)
   integ = block_jacobi_precond_bdf_diurnal_integrator_new(NEWTON_PC_RIGHT);
   ode_integrator_free(integ);
   integ = block_jacobi_precond_bdf_diurnal_integrator_new(NEWTON_PC_BOTH);
-  ode_integrator_free(integ);
-}
-
-static void test_lu_precond_diurnal_ctor(void** state)
-{
-  ode_integrator_t* integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-  ode_integrator_free(integ);
-  integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  ode_integrator_free(integ);
-  integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_BOTH);
   ode_integrator_free(integ);
 }
 
@@ -57,23 +44,6 @@ static int test_diurnal_step(void** state, ode_integrator_t* integ, int max_step
   int step = 0;
   while (t < 86400.0)
   {
-//if (step == 400)
-//{
-//  newton_pc_t* pc = bdf_ode_integrator_preconditioner(integ);
-//  local_matrix_t* P = cpr_newton_pc_matrix(pc);
-//  char filename[FILENAME_MAX];
-//  sprintf(filename, "P_%s.txt", newton_pc_name(pc));
-//  local_matrix_export(P, MATRIX_MARKET_FORMAT, filename);
-//  printf("||P|| = %g\n", local_matrix_frobenius_norm(P));
-//  local_matrix_t* J = local_matrix_clone(P);
-//  diurnal_integrator_compute_J(integ, t, u, J);
-//  local_matrix_t* error = local_matrix_clone(P);
-//  local_matrix_add(error, -1.0, J);
-//  printf("||P-J|| = %g\n", local_matrix_frobenius_norm(error));
-//  local_matrix_free(error);
-//  local_matrix_free(J);
-//}
-
     log_detail("Step %d: t = %g", step, t);
     bool integrated = ode_integrator_step(integ, 7200.0, &t, u);
     assert_true(integrated);
@@ -119,35 +89,14 @@ static void test_block_jacobi_precond_diurnal_step_right(void** state)
   test_diurnal_step(state, integ, max_steps);
 }
 
-#if POLYMEC_HAVE_DOUBLE_PRECISION
-static void test_lu_precond_diurnal_step_left(void** state)
-{
-  ode_integrator_t* integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-  int max_steps = 610;
-  test_diurnal_step(state, integ, max_steps);
-}
-
-static void test_lu_precond_diurnal_step_right(void** state)
-{
-  ode_integrator_t* integ = lu_precond_bdf_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  int max_steps = 500;
-  test_diurnal_step(state, integ, max_steps);
-}
-#endif
-
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_block_jacobi_precond_diurnal_ctor),
-    cmocka_unit_test(test_lu_precond_diurnal_ctor),
     cmocka_unit_test(test_block_jacobi_precond_diurnal_step_left),
     cmocka_unit_test(test_block_jacobi_precond_diurnal_step_right),
-#if POLYMEC_HAVE_DOUBLE_PRECISION
-    cmocka_unit_test(test_lu_precond_diurnal_step_left),
-    cmocka_unit_test(test_lu_precond_diurnal_step_right)
-#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

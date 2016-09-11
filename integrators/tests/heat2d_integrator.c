@@ -33,7 +33,7 @@
 
 #include "core/polymec.h"
 #include "integrators/dae_integrator.h"
-#include "integrators/cpr_newton_pc.h"
+#include "integrators/bj_newton_pc.h"
 
 /* Problem Constants */
 
@@ -191,16 +191,7 @@ dae_integrator_t* block_jacobi_precond_heat2d_integrator_new(void);
 dae_integrator_t* block_jacobi_precond_heat2d_integrator_new()
 {
   heat2d_t* data = heat2d_new();
-  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
-  return heat2d_integrator_new(data, precond);
-}
-
-// Constructor for LU-preconditioned heat2d integrator.
-dae_integrator_t* lu_precond_heat2d_integrator_new(void);
-dae_integrator_t* lu_precond_heat2d_integrator_new()
-{
-  heat2d_t* data = heat2d_new();
-  newton_pc_t* precond = lu_cpr_newton_pc_from_dae_function(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0);
+  newton_pc_t* precond = dae_cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
   return heat2d_integrator_new(data, precond);
 }
 

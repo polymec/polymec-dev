@@ -1,6 +1,5 @@
 include(add_polymec_library)
-add_polymec_library(polymec_integrators newton_pc.c cpr_differencer.c 
-                    bj_newton_pc.c ssor_newton_pc.c 
+add_polymec_library(polymec_integrators newton_pc.c bj_newton_pc.c 
                     newton_solver.c ode_integrator.c am_ode_integrator.c bdf_ode_integrator.c 
                     ark_ode_integrator.c euler_ode_integrator.c dae_integrator.c gauss_rules.c 
                     polyhedron_integrator.c sphere_integrator.c div_free_poly_basis.c
