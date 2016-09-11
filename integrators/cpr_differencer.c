@@ -19,7 +19,6 @@ struct cpr_differencer_t
   void (*F_dtor)(void* context);
 
   // Matrix information.
-  adj_graph_t* sparsity;
   int num_local_rows, num_remote_rows;
   adj_graph_coloring_t* coloring;
   int max_colors;
@@ -55,9 +54,6 @@ cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
   diff->F_dae = F_dae;
   diff->F_dtor = F_dtor;
 
-  // Steal the graph.
-  diff->sparsity = sparsity;
-
   // The number of local rows is known at this point.
   diff->num_local_rows = num_local_rows;
 
@@ -68,7 +64,7 @@ cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
   diff->num_remote_rows = num_remote_rows;
 
   // Assemble a graph coloring for any matrix we treat.
-  diff->coloring = adj_graph_coloring_new(diff->sparsity, SMALLEST_LAST);
+  diff->coloring = adj_graph_coloring_new(sparsity, SMALLEST_LAST);
 
   // Get the maximum number of colors on all MPI processes so that we can 
   // compute in lockstep.
@@ -96,7 +92,6 @@ void cpr_differencer_free(cpr_differencer_t* diff)
     polymec_free(diff->work[i]);
   polymec_free(diff->work);
   adj_graph_coloring_free(diff->coloring);
-  adj_graph_free(diff->sparsity);
   polymec_free(diff->Jv);
   polymec_free(diff);
 }
@@ -181,10 +176,70 @@ static int F_adaptor(void* context, real_t t, real_t* x, real_t* xdot, real_t* F
   return diff->F(diff->F_context, t, x, Fval);
 }
 
-void cpr_differencer_compute(cpr_differencer_t* diff, 
-                             real_t alpha, real_t beta, real_t gamma,  
-                             real_t t, real_t* x, real_t* xdot,
-                             local_matrix_t* matrix)
+static void sp_zero(void* matrix)
+{
+  krylov_matrix_t* A = matrix;
+  krylov_matrix_zero(A);
+}
+
+static void sp_add_I(void* matrix, real_t alpha)
+{
+  krylov_matrix_t* A = matrix;
+  krylov_matrix_add_identity(A, alpha);
+}
+
+static void sp_add_col_vec(void* matrix, real_t beta, int column, real_t* vec)
+{
+  krylov_matrix_t* A = matrix;
+}
+
+static void bd_zero(void* matrix)
+{
+  bd_matrix_t* A = matrix;
+  bd_matrix_zero(A);
+}
+
+static void bd_add_I(void* matrix, real_t alpha)
+{
+  bd_matrix_t* A = matrix;
+  bd_matrix_add_identity(A, alpha);
+}
+
+static void bd_add_col_vec(void* matrix, real_t beta, int column, real_t* vec)
+{
+  bd_matrix_t* A = matrix;
+
+  // We have to find the right block column.
+  int block_col = 0, col_count = 0;
+  while (true)
+  {
+    if (col_count >= column) break;
+    int block_size = bd_matrix_block_size(A, block_col);
+    col_count += block_size;
+    ++block_col;
+  }
+
+  int num_block_rows = bd_matrix_num_block_rows(A);
+  if (block_col < num_block_rows)
+  {
+    int block_size = bd_matrix_block_size(A, block_col);
+    int c = column % block_size;
+    real_t* block = bd_matrix_block(A, block_col);
+    for (int r = 0; r < block_size; ++r)
+    {
+      int j = col_count + r;
+      block[c*block_size + r] += beta * vec[j];
+    }
+  }
+}
+
+static void cpr_differencer_compute(cpr_differencer_t* diff, 
+                                    real_t alpha, real_t beta, real_t gamma,  
+                                    real_t t, real_t* x, real_t* xdot,
+                                    void* matrix,
+                                    void (*zero_matrix)(void*),
+                                    void (*add_identity_to_matrix)(void*, real_t),
+                                    void (*add_column_vector_to_matrix)(void*, real_t, int, real_t*))
 {
   START_FUNCTION_TIMER();
   adj_graph_coloring_t* coloring = diff->coloring;
@@ -208,7 +263,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
   }
 
   // First, zero the matrix.
-  local_matrix_zero(matrix);
+  zero_matrix(matrix);
 
   // If all the coefficients are zero, we're finished!
   if (reals_equal(alpha, 0.0) && reals_equal(beta, 0.0) && reals_equal(gamma, 0.0))
@@ -218,7 +273,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
   }
 
   // Then set up an identity matrix.
-  local_matrix_add_identity(matrix, alpha);
+  add_identity_to_matrix(matrix, alpha);
 
   // If beta and gamma are zero, we're finished!
   if (reals_equal(beta, 0.0) && reals_equal(gamma, 0.0))
@@ -267,7 +322,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
     // Add the column vector dF/dx * d into our matrix.
     pos = 0;
     while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
-      local_matrix_add_column_vector(matrix, beta, i, diff->Jv);
+      add_column_vector_to_matrix(matrix, beta, i, diff->Jv);
 
     if (!reals_equal(gamma, 0.0) && (xdot != NULL))
     {
@@ -280,7 +335,7 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
       // Add in the column vector.
       pos = 0;
       while (adj_graph_coloring_next_vertex(coloring, c, &pos, &i))
-        local_matrix_add_column_vector(matrix, gamma, i, diff->Jv);
+        add_column_vector_to_matrix(matrix, gamma, i, diff->Jv);
     }
   }
 
@@ -305,5 +360,23 @@ void cpr_differencer_compute(cpr_differencer_t* diff,
 
   log_debug("cpr_differencer: Evaluated F %d times.", num_F_evals);
   STOP_FUNCTION_TIMER();
+}
+
+void cpr_differencer_compute_sparse(cpr_differencer_t* diff, 
+                                    real_t alpha, real_t beta, real_t gamma,  
+                                    real_t t, real_t* x, real_t* xdot,
+                                    krylov_matrix_t* matrix)
+{
+  cpr_differencer_compute(diff, alpha, beta, gamma, t, x, xdot, 
+                          matrix, sp_zero, sp_add_I, sp_add_col_vec);
+}
+
+void cpr_differencer_compute_bd(cpr_differencer_t* diff, 
+                                real_t alpha, real_t beta, real_t gamma,  
+                                real_t t, real_t* x, real_t* xdot,
+                                bd_matrix_t* matrix)
+{
+  cpr_differencer_compute(diff, alpha, beta, gamma, t, x, xdot, 
+                          matrix, bd_zero, bd_add_I, bd_add_col_vec);
 }
 
