@@ -171,13 +171,13 @@ static bool test_poly_fit(void** state, int p, point_t* x0, point_t* points, int
 }
 
 // We want 99% reliability for randomly selected points with double precision,
-// 95% reliability for single precision.
+// 90% reliability for single precision.
 #if POLYMEC_HAVE_DOUBLE_PRECISION
 static const int default_num_iters = 100;
 static const int num_allowed_failures = 1;
 #else
 static const int default_num_iters = 100;
-static const int num_allowed_failures = 5;
+static const int num_allowed_failures = 10;
 #endif
 
 static int get_num_iters()
