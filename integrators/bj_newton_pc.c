@@ -296,8 +296,8 @@ static void add_column_vector_to_matrix(void* matrix, real_t beta, int column, r
   int block_col = 0, col_count = 0;
   while (true)
   {
-    if (col_count >= column) break;
     int block_size = bd_matrix_block_size(A, block_col);
+    if ((col_count + block_size) > column) break;
     col_count += block_size;
     ++block_col;
   }
