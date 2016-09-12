@@ -16,19 +16,11 @@
 #include "integrators/newton_solver.h"
 
 extern newton_solver_t* block_jacobi_precond_foodweb_solver_new();
-extern newton_solver_t* lu_precond_foodweb_solver_new();
-extern newton_solver_t* ilu_precond_foodweb_solver_new();
 extern real_t* foodweb_initial_conditions();
 
 static void test_block_jacobi_precond_foodweb_ctor(void** state)
 {
   newton_solver_t* newton = block_jacobi_precond_foodweb_solver_new();
-  newton_solver_free(newton);
-}
-
-static void test_lu_precond_foodweb_ctor(void** state)
-{
-  newton_solver_t* newton = lu_precond_foodweb_solver_new();
   newton_solver_free(newton);
 }
 
@@ -73,12 +65,6 @@ static void test_block_jacobi_precond_foodweb_solve(void** state)
   test_foodweb_solve(state, newton);
 }
 
-static void test_lu_precond_foodweb_solve(void** state)
-{
-  // Set up the problem.
-  newton_solver_t* newton = lu_precond_foodweb_solver_new();
-  test_foodweb_solve(state, newton);
-}
 #endif
 
 int main(int argc, char* argv[]) 
@@ -87,10 +73,8 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_block_jacobi_precond_foodweb_ctor),
-    cmocka_unit_test(test_lu_precond_foodweb_ctor),
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-    cmocka_unit_test(test_block_jacobi_precond_foodweb_solve),
-    cmocka_unit_test(test_lu_precond_foodweb_solve)
+    cmocka_unit_test(test_block_jacobi_precond_foodweb_solve)
 #endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

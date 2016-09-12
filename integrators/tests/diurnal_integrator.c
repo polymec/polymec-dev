@@ -9,7 +9,7 @@
 #include "core/declare_nd_array.h"
 #include "integrators/bdf_ode_integrator.h"
 #include "integrators/ark_ode_integrator.h"
-#include "integrators/cpr_newton_pc.h"
+#include "integrators/bj_newton_pc.h"
 
 //------------------------------------------------------------------------
 //               Diurnal kinetic advection-diffusion problem
@@ -288,17 +288,7 @@ ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new(newton_pc_side
 ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
-  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
-  ode_integrator_t* integ = bdf_diurnal_integrator_new(data, precond);
-  return integ;
-}
-
-// Constructor for LU-preconditioned BDF diurnal integrator.
-ode_integrator_t* lu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side);
-ode_integrator_t* lu_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
-{
-  diurnal_t* data = diurnal_new();
-  newton_pc_t* precond = lu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ, 0);
+  newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
   ode_integrator_t* integ = bdf_diurnal_integrator_new(data, precond);
   return integ;
 }
@@ -340,17 +330,7 @@ ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side
 ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
-  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
-  ode_integrator_t* integ = ark_diurnal_integrator_new(data, precond);
-  return integ;
-}
-
-// Constructor for LU-preconditioned ARK diurnal integrator.
-ode_integrator_t* lu_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
-ode_integrator_t* lu_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
-{
-  diurnal_t* data = diurnal_new();
-  newton_pc_t* precond = lu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ, 0);
+  newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
   ode_integrator_t* integ = ark_diurnal_integrator_new(data, precond);
   return integ;
 }

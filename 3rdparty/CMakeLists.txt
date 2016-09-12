@@ -491,64 +491,6 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblis${LIB_SUFFIX})
 endif()
 set(POLYMEC_TP_LIBS lis;${POLYMEC_TP_LIBS})
 
-# Build SuperLU, a (serial) direct sparse linear solver library that 
-# we will use for preconditioning.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsuperlu.a)
-  message(STATUS "Preparing superlu...")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/superlu ${CMAKE_CURRENT_BINARY_DIR}/superlu
-                  RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Copying library source failed.")
-  endif()
-
-  message(STATUS "Adjusting superlu make.inc...")
-  file(READ ${CMAKE_CURRENT_BINARY_DIR}/superlu/make.inc superlu_makeinc)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu/make.inc.old ${superlu_makeinc})
-  string(REPLACE "gcc" ${CMAKE_C_COMPILER} superlu_makeinc ${superlu_makeinc})
-  string(REPLACE "$(HOME)/Dropbox/Codes/SuperLU/SuperLU" ${PROJECT_BINARY_DIR} superlu_makeinc ${superlu_makeinc})
-  string(REPLACE "libsuperlu_5.0.a" "libsuperlu.a" superlu_makeinc ${superlu_makeinc})
-
-  # SuperLU has some non-standard C, so we have to be careful about adjusting its 
-  # C compiler flags. :-/
-  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-      set(superlu_debug_flags "-O0 -g3")
-    else()
-      set(superlu_debug_flags "-O0 -g")
-    endif()
-    string(REPLACE "-O3" "${superlu_debug_flags}" superlu_makeinc ${superlu_makeinc})
-  endif()
-  if (BUILD_SHARED_LIBS AND LINUX)
-    string(REPLACE "-std=c99" "-std=c99 -fPIC" superlu_makeinc ${superlu_makeinc})
-    string(REPLACE "NOOPTS       =" "NOOPTS       =-fPIC" superlu_makeinc ${superlu_makeinc})
-  endif()
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu/make.inc ${superlu_makeinc})
-
-  message(STATUS "Building and installing superlu (1 thread)...")
-  # Looks like SuperLU wants to be built serially, so no -jN here.
-  execute_process(COMMAND make lib
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/superlu
-                  OUTPUT_VARIABLE superlu_build_log ERROR_VARIABLE superlu_build_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu_build.log ${superlu_build_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Build of superlu library failed:")
-      message(FATAL_ERROR ${superlu_build_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/superlu_build_errors.log ${superlu_build_err})
-      message(FATAL_ERROR "Build of superlu library failed. See ${CMAKE_CURRENT_BINARY_DIR}/superlu_build_*.log.")
-    endif()
-  endif()
-
-#  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/SuperLU_4.3/libsuperlu.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
-  file(GLOB includes "${CMAKE_CURRENT_BINARY_DIR}/superlu/SRC/*.h")
-  foreach(inc ${includes})
-    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
-  endforeach()
-endif()
-set(POLYMEC_TP_LIBS superlu;${POLYMEC_TP_LIBS})
-
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
 # differential-algebraic equations.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)

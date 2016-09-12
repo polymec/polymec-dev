@@ -7,7 +7,7 @@
 
 #include "core/polymec.h"
 #include "integrators/newton_solver.h"
-#include "integrators/cpr_newton_pc.h"
+#include "integrators/bj_newton_pc.h"
 
 // We use this for some of the underlying data structures.
 #include "sundials/sundials_direct.h"
@@ -392,16 +392,7 @@ newton_solver_t* block_jacobi_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
   int block_size = NUM_SPECIES;
-  newton_pc_t* precond = block_jacobi_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, NEWTON_PC_LEFT, data->sparsity, NEQ/block_size, 0, block_size);
-  return foodweb_solver_new(data, precond);
-}
-
-// Constructor for LU-preconditioned food web solver.
-newton_solver_t* lu_precond_foodweb_solver_new(void);
-newton_solver_t* lu_precond_foodweb_solver_new()
-{
-  foodweb_t* data = foodweb_new();
-  newton_pc_t* precond = lu_cpr_newton_pc_from_function(MPI_COMM_WORLD, data, foodweb_func, NULL, NEWTON_PC_LEFT, data->sparsity, NEQ, 0);
+  newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, foodweb_func, NULL, NEWTON_PC_LEFT, data->sparsity, NEQ/block_size, 0, block_size);
   return foodweb_solver_new(data, precond);
 }
 
