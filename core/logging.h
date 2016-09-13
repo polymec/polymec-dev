@@ -61,6 +61,16 @@ void set_log_stream(log_level_t log_type, FILE* stream);
 // type is enabled, NULL if it is not.
 FILE* log_stream(log_level_t log_type);
 
+// Sets up an indentation prefix for logging messages of the given type. 
+// By default the indentation prefix is a single space.
+void log_set_indentation_prefix(log_level_t log_type, const char* prefix);
+
+// Increments the indentation level for the given message type by one.
+void log_indent(log_level_t log_type);
+
+// Decrements the indentation level for the given message type by one.
+void log_unindent(log_level_t log_type);
+
 // Issues a debug message.
 void log_debug(const char* message, ...);
 
