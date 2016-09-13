@@ -369,25 +369,6 @@ static void test_1d_mu_cycle_w_direct_solve(void** state)
   test_1d_cycle(state, zero, gamma, N, cycle, true);
 }
 
-static void test_1d_fmg_cycle_on_exact_soln(void** state)
-{
-  // Read in options.
-  real_t gamma = 1.0;
-  int N = 513;
-  int mu, nu0, nu1, nu2;
-  read_cl_args(&gamma, &N, &mu, &nu0, &nu1, &nu2);
-  fasmg_cycle_t* cycle = fmg_fasmg_cycle_new(nu0, nu1, nu2);
-
-  real_t X0[N];
-  real_t h = 1.0 / (N-1);
-  for (int i = 0; i < N; ++i)
-  {
-    real_t xi = i*h;
-    X0[i] = exp(xi)*(xi-xi*xi);
-  }
-  test_1d_cycle(state, X0, gamma, N, cycle, false);
-}
-
 static void test_1d_fmg_cycle_wo_direct_solve(void** state)
 {
   // Read in options.
@@ -805,30 +786,6 @@ static void test_2d_mu_cycle_w_direct_solve(void** state)
   test_2d_cycle(state, zero, gamma, N, cycle, true);
 }
 
-static void test_2d_fmg_cycle_on_exact_soln(void** state)
-{
-  // Read in options.
-  real_t gamma = 1.0;
-  int N = 129;
-  int mu, nu0, nu1, nu2;
-  read_cl_args(&gamma, &N, &mu, &nu0, &nu1, &nu2);
-  fasmg_cycle_t* cycle = fmg_fasmg_cycle_new(nu0, nu1, nu2);
-
-  real_t X0[N*N];
-  real_t h = 1.0 / (N-1);
-  DECLARE_2D_ARRAY(real_t, X0ij, X0, N, N);
-  for (int i = 0; i < N; ++i)
-  {
-    real_t xi = i*h;
-    for (int j = 0; j < N; ++j)
-    {
-      real_t yj = j*h;
-      X0ij[i][j] = (xi - xi*xi) * (yj - yj*yj);
-    }
-  }
-  test_2d_cycle(state, X0, gamma, N, cycle, false);
-}
-
 static void test_2d_fmg_cycle_wo_direct_solve(void** state)
 {
   // Read in options.
@@ -872,7 +829,6 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_1d_mu_cycle_on_exact_soln),
     cmocka_unit_test(test_1d_mu_cycle_wo_direct_solve),
     cmocka_unit_test(test_1d_mu_cycle_w_direct_solve),
-    cmocka_unit_test(test_1d_fmg_cycle_on_exact_soln),
     cmocka_unit_test(test_1d_fmg_cycle_wo_direct_solve),
     cmocka_unit_test(test_1d_fmg_cycle_w_direct_solve),
     cmocka_unit_test(test_2d_ctor),
@@ -885,7 +841,6 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_2d_mu_cycle_on_exact_soln),
     cmocka_unit_test(test_2d_mu_cycle_wo_direct_solve),
     cmocka_unit_test(test_2d_mu_cycle_w_direct_solve),
-    cmocka_unit_test(test_2d_fmg_cycle_on_exact_soln),
     cmocka_unit_test(test_2d_fmg_cycle_wo_direct_solve),
     cmocka_unit_test(test_2d_fmg_cycle_w_direct_solve)
   };
