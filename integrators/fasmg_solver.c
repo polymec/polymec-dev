@@ -504,7 +504,7 @@ static void mu_execute(void* context,
   // Relax or directly solve.
   if ((grid->coarser == NULL) && fasmg_operator_has_direct_solve(A))
   {
-    log_debug("mu_cycle_execute: solving directly (N = %zd).", fasmg_grid_num_dof(grid));
+    log_debug("mu_cycle_execute: solving directly (N=%zd).", fasmg_grid_num_dof(grid));
     fasmg_operator_solve_directly(A, grid, B, X);
   }
   else
@@ -523,9 +523,6 @@ static void mu_execute(void* context,
     fasmg_operator_compute_residual(A, grid, B, X, R);
     if (log_level() == LOG_DEBUG)
     {
-vector_fprintf(X, (int)N, stdout);
-vector_fprintf(B, (int)N, stdout);
-vector_fprintf(R, (int)N, stdout);
       log_debug("mu_cycle_execute: residual norm is %g (N=%d)", 
                 fasmg_grid_l2_norm(grid, R), N);
     }
@@ -537,8 +534,9 @@ vector_fprintf(R, (int)N, stdout);
     fasmg_restrictor_project(restrictor, grid, X, X_coarse);
 
     // Form our right hand side on the coarse grid.
-    real_t AX_coarse[N_coarse], B_coarse[N_coarse];
+    real_t AX_coarse[N_coarse];
     fasmg_operator_apply(A, grid->coarser, X_coarse, AX_coarse);
+    real_t B_coarse[N_coarse];
     for (size_t i = 0; i < N_coarse; ++i)
       B_coarse[i] = AX_coarse[i] + R_coarse[i];
 

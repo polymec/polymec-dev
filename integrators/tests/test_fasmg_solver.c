@@ -93,7 +93,6 @@ static void nl1d_op_relax(void* context, void* grid, real_t* B, real_t* X)
   int N = *((int*)grid);
   real_t h = 1.0 / (N-1);
 
-  polymec_suspend_fpe();
   X[0] = 0.0;
   X[N-1] = 0.0;
   for (size_t i = 1; i < N-1; ++i)
@@ -101,7 +100,6 @@ static void nl1d_op_relax(void* context, void* grid, real_t* B, real_t* X)
     X[i] = 2.0*(h*h*B[i] + X[i-1] + X[i+1]) / 
            (4.0 + h*gamma*(X[i+1] - X[i-1]));
   }
-  polymec_restore_fpe();
 }
 
 static void nl1d_op_solve_directly(void* context, void* grid, real_t* B, real_t* X)
@@ -469,7 +467,7 @@ static void nl2d_op_relax(void* context, void* grid, real_t* B, real_t* X)
 {
   real_t gamma = *((real_t*)context);
   int N = *((int*)grid);
-  real_t h = 1.0 * (N-1);
+  real_t h = 1.0 / (N-1);
   real_t hinv = 1.0 / h, hinv2 = hinv*hinv;
 
   DECLARE_2D_ARRAY(real_t, Xij, X, N, N);
