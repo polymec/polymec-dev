@@ -446,7 +446,6 @@ static void nl2d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
 
   DECLARE_2D_ARRAY(real_t, Xij, X, N, N);
   DECLARE_2D_ARRAY(real_t, AXij, AX, N, N);
-  polymec_suspend_fpe();
   for (size_t i = 0; i < N; ++i)
   {
     AXij[i][0] = 0.0;
@@ -458,12 +457,12 @@ static void nl2d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
   {
     for (size_t j = 1; j < N-1; ++j)
     {
-      AXij[i][j] = (4.0*Xij[i][j] - Xij[i-1][j] - Xij[i+1][j] - 
-                    Xij[i][j-1] - Xij[i][j+1])/(h*h) + 
-                   gamma * Xij[i][j] * exp(Xij[i][j]);
+      real_t bounded_Xij = MAX(-100.0, MIN(100.0, Xij[i][j]));
+      AXij[i][j] = (4.0*Xij[i][j] - Xij[i-1][j] - Xij[i+1][j] 
+                                  - Xij[i][j-1] - Xij[i][j+1])/(h*h) + 
+                   gamma * Xij[i][j] * exp(bounded_Xij);
     }
   }
-  polymec_restore_fpe();
 }
 
 static void nl2d_op_relax(void* context, void* grid, real_t* B, real_t* X)
@@ -475,7 +474,6 @@ static void nl2d_op_relax(void* context, void* grid, real_t* B, real_t* X)
 
   DECLARE_2D_ARRAY(real_t, Xij, X, N, N);
   DECLARE_2D_ARRAY(real_t, Bij, B, N, N);
-  polymec_suspend_fpe();
   for (size_t i = 0; i < N; ++i)
   {
     Xij[i][0] = 0.0;
@@ -487,18 +485,27 @@ static void nl2d_op_relax(void* context, void* grid, real_t* B, real_t* X)
   {
     for (size_t j = 1; j < N-1; ++j)
     {
-      real_t expX = exp(Xij[i][j]);
-      Xij[i][j] = (hinv2 * (4.0*Xij[i][j] - Xij[i-1][j] - Xij[i+1][j] - 
-                                Xij[i][j-1] - Xij[i][j+1]) + 
-                   gamma * Xij[i][j] * expX - Bij[i][j]) / 
-                  (4.0*hinv2 + gamma * (1.0 + Xij[i][j]) * expX);
+      real_t bounded_Xij = MAX(-100.0, MIN(100.0, Xij[i][j]));
+      real_t expXij = exp(bounded_Xij);
+      Xij[i][j] -= (hinv2 * (4.0*Xij[i][j] - Xij[i-1][j] - Xij[i+1][j] 
+                                           - Xij[i][j-1] - Xij[i][j+1]) + 
+                    gamma * Xij[i][j] * expXij - Bij[i][j]) / 
+                   (4.0*hinv2 + gamma * (1.0 + Xij[i][j]) * expXij);
     }
   }
-  polymec_restore_fpe();
 }
 
 static void nl2d_op_solve_directly(void* context, void* grid, real_t* B, real_t* X)
 {
+  real_t gamma = *((real_t*)context);
+  int N = *((int*)grid);
+  ASSERT(N == 3);
+
+  // Just take a single Newton step, solving for X[4], which is the interior value 
+  // on our 3x3 grid.
+  real_t boundedX4 = MAX(-100.0, MIN(100.0, X[4]));
+  real_t expX4 = exp(boundedX4);
+  X[4] -= (16.0*X[4] + gamma*X[4]*expX4 - B[4]) / (16.0 + gamma*(1.0+X[4])*expX4);
 }
 
 static fasmg_operator_t* nl2d_op_new(real_t gamma, bool direct_solve)
@@ -591,13 +598,13 @@ static void test_2d_ctor(void** state)
 static real_t l2_norm_2d(void* data, real_t* V)
 {
   int N = *((int*)data);
-  real_t h = 1.0 / (N-1);
   DECLARE_2D_ARRAY(real_t, Vij, V, N, N);
   real_t L2 = 0.0;
-  for (int i = 0; i < N; ++i)
-    for (int j = 0; j < N; ++j)
-      L2 += h*h*Vij[i][j]*Vij[i][j];
-  return sqrt(L2);
+  for (int i = 1; i < N-1; ++i) // exclude the endpoints!
+    for (int j = 1; j < N-1; ++j) // exclude the endpoints!
+      L2 += Vij[i][j]*Vij[i][j];
+  real_t h = 1.0 / (N-1);
+  return sqrt(h*h*L2);
 }
 
 static void test_2d_cycle(void** state, 
@@ -622,8 +629,8 @@ static void test_2d_cycle(void** state,
     real_t x_x2 = xi - xi*xi;
     for (int j = 0; j < N; ++j)
     {
-      real_t yi = j*h;
-      real_t y_y2 = yi - yi*yi;
+      real_t yj = j*h;
+      real_t y_y2 = yj - yj*yj;
       Bij[i][j] = 2.0 * (x_x2 + y_y2) + gamma * x_x2 * y_y2 * exp(x_x2 * y_y2);
     }
   }

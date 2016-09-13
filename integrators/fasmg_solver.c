@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/linear_algebra.h"
 #include "integrators/fasmg_solver.h"
 
 struct fasmg_solver_t 
@@ -279,10 +280,7 @@ void fasmg_operator_relax(fasmg_operator_t* A,
                           real_t* B,
                           real_t* X)
 {
-  if ((grid->coarser == NULL) && (A->vtable.solve_directly != NULL))
-    A->vtable.solve_directly(A->context, grid->data, B, X);
-  else
-    A->vtable.relax(A->context, grid->data, B, X);
+  A->vtable.relax(A->context, grid->data, B, X);
 }
 
 bool fasmg_operator_has_direct_solve(fasmg_operator_t* A)
@@ -503,9 +501,10 @@ static void mu_execute(void* context,
 {
   mu_cycle_t* mu_cycle = context;
 
+  // Relax or directly solve.
   if ((grid->coarser == NULL) && fasmg_operator_has_direct_solve(A))
   {
-    log_debug("mu_cycle_execute: solving directly on %d DoF.", fasmg_grid_num_dof(grid));
+    log_debug("mu_cycle_execute: solving directly (N = %zd).", fasmg_grid_num_dof(grid));
     fasmg_operator_solve_directly(A, grid, B, X);
   }
   else
@@ -524,6 +523,9 @@ static void mu_execute(void* context,
     fasmg_operator_compute_residual(A, grid, B, X, R);
     if (log_level() == LOG_DEBUG)
     {
+vector_fprintf(X, (int)N, stdout);
+vector_fprintf(B, (int)N, stdout);
+vector_fprintf(R, (int)N, stdout);
       log_debug("mu_cycle_execute: residual norm is %g (N=%d)", 
                 fasmg_grid_l2_norm(grid, R), N);
     }
@@ -629,8 +631,13 @@ static void fmg_execute(void* context,
 
     // Cycle on the coarse solution.
     real_t X_coarse[N_coarse];
+    log_indent(LOG_DEBUG);
     fmg_execute(context, A, grid->coarser, prolongator, restrictor,
                 B_coarse, X_coarse);
+    log_unindent(LOG_DEBUG);
+
+    // Now prolongate our coarse solution to the present one.
+    fasmg_prolongator_interpolate(prolongator, grid->coarser, X_coarse, X);
   }
 
   // V cycle nu_0 times.
