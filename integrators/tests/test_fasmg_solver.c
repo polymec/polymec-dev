@@ -33,7 +33,7 @@ static void read_cl_args(real_t* gamma, int* N, fasmg_cycle_t** cycle)
     *gamma = (real_t)atof(gamma_str);
 
   char* N_str = options_value(opts, "N");
-  if ((gamma_str != NULL) && string_is_integer(gamma_str))
+  if ((N_str != NULL) && string_is_integer(N_str))
     *N = atoi(N_str);
 
   int mu = 1, nu0 = 1, nu1 = 3, nu2 = 3;
@@ -106,7 +106,7 @@ static void nl1d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
   real_t h = 1.0 / N;
 
   AX[0] = 0.0;
-  AX[N] = 0.0;
+  AX[N-1] = 0.0;
   for (size_t i = 1; i < N-1; ++i)
   {
     AX[i] = (2.0*X[i] - X[i-1] - X[i+1]) / (h*h) + 
@@ -149,7 +149,7 @@ static void nl1d_project(void* context, void* fine_grid, real_t* fine_X, void* c
 {
   int N_fine = *((int*)fine_grid);
   int N_coarse = *((int*)coarse_grid);
-  ASSERT(2*N_coarse+1 == N_fine+1);
+  ASSERT(2*(N_coarse-1) == N_fine-1);
 
   for (int i = 0; i < N_coarse; ++i)
     coarse_X[i] = fine_X[2*i];
@@ -165,13 +165,14 @@ static void nl1d_interpolate(void* context, void* coarse_grid, real_t* coarse_X,
 {
   int N_fine = *((int*)fine_grid);
   int N_coarse = *((int*)coarse_grid);
-  ASSERT(2*N_coarse+1 == N_fine+1);
+  ASSERT(2*(N_coarse-1) == N_fine-1);
 
   for (int i = 0; i < N_coarse-1; ++i)
   {
     fine_X[2*i] = coarse_X[i];
     fine_X[2*i+1] = 0.5 * (coarse_X[i] + coarse_X[i+1]);
   }
+  fine_X[2*(N_coarse-1)] = coarse_X[N_coarse-1];
 }
 
 static fasmg_prolongator_t* nl1d_prolongator_new()
@@ -214,6 +215,8 @@ static real_t l2_norm_1d(void* data, real_t* V)
 
 static void test_1d_cycle(void** state, real_t* X0, int N, bool direct_solve)
 {
+  ASSERT((N % 2) == 1); // N is in terms of nodes, not cells.
+
   // Read in options.
   real_t gamma = 1.0;
   fasmg_cycle_t* cycle;
@@ -221,7 +224,7 @@ static void test_1d_cycle(void** state, real_t* X0, int N, bool direct_solve)
 
   fasmg_solver_t* fas = fasmg_1d_new(gamma, N, cycle, direct_solve);
   fasmg_grid_vtable grid_vtable = {.l2_norm = l2_norm_1d, .dtor = polymec_free};
-  fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)(N+1), grid_vtable);
+  fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)N, grid_vtable);
 
   // Set up the RHS and an initial guess, compute the initial residual.
   real_t X[N], B[N], R[N];
@@ -250,7 +253,7 @@ static void test_1d_cycle(void** state, real_t* X0, int N, bool direct_solve)
 
 static void test_1d_cycle_on_exact_soln(void** state)
 {
-  int N = 512;
+  int N = 513;
   real_t X0[N];
   for (int i = 0; i < N; ++i)
   {
@@ -262,7 +265,7 @@ static void test_1d_cycle_on_exact_soln(void** state)
 
 static void test_1d_cycle_wo_direct_solve(void** state)
 {
-  int N = 512;
+  int N = 513;
   real_t zero[N];
   memset(zero, 0, sizeof(real_t) * N);
   test_1d_cycle(state, zero, N, false);
@@ -271,7 +274,7 @@ static void test_1d_cycle_wo_direct_solve(void** state)
 
 static void test_1d_cycle_w_direct_solve(void** state)
 {
-  int N = 512;
+  int N = 513;
   real_t zero[N];
   memset(zero, 0, sizeof(real_t) * N);
   test_1d_cycle(state, zero, N, true);

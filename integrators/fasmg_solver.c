@@ -490,6 +490,7 @@ static void mu_execute(void* context,
   mu_cycle_t* mu_cycle = context;
 
   // Relax X nu_1 times.
+  log_debug("  mu_cycle_execute: relaxing %d times.", mu_cycle->nu_1);
   for (int i = 0; i < mu_cycle->nu_1; ++i)
     fasmg_operator_relax(A, grid, B, X);
 
@@ -501,7 +502,7 @@ static void mu_execute(void* context,
     fasmg_operator_compute_residual(A, grid, B, X, R);
     if (log_level() == LOG_DEBUG)
     {
-      log_debug("  fasmg_cycle_execute: residual norm is %g (N=%d)", 
+      log_debug("  mu_cycle_execute: residual norm is %g (N=%d)", 
                 fasmg_grid_l2_norm(grid, R), N);
     }
 
@@ -541,6 +542,7 @@ static void mu_execute(void* context,
   }
 
   // Relax X nu_2 times.
+  log_debug("  mu_cycle_execute: relaxing %d times.", mu_cycle->nu_2);
   for (int i = 0; i < mu_cycle->nu_2; ++i)
     fasmg_operator_relax(A, grid, B, X);
 }
