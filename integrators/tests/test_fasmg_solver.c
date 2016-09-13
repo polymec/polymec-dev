@@ -13,6 +13,7 @@
 #include "cmocka.h"
 #include "core/options.h"
 #include "core/declare_nd_array.h"
+#include "core/linear_algebra.h"
 #include "integrators/fasmg_solver.h"
 
 typedef enum
@@ -80,7 +81,7 @@ static void read_cl_args(real_t* gamma, int* N, fasmg_cycle_t** cycle)
 static bool nl_can_coarsen(void* context, void* grid)
 {
   int N = *((int*)grid);
-  return (N > 6);
+  return (N > 3);
 }
 
 static void* nl1d_coarser_grid(void* context, void* grid, size_t* coarse_dof)
@@ -103,10 +104,9 @@ static void nl1d_op_apply(void* context, void* grid, real_t* X, real_t* AX)
 {
   real_t gamma = *((real_t*)context);
   int N = *((int*)grid);
-  real_t h = 1.0 / N;
+  real_t h = 1.0 / (N-1);
 
-  AX[0] = 0.0;
-  AX[N-1] = 0.0;
+  AX[0] = AX[N-1] = 0.0;
   for (size_t i = 1; i < N-1; ++i)
   {
     AX[i] = (2.0*X[i] - X[i-1] - X[i+1]) / (h*h) + 
@@ -118,9 +118,11 @@ static void nl1d_op_relax(void* context, void* grid, real_t* B, real_t* X)
 {
   real_t gamma = *((real_t*)context);
   int N = *((int*)grid);
-  real_t h = 1.0 / N;
+  real_t h = 1.0 / (N-1);
 
   polymec_suspend_fpe();
+  X[0] = 0.0;
+  X[N-1] = 0.0;
   for (size_t i = 1; i < N-1; ++i)
   {
     X[i] = 2.0*(h*h*B[i] + X[i-1] + X[i+1]) / 
@@ -131,6 +133,9 @@ static void nl1d_op_relax(void* context, void* grid, real_t* B, real_t* X)
 
 static void nl1d_op_solve_directly(void* context, void* grid, real_t* B, real_t* X)
 {
+  int N = *((int*)grid);
+  ASSERT(N == 3);
+  X[1] = B[1]/8.0;
 }
 
 static fasmg_operator_t* nl1d_op_new(real_t gamma, bool direct_solve)
@@ -207,9 +212,9 @@ static real_t l2_norm_1d(void* data, real_t* V)
 {
   int N = *((int*)data);
   real_t sum = 0.0;
-  for (int i = 0; i < N; ++i)
+  for (int i = 1; i < N-1; ++i) // exclude the endpoints!
     sum += V[i]*V[i];
-  real_t h = 1.0 / N;
+  real_t h = 1.0 / (N-1);
   return sqrt(h*sum);
 }
 
@@ -229,9 +234,10 @@ static void test_1d_cycle(void** state, real_t* X0, int N, bool direct_solve)
   // Set up the RHS and an initial guess, compute the initial residual.
   real_t X[N], B[N], R[N];
   memcpy(X, X0, sizeof(real_t) * N);
+  real_t h = 1.0 / (N-1);
   for (int i = 0; i < N; ++i)
   {
-    real_t xi = 1.0*i/N;
+    real_t xi = i*h;
     B[i] = (xi*xi + 3.0*xi) * exp(xi) + gamma * (xi*xi*xi*xi - 2.0*xi*xi + xi) * exp(2.0*xi);
   }
   fasmg_operator_t* A = fasmg_solver_operator(fas);
@@ -255,9 +261,10 @@ static void test_1d_cycle_on_exact_soln(void** state)
 {
   int N = 513;
   real_t X0[N];
+  real_t h = 1.0 / (N-1);
   for (int i = 0; i < N; ++i)
   {
-    real_t xi = 1.0*i/N;
+    real_t xi = i*h;
     X0[i] = exp(xi)*(xi-xi*xi);
   }
   test_1d_cycle(state, X0, N, false);
@@ -270,7 +277,6 @@ static void test_1d_cycle_wo_direct_solve(void** state)
   memset(zero, 0, sizeof(real_t) * N);
   test_1d_cycle(state, zero, N, false);
 }
-#if 0
 
 static void test_1d_cycle_w_direct_solve(void** state)
 {
@@ -280,6 +286,7 @@ static void test_1d_cycle_w_direct_solve(void** state)
   test_1d_cycle(state, zero, N, true);
 }
 
+#if 0
 //------------------------------------------------------------------------
 //                          2D nonlinear problem
 //------------------------------------------------------------------------
@@ -511,7 +518,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_1d_ctor),
     cmocka_unit_test(test_1d_cycle_on_exact_soln),
     cmocka_unit_test(test_1d_cycle_wo_direct_solve),
-//    cmocka_unit_test(test_1d_cycle_w_direct_solve),
+    cmocka_unit_test(test_1d_cycle_w_direct_solve),
 //    cmocka_unit_test(test_2d_ctor),
 //    cmocka_unit_test(test_2d_cycle_wo_direct_solve),
 //    cmocka_unit_test(test_2d_cycle_w_direct_solve)

@@ -195,13 +195,23 @@ void fasmg_operator_apply(fasmg_operator_t* A,
                           real_t* AX);
 
 // Performs a relaxation step, updating X to eliminate high-frequency components 
-// of the error in A(X) = B. If on the coarsest possible grid and the operator 
-// implements a direct solver (via the solve_directly method), a direct solution 
-// is computed for X instead.
+// of the error in A(X) = B. 
 void fasmg_operator_relax(fasmg_operator_t* A,
                           fasmg_grid_t* grid,
                           real_t* B,
                           real_t* X);
+
+// Returns true if the operator implements a direct solve of its equation, 
+// false if not.
+bool fasmg_operator_has_direct_solve(fasmg_operator_t* A);
+
+// Solves A(X) = B directly. Calling this on an operator that does not 
+// implement a direct solve is not permitted.
+void fasmg_operator_solve_directly(fasmg_operator_t* A,
+                                   fasmg_grid_t* grid,
+                                   real_t* B,
+                                   real_t* X);
+
 
 // Computes the residual R = B - A(X) for this operator.
 void fasmg_operator_compute_residual(fasmg_operator_t* A,

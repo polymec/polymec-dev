@@ -285,6 +285,20 @@ void fasmg_operator_relax(fasmg_operator_t* A,
     A->vtable.relax(A->context, grid->data, B, X);
 }
 
+bool fasmg_operator_has_direct_solve(fasmg_operator_t* A)
+{
+  return (A->vtable.solve_directly != NULL);
+}
+
+void fasmg_operator_solve_directly(fasmg_operator_t* A,
+                                   fasmg_grid_t* grid,
+                                   real_t* B,
+                                   real_t* X)
+{
+  ASSERT(A->vtable.solve_directly != NULL);
+  A->vtable.solve_directly(A->context, grid->data, B, X);
+}
+
 void fasmg_operator_compute_residual(fasmg_operator_t* A,
                                      fasmg_grid_t* grid,
                                      real_t* B,
@@ -489,10 +503,18 @@ static void mu_execute(void* context,
 {
   mu_cycle_t* mu_cycle = context;
 
-  // Relax X nu_1 times.
-  log_debug("  mu_cycle_execute: relaxing %d times.", mu_cycle->nu_1);
-  for (int i = 0; i < mu_cycle->nu_1; ++i)
-    fasmg_operator_relax(A, grid, B, X);
+  if ((grid->coarser == NULL) && fasmg_operator_has_direct_solve(A))
+  {
+    log_debug("mu_cycle_execute: solving directly on %d DoF.", fasmg_grid_num_dof(grid));
+    fasmg_operator_solve_directly(A, grid, B, X);
+  }
+  else
+  {
+    // Relax X nu_1 times.
+    log_debug("mu_cycle_execute: relaxing %d times.", mu_cycle->nu_1);
+    for (int i = 0; i < mu_cycle->nu_1; ++i)
+      fasmg_operator_relax(A, grid, B, X);
+  }
 
   if (grid->coarser != NULL)
   {
@@ -502,7 +524,7 @@ static void mu_execute(void* context,
     fasmg_operator_compute_residual(A, grid, B, X, R);
     if (log_level() == LOG_DEBUG)
     {
-      log_debug("  mu_cycle_execute: residual norm is %g (N=%d)", 
+      log_debug("mu_cycle_execute: residual norm is %g (N=%d)", 
                 fasmg_grid_l2_norm(grid, R), N);
     }
 
@@ -521,11 +543,13 @@ static void mu_execute(void* context,
     // Cycle on the coarse solution mu times to produce a solution Y_coarse.
     real_t Y_coarse[N_coarse];
     memcpy(Y_coarse, X_coarse, sizeof(real_t) * N_coarse);
+    log_indent(LOG_DEBUG);
     for (int i = 0; i < mu_cycle->mu; ++i)
     {
       mu_execute(context, A, grid->coarser, prolongator, restrictor,
                  B_coarse, Y_coarse);
     }
+    log_unindent(LOG_DEBUG);
 
     // Compute the coarse error approximation E_coarse = Y_coarse - X_coarse.
     real_t E_coarse[N_coarse];
@@ -542,9 +566,12 @@ static void mu_execute(void* context,
   }
 
   // Relax X nu_2 times.
-  log_debug("  mu_cycle_execute: relaxing %d times.", mu_cycle->nu_2);
-  for (int i = 0; i < mu_cycle->nu_2; ++i)
-    fasmg_operator_relax(A, grid, B, X);
+  if ((grid->coarser != NULL) || !fasmg_operator_has_direct_solve(A))
+  {
+    log_debug("mu_cycle_execute: relaxing %d times.", mu_cycle->nu_2);
+    for (int i = 0; i < mu_cycle->nu_2; ++i)
+      fasmg_operator_relax(A, grid, B, X);
+  }
 }
 
 fasmg_cycle_t* mu_fasmg_cycle_new(int mu, int nu_1, int nu_2)
