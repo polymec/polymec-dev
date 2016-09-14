@@ -69,6 +69,7 @@ void log_set_indentation_prefix(log_level_t log_type, const char* prefix);
 void log_indent(log_level_t log_type);
 
 // Decrements the indentation level for the given message type by one.
+// Has no effect if the logger is completely unindented.
 void log_unindent(log_level_t log_type);
 
 // Issues a debug message.

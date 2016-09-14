@@ -104,8 +104,10 @@ static void nl1d_op_relax(void* context, void* grid, real_t* B, real_t* X)
 
 static void nl1d_op_solve_directly(void* context, void* grid, real_t* B, real_t* X)
 {
+#ifndef NDEBUG
   int N = *((int*)grid);
   ASSERT(N == 3);
+#endif
   X[1] = B[1]/8.0;
 }
 
@@ -123,9 +125,11 @@ static fasmg_operator_t* nl1d_op_new(real_t gamma, bool direct_solve)
 
 static void nl1d_project(void* context, void* fine_grid, real_t* fine_X, void* coarse_grid, real_t* coarse_X)
 {
-  int N_fine = *((int*)fine_grid);
   int N_coarse = *((int*)coarse_grid);
+#ifndef NDEBUG
+  int N_fine = *((int*)fine_grid);
   ASSERT(2*(N_coarse-1) == N_fine-1);
+#endif
 
   for (int i = 0; i < N_coarse; ++i)
     coarse_X[i] = fine_X[2*i];
@@ -139,9 +143,11 @@ static fasmg_restrictor_t* nl1d_restrictor_new()
 
 static void nl1d_interpolate(void* context, void* coarse_grid, real_t* coarse_X, void* fine_grid, real_t* fine_X)
 {
-  int N_fine = *((int*)fine_grid);
   int N_coarse = *((int*)coarse_grid);
+#ifndef NDEBUG
+  int N_fine = *((int*)fine_grid);
   ASSERT(2*(N_coarse-1) == N_fine-1);
+#endif
 
   for (int i = 0; i < N_coarse-1; ++i)
   {
@@ -531,8 +537,10 @@ static void nl2d_op_relax(void* context, void* grid, real_t* B, real_t* X)
 static void nl2d_op_solve_directly(void* context, void* grid, real_t* B, real_t* X)
 {
   real_t gamma = *((real_t*)context);
+#ifndef NDEBUG
   int N = *((int*)grid);
   ASSERT(N == 3);
+#endif
 
   // Just take a single Newton step, solving for X[4], which is the interior value 
   // on our 3x3 grid.

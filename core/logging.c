@@ -255,7 +255,7 @@ void log_indent(log_level_t log_type)
 void log_unindent(log_level_t log_type)
 {
   logger_t* logger = get_logger(log_type);
-  if (logger != NULL)
+  if ((logger != NULL) && (logger->indent_level > 0))
     logger->indent_level--;
 }
 

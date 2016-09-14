@@ -507,10 +507,10 @@ static newton_pc_t* cpr_bj_newton_pc_from_function(MPI_Comm comm,
 
   // Create a copy of the sparsity graph so the differencer can eat it.
   adj_graph_t* my_sparsity = adj_graph_clone(sparsity);
-
   pc->diff = cpr_differencer_new(comm, context, F, dae_F, dtor,
                                  my_sparsity, num_local_rows,
                                  num_remote_rows);
+  adj_graph_free(my_sparsity);
   pc->P = P;
   newton_pc_vtable vtable = {.compute_p = cpr_newton_pc_compute_p,
                              .solve = cpr_newton_pc_solve,
