@@ -189,12 +189,27 @@ static real_t l2_norm_1d(void* data, real_t* V)
   return sqrt(h*sum);
 }
 
+static void initialize_1d_rhs(void** state,
+                              real_t gamma,
+                              int N,
+                              real_t* B)
+{
+  real_t h = 1.0 / (N-1);
+  for (int i = 0; i < N; ++i)
+  {
+    real_t xi = i*h;
+    B[i] = (xi*xi + 3.0*xi) * exp(xi) + gamma * (xi*xi*xi*xi - 2.0*xi*xi + xi) * exp(2.0*xi);
+  }
+}
+
 static void test_1d_cycle(void** state, 
                           real_t* X0, 
                           real_t gamma, 
                           int N, 
                           fasmg_cycle_t* cycle, 
-                          bool direct_solve)
+                          bool direct_solve,
+                          bool fmg,
+                          int nu_0)
 {
   ASSERT((N % 2) == 1); // N is in terms of nodes, not cells.
 
@@ -202,22 +217,23 @@ static void test_1d_cycle(void** state,
   fasmg_grid_vtable grid_vtable = {.l2_norm = l2_norm_1d, .dtor = polymec_free};
   fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)N, grid_vtable);
 
-  // Set up the RHS and an initial guess, compute the initial residual.
-  real_t X[N], B[N], R[N];
+  // Set up the RHS and an initial guess. 
+  real_t X[N], B[N];
   memcpy(X, X0, sizeof(real_t) * N);
-  real_t h = 1.0 / (N-1);
-  for (int i = 0; i < N; ++i)
-  {
-    real_t xi = i*h;
-    B[i] = (xi*xi + 3.0*xi) * exp(xi) + gamma * (xi*xi*xi*xi - 2.0*xi*xi + xi) * exp(2.0*xi);
-  }
+  initialize_1d_rhs(state, gamma, N, B);
+
+  // Compute the initial residual.
+  real_t R[N];
   fasmg_operator_t* A = fasmg_solver_operator(fas);
   fasmg_operator_compute_residual(A, grid, B, X, R);
   real_t res_norm = fasmg_grid_l2_norm(grid, R);
   log_info("test_1d_cycle: ||R0|| = %g", res_norm);
 
   // Do a cycle.
-  fasmg_solver_cycle(fas, grid, B, X);
+  if (!fmg)
+    fasmg_solver_cycle(fas, grid, B, X);
+  else
+    fasmg_solver_fmg(fas, nu_0, grid, B, X);
 
   // Now recompute the residual norm.
   fasmg_operator_compute_residual(A, grid, B, X, R);
@@ -244,7 +260,7 @@ static void test_1d_v_cycle_on_exact_soln(void** state)
     real_t xi = i*h;
     X0[i] = exp(xi)*(xi-xi*xi);
   }
-  test_1d_cycle(state, X0, gamma, N, cycle, false);
+  test_1d_cycle(state, X0, gamma, N, cycle, false, false, -1);
 }
 
 static void test_1d_v_cycle_wo_direct_solve(void** state)
@@ -258,7 +274,7 @@ static void test_1d_v_cycle_wo_direct_solve(void** state)
 
   real_t zero[N];
   memset(zero, 0, sizeof(real_t) * N);
-  test_1d_cycle(state, zero, gamma, N, cycle, false);
+  test_1d_cycle(state, zero, gamma, N, cycle, false, false, -1);
 }
 
 static void test_1d_v_cycle_w_direct_solve(void** state)
@@ -272,7 +288,7 @@ static void test_1d_v_cycle_w_direct_solve(void** state)
 
   real_t zero[N];
   memset(zero, 0, sizeof(real_t) * N);
-  test_1d_cycle(state, zero, gamma, N, cycle, true);
+  test_1d_cycle(state, zero, gamma, N, cycle, true, false, -1);
 }
 
 static void test_1d_w_cycle_on_exact_soln(void** state)
@@ -291,7 +307,7 @@ static void test_1d_w_cycle_on_exact_soln(void** state)
     real_t xi = i*h;
     X0[i] = exp(xi)*(xi-xi*xi);
   }
-  test_1d_cycle(state, X0, gamma, N, cycle, false);
+  test_1d_cycle(state, X0, gamma, N, cycle, false, false, -1);
 }
 
 static void test_1d_w_cycle_wo_direct_solve(void** state)
@@ -305,7 +321,7 @@ static void test_1d_w_cycle_wo_direct_solve(void** state)
 
   real_t zero[N];
   memset(zero, 0, sizeof(real_t) * N);
-  test_1d_cycle(state, zero, gamma, N, cycle, false);
+  test_1d_cycle(state, zero, gamma, N, cycle, false, false, -1);
 }
 
 static void test_1d_w_cycle_w_direct_solve(void** state)
@@ -319,7 +335,7 @@ static void test_1d_w_cycle_w_direct_solve(void** state)
 
   real_t zero[N];
   memset(zero, 0, sizeof(real_t) * N);
-  test_1d_cycle(state, zero, gamma, N, cycle, true);
+  test_1d_cycle(state, zero, gamma, N, cycle, true, false, -1);
 }
 
 static void test_1d_mu_cycle_on_exact_soln(void** state)
@@ -338,7 +354,7 @@ static void test_1d_mu_cycle_on_exact_soln(void** state)
     real_t xi = i*h;
     X0[i] = exp(xi)*(xi-xi*xi);
   }
-  test_1d_cycle(state, X0, gamma, N, cycle, false);
+  test_1d_cycle(state, X0, gamma, N, cycle, false, false, -1);
 }
 
 static void test_1d_mu_cycle_wo_direct_solve(void** state)
@@ -352,7 +368,7 @@ static void test_1d_mu_cycle_wo_direct_solve(void** state)
 
   real_t zero[N];
   memset(zero, 0, sizeof(real_t) * N);
-  test_1d_cycle(state, zero, gamma, N, cycle, false);
+  test_1d_cycle(state, zero, gamma, N, cycle, false, false, -1);
 }
 
 static void test_1d_mu_cycle_w_direct_solve(void** state)
@@ -366,7 +382,7 @@ static void test_1d_mu_cycle_w_direct_solve(void** state)
 
   real_t zero[N];
   memset(zero, 0, sizeof(real_t) * N);
-  test_1d_cycle(state, zero, gamma, N, cycle, true);
+  test_1d_cycle(state, zero, gamma, N, cycle, true, false, -1);
 }
 
 static void test_1d_fmg_cycle_wo_direct_solve(void** state)
@@ -376,11 +392,11 @@ static void test_1d_fmg_cycle_wo_direct_solve(void** state)
   int N = 513;
   int mu, nu0, nu1, nu2;
   read_cl_args(&gamma, &N, &mu, &nu0, &nu1, &nu2);
-  fasmg_cycle_t* cycle = fmg_fasmg_cycle_new(nu0, nu1, nu2);
+  fasmg_cycle_t* cycle = v_fasmg_cycle_new(nu1, nu2);
 
   real_t zero[N];
   memset(zero, 0, sizeof(real_t) * N);
-  test_1d_cycle(state, zero, gamma, N, cycle, false);
+  test_1d_cycle(state, zero, gamma, N, cycle, false, true, nu0);
 }
 
 static void test_1d_fmg_cycle_w_direct_solve(void** state)
@@ -390,11 +406,49 @@ static void test_1d_fmg_cycle_w_direct_solve(void** state)
   int N = 513;
   int mu, nu0, nu1, nu2;
   read_cl_args(&gamma, &N, &mu, &nu0, &nu1, &nu2);
-  fasmg_cycle_t* cycle = fmg_fasmg_cycle_new(nu0, nu1, nu2);
+  fasmg_cycle_t* cycle = v_fasmg_cycle_new(nu1, nu2);
 
   real_t zero[N];
   memset(zero, 0, sizeof(real_t) * N);
-  test_1d_cycle(state, zero, gamma, N, cycle, true);
+  test_1d_cycle(state, zero, gamma, N, cycle, true, true, nu0);
+}
+
+static void test_1d_solve(void** state, 
+                          real_t gamma, 
+                          int N, 
+                          real_t max_res_norm,
+                          int max_num_cycles)
+{
+  ASSERT((N % 2) == 1); // N is in terms of nodes, not cells.
+
+  fasmg_cycle_t* cycle = v_fasmg_cycle_new(3, 3);
+  fasmg_solver_t* fas = fasmg_1d_new(gamma, N, cycle, true);
+  fasmg_grid_vtable grid_vtable = {.l2_norm = l2_norm_1d, .dtor = polymec_free};
+  fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)N, grid_vtable);
+
+  // Set up a zero initial state and initialize the RHS.
+  real_t X[N], B[N];
+  memset(X, 0, sizeof(real_t) * N);
+  initialize_1d_rhs(state, gamma, N, B);
+
+  // Set convergence criteria.
+  fasmg_solver_set_max_residual_norm(fas, max_res_norm);
+  fasmg_solver_set_max_cycles(fas, max_num_cycles);
+
+  // Solve the thing.
+  real_t res_norm;
+  int num_cycles;
+  assert_true(fasmg_solver_solve(fas, grid, B, X, &res_norm, &num_cycles));
+
+  fasmg_grid_free(grid);
+  fasmg_solver_free(fas);
+}
+
+static void test_1d_solves(void** state)
+{
+  test_1d_solve(state, 0.0, 513, 1e-10, 8);
+  test_1d_solve(state, 1.0, 513, 1e-10, 10);
+  test_1d_solve(state, 10.0, 513, 1e-10, 10);
 }
 
 //------------------------------------------------------------------------
@@ -586,21 +640,12 @@ static real_t l2_norm_2d(void* data, real_t* V)
   return sqrt(h*h*L2);
 }
 
-static void test_2d_cycle(void** state, 
-                          real_t* X0, 
-                          real_t gamma, 
-                          int N, 
-                          fasmg_cycle_t* cycle, 
-                          bool direct_solve)
+static void initialize_2d_rhs(void** state,
+                              real_t gamma,
+                              int N,
+                              real_t* B)
 {
-  fasmg_solver_t* fas = fasmg_2d_new(gamma, N, cycle, direct_solve);
-  fasmg_grid_vtable grid_vtable = {.l2_norm = l2_norm_2d, .dtor = polymec_free};
-  fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)(N*N), grid_vtable);
-
-  // Set up the RHS and an initial guess, compute the initial residual.
   real_t h = 1.0 / (N-1);
-  real_t X[N*N], B[N*N], R[N*N];
-  memcpy(X, X0, sizeof(real_t) * N * N);
   DECLARE_2D_ARRAY(real_t, Bij, B, N, N);
   for (int i = 0; i < N; ++i)
   {
@@ -613,13 +658,38 @@ static void test_2d_cycle(void** state,
       Bij[i][j] = 2.0 * (x_x2 + y_y2) + gamma * x_x2 * y_y2 * exp(x_x2 * y_y2);
     }
   }
+}
+
+static void test_2d_cycle(void** state, 
+                          real_t* X0, 
+                          real_t gamma, 
+                          int N, 
+                          fasmg_cycle_t* cycle, 
+                          bool direct_solve,
+                          bool fmg,
+                          int nu_0)
+{
+  fasmg_solver_t* fas = fasmg_2d_new(gamma, N, cycle, direct_solve);
+  fasmg_grid_vtable grid_vtable = {.l2_norm = l2_norm_2d, .dtor = polymec_free};
+  fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)(N*N), grid_vtable);
+
+  // Set up the RHS and an initial guess.
+  real_t X[N*N], B[N*N];
+  memcpy(X, X0, sizeof(real_t) * N * N);
+  initialize_2d_rhs(state, gamma, N, B);
+
+  // Compute the initial residual.
+  real_t R[N*N];
   fasmg_operator_t* A = fasmg_solver_operator(fas);
   fasmg_operator_compute_residual(A, grid, B, X, R);
   real_t res_norm = fasmg_grid_l2_norm(grid, R);
   log_info("test_2d_cycle: ||R0|| = %g", res_norm);
 
   // Do a cycle.
-  fasmg_solver_cycle(fas, grid, B, X);
+  if (!fmg)
+    fasmg_solver_cycle(fas, grid, B, X);
+  else
+    fasmg_solver_fmg(fas, nu_0, grid, B, X);
 
   // Now recompute the residual norm.
   fasmg_operator_compute_residual(A, grid, B, X, R);
@@ -651,7 +721,7 @@ static void test_2d_v_cycle_on_exact_soln(void** state)
       X0ij[i][j] = (xi - xi*xi) * (yj - yj*yj);
     }
   }
-  test_2d_cycle(state, X0, gamma, N, cycle, false);
+  test_2d_cycle(state, X0, gamma, N, cycle, false, false, -1);
 }
 
 static void test_2d_v_cycle_wo_direct_solve(void** state)
@@ -665,7 +735,7 @@ static void test_2d_v_cycle_wo_direct_solve(void** state)
 
   real_t zero[N*N];
   memset(zero, 0, sizeof(real_t) * N * N);
-  test_2d_cycle(state, zero, gamma, N, cycle, false);
+  test_2d_cycle(state, zero, gamma, N, cycle, false, false, -1);
 }
 
 static void test_2d_v_cycle_w_direct_solve(void** state)
@@ -679,7 +749,7 @@ static void test_2d_v_cycle_w_direct_solve(void** state)
 
   real_t zero[N*N];
   memset(zero, 0, sizeof(real_t) * N * N);
-  test_2d_cycle(state, zero, gamma, N, cycle, true);
+  test_2d_cycle(state, zero, gamma, N, cycle, true, false, -1);
 }
 
 static void test_2d_w_cycle_on_exact_soln(void** state)
@@ -703,7 +773,7 @@ static void test_2d_w_cycle_on_exact_soln(void** state)
       X0ij[i][j] = (xi - xi*xi) * (yj - yj*yj);
     }
   }
-  test_2d_cycle(state, X0, gamma, N, cycle, false);
+  test_2d_cycle(state, X0, gamma, N, cycle, false, false, -1);
 }
 
 static void test_2d_w_cycle_wo_direct_solve(void** state)
@@ -717,7 +787,7 @@ static void test_2d_w_cycle_wo_direct_solve(void** state)
 
   real_t zero[N*N];
   memset(zero, 0, sizeof(real_t) * N * N);
-  test_2d_cycle(state, zero, gamma, N, cycle, false);
+  test_2d_cycle(state, zero, gamma, N, cycle, false, false, -1);
 }
 
 static void test_2d_w_cycle_w_direct_solve(void** state)
@@ -731,7 +801,7 @@ static void test_2d_w_cycle_w_direct_solve(void** state)
 
   real_t zero[N*N];
   memset(zero, 0, sizeof(real_t) * N * N);
-  test_2d_cycle(state, zero, gamma, N, cycle, true);
+  test_2d_cycle(state, zero, gamma, N, cycle, true, false, -1);
 }
 
 static void test_2d_mu_cycle_on_exact_soln(void** state)
@@ -755,7 +825,7 @@ static void test_2d_mu_cycle_on_exact_soln(void** state)
       X0ij[i][j] = (xi - xi*xi) * (yj - yj*yj);
     }
   }
-  test_2d_cycle(state, X0, gamma, N, cycle, false);
+  test_2d_cycle(state, X0, gamma, N, cycle, false, false, -1);
 }
 
 static void test_2d_mu_cycle_wo_direct_solve(void** state)
@@ -769,7 +839,7 @@ static void test_2d_mu_cycle_wo_direct_solve(void** state)
 
   real_t zero[N*N];
   memset(zero, 0, sizeof(real_t) * N * N);
-  test_2d_cycle(state, zero, gamma, N, cycle, false);
+  test_2d_cycle(state, zero, gamma, N, cycle, false, false, -1);
 }
 
 static void test_2d_mu_cycle_w_direct_solve(void** state)
@@ -783,7 +853,7 @@ static void test_2d_mu_cycle_w_direct_solve(void** state)
 
   real_t zero[N*N];
   memset(zero, 0, sizeof(real_t) * N * N);
-  test_2d_cycle(state, zero, gamma, N, cycle, true);
+  test_2d_cycle(state, zero, gamma, N, cycle, true, false, -1);
 }
 
 static void test_2d_fmg_cycle_wo_direct_solve(void** state)
@@ -793,11 +863,11 @@ static void test_2d_fmg_cycle_wo_direct_solve(void** state)
   int N = 129;
   int mu, nu0, nu1, nu2;
   read_cl_args(&gamma, &N, &mu, &nu0, &nu1, &nu2);
-  fasmg_cycle_t* cycle = fmg_fasmg_cycle_new(nu0, nu1, nu2);
+  fasmg_cycle_t* cycle = v_fasmg_cycle_new(nu1, nu2);
 
   real_t zero[N*N];
   memset(zero, 0, sizeof(real_t) * N * N);
-  test_2d_cycle(state, zero, gamma, N, cycle, false);
+  test_2d_cycle(state, zero, gamma, N, cycle, false, true, nu0);
 }
 
 static void test_2d_fmg_cycle_w_direct_solve(void** state)
@@ -807,11 +877,49 @@ static void test_2d_fmg_cycle_w_direct_solve(void** state)
   int N = 129;
   int mu, nu0, nu1, nu2;
   read_cl_args(&gamma, &N, &mu, &nu0, &nu1, &nu2);
-  fasmg_cycle_t* cycle = fmg_fasmg_cycle_new(nu0, nu1, nu2);
+  fasmg_cycle_t* cycle = v_fasmg_cycle_new(nu1, nu2);
 
   real_t zero[N*N];
   memset(zero, 0, sizeof(real_t) * N * N);
-  test_2d_cycle(state, zero, gamma, N, cycle, true);
+  test_2d_cycle(state, zero, gamma, N, cycle, true, true, nu0);
+}
+
+static void test_2d_solve(void** state, 
+                          real_t gamma, 
+                          int N, 
+                          real_t max_res_norm,
+                          int max_num_cycles)
+{
+  ASSERT((N % 2) == 1); // N is in terms of nodes, not cells.
+
+  fasmg_cycle_t* cycle = v_fasmg_cycle_new(3, 3);
+  fasmg_solver_t* fas = fasmg_2d_new(gamma, N, cycle, true);
+  fasmg_grid_vtable grid_vtable = {.l2_norm = l2_norm_2d, .dtor = polymec_free};
+  fasmg_grid_t* grid = fasmg_solver_grid(fas, &N, (size_t)(N*N), grid_vtable);
+
+  // Set up a zero initial state and initialize the RHS.
+  real_t X[N*N], B[N*N];
+  memset(X, 0, sizeof(real_t) * N * N);
+  initialize_2d_rhs(state, gamma, N, B);
+
+  // Set convergence criteria.
+  fasmg_solver_set_max_residual_norm(fas, max_res_norm);
+  fasmg_solver_set_max_cycles(fas, max_num_cycles);
+
+  // Solve the thing.
+  real_t res_norm;
+  int num_cycles;
+  assert_true(fasmg_solver_solve(fas, grid, B, X, &res_norm, &num_cycles));
+
+  fasmg_grid_free(grid);
+  fasmg_solver_free(fas);
+}
+
+static void test_2d_solves(void** state)
+{
+  test_2d_solve(state, 0.0, 129, 1e-10, 8);
+  test_2d_solve(state, 1.0, 129, 1e-10, 10);
+  test_2d_solve(state, 10.0, 129, 1e-10, 10);
 }
 
 int main(int argc, char* argv[]) 
@@ -831,6 +939,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_1d_mu_cycle_w_direct_solve),
     cmocka_unit_test(test_1d_fmg_cycle_wo_direct_solve),
     cmocka_unit_test(test_1d_fmg_cycle_w_direct_solve),
+    cmocka_unit_test(test_1d_solves),
     cmocka_unit_test(test_2d_ctor),
     cmocka_unit_test(test_2d_v_cycle_on_exact_soln),
     cmocka_unit_test(test_2d_v_cycle_wo_direct_solve),
@@ -842,7 +951,8 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_2d_mu_cycle_wo_direct_solve),
     cmocka_unit_test(test_2d_mu_cycle_w_direct_solve),
     cmocka_unit_test(test_2d_fmg_cycle_wo_direct_solve),
-    cmocka_unit_test(test_2d_fmg_cycle_w_direct_solve)
+    cmocka_unit_test(test_2d_fmg_cycle_w_direct_solve),
+    cmocka_unit_test(test_2d_solves)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -147,23 +147,35 @@ bool fasmg_solver_solve(fasmg_solver_t* solver,
                         int* num_cycles)
 {
   int n_cycles = 0;
-  while (n_cycles < solver->max_cycles)
+
+  // Compute the initial residual norm.
+  size_t N = grid->num_dof;
+  real_t R[N];
+  fasmg_operator_compute_residual(solver->A, grid, B, X, R);
+  *residual_norm = fasmg_grid_l2_norm(grid, R);
+
+  while ((n_cycles < solver->max_cycles) && (*residual_norm > solver->max_res_norm))
   {
-    // Do a cycle.
-    fasmg_solver_cycle(solver, grid, B, X);
+    real_t prev_res_norm = *residual_norm;
+
+    // Do a cycle (FMG first, then "regular" cycles).
+    if (n_cycles == 0)
+      fasmg_solver_fmg(solver, 1, grid, B, X);
+    else
+      fasmg_solver_cycle(solver, grid, B, X);
     ++n_cycles;
 
-    // Compute the residual norm and compare it to our tolerance.
-    size_t N = grid->num_dof;
-    real_t R[N];
+    // Compute the residual norm.
     fasmg_operator_compute_residual(solver->A, grid, B, X, R);
     *residual_norm = fasmg_grid_l2_norm(grid, R);
-    log_detail("fasmg_solver_solve: cycle %d, residual norm = %g", n_cycles, *residual_norm);
-    if (*residual_norm <= solver->max_res_norm)
-      break;
+    real_t conv_ratio = *residual_norm / prev_res_norm;
+
+    log_detail("fasmg_solver_solve: cycle %d, residual norm = %g, conv. ratio = %g", 
+               n_cycles, *residual_norm, conv_ratio);
   }
   *num_cycles = n_cycles;
-  return (n_cycles <= solver->max_cycles);
+  return ((n_cycles <= solver->max_cycles) && 
+          (*residual_norm < solver->max_res_norm));
 }
 
 void fasmg_solver_cycle(fasmg_solver_t* solver,
@@ -177,6 +189,58 @@ void fasmg_solver_cycle(fasmg_solver_t* solver,
   // Cycle.
   fasmg_cycle_execute(solver->cycle, solver->A, grid, 
                       solver->prolongator, solver->restrictor, B, X);
+}
+
+static void execute_fmg(fasmg_operator_t* A, 
+                        fasmg_grid_t* grid, 
+                        fasmg_prolongator_t* prolongator,
+                        fasmg_restrictor_t* restrictor,
+                        int nu_0,
+                        fasmg_cycle_t* cycle, 
+                        real_t* B,
+                        real_t* X)
+{
+  size_t N = grid->num_dof;
+
+  // This follows the recipe in p. 43 of the 2nd edition of A Multigrid 
+  // Tutorial by Briggs, Henson, and McCormick (SIAM 1999).
+  if (grid->coarser == NULL)
+    memset(X, 0, sizeof(real_t) * N);
+  else
+  {
+    // Restrict B to our coarser grid.
+    size_t N_coarse = grid->coarser->num_dof;
+    real_t B_coarse[N_coarse];
+    fasmg_restrictor_project(restrictor, grid, B, B_coarse);
+
+    // Cycle on the coarse solution.
+    real_t X_coarse[N_coarse];
+    log_indent(LOG_DEBUG);
+    execute_fmg(A, grid->coarser, prolongator, restrictor, nu_0, cycle,
+                B_coarse, X_coarse);
+    log_unindent(LOG_DEBUG);
+
+    // Now prolongate our coarse solution to the present one.
+    fasmg_prolongator_interpolate(prolongator, grid->coarser, X_coarse, X);
+  }
+
+  // V cycle nu_0 times.
+  for (int i = 0; i < nu_0; ++i)
+    fasmg_cycle_execute(cycle, A, grid, prolongator, restrictor, B, X);
+}
+
+void fasmg_solver_fmg(fasmg_solver_t* solver,
+                      int nu_0,
+                      fasmg_grid_t* grid,
+                      real_t* B,
+                      real_t* X)
+{
+  // Create a coarse hierarchy of grids for this one if needed.
+  fasmg_coarsener_coarsen(solver->coarsener, grid);
+
+  // Do the full multigrid step.
+  execute_fmg(solver->A, grid, solver->prolongator, solver->restrictor, 
+              nu_0, solver->cycle, B, X);
 }
 
 fasmg_operator_t* fasmg_solver_operator(fasmg_solver_t* solver)
@@ -596,63 +660,5 @@ fasmg_cycle_t* mu_fasmg_cycle_new(int mu, int nu_1, int nu_2)
              mu, nu_1, nu_2);
   }
   return fasmg_cycle_new(name, mu_cycle, vtable);
-}
-
-typedef struct
-{
-  int nu_0;
-  fasmg_cycle_t* V_cycle;
-} fmg_cycle_t;
-
-static void fmg_execute(void* context, 
-                        fasmg_operator_t* A, 
-                        fasmg_grid_t* grid, 
-                        fasmg_prolongator_t* prolongator,
-                        fasmg_restrictor_t* restrictor,
-                        real_t* B,
-                        real_t* X)
-{
-  fmg_cycle_t* fmg = context;
-
-  size_t N = grid->num_dof;
-
-  // This follows the recipe in p. 43 of the 2nd edition of A Multigrid 
-  // Tutorial by Briggs, Henson, and McCormick (SIAM 1999).
-  if (grid->coarser == NULL)
-    memset(X, 0, sizeof(real_t) * N);
-  else
-  {
-    // Restrict B to our coarser grid.
-    size_t N_coarse = grid->coarser->num_dof;
-    real_t B_coarse[N_coarse];
-    fasmg_restrictor_project(restrictor, grid, B, B_coarse);
-
-    // Cycle on the coarse solution.
-    real_t X_coarse[N_coarse];
-    log_indent(LOG_DEBUG);
-    fmg_execute(context, A, grid->coarser, prolongator, restrictor,
-                B_coarse, X_coarse);
-    log_unindent(LOG_DEBUG);
-
-    // Now prolongate our coarse solution to the present one.
-    fasmg_prolongator_interpolate(prolongator, grid->coarser, X_coarse, X);
-  }
-
-  // V cycle nu_0 times.
-  for (int i = 0; i < fmg->nu_0; ++i)
-    fasmg_cycle_execute(fmg->V_cycle, A, grid, prolongator, restrictor, B, X);
-}
-
-fasmg_cycle_t* fmg_fasmg_cycle_new(int nu_0, int nu_1, int nu_2)
-{
-  ASSERT(nu_0 >= 1);
-  fmg_cycle_t* fmg = polymec_malloc(sizeof(fmg_cycle_t));
-  fmg->nu_0 = nu_0;
-  fmg->V_cycle = v_fasmg_cycle_new(nu_1, nu_2);
-  fasmg_cycle_vtable vtable = {.execute = fmg_execute, .dtor = polymec_free};
-  char name[1025];
-  snprintf(name, 1024, "FMG cycle (nu_0 = %d, nu_1 = %d, nu_2 = %d)", 
-           nu_0, nu_1, nu_2);
-  return fasmg_cycle_new(name, fmg, vtable);
 }
 

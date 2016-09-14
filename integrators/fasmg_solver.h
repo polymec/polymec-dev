@@ -25,7 +25,7 @@
 // 4. A prolongation scheme (fasmg_prolongator) that interpolates a vector 
 //    from a coarser discretization to a finer one.
 // 5. A cycle scheme (fasmg_cycle) that implements and performs a multigrid 
-//    cycle (such as a V cycle, a W cycle, or a full multigrid (FMG) cycle).
+//    cycle (such as a V cycle or a W cycle).
 //
 // The fasmg_solver itself manages these algorithms, using them to solve 
 // A(X) = B for a given X on a given discretization. Note that the discretization 
@@ -101,9 +101,11 @@ fasmg_grid_t* fasmg_solver_grid(fasmg_solver_t* solver,
                                 fasmg_grid_vtable vtable);
 
 // Solves the system A(X) = B on the given discretization for the given 
-// vectors B and X. Returns true if the solution converged, false if not. The 
-// residual L2 norm and the number of cycles are stored in their respective 
-// variables.
+// vectors B and X. A full multigrid (FMG) cycle is executed, followed by 
+// several regular FAS cycles. This function returns true if the solution 
+// converged in the alloted number of cycles, false if not. The residual 
+// L2 norm and the number of cycles (equal to 1 for the FMG cycle plus 
+// the others) are stored in their respective variables.
 bool fasmg_solver_solve(fasmg_solver_t* solver,
                         fasmg_grid_t* grid,
                         real_t* B,
@@ -116,6 +118,15 @@ void fasmg_solver_cycle(fasmg_solver_t* solver,
                         fasmg_grid_t* grid,
                         real_t* B,
                         real_t* X);
+
+// Performs a single full multigrid (FMG) cycle for A(X) = B on the given 
+// discretization, performing nu_0 cycles after initializing the solution 
+// on ever-finer grids.
+void fasmg_solver_fmg(fasmg_solver_t* solver,
+                      int nu_0,
+                      fasmg_grid_t* grid,
+                      real_t* B,
+                      real_t* X);
 
 // Returns an internal pointer to the operator for this solver.
 fasmg_operator_t* fasmg_solver_operator(fasmg_solver_t* solver);
@@ -350,6 +361,12 @@ typedef struct
                   fasmg_restrictor_t* restrictor,
                   real_t* B,
                   real_t* X);
+
+  // Performs any work necessary to reset a cycle object before being used. This is 
+  // called before each call to fasmg_cycle_execute(), and exactly once at the beginning
+  // of fasmg_solver_solve().
+  void (*reset)(void* context);
+
   // Destructor.
   void (*dtor)(void* context);
 } fasmg_cycle_vtable;
@@ -368,6 +385,10 @@ char* fasmg_cycle_name(fasmg_cycle_t* cycle);
 
 // Returns the context object for this integrator.
 void* fasmg_cycle_context(fasmg_cycle_t* cycle);
+
+// Performs any work needed to reset a cycle object before it is used.
+// Called by fasmg_cycle_execute() and at the beginning of fasmg_solver_solve().
+void fasmg_cycle_reset(fasmg_cycle_t* cycle);
 
 // Performs a cycle on the given discretization for the given vectors using 
 // the given operator/grid/prolongator/restrictor.
@@ -392,11 +413,6 @@ fasmg_cycle_t* w_fasmg_cycle_new(int nu_1, int nu_2);
 // nu_2 relaxation steps after. In particular, mu = 1 is the V cycle and mu = 2 
 // is the W cycle.
 fasmg_cycle_t* mu_fasmg_cycle_new(int mu, int nu_1, int nu_2);
-
-// Creates a new cycle object representing a full multi-grid (FMG) cycle that 
-// executes nu_0 V cycles, each with nu_1 and nu_2 pre/post-correction 
-// relaxation steps.
-fasmg_cycle_t* fmg_fasmg_cycle_new(int nu_0, int nu_1, int nu_2);
 
 #endif
 
