@@ -452,9 +452,18 @@ static void test_1d_solve(void** state,
 
 static void test_1d_solves(void** state)
 {
-  test_1d_solve(state, 0.0, 513, 1e-10, 8);
-  test_1d_solve(state, 1.0, 513, 1e-10, 10);
-  test_1d_solve(state, 10.0, 513, 1e-10, 10);
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  real_t tol1 = 1e-10;
+  real_t tol2 = 1e-10;
+  real_t tol3 = 1e-10;
+#else
+  real_t tol1 = 5e-3;
+  real_t tol2 = 6e-3;
+  real_t tol3 = 7e-3;
+#endif
+  test_1d_solve(state, 0.0, 513, tol1, 8);
+  test_1d_solve(state, 1.0, 513, tol2, 10);
+  test_1d_solve(state, 10.0, 513, tol3, 10);
 }
 
 //------------------------------------------------------------------------
@@ -925,9 +934,14 @@ static void test_2d_solve(void** state,
 
 static void test_2d_solves(void** state)
 {
-  test_2d_solve(state, 0.0, 129, 1e-10, 8);
-  test_2d_solve(state, 1.0, 129, 1e-10, 10);
-  test_2d_solve(state, 10.0, 129, 1e-10, 10);
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  real_t tol = 1e-10;
+#else
+  real_t tol = 5e-5;
+#endif
+  test_2d_solve(state, 0.0, 129, tol, 8);
+  test_2d_solve(state, 1.0, 129, tol, 10);
+  test_2d_solve(state, 10.0, 129, tol, 10);
 }
 
 int main(int argc, char* argv[]) 
