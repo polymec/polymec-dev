@@ -102,7 +102,7 @@ bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_
 // Resets the internal state of the integrator to use the given solution data 
 // x at the given time t. It is necessary to call this function when the 
 // solution data has been altered since the last step.
-void ode_integrator_reset(ode_integrator_t* integ, real_t t, real_t* x);
+void ode_integrator_reset(ode_integrator_t* integ, real_t t, real_t* X);
 
 // Returns the current time at which the integrator sits.
 real_t ode_integrator_current_time(ode_integrator_t* integ);

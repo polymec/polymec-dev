@@ -19,6 +19,14 @@
 // These integrators are implemented using CVODE from the Sundials suite 
 // of nonlinear solvers.
 
+// Variants of the Jacobian-Free Newton-Krylov BDF integrators described below.
+typedef enum 
+{
+  JFNK_BDF_GMRES,    // Generalized minimum residual Krylov solver
+  JFNK_BDF_BICGSTAB, // Stabilized Biconjugate Gradient Krylov solver
+  JFNK_BDF_TFQMR     // Transpose-Free QMR Krylov solver
+} jfnk_bdf_krylov_t;
+
 // This function creates a BDF integrator that uses a Jacobian-Free
 // Newton-Krylov method to solve the underlying linearized equations. This 
 // method requires a preconditioner that is a coarse approximation of the 
@@ -35,13 +43,6 @@
 // Additionally, the type of Krylov solver (JFNK_BDF_GMRES, JFNK_BDF_BICGSTAB, 
 // or JFNK_BDF_TFQMR) must be given, along with the maximum dimension of the 
 // Krylov subspace. 
-typedef enum 
-{
-  JFNK_BDF_GMRES,    // Generalized minimum residual Krylov solver
-  JFNK_BDF_BICGSTAB, // Stabilized Biconjugate Gradient Krylov solver
-  JFNK_BDF_TFQMR     // Transpose-Free QMR Krylov solver
-} jfnk_bdf_krylov_t;
-
 ode_integrator_t* jfnk_bdf_ode_integrator_new(int order, 
                                               MPI_Comm comm,
                                               int num_local_values, 
@@ -73,9 +74,80 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
                                              krylov_matrix_t* matrix,
                                              krylov_vector_t* vector);
 
+// Convergence failure status codes, used by the BDF integrator machinery below to determine whether 
+// the Newton operator needs to be recomputed.
+typedef enum
+{
+  BDF_CONV_NO_FAILURES, // local error test failed at previous Newton step, but iteration converged
+  BDF_CONV_BAD_J, // previous Newton corrector iteration did not converge OR linear solve failed in 
+                  // a recoverable manner (Jacobian needs updating either way)
+  BDF_CONV_OTHER_FAILURE, // Newton iteration failed to converge with current Jacobian data
+} bdf_conv_status_t;
+
+// This function creates a BDF integrator that uses the given methods to define how
+// it solves the linear systems that underlie the BDF method. These methods are:
+// * rhs_func -- Used to compute the right-hand side of the ODE.
+// * reset_func -- Used to reset the state of the integrator to integrate X at time t, as 
+//                 invoked by ode_integrator_reset(integ, t, X).
+// * set_up_func -- Used to calculate and store a representation of the linear operator 
+//                  I - gamma * J, where I is the identity operator, J is the Jacobian, and 
+//                  gamma is a positive scale factor related to the time step. This operator
+//                  is computed whenever the integrator deems it necessary to reflect the 
+//                  the state of the system (according to inexact-Newton-like methods).
+//                  Arguments are:
+//                  - context: A pointer to the context object that stores the state of the integrator.
+//                  - conv_status: A status code produced by the Newton solver for its solution
+//                                 at the given time step. See above.
+//                  - gamma: the scaling factor in I - gamma * J.
+//                  - t: The current time.
+//                  - X_pred: The predicted solution vector for the current step.
+//                  - rhs_pred: The value of the right hand side at time t and X = X_pred.
+//                  - J_current: A pointer to a boolean variable, to be set to true if the Jacobian 
+//                               information has been updated and false if not.
+//                  - work1, work2, work3: work vectors of the same size as the solution vector, provided 
+//                                         for use by this method.
+//                Should return 0 on success, a positive value for a recoverable error, and a negative value 
+//                for an unrecoverable error.
+// * solve_func -- Used to solve the linear system (I - gamma * J) * X = B. Arguments are:
+//                 - context: A pointer to the context object that stores the state of the integrator.
+//                 - B: The right hand side vector for the linear system, which will be replaced by the 
+//                      solution X.
+//                 - W: A vector containing error weights, which can be used to enable to computation of 
+//                      weighted norms used to test for convergence of any iterative methods within 
+//                      the solver.
+//                 - t: The current time.
+//                 - X: The current solution at time t.
+//                 - rhs: The current right hand side vector for the ODE at time t.
+//                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
+//                 for an unrecoverable error.
+// * dtor -- Used to destroy the context pointer.
+ode_integrator_t* bdf_ode_integrator_new(const char* name,
+                                         int order, 
+                                         MPI_Comm comm,
+                                         int num_local_values, 
+                                         int num_remote_values, 
+                                         void* context, 
+                                         int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
+                                         int (*reset_func)(void* context, real_t t, real_t* X),
+                                         int (*setup_func)(void* context, 
+                                                           bdf_conv_status_t conv_status, 
+                                                           real_t gamma, 
+                                                           real_t t, 
+                                                           real_t* X_pred, 
+                                                           real_t* rhs_pred, 
+                                                           bool* J_current, 
+                                                           real_t* work1, real_t* work2, real_t* work3),
+                                         int (*solve_func)(void* context, 
+                                                           real_t* B, 
+                                                           real_t* W, 
+                                                           real_t t, 
+                                                           real_t* X,
+                                                           real_t* rhs),
+                                         void (*dtor)(void* context));
+
 // This returns the context pointer passed to the bdf_ode_integrator 
-// constructor. In general, this will NOT return the same pointer as 
-// ode_integrator_context!
+// constructor that created this integrator. In general, this will NOT 
+// return the same pointer as ode_integrator_context!
 void* bdf_ode_integrator_context(ode_integrator_t* integrator);
 
 // Sets the relative and absolute tolerances for integrated quantities.

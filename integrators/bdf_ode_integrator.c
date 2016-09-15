@@ -46,16 +46,6 @@ typedef struct
   newton_pc_t* precond;
   int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy);
 
-  // INK stuff.
-  int (*k_rhs_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* rhs);
-  int (*k_J_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* rhs, krylov_matrix_t* J);
-  krylov_solver_t* k_solver;
-  krylov_pc_t* k_precond;
-  krylov_matrix_t* k_J;
-  krylov_matrix_t* k_old_J;
-  krylov_vector_t* k_x;
-  krylov_vector_t* k_b;
-
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
   real_t* error_weights;
@@ -245,20 +235,6 @@ static void bdf_dtor(void* context)
   N_VDestroy(integ->x);
   CVodeFree(&integ->cvode);
 
-  // Kill the Inexact Newton-Krylov stuff.
-  if (integ->k_solver != NULL)
-    krylov_solver_free(integ->k_solver);
-  if (integ->k_precond != NULL)
-    krylov_pc_free(integ->k_precond);
-  if (integ->k_J != NULL)
-    krylov_matrix_free(integ->k_J);
-  if (integ->k_old_J != NULL)
-    krylov_matrix_free(integ->k_old_J);
-  if (integ->k_x != NULL)
-    krylov_vector_free(integ->k_x);
-  if (integ->k_b != NULL)
-    krylov_vector_free(integ->k_b);
-
   // Kill the rest.
   if (integ->status_message != NULL)
     polymec_free(integ->status_message);
@@ -373,14 +349,7 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
 
-  integ->k_rhs_func = NULL;
-  integ->k_J_func = NULL;
-  integ->k_solver = NULL;
-  integ->k_precond = NULL;
-  integ->k_J = integ->k_old_J = NULL;
-  integ->k_x = integ->k_b = NULL;
-
-  // Set up KINSol and accessories.
+  // Set up CVode and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
   integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
@@ -646,6 +615,81 @@ int bdf_ode_integrator_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 }
 
 //------------------------------------------------------------------------
+//                    Custom BDF integrator stuff
+//------------------------------------------------------------------------
+ode_integrator_t* bdf_ode_integrator_new(const char* name,
+                                         int order, 
+                                         MPI_Comm comm,
+                                         int num_local_values, 
+                                         int num_remote_values, 
+                                         void* context, 
+                                         int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
+                                         int (*reset_func)(void* context, real_t t, real_t* X),
+                                         int (*setup_func)(void* context, 
+                                                           bdf_conv_status_t conv_status, 
+                                                           real_t gamma, 
+                                                           real_t t, 
+                                                           real_t* X_pred, 
+                                                           real_t* rhs_pred, 
+                                                           bool* J_current, 
+                                                           real_t* work1, real_t* work2, real_t* work3),
+                                         int (*solve_func)(void* context, 
+                                                           real_t* B, 
+                                                           real_t* W, 
+                                                           real_t t, 
+                                                           real_t* X,
+                                                           real_t* rhs),
+                                         void (*dtor)(void* context))
+{
+  ASSERT(order >= 1);
+  ASSERT(order <= 5);
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
+  ASSERT(reset != NULL);
+  ASSERT(set_up != NULL);
+  ASSERT(solve != NULL);
+
+  bdf_ode_t* integ = polymec_malloc(sizeof(bdf_ode_t));
+  integ->comm = comm;
+  integ->num_local_values = num_local_values;
+  integ->num_remote_values = num_remote_values;
+  integ->context = context;
+  integ->rhs = rhs_func;
+  integ->dtor = dtor;
+  integ->status_message = NULL;
+  integ->max_krylov_dim = -1;
+  integ->Jy = NULL;
+  integ->t = 0.0;
+  integ->observers = ptr_array_new();
+  integ->error_weights = NULL;
+
+  // Set up CVode and accessories.
+  integ->x = N_VNew(integ->comm, integ->num_local_values);
+  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
+  integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
+  CVodeSetMaxOrd(integ->cvode, order);
+  CVodeSetUserData(integ->cvode, integ);
+  CVodeInit(integ->cvode, bdf_evaluate_rhs, 0.0, integ->x);
+
+  // Set up the solver.
+  // FIXME
+
+  ode_integrator_vtable vtable = {.step = bdf_step, 
+                                  .advance = bdf_advance, 
+                                  .reset = bdf_reset, 
+                                  .dtor = bdf_dtor};
+  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order,
+                                           num_local_values + num_remote_values);
+
+  // Set default tolerances.
+  // relative error of 1e-4 means errors are controlled to 0.01%.
+  // absolute error is set to 1 because it's completely problem dependent.
+  bdf_ode_integrator_set_tolerances(I, 1e-4, 1.0);
+
+  return I;
+}
+
+//------------------------------------------------------------------------
 //                  Inexact Newton-Krylov integrator stuff
 //------------------------------------------------------------------------
 //static int ink_rhs(void* context, real_t t, real_t* x, real_t* xdot)
@@ -703,7 +747,7 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
   integ->max_krylov_dim = 1;
   integ->Jy = NULL;
 
-  // Set up KINSol and accessories.
+  // Set up CVode and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
   integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);

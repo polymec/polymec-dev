@@ -103,13 +103,13 @@ void ode_integrator_set_stop_time(ode_integrator_t* integ, real_t stop_time)
   integ->stop_time = stop_time;
 }
 
-bool ode_integrator_step(ode_integrator_t* integ, real_t max_dt, real_t* t, real_t* x)
+bool ode_integrator_step(ode_integrator_t* integ, real_t max_dt, real_t* t, real_t* X)
 {
   // Copy in data if necessary.
   if (integ->vtable.copy_in != NULL)
-    integ->vtable.copy_in(integ->context, x, integ->x);
+    integ->vtable.copy_in(integ->context, X, integ->x);
   else
-    integ->x = x;
+    integ->x = X;
 
   if (!integ->initialized)
     ode_integrator_reset(integ, *t, integ->x);
@@ -124,7 +124,7 @@ bool ode_integrator_step(ode_integrator_t* integ, real_t max_dt, real_t* t, real
   if (integ->vtable.copy_out != NULL)
   {
     if (result)
-      integ->vtable.copy_out(integ->context, integ->x, x);
+      integ->vtable.copy_out(integ->context, integ->x, X);
   }
   else
     integ->x = NULL;
@@ -132,16 +132,16 @@ bool ode_integrator_step(ode_integrator_t* integ, real_t max_dt, real_t* t, real
   return result;
 }
 
-bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_t* x)
+bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_t* X)
 {
   // Figure out the actual end time.
   t2 = MIN(t2, integ->stop_time);
 
   // Copy in data if necessary.
   if (integ->vtable.copy_in != NULL)
-    integ->vtable.copy_in(integ->context, x, integ->x);
+    integ->vtable.copy_in(integ->context, X, integ->x);
   else
-    integ->x = x;
+    integ->x = X;
 
   // Advance.
   bool result = integ->vtable.advance(integ->context, t1, t2, integ->x);
@@ -153,7 +153,7 @@ bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_
   if (integ->vtable.copy_out != NULL)
   {
     if (result)
-      integ->vtable.copy_out(integ->context, integ->x, x);
+      integ->vtable.copy_out(integ->context, integ->x, X);
   }
   else
     integ->x = NULL;
@@ -161,24 +161,24 @@ bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_
   return result;
 }
 
-void ode_integrator_reset(ode_integrator_t* integ, real_t t, real_t* x)
+void ode_integrator_reset(ode_integrator_t* integ, real_t t, real_t* X)
 {
   integ->current_time = t;
   if (integ->vtable.reset != NULL)
   {
     if (integ->vtable.copy_in != NULL)
     {
-      if (x == integ->x)
-        integ->vtable.reset(integ->context, t, x);
+      if (X == integ->x)
+        integ->vtable.reset(integ->context, t, X);
       else
       {
-        integ->vtable.copy_in(integ->context, x, integ->x);
+        integ->vtable.copy_in(integ->context, X, integ->x);
         integ->vtable.reset(integ->context, t, integ->x);
         integ->vtable.copy_out(integ->context, integ->x, x);
       }
     }
     else
-      integ->vtable.reset(integ->context, t, x);
+      integ->vtable.reset(integ->context, t, X);
   }
   integ->initialized = true;
 }
