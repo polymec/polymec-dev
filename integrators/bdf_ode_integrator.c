@@ -862,15 +862,26 @@ static int ink_solve(void* context,
 {
   ink_bdf_ode_t* ink = context;
 
-  // Copy data into our vectors.
-  // FIXME
+  // Copy data into ink->B.
+  index_t N = ink->end - ink->start;
+  index_t rows[N];
+  for (index_t i = 0; i < N; ++i)
+    rows[i] = ink->start + i;
+  krylov_vector_set_values(ink->B, N, rows, B);
 
   real_t res_norm;
   int num_iters;
   bool solved = krylov_solver_solve(ink->solver, ink->B, ink->X, &res_norm, &num_iters);
-  // FIXME: Determine how to incorporate tolerances, max iters.
+  // FIXME: Determine how to incorporate tolerances, max iters, if needed.
 
-  return (solved) ? 0 : 1;
+  if (solved)
+  {
+    // Copy data into X.
+    krylov_vector_get_values(ink->B, N, rows, X);
+    return 0;
+  }
+  else
+    return 1;
 }
 
 static void ink_dtor(void* context)
