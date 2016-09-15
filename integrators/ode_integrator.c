@@ -19,7 +19,7 @@ struct ode_integrator_t
 
   real_t max_dt, stop_time;
 
-  real_t* x;
+  real_t* X;
   int solution_vector_size;
 };
 
@@ -52,9 +52,9 @@ ode_integrator_t* ode_integrator_new(const char* name,
   // We store our own copy of the solution vector if we have procedures 
   // for copying in and copying out. Otherwise, we use the actual data itself.
   if (vtable.copy_in != NULL)
-    integ->x = polymec_malloc(sizeof(real_t) * integ->solution_vector_size);
+    integ->X = polymec_malloc(sizeof(real_t) * integ->solution_vector_size);
   else
-    integ->x = NULL;
+    integ->X = NULL;
 
   return integ;
 }
@@ -63,10 +63,10 @@ void ode_integrator_free(ode_integrator_t* integ)
 {
   if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
     integ->vtable.dtor(integ->context);
-  if (integ->x != NULL)
+  if (integ->X != NULL)
   {
     ASSERT(integ->vtable.copy_in != NULL);
-    polymec_free(integ->x);
+    polymec_free(integ->X);
   }
   polymec_free(integ->name);
   polymec_free(integ);
@@ -107,27 +107,27 @@ bool ode_integrator_step(ode_integrator_t* integ, real_t max_dt, real_t* t, real
 {
   // Copy in data if necessary.
   if (integ->vtable.copy_in != NULL)
-    integ->vtable.copy_in(integ->context, X, integ->x);
+    integ->vtable.copy_in(integ->context, X, integ->X);
   else
-    integ->x = X;
+    integ->X = X;
 
   if (!integ->initialized)
-    ode_integrator_reset(integ, *t, integ->x);
+    ode_integrator_reset(integ, *t, integ->X);
 
   // Figure out the actual maximum time.
   real_t dt = MIN(max_dt, MIN(integ->max_dt, integ->stop_time - *t));
 
   // Integrate.
-  bool result = integ->vtable.step(integ->context, dt, t, integ->x);
+  bool result = integ->vtable.step(integ->context, dt, t, integ->X);
 
   // Copy out data if necessary.
   if (integ->vtable.copy_out != NULL)
   {
     if (result)
-      integ->vtable.copy_out(integ->context, integ->x, X);
+      integ->vtable.copy_out(integ->context, integ->X, X);
   }
   else
-    integ->x = NULL;
+    integ->X = NULL;
 
   return result;
 }
@@ -139,12 +139,12 @@ bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_
 
   // Copy in data if necessary.
   if (integ->vtable.copy_in != NULL)
-    integ->vtable.copy_in(integ->context, X, integ->x);
+    integ->vtable.copy_in(integ->context, X, integ->X);
   else
-    integ->x = X;
+    integ->X = X;
 
   // Advance.
-  bool result = integ->vtable.advance(integ->context, t1, t2, integ->x);
+  bool result = integ->vtable.advance(integ->context, t1, t2, integ->X);
 
   // After a full integration, we must be reset.
   integ->initialized = false;
@@ -153,10 +153,10 @@ bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_
   if (integ->vtable.copy_out != NULL)
   {
     if (result)
-      integ->vtable.copy_out(integ->context, integ->x, X);
+      integ->vtable.copy_out(integ->context, integ->X, X);
   }
   else
-    integ->x = NULL;
+    integ->X = NULL;
 
   return result;
 }
@@ -168,13 +168,13 @@ void ode_integrator_reset(ode_integrator_t* integ, real_t t, real_t* X)
   {
     if (integ->vtable.copy_in != NULL)
     {
-      if (X == integ->x)
+      if (X == integ->X)
         integ->vtable.reset(integ->context, t, X);
       else
       {
-        integ->vtable.copy_in(integ->context, X, integ->x);
-        integ->vtable.reset(integ->context, t, integ->x);
-        integ->vtable.copy_out(integ->context, integ->x, x);
+        integ->vtable.copy_in(integ->context, X, integ->X);
+        integ->vtable.reset(integ->context, t, integ->X);
+        integ->vtable.copy_out(integ->context, integ->X, X);
       }
     }
     else

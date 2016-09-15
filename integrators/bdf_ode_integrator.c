@@ -18,6 +18,9 @@
 #include "cvode/cvode_spbcgs.h"
 #include "cvode/cvode_sptfqmr.h"
 
+// Stuff for generalized BDF integrators.
+#include "cvode/cvode_impl.h"
+
 struct bdf_ode_observer_t 
 {
   void* context;
@@ -45,6 +48,23 @@ typedef struct
   int max_krylov_dim;
   newton_pc_t* precond;
   int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy);
+
+  // Generalized adaptor stuff.
+  int (*reset_func)(void* context, real_t t, real_t* X);
+  int (*setup_func)(void* context, 
+                    bdf_conv_status_t conv_status, 
+                    real_t gamma, 
+                    real_t t, 
+                    real_t* X_pred, 
+                    real_t* rhs_pred, 
+                    bool* J_current, 
+                    real_t* work1, real_t* work2, real_t* work3);
+  int (*solve_func)(void* context, 
+                    real_t* W, 
+                    real_t t, 
+                    real_t* X,
+                    real_t* rhs,
+                    real_t* B);
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -349,6 +369,10 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
 
+  integ->reset_func = NULL;
+  integ->setup_func = NULL;
+  integ->solve_func = NULL;
+
   // Set up CVode and accessories.
   integ->x = N_VNew(integ->comm, integ->num_local_values);
   integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
@@ -617,6 +641,66 @@ int bdf_ode_integrator_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
 //------------------------------------------------------------------------
 //                    Custom BDF integrator stuff
 //------------------------------------------------------------------------
+
+static int bdf_linit(CVodeMem cv_mem)
+{
+  bdf_ode_t* bdf = cv_mem->cv_user_data;
+  real_t t = cv_mem->cv_tn;
+  real_t* X = NV_DATA(cv_mem->cv_y);
+  return bdf->reset_func(bdf->context, t, X);
+}
+
+static int bdf_lsetup(CVodeMem cv_mem, 
+                      int convfail,
+                      N_Vector ypred,
+                      N_Vector fpred,
+                      booleantype* jcurPtr,
+                      N_Vector vtemp1,
+                      N_Vector vtemp2,
+                      N_Vector vtemp3)
+{
+  bdf_ode_t* bdf = cv_mem->cv_user_data;
+  bdf_conv_status_t conv_status;
+  if (convfail == CV_NO_FAILURES)
+    conv_status = BDF_CONV_NO_FAILURES;
+  else if (convfail == CV_FAIL_BAD_J)
+    conv_status = BDF_CONV_BAD_J_FAILURE;
+  else
+    conv_status = BDF_CONV_OTHER_FAILURE;
+  real_t gamma = cv_mem->cv_gamma;
+  real_t t = cv_mem->cv_tn;
+  bool J_current = false;
+  real_t* X_pred = NV_DATA(ypred);
+  real_t* rhs_pred = NV_DATA(fpred);
+  real_t* work1 = NV_DATA(vtemp1);
+  real_t* work2 = NV_DATA(vtemp2);
+  real_t* work3 = NV_DATA(vtemp3);
+  int status = bdf->setup_func(bdf->context, conv_status, gamma, t, 
+                               X_pred, rhs_pred, &J_current, work1, 
+                               work2, work3);
+  *jcurPtr = J_current;
+  return status;
+}
+
+static int bdf_lsolve(CVodeMem cv_mem, 
+                      N_Vector b, 
+                      N_Vector weight,
+                      N_Vector ycur, 
+                      N_Vector fcur)
+{
+  bdf_ode_t* bdf = cv_mem->cv_user_data;
+  real_t t = cv_mem->cv_tn;
+  real_t* W = NV_DATA(weight);
+  real_t* X = NV_DATA(ycur);
+  real_t* rhs = NV_DATA(fcur);
+  real_t* B = NV_DATA(b);
+  return bdf->solve_func(bdf->context, W, t, X, rhs, B);
+}
+
+static void bdf_lfree(CVodeMem cv_mem)
+{
+}
+
 ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                          int order, 
                                          MPI_Comm comm,
@@ -634,20 +718,21 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                                            bool* J_current, 
                                                            real_t* work1, real_t* work2, real_t* work3),
                                          int (*solve_func)(void* context, 
-                                                           real_t* B, 
                                                            real_t* W, 
                                                            real_t t, 
                                                            real_t* X,
-                                                           real_t* rhs),
+                                                           real_t* rhs,
+                                                           real_t* B),
                                          void (*dtor)(void* context))
 {
   ASSERT(order >= 1);
   ASSERT(order <= 5);
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
-  ASSERT(reset != NULL);
-  ASSERT(set_up != NULL);
-  ASSERT(solve != NULL);
+  ASSERT(rhs_func != NULL);
+  ASSERT(reset_func != NULL);
+  ASSERT(setup_func != NULL);
+  ASSERT(solve_func != NULL);
 
   bdf_ode_t* integ = polymec_malloc(sizeof(bdf_ode_t));
   integ->comm = comm;
@@ -672,7 +757,16 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
   CVodeInit(integ->cvode, bdf_evaluate_rhs, 0.0, integ->x);
 
   // Set up the solver.
-  // FIXME
+  integ->reset_func = reset_func;
+  integ->setup_func = setup_func;
+  integ->solve_func = solve_func;
+  {
+    CVodeMem cv_mem = integ->cvode;
+    cv_mem->cv_linit = bdf_linit;
+    cv_mem->cv_lsetup = bdf_lsetup;
+    cv_mem->cv_lsolve = bdf_lsolve;
+    cv_mem->cv_lfree = bdf_lfree;
+  }
 
   ode_integrator_vtable vtable = {.step = bdf_step, 
                                   .advance = bdf_advance, 
@@ -692,77 +786,149 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
 //------------------------------------------------------------------------
 //                  Inexact Newton-Krylov integrator stuff
 //------------------------------------------------------------------------
-//static int ink_rhs(void* context, real_t t, real_t* x, real_t* xdot)
-//{
-//  return 0;
-//}
 
-noreturn 
+typedef struct
+{
+  MPI_Comm comm;
+
+  void* context;
+  int (*J_func)(void* context, real_t t, real_t* x, real_t* rhs, krylov_matrix_t* J);
+  void (*dtor)(void* context);
+
+  krylov_factory_t* factory;
+  krylov_solver_t* solver;
+  krylov_pc_t* pc;
+  krylov_matrix_t* J;
+  krylov_vector_t* X;
+  krylov_vector_t* B;
+
+  matrix_sparsity_t* sparsity;
+  int block_size;
+  index_t start, end;
+} ink_bdf_ode_t;
+
+static int ink_reset(void* context, real_t t, real_t* X)
+{
+  // Allocate resources.
+  ink_bdf_ode_t* ink = context;
+  if (ink->J != NULL)
+    krylov_matrix_free(ink->J);
+  if (ink->block_size > 1)
+    ink->J = krylov_factory_block_matrix(ink->factory, ink->sparsity, ink->block_size);
+  else
+    ink->J = krylov_factory_matrix(ink->factory, ink->sparsity);
+  if (ink->X != NULL)
+    krylov_vector_free(ink->X);
+  if (ink->B != NULL)
+    krylov_vector_free(ink->B);
+  index_t* row_dist = matrix_sparsity_row_distribution(ink->sparsity);
+  ink->X = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+
+  return 0;
+}
+
+static int ink_setup(void* context, 
+                     bdf_conv_status_t conv_status, 
+                     real_t gamma, 
+                     real_t t, 
+                     real_t* X_pred, 
+                     real_t* rhs_pred, 
+                     bool* J_updated, 
+                     real_t* work1, real_t* work2, real_t* work3)
+{
+  ink_bdf_ode_t* ink = context;
+
+  // Call our Jacobian calculation function.
+  int status = ink->J_func(ink->context, t, X_pred, rhs_pred, ink->J);
+  if (status != 0)
+    return status;
+
+  // Scale the Jacobian by -gamma and the identity matrix.
+  krylov_matrix_scale(ink->J, -gamma);
+  krylov_matrix_add_identity(ink->J, 1.0);
+
+  *J_updated = true;
+
+  return 0;
+}
+
+static int ink_solve(void* context, 
+                     real_t* W, 
+                     real_t t, 
+                     real_t* X,
+                     real_t* rhs,
+                     real_t* B) 
+{
+  ink_bdf_ode_t* ink = context;
+
+  // Copy data into our vectors.
+  // FIXME
+
+  real_t res_norm;
+  int num_iters;
+  bool solved = krylov_solver_solve(ink->solver, ink->B, ink->X, &res_norm, &num_iters);
+  // FIXME: Determine how to incorporate tolerances, max iters.
+
+  return (solved) ? 0 : 1;
+}
+
+static void ink_dtor(void* context)
+{
+  ink_bdf_ode_t* ink = context;
+  matrix_sparsity_free(ink->sparsity);
+  if (ink->X != NULL)
+    krylov_vector_free(ink->X);
+  if (ink->B != NULL)
+    krylov_vector_free(ink->B);
+  if (ink->J != NULL)
+    krylov_matrix_free(ink->J);
+  if (ink->pc != NULL)
+    krylov_pc_free(ink->pc);
+  krylov_solver_free(ink->solver);
+  krylov_factory_free(ink->factory);
+  if ((ink->context != NULL) && (ink->dtor != NULL))
+    ink->dtor(ink->context);
+}
+
 ode_integrator_t* ink_bdf_ode_integrator_new(int order, 
                                              MPI_Comm comm,
                                              int num_local_values, 
                                              int num_remote_values, 
                                              void* context, 
-                                             int (*rhs_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* xdot),
-                                             int (*J_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* rhs, krylov_matrix_t* J),
+                                             int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
+                                             int (*J_func)(void* context, real_t t, real_t* x, real_t* rhs, krylov_matrix_t* J),
                                              void (*dtor)(void* context),
-                                             krylov_solver_t* solver,
-                                             krylov_pc_t* preconditioner,
-                                             krylov_matrix_t* matrix,
-                                             krylov_vector_t* vector)
+                                             krylov_factory_t* factory,
+                                             matrix_sparsity_t* J_sparsity)
 {
-  POLYMEC_NOT_IMPLEMENTED
-#if 0
-  ASSERT(order >= 1);
-  ASSERT(order <= 5);
-  ASSERT(num_local_values > 0);
-  ASSERT(num_remote_values >= 0);
-  ASSERT(rhs_func != NULL);
-  ASSERT(J_func != NULL);
-  ASSERT(solver != NULL);
-  ASSERT(preconditioner != NULL);
-  ASSERT(matrix != NULL);
-  ASSERT(vector != NULL);
+  ink_bdf_ode_t* ink = polymec_malloc(sizeof(ink_bdf_ode_t));
+  ink->comm = comm;
+  ink->context = context;
+  ink->J_func = J_func;
+  ink->dtor = dtor;
+  ink->factory = factory;
+  ink->sparsity = J_sparsity;
+  ink->solver = krylov_factory_gmres_solver(ink->factory, comm, 30);
+  ink->pc = NULL;
+  ink->J = NULL;
+  ink->B = NULL;
+  ink->X = NULL;
 
-  bdf_ode_t* integ = polymec_malloc(sizeof(bdf_ode_t));
-  integ->comm = comm;
-  integ->num_local_values = num_local_values;
-  integ->num_remote_values = num_remote_values;
-  integ->context = context;
-  integ->rhs = ink_rhs;
-  integ->k_rhs_func = rhs_func;
-  integ->k_J_func = J_func;
-  integ->k_solver = solver;
-  integ->k_precond = preconditioner;
-  integ->k_J = matrix;
-  integ->k_old_J = krylov_matrix_clone(matrix);
-  integ->k_x = vector;
-  integ->k_b = krylov_vector_clone(vector);
-  integ->dtor = dtor;
-  integ->status_message = NULL;
-  integ->t = 0.0;
-  integ->observers = ptr_array_new();
-  integ->error_weights = NULL;
+  // Find the start, end indices.
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+  index_t* row_dist = matrix_sparsity_row_distribution(J_sparsity);
+  ink->start = row_dist[rank];
+  ink->end = row_dist[rank+1];
+  ink->block_size = 1;
 
-  integ->max_krylov_dim = 1;
-  integ->Jy = NULL;
-
-  // Set up CVode and accessories.
-  integ->x = N_VNew(integ->comm, integ->num_local_values);
-  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
-  integ->cvode = CVodeCreate(CV_BDF, CV_NEWTON);
-  CVodeSetMaxOrd(integ->cvode, order);
-  CVodeSetUserData(integ->cvode, integ);
-  CVodeInit(integ->cvode, bdf_evaluate_rhs, 0.0, integ->x);
-
-  // Set up the linear solvers.
-  // FIXME
-
-  ode_integrator_vtable vtable = {.step = bdf_step, .advance = bdf_advance, .reset = bdf_reset, .dtor = bdf_dtor};
   char name[1024];
   snprintf(name, 1024, "INK Backwards-Difference-Formulae (order %d)", order);
-  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order,
-                                           num_local_values + num_remote_values);
+  ode_integrator_t* I = bdf_ode_integrator_new(name, order, comm, 
+                                               num_local_values, num_remote_values,
+                                               context, rhs_func, ink_reset, 
+                                               ink_setup, ink_solve, ink_dtor);
 
   // Set default tolerances.
   // relative error of 1e-4 means errors are controlled to 0.01%.
@@ -770,8 +936,58 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
   bdf_ode_integrator_set_tolerances(I, 1e-4, 1.0);
 
   return I;
-#endif
 }
-#pragma GCC diagnostic pop
-#pragma clang diagnostic pop
 
+void ink_bdf_ode_integrator_use_pcg(ode_integrator_t* ink_bdf_ode_integ)
+{
+  ink_bdf_ode_t* ink = bdf_ode_integrator_context(ink_bdf_ode_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_pcg_solver(ink->factory, ink->comm);
+}
+
+void ink_bdf_ode_integrator_use_gmres(ode_integrator_t* ink_bdf_ode_integ,
+                                      int max_krylov_dim)
+{
+  ink_bdf_ode_t* ink = bdf_ode_integrator_context(ink_bdf_ode_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_gmres_solver(ink->factory, ink->comm, max_krylov_dim);
+}
+
+void ink_bdf_ode_integrator_use_bicgstab(ode_integrator_t* ink_bdf_ode_integ)
+{
+  ink_bdf_ode_t* ink = bdf_ode_integrator_context(ink_bdf_ode_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_bicgstab_solver(ink->factory, ink->comm);
+}
+
+void ink_bdf_ode_integrator_use_special(ode_integrator_t* ink_bdf_ode_integ,
+                                        const char* solver_name,
+                                        string_string_unordered_map_t* options)
+{
+  ink_bdf_ode_t* ink = bdf_ode_integrator_context(ink_bdf_ode_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_special_solver(ink->factory, ink->comm,
+                                              solver_name, options);
+}
+
+void ink_bdf_ode_integrator_set_pc(ode_integrator_t* ink_bdf_ode_integ,
+                                   const char* pc_name, 
+                                   string_string_unordered_map_t* options)
+{
+  ink_bdf_ode_t* ink = bdf_ode_integrator_context(ink_bdf_ode_integ);
+  if (ink->pc != NULL)
+    krylov_pc_free(ink->pc);
+  ink->pc = krylov_factory_preconditioner(ink->factory, ink->comm, pc_name, options);
+}
+
+void ink_bdf_ode_integrator_set_block_size(ode_integrator_t* ink_bdf_ode_integ,
+                                           int block_size)
+{
+  ASSERT(block_size > 0);
+  ink_bdf_ode_t* ink = bdf_ode_integrator_context(ink_bdf_ode_integ);
+  ink->block_size = block_size;
+}

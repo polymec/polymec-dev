@@ -9,6 +9,7 @@
 #define POLYMEC_BDF_ODE_INTEGRATOR_H
 
 #include "core/krylov_solver.h"
+#include "core/matrix_sparsity.h"
 #include "integrators/ode_integrator.h"
 #include "integrators/newton_pc.h"
 
@@ -58,29 +59,59 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
 // This function creates a BDF integrator that uses an inexact Newton-Krylov 
 // method to solve the underlying linearized equations. This method constructs 
 // a full Jacobian matrix and updates it only when needed, and requires a 
-// function to be specified for the update. The given Krylov solver, preconditioner,
-// matrix and vector objects will be used to conduct the solve and create 
-// workspaces, etc. The integrator assumes control of all these objects.
+// function to be specified for the update. The given Krylov factory is used 
+// to create solver, preconditioner, matrix and vector objects for solving 
+// the underlying linear system, and the sparsity pattern is used for the 
+// creation of the Jacobian matrix. The integrator assumes control of all 
+// these objects.
 ode_integrator_t* ink_bdf_ode_integrator_new(int order, 
                                              MPI_Comm comm,
                                              int num_local_values, 
                                              int num_remote_values, 
                                              void* context, 
-                                             int (*rhs_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* xdot),
-                                             int (*J_func)(void* context, real_t t, krylov_vector_t* x, krylov_vector_t* rhs, krylov_matrix_t* J),
+                                             int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
+                                             int (*J_func)(void* context, real_t t, real_t* x, real_t* rhs, krylov_matrix_t* J),
                                              void (*dtor)(void* context),
-                                             krylov_solver_t* solver,
-                                             krylov_pc_t* preconditioner,
-                                             krylov_matrix_t* matrix,
-                                             krylov_vector_t* vector);
+                                             krylov_factory_t* factory,
+                                             matrix_sparsity_t* J_sparsity);
+
+// Specifies that the INK BDF integrator should use the Preconditioned 
+// Conjugate Gradient (PCG) method.
+void ink_bdf_ode_integrator_use_pcg(ode_integrator_t* ink_bdf_ode_integ);
+
+// Specifies that the INK BDF integrator should use the Generalized 
+// Minimum Residual (GMRES) method with the specified maximum Krylov subspace
+// dimension.
+void ink_bdf_ode_integrator_use_gmres(ode_integrator_t* ink_bdf_ode_integ,
+                                      int max_krylov_dim);
+
+// Specifies that the INK BDF integrator should use the Stabilized 
+// Bi-Conjugate Gradient (BiCGSTAB) method.
+void ink_bdf_ode_integrator_use_bicgstab(ode_integrator_t* ink_bdf_ode_integ);
+
+// Specifies that the INK BDF Integrator should use the given "special" 
+// Krylov solver with the given options.
+void ink_bdf_ode_integrator_use_special(ode_integrator_t* ink_bdf_ode_integ,
+                                        const char* solver_name,
+                                        string_string_unordered_map_t* options);
+
+// Specifies that the INK BDF integrator should use the preconditioner with 
+// the given name, set with the given options.
+void ink_bdf_ode_integrator_set_pc(ode_integrator_t* ink_bdf_ode_integ,
+                                   const char* pc_name, 
+                                   string_string_unordered_map_t* options);
+
+// Sets the block size for the INK BDF integrator.
+void ink_bdf_ode_integrator_set_block_size(ode_integrator_t* ink_bdf_ode_integ,
+                                           int block_size);
 
 // Convergence failure status codes, used by the BDF integrator machinery below to determine whether 
 // the Newton operator needs to be recomputed.
 typedef enum
 {
   BDF_CONV_NO_FAILURES, // local error test failed at previous Newton step, but iteration converged
-  BDF_CONV_BAD_J, // previous Newton corrector iteration did not converge OR linear solve failed in 
-                  // a recoverable manner (Jacobian needs updating either way)
+  BDF_CONV_BAD_J_FAILURE, // previous Newton corrector iteration did not converge OR linear solve failed in 
+                          // a recoverable manner (Jacobian needs updating either way)
   BDF_CONV_OTHER_FAILURE, // Newton iteration failed to converge with current Jacobian data
 } bdf_conv_status_t;
 
@@ -110,14 +141,14 @@ typedef enum
 //                for an unrecoverable error.
 // * solve_func -- Used to solve the linear system (I - gamma * J) * X = B. Arguments are:
 //                 - context: A pointer to the context object that stores the state of the integrator.
-//                 - B: The right hand side vector for the linear system, which will be replaced by the 
-//                      solution X.
 //                 - W: A vector containing error weights, which can be used to enable to computation of 
 //                      weighted norms used to test for convergence of any iterative methods within 
 //                      the solver.
 //                 - t: The current time.
 //                 - X: The current solution at time t.
 //                 - rhs: The current right hand side vector for the ODE at time t.
+//                 - B: The right hand side vector for the linear system, which will be replaced by the 
+//                      solution X.
 //                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
 //                 for an unrecoverable error.
 // * dtor -- Used to destroy the context pointer.
@@ -135,14 +166,14 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                                            real_t t, 
                                                            real_t* X_pred, 
                                                            real_t* rhs_pred, 
-                                                           bool* J_current, 
+                                                           bool* J_updated, 
                                                            real_t* work1, real_t* work2, real_t* work3),
                                          int (*solve_func)(void* context, 
-                                                           real_t* B, 
                                                            real_t* W, 
                                                            real_t t, 
                                                            real_t* X,
-                                                           real_t* rhs),
+                                                           real_t* rhs,
+                                                           real_t* B), 
                                          void (*dtor)(void* context));
 
 // This returns the context pointer passed to the bdf_ode_integrator 
