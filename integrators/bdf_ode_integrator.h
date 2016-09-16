@@ -66,14 +66,12 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
 // these objects.
 ode_integrator_t* ink_bdf_ode_integrator_new(int order, 
                                              MPI_Comm comm,
-                                             int num_local_values, 
-                                             int num_remote_values, 
+                                             krylov_factory_t* factory,
+                                             matrix_sparsity_t* J_sparsity,
                                              void* context, 
                                              int (*rhs_func)(void* context, real_t t, real_t* U, real_t* U_dot),
                                              int (*J_func)(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J),
-                                             void (*dtor)(void* context),
-                                             krylov_factory_t* factory,
-                                             matrix_sparsity_t* J_sparsity);
+                                             void (*dtor)(void* context));
 
 // Specifies that the INK BDF integrator should use the Preconditioned 
 // Conjugate Gradient (PCG) method.

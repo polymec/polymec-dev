@@ -130,6 +130,8 @@ typedef struct
   void (*set_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*add_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*get_values)(void* context, index_t num_values, index_t* indices, real_t* values);
+  void (*copy_in)(void* context, real_t* local_values);
+  void (*copy_out)(void* context, real_t* local_values);
   real_t (*norm)(void* context, int p);
   void (*assemble)(void* context);
   void (*fprintf)(void* context, FILE* stream);
@@ -539,11 +541,23 @@ void krylov_vector_add_values(krylov_vector_t* v,
                               index_t num_values,
                               index_t* indices,
                               real_t* values);
-                              
+
+// Copies the data in the given array of local values into this vector. The 
+// array is assumed to contain data for all rows of the vector stored locally.
+void krylov_vector_copy_in(krylov_vector_t* v,
+                           real_t* local_values);
+
+// Copies the locally-stored data in this vector into the given array. 
+// The array is assumed to be large enough to store data for all rows of the 
+// vector stored locally.
+void krylov_vector_copy_out(krylov_vector_t* v,
+                            real_t* local_values);
+
 // Assembles added/inserted values into the vector, allowing all the processes
 // a consistent representation of the vector. This should be called after calls
 // to krylov_vector_set_values/krylov_vector_add_values, and should be 
-// placed in between sets and adds.
+// placed in between sets and adds. It should also be used after 
+// krylov_vector_copy_in.
 void krylov_vector_assemble(krylov_vector_t* A);
 
 // Retrieves the values of the elements in the vector identified by the 

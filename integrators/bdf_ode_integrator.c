@@ -862,12 +862,8 @@ static int ink_solve(void* context,
 {
   ink_bdf_ode_t* ink = context;
 
-  // Copy data into ink->B.
-  index_t N = ink->end - ink->start;
-  index_t rows[N];
-  for (index_t i = 0; i < N; ++i)
-    rows[i] = ink->start + i;
-  krylov_vector_set_values(ink->B, N, rows, B);
+  // Copy RHS data from B into ink->B.
+  krylov_vector_copy_in(ink->B, B);
 
   real_t res_norm;
   int num_iters;
@@ -876,8 +872,8 @@ static int ink_solve(void* context,
 
   if (solved)
   {
-    // Copy data into U.
-    krylov_vector_get_values(ink->X, N, rows, U);
+    // Copy solution data from ink->X into B.
+    krylov_vector_copy_out(ink->X, B);
     return 0;
   }
   else
@@ -904,14 +900,12 @@ static void ink_dtor(void* context)
 
 ode_integrator_t* ink_bdf_ode_integrator_new(int order, 
                                              MPI_Comm comm,
-                                             int num_local_values, 
-                                             int num_remote_values, 
+                                             krylov_factory_t* factory,
+                                             matrix_sparsity_t* J_sparsity,
                                              void* context, 
                                              int (*rhs_func)(void* context, real_t t, real_t* U, real_t* U_dot),
                                              int (*J_func)(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J),
-                                             void (*dtor)(void* context),
-                                             krylov_factory_t* factory,
-                                             matrix_sparsity_t* J_sparsity)
+                                             void (*dtor)(void* context))
 {
   ink_bdf_ode_t* ink = polymec_malloc(sizeof(ink_bdf_ode_t));
   ink->comm = comm;
@@ -936,8 +930,9 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
 
   char name[1024];
   snprintf(name, 1024, "INK Backwards-Difference-Formulae (order %d)", order);
+  int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));
   ode_integrator_t* I = bdf_ode_integrator_new(name, order, comm, 
-                                               num_local_values, num_remote_values,
+                                               num_local_values, 0,
                                                context, rhs_func, ink_reset, 
                                                ink_setup, ink_solve, ink_dtor);
 

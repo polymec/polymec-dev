@@ -106,11 +106,14 @@ typedef struct
   PetscErrorCode (*VecSetUp)(Vec);
   PetscErrorCode (*VecDestroy)(Vec*);
   PetscErrorCode (*VecGetSize)(Vec, PetscInt*);
+  PetscErrorCode (*VecGetLocalSize)(Vec, PetscInt*);
   PetscErrorCode (*VecZeroEntries)(Vec);
   PetscErrorCode (*VecScale)(Vec,PetscScalar);
   PetscErrorCode (*VecSet)(Vec,PetscScalar);
   PetscErrorCode (*VecSetValues)(Vec,PetscInt,const PetscInt[],const PetscScalar[],InsertMode);
   PetscErrorCode (*VecGetValues)(Vec,PetscInt,const PetscInt[],PetscScalar[]);
+  PetscErrorCode (*VecGetArray)(Vec,PetscScalar**);
+  PetscErrorCode (*VecRestoreArray)(Vec,PetscScalar**);
   PetscErrorCode (*VecAssemblyBegin)(Vec);
   PetscErrorCode (*VecAssemblyEnd)(Vec);
   PetscErrorCode (*VecNorm)(Vec,NormType,PetscReal *);
@@ -1001,6 +1004,28 @@ static void petsc_vector_get_values(void* context, index_t num_values,
   v->factory->methods.VecGetValues(v->v, num_values, indices, values);
 }
 
+static void petsc_vector_copy_in(void* context, real_t* local_values)
+{
+  petsc_vector_t* v = context;
+  PetscInt size;
+  v->factory->methods.VecGetLocalSize(v->v, &size);
+  real_t* array;
+  v->factory->methods.VecGetArray(v->v, &array);
+  memcpy(array, local_values, sizeof(real_t) * size);
+  v->factory->methods.VecRestoreArray(v->v, &array);
+}
+
+static void petsc_vector_copy_out(void* context, real_t* local_values)
+{
+  petsc_vector_t* v = context;
+  PetscInt size;
+  v->factory->methods.VecGetLocalSize(v->v, &size);
+  real_t* array;
+  v->factory->methods.VecGetArray(v->v, &array);
+  memcpy(local_values, array, sizeof(real_t) * size);
+  v->factory->methods.VecRestoreArray(v->v, &array);
+}
+
 static real_t petsc_vector_norm(void* context, int p)
 {
   petsc_vector_t* v = context;
@@ -1064,6 +1089,8 @@ static krylov_vector_t* petsc_factory_vector(void* context,
                                  .set_values = petsc_vector_set_values,
                                  .add_values = petsc_vector_add_values,
                                  .get_values = petsc_vector_get_values,
+                                 .copy_in = petsc_vector_copy_in,
+                                 .copy_out = petsc_vector_copy_out,
                                  .assemble = petsc_vector_assemble,
                                  .norm = petsc_vector_norm,
                                  .fprintf = petsc_vector_fprintf,
@@ -1279,11 +1306,14 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(VecSetUp);
   FETCH_PETSC_SYMBOL(VecDestroy);
   FETCH_PETSC_SYMBOL(VecGetSize);
+  FETCH_PETSC_SYMBOL(VecGetLocalSize);
   FETCH_PETSC_SYMBOL(VecZeroEntries);
   FETCH_PETSC_SYMBOL(VecScale);
   FETCH_PETSC_SYMBOL(VecSet);
   FETCH_PETSC_SYMBOL(VecSetValues);
   FETCH_PETSC_SYMBOL(VecGetValues);
+  FETCH_PETSC_SYMBOL(VecGetArray);
+  FETCH_PETSC_SYMBOL(VecRestoreArray);
   FETCH_PETSC_SYMBOL(VecAssemblyBegin);
   FETCH_PETSC_SYMBOL(VecAssemblyEnd);
   FETCH_PETSC_SYMBOL(VecNorm);

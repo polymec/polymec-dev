@@ -888,6 +888,8 @@ krylov_vector_t* krylov_vector_new(void* context,
   ASSERT(vtable.set_values != NULL);
   ASSERT(vtable.add_values != NULL);
   ASSERT(vtable.get_values != NULL);
+  ASSERT(vtable.copy_in != NULL);
+  ASSERT(vtable.copy_out != NULL);
   ASSERT(local_size > 0);
   ASSERT(global_size >= local_size);
   krylov_vector_t* v = polymec_malloc(sizeof(krylov_vector_t));
@@ -969,6 +971,18 @@ void krylov_vector_get_values(krylov_vector_t* v,
                               real_t* values)
 {
   v->vtable.get_values(v->context, num_values, indices, values);
+}
+
+void krylov_vector_copy_in(krylov_vector_t* v,
+                           real_t* local_values)
+{
+  v->vtable.copy_in(v->context, local_values);
+}
+
+void krylov_vector_copy_out(krylov_vector_t* v,
+                            real_t* local_values)
+{
+  v->vtable.copy_out(v->context, local_values);
 }
 
 void krylov_vector_assemble(krylov_vector_t* v)

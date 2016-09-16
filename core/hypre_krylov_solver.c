@@ -1407,6 +1407,26 @@ static void hypre_vector_get_values(void* context, index_t num_values,
   }
 }
 
+static void hypre_vector_copy_in(void* context, real_t* local_values)
+{
+  hypre_vector_t* v = context;
+  index_t N = v->ihigh - v->ilow + 1;
+  index_t local_rows[N];
+  for (index_t i = 0; i < N; ++i)
+    local_rows[i] = v->ilow + i;
+  hypre_vector_set_values(v, N, local_rows, local_values);
+}
+
+static void hypre_vector_copy_out(void* context, real_t* local_values)
+{
+  hypre_vector_t* v = context;
+  index_t N = v->ihigh - v->ilow + 1;
+  index_t local_rows[N];
+  for (index_t i = 0; i < N; ++i)
+    local_rows[i] = v->ilow + i;
+  hypre_vector_get_values(v, N, local_rows, local_values);
+}
+
 static void* hypre_vector_clone(void* context)
 {
   hypre_vector_t* v = context;
@@ -1578,6 +1598,8 @@ static krylov_vector_t* hypre_factory_vector(void* context,
                                  .set_values = hypre_vector_set_values,
                                  .add_values = hypre_vector_add_values,
                                  .get_values = hypre_vector_get_values,
+                                 .copy_in = hypre_vector_copy_in,
+                                 .copy_out = hypre_vector_copy_out,
                                  .assemble = hypre_vector_assemble,
                                  .norm = hypre_vector_norm,
                                  .fprintf = hypre_vector_fprintf,

@@ -1535,7 +1535,30 @@ static void vector_get_values(void* context, index_t num_values,
     values[i] = dvalue;
 #endif
   }
+}
 
+static void vector_copy_in(void* context, real_t* local_values)
+{
+  LIS_VECTOR v = context;
+  LIS_INT start, end;
+  lis_vector_get_range(v, &start, &end);
+  index_t N = (index_t)(end - start);
+  index_t local_rows[N];
+  for (LIS_INT i = 0; i < N; ++i)
+    local_rows[i] = (index_t)(start + i);
+  vector_set_values(v, N, local_rows, local_values);
+}
+
+static void vector_copy_out(void* context, real_t* local_values)
+{
+  LIS_VECTOR v = context;
+  LIS_INT start, end;
+  lis_vector_get_range(v, &start, &end);
+  index_t N = (index_t)(end - start);
+  index_t local_rows[N];
+  for (LIS_INT i = 0; i < N; ++i)
+    local_rows[i] = (index_t)(start + i);
+  vector_get_values(v, N, local_rows, local_values);
 }
 
 static real_t vector_norm(void* context, int p)
@@ -1597,6 +1620,8 @@ static krylov_vector_t* lis_factory_vector(void* context,
                                  .set_values = vector_set_values,
                                  .add_values = vector_add_values,
                                  .get_values = vector_get_values,
+                                 .copy_in = vector_copy_in,
+                                 .copy_out = vector_copy_out,
                                  .norm = vector_norm,
                                  .fprintf = vec_fprintf,
                                  .dtor = vector_dtor};
