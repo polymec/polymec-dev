@@ -68,12 +68,12 @@ typedef enum
 
 // This function evaluates the residual of a system of differential-algebraic 
 // equations (DAEs).
-typedef int (*dae_integrator_residual_func)(void* context, real_t t, real_t* x, real_t* x_dot, real_t* F);
+typedef int (*dae_integrator_residual_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F);
 
-// This function computes the Jacobian J = dF/dx + alpha * dF/d(xdot),
-// where F(t, x, xdot) is the residual and x is the solution vector 
-// (and xdot = dx/dt).
-typedef int (*dae_integrator_Jv_func)(void* context, real_t t, real_t* x, real_t* xdot, real_t* R, 
+// This function computes the Jacobian J = dF/dU + alpha * dF/d(U_dot),
+// where F(t, U, U_dot) is the residual and U is the solution vector 
+// (and U_dot = dx/dt).
+typedef int (*dae_integrator_Jv_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* R, 
                                       real_t* v, real_t* Jv, real_t alpha, real_t* tmp1, real_t* tmp2);
 
 // This function evaluates error weights for use in the WRMS error norm.
@@ -86,7 +86,7 @@ typedef void (*dae_integrator_dtor)(void* context);
 typedef struct
 {
   // This function evaluates the residual function for a system of 
-  // DAEs at time t with solution x and time derivative x_dot, storing it 
+  // DAEs at time t with solution U and time derivative U_dot, storing it 
   // in F. It should return 0 on success, 1 for a recoverable error, -1 
   // for a fatal error.
   dae_integrator_residual_func residual;
@@ -154,8 +154,8 @@ void dae_integrator_set_error_weight_function(dae_integrator_t* integrator,
                                               dae_integrator_error_weight_func compute_weights);                               
 
 // Evaluates the right-hand side of the system at the given time and with the 
-// given solution X, placing the results in rhs.
-void dae_integrator_eval_rhs(dae_integrator_t* integ, real_t t, real_t* X, real_t* rhs);
+// given solution U, placing the results in rhs.
+void dae_integrator_eval_rhs(dae_integrator_t* integ, real_t t, real_t* U, real_t* rhs);
 
 // Sets the maximum time step size for the next integration step.
 void dae_integrator_set_max_dt(dae_integrator_t* integ, real_t max_dt);
@@ -163,20 +163,20 @@ void dae_integrator_set_max_dt(dae_integrator_t* integ, real_t max_dt);
 // Sets the time past which the integrator will not step.
 void dae_integrator_set_stop_time(dae_integrator_t* integ, real_t stop_time);
 
-// Integrates the given solution X in place (given its time derivative X_dot), 
+// Integrates the given solution U in place (given its time derivative U_dot), 
 // taking a single step starting at time *t and storing the new time in *t as 
-// well. Also evolves X_dot. Returns true if the step succeeded, false if it 
-// failed for some reason. If a step fails, t, X, and X_dot remain unchanged.
-bool dae_integrator_step(dae_integrator_t* integrator, real_t max_dt, real_t* t, real_t* X, real_t* X_dot);
+// well. Also evolves U_dot. Returns true if the step succeeded, false if it 
+// failed for some reason. If a step fails, t, U, and U_dot remain unchanged.
+bool dae_integrator_step(dae_integrator_t* integrator, real_t max_dt, real_t* t, real_t* U, real_t* U_dot);
 
-// Resets the integrator to prepare it to take a step when X, X_dot, and/or t 
+// Resets the integrator to prepare it to take a step when U, U_dot, and/or t 
 // have changed by some process outside of the integrator. This resets any 
-// history information stored within the integrator. Values of X are corrected
-// in order to be made consistent with the given values of X_dot.
+// history information stored within the integrator. Values of U are corrected
+// in order to be made consistent with the given values of U_dot.
 // If correct_initial_conditions is true, the integrator will attempt to 
-// correct X given X_dot.
+// correct U given U_dot.
 void dae_integrator_reset(dae_integrator_t* integrator, 
-                          real_t t, real_t* X, real_t* X_dot,
+                          real_t t, real_t* U, real_t* U_dot,
                           bool correct_initial_conditions);
 
 // Diagnostics for the time integrator.

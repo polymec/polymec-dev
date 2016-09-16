@@ -21,8 +21,8 @@
 struct am_ode_observer_t 
 {
   void* context;
-  void (*rhs_computed)(void* context, real_t t, real_t* x, real_t* rhs);
-  void (*Jy_computed)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* Jy);
+  void (*rhs_computed)(void* context, real_t t, real_t* U, real_t* rhs);
+  void (*Jy_computed)(void* context, real_t t, real_t* U, real_t* rhs, real_t* y, real_t* Jy);
   void (*dtor)(void* context);
 };
 
@@ -31,20 +31,20 @@ typedef struct
   MPI_Comm comm;
   int num_local_values, num_remote_values;
   void* context; 
-  int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot);
+  int (*rhs)(void* context, real_t t, real_t* U, real_t* U_dot);
   void (*dtor)(void* context);
 
   // CVODE data structures.
   void* cvode;
-  N_Vector x; 
-  real_t* x_with_ghosts;
+  N_Vector U; 
+  real_t* U_with_ghosts;
   real_t t;
   char* status_message; // status of most recent integration.
 
   // JFNK stuff.
   int max_krylov_dim;
   newton_pc_t* precond;
-  int (*Jy)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy);
+  int (*Jy)(void* context, real_t t, real_t* U, real_t* rhs, real_t* y, real_t* temp, real_t* Jy);
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -91,20 +91,20 @@ static char* get_status_message(int status, real_t current_time)
 }
 
 // This function wraps around the user-supplied right hand side.
-static int am_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
+static int am_evaluate_rhs(real_t t, N_Vector U, N_Vector U_dot, void* context)
 {
   START_FUNCTION_TIMER();
   am_ode_t* integ = context;
-  real_t* xx = NV_DATA(x);
-  real_t* xxd = NV_DATA(x_dot);
+  real_t* xx = NV_DATA(U);
+  real_t* xxd = NV_DATA(U_dot);
 
   // Evaluate the RHS using a solution vector with ghosts.
-  memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
-  int status = integ->rhs(integ->context, t, integ->x_with_ghosts, xxd);
+  memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
+  int status = integ->rhs(integ->context, t, integ->U_with_ghosts, xxd);
   if (status == 0)
   {
     // Copy the local result into our solution vector.
-    memcpy(xx, integ->x_with_ghosts, sizeof(real_t) * integ->num_local_values);
+    memcpy(xx, integ->U_with_ghosts, sizeof(real_t) * integ->num_local_values);
   }
 
   // Tell our observers we've computed the right hand side.
@@ -119,7 +119,7 @@ static int am_evaluate_rhs(real_t t, N_Vector x, N_Vector x_dot, void* context)
   return status;
 }
 
-static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
+static bool am_step(void* context, real_t max_dt, real_t* t, real_t* U)
 {
   START_FUNCTION_TIMER();
   am_ode_t* integ = context;
@@ -131,7 +131,7 @@ static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
   if (t2 > integ->t)
   {
     // Integrate to at least t -> t + max_dt.
-    status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_ONE_STEP);
+    status = CVode(integ->cvode, t2, integ->U, &integ->t, CV_ONE_STEP);
     if ((status != CV_SUCCESS) && (status != CV_TSTOP_RETURN))
     {
       integ->status_message = get_status_message(status, integ->t);
@@ -145,7 +145,7 @@ static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
   // If we integrated past t2, interpolate to t2.
   if (integ->t > t2)
   {
-    status = CVodeGetDky(integ->cvode, t2, 0, integ->x);
+    status = CVodeGetDky(integ->cvode, t2, 0, integ->U);
     *t = t2;
   }
   else
@@ -162,7 +162,7 @@ static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
   if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
     STOP_FUNCTION_TIMER();
     return true;
   }
@@ -174,18 +174,18 @@ static bool am_step(void* context, real_t max_dt, real_t* t, real_t* x)
   }
 }
 
-static bool am_advance(void* context, real_t t1, real_t t2, real_t* x)
+static bool am_advance(void* context, real_t t1, real_t t2, real_t* U)
 {
   am_ode_t* integ = context;
   integ->t = t1;
-  CVodeReInit(integ->cvode, t1, integ->x);
+  CVodeReInit(integ->cvode, t1, integ->U);
   CVodeSetStopTime(integ->cvode, t2);
   
   // Copy in the solution.
-  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->num_local_values); 
+  memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
 
   // Integrate.
-  int status = CVode(integ->cvode, t2, integ->x, &integ->t, CV_NORMAL);
+  int status = CVode(integ->cvode, t2, integ->U, &integ->t, CV_NORMAL);
   
   // Clear the present status.
   if (integ->status_message != NULL)
@@ -198,7 +198,7 @@ static bool am_advance(void* context, real_t t1, real_t t2, real_t* x)
   if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
     return true;
   }
   else
@@ -208,7 +208,7 @@ static bool am_advance(void* context, real_t t1, real_t t2, real_t* x)
   }
 }
 
-static void am_reset(void* context, real_t t, real_t* x)
+static void am_reset(void* context, real_t t, real_t* U)
 {
   am_ode_t* integ = context;
 
@@ -217,8 +217,8 @@ static void am_reset(void* context, real_t t, real_t* x)
     newton_pc_reset(integ->precond, t);
 
   // Copy in the solution and reinitialize.
-  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->num_local_values); 
-  CVodeReInit(integ->cvode, t, integ->x);
+  memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
+  CVodeReInit(integ->cvode, t, integ->U);
   integ->t = t;
 }
 
@@ -231,8 +231,8 @@ static void am_dtor(void* context)
     newton_pc_free(integ->precond);
 
   // Kill the CVode stuff.
-  polymec_free(integ->x_with_ghosts);
-  N_VDestroy(integ->x);
+  polymec_free(integ->U_with_ghosts);
+  N_VDestroy(integ->U);
   CVodeFree(&integ->cvode);
 
   // Kill the rest.
@@ -251,7 +251,7 @@ ode_integrator_t* functional_am_ode_integrator_new(int order,
                                                    int num_local_values,
                                                    int num_remote_values,
                                                    void* context, 
-                                                   int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
+                                                   int (*rhs)(void* context, real_t t, real_t* U, real_t* U_dot),
                                                    void (*dtor)(void* context))
 {
   ASSERT(order >= 1);
@@ -275,12 +275,12 @@ ode_integrator_t* functional_am_ode_integrator_new(int order,
   integ->error_weights = NULL;
 
   // Set up KINSol and accessories.
-  integ->x = N_VNew(integ->comm, integ->num_local_values);
-  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
+  integ->U = N_VNew(integ->comm, integ->num_local_values);
+  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->cvode = CVodeCreate(CV_ADAMS, CV_FUNCTIONAL);
   CVodeSetMaxOrd(integ->cvode, order);
   CVodeSetUserData(integ->cvode, integ);
-  CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->x);
+  CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->U);
 
   ode_integrator_vtable vtable = {.step = am_step, .advance = am_advance, .reset = am_reset, .dtor = am_dtor};
   char name[1024];
@@ -297,7 +297,7 @@ ode_integrator_t* functional_am_ode_integrator_new(int order,
 }
 
 // This function sets up the preconditioner data within the integrator.
-static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
+static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
                                  int jacobian_is_current, int* jacobian_was_updated, 
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
@@ -307,8 +307,8 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   if (!jacobian_is_current)
   {
     // Compute the approximate Jacobian using a solution vector with ghosts.
-    memcpy(integ->x_with_ghosts, NV_DATA(x), sizeof(real_t) * integ->num_local_values);
-    newton_pc_setup(integ->precond, 1.0, -gamma, 0.0, t, integ->x_with_ghosts, NULL);
+    memcpy(integ->U_with_ghosts, NV_DATA(U), sizeof(real_t) * integ->num_local_values);
+    newton_pc_setup(integ->precond, 1.0, -gamma, 0.0, t, integ->U_with_ghosts, NULL);
     *jacobian_was_updated = 1;
   }
   else
@@ -320,7 +320,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
 // This function solves the preconditioner equation. On input, the vector r 
 // contains the right-hand side of the preconditioner system, and on output 
 // it contains the solution to the system.
-static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F, 
+static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector F, 
                                        N_Vector r, N_Vector z, 
                                        real_t gamma, real_t delta, 
                                        int lr, void* context, 
@@ -334,26 +334,26 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   // FIXME: Apply scaling if needed.
 
   // Solve it.
-  int status = (newton_pc_solve(integ->precond, t, NV_DATA(x), NULL,
+  int status = (newton_pc_solve(integ->precond, t, NV_DATA(U), NULL,
                                 NV_DATA(r), NV_DATA(r))) ? 0 : 1;
   STOP_FUNCTION_TIMER();
   return status;
 }
 
 // Adaptor for J*y function
-static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, void* context, N_Vector tmp)
+static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector U, N_Vector U_dot, void* context, N_Vector tmp)
 {
   START_FUNCTION_TIMER();
   am_ode_t* integ = context;
-  real_t* xx = NV_DATA(x);
+  real_t* xx = NV_DATA(U);
   real_t* yy = NV_DATA(y);
-  real_t* my_rhs = NV_DATA(rhs);
+  real_t* my_rhs = NV_DATA(U_dot);
   real_t* temp = NV_DATA(tmp);
   real_t* jjy = NV_DATA(Jy);
 
   // Make sure we use ghosts.
-  memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
-  int status = integ->Jy(integ->context, t, integ->x_with_ghosts, my_rhs, yy, temp, jjy);
+  memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
+  int status = integ->Jy(integ->context, t, integ->U_with_ghosts, my_rhs, yy, temp, jjy);
 
   // Tell our observers we've computed the right hand side.
   for (int i = 0; i < integ->observers->size; ++i)
@@ -372,8 +372,8 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
                                              int num_local_values, 
                                              int num_remote_values, 
                                              void* context, 
-                                             int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
-                                             int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
+                                             int (*rhs_func)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                             int (*Jy_func)(void* context, real_t t, real_t* x, real_t* U_dot, real_t* y, real_t* temp, real_t* Jy),
                                              void (*dtor)(void* context),
                                              newton_pc_t* precond,
                                              jfnk_am_krylov_t solver_type,
@@ -402,12 +402,12 @@ ode_integrator_t* jfnk_am_ode_integrator_new(int order,
   integ->observers = ptr_array_new();
 
   // Set up KINSol and accessories.
-  integ->x = N_VNew(integ->comm, integ->num_local_values);
-  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
+  integ->U = N_VNew(integ->comm, integ->num_local_values);
+  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->cvode = CVodeCreate(CV_ADAMS, CV_NEWTON);
   CVodeSetMaxOrd(integ->cvode, order);
   CVodeSetUserData(integ->cvode, integ);
-  CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->x);
+  CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->U);
 
   newton_pc_side_t newton_side = newton_pc_side(integ->precond);
   int side;
@@ -559,10 +559,10 @@ void am_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
   CVodeWFtolerances(integ->cvode, compute_error_weights);
 }
 
-void am_ode_integrator_eval_rhs(ode_integrator_t* integrator, real_t t, real_t* X, real_t* rhs)
+void am_ode_integrator_eval_rhs(ode_integrator_t* integrator, real_t t, real_t* U, real_t* U_dot)
 {
   am_ode_t* integ = ode_integrator_context(integrator);
-  integ->rhs(integ->context, t, X, rhs);
+  integ->rhs(integ->context, t, U, U_dot);
 }
 
 newton_pc_t* am_ode_integrator_preconditioner(ode_integrator_t* integrator)

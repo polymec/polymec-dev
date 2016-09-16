@@ -23,9 +23,9 @@
 struct ark_ode_observer_t 
 {
   void* context;
-  void (*fe_computed)(void* context, real_t t, real_t* x, real_t* fe);
-  void (*fi_computed)(void* context, real_t t, real_t* x, real_t* fi);
-  void (*Jy_computed)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* Jy);
+  void (*fe_computed)(void* context, real_t t, real_t* U, real_t* fe);
+  void (*fi_computed)(void* context, real_t t, real_t* U, real_t* fi);
+  void (*Jy_computed)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* Jy);
   void (*dtor)(void* context);
 };
 
@@ -34,15 +34,15 @@ typedef struct
   MPI_Comm comm;
   int num_local_values, num_remote_values;
   void* context; 
-  int (*fe)(void* context, real_t t, real_t* x, real_t* fe);
-  int (*fi)(void* context, real_t t, real_t* x, real_t* fi);
-  real_t (*stable_dt)(void* context, real_t t, real_t* x);
+  int (*fe)(void* context, real_t t, real_t* U, real_t* fe);
+  int (*fi)(void* context, real_t t, real_t* U, real_t* fi);
+  real_t (*stable_dt)(void* context, real_t t, real_t* U);
   void (*dtor)(void* context);
 
   // ARKode data structures.
   void* arkode;
-  N_Vector x; 
-  real_t* x_with_ghosts;
+  N_Vector U; 
+  real_t* U_with_ghosts;
   real_t t;
   char* status_message; // status of most recent integration.
 
@@ -51,7 +51,7 @@ typedef struct
   // JFNK stuff.
   int max_krylov_dim;
   newton_pc_t* precond;
-  int (*Jy)(void* context, real_t t, real_t* x, real_t* rhstx, real_t* y, real_t* temp, real_t* Jy);
+  int (*Jy)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* temp, real_t* Jy);
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -96,20 +96,20 @@ static char* get_status_message(int status, real_t current_time)
 }
 
 // This function wraps around the user-supplied explicit RHS.
-static int evaluate_fe(real_t t, N_Vector x, N_Vector x_dot, void* context)
+static int evaluate_fe(real_t t, N_Vector U, N_Vector U_dot, void* context)
 {
   START_FUNCTION_TIMER();
   ark_ode_t* integ = context;
-  real_t* xx = NV_DATA(x);
-  real_t* xxd = NV_DATA(x_dot);
+  real_t* xx = NV_DATA(U);
+  real_t* xxd = NV_DATA(U_dot);
 
   // Evaluate the RHS using a solution vector with ghosts.
-  memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
-  int status = integ->fe(integ->context, t, integ->x_with_ghosts, xxd);
+  memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
+  int status = integ->fe(integ->context, t, integ->U_with_ghosts, xxd);
   if (status == 0)
   {
     // Copy the local result into our solution vector.
-    memcpy(xx, integ->x_with_ghosts, sizeof(real_t) * integ->num_local_values);
+    memcpy(xx, integ->U_with_ghosts, sizeof(real_t) * integ->num_local_values);
   }
 
   // Tell our observers we've computed the right hand side.
@@ -125,20 +125,20 @@ static int evaluate_fe(real_t t, N_Vector x, N_Vector x_dot, void* context)
 }
 
 // This function wraps around the user-supplied implicit RHS.
-static int evaluate_fi(real_t t, N_Vector x, N_Vector x_dot, void* context)
+static int evaluate_fi(real_t t, N_Vector U, N_Vector U_dot, void* context)
 {
   START_FUNCTION_TIMER();
   ark_ode_t* integ = context;
-  real_t* xx = NV_DATA(x);
-  real_t* xxd = NV_DATA(x_dot);
+  real_t* xx = NV_DATA(U);
+  real_t* xxd = NV_DATA(U_dot);
 
   // Evaluate the RHS using a solution vector with ghosts.
-  memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
-  int status = integ->fi(integ->context, t, integ->x_with_ghosts, xxd);
+  memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
+  int status = integ->fi(integ->context, t, integ->U_with_ghosts, xxd);
   if (status == 0)
   {
     // Copy the local result into our solution vector.
-    memcpy(xx, integ->x_with_ghosts, sizeof(real_t) * integ->num_local_values);
+    memcpy(xx, integ->U_with_ghosts, sizeof(real_t) * integ->num_local_values);
   }
 
   // Tell our observers we've computed the right hand side.
@@ -153,7 +153,7 @@ static int evaluate_fi(real_t t, N_Vector x, N_Vector x_dot, void* context)
   return status;
 }
 
-static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* x)
+static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* U)
 {
   START_FUNCTION_TIMER();
   ark_ode_t* integ = context;
@@ -171,7 +171,7 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* x)
   if (t2 > integ->t)
   {
     // Integrate to at least t -> t + max_dt.
-    status = ARKode(integ->arkode, t2, integ->x, &integ->t, ARK_ONE_STEP);
+    status = ARKode(integ->arkode, t2, integ->U, &integ->t, ARK_ONE_STEP);
     if ((status != ARK_SUCCESS) && (status != ARK_TSTOP_RETURN))
     {
       integ->status_message = get_status_message(status, integ->t);
@@ -186,7 +186,7 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* x)
   // If we integrated past t2, interpolate to t2.
   if (integ->t > t2)
   {
-    status = ARKodeGetDky(integ->arkode, t2, 0, integ->x);
+    status = ARKodeGetDky(integ->arkode, t2, 0, integ->U);
     *t = t2;
   }
   else
@@ -203,7 +203,7 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* x)
   if ((status == ARK_SUCCESS) || (status == ARK_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
     STOP_FUNCTION_TIMER();
     return true;
   }
@@ -215,20 +215,20 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* x)
   }
 }
 
-static bool ark_advance(void* context, real_t t1, real_t t2, real_t* x)
+static bool ark_advance(void* context, real_t t1, real_t t2, real_t* U)
 {
   ark_ode_t* integ = context;
   integ->t = t1;
   ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
   ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
-  ARKodeReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->x);
+  ARKodeReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
   ARKodeSetStopTime(integ->arkode, t2);
   
   // Copy in the solution.
-  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->num_local_values); 
+  memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
 
   // Integrate.
-  int status = ARKode(integ->arkode, t2, integ->x, &integ->t, ARK_NORMAL);
+  int status = ARKode(integ->arkode, t2, integ->U, &integ->t, ARK_NORMAL);
   
   // Clear the present status.
   if (integ->status_message != NULL)
@@ -241,7 +241,7 @@ static bool ark_advance(void* context, real_t t1, real_t t2, real_t* x)
   if ((status == ARK_SUCCESS) || (status == ARK_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(x, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
     return true;
   }
   else
@@ -251,7 +251,7 @@ static bool ark_advance(void* context, real_t t1, real_t t2, real_t* x)
   }
 }
 
-static void ark_reset(void* context, real_t t, real_t* x)
+static void ark_reset(void* context, real_t t, real_t* U)
 {
   ark_ode_t* integ = context;
   integ->first_step = true;
@@ -261,10 +261,10 @@ static void ark_reset(void* context, real_t t, real_t* x)
     newton_pc_reset(integ->precond, t);
 
   // Copy in the solution and reinitialize.
-  memcpy(NV_DATA(integ->x), x, sizeof(real_t) * integ->num_local_values); 
+  memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
   ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
   ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
-  ARKodeReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->x);
+  ARKodeReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
   integ->t = t;
 }
 
@@ -277,8 +277,8 @@ static void ark_dtor(void* context)
     newton_pc_free(integ->precond);
 
   // Kill the ARKode stuff.
-  polymec_free(integ->x_with_ghosts);
-  N_VDestroy(integ->x);
+  polymec_free(integ->U_with_ghosts);
+  N_VDestroy(integ->U);
   ARKodeFree(&integ->arkode);
 
   // Kill the rest.
@@ -293,7 +293,7 @@ static void ark_dtor(void* context)
 }
 
 // This function sets up the preconditioner data within the integrator.
-static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
+static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
                                  int jacobian_is_current, int* jacobian_was_updated, 
                                  real_t gamma, void* context, 
                                  N_Vector work1, N_Vector work2, N_Vector work3)
@@ -302,8 +302,8 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
   if (!jacobian_is_current)
   {
     // Compute the approximate Jacobian using a solution vector with ghosts.
-    memcpy(integ->x_with_ghosts, NV_DATA(x), sizeof(real_t) * integ->num_local_values);
-    newton_pc_setup(integ->precond, 1.0, -gamma, 0.0, t, integ->x_with_ghosts, NULL);
+    memcpy(integ->U_with_ghosts, NV_DATA(U), sizeof(real_t) * integ->num_local_values);
+    newton_pc_setup(integ->precond, 1.0, -gamma, 0.0, t, integ->U_with_ghosts, NULL);
     *jacobian_was_updated = 1;
   }
   else
@@ -314,7 +314,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector F,
 // This function solves the preconditioner equation. On input, the vector r 
 // contains the right-hand side of the preconditioner system, and on output 
 // it contains the solution to the system.
-static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F, 
+static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector F, 
                                        N_Vector r, N_Vector z, 
                                        real_t gamma, real_t delta, 
                                        int lr, void* context, 
@@ -328,7 +328,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector F,
   newton_pc_set_tolerance(integ->precond, delta);
 
   // Solve it.
-  int result = (newton_pc_solve(integ->precond, t, NV_DATA(x), NULL,
+  int result = (newton_pc_solve(integ->precond, t, NV_DATA(U), NULL,
                                 NV_DATA(r), NV_DATA(z))) ? 0 : 1;
   return result;
 }
@@ -344,18 +344,18 @@ static int stable_dt(N_Vector y, real_t t, real_t* dt_stable, void* context)
 }
 
 // Adaptor for J*y function
-static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector x, N_Vector rhs, void* context, N_Vector tmp)
+static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector U, N_Vector U_dot, void* context, N_Vector tmp)
 {
   START_FUNCTION_TIMER();
   ark_ode_t* integ = context;
-  real_t* xx = NV_DATA(x);
+  real_t* xx = NV_DATA(U);
   real_t* yy = NV_DATA(y);
-  real_t* my_rhs = NV_DATA(rhs);
+  real_t* my_rhs = NV_DATA(U_dot);
   real_t* temp = NV_DATA(tmp);
   real_t* jjy = NV_DATA(Jy);
 
   // Make sure we use ghosts.
-  memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
   int status = integ->Jy(integ->context, t, xx, my_rhs, yy, temp, jjy);
 
   // Tell our observers we've computed the right hand side.
@@ -375,8 +375,8 @@ ode_integrator_t* explicit_ark_ode_integrator_new(int order,
                                                   int num_local_values, 
                                                   int num_remote_values, 
                                                   void* context, 
-                                                  int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
-                                                  real_t (*stable_dt_func)(void* context, real_t, real_t* x),
+                                                  int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
+                                                  real_t (*stable_dt_func)(void* context, real_t, real_t* U),
                                                   void (*dtor)(void* context))
 {
   return functional_ark_ode_integrator_new(order, comm, num_local_values, 
@@ -389,9 +389,9 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
                                                     int num_local_values, 
                                                     int num_remote_values, 
                                                     void* context, 
-                                                    int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
-                                                    int (*fi_func)(void* context, real_t t, real_t* x, real_t* fi),
-                                                    real_t (*stable_dt_func)(void* context, real_t, real_t* x),
+                                                    int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
+                                                    int (*fi_func)(void* context, real_t t, real_t* U, real_t* fi),
+                                                    real_t (*stable_dt_func)(void* context, real_t, real_t* U),
                                                     void (*dtor)(void* context),
                                                     int max_anderson_accel_dim)
 {
@@ -421,8 +421,8 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
   integ->precond = NULL;
 
   // Set up ARKode and accessories.
-  integ->x = N_VNew(integ->comm, integ->num_local_values);
-  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
+  integ->U = N_VNew(integ->comm, integ->num_local_values);
+  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->arkode = ARKodeCreate();
   ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
   ARKodeSetOrder(integ->arkode, order);
@@ -433,7 +433,7 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
     ARKodeSetFixedPoint(integ->arkode, max_anderson_accel_dim);
   ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
   ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
-  ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->x);
+  ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
   if (fi_func == NULL)
     ARKodeSetExplicit(integ->arkode);
   else if (fe_func == NULL)
@@ -463,12 +463,12 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
                                               int num_local_values, 
                                               int num_remote_values, 
                                               void* context, 
-                                              int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
-                                              int (*fi_func)(void* context, real_t t, real_t* x, real_t* fi),
+                                              int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
+                                              int (*fi_func)(void* context, real_t t, real_t* U, real_t* fi),
                                               bool fi_is_linear,
                                               bool fi_is_time_dependent,
-                                              real_t (*stable_dt_func)(void* context, real_t, real_t* x),
-                                              int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
+                                              real_t (*stable_dt_func)(void* context, real_t, real_t* U),
+                                              int (*Jy_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* temp, real_t* Jy),
                                               void (*dtor)(void* context),
                                               newton_pc_t* precond,
                                               jfnk_ark_krylov_t solver_type,
@@ -501,8 +501,8 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   integ->first_step = true;
 
   // Set up ARKode and accessories.
-  integ->x = N_VNew(integ->comm, integ->num_local_values);
-  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
+  integ->U = N_VNew(integ->comm, integ->num_local_values);
+  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->arkode = ARKodeCreate();
   ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
   ARKodeSetOrder(integ->arkode, order);
@@ -513,7 +513,7 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
     ARKodeSetLinear(integ->arkode, fi_is_time_dependent);
   ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
   ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
-  ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->x);
+  ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
   if (fe_func == NULL)
     ARKodeSetImplicit(integ->arkode);
   else
@@ -722,25 +722,25 @@ void ark_ode_integrator_set_error_weight_function(ode_integrator_t* integrator,
   ARKodeWFtolerances(integ->arkode, compute_error_weights);
 }
 
-void ark_ode_integrator_eval_fe(ode_integrator_t* integrator, real_t t, real_t* X, real_t* fe)
+void ark_ode_integrator_eval_fe(ode_integrator_t* integrator, real_t t, real_t* U, real_t* fe)
 {
   ark_ode_t* integ = ode_integrator_context(integrator);
   if (integ->fe != NULL)
   {
-    memcpy(integ->x_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
-    integ->fe(integ->context, t, integ->x_with_ghosts, fe);
+    memcpy(integ->U_with_ghosts, U, sizeof(real_t) * integ->num_local_values);
+    integ->fe(integ->context, t, integ->U_with_ghosts, fe);
   }
   else
     memset(fe, 0, sizeof(real_t) * integ->num_local_values);
 }
 
-void ark_ode_integrator_eval_fi(ode_integrator_t* integrator, real_t t, real_t* X, real_t* fi)
+void ark_ode_integrator_eval_fi(ode_integrator_t* integrator, real_t t, real_t* U, real_t* fi)
 {
   ark_ode_t* integ = ode_integrator_context(integrator);
   if (integ->fi != NULL)
   {
-    memcpy(integ->x_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
-    integ->fi(integ->context, t, integ->x_with_ghosts, fi);
+    memcpy(integ->U_with_ghosts, U, sizeof(real_t) * integ->num_local_values);
+    integ->fi(integ->context, t, integ->U_with_ghosts, fi);
   }
   else
     memset(fi, 0, sizeof(real_t) * integ->num_local_values);
@@ -830,9 +830,9 @@ void ark_ode_integrator_diagnostics_fprintf(ark_ode_integrator_diagnostics_t* di
 }
 
 ark_ode_observer_t* ark_ode_observer_new(void* context,
-                                         void (*fe_computed)(void* context, real_t t, real_t* x, real_t* rhs),
-                                         void (*fi_computed)(void* context, real_t t, real_t* x, real_t* rhs),
-                                         void (*Jy_computed)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* Jy),
+                                         void (*fe_computed)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                         void (*fi_computed)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                         void (*Jy_computed)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* Jy),
                                          void (*dtor)(void* context))
 {
   ark_ode_observer_t* obs = polymec_malloc(sizeof(ark_ode_observer_t));

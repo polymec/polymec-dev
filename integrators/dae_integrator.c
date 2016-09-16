@@ -52,9 +52,9 @@ struct dae_integrator_t
 
   // IDA data structures.
   void* ida;
-  N_Vector x, x_dot;
-  real_t* x_with_ghosts;
-  real_t* x_dot_with_ghosts;
+  N_Vector U, U_dot;
+  real_t* U_with_ghosts;
+  real_t* U_dot_with_ghosts;
   int max_krylov_dim;
   char* status_message; // status of most recent integration.
   real_t max_dt, stop_time;
@@ -102,33 +102,33 @@ static char* get_status_message(int status, real_t current_time)
 }
 
 // This function wraps around the user-supplied right hand side.
-static int evaluate_residual(real_t t, N_Vector x, N_Vector x_dot, 
+static int evaluate_residual(real_t t, N_Vector U, N_Vector U_dot, 
                              N_Vector F, void* context)
 {
   dae_integrator_t* integ = context;
-  real_t* xx = NV_DATA(x);
-  real_t* xxd = NV_DATA(x_dot);
+  real_t* xx = NV_DATA(U);
+  real_t* xxd = NV_DATA(U_dot);
   real_t* Fx = NV_DATA(F);
 
   // Evaluate the residual using vectors with ghosts.
-  memcpy(integ->x_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
-  memcpy(integ->x_dot_with_ghosts, xxd, sizeof(real_t) * integ->num_local_values);
-  return integ->vtable.residual(integ->context, t, integ->x_with_ghosts, 
-                                integ->x_dot_with_ghosts, Fx);
+  memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->U_dot_with_ghosts, xxd, sizeof(real_t) * integ->num_local_values);
+  return integ->vtable.residual(integ->context, t, integ->U_with_ghosts, 
+                                integ->U_dot_with_ghosts, Fx);
 }
 
 // This function sets up the preconditioner data within the integrator.
-static int set_up_preconditioner(real_t t, N_Vector x, N_Vector x_dot, N_Vector F,
+static int set_up_preconditioner(real_t t, N_Vector U, N_Vector U_dot, N_Vector F,
                                  real_t cj, void* context,
                                  N_Vector work1, N_Vector work2, N_Vector work3)
 {
   START_FUNCTION_TIMER();
   dae_integrator_t* integ = context;
 
-  // Form the linear combination dFdx + cj * dFdxdot.
-  memcpy(integ->x_with_ghosts, NV_DATA(x), sizeof(real_t) * integ->num_local_values);
-  memcpy(integ->x_dot_with_ghosts, NV_DATA(x_dot), sizeof(real_t) * integ->num_local_values);
-  newton_pc_setup(integ->precond, 0.0, 1.0, cj, t, integ->x_with_ghosts, integ->x_dot_with_ghosts);
+  // Form the linear combination dFdx + cj * dFd(U_dot).
+  memcpy(integ->U_with_ghosts, NV_DATA(U), sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->U_dot_with_ghosts, NV_DATA(U_dot), sizeof(real_t) * integ->num_local_values);
+  newton_pc_setup(integ->precond, 0.0, 1.0, cj, t, integ->U_with_ghosts, integ->U_dot_with_ghosts);
   STOP_FUNCTION_TIMER();
   return 0;
 }
@@ -136,7 +136,7 @@ static int set_up_preconditioner(real_t t, N_Vector x, N_Vector x_dot, N_Vector 
 // This function solves the preconditioner equation. On input, the vector r 
 // contains the right-hand side of the preconditioner system, and on output 
 // it contains the solution to the system.
-static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot, 
+static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector U_dot, 
                                        N_Vector F, N_Vector r, N_Vector z, 
                                        real_t cj, real_t delta, 
                                        void* context, N_Vector work)
@@ -147,7 +147,7 @@ static int solve_preconditioner_system(real_t t, N_Vector x, N_Vector x_dot,
   // FIXME: Apply scaling if needed.
 
   // Solve it.
-  int result = (newton_pc_solve(integ->precond, t, NV_DATA(x), NV_DATA(x_dot),
+  int result = (newton_pc_solve(integ->precond, t, NV_DATA(U), NV_DATA(U_dot),
                                 NV_DATA(r), NV_DATA(z))) ? 0 : 1;
   STOP_FUNCTION_TIMER();
   return result;
@@ -160,8 +160,8 @@ static int eval_Jv(real_t tt, N_Vector yy, N_Vector yp, N_Vector rr,
 {
   START_FUNCTION_TIMER();
   dae_integrator_t* integ = context;
-  real_t* x = NV_DATA(yy);
-  real_t* xdot = NV_DATA(yp);
+  real_t* U = NV_DATA(yy);
+  real_t* Udot = NV_DATA(yp);
   real_t* R = NV_DATA(rr);
   real_t* vv = NV_DATA(v);
   real_t* Jvv = NV_DATA(Jv);
@@ -169,9 +169,9 @@ static int eval_Jv(real_t tt, N_Vector yy, N_Vector yp, N_Vector rr,
   real_t* tmp22 = NV_DATA(tmp2);
 
   // Make sure we use ghosts.
-  memcpy(integ->x_with_ghosts, x, sizeof(real_t) * integ->num_local_values);
-  memcpy(integ->x_dot_with_ghosts, xdot, sizeof(real_t) * integ->num_local_values);
-  int status = integ->vtable.Jv(integ->context, tt, x, xdot, R, vv, Jvv, cj, tmp11, tmp22);
+  memcpy(integ->U_with_ghosts, U, sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->U_dot_with_ghosts, Udot, sizeof(real_t) * integ->num_local_values);
+  int status = integ->vtable.Jv(integ->context, tt, U, Udot, R, vv, Jvv, cj, tmp11, tmp22);
   STOP_FUNCTION_TIMER();
   return status;
 }
@@ -221,17 +221,17 @@ dae_integrator_t* dae_integrator_new(int order,
   integ->status_message = NULL;
 
   // Set up IDA and accessories.
-  integ->x = N_VNew(comm, num_local_values);
-  integ->x_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
-  integ->x_dot = N_VNew(comm, num_local_values);
-  integ->x_dot_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
-  memset(NV_DATA(integ->x), 0, sizeof(real_t) * num_local_values);
-  memset(NV_DATA(integ->x_dot), 0, sizeof(real_t) * num_local_values);
+  integ->U = N_VNew(comm, num_local_values);
+  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
+  integ->U_dot = N_VNew(comm, num_local_values);
+  integ->U_dot_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
+  memset(NV_DATA(integ->U), 0, sizeof(real_t) * num_local_values);
+  memset(NV_DATA(integ->U_dot), 0, sizeof(real_t) * num_local_values);
 
   integ->ida = IDACreate();
   IDASetMaxOrd(integ->ida, integ->order);
   IDASetUserData(integ->ida, integ);
-  IDAInit(integ->ida, evaluate_residual, integ->t, integ->x, integ->x_dot);
+  IDAInit(integ->ida, evaluate_residual, integ->t, integ->U, integ->U_dot);
 
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver_type == DAE_GMRES)
@@ -350,10 +350,10 @@ void dae_integrator_free(dae_integrator_t* integ)
     newton_pc_free(integ->precond);
 
   // Kill the IDA stuff.
-  N_VDestroy(integ->x_dot);
-  polymec_free(integ->x_with_ghosts);
-  N_VDestroy(integ->x);
-  polymec_free(integ->x_dot_with_ghosts);
+  N_VDestroy(integ->U_dot);
+  polymec_free(integ->U_with_ghosts);
+  N_VDestroy(integ->U);
+  polymec_free(integ->U_dot_with_ghosts);
   IDAFree(&integ->ida);
 
   // Kill the rest.
@@ -412,9 +412,9 @@ void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* X, 
 void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot, real_t* F)
 {
   START_FUNCTION_TIMER();
-  memcpy(integ->x_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
-  memcpy(integ->x_dot_with_ghosts, X_dot, sizeof(real_t) * integ->num_local_values);
-  integ->vtable.residual(integ->context, t, integ->x_with_ghosts, integ->x_dot_with_ghosts, F);
+  memcpy(integ->U_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->U_dot_with_ghosts, X_dot, sizeof(real_t) * integ->num_local_values);
+  integ->vtable.residual(integ->context, t, integ->U_with_ghosts, integ->U_dot_with_ghosts, F);
   STOP_FUNCTION_TIMER();
 }
 
@@ -446,7 +446,7 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real
   if (t2 > integ->t)
   {
     // Integrate to at least t -> t + max_dt.
-    status = IDASolve(integ->ida, t2, &integ->t, integ->x, integ->x_dot, IDA_ONE_STEP);
+    status = IDASolve(integ->ida, t2, &integ->t, integ->U, integ->U_dot, IDA_ONE_STEP);
     if ((status != IDA_SUCCESS) && (status != IDA_TSTOP_RETURN))
     {
       integ->status_message = get_status_message(status, integ->t);
@@ -461,8 +461,8 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real
   // If we integrated past t2, interpolate to t2.
   if (integ->t > t2)
   {
-    status = IDAGetDky(integ->ida, t2, 0, integ->x);
-    status = IDAGetDky(integ->ida, t2, 1, integ->x_dot);
+    status = IDAGetDky(integ->ida, t2, 0, integ->U);
+    status = IDAGetDky(integ->ida, t2, 1, integ->U_dot);
     *t = t2;
   }
   else
@@ -479,8 +479,8 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real
   if ((status == IDA_SUCCESS) || (status == IDA_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
-    memcpy(X_dot, NV_DATA(integ->x_dot), sizeof(real_t) * integ->num_local_values); 
+    memcpy(X, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
+    memcpy(X_dot, NV_DATA(integ->U_dot), sizeof(real_t) * integ->num_local_values); 
     STOP_FUNCTION_TIMER();
     return true;
   }
@@ -503,9 +503,9 @@ void dae_integrator_reset(dae_integrator_t* integ,
 
   // Reset the integrator itself.
   integ->t = t;
-  memcpy(NV_DATA(integ->x), X, sizeof(real_t) * integ->num_local_values); 
-  memcpy(NV_DATA(integ->x_dot), X_dot, sizeof(real_t) * integ->num_local_values); 
-  IDAReInit(integ->ida, integ->t, integ->x, integ->x_dot);
+  memcpy(NV_DATA(integ->U), X, sizeof(real_t) * integ->num_local_values); 
+  memcpy(NV_DATA(integ->U_dot), X_dot, sizeof(real_t) * integ->num_local_values); 
+  IDAReInit(integ->ida, integ->t, integ->U, integ->U_dot);
   integ->initialized = true;
 
   if (correct_initial_conditions)
@@ -537,9 +537,9 @@ void dae_integrator_reset(dae_integrator_t* integ,
         log_detail("  IC correction failed to converge.");
       }
     }
-    IDAGetConsistentIC(integ->ida, integ->x, integ->x_dot);
-    memcpy(X, NV_DATA(integ->x), sizeof(real_t) * integ->num_local_values); 
-    memcpy(X_dot, NV_DATA(integ->x_dot), sizeof(real_t) * integ->num_local_values); 
+    IDAGetConsistentIC(integ->ida, integ->U, integ->U_dot);
+    memcpy(X, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
+    memcpy(X_dot, NV_DATA(integ->U_dot), sizeof(real_t) * integ->num_local_values); 
   }
 
   // Write out debugging info.

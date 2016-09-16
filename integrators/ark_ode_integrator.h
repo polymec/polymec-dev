@@ -15,7 +15,7 @@
 // differential equations using semi-implicit Additive Runge Kutte (ARK) 
 // methods. The equations integrated take the form
 //
-// dx/dt = fe(t, x) + fi(t, x)
+// dU/dt = fe(t, U) + fi(t, U)
 //
 // where fe is a slowly-varying function that can be integrated explicitly, 
 // and fi is a quickly-varying function that should be integrated implicitly.
@@ -43,7 +43,7 @@ typedef enum
 } jfnk_ark_krylov_t;
 
 // This constructs an integrator for the slowly-varying system
-// dx/dt = fe(t, x) with the desired order of time accuracy.
+// dx/dt = fe(t, U) with the desired order of time accuracy.
 // The optional stable_dt_func argument supplies a function that computes the 
 // next timestep subject to stability constraints.
 ode_integrator_t* explicit_ark_ode_integrator_new(int order, 
@@ -51,8 +51,8 @@ ode_integrator_t* explicit_ark_ode_integrator_new(int order,
                                                   int num_local_values, 
                                                   int num_remote_values, 
                                                   void* context, 
-                                                  int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
-                                                  real_t (*stable_dt_func)(void* context, real_t, real_t* x),
+                                                  int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
+                                                  real_t (*stable_dt_func)(void* context, real_t, real_t* U),
                                                   void (*dtor)(void* context));
 
 // This constructs an integrator for the system with given fe, fi,
@@ -69,9 +69,9 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
                                                     int num_local_values, 
                                                     int num_remote_values, 
                                                     void* context, 
-                                                    int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
-                                                    int (*fi_func)(void* context, real_t t, real_t* x, real_t* fi),
-                                                    real_t (*stable_dt_func)(void* context, real_t, real_t* x),
+                                                    int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
+                                                    int (*fi_func)(void* context, real_t t, real_t* U, real_t* fi),
+                                                    real_t (*stable_dt_func)(void* context, real_t, real_t* U),
                                                     void (*dtor)(void* context),
                                                     int max_anderson_accel_dim);
 
@@ -84,18 +84,18 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
 // stiff, and will be implicitly integrated. The fi_is_linear and 
 // fi_is_time_dependent flags provide information about fi in order to help 
 // the integrator optimize its performance (and fi_is_time_dependent is 
-// ignored if fi is not linear in x).
+// ignored if fi is not linear in U).
 ode_integrator_t* jfnk_ark_ode_integrator_new(int order, 
                                               MPI_Comm comm,
                                               int num_local_values, 
                                               int num_remote_values, 
                                               void* context, 
-                                              int (*fe_func)(void* context, real_t t, real_t* x, real_t* fe),
-                                              int (*fi_func)(void* context, real_t t, real_t* x, real_t* fi),
+                                              int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
+                                              int (*fi_func)(void* context, real_t t, real_t* U, real_t* fi),
                                               bool fi_is_linear,
                                               bool fi_is_time_dependent,
-                                              real_t (*stable_dt_func)(void* context, real_t, real_t* x),
-                                              int (*Jy_func)(void* context, real_t t, real_t* x, real_t* fi, real_t* y, real_t* temp, real_t* Jy),
+                                              real_t (*stable_dt_func)(void* context, real_t, real_t* U),
+                                              int (*Jy_func)(void* context, real_t t, real_t* U, real_t* fi, real_t* y, real_t* temp, real_t* Jy),
                                               void (*dtor)(void* context),
                                               newton_pc_t* precond,
                                               jfnk_ark_krylov_t solver_type,
@@ -215,9 +215,9 @@ typedef struct ark_ode_observer_t ark_ode_observer_t;
 //               is computed by the integrator.
 // Both of these functions are fed the given context object.
 ark_ode_observer_t* ark_ode_observer_new(void* context,
-                                         void (*fe_computed)(void* context, real_t t, real_t* x, real_t* rhs),
-                                         void (*fi_computed)(void* context, real_t t, real_t* x, real_t* rhs),
-                                         void (*Jy_computed)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* Jy),
+                                         void (*fe_computed)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                         void (*fi_computed)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                         void (*Jy_computed)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* Jy),
                                          void (*dtor)(void* context));
 
 // Adds the given observer to the given am_ode_integrator. The observer 

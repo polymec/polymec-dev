@@ -35,9 +35,9 @@ typedef enum
 // function and destructor are required, and a function to compute Jy, the 
 // product of the Jacobian with the vector y, can be optionally provided. Its 
 // signature is: 
-// Jy_func(context, t, x, rhs, y, temp, Jy), where context is the context pointer, 
+// Jy_func(context, t, U, U_dot, y, temp, Jy), where context is the context pointer, 
 // t is the time at which Jy is evaluated, y is the vector the Jacobian operator
-// J is applied to, rhs is the right hand side function evaluated at t and y,
+// J is applied to, U_dot is the right hand side function evaluated at t and y,
 // temp is a work vector the same size as y, and Jy is a vector that stores the 
 // product Jy.
 // If Jy_func is not given, a finite difference approximation of Jy will be used.
@@ -49,8 +49,8 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
                                               int num_local_values, 
                                               int num_remote_values, 
                                               void* context, 
-                                              int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
-                                              int (*Jy_func)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
+                                              int (*rhs_func)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                              int (*Jy_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* temp, real_t* Jy),
                                               void (*dtor)(void* context),
                                               newton_pc_t* precond,
                                               jfnk_bdf_krylov_t solver_type,
@@ -69,8 +69,8 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
                                              int num_local_values, 
                                              int num_remote_values, 
                                              void* context, 
-                                             int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
-                                             int (*J_func)(void* context, real_t t, real_t* x, real_t* rhs, krylov_matrix_t* J),
+                                             int (*rhs_func)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                             int (*J_func)(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J),
                                              void (*dtor)(void* context),
                                              krylov_factory_t* factory,
                                              matrix_sparsity_t* J_sparsity);
@@ -118,8 +118,8 @@ typedef enum
 // This function creates a BDF integrator that uses the given methods to define how
 // it solves the linear systems that underlie the BDF method. These methods are:
 // * rhs_func -- Used to compute the right-hand side of the ODE.
-// * reset_func -- Used to reset the state of the integrator to integrate X at time t, as 
-//                 invoked by ode_integrator_reset(integ, t, X).
+// * reset_func -- Used to reset the state of the integrator to integrate U at time t, as 
+//                 invoked by ode_integrator_reset(integ, t, U).
 // * set_up_func -- Used to calculate and store a representation of the linear operator 
 //                  I - gamma * J, where I is the identity operator, J is the Jacobian, and 
 //                  gamma is a positive scale factor related to the time step. This operator
@@ -131,8 +131,8 @@ typedef enum
 //                                 at the given time step. See above.
 //                  - gamma: the scaling factor in I - gamma * J.
 //                  - t: The current time.
-//                  - X_pred: The predicted solution vector for the current step.
-//                  - rhs_pred: The value of the right hand side at time t and X = X_pred.
+//                  - U_pred: The predicted solution vector for the current step.
+//                  - U_dot_pred: The value of the right hand side at time t and U = U_pred.
 //                  - J_current: A pointer to a boolean variable, to be set to true if the Jacobian 
 //                               information has been updated and false if not.
 //                  - work1, work2, work3: work vectors of the same size as the solution vector, provided 
@@ -145,10 +145,10 @@ typedef enum
 //                      weighted norms used to test for convergence of any iterative methods within 
 //                      the solver.
 //                 - t: The current time.
-//                 - X: The current solution at time t.
-//                 - rhs: The current right hand side vector for the ODE at time t.
-//                 - B: The right hand side vector for the linear system, which will be replaced by the 
-//                      solution X.
+//                 - U: The current solution at time t.
+//                 - U_dot: The current right hand side vector for the ODE at time t.
+//                 - B: The right hand side vector for the linear system, which will be replaced by 
+//                      X, the solution to the linear system.
 //                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
 //                 for an unrecoverable error.
 // * dtor -- Used to destroy the context pointer.
@@ -158,21 +158,21 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                          int num_local_values, 
                                          int num_remote_values, 
                                          void* context, 
-                                         int (*rhs_func)(void* context, real_t t, real_t* x, real_t* xdot),
-                                         int (*reset_func)(void* context, real_t t, real_t* X),
+                                         int (*rhs_func)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                         int (*reset_func)(void* context, real_t t, real_t* U),
                                          int (*setup_func)(void* context, 
                                                            bdf_conv_status_t conv_status, 
                                                            real_t gamma, 
                                                            real_t t, 
-                                                           real_t* X_pred, 
-                                                           real_t* rhs_pred, 
+                                                           real_t* U_pred, 
+                                                           real_t* U_dot_pred, 
                                                            bool* J_updated, 
                                                            real_t* work1, real_t* work2, real_t* work3),
                                          int (*solve_func)(void* context, 
                                                            real_t* W, 
                                                            real_t t, 
-                                                           real_t* X,
-                                                           real_t* rhs,
+                                                           real_t* U,
+                                                           real_t* U_dot,
                                                            real_t* B), 
                                          void (*dtor)(void* context));
 
@@ -217,8 +217,8 @@ void bdf_ode_integrator_set_nonlinear_convergence_coeff(ode_integrator_t* integr
                                                         real_t coefficient);
 
 // Evaluates the right-hand side of the system at the given time and with the 
-// given solution X, placing the results in rhs.
-void bdf_ode_integrator_eval_rhs(ode_integrator_t* integ, real_t t, real_t* X, real_t* rhs);
+// given solution U, placing the results in U_dot.
+void bdf_ode_integrator_eval_rhs(ode_integrator_t* integ, real_t t, real_t* U, real_t* U_dot);
 
 // Returns an internal pointer to the preconditioner passed to this 
 // integrator during construction time.
@@ -262,8 +262,8 @@ typedef struct bdf_ode_observer_t bdf_ode_observer_t;
 //               is computed by the integrator.
 // Both of these functions are fed the given context object.
 bdf_ode_observer_t* bdf_ode_observer_new(void* context,
-                                         void (*rhs_computed)(void* context, real_t t, real_t* x, real_t* rhs),
-                                         void (*Jy_computed)(void* context, real_t t, real_t* x, real_t* rhs, real_t* y, real_t* Jy),
+                                         void (*rhs_computed)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                         void (*Jy_computed)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* Jy),
                                          void (*dtor)(void* context));
 
 // Adds the given observer to the given am_ode_integrator. The observer 

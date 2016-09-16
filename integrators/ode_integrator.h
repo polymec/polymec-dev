@@ -20,27 +20,27 @@ typedef struct ode_integrator_t ode_integrator_t;
 typedef struct
 {
   // This function resets the internal state of the integrator to use the 
-  // given solution data at the given time.
-  void (*reset)(void* context, real_t t, real_t* x);
+  // given solution data U at the given time.
+  void (*reset)(void* context, real_t t, real_t* U);
 
   // This function takes a single step in time, updating x and t and returning 
   // true on success and false on failure.
-  bool (*step)(void* context, real_t max_dt, real_t* t, real_t* x);
+  bool (*step)(void* context, real_t max_dt, real_t* t, real_t* U);
 
   // This function integrates the solution x to time max_t, returning true 
   // on success and false on failure.
-  bool (*advance)(void* context, real_t t1, real_t t2, real_t* x);
+  bool (*advance)(void* context, real_t t1, real_t t2, real_t* U);
 
   // This optional function defines how non-standard solution data is copied 
   // into the integrator's solution vecor x. Define this if you are 
   // implementing a custom integrator that handles data in strange and 
   // wonderful layouts.
-  void (*copy_in)(void* context, real_t* solution_data, real_t* x);
+  void (*copy_in)(void* context, real_t* solution_data, real_t* U);
 
   // This optional function defines how non-standard solution data is copied 
-  // from the integrator's solution vecor x. Define this if you have defined 
+  // from the integrator's solution vecor U. Define this if you have defined 
   // copy_in above.
-  void (*copy_out)(void* context, real_t* x, real_t* solution_data);
+  void (*copy_out)(void* context, real_t* U, real_t* solution_data);
 
   // This function destroys the state (context) when the integrator 
   // is destroyed.
@@ -86,23 +86,23 @@ void ode_integrator_set_max_dt(ode_integrator_t* integ, real_t max_dt);
 // Sets the time past which the integrator will not step.
 void ode_integrator_set_stop_time(ode_integrator_t* integ, real_t stop_time);
 
-// Integrates the given solution X in place, taking a single step with a maximum 
+// Integrates the given solution U in place, taking a single step with a maximum 
 // size of max_dt, starting at time *t and storing the new time there as well. 
 // Returns true if the step succeeded, false if it failed for some reason. 
-// If a step fails, both *t and X remain unchanged.
-bool ode_integrator_step(ode_integrator_t* integ, real_t max_dt, real_t* t, real_t* X);
+// If a step fails, both *t and U remain unchanged.
+bool ode_integrator_step(ode_integrator_t* integ, real_t max_dt, real_t* t, real_t* U);
 
-// Integrates the given solution X in place from time t1 to t2, taking as 
+// Integrates the given solution U in place from time t1 to t2, taking as 
 // many steps as are needed. The amount of work done by this method depends on the 
 // number of steps taken, so do not call it in contexts that require a 
 // predictable amount of work. Returns true if the integration succeeded, 
-// false if it failed for some reason. If a step fails, X remains unchanged.
-bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_t* X);
+// false if it failed for some reason. If a step fails, U remains unchanged.
+bool ode_integrator_advance(ode_integrator_t* integ, real_t t1, real_t t2, real_t* U);
 
 // Resets the internal state of the integrator to use the given solution data 
-// x at the given time t. It is necessary to call this function when the 
+// U at the given time t. It is necessary to call this function when the 
 // solution data has been altered since the last step.
-void ode_integrator_reset(ode_integrator_t* integ, real_t t, real_t* X);
+void ode_integrator_reset(ode_integrator_t* integ, real_t t, real_t* U);
 
 // Returns the current time at which the integrator sits.
 real_t ode_integrator_current_time(ode_integrator_t* integ);
