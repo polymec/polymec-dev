@@ -38,55 +38,55 @@
 // Jacobian is saved and conditionally reused within the Precond
 // routine.
 
-#include <cvode/cvode_spgmr.h>        /* prototypes & constants for CVSPGMR */
-#include <nvector/nvector_serial.h>   /* serial N_Vector types, fct., macros */
-#include <sundials/sundials_dense.h>  /* use generic dense solver in precond. */
-#include <sundials/sundials_types.h>  /* definition of real_t */
-#include <sundials/sundials_math.h>   /* contains the macros SUNABS, SUNSQR, SUNRexp*/
+#include <cvode/cvode_spgmr.h>        // prototypes & constants for CVSPGMR 
+#include <nvector/nvector_serial.h>   // serial N_Vector types, fct., macros 
+#include <sundials/sundials_dense.h>  // use generic dense solver in precond. 
+#include <sundials/sundials_types.h>  // definition of real_t 
+#include <sundials/sundials_math.h>   // contains the macros SUNABS, SUNSQR, SUNRexp
 
-/* Problem Constants */
+// Problem Constants 
 
 #define ZERO RCONST(0.0)
 #define ONE  RCONST(1.0)
 #define TWO  RCONST(2.0)
 
-#define NUM_SPECIES  2                 /* number of species         */
-#define KH           RCONST(4.0e-6)    /* horizontal diffusivity Kh */
-#define VEL          RCONST(0.001)     /* advection velocity V      */
-#define KV0          RCONST(1.0e-8)    /* coefficient in Kv(y)      */
-#define Q1           RCONST(1.63e-16)  /* coefficients q1, q2, c3   */ 
+#define NUM_SPECIES  2                 // number of species         
+#define KH           RCONST(4.0e-6)    // horizontal diffusivity Kh 
+#define VEL          RCONST(0.001)     // advection velocity V      
+#define KV0          RCONST(1.0e-8)    // coefficient in Kv(y)      
+#define Q1           RCONST(1.63e-16)  // coefficients q1, q2, c3   
 #define Q2           RCONST(4.66e-16)
 #define C3           RCONST(3.7e16)
-#define A3           RCONST(22.62)     /* coefficient in expression for q3(t) */
-#define A4           RCONST(7.601)     /* coefficient in expression for q4(t) */
-#define C1_SCALE     RCONST(1.0e6)     /* coefficients in initial profiles    */
+#define A3           RCONST(22.62)     // coefficient in expression for q3(t) 
+#define A4           RCONST(7.601)     // coefficient in expression for q4(t) 
+#define C1_SCALE     RCONST(1.0e6)     // coefficients in initial profiles    
 #define C2_SCALE     RCONST(1.0e12)
 
-#define T0           ZERO                 /* initial time */
-#define NOUT         12                   /* number of output times */
-#define TWOHR        RCONST(7200.0)       /* number of seconds in two hours  */
-#define HALFDAY      RCONST(4.32e4)       /* number of seconds in a half day */
-#define PI       RCONST(3.1415926535898)  /* pi */ 
+#define T0           ZERO                 // initial time 
+#define NOUT         12                   // number of output times 
+#define TWOHR        RCONST(7200.0)       // number of seconds in two hours  
+#define HALFDAY      RCONST(4.32e4)       // number of seconds in a half day 
+#define PI       RCONST(3.1415926535898)  // pi 
 
-#define XMIN         ZERO                 /* grid boundaries in x  */
+#define XMIN         ZERO                 // grid boundaries in x  
 #define XMAX         RCONST(20.0)           
-#define YMIN         RCONST(30.0)         /* grid boundaries in y  */
+#define YMIN         RCONST(30.0)         // grid boundaries in y  
 #define YMAX         RCONST(50.0)
-#define XMID         RCONST(10.0)         /* grid midpoints in x,y */          
+#define XMID         RCONST(10.0)         // grid midpoints in x,y 
 #define YMID         RCONST(40.0)
 
-#define MX           10             /* MX = number of x mesh points */
-#define MY           10             /* MY = number of y mesh points */
-#define NSMX         20             /* NSMX = NUM_SPECIES*MX */
-#define MM           (MX*MY)        /* MM = MX*MY */
+#define MX           10             // MX = number of x mesh points 
+#define MY           10             // MY = number of y mesh points 
+#define NSMX         20             // NSMX = NUM_SPECIES*MX 
+#define MM           (MX*MY)        // MM = MX*MY 
 
-/* CVodeInit Constants */
+// CVodeInit Constants 
 
-#define RTOL    RCONST(1.0e-5)    /* scalar relative tolerance */
-#define FLOOR   RCONST(100.0)     /* value of C1 or C2 at which tolerances */
-                                  /* change from relative to absolute      */
-#define ATOL    (RTOL*FLOOR)      /* scalar absolute tolerance */
-#define NEQ     (NUM_SPECIES*MM)  /* NEQ = number of equations */
+#define RTOL    RCONST(1.0e-5)    // scalar relative tolerance 
+#define FLOOR   RCONST(100.0)     // value of C1 or C2 at which tolerances 
+                                  // change from relative to absolute      
+#define ATOL    (RTOL*FLOOR)      // scalar absolute tolerance 
+#define NEQ     (NUM_SPECIES*MM)  // NEQ = number of equations 
 
 typedef struct 
 {
@@ -167,7 +167,7 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
       data->q4 = ZERO;
   }
 
-  /* Make local copies of problem variables, for efficiency. */
+  // Make local copies of problem variables, for efficiency. 
 
   q4coef = data->q4;
   dely = data->dy;
@@ -175,11 +175,11 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
   hordco  = data->hdco;
   horaco  = data->haco;
 
-  /* Loop over all grid points. */
+  // Loop over all grid points. 
 
   for (int jy=0; jy < MY; ++jy) 
   {
-    /* Set vertical diffusion coefficients at jy +- 1/2 */
+    // Set vertical diffusion coefficients at jy +- 1/2 
 
     ydn = YMIN + (jy - RCONST(0.5))*dely;
     yup = ydn + dely;
@@ -189,7 +189,7 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
     iup = (jy == MY-1) ? -1 : 1;
     for (int jx=0; jx < MX; jx++) {
 
-      /* Extract c1 and c2, and set kinetic rate terms. */
+      // Extract c1 and c2, and set kinetic rate terms. 
 
       c1 = u_ijk[jx][jy][0]; 
       c2 = u_ijk[jx][jy][1];
@@ -200,7 +200,7 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
       rkin1 = -qq1 - qq2 + TWO*qq3 + qq4;
       rkin2 = qq1 - qq2 - qq4;
 
-      /* Set vertical diffusion terms. */
+      // Set vertical diffusion terms. 
 
       c1dn = u_ijk[jx][jy+idn][0];
       c2dn = u_ijk[jx][jy+idn][1];
@@ -209,7 +209,7 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
       vertd1 = cyup*(c1up - c1) - cydn*(c1 - c1dn);
       vertd2 = cyup*(c2up - c2) - cydn*(c2 - c2dn);
 
-      /* Set horizontal diffusion and advection terms. */
+      // Set horizontal diffusion and advection terms. 
 
       ileft = (jx == 0) ? 1 : -1;
       iright =(jx == MX-1) ? -1 : 1;
@@ -222,7 +222,7 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
       horad1 = horaco*(c1rt - c1lt);
       horad2 = horaco*(c2rt - c2lt);
 
-      /* Load all terms into udot. */
+      // Load all terms into udot. 
 
       udot_ijk[jx][jy][0] = vertd1 + hord1 + horad1 + rkin1; 
       udot_ijk[jx][jy][1] = vertd2 + hord2 + horad2 + rkin2;
@@ -271,7 +271,7 @@ real_t* diurnal_initial_conditions(ode_integrator_t* integ)
 }
 
 // Constructor for a BDF diurnal integrator with the given preconditioner.
-static ode_integrator_t* bdf_diurnal_integrator_new(diurnal_t* data, newton_pc_t* precond)
+static ode_integrator_t* jfnk_bdf_diurnal_integrator_new(diurnal_t* data, newton_pc_t* precond)
 {
   // Set up a time integrator using GMRES with a maximum order of 5 and 
   // a Krylov space of maximum dimension 15.
@@ -284,17 +284,38 @@ static ode_integrator_t* bdf_diurnal_integrator_new(diurnal_t* data, newton_pc_t
 }
 
 // Constructor for block-Jacobi-preconditioned BDF diurnal integrator.
-ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new(newton_pc_side_t side);
-ode_integrator_t* block_jacobi_precond_bdf_diurnal_integrator_new(newton_pc_side_t side)
+ode_integrator_t* bj_jfnk_bdf_diurnal_integrator_new(newton_pc_side_t side);
+ode_integrator_t* bj_jfnk_bdf_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
   newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
-  ode_integrator_t* integ = bdf_diurnal_integrator_new(data, precond);
+  ode_integrator_t* integ = jfnk_bdf_diurnal_integrator_new(data, precond);
+  return integ;
+}
+
+// Function for constructing the Jacobian matrix for the diurnal system.
+static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J)
+{
+  // FIXME
+  return 0;
+}
+
+// Constructor for an Inexact Newton-Krylov BDF diurnal integrator.
+ode_integrator_t* ink_bdf_diurnal_integrator_new(krylov_factory_t* factory);
+ode_integrator_t* ink_bdf_diurnal_integrator_new(krylov_factory_t* factory)
+{
+  diurnal_t* data = diurnal_new();
+  // Set up a time integrator using GMRES with a maximum order of 5 and 
+  // a Krylov space of maximum dimension 15.
+  matrix_sparsity_t* J_sparsity = matrix_sparsity_from_graph(data->sparsity, NULL);
+  ode_integrator_t* integ = ink_bdf_ode_integrator_new(5, MPI_COMM_SELF, factory,
+                                                       J_sparsity, data, diurnal_rhs, 
+                                                       diurnal_J, diurnal_dtor);
   return integ;
 }
 
 // Constructor for an ARK diurnal integrator with the given preconditioner.
-static ode_integrator_t* ark_diurnal_integrator_new(diurnal_t* data, newton_pc_t* precond)
+static ode_integrator_t* jfnk_ark_diurnal_integrator_new(diurnal_t* data, newton_pc_t* precond)
 {
   // Set up a time integrator using GMRES with a maximum order of 4 and 
   // a Krylov space of maximum dimension 15.
@@ -321,17 +342,17 @@ ode_integrator_t* functional_ark_diurnal_integrator_new(void);
 ode_integrator_t* functional_ark_diurnal_integrator_new()
 {
   diurnal_t* data = diurnal_new();
-  ode_integrator_t* integ = ark_diurnal_integrator_new(data, NULL);
+  ode_integrator_t* integ = jfnk_ark_diurnal_integrator_new(data, NULL);
   return integ;
 }
 
 // Constructor for block-Jacobi-preconditioned ARK diurnal integrator.
-ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
-ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side_t side)
+ode_integrator_t* bj_jfnk_ark_diurnal_integrator_new(newton_pc_side_t side);
+ode_integrator_t* bj_jfnk_ark_diurnal_integrator_new(newton_pc_side_t side)
 {
   diurnal_t* data = diurnal_new();
   newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
-  ode_integrator_t* integ = ark_diurnal_integrator_new(data, precond);
+  ode_integrator_t* integ = jfnk_ark_diurnal_integrator_new(data, precond);
   return integ;
 }
 

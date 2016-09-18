@@ -51,9 +51,14 @@ matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
 // can be used to construct a mapping from local to global indices for 
 // graph edges that cross MPI process boundaries). The sparsity pattern 
 // is defined on the same MPI communicator as the adjacency graph.
-// NOTE: This operation involves communication.
+// NOTE: This operation involves communication if the number of processes
+// NOTE: in the graph's communicator is greater than 1. On single processes,
+// NOTE: it's okay to pass NULL to the exchanger.
 matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
                                               exchanger_t* ex);
+
+// Creates a clone (deep copy) of the given matrix sparsity pattern.
+matrix_sparsity_t* matrix_sparsity_clone(matrix_sparsity_t* sparsity);
 
 // Frees the given matrix sparsity pattern.
 void matrix_sparsity_free(matrix_sparsity_t* sparsity);

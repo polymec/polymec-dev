@@ -160,6 +160,24 @@ matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
   return sparsity;
 }
 
+matrix_sparsity_t* matrix_sparsity_clone(matrix_sparsity_t* sparsity)
+{
+  matrix_sparsity_t* clone = polymec_malloc(sizeof(matrix_sparsity_t));
+  clone->comm = sparsity->comm;
+  clone->nproc = sparsity->nproc;
+  clone->rank = sparsity->rank;
+  clone->row_dist = polymec_malloc(sizeof(index_t) * (sparsity->nproc+1));
+  memcpy(clone->row_dist, sparsity->row_dist, sizeof(index_t) * (sparsity->nproc+1));
+  clone->num_local_rows = sparsity->num_local_rows;
+  clone->num_global_rows = sparsity->num_global_rows;
+  clone->offsets = polymec_malloc(sizeof(index_t) * (clone->num_local_rows + 1));
+  memcpy(clone->offsets, sparsity->offsets, sizeof(index_t) * (clone->num_local_rows + 1));
+  clone->columns_cap = sparsity->columns_cap;
+  clone->columns = polymec_malloc(sizeof(index_t) * clone->columns_cap);
+  memcpy(clone->columns, sparsity->columns, sizeof(index_t) * (clone->offsets[clone->num_local_rows]));
+  return clone;
+}
+
 void matrix_sparsity_free(matrix_sparsity_t* sparsity)
 {
   polymec_free(sparsity->offsets);

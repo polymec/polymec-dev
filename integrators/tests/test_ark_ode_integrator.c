@@ -15,22 +15,22 @@
 #include "integrators/ark_ode_integrator.h"
 
 extern ode_integrator_t* functional_ark_diurnal_integrator_new();
-extern ode_integrator_t* block_jacobi_precond_ark_diurnal_integrator_new(newton_pc_side_t side);
+extern ode_integrator_t* bj_jfnk_ark_diurnal_integrator_new(newton_pc_side_t side);
 extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
 
-static void test_functional_diurnal_ctor(void** state)
+static void test_functional_ark_diurnal_ctor(void** state)
 {
   ode_integrator_t* integ = functional_ark_diurnal_integrator_new();
   ode_integrator_free(integ);
 }
 
-static void test_block_jacobi_precond_diurnal_ctor(void** state)
+static void test_bj_jfnk_ark_diurnal_ctor(void** state)
 {
-  ode_integrator_t* integ = block_jacobi_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
+  ode_integrator_t* integ = bj_jfnk_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
   ode_integrator_free(integ);
-  integ = block_jacobi_precond_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
+  integ = bj_jfnk_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
   ode_integrator_free(integ);
-  integ = block_jacobi_precond_ark_diurnal_integrator_new(NEWTON_PC_BOTH);
+  integ = bj_jfnk_ark_diurnal_integrator_new(NEWTON_PC_BOTH);
   ode_integrator_free(integ);
 }
 
@@ -72,15 +72,15 @@ static int test_diurnal_step(void** state, ode_integrator_t* integ, real_t max_d
   return step;
 }
 
-//static void test_functional_diurnal_step(void** state)
+//static void test_functional_ark_diurnal_step(void** state)
 //{
 //  ode_integrator_t* integ = functional_ark_diurnal_integrator_new();
 //  test_diurnal_step(state, integ, 1.0, 5000);
 //}
 
-static void test_block_jacobi_precond_diurnal_step_left(void** state)
+static void test_bj_jfnk_ark_diurnal_step_left(void** state)
 {
-  ode_integrator_t* integ = block_jacobi_precond_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
+  ode_integrator_t* integ = bj_jfnk_ark_diurnal_integrator_new(NEWTON_PC_LEFT);
 #if POLYMEC_HAVE_DOUBLE_PRECISION
   int max_steps = 500;
 #else
@@ -89,9 +89,9 @@ static void test_block_jacobi_precond_diurnal_step_left(void** state)
   test_diurnal_step(state, integ, REAL_MAX, max_steps);
 }
 
-static void test_block_jacobi_precond_diurnal_step_right(void** state)
+static void test_bj_jfnk_ark_diurnal_step_right(void** state)
 {
-  ode_integrator_t* integ = block_jacobi_precond_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
+  ode_integrator_t* integ = bj_jfnk_ark_diurnal_integrator_new(NEWTON_PC_RIGHT);
 #if POLYMEC_HAVE_DOUBLE_PRECISION
   int max_steps = 500;
 #else
@@ -105,11 +105,11 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_functional_diurnal_ctor),
-    cmocka_unit_test(test_block_jacobi_precond_diurnal_ctor),
-//    cmocka_unit_test(test_functional_diurnal_step), // too stiff!
-    cmocka_unit_test(test_block_jacobi_precond_diurnal_step_left),
-    cmocka_unit_test(test_block_jacobi_precond_diurnal_step_right),
+    cmocka_unit_test(test_functional_ark_diurnal_ctor),
+    cmocka_unit_test(test_bj_jfnk_ark_diurnal_ctor),
+//    cmocka_unit_test(test_functional_ark_diurnal_step), // too stiff!
+    cmocka_unit_test(test_bj_jfnk_ark_diurnal_step_left),
+    cmocka_unit_test(test_bj_jfnk_ark_diurnal_step_right),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
