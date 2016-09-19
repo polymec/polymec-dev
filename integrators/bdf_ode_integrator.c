@@ -234,7 +234,8 @@ static void bdf_reset(void* context, real_t t, real_t* U)
   bdf_ode_t* integ = context;
 
   // Reset the preconditioner.
-  newton_pc_reset(integ->precond, t);
+  if (integ->precond != NULL)
+    newton_pc_reset(integ->precond, t);
 
   // Copy in the solution and reinitialize.
   memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
@@ -934,7 +935,7 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
   int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));
   ode_integrator_t* I = bdf_ode_integrator_new(name, order, comm, 
                                                num_local_values, 0,
-                                               context, rhs_func, ink_reset, 
+                                               ink, rhs_func, ink_reset, 
                                                ink_setup, ink_solve, ink_dtor);
 
   // Set default tolerances.
