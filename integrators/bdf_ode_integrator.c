@@ -744,6 +744,7 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
   integ->status_message = NULL;
   integ->max_krylov_dim = -1;
   integ->Jy = NULL;
+  integ->precond = NULL;
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;

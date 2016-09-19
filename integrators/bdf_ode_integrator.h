@@ -64,6 +64,10 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
 // the underlying linear system, and the sparsity pattern is used for the 
 // creation of the Jacobian matrix. The integrator assumes control of all 
 // these objects.
+// The function rhs_func computes the time derivative of the solution, much as 
+// it does for jfnk_bdf_ode_integrator_new above. The required function J_func 
+// computes the elements of the Jacobian matrix using t, U, and U_dot. The 
+// matrix must also be assembled within this function.
 ode_integrator_t* ink_bdf_ode_integrator_new(int order, 
                                              MPI_Comm comm,
                                              krylov_factory_t* factory,

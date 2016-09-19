@@ -10,6 +10,8 @@
 
 #include "core/polymec.h"
 
+// DECLARE_ND_ARRAY
+//
 // These macros are used to interpret existing 1D "storage" arrays as 
 // multi-dimensional arrays using C99's multidimensional array machinery.
 // They take the following arguments.
@@ -40,5 +42,26 @@ type (*array_var)[dim2][dim3][dim4][dim5] = (void*)storage
 type (*array_var)[dim2][dim3][dim4][dim5][dim6] = (void*)storage
 #define DECLARE_7D_ARRAY(type, array_var, storage, dim1, dim2, dim3, dim4, dim5, dim6, dim7) \
 type (*array_var)[dim2][dim3][dim4][dim5][dim6][dim7] = (void*)storage
+
+// ARRAY_INDEX_ND
+//
+// These macros are used to map multiple array indices onto a flattened index
+// into the underlying block of memory occupied by a multidimensional array.
+// They prevent the programmer from having to remember how C represents multi-
+// dimensional arrays in memory.
+
+// ARRAY_INDEX_2D(dim1, dim2, i, j) -> I
+// ARRAY_INDEX_3D(dim1, dim2, dim3, i, j, k) -> I
+// ARRAY_INDEX_4D(dim1, dim2, dim3, dim4, i, j, k, l) -> I
+// ARRAY_INDEX_5D(dim1, dim2, dim3, dim4, dim5, i, j, k, l, m) -> I
+// ARRAY_INDEX_6D(dim1, dim2, dim3, dim4, dim5, dim6, i, j, k, l, m, n) -> I
+// ARRAY_INDEX_7D(dim1, dim2, dim3, dim4, dim5, dim6, dim7, i, j, k, l, m, n, p) -> I
+//
+#define ARRAY_INDEX_2D(dim1, dim2, i, j) (dim2*j + i)
+#define ARRAY_INDEX_3D(dim1, dim2, dim3, i, j, k) (dim3*k + dim2*j + i)
+#define ARRAY_INDEX_4D(dim1, dim2, dim3, dim4, i, j, k, l) (dim4*l + dim3*k + dim2*j + i)
+#define ARRAY_INDEX_5D(dim1, dim2, dim3, dim4, dim5, i, j, k, l, m) (dim5*m + dim4*l + dim3*k + dim2*j + i)
+#define ARRAY_INDEX_6D(dim1, dim2, dim3, dim4, dim5, dim6, i, j, k, l, m, n) (dim6*n + dim5*m + dim4*l + dim3*k + dim2*j + i)
+#define ARRAY_INDEX_7D(dim1, dim2, dim3, dim4, dim5, dim6, dim7, i, j, k, l, m, n, p) (dim7*p, dim6*n + dim5*m + dim4*l + dim3*k + dim2*j + i)
 
 #endif

@@ -113,6 +113,7 @@ matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
                                               exchanger_t* ex)
 {
   MPI_Comm comm = adj_graph_comm(graph);
+  ASSERT((ex != NULL) || (comm == MPI_COMM_SELF));
   index_t* row_dist = adj_graph_vertex_dist(graph);
   matrix_sparsity_t* sparsity = matrix_sparsity_new(comm, row_dist);
   int num_local_rows = adj_graph_num_vertices(graph);

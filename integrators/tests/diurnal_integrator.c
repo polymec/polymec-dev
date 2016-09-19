@@ -142,7 +142,7 @@ static diurnal_t* diurnal_new()
   return data;
 }
 
-static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
+static int diurnal_rhs(void* context, real_t t, real_t* U, real_t* U_dot)
 {
   real_t q3, c1, c2, c1dn, c2dn, c1up, c2up, c1lt, c2lt;
   real_t c1rt, c2rt, cydn, cyup, hord1, hord2, horad1, horad2;
@@ -150,25 +150,26 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
   real_t q4coef, dely, verdco, hordco, horaco;
   int idn, iup, ileft, iright;
   diurnal_t* data = context;
-  DECLARE_3D_ARRAY(real_t, u_ijk, u, MX, MY, NUM_SPECIES);
-  DECLARE_3D_ARRAY(real_t, udot_ijk, udot, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, U_ijk, U, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, U_dot_ijk, U_dot, MX, MY, NUM_SPECIES);
 
   // We don't bother with FPE for now.
   polymec_suspend_fpe();
 
   // Set diurnal rate coefficients. 
-
   s = sin(data->om*t);
-  if (s > ZERO) {
+  if (s > ZERO) 
+  {
     q3 = SUNRexp(-A3/s);
     data->q4 = SUNRexp(-A4/s);
-  } else {
-      q3 = ZERO;
-      data->q4 = ZERO;
+  } 
+  else 
+  {
+    q3 = ZERO;
+    data->q4 = ZERO;
   }
 
   // Make local copies of problem variables, for efficiency. 
-
   q4coef = data->q4;
   dely = data->dy;
   verdco = data->vdco;
@@ -176,23 +177,21 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
   horaco  = data->haco;
 
   // Loop over all grid points. 
-
   for (int jy=0; jy < MY; ++jy) 
   {
     // Set vertical diffusion coefficients at jy +- 1/2 
-
     ydn = YMIN + (jy - RCONST(0.5))*dely;
     yup = ydn + dely;
     cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
     cyup = verdco*SUNRexp(RCONST(0.2)*yup);
     idn = (jy == 0) ? 1 : -1;
     iup = (jy == MY-1) ? -1 : 1;
-    for (int jx=0; jx < MX; jx++) {
 
+    for (int jx=0; jx < MX; jx++) 
+    {
       // Extract c1 and c2, and set kinetic rate terms. 
-
-      c1 = u_ijk[jx][jy][0]; 
-      c2 = u_ijk[jx][jy][1];
+      c1 = U_ijk[jx][jy][0]; 
+      c2 = U_ijk[jx][jy][1];
       qq1 = Q1*c1*C3;
       qq2 = Q2*c1*c2;
       qq3 = q3*C3;
@@ -201,36 +200,142 @@ static int diurnal_rhs(void* context, real_t t, real_t* u, real_t* udot)
       rkin2 = qq1 - qq2 - qq4;
 
       // Set vertical diffusion terms. 
-
-      c1dn = u_ijk[jx][jy+idn][0];
-      c2dn = u_ijk[jx][jy+idn][1];
-      c1up = u_ijk[jx][jy+iup][0];
-      c2up = u_ijk[jx][jy+iup][1];
+      c1dn = U_ijk[jx][jy+idn][0];
+      c2dn = U_ijk[jx][jy+idn][1];
+      c1up = U_ijk[jx][jy+iup][0];
+      c2up = U_ijk[jx][jy+iup][1];
       vertd1 = cyup*(c1up - c1) - cydn*(c1 - c1dn);
       vertd2 = cyup*(c2up - c2) - cydn*(c2 - c2dn);
 
       // Set horizontal diffusion and advection terms. 
-
       ileft = (jx == 0) ? 1 : -1;
       iright =(jx == MX-1) ? -1 : 1;
-      c1lt = u_ijk[jx+ileft][jy][0]; 
-      c2lt = u_ijk[jx+ileft][jy][1];
-      c1rt = u_ijk[jx+iright][jy][0];
-      c2rt = u_ijk[jx+iright][jy][1];
+      c1lt = U_ijk[jx+ileft][jy][0]; 
+      c2lt = U_ijk[jx+ileft][jy][1];
+      c1rt = U_ijk[jx+iright][jy][0];
+      c2rt = U_ijk[jx+iright][jy][1];
       hord1 = hordco*(c1rt - TWO*c1 + c1lt);
       hord2 = hordco*(c2rt - TWO*c2 + c2lt);
       horad1 = horaco*(c1rt - c1lt);
       horad2 = horaco*(c2rt - c2lt);
 
       // Load all terms into udot. 
-
-      udot_ijk[jx][jy][0] = vertd1 + hord1 + horad1 + rkin1; 
-      udot_ijk[jx][jy][1] = vertd2 + hord2 + horad2 + rkin2;
+      U_dot_ijk[jx][jy][0] = vertd1 + hord1 + horad1 + rkin1; 
+      U_dot_ijk[jx][jy][1] = vertd2 + hord2 + horad2 + rkin2;
     }
   }
 
   // Resume FPE.
   polymec_restore_fpe();
+
+  return 0;
+}
+
+// Function for constructing the Jacobian matrix for the diurnal system.
+static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J)
+{
+  diurnal_t* data = context;
+  DECLARE_3D_ARRAY(real_t, U_ijk, U, MX, MY, NUM_SPECIES);
+
+  // We don't bother with FPE for now.
+  polymec_suspend_fpe();
+
+  // Set diurnal rate coefficients. 
+  real_t s = sin(data->om*t);
+  if (s > ZERO) 
+    data->q4 = SUNRexp(-A4/s);
+  else 
+    data->q4 = ZERO;
+
+  // Make local copies of problem variables, for efficiency. 
+  real_t q4coef = data->q4;
+  real_t dely = data->dy;
+  real_t verdco = data->vdco;
+  real_t hordco  = data->hdco;
+  real_t horaco  = data->haco;
+
+  // Loop over all grid points. 
+  index_t offset = 0;
+  for (int jy = 0; jy < MY; ++jy) 
+  {
+    // Set vertical diffusion coefficients at jy +- 1/2 
+    real_t ydn = YMIN + (jy - RCONST(0.5))*dely;
+    real_t yup = ydn + dely;
+
+    real_t cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
+    real_t cyup = verdco*SUNRexp(RCONST(0.2)*yup);
+
+    int i_down = (jy == 0) ? 1 : -1;
+    int i_up = (jy == MY-1) ? -1 : 1;
+
+    for (int jx = 0; jx < MX; ++jx, ++offset) 
+    {
+      int i_left = (jx == 0) ? 1 : -1;
+      int i_right =(jx == MX-1) ? -1 : 1;
+
+      // There are 12 Jacobian contributions: 6 for each of 2 species: 1 in each of 
+      // the 5 stencil points, plus 1 reaction term in which the species interact 
+      // directly with one another.
+      real_t J1_self = 0.0, J1_rxn = 0.0, J1_left = 0.0, J1_right = 0.0, J1_up = 0.0, J1_down = 0.0;
+      real_t J2_self = 0.0, J2_rxn = 0.0, J2_left = 0.0, J2_right = 0.0, J2_up = 0.0, J2_down = 0.0;
+      index_t I1_self  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy, 0), 
+              I1_left  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_left, jy, 0),
+              I1_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_right, jy, 0),
+              I1_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_up, 0),
+              I1_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_down, 0),
+              I2_self  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy, 1), 
+              I2_left  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_left, jy, 1),
+              I2_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_right, jy, 1),
+              I2_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_up, 1),
+              I2_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_down, 1);
+
+      // Extract c1 and c2 at the current location.
+      real_t c1 = U_ijk[jx][jy][0];
+      real_t c2 = U_ijk[jx][jy][1];
+
+      // Add in kinetic rate terms. 
+      J1_self += -(Q1*C3 + Q2*c2);
+      J1_rxn  +=  (q4coef - Q2*c1);
+      J2_rxn  += -(Q1*C3 - Q2*c2);
+      J2_self += -(q4coef + Q2*c1);
+
+      // Add in vertical diffusion terms.
+      J1_self += -(cyup+cydn);
+      J1_up   += cyup;
+      J1_down += cydn;
+      J2_self += -(cyup+cydn);
+      J2_up   += cyup;
+      J2_down += cydn;
+
+      // Add in horizontal diffusion terms.
+      J1_self  -= TWO*hordco;
+      J1_left  += hordco;
+      J1_right += hordco;
+      J2_self  -= TWO*hordco;
+      J2_left  -= hordco;
+      J2_right -= hordco;
+
+      // Add in horizontal advection terms.
+      J1_left  += -horaco;
+      J1_right +=  horaco;
+      J1_right += -horaco;
+      J2_right +=  horaco;
+
+      // Stick the data into the Jacobian matrix.
+      real_t values[12] = {J1_self, J1_rxn, J1_left, J1_right, J1_up, J1_down,
+                           J2_rxn, J2_self, J2_left, J2_right, J2_up, J2_down};
+      index_t num_cols[2] = {6, 6}, row_indices[2] = {I1_self, I2_self};
+      index_t col_indices[12] = {I1_self, I2_self, I1_left, I1_right, I1_up, I1_down,
+                                 I1_self, I2_self, I2_left, I2_right, I2_up, I2_down};
+      krylov_matrix_set_values(J, 2, num_cols, row_indices, col_indices, values);
+    }
+  }
+
+  // Resume FPE.
+  polymec_restore_fpe();
+
+  // Assemble the Jacobian matrix.
+  krylov_matrix_assemble(J);
 
   return 0;
 }
@@ -291,13 +396,6 @@ ode_integrator_t* bj_jfnk_bdf_diurnal_integrator_new(newton_pc_side_t side)
   newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
   ode_integrator_t* integ = jfnk_bdf_diurnal_integrator_new(data, precond);
   return integ;
-}
-
-// Function for constructing the Jacobian matrix for the diurnal system.
-static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J)
-{
-  // FIXME
-  return 0;
 }
 
 // Constructor for an Inexact Newton-Krylov BDF diurnal integrator.
