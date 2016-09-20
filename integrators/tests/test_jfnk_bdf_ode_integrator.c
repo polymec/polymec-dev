@@ -42,8 +42,9 @@ static int test_diurnal_step(void** state, ode_integrator_t* integ, int max_step
   int step = 0;
   while (t < 86400.0)
   {
-    log_detail("Step %d: t = %g", step, t);
+    real_t t_old = t;
     bool integrated = ode_integrator_step(integ, 7200.0, &t, u);
+    log_detail("Step %d: t = %g, dt = %g", step, t, t - t_old);
     assert_true(integrated);
     ++step;
 
