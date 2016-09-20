@@ -134,17 +134,19 @@ matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
   }
 
   // Create off-diagonal columns for each of the graph's edges.
-  int rpos = 0, v = 0;
-  index_t row;
+  int rpos = 0;
+  index_t row, first_row = sparsity->row_dist[sparsity->rank];
   while (matrix_sparsity_next_row(sparsity, &rpos, &row))
   {
     // Set the number of columns.
+    int v = (int)(row - first_row);
     int ne = adj_graph_num_edges(graph, v);
     matrix_sparsity_set_num_columns(sparsity, row, (index_t)(ne + 1));
 
     // Now add the edges.
     index_t* columns = matrix_sparsity_columns(sparsity, row);
-    int epos = 0, e = 0, v1;
+    columns[0] = row;
+    int epos = 0, e = 1, v1;
     while (adj_graph_next_edge(graph, v, &epos, &v1))
     {
       if (v1 >= num_local_rows)
@@ -301,7 +303,7 @@ void matrix_sparsity_fprintf(matrix_sparsity_t* sparsity, FILE* stream)
 {
   if (stream == NULL) return;
   index_t num_global_rows = matrix_sparsity_num_global_rows(sparsity);
-  fprintf(stream, "Matrix sparsity (%" PRIu64" /%" PRIu64 " rows locally):\n", 
+  fprintf(stream, "Matrix sparsity (%" PRIu64" / %" PRIu64 " rows locally):\n", 
           sparsity->num_local_rows, num_global_rows);
   index_t begin = sparsity->row_dist[sparsity->rank];
   index_t end = sparsity->row_dist[sparsity->rank+1];

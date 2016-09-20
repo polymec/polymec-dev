@@ -840,6 +840,7 @@ static int ink_setup(void* context,
                      real_t* work1, real_t* work2, real_t* work3)
 {
   ink_bdf_ode_t* ink = context;
+  log_debug("ink_bdf_ode_integrator: Calculating I - %g * J.\n", gamma);
 
   // Call our Jacobian calculation function.
   int status = ink->J_func(ink->context, t, U_pred, U_dot_pred, ink->J);
@@ -849,6 +850,9 @@ static int ink_setup(void* context,
   // Scale the Jacobian by -gamma and the identity matrix.
   krylov_matrix_scale(ink->J, -gamma);
   krylov_matrix_add_identity(ink->J, 1.0);
+
+  // Use this matrix as the operator in our solver.
+  krylov_solver_set_operator(ink->solver, ink->J);
 
   *J_updated = true;
 
@@ -863,6 +867,7 @@ static int ink_solve(void* context,
                      real_t* B) 
 {
   ink_bdf_ode_t* ink = context;
+  log_debug("ink_bdf_ode_integrator: Solving linear system.");
 
   // Copy RHS data from B into ink->B.
   krylov_vector_copy_in(ink->B, B);
