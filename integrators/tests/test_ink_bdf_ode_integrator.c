@@ -14,21 +14,10 @@
 #include "core/polymec.h"
 #include "integrators/bdf_ode_integrator.h"
 
-extern ode_integrator_t* bj_jfnk_bdf_diurnal_integrator_new(newton_pc_side_t side);
 extern ode_integrator_t* ink_bdf_diurnal_integrator_new();
 extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
 krylov_factory_t* create_petsc_krylov_factory(void);
 krylov_factory_t* create_hypre_krylov_factory(void);
-
-static void test_bj_jfnk_bdf_diurnal_ctor(void** state)
-{
-  ode_integrator_t* integ = bj_jfnk_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-  ode_integrator_free(integ);
-  integ = bj_jfnk_bdf_diurnal_integrator_new(NEWTON_PC_RIGHT);
-  ode_integrator_free(integ);
-  integ = bj_jfnk_bdf_diurnal_integrator_new(NEWTON_PC_BOTH);
-  ode_integrator_free(integ);
-}
 
 static int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
 {
@@ -66,28 +55,6 @@ static int test_diurnal_step(void** state, ode_integrator_t* integ, int max_step
   ode_integrator_free(integ);
   free(u);
   return step;
-}
-
-static void test_bj_jfnk_bdf_diurnal_step_left(void** state)
-{
-  ode_integrator_t* integ = bj_jfnk_bdf_diurnal_integrator_new(NEWTON_PC_LEFT);
-#if POLYMEC_HAVE_DOUBLE_PRECISION
-  int max_steps = 650;
-#else
-  int max_steps = 426;
-#endif
-  test_diurnal_step(state, integ, max_steps);
-}
-
-static void test_bj_jfnk_bdf_diurnal_step_right(void** state)
-{
-  ode_integrator_t* integ = bj_jfnk_bdf_diurnal_integrator_new(NEWTON_PC_RIGHT);
-#if POLYMEC_HAVE_DOUBLE_PRECISION
-  int max_steps = 500;
-#else
-  int max_steps = 381;
-#endif
-  test_diurnal_step(state, integ, max_steps);
 }
 
 static void test_ink_bdf_diurnal_ctor(void** state, krylov_factory_t* factory)
@@ -152,9 +119,6 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_bj_jfnk_bdf_diurnal_ctor),
-    cmocka_unit_test(test_bj_jfnk_bdf_diurnal_step_left),
-    cmocka_unit_test(test_bj_jfnk_bdf_diurnal_step_right),
     cmocka_unit_test(test_lis_ink_bdf_diurnal_ctor),
     cmocka_unit_test(test_petsc_ink_bdf_diurnal_ctor),
     cmocka_unit_test(test_hypre_ink_bdf_diurnal_ctor),
