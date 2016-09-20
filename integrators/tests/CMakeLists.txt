@@ -7,7 +7,7 @@ add_polymec_test(test_newton_solver foodweb_solver.c test_newton_solver.c)
 add_polymec_test(test_euler_ode_integrator test_euler_ode_integrator.c)
 add_polymec_test(test_jfnk_bdf_ode_integrator diurnal_integrator.c create_krylov_factories.c test_jfnk_bdf_ode_integrator.c)
 add_polymec_test(test_ink_bdf_ode_integrator diurnal_integrator.c create_krylov_factories.c test_ink_bdf_ode_integrator.c)
-add_polymec_test(test_ark_ode_integrator diurnal_integrator.c create_krylov_factories.c test_ark_ode_integrator.c)
+add_polymec_test(test_jfnk_ark_ode_integrator diurnal_integrator.c create_krylov_factories.c test_jfnk_ark_ode_integrator.c)
 add_polymec_test(test_dae_integrator heat2d_integrator.c test_dae_integrator.c)
 add_polymec_test(test_fasmg_solver test_fasmg_solver.c)
 
