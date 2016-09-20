@@ -107,6 +107,9 @@ void ink_bdf_ode_integrator_set_pc(ode_integrator_t* ink_bdf_ode_integ,
 void ink_bdf_ode_integrator_set_block_size(ode_integrator_t* ink_bdf_ode_integ,
                                            int block_size);
 
+// Returns the context pointer for the given INK BDF integrator.
+void* ink_bdf_ode_integrator_context(ode_integrator_t* ink_bdf_ode_integ);
+
 // Convergence failure status codes, used by the BDF integrator machinery below to determine whether 
 // the Newton operator needs to be recomputed.
 typedef enum

@@ -352,7 +352,13 @@ static void diurnal_dtor(void* context)
 real_t* diurnal_initial_conditions(ode_integrator_t* integ);
 real_t* diurnal_initial_conditions(ode_integrator_t* integ)
 {
-  diurnal_t* data = bdf_ode_integrator_context(integ);
+  // Get the data for the diurnal system.
+  diurnal_t* data;
+  const char* integ_name = ode_integrator_name(integ);
+  if (string_contains(integ_name, "INK Backwards-Difference"))
+    data = ink_bdf_ode_integrator_context(integ);
+  else
+    data = bdf_ode_integrator_context(integ);
   real_t dx = data->dx, dy = data->dy;
   real_t* u_data = polymec_malloc(sizeof(real_t) * NEQ);
   DECLARE_3D_ARRAY(real_t, u_ijk, u_data, MX, MY, NUM_SPECIES);

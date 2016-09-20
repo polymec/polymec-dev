@@ -567,10 +567,20 @@ void bdf_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
   CVodeGetNumErrTestFails(integ->cvode, &diagnostics->num_error_test_failures);
   CVodeGetNumNonlinSolvIters(integ->cvode, &diagnostics->num_nonlinear_solve_iterations);
   CVodeGetNumNonlinSolvConvFails(integ->cvode, &diagnostics->num_nonlinear_solve_convergence_failures);
-  CVSpilsGetNumLinIters(integ->cvode, &diagnostics->num_linear_solve_iterations);
-  CVSpilsGetNumPrecEvals(integ->cvode, &diagnostics->num_preconditioner_evaluations);
-  CVSpilsGetNumPrecSolves(integ->cvode, &diagnostics->num_preconditioner_solves);
-  CVSpilsGetNumConvFails(integ->cvode, &diagnostics->num_linear_solve_convergence_failures);
+  if (integ->solve_func == NULL) // JFNK mode
+  {
+    CVSpilsGetNumLinIters(integ->cvode, &diagnostics->num_linear_solve_iterations);
+    CVSpilsGetNumPrecEvals(integ->cvode, &diagnostics->num_preconditioner_evaluations);
+    CVSpilsGetNumPrecSolves(integ->cvode, &diagnostics->num_preconditioner_solves);
+    CVSpilsGetNumConvFails(integ->cvode, &diagnostics->num_linear_solve_convergence_failures);
+  }
+  else
+  {
+    diagnostics->num_linear_solve_iterations = -1;
+    diagnostics->num_preconditioner_evaluations = -1;
+    diagnostics->num_preconditioner_solves = -1;
+    diagnostics->num_linear_solve_convergence_failures = -1;
+  }
 }
 
 void bdf_ode_integrator_diagnostics_fprintf(bdf_ode_integrator_diagnostics_t* diagnostics, 
@@ -587,12 +597,16 @@ void bdf_ode_integrator_diagnostics_fprintf(bdf_ode_integrator_diagnostics_t* di
   fprintf(stream, "  Next step size: %g\n", diagnostics->next_step_size);
   fprintf(stream, "  Num RHS evaluations: %d\n", (int)diagnostics->num_rhs_evaluations);
   fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
-  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  if (diagnostics->num_linear_solve_convergence_failures != -1) // JFNK mode
+    fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
   fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);
   fprintf(stream, "  Num nonlinear solve iterations: %d\n", (int)diagnostics->num_nonlinear_solve_iterations);
   fprintf(stream, "  Num nonlinear solve convergence failures: %d\n", (int)diagnostics->num_nonlinear_solve_convergence_failures);
-  fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
-  fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
+  if (diagnostics->num_preconditioner_evaluations != -1) // JFNK mode
+  {
+    fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
+    fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
+  }
 }
 
 bdf_ode_observer_t* bdf_ode_observer_new(void* context,
@@ -1004,4 +1018,10 @@ void ink_bdf_ode_integrator_set_block_size(ode_integrator_t* ink_bdf_ode_integ,
   ASSERT(block_size > 0);
   ink_bdf_ode_t* ink = bdf_ode_integrator_context(ink_bdf_ode_integ);
   ink->block_size = block_size;
+}
+
+void* ink_bdf_ode_integrator_context(ode_integrator_t* ink_bdf_ode_integ)
+{
+  ink_bdf_ode_t* ink = bdf_ode_integrator_context(ink_bdf_ode_integ);
+  return ink->context;
 }
