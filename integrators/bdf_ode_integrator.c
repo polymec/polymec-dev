@@ -677,7 +677,12 @@ static int bdf_lsetup(CVodeMem cv_mem,
   bdf_ode_t* bdf = cv_mem->cv_user_data;
   bdf_conv_status_t conv_status;
   if (convfail == CV_NO_FAILURES)
-    conv_status = BDF_CONV_NO_FAILURES;
+  {
+    if (cv_mem->cv_nst == 0)
+      conv_status = BDF_CONV_FIRST_STEP;
+    else
+      conv_status = BDF_CONV_NO_FAILURES;
+  }
   else if (convfail == CV_FAIL_BAD_J)
     conv_status = BDF_CONV_BAD_J_FAILURE;
   else
@@ -826,6 +831,7 @@ typedef struct
 
 static int ink_reset(void* context, real_t t, real_t* X)
 {
+  START_FUNCTION_TIMER();
   // Allocate resources.
   ink_bdf_ode_t* ink = context;
   if (ink->J != NULL)
@@ -842,6 +848,7 @@ static int ink_reset(void* context, real_t t, real_t* X)
   ink->X = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
 
+  STOP_FUNCTION_TIMER();
   return 0;
 }
 
@@ -854,24 +861,37 @@ static int ink_setup(void* context,
                      bool* J_updated, 
                      real_t* work1, real_t* work2, real_t* work3)
 {
+  START_FUNCTION_TIMER();
   ink_bdf_ode_t* ink = context;
-  log_debug("ink_bdf_ode_integrator: Calculating I - %g * J.\n", gamma);
 
-  // Call our Jacobian calculation function.
-  int status = ink->J_func(ink->context, t, U_pred, U_dot_pred, ink->J);
-  if (status != 0)
-    return status;
+  if ((conv_status == BDF_CONV_FIRST_STEP) || 
+      (conv_status == BDF_CONV_BAD_J_FAILURE) || 
+      (conv_status == BDF_CONV_OTHER_FAILURE))
+  {
+    // Call our Jacobian calculation function.
+    log_debug("ink_bdf_ode_integrator: Calculating A = I - %g * J.\n", gamma);
+    int status = ink->J_func(ink->context, t, U_pred, U_dot_pred, ink->J);
+    if (status != 0)
+      return status;
 
-  // Scale the Jacobian by -gamma and the identity matrix.
-  krylov_matrix_scale(ink->J, -gamma);
-  krylov_matrix_add_identity(ink->J, 1.0);
+    // Scale the Jacobian by -gamma and add the identity matrix.
+    krylov_matrix_scale(ink->J, -gamma);
+    krylov_matrix_add_identity(ink->J, 1.0);
 
-  // Use this matrix as the operator in our solver.
-  krylov_solver_set_operator(ink->solver, ink->J);
+    // Use this matrix as the operator in our solver.
+    krylov_solver_set_operator(ink->solver, ink->J);
 
-  *J_updated = true;
-
-  return 0;
+    *J_updated = true;
+    STOP_FUNCTION_TIMER();
+    return 0;
+  }
+  else
+  {
+    // The previous Newton iteration failed to converge even with a current Jacobian.
+    *J_updated = false;
+    STOP_FUNCTION_TIMER();
+    return (conv_status == BDF_CONV_NO_FAILURES) ? 0 : -1;
+  }
 }
 
 static int ink_solve(void* context, 
@@ -881,8 +901,8 @@ static int ink_solve(void* context,
                      real_t* U_dot,
                      real_t* B) 
 {
+  START_FUNCTION_TIMER();
   ink_bdf_ode_t* ink = context;
-  log_debug("ink_bdf_ode_integrator: Solving linear system.");
 
   // Copy RHS data from B into ink->B.
   krylov_vector_copy_in(ink->B, B);
@@ -890,16 +910,22 @@ static int ink_solve(void* context,
   real_t res_norm;
   int num_iters;
   bool solved = krylov_solver_solve(ink->solver, ink->B, ink->X, &res_norm, &num_iters);
-  // FIXME: Determine how to incorporate tolerances, max iters, if needed.
 
   if (solved)
   {
+    log_debug("ink_bdf_ode_integrator: Solved A*X = B (||R|| == %g after %d iters).", res_norm, num_iters);
+
     // Copy solution data from ink->X into B.
     krylov_vector_copy_out(ink->X, B);
+    STOP_FUNCTION_TIMER();
     return 0;
   }
   else
+  {
+    log_debug("ink_bdf_ode_integrator: Solution to A*X = B did not converge.");
+    STOP_FUNCTION_TIMER();
     return 1;
+  }
 }
 
 static void ink_dtor(void* context)

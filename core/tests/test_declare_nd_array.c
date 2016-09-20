@@ -24,6 +24,7 @@ static void test_int_array2(void** state)
     for (int j = 0; j < 10; ++j)
     {  
       assert_int_equal(10*i+j, a[i][j]);
+      assert_int_equal(10*i+j, ARRAY_INDEX_2D(10, 10, i, j));
     }
   }
   polymec_free(storage);
@@ -44,6 +45,7 @@ static void test_int_array3(void** state)
       for (int k = 0; k < 10; ++k)
       {  
         assert_int_equal(100*i + 10*j + k, a[i][j][k]);
+        assert_int_equal(100*i + 10*j + k, ARRAY_INDEX_3D(10, 10, 10, i, j, k));
       }
     }
   }
@@ -68,6 +70,7 @@ static void test_int_array4(void** state)
         for (int l = 0; l < 10; ++l)
         {  
           assert_int_equal(1000*i + 100*j + 10*k + l, a[i][j][k][l]);
+          assert_int_equal(1000*i + 100*j + 10*k + l, ARRAY_INDEX_4D(10, 10, 10, 10, i, j, k, l));
         }
       }
     }
@@ -96,6 +99,7 @@ static void test_int_array5(void** state)
           for (int m = 0; m < 2; ++m)
           {
             assert_int_equal(16*i + 8*j + 4*k + 2*l + m, a[i][j][k][l][m]);
+            assert_int_equal(16*i + 8*j + 4*k + 2*l + m, ARRAY_INDEX_5D(2, 2, 2, 2, 2, i, j, k, l, m));
           }
         }
       }
@@ -128,6 +132,7 @@ static void test_int_array6(void** state)
             for (int n = 0; n < 2; ++n)
             {
               assert_int_equal(32*i + 16*j + 8*k + 4*l + 2*m + n, a[i][j][k][l][m][n]);
+              assert_int_equal(32*i + 16*j + 8*k + 4*l + 2*m + n, ARRAY_INDEX_6D(2, 2, 2, 2, 2, 2, i, j, k, l, m, n)); 
             }
           }
         }
@@ -167,6 +172,7 @@ static void test_int_array7(void** state)
               for (int p = 0; p < 2; ++p)
               {
                 assert_int_equal(64*i + 32*j + 16*k + 8*l + 4*m + 2*n + p, a[i][j][k][l][m][n][p]);
+                assert_int_equal(64*i + 32*j + 16*k + 8*l + 4*m + 2*n + p, ARRAY_INDEX_7D(2, 2, 2, 2, 2, 2, 2, i, j, k, l, m, n, p));
               }
             }
           }
