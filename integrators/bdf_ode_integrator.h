@@ -115,9 +115,9 @@ void* ink_bdf_ode_integrator_context(ode_integrator_t* ink_bdf_ode_integ);
 typedef enum
 {
   BDF_CONV_FIRST_STEP,    // This is the first step taken by the integrator.
-  BDF_CONV_NO_FAILURES,   // local error test failed at previous Newton step, but iteration converged
-  BDF_CONV_BAD_J_FAILURE, // previous Newton corrector iteration did not converge OR linear solve failed in 
-                          // a recoverable manner (Jacobian needs updating either way)
+  BDF_CONV_NO_FAILURES,   // Local error test failed at previous Newton step, but iteration converged
+  BDF_CONV_BAD_J_FAILURE, // Previous Newton corrector iteration did not converge OR linear solve failed in 
+                          // A recoverable manner (Jacobian needs updating either way)
   BDF_CONV_OTHER_FAILURE, // Newton iteration failed to converge with current Jacobian data
 } bdf_conv_status_t;
 

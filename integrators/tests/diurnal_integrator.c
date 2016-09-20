@@ -296,7 +296,7 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
       // Add in kinetic rate terms. 
       J1_self += -(Q1*C3 + Q2*c2);
       J1_rxn  +=  (q4coef - Q2*c1);
-      J2_rxn  += -(Q1*C3 - Q2*c2);
+      J2_rxn  +=  (Q1*C3 - Q2*c2);
       J2_self += -(q4coef + Q2*c1);
 
       // Add in vertical diffusion terms.
@@ -312,13 +312,13 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
       J1_left  += hordco;
       J1_right += hordco;
       J2_self  -= TWO*hordco;
-      J2_left  -= hordco;
-      J2_right -= hordco;
+      J2_left  += hordco;
+      J2_right += hordco;
 
       // Add in horizontal advection terms.
       J1_left  += -horaco;
       J1_right +=  horaco;
-      J1_right += -horaco;
+      J2_left  += -horaco;
       J2_right +=  horaco;
 
       // Stick the data into the Jacobian matrix.
