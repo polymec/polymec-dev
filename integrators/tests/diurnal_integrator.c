@@ -6,10 +6,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/polymec.h"
+#include "core/options.h"
 #include "core/declare_nd_array.h"
 #include "integrators/bdf_ode_integrator.h"
 #include "integrators/ark_ode_integrator.h"
 #include "integrators/bj_newton_pc.h"
+
+#include <setjmp.h>
+#include "cmocka.h"
 
 //------------------------------------------------------------------------
 //               Diurnal kinetic advection-diffusion problem
@@ -261,7 +265,6 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
     // Set vertical diffusion coefficients at jy +- 1/2 
     real_t ydn = YMIN + (jy - RCONST(0.5))*dely;
     real_t yup = ydn + dely;
-
     real_t cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
     real_t cyup = verdco*SUNRexp(RCONST(0.2)*yup);
 
@@ -459,5 +462,67 @@ ode_integrator_t* bj_jfnk_ark_diurnal_integrator_new(newton_pc_side_t side)
   newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, diurnal_rhs, NULL, side, data->sparsity, NEQ/NUM_SPECIES, 0, NUM_SPECIES);
   ode_integrator_t* integ = jfnk_ark_diurnal_integrator_new(data, precond);
   return integ;
+}
+
+// Test harness for ODE integrator.
+int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps);
+int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
+{
+  // Set up the problem.
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+  bdf_ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
+#else
+  bdf_ode_integrator_set_tolerances(integ, 1e-4, 1e-2);
+#endif
+  real_t* U = diurnal_initial_conditions(integ);
+  DECLARE_3D_ARRAY(real_t, U_ijk, U, 10, 10, 2);
+
+  // Are we asked to plot the result?
+  options_t* opts = options_argv();
+  char* plotfile = options_value(opts, "plotfile");
+  int plot_I = -1, plot_J = -1;
+  {
+    char* I_str = options_value(opts, "I");
+    if (string_is_integer(I_str))
+      plot_I = atoi(I_str);
+    char* J_str = options_value(opts, "J");
+    if (string_is_integer(J_str))
+      plot_J = atoi(J_str);
+  }
+  FILE* plot = NULL;
+  if ((plotfile != NULL) && (plot_I >= 0) && (plot_J >= 0))
+    plot = fopen(plotfile, "w");
+
+  // Integrate it out to t = 86400 s (24 hours).
+  real_t t = 0.0;
+  int step = 0;
+  while (t < 86400.0)
+  {
+    real_t t_old = t;
+    bool integrated = ode_integrator_step(integ, 7200.0, &t, U);
+    assert_true(integrated);
+    log_detail("Step %d: t = %g, dt = %g", step, t, t - t_old);
+    ++step;
+
+    // Plot if requested.
+    if (plot != NULL)
+      fprintf(plot, "%g %g %g\n", t, U_ijk[plot_I][plot_J][0], U_ijk[plot_I][plot_J][1]);
+
+    if (step >= max_steps)
+      break;
+  }
+  printf("Final time: %g\n", t);
+  bdf_ode_integrator_diagnostics_t diags;
+  bdf_ode_integrator_get_diagnostics(integ, &diags);
+  bdf_ode_integrator_diagnostics_fprintf(&diags, stdout);
+  assert_true(step < max_steps);
+
+  // If we've opened a plot file, close it.
+  if (plot != NULL)
+    fclose(plot);
+
+  ode_integrator_free(integ);
+  free(U);
+  return step;
 }
 

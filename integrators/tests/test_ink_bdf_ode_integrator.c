@@ -16,47 +16,9 @@
 
 extern ode_integrator_t* ink_bdf_diurnal_integrator_new();
 extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
-krylov_factory_t* create_petsc_krylov_factory(void);
-krylov_factory_t* create_hypre_krylov_factory(void);
-
-static int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
-{
-  // Set up the problem.
-#if POLYMEC_HAVE_DOUBLE_PRECISION
-  bdf_ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
-#else
-  bdf_ode_integrator_set_tolerances(integ, 1e-4, 1e-2);
-#endif
-  real_t* u = diurnal_initial_conditions(integ);
-
-  // Integrate it out to t = 86400 s (24 hours).
-  real_t t = 0.0;
-  int step = 0;
-  while (t < 86400.0)
-  {
-    real_t old_t = t;
-    bool integrated = ode_integrator_step(integ, 7200.0, &t, u);
-    log_detail("Step %d: t = %g, dt = %g", step, t, t - old_t);
-    assert_true(integrated);
-    ++step;
-
-    if (step >= max_steps)
-      break;
-  }
-//printf("u = [");
-//for (int i = 0; i < 200; ++i)
-//printf("%g ", u[i]);
-//printf("]\n");
-  printf("Final time: %g\n", t);
-  bdf_ode_integrator_diagnostics_t diags;
-  bdf_ode_integrator_get_diagnostics(integ, &diags);
-  bdf_ode_integrator_diagnostics_fprintf(&diags, stdout);
-  assert_true(step < max_steps);
-
-  ode_integrator_free(integ);
-  free(u);
-  return step;
-}
+extern krylov_factory_t* create_petsc_krylov_factory(void);
+extern krylov_factory_t* create_hypre_krylov_factory(void);
+extern int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps);
 
 static void test_ink_bdf_diurnal_ctor(void** state, krylov_factory_t* factory)
 {
