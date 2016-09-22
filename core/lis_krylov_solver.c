@@ -66,7 +66,7 @@ static void lis_solver_set_tolerances(void* context,
 {
   lis_solver_t* solver = context;
   char command[129];
-  snprintf(command, 128, "-conv_cond 0 -tol %g", rel_tol);
+  snprintf(command, 128, "-conv_cond 2 -tol_w %g -tol %g", rel_tol, abs_tol);
   lis_solver_set_option(command, solver->solver);
 }
 

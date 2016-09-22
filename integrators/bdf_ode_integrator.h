@@ -147,12 +147,14 @@ typedef enum
 //                for an unrecoverable error.
 // * solve_func -- Used to solve the linear system (I - gamma * J) * X = B. Arguments are:
 //                 - context: A pointer to the context object that stores the state of the integrator.
-//                 - W: A vector containing error weights, which can be used to enable to computation of 
-//                      weighted norms used to test for convergence of any iterative methods within 
-//                      the solver.
 //                 - t: The current time.
 //                 - U: The current solution at time t.
 //                 - U_dot: The current right hand side vector for the ODE at time t.
+//                 - W: A vector containing error weights, which can be used to enable to computation of 
+//                      weighted norms used to test for convergence of any iterative methods within 
+//                      the solver.
+//                 - res_norm_tol: The tolerance to set on the residual norm to consider the system 
+//                                 successfully solved.
 //                 - B: The right hand side vector for the linear system, which will be replaced by 
 //                      X, the solution to the linear system.
 //                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
@@ -175,10 +177,11 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                                            bool* J_updated, 
                                                            real_t* work1, real_t* work2, real_t* work3),
                                          int (*solve_func)(void* context, 
-                                                           real_t* W, 
                                                            real_t t, 
                                                            real_t* U,
                                                            real_t* U_dot,
+                                                           real_t* W, 
+                                                           real_t res_norm_tol,
                                                            real_t* B), 
                                          void (*dtor)(void* context));
 

@@ -60,10 +60,11 @@ typedef struct
                     bool* J_current, 
                     real_t* work1, real_t* work2, real_t* work3);
   int (*solve_func)(void* context, 
-                    real_t* W, 
                     real_t t, 
                     real_t* U,
                     real_t* U_dot,
+                    real_t* W, 
+                    real_t res_norm_tol,
                     real_t* B);
 
   // Error weight function.
@@ -710,11 +711,13 @@ static int bdf_lsolve(CVodeMem cv_mem,
 {
   bdf_ode_t* bdf = cv_mem->cv_user_data;
   real_t t = cv_mem->cv_tn;
-  real_t* W = NV_DATA(weight);
   real_t* U = NV_DATA(ycur);
   real_t* U_dot = NV_DATA(fcur);
+  real_t* W = NV_DATA(weight);
+  real_t C = cv_mem->cv_tq[4]; // constant C in nonlinear iteration conv test.
+  real_t res_norm_tol = 0.05 * C;
   real_t* B = NV_DATA(b);
-  return bdf->solve_func(bdf->context, W, t, U, U_dot, B);
+  return bdf->solve_func(bdf->context, t, U, U_dot, W, res_norm_tol, B);
 }
 
 static void bdf_lfree(CVodeMem cv_mem)
@@ -733,15 +736,16 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                                            bdf_conv_status_t conv_status, 
                                                            real_t gamma, 
                                                            real_t t, 
-                                                           real_t* X_pred, 
-                                                           real_t* rhs_pred, 
+                                                           real_t* U_pred, 
+                                                           real_t* U_dot_pred, 
                                                            bool* J_current, 
                                                            real_t* work1, real_t* work2, real_t* work3),
                                          int (*solve_func)(void* context, 
-                                                           real_t* W, 
                                                            real_t t, 
-                                                           real_t* X,
-                                                           real_t* rhs,
+                                                           real_t* U,
+                                                           real_t* U_dot,
+                                                           real_t* W, 
+                                                           real_t res_norm_tol, 
                                                            real_t* B),
                                          void (*dtor)(void* context))
 {
@@ -895,10 +899,11 @@ static int ink_setup(void* context,
 }
 
 static int ink_solve(void* context, 
-                     real_t* W, 
                      real_t t, 
                      real_t* U,
                      real_t* U_dot,
+                     real_t* W, 
+                     real_t res_norm_tol,
                      real_t* B) 
 {
   START_FUNCTION_TIMER();
@@ -907,6 +912,12 @@ static int ink_solve(void* context,
   // Copy RHS data from B into ink->B.
   krylov_vector_copy_in(ink->B, B);
 
+  // Set the tolerance on the residual norm.
+  real_t rel_tol = 1e-8;
+  real_t div_tol = 1.0;
+  krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
+
+  // Solve A*X = B.
   real_t res_norm;
   int num_iters;
   bool solved = krylov_solver_solve(ink->solver, ink->B, ink->X, &res_norm, &num_iters);
