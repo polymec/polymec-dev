@@ -827,6 +827,7 @@ typedef struct
   krylov_matrix_t* J;
   krylov_vector_t* X;
   krylov_vector_t* B;
+  krylov_vector_t* W;
 
   matrix_sparsity_t* sparsity;
   int block_size;
@@ -851,6 +852,7 @@ static int ink_reset(void* context, real_t t, real_t* X)
   index_t* row_dist = matrix_sparsity_row_distribution(ink->sparsity);
   ink->X = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->W = krylov_factory_vector(ink->factory, ink->comm, row_dist);
 
   STOP_FUNCTION_TIMER();
   return 0;
@@ -912,6 +914,9 @@ static int ink_solve(void* context,
   // Copy RHS data from B into ink->B.
   krylov_vector_copy_in(ink->B, B);
 
+  // Copy weights into ink->W.
+  krylov_vector_copy_in(ink->W, W);
+
   // Set the tolerance on the residual norm.
   real_t rel_tol = 1e-8;
   real_t div_tol = 1.0;
@@ -920,7 +925,8 @@ static int ink_solve(void* context,
   // Solve A*X = B.
   real_t res_norm;
   int num_iters;
-  bool solved = krylov_solver_solve(ink->solver, ink->B, ink->X, &res_norm, &num_iters);
+  bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->W, ink->W, 
+                                           ink->X, &res_norm, &num_iters);
 
   if (solved)
   {
@@ -947,6 +953,8 @@ static void ink_dtor(void* context)
     krylov_vector_free(ink->X);
   if (ink->B != NULL)
     krylov_vector_free(ink->B);
+  if (ink->W != NULL)
+    krylov_vector_free(ink->W);
   if (ink->J != NULL)
     krylov_matrix_free(ink->J);
   if (ink->pc != NULL)
@@ -978,6 +986,7 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
   ink->J = NULL;
   ink->B = NULL;
   ink->X = NULL;
+  ink->W = NULL;
 
   // Find the start, end indices.
   int rank;

@@ -69,6 +69,7 @@ typedef struct
   void (*set_operator)(void* context, void* op);
   void (*set_preconditioner)(void* context, void* pc);
   bool (*solve)(void* context, void* b, void* x, real_t* res_norm, int* num_iters);
+  bool (*solve_scaled)(void* context, void* b, void* s1, void* s2, void* x, real_t* res_norm, int* num_iters);
   void (*dtor)(void* context);
 } krylov_solver_vtable;
 
@@ -306,16 +307,36 @@ void krylov_solver_set_preconditioner(krylov_solver_t* solver,
 krylov_pc_t* krylov_solver_preconditioner(krylov_solver_t* solver);
 
 // Solves the linear system of equations A * x = b, storing the solution
-// in the vector b. Returns true if the solution was obtained, false if not.
+// in the vector x. Returns true if the solution was obtained, false if not.
 // The operator matrix A must be set using krylov_solver_set_operator before
-// this function is called. The number of linear iterations will be stored in 
-// num_iterations upon success. If the solve is unsuccessful, the vector b 
+// this function is called. The residual norm ||A * x - b|| will be stored in 
+// *residual_norm, and the number of linear iterations will be stored in 
+// *num_iterations upon success. If the solve is unsuccessful, the vector x 
 // will NOT contain the solution unless the residual was reduced.
 bool krylov_solver_solve(krylov_solver_t* solver, 
                          krylov_vector_t* b, 
                          krylov_vector_t* x, 
                          real_t* residual_norm, 
                          int* num_iterations);
+
+// Solves the scaled linear system of equations 
+// (s1 * A * s2_inv) * (s2 * x) = (s1 * b), storing the unscaled solution x
+// in the vector x. Returns true if the solution was obtained, false if not.
+// s1 and s2 are diagonal matrices represented by vectors. Either or both of 
+// them may be set to NULL, in which case they are assumed to be the unscaled 
+// identity matrix. The operator matrix A must be set using 
+// krylov_solver_set_operator before this function is called. The residual norm 
+// ||s1 * A * x - s1 * b|| will be stored in *residual_norm, and the number of 
+// linear iterations will be stored in *num_iterations upon success. If the 
+// solve is unsuccessful, the vector x will NOT contain the solution unless the 
+// residual was reduced. 
+bool krylov_solver_solve_scaled(krylov_solver_t* solver, 
+                                krylov_vector_t* b, 
+                                krylov_vector_t* s1,
+                                krylov_vector_t* s2,
+                                krylov_vector_t* x, 
+                                real_t* residual_norm, 
+                                int* num_iterations);
 
 //------------------------------------------------------------------------
 //                      Krylov preconditioner interface

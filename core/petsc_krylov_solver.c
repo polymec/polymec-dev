@@ -251,6 +251,50 @@ static bool petsc_solver_solve(void* context,
   return (code > 0);
 }
 
+static bool petsc_solver_solve_scaled(void* context,
+                                      void* b,
+                                      void* s1,
+                                      void* s2,
+                                      void* x,
+                                      real_t* res_norm,
+                                      int* num_iters)
+{
+  petsc_solver_t* solver = context;
+  petsc_vector_t* B = b;
+  petsc_vector_t* S1 = s1;
+  petsc_vector_t* S2 = s2;
+  petsc_vector_t* X = x;
+  PetscErrorCode err = solver->factory->methods.KSPSolve(solver->ksp, B->v, X->v);
+  if (err != 0)
+    polymec_error("petsc_solver_solve: Call to linear solve failed!");
+  int code;
+  PetscInt niters;
+  solver->factory->methods.KSPGetConvergedReason(solver->ksp, &code);
+  solver->factory->methods.KSPGetIterationNumber(solver->ksp, &niters);
+  *num_iters = (int)niters;
+  solver->factory->methods.KSPGetResidualNorm(solver->ksp, res_norm);
+  if ((code < 0) && (log_level() == LOG_DEBUG))
+  {
+    char reason[256]; 
+    switch(code)
+    {
+      case -2: sprintf(reason, "KSP_DIVERGED_NULL"); break;
+      case -3: sprintf(reason, "max iterations exceeded"); break;
+      case -4: sprintf(reason, "residual norm exceeds divergence tolerance"); break;
+      case -5: sprintf(reason, "Krylov method breakdown (singular A or P?)"); break;
+      case -6: sprintf(reason, "Krylov method breakdown in biconjugate gradient method"); break;
+      case -7: sprintf(reason, "Nonsymmetric matrix given for symmetric Krylov method"); break;
+      case -8: sprintf(reason, "Indefinite preconditioner for method requiring SPD matrix"); break;
+      case -9: sprintf(reason, "NaN or Inf value encountered in linear solve"); break;
+      case -10: sprintf(reason, "Indefinite matrix given for method requiring SPD matrix"); break;
+      case -11: sprintf(reason, "Setup for preconditioner failed"); break;
+      default: sprintf(reason, "reason unknown");
+    }
+    log_debug("petsc_solver_solve: Linear solve failed: %s", reason);
+  }
+  return (code > 0);
+}
+
 static void petsc_solver_dtor(void* context)
 {
   petsc_solver_t* solver = context;
@@ -281,6 +325,7 @@ static krylov_solver_t* petsc_factory_pcg_solver(void* context,
                                  .set_operator = petsc_solver_set_operator,
                                  .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
+                                 .solve_scaled = petsc_solver_solve_scaled,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new("PETSc PCG", solver, vtable);
 }
@@ -310,6 +355,7 @@ static krylov_solver_t* petsc_factory_gmres_solver(void* context,
                                  .set_operator = petsc_solver_set_operator,
                                  .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
+                                 .solve_scaled = petsc_solver_solve_scaled,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new("PETSc GMRES", solver, vtable);
 }
@@ -336,6 +382,7 @@ static krylov_solver_t* petsc_factory_bicgstab_solver(void* context,
                                  .set_operator = petsc_solver_set_operator,
                                  .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
+                                 .solve_scaled = petsc_solver_solve_scaled,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new("PETSc Bi-CGSTAB", solver, vtable);
 }
@@ -364,6 +411,7 @@ static krylov_solver_t* petsc_factory_special_solver(void* context,
                                  .set_operator = petsc_solver_set_operator,
                                  .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
+                                 .solve_scaled = petsc_solver_solve_scaled,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new(solver_name, solver, vtable);
 }

@@ -407,6 +407,18 @@ static bool hypre_solver_solve(void* context,
   return success;
 }
 
+static noreturn bool hypre_solver_solve_scaled(void* context,
+                                      void* b,
+                                      void* s1,
+                                      void* s2,
+                                      void* x,
+                                      real_t* res_norm,
+                                      int* num_iters)
+{
+  POLYMEC_NOT_IMPLEMENTED
+  return false;
+}
+
 static void hypre_solver_dtor(void* context)
 {
   hypre_solver_t* solver = context;
@@ -468,6 +480,7 @@ static krylov_solver_t* hypre_factory_pcg_solver(void* context,
                                  .set_operator = hypre_solver_set_operator,
                                  .set_preconditioner = hypre_solver_set_pc,
                                  .solve = hypre_solver_solve,
+                                 .solve_scaled = hypre_solver_solve_scaled,
                                  .dtor = hypre_solver_dtor};
   return krylov_solver_new("HYPRE PCG", solver, vtable);
 }
@@ -513,6 +526,7 @@ static krylov_solver_t* hypre_factory_gmres_solver(void* context,
                                  .set_operator = hypre_solver_set_operator,
                                  .set_preconditioner = hypre_solver_set_pc,
                                  .solve = hypre_solver_solve,
+                                 .solve_scaled = hypre_solver_solve_scaled,
                                  .dtor = hypre_solver_dtor};
   return krylov_solver_new("HYPRE GMRES", solver, vtable);
 }
@@ -548,6 +562,7 @@ static krylov_solver_t* hypre_factory_bicgstab_solver(void* context,
                                  .set_operator = hypre_solver_set_operator,
                                  .set_preconditioner = hypre_solver_set_pc,
                                  .solve = hypre_solver_solve,
+                                 .solve_scaled = hypre_solver_solve_scaled,
                                  .dtor = hypre_solver_dtor};
   return krylov_solver_new("HYPRE Bi-CGSTAB", solver, vtable);
 }
@@ -581,6 +596,7 @@ static krylov_solver_t* hypre_factory_special_solver(void* context,
                                  .set_operator = hypre_solver_set_operator,
                                  .set_preconditioner = hypre_solver_set_pc,
                                  .solve = hypre_solver_solve,
+                                 .solve_scaled = hypre_solver_solve_scaled,
                                  .dtor = hypre_solver_dtor};
   return krylov_solver_new(solver_name, solver, vtable);
 }

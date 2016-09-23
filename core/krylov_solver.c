@@ -66,6 +66,12 @@ krylov_solver_t* krylov_solver_new(const char* name,
                                    void* context,
                                    krylov_solver_vtable vtable)
 {
+  ASSERT(vtable.set_tolerances != NULL);
+  ASSERT(vtable.set_max_iterations != NULL);
+  ASSERT(vtable.set_operator != NULL);
+  ASSERT(vtable.set_preconditioner != NULL);
+  ASSERT(vtable.solve != NULL);
+  ASSERT(vtable.solve_scaled != NULL);
   krylov_solver_t* solver = polymec_malloc(sizeof(krylov_solver_t));
   solver->name = string_dup(name);
   solver->context = context;
@@ -144,6 +150,25 @@ bool krylov_solver_solve(krylov_solver_t* solver,
                               residual_norm, num_iterations);
 }
 
+bool krylov_solver_solve_scaled(krylov_solver_t* solver, 
+                                krylov_vector_t* b, 
+                                krylov_vector_t* s1, 
+                                krylov_vector_t* s2, 
+                                krylov_vector_t* x, 
+                                real_t* residual_norm, 
+                                int* num_iterations)
+{
+  // If we're not using the scaling matrices, do an unscaled solve.
+  if ((s1 == NULL) && (s2 == NULL))
+    return krylov_solver_solve(solver, b, x, residual_norm, num_iterations);
+  else
+  {
+    return solver->vtable.solve_scaled(solver->context, b->context, s1->context, 
+                                       s2->context, x->context, residual_norm, 
+                                       num_iterations);
+  }
+}
+
 //------------------------------------------------------------------------
 //                          Krylov preconditioner
 //------------------------------------------------------------------------
@@ -182,6 +207,7 @@ krylov_matrix_t* krylov_matrix_new(void* context,
                                    index_t num_global_rows)
 {
   ASSERT(vtable.zero != NULL);
+  ASSERT(vtable.scale != NULL);
   ASSERT(vtable.add_diagonal != NULL);
   ASSERT(vtable.set_diagonal != NULL);
   ASSERT(vtable.set_values != NULL);
