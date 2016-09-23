@@ -877,7 +877,7 @@ static int ink_setup(void* context,
   START_FUNCTION_TIMER();
   ink_bdf_ode_t* ink = context;
 
-  real_t dgamma = gamma / ink->gamma_prev;
+  real_t dgamma = ABS(gamma / ink->gamma_prev - 1.0);
   if ((conv_status == BDF_CONV_FIRST_STEP) || 
       (ink->steps_since_setup > 50) ||
       ((conv_status == BDF_CONV_BAD_J_FAILURE) && (dgamma < 0.2)) || 
