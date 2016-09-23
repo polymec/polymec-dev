@@ -817,10 +817,12 @@ typedef struct
 {
   MPI_Comm comm;
 
+  // Behavior.
   void* context;
   int (*J_func)(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J);
   void (*dtor)(void* context);
 
+  // Linear system stuff.
   krylov_factory_t* factory;
   krylov_solver_t* solver;
   krylov_pc_t* pc;
@@ -829,6 +831,9 @@ typedef struct
   krylov_vector_t* B;
   krylov_vector_t* W;
 
+  // Metadata.
+  real_t gamma_prev; // Previous value of "gamma" in Newton matrix.
+  int steps_since_setup; // Number of steps taken since last Jacobian update.
   matrix_sparsity_t* sparsity;
   int block_size;
   index_t start, end;
@@ -853,6 +858,8 @@ static int ink_reset(void* context, real_t t, real_t* X)
   ink->X = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->W = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->gamma_prev = 1.0;
+  ink->steps_since_setup = 0;
 
   STOP_FUNCTION_TIMER();
   return 0;
@@ -870,8 +877,10 @@ static int ink_setup(void* context,
   START_FUNCTION_TIMER();
   ink_bdf_ode_t* ink = context;
 
+  real_t dgamma = gamma / ink->gamma_prev;
   if ((conv_status == BDF_CONV_FIRST_STEP) || 
-      (conv_status == BDF_CONV_BAD_J_FAILURE) || 
+      (ink->steps_since_setup > 50) ||
+      ((conv_status == BDF_CONV_BAD_J_FAILURE) && (dgamma < 0.2)) || 
       (conv_status == BDF_CONV_OTHER_FAILURE))
   {
     // Call our Jacobian calculation function.
@@ -887,6 +896,8 @@ static int ink_setup(void* context,
     // Use this matrix as the operator in our solver.
     krylov_solver_set_operator(ink->solver, ink->J);
 
+    ink->gamma_prev = gamma;
+    ink->steps_since_setup = 0;
     *J_updated = true;
     STOP_FUNCTION_TIMER();
     return 0;
@@ -894,6 +905,8 @@ static int ink_setup(void* context,
   else
   {
     // The previous Newton iteration failed to converge even with a current Jacobian.
+    ink->gamma_prev = gamma;
+    ++(ink->steps_since_setup);
     *J_updated = false;
     STOP_FUNCTION_TIMER();
     return (conv_status == BDF_CONV_NO_FAILURES) ? 0 : -1;
@@ -920,7 +933,7 @@ static int ink_solve(void* context,
   // Set the tolerance on the residual norm.
   real_t rel_tol = 1e-8;
   real_t div_tol = 1.0;
-  krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
+  krylov_solver_set_tolerances(ink->solver, rel_tol, 1e-2 * res_norm_tol, div_tol);
 
   // Solve A*X = B.
   real_t res_norm;

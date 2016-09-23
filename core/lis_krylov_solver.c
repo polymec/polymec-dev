@@ -45,20 +45,21 @@ typedef struct
 
 typedef struct
 {
-  LIS_SOLVER solver;
-  LIS_MATRIX op;
-  LIS_MATRIX scaled_op;
-  LIS_VECTOR scaled_b;
-} lis_solver_t;
-
-typedef struct
-{
   MPI_Comm comm;
   LIS_MATRIX A;
   int* block_sizes;
   LIS_INT block_size, nr, nc, bnnz, nnz, *bptr, *ptr, *row, *col, *index, *index1, *bindex;
   LIS_SCALAR* values;
 } lis_matrix_t;
+
+typedef struct
+{
+  LIS_SOLVER solver;
+  lis_matrix_t* op;
+  lis_matrix_t* scaled_op;
+  LIS_VECTOR scaled_b;
+  LIS_VECTOR s2_inv;
+} lis_solver_t;
 
 static void lis_solver_set_tolerances(void* context,
                                       real_t rel_tol,
@@ -86,7 +87,7 @@ static void lis_solver_set_operator(void* context,
 {
   lis_solver_t* solver = context;
   lis_matrix_t* A = op;
-  solver->op = A->A;
+  solver->op = A;
 }
 
 static void lis_solver_set_pc(void* context,
@@ -108,7 +109,7 @@ static bool lis_solver_solve(void* context,
   LIS_VECTOR B = b;
   LIS_VECTOR X = x;
   polymec_suspend_fpe();
-  LIS_INT err = lis_solve(solver->op, B, X, solver->solver);
+  LIS_INT err = lis_solve(solver->op->A, B, X, solver->solver);
   polymec_restore_fpe();
   bool solved = false;
   if (err == LIS_SUCCESS)
@@ -135,127 +136,20 @@ static bool lis_solver_solve(void* context,
   return solved;
 }
 
-// Diagonal scaling for matrices.
-static LIS_INT lis_matrix_diag_scale_csr(LIS_MATRIX A, LIS_SCALAR* L, LIS_SCALAR* R)
-{
-  LIS_INT i,j;
-  LIS_INT n;
-
-  LIS_DEBUG_FUNC_IN;
-
-  n    = A->n;
-  if( A->is_splited )
-  {
-    if ((L != NULL) && (R != NULL))
-    {
-#pragma omp parallel for private(i,j)
-      for(i=0; i<n; i++)
-      {
-        A->D->value[i] = 1.0;
-        for(j=A->L->ptr[i];j<A->L->ptr[i+1];j++)
-        {
-          A->L->value[j] = A->L->value[j]*L[i]*R[A->L->index[j]];
-        }
-        for(j=A->U->ptr[i];j<A->U->ptr[i+1];j++)
-        {
-          A->U->value[j] = A->U->value[j]*L[i]*R[A->U->index[j]];
-        }
-      }
-    }
-    else if (L != NULL)
-    {
-#pragma omp parallel for private(i,j)
-      for(i=0; i<n; i++)
-      {
-        A->D->value[i] = 1.0;
-        for(j=A->L->ptr[i];j<A->L->ptr[i+1];j++)
-        {
-          A->L->value[j] = A->L->value[j]*L[i];
-        }
-        for(j=A->U->ptr[i];j<A->U->ptr[i+1];j++)
-        {
-          A->U->value[j] = A->U->value[j]*L[i];
-        }
-      }
-    }
-    else // R != NULL
-    {
-#pragma omp parallel for private(i,j)
-      for(i=0; i<n; i++)
-      {
-        A->D->value[i] = 1.0;
-        for(j=A->L->ptr[i];j<A->L->ptr[i+1];j++)
-        {
-          A->L->value[j] = A->L->value[j]*R[A->L->index[j]];
-        }
-        for(j=A->U->ptr[i];j<A->U->ptr[i+1];j++)
-        {
-          A->U->value[j] = A->U->value[j]*R[A->U->index[j]];
-        }
-      }
-    }
-  }
-  else
-  {
-    if ((L != NULL) && (R != NULL))
-    {
-#pragma omp parallel for private(i,j)
-      for(i=0; i<n; i++)
-      {
-        for(j=A->ptr[i];j<A->ptr[i+1];j++)
-        {
-          A->value[j] = A->value[j]*L[i]*R[A->index[j]];
-        }
-      }
-    }
-    else if (L != NULL)
-    {
-#pragma omp parallel for private(i,j)
-      for(i=0; i<n; i++)
-      {
-        for(j=A->ptr[i];j<A->ptr[i+1];j++)
-        {
-          A->value[j] = A->value[j]*L[i];
-        }
-      }
-    }
-    else // R != NULL
-    {
-#pragma omp parallel for private(i,j)
-      for(i=0; i<n; i++)
-      {
-        for(j=A->ptr[i];j<A->ptr[i+1];j++)
-        {
-          A->value[j] = A->value[j]*R[A->index[j]];
-        }
-      }
-    }
-  }
-  LIS_DEBUG_FUNC_OUT;
-  return LIS_SUCCESS;
-}
-
 // Scaling for vectors.
-static LIS_INT lis_vector_dscale(LIS_VECTOR v, LIS_SCALAR* S)
+static void lis_vector_dscale(LIS_VECTOR v, LIS_VECTOR S)
 {
   LIS_INT n = v->n;
 #pragma omp parallel for
   for(LIS_INT i = 0; i < n; ++i)
-    v->value[i] *= S[i];
-  return LIS_SUCCESS;
-}
-
-static LIS_INT lis_vector_unscale(LIS_VECTOR v, LIS_SCALAR* S)
-{
-  LIS_INT n = v->n;
-#pragma omp parallel for
-  for(LIS_INT i = 0; i < n; ++i)
-    v->value[i] /= S[i];
-  return LIS_SUCCESS;
+    v->value[i] *= S->value[i];
 }
 
 static void* matrix_clone(void* context);
+static void matrix_copy(void* context, void* copy);
 static void* vector_clone(void* context);
+static void vec_copy(void* context, void* copy);
+static void matrix_diag_scale_csr(void* context, void* L, void* R);
 static bool lis_solver_solve_scaled(void* context,
                                     void* b,
                                     void* s1,
@@ -271,36 +165,36 @@ static bool lis_solver_solve_scaled(void* context,
   LIS_VECTOR X = x;
   polymec_suspend_fpe();
 
-  // If we haven't created a scaled operator matrix, do so here.
-  if (solver->scaled_op == NULL)
-  {
-    lis_matrix_create(solver->op->comm, &solver->scaled_op);
-    LIS_INT N_local, N_global;
-    lis_matrix_get_size(solver->op, &N_local, &N_global);
-    lis_matrix_set_size(solver->scaled_op, N_local, 0);
-    LIS_INT type;
-    lis_matrix_get_type(solver->op, &type);
-    lis_matrix_set_type(solver->scaled_op, type);
-    lis_matrix_copy(solver->op, solver->scaled_op);
-  }
-  LIS_INT err;
+  // Make sure S2 inverse is computed if S2 is given.
   if (S2 != NULL)
   {
-    LIS_SCALAR S2_inv[S2->n];
+    if (solver->s2_inv == NULL)
+      solver->s2_inv = vector_clone(S2);
     for (LIS_INT i = 0; i < S2->n; ++i)
-      S2_inv[i] = 1.0 / S2->value[i];
-    err = lis_matrix_diag_scale_csr(solver->scaled_op, S1->value, S2_inv);
+      solver->s2_inv->value[i] = 1.0/S2->value[i];
   }
   else
-    err = lis_matrix_diag_scale_csr(solver->scaled_op, S1->value, NULL);
+  {
+    lis_vector_destroy(solver->s2_inv);
+    solver->s2_inv = NULL;
+  }
+  
+  // If we haven't created a scaled operator matrix, do so here.
+  if (solver->scaled_op == NULL)
+    solver->scaled_op = matrix_clone(solver->op);
+  else
+    matrix_copy(solver->op, solver->scaled_op);
+  matrix_diag_scale_csr(solver->scaled_op, S1, solver->s2_inv);
 
   // If we haven't created a scaled right hand side, do so here.
   if (solver->scaled_b == NULL)
     solver->scaled_b = vector_clone(B);
-  err = lis_vector_dscale(solver->scaled_b, S1->value);
+  else
+    vec_copy(B, solver->scaled_b);
+  lis_vector_dscale(solver->scaled_b, S1);
 
   // Solve the scaled system.
-  err = lis_solve(solver->scaled_op, solver->scaled_b, X, solver->solver);
+  LIS_INT err = lis_solve(solver->scaled_op->A, solver->scaled_b, X, solver->solver);
   polymec_restore_fpe();
   bool solved = false;
   if (err == LIS_SUCCESS)
@@ -329,17 +223,18 @@ static bool lis_solver_solve_scaled(void* context,
 
   // "Unscale" X if necessary.
   if (S2 != NULL)
-    lis_vector_unscale(X, S2->value);
+    lis_vector_dscale(X, solver->s2_inv);
 
   return solved;
 }
 
+static void matrix_dtor(void* context);
 static void lis_solver_dtor(void* context)
 {
   lis_solver_t* solver = context;
   lis_solver_destroy(solver->solver);
   if (solver->scaled_op != NULL)
-    lis_matrix_destroy(solver->scaled_op);
+    matrix_dtor(solver->scaled_op);
   if (solver->scaled_b != NULL)
     lis_vector_destroy(solver->scaled_b);
   polymec_free(solver);
@@ -357,6 +252,7 @@ static krylov_solver_t* lis_factory_pcg_solver(void* context,
   solver->op = NULL;
   solver->scaled_op = NULL;
   solver->scaled_b = NULL;
+  solver->s2_inv = NULL;
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -384,6 +280,7 @@ static krylov_solver_t* lis_factory_gmres_solver(void* context,
 //  lis_solver_set_option("-print 2", solver->solver);
   solver->scaled_op = NULL;
   solver->scaled_b = NULL;
+  solver->s2_inv = NULL;
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -407,6 +304,7 @@ static krylov_solver_t* lis_factory_bicgstab_solver(void* context,
 //  lis_solver_set_option("-print 2", solver->solver);
   solver->scaled_op = NULL;
   solver->scaled_b = NULL;
+  solver->s2_inv = NULL;
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -555,6 +453,13 @@ static void* matrix_clone(void* context)
   return clone;
 }
 
+static void matrix_copy(void* context, void* copy)
+{
+  lis_matrix_t* A = context;
+  lis_matrix_t* B = copy;
+  memcpy(B->values, A->values, sizeof(LIS_SCALAR) * A->nnz);
+}
+
 static void matrix_zero(void* context)
 {
   lis_matrix_t* mat = context;
@@ -569,6 +474,90 @@ static void matrix_scale(void* context, real_t scale_factor)
   lis_matrix_unset(mat->A);
   for (int i = 0; i < mat->nnz; ++i)
     mat->values[i] *= scale_factor;
+  matrix_assemble(mat);
+}
+
+// Diagonal scaling for matrices.
+static void matrix_diag_scale_csr(void* context, void* L, void* R)
+{
+  lis_matrix_t* mat = context;
+  LIS_MATRIX A = mat->A;
+  LIS_VECTOR Lv = L;
+  LIS_SCALAR* Li = (Lv != NULL) ? Lv->value : NULL;
+  LIS_VECTOR Rv = R;
+  LIS_SCALAR* Rj = (Rv != NULL) ? Rv->value : NULL;
+  LIS_INT i,j;
+
+  LIS_INT n = A->n;
+  if( A->is_splited )
+  {
+    if ((Li != NULL) && (Rj != NULL))
+    {
+#pragma omp parallel for private(i,j)
+      for(i=0; i<n; i++)
+      {
+        A->D->value[i] = 1.0;
+        for(j=A->L->ptr[i];j<A->L->ptr[i+1];j++)
+          A->L->value[j] = A->L->value[j]*Li[i]*Rj[A->L->index[j]];
+        for(j=A->U->ptr[i];j<A->U->ptr[i+1];j++)
+          A->U->value[j] = A->U->value[j]*Li[i]*Rj[A->U->index[j]];
+      }
+    }
+    else if (L != NULL)
+    {
+#pragma omp parallel for private(i,j)
+      for(i=0; i<n; i++)
+      {
+        A->D->value[i] = 1.0;
+        for(j=A->L->ptr[i];j<A->L->ptr[i+1];j++)
+          A->L->value[j] = A->L->value[j]*Li[i];
+        for(j=A->U->ptr[i];j<A->U->ptr[i+1];j++)
+          A->U->value[j] = A->U->value[j]*Li[i];
+      }
+    }
+    else // R != NULL
+    {
+#pragma omp parallel for private(i,j)
+      for(i=0; i<n; i++)
+      {
+        A->D->value[i] = 1.0;
+        for(j=A->L->ptr[i];j<A->L->ptr[i+1];j++)
+          A->L->value[j] = A->L->value[j]*Rj[A->L->index[j]];
+        for(j=A->U->ptr[i];j<A->U->ptr[i+1];j++)
+          A->U->value[j] = A->U->value[j]*Rj[A->U->index[j]];
+      }
+    }
+  }
+  else
+  {
+    if ((L != NULL) && (R != NULL))
+    {
+#pragma omp parallel for private(i,j)
+      for(i=0; i<n; i++)
+      {
+        for(j=A->ptr[i];j<A->ptr[i+1];j++)
+          A->value[j] = A->value[j]*Li[i]*Rj[A->index[j]];
+      }
+    }
+    else if (L != NULL)
+    {
+#pragma omp parallel for private(i,j)
+      for(i=0; i<n; i++)
+      {
+        for(j=A->ptr[i];j<A->ptr[i+1];j++)
+          A->value[j] = A->value[j]*Li[i];
+      }
+    }
+    else // R != NULL
+    {
+#pragma omp parallel for private(i,j)
+      for(i=0; i<n; i++)
+      {
+        for(j=A->ptr[i];j<A->ptr[i+1];j++)
+          A->value[j] = A->value[j]*Rj[A->index[j]];
+      }
+    }
+  }
   matrix_assemble(mat);
 }
 
@@ -840,8 +829,10 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = matrix_clone,
+                                 .copy = matrix_copy,
                                  .zero = matrix_zero,
                                  .scale = matrix_scale,
+                                 .diag_scale = matrix_diag_scale_csr,
                                  .add_identity = matrix_add_identity,
                                  .add_diagonal = matrix_add_diagonal_csr,
                                  .set_diagonal = matrix_set_diagonal_csr,
@@ -1086,6 +1077,11 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
 }
 
 #else
+static void matrix_diag_scale_bsr(void* context, void* L, void* R)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
 static void matrix_set_diagonal_bsr(void* context, void* D)
 {
   lis_matrix_t* mat = context;
@@ -1446,6 +1442,7 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
                                  .clone = matrix_clone,
                                  .zero = matrix_zero,
                                  .scale = matrix_scale,
+                                 .diag_scale = matrix_diag_scale_bsr,
                                  .add_identity = matrix_add_identity,
                                  .add_diagonal = matrix_add_diagonal_bsr,
                                  .set_diagonal = matrix_set_diagonal_bsr,
@@ -1458,6 +1455,11 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
                                  .assemble = matrix_assemble,
                                  .dtor = matrix_dtor};
   return krylov_matrix_new(mat, vtable, comm, N_local, N_global);
+}
+
+static void matrix_diag_scale_vbr(void* context, void* L, void* R)
+{
+  POLYMEC_NOT_IMPLEMENTED;
 }
 
 static void matrix_set_diagonal_vbr(void* context, void* D)
@@ -1641,6 +1643,7 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
                                  .clone = matrix_clone,
                                  .zero = matrix_zero,
                                  .scale = matrix_scale,
+                                 .diag_scale = matrix_diag_scale_vbr,
                                  .add_identity = matrix_add_identity,
                                  .add_diagonal = matrix_add_diagonal_vbr,
                                  .set_diagonal = matrix_set_diagonal_vbr,
@@ -1665,6 +1668,13 @@ static void* vector_clone(void* context)
   return clone;
 }
 
+static void vec_copy(void* context, void* copy)
+{
+  LIS_VECTOR v = context;
+  LIS_VECTOR v1 = copy;
+  lis_vector_copy(v, v1);
+}
+
 static void vector_zero(void* context)
 {
   LIS_VECTOR v = context;
@@ -1681,6 +1691,15 @@ static void vec_scale(void* context, real_t scale_factor)
 {
   LIS_VECTOR v = context;
   lis_vector_scale((LIS_SCALAR)scale_factor, v);
+}
+
+static void vec_diag_scale(void* context, void* D)
+{
+  LIS_VECTOR v = context;
+  LIS_VECTOR d = context;
+  LIS_INT n = v->n;
+  for (LIS_INT i = 0; i < n; ++i)
+    v->value[i] *= d->value[i];
 }
 
 static void vector_set_values(void* context, index_t num_values,
@@ -1829,9 +1848,11 @@ static krylov_vector_t* lis_factory_vector(void* context,
 
   // Set up the virtual table.
   krylov_vector_vtable vtable = {.clone = vector_clone,
+                                 .copy = vec_copy,
                                  .zero = vector_zero,
                                  .set_value = vector_set_value,
                                  .scale = vec_scale,
+                                 .diag_scale = vec_diag_scale,
                                  .set_values = vector_set_values,
                                  .add_values = vector_add_values,
                                  .get_values = vector_get_values,

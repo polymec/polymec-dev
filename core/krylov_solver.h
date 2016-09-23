@@ -96,9 +96,11 @@ typedef struct
 {
   int (*block_size)(void* context, index_t block_row);
   void* (*clone)(void* context);
+  void (*copy)(void* context, void* copy);
   void (*redistribute)(void* context, MPI_Comm);
   void (*zero)(void* context);
   void (*scale)(void* context, real_t scale_factor);
+  void (*diag_scale)(void* context, void* L, void* R);
   void (*add_identity)(void* context, real_t scale_factor);
   void (*add_diagonal)(void* context, void* D);
   void (*set_diagonal)(void* context, void* D);
@@ -121,13 +123,15 @@ krylov_matrix_t* krylov_matrix_new(void* context,
                                    int num_local_rows,
                                    index_t num_global_rows);
 
-// This virtual table must be filled out for any subclass of krylov_vector.
+// This virtual table must be filled out for any subclass of krylov_matrix.
 typedef struct
 {
   void* (*clone)(void* context);
+  void (*copy)(void* context, void* copy);
   void (*zero)(void* context);
   void (*set_value)(void* context, real_t value);
   void (*scale)(void* context, real_t scale_factor);
+  void (*diag_scale)(void* context, void* D);
   void (*set_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*add_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*get_values)(void* context, index_t num_values, index_t* indices, real_t* values);
@@ -365,6 +369,9 @@ int krylov_matrix_block_size(krylov_matrix_t* A, index_t block_row);
 // Creates and returns a deep copy of a matrix.
 krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A);
 
+// Copies the contents of the matrix A to those of copy.
+void krylov_matrix_copy(krylov_matrix_t* A, krylov_matrix_t* copy);
+
 // Returns a newly created matrix with the same data, redistributed from the 
 // existing matrix's communicator to the given one.
 krylov_matrix_t* krylov_matrix_redistribute(krylov_matrix_t* A, 
@@ -389,6 +396,14 @@ void krylov_matrix_zero(krylov_matrix_t* A);
 // This is collective and must be called by all processes.
 void krylov_matrix_scale(krylov_matrix_t* A,
                          real_t scale_factor);
+
+// Left-multiplies this matrix by a left diagonal matrix L, and 
+// right-multiples by a diagonal matrix R. L and R are represented 
+// by vectors. If L or R is NULL, it is assumed to be the identity 
+// matrix. This is collective and must be called by all processes.
+void krylov_matrix_diag_scale(krylov_matrix_t* A,
+                              krylov_vector_t* L, 
+                              krylov_vector_t* R);
 
 // Adds a scaled identity matrix to this one.
 // This is collective and must be called by all processes.
@@ -524,6 +539,9 @@ void krylov_vector_free(krylov_vector_t* v);
 // Creates and returns a deep copy of a vector.
 krylov_vector_t* krylov_vector_clone(krylov_vector_t* v);
 
+// Copies the contents of the vector v to those of copy.
+void krylov_vector_copy(krylov_vector_t* v, krylov_vector_t* copy);
+
 // Returns a pointer to the underlying vector implementation. You can use 
 // this if you have explicitly linked your program to the library providing
 // the implementation.
@@ -548,6 +566,11 @@ void krylov_vector_set_value(krylov_vector_t* v,
 // This is collective, and must be called by all MPI processes.
 void krylov_vector_scale(krylov_vector_t* v,
                          real_t scale_factor);
+
+// Multiplies the vector by the diagonal matrix D, represented by a vector.
+// This is collective, and must be called by all MPI processes.
+void krylov_vector_diag_scale(krylov_vector_t* v,
+                              krylov_vector_t* D);
 
 // Sets the values of the elements in the vector identified by the given 
 // (globally-indexed) indices.

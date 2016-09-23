@@ -25,6 +25,12 @@ struct krylov_solver_t
   void* context;
   krylov_solver_vtable vtable;
   krylov_pc_t* pc;
+  krylov_matrix_t* op;
+
+  // Scaled solver stuff.
+  krylov_matrix_t* scaled_op;
+  krylov_vector_t* scaled_b;
+  krylov_vector_t* s2_inv;
 };
 
 struct krylov_pc_t
@@ -71,12 +77,15 @@ krylov_solver_t* krylov_solver_new(const char* name,
   ASSERT(vtable.set_operator != NULL);
   ASSERT(vtable.set_preconditioner != NULL);
   ASSERT(vtable.solve != NULL);
-  ASSERT(vtable.solve_scaled != NULL);
   krylov_solver_t* solver = polymec_malloc(sizeof(krylov_solver_t));
   solver->name = string_dup(name);
   solver->context = context;
   solver->vtable = vtable;
   solver->pc = NULL;
+  solver->op = NULL;
+  solver->scaled_op = NULL;
+  solver->scaled_b = NULL;
+  solver->s2_inv = NULL;
   return solver;
 }
 
@@ -86,6 +95,12 @@ void krylov_solver_free(krylov_solver_t* solver)
     solver->vtable.dtor(solver->context);
   if (solver->pc != NULL)
     krylov_pc_free(solver->pc);
+  if (solver->scaled_op != NULL)
+    krylov_matrix_free(solver->scaled_op);
+  if (solver->scaled_b != NULL)
+    krylov_vector_free(solver->scaled_b);
+  if (solver->s2_inv != NULL)
+    krylov_vector_free(solver->s2_inv);
   string_free(solver->name);
   polymec_free(solver);
 }
@@ -124,6 +139,7 @@ void krylov_solver_set_max_iterations(krylov_solver_t* solver,
 void krylov_solver_set_operator(krylov_solver_t* solver, 
                                 krylov_matrix_t* op)
 {
+  solver->op = op;
   solver->vtable.set_operator(solver->context, op->context);
 }
 
@@ -146,6 +162,7 @@ bool krylov_solver_solve(krylov_solver_t* solver,
                          real_t* residual_norm, 
                          int* num_iterations)
 {
+  ASSERT(solver->op != NULL);
   return solver->vtable.solve(solver->context, b->context, x->context, 
                               residual_norm, num_iterations);
 }
@@ -158,14 +175,61 @@ bool krylov_solver_solve_scaled(krylov_solver_t* solver,
                                 real_t* residual_norm, 
                                 int* num_iterations)
 {
+  ASSERT(solver->op != NULL);
+
   // If we're not using the scaling matrices, do an unscaled solve.
   if ((s1 == NULL) && (s2 == NULL))
     return krylov_solver_solve(solver, b, x, residual_norm, num_iterations);
   else
   {
-    return solver->vtable.solve_scaled(solver->context, b->context, s1->context, 
-                                       s2->context, x->context, residual_norm, 
-                                       num_iterations);
+#if 1
+    return solver->vtable.solve_scaled(solver->context, b->context, s1->context, s2->context, x->context, residual_norm, num_iterations);
+#else
+    // Make sure S2 inverse is computed if S2 is given.
+    if (s2 != NULL)
+    {
+      if (solver->s2_inv == NULL)
+        solver->s2_inv = krylov_vector_clone(s2);
+
+      int N_local = krylov_vector_local_size(s2);
+      real_t s2_data[N_local], s2_inv_data[N_local];
+      krylov_vector_copy_out(s2, s2_data);
+      for (int i = 0; i < N_local; ++i)
+        s2_inv_data[i] = 1.0/s2_data[i];
+      krylov_vector_copy_in(solver->s2_inv, s2_inv_data);
+    }
+    else
+    {
+      krylov_vector_free(solver->s2_inv);
+      solver->s2_inv = NULL;
+    }
+
+    // Calculate the scaled operator matrix.
+    if (solver->scaled_op == NULL)
+      solver->scaled_op = krylov_matrix_clone(solver->op);
+    else
+      krylov_matrix_copy(solver->op, solver->scaled_op);
+    krylov_matrix_diag_scale(solver->scaled_op, s1, solver->s2_inv);
+
+    // Calculate the scaled right-hand side.
+    if (solver->scaled_b == NULL)
+      solver->scaled_b = krylov_vector_clone(b);
+    else
+      krylov_vector_copy(b, solver->scaled_b);
+    krylov_vector_diag_scale(solver->scaled_b, s1);
+
+    // Solve the scaled system.
+    solver->vtable.set_operator(solver->context, solver->scaled_op->context);
+    bool result = solver->vtable.solve(solver->context, solver->scaled_b->context, 
+                                       x->context, residual_norm, num_iterations);
+    solver->vtable.set_operator(solver->context, solver->op->context);
+
+    // Unscale the solution and return.
+    if (solver->s2_inv != NULL)
+      krylov_vector_diag_scale(x, solver->s2_inv);
+
+    return result;
+#endif
   }
 }
 
@@ -208,6 +272,7 @@ krylov_matrix_t* krylov_matrix_new(void* context,
 {
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.scale != NULL);
+  ASSERT(vtable.diag_scale != NULL);
   ASSERT(vtable.add_diagonal != NULL);
   ASSERT(vtable.set_diagonal != NULL);
   ASSERT(vtable.set_values != NULL);
@@ -755,6 +820,13 @@ krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A)
   return B;
 }
 
+void krylov_matrix_copy(krylov_matrix_t* A, krylov_matrix_t* copy)
+{
+  ASSERT(copy->num_global_rows == A->num_global_rows);
+  ASSERT(copy->num_local_rows == A->num_local_rows);
+  A->vtable.copy(A->context, copy->context);
+}
+
 void* krylov_matrix_impl(krylov_matrix_t* A)
 {
   return A->context;
@@ -785,6 +857,13 @@ void krylov_matrix_scale(krylov_matrix_t* A,
                          real_t scale_factor)
 {
   A->vtable.scale(A->context, scale_factor);
+}
+
+void krylov_matrix_diag_scale(krylov_matrix_t* A,
+                              krylov_vector_t* L,
+                              krylov_vector_t* R)
+{
+  A->vtable.diag_scale(A->context, L->context, R->context);
 }
 
 void krylov_matrix_add_diagonal(krylov_matrix_t* A,
@@ -911,6 +990,7 @@ krylov_vector_t* krylov_vector_new(void* context,
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.set_value != NULL);
   ASSERT(vtable.scale != NULL);
+  ASSERT(vtable.diag_scale != NULL);
   ASSERT(vtable.set_values != NULL);
   ASSERT(vtable.add_values != NULL);
   ASSERT(vtable.get_values != NULL);
@@ -943,6 +1023,13 @@ krylov_vector_t* krylov_vector_clone(krylov_vector_t* v)
   return u;
 }
 
+void krylov_vector_copy(krylov_vector_t* v, krylov_vector_t* copy)
+{
+  ASSERT(copy->local_size == v->local_size);
+  ASSERT(copy->global_size == v->global_size);
+  v->vtable.copy(v->context, copy->context);
+}
+
 void* krylov_vector_impl(krylov_vector_t* v)
 {
   return v->context;
@@ -973,6 +1060,13 @@ void krylov_vector_scale(krylov_vector_t* v,
                          real_t scale_factor)
 {
   v->vtable.scale(v->context, scale_factor);
+}
+
+void krylov_vector_diag_scale(krylov_vector_t* v,
+                              krylov_vector_t* D)
+{
+  ASSERT(D != NULL);
+  v->vtable.diag_scale(v->context, D->context);
 }
 
 void krylov_vector_set_values(krylov_vector_t* v,
