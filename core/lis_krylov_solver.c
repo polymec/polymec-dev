@@ -56,9 +56,6 @@ typedef struct
 {
   LIS_SOLVER solver;
   lis_matrix_t* op;
-  lis_matrix_t* scaled_op;
-  LIS_VECTOR scaled_b;
-  LIS_VECTOR s2_inv;
 } lis_solver_t;
 
 static void lis_solver_set_tolerances(void* context,
@@ -136,107 +133,11 @@ static bool lis_solver_solve(void* context,
   return solved;
 }
 
-// Scaling for vectors.
-static void lis_vector_dscale(LIS_VECTOR v, LIS_VECTOR S)
-{
-  LIS_INT n = v->n;
-#pragma omp parallel for
-  for(LIS_INT i = 0; i < n; ++i)
-    v->value[i] *= S->value[i];
-}
-
-static void* matrix_clone(void* context);
-static void matrix_copy(void* context, void* copy);
-static void* vector_clone(void* context);
-static void vec_copy(void* context, void* copy);
-static void matrix_diag_scale_csr(void* context, void* L, void* R);
-static bool lis_solver_solve_scaled(void* context,
-                                    void* b,
-                                    void* s1,
-                                    void* s2,
-                                    void* x,
-                                    real_t* res_norm,
-                                    int* num_iters)
-{
-  lis_solver_t* solver = context;
-  LIS_VECTOR B = b;
-  LIS_VECTOR S1 = s1;
-  LIS_VECTOR S2 = s2;
-  LIS_VECTOR X = x;
-  polymec_suspend_fpe();
-
-  // Make sure S2 inverse is computed if S2 is given.
-  if (S2 != NULL)
-  {
-    if (solver->s2_inv == NULL)
-      solver->s2_inv = vector_clone(S2);
-    for (LIS_INT i = 0; i < S2->n; ++i)
-      solver->s2_inv->value[i] = 1.0/S2->value[i];
-  }
-  else
-  {
-    lis_vector_destroy(solver->s2_inv);
-    solver->s2_inv = NULL;
-  }
-  
-  // If we haven't created a scaled operator matrix, do so here.
-  if (solver->scaled_op == NULL)
-    solver->scaled_op = matrix_clone(solver->op);
-  else
-    matrix_copy(solver->op, solver->scaled_op);
-  matrix_diag_scale_csr(solver->scaled_op, S1, solver->s2_inv);
-
-  // If we haven't created a scaled right hand side, do so here.
-  if (solver->scaled_b == NULL)
-    solver->scaled_b = vector_clone(B);
-  else
-    vec_copy(B, solver->scaled_b);
-  lis_vector_dscale(solver->scaled_b, S1);
-
-  // Solve the scaled system.
-  LIS_INT err = lis_solve(solver->scaled_op->A, solver->scaled_b, X, solver->solver);
-  polymec_restore_fpe();
-  bool solved = false;
-  if (err == LIS_SUCCESS)
-  {
-    LIS_INT status;
-    lis_solver_get_status(solver->solver, &status);
-    solved = (status == LIS_SUCCESS);
-    if (!solved)
-    {
-      if (status == LIS_BREAKDOWN)
-        log_debug("krylov_solver_solve_scaled (LIS): division by zero");
-      else if (status == LIS_OUT_OF_MEMORY)
-        log_debug("krylov_solver_solve_scaled (LIS): out of memory");
-      else if (status == LIS_MAXITER)
-        log_debug("krylov_solver_solve_scaled (LIS): max # of iterations exceeded");
-    }
-  }
-
-  // Read off the residual norm and the # of iterations.
-  double dnorm;
-  lis_solver_get_residualnorm(solver->solver, &dnorm);
-  *res_norm = (real_t)dnorm;
-  LIS_INT niters;
-  lis_solver_get_iter(solver->solver, &niters);
-  *num_iters = (int)niters;
-
-  // "Unscale" X if necessary.
-  if (S2 != NULL)
-    lis_vector_dscale(X, solver->s2_inv);
-
-  return solved;
-}
-
 static void matrix_dtor(void* context);
 static void lis_solver_dtor(void* context)
 {
   lis_solver_t* solver = context;
   lis_solver_destroy(solver->solver);
-  if (solver->scaled_op != NULL)
-    matrix_dtor(solver->scaled_op);
-  if (solver->scaled_b != NULL)
-    lis_vector_destroy(solver->scaled_b);
   polymec_free(solver);
 }
 
@@ -250,9 +151,6 @@ static krylov_solver_t* lis_factory_pcg_solver(void* context,
   lis_solver_set_option("-scale jacobi", solver->solver);
 //  lis_solver_set_option("-print 2", solver->solver);
   solver->op = NULL;
-  solver->scaled_op = NULL;
-  solver->scaled_b = NULL;
-  solver->s2_inv = NULL;
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -260,7 +158,6 @@ static krylov_solver_t* lis_factory_pcg_solver(void* context,
                                  .set_operator = lis_solver_set_operator,
                                  .set_preconditioner = lis_solver_set_pc,
                                  .solve = lis_solver_solve,
-                                 .solve_scaled = lis_solver_solve_scaled,
                                  .dtor = lis_solver_dtor};
 
   return krylov_solver_new("LIS PCG", solver, vtable);
@@ -278,9 +175,6 @@ static krylov_solver_t* lis_factory_gmres_solver(void* context,
   lis_solver_set_option("-p ilu", solver->solver);
   lis_solver_set_option("-scale jacobi", solver->solver);
 //  lis_solver_set_option("-print 2", solver->solver);
-  solver->scaled_op = NULL;
-  solver->scaled_b = NULL;
-  solver->s2_inv = NULL;
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -288,7 +182,6 @@ static krylov_solver_t* lis_factory_gmres_solver(void* context,
                                  .set_operator = lis_solver_set_operator,
                                  .set_preconditioner = lis_solver_set_pc,
                                  .solve = lis_solver_solve,
-                                 .solve_scaled = lis_solver_solve_scaled,
                                  .dtor = lis_solver_dtor};
   return krylov_solver_new("LIS GMRES", solver, vtable);
 }
@@ -302,9 +195,6 @@ static krylov_solver_t* lis_factory_bicgstab_solver(void* context,
   lis_solver_set_option("-p jacobi", solver->solver);
   lis_solver_set_option("-scale jacobi", solver->solver);
 //  lis_solver_set_option("-print 2", solver->solver);
-  solver->scaled_op = NULL;
-  solver->scaled_b = NULL;
-  solver->s2_inv = NULL;
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -312,7 +202,6 @@ static krylov_solver_t* lis_factory_bicgstab_solver(void* context,
                                  .set_operator = lis_solver_set_operator,
                                  .set_preconditioner = lis_solver_set_pc,
                                  .solve = lis_solver_solve,
-                                 .solve_scaled = lis_solver_solve_scaled,
                                  .dtor = lis_solver_dtor};
   return krylov_solver_new("LIS BiCGSTAB", solver, vtable);
 }
@@ -1696,8 +1585,9 @@ static void vec_scale(void* context, real_t scale_factor)
 static void vec_diag_scale(void* context, void* D)
 {
   LIS_VECTOR v = context;
-  LIS_VECTOR d = context;
+  LIS_VECTOR d = D;
   LIS_INT n = v->n;
+#pragma omp parallel for
   for (LIS_INT i = 0; i < n; ++i)
     v->value[i] *= d->value[i];
 }
@@ -1774,25 +1664,17 @@ static void vector_get_values(void* context, index_t num_values,
 static void vector_copy_in(void* context, real_t* local_values)
 {
   LIS_VECTOR v = context;
-  LIS_INT start, end;
-  lis_vector_get_range(v, &start, &end);
-  index_t N = (index_t)(end - start);
-  index_t local_rows[N];
+  LIS_INT N = v->n;
   for (LIS_INT i = 0; i < N; ++i)
-    local_rows[i] = (index_t)(start + i);
-  vector_set_values(v, N, local_rows, local_values);
+    v->value[i] = local_values[i];
 }
 
 static void vector_copy_out(void* context, real_t* local_values)
 {
   LIS_VECTOR v = context;
-  LIS_INT start, end;
-  lis_vector_get_range(v, &start, &end);
-  index_t N = (index_t)(end - start);
-  index_t local_rows[N];
+  LIS_INT N = v->n;
   for (LIS_INT i = 0; i < N; ++i)
-    local_rows[i] = (index_t)(start + i);
-  vector_get_values(v, N, local_rows, local_values);
+    local_values[i] = v->value[i];
 }
 
 static real_t vector_norm(void* context, int p)

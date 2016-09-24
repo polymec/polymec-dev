@@ -182,10 +182,7 @@ bool krylov_solver_solve_scaled(krylov_solver_t* solver,
     return krylov_solver_solve(solver, b, x, residual_norm, num_iterations);
   else
   {
-#if 1
-    return solver->vtable.solve_scaled(solver->context, b->context, s1->context, s2->context, x->context, residual_norm, num_iterations);
-#else
-    // Make sure S2 inverse is computed if S2 is given.
+    // Make sure s2 inverse is computed if s2 is given.
     if (s2 != NULL)
     {
       if (solver->s2_inv == NULL)
@@ -204,32 +201,32 @@ bool krylov_solver_solve_scaled(krylov_solver_t* solver,
       solver->s2_inv = NULL;
     }
 
-    // Calculate the scaled operator matrix.
+    // Calculate the scaled operator matrix s1 * A * s2_inv.
     if (solver->scaled_op == NULL)
       solver->scaled_op = krylov_matrix_clone(solver->op);
     else
       krylov_matrix_copy(solver->op, solver->scaled_op);
     krylov_matrix_diag_scale(solver->scaled_op, s1, solver->s2_inv);
 
-    // Calculate the scaled right-hand side.
+    // Calculate the scaled right-hand side s1 * b.
     if (solver->scaled_b == NULL)
       solver->scaled_b = krylov_vector_clone(b);
     else
       krylov_vector_copy(b, solver->scaled_b);
-    krylov_vector_diag_scale(solver->scaled_b, s1);
+    if (s1 != NULL)
+      krylov_vector_diag_scale(solver->scaled_b, s1);
 
-    // Solve the scaled system.
+    // Solve the scaled system (s1 * A * s2_inv) * (s2 * x) = (s1 * b).
     solver->vtable.set_operator(solver->context, solver->scaled_op->context);
-    bool result = solver->vtable.solve(solver->context, solver->scaled_b->context, 
+    bool solved = solver->vtable.solve(solver->context, solver->scaled_b->context, 
                                        x->context, residual_norm, num_iterations);
     solver->vtable.set_operator(solver->context, solver->op->context);
 
-    // Unscale the solution and return.
-    if (solver->s2_inv != NULL)
+    // Transform (s2 * x) -> x and return.
+    if (solved && (solver->s2_inv != NULL))
       krylov_vector_diag_scale(x, solver->s2_inv);
 
-    return result;
-#endif
+    return solved;
   }
 }
 
