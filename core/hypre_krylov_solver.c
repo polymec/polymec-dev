@@ -1547,6 +1547,34 @@ static real_t hypre_vector_norm(void* context, int p)
   return global_norm;
 }
 
+static real_t hypre_vector_wrms_norm(void* context, void* W)
+{
+  hypre_vector_t* v = context;
+  hypre_vector_t* w = W;
+  
+  // Accumulate the local part of the norm.
+  real_t local_norm = 0.0;
+  index_t num_rows = v->ihigh - v->ilow + 1;
+  index_t rows[num_rows];
+  for (index_t r = 0; r < num_rows; ++r) 
+    rows[r] = v->ilow + r;
+  real_t v_values[num_rows], w_values[num_rows];
+  hypre_vector_get_values(context, num_rows, rows, v_values);
+  hypre_vector_get_values(W, num_rows, rows, w_values);
+  for (index_t i = 0; i < num_rows; ++i) 
+  {
+    real_t wi = w_values[i];
+    real_t vi = v_values[i];
+    local_norm += wi*wi*vi*vi;
+  }
+
+  // Now mash together all the parallel portions.
+  real_t global_norm = 0.0;
+  MPI_Allreduce(&local_norm, &global_norm, 1, MPI_REAL_T, MPI_SUM, v->comm);
+
+  return sqrt(global_norm);
+}
+
 static void hypre_vector_fprintf(void* context, FILE* stream)
 {
   // Write the vector to a temporary file and then write that file to 
@@ -1618,6 +1646,7 @@ static krylov_vector_t* hypre_factory_vector(void* context,
                                  .copy_out = hypre_vector_copy_out,
                                  .assemble = hypre_vector_assemble,
                                  .norm = hypre_vector_norm,
+                                 .wrms_norm = hypre_vector_wrms_norm,
                                  .fprintf = hypre_vector_fprintf,
                                  .dtor = hypre_vector_dtor};
   return krylov_vector_new(v, vtable, (int)(row_dist[rank+1]-row_dist[rank]), row_dist[nprocs]);

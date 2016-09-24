@@ -138,6 +138,7 @@ typedef struct
   void (*copy_in)(void* context, real_t* local_values);
   void (*copy_out)(void* context, real_t* local_values);
   real_t (*norm)(void* context, int p);
+  real_t (*wrms_norm)(void* context, void* W);
   void (*assemble)(void* context);
   void (*fprintf)(void* context, FILE* stream);
   void (*dtor)(void* context);
@@ -612,10 +613,15 @@ void krylov_vector_get_values(krylov_vector_t* v,
                               index_t* indices,
                               real_t* values);
 
-// Computes and returns the Lp norm for this vector, where p can be 
+// Computes and returns the p norm for this vector, where p can be 
 // 0 (infinity/max norm), 1, or 2.
 // This is collective, and must be called by all MPI processes.
 real_t krylov_vector_norm(krylov_vector_t* v, int p);
+ 
+// Computes and returns a weighted root-mean-squared (WRMS) norm for 
+// this vector, using the weights in the given vector W.
+// This is collective, and must be called by all MPI processes.
+real_t krylov_vector_wrms_norm(krylov_vector_t* v, krylov_vector_t* W);
  
 // Writes a text representation of the vector (or portion stored on the local
 // MPI process) to the given stream.

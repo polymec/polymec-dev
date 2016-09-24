@@ -1690,6 +1690,27 @@ static real_t vector_norm(void* context, int p)
   return (real_t)norm;
 }
 
+static real_t vector_wrms_norm(void* context, void* W)
+{
+  LIS_VECTOR v = context;
+  LIS_VECTOR w = W;
+
+  // Accumulate the local part of the norm.
+  real_t local_norm = 0.0;
+  LIS_INT n = v->n;
+  for (LIS_INT i = 0; i < n; ++i)
+  {
+    LIS_SCALAR wi = w->value[i];
+    LIS_SCALAR vi = v->value[i];
+    local_norm += (real_t)(wi*wi*vi*vi);
+  }
+
+  // Now mash together all the parallel portions.
+  real_t global_norm = 0.0;
+  MPI_Allreduce(&local_norm, &global_norm, 1, MPI_REAL_T, MPI_SUM, v->comm);
+  return sqrt(global_norm);
+}
+
 static void vec_fprintf(void* context, FILE* stream)
 {
   LIS_VECTOR v = context;
@@ -1741,6 +1762,7 @@ static krylov_vector_t* lis_factory_vector(void* context,
                                  .copy_in = vector_copy_in,
                                  .copy_out = vector_copy_out,
                                  .norm = vector_norm,
+                                 .wrms_norm = vector_wrms_norm,
                                  .fprintf = vec_fprintf,
                                  .dtor = vector_dtor};
   return krylov_vector_new(v, vtable, (int)N_local, N_global);

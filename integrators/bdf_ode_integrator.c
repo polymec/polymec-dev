@@ -884,7 +884,15 @@ static int ink_setup(void* context,
       (conv_status == BDF_CONV_OTHER_FAILURE))
   {
     // Call our Jacobian calculation function.
-    log_debug("ink_bdf_ode_integrator: Calculating A = I - %g * J.\n", gamma);
+    log_debug("ink_bdf_ode_integrator: Calculating A = I - %g * J.", gamma);
+    if (conv_status == BDF_CONV_FIRST_STEP)
+      log_debug("ink_bdf_ode_integrator: (reason: first step)");
+    else if (ink->steps_since_setup > 50)
+      log_debug("ink_bdf_ode_integrator: (reason: > 50 steps since last calculation)");
+    else if (conv_status == BDF_CONV_BAD_J_FAILURE)
+      log_debug("ink_bdf_ode_integrator: (reason: outdated Newton matrix)");
+    else
+      log_debug("ink_bdf_ode_integrator: (reason: convergence failure reduced dt)");
     int status = ink->J_func(ink->context, t, U_pred, U_dot_pred, ink->J);
     if (status != 0)
       return status;
@@ -929,6 +937,15 @@ static int ink_solve(void* context,
 
   // Copy weights into ink->W.
   krylov_vector_copy_in(ink->W, W);
+
+  // If the WRMS norm of B is less than our tolerance, return X = 0.
+  real_t B_norm = krylov_vector_wrms_norm(ink->B, ink->W);
+  if (B_norm < res_norm_tol)
+  {
+    log_debug("ink_bdf_ode_integrator: ||B|| < tolerance (%g), so X -> 0.", res_norm_tol); 
+    krylov_vector_zero(ink->B);
+    return 0;
+  }
 
   // Set the tolerance on the residual norm.
   real_t rel_tol = 1e-8;

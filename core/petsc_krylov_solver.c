@@ -1089,6 +1089,34 @@ static real_t petsc_vector_norm(void* context, int p)
   return norm;
 }
 
+static real_t petsc_vector_wrms_norm(void* context, void* W)
+{
+  petsc_vector_t* v = context;
+  petsc_vector_t* w = W;
+
+  // Accumulate the local part of the norm.
+  PetscInt n;
+  v->factory->methods.VecGetLocalSize(v->v, &n);
+  real_t* v_values;
+  v->factory->methods.VecGetArray(v->v, &v_values);
+  real_t* w_values;
+  w->factory->methods.VecGetArray(w->v, &w_values);
+  real_t local_norm = 0.0;
+  for (PetscInt i = 0; i < n; ++i)
+  {
+    real_t wi = w_values[i];
+    real_t vi = v_values[i];
+    local_norm += (real_t)(wi*wi*vi*vi);
+  }
+  v->factory->methods.VecRestoreArray(v->v, &v_values);
+  w->factory->methods.VecRestoreArray(w->v, &w_values);
+
+  // Now mash together all the parallel portions.
+  real_t global_norm = 0.0;
+  MPI_Allreduce(&local_norm, &global_norm, 1, MPI_REAL_T, MPI_SUM, v->comm);
+  return sqrt(global_norm);
+}
+
 static void petsc_vector_fprintf(void* context, FILE* stream)
 {
   petsc_vector_t* v = context;
@@ -1141,6 +1169,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
                                  .copy_out = petsc_vector_copy_out,
                                  .assemble = petsc_vector_assemble,
                                  .norm = petsc_vector_norm,
+                                 .wrms_norm = petsc_vector_wrms_norm,
                                  .fprintf = petsc_vector_fprintf,
                                  .dtor = petsc_vector_dtor};
   return krylov_vector_new(v, vtable, (int)N_local, N_global);

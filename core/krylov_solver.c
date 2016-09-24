@@ -993,6 +993,8 @@ krylov_vector_t* krylov_vector_new(void* context,
   ASSERT(vtable.get_values != NULL);
   ASSERT(vtable.copy_in != NULL);
   ASSERT(vtable.copy_out != NULL);
+  ASSERT(vtable.norm != NULL);
+  ASSERT(vtable.wrms_norm != NULL);
   ASSERT(local_size > 0);
   ASSERT(global_size >= local_size);
   krylov_vector_t* v = polymec_malloc(sizeof(krylov_vector_t));
@@ -1112,6 +1114,12 @@ real_t krylov_vector_norm(krylov_vector_t* v, int p)
 {
   ASSERT((p == 0) || (p == 1) || (p == 2));
   return v->vtable.norm(v->context, p);
+}
+
+real_t krylov_vector_wrms_norm(krylov_vector_t* v, krylov_vector_t* W)
+{
+  ASSERT(W != NULL);
+  return v->vtable.wrms_norm(v->context, W->context);
 }
 
 void krylov_vector_fprintf(krylov_vector_t* v,
