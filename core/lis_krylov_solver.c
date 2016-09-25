@@ -1706,9 +1706,10 @@ static real_t vector_wrms_norm(void* context, void* W)
   }
 
   // Now mash together all the parallel portions.
-  real_t global_norm = 0.0;
-  MPI_Allreduce(&local_norm, &global_norm, 1, MPI_REAL_T, MPI_SUM, v->comm);
-  return sqrt(global_norm);
+  real_t local_data[2] = {local_norm, (real_t)n};
+  real_t global_data[2];
+  MPI_Allreduce(local_data, global_data, 2, MPI_REAL_T, MPI_SUM, v->comm);
+  return sqrt(global_data[0]/global_data[1]);
 }
 
 static void vec_fprintf(void* context, FILE* stream)
