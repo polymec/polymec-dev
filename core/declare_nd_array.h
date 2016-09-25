@@ -58,10 +58,10 @@ type (*array_var)[dim2][dim3][dim4][dim5][dim6][dim7] = (void*)storage
 // ARRAY_INDEX_7D(dim1, dim2, dim3, dim4, dim5, dim6, dim7, i, j, k, l, m, n, p) -> I
 //
 #define ARRAY_INDEX_2D(dim1, dim2, i, j) (dim2*i + j)
-#define ARRAY_INDEX_3D(dim1, dim2, dim3, i, j, k) (dim2*dim3*i + dim2*j + k)
-#define ARRAY_INDEX_4D(dim1, dim2, dim3, dim4, i, j, k, l) (dim2*dim3*dim4*i + dim2*dim3*j + dim2*k + l)
-#define ARRAY_INDEX_5D(dim1, dim2, dim3, dim4, dim5, i, j, k, l, m) (dim2*dim3*dim4*dim5*i + dim2*dim3*dim4*j + dim2*dim3*k + dim2*l + m)
-#define ARRAY_INDEX_6D(dim1, dim2, dim3, dim4, dim5, dim6, i, j, k, l, m, n) (dim2*dim3*dim4*dim5*dim6*i + dim2*dim3*dim4*dim5*j + dim2*dim3*dim4*k + dim2*dim3*l + dim2*m + n)
-#define ARRAY_INDEX_7D(dim1, dim2, dim3, dim4, dim5, dim6, dim7, i, j, k, l, m, n, p) (dim2*dim3*dim4*dim5*dim6*dim7*i + dim2*dim3*dim4*dim5*dim6*j + dim2*dim3*dim4*dim5*k + dim2*dim3*dim4*l + dim2*dim3*m + dim2*n + p)
+#define ARRAY_INDEX_3D(dim1, dim2, dim3, i, j, k) (dim2*dim3*i + dim3*j + k)
+#define ARRAY_INDEX_4D(dim1, dim2, dim3, dim4, i, j, k, l) (dim2*dim3*dim4*i + dim3*dim4*j + dim4*k + l)
+#define ARRAY_INDEX_5D(dim1, dim2, dim3, dim4, dim5, i, j, k, l, m) (dim2*dim3*dim4*dim5*i + dim3*dim4*dim5*j + dim4*dim5*k + dim5*l + m)
+#define ARRAY_INDEX_6D(dim1, dim2, dim3, dim4, dim5, dim6, i, j, k, l, m, n) (dim2*dim3*dim4*dim5*dim6*i + dim3*dim4*dim5*dim6*j + dim4*dim5*dim6*k + dim5*dim6*l + dim6*m + n)
+#define ARRAY_INDEX_7D(dim1, dim2, dim3, dim4, dim5, dim6, dim7, i, j, k, l, m, n, p) (dim2*dim3*dim4*dim5*dim6*dim7*i + dim3*dim4*dim5*dim6*dim7*j + dim4*dim5*dim6*dim7*k + dim5*dim6*dim7*l + dim6*dim7*m + dim7*n + p)
 
 #endif

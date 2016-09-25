@@ -259,22 +259,21 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
   real_t horaco  = data->haco;
 
   // Loop over all grid points. 
-  index_t offset = 0;
-  for (int jy = 0; jy < MY; ++jy) 
+  for (int jx = 0; jx < MX; ++jx) 
   {
-    // Set vertical diffusion coefficients at jy +- 1/2 
-    real_t ydn = YMIN + (jy - RCONST(0.5))*dely;
-    real_t yup = ydn + dely;
-    real_t cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
-    real_t cyup = verdco*SUNRexp(RCONST(0.2)*yup);
+    int i_left = (jx == 0) ? 1 : -1;
+    int i_right =(jx == MX-1) ? -1 : 1;
 
-    int i_down = (jy == 0) ? 1 : -1;
-    int i_up = (jy == MY-1) ? -1 : 1;
-
-    for (int jx = 0; jx < MX; ++jx, ++offset) 
+    for (int jy = 0; jy < MY; ++jy) 
     {
-      int i_left = (jx == 0) ? 1 : -1;
-      int i_right =(jx == MX-1) ? -1 : 1;
+      // Set vertical diffusion coefficients at jy +- 1/2 
+      real_t ydn = YMIN + (jy - RCONST(0.5))*dely;
+      real_t yup = ydn + dely;
+      real_t cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
+      real_t cyup = verdco*SUNRexp(RCONST(0.2)*yup);
+
+      int i_down = (jy == 0) ? 1 : -1;
+      int i_up = (jy == MY-1) ? -1 : 1;
 
       // There are 12 Jacobian contributions: 6 for each of 2 species: 1 in each of 
       // the 5 stencil points, plus 1 reaction term in which the species interact 
@@ -323,6 +322,8 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
       J1_right +=  horaco;
       J2_left  += -horaco;
       J2_right +=  horaco;
+//printf("t = %g: (%d, %d)\n", t, jx, jy);
+//printf("t = %g: J(%d, %d) = %g, J(%d, %d) = %g\n", t, I1_self, I1_self, J1_self, I2_self, I2_self, J2_self);
 
       // Stick the data into the Jacobian matrix.
       real_t values[12] = {J1_self, J1_rxn, J1_left, J1_right, J1_up, J1_down,
