@@ -235,6 +235,30 @@ static int diurnal_rhs(void* context, real_t t, real_t* U, real_t* U_dot)
   return 0;
 }
 
+// Function for accumulating a Jacobian column value into a column map.
+static void accumulate_J_value(index_real_unordered_map_t* col_map, 
+                               index_t column, 
+                               real_t value)
+{
+  real_t* val_ptr = index_real_unordered_map_get(col_map, column);
+  if (val_ptr == NULL) // New value is inserted.
+    index_real_unordered_map_insert(col_map, column, value);
+  else // accumulate the given value into the existing one.
+    index_real_unordered_map_insert(col_map, column, value + *val_ptr);
+}
+
+// Function for inserting a row of values into the Jacobian matrix.
+static void insert_J_values(index_t row, 
+                            index_real_unordered_map_t* col_map, 
+                            krylov_matrix_t* J)
+{
+  index_t num_cols = col_map->size;
+  index_t indices[num_cols];
+  real_t values[num_cols];
+  int pos = 0, k = 0;
+  while (index_real_unordered_map_next(col_map, &pos, &indices[k], &values[k])) ++k;
+  krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);
+}
 // Function for constructing the Jacobian matrix for the diurnal system.
 static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J)
 {
@@ -258,6 +282,10 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
   real_t hordco  = data->hdco;
   real_t horaco  = data->haco;
 
+  // Maps from indices to their values in the Jacobian.
+  index_real_unordered_map_t* I1_map = index_real_unordered_map_new();
+  index_real_unordered_map_t* I2_map = index_real_unordered_map_new();
+
   // Loop over all grid points. 
   for (int jx = 0; jx < MX; ++jx) 
   {
@@ -275,9 +303,9 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
       int i_down = (jy == 0) ? 1 : -1;
       int i_up = (jy == MY-1) ? -1 : 1;
 
-      // There are 12 Jacobian contributions: 6 for each of 2 species: 1 in each of 
-      // the 5 stencil points, plus 1 reaction term in which the species interact 
-      // directly with one another.
+      // There are up to 12 Jacobian contributions: 6 for each of 2 species: 
+      // 1 in each of the 5 stencil points, plus 1 reaction term in which the 
+      // species interact directly with one another.
       real_t J1_self = 0.0, J1_rxn = 0.0, J1_left = 0.0, J1_right = 0.0, J1_up = 0.0, J1_down = 0.0;
       real_t J2_self = 0.0, J2_rxn = 0.0, J2_left = 0.0, J2_right = 0.0, J2_up = 0.0, J2_down = 0.0;
       index_t I1_self  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy, 0), 
@@ -290,8 +318,6 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
               I2_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_right, jy, 1),
               I2_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_up, 1),
               I2_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_down, 1);
-//printf("%d: %d %d %d %d %d %d\n", (int)I1_self, (int)I1_self, (int)I2_self, (int)I1_left, (int)I1_right, (int)I1_up, (int)I1_down);
-//printf("%d: %d %d %d %d %d %d\n", (int)I2_self, (int)I2_self, (int)I1_self, (int)I2_left, (int)I2_right, (int)I2_up, (int)I2_down);
 
       // Extract c1 and c2 at the current location.
       real_t c1 = U_ijk[jx][jy][0];
@@ -327,13 +353,27 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
 //printf("t = %g: (%d, %d)\n", t, jx, jy);
 //printf("t = %g: J(%d, %d) = %g, J(%d, %d) = %g\n", t, I1_self, I1_self, J1_self, I2_self, I2_self, J2_self);
 
+      // Aggregate the values, since some of them are aliased on top of each 
+      // other (owing to periodic boundary conditions).
+      index_real_unordered_map_clear(I1_map);
+      accumulate_J_value(I1_map, I1_self, J1_self);
+      accumulate_J_value(I1_map, I2_self, J1_rxn);
+      accumulate_J_value(I1_map, I1_left, J1_left);
+      accumulate_J_value(I1_map, I1_right, J1_right);
+      accumulate_J_value(I1_map, I1_up, J1_up);
+      accumulate_J_value(I1_map, I1_down, J1_down);
+
+      index_real_unordered_map_clear(I2_map);
+      accumulate_J_value(I2_map, I2_self, J2_self);
+      accumulate_J_value(I2_map, I1_self, J2_rxn);
+      accumulate_J_value(I2_map, I2_left, J2_left);
+      accumulate_J_value(I2_map, I2_right, J2_right);
+      accumulate_J_value(I2_map, I2_up, J2_up);
+      accumulate_J_value(I1_map, I2_down, J2_down);
+
       // Stick the data into the Jacobian matrix.
-      real_t values[12] = {J1_self, J1_rxn, J1_left, J1_right, J1_up, J1_down,
-                           J2_rxn, J2_self, J2_left, J2_right, J2_up, J2_down};
-      index_t num_cols[2] = {6, 6}, row_indices[2] = {I1_self, I2_self};
-      index_t col_indices[12] = {I1_self, I2_self, I1_left, I1_right, I1_up, I1_down,
-                                 I1_self, I2_self, I2_left, I2_right, I2_up, I2_down};
-      krylov_matrix_set_values(J, 2, num_cols, row_indices, col_indices, values);
+      insert_J_values(I1_self, I1_map, J);
+      insert_J_values(I2_self, I2_map, J);
     }
   }
 
@@ -342,14 +382,18 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
 
   // Assemble the Jacobian matrix.
   krylov_matrix_assemble(J);
-//static bool first = true;
-//if (first)
-//{
-//first = false;
-//FILE* f = fopen("J.txt", "w");
-//krylov_matrix_fprintf(J, f);
-//fclose(f);
-//}
+
+  // Clean up.
+  index_real_unordered_map_free(I1_map);
+  index_real_unordered_map_free(I2_map);
+static bool first = true;
+if (first)
+{
+first = false;
+FILE* f = fopen("J.txt", "w");
+krylov_matrix_fprintf(J, f);
+fclose(f);
+}
 
   return 0;
 }
