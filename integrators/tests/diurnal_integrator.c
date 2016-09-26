@@ -386,14 +386,14 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
   // Clean up.
   index_real_unordered_map_free(I1_map);
   index_real_unordered_map_free(I2_map);
-static bool first = true;
-if (first)
-{
-first = false;
-FILE* f = fopen("J.txt", "w");
-krylov_matrix_fprintf(J, f);
-fclose(f);
-}
+//static bool first = true;
+//if (first)
+//{
+//first = false;
+//FILE* f = fopen("J.txt", "w");
+//krylov_matrix_fprintf(J, f);
+//fclose(f);
+//}
 
   return 0;
 }

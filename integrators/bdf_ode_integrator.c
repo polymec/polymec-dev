@@ -66,6 +66,7 @@ typedef struct
                     real_t* W, 
                     real_t res_norm_tol,
                     real_t* B);
+  int prev_J_step;
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -370,6 +371,7 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
+  integ->prev_J_step = 0;
 
   integ->reset_func = NULL;
   integ->setup_func = NULL;
@@ -690,7 +692,9 @@ static int bdf_lsetup(CVodeMem cv_mem,
     conv_status = BDF_CONV_OTHER_FAILURE;
   real_t gamma = cv_mem->cv_gamma;
   real_t t = cv_mem->cv_tn;
-  bool J_current = false;
+  bool J_current = true;
+  if (cv_mem->cv_nst >= bdf->prev_J_step + 50)
+    J_current = false;
   real_t* U_pred = NV_DATA(ypred);
   real_t* U_dot_pred = NV_DATA(fpred);
   real_t* work1 = NV_DATA(vtemp1);
@@ -700,6 +704,8 @@ static int bdf_lsetup(CVodeMem cv_mem,
                                U_pred, U_dot_pred, &J_current, work1, 
                                work2, work3);
   *jcurPtr = J_current;
+  if (J_current)
+    bdf->prev_J_step = cv_mem->cv_nst;
   return status;
 }
 
@@ -772,6 +778,7 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
+  integ->prev_J_step = 0;
 
   // Set up CVode and accessories.
   integ->U = N_VNew(integ->comm, integ->num_local_values);
@@ -826,17 +833,15 @@ typedef struct
   krylov_factory_t* factory;
   krylov_solver_t* solver;
   krylov_pc_t* pc;
-  krylov_matrix_t* J;
-  krylov_vector_t* X;
-  krylov_vector_t* B;
-  krylov_vector_t* W;
+  krylov_matrix_t* M; // Newton matrix M = (I - gamma * J).
+  krylov_vector_t* X; // Solution vector.
+  krylov_vector_t* B; // Right-hand side vector.
+  krylov_vector_t* W; // Weights vector.
 
   // Metadata.
-  real_t gamma_prev; // Previous value of "gamma" in Newton matrix.
-  int steps_since_setup; // Number of steps taken since last Jacobian update.
+  real_t gamma_prev; // Previous value of gamma in Newton matrix.
   matrix_sparsity_t* sparsity;
   int block_size;
-  index_t start, end;
 } ink_bdf_ode_t;
 
 static int ink_reset(void* context, real_t t, real_t* X)
@@ -844,12 +849,12 @@ static int ink_reset(void* context, real_t t, real_t* X)
   START_FUNCTION_TIMER();
   // Allocate resources.
   ink_bdf_ode_t* ink = context;
-  if (ink->J != NULL)
-    krylov_matrix_free(ink->J);
+  if (ink->M != NULL)
+    krylov_matrix_free(ink->M);
   if (ink->block_size > 1)
-    ink->J = krylov_factory_block_matrix(ink->factory, ink->sparsity, ink->block_size);
+    ink->M = krylov_factory_block_matrix(ink->factory, ink->sparsity, ink->block_size);
   else
-    ink->J = krylov_factory_matrix(ink->factory, ink->sparsity);
+    ink->M = krylov_factory_matrix(ink->factory, ink->sparsity);
   if (ink->X != NULL)
     krylov_vector_free(ink->X);
   if (ink->B != NULL)
@@ -859,7 +864,6 @@ static int ink_reset(void* context, real_t t, real_t* X)
   ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->W = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->gamma_prev = 1.0;
-  ink->steps_since_setup = 0;
 
   STOP_FUNCTION_TIMER();
   return 0;
@@ -871,15 +875,15 @@ static int ink_setup(void* context,
                      real_t t, 
                      real_t* U_pred, 
                      real_t* U_dot_pred, 
-                     bool* J_updated, 
+                     bool* J_current, 
                      real_t* work1, real_t* work2, real_t* work3)
 {
   START_FUNCTION_TIMER();
   ink_bdf_ode_t* ink = context;
 
   real_t dgamma = ABS(gamma / ink->gamma_prev - 1.0);
-  if ((conv_status == BDF_CONV_FIRST_STEP) || 
-      (ink->steps_since_setup > 50) ||
+  if ((*J_current == false) || 
+      (conv_status == BDF_CONV_FIRST_STEP) || 
       ((conv_status == BDF_CONV_BAD_J_FAILURE) && (dgamma < 0.2)) || 
       (conv_status == BDF_CONV_OTHER_FAILURE))
   {
@@ -887,26 +891,25 @@ static int ink_setup(void* context,
     log_debug("ink_bdf_ode_integrator: Calculating A = I - %g * J.", gamma);
     if (conv_status == BDF_CONV_FIRST_STEP)
       log_debug("ink_bdf_ode_integrator: (reason: first step)");
-    else if (ink->steps_since_setup > 50)
+    else if (*J_current == false)
       log_debug("ink_bdf_ode_integrator: (reason: > 50 steps since last calculation)");
     else if (conv_status == BDF_CONV_BAD_J_FAILURE)
       log_debug("ink_bdf_ode_integrator: (reason: outdated Newton matrix)");
     else
       log_debug("ink_bdf_ode_integrator: (reason: convergence failure reduced dt)");
-    int status = ink->J_func(ink->context, t, U_pred, U_dot_pred, ink->J);
+    int status = ink->J_func(ink->context, t, U_pred, U_dot_pred, ink->M);
     if (status != 0)
       return status;
 
     // Scale the Jacobian by -gamma and add the identity matrix.
-    krylov_matrix_scale(ink->J, -gamma);
-    krylov_matrix_add_identity(ink->J, 1.0);
+    krylov_matrix_scale(ink->M, -gamma);
+    krylov_matrix_add_identity(ink->M, 1.0);
 
     // Use this matrix as the operator in our solver.
-    krylov_solver_set_operator(ink->solver, ink->J);
+    krylov_solver_set_operator(ink->solver, ink->M);
 
     ink->gamma_prev = gamma;
-    ink->steps_since_setup = 0;
-    *J_updated = true;
+    *J_current = true;
     STOP_FUNCTION_TIMER();
     return 0;
   }
@@ -914,8 +917,7 @@ static int ink_setup(void* context,
   {
     // The previous Newton iteration failed to converge even with a current Jacobian.
     ink->gamma_prev = gamma;
-    ++(ink->steps_since_setup);
-    *J_updated = false;
+    *J_current = false;
     STOP_FUNCTION_TIMER();
     return (conv_status == BDF_CONV_NO_FAILURES) ? 0 : -1;
   }
@@ -985,8 +987,8 @@ static void ink_dtor(void* context)
     krylov_vector_free(ink->B);
   if (ink->W != NULL)
     krylov_vector_free(ink->W);
-  if (ink->J != NULL)
-    krylov_matrix_free(ink->J);
+  if (ink->M != NULL)
+    krylov_matrix_free(ink->M);
   if (ink->pc != NULL)
     krylov_pc_free(ink->pc);
   krylov_solver_free(ink->solver);
@@ -1013,17 +1015,10 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
   ink->sparsity = J_sparsity;
   ink->solver = krylov_factory_gmres_solver(ink->factory, comm, 30);
   ink->pc = NULL;
-  ink->J = NULL;
+  ink->M = NULL;
   ink->B = NULL;
   ink->X = NULL;
   ink->W = NULL;
-
-  // Find the start, end indices.
-  int rank;
-  MPI_Comm_rank(comm, &rank);
-  index_t* row_dist = matrix_sparsity_row_distribution(J_sparsity);
-  ink->start = row_dist[rank];
-  ink->end = row_dist[rank+1];
   ink->block_size = 1;
 
   char name[1024];
