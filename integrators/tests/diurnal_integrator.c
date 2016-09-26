@@ -113,35 +113,35 @@ static diurnal_t* diurnal_new()
   data->vdco = (ONE/SUNSQR(data->dy))*KV0;
 
   // Construct a sparsity graph.
-  int idx[MX*MY];
-  idx[0] = 0;
-  for (int i = 1; i < MX*MY; ++i)
-    idx[i] = idx[i-1] + 1;
-  DECLARE_2D_ARRAY(int, idx_ij, idx, MX, MY);
-  adj_graph_t* sparsity = adj_graph_new(MPI_COMM_SELF, MX*MY);
+  data->sparsity = adj_graph_new(MPI_COMM_SELF, MX*MY*NUM_SPECIES);
   for (int jx = 0; jx < MX; ++jx) 
   {
+    int i_left = (jx == 0) ? 1 : -1;
+    int i_right =(jx == MX-1) ? -1 : 1;
     for (int jy = 0; jy < MY; ++jy) 
     {
-      // Find the edges for the vertex corresponding to (jx, jy).
-      int num_edges = 0;
-      int edges[4];
-      if (jy > 0)
-        edges[num_edges++] = idx_ij[jx][jy-1]; // lower
-      if (jy < (MY-1))
-        edges[num_edges++] = idx_ij[jx][jy+1]; // upper
-      if (jx > 0)
-        edges[num_edges++] = idx_ij[jx-1][jy]; // left
-      if (jx < (MX-1))
-        edges[num_edges++] = idx_ij[jx+1][jy]; // right
-
-      // Set the edges within the sparsity graph.
-      adj_graph_set_num_edges(sparsity, idx_ij[jx][jy], num_edges);
-      memcpy(adj_graph_edges(sparsity, idx_ij[jx][jy]), edges, sizeof(int) * num_edges);
+      int i_down = (jy == 0) ? 1 : -1;
+      int i_up = (jy == MY-1) ? -1 : 1;
+      for (int s = 0; s < 2; ++s)
+      {
+        int i_self = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy, s);
+        // Set the edges within the sparsity graph.
+        int num_edges = 0;
+        int edges[5];
+        edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy, (s+1) % NUM_SPECIES);
+        if (jy > 0)
+          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_up, s);
+        if (jy < (MY-1))
+          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_down, s);
+        if (jx > 0)
+          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_left, jy, s);
+        if (jx < (MX-1))
+          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_right, jy, s);
+        adj_graph_set_num_edges(data->sparsity, i_self, num_edges);
+        memcpy(adj_graph_edges(data->sparsity, i_self), edges, sizeof(int) * num_edges);
+      }
     }
   }
-  data->sparsity = adj_graph_new_with_block_size(sparsity, NUM_SPECIES);
-  adj_graph_free(sparsity);
 
   return data;
 }
@@ -290,6 +290,8 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
               I2_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_right, jy, 1),
               I2_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_up, 1),
               I2_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_down, 1);
+//printf("%d: %d %d %d %d %d %d\n", (int)I1_self, (int)I1_self, (int)I2_self, (int)I1_left, (int)I1_right, (int)I1_up, (int)I1_down);
+//printf("%d: %d %d %d %d %d %d\n", (int)I2_self, (int)I2_self, (int)I1_self, (int)I2_left, (int)I2_right, (int)I2_up, (int)I2_down);
 
       // Extract c1 and c2 at the current location.
       real_t c1 = U_ijk[jx][jy][0];
@@ -340,6 +342,14 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
 
   // Assemble the Jacobian matrix.
   krylov_matrix_assemble(J);
+//static bool first = true;
+//if (first)
+//{
+//first = false;
+//FILE* f = fopen("J.txt", "w");
+//krylov_matrix_fprintf(J, f);
+//fclose(f);
+//}
 
   return 0;
 }
@@ -416,6 +426,11 @@ ode_integrator_t* ink_bdf_diurnal_integrator_new(krylov_factory_t* factory)
   // Set up a time integrator using GMRES with a maximum order of 5 and 
   // a Krylov space of maximum dimension 15.
   matrix_sparsity_t* J_sparsity = matrix_sparsity_from_graph(data->sparsity, NULL);
+//{
+//FILE* f = fopen("J_sparsity.txt", "w");
+//matrix_sparsity_fprintf(J_sparsity, f);
+//fclose(f);
+//}
   ode_integrator_t* integ = ink_bdf_ode_integrator_new(5, MPI_COMM_SELF, factory,
                                                        J_sparsity, data, diurnal_rhs, 
                                                        diurnal_J, diurnal_dtor);
