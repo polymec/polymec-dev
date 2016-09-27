@@ -139,8 +139,10 @@ typedef enum
 //                  - t: The current time.
 //                  - U_pred: The predicted solution vector for the current step.
 //                  - U_dot_pred: The value of the right hand side at time t and U = U_pred.
-//                  - J_current: A pointer to a boolean variable, to be set to true if the Jacobian 
-//                               information has been updated and false if not.
+//                  - J_current: A pointer to a boolean variable that conveys whether J is up-to-date.
+//                               On input, *J_current is set to true if J definitely needs updating, false if 
+//                               other testing needs to be done to determine its status. On output, it should
+//                               be set to true if J has been computed, false if not.
 //                  - work1, work2, work3: work vectors of the same size as the solution vector, provided 
 //                                         for use by this method.
 //                Should return 0 on success, a positive value for a recoverable error, and a negative value 
@@ -174,7 +176,7 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                                            real_t t, 
                                                            real_t* U_pred, 
                                                            real_t* U_dot_pred, 
-                                                           bool* J_updated, 
+                                                           bool* J_current, 
                                                            real_t* work1, real_t* work2, real_t* work3),
                                          int (*solve_func)(void* context, 
                                                            real_t t, 

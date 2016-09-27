@@ -693,7 +693,7 @@ static int bdf_lsetup(CVodeMem cv_mem,
   real_t gamma = cv_mem->cv_gamma;
   real_t t = cv_mem->cv_tn;
   bool J_current = true;
-  if (cv_mem->cv_nst >= bdf->prev_J_step + 50)
+  if (cv_mem->cv_nst > bdf->prev_J_step + 50)
     J_current = false;
   real_t* U_pred = NV_DATA(ypred);
   real_t* U_dot_pred = NV_DATA(fpred);
