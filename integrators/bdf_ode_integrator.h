@@ -114,7 +114,6 @@ void* ink_bdf_ode_integrator_context(ode_integrator_t* ink_bdf_ode_integ);
 // the Newton operator needs to be recomputed.
 typedef enum
 {
-  BDF_CONV_FIRST_STEP,    // This is the first step taken by the integrator.
   BDF_CONV_NO_FAILURES,   // Local error test failed at previous Newton step, but iteration converged
   BDF_CONV_BAD_J_FAILURE, // Previous Newton corrector iteration did not converge OR linear solve failed in 
                           // A recoverable manner (Jacobian needs updating either way)
@@ -136,13 +135,12 @@ typedef enum
 //                  - conv_status: A status code produced by the Newton solver for its solution
 //                                 at the given time step. See above.
 //                  - gamma: the scaling factor in I - gamma * J.
+//                  - step: The current integration step number since the initial time.
 //                  - t: The current time.
 //                  - U_pred: The predicted solution vector for the current step.
 //                  - U_dot_pred: The value of the right hand side at time t and U = U_pred.
-//                  - J_current: A pointer to a boolean variable that conveys whether J is up-to-date.
-//                               On input, *J_current is set to true if J definitely needs updating, false if 
-//                               other testing needs to be done to determine its status. On output, it should
-//                               be set to true if J has been computed, false if not.
+//                  - J_updated: A pointer to a boolean variable that conveys whether J has been updated by 
+//                               the function.
 //                  - work1, work2, work3: work vectors of the same size as the solution vector, provided 
 //                                         for use by this method.
 //                Should return 0 on success, a positive value for a recoverable error, and a negative value 
@@ -173,10 +171,11 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                          int (*setup_func)(void* context, 
                                                            bdf_conv_status_t conv_status, 
                                                            real_t gamma, 
+                                                           int step,
                                                            real_t t, 
                                                            real_t* U_pred, 
                                                            real_t* U_dot_pred, 
-                                                           bool* J_current, 
+                                                           bool* J_updated, 
                                                            real_t* work1, real_t* work2, real_t* work3),
                                          int (*solve_func)(void* context, 
                                                            real_t t, 

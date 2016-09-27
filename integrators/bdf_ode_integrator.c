@@ -54,6 +54,7 @@ typedef struct
   int (*setup_func)(void* context, 
                     bdf_conv_status_t conv_status, 
                     real_t gamma, 
+                    int step,
                     real_t t, 
                     real_t* U_pred, 
                     real_t* U_dot_pred, 
@@ -680,32 +681,24 @@ static int bdf_lsetup(CVodeMem cv_mem,
   bdf_ode_t* bdf = cv_mem->cv_user_data;
   bdf_conv_status_t conv_status;
   if (convfail == CV_NO_FAILURES)
-  {
-    if (cv_mem->cv_nst == 0)
-      conv_status = BDF_CONV_FIRST_STEP;
-    else
-      conv_status = BDF_CONV_NO_FAILURES;
-  }
+    conv_status = BDF_CONV_NO_FAILURES;
   else if (convfail == CV_FAIL_BAD_J)
     conv_status = BDF_CONV_BAD_J_FAILURE;
   else
     conv_status = BDF_CONV_OTHER_FAILURE;
   real_t gamma = cv_mem->cv_gamma;
+  int step = (int)cv_mem->cv_nst;
   real_t t = cv_mem->cv_tn;
-  bool J_current = true;
-  if (cv_mem->cv_nst > bdf->prev_J_step + 50)
-    J_current = false;
+  bool J_updated = false;
   real_t* U_pred = NV_DATA(ypred);
   real_t* U_dot_pred = NV_DATA(fpred);
   real_t* work1 = NV_DATA(vtemp1);
   real_t* work2 = NV_DATA(vtemp2);
   real_t* work3 = NV_DATA(vtemp3);
-  int status = bdf->setup_func(bdf->context, conv_status, gamma, t, 
-                               U_pred, U_dot_pred, &J_current, work1, 
+  int status = bdf->setup_func(bdf->context, conv_status, gamma, step, t, 
+                               U_pred, U_dot_pred, &J_updated, work1, 
                                work2, work3);
-  *jcurPtr = J_current;
-  if (J_current)
-    bdf->prev_J_step = cv_mem->cv_nst;
+  *jcurPtr = J_updated;
   return status;
 }
 
@@ -741,6 +734,7 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                          int (*setup_func)(void* context, 
                                                            bdf_conv_status_t conv_status, 
                                                            real_t gamma, 
+                                                           int step,
                                                            real_t t, 
                                                            real_t* U_pred, 
                                                            real_t* U_dot_pred, 
@@ -840,6 +834,7 @@ typedef struct
 
   // Metadata.
   real_t gamma_prev; // Previous value of gamma in Newton matrix.
+  int prev_J_update_step; // Step during which J was previously updated.
   matrix_sparsity_t* sparsity;
   int block_size;
 } ink_bdf_ode_t;
@@ -864,6 +859,7 @@ static int ink_reset(void* context, real_t t, real_t* X)
   ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->W = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->gamma_prev = 1.0;
+  ink->prev_J_update_step = 0;
 
   STOP_FUNCTION_TIMER();
   return 0;
@@ -872,31 +868,34 @@ static int ink_reset(void* context, real_t t, real_t* X)
 static int ink_setup(void* context, 
                      bdf_conv_status_t conv_status, 
                      real_t gamma, 
+                     int step,
                      real_t t, 
                      real_t* U_pred, 
                      real_t* U_dot_pred, 
-                     bool* J_current, 
+                     bool* J_updated, 
                      real_t* work1, real_t* work2, real_t* work3)
 {
   START_FUNCTION_TIMER();
   ink_bdf_ode_t* ink = context;
 
   real_t dgamma = ABS(gamma / ink->gamma_prev - 1.0);
-  if ((*J_current == false) || 
-      (conv_status == BDF_CONV_FIRST_STEP) || 
+  log_debug("ink_bdf_ode_integrator: Calculating A = I - %g * J.", gamma);
+  if ((step == 0) ||
+      (step > ink->prev_J_update_step + 50) ||
       ((conv_status == BDF_CONV_BAD_J_FAILURE) && (dgamma < 0.2)) || 
       (conv_status == BDF_CONV_OTHER_FAILURE))
   {
+    char reason[129];
     // Call our Jacobian calculation function.
-    log_debug("ink_bdf_ode_integrator: Calculating A = I - %g * J.", gamma);
-    if (conv_status == BDF_CONV_FIRST_STEP)
-      log_debug("ink_bdf_ode_integrator: (reason: first step)");
-    else if (*J_current == false)
-      log_debug("ink_bdf_ode_integrator: (reason: > 50 steps since last calculation)");
+    if (step == 0)
+      snprintf(reason, 128, "first step");
+    else if (step > ink->prev_J_update_step + 50)
+      snprintf(reason, 128, "> 50 steps since last calculation");
     else if (conv_status == BDF_CONV_BAD_J_FAILURE)
-      log_debug("ink_bdf_ode_integrator: (reason: outdated Newton matrix)");
+      snprintf(reason, 128, "outdated Newton matrix");
     else
-      log_debug("ink_bdf_ode_integrator: (reason: convergence failure reduced dt)");
+      snprintf(reason, 128, "convergence failure reduced dt");
+    log_debug("ink_bdf_ode_integrator: Updating J (reason: %s).", reason);
     int status = ink->J_func(ink->context, t, U_pred, U_dot_pred, ink->M);
     if (status != 0)
       return status;
@@ -908,16 +907,21 @@ static int ink_setup(void* context,
     // Use this matrix as the operator in our solver.
     krylov_solver_set_operator(ink->solver, ink->M);
 
+    // Save some information.
+    ink->prev_J_update_step = step;
     ink->gamma_prev = gamma;
-    *J_current = true;
+    *J_updated = true;
     STOP_FUNCTION_TIMER();
     return 0;
   }
   else
   {
-    // The previous Newton iteration failed to converge even with a current Jacobian.
+    // We don't need to update J, but we still need to recompute I - gamma*J.
+    krylov_matrix_add_identity(ink->M, -1.0);
+    krylov_matrix_scale(ink->M, gamma/ink->gamma_prev);
+    krylov_matrix_add_identity(ink->M, 1.0);
     ink->gamma_prev = gamma;
-    *J_current = false;
+    *J_updated = false;
     STOP_FUNCTION_TIMER();
     return (conv_status == BDF_CONV_NO_FAILURES) ? 0 : -1;
   }
