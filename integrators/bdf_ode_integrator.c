@@ -956,7 +956,7 @@ static int ink_solve(void* context,
   // Set the tolerance on the residual norm.
   real_t rel_tol = 1e-8;
   real_t div_tol = 1.0;
-  krylov_solver_set_tolerances(ink->solver, rel_tol, 1e-8*res_norm_tol, div_tol);
+  krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
 
   // Solve A*X = B.
   real_t res_norm;
