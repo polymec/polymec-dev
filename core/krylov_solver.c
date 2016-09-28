@@ -217,6 +217,7 @@ bool krylov_solver_solve_scaled(krylov_solver_t* solver,
       krylov_vector_diag_scale(solver->scaled_b, s1);
 
     // Solve the scaled system (s1 * A * s2_inv) * (s2 * x) = (s1 * b).
+    // The residual norm is ||s1*A*x - s1*b||_2.
     solver->vtable.set_operator(solver->context, solver->scaled_op->context);
     bool solved = solver->vtable.solve(solver->context, solver->scaled_b->context, 
                                        x->context, residual_norm, num_iterations);

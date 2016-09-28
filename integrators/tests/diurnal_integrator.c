@@ -259,6 +259,7 @@ static void insert_J_values(index_t row,
   while (index_real_unordered_map_next(col_map, &pos, &indices[k], &values[k])) ++k;
   krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);
 }
+
 // Function for constructing the Jacobian matrix for the diurnal system.
 static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J)
 {
@@ -369,7 +370,7 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
       accumulate_J_value(I2_map, I2_left, J2_left);
       accumulate_J_value(I2_map, I2_right, J2_right);
       accumulate_J_value(I2_map, I2_up, J2_up);
-      accumulate_J_value(I1_map, I2_down, J2_down);
+      accumulate_J_value(I2_map, I2_down, J2_down);
 
       // Stick the data into the Jacobian matrix.
       insert_J_values(I1_self, I1_map, J);

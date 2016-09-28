@@ -387,9 +387,9 @@ static void matrix_diag_scale_csr(void* context, void* L, void* R)
       {
         A->D->value[i] = 1.0;
         for(j=A->L->ptr[i];j<A->L->ptr[i+1];j++)
-          A->L->value[j] = A->L->value[j]*Li[i]*Rj[A->L->index[j]];
+          A->L->value[j] *= Li[i] * Rj[A->L->index[j]];
         for(j=A->U->ptr[i];j<A->U->ptr[i+1];j++)
-          A->U->value[j] = A->U->value[j]*Li[i]*Rj[A->U->index[j]];
+          A->U->value[j] *= Li[i] * Rj[A->U->index[j]];
       }
     }
     else if (L != NULL)
@@ -399,9 +399,9 @@ static void matrix_diag_scale_csr(void* context, void* L, void* R)
       {
         A->D->value[i] = 1.0;
         for(j=A->L->ptr[i];j<A->L->ptr[i+1];j++)
-          A->L->value[j] = A->L->value[j]*Li[i];
+          A->L->value[j] *= Li[i];
         for(j=A->U->ptr[i];j<A->U->ptr[i+1];j++)
-          A->U->value[j] = A->U->value[j]*Li[i];
+          A->U->value[j] *= Li[i];
       }
     }
     else // R != NULL
@@ -411,9 +411,9 @@ static void matrix_diag_scale_csr(void* context, void* L, void* R)
       {
         A->D->value[i] = 1.0;
         for(j=A->L->ptr[i];j<A->L->ptr[i+1];j++)
-          A->L->value[j] = A->L->value[j]*Rj[A->L->index[j]];
+          A->L->value[j] *= Rj[A->L->index[j]];
         for(j=A->U->ptr[i];j<A->U->ptr[i+1];j++)
-          A->U->value[j] = A->U->value[j]*Rj[A->U->index[j]];
+          A->U->value[j] *= Rj[A->U->index[j]];
       }
     }
   }
@@ -425,7 +425,7 @@ static void matrix_diag_scale_csr(void* context, void* L, void* R)
       for(i=0; i<n; i++)
       {
         for(j=A->ptr[i];j<A->ptr[i+1];j++)
-          A->value[j] = A->value[j]*Li[i]*Rj[A->index[j]];
+          A->value[j] *= Li[i] * Rj[A->index[j]];
       }
     }
     else if (L != NULL)
@@ -434,7 +434,7 @@ static void matrix_diag_scale_csr(void* context, void* L, void* R)
       for(i=0; i<n; i++)
       {
         for(j=A->ptr[i];j<A->ptr[i+1];j++)
-          A->value[j] = A->value[j]*Li[i];
+          A->value[j] *= Li[i];
       }
     }
     else // R != NULL
@@ -443,7 +443,7 @@ static void matrix_diag_scale_csr(void* context, void* L, void* R)
       for(i=0; i<n; i++)
       {
         for(j=A->ptr[i];j<A->ptr[i+1];j++)
-          A->value[j] = A->value[j]*Rj[A->index[j]];
+          A->value[j] *= Rj[A->index[j]];
       }
     }
   }

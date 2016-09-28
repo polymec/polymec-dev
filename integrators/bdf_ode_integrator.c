@@ -713,8 +713,8 @@ static int bdf_lsolve(CVodeMem cv_mem,
   real_t* U = NV_DATA(ycur);
   real_t* U_dot = NV_DATA(fcur);
   real_t* W = NV_DATA(weight);
-  real_t C = cv_mem->cv_tq[4]; // constant C in nonlinear iteration conv test.
-  real_t res_norm_tol = 0.05 * C;
+  real_t C1_inv = cv_mem->cv_tq[4]; // constant 1/C' in nonlinear iteration conv test.
+  real_t res_norm_tol = 0.05 * C1_inv;
   real_t* B = NV_DATA(b);
   return bdf->solve_func(bdf->context, t, U, U_dot, W, res_norm_tol, B);
 }
@@ -923,7 +923,7 @@ static int ink_setup(void* context,
     ink->gamma_prev = gamma;
     *J_updated = false;
     STOP_FUNCTION_TIMER();
-    return (conv_status == BDF_CONV_NO_FAILURES) ? 0 : -1;
+    return (conv_status == BDF_CONV_NO_FAILURES) ? 0 : 1;
   }
 }
 
@@ -956,7 +956,7 @@ static int ink_solve(void* context,
   // Set the tolerance on the residual norm.
   real_t rel_tol = 1e-8;
   real_t div_tol = 1.0;
-  krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
+  krylov_solver_set_tolerances(ink->solver, rel_tol, 1e-8*res_norm_tol, div_tol);
 
   // Solve A*X = B.
   real_t res_norm;
