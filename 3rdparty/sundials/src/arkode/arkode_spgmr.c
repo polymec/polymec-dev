@@ -41,7 +41,7 @@ static int ARKSpgmrSetup(ARKodeMem ark_mem, int convfail,
 static int ARKSpgmrSolve(ARKodeMem ark_mem, N_Vector b, 
 			 N_Vector weight, N_Vector ynow, 
 			 N_Vector fnow);
-static void ARKSpgmrFree(ARKodeMem ark_mem);
+static int ARKSpgmrFree(ARKodeMem ark_mem);
 
 /* ARKSPGMR minit, msetup, msolve, and mfree routines */
 static int ARKMassSpgmrInit(ARKodeMem ark_mem);
@@ -49,7 +49,7 @@ static int ARKMassSpgmrSetup(ARKodeMem ark_mem, N_Vector vtemp1,
 			     N_Vector vtemp2, N_Vector vtemp3);
 static int ARKMassSpgmrSolve(ARKodeMem ark_mem, N_Vector b, 
 			     N_Vector weight);
-static void ARKMassSpgmrFree(ARKodeMem ark_mem);
+static int ARKMassSpgmrFree(ARKodeMem ark_mem);
 
 
 /*---------------------------------------------------------------
@@ -128,10 +128,7 @@ int ARKSpgmr(void *arkode_mem, int pretype, int maxl)
   arkspils_mem->s_P_data = ark_mem->ark_user_data;
 
   /* Initialize counters */
-  arkspils_mem->s_npe = arkspils_mem->s_nli = 0;
-  arkspils_mem->s_nps = arkspils_mem->s_ncfl = 0;
-  arkspils_mem->s_nstlpre = arkspils_mem->s_njtimes = 0;
-  arkspils_mem->s_nfes = 0;
+  arkSpilsInitializeCounters(arkspils_mem);
 
   /* Set default values for the rest of the Spgmr parameters */
   arkspils_mem->s_gstype = MODIFIED_GS;
@@ -205,10 +202,7 @@ static int ARKSpgmrInit(ARKodeMem ark_mem)
   arkspils_mem = (ARKSpilsMem) ark_mem->ark_lmem;
 
   /* Initialize counters */
-  arkspils_mem->s_npe = arkspils_mem->s_nli = 0;
-  arkspils_mem->s_nps = arkspils_mem->s_ncfl = 0;
-  arkspils_mem->s_nstlpre = arkspils_mem->s_njtimes = 0;
-  arkspils_mem->s_nfes = 0;
+  arkSpilsInitializeCounters(arkspils_mem);
 
   /* Check for legal combination pretype - psolve */
   if ((arkspils_mem->s_pretype != PREC_NONE) 
@@ -330,12 +324,10 @@ static int ARKSpgmrSolve(ARKodeMem ark_mem, N_Vector b,
   int nli_inc, nps_inc, retval;
   
   arkspils_mem = (ARKSpilsMem) ark_mem->ark_lmem;
-
   spgmr_mem = (SpgmrMem) arkspils_mem->s_spils_mem;
 
   /* Test norm(b); if small, return x = 0 or x = b */
-  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_eLTE; 
-
+  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_eRNrm; 
   bnorm = N_VWrmsNorm(b, weight);
   if (bnorm <= arkspils_mem->s_deltar) {
     if (ark_mem->ark_mnewt > 0) N_VConst(ZERO, b); 
@@ -349,7 +341,6 @@ static int ARKSpgmrSolve(ARKodeMem ark_mem, N_Vector b,
   /* Set inputs delta and initial guess x = 0 to SpgmrSolve */  
   arkspils_mem->s_delta = arkspils_mem->s_deltar * arkspils_mem->s_sqrtN;
   N_VConst(ZERO, arkspils_mem->s_x);
-  /* N_VConst(ark_mem->ark_uround, arkspils_mem->s_x); */
   
   /* Call SpgmrSolve and copy x to b */
   retval = SpgmrSolve(spgmr_mem, ark_mem, arkspils_mem->s_x, b, 
@@ -425,7 +416,7 @@ static int ARKSpgmrSolve(ARKodeMem ark_mem, N_Vector b,
 
  This routine frees memory specific to the Spgmr linear solver.
 ---------------------------------------------------------------*/
-static void ARKSpgmrFree(ARKodeMem ark_mem)
+static int ARKSpgmrFree(ARKodeMem ark_mem)
 {
   ARKSpilsMem arkspils_mem;
   SpgmrMem spgmr_mem;
@@ -442,6 +433,8 @@ static void ARKSpgmrFree(ARKodeMem ark_mem)
 
   free(arkspils_mem);
   ark_mem->ark_lmem = NULL;
+
+  return(0);
 }
 
 
@@ -685,7 +678,7 @@ static int ARKMassSpgmrSolve(ARKodeMem ark_mem, N_Vector b,
   spgmr_mem = (SpgmrMem) arkspils_mem->s_spils_mem;
 
   /* Set inputs delta and initial guess x = 0 to SpgmrSolve */  
-  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_eLTE; 
+  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_nlscoef; 
   arkspils_mem->s_delta  = arkspils_mem->s_deltar * arkspils_mem->s_sqrtN;
   N_VConst(ZERO, arkspils_mem->s_x);
   
@@ -760,7 +753,7 @@ static int ARKMassSpgmrSolve(ARKodeMem ark_mem, N_Vector b,
 
  This routine frees memory specific to the Spgmr linear solver.
 ---------------------------------------------------------------*/
-static void ARKMassSpgmrFree(ARKodeMem ark_mem)
+static int ARKMassSpgmrFree(ARKodeMem ark_mem)
 {
   ARKSpilsMassMem arkspils_mem;
   SpgmrMem spgmr_mem;
@@ -776,6 +769,8 @@ static void ARKMassSpgmrFree(ARKodeMem ark_mem)
 
   free(arkspils_mem);
   ark_mem->ark_mass_mem = NULL;
+
+  return(0);
 }
 
 

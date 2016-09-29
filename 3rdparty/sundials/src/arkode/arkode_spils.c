@@ -840,6 +840,35 @@ int ARKSpilsGetNumJtimesEvals(void *arkode_mem, long int *njvevals)
 
 
 /*---------------------------------------------------------------
+ ARKSpilsGetNumMtimesEvals
+---------------------------------------------------------------*/
+int ARKSpilsGetNumMtimesEvals(void *arkode_mem, long int *nmvevals)
+{
+  ARKodeMem ark_mem;
+  ARKSpilsMem arkspils_mem;
+
+  /* Return immediately if arkode_mem is NULL */
+  if (arkode_mem == NULL) {
+    arkProcessError(NULL, ARKSPILS_MEM_NULL, "ARKSPILS", 
+		    "ARKSpilsGetNumMtimesEvals", MSGS_ARKMEM_NULL);
+    return(ARKSPILS_MEM_NULL);
+  }
+  ark_mem = (ARKodeMem) arkode_mem;
+
+  if (ark_mem->ark_mass_mem == NULL) {
+    arkProcessError(ark_mem, ARKSPILS_MASSMEM_NULL, "ARKSPILS", 
+		    "ARKSpilsGetNumMtimesEvals", MSGS_MASSMEM_NULL);
+    return(ARKSPILS_MASSMEM_NULL);
+  }
+  arkspils_mem = (ARKSpilsMem) ark_mem->ark_mass_mem;
+
+  *nmvevals = arkspils_mem->s_njtimes;
+
+  return(ARKSPILS_SUCCESS);
+}
+
+
+/*---------------------------------------------------------------
  ARKSpilsGetNumRhsEvals
 ---------------------------------------------------------------*/
 int ARKSpilsGetNumRhsEvals(void *arkode_mem, long int *nfevalsLS)
@@ -1141,6 +1170,19 @@ int ARKSpilsDQJtimes(N_Vector v, N_Vector Jv, realtype t,
   N_VLinearSum(siginv, Jv, -siginv, fy, Jv);
 
   return(0);
+}
+
+
+int arkSpilsInitializeCounters(ARKSpilsMem arkspils_mem)
+{
+  arkspils_mem->s_npe     = 0;
+  arkspils_mem->s_nli     = 0;
+  arkspils_mem->s_nps     = 0;
+  arkspils_mem->s_ncfl    = 0;
+  arkspils_mem->s_nstlpre = 0;
+  arkspils_mem->s_njtimes = 0;
+  arkspils_mem->s_nfes    = 0;
+  return(0); 
 }
 
 

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4075 $
- * $Date: 2014-04-24 10:46:58 -0700 (Thu, 24 Apr 2014) $
+ * $Revision: 4951 $
+ * $Date: 2016-09-22 10:21:00 -0700 (Thu, 22 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer: Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -281,6 +281,9 @@ int IDALapackBand(void *ida_mem, int N, int mupper, int mlower)
   J_data = NULL;
 
   last_flag = IDADLS_SUCCESS;
+
+  idaDlsInitializeCounters(idadls_mem);
+
   setupNonNull = TRUE;
   
   /* Load problem dimension */
@@ -340,9 +343,13 @@ static int idaLapackDenseInit(IDAMem IDA_mem)
 
   idadls_mem = (IDADlsMem) lmem;
   
-  nje   = 0;
-  nreDQ = 0;
+  idaDlsInitializeCounters(idadls_mem);
   
+  /*
+     nje   = 0;
+     nreDQ = 0;
+  */
+
   if (jacDQ) {
     djac = idaDlsDenseDQJac;
     J_data = IDA_mem;

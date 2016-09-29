@@ -49,6 +49,11 @@
    FARKSETIIN                 ARKodeSet* (integer arguments)
    FARKSETRIN                 ARKodeSet* (real arguments)
    FARKSETADAPTIVITYMETHOD    ARKodeSetAdaptivityMethod
+   FARKSETDEFAULTS            ARKodeSetDefaults
+   FARKSETERKTABLE            ARKodeSetERKTable
+   FARKSETIRKTABLE            ARKodeSetIRKTable
+   FARKSETARKTABLES           ARKodeSetARKTables
+   FARKSETRESTOLERANCE        ARKodeResStolerance, ARKodeResVtolerance
    FARKEWTSET                 ARKodeWFtolerances
    FARKADAPTSET               ARKodeSetAdaptivityFn
    FARKEXPSTABSET             ARKodeSetStabilityFn
@@ -363,18 +368,19 @@
 
      Required when using the ARKKLU or ARKSuperLUMT linear solvers, the 
      user must supply a routine that computes a compressed-sparse-column 
-     approximation of the system Jacobian J = dfi(t,y)/dy.  This routine
-     must have the following form:
+     [or compressed-sparse-row] approximation of the system Jacobian 
+     J = dfi(t,y)/dy.  This routine must have the following form:
 
        SUBROUTINE FARKSPJAC(T, Y, FY, N, NNZ, JDATA, JRVALS, 
       &                     JCPTRS, H, IPAR, RPAR, WK1, WK2, WK3, IER)
 
      Typically this routine will use only M, N, NNZ, JDATA, JRVALS and 
-     JCPTRS. It must load the N by N compressed sparse column matrix 
-     with storage for NNZ nonzeros, stored in the arrays JDATA (nonzero
-     values), JRVALS (row indices for each nonzero), JCOLPTRS (indices 
-     for start of each column), with the Jacobian matrix at the current
-     (t,y) in CSC form (see sundials_sparse.h for more information).
+     JCPTRS. It must load the N by N compressed sparse column [or 
+     compressed sparse row] matrix with storage for NNZ nonzeros, stored 
+     in the arrays JDATA (nonzero values), JRVALS (row [or column] indices 
+     for each nonzero), JCOLPTRS (indices for start of each column [or row]), 
+     with the Jacobian matrix at the current (t,y) in CSC [or CSR] format 
+     (see sundials_sparse.h for more information).
 
      The arguments are:
          T    -- current time [realtype, input]
@@ -384,9 +390,9 @@
          NNZ  -- allocated length of nonzero storage [int, input]
         JDATA -- nonzero values in Jacobian
                  [realtype of length NNZ, output]
-       JRVALS -- row indices for each nonzero in Jacobian
+       JRVALS -- row [or column] indices for each nonzero in Jacobian
                   [int of length NNZ, output]
-       JCPTRS -- pointers to each Jacobian column in preceding arrays
+       JCPTRS -- pointers to each Jacobian column [or row] in preceding arrays
                  [int of length N+1, output]
          H    -- current step size [realtype, input]
          IPAR -- array containing integer user data that was passed to
@@ -404,19 +410,20 @@
 
      Required when using the ARKMassKLU or ARKMassSuperLUMT mass matrix 
      linear solvers, the user must supply a routine that computes a 
-     compressed-sparse-column version of the (possibly time-dependent) 
-     system mass matrix M(t).  If supplied, it must have the following 
-     form:
+     compressed-sparse-column [or compressed-sparse-row] version of the 
+     (possibly time-dependent) system mass matrix M(t).  If supplied, 
+     it must have the following form:
 
        SUBROUTINE FARKSPMASS(T, N, NNZ, MDATA, MRVALS, MCPTRS, 
       &                      IPAR, RPAR, WK1, WK2, WK3, IER)
 
      Typically this routine will use only M, N, NNZ, MDATA, MRVALS and 
-     MCPTRS. It must load the N by N compressed sparse column matrix 
-     with storage for NNZ nonzeros, stored in the arrays MDATA (nonzero
-     values), MRVALS (row indices for each nonzero), MCOLPTRS (indices 
-     for start of each column), with the system mass matrix at the current
-     (t) in CSC form (see sundials_sparse.h for more information).
+     MCPTRS. It must load the N by N compressed sparse column [or 
+     compressed sparse row] matrix with storage for NNZ nonzeros, stored 
+     in the arrays MDATA (nonzero values), MRVALS (row [or column] indices 
+     for each nonzero), MCOLPTRS (indices for start of each column [or row]), 
+     with the system mass matrix at the current (t) in CSC [or CSR] format 
+     (see sundials_sparse.h for more information).
 
      The arguments are:
          T    -- current time [realtype, input]
@@ -424,9 +431,9 @@
          NNZ  -- allocated length of nonzero storage [int, input]
         MDATA -- nonzero values in mass matrix
                  [realtype of length NNZ, output]
-       MRVALS -- row indices for each nonzero in mass matrix
+       MRVALS -- row [or column] indices for each nonzero in mass matrix
                   [int of length NNZ, output]
-       MCPTRS -- pointers to each mass matrix column in preceding arrays
+       MCPTRS -- pointers to each mass matrix column [or row] in preceding arrays
                  [int of length N+1, output]
          IPAR -- array containing integer user data that was passed to
                  FARKMALLOC [long int, input]
@@ -831,21 +838,42 @@
 
      To set a custom additive Runge-Kutta table, make the following call:
 
-       CALL FARKSETARKTABLES(S, Q, P, C, AI, AE, B, B2, IER)
+       CALL FARKSETARKTABLES(S, Q, P, CI, CE, AI, AE, BI, BE, B2I, B2E, IER)
 
      The arguments are:
        S = the number of stages in the table [int, input]
        Q = the global order of accuracy of the method [int, input]
        P = the global order of accuracy of the embedding [int, input]
-       C = array of length S containing the stage times [realtype, input]
+       CI = array of length S containing the implicit stage times
+           [realtype, input]
+       CE = array of length S containing the explicit stage times
+           [realtype, input]
        AI = array of length S*S containing the DIRK coefficients (stored in 
            row-major, "C", order) [realtype, input]
        AE = array of length S*S containing the ERK coefficients (stored in 
            row-major, "C", order) [realtype, input]
-       B = array of length S containing the solution coefficients
+       BI = array of length S containing the implicit solution coefficients
            [realtype, input]
-       B2 = array of length S containing the embedding coefficients
+       BE = array of length S containing the explicit solution coefficients
            [realtype, input]
+       B2I = array of length S containing the implicit embedding coefficients
+           [realtype, input]
+       B2E = array of length S containing the explicit embedding coefficients
+           [realtype, input]
+
+     When using a non-identity mass matrix, to set an absolute residual 
+     tolerance (scalar or vector), call:
+
+       CALL FARKSETRESTOLERANCE(IATOL, ATOL, IER)
+
+     The arguments are:
+       IATOL = type for absolute tolerance ATOL [int, input]: 
+                 1 = scalar, 
+                 2 = array
+	ATOL = scalar or array absolute residual tolerance [realtype, input]
+	IER  = return completion flag [int, output]:
+                 0 = SUCCESS,
+                -1 = failure (see printed message for failure details).
 
  (12.9) To set a solver diagnostics output file, make the folowing call:
 
@@ -1074,13 +1102,15 @@
 
      The user must make the call
 
-       CALL FARKKLU(NEQ, NNZ, ORDERING, IER)
+       CALL FARKKLU(NEQ, NNZ, SPARSETYPE, ORDERING, IER)
 
      The arguments are:
         NEQ = the problem size [int; input]
         NNZ = the maximum number of nonzeros [int; input]
-	ORDERING = the matrix ordering desired, possible values
-	   come from the KLU package (0 = AMD, 1 = COLAMD) [int; input]
+	SPARSETYPE = choice between CSC and CSR format
+           (0 = CSC, 1 = CSR) [int; input]
+	ORDERING = the matrix ordering desired, possible values come
+	   from the KLU package (0 = AMD, 1 = COLAMD) [int; input]
 	IER = error return flag [int, output]: 
 	         0 = success, 
 		 negative = error.
@@ -1118,11 +1148,13 @@
 
      The user must make the call
 
-       CALL FARKMASSKLU(NEQ, NNZ, ORDERING, IER)
+       CALL FARKMASSKLU(NEQ, NNZ, SPARSETYPE, ORDERING, IER)
 
      The arguments are:
         NEQ = the problem size [int; input]
         NNZ = the maximum number of mass matrix nonzeros [int; input]
+	SPARSETYPE = choice between CSC and CSR format
+           (0 = CSC, 1 = CSR) [int; input]
 	ORDERING = the matrix ordering desired, possible values
 	   come from the KLU package (0 = AMD, 1 = COLAMD) [int; input]
 	IER = error return flag [int, output]: 
@@ -1886,6 +1918,7 @@ extern "C" {
 #define FARK_SETERKTABLE         SUNDIALS_F77_FUNC(farkseterktable,         FARKSETERKTABLE)
 #define FARK_SETIRKTABLE         SUNDIALS_F77_FUNC(farksetirktable,         FARKSETIRKTABLE)
 #define FARK_SETARKTABLES        SUNDIALS_F77_FUNC(farksetarktables,        FARKSETARKTABLES)
+#define FARK_SETRESTOLERANCE     SUNDIALS_F77_FUNC(farksetrestolerance,     FARKSETRESTOLERANCE)
 #define FARK_SETDIAGNOSTICS      SUNDIALS_F77_FUNC(farksetdiagnostics,      FARKSETDIAGNOSTICS)
 #define FARK_STOPDIAGNOSTICS     SUNDIALS_F77_FUNC(farkstopdiagnostics,     FARKSTOPDIAGNOSTICS)
 #define FARK_DENSE               SUNDIALS_F77_FUNC(farkdense,               FARKDENSE)
@@ -1975,6 +2008,7 @@ extern "C" {
 #define FARK_SETERKTABLE         farkseterktable_
 #define FARK_SETIRKTABLE         farksetirktable_
 #define FARK_SETARKTABLES        farksetarktables_
+#define FARK_SETRESTOLERANCE     farksetrestolerance_
 #define FARK_SETDIAGNOSTICS      farksetdiagnostics_
 #define FARK_STOPDIAGNOSTICS     farkstopdiagnostics_
 #define FARK_DENSE               farkdense_
@@ -2081,8 +2115,10 @@ extern "C" {
 			realtype *b, realtype *b2, int *ier);
   void FARK_SETIRKTABLE(int *s, int *q, int *p, realtype *c, 
 			realtype *A, realtype *b, realtype *b2, int *ier);
-  void FARK_SETARKTABLES(int *s, int *q, int *p, realtype *c, realtype *Ai, 
-			 realtype *Ae, realtype *b, realtype *b2, int *ier);
+  void FARK_SETARKTABLES(int *s, int *q, int *p, realtype *ci, realtype *ce, 
+			 realtype *Ai, realtype *Ae, realtype *bi, 
+			 realtype *be, realtype *b2i, realtype *b2e, int *ier);
+  void FARK_SETRESTOLERANCE(int *itol, realtype *atol, int *ier);
   void FARK_SETDIAGNOSTICS(char fname[], int *flen, int *ier);
   void FARK_STOPDIAGNOSTICS(int *ier);
 
@@ -2110,11 +2146,11 @@ extern "C" {
   void FARK_MASSLAPACKBAND(int *neq, int *mupper, int *mlower, int *ier);
   void FARK_LAPACKBANDSETMASS(int *ier);
 
-  void FARK_KLU(int *neq, int *nnz, int *ordering, int *ier);
+  void FARK_KLU(int *neq, int *nnz, int *sparsetype, int *ordering, int *ier);
   void FARK_KLUREINIT(int *neq, int *nnz, int *reinit_type, int *ier);
   void FARK_SUPERLUMT(int *nthreads, int *neq, int *nnz, int *ordering, int *ier);
   void FARK_SPARSESETJAC(int *ier);
-  void FARK_MASSKLU(int *neq, int *nnz, int *ordering, int *ier);
+  void FARK_MASSKLU(int *neq, int *nnz, int *sparsetype, int *ordering, int *ier);
   void FARK_MASSKLUREINIT(int *neq, int *nnz, int *reinit_type, int *ier);
   void FARK_MASSSUPERLUMT(int *nthreads, int *neq, int *nnz, int *ordering, int *ier);
   void FARK_SPARSESETMASS(int *ier);

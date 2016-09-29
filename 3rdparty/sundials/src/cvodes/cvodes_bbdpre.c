@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4923 $
+ * $Date: 2016-09-19 14:35:51 -0700 (Mon, 19 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban and Aaron Collier @ LLNL
  * -----------------------------------------------------------------
@@ -51,7 +51,7 @@ static int cvBBDPrecSolve(realtype t, N_Vector y, N_Vector fy,
                           int lr, void *bbd_data, N_Vector tmp);
 
 /* Prototype for cvBBDPrecFree */
-static void cvBBDPrecFree(CVodeMem cv_mem);
+static int cvBBDPrecFree(CVodeMem cv_mem);
 
 /* Wrapper functions for adjoint code */
 static int cvGlocWrapper(long int NlocalB, realtype t, N_Vector yB, N_Vector gB, 
@@ -64,7 +64,7 @@ static int cvBBDDQJac(CVBBDPrecData pdata, realtype t,
                       N_Vector ytemp, N_Vector gtemp);
 
 /* Prototype for the pfree routine */
-static void CVBBDPrecFreeB(CVodeBMem cvB_mem);
+static int CVBBDPrecFreeB(CVodeBMem cvB_mem);
 
 /* 
  * ================================================================
@@ -175,7 +175,12 @@ int CVBBDPrecInit(void *cvode_mem, long int Nlocal,
   pdata->ipwsize = Nlocal;
   pdata->nge = 0;
 
-  /* Overwrite the P_data field in the SPILS memory */
+  /* make sure s_P_data is free from any previous allocations */
+  if (cvspils_mem->s_pfree != NULL) {
+    cvspils_mem->s_pfree(cv_mem);
+  }
+
+  /* Point to the new P_data field in the SPILS memory */
   cvspils_mem->s_P_data = pdata;
 
   /* Attach the pfree function */
@@ -452,15 +457,15 @@ static int cvBBDPrecSolve(realtype t, N_Vector y, N_Vector fy,
 }
 
 
-static void cvBBDPrecFree(CVodeMem cv_mem)
+static int cvBBDPrecFree(CVodeMem cv_mem)
 {
   CVSpilsMem cvspils_mem;
   CVBBDPrecData pdata;
   
-  if (cv_mem->cv_lmem == NULL) return;
+  if (cv_mem->cv_lmem == NULL) return(0);
   cvspils_mem = (CVSpilsMem) cv_mem->cv_lmem;
   
-  if (cvspils_mem->s_P_data == NULL) return;
+  if (cvspils_mem->s_P_data == NULL) return(0);
   pdata = (CVBBDPrecData) cvspils_mem->s_P_data;
 
   DestroyMat(savedJ);
@@ -469,6 +474,8 @@ static void cvBBDPrecFree(CVodeMem cv_mem)
 
   free(pdata);
   pdata = NULL;
+  
+  return(0);
 }
 
 
@@ -707,10 +714,11 @@ int CVBBDPrecReInitB(void *cvode_mem, int which,
 }
 
 
-static void CVBBDPrecFreeB(CVodeBMem cvB_mem)
+static int CVBBDPrecFreeB(CVodeBMem cvB_mem)
 {
   free(cvB_mem->cv_pmem); 
   cvB_mem->cv_pmem = NULL;
+  return(0);
 }
 
 

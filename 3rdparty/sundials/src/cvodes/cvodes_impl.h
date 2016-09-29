@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4378 $
- * $Date: 2015-02-19 10:55:14 -0800 (Thu, 19 Feb 2015) $
+ * $Revision: 4923 $
+ * $Date: 2016-09-19 14:35:51 -0700 (Mon, 19 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -355,7 +355,7 @@ typedef struct CVodeMemRec {
   int (*cv_lsolve)(struct CVodeMemRec *cv_mem, N_Vector b, N_Vector weight,
 		   N_Vector ycur, N_Vector fcur);
 
-  void (*cv_lfree)(struct CVodeMemRec *cv_mem);
+  int (*cv_lfree)(struct CVodeMemRec *cv_mem);
 
   /* Linear Solver specific memory */
 
@@ -622,13 +622,13 @@ struct CVodeBMemRec {
   void *cv_lmem;
 
   /* Function to free any memory allocated by the linear solver */
-  void (*cv_lfree)(CVodeBMem cvB_mem);
+  int (*cv_lfree)(CVodeBMem cvB_mem);
 
   /* Memory block for a preconditioner's module interface to CVODEA */ 
   void *cv_pmem;
 
   /* Function to free any memory allocated by the preconditioner module */
-  void (*cv_pfree)(CVodeBMem cvB_mem);
+  int (*cv_pfree)(CVodeBMem cvB_mem);
 
   /* Time at which to extract solution / quadratures */
   realtype cv_tout;
@@ -863,11 +863,12 @@ struct CVadjMemRec {
 
 /*
  * -----------------------------------------------------------------
- * void (*cv_lfree)(CVodeMem cv_mem);
+ * int (*cv_lfree)(CVodeMem cv_mem);
  * -----------------------------------------------------------------
  * cv_lfree should free up any memory allocated by the linear
  * solver. This routine is called once a problem has been
- * completed and the linear solver is no longer needed.
+ * completed and the linear solver is no longer needed.  It should 
+ * return 0 upon success, nonzero on failure.
  * -----------------------------------------------------------------
  */
 

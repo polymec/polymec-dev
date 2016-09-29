@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4498 $
- * $Date: 2015-05-06 17:16:37 -0700 (Wed, 06 May 2015) $
+ * $Revision: 4909 $
+ * $Date: 2016-09-14 16:51:27 -0700 (Wed, 14 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer: Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -69,8 +69,8 @@ static int idaLapackBandSolve(IDAMem IDA_mem, N_Vector b, N_Vector weight,
                               N_Vector yC, N_Vector ypC, N_Vector fctC);
 static int idaLapackBandFree(IDAMem IDA_mem);
 
-static void IDALapackDenseFreeB(IDABMem IDAB_mem);
-static void IDALapackBandFreeB(IDABMem IDAB_mem);
+static int IDALapackDenseFreeB(IDABMem IDAB_mem);
+static int IDALapackBandFreeB(IDABMem IDAB_mem);
 
 /* 
  * ================================================================
@@ -194,6 +194,7 @@ int IDALapackDense(void *ida_mem, int N)
   J_data = NULL;
 
   last_flag = IDADLS_SUCCESS;
+  idaDlsInitializeCounters(idadls_mem); 
   setupNonNull = TRUE;
 
   /* Set problem dimension */
@@ -292,6 +293,7 @@ int IDALapackBand(void *ida_mem, int N, int mupper, int mlower)
   J_data = NULL;
 
   last_flag = IDADLS_SUCCESS;
+  idaDlsInitializeCounters(idadls_mem); 
   setupNonNull = TRUE;
   
   /* Load problem dimension */
@@ -351,8 +353,7 @@ static int idaLapackDenseInit(IDAMem IDA_mem)
 
   idadls_mem = (IDADlsMem) lmem;
   
-  nje   = 0;
-  nreDQ = 0;
+  idaDlsInitializeCounters(idadls_mem); 
   
   if (jacDQ) {
     djac = idaDlsDenseDQJac;
@@ -468,8 +469,7 @@ static int idaLapackBandInit(IDAMem IDA_mem)
 
   idadls_mem = (IDADlsMem) lmem;
 
-  nje   = 0;
-  nreDQ = 0;
+  idaDlsInitializeCounters(idadls_mem); 
 
   if (jacDQ) {
     bjac = idaDlsBandDQJac;
@@ -658,13 +658,15 @@ int IDALapackDenseB(void *ida_mem, int which, int NeqB)
  * as argument. 
  */
 
-static void IDALapackDenseFreeB(IDABMem IDAB_mem)
+static int IDALapackDenseFreeB(IDABMem IDAB_mem)
 {
   IDADlsMemB idadlsB_mem;
 
   idadlsB_mem = (IDADlsMemB) IDAB_mem->ida_lmem;
 
   free(idadlsB_mem);
+
+  return(0);
 }
 
 /*
@@ -743,12 +745,14 @@ int IDALapackBandB(void *ida_mem, int which,
  * IDALapackBandFreeB 
  */
 
-static void IDALapackBandFreeB(IDABMem IDAB_mem)
+static int IDALapackBandFreeB(IDABMem IDAB_mem)
 {
   IDADlsMemB idadlsB_mem;
 
   idadlsB_mem = (IDADlsMemB) IDAB_mem->ida_lmem;
 
   free(idadlsB_mem);
+
+  return(0);
 }
 

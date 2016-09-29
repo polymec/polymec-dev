@@ -42,7 +42,7 @@ static int ARKSpbcgSetup(ARKodeMem ark_mem, int convfail,
 static int ARKSpbcgSolve(ARKodeMem ark_mem, N_Vector b, 
 			 N_Vector weight, N_Vector ynow, 
 			 N_Vector fnow);
-static void ARKSpbcgFree(ARKodeMem ark_mem);
+static int ARKSpbcgFree(ARKodeMem ark_mem);
 
 /* ARKSPBCG minit, msetup, msolve, and mfree routines */
 static int ARKMassSpbcgInit(ARKodeMem ark_mem);
@@ -50,7 +50,7 @@ static int ARKMassSpbcgSetup(ARKodeMem ark_mem, N_Vector vtemp1,
 			     N_Vector vtemp2, N_Vector vtemp3);
 static int ARKMassSpbcgSolve(ARKodeMem ark_mem, N_Vector b, 
 			     N_Vector weight);
-static void ARKMassSpbcgFree(ARKodeMem ark_mem);
+static int ARKMassSpbcgFree(ARKodeMem ark_mem);
 
 
 /*---------------------------------------------------------------
@@ -129,10 +129,7 @@ int ARKSpbcg(void *arkode_mem, int pretype, int maxl)
   arkspils_mem->s_P_data = ark_mem->ark_user_data;
 
   /* Initialize counters */
-  arkspils_mem->s_npe = arkspils_mem->s_nli = 0;
-  arkspils_mem->s_nps = arkspils_mem->s_ncfl = 0;
-  arkspils_mem->s_nstlpre = arkspils_mem->s_njtimes = 0;
-  arkspils_mem->s_nfes = 0;
+  arkSpilsInitializeCounters(arkspils_mem);
 
   /* Set default values for the rest of the Spbcg parameters */
   arkspils_mem->s_eplifac = ARKSPILS_EPLIN;
@@ -208,16 +205,13 @@ static int ARKSpbcgInit(ARKodeMem ark_mem)
   spbcg_mem = (SpbcgMem) arkspils_mem->s_spils_mem;
 
   /* Initialize counters */
-  arkspils_mem->s_npe = arkspils_mem->s_nli = 0;
-  arkspils_mem->s_nps = arkspils_mem->s_ncfl = 0;
-  arkspils_mem->s_nstlpre = arkspils_mem->s_njtimes = 0;
-  arkspils_mem->s_nfes = 0;
+  arkSpilsInitializeCounters(arkspils_mem);
 
   /* Check for legal combination pretype - psolve */
   if ((arkspils_mem->s_pretype != PREC_NONE) && 
       (arkspils_mem->s_psolve == NULL)) {
     arkProcessError(ark_mem, -1, "ARKSPBCG", 
-		    "ARKSpbcgInit", MSGS_PSOLVE_REQ);
+                    "ARKSpbcgInit", MSGS_PSOLVE_REQ);
     arkspils_mem->s_last_flag = ARKSPILS_ILL_INPUT;
     return(-1);
   }
@@ -338,8 +332,7 @@ static int ARKSpbcgSolve(ARKodeMem ark_mem, N_Vector b,
   spbcg_mem = (SpbcgMem) arkspils_mem->s_spils_mem;
 
   /* Test norm(b); if small, return x = 0 or x = b */
-  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_eLTE; 
-
+  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_eRNrm; 
   bnorm = N_VWrmsNorm(b, weight);
   if (bnorm <= arkspils_mem->s_deltar) {
     if (ark_mem->ark_mnewt > 0) N_VConst(ZERO, b); 
@@ -353,7 +346,6 @@ static int ARKSpbcgSolve(ARKodeMem ark_mem, N_Vector b,
   /* Set inputs delta and initial guess x = 0 to SpbcgSolve */  
   arkspils_mem->s_delta = arkspils_mem->s_deltar * arkspils_mem->s_sqrtN;
   N_VConst(ZERO, arkspils_mem->s_x);
-  /* N_VConst(ark_mem->ark_uround, arkspils_mem->s_x); */
   
   /* Call SpbcgSolve and copy x to b */
   retval = SpbcgSolve(spbcg_mem, ark_mem, arkspils_mem->s_x, b, 
@@ -419,7 +411,7 @@ static int ARKSpbcgSolve(ARKodeMem ark_mem, N_Vector b,
 
  This routine frees memory specific to the Spbcg linear solver.
 ---------------------------------------------------------------*/
-static void ARKSpbcgFree(ARKodeMem ark_mem)
+static int ARKSpbcgFree(ARKodeMem ark_mem)
 {
   ARKSpilsMem arkspils_mem;
   SpbcgMem spbcg_mem;
@@ -436,6 +428,8 @@ static void ARKSpbcgFree(ARKodeMem ark_mem)
 
   free(arkspils_mem);
   ark_mem->ark_lmem = NULL;
+
+  return(0);
 }
 
 
@@ -681,7 +675,7 @@ static int ARKMassSpbcgSolve(ARKodeMem ark_mem, N_Vector b,
   spbcg_mem = (SpbcgMem) arkspils_mem->s_spils_mem;
 
   /* Set inputs delta and initial guess x = 0 to SpbcgSolve */  
-  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_eLTE; 
+  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_nlscoef; 
   arkspils_mem->s_delta  = arkspils_mem->s_deltar * arkspils_mem->s_sqrtN;
   N_VConst(ZERO, arkspils_mem->s_x);
   
@@ -746,7 +740,7 @@ static int ARKMassSpbcgSolve(ARKodeMem ark_mem, N_Vector b,
 
  This routine frees memory specific to the Spbcg mass matrix solver.
 ---------------------------------------------------------------*/
-static void ARKMassSpbcgFree(ARKodeMem ark_mem)
+static int ARKMassSpbcgFree(ARKodeMem ark_mem)
 {
   ARKSpilsMassMem arkspils_mem;
   SpbcgMem spbcg_mem;
@@ -762,6 +756,8 @@ static void ARKMassSpbcgFree(ARKodeMem ark_mem)
 
   free(arkspils_mem);
   ark_mem->ark_mass_mem = NULL;
+  
+  return(0);
 }
 
 

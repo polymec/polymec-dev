@@ -1,5 +1,5 @@
                              ARKODE
-                   Release 1.0.2, August 3, 2015
+                   Release 1.1.0, September, 2016
                        Daniel R. Reynolds
                   Department of Mathematics, SMU
 
@@ -58,45 +58,15 @@ chapter in the ARKODE User Guide.
 C. References
 -------------
 
+[1] Daniel R. Reynolds, "User Documentation for ARKode v1.1.0," 
+    Southern Methodist University, March 2016.
 
 
 D. Releases
 -----------
 
+v. 1.1.0 - Sep. 2016
 v. 1.0.2 - Aug. 2015
 v. 1.0.1 - Mar. 2015
 v. 1.0.0 - Mar. 2015
-
-
-E. Revision History
--------------------
-
-v. 1.0.1 (Mar. 2015) ---> v. 1.0.2 (Aug. 2015)
----------------------------------------------
-- Bug fixes
-  - Fixed Fortran interfaces to enable calls to *GetErrWeights, *GetEstLocalErrors,
-    and *GetDky within a time step.
-  - Fixed bug in Butcher table.
-  - Fixed error in arkDoErrorTest in recovery after failure.
-    
-- New Features
-  - Updated Anderson acceleration implementation with QR updating.
-
-v. 1.0.0 (Mar. 2015) ---> v. 1.0.1 (Mar. 2015)
----------------------------------------------
-
-- Bug fixes
-  - Fixed loop limit bug in SlsAddMat function.
-  - In interfaces to KLU and SuperLUMT, added #include lines, 
-    and removed redundant KLU structure allocations.
-  - Minor documentation updates
-  - Fixed logic bugs in three ARKSpilsSet*** functions.
-  - Fixed bug in setting user data in two ARKode Fortran interface functions.
-
-
-v. 1.0.0 Mar. 2015
---------------------------------------------
-
-2013   DATE WRITTEN.  First released March 2015
-
 

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4075 $
- * $Date: 2014-04-24 10:46:58 -0700 (Thu, 24 Apr 2014) $
+ * $Revision: 4558 $
+ * $Date: 2015-10-05 09:04:16 -0700 (Mon, 05 Oct 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -72,6 +72,8 @@ typedef struct CVSlsMemRec {
   SlsMat s_JacMat;          /* M = I - gamma * df/dy */
 
   SlsMat s_savedJ;          /* saved copy of Jacobian */
+
+  int sparsetype;           /* matrix type: compressed sparse column or row */
 
   void *s_solver_data;      /* structure for solver-specific data */
   

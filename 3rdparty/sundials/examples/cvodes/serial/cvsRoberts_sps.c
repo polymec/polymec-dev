@@ -91,7 +91,7 @@ static void PrintFinalStats(void *cvode_mem);
 
 /* Private function to check function return values */
 
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 
 /*
@@ -243,36 +243,38 @@ static int Jac(realtype t,
                N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
 {
   realtype *yval;
+  int *colptrs = *JacMat->colptrs;
+  int *rowvals = *JacMat->rowvals;
 
-  yval = NV_DATA_S(y);
+  yval = N_VGetArrayPointer_Serial(y);
 
-  SlsSetToZero(JacMat);
+  SparseSetMatToZero(JacMat);
 
-  JacMat->colptrs[0] = 0;
-  JacMat->colptrs[1] = 3;
-  JacMat->colptrs[2] = 6;
-  JacMat->colptrs[3] = 9;
+  colptrs[0] = 0;
+  colptrs[1] = 3;
+  colptrs[2] = 6;
+  colptrs[3] = 9;
 
   JacMat->data[0] = RCONST(-0.04);
-  JacMat->rowvals[0] = 0;
+  rowvals[0] = 0;
   JacMat->data[1] = RCONST(0.04);
-  JacMat->rowvals[1] = 1;
+  rowvals[1] = 1;
   JacMat->data[2] = ZERO;
-  JacMat->rowvals[2] = 2;
+  rowvals[2] = 2;
 
   JacMat->data[3] = RCONST(1.0e4)*yval[2];
-  JacMat->rowvals[3] = 0;
+  rowvals[3] = 0;
   JacMat->data[4] = (RCONST(-1.0e4)*yval[2]) - (RCONST(6.0e7)*yval[1]);
-  JacMat->rowvals[4] = 1;
+  rowvals[4] = 1;
   JacMat->data[5] = RCONST(6.0e7)*yval[1];
-  JacMat->rowvals[5] = 2;
+  rowvals[5] = 2;
 
   JacMat->data[6] = RCONST(1.0e4)*yval[1];
-  JacMat->rowvals[6] = 0;
+  rowvals[6] = 0;
   JacMat->data[7] = RCONST(-1.0e4)*yval[1];
-  JacMat->rowvals[7] = 1;
+  rowvals[7] = 1;
   JacMat->data[8] = ZERO;
-  JacMat->rowvals[8] = 2;
+  rowvals[8] = 2;
 
   return(0);
 }
@@ -348,7 +350,7 @@ static void PrintFinalStats(void *cvode_mem)
  *            NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

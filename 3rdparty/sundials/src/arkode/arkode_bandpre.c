@@ -44,7 +44,7 @@ static int ARKBandPrecSolve(realtype t, N_Vector y, N_Vector fy,
 			    int lr, void *bp_data, N_Vector tmp);
 
 /* Prototype for ARKBandPrecFree */
-static void ARKBandPrecFree(ARKodeMem ark_mem);
+static int ARKBandPrecFree(ARKodeMem ark_mem);
 
 /* Prototype for difference quotient Jacobian calculation routine */
 static int ARKBandPDQJac(ARKBandPrecData pdata,
@@ -134,8 +134,13 @@ int ARKBandPrecInit(void *arkode_mem, long int N,
     arkProcessError(ark_mem, ARKSPILS_MEM_FAIL, "ARKBANDPRE", "ARKBandPrecInit", MSGBP_MEM_FAIL);
     return(ARKSPILS_MEM_FAIL);
   }
+  
+  /* make sure s_P_data is free from any previous allocations */
+  if (arkspils_mem->s_pfree != NULL) {
+    arkspils_mem->s_pfree(ark_mem);
+  }
 
-  /* Overwrite the P_data field in the SPILS memory */
+  /* Point to the new P_data field in the SPILS memory */
   arkspils_mem->s_P_data = pdata;
 
   /* Attach the pfree function */
@@ -359,15 +364,15 @@ static int ARKBandPrecSolve(realtype t, N_Vector y, N_Vector fy,
 
  Frees data associated with the ARKBand preconditioner.
 ---------------------------------------------------------------*/ 
-static void ARKBandPrecFree(ARKodeMem ark_mem)
+static int ARKBandPrecFree(ARKodeMem ark_mem)
 {
   ARKSpilsMem arkspils_mem;
   ARKBandPrecData pdata;
 
-  if (ark_mem->ark_lmem == NULL) return;
+  if (ark_mem->ark_lmem == NULL) return(0);
   arkspils_mem = (ARKSpilsMem) ark_mem->ark_lmem;
   
-  if (arkspils_mem->s_P_data == NULL) return;
+  if (arkspils_mem->s_P_data == NULL) return(0);
   pdata = (ARKBandPrecData) arkspils_mem->s_P_data;
 
   DestroyMat(pdata->savedJ);
@@ -376,6 +381,8 @@ static void ARKBandPrecFree(ARKodeMem ark_mem)
 
   free(pdata);
   pdata = NULL;
+
+  return(0);
 }
 
 

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4909 $
+ * $Date: 2016-09-14 16:51:27 -0700 (Wed, 14 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Aaron Collier and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -54,7 +54,7 @@ static int IDASpbcgFree(IDAMem IDA_mem);
 
 /* IDASPBCG lfreeB function */
 
-static void IDASpbcgFreeB(IDABMem IDAB_mem);
+static int IDASpbcgFreeB(IDABMem IDAB_mem);
 
 /* 
  * ================================================================
@@ -145,7 +145,7 @@ int IDASpbcg(void *ida_mem, int maxl)
   IDAMem IDA_mem;
   IDASpilsMem idaspils_mem;
   SpbcgMem spbcg_mem;
-  int flag, maxl1;
+  int maxl1;
 
   /* Return immediately if ida_mem is NULL */
   if (ida_mem == NULL) {
@@ -160,7 +160,7 @@ int IDASpbcg(void *ida_mem, int maxl)
     return(IDASPILS_ILL_INPUT);
   }
 
-  if (lfree != NULL) flag = lfree((IDAMem) ida_mem);
+  if (lfree != NULL) lfree((IDAMem) ida_mem);
 
   /* Set five main function fields in ida_mem */
   linit  = IDASpbcgInit;
@@ -200,6 +200,8 @@ int IDASpbcg(void *ida_mem, int maxl)
   idaspils_mem->s_dqincfac  = ONE;
 
   idaspils_mem->s_last_flag = IDASPILS_SUCCESS;
+
+  idaSpilsInitializeCounters(idaspils_mem);
 
   /* Set setupNonNull to FALSE */
   setupNonNull = FALSE;
@@ -278,8 +280,7 @@ static int IDASpbcgInit(IDAMem IDA_mem)
   spbcg_mem = (SpbcgMem) spils_mem;
 
   /* Initialize counters */
-  npe = nli = nps = ncfl = 0;
-  njtimes = nres = 0;
+  idaSpilsInitializeCounters(idaspils_mem);
 
   /* Set setupNonNull to TRUE iff there is preconditioning with setup */
   setupNonNull = (psolve != NULL) && (pset != NULL);
@@ -518,7 +519,6 @@ int IDASpbcgB(void *ida_mem, int which, int maxlB)
   IDAadjMem IDAADJ_mem;
   IDABMem IDAB_mem;
   IDASpilsMemB idaspilsB_mem;
-  void *ida_memB;
   int flag;
   
   /* Check if ida_mem is allright. */
@@ -548,8 +548,6 @@ int IDASpbcgB(void *ida_mem, int which, int maxlB)
     /* advance */
     IDAB_mem = IDAB_mem->ida_next;
   }
-  /* ida_mem corresponding to 'which' problem. */
-  ida_memB = (void *) IDAB_mem->IDA_mem;
 
   
   /* Get memory for IDASpilsMemRecB */
@@ -585,11 +583,13 @@ int IDASpbcgB(void *ida_mem, int which, int maxlB)
  * IDASpbcgFreeB 
  */
 
-static void IDASpbcgFreeB(IDABMem IDAB_mem)
+static int IDASpbcgFreeB(IDABMem IDAB_mem)
 {
   IDASpilsMemB idaspilsB_mem;
 
   idaspilsB_mem = (IDASpilsMemB) IDAB_mem->ida_lmem;
 
   free(idaspilsB_mem);
+
+  return(0);
 }

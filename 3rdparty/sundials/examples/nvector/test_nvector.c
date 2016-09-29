@@ -1,9 +1,9 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4463 $
- * $Date: 2015-03-29 16:28:20 -0700 (Sun, 29 Mar 2015) $
+ * $Revision: 4652 $
+ * $Date: 2016-02-11 10:22:15 -0800 (Thu, 11 Feb 2016) $
  * ----------------------------------------------------------------- 
- * Programmer(s): David J. Gardner @ LLNL
+ * Programmer(s): David J. Gardner and Slaven Peles @ LLNL
  * -----------------------------------------------------------------
  * Acknowledgements: These testing routines are based on an
  *                   NVECTOR testing routine by Daniel R. Reynolds
@@ -37,31 +37,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "test_nvector.h"
+
 #if defined( SUNDIALS_HAVE_POSIX_TIMERS) && defined(_POSIX_TIMERS)
 #include <time.h>
 #include <unistd.h>
 #endif
 
-/* define constatnts */
-#define NEG_TWO  RCONST(-2.0)
-#define NEG_ONE  RCONST(-1.0)
-#define NEG_HALF RCONST(-0.5)
-#define ZERO     RCONST(0.0)
-#define HALF     RCONST(0.5)
-#define ONE      RCONST(1.0)
-#define TWO      RCONST(2.0)
-
-/* NAN and floating point "equality" check, failure update macro */
-#if __STDC_VERSION__ >= 199901L
-#define FNEQ(a,b) (isnan(a) ? 1 : ( SUNRabs((a)-(b))/SUNRabs(b) > 1.0e-15 ))
-#else
-#define FNEQ(a,b) (( SUNRabs((a)-(b))/SUNRabs(b) > 1.0e-15 ))
-#endif
-
 
 /* private functions */
 static double get_time();
-static int check_ans(realtype ans, N_Vector X, long int local_length);
 
 int print_time = 0;
 
@@ -127,7 +112,6 @@ int Test_N_VCloneEmptyVectorArray(int count, N_Vector W, int myid)
   int      i;
   double   start_time, stop_time;
   N_Vector *vs;
-  realtype *Vdata;
 
   /* clone empty array */
   start_time = get_time(); 
@@ -150,8 +134,7 @@ int Test_N_VCloneEmptyVectorArray(int count, N_Vector W, int myid)
       return(1);
     }    
 
-    Vdata = N_VGetArrayPointer(vs[i]);
-    if (Vdata != NULL) {
+    if (has_data(vs[i])) {
       printf(">>> FAILED test -- N_VCloneEmptyVectorArray, Proc %d \n", myid);
       printf("    Vector[%d] data != NULL \n \n",i);
       N_VDestroyVectorArray(vs, count);
@@ -177,7 +160,6 @@ int Test_N_VCloneEmpty(N_Vector W, int myid)
 {
   double   start_time, stop_time;
   N_Vector X;
-  realtype *Xdata;
 
   /* clone empty vector */
   start_time = get_time();   
@@ -192,8 +174,7 @@ int Test_N_VCloneEmpty(N_Vector W, int myid)
   } 
 
   /* check vector data */
-  Xdata = N_VGetArrayPointer(X);
-  if (Xdata != NULL) {
+  if (has_data(X)) {
     printf(">>> FAILED test -- N_VCloneEmpty, Proc %d \n", myid);
     printf("    Vector data != NULL \n \n");
     N_VDestroy(X);
@@ -221,7 +202,6 @@ int Test_N_VClone(N_Vector W, long int local_length, int myid)
   int      failure;
   double   start_time, stop_time;
   N_Vector X;
-  realtype *Xdata;
 
   /* clone vector */
   start_time = get_time();   
@@ -236,8 +216,7 @@ int Test_N_VClone(N_Vector W, long int local_length, int myid)
   } 
 
   /* check cloned vector data */
-  Xdata = N_VGetArrayPointer(X);
-  if (Xdata == NULL) {
+  if (!has_data(X)) {
     printf(">>> FAILED test -- N_VClone, Proc %d \n", myid);
     printf("    Vector data == NULL \n \n");
     N_VDestroy(X);
@@ -266,32 +245,34 @@ int Test_N_VClone(N_Vector W, long int local_length, int myid)
 
 /* ----------------------------------------------------------------------
  * N_VGetArrayPointer Test
+ * 
+ * For now commenting this out to surpress warning messages (pointer set,
+ * but not used). Do we really need to time access to the vector 
+ * data pointer? 
  *
  * NOTE: This routine depends on N_VConst to check vector data.
  * --------------------------------------------------------------------*/
 int Test_N_VGetArrayPointer(N_Vector W, long int local_length, int myid)
 {
   int      failure = 0;
-  long int i;
   double   start_time, stop_time;
   realtype *Wdata;
 
-  /* get vector data */
+  /* get vector data, time it and set it to NULL */
   start_time = get_time();   
   Wdata = N_VGetArrayPointer(W);
-  stop_time = get_time();   
-
+  stop_time = get_time();
+  Wdata++; Wdata=NULL; /* Do something with pointer to surpress warning */
+  
   /* check vector data */
-  if (Wdata == NULL) {
+  if (!has_data(W)) {
     printf(">>> FAILED test -- N_VGetArrayPointer, Proc %d \n", myid);
     printf("    Vector data == NULL \n \n");
     return(1);
   }    
 
   N_VConst(NEG_HALF,W);
-  for(i=0; i < local_length; i++){
-    failure += FNEQ(Wdata[i], NEG_HALF);
-  }
+  failure = check_ans(NEG_HALF, W, local_length);
 
   if (failure) {
     printf(">>> FAILED test -- N_VGetArrayPointer, Proc %d \n", myid);
@@ -362,22 +343,14 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Ydata, *Zdata;
-
-  Xdata = N_VGetArrayPointer(X);
-  Ydata = N_VGetArrayPointer(Y);
-  Zdata = N_VGetArrayPointer(Z);
   
   /* 
    * Case 1a: y = x + y, (Vaxpy Case 1) 
    */
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = ONE;
-    Ydata[i] = NEG_TWO;
-  }
+  N_VConst(ONE, X);
+  N_VConst(NEG_TWO, Y);
 
   start_time = get_time(); 
   N_VLinearSum(ONE, X, ONE, Y, Y);
@@ -404,10 +377,8 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = ONE;
-    Ydata[i] = TWO;
-  }
+  N_VConst(ONE, X);
+  N_VConst(TWO, Y);
 
   start_time = get_time(); 
   N_VLinearSum(NEG_ONE, X, ONE, Y, Y);
@@ -434,10 +405,8 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = TWO;
-    Ydata[i] = NEG_TWO;
-  }
+  N_VConst(TWO, X);
+  N_VConst(NEG_TWO, Y);
 
   start_time = get_time(); 
   N_VLinearSum(HALF, X, ONE, Y, Y);
@@ -464,10 +433,8 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = TWO;
-    Ydata[i] = NEG_ONE;
-  }
+  N_VConst(TWO, X);
+  N_VConst(NEG_ONE, Y);
 
   start_time = get_time(); 
   N_VLinearSum(ONE, X, ONE, Y, X);
@@ -494,10 +461,8 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = ONE;
-    Ydata[i] = TWO;
-  }
+  N_VConst(ONE, X);
+  N_VConst(TWO, Y);
 
   start_time = get_time(); 
   N_VLinearSum(ONE, X, NEG_ONE, Y, X);
@@ -524,10 +489,8 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = TWO;
-    Ydata[i] = NEG_HALF;
-  }
+  N_VConst(TWO, X);
+  N_VConst(NEG_HALF, Y);
 
   start_time = get_time(); 
   N_VLinearSum(ONE, X, TWO, Y, X);
@@ -554,11 +517,9 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = NEG_TWO;
-    Ydata[i] = ONE;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(NEG_TWO, X);
+  N_VConst(ONE, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time(); 
   N_VLinearSum(ONE, X, ONE, Y, Z);
@@ -585,11 +546,9 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = TWO;
-    Ydata[i] = ONE;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(TWO, X);
+  N_VConst(ONE, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time(); 
   N_VLinearSum(ONE, X, NEG_ONE, Y, Z);
@@ -616,11 +575,9 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = TWO;
-    Ydata[i] = ONE;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(TWO, X);
+  N_VConst(ONE, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time(); 
   N_VLinearSum(NEG_ONE, X, ONE, Y, Z);
@@ -647,11 +604,9 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = TWO;
-    Ydata[i] = NEG_HALF;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(TWO, X);
+  N_VConst(NEG_HALF, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time(); 
   N_VLinearSum(ONE, X, TWO, Y, Z);
@@ -678,11 +633,9 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = HALF;
-    Ydata[i] = NEG_TWO;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(HALF, X);
+  N_VConst(NEG_TWO, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time(); 
   N_VLinearSum(TWO, X, ONE, Y, Z);
@@ -709,11 +662,9 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = NEG_TWO;
-    Ydata[i] = NEG_HALF;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(NEG_TWO, X);
+  N_VConst(NEG_HALF, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time(); 
   N_VLinearSum(NEG_ONE, X, TWO, Y, Z);
@@ -740,11 +691,9 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = HALF;
-    Ydata[i] = TWO;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(HALF, X);
+  N_VConst(TWO, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time(); 
   N_VLinearSum(TWO, X, NEG_ONE, Y, Z);
@@ -771,11 +720,9 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = ONE;
-    Ydata[i] = NEG_HALF;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(ONE, X);
+  N_VConst(NEG_HALF, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time(); 
   N_VLinearSum(TWO, X, TWO, Y, Z);
@@ -802,11 +749,9 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = HALF;
-    Ydata[i] = ONE;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(HALF, X);
+  N_VConst(ONE, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time(); 
   N_VLinearSum(TWO, X, NEG_TWO, Y, Z);
@@ -833,11 +778,9 @@ int Test_N_VLinearSum(N_Vector X, N_Vector Y, N_Vector Z, long int local_length,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = ONE;
-    Ydata[i] = NEG_TWO;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(ONE, X);
+  N_VConst(NEG_TWO, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time(); 
   N_VLinearSum(TWO, X, HALF, Y, Z);
@@ -868,13 +811,10 @@ int Test_N_VConst(N_Vector X, long int local_length, int myid)
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
   long int i;
-  realtype *Xdata;
-
-  Xdata = N_VGetArrayPointer(X);
 
   /* fill vector data */
   for(i=0; i < local_length; i++){
-    Xdata[i] = ZERO;
+    set_element(X, i, ZERO);
   }
 
   start_time = get_time();
@@ -905,19 +845,11 @@ int Test_N_VProd(N_Vector X, N_Vector Y, N_Vector Z, long int local_length, int 
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Ydata, *Zdata;
-
-  Xdata = N_VGetArrayPointer(X);
-  Ydata = N_VGetArrayPointer(Y);
-  Zdata = N_VGetArrayPointer(Z);
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = TWO;
-    Ydata[i] = NEG_HALF;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(TWO, X);
+  N_VConst(NEG_HALF, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time();
   N_VProd(X, Y, Z);
@@ -947,19 +879,11 @@ int Test_N_VDiv(N_Vector X, N_Vector Y, N_Vector Z, long int local_length, int m
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Ydata, *Zdata;
-
-  Xdata = N_VGetArrayPointer(X);
-  Ydata = N_VGetArrayPointer(Y);
-  Zdata = N_VGetArrayPointer(Z);
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = ONE;
-    Ydata[i] = TWO;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(ONE, X);
+  N_VConst(TWO, Y);
+  N_VConst(ZERO, Z);
 
   start_time = get_time();
   N_VDiv(X, Y, Z);
@@ -989,20 +913,13 @@ int Test_N_VScale(N_Vector X, N_Vector Z, long int local_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Zdata;
-
-  Xdata = N_VGetArrayPointer(X);
-  Zdata = N_VGetArrayPointer(Z);
 
   /* 
    * Case 1: x = cx, VScaleBy
    */
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = HALF;
-  }
+  N_VConst(HALF, X);
 
   start_time = get_time();
   N_VScale(TWO, X, X);
@@ -1029,10 +946,8 @@ int Test_N_VScale(N_Vector X, N_Vector Z, long int local_length, int myid)
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = NEG_ONE;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(NEG_ONE, X);
+  N_VConst(ZERO, Z);
 
   start_time = get_time();
   N_VScale(ONE, X, Z);
@@ -1059,10 +974,8 @@ int Test_N_VScale(N_Vector X, N_Vector Z, long int local_length, int myid)
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = NEG_ONE;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(NEG_ONE, X);
+  N_VConst(ZERO, Z);
 
   start_time = get_time();
   N_VScale(NEG_ONE, X, Z);
@@ -1089,10 +1002,8 @@ int Test_N_VScale(N_Vector X, N_Vector Z, long int local_length, int myid)
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = NEG_HALF;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(NEG_HALF, X);
+  N_VConst(ZERO, Z);
 
   start_time = get_time();
   N_VScale(TWO, X, Z);
@@ -1122,17 +1033,10 @@ int Test_N_VAbs(N_Vector X, N_Vector Z, long int local_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Zdata;
-
-  Xdata = N_VGetArrayPointer(X);
-  Zdata = N_VGetArrayPointer(Z);
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = NEG_ONE;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(NEG_ONE, X);
+  N_VConst(ZERO, Z);
 
   start_time = get_time();
   N_VAbs(X,Z);
@@ -1162,17 +1066,10 @@ int Test_N_VInv(N_Vector X, N_Vector Z, long int local_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Zdata;
-
-  Xdata = N_VGetArrayPointer(X);
-  Zdata = N_VGetArrayPointer(Z);
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = TWO;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(TWO, X);
+  N_VConst(ZERO, Z);
 
   start_time = get_time();
   N_VInv(X,Z);
@@ -1202,17 +1099,10 @@ int Test_N_VAddConst(N_Vector X, N_Vector Z, long int local_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Zdata;
-
-  Xdata = N_VGetArrayPointer(X);
-  Zdata = N_VGetArrayPointer(Z);
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = ONE;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(ONE, X);
+  N_VConst(ZERO, Z);
 
   start_time = get_time();
   N_VAddConst(X,NEG_TWO,Z);
@@ -1239,22 +1129,15 @@ int Test_N_VAddConst(N_Vector X, N_Vector Z, long int local_length, int myid)
  * N_VDotProd Test
  * --------------------------------------------------------------------*/
 int Test_N_VDotProd(N_Vector X, N_Vector Y, 
-		    long int local_length, long int global_length, int myid)
+                    long int local_length, long int global_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Ydata;
   realtype ans;
 
-  Xdata = N_VGetArrayPointer(X);
-  Ydata = N_VGetArrayPointer(Y);
-
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = TWO;
-    Ydata[i] = HALF;
-  }
+  N_VConst(TWO, X);
+  N_VConst(HALF, Y);
 
   start_time = get_time();
   ans = N_VDotProd(X,Y);
@@ -1284,18 +1167,12 @@ int Test_N_VMaxNorm(N_Vector X, long int local_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata;
   realtype ans;
 
-  Xdata = N_VGetArrayPointer(X);
-
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = NEG_ONE;
-  }
-  Xdata[local_length-1] = NEG_TWO;
-
+  N_VConst(NEG_ONE, X);
+  set_element(X, local_length-1, NEG_TWO);
+  
   start_time = get_time();
   ans = N_VMaxNorm(X);
   stop_time = get_time(); 
@@ -1324,18 +1201,11 @@ int Test_N_VWrmsNorm(N_Vector X, N_Vector W, long int local_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Wdata;
   realtype ans;
 
-  Xdata = N_VGetArrayPointer(X);
-  Wdata = N_VGetArrayPointer(W);
-
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = NEG_HALF;
-    Wdata[i] = HALF;
-  }
+  N_VConst(NEG_HALF, X);
+  N_VConst(HALF, W);
 
   start_time = get_time();
   ans = N_VWrmsNorm(X, W);
@@ -1366,24 +1236,16 @@ int Test_N_VWrmsNormMask(N_Vector X, N_Vector W, N_Vector ID,
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Wdata, *IDdata;
   realtype ans;
-
-  Xdata  = N_VGetArrayPointer(X);
-  Wdata  = N_VGetArrayPointer(W);
-  IDdata = N_VGetArrayPointer(ID);
 
   /* 
    * Case 1: use all elements, ID = 1
    */
 
   /* fill vector data */
-  for(i=0; i < local_length; i++) {
-    Xdata[i]  = NEG_HALF;
-    Wdata[i]  = HALF;
-    IDdata[i] = ONE;
-  }    
+  N_VConst(NEG_HALF, X);
+  N_VConst(HALF, W);
+  N_VConst(ONE, ID);
 
   start_time = get_time();
   ans = N_VWrmsNormMask(X, W, ID);
@@ -1410,11 +1272,9 @@ int Test_N_VWrmsNormMask(N_Vector X, N_Vector W, N_Vector ID,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++) {
-    Xdata[i]  = NEG_HALF;
-    Wdata[i]  = HALF;
-    IDdata[i] = ZERO;
-  }    
+  N_VConst(NEG_HALF, X);
+  N_VConst(HALF, W);
+  N_VConst(ZERO, ID);
 
   start_time = get_time();
   ans = N_VWrmsNormMask(X, W, ID);
@@ -1444,17 +1304,11 @@ int Test_N_VMin(N_Vector X, long int local_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata;
   realtype ans;
 
-  Xdata = N_VGetArrayPointer(X);
-
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = TWO;
-  }
-  Xdata[local_length-1] = NEG_ONE;
+  N_VConst(TWO, X);
+  set_element(X, local_length-1, NEG_ONE);
 
   start_time = get_time();
   ans = N_VMin(X);
@@ -1481,22 +1335,15 @@ int Test_N_VMin(N_Vector X, long int local_length, int myid)
  * N_VWL2Norm Test
  * --------------------------------------------------------------------*/
 int Test_N_VWL2Norm(N_Vector X, N_Vector W, 
-		    long int local_length, long int global_length, int myid)
+                    long int local_length, long int global_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata, *Wdata;
   realtype ans;
 
-  Xdata = N_VGetArrayPointer(X);
-  Wdata = N_VGetArrayPointer(W);
-
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = NEG_HALF;
-    Wdata[i] = HALF;
-  }
+  N_VConst(NEG_HALF, X);
+  N_VConst(HALF, W);
 
   start_time = get_time();
   ans = N_VWL2Norm(X, W);
@@ -1523,20 +1370,14 @@ int Test_N_VWL2Norm(N_Vector X, N_Vector W,
  * N_VL1Norm Test
  * --------------------------------------------------------------------*/
 int Test_N_VL1Norm(N_Vector X, long int local_length, 
-		   long int global_length, int myid)
+                   long int global_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *Xdata;
   realtype ans;
 
-  Xdata = N_VGetArrayPointer(X);
-
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = NEG_ONE;
-  }
+  N_VConst(NEG_ONE, X);
 
   start_time = get_time();
   ans = N_VL1Norm(X);
@@ -1567,36 +1408,32 @@ int Test_N_VCompare(N_Vector X, N_Vector Z, long int local_length, int myid)
   int      mask, fails = 0, failure = 0;
   double   start_time, stop_time;
   long int i;
-  realtype *Xdata, *Zdata;
 
   if (local_length < 3) {
     printf("Error Test_N_VCompare: Local vector length is %ld, length must be >= 3", local_length);
     return(-1);
   }
 
-  Xdata = N_VGetArrayPointer(X);
-  Zdata = N_VGetArrayPointer(Z);
-
   /* fill vector data */
   for(i=0; i < local_length; i++){
-    Zdata[i] = NEG_ONE;
+    set_element(Z, i, NEG_ONE);
 
     mask = i % 3;
     switch(mask) {
 
     case 0 :
       /* abs(X[i]) < c */
-      Xdata[i] = ZERO;
+      set_element(X, i, ZERO);
       break;
 
     case 1 :
       /* abs(X[i]) = c */
-      Xdata[i] = NEG_ONE;
+      set_element(X, i, NEG_ONE);
       break;
       
     case 2 :
       /* abs(X[i]) > c */
-      Xdata[i] = NEG_TWO;
+      set_element(X, i, NEG_TWO);
       break;
     }
   }
@@ -1613,20 +1450,20 @@ int Test_N_VCompare(N_Vector X, N_Vector Z, long int local_length, int myid)
 
     case 0 :
       /* Z[i] == 0 */
-      if (Zdata[i] != ZERO)
-	failure = 1;
+      if (get_element(Z, i) != ZERO)
+        failure = 1;
       break;
 
     case 1 :
       /* Z[i] == 1 */
-      if (Zdata[i] != ONE)
-	failure = 1;
+      if (get_element(Z, i) != ONE)
+        failure = 1;
       break;
       
     case 2 :
       /* Z[i] == 1 */
-      if (Zdata[i] != ONE)
-	failure = 1;
+      if (get_element(Z, i) != ONE)
+        failure = 1;
       break;
     }
   }
@@ -1653,7 +1490,6 @@ int Test_N_VInvTest(N_Vector X, N_Vector Z, long int local_length, int myid)
   int         mask, fails = 0, failure = 0;
   double      start_time, stop_time;
   long int    i;
-  realtype    *Xdata, *Zdata;
   booleantype test;
 
   if (local_length < 2) {
@@ -1661,18 +1497,13 @@ int Test_N_VInvTest(N_Vector X, N_Vector Z, long int local_length, int myid)
     return(-1);
   }
 
-  Xdata = N_VGetArrayPointer(X);
-  Zdata = N_VGetArrayPointer(Z);
-
   /*
    * Case 1: All elements Nonzero, z[i] = 1/x[i], return True
    */
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    Xdata[i] = HALF;
-    Zdata[i] = ZERO;
-  }
+  N_VConst(HALF, X);
+  N_VConst(ZERO, Z);
 
   start_time = get_time();
   test = N_VInvTest(X, Z);
@@ -1699,14 +1530,13 @@ int Test_N_VInvTest(N_Vector X, N_Vector Z, long int local_length, int myid)
   failure = 0;
 
   /* fill vector data */
+  N_VConst(ZERO, Z);
   for(i=0; i < local_length; i++){
-    Zdata[i] = ZERO;
-
     mask = i % 2;   
     if (mask)
-      Xdata[i] = HALF;
+      set_element(X, i, HALF);
     else
-      Xdata[i] = ZERO;
+      set_element(X, i, ZERO);
   }
 
   start_time = get_time();
@@ -1718,11 +1548,11 @@ int Test_N_VInvTest(N_Vector X, N_Vector Z, long int local_length, int myid)
     mask = i % 2;
 
     if (mask) {
-      if (Zdata[i] != TWO) 
-	failure = 1;
+      if (get_element(Z, i) != TWO) 
+        failure = 1;
     } else {
-      if (Zdata[i] != ZERO) 
-	failure = 1;
+      if (get_element(Z, i) != ZERO) 
+        failure = 1;
     }
   }
 
@@ -1744,12 +1574,11 @@ int Test_N_VInvTest(N_Vector X, N_Vector Z, long int local_length, int myid)
  * N_VConstrMask
  * --------------------------------------------------------------------*/
 int Test_N_VConstrMask(N_Vector C, N_Vector X, N_Vector M, 
-		       long int local_length, int myid)
+                       long int local_length, int myid)
 {
   int         mask, fails = 0, failure = 0;
   double      start_time, stop_time;
   long int    i;
-  realtype    *Cdata, *Xdata, *Mdata;
   booleantype test;
 
   if (local_length < 7) {
@@ -1757,60 +1586,56 @@ int Test_N_VConstrMask(N_Vector C, N_Vector X, N_Vector M,
     return(-1);
   }
 
-  Cdata = N_VGetArrayPointer(C);
-  Xdata = N_VGetArrayPointer(X);
-  Mdata = N_VGetArrayPointer(M);
-
   /*
    * Case 1: Return True
    */
 
   /* fill vector data */
   for(i=0; i < local_length; i++){
-    Mdata[i] = NEG_ONE;
+    set_element(M, i, NEG_ONE);
 
     mask = i % 7;  
     switch(mask) {
     case 0 :
       /* c = -2, test for < 0*/
-      Cdata[i] = NEG_TWO;
-      Xdata[i] = NEG_TWO;
+      set_element(C, i, NEG_TWO);
+      set_element(X, i, NEG_TWO);
       break;
       
     case 1 :
       /* c = -1, test for <= 0 */
-      Cdata[i] = NEG_ONE;
-      Xdata[i] = NEG_ONE;	
+      set_element(C, i, NEG_ONE);
+      set_element(X, i, NEG_ONE);	
       break;
       
     case 2 :
       /* c = -1, test for == 0 */
-      Cdata[i] = NEG_ONE;
-      Xdata[i] = ZERO; 
+      set_element(C, i, NEG_ONE);
+      set_element(X, i, ZERO); 
       break;
       
     case 3 :
       /* c = 0, no test */
-      Cdata[i] = ZERO;
-      Xdata[i] = HALF;
+      set_element(C, i, ZERO);
+      set_element(X, i, HALF);
       break;
       
     case 4 :
       /* c = 1, test for == 0*/
-      Cdata[i] = ONE;
-      Xdata[i] = ZERO;
+      set_element(C, i, ONE);
+      set_element(X, i, ZERO);
       break;
       
     case 5 :
       /* c = 1, test for >= 0*/
-      Cdata[i] = ONE;
-      Xdata[i] = ONE;
+      set_element(C, i, ONE);
+      set_element(X, i, ONE);
       break;
       
     case 6:
       /* c = 2, test for > 0 */
-      Cdata[i] = TWO;
-      Xdata[i] = TWO;
+      set_element(C, i, TWO);
+      set_element(X, i, TWO);
       break;
     }
   }
@@ -1841,38 +1666,38 @@ int Test_N_VConstrMask(N_Vector C, N_Vector X, N_Vector M,
 
   /* fill vector data */
   for(i=0; i < local_length; i++){
-    Mdata[i] = NEG_ONE;
-
+    set_element(M, i, NEG_ONE);
+    
     mask = i % 5;  
     switch(mask) {
     case 0 :
       /* c = -2, test for < 0*/
-      Cdata[i] = NEG_TWO;
-      Xdata[i] = TWO;
+      set_element(C, i, NEG_TWO);
+      set_element(X, i, TWO);
       break;
 
     case 1 :
       /* c = -1, test for <= 0 */
-      Cdata[i] = NEG_ONE;
-      Xdata[i] = ONE;	
+      set_element(C, i, NEG_ONE);
+      set_element(X, i, ONE);	
       break;
-	
+      
     case 2 :
       /* c = 0, no test */
-      Cdata[i] = ZERO;
-      Xdata[i] = HALF;
+      set_element(C, i, ZERO);
+      set_element(X, i, HALF);
       break;
-	
+
     case 3 :
       /* c = 1, test for >= 0*/
-      Cdata[i] = ONE;
-      Xdata[i] = NEG_ONE;
+      set_element(C, i, ONE);
+      set_element(X, i, NEG_ONE);
       break;
-	
+
     case 4 :
       /* c = 2, test for > 0 */
-      Cdata[i] = TWO;
-      Xdata[i] = NEG_TWO;
+      set_element(C, i, TWO);
+      set_element(X, i, NEG_TWO);
       break;
     }
   }
@@ -1886,11 +1711,11 @@ int Test_N_VConstrMask(N_Vector C, N_Vector X, N_Vector M,
     mask = i % 5;
     
     if (mask == 2){
-      if (Mdata[i] != ZERO) 
-	failure = 1;
+      if (get_element(M, i) != ZERO) 
+        failure = 1;
     } else {
-      if (Mdata[i] != ONE)
-	failure = 1;
+      if (get_element(M, i) != ONE)
+        failure = 1;
     }
   }
   
@@ -1912,27 +1737,20 @@ int Test_N_VConstrMask(N_Vector C, N_Vector X, N_Vector M,
  * N_VMinQuotient Test
  * --------------------------------------------------------------------*/
 int Test_N_VMinQuotient(N_Vector NUM, N_Vector DENOM, 
-			long int local_length, int myid)
+                        long int local_length, int myid)
 {
   int      fails = 0, failure = 0;
   double   start_time, stop_time;
-  long int i;
-  realtype *NUMdata, *DENOMdata;
   realtype ans;
-
-  NUMdata   = N_VGetArrayPointer(NUM);
-  DENOMdata = N_VGetArrayPointer(DENOM);
 
   /*
    * Case 1: Pass
    */
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    NUMdata[i]   = TWO;
-    DENOMdata[i] = TWO;
-  }
-  NUMdata[local_length-1] = ONE;
+  N_VConst(TWO, NUM);
+  N_VConst(TWO, DENOM);
+  set_element(NUM, local_length-1, ONE);
 
   start_time = get_time();
   ans = N_VMinQuotient(NUM, DENOM);
@@ -1959,10 +1777,8 @@ int Test_N_VMinQuotient(N_Vector NUM, N_Vector DENOM,
   failure = 0;
 
   /* fill vector data */
-  for(i=0; i < local_length; i++){
-    NUMdata[i]   = TWO;
-    DENOMdata[i] = ZERO;
-  }
+  N_VConst(TWO, NUM);
+  N_VConst(ZERO, DENOM);
 
   start_time = get_time();
   ans = N_VMinQuotient(NUM, DENOM);
@@ -1991,10 +1807,10 @@ int Test_N_VMinQuotient(N_Vector NUM, N_Vector DENOM,
 
 #if defined( SUNDIALS_HAVE_POSIX_TIMERS) && defined(_POSIX_TIMERS)
 time_t base_time_tv_sec = 0; /* Base time; makes time values returned
-				by get_time easier to read when
-				printed since they will be zero
-				based.
-			     */
+                                by get_time easier to read when
+                                printed since they will be zero
+                                based.
+                              */
 #endif
 
 void SetTiming(int onoff)
@@ -2024,24 +1840,3 @@ static double get_time()
 }
 
 
-/* ----------------------------------------------------------------------
- * Check vector
- * --------------------------------------------------------------------*/
-static int check_ans(realtype ans, N_Vector X, long int local_length)
-{
-  int      failure = 0;
-  long int i;
-  realtype *Xdata;
-  
-  Xdata = N_VGetArrayPointer(X);
-
-  /* check vector data */
-  for(i=0; i < local_length; i++){
-    failure += FNEQ(Xdata[i], ans);
-  }
-
-  if (failure > ZERO)
-    return(1);
-  else
-    return(0);
-}

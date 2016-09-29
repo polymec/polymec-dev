@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4501 $
- * $Date: 2015-05-22 15:12:41 -0700 (Fri, 22 May 2015) $
+ * $Revision: 4847 $
+ * $Date: 2016-08-03 15:50:53 -0700 (Wed, 03 Aug 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -479,7 +479,7 @@ int IDASolveF(void *ida_mem, realtype tout, realtype *tret,
   CkpntMem tmp;
   DtpntMem *dt_mem;
   int flag, i;
-  booleantype iret, allocOK;
+  booleantype /* iret, */ allocOK;
 
   /* Is the mem OK? */
   if (ida_mem == NULL) {
@@ -530,8 +530,9 @@ int IDASolveF(void *ida_mem, realtype tout, realtype *tret,
   
   /* We will call IDASolve in IDA_ONE_STEP mode, regardless
      of what itask is, so flag if we need to return */
-  if (itask == IDA_ONE_STEP) iret = TRUE;
-  else                       iret = FALSE;
+/*   if (itask == IDA_ONE_STEP) iret = TRUE;
+ *   else                       iret = FALSE;
+ */
 
   /* On the first step:
    *   - set tinitial
@@ -1210,7 +1211,6 @@ int IDAQuadReInitB(void *ida_mem, int which, N_Vector yQB0)
   IDAMem IDA_mem;
   IDAadjMem IDAADJ_mem;
   IDABMem IDAB_mem;
-  void *ida_memB;
   
   /* Is ida_mem valid? */
   if (ida_mem == NULL) {
@@ -1239,7 +1239,6 @@ int IDAQuadReInitB(void *ida_mem, int which, N_Vector yQB0)
     /* advance */
     IDAB_mem = IDAB_mem->ida_next;
   }
-  ida_memB = (void *) IDAB_mem->IDA_mem;
 
   return IDAQuadReInit(ida_mem, yQB0);
 }
@@ -2500,7 +2499,7 @@ static int IDAAhermiteGetY(IDAMem IDA_mem, realtype t,
   dt_mem = IDAADJ_mem->dt_mem;
  
   /* Local value of Ns */
-  NS = interpSensi ? Ns : 0;
+  NS = (interpSensi && (yyS != NULL)) ? Ns : 0;
 
   /* Get the index in dt_mem */
   flag = IDAAfindIndex(IDA_mem, t, &indx, &newpoint);
@@ -2870,11 +2869,9 @@ static int IDAApolynomialGetY(IDAMem IDA_mem, realtype t,
   dt_mem = IDAADJ_mem->dt_mem;
  
   /* Local value of Ns */
- 
-  NS = interpSensi ? Ns : 0;
+  NS = (interpSensi && (yyS != NULL)) ? Ns : 0;
 
   /* Get the index in dt_mem */
-
   flag = IDAAfindIndex(IDA_mem, t, &indx, &newpoint);
   if (flag != IDA_SUCCESS) return(flag);
 

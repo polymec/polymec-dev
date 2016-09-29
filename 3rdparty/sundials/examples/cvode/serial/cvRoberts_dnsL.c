@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4074 $
- * $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+ * $Revision: 4878 $
+ * $Date: 2016-08-31 15:17:31 -0700 (Wed, 31 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -93,7 +93,7 @@ static void PrintFinalStats(void *cvode_mem);
 
 /* Private function to check function return values */
 
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 
 /*
@@ -186,8 +186,9 @@ int main()
   /* Print some final statistics */
   PrintFinalStats(cvode_mem);
 
-  /* Free y vector */
+  /* Free y vector and abstol vectors */
   N_VDestroy_Serial(y);
+  N_VDestroy_Serial(abstol);
 
   /* Free integrator memory */
   CVodeFree(&cvode_mem);
@@ -335,7 +336,7 @@ static void PrintFinalStats(void *cvode_mem)
  *            NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

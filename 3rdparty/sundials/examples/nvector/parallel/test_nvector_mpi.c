@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4137 $
- * $Date: 2014-06-15 12:26:15 -0700 (Sun, 15 Jun 2014) $
+ * $Revision: 4790 $
+ * $Date: 2016-06-29 14:47:05 -0700 (Wed, 29 Jun 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): David J. Gardner @ LLNL
  * -----------------------------------------------------------------
@@ -29,6 +29,7 @@
 #include "test_nvector.h"
 
 #include <mpi.h>
+
 
 /* local vector length */
 #define VECLEN 10000
@@ -59,6 +60,10 @@ int main(int argc, char *argv[])
   X = N_VNew_Parallel(comm, local_length, global_length);
   Y = N_VNew_Parallel(comm, local_length, global_length);
   Z = N_VNew_Parallel(comm, local_length, global_length);
+
+  if(N_VGetVectorID(W) == SUNDIALS_NVEC_PARALLEL && myid == 0) {
+    /*printf("Testing parallel (MPI) variant of N_Vector...\n");*/
+  }
 
   /* NVector Test */
   fails += Test_N_VSetArrayPointer(W, local_length, myid);
@@ -104,4 +109,45 @@ int main(int argc, char *argv[])
   
   MPI_Finalize();
   return(0);
+}
+
+/* ----------------------------------------------------------------------
+ * Check vector
+ * --------------------------------------------------------------------*/
+int check_ans(realtype ans, N_Vector X, long int local_length)
+{
+  int      failure = 0;
+  long int i;
+  realtype *Xdata;
+  
+  Xdata = N_VGetArrayPointer(X);
+
+  /* check vector data */
+  for(i=0; i < local_length; i++){
+    failure += FNEQ(Xdata[i], ans);
+  }
+
+  if (failure > ZERO)
+    return(1);
+  else
+    return(0);
+}
+
+booleantype has_data(N_Vector X)
+{
+  realtype *Xdata = N_VGetArrayPointer(X);
+  if (Xdata == NULL)
+    return FALSE;
+  else
+    return TRUE;
+}
+
+void set_element(N_Vector X, long int i, realtype val)
+{
+  NV_Ith_P(X,i) = val;    
+}
+
+realtype get_element(N_Vector X, long int i)
+{
+  return NV_Ith_P(X,i);    
 }

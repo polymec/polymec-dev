@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4517 $
-# $Date: 2015-07-29 16:16:53 -0700 (Wed, 29 Jul 2015) $
+# $Revision: 4958 $
+# $Date: 2016-09-23 14:02:13 -0700 (Fri, 23 Sep 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -38,9 +38,9 @@ PROJECT(sundials C)
 
 SET(PACKAGE_BUGREPORT "woodward6@llnl.gov")
 SET(PACKAGE_NAME "SUNDIALS")
-SET(PACKAGE_STRING "SUNDIALS 2.6.2")
+SET(PACKAGE_STRING "SUNDIALS 2.7.0")
 SET(PACKAGE_TARNAME "sundials")
-SET(PACKAGE_VERSION "2.6.2")
+SET(PACKAGE_VERSION "2.7.0")
 
 # 
 SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -64,29 +64,29 @@ MARK_AS_ADVANCED(CLEAR
 
 # Specify the VERSION and SOVERSION for shared libraries
 
-SET(arkodelib_VERSION "1.0.0")
+SET(arkodelib_VERSION "1.1.0")
 SET(arkodelib_SOVERSION "1")
 
-SET(cvodelib_VERSION "1.0.0")
-SET(cvodelib_SOVERSION "1")
+SET(cvodelib_VERSION "2.9.0")
+SET(cvodelib_SOVERSION "2")
 
-SET(cvodeslib_VERSION "2.0.0")
+SET(cvodeslib_VERSION "2.9.0")
 SET(cvodeslib_SOVERSION "2")
 
-SET(idalib_VERSION "2.0.0")
+SET(idalib_VERSION "2.9.0")
 SET(idalib_SOVERSION "2")
 
-SET(idaslib_VERSION "0.0.0")
-SET(idaslib_SOVERSION "0")
+SET(idaslib_VERSION "1.3.0")
+SET(idaslib_SOVERSION "1")
 
-SET(kinsollib_VERSION "1.0.0")
-SET(kinsollib_SOVERSION "1")
+SET(kinsollib_VERSION "2.9.0")
+SET(kinsollib_SOVERSION "2")
 
 SET(cpodeslib_VERSION "0.0.0")
 SET(cpodeslib_SOVERSION "0")
 
-SET(nveclib_VERSION "0.0.2")
-SET(nveclib_SOVERSION "0")
+SET(nveclib_VERSION "2.7.0")
+SET(nveclib_SOVERSION "2")
 
 # Specify the location of additional CMAKE modules
 
@@ -195,7 +195,7 @@ ELSE(IS_DIRECTORY "${sundials_SOURCE_DIR}/src/kinsol")
   SET(BUILD_KINSOL OFF)
 ENDIF(IS_DIRECTORY "${sundials_SOURCE_DIR}/src/kinsol")
 
-# CPODES is alway OFF for now.  (commented out for Release); ToDo: better way to do this?
+# CPODES is always OFF for now.  (commented out for Release); ToDo: better way to do this?
 #IF(IS_DIRECTORY "${sundials_SOURCE_DIR}/src/cpodes")
 #  OPTION(BUILD_CPODES  "Build the CPODES library"  OFF)
 #ELSE(IS_DIRECTORY "${sundials_SOURCE_DIR}/src/cpodes")
@@ -299,9 +299,10 @@ ENDIF(BUILD_ARKODE OR BUILD_CVODE OR BUILD_IDA OR BUILD_KINSOL)
 IF(BUILD_ARKODE AND EXAMPLES_ENABLE AND FCMIX_ENABLE)
   SHOW_VARIABLE(F90_ENABLE BOOL "Enable Fortran90 ARKode examples" OFF)
 ELSE(BUILD_ARKODE AND EXAMPLES_ENABLE AND FCMIX_ENABLE)
-  # set back to OFF (in case was ON)
-  SET(F90_ENABLE OFF)
-  HIDE_VARIABLE(F90_ENABLE AND FCMIX_ENABLE)
+  # # set back to OFF (in case was ON)
+  # SET(F90_ENABLE OFF)
+  # HIDE_VARIABLE(F90_ENABLE AND FCMIX_ENABLE)
+  HIDE_VARIABLE(F90_ENABLE)
 ENDIF(BUILD_ARKODE AND EXAMPLES_ENABLE AND FCMIX_ENABLE)
 
 # -------------------------------------------------------------
@@ -339,6 +340,7 @@ IF(NOT SUPERLUMT_ENABLE)
   HIDE_VARIABLE(SUPERLUMT_THREAD_TYPE)
   HIDE_VARIABLE(SUPERLUMT_LIBRARY_DIR)
   HIDE_VARIABLE(SUPERLUMT_INCLUDE_DIR)
+  SET (SUPERLUMT_DISABLED TRUE CACHE INTERNAL "GUI - return when first set")
 ENDIF(NOT SUPERLUMT_ENABLE)
 
 # -------------------------------------------------------------
@@ -350,6 +352,7 @@ OPTION(KLU_ENABLE "Enable KLU support" OFF)
 IF(NOT KLU_ENABLE)
   HIDE_VARIABLE(KLU_LIBRARY_DIR)
   HIDE_VARIABLE(KLU_INCLUDE_DIR)
+  SET (KLU_DISABLED TRUE CACHE INTERNAL "GUI - return when first set")
 ENDIF(NOT KLU_ENABLE)
 
 # -------------------------------------------------------------
@@ -366,6 +369,17 @@ IF(NOT MPI_ENABLE)
   HIDE_VARIABLE(MPI_MPICXX)
   HIDE_VARIABLE(MPI_MPIF77)
   HIDE_VARIABLE(MPI_MPIF90)
+ENDIF(NOT MPI_ENABLE)
+
+# -------------------------------------------------------------
+# Enable HYPRE Vector support?
+# -------------------------------------------------------------
+
+OPTION(HYPRE_ENABLE "Enable Hypre support" OFF)
+IF(NOT MPI_ENABLE)
+  HIDE_VARIABLE(HYPRE_INCLUDE_DIR)
+  HIDE_VARIABLE(HYPRE_LIBRARY_DIR)
+  SET (HYPRE_DISABLED TRUE CACHE INTERNAL "GUI - return when first set")
 ENDIF(NOT MPI_ENABLE)
 
 # -------------------------------------------------------------
@@ -399,6 +413,18 @@ IF(PTHREAD_ENABLE)
 ENDIF(PTHREAD_ENABLE)
 
 # -------------------------------------------------------------
+# Enable PETSc support?
+# -------------------------------------------------------------
+
+OPTION(PETSC_ENABLE "Enable PETSC support" OFF)
+
+IF(NOT PETSC_ENABLE)
+  HIDE_VARIABLE(PETSC_LIBRARY_DIR)
+  HIDE_VARIABLE(PETSC_INCLUDE_DIR)
+  SET (PETSC_DISABLED TRUE CACHE INTERNAL "GUI - return when first set")
+ENDIF(NOT PETSC_ENABLE)
+
+# -------------------------------------------------------------
 # Enable examples?
 # -------------------------------------------------------------
 
@@ -422,7 +448,7 @@ IF(EXAMPLES_ENABLE)
   # If examples are to be exported, check where we should install them.
   IF(EXAMPLES_INSTALL)
 
-    SHOW_VARIABLE(EXAMPLES_INSTALL_PATH STRING
+    SHOW_VARIABLE(EXAMPLES_INSTALL_PATH PATH
       "Output directory for installing example files" "${CMAKE_INSTALL_PREFIX}/examples")
     
     IF(NOT EXAMPLES_INSTALL_PATH)
@@ -645,16 +671,17 @@ ENDIF(LAPACK_ENABLE)
 IF(SUPERLUMT_ENABLE)
 
   # get thread type for SUPERLUMT (OpenMP or Pthreads(default))
-  SET(SUPERLUMT_THREAD_TYPE "Pthread" CACHE STRING "OpenMP or Pthread (leave blank for no threading)")
-  SHOW_VARIABLE(SUPERLUMT_THREAD_TYPE STRING "SUPERLUMT threading type: OpenMP or Pthread (blank for no threading)" "${SUPERLUMT_THREAD_TYPE}")
-  SHOW_VARIABLE(SUPERLUMT_INCLUDE_DIR STRING "SUPERLUMT include directory" "${SUPERLUMT_INCLUDE_DIR}")
-  SHOW_VARIABLE(SUPERLUMT_LIBRARY_DIR STRING "SUPERLUMT library directory" "${SUPERLUMT_LIBRARY_DIR}")
+  SET(SUPERLUMT_THREAD_TYPE "Pthread" CACHE STRING "OpenMP or Pthread")
+  SHOW_VARIABLE(SUPERLUMT_THREAD_TYPE STRING "SUPERLUMT threading type: OpenMP or Pthread" "${SUPERLUMT_THREAD_TYPE}")
+  SHOW_VARIABLE(SUPERLUMT_INCLUDE_DIR PATH "SUPERLUMT include directory" "${SUPERLUMT_INCLUDE_DIR}")
+  SHOW_VARIABLE(SUPERLUMT_LIBRARY_DIR PATH "SUPERLUMT library directory" "${SUPERLUMT_LIBRARY_DIR}")
 
   INCLUDE(SundialsSuperLUMT)
 
   IF(SUPERLUMT_FOUND)
-    # sundials_config.h symbol
+    # sundials_config.h symbols
     SET(SUNDIALS_SUPERLUMT TRUE)
+    SET(SUNDIALS_SUPERLUMT_THREAD_TYPE ${SUPERLUMT_THREAD_TYPE})
   ENDIF(SUPERLUMT_FOUND)
 
   IF(SUPERLUMT_LIBRARIES AND NOT SUPERLUMT_FOUND)
@@ -679,9 +706,9 @@ ENDIF(SUPERLUMT_ENABLE)
 
 IF(KLU_ENABLE)
 
-  SHOW_VARIABLE(KLU_INCLUDE_DIR STRING "KLU include directory"
+  SHOW_VARIABLE(KLU_INCLUDE_DIR PATH "KLU include directory"
     "${KLU_INCLUDE_DIR}") 
-  SHOW_VARIABLE(KLU_LIBRARY_DIR STRING
+  SHOW_VARIABLE(KLU_LIBRARY_DIR PATH
     "Klu library directory" "${KLU_LIBRARY_DIR}")
 
   INCLUDE(SundialsKLU)
@@ -694,7 +721,7 @@ IF(KLU_ENABLE)
 
   IF(KLU_LIBRARIES AND NOT KLU_FOUND) 
     PRINT_WARNING("KLU not functional - support will not be provided" 
-      "Double check spelling specified libraries (search is case sensitive)")
+      "Double check spelling of include path and specified libraries (search is case sensitive)")
   ENDIF(KLU_LIBRARIES AND NOT KLU_FOUND)
 
 ENDIF(KLU_ENABLE)
@@ -727,6 +754,65 @@ IF(MPI_ENABLE)
     INCLUDE(SundialsMPIF90)
   ENDIF(MPIC_FOUND AND F90_ENABLE)
 ENDIF(MPI_ENABLE)
+
+#-------------------------------------------------------------
+# Find the Hypre libraries
+#-------------------------------------------------------------
+IF(HYPRE_ENABLE AND NOT MPI_ENABLE)
+    PRINT_WARNING("MPI not enabled - HYPRE support will not be provided" 
+      "Set MPI_ENABLE to ON to use parhyp")
+ENDIF(HYPRE_ENABLE AND NOT MPI_ENABLE)
+
+IF(HYPRE_ENABLE AND MPI_ENABLE)
+  SHOW_VARIABLE(HYPRE_INCLUDE_DIR PATH "HYPRE include directory"
+    "${HYPRE_INCLUDE_DIR}") 
+  SHOW_VARIABLE(HYPRE_LIBRARY_DIR PATH
+    "HYPRE library directory" "${HYPRE_LIBRARY_DIR}")
+
+  INCLUDE(SundialsHypre)
+
+  IF(HYPRE_FOUND) 
+    # sundials_config.h symbol
+    SET(SUNDIALS_HYPRE TRUE)
+    INCLUDE_DIRECTORIES(${HYPRE_INCLUDE_DIR})
+  ENDIF(HYPRE_FOUND)
+
+  IF(HYPRE_LIBRARIES AND NOT HYPRE_FOUND) 
+    PRINT_WARNING("HYPRE not functional - support will not be provided" 
+      "Found hypre library, test code does not work")
+  ENDIF(HYPRE_LIBRARIES AND NOT HYPRE_FOUND)
+  
+ENDIF(HYPRE_ENABLE AND MPI_ENABLE)
+
+# -------------------------------------------------------------
+# Find (and test) the PETSc libraries
+# -------------------------------------------------------------
+IF(PETSC_ENABLE AND NOT MPI_ENABLE)
+    PRINT_WARNING("MPI not enabled - PETSc support will not be provided" 
+      "Set MPI_ENABLE to ON to use PETSc.")
+ENDIF(PETSC_ENABLE AND NOT MPI_ENABLE)
+
+IF(PETSC_ENABLE AND MPI_ENABLE)
+  SHOW_VARIABLE(PETSC_INCLUDE_DIR PATH "PETSc include directory"
+    "${PETSC_INCLUDE_DIR}") 
+  SHOW_VARIABLE(PETSC_LIBRARY_DIR PATH
+    "PETSc library directory" "${PETSC_LIBRARY_DIR}")
+
+  INCLUDE(SundialsPETSc)
+
+  IF(PETSC_FOUND) 
+    # sundials_config.h symbol
+    SET(SUNDIALS_PETSC TRUE)
+    INCLUDE_DIRECTORIES(${PETSC_INCLUDE_DIR})
+  ENDIF(PETSC_FOUND)
+
+  IF(PETSC_LIBRARIES AND NOT PETSC_FOUND) 
+    PRINT_WARNING("PETSC not functional - support will not be provided" 
+      "Double check spelling specified libraries (search is case sensitive)")
+  ENDIF(PETSC_LIBRARIES AND NOT PETSC_FOUND)
+
+ENDIF(PETSC_ENABLE AND MPI_ENABLE)
+
 
 # -------------------------------------------------------------
 # If using MPI with C++, disable C++ extensions (for known wrappers)
@@ -767,13 +853,21 @@ IF(MPIC_FOUND)
   ADD_SUBDIRECTORY(src/nvec_par)
 ENDIF(MPIC_FOUND)
 
+IF(SUNDIALS_HYPRE)
+  ADD_SUBDIRECTORY(src/nvec_parhyp)
+ENDIF(SUNDIALS_HYPRE)
+
 IF(OPENMP_FOUND)
   ADD_SUBDIRECTORY(src/nvec_openmp)	
 ENDIF(OPENMP_FOUND)
 
 IF(PTHREADS_FOUND)
-  ADD_SUBDIRECTORY(src/nvec_pthreads)	
+  ADD_SUBDIRECTORY(src/nvec_pthreads)   
 ENDIF(PTHREADS_FOUND)
+
+IF(PETSC_FOUND)
+  ADD_SUBDIRECTORY(src/nvec_petsc)   
+ENDIF(PETSC_FOUND)
 
 # ARKODE library
 
@@ -888,6 +982,10 @@ IF(EXAMPLES_ENABLE)
       LIST2STRING(SUPERLUMT_LIBRARIES SUPERLUMT_LIBS)
       SET(SUPERLUMT_LIBS "${SUPERLUMT_LINKER_FLAGS} ${SUPERLUMT_LIBS}")
     ENDIF(SUPERLUMT_FOUND)
+    IF(KLU_FOUND)
+      LIST2STRING(KLU_LIBRARIES KLU_LIBS)
+      SET(KLU_LIBS "${KLU_LINKER_FLAGS} ${KLU_LIBS}")
+    ENDIF(KLU_FOUND)
     IF(LAPACK_FOUND)
       LIST2STRING(LAPACK_LIBRARIES BLAS_LAPACK_LIBS)
     ENDIF(LAPACK_FOUND)
@@ -904,6 +1002,9 @@ IF(EXAMPLES_ENABLE)
         SET(MPI_LIB_DIR ".")
         LIST2STRING(MPI_LIBRARIES MPI_LIBS)
       ENDIF(MPI_MPICC)
+      SET(HYPRE_INC_DIR "${HYPRE_INCLUDE_DIR}")
+      SET(HYPRE_LIB_DIR "${HYPRE_LIBRARY_DIR}")
+      SET(HYPRE_LIBS "${HYPRE_LIBRARIES}")
     ENDIF(MPIC_FOUND)
     IF(MPICXX_FOUND)
       IF(MPI_MPICXX)
@@ -963,6 +1064,10 @@ IF(EXAMPLES_ENABLE)
     IF(MPIF90_FOUND)
       ADD_SUBDIRECTORY(examples/arkode/F90_parallel)
     ENDIF(MPIF90_FOUND)
+    IF(HYPRE_ENABLE AND HYPRE_FOUND)
+      ADD_SUBDIRECTORY(examples/arkode/C_parhyp)
+    ENDIF(HYPRE_ENABLE AND HYPRE_FOUND)
+    
   ENDIF(BUILD_ARKODE)
   
   IF(BUILD_CVODE)
@@ -976,6 +1081,12 @@ IF(EXAMPLES_ENABLE)
     IF(MPIF_FOUND)
       ADD_SUBDIRECTORY(examples/cvode/fcmix_parallel)
     ENDIF(MPIF_FOUND)
+    IF(OPENMP_FOUND)
+      ADD_SUBDIRECTORY(examples/cvode/C_openmp)
+    ENDIF(OPENMP_FOUND)
+    IF(HYPRE_ENABLE AND HYPRE_FOUND)
+      ADD_SUBDIRECTORY(examples/cvode/parhyp)
+    ENDIF(HYPRE_ENABLE AND HYPRE_FOUND)
   ENDIF(BUILD_CVODE)
   
   IF(BUILD_CVODES)	
@@ -983,6 +1094,9 @@ IF(EXAMPLES_ENABLE)
     IF(MPIC_FOUND)
       ADD_SUBDIRECTORY(examples/cvodes/parallel)
     ENDIF(MPIC_FOUND)
+    IF(OPENMP_FOUND)
+      ADD_SUBDIRECTORY(examples/cvodes/C_openmp)
+    ENDIF(OPENMP_FOUND)
   ENDIF(BUILD_CVODES)
   
   IF(BUILD_IDA)
@@ -990,15 +1104,21 @@ IF(EXAMPLES_ENABLE)
     IF(FCMIX_ENABLE AND F77_FOUND)
       ADD_SUBDIRECTORY(examples/ida/fcmix_serial)
       IF(OPENMP_FOUND)
-	ADD_SUBDIRECTORY(examples/ida/fcmix_openmp)
+        ADD_SUBDIRECTORY(examples/ida/fcmix_openmp)
       ENDIF(OPENMP_FOUND)
       IF(PTHREADS_FOUND)
 	ADD_SUBDIRECTORY(examples/ida/fcmix_pthreads)
       ENDIF(PTHREADS_FOUND)
     ENDIF(FCMIX_ENABLE AND F77_FOUND)
+    IF(OPENMP_FOUND)
+      ADD_SUBDIRECTORY(examples/ida/C_openmp)
+    ENDIF(OPENMP_FOUND)
     IF(MPIC_FOUND)
       ADD_SUBDIRECTORY(examples/ida/parallel)
     ENDIF(MPIC_FOUND)
+    IF(PETSC_FOUND)
+      ADD_SUBDIRECTORY(examples/ida/petsc)
+    ENDIF(PETSC_FOUND)
     IF(MPIF_FOUND)
       ADD_SUBDIRECTORY(examples/ida/fcmix_parallel)
     ENDIF(MPIF_FOUND)
@@ -1006,6 +1126,9 @@ IF(EXAMPLES_ENABLE)
   
   IF(BUILD_IDAS)	
     ADD_SUBDIRECTORY(examples/idas/serial)
+    IF(OPENMP_FOUND)
+      ADD_SUBDIRECTORY(examples/idas/C_openmp)
+    ENDIF(OPENMP_FOUND)
     IF(MPIC_FOUND)
       ADD_SUBDIRECTORY(examples/idas/parallel)
     ENDIF(MPIC_FOUND)
@@ -1013,6 +1136,9 @@ IF(EXAMPLES_ENABLE)
 
   IF(BUILD_KINSOL)	
     ADD_SUBDIRECTORY(examples/kinsol/serial)
+    IF(OPENMP_FOUND)
+      ADD_SUBDIRECTORY(examples/kinsol/C_openmp) # the only example here need special handling from testrunner (not yet implemented)
+    ENDIF(OPENMP_FOUND)
     IF(FCMIX_ENABLE AND F77_FOUND)
       ADD_SUBDIRECTORY(examples/kinsol/fcmix_serial)
     ENDIF(FCMIX_ENABLE AND F77_FOUND)
@@ -1037,14 +1163,22 @@ IF(EXAMPLES_ENABLE)
   IF(MPIC_FOUND)
       ADD_SUBDIRECTORY(examples/nvector/parallel)
   ENDIF(MPIC_FOUND)
+  
+  IF(SUNDIALS_HYPRE)
+      ADD_SUBDIRECTORY(examples/nvector/parhyp)
+  ENDIF(SUNDIALS_HYPRE)
 
   IF(PTHREADS_FOUND)
       ADD_SUBDIRECTORY(examples/nvector/pthreads)
   ENDIF(PTHREADS_FOUND)
 
   IF(OPENMP_FOUND)
-      ADD_SUBDIRECTORY(examples/nvector/openmp)
+      ADD_SUBDIRECTORY(examples/nvector/C_openmp)
   ENDIF(OPENMP_FOUND)
+  
+  IF(PETSC_FOUND)
+      ADD_SUBDIRECTORY(examples/nvector/petsc)
+  ENDIF(PETSC_FOUND)
   
 ENDIF(EXAMPLES_ENABLE)
 

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4454 $
- * $Date: 2015-03-28 18:06:50 -0700 (Sat, 28 Mar 2015) $
+ * $Revision: 4790 $
+ * $Date: 2016-06-29 14:47:05 -0700 (Wed, 29 Jun 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): David J. Gardner @ LLNL
  * -----------------------------------------------------------------
@@ -71,6 +71,10 @@ int main(int argc, char *argv[])
   Y = N_VNew_Pthreads(veclen, nthreads);
   Z = N_VNew_Pthreads(veclen, nthreads);
 
+  if(N_VGetVectorID(W) == SUNDIALS_NVEC_PTHREADS) {
+    /* printf("Testing Pthreads variant of N_Vector...\n"); */
+  }
+  
   /* NVector Tests */
   fails += Test_N_VSetArrayPointer(W, veclen, 0);
   fails += Test_N_VGetArrayPointer(X, veclen, 0);
@@ -113,3 +117,45 @@ int main(int argc, char *argv[])
 
   return(0);
 }
+
+/* ----------------------------------------------------------------------
+ * Check vector
+ * --------------------------------------------------------------------*/
+int check_ans(realtype ans, N_Vector X, long int local_length)
+{
+  int      failure = 0;
+  long int i;
+  realtype *Xdata;
+  
+  Xdata = N_VGetArrayPointer(X);
+
+  /* check vector data */
+  for(i=0; i < local_length; i++){
+    failure += FNEQ(Xdata[i], ans);
+  }
+
+  if (failure > ZERO)
+    return(1);
+  else
+    return(0);
+}
+
+booleantype has_data(N_Vector X)
+{
+  realtype *Xdata = N_VGetArrayPointer(X);
+  if (Xdata == NULL)
+    return FALSE;
+  else
+    return TRUE;
+}
+
+void set_element(N_Vector X, long int i, realtype val)
+{
+  NV_Ith_PT(X,i) = val;
+}
+ 
+realtype get_element(N_Vector X, long int i)
+{
+  return NV_Ith_PT(X,i);
+}
+

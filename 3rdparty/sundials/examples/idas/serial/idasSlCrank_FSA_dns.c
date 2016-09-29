@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer: Radu Serban and Cosmin Petra @ LLNL
  * -----------------------------------------------------------------
@@ -74,7 +74,7 @@ static int ressc(realtype tres, N_Vector yy, N_Vector yp,
 static int rhsQ(realtype t, N_Vector yy, N_Vector yp, N_Vector qdot, void *user_data);
 
 static int rhsQS(int Ns, realtype t, N_Vector yy, N_Vector yp, 
-                 N_Vector *yyS, N_Vector *ypS, N_Vector rrQ, N_Vector *rhsQS,
+                 N_Vector *yyS, N_Vector *ypS, N_Vector rrQ, N_Vector *rhsvalQS,
                  void *user_data,  N_Vector yytmp, N_Vector yptmp, N_Vector tmpQS);
 
 
@@ -82,7 +82,7 @@ static void setIC(N_Vector yy, N_Vector yp, UserData data);
 static void force(N_Vector yy, realtype *Q, UserData data);
 
 static void PrintFinalStats(void *mem);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 /*
  *--------------------------------------------------------------------
  * Main Program
@@ -399,9 +399,9 @@ static int ressc(realtype tres, N_Vector yy, N_Vector yp, N_Vector rr, void *use
   m2 = data->m2;
   J2 = data->J2;
 
-  yval = NV_DATA_S(yy); 
-  ypval = NV_DATA_S(yp); 
-  rval = NV_DATA_S(rr);
+  yval = N_VGetArrayPointer_Serial(yy); 
+  ypval = N_VGetArrayPointer_Serial(yp); 
+  rval = N_VGetArrayPointer_Serial(rr);
 
   q = yval[0];
   x = yval[1];
@@ -464,7 +464,7 @@ static int rhsQ(realtype t, N_Vector yy, N_Vector yp, N_Vector qdot, void *user_
 }
 
 static int rhsQS(int Ns, realtype t, N_Vector yy, N_Vector yp, 
-                 N_Vector *yyS, N_Vector *ypS, N_Vector rrQ, N_Vector *rhsQS,
+                 N_Vector *yyS, N_Vector *ypS, N_Vector rrQ, N_Vector *rhsvalQS,
                  void *user_data,  N_Vector yytmp, N_Vector yptmp, N_Vector tmpQS)
 {
   realtype v1, v2, v3;
@@ -488,13 +488,13 @@ static int rhsQS(int Ns, realtype t, N_Vector yy, N_Vector yp,
   s2 = Ith(yyS[0],5);
   s3 = Ith(yyS[0],6);
 
-  Ith(rhsQS[0], 1) = J1*v1*s1 + m2*v2*s2 + J2*v3*s3;
+  Ith(rhsvalQS[0], 1) = J1*v1*s1 + m2*v2*s2 + J2*v3*s3;
 
   s1 = Ith(yyS[1],4);
   s2 = Ith(yyS[1],5);
   s3 = Ith(yyS[1],6);
 
-  Ith(rhsQS[1], 1) = J1*v1*s1 + m2*v2*s2 + J2*v3*s3;
+  Ith(rhsvalQS[1], 1) = J1*v1*s1 + m2*v2*s2 + J2*v3*s3;
 
   return(0);
 }
@@ -522,7 +522,7 @@ static void PrintFinalStats(void *mem)
 }
 
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

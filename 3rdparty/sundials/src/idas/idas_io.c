@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4539 $
+ * $Date: 2015-09-16 15:39:33 -0700 (Wed, 16 Sep 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban and Cosmin Petra @ LLNL
  * -----------------------------------------------------------------
@@ -572,6 +572,29 @@ int IDASetMaxNumItersIC(void *ida_mem, int maxnit)
   }
 
   IDA_mem->ida_maxnit = maxnit;
+
+  return(IDA_SUCCESS);
+}
+
+/*-----------------------------------------------------------------*/
+
+int IDASetMaxBacksIC(void *ida_mem, int maxbacks)
+{
+  IDAMem IDA_mem;
+
+  if (ida_mem==NULL) {
+    IDAProcessError(NULL, IDA_MEM_NULL, "IDA", "IDASetMaxBacksIC", MSG_NO_MEM);
+    return(IDA_MEM_NULL);
+  }
+
+  IDA_mem = (IDAMem) ida_mem;
+
+  if (maxbacks <= 0) {
+    IDAProcessError(IDA_mem, IDA_ILL_INPUT, "IDA", "IDASetMaxBacksIC", MSG_IC_BAD_MAXBACKS);
+    return(IDA_ILL_INPUT);
+  }
+
+  IDA_mem->ida_maxbacks = maxbacks;
 
   return(IDA_SUCCESS);
 }

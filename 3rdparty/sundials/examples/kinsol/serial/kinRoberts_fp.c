@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4074 $
- * $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Carol Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -66,7 +66,7 @@
 static int funcRoberts(N_Vector u, N_Vector f, void *user_data);
 static void PrintOutput(N_Vector u);
 static void PrintFinalStats(void *kmem);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -264,7 +264,7 @@ static void PrintFinalStats(void *kmem)
  *             NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

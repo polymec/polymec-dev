@@ -35,12 +35,13 @@
 #include <arkode/arkode.h>            /* prototypes for ARKode fcts., consts. */
 #include <nvector/nvector_serial.h>   /* serial N_Vector types, fcts., macros */
 #include <sundials/sundials_types.h>  /* def. of type 'realtype' */
+#include <sundials/sundials_math.h>   /* def. of SUNRsqrt, etc. */
 
 /* User-supplied Functions Called by the Solver */
 static int f(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 
 /* Private function to check function return values */
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /* Main Program */
 int main()
@@ -74,7 +75,7 @@ int main()
   if (check_flag((void *)arkode_mem, "ARKodeCreate", 0)) return 1;
 
   /* Call ARKodeInit to initialize the integrator memory and specify the
-     hand-side side function in y'=f(t,y), the inital time T0, and
+     right-hand side function in y'=f(t,y), the inital time T0, and
      the initial dependent variable vector y.  Note: since this
      problem is fully explicit, we set f_U to NULL and f_E to f. */
   flag = ARKodeInit(arkode_mem, f, NULL, T0, y);
@@ -142,7 +143,7 @@ int main()
 /* f routine to compute the ODE RHS function f(t,y). */
 static int f(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
-  NV_Ith_S(ydot,0) = (t+1.0)*exp(-NV_Ith_S(y,0));
+  NV_Ith_S(ydot,0) = (t+1.0)*SUNRexp(-NV_Ith_S(y,0));
   return 0;
 }
 
@@ -158,7 +159,7 @@ static int f(realtype t, N_Vector y, N_Vector ydot, void *user_data)
     opt == 2 means function allocates memory so check if returned
              NULL pointer  
 */
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

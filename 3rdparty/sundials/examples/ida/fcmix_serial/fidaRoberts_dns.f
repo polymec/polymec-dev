@@ -1,6 +1,6 @@
 c     ----------------------------------------------------------------
-c     $Revision: 4074 $
-c     $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+c     $Revision: 4885 $
+c     $Date: 2016-09-02 08:29:03 -0700 (Fri, 02 Sep 2016) $
 c     ----------------------------------------------------------------
 c     This simple example problem for FIDA, due to Robertson, is from 
 c     chemical kinetics, and consists of the following three equations:
@@ -117,7 +117,7 @@ c
         if (ier .eq. 2) then
           call fidarootinfo(2, info, ierroot)
           if (ierroot .lt. 0) then
-            write(6,55) ier
+            write(6,55) ierroot
  55         format(///' SUNDIALS_ERROR: FIDAROOTINFO returned IER = ',
      1             i5)
             call fidarootfree

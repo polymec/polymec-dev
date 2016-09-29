@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4868 $
+ * $Date: 2016-08-19 10:16:31 -0700 (Fri, 19 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen and Alan C. Hindmarsh and
  *                Radu Serban @ LLNL
@@ -54,7 +54,7 @@
 
 #include <cvodes/cvodes.h>            /* main CVODES header file */
 #include <cvodes/cvodes_spgmr.h>      /* use CVSPGMR linear */
-#include <nvector/nvector_serial.h>   /* definitions N_Vector, macro NV_DATA_S */
+#include <nvector/nvector_serial.h>   /* definitions N_Vector */
 #include <sundials/sundials_dense.h>  /* use generic DENSE solver for prec. */
 #include <sundials/sundials_types.h>  /* definition of realtype */
 #include <sundials/sundials_math.h>   /* contains macros SUNSQR and EXP */
@@ -108,7 +108,7 @@
    IJKth(vdata,i,j,k) references the element in the vdata array for
    species i at mesh point (j,k), where 1 <= i <= NUM_SPECIES,
    0 <= j <= MX-1, 0 <= k <= MZ-1. The vdata array is obtained via
-   the macro call vdata = NV_DATA_S(v), where v is an N_Vector. 
+   the macro call vdata = N_VGetArrayPointer_Serial(v), where v is an N_Vector. 
    For each mesh point (j,k), the elements for species i and i+1 are
    contiguous within vdata.
 
@@ -157,7 +157,7 @@ static void SetInitialProfiles(N_Vector y, realtype dx, realtype dz);
 static void PrintOutput(void *cvode_mem, realtype t, N_Vector y);
 static void PrintOutputS(N_Vector *uS);
 static void PrintFinalStats(void *cvode_mem, booleantype sensi);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -334,8 +334,8 @@ static int f(realtype t, N_Vector y, N_Vector ydot, void *user_data)
   realtype Q1, Q2, C3, A3, A4, KH, VEL, KV0;
 
   data = (UserData) user_data;
-  ydata = NV_DATA_S(y);
-  dydata = NV_DATA_S(ydot);
+  ydata = N_VGetArrayPointer_Serial(y);
+  dydata = N_VGetArrayPointer_Serial(ydot);
 
   /* Load problem coefficients and parameters */
 
@@ -445,7 +445,7 @@ static int Precond(realtype tn, N_Vector y, N_Vector fy, booleantype jok,
   P = data->P;
   Jbd = data->Jbd;
   pivot = data->pivot;
-  ydata = NV_DATA_S(y);
+  ydata = N_VGetArrayPointer_Serial(y);
 
   /* Load problem coefficients and parameters */
   Q1 = data->p[0];
@@ -544,7 +544,7 @@ static int PSolve(realtype tn, N_Vector y, N_Vector fy,
   data = (UserData) user_data;
   P = data->P;
   pivot = data->pivot;
-  zdata = NV_DATA_S(z);
+  zdata = N_VGetArrayPointer_Serial(z);
 
   N_VScale(ONE, r, z);
 
@@ -712,7 +712,7 @@ static void SetInitialProfiles(N_Vector y, realtype dx, realtype dz)
 
   /* Set pointer to data array in vector y. */
 
-  ydata = NV_DATA_S(y);
+  ydata = N_VGetArrayPointer_Serial(y);
 
   /* Load initial profiles of c1 and c2 into y vector */
 
@@ -741,7 +741,7 @@ static void PrintOutput(void *cvode_mem, realtype t, N_Vector y)
   realtype hu;
   realtype *ydata;
 
-  ydata = NV_DATA_S(y);
+  ydata = N_VGetArrayPointer_Serial(y);
 
   flag = CVodeGetNumSteps(cvode_mem, &nst);
   check_flag(&flag, "CVodeGetNumSteps", 1);
@@ -784,7 +784,7 @@ static void PrintOutputS(N_Vector *uS)
 {
   realtype *sdata;
 
-  sdata = NV_DATA_S(uS[0]);
+  sdata = N_VGetArrayPointer_Serial(uS[0]);
 
   printf("                                ----------------------------------------\n"); 
   printf("                                Sensitivity 1  ");
@@ -804,7 +804,7 @@ static void PrintOutputS(N_Vector *uS)
   printf("%12.4e %12.4e \n", IJKth(sdata,2,0,0), IJKth(sdata,2,MX-1,MZ-1));
 #endif
 
-  sdata = NV_DATA_S(uS[1]);
+  sdata = N_VGetArrayPointer_Serial(uS[1]);
 
   printf("                                ----------------------------------------\n"); 
   printf("                                Sensitivity 2  ");
@@ -903,7 +903,7 @@ static void PrintFinalStats(void *cvode_mem, booleantype sensi)
  *            NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

@@ -71,7 +71,7 @@ int ARKodeSetDefaults(void *arkode_mem)
   ark_mem->ark_hadapt_k1        = AD0_K1;         /* step adaptivity parameter */
   ark_mem->ark_hadapt_k2        = AD0_K2;         /* step adaptivity parameter */
   ark_mem->ark_hadapt_k3        = AD0_K3;         /* step adaptivity parameter */
-  ark_mem->ark_predictor        = 3;              /* max order close, first order far */
+  ark_mem->ark_predictor        = 0;              /* trivial predictor */
   ark_mem->ark_reltol           = 1.e-4;          /* relative tolerance */
   ark_mem->ark_itol             = ARK_SS;         /* scalar-scalar solution tolerances */
   ark_mem->ark_ritol            = ARK_SS;         /* scalar-scalar residual tolerances */
@@ -120,9 +120,12 @@ int ARKodeSetDefaults(void *arkode_mem)
       ARK_A(ark_mem->ark_Ae,i,j) = ZERO;
       ARK_A(ark_mem->ark_Ai,i,j) = ZERO;
     }
-    ark_mem->ark_c[i]   = ZERO;
-    ark_mem->ark_b[i]   = ZERO;
-    ark_mem->ark_b2[i]  = ZERO;
+    ark_mem->ark_ce[i]  = ZERO;
+    ark_mem->ark_ci[i]  = ZERO;
+    ark_mem->ark_be[i]  = ZERO;
+    ark_mem->ark_bi[i]  = ZERO;
+    ark_mem->ark_b2e[i] = ZERO;
+    ark_mem->ark_b2i[i] = ZERO;
   }
   return(ARK_SUCCESS);
 }
@@ -433,9 +436,12 @@ int ARKodeSetOrder(void *arkode_mem, int ord)
       ARK_A(ark_mem->ark_Ae,i,j) = ZERO;
       ARK_A(ark_mem->ark_Ai,i,j) = ZERO;
     }
-    ark_mem->ark_c[i]   = ZERO;
-    ark_mem->ark_b[i]   = ZERO;
-    ark_mem->ark_b2[i]  = ZERO;
+    ark_mem->ark_ce[i]  = ZERO;
+    ark_mem->ark_ci[i]  = ZERO;
+    ark_mem->ark_be[i]  = ZERO;
+    ark_mem->ark_bi[i]  = ZERO;
+    ark_mem->ark_b2e[i] = ZERO;
+    ark_mem->ark_b2i[i] = ZERO;
   }
 
   return(ARK_SUCCESS);
@@ -694,6 +700,11 @@ int ARKodeSetImEx(void *arkode_mem)
 
  Specifies to use a customized Butcher table for the explicit 
  portion of the system (automatically calls ARKodeSetExplicit).
+ 
+ If bembed==NULL, then the method is automatically flagged as a 
+ fixed-step method; a user MUST also call either 
+ ARKodeSetFixedStep or ARKodeSetInitStep to set the desired time 
+ step size.
 ---------------------------------------------------------------*/
 int ARKodeSetERKTable(void *arkode_mem, int s, int q, int p,
 		      realtype *c, realtype *A, realtype *b, 
@@ -714,7 +725,7 @@ int ARKodeSetERKTable(void *arkode_mem, int s, int q, int p,
 		    "ARKodeSetERKTable", "s exceeds ARK_S_MAX");
     return(ARK_ILL_INPUT);
   }
-  if ((c == NULL) || (A == NULL) || (b == NULL) || (bembed == NULL)) {
+  if ((c == NULL) || (A == NULL) || (b == NULL)) {
     arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
 		    "ARKodeSetERKTable", MSGARK_NO_MEM);
     return(ARK_MEM_NULL);
@@ -725,9 +736,9 @@ int ARKodeSetERKTable(void *arkode_mem, int s, int q, int p,
   ark_mem->ark_q = 0;
   ark_mem->ark_p = 0;
   for (i=0; i<ARK_S_MAX; i++) {
-    ark_mem->ark_c[i]  = 0.0;
-    ark_mem->ark_b[i]  = 0.0;
-    ark_mem->ark_b2[i] = 0.0;
+    ark_mem->ark_ce[i]  = 0.0;
+    ark_mem->ark_be[i]  = 0.0;
+    ark_mem->ark_b2e[i] = 0.0;
     for (j=0; j<ARK_S_MAX; j++) 
       ARK_A(ark_mem->ark_Ae,i,j) = 0.0;
   }
@@ -737,12 +748,19 @@ int ARKodeSetERKTable(void *arkode_mem, int s, int q, int p,
   ark_mem->ark_q = q;
   ark_mem->ark_p = p;
   for (i=0; i<s; i++) {
-    ark_mem->ark_c[i]  = c[i];
-    ark_mem->ark_b[i]  = b[i];
-    ark_mem->ark_b2[i] = bembed[i];
+    ark_mem->ark_ce[i]  = c[i];
+    ark_mem->ark_be[i]  = b[i];
     for (j=0; j<s; j++) {
       ARK_A(ark_mem->ark_Ae,i,j) = A[i*s + j];
     }
+  }
+
+  /* set embedding (if applicable), otherwise set as fixed-step method */
+  if (bembed == NULL) {
+    ark_mem->ark_fixedstep = TRUE;
+  } else {
+    for (i=0; i<s; i++) 
+      ark_mem->ark_b2e[i] = bembed[i];
   }
   
   /* set method as purely explicit */
@@ -761,6 +779,11 @@ int ARKodeSetERKTable(void *arkode_mem, int s, int q, int p,
 
  Specifies to use a customized Butcher table for the implicit 
  portion of the system (automatically calls ARKodeSetImplicit).
+
+ If bembed==NULL, then the method is automatically flagged as a 
+ fixed-step method; a user MUST also call either 
+ ARKodeSetFixedStep or ARKodeSetInitStep to set the desired time 
+ step size.
 ---------------------------------------------------------------*/
 int ARKodeSetIRKTable(void *arkode_mem, int s, int q, int p,
 		      realtype *c, realtype *A, realtype *b, 
@@ -781,7 +804,7 @@ int ARKodeSetIRKTable(void *arkode_mem, int s, int q, int p,
 		    "ARKodeSetIRKTable", "s exceeds ARK_S_MAX");
     return(ARK_ILL_INPUT);
   }
-  if ((c == NULL) || (A == NULL) || (b == NULL) || (bembed == NULL)) {
+  if ((c == NULL) || (A == NULL) || (b == NULL)) {
     arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
 		    "ARKodeSetIRKTable", MSGARK_NO_MEM);
     return(ARK_MEM_NULL);
@@ -792,9 +815,9 @@ int ARKodeSetIRKTable(void *arkode_mem, int s, int q, int p,
   ark_mem->ark_q = 0;
   ark_mem->ark_p = 0;
   for (i=0; i<ARK_S_MAX; i++) {
-    ark_mem->ark_c[i]  = 0.0;
-    ark_mem->ark_b[i]  = 0.0;
-    ark_mem->ark_b2[i] = 0.0;
+    ark_mem->ark_ci[i]  = 0.0;
+    ark_mem->ark_bi[i]  = 0.0;
+    ark_mem->ark_b2i[i] = 0.0;
     for (j=0; j<ARK_S_MAX; j++) 
       ARK_A(ark_mem->ark_Ai,i,j) = 0.0;
   }
@@ -804,14 +827,21 @@ int ARKodeSetIRKTable(void *arkode_mem, int s, int q, int p,
   ark_mem->ark_q = q;
   ark_mem->ark_p = p;
   for (i=0; i<s; i++) {
-    ark_mem->ark_c[i]  = c[i];
-    ark_mem->ark_b[i]  = b[i];
-    ark_mem->ark_b2[i] = bembed[i];
+    ark_mem->ark_ci[i]  = c[i];
+    ark_mem->ark_bi[i]  = b[i];
     for (j=0; j<s; j++) {
       ARK_A(ark_mem->ark_Ai,i,j) = A[i*s + j];
     }
   }
 
+  /* set embedding (if applicable), otherwise set as fixed-step method */
+  if (bembed == NULL) {
+    ark_mem->ark_fixedstep = TRUE;
+  } else {
+    for (i=0; i<s; i++) 
+      ark_mem->ark_b2i[i] = bembed[i];
+  }
+  
   /* set method as purely implicit */
   if (ARKodeSetImplicit(arkode_mem) != ARK_SUCCESS) {
     arkProcessError(NULL, ARK_ILL_INPUT, "ARKODE", 
@@ -828,10 +858,17 @@ int ARKodeSetIRKTable(void *arkode_mem, int s, int q, int p,
 
  Specifies to use customized Butcher tables for the ImEx system
  (automatically calls ARKodeSetImEx).
+
+ If either b2e==NULL or b2i==NULL, then the method is 
+ automatically flagged as a fixed-step method; a user MUST also 
+ call either ARKodeSetFixedStep or ARKodeSetInitStep to set the 
+ desired time step size.
 ---------------------------------------------------------------*/
 int ARKodeSetARKTables(void *arkode_mem, int s, int q, int p,
-		       realtype *c, realtype *Ai, realtype *Ae, 
-		       realtype *b, realtype *bembed)
+		       realtype *ci, realtype *ce, 
+		       realtype *Ai, realtype *Ae, 
+		       realtype *bi, realtype *be, 
+		       realtype *b2i, realtype *b2e)
 {
   int i, j;
   ARKodeMem ark_mem;
@@ -848,8 +885,9 @@ int ARKodeSetARKTables(void *arkode_mem, int s, int q, int p,
 		    "ARKodeSetARKTables", "s exceeds ARK_S_MAX");
     return(ARK_ILL_INPUT);
   }
-  if ((c == NULL) || (Ai == NULL) || (Ae == NULL) || 
-      (b == NULL) || (bembed == NULL)) {
+  if ((ci == NULL) || (ce == NULL) || 
+      (Ai == NULL) || (Ae == NULL) || 
+      (bi == NULL) || (be == NULL)) {
     arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
 		    "ARKodeSetARKTables", MSGARK_NO_MEM);
     return(ARK_MEM_NULL);
@@ -860,9 +898,12 @@ int ARKodeSetARKTables(void *arkode_mem, int s, int q, int p,
   ark_mem->ark_q = 0;
   ark_mem->ark_p = 0;
   for (i=0; i<ARK_S_MAX; i++) {
-    ark_mem->ark_c[i]  = 0.0;
-    ark_mem->ark_b[i]  = 0.0;
-    ark_mem->ark_b2[i] = 0.0;
+    ark_mem->ark_ce[i]  = 0.0;
+    ark_mem->ark_ci[i]  = 0.0;
+    ark_mem->ark_be[i]  = 0.0;
+    ark_mem->ark_bi[i]  = 0.0;
+    ark_mem->ark_b2e[i] = 0.0;
+    ark_mem->ark_b2i[i] = 0.0;
     for (j=0; j<ARK_S_MAX; j++) {
       ARK_A(ark_mem->ark_Ai,i,j) = 0.0;
       ARK_A(ark_mem->ark_Ae,i,j) = 0.0;
@@ -874,12 +915,23 @@ int ARKodeSetARKTables(void *arkode_mem, int s, int q, int p,
   ark_mem->ark_q = q;
   ark_mem->ark_p = p;
   for (i=0; i<s; i++) {
-    ark_mem->ark_c[i]  = c[i];
-    ark_mem->ark_b[i]  = b[i];
-    ark_mem->ark_b2[i] = bembed[i];
+    ark_mem->ark_ce[i]  = ce[i];
+    ark_mem->ark_ci[i]  = ci[i];
+    ark_mem->ark_be[i]  = be[i];
+    ark_mem->ark_bi[i]  = bi[i];
     for (j=0; j<s; j++) {
       ARK_A(ark_mem->ark_Ai,i,j) = Ai[i*s + j];
       ARK_A(ark_mem->ark_Ae,i,j) = Ae[i*s + j];
+    }
+  }
+
+  /* set embeddings (if applicable), otherwise set as fixed-step method */
+  if ((b2e == NULL) || (b2i == NULL)) {
+    ark_mem->ark_fixedstep = TRUE;
+  } else {
+    for (i=0; i<s; i++) {
+      ark_mem->ark_b2e[i] = b2e[i];
+      ark_mem->ark_b2i[i] = b2i[i];
     }
   }
 
@@ -913,8 +965,8 @@ int ARKodeSetERKTableNum(void *arkode_mem, int itable)
   }
   ark_mem = (ARKodeMem) arkode_mem;
 
-  /* check that argument specifies an explicit table (0-12) */
-  if (itable<0 || itable>10) {
+  /* check that argument specifies an explicit table */
+  if (itable<MIN_ERK_NUM || itable>MAX_ERK_NUM) {
     arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
 		    "ARKodeSetERKTableNum", 
 		    "Illegal ERK table number");
@@ -922,13 +974,14 @@ int ARKodeSetERKTableNum(void *arkode_mem, int itable)
   }
 
   /* fill in table based on argument */
-  iflag = ARKodeLoadButcherTable(itable, &ark_mem->ark_stages, 
+  iflag = ARKodeLoadButcherTable(itable, 
+				 &ark_mem->ark_stages, 
 				 &ark_mem->ark_q, 
 				 &ark_mem->ark_p, 
 				 ark_mem->ark_Ae, 
-				 ark_mem->ark_b, 
-				 ark_mem->ark_c, 
-				 ark_mem->ark_b2);
+				 ark_mem->ark_be, 
+				 ark_mem->ark_ce, 
+				 ark_mem->ark_b2e);
   if (iflag != ARK_SUCCESS) {
     arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
 		    "ARKodeSetERKTableNum", 
@@ -966,8 +1019,8 @@ int ARKodeSetIRKTableNum(void *arkode_mem, int itable)
   }
   ark_mem = (ARKodeMem) arkode_mem;
 
-  /* check that argument specifies an implicit table (13-27) */
-  if (itable<11) {
+  /* check that argument specifies an implicit table */
+  if (itable<MIN_DIRK_NUM || itable>MAX_DIRK_NUM) {
     arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
 		    "ARKodeSetIRKTableNum", 
 		    "Illegal IRK table number");
@@ -975,13 +1028,14 @@ int ARKodeSetIRKTableNum(void *arkode_mem, int itable)
   }
 
   /* fill in table based on argument */
-  iflag = ARKodeLoadButcherTable(itable, &ark_mem->ark_stages, 
+  iflag = ARKodeLoadButcherTable(itable, 
+				 &ark_mem->ark_stages, 
 				 &ark_mem->ark_q, 
 				 &ark_mem->ark_p, 
 				 ark_mem->ark_Ai, 
-				 ark_mem->ark_b, 
-				 ark_mem->ark_c, 
-				 ark_mem->ark_b2);
+				 ark_mem->ark_bi, 
+				 ark_mem->ark_ci, 
+				 ark_mem->ark_b2i);
   if (iflag != ARK_SUCCESS) {
     arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
 		    "ARKodeSetIRKTableNum", 
@@ -1020,9 +1074,10 @@ int ARKodeSetARKTableNum(void *arkode_mem, int itable, int etable)
 
   /* ensure that tables match */
   iflag = 1;
-  if ((etable == 2) && (itable == 15))  iflag = 0;
-  if ((etable == 4) && (itable == 20))  iflag = 0;
-  if ((etable == 9) && (itable == 22))  iflag = 0;
+  if ( ((etable == ARK324L2SA_ERK_4_2_3) && (itable == ARK324L2SA_DIRK_4_2_3)) ||
+       ((etable == ARK436L2SA_ERK_6_3_4) && (itable == ARK436L2SA_DIRK_6_3_4)) ||
+       ((etable == ARK548L2SA_ERK_8_4_5) && (itable == ARK548L2SA_DIRK_8_4_5)) )
+    iflag = 0;
   if (iflag) {
     arkProcessError(NULL, ARK_ILL_INPUT, "ARKODE", 
 		    "ARKodeSetARKTableNum", 
@@ -1031,20 +1086,22 @@ int ARKodeSetARKTableNum(void *arkode_mem, int itable, int etable)
   }
 
   /* fill in tables based on arguments */
-  iflag = ARKodeLoadButcherTable(itable, &ark_mem->ark_stages, 
+  iflag = ARKodeLoadButcherTable(itable, 
+				 &ark_mem->ark_stages, 
 				 &ark_mem->ark_q, 
 				 &ark_mem->ark_p, 
 				 ark_mem->ark_Ai, 
-				 ark_mem->ark_b, 
-				 ark_mem->ark_c, 
-				 ark_mem->ark_b2);
-  eflag = ARKodeLoadButcherTable(etable, &ark_mem->ark_stages, 
+				 ark_mem->ark_bi, 
+				 ark_mem->ark_ci, 
+				 ark_mem->ark_b2i);
+  eflag = ARKodeLoadButcherTable(etable, 
+				 &ark_mem->ark_stages, 
 				 &ark_mem->ark_q, 
 				 &ark_mem->ark_p, 
 				 ark_mem->ark_Ae, 
-				 ark_mem->ark_b, 
-				 ark_mem->ark_c, 
-				 ark_mem->ark_b2);
+				 ark_mem->ark_be, 
+				 ark_mem->ark_ce, 
+				 ark_mem->ark_b2e);
 
   /* check that requested tables are legal */
   if (iflag != ARK_SUCCESS) {
@@ -2018,6 +2075,35 @@ int ARKodeSetNoInactiveRootWarn(void *arkode_mem)
 }
 
 
+/*---------------------------------------------------------------
+ ARKodeSetPostprocessStepFn:
+
+ Specifies a user-provided step postprocessing function having 
+ type ARKPostProcessStepFn.  A NULL input function disables step
+ postprocessing.
+
+ IF THE SUPPLIED FUNCTION MODIFIES ANY OF THE ACTIVE STATE DATA, 
+ THEN ALL THEORETICAL GUARANTEES OF SOLUTION ACCURACY AND 
+ STABILITY ARE LOST.
+---------------------------------------------------------------*/
+int ARKodeSetPostprocessStepFn(void *arkode_mem, 
+			       ARKPostProcessStepFn ProcessStep)
+{
+  ARKodeMem ark_mem;
+
+  if (arkode_mem==NULL) {
+    arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
+		    "ARKodeSetStabilityFn", MSGARK_NO_MEM);
+    return(ARK_MEM_NULL);
+  }
+  ark_mem = (ARKodeMem) arkode_mem;
+
+  /* NULL argument sets default, otherwise set inputs */
+  ark_mem->ark_ProcessStep = ProcessStep;
+  return(ARK_SUCCESS);
+}
+
+
 /*===============================================================
  ARKODE optional output functions
 ===============================================================*/
@@ -2310,8 +2396,9 @@ int ARKodeGetCurrentTime(void *arkode_mem, realtype *tcur)
 int ARKodeGetCurrentButcherTables(void *arkode_mem, 
 				  int *s, int *q, int *p,
 				  realtype *Ai, realtype *Ae, 
-				  realtype *c, realtype *b,
-				  realtype *b2)
+				  realtype *ci, realtype *ce, 
+				  realtype *bi, realtype *be,
+				  realtype *b2i, realtype *b2e)
 {
   int i,j;
   ARKodeMem ark_mem;
@@ -2330,9 +2417,12 @@ int ARKodeGetCurrentButcherTables(void *arkode_mem,
       ARK_A(Ae,i,j) = ARK_A(ark_mem->ark_Ae,i,j);
       ARK_A(Ai,i,j) = ARK_A(ark_mem->ark_Ai,i,j);
     }
-    c[i]  = ark_mem->ark_c[i];
-    b[i]  = ark_mem->ark_b[i];
-    b2[i] = ark_mem->ark_b2[i];
+    ce[i]  = ark_mem->ark_ce[i];
+    ci[i]  = ark_mem->ark_ci[i];
+    be[i]  = ark_mem->ark_be[i];
+    bi[i]  = ark_mem->ark_bi[i];
+    b2e[i] = ark_mem->ark_b2e[i];
+    b2i[i] = ark_mem->ark_b2i[i];
   }
 
   return(ARK_SUCCESS);
@@ -2810,35 +2900,35 @@ int ARKodeWriteButcher(void *arkode_mem, FILE *fp)
   if (!ark_mem->ark_implicit) {
     fprintf(fp, "  Explicit Butcher table:\n");
     for (i=0; i<ark_mem->ark_stages; i++) {
-      fprintf(fp, "     %.5f",ark_mem->ark_c[i]);
+      fprintf(fp, "     %.5f",ark_mem->ark_ce[i]);
       for (j=0; j<ark_mem->ark_stages; j++) 
 	fprintf(fp, " %.5f",ARK_A(ark_mem->ark_Ae,i,j));
       fprintf(fp,"\n");
     }
     fprintf(fp, "            ");
     for (j=0; j<ark_mem->ark_stages; j++) 
-      fprintf(fp, " %.5f",ark_mem->ark_b[j]);
+      fprintf(fp, " %.5f",ark_mem->ark_be[j]);
     fprintf(fp,"\n");
     fprintf(fp, "            ");
     for (j=0; j<ark_mem->ark_stages; j++) 
-      fprintf(fp, " %.5f",ark_mem->ark_b2[j]);
+      fprintf(fp, " %.5f",ark_mem->ark_b2e[j]);
     fprintf(fp,"\n");
   }
   if (!ark_mem->ark_explicit) {
     fprintf(fp, "  Implicit Butcher table:\n");
     for (i=0; i<ark_mem->ark_stages; i++) {
-      fprintf(fp, "     %.5f",ark_mem->ark_c[i]);
+      fprintf(fp, "     %.5f",ark_mem->ark_ci[i]);
       for (j=0; j<ark_mem->ark_stages; j++) 
 	fprintf(fp, " %.5f",ARK_A(ark_mem->ark_Ai,i,j));
       fprintf(fp,"\n");
     }
     fprintf(fp, "            ");
     for (j=0; j<ark_mem->ark_stages; j++) 
-      fprintf(fp, " %.5f",ark_mem->ark_b[j]);
+      fprintf(fp, " %.5f",ark_mem->ark_bi[j]);
     fprintf(fp,"\n");
     fprintf(fp, "            ");
     for (j=0; j<ark_mem->ark_stages; j++) 
-      fprintf(fp, " %.5f",ark_mem->ark_b2[j]);
+      fprintf(fp, " %.5f",ark_mem->ark_b2i[j]);
     fprintf(fp,"\n");
   }
   fprintf(fp, "\n");

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh and
  *                Radu Serban @ LLNL
@@ -68,7 +68,7 @@
    to the underlying 1-dimensional storage. 
    IJth(vdata,i,j) references the element in the vdata array for
    u at mesh point (i,j), where 1 <= i <= MX, 1 <= j <= MY.
-   The vdata array is obtained via the macro call vdata = NV_DATA_S(v),
+   The vdata array is obtained via the macro call vdata = N_VGetArrayPointer_Serial(v),
    where v is an N_Vector. 
    The variables are ordered by the y index j, then by the x index i. */
 
@@ -89,7 +89,7 @@ static void PrintFinalStats(void *cvode_mem);
 
 /* Private function to check function return values */
 
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /* Functions Called by the Solver */
 
@@ -201,8 +201,8 @@ static int f(realtype t, N_Vector u,N_Vector udot, void *user_data)
   int i, j;
   UserData data;
 
-  udata = NV_DATA_S(u);
-  dudata = NV_DATA_S(udot);
+  udata = N_VGetArrayPointer_Serial(u);
+  dudata = N_VGetArrayPointer_Serial(udot);
 
   /* Extract needed constants from data */
 
@@ -302,7 +302,7 @@ static void SetIC(N_Vector u, UserData data)
 
   /* Set pointer to data array in vector u. */
 
-  udata = NV_DATA_S(u);
+  udata = N_VGetArrayPointer_Serial(u);
 
   /* Load initial profile into u vector */
   
@@ -393,7 +393,7 @@ static void PrintFinalStats(void *cvode_mem)
      opt == 2 means function allocates memory so check if returned
               NULL pointer */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

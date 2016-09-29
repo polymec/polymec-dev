@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4075 $
- * $Date: 2014-04-24 10:46:58 -0700 (Thu, 24 Apr 2014) $
+ * $Revision: 4749 $
+ * $Date: 2016-04-23 18:42:38 -0700 (Sat, 23 Apr 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -51,7 +51,7 @@ extern "C" {
 typedef struct IDASlsMemRec {
 
   IDASlsSparseJacFn s_jaceval; /* user Jacobian evaluation routine 
-				  to be called */
+                                  to be called */
   void *s_jacdata;           /* J_data is passed to djac or bjac */
 
   long int s_nje;           /* nje = no. of calls to jac */
@@ -59,8 +59,10 @@ typedef struct IDASlsMemRec {
   long int s_last_flag;     /* last error return flag */
 
   int s_first_factorize;    /* flag telling whether the first 
-			       factorization needs to happen */
+                               factorization needs to happen */
   SlsMat s_JacMat;          /* J = dF/dy + cj*dF/dy' */
+  
+  int sparsetype;           /* matrix type: compressed sparse column or row */
 
   void *s_solver_data;      /* structure for solver-specific data */
   

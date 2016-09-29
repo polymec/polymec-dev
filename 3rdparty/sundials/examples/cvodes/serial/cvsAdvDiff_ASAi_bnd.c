@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -110,7 +110,7 @@ static int JacB(long int NB, long int muB, long int mlB,
 
 static void SetIC(N_Vector u, UserData data);
 static void PrintOutput(N_Vector uB, UserData data);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -266,8 +266,8 @@ static int f(realtype t, N_Vector u, N_Vector udot, void *user_data)
   int i, j;
   UserData data;
 
-  udata = NV_DATA_S(u);
-  dudata = NV_DATA_S(udot);
+  udata = N_VGetArrayPointer_Serial(u);
+  dudata = N_VGetArrayPointer_Serial(udot);
 
   /* Extract needed constants from data */
 
@@ -362,8 +362,8 @@ static int fB(realtype tB, N_Vector u, N_Vector uB, N_Vector uBdot,
   realtype hdiffB, hadvB, vdiffB;
   int i, j;
 
-  uBdata = NV_DATA_S(uB);
-  duBdata = NV_DATA_S(uBdot);
+  uBdata = N_VGetArrayPointer_Serial(uB);
+  duBdata = N_VGetArrayPointer_Serial(uBdot);
 
   /* Extract needed constants from data */
 
@@ -460,7 +460,7 @@ static void SetIC(N_Vector u, UserData data)
 
   /* Set pointer to data array in vector u. */
 
-  udata = NV_DATA_S(u);
+  udata = N_VGetArrayPointer_Serial(u);
 
   /* Load initial profile into u vector */
 
@@ -488,7 +488,7 @@ static void PrintOutput(N_Vector uB, UserData data)
   dx = data->dx;
   dy = data->dy;
 
-  uBdata = NV_DATA_S(uB);
+  uBdata = N_VGetArrayPointer_Serial(uB);
 
   uBmax = ZERO;
   for(j=1; j<= MY; j++) {
@@ -531,7 +531,7 @@ static void PrintOutput(N_Vector uB, UserData data)
  *             NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

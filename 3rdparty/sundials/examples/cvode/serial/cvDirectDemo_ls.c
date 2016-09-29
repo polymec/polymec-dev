@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4314 $
- * $Date: 2015-01-07 15:46:45 -0800 (Wed, 07 Jan 2015) $
+ * $Revision: 4868 $
+ * $Date: 2016-08-19 10:16:31 -0700 (Fri, 19 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh and
  *                Radu Serban @ LLNL
@@ -30,22 +30,23 @@
  * called for each of the remaining seven runs.
  *
  * Notes: This program demonstrates the usage of the sequential
- * macros NV_Ith_S, NV_DATA_S, DENSE_ELEM, BAND_COL, and
+ * macros NV_Ith_S, DENSE_ELEM, BAND_COL, and
  * BAND_COL_ELEM. The NV_Ith_S macro is used to reference the
  * components of an N_Vector. It works for any size N=NEQ, but
  * due to efficiency concerns it should only by used when the
  * problem size is small. The Problem 1 right hand side and
- * Jacobian functions f1 and Jac1 both use NV_Ith_S. The NV_DATA_S
- * macro gives the user access to the memory used for the component
- * storage of an N_Vector. In the sequential case, the user may
- * assume that this is one contiguous array of reals. The NV_DATA_S
- * macro gives a more efficient means (than the NV_Ith_S macro) to
+ * Jacobian functions f1 and Jac1 both use NV_Ith_S. The 
+ * N_VGetArrayPointer_Serial function gives the user access to the 
+ * memory used for the component storage of an N_Vector. In the 
+ * sequential case, the user may assume that this is one contiguous 
+ * array of reals. The N_VGetArrayPointer_Serial function
+ * gives a more efficient means (than the NV_Ith_S macro) to
  * access the components of an N_Vector and should be used when the
  * problem size is large. The Problem 2 right hand side function f2
- * uses the NV_DATA_S macro. The DENSE_ELEM macro used in Jac1
- * gives access to an element of a dense matrix of type DlsMat.
- * It should be used only when the problem size is small (the size
- * of a DlsMat is NEQ x NEQ) due to efficiency concerns. For
+ * uses the N_VGetArrayPointer_Serial function. The DENSE_ELEM macro 
+ * used in Jac1 gives access to an element of a dense matrix of type 
+ * DlsMat. It should be used only when the problem size is small (the 
+ * size of a DlsMat is NEQ x NEQ) due to efficiency concerns. For
  * larger problem sizes, the macro DENSE_COL can be used in order
  * to work directly with a column of a DlsMat. The BAND_COL and
  * BAND_COL_ELEM allow efficient columnwise access to the elements
@@ -137,7 +138,7 @@ static int Jac2(long int N, long int mu, long int ml,
 
 /* Private function to check function return values */
 
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /* Implementation */
 
@@ -516,8 +517,8 @@ static int f2(realtype t, N_Vector y, N_Vector ydot, void *user_data)
   long int i, j, k;
   realtype d, *ydata, *dydata;
   
-  ydata = NV_DATA_S(y);
-  dydata = NV_DATA_S(ydot);
+  ydata = N_VGetArrayPointer_Serial(y);
+  dydata = N_VGetArrayPointer_Serial(ydot);
 
   /*
      Excluding boundaries, 
@@ -583,7 +584,7 @@ static realtype MaxError(N_Vector y, realtype t)
   
   if (t == ZERO) return(ZERO);
 
-  ydata = NV_DATA_S(y);
+  ydata = N_VGetArrayPointer_Serial(y);
   if (t <= THIRTY) ex = SUNRexp(-TWO*t);
   
   for (j = 0; j < P2_MESHY; j++) {
@@ -760,7 +761,7 @@ static void PrintErrInfo(int nerr)
      opt == 2 means function allocates memory so check if returned
               NULL pointer */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

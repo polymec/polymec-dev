@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4096 $
-# $Date: 2014-05-02 14:49:50 -0700 (Fri, 02 May 2014) $
+# $Revision: 4957 $
+# $Date: 2016-09-23 12:21:47 -0700 (Fri, 23 Sep 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -24,6 +24,14 @@ SET(FCVODE_examples
   fcvDiurnal_kry_bp
   fcvDiurnal_kry
   fcvRoberts_dns
+  )
+
+SET(FCVODE_examples_KLU
+  fcvRoberts_klu
+  )
+
+SET(FCVODE_examples_SUPERLUMT
+  fcvRoberts_sps
   )
 
 # Add variable fcvode_bl_examples with the names of the serial FCVODE examples
@@ -65,6 +73,10 @@ IF(SUPERLUMT_FOUND)
   LIST(APPEND SUNDIALS_LIBS ${SUPERLUMT_LIBRARIES})
 ENDIF(SUPERLUMT_FOUND)
 
+IF(HYPRE_FOUND)
+  LIST(APPEND SUNDIALS_LIBS ${HYPRE_LIBRARIES})
+ENDIF(HYPRE_FOUND)
+
 # Add the build and install targets for each FCVODE example
 
 FOREACH(example ${FCVODE_examples})
@@ -91,6 +103,34 @@ IF(LAPACK_FOUND)
   ENDFOREACH(example ${FCVODE_examples_BL})
 ENDIF(LAPACK_FOUND)
 
+# If KLU support is enabled, add the build and install targets for
+# the examples using KLU
+IF(KLU_FOUND)
+  FOREACH(example ${FCVODE_examples_KLU})
+    ADD_EXECUTABLE(${example} ${example}.f)
+    SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
+    SUNDIALS_ADD_TEST(${example} ${example})
+    TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
+    IF(EXAMPLES_INSTALL)
+      INSTALL(FILES ${example}.f ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/cvode/fcmix_serial)
+    ENDIF(EXAMPLES_INSTALL)
+  ENDFOREACH(example ${FCVODE_examples_KLU})
+ENDIF(KLU_FOUND)
+
+# If SUPERLUMT support is enabled, add the build and install targets for
+# the examples using SUPERLUMT
+IF(SUPERLUMT_FOUND)
+  FOREACH(example ${FCVODE_examples_SUPERLUMT})
+    ADD_EXECUTABLE(${example} ${example}.f)
+    SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
+    SUNDIALS_ADD_TEST(${example} ${example})
+    TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
+    IF(EXAMPLES_INSTALL)
+      INSTALL(FILES ${example}.f ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/cvode/fcmix_serial)
+    ENDIF(EXAMPLES_INSTALL)
+  ENDFOREACH(example ${FCVODE_examples_SUPERLUMT})
+ENDIF(SUPERLUMT_FOUND)
+
 IF(EXAMPLES_INSTALL)
 
   # Install the README file
@@ -106,7 +146,15 @@ IF(EXAMPLES_INSTALL)
   ELSE(LAPACK_FOUND)
     SET(EXAMPLES_BL "")
   ENDIF(LAPACK_FOUND)
-
+  
+  IF(KLU_FOUND)
+    LIST2STRING(FCVODE_examples_KLU EXAMPLES)
+  ENDIF(KLU_FOUND)
+  
+  IF(SUPERLUMT_FOUND)
+    LIST2STRING(FCVODE_examples_SUPERLUMT EXAMPLES)
+  ENDIF(SUPERLUMT_FOUND)
+  
   # Regardless of the platform we're on, we will generate and install 
   # CMakeLists.txt file for building the examples. This file  can then 
   # be used as a template for the user's own programs.

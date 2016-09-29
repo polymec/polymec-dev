@@ -40,7 +40,7 @@ static int ARKSptfqmrSetup(ARKodeMem ark_mem, int convfail, N_Vector ypred,
 			   N_Vector vtemp2, N_Vector vtemp3);
 static int ARKSptfqmrSolve(ARKodeMem ark_mem, N_Vector b, N_Vector weight,
 			   N_Vector ynow, N_Vector fnow);
-static void ARKSptfqmrFree(ARKodeMem ark_mem);
+static int ARKSptfqmrFree(ARKodeMem ark_mem);
 
 /* ARKSPTFQMR minit, msetup, msolve, and mfree routines */
 static int ARKMassSptfqmrInit(ARKodeMem ark_mem);
@@ -48,7 +48,7 @@ static int ARKMassSptfqmrSetup(ARKodeMem ark_mem, N_Vector vtemp1,
 			       N_Vector vtemp2, N_Vector vtemp3);
 static int ARKMassSptfqmrSolve(ARKodeMem ark_mem, N_Vector b, 
 			       N_Vector weight);
-static void ARKMassSptfqmrFree(ARKodeMem ark_mem);
+static int ARKMassSptfqmrFree(ARKodeMem ark_mem);
 
 
 /*---------------------------------------------------------------
@@ -105,7 +105,7 @@ int ARKSptfqmr(void *arkode_mem, int pretype, int maxl)
   arkspils_mem = (ARKSpilsMem) malloc(sizeof(struct ARKSpilsMemRec));
   if (arkspils_mem == NULL) {
     arkProcessError(ark_mem, ARKSPILS_MEM_FAIL, "ARKSPTFQMR", 
-		    "ARKSptfqmr", MSGS_MEM_FAIL);
+                    "ARKSptfqmr", MSGS_MEM_FAIL);
     return(ARKSPILS_MEM_FAIL);
   }
 
@@ -128,10 +128,7 @@ int ARKSptfqmr(void *arkode_mem, int pretype, int maxl)
   arkspils_mem->s_P_data = ark_mem->ark_user_data;
 
   /* Initialize counters */
-  arkspils_mem->s_npe = arkspils_mem->s_nli = 0;
-  arkspils_mem->s_nps = arkspils_mem->s_ncfl = 0;
-  arkspils_mem->s_nstlpre = arkspils_mem->s_njtimes = 0;
-  arkspils_mem->s_nfes = 0;
+  arkSpilsInitializeCounters(arkspils_mem);
 
   /* Set default values for the rest of the Sptfqmr parameters */
   arkspils_mem->s_eplifac = ARKSPILS_EPLIN;
@@ -142,7 +139,7 @@ int ARKSptfqmr(void *arkode_mem, int pretype, int maxl)
   if ((pretype != PREC_NONE) && (pretype != PREC_LEFT) &&
       (pretype != PREC_RIGHT) && (pretype != PREC_BOTH)) {
     arkProcessError(ark_mem, ARKSPILS_ILL_INPUT, "ARKSPTFQMR", 
-		    "ARKSptfqmr", MSGS_BAD_PRETYPE);
+                    "ARKSptfqmr", MSGS_BAD_PRETYPE);
     free(arkspils_mem); arkspils_mem = NULL;
     return(ARKSPILS_ILL_INPUT);
   }
@@ -208,16 +205,13 @@ static int ARKSptfqmrInit(ARKodeMem ark_mem)
   sptfqmr_mem = (SptfqmrMem) arkspils_mem->s_spils_mem;
 
   /* Initialize counters */
-  arkspils_mem->s_npe = arkspils_mem->s_nli = 0;
-  arkspils_mem->s_nps = arkspils_mem->s_ncfl = 0;
-  arkspils_mem->s_nstlpre = arkspils_mem->s_njtimes = 0;
-  arkspils_mem->s_nfes = 0;
+  arkSpilsInitializeCounters(arkspils_mem);
 
   /* Check for legal combination pretype - psolve */
   if ((arkspils_mem->s_pretype != PREC_NONE) && 
       (arkspils_mem->s_psolve == NULL)) {
     arkProcessError(ark_mem, -1, "ARKSPTFQMR", "ARKSptfqmrInit", 
-		    MSGS_PSOLVE_REQ);
+                    MSGS_PSOLVE_REQ);
     arkspils_mem->s_last_flag = ARKSPILS_ILL_INPUT;
     return(-1);
   }
@@ -334,12 +328,10 @@ static int ARKSptfqmrSolve(ARKodeMem ark_mem, N_Vector b,
   int nli_inc, nps_inc, retval;
   
   arkspils_mem = (ARKSpilsMem) ark_mem->ark_lmem;
-
   sptfqmr_mem = (SptfqmrMem) arkspils_mem->s_spils_mem;
 
   /* Test norm(b); if small, return x = 0 */
-  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_eLTE; 
-
+  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_eRNrm; 
   bnorm = N_VWrmsNorm(b, weight);
   if (bnorm <= arkspils_mem->s_deltar) {
     if (ark_mem->ark_mnewt > 0) N_VConst(ZERO, b); 
@@ -353,7 +345,6 @@ static int ARKSptfqmrSolve(ARKodeMem ark_mem, N_Vector b,
   /* Set inputs delta and initial guess x = 0 to SptfqmrSolve */  
   arkspils_mem->s_delta = arkspils_mem->s_deltar * arkspils_mem->s_sqrtN;
   N_VConst(ZERO, arkspils_mem->s_x);
-  /* N_VConst(ark_mem->ark_uround, arkspils_mem->s_x); */
   
   /* Call SptfqmrSolve and copy x to b */
   retval = SptfqmrSolve(sptfqmr_mem, ark_mem, arkspils_mem->s_x, b, 
@@ -419,7 +410,7 @@ static int ARKSptfqmrSolve(ARKodeMem ark_mem, N_Vector b,
 
  This routine frees memory specific to the Sptfqmr linear solver.
 ---------------------------------------------------------------*/
-static void ARKSptfqmrFree(ARKodeMem ark_mem)
+static int ARKSptfqmrFree(ARKodeMem ark_mem)
 {
   ARKSpilsMem arkspils_mem;
   SptfqmrMem sptfqmr_mem;
@@ -437,7 +428,7 @@ static void ARKSptfqmrFree(ARKodeMem ark_mem)
   free(arkspils_mem);
   ark_mem->ark_lmem = NULL;
 
-  return;
+  return(0);
 }
 
 
@@ -684,7 +675,7 @@ static int ARKMassSptfqmrSolve(ARKodeMem ark_mem, N_Vector b,
   sptfqmr_mem = (SptfqmrMem) arkspils_mem->s_spils_mem;
 
   /* Set inputs delta and initial guess x = 0 to SptfqmrSolve */  
-  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_eLTE; 
+  arkspils_mem->s_deltar = arkspils_mem->s_eplifac * ark_mem->ark_nlscoef; 
   arkspils_mem->s_delta  = arkspils_mem->s_deltar * arkspils_mem->s_sqrtN;
   N_VConst(ZERO, arkspils_mem->s_x);
   
@@ -749,7 +740,7 @@ static int ARKMassSptfqmrSolve(ARKodeMem ark_mem, N_Vector b,
 
  This routine frees memory specific to the Sptfqmr linear solver.
 ---------------------------------------------------------------*/
-static void ARKMassSptfqmrFree(ARKodeMem ark_mem)
+static int ARKMassSptfqmrFree(ARKodeMem ark_mem)
 {
   ARKSpilsMassMem arkspils_mem;
   SptfqmrMem sptfqmr_mem;
@@ -766,7 +757,7 @@ static void ARKMassSptfqmrFree(ARKodeMem ark_mem)
   free(arkspils_mem);
   ark_mem->ark_mass_mem = NULL;
 
-  return;
+  return(0);
 }
 
 

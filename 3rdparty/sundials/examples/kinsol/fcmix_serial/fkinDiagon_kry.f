@@ -1,7 +1,7 @@
       program fkinDiagon_kry
 c     ----------------------------------------------------------------
-c     $Revision: 4074 $
-c     $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+c     $Revision: 4881 $
+c     $Date: 2016-09-01 15:31:14 -0700 (Thu, 01 Sep 2016) $
 c     ----------------------------------------------------------------
 c     Programmer(s): Allan Taylor, Alan Hindmarsh and
 c                    Radu Serban @ LLNL  
@@ -56,10 +56,10 @@ c * * * * * * * * * * * * * * * * * * * * * *
          constr(i) = 0.0d0
   20  continue
 
-      call fkinmalloc(iout, rout, ier)
+      call fkincreate(ier)
       if (ier .ne. 0) then
          write(6,1230) ier
- 1230    format('SUNDIALS_ERROR: FKINMALLOC returned IER = ', i4)
+ 1230    format('SUNDIALS_ERROR: FKINCREATE returned IER = ', i4)
          stop
       endif
 
@@ -91,6 +91,13 @@ c * * * * * * * * * * * * * * * * * * * * * *
          write(6,1233) ier
  1233    format('SUNDIALS_ERROR: FKINSETVIN returned IER = ', i4)
          call fkinfree
+         stop
+      endif
+
+      call fkininit(iout, rout, ier)
+      if (ier .ne. 0) then
+         write(6,1234) ier
+ 1234    format('SUNDIALS_ERROR: FKININIT returned IER = ', i4)
          stop
       endif
 

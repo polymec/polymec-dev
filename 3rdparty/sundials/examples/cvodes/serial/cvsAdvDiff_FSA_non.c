@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4956 $
+ * $Date: 2016-09-23 11:15:59 -0700 (Fri, 23 Sep 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh, George D. Byrne,
  *              and Radu Serban @ LLNL
@@ -91,7 +91,7 @@ static void PrintOutput(void *cvode_mem, realtype t, N_Vector u);
 static void PrintOutputS(N_Vector *uS);
 static void PrintFinalStats(void *cvode_mem, booleantype sensi);
 
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -231,6 +231,7 @@ int main(int argc, char *argv[])
     free(plist);
     free(pbar);
   }
+  free(data->p);
   free(data);
   CVodeFree(&cvode_mem);
 
@@ -255,8 +256,8 @@ static int f(realtype t, N_Vector u, N_Vector udot, void *user_data)
   int i;
   UserData data;
 
-  udata = NV_DATA_S(u);
-  dudata = NV_DATA_S(udot);
+  udata = N_VGetArrayPointer_Serial(u);
+  dudata = N_VGetArrayPointer_Serial(udot);
 
   /* Extract needed problem constants from data */
   data = (UserData) user_data;
@@ -357,7 +358,7 @@ static void SetIC(N_Vector u, realtype dx)
   realtype *udata;
 
   /* Set pointer to data array and get local length of u. */
-  udata = NV_DATA_S(u);
+  udata = N_VGetArrayPointer_Serial(u);
 
   /* Load initial profile into u vector */
   for (i=0; i<NEQ; i++) {
@@ -492,7 +493,7 @@ static void PrintFinalStats(void *cvode_mem, booleantype sensi)
  *            NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

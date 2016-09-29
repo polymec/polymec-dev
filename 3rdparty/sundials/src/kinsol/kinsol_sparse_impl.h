@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4357 $
- * $Date: 2015-02-09 13:22:31 -0800 (Mon, 09 Feb 2015) $
+ * $Revision: 4558 $
+ * $Date: 2015-10-05 09:04:16 -0700 (Mon, 05 Oct 2015) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -55,6 +55,8 @@ typedef struct KINSlsMemRec {
   int s_first_factorize;    /* flag telling whether the first 
 			       factorization needs to happen */
   SlsMat s_JacMat;          /* J = dF/du */
+
+  int sparsetype;           /* matrix type: compressed sparse column or row */
 
   void *s_solver_data;      /* structure for solver-specific data */
   

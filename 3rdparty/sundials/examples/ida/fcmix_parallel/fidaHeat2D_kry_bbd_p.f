@@ -1,6 +1,6 @@
 c     ----------------------------------------------------------------
-c     $Revision: 4074 $
-c     $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+c     $Revision: 4830 $
+c     $Date: 2016-07-27 17:50:35 -0700 (Wed, 27 Jul 2016) $
 c     ----------------------------------------------------------------
 c     Example problem for FIDA: 2D heat equation, parallel, GMRES,
 c     IDABBDPRE.
@@ -47,8 +47,8 @@ c
 c local variables
 c
 c The following declaration specification should match C type long int.
-      integer*8 mudq, mldq, mukeep, mlkeep, iout(25), ipar
-      double precision rout(10), rpar
+      integer*8 mudq, mldq, mukeep, mlkeep, iout(25), ipar(1)
+      double precision rout(10), rpar(1)
       integer nout, ier
       parameter (nout = 11)
       integer npes, inopt, maxl, gstype, maxrs, itask, iatol

@@ -47,6 +47,7 @@
 #include <nvector/nvector_serial.h>   /* serial N_Vector types, fcts., macros */
 #include <arkode/arkode_pcg.h>        /* prototype for ARKPcg solver */
 #include <sundials/sundials_types.h>  /* def. of type 'realtype' */
+#include <sundials/sundials_math.h>   /* def. of SUNRsqrt, etc. */
 
 /* user data structure */
 typedef struct {
@@ -61,7 +62,7 @@ static int Jac(N_Vector v, N_Vector Jv, realtype t, N_Vector y,
             N_Vector fy, void *user_data, N_Vector tmp);
 
 /* Private function to check function return values */
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /* Main Program */
 int main() {
@@ -106,7 +107,7 @@ int main() {
   if (check_flag((void *) arkode_mem, "ARKodeCreate", 0)) return 1;
 
   /* Call ARKodeInit to initialize the integrator memory and specify the
-     hand-side side function in y'=f(t,y), the inital time T0, and
+     right-hand side function in y'=f(t,y), the inital time T0, and
      the initial dependent variable vector y.  Note: since this
      problem is fully implicit, we set f_E to NULL and f_I to f. */
   flag = ARKodeInit(arkode_mem, NULL, f, T0, y);
@@ -117,6 +118,8 @@ int main() {
   if (check_flag(&flag, "ARKodeSetUserData", 1)) return 1;
   flag = ARKodeSetMaxNumSteps(arkode_mem, 10000);         /* Increase max num steps  */
   if (check_flag(&flag, "ARKodeSetMaxNumSteps", 1)) return 1;
+  flag = ARKodeSetPredictorMethod(arkode_mem, 1);         /* Specify maximum-order predictor */
+  if (check_flag(&flag, "ARKodeSetPredictorMethod", 1)) return 1;
   flag = ARKodeSStolerances(arkode_mem, rtol, atol);      /* Specify tolerances */
   if (check_flag(&flag, "ARKodeSStolerances", 1)) return 1;
 
@@ -150,12 +153,12 @@ int main() {
   tout = T0+dTout;
   printf("        t      ||u||_rms\n");
   printf("   -------------------------\n");
-  printf("  %10.6f  %10.6f\n", t, sqrt(N_VDotProd(y,y)/N));
+  printf("  %10.6f  %10.6f\n", t, SUNRsqrt(N_VDotProd(y,y)/N));
   for (iout=0; iout<Nt; iout++) {
 
     flag = ARKode(arkode_mem, tout, y, &t, ARK_NORMAL);         /* call integrator */
     if (check_flag(&flag, "ARKode", 1)) break;
-    printf("  %10.6f  %10.6f\n", t, sqrt(N_VDotProd(y,y)/N));   /* print solution stats */
+    printf("  %10.6f  %10.6f\n", t, SUNRsqrt(N_VDotProd(y,y)/N));   /* print solution stats */
     if (flag >= 0) {                                            /* successful solve: update output time */
       tout += dTout;
       tout = (tout > Tf) ? Tf : tout;
@@ -286,7 +289,7 @@ static int Jac(N_Vector v, N_Vector Jv, realtype t, N_Vector y,
     opt == 2 means function allocates memory so check if returned
              NULL pointer  
 */
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

@@ -47,6 +47,7 @@
 #include <nvector/nvector_serial.h>   /* serial N_Vector types, fcts., macros */
 #include <arkode/arkode_pcg.h>        /* prototype for ARKPcg solver */
 #include <sundials/sundials_types.h>  /* def. of type 'realtype' */
+#include <sundials/sundials_math.h>   /* def. of SUNRsqrt, etc. */
 
 /* user data structure */
 typedef struct {
@@ -65,7 +66,7 @@ static int Jac(N_Vector v, N_Vector Jv, realtype t, N_Vector y,
 realtype * adapt_mesh(N_Vector y, long int *Nnew, UserData udata);
 static int project(long int Nold, realtype *xold, N_Vector yold, 
 		   long int Nnew, realtype *xnew, N_Vector ynew);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /* Main Program */
 int main() {
@@ -163,7 +164,7 @@ int main() {
   printf("  iout          dt_old                 dt_new               ||u||_rms       N   NNI  NLI\n");
   printf(" ----------------------------------------------------------------------------------------\n");
   printf(" %4i  %19.15e  %19.15e  %19.15e  %li   %2i  %3i\n", 
-	 iout, olddt, newdt, sqrt(N_VDotProd(y,y)/udata->N), udata->N, 0, 0);
+	 iout, olddt, newdt, SUNRsqrt(N_VDotProd(y,y)/udata->N), udata->N, 0, 0);
   while (t < Tf) {
 
     /* "set" routines */
@@ -189,7 +190,7 @@ int main() {
     /* print current solution stats */
     iout++;
     printf(" %4i  %19.15e  %19.15e  %19.15e  %li   %2li  %3li\n", 
-	   iout, olddt, newdt, sqrt(N_VDotProd(y,y)/udata->N), udata->N, nni-nni_cur, nli);
+	   iout, olddt, newdt, SUNRsqrt(N_VDotProd(y,y)/udata->N), udata->N, nni-nni_cur, nli);
     nni_cur = nni;
     nni_tot = nni;
     nli_tot += nli;
@@ -292,10 +293,10 @@ static int f(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 
   /* source term */
   for (i=0; i<N-1; i++) {
-    Ydot[i] += 2.0*exp(-200.0*(x[i]-0.25)*(x[i]-0.25))
-                 - exp(-400.0*(x[i]-0.7)*(x[i]-0.7))
-                 + exp(-500.0*(x[i]-0.4)*(x[i]-0.4))
-             - 2.0*exp(-600.0*(x[i]-0.55)*(x[i]-0.55));
+    Ydot[i] += 2.0*SUNRexp(-200.0*(x[i]-0.25)*(x[i]-0.25))
+                 - SUNRexp(-400.0*(x[i]-0.7)*(x[i]-0.7))
+                 + SUNRexp(-500.0*(x[i]-0.4)*(x[i]-0.4))
+             - 2.0*SUNRexp(-600.0*(x[i]-0.55)*(x[i]-0.55));
   }
 
   return 0;                      /* Return with success */
@@ -482,7 +483,7 @@ static int project(long int Nold, realtype *xold, N_Vector yold,
     opt == 2 means function allocates memory so check if returned
              NULL pointer  
 */
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

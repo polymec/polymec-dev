@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4146 $
- * $Date: 2014-06-24 09:04:33 -0700 (Tue, 24 Jun 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
@@ -66,7 +66,7 @@ static void PrintHeader(realtype rtol, N_Vector avtol, N_Vector y);
 static void PrintOutput(void *mem, realtype t, N_Vector y);
 static void PrintRootInfo(int root_f1, int root_f2);
 static void PrintFinalStats(void *mem);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -96,19 +96,19 @@ int main(void)
   if(check_flag((void *)avtol, "N_VNew_Serial", 0)) return(1);
 
   /* Create and initialize  y, y', and absolute tolerance vectors. */
-  yval  = NV_DATA_S(yy);
+  yval  = N_VGetArrayPointer_Serial(yy);
   yval[0] = ONE;
   yval[1] = ZERO;
   yval[2] = ZERO;
 
-  ypval = NV_DATA_S(yp);
+  ypval = N_VGetArrayPointer_Serial(yp);
   ypval[0]  = RCONST(-0.04);
   ypval[1]  = RCONST(0.04);
   ypval[2]  = ZERO;  
 
   rtol = RCONST(1.0e-4);
 
-  atval = NV_DATA_S(avtol);
+  atval = N_VGetArrayPointer_Serial(avtol);
   atval[0] = RCONST(1.0e-8);
   atval[1] = RCONST(1.0e-14);
   atval[2] = RCONST(1.0e-6);
@@ -193,9 +193,9 @@ int resrob(realtype tres, N_Vector yy, N_Vector yp, N_Vector rr, void *user_data
 {
   realtype *yval, *ypval, *rval;
 
-  yval = NV_DATA_S(yy); 
-  ypval = NV_DATA_S(yp); 
-  rval = NV_DATA_S(rr);
+  yval = N_VGetArrayPointer_Serial(yy); 
+  ypval = N_VGetArrayPointer_Serial(yp); 
+  rval = N_VGetArrayPointer_Serial(rr);
 
   rval[0]  = RCONST(-0.04)*yval[0] + RCONST(1.0e4)*yval[1]*yval[2];
   rval[1]  = -rval[0] - RCONST(3.0e7)*yval[1]*yval[1] - ypval[1];
@@ -214,7 +214,7 @@ static int grob(realtype t, N_Vector yy, N_Vector yp, realtype *gout,
 {
   realtype *yval, y1, y3;
 
-  yval = NV_DATA_S(yy); 
+  yval = N_VGetArrayPointer_Serial(yy); 
   y1 = yval[0]; y3 = yval[2];
   gout[0] = y1 - RCONST(0.0001);
   gout[1] = y3 - RCONST(0.01);
@@ -233,7 +233,7 @@ int jacrob(long int Neq, realtype tt,  realtype cj,
 {
   realtype *yval;
   
-  yval = NV_DATA_S(yy);
+  yval = N_VGetArrayPointer_Serial(yy);
 
   IJth(JJ,1,1) = RCONST(-0.04) - cj;
   IJth(JJ,2,1) = RCONST(0.04);
@@ -262,8 +262,8 @@ static void PrintHeader(realtype rtol, N_Vector avtol, N_Vector y)
 {
   realtype *atval, *yval;
 
-  atval  = NV_DATA_S(avtol);
-  yval  = NV_DATA_S(y);
+  atval  = N_VGetArrayPointer_Serial(avtol);
+  yval  = N_VGetArrayPointer_Serial(y);
 
   printf("\nidaRoberts_dns: Robertson kinetics DAE serial example problem for IDA\n");
   printf("         Three equation chemical kinetics problem.\n\n");
@@ -302,7 +302,7 @@ static void PrintOutput(void *mem, realtype t, N_Vector y)
   long int nst;
   realtype hused;
 
-  yval  = NV_DATA_S(y);
+  yval  = N_VGetArrayPointer_Serial(y);
 
   retval = IDAGetLastOrder(mem, &kused);
   check_flag(&retval, "IDAGetLastOrder", 1);
@@ -374,7 +374,7 @@ static void PrintFinalStats(void *mem)
  *            NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
   /* Check if SUNDIALS function returned NULL pointer - no memory allocated */

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4869 $
+ * $Date: 2016-08-19 10:34:20 -0700 (Fri, 19 Aug 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): David J. Gardner and Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -66,6 +66,15 @@ static void VScaleBy_OpenMP(realtype a, N_Vector x);
  * -----------------------------------------------------------------
  */
 
+/* ----------------------------------------------------------------
+ * Returns vector type ID. Used to identify vector implementation 
+ * from abstract N_Vector interface.
+ */
+N_Vector_ID N_VGetVectorID_OpenMP(N_Vector v)
+{
+  return SUNDIALS_NVEC_OPENMP;
+}
+
 /* ----------------------------------------------------------------------------
  * Function to create a new empty vector 
  */
@@ -86,6 +95,7 @@ N_Vector N_VNewEmpty_OpenMP(long int length, int num_threads)
   ops = (N_Vector_Ops) malloc(sizeof(struct _generic_N_Vector_Ops));
   if (ops == NULL) { free(v); return(NULL); }
 
+  ops->nvgetvectorid     = N_VGetVectorID_OpenMP;
   ops->nvclone           = N_VClone_OpenMP;
   ops->nvcloneempty      = N_VCloneEmpty_OpenMP;
   ops->nvdestroy         = N_VDestroy_OpenMP;
@@ -250,6 +260,15 @@ void N_VDestroyVectorArray_OpenMP(N_Vector *vs, int count)
 }
 
 /* ----------------------------------------------------------------------------
+ * Function to return number of vector elements
+ */
+long int N_VGetLength_OpenMP(N_Vector v)
+{
+  return NV_LENGTH_OMP(v);
+}
+
+ 
+/* ----------------------------------------------------------------------------
  * Function to print a vector 
  */
  
@@ -305,6 +324,7 @@ N_Vector N_VCloneEmpty_OpenMP(N_Vector w)
   ops = (N_Vector_Ops) malloc(sizeof(struct _generic_N_Vector_Ops));
   if (ops == NULL) { free(v); return(NULL); }
   
+  ops->nvgetvectorid     = w->ops->nvgetvectorid;
   ops->nvclone           = w->ops->nvclone;
   ops->nvcloneempty      = w->ops->nvcloneempty;
   ops->nvdestroy         = w->ops->nvdestroy;

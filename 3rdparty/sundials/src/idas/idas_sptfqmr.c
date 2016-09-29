@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4909 $
+ * $Date: 2016-09-14 16:51:27 -0700 (Wed, 14 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Aaron Collier and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -42,18 +42,18 @@
 static int IDASptfqmrInit(IDAMem IDA_mem);
 
 static int IDASptfqmrSetup(IDAMem IDA_mem, 
-			   N_Vector yy_p, N_Vector yp_p, N_Vector rr_p, 
-			   N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
+                           N_Vector yy_p, N_Vector yp_p, N_Vector rr_p, 
+                           N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
 static int IDASptfqmrSolve(IDAMem IDA_mem, N_Vector bb, N_Vector weight,
-			   N_Vector yy_now, N_Vector yp_now, N_Vector rr_now);
+                           N_Vector yy_now, N_Vector yp_now, N_Vector rr_now);
 
 static int IDASptfqmrPerf(IDAMem IDA_mem, int perftask);
 
 static int IDASptfqmrFree(IDAMem IDA_mem);
 
 /* IDASPTFQMR lfree function for backward problem. */
-static void IDASptfqmrFreeB(IDABMem IDAB_mem);
+static int IDASptfqmrFreeB(IDABMem IDAB_mem);
 
 /* 
  * ================================================================
@@ -144,7 +144,7 @@ int IDASptfqmr(void *ida_mem, int maxl)
   IDAMem IDA_mem;
   IDASpilsMem idaspils_mem;
   SptfqmrMem sptfqmr_mem;
-  int flag, maxl1;
+  int maxl1;
 
   /* Return immediately if ida_mem is NULL */
   if (ida_mem == NULL) {
@@ -159,7 +159,7 @@ int IDASptfqmr(void *ida_mem, int maxl)
     return(IDASPILS_ILL_INPUT);
   }
 
-  if (lfree != NULL) flag = lfree((IDAMem) ida_mem);
+  if (lfree != NULL) lfree((IDAMem) ida_mem);
 
   /* Set five main function fields in ida_mem */
   linit  = IDASptfqmrInit;
@@ -199,6 +199,8 @@ int IDASptfqmr(void *ida_mem, int maxl)
   idaspils_mem->s_dqincfac  = ONE;
 
   idaspils_mem->s_last_flag = IDASPILS_SUCCESS;
+
+  idaSpilsInitializeCounters(idaspils_mem);
 
   /* Set setupNonNull to FALSE */
   setupNonNull = FALSE;
@@ -277,8 +279,7 @@ static int IDASptfqmrInit(IDAMem IDA_mem)
   sptfqmr_mem = (SptfqmrMem) spils_mem;
 
   /* Initialize counters */
-  npe = nli = nps = ncfl = 0;
-  njtimes = nres = 0;
+  idaSpilsInitializeCounters(idaspils_mem);
 
   /* Set setupNonNull to TRUE iff there is preconditioning with setup */
   setupNonNull = (psolve != NULL) && (pset != NULL);
@@ -511,7 +512,6 @@ int IDASptfqmrB(void *ida_mem, int which, int maxlB)
   IDAadjMem IDAADJ_mem;
   IDABMem IDAB_mem;
   IDASpilsMemB idaspilsB_mem;
-  void *ida_memB;
   int flag;
   
   /* Check if ida_mem is allright. */
@@ -541,8 +541,6 @@ int IDASptfqmrB(void *ida_mem, int which, int maxlB)
     /* advance */
     IDAB_mem = IDAB_mem->ida_next;
   }
-  /* ida_mem corresponding to 'which' problem. */
-  ida_memB = (void *) IDAB_mem->IDA_mem;
 
   
   /* Get memory for IDASpilsMemRecB */
@@ -578,11 +576,13 @@ int IDASptfqmrB(void *ida_mem, int which, int maxlB)
  * IDASptfqmrFreeB 
  */
 
-static void IDASptfqmrFreeB(IDABMem IDAB_mem)
+static int IDASptfqmrFreeB(IDABMem IDAB_mem)
 {
   IDASpilsMemB idaspilsB_mem;
 
   idaspilsB_mem = (IDASpilsMemB) IDAB_mem->ida_lmem;
 
   free(idaspilsB_mem);
+
+  return(0);
 }

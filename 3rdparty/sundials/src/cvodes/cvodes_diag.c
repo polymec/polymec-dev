@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4075 $
- * $Date: 2014-04-24 10:46:58 -0700 (Thu, 24 Apr 2014) $
+ * $Revision: 4923 $
+ * $Date: 2016-09-19 14:35:51 -0700 (Mon, 19 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -41,7 +41,7 @@ static int CVDiagSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
 static int CVDiagSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
                        N_Vector ycur, N_Vector fcur);
 
-static void CVDiagFree(CVodeMem cv_mem);
+static int CVDiagFree(CVodeMem cv_mem);
 
 
 /* 
@@ -439,7 +439,7 @@ static int CVDiagSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
  * -----------------------------------------------------------------
  */
 
-static void CVDiagFree(CVodeMem cv_mem)
+static int CVDiagFree(CVodeMem cv_mem)
 {
   CVDiagMem cvdiag_mem;
   
@@ -450,6 +450,8 @@ static void CVDiagFree(CVodeMem cv_mem)
   N_VDestroy(bitcomp);
   free(cvdiag_mem);
   cv_mem->cv_lmem = NULL;
+  
+  return(0);
 }
 
 

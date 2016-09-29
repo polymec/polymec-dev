@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
-# $Revision: 4457 $
-# $Date: 2015-03-28 21:07:29 -0700 (Sat, 28 Mar 2015) $
+# $Revision: 4824 $
+# $Date: 2016-07-24 16:39:04 -0700 (Sun, 24 Jul 2016) $
 # -----------------------------------------------------------------
 # Programmer: Daniel R. Reynolds @ SMU
 # -----------------------------------------------------------------
@@ -45,7 +45,7 @@ LINKFLAGS = -Wl,-rpath,@libdir@
 LIBRARIES = -l@SOLVER_FLIB@ -l@SOLVER_LIB@ -lsundials_fnvecserial -lsundials_nvecserial ${LIBS}
 LIBRARIES_BL = @BLAS_LAPACK_LIBS@
 LIBRARIES_SLUMT = @SUPERLUMT_LIBS@
-LIBRARIES_KLU = @KLU_LIBRARY@ @AMD_LIBRARY@ @COLAMD_LIBRARY@ @BTF_LIBRARY@
+LIBRARIES_KLU = @KLU_LIBS@
 
 EXAMPLES = @EXAMPLES@ @EXAMPLES_BL@
 

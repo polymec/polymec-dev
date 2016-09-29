@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4497 $
- * $Date: 2015-05-06 16:55:31 -0700 (Wed, 06 May 2015) $
+ * $Revision: 4909 $
+ * $Date: 2016-09-14 16:51:27 -0700 (Wed, 14 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Alan C. Hindmarsh and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -49,7 +49,7 @@ static int IDADenseFree(IDAMem IDA_mem);
 
 /* IDADENSE lfreeB function */
 
-static void IDADenseFreeB(IDABMem IDAB_mem);
+static int IDADenseFreeB(IDABMem IDAB_mem);
 
 /* 
  * ================================================================
@@ -121,7 +121,6 @@ int IDADense(void *ida_mem, long int Neq)
 {
   IDAMem IDA_mem;
   IDADlsMem idadls_mem;
-  int flag;
 
   /* Return immediately if ida_mem is NULL. */
   if (ida_mem == NULL) {
@@ -137,7 +136,7 @@ int IDADense(void *ida_mem, long int Neq)
     return(IDADLS_ILL_INPUT);
   }
 
-  if (lfree != NULL) flag = lfree(IDA_mem);
+  if (lfree != NULL) lfree(IDA_mem);
 
   /* Set five main function fields in IDA_mem. */
   linit  = IDADenseInit;
@@ -163,6 +162,8 @@ int IDADense(void *ida_mem, long int Neq)
   jacdata = NULL;
 
   last_flag = IDADLS_SUCCESS;
+
+  idaDlsInitializeCounters(idadls_mem); 
 
   setupNonNull = TRUE;
 
@@ -210,9 +211,7 @@ static int IDADenseInit(IDAMem IDA_mem)
   
   idadls_mem = (IDADlsMem) lmem;
 
-   
-  nje   = 0;
-  nreDQ = 0;
+  idaDlsInitializeCounters(idadls_mem); 
 
   if (jacDQ) {
     djac = idaDlsDenseDQJac;
@@ -398,12 +397,14 @@ int IDADenseB(void *ida_mem, int which, long int NeqB)
  * as argument. 
  */
 
-static void IDADenseFreeB(IDABMem IDAB_mem)
+static int IDADenseFreeB(IDABMem IDAB_mem)
 {
   IDADlsMemB idadlsB_mem;
 
   idadlsB_mem = (IDADlsMemB) IDAB_mem->ida_lmem;
 
   free(idadlsB_mem);
+
+  return(0);
 }
 

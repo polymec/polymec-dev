@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4378 $
- * $Date: 2015-02-19 10:55:14 -0800 (Thu, 19 Feb 2015) $
+ * $Revision: 4921 $
+ * $Date: 2016-09-19 14:35:11 -0700 (Mon, 19 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -238,6 +238,7 @@ typedef struct IDAMemRec {
   int ida_maxnit;           /* max. number of Netwon iterations in IC calc.   */
   int ida_nbacktr;          /* number of IC linesearch backtrack operations   */
   int ida_sysindex;         /* computed system index (0 or 1)                 */
+  int ida_maxbacks;         /* max backtracks per Newton step                 */
   realtype ida_epiccon;     /* IC nonlinear convergence test constant         */
   realtype ida_steptol;     /* minimum Newton step size in IC calculation     */
   realtype ida_tscale;      /* time scale factor = abs(tout1 - t0)            */
@@ -626,13 +627,13 @@ struct IDABMemRec {
   void *ida_lmem;
 
   /* Function to free any memory allocated by the linear solver */
-  void (*ida_lfree)(IDABMem IDAB_mem);
+  int (*ida_lfree)(IDABMem IDAB_mem);
 
   /* Memory block for a preconditioner's module interface to IDAA */ 
   void *ida_pmem;
 
   /* Function to free any memory allocated by the preconditioner module */
-  void (*ida_pfree)(IDABMem IDAB_mem);
+  int (*ida_pfree)(IDABMem IDAB_mem);
 
   /* Time at which to extract solution / quadratures */
   realtype ida_tout;
@@ -950,6 +951,7 @@ int IDASensResDQ(int Ns, realtype t,
 /* IDACalcIC error messages */
 
 #define MSG_IC_BAD_ICOPT   "icopt has an illegal value."
+#define MSG_IC_BAD_MAXBACKS "maxbacks <= 0 illegal."
 #define MSG_IC_MISSING_ID  "id = NULL conflicts with icopt."
 #define MSG_IC_TOO_CLOSE   "tout1 too close to t0 to attempt initial condition calculation."
 #define MSG_IC_BAD_ID      "id has illegal values."
@@ -960,7 +962,7 @@ int IDASensResDQ(int Ns, realtype t,
 #define MSG_IC_SOLVE_FAIL  "The linear solver solve failed unrecoverably."
 #define MSG_IC_NO_RECOVERY "The residual routine or the linear setup or solve routine had a recoverable error, but IDACalcIC was unable to recover."
 #define MSG_IC_FAIL_CONSTR "Unable to satisfy the inequality constraints."
-#define MSG_IC_FAILED_LINS "The linesearch algorithm failed with too small a step."
+#define MSG_IC_FAILED_LINS "The linesearch algorithm failed: step too small or too many backtracks."
 #define MSG_IC_CONV_FAILED "Newton/Linesearch algorithm failed to converge."
 
 /* IDASolve error messages */

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4435 $
- * $Date: 2015-03-23 18:26:14 -0700 (Mon, 23 Mar 2015) $
+ * $Revision: 4938 $
+ * $Date: 2016-09-21 14:33:08 -0700 (Wed, 21 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -82,7 +82,6 @@ int IDASuperLUMT(void *ida_mem, int num_threads, int n, int nnz)
   IDASlsMem idasls_mem;
   SLUMTData slumt_data;
   int *perm_c, *perm_r;
-  int flag;
   int nrhs, panel_size, relax;
   double *bd;
   SuperMatrix *B;
@@ -102,7 +101,7 @@ int IDASuperLUMT(void *ida_mem, int num_threads, int n, int nnz)
     return(IDASLS_ILL_INPUT);
   }
 
-  if (IDA_mem->ida_lfree != NULL) flag = IDA_mem->ida_lfree(IDA_mem);
+  if (IDA_mem->ida_lfree != NULL) IDA_mem->ida_lfree(IDA_mem);
 
   /* Set five main function fields in IDA_mem. */
   IDA_mem->ida_linit  = IDASuperLUMTInit;
@@ -137,7 +136,7 @@ int IDASuperLUMT(void *ida_mem, int num_threads, int n, int nnz)
 
   /* Allocate memory for the sparse Jacobian */
   idasls_mem->s_JacMat = NULL;
-  idasls_mem->s_JacMat = NewSparseMat(n, n, nnz);
+  idasls_mem->s_JacMat = SparseNewMat(n, n, nnz, CSC_MAT);
   if (idasls_mem->s_JacMat == NULL) {
     IDAProcessError(IDA_mem, IDASLS_MEM_FAIL, "IDASLS", "IDASuperLUMT", 
 		    MSGSP_MEM_FAIL);
@@ -182,8 +181,8 @@ int IDASuperLUMT(void *ida_mem, int num_threads, int n, int nnz)
   dCreate_CompCol_Matrix(slumt_data->s_A, idasls_mem->s_JacMat->M, 
 			 idasls_mem->s_JacMat->N, 
 			 idasls_mem->s_JacMat->NNZ, idasls_mem->s_JacMat->data, 
-			 idasls_mem->s_JacMat->rowvals, 
-			 idasls_mem->s_JacMat->colptrs, 
+			 idasls_mem->s_JacMat->indexvals, 
+			 idasls_mem->s_JacMat->indexptrs, 
 			 SLU_NC, SLU_D, SLU_GE);
 
   panel_size = sp_ienv(1);
@@ -454,7 +453,7 @@ static int IDASuperLUMTFree(IDAMem IDA_mem)
   Destroy_SuperMatrix_Store(slumt_data->s_B);
   SUPERLU_FREE(slumt_data->s_A->Store);
   if (idasls_mem->s_JacMat) {
-    DestroySparseMat(idasls_mem->s_JacMat);
+    SparseDestroyMat(idasls_mem->s_JacMat);
     idasls_mem->s_JacMat = NULL;
   }
 

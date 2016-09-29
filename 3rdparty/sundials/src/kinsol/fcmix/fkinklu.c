@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4402 $
- * $Date: 2015-02-28 19:35:39 -0800 (Sat, 28 Feb 2015) $
+ * $Revision: 4654 $
+ * $Date: 2016-02-17 20:12:58 -0800 (Wed, 17 Feb 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Carol Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -32,9 +32,9 @@
  * ----------------------------------------------------------------
  */
 
-void FKIN_KLU(int *neq, int *nnz, int *ordering, int *ier)
+void FKIN_KLU(int *neq, int *nnz, int *sparsetype, int *ordering, int *ier)
 {
-  *ier = KINKLU(KIN_kinmem, *neq, *nnz);
+  *ier = KINKLU(KIN_kinmem, *neq, *nnz, *sparsetype);
   KINKLUSetOrdering(KIN_kinmem, *ordering);
   KIN_ls = KIN_LS_KLU;
 }

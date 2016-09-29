@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4075 $
-# $Date: 2014-04-24 10:46:58 -0700 (Thu, 24 Apr 2014) $
+# $Revision: 4625 $
+# $Date: 2016-01-13 16:05:42 -0800 (Wed, 13 Jan 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -47,7 +47,7 @@ ADD_DEFINITIONS(-DBUILD_SUNDIALS_LIBRARY)
 # Rules for building and installing the static library:
 #  - Add the build target for the NVECPARALLEL library
 #  - Set the library name and make sure it is not deleted
-#  - Install the NVECSERIAL library
+#  - Install the NVECPARALLEL library
 IF(BUILD_STATIC_LIBS)
   ADD_LIBRARY(sundials_nvecparallel_static STATIC ${nvecparallel_SOURCES} ${shared_SOURCES})
   SET_TARGET_PROPERTIES(sundials_nvecparallel_static
@@ -59,7 +59,7 @@ ENDIF(BUILD_STATIC_LIBS)
 #  - Add the build target for the NVECPARALLEL library
 #  - Set the library name and make sure it is not deleted
 #  - Set VERSION and SOVERSION for shared libraries
-#  - Install the NVECSERIAL library
+#  - Install the NVECPARALLEL library
 IF(BUILD_SHARED_LIBS)
   ADD_LIBRARY(sundials_nvecparallel_shared SHARED ${nvecparallel_SOURCES} ${shared_SOURCES})
   SET_TARGET_PROPERTIES(sundials_nvecparallel_shared

@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4096 $
-# $Date: 2014-05-02 14:49:50 -0700 (Fri, 02 May 2014) $
+# $Revision: 4958 $
+# $Date: 2016-09-23 14:02:13 -0700 (Fri, 23 Sep 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -60,6 +60,10 @@ ENDIF(KLU_FOUND)
 IF(SUPERLUMT_FOUND)
   LIST(APPEND SUNDIALS_LIBS ${SUPERLUMT_LIBRARIES})
 ENDIF(SUPERLUMT_FOUND)
+
+IF(PETSC_FOUND)
+  LIST(APPEND SUNDIALS_LIBS ${PETSC_LIBRARIES})
+ENDIF(PETSC_FOUND)
 
 # Add the build and install targets for each FIDA example
 

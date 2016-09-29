@@ -285,9 +285,12 @@ typedef struct ARKodeMemRec {
   int ark_dense_q;                        /* dense output polynomial order  */
   realtype ark_Ae[ARK_S_MAX*ARK_S_MAX];   /* ERK Butcher table              */
   realtype ark_Ai[ARK_S_MAX*ARK_S_MAX];   /* IRK Butcher table              */
-  realtype ark_c[ARK_S_MAX];              /* RK method canopy nodes         */
-  realtype ark_b[ARK_S_MAX];              /* RK method solution coeffs      */
-  realtype ark_b2[ARK_S_MAX];             /* RK method embedding coeffs     */
+  realtype ark_ce[ARK_S_MAX];             /* ERK method canopy nodes        */
+  realtype ark_ci[ARK_S_MAX];             /* IRK method canopy nodes        */
+  realtype ark_be[ARK_S_MAX];             /* ERK method solution coeffs     */
+  realtype ark_bi[ARK_S_MAX];             /* IRK method solution coeffs     */
+  realtype ark_b2e[ARK_S_MAX];            /* ERK method embedding coeffs    */
+  realtype ark_b2i[ARK_S_MAX];            /* IRK method embedding coeffs    */
 
   /*---------
     Step Data 
@@ -303,8 +306,8 @@ typedef struct ARKodeMemRec {
   realtype ark_gammap;          /* gamma at the last setup call             */
   realtype ark_gamrat;          /* gamma / gammap                           */
   realtype ark_crate;           /* estimated corrector convergence rate     */
-  realtype ark_eLTE;            /* estimated local truncation error, used in
-				   nonlinear and linear solver tolerances   */
+  realtype ark_eRNrm;           /* estimated residual norm, used in nonlinear 
+				   and linear solver convergence tests      */
   realtype ark_nlscoef;         /* coefficient in nonlin. convergence test  */
   int      ark_mnewt;           /* Newton iteration counter                 */
 
@@ -419,10 +422,10 @@ typedef struct ARKodeMemRec {
 		    N_Vector vtemp2, N_Vector vtemp3); 
   int (*ark_lsolve)(struct ARKodeMemRec *ark_mem, N_Vector b, N_Vector weight,
 		    N_Vector ycur, N_Vector fcur);
-  void (*ark_lfree)(struct ARKodeMemRec *ark_mem);
+  int (*ark_lfree)(struct ARKodeMemRec *ark_mem);
   void *ark_lmem;
   int ark_lsolve_type;   /* linear solver type: 0=iterative; 1=dense; 
-                                                2=band; 3=custom */
+                                                2=band; 3=sparse; 4=custom */
 
   /*-----------------------
     Mass Matrix Solver Data 
@@ -436,10 +439,10 @@ typedef struct ARKodeMemRec {
   int (*ark_msetup)(struct ARKodeMemRec *ark_mem, N_Vector vtemp1, 
 		    N_Vector vtemp2, N_Vector vtemp3); 
   int (*ark_msolve)(struct ARKodeMemRec *ark_mem, N_Vector b, N_Vector weight);
-  void (*ark_mfree)(struct ARKodeMemRec *ark_mem);
+  int (*ark_mfree)(struct ARKodeMemRec *ark_mem);
   void *ark_mass_mem;
   int ark_msolve_type;   /* mass matrix type: 0=iterative; 1=dense; 
-			                      2=band; 3=sparse, 4=custom */
+			                      2=band; 3=sparse; 4=custom */
 
   /*------------
     Saved Values
@@ -485,6 +488,11 @@ typedef struct ARKodeMemRec {
   long int     ark_nge;         /* counter for g evaluations                    */
   booleantype *ark_gactive;     /* array with active/inactive event functions   */
   int          ark_mxgnull;     /* num. warning messages about possible g==0    */
+
+  /*----------------------------------------------------
+    User-supplied step solution post-processing function
+    ----------------------------------------------------*/
+  ARKPostProcessStepFn ark_ProcessStep;
 
 } *ARKodeMem;
 
@@ -603,11 +611,12 @@ typedef struct ARKodeMemRec {
 ---------------------------------------------------------------*/
 
 /*---------------------------------------------------------------
- void (*ark_lfree)(ARKodeMem ark_mem);
+ int (*ark_lfree)(ARKodeMem ark_mem);
 -----------------------------------------------------------------
  ark_lfree should free up any memory allocated by the linear
  solver. This routine is called once a problem has been
- completed and the linear solver is no longer needed.
+ completed and the linear solver is no longer needed.  It should 
+ return 0 upon success, or a nonzero on failure.
 ---------------------------------------------------------------*/
 
 
@@ -657,11 +666,12 @@ typedef struct ARKodeMemRec {
 ---------------------------------------------------------------*/
 
 /*---------------------------------------------------------------
- void (*ark_mfree)(ARKodeMem ark_mem);
+ int (*ark_mfree)(ARKodeMem ark_mem);
 -----------------------------------------------------------------
  ark_mfree should free up any memory allocated by the mass matrix
  solver. This routine is called once a problem has been
- completed and the solver is no longer needed.
+ completed and the solver is no longer needed.  It should return
+ 0 upon success, or a nonzero on failure.
 ---------------------------------------------------------------*/
 
   

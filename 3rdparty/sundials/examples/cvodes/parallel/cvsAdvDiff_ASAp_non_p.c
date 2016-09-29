@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4396 $
- * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
+ * $Revision: 4868 $
+ * $Date: 2016-08-19 10:16:31 -0700 (Fri, 19 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -97,7 +97,7 @@ static void SetICback(N_Vector uB, long int my_base);
 static realtype Xintgr(realtype *z, long int l, realtype dx);
 static realtype Compute_g(N_Vector u, UserData data);
 static void PrintOutput(realtype g_val, N_Vector uB, UserData data);
-static int check_flag(void *flagvalue, char *funcname, int opt, int id);
+static int check_flag(void *flagvalue, const char *funcname, int opt, int id);
 
 /*
  *--------------------------------------------------------------------
@@ -320,9 +320,9 @@ static int f(realtype t, N_Vector u, N_Vector udot, void *user_data)
   last_pe = npes - 1;
 
   /* Obtain local arrays */
-  udata = NV_DATA_P(u);
-  dudata = NV_DATA_P(udot);
-  my_length = NV_LOCLENGTH_P(u);
+  udata = N_VGetArrayPointer_Parallel(u);
+  dudata = N_VGetArrayPointer_Parallel(udot);
+  my_length = N_VGetLocalLength_Parallel(u);
   my_last = my_length - 1;
 
   /* Pass needed data to processes before and after current process. */
@@ -385,8 +385,8 @@ static int fB(realtype t, N_Vector u,
   if (my_pe == npes) { /* This process performs the quadratures */
 
     /* Obtain local arrays */
-    duBdata = NV_DATA_P(uBdot);
-    my_length = NV_LOCLENGTH_P(uB);
+    duBdata = N_VGetArrayPointer_Parallel(uBdot);
+    my_length = N_VGetLocalLength_Parallel(uB);
 
     /* Loop over all other processes and load right hand side of quadrature eqs. */
     duBdata[0] = ZERO;
@@ -408,10 +408,10 @@ static int fB(realtype t, N_Vector u,
     z2    = data->z2;
 
     /* Obtain local arrays */
-    uBdata = NV_DATA_P(uB);
-    duBdata = NV_DATA_P(uBdot);
-    udata = NV_DATA_P(u);
-    my_length = NV_LOCLENGTH_P(uB);
+    uBdata = N_VGetArrayPointer_Parallel(uB);
+    duBdata = N_VGetArrayPointer_Parallel(uBdot);
+    udata = N_VGetArrayPointer_Parallel(u);
+    my_length = N_VGetLocalLength_Parallel(uB);
 
     /* Compute related parameters. */
     my_pe_m1 = my_pe - 1;
@@ -508,8 +508,8 @@ static void SetIC(N_Vector u, realtype dx, long int my_length, long int my_base)
   realtype *udata;
 
   /* Set pointer to data array and get local length of u */
-  udata = NV_DATA_P(u);
-  my_length = NV_LOCLENGTH_P(u);
+  udata = N_VGetArrayPointer_Parallel(u);
+  my_length = N_VGetLocalLength_Parallel(u);
 
   /* Load initial profile into u vector */
   for (i=1; i<=my_length; i++) {
@@ -530,8 +530,8 @@ static void SetICback(N_Vector uB, long int my_base)
   long int my_length;
 
   /* Set pointer to data array and get local length of uB */
-  uBdata = NV_DATA_P(uB);
-  my_length = NV_LOCLENGTH_P(uB);
+  uBdata = N_VGetArrayPointer_Parallel(uB);
+  my_length = N_VGetLocalLength_Parallel(uB);
 
   /* Set adjoint states to 1.0 and quadrature variables to 0.0 */
   if (my_base == -1) for (i=0; i<my_length; i++) uBdata[i] = ZERO;
@@ -582,8 +582,8 @@ static realtype Compute_g(N_Vector u, UserData data)
     }
     return(intgr);
   } else {              /* Compute local portion of the integral */
-    udata = NV_DATA_P(u);
-    my_length = NV_LOCLENGTH_P(u);
+    udata = N_VGetArrayPointer_Parallel(u);
+    my_length = N_VGetLocalLength_Parallel(u);
     my_intgr = Xintgr(udata, my_length, dx);
     MPI_Send(&my_intgr, 1, PVEC_REAL_MPI_TYPE, npes, 0, comm);
     return(my_intgr);
@@ -610,7 +610,7 @@ static void PrintOutput(realtype g_val, N_Vector uB, UserData data)
   nperpe = data->nperpe;
   nrem = data->nrem;
 
-  uBdata = NV_DATA_P(uB);
+  uBdata = N_VGetArrayPointer_Parallel(uB);
 
   if (my_pe == npes) {
 
@@ -668,7 +668,7 @@ static void PrintOutput(realtype g_val, N_Vector uB, UserData data)
  *             NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt, int id)
+static int check_flag(void *flagvalue, const char *funcname, int opt, int id)
 {
   int *errflag;
 

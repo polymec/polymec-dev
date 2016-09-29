@@ -1,10 +1,11 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4423 $
- * $Date: 2015-03-08 17:23:10 -0700 (Sun, 08 Mar 2015) $
+ * $Revision: 4905 $
+ * $Date: 2016-09-14 16:04:36 -0700 (Wed, 14 Sep 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh, Radu Serban, and
  *                Aaron Collier @ LLNL
+ *                Daniel R. Reynolds @ SMU
  * -----------------------------------------------------------------
  * LLNS Copyright Start
  * Copyright (c) 2014, Lawrence Livermore National Security
@@ -40,10 +41,13 @@
           initialize serial, distributed memory parallel, or threaded 
           vector computations
    FKINMALLOC interfaces to KINInit
+   FKINCREATE interfaces to KINCreate
+   FKININIT interfaces to KINInit
    FKINSETIIN, FKINSETRIN, FKINSETVIN interface to KINSet* functions
    FKINDENSE interfaces to KINDense
    FKINKLU interfaces to KINKLU
    FKINSUPERLUMT interfaces to KINSUPERLUMT
+   FKINSPARSESETJAC interfaces to KINSlsSetSparseJacFn
    FKINSPTFQMR interfaces to KINSptfqmr
    FKINSPGMR interfaces to KINSpgmr
    FKINSPFGMR interfaces to KINSpfgmr
@@ -151,18 +155,19 @@
 
      Required when using the KINKLU or KINSuperLUMT linear solvers, the 
      user must supply a routine that computes a compressed-sparse-column 
-     approximation of the system Jacobian J = dF(y)/dy.  If supplied, 
-     it must have the following form:
+     [or compressed-sparse-row] approximation of the system Jacobian 
+     J = dF(y)/dy.  If supplied, it must have the following form:
 
        SUBROUTINE FKINSPJAC(Y, FY, N, NNZ, JDATA, JRVALS, 
       &                     JCPTRS, WK1, WK2, IER)
 
      Typically this routine will use only N, NNZ, JDATA, JRVALS and 
-     JCPTRS. It must load the N by N compressed sparse column matrix 
-     with storage for NNZ nonzeros, stored in the arrays JDATA (nonzero
-     values), JRVALS (row indices for each nonzero), JCOLPTRS (indices 
-     for start of each column), with the Jacobian matrix at the current
-     (y) in CSC form (see sundials_sparse.h for more information).
+     JCPTRS. It must load the N by N compressed sparse column [or compressed 
+     sparse row] matrix with storage for NNZ nonzeros, stored in the arrays 
+     JDATA (nonzero values), JRVALS (row [or column] indices for each nonzero), 
+     JCOLPTRS (indices for start of each column [or row]), with the Jacobian 
+     matrix at the current (y) in CSC [or CSR] form (see sundials_sparse.h for 
+     more information).
 
      The arguments are:
          Y    -- array containing state variables [realtype, input]
@@ -171,9 +176,9 @@
          NNZ  -- allocated length of nonzero storage [int, input]
         JDATA -- nonzero values in Jacobian
                  [realtype of length NNZ, output]
-       JRVALS -- row indices for each nonzero in Jacobian
+       JRVALS -- row [or column] indices for each nonzero in Jacobian
                   [int of length NNZ, output]
-       JCPTRS -- pointers to each Jacobian column in preceding arrays
+       JCPTRS -- pointers to each Jacobian column [or row] in preceding arrays
                  [int of length N+1, output]
          WK*  -- array containing temporary workspace of same size as Y 
                  [realtype, input]
@@ -182,8 +187,8 @@
                    >0 if a recoverable error occurred,
                    <0 if an unrecoverable error ocurred.
 
- (5) Initialization:  FNVINITS/FNVINITP/FNVINITOMP/FNVINITPTS and FKINMALLOC
-
+ (5) Initialization:  FNVINITS/FNVINITP/FNVINITOMP/FNVINITPTS and 
+                      FKINCREATE and FKININIT 
 
  (5.1s) To initialize the serial machine environment, the user must make
         the following call:
@@ -226,15 +231,11 @@
           NUM_THREADS = number of threads
           IER = return completion flag. Values are 0 = success, -1 = failure.
 
- (5.2) To allocate internal memory, make the following call:
+ (5.2) To create the internal memory structure, make the following call:
 
-         CALL FKINMALLOC(IOUT, ROUT, IER)
+         CALL FKINCREATE(IER)
 
        The arguments are:
-         IOUT        = array of length at least 15 for integer optional outputs
-                       (declare as INTEGER*4 or INTEGER*8 according to
-                       C type long int)
-         ROUT        = array of length at least 2 for real optional outputs
          IER         = return completion flag. Values are 0 = success, and
                        -1 = failure.
 
@@ -246,8 +247,8 @@
 
        to set the optional input specified by the character key KEY to the 
        integer value VALUE.
-       KEY is one of the following: PRNT_LEVEL, MAX_NITERS, ETA_FORM, 
-       MAX_SETUPS, MAX_SP_SETUPS, NO_INIT_SETUP, NO_MIN_EPS, NO_RES_MON.
+       KEY is one of the following: 'PRNT_LEVEL', 'MAX_NITERS', 'ETA_FORM', 'MAA',
+       'MAX_SETUPS', 'MAX_SP_SETUPS', 'NO_INIT_SETUP', 'NO_MIN_EPS', 'NO_RES_MON'.
 
        To set various real optional inputs, make the folowing call:
 
@@ -255,9 +256,9 @@
 
       to set the optional input specified by the character key KEY to the
       real value VALUE.
-      KEY is one of the following: FNORM_TOL, SSTEP_TOL, MAX_STEP, RERR_FUNC,
-      ETA_CONST, ETA_PARAMS, RMON_CONST, RMON_PARAMS.
-      Note that if KEY is ETA_PARAMS or RMON_PARAMS, then VALUE must be an
+      KEY is one of the following: 'FNORM_TOL', 'SSTEP_TOL', 'MAX_STEP',
+      'RERR_FUNC', 'ETA_CONST', 'ETA_PARAMS', 'RMON_CONST', 'RMON_PARAMS'.
+      Note that if KEY is 'ETA_PARAMS' or 'RMON_PARAMS', then VALUE must be an
       array of dimension 2.
 
       To set the vector of constraints on the solution, make the following call:
@@ -268,6 +269,21 @@
 
       FKINSETIIN, FKINSETRIN, and FKINSETVIN return IER=0 if successful and 
       IER<0 if an error occured.
+
+ (5.4) To allocate and initialize the internal memory structure, 
+       make the following call:
+
+         CALL FKININIT(IOUT, ROUT, IER)
+
+       The arguments are:
+         IOUT        = array of length at least 15 for integer optional outputs
+                       (declare as INTEGER*4 or INTEGER*8 according to
+                       C type long int)
+         ROUT        = array of length at least 2 for real optional outputs
+         IER         = return completion flag. Values are 0 = success, and
+                       -1 = failure.
+
+       Note: See printed message for details in case of failure.
 
  (6) Specification of linear system solution method:
 
@@ -319,17 +335,29 @@
 
      The user must make the call
 
-       CALL FKINKLU(NEQ, NNZ, ORDERING, IER)
+       CALL FKINKLU(NEQ, NNZ, SPARSETYPE, ORDERING, IER)
 
      The arguments are:
         NEQ = the problem size [int; input]
         NNZ = the maximum number of nonzeros [int; input]
+	SPARSETYPE = choice between CSC and CSR format
+           (0 = CSC, 1 = CSR) [int; input]
 	ORDERING = the matrix ordering desired, possible values
 	   come from the KLU package (0 = AMD, 1 = COLAMD) [int; input]
 	IER = error return flag [int, output]: 
 	         0 = success, 
 		 negative = error.
  
+     When using the KLU solver the user must provide the FKINSPJAC routine for the 
+     evalution of the sparse approximation to the Jacobian. To indicate that this
+     routine has been provided, after the call to FKINKLU, the following call must 
+     be made    
+
+       CALL FKINSPARSESETJAC(IER) 
+
+     The int return flag IER=0 if successful, and nonzero otherwise.
+
+
      The KINSOL KLU solver will reuse much of the factorization information from one
      nonlinear iteration to the next.  If at any time the user wants to force a full
      refactorization or if the number of nonzeros in the Jacobian matrix changes, the
@@ -377,8 +405,14 @@
      interfaces to the SuperLUMT solver.
 
      When using FKINSUPERLUMT, the user is required to supply the FKINSPJAC 
-     routine for the evaluation of the sparse approximation to the 
-     Jacobian, as discussed above with the other user-supplied routines.
+     routine for the evaluation of the CSC approximation to the 
+     Jacobian (note: the current SuperLU_MT interface in SUNDIALS does not 
+     support CSR matrices). To indicate that this routine has been provided, 
+     after the call to FKINSUPERLUMT, the following call must be made    
+
+         CALL FKINSPARSESETJAC(IER) 
+
+     The int return flag IER=0 if successful, and nonzero otherwise.
  
      Optional outputs specific to the SUPERLUMT case are:
         LSTF    = IOUT(8)  from KINSlsGetLastFlag
@@ -500,8 +534,8 @@
 
  (8) Memory freeing: FKINFREE
 
-     To the free the internal memory created by the calls to FKINMALLOC
-     and either FNVINITS or FNVINITP, make the following call:
+     To the free the internal memory created by the calls to FKINCREATE and 
+     FKININIT and any FNVINIT**, make the following call:
 
        CALL FKINFREE
 
@@ -571,6 +605,8 @@ extern "C" {
 #if defined(SUNDIALS_F77_FUNC)
 
 #define FKIN_MALLOC         SUNDIALS_F77_FUNC(fkinmalloc, FKINMALLOC)
+#define FKIN_CREATE         SUNDIALS_F77_FUNC(fkincreate, FKINCREATE)
+#define FKIN_INIT           SUNDIALS_F77_FUNC(fkininit,   FKININIT)
 #define FKIN_SETIIN         SUNDIALS_F77_FUNC(fkinsetiin, FKINSETIIN)
 #define FKIN_SETRIN         SUNDIALS_F77_FUNC(fkinsetrin, FKINSETRIN)
 #define FKIN_SETVIN         SUNDIALS_F77_FUNC(fkinsetvin, FKINSETVIN)
@@ -585,6 +621,7 @@ extern "C" {
 #define FKIN_KLU            SUNDIALS_F77_FUNC(fkinklu, FKLUKLU)
 #define FKIN_KLUREINIT      SUNDIALS_F77_FUNC(fkinklureinit, FKLUKLUREINIT)
 #define FKIN_SUPERLUMT      SUNDIALS_F77_FUNC(fkinsuperlumt, FKLUSUPERLUMT)
+#define FKIN_SPARSESETJAC   SUNDIALS_F77_FUNC(fkinsparsesetjac, FKINSPARSESETJAC)  
 #define FKIN_SPTFQMR        SUNDIALS_F77_FUNC(fkinsptfqmr, FKINSPTFQMR)
 #define FKIN_SPBCG          SUNDIALS_F77_FUNC(fkinspbcg, FKINSPBCG)
 #define FKIN_SPGMR          SUNDIALS_F77_FUNC(fkinspgmr, FKINSPGMR)
@@ -603,6 +640,8 @@ extern "C" {
 #else
 
 #define FKIN_MALLOC         fkinmalloc_
+#define FKIN_CREATE         fkincreate_
+#define FKIN_INIT           fkininit_
 #define FKIN_SETIIN         fkinsetiin_
 #define FKIN_SETRIN         fkinsetrin_
 #define FKIN_SETVIN         fkinsetvin_
@@ -617,6 +656,7 @@ extern "C" {
 #define FKIN_KLU            fkinklu_
 #define FKIN_KLUREINIT      fkinklureinit_
 #define FKIN_SUPERLUMT      fkinsuperlumt_
+#define FKIN_SPARSESETJAC   fkinsparsesetjac_
 #define FKIN_SPTFQMR        fkinsptfqmr_
 #define FKIN_SPBCG          fkinspbcg_
 #define FKIN_SPGMR          fkinspgmr_
@@ -641,6 +681,8 @@ extern "C" {
  */
 
 void FKIN_MALLOC(long int *iout, realtype *rout, int *ier);
+void FKIN_CREATE(int *ier);
+void FKIN_INIT(long int *iout, realtype *rout, int *ier);
 
 void FKIN_SETIIN(char key_name[], long int *ival, int *ier);
 void FKIN_SETRIN(char key_name[], realtype *rval, int *ier);
@@ -657,9 +699,10 @@ void FKIN_LAPACKDENSESETJAC(int *flag, int *ier);
 void FKIN_LAPACKBAND(int *neq, int *mupper, int *mlower, int *ier);
 void FKIN_LAPACKBANDSETJAC(int *flag, int *ier);
 
-void FKIN_KLU(int *neq, int *nnz, int *ordering, int *ier);
+void FKIN_KLU(int *neq, int *nnz, int *sparsetype, int *ordering, int *ier);
 void FKIN_KLUREINIT(int *neq, int *nnz, int *reinit_type, int *ier);
 void FKIN_SUPERLUMT(int *nthreads, int *neq, int *nnz, int *ordering, int *ier);
+void FKIN_SPARSESETJAC(int *ier);
 
 void FKIN_SPTFQMR(int *maxl, int *ier);
 void FKIN_SPBCG(int *maxl, int *ier);

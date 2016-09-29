@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4396 $
- * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): S. D. Cohen, A. C. Hindmarsh, M. R. Wittman, and
  *                Radu Serban  @ LLNL
@@ -176,7 +176,7 @@ static int PSolve(realtype tn, N_Vector u, N_Vector fu,
 
 /* Private function to check function return values */
 
-static int check_flag(void *flagvalue, char *funcname, int opt, int id);
+static int check_flag(void *flagvalue, const char *funcname, int opt, int id);
 
 
 /***************************** Main Program ******************************/
@@ -349,7 +349,7 @@ static void SetInitialProfiles(N_Vector u, UserData data)
   realtype *udata;
 
   /* Set pointer to data array in vector u */
-  udata = NV_DATA_P(u);
+  udata = N_VGetArrayPointer_Parallel(u);
 
   /* Get mesh spacings, and subgrid indices for this PE */
   dx = data->dx;         dy = data->dy;
@@ -390,7 +390,7 @@ static void PrintOutput(void *cvode_mem, int my_pe, MPI_Comm comm,
   MPI_Status status;
 
   npelast = NPEX*NPEY - 1;
-  udata = NV_DATA_P(u);
+  udata = N_VGetArrayPointer_Parallel(u);
 
   /* Send c1,c2 at top right mesh point to PE 0 */
   if (my_pe == npelast) {
@@ -635,7 +635,7 @@ static void ucomm(realtype t, N_Vector u, UserData data)
   long int nvmxsub, nvmysub;
   MPI_Request request[4];
 
-  udata = NV_DATA_P(u);
+  udata = N_VGetArrayPointer_Parallel(u);
 
   /* Get comm, my_pe, subgrid indices, data sizes, extended array uext */
   comm = data->comm;  my_pe = data->my_pe;
@@ -797,8 +797,8 @@ static int f(realtype t, N_Vector u, N_Vector udot, void *user_data)
   realtype *udata, *dudata;
   UserData data;
 
-  udata = NV_DATA_P(u);
-  dudata = NV_DATA_P(udot);
+  udata = N_VGetArrayPointer_Parallel(u);
+  dudata = N_VGetArrayPointer_Parallel(udot);
   data = (UserData) user_data;
 
   /* Call ucomm to do inter-processor communication */
@@ -830,7 +830,7 @@ static int Precond(realtype tn, N_Vector u, N_Vector fu,
   P = data->P;
   Jbd = data->Jbd;
   pivot = data->pivot;
-  udata = NV_DATA_P(u);
+  udata = N_VGetArrayPointer_Parallel(u);
   isubx = data->isubx;   isuby = data->isuby;
   nvmxsub = data->nvmxsub;
 
@@ -924,7 +924,7 @@ static int PSolve(realtype tn, N_Vector u, N_Vector fu,
   N_VScale(RCONST(1.0), r, z);
 
   nvmxsub = data->nvmxsub;
-  zdata = NV_DATA_P(z);
+  zdata = N_VGetArrayPointer_Parallel(z);
 
   for (lx = 0; lx < MXSUB; lx++) {
     for (ly = 0; ly < MYSUB; ly++) {
@@ -947,7 +947,7 @@ static int PSolve(realtype tn, N_Vector u, N_Vector fu,
      opt == 2 means function allocates memory so check if returned
               NULL pointer */
 
-static int check_flag(void *flagvalue, char *funcname, int opt, int id)
+static int check_flag(void *flagvalue, const char *funcname, int opt, int id)
 {
   int *errflag;
 

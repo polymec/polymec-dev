@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4233 $
- * $Date: 2014-10-08 16:11:32 -0700 (Wed, 08 Oct 2014) $
+ * $Revision: 4749 $
+ * $Date: 2016-04-23 18:42:38 -0700 (Sat, 23 Apr 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s):Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -774,6 +774,21 @@ int CVSpilsDQJtimes(N_Vector v, N_Vector Jv, realtype t,
 
   return(0);
 }
+
+
+int cvSpilsInitializeCounters(CVSpilsMem cvspils_mem)
+{
+  cvspils_mem->s_npe     = 0;
+  cvspils_mem->s_nli     = 0;
+  cvspils_mem->s_nps     = 0;
+  cvspils_mem->s_ncfl    = 0;
+  cvspils_mem->s_nstlpre = 0;
+  cvspils_mem->s_njtimes = 0;
+  cvspils_mem->s_nfes    = 0;
+
+  return(0);
+}
+
 
 /* 
  * ================================================================

@@ -1,127 +1,73 @@
 # ---------------------------------------------------------------
-# $Revision: 4516 $
-# $Date: 2015-07-29 10:12:20 -0700 (Wed, 29 Jul 2015) $
+# $Revision: 4957 $
+# $Date: 2016-09-23 12:21:47 -0700 (Fri, 23 Sep 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Steven Smith @ LLNL
 # ---------------------------------------------------------------
-# Copyright (c) 2013, The Regents of the University of California.
+# LLNS Copyright Start
+# Copyright (c) 2014, Lawrence Livermore National Security
+# This work was performed under the auspices of the U.S. Department 
+# of Energy by Lawrence Livermore National Laboratory in part under 
+# Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
 # Produced at the Lawrence Livermore National Laboratory.
 # All rights reserved.
 # For details, see the LICENSE file.
+# LLNS Copyright End
 # ---------------------------------------------------------------
 # Find KLU library.
 # 
-
-set(PRE "lib")
+# Set library prefixes for Windows
 IF(WIN32)
-  set(POST ".lib" ".dll")
-else(WIN32)
-  set(POST ".a" ".so")
-endif(WIN32)
+  set(CMAKE_FIND_LIBRARY_PREFIXES lib ${CMAKE_FIND_LIBRARY_PREFIXES})
+endif()
 
+### Find include dir
+find_path(temp_KLU_INCLUDE_DIR klu.h ${KLU_INCLUDE_DIR})
+if (temp_KLU_INCLUDE_DIR)
+    set(KLU_INCLUDE_DIR ${temp_KLU_INCLUDE_DIR})
+endif()
+unset(temp_KLU_INCLUDE_DIR CACHE)
+    
 if (KLU_LIBRARY)
+    # We have (or were given) KLU_LIBRARY - get path to use for other Suitesparse libs
     get_filename_component(KLU_LIBRARY_DIR ${KLU_LIBRARY} PATH)
-else (KLU_LIBRARY)
-    # SGS TODO Assumption here that all of SparseSuite is in the same dir
-    # SGS TODO Not sure why this is convoluted.
+
+    # force CACHE update to show user DIR that will be used
+    set(KLU_LIBRARY_DIR ${KLU_LIBRARY_DIR} CACHE PATH "" FORCE)
+    
+else ()
+    # find library with user provided directory path
     set(KLU_LIBRARY_NAME klu)
-    
-    # find library path using potential names for static and/or shared libs
-    set(temp_KLU_LIBRARY_DIR ${KLU_LIBRARY_DIR})
-    unset(KLU_LIBRARY_DIR CACHE)  
-    find_path(KLU_LIBRARY_DIR
-        NAMES ${PRE}${KLU_LIBRARY_NAME}${POST}
-        PATHS ${temp_KLU_LIBRARY_DIR}
-        )
+    find_library(KLU_LIBRARY ${KLU_LIBRARY_NAME} ${KLU_LIBRARY_DIR} NO_DEFAULT_PATH)
+endif ()
+mark_as_advanced(KLU_LIBRARY)
 
-    mark_as_advanced(KLU_LIBRARY)
-
-    FIND_LIBRARY( KLU_LIBRARY ${PRE}klu${POST} ${KLU_LIBRARY_DIR} NO_DEFAULT_PATH)
-endif (KLU_LIBRARY)
-
-
-if (AMD_LIBRARY)
-    get_filename_component(AMD_LIBRARY_DIR ${AMD_LIBRARY} PATH)
-else (AMD_LIBRARY)
+if (NOT AMD_LIBRARY)
     set(AMD_LIBRARY_NAME amd)
-
-    # find library path using potential names for static and/or shared libs
-    set(temp_AMD_LIBRARY_DIR ${KLU_LIBRARY_DIR})
-    unset(AMD_LIBRARY_DIR CACHE)  
-    find_path(AMD_LIBRARY_DIR
-        NAMES ${PRE}${AMD_LIBRARY_NAME}${POST}
-        PATHS ${temp_AMD_LIBRARY_DIR}
-        )
-    
-    FIND_LIBRARY( AMD_LIBRARY ${PRE}amd${POST} ${AMD_LIBRARY_DIR} NO_DEFAULT_PATH)
-
+    FIND_LIBRARY(AMD_LIBRARY ${AMD_LIBRARY_NAME} ${KLU_LIBRARY_DIR} NO_DEFAULT_PATH)
     mark_as_advanced(AMD_LIBRARY)
-    mark_as_advanced(AMD_LIBRARY_DIR)
-endif (AMD_LIBRARY)
+endif ()
 
-if (COLAMD_LIBRARY)
-    get_filename_component(COLAMD_LIBRARY_DIR ${COLAMD_LIBRARY} PATH)
-else (COLAMD_LIBRARY)
+if (NOT COLAMD_LIBRARY)
     set(COLAMD_LIBRARY_NAME colamd)
-    
-    # find library path using potential names for static and/or shared libs
-    set(temp_COLAMD_LIBRARY_DIR ${KLU_LIBRARY_DIR})
-    unset(COLAMD_LIBRARY_DIR CACHE)  
-    find_path(COLAMD_LIBRARY_DIR
-        NAMES ${PRE}${COLAMD_LIBRARY_NAME}${POST}
-        PATHS ${temp_COLAMD_LIBRARY_DIR}
-        )
-    
-    FIND_LIBRARY( COLAMD_LIBRARY ${PRE}colamd${POST} ${COLAMD_LIBRARY_DIR} NO_DEFAULT_PATH)
-
+    FIND_LIBRARY(COLAMD_LIBRARY ${COLAMD_LIBRARY_NAME} ${KLU_LIBRARY_DIR} NO_DEFAULT_PATH)
     mark_as_advanced(COLAMD_LIBRARY)
-    mark_as_advanced(COLAMD_LIBRARY_DIR)
-endif (COLAMD_LIBRARY)
+endif ()
 
-if (BTF_LIBRARY)
-    get_filename_component(BTF_LIBRARY_DIR ${BTF_LIBRARY} PATH)
-else (BTF_LIBRARY)
+if (NOT BTF_LIBRARY)
     set(BTF_LIBRARY_NAME btf)
-    
-    # find library path using potential names for static and/or shared libs
-    set(temp_BTF_LIBRARY_DIR ${KLU_LIBRARY_DIR})
-    unset(BTF_LIBRARY_DIR CACHE)  
-    find_path(BTF_LIBRARY_DIR
-        NAMES ${PRE}${BTF_LIBRARY_NAME}${POST}
-        PATHS ${temp_BTF_LIBRARY_DIR}
-        )
-    
-    FIND_LIBRARY( BTF_LIBRARY ${PRE}btf${POST} ${BTF_LIBRARY_DIR} NO_DEFAULT_PATH)
-
+    FIND_LIBRARY( BTF_LIBRARY ${BTF_LIBRARY_NAME} ${KLU_LIBRARY_DIR} NO_DEFAULT_PATH)
     mark_as_advanced(BTF_LIBRARY)
-    mark_as_advanced(BTF_LIBRARY_DIR)
+endif ()
 
-endif (BTF_LIBRARY)
-
-if (SUITESPARSECONFIG_LIBRARY)
-    get_filename_component(SUITESPARSECONFIG_LIBRARY_DIR ${SUITESPARSECONFIG_LIBRARY} PATH)
-else (SUITESPARSECONFIG_LIBRARY)
+if (NOT SUITESPARSECONFIG_LIBRARY)
     set(SUITESPARSECONFIG_LIBRARY_NAME suitesparseconfig)
-    
-    # find library path using potential names for static and/or shared libs
-    set(temp_SUITESPARSECONFIG_LIBRARY_DIR ${KLU_LIBRARY_DIR})
-    unset(SUITESPARSECONFIG_LIBRARY_DIR CACHE)  
-    find_path(SUITESPARSECONFIG_LIBRARY_DIR
-        NAMES ${PRE}${SUITESPARSECONFIG_LIBRARY_NAME}${POST} ${SUITESPARSECONFIG_LIBRARY_NAME}${POST}
-        PATHS ${temp_SUITESPARSECONFIG_LIBRARY_DIR}
-        )
-    # NOTE: no PRE for this one on windows
+    # NOTE: no prefix for this library on windows
     if (WIN32)
-        FIND_LIBRARY( SUITESPARSECONFIG_LIBRARY suitesparseconfig${POST} ${SUITESPARSECONFIG_LIBRARY_DIR} NO_DEFAULT_PATH)
-    else (WIN32)
-        FIND_LIBRARY( SUITESPARSECONFIG_LIBRARY ${PRE}suitesparseconfig${POST} ${SUITESPARSECONFIG_LIBRARY_DIR} NO_DEFAULT_PATH)
-    endif(WIN32)
-
+        set(CMAKE_FIND_LIBRARY_PREFIXES "")
+    endif()
+    FIND_LIBRARY( SUITESPARSECONFIG_LIBRARY ${SUITESPARSECONFIG_LIBRARY_NAME} ${KLU_LIBRARY_DIR} NO_DEFAULT_PATH)
     mark_as_advanced(SUITESPARSECONFIG_LIBRARY)
-    mark_as_advanced(SUITESPARSECONFIG_LIBRARY_DIR)
-
-endif (SUITESPARSECONFIG_LIBRARY)
-
-
+endif ()
 
 set(KLU_LIBRARIES ${KLU_LIBRARY} ${AMD_LIBRARY} ${COLAMD_LIBRARY} ${BTF_LIBRARY} ${SUITESPARSECONFIG_LIBRARY})

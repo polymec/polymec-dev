@@ -1,9 +1,10 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4402 $
- * $Date: 2015-02-28 19:35:39 -0800 (Sat, 28 Feb 2015) $
+ * $Revision: 4815 $
+ * $Date: 2016-07-20 16:51:55 -0700 (Wed, 20 Jul 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Carol Woodward @ LLNL
+ *                Daniel R. Reynolds @ SMU
  * -----------------------------------------------------------------
  * LLNS Copyright Start
  * Copyright (c) 2015, Lawrence Livermore National Security
@@ -21,7 +22,7 @@
 #include <stdlib.h>
 #include "fida.h"
 #include "ida_impl.h"
-#include <sundials/sundials_sparse.h>
+#include <ida/ida_sparse.h>
 
 /* Prototype of the Fortran routine */
  
@@ -41,6 +42,15 @@ extern void FIDA_SPJAC(realtype *T, realtype *CJ, realtype *Y,
 }
 #endif
  
+/*=============================================================*/
+
+/* Fortran interface to C routine IDASlsSetSparseJacFn; see
+   fida.h for further information */
+void FIDA_SPARSESETJAC(int *ier)
+{
+  *ier = IDASlsSetSparseJacFn(IDA_idamem, FIDASparseJac);
+}
+
 /*=============================================================*/
  
 /* C interface to user-supplied Fortran routine FIDASPJAC; see 
@@ -63,8 +73,8 @@ int FIDASparseJac(realtype t, realtype cj, N_Vector y, N_Vector yp,
   v3data  = N_VGetArrayPointer(vtemp3);
   IDA_userdata = (FIDAUserData) user_data;
 
-  FIDA_SPJAC(&t, &cj, ydata, ypdata, rdata, &(J->N), &(J->NNZ),
-	    J->data, J->rowvals, J->colptrs, &h, 
+  FIDA_SPJAC(&t, &cj, ydata, ypdata, rdata, &(J->NP), &(J->NNZ),
+	    J->data, J->indexvals, J->indexptrs, &h, 
 	    IDA_userdata->ipar, IDA_userdata->rpar, v1data, 
 	    v2data, v3data, &ier); 
   return(ier);

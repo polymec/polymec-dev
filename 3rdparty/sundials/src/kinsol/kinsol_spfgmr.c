@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4075 $
- * $Date: 2014-04-24 10:46:58 -0700 (Thu, 24 Apr 2014) $
+ * $Revision: 4924 $
+ * $Date: 2016-09-19 14:36:05 -0700 (Mon, 19 Sep 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Carol S. Woodward @ LLNL
  *    Based on kinsol_spgmr.c
@@ -51,8 +51,8 @@
 static int KINSpfgmrInit(KINMem kin_mem);
 static int KINSpfgmrSetup(KINMem kin_mem);
 static int KINSpfgmrSolve(KINMem kin_mem, N_Vector xx, 
-			  N_Vector bb, realtype *sJpnorm, realtype *sFdotJp);
-static void KINSpfgmrFree(KINMem kin_mem);
+                          N_Vector bb, realtype *sJpnorm, realtype *sFdotJp);
+static int KINSpfgmrFree(KINMem kin_mem);
 
 /*
  * -----------------------------------------------------------------
@@ -191,6 +191,8 @@ int KINSpfgmr(void *kinmem, int maxl)
   kinspils_mem->s_maxlrst   = 0;
   kinspils_mem->s_last_flag = KINSPILS_SUCCESS;
 
+  kinSpilsInitializeCounters(kinspils_mem);
+
   /* Call SpfgmrMalloc to allocate workspace for SPFGMR */
 
   /* vtemp1 passed as template vector */
@@ -246,13 +248,7 @@ static int KINSpfgmrInit(KINMem kin_mem)
   kinspils_mem = (KINSpilsMem) kin_mem->kin_lmem;
 
   /* initialize counters */
-  
-  kinspils_mem->s_npe = 0;
-  kinspils_mem->s_nli = 0;
-  kinspils_mem->s_nps = 0;
-  kinspils_mem->s_ncfl = 0;
-  kinspils_mem->s_njtimes = 0;
-  kinspils_mem->s_nfes = 0;
+  kinSpilsInitializeCounters(kinspils_mem);
 
   /* set preconditioner type */
 
@@ -306,9 +302,9 @@ static int KINSpfgmrSetup(KINMem kin_mem)
   /* call pset routine */
 
   ret = kinspils_mem->s_pset(kin_mem->kin_uu, kin_mem->kin_uscale, 
-			     kin_mem->kin_fval, kin_mem->kin_fscale, 
-			     kinspils_mem->s_P_data, 
-			     kin_mem->kin_vtemp1, kin_mem->kin_vtemp2); 
+                             kin_mem->kin_fval, kin_mem->kin_fscale, 
+                             kinspils_mem->s_P_data, 
+                             kin_mem->kin_vtemp1, kin_mem->kin_vtemp2); 
 
   kinspils_mem->s_last_flag = ret;
 
@@ -437,7 +433,7 @@ static int KINSpfgmrSolve(KINMem kin_mem, N_Vector xx, N_Vector bb,
  * -----------------------------------------------------------------
  */
 
-static void KINSpfgmrFree(KINMem kin_mem)
+static int KINSpfgmrFree(KINMem kin_mem)
 {
   KINSpilsMem kinspils_mem;
   SpfgmrMem spfgmr_mem;
@@ -450,4 +446,6 @@ static void KINSpfgmrFree(KINMem kin_mem)
   if (kinspils_mem->s_pfree != NULL) (kinspils_mem->s_pfree)(kin_mem);
 
   free(kinspils_mem); kinspils_mem = NULL;
+
+  return(0);
 }

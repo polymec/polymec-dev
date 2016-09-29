@@ -1,9 +1,10 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4402 $
- * $Date: 2015-02-28 19:35:39 -0800 (Sat, 28 Feb 2015) $
+ * $Revision: 4815 $
+ * $Date: 2016-07-20 16:51:55 -0700 (Wed, 20 Jul 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Carol Woodward @ LLNL
+ *                Daniel R. Reynolds @ SMU
  * -----------------------------------------------------------------
  * LLNS Copyright Start
  * Copyright (c) 2015, Lawrence Livermore National Security
@@ -15,16 +16,13 @@
  * For details, see the LICENSE file.
  * LLNS Copyright End
  * -----------------------------------------------------------------
- * This is the implementation file for the Fortran interface to
- * the KINSuperLUMT solver. See fkinsol.h for usage.
- * -----------------------------------------------------------------
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include "fkinsol.h"
 #include "kinsol_impl.h"
-#include <sundials/sundials_sparse.h>
+#include <kinsol/kinsol_sparse.h>
 
 /* Prototype of the Fortran routine */
  
@@ -41,6 +39,15 @@ extern void FKIN_SPJAC(realtype *Y, realtype *FY, int *N, int *NNZ,
 #endif
  
 /*=============================================================*/
+
+/* Fortran interface to C routine KINSlsSetSparseJacFn; see
+   fkinsol.h for further information */
+void FKIN_SPARSESETJAC(int *ier)
+{
+  *ier = KINSlsSetSparseJacFn(KIN_kinmem, FKINSparseJac);
+}
+
+/*=============================================================*/
  
 /* C interface to user-supplied Fortran routine FKINSPJAC; see 
    fkinsol.h for additional information  */
@@ -56,8 +63,8 @@ int FKINSparseJac(N_Vector y, N_Vector fy,
   v1data  = N_VGetArrayPointer(vtemp1);
   v2data  = N_VGetArrayPointer(vtemp2);
  
-  FKIN_SPJAC(ydata, fydata, &(J->N), &(J->NNZ),
-             J->data, J->rowvals, J->colptrs,  
+  FKIN_SPJAC(ydata, fydata, &(J->NP), &(J->NNZ),
+             J->data, J->indexvals, J->indexptrs,  
              v1data, v2data, &ier); 
   return(ier);
 }

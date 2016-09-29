@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4237 $
- * $Date: 2014-10-15 16:19:59 -0700 (Wed, 15 Oct 2014) $
+ * $Revision: 4749 $
+ * $Date: 2016-04-23 18:42:38 -0700 (Sat, 23 Apr 2016) $
  * ----------------------------------------------------------------- 
  * Programmers: Alan C. Hindmarsh and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -687,6 +687,19 @@ int IDASpilsDQJtimes(realtype tt,
 
   return(0);
 
+}
+
+
+int idaSpilsInitializeCounters(IDASpilsMem idaspils_mem)
+{
+  idaspils_mem->s_npe     = 0;
+  idaspils_mem->s_nli     = 0;
+  idaspils_mem->s_nps     = 0;
+  idaspils_mem->s_ncfl    = 0;
+  idaspils_mem->s_njtimes = 0;
+  idaspils_mem->s_nres    = 0;
+
+  return(0);
 }
 
 

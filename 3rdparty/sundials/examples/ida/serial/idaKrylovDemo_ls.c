@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4074 $
- * $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
@@ -92,7 +92,7 @@ static int SetInitialProfile(UserData data, N_Vector uu, N_Vector up,
                              N_Vector res);
 static void PrintHeader(realtype rtol, realtype atol, int linsolver);
 static void PrintOutput(void *mem, realtype t, N_Vector uu, int linsolver);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -310,9 +310,9 @@ int resHeat(realtype tt,
   realtype *uu_data, *up_data, *rr_data, coeff, dif1, dif2;
   UserData data;
   
-  uu_data = NV_DATA_S(uu); 
-  up_data = NV_DATA_S(up); 
-  rr_data = NV_DATA_S(rr);
+  uu_data = N_VGetArrayPointer_Serial(uu); 
+  up_data = N_VGetArrayPointer_Serial(up); 
+  rr_data = N_VGetArrayPointer_Serial(rr);
 
   data = (UserData) user_data;
   
@@ -364,7 +364,7 @@ int PsetupHeat(realtype tt,
   UserData data;
   
   data = (UserData) user_data;
-  ppv = NV_DATA_S(data->pp);
+  ppv = N_VGetArrayPointer_Serial(data->pp);
   mm = data->mm;
 
   /* Initialize the entire vector to 1., then set the interior points to the
@@ -422,8 +422,8 @@ static int SetInitialProfile(UserData data, N_Vector uu, N_Vector up,
 
   mm = data->mm;
 
-  udata = NV_DATA_S(uu);
-  updata = NV_DATA_S(up);
+  udata = N_VGetArrayPointer_Serial(uu);
+  updata = N_VGetArrayPointer_Serial(up);
 
   /* Initialize uu on all grid points. */ 
   mm1 = mm - 1;
@@ -551,7 +551,7 @@ static void PrintOutput(void *mem, realtype t, N_Vector uu, int linsolver)
  *            NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

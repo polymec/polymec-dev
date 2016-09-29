@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
  * $Rev $
- * $Date: 2015-04-30 16:56:10 -0700 (Thu, 30 Apr 2015) $
+ * $Date: 2016-09-19 14:35:51 -0700 (Mon, 19 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -44,10 +44,10 @@ static int cvSuperLUMTSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
 static int cvSuperLUMTSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
 			    N_Vector ycur, N_Vector fcur);
 
-static void cvSuperLUMTFree(CVodeMem cv_mem);
+static int cvSuperLUMTFree(CVodeMem cv_mem);
 
 /* CVKLU lfreeB function */
-static void cvSuperLUMTFreeB(CVodeBMem cvb_mem);
+static int cvSuperLUMTFreeB(CVodeBMem cvb_mem);
 
 /* 
  * ================================================================
@@ -138,7 +138,7 @@ int CVSuperLUMT(void *cvode_mem, int num_threads, int n, int nnz)
   cvsls_mem->s_jacdata = cv_mem->cv_user_data;
 
   /* Allocate memory for the sparse Jacobian */
-  cvsls_mem->s_JacMat = NewSparseMat(n, n, nnz);
+  cvsls_mem->s_JacMat = SparseNewMat(n, n, nnz, CSC_MAT);
   if (cvsls_mem->s_JacMat == NULL) {
     cvProcessError(cv_mem, CVSLS_MEM_FAIL, "CVSLS", "cvSuperLUMT", 
 		    MSGSP_MEM_FAIL);
@@ -147,11 +147,11 @@ int CVSuperLUMT(void *cvode_mem, int num_threads, int n, int nnz)
   }
 
   /* Allocate memory for saved sparse Jacobian */
-  cvsls_mem->s_savedJ = NewSparseMat(n, n, nnz);
+  cvsls_mem->s_savedJ = SparseNewMat(n, n, nnz, CSC_MAT);
   if (cvsls_mem->s_savedJ == NULL) {
     cvProcessError(cv_mem, CVSLS_MEM_FAIL, "CVSLS", "cvSuperLUMT", 
 		    MSGSP_MEM_FAIL);
-    DestroySparseMat(cvsls_mem->s_JacMat);
+    SparseDestroyMat(cvsls_mem->s_JacMat);
     free(cvsls_mem);
     return(CVSLS_MEM_FAIL);
   }
@@ -343,13 +343,13 @@ static int cvSuperLUMTSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
   if (jok) {
     /* If jok = TRUE, use saved copy of J */
     *jcurPtr = FALSE;
-    CopySparseMat(savedJ, JacMat);
+    SparseCopyMat(savedJ, JacMat);
   } else {
     /* If jok = FALSE, call jac routine for new J value */
     cvsls_mem->s_nje++;
     cvsls_mem->s_nstlj = nst;
     *jcurPtr = TRUE;
-    SlsSetToZero(JacMat);
+    SparseSetMatToZero(JacMat);
     retval = jaceval(tn, ypred, fpred, JacMat, jacdata, vtemp1, vtemp2, vtemp3);
     if (retval < 0) {
       cvProcessError(cv_mem, CVSLS_JACFUNC_UNRECVR, "CVSLS", "cvSuperLUMTSetup", MSGSP_JACFUNC_FAILED);
@@ -361,18 +361,18 @@ static int cvSuperLUMTSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
       return(1);
     }
 
-    CopySparseMat(JacMat, savedJ);
+    SparseCopyMat(JacMat, savedJ);
   }
 
   /* Scale and add I to get M = I - gamma*J */
-  ScaleSparseMat(-gamma, JacMat);
-  AddIdentitySparseMat(JacMat);
+  SparseScaleMat(-gamma, JacMat);
+  SparseAddIdentityMat(JacMat);
 
   if (A->Store) {
     SUPERLU_FREE(A->Store);
   }
   dCreate_CompCol_Matrix(A, JacMat->M, JacMat->N, JacMat->NNZ, 
-			 JacMat->data, JacMat->rowvals, JacMat->colptrs, 
+			 JacMat->data, JacMat->indexvals, JacMat->indexptrs, 
 			 SLU_NC, SLU_D, SLU_GE);
 
   if (cvsls_mem->s_first_factorize) {
@@ -475,7 +475,7 @@ static int cvSuperLUMTSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
   This routine frees memory specific to the CVSuperLUMT linear solver.
 */
 
-static void cvSuperLUMTFree(CVodeMem cv_mem)
+static int cvSuperLUMTFree(CVodeMem cv_mem)
 {
   CVSlsMem cvsls_mem;
   SLUMTData slumt_data;
@@ -497,11 +497,11 @@ static void cvSuperLUMTFree(CVodeMem cv_mem)
   Destroy_SuperMatrix_Store(slumt_data->s_B);
   SUPERLU_FREE(slumt_data->s_A->Store);
   if (cvsls_mem->s_JacMat) {
-    DestroySparseMat(cvsls_mem->s_JacMat);
+    SparseDestroyMat(cvsls_mem->s_JacMat);
     cvsls_mem->s_JacMat = NULL;
   }
   if (cvsls_mem->s_savedJ) {
-    DestroySparseMat(cvsls_mem->s_savedJ);
+    SparseDestroyMat(cvsls_mem->s_savedJ);
     cvsls_mem->s_savedJ = NULL;
   }
 
@@ -515,7 +515,7 @@ static void cvSuperLUMTFree(CVodeMem cv_mem)
   slumt_data = NULL;
   free(cv_mem->cv_lmem); 
 
-  return;
+  return(0);
 }
 
 /* 
@@ -651,7 +651,6 @@ int CVSuperLUMTSetOrderingB(void *cvode_mem, int which, int ordering_choice)
   CVadjMem ca_mem;
   CVodeBMem cvB_mem;
   void *cvodeB_mem;
-  CVSlsMemB cvslsB_mem;
   int flag;
 
   /* Check if cvode_mem exists */
@@ -693,12 +692,14 @@ int CVSuperLUMTSetOrderingB(void *cvode_mem, int which, int ordering_choice)
  * solver for backward integration.
  */
 
-static void cvSuperLUMTFreeB(CVodeBMem cvB_mem)
+static int cvSuperLUMTFreeB(CVodeBMem cvB_mem)
 {
   CVSlsMemB cvslsB_mem;
 
   cvslsB_mem = (CVSlsMemB) (cvB_mem->cv_lmem);
 
   free(cvslsB_mem);
+
+  return(0);
 }
 

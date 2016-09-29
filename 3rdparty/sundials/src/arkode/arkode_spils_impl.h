@@ -80,7 +80,7 @@ typedef struct ARKSpilsMemRec {
         - pfree == set by the prec. module and called in ARKodeFree  */
   ARKSpilsPrecSetupFn s_pset;
   ARKSpilsPrecSolveFn s_psolve;
-  void (*s_pfree)(ARKodeMem ark_mem);
+  int (*s_pfree)(ARKodeMem ark_mem);
   void *s_P_data;
 
   /* Jacobian times vector compuation
@@ -136,7 +136,7 @@ typedef struct ARKSpilsMassMemRec {
         - pfree == set by the prec. module and called in ARKodeFree */
   ARKSpilsMassPrecSetupFn s_pset;
   ARKSpilsMassPrecSolveFn s_psolve;
-  void (*s_pfree)(ARKodeMem ark_mem);
+  int (*s_pfree)(ARKodeMem ark_mem);
   void *s_P_data;
 
   long int s_last_flag; /* last error flag returned by any function     */
@@ -158,8 +158,11 @@ int ARKSpilsMPSolve(void *ark_mem, N_Vector r, N_Vector z, int lr);
 
 /* Difference quotient approximation for Jac times vector */
 int ARKSpilsDQJtimes(N_Vector v, N_Vector Jv, realtype t,
-		     N_Vector y, N_Vector fy, void *data,
-		     N_Vector work);
+                     N_Vector y, N_Vector fy, void *data,
+                     N_Vector work);
+
+/* Auxilliary functions */
+int arkSpilsInitializeCounters(ARKSpilsMem arkspils_mem);
 
 
 /*---------------------------------------------------------------

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -129,7 +129,7 @@ static int fQB(realtype t, N_Vector y, N_Vector yB,
 static void PrintHead(realtype tB0);
 static void PrintOutput(realtype tfinal, N_Vector y, N_Vector yB, N_Vector qB);
 static void PrintOutput1(realtype time, realtype t, N_Vector y, N_Vector yB);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -725,7 +725,7 @@ static void PrintOutput(realtype tfinal, N_Vector y, N_Vector yB, N_Vector qB)
  *             NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

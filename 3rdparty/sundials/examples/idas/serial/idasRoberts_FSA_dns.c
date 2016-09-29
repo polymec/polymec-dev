@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4074 $
- * $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Cosmin Petra and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -102,7 +102,7 @@ static void PrintSensOutput(N_Vector *uS);
 
 static void PrintFinalStats(void *ida_mem, booleantype sensi);
 
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 /*
  *--------------------------------------------------------------------
  * MAIN PROGRAM
@@ -512,7 +512,7 @@ static void PrintIC(N_Vector y, N_Vector yp)
 {
   realtype* data;
 
-  data = NV_DATA_S(y);
+  data = N_VGetArrayPointer_Serial(y);
   printf("\n\nConsistent IC:\n");
   printf("\ty = ");
 #if defined(SUNDIALS_EXTENDED_PRECISION)
@@ -523,7 +523,7 @@ static void PrintIC(N_Vector y, N_Vector yp)
   printf("%12.4e %12.4e %12.4e \n", data[0], data[1], data[2]);
 #endif
 
-  data = NV_DATA_S(yp);
+  data = N_VGetArrayPointer_Serial(yp);
   printf("\typ= ");
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%12.4Le %12.4Le %12.4Le \n", data[0], data[1], data[2]);
@@ -538,7 +538,7 @@ static void PrintSensIC(N_Vector y, N_Vector yp, N_Vector* yS, N_Vector* ypS)
 {
   realtype *sdata;
 
-  sdata = NV_DATA_S(yS[0]);
+  sdata = N_VGetArrayPointer_Serial(yS[0]);
   printf("                  Sensitivity 1  ");
 
   printf("\n\ts1 = ");
@@ -549,7 +549,7 @@ static void PrintSensIC(N_Vector y, N_Vector yp, N_Vector* yS, N_Vector* ypS)
 #else
   printf("%12.4e %12.4e %12.4e \n", sdata[0], sdata[1], sdata[2]);
 #endif
-  sdata = NV_DATA_S(ypS[0]);
+  sdata = N_VGetArrayPointer_Serial(ypS[0]);
   printf("\ts1'= ");
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%12.4Le %12.4Le %12.4Le \n", sdata[0], sdata[1], sdata[2]);
@@ -561,7 +561,7 @@ static void PrintSensIC(N_Vector y, N_Vector yp, N_Vector* yS, N_Vector* ypS)
 
 
   printf("                  Sensitivity 2  ");
-  sdata = NV_DATA_S(yS[1]);
+  sdata = N_VGetArrayPointer_Serial(yS[1]);
   printf("\n\ts2 = ");
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%12.4Le %12.4Le %12.4Le \n", sdata[0], sdata[1], sdata[2]);
@@ -570,7 +570,7 @@ static void PrintSensIC(N_Vector y, N_Vector yp, N_Vector* yS, N_Vector* ypS)
 #else
   printf("%12.4e %12.4e %12.4e \n", sdata[0], sdata[1], sdata[2]);
 #endif
-  sdata = NV_DATA_S(ypS[1]);
+  sdata = N_VGetArrayPointer_Serial(ypS[1]);
   printf("\ts2'= ");
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%12.4Le %12.4Le %12.4Le \n", sdata[0], sdata[1], sdata[2]);
@@ -582,7 +582,7 @@ static void PrintSensIC(N_Vector y, N_Vector yp, N_Vector* yS, N_Vector* ypS)
 
 
   printf("                  Sensitivity 3  ");
-  sdata = NV_DATA_S(yS[2]);
+  sdata = N_VGetArrayPointer_Serial(yS[2]);
   printf("\n\ts3 = ");
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%12.4Le %12.4Le %12.4Le \n", sdata[0], sdata[1], sdata[2]);
@@ -591,7 +591,7 @@ static void PrintSensIC(N_Vector y, N_Vector yp, N_Vector* yS, N_Vector* ypS)
 #else
   printf("%12.4e %12.4e %12.4e \n", sdata[0], sdata[1], sdata[2]);
 #endif
-  sdata = NV_DATA_S(ypS[2]);
+  sdata = N_VGetArrayPointer_Serial(ypS[2]);
   printf("\ts3'= ");
 #if defined(SUNDIALS_EXTENDED_PRECISION)
   printf("%12.4Le %12.4Le %12.4Le \n", sdata[0], sdata[1], sdata[2]);
@@ -614,7 +614,7 @@ static void PrintOutput(void *ida_mem, realtype t, N_Vector u)
   int qu, flag;
   realtype hu, *udata;
   
-  udata = NV_DATA_S(u);
+  udata = N_VGetArrayPointer_Serial(u);
 
   flag = IDAGetNumSteps(ida_mem, &nst);
   check_flag(&flag, "IDAGetNumSteps", 1);
@@ -651,7 +651,7 @@ static void PrintSensOutput(N_Vector *uS)
 {
   realtype *sdata;
 
-  sdata = NV_DATA_S(uS[0]);
+  sdata = N_VGetArrayPointer_Serial(uS[0]);
   printf("                  Sensitivity 1  ");
 
 #if defined(SUNDIALS_EXTENDED_PRECISION)
@@ -662,7 +662,7 @@ static void PrintSensOutput(N_Vector *uS)
   printf("%12.4e %12.4e %12.4e \n", sdata[0], sdata[1], sdata[2]);
 #endif
   
-  sdata = NV_DATA_S(uS[1]);
+  sdata = N_VGetArrayPointer_Serial(uS[1]);
   printf("                  Sensitivity 2  ");
 
 #if defined(SUNDIALS_EXTENDED_PRECISION)
@@ -673,7 +673,7 @@ static void PrintSensOutput(N_Vector *uS)
   printf("%12.4e %12.4e %12.4e \n", sdata[0], sdata[1], sdata[2]);
 #endif
 
-  sdata = NV_DATA_S(uS[2]);
+  sdata = N_VGetArrayPointer_Serial(uS[2]);
   printf("                  Sensitivity 3  ");
 
 #if defined(SUNDIALS_EXTENDED_PRECISION)
@@ -758,7 +758,7 @@ static void PrintFinalStats(void *ida_mem, booleantype sensi)
  *             NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

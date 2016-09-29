@@ -719,8 +719,9 @@ static int bdf_lsolve(CVodeMem cv_mem,
   return bdf->solve_func(bdf->context, t, U, U_dot, W, res_norm_tol, B);
 }
 
-static void bdf_lfree(CVodeMem cv_mem)
+static int bdf_lfree(struct CVodeMemRec* cv_mem)
 {
+  return 0;
 }
 
 ode_integrator_t* bdf_ode_integrator_new(const char* name,

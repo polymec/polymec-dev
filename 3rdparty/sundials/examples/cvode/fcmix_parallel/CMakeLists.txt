@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4135 $
-# $Date: 2014-06-13 15:55:05 -0700 (Fri, 13 Jun 2014) $
+# $Revision: 4957 $
+# $Date: 2016-09-23 12:21:47 -0700 (Fri, 23 Sep 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -68,6 +68,10 @@ ENDIF(KLU_FOUND)
 IF(SUPERLUMT_FOUND)
   LIST(APPEND SUNDIALS_LIBS ${SUPERLUMT_LIBRARIES})
 ENDIF(SUPERLUMT_FOUND)
+
+IF(HYPRE_FOUND)
+  LIST(APPEND SUNDIALS_LIBS ${HYPRE_LIBRARIES})
+ENDIF(HYPRE_FOUND)
 
 # Add the build and install targets for each CVODE example
 

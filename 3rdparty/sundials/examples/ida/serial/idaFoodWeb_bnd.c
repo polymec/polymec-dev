@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4074 $
- * $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+ * $Revision: 4853 $
+ * $Date: 2016-08-03 16:27:46 -0700 (Wed, 03 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
@@ -159,7 +159,7 @@ static void Fweb(realtype tcalc, N_Vector cc, N_Vector crate, UserData webdata);
 static void WebRates(realtype xx, realtype yy, realtype *cxy, realtype *ratesxy, 
                      UserData webdata);
 static realtype dotprod(long int size, realtype *x1, realtype *x2);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -303,8 +303,8 @@ static int resweb(realtype tt, N_Vector cc, N_Vector cp,
   
   webdata = (UserData)user_data;
   
-  cpv = NV_DATA_S(cp);
-  resv = NV_DATA_S(res);
+  cpv = N_VGetArrayPointer_Serial(cp);
+  resv = N_VGetArrayPointer_Serial(res);
   np = webdata->np;
   
   /* Call Fweb to set res to vector of right-hand sides. */
@@ -394,12 +394,12 @@ static void SetInitialProfiles(N_Vector cc, N_Vector cp, N_Vector id,
                                UserData webdata)
 {
   long int loc, yloc, is, jx, jy, np;
-  realtype xx, yy, xyfactor, fac;
+  realtype xx, yy, xyfactor;
   realtype *ccv, *cpv, *idv;
   
-  ccv = NV_DATA_S(cc);
-  cpv = NV_DATA_S(cp);
-  idv = NV_DATA_S(id);
+  ccv = N_VGetArrayPointer_Serial(cc);
+  cpv = N_VGetArrayPointer_Serial(cp);
+  idv = N_VGetArrayPointer_Serial(id);
   np = webdata->np;
   
   /* Loop over grid, load cc values and id values. */
@@ -411,11 +411,10 @@ static void SetInitialProfiles(N_Vector cc, N_Vector cp, N_Vector id,
       xyfactor = RCONST(16.0)*xx*(ONE-xx)*yy*(ONE-yy);
       xyfactor *= xyfactor;
       loc = yloc + NUM_SPECIES*jx;
-      fac = ONE + ALPHA * xx * yy + BETA * sin(FOURPI*xx) * sin(FOURPI*yy);
-      
+       
       for (is = 0; is < NUM_SPECIES; is++) {
         if (is < np) {
-	    ccv[loc+is] = RCONST(10.0) + (realtype)(is+1) * xyfactor;
+          ccv[loc+is] = RCONST(10.0) + (realtype)(is+1) * xyfactor;
           idv[loc+is] = ONE;
         }
         else {
@@ -491,17 +490,17 @@ static void PrintOutput(void *mem, N_Vector c, realtype t)
 
 #if defined(SUNDIALS_EXTENDED_PRECISION) 
   printf("%8.2Le %12.4Le %12.4Le   | %3ld  %1d %12.4Le\n", 
-         t, c_bl[0], c_tr[1], nst, kused, hused);
+         t, c_bl[0], c_tr[0], nst, kused, hused);
   for (i=1;i<NUM_SPECIES;i++)
     printf("         %12.4Le %12.4Le   |\n",c_bl[i],c_tr[i]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION) 
   printf("%8.2e %12.4e %12.4e   | %3ld  %1d %12.4e\n", 
-         t, c_bl[0], c_tr[1], nst, kused, hused);
+         t, c_bl[0], c_tr[0], nst, kused, hused);
   for (i=1;i<NUM_SPECIES;i++)
     printf("         %12.4e %12.4e   |\n",c_bl[i],c_tr[i]);
 #else
   printf("%8.2e %12.4e %12.4e   | %3ld  %1d %12.4e\n", 
-         t, c_bl[0], c_tr[1], nst, kused, hused);
+         t, c_bl[0], c_tr[0], nst, kused, hused);
   for (i=1;i<NUM_SPECIES;i++)
     printf("         %12.4e %12.4e   |\n",c_bl[i],c_tr[i]);
 #endif
@@ -643,7 +642,7 @@ static realtype dotprod(long int size, realtype *x1, realtype *x2)
  *            NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

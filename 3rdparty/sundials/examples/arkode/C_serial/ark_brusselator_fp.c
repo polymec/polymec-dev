@@ -68,7 +68,7 @@ static int fe(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 static int fi(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 
 /* Private function to check function return values */
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /* Main Program */
 int main()
@@ -139,7 +139,7 @@ int main()
   if (check_flag((void *)arkode_mem, "ARKodeCreate", 0)) return 1;
 
   /* Call ARKodeInit to initialize the integrator memory and specify the
-     hand-side side functions in y'=fe(t,y)+fi(t,y), the inital time T0, 
+     right-hand side functions in y'=fe(t,y)+fi(t,y), the inital time T0, 
      and the initial dependent variable vector y. */
   flag = ARKodeInit(arkode_mem, fe, fi, T0, y);
   if (check_flag(&flag, "ARKodeInit", 1)) return 1;
@@ -263,7 +263,7 @@ static int fe(realtype t, N_Vector y, N_Vector ydot, void *user_data)
     opt == 2 means function allocates memory so check if returned
              NULL pointer  
 */
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

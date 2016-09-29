@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -52,7 +52,7 @@ static int jac(long int N,
                N_Vector tmp1, N_Vector tmp2);
 static void PrintOutput(N_Vector y);
 static void PrintFinalStats(void *kmem);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -172,8 +172,8 @@ static int func(N_Vector y, N_Vector f, void *user_data)
   realtype lb1, lb2, lb3, lb4, lb5, lb6, lb7, lb8;
   realtype ub1, ub2, ub3, ub4, ub5, ub6, ub7, ub8;
 
-  yd = NV_DATA_S(y);
-  fd = NV_DATA_S(f);
+  yd = N_VGetArrayPointer_Serial(y);
+  fd = N_VGetArrayPointer_Serial(f);
 
   x1 = yd[0]; l1 = yd[ 8]; u1 = yd[16]; 
   x2 = yd[1]; l2 = yd[ 9]; u2 = yd[17]; 
@@ -244,7 +244,7 @@ static int jac(long int N,
   realtype *yd;
   realtype x1, x2, x3, x4, x5, x6, x7, x8;
 
-  yd = NV_DATA_S(y);
+  yd = N_VGetArrayPointer_Serial(y);
 
   x1 = yd[0];
   x2 = yd[1];
@@ -402,7 +402,7 @@ static void PrintFinalStats(void *kmem)
  *             NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

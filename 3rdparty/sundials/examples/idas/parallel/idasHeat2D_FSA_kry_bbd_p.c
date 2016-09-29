@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4396 $
- * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -113,7 +113,7 @@ static void PrintFinalStats(void *mem);
 static void ProcessArgs(int argc, char *argv[], int my_pe,
                         booleantype *sensi, int *sensi_meth, booleantype *err_con);
 static void WrongArgs(int my_pe, char *name);
-static int check_flag(void *flagvalue, char *funcname, int opt, int id);
+static int check_flag(void *flagvalue, const char *funcname, int opt, int id);
 
 /*
  *--------------------------------------------------------------------
@@ -405,7 +405,7 @@ static int rescomm(long int Nlocal, realtype tt,
   MPI_Request request[4];
 
   data = (UserData) user_data;
-  uarray = NV_DATA_P(uu);
+  uarray = N_VGetArrayPointer_Parallel(uu);
 
   /* Get comm, thispe, subgrid indices, data sizes, extended array uext. */
   comm = data->comm;  thispe = data->thispe;
@@ -449,9 +449,9 @@ static int reslocal(long int Nlocal, realtype tres,
   data = (UserData) user_data;
 
   uext = data->uext;
-  uuv = NV_DATA_P(uu);
-  upv = NV_DATA_P(up);
-  resv = NV_DATA_P(res);
+  uuv = N_VGetArrayPointer_Parallel(uu);
+  upv = N_VGetArrayPointer_Parallel(up);
+  resv = N_VGetArrayPointer_Parallel(res);
   ixsub = data->ixsub; jysub = data->jysub;
   mxsub = data->mxsub; mxsub2 = data->mxsub + 2;
   mysub = data->mysub; npex = data->npex; npey = data->npey;
@@ -696,8 +696,8 @@ static int SetInitialProfile(N_Vector uu, N_Vector up,  N_Vector id,
   
   /* Initialize uu. */ 
   
-  udata = NV_DATA_P(uu);
-  iddata = NV_DATA_P(id);
+  udata = N_VGetArrayPointer_Parallel(uu);
+  iddata = N_VGetArrayPointer_Parallel(id);
   
   /* Set mesh spacings and subgrid indices for this PE. */
   dx = data->dx;
@@ -944,7 +944,7 @@ static void WrongArgs(int my_pe, char *name)
  *            NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt, int id)
+static int check_flag(void *flagvalue, const char *funcname, int opt, int id)
 {
   int *errflag;
 

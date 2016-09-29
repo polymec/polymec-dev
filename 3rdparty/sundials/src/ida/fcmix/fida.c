@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4475 $
- * $Date: 2015-04-03 11:52:48 -0700 (Fri, 03 Apr 2015) $
+ * $Revision: 4825 $
+ * $Date: 2016-07-26 15:56:58 -0700 (Tue, 26 Jul 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Aaron Collier and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -343,12 +343,10 @@ void FIDA_SETVIN(char key_name[], realtype *vval, int *ier)
 
 void FIDA_TOLREINIT(int *iatol, realtype *rtol, realtype *atol, int *ier)
 {
-  int itol;
   N_Vector Vatol=NULL;
 
   *ier = 0;
 
-  itol = -1;
   if (*iatol == 1) {
     *ier = IDASStolerances(IDA_idamem, *rtol, *atol);
   } else {

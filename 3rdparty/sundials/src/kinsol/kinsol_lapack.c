@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4075 $
- * $Date: 2014-04-24 10:46:58 -0700 (Thu, 24 Apr 2014) $
+ * $Revision: 4924 $
+ * $Date: 2016-09-19 14:36:05 -0700 (Mon, 19 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer: Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -51,14 +51,14 @@ static int kinLapackDenseInit(KINMem kin_mem);
 static int kinLapackDenseSetup(KINMem kin_mem);
 static int kinLapackDenseSolve(KINMem kin_mem, N_Vector x, N_Vector b,
                                realtype *sJpnorm, realtype *sFdotJp);
-static void kinLapackDenseFree(KINMem kin_mem);
+static int kinLapackDenseFree(KINMem kin_mem);
 
 /* KINLAPACK BAND linit, lsetup, lsolve, and lfree routines */ 
 static int kinLapackBandInit(KINMem kin_mem);
 static int kinLapackBandSetup(KINMem kin_mem);
 static int kinLapackBandSolve(KINMem kin_mem, N_Vector x, N_Vector b,
                               realtype *sJpnorm, realtype *sFdotJp);
-static void kinLapackBandFree(KINMem kin_mem);
+static int kinLapackBandFree(KINMem kin_mem);
 
 /*
  * =================================================================
@@ -177,6 +177,8 @@ int KINLapackDense(void *kinmem, int N)
 
   last_flag = KINDLS_SUCCESS;
 
+  kinDlsInitializeCounters(kindls_mem);
+
   setupNonNull = TRUE;
 
   /* Set problem dimension */
@@ -279,6 +281,8 @@ int KINLapackBand(void *kinmem, int N, int mupper, int mlower)
 
   last_flag = KINDLS_SUCCESS;
 
+  kinDlsInitializeCounters(kindls_mem);
+
   setupNonNull = TRUE;
   
   /* Load problem dimension */
@@ -347,8 +351,7 @@ static int kinLapackDenseInit(KINMem kin_mem)
 
   kindls_mem = (KINDlsMem) lmem;
   
-  nje   = 0;
-  nfeDQ = 0;
+  kinDlsInitializeCounters(kindls_mem);
   
   if (jacDQ) {
     djac = kinDlsDenseDQJac;
@@ -451,7 +454,7 @@ static int kinLapackDenseSolve(KINMem kin_mem, N_Vector x, N_Vector b,
  * -----------------------------------------------------------------
  */
 
-static void kinLapackDenseFree(KINMem kin_mem)
+static int kinLapackDenseFree(KINMem kin_mem)
 {
   KINDlsMem  kindls_mem;
 
@@ -460,6 +463,8 @@ static void kinLapackDenseFree(KINMem kin_mem)
   DestroyMat(J);
   DestroyArray(pivots);
   free(kindls_mem); kindls_mem = NULL;
+
+  return(0);
 }
 
 
@@ -484,8 +489,7 @@ static int kinLapackBandInit(KINMem kin_mem)
 
   kindls_mem = (KINDlsMem) lmem;
 
-  nje   = 0;
-  nfeDQ = 0;
+  kinDlsInitializeCounters(kindls_mem);
 
   if (jacDQ) {
     bjac = kinDlsBandDQJac;
@@ -598,7 +602,7 @@ static int kinLapackBandSolve(KINMem kin_mem, N_Vector x, N_Vector b,
  * -----------------------------------------------------------------
  */
 
-static void kinLapackBandFree(KINMem kin_mem)
+static int kinLapackBandFree(KINMem kin_mem)
 {
   KINDlsMem kindls_mem;
 
@@ -607,4 +611,6 @@ static void kinLapackBandFree(KINMem kin_mem)
   DestroyMat(J);
   DestroyArray(pivots);
   free(kindls_mem); kindls_mem = NULL;
+
+  return(0);
 }

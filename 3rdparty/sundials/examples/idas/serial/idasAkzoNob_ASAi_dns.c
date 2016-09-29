@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban and Cosmin Petra @ LLNL
  * -----------------------------------------------------------------
@@ -67,7 +67,7 @@ typedef struct {
   realtype K, klA, Ks, pCO2, H;
 } *UserData;
 
-static int res(realtype t, N_Vector yy, N_Vector yd, N_Vector res, void *userdata);
+static int res(realtype t, N_Vector yy, N_Vector yd, N_Vector resval, void *userdata);
 
 static int resB(realtype tt, 
                 N_Vector yy, N_Vector yp,
@@ -78,7 +78,7 @@ static int rhsQ(realtype t, N_Vector yy, N_Vector yp,
               N_Vector qdot, void *user_data);
 
 static void PrintOutput(realtype tfinal, N_Vector yB, N_Vector ypB);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 
 /* Main program */
@@ -252,7 +252,7 @@ int main()
 }
 
 
-static int res(realtype t, N_Vector yy, N_Vector yd, N_Vector res, void *userdata)
+static int res(realtype t, N_Vector yy, N_Vector yd, N_Vector resval, void *userdata)
 {
   UserData data;
   realtype k1, k2, k3, k4;
@@ -294,12 +294,12 @@ static int res(realtype t, N_Vector yy, N_Vector yd, N_Vector res, void *userdat
   r5 = k4 * y6 * y6 * SUNRsqrt(y2);
   Fin = klA * ( pCO2/H - y2 );
 
-  Ith(res,1) = yd1 + TWO*r1 - r2 + r3 + r4;
-  Ith(res,2) = yd2 + HALF*r1 + r4 + HALF*r5 - Fin;
-  Ith(res,3) = yd3 - r1 + r2 - r3;
-  Ith(res,4) = yd4 + r2 - r3 + TWO*r4;
-  Ith(res,5) = yd5 - r2 + r3 - r5;
-  Ith(res,6) = Ks*y1*y4 - y6;
+  Ith(resval,1) = yd1 + TWO*r1 - r2 + r3 + r4;
+  Ith(resval,2) = yd2 + HALF*r1 + r4 + HALF*r5 - Fin;
+  Ith(resval,3) = yd3 - r1 + r2 - r3;
+  Ith(resval,4) = yd4 + r2 - r3 + TWO*r4;
+  Ith(resval,5) = yd5 - r2 + r3 - r5;
+  Ith(resval,6) = Ks*y1*y4 - y6;
 
   return(0);
 }
@@ -418,7 +418,7 @@ static void PrintOutput(realtype tfinal, N_Vector yB, N_Vector ypB)
  *             NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

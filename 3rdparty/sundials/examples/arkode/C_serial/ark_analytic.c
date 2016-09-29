@@ -50,7 +50,7 @@ static int Jac(long int N, realtype t,
                N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
 /* Private function to check function return values */
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 
 /* Main Program */
@@ -82,12 +82,12 @@ int main()
   /* Initialize data structures */
   y = N_VNew_Serial(NEQ);          /* Create serial vector for solution */
   if (check_flag((void *)y, "N_VNew_Serial", 0)) return 1;
-  NV_Ith_S(y,0) = 0.0;             /* Specify initial condition */
+  N_VConst(0.0, y);             /* Specify initial condition */
   arkode_mem = ARKodeCreate();     /* Create the solver memory */
   if (check_flag((void *)arkode_mem, "ARKodeCreate", 0)) return 1;
 
   /* Call ARKodeInit to initialize the integrator memory and specify the
-     hand-side side function in y'=f(t,y), the inital time T0, and
+     right-hand side function in y'=f(t,y), the inital time T0, and
      the initial dependent variable vector y.  Note: since this
      problem is fully implicit, we set f_E to NULL and f_I to f. */
   flag = ARKodeInit(arkode_mem, NULL, f, T0, y);
@@ -170,7 +170,7 @@ int main()
   printf("   Total number of error test failures = %li\n\n", netf);
 
   /* Clean up and return with successful completion */
-  N_VDestroy_Serial(y);     /* Free y vector */
+  N_VDestroy(y);            /* Free y vector */
   ARKodeFree(&arkode_mem);  /* Free integrator memory */
   return 0;
 }
@@ -218,7 +218,7 @@ static int Jac(long int N, realtype t,
     opt == 2 means function allocates memory so check if returned
              NULL pointer  
 */
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

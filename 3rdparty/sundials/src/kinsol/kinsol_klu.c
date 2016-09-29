@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4495 $
- * $Date: 2015-05-01 11:33:23 -0700 (Fri, 01 May 2015) $
+ * $Revision: 4924 $
+ * $Date: 2016-09-19 14:36:05 -0700 (Mon, 19 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -41,7 +41,7 @@ static int kinKLUInit(KINMem kin_mem);
 static int kinKLUSetup(KINMem kin_mem);
 static int kinKLUSolve(KINMem kin_mem, N_Vector x, N_Vector b,
 		       realtype *sJpnorm, realtype *sFdotJp);		       
-static void kinKLUFree(KINMem kin_mem);
+static int kinKLUFree(KINMem kin_mem);
 
 /*
  * -----------------------------------------------------------------
@@ -67,7 +67,7 @@ static void kinKLUFree(KINMem kin_mem);
  * -----------------------------------------------------------------
  */
 
-int KINKLU(void *kin_mem_v, int n, int nnz)
+int KINKLU(void *kin_mem_v, int n, int nnz, int sparsetype)
 {
   KINMem kin_mem;
   KINSlsMem kinsls_mem;
@@ -77,7 +77,7 @@ int KINKLU(void *kin_mem_v, int n, int nnz)
   /* Return immediately if kin_mem is NULL. */
   if (kin_mem_v == NULL) {
     KINProcessError(NULL, KINSLS_MEM_NULL, "KINSLS", "KINKLU", 
-		    MSGSP_KINMEM_NULL);
+                    MSGSP_KINMEM_NULL);
     return(KINSLS_MEM_NULL);
   }
   kin_mem = (KINMem) kin_mem_v;
@@ -85,7 +85,7 @@ int KINKLU(void *kin_mem_v, int n, int nnz)
   /* Test if the NVECTOR package is compatible with the Direct solver */
   if (kin_mem->kin_vtemp1->ops->nvgetarraypointer == NULL) {
     KINProcessError(kin_mem, KINSLS_ILL_INPUT, "KINSLS", "KINKLU", 
-		    MSGSP_BAD_NVECTOR);
+                    MSGSP_BAD_NVECTOR);
     return(KINSLS_ILL_INPUT);
   }
 
@@ -101,7 +101,7 @@ int KINKLU(void *kin_mem_v, int n, int nnz)
   kinsls_mem = (KINSlsMem) malloc(sizeof(struct KINSlsMemRec));
   if (kinsls_mem == NULL) {
     KINProcessError(kin_mem, KINSLS_MEM_FAIL, "KINSLS", "KINKLU", 
-		    MSGSP_MEM_FAIL);
+                    MSGSP_MEM_FAIL);
     return(KINSLS_MEM_FAIL);
   }
 
@@ -109,7 +109,7 @@ int KINKLU(void *kin_mem_v, int n, int nnz)
   klu_data = (KLUData)malloc(sizeof(struct KLUDataRec));
   if (klu_data == NULL) {
     KINProcessError(kin_mem, KINSLS_MEM_FAIL, "KINSLS", "KINKLU", 
-		    MSGSP_MEM_FAIL);
+                    MSGSP_MEM_FAIL);
     return(KINSLS_MEM_FAIL);
   }
 
@@ -117,17 +117,30 @@ int KINKLU(void *kin_mem_v, int n, int nnz)
 
   /* Set default Jacobian routine and Jacobian data */
   kinsls_mem->s_jaceval = NULL;
-  kinsls_mem->s_jacdata = kin_mem->kin_user_data;
+  kinsls_mem->s_jacdata = NULL;
 
   /* Allocate memory for the sparse Jacobian */
-  kinsls_mem->s_JacMat = NewSparseMat(n, n, nnz);
+  kinsls_mem->s_JacMat = SparseNewMat(n, n, nnz, sparsetype);
   if (kinsls_mem->s_JacMat == NULL) {
     KINProcessError(kin_mem, KINSLS_MEM_FAIL, "KINSLS", "KINKLU", 
-		    MSGSP_MEM_FAIL);
+                    MSGSP_MEM_FAIL);
     return(KINSLS_MEM_FAIL);
   }
 
   /* Initialize KLU structures */
+  switch (sparsetype) {
+    case CSC_MAT:
+      klu_data->sun_klu_solve = &klu_solve;
+      break;
+    case CSR_MAT:
+      klu_data->sun_klu_solve = &klu_tsolve;
+      break;
+    default:
+      SparseDestroyMat(kinsls_mem->s_JacMat);
+      free(klu_data);
+      free(kinsls_mem);
+      return(KINSLS_ILL_INPUT);
+  }
   klu_data->s_Symbolic = NULL;
   klu_data->s_Numeric = NULL;
 
@@ -135,7 +148,7 @@ int KINKLU(void *kin_mem_v, int n, int nnz)
   flag = klu_defaults(&klu_data->s_Common);
   if (flag == 0) {
     KINProcessError(kin_mem, KINSLS_PACKAGE_FAIL, "KINSLS", "KINKLU", 
-		    MSGSP_PACKAGE_FAIL);
+                    MSGSP_PACKAGE_FAIL);
     return(KINSLS_PACKAGE_FAIL);
   }
   /* Set ordering to COLAMD as the kinsol default use.
@@ -193,12 +206,11 @@ int KINKLUReInit(void *kin_mem_v, int n, int nnz, int reinit_type)
   KINMem kin_mem;
   KINSlsMem kinsls_mem;
   KLUData klu_data;
-  SlsMat JacMat;
 
   /* Return immediately if kin_mem is NULL. */
   if (kin_mem_v == NULL) {
     KINProcessError(NULL, KINSLS_MEM_NULL, "KINSLS", "KINKLUReInit", 
-		    MSGSP_KINMEM_NULL);
+                    MSGSP_KINMEM_NULL);
     return(KINSLS_MEM_NULL);
   }
   kin_mem = (KINMem) kin_mem_v;
@@ -206,7 +218,7 @@ int KINKLUReInit(void *kin_mem_v, int n, int nnz, int reinit_type)
   /* Return immediately if kin_lmem is NULL. */
   if (kin_mem->kin_lmem == NULL) {
     KINProcessError(NULL, KINSLS_LMEM_NULL, "KINSLS", "KINKLUReInit", 
-		    MSGSP_LMEM_NULL);
+                    MSGSP_LMEM_NULL);
     return(KINSLS_LMEM_NULL);
   }
   kinsls_mem = (KINSlsMem) (kin_mem->kin_lmem);
@@ -215,24 +227,22 @@ int KINKLUReInit(void *kin_mem_v, int n, int nnz, int reinit_type)
   /* Return if reinit_type is not valid */
   if ((reinit_type != 1) && (reinit_type != 2)) {
     KINProcessError(NULL, KINSLS_ILL_INPUT, "KINSLS", "KINKLUReInit", 
-		    MSGSP_ILL_INPUT);
+                    MSGSP_ILL_INPUT);
     return(KINSLS_ILL_INPUT);
   }
-
-  JacMat = kinsls_mem->s_JacMat;
 
   if (reinit_type == 1) {
 
     /* Destroy previous Jacobian information */
     if (kinsls_mem->s_JacMat) {
-      DestroySparseMat(kinsls_mem->s_JacMat);
+      SparseDestroyMat(kinsls_mem->s_JacMat);
     }
 
     /* Allocate memory for the sparse Jacobian */
-    kinsls_mem->s_JacMat = NewSparseMat(n, n, nnz);
+    kinsls_mem->s_JacMat = SparseNewMat(n, n, nnz, kinsls_mem->sparsetype);
     if (kinsls_mem->s_JacMat == NULL) {
       KINProcessError(kin_mem, KINSLS_MEM_FAIL, "KINSLS", "KINKLU", 
-		    MSGSP_MEM_FAIL);
+                      MSGSP_MEM_FAIL);
       return(KINSLS_MEM_FAIL);
     }
   }
@@ -267,7 +277,10 @@ static int kinKLUInit(KINMem kin_mem)
 
   kinsls_mem = (KINSlsMem)kin_mem->kin_lmem;
 
+  kinsls_mem->s_jacdata = kin_mem->kin_user_data;
+
   kinsls_mem->s_nje = 0;
+  /* This forces factorization for every call to KINSol */
   kinsls_mem->s_first_factorize = 1;
 
   kinsls_mem->s_last_flag = 0;
@@ -340,8 +353,11 @@ static int kinKLUSetup(KINMem kin_mem)
        calls to KINKLUSetOrdering */
     klu_data->s_Common.ordering = klu_data->s_ordering;
 
-    klu_data->s_Symbolic = klu_analyze(JacMat->N, JacMat->colptrs, 
-				       JacMat->rowvals, &(klu_data->s_Common));
+    if (klu_data->s_Symbolic != NULL) {
+       klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
+    }
+    klu_data->s_Symbolic = klu_analyze(JacMat->NP, JacMat->indexptrs, 
+				       JacMat->indexvals, &(klu_data->s_Common));
     if (klu_data->s_Symbolic == NULL) {
       KINProcessError(kin_mem, KINSLS_PACKAGE_FAIL, "KINSLS", "kinKLUSetup", 
 		      MSGSP_PACKAGE_FAIL);
@@ -351,7 +367,11 @@ static int kinKLUSetup(KINMem kin_mem)
     /* ------------------------------------------------------------
        Compute the LU factorization of the Jacobian.
        ------------------------------------------------------------*/
-    klu_data->s_Numeric = klu_factor(JacMat->colptrs, JacMat->rowvals, 
+    /* If klu_factor previously called, free data */
+    if( klu_data->s_Numeric != NULL) {
+       klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
+    }
+    klu_data->s_Numeric = klu_factor(JacMat->indexptrs, JacMat->indexvals, 
 				     JacMat->data, klu_data->s_Symbolic, 
 				     &(klu_data->s_Common));
 
@@ -366,7 +386,7 @@ static int kinKLUSetup(KINMem kin_mem)
   }
   else {
     
-    retval = klu_refactor(JacMat->colptrs, JacMat->rowvals, JacMat->data, 
+    retval = klu_refactor(JacMat->indexptrs, JacMat->indexvals, JacMat->data, 
 			klu_data->s_Symbolic, klu_data->s_Numeric,
 			&(klu_data->s_Common));
     if (retval == 0) {
@@ -394,7 +414,7 @@ static int kinKLUSetup(KINMem kin_mem)
       
       /* Condition number may be getting large.  
 	 Compute more accurate estimate */
-      retval = klu_condest(JacMat->colptrs, JacMat->data, 
+      retval = klu_condest(JacMat->indexptrs, JacMat->data, 
 			   klu_data->s_Symbolic, klu_data->s_Numeric,
 			   &(klu_data->s_Common));
       if (retval == 0) {
@@ -411,7 +431,7 @@ static int kinKLUSetup(KINMem kin_mem)
 
 	klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
 	
-	klu_data->s_Numeric = klu_factor(JacMat->colptrs, JacMat->rowvals, 
+	klu_data->s_Numeric = klu_factor(JacMat->indexptrs, JacMat->indexvals, 
 					 JacMat->data, klu_data->s_Symbolic, 
 					 &(klu_data->s_Common));
 
@@ -456,8 +476,8 @@ static int kinKLUSolve(KINMem kin_mem, N_Vector x, N_Vector b,
   xd = N_VGetArrayPointer(x);
 
   /* Call KLU to solve the linear system */
-  flag = klu_solve(klu_data->s_Symbolic, klu_data->s_Numeric, JacMat->N, 1, xd, 
-	    &(klu_data->s_Common));
+  flag = klu_data->sun_klu_solve(klu_data->s_Symbolic, klu_data->s_Numeric, JacMat->NP, 1, xd, 
+                                 &(klu_data->s_Common));
   if (flag == 0) {
     KINProcessError(kin_mem, KINSLS_PACKAGE_FAIL, "KINSLS", "kinKLUSolve", 
 		    MSGSP_PACKAGE_FAIL);
@@ -483,7 +503,7 @@ static int kinKLUSolve(KINMem kin_mem, N_Vector x, N_Vector b,
   This routine frees memory specific to the KINKLU linear solver.
 */
 
-static void kinKLUFree(KINMem kin_mem)
+static int kinKLUFree(KINMem kin_mem)
 {
   KINSlsMem kinsls_mem;
   KLUData klu_data;
@@ -491,16 +511,24 @@ static void kinKLUFree(KINMem kin_mem)
   kinsls_mem = (KINSlsMem) kin_mem->kin_lmem;
   klu_data = (KLUData) kinsls_mem->s_solver_data;
 
-  klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
-  klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
+  if( klu_data->s_Numeric != NULL)
+  {
+     klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
+  }
+  if( klu_data->s_Symbolic != NULL)
+  {
+     klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
+  }
 
   if (kinsls_mem->s_JacMat) {
-    DestroySparseMat(kinsls_mem->s_JacMat);
+    SparseDestroyMat(kinsls_mem->s_JacMat);
     kinsls_mem->s_JacMat = NULL;
   }
 
   free(klu_data); 
   free(kin_mem->kin_lmem); 
+
+  return(0);
 }
 
 

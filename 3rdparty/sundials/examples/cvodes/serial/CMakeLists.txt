@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4483 $
-# $Date: 2015-04-22 16:30:17 -0700 (Wed, 22 Apr 2015) $
+# $Revision: 4824 $
+# $Date: 2016-07-24 16:39:04 -0700 (Sun, 24 Jul 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -15,10 +15,6 @@
 # LLNS Copyright End
 # ---------------------------------------------------------------
 # CMakeLists.txt file for CVODES serial examples
-
-
-
-
 
 # Add variable CVODES_examples with the names of the serial CVODES examples
 # This is a list of tuples, first element is example name.
@@ -53,10 +49,14 @@ SET(CVODES_examples_BL
 
 SET(CVODES_examples_KLU
   cvsRoberts_klu
+  cvsRoberts_ASAi_klu
+  "cvsRoberts_FSA_klu\;-sensi stg1 t"
   )
  
 SET(CVODES_examples_SUPERLUMT
   cvsRoberts_sps
+  cvsRoberts_ASAi_sps
+  "cvsRoberts_FSA_sps\;-sensi stg1 t"
   )
 
 # Specify libraries to link against (through the target that was used to 
@@ -136,29 +136,65 @@ ENDIF(LAPACK_FOUND)
 # If KLU support is enabled, add the build and install targets for
 # the examples using KLU
 IF(KLU_FOUND)
-  FOREACH(example ${CVODES_examples_KLU})
-    ADD_EXECUTABLE(${example} ${example}.c)
-    SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
-    SUNDIALS_ADD_TEST(${example} ${example})
+  SET(ADDED_EXECUTABLES "")
+  FOREACH(example_tuple ${CVODES_examples_KLU})
+    LIST(GET example_tuple 0 example)
+  
+    # Only need to add the executable once
+    LIST(FIND ADDED_EXECUTABLES ${example} index)
+    IF(index EQUAL -1)
+      LIST(APPEND ADDED_EXECUTABLES ${example})
+      ADD_EXECUTABLE(${example} ${example}.c)
+      SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
+    ENDIF(index EQUAL -1)
+  
+    LIST(LENGTH example_tuple n)
+    IF(n EQUAL 2)
+      LIST(GET example_tuple 1 test_args)
+      STRING(REGEX REPLACE " " "_" test_name ${example}_${test_args})
+      SUNDIALS_ADD_TEST(${test_name} ${example} TEST_ARGS ${test_args})
+    ELSE()
+      SUNDIALS_ADD_TEST(${example} ${example})
+    ENDIF()
+  
     TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
+    FILE(GLOB example_out ${example}.out*)
     IF(EXAMPLES_INSTALL)
-      INSTALL(FILES ${example}.c ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/cvodes/serial)
+      INSTALL(FILES ${example}.c ${example_out} DESTINATION ${EXAMPLES_INSTALL_PATH}/cvodes/serial)
     ENDIF(EXAMPLES_INSTALL)
-  ENDFOREACH(example ${CVODES_examples_KLU})
+  ENDFOREACH(example_tuple ${CVODES_examples_KLU})
 ENDIF(KLU_FOUND)
 
 # If SUPERLUMT support is enabled, add the build and install targets for
 # the examples using SUPERLUMT
 IF(SUPERLUMT_FOUND)
-  FOREACH(example ${CVODES_examples_SUPERLUMT})
-    ADD_EXECUTABLE(${example} ${example}.c)
-    SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
-    SUNDIALS_ADD_TEST(${example} ${example})
+  SET(ADDED_EXECUTABLES "")
+  FOREACH(example_tuple ${CVODES_examples_SUPERLUMT})
+    LIST(GET example_tuple 0 example)
+  
+    # Only need to add the executable once
+    LIST(FIND ADDED_EXECUTABLES ${example} index)
+    IF(index EQUAL -1)
+      LIST(APPEND ADDED_EXECUTABLES ${example})
+      ADD_EXECUTABLE(${example} ${example}.c)
+      SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
+    ENDIF(index EQUAL -1)
+  
+    LIST(LENGTH example_tuple n)
+    IF(n EQUAL 2)
+      LIST(GET example_tuple 1 test_args)
+      STRING(REGEX REPLACE " " "_" test_name ${example}_${test_args})
+      SUNDIALS_ADD_TEST(${test_name} ${example} TEST_ARGS ${test_args})
+    ELSE()
+      SUNDIALS_ADD_TEST(${example} ${example})
+    ENDIF()
+  
     TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
+    FILE(GLOB example_out ${example}.out*)
     IF(EXAMPLES_INSTALL)
-      INSTALL(FILES ${example}.c ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/cvodes/serial)
+      INSTALL(FILES ${example}.c ${example_out} DESTINATION ${EXAMPLES_INSTALL_PATH}/cvodes/serial)
     ENDIF(EXAMPLES_INSTALL)
-  ENDFOREACH(example ${CVODES_examples_SUPERLUMT})
+  ENDFOREACH(example_tuple ${CVODES_examples_SUPERLUMT})
 ENDIF(SUPERLUMT_FOUND)
 
 IF(EXAMPLES_INSTALL)
@@ -170,8 +206,8 @@ IF(EXAMPLES_INSTALL)
   SET(SOLVER "CVODES")
   SET(SOLVER_LIB "sundials_cvodes")
   FOREACH(example_tuple ${CVODES_examples})
-  	list(GET example_tuple 0 example)
-  	LIST2STRING(example EXAMPLES)
+    list(GET example_tuple 0 example)
+    LIST2STRING(example EXAMPLES)
   ENDFOREACH(example_tuple ${CVODES_examples})
 
   IF(LAPACK_FOUND)
@@ -181,11 +217,17 @@ IF(EXAMPLES_INSTALL)
   ENDIF(LAPACK_FOUND)
 
   IF(KLU_FOUND)
-    LIST2STRING(CVODES_examples_KLU EXAMPLES)
+    FOREACH(example_tuple ${CVODES_examples_KLU})
+      list(GET example_tuple 0 example)
+      LIST2STRING(example EXAMPLES)
+    ENDFOREACH(example_tuple ${CVODES_examples_KLU})
   ENDIF(KLU_FOUND)
 
   IF(SUPERLUMT_FOUND)
-    LIST2STRING(CVODES_examples_SUPERLUMT EXAMPLES)
+    FOREACH(example_tuple ${CVODES_examples_SUPERLUMT})
+      list(GET example_tuple 0 example)
+      LIST2STRING(example EXAMPLES)
+    ENDFOREACH(example_tuple ${CVODES_examples_SUPERLUMT})
   ENDIF(SUPERLUMT_FOUND)
 
   STRING (REPLACE ";" " " TMP_STR ${EXAMPLES})

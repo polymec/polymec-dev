@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4435 $
- * $Date: 2015-03-23 18:26:14 -0700 (Mon, 23 Mar 2015) $
+ * $Revision: 4924 $
+ * $Date: 2016-09-19 14:36:05 -0700 (Mon, 19 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Carol S. Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -40,7 +40,7 @@ static int kinSuperLUMTInit(KINMem kin_mem);
 static int kinSuperLUMTSetup(KINMem kin_mem);
 static int kinSuperLUMTSolve(KINMem kin_mem, N_Vector x, N_Vector b,
 		       realtype *sJpnorm, realtype *sFdotJp);		       
-static void kinSuperLUMTFree(KINMem kin_mem);
+static int kinSuperLUMTFree(KINMem kin_mem);
 
 /*
  * -----------------------------------------------------------------
@@ -122,7 +122,7 @@ int KINSuperLUMT(void *kin_mem_v, int num_threads, int n, int nnz)
   kinsls_mem->s_jacdata = kin_mem->kin_user_data;
 
   /* Allocate memory for the sparse Jacobian */
-  kinsls_mem->s_JacMat = NewSparseMat(n, n, nnz);
+  kinsls_mem->s_JacMat = SparseNewMat(n, n, nnz, CSC_MAT);
   if (kinsls_mem->s_JacMat == NULL) {
     KINProcessError(kin_mem, KINSLS_MEM_FAIL, "KINSLS", "KINSuperLUMT", 
 		    MSGSP_MEM_FAIL);
@@ -166,7 +166,7 @@ int KINSuperLUMT(void *kin_mem_v, int num_threads, int n, int nnz)
 
   dCreate_CompCol_Matrix(slumt_data->s_A, kinsls_mem->s_JacMat->M, kinsls_mem->s_JacMat->N, 
 			 kinsls_mem->s_JacMat->NNZ, kinsls_mem->s_JacMat->data, 
-			 kinsls_mem->s_JacMat->rowvals, kinsls_mem->s_JacMat->colptrs, 
+			 kinsls_mem->s_JacMat->indexvals, kinsls_mem->s_JacMat->indexptrs, 
 			 SLU_NC, SLU_D, SLU_GE);
 
   panel_size = sp_ienv(1);
@@ -421,7 +421,7 @@ static int kinSuperLUMTSolve(KINMem kin_mem, N_Vector x, N_Vector b,
   This routine frees memory specific to the KINSuperLUMT linear solver.
 */
 
-static void kinSuperLUMTFree(KINMem kin_mem)
+static int kinSuperLUMTFree(KINMem kin_mem)
 {
   KINSlsMem kinsls_mem;
   SLUMTData slumt_data;
@@ -442,7 +442,7 @@ static void kinSuperLUMTFree(KINMem kin_mem)
   Destroy_SuperMatrix_Store(slumt_data->s_B);
   SUPERLU_FREE(slumt_data->s_A->Store);
   if (kinsls_mem->s_JacMat) {
-    DestroySparseMat(kinsls_mem->s_JacMat);
+    SparseDestroyMat(kinsls_mem->s_JacMat);
     kinsls_mem->s_JacMat = NULL;
   }
 
@@ -454,6 +454,8 @@ static void kinSuperLUMTFree(KINMem kin_mem)
 
   free(slumt_data); 
   free(kin_mem->kin_lmem); 
+
+  return(0);
 }
 
 

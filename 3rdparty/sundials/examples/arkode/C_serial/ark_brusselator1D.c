@@ -55,6 +55,7 @@
 #include <arkode/arkode_band.h>       /* prototype for ARKBand solver */
 #include <sundials/sundials_band.h>   /* defs. of DlsMat and BAND_ELEM */
 #include <sundials/sundials_types.h>  /* def. of type 'realtype' */
+#include <sundials/sundials_math.h>   /* def. of SUNRsqrt, etc. */
 
 /* accessor macros between (x,v) location and 1D NVector array */
 #define IDX(x,v) (3*(x)+v)
@@ -83,7 +84,7 @@ static int LaplaceMatrix(realtype c, DlsMat Jac, UserData udata);
 static int ReactionJac(realtype c, N_Vector y, DlsMat Jac, UserData udata);
 
 /* Private function to check function return values */
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /* Main Program */
 int main()
@@ -185,7 +186,7 @@ int main()
   if (check_flag((void *)arkode_mem, "ARKodeCreate", 0)) return 1;
 
   /* Call ARKodeInit to initialize the integrator memory and specify the
-     hand-side side function in y'=f(t,y), the inital time T0, and
+     right-hand side function in y'=f(t,y), the inital time T0, and
      the initial dependent variable vector y.  Note: since this
      problem is fully implicit, we set f_E to NULL and f_I to f. */
   flag = ARKodeInit(arkode_mem, NULL, f, T0, y);
@@ -235,11 +236,11 @@ int main()
     flag = ARKode(arkode_mem, tout, y, &t, ARK_NORMAL);    /* call integrator */
     if (check_flag(&flag, "ARKode", 1)) break;
     u = N_VWL2Norm(y,umask);                               /* access/print solution statistics */
-    u = sqrt(u*u/N);
+    u = SUNRsqrt(u*u/N);
     v = N_VWL2Norm(y,vmask);
-    v = sqrt(v*v/N);
+    v = SUNRsqrt(v*v/N);
     w = N_VWL2Norm(y,wmask);
-    w = sqrt(w*w/N);
+    w = SUNRsqrt(w*w/N);
     printf("  %10.6f  %10.6f  %10.6f  %10.6f\n", t, u, v, w);
     if (flag >= 0) {                                       /* successful solve: update output time */
       tout += dTout;
@@ -446,7 +447,7 @@ static int ReactionJac(realtype c, N_Vector y, DlsMat Jac, UserData udata)
     opt == 2 means function allocates memory so check if returned
              NULL pointer  
 */
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

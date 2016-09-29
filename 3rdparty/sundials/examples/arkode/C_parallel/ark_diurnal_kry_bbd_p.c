@@ -152,7 +152,7 @@ static int flocal(long int Nlocal, realtype t, N_Vector u,
                   N_Vector udot, void *user_data);
 
 /* Private function to check function return values */
-static int check_flag(void *flagvalue, char *funcname, int opt, int id);
+static int check_flag(void *flagvalue, const char *funcname, int opt, int id);
 
 
 /***************************** Main Program ******************************/
@@ -329,7 +329,7 @@ static void SetInitialProfiles(N_Vector u, UserData data)
   realtype *uarray;
 
   /* Set pointer to data array in vector u */
-  uarray = NV_DATA_P(u);
+  uarray = N_VGetArrayPointer(u);
 
   /* Get mesh spacings, and subgrid indices for this PE */
   dx = data->dx;         dy = data->dy;
@@ -382,7 +382,7 @@ static void PrintOutput(void *arkode_mem, int my_pe, MPI_Comm comm,
   MPI_Status status;
 
   npelast = NPEX*NPEY - 1;
-  uarray = NV_DATA_P(u);
+  uarray = N_VGetArrayPointer(u);
 
   /* Send c1,c2 at top right mesh point to PE 0 */
   if (my_pe == npelast) {
@@ -629,7 +629,7 @@ static void fucomm(realtype t, N_Vector u, void *user_data)
   MPI_Request request[4];
 
   data = (UserData) user_data;
-  uarray = NV_DATA_P(u);
+  uarray = N_VGetArrayPointer(u);
 
   /* Get comm, my_pe, subgrid indices, data sizes, extended array uext */
   comm = data->comm;  my_pe = data->my_pe;
@@ -686,8 +686,8 @@ static int flocal(long int Nlocal, realtype t, N_Vector u,
   UserData data;
   realtype *uarray, *duarray;
 
-  uarray = NV_DATA_P(u);
-  duarray = NV_DATA_P(udot);
+  uarray = N_VGetArrayPointer(u);
+  duarray = N_VGetArrayPointer(udot);
 
   /* Get subgrid indices, array sizes, extended work array uext */
   data = (UserData) user_data;
@@ -815,7 +815,7 @@ static int flocal(long int Nlocal, realtype t, N_Vector u,
               flag >= 0
      opt == 2 means function allocates memory so check if returned
               NULL pointer */
-static int check_flag(void *flagvalue, char *funcname, int opt, int id)
+static int check_flag(void *flagvalue, const char *funcname, int opt, int id)
 {
   int *errflag;
 

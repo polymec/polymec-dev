@@ -1,6 +1,6 @@
 C     ----------------------------------------------------------------
-C     $Revision: 4074 $
-C     $Date: 2014-04-23 14:13:52 -0700 (Wed, 23 Apr 2014) $
+C     $Revision: 4885 $
+C     $Date: 2016-09-02 08:29:03 -0700 (Fri, 02 Sep 2016) $
 C     ----------------------------------------------------------------
 C     FCVODE Example Problem: Robertson kinetics, dense user Jacobian.
 C
@@ -117,7 +117,7 @@ C
         IF (IER .EQ. 2) THEN
            CALL FCVROOTINFO(2, INFO, IERROOT)
            IF (IERROOT .LT. 0) THEN
-              WRITE(6,65) IER
+              WRITE(6,65) IERROOT
  65           FORMAT(///' SUNDIALS_ERROR: FCVROOTINFO returned IER = ',
      1              I5)
               CALL FCVROOTFREE

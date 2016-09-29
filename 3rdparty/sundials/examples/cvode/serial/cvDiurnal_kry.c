@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4848 $
+ * $Date: 2016-08-03 15:51:16 -0700 (Wed, 03 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh and
  *                Radu Serban @ LLNL
@@ -98,7 +98,7 @@
    IJKth(vdata,i,j,k) references the element in the vdata array for
    species i at mesh point (j,k), where 1 <= i <= NUM_SPECIES,
    0 <= j <= MX-1, 0 <= k <= MY-1. The vdata array is obtained via
-   the macro call vdata = NV_DATA_S(v), where v is an N_Vector. 
+   the macro call vdata = N_VGetArrayPointer_Serial(v), where v is an N_Vector. 
    For each mesh point (j,k), the elements for species i and i+1 are
    contiguous within vdata.
 
@@ -127,7 +127,7 @@ static void FreeUserData(UserData data);
 static void SetInitialProfiles(N_Vector u, realtype dx, realtype dy);
 static void PrintOutput(void *cvode_mem, N_Vector u, realtype t);
 static void PrintFinalStats(void *cvode_mem);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /* Functions Called by the Solver */
 
@@ -204,10 +204,6 @@ int main()
   /* set the JAcobian-times-vector function */
   flag = CVSpilsSetJacTimesVecFn(cvode_mem, jtv);
   if(check_flag(&flag, "CVSpilsSetJacTimesVecFn", 1)) return(1);
-
-  /* Set modified Gram-Schmidt orthogonalization */
-  flag = CVSpilsSetGSType(cvode_mem, MODIFIED_GS);
-  if(check_flag(&flag, "CVSpilsSetGSType", 1)) return(1);
 
   /* Set the preconditioner solve and setup functions */
   flag = CVSpilsSetPreconditioner(cvode_mem, Precond, PSolve);
@@ -296,7 +292,7 @@ static void SetInitialProfiles(N_Vector u, realtype dx, realtype dy)
 
   /* Set pointer to data array in vector u. */
 
-  udata = NV_DATA_S(u);
+  udata = N_VGetArrayPointer_Serial(u);
 
   /* Load initial profiles of c1 and c2 into u vector */
 
@@ -323,7 +319,7 @@ static void PrintOutput(void *cvode_mem, N_Vector u, realtype t)
   realtype hu, *udata;
   int mxh = MX/2 - 1, myh = MY/2 - 1, mx1 = MX - 1, my1 = MY - 1;
 
-  udata = NV_DATA_S(u);
+  udata = N_VGetArrayPointer_Serial(u);
 
   flag = CVodeGetNumSteps(cvode_mem, &nst);
   check_flag(&flag, "CVodeGetNumSteps", 1);
@@ -413,7 +409,7 @@ static void PrintFinalStats(void *cvode_mem)
      opt == 2 means function allocates memory so check if returned
               NULL pointer */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 
@@ -459,8 +455,8 @@ static int f(realtype t, N_Vector u, N_Vector udot, void *user_data)
   UserData data;
 
   data = (UserData) user_data;
-  udata = NV_DATA_S(u);
-  dudata = NV_DATA_S(udot);
+  udata = N_VGetArrayPointer_Serial(u);
+  dudata = N_VGetArrayPointer_Serial(udot);
 
   /* Set diurnal rate coefficients. */
 
@@ -557,9 +553,9 @@ static int jtv(N_Vector v, N_Vector Jv, realtype t,
 
   data = (UserData) user_data;
 
-  udata = NV_DATA_S(u);
-  vdata = NV_DATA_S(v);
-  Jvdata = NV_DATA_S(Jv);
+  udata = N_VGetArrayPointer_Serial(u);
+  vdata = N_VGetArrayPointer_Serial(v);
+  Jvdata = N_VGetArrayPointer_Serial(Jv);
 
   /* Set diurnal rate coefficients. */
 
@@ -706,7 +702,7 @@ static int Precond(realtype tn, N_Vector u, N_Vector fu,
   P = data->P;
   Jbd = data->Jbd;
   pivot = data->pivot;
-  udata = NV_DATA_S(u);
+  udata = N_VGetArrayPointer_Serial(u);
   
   if (jok) {
     
@@ -793,7 +789,7 @@ static int PSolve(realtype tn, N_Vector u, N_Vector fu,
   data = (UserData) user_data;
   P = data->P;
   pivot = data->pivot;
-  zdata = NV_DATA_S(z);
+  zdata = N_VGetArrayPointer_Serial(z);
   
   N_VScale(ONE, r, z);
   

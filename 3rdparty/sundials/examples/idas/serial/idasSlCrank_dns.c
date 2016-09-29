@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer: Radu Serban and Cosmin Petra @ LLNL
  * -----------------------------------------------------------------
@@ -74,7 +74,7 @@ static void force(N_Vector yy, realtype *Q, UserData data);
 static void PrintHeader(realtype rtol, realtype avtol, N_Vector y);
 static void PrintOutput(void *mem, realtype t, N_Vector y);
 static void PrintFinalStats(void *mem);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 /*
  *--------------------------------------------------------------------
  * Main Program
@@ -268,9 +268,9 @@ static int ressc(realtype tres, N_Vector yy, N_Vector yp, N_Vector rr, void *use
   m2 = data->m2;
   J2 = data->J2;
 
-  yval = NV_DATA_S(yy); 
-  ypval = NV_DATA_S(yp); 
-  rval = NV_DATA_S(rr);
+  yval = N_VGetArrayPointer_Serial(yy); 
+  ypval = N_VGetArrayPointer_Serial(yp); 
+  rval = N_VGetArrayPointer_Serial(rr);
 
   q = yval[0];
   x = yval[1];
@@ -360,7 +360,7 @@ static void PrintOutput(void *mem, realtype t, N_Vector y)
   long int nst;
   realtype hused;
 
-  yval  = NV_DATA_S(y);
+  yval  = N_VGetArrayPointer_Serial(y);
 
   retval = IDAGetLastOrder(mem, &kused);
   check_flag(&retval, "IDAGetLastOrder", 1);
@@ -403,7 +403,7 @@ static void PrintFinalStats(void *mem)
   printf("Number of nonlinear conv. failures = %ld\n", ncfn);
 }
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

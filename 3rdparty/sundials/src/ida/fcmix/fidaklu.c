@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4402 $
- * $Date: 2015-02-28 19:35:39 -0800 (Sat, 28 Feb 2015) $
+ * $Revision: 4654 $
+ * $Date: 2016-02-17 20:12:58 -0800 (Wed, 17 Feb 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Carol Woodward @ LLNL
  * -----------------------------------------------------------------
@@ -32,9 +32,9 @@
  * ----------------------------------------------------------------
  */
 
-void FIDA_KLU(int *neq, int *nnz, int *ordering, int *ier)
+void FIDA_KLU(int *neq, int *nnz, int *sparsetype, int *ordering, int *ier)
 {
-  *ier = IDAKLU(IDA_idamem, *neq, *nnz);
+  *ier = IDAKLU(IDA_idamem, *neq, *nnz, *sparsetype);
   IDAKLUSetOrdering(IDA_idamem, *ordering);
   IDA_ls = IDA_LS_KLU;
 }

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4499 $
- * $Date: 2015-05-13 14:36:05 -0700 (Wed, 13 May 2015) $
+ * $Revision: 4951 $
+ * $Date: 2016-09-22 10:21:00 -0700 (Thu, 22 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -41,10 +41,10 @@ static int cvDenseSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
                         N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3);
 static int cvDenseSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
                         N_Vector ycur, N_Vector fcur);
-static void cvDenseFree(CVodeMem cv_mem);
+static int cvDenseFree(CVodeMem cv_mem);
 
 /* CVSDENSE lfreeB function */
-static void cvDenseFreeB(CVodeBMem cvb_mem);
+static int cvDenseFreeB(CVodeBMem cvb_mem);
 
 /* 
  * ================================================================
@@ -156,6 +156,8 @@ int CVDense(void *cvode_mem, long int N)
 
   last_flag = CVDLS_SUCCESS;
 
+  cvDlsInitializeCounters(cvdls_mem);  
+
   setupNonNull = TRUE;
 
   /* Set problem dimension */
@@ -209,9 +211,13 @@ static int cvDenseInit(CVodeMem cv_mem)
 
   cvdls_mem = (CVDlsMem) lmem;
   
-  nje   = 0;
-  nfeDQ = 0;
-  nstlj = 0;
+  cvDlsInitializeCounters(cvdls_mem);  
+
+  /*
+   nje   = 0;
+   nfeDQ = 0;
+   nstlj = 0;
+  */
 
   /* Set Jacobian function and data, depending on jacDQ */
   if (jacDQ) {
@@ -338,7 +344,7 @@ static int cvDenseSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
  * -----------------------------------------------------------------
  */
 
-static void cvDenseFree(CVodeMem cv_mem)
+static int cvDenseFree(CVodeMem cv_mem)
 {
   CVDlsMem  cvdls_mem;
 
@@ -349,6 +355,8 @@ static void cvDenseFree(CVodeMem cv_mem)
   DestroyArray(lpivots);
   free(cvdls_mem);
   cv_mem->cv_lmem = NULL;
+
+  return(0);
 }
 
 /* 
@@ -434,12 +442,14 @@ int CVDenseB(void *cvode_mem, int which, long int nB)
  * solver for backward integration.
  */
 
-static void cvDenseFreeB(CVodeBMem cvB_mem)
+static int cvDenseFreeB(CVodeBMem cvB_mem)
 {
   CVDlsMemB cvdlsB_mem;
 
   cvdlsB_mem = (CVDlsMemB) (cvB_mem->cv_lmem);
 
   free(cvdlsB_mem);
+
+  return(0);
 }
 

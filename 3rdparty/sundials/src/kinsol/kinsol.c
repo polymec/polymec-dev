@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4479 $
- * $Date: 2015-04-15 17:21:22 -0700 (Wed, 15 Apr 2015) $
+ * $Revision: 4888 $
+ * $Date: 2016-09-02 13:34:35 -0700 (Fri, 02 Sep 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh, Radu Serban, Carol Woodward,
  *                John Loffeld, and Aaron Collier @ LLNL
@@ -586,8 +586,9 @@ int KINSol(void *kinmem, N_Vector u, int strategy_in,
  
 
   /* CSW:  
-     Call fixed point solver for Picard method if requested.  Note that this should probably
-     be forked off to a part of an FPSOL solver instead of kinsol in the future. */
+     Call fixed point solver for Picard method if requested.  
+     Note that this should probably be forked off to a part of an 
+     FPSOL solver instead of kinsol in the future. */
   if ( strategy == KIN_PICARD ) {
 
     kin_mem->kin_gval = N_VClone(unew);
@@ -1401,7 +1402,7 @@ static int KINFullNewton(KINMem kin_mem, realtype *fnormp, realtype *f1normp,
  * If the step size is limited due to constraint violations and/or 
  * recoverable system function failures, we set rlmax=1 to ensure
  * that the update remains feasible during the attempts to enforce 
- * the beta-condition (this is not an isse while enforcing the alpha
+ * the beta-condition (this is not an issue while enforcing the alpha
  * condition, as rl can only decrease from 1 at that stage)
  */
 
@@ -1614,7 +1615,7 @@ static int KINLineSearch(KINMem kin_mem, realtype *fnormp, realtype *f1normp,
       } while (((*f1normp) <= alpha_cond) && 
 	       ((*f1normp) < beta_cond) && (rl < rlmax));
 
-    } /* enf if (rl == ONE) block */
+    } /* end if (rl == ONE) block */
 
     if ((rl < ONE) || ((rl > ONE) && (*f1normp > alpha_cond))) {
 
@@ -1649,9 +1650,10 @@ static int KINLineSearch(KINMem kin_mem, realtype *fnormp, realtype *f1normp,
       } while ((*f1normp > alpha_cond) ||
 	       ((*f1normp < beta_cond) && (rldiff >= rlmin)));
 
-      if ((*f1normp) < beta_cond) {
+      if ( (*f1normp < beta_cond) || ((rldiff < rlmin) && (*f1normp > alpha_cond)) ) {
 
-	/* beta condition could not be satisfied so set unew to last u value
+	/* beta condition could not be satisfied or rldiff too small 
+	   and alpha_cond not satisfied, so set unew to last u value
 	   that satisfied the alpha condition and continue */
 
         N_VLinearSum(ONE, uu, rllo, pp, unew);
@@ -2179,13 +2181,13 @@ void KINErrHandler(int error_code, const char *module,
 /*
  * KINPicardAA
  *
- * This routine is the main driver for the Picard iteration with acclerated fixed point. 
+ * This routine is the main driver for the Picard iteration with 
+ * acclerated fixed point. 
  */
 
-static int KINPicardAA(KINMem kin_mem, long int *iterp, realtype *R, realtype *gamma, 
-		       realtype *fmaxptr)
+static int KINPicardAA(KINMem kin_mem, long int *iterp, realtype *R, 
+                       realtype *gamma, realtype *fmaxptr)
 {
-  booleantype fOK;
   int retval, ret; 
   long int iter;
   realtype fmax, epsmin, fnormp;
@@ -2194,7 +2196,6 @@ static int KINPicardAA(KINMem kin_mem, long int *iterp, realtype *R, realtype *g
   delta = kin_mem->kin_vtemp1;
   gval = kin_mem->kin_gval;
   ret = CONTINUE_ITERATIONS;
-  fOK = TRUE;
   fmax = fnormtol + ONE;
   iter = 0;
   epsmin = ZERO;
@@ -2215,14 +2216,12 @@ static int KINPicardAA(KINMem kin_mem, long int *iterp, realtype *R, realtype *g
       if(!noMinEps) eps = SUNMAX(epsmin, eps);
     }
 
-    /* evaluate g = uu - L^{-1}func(u) and return if failed.  
+    /* evaluate g = uu - L^{-1}func(uu) and return if failed.  
        For Picard, assume that the fval vector has been filled 
        with an eval of the nonlinear residual prior to this call. */
     retval = KINPicardFcnEval(kin_mem, gval, uu, fval);
-    if (retval == 0) {
-      fOK = TRUE;
-    } else if (retval < 0) {
-      fOK = FALSE;
+
+    if (retval < 0) {
       ret = KIN_SYSFUNC_FAIL;
       break;
     }
@@ -2237,10 +2236,8 @@ static int KINPicardAA(KINMem kin_mem, long int *iterp, realtype *R, realtype *g
 
     /* Fill the Newton residual based on the new solution iterate */
     retval = func(unew, fval, user_data); nfe++;
-    if (retval == 0) {
-      fOK = TRUE;
-    }
-    else if (retval < 0) {
+    
+    if (retval < 0) {
       ret = KIN_SYSFUNC_FAIL;
       break;
     }
@@ -2265,10 +2262,11 @@ static int KINPicardAA(KINMem kin_mem, long int *iterp, realtype *R, realtype *g
     if (fmax <= fnormtol) { 
       ret = KIN_SUCCESS;
     }
-    
+
+    /* Update with new iterate. */
+    N_VScale(ONE, unew, uu);
+
     if (ret == CONTINUE_ITERATIONS) { 
-      /* Only update solution if taking a next iteration.  */
-      N_VScale(ONE, unew, uu);
       /* evaluate eta by calling the forcing term routine */
       if (callForcingTerm) KINForcingTerm(kin_mem, fnormp);
     }
@@ -2353,7 +2351,6 @@ static int KINFP(KINMem kin_mem, long int *iterp,
 		 realtype *R, realtype *gamma, 
 		 realtype *fmaxptr)
 {
-  booleantype fOK;
   int retval, ret; 
   long int iter;
   realtype fmax;
@@ -2361,7 +2358,6 @@ static int KINFP(KINMem kin_mem, long int *iterp,
   
   delta = kin_mem->kin_vtemp1;
   ret = CONTINUE_ITERATIONS;
-  fOK = TRUE;
   fmax = fnormtol + ONE;
   iter = 0;
 
@@ -2373,7 +2369,6 @@ static int KINFP(KINMem kin_mem, long int *iterp,
     retval = func(uu, fval, user_data); nfe++;
 
     if (retval < 0) {
-      fOK = FALSE;
       ret = KIN_SYSFUNC_FAIL;
       break;
     }
@@ -2442,7 +2437,7 @@ static int AndersonAcc(KINMem kin_mem, N_Vector gval, N_Vector fv,
 		       N_Vector x, N_Vector xold, 
 		       int iter, realtype *R, realtype *gamma)
 {
-  int i_pt, i, j, lAA, imap, jmap;
+  int i_pt, i, j, lAA;
   int *ipt_map;
   realtype alfa;
   realtype a, b, temp, c, s;

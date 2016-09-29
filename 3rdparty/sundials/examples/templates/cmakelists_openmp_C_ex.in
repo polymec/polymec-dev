@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
-# $Revision: 4456 $
-# $Date: 2015-03-28 20:22:03 -0700 (Sat, 28 Mar 2015) $
+# $Revision: 4958 $
+# $Date: 2016-09-23 14:02:13 -0700 (Fri, 23 Sep 2016) $
 # -----------------------------------------------------------------
 # Programmer: Radu Serban @ LLNL
 # -----------------------------------------------------------------
@@ -39,6 +39,7 @@ MARK_AS_ADVANCED(EXECUTABLE_OUTPUT_PATH LIBRARY_OUTPUT_PATH)
 
 # Set the names of the examples to be built
 SET(examples @EXAMPLES@ @EXAMPLES_BL@)
+LIST(REMOVE_DUPLICATES examples)
 
 # Set names of examples specific dependency source files
 SET(examples_dependencies @EXAMPLES_DEPENDENCIES@)
@@ -48,7 +49,7 @@ SET(SUNDIALS_INC_DIR
   @includedir@
   CACHE STRING
   "Location of SUNDIALS header files")
-
+  
 # Add path to SUNDIALS header files
 INCLUDE_DIRECTORIES(${SUNDIALS_INC_DIR})
 
@@ -68,8 +69,11 @@ FIND_LIBRARY(SUNDIALS_NVEC_LIB
 # Set additional libraries
 SET(SUNDIALS_EXTRA_LIB @LIBS@ CACHE STRING "Additional libraries")
 
-# Set Blas/Lapack libraries
+# Set other libraries libraries
 SET(LAPACK_LIBRARIES @BLAS_LAPACK_LIBS@ CACHE STRING "Lapack libraries")
+SET(SUPERLUMT_LIBRARIES @SUPERLUMT_LIBRARIES@ CACHE STRING "SuperLUMT libraries")
+SET(KLU_LIBRARIES @KLU_LIBRARIES@ CACHE STRING "KLU libraries")
+SET(PETSC_LIBRARIES @PETSC_LIBRARIES@ CACHE STRING "PETSC libraries")
 
 # List of all libraries
 SET(SUNDIALS_LIBS ${SUNDIALS_SOLVER_LIB} ${SUNDIALS_NVEC_LIB} ${SUNDIALS_EXTRA_LIB})
@@ -77,11 +81,26 @@ IF(LAPACK_LIBRARIES)
   LIST(APPEND SUNDIALS_LIBS ${LAPACK_LIBRARIES})
 ENDIF(LAPACK_LIBRARIES)
 
+IF(SUPERLUMT_LIBRARIES)
+  LIST(APPEND SUNDIALS_LIBS ${SUPERLUMT_LIBRARIES})
+ENDIF(SUPERLUMT_LIBRARIES)
+
+IF(KLU_LIBRARIES)
+  LIST(APPEND SUNDIALS_LIBS ${KLU_LIBRARIES})
+ENDIF(KLU_LIBRARIES)
+
+IF(PETSC_LIBRARIES)
+  LIST(APPEND SUNDIALS_LIBS ${PETSC_LIBRARIES})
+ENDIF(PETSC_LIBRARIES)
+
+FIND_PACKAGE(OpenMP)
 IF(OPENMP_FOUND)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
   # Use C flags for linker as well.
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_C_FLAGS}")
+ELSE(OPENMP_FOUND)
+  message(STATUS "Disabling OpenMP support, could not determine compiler flags")
 ENDIF(OPENMP_FOUND)
 
 # Build each example one by one

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4923 $
+ * $Date: 2016-09-19 14:35:51 -0700 (Mon, 19 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -45,11 +45,11 @@ static int CVSpgmrSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
 static int CVSpgmrSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
                         N_Vector ynow, N_Vector fnow);
 
-static void CVSpgmrFree(CVodeMem cv_mem);
+static int CVSpgmrFree(CVodeMem cv_mem);
 
 /* CVSPGMR lfreeB function */
 
-static void CVSpgmrFreeB(CVodeBMem cvB_mem);
+static int CVSpgmrFreeB(CVodeBMem cvB_mem);
 
 /* 
  * ================================================================
@@ -181,6 +181,8 @@ int CVSpgmr(void *cvode_mem, int pretype, int maxl)
   
   cvspils_mem->s_last_flag  = CVSPILS_SUCCESS;
 
+  cvSpilsInitializeCounters(cvspils_mem);
+
   setupNonNull = FALSE;
 
   /* Check for legal pretype */ 
@@ -256,8 +258,7 @@ static int CVSpgmrInit(CVodeMem cv_mem)
   cvspils_mem = (CVSpilsMem) lmem;
 
   /* Initialize counters */
-  npe = nli = nps = ncfl = nstlpre = 0;
-  njtimes = nfes = 0;
+  cvSpilsInitializeCounters(cvspils_mem);
 
   /* Check for legal combination pretype - psolve */
   if ((pretype != PREC_NONE) && (psolve == NULL)) {
@@ -458,7 +459,7 @@ static int CVSpgmrSolve(CVodeMem cv_mem, N_Vector b, N_Vector weight,
  * -----------------------------------------------------------------
  */
 
-static void CVSpgmrFree(CVodeMem cv_mem)
+static int CVSpgmrFree(CVodeMem cv_mem)
 {
   CVSpilsMem cvspils_mem;
   SpgmrMem spgmr_mem;
@@ -475,6 +476,8 @@ static void CVSpgmrFree(CVodeMem cv_mem)
 
   free(cvspils_mem);
   cv_mem->cv_lmem = NULL;
+
+  return(0);
 }
 
 
@@ -574,11 +577,13 @@ int CVSpgmrB(void *cvode_mem, int which, int pretypeB, int maxlB)
  */
 
 
-static void CVSpgmrFreeB(CVodeBMem cvB_mem)
+static int CVSpgmrFreeB(CVodeBMem cvB_mem)
 {
   CVSpilsMemB cvspilsB_mem;
 
   cvspilsB_mem = (CVSpilsMemB) (cvB_mem->cv_lmem);
 
   free(cvspilsB_mem);
+
+  return(0);
 }

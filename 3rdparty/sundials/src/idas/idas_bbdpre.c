@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4921 $
+ * $Date: 2016-09-19 14:35:11 -0700 (Mon, 19 Sep 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Alan C. Hindmarsh and Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -58,7 +58,7 @@ static int IDABBDPrecSolve(realtype tt,
 
 /* Prototype for IDABBDPrecFree */
 
-static void IDABBDPrecFree(IDAMem ida_mem);
+static int IDABBDPrecFree(IDAMem ida_mem);
 
 /* Prototype for difference quotient Jacobian calculation routine */
 
@@ -78,7 +78,7 @@ static int IDAAgcomm(long int NlocalB, realtype tt,
 
 /* Prototype for the pfree routine for backward problems. */
 
-static void IDABBDPrecFreeB(IDABMem IDAB_mem);
+static int IDABBDPrecFreeB(IDABMem IDAB_mem);
 
 /* 
  * ================================================================
@@ -195,7 +195,12 @@ int IDABBDPrecInit(void *ida_mem, long int Nlocal,
   pdata->ipwsize = Nlocal;
   pdata->nge = 0;
 
-  /* Overwrite the pdata field in the SPILS memory */
+  /* make sure s_P_data is free from any previous allocations */
+  if (idaspils_mem->s_pfree != NULL) {
+    idaspils_mem->s_pfree(IDA_mem);
+  }
+
+  /* Point to the new pdata field in the SPILS memory */
   idaspils_mem->s_pdata = pdata;
 
   /* Attach the pfree function */
@@ -443,15 +448,15 @@ static int IDABBDPrecSolve(realtype tt,
 }
 
 
-static void IDABBDPrecFree(IDAMem IDA_mem)
+static int IDABBDPrecFree(IDAMem IDA_mem)
 {
   IDASpilsMem idaspils_mem;
   IBBDPrecData pdata;
   
-  if (IDA_mem->ida_lmem == NULL) return;
+  if (IDA_mem->ida_lmem == NULL) return(0);
   idaspils_mem = (IDASpilsMem) IDA_mem->ida_lmem;
   
-  if (idaspils_mem->s_pdata == NULL) return;
+  if (idaspils_mem->s_pdata == NULL) return(0);
   pdata = (IBBDPrecData) idaspils_mem->s_pdata;
 
   DestroyMat(PP);
@@ -460,6 +465,8 @@ static void IDABBDPrecFree(IDAMem IDA_mem)
 
   free(pdata);
   pdata = NULL;
+
+  return(0);
 }
 
 
@@ -737,10 +744,11 @@ int IDABBDPrecReInitB(void *ida_mem, int which,
   return(flag);
 }
 
-static void IDABBDPrecFreeB(IDABMem IDAB_mem)
+static int IDABBDPrecFreeB(IDABMem IDAB_mem)
 {
   free(IDAB_mem->ida_pmem);
   IDAB_mem->ida_pmem = NULL;
+  return(0);
 }
 
 /* 

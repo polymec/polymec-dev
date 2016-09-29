@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4483 $
-# $Date: 2015-04-22 16:30:17 -0700 (Wed, 22 Apr 2015) $
+# $Revision: 4958 $
+# $Date: 2016-09-23 14:02:13 -0700 (Fri, 23 Sep 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -26,6 +26,7 @@ SET(IDA_examples
   idaFoodWeb_bnd
   idaHeat2D_bnd
   idaHeat2D_kry
+  idaFoodWeb_kry
   idaKrylovDemo_ls
   idaRoberts_dns
   idaSlCrank_dns
@@ -72,6 +73,10 @@ ENDIF(SUPERLUMT_FOUND)
 IF(KLU_FOUND)
   LIST(APPEND SUNDIALS_LIBS ${KLU_LIBRARIES})
 ENDIF(KLU_FOUND)
+
+IF(PETSC_FOUND)
+  LIST(APPEND SUNDIALS_LIBS ${PETSC_LIBRARIES})
+ENDIF(PETSC_FOUND)
 
 # Add the build and install targets for each IDA example
 

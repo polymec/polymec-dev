@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4135 $
-# $Date: 2014-06-13 15:55:05 -0700 (Fri, 13 Jun 2014) $
+# $Revision: 4759 $
+# $Date: 2016-05-18 16:25:17 -0700 (Wed, 18 May 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -17,6 +17,14 @@
 # CMakeLists.txt file for the CVODE library
 
 INSTALL(CODE "MESSAGE(\"\nInstall CVODE\n\")")
+
+IF(MPI_MPICC)
+  # use MPI_MPICC as the compiler
+  SET(CMAKE_C_COMPILER ${MPI_MPICC})
+ELSE(MPI_MPICC)
+  # add MPI_INCLUDE_PATH to include directories
+  INCLUDE_DIRECTORIES(${MPI_INCLUDE_PATH})
+ENDIF(MPI_MPICC)
 
 # Add variable cvode_SOURCES with the sources for the CVODE library
 SET(cvode_SOURCES
@@ -42,6 +50,10 @@ ENDIF()
 IF(SUPERLUMT_FOUND)
     LIST(APPEND cvode_SOURCES cvode_superlumt.c)
 ENDIF()
+
+# IF(HYPRE_FOUND)
+#      LIST(APPEND cvode_SOURCES cvode_hypamgpre.c)
+# ENDIF()
 
 # Add variable shared_SOURCES with the common SUNDIALS sources which will
 # also be included in the CVODE library
@@ -84,6 +96,10 @@ ENDIF()
 IF(SUPERLUMT_FOUND)
     LIST(APPEND cvode_HEADERS cvode_superlumt.h)
 ENDIF()
+
+# IF(HYPRE_FOUND)
+#      LIST(APPEND cvode_HEADERS cvode_hypamgpre.h)
+# ENDIF()
 
 # Add prefix with complete path to the CVODE header files
 ADD_PREFIX(${sundials_SOURCE_DIR}/include/cvode/ cvode_HEADERS)

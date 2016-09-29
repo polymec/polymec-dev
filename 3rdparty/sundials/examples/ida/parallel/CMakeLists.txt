@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4137 $
-# $Date: 2014-06-15 12:26:15 -0700 (Sun, 15 Jun 2014) $
+# $Revision: 4958 $
+# $Date: 2016-09-23 14:02:13 -0700 (Fri, 23 Sep 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -63,6 +63,10 @@ ENDIF(KLU_FOUND)
 IF(SUPERLUMT_FOUND)
   LIST(APPEND SUNDIALS_LIBS ${SUPERLUMT_LIBRARIES})
 ENDIF(SUPERLUMT_FOUND)
+
+IF(PETSC_FOUND)
+  LIST(APPEND SUNDIALS_LIBS ${PETSC_LIBRARIES})
+ENDIF(PETSC_FOUND)
 
 # Add the build and install targets for each IDA example
 

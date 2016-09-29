@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4834 $
+ * $Date: 2016-08-01 16:59:05 -0700 (Mon, 01 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Radu Serban @ LLNL
  * -----------------------------------------------------------------
@@ -90,7 +90,7 @@ static int SolveIt(void *kmem, N_Vector u, N_Vector s, int glstr, int mset);
 static void PrintHeader(realtype fnormtol, realtype scsteptol);
 static void PrintOutput(N_Vector u);
 static void PrintFinalStats(void *kmem);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -307,8 +307,8 @@ static int func(N_Vector u, N_Vector f, void *user_data)
   lb = data->lb;
   ub = data->ub;
 
-  udata = NV_DATA_S(u);
-  fdata = NV_DATA_S(f);
+  udata = N_VGetArrayPointer_Serial(u);
+  fdata = N_VGetArrayPointer_Serial(f);
 
   x1 = udata[0];
   x2 = udata[1];
@@ -343,7 +343,7 @@ static void SetInitialGuess1(N_Vector u, UserData data)
   realtype *udata;
   realtype *lb, *ub;
 
-  udata = NV_DATA_S(u);
+  udata = N_VGetArrayPointer_Serial(u);
 
   lb = data->lb;
   ub = data->ub;
@@ -368,7 +368,7 @@ static void SetInitialGuess2(N_Vector u, UserData data)
   realtype *udata;
   realtype *lb, *ub;
 
-  udata = NV_DATA_S(u);
+  udata = N_VGetArrayPointer_Serial(u);
 
   lb = data->lb;
   ub = data->ub;
@@ -456,7 +456,7 @@ static void PrintFinalStats(void *kmem)
  *             NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

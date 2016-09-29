@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4483 $
-# $Date: 2015-04-22 16:30:17 -0700 (Wed, 22 Apr 2015) $
+# $Revision: 4901 $
+# $Date: 2016-09-14 07:45:54 -0700 (Wed, 14 Sep 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -37,6 +37,10 @@ SET(KINSOL_examples_BL
 
 SET(KINSOL_examples_SUPERLUMT
   kinRoboKin_slu
+  )
+
+SET(KINSOL_examples_KLU
+  kinFerTron_klu
   )
 
 # Specify libraries to link against (through the target that was used to 
@@ -105,6 +109,19 @@ IF(SUPERLUMT_FOUND)
   ENDFOREACH(example ${KINSOL_examples_SUPERLUMT})
 ENDIF(SUPERLUMT_FOUND)
 
+# If KLU support is enabled, add the build and install targets for
+# the examples using KLU
+IF(KLU_FOUND)
+  FOREACH(example ${KINSOL_examples_KLU})
+    ADD_EXECUTABLE(${example} ${example}.c)
+    SUNDIALS_ADD_TEST(${example} ${example})
+    TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
+    IF(EXAMPLES_INSTALL)
+      INSTALL(FILES ${example}.c ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/kinsol/serial)
+    ENDIF(EXAMPLES_INSTALL)
+  ENDFOREACH(example ${KINSOL_examples_KLU})
+ENDIF(KLU_FOUND)
+
 
 IF(EXAMPLES_INSTALL)
 
@@ -117,13 +134,17 @@ IF(EXAMPLES_INSTALL)
   LIST2STRING(KINSOL_examples EXAMPLES)
   IF(LAPACK_FOUND)
     LIST2STRING(KINSOL_examples_BL EXAMPLES_BL)
-  ELSE(LAPACK_FOUND)
+  ELSE()
     SET(EXAMPLES_BL "")
-  ENDIF(LAPACK_FOUND)
+  ENDIF()
 
   IF(SUPERLUMT_FOUND)
     LIST2STRING(KINSOL_examples_SUPERLUMT EXAMPLES)
-  ENDIF(SUPERLUMT_FOUND)
+  ENDIF()
+
+  IF(KLU_FOUND)
+    LIST2STRING(KINSOL_examples_KLU EXAMPLES)
+  ENDIF()
 
   STRING (REPLACE ";" " " TMP_STR ${EXAMPLES})
   SET(EXAMPLES ${TMP_STR})

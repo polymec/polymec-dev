@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------
-# $Revision: 4137 $
-# $Date: 2014-06-15 12:26:15 -0700 (Sun, 15 Jun 2014) $
+# $Revision: 4942 $
+# $Date: 2016-09-21 17:50:22 -0700 (Wed, 21 Sep 2016) $
 # ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
@@ -24,7 +24,7 @@ SET(CVODES_examples
   "cvsAdvDiff_FSA_non_p\;2\;2\;-sensi stg t"
   "cvsAdvDiff_FSA_non_p\;2\;2\;-sensi sim t"
   "cvsAdvDiff_non_p\;2\;2"
-  "cvsAtmDisp_ASAi_kry_bbd_p\;2\;4"
+  "cvsAtmDisp_ASAi_kry_bbd_p\;2\;8"
   "cvsDiurnal_FSA_kry_p\;2\;4\;-sensi stg t"
   "cvsDiurnal_FSA_kry_p\;2\;4\;-sensi sim t"
   "cvsDiurnal_kry_bbd_p\;2\;4"
@@ -120,6 +120,10 @@ IF(EXAMPLES_INSTALL)
   	list(GET example_tuple 0 example)
   	LIST2STRING(example EXAMPLES)
   ENDFOREACH(example_tuple ${CVODES_examples})
+
+  STRING (REPLACE ";" " " TMP_STR ${EXAMPLES})
+  SET(EXAMPLES ${TMP_STR})
+  list(REMOVE_DUPLICATES EXAMPLES)
 
   # Regardless of the platform we're on, we will generate and install 
   # CMakeLists.txt file for building the examples. This file  can then 

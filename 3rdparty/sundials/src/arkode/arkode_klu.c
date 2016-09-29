@@ -43,15 +43,15 @@ static int arkKLUSetup(ARKodeMem ark_mem, int convfail,
 static int arkKLUSolve(ARKodeMem ark_mem, N_Vector b, 
 		       N_Vector weight, N_Vector ycur, 
 		       N_Vector fcur);
-static void arkKLUFree(ARKodeMem ark_mem);
+static int arkKLUFree(ARKodeMem ark_mem);
 
-/* ARKKLU minit, msetup, msolve, and mfree routines */
+/* ARKKLU minit, msetup, msolve, mfree and mtimes routines */
 static int arkMassKLUInit(ARKodeMem ark_mem);
 static int arkMassKLUSetup(ARKodeMem ark_mem, N_Vector tmp1, 
 			   N_Vector tmp2, N_Vector tmp3);
 static int arkMassKLUSolve(ARKodeMem ark_mem, N_Vector b, 
 			   N_Vector weight);
-static void arkMassKLUFree(ARKodeMem ark_mem);
+static int arkMassKLUFree(ARKodeMem ark_mem);
 static int arkMassKLUMultiply(N_Vector v, N_Vector Mv, 
 			      realtype t, void *arkode_mem);
 
@@ -77,7 +77,7 @@ static int arkMassKLUMultiply(N_Vector v, N_Vector Mv,
        test for a compatible N_Vector internal representation
        by checking that the function N_VGetArrayPointer exists.
 ---------------------------------------------------------------*/
-int ARKKLU(void *arkode_mem, int n, int nnz)
+int ARKKLU(void *arkode_mem, int n, int nnz, int sparsetype)
 {
   ARKodeMem ark_mem;
   ARKSlsMem arksls_mem;
@@ -87,7 +87,7 @@ int ARKKLU(void *arkode_mem, int n, int nnz)
   /* Return immediately if ark_mem is NULL. */
   if (arkode_mem == NULL) {
     arkProcessError(NULL, ARKSLS_MEM_NULL, "ARKSLS", 
-		    "ARKKLU", MSGSP_ARKMEM_NULL);
+                    "ARKKLU", MSGSP_ARKMEM_NULL);
     return(ARKSLS_MEM_NULL);
   }
   ark_mem = (ARKodeMem) arkode_mem;
@@ -95,7 +95,7 @@ int ARKKLU(void *arkode_mem, int n, int nnz)
   /* Test if the NVECTOR package is compatible with the solver */
   if (ark_mem->ark_tempv->ops->nvgetarraypointer == NULL) {
     arkProcessError(ark_mem, ARKSLS_ILL_INPUT, "ARKSLS", 
-		    "ARKKLU", MSGSP_BAD_NVECTOR);
+                    "ARKKLU", MSGSP_BAD_NVECTOR);
     return(ARKSLS_ILL_INPUT);
   }
 
@@ -112,7 +112,7 @@ int ARKKLU(void *arkode_mem, int n, int nnz)
   arksls_mem = (ARKSlsMem) malloc(sizeof(struct ARKSlsMemRec));
   if (arksls_mem == NULL) {
     arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", 
-		    "ARKKLU", MSGSP_MEM_FAIL);
+                    "ARKKLU", MSGSP_MEM_FAIL);
     return(ARKSLS_MEM_FAIL);
   }
 
@@ -120,15 +120,16 @@ int ARKKLU(void *arkode_mem, int n, int nnz)
   klu_data = (KLUData) malloc(sizeof(struct KLUDataRec));
   if (klu_data == NULL) {
     arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", 
-		    "ARKKLU", MSGSP_MEM_FAIL);
+                    "ARKKLU", MSGSP_MEM_FAIL);
     free(arksls_mem); arksls_mem = NULL;
     return(ARKSLS_MEM_FAIL);
   }
 
   /* Initialize Jacobian-related data */
   arksls_mem->s_Jeval = NULL;
-  arksls_mem->s_Jdata = ark_mem->ark_user_data;
+  arksls_mem->s_Jdata = NULL;
   ark_mem->ark_setupNonNull = TRUE;
+  arksls_mem->sparsetype = sparsetype;
 
   /* Initialize counters */
   arksls_mem->s_nje = 0;
@@ -137,10 +138,10 @@ int ARKKLU(void *arkode_mem, int n, int nnz)
 
   /* Allocate memory for the sparse Jacobian */
   arksls_mem->s_A = NULL;
-  arksls_mem->s_A = NewSparseMat(n, n, nnz);
+  arksls_mem->s_A = SparseNewMat(n, n, nnz, sparsetype);
   if (arksls_mem->s_A == NULL) {
     arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", 
-		    "ARKKLU", MSGSP_MEM_FAIL);
+                    "ARKKLU", MSGSP_MEM_FAIL);
     free(klu_data); klu_data = NULL;
     free(arksls_mem); arksls_mem = NULL;
     return(ARKSLS_MEM_FAIL);
@@ -148,17 +149,31 @@ int ARKKLU(void *arkode_mem, int n, int nnz)
 
   /* Allocate memory for saved sparse Jacobian */
   arksls_mem->s_savedJ = NULL;
-  arksls_mem->s_savedJ = NewSparseMat(n, n, nnz);
+  arksls_mem->s_savedJ = SparseNewMat(n, n, nnz, sparsetype);
   if (arksls_mem->s_savedJ == NULL) {
     arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", 
-		    "ARKKLU", MSGSP_MEM_FAIL);
-    DestroySparseMat(arksls_mem->s_A);
+                    "ARKKLU", MSGSP_MEM_FAIL);
+    SparseDestroyMat(arksls_mem->s_A);
     free(klu_data); klu_data = NULL;
     free(arksls_mem); arksls_mem = NULL;
     return(ARKSLS_MEM_FAIL);
   }
 
   /* Initialize KLU structures */
+  switch (sparsetype) {
+    case CSC_MAT:
+      klu_data->sun_klu_solve = &klu_solve;
+      break;
+    case CSR_MAT:
+      klu_data->sun_klu_solve = &klu_tsolve;
+      break;
+    default:
+      SparseDestroyMat(arksls_mem->s_A);
+      SparseDestroyMat(arksls_mem->s_savedJ);
+      free(klu_data); klu_data = NULL;
+      free(arksls_mem); arksls_mem = NULL;
+      return(ARKSLS_ILL_INPUT);
+  }
   klu_data->s_Symbolic = NULL;
   klu_data->s_Numeric = NULL;
 
@@ -166,13 +181,13 @@ int ARKKLU(void *arkode_mem, int n, int nnz)
   flag = klu_defaults(&klu_data->s_Common);
   if (flag == 0) {
     arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", 
-		    "ARKKLU", MSGSP_MEM_FAIL);
+                    "ARKKLU", MSGSP_MEM_FAIL);
     klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
     free(klu_data->s_Numeric);  klu_data->s_Numeric = NULL;
     klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
     free(klu_data->s_Symbolic);  klu_data->s_Symbolic = NULL;
-    DestroySparseMat(arksls_mem->s_A);
-    DestroySparseMat(arksls_mem->s_savedJ);
+    SparseDestroyMat(arksls_mem->s_A);
+    SparseDestroyMat(arksls_mem->s_savedJ);
     free(klu_data); klu_data = NULL;
     free(arksls_mem); arksls_mem = NULL;
     return(ARKSLS_MEM_FAIL);
@@ -259,11 +274,11 @@ int ARKKLUReInit(void *arkode_mem, int n, int nnz, int reinit_type)
 
     /* Destroy previous Jacobian information */
     if (arksls_mem->s_A) {
-      DestroySparseMat(arksls_mem->s_A);
+      SparseDestroyMat(arksls_mem->s_A);
     }
 
     /* Allocate memory for the sparse Jacobian */
-    arksls_mem->s_A = NewSparseMat(n, n, nnz);
+    arksls_mem->s_A = SparseNewMat(n, n, nnz, arksls_mem->sparsetype);
     if (arksls_mem->s_A == NULL) {
       arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", "ARKKLU", 
 		    MSGSP_MEM_FAIL);
@@ -295,7 +310,10 @@ static int arkKLUInit(ARKodeMem ark_mem)
 
   arksls_mem = (ARKSlsMem) ark_mem->ark_lmem;
 
+  arksls_mem->s_Jdata = ark_mem->ark_user_data;
+
   arksls_mem->s_nje = 0;
+  /* Force factorization every call to ARKODE */
   arksls_mem->s_first_factorize = 1;
   arksls_mem->s_nstlj = 0;
 
@@ -354,14 +372,14 @@ static int arkKLUSetup(ARKodeMem ark_mem, int convfail,
   /* If jok = TRUE, use saved copy of J */
   if (jok) {
     *jcurPtr = FALSE;
-    CopySparseMat(arksls_mem->s_savedJ, arksls_mem->s_A);
+    SparseCopyMat(arksls_mem->s_savedJ, arksls_mem->s_A);
 
   /* If jok = FALSE, call jac routine for new J value */
   } else {
     arksls_mem->s_nje++;
     arksls_mem->s_nstlj = ark_mem->ark_nst;
     *jcurPtr = TRUE;
-    SlsSetToZero(arksls_mem->s_A);
+    SparseSetMatToZero(arksls_mem->s_A);
 
     retval = arksls_mem->s_Jeval(ark_mem->ark_tn, ypred, fpred, 
 				 arksls_mem->s_A, arksls_mem->s_Jdata, 
@@ -377,18 +395,18 @@ static int arkKLUSetup(ARKodeMem ark_mem, int convfail,
       return(1);
     }
 
-    CopySparseMat(arksls_mem->s_A, arksls_mem->s_savedJ);
+    SparseCopyMat(arksls_mem->s_A, arksls_mem->s_savedJ);
   }
 
   /* Scale J by -gamma */
-  ScaleSparseMat(-ark_mem->ark_gamma, arksls_mem->s_A);
+  SparseScaleMat(-ark_mem->ark_gamma, arksls_mem->s_A);
 
   /* Add mass matrix to get A = M-gamma*J */
   if (ark_mem->ark_mass_matrix) {
 
     /* Compute mass matrix */
     arksls_mass_mem = (ARKSlsMassMem) ark_mem->ark_mass_mem;
-    SlsSetToZero(arksls_mass_mem->s_M);
+    SparseSetMatToZero(arksls_mass_mem->s_M);
     retval = arksls_mass_mem->s_Meval(ark_mem->ark_tn, 
 				      arksls_mass_mem->s_M, 
 				      arksls_mass_mem->s_Mdata, 
@@ -406,7 +424,7 @@ static int arkKLUSetup(ARKodeMem ark_mem, int convfail,
     }
     
     /* add to A */
-    retval = SlsAddMat(arksls_mem->s_A, arksls_mass_mem->s_M);
+    retval = SparseAddMat(arksls_mem->s_A, arksls_mass_mem->s_M);
     if (retval < 0) {
       arkProcessError(ark_mem, ARKSLS_PACKAGE_FAIL, "ARKSLS", 
 		      "arkKLUSetup",  "Error in adding mass matrix to Jacobian");
@@ -416,7 +434,7 @@ static int arkKLUSetup(ARKodeMem ark_mem, int convfail,
     if (retval > 0)  return(retval);
     
   } else {
-    AddIdentitySparseMat(arksls_mem->s_A);
+    SparseAddIdentityMat(arksls_mem->s_A);
   }
 
 
@@ -427,9 +445,12 @@ static int arkKLUSetup(ARKodeMem ark_mem, int convfail,
     klu_data->s_Common.ordering = klu_data->s_ordering;
 
     /* Perform symbolic analysis of sparsity structure */
-    klu_data->s_Symbolic = klu_analyze(arksls_mem->s_A->N, 
-				       arksls_mem->s_A->colptrs, 
-				       arksls_mem->s_A->rowvals, 
+    if (klu_data->s_Symbolic != NULL) {
+       klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
+    }
+    klu_data->s_Symbolic = klu_analyze(arksls_mem->s_A->NP, 
+				       arksls_mem->s_A->indexptrs, 
+				       arksls_mem->s_A->indexvals, 
 				       &(klu_data->s_Common));
     if (klu_data->s_Symbolic == NULL) {
       arkProcessError(ark_mem, ARKSLS_PACKAGE_FAIL, "ARKSLS", 
@@ -440,8 +461,11 @@ static int arkKLUSetup(ARKodeMem ark_mem, int convfail,
     /* ------------------------------------------------------------
        Compute the LU factorization of  the Jacobian.
        ------------------------------------------------------------*/
-    klu_data->s_Numeric = klu_factor(arksls_mem->s_A->colptrs, 
-				     arksls_mem->s_A->rowvals, 
+    if( klu_data->s_Numeric != NULL) {
+       klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
+    }
+    klu_data->s_Numeric = klu_factor(arksls_mem->s_A->indexptrs, 
+				     arksls_mem->s_A->indexvals, 
 				     arksls_mem->s_A->data, 
 				     klu_data->s_Symbolic, 
 				     &(klu_data->s_Common));
@@ -455,8 +479,8 @@ static int arkKLUSetup(ARKodeMem ark_mem, int convfail,
   }
   else {
 
-    retval = klu_refactor(arksls_mem->s_A->colptrs, 
-			  arksls_mem->s_A->rowvals, 
+    retval = klu_refactor(arksls_mem->s_A->indexptrs, 
+			  arksls_mem->s_A->indexvals, 
 			  arksls_mem->s_A->data, 
 			  klu_data->s_Symbolic, klu_data->s_Numeric,
 			  &(klu_data->s_Common));
@@ -484,7 +508,7 @@ static int arkKLUSetup(ARKodeMem ark_mem, int convfail,
       
       /* Condition number may be getting large.  
 	 Compute more accurate estimate */
-      retval = klu_condest(arksls_mem->s_A->colptrs, 
+      retval = klu_condest(arksls_mem->s_A->indexptrs, 
 			   arksls_mem->s_A->data, 
 			   klu_data->s_Symbolic, klu_data->s_Numeric,
 			   &(klu_data->s_Common));
@@ -502,8 +526,8 @@ static int arkKLUSetup(ARKodeMem ark_mem, int convfail,
 
 	klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
 	
-	klu_data->s_Numeric = klu_factor(arksls_mem->s_A->colptrs, 
-					 arksls_mem->s_A->rowvals, 
+	klu_data->s_Numeric = klu_factor(arksls_mem->s_A->indexptrs, 
+					 arksls_mem->s_A->indexvals, 
 					 arksls_mem->s_A->data,
 					 klu_data->s_Symbolic, 
 					 &(klu_data->s_Common));
@@ -544,9 +568,9 @@ static int arkKLUSolve(ARKodeMem ark_mem, N_Vector b,
   bd = N_VGetArrayPointer(b);
 
   /* Call KLU to solve the linear system */
-  flag = klu_solve(klu_data->s_Symbolic, klu_data->s_Numeric, 
-		   arksls_mem->s_A->N, 1, bd, 
-		   &(klu_data->s_Common));
+  flag = klu_data->sun_klu_solve(klu_data->s_Symbolic, klu_data->s_Numeric, 
+                                 arksls_mem->s_A->NP, 1, bd, 
+                                 &(klu_data->s_Common));
   if (flag == 0) {
     arkProcessError(ark_mem, ARKSLS_PACKAGE_FAIL, "ARKSLS", 
 		    "ARKKLUSolve", MSGSP_PACKAGE_FAIL);
@@ -567,7 +591,7 @@ static int arkKLUSolve(ARKodeMem ark_mem, N_Vector b,
 
  This routine frees memory specific to the ARKKLU linear solver.
 ---------------------------------------------------------------*/
-static void arkKLUFree(ARKodeMem ark_mem)
+static int arkKLUFree(ARKodeMem ark_mem)
 {
   ARKSlsMem arksls_mem;
   KLUData klu_data;
@@ -575,25 +599,30 @@ static void arkKLUFree(ARKodeMem ark_mem)
   arksls_mem = (ARKSlsMem) ark_mem->ark_lmem;
   klu_data = (KLUData) arksls_mem->s_solver_data;
 
-  klu_free_numeric(&(klu_data->s_Numeric), 
-		   &(klu_data->s_Common));
-
-  klu_free_symbolic(&(klu_data->s_Symbolic), 
-		    &(klu_data->s_Common));
+  if( klu_data->s_Numeric != NULL)
+  {
+     klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
+  }
+  if( klu_data->s_Symbolic != NULL)
+  {
+     klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
+  }
 
   if (arksls_mem->s_A) {
-    DestroySparseMat(arksls_mem->s_A);
+    SparseDestroyMat(arksls_mem->s_A);
     arksls_mem->s_A = NULL;
   }
 
   if (arksls_mem->s_savedJ) {
-    DestroySparseMat(arksls_mem->s_savedJ);
+    SparseDestroyMat(arksls_mem->s_savedJ);
     arksls_mem->s_savedJ = NULL;
   }
 
   free(klu_data); 
   free(arksls_mem); 
   ark_mem->ark_lmem = NULL;
+
+  return(0);
 }
 
 
@@ -620,8 +649,8 @@ static void arkKLUFree(ARKodeMem ark_mem)
        test for a compatible N_Vector internal representation
        by checking that the function N_VGetArrayPointer exists.
 ---------------------------------------------------------------*/
-int ARKMassKLU(void *arkode_mem, int n, int nnz, 
-	       ARKSlsSparseMassFn smass)
+int ARKMassKLU(void *arkode_mem, int n, int nnz, int sparsetype, 
+               ARKSlsSparseMassFn smass)
 {
   ARKodeMem ark_mem;
   ARKSlsMassMem arksls_mem;
@@ -631,7 +660,7 @@ int ARKMassKLU(void *arkode_mem, int n, int nnz,
   /* Return immediately if arkode_mem is NULL. */
   if (arkode_mem == NULL) {
     arkProcessError(NULL, ARKSLS_MEM_NULL, "ARKSLS", 
-		    "ARKMassKLU", MSGSP_ARKMEM_NULL);
+                    "ARKMassKLU", MSGSP_ARKMEM_NULL);
     return(ARKSLS_MEM_NULL);
   }
   ark_mem = (ARKodeMem) arkode_mem;
@@ -639,7 +668,7 @@ int ARKMassKLU(void *arkode_mem, int n, int nnz,
   /* Test if the NVECTOR package is compatible with the solver */
   if (ark_mem->ark_tempv->ops->nvgetarraypointer == NULL) {
     arkProcessError(ark_mem, ARKSLS_ILL_INPUT, "ARKSLS", 
-		    "ARKMassKLU", MSGSP_BAD_NVECTOR);
+                    "ARKMassKLU", MSGSP_BAD_NVECTOR);
     return(ARKSLS_ILL_INPUT);
   }
 
@@ -659,7 +688,7 @@ int ARKMassKLU(void *arkode_mem, int n, int nnz,
   arksls_mem = (ARKSlsMassMem) malloc(sizeof(struct ARKSlsMassMemRec));
   if (arksls_mem == NULL) {
     arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", 
-		    "ARKMassKLU", MSGSP_MEM_FAIL);
+                    "ARKMassKLU", MSGSP_MEM_FAIL);
     return(ARKSLS_MEM_FAIL);
   }
 
@@ -667,7 +696,7 @@ int ARKMassKLU(void *arkode_mem, int n, int nnz,
   klu_data = (KLUData) malloc(sizeof(struct KLUDataRec));
   if (klu_data == NULL) {
     arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", 
-		    "ARKMassKLU", MSGSP_MEM_FAIL);
+                    "ARKMassKLU", MSGSP_MEM_FAIL);
     free(arksls_mem); arksls_mem = NULL;
     return(ARKSLS_MEM_FAIL);
   }
@@ -679,29 +708,44 @@ int ARKMassKLU(void *arkode_mem, int n, int nnz,
   arksls_mem->s_Mdata = ark_mem->ark_user_data;
   arksls_mem->s_last_flag = ARKSLS_SUCCESS;
   ark_mem->ark_MassSetupNonNull = TRUE;
+  arksls_mem->sparsetype = sparsetype;
 
   /* Allocate memory for M and M_lu */
   arksls_mem->s_M = NULL;
-  arksls_mem->s_M = NewSparseMat(n, n, nnz);
+  arksls_mem->s_M = SparseNewMat(n, n, nnz, sparsetype);
   if (arksls_mem->s_M == NULL) {
     arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", 
-		    "ARKMassKLU", MSGSP_MEM_FAIL);
+                    "ARKMassKLU", MSGSP_MEM_FAIL);
     free(klu_data); klu_data = NULL;
     free(arksls_mem); arksls_mem = NULL;
     return(ARKSLS_MEM_FAIL);
   }
   arksls_mem->s_M_lu = NULL;
-  arksls_mem->s_M_lu = NewSparseMat(n, n, nnz);
+  arksls_mem->s_M_lu = SparseNewMat(n, n, nnz, sparsetype);
   if (arksls_mem->s_M_lu == NULL) {
     arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", 
-		    "ARKMassKLU", MSGSP_MEM_FAIL);
-    DestroySparseMat(arksls_mem->s_M);
+                    "ARKMassKLU", MSGSP_MEM_FAIL);
+    SparseDestroyMat(arksls_mem->s_M);
     free(klu_data); klu_data = NULL;
     free(arksls_mem); arksls_mem = NULL;
     return(ARKSLS_MEM_FAIL);
   }
 
   /* Initialize KLU structures */
+  switch (sparsetype) {
+    case CSC_MAT:
+      klu_data->sun_klu_solve = &klu_solve;
+      break;
+    case CSR_MAT:
+      klu_data->sun_klu_solve = &klu_tsolve;
+      break;
+    default:
+      SparseDestroyMat(arksls_mem->s_M);
+      SparseDestroyMat(arksls_mem->s_M_lu);
+      free(klu_data); klu_data = NULL;
+      free(arksls_mem); arksls_mem = NULL;
+      return(ARKSLS_ILL_INPUT);
+  }
   klu_data->s_Symbolic = NULL;
   klu_data->s_Numeric = NULL;
 
@@ -709,13 +753,13 @@ int ARKMassKLU(void *arkode_mem, int n, int nnz,
   flag = klu_defaults(&klu_data->s_Common);
   if (flag == 0) {
     arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", 
-		    "ARKMassKLU", MSGSP_MEM_FAIL);
+                    "ARKMassKLU", MSGSP_MEM_FAIL);
     klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
     free(klu_data->s_Numeric);  klu_data->s_Numeric = NULL;
     klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
     free(klu_data->s_Symbolic);  klu_data->s_Symbolic = NULL;
-    DestroySparseMat(arksls_mem->s_M);
-    DestroySparseMat(arksls_mem->s_M_lu);
+    SparseDestroyMat(arksls_mem->s_M);
+    SparseDestroyMat(arksls_mem->s_M_lu);
     free(klu_data); klu_data = NULL;
     free(arksls_mem); arksls_mem = NULL;
     return(ARKSLS_MEM_FAIL);
@@ -802,11 +846,11 @@ int ARKMassKLUReInit(void *arkode_mem, int n, int nnz, int reinit_type)
 
     /* Destroy previous Jacobian information */
     if (arksls_mem->s_M) {
-      DestroySparseMat(arksls_mem->s_M);
+      SparseDestroyMat(arksls_mem->s_M);
     }
 
     /* Allocate memory for the sparse Jacobian */
-    arksls_mem->s_M = NewSparseMat(n, n, nnz);
+    arksls_mem->s_M = SparseNewMat(n, n, nnz, arksls_mem->sparsetype);
     if (arksls_mem->s_M == NULL) {
       arkProcessError(ark_mem, ARKSLS_MEM_FAIL, "ARKSLS", "ARKMassKLU", 
 		    MSGSP_MEM_FAIL);
@@ -840,6 +884,8 @@ static int arkMassKLUInit(ARKodeMem ark_mem)
   arksls_mem = (ARKSlsMassMem) ark_mem->ark_mass_mem;
   arksls_mem->s_nme = 0;
   arksls_mem->s_first_factorize = 1;
+
+  arksls_mem->s_Mdata = ark_mem->ark_user_data;
 
   /* Set mass matrix function data */
   arksls_mem->s_Mdata = ark_mem->ark_user_data;
@@ -883,7 +929,7 @@ static int arkMassKLUSetup(ARKodeMem ark_mem, N_Vector vtemp1,
   }
 
   /* call Meval routine for new M matrix */
-  SlsSetToZero(arksls_mem->s_M);
+  SparseSetMatToZero(arksls_mem->s_M);
   retval = arksls_mem->s_Meval(ark_mem->ark_tn, arksls_mem->s_M, 
 			       arksls_mem->s_Mdata, vtemp1, 
 			       vtemp2, vtemp3);
@@ -900,7 +946,7 @@ static int arkMassKLUSetup(ARKodeMem ark_mem, N_Vector vtemp1,
   }
 
   /* Copy M into M_lu for LU decomposition */
-  CopySparseMat(arksls_mem->s_M, arksls_mem->s_M_lu);
+  SparseCopyMat(arksls_mem->s_M, arksls_mem->s_M_lu);
 
   /* On first decomposition, get the symbolic factorization */ 
   if (arksls_mem->s_first_factorize) {
@@ -909,9 +955,12 @@ static int arkMassKLUSetup(ARKodeMem ark_mem, N_Vector vtemp1,
     klu_data->s_Common.ordering = klu_data->s_ordering;
 
     /* Perform symbolic analysis of sparsity structure */
+    if (klu_data->s_Symbolic != NULL) {
+       klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
+    }
     klu_data->s_Symbolic = klu_analyze(arksls_mem->s_M_lu->N, 
-				       arksls_mem->s_M_lu->colptrs, 
-				       arksls_mem->s_M_lu->rowvals, 
+                                       arksls_mem->s_M_lu->indexptrs, 
+				       arksls_mem->s_M_lu->indexvals, 
 				       &(klu_data->s_Common));
     if (klu_data->s_Symbolic == NULL) {
       arkProcessError(ark_mem, ARKSLS_PACKAGE_FAIL, "ARKSLS", 
@@ -922,8 +971,11 @@ static int arkMassKLUSetup(ARKodeMem ark_mem, N_Vector vtemp1,
     /* ------------------------------------------------------------
        Compute the LU factorization of  the Jacobian.
        ------------------------------------------------------------*/
-    klu_data->s_Numeric = klu_factor(arksls_mem->s_M_lu->colptrs, 
-				     arksls_mem->s_M_lu->rowvals, 
+    if( klu_data->s_Numeric != NULL) {
+       klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
+    }
+    klu_data->s_Numeric = klu_factor(arksls_mem->s_M_lu->indexptrs, 
+				     arksls_mem->s_M_lu->indexvals, 
 				     arksls_mem->s_M_lu->data, 
 				     klu_data->s_Symbolic, 
 				     &(klu_data->s_Common));
@@ -937,8 +989,8 @@ static int arkMassKLUSetup(ARKodeMem ark_mem, N_Vector vtemp1,
   }
   else {
 
-    retval = klu_refactor(arksls_mem->s_M_lu->colptrs, 
-			  arksls_mem->s_M_lu->rowvals, 
+    retval = klu_refactor(arksls_mem->s_M_lu->indexptrs, 
+			  arksls_mem->s_M_lu->indexvals, 
 			  arksls_mem->s_M_lu->data,
 			  klu_data->s_Symbolic, klu_data->s_Numeric,
 			  &(klu_data->s_Common));
@@ -966,7 +1018,7 @@ static int arkMassKLUSetup(ARKodeMem ark_mem, N_Vector vtemp1,
       
       /* Condition number may be getting large.  
 	 Compute more accurate estimate */
-      retval = klu_condest(arksls_mem->s_M_lu->colptrs, 
+      retval = klu_condest(arksls_mem->s_M_lu->indexptrs, 
 			   arksls_mem->s_M_lu->data,
 			   klu_data->s_Symbolic, klu_data->s_Numeric,
 			   &(klu_data->s_Common));
@@ -984,8 +1036,8 @@ static int arkMassKLUSetup(ARKodeMem ark_mem, N_Vector vtemp1,
 
 	klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
 	
-	klu_data->s_Numeric = klu_factor(arksls_mem->s_M_lu->colptrs, 
-					 arksls_mem->s_M_lu->rowvals, 
+	klu_data->s_Numeric = klu_factor(arksls_mem->s_M_lu->indexptrs, 
+					 arksls_mem->s_M_lu->indexvals, 
 					 arksls_mem->s_M_lu->data, 
 					 klu_data->s_Symbolic, 
 					 &(klu_data->s_Common));
@@ -1025,9 +1077,9 @@ static int arkMassKLUSolve(ARKodeMem ark_mem, N_Vector b,
   bd = N_VGetArrayPointer(b);
 
   /* Call KLU to solve the linear system */
-  flag = klu_solve(klu_data->s_Symbolic, klu_data->s_Numeric, 
-		   arksls_mem->s_M_lu->N, 1, bd, 
-		   &(klu_data->s_Common));
+  flag = klu_data->sun_klu_solve(klu_data->s_Symbolic, klu_data->s_Numeric, 
+                                 arksls_mem->s_M_lu->NP, 1, bd, 
+                                 &(klu_data->s_Common));
   if (flag == 0) {
     arkProcessError(ark_mem, ARKSLS_PACKAGE_FAIL, "ARKSLS", 
 		    "ARKMassKLUSolve", MSGSP_PACKAGE_FAIL);
@@ -1044,7 +1096,7 @@ static int arkMassKLUSolve(ARKodeMem ark_mem, N_Vector b,
  This routine frees memory specific to the ARKMassKLU mass 
  matrix linear solver.
 ---------------------------------------------------------------*/
-static void arkMassKLUFree(ARKodeMem ark_mem)
+static int arkMassKLUFree(ARKodeMem ark_mem)
 {
   ARKSlsMassMem arksls_mem;
   KLUData klu_data;
@@ -1052,25 +1104,30 @@ static void arkMassKLUFree(ARKodeMem ark_mem)
   arksls_mem = (ARKSlsMassMem) ark_mem->ark_mass_mem;
   klu_data = (KLUData) arksls_mem->s_solver_data;
 
-  klu_free_numeric(&(klu_data->s_Numeric), 
-		   &(klu_data->s_Common));
-
-  klu_free_symbolic(&(klu_data->s_Symbolic), 
-		    &(klu_data->s_Common));
+  if( klu_data->s_Numeric != NULL)
+  {
+     klu_free_numeric(&(klu_data->s_Numeric), &(klu_data->s_Common));
+  }
+  if( klu_data->s_Symbolic != NULL)
+  {
+     klu_free_symbolic(&(klu_data->s_Symbolic), &(klu_data->s_Common));
+  }
 
   if (arksls_mem->s_M) {
-    DestroySparseMat(arksls_mem->s_M);
+    SparseDestroyMat(arksls_mem->s_M);
     arksls_mem->s_M = NULL;
   }
 
   if (arksls_mem->s_M_lu) {
-    DestroySparseMat(arksls_mem->s_M_lu);
+    SparseDestroyMat(arksls_mem->s_M_lu);
     arksls_mem->s_M_lu = NULL;
   }
 
   free(klu_data); 
   free(arksls_mem); 
   ark_mem->ark_mass_mem = NULL;
+
+  return(0);
 }
 
 
@@ -1116,7 +1173,7 @@ static int arkMassKLUMultiply(N_Vector v, N_Vector Mv,
   }
 
   /* perform matrix-vector product with arksls_mem->s_M and return */
-  if (SlsMatvec(arksls_mem->s_M, vdata, Mvdata) != 0) {
+  if (SparseMatvec(arksls_mem->s_M, vdata, Mvdata) != 0) {
     arkProcessError(NULL, ARKSLS_MEM_NULL, "ARKSLS", 
 		    "arkMassKLUMultiply", 
 		    "Mass matrix data un-allocated.");

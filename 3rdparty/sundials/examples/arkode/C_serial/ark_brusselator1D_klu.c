@@ -59,6 +59,7 @@
 #include <arkode/arkode_klu.h>        /* prototype for ARKKLU solver */
 #include <nvector/nvector_serial.h>   /* serial N_Vector types, fcts., macros */
 #include <sundials/sundials_types.h>  /* def. of type 'realtype' */
+#include <sundials/sundials_math.h>   /* def. of SUNRsqrt, etc. */
 
 /* accessor macros between (x,v) location and 1D NVector array */
 #define IDX(x,v) (3*(x)+v)
@@ -92,7 +93,7 @@ static int LaplaceMatrix(SlsMat Jac, UserData udata);
 static int ReactionJac(N_Vector y, SlsMat Jac, UserData udata);
 
 /* Private function to check function return values */
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 
 /* Main Program */
@@ -202,7 +203,7 @@ int main()
   if (check_flag((void *) arkode_mem, "ARKodeCreate", 0)) return 1;
   
   /* Call ARKodeInit to initialize the integrator memory and specify the
-     hand-side side function in y'=f(t,y), the inital time T0, and
+     right-hand side function in y'=f(t,y), the inital time T0, and
      the initial dependent variable vector y.  Note: since this
      problem is fully implicit, we set f_E to NULL and f_I to f. */
   flag = ARKodeInit(arkode_mem, NULL, f, T0, y);
@@ -216,7 +217,7 @@ int main()
 
   /* Specify the KLU sparse linear solver and Jacobian function */
   NNZ = 5*NEQ;
-  flag = ARKKLU(arkode_mem, NEQ, NNZ);
+  flag = ARKKLU(arkode_mem, NEQ, NNZ, CSC_MAT);
   if (check_flag(&flag, "ARKKLU", 1)) return 1;
   flag = ARKSlsSetSparseJacFn(arkode_mem, Jac);
   if (check_flag(&flag, "ARKSlsSetSparseJacFn", 1)) return 1;
@@ -252,11 +253,11 @@ int main()
 
     flag = ARKode(arkode_mem, tout, y, &t, ARK_NORMAL);    /* call integrator */
     u = N_VWL2Norm(y,umask);
-    u = sqrt(u*u/N);
+    u = SUNRsqrt(u*u/N);
     v = N_VWL2Norm(y,vmask);
-    v = sqrt(v*v/N);
+    v = SUNRsqrt(v*v/N);
     w = N_VWL2Norm(y,wmask);
-    w = sqrt(w*w/N);
+    w = SUNRsqrt(w*w/N);
     printf("  %10.6f  %10.6f  %10.6f  %10.6f\n", t, u, v, w);
     if (flag >= 0) {                                       /* successful solve: update output time */
       tout += dTout;
@@ -312,7 +313,7 @@ int main()
   N_VDestroy_Serial(umask);
   N_VDestroy_Serial(vmask);
   N_VDestroy_Serial(wmask);
-  DestroySparseMat(udata->R);   /* Free user data */
+  SparseDestroyMat(udata->R);   /* Free user data */
   free(udata);
   ARKodeFree(&arkode_mem);
   return 0;
@@ -397,7 +398,7 @@ static int Jac(realtype t, N_Vector y, N_Vector fy,
 
   /* Add in the Jacobian of the reaction terms matrix */
   if (udata->R == NULL) {
-    udata->R = NewSparseMat(J->M, J->N, J->NNZ);
+    udata->R = SparseNewMat(J->M, J->N, J->NNZ, CSC_MAT);
     if (udata->R == NULL) {
       printf("Jacobian calculation error in allocating R matrix!\n");
       return 1;
@@ -411,7 +412,7 @@ static int Jac(realtype t, N_Vector y, N_Vector fy,
   }
 
   /* Add R to J */
-  if (SlsAddMat(J,udata->R) != 0) {
+  if (SparseAddMat(J,udata->R) != 0) {
     printf("Jacobian calculation error in adding sparse matrices!\n");
     return 1;
   }
@@ -432,14 +433,17 @@ static int LaplaceMatrix(SlsMat Lap, UserData udata)
   int N = udata->N;  /* set shortcuts */
   int i, nz=0;
   realtype uconst, uconst2, vconst, vconst2, wconst, wconst2;
-
+  int *colptrs = *Lap->colptrs;
+  int *rowvals = *Lap->rowvals;
+  realtype *data = Lap->data;
+  
   /* clear out matrix */
-  SlsSetToZero(Lap);
+  SparseSetMatToZero(Lap);
 
   /* set first column to zero */
-  Lap->colptrs[IDX(0,0)] = nz;
-  Lap->colptrs[IDX(0,1)] = nz;
-  Lap->colptrs[IDX(0,2)] = nz;
+  colptrs[IDX(0,0)] = nz;
+  colptrs[IDX(0,1)] = nz;
+  colptrs[IDX(0,2)] = nz;
   
   /* iterate over nodes, filling in Laplacian entries depending on these */
   uconst  = (udata->du)/(udata->dx)/(udata->dx);
@@ -451,59 +455,59 @@ static int LaplaceMatrix(SlsMat Lap, UserData udata)
   for (i=1; i<N-1; i++) {
 
     /* dependence on u at this node */
-    Lap->colptrs[IDX(i,0)] = nz;
+    colptrs[IDX(i,0)] = nz;
     if (i>1) {                /* node to left */
-      Lap->data[nz] = uconst;
-      Lap->rowvals[nz++] = IDX(i-1,0);
+      data[nz] = uconst;
+      rowvals[nz++] = IDX(i-1,0);
     }
 
-    Lap->data[nz] = uconst2;  /* self */
-    Lap->rowvals[nz++] = IDX(i,0);
+    data[nz] = uconst2;  /* self */
+    rowvals[nz++] = IDX(i,0);
 
     if (i<N-2) {              /* node to right */
-      Lap->data[nz] = uconst;
-      Lap->rowvals[nz++] = IDX(i+1,0);
+      data[nz] = uconst;
+      rowvals[nz++] = IDX(i+1,0);
     }
 
     /* dependence on v at this node */
-    Lap->colptrs[IDX(i,1)] = nz;
+    colptrs[IDX(i,1)] = nz;
     if (i>1) {                /* node to left */
-      Lap->data[nz] = vconst;
-      Lap->rowvals[nz++] = IDX(i-1,1);
+      data[nz] = vconst;
+      rowvals[nz++] = IDX(i-1,1);
     }
 
-    Lap->data[nz] = vconst2;  /* self */
-    Lap->rowvals[nz++] = IDX(i,1);
+    data[nz] = vconst2;  /* self */
+    rowvals[nz++] = IDX(i,1);
 
     if (i<N-2) {              /* node to right */
-      Lap->data[nz] = vconst;
-      Lap->rowvals[nz++] = IDX(i+1,1);
+      data[nz] = vconst;
+      rowvals[nz++] = IDX(i+1,1);
     }
 
     /* dependence on w at this node */
-    Lap->colptrs[IDX(i,2)] = nz;
+    colptrs[IDX(i,2)] = nz;
     if (i>1) {                /* node to left */
-      Lap->data[nz] = wconst;
-      Lap->rowvals[nz++] = IDX(i-1,2);
+      data[nz] = wconst;
+      rowvals[nz++] = IDX(i-1,2);
     }
 
-    Lap->data[nz] = wconst2;  /* self */
-    Lap->rowvals[nz++] = IDX(i,2);
+    data[nz] = wconst2;  /* self */
+    rowvals[nz++] = IDX(i,2);
 
     if (i<N-2) {              /* node to right */
-      Lap->data[nz] = wconst;
-      Lap->rowvals[nz++] = IDX(i+1,2);
+      data[nz] = wconst;
+      rowvals[nz++] = IDX(i+1,2);
     }
 
   }
 
   /* set last column to zero */
-  Lap->colptrs[IDX(N-1,0)] = nz;
-  Lap->colptrs[IDX(N-1,1)] = nz;
-  Lap->colptrs[IDX(N-1,2)] = nz;
+  colptrs[IDX(N-1,0)] = nz;
+  colptrs[IDX(N-1,1)] = nz;
+  colptrs[IDX(N-1,2)] = nz;
   
   /* end of data */
-  Lap->colptrs[IDX(N-1,2)+1] = nz;
+  colptrs[IDX(N-1,2)+1] = nz;
 
   return 0;
 }
@@ -517,16 +521,19 @@ static int ReactionJac(N_Vector y, SlsMat Jac, UserData udata)
   int i, nz=0;
   realtype u, v, w;
   realtype ep = udata->ep;
+  int *colptrs = *Jac->colptrs;
+  int *rowvals = *Jac->rowvals;
+  realtype *data = Jac->data;
   realtype *Ydata = N_VGetArrayPointer(y);     /* access solution array */
   if (check_flag((void *) Ydata, "N_VGetArrayPointer", 0)) return 1;
 
   /* clear out matrix */
-  SlsSetToZero(Jac);
+  SparseSetMatToZero(Jac);
 
   /* set first matrix column to zero */
-  Jac->colptrs[IDX(0,0)] = 0;
-  Jac->colptrs[IDX(0,1)] = 0;
-  Jac->colptrs[IDX(0,2)] = 0;
+  colptrs[IDX(0,0)] = 0;
+  colptrs[IDX(0,1)] = 0;
+  colptrs[IDX(0,2)] = 0;
   
   /* iterate over interior nodes, filling in Jacobian entries */
   for (i=1; i<N-1; i++) {
@@ -537,47 +544,47 @@ static int ReactionJac(N_Vector y, SlsMat Jac, UserData udata)
     w = Ydata[IDX(i,2)];
 
     /* dependence on u at this node */
-    Jac->colptrs[IDX(i,0)] = nz;
+    colptrs[IDX(i,0)] = nz;
 
-    Jac->rowvals[nz] = IDX(i,0);        /* fu wrt u */
-    Jac->data[nz++] = TWO*u*v - w - ONE;
+    rowvals[nz] = IDX(i,0);        /* fu wrt u */
+    data[nz++] = TWO*u*v - w - ONE;
 
-    Jac->rowvals[nz] = IDX(i,1);        /* fv wrt u */
-    Jac->data[nz++] = w - TWO*u*v;
+    rowvals[nz] = IDX(i,1);        /* fv wrt u */
+    data[nz++] = w - TWO*u*v;
 
-    Jac->rowvals[nz] = IDX(i,2);        /* fw wrt u */
-    Jac->data[nz++] = -w;
+    rowvals[nz] = IDX(i,2);        /* fw wrt u */
+    data[nz++] = -w;
 
     /* dependence on v at this node */
-    Jac->colptrs[IDX(i,1)] = nz;
+    colptrs[IDX(i,1)] = nz;
 
-    Jac->rowvals[nz] = IDX(i,0);        /* fu wrt v */
-    Jac->data[nz++] = u*u;
+    rowvals[nz] = IDX(i,0);        /* fu wrt v */
+    data[nz++] = u*u;
 
-    Jac->rowvals[nz] = IDX(i,1);        /* fv wrt v */
-    Jac->data[nz++] = -u*u;
+    rowvals[nz] = IDX(i,1);        /* fv wrt v */
+    data[nz++] = -u*u;
 
     /* dependence on w at this node */
-    Jac->colptrs[IDX(i,2)] = nz;
+    colptrs[IDX(i,2)] = nz;
 
-    Jac->rowvals[nz] = IDX(i,0);        /* fu wrt w */
-    Jac->data[nz++] = -u;
+    rowvals[nz] = IDX(i,0);        /* fu wrt w */
+    data[nz++] = -u;
 
-    Jac->rowvals[nz] = IDX(i,1);        /* fv wrt w */
-    Jac->data[nz++] = u;
+    rowvals[nz] = IDX(i,1);        /* fv wrt w */
+    data[nz++] = u;
 
-    Jac->rowvals[nz] = IDX(i,2);        /* fw wrt w */
-    Jac->data[nz++] = -ONE/ep - u;
+    rowvals[nz] = IDX(i,2);        /* fw wrt w */
+    data[nz++] = -ONE/ep - u;
 
   }
 
   /* set last matrix column to zero */
-  Jac->colptrs[IDX(N-1,0)] = nz;
-  Jac->colptrs[IDX(N-1,1)] = nz;
-  Jac->colptrs[IDX(N-1,2)] = nz;
+  colptrs[IDX(N-1,0)] = nz;
+  colptrs[IDX(N-1,1)] = nz;
+  colptrs[IDX(N-1,2)] = nz;
 
   /* end of data */
-  Jac->colptrs[IDX(N-1,2)+1] = nz;
+  colptrs[IDX(N-1,2)+1] = nz;
 
   return 0;
 }
@@ -592,7 +599,7 @@ static int ReactionJac(N_Vector y, SlsMat Jac, UserData udata)
     opt == 2 means function allocates memory so check if returned
              NULL pointer  
 */
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 

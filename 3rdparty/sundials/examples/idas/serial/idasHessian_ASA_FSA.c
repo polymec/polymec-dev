@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4075 $
- * $Date: 2014-04-24 10:46:58 -0700 (Thu, 24 Apr 2014) $
+ * $Revision: 4809 $
+ * $Date: 2016-07-18 11:16:25 -0700 (Mon, 18 Jul 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): Radu Serban and Cosmin Petra @ LLNL
  * -----------------------------------------------------------------
@@ -98,7 +98,7 @@ static int resS(int Ns, realtype t,
 static int rhsQ(realtype t, N_Vector yy, N_Vector yp, N_Vector qdot, void *user_data);
 
 static int rhsQS(int Ns, realtype t, N_Vector yy, N_Vector yp, 
-                 N_Vector *yyS, N_Vector *ypS, N_Vector rrQ, N_Vector *rhsQS,
+                 N_Vector *yyS, N_Vector *ypS, N_Vector rrQ, N_Vector *rhsvalQS,
                  void *user_data,  N_Vector yytmp, N_Vector yptmp, N_Vector tmpQS);
 
 static int resBS1(realtype tt, N_Vector yy, N_Vector yp, N_Vector *yyS, N_Vector *ypS,
@@ -441,7 +441,7 @@ static int res(realtype tres, N_Vector yy, N_Vector yp, N_Vector rr, void *user_
 
   y1  = Ith(yy,1); y2  = Ith(yy,2); y3  = Ith(yy,3); 
   yp1 = Ith(yp,1); yp2 = Ith(yp,2); yp3 = Ith(yp,3);
-  rval = NV_DATA_S(rr);
+  rval = N_VGetArrayPointer_Serial(rr);
 
   data = (UserData) user_data;
   p1 = data->p[0]; p2 = data->p[1]; p3 = data->p[2];
@@ -530,7 +530,7 @@ static int rhsQ(realtype t, N_Vector yy, N_Vector yp, N_Vector qdot, void *user_
 static int rhsQS(int Ns, realtype t,
                  N_Vector yy, N_Vector yp, 
                  N_Vector *yyS, N_Vector *ypS, 
-                 N_Vector rrQ, N_Vector *rhsQS,
+                 N_Vector rrQ, N_Vector *rhsvalQS,
                  void *user_data,
                  N_Vector yytmp, N_Vector yptmp, N_Vector tmpQS)
 {
@@ -546,13 +546,13 @@ static int rhsQS(int Ns, realtype t,
   s1 = Ith(yyS[0],1);
   s2 = Ith(yyS[0],2);
   s3 = Ith(yyS[0],3);
-  Ith(rhsQS[0],1) = y1*s1 + y2*s2 + y3*s3;
+  Ith(rhsvalQS[0],1) = y1*s1 + y2*s2 + y3*s3;
 
   /* 2nd sensitivity RHS */
   s1 = Ith(yyS[1],1);
   s2 = Ith(yyS[1],2);
   s3 = Ith(yyS[1],3);
-  Ith(rhsQS[1],1) = y1*s1 + y2*s2 + y3*s3;
+  Ith(rhsvalQS[1],1) = y1*s1 + y2*s2 + y3*s3;
 
   return(0);
 }

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4396 $
- * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
+ * $Revision: 4868 $
+ * $Date: 2016-08-19 10:16:31 -0700 (Fri, 19 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh, George D. Byrne,
  *                and Radu Serban @ LLNL
@@ -100,7 +100,7 @@ static void SetIC(N_Vector u, realtype dx, long int my_length, long int my_base)
 static void PrintOutput(void *cvode_mem, int my_pe, realtype t, N_Vector u);
 static void PrintOutputS(int my_pe, N_Vector *uS);
 static void PrintFinalStats(void *cvode_mem, booleantype sensi); 
-static int check_flag(void *flagvalue, char *funcname, int opt, int id);
+static int check_flag(void *flagvalue, const char *funcname, int opt, int id);
 
 /*
  *--------------------------------------------------------------------
@@ -300,8 +300,8 @@ static int f(realtype t, N_Vector u, N_Vector udot, void *user_data)
   MPI_Status status;
   MPI_Comm comm;
 
-  udata = NV_DATA_P(u);
-  dudata = NV_DATA_P(udot);
+  udata = N_VGetArrayPointer_Parallel(u);
+  dudata = N_VGetArrayPointer_Parallel(udot);
 
   /* Extract needed problem constants from data */
   data  = (UserData) user_data;
@@ -313,7 +313,7 @@ static int f(realtype t, N_Vector u, N_Vector udot, void *user_data)
   comm = data->comm;
   npes = data->npes;           /* Number of processes. */ 
   my_pe = data->my_pe;         /* Current process number. */
-  my_length = NV_LOCLENGTH_P(u); /* Number of local elements of u. */ 
+  my_length = N_VGetLocalLength_Parallel(u); /* Number of local elements of u. */ 
   z = data->z;
 
   /* Compute related parameters. */
@@ -432,8 +432,8 @@ static void SetIC(N_Vector u, realtype dx, long int my_length,
   realtype *udata;
 
   /* Set pointer to data array and get local length of u. */
-  udata = NV_DATA_P(u);
-  my_length = NV_LOCLENGTH_P(u);
+  udata = N_VGetArrayPointer_Parallel(u);
+  my_length = N_VGetLocalLength_Parallel(u);
 
   /* Load initial profile into u vector */
   for (i=1; i<=my_length; i++) {
@@ -584,7 +584,7 @@ static void PrintFinalStats(void *cvode_mem, booleantype sensi)
  *            NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt, int id)
+static int check_flag(void *flagvalue, const char *funcname, int opt, int id)
 {
   int *errflag;
 

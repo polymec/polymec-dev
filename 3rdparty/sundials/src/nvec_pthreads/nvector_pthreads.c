@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4869 $
+ * $Date: 2016-08-19 10:34:20 -0700 (Fri, 19 Aug 2016) $
  * ----------------------------------------------------------------- 
  * Programmer(s): David J. Gardner @ LLNL
  * ----------------------------------------------------------------- 
@@ -104,6 +104,15 @@ static void N_VInitThreadData(Pthreads_Data *thread_data);
  * -----------------------------------------------------------------
  */
 
+/* ----------------------------------------------------------------
+ * Returns vector type ID. Used to identify vector implementation 
+ * from abstract N_Vector interface.
+ */
+N_Vector_ID N_VGetVectorID_Pthreads(N_Vector v)
+{
+  return SUNDIALS_NVEC_PTHREADS;
+}
+
 /* ----------------------------------------------------------------------------
  * Function to create a new empty vector 
  */
@@ -124,6 +133,7 @@ N_Vector N_VNewEmpty_Pthreads(long int length, int num_threads)
   ops = (N_Vector_Ops) malloc(sizeof(struct _generic_N_Vector_Ops));
   if (ops == NULL) { free(v); return(NULL); }
 
+  ops->nvgetvectorid     = N_VGetVectorID_Pthreads;
   ops->nvclone           = N_VClone_Pthreads;
   ops->nvcloneempty      = N_VCloneEmpty_Pthreads;
   ops->nvdestroy         = N_VDestroy_Pthreads;
@@ -288,6 +298,15 @@ void N_VDestroyVectorArray_Pthreads(N_Vector *vs, int count)
 }
 
 /* ----------------------------------------------------------------------------
+ * Function to return number of vector elements
+ */
+long int N_VGetLength_Pthreads(N_Vector v)
+{
+  return NV_LENGTH_PT(v);
+}
+
+ 
+/* ----------------------------------------------------------------------------
  * Function to print a vector 
  */
  
@@ -343,6 +362,7 @@ N_Vector N_VCloneEmpty_Pthreads(N_Vector w)
   ops = (N_Vector_Ops) malloc(sizeof(struct _generic_N_Vector_Ops));
   if (ops == NULL) { free(v); return(NULL); }
   
+  ops->nvgetvectorid     = w->ops->nvgetvectorid;
   ops->nvclone           = w->ops->nvclone;
   ops->nvcloneempty      = w->ops->nvcloneempty;
   ops->nvdestroy         = w->ops->nvdestroy;

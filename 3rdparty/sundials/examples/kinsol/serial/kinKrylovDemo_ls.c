@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4272 $
- * $Date: 2014-12-02 11:19:41 -0800 (Tue, 02 Dec 2014) $
+ * $Revision: 4840 $
+ * $Date: 2016-08-03 13:07:16 -0700 (Wed, 03 Aug 2016) $
  * -----------------------------------------------------------------
  * Programmer(s): Allan Taylor, Alan Hindmarsh and
  *                Radu Serban @ LLNL
@@ -182,7 +182,7 @@ static void PrintFinalStats(void *kmem, int linsolver);
 static void WebRate(realtype xx, realtype yy, realtype *cxy, realtype *ratesxy, 
                     void *user_data);
 static realtype DotProd(int size, realtype *x1, realtype *x2);
-static int check_flag(void *flagvalue, char *funcname, int opt);
+static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /*
  *--------------------------------------------------------------------
@@ -222,37 +222,31 @@ int main(void)
   if (check_flag((void *)constraints, "N_VNew_Serial", 0)) return(1);
   N_VConst(TWO, constraints);
 
-  SetInitialProfiles(cc, sc);
-
   fnormtol=FTOL; scsteptol=STOL;
-
-  /* Call KINCreate/KINInit to initialize KINSOL: 
-     nvSpec is the nvSpec pointer used in the serial version
-     A pointer to KINSOL problem memory is returned and stored in kmem. */
-  kmem = KINCreate();
-  if (check_flag((void *)kmem, "KINCreate", 0)) return(1);
-  /* Vector cc passed as template vector. */
-  flag = KINInit(kmem, func, cc);
-  if (check_flag(&flag, "KINInit", 1)) return(1);
-
-  flag = KINSetUserData(kmem, data);
-  if (check_flag(&flag, "KINSetUserData", 1)) return(1);
-  flag = KINSetConstraints(kmem, constraints);
-  if (check_flag(&flag, "KINSetConstraints", 1)) return(1);
-  flag = KINSetFuncNormTol(kmem, fnormtol);
-  if (check_flag(&flag, "KINSetFuncNormTol", 1)) return(1);
-  flag = KINSetScaledStepTol(kmem, scsteptol);
-  if (check_flag(&flag, "KINSetScaledStepTol", 1)) return(1);
-
-  /* We no longer need the constraints vector since KINSetConstraints
-     creates a private copy for KINSOL to use. */
-  N_VDestroy_Serial(constraints);
 
   /* START: Loop through SPGMR, SPBCG, SPTFQMR and SPFGMR linear solver modules */
   for (linsolver = 0; linsolver < 4; ++linsolver) {
 
-    /* Re-initialize user data */
-    if (linsolver != 0) SetInitialProfiles(cc, sc);
+    /* (Re-)Initialize user data */
+    SetInitialProfiles(cc, sc);
+
+    /* Call KINCreate/KINInit to initialize KINSOL:
+       A pointer to KINSOL problem memory is returned and stored in kmem. */
+    kmem = KINCreate();
+    if (check_flag((void *)kmem, "KINCreate", 0)) return(1);
+
+    /* Vector cc passed as template vector. */
+    flag = KINInit(kmem, func, cc);
+    if (check_flag(&flag, "KINInit", 1)) return(1);
+
+    flag = KINSetUserData(kmem, data);
+    if (check_flag(&flag, "KINSetUserData", 1)) return(1);
+    flag = KINSetConstraints(kmem, constraints);
+    if (check_flag(&flag, "KINSetConstraints", 1)) return(1);
+    flag = KINSetFuncNormTol(kmem, fnormtol);
+    if (check_flag(&flag, "KINSetFuncNormTol", 1)) return(1);
+    flag = KINSetScaledStepTol(kmem, scsteptol);
+    if (check_flag(&flag, "KINSetScaledStepTol", 1)) return(1);
 
     /* Attach a linear solver module */
     switch(linsolver) {
@@ -332,9 +326,7 @@ int main(void)
     }
 
     /* Set preconditioner functions */
-    flag = KINSpilsSetPreconditioner(kmem,
-                                     PrecSetupBD,
-                                     PrecSolveBD);
+    flag = KINSpilsSetPreconditioner(kmem, PrecSetupBD, PrecSolveBD);
     if (check_flag(&flag, "KINSpilsSetPreconditioner", 1)) return(1);
     
     /* Print out the problem size, solution parameters, initial guess. */
@@ -354,11 +346,13 @@ int main(void)
     /* Print final statistics and free memory */  
     PrintFinalStats(kmem, linsolver);
 
+    KINFree(&kmem);
+
   }  /* END: Loop through SPGMR, SPBCG, SPTFQMR, and SPFGMR linear solver modules */
 
+  N_VDestroy_Serial(constraints);
   N_VDestroy_Serial(cc);
   N_VDestroy_Serial(sc);
-  KINFree(&kmem);
   FreeUserData(data);
 
   return(0);
@@ -871,7 +865,7 @@ static void PrintFinalStats(void *kmem, int linsolver)
  *             NULL pointer 
  */
 
-static int check_flag(void *flagvalue, char *funcname, int opt)
+static int check_flag(void *flagvalue, const char *funcname, int opt)
 {
   int *errflag;
 
