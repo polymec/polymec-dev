@@ -331,7 +331,7 @@ bool krylov_solver_solve(krylov_solver_t* solver,
 // them may be set to NULL, in which case they are assumed to be the unscaled 
 // identity matrix. The operator matrix A must be set using 
 // krylov_solver_set_operator before this function is called. The residual norm 
-// ||s1 * A * x - s1 * b|| will be stored in *residual_norm, and the number of 
+// ||s1 * (b - A * x)||_2 will be stored in *residual_norm, and the number of 
 // linear iterations will be stored in *num_iterations upon success. If the 
 // solve is unsuccessful, the vector x will NOT contain the solution unless the 
 // residual was reduced. 

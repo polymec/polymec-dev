@@ -948,7 +948,7 @@ static int ink_solve(void* context,
   real_t B_norm = krylov_vector_wrms_norm(ink->B, ink->W);
   if (B_norm < res_norm_tol)
   {
-    log_debug("ink_bdf_ode_integrator: ||B|| < tolerance (%g), so X -> 0.", res_norm_tol); 
+    log_debug("ink_bdf_ode_integrator: ||B|| < tolerance (%g < %g), so X -> 0.", B_norm, res_norm_tol); 
     krylov_vector_zero(ink->B);
     return 0;
   }

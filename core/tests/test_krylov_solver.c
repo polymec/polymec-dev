@@ -193,6 +193,177 @@ static void test_krylov_matrix_from_file(void** state,
   }
 }
 
+static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
+{
+  if (factory != NULL)
+  {
+    // Create a serial matrix with 10 rows per process.
+    int N = 10;
+    matrix_sparsity_t* sparsity = create_laplacian_sparsity(MPI_COMM_SELF, 10);
+    index_t* row_dist = matrix_sparsity_row_distribution(sparsity);
+    index_t N_global = matrix_sparsity_num_global_rows(sparsity);
+    krylov_matrix_t* A = krylov_factory_matrix(factory, sparsity);
+
+    // Construct a test Laplacian to use with our operations.
+    real_t h = 1.0 / N;
+    int rpos = 0;
+    index_t row;
+    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+    {
+      real_t Aij[3];
+      index_t rows[3], cols[3], num_cols;
+      if (row == 0)
+      {
+        num_cols = 2; 
+        rows[0] = 0, cols[0] = 0, Aij[0] = -2.0;
+                     cols[1] = 1, Aij[1] = 1.0;
+        krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+      }
+      else if (row == (N_global-1))
+      {
+        num_cols = 2;
+        rows[0] = row, cols[0] = row-1, Aij[0] = 1.0;
+                       cols[1] = row,   Aij[1] = -2.0;
+        krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+      }
+      else
+      {
+        num_cols = 3;
+        rows[0] = row, cols[0] = row-1, Aij[0] = 1.0;
+        rows[1] = row, cols[1] = row,   Aij[1] = -2.0;
+        rows[2] = row, cols[2] = row+1, Aij[2] = 1.0;
+        krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
+      }
+    }
+    krylov_matrix_assemble(A);
+
+    // Clone A and scale it.
+    krylov_matrix_t* A1 = krylov_matrix_clone(A);
+    krylov_matrix_scale(A1, 1.0/(h*h));
+    rpos = 0;
+    while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+    {
+      real_t Aij[3];
+      index_t rows[3], cols[3], num_cols;
+      if (row == 0)
+      {
+        num_cols = 2; 
+        rows[0] = 0, cols[0] = 0, cols[1] = 1;
+        krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
+        assert_true(reals_equal(Aij[0], -2.0/(h*h)));
+        assert_true(reals_equal(Aij[1],  1.0/(h*h)));
+      }
+      else if (row == (N_global-1))
+      {
+        num_cols = 2;
+        rows[0] = row, cols[0] = row-1, cols[1] = row;
+        krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
+        assert_true(reals_equal(Aij[0],  1.0/(h*h)));
+        assert_true(reals_equal(Aij[1], -2.0/(h*h)));
+      }
+      else
+      {
+        num_cols = 3;
+        rows[0] = row, cols[0] = row-1, cols[1] = row, cols[2] = row+1, 
+        krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
+        assert_true(reals_equal(Aij[0],  1.0/(h*h)));
+        assert_true(reals_equal(Aij[1], -2.0/(h*h)));
+        assert_true(reals_equal(Aij[2],  1.0/(h*h)));
+      }
+    }
+
+    // Copy A1 <- A and diagonally scale.
+    {
+      krylov_matrix_copy(A, A1);
+      krylov_vector_t* L = krylov_factory_vector(factory, MPI_COMM_SELF, row_dist);
+      krylov_vector_t* R = krylov_vector_clone(L);
+      real_t Li[10] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0}, 
+      Ri[10] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
+      krylov_vector_copy_in(L, Li);
+      krylov_vector_copy_in(R, Ri);
+      krylov_matrix_diag_scale(A1, L, R);
+
+      rpos = 0;
+      while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+      {
+        real_t Aij[3];
+        index_t rows[3], cols[3], num_cols;
+        if (row == 0)
+        {
+          num_cols = 2; 
+          rows[0] = 0, cols[0] = 0, cols[1] = 1;
+          krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
+          assert_true(reals_equal(Aij[0], -Li[0]*2.0*Ri[0]));
+          assert_true(reals_equal(Aij[1],  Li[0]*1.0*Ri[1]));
+        }
+        else if (row == (N_global-1))
+        {
+          num_cols = 2;
+          rows[0] = row, cols[0] = row-1, cols[1] = row;
+          krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
+          assert_true(reals_equal(Aij[0], -Li[row]*2.0*Ri[cols[0]]));
+          assert_true(reals_equal(Aij[1],  Li[row]*1.0*Ri[cols[1]]));
+        }
+        else
+        {
+          num_cols = 3;
+          rows[0] = row, cols[0] = row-1, cols[1] = row, cols[2] = row+1, 
+          krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
+          assert_true(reals_equal(Aij[0],  Li[row]*1.0*Ri[cols[0]]));
+          assert_true(reals_equal(Aij[1], -Li[row]*2.0*Ri[cols[1]]));
+          assert_true(reals_equal(Aij[2],  Li[row]*1.0*Ri[cols[2]]));
+        }
+      }
+
+      krylov_vector_free(L);
+      krylov_vector_free(R);
+    }
+
+    // Copy A1 <- A and remove the diagonal.
+    {
+      krylov_matrix_copy(A, A1);
+      krylov_matrix_add_identity(A1, 2.0);
+
+      rpos = 0;
+      while (matrix_sparsity_next_row(sparsity, &rpos, &row))
+      {
+        real_t Aij[3];
+        index_t rows[3], cols[3], num_cols;
+        if (row == 0)
+        {
+          num_cols = 2; 
+          rows[0] = 0, cols[0] = 0, cols[1] = 1;
+          krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
+          assert_true(reals_equal(Aij[0], 0.0));
+          assert_true(reals_equal(Aij[1], 1.0));
+        }
+        else if (row == (N_global-1))
+        {
+          num_cols = 2;
+          rows[0] = row, cols[0] = row-1, cols[1] = row;
+          krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
+          assert_true(reals_equal(Aij[0], 1.0));
+          assert_true(reals_equal(Aij[1], 0.0));
+        }
+        else
+        {
+          num_cols = 3;
+          rows[0] = row, cols[0] = row-1, cols[1] = row, cols[2] = row+1, 
+          krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
+          assert_true(reals_equal(Aij[0], 1.0));
+          assert_true(reals_equal(Aij[1], 0.0));
+          assert_true(reals_equal(Aij[2], 1.0));
+        }
+      }
+    }
+
+    // Clean up.
+    krylov_matrix_free(A1);
+    krylov_matrix_free(A);
+    matrix_sparsity_free(sparsity);
+  }
+}
+
 static void test_krylov_vector(void** state, krylov_factory_t* factory)
 {
   if (factory != NULL)
@@ -261,6 +432,13 @@ static void test_krylov_vector_from_file(void** state,
   }
 }
 
+static void test_krylov_vector_ops(void** state, krylov_factory_t* factory)
+{
+  if (factory != NULL)
+  {
+  }
+}
+
 static void test_krylov_matrix_from_sherman1(void** state, krylov_factory_t* factory)
 {
   int num_test_values = 4;
@@ -321,7 +499,7 @@ static void test_1d_laplace_eqn(void** state,
     while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
       real_t Aij[3], bi[1];
-      index_t rows[3], cols[3], num_cols;
+      index_t rows[1], cols[3], num_cols;
       if (row == 0)
       {
         num_cols = 2; 
@@ -344,8 +522,8 @@ static void test_1d_laplace_eqn(void** state,
       {
         num_cols = 3;
         rows[0] = row, cols[0] = row-1, Aij[0] = 1.0;
-        rows[1] = row, cols[1] = row,   Aij[1] = -2.0;
-        rows[2] = row, cols[2] = row+1, Aij[2] = 1.0;
+                       cols[1] = row,   Aij[1] = -2.0;
+                       cols[2] = row+1, Aij[2] = 1.0;
         krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
         bi[0] = 0.0;
         krylov_vector_set_values(b, 1, &row, bi);
@@ -626,6 +804,12 @@ static void test_lis_krylov_matrix_from_file(void** state)
   test_krylov_matrix_from_sherman1(state, lis);
 }
 
+static void test_lis_krylov_matrix_ops(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_krylov_matrix_ops(state, lis);
+}
+
 static void test_lis_krylov_vector(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
@@ -636,6 +820,12 @@ static void test_lis_krylov_vector_from_file(void** state)
 {
   krylov_factory_t* lis = lis_krylov_factory();
   test_krylov_vector_from_sherman1_b(state, lis);
+}
+
+static void test_lis_krylov_vector_ops(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_krylov_vector_ops(state, lis);
 }
 
 static void test_lis_pcg_1d_laplace_eqn(void** state)
@@ -706,6 +896,12 @@ static void test_petsc_krylov_matrix_from_file(void** state)
   test_krylov_matrix_from_sherman1(state, petsc);
 }
 
+static void test_petsc_krylov_matrix_ops(void** state)
+{
+  krylov_factory_t* petsc = create_petsc_krylov_factory();
+  test_krylov_matrix_ops(state, petsc);
+}
+
 static void test_petsc_krylov_vector(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
@@ -716,6 +912,12 @@ static void test_petsc_krylov_vector_from_file(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
   test_krylov_vector_from_sherman1_b(state, petsc);
+}
+
+static void test_petsc_krylov_vector_ops(void** state)
+{
+  krylov_factory_t* petsc = create_petsc_krylov_factory();
+  test_krylov_vector_ops(state, petsc);
 }
 
 static void test_petsc_pcg_1d_laplace_eqn(void** state)
@@ -786,6 +988,12 @@ static void test_hypre_krylov_matrix_from_file(void** state)
   test_krylov_matrix_from_sherman1(state, hypre);
 }
 
+static void test_hypre_krylov_matrix_ops(void** state)
+{
+  krylov_factory_t* hypre = create_hypre_krylov_factory();
+  test_krylov_matrix_ops(state, hypre);
+}
+
 static void test_hypre_krylov_vector(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
@@ -796,6 +1004,12 @@ static void test_hypre_krylov_vector_from_file(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
   test_krylov_vector_from_sherman1_b(state, hypre);
+}
+
+static void test_hypre_krylov_vector_ops(void** state)
+{
+  krylov_factory_t* hypre = create_hypre_krylov_factory();
+  test_krylov_vector_ops(state, hypre);
 }
 
 static void test_hypre_pcg_1d_laplace_eqn(void** state)
@@ -857,8 +1071,10 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_krylov_factory),
     cmocka_unit_test(test_lis_krylov_matrix),
     cmocka_unit_test(test_lis_krylov_matrix_from_file),
+    cmocka_unit_test(test_lis_krylov_matrix_ops),
     cmocka_unit_test(test_lis_krylov_vector),
     cmocka_unit_test(test_lis_krylov_vector_from_file),
+    cmocka_unit_test(test_lis_krylov_vector_ops),
     cmocka_unit_test(test_lis_pcg_1d_laplace_eqn),
     cmocka_unit_test(test_lis_gmres_1d_laplace_eqn),
     cmocka_unit_test(test_lis_bicgstab_1d_laplace_eqn),
@@ -870,8 +1086,10 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_petsc_krylov_factory),
     cmocka_unit_test(test_petsc_krylov_matrix),
     cmocka_unit_test(test_petsc_krylov_matrix_from_file),
+    cmocka_unit_test(test_petsc_krylov_matrix_ops),
     cmocka_unit_test(test_petsc_krylov_vector),
     cmocka_unit_test(test_petsc_krylov_vector_from_file),
+    cmocka_unit_test(test_petsc_krylov_vector_ops),
     cmocka_unit_test(test_petsc_pcg_1d_laplace_eqn),
     cmocka_unit_test(test_petsc_gmres_1d_laplace_eqn),
     cmocka_unit_test(test_petsc_bicgstab_1d_laplace_eqn),
@@ -883,8 +1101,10 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_hypre_krylov_factory),
     cmocka_unit_test(test_hypre_krylov_matrix),
     cmocka_unit_test(test_hypre_krylov_matrix_from_file),
+    cmocka_unit_test(test_hypre_krylov_matrix_ops),
     cmocka_unit_test(test_hypre_krylov_vector),
     cmocka_unit_test(test_hypre_krylov_vector_from_file),
+    cmocka_unit_test(test_hypre_krylov_vector_ops),
     cmocka_unit_test(test_hypre_pcg_1d_laplace_eqn),
     cmocka_unit_test(test_hypre_gmres_1d_laplace_eqn),
     cmocka_unit_test(test_hypre_bicgstab_1d_laplace_eqn),
