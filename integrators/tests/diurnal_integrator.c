@@ -252,7 +252,7 @@ static void insert_J_values(index_t row,
                             index_real_unordered_map_t* col_map, 
                             krylov_matrix_t* J)
 {
-  index_t num_cols = col_map->size;
+  index_t num_cols = (index_t)col_map->size;
   index_t indices[num_cols];
   real_t values[num_cols];
   int pos = 0, k = 0;
@@ -351,8 +351,13 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
       J1_right +=  horaco;
       J2_left  += -horaco;
       J2_right +=  horaco;
-//printf("t = %g: (%d, %d)\n", t, jx, jy);
-//printf("t = %g: J(%d, %d) = %g, J(%d, %d) = %g\n", t, I1_self, I1_self, J1_self, I2_self, I2_self, J2_self);
+if ((jx == 5) && (jy == 5))
+{
+  printf("t = %g: At (%d, %d):\n", t, jx, jy);
+  printf("t = %g: c1 = %g, c2 = %g:\n", t, c1, c2);
+  printf("t = %g: J(%llu, %llu) = %g, J(%llu, %llu) = %g\n", t, I1_self, I1_self, J1_self, I1_self, I2_self, J1_rxn);
+  printf("t = %g: J(%llu, %llu) = %g, J(%llu, %llu) = %g\n", t, I2_self, I1_self, J2_rxn, I2_self, I2_self, J2_self);
+}
 
       // Aggregate the values, since some of them are aliased on top of each 
       // other (owing to periodic boundary conditions).
@@ -486,7 +491,7 @@ ode_integrator_t* ink_bdf_diurnal_integrator_new(krylov_factory_t* factory)
 // Constructor for an ARK diurnal integrator with the given preconditioner.
 static ode_integrator_t* jfnk_ark_diurnal_integrator_new(diurnal_t* data, newton_pc_t* precond)
 {
-  // Set up a time integrator using GMRES with a maximum order of 4 and 
+  // Set up a time integrator using GMRES with a maximum order of 3 and 
   // a Krylov space of maximum dimension 15.
   ode_integrator_t* integ;
   if (precond != NULL)

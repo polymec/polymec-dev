@@ -280,6 +280,7 @@ static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
   if (!jacobian_is_current)
   {
     // Compute the approximate Jacobian using a solution vector with ghosts.
+    log_debug("jfnk_bdf_ode_integrator: Calculating P = I - %g * J.", gamma);
     memcpy(integ->U_with_ghosts, NV_DATA(U), sizeof(real_t) * integ->num_local_values);
     newton_pc_setup(integ->precond, 1.0, -gamma, 0.0, t, integ->U_with_ghosts, NULL);
     *jacobian_was_updated = 1;
@@ -843,8 +844,9 @@ typedef struct
 static int ink_reset(void* context, real_t t, real_t* X)
 {
   START_FUNCTION_TIMER();
-  // Allocate resources.
   ink_bdf_ode_t* ink = context;
+  
+  // Free any resources currently in use.
   if (ink->M != NULL)
     krylov_matrix_free(ink->M);
   if (ink->block_size > 1)
@@ -855,10 +857,14 @@ static int ink_reset(void* context, real_t t, real_t* X)
     krylov_vector_free(ink->X);
   if (ink->B != NULL)
     krylov_vector_free(ink->B);
+
+  // Allocate resources.
   index_t* row_dist = matrix_sparsity_row_distribution(ink->sparsity);
   ink->X = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->W = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+
+  // Set some metadata.
   ink->gamma_prev = 1.0;
   ink->prev_J_update_step = 0;
 
@@ -880,7 +886,7 @@ static int ink_setup(void* context,
   ink_bdf_ode_t* ink = context;
 
   real_t dgamma = ABS(gamma / ink->gamma_prev - 1.0);
-  log_debug("ink_bdf_ode_integrator: Calculating A = I - %g * J.", gamma);
+  log_debug("ink_bdf_ode_integrator: Calculating M = I - %g * J.", gamma);
   if ((step == 0) ||
       (step > ink->prev_J_update_step + 50) ||
       ((conv_status == BDF_CONV_BAD_J_FAILURE) && (dgamma < 0.2)) || 
@@ -917,14 +923,22 @@ static int ink_setup(void* context,
   }
   else
   {
-    // We don't need to update J, but we still need to recompute I - gamma*J.
-    krylov_matrix_add_identity(ink->M, -1.0);
-    krylov_matrix_scale(ink->M, gamma/ink->gamma_prev);
-    krylov_matrix_add_identity(ink->M, 1.0);
-    ink->gamma_prev = gamma;
-    *J_updated = false;
-    STOP_FUNCTION_TIMER();
-    return (conv_status == BDF_CONV_NO_FAILURES) ? 0 : 1;
+    if (conv_status == BDF_CONV_NO_FAILURES)
+    {
+      // We don't need to update J, but we still need to recompute I - gamma*J.
+      krylov_matrix_add_identity(ink->M, -1.0);
+      krylov_matrix_scale(ink->M, gamma/ink->gamma_prev);
+      krylov_matrix_add_identity(ink->M, 1.0);
+      ink->gamma_prev = gamma;
+      *J_updated = false;
+      STOP_FUNCTION_TIMER();
+      return 0;
+    }
+    else
+    {
+      STOP_FUNCTION_TIMER();
+      return 1;
+    }
   }
 }
 
@@ -950,7 +964,9 @@ static int ink_solve(void* context,
   if (B_norm < res_norm_tol)
   {
     log_debug("ink_bdf_ode_integrator: ||B|| < tolerance (%g < %g), so X -> 0.", B_norm, res_norm_tol); 
-    krylov_vector_zero(ink->B);
+    krylov_vector_zero(ink->X);
+    krylov_vector_copy_out(ink->X, B);
+    STOP_FUNCTION_TIMER();
     return 0;
   }
 
