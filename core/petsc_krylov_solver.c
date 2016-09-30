@@ -88,6 +88,7 @@ typedef struct
   PetscErrorCode (*MatSetBlockSize)(Mat, PetscInt);
   PetscErrorCode (*MatDestroy)(Mat*);
   PetscErrorCode (*MatScale)(Mat,PetscScalar);
+  PetscErrorCode (*MatDiagonalScale)(Mat,Vec,Vec);
   PetscErrorCode (*MatShift)(Mat,PetscScalar);
   PetscErrorCode (*MatDiagonalSet)(Mat,Vec,InsertMode);
   PetscErrorCode (*MatZeroEntries)(Mat);
@@ -251,50 +252,6 @@ static bool petsc_solver_solve(void* context,
   return (code > 0);
 }
 
-static bool petsc_solver_solve_scaled(void* context,
-                                      void* b,
-                                      void* s1,
-                                      void* s2,
-                                      void* x,
-                                      real_t* res_norm,
-                                      int* num_iters)
-{
-  petsc_solver_t* solver = context;
-  petsc_vector_t* B = b;
-  petsc_vector_t* S1 = s1;
-  petsc_vector_t* S2 = s2;
-  petsc_vector_t* X = x;
-  PetscErrorCode err = solver->factory->methods.KSPSolve(solver->ksp, B->v, X->v);
-  if (err != 0)
-    polymec_error("petsc_solver_solve: Call to linear solve failed!");
-  int code;
-  PetscInt niters;
-  solver->factory->methods.KSPGetConvergedReason(solver->ksp, &code);
-  solver->factory->methods.KSPGetIterationNumber(solver->ksp, &niters);
-  *num_iters = (int)niters;
-  solver->factory->methods.KSPGetResidualNorm(solver->ksp, res_norm);
-  if ((code < 0) && (log_level() == LOG_DEBUG))
-  {
-    char reason[256]; 
-    switch(code)
-    {
-      case -2: sprintf(reason, "KSP_DIVERGED_NULL"); break;
-      case -3: sprintf(reason, "max iterations exceeded"); break;
-      case -4: sprintf(reason, "residual norm exceeds divergence tolerance"); break;
-      case -5: sprintf(reason, "Krylov method breakdown (singular A or P?)"); break;
-      case -6: sprintf(reason, "Krylov method breakdown in biconjugate gradient method"); break;
-      case -7: sprintf(reason, "Nonsymmetric matrix given for symmetric Krylov method"); break;
-      case -8: sprintf(reason, "Indefinite preconditioner for method requiring SPD matrix"); break;
-      case -9: sprintf(reason, "NaN or Inf value encountered in linear solve"); break;
-      case -10: sprintf(reason, "Indefinite matrix given for method requiring SPD matrix"); break;
-      case -11: sprintf(reason, "Setup for preconditioner failed"); break;
-      default: sprintf(reason, "reason unknown");
-    }
-    log_debug("petsc_solver_solve: Linear solve failed: %s", reason);
-  }
-  return (code > 0);
-}
-
 static void petsc_solver_dtor(void* context)
 {
   petsc_solver_t* solver = context;
@@ -325,7 +282,6 @@ static krylov_solver_t* petsc_factory_pcg_solver(void* context,
                                  .set_operator = petsc_solver_set_operator,
                                  .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
-                                 .solve_scaled = petsc_solver_solve_scaled,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new("PETSc PCG", solver, vtable);
 }
@@ -355,7 +311,6 @@ static krylov_solver_t* petsc_factory_gmres_solver(void* context,
                                  .set_operator = petsc_solver_set_operator,
                                  .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
-                                 .solve_scaled = petsc_solver_solve_scaled,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new("PETSc GMRES", solver, vtable);
 }
@@ -382,7 +337,6 @@ static krylov_solver_t* petsc_factory_bicgstab_solver(void* context,
                                  .set_operator = petsc_solver_set_operator,
                                  .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
-                                 .solve_scaled = petsc_solver_solve_scaled,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new("PETSc Bi-CGSTAB", solver, vtable);
 }
@@ -411,7 +365,6 @@ static krylov_solver_t* petsc_factory_special_solver(void* context,
                                  .set_operator = petsc_solver_set_operator,
                                  .set_preconditioner = petsc_solver_set_pc,
                                  .solve = petsc_solver_solve,
-                                 .solve_scaled = petsc_solver_solve_scaled,
                                  .dtor = petsc_solver_dtor};
   return krylov_solver_new(solver_name, solver, vtable);
 }
@@ -466,6 +419,18 @@ static void petsc_matrix_scale(void* context, real_t scale_factor)
 {
   petsc_matrix_t* A = context;
   A->factory->methods.MatScale(A->A, scale_factor);
+}
+
+static void petsc_matrix_diag_scale(void* context, 
+                                    void* L,
+                                    void* R)
+{
+  petsc_matrix_t* A = context;
+  petsc_vector_t* LL = L;
+  petsc_vector_t* RR = R;
+  void* l = (LL == NULL) ? NULL : LL->v;
+  void* r = (RR == NULL) ? NULL : RR->v;
+  A->factory->methods.MatDiagonalScale(A->A, l, r);
 }
 
 static void petsc_matrix_add_identity(void* context, real_t scale_factor)
@@ -663,6 +628,7 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
   krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
                                  .zero = petsc_matrix_zero,
                                  .scale = petsc_matrix_scale,
+                                 .diag_scale = petsc_matrix_diag_scale,
                                  .add_identity = petsc_matrix_add_identity,
                                  .add_diagonal = petsc_matrix_add_diagonal,
                                  .set_diagonal = petsc_matrix_set_diagonal,
@@ -862,6 +828,7 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
   krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
                                  .zero = petsc_matrix_zero,
                                  .scale = petsc_matrix_scale,
+                                 .diag_scale = petsc_matrix_diag_scale,
                                  .add_identity = petsc_matrix_add_identity,
                                  .add_diagonal = petsc_matrix_add_diagonal,
                                  .set_diagonal = petsc_matrix_set_diagonal,
@@ -1031,6 +998,22 @@ static void petsc_vector_scale(void* context, real_t scale_factor)
   v->factory->methods.VecScale(v->v, scale_factor);
 }
 
+static void petsc_vector_diag_scale(void* context, void* D)
+{
+  petsc_vector_t* v = context;
+  petsc_vector_t* d = D;
+  PetscInt size;
+  v->factory->methods.VecGetLocalSize(v->v, &size);
+  real_t* vi;
+  v->factory->methods.VecGetArray(v->v, &vi);
+  real_t* Di;
+  d->factory->methods.VecGetArray(d->v, &Di);
+  for (PetscInt i = 0; i < size; ++i)
+    vi[i] *= Di[i];
+  v->factory->methods.VecRestoreArray(v->v, &vi);
+  d->factory->methods.VecRestoreArray(v->v, &Di);
+}
+
 static void petsc_vector_set_values(void* context, index_t num_values,
                                     index_t* indices, real_t* values)
 {
@@ -1163,6 +1146,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
                                  .zero = petsc_vector_zero,
                                  .set_value = petsc_vector_set_value,
                                  .scale = petsc_vector_scale,
+                                 .diag_scale = petsc_vector_diag_scale,
                                  .set_values = petsc_vector_set_values,
                                  .add_values = petsc_vector_add_values,
                                  .get_values = petsc_vector_get_values,
@@ -1366,6 +1350,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(MatSetBlockSize);
   FETCH_PETSC_SYMBOL(MatDestroy);
   FETCH_PETSC_SYMBOL(MatScale);
+  FETCH_PETSC_SYMBOL(MatDiagonalScale);
   FETCH_PETSC_SYMBOL(MatShift);
   FETCH_PETSC_SYMBOL(MatDiagonalSet);
   FETCH_PETSC_SYMBOL(MatZeroEntries);
