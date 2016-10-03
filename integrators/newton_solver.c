@@ -12,6 +12,7 @@
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
 #include "kinsol/kinsol.h"
+#include "kinsol/kinsol_impl.h"
 #include "kinsol/kinsol_spgmr.h"
 #include "kinsol/kinsol_spfgmr.h"
 #include "kinsol/kinsol_spbcgs.h"
@@ -22,52 +23,67 @@ struct newton_solver_t
   // Parallel stuff.
   int rank, nprocs;
   MPI_Comm comm;
+  int num_local_values, num_remote_values;
 
+  // Behavior/state stuff.
   void* context;
-  newton_solver_vtable vtable;
-  newton_krylov_t solver_type;
+  int (*F_func)(void* context, real_t t, real_t* U, real_t* F);
+  void (*dtor)(void* context);
+
+  // JFNK stuff.
+  int (*Jv_func)(void* context, bool new_U, real_t t, real_t* U, real_t* v, real_t* Jv);
+  jfnk_newton_t solver_type;
+  newton_pc_t* precond;
   int max_krylov_dim, max_restarts;
 
-  int num_local_values, num_remote_values;
+  // Generized adaptor stuff.
+  int (*reset_func)(void* context);
+  int (*setup_func)(void* context, 
+                    newton_solver_strategy_t strategy,
+                    real_t t, 
+                    real_t* U,
+                    real_t* F);
+  int (*solve_func)(void* context, 
+                    real_t* DF, 
+                    real_t t, 
+                    real_t* B,
+                    real_t res_norm_tol,
+                    real_t* p,
+                    real_t* Jp_norm, 
+                    real_t* F_o_Jp);
 
   // KINSol data structures.
   void* kinsol;
   int strategy; // Global strategy.
-  N_Vector x, x_scale, F_scale; // Stores solution vector and scaling vectors.
-  real_t* x_with_ghosts;
+  N_Vector U, U_scale, F_scale, constraints; // Stores solution vector and scaling vectors.
+  real_t* U_with_ghosts;
   char* status_message; // status of most recent integration.
-
-  // Jacobian-vector product function.
-  newton_solver_Jv_func Jv_func;
-
-  // Preconditioning stuff.
-  newton_pc_t* precond;
 
   // Current simulation time.
   real_t t;
 };
 
 // This function wraps around the user-supplied evaluation function.
-static int evaluate_F(N_Vector x, N_Vector F, void* context)
+static int evaluate_F(N_Vector U, N_Vector F, void* context)
 {
   newton_solver_t* solver = context;
-  real_t* xx = NV_DATA(x);
+  real_t* UU = NV_DATA(U);
   real_t* FF = NV_DATA(F);
 
   // Evaluate the residual using a solution vector with ghosts.
-  memcpy(solver->x_with_ghosts, xx, sizeof(real_t) * solver->num_local_values);
-  return solver->vtable.eval(solver->context, solver->t, solver->x_with_ghosts, FF);
+  memcpy(solver->U_with_ghosts, UU, sizeof(real_t) * solver->num_local_values);
+  return solver->F_func(solver->context, solver->t, solver->U_with_ghosts, FF);
 }
 
 // This function sets up the preconditioner data within the solver.
-static int set_up_preconditioner(N_Vector x, N_Vector x_scale, 
-                                 N_Vector F, N_Vector f_scale,
+static int set_up_preconditioner(N_Vector U, N_Vector U_scale, 
+                                 N_Vector F, N_Vector F_scale,
                                  void* context, 
                                  N_Vector work1, N_Vector work2)
 {
   newton_solver_t* solver = context;
   real_t t = solver->t;
-  newton_pc_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(x), NULL);
+  newton_pc_setup(solver->precond, 0.0, 1.0, 0.0, t, NV_DATA(U), NULL);
 
   return 0;
 }
@@ -75,7 +91,7 @@ static int set_up_preconditioner(N_Vector x, N_Vector x_scale,
 // This function solves the preconditioner equation. On input, the vector r 
 // contains the right-hand side of the preconditioner system, and on output 
 // it contains the solution to the system.
-static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
+static int solve_preconditioner_system(N_Vector U, N_Vector U_scale,
                                        N_Vector F, N_Vector F_scale,
                                        N_Vector r, void* context,
                                        N_Vector work)
@@ -84,7 +100,7 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
 
   // FIXME: Apply scaling if needed.
 
-  if (newton_pc_solve(solver->precond, solver->t, NV_DATA(x), NULL,
+  if (newton_pc_solve(solver->precond, solver->t, NV_DATA(U), NULL,
                       NV_DATA(r), NV_DATA(work)))
   {
     // Copy the solution to r.
@@ -99,20 +115,159 @@ static int solve_preconditioner_system(N_Vector x, N_Vector x_scale,
   }
 }
 
-// Generic constructor.
+static int newton_linit(KINMem kin_mem)
+{
+  newton_solver_t* newton = kin_mem->kin_user_data;
+  return newton->reset_func(newton->context);
+}
+
+static int newton_lsetup(KINMem kin_mem)
+{
+  newton_solver_t* newton = kin_mem->kin_user_data;
+  real_t t = newton->t;
+  newton_solver_strategy_t strategy = NEWTON_FULL_STEP;
+  if (newton->strategy == KIN_LINESEARCH) 
+    strategy = NEWTON_LINE_SEARCH;
+  else if (newton->strategy == KIN_FP)
+    strategy = NEWTON_FP;
+  else if (newton->strategy == KIN_PICARD)
+    strategy = NEWTON_PICARD;
+  return newton->setup_func(newton->context, strategy, t, 
+                            NV_DATA(kin_mem->kin_uu), NV_DATA(kin_mem->kin_fval));
+}
+
+static int newton_lsolve(KINMem kin_mem, 
+                         N_Vector U, 
+                         N_Vector B, 
+                         real_t* sJpnorm,
+                         real_t* sFdotJp)
+{
+  newton_solver_t* newton = kin_mem->kin_user_data;
+  real_t t = newton->t;
+  return newton->solve_func(newton->context, 
+                            NV_DATA(kin_mem->kin_fscale), t,
+                            NV_DATA(B), kin_mem->kin_eps, 
+                            NV_DATA(U), sJpnorm, sFdotJp);
+}
+
+static int newton_lfree(KINMem kin_mem)
+{
+  return 0;
+}
+
 newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int num_local_values,
                                    int num_remote_values,
                                    void* context,
-                                   newton_solver_vtable vtable,
-                                   newton_pc_t* precond,
-                                   newton_krylov_t solver_type,
-                                   int max_krylov_dim, 
-                                   int max_restarts)
+                                   int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
+                                   int (*reset_func)(void* context),
+                                   int (*setup_func)(void* context, 
+                                                     newton_solver_strategy_t strategy,
+                                                     real_t t,
+                                                     real_t* U,
+                                                     real_t* F),
+                                   int (*solve_func)(void* context, 
+                                                     real_t* DF, 
+                                                     real_t t, 
+                                                     real_t* B,
+                                                     real_t res_norm_tol,
+                                                     real_t* p,
+                                                     real_t* Jp_norm, 
+                                                     real_t* F_o_Jp), 
+                                   void (*dtor)(void* context))
 {
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
-  ASSERT(vtable.eval != NULL);
+  ASSERT(F_func != NULL);
+  ASSERT(reset_func != NULL);
+  ASSERT(setup_func != NULL);
+  ASSERT(solve_func != NULL);
+
+  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
+  solver->context = context;
+  solver->comm = comm;
+  solver->F_func = F_func;
+  solver->Jv_func = NULL;
+  solver->reset_func = reset_func;
+  solver->setup_func = setup_func;
+  solver->solve_func = solve_func;
+  solver->dtor = dtor;
+  solver->precond = NULL;
+  solver->num_local_values = num_local_values;
+  solver->num_remote_values = num_remote_values;
+  solver->max_krylov_dim = -1;
+  solver->max_restarts = -1;
+
+  // By default, we take a full Newton step.
+  solver->strategy = KIN_NONE;
+
+  // Set up KINSol and accessories.
+  solver->kinsol = KINCreate();
+  KINSetUserData(solver->kinsol, solver);
+  solver->U = N_VNew(solver->comm, num_local_values);
+  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->U_scale = N_VNew(solver->comm, num_local_values);
+  solver->F_scale = N_VNew(solver->comm, num_local_values);
+  solver->constraints = N_VNew(solver->comm, num_local_values);
+  solver->status_message = NULL;
+  solver->reset_func = NULL;
+  solver->setup_func = NULL;
+  solver->solve_func = NULL;
+  solver->t = 0.0;
+
+  KINInit(solver->kinsol, evaluate_F, solver->U);
+
+  // Set up our generalized solver.
+  KINMem kin_mem = solver->kinsol;
+  kin_mem->kin_linit = newton_linit;
+  kin_mem->kin_lsetup = newton_lsetup;
+  kin_mem->kin_lsolve = newton_lsolve;
+  kin_mem->kin_lfree = newton_lfree;
+
+  // Enable debugging diagnostics if logging permits.
+  FILE* info_stream = log_stream(LOG_DEBUG);
+  if (info_stream != NULL)
+  {
+    KINSetPrintLevel(solver->kinsol, 3);
+    KINSetInfoFile(solver->kinsol, info_stream);
+  }
+  else
+  {
+    KINSetPrintLevel(solver->kinsol, 0);
+    KINSetInfoFile(solver->kinsol, NULL);
+  }
+
+  return solver;
+}
+
+// This is a KINSOL Jacobian-vector product function that wraps our own.
+static int jfnk_Jv_func_wrapper(N_Vector v, N_Vector Jv, N_Vector U,
+                                booleantype* new_U, void* context)
+{
+  newton_solver_t* solver = context;
+  ASSERT(solver->Jv_func != NULL);
+  int result = solver->Jv_func(solver->context, (*new_U != 0), solver->t, 
+                               NV_DATA(U), NV_DATA(v), NV_DATA(Jv));
+  if ((result == 0) && (*new_U == 0))
+    *new_U = 1;
+  return result;
+}
+
+newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
+                                        int num_local_values,
+                                        int num_remote_values,
+                                        void* context,
+                                        int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
+                                        int (*Jv_func)(void* context, bool new_U, real_t t, real_t* U, real_t* v, real_t* Jv),
+                                        void (*dtor)(void* context),
+                                        newton_pc_t* precond,
+                                        jfnk_newton_t solver_type,
+                                        int max_krylov_dim, 
+                                        int max_restarts)
+{
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
+  ASSERT(F_func != NULL);
   ASSERT(max_krylov_dim >= 3);
   ASSERT(((solver_type != NEWTON_GMRES) && (solver_type != NEWTON_FGMRES)) || 
          (max_restarts >= 0));
@@ -122,7 +277,9 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
   solver->context = context;
   solver->comm = comm;
-  solver->vtable = vtable;
+  solver->F_func = F_func;
+  solver->Jv_func = Jv_func;
+  solver->dtor = dtor;
   solver->precond = precond;
   solver->solver_type = solver_type;
   solver->num_local_values = num_local_values;
@@ -136,13 +293,22 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   // Set up KINSol and accessories.
   solver->kinsol = KINCreate();
   KINSetUserData(solver->kinsol, solver);
-  solver->x = N_VNew(solver->comm, num_local_values);
-  solver->x_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
-  solver->x_scale = N_VNew(solver->comm, num_local_values);
+  solver->U = N_VNew(solver->comm, num_local_values);
+  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->U_scale = N_VNew(solver->comm, num_local_values);
   solver->F_scale = N_VNew(solver->comm, num_local_values);
+  solver->constraints = N_VNew(solver->comm, num_local_values);
   solver->status_message = NULL;
+  solver->reset_func = NULL;
+  solver->setup_func = NULL;
+  solver->solve_func = NULL;
+  solver->t = 0.0;
 
-  KINInit(solver->kinsol, evaluate_F, solver->x);
+  KINInit(solver->kinsol, evaluate_F, solver->U);
+  if (Jv_func != NULL)
+    KINSpilsSetJacTimesVecFn(solver->kinsol, jfnk_Jv_func_wrapper);
+  else
+    KINSpilsSetJacTimesVecFn(solver->kinsol, NULL);
 
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver->solver_type == NEWTON_GMRES)
@@ -173,26 +339,12 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
     KINSetInfoFile(solver->kinsol, NULL);
   }
 
-  // Set the constraints (if any) for the solution.
-  if (solver->vtable.set_constraints != NULL)
-  {
-    N_Vector constraints = N_VNew(solver->comm, num_local_values);
-    solver->vtable.set_constraints(solver->context, NV_DATA(constraints));
-    KINSetConstraints(solver->kinsol, constraints);
-    N_VDestroy(constraints);
-  }
-
   // Set up the preconditioner.
   if (solver->precond != NULL)
   {
     KINSpilsSetPreconditioner(solver->kinsol, set_up_preconditioner,
                               solve_preconditioner_system);
   }
-
-  // By default, we use a difference-quotient approximation to J*v.
-  solver->Jv_func = NULL;
-
-  solver->t = 0.0;
 
   return solver;
 }
@@ -204,42 +356,31 @@ void newton_solver_free(newton_solver_t* solver)
     newton_pc_free(solver->precond);
 
   // Kill the KINSol stuff.
-  N_VDestroy(solver->x);
-  N_VDestroy(solver->x_scale);
+  N_VDestroy(solver->U);
+  N_VDestroy(solver->U_scale);
   N_VDestroy(solver->F_scale);
+  N_VDestroy(solver->constraints);
   KINFree(&solver->kinsol);
 
   // Kill the rest.
-  if ((solver->vtable.dtor != NULL) && (solver->context != NULL))
-    solver->vtable.dtor(solver->context);
+  if ((solver->dtor != NULL) && (solver->context != NULL))
+    solver->dtor(solver->context);
+
   // Kill the rest.
   if (solver->status_message != NULL)
     polymec_free(solver->status_message);
-  polymec_free(solver->x_with_ghosts);
+  polymec_free(solver->U_with_ghosts);
   polymec_free(solver);
 }
 
-// This is a KINSOL Jacobian-vector product function that wraps our own.
-static int Jv_func_wrapper(N_Vector v, N_Vector Jv, N_Vector x,
-                           booleantype* new_x, void* context)
+void* newton_solver_context(newton_solver_t* solver)
 {
-  newton_solver_t* solver = context;
-  ASSERT(solver->Jv_func != NULL);
-  int result = solver->Jv_func(solver->context, (*new_x != 0), solver->t, 
-                               NV_DATA(x), NV_DATA(v), NV_DATA(Jv));
-  if ((result == 0) && (*new_x == 0))
-    *new_x = 1;
-  return result;
+  return solver->context;
 }
 
-void newton_solver_set_jacobian_vector_product(newton_solver_t* solver,
-                                               newton_solver_Jv_func Jv_func)
+int newton_solver_num_equations(newton_solver_t* solver)
 {
-  solver->Jv_func = Jv_func;
-  if (Jv_func != NULL)
-    KINSpilsSetJacTimesVecFn(solver->kinsol, Jv_func_wrapper);
-  else
-    KINSpilsSetJacTimesVecFn(solver->kinsol, NULL);
+  return solver->num_local_values;
 }
 
 void newton_solver_use_full_step(newton_solver_t* solver)
@@ -264,24 +405,52 @@ void newton_solver_use_fixed_point(newton_solver_t* solver,
 }
 
 void newton_solver_use_picard(newton_solver_t* solver, 
-                              newton_solver_Jv_func Jv_func,
                               int num_residuals)
 {
   ASSERT(num_residuals >= 0);
   log_debug("newton_solver: using Picard Anderson acceleration (%d residuals).", num_residuals);
   solver->strategy = KIN_PICARD;
-  newton_solver_set_jacobian_vector_product(solver, Jv_func);
   KINSetMAA(solver->kinsol, num_residuals);
 }
 
-void* newton_solver_context(newton_solver_t* solver)
+void newton_solver_set_U_scale(newton_solver_t* solver, 
+                               real_t* DU)
 {
-  return solver->context;
+  if (DU != NULL)
+    memcpy(NV_DATA(solver->U_scale), DU, sizeof(real_t) * solver->num_local_values);
+  else
+  {
+    real_t* U_scale = NV_DATA(solver->U_scale);
+    for (int i = 0; i < solver->num_local_values; ++i)
+      U_scale[i] = 1.0;
+  }
 }
 
-int newton_solver_num_equations(newton_solver_t* solver)
+void newton_solver_set_F_scale(newton_solver_t* solver, 
+                               real_t* DF)
 {
-  return solver->num_local_values;
+  if (DF != NULL)
+    memcpy(NV_DATA(solver->F_scale), DF, sizeof(real_t) * solver->num_local_values);
+  else
+  {
+    real_t* F_scale = NV_DATA(solver->U_scale);
+    for (int i = 0; i < solver->num_local_values; ++i)
+      F_scale[i] = 1.0;
+  }
+}
+
+void newton_solver_set_constraints(newton_solver_t* solver,
+                                   real_t* constraints)
+{
+  if (constraints != NULL)
+    memcpy(NV_DATA(solver->constraints), constraints, sizeof(real_t) * solver->num_local_values);
+  else
+  {
+    real_t* C = NV_DATA(solver->constraints);
+    for (int i = 0; i < solver->num_local_values; ++i)
+      C[i] = 0.0;
+  }
+  KINSetConstraints(solver->kinsol, solver->constraints);
 }
 
 void newton_solver_set_tolerances(newton_solver_t* solver, real_t norm_tolerance, real_t step_tolerance)
@@ -320,51 +489,35 @@ newton_pc_t* newton_solver_preconditioner(newton_solver_t* solver)
   return solver->precond;
 }
 
-void newton_solver_eval_residual(newton_solver_t* solver, real_t t, real_t* X, real_t* F)
+void newton_solver_eval_residual(newton_solver_t* solver, 
+                                 real_t t, 
+                                 real_t* U, 
+                                 real_t* R)
 {
-  solver->vtable.eval(solver->context, t, X, F);
+  solver->F_func(solver->context, t, U, R);
 }
 
 bool newton_solver_solve(newton_solver_t* solver,
                          real_t t,
-                         real_t* X,
+                         real_t* U,
                          int* num_iterations)
 {
   START_FUNCTION_TIMER();
-  ASSERT(X != NULL);
+  ASSERT(U != NULL);
 
   // Set the current time in the state.
   solver->t = t;
 
-  // Set the x_scale and F_scale vectors. If we don't have methods for doing 
-  // this, the scaling vectors are set to 1.
-  int N = solver->num_local_values;
-  if (solver->vtable.set_x_scale != NULL)
-    solver->vtable.set_x_scale(solver->context, NV_DATA(solver->x_scale));
-  else
-  {
-    for (int i = 0; i < N; ++i)
-      NV_Ith(solver->x_scale, i) = 1.0;
-  }
-
-  if (solver->vtable.set_F_scale != NULL)
-    solver->vtable.set_F_scale(solver->context, NV_DATA(solver->F_scale));
-  else
-  {
-    for (int i = 0; i < N; ++i)
-      NV_Ith(solver->F_scale, i) = 1.0;
-  }
-
-  // Copy the values in X to the internal solution vector.
-  memcpy(NV_DATA(solver->x), X, sizeof(real_t) * N);
+  // Copy the values in U to the internal solution vector.
+  memcpy(NV_DATA(solver->U), U, sizeof(real_t) * solver->num_local_values);
 
   // Suspend the currently active floating point exceptions for now.
 //  polymec_suspend_fpe_exceptions();
 
   // Solve.
   log_debug("newton_solver: solving...");
-  int status = KINSol(solver->kinsol, solver->x, solver->strategy, 
-                      solver->x_scale, solver->F_scale);
+  int status = KINSol(solver->kinsol, solver->U, solver->strategy, 
+                      solver->U_scale, solver->U_scale);
 
   // Clear the present status.
   if (solver->status_message != NULL)
@@ -384,8 +537,8 @@ bool newton_solver_solve(newton_solver_t* solver,
     *num_iterations = (int)num_iters;
     log_debug("newton_solver: solved after %d iterations.", *num_iterations);
 
-    // Copy the data back into X.
-    memcpy(X, NV_DATA(solver->x), sizeof(real_t) * N);
+    // Copy the data back into U.
+    memcpy(U, NV_DATA(solver->U), sizeof(real_t) * solver->num_local_values);
     STOP_FUNCTION_TIMER();
     return true;
   }
@@ -424,8 +577,9 @@ bool newton_solver_solve(newton_solver_t* solver,
                                   
 void newton_solver_reset(newton_solver_t* solver, real_t t)
 {
-  // Reset the preconditioner.
-  newton_pc_reset(solver->precond, t);
+  // Reset the preconditioner if it exists.
+  if (solver->precond != NULL)
+    newton_pc_reset(solver->precond, t);
 }
 
 void newton_solver_get_diagnostics(newton_solver_t* solver, 
@@ -465,5 +619,108 @@ void newton_solver_diagnostics_fprintf(newton_solver_diagnostics_t* diagnostics,
   fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
   fprintf(stream, "  Num Jacobian-vector product evaluations: %d\n", (int)diagnostics->num_jacobian_vector_product_evaluations);
   fprintf(stream, "  Num difference quotient function evaluations: %d\n", (int)diagnostics->num_difference_quotient_function_evaluations);
+}
+
+//------------------------------------------------------------------------
+//                      Inexact Newton-Krylov solver
+//------------------------------------------------------------------------
+
+typedef struct
+{
+  MPI_Comm comm;
+
+  // Behavior.
+  void* context;
+  int (*J_func)(void* context, real_t t, real_t* U, real_t* F, krylov_matrix_t* J);
+  void (*dtor)(void* context);
+
+  // Linear system stuff.
+  krylov_factory_t* factory;
+  krylov_solver_t* solver;
+  krylov_pc_t* pc;
+  krylov_matrix_t* J; // Jacobian matrix J.
+  krylov_vector_t* X; // Increment vector.
+  krylov_vector_t* B; // Right-hand side vector.
+
+  // Metadata.
+  matrix_sparsity_t* sparsity;
+  int block_size;
+} ink_newton_t;
+
+static int ink_reset(void* context)
+{
+  //FIXME
+  return 0;
+}
+
+static int ink_setup(void* context, 
+                     newton_solver_strategy_t strategy,
+                     real_t t,
+                     real_t* U,
+                     real_t* F)
+{
+  //FIXME
+  return 0;
+}
+
+static int ink_solve(void* context, 
+                     real_t* DF, 
+                     real_t t, 
+                     real_t* B,
+                     real_t res_norm_tol,
+                     real_t* p,
+                     real_t* Jp_norm, 
+                     real_t* F_o_Jp)
+{
+  //FIXME
+  return 0;
+}
+
+static void ink_dtor(void* context)
+{
+  ink_newton_t* ink = context;
+  matrix_sparsity_free(ink->sparsity);
+  if (ink->X != NULL)
+    krylov_vector_free(ink->X);
+  if (ink->B != NULL)
+    krylov_vector_free(ink->B);
+  if (ink->J != NULL)
+    krylov_matrix_free(ink->J);
+  if (ink->pc != NULL)
+    krylov_pc_free(ink->pc);
+  krylov_solver_free(ink->solver);
+  krylov_factory_free(ink->factory);
+  if ((ink->context != NULL) && (ink->dtor != NULL))
+    ink->dtor(ink->context);
+}
+
+newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
+                                       krylov_factory_t* factory,
+                                       matrix_sparsity_t* J_sparsity,
+                                       void* context, 
+                                       int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
+                                       int (*J_func)(void* context, real_t t, real_t* U, real_t* F, krylov_matrix_t* J),
+                                       void (*dtor)(void* context))
+{
+  ink_newton_t* ink = polymec_malloc(sizeof(ink_newton_t));
+  ink->comm = comm;
+  ink->context = context;
+  ink->J_func = J_func;
+  ink->dtor = dtor;
+  ink->factory = factory;
+  ink->sparsity = J_sparsity;
+  ink->solver = krylov_factory_gmres_solver(ink->factory, comm, 30);
+  ink->pc = NULL;
+  ink->J = NULL;
+  ink->B = NULL;
+  ink->X = NULL;
+  ink->block_size = 1;
+
+  int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));
+  newton_solver_t* N = newton_solver_new(comm, num_local_values, 0,
+                                         ink, F_func, ink_reset, 
+                                         ink_setup, ink_solve, ink_dtor);
+
+  return N;
 }
 

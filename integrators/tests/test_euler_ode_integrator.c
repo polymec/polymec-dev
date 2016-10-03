@@ -118,9 +118,9 @@ static ode_integrator_t* stiffly_accurate_kinetics_integrator()
   adj_graph_free(g);
   newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, NULL, kinetics_rhs, NULL, NEWTON_PC_LEFT, bg, 1, 0, 3);
   adj_graph_free(bg);
-  return newton_euler_ode_integrator_new(MPI_COMM_WORLD, 3, 0, NULL, 
-                                         kinetics_rhs, NULL, precond,
-                                         NEWTON_BICGSTAB, 15);
+  return jfnk_euler_ode_integrator_new(MPI_COMM_WORLD, 3, 0, NULL, 
+                                       kinetics_rhs, NULL, precond,
+                                       NEWTON_BICGSTAB, 15);
 }
 
 static void test_stiffly_accurate_kinetics(void** state)

@@ -361,15 +361,15 @@ ode_integrator_t* functional_euler_ode_integrator_new(real_t theta,
   return I;
 }
 
-ode_integrator_t* newton_euler_ode_integrator_new(MPI_Comm comm,
-                                                  int num_local_values,
-                                                  int num_remote_values,
-                                                  void* context,
-                                                  int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
-                                                  void (*dtor)(void* context),
-                                                  newton_pc_t* precond,
-                                                  newton_krylov_t solver_type,
-                                                  int max_krylov_dim)
+ode_integrator_t* jfnk_euler_ode_integrator_new(MPI_Comm comm,
+                                                int num_local_values,
+                                                int num_remote_values,
+                                                void* context,
+                                                int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
+                                                void (*dtor)(void* context),
+                                                newton_pc_t* precond,
+                                                jfnk_newton_t solver_type,
+                                                int max_krylov_dim)
 {
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
@@ -386,10 +386,9 @@ ode_integrator_t* newton_euler_ode_integrator_new(MPI_Comm comm,
   integ->dtor = dtor;
 
   // Set up the Newton solver.
-  newton_solver_vtable newton_vtable = {.eval = evaluate_residual};
-  integ->newton = newton_solver_new(comm, num_local_values, num_remote_values,
-                                    integ, newton_vtable, precond, 
-                                    solver_type, max_krylov_dim, 5);
+  integ->newton = jfnk_newton_solver_new(comm, num_local_values, num_remote_values,
+                                         integ, evaluate_residual, NULL, NULL, precond, 
+                                         solver_type, max_krylov_dim, 5);
 
   integ->observers = ptr_array_new();
 

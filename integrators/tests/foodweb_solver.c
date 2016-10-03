@@ -336,53 +336,40 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
   return 0;
 }
 
-static void foodweb_set_x_scale(void* context, real_t* x_scale)
-{
-  int i, jx, jy;
-  real_t *sloc;
-  real_t stemp[NUM_SPECIES];
-  
-  // Initialize the stemp array used in the loading process.
-  for (i = 0; i < NUM_SPECIES/2; i++) 
-    stemp[i] = ONE;
-  for (i = NUM_SPECIES/2; i < NUM_SPECIES; i++)
-    stemp[i] = RCONST(0.00001);
-
-  for (jy = 0; jy < MY; jy++) 
-  {
-    for (jx = 0; jx < MX; jx++) 
-    {
-      sloc = IJ_Vptr(x_scale,jx,jy);
-      for (i = 0; i < NUM_SPECIES; i++) 
-        sloc[i] = stemp[i];
-    }
-  }
-}
-
-static void foodweb_set_F_scale(void* context, real_t* F_scale)
-{
-  // We scale F the same way we scale x.
-  foodweb_set_x_scale(context, F_scale);
-}
-
-static void foodweb_set_constraints(void* context, real_t* constraints)
-{
-  // Enforce positivity on all components.
-  for (int i = 0; i < NEQ; ++i)
-    constraints[i] = 2.0;
-}
-
 // Constructor for food web solver with no preconditioner.
 static newton_solver_t* foodweb_solver_new(foodweb_t* data, newton_pc_t* precond)
 {
   // Set up a nonlinear solver using GMRES with a full Newton step.
-  newton_solver_vtable vtable = {.eval = foodweb_func,
-                                 .set_x_scale = foodweb_set_x_scale,
-                                 .set_F_scale = foodweb_set_F_scale,
-                                 .set_constraints = foodweb_set_constraints,
-                                 .dtor = foodweb_dtor};
-  newton_solver_t* solver = newton_solver_new(MPI_COMM_SELF, NEQ, 0, data,
-                                              vtable, precond, NEWTON_GMRES, 15, 2);
+  newton_solver_t* solver = jfnk_newton_solver_new(MPI_COMM_SELF, NEQ, 0, data,
+                                                   foodweb_func, NULL, foodweb_dtor, 
+                                                   precond, NEWTON_GMRES, 15, 2);
+
+  // Enforce positivity on all components.
+  real_t constraints[NEQ];
+  for (int i = 0; i < NEQ; ++i)
+    constraints[i] = 2.0;
+  newton_solver_set_constraints(solver, constraints);
+
+  // Scale the U and F vectors.
+  real_t species_scale[NUM_SPECIES];
+  for (int s = 0; s < NUM_SPECIES/2; s++) 
+    species_scale[s] = ONE;
+  for (int s = NUM_SPECIES/2; s < NUM_SPECIES; s++)
+    species_scale[s] = RCONST(0.00001);
+
+  real_t scale[NEQ];
+  for (int jy = 0; jy < MY; jy++) 
+  {
+    for (int jx = 0; jx < MX; jx++) 
+    {
+      real_t* sloc = IJ_Vptr(scale,jx,jy);
+      for (int s = 0; s < NUM_SPECIES; s++) 
+        sloc[s] = species_scale[s];
+    }
+  }
+  newton_solver_set_U_scale(solver, scale);
+  newton_solver_set_F_scale(solver, scale);
+
   return solver;
 }
 
