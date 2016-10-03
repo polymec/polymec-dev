@@ -38,6 +38,7 @@ typedef enum {NORM_1=0,NORM_2=1,NORM_FROBENIUS=2,NORM_INFINITY=3,NORM_1_AND_2=4}
 typedef enum {MAT_FLUSH_ASSEMBLY=1,MAT_FINAL_ASSEMBLY=0} MatAssemblyType;
 typedef enum {INSERT_VALUES=1,ADD_VALUES=0} InsertMode;
 typedef enum {MAT_INITIAL_MATRIX,MAT_REUSE_MATRIX,MAT_IGNORE_MATRIX} MatReuse;
+typedef enum {DIFFERENT_NONZERO_PATTERN,SUBSET_NONZERO_PATTERN,SAME_NONZERO_PATTERN} MatStructure;
 static const char* MATSEQAIJ = "seqaij";
 static const char* MATMPIAIJ = "mpiaij";
 static const char* MATSEQBAIJ = "seqbaij";
@@ -78,6 +79,7 @@ typedef struct
 
   PetscErrorCode (*MatCreate)(MPI_Comm,Mat*);
   PetscErrorCode (*MatConvert)(Mat, MatType, MatReuse, Mat*);
+  PetscErrorCode (*MatCopy)(Mat, Mat, MatStructure);
   PetscErrorCode (*MatSetType)(Mat, MatType);
   PetscErrorCode (*MatSetSizes)(Mat, PetscInt m, PetscInt n, PetscInt M, PetscInt N);
   PetscErrorCode (*MatGetOwnershipRange)(Mat, PetscInt* m, PetscInt* n);
@@ -409,6 +411,15 @@ static void* petsc_matrix_clone(void* context)
   return clone;
 }
 
+static void petsc_matrix_copy(void* context, void* copy)
+{
+  petsc_matrix_t* A = context;
+  petsc_matrix_t* B = copy;
+  PetscErrorCode err = A->factory->methods.MatCopy(A->A, B->A, SAME_NONZERO_PATTERN);
+  if (err != 0)
+    polymec_error("petsc_matrix_copy: Error!");
+}
+
 static void petsc_matrix_zero(void* context)
 {
   petsc_matrix_t* A = context;
@@ -626,6 +637,7 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
+                                 .copy = petsc_matrix_copy,
                                  .zero = petsc_matrix_zero,
                                  .scale = petsc_matrix_scale,
                                  .diag_scale = petsc_matrix_diag_scale,
@@ -826,6 +838,7 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
 
   // Set up the virtual table.
   krylov_matrix_vtable vtable = {.clone = petsc_matrix_clone,
+                                 .copy = petsc_matrix_copy,
                                  .zero = petsc_matrix_zero,
                                  .scale = petsc_matrix_scale,
                                  .diag_scale = petsc_matrix_diag_scale,
@@ -978,6 +991,15 @@ static void* petsc_vector_clone(void* context)
   if (err != 0)
     polymec_error("petsc_vector_clone: Error in VecCopy!");
   return clone;
+}
+
+static void petsc_vector_copy(void* context, void* copy)
+{
+  petsc_vector_t* v = context;
+  petsc_vector_t* v1 = copy;
+  PetscErrorCode err = v->factory->methods.VecCopy(v->v, v1->v);
+  if (err != 0)
+    polymec_error("petsc_vector_clone: Error in VecCopy!");
 }
 
 static void petsc_vector_zero(void* context)
@@ -1143,6 +1165,7 @@ static krylov_vector_t* petsc_factory_vector(void* context,
 
   // Set up the virtual table.
   krylov_vector_vtable vtable = {.clone = petsc_vector_clone,
+                                 .copy = petsc_vector_copy,
                                  .zero = petsc_vector_zero,
                                  .set_value = petsc_vector_set_value,
                                  .scale = petsc_vector_scale,
@@ -1340,6 +1363,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
 
   FETCH_PETSC_SYMBOL(MatCreate);
   FETCH_PETSC_SYMBOL(MatConvert);
+  FETCH_PETSC_SYMBOL(MatCopy);
   FETCH_PETSC_SYMBOL(MatSetType);
   FETCH_PETSC_SYMBOL(MatSetSizes);
   FETCH_PETSC_SYMBOL(MatGetOwnershipRange);
