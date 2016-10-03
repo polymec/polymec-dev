@@ -166,13 +166,15 @@ void newton_solver_use_picard(newton_solver_t* solver,
 
 // Sets the scaling coefficients for the solution vector U such that DU * U 
 // all have roughly the same magnitude as F(x) approaches 0, where DU is 
-// a diagonal matrix whose elements are the scaling coefficients.
+// a diagonal matrix whose elements are the scaling coefficients. If DU is 
+// NULL, no scaling is performed.
 void newton_solver_set_U_scale(newton_solver_t* solver, 
                                real_t* DU);
 
 // Sets the scaling coefficients for the system function vector F such that 
 // DF * F(t, U) all have roughly the same magnitude as F(x) approaches 0, 
 // where DF is a diagonal matrix whose elements are the scaling coefficients.
+// If DF is NULL, no scaling is performed.
 void newton_solver_set_F_scale(newton_solver_t* solver, 
                                real_t* DF);
 

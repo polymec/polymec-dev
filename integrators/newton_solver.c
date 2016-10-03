@@ -305,10 +305,6 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
   solver->t = 0.0;
 
   KINInit(solver->kinsol, evaluate_F, solver->U);
-  if (Jv_func != NULL)
-    KINSpilsSetJacTimesVecFn(solver->kinsol, jfnk_Jv_func_wrapper);
-  else
-    KINSpilsSetJacTimesVecFn(solver->kinsol, NULL);
 
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver->solver_type == NEWTON_GMRES)
@@ -325,6 +321,16 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
     KINSpbcg(solver->kinsol, solver->max_krylov_dim);
   else
     KINSptfqmr(solver->kinsol, solver->max_krylov_dim);
+
+  // Set up the Jacobian-vector product.
+  if (Jv_func != NULL)
+    KINSpilsSetJacTimesVecFn(solver->kinsol, jfnk_Jv_func_wrapper);
+  else
+    KINSpilsSetJacTimesVecFn(solver->kinsol, NULL);
+
+  // Set trivial scaling by default.
+  newton_solver_set_U_scale(solver, NULL);
+  newton_solver_set_F_scale(solver, NULL);
 
   // Enable debugging diagnostics if logging permits.
   FILE* info_stream = log_stream(LOG_DEBUG);
@@ -433,7 +439,7 @@ void newton_solver_set_F_scale(newton_solver_t* solver,
     memcpy(NV_DATA(solver->F_scale), DF, sizeof(real_t) * solver->num_local_values);
   else
   {
-    real_t* F_scale = NV_DATA(solver->U_scale);
+    real_t* F_scale = NV_DATA(solver->F_scale);
     for (int i = 0; i < solver->num_local_values; ++i)
       F_scale[i] = 1.0;
   }
@@ -517,7 +523,7 @@ bool newton_solver_solve(newton_solver_t* solver,
   // Solve.
   log_debug("newton_solver: solving...");
   int status = KINSol(solver->kinsol, solver->U, solver->strategy, 
-                      solver->U_scale, solver->U_scale);
+                      solver->U_scale, solver->F_scale);
 
   // Clear the present status.
   if (solver->status_message != NULL)
