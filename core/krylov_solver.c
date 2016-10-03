@@ -268,6 +268,8 @@ krylov_matrix_t* krylov_matrix_new(void* context,
                                    int num_local_rows,
                                    index_t num_global_rows)
 {
+  ASSERT(vtable.clone != NULL);
+  ASSERT(vtable.copy != NULL);
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.scale != NULL);
   ASSERT(vtable.diag_scale != NULL);
@@ -985,6 +987,8 @@ krylov_vector_t* krylov_vector_new(void* context,
                                    int local_size,
                                    index_t global_size)
 {
+  ASSERT(vtable.clone != NULL);
+  ASSERT(vtable.copy != NULL);
   ASSERT(vtable.zero != NULL);
   ASSERT(vtable.set_value != NULL);
   ASSERT(vtable.scale != NULL);
