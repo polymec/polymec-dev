@@ -33,21 +33,23 @@ typedef enum
 // are:
 // * F_func -- Used to compute the system function F(t, U).
 // * reset_func -- Used to reset the state of the solver to a different state.
-// * set_up_func -- Used to calculate and store a representation of the Jacobian matrix
-//                  J. This operator is computed whenever the integrator deems it necessary to 
-//                  reflect the the state of the system (according to inexact-Newton-like methods).
-//                  Arguments are:
-//                  - context: A pointer to the context object that stores the state of the solver.
-//                  - strategy: The type of iteration being used to solve the system. This affects
-//                              what is meant by "J": In the case of full Newton step and line 
-//                              search, J = dF/dU. In the case of Picard iteration, J means the 
-//                              linearization L of J. This function is never called in the case
-//                              of fixed point iteration.
-//                  - t: The current time.
-//                  - U: The current solution vector U.
-//                  - F: The current system function (residual) vector F.
-//                Should return 0 on success, a positive value for a recoverable error, and a negative value 
-//                for an unrecoverable error.
+// * setup_func -- Used to calculate and store a representation of the Jacobian matrix
+//                 J. This operator is computed whenever the integrator deems it necessary to 
+//                 reflect the the state of the system (according to inexact-Newton-like methods).
+//                 Arguments are:
+//                 - context: A pointer to the context object that stores the state of the solver.
+//                 - strategy: The type of iteration being used to solve the system. This affects
+//                             what is meant by "J": In the case of full Newton step and line 
+//                             search, J = dF/dU. In the case of Picard iteration, J means the 
+//                             linearization L of J. This function is never called in the case
+//                             of fixed point iteration.
+//                 - new_U: A flag that indicates whether U has been updated 
+//                          since the last call to the set-up function.
+//                 - t: The current time.
+//                 - U: The current solution vector U.
+//                 - F: The current system function (residual) vector F.
+//                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
+//                 for an unrecoverable error.
 // * solve_func -- Used to solve the linear system J * p = -F. Arguments are:
 //                 - context: A pointer to the context object that stores the state of the solver.
 //                 - DF: A vector containing the scaling vector DF.
@@ -73,6 +75,7 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int (*reset_func)(void* context),
                                    int (*setup_func)(void* context, 
                                                      newton_solver_strategy_t strategy,
+                                                     bool new_U,
                                                      real_t t,
                                                      real_t* U,
                                                      real_t* F),

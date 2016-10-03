@@ -40,6 +40,7 @@ struct newton_solver_t
   int (*reset_func)(void* context);
   int (*setup_func)(void* context, 
                     newton_solver_strategy_t strategy,
+                    bool new_U,
                     real_t t, 
                     real_t* U,
                     real_t* F);
@@ -51,6 +52,7 @@ struct newton_solver_t
                     real_t* p,
                     real_t* Jp_norm, 
                     real_t* F_o_Jp);
+  bool new_U;
 
   // KINSol data structures.
   void* kinsol;
@@ -132,8 +134,12 @@ static int newton_lsetup(KINMem kin_mem)
     strategy = NEWTON_FP;
   else if (newton->strategy == KIN_PICARD)
     strategy = NEWTON_PICARD;
-  return newton->setup_func(newton->context, strategy, t, 
-                            NV_DATA(kin_mem->kin_uu), NV_DATA(kin_mem->kin_fval));
+  int result = newton->setup_func(newton->context, strategy, 
+                                  newton->new_U, t, 
+                                  NV_DATA(kin_mem->kin_uu), 
+                                  NV_DATA(kin_mem->kin_fval));
+  newton->new_U = false;
+  return result;
 }
 
 static int newton_lsolve(KINMem kin_mem, 
@@ -163,6 +169,7 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int (*reset_func)(void* context),
                                    int (*setup_func)(void* context, 
                                                      newton_solver_strategy_t strategy,
+                                                     bool new_U,
                                                      real_t t,
                                                      real_t* U,
                                                      real_t* F),
@@ -223,6 +230,10 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   kin_mem->kin_lsetup = newton_lsetup;
   kin_mem->kin_lsolve = newton_lsolve;
   kin_mem->kin_lfree = newton_lfree;
+
+  // Set trivial scaling by default.
+  newton_solver_set_U_scale(solver, NULL);
+  newton_solver_set_F_scale(solver, NULL);
 
   // Enable debugging diagnostics if logging permits.
   FILE* info_stream = log_stream(LOG_DEBUG);
@@ -647,6 +658,7 @@ typedef struct
   krylov_matrix_t* J; // Jacobian matrix J.
   krylov_vector_t* X; // Increment vector.
   krylov_vector_t* B; // Right-hand side vector.
+  krylov_vector_t* scale; // Scaling vector.
 
   // Metadata.
   matrix_sparsity_t* sparsity;
@@ -655,17 +667,59 @@ typedef struct
 
 static int ink_reset(void* context)
 {
-  //FIXME
+  START_FUNCTION_TIMER();
+  ink_newton_t* ink = context;
+  
+  // Free any resources currently in use.
+  if (ink->J != NULL)
+    krylov_matrix_free(ink->J);
+  if (ink->block_size > 1)
+    ink->J = krylov_factory_block_matrix(ink->factory, ink->sparsity, ink->block_size);
+  else
+    ink->J = krylov_factory_matrix(ink->factory, ink->sparsity);
+  if (ink->X != NULL)
+    krylov_vector_free(ink->X);
+  if (ink->B != NULL)
+    krylov_vector_free(ink->B);
+  if (ink->scale != NULL)
+    krylov_vector_free(ink->scale);
+
+  // Allocate resources.
+  index_t* row_dist = matrix_sparsity_row_distribution(ink->sparsity);
+  ink->X = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->scale = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+
+  STOP_FUNCTION_TIMER();
   return 0;
 }
 
 static int ink_setup(void* context, 
                      newton_solver_strategy_t strategy,
+                     bool new_U,
                      real_t t,
                      real_t* U,
                      real_t* F)
 {
-  //FIXME
+  START_FUNCTION_TIMER();
+  if (new_U)
+  {
+    ink_newton_t* ink = context;
+    if ((strategy == NEWTON_FULL_STEP) || (strategy == NEWTON_LINE_SEARCH))
+      log_debug("ink_bdf_ode_integrator: Calculating J = dF/dU.");
+    else if (strategy == NEWTON_PICARD)
+      log_debug("ink_bdf_ode_integrator: Calculating L ~ dF/dU.");
+
+    // Compute the matrix.
+    int status = ink->J_func(ink->context, t, U, F, ink->J);
+    if (status != 0)
+      return status;
+
+    // Use this matrix as the operator in our solver.
+    krylov_solver_set_operator(ink->solver, ink->J);
+  }
+
+  STOP_FUNCTION_TIMER();
   return 0;
 }
 
@@ -678,14 +732,52 @@ static int ink_solve(void* context,
                      real_t* Jp_norm, 
                      real_t* F_o_Jp)
 {
-  //FIXME
-  return 0;
+  START_FUNCTION_TIMER();
+  ink_newton_t* ink = context;
+
+  // Copy RHS data from B into ink->B.
+  krylov_vector_copy_in(ink->B, B);
+
+  // Copy the F scaling into ink->scale.
+  krylov_vector_copy_in(ink->scale, DF);
+
+  // Set the initial guess to 0.
+  krylov_vector_zero(ink->X);
+
+  // Set the tolerance on the residual norm.
+  real_t rel_tol = 1e-8;
+  real_t div_tol = 10.0;
+  krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
+
+  // Solve A*X = B.
+  real_t res_norm;
+  int num_iters;
+  bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->scale, ink->scale, 
+                                           ink->X, &res_norm, &num_iters);
+
+  if (solved)
+  {
+    log_debug("ink_newton_solver: Solved A*X = B (||R|| == %g after %d iters).", res_norm, num_iters);
+
+    // Copy solution data from ink->X into p.
+    krylov_vector_copy_out(ink->X, p);
+    STOP_FUNCTION_TIMER();
+    return 0;
+  }
+  else
+  {
+    log_debug("ink_bdf_ode_integrator: Solution to A*X = B did not converge.");
+    STOP_FUNCTION_TIMER();
+    return 1;
+  }
 }
 
 static void ink_dtor(void* context)
 {
   ink_newton_t* ink = context;
   matrix_sparsity_free(ink->sparsity);
+  if (ink->scale != NULL)
+    krylov_vector_free(ink->scale);
   if (ink->X != NULL)
     krylov_vector_free(ink->X);
   if (ink->B != NULL)

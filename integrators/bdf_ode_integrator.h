@@ -125,26 +125,26 @@ typedef enum
 // * rhs_func -- Used to compute the right-hand side of the ODE.
 // * reset_func -- Used to reset the state of the integrator to integrate U at time t, as 
 //                 invoked by ode_integrator_reset(integ, t, U).
-// * set_up_func -- Used to calculate and store a representation of the linear operator 
-//                  I - gamma * J, where I is the identity operator, J is the Jacobian, and 
-//                  gamma is a positive scale factor related to the time step. This operator
-//                  is computed whenever the integrator deems it necessary to reflect the 
-//                  the state of the system (according to inexact-Newton-like methods).
-//                  Arguments are:
-//                  - context: A pointer to the context object that stores the state of the integrator.
-//                  - conv_status: A status code produced by the Newton solver for its solution
-//                                 at the given time step. See above.
-//                  - gamma: the scaling factor in I - gamma * J.
-//                  - step: The current integration step number since the initial time.
-//                  - t: The current time.
-//                  - U_pred: The predicted solution vector for the current step.
-//                  - U_dot_pred: The value of the right hand side at time t and U = U_pred.
-//                  - J_updated: A pointer to a boolean variable that conveys whether J has been updated by 
-//                               the function.
-//                  - work1, work2, work3: work vectors of the same size as the solution vector, provided 
-//                                         for use by this method.
-//                Should return 0 on success, a positive value for a recoverable error, and a negative value 
-//                for an unrecoverable error.
+// * setup_func -- Used to calculate and store a representation of the linear operator 
+//                 I - gamma * J, where I is the identity operator, J is the Jacobian, and 
+//                 gamma is a positive scale factor related to the time step. This operator
+//                 is computed whenever the integrator deems it necessary to reflect the 
+//                 the state of the system (according to inexact-Newton-like methods).
+//                 Arguments are:
+//                 - context: A pointer to the context object that stores the state of the integrator.
+//                 - conv_status: A status code produced by the Newton solver for its solution
+//                                at the given time step. See above.
+//                 - gamma: the scaling factor in I - gamma * J.
+//                 - step: The current integration step number since the initial time.
+//                 - t: The current time.
+//                 - U_pred: The predicted solution vector for the current step.
+//                 - U_dot_pred: The value of the right hand side at time t and U = U_pred.
+//                 - J_updated: A pointer to a boolean variable that conveys whether J has been updated by 
+//                              the function.
+//                 - work1, work2, work3: work vectors of the same size as the solution vector, provided 
+//                                        for use by this method.
+//                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
+//                 for an unrecoverable error.
 // * solve_func -- Used to solve the linear system (I - gamma * J) * X = B. Arguments are:
 //                 - context: A pointer to the context object that stores the state of the integrator.
 //                 - t: The current time.
