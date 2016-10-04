@@ -152,7 +152,7 @@ static int newton_lsolve(KINMem kin_mem,
   real_t t = newton->t;
   return newton->solve_func(newton->context, 
                             NV_DATA(kin_mem->kin_fscale), t,
-                            NV_DATA(B), kin_mem->kin_eps, 
+                            NV_DATA(B), kin_mem->kin_eta, 
                             NV_DATA(U), sJpnorm, sFdotJp);
 }
 
@@ -217,9 +217,6 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   solver->F_scale = N_VNew(solver->comm, num_local_values);
   solver->constraints = N_VNew(solver->comm, num_local_values);
   solver->status_message = NULL;
-  solver->reset_func = NULL;
-  solver->setup_func = NULL;
-  solver->solve_func = NULL;
   solver->t = 0.0;
 
   KINInit(solver->kinsol, evaluate_F, solver->U);
@@ -230,6 +227,7 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   kin_mem->kin_lsetup = newton_lsetup;
   kin_mem->kin_lsolve = newton_lsolve;
   kin_mem->kin_lfree = newton_lfree;
+  kin_mem->kin_setupNonNull = 1;
 
   // Set trivial scaling by default.
   newton_solver_set_U_scale(solver, NULL);
@@ -648,6 +646,7 @@ typedef struct
 
   // Behavior.
   void* context;
+  int (*F_func)(void* context, real_t t, real_t* U, real_t* F);
   int (*J_func)(void* context, real_t t, real_t* U, real_t* F, krylov_matrix_t* J);
   void (*dtor)(void* context);
 
@@ -664,6 +663,12 @@ typedef struct
   matrix_sparsity_t* sparsity;
   int block_size;
 } ink_newton_t;
+
+static int ink_F(void* context, real_t t, real_t* U, real_t* F)
+{
+  ink_newton_t* ink = context;
+  return ink->F_func(ink->context, t, U, F);
+}
 
 static int ink_reset(void* context)
 {
@@ -702,7 +707,7 @@ static int ink_setup(void* context,
                      real_t* F)
 {
   START_FUNCTION_TIMER();
-  if (new_U)
+//  if (new_U) // FIXME: Still not sure how to interpret this.
   {
     ink_newton_t* ink = context;
     if ((strategy == NEWTON_FULL_STEP) || (strategy == NEWTON_LINE_SEARCH))
@@ -803,6 +808,7 @@ newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
   ink_newton_t* ink = polymec_malloc(sizeof(ink_newton_t));
   ink->comm = comm;
   ink->context = context;
+  ink->F_func = F_func;
   ink->J_func = J_func;
   ink->dtor = dtor;
   ink->factory = factory;
@@ -812,11 +818,12 @@ newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
   ink->J = NULL;
   ink->B = NULL;
   ink->X = NULL;
+  ink->scale = NULL;
   ink->block_size = 1;
 
   int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));
   newton_solver_t* N = newton_solver_new(comm, num_local_values, 0,
-                                         ink, F_func, ink_reset, 
+                                         ink, ink_F, ink_reset, 
                                          ink_setup, ink_solve, ink_dtor);
 
   return N;

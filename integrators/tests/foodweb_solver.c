@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/polymec.h"
+#include "core/declare_nd_array.h"
 #include "integrators/newton_solver.h"
 #include "integrators/bj_newton_pc.h"
 
@@ -122,9 +123,9 @@
 
 typedef struct 
 {
-  real_t **acoef, *bcoef;
+  real_t acoef[NUM_SPECIES][NUM_SPECIES], bcoef[NUM_SPECIES];
   real_t *rates;
-  real_t *cox, *coy;
+  real_t cox[NUM_SPECIES], coy[NUM_SPECIES];
   real_t ax, ay, dx, dy;
   real_t uround, sqruround;
   long int mx, my, ns, np;
@@ -147,11 +148,7 @@ static foodweb_t* foodweb_new()
 {
   real_t *a1,*a2, *a3, *a4;
 
-  foodweb_t* data = malloc(sizeof(foodweb_t));
-  acoef = newDenseMat(NUM_SPECIES, NUM_SPECIES);
-  bcoef = malloc(NUM_SPECIES * sizeof(real_t));
-  cox   = malloc(NUM_SPECIES * sizeof(real_t));
-  coy   = malloc(NUM_SPECIES * sizeof(real_t));
+  foodweb_t* data = polymec_malloc(sizeof(foodweb_t));
   
   data->mx = MX;
   data->my = MY;
@@ -163,7 +160,7 @@ static foodweb_t* foodweb_new()
   data->dy = (data->ay)/(MY-1);
   data->uround = UNIT_ROUNDOFF;
   data->sqruround = sqrt(data->uround);
-  data->rates = malloc(sizeof(real_t) * NEQ);
+  data->rates = polymec_malloc(sizeof(real_t) * NEQ);
 
   // Set up the coefficients a and b plus others found in the equations.
   long np = data->np;
@@ -202,32 +199,28 @@ static foodweb_t* foodweb_new()
 
   // Construct a sparsity graph.
   adj_graph_t* sparsity = adj_graph_new(MPI_COMM_SELF, MX*MY);
-  for (int jy = 0; jy < MY; jy++) 
+  for (int i = 0; i < MX; ++i) 
   {
-    // Set lower/upper index shifts, special at boundaries. 
-    int idyl = (jy != 0   ) ? MX : -MX;
-    int idyu = (jy != MY-1) ? MX : -MX;
-    
-    for (int jx = 0; jx < MX; jx++) 
-    {
-      // Set left/right index shifts, special at boundaries. 
-      int idxl = (jx !=  0  ) ?  1 : -1;
-      int idxr = (jx != MX-1) ?  1 : -1;
+    // Set left/right index shifts, special at boundaries. 
+    int i_left  = (i !=  0  ) ? -1 :  1;
+    int i_right = (i != MX-1) ?  1 : -1;
 
+    for (int j = 0; j < MY; ++j) 
+    {
+      // Set lower/upper index shifts, special at boundaries. 
+      int j_down = (j != 0   ) ? -1 :  1;
+      int j_up   = (j != MY-1) ?  1 : -1;
+    
       // Find the edges for the vertex corresponding to (jx, jy).
-      int idx = jx + MX*jy;
       int num_edges = 0;
       int edges[4];
-      if (jy > 0)
-        edges[num_edges++] = idx - idyl; // lower
-      if (jy < (MY-1))
-        edges[num_edges++] = idx + idyu; // upper
-      if (jx > 0)
-        edges[num_edges++] = idx - idxl; // left
-      if (jx < (MX-1))
-        edges[num_edges++] = idx + idxr; // right
+      edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i, j+j_down); // lower
+      edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i, j+j_up); // upper
+      edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i+i_left, j); // left
+      edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i+i_right, j); // right
 
       // Set the edges within the sparsity graph.
+      int idx = ARRAY_INDEX_2D(MX, MY, i, j);
       adj_graph_set_num_edges(sparsity, idx, num_edges);
       memcpy(adj_graph_edges(sparsity, idx), edges, sizeof(int) * num_edges);
     }
@@ -244,17 +237,13 @@ static void foodweb_dtor(void* context)
 {
   foodweb_t* data = context;
   
-  destroyMat(acoef);
-  free(bcoef);
-  free(cox);
-  free(coy);
-  free(data->rates);
+  polymec_free(data->rates);
   adj_graph_free(data->sparsity);
-  free(data);
+  polymec_free(data);
 }
 
 // Dot product routine for real_t arrays 
-static real_t dot_prod(long int size, real_t *x1, real_t *x2)
+static real_t dot_prod(long int size, real_t* x1, real_t* x2)
 {
   long int i;
   real_t *xx1, *xx2, temp = ZERO;
@@ -269,67 +258,63 @@ static real_t dot_prod(long int size, real_t *x1, real_t *x2)
 // Interaction rate function routine 
 static void web_rate(void* context, real_t xx, real_t yy, real_t *cxy, real_t *ratesxy)
 {
-  long int i;
-  real_t fac;
   foodweb_t* data = context;
   
-  for (i = 0; i<NUM_SPECIES; i++)
+  for (int i = 0; i < NUM_SPECIES; ++i)
     ratesxy[i] = dot_prod(NUM_SPECIES, cxy, acoef[i]);
   
-  fac = ONE + ALPHA * xx * yy;
+  real_t fac = ONE + ALPHA * xx * yy;
   
-  for (i = 0; i < NUM_SPECIES; i++)
+  for (int i = 0; i < NUM_SPECIES; i++)
     ratesxy[i] = cxy[i] * ( bcoef[i] * fac + ratesxy[i] );  
 }
 
 // System function
-static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
+static int foodweb_func(void* context, real_t t, real_t* U, real_t* F)
 {
-  real_t xx, yy, delx, dely, *cxy, *rxy, *fxy, dcyli, dcyui, dcxli, dcxri;
-  long int jx, jy, is, idyu, idyl, idxr, idxl;
   foodweb_t* data = context;
   
-  delx = data->dx;
-  dely = data->dy;
+  DECLARE_3D_ARRAY(real_t, U_ijk, U, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, F_ijk, F, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, r_ijk, data->rates, MX, MY, NUM_SPECIES);
+
+  real_t delx = data->dx;
+  real_t dely = data->dy;
   
   // Loop over all mesh points, evaluating rate array at each point
-  for (jy = 0; jy < MY; jy++) 
+  for (int i = 0; i < MX; ++i) 
   {
-    
-    yy = dely*jy;
+    real_t xi = delx*i;
 
-    // Set lower/upper index shifts, special at boundaries. 
-    idyl = (jy != 0   ) ? NSMX : -NSMX;
-    idyu = (jy != MY-1) ? NSMX : -NSMX;
-    
-    for (jx = 0; jx < MX; jx++) {
+    // Set left/right index shifts, special at boundaries. 
+    int i_left  = (i !=  0  ) ? -1 :  1;
+    int i_right = (i != MX-1) ?  1 : -1;
 
-      xx = delx*jx;
+    for (int j = 0; j < MY; ++j) 
+    {
+      real_t yj = dely*j;
 
-      // Set left/right index shifts, special at boundaries. 
-      idxl = (jx !=  0  ) ?  NUM_SPECIES : -NUM_SPECIES;
-      idxr = (jx != MX-1) ?  NUM_SPECIES : -NUM_SPECIES;
+      // Set lower/upper index shifts, special at boundaries. 
+      int j_down = (j != 0   ) ? -1 :  1;
+      int j_up   = (j != MY-1) ?  1 : -1;
 
-      cxy = IJ_Vptr(cc,jx,jy);
-      rxy = IJ_Vptr(data->rates,jx,jy);
-      fxy = IJ_Vptr(fval,jx,jy);
-
-      // Get species interaction rate array at (xx,yy) 
-      web_rate(data, xx, yy, cxy, rxy);
+      // Get species interaction rate array at (xi,yj) 
+      web_rate(data, xi, yj, U_ijk[i][j], r_ijk[i][j]);
       
-      for(is = 0; is < NUM_SPECIES; is++) {
-        
+      for(int s = 0; s < NUM_SPECIES; s++) 
+      {
         // Differencing in x direction 
-        dcyli = *(cxy+is) - *(cxy - idyl + is) ;
-        dcyui = *(cxy + idyu + is) - *(cxy+is);
+        real_t dcyli = U_ijk[i][j][s] - U_ijk[i][j+j_down][s];
+        real_t dcyui = U_ijk[i][j+j_up][s] - U_ijk[i][j][s];
         
         // Differencing in y direction 
-        dcxli = *(cxy+is) - *(cxy - idxl + is);
-        dcxri = *(cxy + idxr +is) - *(cxy+is);
+        real_t dcxli = U_ijk[i][j][s] - U_ijk[i+i_left][j][s];
+        real_t dcxri = U_ijk[i+i_right][j][s] - U_ijk[i][j][s];
 
-        // Compute the total rate value at (xx,yy) 
-        fxy[is] = (coy)[is] * (dcyui - dcyli) +
-          (cox)[is] * (dcxri - dcxli) + rxy[is];
+        // Compute F at (xi,yj) 
+        F_ijk[i][j][s] = (coy)[s] * (dcyui - dcyli) +
+                         (cox)[s] * (dcxri - dcxli) + 
+                         r_ijk[i][j][s];
       }
     }
   }
@@ -338,53 +323,84 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
 }
 
 // Jacobian function
-static int foodweb_J(void* context, real_t t, real_t* cc, real_t* fval, krylov_matrix_t* J)
+static int foodweb_J(void* context, 
+                     real_t t, real_t* U, real_t* F, 
+                     krylov_matrix_t* J)
 {
-  real_t xx, yy, delx, dely, *cxy, *rxy, *fxy, dcyli, dcyui, dcxli, dcxri;
-  long int jx, jy, is, idyu, idyl, idxr, idxl;
   foodweb_t* data = context;
   
-  delx = data->dx;
-  dely = data->dy;
+  DECLARE_3D_ARRAY(real_t, U_ijk, U, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, r_ijk, data->rates, MX, MY, NUM_SPECIES);
+
+  real_t delx = data->dx;
+  real_t dely = data->dy;
   
   // Loop over all mesh points, evaluating rate array at each point
-  for (jy = 0; jy < MY; jy++) 
+  for (int i = 0; i < MX; ++i) 
   {
-    
-    yy = dely*jy;
+    real_t xi = delx*i;
 
-    // Set lower/upper index shifts, special at boundaries. 
-    idyl = (jy != 0   ) ? NSMX : -NSMX;
-    idyu = (jy != MY-1) ? NSMX : -NSMX;
-    
-    for (jx = 0; jx < MX; jx++) {
+    // Set left/right index shifts, special at boundaries. 
+    int i_left  = (i !=  0  ) ? -1 :  1;
+    int i_right = (i != MX-1) ?  1 : -1;
 
-      xx = delx*jx;
+    for (int j = 0; j < MY; ++j) 
+    {
+      real_t yj = dely*j;
 
-      // Set left/right index shifts, special at boundaries. 
-      idxl = (jx !=  0  ) ?  NUM_SPECIES : -NUM_SPECIES;
-      idxr = (jx != MX-1) ?  NUM_SPECIES : -NUM_SPECIES;
-
-      cxy = IJ_Vptr(cc,jx,jy);
-      rxy = IJ_Vptr(data->rates,jx,jy);
-      fxy = IJ_Vptr(fval,jx,jy);
+      // Set lower/upper index shifts, special at boundaries. 
+      int j_down = (j != 0   ) ? -1 :  1;
+      int j_up   = (j != MY-1) ?  1 : -1;
 
       // Get species interaction rate array at (xx,yy) 
-      web_rate(data, xx, yy, cxy, rxy);
-      
-      for(is = 0; is < NUM_SPECIES; is++) {
-        
-        // Differencing in x direction 
-        dcyli = *(cxy+is) - *(cxy - idyl + is) ;
-        dcyui = *(cxy + idyu + is) - *(cxy+is);
-        
-        // Differencing in y direction 
-        dcxli = *(cxy+is) - *(cxy - idxl + is);
-        dcxri = *(cxy + idxr +is) - *(cxy+is);
+      web_rate(data, xi, yj, U_ijk[i][j], r_ijk[i][j]);
+      for(int s = 0; s < NUM_SPECIES; s++) 
+      {
+        // There are up to 4 + NUM_SPECIES Jacobian contributions for each 
+        // species: 5 stencil points, and NUM_SPECIES-1 reaction terms in 
+        // the same location. We lump the diagonal in with the reactions 
+        // for simplicity.
+        real_t J_left = 0.0, J_right = 0.0, 
+               J_up = 0.0, J_down = 0.0,
+               J_rxn[NUM_SPECIES];
+        index_t I_left  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_left, j, 0),
+                I_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_right, j, 0),
+                I_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+j_up, 0),
+                I_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+j_down, 0),
+                I_rxn[NUM_SPECIES];
 
-        // Compute the total rate value at (xx,yy) 
-        fxy[is] = (coy)[is] * (dcyui - dcyli) +
-          (cox)[is] * (dcxri - dcxli) + rxy[is];
+        // Compute reaction rate derivatives.
+        for (int s1 = 0; s1 < NUM_SPECIES; ++s1)
+        {
+          I_rxn[s1] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j, s1);
+          J_rxn[s1] = 2.0 * r_ijk[i][j][s]/U_ijk[i][j][s1];
+        }
+
+        // Differencing in x direction.
+        J_rxn[s] = -2.0 * (cox)[s];
+        J_left   = (cox)[s];
+        J_right  = (cox)[s];
+
+        // Differencing in y direction.
+        J_rxn[s] = -2.0 * (coy)[s];
+        J_up     = (coy)[s];
+        J_down   = (coy)[s];
+
+        // Stick all these values into the matrix.
+        index_t row = I_rxn[s];
+        index_t num_cols = 4 + NUM_SPECIES;
+        index_t cols[4+NUM_SPECIES];
+        real_t values[4+NUM_SPECIES];
+        cols[0] = I_left; values[0] = J_left;
+        cols[1] = I_right; values[1] = J_right;
+        cols[2] = I_up; values[2] = J_up;
+        cols[3] = I_down; values[3] = J_down;
+        for (int s1 = 0; s1 < NUM_SPECIES; ++s1)
+        {
+          cols[4+s1] = I_rxn[s1];
+          values[4+s1] = J_rxn[s1];
+        }
+        krylov_matrix_set_values(J, 1, &num_cols, &row, cols, values);
       }
     }
   }
@@ -444,7 +460,7 @@ newton_solver_t* block_jacobi_precond_foodweb_solver_new()
 real_t* foodweb_initial_conditions(void);
 real_t* foodweb_initial_conditions()
 {
-  real_t* cc = malloc(sizeof(real_t) * NEQ);
+  real_t* cc = polymec_malloc(sizeof(real_t) * NEQ);
   int i, jx, jy;
   real_t *cloc;
   real_t  ctemp[NUM_SPECIES];
