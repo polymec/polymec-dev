@@ -347,13 +347,6 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
       J1_right +=  horaco;
       J2_left  += -horaco;
       J2_right +=  horaco;
-if ((jx == 5) && (jy == 5))
-{
-  printf("t = %g: At (%d, %d):\n", t, jx, jy);
-  printf("t = %g: c1 = %g, c2 = %g:\n", t, c1, c2);
-  printf("t = %g: J(%llu, %llu) = %g, J(%llu, %llu) = %g\n", t, I1_self, I1_self, J1_self, I1_self, I2_self, J1_rxn);
-  printf("t = %g: J(%llu, %llu) = %g, J(%llu, %llu) = %g\n", t, I2_self, I1_self, J2_rxn, I2_self, I2_self, J2_self);
-}
 
       // Aggregate the values, since some of them are aliased on top of each 
       // other (owing to periodic boundary conditions).
@@ -388,14 +381,6 @@ if ((jx == 5) && (jy == 5))
   // Clean up.
   index_real_unordered_map_free(I1_map);
   index_real_unordered_map_free(I2_map);
-//static bool first = true;
-//if (first)
-//{
-//first = false;
-//FILE* f = fopen("J.txt", "w");
-//krylov_matrix_fprintf(J, f);
-//fclose(f);
-//}
 
   return 0;
 }
