@@ -877,6 +877,14 @@ static void hypre_vector_copy_out(void* context, real_t* local_values);
 static void hypre_matrix_diag_scale(void* context, void* L, void* R)
 {
   hypre_matrix_t* A = context;
+
+  // FIXME: For now, this doesn't work on parallel runs, because we don't 
+  // FIXME: make allowances for row vectors.
+  int nprocs;
+  MPI_Comm_size(A->comm, &nprocs);
+  if (nprocs > 1)
+    polymec_error("hypre_matrix_diag_scale: Not supported for nprocs > 1.");
+
   index_t num_rows = A->ihigh - A->ilow + 1;
   real_t Li[num_rows], Rj[num_rows];
   hypre_vector_copy_out(L, Li);
