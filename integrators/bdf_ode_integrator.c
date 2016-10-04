@@ -822,6 +822,7 @@ typedef struct
 
   // Behavior.
   void* context;
+  int (*rhs_func)(void* context, real_t t, real_t* U, real_t* U_dot);
   int (*J_func)(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J);
   void (*dtor)(void* context);
 
@@ -841,7 +842,13 @@ typedef struct
   int block_size;
 } ink_bdf_ode_t;
 
-static int ink_reset(void* context, real_t t, real_t* X)
+static int ink_rhs(void* context, real_t t, real_t* U, real_t* U_dot)
+{
+  ink_bdf_ode_t* ink = context;
+  return ink->rhs_func(ink->context, t, U, U_dot);
+}
+
+static int ink_reset(void* context, real_t t, real_t* U)
 {
   START_FUNCTION_TIMER();
   ink_bdf_ode_t* ink = context;
@@ -1030,6 +1037,7 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
   ink_bdf_ode_t* ink = polymec_malloc(sizeof(ink_bdf_ode_t));
   ink->comm = comm;
   ink->context = context;
+  ink->rhs_func = rhs_func;
   ink->J_func = J_func;
   ink->dtor = dtor;
   ink->factory = factory;
@@ -1047,7 +1055,7 @@ ode_integrator_t* ink_bdf_ode_integrator_new(int order,
   int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));
   ode_integrator_t* I = bdf_ode_integrator_new(name, order, comm, 
                                                num_local_values, 0,
-                                               ink, rhs_func, ink_reset, 
+                                               ink, ink_rhs, ink_reset, 
                                                ink_setup, ink_solve, ink_dtor);
 
   // Set default tolerances.
