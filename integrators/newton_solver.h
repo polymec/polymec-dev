@@ -43,8 +43,6 @@ typedef enum
 //                             search, J = dF/dU. In the case of Picard iteration, J means the 
 //                             linearization L of J. This function is never called in the case
 //                             of fixed point iteration.
-//                 - new_U: A flag that indicates whether U has been updated 
-//                          since the last call to the set-up function.
 //                 - t: The current time.
 //                 - U: The current solution vector U.
 //                 - F: The current system function (residual) vector F.
@@ -75,7 +73,6 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int (*reset_func)(void* context),
                                    int (*setup_func)(void* context, 
                                                      newton_solver_strategy_t strategy,
-                                                     bool new_U,
                                                      real_t t,
                                                      real_t* U,
                                                      real_t* F),

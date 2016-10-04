@@ -214,10 +214,14 @@ static foodweb_t* foodweb_new()
       // Find the edges for the vertex corresponding to (jx, jy).
       int num_edges = 0;
       int edges[4];
-      edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i, j+j_down); // lower
-      edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i, j+j_up); // upper
-      edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i+i_left, j); // left
-      edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i+i_right, j); // right
+      if (j > 0)
+        edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i, j+j_down); // lower
+      if (j < (MY-1))
+        edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i, j+j_up); // upper
+      if (i > 0)
+        edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i+i_left, j); // left
+      if (i < (MX-1))
+        edges[num_edges++] = ARRAY_INDEX_2D(MX, MY, i+i_right, j); // right
 
       // Set the edges within the sparsity graph.
       int idx = ARRAY_INDEX_2D(MX, MY, i, j);
@@ -322,6 +326,32 @@ static int foodweb_func(void* context, real_t t, real_t* U, real_t* F)
   return 0;
 }
 
+// Function for accumulating a Jacobian column value into a column map.
+static void accumulate_J_value(index_real_unordered_map_t* col_map, 
+                               index_t column, 
+                               real_t value)
+{
+  real_t* val_ptr = index_real_unordered_map_get(col_map, column);
+  if (val_ptr == NULL) // New value is inserted.
+    index_real_unordered_map_insert(col_map, column, value);
+  else // accumulate the given value into the existing one.
+    index_real_unordered_map_insert(col_map, column, value + *val_ptr);
+}
+
+// Function for inserting a row of values into the Jacobian matrix.
+static void insert_J_values(index_t row, 
+                            index_real_unordered_map_t* col_map, 
+                            krylov_matrix_t* J)
+{
+  index_t num_cols = (index_t)col_map->size;
+  index_t indices[num_cols];
+  real_t values[num_cols];
+  int pos = 0, k = 0;
+  while (index_real_unordered_map_next(col_map, &pos, &indices[k], &values[k])) ++k;
+  krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);
+  index_real_unordered_map_clear(col_map);
+}
+
 // Jacobian function
 static int foodweb_J(void* context, 
                      real_t t, real_t* U, real_t* F, 
@@ -335,6 +365,9 @@ static int foodweb_J(void* context,
   real_t delx = data->dx;
   real_t dely = data->dy;
   
+  // Maps from indices to their values in the Jacobian.
+  index_real_unordered_map_t* I_map = index_real_unordered_map_new();
+
   // Loop over all mesh points, evaluating rate array at each point
   for (int i = 0; i < MX; ++i) 
   {
@@ -352,7 +385,7 @@ static int foodweb_J(void* context,
       int j_down = (j != 0   ) ? -1 :  1;
       int j_up   = (j != MY-1) ?  1 : -1;
 
-      // Get species interaction rate array at (xx,yy) 
+      // Get species interaction rate array at (xi,yj) 
       web_rate(data, xi, yj, U_ijk[i][j], r_ijk[i][j]);
       for(int s = 0; s < NUM_SPECIES; s++) 
       {
@@ -377,33 +410,43 @@ static int foodweb_J(void* context,
         }
 
         // Differencing in x direction.
-        J_rxn[s] = -2.0 * (cox)[s];
+        J_rxn[s] += -2.0 * (cox)[s];
         J_left   = (cox)[s];
         J_right  = (cox)[s];
 
         // Differencing in y direction.
-        J_rxn[s] = -2.0 * (coy)[s];
+        J_rxn[s] += -2.0 * (coy)[s];
         J_up     = (coy)[s];
         J_down   = (coy)[s];
 
-        // Stick all these values into the matrix.
-        index_t row = I_rxn[s];
-        index_t num_cols = 4 + NUM_SPECIES;
-        index_t cols[4+NUM_SPECIES];
-        real_t values[4+NUM_SPECIES];
-        cols[0] = I_left; values[0] = J_left;
-        cols[1] = I_right; values[1] = J_right;
-        cols[2] = I_up; values[2] = J_up;
-        cols[3] = I_down; values[3] = J_down;
+        // Accumulate the column values.
+        accumulate_J_value(I_map, I_left, J_left);
+        accumulate_J_value(I_map, I_right, J_right);
+        accumulate_J_value(I_map, I_up, J_up);
+        accumulate_J_value(I_map, I_down, J_down);
         for (int s1 = 0; s1 < NUM_SPECIES; ++s1)
-        {
-          cols[4+s1] = I_rxn[s1];
-          values[4+s1] = J_rxn[s1];
-        }
-        krylov_matrix_set_values(J, 1, &num_cols, &row, cols, values);
+          accumulate_J_value(I_map, I_rxn[s1], J_rxn[s1]);
+
+        // Stick the data into the matrix.
+        index_t row = I_rxn[s];
+        insert_J_values(row, I_map, J);
       }
     }
   }
+
+  // Make sure the matrix is assembled.
+  krylov_matrix_assemble(J);
+//static bool first = true;
+//if (first)
+//{
+//FILE* f = fopen("J.txt", "w");
+//krylov_matrix_fprintf(J, f);
+//fclose(f);
+//first = false;
+//}
+
+  // Clean up.
+  index_real_unordered_map_free(I_map);
 
   return 0;
 }

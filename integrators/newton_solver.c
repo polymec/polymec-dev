@@ -40,7 +40,6 @@ struct newton_solver_t
   int (*reset_func)(void* context);
   int (*setup_func)(void* context, 
                     newton_solver_strategy_t strategy,
-                    bool new_U,
                     real_t t, 
                     real_t* U,
                     real_t* F);
@@ -52,7 +51,6 @@ struct newton_solver_t
                     real_t* p,
                     real_t* Jp_norm, 
                     real_t* F_o_Jp);
-  bool new_U;
 
   // KINSol data structures.
   void* kinsol;
@@ -134,11 +132,9 @@ static int newton_lsetup(KINMem kin_mem)
     strategy = NEWTON_FP;
   else if (newton->strategy == KIN_PICARD)
     strategy = NEWTON_PICARD;
-  int result = newton->setup_func(newton->context, strategy, 
-                                  newton->new_U, t, 
+  int result = newton->setup_func(newton->context, strategy, t, 
                                   NV_DATA(kin_mem->kin_uu), 
                                   NV_DATA(kin_mem->kin_fval));
-  newton->new_U = false;
   return result;
 }
 
@@ -169,7 +165,6 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int (*reset_func)(void* context),
                                    int (*setup_func)(void* context, 
                                                      newton_solver_strategy_t strategy,
-                                                     bool new_U,
                                                      real_t t,
                                                      real_t* U,
                                                      real_t* F),
@@ -607,12 +602,24 @@ void newton_solver_get_diagnostics(newton_solver_t* solver,
   KINGetNumBacktrackOps(solver->kinsol, &diagnostics->num_backtrack_operations);
   KINGetFuncNorm(solver->kinsol, &diagnostics->scaled_function_norm);
   KINGetStepLength(solver->kinsol, &diagnostics->scaled_newton_step_length);
-  KINSpilsGetNumLinIters(solver->kinsol, &diagnostics->num_linear_solve_iterations);
-  KINSpilsGetNumConvFails(solver->kinsol, &diagnostics->num_linear_solve_convergence_failures);
-  KINSpilsGetNumPrecEvals(solver->kinsol, &diagnostics->num_preconditioner_evaluations);
-  KINSpilsGetNumPrecSolves(solver->kinsol, &diagnostics->num_preconditioner_solves);
-  KINSpilsGetNumJtimesEvals(solver->kinsol, &diagnostics->num_jacobian_vector_product_evaluations);
-  KINSpilsGetNumFuncEvals(solver->kinsol, &diagnostics->num_difference_quotient_function_evaluations);
+  if (solver->solve_func == NULL) // JFNK mode
+  {
+    KINSpilsGetNumLinIters(solver->kinsol, &diagnostics->num_linear_solve_iterations);
+    KINSpilsGetNumConvFails(solver->kinsol, &diagnostics->num_linear_solve_convergence_failures);
+    KINSpilsGetNumPrecEvals(solver->kinsol, &diagnostics->num_preconditioner_evaluations);
+    KINSpilsGetNumPrecSolves(solver->kinsol, &diagnostics->num_preconditioner_solves);
+    KINSpilsGetNumJtimesEvals(solver->kinsol, &diagnostics->num_jacobian_vector_product_evaluations);
+    KINSpilsGetNumFuncEvals(solver->kinsol, &diagnostics->num_difference_quotient_function_evaluations);
+  }
+  else
+  {
+    diagnostics->num_linear_solve_iterations = -1;
+    diagnostics->num_linear_solve_convergence_failures = -1;
+    diagnostics->num_preconditioner_evaluations = -1;
+    diagnostics->num_preconditioner_solves = -1;
+    diagnostics->num_jacobian_vector_product_evaluations = -1;
+    diagnostics->num_difference_quotient_function_evaluations = -1;
+  }
 }
 
 void newton_solver_diagnostics_fprintf(newton_solver_diagnostics_t* diagnostics, 
@@ -628,12 +635,18 @@ void newton_solver_diagnostics_fprintf(newton_solver_diagnostics_t* diagnostics,
   fprintf(stream, "  Num nonlinear iterations: %d\n", (int)diagnostics->num_nonlinear_iterations);
   fprintf(stream, "  Scaled function norm: %g\n", (double)diagnostics->scaled_function_norm);
   fprintf(stream, "  Scaled Newton step length: %g\n", (double)diagnostics->scaled_newton_step_length);
-  fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
-  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
-  fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
-  fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
-  fprintf(stream, "  Num Jacobian-vector product evaluations: %d\n", (int)diagnostics->num_jacobian_vector_product_evaluations);
-  fprintf(stream, "  Num difference quotient function evaluations: %d\n", (int)diagnostics->num_difference_quotient_function_evaluations);
+  if (diagnostics->num_linear_solve_iterations != -1)
+    fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
+  if (diagnostics->num_linear_solve_convergence_failures != -1)
+    fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  if (diagnostics->num_preconditioner_evaluations != -1)
+    fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
+  if (diagnostics->num_preconditioner_solves != -1)
+    fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
+  if (diagnostics->num_jacobian_vector_product_evaluations != -1)
+    fprintf(stream, "  Num Jacobian-vector product evaluations: %d\n", (int)diagnostics->num_jacobian_vector_product_evaluations);
+  if (diagnostics->num_difference_quotient_function_evaluations != -1)
+    fprintf(stream, "  Num difference quotient function evaluations: %d\n", (int)diagnostics->num_difference_quotient_function_evaluations);
 }
 
 //------------------------------------------------------------------------
@@ -701,28 +714,24 @@ static int ink_reset(void* context)
 
 static int ink_setup(void* context, 
                      newton_solver_strategy_t strategy,
-                     bool new_U,
                      real_t t,
                      real_t* U,
                      real_t* F)
 {
   START_FUNCTION_TIMER();
-//  if (new_U) // FIXME: Still not sure how to interpret this.
-  {
-    ink_newton_t* ink = context;
-    if ((strategy == NEWTON_FULL_STEP) || (strategy == NEWTON_LINE_SEARCH))
-      log_debug("ink_bdf_ode_integrator: Calculating J = dF/dU.");
-    else if (strategy == NEWTON_PICARD)
-      log_debug("ink_bdf_ode_integrator: Calculating L ~ dF/dU.");
+  ink_newton_t* ink = context;
+  if ((strategy == NEWTON_FULL_STEP) || (strategy == NEWTON_LINE_SEARCH))
+    log_debug("ink_bdf_ode_integrator: Calculating J = dF/dU.");
+  else if (strategy == NEWTON_PICARD)
+    log_debug("ink_bdf_ode_integrator: Calculating L ~ dF/dU.");
 
-    // Compute the matrix.
-    int status = ink->J_func(ink->context, t, U, F, ink->J);
-    if (status != 0)
-      return status;
+  // Compute the matrix.
+  int status = ink->J_func(ink->context, t, U, F, ink->J);
+  if (status != 0)
+    return status;
 
-    // Use this matrix as the operator in our solver.
-    krylov_solver_set_operator(ink->solver, ink->J);
-  }
+  // Use this matrix as the operator in our solver.
+  krylov_solver_set_operator(ink->solver, ink->J);
 
   STOP_FUNCTION_TIMER();
   return 0;

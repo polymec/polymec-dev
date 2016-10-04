@@ -114,29 +114,29 @@ static diurnal_t* diurnal_new()
 
   // Construct a sparsity graph.
   data->sparsity = adj_graph_new(MPI_COMM_SELF, MX*MY*NUM_SPECIES);
-  for (int jx = 0; jx < MX; ++jx) 
+  for (int i = 0; i < MX; ++i) 
   {
-    int i_left = (jx == 0) ? 1 : -1;
-    int i_right =(jx == MX-1) ? -1 : 1;
-    for (int jy = 0; jy < MY; ++jy) 
+    int i_left = (i == 0) ? 1 : -1;
+    int i_right =(i == MX-1) ? -1 : 1;
+    for (int j = 0; j < MY; ++j) 
     {
-      int i_down = (jy == 0) ? 1 : -1;
-      int i_up = (jy == MY-1) ? -1 : 1;
+      int j_down = (j == 0) ? 1 : -1;
+      int j_up = (j == MY-1) ? -1 : 1;
       for (int s = 0; s < 2; ++s)
       {
-        int i_self = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy, s);
+        int i_self = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j, s);
         // Set the edges within the sparsity graph.
         int num_edges = 0;
         int edges[5];
-        edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy, (s+1) % NUM_SPECIES);
-        if (jy > 0)
-          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_up, s);
-        if (jy < (MY-1))
-          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_down, s);
-        if (jx > 0)
-          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_left, jy, s);
-        if (jx < (MX-1))
-          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_right, jy, s);
+        edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j, (s+1) % NUM_SPECIES);
+        if (j > 0)
+          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+j_down, s);
+        if (j < (MY-1))
+          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+j_up, s);
+        if (i > 0)
+          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_left, j, s);
+        if (i < (MX-1))
+          edges[num_edges++] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_right, j, s);
         adj_graph_set_num_edges(data->sparsity, i_self, num_edges);
         memcpy(adj_graph_edges(data->sparsity, i_self), edges, sizeof(int) * num_edges);
       }
@@ -254,6 +254,7 @@ static void insert_J_values(index_t row,
   int pos = 0, k = 0;
   while (index_real_unordered_map_next(col_map, &pos, &indices[k], &values[k])) ++k;
   krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);
+  index_real_unordered_map_clear(col_map);
 }
 
 // Function for constructing the Jacobian matrix for the diurnal system.
@@ -350,7 +351,6 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
 
       // Aggregate the values, since some of them are aliased on top of each 
       // other (owing to periodic boundary conditions).
-      index_real_unordered_map_clear(I1_map);
       accumulate_J_value(I1_map, I1_self, J1_self);
       accumulate_J_value(I1_map, I2_self, J1_rxn);
       accumulate_J_value(I1_map, I1_left, J1_left);
@@ -358,7 +358,6 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
       accumulate_J_value(I1_map, I1_up, J1_up);
       accumulate_J_value(I1_map, I1_down, J1_down);
 
-      index_real_unordered_map_clear(I2_map);
       accumulate_J_value(I2_map, I2_self, J2_self);
       accumulate_J_value(I2_map, I1_self, J2_rxn);
       accumulate_J_value(I2_map, I2_left, J2_left);
