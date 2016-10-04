@@ -112,15 +112,6 @@
 #define PREYIN      RCONST(1.0)    // initial guess for prey concentrations. 
 #define PREDIN      RCONST(30000.0)// initial guess for predator concs.  
 
-// User-defined vector access macro: IJ_Vptr 
-
-// IJ_Vptr is defined in order to translate from the underlying 3D structure
-// of the dependent variable vector to the 1D storage scheme for an N-vector.
-// IJ_Vptr(vv,i,j) returns a pointer to the location in vv corresponding to 
-// indices is = 0, jx = i, jy = j.    
-
-#define IJ_Vptr(vv,i,j)   (&vv[i*NUM_SPECIES + j*NSMX])
-
 typedef struct 
 {
   real_t acoef[NUM_SPECIES][NUM_SPECIES], bcoef[NUM_SPECIES];
@@ -167,7 +158,7 @@ static foodweb_t* foodweb_new()
 
   real_t dx2=(data->dx)*(data->dx), dy2=(data->dy)*(data->dy);
 
-  for (long i = 0; i < np; i++) 
+  for (long i = 0; i < np; ++i) 
   {
     a1= &(acoef[i][np]);
     a2= &(acoef[i+np][0]);
@@ -175,7 +166,7 @@ static foodweb_t* foodweb_new()
     a4= &(acoef[i+np][np]);
 
     // Fill in the portion of acoef in the four quadrants, row by row...
-    for (long j = 0; j < np; j++) 
+    for (long j = 0; j < np; ++j) 
     {
       *a1++ =  -GG;
       *a2++ =   EE;
@@ -253,7 +244,7 @@ static real_t dot_prod(long int size, real_t* x1, real_t* x2)
   real_t *xx1, *xx2, temp = ZERO;
   
   xx1 = x1; xx2 = x2;
-  for (i = 0; i < size; i++) 
+  for (i = 0; i < size; ++i) 
     temp += (*xx1++) * (*xx2++);
 
   return temp;
@@ -269,7 +260,7 @@ static void web_rate(void* context, real_t xx, real_t yy, real_t *cxy, real_t *r
   
   real_t fac = ONE + ALPHA * xx * yy;
   
-  for (int i = 0; i < NUM_SPECIES; i++)
+  for (int i = 0; i < NUM_SPECIES; ++i)
     ratesxy[i] = cxy[i] * ( bcoef[i] * fac + ratesxy[i] );  
 }
 
@@ -468,21 +459,18 @@ static newton_solver_t* jfnk_foodweb_solver_new(foodweb_t* data, newton_pc_t* pr
 
   // Scale the U and F vectors.
   real_t species_scale[NUM_SPECIES];
-  for (int s = 0; s < NUM_SPECIES/2; s++) 
+  for (int s = 0; s < NUM_SPECIES/2; ++s) 
     species_scale[s] = ONE;
-  for (int s = NUM_SPECIES/2; s < NUM_SPECIES; s++)
+  for (int s = NUM_SPECIES/2; s < NUM_SPECIES; ++s)
     species_scale[s] = RCONST(0.00001);
 
   real_t scale[NEQ];
-  for (int jy = 0; jy < MY; jy++) 
-  {
-    for (int jx = 0; jx < MX; jx++) 
-    {
-      real_t* sloc = IJ_Vptr(scale,jx,jy);
-      for (int s = 0; s < NUM_SPECIES; s++) 
-        sloc[s] = species_scale[s];
-    }
-  }
+  DECLARE_3D_ARRAY(real_t, s_ijk, scale, MX, MY, NUM_SPECIES);
+  for (int i = 0; i < MX; ++i) 
+    for (int j = 0; j < MY; ++j) 
+      for (int s = 0; s < NUM_SPECIES; ++s) 
+        s_ijk[i][j][s] = species_scale[s];
+
   newton_solver_set_U_scale(solver, scale);
   newton_solver_set_F_scale(solver, scale);
 
@@ -503,26 +491,21 @@ newton_solver_t* block_jacobi_precond_foodweb_solver_new()
 real_t* foodweb_initial_conditions(void);
 real_t* foodweb_initial_conditions()
 {
-  real_t* cc = polymec_malloc(sizeof(real_t) * NEQ);
-  int i, jx, jy;
-  real_t *cloc;
-  real_t  ctemp[NUM_SPECIES];
+  real_t* U = polymec_malloc(sizeof(real_t) * NEQ);
   
-  for (i = 0; i < NUM_SPECIES/2; i++)
-    ctemp[i] = PREYIN;
-  for (i = NUM_SPECIES/2; i < NUM_SPECIES; i++) 
-    ctemp[i] = PREDIN;
+  real_t c0[NUM_SPECIES];
+  for (int s = 0; s < NUM_SPECIES/2; ++s)
+    c0[s] = PREYIN;
+  for (int s = NUM_SPECIES/2; s < NUM_SPECIES; ++s) 
+    c0[s] = PREDIN;
 
-  for (jy = 0; jy < MY; jy++) 
-  {
-    for (jx = 0; jx < MX; jx++) 
-    {
-      cloc = IJ_Vptr(cc,jx,jy);
-      for (i = 0; i < NUM_SPECIES; i++) 
-        cloc[i] = ctemp[i];
-    }
-  }
-  return cc;
+  DECLARE_3D_ARRAY(real_t, U_ijk, U, MX, MY, NUM_SPECIES);
+  for (int i = 0; i < MX; ++i) 
+    for (int j = 0; j < MY; ++j) 
+      for (int s = 0; s < NUM_SPECIES; ++s) 
+        U_ijk[i][j][s] = c0[s];
+
+  return U;
 }
 
 // Constructor for Inexact Newton-Krylov food web solver.
@@ -546,21 +529,18 @@ newton_solver_t* ink_foodweb_solver_new(krylov_factory_t* factory)
 
   // Scale the U and F vectors.
   real_t species_scale[NUM_SPECIES];
-  for (int s = 0; s < NUM_SPECIES/2; s++) 
+  for (int s = 0; s < NUM_SPECIES/2; ++s) 
     species_scale[s] = ONE;
-  for (int s = NUM_SPECIES/2; s < NUM_SPECIES; s++)
+  for (int s = NUM_SPECIES/2; s < NUM_SPECIES; ++s)
     species_scale[s] = RCONST(0.00001);
 
   real_t scale[NEQ];
-  for (int jy = 0; jy < MY; jy++) 
-  {
-    for (int jx = 0; jx < MX; jx++) 
-    {
-      real_t* sloc = IJ_Vptr(scale,jx,jy);
-      for (int s = 0; s < NUM_SPECIES; s++) 
-        sloc[s] = species_scale[s];
-    }
-  }
+  DECLARE_3D_ARRAY(real_t, s_ijk, scale, MX, MY, NUM_SPECIES);
+  for (int i = 0; i < MX; ++i) 
+    for (int j = 0; j < MY; ++j) 
+      for (int s = 0; s < NUM_SPECIES; ++s) 
+        s_ijk[i][j][s] = species_scale[s];
+
   newton_solver_set_U_scale(solver, scale);
   newton_solver_set_F_scale(solver, scale);
 
