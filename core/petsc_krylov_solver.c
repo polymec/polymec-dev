@@ -94,6 +94,8 @@ typedef struct
   PetscErrorCode (*MatShift)(Mat,PetscScalar);
   PetscErrorCode (*MatDiagonalSet)(Mat,Vec,InsertMode);
   PetscErrorCode (*MatZeroEntries)(Mat);
+  PetscErrorCode (*MatMult)(Mat,Vec,Vec);
+  PetscErrorCode (*MatMultTranspose)(Mat,Vec,Vec);
   PetscErrorCode (*MatGetSize)(Mat,PetscInt*,PetscInt*);
   PetscErrorCode (*MatGetLocalSize)(Mat,PetscInt*,PetscInt*);
   PetscErrorCode (*MatSetValues)(Mat,PetscInt,const PetscInt[],PetscInt,const PetscInt[],const PetscScalar[],InsertMode);
@@ -119,6 +121,7 @@ typedef struct
   PetscErrorCode (*VecRestoreArray)(Vec,PetscScalar**);
   PetscErrorCode (*VecAssemblyBegin)(Vec);
   PetscErrorCode (*VecAssemblyEnd)(Vec);
+  PetscErrorCode (*VecDot)(Vec,Vec,PetscReal *);
   PetscErrorCode (*VecNorm)(Vec,NormType,PetscReal *);
   PetscErrorCode (*VecView)(Vec,PetscViewer);
 
@@ -453,15 +456,26 @@ static void petsc_matrix_add_identity(void* context, real_t scale_factor)
 static void petsc_matrix_set_diagonal(void* context, void* D)
 {
   petsc_matrix_t* A = context;
-  Vec diag = D;
-  A->factory->methods.MatDiagonalSet(A->A, diag, INSERT_VALUES);
+  petsc_vector_t* diag = D;
+  A->factory->methods.MatDiagonalSet(A->A, diag->v, INSERT_VALUES);
 }
 
 static void petsc_matrix_add_diagonal(void* context, void* D)
 {
   petsc_matrix_t* A = context;
-  Vec diag = D;
-  A->factory->methods.MatDiagonalSet(A->A, diag, ADD_VALUES);
+  petsc_vector_t* diag = D;
+  A->factory->methods.MatDiagonalSet(A->A, diag->v, ADD_VALUES);
+}
+
+static void petsc_matrix_matvec(void* context, void* X, bool transpose, void* Y)
+{
+  petsc_matrix_t* A = context;
+  petsc_vector_t* x = X;
+  petsc_vector_t* y = Y;
+  if (transpose)
+    A->factory->methods.MatMultTranspose(A->A, x->v, y->v);
+  else
+    A->factory->methods.MatMult(A->A, x->v, y->v);
 }
 
 static void petsc_matrix_insert_values(void* context, index_t num_rows,
@@ -644,6 +658,7 @@ static krylov_matrix_t* petsc_factory_matrix(void* context,
                                  .add_identity = petsc_matrix_add_identity,
                                  .add_diagonal = petsc_matrix_add_diagonal,
                                  .set_diagonal = petsc_matrix_set_diagonal,
+                                 .matvec = petsc_matrix_matvec,
                                  .set_values = petsc_matrix_set_values,
                                  .add_values = petsc_matrix_add_values,
                                  .get_values = petsc_matrix_get_values,
@@ -845,6 +860,7 @@ static krylov_matrix_t* petsc_factory_block_matrix(void* context,
                                  .add_identity = petsc_matrix_add_identity,
                                  .add_diagonal = petsc_matrix_add_diagonal,
                                  .set_diagonal = petsc_matrix_set_diagonal,
+                                 .matvec = petsc_matrix_matvec,
                                  .set_values = petsc_matrix_set_values,
                                  .add_values = petsc_matrix_add_values,
                                  .get_values = petsc_matrix_get_values,
@@ -1079,6 +1095,15 @@ static void petsc_vector_copy_out(void* context, real_t* local_values)
   v->factory->methods.VecRestoreArray(v->v, &array);
 }
 
+static real_t petsc_vector_dot(void* context, void* W)
+{
+  petsc_vector_t* v = context;
+  petsc_vector_t* w = W;
+  real_t dot;
+  v->factory->methods.VecDot(v->v, w->v, &dot);
+  return dot;
+}
+
 static real_t petsc_vector_norm(void* context, int p)
 {
   petsc_vector_t* v = context;
@@ -1092,6 +1117,34 @@ static real_t petsc_vector_norm(void* context, int p)
     norm_type = NORM_2;
   v->factory->methods.VecNorm(v->v, norm_type, &norm);
   return norm;
+}
+
+static real_t petsc_vector_w2_norm(void* context, void* W)
+{
+  petsc_vector_t* v = context;
+  petsc_vector_t* w = W;
+
+  // Accumulate the local part of the norm.
+  PetscInt n;
+  v->factory->methods.VecGetLocalSize(v->v, &n);
+  real_t* v_values;
+  v->factory->methods.VecGetArray(v->v, &v_values);
+  real_t* w_values;
+  w->factory->methods.VecGetArray(w->v, &w_values);
+  real_t local_norm = 0.0;
+  for (PetscInt i = 0; i < n; ++i)
+  {
+    real_t wi = w_values[i];
+    real_t vi = v_values[i];
+    local_norm += (real_t)(wi*wi*vi*vi);
+  }
+  v->factory->methods.VecRestoreArray(v->v, &v_values);
+  w->factory->methods.VecRestoreArray(w->v, &w_values);
+
+  // Now mash together all the parallel portions.
+  real_t global_norm;
+  MPI_Allreduce(&local_norm, &global_norm, 1, MPI_REAL_T, MPI_SUM, v->comm);
+  return sqrt(global_norm);
 }
 
 static real_t petsc_vector_wrms_norm(void* context, void* W)
@@ -1176,7 +1229,9 @@ static krylov_vector_t* petsc_factory_vector(void* context,
                                  .copy_in = petsc_vector_copy_in,
                                  .copy_out = petsc_vector_copy_out,
                                  .assemble = petsc_vector_assemble,
+                                 .dot = petsc_vector_dot,
                                  .norm = petsc_vector_norm,
+                                 .w2_norm = petsc_vector_w2_norm,
                                  .wrms_norm = petsc_vector_wrms_norm,
                                  .fprintf = petsc_vector_fprintf,
                                  .dtor = petsc_vector_dtor};
@@ -1378,6 +1433,8 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(MatShift);
   FETCH_PETSC_SYMBOL(MatDiagonalSet);
   FETCH_PETSC_SYMBOL(MatZeroEntries);
+  FETCH_PETSC_SYMBOL(MatMult);
+  FETCH_PETSC_SYMBOL(MatMultTranspose);
   FETCH_PETSC_SYMBOL(MatGetSize);
   FETCH_PETSC_SYMBOL(MatGetLocalSize);
   FETCH_PETSC_SYMBOL(MatSetValues);
@@ -1403,6 +1460,7 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(VecRestoreArray);
   FETCH_PETSC_SYMBOL(VecAssemblyBegin);
   FETCH_PETSC_SYMBOL(VecAssemblyEnd);
+  FETCH_PETSC_SYMBOL(VecDot);
   FETCH_PETSC_SYMBOL(VecNorm);
   FETCH_PETSC_SYMBOL(VecView);
 #undef FETCH_PETSC_SYMBOL

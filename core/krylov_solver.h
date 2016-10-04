@@ -104,6 +104,7 @@ typedef struct
   void (*add_identity)(void* context, real_t scale_factor);
   void (*add_diagonal)(void* context, void* D);
   void (*set_diagonal)(void* context, void* D);
+  void (*matvec)(void* context, void* x, bool transpose, void* y);
   void (*set_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*add_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
   void (*get_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
@@ -137,8 +138,10 @@ typedef struct
   void (*get_values)(void* context, index_t num_values, index_t* indices, real_t* values);
   void (*copy_in)(void* context, real_t* local_values);
   void (*copy_out)(void* context, real_t* local_values);
+  real_t (*dot)(void* context, void* w);
   real_t (*norm)(void* context, int p);
-  real_t (*wrms_norm)(void* context, void* W);
+  real_t (*w2_norm)(void* context, void* w);
+  real_t (*wrms_norm)(void* context, void* w);
   void (*assemble)(void* context);
   void (*fprintf)(void* context, FILE* stream);
   void (*dtor)(void* context);
@@ -421,6 +424,14 @@ void krylov_matrix_add_diagonal(krylov_matrix_t* A,
 void krylov_matrix_set_diagonal(krylov_matrix_t* A,
                                 krylov_vector_t* D);
 
+// Computes the matrix-vector product A*x, storing the result in y. If transpose
+// is set to true, then x is left-multiplied by the transpose of A--otherwise
+// it is left-multiplied by A.
+void krylov_matrix_matvec(krylov_matrix_t* A,
+                          krylov_vector_t* x,
+                          bool transpose,
+                          krylov_vector_t* y);
+
 // Sets the values of the elements in the matrix identified by the given 
 // (globally-indexed) rows and columns. The rows and columns being set must 
 // exist on the local process. num_columns and rows are arrays of size num_rows, 
@@ -613,15 +624,26 @@ void krylov_vector_get_values(krylov_vector_t* v,
                               index_t* indices,
                               real_t* values);
 
+// Computes and returns the dot product of the vector v with the vector w.
+// This is collective, and must be called by all MPI processes.
+real_t krylov_vector_dot(krylov_vector_t* v, krylov_vector_t* w);
+
 // Computes and returns the p norm for this vector, where p can be 
 // 0 (infinity/max norm), 1, or 2.
 // This is collective, and must be called by all MPI processes.
 real_t krylov_vector_norm(krylov_vector_t* v, int p);
  
-// Computes and returns a weighted root-mean-squared (WRMS) norm for 
-// this vector, using the weights in the given vector W.
+// Computes the weighted 2-norm for this vector, using the weights
+// in the vector w. If w is NULL, the 2-norm is returned.
+// The weighted 2-norm is sqrt(sum(i, Wi*vi)**2).
 // This is collective, and must be called by all MPI processes.
-real_t krylov_vector_wrms_norm(krylov_vector_t* v, krylov_vector_t* W);
+real_t krylov_vector_w2_norm(krylov_vector_t* v, krylov_vector_t* w);
+
+// Computes and returns a weighted root-mean-squared (WRMS) norm for 
+// this vector, using the weights in the given vector w. w must be non-NULL.
+// The WRMS norm is sqrt(sum(i, (wi*vi)**2)/N).
+// This is collective, and must be called by all MPI processes.
+real_t krylov_vector_wrms_norm(krylov_vector_t* v, krylov_vector_t* w);
  
 // Writes a text representation of the vector (or portion stored on the local
 // MPI process) to the given stream.

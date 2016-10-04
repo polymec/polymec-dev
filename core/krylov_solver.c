@@ -275,6 +275,7 @@ krylov_matrix_t* krylov_matrix_new(void* context,
   ASSERT(vtable.diag_scale != NULL);
   ASSERT(vtable.add_diagonal != NULL);
   ASSERT(vtable.set_diagonal != NULL);
+  ASSERT(vtable.matvec != NULL);
   ASSERT(vtable.set_values != NULL);
   ASSERT(vtable.add_values != NULL);
   ASSERT(vtable.get_values != NULL);
@@ -878,6 +879,14 @@ void krylov_matrix_set_diagonal(krylov_matrix_t* A,
   A->vtable.set_diagonal(A->context, D->context);
 }
 
+void krylov_matrix_matvec(krylov_matrix_t* A,
+                          krylov_vector_t* x,
+                          bool transpose,
+                          krylov_vector_t* y)
+{
+  A->vtable.matvec(A->context, x->context, transpose, y->context);
+}
+
 void krylov_matrix_set_values(krylov_matrix_t* A,
                               index_t num_rows,
                               index_t* num_columns,
@@ -998,7 +1007,9 @@ krylov_vector_t* krylov_vector_new(void* context,
   ASSERT(vtable.get_values != NULL);
   ASSERT(vtable.copy_in != NULL);
   ASSERT(vtable.copy_out != NULL);
+  ASSERT(vtable.dot != NULL);
   ASSERT(vtable.norm != NULL);
+  ASSERT(vtable.w2_norm != NULL);
   ASSERT(vtable.wrms_norm != NULL);
   ASSERT(local_size > 0);
   ASSERT(global_size >= local_size);
@@ -1115,16 +1126,32 @@ void krylov_vector_assemble(krylov_vector_t* v)
     v->vtable.assemble(v->context);
 }
 
+real_t krylov_vector_dot(krylov_vector_t* v, 
+                         krylov_vector_t* w)
+{
+  ASSERT(v != NULL);
+  ASSERT(w != NULL);
+  return v->vtable.dot(v->context, w->context);
+}
+
 real_t krylov_vector_norm(krylov_vector_t* v, int p)
 {
   ASSERT((p == 0) || (p == 1) || (p == 2));
   return v->vtable.norm(v->context, p);
 }
 
-real_t krylov_vector_wrms_norm(krylov_vector_t* v, krylov_vector_t* W)
+real_t krylov_vector_w2_norm(krylov_vector_t* v, krylov_vector_t* w)
 {
-  ASSERT(W != NULL);
-  return v->vtable.wrms_norm(v->context, W->context);
+  if (w != NULL)
+    return v->vtable.w2_norm(v->context, w->context);
+  else
+    return v->vtable.norm(v->context, 2);
+}
+
+real_t krylov_vector_wrms_norm(krylov_vector_t* v, krylov_vector_t* w)
+{
+  ASSERT(w != NULL);
+  return v->vtable.wrms_norm(v->context, w->context);
 }
 
 void krylov_vector_fprintf(krylov_vector_t* v,

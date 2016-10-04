@@ -46,6 +46,8 @@ struct newton_solver_t
   int (*solve_func)(void* context, 
                     real_t* DF, 
                     real_t t, 
+                    real_t* U,
+                    real_t* F,
                     real_t* B,
                     real_t res_norm_tol,
                     real_t* p,
@@ -148,6 +150,7 @@ static int newton_lsolve(KINMem kin_mem,
   real_t t = newton->t;
   return newton->solve_func(newton->context, 
                             NV_DATA(kin_mem->kin_fscale), t,
+                            NV_DATA(kin_mem->kin_uu), NV_DATA(kin_mem->kin_fval),
                             NV_DATA(B), kin_mem->kin_eta, 
                             NV_DATA(U), sJpnorm, sFdotJp);
 }
@@ -171,6 +174,8 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int (*solve_func)(void* context, 
                                                      real_t* DF, 
                                                      real_t t, 
+                                                     real_t* U,
+                                                     real_t* F,
                                                      real_t* B,
                                                      real_t res_norm_tol,
                                                      real_t* p,
@@ -671,6 +676,7 @@ typedef struct
   krylov_vector_t* X; // Increment vector.
   krylov_vector_t* B; // Right-hand side vector.
   krylov_vector_t* scale; // Scaling vector.
+  krylov_vector_t* F; // Residual/system vector.
 
   // Metadata.
   matrix_sparsity_t* sparsity;
@@ -701,12 +707,15 @@ static int ink_reset(void* context)
     krylov_vector_free(ink->B);
   if (ink->scale != NULL)
     krylov_vector_free(ink->scale);
+  if (ink->F != NULL)
+    krylov_vector_free(ink->F);
 
   // Allocate resources.
   index_t* row_dist = matrix_sparsity_row_distribution(ink->sparsity);
   ink->X = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->scale = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->F = krylov_factory_vector(ink->factory, ink->comm, row_dist);
 
   STOP_FUNCTION_TIMER();
   return 0;
@@ -740,6 +749,8 @@ static int ink_setup(void* context,
 static int ink_solve(void* context, 
                      real_t* DF, 
                      real_t t, 
+                     real_t* U,
+                     real_t* F,
                      real_t* B,
                      real_t res_norm_tol,
                      real_t* p,
@@ -773,6 +784,14 @@ static int ink_solve(void* context,
   {
     log_debug("ink_newton_solver: Solved A*X = B (||R|| == %g after %d iters).", res_norm, num_iters);
 
+    // Compute the norms, using ink->B as a workspace.
+    krylov_matrix_matvec(ink->J, ink->X, false, ink->B); // J*p -> B.
+    *Jp_norm = krylov_vector_w2_norm(ink->B, ink->scale);
+    krylov_vector_diag_scale(ink->B, ink->scale);
+    krylov_vector_diag_scale(ink->B, ink->scale);
+    krylov_vector_copy_in(ink->F, F);
+    *F_o_Jp = krylov_vector_dot(ink->F, ink->B);
+
     // Copy solution data from ink->X into p.
     krylov_vector_copy_out(ink->X, p);
     STOP_FUNCTION_TIMER();
@@ -790,6 +809,8 @@ static void ink_dtor(void* context)
 {
   ink_newton_t* ink = context;
   matrix_sparsity_free(ink->sparsity);
+  if (ink->F != NULL)
+    krylov_vector_free(ink->F);
   if (ink->scale != NULL)
     krylov_vector_free(ink->scale);
   if (ink->X != NULL)
@@ -828,6 +849,7 @@ newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
   ink->B = NULL;
   ink->X = NULL;
   ink->scale = NULL;
+  ink->F = NULL;
   ink->block_size = 1;
 
   int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));

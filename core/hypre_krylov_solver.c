@@ -178,6 +178,10 @@ typedef struct
   // Internals needed for scaling and zeroing matrices.
   HYPRE_Int (*HYPRE_ParCSRMatrixGetRow)(void*, HYPRE_Int, HYPRE_Int*, HYPRE_Int**, HYPRE_Real**);
   HYPRE_Int (*HYPRE_ParCSRMatrixRestoreRow)(void*, HYPRE_Int, HYPRE_Int*, HYPRE_Int**, HYPRE_Real**);
+
+  // Matrix-vector product.
+  HYPRE_Int (*HYPRE_ParCSRMatrixMatvec)(HYPRE_Real, HYPRE_ParCSRMatrix*, HYPRE_ParVector, HYPRE_Real, HYPRE_ParVector*);
+  HYPRE_Int (*HYPRE_ParCSRMatrixMatvecT)(HYPRE_Real, HYPRE_ParCSRMatrix*, HYPRE_ParVector, HYPRE_Real, HYPRE_ParVector*);
 } hypre_methods_table;
 
 typedef struct
@@ -954,7 +958,7 @@ static void hypre_matrix_set_diagonal(void* context, void* D)
     rows[r] = A->ilow + r;
     columns[r] = A->ilow + r;
   }
-  hypre_vector_get_values(context, num_rows, rows, values); // get values from D
+  hypre_vector_get_values(D, num_rows, rows, values); // get values from D
   hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values); // set diag A.
   hypre_matrix_assemble(context);
 }
@@ -972,9 +976,26 @@ static void hypre_matrix_add_diagonal(void* context, void* D)
     rows[r] = A->ilow + r;
     columns[r] = A->ilow + r;
   }
-  hypre_vector_get_values(context, num_rows, rows, values); // get values from D
+  hypre_vector_get_values(D, num_rows, rows, values); // get values from D
   hypre_matrix_add_values(context, num_rows, num_columns, rows, columns, values); // add to diag A.
   hypre_matrix_assemble(context);
+}
+
+static void hypre_matrix_matvec(void* context, void* X, bool transpose, void* Y)
+{
+  hypre_matrix_t* A = context;
+  hypre_vector_t* x = X;
+  hypre_vector_t* y = Y;
+  void* par_A;
+  A->factory->methods.HYPRE_IJMatrixGetObject(A->A, &par_A);
+  void* par_X;
+  x->factory->methods.HYPRE_IJVectorGetObject(x->v, &par_X);
+  void* par_Y;
+  y->factory->methods.HYPRE_IJVectorGetObject(y->v, &par_Y);
+  if (transpose)
+    A->factory->methods.HYPRE_ParCSRMatrixMatvecT(1.0, par_A, par_X, 0.0, par_Y);
+  else
+    A->factory->methods.HYPRE_ParCSRMatrixMatvec(1.0, par_A, par_X, 0.0, par_Y);
 }
 
 static void hypre_matrix_get_values(void* context, index_t num_rows,
@@ -1137,6 +1158,7 @@ static krylov_matrix_t* hypre_factory_matrix(void* context,
                                  .add_identity = hypre_matrix_add_identity,
                                  .add_diagonal = hypre_matrix_add_diagonal,
                                  .set_diagonal = hypre_matrix_set_diagonal,
+                                 .matvec = hypre_matrix_matvec,
                                  .set_values = hypre_matrix_set_values,
                                  .add_values = hypre_matrix_add_values,
                                  .get_values = hypre_matrix_get_values,
@@ -1582,6 +1604,28 @@ static void hypre_vector_diag_scale(void* context, void* D)
   hypre_vector_assemble(v);
 }
 
+static real_t hypre_vector_dot(void* context, void* W)
+{
+  hypre_vector_t* v = context;
+
+  // Accumulate the local part of the dot product.
+  real_t local_dot = 0.0;
+  index_t num_rows = v->ihigh - v->ilow + 1;
+  index_t rows[num_rows];
+  real_t v_values[num_rows], w_values[num_rows];
+  for (index_t r = 0; r < num_rows; ++r) 
+    rows[r] = v->ilow + r;
+  hypre_vector_get_values(context, num_rows, rows, v_values);
+  hypre_vector_get_values(W, num_rows, rows, w_values);
+  for (index_t r = 0; r < num_rows; ++r) 
+    local_dot += v_values[r] * w_values[r];
+
+  // Now mash together all the parallel portions.
+  real_t global_dot = 0.0;
+  MPI_Allreduce(&local_dot, &global_dot, 1, MPI_REAL_T, MPI_SUM, v->comm);
+  return global_dot;
+}
+
 static real_t hypre_vector_norm(void* context, int p)
 {
   // SIGH. HYPRE doesn't do vector norms, so we have to do this manually.
@@ -1621,6 +1665,32 @@ static real_t hypre_vector_norm(void* context, int p)
   if (p == 2)
     global_norm = sqrt(global_norm);
   return global_norm;
+}
+
+static real_t hypre_vector_w2_norm(void* context, void* W)
+{
+  hypre_vector_t* v = context;
+  
+  // Accumulate the local part of the norm.
+  real_t local_norm = 0.0;
+  index_t num_rows = v->ihigh - v->ilow + 1;
+  index_t rows[num_rows];
+  for (index_t r = 0; r < num_rows; ++r) 
+    rows[r] = v->ilow + r;
+  real_t v_values[num_rows], w_values[num_rows];
+  hypre_vector_get_values(context, num_rows, rows, v_values);
+  hypre_vector_get_values(W, num_rows, rows, w_values);
+  for (index_t i = 0; i < num_rows; ++i) 
+  {
+    real_t wi = w_values[i];
+    real_t vi = v_values[i];
+    local_norm += wi*wi*vi*vi;
+  }
+
+  // Now mash together all the parallel portions.
+  real_t global_norm;
+  MPI_Allreduce(&local_norm, &global_norm, 1, MPI_REAL_T, MPI_SUM, v->comm);
+  return sqrt(global_norm);
 }
 
 static real_t hypre_vector_wrms_norm(void* context, void* W)
@@ -1722,7 +1792,9 @@ static krylov_vector_t* hypre_factory_vector(void* context,
                                  .copy_in = hypre_vector_copy_in,
                                  .copy_out = hypre_vector_copy_out,
                                  .assemble = hypre_vector_assemble,
+                                 .dot = hypre_vector_dot,
                                  .norm = hypre_vector_norm,
+                                 .w2_norm = hypre_vector_w2_norm,
                                  .wrms_norm = hypre_vector_wrms_norm,
                                  .fprintf = hypre_vector_fprintf,
                                  .dtor = hypre_vector_dtor};
@@ -1943,6 +2015,9 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
 
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixGetRow);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixRestoreRow);
+
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixMatvec);
+  FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixMatvecT);
 #undef FETCH_HYPRE_SYMBOL
 
   log_debug("hypre_krylov_factory: Got HYPRE symbols.");

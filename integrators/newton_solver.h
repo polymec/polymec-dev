@@ -52,6 +52,8 @@ typedef enum
 //                 - context: A pointer to the context object that stores the state of the solver.
 //                 - DF: A vector containing the scaling vector DF.
 //                 - t: The current time.
+//                 - U: The current solution vector U.
+//                 - F: The current system function (residual) vector F.
 //                 - B: The right hand side vector B = -F for the system at time t.
 //                 - res_norm_tol: The tolerance against which the residual 2-norm ||-F-J*p||_2 
 //                                 will be measured.
@@ -79,6 +81,8 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int (*solve_func)(void* context, 
                                                      real_t* DF, 
                                                      real_t t, 
+                                                     real_t* U,
+                                                     real_t* F,
                                                      real_t* B,
                                                      real_t res_norm_tol,
                                                      real_t* p,

@@ -500,6 +500,17 @@ static void matrix_add_diagonal_csr(void* context, void* D)
   matrix_assemble(mat);
 }
 
+static void matrix_matvec(void* context, void* X, bool transpose, void* Y)
+{
+  lis_matrix_t* mat = context;
+  LIS_VECTOR x = X;
+  LIS_VECTOR y = Y;
+  if (transpose)
+    lis_matvect(mat->A, x, y);
+  else
+    lis_matvec(mat->A, x, y);
+}
+
 static void matrix_set_values_csr(void* context, index_t num_rows,
                                   index_t* num_columns, index_t* rows, index_t* columns,
                                   real_t* values)
@@ -725,6 +736,7 @@ static krylov_matrix_t* lis_factory_matrix(void* context,
                                  .add_identity = matrix_add_identity,
                                  .add_diagonal = matrix_add_diagonal_csr,
                                  .set_diagonal = matrix_set_diagonal_csr,
+                                 .matvec = matrix_matvec,
                                  .set_values = matrix_set_values_csr,
                                  .add_values = matrix_add_values_csr,
                                  .get_values = matrix_get_values_csr,
@@ -1335,6 +1347,7 @@ static krylov_matrix_t* lis_factory_block_matrix(void* context,
                                  .add_identity = matrix_add_identity,
                                  .add_diagonal = matrix_add_diagonal_bsr,
                                  .set_diagonal = matrix_set_diagonal_bsr,
+                                 .matvec = matrix_matvec,
                                  .set_values = matrix_set_values_bsr,
                                  .add_values = matrix_add_values_bsr,
                                  .get_values = matrix_get_values_bsr,
@@ -1536,6 +1549,7 @@ static krylov_matrix_t* lis_factory_var_block_matrix(void* context,
                                  .add_identity = matrix_add_identity,
                                  .add_diagonal = matrix_add_diagonal_vbr,
                                  .set_diagonal = matrix_set_diagonal_vbr,
+                                 .matvec = matrix_matvec,
                                  .set_values = matrix_set_values_vbr,
                                  .add_values = matrix_add_values_vbr,
                                  .get_values = matrix_get_values_vbr,
@@ -1677,6 +1691,15 @@ static void vector_copy_out(void* context, real_t* local_values)
     local_values[i] = v->value[i];
 }
 
+static real_t vec_dot(void* context, void* W)
+{
+  LIS_VECTOR v = context;
+  LIS_VECTOR w = W;
+  real_t dot;
+  lis_vector_dot(v, w, &dot);
+  return dot;
+}
+
 static real_t vector_norm(void* context, int p)
 {
   LIS_VECTOR v = context;
@@ -1688,6 +1711,27 @@ static real_t vector_norm(void* context, int p)
   else // (p == 2)
     lis_vector_nrm2(v, &norm);
   return (real_t)norm;
+}
+
+static real_t vector_w2_norm(void* context, void* W)
+{
+  LIS_VECTOR v = context;
+  LIS_VECTOR w = W;
+
+  // Accumulate the local part of the norm.
+  real_t local_norm = 0.0;
+  LIS_INT n = v->n;
+  for (LIS_INT i = 0; i < n; ++i)
+  {
+    LIS_SCALAR wi = w->value[i];
+    LIS_SCALAR vi = v->value[i];
+    local_norm += (real_t)(wi*wi*vi*vi);
+  }
+
+  // Now mash together all the parallel portions.
+  real_t global_norm;
+  MPI_Allreduce(&local_norm, &global_norm, 1, MPI_REAL_T, MPI_SUM, v->comm);
+  return sqrt(global_norm);
 }
 
 static real_t vector_wrms_norm(void* context, void* W)
@@ -1762,7 +1806,9 @@ static krylov_vector_t* lis_factory_vector(void* context,
                                  .get_values = vector_get_values,
                                  .copy_in = vector_copy_in,
                                  .copy_out = vector_copy_out,
+                                 .dot = vec_dot,
                                  .norm = vector_norm,
+                                 .w2_norm = vector_w2_norm,
                                  .wrms_norm = vector_wrms_norm,
                                  .fprintf = vec_fprintf,
                                  .dtor = vector_dtor};
