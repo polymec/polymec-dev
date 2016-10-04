@@ -148,11 +148,23 @@ static int newton_lsolve(KINMem kin_mem,
 {
   newton_solver_t* newton = kin_mem->kin_user_data;
   real_t t = newton->t;
+  real_t* sJpnorm_ptr = NULL;
+  real_t* sFdotJp_ptr = NULL;
+  // We can shave a bit of work off by not computing norms unnecessarily.
+  int strategy = newton->strategy;
+  int eta_choice = kin_mem->kin_etaflag;
+  if (eta_choice == KIN_ETACHOICE1)
+  {
+    sJpnorm_ptr = sJpnorm;
+    sFdotJp_ptr = sFdotJp;
+  }
+  else if (strategy == KIN_LINESEARCH) 
+    sFdotJp_ptr = sFdotJp;
   return newton->solve_func(newton->context, 
                             NV_DATA(kin_mem->kin_fscale), t,
                             NV_DATA(kin_mem->kin_uu), NV_DATA(kin_mem->kin_fval),
-                            NV_DATA(B), kin_mem->kin_eta, 
-                            NV_DATA(U), sJpnorm, sFdotJp);
+                            NV_DATA(B), kin_mem->kin_eps, 
+                            NV_DATA(U), sJpnorm_ptr, sFdotJp_ptr);
 }
 
 static int newton_lfree(KINMem kin_mem)
@@ -227,7 +239,8 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   kin_mem->kin_lsetup = newton_lsetup;
   kin_mem->kin_lsolve = newton_lsolve;
   kin_mem->kin_lfree = newton_lfree;
-  kin_mem->kin_setupNonNull = 1;
+  kin_mem->kin_setupNonNull = 1;  // need this for lsetup to be called
+  kin_mem->kin_inexact_ls = 1;    // need this for iterative solvers
 
   // Set trivial scaling by default.
   newton_solver_set_U_scale(solver, NULL);
@@ -782,15 +795,24 @@ static int ink_solve(void* context,
 
   if (solved)
   {
-    log_debug("ink_newton_solver: Solved A*X = B (||R|| == %g after %d iters).", res_norm, num_iters);
+    log_debug("ink_newton_solver: Solved A*X = B (||DF*(B-A*X)|| == %g after %d iters).", res_norm, num_iters);
 
     // Compute the norms, using ink->B as a workspace.
-    krylov_matrix_matvec(ink->J, ink->X, false, ink->B); // J*p -> B.
-    *Jp_norm = krylov_vector_w2_norm(ink->B, ink->scale);
-    krylov_vector_diag_scale(ink->B, ink->scale);
-    krylov_vector_diag_scale(ink->B, ink->scale);
-    krylov_vector_copy_in(ink->F, F);
-    *F_o_Jp = krylov_vector_dot(ink->F, ink->B);
+    if ((Jp_norm != NULL) || (F_o_Jp != NULL))
+      krylov_matrix_matvec(ink->J, ink->X, false, ink->B); // J*p -> B.
+    if (Jp_norm != NULL)
+    {
+      *Jp_norm = krylov_vector_w2_norm(ink->B, ink->scale);
+      log_debug("ink_newton_solver: ||DF*J*p||_2 = %g", *Jp_norm);
+    }
+    if (F_o_Jp != NULL)
+    {
+      krylov_vector_diag_scale(ink->B, ink->scale);
+      krylov_vector_diag_scale(ink->B, ink->scale);
+      krylov_vector_copy_in(ink->F, F);
+      *F_o_Jp = krylov_vector_dot(ink->F, ink->B);
+      log_debug("ink_newton_solver: (DF*F) o (DF*J*p) = %g", *F_o_Jp);
+    }
 
     // Copy solution data from ink->X into p.
     krylov_vector_copy_out(ink->X, p);

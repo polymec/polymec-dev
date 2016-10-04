@@ -61,9 +61,11 @@ typedef enum
 //                      increment p = (U(n) - U(n-1)). On input it contains an initial guess 
 //                      for the increment; on output it contains the actual increment.
 //                 - Jp_norm: A pointer that will store the scaled L2 norm of the product Jp:
-//                            ||DF*J*p||_2.
+//                            ||DF*J*p||_2. The pointer can be NULL, in which case the norm 
+//                            obviously need not be computed.
 //                 - F_o_Jp: A pointer that will store the scaled dot product of F with Jp:
-//                           (DF*F) o (DF*J*p).
+//                           (DF*F) o (DF*J*p). The pointer can be NULL, in which case the norm
+//                            obviously need not be computed.
 //                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
 //                 for an unrecoverable error.
 // * dtor -- Used to destroy the context pointer.
