@@ -282,6 +282,7 @@ static void web_rate(void* context, real_t xx, real_t yy, real_t *cxy, real_t *r
     ratesxy[i] = cxy[i] * ( bcoef[i] * fac + ratesxy[i] );  
 }
 
+// System function
 static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
 {
   real_t xx, yy, delx, dely, *cxy, *rxy, *fxy, dcyli, dcyui, dcxli, dcxri;
@@ -336,8 +337,64 @@ static int foodweb_func(void* context, real_t t, real_t* cc, real_t* fval)
   return 0;
 }
 
-// Constructor for food web solver with no preconditioner.
-static newton_solver_t* foodweb_solver_new(foodweb_t* data, newton_pc_t* precond)
+// Jacobian function
+static int foodweb_J(void* context, real_t t, real_t* cc, real_t* fval, krylov_matrix_t* J)
+{
+  real_t xx, yy, delx, dely, *cxy, *rxy, *fxy, dcyli, dcyui, dcxli, dcxri;
+  long int jx, jy, is, idyu, idyl, idxr, idxl;
+  foodweb_t* data = context;
+  
+  delx = data->dx;
+  dely = data->dy;
+  
+  // Loop over all mesh points, evaluating rate array at each point
+  for (jy = 0; jy < MY; jy++) 
+  {
+    
+    yy = dely*jy;
+
+    // Set lower/upper index shifts, special at boundaries. 
+    idyl = (jy != 0   ) ? NSMX : -NSMX;
+    idyu = (jy != MY-1) ? NSMX : -NSMX;
+    
+    for (jx = 0; jx < MX; jx++) {
+
+      xx = delx*jx;
+
+      // Set left/right index shifts, special at boundaries. 
+      idxl = (jx !=  0  ) ?  NUM_SPECIES : -NUM_SPECIES;
+      idxr = (jx != MX-1) ?  NUM_SPECIES : -NUM_SPECIES;
+
+      cxy = IJ_Vptr(cc,jx,jy);
+      rxy = IJ_Vptr(data->rates,jx,jy);
+      fxy = IJ_Vptr(fval,jx,jy);
+
+      // Get species interaction rate array at (xx,yy) 
+      web_rate(data, xx, yy, cxy, rxy);
+      
+      for(is = 0; is < NUM_SPECIES; is++) {
+        
+        // Differencing in x direction 
+        dcyli = *(cxy+is) - *(cxy - idyl + is) ;
+        dcyui = *(cxy + idyu + is) - *(cxy+is);
+        
+        // Differencing in y direction 
+        dcxli = *(cxy+is) - *(cxy - idxl + is);
+        dcxri = *(cxy + idxr +is) - *(cxy+is);
+
+        // Compute the total rate value at (xx,yy) 
+        fxy[is] = (coy)[is] * (dcyui - dcyli) +
+          (cox)[is] * (dcxri - dcxli) + rxy[is];
+      }
+    }
+  }
+
+  return 0;
+}
+
+// Constructor for Jacobian-Free Newton-Krylov food web solver with 
+// no preconditioner.
+static newton_solver_t* jfnk_foodweb_solver_new(foodweb_t* data, newton_pc_t* precond)
 {
   // Set up a nonlinear solver using GMRES with a full Newton step.
   newton_solver_t* solver = jfnk_newton_solver_new(MPI_COMM_SELF, NEQ, 0, data,
@@ -380,7 +437,7 @@ newton_solver_t* block_jacobi_precond_foodweb_solver_new()
   foodweb_t* data = foodweb_new();
   int block_size = NUM_SPECIES;
   newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, foodweb_func, NULL, NEWTON_PC_LEFT, data->sparsity, NEQ/block_size, 0, block_size);
-  return foodweb_solver_new(data, precond);
+  return jfnk_foodweb_solver_new(data, precond);
 }
 
 // Returns initial conditions.
@@ -407,5 +464,47 @@ real_t* foodweb_initial_conditions()
     }
   }
   return cc;
+}
+
+// Constructor for Inexact Newton-Krylov food web solver.
+newton_solver_t* ink_foodweb_solver_new(krylov_factory_t* factory);
+newton_solver_t* ink_foodweb_solver_new(krylov_factory_t* factory)
+{
+  foodweb_t* data = foodweb_new();
+  matrix_sparsity_t* J_sparsity = matrix_sparsity_from_graph(data->sparsity, NULL);
+
+  // Set up a nonlinear solver using GMRES with a full Newton step.
+  newton_solver_t* solver = ink_newton_solver_new(MPI_COMM_SELF, factory, 
+                                                  J_sparsity, data,
+                                                  foodweb_func, foodweb_J, 
+                                                  foodweb_dtor);
+
+  // Enforce positivity on all components.
+  real_t constraints[NEQ];
+  for (int i = 0; i < NEQ; ++i)
+    constraints[i] = 2.0;
+  newton_solver_set_constraints(solver, constraints);
+
+  // Scale the U and F vectors.
+  real_t species_scale[NUM_SPECIES];
+  for (int s = 0; s < NUM_SPECIES/2; s++) 
+    species_scale[s] = ONE;
+  for (int s = NUM_SPECIES/2; s < NUM_SPECIES; s++)
+    species_scale[s] = RCONST(0.00001);
+
+  real_t scale[NEQ];
+  for (int jy = 0; jy < MY; jy++) 
+  {
+    for (int jx = 0; jx < MX; jx++) 
+    {
+      real_t* sloc = IJ_Vptr(scale,jx,jy);
+      for (int s = 0; s < NUM_SPECIES; s++) 
+        sloc[s] = species_scale[s];
+    }
+  }
+  newton_solver_set_U_scale(solver, scale);
+  newton_solver_set_F_scale(solver, scale);
+
+  return solver;
 }
 

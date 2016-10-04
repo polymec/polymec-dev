@@ -476,11 +476,6 @@ ode_integrator_t* ink_bdf_diurnal_integrator_new(krylov_factory_t* factory)
   // Set up a time integrator using GMRES with a maximum order of 5 and 
   // a Krylov space of maximum dimension 15.
   matrix_sparsity_t* J_sparsity = matrix_sparsity_from_graph(data->sparsity, NULL);
-//{
-//FILE* f = fopen("J_sparsity.txt", "w");
-//matrix_sparsity_fprintf(J_sparsity, f);
-//fclose(f);
-//}
   ode_integrator_t* integ = ink_bdf_ode_integrator_new(5, MPI_COMM_SELF, factory,
                                                        J_sparsity, data, diurnal_rhs, 
                                                        diurnal_J, diurnal_dtor);

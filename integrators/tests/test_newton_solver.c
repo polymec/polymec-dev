@@ -15,7 +15,10 @@
 #include "core/norms.h"
 #include "integrators/newton_solver.h"
 
-extern newton_solver_t* block_jacobi_precond_foodweb_solver_new();
+extern newton_solver_t* block_jacobi_precond_foodweb_solver_new(void);
+extern newton_solver_t* ink_foodweb_solver_new(krylov_factory_t* factory);
+extern krylov_factory_t* create_petsc_krylov_factory(void);
+extern krylov_factory_t* create_hypre_krylov_factory(void);
 extern real_t* foodweb_initial_conditions();
 
 static void test_block_jacobi_precond_foodweb_ctor(void** state)
@@ -65,6 +68,60 @@ static void test_block_jacobi_precond_foodweb_solve(void** state)
   test_foodweb_solve(state, newton);
 }
 
+static void test_lis_ink_foodweb_ctor(void** state)
+{
+  krylov_factory_t* factory = lis_krylov_factory();
+  newton_solver_t* newton = ink_foodweb_solver_new(factory);
+  newton_solver_free(newton);
+}
+
+static void test_petsc_ink_foodweb_ctor(void** state)
+{
+  krylov_factory_t* factory = create_petsc_krylov_factory();
+  if (factory != NULL)
+  {
+    newton_solver_t* newton = ink_foodweb_solver_new(factory);
+    newton_solver_free(newton);
+  }
+}
+
+static void test_hypre_ink_foodweb_ctor(void** state)
+{
+  krylov_factory_t* factory = create_hypre_krylov_factory();
+  if (factory != NULL)
+  {
+    newton_solver_t* newton = ink_foodweb_solver_new(factory);
+    newton_solver_free(newton);
+  }
+}
+
+static void test_lis_ink_foodweb_solve(void** state)
+{
+  krylov_factory_t* factory = lis_krylov_factory();
+  newton_solver_t* newton = ink_foodweb_solver_new(factory);
+  test_foodweb_solve(state, newton);
+}
+
+static void test_petsc_ink_foodweb_solve(void** state)
+{
+  krylov_factory_t* factory = create_petsc_krylov_factory();
+  if (factory != NULL)
+  {
+    newton_solver_t* newton = ink_foodweb_solver_new(factory);
+    test_foodweb_solve(state, newton);
+  }
+}
+
+static void test_hypre_ink_foodweb_solve(void** state)
+{
+  krylov_factory_t* factory = create_hypre_krylov_factory();
+  if (factory != NULL)
+  {
+    newton_solver_t* newton = ink_foodweb_solver_new(factory);
+    test_foodweb_solve(state, newton);
+  }
+}
+
 #endif
 
 int main(int argc, char* argv[]) 
@@ -73,8 +130,14 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_block_jacobi_precond_foodweb_ctor),
+    cmocka_unit_test(test_lis_ink_foodweb_ctor),
+    cmocka_unit_test(test_petsc_ink_foodweb_ctor),
+    cmocka_unit_test(test_hypre_ink_foodweb_ctor),
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-    cmocka_unit_test(test_block_jacobi_precond_foodweb_solve)
+    cmocka_unit_test(test_block_jacobi_precond_foodweb_solve),
+    cmocka_unit_test(test_lis_ink_foodweb_solve),
+    cmocka_unit_test(test_petsc_ink_foodweb_solve),
+    cmocka_unit_test(test_hypre_ink_foodweb_solve)
 #endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

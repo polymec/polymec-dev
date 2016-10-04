@@ -14,7 +14,7 @@
 #include "core/polymec.h"
 #include "integrators/bdf_ode_integrator.h"
 
-extern ode_integrator_t* ink_bdf_diurnal_integrator_new();
+extern ode_integrator_t* ink_bdf_diurnal_integrator_new(krylov_factory_t* factory);
 extern real_t* diurnal_initial_conditions(ode_integrator_t* integ);
 extern krylov_factory_t* create_petsc_krylov_factory(void);
 extern krylov_factory_t* create_hypre_krylov_factory(void);
