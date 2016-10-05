@@ -688,7 +688,7 @@ typedef struct
   krylov_matrix_t* J; // Jacobian matrix J.
   krylov_vector_t* X; // Increment vector.
   krylov_vector_t* B; // Right-hand side vector.
-  krylov_vector_t* scale; // Scaling vector.
+  krylov_vector_t* DF; // Scaling vector for F.
   krylov_vector_t* F; // Residual/system vector.
 
   // Metadata.
@@ -718,8 +718,8 @@ static int ink_reset(void* context)
     krylov_vector_free(ink->X);
   if (ink->B != NULL)
     krylov_vector_free(ink->B);
-  if (ink->scale != NULL)
-    krylov_vector_free(ink->scale);
+  if (ink->DF != NULL)
+    krylov_vector_free(ink->DF);
   if (ink->F != NULL)
     krylov_vector_free(ink->F);
 
@@ -727,7 +727,7 @@ static int ink_reset(void* context)
   index_t* row_dist = matrix_sparsity_row_distribution(ink->sparsity);
   ink->X = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
-  ink->scale = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->DF = krylov_factory_vector(ink->factory, ink->comm, row_dist);
   ink->F = krylov_factory_vector(ink->factory, ink->comm, row_dist);
 
   STOP_FUNCTION_TIMER();
@@ -776,8 +776,8 @@ static int ink_solve(void* context,
   // Copy RHS data from B into ink->B.
   krylov_vector_copy_in(ink->B, B);
 
-  // Copy the F scaling into ink->scale.
-  krylov_vector_copy_in(ink->scale, DF);
+  // Copy the F scaling into ink->DF.
+  krylov_vector_copy_in(ink->DF, DF);
 
   // Set the initial guess to 0.
   krylov_vector_zero(ink->X);
@@ -787,28 +787,30 @@ static int ink_solve(void* context,
   real_t div_tol = 10.0;
   krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
 
-  // Solve A*X = B.
+  // Solve (DF*A)*X = DF*B.
   real_t res_norm;
   int num_iters;
-  bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->scale, ink->scale, 
+printf("||DF*B||_2 = %g\n", krylov_vector_w2_norm(ink->B, ink->DF));
+  bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->DF, ink->DF, 
                                            ink->X, &res_norm, &num_iters);
 
   if (solved)
   {
     log_debug("ink_newton_solver: Solved A*X = B (||DF*(B-A*X)|| == %g after %d iters).", res_norm, num_iters);
 
+printf("||X||_2 = %g\n", krylov_vector_norm(ink->X, 2));
     // Compute the norms, using ink->B as a workspace.
     if ((Jp_norm != NULL) || (F_o_Jp != NULL))
       krylov_matrix_matvec(ink->J, ink->X, false, ink->B); // J*p -> B.
     if (Jp_norm != NULL)
     {
-      *Jp_norm = krylov_vector_w2_norm(ink->B, ink->scale);
+      *Jp_norm = krylov_vector_w2_norm(ink->B, ink->DF);
       log_debug("ink_newton_solver: ||DF*J*p||_2 = %g", *Jp_norm);
     }
     if (F_o_Jp != NULL)
     {
-      krylov_vector_diag_scale(ink->B, ink->scale);
-      krylov_vector_diag_scale(ink->B, ink->scale);
+      krylov_vector_diag_scale(ink->B, ink->DF);
+      krylov_vector_diag_scale(ink->B, ink->DF);
       krylov_vector_copy_in(ink->F, F);
       *F_o_Jp = krylov_vector_dot(ink->F, ink->B);
       log_debug("ink_newton_solver: (DF*F) o (DF*J*p) = %g", *F_o_Jp);
@@ -833,8 +835,8 @@ static void ink_dtor(void* context)
   matrix_sparsity_free(ink->sparsity);
   if (ink->F != NULL)
     krylov_vector_free(ink->F);
-  if (ink->scale != NULL)
-    krylov_vector_free(ink->scale);
+  if (ink->DF != NULL)
+    krylov_vector_free(ink->DF);
   if (ink->X != NULL)
     krylov_vector_free(ink->X);
   if (ink->B != NULL)
@@ -870,7 +872,7 @@ newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
   ink->J = NULL;
   ink->B = NULL;
   ink->X = NULL;
-  ink->scale = NULL;
+  ink->DF = NULL;
   ink->F = NULL;
   ink->block_size = 1;
 

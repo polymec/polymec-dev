@@ -127,14 +127,6 @@ typedef struct
 
 } foodweb_t;
 
-// Readability definitions used in other routines below.
-// Note that these may cause warnings.
-#pragma clang diagnostic ignored "-Wdisabled-macro-expansion"
-#define acoef  (data->acoef)
-#define bcoef  (data->bcoef)
-#define cox    (data->cox)
-#define coy    (data->coy)
-
 // Newly initialized food web data context.
 static foodweb_t* foodweb_new()
 {
@@ -161,10 +153,10 @@ static foodweb_t* foodweb_new()
 
   for (long i = 0; i < np; ++i) 
   {
-    a1= &(acoef[i][np]);
-    a2= &(acoef[i+np][0]);
-    a3= &(acoef[i][0]);
-    a4= &(acoef[i+np][np]);
+    a1= &(data->acoef[i][np]);
+    a2= &(data->acoef[i+np][0]);
+    a3= &(data->acoef[i][0]);
+    a4= &(data->acoef[i+np][np]);
 
     // Fill in the portion of acoef in the four quadrants, row by row...
     for (long j = 0; j < np; ++j) 
@@ -176,17 +168,17 @@ static foodweb_t* foodweb_new()
     }
 
     // ...and then change the diagonal elements of acoef to -AA.
-    acoef[i][i]=-AA;
-    acoef[i+np][i+np] = -AA;
+    data->acoef[i][i]=-AA;
+    data->acoef[i+np][i+np] = -AA;
 
-    bcoef[i] = BB;
-    bcoef[i+np] = -BB;
+    data->bcoef[i] = BB;
+    data->bcoef[i+np] = -BB;
 
-    cox[i]=DPREY/dx2;
-    cox[i+np]=DPRED/dx2;
+    data->cox[i]=DPREY/dx2;
+    data->cox[i+np]=DPRED/dx2;
 
-    coy[i]=DPREY/dy2;
-    coy[i+np]=DPRED/dy2;
+    data->coy[i]=DPREY/dy2;
+    data->coy[i+np]=DPRED/dy2;
   }  
 
   // Construct a sparsity graph.
@@ -258,12 +250,12 @@ static void web_rate(void* context, real_t x, real_t y, real_t *c, real_t *rates
   foodweb_t* data = context;
   
   for (int s = 0; s < NUM_SPECIES; ++s)
-    rates[s] = dot_prod(NUM_SPECIES, c, acoef[s]);
+    rates[s] = dot_prod(NUM_SPECIES, c, data->acoef[s]);
   
   real_t fac = ONE + ALPHA * x * y;
   
   for (int s = 0; s < NUM_SPECIES; ++s)
-    rates[s] = c[s] * ( bcoef[s] * fac + rates[s] );  
+    rates[s] = c[s] * ( data->bcoef[s] * fac + rates[s] );  
   STOP_FUNCTION_TIMER();
 }
 
@@ -311,8 +303,8 @@ static int foodweb_func(void* context, real_t t, real_t* U, real_t* F)
         real_t dcxri = U_ijs[i+i_right][j][s] - U_ijs[i][j][s];
 
         // Compute F at (xi,yj) 
-        F_ijs[i][j][s] = (coy)[s] * (dcyui - dcyli) +
-                         (cox)[s] * (dcxri - dcxli) + 
+        F_ijs[i][j][s] = data->coy[s] * (dcyui - dcyli) +
+                         data->cox[s] * (dcxri - dcxli) + 
                          r_ijs[i][j][s];
       }
     }
@@ -362,7 +354,7 @@ static int foodweb_J(void* context,
   real_t delx = data->dx;
   real_t dely = data->dy;
   
-  // Perturbation parameter.
+  // Perturbation parameter for computing numerical reaction rate derivatives.
   real_t eps = sqrt(REAL_EPSILON);
 
   // Maps from indices to their values in the Jacobian.
@@ -398,10 +390,10 @@ static int foodweb_J(void* context,
         real_t J_left = 0.0, J_right = 0.0, 
                J_up = 0.0, J_down = 0.0,
                J_rxn[NUM_SPECIES];
-        index_t I_left  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_left, j, 0),
-                I_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_right, j, 0),
-                I_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+j_up, 0),
-                I_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+j_down, 0),
+        index_t I_left  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_left, j, s),
+                I_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_right, j, s),
+                I_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+j_up, s),
+                I_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+j_down, s),
                 I_rxn[NUM_SPECIES];
 
         // Compute reaction rate derivatives using finite differences.
@@ -410,9 +402,9 @@ static int foodweb_J(void* context,
         {
           // Perturb c_ij and compute the corresponding derivative.
           real_t dcs1 = eps * c_ij[s1];
-          c_ij[s1] += dcs1;           // perturb
+          c_ij[s1] += dcs1;                         // perturb
           web_rate(data, xi, yj, c_ij, r_ijs1);
-          c_ij[s1] = U_ijs[i][j][s1]; // reset
+          c_ij[s1] = U_ijs[i][j][s1];               // reset
           real_t drsdcs1 = (r_ijs1[s] - r_ijs[i][j][s]) / dcs1;
 
           // Gather the Jacobian index and element.
@@ -421,14 +413,14 @@ static int foodweb_J(void* context,
         }
 
         // Differencing in x direction.
-        J_rxn[s] += -2.0 * (cox)[s];
-        J_left   = (cox)[s];
-        J_right  = (cox)[s];
+        J_rxn[s] += -2.0 * data->cox[s];
+        J_left   = data->cox[s];
+        J_right  = data->cox[s];
 
         // Differencing in y direction.
-        J_rxn[s] += -2.0 * (coy)[s];
-        J_up     = (coy)[s];
-        J_down   = (coy)[s];
+        J_rxn[s] += -2.0 * data->coy[s];
+        J_up     = data->coy[s];
+        J_down   = data->coy[s];
 
         // Accumulate the column values.
         accumulate_J_value(I_map, I_left, J_left);
@@ -463,6 +455,25 @@ first = false;
   return 0;
 }
 
+static void set_scaling_vectors(newton_solver_t* solver)
+{
+  real_t species_scale[NUM_SPECIES];
+  for (int s = 0; s < NUM_SPECIES/2; ++s) 
+    species_scale[s] = ONE;
+  for (int s = NUM_SPECIES/2; s < NUM_SPECIES; ++s)
+    species_scale[s] = RCONST(0.00001);
+
+  real_t scale[NEQ];
+  DECLARE_3D_ARRAY(real_t, s_ijs, scale, MX, MY, NUM_SPECIES);
+  for (int i = 0; i < MX; ++i) 
+    for (int j = 0; j < MY; ++j) 
+      for (int s = 0; s < NUM_SPECIES; ++s) 
+        s_ijs[i][j][s] = species_scale[s];
+
+  newton_solver_set_U_scale(solver, scale);
+  newton_solver_set_F_scale(solver, scale);
+}
+
 // Constructor for Jacobian-Free Newton-Krylov food web solver with 
 // no preconditioner.
 static newton_solver_t* jfnk_foodweb_solver_new(foodweb_t* data, newton_pc_t* precond)
@@ -479,21 +490,7 @@ static newton_solver_t* jfnk_foodweb_solver_new(foodweb_t* data, newton_pc_t* pr
   newton_solver_set_constraints(solver, constraints);
 
   // Scale the U and F vectors.
-  real_t species_scale[NUM_SPECIES];
-  for (int s = 0; s < NUM_SPECIES/2; ++s) 
-    species_scale[s] = ONE;
-  for (int s = NUM_SPECIES/2; s < NUM_SPECIES; ++s)
-    species_scale[s] = RCONST(0.00001);
-
-  real_t scale[NEQ];
-  DECLARE_3D_ARRAY(real_t, s_ijs, scale, MX, MY, NUM_SPECIES);
-  for (int i = 0; i < MX; ++i) 
-    for (int j = 0; j < MY; ++j) 
-      for (int s = 0; s < NUM_SPECIES; ++s) 
-        s_ijs[i][j][s] = species_scale[s];
-
-  newton_solver_set_U_scale(solver, scale);
-  newton_solver_set_F_scale(solver, scale);
+  set_scaling_vectors(solver);
 
   return solver;
 }
@@ -549,21 +546,7 @@ newton_solver_t* ink_foodweb_solver_new(krylov_factory_t* factory)
   newton_solver_set_constraints(solver, constraints);
 
   // Scale the U and F scaling vectors.
-  real_t species_scale[NUM_SPECIES];
-  for (int s = 0; s < NUM_SPECIES/2; ++s) 
-    species_scale[s] = ONE;
-  for (int s = NUM_SPECIES/2; s < NUM_SPECIES; ++s)
-    species_scale[s] = RCONST(0.00001);
-
-  real_t scale[NEQ];
-  DECLARE_3D_ARRAY(real_t, s_ijs, scale, MX, MY, NUM_SPECIES);
-  for (int i = 0; i < MX; ++i) 
-    for (int j = 0; j < MY; ++j) 
-      for (int s = 0; s < NUM_SPECIES; ++s) 
-        s_ijs[i][j][s] = species_scale[s];
-
-  newton_solver_set_U_scale(solver, scale);
-  newton_solver_set_F_scale(solver, scale);
+  set_scaling_vectors(solver);
 
   return solver;
 }

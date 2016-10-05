@@ -197,8 +197,11 @@ bool krylov_solver_solve_scaled(krylov_solver_t* solver,
     }
     else
     {
-      krylov_vector_free(solver->s2_inv);
-      solver->s2_inv = NULL;
+      if (solver->s2_inv != NULL)
+      {
+        krylov_vector_free(solver->s2_inv);
+        solver->s2_inv = NULL;
+      }
     }
 
     // Calculate the scaled operator matrix s1 * A * s2_inv.
