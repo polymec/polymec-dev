@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/polymec.h"
+#include "core/timer.h"
 #include "core/declare_nd_array.h"
 #include "integrators/newton_solver.h"
 #include "integrators/bj_newton_pc.h"
@@ -251,27 +252,30 @@ static real_t dot_prod(long int size, real_t* x1, real_t* x2)
 }
 
 // Interaction rate function routine 
-static void web_rate(void* context, real_t xx, real_t yy, real_t *cxy, real_t *ratesxy)
+static void web_rate(void* context, real_t x, real_t y, real_t *c, real_t *rates)
 {
+  START_FUNCTION_TIMER();
   foodweb_t* data = context;
   
-  for (int i = 0; i < NUM_SPECIES; ++i)
-    ratesxy[i] = dot_prod(NUM_SPECIES, cxy, acoef[i]);
+  for (int s = 0; s < NUM_SPECIES; ++s)
+    rates[s] = dot_prod(NUM_SPECIES, c, acoef[s]);
   
-  real_t fac = ONE + ALPHA * xx * yy;
+  real_t fac = ONE + ALPHA * x * y;
   
-  for (int i = 0; i < NUM_SPECIES; ++i)
-    ratesxy[i] = cxy[i] * ( bcoef[i] * fac + ratesxy[i] );  
+  for (int s = 0; s < NUM_SPECIES; ++s)
+    rates[s] = c[s] * ( bcoef[s] * fac + rates[s] );  
+  STOP_FUNCTION_TIMER();
 }
 
 // System function
 static int foodweb_func(void* context, real_t t, real_t* U, real_t* F)
 {
+  START_FUNCTION_TIMER();
   foodweb_t* data = context;
   
-  DECLARE_3D_ARRAY(real_t, U_ijk, U, MX, MY, NUM_SPECIES);
-  DECLARE_3D_ARRAY(real_t, F_ijk, F, MX, MY, NUM_SPECIES);
-  DECLARE_3D_ARRAY(real_t, r_ijk, data->rates, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, U_ijs, U, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, F_ijs, F, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, r_ijs, data->rates, MX, MY, NUM_SPECIES);
 
   real_t delx = data->dx;
   real_t dely = data->dy;
@@ -294,26 +298,27 @@ static int foodweb_func(void* context, real_t t, real_t* U, real_t* F)
       int j_up   = (j != MY-1) ?  1 : -1;
 
       // Get species interaction rate array at (xi,yj) 
-      web_rate(data, xi, yj, U_ijk[i][j], r_ijk[i][j]);
+      web_rate(data, xi, yj, U_ijs[i][j], r_ijs[i][j]);
       
       for(int s = 0; s < NUM_SPECIES; s++) 
       {
         // Differencing in x direction 
-        real_t dcyli = U_ijk[i][j][s] - U_ijk[i][j+j_down][s];
-        real_t dcyui = U_ijk[i][j+j_up][s] - U_ijk[i][j][s];
+        real_t dcyli = U_ijs[i][j][s] - U_ijs[i][j+j_down][s];
+        real_t dcyui = U_ijs[i][j+j_up][s] - U_ijs[i][j][s];
         
         // Differencing in y direction 
-        real_t dcxli = U_ijk[i][j][s] - U_ijk[i+i_left][j][s];
-        real_t dcxri = U_ijk[i+i_right][j][s] - U_ijk[i][j][s];
+        real_t dcxli = U_ijs[i][j][s] - U_ijs[i+i_left][j][s];
+        real_t dcxri = U_ijs[i+i_right][j][s] - U_ijs[i][j][s];
 
         // Compute F at (xi,yj) 
-        F_ijk[i][j][s] = (coy)[s] * (dcyui - dcyli) +
+        F_ijs[i][j][s] = (coy)[s] * (dcyui - dcyli) +
                          (cox)[s] * (dcxri - dcxli) + 
-                         r_ijk[i][j][s];
+                         r_ijs[i][j][s];
       }
     }
   }
 
+  STOP_FUNCTION_TIMER();
   return 0;
 }
 
@@ -348,14 +353,18 @@ static int foodweb_J(void* context,
                      real_t t, real_t* U, real_t* F, 
                      krylov_matrix_t* J)
 {
+  START_FUNCTION_TIMER();
   foodweb_t* data = context;
   
-  DECLARE_3D_ARRAY(real_t, U_ijk, U, MX, MY, NUM_SPECIES);
-  DECLARE_3D_ARRAY(real_t, r_ijk, data->rates, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, U_ijs, U, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, r_ijs, data->rates, MX, MY, NUM_SPECIES);
 
   real_t delx = data->dx;
   real_t dely = data->dy;
   
+  // Perturbation parameter.
+  real_t eps = sqrt(REAL_EPSILON);
+
   // Maps from indices to their values in the Jacobian.
   index_real_unordered_map_t* I_map = index_real_unordered_map_new();
 
@@ -377,7 +386,9 @@ static int foodweb_J(void* context,
       int j_up   = (j != MY-1) ?  1 : -1;
 
       // Get species interaction rate array at (xi,yj) 
-      web_rate(data, xi, yj, U_ijk[i][j], r_ijk[i][j]);
+      web_rate(data, xi, yj, U_ijs[i][j], r_ijs[i][j]);
+      real_t c_ij[NUM_SPECIES];
+      memcpy(c_ij, U_ijs[i][j], sizeof(real_t) * NUM_SPECIES);
       for(int s = 0; s < NUM_SPECIES; s++) 
       {
         // There are up to 4 + NUM_SPECIES Jacobian contributions for each 
@@ -393,11 +404,20 @@ static int foodweb_J(void* context,
                 I_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+j_down, 0),
                 I_rxn[NUM_SPECIES];
 
-        // Compute reaction rate derivatives.
+        // Compute reaction rate derivatives using finite differences.
+        real_t r_ijs1[NUM_SPECIES];
         for (int s1 = 0; s1 < NUM_SPECIES; ++s1)
         {
+          // Perturb c_ij and compute the corresponding derivative.
+          real_t dcs1 = eps * c_ij[s1];
+          c_ij[s1] += dcs1;           // perturb
+          web_rate(data, xi, yj, c_ij, r_ijs1);
+          c_ij[s1] = U_ijs[i][j][s1]; // reset
+          real_t drsdcs1 = (r_ijs1[s] - r_ijs[i][j][s]) / dcs1;
+
+          // Gather the Jacobian index and element.
           I_rxn[s1] = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j, s1);
-          J_rxn[s1] = 2.0 * r_ijk[i][j][s]/U_ijk[i][j][s1];
+          J_rxn[s1] = drsdcs1;
         }
 
         // Differencing in x direction.
@@ -427,18 +447,19 @@ static int foodweb_J(void* context,
 
   // Make sure the matrix is assembled.
   krylov_matrix_assemble(J);
-//static bool first = true;
-//if (first)
-//{
-//FILE* f = fopen("J.txt", "w");
-//krylov_matrix_fprintf(J, f);
-//fclose(f);
-//first = false;
-//}
+static bool first = true;
+if (first)
+{
+FILE* f = fopen("J.txt", "w");
+krylov_matrix_fprintf(J, f);
+fclose(f);
+first = false;
+}
 
   // Clean up.
   index_real_unordered_map_free(I_map);
 
+  STOP_FUNCTION_TIMER();
   return 0;
 }
 
@@ -465,11 +486,11 @@ static newton_solver_t* jfnk_foodweb_solver_new(foodweb_t* data, newton_pc_t* pr
     species_scale[s] = RCONST(0.00001);
 
   real_t scale[NEQ];
-  DECLARE_3D_ARRAY(real_t, s_ijk, scale, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, s_ijs, scale, MX, MY, NUM_SPECIES);
   for (int i = 0; i < MX; ++i) 
     for (int j = 0; j < MY; ++j) 
       for (int s = 0; s < NUM_SPECIES; ++s) 
-        s_ijk[i][j][s] = species_scale[s];
+        s_ijs[i][j][s] = species_scale[s];
 
   newton_solver_set_U_scale(solver, scale);
   newton_solver_set_F_scale(solver, scale);
@@ -499,11 +520,11 @@ real_t* foodweb_initial_conditions()
   for (int s = NUM_SPECIES/2; s < NUM_SPECIES; ++s) 
     c0[s] = PREDIN;
 
-  DECLARE_3D_ARRAY(real_t, U_ijk, U, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, U_ijs, U, MX, MY, NUM_SPECIES);
   for (int i = 0; i < MX; ++i) 
     for (int j = 0; j < MY; ++j) 
       for (int s = 0; s < NUM_SPECIES; ++s) 
-        U_ijk[i][j][s] = c0[s];
+        U_ijs[i][j][s] = c0[s];
 
   return U;
 }
@@ -527,7 +548,7 @@ newton_solver_t* ink_foodweb_solver_new(krylov_factory_t* factory)
     constraints[i] = 2.0;
   newton_solver_set_constraints(solver, constraints);
 
-  // Scale the U and F vectors.
+  // Scale the U and F scaling vectors.
   real_t species_scale[NUM_SPECIES];
   for (int s = 0; s < NUM_SPECIES/2; ++s) 
     species_scale[s] = ONE;
@@ -535,11 +556,11 @@ newton_solver_t* ink_foodweb_solver_new(krylov_factory_t* factory)
     species_scale[s] = RCONST(0.00001);
 
   real_t scale[NEQ];
-  DECLARE_3D_ARRAY(real_t, s_ijk, scale, MX, MY, NUM_SPECIES);
+  DECLARE_3D_ARRAY(real_t, s_ijs, scale, MX, MY, NUM_SPECIES);
   for (int i = 0; i < MX; ++i) 
     for (int j = 0; j < MY; ++j) 
       for (int s = 0; s < NUM_SPECIES; ++s) 
-        s_ijk[i][j][s] = species_scale[s];
+        s_ijs[i][j][s] = species_scale[s];
 
   newton_solver_set_U_scale(solver, scale);
   newton_solver_set_F_scale(solver, scale);
