@@ -729,12 +729,16 @@ LIS_INT lis_solve_kernel(LIS_MATRIX A, LIS_VECTOR b, LIS_VECTOR x, LIS_SOLVER so
 	switch(conv_cond)
 	{
 	case LIS_CONV_COND_NRM2_R:
+		lis_vector_nrm2(b,&nrm2);
+#define MAX(a, b) ((a > b) ? a : b)
+		nrm2 = MAX(nrm2*tol_w, tol);
+#undef MAX
 		if( A->my_rank==0 )
 		{
 #ifdef _LONG__DOUBLE
-		  if( output ) printf("convergence condition : ||b-Ax||_2 <= %6.1Le * ||b-Ax_0||_2\n", tol); 		  
+		  if( output ) printf("convergence condition : ||b-Ax||_2 <= max(%6.1Le * ||b||_2, %6.1Le) = %6.1Le\n", tol_w, tol, nrm2);
 #else 
-		  if( output ) printf("convergence condition : ||b-Ax||_2 <= %6.1e * ||b-Ax_0||_2\n", tol); 		  
+		  if( output ) printf("convergence condition : ||b-Ax||_2 <= max(%6.1e * ||b||_2, %6.1e) = %6.1e\n", tol_w,tol,nrm2);
 #endif
 		}
 		break;		
@@ -988,9 +992,11 @@ LIS_INT lis_solver_get_initial_residual(LIS_SOLVER solver, LIS_PRECON M, LIS_VEC
 	{
 	case LIS_CONV_COND_NRM2_R:
 		lis_vector_nrm2(p,&nrm2);
-		*bnrm2 = nrm2;
-		solver->tol = tol;
-		solver->tol_switch = tol_switch;
+		lis_vector_nrm2(b,bnrm2);
+#define MAX(a, b) ((a > b) ? a : b)
+		solver->tol = MAX(*bnrm2*tol_w, tol);
+		solver->tol_switch = MAX(*bnrm2*tol_w, tol_switch);
+#undef MAX
 		break;
 	case LIS_CONV_COND_NRM2_B:
 		lis_vector_nrm2(p,&nrm2);
@@ -1025,7 +1031,7 @@ LIS_INT lis_solver_get_initial_residual(LIS_SOLVER solver, LIS_PRECON M, LIS_VEC
 		if( output & LIS_PRINT_OUT && A->my_rank==0 ) printf("iteration: %5d  relative residual = %e\n", 0, nrm2); 
 #endif
 	}
-	if( nrm2 <= fabs(solver->params[LIS_PARAMS_RESID-LIS_OPTIONS_LEN]) )
+  if( nrm2/(*bnrm2) <= solver->tol)
 	{
 		solver->retcode = LIS_SUCCESS;
 		solver->iter    = 1;
