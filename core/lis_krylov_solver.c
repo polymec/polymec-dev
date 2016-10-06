@@ -66,7 +66,7 @@ static void lis_solver_set_tolerances(void* context,
 {
   lis_solver_t* solver = context;
   char command[129];
-  snprintf(command, 128, "-conv_cond 2 -tol_w %g -tol %g", rel_tol, abs_tol);
+  snprintf(command, 128, "-conv_cond 0 -tol_w %g -tol %g", rel_tol, abs_tol);
   lis_solver_set_option(command, solver->solver);
 }
 
@@ -105,6 +105,12 @@ static bool lis_solver_solve(void* context,
   lis_solver_t* solver = context;
   LIS_VECTOR B = b;
   LIS_VECTOR X = x;
+
+  // Jot down ||b||_2.
+  double b_norm;
+  lis_vector_nrm2(B, &b_norm);
+
+  // Solve the system.
   polymec_suspend_fpe();
   LIS_INT err = lis_solve(solver->op->A, B, X, solver->solver);
   polymec_restore_fpe();
@@ -124,12 +130,17 @@ static bool lis_solver_solve(void* context,
         log_debug("krylov_solver_solve (LIS): max # of iterations exceeded");
     }
   }
-  double dnorm;
-  lis_solver_get_residualnorm(solver->solver, &dnorm);
-  *res_norm = (real_t)dnorm;
-  LIS_INT niters;
-  lis_solver_get_iter(solver->solver, &niters);
-  *num_iters = (int)niters;
+  if (solved)
+  {
+    // The following returns the relative residual norm ||b-A*x||_2/||b||_2, so 
+    // we need to multiply it by ||b||_2 to get the actual residual norm.
+    double rel_res_norm;
+    lis_solver_get_residualnorm(solver->solver, &rel_res_norm);
+    *res_norm = (real_t)(rel_res_norm * b_norm);
+    LIS_INT niters;
+    lis_solver_get_iter(solver->solver, &niters);
+    *num_iters = (int)niters;
+  }
   return solved;
 }
 
@@ -149,7 +160,8 @@ static krylov_solver_t* lis_factory_pcg_solver(void* context,
   lis_solver_set_option("-i cg", solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
   lis_solver_set_option("-scale jacobi", solver->solver);
-//  lis_solver_set_option("-print 2", solver->solver);
+  if (log_level() == LOG_DEBUG)
+    lis_solver_set_option("-print 2", solver->solver);
   solver->op = NULL;
 
   // Set up the virtual table.
@@ -174,7 +186,9 @@ static krylov_solver_t* lis_factory_gmres_solver(void* context,
   lis_solver_set_option(gmres, solver->solver);
   lis_solver_set_option("-p ilu", solver->solver);
   lis_solver_set_option("-scale jacobi", solver->solver);
-//  lis_solver_set_option("-print 2", solver->solver);
+  if (log_level() == LOG_DEBUG)
+    lis_solver_set_option("-print 2", solver->solver);
+  solver->op = NULL;
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,
@@ -194,7 +208,9 @@ static krylov_solver_t* lis_factory_bicgstab_solver(void* context,
   lis_solver_set_option("-i bicgstab", solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
   lis_solver_set_option("-scale jacobi", solver->solver);
-//  lis_solver_set_option("-print 2", solver->solver);
+  if (log_level() == LOG_DEBUG)
+    lis_solver_set_option("-print 2", solver->solver);
+  solver->op = NULL;
 
   // Set up the virtual table.
   krylov_solver_vtable vtable = {.set_tolerances = lis_solver_set_tolerances,

@@ -50,12 +50,13 @@ static void test_foodweb_solve(void** state, newton_solver_t* newton)
   log_info("num iterations = %d\n", num_iters);
 
   // Evaluate the 2-norm of the residual.
+  // Note that the tolerance specifies a bound on the *scaled* norm of F.
   int num_eq = 6*8*8;
   real_t F[num_eq];
   newton_solver_eval_residual(newton, 0.0, cc, F);
   real_t L2 = l2_norm(F, num_eq);
   log_info("||F||_L2 = %g\n", L2);
-  assert_true(L2 < sqrt(1e-7));
+  assert_true(L2 < 1e-2);
 
   newton_solver_free(newton);
   free(cc);

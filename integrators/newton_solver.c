@@ -786,17 +786,18 @@ static int ink_solve(void* context,
   real_t rel_tol = 1e-8;
   real_t div_tol = 10.0;
   krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
+printf("abs_tol = %g\n", res_norm_tol);
 
   // Solve (DF*A)*X = DF*B.
   real_t res_norm;
   int num_iters;
-printf("||DF*B||_2 = %g\n", krylov_vector_w2_norm(ink->B, ink->DF));
   bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->DF, ink->DF, 
                                            ink->X, &res_norm, &num_iters);
 
   if (solved)
   {
-    log_debug("ink_newton_solver: Solved A*X = B (||DF*(B-A*X)|| == %g after %d iters).", res_norm, num_iters);
+    log_debug("ink_newton_solver: Solved A*X = B (||DF*(B-A*X)||_2 == %g", res_norm);
+    log_debug("ink_newton_solver:                 after %d iterations).", num_iters);
 
 printf("||X||_2 = %g\n", krylov_vector_norm(ink->X, 2));
     // Compute the norms, using ink->B as a workspace.

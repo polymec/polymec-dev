@@ -335,6 +335,7 @@ static void hypre_solver_set_pc(void* context,
     set_pc(solver, (HYPRE_PtrToSolverFcn)p->solve, (HYPRE_PtrToSolverFcn)p->setup, p->pc);
 }
 
+static real_t hypre_vector_norm(void* context, int p);
 static bool hypre_solver_solve(void* context,
                                void* b,
                                void* x,
@@ -349,6 +350,9 @@ static bool hypre_solver_solve(void* context,
   HYPRE_ParVector par_B, par_X;
   solver->factory->methods.HYPRE_IJVectorGetObject(B, &par_B);
   solver->factory->methods.HYPRE_IJVectorGetObject(X, &par_X);
+
+  // Record ||b||_2.
+  real_t b_norm = hypre_vector_norm(b, 2);
 
   // Dispatch.
   HYPRE_Int (*setup)(HYPRE_Solver, HYPRE_ParCSRMatrix, HYPRE_ParVector, HYPRE_ParVector);
@@ -381,12 +385,9 @@ static bool hypre_solver_solve(void* context,
       get_num_iters = solver->factory->methods.HYPRE_BoomerAMGGetNumIterations; 
       get_norm = solver->factory->methods.HYPRE_BoomerAMGGetFinalRelativeResidualNorm; 
   }
-  log_debug("hypre_solver_solve: Setting up linear system.");
   setup(solver->solver, solver->op, par_B, par_X);
   if (SOLVER_ERROR_OCCURRED(solver))
     return false;
-
-  log_debug("hypre_solver_solve: Solving linear system.");
 
   // HYPRE's Krylov methods can produce some pretty small numbers, which can be 
   // interpreted as denormalized garbage by polymec, so we tell polymec to chill.
@@ -395,17 +396,17 @@ static bool hypre_solver_solve(void* context,
   polymec_restore_fpe();
 
   int success = ((result == 0) && !SOLVER_ERROR_OCCURRED(solver));
-  if (success)
-    log_debug("hypre_solver_solve: Success!");
-  else
-    log_debug("hypre_solver_solve: Failure.");
 
+  // Get the number of iterations.
   HYPRE_Int iters;
   get_num_iters(solver->solver, &iters);
   *num_iters = (int)iters;
+
+  // Get the residual norm. HYPRE returns the relative norm, so we 
+  // have to multiply by ||b||_2.
   HYPRE_Real norm;
   get_norm(solver->solver, &norm);
-  *res_norm = norm;
+  *res_norm = norm * b_norm;
 
   solver->factory->methods.HYPRE_ClearAllErrors();
   return success;

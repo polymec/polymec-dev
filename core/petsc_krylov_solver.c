@@ -35,6 +35,7 @@ typedef const char* MatType;
 typedef void* Vec;
 typedef void* PetscViewer;
 typedef enum {NORM_1=0,NORM_2=1,NORM_FROBENIUS=2,NORM_INFINITY=3,NORM_1_AND_2=4} NormType;
+typedef enum {KSP_NORM_DEFAULT = -1,KSP_NORM_NONE = 0,KSP_NORM_PRECONDITIONED = 1,KSP_NORM_UNPRECONDITIONED = 2,KSP_NORM_NATURAL = 3} KSPNormType;
 typedef enum {MAT_FLUSH_ASSEMBLY=1,MAT_FINAL_ASSEMBLY=0} MatAssemblyType;
 typedef enum {INSERT_VALUES=1,ADD_VALUES=0} InsertMode;
 typedef enum {MAT_INITIAL_MATRIX,MAT_REUSE_MATRIX,MAT_IGNORE_MATRIX} MatReuse;
@@ -64,6 +65,9 @@ typedef struct
   PetscErrorCode (*KSPSetFromOptions)(KSP);
   PetscErrorCode (*KSPSetTolerances)(KSP,PetscReal,PetscReal,PetscReal,PetscInt);
   PetscErrorCode (*KSPGetTolerances)(KSP,PetscReal*,PetscReal*,PetscReal*,PetscInt*);
+  PetscErrorCode (*KSPSetDiagonalScale)(KSP,PetscBool);
+  PetscErrorCode (*KSPSetDiagonalScaleFix)(KSP,PetscBool);
+  PetscErrorCode (*KSPSetNormType)(KSP,KSPNormType);
   PetscErrorCode (*KSPSetOperators)(KSP,Mat,Mat);
   PetscErrorCode (*KSPSetUp)(KSP);
   PetscErrorCode (*KSPSolve)(KSP,Vec,Vec);
@@ -273,6 +277,10 @@ static krylov_solver_t* petsc_factory_pcg_solver(void* context,
   solver->factory->methods.KSPCreate(comm, &solver->ksp);
   solver->factory->methods.KSPSetType(solver->ksp, "cg");
 
+  // We always use the unpreconditioned residual norm to determine 
+  // convergence.
+  solver->factory->methods.KSPSetNormType(solver->ksp, KSP_NORM_UNPRECONDITIONED);
+
   // Handle the preconditioner's options.
   PC pc;
   solver->factory->methods.KSPGetPC(solver->ksp, &pc);
@@ -299,6 +307,11 @@ static krylov_solver_t* petsc_factory_gmres_solver(void* context,
   solver->factory = context;
   solver->factory->methods.KSPCreate(comm, &solver->ksp);
   solver->factory->methods.KSPSetType(solver->ksp, "gmres");
+
+  // We always use the unpreconditioned residual norm to determine 
+  // convergence.
+  solver->factory->methods.KSPSetNormType(solver->ksp, KSP_NORM_UNPRECONDITIONED);
+
   solver->factory->methods.KSPGMRESSetRestart(solver->ksp, (PetscInt)krylov_dimension);
   // FIXME: Consider altering orthogonalization scheme?
 
@@ -328,6 +341,10 @@ static krylov_solver_t* petsc_factory_bicgstab_solver(void* context,
   solver->factory->methods.KSPCreate(comm, &solver->ksp);
   solver->factory->methods.KSPSetType(solver->ksp, "bcgs");
 
+  // We always use the unpreconditioned residual norm to determine 
+  // convergence.
+  solver->factory->methods.KSPSetNormType(solver->ksp, KSP_NORM_UNPRECONDITIONED);
+
   // Handle the preconditioner's options.
   PC pc;
   solver->factory->methods.KSPGetPC(solver->ksp, &pc);
@@ -355,6 +372,10 @@ static krylov_solver_t* petsc_factory_special_solver(void* context,
   solver->factory = context;
   solver->factory->methods.KSPCreate(comm, &solver->ksp);
   solver->factory->methods.KSPSetType(solver->ksp, solver_name);
+
+  // We always use the unpreconditioned residual norm to determine 
+  // convergence.
+  solver->factory->methods.KSPSetNormType(solver->ksp, KSP_NORM_UNPRECONDITIONED);
 
   // Handle the preconditioner's options.
   PC pc;
@@ -1403,6 +1424,9 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
   FETCH_PETSC_SYMBOL(KSPSetPC);
   FETCH_PETSC_SYMBOL(KSPSetTolerances);
   FETCH_PETSC_SYMBOL(KSPGetTolerances);
+  FETCH_PETSC_SYMBOL(KSPSetDiagonalScale);
+  FETCH_PETSC_SYMBOL(KSPSetDiagonalScaleFix);
+  FETCH_PETSC_SYMBOL(KSPSetNormType);
   FETCH_PETSC_SYMBOL(KSPSetOperators);
   FETCH_PETSC_SYMBOL(KSPSetUp);
   FETCH_PETSC_SYMBOL(KSPSolve);
