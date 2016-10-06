@@ -159,7 +159,7 @@ static krylov_solver_t* lis_factory_pcg_solver(void* context,
   lis_solver_create(&solver->solver);
   lis_solver_set_option("-i cg", solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
-  lis_solver_set_option("-scale jacobi", solver->solver);
+//  lis_solver_set_option("-scale jacobi", solver->solver);
   if (log_level() == LOG_DEBUG)
     lis_solver_set_option("-print 2", solver->solver);
   solver->op = NULL;
@@ -185,7 +185,7 @@ static krylov_solver_t* lis_factory_gmres_solver(void* context,
   snprintf(gmres, 128, "-i gmres %d", krylov_dimension);
   lis_solver_set_option(gmres, solver->solver);
   lis_solver_set_option("-p ilu", solver->solver);
-  lis_solver_set_option("-scale jacobi", solver->solver);
+//  lis_solver_set_option("-scale jacobi", solver->solver);
   if (log_level() == LOG_DEBUG)
     lis_solver_set_option("-print 2", solver->solver);
   solver->op = NULL;
@@ -207,7 +207,7 @@ static krylov_solver_t* lis_factory_bicgstab_solver(void* context,
   lis_solver_create(&solver->solver);
   lis_solver_set_option("-i bicgstab", solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
-  lis_solver_set_option("-scale jacobi", solver->solver);
+//  lis_solver_set_option("-scale jacobi", solver->solver);
   if (log_level() == LOG_DEBUG)
     lis_solver_set_option("-print 2", solver->solver);
   solver->op = NULL;
