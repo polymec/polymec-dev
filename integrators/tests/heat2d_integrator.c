@@ -59,7 +59,7 @@ typedef struct
 heat2d_t* heat2d_new(void);
 heat2d_t* heat2d_new()
 {
-  heat2d_t* data = malloc(sizeof(heat2d_t));
+  heat2d_t* data = polymec_malloc(sizeof(heat2d_t));
   data->mm  = MGRID;
   data->dx = ONE/(MGRID-ONE);
   data->coeff = ONE/(data->dx * data->dx);
@@ -91,7 +91,7 @@ static void heat2d_dtor(void* context)
 {
   heat2d_t* data = context;
   adj_graph_free(data->sparsity);
-  free(data);
+  polymec_free(data);
 }
 
 static int heat2d_res(void* context, real_t t, real_t* u, real_t* u_dot, real_t* F)
@@ -125,9 +125,9 @@ void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t**
 {
   heat2d_t* data = dae_integrator_context(integ);
   long int mm = data->mm;
-  *u = malloc(sizeof(real_t) * NEQ);
-  *u_dot = malloc(sizeof(real_t) * NEQ);
-  real_t* F = malloc(sizeof(real_t) * NEQ);
+  *u = polymec_malloc(sizeof(real_t) * NEQ);
+  *u_dot = polymec_malloc(sizeof(real_t) * NEQ);
+  real_t* F = polymec_malloc(sizeof(real_t) * NEQ);
 
   // Initialize u on all grid points. 
   long int mm1 = mm - 1;
@@ -166,32 +166,31 @@ void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t**
     }
   }
 
-  free(F);
+  polymec_free(F);
 }
 
-// Constructor for heat2d integrator with no preconditioner.
-static dae_integrator_t* heat2d_integrator_new(heat2d_t* data, newton_pc_t* precond)
+// Constructor for Jacobian-Free Newton-Krylov heat2d integrator with 
+// the given preconditioner.
+static dae_integrator_t* jfnk_heat2d_integrator_new(heat2d_t* data, newton_pc_t* precond)
 {
   // Set up a time integrator using GMRES with a Krylov space of maximum 
   // dimension 5.
-  dae_integrator_vtable vtable = {.residual = heat2d_res,
-                                  .dtor = heat2d_dtor};
-  // This is really a purely differential system.                                 
-  dae_integrator_t* integ = dae_integrator_new(5, MPI_COMM_SELF, 
-                                               DAE_ALL_DIFFERENTIAL, 
-                                               DAE_ALL_NONNEGATIVE,
-                                               NEQ, 0, data, vtable, 
-                                               precond, DAE_GMRES, 5);
+  dae_integrator_t* integ = jfnk_dae_integrator_new(5, MPI_COMM_SELF, 
+                                                    DAE_ALL_DIFFERENTIAL, 
+                                                    DAE_ALL_NONNEGATIVE,
+                                                    NEQ, 0, data, 
+                                                    heat2d_res, NULL, heat2d_dtor,
+                                                    precond, JFNK_DAE_GMRES, 5);
 
   return integ;
 }
 
 // Constructor for block-Jacobi-preconditioned heat2d integrator.
-dae_integrator_t* block_jacobi_precond_heat2d_integrator_new(void);
-dae_integrator_t* block_jacobi_precond_heat2d_integrator_new()
+dae_integrator_t* bj_pc_jfnk_heat2d_integrator_new(void);
+dae_integrator_t* bj_pc_jfnk_heat2d_integrator_new()
 {
   heat2d_t* data = heat2d_new();
   newton_pc_t* precond = dae_cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
-  return heat2d_integrator_new(data, precond);
+  return jfnk_heat2d_integrator_new(data, precond);
 }
 

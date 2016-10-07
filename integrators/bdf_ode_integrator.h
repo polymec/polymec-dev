@@ -9,7 +9,6 @@
 #define POLYMEC_BDF_ODE_INTEGRATOR_H
 
 #include "core/krylov_solver.h"
-#include "core/matrix_sparsity.h"
 #include "integrators/ode_integrator.h"
 #include "integrators/newton_pc.h"
 
@@ -35,9 +34,9 @@ typedef enum
 // function and destructor are required, and a function to compute Jy, the 
 // product of the Jacobian with the vector y, can be optionally provided. Its 
 // signature is: 
-// Jy_func(context, t, U, U_dot, y, temp, Jy), where context is the context pointer, 
+// Jy_func(context, t, U, U_dot, y, Jy, temp), where context is the context pointer, 
 // t is the time at which Jy is evaluated, y is the vector the Jacobian operator
-// J is applied to, U_dot is the right hand side function evaluated at t and y,
+// J is applied to, U_dot is the right hand side function evaluated at t and U,
 // temp is a work vector the same size as y, and Jy is a vector that stores the 
 // product Jy.
 // If Jy_func is not given, a finite difference approximation of Jy will be used.
@@ -50,7 +49,7 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
                                               int num_remote_values, 
                                               void* context, 
                                               int (*rhs_func)(void* context, real_t t, real_t* U, real_t* U_dot),
-                                              int (*Jy_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* temp, real_t* Jy),
+                                              int (*Jy_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* Jy, real_t* temp),
                                               void (*dtor)(void* context),
                                               newton_pc_t* precond,
                                               jfnk_bdf_krylov_t solver_type,

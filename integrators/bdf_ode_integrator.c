@@ -50,7 +50,7 @@ typedef struct
   int (*Jy)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* temp, real_t* Jy);
 
   // Generalized adaptor stuff.
-  int (*reset_func)(void* context, real_t t, real_t* X);
+  int (*reset_func)(void* context, real_t t, real_t* U);
   int (*setup_func)(void* context, 
                     bdf_conv_status_t conv_status, 
                     real_t gamma, 
@@ -345,7 +345,7 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
                                               int num_remote_values, 
                                               void* context, 
                                               int (*rhs_func)(void* context, real_t t, real_t* U, real_t* xdot),
-                                              int (*Jy_func)(void* context, real_t t, real_t* U, real_t* rhs, real_t* y, real_t* temp, real_t* Jy),
+                                              int (*Jy_func)(void* context, real_t t, real_t* U, real_t* rhs, real_t* y, real_t* Jy, real_t* temp),
                                               void (*dtor)(void* context),
                                               newton_pc_t* precond,
                                               jfnk_bdf_krylov_t solver_type,
@@ -732,7 +732,7 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                          int num_remote_values, 
                                          void* context, 
                                          int (*rhs_func)(void* context, real_t t, real_t* U, real_t* xdot),
-                                         int (*reset_func)(void* context, real_t t, real_t* X),
+                                         int (*reset_func)(void* context, real_t t, real_t* U),
                                          int (*setup_func)(void* context, 
                                                            bdf_conv_status_t conv_status, 
                                                            real_t gamma, 

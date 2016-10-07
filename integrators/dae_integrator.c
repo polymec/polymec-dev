@@ -41,32 +41,53 @@ dae_constraint_t* DAE_ALL_POSITIVE = &DAE_ALL_POSITIVE_LOC;
 struct dae_integrator_t 
 {
   char* name;
-  void* context;
-  dae_integrator_vtable vtable;
-  int order;
   MPI_Comm comm;
-  dae_krylov_t solver_type;
-  bool initialized;
-
   int num_local_values, num_remote_values;
+  void* context;
+  int order;
+  bool initialized;
+  int (*F)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F);
+  void (*dtor)(void* context);
 
   // IDA data structures.
   void* ida;
   N_Vector U, U_dot;
   real_t* U_with_ghosts;
   real_t* U_dot_with_ghosts;
-  int max_krylov_dim;
+  real_t t;
   char* status_message; // status of most recent integration.
   real_t max_dt, stop_time;
 
-  // Current simulation time;
-  real_t t;
+  // JFNK stuff.
+  int max_krylov_dim;
+  newton_pc_t* precond;
+  jfnk_dae_krylov_t solver_type;
+  int (*Jy)(void* context, real_t t, real_t* U, real_t alpha, real_t* U_dot, real_t* F,
+            real_t* y, real_t* Jy, real_t* tmp1, real_t* tmp2);
+
+  // Generalized adaptor stuff.
+  int (*reset_func)(void* context, real_t t, real_t* U, real_t* U_dot);
+  int (*setup_func)(void* context, 
+                    real_t alpha, 
+                    int step,
+                    real_t t, 
+                    real_t* U_pred, 
+                    real_t* U_dot_pred, 
+                    real_t* F_pred, 
+                    real_t* work1, real_t* work2, real_t* work3);
+  int (*solve_func)(void* context, 
+                    real_t t, 
+                    real_t* U,
+                    real_t* U_dot,
+                    real_t* F,
+                    real_t* W, 
+                    real_t res_norm_tol,
+                    real_t* B);
+  int prev_J_step;
 
   // Error weight function.
-  dae_integrator_error_weight_func compute_weights;
-
-  // Preconditioning stuff. 
-  newton_pc_t* precond;
+  void (*compute_weights)(void* context, real_t* y, real_t* weights);
+  real_t* error_weights;
 };
 
 static char* get_status_message(int status, real_t current_time)
@@ -113,8 +134,7 @@ static int evaluate_residual(real_t t, N_Vector U, N_Vector U_dot,
   // Evaluate the residual using vectors with ghosts.
   memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
   memcpy(integ->U_dot_with_ghosts, xxd, sizeof(real_t) * integ->num_local_values);
-  return integ->vtable.residual(integ->context, t, integ->U_with_ghosts, 
-                                integ->U_dot_with_ghosts, Fx);
+  return integ->F(integ->context, t, integ->U_with_ghosts, integ->U_dot_with_ghosts, Fx);
 }
 
 // This function sets up the preconditioner data within the integrator.
@@ -153,25 +173,25 @@ static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector U_dot,
   return result;
 }
 
-// Adaptor for J*v function.
-static int eval_Jv(real_t tt, N_Vector yy, N_Vector yp, N_Vector rr,
-                   N_Vector v, N_Vector Jv, real_t cj, 
+// Adaptor for J*y function.
+static int eval_Jy(real_t tt, N_Vector uu, N_Vector up, N_Vector ff,
+                   N_Vector y, N_Vector Jy, real_t cj, 
                    void *context, N_Vector tmp1, N_Vector tmp2)
 {
   START_FUNCTION_TIMER();
   dae_integrator_t* integ = context;
-  real_t* U = NV_DATA(yy);
-  real_t* Udot = NV_DATA(yp);
-  real_t* R = NV_DATA(rr);
-  real_t* vv = NV_DATA(v);
-  real_t* Jvv = NV_DATA(Jv);
+  real_t* U = NV_DATA(uu);
+  real_t* Udot = NV_DATA(up);
+  real_t* F = NV_DATA(ff);
+  real_t* yy = NV_DATA(y);
+  real_t* Jyy = NV_DATA(Jy);
   real_t* tmp11 = NV_DATA(tmp1);
   real_t* tmp22 = NV_DATA(tmp2);
 
   // Make sure we use ghosts.
   memcpy(integ->U_with_ghosts, U, sizeof(real_t) * integ->num_local_values);
   memcpy(integ->U_dot_with_ghosts, Udot, sizeof(real_t) * integ->num_local_values);
-  int status = integ->vtable.Jv(integ->context, tt, U, Udot, R, vv, Jvv, cj, tmp11, tmp22);
+  int status = integ->Jy(integ->context, tt, U, cj, Udot, F, yy, Jyy, tmp11, tmp22);
   STOP_FUNCTION_TIMER();
   return status;
 }
@@ -182,17 +202,20 @@ static int eval_Jv(real_t tt, N_Vector yy, N_Vector yp, N_Vector rr,
 #pragma GCC diagnostic ignored "-Wfloat-equal"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wfloat-equal"
-dae_integrator_t* dae_integrator_new(int order,
-                                     MPI_Comm comm,
-                                     dae_equation_t* equation_types,
-                                     dae_constraint_t* constraints,
-                                     int num_local_values,
-                                     int num_remote_values,
-                                     void* context,
-                                     dae_integrator_vtable vtable,
-                                     newton_pc_t* precond,
-                                     dae_krylov_t solver_type,
-                                     int max_krylov_dim)
+dae_integrator_t* jfnk_dae_integrator_new(int order,
+                                          MPI_Comm comm,
+                                          dae_equation_t* equation_types,
+                                          dae_constraint_t* constraints,
+                                          int num_local_values,
+                                          int num_remote_values,
+                                          void* context,
+                                          int (*F_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F),
+                                          int (*Jy_func)(void* context, real_t t, real_t* U, real_t alpha, real_t* U_dot, real_t* F,
+                                                         real_t* y, real_t* Jy, real_t* tmp1, real_t* tmp2),
+                                          void (*dtor)(void* context),
+                                          newton_pc_t* precond,
+                                          jfnk_dae_krylov_t solver_type,
+                                          int max_krylov_dim)
 {
   ASSERT(order > 0);
   ASSERT(order <= 5);
@@ -200,7 +223,7 @@ dae_integrator_t* dae_integrator_new(int order,
   ASSERT(constraints != NULL);
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
-  ASSERT(vtable.residual != NULL);
+  ASSERT(F_func != NULL);
   ASSERT(precond != NULL);
   ASSERT(newton_pc_side(precond) == NEWTON_PC_LEFT); // left PC only!
   ASSERT(max_krylov_dim >= 3);
@@ -208,10 +231,12 @@ dae_integrator_t* dae_integrator_new(int order,
   dae_integrator_t* integ = polymec_malloc(sizeof(dae_integrator_t));
   integ->context = context;
   integ->comm = comm;
-  integ->vtable = vtable;
   integ->order = order;
   integ->solver_type = solver_type;
   integ->t = 0.0;
+  integ->F = F_func;
+  integ->Jy = Jy_func;
+  integ->dtor = dtor;
   integ->num_local_values = num_local_values;
   integ->num_remote_values = num_remote_values;
   integ->precond = precond;
@@ -219,6 +244,11 @@ dae_integrator_t* dae_integrator_new(int order,
   integ->initialized = false;
   integ->max_dt = REAL_MAX;
   integ->status_message = NULL;
+  integ->error_weights = NULL;
+
+  integ->reset_func = NULL;
+  integ->setup_func = NULL;
+  integ->solve_func = NULL;
 
   // Set up IDA and accessories.
   integ->U = N_VNew(comm, num_local_values);
@@ -234,9 +264,9 @@ dae_integrator_t* dae_integrator_new(int order,
   IDAInit(integ->ida, evaluate_residual, integ->t, integ->U, integ->U_dot);
 
   // Select the particular type of Krylov method for the underlying linear solves.
-  if (solver_type == DAE_GMRES)
+  if (solver_type == JFNK_DAE_GMRES)
     IDASpgmr(integ->ida, max_krylov_dim); 
-  else if (solver_type == DAE_BICGSTAB)
+  else if (solver_type == JFNK_DAE_BICGSTAB)
     IDASpbcg(integ->ida, max_krylov_dim);
   else
     IDASptfqmr(integ->ida, max_krylov_dim);
@@ -323,8 +353,8 @@ dae_integrator_t* dae_integrator_new(int order,
   IDASpilsSetGSType(integ->ida, MODIFIED_GS);
 
   // Set up the Jacobian function if given.
-  if (vtable.Jv != NULL)
-    IDASpilsSetJacTimesVecFn(integ->ida, eval_Jv);
+  if (integ->Jy != NULL)
+    IDASpilsSetJacTimesVecFn(integ->ida, eval_Jy);
 
   // Set up preconditioner machinery.
   IDASpilsSetPreconditioner(integ->ida, set_up_preconditioner,
@@ -359,8 +389,10 @@ void dae_integrator_free(dae_integrator_t* integ)
   // Kill the rest.
   if (integ->status_message != NULL)
     polymec_free(integ->status_message);
-  if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
-    integ->vtable.dtor(integ->context);
+  if ((integ->context != NULL) && (integ->dtor != NULL))
+    integ->dtor(integ->context);
+  if (integ->error_weights != NULL)
+    polymec_free(integ->error_weights);
   polymec_free(integ);
 }
 
@@ -379,17 +411,50 @@ newton_pc_t* dae_integrator_preconditioner(dae_integrator_t* integrator)
   return integrator->precond;
 }
 
-void dae_integrator_set_tolerances(dae_integrator_t* integrator,
+void dae_integrator_set_tolerances(dae_integrator_t* integ,
                                    real_t relative_tol, real_t absolute_tol)
 {
   ASSERT(relative_tol > 0.0);
   ASSERT(absolute_tol > 0.0);
 
   // Clear any existing error weight function.
-  integrator->compute_weights = NULL;
+  integ->compute_weights = NULL;
+  if (integ->error_weights != NULL)
+  {
+    polymec_free(integ->error_weights);
+    integ->error_weights = NULL;
+  }
+
 
   // Set the tolerances.
-  IDASStolerances(integrator->ida, relative_tol, absolute_tol);
+  IDASStolerances(integ->ida, relative_tol, absolute_tol);
+}
+
+// Constant error weight adaptor function.
+static void use_constant_weights(void* context, real_t* y, real_t* weights)
+{
+  dae_integrator_t* integ = context;
+  ASSERT(integ->error_weights != NULL);
+  memcpy(weights, integ->error_weights, sizeof(real_t) * integ->num_local_values);
+}
+
+void dae_integrator_set_error_weights(dae_integrator_t* integ, real_t* weights)
+{
+#ifndef NDEBUG
+  // Check for non-negativity and total positivity.
+  real_t total = 0.0;
+  for (int i = 0; i < integ->num_local_values; ++i)
+  {
+    ASSERT(weights[i] >= 0.0);
+    total += weights[i];
+  }
+  ASSERT(total > 0.0);
+#endif
+
+  if (integ->error_weights == NULL)
+    integ->error_weights = polymec_malloc(sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->error_weights, weights, sizeof(real_t) * integ->num_local_values);
+  dae_integrator_set_error_weight_function(integ, use_constant_weights);
 }
 
 // Error weight adaptor function.
@@ -400,12 +465,12 @@ static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
   return 0;
 }
 
-void dae_integrator_set_error_weight_function(dae_integrator_t* integrator,
-                                              dae_integrator_error_weight_func compute_weights)
+void dae_integrator_set_error_weight_function(dae_integrator_t* integ,
+                                              void (*compute_weights)(void* context, real_t* y, real_t* weights))
 {
   ASSERT(compute_weights != NULL);
-  integrator->compute_weights = compute_weights;
-  IDAWFtolerances(integrator->ida, compute_error_weights);
+  integ->compute_weights = compute_weights;
+  IDAWFtolerances(integ->ida, compute_error_weights);
 }
 
 void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot, real_t* F);
@@ -414,7 +479,7 @@ void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* X, 
   START_FUNCTION_TIMER();
   memcpy(integ->U_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
   memcpy(integ->U_dot_with_ghosts, X_dot, sizeof(real_t) * integ->num_local_values);
-  integ->vtable.residual(integ->context, t, integ->U_with_ghosts, integ->U_dot_with_ghosts, F);
+  integ->F(integ->context, t, integ->U_with_ghosts, integ->U_dot_with_ghosts, F);
   STOP_FUNCTION_TIMER();
 }
 
@@ -551,23 +616,23 @@ void dae_integrator_reset(dae_integrator_t* integ,
   }
 }
 
-void dae_integrator_get_diagnostics(dae_integrator_t* integrator, 
+void dae_integrator_get_diagnostics(dae_integrator_t* integ, 
                                     dae_integrator_diagnostics_t* diagnostics)
 {
-  diagnostics->status_message = integrator->status_message; // borrowed!
-  IDAGetNumSteps(integrator->ida, &diagnostics->num_steps);
-  IDAGetLastOrder(integrator->ida, &diagnostics->order_of_last_step);
-  IDAGetActualInitStep(integrator->ida, &diagnostics->initial_step_size);
-  IDAGetLastStep(integrator->ida, &diagnostics->last_step_size);
-  IDAGetNumResEvals(integrator->ida, &diagnostics->num_residual_evaluations);
-  IDAGetNumLinSolvSetups(integrator->ida, &diagnostics->num_linear_solve_setups);
-  IDAGetNumErrTestFails(integrator->ida, &diagnostics->num_error_test_failures);
-  IDAGetNumNonlinSolvIters(integrator->ida, &diagnostics->num_nonlinear_solve_iterations);
-  IDAGetNumNonlinSolvConvFails(integrator->ida, &diagnostics->num_nonlinear_solve_convergence_failures);
-  IDASpilsGetNumLinIters(integrator->ida, &diagnostics->num_linear_solve_iterations);
-  IDASpilsGetNumPrecEvals(integrator->ida, &diagnostics->num_preconditioner_evaluations);
-  IDASpilsGetNumPrecSolves(integrator->ida, &diagnostics->num_preconditioner_solves);
-  IDASpilsGetNumConvFails(integrator->ida, &diagnostics->num_linear_solve_convergence_failures);
+  diagnostics->status_message = integ->status_message; // borrowed!
+  IDAGetNumSteps(integ->ida, &diagnostics->num_steps);
+  IDAGetLastOrder(integ->ida, &diagnostics->order_of_last_step);
+  IDAGetActualInitStep(integ->ida, &diagnostics->initial_step_size);
+  IDAGetLastStep(integ->ida, &diagnostics->last_step_size);
+  IDAGetNumResEvals(integ->ida, &diagnostics->num_residual_evaluations);
+  IDAGetNumLinSolvSetups(integ->ida, &diagnostics->num_linear_solve_setups);
+  IDAGetNumErrTestFails(integ->ida, &diagnostics->num_error_test_failures);
+  IDAGetNumNonlinSolvIters(integ->ida, &diagnostics->num_nonlinear_solve_iterations);
+  IDAGetNumNonlinSolvConvFails(integ->ida, &diagnostics->num_nonlinear_solve_convergence_failures);
+  IDASpilsGetNumLinIters(integ->ida, &diagnostics->num_linear_solve_iterations);
+  IDASpilsGetNumPrecEvals(integ->ida, &diagnostics->num_preconditioner_evaluations);
+  IDASpilsGetNumPrecSolves(integ->ida, &diagnostics->num_preconditioner_solves);
+  IDASpilsGetNumConvFails(integ->ida, &diagnostics->num_linear_solve_convergence_failures);
 }
 
 void dae_integrator_diagnostics_fprintf(dae_integrator_diagnostics_t* diagnostics, 

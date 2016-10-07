@@ -14,12 +14,12 @@
 #include "core/polymec.h"
 #include "integrators/dae_integrator.h"
 
-extern dae_integrator_t* block_jacobi_precond_heat2d_integrator_new();
+extern dae_integrator_t* bj_pc_jfnk_heat2d_integrator_new();
 extern void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t** u_dot);
 
-static void test_block_jacobi_precond_heat2d_ctor(void** state)
+static void test_bj_pc_jfnk_heat2d_ctor(void** state)
 {
-  dae_integrator_t* integ = block_jacobi_precond_heat2d_integrator_new();
+  dae_integrator_t* integ = bj_pc_jfnk_heat2d_integrator_new();
   dae_integrator_free(integ);
 }
 
@@ -48,13 +48,13 @@ printf("]\n");
   dae_integrator_diagnostics_fprintf(&diags, stdout);
 
   dae_integrator_free(integ);
-  free(u);
-  free(udot);
+  polymec_free(u);
+  polymec_free(udot);
 }
 
-static void test_block_jacobi_precond_heat2d_step(void** state)
+static void test_bj_pc_jfnk_heat2d_step(void** state)
 {
-  dae_integrator_t* integ = block_jacobi_precond_heat2d_integrator_new();
+  dae_integrator_t* integ = bj_pc_jfnk_heat2d_integrator_new();
   test_heat2d_step(state, integ);
 }
 
@@ -63,8 +63,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_block_jacobi_precond_heat2d_ctor),
-    cmocka_unit_test(test_block_jacobi_precond_heat2d_step),
+    cmocka_unit_test(test_bj_pc_jfnk_heat2d_ctor),
+    cmocka_unit_test(test_bj_pc_jfnk_heat2d_step),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
