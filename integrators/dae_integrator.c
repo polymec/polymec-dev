@@ -15,6 +15,9 @@
 #include "ida/ida_spbcgs.h"
 #include "ida/ida_sptfqmr.h"
 
+// Stuff for generalized integrators.
+#include "ida/ida_impl.h"
+
 // These symbols represent special short-hand arguments for equation types 
 // and constraints.
 static dae_equation_t DAE_ALL_ALGEBRAIC_LOC = DAE_ALGEBRAIC;
@@ -83,7 +86,7 @@ struct dae_integrator_t
                     real_t* W, 
                     real_t res_norm_tol,
                     real_t* B);
-  int prev_J_step;
+  real_t sqrtN;
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -202,6 +205,91 @@ static int eval_Jy(real_t tt, N_Vector uu, N_Vector up, N_Vector ff,
 #pragma GCC diagnostic ignored "-Wfloat-equal"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wfloat-equal"
+static void set_up_equations_and_constraints(dae_integrator_t* integ, 
+                                             dae_equation_t* equation_types,
+                                             dae_constraint_t* constraints)
+{
+  // We set the equation types.
+  N_Vector array = N_VNew(integ->comm, integ->num_local_values);
+  bool has_algebraic_eqns = false;
+  if (equation_types == DAE_ALL_ALGEBRAIC)
+  {
+    has_algebraic_eqns = true;
+    for (int i = 0; i < integ->num_local_values; ++i)
+      NV_Ith(array, i) = 0.0;
+  }
+  else if (equation_types == DAE_ALL_DIFFERENTIAL)
+  {
+    for (int i = 0; i < integ->num_local_values; ++i)
+      NV_Ith(array, i) = 1.0;
+  }
+  else
+  {
+    for (int i = 0; i < integ->num_local_values; ++i)
+    {
+      if (equation_types[i] == DAE_ALGEBRAIC)
+      {
+        has_algebraic_eqns = true;
+        NV_Ith(array, i) = 0.0;
+      }
+      else
+        NV_Ith(array, i) = 1.0;
+    }
+  }
+  IDASetId(integ->ida, array);
+
+  // Set up constraints.
+  if (constraints != DAE_ALL_UNCONSTRAINED)
+  {
+    if (constraints == DAE_ALL_NEGATIVE)
+    {
+      for (int i = 0; i < integ->num_local_values; ++i)
+        NV_Ith(array, i) = -2.0;
+    }
+    else if (constraints == DAE_ALL_NONPOSITIVE)
+    {
+      for (int i = 0; i < integ->num_local_values; ++i)
+        NV_Ith(array, i) = -1.0;
+    }
+    else if (constraints == DAE_ALL_NONNEGATIVE)
+    {
+      for (int i = 0; i < integ->num_local_values; ++i)
+        NV_Ith(array, i) = 1.0;
+    }
+    else if (constraints == DAE_ALL_POSITIVE)
+    {
+      for (int i = 0; i < integ->num_local_values; ++i)
+        NV_Ith(array, i) = 2.0;
+    }
+    else
+    {
+      for (int i = 0; i < integ->num_local_values; ++i)
+      {
+        real_t constraint = constraints[i];
+        if (constraint == DAE_UNCONSTRAINED)
+          NV_Ith(array, i) = 0.0;
+        else if (constraint == DAE_NEGATIVE)
+          NV_Ith(array, i) = -2.0;
+        else if (constraint == DAE_NONPOSITIVE)
+          NV_Ith(array, i) = -1.0;
+        else if (constraint == DAE_NONNEGATIVE)
+          NV_Ith(array, i) = 1.0;
+        else // (constraint == DAE_POSITIVE)
+          NV_Ith(array, i) = 2.0;
+      }
+    }
+    IDASetConstraints(integ->ida, array);
+  }
+  N_VDestroy(array);
+
+  // If we have algebraic equations, we suppress their contributions to 
+  // the estimate of the truncation error.
+  if (has_algebraic_eqns)
+    IDASetSuppressAlg(integ->ida, 1);
+}
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
+
 dae_integrator_t* jfnk_dae_integrator_new(int order,
                                           MPI_Comm comm,
                                           dae_equation_t* equation_types,
@@ -271,83 +359,8 @@ dae_integrator_t* jfnk_dae_integrator_new(int order,
   else
     IDASptfqmr(integ->ida, max_krylov_dim);
 
-  // We set the equation types.
-  N_Vector array = N_VNew(comm, num_local_values);
-  bool has_algebraic_eqns = false;
-  if (equation_types == DAE_ALL_ALGEBRAIC)
-  {
-    has_algebraic_eqns = true;
-    for (int i = 0; i < num_local_values; ++i)
-      NV_Ith(array, i) = 0.0;
-  }
-  else if (equation_types == DAE_ALL_DIFFERENTIAL)
-  {
-    for (int i = 0; i < num_local_values; ++i)
-      NV_Ith(array, i) = 1.0;
-  }
-  else
-  {
-    for (int i = 0; i < num_local_values; ++i)
-    {
-      if (equation_types[i] == DAE_ALGEBRAIC)
-      {
-        has_algebraic_eqns = true;
-        NV_Ith(array, i) = 0.0;
-      }
-      else
-        NV_Ith(array, i) = 1.0;
-    }
-  }
-  IDASetId(integ->ida, array);
-
-  // Set up constraints.
-  if (constraints != DAE_ALL_UNCONSTRAINED)
-  {
-    if (constraints == DAE_ALL_NEGATIVE)
-    {
-      for (int i = 0; i < num_local_values; ++i)
-        NV_Ith(array, i) = -2.0;
-    }
-    else if (constraints == DAE_ALL_NONPOSITIVE)
-    {
-      for (int i = 0; i < num_local_values; ++i)
-        NV_Ith(array, i) = -1.0;
-    }
-    else if (constraints == DAE_ALL_NONNEGATIVE)
-    {
-      for (int i = 0; i < num_local_values; ++i)
-        NV_Ith(array, i) = 1.0;
-    }
-    else if (constraints == DAE_ALL_POSITIVE)
-    {
-      for (int i = 0; i < num_local_values; ++i)
-        NV_Ith(array, i) = 2.0;
-    }
-    else
-    {
-      for (int i = 0; i < num_local_values; ++i)
-      {
-        real_t constraint = constraints[i];
-        if (constraint == DAE_UNCONSTRAINED)
-          NV_Ith(array, i) = 0.0;
-        else if (constraint == DAE_NEGATIVE)
-          NV_Ith(array, i) = -2.0;
-        else if (constraint == DAE_NONPOSITIVE)
-          NV_Ith(array, i) = -1.0;
-        else if (constraint == DAE_NONNEGATIVE)
-          NV_Ith(array, i) = 1.0;
-        else // (constraint == DAE_POSITIVE)
-          NV_Ith(array, i) = 2.0;
-      }
-    }
-    IDASetConstraints(integ->ida, array);
-  }
-  N_VDestroy(array);
-
-  // If we have algebraic equations, we suppress their contributions to 
-  // the estimate of the truncation error.
-  if (has_algebraic_eqns)
-    IDASetSuppressAlg(integ->ida, 1);
+  // Set up the equation types and constraints.
+  set_up_equations_and_constraints(integ, equation_types, constraints);
 
   // We use modified Gram-Schmidt orthogonalization.
   IDASpilsSetGSType(integ->ida, MODIFIED_GS);
@@ -370,8 +383,152 @@ dae_integrator_t* jfnk_dae_integrator_new(int order,
 
   return integ;
 }
-#pragma GCC diagnostic pop
-#pragma clang diagnostic pop
+
+static int dae_linit(IDAMem ida_mem)
+{
+  dae_integrator_t* dae = ida_mem->ida_user_data;
+  real_t t = ida_mem->ida_tn;
+  real_t* U = NV_DATA(ida_mem->ida_yy);
+  real_t* U_dot = NV_DATA(ida_mem->ida_yp);
+  dae->sqrtN = -1.0;
+  return dae->reset_func(dae->context, t, U, U_dot);
+}
+
+static int dae_lsetup(IDAMem ida_mem, N_Vector yyp, N_Vector ypp, N_Vector resp,
+                      N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3)
+{
+  dae_integrator_t* dae = ida_mem->ida_user_data;
+  real_t t = ida_mem->ida_tn;
+  real_t alpha = ida_mem->ida_cj;
+  int step = (int)ida_mem->ida_nst;
+  real_t* U_pred = NV_DATA(yyp);
+  real_t* U_dot_pred = NV_DATA(ypp);
+  real_t* F_pred = NV_DATA(resp);
+  real_t* work1 = NV_DATA(vtemp1);
+  real_t* work2 = NV_DATA(vtemp2);
+  real_t* work3 = NV_DATA(vtemp3);
+  if (dae->sqrtN <= 0.0)
+  {
+    N_VConst(1.0, vtemp1);
+    dae->sqrtN = sqrt(N_VDotProd(vtemp1, vtemp1));
+  }
+  return dae->setup_func(dae->context, alpha, step, t, U_pred, U_dot_pred, F_pred,
+                         work1, work2, work3);
+}
+
+static int dae_lsolve(IDAMem ida_mem, N_Vector b, N_Vector weight, N_Vector ycur,
+                      N_Vector ypcur, N_Vector rescur)
+{
+  dae_integrator_t* dae = ida_mem->ida_user_data;
+  real_t t = ida_mem->ida_tn;
+  real_t* U = NV_DATA(ycur);
+  real_t* U_dot = NV_DATA(ypcur);
+  real_t* F = NV_DATA(rescur);
+  real_t* W = NV_DATA(weight);
+  real_t res_norm_tol = 0.5 * dae->sqrtN * ida_mem->ida_epsNewt;
+  real_t* B = NV_DATA(b);
+  return dae->solve_func(dae->context, t, U, U_dot, F, W, res_norm_tol, B);
+}
+
+static int dae_lperf(IDAMem ida_mem, int perftask)
+{
+  return 0;
+}
+
+static int dae_lfree(IDAMem ida_mem)
+{
+  return 0;
+}
+
+dae_integrator_t* dae_integrator_new(const char* name,
+                                     int order, 
+                                     MPI_Comm comm,
+                                     dae_equation_t* equation_types,
+                                     dae_constraint_t* constraints,
+                                     int num_local_values, 
+                                     int num_remote_values, 
+                                     void* context, 
+                                     int (*F_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F),
+                                     int (*reset_func)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                     int (*setup_func)(void* context, 
+                                                       real_t alpha, 
+                                                       int step,
+                                                       real_t t, 
+                                                       real_t* U_pred, 
+                                                       real_t* U_dot_pred, 
+                                                       real_t* F_pred, 
+                                                       real_t* work1, real_t* work2, real_t* work3),
+                                     int (*solve_func)(void* context, 
+                                                       real_t t, 
+                                                       real_t* U,
+                                                       real_t* U_dot,
+                                                       real_t* F,
+                                                       real_t* W, 
+                                                       real_t res_norm_tol,
+                                                       real_t* B), 
+                                     void (*dtor)(void* context))
+{
+  ASSERT(order > 0);
+  ASSERT(order <= 5);
+  ASSERT(equation_types != NULL);
+  ASSERT(constraints != NULL);
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
+  ASSERT(F_func != NULL);
+
+  dae_integrator_t* integ = polymec_malloc(sizeof(dae_integrator_t));
+  integ->context = context;
+  integ->comm = comm;
+  integ->order = order;
+  integ->t = 0.0;
+  integ->F = F_func;
+  integ->Jy = NULL;
+  integ->dtor = dtor;
+  integ->num_local_values = num_local_values;
+  integ->num_remote_values = num_remote_values;
+  integ->precond = NULL;
+  integ->max_krylov_dim = -1;
+  integ->initialized = false;
+  integ->max_dt = REAL_MAX;
+  integ->status_message = NULL;
+  integ->error_weights = NULL;
+
+  // Set up IDA and accessories.
+  integ->U = N_VNew(comm, num_local_values);
+  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
+  integ->U_dot = N_VNew(comm, num_local_values);
+  integ->U_dot_with_ghosts = polymec_malloc(sizeof(real_t) * (num_local_values + num_remote_values));
+  memset(NV_DATA(integ->U), 0, sizeof(real_t) * num_local_values);
+  memset(NV_DATA(integ->U_dot), 0, sizeof(real_t) * num_local_values);
+
+  integ->ida = IDACreate();
+  IDASetMaxOrd(integ->ida, integ->order);
+  IDASetUserData(integ->ida, integ);
+  IDAInit(integ->ida, evaluate_residual, integ->t, integ->U, integ->U_dot);
+
+  // Set up the INK solver.
+  integ->reset_func = reset_func;
+  integ->setup_func = setup_func;
+  integ->solve_func = solve_func;
+  IDAMem ida_mem = integ->ida;
+  ida_mem->ida_linit = dae_linit;
+  ida_mem->ida_lsetup = dae_lsetup;
+  ida_mem->ida_lsolve = dae_lsolve;
+  ida_mem->ida_lperf = dae_lperf;
+  ida_mem->ida_lfree = dae_lfree;
+  ida_mem->ida_setupNonNull = 1; // needs to be set for lsetup to be called.
+
+  // Set up the equation types and constraints.
+  set_up_equations_and_constraints(integ, equation_types, constraints);
+
+  // Set some default tolerances:
+  // relative error of 1e-4 means errors are controlled to 0.01%.
+  // absolute error is set to 1 because it's completely problem dependent.
+  dae_integrator_set_tolerances(integ, 1e-4, 1.0);
+
+  return integ;
+}
+
 
 void dae_integrator_free(dae_integrator_t* integ)
 {
@@ -656,4 +813,268 @@ void dae_integrator_diagnostics_fprintf(dae_integrator_diagnostics_t* diagnostic
   fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
 }
 
+//------------------------------------------------------------------------
+//                  Inexact Newton-Krylov integrator stuff
+//------------------------------------------------------------------------
+
+typedef struct
+{
+  MPI_Comm comm;
+
+  // Behavior.
+  void* context;
+  int (*F_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F);
+  int (*J_func)(void* context, real_t t, real_t* U, real_t alpha, real_t* U_dot, real_t* F, krylov_matrix_t* J);
+  void (*dtor)(void* context);
+
+  // Linear system stuff.
+  krylov_factory_t* factory;
+  krylov_solver_t* solver;
+  krylov_pc_t* pc;
+  krylov_matrix_t* J; // Newton matrix J = dF/dU + alpha * dF/d(U_dot)
+  krylov_vector_t* X; // Solution vector.
+  krylov_vector_t* B; // Right-hand side vector.
+  krylov_vector_t* W; // Weights vector.
+
+  // Metadata.
+  matrix_sparsity_t* sparsity;
+  int block_size;
+} ink_dae_t;
+
+static int ink_F(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F)
+{
+  ink_dae_t* ink = context;
+  return ink->F_func(ink->context, t, U, U_dot, F);
+}
+
+static int ink_reset(void* context, real_t t, real_t* U, real_t* U_dot)
+{
+  START_FUNCTION_TIMER();
+  ink_dae_t* ink = context;
+  
+  // Free any resources currently in use.
+  if (ink->J != NULL)
+    krylov_matrix_free(ink->J);
+  if (ink->block_size > 1)
+    ink->J = krylov_factory_block_matrix(ink->factory, ink->sparsity, ink->block_size);
+  else
+    ink->J = krylov_factory_matrix(ink->factory, ink->sparsity);
+  if (ink->X != NULL)
+    krylov_vector_free(ink->X);
+  if (ink->B != NULL)
+    krylov_vector_free(ink->B);
+
+  // Allocate resources.
+  index_t* row_dist = matrix_sparsity_row_distribution(ink->sparsity);
+  ink->X = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->W = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+
+  STOP_FUNCTION_TIMER();
+  return 0;
+}
+
+static int ink_setup(void* context, 
+                     real_t alpha, 
+                     int step,
+                     real_t t, 
+                     real_t* U_pred, 
+                     real_t* U_dot_pred, 
+                     real_t* F_pred, 
+                     real_t* work1, real_t* work2, real_t* work3)
+{
+  START_FUNCTION_TIMER();
+  ink_dae_t* ink = context;
+
+  log_debug("ink_dae_integrator: Calculating J = dF/dU + %g * dF/d(U_dot).", alpha);
+  int status = ink->J_func(ink->context, t, U_pred, alpha, U_dot_pred, F_pred, ink->J);
+  if (status != 0)
+    return status;
+
+  // Use this matrix as the operator in our solver.
+  krylov_solver_set_operator(ink->solver, ink->J);
+
+  STOP_FUNCTION_TIMER();
+  return 0;
+}
+
+static int ink_solve(void* context, 
+                     real_t t, 
+                     real_t* U,
+                     real_t* U_dot,
+                     real_t* F,
+                     real_t* W, 
+                     real_t res_norm_tol,
+                     real_t* B) 
+{
+  START_FUNCTION_TIMER();
+  ink_dae_t* ink = context;
+
+  // Copy RHS data from B into ink->B.
+  krylov_vector_copy_in(ink->B, B);
+
+  // Copy weights into ink->W.
+  krylov_vector_copy_in(ink->W, W);
+
+  // If the WRMS norm of B is less than our tolerance, return X = 0.
+  real_t B_norm = krylov_vector_wrms_norm(ink->B, ink->W);
+  if (B_norm < res_norm_tol)
+  {
+    log_debug("ink_dae_integrator: ||B|| < tolerance (%g < %g), so X -> 0.", B_norm, res_norm_tol); 
+    krylov_vector_zero(ink->X);
+    krylov_vector_copy_out(ink->X, B);
+    STOP_FUNCTION_TIMER();
+    return 0;
+  }
+
+  // Set the tolerance on the residual norm.
+  real_t rel_tol = 1e-8;
+  real_t div_tol = 10.0;
+  krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
+
+  // Solve A*X = B.
+  real_t res_norm;
+  int num_iters;
+  bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->W, ink->W, 
+                                           ink->X, &res_norm, &num_iters);
+
+  if (solved)
+  {
+    log_debug("ink_dae_integrator: Solved A*X = B (||R|| == %g after %d iters).", res_norm, num_iters);
+
+    // Copy solution data from ink->X into B.
+    krylov_vector_copy_out(ink->X, B);
+    STOP_FUNCTION_TIMER();
+    return 0;
+  }
+  else
+  {
+    log_debug("ink_dae_integrator: Solution to A*X = B did not converge.");
+    STOP_FUNCTION_TIMER();
+    return 1;
+  }
+}
+
+static void ink_dtor(void* context)
+{
+  ink_dae_t* ink = context;
+  matrix_sparsity_free(ink->sparsity);
+  if (ink->X != NULL)
+    krylov_vector_free(ink->X);
+  if (ink->B != NULL)
+    krylov_vector_free(ink->B);
+  if (ink->W != NULL)
+    krylov_vector_free(ink->W);
+  if (ink->J != NULL)
+    krylov_matrix_free(ink->J);
+  if (ink->pc != NULL)
+    krylov_pc_free(ink->pc);
+  krylov_solver_free(ink->solver);
+  krylov_factory_free(ink->factory);
+  if ((ink->context != NULL) && (ink->dtor != NULL))
+    ink->dtor(ink->context);
+}
+
+dae_integrator_t* ink_dae_integrator_new(int order, 
+                                         MPI_Comm comm,
+                                         dae_equation_t* equation_types,
+                                         dae_constraint_t* constraints,
+                                         krylov_factory_t* factory,
+                                         matrix_sparsity_t* J_sparsity,
+                                         void* context, 
+                                         int (*F_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F),
+                                         int (*J_func)(void* context, real_t t, real_t* U, real_t alpha, real_t* U_dot, real_t* F, krylov_matrix_t* J),
+                                         void (*dtor)(void* context))
+{
+  ink_dae_t* ink = polymec_malloc(sizeof(ink_dae_t));
+  ink->comm = comm;
+  ink->context = context;
+  ink->F_func = F_func;
+  ink->J_func = J_func;
+  ink->dtor = dtor;
+  ink->factory = factory;
+  ink->sparsity = J_sparsity;
+  ink->solver = krylov_factory_gmres_solver(ink->factory, comm, 30);
+  ink->pc = NULL;
+  ink->J = NULL;
+  ink->B = NULL;
+  ink->X = NULL;
+  ink->W = NULL;
+  ink->block_size = 1;
+
+  char name[1024];
+  snprintf(name, 1024, "INK Differential Algebraic Equation solver (order %d)", order);
+  int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));
+  dae_integrator_t* I = dae_integrator_new(name, order, comm, 
+                                           equation_types, constraints,
+                                           num_local_values, 0,
+                                           ink, ink_F, ink_reset, 
+                                           ink_setup, ink_solve, ink_dtor);
+
+  // Set default tolerances.
+  // relative error of 1e-4 means errors are controlled to 0.01%.
+  // absolute error is set to 1 because it's completely problem dependent.
+  dae_integrator_set_tolerances(I, 1e-4, 1.0);
+
+  return I;
+}
+
+void ink_dae_integrator_use_pcg(dae_integrator_t* ink_dae_integ)
+{
+  ink_dae_t* ink = dae_integrator_context(ink_dae_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_pcg_solver(ink->factory, ink->comm);
+}
+
+void ink_dae_integrator_use_gmres(dae_integrator_t* ink_dae_integ,
+                                  int max_krylov_dim)
+{
+  ink_dae_t* ink = dae_integrator_context(ink_dae_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_gmres_solver(ink->factory, ink->comm, max_krylov_dim);
+}
+
+void ink_dae_integrator_use_bicgstab(dae_integrator_t* ink_dae_integ)
+{
+  ink_dae_t* ink = dae_integrator_context(ink_dae_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_bicgstab_solver(ink->factory, ink->comm);
+}
+
+void ink_dae_integrator_use_special(dae_integrator_t* ink_dae_integ,
+                                    const char* solver_name,
+                                    string_string_unordered_map_t* options)
+{
+  ink_dae_t* ink = dae_integrator_context(ink_dae_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_special_solver(ink->factory, ink->comm,
+                                              solver_name, options);
+}
+
+void ink_dae_integrator_set_pc(dae_integrator_t* ink_dae_integ,
+                               const char* pc_name, 
+                               string_string_unordered_map_t* options)
+{
+  ink_dae_t* ink = dae_integrator_context(ink_dae_integ);
+  if (ink->pc != NULL)
+    krylov_pc_free(ink->pc);
+  ink->pc = krylov_factory_preconditioner(ink->factory, ink->comm, pc_name, options);
+}
+
+void ink_dae_integrator_set_block_size(dae_integrator_t* ink_dae_integ,
+                                       int block_size)
+{
+  ink_dae_t* ink = dae_integrator_context(ink_dae_integ);
+  ink->block_size = block_size;
+}
+
+void* ink_dae_integrator_context(dae_integrator_t* ink_dae_integ)
+{
+  ink_dae_t* ink = dae_integrator_context(ink_dae_integ);
+  return ink->context;
+}
 

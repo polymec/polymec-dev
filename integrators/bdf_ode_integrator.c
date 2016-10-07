@@ -788,14 +788,12 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
   integ->reset_func = reset_func;
   integ->setup_func = setup_func;
   integ->solve_func = solve_func;
-  {
-    CVodeMem cv_mem = integ->cvode;
-    cv_mem->cv_linit = bdf_linit;
-    cv_mem->cv_lsetup = bdf_lsetup;
-    cv_mem->cv_lsolve = bdf_lsolve;
-    cv_mem->cv_lfree = bdf_lfree;
-    cv_mem->cv_setupNonNull = 1; // needs to be set for lsetup to be called.
-  }
+  CVodeMem cv_mem = integ->cvode;
+  cv_mem->cv_linit = bdf_linit;
+  cv_mem->cv_lsetup = bdf_lsetup;
+  cv_mem->cv_lsolve = bdf_lsolve;
+  cv_mem->cv_lfree = bdf_lfree;
+  cv_mem->cv_setupNonNull = 1; // needs to be set for lsetup to be called.
 
   ode_integrator_vtable vtable = {.step = bdf_step, 
                                   .advance = bdf_advance, 

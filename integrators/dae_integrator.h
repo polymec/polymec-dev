@@ -106,6 +106,72 @@ dae_integrator_t* jfnk_dae_integrator_new(int order,
                                           jfnk_dae_krylov_t solver_type,
                                           int max_krylov_dim);
 
+// This function creates a DAE integrator that uses the given methods to define how
+// it solves the linear systems that underlie the BDF method. These methods are:
+// * F_func -- Used to compute the system/residual function F(t, U, U_dot).
+// * reset_func -- Used to reset the state of the integrator to integrate U at time t, as 
+//                 invoked by dae_integrator_reset(integ, t, U, U_dot).
+// * setup_func -- Used to calculate and store a representation of the linear operator 
+//                 dF/dU + alpha * dF/d(U_dot), where alpha is a positive scale factor 
+//                 related to the time step. This operator is computed whenever the 
+//                 integrator deems it necessary to reflect the the state of the system 
+//                 (according to inexact-Newton-like methods).
+//                 Arguments are:
+//                 - context: A pointer to the context object that stores the state of the integrator.
+//                 - alpha: the scaling factor in dF/dU + alpha * dF/d(U_dot).
+//                 - step: The current integration step number since the initial time.
+//                 - t: The current time.
+//                 - U_pred: The predicted solution vector U for the current step.
+//                 - U_dot_pred: The predicted time derivative U_dot for the current step.
+//                 - F_pred: The residual F(t, U_pred, U_dot_pred).
+//                 - work1, work2, work3: work vectors of the same size as the solution vector, provided 
+//                                        for use by this method.
+//                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
+//                 for an unrecoverable error.
+// * solve_func -- Used to solve the linear system J * X = B. Arguments are:
+//                 - context: A pointer to the context object that stores the state of the integrator.
+//                 - t: The current time.
+//                 - U: The solution at time t.
+//                 - U_dot: The solution time derivative the DAE system at time t.
+//                 - F: The system function/residual at time t.
+//                 - W: A vector containing error weights, which can be used to enable to computation of 
+//                      weighted norms used to test for convergence of any iterative methods within 
+//                      the solver.
+//                 - res_norm_tol: The tolerance to set on the residual norm to consider the system 
+//                                 successfully solved.
+//                 - B: The right hand side vector for the linear system, which will be replaced by 
+//                      X, the solution to the linear system.
+//                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
+//                 for an unrecoverable error.
+// * dtor -- Used to destroy the context pointer.
+dae_integrator_t* dae_integrator_new(const char* name,
+                                     int order, 
+                                     MPI_Comm comm,
+                                     dae_equation_t* equation_types,
+                                     dae_constraint_t* constraints,
+                                     int num_local_values, 
+                                     int num_remote_values, 
+                                     void* context, 
+                                     int (*F_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F),
+                                     int (*reset_func)(void* context, real_t t, real_t* U, real_t* U_dot),
+                                     int (*setup_func)(void* context, 
+                                                       real_t alpha, 
+                                                       int step,
+                                                       real_t t, 
+                                                       real_t* U_pred, 
+                                                       real_t* U_dot_pred, 
+                                                       real_t* F_pred, 
+                                                       real_t* work1, real_t* work2, real_t* work3),
+                                     int (*solve_func)(void* context, 
+                                                       real_t t, 
+                                                       real_t* U,
+                                                       real_t* U_dot,
+                                                       real_t* F,
+                                                       real_t* W, 
+                                                       real_t res_norm_tol,
+                                                       real_t* B), 
+                                     void (*dtor)(void* context));
+
 // Frees a time integrator.
 void dae_integrator_free(dae_integrator_t* integrator);
 
@@ -191,6 +257,62 @@ void dae_integrator_get_diagnostics(dae_integrator_t* integrator,
 // Writes time integrator diagnostics to the given file.
 void dae_integrator_diagnostics_fprintf(dae_integrator_diagnostics_t* diagnostics, 
                                         FILE* stream);
+
+// This function creates a DAE integrator that uses an inexact Newton-Krylov 
+// method to solve the underlying linearized equations. This method constructs 
+// a full Jacobian matrix and updates it only when needed, and requires a 
+// function to be specified for the update. The given Krylov factory is used 
+// to create solver, preconditioner, matrix and vector objects for solving 
+// the underlying linear system, and the sparsity pattern is used for the 
+// creation of the Jacobian matrix. The integrator assumes control of all 
+// these objects.
+// The function F_func computes the system function/residual F(t, U, U_dot), much as 
+// it does for jfnk_dae_integrator_new above. The required function J_func 
+// computes the elements of the Jacobian matrix J = dF/dU + alpha * dF/d(U_dot) 
+// using t, U, alpha, and U_dot. The matrix must also be assembled within this function.
+dae_integrator_t* ink_dae_integrator_new(int order, 
+                                         MPI_Comm comm,
+                                         dae_equation_t* equation_types,
+                                         dae_constraint_t* constraints,
+                                         krylov_factory_t* factory,
+                                         matrix_sparsity_t* J_sparsity,
+                                         void* context, 
+                                         int (*F_func)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F),
+                                         int (*J_func)(void* context, real_t t, real_t* U, real_t alpha, real_t* U_dot, real_t* F, krylov_matrix_t* J),
+                                         void (*dtor)(void* context));
+
+// Specifies that the INK DAE integrator should use the Preconditioned 
+// Conjugate Gradient (PCG) method.
+void ink_dae_integrator_use_pcg(dae_integrator_t* ink_dae_integ);
+
+// Specifies that the INK DAE integrator should use the Generalized 
+// Minimum Residual (GMRES) method with the specified maximum Krylov subspace
+// dimension.
+void ink_dae_integrator_use_gmres(dae_integrator_t* ink_dae_integ,
+                                  int max_krylov_dim);
+
+// Specifies that the INK DAE integrator should use the Stabilized 
+// Bi-Conjugate Gradient (BiCGSTAB) method.
+void ink_dae_integrator_use_bicgstab(dae_integrator_t* ink_dae_integ);
+
+// Specifies that the INK DAE Integrator should use the given "special" 
+// Krylov solver with the given options.
+void ink_dae_integrator_use_special(dae_integrator_t* ink_dae_integ,
+                                    const char* solver_name,
+                                    string_string_unordered_map_t* options);
+
+// Specifies that the INK DAE integrator should use the preconditioner with 
+// the given name, set with the given options.
+void ink_dae_integrator_set_pc(dae_integrator_t* ink_dae_integ,
+                               const char* pc_name, 
+                               string_string_unordered_map_t* options);
+
+// Sets the block size for the INK DAE integrator.
+void ink_dae_integrator_set_block_size(dae_integrator_t* ink_dae_integ,
+                                       int block_size);
+
+// Returns the context pointer for the given INK DAE integrator.
+void* ink_dae_integrator_context(dae_integrator_t* ink_dae_integ);
 
 #endif
 
