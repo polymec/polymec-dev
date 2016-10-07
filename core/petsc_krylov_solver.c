@@ -341,9 +341,12 @@ static krylov_solver_t* petsc_factory_bicgstab_solver(void* context,
   solver->factory->methods.KSPCreate(comm, &solver->ksp);
   solver->factory->methods.KSPSetType(solver->ksp, "bcgs");
 
-  // We always use the unpreconditioned residual norm to determine 
-  // convergence.
-  solver->factory->methods.KSPSetNormType(solver->ksp, KSP_NORM_UNPRECONDITIONED);
+  // FIXME: We get NaN/Inf values when we use the unpreconditioned 
+  // FIXME: residual norm to determine convergence with the BiCGSTAB 
+  // FIXME: method. Need to investigate.
+  // // We always use the unpreconditioned residual norm to determine 
+  // // convergence.
+  // solver->factory->methods.KSPSetNormType(solver->ksp, KSP_NORM_UNPRECONDITIONED);
 
   // Handle the preconditioner's options.
   PC pc;

@@ -786,7 +786,6 @@ static int ink_solve(void* context,
   real_t rel_tol = 1e-8;
   real_t div_tol = 10.0;
   krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
-printf("abs_tol = %g\n", res_norm_tol);
 
   // Solve (DF*A)*X = DF*B.
   real_t res_norm;
@@ -799,7 +798,6 @@ printf("abs_tol = %g\n", res_norm_tol);
     log_debug("ink_newton_solver: Solved A*X = B (||DF*(B-A*X)||_2 == %g", res_norm);
     log_debug("ink_newton_solver:                 after %d iterations).", num_iters);
 
-printf("||X||_2 = %g\n", krylov_vector_norm(ink->X, 2));
     // Compute the norms, using ink->B as a workspace.
     if ((Jp_norm != NULL) || (F_o_Jp != NULL))
       krylov_matrix_matvec(ink->J, ink->X, false, ink->B); // J*p -> B.
