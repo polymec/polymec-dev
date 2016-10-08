@@ -317,6 +317,7 @@ dae_integrator_t* jfnk_dae_integrator_new(int order,
   ASSERT(max_krylov_dim >= 3);
 
   dae_integrator_t* integ = polymec_malloc(sizeof(dae_integrator_t));
+  integ->name = string_dup("JFNK Differential-Algebraic Integrator");
   integ->context = context;
   integ->comm = comm;
   integ->order = order;
@@ -477,6 +478,7 @@ dae_integrator_t* dae_integrator_new(const char* name,
   ASSERT(F_func != NULL);
 
   dae_integrator_t* integ = polymec_malloc(sizeof(dae_integrator_t));
+  integ->name = string_dup(name);
   integ->context = context;
   integ->comm = comm;
   integ->order = order;
@@ -529,7 +531,6 @@ dae_integrator_t* dae_integrator_new(const char* name,
   return integ;
 }
 
-
 void dae_integrator_free(dae_integrator_t* integ)
 {
   // Kill the preconditioner stuff.
@@ -551,6 +552,11 @@ void dae_integrator_free(dae_integrator_t* integ)
   if (integ->error_weights != NULL)
     polymec_free(integ->error_weights);
   polymec_free(integ);
+}
+
+char* dae_integrator_name(dae_integrator_t* integ)
+{
+  return integ->name;
 }
 
 void* dae_integrator_context(dae_integrator_t* integ)
@@ -721,7 +727,8 @@ void dae_integrator_reset(dae_integrator_t* integ,
                           bool correct_initial_conditions)
 {
   // Reset the preconditioner.
-  newton_pc_reset(integ->precond, t);
+  if (integ->precond != NULL)
+    newton_pc_reset(integ->precond, t);
 
   // Reset the integrator itself.
   integ->t = t;

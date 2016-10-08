@@ -116,10 +116,71 @@ static int heat2d_F(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F
   return 0;
 }
 
+static int heat2d_J(void* context, 
+                    real_t t, real_t* U, 
+                    real_t alpha, real_t* U_dot, 
+                    real_t* F, krylov_matrix_t* J)
+{
+  heat2d_t* data = context;
+  real_t coeff = data->coeff;
+  
+  // Boundary points correspond to rows of the identity matrix.
+  for (int i = 0; i < MGRID; ++i) 
+  {
+    index_t num_cols = 1, row, indices[1];
+    real_t values[1] = {1.0};
+    row = indices[0] = ARRAY_INDEX_2D(MGRID, MGRID, 0, i);
+    krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);
+    row = indices[0] = ARRAY_INDEX_2D(MGRID, MGRID, MGRID-1, i);
+    krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);
+    row = indices[0] = ARRAY_INDEX_2D(MGRID, MGRID, i, 0);
+    krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);
+    row = indices[0] = ARRAY_INDEX_2D(MGRID, MGRID, i, MGRID-1);
+    krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);
+  }
+
+  // Loop over all interior grid points. 
+  for (int i = 1; i < MGRID-1; ++i) 
+  {
+    for (int j = 1; j < MGRID-1; ++j) 
+    {
+      real_t J_self = 0.0, J_left = 0.0, J_right = 0.0, J_up = 0.0, J_down = 0.0;
+      index_t I_self  = ARRAY_INDEX_2D(MGRID, MGRID, i, j), 
+              I_left  = ARRAY_INDEX_2D(MGRID, MGRID, i-1, j),
+              I_right = ARRAY_INDEX_2D(MGRID, MGRID, i+1, j),
+              I_up    = ARRAY_INDEX_2D(MGRID, MGRID, i, j+1),
+              I_down  = ARRAY_INDEX_2D(MGRID, MGRID, i, j-1);
+
+      // Add in terms. 
+      J_self = -4.0 * coeff;
+      J_left = coeff;
+      J_right = coeff;
+      J_up = coeff;
+      J_down = coeff;
+
+      // Stick 'em into the matrix.
+      index_t row = I_self, num_cols = 5;
+      index_t indices[5] = {I_self, I_left, I_right, I_up, I_down};
+      real_t values[5] = {J_self, J_left, J_right, J_up, J_down};
+      krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);
+    }
+  }
+
+  // Assemble the Jacobian matrix.
+  krylov_matrix_assemble(J);
+
+  return 0;
+}
+
 void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** U, real_t** U_dot);
 void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** U, real_t** U_dot)
 {
-  heat2d_t* data = dae_integrator_context(integ);
+  heat2d_t* data;
+  const char* integ_name = dae_integrator_name(integ);
+  if (string_contains(integ_name, "INK"))
+    data = ink_dae_integrator_context(integ);
+  else
+    data = dae_integrator_context(integ);
   *U = polymec_malloc(sizeof(real_t) * NEQ);
   *U_dot = polymec_malloc(sizeof(real_t) * NEQ);
   real_t* F = polymec_malloc(sizeof(real_t) * NEQ);
@@ -183,5 +244,19 @@ dae_integrator_t* bj_pc_jfnk_heat2d_integrator_new()
   heat2d_t* data = heat2d_new();
   newton_pc_t* precond = dae_cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, heat2d_F, NULL, data->sparsity, NEQ, 0, 1);
   return jfnk_heat2d_integrator_new(data, precond);
+}
+
+// Constructor for Inexact Newton-Krylov heat2d integrator.
+dae_integrator_t* ink_heat2d_integrator_new(krylov_factory_t* factory);
+dae_integrator_t* ink_heat2d_integrator_new(krylov_factory_t* factory)
+{
+  heat2d_t* data = heat2d_new();
+  matrix_sparsity_t* J_sparsity = matrix_sparsity_from_graph(data->sparsity, NULL);
+
+  // Set up a nonlinear solver using GMRES with a full Newton step.
+  return ink_dae_integrator_new(5, MPI_COMM_SELF, 
+                                DAE_ALL_DIFFERENTIAL, DAE_ALL_NONNEGATIVE,
+                                factory, J_sparsity, data,
+                                heat2d_F, heat2d_J, heat2d_dtor);
 }
 

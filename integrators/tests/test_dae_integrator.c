@@ -14,7 +14,8 @@
 #include "core/polymec.h"
 #include "integrators/dae_integrator.h"
 
-extern dae_integrator_t* bj_pc_jfnk_heat2d_integrator_new();
+extern dae_integrator_t* bj_pc_jfnk_heat2d_integrator_new(void);
+extern dae_integrator_t* ink_heat2d_integrator_new(krylov_factory_t* factory);
 extern void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t** u_dot);
 
 static void test_bj_pc_jfnk_heat2d_ctor(void** state)
@@ -58,13 +59,39 @@ static void test_bj_pc_jfnk_heat2d_step(void** state)
   test_heat2d_step(state, integ);
 }
 
+static void test_ink_heat2d_ctor(void** state, krylov_factory_t* factory)
+{
+  dae_integrator_t* integ = ink_heat2d_integrator_new(factory);
+  dae_integrator_free(integ);
+}
+
+static void test_lis_ink_heat2d_ctor(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_ink_heat2d_ctor(state, lis);
+}
+
+static void test_ink_heat2d_step(void** state, krylov_factory_t* factory)
+{
+  dae_integrator_t* integ = ink_heat2d_integrator_new(factory);
+  test_heat2d_step(state, integ);
+}
+
+static void test_lis_ink_heat2d_step(void** state)
+{
+  krylov_factory_t* lis = lis_krylov_factory();
+  test_ink_heat2d_step(state, lis);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_bj_pc_jfnk_heat2d_ctor),
+    cmocka_unit_test(test_lis_ink_heat2d_ctor),
     cmocka_unit_test(test_bj_pc_jfnk_heat2d_step),
+    cmocka_unit_test(test_lis_ink_heat2d_step)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

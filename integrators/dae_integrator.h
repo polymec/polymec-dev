@@ -175,6 +175,10 @@ dae_integrator_t* dae_integrator_new(const char* name,
 // Frees a time integrator.
 void dae_integrator_free(dae_integrator_t* integrator);
 
+// Returns an internal pointer to the string containing the name 
+// of this integrator.
+char* dae_integrator_name(dae_integrator_t* integrator);
+
 // Returns the context object for this integrator.
 void* dae_integrator_context(dae_integrator_t* integrator);
 

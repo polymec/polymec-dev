@@ -177,23 +177,23 @@ static int diurnal_rhs(void* context, real_t t, real_t* U, real_t* U_dot)
   real_t horaco  = data->haco;
 
   // Loop over all grid points. 
-  for (int jx=0; jx < MX; jx++) 
+  for (int i=0; i < MX; i++) 
   {
-    int ileft = (jx == 0) ? 1 : -1;
-    int iright =(jx == MX-1) ? -1 : 1;
-    for (int jy=0; jy < MY; ++jy) 
+    int ileft = (i == 0) ? 1 : -1;
+    int iright =(i == MX-1) ? -1 : 1;
+    for (int j=0; j < MY; ++j) 
     {
-      // Set vertical diffusion coefficients at jy +- 1/2 
-      real_t ydn = YMIN + (jy - RCONST(0.5))*dely;
+      // Set vertical diffusion coefficients at j +- 1/2 
+      real_t ydn = YMIN + (j - RCONST(0.5))*dely;
       real_t yup = ydn + dely;
       real_t cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
       real_t cyup = verdco*SUNRexp(RCONST(0.2)*yup);
-      int idn = (jy == 0) ? 1 : -1;
-      int iup = (jy == MY-1) ? -1 : 1;
+      int idn = (j == 0) ? 1 : -1;
+      int iup = (j == MY-1) ? -1 : 1;
 
       // Extract c1 and c2, and set kinetic rate terms. 
-      real_t c1 = U_ijk[jx][jy][0]; 
-      real_t c2 = U_ijk[jx][jy][1];
+      real_t c1 = U_ijk[i][j][0]; 
+      real_t c2 = U_ijk[i][j][1];
       real_t qq1 = Q1*c1*C3;
       real_t qq2 = Q2*c1*c2;
       real_t qq3 = q3*C3;
@@ -202,26 +202,26 @@ static int diurnal_rhs(void* context, real_t t, real_t* U, real_t* U_dot)
       real_t rkin2 = qq1 - qq2 - qq4;
 
       // Set vertical diffusion terms. 
-      real_t c1dn = U_ijk[jx][jy+idn][0];
-      real_t c2dn = U_ijk[jx][jy+idn][1];
-      real_t c1up = U_ijk[jx][jy+iup][0];
-      real_t c2up = U_ijk[jx][jy+iup][1];
+      real_t c1dn = U_ijk[i][j+idn][0];
+      real_t c2dn = U_ijk[i][j+idn][1];
+      real_t c1up = U_ijk[i][j+iup][0];
+      real_t c2up = U_ijk[i][j+iup][1];
       real_t vertd1 = cyup*(c1up - c1) - cydn*(c1 - c1dn);
       real_t vertd2 = cyup*(c2up - c2) - cydn*(c2 - c2dn);
 
       // Set horizontal diffusion and advection terms. 
-      real_t c1lt = U_ijk[jx+ileft][jy][0]; 
-      real_t c2lt = U_ijk[jx+ileft][jy][1];
-      real_t c1rt = U_ijk[jx+iright][jy][0];
-      real_t c2rt = U_ijk[jx+iright][jy][1];
+      real_t c1lt = U_ijk[i+ileft][j][0]; 
+      real_t c2lt = U_ijk[i+ileft][j][1];
+      real_t c1rt = U_ijk[i+iright][j][0];
+      real_t c2rt = U_ijk[i+iright][j][1];
       real_t hord1 = hordco*(c1rt - TWO*c1 + c1lt);
       real_t hord2 = hordco*(c2rt - TWO*c2 + c2lt);
       real_t horad1 = horaco*(c1rt - c1lt);
       real_t horad2 = horaco*(c2rt - c2lt);
 
       // Load all terms into udot. 
-      U_dot_ijk[jx][jy][0] = vertd1 + hord1 + horad1 + rkin1; 
-      U_dot_ijk[jx][jy][1] = vertd2 + hord2 + horad2 + rkin2;
+      U_dot_ijk[i][j][0] = vertd1 + hord1 + horad1 + rkin1; 
+      U_dot_ijk[i][j][1] = vertd2 + hord2 + horad2 + rkin2;
     }
   }
 
@@ -285,41 +285,41 @@ static int diurnal_J(void* context, real_t t, real_t* U, real_t* U_dot, krylov_m
   index_real_unordered_map_t* I2_map = index_real_unordered_map_new();
 
   // Loop over all grid points. 
-  for (int jx = 0; jx < MX; ++jx) 
+  for (int i = 0; i < MX; ++i) 
   {
-    int i_left = (jx == 0) ? 1 : -1;
-    int i_right =(jx == MX-1) ? -1 : 1;
+    int i_left = (i == 0) ? 1 : -1;
+    int i_right =(i == MX-1) ? -1 : 1;
 
-    for (int jy = 0; jy < MY; ++jy) 
+    for (int j = 0; j < MY; ++j) 
     {
-      // Set vertical diffusion coefficients at jy +- 1/2 
-      real_t ydn = YMIN + (jy - RCONST(0.5))*dely;
+      // Set vertical diffusion coefficients at j +- 1/2 
+      real_t ydn = YMIN + (j - RCONST(0.5))*dely;
       real_t yup = ydn + dely;
       real_t cydn = verdco*SUNRexp(RCONST(0.2)*ydn);
       real_t cyup = verdco*SUNRexp(RCONST(0.2)*yup);
 
-      int i_down = (jy == 0) ? 1 : -1;
-      int i_up = (jy == MY-1) ? -1 : 1;
+      int i_down = (j == 0) ? 1 : -1;
+      int i_up = (j == MY-1) ? -1 : 1;
 
       // There are up to 12 Jacobian contributions: 6 for each of 2 species: 
       // 1 in each of the 5 stencil points, plus 1 reaction term in which the 
       // species interact directly with one another.
       real_t J1_self = 0.0, J1_rxn = 0.0, J1_left = 0.0, J1_right = 0.0, J1_up = 0.0, J1_down = 0.0;
       real_t J2_self = 0.0, J2_rxn = 0.0, J2_left = 0.0, J2_right = 0.0, J2_up = 0.0, J2_down = 0.0;
-      index_t I1_self  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy, 0), 
-              I1_left  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_left, jy, 0),
-              I1_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_right, jy, 0),
-              I1_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_up, 0),
-              I1_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_down, 0),
-              I2_self  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy, 1), 
-              I2_left  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_left, jy, 1),
-              I2_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx+i_right, jy, 1),
-              I2_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_up, 1),
-              I2_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, jx, jy+i_down, 1);
+      index_t I1_self  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j, 0), 
+              I1_left  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_left, j, 0),
+              I1_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_right, j, 0),
+              I1_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+i_up, 0),
+              I1_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+i_down, 0),
+              I2_self  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j, 1), 
+              I2_left  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_left, j, 1),
+              I2_right = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i+i_right, j, 1),
+              I2_up    = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+i_up, 1),
+              I2_down  = ARRAY_INDEX_3D(MX, MY, NUM_SPECIES, i, j+i_down, 1);
 
       // Extract c1 and c2 at the current location.
-      real_t c1 = U_ijk[jx][jy][0];
-      real_t c2 = U_ijk[jx][jy][1];
+      real_t c1 = U_ijk[i][j][0];
+      real_t c2 = U_ijk[i][j][1];
 
       // Add in kinetic rate terms. 
       J1_self += -(Q1*C3 + Q2*c2);
@@ -408,18 +408,18 @@ real_t* diurnal_initial_conditions(ode_integrator_t* integ)
   DECLARE_3D_ARRAY(real_t, u_ijk, u_data, MX, MY, NUM_SPECIES);
 
   // Load initial profiles of c1 and c2 into u vector 
-  for (int jy=0; jy < MY; jy++) 
+  for (int j=0; j < MY; j++) 
   {
-    real_t y = YMIN + jy*dy;
+    real_t y = YMIN + j*dy;
     real_t cy = SUNSQR(RCONST(0.1)*(y - YMID));
     cy = ONE - cy + RCONST(0.5)*SUNSQR(cy);
-    for (int jx=0; jx < MX; jx++) 
+    for (int i=0; i < MX; i++) 
     {
-      real_t x = XMIN + jx*dx;
+      real_t x = XMIN + i*dx;
       real_t cx = SUNSQR(RCONST(0.1)*(x - XMID));
       cx = ONE - cx + RCONST(0.5)*SUNSQR(cx);
-      u_ijk[jx][jy][0] = C1_SCALE*cx*cy; 
-      u_ijk[jx][jy][1] = C2_SCALE*cx*cy;
+      u_ijk[i][j][0] = C1_SCALE*cx*cy; 
+      u_ijk[i][j][1] = C2_SCALE*cx*cy;
     }
   }
   return u_data; 
