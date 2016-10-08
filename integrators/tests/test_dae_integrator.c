@@ -17,6 +17,8 @@
 extern dae_integrator_t* bj_pc_jfnk_heat2d_integrator_new(void);
 extern dae_integrator_t* ink_heat2d_integrator_new(krylov_factory_t* factory);
 extern void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t** u_dot);
+extern krylov_factory_t* create_petsc_krylov_factory(void);
+extern krylov_factory_t* create_hypre_krylov_factory(void);
 
 static void test_bj_pc_jfnk_heat2d_ctor(void** state)
 {
@@ -37,7 +39,6 @@ static void test_heat2d_step(void** state, dae_integrator_t* integ)
   while (t < tf)
   {
     bool integrated = dae_integrator_step(integ, tf, &t, u, udot);
-//    preconditioner_matrix_fprintf(dae_integrator_preconditioner_matrix(integ), stdout);
     assert_true(integrated);
   }
 printf("u = [");
@@ -71,6 +72,20 @@ static void test_lis_ink_heat2d_ctor(void** state)
   test_ink_heat2d_ctor(state, lis);
 }
 
+static void test_petsc_ink_heat2d_ctor(void** state)
+{
+  krylov_factory_t* petsc = create_petsc_krylov_factory();
+  if (petsc != NULL)
+    test_ink_heat2d_ctor(state, petsc);
+}
+
+static void test_hypre_ink_heat2d_ctor(void** state)
+{
+  krylov_factory_t* hypre = create_hypre_krylov_factory();
+  if (hypre != NULL)
+    test_ink_heat2d_ctor(state, hypre);
+}
+
 static void test_ink_heat2d_step(void** state, krylov_factory_t* factory)
 {
   dae_integrator_t* integ = ink_heat2d_integrator_new(factory);
@@ -83,6 +98,20 @@ static void test_lis_ink_heat2d_step(void** state)
   test_ink_heat2d_step(state, lis);
 }
 
+static void test_petsc_ink_heat2d_step(void** state)
+{
+  krylov_factory_t* petsc = create_petsc_krylov_factory();
+  if (petsc != NULL)
+    test_ink_heat2d_step(state, petsc);
+}
+
+static void test_hypre_ink_heat2d_step(void** state)
+{
+  krylov_factory_t* hypre = create_hypre_krylov_factory();
+  if (hypre != NULL)
+    test_ink_heat2d_step(state, hypre);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -90,8 +119,12 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_bj_pc_jfnk_heat2d_ctor),
     cmocka_unit_test(test_lis_ink_heat2d_ctor),
+    cmocka_unit_test(test_petsc_ink_heat2d_ctor),
+    cmocka_unit_test(test_hypre_ink_heat2d_ctor),
     cmocka_unit_test(test_bj_pc_jfnk_heat2d_step),
-    cmocka_unit_test(test_lis_ink_heat2d_step)
+    cmocka_unit_test(test_lis_ink_heat2d_step),
+    cmocka_unit_test(test_petsc_ink_heat2d_step),
+    cmocka_unit_test(test_hypre_ink_heat2d_step)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
