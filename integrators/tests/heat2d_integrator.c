@@ -32,6 +32,7 @@
 // The second run uses IDAReInit and IDAReInitSpgmr.
 
 #include "core/polymec.h"
+#include "core/declare_nd_array.h"
 #include "integrators/dae_integrator.h"
 #include "integrators/bj_newton_pc.h"
 

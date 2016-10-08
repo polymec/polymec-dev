@@ -50,6 +50,7 @@ typedef struct
   int (*Jy)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* temp, real_t* Jy);
 
   // Generalized adaptor stuff.
+  real_t sqrtN;
   int (*reset_func)(void* context, real_t t, real_t* U);
   int (*setup_func)(void* context, 
                     bdf_conv_status_t conv_status, 
@@ -667,6 +668,7 @@ static int bdf_linit(CVodeMem cv_mem)
   bdf_ode_t* bdf = cv_mem->cv_user_data;
   real_t t = cv_mem->cv_tn;
   real_t* U = NV_DATA(cv_mem->cv_y);
+  bdf->sqrtN = -1.0;
   return bdf->reset_func(bdf->context, t, U);
 }
 
@@ -696,6 +698,11 @@ static int bdf_lsetup(CVodeMem cv_mem,
   real_t* work1 = NV_DATA(vtemp1);
   real_t* work2 = NV_DATA(vtemp2);
   real_t* work3 = NV_DATA(vtemp3);
+  if (bdf->sqrtN <= 0.0)
+  {
+    N_VConst(1.0, vtemp1);
+    bdf->sqrtN = sqrt(N_VDotProd(vtemp1, vtemp1));
+  }
   int status = bdf->setup_func(bdf->context, conv_status, gamma, step, t, 
                                U_pred, U_dot_pred, &J_updated, work1, 
                                work2, work3);
@@ -715,6 +722,7 @@ static int bdf_lsolve(CVodeMem cv_mem,
   real_t* U_dot = NV_DATA(fcur);
   real_t* W = NV_DATA(weight);
   real_t C1_inv = cv_mem->cv_tq[4]; // constant 1/C' in nonlinear iteration conv test.
+//  real_t res_norm_tol = 0.05 * bdf->sqrtN * C1_inv; // FIXME: Why doesn't this work?
   real_t res_norm_tol = 0.05 * C1_inv;
   real_t* B = NV_DATA(b);
   return bdf->solve_func(bdf->context, t, U, U_dot, W, res_norm_tol, B);
