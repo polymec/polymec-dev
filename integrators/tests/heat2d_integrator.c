@@ -152,11 +152,11 @@ static int heat2d_J(void* context,
               I_down  = ARRAY_INDEX_2D(MGRID, MGRID, i, j-1);
 
       // Add in terms. 
-      J_self = -4.0 * coeff;
-      J_left = coeff;
-      J_right = coeff;
-      J_up = coeff;
-      J_down = coeff;
+      J_self = alpha + 4.0 * coeff;
+      J_left = -coeff;
+      J_right = -coeff;
+      J_up = -coeff;
+      J_down = -coeff;
 
       // Stick 'em into the matrix.
       index_t row = I_self, num_cols = 5;

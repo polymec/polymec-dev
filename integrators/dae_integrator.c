@@ -793,10 +793,20 @@ void dae_integrator_get_diagnostics(dae_integrator_t* integ,
   IDAGetNumErrTestFails(integ->ida, &diagnostics->num_error_test_failures);
   IDAGetNumNonlinSolvIters(integ->ida, &diagnostics->num_nonlinear_solve_iterations);
   IDAGetNumNonlinSolvConvFails(integ->ida, &diagnostics->num_nonlinear_solve_convergence_failures);
-  IDASpilsGetNumLinIters(integ->ida, &diagnostics->num_linear_solve_iterations);
-  IDASpilsGetNumPrecEvals(integ->ida, &diagnostics->num_preconditioner_evaluations);
-  IDASpilsGetNumPrecSolves(integ->ida, &diagnostics->num_preconditioner_solves);
-  IDASpilsGetNumConvFails(integ->ida, &diagnostics->num_linear_solve_convergence_failures);
+  if (integ->solve_func == NULL) // JFNK mode
+  {
+    IDASpilsGetNumLinIters(integ->ida, &diagnostics->num_linear_solve_iterations);
+    IDASpilsGetNumPrecEvals(integ->ida, &diagnostics->num_preconditioner_evaluations);
+    IDASpilsGetNumPrecSolves(integ->ida, &diagnostics->num_preconditioner_solves);
+    IDASpilsGetNumConvFails(integ->ida, &diagnostics->num_linear_solve_convergence_failures);
+  }
+  else
+  {
+    diagnostics->num_linear_solve_iterations = -1;
+    diagnostics->num_preconditioner_evaluations = -1;
+    diagnostics->num_preconditioner_solves = -1;
+    diagnostics->num_linear_solve_convergence_failures = -1;
+  }
 }
 
 void dae_integrator_diagnostics_fprintf(dae_integrator_diagnostics_t* diagnostics, 
@@ -812,12 +822,17 @@ void dae_integrator_diagnostics_fprintf(dae_integrator_diagnostics_t* diagnostic
   fprintf(stream, "  Last step size: %g\n", diagnostics->last_step_size);
   fprintf(stream, "  Num residual evaluations: %d\n", (int)diagnostics->num_residual_evaluations);
   fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
-  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  if (diagnostics->num_linear_solve_iterations != -1) // JFNK mode
+    fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
+  if (diagnostics->num_linear_solve_convergence_failures != -1) // JFNK mode
+    fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
   fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);
   fprintf(stream, "  Num nonlinear solve iterations: %d\n", (int)diagnostics->num_nonlinear_solve_iterations);
   fprintf(stream, "  Num nonlinear solve convergence failures: %d\n", (int)diagnostics->num_nonlinear_solve_convergence_failures);
-  fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
-  fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
+  if (diagnostics->num_preconditioner_evaluations != -1) // JFNK mode
+    fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
+  if (diagnostics->num_preconditioner_solves != -1) // JFNK mode
+    fprintf(stream, "  Num preconditioner solves: %d\n", (int)diagnostics->num_preconditioner_solves);
 }
 
 //------------------------------------------------------------------------
