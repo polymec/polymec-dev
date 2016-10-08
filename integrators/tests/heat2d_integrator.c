@@ -41,10 +41,6 @@
 #define NOUT  11
 #define MGRID 10
 #define NEQ   MGRID*MGRID
-#define ZERO  0.0
-#define ONE   1.0
-#define TWO   2.0
-#define FOUR  4.0
 
 typedef struct 
 {  
@@ -62,26 +58,25 @@ heat2d_t* heat2d_new()
 {
   heat2d_t* data = polymec_malloc(sizeof(heat2d_t));
   data->mm  = MGRID;
-  data->dx = ONE/(MGRID-ONE);
-  data->coeff = ONE/(data->dx * data->dx);
+  data->dx = 1.0/(MGRID-1);
+  data->coeff = 1.0/(data->dx * data->dx);
 
   // Construct a sparsity graph.
   data->sparsity = adj_graph_new(MPI_COMM_SELF, MGRID*MGRID);
-  for (long int j = 1; j < MGRID-1; j++) 
+  for (int i = 1; i < MGRID-1; ++i) 
   {
-    long int offset = data->mm*j;
-    for (long int i = 1; i < data->mm-1; i++) 
+    for (int j = 1; j < MGRID-1; ++j) 
     {
-      long int loc = offset + i;
+      int i_self = ARRAY_INDEX_2D(MGRID, MGRID, i, j);
       int edges[4], num_edges = 4;
-      edges[0] = (int)(loc-1);
-      edges[1] = (int)(loc+1);
-      edges[2] = (int)(loc-data->mm);
-      edges[3] = (int)(loc+data->mm);
+      edges[0] = ARRAY_INDEX_2D(MGRID, MGRID, i-1, j);
+      edges[1] = ARRAY_INDEX_2D(MGRID, MGRID, i+1, j);
+      edges[2] = ARRAY_INDEX_2D(MGRID, MGRID, i, j-1);
+      edges[3] = ARRAY_INDEX_2D(MGRID, MGRID, i, j+1);
 
       // Set the edges within the sparsity graph.
-      adj_graph_set_num_edges(data->sparsity, (int)loc, num_edges);
-      memcpy(adj_graph_edges(data->sparsity, (int)loc), edges, sizeof(int) * num_edges);
+      adj_graph_set_num_edges(data->sparsity, i_self, num_edges);
+      memcpy(adj_graph_edges(data->sparsity, i_self), edges, sizeof(int) * num_edges);
     }
   }
 
@@ -95,76 +90,71 @@ static void heat2d_dtor(void* context)
   polymec_free(data);
 }
 
-static int heat2d_res(void* context, real_t t, real_t* u, real_t* u_dot, real_t* F)
+static int heat2d_F(void* context, real_t t, real_t* U, real_t* U_dot, real_t* F)
 {
   heat2d_t* data = context;
   real_t coeff = data->coeff;
-  long int mm = data->mm;
   
   // Initialize F to u, to take care of boundary equations. 
   for (long int j = 0; j < MGRID*MGRID; ++j) 
-    F[j] = u[j];
+    F[j] = U[j];
   
   // Loop over interior points; set res = up - (central difference). 
-  for (long int j = 1; j < MGRID-1; j++) 
+  DECLARE_2D_ARRAY(real_t, U_ij, U, MGRID, MGRID);
+  DECLARE_2D_ARRAY(real_t, U_dot_ij, U_dot, MGRID, MGRID);
+  DECLARE_2D_ARRAY(real_t, F_ij, F, MGRID, MGRID);
+  for (int i = 1; i < MGRID-1; ++i) 
   {
-    long int offset = mm*j;
-    for (long int i = 1; i < mm-1; i++) 
+    for (int j = 1; j < MGRID-1; ++j) 
     {
-      long int loc = offset + i;
-      real_t dif1 = u[loc-1]  + u[loc+1]  - TWO * u[loc];
-      real_t dif2 = u[loc-mm] + u[loc+mm] - TWO * u[loc];
-      F[loc]= u_dot[loc] - coeff * (dif1 + dif2);
+      real_t dif1 = U_ij[i-1][j] + U_ij[i+1][j] - 2.0*U_ij[i][j];
+      real_t dif2 = U_ij[i][j-1] + U_ij[i][j+1] - 2.0*U_ij[i][j];
+      F_ij[i][j] = U_dot_ij[i][j] - coeff * (dif1 + dif2);
     }
   }
 
   return 0;
 }
 
-void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t** u_dot);
-void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** u, real_t** u_dot)
+void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** U, real_t** U_dot);
+void heat2d_set_initial_conditions(dae_integrator_t* integ, real_t** U, real_t** U_dot)
 {
   heat2d_t* data = dae_integrator_context(integ);
-  long int mm = data->mm;
-  *u = polymec_malloc(sizeof(real_t) * NEQ);
-  *u_dot = polymec_malloc(sizeof(real_t) * NEQ);
+  *U = polymec_malloc(sizeof(real_t) * NEQ);
+  *U_dot = polymec_malloc(sizeof(real_t) * NEQ);
   real_t* F = polymec_malloc(sizeof(real_t) * NEQ);
 
+  DECLARE_2D_ARRAY(real_t, U_ij, *U, MGRID, MGRID);
+  DECLARE_2D_ARRAY(real_t, U_dot_ij, *U_dot, MGRID, MGRID);
+
   // Initialize u on all grid points. 
-  long int mm1 = mm - 1;
-  for (long int j = 0; j < mm; j++) 
+  for (int i = 0; i < MGRID; ++i)
   {
-    real_t yfact = data->dx * j;
-    long int offset = mm*j;
-    for (long int i = 0;i < mm; i++) 
+    real_t xfact = data->dx * i;
+    for (int j = 0; j < MGRID; ++j) 
     {
-      real_t xfact = data->dx * i;
-      long int loc = offset + i;
-      (*u)[loc] = 16.0 * xfact * (ONE - xfact) * yfact * (ONE - yfact);
+      real_t yfact = data->dx * j;
+      U_ij[i][j] = 16.0 * xfact * (1.0 - xfact) * yfact * (1.0 - yfact);
     }
   }
   
-  // Initialize up vector to 0. 
-  for (long int i = 0; i < NEQ; ++i)
-    (*u_dot)[i] = 0.0;
+  // Initialize U_dot vector to 0. 
+  memset(*U_dot, 0, sizeof(real_t) * NEQ);
 
-  // heat2d_res sets F to negative of DAE RHS values at interior points. 
-  heat2d_res(data, ZERO, *u, *u_dot, F);
+  // heat2d_F sets F to negative of DAE RHS values at interior points. 
+  heat2d_F(data, 0.0, *U, *U_dot, F);
 
   // Copy -res into u_dot to get correct interior initial up values. 
-  for (long int i = 0; i < NEQ; ++i)
-    (*u_dot)[i] = -F[i];
+  for (int i = 0; i < NEQ; ++i)
+    (*U_dot)[i] = -F[i];
 
-  // Set up at boundary points to zero.
-  for (long int j = 0; j < mm; j++) 
+  // Set U_dot at boundary points to zero.
+  for (int i = 0; i < MGRID; ++i) 
   {
-    long int offset = mm*j;
-    for (long int i = 0; i < mm; i++) 
-    {
-      long int loc = offset + i;
-      if (j == 0 || j == mm1 || i == 0 || i == mm1 ) 
-        (*u_dot)[loc] = ZERO;
-    }
+    U_dot_ij[i][0] = 0.0;
+    U_dot_ij[i][MGRID-1] = 0.0;
+    U_dot_ij[0][i] = 0.0;
+    U_dot_ij[MGRID-1][i] = 0.0;
   }
 
   polymec_free(F);
@@ -180,7 +170,7 @@ static dae_integrator_t* jfnk_heat2d_integrator_new(heat2d_t* data, newton_pc_t*
                                                     DAE_ALL_DIFFERENTIAL, 
                                                     DAE_ALL_NONNEGATIVE,
                                                     NEQ, 0, data, 
-                                                    heat2d_res, NULL, heat2d_dtor,
+                                                    heat2d_F, NULL, heat2d_dtor,
                                                     precond, JFNK_DAE_GMRES, 5);
 
   return integ;
@@ -191,7 +181,7 @@ dae_integrator_t* bj_pc_jfnk_heat2d_integrator_new(void);
 dae_integrator_t* bj_pc_jfnk_heat2d_integrator_new()
 {
   heat2d_t* data = heat2d_new();
-  newton_pc_t* precond = dae_cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, heat2d_res, NULL, data->sparsity, NEQ, 0, 1);
+  newton_pc_t* precond = dae_cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, heat2d_F, NULL, data->sparsity, NEQ, 0, 1);
   return jfnk_heat2d_integrator_new(data, precond);
 }
 
