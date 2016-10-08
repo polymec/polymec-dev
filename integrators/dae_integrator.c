@@ -636,12 +636,12 @@ void dae_integrator_set_error_weight_function(dae_integrator_t* integ,
   IDAWFtolerances(integ->ida, compute_error_weights);
 }
 
-void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot, real_t* F);
-void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* X, real_t* X_dot, real_t* F)
+void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* U, real_t* U_dot, real_t* F);
+void dae_integrator_eval_residual(dae_integrator_t* integ, real_t t, real_t* U, real_t* U_dot, real_t* F)
 {
   START_FUNCTION_TIMER();
-  memcpy(integ->U_with_ghosts, X, sizeof(real_t) * integ->num_local_values);
-  memcpy(integ->U_dot_with_ghosts, X_dot, sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->U_with_ghosts, U, sizeof(real_t) * integ->num_local_values);
+  memcpy(integ->U_dot_with_ghosts, U_dot, sizeof(real_t) * integ->num_local_values);
   integ->F(integ->context, t, integ->U_with_ghosts, integ->U_dot_with_ghosts, F);
   STOP_FUNCTION_TIMER();
 }
@@ -659,14 +659,14 @@ void dae_integrator_set_stop_time(dae_integrator_t* integ, real_t stop_time)
   IDASetStopTime(integ->ida, stop_time);
 }
 
-bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real_t* X, real_t* X_dot)
+bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real_t* U, real_t* U_dot)
 {
   START_FUNCTION_TIMER();
   int status = IDA_SUCCESS;
 
   // if we haven't been initialized, we need to copy in the data.
   if (!integ->initialized)
-    dae_integrator_reset(integ, *t, X, X_dot, false);
+    dae_integrator_reset(integ, *t, U, U_dot, DAE_IC_ASSUME_CONSISTENT);
 
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
@@ -707,8 +707,8 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real
   if ((status == IDA_SUCCESS) || (status == IDA_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(X, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
-    memcpy(X_dot, NV_DATA(integ->U_dot), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U_dot, NV_DATA(integ->U_dot), sizeof(real_t) * integ->num_local_values); 
     STOP_FUNCTION_TIMER();
     return true;
   }
@@ -722,9 +722,9 @@ bool dae_integrator_step(dae_integrator_t* integ, real_t max_dt, real_t* t, real
 
 void dae_integrator_reset(dae_integrator_t* integ, 
                           real_t t, 
-                          real_t* X, 
-                          real_t* X_dot,
-                          bool correct_initial_conditions)
+                          real_t* U, 
+                          real_t* U_dot,
+                          dae_ic_correction_t ic_correction)
 {
   // Reset the preconditioner.
   if (integ->precond != NULL)
@@ -732,16 +732,26 @@ void dae_integrator_reset(dae_integrator_t* integ,
 
   // Reset the integrator itself.
   integ->t = t;
-  memcpy(NV_DATA(integ->U), X, sizeof(real_t) * integ->num_local_values); 
-  memcpy(NV_DATA(integ->U_dot), X_dot, sizeof(real_t) * integ->num_local_values); 
+  memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
+  memcpy(NV_DATA(integ->U_dot), U_dot, sizeof(real_t) * integ->num_local_values); 
   IDAReInit(integ->ida, integ->t, integ->U, integ->U_dot);
   integ->initialized = true;
 
-  if (correct_initial_conditions)
+  if (ic_correction != DAE_IC_ASSUME_CONSISTENT)
   {
-    // Correct the initial conditions for X given those for X_dot.
-    log_detail("dae_integrator: correcting initial conditions...");
-    int err = IDACalcIC(integ->ida, IDA_Y_INIT, integ->max_dt);
+    int err;
+    if (ic_correction == DAE_IC_CORRECT_DERIVATIVES)
+    {
+      // Correct the initial conditions for U_dot given U.
+      log_detail("dae_integrator: computing initial condition derivatives...");
+      err = IDACalcIC(integ->ida, IDA_YA_YDP_INIT, integ->max_dt);
+    }
+    else // if (ic_correction == DAE_IC_ASSUME_QUASISTATIC)
+    {
+      // Correct the initial conditions for U given U_dot = 0.
+      log_detail("dae_integrator: assuming quasistatic initial conditions...");
+      err = IDACalcIC(integ->ida, IDA_Y_INIT, integ->max_dt);
+    }
     if (err != IDA_SUCCESS)
     {
       log_detail("dae_integrator: could not correct initial conditions:");
@@ -762,14 +772,14 @@ void dae_integrator_reset(dae_integrator_t* integ,
       else if (err == IDA_LINESEARCH_FAIL)
         log_detail("  IC correction failed in line search.");
       else
-      {
         log_detail("  IC correction failed to converge.");
-      }
     }
     IDAGetConsistentIC(integ->ida, integ->U, integ->U_dot);
-    memcpy(X, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
-    memcpy(X_dot, NV_DATA(integ->U_dot), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U_dot, NV_DATA(integ->U_dot), sizeof(real_t) * integ->num_local_values); 
   }
+  else
+    log_detail("dae_integrator: Assuming consistent initial conditions...");
 
   // Write out debugging info.
   if (log_level() == LOG_DEBUG)

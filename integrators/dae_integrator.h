@@ -57,6 +57,15 @@ extern dae_constraint_t* DAE_ALL_NONNEGATIVE;
 // all equations have solution values that are positive.
 extern dae_constraint_t* DAE_ALL_POSITIVE;
 
+// This type describes methods of correcting initial conditions (U, U_dot) for 
+// differential-algebraic systems.
+typedef enum
+{
+  DAE_IC_CORRECT_DERIVATIVES, // Compute corrections to U_dot given U.
+  DAE_IC_ASSUME_QUASISTATIC,  // Compute corrections to U assuming U_dot = 0.
+  DAE_IC_ASSUME_CONSISTENT    // Assume that U and U_dot are consistent.
+} dae_ic_correction_t;
+
 // Types of Krylov solver to use for the Jacobian-Free Newton-Krylov DAE method.
 typedef enum 
 {
@@ -233,7 +242,7 @@ bool dae_integrator_step(dae_integrator_t* integrator, real_t max_dt, real_t* t,
 // correct U given U_dot.
 void dae_integrator_reset(dae_integrator_t* integrator, 
                           real_t t, real_t* U, real_t* U_dot,
-                          bool correct_initial_conditions);
+                          dae_ic_correction_t ic_correction);
 
 // Diagnostics for the time integrator.
 typedef struct
