@@ -68,7 +68,6 @@ typedef struct
                     real_t* W, 
                     real_t res_norm_tol,
                     real_t* B);
-  int prev_J_step;
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -374,7 +373,6 @@ ode_integrator_t* jfnk_bdf_ode_integrator_new(int order,
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
-  integ->prev_J_step = 0;
 
   integ->reset_func = NULL;
   integ->setup_func = NULL;
@@ -782,7 +780,6 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
-  integ->prev_J_step = 0;
 
   // Set up CVode and accessories.
   integ->U = N_VNew(integ->comm, integ->num_local_values);

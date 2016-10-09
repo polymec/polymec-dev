@@ -75,7 +75,6 @@ typedef struct
                     real_t* W, 
                     real_t res_norm_tol,
                     real_t* B);
-  int prev_J_step;
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -443,7 +442,6 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
   integ->error_weights = NULL;
   integ->first_step = true;
   integ->precond = NULL;
-  integ->prev_J_step = 0;
 
   integ->reset_func = NULL;
   integ->setup_func = NULL;
@@ -528,7 +526,6 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
   integ->first_step = true;
-  integ->prev_J_step = 0;
 
   integ->reset_func = NULL;
   integ->setup_func = NULL;
@@ -673,7 +670,7 @@ static int ark_lsolve(ARKodeMem ark_mem,
   real_t* U = NV_DATA(ycur);
   real_t* U_dot = NV_DATA(fcur);
   real_t* W = NV_DATA(weight);
-//  real_t res_norm_tol = 0.05 * ark->sqrtN * C1_inv; // FIXME: Why doesn't this work?
+//  real_t res_norm_tol = 0.05 * ark->sqrtN * ark_mem->ark_eRNrm; // FIXME: Why doesn't this work?
   real_t res_norm_tol = 0.05 * ark_mem->ark_eRNrm;
   real_t* B = NV_DATA(b);
   return ark->solve_func(ark->context, t, U, U_dot, W, res_norm_tol, B);
@@ -735,7 +732,6 @@ ode_integrator_t* ark_ode_integrator_new(const char* name,
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
   integ->first_step = true;
-  integ->prev_J_step = 0;
 
   // Set up ARKode and accessories.
   integ->U = N_VNew(integ->comm, integ->num_local_values);
@@ -1071,7 +1067,9 @@ typedef struct
 
   // Behavior.
   void* context;
-  int (*fi_func)(void* context, real_t t, real_t* U, real_t* U_dot);
+  int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe);
+  int (*fi_func)(void* context, real_t t, real_t* U, real_t* fi);
+  real_t (*stable_dt_func)(void* context, real_t, real_t* U);
   int (*J_func)(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J);
   void (*dtor)(void* context);
 
@@ -1091,10 +1089,22 @@ typedef struct
   int block_size;
 } ink_ark_ode_t;
 
-static int ink_fi(void* context, real_t t, real_t* U, real_t* U_dot)
+static int ink_fe(void* context, real_t t, real_t* U, real_t* fe)
 {
   ink_ark_ode_t* ink = context;
-  return ink->fi_func(ink->context, t, U, U_dot);
+  return ink->fe_func(ink->context, t, U, fe);
+}
+
+static int ink_fi(void* context, real_t t, real_t* U, real_t* fi)
+{
+  ink_ark_ode_t* ink = context;
+  return ink->fi_func(ink->context, t, U, fi);
+}
+
+static real_t ink_stable_dt(void* context, real_t t, real_t* U)
+{
+  ink_ark_ode_t* ink = context;
+  return ink->stable_dt_func(ink->context, t, U);
 }
 
 static int ink_reset(void* context, real_t t, real_t* U)
@@ -1288,7 +1298,9 @@ ode_integrator_t* ink_ark_ode_integrator_new(int order,
   ink_ark_ode_t* ink = polymec_malloc(sizeof(ink_ark_ode_t));
   ink->comm = comm;
   ink->context = context;
+  ink->fe_func = fe_func;
   ink->fi_func = fi_func;
+  ink->stable_dt_func = stable_dt_func;
   ink->J_func = J_func;
   ink->dtor = dtor;
   ink->factory = factory;
@@ -1306,9 +1318,11 @@ ode_integrator_t* ink_ark_ode_integrator_new(int order,
   int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));
   ode_integrator_t* I = ark_ode_integrator_new(name, order, comm, 
                                                num_local_values, 0,
-                                               ink, fe_func, fi_func, 
-                                               stable_dt_func, ink_reset, 
-                                               ink_setup, ink_solve, ink_dtor);
+                                               ink, 
+                                               (fe_func != NULL) ? ink_fe : NULL, 
+                                               ink_fi, 
+                                               (stable_dt_func != NULL) ? ink_stable_dt : NULL, 
+                                               ink_reset, ink_setup, ink_solve, ink_dtor);
 
   // Set default tolerances.
   // relative error of 1e-4 means errors are controlled to 0.01%.
