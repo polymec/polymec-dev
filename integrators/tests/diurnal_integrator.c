@@ -401,8 +401,12 @@ real_t* diurnal_initial_conditions(ode_integrator_t* integ)
   const char* integ_name = ode_integrator_name(integ);
   if (string_contains(integ_name, "INK Backwards-Difference"))
     data = ink_bdf_ode_integrator_context(integ);
-  else
+  else if (string_contains(integ_name, "INK Additive"))
+    data = ink_ark_ode_integrator_context(integ);
+  else if (string_contains(integ_name, "Backwards"))
     data = bdf_ode_integrator_context(integ);
+  else
+    data = ark_ode_integrator_context(integ);
   real_t dx = data->dx, dy = data->dy;
   real_t* u_data = polymec_malloc(sizeof(real_t) * NEQ);
   DECLARE_3D_ARRAY(real_t, u_ijk, u_data, MX, MY, NUM_SPECIES);
@@ -505,15 +509,37 @@ ode_integrator_t* bj_jfnk_ark_diurnal_integrator_new(newton_pc_side_t side)
   return integ;
 }
 
+// Constructor for an Inexact Newton-Krylov ARK diurnal integrator.
+ode_integrator_t* ink_ark_diurnal_integrator_new(krylov_factory_t* factory);
+ode_integrator_t* ink_ark_diurnal_integrator_new(krylov_factory_t* factory)
+{
+  diurnal_t* data = diurnal_new();
+  // Set up a time integrator using GMRES with a maximum order of 5 and 
+  // a Krylov space of maximum dimension 15.
+  matrix_sparsity_t* J_sparsity = matrix_sparsity_from_graph(data->sparsity, NULL);
+  ode_integrator_t* integ = ink_ark_ode_integrator_new(5, MPI_COMM_SELF, factory,
+                                                       J_sparsity, data, NULL, diurnal_rhs, 
+                                                       NULL, diurnal_J, diurnal_dtor);
+  ink_ark_ode_integrator_use_gmres(integ, 15);
+  return integ;
+}
+
 // Test harness for ODE integrator.
 int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps);
 int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
 {
   // Set up the problem.
+  char* integ_name = ode_integrator_name(integ);
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-  bdf_ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
+  if (string_contains(integ_name, "Backwards"))
+    bdf_ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
+  else if (string_contains(integ_name, "Additive"))
+    ark_ode_integrator_set_tolerances(integ, 1e-5, 1e-3);
 #else
-  bdf_ode_integrator_set_tolerances(integ, 1e-4, 1e-2);
+  if (string_contains(integ_name, "Backwards"))
+    bdf_ode_integrator_set_tolerances(integ, 1e-4, 1e-2);
+  else if (string_contains(integ_name, "Additive"))
+    ark_ode_integrator_set_tolerances(integ, 1e-4, 1e-2);
 #endif
   real_t* U = diurnal_initial_conditions(integ);
   DECLARE_3D_ARRAY(real_t, U_ijk, U, 10, 10, 2);
