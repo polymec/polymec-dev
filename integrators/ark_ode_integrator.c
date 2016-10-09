@@ -690,6 +690,8 @@ ode_integrator_t* ark_ode_integrator_new(const char* name,
                                          int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
                                          int (*fi_func)(void* context, real_t t, real_t* U, real_t* fi),
                                          real_t (*stable_dt_func)(void* context, real_t, real_t* U),
+                                         bool fi_is_linear,
+                                         bool fi_is_time_dependent,
                                          int (*reset_func)(void* context, real_t t, real_t* U),
                                          int (*setup_func)(void* context, 
                                                            ark_conv_status_t conv_status, 
@@ -742,6 +744,8 @@ ode_integrator_t* ark_ode_integrator_new(const char* name,
   ARKodeSetUserData(integ->arkode, integ);
   if (integ->stable_dt != NULL)
     ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
+  if (fi_is_linear)
+    ARKodeSetLinear(integ->arkode, fi_is_time_dependent);
   ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
   ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
   ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
@@ -1292,6 +1296,8 @@ ode_integrator_t* ink_ark_ode_integrator_new(int order,
                                              int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
                                              int (*fi_func)(void* context, real_t t, real_t* U, real_t* fi),
                                              real_t (*stable_dt_func)(void* context, real_t, real_t* U),
+                                             bool fi_is_linear,
+                                             bool fi_is_time_dependent,
                                              int (*J_func)(void* context, real_t t, real_t* U, real_t* fi, krylov_matrix_t* J),
                                              void (*dtor)(void* context))
 {
@@ -1322,6 +1328,7 @@ ode_integrator_t* ink_ark_ode_integrator_new(int order,
                                                (fe_func != NULL) ? ink_fe : NULL, 
                                                ink_fi, 
                                                (stable_dt_func != NULL) ? ink_stable_dt : NULL, 
+                                               fi_is_linear, fi_is_time_dependent,
                                                ink_reset, ink_setup, ink_solve, ink_dtor);
 
   // Set default tolerances.

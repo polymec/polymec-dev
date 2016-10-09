@@ -519,8 +519,10 @@ ode_integrator_t* ink_ark_diurnal_integrator_new(krylov_factory_t* factory)
   matrix_sparsity_t* J_sparsity = matrix_sparsity_from_graph(data->sparsity, NULL);
   ode_integrator_t* integ = ink_ark_ode_integrator_new(5, MPI_COMM_SELF, factory,
                                                        J_sparsity, data, NULL, diurnal_rhs, 
-                                                       NULL, diurnal_J, diurnal_dtor);
+                                                       NULL, false, false, 
+                                                       diurnal_J, diurnal_dtor);
   ink_ark_ode_integrator_use_gmres(integ, 15);
+  ark_ode_integrator_set_predictor(integ, ARK_TRIVIAL_PREDICTOR);
   return integ;
 }
 
