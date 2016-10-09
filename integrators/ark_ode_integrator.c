@@ -20,6 +20,9 @@
 #include "arkode/arkode_pcg.h"
 #include "arkode/arkode_sptfqmr.h"
 
+// Stuff for generalized ARK integrators.
+#include "arkode/arkode_impl.h"
+
 struct ark_ode_observer_t 
 {
   void* context;
@@ -52,6 +55,27 @@ typedef struct
   int max_krylov_dim;
   newton_pc_t* precond;
   int (*Jy)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* temp, real_t* Jy);
+
+  // Generalized adaptor stuff.
+  real_t sqrtN;
+  int (*reset_func)(void* context, real_t t, real_t* U);
+  int (*setup_func)(void* context, 
+                    ark_conv_status_t conv_status, 
+                    real_t gamma, 
+                    int step,
+                    real_t t, 
+                    real_t* U_pred, 
+                    real_t* U_dot_pred, 
+                    bool* J_current, 
+                    real_t* work1, real_t* work2, real_t* work3);
+  int (*solve_func)(void* context, 
+                    real_t t, 
+                    real_t* U,
+                    real_t* U_dot,
+                    real_t* W, 
+                    real_t res_norm_tol,
+                    real_t* B);
+  int prev_J_step;
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -419,6 +443,11 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
   integ->error_weights = NULL;
   integ->first_step = true;
   integ->precond = NULL;
+  integ->prev_J_step = 0;
+
+  integ->reset_func = NULL;
+  integ->setup_func = NULL;
+  integ->solve_func = NULL;
 
   // Set up ARKode and accessories.
   integ->U = N_VNew(integ->comm, integ->num_local_values);
@@ -499,6 +528,11 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
   integ->first_step = true;
+  integ->prev_J_step = 0;
+
+  integ->reset_func = NULL;
+  integ->setup_func = NULL;
+  integ->solve_func = NULL;
 
   // Set up ARKode and accessories.
   integ->U = N_VNew(integ->comm, integ->num_local_values);
@@ -566,6 +600,175 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
     snprintf(name, 1024, "JFNK IMEX Additive Runge-Kutta (fixed-point, order %d)", order);
   else
     snprintf(name, 1024, "JFNK implicit Runge-Kutta (order %d)", order);
+  ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order,
+                                           num_local_values + num_remote_values);
+
+  // Set default tolerances.
+  // relative error of 1e-4 means errors are controlled to 0.01%.
+  // absolute error is set to 1 because it's completely problem dependent.
+  ark_ode_integrator_set_tolerances(I, 1e-4, 1.0);
+
+  return I;
+}
+
+//------------------------------------------------------------------------
+//                    Custom ARK integrator stuff
+//------------------------------------------------------------------------
+
+static int ark_linit(ARKodeMem ark_mem)
+{
+  ark_ode_t* ark = ark_mem->ark_user_data;
+  real_t t = ark_mem->ark_tn;
+  real_t* U = NV_DATA(ark_mem->ark_ycur);
+  ark->sqrtN = -1.0;
+  return ark->reset_func(ark->context, t, U);
+}
+
+static int ark_lsetup(ARKodeMem ark_mem, 
+                      int convfail,
+                      N_Vector ypred,
+                      N_Vector fpred,
+                      booleantype* jcurPtr,
+                      N_Vector vtemp1,
+                      N_Vector vtemp2,
+                      N_Vector vtemp3)
+{
+  ark_ode_t* ark = ark_mem->ark_user_data;
+  ark_conv_status_t conv_status;
+  if (convfail == ARK_NO_FAILURES)
+    conv_status = ARK_CONV_NO_FAILURES;
+  else if (convfail == ARK_FAIL_BAD_J)
+    conv_status = ARK_CONV_BAD_J_FAILURE;
+  else
+    conv_status = ARK_CONV_OTHER_FAILURE;
+  real_t gamma = ark_mem->ark_gamma;
+  int step = (int)ark_mem->ark_nst;
+  real_t t = ark_mem->ark_tn;
+  bool J_updated = false;
+  real_t* U_pred = NV_DATA(ypred);
+  real_t* U_dot_pred = NV_DATA(fpred);
+  real_t* work1 = NV_DATA(vtemp1);
+  real_t* work2 = NV_DATA(vtemp2);
+  real_t* work3 = NV_DATA(vtemp3);
+  if (ark->sqrtN <= 0.0)
+  {
+    N_VConst(1.0, vtemp1);
+    ark->sqrtN = sqrt(N_VDotProd(vtemp1, vtemp1));
+  }
+  int status = ark->setup_func(ark->context, conv_status, gamma, step, t, 
+                               U_pred, U_dot_pred, &J_updated, work1, 
+                               work2, work3);
+  *jcurPtr = J_updated;
+  return status;
+}
+
+static int ark_lsolve(ARKodeMem ark_mem, 
+                      N_Vector b, 
+                      N_Vector weight,
+                      N_Vector ycur, 
+                      N_Vector fcur)
+{
+  ark_ode_t* ark = ark_mem->ark_user_data;
+  real_t t = ark_mem->ark_tn;
+  real_t* U = NV_DATA(ycur);
+  real_t* U_dot = NV_DATA(fcur);
+  real_t* W = NV_DATA(weight);
+//  real_t res_norm_tol = 0.05 * ark->sqrtN * C1_inv; // FIXME: Why doesn't this work?
+  real_t res_norm_tol = 0.05 * ark_mem->ark_eRNrm;
+  real_t* B = NV_DATA(b);
+  return ark->solve_func(ark->context, t, U, U_dot, W, res_norm_tol, B);
+}
+
+static int ark_lfree(ARKodeMem ark_mem)
+{
+  return 0;
+}
+
+ode_integrator_t* ark_ode_integrator_new(const char* name, 
+                                         int order,
+                                         MPI_Comm comm,
+                                         int num_local_values, 
+                                         int num_remote_values, 
+                                         void* context, 
+                                         int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
+                                         int (*fi_func)(void* context, real_t t, real_t* U, real_t* fi),
+                                         real_t (*stable_dt_func)(void* context, real_t, real_t* U),
+                                         int (*reset_func)(void* context, real_t t, real_t* U),
+                                         int (*setup_func)(void* context, 
+                                                           ark_conv_status_t conv_status, 
+                                                           real_t gamma, 
+                                                           int step,
+                                                           real_t t, 
+                                                           real_t* U_pred, 
+                                                           real_t* U_dot_pred, 
+                                                           bool* J_current, 
+                                                           real_t* work1, real_t* work2, real_t* work3),
+                                         int (*solve_func)(void* context, 
+                                                           real_t t, 
+                                                           real_t* U,
+                                                           real_t* U_dot,
+                                                           real_t* W, 
+                                                           real_t res_norm_tol, 
+                                                           real_t* B),
+                                         void (*dtor)(void* context))
+{
+  ASSERT((order >= 3) || ((order >= 2) && ((fe_func == NULL) || (fi_func == NULL))));
+  ASSERT((order <= 5) || ((order <= 6) && (fi_func == NULL)));
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
+  ASSERT(fi_func != NULL);
+
+  ark_ode_t* integ = polymec_malloc(sizeof(ark_ode_t));
+  integ->comm = comm;
+  integ->num_local_values = num_local_values;
+  integ->num_remote_values = num_remote_values;
+  integ->context = context;
+  integ->fe = fe_func;
+  integ->fi = fi_func;
+  integ->dtor = dtor;
+  integ->status_message = NULL;
+  integ->max_krylov_dim = -1;
+  integ->stable_dt = (fe_func != NULL) ? stable_dt_func : NULL;
+  integ->Jy = NULL;
+  integ->precond = NULL;
+  integ->t = 0.0;
+  integ->observers = ptr_array_new();
+  integ->error_weights = NULL;
+  integ->first_step = true;
+  integ->prev_J_step = 0;
+
+  // Set up ARKode and accessories.
+  integ->U = N_VNew(integ->comm, integ->num_local_values);
+  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
+  integ->arkode = ARKodeCreate();
+  ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
+  ARKodeSetOrder(integ->arkode, order);
+  ARKodeSetUserData(integ->arkode, integ);
+  if (integ->stable_dt != NULL)
+    ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
+  ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
+  ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
+  ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
+  if (fe_func == NULL)
+    ARKodeSetImplicit(integ->arkode);
+  else
+    ARKodeSetImEx(integ->arkode);
+
+  // Set up the solver.
+  integ->reset_func = reset_func;
+  integ->setup_func = setup_func;
+  integ->solve_func = solve_func;
+  ARKodeMem ark_mem = integ->arkode;
+  ark_mem->ark_linit = ark_linit;
+  ark_mem->ark_lsetup = ark_lsetup;
+  ark_mem->ark_lsolve = ark_lsolve;
+  ark_mem->ark_lfree = ark_lfree;
+  ark_mem->ark_setupNonNull = 1; // needs to be set for lsetup to be called.
+
+  ode_integrator_vtable vtable = {.step = ark_step, 
+                                  .advance = ark_advance, 
+                                  .reset = ark_reset, 
+                                  .dtor = ark_dtor};
   ode_integrator_t* I = ode_integrator_new(name, integ, vtable, order,
                                            num_local_values + num_remote_values);
 
@@ -858,3 +1061,319 @@ void ark_ode_integrator_add_observer(ode_integrator_t* integrator,
   ptr_array_append_with_dtor(integ->observers, observer, DTOR(ark_ode_observer_free));
 }
 
+//------------------------------------------------------------------------
+//                  Inexact Newton-Krylov integrator stuff
+//------------------------------------------------------------------------
+
+typedef struct
+{
+  MPI_Comm comm;
+
+  // Behavior.
+  void* context;
+  int (*fi_func)(void* context, real_t t, real_t* U, real_t* U_dot);
+  int (*J_func)(void* context, real_t t, real_t* U, real_t* U_dot, krylov_matrix_t* J);
+  void (*dtor)(void* context);
+
+  // Linear system stuff.
+  krylov_factory_t* factory;
+  krylov_solver_t* solver;
+  krylov_pc_t* pc;
+  krylov_matrix_t* M; // Newton matrix M = (I - gamma * J).
+  krylov_vector_t* X; // Solution vector.
+  krylov_vector_t* B; // Right-hand side vector.
+  krylov_vector_t* W; // Weights vector.
+
+  // Metadata.
+  real_t gamma_prev; // Previous value of gamma in Newton matrix.
+  int prev_J_update_step; // Step during which J was previously updated.
+  matrix_sparsity_t* sparsity;
+  int block_size;
+} ink_ark_ode_t;
+
+static int ink_fi(void* context, real_t t, real_t* U, real_t* U_dot)
+{
+  ink_ark_ode_t* ink = context;
+  return ink->fi_func(ink->context, t, U, U_dot);
+}
+
+static int ink_reset(void* context, real_t t, real_t* U)
+{
+  START_FUNCTION_TIMER();
+  ink_ark_ode_t* ink = context;
+  
+  // Free any resources currently in use.
+  if (ink->M != NULL)
+    krylov_matrix_free(ink->M);
+  if (ink->block_size > 1)
+    ink->M = krylov_factory_block_matrix(ink->factory, ink->sparsity, ink->block_size);
+  else
+    ink->M = krylov_factory_matrix(ink->factory, ink->sparsity);
+  if (ink->X != NULL)
+    krylov_vector_free(ink->X);
+  if (ink->B != NULL)
+    krylov_vector_free(ink->B);
+
+  // Allocate resources.
+  index_t* row_dist = matrix_sparsity_row_distribution(ink->sparsity);
+  ink->X = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->B = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+  ink->W = krylov_factory_vector(ink->factory, ink->comm, row_dist);
+
+  // Set some metadata.
+  ink->gamma_prev = 1.0;
+  ink->prev_J_update_step = 0;
+
+  STOP_FUNCTION_TIMER();
+  return 0;
+}
+
+static int ink_setup(void* context, 
+                     ark_conv_status_t conv_status, 
+                     real_t gamma, 
+                     int step,
+                     real_t t, 
+                     real_t* U_pred, 
+                     real_t* U_dot_pred, 
+                     bool* J_updated, 
+                     real_t* work1, real_t* work2, real_t* work3)
+{
+  START_FUNCTION_TIMER();
+  ink_ark_ode_t* ink = context;
+
+  real_t dgamma = ABS(gamma / ink->gamma_prev - 1.0);
+  log_debug("ink_ark_ode_integrator: Calculating M = I - %g * J.", gamma);
+  if ((step == 0) ||
+      (step > ink->prev_J_update_step + 50) ||
+      ((conv_status == ARK_CONV_BAD_J_FAILURE) && (dgamma < 0.2)) || 
+      (conv_status == ARK_CONV_OTHER_FAILURE))
+  {
+    char reason[129];
+    // Call our Jacobian calculation function.
+    if (step == 0)
+      snprintf(reason, 128, "first step");
+    else if (step > ink->prev_J_update_step + 50)
+      snprintf(reason, 128, "> 50 steps since last calculation");
+    else if (conv_status == ARK_CONV_BAD_J_FAILURE)
+      snprintf(reason, 128, "outdated Newton matrix");
+    else
+      snprintf(reason, 128, "convergence failure reduced dt");
+    log_debug("ink_ark_ode_integrator: Updating J (reason: %s).", reason);
+    int status = ink->J_func(ink->context, t, U_pred, U_dot_pred, ink->M);
+    if (status != 0)
+      return status;
+
+    // Scale the Jacobian by -gamma and add the identity matrix.
+    krylov_matrix_scale(ink->M, -gamma);
+    krylov_matrix_add_identity(ink->M, 1.0);
+
+    // Use this matrix as the operator in our solver.
+    krylov_solver_set_operator(ink->solver, ink->M);
+
+    // Save some information.
+    ink->prev_J_update_step = step;
+    ink->gamma_prev = gamma;
+    *J_updated = true;
+    STOP_FUNCTION_TIMER();
+    return 0;
+  }
+  else
+  {
+    if (conv_status == ARK_CONV_NO_FAILURES)
+    {
+      // We don't need to update J, but we still need to recompute I - gamma*J.
+      krylov_matrix_add_identity(ink->M, -1.0);
+      krylov_matrix_scale(ink->M, gamma/ink->gamma_prev);
+      krylov_matrix_add_identity(ink->M, 1.0);
+      ink->gamma_prev = gamma;
+      *J_updated = false;
+      STOP_FUNCTION_TIMER();
+      return 0;
+    }
+    else
+    {
+      STOP_FUNCTION_TIMER();
+      return 1;
+    }
+  }
+}
+
+static int ink_solve(void* context, 
+                     real_t t, 
+                     real_t* U,
+                     real_t* U_dot,
+                     real_t* W, 
+                     real_t res_norm_tol,
+                     real_t* B) 
+{
+  START_FUNCTION_TIMER();
+  ink_ark_ode_t* ink = context;
+
+  // Copy RHS data from B into ink->B.
+  krylov_vector_copy_in(ink->B, B);
+
+  // Copy weights into ink->W.
+  krylov_vector_copy_in(ink->W, W);
+
+  // If the WRMS norm of B is less than our tolerance, return X = 0.
+  real_t B_norm = krylov_vector_wrms_norm(ink->B, ink->W);
+  if (B_norm < res_norm_tol)
+  {
+    log_debug("ink_ark_ode_integrator: ||B|| < tolerance (%g < %g), so X -> 0.", B_norm, res_norm_tol); 
+    krylov_vector_zero(ink->X);
+    krylov_vector_copy_out(ink->X, B);
+    STOP_FUNCTION_TIMER();
+    return 0;
+  }
+
+  // Set the tolerance on the residual norm.
+  real_t rel_tol = 1e-8;
+  real_t div_tol = 10.0;
+  krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
+
+  // Solve A*X = B.
+  real_t res_norm;
+  int num_iters;
+  bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->W, ink->W, 
+                                           ink->X, &res_norm, &num_iters);
+
+  if (solved)
+  {
+    log_debug("ink_ark_ode_integrator: Solved A*X = B (||R|| == %g after %d iters).", res_norm, num_iters);
+
+    // Copy solution data from ink->X into B.
+    krylov_vector_copy_out(ink->X, B);
+    STOP_FUNCTION_TIMER();
+    return 0;
+  }
+  else
+  {
+    log_debug("ink_ark_ode_integrator: Solution to A*X = B did not converge.");
+    STOP_FUNCTION_TIMER();
+    return 1;
+  }
+}
+
+static void ink_dtor(void* context)
+{
+  ink_ark_ode_t* ink = context;
+  matrix_sparsity_free(ink->sparsity);
+  if (ink->X != NULL)
+    krylov_vector_free(ink->X);
+  if (ink->B != NULL)
+    krylov_vector_free(ink->B);
+  if (ink->W != NULL)
+    krylov_vector_free(ink->W);
+  if (ink->M != NULL)
+    krylov_matrix_free(ink->M);
+  if (ink->pc != NULL)
+    krylov_pc_free(ink->pc);
+  krylov_solver_free(ink->solver);
+  krylov_factory_free(ink->factory);
+  if ((ink->context != NULL) && (ink->dtor != NULL))
+    ink->dtor(ink->context);
+}
+
+ode_integrator_t* ink_ark_ode_integrator_new(int order, 
+                                             MPI_Comm comm,
+                                             krylov_factory_t* factory,
+                                             matrix_sparsity_t* J_sparsity,
+                                             void* context, 
+                                             int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
+                                             int (*fi_func)(void* context, real_t t, real_t* U, real_t* fi),
+                                             real_t (*stable_dt_func)(void* context, real_t, real_t* U),
+                                             int (*J_func)(void* context, real_t t, real_t* U, real_t* fi, krylov_matrix_t* J),
+                                             void (*dtor)(void* context))
+{
+  ink_ark_ode_t* ink = polymec_malloc(sizeof(ink_ark_ode_t));
+  ink->comm = comm;
+  ink->context = context;
+  ink->fi_func = fi_func;
+  ink->J_func = J_func;
+  ink->dtor = dtor;
+  ink->factory = factory;
+  ink->sparsity = J_sparsity;
+  ink->solver = krylov_factory_gmres_solver(ink->factory, comm, 30);
+  ink->pc = NULL;
+  ink->M = NULL;
+  ink->B = NULL;
+  ink->X = NULL;
+  ink->W = NULL;
+  ink->block_size = 1;
+
+  char name[1024];
+  snprintf(name, 1024, "INK Additive Runge-Kutta (order %d)", order);
+  int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));
+  ode_integrator_t* I = ark_ode_integrator_new(name, order, comm, 
+                                               num_local_values, 0,
+                                               ink, fe_func, fi_func, 
+                                               stable_dt_func, ink_reset, 
+                                               ink_setup, ink_solve, ink_dtor);
+
+  // Set default tolerances.
+  // relative error of 1e-4 means errors are controlled to 0.01%.
+  // absolute error is set to 1 because it's completely problem dependent.
+  ark_ode_integrator_set_tolerances(I, 1e-4, 1.0);
+
+  return I;
+}
+
+void ink_ark_ode_integrator_use_pcg(ode_integrator_t* ink_ark_ode_integ)
+{
+  ink_ark_ode_t* ink = ark_ode_integrator_context(ink_ark_ode_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_pcg_solver(ink->factory, ink->comm);
+}
+
+void ink_ark_ode_integrator_use_gmres(ode_integrator_t* ink_ark_ode_integ,
+                                      int max_krylov_dim)
+{
+  ink_ark_ode_t* ink = ark_ode_integrator_context(ink_ark_ode_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_gmres_solver(ink->factory, ink->comm, max_krylov_dim);
+}
+
+void ink_ark_ode_integrator_use_bicgstab(ode_integrator_t* ink_ark_ode_integ)
+{
+  ink_ark_ode_t* ink = ark_ode_integrator_context(ink_ark_ode_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_bicgstab_solver(ink->factory, ink->comm);
+}
+
+void ink_ark_ode_integrator_use_special(ode_integrator_t* ink_ark_ode_integ,
+                                        const char* solver_name,
+                                        string_string_unordered_map_t* options)
+{
+  ink_ark_ode_t* ink = ark_ode_integrator_context(ink_ark_ode_integ);
+  if (ink->solver != NULL)
+    krylov_solver_free(ink->solver);
+  ink->solver = krylov_factory_special_solver(ink->factory, ink->comm,
+                                              solver_name, options);
+}
+
+void ink_ark_ode_integrator_set_pc(ode_integrator_t* ink_ark_ode_integ,
+                                   const char* pc_name, 
+                                   string_string_unordered_map_t* options)
+{
+  ink_ark_ode_t* ink = ark_ode_integrator_context(ink_ark_ode_integ);
+  if (ink->pc != NULL)
+    krylov_pc_free(ink->pc);
+  ink->pc = krylov_factory_preconditioner(ink->factory, ink->comm, pc_name, options);
+}
+
+void ink_ark_ode_integrator_set_block_size(ode_integrator_t* ink_ark_ode_integ,
+                                           int block_size)
+{
+  ASSERT(block_size > 0);
+  ink_ark_ode_t* ink = ark_ode_integrator_context(ink_ark_ode_integ);
+  ink->block_size = block_size;
+}
+
+void* ink_ark_ode_integrator_context(ode_integrator_t* ink_ark_ode_integ)
+{
+  ink_ark_ode_t* ink = ark_ode_integrator_context(ink_ark_ode_integ);
+  return ink->context;
+}
