@@ -144,7 +144,6 @@ static bool lis_solver_solve(void* context,
   return solved;
 }
 
-static void matrix_dtor(void* context);
 static void lis_solver_dtor(void* context)
 {
   lis_solver_t* solver = context;

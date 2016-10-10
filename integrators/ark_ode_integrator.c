@@ -670,8 +670,9 @@ static int ark_lsolve(ARKodeMem ark_mem,
   real_t* U = NV_DATA(ycur);
   real_t* U_dot = NV_DATA(fcur);
   real_t* W = NV_DATA(weight);
-//  real_t res_norm_tol = 0.05 * ark->sqrtN * ark_mem->ark_eRNrm; // FIXME: Why doesn't this work?
-  real_t res_norm_tol = 0.05 * ark_mem->ark_eRNrm;
+  // NOTE: We multiply the residual norm tolerance by sqrt(N) to turn the 
+  // NOTE: 2-norm of the residual into its WRMS norm.
+  real_t res_norm_tol = 0.05 * ark->sqrtN * ark_mem->ark_eRNrm; 
   real_t* B = NV_DATA(b);
   return ark->solve_func(ark->context, t, U, U_dot, W, res_norm_tol, B);
 }
@@ -1229,19 +1230,20 @@ static int ink_solve(void* context,
   // Copy weights into ink->W.
   krylov_vector_copy_in(ink->W, W);
 
-  // If the WRMS norm of B is less than our tolerance, return X = 0.
-  real_t B_norm = krylov_vector_wrms_norm(ink->B, ink->W);
+  // If the 2-norm of B is less than our tolerance, return X = 0.
+  real_t B_norm = krylov_vector_norm(ink->B, 2);
   if (B_norm < res_norm_tol)
   {
-    log_debug("ink_ark_ode_integrator: ||B|| < tolerance (%g < %g), so X -> 0.", B_norm, res_norm_tol); 
+    log_debug("ink_ark_ode_integrator: ||B||_2 < tolerance (%g < %g), so X -> 0.", B_norm, res_norm_tol); 
     krylov_vector_zero(ink->X);
     krylov_vector_copy_out(ink->X, B);
     STOP_FUNCTION_TIMER();
     return 0;
   }
 
-  // Set the tolerance on the residual norm.
-  real_t rel_tol = 1e-8;
+  // Set the tolerances on the residual norm so that the relative 
+  // tolerance is as restrictive as the absolute tolerance.
+  real_t rel_tol = res_norm_tol / B_norm;
   real_t div_tol = 10.0;
   krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
 
@@ -1253,7 +1255,7 @@ static int ink_solve(void* context,
 
   if (solved)
   {
-    log_debug("ink_ark_ode_integrator: Solved A*X = B (||R|| == %g after %d iters).", res_norm, num_iters);
+    log_debug("ink_ark_ode_integrator: Solved A*X = B (||R||_2 == %g after %d iters).", res_norm, num_iters);
 
     // Copy solution data from ink->X into B.
     krylov_vector_copy_out(ink->X, B);
