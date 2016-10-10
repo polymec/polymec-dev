@@ -57,11 +57,11 @@ static void test_ink_ark_diurnal_step(void** state, krylov_factory_t* factory)
   test_diurnal_step(state, integ, max_steps);
 }
 
-static void test_lis_ink_ark_diurnal_step(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_ink_ark_diurnal_step(state, lis);
-}
+//static void test_lis_ink_ark_diurnal_step(void** state)
+//{
+//  krylov_factory_t* lis = lis_krylov_factory();
+//  test_ink_ark_diurnal_step(state, lis);
+//}
 
 static void test_petsc_ink_ark_diurnal_step(void** state)
 {
@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_lis_ink_ark_diurnal_ctor),
     cmocka_unit_test(test_petsc_ink_ark_diurnal_ctor),
     cmocka_unit_test(test_hypre_ink_ark_diurnal_ctor),
-    cmocka_unit_test(test_lis_ink_ark_diurnal_step),
+//    cmocka_unit_test(test_lis_ink_ark_diurnal_step), // Too slow at the moment!
     cmocka_unit_test(test_petsc_ink_ark_diurnal_step),
     cmocka_unit_test(test_hypre_ink_ark_diurnal_step)
   };
