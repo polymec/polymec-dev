@@ -1745,7 +1745,11 @@ static real_t vector_w2_norm(void* context, void* W)
 
   // Now mash together all the parallel portions.
   real_t global_norm;
+#if POLYMEC_HAVE_MPI
   MPI_Allreduce(&local_norm, &global_norm, 1, MPI_REAL_T, MPI_SUM, v->comm);
+#else
+  global_norm = local_norm;
+#endif
   return sqrt(global_norm);
 }
 
@@ -1767,7 +1771,12 @@ static real_t vector_wrms_norm(void* context, void* W)
   // Now mash together all the parallel portions.
   real_t local_data[2] = {local_norm, (real_t)n};
   real_t global_data[2];
+#if POLYMEC_HAVE_MPI
   MPI_Allreduce(local_data, global_data, 2, MPI_REAL_T, MPI_SUM, v->comm);
+#else
+  global_data[0] = local_data[0];
+  global_data[1] = local_data[1];
+#endif
   return sqrt(global_data[0]/global_data[1]);
 }
 
