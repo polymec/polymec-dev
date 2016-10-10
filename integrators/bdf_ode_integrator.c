@@ -601,6 +601,8 @@ void bdf_ode_integrator_diagnostics_fprintf(bdf_ode_integrator_diagnostics_t* di
   fprintf(stream, "  Next step size: %g\n", diagnostics->next_step_size);
   fprintf(stream, "  Num RHS evaluations: %d\n", (int)diagnostics->num_rhs_evaluations);
   fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
+  if (diagnostics->num_linear_solve_iterations != -1) // JFNK mode
+    fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
   if (diagnostics->num_linear_solve_convergence_failures != -1) // JFNK mode
     fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
   fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);
