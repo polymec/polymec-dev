@@ -139,8 +139,10 @@ void krylov_solver_set_max_iterations(krylov_solver_t* solver,
 void krylov_solver_set_operator(krylov_solver_t* solver, 
                                 krylov_matrix_t* op)
 {
+  START_FUNCTION_TIMER();
   solver->op = op;
   solver->vtable.set_operator(solver->context, op->context);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_solver_set_preconditioner(krylov_solver_t* solver,
@@ -162,9 +164,12 @@ bool krylov_solver_solve(krylov_solver_t* solver,
                          real_t* residual_norm, 
                          int* num_iterations)
 {
+  START_FUNCTION_TIMER();
   ASSERT(solver->op != NULL);
-  return solver->vtable.solve(solver->context, b->context, x->context, 
-                              residual_norm, num_iterations);
+  bool solved = solver->vtable.solve(solver->context, b->context, x->context, 
+                                     residual_norm, num_iterations);
+  STOP_FUNCTION_TIMER();
+  return solved;
 }
 
 bool krylov_solver_solve_scaled(krylov_solver_t* solver, 
@@ -175,11 +180,13 @@ bool krylov_solver_solve_scaled(krylov_solver_t* solver,
                                 real_t* residual_norm, 
                                 int* num_iterations)
 {
+  START_FUNCTION_TIMER();
   ASSERT(solver->op != NULL);
 
   // If we're not using the scaling matrices, do an unscaled solve.
+  bool solved;
   if ((s1 == NULL) && (s2 == NULL))
-    return krylov_solver_solve(solver, b, x, residual_norm, num_iterations);
+    solved = krylov_solver_solve(solver, b, x, residual_norm, num_iterations);
   else
   {
     // Make sure s2 inverse is computed if s2 is given.
@@ -223,16 +230,16 @@ bool krylov_solver_solve_scaled(krylov_solver_t* solver,
     // The residual norm is ||s1 * P^{-1} * (b - A * x)||_2, where P is 
     // the preconditioner matrix for the solver.
     solver->vtable.set_operator(solver->context, solver->scaled_op->context);
-    bool solved = solver->vtable.solve(solver->context, solver->scaled_b->context, 
-                                       x->context, residual_norm, num_iterations);
+    solved = solver->vtable.solve(solver->context, solver->scaled_b->context, 
+                                  x->context, residual_norm, num_iterations);
     solver->vtable.set_operator(solver->context, solver->op->context);
 
     // Transform (s2 * x) -> x and return.
     if (solved && (solver->s2_inv != NULL))
       krylov_vector_diag_scale(x, solver->s2_inv);
-
-    return solved;
   }
+  STOP_FUNCTION_TIMER();
+  return solved;
 }
 
 //------------------------------------------------------------------------
@@ -827,9 +834,11 @@ krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A)
 
 void krylov_matrix_copy(krylov_matrix_t* A, krylov_matrix_t* copy)
 {
+  START_FUNCTION_TIMER();
   ASSERT(copy->num_global_rows == A->num_global_rows);
   ASSERT(copy->num_local_rows == A->num_local_rows);
   A->vtable.copy(A->context, copy->context);
+  STOP_FUNCTION_TIMER();
 }
 
 void* krylov_matrix_impl(krylov_matrix_t* A)
@@ -849,26 +858,34 @@ index_t krylov_matrix_num_global_rows(krylov_matrix_t* A)
 
 void krylov_matrix_zero(krylov_matrix_t* A)
 {
+  START_FUNCTION_TIMER();
   A->vtable.zero(A->context);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_matrix_add_identity(krylov_matrix_t* A,
                                 real_t scale_factor)
 {
+  START_FUNCTION_TIMER();
   A->vtable.add_identity(A->context, scale_factor);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_matrix_scale(krylov_matrix_t* A,
                          real_t scale_factor)
 {
+  START_FUNCTION_TIMER();
   A->vtable.scale(A->context, scale_factor);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_matrix_diag_scale(krylov_matrix_t* A,
                               krylov_vector_t* L,
                               krylov_vector_t* R)
 {
+  START_FUNCTION_TIMER();
   A->vtable.diag_scale(A->context, L->context, R->context);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_matrix_add_diagonal(krylov_matrix_t* A,
@@ -880,7 +897,9 @@ void krylov_matrix_add_diagonal(krylov_matrix_t* A,
 void krylov_matrix_set_diagonal(krylov_matrix_t* A,
                                 krylov_vector_t* D)
 {
+  START_FUNCTION_TIMER();
   A->vtable.set_diagonal(A->context, D->context);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_matrix_matvec(krylov_matrix_t* A,
@@ -888,7 +907,9 @@ void krylov_matrix_matvec(krylov_matrix_t* A,
                           bool transpose,
                           krylov_vector_t* y)
 {
+  START_FUNCTION_TIMER();
   A->vtable.matvec(A->context, x->context, transpose, y->context);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_matrix_set_values(krylov_matrix_t* A,
@@ -897,7 +918,9 @@ void krylov_matrix_set_values(krylov_matrix_t* A,
                               index_t* rows, index_t* columns,
                               real_t* values)
 {
+  START_FUNCTION_TIMER();
   A->vtable.set_values(A->context, num_rows, num_columns, rows, columns, values);
+  STOP_FUNCTION_TIMER();
 }
                               
 void krylov_matrix_add_values(krylov_matrix_t* A,
@@ -906,7 +929,9 @@ void krylov_matrix_add_values(krylov_matrix_t* A,
                               index_t* rows, index_t* columns,
                               real_t* values)
 {
+  START_FUNCTION_TIMER();
   A->vtable.add_values(A->context, num_rows, num_columns, rows, columns, values);
+  STOP_FUNCTION_TIMER();
 }
                               
 void krylov_matrix_set_blocks(krylov_matrix_t* A,
@@ -915,10 +940,12 @@ void krylov_matrix_set_blocks(krylov_matrix_t* A,
                               index_t* block_columns,
                               real_t* block_values)
 {
+  START_FUNCTION_TIMER();
   if (A->vtable.set_blocks != NULL)
     A->vtable.set_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
   else
     polymec_error("Non-block matrix cannot use block interface.");
+  STOP_FUNCTION_TIMER();
 }
                               
 void krylov_matrix_add_blocks(krylov_matrix_t* A,
@@ -927,10 +954,12 @@ void krylov_matrix_add_blocks(krylov_matrix_t* A,
                               index_t* block_columns,
                               real_t* block_values)
 {
+  START_FUNCTION_TIMER();
   if (A->vtable.add_blocks != NULL)
     A->vtable.add_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
   else
     polymec_error("Non-block matrix cannot use block interface.");
+  STOP_FUNCTION_TIMER();
 }
                               
 void krylov_matrix_get_blocks(krylov_matrix_t* A,
@@ -939,10 +968,12 @@ void krylov_matrix_get_blocks(krylov_matrix_t* A,
                               index_t* block_columns,
                               real_t* block_values)
 {
+  START_FUNCTION_TIMER();
   if (A->vtable.add_blocks != NULL)
     A->vtable.get_blocks(A->context, num_blocks, block_rows, block_columns, block_values);
   else
     polymec_error("Non-block matrix cannot use block interface.");
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_matrix_set_block(krylov_matrix_t* A,
@@ -950,7 +981,9 @@ void krylov_matrix_set_block(krylov_matrix_t* A,
                              index_t block_column,
                              real_t* block_values)
 {
+  START_FUNCTION_TIMER();
   krylov_matrix_set_blocks(A, 1, &block_row, &block_column, block_values);
+  STOP_FUNCTION_TIMER();
 }
                               
 void krylov_matrix_add_block(krylov_matrix_t* A,
@@ -971,8 +1004,10 @@ void krylov_matrix_get_block(krylov_matrix_t* A,
 
 void krylov_matrix_assemble(krylov_matrix_t* A)
 {
+  START_FUNCTION_TIMER();
   if (A->vtable.assemble != NULL)
     A->vtable.assemble(A->context);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_matrix_get_values(krylov_matrix_t* A,
@@ -981,7 +1016,9 @@ void krylov_matrix_get_values(krylov_matrix_t* A,
                               index_t* rows, index_t* columns,
                               real_t* values)
 {
+  START_FUNCTION_TIMER();
   A->vtable.get_values(A->context, num_rows, num_columns, rows, columns, values);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_matrix_fprintf(krylov_matrix_t* A,
@@ -1044,9 +1081,11 @@ krylov_vector_t* krylov_vector_clone(krylov_vector_t* v)
 
 void krylov_vector_copy(krylov_vector_t* v, krylov_vector_t* copy)
 {
+  START_FUNCTION_TIMER();
   ASSERT(copy->local_size == v->local_size);
   ASSERT(copy->global_size == v->global_size);
   v->vtable.copy(v->context, copy->context);
+  STOP_FUNCTION_TIMER();
 }
 
 void* krylov_vector_impl(krylov_vector_t* v)
@@ -1066,26 +1105,34 @@ index_t krylov_vector_global_size(krylov_vector_t* v)
 
 void krylov_vector_zero(krylov_vector_t* v)
 {
+  START_FUNCTION_TIMER();
   v->vtable.zero(v->context);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_vector_set_value(krylov_vector_t* v,
                              real_t value)
 {
+  START_FUNCTION_TIMER();
   v->vtable.set_value(v->context, value);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_vector_scale(krylov_vector_t* v,
                          real_t scale_factor)
 {
+  START_FUNCTION_TIMER();
   v->vtable.scale(v->context, scale_factor);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_vector_diag_scale(krylov_vector_t* v,
                               krylov_vector_t* D)
 {
+  START_FUNCTION_TIMER();
   ASSERT(D != NULL);
   v->vtable.diag_scale(v->context, D->context);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_vector_set_values(krylov_vector_t* v,
@@ -1093,7 +1140,9 @@ void krylov_vector_set_values(krylov_vector_t* v,
                               index_t* indices,
                               real_t* values)
 {
+  START_FUNCTION_TIMER();
   v->vtable.set_values(v->context, num_values, indices, values);
+  STOP_FUNCTION_TIMER();
 }
                               
 void krylov_vector_add_values(krylov_vector_t* v,
@@ -1101,7 +1150,9 @@ void krylov_vector_add_values(krylov_vector_t* v,
                               index_t* indices,
                               real_t* values)
 {
+  START_FUNCTION_TIMER();
   v->vtable.add_values(v->context, num_values, indices, values);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_vector_get_values(krylov_vector_t* v,
@@ -1109,53 +1160,74 @@ void krylov_vector_get_values(krylov_vector_t* v,
                               index_t* indices,
                               real_t* values)
 {
+  START_FUNCTION_TIMER();
   v->vtable.get_values(v->context, num_values, indices, values);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_vector_copy_in(krylov_vector_t* v,
                            real_t* local_values)
 {
+  START_FUNCTION_TIMER();
   v->vtable.copy_in(v->context, local_values);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_vector_copy_out(krylov_vector_t* v,
                             real_t* local_values)
 {
+  START_FUNCTION_TIMER();
   v->vtable.copy_out(v->context, local_values);
+  STOP_FUNCTION_TIMER();
 }
 
 void krylov_vector_assemble(krylov_vector_t* v)
 {
+  START_FUNCTION_TIMER();
   if (v->vtable.assemble != NULL)
     v->vtable.assemble(v->context);
+  STOP_FUNCTION_TIMER();
 }
 
 real_t krylov_vector_dot(krylov_vector_t* v, 
                          krylov_vector_t* w)
 {
+  START_FUNCTION_TIMER();
   ASSERT(v != NULL);
   ASSERT(w != NULL);
-  return v->vtable.dot(v->context, w->context);
+  real_t product = v->vtable.dot(v->context, w->context);
+  STOP_FUNCTION_TIMER();
+  return product;
 }
 
 real_t krylov_vector_norm(krylov_vector_t* v, int p)
 {
+  START_FUNCTION_TIMER();
   ASSERT((p == 0) || (p == 1) || (p == 2));
-  return v->vtable.norm(v->context, p);
+  real_t norm = v->vtable.norm(v->context, p);
+  STOP_FUNCTION_TIMER();
+  return norm;
 }
 
 real_t krylov_vector_w2_norm(krylov_vector_t* v, krylov_vector_t* w)
 {
+  START_FUNCTION_TIMER();
+  real_t norm;
   if (w != NULL)
-    return v->vtable.w2_norm(v->context, w->context);
+    norm = v->vtable.w2_norm(v->context, w->context);
   else
-    return v->vtable.norm(v->context, 2);
+    norm = v->vtable.norm(v->context, 2);
+  STOP_FUNCTION_TIMER();
+  return norm;
 }
 
 real_t krylov_vector_wrms_norm(krylov_vector_t* v, krylov_vector_t* w)
 {
+  START_FUNCTION_TIMER();
   ASSERT(w != NULL);
-  return v->vtable.wrms_norm(v->context, w->context);
+  real_t norm = v->vtable.wrms_norm(v->context, w->context);
+  STOP_FUNCTION_TIMER();
+  return norm;
 }
 
 void krylov_vector_fprintf(krylov_vector_t* v,
@@ -1170,6 +1242,7 @@ static void distribute_vector(krylov_factory_t* factory,
                               MPI_Comm comm,
                               index_t* row_dist)
 {
+  START_FUNCTION_TIMER();
   ASSERT(comm != MPI_COMM_SELF);
   ASSERT((*x)->local_size == (*x)->global_size);
 
@@ -1194,12 +1267,15 @@ static void distribute_vector(krylov_factory_t* factory,
 
   krylov_vector_free(*x);
   *x = dist_x;
+  STOP_FUNCTION_TIMER();
 }
 
 static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
                                                       MPI_Comm comm,
                                                       FILE* f)
 {
+  START_FUNCTION_TIMER();
+
   // Rewind the file descriptor in case we've used it.
   fseek(f, 0, SEEK_SET);
 
@@ -1261,18 +1337,18 @@ static krylov_vector_t* krylov_factory_vector_from_mm(krylov_factory_t* factory,
 
   // Distribute as necessary.
   if (comm != MPI_COMM_SELF)
-  {
     distribute_vector(factory, &x, comm, row_dist);
-    return x;
-  }
-  else
-    return x;
+
+  STOP_FUNCTION_TIMER();
+  return x;
 }
 
 krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
                                                  MPI_Comm comm,
                                                  const char* filename)
 {
+  START_FUNCTION_TIMER();
+
   // Make sure the file exists.
   FILE* f = fopen(filename, "r");
   if (f == NULL)
@@ -1291,6 +1367,7 @@ krylov_vector_t* krylov_factory_vector_from_file(krylov_factory_t* factory,
 
   krylov_vector_assemble(x);
 
+  STOP_FUNCTION_TIMER();
   return x;
 }
 

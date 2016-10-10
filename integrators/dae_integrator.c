@@ -949,18 +949,19 @@ static int ink_solve(void* context,
   krylov_vector_copy_in(ink->W, W);
 
   // If the WRMS norm of B is less than our tolerance, return X = 0.
-  real_t B_norm = krylov_vector_wrms_norm(ink->B, ink->W);
+  real_t B_norm = krylov_vector_norm(ink->B, 2);
   if (B_norm < res_norm_tol)
   {
-    log_debug("ink_dae_integrator: ||B|| < tolerance (%g < %g), so X -> 0.", B_norm, res_norm_tol); 
+    log_debug("ink_dae_integrator: ||B||_2 < tolerance (%g < %g), so X -> 0.", B_norm, res_norm_tol); 
     krylov_vector_zero(ink->X);
     krylov_vector_copy_out(ink->X, B);
     STOP_FUNCTION_TIMER();
     return 0;
   }
 
-  // Set the tolerance on the residual norm.
-  real_t rel_tol = 1e-8;
+  // Set the tolerances on the residual norm so that the relative 
+  // tolerance is as restrictive as the absolute tolerance.
+  real_t rel_tol = res_norm_tol / B_norm;
   real_t div_tol = 10.0;
   krylov_solver_set_tolerances(ink->solver, rel_tol, res_norm_tol, div_tol);
 

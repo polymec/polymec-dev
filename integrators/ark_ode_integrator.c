@@ -49,8 +49,6 @@ typedef struct
   real_t t;
   char* status_message; // status of most recent integration.
 
-  bool first_step;
-
   // JFNK stuff.
   int max_krylov_dim;
   newton_pc_t* precond;
@@ -182,12 +180,6 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* U)
   ark_ode_t* integ = context;
   int status = ARK_SUCCESS;
 
-  if (integ->first_step)
-  {
-    ARKodeSetInitStep(integ->arkode, max_dt);
-    integ->first_step = false;
-  }
-
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
   real_t t2 = *t + max_dt;
@@ -277,7 +269,6 @@ static bool ark_advance(void* context, real_t t1, real_t t2, real_t* U)
 static void ark_reset(void* context, real_t t, real_t* U)
 {
   ark_ode_t* integ = context;
-  integ->first_step = true;
 
   // Reset the preconditioner.
   if (integ->precond != NULL)
@@ -440,7 +431,6 @@ ode_integrator_t* functional_ark_ode_integrator_new(int order,
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
-  integ->first_step = true;
   integ->precond = NULL;
 
   integ->reset_func = NULL;
@@ -525,7 +515,6 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
-  integ->first_step = true;
 
   integ->reset_func = NULL;
   integ->setup_func = NULL;
@@ -734,7 +723,6 @@ ode_integrator_t* ark_ode_integrator_new(const char* name,
   integ->t = 0.0;
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
-  integ->first_step = true;
 
   // Set up ARKode and accessories.
   integ->U = N_VNew(integ->comm, integ->num_local_values);
