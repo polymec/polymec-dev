@@ -562,6 +562,11 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
   if ((plotfile != NULL) && (plot_I >= 0) && (plot_J >= 0))
     plot = fopen(plotfile, "w");
 
+  // For that matter, are we asked to limit the number of steps?
+  char* max_steps_str = options_value(opts, "max_steps");
+  if ((max_steps_str != NULL) && string_is_integer(max_steps_str))
+    max_steps = atoi(max_steps_str);
+
   // Integrate it out to t = 86400 s (24 hours).
   real_t t = 0.0;
   int step = 0;
@@ -581,9 +586,18 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
       break;
   }
   printf("Final time: %g\n", t);
-  bdf_ode_integrator_diagnostics_t diags;
-  bdf_ode_integrator_get_diagnostics(integ, &diags);
-  bdf_ode_integrator_diagnostics_fprintf(&diags, stdout);
+  if (string_contains(integ_name, "Backwards"))
+  {
+    bdf_ode_integrator_diagnostics_t diags;
+    bdf_ode_integrator_get_diagnostics(integ, &diags);
+    bdf_ode_integrator_diagnostics_fprintf(&diags, stdout);
+  }
+  else
+  {
+    ark_ode_integrator_diagnostics_t diags;
+    ark_ode_integrator_get_diagnostics(integ, &diags);
+    ark_ode_integrator_diagnostics_fprintf(&diags, stdout);
+  }
 
   // If we've opened a plot file, close it.
   if (plot != NULL)
@@ -593,7 +607,7 @@ int test_diurnal_step(void** state, ode_integrator_t* integ, int max_steps)
   assert_true(step < max_steps);
 
   ode_integrator_free(integ);
-  free(U);
+  polymec_free(U);
   return step;
 }
 
