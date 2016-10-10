@@ -994,8 +994,8 @@ LIS_INT lis_solver_get_initial_residual(LIS_SOLVER solver, LIS_PRECON M, LIS_VEC
 		lis_vector_nrm2(p,&nrm2);
 		lis_vector_nrm2(b,bnrm2);
 #define MAX(a, b) ((a > b) ? a : b)
-		solver->tol = MAX(*bnrm2*tol_w, tol);
-		solver->tol_switch = MAX(*bnrm2*tol_w, tol_switch);
+		solver->tol = MAX(tol_w, tol/(*bnrm2));
+		solver->tol_switch = MAX(tol_w, tol_switch/(*bnrm2));
 #undef MAX
 		break;
 	case LIS_CONV_COND_NRM2_B:
