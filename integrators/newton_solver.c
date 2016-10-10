@@ -52,7 +52,9 @@ struct newton_solver_t
                     real_t res_norm_tol,
                     real_t* p,
                     real_t* Jp_norm, 
-                    real_t* F_o_Jp);
+                    real_t* F_o_Jp,
+                    int* num_iters);
+  int num_linear_iterations, num_linear_conv_failures;
 
   // KINSol data structures.
   void* kinsol;
@@ -120,6 +122,8 @@ static int solve_preconditioner_system(N_Vector U, N_Vector U_scale,
 static int newton_linit(KINMem kin_mem)
 {
   newton_solver_t* newton = kin_mem->kin_user_data;
+  newton->num_linear_iterations = 0;
+  newton->num_linear_conv_failures = 0;
   return newton->reset_func(newton->context);
 }
 
@@ -160,11 +164,16 @@ static int newton_lsolve(KINMem kin_mem,
   }
   else if (strategy == KIN_LINESEARCH) 
     sFdotJp_ptr = sFdotJp;
-  return newton->solve_func(newton->context, 
-                            NV_DATA(kin_mem->kin_fscale), t,
-                            NV_DATA(kin_mem->kin_uu), NV_DATA(kin_mem->kin_fval),
-                            NV_DATA(B), kin_mem->kin_eps, 
-                            NV_DATA(U), sJpnorm_ptr, sFdotJp_ptr);
+  int num_iters = 0;
+  int result =  newton->solve_func(newton->context, 
+                                   NV_DATA(kin_mem->kin_fscale), t,
+                                   NV_DATA(kin_mem->kin_uu), NV_DATA(kin_mem->kin_fval),
+                                   NV_DATA(B), kin_mem->kin_eps, 
+                                   NV_DATA(U), sJpnorm_ptr, sFdotJp_ptr, &num_iters);
+  newton->num_linear_iterations += num_iters;
+  if (result != 0)
+    ++(newton->num_linear_conv_failures);
+  return result;
 }
 
 static int newton_lfree(KINMem kin_mem)
@@ -192,7 +201,8 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                                      real_t res_norm_tol,
                                                      real_t* p,
                                                      real_t* Jp_norm, 
-                                                     real_t* F_o_Jp), 
+                                                     real_t* F_o_Jp,
+                                                     int* num_iters), 
                                    void (*dtor)(void* context))
 {
   ASSERT(num_local_values > 0);
@@ -631,8 +641,8 @@ void newton_solver_get_diagnostics(newton_solver_t* solver,
   }
   else
   {
-    diagnostics->num_linear_solve_iterations = -1;
-    diagnostics->num_linear_solve_convergence_failures = -1;
+    diagnostics->num_linear_solve_iterations = (long int)solver->num_linear_iterations;
+    diagnostics->num_linear_solve_convergence_failures = (long int)solver->num_linear_conv_failures;
     diagnostics->num_preconditioner_evaluations = -1;
     diagnostics->num_preconditioner_solves = -1;
     diagnostics->num_jacobian_vector_product_evaluations = -1;
@@ -653,10 +663,8 @@ void newton_solver_diagnostics_fprintf(newton_solver_diagnostics_t* diagnostics,
   fprintf(stream, "  Num nonlinear iterations: %d\n", (int)diagnostics->num_nonlinear_iterations);
   fprintf(stream, "  Scaled function norm: %g\n", (double)diagnostics->scaled_function_norm);
   fprintf(stream, "  Scaled Newton step length: %g\n", (double)diagnostics->scaled_newton_step_length);
-  if (diagnostics->num_linear_solve_iterations != -1)
-    fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
-  if (diagnostics->num_linear_solve_convergence_failures != -1)
-    fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
+  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
   if (diagnostics->num_preconditioner_evaluations != -1)
     fprintf(stream, "  Num preconditioner evaluations: %d\n", (int)diagnostics->num_preconditioner_evaluations);
   if (diagnostics->num_preconditioner_solves != -1)
@@ -768,7 +776,8 @@ static int ink_solve(void* context,
                      real_t res_norm_tol,
                      real_t* p,
                      real_t* Jp_norm, 
-                     real_t* F_o_Jp)
+                     real_t* F_o_Jp,
+                     int* num_iters)
 {
   START_FUNCTION_TIMER();
   ink_newton_t* ink = context;
@@ -789,9 +798,8 @@ static int ink_solve(void* context,
 
   // Solve (DF*A)*X = DF*B.
   real_t res_norm;
-  int num_iters;
   bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->DF, ink->DF, 
-                                           ink->X, &res_norm, &num_iters);
+                                           ink->X, &res_norm, num_iters);
 
   if (solved)
   {

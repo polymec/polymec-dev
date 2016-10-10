@@ -72,7 +72,9 @@ typedef struct
                     real_t* U_dot,
                     real_t* W, 
                     real_t res_norm_tol,
-                    real_t* B);
+                    real_t* B,
+                    int* num_iters);
+  int num_linear_iterations, num_linear_conv_failures;
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -612,6 +614,8 @@ static int ark_linit(ARKodeMem ark_mem)
   real_t t = ark_mem->ark_tn;
   real_t* U = NV_DATA(ark_mem->ark_ycur);
   ark->sqrtN = -1.0;
+  ark->num_linear_iterations = 0;
+  ark->num_linear_conv_failures = 0;
   return ark->reset_func(ark->context, t, U);
 }
 
@@ -668,7 +672,12 @@ static int ark_lsolve(ARKodeMem ark_mem,
   // NOTE: 2-norm of the residual into its WRMS norm.
   real_t res_norm_tol = 0.05 * ark->sqrtN * ark_mem->ark_eRNrm; 
   real_t* B = NV_DATA(b);
-  return ark->solve_func(ark->context, t, U, U_dot, W, res_norm_tol, B);
+  int num_iters = 0;
+  int result = ark->solve_func(ark->context, t, U, U_dot, W, res_norm_tol, B, &num_iters);
+  ark->num_linear_iterations += num_iters;
+  if (result != 0)
+    ++(ark->num_linear_conv_failures);
+  return result;
 }
 
 static int ark_lfree(ARKodeMem ark_mem)
@@ -703,7 +712,8 @@ ode_integrator_t* ark_ode_integrator_new(const char* name,
                                                            real_t* U_dot,
                                                            real_t* W, 
                                                            real_t res_norm_tol, 
-                                                           real_t* B),
+                                                           real_t* B,
+                                                           int* num_iters),
                                          void (*dtor)(void* context))
 {
   ASSERT((order >= 3) || ((order >= 2) && ((fe_func == NULL) || (fi_func == NULL))));
@@ -985,7 +995,7 @@ void ark_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
   ARKodeGetNonlinSolvStats(integ->arkode, 
                            &diagnostics->num_nonlinear_solve_iterations,
                            &diagnostics->num_nonlinear_solve_convergence_failures);
-  if (integ->precond != NULL)
+  if (integ->solve_func == NULL) // JFNK
   {
     ARKSpilsGetNumLinIters(integ->arkode, &diagnostics->num_linear_solve_iterations);
     ARKSpilsGetNumPrecEvals(integ->arkode, &diagnostics->num_preconditioner_evaluations);
@@ -994,10 +1004,10 @@ void ark_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
   }
   else
   {
-    diagnostics->num_linear_solve_iterations = -1;
+    diagnostics->num_linear_solve_iterations = (long int)integ->num_linear_iterations;
+    diagnostics->num_linear_solve_convergence_failures = (long int)integ->num_linear_conv_failures;
     diagnostics->num_preconditioner_evaluations = -1;
     diagnostics->num_preconditioner_solves = -1;
-    diagnostics->num_linear_solve_convergence_failures = -1;
   }
 }
 
@@ -1019,10 +1029,8 @@ void ark_ode_integrator_diagnostics_fprintf(ark_ode_integrator_diagnostics_t* di
   fprintf(stream, "  Num fe evaluations: %d\n", (int)diagnostics->num_fe_evaluations);
   fprintf(stream, "  Num fi evaluations: %d\n", (int)diagnostics->num_fi_evaluations);
   fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
-  if (diagnostics->num_linear_solve_iterations != -1)
-    fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
-  if (diagnostics->num_linear_solve_convergence_failures != -1)
-    fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
+  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
   fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);
   fprintf(stream, "  Num nonlinear solve iterations: %d\n", (int)diagnostics->num_nonlinear_solve_iterations);
   fprintf(stream, "  Num nonlinear solve convergence failures: %d\n", (int)diagnostics->num_nonlinear_solve_convergence_failures);
@@ -1218,7 +1226,8 @@ static int ink_solve(void* context,
                      real_t* U_dot,
                      real_t* W, 
                      real_t res_norm_tol,
-                     real_t* B) 
+                     real_t* B,
+                     int* num_iters) 
 {
   START_FUNCTION_TIMER();
   ink_ark_ode_t* ink = context;
@@ -1248,9 +1257,8 @@ static int ink_solve(void* context,
 
   // Solve A*X = B.
   real_t res_norm;
-  int num_iters;
   bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->W, ink->W, 
-                                           ink->X, &res_norm, &num_iters);
+                                          ink->X, &res_norm, num_iters);
 
   if (solved)
   {

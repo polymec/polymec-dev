@@ -66,6 +66,8 @@ typedef enum
 //                 - F_o_Jp: A pointer that will store the scaled dot product of F with Jp:
 //                           (DF*F) o (DF*J*p). The pointer can be NULL, in which case the norm
 //                            obviously need not be computed.
+//                 - num_iters: A pointer that will store the number of iterations needed to solve
+//                              the linear system.
 //                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
 //                 for an unrecoverable error.
 // * dtor -- Used to destroy the context pointer.
@@ -89,7 +91,8 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                                      real_t res_norm_tol,
                                                      real_t* p,
                                                      real_t* Jp_norm, 
-                                                     real_t* F_o_Jp), 
+                                                     real_t* F_o_Jp,
+                                                     int* num_iters), 
                                    void (*dtor)(void* context));
 
 // This type represents the different Krylov methods that can be used in 

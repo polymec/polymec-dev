@@ -69,6 +69,7 @@ struct dae_integrator_t
             real_t* y, real_t* Jy, real_t* tmp1, real_t* tmp2);
 
   // Generalized adaptor stuff.
+  real_t sqrtN;
   int (*reset_func)(void* context, real_t t, real_t* U, real_t* U_dot);
   int (*setup_func)(void* context, 
                     real_t alpha, 
@@ -85,8 +86,9 @@ struct dae_integrator_t
                     real_t* F,
                     real_t* W, 
                     real_t res_norm_tol,
-                    real_t* B);
-  real_t sqrtN;
+                    real_t* B,
+                    int* num_iters);
+  int num_linear_iterations, num_linear_conv_failures;
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -392,6 +394,8 @@ static int dae_linit(IDAMem ida_mem)
   real_t* U = NV_DATA(ida_mem->ida_yy);
   real_t* U_dot = NV_DATA(ida_mem->ida_yp);
   dae->sqrtN = -1.0;
+  dae->num_linear_iterations = 0;
+  dae->num_linear_conv_failures = 0;
   return dae->reset_func(dae->context, t, U, U_dot);
 }
 
@@ -428,7 +432,12 @@ static int dae_lsolve(IDAMem ida_mem, N_Vector b, N_Vector weight, N_Vector ycur
   real_t* W = NV_DATA(weight);
   real_t res_norm_tol = 0.5 * dae->sqrtN * ida_mem->ida_epsNewt;
   real_t* B = NV_DATA(b);
-  return dae->solve_func(dae->context, t, U, U_dot, F, W, res_norm_tol, B);
+  int num_iters = 0;
+  int result = dae->solve_func(dae->context, t, U, U_dot, F, W, res_norm_tol, B, &num_iters);
+  dae->num_linear_iterations += num_iters;
+  if (result != 0)
+    ++(dae->num_linear_conv_failures);
+  return result;
 }
 
 static int dae_lperf(IDAMem ida_mem, int perftask)
@@ -466,7 +475,8 @@ dae_integrator_t* dae_integrator_new(const char* name,
                                                        real_t* F,
                                                        real_t* W, 
                                                        real_t res_norm_tol,
-                                                       real_t* B), 
+                                                       real_t* B,
+                                                       int* num_iters), 
                                      void (*dtor)(void* context))
 {
   ASSERT(order > 0);
@@ -812,10 +822,10 @@ void dae_integrator_get_diagnostics(dae_integrator_t* integ,
   }
   else
   {
-    diagnostics->num_linear_solve_iterations = -1;
+    diagnostics->num_linear_solve_iterations = (long int)integ->num_linear_iterations;
+    diagnostics->num_linear_solve_convergence_failures = (long int)integ->num_linear_conv_failures;
     diagnostics->num_preconditioner_evaluations = -1;
     diagnostics->num_preconditioner_solves = -1;
-    diagnostics->num_linear_solve_convergence_failures = -1;
   }
 }
 
@@ -832,10 +842,8 @@ void dae_integrator_diagnostics_fprintf(dae_integrator_diagnostics_t* diagnostic
   fprintf(stream, "  Last step size: %g\n", diagnostics->last_step_size);
   fprintf(stream, "  Num residual evaluations: %d\n", (int)diagnostics->num_residual_evaluations);
   fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
-  if (diagnostics->num_linear_solve_iterations != -1) // JFNK mode
-    fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
-  if (diagnostics->num_linear_solve_convergence_failures != -1) // JFNK mode
-    fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
+  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
   fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);
   fprintf(stream, "  Num nonlinear solve iterations: %d\n", (int)diagnostics->num_nonlinear_solve_iterations);
   fprintf(stream, "  Num nonlinear solve convergence failures: %d\n", (int)diagnostics->num_nonlinear_solve_convergence_failures);
@@ -937,7 +945,8 @@ static int ink_solve(void* context,
                      real_t* F,
                      real_t* W, 
                      real_t res_norm_tol,
-                     real_t* B) 
+                     real_t* B,
+                     int* num_iters) 
 {
   START_FUNCTION_TIMER();
   ink_dae_t* ink = context;
@@ -967,9 +976,8 @@ static int ink_solve(void* context,
 
   // Solve A*X = B.
   real_t res_norm;
-  int num_iters;
   bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->W, ink->W, 
-                                           ink->X, &res_norm, &num_iters);
+                                           ink->X, &res_norm, num_iters);
 
   if (solved)
   {

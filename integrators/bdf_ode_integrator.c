@@ -67,7 +67,9 @@ typedef struct
                     real_t* U_dot,
                     real_t* W, 
                     real_t res_norm_tol,
-                    real_t* B);
+                    real_t* B,
+                    int* num_iters);
+  int num_linear_iterations, num_linear_conv_failures;
 
   // Error weight function.
   void (*compute_weights)(void* context, real_t* y, real_t* weights);
@@ -580,10 +582,10 @@ void bdf_ode_integrator_get_diagnostics(ode_integrator_t* integrator,
   }
   else
   {
-    diagnostics->num_linear_solve_iterations = -1;
-    diagnostics->num_preconditioner_evaluations = -1;
+    diagnostics->num_linear_solve_iterations = (long int)integ->num_linear_iterations;
+    diagnostics->num_linear_solve_convergence_failures = (long int)integ->num_linear_conv_failures;
     diagnostics->num_preconditioner_solves = -1;
-    diagnostics->num_linear_solve_convergence_failures = -1;
+    diagnostics->num_preconditioner_evaluations = -1;
   }
 }
 
@@ -601,10 +603,8 @@ void bdf_ode_integrator_diagnostics_fprintf(bdf_ode_integrator_diagnostics_t* di
   fprintf(stream, "  Next step size: %g\n", diagnostics->next_step_size);
   fprintf(stream, "  Num RHS evaluations: %d\n", (int)diagnostics->num_rhs_evaluations);
   fprintf(stream, "  Num linear solve setups: %d\n", (int)diagnostics->num_linear_solve_setups);
-  if (diagnostics->num_linear_solve_iterations != -1) // JFNK mode
-    fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
-  if (diagnostics->num_linear_solve_convergence_failures != -1) // JFNK mode
-    fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
+  fprintf(stream, "  Num linear solve iterations: %d\n", (int)diagnostics->num_linear_solve_iterations);
+  fprintf(stream, "  Num linear solve convergence failures: %d\n", (int)diagnostics->num_linear_solve_convergence_failures);
   fprintf(stream, "  Num error test failures: %d\n", (int)diagnostics->num_error_test_failures);
   fprintf(stream, "  Num nonlinear solve iterations: %d\n", (int)diagnostics->num_nonlinear_solve_iterations);
   fprintf(stream, "  Num nonlinear solve convergence failures: %d\n", (int)diagnostics->num_nonlinear_solve_convergence_failures);
@@ -669,6 +669,8 @@ static int bdf_linit(CVodeMem cv_mem)
   real_t t = cv_mem->cv_tn;
   real_t* U = NV_DATA(cv_mem->cv_y);
   bdf->sqrtN = -1.0;
+  bdf->num_linear_iterations = 0;
+  bdf->num_linear_conv_failures = 0;
   return bdf->reset_func(bdf->context, t, U);
 }
 
@@ -725,7 +727,12 @@ static int bdf_lsolve(CVodeMem cv_mem,
 //  real_t res_norm_tol = 0.05 * bdf->sqrtN * C1_inv; // FIXME: Why doesn't this work?
   real_t res_norm_tol = 0.05 * C1_inv;
   real_t* B = NV_DATA(b);
-  return bdf->solve_func(bdf->context, t, U, U_dot, W, res_norm_tol, B);
+  int num_iters = 0;
+  int result = bdf->solve_func(bdf->context, t, U, U_dot, W, res_norm_tol, B, &num_iters);
+  bdf->num_linear_iterations += num_iters;
+  if (result != 0)
+    ++(bdf->num_linear_conv_failures);
+  return result;
 }
 
 static int bdf_lfree(struct CVodeMemRec* cv_mem)
@@ -756,7 +763,8 @@ ode_integrator_t* bdf_ode_integrator_new(const char* name,
                                                            real_t* U_dot,
                                                            real_t* W, 
                                                            real_t res_norm_tol, 
-                                                           real_t* B),
+                                                           real_t* B,
+                                                           int* num_iters),
                                          void (*dtor)(void* context))
 {
   ASSERT(order >= 1);
@@ -960,7 +968,8 @@ static int ink_solve(void* context,
                      real_t* U_dot,
                      real_t* W, 
                      real_t res_norm_tol,
-                     real_t* B) 
+                     real_t* B, 
+                     int* num_iters) 
 {
   START_FUNCTION_TIMER();
   ink_bdf_ode_t* ink = context;
@@ -989,9 +998,8 @@ static int ink_solve(void* context,
 
   // Solve A*X = B.
   real_t res_norm;
-  int num_iters;
   bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->W, ink->W, 
-                                           ink->X, &res_norm, &num_iters);
+                                           ink->X, &res_norm, num_iters);
 
   if (solved)
   {

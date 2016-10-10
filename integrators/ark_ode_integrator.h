@@ -207,6 +207,8 @@ typedef enum
 //                                 successfully solved.
 //                 - B: The right hand side vector for the linear system, which will be replaced by 
 //                      X, the solution to the linear system.
+//                 - num_iters: A pointer that will store the number of iterations needed to solve 
+//                              the linear system.
 //                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
 //                 for an unrecoverable error.
 // * dtor -- Used to destroy the context pointer.
@@ -237,7 +239,8 @@ ode_integrator_t* ark_ode_integrator_new(const char* name,
                                                            real_t* U_dot,
                                                            real_t* W, 
                                                            real_t res_norm_tol,
-                                                           real_t* B), 
+                                                           real_t* B,
+                                                           int* num_iters), 
                                          void (*dtor)(void* context));
 
 // This returns the context pointer passed to the ark_ode_integrator 
