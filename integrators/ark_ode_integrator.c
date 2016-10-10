@@ -594,6 +594,11 @@ ode_integrator_t* jfnk_ark_ode_integrator_new(int order,
   // absolute error is set to 1 because it's completely problem dependent.
   ark_ode_integrator_set_tolerances(I, 1e-4, 1.0);
 
+  // Enable debugging diagnostics if logging permits.
+  FILE* info_stream = log_stream(LOG_DEBUG);
+  if (info_stream != NULL)
+    ARKodeSetDiagnostics(integ->arkode, info_stream);
+
   return I;
 }
 
@@ -753,6 +758,7 @@ ode_integrator_t* ark_ode_integrator_new(const char* name,
   ark_mem->ark_lsolve = ark_lsolve;
   ark_mem->ark_lfree = ark_lfree;
   ark_mem->ark_setupNonNull = 1; // needs to be set for lsetup to be called.
+  ark_mem->ark_lsolve_type = 0; // iterative solution method.
 
   ode_integrator_vtable vtable = {.step = ark_step, 
                                   .advance = ark_advance, 
@@ -765,6 +771,11 @@ ode_integrator_t* ark_ode_integrator_new(const char* name,
   // relative error of 1e-4 means errors are controlled to 0.01%.
   // absolute error is set to 1 because it's completely problem dependent.
   ark_ode_integrator_set_tolerances(I, 1e-4, 1.0);
+
+  // Enable debugging diagnostics if logging permits.
+  FILE* info_stream = log_stream(LOG_DEBUG);
+  if (info_stream != NULL)
+    ARKodeSetDiagnostics(ark_mem, info_stream);
 
   return I;
 }

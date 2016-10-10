@@ -522,7 +522,6 @@ ode_integrator_t* ink_ark_diurnal_integrator_new(krylov_factory_t* factory)
                                                        NULL, false, false, 
                                                        diurnal_J, diurnal_dtor);
   ink_ark_ode_integrator_use_gmres(integ, 15);
-  ark_ode_integrator_set_predictor(integ, ARK_TRIVIAL_PREDICTOR);
   return integ;
 }
 
