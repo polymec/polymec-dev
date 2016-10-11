@@ -1710,9 +1710,9 @@ static real_t vec_dot(void* context, void* W)
 {
   LIS_VECTOR v = context;
   LIS_VECTOR w = W;
-  real_t dot;
+  LIS_SCALAR dot;
   lis_vector_dot(v, w, &dot);
-  return dot;
+  return (real_t)dot;
 }
 
 static real_t vector_norm(void* context, int p)

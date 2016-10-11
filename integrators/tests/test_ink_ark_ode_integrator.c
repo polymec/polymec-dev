@@ -59,8 +59,11 @@ static void test_ink_ark_diurnal_step(void** state, krylov_factory_t* factory)
 
 //static void test_lis_ink_ark_diurnal_step(void** state)
 //{
-//  krylov_factory_t* lis = lis_krylov_factory();
-//  test_ink_ark_diurnal_step(state, lis);
+//  if (!polymec_running_in_valgrind()) // FIXME: LIS takes too long!
+//  {
+//    krylov_factory_t* lis = lis_krylov_factory();
+//    test_ink_ark_diurnal_step(state, lis);
+//  }
 //}
 
 static void test_petsc_ink_ark_diurnal_step(void** state)
