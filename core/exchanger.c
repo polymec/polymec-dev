@@ -363,11 +363,6 @@ exchanger_t* exchanger_new(MPI_Comm comm)
   return exchanger_new_with_rank(comm, rank);
 }
 
-void exchanger_free(exchanger_t* ex)
-{
-  POLYMEC_DEPRECATED
-}
-
 exchanger_t* exchanger_clone(exchanger_t* ex)
 {
   exchanger_t* clone = exchanger_new(ex->comm);
@@ -1215,11 +1210,6 @@ migrator_t* migrator_new(MPI_Comm comm)
   return m;
 }
 
-void migrator_free(migrator_t* m)
-{
-  POLYMEC_DEPRECATED
-}
-
 migrator_t* migrator_clone(migrator_t* m)
 {
   migrator_t* clone = GC_MALLOC(sizeof(migrator_t));
@@ -1517,62 +1507,6 @@ static void m_write(void* obj, byte_array_t* bytes, size_t* offset)
 
 serializer_t* migrator_serializer()
 {
-  return serializer_new("migrator", m_size, m_read, m_write, DTOR(migrator_free));
+  return serializer_new("migrator", m_size, m_read, m_write, NULL);
 }
 
-// Backwards-compatible deprecated functions.
-void exchanger_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type)
-{
-  POLYMEC_DEPRECATED
-  migrator_t m;
-  m.ex = ex;
-  migrator_transfer(&m, data, count, stride, tag, type);
-}
-
-int exchanger_start_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type)
-{
-  POLYMEC_DEPRECATED
-  migrator_t m;
-  m.ex = ex;
-  return migrator_start_transfer(&m, data, count, stride, tag, type);
-}
-
-void exchanger_finish_transfer(exchanger_t* ex, int token)
-{
-  POLYMEC_DEPRECATED
-  migrator_t m;
-  m.ex = ex;
-  migrator_finish_transfer(&m, token);
-}
-
-exchanger_t* create_distributor(MPI_Comm comm, 
-                                int64_t* global_partition,
-                                int num_global_vertices)
-{
-  POLYMEC_DEPRECATED
-  migrator_t* m = migrator_from_global_partition(comm, 
-                                                 global_partition, 
-                                                 num_global_vertices);
-  exchanger_t* ex = m->ex;
-  polymec_free(m);
-  return ex;
-}
-
-exchanger_t* create_migrator(MPI_Comm comm,
-                             int64_t* local_partition,
-                             int num_local_vertices)
-{
-  POLYMEC_DEPRECATED
-  migrator_t* m = migrator_from_local_partition(comm, 
-                                                local_partition, 
-                                                num_local_vertices);
-  exchanger_t* ex = m->ex;
-  polymec_free(m);
-  return ex;
-}
-
-exchanger_t* migrator_exchanger(migrator_t* m)
-{
-  POLYMEC_DEPRECATED
-  return m->ex;
-}

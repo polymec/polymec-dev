@@ -22,10 +22,6 @@ exchanger_t* exchanger_new(MPI_Comm comm);
 // Constructs a new exchanger on the given communicator with the given rank.
 exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank);
 
-// Destroys an exchanger.
-// This function is deprecated.
-void exchanger_free(exchanger_t* ex);
-
 // Creates a complete copy of the given exchanger.
 exchanger_t* exchanger_clone(exchanger_t* ex);
 
@@ -237,10 +233,6 @@ migrator_t* migrator_from_local_partition(MPI_Comm comm,
                                           int64_t* local_partition,
                                           int num_local_vertices);
 
-// Destroys a migrator.
-// This function is deprecated.
-void migrator_free(migrator_t* m);
-
 // Creates a complete copy of the given migrator.
 migrator_t* migrator_clone(migrator_t* m);
 
@@ -283,26 +275,5 @@ void migrator_fprintf(migrator_t* m, FILE* stream);
 
 // This creates a serializer object that can read and write migrators to byte streams.
 serializer_t* migrator_serializer(void);
-
-//------------------------------------------------------------------------
-
-// The following functions preceded the separation of the migrator type from 
-// the exchanger type and are provided for backwards compatibility, but 
-// are deprecated. Please use the migrator transfer functions instead.
-void exchanger_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type);
-int exchanger_start_transfer(exchanger_t* ex, void* data, int* count, int stride, int tag, MPI_Datatype type);
-void exchanger_finish_transfer(exchanger_t* ex, int token);
-
-exchanger_t* create_distributor(MPI_Comm comm, 
-                                int64_t* global_partition,
-                                int num_global_vertices);
-
-exchanger_t* create_migrator(MPI_Comm comm,
-                             int64_t* local_partition,
-                             int num_local_vertices);
-
-// Provided to extract the underlying exchanger from a migrator, again for 
-// backward compatibility.
-exchanger_t* migrator_exchanger(migrator_t* m);
 
 #endif
