@@ -433,11 +433,11 @@ real_t* diurnal_initial_conditions(ode_integrator_t* integ)
 static ode_integrator_t* jfnk_bdf_diurnal_integrator_new(diurnal_t* data, newton_pc_t* precond)
 {
   // Set up a time integrator using GMRES with a maximum order of 5 and 
-  // a Krylov space of maximum dimension 15.
+  // a Krylov space of maximum dimension 30.
   ode_integrator_t* integ = jfnk_bdf_ode_integrator_new(5, MPI_COMM_SELF, NEQ, 0,
                                                         data, diurnal_rhs, NULL, 
                                                         diurnal_dtor, precond, 
-                                                        JFNK_BDF_GMRES, 15);
+                                                        JFNK_BDF_GMRES, 30);
 
   return integ;
 }
@@ -458,12 +458,12 @@ ode_integrator_t* ink_bdf_diurnal_integrator_new(krylov_factory_t* factory)
 {
   diurnal_t* data = diurnal_new();
   // Set up a time integrator using GMRES with a maximum order of 5 and 
-  // a Krylov space of maximum dimension 15.
+  // a Krylov space of maximum dimension 30.
   matrix_sparsity_t* J_sparsity = matrix_sparsity_from_graph(data->sparsity, NULL);
   ode_integrator_t* integ = ink_bdf_ode_integrator_new(5, MPI_COMM_SELF, factory,
                                                        J_sparsity, data, diurnal_rhs, 
                                                        diurnal_J, diurnal_dtor);
-  ink_bdf_ode_integrator_use_gmres(integ, 15);
+  ink_bdf_ode_integrator_use_gmres(integ, 30);
   return integ;
 }
 
@@ -471,20 +471,20 @@ ode_integrator_t* ink_bdf_diurnal_integrator_new(krylov_factory_t* factory)
 static ode_integrator_t* jfnk_ark_diurnal_integrator_new(diurnal_t* data, newton_pc_t* precond)
 {
   // Set up a time integrator using GMRES with a maximum order of 3 and 
-  // a Krylov space of maximum dimension 15.
+  // a Krylov space of maximum dimension 30.
   ode_integrator_t* integ;
   if (precond != NULL)
   {
     integ = jfnk_ark_ode_integrator_new(3, MPI_COMM_SELF, NEQ, 0,
                                         data, NULL, diurnal_rhs, false, false, 
                                         NULL, NULL, diurnal_dtor, precond, 
-                                        JFNK_ARK_GMRES, 15);
+                                        JFNK_ARK_GMRES, 30);
   }
   else
   {
     integ = functional_ark_ode_integrator_new(3, MPI_COMM_SELF, NEQ, 0,
                                               data, NULL, diurnal_rhs, NULL, 
-                                              diurnal_dtor, 15);
+                                              diurnal_dtor, 30);
   }
 
   return integ;
@@ -515,13 +515,13 @@ ode_integrator_t* ink_ark_diurnal_integrator_new(krylov_factory_t* factory)
 {
   diurnal_t* data = diurnal_new();
   // Set up a time integrator using GMRES with a maximum order of 5 and 
-  // a Krylov space of maximum dimension 15.
+  // a Krylov space of maximum dimension 30.
   matrix_sparsity_t* J_sparsity = matrix_sparsity_from_graph(data->sparsity, NULL);
   ode_integrator_t* integ = ink_ark_ode_integrator_new(5, MPI_COMM_SELF, factory,
                                                        J_sparsity, data, NULL, diurnal_rhs, 
                                                        NULL, false, false, 
                                                        diurnal_J, diurnal_dtor);
-  ink_ark_ode_integrator_use_gmres(integ, 15);
+  ink_ark_ode_integrator_use_gmres(integ, 30);
   return integ;
 }
 

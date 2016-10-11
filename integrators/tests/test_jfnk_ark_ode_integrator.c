@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_bj_jfnk_ark_diurnal_ctor),
 //    cmocka_unit_test(test_functional_ark_diurnal_step), // too stiff!
     cmocka_unit_test(test_bj_jfnk_ark_diurnal_step_left),
-//    cmocka_unit_test(test_bj_jfnk_ark_diurnal_step_right), // Not working for some reason. Norms?
+//    cmocka_unit_test(test_bj_jfnk_ark_diurnal_step_right) // not working for some reason
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
