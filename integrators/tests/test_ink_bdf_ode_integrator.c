@@ -52,7 +52,7 @@ static void test_ink_bdf_diurnal_step(void** state, krylov_factory_t* factory)
 #if POLYMEC_HAVE_DOUBLE_PRECISION
   int max_steps = 550;
 #else
-  int max_steps = 381;
+  int max_steps = 450;
 #endif
   test_diurnal_step(state, integ, max_steps);
 }

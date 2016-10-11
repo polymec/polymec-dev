@@ -50,9 +50,9 @@ static void test_ink_ark_diurnal_step(void** state, krylov_factory_t* factory)
 {
   ode_integrator_t* integ = ink_ark_diurnal_integrator_new(factory);
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-  int max_steps = 500;
+  int max_steps = 550;
 #else
-  int max_steps = 381;
+  int max_steps = 450;
 #endif
   test_diurnal_step(state, integ, max_steps);
 }
