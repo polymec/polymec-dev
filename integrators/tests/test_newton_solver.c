@@ -27,6 +27,33 @@ static void test_block_jacobi_precond_foodweb_ctor(void** state)
   newton_solver_free(newton);
 }
 
+static void test_lis_ink_foodweb_ctor(void** state)
+{
+  krylov_factory_t* factory = lis_krylov_factory();
+  newton_solver_t* newton = ink_foodweb_solver_new(factory);
+  newton_solver_free(newton);
+}
+
+static void test_petsc_ink_foodweb_ctor(void** state)
+{
+  krylov_factory_t* factory = create_petsc_krylov_factory();
+  if (factory != NULL)
+  {
+    newton_solver_t* newton = ink_foodweb_solver_new(factory);
+    newton_solver_free(newton);
+  }
+}
+
+static void test_hypre_ink_foodweb_ctor(void** state)
+{
+  krylov_factory_t* factory = create_hypre_krylov_factory();
+  if (factory != NULL)
+  {
+    newton_solver_t* newton = ink_foodweb_solver_new(factory);
+    newton_solver_free(newton);
+  }
+}
+
 // FIXME: It looks like the food web problem was not tested at single 
 // FIXME: precision by the Sundials folks, so we can't use this test 
 // FIXME: without double precision.
@@ -67,33 +94,6 @@ static void test_block_jacobi_precond_foodweb_solve(void** state)
   // Set up the problem.
   newton_solver_t* newton = block_jacobi_precond_foodweb_solver_new();
   test_foodweb_solve(state, newton);
-}
-
-static void test_lis_ink_foodweb_ctor(void** state)
-{
-  krylov_factory_t* factory = lis_krylov_factory();
-  newton_solver_t* newton = ink_foodweb_solver_new(factory);
-  newton_solver_free(newton);
-}
-
-static void test_petsc_ink_foodweb_ctor(void** state)
-{
-  krylov_factory_t* factory = create_petsc_krylov_factory();
-  if (factory != NULL)
-  {
-    newton_solver_t* newton = ink_foodweb_solver_new(factory);
-    newton_solver_free(newton);
-  }
-}
-
-static void test_hypre_ink_foodweb_ctor(void** state)
-{
-  krylov_factory_t* factory = create_hypre_krylov_factory();
-  if (factory != NULL)
-  {
-    newton_solver_t* newton = ink_foodweb_solver_new(factory);
-    newton_solver_free(newton);
-  }
 }
 
 static void test_lis_ink_foodweb_solve(void** state)
