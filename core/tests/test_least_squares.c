@@ -348,7 +348,6 @@ static void test_weighted_p3_fit(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  set_log_level(LOG_DEBUG);
 
   // Initialize the random number generator.
   srand((unsigned)time(NULL));
