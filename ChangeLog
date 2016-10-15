@@ -1,3 +1,32 @@
+Fri Oct 14 18:08:47 PDT 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 1.3.0
+    * Added some more compiler warning suppressants.
+    * Eliminated fabs() calls from the code, using reals_equal() and reals_nearly_equal() instead.
+    * Changed a call to gethostname() to a call to MPI_Get_process_name().
+    * Added model_run_files to run several simulations at once
+    * Added "batch" command to model main functions to invoke model_run_files
+    * Models now have their own global communicators that can differ from MPI_COMM_WORLD.
+    * Added unit tests for model and text_buffer, fixed bugs in each.
+    * Updated LIS library to 1.6.2.
+    * Single precision is now formally supported by the build system.
+    * Fixed several compilation errors related to using doubles in single precision.
+    * Fixed several bugs related to using doubles in single precision.
+    * Added type-generic math functions.
+    * Linux compilers are updated to GCC 5, Clang 3.6.
+    * Mac compilers are updated to those in a more recent XCode.
+    * Eliminated SuperLU and local_matrix abstractions, since those preconditioners weren't productive.
+    * Added a Full Approximation Storage (FAS) multigrid solver for nonlinear problems.
+    * Added generic interfaces for constructing BDF/DAE/ARK integrators and Newton solvers.
+    * Added Inexact Newton-Krylov implementations for these integrators/solvers that use the krylov_solver interface (LIS, PETSc, HYPRE all supported).
+    * Added various features to krylov_solver interface, including copy in/out methods, diagonal scaling, scaled solves, more vector norms, etc.
+    * Updated Sundials to v2.7.0.
+    * Updated CMocka to v1.1.0.
+    * Patched LIS to add a new convergence criterion.
+    * DAE integrator now has more descriptive IC correction options.
+    * Cleaned up tests for these integrators and solvers, using C99 multidimensional arrays instead of C89-style macros for the discretizations.
+    * Migrator/exchanger destructors are no longer needed, as these types are garbage-collected.
+    * The migrator/exchanger relationship is no longer expressed as part of the API.
+
 Mon Aug 15 20:10:58 PDT 2016  Jeffrey Johnson <jjphatt@gmail.com>
     * polymec: version 1.2.1
     * Improved OpenMP detection.
