@@ -224,6 +224,14 @@ void model_set_max_dt(model_t* model, real_t max_dt);
 // Returns the largest permissible time step that can be taken by the model.
 real_t model_max_dt(model_t* model, char* reason);
 
+// Sets the smallest permissible (non-negative) time step that can be taken by the 
+// model, below which a simulation will be terminated.
+void model_set_min_dt(model_t* model, real_t min_dt);
+
+// Returns the smallest permissible time step that can be taken by the model, 
+// below which a simulation will be terminated.
+real_t model_min_dt(model_t* model);
+
 // Advances the model by a single time step of maximum size max_dt, returning 
 // the size of the actual time step.
 real_t model_advance(model_t* model, real_t max_dt);

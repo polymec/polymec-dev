@@ -93,6 +93,7 @@ struct model_t
   real_t dt;         // Current simulation time step.
   real_t initial_dt; // Initial time step.
   real_t max_dt;     // Maximum time step.
+  real_t min_dt;     // Minimum time step.
 
   // Interpreter for parsing input files.
   interpreter_t* interpreter;
@@ -219,6 +220,7 @@ model_t* model_new(const char* name,
   model->dt = 0.0;
   model->step = 0;
   model->max_dt = REAL_MAX;
+  model->min_dt = 0.0;
   model->interpreter = NULL;
 
   // Initialize observation arrays.
@@ -514,6 +516,15 @@ static void model_read_input(model_t* model, interpreter_t* interp)
     model->max_dt = interpreter_get_number(interp, "max_dt");
     if (model->max_dt <= 0.0)
       polymec_error("Invalid value for max_dt: %g", model->max_dt);
+  }
+
+  if (interpreter_contains(interp, "min_dt", INTERPRETER_NUMBER))
+  {
+    model->min_dt = interpreter_get_number(interp, "min_dt");
+    if (model->min_dt < 0.0)
+      polymec_error("Invalid value for min_dt: %g", model->min_dt);
+    else if (model->min_dt > model->max_dt)
+      polymec_error("min_dt > max_dt!");
   }
 
   if (interpreter_contains(interp, "sim_name", INTERPRETER_STRING))
@@ -850,6 +861,18 @@ void model_set_max_dt(model_t* model, real_t max_dt)
 {
   ASSERT(max_dt > 0.0);
   model->max_dt = max_dt;
+}
+
+void model_set_min_dt(model_t* model, real_t min_dt)
+{
+  ASSERT(min_dt >= 0.0);
+  ASSERT(min_dt < model->max_dt);
+  model->min_dt = min_dt;
+}
+
+real_t model_min_dt(model_t* model)
+{
+  return model->min_dt;
 }
 
 real_t model_advance(model_t* model, real_t max_dt)
@@ -1251,8 +1274,22 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
     // Now run the calculation.
     while ((model->time < t2) && (model->step < max_steps))
     {
+      // Let the model tell us the maximum time step it can take.
       char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE+1];
       real_t max_dt = model_max_dt(model, reason);
+
+      // Have we fallen below the minimum allowable time step? If so, 
+      // we end the simulation.
+      if (max_dt < model->min_dt)
+      {
+        log_urgent("%s: Max time step (%g) has fallen below min time step (%g).", model->name, max_dt, model->min_dt);
+        log_urgent("%s: Reason: %s", model->name, reason);
+        log_urgent("%s: The simulation will now terminate.", model->name);
+        break;
+      }
+
+      // If it's the first step, apply the initial time step size as a 
+      // constraint.
       if (model->step == 0)
       {
         if (model->initial_dt < max_dt)
@@ -1261,11 +1298,25 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
           snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, "Initial time step size");
         }
       }
-      if (max_dt > t2 - model->time)
+
+      // If we are approaching the end of the simulation, we need to apply 
+      // the end time as a constraint.
+      real_t remaining_time = t2 - model->time;
+      if (max_dt > remaining_time)
       {
-        max_dt = t2 - model->time;
+        max_dt = remaining_time;
         snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, "End of simulation");
       }
+      // If we are not quite there but we are close enough to encounter the 
+      // minimum time step, break the final 2 steps into more equally-spaced
+      // sizes.
+      else if ((max_dt + model->min_dt) > remaining_time)
+      {
+        max_dt = 0.5 * remaining_time;
+        snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, 
+                 "End of simulation (subject to min_dt).");
+      }
+
       log_detail("%s: Max time step max_dt = %g\n (Reason: %s)", model->name, max_dt, reason);
       model_advance(model, max_dt);
     }
@@ -1449,6 +1500,8 @@ static void print_runtime_options_help()
   print_to_rank0("t2=T                        - Ends the simulation at time T.\n");
   print_to_rank0("max_steps=N                 - Ends the simulation after N time steps.\n");
   print_to_rank0("max_dt=DT                   - Limits the time step to DT.\n");
+  print_to_rank0("min_dt=DT                   - Specifies the minimum time step DT, below which\n");
+  print_to_rank0("                              the simulation will be terminated.\n");
   print_to_rank0("initial_dt=DT               - Sets the initial time step to DT.\n");
   print_to_rank0("save_every=N                - Generates a save file every N steps.\n");
   print_to_rank0("plot_every=T                - Generates a plot file every T simulation\n");
