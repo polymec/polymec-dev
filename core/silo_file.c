@@ -2285,19 +2285,12 @@ void silo_file_write_string(silo_file_t* file,
 {
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(string_data != NULL);
-
   int string_size = (int)strlen(string_data);
-  char size_name[FILENAME_MAX+1];
-  snprintf(size_name, FILENAME_MAX, "%s_string_size", string_name);
-  int one = 1;
-  int result = DBWrite(file->dbfile, size_name, &string_size, &one, 1, DB_INT);
-  if (result != 0)
-    polymec_error("silo_file_write_string: write of string '%s' (length) failed.", string_name);
   if (string_size > 0)
   {
     char string_data_name[FILENAME_MAX+1];
     snprintf(string_data_name, FILENAME_MAX, "%s_string", string_name);
-    result = DBWrite(file->dbfile, string_data_name, string_data, &string_size, 1, DB_CHAR);
+    int result = DBWrite(file->dbfile, string_data_name, string_data, &string_size, 1, DB_CHAR);
     if (result != 0)
       polymec_error("silo_file_write_string: write of string '%s' failed.", string_name);
   }
@@ -2315,11 +2308,7 @@ char* silo_file_read_string(silo_file_t* file,
     polymec_error("silo_file_read_string: Could not read string '%s'.", string_name);
     return NULL;
   }
-  char size_name[FILENAME_MAX+1];
-  snprintf(size_name, FILENAME_MAX, "%s_string_size", string_name);
-  ASSERT(DBInqVarExists(file->dbfile, size_name));
-  int string_size;
-  DBReadVar(file->dbfile, size_name, &string_size);
+  int string_size = DBGetVarLength(file->dbfile, string_data_name);
   char* string = polymec_malloc(sizeof(char) * (string_size + 1));
   if (string_size > 0)
     DBReadVar(file->dbfile, string_data_name, string);
@@ -2334,19 +2323,12 @@ void silo_file_write_real_array(silo_file_t* file,
 {
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(array_data != NULL);
-
-  char size_name[FILENAME_MAX+1];
-  snprintf(size_name, FILENAME_MAX, "%s_real_array_size", array_name);
-  int one = 1;
-  int asize = (int)array_size;
-  int result = DBWrite(file->dbfile, size_name, &asize, &one, 1, DB_INT);
-  if (result != 0)
-    polymec_error("silo_file_write_real_array: write of array '%s' failed.", array_name);
   if (array_size > 0)
   {
     char real_array_name[FILENAME_MAX+1];
     snprintf(real_array_name, FILENAME_MAX, "%s_real_array", array_name);
-    result = DBWrite(file->dbfile, real_array_name, array_data, &asize, 1, SILO_FLOAT_TYPE);
+    int asize = (int)array_size;
+    int result = DBWrite(file->dbfile, real_array_name, array_data, &asize, 1, SILO_FLOAT_TYPE);
     if (result != 0)
       polymec_error("silo_file_write_real_array: write of array '%s' failed.", array_name);
   }
@@ -2366,12 +2348,7 @@ real_t* silo_file_read_real_array(silo_file_t* file,
     polymec_error("silo_file_read_real_array: Could not read array '%s'.", array_name);
     return NULL;
   }
-  char size_name[FILENAME_MAX+1];
-  snprintf(size_name, FILENAME_MAX, "%s_real_array_size", array_name);
-  ASSERT(DBInqVarExists(file->dbfile, size_name));
-  int asize = 0;
-  DBReadVar(file->dbfile, size_name, &asize);
-  *array_size = (size_t)asize;
+  *array_size = (size_t)DBGetVarLength(file->dbfile, real_array_name);
   if (*array_size > 0)
   {
     real_t* array = polymec_malloc(sizeof(real_t) * *array_size);
@@ -2389,19 +2366,12 @@ void silo_file_write_int_array(silo_file_t* file,
 {
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(array_data != NULL);
-
-  char size_name[FILENAME_MAX+1];
-  snprintf(size_name, FILENAME_MAX, "%s_int_array_size", array_name);
-  int one = 1;
-  int asize = (int)array_size;
-  int result = DBWrite(file->dbfile, size_name, &asize, &one, 1, DB_INT);
-  if (result != 0)
-    polymec_error("silo_file_write_int_array: write of array '%s' failed.", array_name);
   if (array_size > 0)
   {
     char int_array_name[FILENAME_MAX+1];
     snprintf(int_array_name, FILENAME_MAX, "%s_int_array", array_name);
-    result = DBWrite(file->dbfile, int_array_name, array_data, &asize, 1, DB_INT);
+    int asize = (int)array_size;
+    int result = DBWrite(file->dbfile, int_array_name, array_data, &asize, 1, DB_INT);
     if (result != 0)
       polymec_error("silo_file_write_int_array: write of array '%s' failed.", array_name);
   }
@@ -2421,12 +2391,7 @@ int* silo_file_read_int_array(silo_file_t* file,
     polymec_error("silo_file_read_int_array: Could not read array '%s'.", array_name);
     return NULL;
   }
-  char size_name[FILENAME_MAX+1];
-  snprintf(size_name, FILENAME_MAX, "%s_int_array_size", array_name);
-  ASSERT(DBInqVarExists(file->dbfile, size_name));
-  int asize = 0;
-  DBReadVar(file->dbfile, size_name, &asize);
-  *array_size = (size_t)asize;
+  *array_size = (size_t)DBGetVarLength(file->dbfile, int_array_name);
   if (*array_size > 0)
   {
     int* array = polymec_malloc(sizeof(int) * *array_size);
