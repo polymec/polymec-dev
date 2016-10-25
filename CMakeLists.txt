@@ -287,6 +287,7 @@ if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
       install(DIRECTORY ${header} DESTINATION include)
     endif()
   endforeach()
+  set(polymec_headers ${polymec_headers} CACHE STRING "generated polymec headers" )
 
   # Install all third-party library Polymec source headers.
   install(FILES ${tp_headers} DESTINATION include)
