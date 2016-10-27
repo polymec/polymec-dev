@@ -5,8 +5,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "gc/gc.h"
 #include "core/allocators.h"
 #include "core/slist.h"
+#include "core/logging.h"
 #include "arena/proto.h"
 #include "arena/pool.h"
 
@@ -26,7 +28,7 @@ static polymec_allocator_t* polymec_allocator_new(const char* name,
   ASSERT(vtable.free != NULL);
 
   polymec_allocator_t* alloc = malloc(sizeof(polymec_allocator_t)); // Oh, the irony...
-  alloc->name = malloc(sizeof(char) * strlen(name) + 1); // Need to avoid using other allocators.
+  alloc->name = malloc(sizeof(char) * (strlen(name) + 1)); // Need to avoid using other allocators.
   memcpy(alloc->name, name, strlen(name));
   alloc->context = context;
   alloc->vtable = vtable;
@@ -71,10 +73,52 @@ polymec_allocator_t* pop_allocator()
   return ptr_slist_pop(alloc_stack, NULL);
 }
 
+//------------------------------------------------------------------------
+static void* std_malloc(void* context, size_t size)
+{
+  // We want to trace pointers within this memory, so we need to use the 
+  // garbage collector's allocator.
+  return GC_malloc_uncollectable(size);
+}
+
+static void* std_aligned_alloc(void* context, size_t alignment, size_t size)
+{
+  // FIXME: Aligned allocations are not traceable at the moment.
+#if defined(APPLE) || defined(__INTEL_COMPILER)
+  polymec_error("Aligned allocations are not available on MacOS/Intel at this time.");
+  return NULL;
+#else
+  return aligned_alloc(alignment, size);
+#endif
+}
+
+static void* std_realloc(void* context, void* memory, size_t size)
+{
+  return GC_REALLOC(memory, size);
+}
+
+typedef void (*gc_finalizer)(void* context, void* dummy);
+static void* std_gc_malloc(void* context, size_t size, void (*dtor)(void* context))
+{
+  void* memory = GC_MALLOC(size);
+  if (dtor != NULL)
+  {
+    gc_finalizer finalizer = (gc_finalizer)dtor;
+    GC_register_finalizer(memory, finalizer, memory, NULL, NULL);
+  }
+  return memory;
+}
+
+static void std_free(void* context, void* memory)
+{
+  GC_FREE(memory);
+}
+//------------------------------------------------------------------------
+
 void* polymec_malloc(size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-    return malloc(size);
+    return std_malloc(NULL, size);
   else
   {
     polymec_allocator_t* alloc = alloc_stack->front->value;
@@ -85,15 +129,7 @@ void* polymec_malloc(size_t size)
 void* polymec_aligned_alloc(size_t alignment, size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-#if defined(APPLE) || defined(__INTEL_COMPILER)
-  {
-    // MacOS and Intel don't have this yet!
-    polymec_error("MacOS/Intel standard allocator does not support aligned allocation.");
-    return NULL;
-  }
-#else
-    return aligned_alloc(alignment, size);
-#endif
+    return std_aligned_alloc(NULL, alignment, size);
   else
   {
     polymec_allocator_t* alloc = alloc_stack->front->value;
@@ -110,7 +146,7 @@ void* polymec_aligned_alloc(size_t alignment, size_t size)
 void* polymec_realloc(void* memory, size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-    return realloc(memory, size);
+    return std_realloc(NULL, memory, size);
   else
   {
     polymec_allocator_t* alloc = alloc_stack->front->value;
@@ -139,10 +175,30 @@ void* polymec_aligned_realloc(void* memory, size_t alignment, size_t size)
   }
 }
 
+void* polymec_gc_malloc(size_t size, void (*dtor)(void* memory))
+{
+  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
+    return std_gc_malloc(NULL, size, dtor);
+  polymec_allocator_t* alloc = alloc_stack->front->value;
+  if (alloc->vtable.gc_malloc != NULL) 
+    return alloc->vtable.gc_malloc(alloc->context, size, dtor);
+  else
+  {
+    static bool first_time = true;
+    if (first_time)
+    {
+      log_urgent("%s allocator lacks garbage collection!", alloc->name);
+      log_urgent("Using regular malloc.");
+      first_time = false;
+    }
+    return alloc->vtable.malloc(alloc->context, size);
+  }
+}
+
 void polymec_free(void* memory)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-    free(memory);
+    std_free(NULL, memory);
   else 
   {
     polymec_allocator_t* alloc = alloc_stack->front->value;
@@ -150,36 +206,12 @@ void polymec_free(void* memory)
   }
 }
 
-static void* std_malloc(void* context, size_t size)
-{
-  return malloc(size);
-}
-
-static void* std_aligned_alloc(void* context, size_t alignment, size_t size)
-{
-#if defined(APPLE) || defined(__INTEL_COMPILER)
-  polymec_error("Aligned allocations are not available on MacOS/Intel at this time.");
-  return NULL;
-#else
-  return aligned_alloc(alignment, size);
-#endif
-}
-
-static void* std_realloc(void* context, void* memory, size_t size)
-{
-  return realloc(memory, size);
-}
-
-static void std_free(void* context, void* memory)
-{
-  free(memory);
-}
-
 polymec_allocator_t* std_allocator_new()
 {
   polymec_allocator_vtable vtable = {.malloc = std_malloc,
                                      .aligned_alloc = std_aligned_alloc,
                                      .realloc = std_realloc,
+                                     .gc_malloc = std_gc_malloc,
                                      .free = std_free};
   return polymec_allocator_new("Standard", NULL, vtable);
 }

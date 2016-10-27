@@ -17,7 +17,7 @@ static void test_string_dup(void** state)
   const char* s1 = "dupe me, baby!";
   char* s2 = string_dup(s1);
   assert_true(!strcmp(s2, s1));
-  free(s2);
+  string_free(s2);
 }
 
 static void test_string_ndup(void** state)
@@ -25,7 +25,7 @@ static void test_string_ndup(void** state)
   const char* s1 = "dupe me, baby!";
   char* s2 = string_ndup(s1, 7);
   assert_true(!strcmp(s2, "dupe me"));
-  free(s2);
+  string_free(s2);
 }
 
 static void test_string_casecmp(void** state)
@@ -139,7 +139,7 @@ static void test_string_substitute(void** state)
   const char* string = "The quick brown fox jumped over lazy dogs.";
   char* new_string = string_substitute(string, substitutions);
   assert_true(!strcmp(new_string, "The avuncular purple werewolf launched over hungry hyenas."));
-  free(new_string);
+  string_free(new_string);
 }
 
 int main(int argc, char* argv[]) 

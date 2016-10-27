@@ -90,7 +90,7 @@ static real_t* append_equation(polynomial_fit_t* fit, int component, point_t* x)
   if (fit->equations[component]->size < new_num_eq)
   {
     eq = polymec_malloc(sizeof(real_t) * (fit->num_components*dim + 1));
-    ptr_array_append_with_dtor(fit->equations[component], eq, DTOR(free));
+    ptr_array_append_with_dtor(fit->equations[component], eq, DTOR(polymec_free));
     ptr_array_append(fit->points[component], x);
   }
   else

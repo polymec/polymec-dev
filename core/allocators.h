@@ -32,6 +32,10 @@ typedef struct
   // This might not be available on every allocator.
   void* (*aligned_realloc)(void* context, void* memory, size_t alignment, size_t size);
 
+  // Allocates a traced chunk of memory that is garbage-collected. Also takes 
+  // a destructor that is called on the freed memory.
+  void* (*gc_malloc)(void* context, size_t size, void (*dtor)(void* context));
+
   // Frees the given chunk of memory.
   void (*free)(void* context, void* memory);
   
@@ -70,6 +74,16 @@ void* polymec_realloc(void* memory, size_t size);
 // If the stack is empty, a fatal error is issued, since there is no 
 // portable way to perform an aligned realloc with the standard C allocator.
 void* polymec_aligned_realloc(void* memory, size_t alignment, size_t size);
+
+// This version of polymec_malloc returns memory that will be garbage-collected.
+// It should not be freed. It is appropriate for objects that are shared by 
+// many systems, and that don't consume large amounts of resources. It includes
+// a destructor that is called on the returned pointer when the memory is 
+// collected.
+// NOTE: There is no garbage-collected realloc (polymec_gc_realloc), since we 
+// NOTE: don't want to encourage the use of garbage collection for 
+// NOTE: data-intensive objects.
+void* polymec_gc_malloc(size_t size, void (*dtor)(void* memory));
 
 // Frees memory, returning it to the allocator on top of the allocator stack 
 // (or calling free() if the stack is empty).

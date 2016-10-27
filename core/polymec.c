@@ -127,11 +127,11 @@ static void shutdown()
   polymec_timer_report();
 
   // Kill command line arguments.
-  free(polymec_invoc_str);
-  free(polymec_invoc_dir);
+  string_free(polymec_invoc_str);
+  string_free(polymec_invoc_dir);
   for (int i = 0; i < polymec_argc; ++i)
-    free(polymec_argv[i]);
-  free(polymec_argv);
+    string_free(polymec_argv[i]);
+  polymec_free(polymec_argv);
 
   // Finalize any remaining garbage-collected objects.
   if (GC_should_invoke_finalizers())
@@ -361,9 +361,9 @@ void polymec_init(int argc, char** argv)
     // Jot down the invocation time.
     polymec_invoc_time = time(NULL);
 
-    // Jot down command line args (use regular malloc).
+    // Jot down command line args.
     polymec_argc = argc;
-    polymec_argv = malloc(sizeof(char*) * argc);
+    polymec_argv = polymec_malloc(sizeof(char*) * argc);
     for (int i = 0; i < argc; ++i)
       polymec_argv[i] = string_dup(argv[i]);
 
@@ -375,7 +375,7 @@ void polymec_init(int argc, char** argv)
     int invoc_len = 2;
     for (int i = 0; i < polymec_argc; ++i)
       invoc_len += 1 + strlen(polymec_argv[i]);
-    polymec_invoc_str = malloc(sizeof(char) * invoc_len);
+    polymec_invoc_str = polymec_malloc(sizeof(char) * invoc_len);
     polymec_invoc_str[0] = '\0';
     for (int i = 0; i < polymec_argc; ++i)
     {

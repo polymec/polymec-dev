@@ -86,7 +86,7 @@ static void test_foodweb_solve(void** state, newton_solver_t* newton)
   assert_true(L2 < 1e-2);
 
   newton_solver_free(newton);
-  free(cc);
+  polymec_free(cc);
 }
 
 static void test_block_jacobi_precond_foodweb_solve(void** state)
