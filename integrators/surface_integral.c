@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "gc/gc.h"
 #include "integrators/surface_integral.h"
 
 struct surface_integral_t 
@@ -21,7 +20,7 @@ struct surface_integral_t
   vector_t* normals;
 };
 
-static void surface_integral_free(void* ctx, void* dummy)
+static void surface_integral_free(void* ctx)
 {
   surface_integral_t* integ = ctx;
   if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
@@ -42,7 +41,8 @@ surface_integral_t* surface_integral_new(const char* name,
   ASSERT(vtable.num_quad_points != NULL);
   ASSERT(vtable.get_quadrature != NULL);
 
-  surface_integral_t* integ = GC_MALLOC(sizeof(surface_integral_t));
+  surface_integral_t* integ = polymec_gc_malloc(sizeof(surface_integral_t),
+                                                surface_integral_free);
   integ->name = string_dup(name);
   integ->context = context;
   integ->vtable = vtable;
@@ -50,7 +50,6 @@ surface_integral_t* surface_integral_new(const char* name,
   integ->points = NULL;
   integ->weights = NULL;
   integ->normals = NULL;
-  GC_register_finalizer(integ, surface_integral_free, integ, NULL, NULL);
   return integ;
 }
 

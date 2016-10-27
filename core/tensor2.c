@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/tensor2.h"
 #include "core/linear_algebra.h"
 
@@ -13,7 +12,7 @@ tensor2_t* tensor2_new(real_t xx, real_t xy, real_t xz,
                        real_t yx, real_t yy, real_t yz,
                        real_t zx, real_t zy, real_t zz)
 {
-  tensor2_t* t = GC_MALLOC(sizeof(tensor2_t));
+  tensor2_t* t = polymec_gc_malloc(sizeof(tensor2_t), NULL);
   tensor2_set(t, xx, xy, xz, yx, yy, yz, zx, zy, zz);
   return t;
 }
@@ -29,7 +28,7 @@ sym_tensor2_t* sym_tensor2_new(real_t xx, real_t xy, real_t xz,
                                           real_t yy, real_t yz,
                                                      real_t zz)
 {
-  sym_tensor2_t* t = GC_MALLOC(sizeof(sym_tensor2_t));
+  sym_tensor2_t* t = polymec_gc_malloc(sizeof(sym_tensor2_t), NULL);
   sym_tensor2_set(t, xx, xy, xz, yy, yz, zz);
   return t;
 }

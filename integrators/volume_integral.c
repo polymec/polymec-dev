@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "gc/gc.h"
 #include "integrators/volume_integral.h"
 
 struct volume_integral_t 
@@ -20,7 +19,7 @@ struct volume_integral_t
   real_t* weights;
 };
 
-static void volume_integral_free(void* ctx, void* dummy)
+static void volume_integral_free(void* ctx)
 {
   volume_integral_t* integ = ctx;
   if ((integ->context != NULL) && (integ->vtable.dtor != NULL))
@@ -39,14 +38,14 @@ volume_integral_t* volume_integral_new(const char* name,
   ASSERT(vtable.num_quad_points != NULL);
   ASSERT(vtable.get_quadrature != NULL);
 
-  volume_integral_t* integ = GC_MALLOC(sizeof(volume_integral_t));
+  volume_integral_t* integ = polymec_gc_malloc(sizeof(volume_integral_t),
+                                               volume_integral_free);
   integ->name = string_dup(name);
   integ->context = context;
   integ->vtable = vtable;
   integ->num_points = 0;
   integ->points = NULL;
   integ->weights = NULL;
-  GC_register_finalizer(integ, volume_integral_free, integ, NULL, NULL);
   return integ;
 }
 

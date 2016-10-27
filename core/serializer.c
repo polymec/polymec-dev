@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/serializer.h"
 #include "core/unordered_map.h"
 
@@ -30,7 +29,7 @@ static void destroy_serializer_registry()
   serializer_registry_free(registry);
 }
 
-static void serializer_free(void* ctx, void* dummy)
+static void serializer_free(void* ctx)
 {
   serializer_t* s = ctx;
   string_free(s->name);
@@ -59,13 +58,12 @@ serializer_t* serializer_new(const char* name,
   serializer_t** s_ptr = serializer_registry_get(registry, (char*)name);
   if (s_ptr == NULL)
   {
-    s = GC_MALLOC(sizeof(serializer_t));
+    s = polymec_gc_malloc(sizeof(serializer_t), serializer_free);
     s->name = string_dup(name);
     s->size = size_func;
     s->read = read_func;
     s->write = write_func;
     s->dtor = destructor_func;
-    GC_register_finalizer(s, serializer_free, s, NULL, NULL);
     serializer_registry_insert_with_k_dtor(registry, string_dup(name), s, string_free);
   }
   else

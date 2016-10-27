@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/point.h"
 #include "core/unordered_set.h"
 #include "model/periodic_bc.h"
@@ -116,7 +115,7 @@ struct periodic_bc_t
   void* generate_map_context;
 };
 
-static void periodic_bc_free(void* ctx, void* dummy)
+static void periodic_bc_free(void* ctx)
 {
   periodic_bc_t* bc = (periodic_bc_t*)ctx;
   free(bc->tag1);
@@ -135,11 +134,10 @@ periodic_bc_t* periodic_bc_new_with_map_func(const char* tag1, const char* tag2,
   ASSERT(tag2 != NULL);
   ASSERT(strcmp(tag1, tag2) != 0);
 
-  periodic_bc_t* bc = GC_MALLOC(sizeof(periodic_bc_t));
+  periodic_bc_t* bc = polymec_gc_malloc(sizeof(periodic_bc_t), periodic_bc_free);
   bc->type_code = _periodic_bc_type_code;
   bc->tag1 = string_dup(tag1);
   bc->tag2 = string_dup(tag2);
-  GC_register_finalizer(bc, &periodic_bc_free, bc, NULL, NULL);
 
   // Set up the map generation stuff.
   bc->generate_map = mapping_func;

@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "integrators/div_free_poly_basis.h"
 #include "integrators/sphere_integrator.h" // For spherical integrals.
 
@@ -30,7 +29,7 @@ struct div_free_poly_basis_t
 };
 
 // Destructor function -- called by garbage collector.
-static void div_free_poly_basis_free(void* ctx, void* dummy)
+static void div_free_poly_basis_free(void* ctx)
 {
   div_free_poly_basis_t* basis = ctx;
   for (int i = 0; i < basis->dim; ++i)
@@ -165,13 +164,13 @@ div_free_poly_basis_t* spherical_div_free_poly_basis_new(int degree, point_t* x0
   ASSERT(radius > 0.0);
   ASSERT(degree >= 0);
   ASSERT(degree <= 2); // FIXME
-  div_free_poly_basis_t* basis = GC_MALLOC(sizeof(div_free_poly_basis_t));
+  div_free_poly_basis_t* basis = polymec_gc_malloc(sizeof(div_free_poly_basis_t), 
+                                                   div_free_poly_basis_free);
   basis->polytope = SPHERE;
   basis->x0 = *x0;
   basis->radius = radius;
   basis->dim = basis_dim[degree];
   basis->vectors = polymec_malloc(sizeof(polynomial_vector_t) * basis->dim);
-  GC_register_finalizer(basis, div_free_poly_basis_free, basis, NULL, NULL);
 
   // Construct the naive monomial basis.
   for (int i = 0; i < basis->dim; ++i)

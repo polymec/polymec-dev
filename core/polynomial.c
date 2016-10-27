@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/polynomial.h"
 #include "core/slist.h"
 #include "core/unordered_map.h"
@@ -19,7 +18,7 @@ struct polynomial_t
   real_t factor;
 };
 
-static void polynomial_free(void* ctx, void* dummy)
+static void polynomial_free(void* ctx)
 {
   polynomial_t* p = ctx;
   polymec_free(p->coeffs);
@@ -106,7 +105,7 @@ polynomial_t* polynomial_new(int degree, real_t* coeffs, point_t* x0)
 {
   ASSERT(degree >= 0);
   ASSERT(degree <= 4);
-  polynomial_t* p = GC_MALLOC(sizeof(polynomial_t));
+  polynomial_t* p = polymec_gc_malloc(sizeof(polynomial_t), polynomial_free);
   p->degree = degree;
   p->coeffs = polymec_malloc(sizeof(real_t) * N_coeffs[degree]);
   memcpy(p->coeffs, coeffs, sizeof(real_t) * N_coeffs[degree]);
@@ -124,7 +123,6 @@ polynomial_t* polynomial_new(int degree, real_t* coeffs, point_t* x0)
     p->x0.x = 0.0, p->x0.y = 0.0, p->x0.z = 0.0;
   }
   p->factor = 1.0;
-  GC_register_finalizer(p, polynomial_free, p, NULL, NULL);
   return p;
 }
 
@@ -134,7 +132,7 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, real_t* c
 {
   ASSERT(degree >= 0);
   ASSERT(num_monomials > 0);
-  polynomial_t* p = GC_MALLOC(sizeof(polynomial_t));
+  polynomial_t* p = polymec_gc_malloc(sizeof(polynomial_t), polynomial_free);
   p->degree = degree;
   p->coeffs = polymec_malloc(sizeof(real_t) * num_monomials);
   memcpy(p->coeffs, coeffs, sizeof(real_t) * num_monomials);
@@ -152,7 +150,6 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, real_t* c
   }
   p->factor = 1.0;
   p->num_terms = num_monomials;
-  GC_register_finalizer(p, polynomial_free, p, NULL, NULL);
 
   // Touch it up by killing terms with zero coefficients.
   polynomial_trim(p);
@@ -167,7 +164,7 @@ polynomial_t* polynomial_clone(polynomial_t* p)
 
 polynomial_t* scaled_polynomial_new(polynomial_t* p, real_t factor)
 {
-  polynomial_t* q = GC_MALLOC(sizeof(polynomial_t));
+  polynomial_t* q = polymec_gc_malloc(sizeof(polynomial_t), polynomial_free);
   q->degree = p->degree;
   q->num_terms = p->num_terms;
   q->coeffs = polymec_malloc(sizeof(real_t) * q->num_terms);
@@ -186,7 +183,6 @@ polynomial_t* scaled_polynomial_new(polynomial_t* p, real_t factor)
   memcpy(q->z_pow, p->z_pow, sizeof(int) * q->num_terms);
   q->x0 = p->x0;
   q->factor = 1.0;
-  GC_register_finalizer(q, polynomial_free, q, NULL, NULL);
   return q;
 }
 
@@ -588,7 +584,7 @@ struct poly_basis_t
   int degree, dim;
 };
 
-static void poly_basis_free(void* ctx, void* dummy)
+static void poly_basis_free(void* ctx)
 {
   poly_basis_t* basis = ctx;
   for (int i = 0; i < basis->dim; ++i)
@@ -599,7 +595,7 @@ static void poly_basis_free(void* ctx, void* dummy)
 poly_basis_t* poly_basis_new(int dimension, polynomial_t** polynomials)
 {
   ASSERT(dimension > 0);
-  poly_basis_t* basis = GC_MALLOC(sizeof(poly_basis_t));
+  poly_basis_t* basis = polymec_gc_malloc(sizeof(polynomial_t), poly_basis_free);
   basis->dim = dimension;
   basis->polynomials = polymec_malloc(sizeof(polynomial_t*) * dimension);
   basis->degree = 0;
@@ -608,7 +604,6 @@ poly_basis_t* poly_basis_new(int dimension, polynomial_t** polynomials)
     basis->polynomials[i] = polynomials[i];
     basis->degree = MAX(basis->degree, polynomial_degree(polynomials[i]));
   }
-  GC_register_finalizer(basis, poly_basis_free, basis, NULL, NULL);
   return basis;
 }
 
@@ -702,7 +697,7 @@ struct multicomp_poly_basis_t
   int num_comp, degree, dim;
 };
 
-static void multicomp_poly_basis_free(void* ctx, void* dummy)
+static void multicomp_poly_basis_free(void* ctx)
 {
   multicomp_poly_basis_t* basis = ctx;
   for (int c = 0; c < basis->num_comp; ++c)
@@ -714,7 +709,7 @@ multicomp_poly_basis_t* multicomp_poly_basis_new(int num_components,
                                                  poly_basis_t** component_bases)
 {
   ASSERT(num_components > 0);
-  multicomp_poly_basis_t* basis = GC_MALLOC(sizeof(multicomp_poly_basis_t));
+  multicomp_poly_basis_t* basis = polymec_gc_malloc(sizeof(multicomp_poly_basis_t), multicomp_poly_basis_free);
   basis->num_comp = num_components;
   basis->bases = polymec_malloc(sizeof(poly_basis_t*) * num_components);
   basis->degree = 0;
@@ -724,7 +719,6 @@ multicomp_poly_basis_t* multicomp_poly_basis_new(int num_components,
     basis->degree = MAX(basis->degree, poly_basis_degree(component_bases[c]));
     basis->dim = MAX(basis->degree, poly_basis_dim(component_bases[c]));
   }
-  GC_register_finalizer(basis, multicomp_poly_basis_free, basis, NULL, NULL);
   return basis;
 }
                                                  

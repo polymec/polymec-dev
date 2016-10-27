@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "gc/gc.h"
 #include "model/aux_state.h"
 
 struct aux_state_t 
@@ -16,7 +15,7 @@ struct aux_state_t
   real_array_t* values;
 };
 
-static void aux_state_free(void* ctx, void* dummy)
+static void aux_state_free(void* ctx)
 {
   aux_state_t* state = ctx;
   int_array_free(state->types);
@@ -27,13 +26,12 @@ static void aux_state_free(void* ctx, void* dummy)
 
 aux_state_t* aux_state_new()
 {
-  aux_state_t* state = GC_MALLOC(sizeof(aux_state_t));
+  aux_state_t* state = polymec_gc_malloc(sizeof(aux_state_t), aux_state_free);
   state->types = int_array_new();
   state->indices = int_array_new();
   state->offsets = int_array_new();
   int_array_append(state->offsets, 0);
   state->values = real_array_new();
-  GC_register_finalizer(state, aux_state_free, state, NULL, NULL);
   return state;
 }
 

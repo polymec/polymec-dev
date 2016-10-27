@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/sp_func.h"
 
 struct sp_func_t 
@@ -20,7 +19,7 @@ struct sp_func_t
   sp_func_t* derivs[4];
 };
 
-static void sp_func_free(void* ctx, void* dummy)
+static void sp_func_free(void* ctx)
 {
   sp_func_t* func = ctx;
   if ((func->vtable.dtor != NULL) && (func->context != NULL))
@@ -37,14 +36,13 @@ sp_func_t* sp_func_new(const char* name, void* context, sp_func_vtable vtable,
   ASSERT(vtable.eval != NULL);
   ASSERT((vtable.eval_deriv == NULL) || (vtable.has_deriv != NULL));
   ASSERT(num_comp > 0);
-  sp_func_t* f = GC_MALLOC(sizeof(sp_func_t));
+  sp_func_t* f = polymec_gc_malloc(sizeof(sp_func_t), sp_func_free);
   f->name = string_dup(name);
   f->context = context;
   f->vtable = vtable;
   f->homogeneous = (homogeneity == SP_FUNC_HOMOGENEOUS);
   f->num_comp = num_comp;
   memset(f->derivs, 0, sizeof(sp_func_t*)*4);
-  GC_register_finalizer(f, sp_func_free, f, NULL, NULL);
   return f;
 }
 
@@ -54,14 +52,13 @@ sp_func_t* sp_func_from_func(const char* name, sp_eval_func func,
 {
   ASSERT(func != NULL);
   ASSERT(num_comp > 0);
-  sp_func_t* f = GC_MALLOC(sizeof(sp_func_t));
+  sp_func_t* f = polymec_gc_malloc(sizeof(sp_func_t), sp_func_free);
   f->name = string_dup(name);
   f->context = NULL;
   f->vtable.eval = func;
   f->homogeneous = (homogeneity == SP_FUNC_HOMOGENEOUS);
   f->num_comp = num_comp;
   memset(f->derivs, 0, sizeof(sp_func_t*)*4);
-  GC_register_finalizer(f, &sp_func_free, f, NULL, NULL);
   return f;
 }
 

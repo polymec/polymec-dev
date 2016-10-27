@@ -7,7 +7,6 @@
 
 #include <sys/stat.h>
 #include <dirent.h>
-#include <gc/gc.h>
 #include "core/polymec.h"
 #if POLYMEC_HAVE_MPI
 #include "mpi.h"
@@ -90,7 +89,7 @@ struct silo_field_metadata_t
   int vector_component;
 };
 
-static void silo_field_metadata_free(void* ctx, void* dummy)
+static void silo_field_metadata_free(void* ctx)
 {
   silo_field_metadata_t* metadata = ctx;
   if (metadata->label)
@@ -101,13 +100,13 @@ static void silo_field_metadata_free(void* ctx, void* dummy)
 
 silo_field_metadata_t* silo_field_metadata_new()
 {
-  silo_field_metadata_t* metadata = GC_MALLOC(sizeof(silo_field_metadata_t));
+  silo_field_metadata_t* metadata = polymec_gc_malloc(sizeof(silo_field_metadata_t),
+                                                      silo_field_metadata_free);
   metadata->label = NULL;
   metadata->units = NULL;
   metadata->conserved = false;
   metadata->extensive = false;
   metadata->vector_component = -1;
-  GC_register_finalizer(metadata, silo_field_metadata_free, metadata, NULL, NULL);
   return metadata;
 }
 

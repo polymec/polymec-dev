@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/hilbert.h"
 
 struct hilbert_t 
@@ -22,7 +21,7 @@ static const int num_bits = 16;
 hilbert_t* hilbert_new(bbox_t* bbox)
 {
   int num_bins = 1 << num_bits;
-  hilbert_t* curve = GC_MALLOC(sizeof(hilbert_t));
+  hilbert_t* curve = polymec_gc_malloc(sizeof(hilbert_t), NULL);
   curve->bbox = *bbox;
   curve->dx = (bbox->x2 - bbox->x1) / (num_bins-1);
   curve->dy = (bbox->y2 - bbox->y1) / (num_bins-1);

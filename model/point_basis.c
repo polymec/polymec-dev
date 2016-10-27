@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "gc/gc.h"
 #include "model/point_basis.h"
 
 struct point_basis_t 
@@ -17,8 +16,8 @@ struct point_basis_t
 };
 
 point_basis_t* point_basis_new(const char* name, 
-                                     void* context, 
-                                     point_basis_vtable vtable)
+                               void* context, 
+                               point_basis_vtable vtable)
 {
   ASSERT(vtable.neighborhood_size != NULL);
   ASSERT(vtable.get_neighborhood_points != NULL);

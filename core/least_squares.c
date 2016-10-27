@@ -7,7 +7,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <gc/gc.h>
 #include "core/polymec.h"
 #include "core/least_squares.h"
 #include "core/polynomial.h"
@@ -55,7 +54,7 @@ struct ls_weight_func_t
   point_t x0;
 };
 
-static void ls_weight_func_free(void* context, void* dummy)
+static void ls_weight_func_free(void* context)
 {
   ls_weight_func_t* W = context;
   if ((W->context != NULL) && (W->vtable.dtor != NULL))
@@ -69,12 +68,11 @@ ls_weight_func_t* ls_weight_func_new(const char* name,
 {
   ASSERT(vtable.eval != NULL);
 
-  ls_weight_func_t* W = GC_MALLOC(sizeof(ls_weight_func_t));
+  ls_weight_func_t* W = polymec_gc_malloc(sizeof(ls_weight_func_t), ls_weight_func_free);
   W->name = string_dup(name);
   W->context = context;
   W->vtable = vtable;
   W->x0.x = W->x0.y = W->x0.z = 0.0;
-  GC_register_finalizer(W, &ls_weight_func_free, W, NULL, NULL);
   return W;
 }
 

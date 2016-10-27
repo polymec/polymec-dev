@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "gc/gc.h"
 #include "model/point_kernel.h"
 
 struct point_kernel_t
@@ -16,7 +15,7 @@ struct point_kernel_t
   void (*dtor)(void* context);
 };
 
-static void point_kernel_free(void* ctx, void* dummy)
+static void point_kernel_free(void* ctx)
 {
   point_kernel_t* kernel = ctx;
   string_free(kernel->name);
@@ -29,12 +28,11 @@ point_kernel_t* point_kernel_new(const char* name,
                                  void (*compute)(void* context, point_t* points, real_t* kernel_sizes, int num_points, point_t* x, real_t* values, vector_t* gradients),
                                  void (*dtor)(void* context))
 {
-  point_kernel_t* kernel = GC_MALLOC(sizeof(point_kernel_t));
+  point_kernel_t* kernel = polymec_gc_malloc(sizeof(point_kernel_t), point_kernel_free);
   kernel->name = string_dup(name);
   kernel->context = context;
   kernel->compute = compute;
   kernel->dtor = dtor;
-  GC_register_finalizer(kernel, point_kernel_free, kernel, NULL, NULL);
   return kernel;
 }
 

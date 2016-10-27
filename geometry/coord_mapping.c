@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/linear_algebra.h"
 #include "geometry/coord_mapping.h"
 
@@ -16,7 +15,7 @@ struct coord_mapping_t
   coord_mapping_vtable vtable;
 };
 
-static void coord_mapping_free(void* ctx, void* dummy)
+static void coord_mapping_free(void* ctx)
 {
   coord_mapping_t* mapping = (coord_mapping_t*)ctx;
   if (mapping->vtable.dtor)
@@ -29,11 +28,10 @@ coord_mapping_t* coord_mapping_new(const char* name, void* context, coord_mappin
   ASSERT(context != NULL);
   ASSERT(vtable.map_point != NULL);
   ASSERT(vtable.jacobian != NULL);
-  coord_mapping_t* m = GC_MALLOC(sizeof(coord_mapping_t));
+  coord_mapping_t* m = polymec_gc_malloc(sizeof(coord_mapping_t), coord_mapping_free);
   m->name = string_dup(name);
   m->context = context;
   m->vtable = vtable;
-  GC_register_finalizer(m, coord_mapping_free, m, NULL, NULL);
   return m;
 }
 

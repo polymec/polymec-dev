@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/st_func.h"
 
 struct st_func_t 
@@ -21,7 +20,7 @@ struct st_func_t
   st_func_t* derivs[4];
 };
 
-static void st_func_free(void* ctx, void* dummy)
+static void st_func_free(void* ctx)
 {
   st_func_t* func = ctx;
   if ((func->vtable.dtor != NULL) && (func->context != NULL))
@@ -38,7 +37,7 @@ st_func_t* st_func_new(const char* name, void* context, st_func_vtable vtable,
   ASSERT(context != NULL);
   ASSERT(vtable.eval != NULL);
   ASSERT(num_comp > 0);
-  st_func_t* f = GC_MALLOC(sizeof(st_func_t));
+  st_func_t* f = polymec_gc_malloc(sizeof(st_func_t), st_func_free);
   f->name = string_dup(name);
   f->context = context;
   f->vtable = vtable;
@@ -46,7 +45,6 @@ st_func_t* st_func_new(const char* name, void* context, st_func_vtable vtable,
   f->constant = (constancy == ST_FUNC_CONSTANT);
   f->num_comp = num_comp;
   memset(f->derivs, 0, sizeof(st_func_t*)*4);
-  GC_register_finalizer(f, st_func_free, f, NULL, NULL);
   return f;
 }
 
@@ -57,7 +55,7 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
 {
   ASSERT(func != NULL);
   ASSERT(num_comp > 0);
-  st_func_t* f = GC_MALLOC(sizeof(st_func_t));
+  st_func_t* f = polymec_gc_malloc(sizeof(st_func_t), st_func_free);
   f->name = string_dup(name);
   f->context = NULL;
   f->vtable.eval = func;
@@ -65,7 +63,6 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
   f->constant = (constancy == ST_FUNC_CONSTANT);
   f->num_comp = num_comp;
   memset(f->derivs, 0, sizeof(st_func_t*)*4);
-  GC_register_finalizer(f, &st_func_free, f, NULL, NULL);
   return f;
 }
 
@@ -112,7 +109,7 @@ static st_func_t* sp_func_deriv_new(sp_func_t* func, int d)
 st_func_t* st_func_from_sp_func(sp_func_t* func)
 {
   ASSERT(func != NULL);
-  st_func_t* f = GC_MALLOC(sizeof(st_func_t));
+  st_func_t* f = polymec_gc_malloc(sizeof(st_func_t), st_func_free);
   f->name = string_dup(sp_func_name(func));
   f->context = func;
   f->vtable.eval = eval_sp_func;
@@ -125,7 +122,6 @@ st_func_t* st_func_from_sp_func(sp_func_t* func)
     if (sp_func_has_deriv(func, i))
       st_func_register_deriv(f, i, sp_func_deriv_new(func, i));
   }
-  GC_register_finalizer(f, &st_func_free, f, NULL, NULL);
   return f;
 }
 

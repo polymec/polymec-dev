@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/rng.h"
 
 struct rng_t 
@@ -17,7 +16,7 @@ struct rng_t
   bool has_global_state, is_thread_safe;
 };
 
-static void rng_free(void* ctx, void* dummy)
+static void rng_free(void* ctx)
 {
   rng_t* rng = ctx;
   string_free(rng->name);
@@ -31,7 +30,7 @@ rng_t* rng_new(const char* name, void* context,
 {
   ASSERT(min < max);
   ASSERT(vtable.get != NULL);
-  rng_t* rng = GC_MALLOC(sizeof(rng_t));
+  rng_t* rng = polymec_gc_malloc(sizeof(rng_t), rng_free);
   rng->name = string_dup(name);
   rng->context = context;
   rng->min = min;
@@ -39,7 +38,6 @@ rng_t* rng_new(const char* name, void* context,
   rng->vtable = vtable;
   rng->has_global_state = has_global_state;
   rng->is_thread_safe = is_thread_safe;
-  GC_register_finalizer(rng, rng_free, rng, NULL, NULL);
   return rng;
 }
 

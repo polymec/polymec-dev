@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "gc/gc.h"
 #include "exchanger.h"
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
@@ -320,7 +319,7 @@ static void exchanger_clear(exchanger_t* ex)
   ex->max_receive = -1;
 }
 
-static void exchanger_destroy(void* ctx, void* dummy)
+static void exchanger_free(void* ctx)
 {
   exchanger_t* ex = ctx;
   exchanger_clear(ex);
@@ -330,7 +329,7 @@ static void exchanger_destroy(void* ctx, void* dummy)
 
 exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
 {
-  exchanger_t* ex = GC_MALLOC(sizeof(exchanger_t));
+  exchanger_t* ex = polymec_gc_malloc(sizeof(exchanger_t), exchanger_free);
   ex->comm = comm;
   ex->rank = rank;
   MPI_Comm_size(comm, &(ex->nprocs));
@@ -351,7 +350,6 @@ exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
   memset(ex->transfer_counts, 0, ex->pending_msg_cap * sizeof(int*));
   ex->max_send = -1;
   ex->max_receive = -1;
-  GC_register_finalizer(ex, exchanger_destroy, ex, NULL, NULL);
 
   return ex;
 }
@@ -1196,7 +1194,7 @@ struct migrator_t
   exchanger_t* ex;
 };
 
-static void migrator_destroy(void* ctx, void* dummy)
+static void migrator_free(void* ctx)
 {
   migrator_t* m = ctx;
   polymec_free(m->ex);
@@ -1204,17 +1202,15 @@ static void migrator_destroy(void* ctx, void* dummy)
 
 migrator_t* migrator_new(MPI_Comm comm)
 {
-  migrator_t* m = GC_MALLOC(sizeof(migrator_t));
+  migrator_t* m = polymec_gc_malloc(sizeof(migrator_t), migrator_free);
   m->ex = exchanger_new(comm);
-  GC_register_finalizer(m, migrator_destroy, m, NULL, NULL);
   return m;
 }
 
 migrator_t* migrator_clone(migrator_t* m)
 {
-  migrator_t* clone = GC_MALLOC(sizeof(migrator_t));
+  migrator_t* clone = polymec_gc_malloc(sizeof(migrator_t), migrator_free);
   clone->ex = exchanger_clone(m->ex);
-  GC_register_finalizer(m, migrator_destroy, m, NULL, NULL);
   return clone;
 }
 
@@ -1305,9 +1301,8 @@ migrator_t* migrator_from_global_partition(MPI_Comm comm,
     exchanger_set_receive(ex, 0, local_vertices, num_local_vertices, true);
   }
 
-  migrator_t* m = GC_MALLOC(sizeof(migrator_t));
+  migrator_t* m = polymec_gc_malloc(sizeof(migrator_t), migrator_free);
   m->ex = ex;
-  GC_register_finalizer(m, migrator_destroy, m, NULL, NULL);
   STOP_FUNCTION_TIMER();
   return m;
 }
@@ -1366,9 +1361,8 @@ migrator_t* migrator_from_local_partition(MPI_Comm comm,
     }
   }
 
-  migrator_t* m = GC_MALLOC(sizeof(migrator_t));
+  migrator_t* m = polymec_gc_malloc(sizeof(migrator_t), migrator_free);
   m->ex = ex;
-  GC_register_finalizer(m, migrator_destroy, m, NULL, NULL);
   STOP_FUNCTION_TIMER();
   return m;
 }
@@ -1493,9 +1487,8 @@ static size_t m_size(void* obj)
 
 static void* m_read(byte_array_t* bytes, size_t* offset)
 {
-  migrator_t* m = GC_MALLOC(sizeof(migrator_t));
+  migrator_t* m = polymec_gc_malloc(sizeof(migrator_t), migrator_free);
   m->ex = ex_read(bytes, offset);
-  GC_register_finalizer(m, migrator_destroy, m, NULL, NULL);
   return m;
 }
 

@@ -5,19 +5,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/point2.h"
 
 point2_t* point2_new(real_t x, real_t y)
 {
-  point2_t* p = GC_MALLOC(sizeof(point2_t));
+  point2_t* p = polymec_gc_malloc(sizeof(point2_t), NULL);
   p->x = x, p->y = y;
   return p;
 }
 
 vector2_t* vector2_new(real_t vx, real_t vy)
 {
-  vector2_t* v = GC_MALLOC(sizeof(vector2_t));
+  vector2_t* v = polymec_gc_malloc(sizeof(vector2_t), NULL);
   v->x = vx, v->y = vy;
   return v;
 }

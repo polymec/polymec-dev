@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "core/polymec.h"
 #include "core/options.h"
 #include "core/unordered_map.h"
@@ -20,7 +19,7 @@ struct options_t
 // Options argv singleton.
 static options_t* argv_singleton = NULL;
 
-static void options_free(void* ctx, void* dummy)
+static void options_free(void* ctx)
 {
   options_t* opts = (options_t*)ctx;
 
@@ -40,11 +39,10 @@ static void destroy_kv(char* key, char* value)
 
 options_t* options_new(void)
 {
-  options_t* o = GC_MALLOC(sizeof(options_t));
+  options_t* o = polymec_gc_malloc(sizeof(options_t), options_free);
   o->num_args = 0;
   o->args = NULL;
   o->params = string_string_unordered_map_new();
-  GC_register_finalizer(o, &options_free, o, NULL, NULL);
   return o;
 }
 

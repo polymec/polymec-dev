@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "geometry/polygon.h"
 #include "geometry/polygon2.h"
 #include "geometry/plane_sp_func.h"
@@ -22,7 +21,7 @@ struct polygon_t
   sp_func_t* plane;
 };
 
-static void polygon_free(void* ctx, void* dummy)
+static void polygon_free(void* ctx)
 {
   polygon_t* poly = ctx;
   polymec_free(poly->vertices);
@@ -93,7 +92,7 @@ polygon_t* polygon_new_with_ordering(point_t* points, int* ordering, int num_poi
   ASSERT(ordering != NULL);
   ASSERT(num_points >= 3);
   ASSERT(all_points_are_coplanar(points, num_points));
-  polygon_t* poly = GC_MALLOC(sizeof(polygon_t));
+  polygon_t* poly = polymec_gc_malloc(sizeof(polygon_t), polygon_free);
   poly->vertices = polymec_malloc(sizeof(point_t)*num_points);
   memcpy(poly->vertices, points, sizeof(point_t)*num_points);
   poly->num_vertices = num_points;
@@ -101,7 +100,6 @@ polygon_t* polygon_new_with_ordering(point_t* points, int* ordering, int num_poi
   memcpy(poly->ordering, ordering, sizeof(int)*num_points);
   polygon_compute_area(poly);
   polygon_compute_plane(poly);
-  GC_register_finalizer(poly, polygon_free, poly, NULL, NULL);
   return poly;
 }
 

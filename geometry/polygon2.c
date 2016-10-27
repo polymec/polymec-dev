@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <gc/gc.h>
 #include "geometry/polygon2.h"
 #include "core/slist.h"
 
@@ -17,7 +16,7 @@ struct polygon2_t
   real_t area;
 };
 
-static void polygon2_free(void* ctx, void* dummy)
+static void polygon2_free(void* ctx)
 {
   polygon2_t* poly = ctx;
   polymec_free(poly->vertices);
@@ -50,14 +49,13 @@ polygon2_t* polygon2_new_with_ordering(point2_t* points, int* ordering, int num_
 {
   ASSERT(points != NULL);
   ASSERT(num_points >= 3);
-  polygon2_t* poly = GC_MALLOC(sizeof(polygon2_t));
+  polygon2_t* poly = polymec_gc_malloc(sizeof(polygon2_t), polygon2_free);
   poly->vertices = polymec_malloc(sizeof(point2_t)*num_points);
   memcpy(poly->vertices, points, sizeof(point2_t)*num_points);
   poly->num_vertices = num_points;
   poly->ordering = polymec_malloc(sizeof(int)*num_points);
   memcpy(poly->ordering, ordering, sizeof(int)*num_points);
   polygon2_compute_area(poly);
-  GC_register_finalizer(poly, polygon2_free, poly, NULL, NULL);
   return poly;
 }
 
