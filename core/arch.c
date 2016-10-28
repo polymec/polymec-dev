@@ -76,7 +76,7 @@ static int fmem_close(void *context)
 
 FILE *fmemopen(void *buf, size_t size, const char *mode) 
 {
-  fmem_t* fmem = polymec_malloc(sizeof(fmem_t)); // Context pointer.
+  fmem_t* fmem = malloc(sizeof(fmem_t)); // Context pointer.
   fmem->pos = 0;
   fmem->size = size;
   fmem->buffer = buf;
@@ -111,7 +111,7 @@ static int memstream_write(void* context, const char *buf, int n)
     size_t newsize = stream->allocated * 3 / 2;
     if (newsize < stream->pos + n + 1)
       newsize = stream->pos + n + 1;
-    cbuf = polymec_realloc(cbuf, newsize);
+    cbuf = realloc(cbuf, newsize);
     if (!cbuf)
       return EOF;
     *stream->buf = cbuf;
@@ -179,7 +179,7 @@ static int memstream_close(void *c)
   memstream_t *stream = c;
   char *buf;
 
-  buf = polymec_realloc(*stream->buf, *stream->len + 1);
+  buf = realloc(*stream->buf, *stream->len + 1);
   if (buf != NULL)
     *stream->buf = buf;
   polymec_free(stream);
@@ -197,7 +197,7 @@ FILE* open_memstream(char **buf, size_t *len)
     return NULL;
   }
   stream = polymec_malloc(sizeof(memstream_t));
-  *buf = polymec_malloc(32 * sizeof(char));
+  *buf = malloc(32 * sizeof(char));
   **buf = '\0';
   *len = 0;
 

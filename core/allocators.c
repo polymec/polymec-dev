@@ -78,7 +78,7 @@ static void* std_malloc(void* context, size_t size)
 {
   // We want to trace pointers within this memory, so we need to use the 
   // garbage collector's allocator.
-  return GC_malloc_uncollectable(size);
+  return GC_MALLOC_UNCOLLECTABLE(size);
 }
 
 static void* std_aligned_alloc(void* context, size_t alignment, size_t size)
@@ -88,7 +88,8 @@ static void* std_aligned_alloc(void* context, size_t alignment, size_t size)
   polymec_error("Aligned allocations are not available on MacOS/Intel at this time.");
   return NULL;
 #else
-  return aligned_alloc(alignment, size);
+  polymec_error("Aligned allocations are supported by the standard allocator.");
+  return NULL;
 #endif
 }
 

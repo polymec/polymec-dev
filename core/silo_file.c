@@ -617,7 +617,10 @@ static void write_provenance_to_file(silo_file_t* file)
   fclose(stream);
 
   silo_file_write_string(file, "provenance", provenance_str);
-  string_free(provenance_str);
+
+  // Note we have to use free here instead of string_free or polymec_free, 
+  // since open_memstream uses vanilla malloc and realloc.
+  free(provenance_str);
 }
 
 #if POLYMEC_HAVE_MPI
