@@ -55,16 +55,6 @@
    ...
 }
 {
-   <insert_a_suppression_name_here>
-   Memcheck:Leak
-   match-leak-kinds: reachable
-   fun:malloc
-   fun:polymec_malloc
-   fun:options_parse
-   fun:polymec_init
-   fun:main
-}
-{
    orte_Leak
    Memcheck:Leak
    ...
