@@ -15,7 +15,7 @@
 
 // Creates a moving-least-squares polynomial basis defined on the 
 // given point cloud with neighborhoods given by the given stencil. Here,
-// smoothing_lengths is a field (array) assigning a characteristic extent, h, 
+// kernel_lengths is a field (array) assigning a characteristic extent, h, 
 // to each point in the domain, and must have enough storage for ghost 
 // points.
 point_basis_t* mls_point_basis_new(int polynomial_order,

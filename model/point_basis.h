@@ -11,7 +11,8 @@
 #include "core/point.h"
 
 // This class represents a set of basis functions defined on a point cloud
-// within a neighborhood.
+// within a neighborhood. These basis functions can represent quantities on 
+// the point cloud.
 typedef struct point_basis_t point_basis_t;
 
 // Here's a virtual table used to define the behavior of a point function.
@@ -36,8 +37,8 @@ typedef struct
 // Creates an instance of a shape function with the given name and 
 // characteristics. 
 point_basis_t* point_basis_new(const char* name, 
-                                     void* context, 
-                                     point_basis_vtable vtable);
+                               void* context, 
+                               point_basis_vtable vtable);
 
 // Destroys the shape function.
 void point_basis_free(point_basis_t* phi);
@@ -50,7 +51,7 @@ void point_basis_set_neighborhood(point_basis_t* phi, int point_index);
 // neighborhood has not been set with point_basis_set_neighborhood.
 int point_basis_num_points(point_basis_t* phi);
 
-// Fetchs the points in the current neighborhood, filling the points array
+// Fetches the points in the current neighborhood, filling the points array
 // (of length point_basis_num_points(phi)).
 void point_basis_get_points(point_basis_t* phi, point_t* points);
 
@@ -58,8 +59,8 @@ void point_basis_get_points(point_basis_t* phi, point_t* points);
 // neighborhood, evaluating them at the point x, filling the array with 
 // values. If gradients is non-NULL, the gradients will also be computed.
 void point_basis_compute(point_basis_t* phi, 
-                            point_t* x,
-                            real_t* values,
-                            vector_t* gradients);
+                         point_t* x,
+                         real_t* values,
+                         vector_t* gradients);
 
 #endif
