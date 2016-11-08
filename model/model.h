@@ -280,6 +280,13 @@ void model_set_sim_name(model_t* model, const char* sim_name);
 // will be generated relative to this path.
 void model_set_sim_path(model_t* model, const char* sim_path);
 
+// Retrieves (a copy of) the virtual table for the given model.
+model_vtable model_get_vtable(model_t* model);
+
+// Overrides the given model's virtual table with the given one. Be careful
+// when using this!
+void model_set_vtable(model_t* model, model_vtable vtable);
+
 // This function implements a simple driver for a model and behaves
 // in the same way as a main() function, returning 0 on success and nonzero
 // on failure. Arguments:

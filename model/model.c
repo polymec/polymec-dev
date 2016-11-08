@@ -1593,6 +1593,21 @@ void model_set_sim_path(model_t* model, const char* sim_path)
   model->sim_path = string_dup(sim_path);
 }
 
+model_vtable model_get_vtable(model_t* model)
+{
+  return model->vtable;
+}
+
+void model_set_vtable(model_t* model, model_vtable vtable)
+{
+  ASSERT(((vtable.read_input != NULL) && (vtable.read_custom_input == NULL)) ||
+         ((vtable.read_input == NULL) && (vtable.read_custom_input != NULL)));
+  ASSERT((model->vtable.set_global_comm != NULL) || 
+         (model->parallelism == MODEL_SERIAL_SINGLETON) || 
+         (model->parallelism == MODEL_SERIAL));
+  model->vtable = vtable;
+}
+
 static void run_batch(model_t* model, 
                       char* input, 
                       int procs_per_run, 
