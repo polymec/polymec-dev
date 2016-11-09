@@ -243,10 +243,11 @@ stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points,
   int_int_unordered_map_free(counts);
 
   // Now extract the data from the neighbor pairing.
+  int num_ghosts = points->num_ghosts;
   pos = 0;
   real_t W;
-  int which[num_indices];
-  memset(which, 0, sizeof(int) * num_indices);
+  int which[num_indices + num_ghosts];
+  memset(which, 0, sizeof(int) * (num_indices + num_ghosts));
   while (neighbor_pairing_next(neighbors, &pos, &i, &j, &W))
   {
     if (weights != NULL)
@@ -254,16 +255,22 @@ stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points,
       weights[offsets[i]+which[i]] = W;
       weights[offsets[j]+which[j]] = W;
     }
-    indices[offsets[i]+which[i]] = j;
-    ++which[i];
-    indices[offsets[j]+which[j]] = i;
-    ++which[j];
+    if (i < num_indices)
+    {
+      indices[offsets[i]+which[i]] = j;
+      ++which[i];
+    }
+    if (j < num_indices)
+    {
+      indices[offsets[j]+which[j]] = i;
+      ++which[j];
+    }
   }
 
   // Construct the stencil.
   return stencil_new(neighbors->name, num_indices,
                      offsets, indices, weights,
-                     points->num_ghosts, ex);
+                     num_ghosts, ex);
 }
 
 adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points, 
