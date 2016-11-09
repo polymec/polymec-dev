@@ -8,12 +8,7 @@
 #ifndef POLYMEC_NEIGHBOR_PAIRING_H
 #define POLYMEC_NEIGHBOR_PAIRING_H
 
-#include "core/polymec.h"
-#include "core/exchanger.h"
-#include "core/serializer.h"
-#include "core/adj_graph.h"
-#include "core/point_cloud.h"
-#include "core/silo_file.h"
+#include "model/stencil.h"
 
 // A neighbor pairing is a set of index pairs associated with some spatial 
 // discretization (usually a mesh-free method). Pairings can be constructed 
@@ -104,10 +99,23 @@ static inline bool neighbor_pairing_next(neighbor_pairing_t* pairing, int* pos,
 // Returns a serializer object that can read/write neighbor pairings from/to byte arrays.
 serializer_t* neighbor_pairing_serializer(void);
 
+// Creates a neighbor pairing from the given stencil, rendering a symmetric
+// representation of the neighbor relations in that stencil.
+neighbor_pairing_t* neighbor_pairing_from_stencil(stencil_t* stencil);
+
+// Creates a stencil from the given point cloud and neighbor pairing. 
+stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points, 
+                                                  neighbor_pairing_t* neighbors);
+
 // This function creates an adjacency graph for the given point cloud with 
 // the given neighbor pairing.
 adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points, 
                                                   neighbor_pairing_t* neighbors);
+
+// This function creates a matrix sparsity pattern for the given point cloud 
+// with the given neighbor pairing.
+matrix_sparsity_t* sparsity_from_point_cloud_and_neighbors(point_cloud_t* points, 
+                                                           neighbor_pairing_t* neighbors);
 
 // This function extends the silo_file type to allow it to write out a 
 // neighbor_pairing object to an entry with the given name.
@@ -122,7 +130,6 @@ void silo_file_write_neighbor_pairing(silo_file_t* file,
 neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
                                                     const char* neighbors_name,
                                                     MPI_Comm comm);
-
 
 // This is a shake-n-bake method for constructing pairs of neighboring 
 // points using a neighbor relationship that relates points (xi, xj) that are 

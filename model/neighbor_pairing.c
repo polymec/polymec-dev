@@ -6,6 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/kd_tree.h"
+#include "core/array.h"
+#include "core/unordered_set.h"
 #include "model/neighbor_pairing.h"
 
 neighbor_pairing_t* neighbor_pairing_new(const char* name, size_t num_pairs, 
@@ -137,6 +139,133 @@ serializer_t* neighbor_pairing_serializer()
   return serializer_new("neighbor_pairing", np_byte_size, np_byte_read, np_byte_write, DTOR(neighbor_pairing_free));
 }
 
+static void free_pair(int* pair)
+{
+  polymec_free(pair);
+}
+
+neighbor_pairing_t* neighbor_pairing_from_stencil(stencil_t* stencil)
+{
+  int_array_t* pairs = int_array_new();
+  real_array_t* weights = (stencil->weights != NULL) ? real_array_new() : NULL;
+  int_pair_int_unordered_map_t* pair_map = int_pair_int_unordered_map_new();
+
+  // Extract all the pairs from the stencil.
+  int num_indices = stencil_num_indices(stencil);
+  for (int i = 0; i < num_indices; ++i)
+  {
+    int pos = 0, j;
+    real_t W;
+    while (stencil_next(stencil, i, &pos, &j, &W))
+    {
+      int small = MIN(i, j);
+      int big = MAX(i, j);
+      int pair[2] = {small, big};
+      int* pair_index_p = int_pair_int_unordered_map_get(pair_map, pair);
+      if (pair_index_p == NULL)
+      {
+        int pair_index = (int)(pairs->size/2);
+        int_array_append(pairs, small);
+        int_array_append(pairs, big);
+        int* p = polymec_malloc(sizeof(int) * 2);
+        p[0] = small; p[1] = big;
+        int_pair_int_unordered_map_insert_with_k_dtor(pair_map, p, pair_index, free_pair);
+        if (weights != NULL)
+          real_array_append(weights, W);
+      }
+      else if (weights != NULL)
+      {
+        // We need to symmetrize the weight.
+        int pair_index = *pair_index_p;
+        real_t orig_W = weights->data[pair_index];
+        weights->data[pair_index] = 0.5 * (orig_W + W);
+      }
+    }
+  }
+
+  // The exchanger should be the same for both of these things.
+  exchanger_t* ex = exchanger_clone(stencil->ex);
+
+  // Build the neighbor pairing.
+  neighbor_pairing_t* neighbors = neighbor_pairing_new(stencil->name, 
+                                                       pairs->size/2,
+                                                       pairs->data,
+                                                       (weights != NULL) ? weights->data : NULL,
+                                                       ex);
+
+  // Let the neighbor pairing steal the array data.
+  int_array_release_data_and_free(pairs);
+  if (weights != NULL)
+    real_array_release_data_and_free(weights);
+  int_pair_int_unordered_map_free(pair_map);
+
+  return neighbors;
+}
+
+stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points, 
+                                                  neighbor_pairing_t* neighbors)
+{
+  // Count up the numbers of neighbors for each index.
+  int_int_unordered_map_t* counts = int_int_unordered_map_new();
+  int pos = 0, i, j;
+  while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+  {
+    int small = MIN(i, j);
+    int big = MAX(i, j);
+    int* small_n_p = int_int_unordered_map_get(counts, small);
+    if (small_n_p == NULL)
+      int_int_unordered_map_insert(counts, small, 1);
+    else
+      ++(*small_n_p);
+    int* big_n_p = int_int_unordered_map_get(counts, big);
+    if (big_n_p == NULL)
+      int_int_unordered_map_insert(counts, big, 1);
+    else
+      ++(*big_n_p);
+  }
+
+  // The exchanger should be the same for both of these things.
+  exchanger_t* ex = exchanger_clone(neighbors->ex);
+
+  // Set up the arrays for the stencil data.
+  int num_indices = points->num_points;
+  int* offsets = polymec_malloc(sizeof(int) * (num_indices+1));
+  offsets[0] = 0;
+  for (int k = 0; k < num_indices; ++k)
+  {
+    int* count_p = int_int_unordered_map_get(counts, k);
+    int count = (count_p != NULL) ? *count_p : 0;
+    offsets[k+1] = offsets[k] + count;
+  }
+  int N = offsets[num_indices];
+  int* indices = polymec_malloc(sizeof(int) * N);
+  real_t* weights = (neighbors->weights != NULL) ? polymec_malloc(sizeof(real_t) * N) : NULL;
+  int_int_unordered_map_free(counts);
+
+  // Now extract the data from the neighbor pairing.
+  pos = 0;
+  real_t W;
+  int which[num_indices];
+  memset(which, 0, sizeof(int) * num_indices);
+  while (neighbor_pairing_next(neighbors, &pos, &i, &j, &W))
+  {
+    if (weights != NULL)
+    {
+      weights[offsets[i]+which[i]] = W;
+      weights[offsets[j]+which[j]] = W;
+    }
+    indices[offsets[i]+which[i]] = j;
+    ++which[i];
+    indices[offsets[j]+which[j]] = i;
+    ++which[j];
+  }
+
+  // Construct the stencil.
+  return stencil_new(neighbors->name, num_indices,
+                     offsets, indices, weights,
+                     points->num_ghosts, ex);
+}
+
 adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points, 
                                                   neighbor_pairing_t* neighbors)
 {
@@ -186,6 +315,66 @@ adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points,
   polymec_free(num_edges);
 
   return g;
+}
+
+matrix_sparsity_t* sparsity_from_point_cloud_and_neighbors(point_cloud_t* points, 
+                                                           neighbor_pairing_t* neighbors)
+{
+  // Figure out the domain decomposition.
+  MPI_Comm comm = points->comm;
+  int nproc, rank;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+  index_t num_points[nproc];
+  index_t num_local_points = (index_t)points->num_points;
+  MPI_Allgather(&num_local_points, 1, MPI_INDEX_T, 
+                num_points, 1, MPI_INDEX_T, comm);
+  index_t row_dist[nproc+1];
+  row_dist[0] = 0;
+  for (int p = 0; p < nproc; ++p)
+    row_dist[p+1] = row_dist[p] + num_points[p];
+
+  // Get global indices for the locally-represented points.
+  index_t global_ids[points->num_points + points->num_ghosts];
+  for (int i = 0; i < points->num_points; ++i)
+    global_ids[i] = (index_t)(row_dist[rank] + i);
+  neighbor_pairing_exchange(neighbors, global_ids, 1, 0, MPI_INDEX_T);
+
+  // Create a matrix sparsity pattern using the given neighbors and 
+  // allocate column space.
+  matrix_sparsity_t* sparsity = matrix_sparsity_new(comm, row_dist);
+  index_t num_cols[points->num_points];
+  memset(num_cols, 0, sizeof(index_t) * points->num_points);
+  int pos = 0, i, j;
+  while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+  {
+    ++num_cols[i];
+    ++num_cols[j];
+  }
+  index_t offsets[points->num_points];
+  for (int k = 0; k < points->num_points; ++k)
+  {
+    matrix_sparsity_set_num_columns(sparsity, global_ids[i], num_cols[i]);
+
+    // Add the diagonal entry, while we're here.
+    index_t* columns = matrix_sparsity_columns(sparsity, global_ids[k]);
+    columns[0] = global_ids[k];
+    offsets[k] = 1;
+  }
+
+  // Now step through and add each (i, j) pair.
+  pos = 0;
+  while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+  {
+    index_t* i_columns = matrix_sparsity_columns(sparsity, global_ids[i]);
+    index_t* j_columns = matrix_sparsity_columns(sparsity, global_ids[j]);
+    i_columns[offsets[i]] = global_ids[j];
+    ++offsets[i];
+    j_columns[offsets[j]] = global_ids[i];
+    ++offsets[j];
+  }
+
+  return sparsity;
 }
 
 void silo_file_write_neighbor_pairing(silo_file_t* file,

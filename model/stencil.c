@@ -377,6 +377,76 @@ serializer_t* stencil_serializer()
   return serializer_new("stencil", stencil_byte_size, stencil_byte_read, stencil_byte_write, DTOR(stencil_free));
 }
 
+matrix_sparsity_t* sparsity_from_stencil(stencil_t* stencil)
+{
+  adj_graph_t* g = stencil_as_graph(stencil);
+  return matrix_sparsity_from_graph(g, stencil->ex);
+}
+
+void silo_file_write_stencil(silo_file_t* file,
+                             const char* stencil_name,
+                             stencil_t* stencil)
+{
+  char name_name[FILENAME_MAX];
+  snprintf(name_name, FILENAME_MAX, "%s_stencil_name", stencil_name);
+  silo_file_write_string(file, name_name, stencil->name);
+
+  char offsets_name[FILENAME_MAX];
+  snprintf(offsets_name, FILENAME_MAX, "%s_stencil_offsets", stencil_name);
+  silo_file_write_int_array(file, offsets_name, stencil->offsets, stencil->num_indices+1);
+
+  char indices_name[FILENAME_MAX];
+  snprintf(indices_name, FILENAME_MAX, "%s_stencil_indices", stencil_name);
+  silo_file_write_int_array(file, indices_name, stencil->indices, stencil->offsets[stencil->num_indices]);
+
+  char weights_name[FILENAME_MAX];
+  snprintf(weights_name, FILENAME_MAX, "%s_stencil_weights", stencil_name);
+  if (stencil->weights != NULL)
+    silo_file_write_real_array(file, weights_name, stencil->weights, stencil->offsets[stencil->num_indices]);
+  else
+    silo_file_write_real_array(file, weights_name, NULL, 0);
+
+  if (stencil->ex != NULL)
+  {
+    char ex_name[FILENAME_MAX];
+    snprintf(ex_name, FILENAME_MAX, "%s_stencil_ex", stencil_name);
+    silo_file_write_exchanger(file, weights_name, stencil->ex);
+  }
+}
+
+stencil_t* silo_file_read_stencil(silo_file_t* file,
+                                  const char* stencil_name,
+                                  MPI_Comm comm)
+{
+  stencil_t* s = polymec_malloc(sizeof(stencil_t));
+  char name_name[FILENAME_MAX];
+  snprintf(name_name, FILENAME_MAX, "%s_stencil_name", stencil_name);
+  s->name = silo_file_read_string(file, name_name);
+
+  char offsets_name[FILENAME_MAX];
+  snprintf(offsets_name, FILENAME_MAX, "%s_stencil_offsets", stencil_name);
+  size_t size;
+  s->offsets = silo_file_read_int_array(file, offsets_name, &size);
+  s->num_indices = (int)(size) - 1;
+
+  char indices_name[FILENAME_MAX];
+  snprintf(indices_name, FILENAME_MAX, "%s_stencil_indices", stencil_name);
+  s->indices = silo_file_read_int_array(file, indices_name, &size);
+  ASSERT((int)size == s->offsets[s->num_indices]);
+
+  char weights_name[FILENAME_MAX];
+  snprintf(weights_name, FILENAME_MAX, "%s_stencil_weights", stencil_name);
+  size_t num_weights;
+  s->weights = silo_file_read_real_array(file, weights_name, &num_weights);
+  ASSERT((num_weights == s->offsets[s->num_indices]) || 
+         ((num_weights == 0) && (s->weights == NULL)));
+
+  char ex_name[FILENAME_MAX];
+  snprintf(ex_name, FILENAME_MAX, "%s_stencil_ex", stencil_name);
+  s->ex = silo_file_read_exchanger(file, ex_name, comm);
+  return s;
+}
+
 stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
                                             real_t* R)
 {

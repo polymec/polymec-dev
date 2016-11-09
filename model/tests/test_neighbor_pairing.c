@@ -182,7 +182,22 @@ static void test_parallel_point_lattice(void** state,
               (num_interior_neighbors == bin_counts[2]) ||
               (num_interior_neighbors == bin_counts[3]));
 
+  // Before we go, create a stencil from this pairing.
+  stencil_t* S = stencil_from_point_cloud_and_neighbors(cloud, pairing);
+
+  // Convert back to a pairing.
+  neighbor_pairing_t* pairing1 = neighbor_pairing_from_stencil(S);
+  assert_int_equal(strcmp(pairing1->name, pairing->name), 0);
+  assert_int_equal(pairing1->num_pairs, pairing->num_pairs);
+  for (int i = 0; i < pairing->num_pairs; ++i)
+  {
+    assert_int_equal(pairing1->pairs[2*i], pairing->pairs[2*i]);
+    assert_int_equal(pairing1->pairs[2*i+1], pairing->pairs[2*i+1]);
+  }
+
   // Clean up.
+  neighbor_pairing_free(pairing1);
+  stencil_free(S);
   neighbor_pairing_free(pairing);
   point_cloud_free(cloud);
 }
