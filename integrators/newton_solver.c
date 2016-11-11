@@ -38,11 +38,15 @@ struct newton_solver_t
 
   // Generized adaptor stuff.
   int (*reset_func)(void* context);
-  int (*setup_func)(void* context, 
-                    newton_solver_strategy_t strategy,
-                    real_t t, 
-                    real_t* U,
-                    real_t* F);
+  int (*newton_setup_func)(void* context, 
+                           newton_solver_strategy_t strategy,
+                           real_t t, 
+                           real_t* U,
+                           real_t* F);
+  int (*picard_setup_func)(void* context, 
+                           real_t t, 
+                           real_t* U,
+                           real_t* F);
   int (*solve_func)(void* context, 
                     real_t* DF, 
                     real_t t, 
@@ -134,13 +138,19 @@ static int newton_lsetup(KINMem kin_mem)
   newton_solver_strategy_t strategy = NEWTON_FULL_STEP;
   if (newton->strategy == KIN_LINESEARCH) 
     strategy = NEWTON_LINE_SEARCH;
-  else if (newton->strategy == KIN_FP)
-    strategy = NEWTON_FP;
-  else if (newton->strategy == KIN_PICARD)
-    strategy = NEWTON_PICARD;
-  int result = newton->setup_func(newton->context, strategy, t, 
-                                  NV_DATA(kin_mem->kin_uu), 
-                                  NV_DATA(kin_mem->kin_fval));
+  int result = newton->newton_setup_func(newton->context, strategy, t, 
+                                         NV_DATA(kin_mem->kin_uu), 
+                                         NV_DATA(kin_mem->kin_fval));
+  return result;
+}
+
+static int picard_lsetup(KINMem kin_mem)
+{
+  newton_solver_t* newton = kin_mem->kin_user_data;
+  real_t t = newton->t;
+  int result = newton->picard_setup_func(newton->context, t, 
+                                         NV_DATA(kin_mem->kin_uu), 
+                                         NV_DATA(kin_mem->kin_fval));
   return result;
 }
 
@@ -203,7 +213,8 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                                      real_t* Jp_norm, 
                                                      real_t* F_o_Jp,
                                                      int* num_iters), 
-                                   void (*dtor)(void* context))
+                                   void (*dtor)(void* context),
+                                   newton_solver_strategy_t strategy)
 {
   ASSERT(num_local_values > 0);
   ASSERT(num_remote_values >= 0);
@@ -218,7 +229,7 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   solver->F_func = F_func;
   solver->Jv_func = NULL;
   solver->reset_func = reset_func;
-  solver->setup_func = setup_func;
+  solver->newton_setup_func = setup_func;
   solver->solve_func = solve_func;
   solver->dtor = dtor;
   solver->precond = NULL;
@@ -227,8 +238,7 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   solver->max_krylov_dim = -1;
   solver->max_restarts = -1;
 
-  // By default, we take a full Newton step.
-  solver->strategy = KIN_NONE;
+  solver->strategy = (strategy == NEWTON_FULL_STEP) ? KIN_NONE : KIN_LINESEARCH;
 
   // Set up KINSol and accessories.
   solver->kinsol = KINCreate();
@@ -272,6 +282,164 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   return solver;
 }
 
+newton_solver_t* picard_newton_solver_new(MPI_Comm comm,
+                                          int num_local_values,
+                                          int num_remote_values,
+                                          void* context,
+                                          int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
+                                          int (*reset_func)(void* context),
+                                          int (*setup_func)(void* context, 
+                                                            real_t t,
+                                                            real_t* U,
+                                                            real_t* F),
+                                          int (*solve_func)(void* context, 
+                                                            real_t* DF, 
+                                                            real_t t, 
+                                                            real_t* U,
+                                                            real_t* F,
+                                                            real_t* B,
+                                                            real_t res_norm_tol,
+                                                            real_t* p,
+                                                            real_t* Lp_norm, 
+                                                            real_t* F_o_Lp,
+                                                            int* num_iters), 
+                                          void (*dtor)(void* context),
+                                          int num_residuals)
+{
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
+  ASSERT(F_func != NULL);
+  ASSERT(reset_func != NULL);
+  ASSERT(setup_func != NULL);
+  ASSERT(solve_func != NULL);
+
+  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
+  solver->context = context;
+  solver->comm = comm;
+  solver->F_func = F_func;
+  solver->Jv_func = NULL;
+  solver->reset_func = reset_func;
+  solver->picard_setup_func = setup_func;
+  solver->solve_func = solve_func;
+  solver->dtor = dtor;
+  solver->precond = NULL;
+  solver->num_local_values = num_local_values;
+  solver->num_remote_values = num_remote_values;
+  solver->max_krylov_dim = -1;
+  solver->max_restarts = -1;
+
+  solver->strategy = KIN_PICARD;
+  KINSetMAA(solver->kinsol, num_residuals);
+
+  // Set up KINSol and accessories.
+  solver->kinsol = KINCreate();
+  KINSetUserData(solver->kinsol, solver);
+  solver->U = N_VNew(solver->comm, num_local_values);
+  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->U_scale = N_VNew(solver->comm, num_local_values);
+  solver->F_scale = N_VNew(solver->comm, num_local_values);
+  solver->constraints = N_VNew(solver->comm, num_local_values);
+  solver->status_message = NULL;
+  solver->t = 0.0;
+
+  KINInit(solver->kinsol, evaluate_F, solver->U);
+
+  // Set up our generalized solver.
+  KINMem kin_mem = solver->kinsol;
+  kin_mem->kin_linit = newton_linit;
+  kin_mem->kin_lsetup = picard_lsetup;
+  kin_mem->kin_lsolve = newton_lsolve;
+  kin_mem->kin_lfree = newton_lfree;
+  kin_mem->kin_setupNonNull = 1;  // need this for lsetup to be called
+  kin_mem->kin_inexact_ls = 1;    // need this for iterative solvers
+
+  // Set trivial scaling by default.
+  newton_solver_set_U_scale(solver, NULL);
+  newton_solver_set_F_scale(solver, NULL);
+
+  // Enable debugging diagnostics if logging permits.
+  FILE* info_stream = log_stream(LOG_DEBUG);
+  if (info_stream != NULL)
+  {
+    KINSetPrintLevel(solver->kinsol, 3);
+    KINSetInfoFile(solver->kinsol, info_stream);
+  }
+  else
+  {
+    KINSetPrintLevel(solver->kinsol, 0);
+    KINSetInfoFile(solver->kinsol, NULL);
+  }
+
+  return solver;
+}
+
+newton_solver_t* fixed_point_newton_solver_new(MPI_Comm comm,
+                                               int num_local_values,
+                                               int num_remote_values,
+                                               void* context,
+                                               int (*G_func)(void* context, real_t t, real_t* U, real_t* G),
+                                               void (*dtor)(void* context),
+                                               int num_residuals)
+{
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
+  ASSERT(G_func != NULL);
+
+  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
+  solver->context = context;
+  solver->comm = comm;
+  solver->F_func = G_func;
+  solver->Jv_func = NULL;
+  solver->dtor = dtor;
+  solver->precond = NULL;
+  solver->num_local_values = num_local_values;
+  solver->num_remote_values = num_remote_values;
+  solver->max_krylov_dim = -1;
+  solver->max_restarts = -1;
+
+  solver->strategy = KIN_FP;
+  KINSetMAA(solver->kinsol, num_residuals);
+
+  // Set up KINSol and accessories.
+  solver->kinsol = KINCreate();
+  KINSetUserData(solver->kinsol, solver);
+  solver->U = N_VNew(solver->comm, num_local_values);
+  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->U_scale = N_VNew(solver->comm, num_local_values);
+  solver->F_scale = N_VNew(solver->comm, num_local_values);
+  solver->constraints = N_VNew(solver->comm, num_local_values);
+  solver->status_message = NULL;
+  solver->reset_func = NULL;
+  solver->newton_setup_func = NULL;
+  solver->picard_setup_func = NULL;
+  solver->solve_func = NULL;
+  solver->t = 0.0;
+
+  KINInit(solver->kinsol, evaluate_F, solver->U);
+
+  // Do we need this?
+  KINSpbcg(solver->kinsol, 30);
+
+  // Set trivial scaling by default.
+  newton_solver_set_U_scale(solver, NULL);
+  newton_solver_set_F_scale(solver, NULL);
+
+  // Enable debugging diagnostics if logging permits.
+  FILE* info_stream = log_stream(LOG_DEBUG);
+  if (info_stream != NULL)
+  {
+    KINSetPrintLevel(solver->kinsol, 3);
+    KINSetInfoFile(solver->kinsol, info_stream);
+  }
+  else
+  {
+    KINSetPrintLevel(solver->kinsol, 0);
+    KINSetInfoFile(solver->kinsol, NULL);
+  }
+
+  return solver;
+}
+       
 // This is a KINSOL Jacobian-vector product function that wraps our own.
 static int jfnk_Jv_func_wrapper(N_Vector v, N_Vector Jv, N_Vector U,
                                 booleantype* new_U, void* context)
@@ -292,6 +460,7 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
                                         int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
                                         int (*Jv_func)(void* context, bool new_U, real_t t, real_t* U, real_t* v, real_t* Jv),
                                         void (*dtor)(void* context),
+                                        newton_solver_strategy_t strategy,
                                         newton_pc_t* precond,
                                         jfnk_newton_t solver_type,
                                         int max_krylov_dim, 
@@ -319,8 +488,7 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
   solver->max_krylov_dim = max_krylov_dim;
   solver->max_restarts = max_restarts;
 
-  // By default, we take a full Newton step.
-  solver->strategy = KIN_NONE;
+  solver->strategy = (strategy == NEWTON_FULL_STEP) ? KIN_NONE : KIN_LINESEARCH;
 
   // Set up KINSol and accessories.
   solver->kinsol = KINCreate();
@@ -332,7 +500,8 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
   solver->constraints = N_VNew(solver->comm, num_local_values);
   solver->status_message = NULL;
   solver->reset_func = NULL;
-  solver->setup_func = NULL;
+  solver->newton_setup_func = NULL;
+  solver->picard_setup_func = NULL;
   solver->solve_func = NULL;
   solver->t = 0.0;
 
@@ -387,6 +556,29 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
   return solver;
 }
 
+newton_solver_t* picard_jfnk_newton_solver_new(MPI_Comm comm,
+                                               int num_local_values,
+                                               int num_remote_values,
+                                               void* context,
+                                               int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
+                                               int (*Lv_func)(void* context, bool new_U, real_t t, real_t* U, real_t* v, real_t* Jv),
+                                               void (*dtor)(void* context),
+                                               newton_pc_t* precond,
+                                               jfnk_newton_t solver_type,
+                                               int max_krylov_dim,
+                                               int max_restarts,
+                                               int num_residuals)
+{
+  newton_solver_t* solver = jfnk_newton_solver_new(comm, num_local_values, 
+                                                   num_remote_values, context, 
+                                                   F_func, Lv_func, dtor, NEWTON_FULL_STEP, 
+                                                   precond, solver_type, 
+                                                   max_krylov_dim, max_restarts);
+  solver->strategy = KIN_PICARD;
+  KINSetMAA(solver->kinsol, num_residuals);
+  return solver;
+}
+
 void newton_solver_free(newton_solver_t* solver)
 {
   // Kill the preconditioner stuff.
@@ -419,36 +611,6 @@ void* newton_solver_context(newton_solver_t* solver)
 int newton_solver_num_equations(newton_solver_t* solver)
 {
   return solver->num_local_values;
-}
-
-void newton_solver_use_full_step(newton_solver_t* solver)
-{
-  log_debug("newton_solver: using full Newton step.");
-  solver->strategy = KIN_NONE;
-}
-
-void newton_solver_use_line_search(newton_solver_t* solver)
-{
-  log_debug("newton_solver: using line search.");
-  solver->strategy = KIN_LINESEARCH;
-}
-
-void newton_solver_use_fixed_point(newton_solver_t* solver, 
-                                   int num_residuals)
-{
-  ASSERT(num_residuals >= 0);
-  log_debug("newton_solver: using fixed point Anderson acceleration (%d residuals).", num_residuals);
-  solver->strategy = KIN_FP;
-  KINSetMAA(solver->kinsol, num_residuals);
-}
-
-void newton_solver_use_picard(newton_solver_t* solver, 
-                              int num_residuals)
-{
-  ASSERT(num_residuals >= 0);
-  log_debug("newton_solver: using Picard Anderson acceleration (%d residuals).", num_residuals);
-  solver->strategy = KIN_PICARD;
-  KINSetMAA(solver->kinsol, num_residuals);
 }
 
 void newton_solver_set_U_scale(newton_solver_t* solver, 
@@ -742,18 +904,36 @@ static int ink_reset(void* context)
   return 0;
 }
 
-static int ink_setup(void* context, 
-                     newton_solver_strategy_t strategy,
-                     real_t t,
-                     real_t* U,
-                     real_t* F)
+static int ink_newton_setup(void* context, 
+                            newton_solver_strategy_t strategy,
+                            real_t t,
+                            real_t* U,
+                            real_t* F)
 {
   START_FUNCTION_TIMER();
   ink_newton_t* ink = context;
-  if ((strategy == NEWTON_FULL_STEP) || (strategy == NEWTON_LINE_SEARCH))
-    log_debug("ink_bdf_ode_integrator: Calculating J = dF/dU.");
-  else if (strategy == NEWTON_PICARD)
-    log_debug("ink_bdf_ode_integrator: Calculating L ~ dF/dU.");
+  log_debug("ink_newton_solver: Calculating J = dF/dU.");
+
+  // Compute the matrix.
+  int status = ink->J_func(ink->context, t, U, F, ink->J);
+  if (status != 0)
+    return status;
+
+  // Use this matrix as the operator in our solver.
+  krylov_solver_set_operator(ink->solver, ink->J);
+
+  STOP_FUNCTION_TIMER();
+  return 0;
+}
+
+static int ink_picard_setup(void* context, 
+                            real_t t,
+                            real_t* U,
+                            real_t* F)
+{
+  START_FUNCTION_TIMER();
+  ink_newton_t* ink = context;
+  log_debug("ink_picard_newton_solver: Calculating L.");
 
   // Compute the matrix.
   int status = ink->J_func(ink->context, t, U, F, ink->J);
@@ -864,7 +1044,8 @@ newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
                                        void* context, 
                                        int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
                                        int (*J_func)(void* context, real_t t, real_t* U, real_t* F, krylov_matrix_t* J),
-                                       void (*dtor)(void* context))
+                                       void (*dtor)(void* context),
+                                       newton_solver_strategy_t strategy)
 {
   ink_newton_t* ink = polymec_malloc(sizeof(ink_newton_t));
   ink->comm = comm;
@@ -886,7 +1067,43 @@ newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
   int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));
   newton_solver_t* N = newton_solver_new(comm, num_local_values, 0,
                                          ink, ink_F, ink_reset, 
-                                         ink_setup, ink_solve, ink_dtor);
+                                         ink_newton_setup, ink_solve, ink_dtor,
+                                         strategy);
+
+  return N;
+}
+
+newton_solver_t* ink_picard_newton_solver_new(MPI_Comm comm,
+                                              krylov_factory_t* factory,
+                                              matrix_sparsity_t* L_sparsity,
+                                              void* context, 
+                                              int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
+                                              int (*L_func)(void* context, real_t t, real_t* U, real_t* F, krylov_matrix_t* J),
+                                              void (*dtor)(void* context),
+                                              int num_residuals)
+{
+  ink_newton_t* ink = polymec_malloc(sizeof(ink_newton_t));
+  ink->comm = comm;
+  ink->context = context;
+  ink->F_func = F_func;
+  ink->J_func = L_func;
+  ink->dtor = dtor;
+  ink->factory = factory;
+  ink->sparsity = L_sparsity;
+  ink->solver = krylov_factory_gmres_solver(ink->factory, comm, 30);
+  ink->pc = NULL;
+  ink->J = NULL;
+  ink->B = NULL;
+  ink->X = NULL;
+  ink->DF = NULL;
+  ink->F = NULL;
+  ink->block_size = 1;
+
+  int num_local_values = (int)(matrix_sparsity_num_local_rows(L_sparsity));
+  newton_solver_t* N = picard_newton_solver_new(comm, num_local_values, 0,
+                                                ink, ink_F, ink_reset, 
+                                                ink_picard_setup, ink_solve, ink_dtor,
+                                                num_residuals);
 
   return N;
 }

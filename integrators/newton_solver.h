@@ -23,9 +23,7 @@ typedef struct newton_solver_t newton_solver_t;
 typedef enum
 {
   NEWTON_FULL_STEP,   // Full Newton step
-  NEWTON_LINE_SEARCH, // Line search
-  NEWTON_PICARD,      // Picard iteration
-  NEWTON_FP           // Fixed-point iteration
+  NEWTON_LINE_SEARCH  // Line search
 } newton_solver_strategy_t; 
 
 // Creates a generic Newton solver that uses the given methods to define how it 
@@ -38,11 +36,7 @@ typedef enum
 //                 reflect the the state of the system (according to inexact-Newton-like methods).
 //                 Arguments are:
 //                 - context: A pointer to the context object that stores the state of the solver.
-//                 - strategy: The type of iteration being used to solve the system. This affects
-//                             what is meant by "J": In the case of full Newton step and line 
-//                             search, J = dF/dU. In the case of Picard iteration, J means the 
-//                             linearization L of J. This function is never called in the case
-//                             of fixed point iteration.
+//                 - strategy: The globalization strategy (full step vs line search).
 //                 - t: The current time.
 //                 - U: The current solution vector U.
 //                 - F: The current system function (residual) vector F.
@@ -93,8 +87,72 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                                      real_t* Jp_norm, 
                                                      real_t* F_o_Jp,
                                                      int* num_iters), 
-                                   void (*dtor)(void* context));
+                                   void (*dtor)(void* context),
+                                   newton_solver_strategy_t strategy);
 
+// Creates a generic Picard solver that uses the given methods to define how it 
+// solves the linear systems that underlie the Newton iteration. These methods 
+// are:
+// * F_func -- Used to compute the system function F(t, U) = L*U - N(t, U).
+// * reset_func -- Used to reset the state of the solver to a different state.
+// * setup_func -- Used to calculate and store a representation of the Picard matrix
+//                 L. This operator is computed whenever the integrator deems it necessary to 
+//                 reflect the the state of the system (according to inexact-Newton-like methods).
+//                 Arguments are:
+//                 - context: A pointer to the context object that stores the state of the solver.
+//                 - t: The current time.
+//                 - U: The current solution vector U.
+//                 - F: The current system function (residual) vector F.
+//                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
+//                 for an unrecoverable error.
+// * solve_func -- Used to solve the linear system L * p = N. Arguments are:
+//                 - context: A pointer to the context object that stores the state of the solver.
+//                 - DF: A vector containing the scaling vector DF.
+//                 - t: The current time.
+//                 - U: The current solution vector U.
+//                 - F: The current system function (residual) vector F.
+//                 - B: The right hand side vector B = N for the system at time t.
+//                 - res_norm_tol: The tolerance against which the residual 2-norm ||N-L*p||_2 
+//                                 will be measured.
+//                 - p: An array containing the solution to the linear system, which is the 
+//                      increment p = (U(n) - U(n-1)). On input it contains an initial guess 
+//                      for the increment; on output it contains the actual increment.
+//                 - Lp_norm: A pointer that will store the scaled L2 norm of the product Lp:
+//                            ||DF*L*p||_2. The pointer can be NULL, in which case the norm 
+//                            obviously need not be computed.
+//                 - F_o_Lp: A pointer that will store the scaled dot product of F with Lp:
+//                           (DF*F) o (DF*L*p). The pointer can be NULL, in which case the norm
+//                            obviously need not be computed.
+//                 - num_iters: A pointer that will store the number of iterations needed to solve
+//                              the linear system.
+//                 Should return 0 on success, a positive value for a recoverable error, and a negative value 
+//                 for an unrecoverable error.
+// * dtor -- Used to destroy the context pointer.
+// num_residuals is the number of residuals stored for the Anderson acceleration algorithm.
+newton_solver_t* picard_newton_solver_new(MPI_Comm comm,
+                                          int num_local_values,
+                                          int num_remote_values,
+                                          void* context,
+                                          int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
+                                          int (*reset_func)(void* context),
+                                          int (*setup_func)(void* context, 
+                                                            real_t t,
+                                                            real_t* U,
+                                                            real_t* F),
+                                          int (*solve_func)(void* context, 
+                                                            real_t* DF, 
+                                                            real_t t, 
+                                                            real_t* U,
+                                                            real_t* F,
+                                                            real_t* B,
+                                                            real_t res_norm_tol,
+                                                            real_t* p,
+                                                            real_t* Lp_norm, 
+                                                            real_t* F_o_Lp,
+                                                            int* num_iters), 
+                                          void (*dtor)(void* context),
+                                          int num_residuals);
+       
 // This type represents the different Krylov methods that can be used in 
 // Jacobian-Free Newton-Krylov (JFNK) implementations of Newton solvers.
 typedef enum 
@@ -105,11 +163,22 @@ typedef enum
   NEWTON_TFQMR     // Transpose-Free QMR Krylov solver
 } jfnk_newton_t;
 
+// Creates a Newton solver that uses a fixed-point iteration to solve the system G(U) = U.
+// The function G_func computes the system function G(U). num_residuals is the number of 
+// residuals stored for the Anderson acceleration algorithm.
+newton_solver_t* fixed_point_newton_solver_new(MPI_Comm comm,
+                                               int num_local_values,
+                                               int num_remote_values,
+                                               void* context,
+                                               int (*G_func)(void* context, real_t t, real_t* U, real_t* G),
+                                               void (*dtor)(void* context),
+                                               int num_residuals);
+
 // Creates a Newton solver that uses a Jacobian-Free Newton-Krylov (JFNK) 
 // method with a given maximum subspace dimension of max_krylov_dim. If the 
 // solver_type is NEWTON_GMRES or NEWTON_FGMRES, the maximum number of restarts 
 // is given by max_restarts--otherwise that parameter is ignored. 
-// The function F_func computes the system function F(U) = R. The function Jv_func, 
+// The function F_func computes the system function F(t, U) = R. The function Jv_func, 
 // if provided, computes the product of the Jacobian matrix J with a vector v at time t, 
 // given a solution U, and the flag new_U set to true if the solution has been updated 
 // since the last call (and false if not).
@@ -120,10 +189,32 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
                                         int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
                                         int (*Jv_func)(void* context, bool new_U, real_t t, real_t* U, real_t* v, real_t* Jv),
                                         void (*dtor)(void* context),
+                                        newton_solver_strategy_t strategy,
                                         newton_pc_t* precond,
                                         jfnk_newton_t solver_type,
                                         int max_krylov_dim,
                                         int max_restarts);
+
+// Creates a Newton solver that uses Picard iteration to solve the system 
+// F(t, U) = L*U - N(t, U), where L is a constant nonsingular matrix and N is a 
+// nonlinear function of U. The function F_func computes the system function F(t, U).
+// The function Lv_func, if provided, computes the product of the nonsingular matrix L 
+// with a vector v at time t, given a solution U, and the flag new_U set to true if the 
+// solution has been updated since the last call (and false if not). The Jacobian-Free-
+// Newton-Krylov machinery is used to solve the system with L in place of the Jacobian.
+// num_residuals is the number of residuals stored for the Anderson acceleration algorithm.
+newton_solver_t* picard_jfnk_newton_solver_new(MPI_Comm comm,
+                                               int num_local_values,
+                                               int num_remote_values,
+                                               void* context,
+                                               int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
+                                               int (*Lv_func)(void* context, bool new_U, real_t t, real_t* U, real_t* v, real_t* Jv),
+                                               void (*dtor)(void* context),
+                                               newton_pc_t* precond,
+                                               jfnk_newton_t solver_type,
+                                               int max_krylov_dim,
+                                               int max_restarts,
+                                               int num_residuals);
 
 // This function creates a Newton solver that uses an inexact Newton-Krylov 
 // method to solve the underlying linearized equations. This method constructs 
@@ -134,7 +225,7 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
 // integrator assumes control of all these objects.
 // The function F_func computes the system function, much as it does for 
 // jfnk_newton_solver_new above. The required function J_func computes the 
-// elements of the Jacobian/Picard matrix using t and U. The matrix must also 
+// elements of the Jacobian matrix using t and U. The matrix must also 
 // be assembled within this function.
 newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
                                        krylov_factory_t* factory,
@@ -142,7 +233,27 @@ newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
                                        void* context, 
                                        int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
                                        int (*J_func)(void* context, real_t t, real_t* U, real_t* F, krylov_matrix_t* J),
-                                       void (*dtor)(void* context));
+                                       void (*dtor)(void* context),
+                                       newton_solver_strategy_t strategy);
+
+// This function creates a Picard solver that uses an inexact Newton-Krylov 
+// method to solve the system F(U) = L*U - N(U), where L is a constant nonsingular 
+// matrix and N is a nonlinear function of U. This method constructs a full matrix for L.
+// The given Krylov factory is used to create solver, preconditioner, matrix and vector 
+// objects for solving the underlying linear system, and the sparsity pattern is used for 
+// the creation of the matrix. The integrator assumes control of all these objects.
+// The function F_func computes the system function as in ink_newton_solver_new above.
+// The required function L_func computes the elements of the nonsingular Picard (L) 
+// matrix using t and U. The matrix must also be assembled within this function.
+// num_residuals is the number of residuals stored for the Anderson acceleration algorithm.
+newton_solver_t* ink_picard_newton_solver_new(MPI_Comm comm,
+                                              krylov_factory_t* factory,
+                                              matrix_sparsity_t* L_sparsity,
+                                              void* context, 
+                                              int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
+                                              int (*L_func)(void* context, real_t t, real_t* U, real_t* F, krylov_matrix_t* J),
+                                              void (*dtor)(void* context),
+                                              int num_residuals);
 
 // Frees a solver.
 void newton_solver_free(newton_solver_t* solver);
@@ -152,26 +263,6 @@ void* newton_solver_context(newton_solver_t* solver);
 
 // Returns the number of (local) equations in the nonlinear system.
 int newton_solver_num_equations(newton_solver_t* solver);
-
-// Call this function to have the Newton solver take a full Newton step on 
-// the next solve.
-void newton_solver_use_full_step(newton_solver_t* solver);
-
-// Call this function to have the Newton solver use a line search to determine 
-// the Newton step size on the next solve.
-void newton_solver_use_line_search(newton_solver_t* solver);
-
-// Call this function to have the Newton solver use a fixed point iteration 
-// with Anderson acceleration on the next solve. The given (non-negative) 
-// number of residuals will be stored and used in the acceleration.
-void newton_solver_use_fixed_point(newton_solver_t* solver, 
-                                   int num_residuals);
-
-// Call this function to have the Newton solver use a Picard iteration with 
-// Anderson acceleration on the next solve. The given (non-negative) number 
-// of residuals will be stored and used in the acceleration.
-void newton_solver_use_picard(newton_solver_t* solver, 
-                              int num_residuals);
 
 // Sets the scaling coefficients for the solution vector U such that DU * U 
 // all have roughly the same magnitude as F(x) approaches 0, where DU is 

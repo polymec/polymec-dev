@@ -481,7 +481,7 @@ static newton_solver_t* jfnk_foodweb_solver_new(foodweb_t* data, newton_pc_t* pr
   // Set up a nonlinear solver using GMRES with a full Newton step.
   newton_solver_t* solver = jfnk_newton_solver_new(MPI_COMM_SELF, NEQ, 0, data,
                                                    foodweb_func, NULL, foodweb_dtor, 
-                                                   precond, NEWTON_GMRES, 15, 2);
+                                                   NEWTON_FULL_STEP, precond, NEWTON_GMRES, 15, 2);
 
   // Enforce positivity on all components.
   real_t constraints[NEQ];
@@ -537,7 +537,7 @@ newton_solver_t* ink_foodweb_solver_new(krylov_factory_t* factory)
   newton_solver_t* solver = ink_newton_solver_new(MPI_COMM_SELF, factory, 
                                                   J_sparsity, data,
                                                   foodweb_func, foodweb_J, 
-                                                  foodweb_dtor);
+                                                  foodweb_dtor, NEWTON_FULL_STEP);
 
   // Enforce positivity on all components.
   real_t constraints[NEQ];

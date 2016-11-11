@@ -387,7 +387,8 @@ ode_integrator_t* jfnk_euler_ode_integrator_new(MPI_Comm comm,
 
   // Set up the Newton solver.
   integ->newton = jfnk_newton_solver_new(comm, num_local_values, num_remote_values,
-                                         integ, evaluate_residual, NULL, NULL, precond, 
+                                         integ, evaluate_residual, NULL, NULL, 
+                                         NEWTON_FULL_STEP, precond, 
                                          solver_type, max_krylov_dim, 5);
 
   integ->observers = ptr_array_new();
