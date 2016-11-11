@@ -67,11 +67,7 @@ polymec_timer_t* polymec_timer_get(const char* name)
     // Do we need timers?
     options_t* options = options_argv();
     char* timers_on = options_value(options, "timers");
-    if ((timers_on != NULL) && 
-        ((strcmp(timers_on, "1") == 0) || 
-         (string_casecmp(timers_on, "yes") == 0) ||
-         (string_casecmp(timers_on, "on") == 0) ||
-         (string_casecmp(timers_on, "true") == 0)))
+    if ((timers_on != NULL) && string_as_boolean(timers_on))
     {
       use_timers = true;
       log_debug("polymec: Enabled timers.");
@@ -233,7 +229,6 @@ void polymec_timer_report()
       // Print a header.
       fprintf(report_file, "%s%*s%s\n", "Name:", 49-5, " ", "Time:     Percent:     Count:");
       fprintf(report_file, "-----------------------------------------------------------------------------------\n");
-
 
       polymec_timer_t* t = all_timers->data[0];
       report_timer(t, 0, report_file);
