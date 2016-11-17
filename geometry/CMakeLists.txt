@@ -10,6 +10,7 @@ add_polymec_library(polymec_geometry coord_mapping.c
                     intersection_sp_func.c union_sp_func.c difference_sp_func.c 
                     scaled_sp_func.c rect_prism_sp_func.c 
                     giftwrap_hull.c polygon2.c polygon.c tetrahedron.c 
+                    polyhedron.c
                     ${MESH_GENERATION_SOURCES} cubic_lattice.c
                     symmetry_1d.c)
 
