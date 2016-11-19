@@ -10,11 +10,12 @@ debug      = not-set
 shared     = not-set
 machine    = not-set
 travis     = not-set
+ide        = not-set
 CC         = not-set
 CXX        = not-set
 FC         = not-set
 
-# This proxies everything to the builddir cmake.
+# This dispatches everything to the builddir cmake.
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
@@ -99,12 +100,6 @@ else
   endif
 endif
 
-# Code coverage testing.
-ifeq ($(coverage), 1)
-  BUILDDIR := ${BUILDDIR}-Coverage
-  CONFIG_FLAGS += -DTEST_COVERAGE=1
-endif
-
 # Installation prefix.
 ifneq ($(prefix), not-set)
   CONFIG_FLAGS += -DCMAKE_INSTALL_PREFIX:PATH=$(prefix)
@@ -125,6 +120,11 @@ endif
 # Travis-CI-specific settings.
 ifeq ($(travis), 1)
   CONFIG_FLAGS += -DTRAVIS_CI=1
+endif
+
+# Integrated Development Environment (IDE)?
+ifeq ($(ide), codeblocks)
+  CONFIG_FLAGS += -G "CodeBlocks - Unix Makefiles"
 endif
 
 define run-config
