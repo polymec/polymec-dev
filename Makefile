@@ -122,12 +122,6 @@ else
   endif
 endif
 
-# Address sanitizer.
-ifeq ($(sanitize), 1)
-  BUILDDIR := ${BUILDDIR}-AddressSanitizer
-  CONFIG_FLAGS += -DADDRESS_SANITIZER=1
-endif
-
 # Travis-CI-specific settings.
 ifeq ($(travis), 1)
   CONFIG_FLAGS += -DTRAVIS_CI=1
