@@ -125,6 +125,10 @@ endif
 # Integrated Development Environment (IDE)?
 ifeq ($(ide), codeblocks)
   CONFIG_FLAGS += -G "CodeBlocks - Unix Makefiles"
+else
+  ifeq ($(ide), xcode)
+    CONFIG_FLAGS += -GXcode
+  endif
 endif
 
 define run-config

@@ -55,6 +55,10 @@ Available options are:
                     In a perfect world we wouldn't need this, but we do 
                     (default: 0).
 
+    ide=codeblocks,xcode  <-- Used to generate project files for an integrated
+                              development environment (IDE) instead of UNIX 
+                              makefiles (default: UNIX makefiles).
+
     Compilers can also be selected with CC, CXX, FC. When MPI is enabled, 
     these compilers default to mpicc, mpicxx, and mpif90, respectively. 
     Otherwise their respective defaults are cc, c++, and gfortran.
