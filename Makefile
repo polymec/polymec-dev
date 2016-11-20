@@ -128,6 +128,22 @@ ifeq ($(ide), codeblocks)
 else
   ifeq ($(ide), xcode)
     CONFIG_FLAGS += -GXcode
+  else
+    ifeq ($(ide), codelite)
+      CONFIG_FLAGS += -G "CodeLite - Unix Makefiles"
+    else
+      ifeq ($(ide), eclipse)
+        CONFIG_FLAGS += -G "Eclipse CDT4 - Unix Makefiles"
+      else
+        ifeq ($(ide), kate)
+          CONFIG_FLAGS += -GKate 
+        else
+          ifeq ($(ide), sublime)
+            CONFIG_FLAGS += -G "Sublime Text 2 - Unix Makefiles" 
+          endif
+        endif
+      endif
+    endif
   endif
 endif
 
