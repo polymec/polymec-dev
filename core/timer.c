@@ -240,8 +240,12 @@ static void* polymec_timer_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_chars(bytes, name_len, name, offset);
   name[name_len] = '\0';
 
-  // Create the timer.
-  polymec_timer_t* timer = polymec_timer_new(name);
+  // Create the timer. Avoid using polymec_timer_new, as that constructor
+  // registers stuff in the local process's list of resources.
+  polymec_timer_t* timer = polymec_malloc(sizeof(polymec_timer_t));
+  timer->name = string_dup(name);
+  timer->parent = NULL;
+  timer->children = ptr_array_new();
   ptr_array_resize(timer->children, num_children);
 
   // Read in the timing data.
@@ -347,16 +351,18 @@ void polymec_timer_report()
 
         // Write out a textual representation of the timer.
         if (mpi_nproc > 1)
-          fprintf(report_file, "\nRank %d:\n", mpi_rank); 
+        {
+          fprintf(report_file, "\n------------\n"); 
+          fprintf(report_file, "Rank %6d:\n", p); 
+          fprintf(report_file, "------------\n"); 
+        }
         report_timer(timer, timer, 0, report_file);
-        if (mpi_nproc > 1)
-          fprintf(report_file, "\n");
 
         // Destroy any off-process timer data.
         if (p != mpi_rank)
           polymec_timer_free(timer);
       }
-      else
+      else if (mpi_rank == p)
       {
         // We pack up our local timer into a send buffer. 
         serializer_t* s = timer_serializer();
