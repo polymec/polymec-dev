@@ -1,3 +1,13 @@
+Sat Nov 19 20:21:58 PST 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 1.3.2
+    * Added model_get_vtable and model_set_vtable to allow vtable overrides within a model instance.
+    * Added functions for stencil <-> neighbor_pairing conversions, etc.
+    * Fixed several typos and oversights in documentation.
+    * Cleaned up the newton_solver interface, breaking out fixed point iteration and Picard iteration into separate constructors.
+    * Added a new polyhedron class.
+    * Added support for generating project files for several programming IDEs (Xcode, CodeBlocks, CodeLite, Kate, Sublime).
+    * Timer reports now contain timing data for all MPI ranks(!).
+
 Fri Oct 28 17:49:38 PDT 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 1.3.1
     * Added support for a minimum time step in models.

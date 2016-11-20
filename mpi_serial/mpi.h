@@ -39,9 +39,10 @@
 #define MPI_INT16_T         10             
 #define MPI_INT32_T         11             
 #define MPI_INT64_T         12
-#define MPI_UINT16_T        13             
-#define MPI_UINT32_T        14             
-#define MPI_UINT64_T        15
+#define MPI_UINT8_T         13 
+#define MPI_UINT16_T        14             
+#define MPI_UINT32_T        15             
+#define MPI_UINT64_T        16
 
 #define MPI_SUM             0              
 #define MPI_MIN             1              
@@ -58,6 +59,7 @@
 #define MPI_SUCCESS         0
 
 #define MPI_IN_PLACE        NULL
+#define MPI_STATUS_IGNORE   NULL
 
 typedef void MPI_User_function(void *invec, void *inoutvec, int* len, MPI_Datatype *datatype);
 
