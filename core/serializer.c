@@ -183,6 +183,20 @@ void byte_array_write_long_longs(byte_array_t* byte_stream, size_t n, long long*
   *offset += sizeof(long long) * n;
 }
 
+void byte_array_read_unsigned_long_longs(byte_array_t* byte_stream, size_t n, unsigned long long* data, size_t* offset)
+{
+  ASSERT(*offset <= byte_stream->size - sizeof(unsigned long long) * n);
+  memcpy(data, &byte_stream->data[*offset], sizeof(unsigned long long) * n);
+  *offset += n * sizeof(unsigned long long);
+}
+
+void byte_array_write_unsigned_long_longs(byte_array_t* byte_stream, size_t n, unsigned long long* data, size_t* offset)
+{
+  byte_array_resize(byte_stream, *offset + n * sizeof(unsigned long long));
+  memcpy(&byte_stream->data[*offset], data, sizeof(unsigned long long) * n);
+  *offset += sizeof(unsigned long long) * n;
+}
+
 void byte_array_read_index_ts(byte_array_t* byte_stream, size_t n, index_t* data, size_t* offset)
 {
   ASSERT(*offset <= byte_stream->size - sizeof(index_t) * n);
@@ -239,6 +253,19 @@ void byte_array_write_real_ts(byte_array_t* byte_stream, size_t n, real_t* data,
   *offset += sizeof(real_t) * n;
 }
 
+void byte_array_read_doubles(byte_array_t* byte_stream, size_t n, double* data, size_t* offset)
+{
+  ASSERT(*offset <= byte_stream->size - sizeof(double) * n);
+  memcpy(data, &byte_stream->data[*offset], sizeof(double) * n);
+  *offset += n * sizeof(double);
+}
+
+void byte_array_write_doubles(byte_array_t* byte_stream, size_t n, double* data, size_t* offset)
+{
+  byte_array_resize(byte_stream, *offset + n * sizeof(double));
+  memcpy(&byte_stream->data[*offset], data, sizeof(double) * n);
+  *offset += sizeof(double) * n;
+}
 
 void byte_array_read_points(byte_array_t* byte_stream, size_t n, point_t* data, size_t* offset)
 {

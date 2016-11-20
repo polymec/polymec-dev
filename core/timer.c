@@ -9,6 +9,7 @@
 #include "core/options.h"
 #include "core/timer.h"
 #include "core/array.h"
+#include "core/serializer.h"
 
 struct polymec_timer_t 
 {
@@ -25,6 +26,7 @@ struct polymec_timer_t
 
 // Globals.
 static int mpi_rank = -1;
+static int mpi_nproc = -1;
 static bool use_timers = false;
 static ptr_array_t* all_timers = NULL;
 static polymec_timer_t* current_timer = NULL;
@@ -79,8 +81,9 @@ polymec_timer_t* polymec_timer_get(const char* name)
       else
         strcpy(timer_report_file, "timer_report.txt");
 
-      // Record our MPI rank.
+      // Record our MPI rank and number of processes.
       MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+      MPI_Comm_size(MPI_COMM_WORLD, &mpi_nproc);
 
       // Get threading information.
     }
@@ -174,9 +177,11 @@ void polymec_timer_stop_all()
   }
 }
 
-static void report_timer(polymec_timer_t* t, int indentation, FILE* file)
+static void report_timer(polymec_timer_t* root, 
+                         polymec_timer_t* t, 
+                         int indentation, 
+                         FILE* file)
 {
-  polymec_timer_t* root = all_timers->data[0];
   double percent = (double)(100.0 * t->accum_time / root->accum_time);
   char call_string[9];
   if (t->count > 1)
@@ -190,7 +195,7 @@ static void report_timer(polymec_timer_t* t, int indentation, FILE* file)
   for (size_t i = 0; i < num_children; ++i)
   {
     polymec_timer_t* child = t->children->data[i];
-    report_timer(child, indentation+1, file);
+    report_timer(root, child, indentation+1, file);
   }
 }
 
@@ -206,18 +211,100 @@ static void polymec_timer_finalize()
   }
 }
 
+static size_t polymec_timer_byte_size(void* obj)
+{
+  polymec_timer_t* timer = obj;
+  
+  size_t byte_size = 2 * sizeof(size_t) +                  // metadata
+                     sizeof(char) * strlen(timer->name) +  // name
+                     sizeof(double) * 2 +                  // timings
+                     sizeof(unsigned long long);           // counts
+
+  // Find the byte size of the children.
+  for (size_t i = 0; i < timer->children->size; ++i)
+    byte_size += polymec_timer_byte_size(timer->children->data[i]);
+
+  return byte_size;
+}
+
+static void* polymec_timer_byte_read(byte_array_t* bytes, size_t* offset)
+{
+  // Read in the timer's name length and number of children.
+  size_t name_len;
+  byte_array_read_size_ts(bytes, 1, &name_len, offset);
+  size_t num_children;
+  byte_array_read_size_ts(bytes, 1, &num_children, offset);
+
+  // Read in the timer's name.
+  char name[name_len+1];
+  byte_array_read_chars(bytes, name_len, name, offset);
+  name[name_len] = '\0';
+
+  // Create the timer.
+  polymec_timer_t* timer = polymec_timer_new(name);
+  ptr_array_resize(timer->children, num_children);
+
+  // Read in the timing data.
+  byte_array_read_doubles(bytes, 1, &timer->accum_time, offset);
+  byte_array_read_doubles(bytes, 1, &timer->timestamp, offset);
+  byte_array_read_unsigned_long_longs(bytes, 1, &timer->count, offset);
+
+  // Read in all the children and set their parent.
+  for (size_t i = 0; i < timer->children->size; ++i)
+  {
+    polymec_timer_t* child = polymec_timer_byte_read(bytes, offset);
+    child->parent = timer;
+    timer->children->data[i] = child;
+  }
+  
+  return timer;
+}
+
+static void polymec_timer_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
+{
+  polymec_timer_t* timer = obj;
+
+  // Write the timer's name length and number of children.
+  size_t name_len = strlen(timer->name);
+  byte_array_write_size_ts(bytes, 1, &name_len, offset);
+  byte_array_write_size_ts(bytes, 1, &timer->children->size, offset);
+
+  // Write the timer's name.
+  byte_array_write_chars(bytes, name_len, timer->name, offset);
+
+  // Write the timing data.
+  byte_array_write_doubles(bytes, 1, &timer->accum_time, offset);
+  byte_array_write_doubles(bytes, 1, &timer->timestamp, offset);
+  byte_array_write_unsigned_long_longs(bytes, 1, &timer->count, offset);
+
+  // Write the children's data.
+  for (size_t i = 0; i < timer->children->size; ++i)
+    polymec_timer_byte_write(timer->children->data[i], bytes, offset);
+}
+
+static serializer_t* timer_serializer()
+{
+  return serializer_new("timer", 
+                        polymec_timer_byte_size, 
+                        polymec_timer_byte_read, 
+                        polymec_timer_byte_write, 
+                        NULL);
+}
+
 void polymec_timer_report()
 {
   if (use_timers)
   {
     log_debug("polymec: writing timer report file '%s'.", timer_report_file);
+
+    FILE* report_file = NULL;
     if (mpi_rank == 0)
     {
-      // This is currently just a stupid enumeration to test that reporting 
-      // is properly triggered.
-      FILE* report_file = fopen(timer_report_file, "w");
+      report_file = fopen(timer_report_file, "w");
       if (report_file == NULL)
         polymec_error("Could not open file '%s' for writing!", timer_report_file);
+
+      // Print a header for the timer report.
       fprintf(report_file, "-----------------------------------------------------------------------------------\n");
       fprintf(report_file, "                                   Timer summary:\n");
       fprintf(report_file, "-----------------------------------------------------------------------------------\n");
@@ -225,15 +312,70 @@ void polymec_timer_report()
       time_t invoc_time = polymec_invocation_time();
       fprintf(report_file, "At: %s", ctime(&invoc_time));
       fprintf(report_file, "-----------------------------------------------------------------------------------\n");
-
-      // Print a header.
       fprintf(report_file, "%s%*s%s\n", "Name:", 49-5, " ", "Time:     Percent:     Count:");
       fprintf(report_file, "-----------------------------------------------------------------------------------\n");
-
-      polymec_timer_t* t = all_timers->data[0];
-      report_timer(t, 0, report_file);
-      fclose(report_file);
     }
+
+    for (int p = 0; p < mpi_nproc; ++p)
+    {
+      if (mpi_rank == 0)
+      {
+        // Get timer information for this rank.
+        polymec_timer_t* timer = NULL;
+        if (p == mpi_rank)
+          timer = all_timers->data[0]; // timer data is available locally.
+        else
+        {
+          // We receive timer data from rank p.
+          int recv_size;
+          MPI_Recv(&recv_size, 1, MPI_INT, p, p, MPI_COMM_WORLD,
+                   MPI_STATUS_IGNORE);
+          byte_array_t* bytes = byte_array_new();
+          byte_array_resize(bytes, (size_t)recv_size);
+          MPI_Recv(bytes->data, recv_size, MPI_UINT8_T, p, p, MPI_COMM_WORLD,
+                   MPI_STATUS_IGNORE);
+
+          // Unpack it.
+          serializer_t* s = timer_serializer();
+          size_t offset = 0;
+          timer = serializer_read(s, bytes, &offset);
+
+          // Clean up.
+          s = NULL;
+          byte_array_free(bytes);
+        } 
+
+        // Write out a textual representation of the timer.
+        if (mpi_nproc > 1)
+          fprintf(report_file, "\nRank %d:\n", mpi_rank); 
+        report_timer(timer, timer, 0, report_file);
+        if (mpi_nproc > 1)
+          fprintf(report_file, "\n");
+
+        // Destroy any off-process timer data.
+        if (p != mpi_rank)
+          polymec_timer_free(timer);
+      }
+      else
+      {
+        // We pack up our local timer into a send buffer. 
+        serializer_t* s = timer_serializer();
+        byte_array_t* bytes = byte_array_new();
+        size_t offset = 0;
+        serializer_write(s, all_timers->data[0], bytes, &offset);
+        s = NULL;
+
+        // Send the data to rank 0.
+        int send_size = (int)bytes->size;
+        MPI_Send(&send_size, 1, MPI_INT, 0, mpi_rank, MPI_COMM_WORLD);
+        MPI_Send(bytes->data, (int)bytes->size, MPI_UINT8_T, 0, mpi_rank, MPI_COMM_WORLD);
+        byte_array_free(bytes);
+      }
+    }
+
+    if (mpi_rank == 0)
+      fclose(report_file);
+
     polymec_timer_finalize();
   }
 }

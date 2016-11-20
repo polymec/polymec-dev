@@ -31,8 +31,8 @@
 // void x_array_assign_with_dtor(x_array_t* array, size_t i, x value, destructor dtor) - Assigns an x to position i within the array, using dtor to destroy when finished.
 // bool x_array_empty(x_array_t* array) - Returns true if empty, false otherwise.
 // void x_array_clear(x_array_t* array) - Clears the given array, making it empty.
-// void x_array_resize(x_array_t* array, int new_size) - Resizes the array, keeping data intact if possible.
-// void x_array_reserve(x_array_t* array, int new_capacity) - Reserves storage for the given capacity within the array. No effect if the array already has sufficient storage.
+// void x_array_resize(x_array_t* array, size_t new_size) - Resizes the array, keeping data intact if possible.
+// void x_array_reserve(x_array_t* array, size_t new_capacity) - Reserves storage for the given capacity within the array. No effect if the array already has sufficient storage.
 // bool x_array_next(x_array_t* array, int* pos, x* element) - Allows traversal over the items in the array.
 // void x_array_release_data_and_free(x_array_t* array) - Releases control of the array data, allowing another entity to assume responsibility. Also destroys this object. USE CAREFULLY!!!
 // 

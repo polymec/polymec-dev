@@ -98,6 +98,13 @@ void byte_array_read_long_longs(byte_array_t* byte_stream, size_t n, long long* 
 // Writes n long longs to the byte array at the given offset, updating the offset.
 void byte_array_write_long_longs(byte_array_t* byte_stream, size_t n, long long* data, size_t* offset);
 
+// Reads n unsigned long longs from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_unsigned_long_longs(byte_array_t* byte_stream, size_t n, unsigned long long* data, size_t* offset);
+
+// Writes n unsigned long longs to the byte array at the given offset, updating the offset.
+void byte_array_write_unsigned_long_longs(byte_array_t* byte_stream, size_t n, unsigned long long* data, size_t* offset);
+
 // Reads n index_ts from the byte array at the given offset, 
 // placing it into the data array and updating the offset.
 void byte_array_read_index_ts(byte_array_t* byte_stream, size_t n, index_t* data, size_t* offset);
@@ -125,6 +132,13 @@ void byte_array_read_real_ts(byte_array_t* byte_stream, size_t n, real_t* data, 
 
 // Writes n reals to the byte array at the given offset, updating the offset.
 void byte_array_write_real_ts(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset);
+
+// Reads n doubles from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_doubles(byte_array_t* byte_stream, size_t n, double* data, size_t* offset);
+
+// Writes n doubles to the byte array at the given offset, updating the offset.
+void byte_array_write_doubles(byte_array_t* byte_stream, size_t n, double* data, size_t* offset);
 
 // Reads n points from the byte array at the given offset, 
 // placing it into the data array and updating the offset.
