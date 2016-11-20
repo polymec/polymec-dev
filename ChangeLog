@@ -21,6 +21,7 @@ Fri Oct 28 17:49:38 PDT 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
     * Removed explicit use of the Boehm garbage collector from the library.
     * Surrogates for system functions now use regular allocators.
     * Removed a Valgrind suppression that is no longer needed.
+
 Fri Oct 14 18:08:47 PDT 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 1.3.0
     * Added some more compiler warning suppressants.
@@ -60,6 +61,7 @@ Mon Aug 15 20:10:58 PDT 2016  Jeffrey Johnson <jjphatt@gmail.com>
       * reals_equal - true/false if two reals are equal/not equal
       * set_real_epsilon - sets threshold for equality of reals 
       * reals_nearly_equal - true/false if two reals are within a given tolerance.
+
 Thu Aug  4 15:53:04 PDT 2016  Jeffrey Johnson <jjphatt@gmail.com>
     * polymec: version 1.2
     * Fixed a minor problem in HDF5 library location with polyglot.
