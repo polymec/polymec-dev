@@ -184,10 +184,19 @@ typedef struct
   HYPRE_Int (*HYPRE_ParCSRMatrixMatvecT)(HYPRE_Real, HYPRE_ParCSRMatrix*, HYPRE_ParVector, HYPRE_Real, HYPRE_ParVector*);
 } hypre_methods_table;
 
+// "HYPRE extension" methods -- from an auxiliary library.
+typedef struct
+{
+  HYPRE_Int (*HYPRE_IJMatrixDiagScale)(HYPRE_IJMatrix, HYPRE_IJVector, HYPRE_IJVector);
+} hypre_ext_methods_table;
+
 typedef struct
 {
   void* hypre;
   hypre_methods_table methods;
+
+  void* hypre_ext;
+  hypre_ext_methods_table ext_methods;
 } hypre_factory_t;
 
 typedef struct
@@ -883,7 +892,7 @@ static void hypre_matrix_diag_scale(void* context, void* L, void* R)
   // FIXME: make allowances for row vectors.
   int nprocs;
   MPI_Comm_size(A->comm, &nprocs);
-  if (nprocs > 1)
+  if ((A->factory->hypre_ext == NULL) && (nprocs > 1))
     polymec_error("hypre_matrix_diag_scale: Not supported for nprocs > 1.");
 
   index_t num_rows = A->ihigh - A->ilow + 1;
@@ -1813,6 +1822,11 @@ static krylov_vector_t* hypre_factory_vector(void* context,
 static void hypre_factory_dtor(void* context)
 {
   hypre_factory_t* factory = context;
+  if (factory->hypre_ext != NULL)
+  {
+    log_debug("hypre_krylov_factory: Closing HYPRE_ext library.");
+    dlclose(factory->hypre_ext);
+  }
   log_debug("hypre_krylov_factory: Closing HYPRE library.");
   dlclose(factory->hypre);
   polymec_free(factory);
@@ -1845,6 +1859,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   // Try to open libHYPRE and mine it for symbols.
   log_debug("hypre_krylov_factory: Opening HYPRE library at %s.", hypre_path);
   void* hypre = dlopen(hypre_path, RTLD_NOW);
+  void* hypre_ext = NULL;
   if (hypre == NULL)
   {
     char* msg = dlerror();
@@ -2028,11 +2043,37 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixMatvec);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixMatvecT);
 #undef FETCH_HYPRE_SYMBOL
-
   log_debug("hypre_krylov_factory: Got HYPRE symbols.");
 
   // Stash the library.
   factory->hypre = hypre; 
+
+  // Now try to find HYPRE_ext, the HYPRE "extension" library.
+  char hypre_ext_path[FILENAME_MAX+1];
+  snprintf(hypre_ext_path, FILENAME_MAX, "%s/libHYPRE_ext%s", hypre_dir, SHARED_LIBRARY_SUFFIX);
+
+  // Try to open libHYPRE_ext and mine it for symbols.
+  log_debug("hypre_krylov_factory: Opening HYPRE_ext library at %s.", hypre_ext_path);
+  hypre_ext = dlopen(hypre_ext_path, RTLD_NOW);
+  if (hypre_ext == NULL)
+  {
+    char* msg = dlerror();
+    log_urgent("hypre_krylov_factory: Could not load HYPRE_ext library: ", msg);
+    log_urgent("hypre_krylov_factory: Continuing without additional functionality.");
+    factory->hypre_ext = NULL;
+  }
+
+#define FETCH_HYPRE_EXT_SYMBOL(symbol_name) \
+  FETCH_SYMBOL(hypre_ext, #symbol_name, factory->ext_methods.symbol_name, failure);
+
+  // Get the symbols.
+  if (hypre_ext != NULL)
+  {
+    FETCH_HYPRE_EXT_SYMBOL(HYPRE_IJMatrixDiagScale);
+    log_debug("hypre_krylov_factory: Got HYPRE_ext symbols.");
+    factory->hypre_ext = hypre_ext; 
+  }
+#undef FETCH_HYPRE_SYMBOL
 
   // Construct the factory.
   krylov_factory_vtable vtable = {.pcg_solver = hypre_factory_pcg_solver,
@@ -2048,6 +2089,8 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   return krylov_factory_new("2.10", factory, vtable);
 
 failure:
+  if (hypre_ext != NULL)
+    dlclose(hypre_ext);
   dlclose(hypre);
   polymec_free(factory);
   return NULL;
