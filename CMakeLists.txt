@@ -19,6 +19,7 @@ endif()
 # We declare the project here.
 project (polymec)
 
+message(STATUS "Generating project files in build directory: ${PROJECT_BINARY_DIR}")
 message(STATUS "C compiler is ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION})")
 message(STATUS "C++ compiler is ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION})")
 if (LINUX)

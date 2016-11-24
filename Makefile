@@ -11,6 +11,7 @@ shared     = not-set
 machine    = not-set
 travis     = not-set
 ide        = not-set
+build      = not-set
 CC         = not-set
 CXX        = not-set
 FC         = not-set
@@ -98,6 +99,11 @@ else
     BUILDDIR := ${BUILDDIR}-Debug
     CONFIG_FLAGS += -DCMAKE_BUILD_TYPE=Debug
   endif
+endif
+
+# Override the build name if we're given one.
+ifneq ($(build), not-set)
+  BUILDDIR := build/$(build)
 endif
 
 # Installation prefix.

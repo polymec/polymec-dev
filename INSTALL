@@ -60,6 +60,12 @@ Available options are:
                     development environment (IDE) instead of UNIX 
                     makefiles (default: UNIX makefiles).
 
+    build=build_name <-- Used to explicitly name a build directory (within 
+                         the build/ subdirectory), instead of having the 
+                         build system automatically generate one based on the 
+                         platform, compiler, optimization level, etc.
+                         (default: auto-generated build name).
+
     Compilers can also be selected with CC, CXX, FC. When MPI is enabled, 
     these compilers default to mpicc, mpicxx, and mpif90, respectively. 
     Otherwise their respective defaults are cc, c++, and gfortran.
