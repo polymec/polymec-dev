@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/timer.h"
 #include "core/options.h"
 #include "core/krylov_solver.h"
 #include "core/linear_algebra.h"
@@ -102,6 +103,7 @@ static bool lis_solver_solve(void* context,
                              real_t* res_norm,
                              int* num_iters)
 {
+  START_FUNCTION_TIMER();
   lis_solver_t* solver = context;
   LIS_VECTOR B = b;
   LIS_VECTOR X = x;
@@ -141,6 +143,7 @@ static bool lis_solver_solve(void* context,
     lis_solver_get_iter(solver->solver, &niters);
     *num_iters = (int)niters;
   }
+  STOP_FUNCTION_TIMER();
   return solved;
 }
 
@@ -158,6 +161,8 @@ static krylov_solver_t* lis_factory_pcg_solver(void* context,
   lis_solver_create(&solver->solver);
   lis_solver_set_option("-i cg", solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
+  lis_solver_set_option("-storage 1", solver->solver);
+  lis_solver_set_option("-initx_zeros 1", solver->solver);
 //  lis_solver_set_option("-scale jacobi", solver->solver);
   if (log_level() == LOG_DEBUG)
     lis_solver_set_option("-print 2", solver->solver);
@@ -184,6 +189,8 @@ static krylov_solver_t* lis_factory_gmres_solver(void* context,
   snprintf(gmres, 128, "-i gmres %d", krylov_dimension);
   lis_solver_set_option(gmres, solver->solver);
   lis_solver_set_option("-p ilu", solver->solver);
+  lis_solver_set_option("-storage 1", solver->solver);
+  lis_solver_set_option("-initx_zeros 1", solver->solver);
 //  lis_solver_set_option("-scale jacobi", solver->solver);
   if (log_level() == LOG_DEBUG)
     lis_solver_set_option("-print 2", solver->solver);
@@ -205,6 +212,8 @@ static krylov_solver_t* lis_factory_bicgstab_solver(void* context,
   lis_solver_t* solver = polymec_malloc(sizeof(lis_solver_t));
   lis_solver_create(&solver->solver);
   lis_solver_set_option("-i bicgstab", solver->solver);
+  lis_solver_set_option("-storage 1", solver->solver);
+  lis_solver_set_option("-initx_zeros 1", solver->solver);
   lis_solver_set_option("-p jacobi", solver->solver);
 //  lis_solver_set_option("-scale jacobi", solver->solver);
   if (log_level() == LOG_DEBUG)

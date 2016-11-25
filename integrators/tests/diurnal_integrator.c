@@ -463,7 +463,7 @@ ode_integrator_t* ink_bdf_diurnal_integrator_new(krylov_factory_t* factory)
   ode_integrator_t* integ = ink_bdf_ode_integrator_new(5, MPI_COMM_SELF, factory,
                                                        J_sparsity, data, diurnal_rhs, 
                                                        diurnal_J, diurnal_dtor);
-  ink_bdf_ode_integrator_use_gmres(integ, 30);
+  ink_bdf_ode_integrator_use_bicgstab(integ);
   return integ;
 }
 
