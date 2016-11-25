@@ -521,7 +521,14 @@ ode_integrator_t* ink_ark_diurnal_integrator_new(krylov_factory_t* factory)
                                                        J_sparsity, data, NULL, diurnal_rhs, 
                                                        NULL, false, false, 
                                                        diurnal_J, diurnal_dtor);
-  ink_ark_ode_integrator_use_gmres(integ, 30);
+  options_t* opts = options_argv();
+  char* solver = options_value(opts, "solver");
+  if ((solver == NULL) || (string_casecmp(solver, "gmres") == 0))
+    ink_ark_ode_integrator_use_gmres(integ, 30);
+  if (string_casecmp(solver, "bicgstab") == 0)
+    ink_ark_ode_integrator_use_bicgstab(integ);
+  else
+    ink_ark_ode_integrator_use_gmres(integ, 30);
   return integ;
 }
 
