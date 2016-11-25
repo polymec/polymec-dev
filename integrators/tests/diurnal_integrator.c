@@ -525,7 +525,7 @@ ode_integrator_t* ink_ark_diurnal_integrator_new(krylov_factory_t* factory)
   char* solver = options_value(opts, "solver");
   if ((solver == NULL) || (string_casecmp(solver, "gmres") == 0))
     ink_ark_ode_integrator_use_gmres(integ, 30);
-  if (string_casecmp(solver, "bicgstab") == 0)
+  else if (string_casecmp(solver, "bicgstab") == 0)
     ink_ark_ode_integrator_use_bicgstab(integ);
   else
     ink_ark_ode_integrator_use_gmres(integ, 30);
