@@ -892,48 +892,60 @@ static void hypre_matrix_diag_scale(void* context, void* L, void* R)
   // FIXME: make allowances for row vectors.
   int nprocs;
   MPI_Comm_size(A->comm, &nprocs);
-  if ((A->factory->hypre_ext == NULL) && (nprocs > 1))
-    polymec_error("hypre_matrix_diag_scale: Not supported for nprocs > 1.");
-
-  index_t num_rows = A->ihigh - A->ilow + 1;
-  real_t Li[num_rows], Rj[num_rows];
-  hypre_vector_copy_out(L, Li);
-  hypre_vector_copy_out(R, Rj);
-
-  // Get the information about the matrix's nonzero structure.
-  index_t num_columns[num_rows], rows[num_rows];
-  index_t tot_num_columns = 0;
-  for (index_t r = 0; r < num_rows; ++r)
+  if (nprocs > 1)
   {
-    HYPRE_Int row = A->ilow + r, ncols;
-    A->factory->methods.HYPRE_IJMatrixGetRowCounts(A->A, 1, &row, &ncols);
-    rows[r] = row;
-    num_columns[r] = ncols;
-    tot_num_columns += ncols; 
-  }
-  index_t columns[tot_num_columns];
-  real_t values[tot_num_columns];
-  void* par_mat;
-  A->factory->methods.HYPRE_IJMatrixGetObject(A->A, &par_mat);
-  index_t col_offset = 0;
-  for (index_t r = 0; r < num_rows; ++r)
-  {
-    HYPRE_Int ncols, *cols;
-    HYPRE_Real* vals;
-    index_t row = A->ilow + r;
-    A->factory->methods.HYPRE_ParCSRMatrixGetRow(par_mat, row, &ncols, &cols, &vals);
-    for (HYPRE_Int c = 0; c < ncols; ++c, ++col_offset)
+    if (A->factory->hypre_ext == NULL)
     {
-      columns[col_offset] = cols[c];
-      values[col_offset] = (real_t)(Li[r] * vals[c] * Rj[cols[c]]);
+      polymec_error("hypre_matrix_diag_scale: Not supported for nprocs > 1.\n"
+                    "hypre_matrix_diag_scale: Please install the HYPRE_ext library.");
     }
-    A->factory->methods.HYPRE_ParCSRMatrixRestoreRow(par_mat, row, &ncols, &cols, &vals);
-  }
-  CHECK_FOR_MATRIX_ERROR(A)
 
-  // Scale the values in the matrix.
-  hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values);
-  hypre_matrix_assemble(context);
+    // Use the HYPRE extension library to do the diagonal scaling.
+    A->factory->ext_methods.HYPRE_IJMatrixDiagScale(A->A, L->v, R->v);
+  }
+  else
+  {
+    // We roll up our sleeves and do things manually.
+    index_t num_rows = A->ihigh - A->ilow + 1;
+    real_t Li[num_rows], Rj[num_rows];
+    hypre_vector_copy_out(L, Li);
+    hypre_vector_copy_out(R, Rj);
+
+    // Get the information about the matrix's nonzero structure.
+    index_t num_columns[num_rows], rows[num_rows];
+    index_t tot_num_columns = 0;
+    for (index_t r = 0; r < num_rows; ++r)
+    {
+      HYPRE_Int row = A->ilow + r, ncols;
+      A->factory->methods.HYPRE_IJMatrixGetRowCounts(A->A, 1, &row, &ncols);
+      rows[r] = row;
+      num_columns[r] = ncols;
+      tot_num_columns += ncols; 
+    }
+    index_t columns[tot_num_columns];
+    real_t values[tot_num_columns];
+    void* par_mat;
+    A->factory->methods.HYPRE_IJMatrixGetObject(A->A, &par_mat);
+    index_t col_offset = 0;
+    for (index_t r = 0; r < num_rows; ++r)
+    {
+      HYPRE_Int ncols, *cols;
+      HYPRE_Real* vals;
+      index_t row = A->ilow + r;
+      A->factory->methods.HYPRE_ParCSRMatrixGetRow(par_mat, row, &ncols, &cols, &vals);
+      for (HYPRE_Int c = 0; c < ncols; ++c, ++col_offset)
+      {
+        columns[col_offset] = cols[c];
+        values[col_offset] = (real_t)(Li[r] * vals[c] * Rj[cols[c]]);
+      }
+      A->factory->methods.HYPRE_ParCSRMatrixRestoreRow(par_mat, row, &ncols, &cols, &vals);
+    }
+    CHECK_FOR_MATRIX_ERROR(A)
+
+      // Scale the values in the matrix.
+      hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values);
+    hypre_matrix_assemble(context);
+  }
 }
 
 static void hypre_matrix_zero(void* context)
