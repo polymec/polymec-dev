@@ -901,7 +901,9 @@ static void hypre_matrix_diag_scale(void* context, void* L, void* R)
     }
 
     // Use the HYPRE extension library to do the diagonal scaling.
-    A->factory->ext_methods.HYPRE_IJMatrixDiagScale(A->A, L->v, R->v);
+    hypre_vector_t* LL = L;
+    hypre_vector_t* RR = R;
+    A->factory->ext_methods.HYPRE_IJMatrixDiagScale(A->A, LL->v, RR->v);
   }
   else
   {
