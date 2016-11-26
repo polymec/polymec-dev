@@ -26,12 +26,6 @@ static void test_ink_ark_diurnal_ctor(void** state, krylov_factory_t* factory)
   ode_integrator_free(integ);
 }
 
-static void test_lis_ink_ark_diurnal_ctor(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_ink_ark_diurnal_ctor(state, lis);
-}
-
 static void test_petsc_ink_ark_diurnal_ctor(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
@@ -57,15 +51,6 @@ static void test_ink_ark_diurnal_step(void** state, krylov_factory_t* factory)
   test_diurnal_step(state, integ, max_steps);
 }
 
-//static void test_lis_ink_ark_diurnal_step(void** state)
-//{
-//  if (!polymec_running_in_valgrind()) // FIXME: LIS takes too long!
-//  {
-//    krylov_factory_t* lis = lis_krylov_factory();
-//    test_ink_ark_diurnal_step(state, lis);
-//  }
-//}
-
 static void test_petsc_ink_ark_diurnal_step(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
@@ -85,10 +70,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_lis_ink_ark_diurnal_ctor),
     cmocka_unit_test(test_petsc_ink_ark_diurnal_ctor),
     cmocka_unit_test(test_hypre_ink_ark_diurnal_ctor),
-//    cmocka_unit_test(test_lis_ink_ark_diurnal_step), // Too slow at the moment!
     cmocka_unit_test(test_petsc_ink_ark_diurnal_step),
     cmocka_unit_test(test_hypre_ink_ark_diurnal_step)
   };

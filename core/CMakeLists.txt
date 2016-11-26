@@ -14,7 +14,7 @@ add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
                     text_buffer.c serializer.c thread_pool.c string_utils.c 
                     file_utils.c array_utils.c lookup1.c linear_algebra.c 
                     bd_matrix.c matrix_sparsity.c krylov_solver.c 
-                    lis_krylov_solver.c petsc_krylov_solver.c hypre_krylov_solver.c
+                    petsc_krylov_solver.c hypre_krylov_solver.c
                     silo_file.c exchanger.c)
 
 # polymec.c depends on the creation of polymec_version.h.

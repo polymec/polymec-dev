@@ -786,98 +786,6 @@ static void test_2d_laplace_eqn(void** state,
   }
 }
 
-static void test_lis_krylov_factory(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_krylov_factory(state, lis);
-}
-
-static void test_lis_krylov_matrix(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_krylov_matrix(state, lis);
-}
-
-static void test_lis_krylov_matrix_from_file(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_krylov_matrix_from_sherman1(state, lis);
-}
-
-static void test_lis_krylov_matrix_ops(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_krylov_matrix_ops(state, lis);
-}
-
-static void test_lis_krylov_vector(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_krylov_vector(state, lis);
-}
-
-static void test_lis_krylov_vector_from_file(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_krylov_vector_from_sherman1_b(state, lis);
-}
-
-static void test_lis_krylov_vector_ops(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_krylov_vector_ops(state, lis);
-}
-
-static void test_lis_pcg_1d_laplace_eqn(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_1d_laplace_eqn(state, lis, PCG_SOLVER);
-}
-
-static void test_lis_gmres_1d_laplace_eqn(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_1d_laplace_eqn(state, lis, GMRES_SOLVER);
-}
-
-static void test_lis_bicgstab_1d_laplace_eqn(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_1d_laplace_eqn(state, lis, BICGSTAB_SOLVER);
-}
-
-static void test_lis_sherman1(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_load_and_solve(state, lis, 
-                      CMAKE_CURRENT_SOURCE_DIR "/sherman1.mtx", 
-                      CMAKE_CURRENT_SOURCE_DIR "/sherman1_b.mtx");
-}
-
-static void test_lis_10x10_block(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_10x10_block(state, lis);
-}
-
-static void test_lis_pcg_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_2d_laplace_eqn(state, lis, PCG_SOLVER);
-}
-
-static void test_lis_gmres_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_2d_laplace_eqn(state, lis, GMRES_SOLVER);
-}
-
-static void test_lis_bicgstab_2d_laplace_eqn(void** state)
-{
-  krylov_factory_t* lis = lis_krylov_factory();
-  test_2d_laplace_eqn(state, lis, BICGSTAB_SOLVER);
-}
-
 static void test_petsc_krylov_factory(void** state)
 {
   krylov_factory_t* petsc = create_petsc_krylov_factory();
@@ -1068,21 +976,6 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_lis_krylov_factory),
-    cmocka_unit_test(test_lis_krylov_matrix),
-    cmocka_unit_test(test_lis_krylov_matrix_from_file),
-    cmocka_unit_test(test_lis_krylov_matrix_ops),
-    cmocka_unit_test(test_lis_krylov_vector),
-    cmocka_unit_test(test_lis_krylov_vector_from_file),
-    cmocka_unit_test(test_lis_krylov_vector_ops),
-    cmocka_unit_test(test_lis_pcg_1d_laplace_eqn),
-    cmocka_unit_test(test_lis_gmres_1d_laplace_eqn),
-    cmocka_unit_test(test_lis_bicgstab_1d_laplace_eqn),
-    cmocka_unit_test(test_lis_sherman1),
-    cmocka_unit_test(test_lis_10x10_block),
-    cmocka_unit_test(test_lis_pcg_2d_laplace_eqn),
-    cmocka_unit_test(test_lis_gmres_2d_laplace_eqn),
-    cmocka_unit_test(test_lis_bicgstab_2d_laplace_eqn),
     cmocka_unit_test(test_petsc_krylov_factory),
     cmocka_unit_test(test_petsc_krylov_matrix),
     cmocka_unit_test(test_petsc_krylov_matrix_from_file),
