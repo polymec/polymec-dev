@@ -1,6 +1,6 @@
-# Go get PETSc 3.6.x and build it.
-wget http://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-lite-3.6.3.tar.gz
-tar xzf petsc-lite-3.6.3.tar.gz
+# Go get PETSc 3.7.4 and build it.
+wget http://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-lite-3.7.4.tar.gz
+tar xzf petsc-lite-3.7.4.tar.gz
 pushd $PETSC_DIR
 ./configure --with-mpi=$MPI --with-debugging=$DEBUG --with-shared-libraries=1 --with-64-bit-indices=1
 make

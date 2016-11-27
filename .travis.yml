@@ -32,16 +32,16 @@ addons:
 env:
   - DEBUG=0 MPI=0 SHARED=0 PRECISION=double
   - DEBUG=0 MPI=0 SHARED=0 PRECISION=single
-  - DEBUG=0 MPI=0 SHARED=1 PRECISION=double
+  - DEBUG=0 MPI=0 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
   - DEBUG=0 MPI=1 SHARED=0 PRECISION=double
   - DEBUG=0 MPI=1 SHARED=0 PRECISION=single
-  - DEBUG=0 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+  - DEBUG=0 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
   - DEBUG=1 MPI=0 SHARED=0 PRECISION=double
   - DEBUG=1 MPI=0 SHARED=0 PRECISION=single
-  - DEBUG=1 MPI=0 SHARED=1 PRECISION=double
+  - DEBUG=1 MPI=0 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
   - DEBUG=1 MPI=1 SHARED=0 PRECISION=double
   - DEBUG=1 MPI=1 SHARED=0 PRECISION=single
-  - DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+  - DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
 
 # * Currently Apple doesn't use the real gcc, even if you tell it to,
 #   so we exclude the GCC compiler option from Mac builds.
@@ -59,7 +59,7 @@ matrix:
     env: DEBUG=0 MPI=1 SHARED=0 PRECISION=single
   - os: linux
     compiler: clang
-    env: DEBUG=0 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    env: DEBUG=0 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
   - os: linux
     compiler: clang
     env: DEBUG=1 MPI=1 SHARED=0 PRECISION=double
@@ -68,7 +68,7 @@ matrix:
     env: DEBUG=1 MPI=1 SHARED=0 PRECISION=single
   - os: linux
     compiler: clang
-    env: DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.6.3 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    env: DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
 
 install: travis_wait bash ./.travis/install-$TRAVIS_OS_NAME-deps.sh
 
