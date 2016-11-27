@@ -2061,6 +2061,7 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
   // Stash the library.
   factory->hypre = hypre; 
 
+#if POLYMEC_HAVE_MPI
   // Now try to find HYPRE_ext, the HYPRE "extension" library.
   char hypre_ext_path[FILENAME_MAX+1];
   snprintf(hypre_ext_path, FILENAME_MAX, "%s/libHYPRE_ext%s", hypre_dir, SHARED_LIBRARY_SUFFIX);
@@ -2087,6 +2088,9 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
     factory->hypre_ext = hypre_ext; 
   }
 #undef FETCH_HYPRE_SYMBOL
+#else
+    factory->hypre_ext = NULL;
+#endif
 
   // Construct the factory.
   krylov_factory_vtable vtable = {.pcg_solver = hypre_factory_pcg_solver,
