@@ -13,7 +13,7 @@
 #include "core/text_buffer.h"
 #include "core/string_utils.h"
 
-#if POLYMEC_HAVE_SHARED_LIBS && POLYMEC_HAVE_MPI
+#if POLYMEC_HAVE_SHARED_LIBS
 
 //------------------------------------------------------------------------
 // This file implements the dynamically-loadable PETSc Krylov solver.
@@ -1307,7 +1307,6 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                        const char* petsc_arch)
 {
 #if POLYMEC_HAVE_SHARED_LIBS
-#if POLYMEC_HAVE_MPI
   ASSERT(((petsc_dir == NULL) && (petsc_arch == NULL)) ||
          ((petsc_dir != NULL) && (petsc_arch != NULL)));
 
@@ -1533,11 +1532,7 @@ failure:
   polymec_free(factory);
   return NULL;
 #else
-  log_urgent("petsc_krylov_factory: Polymec must be configured with MPI to use PETSc.");
-  return NULL;
-#endif
-#else
-  log_urgent("petsc_krylov_factory: Polymec must be configured with MPI and shared library support to use PETSc.");
+  log_urgent("petsc_krylov_factory: Polymec must be configured with shared library support to use PETSc.");
   return NULL;
 #endif
 }

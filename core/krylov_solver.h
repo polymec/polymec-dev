@@ -168,8 +168,8 @@ krylov_vector_t* krylov_vector_new(void* context,
 // * The PETSc library must be built as a shared library.
 // * It must be built with the --with-64-bit-indices as an option. 
 // * It must be built with support for real numbers, not complex ones.
-// * It must be built with MPI support.
-// The PETSc factory is only available for MPI-enabled Polymec builds.
+// * It must be built with or without MPI support, in a fashion that matches 
+//   Polymec's configuration.
 krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
                                        const char* petsc_arch);
 
@@ -180,8 +180,8 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
 // library with which it interfaces:
 // * The HYPRE library must be built as a shared library
 // * It must be built with BIGINT support (64-bit indices)
-// * It must be configured to use MPI.
-// The HYPRE factory is only available for MPI-enabled Polymec builds.
+// * It must be built with or without MPI support, in a fashion that matches 
+//   Polymec's configuration.
 krylov_factory_t* hypre_krylov_factory(const char* hypre_dir);
 
 //------------------------------------------------------------------------
