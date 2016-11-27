@@ -58,12 +58,14 @@ static void test_petsc_ink_ark_diurnal_step(void** state)
     test_ink_ark_diurnal_step(state, petsc);
 }
 
+#if POLYMEC_HAVE_MPI
 static void test_hypre_ink_ark_diurnal_step(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
   if (hypre != NULL)
     test_ink_ark_diurnal_step(state, hypre);
 }
+#endif
 
 int main(int argc, char* argv[]) 
 {
