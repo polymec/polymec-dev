@@ -104,45 +104,4 @@
    fun:rgelsy
    ...
 }
-{
-   lis_text2args_Cond
-   Memcheck:Cond
-   ...
-   fun:lis_text2args
-   ...
-}
-{
-   FIXME_lis_solver_solve_Leak1
-   Memcheck:Leak
-   match-leak-kinds: definite
-   fun:malloc
-   fun:lis_malloc
-   fun:lis_vector_duplicateex
-   fun:lis_vector_duplicate
-   fun:lis_symbolic_fact_csr
-   fun:lis_precon_create_iluk
-   fun:lis_precon_create
-   fun:lis_solve
-   fun:lis_solver_solve
-   fun:krylov_solver_solve
-   fun:test_1d_laplace_eqn
-   fun:test_lis_gmres_1d_laplace_eqn
-}
-{
-   FIXME_lis_solver_solve_Leak2
-   Memcheck:Leak
-   match-leak-kinds: definite
-   fun:malloc
-   fun:lis_malloc
-   fun:lis_vector_duplicateex
-   fun:lis_vector_duplicate
-   fun:lis_solve_kernel
-   fun:lis_solve
-   fun:lis_solver_solve
-   fun:krylov_solver_solve
-   fun:test_load_and_solve
-   fun:test_lis_sherman1
-   fun:cmocka_run_one_test_or_fixture
-   fun:cmocka_run_one_tests
-}
 

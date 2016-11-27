@@ -22,9 +22,9 @@
 #define MPI_Op              int               
 #define MPI_Aint            int               
 
-#define MPI_COMM_WORLD      0       
-#define MPI_COMM_NULL       1
-#define MPI_COMM_SELF       2
+#define MPI_COMM_NULL       0
+#define MPI_COMM_SELF       1
+#define MPI_COMM_WORLD      2       
 
 #define MPI_DOUBLE          0           
 #define MPI_FLOAT           1           
