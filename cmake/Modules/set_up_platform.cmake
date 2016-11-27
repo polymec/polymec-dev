@@ -18,6 +18,11 @@ macro(set_up_platform)
     set(LIB_SUFFIX .a)
   endif()
 
+  # We can't use the Xcode IDE when building with MPI.
+  if (APPLE AND CMAKE_GENERATOR STREQUAL "Xcode" AND HAVE_MPI)
+    message(FATAL_ERROR "The XCode IDE cannot be used to build Polymec-based MPI applications.")
+  endif()
+
   # Set defaults for the various third-party libraries. These defaults
   # are hardwired because the project can't have been defined before 
   # this macro is executed, and so PROJECT_BINARY_DIR is unavailable.
