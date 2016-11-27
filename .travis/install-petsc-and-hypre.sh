@@ -1,8 +1,9 @@
-# Go get PETSc 3.7.4 and build it.
+# Go get PETSc 3.7.4 and build it. Note that we build in production mode to 
+# avoid spurious FPE trapping within the library.
 wget http://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-lite-3.7.4.tar.gz
 tar xzf petsc-lite-3.7.4.tar.gz
 pushd $PETSC_DIR
-./configure --with-mpi=$MPI --with-debugging=$DEBUG --with-shared-libraries=1 --with-64-bit-indices=1
+./configure --with-mpi=$MPI --with-debugging=0 --with-shared-libraries=1 --with-64-bit-indices=1
 make
 ln -s $PETSC_DIR/lib/petsc/conf $PETSC_DIR/conf
 ln -s $PETSC_DIR/include/petsc/finclude $PETSC_DIR/include/finclude
