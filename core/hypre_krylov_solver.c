@@ -888,8 +888,6 @@ static void hypre_matrix_diag_scale(void* context, void* L, void* R)
 {
   hypre_matrix_t* A = context;
 
-  // FIXME: For now, this doesn't work on parallel runs, because we don't 
-  // FIXME: make allowances for row vectors.
   int nprocs;
   MPI_Comm_size(A->comm, &nprocs);
   if (nprocs > 1)
@@ -944,8 +942,8 @@ static void hypre_matrix_diag_scale(void* context, void* L, void* R)
     }
     CHECK_FOR_MATRIX_ERROR(A)
 
-      // Scale the values in the matrix.
-      hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values);
+    // Scale the values in the matrix.
+    hypre_matrix_set_values(context, num_rows, num_columns, rows, columns, values);
     hypre_matrix_assemble(context);
   }
 }
