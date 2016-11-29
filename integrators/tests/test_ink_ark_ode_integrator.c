@@ -58,14 +58,12 @@ static void test_petsc_ink_ark_diurnal_step(void** state)
     test_ink_ark_diurnal_step(state, petsc);
 }
 
-#if POLYMEC_HAVE_MPI
 static void test_hypre_ink_ark_diurnal_step(void** state)
 {
   krylov_factory_t* hypre = create_hypre_krylov_factory();
   if (hypre != NULL)
     test_ink_ark_diurnal_step(state, hypre);
 }
-#endif
 
 int main(int argc, char* argv[]) 
 {
@@ -75,10 +73,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_petsc_ink_ark_diurnal_ctor),
     cmocka_unit_test(test_hypre_ink_ark_diurnal_ctor),
     cmocka_unit_test(test_petsc_ink_ark_diurnal_step),
-#if POLYMEC_HAVE_MPI
-    // FIXME: This test doesn't work with serial HYPRE for some reason.
     cmocka_unit_test(test_hypre_ink_ark_diurnal_step)
-#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
