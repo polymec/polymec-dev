@@ -230,7 +230,9 @@ static bool petsc_solver_solve(void* context,
   petsc_solver_t* solver = context;
   petsc_vector_t* B = b;
   petsc_vector_t* X = x;
+  polymec_suspend_fpe();
   PetscErrorCode err = solver->factory->methods.KSPSolve(solver->ksp, B->v, X->v);
+  polymec_restore_fpe();
   if (err != 0)
     polymec_error("petsc_solver_solve: Call to linear solve failed!");
   int code;
