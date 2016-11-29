@@ -31,11 +31,12 @@
 #define MPI_INT             2              
 #define MPI_SHORT           3              
 #define MPI_LONG_LONG_INT   4              
-#define MPI_LONG_LONG       5              
-#define MPI_CHAR            6             
-#define MPI_LONG            7             
-#define MPI_UNSIGNED_LONG   8             
-#define MPI_BYTE            9             
+#define MPI_LONG_LONG       4              
+#define MPI_CHAR            5             
+#define MPI_LONG            6             
+#define MPI_UNSIGNED_LONG   7
+#define MPI_BYTE            8             
+#define MPI_INT8_T          9             
 #define MPI_INT16_T         10             
 #define MPI_INT32_T         11             
 #define MPI_INT64_T         12
