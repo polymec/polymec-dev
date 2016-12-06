@@ -322,9 +322,9 @@ if (NOT EXISTS ${SILO_LIBRARY})
   endif()
   set(SILO_ENV CC=${CMAKE_C_COMPILER} CFLAGS=${SILO_C_FLAGS})
   if (LINUX)
-   # Note: Linux needs -ldl when building Silo because of HDF5's new 
-   # Note: dynamically-loaded filters.
-   set(SILO_ENV ${SILO_ENV} LIBS=-ldl)
+    # Linux needs -ldl when building Silo because of HDF5's new 
+    # dynamically-loaded filters.
+    set(SILO_ENV ${SILO_ENV} LIBS=-ldl)
   endif()
   execute_process(COMMAND env ${SILO_ENV} ./configure ${SILO_CONFIG_OPTS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo
