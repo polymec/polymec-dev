@@ -1,5 +1,24 @@
+Mon Dec  5 22:56:33 PST 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 1.4.0
+    * Added model_get_vtable and model_set_vtable to allow vtable overrides within a model instance.
+    * Added functions for stencil <-> neighbor_pairing conversions, etc.
+    * Fixed several typos and oversights in documentation.
+    * Cleaned up the newton_solver interface, breaking out fixed point iteration and Picard iteration into separate constructors.
+    * Added a new polyhedron class.
+    * Added support for generating project files for several programming IDEs (Xcode, CodeBlocks, CodeLite, Kate, Sublime).
+    * Timer reports now contain timing data for all MPI ranks(!).
+    * Builds now can be named and referred to, replacing lists of config options.
+    * We added support for HYPRE_ext, an upcoming dynamically-loadable library that provides some extensions to HYPRE (and is licensed appropriately outside of Polymec).
+    * We made some inroads into understanding the LIS solvers in the context of poor performance with INK solvers, though a lot remains to study.
+    * Removed LIS solvers.
+    * HYPRE and PETSc solvers are now enabled with serial (mpi=0) configurations.
+    * Disabled XCode IDE when building with MPI.
+
 Sat Nov 19 20:21:58 PST 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 1.3.2
+    * Added a "min_dt" option for halting simulations whose stable dt falls below a given threshold.
+    * Arrays of non-field data are now stored in Silo files in a slightly more streamlined fashion.
+    * Fixed a minor glitch in the installation of generated header files.
     * Added model_get_vtable and model_set_vtable to allow vtable overrides within a model instance.
     * Added functions for stencil <-> neighbor_pairing conversions, etc.
     * Fixed several typos and oversights in documentation.
