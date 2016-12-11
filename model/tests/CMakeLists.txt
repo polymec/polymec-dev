@@ -26,7 +26,7 @@ function(add_simple_tests)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/simple_batch.input "simple_batch1.input\nsimple_batch2.input\nsimple_batch3.input\nsimple_batch4.input\n")
   endif()
 
-  if (HAVE_MPI EQUAL 1)
+  if (HAVE_MPI)
     foreach (arg ${ARGN})
       set(proc ${arg})
       if (proc EQUAL 4)
@@ -37,21 +37,21 @@ function(add_simple_tests)
 
       # Run test.
       set(run_test_name simple_run_${proc}_procs)
-      add_test(${run_test_name} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} simple run simple_run.input ${MPIEXEC_POSTFLAGS})
+      add_test(${run_test_name} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/simple run simple_run.input ${MPIEXEC_POSTFLAGS})
       set_tests_properties(${run_test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "FAIL")
 
       # Batch test.
       set(batch_test_name simple_batch_${proc}_procs)
-      add_test(${batch_test_name} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} simple batch simple_batch.input ${pp} ${MPIEXEC_POSTFLAGS})
+      add_test(${batch_test_name} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/simple batch simple_batch.input ${pp} ${MPIEXEC_POSTFLAGS})
       set_tests_properties(${batch_test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "FAIL")
     endforeach()
   else()
     # Run test.
-    add_test(simple_run simple run simple_run.input)
+    add_test(simple_run ${CMAKE_CURRENT_BINARY_DIR}/simple run simple_run.input)
     set_tests_properties(simple_run PROPERTIES STEP_REGULAR_EXPRESSION "Step 10")
 
     # Batch test.
-    add_test(simple_batch simple batch simple_batch.input 2)
+    add_test(simple_batch ${CMAKE_CURRENT_BINARY_DIR}/simple batch simple_batch.input 2)
     set_tests_properties(simple_batch PROPERTIES STEP_REGULAR_EXPRESSION "Step 10")
   endif()
 endfunction()
