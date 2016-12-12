@@ -266,7 +266,7 @@ endif()
 include_directories("${PROJECT_SOURCE_DIR}")
 add_subdirectory(core)
 add_subdirectory(geometry)
-add_subdirectory(integrators)
+add_subdirectory(solvers)
 add_subdirectory(model)
 
 # Now that we have gathered all our libraries, generate a polymec.cmake 

@@ -1,0 +1,11 @@
+include(add_polymec_test)
+
+add_polymec_test(test_newton_solver foodweb_solver.c create_krylov_factories.c test_newton_solver.c)
+add_polymec_test(test_euler_ode_solver test_euler_ode_solver.c)
+add_polymec_test(test_jfnk_bdf_ode_solver diurnal_solver.c create_krylov_factories.c test_jfnk_bdf_ode_solver.c)
+add_polymec_test(test_ink_bdf_ode_solver diurnal_solver.c create_krylov_factories.c test_ink_bdf_ode_solver.c)
+add_polymec_test(test_jfnk_ark_ode_solver diurnal_solver.c create_krylov_factories.c test_jfnk_ark_ode_solver.c)
+add_polymec_test(test_ink_ark_ode_solver diurnal_solver.c create_krylov_factories.c test_ink_ark_ode_solver.c)
+add_polymec_test(test_dae_solver heat2d_solver.c create_krylov_factories.c test_dae_solver.c)
+add_polymec_test(test_fasmg_solver test_fasmg_solver.c)
+

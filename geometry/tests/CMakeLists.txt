@@ -14,3 +14,7 @@ add_mpi_polymec_test(test_create_rectilinear_mesh test_create_rectilinear_mesh.c
 add_mpi_polymec_test(test_crop_mesh test_crop_mesh.c 1 2 4)
 #add_mpi_polymec_test(test_create_cubed_cylinder_mesh test_create_cubed_cylinder_mesh.c 1 2 4)
 #add_mpi_polymec_test(test_create_cubed_sphere_mesh test_create_cubed_sphere_mesh.c 1 2 4)
+
+add_polymec_test(test_midpoint_polyhedron_integrator test_midpoint_polyhedron_integrator.c)
+add_polymec_test(test_div_free_poly_basis test_div_free_poly_basis.c)
+#add_polymec_test(test_sphere_integrator test_sphere_integrator.c)
