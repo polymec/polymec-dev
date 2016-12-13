@@ -54,13 +54,15 @@ static void simple_init(void* context, real_t t)
   log_debug("simple: rank %d reporting for simulation %d.", rank, s->index);
 
   // Delete the file corresponding to this simulation if it exists.
-  char filename[FILENAME_MAX];
-  name_simple_file(s, filename);
-
-  if (file_exists(filename))
+  if (rank == 0)
   {
-    log_debug("simple: removing file %s", filename);
-    remove(filename);
+    char filename[FILENAME_MAX];
+    name_simple_file(s, filename);
+    if (file_exists(filename))
+    {
+      log_debug("simple: removing file %s", filename);
+      remove(filename);
+    }
   }
 }
 

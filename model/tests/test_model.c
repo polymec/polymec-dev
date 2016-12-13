@@ -49,12 +49,10 @@ static void test_run(void** state)
 
 static void test_run_files(void** state)
 {
-  // Wait for everyone to catch up.
-  MPI_Barrier(MPI_COMM_WORLD);
-
   int rank, nproc;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+printf("nproc = %d\n", nproc);
 
   int num_files = 2*nproc;
 
@@ -79,9 +77,11 @@ static void test_run_files(void** state)
   int procs_per_run = MIN(nproc, 2);
 
   // Now we create a model and run it on all the files.
+  MPI_Barrier(MPI_COMM_WORLD);
   model_t* m = simple_new();
   model_run_files(m, inputs, num_files, procs_per_run);
   model_free(m);
+  MPI_Barrier(MPI_COMM_WORLD);
 
   // Rank 0 checks for output and deletes the input/output files.
   if (rank == 0)
