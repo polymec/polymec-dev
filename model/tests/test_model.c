@@ -52,7 +52,6 @@ static void test_run_files(void** state)
   int rank, nproc;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nproc);
-printf("nproc = %d\n", nproc);
 
   int num_files = 2*nproc;
 
