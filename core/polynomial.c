@@ -474,37 +474,9 @@ static void wrap_eval(void* context, point_t* x, real_t* result)
   *result = polynomial_value(p, x);
 }
 
-static void wrap_eval_deriv(void* context, int deriv, point_t* x, real_t* result)
-{
-  polynomial_t* p = context;
-  int result_size = (int)(pow(3, deriv));
-  if (deriv > p->degree)
-    memset(result, 0, sizeof(real_t) * result_size);
-  else if (deriv == 0)
-    *result = polynomial_value(p, x);
-  else 
-  {
-    real_t coeff;
-    int pos = 0, x_pow, y_pow, z_pow;
-    while (polynomial_next(p, &pos, &coeff, &x_pow, &y_pow, &z_pow))
-    {
-      // FIXME
-      POLYMEC_NOT_IMPLEMENTED
-    }
-  }
-}
-
-static bool wrap_has_deriv(void* context, int deriv)
-{
-  // Polynomials are analytic.
-  return true;
-}
-
 sp_func_t* polynomial_sp_func(polynomial_t* p)
 {
   sp_func_vtable vtable = {.eval = wrap_eval,
-                           .eval_deriv = wrap_eval_deriv,
-                           .has_deriv = wrap_has_deriv,
                            .dtor = NULL};
   char name[128];
   snprintf(name, 128, "polynomial (p = %d)", p->degree);

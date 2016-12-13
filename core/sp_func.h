@@ -27,14 +27,6 @@ typedef enum
 // A function pointer type for evaluating the function at a point.
 typedef void (*sp_eval_func)(void* context, point_t* x, real_t* F);
 
-// A function pointer type for evaluating the nth derivative of the 
-// function at a point.
-typedef void (*sp_eval_deriv_func)(void*, int, point_t*, real_t*);
-
-// A function pointer type for returning whether a function has a 
-// derivative. This must be supplied if eval_deriv is given.
-typedef bool (*sp_has_deriv_func)(void*, int);
-
 // A destructor for any given context object.
 typedef void (*sp_dtor)(void*);
 
@@ -42,8 +34,6 @@ typedef void (*sp_dtor)(void*);
 typedef struct 
 {
   sp_eval_func              eval;
-  sp_eval_deriv_func        eval_deriv; // Optional
-  sp_has_deriv_func         has_deriv; // Optional, but must be given if eval_deriv is given
   sp_dtor                   dtor;
 } sp_func_vtable;
 
@@ -76,23 +66,6 @@ void* sp_func_context(sp_func_t* func);
 
 // Evaluates the function at the given point, placing the result in result.
 void sp_func_eval(sp_func_t* func, point_t* x, real_t* result);
-
-// Registers another function as the nth derivative of this function.
-// NOTE: These are vector derivatives, so the first derivative is the 
-// NOTE: (3-component) gradient, the second is the (9-component) Hessian,
-// NOTE: and so forth.
-void sp_func_register_deriv(sp_func_t* func, int n, sp_func_t* nth_deriv);
-
-// Returns true if the nth derivative of this function can be computed (if 
-// it was registered), false otherwise.
-bool sp_func_has_deriv(sp_func_t* func, int n);
-
-// Evaluates the nth derivative of this function, placing the result in result.
-void sp_func_eval_deriv(sp_func_t* func, int n, point_t* x, real_t* result);
-
-// Returns an sp_func representing the nth derivative of this function if 
-// available, NULL if not.
-sp_func_t* sp_func_deriv(sp_func_t* func, int n);
 
 // Creates a function that is constant everywhere in space, with the given 
 // components.

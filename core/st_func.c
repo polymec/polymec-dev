@@ -15,9 +15,6 @@ struct st_func_t
   int num_comp;
   bool homogeneous;
   bool constant;
-
-  // Functions for computing derivatives (up to 4).
-  st_func_t* derivs[4];
 };
 
 static void st_func_free(void* ctx)
@@ -44,7 +41,6 @@ st_func_t* st_func_new(const char* name, void* context, st_func_vtable vtable,
   f->homogeneous = (homogeneity == ST_FUNC_HOMOGENEOUS);
   f->constant = (constancy == ST_FUNC_CONSTANT);
   f->num_comp = num_comp;
-  memset(f->derivs, 0, sizeof(st_func_t*)*4);
   return f;
 }
 
@@ -62,7 +58,6 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
   f->homogeneous = (homogeneity == ST_FUNC_HOMOGENEOUS);
   f->constant = (constancy == ST_FUNC_CONSTANT);
   f->num_comp = num_comp;
-  memset(f->derivs, 0, sizeof(st_func_t*)*4);
   return f;
 }
 
@@ -70,40 +65,6 @@ static void eval_sp_func(void* context, point_t* x , real_t t, real_t* val)
 {
   sp_func_t* sp_func = context;
   sp_func_eval(sp_func, x, val);
-}
-
-// This is used for converting sp_func derivatives to st_func derivatives. 
-typedef struct
-{
-  sp_func_t* func;
-  int deriv;
-} st_func_sp_deriv_t;
-
-static void st_func_sp_deriv_eval(void* context, point_t* x, real_t t, real_t* result)
-{
-  st_func_sp_deriv_t* F = context;
-  sp_func_eval_deriv(F->func, F->deriv, x, result);
-}
-
-static void st_func_sp_deriv_free(void* context)
-{
-  st_func_sp_deriv_t* F = context;
-  F->func = NULL;
-  polymec_free(F);
-}
-
-static st_func_t* sp_func_deriv_new(sp_func_t* func, int d)
-{
-  ASSERT(d > 0);
-  ASSERT(sp_func_has_deriv(func, d));
-  st_func_sp_deriv_t* F = polymec_malloc(sizeof(st_func_sp_deriv_t));
-  F->func = func;
-  F->deriv = d;
-  st_func_vtable vtable = {.eval = st_func_sp_deriv_eval, .dtor = st_func_sp_deriv_free};
-  char name[1024];
-  snprintf(name, 1024, "deriv(%s, %d)", sp_func_name(func), d);
-  st_func_homogeneity_t homo = (sp_func_is_homogeneous(func)) ? ST_FUNC_HOMOGENEOUS : ST_FUNC_HETEROGENEOUS;
-  return st_func_new(name, F, vtable, homo, ST_FUNC_CONSTANT, 3*sp_func_num_comp(func));
 }
 
 st_func_t* st_func_from_sp_func(sp_func_t* func)
@@ -116,12 +77,6 @@ st_func_t* st_func_from_sp_func(sp_func_t* func)
   f->homogeneous = sp_func_is_homogeneous(func);
   f->constant = true;
   f->num_comp = sp_func_num_comp(func);
-  memset(f->derivs, 0, sizeof(st_func_t*)*4);
-  for (int i = 1; i <= 4; ++i)
-  {
-    if (sp_func_has_deriv(func, i))
-      st_func_register_deriv(f, i, sp_func_deriv_new(func, i));
-  }
   return f;
 }
 
@@ -159,36 +114,6 @@ void* st_func_context(st_func_t* func)
 void st_func_eval(st_func_t* func, point_t* x, real_t t, real_t* result)
 {
   func->vtable.eval(func->context, x, t, result);
-}
-
-void st_func_register_deriv(st_func_t* func, int n, st_func_t* nth_deriv)
-{
-  ASSERT(n > 0);
-  ASSERT(n <= 4);
-  ASSERT(nth_deriv != NULL);
-  ASSERT(st_func_num_comp(nth_deriv) == (func->num_comp * (int)(pow(3, n)))); 
-  func->derivs[n-1] = nth_deriv;
-}
-
-bool st_func_has_deriv(st_func_t* func, int n)
-{
-  ASSERT(n > 0);
-  if (n > 4) return false; // FIXME
-  return (func->derivs[n-1] != NULL);
-}
-
-void st_func_eval_deriv(st_func_t* func, int n, point_t* x, real_t t, real_t* result)
-{
-  ASSERT(n > 0);
-  ASSERT(n <= 4);
-  st_func_eval(func->derivs[n-1], x, t, result);
-}
-
-st_func_t* st_func_deriv(st_func_t* func, int n)
-{
-  ASSERT(n > 0);
-  ASSERT(n <= 4);
-  return func->derivs[n-1];
 }
 
 typedef struct
@@ -347,7 +272,7 @@ static void constant_dtor(void* ctx)
   polymec_free(f);
 }
 
-static st_func_t* create_constant_st_func(real_t components[], int num_components)
+st_func_t* constant_st_func_new(real_t components[], int num_components)
 {
   st_func_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
   char name[1024];
@@ -368,19 +293,4 @@ static st_func_t* create_constant_st_func(real_t components[], int num_component
     f->comp[i] = components[i];
   return st_func_new(name, (void*)f, vtable, ST_FUNC_HOMOGENEOUS, ST_FUNC_CONSTANT, num_components);
 }
-
-st_func_t* constant_st_func_new(real_t components[], int num_components)
-{
-  st_func_t* func = create_constant_st_func(components, num_components);
-
-  // Just to be complete, we register the 3-component zero function as this 
-  // function's gradient.
-  real_t zeros[3*num_components];
-  memset(zeros, 0, 3*num_components*sizeof(real_t));
-  st_func_t* zero = create_constant_st_func(zeros, 3*num_components);
-  st_func_register_deriv(func, 1, zero);
-
-  return func;
-}
-
 
