@@ -15,9 +15,21 @@
 // (sp_func) objects. sd_func objects are garbage-collected.
 typedef struct sd_func_t sd_func_t;
 
+// This virtual table must be implemented by any signed distance function.
+typedef struct 
+{
+  real_t (*value)(void* context, point_t* x);
+  void (*eval_grad)(void* context, point_t* x, vector_t* grad);
+  void (*dtor)(void* context);
+} sd_func_vtable;
+
+// Construct a signed distance function with the given name, context, and 
+// virtual table.
+sd_func_t* sd_func_new(const char* name, void* context, sd_func_vtable vtable);
+
 // Construct a signed distance function with the given name, using the given 
 // sp_func objects for the distance function and its gradient.
-sd_func_t* sd_func_new(const char* name, sp_func_t* distance, sp_func_t* gradient);
+sd_func_t* sd_func_from_sp_funcs(const char* name, sp_func_t* distance, sp_func_t* gradient);
 
 // Returns the name of the signed distance function.
 const char* sd_func_name(sd_func_t* func);
@@ -25,8 +37,11 @@ const char* sd_func_name(sd_func_t* func);
 // Renames the function. This can be useful for some specialized interfaces.
 void sd_func_rename(sd_func_t* func, const char* new_name);
 
+// Returns the context within the sd_func.
+void* sd_func_context(sd_func_t* func);
+
 // Returns the value of the function at the given point x.
-real_t sd_func_eval(sd_func_t* func, point_t* x);
+real_t sd_func_value(sd_func_t* func, point_t* x);
 
 // Computes the gradient of the function at the given point x, placing the 
 // result in grad.

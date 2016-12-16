@@ -8,7 +8,7 @@
 #include "core/kd_tree.h"
 #include "core/slist.h"
 #include "core/unordered_set.h"
-#include "geometry/rect_prism_sp_func.h"
+//#include "geometry/rect_prism_sp_func.h"
 #include "model/interpreter.h"
 
 // Lua stuff.
@@ -36,27 +36,6 @@ extern int mesh_factory_uniform(lua_State* lua);
 extern docstring_t* mesh_factory_uniform_doc();
 extern int mesh_factory_rectilinear(lua_State* lua);
 extern docstring_t* mesh_factory_rectilinear_doc();
-
-extern int cartesian_1d_uniform(lua_State* lua);
-extern docstring_t* cartesian_1d_uniform_doc();
-extern int cartesian_1d_logarithmic(lua_State* lua);
-extern docstring_t* cartesian_1d_logarithmic_doc();
-extern int cartesian_1d_nonuniform(lua_State* lua);
-extern docstring_t* cartesian_1d_nonuniform_doc();
-
-extern int cylindrical_1d_uniform(lua_State* lua);
-extern docstring_t* cylindrical_1d_uniform_doc();
-extern int cylindrical_1d_logarithmic(lua_State* lua);
-extern docstring_t* cylindrical_1d_logarithmic_doc();
-extern int cylindrical_1d_nonuniform(lua_State* lua);
-extern docstring_t* cylindrical_1d_nonuniform_doc();
-
-extern int spherical_1d_uniform(lua_State* lua);
-extern docstring_t* spherical_1d_uniform_doc();
-extern int spherical_1d_logarithmic(lua_State* lua);
-extern docstring_t* spherical_1d_logarithmic_doc();
-extern int spherical_1d_nonuniform(lua_State* lua);
-extern docstring_t* spherical_1d_nonuniform_doc();
 
 static int sample_bbox(lua_State* lua)
 {
@@ -427,6 +406,7 @@ static docstring_t* copy_points_doc()
                                "  Creates a new copy of a list of points.");
 }
 
+#if 0
 static int select_points(lua_State* lua)
 {
   // Check the arguments.
@@ -563,6 +543,7 @@ static docstring_t* select_points_doc()
                                "  - within_surface = F   <-- selects points inside of the surface defined by the function F\n"
                                "  - at_time = t <-- should be given with within_surface if F accepts a time");
 }
+#endif
 
 static int remove_points(lua_State* lua)
 {
@@ -625,36 +606,18 @@ void interpreter_register_geometry_functions(interpreter_t* interp)
   interpreter_register_global_method(interp, "mesh_factory", "uniform", mesh_factory_uniform, mesh_factory_uniform_doc());
   interpreter_register_global_method(interp, "mesh_factory", "rectilinear", mesh_factory_rectilinear, mesh_factory_rectilinear_doc());
 
-  // Set up a factory for generating 1D Cartesian meshes
-  interpreter_register_global_table(interp, "cartesian_1d", docstring_from_string("cartesian_1d - Functions for creating 1D point distributions."));
-  interpreter_register_global_method(interp, "cartesian_1d", "uniform", cartesian_1d_uniform, cartesian_1d_uniform_doc());
-  interpreter_register_global_method(interp, "cartesian_1d", "logarithmic", cartesian_1d_logarithmic, cartesian_1d_logarithmic_doc());
-  interpreter_register_global_method(interp, "cartesian_1d", "nonuniform", cartesian_1d_nonuniform, cartesian_1d_nonuniform_doc());
-
-  // Set up a factory for generating 1D cylindrical meshes
-  interpreter_register_global_table(interp, "cylindrical_1d", docstring_from_string("cylindrical_1d - Functions for creating 1D cylindrically-symmetric points."));
-  interpreter_register_global_method(interp, "cylindrical_1d", "uniform", cylindrical_1d_uniform, cylindrical_1d_uniform_doc());
-  interpreter_register_global_method(interp, "cylindrical_1d", "logarithmic", cylindrical_1d_logarithmic, cylindrical_1d_logarithmic_doc());
-  interpreter_register_global_method(interp, "cylindrical_1d", "nonuniform", cylindrical_1d_nonuniform, cylindrical_1d_nonuniform_doc());
-
-  // Set up a factory for generating 1D spherical meshes
-  interpreter_register_global_table(interp, "spherical_1d", docstring_from_string("spherical_1d - Functions for creating 1D spherically-symmetric points."));
-  interpreter_register_global_method(interp, "spherical_1d", "uniform", spherical_1d_uniform, spherical_1d_uniform_doc());
-  interpreter_register_global_method(interp, "spherical_1d", "logarithmic", spherical_1d_logarithmic, spherical_1d_logarithmic_doc());
-  interpreter_register_global_method(interp, "spherical_1d", "nonuniform", spherical_1d_nonuniform, spherical_1d_nonuniform_doc());
-
   interpreter_register_function(interp, "scaled_bounding_box", scaled_bounding_box, scaled_bounding_box_doc());
   interpreter_register_function(interp, "sample_bounding_box", sample_bbox, sample_bbox_doc());
   interpreter_register_function(interp, "sample_cyl_shell", sample_cyl_shell, sample_cyl_shell_doc());
   interpreter_register_function(interp, "translate_points", translate_points, translate_points_doc());
   interpreter_register_function(interp, "rotate_points", rotate_points, rotate_points_doc());
   interpreter_register_function(interp, "copy_points", copy_points, copy_points_doc());
-  interpreter_register_function(interp, "select_points", select_points, select_points_doc());
+//  interpreter_register_function(interp, "select_points", select_points, select_points_doc());
   interpreter_register_function(interp, "remove_points", remove_points, remove_points_doc());
 
-  interpreter_register_sd_functions(interp);
+//  interpreter_register_sd_functions(interp);
   interpreter_register_scalar_functions(interp);
   interpreter_register_vector_functions(interp);
-  interpreter_register_indicators(interp);
+//  interpreter_register_indicators(interp);
 }
 

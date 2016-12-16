@@ -212,6 +212,7 @@ static docstring_t* vector_function_doc()
                                "  creates a vector function from three scalar functions.");
 }
 
+#if 0
 // Evaluates the gradient of a scalar function.
 static int grad(lua_State* lua)
 {
@@ -272,6 +273,7 @@ static docstring_t* grad_doc()
                                "  evaluates the gradient of the scalar function F at the point x\n"
                                "  (and possibly the time t).");
 }
+#endif
 
 // write_silo_mesh(args) -- This function writes a given mesh to a file 
 // on disk. Arguments (passed in a table according to Chapter 5.3 of the 
@@ -1003,7 +1005,6 @@ static docstring_t* tag_nodes_doc()
                                "  Tags a given list of node indices with the given name within the mesh.");
 }
 
-#if 0
 static int repartition(lua_State* lua)
 {
   // Check the arguments.
@@ -1052,16 +1053,14 @@ static int repartition(lua_State* lua)
   if (global_num_cells < nprocs)
     return luaL_error(lua, "Insufficient number of cells (%zd) for number of processes (%d).", global_num_cells, nprocs);
 
-  // Perform the repartitioning and toss the exchanger, since our poor 
-  // interpreter doesn't understand exchangers.
-  exchanger_t* ex = repartition_mesh(&mesh, weights, imbalance_tol);
-  exchanger_free(ex);
+  // Perform the repartitioning and toss the migrator.
+  migrator_t* m = repartition_mesh(&mesh, weights, imbalance_tol);
+  m = NULL;
   if (weights != NULL)
     polymec_free(weights);
 
   return 0;
 }
-#endif
 
 void interpreter_register_default_functions(interpreter_t* interp);
 void interpreter_register_default_functions(interpreter_t* interp)
@@ -1071,7 +1070,7 @@ void interpreter_register_default_functions(interpreter_t* interp)
   interpreter_register_function(interp, "bounding_box", bounding_box, bounding_box_doc());
   interpreter_register_function(interp, "constant_function", constant_function, constant_function_doc());
   interpreter_register_function(interp, "vector_function", vector_function, vector_function_doc());
-  interpreter_register_function(interp, "grad", grad, grad_doc());
+//  interpreter_register_function(interp, "grad", grad, grad_doc());
   interpreter_register_function(interp, "write_silo_mesh", lua_write_silo_mesh, write_silo_mesh_doc());
   interpreter_register_function(interp, "write_silo_points", lua_write_silo_points, write_silo_points_doc());
 
@@ -1092,6 +1091,6 @@ void interpreter_register_default_functions(interpreter_t* interp)
   interpreter_register_function(interp, "tag_nodes", tag_nodes, tag_nodes_doc());
 
   // Other stuff.
-//  interpreter_register_function(interp, "repartition", repartition, NULL);
+  interpreter_register_function(interp, "repartition", repartition, NULL);
 }
 
