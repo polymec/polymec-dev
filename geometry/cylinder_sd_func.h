@@ -8,7 +8,7 @@
 #ifndef POLYMEC_CYLINDER_SD_FUNC_H
 #define POLYMEC_CYLINDER_SD_FUNC_H
 
-#include "geometry/sD_func.h"
+#include "geometry/sd_func.h"
 
 // This signed distance function represents an infinite cylinder with a given 
 // axial point x and radius r. The orientation of the normal vector 

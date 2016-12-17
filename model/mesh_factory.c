@@ -18,7 +18,6 @@
 #include "core/tuple.h"
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/create_rectilinear_mesh.h"
-#include "geometry/create_boundary_generators.h"
 #include "model/interpreter.h"
 
 // Lua stuff.
