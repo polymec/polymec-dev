@@ -9,14 +9,12 @@
 #include "core/unordered_map.h"
 #include "geometry/crop_mesh.h"
 
-static void project_nodes(mesh_t* mesh, sp_func_t* boundary_func)
+static void project_nodes(mesh_t* mesh, sd_func_t* boundary_func)
 {
-  ASSERT(sp_func_has_deriv(boundary_func, 1));
-
   // Go over the boundary faces and project each of the nodes.
   int_unordered_set_t* projected_nodes = int_unordered_set_new();
   size_t nfaces;
-  int* faces = mesh_tag(mesh->face_tags, sp_func_name(boundary_func), &nfaces);
+  int* faces = mesh_tag(mesh->face_tags, sd_func_name(boundary_func), &nfaces);
   for (int f = 0; f < nfaces; ++f)
   {
     int face = faces[f];
@@ -26,16 +24,7 @@ static void project_nodes(mesh_t* mesh, sp_func_t* boundary_func)
       if (!int_unordered_set_contains(projected_nodes, node))
       {
         point_t* x = &mesh->nodes[node];
-        real_t D, grad[3];
-        sp_func_eval(boundary_func, x, &D);
-        sp_func_eval_deriv(boundary_func, 1, x, grad);
-        real_t G = sqrt(grad[0]*grad[0] + grad[1]*grad[1] + grad[2]*grad[2]);
-        if (!reals_equal(D, 0.0) && !reals_equal(G, 0.0))
-        {
-          x->x -= D * grad[0]/G;
-          x->y -= D * grad[1]/G;
-          x->z -= D * grad[2]/G;
-        }
+        sd_func_project(boundary_func, x, x);
         int_unordered_set_insert(projected_nodes, node);
       }
     }
@@ -43,19 +32,18 @@ static void project_nodes(mesh_t* mesh, sp_func_t* boundary_func)
   int_unordered_set_free(projected_nodes);
 }
 
-static noreturn void project_faces(mesh_t* mesh, sp_func_t* boundary_func)
+static noreturn void project_faces(mesh_t* mesh, sd_func_t* boundary_func)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-mesh_t* crop_mesh(mesh_t* mesh, sp_func_t* boundary_func, mesh_crop_t crop_type)
+mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type)
 {
   // Mark the cells whose centers fall outside the boundary.
   int_unordered_set_t* outside_cells = int_unordered_set_new();
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
-    real_t dist;
-    sp_func_eval(boundary_func, &mesh->cell_centers[cell], &dist);
+    real_t dist = sd_func_value(boundary_func, &mesh->cell_centers[cell]);
     if (dist > 0.0)
       int_unordered_set_insert(outside_cells, cell);
   }
@@ -196,7 +184,7 @@ mesh_t* crop_mesh(mesh_t* mesh, sp_func_t* boundary_func, mesh_crop_t crop_type)
   mesh_construct_edges(cropped_mesh);
   
   // Create the boundary faces tag.
-  int* bf_tag = mesh_create_tag(cropped_mesh->face_tags, sp_func_name(boundary_func), boundary_faces->size);
+  int* bf_tag = mesh_create_tag(cropped_mesh->face_tags, sd_func_name(boundary_func), boundary_faces->size);
   {
     int pos = 0, i = 0, face;
     while (int_unordered_set_next(boundary_faces, &pos, &face))

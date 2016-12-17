@@ -9,7 +9,7 @@
 #define POLYMEC_CROP_MESH_H
 
 #include "core/mesh.h"
-#include "core/sp_func.h"
+#include "geometry/sd_func.h"
 
 // Types of cropping algorithms.
 typedef enum
@@ -24,7 +24,7 @@ typedef enum
 // given implicit function, returning a copy of the mesh with these marked 
 // cells removed. The resulting boundary faces of the cropped mesh are 
 // tagged with the name of the boundary function.
-mesh_t* crop_mesh(mesh_t* mesh, sp_func_t* boundary_func, mesh_crop_t crop_type);
+mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type);
 
 #endif
 

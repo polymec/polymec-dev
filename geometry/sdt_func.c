@@ -105,3 +105,13 @@ void sdt_func_eval_grad(sdt_func_t* func, point_t* x, real_t t, vector_t* grad)
   func->vtable.eval_grad(func->context, x, t, grad);
 }
 
+void sdt_func_project(sdt_func_t* func, point_t* x, real_t t, point_t* proj_x)
+{
+  real_t D = func->vtable.value(func->context, x, t);
+  vector_t grad;
+  func->vtable.eval_grad(func->context, x, t, &grad);
+  real_t G = vector_mag(&grad);
+  proj_x->x = x->x - D * grad.x / G;
+  proj_x->y = x->y - D * grad.y / G;
+  proj_x->z = x->z - D * grad.z / G;
+}
