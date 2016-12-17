@@ -13,10 +13,10 @@
 #include "core/silo_file.h"
 #include "geometry/create_uniform_mesh.h"
 #include "geometry/crop_mesh.h"
-#include "geometry/cylinder_sp_func.h"
-#include "geometry/plane_sp_func.h"
-#include "geometry/intersection_sp_func.h"
-#include "geometry/sphere_sp_func.h"
+#include "geometry/cylinder_sd_func.h"
+#include "geometry/plane_sd_func.h"
+#include "geometry/intersection_sd_func.h"
+#include "geometry/sphere_sd_func.h"
 
 static void test_cylindrical_crop(void** state)
 {
@@ -30,15 +30,15 @@ static void test_cylindrical_crop(void** state)
   mesh_t* almost_cropped_mesh;
   {
     point_t O = {.x = 0.5, .y = 0.5, .z = 0.5};
-    sp_func_t* cyl = cylinder_sp_func_new(&O, 0.5, INWARD_NORMAL);
+    sd_func_t* cyl = cylinder_sd_func_new(&O, 0.5, INWARD_NORMAL);
     vector_t ntop = {.x = 0.0, .y = 0.0, .z = -1.0}; 
     point_t xtop = {.x = 0.0, .y = 0.0, .z = 1.0 + dz};
     vector_t nbot = {.x = 0.0, .y = 0.0, .z = 1.0}; 
     point_t xbot = {.x = 0.0, .y = 0.0, .z = 0.0 - dz};
-    sp_func_t* ptop = plane_sp_func_new(&ntop, &xtop);
-    sp_func_t* pbot = plane_sp_func_new(&nbot, &xbot);
-    sp_func_t* surfaces[] = {cyl, ptop, pbot};
-    sp_func_t* boundary = intersection_sp_func_new(surfaces, 3);
+    sd_func_t* ptop = plane_sd_func_new(&ntop, &xtop);
+    sd_func_t* pbot = plane_sd_func_new(&nbot, &xbot);
+    sd_func_t* surfaces[] = {cyl, ptop, pbot};
+    sd_func_t* boundary = intersection_sd_func_new(surfaces, 3);
     almost_cropped_mesh = crop_mesh(mesh, boundary, PROJECT_NODES);
     mesh_free(mesh);
   }
@@ -51,10 +51,10 @@ static void test_cylindrical_crop(void** state)
     point_t xtop = {.x = 0.0, .y = 0.0, .z = 1.0};
     vector_t nbot = {.x = 0.0, .y = 0.0, .z = 1.0}; 
     point_t xbot = {.x = 0.0, .y = 0.0, .z = 0.0};
-    sp_func_t* ptop = plane_sp_func_new(&ntop, &xtop);
-    sp_func_t* pbot = plane_sp_func_new(&nbot, &xbot);
-    sp_func_t* surfaces[] = {ptop, pbot};
-    sp_func_t* boundary = intersection_sp_func_new(surfaces, 2);
+    sd_func_t* ptop = plane_sd_func_new(&ntop, &xtop);
+    sd_func_t* pbot = plane_sd_func_new(&nbot, &xbot);
+    sd_func_t* surfaces[] = {ptop, pbot};
+    sd_func_t* boundary = intersection_sd_func_new(surfaces, 2);
     cropped_mesh = crop_mesh(almost_cropped_mesh, boundary, REMOVE_CELLS);
     mesh_free(almost_cropped_mesh);
   }
@@ -80,7 +80,7 @@ static void test_spherical_crop(void** state)
 
   // Create a cropped mesh using a sphere.
   point_t O = {.x = 0.5, .y = 0.5, .z = 0.5};
-  sp_func_t* boundary = sphere_sp_func_new(&O, 0.5, INWARD_NORMAL);
+  sd_func_t* boundary = sphere_sd_func_new(&O, 0.5, INWARD_NORMAL);
   mesh_t* cropped_mesh = crop_mesh(mesh, boundary, PROJECT_NODES);
   mesh_free(mesh);
 

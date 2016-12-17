@@ -10,22 +10,17 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "geometry/sphere_sp_func.h"
-#include "geometry/cylinder_sp_func.h"
-#include "geometry/difference_sp_func.h"
+#include "geometry/sphere_sd_func.h"
 #include "generate_octave_script_for_surface.h"
 
 static void test_construct(void** state)
 {
-  // Create a sphere and a smaller cylinder.
+  // Create spheres with inward/outward normals.
   point_t origin = {0.0, 0.0, 0.0};
-  sp_func_t* s = sphere_sp_func_new(&origin, 0.5, INWARD_NORMAL);
-  sp_func_t* c = cylinder_sp_func_new(&origin, 0.25, INWARD_NORMAL);
-
-  // With the cylinder, bore a hole through the sphere.
-  sp_func_t* diff = difference_sp_func_new(s, c);
-  assert_true(sp_func_num_comp(diff) == 1);
-  assert_true(sp_func_has_deriv(diff, 1));
+  sd_func_t* s1 = sphere_sd_func_new(&origin, 1.0, INWARD_NORMAL);
+  assert_true(s1 != NULL);
+  sd_func_t* s2 = sphere_sd_func_new(&origin, 1.0, OUTWARD_NORMAL);
+  assert_true(s2 != NULL);
 }
 
 static void test_plot(void** state)
@@ -33,11 +28,9 @@ static void test_plot(void** state)
   // Create a text file containing an Octave script that can be run to 
   // visualize this plot.
   point_t origin = {0.0, 0.0, 0.0};
-  sp_func_t* s = sphere_sp_func_new(&origin, 0.5, INWARD_NORMAL);
-  sp_func_t* c = cylinder_sp_func_new(&origin, 0.25, INWARD_NORMAL);
-  sp_func_t* diff = difference_sp_func_new(s, c);
+  sd_func_t* s = sphere_sd_func_new(&origin, 0.5, OUTWARD_NORMAL);
   bbox_t bbox = {.x1 = -1.0, .x2 = 1.0, .y1 = -1.0, .y2 = 1.0, .z1 = -1.0, .z2 = 1.0};
-  generate_octave_script_for_surface(diff, 20, &bbox, "test_difference.m");
+  generate_octave_script_for_surface(s, 20, &bbox, "test_sphere.m");
 }
 
 int main(int argc, char* argv[]) 

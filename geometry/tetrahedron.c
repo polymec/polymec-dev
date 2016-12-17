@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/polymec.h"
-#include "geometry/plane_sp_func.h"
+#include "geometry/plane_sd_func.h"
 #include "geometry/tetrahedron.h"
 
 // Jonathan Shewchuk's geometric predicates, which are implemented in 
@@ -194,15 +194,10 @@ void tetrahedron_compute_nearest_point(tetrahedron_t* t, point_t* x, point_t* y)
       x2 = &t->vertices[1];
       x3 = &t->vertices[2];
     }
-    sp_func_t* face = plane_sp_func_from_points(x1, x2, x3);
+    sd_func_t* face = plane_sd_func_from_points(x1, x2, x3);
 
     // Project x to the face.
-    point2_t xi;
-    plane_sp_func_project(face, x, &xi);
-
-    // y is just the embedding of the projection in 3D space.
-    plane_sp_func_embed(face, &xi, y);
-
+    sd_func_project(face, x, y);
     face = NULL;
   }
 }

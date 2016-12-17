@@ -26,7 +26,7 @@ static void sd_func_free(void* ctx)
 sd_func_t* sd_func_new(const char* name, void* context, sd_func_vtable vtable)
 {
   ASSERT(vtable.value != NULL);
-  ASSERT(vtable.eval_grad == NULL);
+  ASSERT(vtable.eval_grad != NULL);
   sd_func_t* f = polymec_gc_malloc(sizeof(sd_func_t), sd_func_free);
   f->name = string_dup(name);
   f->context = context;
@@ -111,7 +111,12 @@ void sd_func_project(sd_func_t* func, point_t* x, point_t* proj_x)
   vector_t grad;
   func->vtable.eval_grad(func->context, x, &grad);
   real_t G = vector_mag(&grad);
-  proj_x->x = x->x - D * grad.x / G;
-  proj_x->y = x->y - D * grad.y / G;
-  proj_x->z = x->z - D * grad.z / G;
+  if (G > 0.0)
+  {
+    proj_x->x = x->x - D * grad.x / G;
+    proj_x->y = x->y - D * grad.y / G;
+    proj_x->z = x->z - D * grad.z / G;
+  }
+  else
+    *proj_x = *x;
 }

@@ -13,7 +13,7 @@
 // This function generates an Octave visualization script for the 
 // given surface, sampling its values according to the number of samples 
 // (the same in x, y, and z) within the given bounding box.
-static void generate_octave_script_for_surface(sp_func_t* surface, 
+static void generate_octave_script_for_surface(sd_func_t* surface, 
                                                int num_samples, 
                                                bbox_t* bounding_box,
                                                const char* script_name)
@@ -61,7 +61,7 @@ static void generate_octave_script_for_surface(sp_func_t* surface,
       {
         x.x = -1.0 + (i+0.5)*hx;
         real_t F;
-        sp_func_eval(surface, &x, &F);
+        F = sd_func_value(surface, &x);
         fprintf(fd, "F(%d, %d, %d) = %g;\n", i+1, j+1, k+1, F);
       }
     }

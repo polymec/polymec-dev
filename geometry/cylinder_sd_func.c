@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "geometry/cylinder_sp_func.h"
+#include "geometry/cylinder_sd_func.h"
 
 typedef struct
 {
@@ -15,32 +15,32 @@ typedef struct
   normal_orient_t orient;
 } cyl_t;
 
-static void cyl_eval(void* ctx, point_t* x, real_t* result)
+static real_t cyl_value(void* ctx, point_t* x)
 {
   cyl_t* c = ctx;
   real_t sign = (c->orient == OUTWARD_NORMAL) ? -1.0 : 1.0;
   real_t r2 = (x->x - c->x.x)*(x->x - c->x.x) + 
               (x->y - c->x.y)*(x->y - c->x.y);
-  result[0] = sign * (sqrt(r2) - c->r);
+  return sign * (sqrt(r2) - c->r);
 }
 
-static void cyl_eval_gradient(void* ctx, point_t* x, real_t* result)
+static void cyl_eval_grad(void* ctx, point_t* x, vector_t* grad)
 {
   cyl_t* c = ctx;
   real_t r2 = (x->x - c->x.x)*(x->x - c->x.x) + 
               (x->y - c->x.y)*(x->y - c->x.y);
   real_t D = ABS(sqrt(r2) - c->r);
   if (reals_equal(D, 0.0))
-    result[0] = result[1] = result[2] = 0.0;
+    grad->x = grad->y = grad->z = 0.0;
   else
   {
-    result[0] = (x->x - c->x.x) / D;
-    result[1] = (x->y - c->x.y) / D;
-    result[2] = 0.0;
+    grad->x = (x->x - c->x.x) / D;
+    grad->y = (x->y - c->x.y) / D;
+    grad->z = 0.0;
   }
 }
 
-sp_func_t* cylinder_sp_func_new(point_t* x, real_t r, normal_orient_t normal_orientation)
+sd_func_t* cylinder_sd_func_new(point_t* x, real_t r, normal_orient_t normal_orientation)
 {
   // Set up a cylinder signed distance function.
   cyl_t* c = polymec_malloc(sizeof(cyl_t));
@@ -51,17 +51,9 @@ sp_func_t* cylinder_sp_func_new(point_t* x, real_t r, normal_orient_t normal_ori
   char cyl_str[1024];
   sprintf(cyl_str, "Cylinder (x = (%g %g %g), r = %g)", 
           x->x, x->y, x->z, r);
-  sp_func_vtable vtable = {.eval = cyl_eval, .dtor = polymec_free};
-  sp_func_t* cyl = sp_func_new(cyl_str, c, vtable, SP_FUNC_HETEROGENEOUS, 1);
-
-  // Register the gradient function.
-  char cyl_grad_str[1024];
-  sprintf(cyl_grad_str, "Cylinder gradient (x = (%g %g %g), r = %g)", 
-          x->x, x->y, x->z, r);
-  sp_func_vtable vtable_g = {.eval = cyl_eval_gradient}; // Notice no dtor.
-  sp_func_t* cyl_grad = sp_func_new(cyl_grad_str, c, vtable_g, SP_FUNC_HETEROGENEOUS, 3);
-  sp_func_register_deriv(cyl, 1, cyl_grad);
-
-  return cyl;
+  sd_func_vtable vtable = {.value = cyl_value, 
+                           .eval_grad = cyl_eval_grad,
+                           .dtor = polymec_free};
+  return sd_func_new(cyl_str, c, vtable);
 }
 

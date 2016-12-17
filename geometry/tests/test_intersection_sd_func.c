@@ -10,8 +10,8 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "geometry/plane_sp_func.h"
-#include "geometry/intersection_sp_func.h"
+#include "geometry/plane_sd_func.h"
+#include "geometry/intersection_sd_func.h"
 #include "generate_octave_script_for_surface.h"
 
 static void test_construct(void** state)
@@ -23,18 +23,17 @@ static void test_construct(void** state)
   point_t x1 = {-0.5, 0.0, 0.0}, x2 = { 0.5, 0.0, 0.0},
           x3 = { 0.0,-0.5, 0.0}, x4 = { 0.0, 0.5, 0.0},
           x5 = { 0.0, 0.0,-0.5}, x6 = { 0.0, 0.0, 0.5};
-  sp_func_t* planes[6];
-  planes[0] = plane_sp_func_new(&n1, &x1);
-  planes[1] = plane_sp_func_new(&n2, &x2);
-  planes[2] = plane_sp_func_new(&n3, &x3);
-  planes[3] = plane_sp_func_new(&n4, &x4);
-  planes[4] = plane_sp_func_new(&n5, &x5);
-  planes[5] = plane_sp_func_new(&n6, &x6);
+  sd_func_t* planes[6];
+  planes[0] = plane_sd_func_new(&n1, &x1);
+  planes[1] = plane_sd_func_new(&n2, &x2);
+  planes[2] = plane_sd_func_new(&n3, &x3);
+  planes[3] = plane_sd_func_new(&n4, &x4);
+  planes[4] = plane_sd_func_new(&n5, &x5);
+  planes[5] = plane_sd_func_new(&n6, &x6);
 
   // Now construct their intersection, which should be a cube.
-  sp_func_t* i = intersection_sp_func_new(planes, 6);
-  assert_true(sp_func_num_comp(i) == 1);
-  assert_true(sp_func_has_deriv(i, 1));
+  sd_func_t* i = intersection_sd_func_new(planes, 6);
+  assert_true(i != NULL);
 }
 
 static void test_plot(void** state)
@@ -47,14 +46,14 @@ static void test_plot(void** state)
   point_t x1 = {-0.5, 0.0, 0.0}, x2 = { 0.5, 0.0, 0.0},
           x3 = { 0.0,-0.5, 0.0}, x4 = { 0.0, 0.5, 0.0},
           x5 = { 0.0, 0.0,-0.5}, x6 = { 0.0, 0.0, 0.5};
-  sp_func_t* planes[6];
-  planes[0] = plane_sp_func_new(&n1, &x1);
-  planes[1] = plane_sp_func_new(&n2, &x2);
-  planes[2] = plane_sp_func_new(&n3, &x3);
-  planes[3] = plane_sp_func_new(&n4, &x4);
-  planes[4] = plane_sp_func_new(&n5, &x5);
-  planes[5] = plane_sp_func_new(&n6, &x6);
-  sp_func_t* i = intersection_sp_func_new(planes, 6);
+  sd_func_t* planes[6];
+  planes[0] = plane_sd_func_new(&n1, &x1);
+  planes[1] = plane_sd_func_new(&n2, &x2);
+  planes[2] = plane_sd_func_new(&n3, &x3);
+  planes[3] = plane_sd_func_new(&n4, &x4);
+  planes[4] = plane_sd_func_new(&n5, &x5);
+  planes[5] = plane_sd_func_new(&n6, &x6);
+  sd_func_t* i = intersection_sd_func_new(planes, 6);
   bbox_t bbox = {.x1 = -1.0, .x2 = 1.0, .y1 = -1.0, .y2 = 1.0, .z1 = -1.0, .z2 = 1.0};
   generate_octave_script_for_surface(i, 40, &bbox, "test_intersection.m");
 }
