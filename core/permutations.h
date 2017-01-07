@@ -5,8 +5,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef POLYMEC_PERMUTE_H
-#define POLYMEC_PERMUTE_H
+#ifndef POLYMEC_PERMUTATIONS_H
+#define POLYMEC_PERMUTATIONS_H
 
 #include "core/rng.h"
 
