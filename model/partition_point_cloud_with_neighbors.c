@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2016, Jeffrey N. Johnson
+// Copyright (c) 2012-2017, Jeffrey N. Johnson
 // All rights reserved.
 // 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -151,7 +151,8 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
     for (int p = 0; p < nprocs; ++p)
     {
       // Share the vertex distribution with process p.
-      MPI_Send(vtx_dist, nprocs+1, MPI_UINT64_T, p, p, comm);
+      if (p > 0)
+        MPI_Send(vtx_dist, nprocs+1, MPI_UINT64_T, p, p, comm);
 
       // Set up the exchanger for process p's pairing.
       exchanger_t* ex = exchanger_new_with_rank(comm, p);
