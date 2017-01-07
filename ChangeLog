@@ -1,3 +1,9 @@
+Sat Jan  7 10:05:21 PST 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 1.4.1
+    * Fixed a bug in partition_point_cloud_with_neighbors.
+    * Fixed a glitch in the setup of simple run/batch tests.
+    * Removed LIS source.
+
 Mon Dec  5 22:56:33 PST 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 1.4.0
     * Added model_get_vtable and model_set_vtable to allow vtable overrides within a model instance.
