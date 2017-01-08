@@ -87,6 +87,18 @@ void sp_func_eval(sp_func_t* func, point_t* x, real_t* result)
   func->vtable.eval(func->context, x, result);
 }
 
+void sp_func_eval_n(sp_func_t* func, point_t* xs, size_t n, real_t* results)
+{
+  if (func->vtable.eval_n != NULL)
+    func->vtable.eval_n(func->context, xs, n, results);
+  else
+  {
+    int nc = func->num_comp;
+    for (size_t i = 0; i < n; ++i)
+      func->vtable.eval(func->context, &(xs[i]), &(results[nc*i]));
+  }
+}
+
 // Constant spatial function implementation.
 
 typedef struct
@@ -102,6 +114,17 @@ static void constant_eval(void* ctx, point_t* x, real_t* res)
     res[i] = f->comp[i];
 }
 
+static void constant_eval_n(void* ctx, point_t* xs, size_t n, real_t* res)
+{
+  const_sp_func_t* f = ctx;
+  int nc = f->num_comp;
+  for (size_t k = 0; k < n; ++k)
+  {
+    for (int i = 0; i < nc; ++i)
+      res[nc*k+i] = f->comp[i];
+  }
+}
+
 static void constant_dtor(void* ctx)
 {
   const_sp_func_t* f = ctx;
@@ -111,7 +134,9 @@ static void constant_dtor(void* ctx)
 
 sp_func_t* constant_sp_func_new(real_t components[], int num_components)
 {
-  sp_func_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
+  sp_func_vtable vtable = {.eval = constant_eval, 
+                           .eval_n = constant_eval_n,
+                           .dtor = constant_dtor};
   char name[1025];
   snprintf(name, 1024, "constant spatial function (");
   for (int i = 0; i < num_components; ++i)

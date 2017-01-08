@@ -116,6 +116,18 @@ void st_func_eval(st_func_t* func, point_t* x, real_t t, real_t* result)
   func->vtable.eval(func->context, x, t, result);
 }
 
+void st_func_eval_n(st_func_t* func, point_t* xs, size_t n, real_t t, real_t* results)
+{
+  if (func->vtable.eval_n != NULL)
+    func->vtable.eval_n(func->context, xs, n, t, results);
+  else
+  {
+    int nc = func->num_comp;
+    for (size_t i = 0; i < n; ++i)
+      func->vtable.eval(func->context, &(xs[i]), t, &(results[nc*i]));
+  }
+}
+
 typedef struct
 {
   st_func_t* f; // Borrowed ref
@@ -128,6 +140,12 @@ static void st_frozen_eval(void* ctx, point_t* x, real_t* result)
   st_func_eval(c->f, x, c->t, result); 
 }
 
+static void st_frozen_eval_n(void* ctx, point_t* xs, size_t n, real_t* results)
+{
+  st_frozen_ctx* c = (st_frozen_ctx*)ctx;
+  st_func_eval_n(c->f, xs, n, c->t, results); 
+}
+
 static void st_frozen_dtor(void* ctx)
 {
   st_frozen_ctx* c = (st_frozen_ctx*)ctx;
@@ -136,7 +154,9 @@ static void st_frozen_dtor(void* ctx)
 
 sp_func_t* st_func_freeze(st_func_t* func, real_t t)
 {
-  sp_func_vtable vtable = {.eval = &st_frozen_eval, .dtor = &st_frozen_dtor };
+  sp_func_vtable vtable = {.eval = st_frozen_eval, 
+                           .eval_n = st_frozen_eval_n,
+                           .dtor = st_frozen_dtor };
   char name[1024];
   snprintf(name, 1024, "%s (frozen at %g)", st_func_name(func), t);
   st_frozen_ctx* c = polymec_malloc(sizeof(st_frozen_ctx));
@@ -162,6 +182,14 @@ static void multicomp_eval(void* context, point_t* x, real_t t, real_t* result)
   multicomp_st_func_t* mc = (multicomp_st_func_t*)context;
   for (int i = 0; i < mc->num_comp; ++i)
     st_func_eval(mc->functions[i], x, t, &result[i]);
+}
+
+static void multicomp_eval_n(void* context, point_t* xs, size_t n, real_t t, real_t* results)
+{
+  multicomp_st_func_t* mc = (multicomp_st_func_t*)context;
+  int nc = mc->num_comp;
+  for (int i = 0; i < nc; ++i)
+    st_func_eval_n(mc->functions[i], xs, n, t, &results[i]);
 }
 
 static void multicomp_dtor(void* context)
@@ -194,7 +222,9 @@ st_func_t* multicomp_st_func_from_funcs(const char* name,
     if (!st_func_is_constant(functions[i]))
       constancy = ST_FUNC_NONCONSTANT;
   }
-  st_func_vtable vtable = {.eval = multicomp_eval, .dtor = multicomp_dtor};
+  st_func_vtable vtable = {.eval = multicomp_eval, 
+                           .eval_n = multicomp_eval_n,
+                           .dtor = multicomp_dtor};
   return st_func_new(name, (void*)mc, vtable, 
                      homogeneity, constancy, num_comp);
 }
@@ -265,6 +295,17 @@ static void constant_eval(void* ctx, point_t* x, real_t t, real_t* res)
     res[i] = f->comp[i];
 }
 
+static void constant_eval_n(void* ctx, point_t* xs, size_t n, real_t t, real_t* res)
+{
+  const_st_func_t* f = (const_st_func_t*)ctx;
+  int nc = f->num_comp;
+  for (size_t k = 0; k < n; ++k)
+  {
+    for (int i = 0; i < nc; ++i)
+      res[nc*k+i] = f->comp[i];
+  }
+}
+
 static void constant_dtor(void* ctx)
 {
   const_st_func_t* f = (const_st_func_t*)ctx;
@@ -274,7 +315,9 @@ static void constant_dtor(void* ctx)
 
 st_func_t* constant_st_func_new(real_t components[], int num_components)
 {
-  st_func_vtable vtable = {.eval = constant_eval, .dtor = constant_dtor};
+  st_func_vtable vtable = {.eval = constant_eval, 
+                           .eval_n = constant_eval_n,
+                           .dtor = constant_dtor};
   char name[1024];
   snprintf(name, 1024, "constant space-time function (");
   for (int i = 0; i < num_components; ++i)

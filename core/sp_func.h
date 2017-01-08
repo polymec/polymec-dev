@@ -27,6 +27,9 @@ typedef enum
 // A function pointer type for evaluating the function at a point.
 typedef void (*sp_eval_func)(void* context, point_t* x, real_t* F);
 
+// A function pointer type for evaluating the function at n points.
+typedef void (*sp_eval_n_func)(void* context, point_t* xs, size_t n, real_t* Fs);
+
 // A destructor for any given context object.
 typedef void (*sp_dtor)(void*);
 
@@ -34,6 +37,7 @@ typedef void (*sp_dtor)(void*);
 typedef struct 
 {
   sp_eval_func              eval;
+  sp_eval_n_func            eval_n;
   sp_dtor                   dtor;
 } sp_func_vtable;
 
@@ -66,6 +70,10 @@ void* sp_func_context(sp_func_t* func);
 
 // Evaluates the function at the given point, placing the result in result.
 void sp_func_eval(sp_func_t* func, point_t* x, real_t* result);
+
+// Evaluates the function at the given n points xs = {x1, x2, ..., xn}, 
+// placing the result in result = {F1, F2, ..., Fn}.
+void sp_func_eval_n(sp_func_t* func, point_t* xs, size_t n, real_t* result);
 
 // Creates a function that is constant everywhere in space, with the given 
 // components.

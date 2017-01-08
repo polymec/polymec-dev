@@ -19,7 +19,9 @@ typedef struct sd_func_t sd_func_t;
 typedef struct 
 {
   real_t (*value)(void* context, point_t* x);
+  void (*eval_n)(void* context, point_t* xs, size_t n, real_t* vals);
   void (*eval_grad)(void* context, point_t* x, vector_t* grad);
+  void (*eval_n_grad)(void* context, point_t* xs, size_t n, vector_t* grads);
   void (*dtor)(void* context);
 } sd_func_vtable;
 
@@ -43,13 +45,25 @@ void* sd_func_context(sd_func_t* func);
 // Returns the value of the function at the given point x.
 real_t sd_func_value(sd_func_t* func, point_t* x);
 
+// Evaluates the values of the function at the given n point xs, placing 
+// them into vals.
+void sd_func_eval_n(sd_func_t* func, point_t* xs, size_t n, real_t* vals);
+
 // Computes the gradient of the function at the given point x, placing the 
 // result in grad.
 void sd_func_eval_grad(sd_func_t* func, point_t* x, vector_t* grad);
 
+// Computes the gradients of the function at the given n points xs, placing 
+// them in grads.
+void sd_func_eval_n_grad(sd_func_t* func, point_t* xs, size_t n, vector_t* grads);
+
 // Computes the projection of the point x onto the zero level set of the 
-// function, placing the project into proj_x.
+// function, placing the result into proj_x.
 void sd_func_project(sd_func_t* func, point_t* x, point_t* proj_x);
+
+// Computes the projection of the n points xs onto the zero level set of the 
+// function, placing the results into proj_xs.
+void sd_func_project_n(sd_func_t* func, point_t* xs, size_t n, point_t* proj_xs);
 
 #endif
 
