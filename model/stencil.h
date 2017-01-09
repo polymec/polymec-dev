@@ -58,11 +58,6 @@ stencil_t* stencil_clone(stencil_t* stencil);
 // Any existing weights are deleted, and the weights array is consumed.
 void stencil_set_weights(stencil_t* stencil, real_t* weights);
 
-// This operation creates an "augmented" stencil for which the neighbors of 
-// i compromise the neighbors of neighbors of i in the given stencil.
-// FIXME: Not supported yet. Needs more sophisticate exchanger machinery.
-//stencil_t* augmented_stencil(stencil_t* stencil);
-
 // Given an array of sets of neighbors to remove from each index (of length 
 // stencil->num_indices), removes those neighbors from their indices within 
 // the stencil. neighbors_to_trim[i] holds the set of neighbors to trim from 
