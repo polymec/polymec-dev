@@ -30,6 +30,13 @@ typedef struct
   int (*method)(lua_State* L);
 } lua_type_method;
 
+// This type represents a function in a Lua module.
+typedef struct
+{
+  const char* name;
+  int (*func)(lua_State* L);
+} lua_module_func;
+
 // Registers a new Lua type with the interpreter L, giving it a name, a 
 // constructor, and a set of attributes and methods. Optionally, a 
 // tostring method can be provided to generate a string for an object of 
@@ -40,6 +47,12 @@ void lua_register_type(lua_State* L,
                        lua_type_attr attributes[],
                        lua_type_method methods[],
                        int (*tostring)(lua_State*));
+
+// Registers a set of functions with the interpreter L in the module with the 
+// given name.
+void lua_register_module(lua_State* L,
+                         const char* module_name,
+                         lua_module_func funcs[]);
 
 // Pushes a new (polymec) Lua object of the given type to the top of the stack 
 // in the interpreter L, associating it with a context pointer and a destructor 

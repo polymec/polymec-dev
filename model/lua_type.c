@@ -12,26 +12,6 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-// Dictionary of constructors by type.
-static string_ptr_unordered_map_t* lua_type_ctors = NULL;
-
-// Dictionary of attributes by type.
-static string_ptr_unordered_map_t* lua_type_attrs = NULL;
-
-// Dictionary of methods by type.
-static string_ptr_unordered_map_t* lua_type_methods = NULL;
-
-// This function is called at exit to destroy the above global objects.
-static void destroy_lua_dicts(void)
-{
-  if (lua_type_ctors != NULL)
-    string_ptr_unordered_map_free(lua_type_ctors);
-  if (lua_type_attrs != NULL)
-    string_ptr_unordered_map_free(lua_type_attrs);
-  if (lua_type_methods != NULL)
-    string_ptr_unordered_map_free(lua_type_methods);
-}
-
 typedef struct 
 {
   // Type and behaviors.
@@ -139,13 +119,42 @@ static int generic_tostring(lua_State* L)
   return 1;
 }
 
-void lua_register_type(lua_State* L,
-                       const char* type_name,
-                       int (*ctor)(lua_State*),
-                       lua_type_attr attributes[],
-                       lua_type_method methods[],
-                       int (*tostring)(lua_State*))
+// Dictionary of constructors by type.
+static string_ptr_unordered_map_t* lua_type_ctors = NULL;
+
+// Dictionary of attributes by type.
+static string_ptr_unordered_map_t* lua_type_attrs = NULL;
+
+// Dictionary of methods by type.
+static string_ptr_unordered_map_t* lua_type_methods = NULL;
+
+// This function is called at exit to destroy the above global objects.
+static void destroy_lua_dicts(void)
 {
+  if (lua_type_ctors != NULL)
+    string_ptr_unordered_map_free(lua_type_ctors);
+  if (lua_type_attrs != NULL)
+    string_ptr_unordered_map_free(lua_type_attrs);
+  if (lua_type_methods != NULL)
+    string_ptr_unordered_map_free(lua_type_methods);
+}
+
+static int lua_open_type(lua_State* L)
+{
+  // Get stuff off the stack.
+  ASSERT(lua_isstring(L, 1));
+  ASSERT(lua_iscfunction(L, 2));
+  ASSERT(lua_islightuserdata(L, 3));
+  ASSERT(lua_islightuserdata(L, 4));
+  ASSERT(lua_iscfunction(L, 5));
+
+  const char* type_name = lua_tostring(L, 1);
+  int (*ctor)(lua_State* L) = lua_tocfunction(L, 2);
+  lua_type_attr* attributes = lua_touserdata(L, 3);
+  lua_type_method* methods = lua_touserdata(L, 4);
+  int (*tostring)(lua_State* L) = lua_tocfunction(L, 5);
+  lua_pop(L, 5);
+
   // First of all, create our global type dictionaries if we haven't 
   // already.
   if (lua_type_ctors == NULL)
@@ -207,7 +216,7 @@ void lua_register_type(lua_State* L,
   m[num_methods+1].name = string_dup("__newindex");
   m[num_methods+1].func = lua_object_newindex;
   m[num_methods+2].name = string_dup("__tostring");
-  m[num_methods+2].func = (tostring != NULL) ? tostring : generic_tostring;
+  m[num_methods+2].func = tostring;
   m[num_methods+3].name = string_dup("__gc");
   m[num_methods+3].func = lua_object_gc;
   m[num_methods+4].name = NULL;
@@ -222,10 +231,63 @@ void lua_register_type(lua_State* L,
   luaL_newmetatable(L, type_name);
   luaL_setfuncs(L, m, 0);
 
-  // Register the type with the interpreter.
+  // Create a containing module for this type and register its constructor.
   luaL_checkversion(L);
   lua_createtable(L, 0, 1);
   luaL_setfuncs(L, c, 0);
+  return 1;
+}
+
+void lua_register_type(lua_State* L,
+                       const char* type_name,
+                       int (*ctor)(lua_State*),
+                       lua_type_attr attributes[],
+                       lua_type_method methods[],
+                       int (*tostring)(lua_State*))
+{
+  ASSERT(ctor != NULL);
+
+  // Load the type into a module by calling lua_open_type.
+  lua_pushstring(L, type_name);
+  lua_pushcfunction(L, ctor);
+  lua_pushlightuserdata(L, (void*)attributes);
+  lua_pushlightuserdata(L, (void*)methods);
+  lua_pushcfunction(L, (tostring != NULL) ? tostring : generic_tostring);
+  luaL_requiref(L, type_name, lua_open_type, 1);
+}
+
+static int lua_open_module(lua_State* L)
+{
+  // Get stuff off the stack.
+  ASSERT(lua_islightuserdata(L, 1));
+  lua_module_func* funcs = lua_touserdata(L, 1);
+  lua_pop(L, 1);
+
+  // Module functions.
+  int num_funcs = 0;
+  while (funcs[num_funcs].name != NULL)
+    ++num_funcs;
+  luaL_Reg* f = polymec_malloc(sizeof(luaL_Reg) * (num_funcs+1));
+  for (int i = 0; i < num_funcs; ++i)
+  {
+    f[i].name = string_dup(funcs[i].name);
+    f[i].func = funcs[i].func;
+  }
+
+  // Register the functions with this module and return it.
+  luaL_checkversion(L);
+  lua_createtable(L, 0, 1);
+  luaL_setfuncs(L, f, 0);
+  return 1;
+}
+
+void lua_register_module(lua_State* L,
+                         const char* module_name,
+                         lua_module_func funcs[]) 
+{
+  // Load the module by calling lua_open_module with the right globals set.
+  lua_pushlightuserdata(L, (void*)funcs);
+  luaL_requiref(L, module_name, lua_open_module, 1);
 }
 
 void lua_push_object(lua_State* L,
