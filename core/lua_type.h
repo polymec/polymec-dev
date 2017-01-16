@@ -14,6 +14,14 @@
 // implement functions in Lua.
 typedef struct lua_State lua_State;
 
+// This type represents a static function on a Lua object. Static functions 
+// include constructors, for example.
+typedef struct
+{
+  const char* name;
+  int (*func)(lua_State* L);
+} lua_type_func;
+
 // This type represents an attribute in a Lua object, with a name, 
 // a getter, and a setter (if any).
 typedef struct 
@@ -31,15 +39,13 @@ typedef struct
 } lua_type_method;
 
 // Registers a new Lua type with the interpreter L, giving it a name, a 
-// constructor, and a set of attributes and methods. Optionally, a 
-// tostring method can be provided to generate a string for an object of 
-// this type. The constructor resides in a module named after the type.
+// constructor, and a set of attributes and methods. Static functions 
+// such as constructors are placed into a module named after the type.
 void lua_register_type(lua_State* L,
                        const char* type_name,
-                       int (*ctor)(lua_State*),
+                       lua_type_func funcs[],
                        lua_type_attr attributes[],
-                       lua_type_method methods[],
-                       int (*tostring)(lua_State*));
+                       lua_type_method methods[]);
 
 // Pushes a new (polymec) Lua object of the given type to the top of the stack 
 // in the interpreter L, associating it with a context pointer and a destructor 
@@ -49,18 +55,18 @@ void lua_push_object(lua_State* L,
                      void* context,
                      void (*dtor)(void* context));
 
+// Returns true if the object at the given index in the interpreter is of 
+// the type identified by the given type name, false if not.
+bool lua_is_object(lua_State* L,
+                   int index,
+                   const char* type_name);
+
 // Returns the context pointer associated with the (polymec) lua object of the 
 // given type at the given index in the interpreter L, or NULL if the value at that index is 
 // not of that type.
 void* lua_to_object(lua_State* L,
                     int index,
                     const char* type_name);
-
-// Returns true if the object at the given index in the interpreter is of 
-// the type identified by the given type name, false if not.
-bool lua_is_object(lua_State* L,
-                   int index,
-                   const char* type_name);
 
 // This type represents a function in a Lua module.
 typedef struct

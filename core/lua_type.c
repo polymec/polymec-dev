@@ -112,15 +112,8 @@ static void destroy_methods(void* val)
   polymec_free(methods);
 }
 
-static int generic_tostring(lua_State* L)
-{
-  lua_object_t* obj = lua_touserdata(L, -1);
-  lua_pushfstring(L, "%s (%p)", obj->type_name, obj->context);
-  return 1;
-}
-
-// Dictionary of constructors by type.
-static string_ptr_unordered_map_t* lua_type_ctors = NULL;
+// Dictionary of static functions by type.
+static string_ptr_unordered_map_t* lua_type_funcs = NULL;
 
 // Dictionary of attributes by type.
 static string_ptr_unordered_map_t* lua_type_attrs = NULL;
@@ -131,8 +124,8 @@ static string_ptr_unordered_map_t* lua_type_methods = NULL;
 // This function is called at exit to destroy the above global objects.
 static void destroy_lua_dicts(void)
 {
-  if (lua_type_ctors != NULL)
-    string_ptr_unordered_map_free(lua_type_ctors);
+  if (lua_type_funcs != NULL)
+    string_ptr_unordered_map_free(lua_type_funcs);
   if (lua_type_attrs != NULL)
     string_ptr_unordered_map_free(lua_type_attrs);
   if (lua_type_methods != NULL)
@@ -144,36 +137,32 @@ static int lua_open_type(lua_State* L)
   // Get stuff out of the registry.
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_type_name");
   const char* type_name = lua_tostring(L, -1);
-  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_ctor");
-  int (*ctor)(lua_State* L) = lua_tocfunction(L, -1);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_funcs");
+  lua_type_func* funcs = lua_touserdata(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_attr");
   lua_type_attr* attributes = lua_touserdata(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_methods");
   lua_type_method* methods = lua_touserdata(L, -1);
-  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_tostring");
-  int (*tostring)(lua_State* L) = lua_tocfunction(L, -1);
-  lua_pop(L, 5);
+  lua_pop(L, 4);
 
   // Clean up the registry.
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_name");
   lua_pushnil(L);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_ctor");
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_funcs");
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_attr");
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_methods");
-  lua_pushnil(L);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_tostring");
 
   // First of all, create our global type dictionaries if we haven't 
   // already.
-  if (lua_type_ctors == NULL)
+  if (lua_type_funcs == NULL)
   {
     ASSERT(lua_type_attrs == NULL);
     ASSERT(lua_type_methods == NULL);
 
-    lua_type_ctors = string_ptr_unordered_map_new();
+    lua_type_funcs = string_ptr_unordered_map_new();
     lua_type_attrs = string_ptr_unordered_map_new();
     lua_type_methods = string_ptr_unordered_map_new();
     polymec_atexit(destroy_lua_dicts);
@@ -182,14 +171,18 @@ static int lua_open_type(lua_State* L)
   // Create entries for this type in the global dictionaries.
 
   // Constructor.
-  luaL_Reg* c = polymec_malloc(sizeof(luaL_Reg) * 2);
-  c[0].name = string_dup("new");
-  c[0].func = ctor;
-  c[1].name = NULL;
-  c[1].func = NULL;
-  string_ptr_unordered_map_insert_with_kv_dtors(lua_type_ctors, 
+  int num_funcs = 0;
+  while (funcs[num_funcs].name != NULL)
+    ++num_funcs;
+  luaL_Reg* f = polymec_malloc(sizeof(luaL_Reg) * (num_funcs + 1));
+  for (int i = 0; i < num_funcs; ++i)
+  {
+    f[i].name = string_dup(funcs[i].name);
+    f[i].func = funcs[i].func;
+  }
+  string_ptr_unordered_map_insert_with_kv_dtors(lua_type_funcs, 
                                                 string_dup(type_name),
-                                                c,
+                                                f,
                                                 string_free,
                                                 destroy_methods);
 
@@ -221,13 +214,11 @@ static int lua_open_type(lua_State* L)
     m[i].name = string_dup(methods[i].name);
     m[i].func = methods[i].method;
   }
-  // Add __index, __newindex, __tostring, __gc methods.
+  // Add __index, __newindex, __gc methods.
   m[num_methods].name = string_dup("__index");
   m[num_methods].func = lua_object_index;
   m[num_methods+1].name = string_dup("__newindex");
   m[num_methods+1].func = lua_object_newindex;
-  m[num_methods+2].name = string_dup("__tostring");
-  m[num_methods+2].func = tostring;
   m[num_methods+3].name = string_dup("__gc");
   m[num_methods+3].func = lua_object_gc;
   m[num_methods+4].name = NULL;
@@ -242,40 +233,34 @@ static int lua_open_type(lua_State* L)
   luaL_newmetatable(L, type_name);
   luaL_setfuncs(L, m, 0);
 
-  // Create a containing module for this type and register its constructor.
+  // Create a containing module for this type and register its static functions.
   luaL_checkversion(L);
   lua_createtable(L, 0, 1);
-  luaL_setfuncs(L, c, 0);
+  luaL_setfuncs(L, f, 0);
   return 1;
 }
 
 void lua_register_type(lua_State* L,
                        const char* type_name,
-                       int (*ctor)(lua_State*),
+                       lua_type_func funcs[],
                        lua_type_attr attributes[],
-                       lua_type_method methods[],
-                       int (*tostring)(lua_State*))
+                       lua_type_method methods[])
 {
-  ASSERT(ctor != NULL);
-
   // Load the type into a module by calling lua_open_type.
   // First, though, we need to stash the following into the global registry:
   //   1. type_name
-  //   2. ctor
+  //   2. (static) functions
   //   3. attributes
   //   4. methods
-  //   5. tostring
   // so that lua_open_type can retrieve them on the far end.
   lua_pushstring(L, type_name);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_type_name");
-  lua_pushcfunction(L, ctor);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_ctor");
+  lua_pushlightuserdata(L, (void*)funcs);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_funcs");
   lua_pushlightuserdata(L, (void*)attributes);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_attr");
   lua_pushlightuserdata(L, (void*)methods);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_methods");
-  lua_pushcfunction(L, (tostring != NULL) ? tostring : generic_tostring);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_tostring");
   luaL_requiref(L, type_name, lua_open_type, 1);
 }
 

@@ -387,7 +387,7 @@ bool silo_file_query(const char* file_prefix,
                      const char* directory,
                      int* num_files,
                      int* num_mpi_processes,
-                     int_slist_t* cycles)
+                     int_slist_t* steps)
 {
   // No blank strings allowed for queries.
   ASSERT(strlen(file_prefix) > 0);
@@ -409,7 +409,7 @@ bool silo_file_query(const char* file_prefix,
     // Try to find a master file or single data file.
     char data_file[FILENAME_MAX+1];
     data_file[0] = '\0';
-    bool found_cycles = false;
+    bool found_steps = false;
     {
       string_slist_node_t* node = files_in_dir->front;
       while (node != NULL)
@@ -422,7 +422,7 @@ bool silo_file_query(const char* file_prefix,
           snprintf(data_file, FILENAME_MAX, "%s/%s", directory, node->value);
           snprintf(path, FILENAME_MAX, "%s-", file_prefix); 
           if (strstr(node->value, path))
-            found_cycles = true;
+            found_steps = true;
           break;
         }
         node = node->next;
@@ -483,10 +483,10 @@ bool silo_file_query(const char* file_prefix,
 
     DBClose(file);
 
-    // Search for available cycles.
-    if ((cycles != NULL) && found_cycles)
+    // Search for available steps.
+    if ((steps != NULL) && found_steps)
     {
-      int_slist_clear(cycles);
+      int_slist_clear(steps);
       string_slist_node_t* node = files_in_dir->front;
       while (node != NULL)
       {
@@ -501,7 +501,7 @@ bool silo_file_query(const char* file_prefix,
           strncpy(num, c, p2-c);
           num[p2-c] = '\0';
           if (string_is_number(num))
-            int_slist_append(cycles, atoi(num));
+            int_slist_append(steps, atoi(num));
         }
         node = node->next;
       }
@@ -512,38 +512,38 @@ bool silo_file_query(const char* file_prefix,
   }
 
   // Now spread the word to other processes.
-  int num_cycles = (cycles != NULL) ? cycles->size : 0;
-  int data[3] = {*num_files, *num_mpi_processes, num_cycles};
+  int num_steps = (steps != NULL) ? steps->size : 0;
+  int data[3] = {*num_files, *num_mpi_processes, num_steps};
   MPI_Bcast(data, 3, MPI_INT, 0, MPI_COMM_WORLD);
   if (rank != 0)
   {
     *num_files = data[0];
     *num_mpi_processes = data[1];
-    num_cycles = data[2];
+    num_steps = data[2];
   }
 
-  if (cycles != NULL)
+  if (steps != NULL)
   {
-    int cycles_buffer[num_cycles];
+    int step_buffer[num_steps];
     if (rank == 0)
     {
-      // Spit the cycles into the array and sort them.
-      int_slist_node_t* node = cycles->front;
+      // Spit the steps into the array and sort them.
+      int_slist_node_t* node = steps->front;
       int i = 0;
       while (node != NULL)
       {
-        cycles_buffer[i++] = node->value;
+        step_buffer[i++] = node->value;
         node = node->next;
       }
-      ASSERT(i == num_cycles);
-      int_qsort(cycles_buffer, num_cycles);
+      ASSERT(i == num_steps);
+      int_qsort(step_buffer, num_steps);
     }
-    MPI_Bcast(cycles_buffer, num_cycles, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(step_buffer, num_steps, MPI_INT, 0, MPI_COMM_WORLD);
 
     // Shuffle them back into our linked list.
-    int_slist_clear(cycles);
-    for (int i = 0; i < num_cycles; ++i)
-      int_slist_append(cycles, cycles_buffer[i]);
+    int_slist_clear(steps);
+    for (int i = 0; i < num_steps; ++i)
+      int_slist_append(steps, step_buffer[i]);
   }
   return true;
 }
@@ -555,7 +555,7 @@ struct silo_file_t
 
   // Metadata.
   char prefix[FILENAME_MAX+1], directory[FILENAME_MAX+1], filename[FILENAME_MAX+1];
-  int cycle;
+  int step;
   real_t time;
   int mode; // Open for reading (DB_READ) or writing (DB_CLOBBER)? 
   string_ptr_unordered_map_t* expressions;
@@ -632,10 +632,10 @@ static void write_subdomains_to_file(silo_file_t* file)
   if (file->rank_in_group != 0) return;
   int num_chunks = file->nproc / file->num_files;
 
-  // Stick in cycle/time information if needed.
+  // Stick in step/time information if needed.
   DBoptlist* optlist = DBMakeOptlist(2);
-  if (file->cycle >= 0)
-    DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
+  if (file->step >= 0)
+    DBAddOption(optlist, DBOPT_CYCLE, &file->step);
   if (reals_equal(file->time, -REAL_MAX))
   {
     double t = (double)file->time;
@@ -705,10 +705,10 @@ static void write_master_file(silo_file_t* file)
   // FIXME: objects when we start to Get Real Parallel.
 
   char master_file_name[FILENAME_MAX+1];
-  if (file->cycle == -1)
+  if (file->step == -1)
     snprintf(master_file_name, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
-    snprintf(master_file_name, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, file->cycle);
+    snprintf(master_file_name, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, file->step);
   PMPIO_baton_t* baton = PMPIO_Init(1, PMPIO_WRITE, file->comm, file->mpi_tag+1, 
                                     pmpio_create_file, pmpio_open_file, 
                                     pmpio_close_file, 0);
@@ -718,10 +718,10 @@ static void write_master_file(silo_file_t* file)
   int one = 1;
   DBWrite(master, "POLYMEC_SILO_MASTER_FILE", &one, &one, 1, DB_INT);
 
-  // Stick in cycle/time information if needed.
+  // Stick in step/time information if needed.
   DBoptlist* optlist = DBMakeOptlist(2);
-  if (file->cycle >= 0)
-    DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
+  if (file->step >= 0)
+    DBAddOption(optlist, DBOPT_CYCLE, &file->step);
   if (reals_equal(file->time, -REAL_MAX))
   {
     double t = (double)file->time;
@@ -745,10 +745,10 @@ static void write_master_file(silo_file_t* file)
       {
         char mesh_name[FILENAME_MAX+1];
         mesh_types[num_chunks*j+c] = mesh->type;
-        if (file->cycle == -1)
+        if (file->step == -1)
           snprintf(mesh_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, mesh->name);
         else
-          snprintf(mesh_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->cycle, c, mesh->name);
+          snprintf(mesh_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->step, c, mesh->name);
         mesh_names[num_chunks*j+c] = string_dup(mesh_name);
       }
     }
@@ -778,10 +778,10 @@ static void write_master_file(silo_file_t* file)
       for (int c = 0; c < num_chunks; ++c)
       {
         char field_name[FILENAME_MAX+1];
-        if (file->cycle == -1)
+        if (file->step == -1)
           snprintf(field_name, FILENAME_MAX, "%d/%s.silo:/domain_%d/%s", j, file->prefix, c, field->name);
         else
-          snprintf(field_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->cycle, c, field->name);
+          snprintf(field_name, FILENAME_MAX, "%d/%s-%d.silo:/domain_%d/%s", j, file->prefix, file->step, c, field->name);
         field_names[num_chunks*j+c] = string_dup(field_name);
         field_types[num_chunks*j+c] = field->type;
       }
@@ -816,7 +816,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
                            const char* directory,
                            int num_files,
                            int mpi_tag,
-                           int cycle,
+                           int step,
                            real_t time)
 {
   START_FUNCTION_TIMER();
@@ -882,19 +882,19 @@ silo_file_t* silo_file_new(MPI_Comm comm,
       if (file->rank_in_group == 0)
         create_directory(group_dir_name, S_IRWXU | S_IRWXG);
 
-      if (cycle == -1)
+      if (step == -1)
         snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, file->prefix);
       else
-        snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, cycle);
+        snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, step);
     }
     else
     {
       ASSERT(file->group_rank == 0);
       ASSERT(file->rank_in_group == file->rank);
-      if (cycle == -1)
+      if (step == -1)
         snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
       else
-        snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, cycle);
+        snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, step);
     }
     char silo_dir_name[FILENAME_MAX+1];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
@@ -913,10 +913,10 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     else
       strncpy(file->directory, directory, FILENAME_MAX);
 
-    if (cycle == -1)
+    if (step == -1)
       snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
     else
-      snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, cycle);
+      snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, step);
 
     int driver = DB_HDF5;
     if (strcmp(file->directory, ".") != 0)
@@ -930,10 +930,10 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   else
     strncpy(file->directory, directory, FILENAME_MAX);
 
-  if (cycle == -1)
+  if (step == -1)
     snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
-    snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, cycle);
+    snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, step);
 
   int driver = DB_HDF5;
   create_directory(file->directory, S_IRWXU | S_IRWXG);
@@ -942,7 +942,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 #endif
 
   file->mode = DB_CLOBBER;
-  file->cycle = cycle;
+  file->step = step;
   file->time = time;
 
   // Write our stamp of approval.
@@ -1000,13 +1000,13 @@ silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
                             int mpi_tag,
-                            int cycle, 
+                            int step, 
                             real_t* time)
 {
   START_FUNCTION_TIMER();
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->mode = DB_READ;
-  file->cycle = -1;
+  file->step = -1;
   file->time = -REAL_MAX;
   file->expressions = NULL;
 
@@ -1020,10 +1020,10 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     strcpy(file->prefix, prefix);
   }
 
-  // Query the dataset for the number of files and MPI processes and cycles.
+  // Query the dataset for the number of files and MPI processes and step.
   int num_files, num_mpi_procs;
-  int_slist_t* cycles = int_slist_new();
-  if (!silo_file_query(file_prefix, directory, &num_files, &num_mpi_procs, cycles))
+  int_slist_t* steps = int_slist_new();
+  if (!silo_file_query(file_prefix, directory, &num_files, &num_mpi_procs, steps))
     polymec_error("silo_file_open: Invalid file.");
 
   log_debug("silo_file_open: Opened file written by %d MPI processes.", num_mpi_procs);
@@ -1039,25 +1039,25 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     polymec_not_implemented("silo_file_open: reading files written with different\n"
                             "number of MPI processes is not yet supported.");
 
-  // Check to see whether the requested cycle is available, or whether the 
+  // Check to see whether the requested step is available, or whether the 
   // latest one is requested (with -1).
-  if (cycle >= 0)
+  if (step >= 0)
   {
-    bool cycle_found = false;
-    int_slist_node_t* node = cycles->front;
+    bool step_found = false;
+    int_slist_node_t* node = steps->front;
     while (node != NULL)
     {
-      if (node->value == cycle)
+      if (node->value == step)
       {
-        cycle_found = true;
+        step_found = true;
         break;
       }
-      else if (node->value > cycle) // cycles are sorted
+      else if (node->value > step) // steps are sorted
         break;
       node = node->next;
     }
-    if (!cycle_found)
-      polymec_error("silo_file_open: Cycle %d was not found for prefix '%s' in directory %s.", cycle, file->prefix, directory);
+    if (!step_found)
+      polymec_error("silo_file_open: Step %d was not found for prefix '%s' in directory %s.", step, file->prefix, directory);
   }
 
 #if POLYMEC_HAVE_MPI
@@ -1110,19 +1110,19 @@ silo_file_t* silo_file_open(MPI_Comm comm,
       }
 
       // Determine a file name and directory name.
-      if (cycle == -1)
+      if (step == -1)
         snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", group_dir_name, file->prefix);
       else
-        snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, cycle);
+        snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", group_dir_name, file->prefix, step);
     }
     else
     {
       ASSERT(file->group_rank == 0);
       ASSERT(file->rank_in_group == file->rank);
-      if (cycle == -1)
+      if (step == -1)
         snprintf(file->filename, FILENAME_MAX, "%s.silo", file->prefix);
       else
-        snprintf(file->filename, FILENAME_MAX, "%s-%d.silo", file->prefix, cycle);
+        snprintf(file->filename, FILENAME_MAX, "%s-%d.silo", file->prefix, step);
     }
 
     char silo_dir_name[FILENAME_MAX+1];
@@ -1141,10 +1141,10 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     else
       strncpy(file->directory, directory, FILENAME_MAX);
 
-    if (cycle == -1)
+    if (step == -1)
       snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
     else
-      snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, cycle);
+      snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, step);
 
     int driver = DB_HDF5;
     file->dbfile = DBOpen(file->filename, driver, file->mode);
@@ -1158,10 +1158,10 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   else
     strncpy(file->directory, directory, FILENAME_MAX);
 
-  if (cycle == -1)
+  if (step == -1)
     snprintf(file->filename, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
-    snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, cycle);
+    snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, step);
 
   int driver = DB_HDF5;
   file->dbfile = DBOpen(file->filename, driver, file->mode);
@@ -1170,7 +1170,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   show_provenance_on_debug_log(file);
 #endif
 
-  // Get cycle/time information.
+  // Get step/time information.
   if (DBInqVarExists(file->dbfile, "dtime"))
   {
     double dtime;
@@ -1180,9 +1180,9 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   else
     file->time = 0.0;
   if (DBInqVarExists(file->dbfile, "cycle"))
-    DBReadVar(file->dbfile, "cycle", &file->cycle);
+    DBReadVar(file->dbfile, "cycle", &file->step);
   else
-    file->cycle = -1;
+    file->step = -1;
 
   if (time != NULL)
     *time = file->time;
@@ -1419,9 +1419,9 @@ void silo_file_write_mesh(silo_file_t* file,
   snprintf(zonelist_name, FILENAME_MAX, "%s_zonelist", mesh_name);
   DBAddOption(optlist, DBOPT_PHZONELIST, zonelist_name);
 
-  // Stick in cycle/time information if needed.
-  if (file->cycle >= 0)
-    DBAddOption(optlist, DBOPT_CYCLE, &file->cycle);
+  // Stick in step/time information if needed.
+  if (file->step >= 0)
+    DBAddOption(optlist, DBOPT_CYCLE, &file->step);
   if (reals_equal(file->time, -REAL_MAX))
   {
     double t = (double)file->time;

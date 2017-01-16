@@ -84,20 +84,21 @@ typedef struct silo_file_t silo_file_t;
 
 // Queries the given directory for a file or set of files matching the given 
 // prefix, storing the number of files and the number of MPI processes used to 
-// write them in the variables num_files and num_mpi_processes. If the cycles 
-// linked list is non-NULL, it is filled with the cycle numbers available in 
+// write them in the variables num_files and num_mpi_processes. If the steps 
+// linked list is non-NULL, it is filled with the step numbers available in 
 // the files. This function returns true if the file/files are valid Polymec 
 // Silo files (that is, if they were written using the silo_file mechanism)
-// and false if they are non-Polymec Silo files or non-Silo files.
+// and false if they are non-Polymec Silo files or non-Silo files, or if they 
+// don't exist.
 bool silo_file_query(const char* file_prefix,
                      const char* directory,
                      int* num_files,
                      int* num_mpi_processes,
-                     int_slist_t* cycles);
+                     int_slist_t* steps);
 
 // Creates and opens a new Silo file for writing simulation data, 
-// returning the Silo file object. If cycle is non-negative, the file associates 
-// itself with the given simulation cycle number, which is incorporated into 
+// returning the Silo file object. If step is non-negative, the file associates 
+// itself with the given simulation step number, which is incorporated into 
 // its filename. If directory is the blank string (""), a directory named 
 // <prefix>_<nprocs>procs is generated and used.
 silo_file_t* silo_file_new(MPI_Comm comm,
@@ -105,21 +106,21 @@ silo_file_t* silo_file_new(MPI_Comm comm,
                            const char* directory,
                            int num_files,
                            int mpi_tag,
-                           int cycle,
+                           int step,
                            real_t time);
 
 // Opens an existing Silo file for reading simulation data, returning the 
 // Silo file object. If the directory is the blank string(""), the directory 
-// is assumed to be the current working directory. If the cycle is -1, the 
-// most recent cycle will be loaded, unless no files with cycle information 
-// can be found, in which case the single set of files containing no cycle 
+// is assumed to be the current working directory. If the step is -1, the 
+// most recent step will be loaded, unless no files with step information 
+// can be found, in which case the single set of files containing no step 
 // information will be loaded. If time is not NULL, it will store the time 
 // found in the file (or 0.0 if it does not exist in the file).
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
                             int mpi_tag,
-                            int cycle, 
+                            int step, 
                             real_t* time);
 
 // Closes and destroys the given Silo file, writing all its data to disk.
