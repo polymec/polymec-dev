@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/unordered_map.h"
-#include "model/lua_type.h"
+#include "core/lua_type.h"
 
 #include "lua.h"
 #include "lualib.h"
@@ -141,19 +141,30 @@ static void destroy_lua_dicts(void)
 
 static int lua_open_type(lua_State* L)
 {
-  // Get stuff off the stack.
-  ASSERT(lua_isstring(L, 1));
-  ASSERT(lua_iscfunction(L, 2));
-  ASSERT(lua_islightuserdata(L, 3));
-  ASSERT(lua_islightuserdata(L, 4));
-  ASSERT(lua_iscfunction(L, 5));
-
-  const char* type_name = lua_tostring(L, 1);
-  int (*ctor)(lua_State* L) = lua_tocfunction(L, 2);
-  lua_type_attr* attributes = lua_touserdata(L, 3);
-  lua_type_method* methods = lua_touserdata(L, 4);
-  int (*tostring)(lua_State* L) = lua_tocfunction(L, 5);
+  // Get stuff out of the registry.
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_type_name");
+  const char* type_name = lua_tostring(L, -1);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_ctor");
+  int (*ctor)(lua_State* L) = lua_tocfunction(L, -1);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_attr");
+  lua_type_attr* attributes = lua_touserdata(L, -1);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_methods");
+  lua_type_method* methods = lua_touserdata(L, -1);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_tostring");
+  int (*tostring)(lua_State* L) = lua_tocfunction(L, -1);
   lua_pop(L, 5);
+
+  // Clean up the registry.
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_name");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_ctor");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_attr");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_methods");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_tostring");
 
   // First of all, create our global type dictionaries if we haven't 
   // already.
@@ -248,20 +259,37 @@ void lua_register_type(lua_State* L,
   ASSERT(ctor != NULL);
 
   // Load the type into a module by calling lua_open_type.
+  // First, though, we need to stash the following into the global registry:
+  //   1. type_name
+  //   2. ctor
+  //   3. attributes
+  //   4. methods
+  //   5. tostring
+  // so that lua_open_type can retrieve them on the far end.
   lua_pushstring(L, type_name);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_type_name");
   lua_pushcfunction(L, ctor);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_ctor");
   lua_pushlightuserdata(L, (void*)attributes);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_attr");
   lua_pushlightuserdata(L, (void*)methods);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_methods");
   lua_pushcfunction(L, (tostring != NULL) ? tostring : generic_tostring);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_tostring");
   luaL_requiref(L, type_name, lua_open_type, 1);
 }
 
 static int lua_open_module(lua_State* L)
 {
-  // Get stuff off the stack.
-  ASSERT(lua_islightuserdata(L, 1));
-  lua_module_func* funcs = lua_touserdata(L, 1);
+  // Get stuff out of the registry.
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_module_funcs");
+  ASSERT(lua_islightuserdata(L, -1));
+  lua_module_func* funcs = lua_touserdata(L, -1);
   lua_pop(L, 1);
+
+  // Clean up the registry.
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_funcs");
 
   // Module functions.
   int num_funcs = 0;
@@ -287,6 +315,7 @@ void lua_register_module(lua_State* L,
 {
   // Load the module by calling lua_open_module with the right globals set.
   lua_pushlightuserdata(L, (void*)funcs);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_funcs");
   luaL_requiref(L, module_name, lua_open_module, 1);
 }
 
@@ -322,5 +351,12 @@ void* lua_to_object(lua_State* L,
 {
   lua_object_t* obj = luaL_checkudata(L, index, type_name);
   return (obj != NULL) ? obj->context : NULL;
+}
+
+bool lua_is_object(lua_State* L,
+                   int index,
+                   const char* type_name)
+{
+  return (luaL_checkudata(L, index, type_name) != NULL);
 }
 

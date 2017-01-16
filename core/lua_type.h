@@ -30,29 +30,16 @@ typedef struct
   int (*method)(lua_State* L);
 } lua_type_method;
 
-// This type represents a function in a Lua module.
-typedef struct
-{
-  const char* name;
-  int (*func)(lua_State* L);
-} lua_module_func;
-
 // Registers a new Lua type with the interpreter L, giving it a name, a 
 // constructor, and a set of attributes and methods. Optionally, a 
 // tostring method can be provided to generate a string for an object of 
-// this type.
+// this type. The constructor resides in a module named after the type.
 void lua_register_type(lua_State* L,
                        const char* type_name,
                        int (*ctor)(lua_State*),
                        lua_type_attr attributes[],
                        lua_type_method methods[],
                        int (*tostring)(lua_State*));
-
-// Registers a set of functions with the interpreter L in the module with the 
-// given name.
-void lua_register_module(lua_State* L,
-                         const char* module_name,
-                         lua_module_func funcs[]);
 
 // Pushes a new (polymec) Lua object of the given type to the top of the stack 
 // in the interpreter L, associating it with a context pointer and a destructor 
@@ -68,6 +55,25 @@ void lua_push_object(lua_State* L,
 void* lua_to_object(lua_State* L,
                     int index,
                     const char* type_name);
+
+// Returns true if the object at the given index in the interpreter is of 
+// the type identified by the given type name, false if not.
+bool lua_is_object(lua_State* L,
+                   int index,
+                   const char* type_name);
+
+// This type represents a function in a Lua module.
+typedef struct
+{
+  const char* name;
+  int (*func)(lua_State* L);
+} lua_module_func;
+
+// Registers a set of functions with the interpreter L in the module with the 
+// given name.
+void lua_register_module(lua_State* L,
+                         const char* module_name,
+                         lua_module_func funcs[]);
 
 #endif
 
