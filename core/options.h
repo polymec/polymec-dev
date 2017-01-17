@@ -40,5 +40,8 @@ char* options_value(options_t* opts, const char* name);
 // Sets the given value for the the given option.
 void options_set(options_t* opts, const char* name, const char* value);
 
+// Use this to traverse the options in the list. Set *pos to 0 to reset.
+bool options_next(options_t* opts, int* pos, const char** name, const char** value);
+
 #endif
 

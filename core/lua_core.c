@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/polymec.h"
+#include "core/options.h"
 #include "core/lua_core.h"
 #include "core/partition_mesh.h"
 
@@ -91,6 +92,19 @@ static lua_type_attr point_attr[] = {
   {NULL, NULL, NULL}
 };
 
+static int p_len(lua_State* L)
+{
+  lua_pushnumber(L, 3.0);
+  return 1;
+}
+
+static int p_tostring(lua_State* L)
+{
+  point_t* p = lua_to_point(L, 1);
+  lua_pushfstring(L, "point (%g, %g, %g)", p->x, p->y, p->z);
+  return 1;
+}
+
 static int p_distance(lua_State* L)
 {
   point_t* p = lua_to_point(L, 1);
@@ -102,6 +116,8 @@ static int p_distance(lua_State* L)
 }
 
 static lua_type_method point_methods[] = {
+  {"__len", p_len},
+  {"__tostring", p_tostring},
   {"distance", p_distance},
   {NULL, NULL}
 };
@@ -184,6 +200,70 @@ static lua_type_attr vector_attr[] = {
   {NULL, NULL, NULL}
 };
 
+static int v_add(lua_State* L)
+{
+  vector_t* v = lua_to_vector(L, 1);
+  vector_t* w = lua_to_vector(L, 2);
+  if (v == NULL)
+    luaL_error(L, "Argument 1 must be a vector.");
+  if (w == NULL)
+    luaL_error(L, "Argument 2 must be a vector.");
+  vector_t* sum = vector_new(v->x + w->x, v->y + w->y, v->z + w->z);
+  lua_push_vector(L, sum);
+  return 1;
+}
+
+static int v_sub(lua_State* L)
+{
+  vector_t* v = lua_to_vector(L, 1);
+  vector_t* w = lua_to_vector(L, 2);
+  if (v == NULL)
+    luaL_error(L, "Argument 1 must be a vector.");
+  if (w == NULL)
+    luaL_error(L, "Argument 2 must be a vector.");
+  vector_t* diff = vector_new(v->x - w->x, v->y - w->y, v->z - w->z);
+  lua_push_vector(L, diff);
+  return 1;
+}
+
+static int v_mul(lua_State* L)
+{
+  if ((!lua_isnumber(L, 1) || !lua_is_vector(L, 2)) &&
+      (!lua_is_vector(L, 1) || !lua_isnumber(L, 2)))
+    luaL_error(L, "Arguments must be a vector and a number.");
+  vector_t* v = lua_to_vector(L, (lua_isnumber(L, 1)) ? 2 : 1);
+  real_t c = (real_t)lua_tonumber(L, (lua_isnumber(L, 1)) ? 1 : 2);
+  vector_t* v1 = vector_new(c * v->x, c * v->y, c * v->z);
+  lua_push_vector(L, v1);
+  return 1;
+}
+
+static int v_div(lua_State* L)
+{
+  vector_t* v = lua_to_vector(L, 1);
+  if (v == NULL)
+    luaL_error(L, "Argument 1 must be a vector.");
+  if (!lua_isnumber(L, 2))
+    luaL_error(L, "Argument 2 must be a number.");
+  real_t c = (real_t)lua_tonumber(L, 2);
+  vector_t* v1 = vector_new(v->x/c, v->y/c, v->z/c);
+  lua_push_vector(L, v1);
+  return 1;
+}
+
+static int v_len(lua_State* L)
+{
+  lua_pushnumber(L, 3.0);
+  return 1;
+}
+
+static int v_tostring(lua_State* L)
+{
+  vector_t* v = lua_to_vector(L, 1);
+  lua_pushfstring(L, "vector (%g, %g, %g)", v->x, v->y, v->z);
+  return 1;
+}
+
 static int v_dot(lua_State* L)
 {
   vector_t* v = lua_to_vector(L, 1);
@@ -195,6 +275,12 @@ static int v_dot(lua_State* L)
 }
 
 static lua_type_method vector_methods[] = {
+  {"__add", v_add},
+  {"__sub", v_sub},
+  {"__mul", v_mul},
+  {"__div", v_div},
+  {"__len", v_len},
+  {"__tostring", v_tostring},
   {"dot", v_dot},
   {NULL, NULL}
 };
@@ -374,6 +460,14 @@ static lua_type_attr bbox_attr[] = {
   {NULL, NULL, NULL}
 };
 
+static int bb_tostring(lua_State* L)
+{
+  bbox_t* b = lua_to_bbox(L, 1);
+  lua_pushfstring(L, "bbox (x1 = %g, x2 = %g, y1 = %g, y2 = %g, z1 = %g, z2 = %g)", 
+                  b->x1, b->x2, b->y1, b->y2, b->z1, b->z2);
+  return 1;
+}
+
 static int bb_contains(lua_State* L)
 {
   bbox_t* b = lua_to_bbox(L, 1);
@@ -385,6 +479,7 @@ static int bb_contains(lua_State* L)
 }
 
 static lua_type_method bbox_methods[] = {
+  {"__tostring", bb_tostring},
   {"contains", bb_contains},
   {NULL, NULL}
 };
@@ -541,13 +636,21 @@ static lua_type_attr mesh_attr[] = {
   {NULL, NULL, NULL}
 };
 
+static int mesh_tostring(lua_State* L)
+{
+  mesh_t* m = lua_to_mesh(L, 1);
+  lua_pushfstring(L, "mesh (%d cells)", m->num_cells);
+  return 1;
+}
+
 static lua_type_method mesh_methods[] = {
+  {"__tostring", mesh_tostring},
   {NULL, NULL}
 };
 
 static int pc_repartition(lua_State* L)
 {
-  luaL_error(L, "can't repartion point clouds just yet!");
+  luaL_error(L, "can't repartition point clouds just yet!");
   return 0;
 }
 
@@ -568,7 +671,15 @@ static lua_type_attr pc_attr[] = {
   {NULL, NULL, NULL}
 };
 
+static int pc_tostring(lua_State* L)
+{
+  point_cloud_t* pc = lua_to_point_cloud(L, 1);
+  lua_pushfstring(L, "point cloud (%d points)", pc->num_points);
+  return 1;
+}
+
 static lua_type_method pc_methods[] = {
+  {"__tostring", pc_tostring},
   {NULL, NULL}
 };
 
@@ -673,6 +784,26 @@ static lua_type_method silo_methods[] = {
   {NULL, NULL}
 };
 
+static int register_options(lua_State* L)
+{
+  // Create a new table and fill it with our command line options.
+  lua_newtable(L);
+  options_t* opts = options_argv();
+  int pos = 0;
+  const char* opt_name;
+  const char* opt_val;
+  while (options_next(opts, &pos, &opt_name, &opt_val))
+  {
+    lua_pushstring(L, opt_val);
+    lua_setfield(L, -2, opt_name);
+  }
+  return 1;
+}
+
+//------------------------------------------------------------------------
+//                                API 
+//------------------------------------------------------------------------
+
 void lua_register_core_modules(lua_State* L)
 {
   // Core types.
@@ -684,6 +815,9 @@ void lua_register_core_modules(lua_State* L)
   lua_register_type(L, "mesh", mesh_funcs, mesh_attr, mesh_methods);
   lua_register_type(L, "point_cloud", pc_funcs, pc_attr, pc_methods);
   lua_register_type(L, "silo_file", silo_funcs, silo_attr, silo_methods);
+
+  // Register the options table.
+  luaL_requiref(L, "options", register_options, 1);
 }
 
 void lua_push_point(lua_State* L, point_t* p)
@@ -701,6 +835,127 @@ point_t* lua_to_point(lua_State* L, int index)
   return (point_t*)lua_to_object(L, index, "point");
 }
 
+bool lua_is_point_list(lua_State* L, int index)
+{
+  if (lua_istable(L, index)) 
+  {
+    size_t len = lua_rawlen(L, index);
+    if (len == 0) 
+      return false;
+    bool is_point_list = true;
+    for (size_t i = 1; i <= len; ++i)
+    {
+      lua_rawgeti(L, index, (lua_Integer)i);
+      bool is_point = lua_is_point(L, -1);
+      if (!is_point)
+      {
+        bool is_3_tuple = (lua_istable(L, -1) && 
+                           (lua_rawlen(L, -1) == 3));
+        if (!is_3_tuple)
+          is_point_list = false;
+        else
+        {
+          for (size_t j = 1; j <= 3; ++j)
+          {
+            lua_rawgeti(L, index, (lua_Integer)j);
+            if (!lua_isnumber(L, -1))
+              is_point_list = false;
+            lua_pop(L, 1);
+            if (!is_point_list)
+              break;
+          }
+        }
+        if (!is_point_list)
+          break;
+      }
+    }
+    return is_point_list;
+  }
+  else 
+    return false;
+}
+
+bool lua_is_canonical_point_list(lua_State* L, int index)
+{
+  if (lua_istable(L, index)) 
+  {
+    size_t len = lua_rawlen(L, index);
+    if (len == 0) 
+      return false;
+    bool is_point_list = true;
+    for (size_t i = 1; i <= len; ++i)
+    {
+      lua_rawgeti(L, index, (lua_Integer)i);
+      bool is_point = lua_is_point(L, -1);
+      if (!is_point)
+      {
+        is_point_list = false;
+        break;
+      }
+    }
+    return is_point_list;
+  }
+  else 
+    return false;
+}
+
+void lua_canonicalize_point_list(lua_State* L, int index)
+{
+  if (lua_is_point_list(L, index))
+  {
+    size_t len = lua_rawlen(L, index);
+    for (size_t i = 1; i <= len; ++i)
+    {
+      lua_rawgeti(L, index, (lua_Integer)i);
+      if (!lua_is_point(L, -1))
+      {
+        real_t pj[3];
+        for (int j = 1; j <= 3; ++j)
+        {
+          lua_rawgeti(L, -1, (lua_Integer)j);
+          pj[j-1] = (real_t)lua_tonumber(L, -1);
+          lua_pop(L, 1);
+        }
+        point_t* p = point_new(pj[0], pj[1], pj[2]);
+        lua_push_point(L, p);
+        lua_rawseti(L, -2, i); 
+      }
+    }
+  }
+}
+
+void lua_export_point_list(lua_State* L, int index, real_t* array)
+{
+  if (lua_is_canonical_point_list(L, index))
+  {
+    size_t len = lua_rawlen(L, index);
+    for (size_t i = 1; i <= len; ++i)
+    {
+      lua_rawgeti(L, index, (lua_Integer)i);
+      point_t* pi = lua_to_point(L, -1);
+      array[3*(i-1)  ] = pi->x;
+      array[3*(i-1)+1] = pi->y;
+      array[3*(i-1)+2] = pi->z;
+    }
+  }
+}
+
+void lua_import_point_list(lua_State* L, int index, real_t* array)
+{
+  if (lua_is_canonical_point_list(L, index))
+  {
+    size_t len = lua_rawlen(L, index);
+    for (size_t i = 1; i <= len; ++i)
+    {
+      lua_rawgeti(L, index, (lua_Integer)i);
+      point_t* pi = lua_to_point(L, -1);
+      pi->x = array[3*(i-1)];
+      pi->y = array[3*(i-1)+1];
+      pi->z = array[3*(i-1)+2];
+    }
+  }
+}
+
 void lua_push_vector(lua_State* L, vector_t* v)
 {
   lua_push_object(L, "vector", v, NULL);
@@ -714,6 +969,127 @@ bool lua_is_vector(lua_State* L, int index)
 vector_t* lua_to_vector(lua_State* L, int index)
 {
   return (vector_t*)lua_to_object(L, index, "vector");
+}
+
+bool lua_is_vector_list(lua_State* L, int index)
+{
+  if (lua_istable(L, index)) 
+  {
+    size_t len = lua_rawlen(L, index);
+    if (len == 0) 
+      return false;
+    bool is_vector_list = true;
+    for (size_t i = 1; i <= len; ++i)
+    {
+      lua_rawgeti(L, index, (lua_Integer)i);
+      bool is_vector = lua_is_vector(L, -1);
+      if (!is_vector)
+      {
+        bool is_3_tuple = (lua_istable(L, -1) && 
+                           (lua_rawlen(L, -1) == 3));
+        if (!is_3_tuple)
+          is_vector_list = false;
+        else
+        {
+          for (size_t j = 1; j <= 3; ++j)
+          {
+            lua_rawgeti(L, index, (lua_Integer)j);
+            if (!lua_isnumber(L, -1))
+              is_vector_list = false;
+            lua_pop(L, 1);
+            if (!is_vector_list)
+              break;
+          }
+        }
+        if (!is_vector_list)
+          break;
+      }
+    }
+    return is_vector_list;
+  }
+  else 
+    return false;
+}
+
+bool lua_is_canonical_vector_list(lua_State* L, int index)
+{
+  if (lua_istable(L, index)) 
+  {
+    size_t len = lua_rawlen(L, index);
+    if (len == 0) 
+      return false;
+    bool is_vector_list = true;
+    for (size_t i = 1; i <= len; ++i)
+    {
+      lua_rawgeti(L, index, (lua_Integer)i);
+      bool is_vector = lua_is_vector(L, -1);
+      if (!is_vector)
+      {
+        is_vector_list = false;
+        break;
+      }
+    }
+    return is_vector_list;
+  }
+  else 
+    return false;
+}
+
+void lua_canonicalize_vector_list(lua_State* L, int index)
+{
+  if (lua_is_vector_list(L, index))
+  {
+    size_t len = lua_rawlen(L, index);
+    for (size_t i = 1; i <= len; ++i)
+    {
+      lua_rawgeti(L, index, (lua_Integer)i);
+      if (!lua_is_vector(L, -1))
+      {
+        real_t vj[3];
+        for (int j = 1; j <= 3; ++j)
+        {
+          lua_rawgeti(L, -1, (lua_Integer)j);
+          vj[j-1] = (real_t)lua_tonumber(L, -1);
+          lua_pop(L, 1);
+        }
+        vector_t* v = vector_new(vj[0], vj[1], vj[2]);
+        lua_push_vector(L, v);
+        lua_rawseti(L, -2, i); 
+      }
+    }
+  }
+}
+
+void lua_export_vector_list(lua_State* L, int index, real_t* array)
+{
+  if (lua_is_canonical_vector_list(L, index))
+  {
+    size_t len = lua_rawlen(L, index);
+    for (size_t i = 1; i <= len; ++i)
+    {
+      lua_rawgeti(L, index, (lua_Integer)i);
+      vector_t* vi = lua_to_vector(L, -1);
+      array[3*(i-1)  ] = vi->x;
+      array[3*(i-1)+1] = vi->y;
+      array[3*(i-1)+2] = vi->z;
+    }
+  }
+}
+
+void lua_import_vector_list(lua_State* L, int index, real_t* array)
+{
+  if (lua_is_canonical_vector_list(L, index))
+  {
+    size_t len = lua_rawlen(L, index);
+    for (size_t i = 1; i <= len; ++i)
+    {
+      lua_rawgeti(L, index, (lua_Integer)i);
+      vector_t* vi = lua_to_vector(L, -1);
+      vi->x = array[3*(i-1)];
+      vi->y = array[3*(i-1)+1];
+      vi->z = array[3*(i-1)+2];
+    }
+  }
 }
 
 void lua_push_bbox(lua_State* L, bbox_t* b)

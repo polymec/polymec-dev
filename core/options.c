@@ -130,4 +130,7 @@ void options_set(options_t* opts, const char* name, const char* value)
   string_string_unordered_map_insert_with_kv_dtor(opts->params, string_dup(name), string_dup(value), destroy_kv);
 }
 
-
+bool options_next(options_t* opts, int* pos, const char** name, const char** value)
+{
+  return string_string_unordered_map_next(opts->params, pos, (char**)name, (char**)value);
+}

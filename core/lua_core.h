@@ -36,6 +36,32 @@ bool lua_is_point(lua_State* L, int index);
 // there is not a point.
 point_t* lua_to_point(lua_State* L, int index);
 
+// Returns true if the item at the given index on L's stack is or can be 
+// interpreted as a list of points. This is true if the item is a table 
+// representing a list of either points or 3-tuples.
+bool lua_is_point_list(lua_State* L, int index);
+
+// Returns true if and only if the item at the given index on L's stack is 
+// a canonical list of points, i.e. a table of points objects.
+bool lua_is_canonical_point_list(lua_State* L, int index);
+
+// Converts the item at the given index on L's stack to canonical point list
+// form, which is a table representing a list of point objects. If the item 
+// at the given index cannot be interpreted as a point list, this function 
+// has no effect.
+void lua_canonicalize_point_list(lua_State* L, int index);
+
+// Copies data out of a canonical point list at the given index, placing it 
+// into the given array of real numbers. If the item is not a canonical point 
+// list, this function has no effect. The array must be able to contain 
+// a number of reals equal to 3*lua_len(L, index).
+void lua_export_point_list(lua_State* L, int index, real_t* array);
+
+// Copies data into a canonical point list at the given index from the given 
+// array of real numbers. The number of reals copied out is determined by 
+// the number of points in the canonical point list.
+void lua_import_point_list(lua_State* L, int index, real_t* array);
+
 // Pushes a (3D) vector v onto L's stack.
 void lua_push_vector(lua_State* L, vector_t* v);
 
@@ -46,6 +72,32 @@ bool lua_is_vector(lua_State* L, int index);
 // Returns the vector at the given index on L's stack, or NULL if the item 
 // there is not a vector.
 vector_t* lua_to_vector(lua_State* L, int index);
+
+// Returns true if the item at the given index on L's stack is or can be 
+// interpreted as a list of vectors. This is true if the item is a table 
+// representing a list of either vectors or 3-tuples.
+bool lua_is_vector_list(lua_State* L, int index);
+
+// Returns true if and only if the item at the given index on L's stack is 
+// a canonical list of vectors, i.e. a table of vector objects.
+bool lua_is_canonical_vector_list(lua_State* L, int index);
+
+// Converts the item at the given index on L's stack to canonical vector list
+// form, which is a table representing a list of vector objects. If the item 
+// at the given index cannot be interpreted as a vector list, this function 
+// has no effect.
+void lua_canonicalize_vector_list(lua_State* L, int index);
+
+// Copies data out of a canonical vector list at the given index, placing it 
+// into the given array of real numbers. If the item is not a canonical vector 
+// list, this function has no effect. The array must be able to contain 
+// a number of reals equal to 3*lua_len(L, index).
+void lua_export_vector_list(lua_State* L, int index, real_t* array);
+
+// Copies data into a canonical vector list at the given index from the given 
+// array of real numbers. The number of reals copied out is determined by 
+// the number of vectors in the canonical vector list.
+void lua_import_vector_list(lua_State* L, int index, real_t* array);
 
 // Pushes a bounding box b onto L's stack.
 void lua_push_bbox(lua_State* L, bbox_t* b);
