@@ -6,14 +6,6 @@ add_polymec_library(polymec_model model.c boundary_cell_map.c periodic_bc.c
                     point_kernel.c point_basis.c shepard_point_basis.c
                     mls_point_basis.c
                     aux_state.c physical_constants.c 
-                    interpreter.c
-                    interpreter_register_default_functions.c 
-                    interpreter_register_geometry_functions.c
-#                    interpreter_register_sd_functions.c
-                    interpreter_register_scalar_functions.c
-                    interpreter_register_vector_functions.c
-#                    interpreter_register_indicators.c
-                    interpreter_register_model_functions.c
                     mesh_factory.c point_factory.c)
 
 set(POLYMEC_LIBRARIES polymec_model;${POLYMEC_LIBRARIES} PARENT_SCOPE)
