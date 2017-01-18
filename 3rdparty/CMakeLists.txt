@@ -12,21 +12,15 @@ string(REPLACE "-Wmissing-prototypes " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-Wfloat-equal" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 
 # Build linenoise -- A readline alternative that provides terminal history.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/linenoise.h)
-  message(STATUS "Preparing linenoise...")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/linenoise ${CMAKE_CURRENT_BINARY_DIR}/linenoise
-                  RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Copying library source failed.")
-  endif()
-
-  message(STATUS "Copying linenoise header into place...")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/linenoise/linenoise.h} ${PROJECT_BINARY_DIR}/include)
-endif()
-add_library(linenoise ${CMAKE_CURRENT_BINARY_DIR}/linenoise/linenoise.c)
+add_library(linenoise ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.c)
 set_target_properties(linenoise PROPERTIES FOLDER Libraries)
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/linenoise.h)
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h ${PROJECT_BINARY_DIR}/include
+                  RESULT_VARIABLE stat)
+endif()
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liblinenoise${LIB_SUFFIX} DESTINATION lib)
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h DESTINATION include)
+  install(FILES liblinenoise${LIB_SUFFIX} DESTINATION lib)
 endif()
 set(POLYMEC_TP_LIBS linenoise;${POLYMEC_TP_LIBS})
 

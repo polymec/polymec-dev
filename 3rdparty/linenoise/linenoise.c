@@ -201,6 +201,27 @@ void linenoiseSetMultiLine(int ml) {
     mlmode = ml;
 }
 
+#define MIN(a, b) (a < b) ? a : b
+static int string_casecmp(const char* s1, const char* s2)
+{
+  int l1 = (int)strlen(s1), l2 = (int)strlen(s2);
+  int lmin = MIN(l1, l2);
+  for (int i = 0; i < lmin; ++i)
+  {
+    char c1 = (char)tolower(s1[i]), c2 = (char)tolower(s2[i]);
+    if (c1 < c2)
+      return -1;
+    else if (c1 > c2)
+      return 1;
+  }
+  if (l1 < l2)
+    return -1;
+  else if (l1 > l2)
+    return 1;
+  else 
+    return 0;
+}
+
 /* Return true if the terminal name is in the list of terminals we know are
  * not able to understand basic escape sequences. */
 static int isUnsupportedTerm(void) {
@@ -209,7 +230,7 @@ static int isUnsupportedTerm(void) {
 
     if (term == NULL) return 0;
     for (j = 0; unsupported_term[j]; j++)
-        if (!strcasecmp(term,unsupported_term[j])) return 1;
+        if (!string_casecmp(term,unsupported_term[j])) return 1;
     return 0;
 }
 
@@ -526,13 +547,13 @@ static void refreshMultiLine(struct linenoiseState *l) {
 
     /* Now for every row clear it, go up. */
     for (j = 0; j < old_rows-1; j++) {
-        lndebug("clear+up");
+        lndebug("%s", "clear+up");
         snprintf(seq,64,"\r\x1b[0K\x1b[1A");
         abAppend(&ab,seq,strlen(seq));
     }
 
     /* Clean the top line. */
-    lndebug("clear");
+    lndebug("%s", "clear");
     snprintf(seq,64,"\r\x1b[0K");
     abAppend(&ab,seq,strlen(seq));
 
@@ -546,7 +567,7 @@ static void refreshMultiLine(struct linenoiseState *l) {
         l->pos == l->len &&
         (l->pos+plen) % l->cols == 0)
     {
-        lndebug("<newline>");
+        lndebug("%s", "<newline>");
         abAppend(&ab,"\n",1);
         snprintf(seq,64,"\r");
         abAppend(&ab,seq,strlen(seq));
@@ -574,7 +595,7 @@ static void refreshMultiLine(struct linenoiseState *l) {
         snprintf(seq,64,"\r");
     abAppend(&ab,seq,strlen(seq));
 
-    lndebug("\n");
+    lndebug("%s", "\n");
     l->oldpos = l->pos;
 
     if (write(fd,ab.b,ab.len) == -1) {} /* Can't recover from write error. */
