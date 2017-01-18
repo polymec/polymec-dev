@@ -5,10 +5,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/lua_driver.h"
 #include "simple_model.h"
 
 int main(int argc, char* argv[])
 {
-  return model_main("simple", simple_new, argc, argv);
+  return lua_driver(argc, argv, NULL);
 }
 

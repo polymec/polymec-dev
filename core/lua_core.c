@@ -251,6 +251,14 @@ static int v_div(lua_State* L)
   return 1;
 }
 
+static int v_unm(lua_State* L)
+{
+  vector_t* v = lua_to_vector(L, 1);
+  vector_t* v1 = vector_new(-1.0 * v->x, -1.0 * v->y, -1.0 * v->z);
+  lua_push_vector(L, v1);
+  return 1;
+}
+
 static int v_len(lua_State* L)
 {
   lua_pushnumber(L, 3.0);
@@ -279,6 +287,7 @@ static lua_type_method vector_methods[] = {
   {"__sub", v_sub},
   {"__mul", v_mul},
   {"__div", v_div},
+  {"__unm", v_unm},
   {"__len", v_len},
   {"__tostring", v_tostring},
   {"dot", v_dot},
@@ -786,13 +795,13 @@ static lua_type_method silo_methods[] = {
 
 static int register_options(lua_State* L)
 {
-  // Create a new table and fill it with our command line options.
+  // Create a new table and fill it with our named command line values.
   lua_newtable(L);
   options_t* opts = options_argv();
   int pos = 0;
   const char* opt_name;
   const char* opt_val;
-  while (options_next(opts, &pos, &opt_name, &opt_val))
+  while (options_next_value(opts, &pos, &opt_name, &opt_val))
   {
     lua_pushstring(L, opt_val);
     lua_setfield(L, -2, opt_name);

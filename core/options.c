@@ -119,6 +119,20 @@ int options_num_arguments(options_t* opts)
   return opts->num_args;
 }
 
+bool options_has_argument(options_t* opts, const char* arg)
+{
+  bool has = false;
+  for (int i = 0; i < opts->num_args; ++i)
+  {
+    if (strcmp(opts->args[i], arg) == 0)
+    {
+      has = true;
+      break;
+    }
+  }
+  return has;
+}
+
 char* options_value(options_t* opts, const char* name)
 {
   char** value = string_string_unordered_map_get(opts->params, (char*)name);
@@ -130,7 +144,7 @@ void options_set(options_t* opts, const char* name, const char* value)
   string_string_unordered_map_insert_with_kv_dtor(opts->params, string_dup(name), string_dup(value), destroy_kv);
 }
 
-bool options_next(options_t* opts, int* pos, const char** name, const char** value)
+bool options_next_value(options_t* opts, int* pos, const char** name, const char** value)
 {
   return string_string_unordered_map_next(opts->params, pos, (char**)name, (char**)value);
 }

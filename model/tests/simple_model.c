@@ -22,16 +22,6 @@ static void simple_set_global_comm(void* context, MPI_Comm comm)
   s->comm = comm;
 }
 
-static void simple_read_input(void* context,
-                              interpreter_t* interp,
-                              options_t* opts)
-{
-  simple_t* s = context;
-  s->index = (int)(interpreter_get_number(interp, "index"));
-  s->dt = interpreter_get_number(interp, "dt");
-  log_debug("simple: read input (index = %d, dt = %g)", s->index, s->dt);
-}
-
 static void name_simple_file(simple_t* s, char* filename)
 {
   // If we are the master rank for our global communicator, write out a file 
@@ -108,13 +98,11 @@ model_t* simple_new()
 {
   simple_t* s = polymec_malloc(sizeof(simple_t));
   model_vtable vtable = {.set_global_comm = simple_set_global_comm,
-                         .read_input = simple_read_input,
                          .init = simple_init,
                          .advance = simple_advance,
                          .finalize = simple_finalize,
                          .dtor = simple_dtor};
   return model_new("simple", s, vtable, 
-                   docstring_from_string("simple model"), 
                    MODEL_MPI);
 }
 

@@ -10,7 +10,7 @@
 
 #include "core/polymec.h"
 #include "core/options.h"
-#include "model/interpreter.h"
+#include "core/st_func.h"
 
 // The maximum amount of storage allowed for an explanation of the 
 // time step choice.
@@ -26,12 +26,6 @@ typedef model_t* (*model_ctor)();
 // model for each simulation. This communicator will serve the role of 
 // MPI_COMM_WORLD in parallel communications within the model.
 typedef void (*model_set_global_comm_func)(void* context, MPI_Comm comm);
-
-// A function for reading input from an interpreter into the model.
-typedef void (*model_read_input_func)(void* context, interpreter_t* interpreter, options_t* options);
-
-// A function for reading custom (non-Lua) input from a file into the model.
-typedef void (*model_read_custom_input_func)(void* context, const char* input_string, options_t* options);
 
 // A function for initializing the model at time t.
 typedef void (*model_init_func)(void* context, real_t t);
@@ -69,8 +63,6 @@ typedef void (*model_dtor)(void* context);
 typedef struct 
 {
   model_set_global_comm_func     set_global_comm;
-  model_read_input_func          read_input;
-  model_read_custom_input_func   read_custom_input;
   model_init_func                init;
   model_max_dt_func              max_dt;
   model_advance_func             advance;
@@ -127,7 +119,6 @@ typedef enum
 model_t* model_new(const char* name, 
                    void* context, 
                    model_vtable vtable, 
-                   docstring_t* doc,
                    model_parallelism_t parallelism);
 
 // Destroys the model.
@@ -138,14 +129,6 @@ char* model_name(model_t* model);
 
 // Returns the context object associated with the model (if any).
 void* model_context(model_t* model);
-
-// Returns an internal pointer to the interpreter that the model uses to 
-// parse input files.
-interpreter_t* model_interpreter(model_t* model);
-
-// Enables an interpreter for the model with the given set of variables
-// to validate against types.
-void model_enable_interpreter(model_t* model, interpreter_validation_t* valid_inputs);
 
 // Returns the degree of parallelism supported by this model.
 model_parallelism_t model_parallelism(model_t* model);
@@ -159,7 +142,8 @@ typedef void (*model_benchmark_function_t)();
 
 // Registers the given benchmark name, function, and description with 
 // this model. The description is consumed if given.
-void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, docstring_t* description);
+void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function,
+                              const char* description);
 
 // Writes a description of the given benchmark to the given file stream.
 void model_describe_benchmark(model_t* model, const char* benchmark, FILE* stream);

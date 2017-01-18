@@ -33,6 +33,10 @@ char* options_argument(options_t* opts, int n);
 // Returns the number of arguments given on the command line.
 int options_num_arguments(options_t* opts);
 
+// Returns true if the given argument was passed to the command line,
+// with or without an associated value. False otherwise.
+bool options_has_argument(options_t* opts, const char* arg);
+
 // Returns a string holding the given named value, or NULL if no such 
 // parameter exists within opts.
 char* options_value(options_t* opts, const char* name);
@@ -40,8 +44,8 @@ char* options_value(options_t* opts, const char* name);
 // Sets the given value for the the given option.
 void options_set(options_t* opts, const char* name, const char* value);
 
-// Use this to traverse the options in the list. Set *pos to 0 to reset.
-bool options_next(options_t* opts, int* pos, const char** name, const char** value);
+// Use this to traverse the named values in the list. Set *pos to 0 to reset.
+bool options_next_value(options_t* opts, int* pos, const char** name, const char** value);
 
 #endif
 

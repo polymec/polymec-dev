@@ -19,38 +19,18 @@
 #include <omp.h>
 #endif
 
-// This helper writes the given message out to stderr on rank 0.
-static void print_to_rank0(const char* message, ...)
-{
-  static int rank = -1;
-  if (rank == -1)
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-  if (rank == 0)
-  {
-    // Extract the variadic arguments and splat them into a string.
-    char m[8192];
-    va_list argp;
-    va_start(argp, message);
-    vsnprintf(m, 8192, message, argp);
-    va_end(argp);
-
-    // Write it out.
-    fprintf(stderr, "%s", m);
-  }
-}
-
 // Benchmark metadatum.
 typedef struct
 {
   model_benchmark_function_t function;
-  docstring_t* description;
+  char* description;
 } model_benchmark_t;
 
 // Destructor for benchmark key/value pairs.
 static void free_benchmark_kv(char* key, model_benchmark_t* value)
 {
   polymec_free(key);
+  string_free(value->description);
   polymec_free(value);
 }
 
@@ -66,7 +46,6 @@ struct model_t
   void* context;
   char* name;
   model_vtable vtable;
-  docstring_t* doc; // Documentation string.
   model_parallelism_t parallelism;
   model_benchmark_map_t* benchmarks;
 
@@ -94,9 +73,6 @@ struct model_t
   real_t initial_dt; // Initial time step.
   real_t max_dt;     // Maximum time step.
   real_t min_dt;     // Minimum time step.
-
-  // Interpreter for parsing input files.
-  interpreter_t* interpreter;
 };
 
 // This helper function sets the model's global communicator.
@@ -191,20 +167,12 @@ static real_t* parse_observation_times(char* observation_time_str, int* num_time
 model_t* model_new(const char* name, 
                    void* context, 
                    model_vtable vtable, 
-                   docstring_t* doc,
                    model_parallelism_t parallelism)
 {
-  // First, inspect the virtual table.
-
-  // Exactly one of read_input and read_custom_input should be given.
-  ASSERT(((vtable.read_input != NULL) && (vtable.read_custom_input == NULL)) ||
-         ((vtable.read_input == NULL) && (vtable.read_custom_input != NULL)));
-
   model_t* model = polymec_malloc(sizeof(model_t));
   model->vtable = vtable;
   model->context = context;
   model->name = string_dup(name);
-  model->doc = doc;
   model->parallelism = parallelism;
   model->benchmarks = model_benchmark_map_new();
   model->sim_name = NULL;
@@ -221,7 +189,6 @@ model_t* model_new(const char* name,
   model->step = 0;
   model->max_dt = REAL_MAX;
   model->min_dt = 0.0;
-  model->interpreter = NULL;
 
   // Initialize observation arrays.
   model->point_obs = string_ptr_unordered_map_new();
@@ -276,9 +243,6 @@ void model_free(model_t* model)
   if (model->sim_path != NULL)
     polymec_free(model->sim_path);
 
-  if (model->interpreter != NULL)
-    interpreter_free(model->interpreter);
-
   // Clear observations.
   polymec_free(model->obs_times);
   string_array_free(model->observations);
@@ -293,33 +257,21 @@ char* model_name(model_t* model)
   return model->name;
 }
 
-interpreter_t* model_interpreter(model_t* model)
-{
-  if (model->interpreter == NULL)
-    model_enable_interpreter(model, NULL);
-  ASSERT(model->interpreter != NULL);
-  return model->interpreter;
-}
-
-void model_enable_interpreter(model_t* model, interpreter_validation_t* valid_inputs)
-{
-  if (model->interpreter != NULL)
-    interpreter_free(model->interpreter);
-  model->interpreter = interpreter_new(valid_inputs);
-}
-
 model_parallelism_t model_parallelism(model_t* model)
 {
   return model->parallelism;
 }
 
-void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function, docstring_t* description)
+void model_register_benchmark(model_t* model, 
+                              const char* benchmark, 
+                              model_benchmark_function_t function, 
+                              const char* description)
 {
   ASSERT(benchmark != NULL);
   ASSERT(function != NULL);
   model_benchmark_t* metadata = polymec_malloc(sizeof(model_benchmark_t));
   metadata->function = function;
-  metadata->description = description;
+  metadata->description = string_dup(description);
   model_benchmark_map_insert_with_kv_dtor(model->benchmarks, string_dup(benchmark), metadata, free_benchmark_kv);
 }
 
@@ -331,10 +283,7 @@ void model_describe_benchmark(model_t* model, const char* benchmark, FILE* strea
     if ((*metadata_p)->description != NULL)
     {
       fprintf(stream, "%s benchmark '%s':\n", model->name, benchmark);
-      int pos = 0;
-      char* line;
-      while (docstring_next((*metadata_p)->description, &pos, &line))
-        fprintf(stream, "%s\n", line);
+      fprintf(stream, (*metadata_p)->description);
     }
     else
     {
@@ -439,165 +388,6 @@ void model_run_benchmark(model_t* model, const char* benchmark)
     polymec_error("%s: Benchmark not found: '%s'.", model->name, benchmark);
   }
   STOP_FUNCTION_TIMER();
-}
-
-static void model_read_input(model_t* model, interpreter_t* interp)
-{
-  START_FUNCTION_TIMER();
-  options_t* options = options_argv();
-
-  // We always read certain inputs.
-  if (interpreter_contains(interp, "load_step", INTERPRETER_NUMBER))
-  {
-    model->load_step = (int)(interpreter_get_number(interp, "load_step"));
-    if (model->load_step < 0)
-      polymec_error("Invalid load_step: %d (must be non-negative).", model->load_step);
-  }
-  if (interpreter_contains(interp, "logging", INTERPRETER_STRING))
-  {
-    char* logging = interpreter_get_string(interp, "logging");
-    if (!string_casecmp(logging, "debug"))
-      set_log_level(LOG_DEBUG);
-    else if (!string_casecmp(logging, "detail"))
-      set_log_level(LOG_DETAIL);
-    else if (!string_casecmp(logging, "info"))
-      set_log_level(LOG_INFO);
-    else if (!string_casecmp(logging, "urgent"))
-      set_log_level(LOG_URGENT);
-    else if (!string_casecmp(logging, "off"))
-      set_log_level(LOG_NONE);
-    else
-      polymec_error("Invalid logging: %s\nMust be one of: debug, detail, info, urgent, off", logging);
-  }
-  if (interpreter_contains(interp, "plot_every", INTERPRETER_NUMBER))
-  {
-    model->plot_every = (int)(interpreter_get_number(interp, "plot_every"));
-    if (model->plot_every <= 0.0)
-      polymec_error("Invalid (non-positive) plot interval: %d\n", model->plot_every);
-  }
-  if (interpreter_contains(interp, "save_every", INTERPRETER_NUMBER))
-  {
-    model->save_every = (int)(interpreter_get_number(interp, "save_every"));
-    if (model->save_every < 1)
-      polymec_error("Invalid (non-positive) save interval: %d\n", model->save_every);
-  }
-  if (interpreter_contains(interp, "observe_every", INTERPRETER_NUMBER))
-  {
-    model->observe_every = (int)(interpreter_get_number(interp, "observe_every"));
-    if (model->observe_every <= 0.0)
-      polymec_error("Invalid (non-positive) observation interval: %g\n", model->observe_every);
-  }
-  if (interpreter_contains(interp, "observation_times", INTERPRETER_SEQUENCE))
-  {
-    if (model->observe_every > 0.0)
-      polymec_error("Only one of observe_every and observation_times may be specified.");
-    int num_obs_times;
-    real_t* obs_times = interpreter_get_sequence(interp, "observation_times", &num_obs_times);
-    model_set_observation_times(model, obs_times, num_obs_times);
-    polymec_free(obs_times);
-  }
-
-  // If observation names are given, handle them here.
-  if (interpreter_contains(interp, "observations", INTERPRETER_STRING_LIST))
-  {
-    string_array_clear(model->observations);
-    int num_obs;
-    char** obs_names = interpreter_get_stringlist(interp, "observations", &num_obs);
-    for (int i = 0; i < num_obs; ++i)
-    {
-      model_observe(model, (const char*)obs_names[i]);
-      polymec_free(obs_names[i]);
-    }
-    polymec_free(obs_names); 
-  }
-
-  if (interpreter_contains(interp, "max_dt", INTERPRETER_NUMBER))
-  {
-    model->max_dt = interpreter_get_number(interp, "max_dt");
-    if (model->max_dt <= 0.0)
-      polymec_error("Invalid value for max_dt: %g", model->max_dt);
-  }
-
-  if (interpreter_contains(interp, "min_dt", INTERPRETER_NUMBER))
-  {
-    model->min_dt = interpreter_get_number(interp, "min_dt");
-    if (model->min_dt < 0.0)
-      polymec_error("Invalid value for min_dt: %g", model->min_dt);
-    else if (model->min_dt > model->max_dt)
-      polymec_error("min_dt > max_dt!");
-  }
-
-  if (interpreter_contains(interp, "sim_name", INTERPRETER_STRING))
-    model_set_sim_name(model, interpreter_get_string(interp, "sim_name"));
-
-  // Read the model-specific inputs.
-  model->vtable.read_input(model->context, interp, options);
-  STOP_FUNCTION_TIMER();
-}
-
-void model_read_input_string(model_t* model, const char* input)
-{
-  if (model->vtable.read_input != NULL)
-  {
-    interpreter_t* interp = model_interpreter(model);
-    interpreter_parse_string(interp, (char*)input);
-    model_read_input(model, interp);
-  }
-  else
-  {
-    options_t* options = options_argv();
-    model->vtable.read_custom_input(model->context, input, options);
-  }
-}
-
-void model_read_input_file(model_t* model, const char* file)
-{
-  // Parse the input file on rank 0 of our global communicator and broadcast
-  // the contents of the file to the other ranks.
-  int rank, nproc;
-  MPI_Comm_rank(model->global_comm, &rank);
-  MPI_Comm_size(model->global_comm, &nproc);
-  char* input_str = NULL;
-  if (rank == 0)
-  {
-    text_buffer_t* buffer = text_buffer_from_file(file);
-    input_str = text_buffer_to_string(buffer);
-    text_buffer_free(buffer);
-  }
-  if (nproc > 1)
-  {
-    // Broadcast the length of the input.
-    int input_len = (rank == 0) ? (int)strlen(input_str) : 0;
-    MPI_Bcast(&input_len, 1, MPI_INT, 0, model->global_comm);
-
-    // Allocate storage for the input string on rank > 0 processes.
-    if (rank > 0)
-      input_str = polymec_malloc(sizeof(char) * (input_len+1));
-
-    // Broadcast the input.
-    MPI_Bcast(input_str, input_len, MPI_CHAR, 0, model->global_comm);
-
-    if (rank > 0)
-    {
-      // Don't forget to null-terminate!
-      input_str[input_len] = '\0';
-    }
-  }
-
-  if (model->vtable.read_input != NULL)
-  {
-    interpreter_t* interp = model_interpreter(model);
-    interpreter_parse_string(interp, input_str);
-    model_read_input(model, interp);
-  }
-  else
-  {
-    log_detail("%s: Reading custom input from '%s'...", model->name, file);
-    options_t* options = options_argv();
-    model->vtable.read_custom_input(model->context, (const char*)input_str, 
-                                    options);
-  }
-  string_free(input_str);
 }
 
 typedef struct 
@@ -1329,68 +1119,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
   STOP_FUNCTION_TIMER();
 }
 
-static void set_sim_name_to_input_file(model_t* model, const char* input)
-{
-  char dir_name[FILENAME_MAX], file_name[FILENAME_MAX];
-  parse_path(input, dir_name, file_name);
-  int len = (int)strlen(file_name), end = 0;
-  while (end < len)
-  {
-    // We accept alphanumeric characters, underscores, and hyphens.
-    if (!isalnum(file_name[end]) && 
-        (file_name[end] != '_') && 
-        (file_name[end] != '-'))
-      break;
-    ++end;
-  }
-  char prefix[FILENAME_MAX];
-  strncpy(prefix, file_name, end);
-  prefix[end] = '\0';
-  model_set_sim_name(model, prefix);
-}
-
-static void run_model(model_t* model, char* input, char* caller)
-{
-  // We are asked to run a simulation.
-  if (input == NULL)
-  {
-    print_to_rank0("%s: No input file given! Usage:\n", caller);
-    print_to_rank0("%s run [input file]\n", caller);
-    model_free(model);
-    exit(0);
-  }
-
-  if (!file_exists(input))
-  {
-    print_to_rank0("%s: Input file not found: %s\n", caller, input);
-    model_free(model);
-    exit(0);
-  }
-
-  // By default, the simulation is named after the input file (minus its path 
-  // and anything after the first alphanumeric character).
-  set_sim_name_to_input_file(model, input);
-
-  // Read the contents of the input file into the model's interpreter.
-  model_read_input_file(model, input);
-
-  // Default time endpoints, max number of steps.
-  real_t t1 = 0.0, t2 = 1.0;
-  int max_steps = INT_MAX;
-
-  // Overwrite these defaults with interpreted values.
-  interpreter_t* interp = model_interpreter(model);
-  if (interpreter_contains(interp, "t1", INTERPRETER_NUMBER))
-    t1 = interpreter_get_number(interp, "t1");
-  if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
-    t2 = interpreter_get_number(interp, "t2");
-  if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
-    max_steps = (int)(interpreter_get_number(interp, "max_steps"));
-
-  // Run the model.
-  model_run(model, t1, t2, max_steps);
-}
-
+#if 0
 void model_run_files(model_t* model, 
                      char** input_files,
                      size_t num_input_files,
@@ -1464,117 +1193,11 @@ void model_run_files(model_t* model,
   // Clean up.
   MPI_Comm_free(&sim_comm);
 }
+#endif
 
 void* model_context(model_t* model)
 {
   return model->context;
-}
-
-static noreturn void driver_usage(const char* model_name)
-{
-  print_to_rank0("%s: usage:\n", model_name);
-  print_to_rank0("%s [command] [args]\n\n", model_name);
-  print_to_rank0("Here, [command] [args] is one of the following:\n\n");
-  print_to_rank0("  run [file]                -- Runs a simulation with the given input file.\n");
-  print_to_rank0("  batch [file] [procs]      -- Runs a batch of simulations defined by input files in the given file.\n");
-  print_to_rank0("  benchmark [name] ...      -- Runs or queries a benchmark problem.\n");
-  print_to_rank0("  help ...                  -- Prints information about the given model.\n\n");
-  print_to_rank0("Benchmark commands:\n");
-  print_to_rank0("  benchmark list            -- Lists all available benchmark problems.\n");
-  print_to_rank0("  benchmark describe [name] -- Describes the given benchmark problem.\n");
-  print_to_rank0("  benchmark all             -- Runs all available benchmark problems.\n");
-  print_to_rank0("  benchmark [name]          -- Runs the given benchmark problem.\n\n");
-  print_to_rank0("Help commands:\n");
-  print_to_rank0("  help                      -- Prints model-specific help information.\n");
-  print_to_rank0("  help list                 -- Prints a list of available functions.\n");
-  print_to_rank0("  help [function/symbol]    -- Prints documentation for a function/symbol.\n");
-  exit(0);
-  polymec_unreachable();
-}
-
-// General help for runtime options.
-static void print_runtime_options_help()
-{
-  print_to_rank0("Generally meaningful runtime options (for run, benchmark):\n");
-  print_to_rank0("t1=T                        - Starts the simulation at time T.\n");
-  print_to_rank0("t2=T                        - Ends the simulation at time T.\n");
-  print_to_rank0("max_steps=N                 - Ends the simulation after N time steps.\n");
-  print_to_rank0("max_dt=DT                   - Limits the time step to DT.\n");
-  print_to_rank0("min_dt=DT                   - Specifies the minimum time step DT, below which\n");
-  print_to_rank0("                              the simulation will be terminated.\n");
-  print_to_rank0("initial_dt=DT               - Sets the initial time step to DT.\n");
-  print_to_rank0("save_every=N                - Generates a save file every N steps.\n");
-  print_to_rank0("plot_every=T                - Generates a plot file every T simulation\n");
-  print_to_rank0("                              time units.\n");
-  print_to_rank0("load_step=N                 - Attempts to load a saved simulation at step N.\n");
-  print_to_rank0("observe_every=T             - Records observations every T simulation\n");
-  print_to_rank0("                              time units.\n");
-  print_to_rank0("observation_times=T1,T2,... - Specifies times T1,T2,... at which observations\n");
-  print_to_rank0("                              will be recorded.\n");
-  print_to_rank0("observations=O1,O2,...      - Specifies observations O1,O2,... to record,\n");
-  print_to_rank0("                              provided that an observation frequency has been\n");
-  print_to_rank0("                              given. By default, all available observations\n");
-  print_to_rank0("                              are recorded.\n");
-  print_to_rank0("logging=LEVEL               - Enables logging output at the requested level.\n");
-  print_to_rank0("                              Levels are (in order of increasing verbosity):\n");
-  print_to_rank0("                              urgent, info, detail, debug\n");
-  print_to_rank0("logging_mode=MODE           - Sets the logging mode.\n");
-  print_to_rank0("                              Modes are single (output to single MPI rank),\n");
-  print_to_rank0("                              all (output to all MPI ranks), or\n");
-  print_to_rank0("                              N, where N is a specific MPI rank to log.\n");
-  print_to_rank0("num_threads=N               - Sets the number of OpenMP threads to use within\n");
-  print_to_rank0("                              parallel code regions.\n");
-  print_to_rank0("timers=1,yes,true,on        - Enables timers for performance profiling.\n");
-  print_to_rank0("timer_file=FILE             - When timers are enabled, specifies the name of\n");
-  print_to_rank0("                              the file to which timing summary information\n");
-  print_to_rank0("                              is written. Defaults to timer_report.txt.\n");
-  print_to_rank0("sim_name=NAME               - Sets the prefix of simulation files, etc.");
-  print_to_rank0("sim_path=DIR                - Sets the directory for simulation output.");
-  print_to_rank0("\nBenchmark-specific runtime options:\n");
-  print_to_rank0("expected_conv_rate=R        - A multi-run benchmark will PASS if the\n");
-  print_to_rank0("                              convergence rate of its error norm meets or\n");
-  print_to_rank0("                              exceeds R, and will otherwise FAIL.\n");
-  print_to_rank0("expected_error_norm=E       - A benchmark will PASS if its error norm\n");
-  print_to_rank0("                              does not exceed E, and will otherwise FAIL.\n\n");
-  print_to_rank0("Note that no whitespace may appear in any of the above options.\n\n");
-}
-
-// Prints model-specific help.
-static void model_help(const char* exe_name, model_t* model, const char* arg)
-{
-  // If no argument was given, just print the model's basic documentation.
-  if (arg == NULL)
-  {
-    if (model->doc != NULL)
-    {
-      int pos = 0;
-      char* line;
-      while (docstring_next(model->doc, &pos, &line))
-        print_to_rank0("%s\n", line);
-    }
-    else
-      print_to_rank0("No documentation is available for the %s model.\n\n", model_name(model));
-
-    print_runtime_options_help();
-    print_to_rank0("Use '%s help list' to list available functions, and \n", model_name(model));
-    print_to_rank0("'%s help <function>' for documentation on a given function.\n", model_name(model));
-  }
-  else if (model->vtable.read_input != NULL)
-  {
-    static int rank = -1;
-    if (rank == -1)
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank == 0)
-    {
-      // Attempt to dig up the documentation for the given registered function.
-      interpreter_t* interp = model_interpreter(model);
-      interpreter_help(interp, arg, stderr);
-    }
-  }
-  else
-  {
-    print_to_rank0("No specific help is available for models with custom input.\n");
-  }
 }
 
 void model_set_sim_name(model_t* model, const char* sim_name)
@@ -1600,534 +1223,10 @@ model_vtable model_get_vtable(model_t* model)
 
 void model_set_vtable(model_t* model, model_vtable vtable)
 {
-  ASSERT(((vtable.read_input != NULL) && (vtable.read_custom_input == NULL)) ||
-         ((vtable.read_input == NULL) && (vtable.read_custom_input != NULL)));
   ASSERT((model->vtable.set_global_comm != NULL) || 
          (model->parallelism == MODEL_SERIAL_SINGLETON) || 
          (model->parallelism == MODEL_SERIAL));
   model->vtable = vtable;
-}
-
-static void run_batch(model_t* model, 
-                      char* input, 
-                      int procs_per_run, 
-                      char* exe_name)
-{
-  if (input == NULL)
-  {
-    print_to_rank0("%s: No batch file given! Usage:\n", exe_name);
-    print_to_rank0("%s batch [input file] [rocs_per_run]\n", exe_name);
-    model_free(model);
-    exit(0);
-  }
-
-  if (!file_exists(input))
-  {
-    print_to_rank0("%s: Batch file not found: %s\n", exe_name, input);
-    model_free(model);
-    exit(0);
-  }
-
-  // On process 0, read the contents of the batch file into a list of 
-  // filenames and broadcast the contents to all other processes.
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  char* buff_str = NULL;
-  int buff_len = 0;
-  if (rank == 0)
-  {
-    text_buffer_t* buff = text_buffer_from_file(input);
-    buff_str = text_buffer_to_string(buff);
-    buff_len = (int)strlen(buff_str);
-    MPI_Bcast(&buff_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(buff_str, buff_len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-  }
-  else
-  {
-    MPI_Bcast(&buff_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    buff_str = polymec_malloc(sizeof(char) * (buff_len+1));
-    MPI_Bcast(buff_str, buff_len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-  }
-
-  // Now parse the buffer locally into a list of files.
-  text_buffer_t* buff = text_buffer_from_string(buff_str);
-  string_array_t* files = string_array_new();
-  int pos = 0;
-  char* line = NULL;
-  size_t line_len;
-  while (text_buffer_next_nonempty(buff, &pos, &line, &line_len))
-    string_array_append_with_dtor(files, string_ndup(line, line_len), string_free);
-  text_buffer_free(buff);
-  polymec_free(buff_str);
-
-  // Trim leading/trailing whitespace from the filenames in the list.
-  string_array_t* trimmed_files = string_array_new();
-  for (size_t i = 0; i < files->size; ++i)
-  {
-    char* filename = files->data[i];
-    int offset = string_trim(filename);
-    string_array_append(trimmed_files, &(filename[offset]));
-  }
-
-  // Run the batch of simulations.
-  model_run_files(model, trimmed_files->data, trimmed_files->size, procs_per_run);
-
-  // Clean up.
-  string_array_free(trimmed_files);
-  string_array_free(files);
-}
-
-int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
-{
-  // Start everything up.
-  polymec_init(argc, argv);
-
-  // Get the parsed command line options.
-  options_t* opts = options_argv();
-
-  // Extract the executable name.
-  char* full_exe_path = options_argument(opts, 0);
-  char exe_dir[FILENAME_MAX], exe_name[FILENAME_MAX];
-  parse_path(full_exe_path, exe_dir, exe_name);
-
-  // Extract the command and arguments.
-  char* command = options_argument(opts, 1);
-  char* input = options_argument(opts, 2);
-
-  // Validate our inputs.
-  if (command != NULL)
-  {
-    int c = 0;
-    static const char* valid_commands[] = {"run", "batch", "benchmark", "help", NULL};
-    while (valid_commands[c] != NULL)
-    {
-      if (!strcmp(command, valid_commands[c]))
-        break;
-      ++c;
-    }
-    if (valid_commands[c] == NULL)
-    {
-      print_to_rank0("%s: invalid command: '%s'\n", exe_name, command);
-      print_to_rank0("%s: valid commands are: run, batch, benchmark, help'\n", exe_name);
-      exit(0);
-    }
-  }
-  else
-    driver_usage(exe_name);
-
-  // Attempt to construct the model.
-  model_t* model = (*constructor)();
-  ASSERT(model != NULL);
-
-  // Have we been asked for help?
-  if (!strcmp(command, "help"))
-  {
-    model_help(exe_name, model, input);
-    model_free(model);
-    exit(0);
-  }
-
-  // Have we been asked to do something related to a benchmark?
-  if (!strcmp(command, "benchmark"))
-  {
-    if (input == NULL)
-    {
-      print_to_rank0("%s: No benchmark problem given! Usage:\n", exe_name);
-      print_to_rank0("%s benchmark [problem] OR \n", exe_name);
-      print_to_rank0("%s benchmark all OR \n", exe_name);
-      print_to_rank0("%s benchmark list OR \n", exe_name);
-      print_to_rank0("%s benchmark describe [problem] OR \n", exe_name);
-      exit(0);
-    }
-
-    if (!strcmp(input, "all")) // Run all benchmarks?
-      model_run_all_benchmarks(model);
-    else if (!strcmp(input, "list")) // List benchmarks?
-    {
-      print_to_rank0("Benchmarks for %s model:\n", model_name);
-      int pos = 0;
-      char *benchmark;
-      model_benchmark_t* metadata;
-      while (model_benchmark_map_next(model->benchmarks, &pos, &benchmark, &metadata))
-      {
-        if (metadata->description != NULL)
-          print_to_rank0("  %s (%s)\n", benchmark, docstring_first_line(metadata->description));
-        else
-          print_to_rank0("  %s\n", benchmark);
-      }
-      print_to_rank0("\n");
-    }
-    else if (!strcmp(input, "describe")) // Describe a benchmark?
-    {
-      // We need to reach into argv for the benchmark name.
-      if (argc < 4)
-        print_to_rank0("%s: No benchmark specified for description.", exe_name);
-      static int rank = -1;
-      if (rank == -1)
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      if (rank == 0)
-      {
-        const char* benchmark = argv[3];
-        model_describe_benchmark(model, benchmark, stderr);
-      }
-    }
-    else
-      model_run_benchmark(model, input);
-
-    model_free(model);
-    exit(0);
-  }
-
-  // We are asked to run a simulation or a batch of simulations.
-  if (!strcmp(command, "run"))
-    run_model(model, input, exe_name);
-  else
-  {
-    ASSERT(!strcmp(command, "batch"));
-    if ((input == NULL) || (options_num_arguments(opts) < 4))
-    {
-      print_to_rank0("%s: usage: %s batch [model] [input] [procs]\n", 
-                     exe_name, exe_name);
-      exit(0);
-    }
-    char* ppr_str = options_argument(opts, 3);
-    if (!string_is_integer(ppr_str))
-    {
-      print_to_rank0("batch: procs should be an integer.\n");
-      exit(0);
-    }
-    int ppr = atoi(ppr_str);
-    if (ppr < 1)
-    {
-      print_to_rank0("batch: procs should be at least 1.\n");
-      exit(0);
-    }
-    int nproc;
-    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
-    if (ppr > nproc)
-    {
-      print_to_rank0("batch: procs cannot exceed %d.\n", nproc);
-      exit(0);
-    }
-    run_batch(model, input, ppr, exe_name);
-  }
-
-  model_free(model);
-  return 0;
-}
-
-static noreturn void multi_model_usage(const char* exe_name, 
-                                       model_dispatch_t models[])
-{
-  print_to_rank0("%s: usage:\n", exe_name);
-  print_to_rank0("%s [command] [model] [args]\n\n", exe_name);
-  print_to_rank0("Here, [command] [model] [args] is one of the following:\n\n");
-  print_to_rank0("  run [model] [file]                -- Runs a simulation with the given\n");
-  print_to_rank0("                                       input file.\n");
-  print_to_rank0("  batch [model] [file] [procs]      -- Runs a batch of simulations defined by input files in the given file.\n");
-  print_to_rank0("  benchmark [model] [name] ...      -- Runs or queries a benchmark problem.\n");
-  print_to_rank0("  help [model] ...                  -- Prints information about the\n");
-  print_to_rank0("                                       given model.\n\n");
-  print_to_rank0("Benchmark commands:\n");
-  print_to_rank0("  benchmark [model] list            -- Lists all available benchmark problems.\n");
-  print_to_rank0("  benchmark [model] describe [name] -- Describes the given benchmark problem.\n");
-  print_to_rank0("  benchmark [model] all             -- Runs all available benchmark problems.\n");
-  print_to_rank0("  benchmark [model] [name]          -- Runs the given benchmark problem.\n\n");
-  print_to_rank0("Help commands:\n");
-  print_to_rank0("  help [model]                      -- Prints model-specific help information.\n");
-  print_to_rank0("  help [model] list                 -- Prints a list of available functions.\n");
-  print_to_rank0("  help [model] [function/symbol]    -- Prints documentation for a\n");
-  print_to_rank0("                                       function/symbol.\n\n");
-  print_to_rank0("Above, [model] is one of:\n");
-  int i = 0;
-  while (strcmp(models[i].model_name, END_OF_MODELS.model_name) != 0)
-  {
-    print_to_rank0("  %s\n", models[i].model_name);
-    ++i;
-  }
-  exit(0);
-  polymec_unreachable();
-}
-
-// Prints model-specific help for multi-model programs.
-static void multi_model_help(const char* exe_name, model_t* model, const char* arg)
-{
-  // If no argument was given, just print the model's basic documentation.
-  if (arg == NULL)
-  {
-    if (model->doc != NULL)
-    {
-      int pos = 0;
-      char* line;
-      while (docstring_next(model->doc, &pos, &line))
-        print_to_rank0("%s\n", line);
-    }
-    else
-      print_to_rank0("No documentation is available for the %s model.\n\n", model_name(model));
-
-    print_runtime_options_help();
-    print_to_rank0("Use '%s help %s list' to list available functions, and \n", exe_name, model_name(model));
-    print_to_rank0("'%s help %s <function>' for documentation on a given function.\n", exe_name, model_name(model));
-  }
-  else if (model->vtable.read_input != NULL)
-  {
-    // Attempt to dig up the documentation for the given registered function.
-    static int rank = -1;
-    if (rank == -1)
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (rank == 0)
-    {
-      interpreter_t* interp = model_interpreter(model);
-      interpreter_help(interp, arg, stderr);
-    }
-  }
-  else
-  {
-    print_to_rank0("No specific help is available for models with custom input.\n");
-  }
-}
-
-
-int multi_model_main(model_dispatch_t model_table[], 
-                     int argc, 
-                     char* argv[])
-{
-  // Start everything up.
-  polymec_init(argc, argv);
-
-  // Get the parsed command line options.
-  options_t* opts = options_argv();
-
-  // Extract the executable name.
-  char* full_exe_path = options_argument(opts, 0);
-  char exe_dir[FILENAME_MAX], exe_name[FILENAME_MAX];
-  parse_path(full_exe_path, exe_dir, exe_name);
-
-  // Extract the command and arguments.
-  char* command = options_argument(opts, 1);
-  char* model_name = options_argument(opts, 2);
-  char* input = options_argument(opts, 3);
-
-  // Validate our inputs.
-  if (command != NULL)
-  {
-    int c = 0;
-    static const char* valid_commands[] = {"run", "batch", "benchmark", "help", NULL};
-    while (valid_commands[c] != NULL)
-    {
-      if (!strcmp(command, valid_commands[c]))
-        break;
-      ++c;
-    }
-    if (valid_commands[c] == NULL)
-    {
-      print_to_rank0("%s: invalid command: '%s'\n", exe_name, command);
-      print_to_rank0("%s: valid commands are: run, batch, benchmark, help'\n", exe_name);
-      exit(0);
-    }
-
-    // Show generic help for help with no model name.
-    if ((strcmp(command, "help") == 0) && (model_name == NULL))
-      multi_model_usage(exe_name, model_table);
-  }
-  else
-    multi_model_usage(exe_name, model_table);
-  if (model_name == NULL)
-    multi_model_usage(exe_name, model_table);
-
-  // Attempt to construct the model.
-  model_t* model = NULL;
-  {
-    int i = 0;
-    while (strcmp(model_table[i].model_name, END_OF_MODELS.model_name) != 0)
-    {
-      if (strcmp(model_table[i].model_name, model_name) == 0)
-      {
-        model = model_table[i].model_constructor();
-        break;
-      }
-      ++i;
-    }
-  }
-  if (model == NULL)
-  {
-    print_to_rank0("%s: Invalid model: %s\n", exe_name, model_name);
-    print_to_rank0("%s: Valid models are:\n", exe_name);
-    int i = 0;
-    while (strcmp(model_table[i].model_name, END_OF_MODELS.model_name) != 0)
-    {
-      print_to_rank0("  %s\n", model_table[i].model_name);
-      ++i;
-    }
-    exit(0);
-  }
-
-  // Have we been asked for help?
-  if (!strcmp(command, "help"))
-  {
-    multi_model_help(exe_name, model, input);
-    model_free(model);
-    exit(0);
-  }
-
-  // Have we been asked to do something related to a benchmark?
-  if (!strcmp(command, "benchmark"))
-  {
-    if (input == NULL)
-    {
-      print_to_rank0("%s: No benchmark problem given! Usage:\n", exe_name);
-      print_to_rank0("%s benchmark [model] [problem] OR \n", exe_name);
-      print_to_rank0("%s benchmark [model] all OR \n", exe_name);
-      print_to_rank0("%s benchmark [model] list OR \n", exe_name);
-      print_to_rank0("%s benchmark [model] describe [problem] OR \n", exe_name);
-      exit(0);
-    }
-
-    if (!strcmp(input, "all")) // Run all benchmarks?
-      model_run_all_benchmarks(model);
-    else if (!strcmp(input, "list")) // List benchmarks?
-    {
-      print_to_rank0("Benchmarks for %s model:\n", model_name);
-      int pos = 0;
-      char *benchmark;
-      model_benchmark_t* metadata;
-      while (model_benchmark_map_next(model->benchmarks, &pos, &benchmark, &metadata))
-      {
-        if (metadata->description != NULL)
-          print_to_rank0("  %s (%s)\n", benchmark, docstring_first_line(metadata->description));
-        else
-          print_to_rank0("  %s\n", benchmark);
-      }
-      print_to_rank0("\n");
-    }
-    else if (!strcmp(input, "describe")) // Describe a benchmark?
-    {
-      // We need to reach into argv for the benchmark name.
-      if (argc < 4)
-        print_to_rank0("%s: No benchmark specified for description.", exe_name);
-      static int rank = -1;
-      if (rank == -1)
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      if (rank == 0)
-      {
-        const char* benchmark = argv[4];
-        if (benchmark == NULL)
-        {
-          print_to_rank0("%s: No benchmark to describe!\n", exe_name);
-          print_to_rank0("%s benchmark %s describe [benchmark_name]\n", exe_name, model_name);
-          exit(0);
-        }
-        model_describe_benchmark(model, benchmark, stderr);
-      }
-    }
-    else
-      model_run_benchmark(model, input);
-
-    model_free(model);
-    exit(0);
-  }
-
-  // We are asked to run a simulation or a batch of simulations.
-  if (!strcmp(command, "run"))
-    run_model(model, input, exe_name);
-  else
-  {
-    ASSERT(!strcmp(command, "batch"));
-    if ((input == NULL) || (options_num_arguments(opts) < 5))
-    {
-      print_to_rank0("%s: usage: %s batch [model] [input] [procs]\n",
-                     exe_name, exe_name);
-      exit(0);
-    }
-    char* ppr_str = options_argument(opts, 4);
-    if (!string_is_integer(ppr_str))
-    {
-      print_to_rank0("batch: procs should be an integer.\n");
-      exit(0);
-    }
-    int ppr = atoi(ppr_str);
-    if (ppr < 1)
-    {
-      print_to_rank0("batch: procs should be at least 1.\n");
-      exit(0);
-    }
-    int nproc;
-    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
-    if (ppr > nproc)
-    {
-      print_to_rank0("batch: procs cannot exceed %d.\n", nproc);
-      exit(0);
-    }
-    run_batch(model, input, ppr, exe_name);
-  }
-
-  model_free(model);
-  return 0;
-}
-
-static noreturn void minimal_driver_usage(const char* model_name)
-{
-  print_to_rank0("%s: usage:\n", model_name);
-  print_to_rank0("%s input [option1=val [option2=val2 [...]]]\n\n", model_name);
-  exit(0);
-  polymec_unreachable();
-}
-
-int model_minimal_main(const char* model_name, model_ctor constructor, int argc, char* argv[])
-{
-  // Start everything up.
-  polymec_init(argc, argv);
-
-  // Get the parsed command line options.
-  options_t* opts = options_argv();
-
-  // Here, the first argument serves as the input.
-  char* input = options_argument(opts, 1);
-  if ((input == NULL) || !strcmp(input, "help"))
-  {
-    minimal_driver_usage(model_name);
-  }
-
-  // Attempt to construct the model.
-  model_t* model = (*constructor)();
-  ASSERT(model != NULL);
-
-  // Check to see whether the given file exists.
-  FILE* fp = fopen(input, "r");
-  if (fp == NULL)
-  {
-    print_to_rank0("%s: Input file not found: %s\n", model_name, input);
-    exit(0);
-  }
-  fclose(fp);
-
-  // By default, the simulation is named after the input file (minus its path 
-  // and anything after the first alphanumeric character).
-  set_sim_name_to_input_file(model, input);
-
-  // Read the contents of the input file into the model's interpreter.
-  model_read_input_file(model, input);
-
-  // Default time endpoints, max number of steps.
-  real_t t1 = 0.0, t2 = 1.0;
-  int max_steps = INT_MAX;
-
-  // Overwrite these defaults with interpreted values.
-  interpreter_t* interp = model_interpreter(model);
-  if (interpreter_contains(interp, "t1", INTERPRETER_NUMBER))
-    t1 = interpreter_get_number(interp, "t1");
-  if (interpreter_contains(interp, "t2", INTERPRETER_NUMBER))
-    t2 = interpreter_get_number(interp, "t2");
-  if (interpreter_contains(interp, "max_steps", INTERPRETER_NUMBER))
-    max_steps = (int)(interpreter_get_number(interp, "max_steps"));
-
-  // Run the model.
-  model_run(model, t1, t2, max_steps);
-
-  // Clean up.
-  model_free(model);
-
-  return 0;
 }
 
 void model_report_conv_rate(real_t conv_rate, real_t sigma)
