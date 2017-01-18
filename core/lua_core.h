@@ -23,7 +23,7 @@
 // This function registers the core modules within the interpreter L. It 
 // should be called before any of these types are accessed within the 
 // interpreter.
-void lua_register_core_modules(lua_State* L);
+int lua_register_core_modules(lua_State* L);
 
 // Pushes a (3D) point p onto L's stack.
 void lua_push_point(lua_State* L, point_t* p);

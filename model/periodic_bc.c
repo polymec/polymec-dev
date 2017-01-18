@@ -9,21 +9,6 @@
 #include "core/unordered_set.h"
 #include "model/periodic_bc.h"
 
-// The type code used to identify periodic BCs. It will be overwritten 
-// by an interpreter that registers its constructor.
-static int _periodic_bc_type_code = 103452990;
-
-int periodic_bc_type_code(void);
-int periodic_bc_type_code()
-{
-  return _periodic_bc_type_code;
-}
-void set_periodic_bc_type_code(int code);
-void set_periodic_bc_type_code(int code)
-{
-  _periodic_bc_type_code = code;
-}
-
 // This function can be used by default to generate a periodic map.
 static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mesh, char* tag1, char* tag2)
 {
@@ -100,11 +85,6 @@ static int_int_unordered_map_t* generate_periodic_map(void* context, mesh_t* mes
 
 struct periodic_bc_t 
 {
-  // This stores the magic type code, which we use not only to enable the 
-  // interpreter to validate periodic BCs, but also to distinguish 
-  // periodic BCs from other BCs.
-  int type_code;
-
   // Essentially, this type contains the tags which are identified through 
   // a periodic boundary condition.
   char* tag1;
@@ -135,7 +115,6 @@ periodic_bc_t* periodic_bc_new_with_map_func(const char* tag1, const char* tag2,
   ASSERT(strcmp(tag1, tag2) != 0);
 
   periodic_bc_t* bc = polymec_gc_malloc(sizeof(periodic_bc_t), periodic_bc_free);
-  bc->type_code = _periodic_bc_type_code;
   bc->tag1 = string_dup(tag1);
   bc->tag2 = string_dup(tag2);
 
@@ -144,11 +123,6 @@ periodic_bc_t* periodic_bc_new_with_map_func(const char* tag1, const char* tag2,
   bc->generate_map_context = mapping_context;
 
   return bc;
-}
-
-bool periodic_bc_is_valid(periodic_bc_t* bc)
-{
-  return (bc->type_code == _periodic_bc_type_code);
 }
 
 void periodic_bc_get_tags(periodic_bc_t* bc, char** tag1, char** tag2)
@@ -163,10 +137,5 @@ int_int_unordered_map_t* periodic_bc_generate_map(periodic_bc_t* bc, mesh_t* mes
 {
   // Just call the function pointer for this one.
   return bc->generate_map(bc->generate_map_context, mesh, bc->tag1, bc->tag2);
-}
-
-periodic_bc_t* interpreter_get_periodic_bc(interpreter_t* interp, const char* name)
-{
-  return interpreter_get_user_defined(interp, name, _periodic_bc_type_code);
 }
 

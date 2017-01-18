@@ -10,7 +10,6 @@
 
 #include "core/mesh.h"
 #include "core/unordered_map.h"
-#include "model/interpreter.h"
 
 // This is an opaque type that represents a periodic boundary condition.
 // Objects of this type are garbage-collected.
@@ -21,9 +20,6 @@ typedef struct periodic_bc_t periodic_bc_t;
 // that tag1[i] corresponds to tag2[i]--the geometric information about the 
 // faces in the mesh will determine the correspondence.
 periodic_bc_t* periodic_bc_new(const char* tag1, const char* tag2);
-
-// Returns true if the given object is a valid periodic BC, false if not.
-bool periodic_bc_is_valid(periodic_bc_t* bc);
 
 // Creates a periodic boundary condition with a function (and a context) 
 // for generating periodic mappings between faces.
@@ -36,8 +32,5 @@ void periodic_bc_get_tags(periodic_bc_t* bc, char** tag1, char** tag2);
 
 // Generates a face-to-face mapping for a periodic boundary condition.
 int_int_unordered_map_t* periodic_bc_generate_map(periodic_bc_t* bc, mesh_t* mesh);
-
-// Support for fetching a periodic BC from an interpreter.
-periodic_bc_t* interpreter_get_periodic_bc(interpreter_t* interp, const char* name);
 
 #endif

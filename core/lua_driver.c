@@ -130,8 +130,14 @@ static int prompt_for_line(lua_State *L, int first_line)
 {
   char buffer[512];
   char *b = buffer;
-  const char *prmt = polymec_executable_name();
-  int read_status = lua_readline(L, b, prmt);
+  const char *prog_name = polymec_executable_name();
+  size_t pnl = strlen(prog_name);
+  char prompt[pnl+3];
+  strncpy(prompt, prog_name, sizeof(char)*pnl);
+  prompt[pnl] = '>';
+  prompt[pnl+1] = ' ';
+  prompt[pnl+2] = '\0';
+  int read_status = lua_readline(L, b, prompt);
   if (read_status == 0) // no input
     return 0;  
   lua_pop(L, 1); // remove prompt
@@ -233,8 +239,6 @@ static void interact(lua_State* L)
 // This function controls the main loop, and is called in Lua's protected mode.
 static int pmain(lua_State* L)
 {
-//  int argc = (int)lua_tointeger(L, 1);
-//  char** argv = lua_touserdata(L, 2);
   int (*register_types_and_modules)(lua_State* L) = lua_tocfunction(L, 3);
 
   // Get the parsed command line options.
@@ -289,12 +293,10 @@ int lua_driver(int argc,
   // Pass the command line arguments into the main function, which runs in 
   // protected mode.
   lua_pushcfunction(L, &pmain);
-  lua_pushinteger(L, argc);
-  lua_pushlightuserdata(L, argv);
   lua_pushcfunction(L, register_types_and_modules);
 
   // Execute pmain, which parses the file and/or begins an interactive session.
-  int status = lua_pcall(L, 3, 1, 0);
+  int status = lua_pcall(L, 1, 1, 0);
   int result = lua_toboolean(L, -1);
 
   // Shut down and report any error(s).

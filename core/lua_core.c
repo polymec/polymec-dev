@@ -813,7 +813,7 @@ static int register_options(lua_State* L)
 //                                API 
 //------------------------------------------------------------------------
 
-void lua_register_core_modules(lua_State* L)
+int lua_register_core_modules(lua_State* L)
 {
   // Core types.
   lua_register_type(L, "point", point_funcs, point_attr, point_methods);
@@ -827,6 +827,8 @@ void lua_register_core_modules(lua_State* L)
 
   // Register the options table.
   luaL_requiref(L, "options", register_options, 1);
+
+  return 0;
 }
 
 void lua_push_point(lua_State* L, point_t* p)
