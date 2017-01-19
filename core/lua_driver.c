@@ -128,8 +128,7 @@ static int incomplete(lua_State *L, int status) {
 // This function prompts the user for a line of Lua code in interative mode.
 static int prompt_for_line(lua_State *L, int first_line) 
 {
-  char buffer[512];
-  char *b = buffer;
+  // Assemble a command prompt.
   const char *prog_name = polymec_executable_name();
   size_t pnl = strlen(prog_name);
   char prompt[pnl+3];
@@ -137,10 +136,14 @@ static int prompt_for_line(lua_State *L, int first_line)
   prompt[pnl] = '>';
   prompt[pnl+1] = ' ';
   prompt[pnl+2] = '\0';
+
+  // Read the line of input.
+  char buffer[512];
+  char *b = buffer;
   int read_status = lua_readline(L, b, prompt);
   if (read_status == 0) // no input
     return 0;  
-  lua_pop(L, 1); // remove prompt
+  lua_pop(L, 1); // remove prompt from the stack.
   size_t l = strlen(b);
   if (l > 0 && b[l-1] == '\n')  // line ends with newline? 
     b[--l] = '\0'; // remove it 
@@ -190,7 +193,7 @@ static int compile_statement(lua_State *L)
 
 // This function reads a line of Lua code and trys to compile it as 
 // (1) an expression, and (2) a statement (if (1) fails). 
-static int load_line(lua_State *L) 
+static int read_line(lua_State *L) 
 {
   lua_settop(L, 0);
   if (!prompt_for_line(L, 1))
@@ -221,7 +224,7 @@ static void print_result(lua_State *L)
 static void interact(lua_State* L)
 {
   int status;
-  while ((status = load_line(L)) != -1) 
+  while ((status = read_line(L)) != -1) 
   {
     if (status == LUA_OK)
       status = execute_chunk(L, 0, LUA_MULTRET);
@@ -270,7 +273,7 @@ static int pmain(lua_State* L)
   }
 
   // If we're interactive, surrender control.
-  if (interactive)
+  if (interactive || (filename == NULL))
     interact(L);
 
   // We made it to the end without incident.
