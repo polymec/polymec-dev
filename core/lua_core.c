@@ -517,7 +517,7 @@ static lua_type_func sp_funcs[] = {
 static int sp_num_comp(lua_State* L)
 {
   sp_func_t* f = lua_to_sp_func(L, 1);
-  lua_pushnumber(L, (double)sp_func_num_comp(f));
+  lua_pushnumber(L, (double)(sp_func_num_comp(f)));
   return 1;
 }
 
@@ -569,7 +569,7 @@ static lua_type_func st_funcs[] = {
 static int st_num_comp(lua_State* L)
 {
   st_func_t* f = lua_to_st_func(L, 1);
-  lua_pushnumber(L, (double)st_func_num_comp(f));
+  lua_pushnumber(L, (double)(st_func_num_comp(f)));
   return 1;
 }
 
@@ -713,19 +713,19 @@ static int silo_new(lua_State* L)
   int num_files = 1;
   lua_getfield(L, -2, "num_files");
   if (!lua_isnil(L, -1))
-    num_files = (int)lua_tonumber(L, -1);
+    num_files = (int)(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
   int step = 0;
   lua_getfield(L, -2, "step");
   if (!lua_isnil(L, -1))
-    step = (int)lua_tonumber(L, -1);
+    step = (int)(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
   real_t time = 0.0;
   lua_getfield(L, -2, "time");
   if (!lua_isnil(L, -1))
-    time = (real_t)lua_tonumber(L, -1);
+    time = (real_t)(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
   silo_file_t* s = silo_file_new(MPI_COMM_WORLD, prefix, dir, num_files, 0, step, time);
@@ -754,14 +754,14 @@ static int silo_open(lua_State* L)
   int num_files = 1;
   lua_getfield(L, -2, "num_files");
   if (!lua_isnil(L, -1))
-    num_files = (int)lua_tonumber(L, -1);
+    num_files = (int)(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
   int step = 0;
   lua_getfield(L, -2, "step");
   if (lua_isnil(L, -1))
     return luaL_error(L, "step must be specified.");
-  step = (int)lua_tonumber(L, -1);
+  step = (int)(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
   real_t time;

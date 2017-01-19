@@ -283,7 +283,7 @@ void model_describe_benchmark(model_t* model, const char* benchmark, FILE* strea
     if ((*metadata_p)->description != NULL)
     {
       fprintf(stream, "%s benchmark '%s':\n", model->name, benchmark);
-      fprintf(stream, (*metadata_p)->description);
+      fprintf(stream, "%s", (*metadata_p)->description);
     }
     else
     {

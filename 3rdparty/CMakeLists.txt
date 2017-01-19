@@ -5,15 +5,20 @@ include_directories(${PROJECT_BINARY_DIR}/include)
 math(EXPR NUM_BUILD_THREADS "${NUMBER_OF_CORES} + 1")
 
 # We don't hold third-party library code to the same standard of excellence  
-# to which we adhere. :-)
+# to which we aspire. :-)
 string(REPLACE "-Werror " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-Weverything " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-Wmissing-prototypes " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-Wfloat-equal" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 
-# Build linenoise -- A readline alternative that provides terminal history.
+# Build linenoise -- A readline alternative that provides terminal history
+# in about 1,000 lines of code.
 add_library(linenoise ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.c)
 set_target_properties(linenoise PROPERTIES FOLDER Libraries)
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/include)
+  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/include
+                  RESULT_VARIABLE stat)
+endif()
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/linenoise.h)
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h ${PROJECT_BINARY_DIR}/include
                   RESULT_VARIABLE stat)
