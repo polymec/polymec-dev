@@ -194,13 +194,16 @@ FILE *lndebug_fp = NULL;
 #define lndebug(fmt, ...)
 #endif
 
-/* ======================= Low level terminal handling ====================== */
-
-/* Set if to use or not the multi line mode. */
-void linenoiseSetMultiLine(int ml) {
-    mlmode = ml;
+/* strdup implementation (not ISO C) */
+static char* string_dup(const char* s)
+{
+  int len = (int)strlen(s);
+  char* copy = malloc((len+1)*sizeof(char));
+  strcpy(copy, s);
+  return copy;
 }
 
+/* strcasecmp implementation (not ISO C) */
 #define MIN(a, b) (a < b) ? a : b
 static int string_casecmp(const char* s1, const char* s2)
 {
@@ -220,6 +223,13 @@ static int string_casecmp(const char* s1, const char* s2)
     return 1;
   else 
     return 0;
+}
+
+/* ======================= Low level terminal handling ====================== */
+
+/* Set if to use or not the multi line mode. */
+void linenoiseSetMultiLine(int ml) {
+    mlmode = ml;
 }
 
 /* Return true if the terminal name is in the list of terminals we know are
@@ -681,7 +691,7 @@ void linenoiseEditHistoryNext(struct linenoiseState *l, int dir) {
         /* Update the current history entry before to
          * overwrite it with the next one. */
         free(history[history_len - 1 - l->history_index]);
-        history[history_len - 1 - l->history_index] = strdup(l->buf);
+        history[history_len - 1 - l->history_index] = string_dup(l->buf);
         /* Show the new entry */
         l->history_index += (dir == LINENOISE_HISTORY_PREV) ? 1 : -1;
         if (l->history_index < 0) {
@@ -995,11 +1005,11 @@ char *linenoise(const char *prompt) {
             len--;
             buf[len] = '\0';
         }
-        return strdup(buf);
+        return string_dup(buf);
     } else {
         count = linenoiseRaw(buf,LINENOISE_MAX_LINE,prompt);
         if (count == -1) return NULL;
-        return strdup(buf);
+        return string_dup(buf);
     }
 }
 
@@ -1047,7 +1057,7 @@ int linenoiseHistoryAdd(const char *line) {
 
     /* Add an heap allocated copy of the line in the history.
      * If we reached the max length, remove the older line. */
-    linecopy = strdup(line);
+    linecopy = string_dup(line);
     if (!linecopy) return 0;
     if (history_len == history_max_len) {
         free(history[0]);
