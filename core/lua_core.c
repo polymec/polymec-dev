@@ -42,8 +42,9 @@ static int p_distance(lua_State* L)
   return 1;
 }
 
-static lua_type_function point_funcs[] = {
+static lua_module_function point_funcs[] = {
   {"new", p_new},
+  {"distance", p_distance},
   {NULL, NULL}
 };
 
@@ -95,7 +96,7 @@ static int p_set_z(lua_State* L)
   return 0;
 }
 
-static lua_type_attr point_attr[] = {
+static lua_record_field point_fields[] = {
   {"x", p_x, p_set_x},
   {"y", p_y, p_set_y},
   {"z", p_z, p_set_z},
@@ -115,8 +116,7 @@ static int p_tostring(lua_State* L)
   return 1;
 }
 
-static lua_type_method point_methods[] = {
-  {"distance", p_distance},
+static lua_record_metamethod point_mm[] = {
   {"__len", p_len},
   {"__tostring", p_tostring},
   {NULL, NULL}
@@ -150,8 +150,9 @@ static int v_dot(lua_State* L)
   return 1;
 }
 
-static lua_type_function vector_funcs[] = {
+static lua_module_function vector_funcs[] = {
   {"new", v_new},
+  {"dot", v_dot},
   {NULL, NULL}
 };
 
@@ -203,7 +204,7 @@ static int v_set_z(lua_State* L)
   return 0;
 }
 
-static lua_type_attr vector_attr[] = {
+static lua_record_field vector_fields[] = {
   {"x", v_x, v_set_x},
   {"y", v_y, v_set_y},
   {"z", v_z, v_set_z},
@@ -282,7 +283,7 @@ static int v_tostring(lua_State* L)
   return 1;
 }
 
-static lua_type_method vector_methods[] = {
+static lua_record_metamethod vector_mm[] = {
   {"__add", v_add},
   {"__sub", v_sub},
   {"__mul", v_mul},
@@ -350,133 +351,9 @@ static int bb_contains(lua_State* L)
   return 1;
 }
 
-static lua_type_function bbox_funcs[] = {
+static lua_module_function bbox_funcs[] = {
   {"new", bb_new},
   {NULL, NULL}
-};
-
-static int bb_x1(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  lua_pushnumber(L, (double)b->x1);
-  return 1;
-}
-
-static int bb_set_x1(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  if (!lua_isnumber(L, 2))
-    return luaL_error(L, "Bounding coordinates must be numbers.");
-  real_t x1 = (real_t)lua_tonumber(L, 2);
-  if (x1 > b->x2) 
-    return luaL_error(L, "Bounding intervals must be positive.");
-  b->x1 = x1;
-  return 0;
-}
-
-static int bb_x2(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  lua_pushnumber(L, (double)b->x2);
-  return 1;
-}
-
-static int bb_set_x2(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  if (!lua_isnumber(L, 2))
-    return luaL_error(L, "Bounding coordinates must be numbers.");
-  real_t x2 = (real_t)lua_tonumber(L, 2);
-  if (x2 < b->x1) 
-    return luaL_error(L, "Bounding intervals must be positive.");
-  b->x2 = x2;
-  return 0;
-}
-
-static int bb_y1(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  lua_pushnumber(L, (double)b->y1);
-  return 1;
-}
-
-static int bb_set_y1(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  if (!lua_isnumber(L, 2))
-    return luaL_error(L, "Bounding coordinates must be numbers.");
-  real_t y1 = (real_t)lua_tonumber(L, 2);
-  if (y1 > b->y2) 
-    return luaL_error(L, "Bounding intervals must be positive.");
-  b->y1 = y1;
-  return 0;
-}
-
-static int bb_y2(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  lua_pushnumber(L, (double)b->y2);
-  return 1;
-}
-
-static int bb_set_y2(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  if (!lua_isnumber(L, 2))
-    return luaL_error(L, "Bounding coordinates must be numbers.");
-  real_t y2 = (real_t)lua_tonumber(L, 2);
-  if (y2 < b->y1) 
-    return luaL_error(L, "Bounding intervals must be positive.");
-  b->y2 = y2;
-  return 0;
-}
-
-static int bb_z1(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  lua_pushnumber(L, (double)b->z1);
-  return 1;
-}
-
-static int bb_set_z1(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  if (!lua_isnumber(L, 2))
-    return luaL_error(L, "Bounding coordinates must be numbers.");
-  real_t z1 = (real_t)lua_tonumber(L, 2);
-  if (z1 > b->z2) 
-    return luaL_error(L, "Bounding intervals must be positive.");
-  b->z1 = z1;
-  return 0;
-}
-
-static int bb_z2(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  lua_pushnumber(L, (double)b->z2);
-  return 1;
-}
-
-static int bb_set_z2(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  if (!lua_isnumber(L, 2))
-    return luaL_error(L, "Bounding coordinates must be numbers.");
-  real_t z2 = (real_t)lua_tonumber(L, 2);
-  if (z2 < b->z1) 
-    return luaL_error(L, "Bounding intervals must be positive.");
-  b->z2 = z2;
-  return 0;
-}
-
-static lua_type_attr bbox_attr[] = {
-  {"x1", bb_x1, bb_set_x1},
-  {"x2", bb_x2, bb_set_x2},
-  {"x1", bb_y1, bb_set_y1},
-  {"x2", bb_y2, bb_set_y2},
-  {"x1", bb_z1, bb_set_z1},
-  {"x2", bb_z2, bb_set_z2},
-  {NULL, NULL, NULL}
 };
 
 static int bb_tostring(lua_State* L)
@@ -487,7 +364,7 @@ static int bb_tostring(lua_State* L)
   return 1;
 }
 
-static lua_type_method bbox_methods[] = {
+static lua_class_method bbox_methods[] = {
   {"contains", bb_contains},
   {"__tostring", bb_tostring},
   {NULL, NULL}
@@ -509,22 +386,17 @@ static int sp_constant(lua_State* L)
   return 1;
 }
 
-static lua_type_function sp_funcs[] = {
+static lua_module_function sp_funcs[] = {
   {"constant", sp_constant},
   {NULL, NULL}
 };
 
-static int sp_num_comp(lua_State* L)
+static int sp_len(lua_State* L)
 {
   sp_func_t* f = lua_to_sp_func(L, 1);
-  lua_pushnumber(L, (double)(sp_func_num_comp(f)));
+  lua_pushinteger(L, sp_func_num_comp(f));
   return 1;
 }
-
-static lua_type_attr sp_attr[] = {
-  {"num_comp", sp_num_comp, NULL},
-  {NULL, NULL, NULL}
-};
 
 static int sp_call(lua_State* L)
 {
@@ -540,7 +412,8 @@ static int sp_call(lua_State* L)
   return nc;
 }
 
-static lua_type_method sp_methods[] = {
+static lua_class_method sp_methods[] = {
+  {"__len", sp_len},
   {"__call", sp_call},
   {NULL, NULL}
 };
@@ -561,22 +434,17 @@ static int st_constant(lua_State* L)
   return 1;
 }
 
-static lua_type_function st_funcs[] = {
+static lua_module_function st_funcs[] = {
   {"constant", st_constant},
   {NULL, NULL}
 };
 
-static int st_num_comp(lua_State* L)
+static int st_len(lua_State* L)
 {
   st_func_t* f = lua_to_st_func(L, 1);
-  lua_pushnumber(L, (double)(st_func_num_comp(f)));
+  lua_pushinteger(L, st_func_num_comp(f));
   return 1;
 }
-
-static lua_type_attr st_attr[] = {
-  {"num_comp", st_num_comp, NULL},
-  {NULL, NULL, NULL}
-};
 
 static int st_call(lua_State* L)
 {
@@ -595,7 +463,8 @@ static int st_call(lua_State* L)
   return nc;
 }
 
-static lua_type_method st_methods[] = {
+static lua_class_method st_methods[] = {
+  {"__len", st_len},
   {"__call", st_call},
   {NULL, NULL}
 };
@@ -628,22 +497,17 @@ static int mesh_repartition(lua_State* L)
   return 0;
 }
 
-static lua_type_function mesh_funcs[] = {
+static lua_module_function mesh_funcs[] = {
   {"repartition", mesh_repartition},
   {NULL, NULL}
 };
 
-static int mesh_num_cells(lua_State* L)
+static int mesh_len(lua_State* L)
 {
   mesh_t* m = lua_to_mesh(L, 1);
-  lua_pushnumber(L, (double)m->num_cells);
+  lua_pushinteger(L, m->num_cells);
   return 1;
 }
-
-static lua_type_attr mesh_attr[] = {
-  {"num_cells", mesh_num_cells, NULL},
-  {NULL, NULL, NULL}
-};
 
 static int mesh_tostring(lua_State* L)
 {
@@ -652,7 +516,8 @@ static int mesh_tostring(lua_State* L)
   return 1;
 }
 
-static lua_type_method mesh_methods[] = {
+static lua_class_method mesh_methods[] = {
+  {"__len", mesh_len},
   {"__tostring", mesh_tostring},
   {NULL, NULL}
 };
@@ -663,22 +528,17 @@ static int pc_repartition(lua_State* L)
   return 0;
 }
 
-static lua_type_function pc_funcs[] = {
+static lua_module_function pc_funcs[] = {
   {"repartition", pc_repartition},
   {NULL, NULL}
 };
 
-static int pc_num_points(lua_State* L)
+static int pc_len(lua_State* L)
 {
   point_cloud_t* pc = lua_to_point_cloud(L, 1);
-  lua_pushnumber(L, (double)pc->num_points);
+  lua_pushinteger(L, pc->num_points);
   return 1;
 }
-
-static lua_type_attr pc_attr[] = {
-  {"num_points", pc_num_points, NULL},
-  {NULL, NULL, NULL}
-};
 
 static int pc_tostring(lua_State* L)
 {
@@ -687,7 +547,8 @@ static int pc_tostring(lua_State* L)
   return 1;
 }
 
-static lua_type_method pc_methods[] = {
+static lua_class_method pc_methods[] = {
+  {"__len", pc_len},
   {"__tostring", pc_tostring},
   {NULL, NULL}
 };
@@ -777,17 +638,13 @@ static int silo_close(lua_State* L)
   return 0;
 }
 
-static lua_type_function silo_funcs[] = {
+static lua_module_function silo_funcs[] = {
   {"new", silo_new},
   {"open", silo_open},
   {NULL, NULL}
 };
 
-static lua_type_attr silo_attr[] = {
-  {NULL, NULL, NULL}
-};
-
-static lua_type_method silo_methods[] = {
+static lua_class_method silo_methods[] = {
   {"close", silo_close},
   {NULL, NULL}
 };
@@ -815,14 +672,14 @@ static void register_options(lua_State* L)
 int lua_register_core_modules(lua_State* L)
 {
   // Core types.
-  lua_register_type(L, "point", point_funcs, point_attr, point_methods);
-  lua_register_type(L, "vector", vector_funcs, vector_attr, vector_methods);
-  lua_register_type(L, "bbox", bbox_funcs, bbox_attr, bbox_methods);
-  lua_register_type(L, "sp_func", sp_funcs, sp_attr, sp_methods);
-  lua_register_type(L, "st_func", st_funcs, st_attr, st_methods);
-  lua_register_type(L, "mesh", mesh_funcs, mesh_attr, mesh_methods);
-  lua_register_type(L, "point_cloud", pc_funcs, pc_attr, pc_methods);
-  lua_register_type(L, "silo_file", silo_funcs, silo_attr, silo_methods);
+  lua_register_record_type(L, "point", point_funcs, point_fields, point_mm);
+  lua_register_record_type(L, "vector", vector_funcs, vector_fields, vector_mm);
+  lua_register_class(L, "bbox", bbox_funcs, bbox_methods);
+  lua_register_class(L, "sp_func", sp_funcs, sp_methods);
+  lua_register_class(L, "st_func", st_funcs, st_methods);
+  lua_register_class(L, "mesh", mesh_funcs, mesh_methods);
+  lua_register_class(L, "point_cloud", pc_funcs, pc_methods);
+  lua_register_class(L, "silo_file", silo_funcs, silo_methods);
 
   // Register the options table.
   register_options(L);
@@ -832,17 +689,17 @@ int lua_register_core_modules(lua_State* L)
 
 void lua_push_point(lua_State* L, point_t* p)
 {
-  lua_push_object(L, "point", p, NULL);
+  lua_push_record(L, "point", p, NULL);
 }
 
 bool lua_is_point(lua_State* L, int index)
 {
-  return lua_is_object(L, index, "point");
+  return lua_is_record(L, index, "point");
 }
 
 point_t* lua_to_point(lua_State* L, int index)
 {
-  return (point_t*)lua_to_object(L, index, "point");
+  return (point_t*)lua_to_record(L, index, "point");
 }
 
 bool lua_is_point_list(lua_State* L, int index)
@@ -968,17 +825,17 @@ void lua_import_point_list(lua_State* L, int index, real_t* array)
 
 void lua_push_vector(lua_State* L, vector_t* v)
 {
-  lua_push_object(L, "vector", v, NULL);
+  lua_push_record(L, "vector", v, NULL);
 }
 
 bool lua_is_vector(lua_State* L, int index)
 {
-  return lua_is_object(L, index, "vector");
+  return lua_is_record(L, index, "vector");
 }
 
 vector_t* lua_to_vector(lua_State* L, int index)
 {
-  return (vector_t*)lua_to_object(L, index, "vector");
+  return (vector_t*)lua_to_record(L, index, "vector");
 }
 
 bool lua_is_vector_list(lua_State* L, int index)

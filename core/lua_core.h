@@ -8,7 +8,7 @@
 #ifndef POLYMEC_LUA_CORE_H
 #define POLYMEC_LUA_CORE_H
 
-#include "core/lua_type.h"
+#include "core/lua_types.h"
 #include "core/point.h"
 #include "core/sp_func.h"
 #include "core/st_func.h"
