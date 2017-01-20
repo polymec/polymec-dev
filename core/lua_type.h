@@ -14,13 +14,12 @@
 // implement functions in Lua.
 typedef struct lua_State lua_State;
 
-// This type represents a static function on a Lua object. Static functions 
-// include constructors, for example.
+// This type represents a static function for a Lua object.
 typedef struct
 {
   const char* name;
   int (*func)(lua_State* L);
-} lua_type_func;
+} lua_type_function;
 
 // This type represents an attribute in a Lua object, with a name, 
 // a getter, and a setter (if any).
@@ -31,19 +30,20 @@ typedef struct
   int (*setter)(lua_State* L);
 } lua_type_attr;
 
-// This type represents a method on a Lua object.
+// This type represents a method for a Lua object.
 typedef struct
 {
   const char* name;
   int (*method)(lua_State* L);
 } lua_type_method;
 
-// Registers a new Lua type with the interpreter L, giving it a name, a 
-// constructor, and a set of attributes and methods. Static functions 
-// such as constructors are placed into a module named after the type.
+
+// Registers a new Lua type with the interpreter L, giving it a name, 
+// a set of static functions, a set of methods, and a set of attributes.
+// The functions live in a module named after the type.
 void lua_register_type(lua_State* L,
                        const char* type_name,
-                       lua_type_func funcs[],
+                       lua_type_function functions[],
                        lua_type_attr attributes[],
                        lua_type_method methods[]);
 

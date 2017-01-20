@@ -18,9 +18,9 @@
 // We use linenoise since readline has a complicated license, and libedit
 // has a complicated dependency.
 #include "linenoise.h"
-#define lua_readline(L,b,p)	((void)L, ((b)=linenoise(p)) != NULL)
-#define lua_saveline(L,line)	((void)L, linenoiseHistoryAdd(line))
-#define lua_freeline(L,b)	((void)L, free(b))
+#define lua_readline(L, b, p) ((void)L, ((b)=linenoise(p)) != NULL)
+#define lua_saveline(L, line) ((void)L, linenoiseHistoryAdd(line))
+#define lua_freeline(L, b)    ((void)L, free(b))
 
 //------------------------------------------------------------------------
 // The contents of this file are taken from a modified version of lua.c in 
@@ -33,7 +33,8 @@ static int report_error(lua_State *L, int status)
   if (status != LUA_OK) 
   {
     const char *msg = lua_tostring(L, -1);
-    polymec_error(msg);
+    lua_writestringerror("%s: ", polymec_executable_name());
+    lua_writestringerror("%s\n", msg);
     lua_pop(L, 1); 
   }
   return status;
@@ -110,7 +111,8 @@ static int execute_chunk(lua_State *L, int n_arg, int n_res)
 // This function checks whether status signals a syntax error and the 
 // error message at the top of the stack ends with the above mark for
 // incomplete statements.
-static int incomplete(lua_State *L, int status) {
+static int incomplete(lua_State *L, int status) 
+{
   if (status == LUA_ERRSYNTAX) 
   {
     size_t lmsg;
@@ -126,9 +128,9 @@ static int incomplete(lua_State *L, int status) {
 }
 
 // This function prompts the user for a line of Lua code in interative mode.
-static int prompt_for_line(lua_State *L, int first_line) 
+static bool prompt_for_line(lua_State *L) 
 {
-  // Assemble a command prompt.
+  // Assemble a command prompt and stick it on the stack.
   const char *prog_name = polymec_executable_name();
   size_t pnl = strlen(prog_name);
   char prompt[pnl+3];
@@ -136,20 +138,27 @@ static int prompt_for_line(lua_State *L, int first_line)
   prompt[pnl] = '>';
   prompt[pnl+1] = ' ';
   prompt[pnl+2] = '\0';
+  lua_pushstring(L, prompt);
 
   // Read the line of input.
   char buffer[512];
   char *b = buffer;
-  int read_status = lua_readline(L, b, prompt);
-  if (read_status == 0) // no input
-    return 0;  
+  bool got_input = lua_readline(L, b, prompt);
+
+  // If we didn't get anything, bug out (prompt removed by caller).
+  if (!got_input) 
+    return false;
+
   lua_pop(L, 1); // remove prompt from the stack.
   size_t l = strlen(b);
-  if (l > 0 && b[l-1] == '\n')  // line ends with newline? 
-    b[--l] = '\0'; // remove it 
+
+  // Remove any newline from the end of the line.
+  if ((l > 0) && (b[l-1] == '\n'))
+    b[--l] = '\0'; 
+
   lua_pushlstring(L, b, l);
   lua_freeline(L, b);
-  return 1;
+  return true;
 }
 
 // This function prepends a return command in front of an expression in 
@@ -157,12 +166,12 @@ static int prompt_for_line(lua_State *L, int first_line)
 static int prepend_return(lua_State *L) 
 {
   const char *line = lua_tostring(L, -1); // original line
-  const char *retline = lua_pushfstring(L, "return %s;", line);
-  int status = luaL_loadbuffer(L, retline, strlen(retline), "=stdin");
+  const char *mod_line = lua_pushfstring(L, "return %s;", line);
+  int status = luaL_loadbuffer(L, mod_line, strlen(mod_line), "=stdin");
   if (status == LUA_OK) 
   {
     lua_remove(L, -2);  // remove modified line 
-    if (line[0] != '\0') // non empty?
+    if (line[0] != '\0') // not empty?
       lua_saveline(L, line);  // keep history 
   }
   else
@@ -180,7 +189,7 @@ static int compile_statement(lua_State *L)
     size_t len;
     const char *line = lua_tolstring(L, 1, &len); 
     int status = luaL_loadbuffer(L, line, len, "=stdin"); // try it 
-    if (!incomplete(L, status) || !prompt_for_line(L, 0)) 
+    if (!incomplete(L, status) || !prompt_for_line(L)) 
     {
       lua_saveline(L, line); // keep history 
       return status; // cannot or should not try to add continuation line 
@@ -196,10 +205,10 @@ static int compile_statement(lua_State *L)
 static int read_line(lua_State *L) 
 {
   lua_settop(L, 0);
-  if (!prompt_for_line(L, 1))
+  if (!prompt_for_line(L))
     return -1;  // no input 
   int status;
-  if ((status = prepend_return(L)) != LUA_OK)  // 'return ...' did not work? 
+  if ((status = prepend_return(L)) != LUA_OK)  // 'return ...' didn't work.
     status = compile_statement(L); // try as statement, maybe with continuation lines 
   lua_remove(L, 1); // remove line from the stack 
   lua_assert(lua_gettop(L) == 1);
@@ -224,8 +233,9 @@ static void print_result(lua_State *L)
 static void interact(lua_State* L)
 {
   int status;
-  while ((status = read_line(L)) != -1) 
+  do
   {
+    status = read_line(L);
     if (status == LUA_OK)
       status = execute_chunk(L, 0, LUA_MULTRET);
     if (status == LUA_OK) 
@@ -233,6 +243,7 @@ static void interact(lua_State* L)
     else 
       report_error(L, status);
   }
+  while (status != -1);
   
   // Clear the stack.
   lua_settop(L, 0); 
@@ -242,7 +253,7 @@ static void interact(lua_State* L)
 // This function controls the main loop, and is called in Lua's protected mode.
 static int pmain(lua_State* L)
 {
-  int (*register_types_and_modules)(lua_State* L) = lua_tocfunction(L, 3);
+  int (*register_types_and_modules)(lua_State* L) = lua_tocfunction(L, 1);
 
   // Get the parsed command line options.
   options_t* opts = options_argv();
@@ -256,9 +267,13 @@ static int pmain(lua_State* L)
     char* arg = options_argument(opts, i);
 
     // Disregard named values and flags.
-    if ((options_value(opts, arg) != NULL) && (arg[0] != '-')) 
+    if ((options_value(opts, arg) == NULL) && (arg[0] != '-')) 
       filename = arg;
   }
+
+  // Tell the standard Lua libraries to ignore environment variables.
+  lua_pushboolean(L, true);
+  lua_setfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
 
   // Open standard libraries, and register extra types and modules.
   luaL_openlibs(L);
@@ -287,6 +302,9 @@ int lua_driver(int argc,
 {
   // Start everything up.
   polymec_init(argc, argv);
+
+  // Set the maximum history length.
+  linenoiseHistorySetMaxLen(500);
 
   // Create a Lua state.
   lua_State* L = luaL_newstate();

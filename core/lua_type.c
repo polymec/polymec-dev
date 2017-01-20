@@ -19,7 +19,6 @@ typedef struct
   // Type and behaviors.
   char* type_name;
   lua_type_attr* attrs;
-  lua_type_method* methods;
 
   // Data.
   void* context;
@@ -36,37 +35,30 @@ static int lua_object_gc(lua_State* L)
   return 0;
 }
 
+#if 0
 static int lua_object_index(lua_State* L)
 {
-  // We are given the object and its attribute/method name.
-  lua_object_t* obj = lua_touserdata(L, -1);
-  const char* attr_or_method = lua_tostring(L, -2);
+  // We are given the object and its attribute name.
+  lua_object_t* obj = lua_touserdata(L, 1);
+  const char* attr = lua_tostring(L, 2);
 
-  // Is it an attribute or a method? Search attributes first.
   int i = 0;
   while ((obj->attrs[i].name != NULL) &&
-         (strcmp(obj->attrs[i].name, attr_or_method) != 0)) ++i;
+         (strcmp(obj->attrs[i].name, attr) != 0)) ++i;
   if (obj->attrs[i].name != NULL) // It's an attribute!
     return obj->attrs[i].getter(L);
 
-  // FIXME: We probably don't need this here.
-  // Maybe it's a method.
-  i = 0;
-  while ((obj->methods[i].name != NULL) &&
-         (strcmp(obj->methods[i].name, attr_or_method) != 0)) ++i;
-  if (obj->methods[i].name != NULL) // It is!
-    return obj->methods[i].method(L);
-
-  // It is neither an attribute nor a method, so there's nothing to do here.
-  return luaL_error(L, "%s is neither an attribute nor a method of %s.",
-                    attr_or_method, obj->type_name);
+  // Return nil if we didn't find anything.
+  lua_pushnil(L);
+  return 1;
 }
+#endif
 
 static int lua_object_newindex(lua_State* L)
 {
   // We are given the object and its attribute name.
-  lua_object_t* obj = lua_touserdata(L, -1);
-  const char* attr = lua_tostring(L, -2);
+  lua_object_t* obj = lua_touserdata(L, 1);
+  const char* attr = lua_tostring(L, 2);
 
   // Search the attributes table.
   int i = 0;
@@ -75,7 +67,10 @@ static int lua_object_newindex(lua_State* L)
   if (obj->attrs[i].name != NULL) // Found it!
   {
     if (obj->attrs[i].getter != NULL) // It's writeable!
-      return obj->attrs[i].getter(L);
+    {
+      lua_remove(L, 2);
+      return obj->attrs[i].setter(L);
+    }
     else
     {
       return luaL_error(L, "%s is a read-only an attribute of %s.",
@@ -101,37 +96,14 @@ static void destroy_attrs(void* val)
   polymec_free(attrs);
 }
 
-// Destructor for method dictionary entries.
-static void destroy_methods(void* val)
-{
-  lua_type_method* methods = val;
-  int i = 0; 
-  while (methods[i].name != NULL)
-  {
-    string_free((char*)methods[i].name);
-    ++i;
-  }
-  polymec_free(methods);
-}
-
-// Dictionary of static functions by type.
-static string_ptr_unordered_map_t* lua_type_funcs = NULL;
-
 // Dictionary of attributes by type.
 static string_ptr_unordered_map_t* lua_type_attrs = NULL;
-
-// Dictionary of methods by type.
-static string_ptr_unordered_map_t* lua_type_methods = NULL;
 
 // This function is called at exit to destroy the above global objects.
 static void destroy_lua_dicts(void)
 {
-  if (lua_type_funcs != NULL)
-    string_ptr_unordered_map_free(lua_type_funcs);
   if (lua_type_attrs != NULL)
     string_ptr_unordered_map_free(lua_type_attrs);
-  if (lua_type_methods != NULL)
-    string_ptr_unordered_map_free(lua_type_methods);
 }
 
 static int lua_open_type(lua_State* L)
@@ -139,8 +111,8 @@ static int lua_open_type(lua_State* L)
   // Get stuff out of the registry.
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_type_name");
   const char* type_name = lua_tostring(L, -1);
-  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_funcs");
-  lua_type_func* funcs = lua_touserdata(L, -1);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_functions");
+  lua_type_function* functions = lua_touserdata(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_attr");
   lua_type_attr* attributes = lua_touserdata(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_type_methods");
@@ -151,44 +123,21 @@ static int lua_open_type(lua_State* L)
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_name");
   lua_pushnil(L);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_funcs");
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_functions");
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_attr");
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_methods");
 
-  // First of all, create our global type dictionaries if we haven't 
-  // already.
-  if (lua_type_funcs == NULL)
+  // First of all, create our global type dictionaries for attributes 
+  // if we haven't.
+  if (lua_type_attrs == NULL)
   {
-    ASSERT(lua_type_attrs == NULL);
-    ASSERT(lua_type_methods == NULL);
-
-    lua_type_funcs = string_ptr_unordered_map_new();
     lua_type_attrs = string_ptr_unordered_map_new();
-    lua_type_methods = string_ptr_unordered_map_new();
     polymec_atexit(destroy_lua_dicts);
   }
 
-  // Create entries for this type in the global dictionaries.
-
-  // Constructor.
-  int num_funcs = 0;
-  while (funcs[num_funcs].name != NULL)
-    ++num_funcs;
-  luaL_Reg* f = polymec_malloc(sizeof(luaL_Reg) * (num_funcs + 1));
-  for (int i = 0; i < num_funcs; ++i)
-  {
-    f[i].name = string_dup(funcs[i].name);
-    f[i].func = funcs[i].func;
-  }
-  string_ptr_unordered_map_insert_with_kv_dtors(lua_type_funcs, 
-                                                string_dup(type_name),
-                                                f,
-                                                string_free,
-                                                destroy_methods);
-
-  // Attributes.
+  // Populate the attributes entry for this type.
   int num_attrs = 0;
   while (attributes[num_attrs].name != NULL)
     ++num_attrs;
@@ -206,59 +155,74 @@ static int lua_open_type(lua_State* L)
                                                 string_free,
                                                 destroy_attrs);
 
-  // Methods.
-  int num_methods = 0;
-  while (methods[num_methods].name != NULL)
-    ++num_methods;
-  luaL_Reg* m = polymec_malloc(sizeof(luaL_Reg) * (num_methods+4+1));
-  for (int i = 0; i < num_methods; ++i)
+  // Create a metatable for this type and populate it with methods.
   {
-    m[i].name = string_dup(methods[i].name);
-    m[i].func = methods[i].method;
+    int num_methods = 0;
+    while (methods[num_methods].name != NULL)
+      ++num_methods;
+    luaL_Reg m[num_methods+3];
+    for (int i = 0; i < num_methods; ++i)
+    {
+      m[i].name = methods[i].name;
+      m[i].func = methods[i].method;
+    }
+
+    // Add __newindex, __gc methods.
+    m[num_methods].name = "__newindex";
+    m[num_methods].func = lua_object_newindex;
+    m[num_methods+1].name = "__gc";
+    m[num_methods+1].func = lua_object_gc;
+    m[num_methods+2].name = NULL;
+    m[num_methods+2].func = NULL;
+
+    // Make the metatable.
+    luaL_newmetatable(L, type_name);
+    luaL_setfuncs(L, m, 0);
+
+    // Set metatable.__index = metatable so that 
+    // methods are seamless.
+    lua_pushstring(L, "__index");
+    lua_pushvalue(L, -2);
+    lua_settable(L, -3);
   }
-  // Add __index, __newindex, __gc methods.
-  m[num_methods].name = string_dup("__index");
-  m[num_methods].func = lua_object_index;
-  m[num_methods+1].name = string_dup("__newindex");
-  m[num_methods+1].func = lua_object_newindex;
-  m[num_methods+3].name = string_dup("__gc");
-  m[num_methods+3].func = lua_object_gc;
-  m[num_methods+4].name = NULL;
-  m[num_methods+4].func = NULL;
-  string_ptr_unordered_map_insert_with_kv_dtors(lua_type_methods, 
-                                                string_dup(type_name),
-                                                m,
-                                                string_free,
-                                                destroy_methods);
 
-  // Create a metatable for this type and populate it.
-  luaL_newmetatable(L, type_name);
-  luaL_setfuncs(L, m, 0);
+  // Create a containing module for this type and register its functions.
+  {
+    int num_funcs = 0;
+    while (functions[num_funcs].name != NULL)
+      ++num_funcs;
+    luaL_Reg f[num_funcs + 1];
+    for (int i = 0; i < num_funcs; ++i)
+    {
+      f[i].name = functions[i].name;
+      f[i].func = functions[i].func;
+    }
 
-  // Create a containing module for this type and register its static functions.
-  luaL_checkversion(L);
-  lua_createtable(L, 0, 1);
-  luaL_setfuncs(L, f, 0);
+    luaL_checkversion(L);
+    lua_createtable(L, 0, 1);
+    luaL_setfuncs(L, f, 0);
+  }
+
   return 1;
 }
 
 void lua_register_type(lua_State* L,
                        const char* type_name,
-                       lua_type_func funcs[],
+                       lua_type_function functions[],
                        lua_type_attr attributes[],
                        lua_type_method methods[])
 {
   // Load the type into a module by calling lua_open_type.
   // First, though, we need to stash the following into the global registry:
   //   1. type_name
-  //   2. (static) functions
-  //   3. attributes
-  //   4. methods
+  //   2. functions such as constructors, other static functions.
+  //   3. methods
+  //   4. attributes
   // so that lua_open_type can retrieve them on the far end.
   lua_pushstring(L, type_name);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_type_name");
-  lua_pushlightuserdata(L, (void*)funcs);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_funcs");
+  lua_pushlightuserdata(L, (void*)functions);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_functions");
   lua_pushlightuserdata(L, (void*)attributes);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_type_attr");
   lua_pushlightuserdata(L, (void*)methods);
@@ -282,10 +246,10 @@ static int lua_open_module(lua_State* L)
   int num_funcs = 0;
   while (funcs[num_funcs].name != NULL)
     ++num_funcs;
-  luaL_Reg* f = polymec_malloc(sizeof(luaL_Reg) * (num_funcs+1));
+  luaL_Reg f[num_funcs+1];
   for (int i = 0; i < num_funcs; ++i)
   {
-    f[i].name = string_dup(funcs[i].name);
+    f[i].name = funcs[i].name;
     f[i].func = funcs[i].func;
   }
 
@@ -325,7 +289,6 @@ void lua_push_object(lua_State* L,
   // Assign behaviors.
   obj->type_name = string_dup(type_name);
   obj->attrs = *string_ptr_unordered_map_get(lua_type_attrs, (char*)type_name);
-  obj->methods = *string_ptr_unordered_map_get(lua_type_methods, (char*)type_name);
 
   // Assign data.
   obj->context = context;

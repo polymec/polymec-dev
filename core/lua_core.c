@@ -32,7 +32,17 @@ static int p_new(lua_State* L)
   return 1;
 }
 
-static lua_type_func point_funcs[] = {
+static int p_distance(lua_State* L)
+{
+  point_t* p = lua_to_point(L, 1);
+  point_t* q = lua_to_point(L, 2);
+  if (q == NULL)
+    return luaL_error(L, "Argument must be a point.");
+  lua_pushnumber(L, (double)point_distance(p, q));
+  return 1;
+}
+
+static lua_type_function point_funcs[] = {
   {"new", p_new},
   {NULL, NULL}
 };
@@ -101,24 +111,14 @@ static int p_len(lua_State* L)
 static int p_tostring(lua_State* L)
 {
   point_t* p = lua_to_point(L, 1);
-  lua_pushfstring(L, "point (%g, %g, %g)", p->x, p->y, p->z);
-  return 1;
-}
-
-static int p_distance(lua_State* L)
-{
-  point_t* p = lua_to_point(L, 1);
-  point_t* q = lua_to_point(L, 2);
-  if (q == NULL)
-    return luaL_error(L, "Argument must be a point.");
-  lua_pushnumber(L, (double)point_distance(p, q));
+  lua_pushfstring(L, "point (%f, %f, %f)", p->x, p->y, p->z);
   return 1;
 }
 
 static lua_type_method point_methods[] = {
+  {"distance", p_distance},
   {"__len", p_len},
   {"__tostring", p_tostring},
-  {"distance", p_distance},
   {NULL, NULL}
 };
 
@@ -140,7 +140,17 @@ static int v_new(lua_State* L)
   return 1;
 }
 
-static lua_type_func vector_funcs[] = {
+static int v_dot(lua_State* L)
+{
+  vector_t* v = lua_to_vector(L, 1);
+  vector_t* w = lua_to_vector(L, 2);
+  if (w == NULL)
+    return luaL_error(L, "Argument must be a vector.");
+  lua_pushnumber(L, (double)vector_dot(v, w));
+  return 1;
+}
+
+static lua_type_function vector_funcs[] = {
   {"new", v_new},
   {NULL, NULL}
 };
@@ -268,17 +278,7 @@ static int v_len(lua_State* L)
 static int v_tostring(lua_State* L)
 {
   vector_t* v = lua_to_vector(L, 1);
-  lua_pushfstring(L, "vector (%g, %g, %g)", v->x, v->y, v->z);
-  return 1;
-}
-
-static int v_dot(lua_State* L)
-{
-  vector_t* v = lua_to_vector(L, 1);
-  vector_t* w = lua_to_vector(L, 2);
-  if (w == NULL)
-    return luaL_error(L, "Argument must be a vector.");
-  lua_pushnumber(L, (double)vector_dot(v, w));
+  lua_pushfstring(L, "vector (%f, %f, %f)", v->x, v->y, v->z);
   return 1;
 }
 
@@ -340,7 +340,17 @@ static int bb_new(lua_State* L)
   return 1;
 }
 
-static lua_type_func bbox_funcs[] = {
+static int bb_contains(lua_State* L)
+{
+  bbox_t* b = lua_to_bbox(L, 1);
+  point_t* p = lua_to_point(L, 2);
+  if (p == NULL)
+    return luaL_error(L, "Argument must be a point.");
+  lua_pushboolean(L, bbox_contains(b, p));
+  return 1;
+}
+
+static lua_type_function bbox_funcs[] = {
   {"new", bb_new},
   {NULL, NULL}
 };
@@ -472,24 +482,14 @@ static lua_type_attr bbox_attr[] = {
 static int bb_tostring(lua_State* L)
 {
   bbox_t* b = lua_to_bbox(L, 1);
-  lua_pushfstring(L, "bbox (x1 = %g, x2 = %g, y1 = %g, y2 = %g, z1 = %g, z2 = %g)", 
+  lua_pushfstring(L, "bbox (x1 = %f, x2 = %f, y1 = %f, y2 = %f, z1 = %f, z2 = %f)", 
                   b->x1, b->x2, b->y1, b->y2, b->z1, b->z2);
   return 1;
 }
 
-static int bb_contains(lua_State* L)
-{
-  bbox_t* b = lua_to_bbox(L, 1);
-  point_t* p = lua_to_point(L, 2);
-  if (p == NULL)
-    return luaL_error(L, "Argument must be a point.");
-  lua_pushboolean(L, bbox_contains(b, p));
-  return 1;
-}
-
 static lua_type_method bbox_methods[] = {
-  {"__tostring", bb_tostring},
   {"contains", bb_contains},
+  {"__tostring", bb_tostring},
   {NULL, NULL}
 };
 
@@ -509,7 +509,7 @@ static int sp_constant(lua_State* L)
   return 1;
 }
 
-static lua_type_func sp_funcs[] = {
+static lua_type_function sp_funcs[] = {
   {"constant", sp_constant},
   {NULL, NULL}
 };
@@ -561,7 +561,7 @@ static int st_constant(lua_State* L)
   return 1;
 }
 
-static lua_type_func st_funcs[] = {
+static lua_type_function st_funcs[] = {
   {"constant", st_constant},
   {NULL, NULL}
 };
@@ -628,7 +628,7 @@ static int mesh_repartition(lua_State* L)
   return 0;
 }
 
-static lua_type_func mesh_funcs[] = {
+static lua_type_function mesh_funcs[] = {
   {"repartition", mesh_repartition},
   {NULL, NULL}
 };
@@ -663,7 +663,7 @@ static int pc_repartition(lua_State* L)
   return 0;
 }
 
-static lua_type_func pc_funcs[] = {
+static lua_type_function pc_funcs[] = {
   {"repartition", pc_repartition},
   {NULL, NULL}
 };
@@ -770,17 +770,6 @@ static int silo_open(lua_State* L)
   return 1;
 }
 
-static lua_type_func silo_funcs[] = {
-  {"new", silo_new},
-  {"open", silo_open},
-  {NULL, NULL}
-};
-
-
-static lua_type_attr silo_attr[] = {
-  {NULL, NULL, NULL}
-};
-
 static int silo_close(lua_State* L)
 {
   silo_file_t* s = lua_to_silo_file(L, 1);
@@ -788,12 +777,22 @@ static int silo_close(lua_State* L)
   return 0;
 }
 
+static lua_type_function silo_funcs[] = {
+  {"new", silo_new},
+  {"open", silo_open},
+  {NULL, NULL}
+};
+
+static lua_type_attr silo_attr[] = {
+  {NULL, NULL, NULL}
+};
+
 static lua_type_method silo_methods[] = {
   {"close", silo_close},
   {NULL, NULL}
 };
 
-static int register_options(lua_State* L)
+static void register_options(lua_State* L)
 {
   // Create a new table and fill it with our named command line values.
   lua_newtable(L);
@@ -806,7 +805,7 @@ static int register_options(lua_State* L)
     lua_pushstring(L, opt_val);
     lua_setfield(L, -2, opt_name);
   }
-  return 1;
+  lua_setglobal(L, "options");
 }
 
 //------------------------------------------------------------------------
@@ -826,7 +825,7 @@ int lua_register_core_modules(lua_State* L)
   lua_register_type(L, "silo_file", silo_funcs, silo_attr, silo_methods);
 
   // Register the options table.
-  luaL_requiref(L, "options", register_options, 1);
+  register_options(L);
 
   return 0;
 }
