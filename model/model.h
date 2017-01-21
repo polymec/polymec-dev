@@ -74,17 +74,6 @@ typedef struct
   model_dtor                     dtor;
 } model_vtable;
 
-// This is used to construct a table of models for use with 
-// multi_model_main(), below.
-typedef struct 
-{
-  char* model_name;
-  model_ctor model_constructor;
-} model_dispatch_t;
-
-// This is used to terminate the table passed to multi_model_main(), below.
-static const model_dispatch_t END_OF_MODELS = {(char*)"END", NULL};
-
 // This type is used to identify the degree of parallelism that a given 
 // model can take advantage of. We distinguish between five different "types"
 // of parallelism, based on the implementation of the underlying model:
@@ -270,34 +259,6 @@ model_vtable model_get_vtable(model_t* model);
 // Overrides the given model's virtual table with the given one. Be careful
 // when using this!
 void model_set_vtable(model_t* model, model_vtable vtable);
-
-// This function implements a simple driver for a model and behaves
-// in the same way as a main() function, returning 0 on success and nonzero
-// on failure. Arguments:
-// model_name  - The name of the model as it is called by the user.
-// constructor - A constructor function that uses a given set of option 
-//               strings to construct a model object.
-// argc        - The number of command line arguments.
-// argv        - The command line arguments.
-int model_main(const char* model_name, model_ctor constructor, int argc, char* argv[]);
-
-// This function implements a driver for a collection of models and behaves
-// in the same way as model_main(), except that all of its commands take an 
-// extra argument that identifies one of several models from the given 
-// model dispatch table.
-// Arguments:
-// model_table - An array of key-value pairs mapping names of models (strings)
-//               to model constructors, and terminated with END_OF_MODELS.
-// argc        - The number of command line arguments.
-// argv        - The command line arguments.
-int multi_model_main(model_dispatch_t model_table[], 
-                     int argc, 
-                     char* argv[]);
-
-// This version of model_main() does not support "commands," and only runs 
-// a simulation given an input file in the form:
-// <executable> <input> [options] ...
-int model_minimal_main(const char* model_name, model_ctor constructor, int argc, char* argv[]);
 
 // Use this to report a convergence rate from within a benchmark. This can be 
 // used to determine whether the given benchmark "passed."
