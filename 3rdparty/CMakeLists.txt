@@ -25,7 +25,7 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/linenoise.h)
 endif()
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h DESTINATION include)
-  install(FILES liblinenoise${LIB_SUFFIX} DESTINATION lib)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liblinenoise${LIB_SUFFIX} DESTINATION lib)
 endif()
 set(POLYMEC_TP_LIBS linenoise;${POLYMEC_TP_LIBS})
 
