@@ -4,9 +4,8 @@ add_polymec_library(polymec_model model.c boundary_cell_map.c periodic_bc.c
                     neighbor_pairing.c polynomial_fit.c 
                     partition_point_cloud_with_neighbors.c
                     point_kernel.c point_basis.c shepard_point_basis.c
-                    mls_point_basis.c
-                    aux_state.c physical_constants.c)
-#                    mesh_factory.c point_factory.c)
+                    mls_point_basis.c aux_state.c physical_constants.c
+                    lua_model.c)
 
 set(POLYMEC_LIBRARIES polymec_model;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_model;${POLYMEC_LIBRARIES})

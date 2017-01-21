@@ -502,22 +502,59 @@ static lua_module_function mesh_funcs[] = {
   {NULL, NULL}
 };
 
-static int mesh_len(lua_State* L)
+static int mesh_num_cells(lua_State* L)
 {
   mesh_t* m = lua_to_mesh(L, 1);
   lua_pushinteger(L, m->num_cells);
   return 1;
 }
 
-static int mesh_tostring(lua_State* L)
+static int mesh_num_ghost_cells(lua_State* L)
 {
   mesh_t* m = lua_to_mesh(L, 1);
-  lua_pushfstring(L, "mesh (%d cells)", m->num_cells);
+  lua_pushinteger(L, m->num_ghost_cells);
   return 1;
 }
 
-static lua_class_method mesh_methods[] = {
-  {"__len", mesh_len},
+static int mesh_num_faces(lua_State* L)
+{
+  mesh_t* m = lua_to_mesh(L, 1);
+  lua_pushinteger(L, m->num_faces);
+  return 1;
+}
+
+static int mesh_num_edges(lua_State* L)
+{
+  mesh_t* m = lua_to_mesh(L, 1);
+  lua_pushinteger(L, m->num_edges);
+  return 1;
+}
+
+static int mesh_num_nodes(lua_State* L)
+{
+  mesh_t* m = lua_to_mesh(L, 1);
+  lua_pushinteger(L, m->num_nodes);
+  return 1;
+}
+
+static lua_record_field mesh_fields[] = {
+  {"num_cells", mesh_num_cells, NULL},
+  {"num_ghost_cells", mesh_num_ghost_cells, NULL},
+  {"num_faces", mesh_num_faces, NULL},
+  {"num_edges", mesh_num_edges, NULL},
+  {"num_nodes", mesh_num_nodes, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int mesh_tostring(lua_State* L)
+{
+  mesh_t* m = lua_to_mesh(L, 1);
+  lua_pushfstring(L, "mesh (%d cells, %d faces, %d nodes)", 
+                  m->num_cells, m->num_faces, m->num_nodes);
+  return 1;
+}
+
+static lua_record_metamethod mesh_mm[] = {
   {"__tostring", mesh_tostring},
   {NULL, NULL}
 };
@@ -533,12 +570,25 @@ static lua_module_function pc_funcs[] = {
   {NULL, NULL}
 };
 
-static int pc_len(lua_State* L)
+static int pc_num_points(lua_State* L)
 {
   point_cloud_t* pc = lua_to_point_cloud(L, 1);
   lua_pushinteger(L, pc->num_points);
   return 1;
 }
+
+static int pc_num_ghosts(lua_State* L)
+{
+  point_cloud_t* pc = lua_to_point_cloud(L, 1);
+  lua_pushinteger(L, pc->num_ghosts);
+  return 1;
+}
+
+static lua_record_field pc_fields[] = {
+  {"num_points", pc_num_points, NULL},
+  {"num_ghosts", pc_num_ghosts, NULL},
+  {NULL, NULL, NULL}
+};
 
 static int pc_tostring(lua_State* L)
 {
@@ -547,8 +597,8 @@ static int pc_tostring(lua_State* L)
   return 1;
 }
 
-static lua_class_method pc_methods[] = {
-  {"__len", pc_len},
+static lua_record_metamethod pc_mm[] = {
+  {"__len", pc_num_points},
   {"__tostring", pc_tostring},
   {NULL, NULL}
 };
@@ -677,8 +727,8 @@ int lua_register_core_modules(lua_State* L)
   lua_register_class(L, "bbox", bbox_funcs, bbox_methods);
   lua_register_class(L, "sp_func", sp_funcs, sp_methods);
   lua_register_class(L, "st_func", st_funcs, st_methods);
-  lua_register_class(L, "mesh", mesh_funcs, mesh_methods);
-  lua_register_class(L, "point_cloud", pc_funcs, pc_methods);
+  lua_register_record_type(L, "mesh", mesh_funcs, mesh_fields, mesh_mm);
+  lua_register_record_type(L, "point_cloud", pc_funcs, pc_fields, pc_mm);
   lua_register_class(L, "silo_file", silo_funcs, silo_methods);
 
   // Register the options table.

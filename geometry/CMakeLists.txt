@@ -5,7 +5,8 @@ add_polymec_library(polymec_geometry coord_mapping.c sd_func.c sdt_func.c
                     cylinder_sd_func.c sphere_sd_func.c 
                     tetrahedron.c gauss_rules.c cubic_lattice.c
                     generate_random_points.c create_point_lattice.c
-                    create_rectilinear_mesh.c create_uniform_mesh.c crop_mesh.c)
+                    create_rectilinear_mesh.c create_uniform_mesh.c crop_mesh.c
+                    lua_geometry.c)
 
 set(POLYMEC_LIBRARIES polymec_geometry;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_geometry;${POLYMEC_LIBRARIES})
