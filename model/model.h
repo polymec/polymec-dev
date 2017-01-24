@@ -11,6 +11,7 @@
 #include "core/polymec.h"
 #include "core/options.h"
 #include "core/st_func.h"
+#include "model/model_probe.h"
 
 // The maximum amount of storage allowed for an explanation of the 
 // time step choice.
@@ -52,10 +53,6 @@ typedef void (*model_save_func)(void* context, const char* file_prefix, const ch
 // A function for plotting the model to the given I/O interface.
 typedef void (*model_plot_func)(void* context, const char* file_prefix, const char* directory, real_t time, int step);
 
-// A function for computing error norms for the computed solution, compared 
-// with an analytic solution. The error norms can be specific to the model.
-typedef void (*model_compute_error_norms_func)(void* context, st_func_t* solution, real_t t, real_t* norms);
-
 // A destructor function for the context object (if any).
 typedef void (*model_dtor)(void* context);
 
@@ -70,7 +67,6 @@ typedef struct
   model_load_func                load;
   model_save_func                save;
   model_plot_func                plot;
-  model_compute_error_norms_func compute_error_norms;
   model_dtor                     dtor;
 } model_vtable;
 
@@ -122,59 +118,12 @@ void* model_context(model_t* model);
 // Returns the degree of parallelism supported by this model.
 model_parallelism_t model_parallelism(model_t* model);
 
-// Prints usage information for the model to the given file stream.
-void model_usage(model_t* model, FILE* stream);
+// Adds a probe to the model. A probe can be used to "acquire" specific data 
+// at a given time.
+void model_add_probe(model_t* model, model_probe_t* probe);
 
-// This is the type of function that needs to be implemented to 
-// run a benchmark calculation.
-typedef void (*model_benchmark_function_t)();
-
-// Registers the given benchmark name, function, and description with 
-// this model. The description is consumed if given.
-void model_register_benchmark(model_t* model, const char* benchmark, model_benchmark_function_t function,
-                              const char* description);
-
-// Writes a description of the given benchmark to the given file stream.
-void model_describe_benchmark(model_t* model, const char* benchmark, FILE* stream);
-
-// Runs the given benchmark problem for the model.
-void model_run_benchmark(model_t* model, const char* benchmark);
-
-// Runs all benchmark problems for the model.
-void model_run_all_benchmarks(model_t* model);
-
-// Tells the model to read the contents of the given string as input, 
-// with values overridden by options.
-void model_read_input_string(model_t* model, const char* input);
-
-// Tells the model to read the contents of the file with the given name 
-// as input, with values overwritten by options.
-void model_read_input_file(model_t* model, const char* file);
-
-// Defines a point observation by its name, number of components, and 
-// calculation function, and at the given point.
-void model_define_point_observation(model_t* model, 
-                                    const char* name, 
-                                    real_t (*compute_point_observation)(void* context, 
-                                                                        point_t* x,
-                                                                        real_t t),
-                                    point_t* point);
-
-// Defines a global (non-point-specific) observation by its name, 
-// number of components, and calculation function. Examples of global 
-// observations are integrated quantities, maxima, and minima.
-void model_define_global_observation(model_t* model, 
-                                     const char* name, 
-                                     real_t (*compute_global_observation)(void* context, 
-                                                                          real_t t));
-
-// Adds the given observation to the set that will be recorded by the 
-// model during a simulation.
-void model_observe(model_t* model, const char* observation);
-
-// Sets the observation times for the model, overwriting any old observation
-// times.
-void model_set_observation_times(model_t* model, real_t* times, int num_times);
+// Sets the times at which the model will acquire data from its probes.
+void model_set_acquisition_times(model_t* model, real_t* times, size_t num_times);
 
 // Initializes the model at the given time.
 void model_init(model_t* model, real_t t);
@@ -224,26 +173,12 @@ void model_save(model_t* model);
 // Plots the model's state.
 void model_plot(model_t* model);
 
-// Records any desired observations for the model at the current time.
-void model_record_observations(model_t* model);
-
-// Given a model with a computed solution, compute the error norms for 
-// the solution versus a specified analytic solution (at the given time).
-void model_compute_error_norms(model_t* model, st_func_t* solution, real_t* error_norms);
+// Acquires data from any probes added to the model, at the current time.
+void model_acquire(model_t* model);
 
 // Runs a simulation of the model from time t1 to t2, or for a maximum of 
 // max_steps.
 void model_run(model_t* model, real_t t1, real_t t2, int max_steps);
-
-// Runs a batch of simulations whose inputs are found in files whose names 
-// appear in input_files. The simulations will be run concurrently to the 
-// degree possible, using procs_per_run processes for each simulation. Each 
-// input file will only be read by process 0 of the the global communicator
-// for its simulation.
-void model_run_files(model_t* model, 
-                     char** input_files,
-                     size_t num_input_files,
-                     int procs_per_run);
 
 // Sets the name of the simulation within the model. This name 
 // will be used to identify and/or generate names of plot and save files.
@@ -259,14 +194,6 @@ model_vtable model_get_vtable(model_t* model);
 // Overrides the given model's virtual table with the given one. Be careful
 // when using this!
 void model_set_vtable(model_t* model, model_vtable vtable);
-
-// Use this to report a convergence rate from within a benchmark. This can be 
-// used to determine whether the given benchmark "passed."
-void model_report_conv_rate(real_t conv_rate, real_t sigma);
-
-// Use this to report an error norm from within a benchmark. This can be 
-// used to determine whether the given benchmark "passed."
-void model_report_error_norm(real_t error_norm);
 
 #endif
 
