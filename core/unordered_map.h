@@ -369,6 +369,6 @@ DEFINE_UNORDERED_MAP(index_ptr_unordered_map, index_t, void*, index_hash, index_
 DEFINE_UNORDERED_MAP(string_int_unordered_map, char*, int, string_hash, string_equals)
 DEFINE_UNORDERED_MAP(string_string_unordered_map, char*, char*, string_hash, string_equals)
 DEFINE_UNORDERED_MAP(string_ptr_unordered_map, char*, void*, string_hash, string_equals)
-DEFINE_UNORDERED_MAP(ptr_ptr_unordered_map, void*, void*, pointer_hash, pointer_equals)
+DEFINE_UNORDERED_MAP(ptr_ptr_unordered_map, void*, void*, ptr_hash, ptr_equals)
 
 #endif

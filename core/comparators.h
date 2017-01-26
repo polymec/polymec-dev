@@ -63,7 +63,7 @@ static inline bool string_equals(char* x, char* y)
   return (strcmp(x, y) == 0);
 }
 
-static inline bool pointer_equals(void* x, void* y)
+static inline bool ptr_equals(void* x, void* y)
 {
   return (x == y);
 }

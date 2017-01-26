@@ -118,12 +118,22 @@ void* model_context(model_t* model);
 // Returns the degree of parallelism supported by this model.
 model_parallelism_t model_parallelism(model_t* model);
 
-// Adds a probe to the model. A probe can be used to "acquire" specific data 
-// at a given time.
-void model_add_probe(model_t* model, model_probe_t* probe);
+// Adds a probe to the model which will acquire specific data at each of the 
+// specified times. The model assumes ownership of the probe but copies the array of 
+// times.
+void model_add_probe(model_t* model, 
+                     model_probe_t* probe,
+                     real_t* acq_times,
+                     size_t num_acq_times);
 
-// Sets the times at which the model will acquire data from its probes.
-void model_set_acquisition_times(model_t* model, real_t* times, size_t num_times);
+// Adds several probe to the model which will all acquire specific data at 
+// each of the specified times. The model assumes ownership of the probes but copies
+// the array of times.
+void model_add_probes(model_t* model, 
+                      model_probe_t** probes,
+                      size_t num_probes,
+                      real_t* acq_times,
+                      size_t num_acq_times);
 
 // Initializes the model at the given time.
 void model_init(model_t* model, real_t t);

@@ -63,7 +63,7 @@ static inline int string_hash(char* str)
   return djb2_xor_hash((unsigned char*)str, (int)strlen(str));
 }
 
-static inline int pointer_hash(void* p)
+static inline int ptr_hash(void* p)
 {
   return djb2_xor_hash((unsigned char*)p, sizeof(void*));
 }

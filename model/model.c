@@ -13,11 +13,25 @@
 #include "core/array_utils.h"
 #include "core/text_buffer.h"
 #include "core/timer.h"
+#include "core/hash_functions.h"
 #include "model/model.h"
 
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+
+// This type maps a probe to an array of acquisition times.
+static inline int probe_hash(model_probe_t* p)
+{
+  return string_hash(model_probe_name(p));
+}
+
+static inline bool probe_equals(model_probe_t* p, model_probe_t* q)
+{
+  return ptr_equals(p, q);
+}
+
+DEFINE_UNORDERED_MAP(probe_map, model_probe_t*, real_array_t*, probe_hash, probe_equals)
 
 struct model_t 
 {
@@ -35,10 +49,8 @@ struct model_t
 
   int load_step; // -1 if starting a new sim, >= 0 if loading from a file.
 
-  // Probes and acquisition machinery.
-  ptr_array_t* probes;
-  real_t* acq_times;
-  size_t num_acq_times;
+  // Probes and their acquisition times.
+  probe_map_t* probes;
 
   // Data related to a given simulation.
   char* sim_name;    // Simulation name.
@@ -145,9 +157,7 @@ model_t* model_new(const char* name,
   model->min_dt = 0.0;
 
   // Initialize probes.
-  model->probes = ptr_array_new();
-  model->num_acq_times = 0;
-  model->acq_times = NULL;
+  model->probes = probe_map_new();
 
   // Enforce our given parallelism model.
   enforce_singleton_instances(model);
@@ -193,8 +203,7 @@ void model_free(model_t* model)
     polymec_free(model->sim_path);
 
   // Clear probes.
-  polymec_free(model->acq_times);
-  ptr_array_free(model->probes);
+  probe_map_free(model->probes);
 
   polymec_free(model);
 }
@@ -209,26 +218,31 @@ model_parallelism_t model_parallelism(model_t* model)
   return model->parallelism;
 }
 
-void model_add_probe(model_t* model, model_probe_t* probe)
+void model_add_probe(model_t* model, 
+                     model_probe_t* probe,
+                     real_t* acq_times,
+                     size_t num_acq_times)
 {
-  ptr_array_append_with_dtor(model->probes, probe, DTOR(model_probe_free));
+  real_array_t* times = real_array_new();
+  real_array_resize(times, num_acq_times);
+  memcpy(times->data, acq_times, sizeof(real_t) * num_acq_times);
+  probe_map_insert_with_kv_dtors(model->probes, probe, times, model_probe_free, real_array_free);
 }
 
-void model_set_acquisition_times(model_t* model, real_t* times, size_t num_times)
+void model_add_probes(model_t* model, 
+                      model_probe_t** probes,
+                      size_t num_probes,
+                      real_t* acq_times,
+                      size_t num_acq_times)
 {
-  if (model->acq_times != NULL)
-    polymec_free(model->acq_times);
-  if (num_times > 0)
+  if (num_probes > 0)
   {
-    model->acq_times = polymec_malloc(sizeof(real_t) * num_times);
-    memcpy(model->acq_times, times, sizeof(real_t) * num_times);
-    model->num_acq_times = num_times;
-    real_qsort(model->acq_times, model->num_acq_times);
-  }
-  else
-  {
-    model->acq_times = NULL;
-    model->num_acq_times = 0;
+    real_array_t* times = real_array_new();
+    real_array_resize(times, num_acq_times);
+    memcpy(times->data, acq_times, sizeof(real_t) * num_acq_times);
+    probe_map_insert_with_kv_dtors(model->probes, probes[0], times, model_probe_free, real_array_free);
+    for (size_t p = 1; p < num_probes; ++p)
+      probe_map_insert_with_k_dtor(model->probes, probes[p], times, model_probe_free);
   }
 }
 
@@ -250,13 +264,7 @@ static void model_do_periodic_work(model_t* model)
 
   // Now acquire any data we need to, given that the time step makes 
   // allowances for acquisitions.
-  if (model->num_acq_times > 0)
-  {
-    int acq_time_index = real_lower_bound(model->acq_times, model->num_acq_times, model->time);
-    if ((acq_time_index < model->num_acq_times) && 
-        (reals_nearly_equal(model->time, model->acq_times[acq_time_index], 1e-12))) // FIXME: Good enough?
-      model_acquire(model);
-  }
+  model_acquire(model);
 }
 
 // Initialize the model at the given time.
@@ -284,6 +292,39 @@ void model_set_initial_dt(model_t* model, real_t dt0)
 {
   ASSERT(dt0 > 0.0);
   model->initial_dt = dt0;
+}
+
+// Returns the next scheduled acquisition time.
+static real_t model_next_acq_time(model_t* model)
+{
+  real_t acq_time = REAL_MAX;
+
+  int pos = 0;
+  model_probe_t* probe;
+  real_array_t* acq_times;
+  while (probe_map_next(model->probes, &pos, &probe, &acq_times))
+  {
+    int acq_time_index = real_lower_bound(acq_times->data, acq_times->size, model->time);
+    if (acq_time_index < acq_times->size)
+    {
+      real_t t = acq_times->data[acq_time_index];
+      real_t dt = t - model->time;
+      ASSERT(dt >= 0.0);
+      if (dt < 1e-12) 
+      {
+        // We're already at one observation time; set our sights on the next.
+        if (acq_time_index < (acq_times->size - 1))
+        {
+          acq_time = MIN(acq_time, acq_times->data[acq_time_index+1]);
+          dt = t - model->time;
+        }
+      }
+      else 
+        acq_time = MIN(acq_time, t);
+    }
+  }
+
+  return acq_time;
 }
 
 real_t model_max_dt(model_t* model, char* reason)
@@ -326,32 +367,17 @@ real_t model_max_dt(model_t* model, char* reason)
 
   // If we have an observation time coming up, perhaps the next one will 
   // constrain the timestep.
-  int acq_time_index = real_lower_bound(model->acq_times, model->num_acq_times, model->time);
-  if (acq_time_index < model->num_acq_times)
+  real_t acq_time = model_next_acq_time(model);
+  real_t acq_dt = acq_time - model->time;
+  if (acq_dt < model->max_dt)
   {
-    real_t acq_time = model->acq_times[acq_time_index];
-    real_t acq_dt = acq_time - model->time;
-    ASSERT(acq_dt >= 0.0);
-    if (acq_dt < 1e-12) 
-    {
-      // We're already at one observation time; set our sights on the next.
-      if (acq_time_index < (model->num_acq_times - 1))
-      {
-        acq_time = model->acq_times[acq_time_index+1];
-        dt = acq_time - model->time;
-        sprintf(reason, "Requested acquisition time: %g", acq_time);
-      }
-    }
-    else if (acq_dt < model->max_dt)
-    {
-      dt = acq_dt;
-      sprintf(reason, "Requested acquisition time: %g", acq_time);
-    }
-    else if (2.0 * acq_dt < model->max_dt)
-    {
-      dt = acq_dt;
-      sprintf(reason, "Requested acquisition time: %g", acq_time);
-    }
+    dt = acq_dt;
+    sprintf(reason, "Requested acquisition time: %g", acq_time);
+  }
+  else if (2.0 * acq_dt < model->max_dt)
+  {
+    dt = acq_dt;
+    sprintf(reason, "Requested acquisition time: %g", acq_time);
   }
 
   // Now let the model have at it.
@@ -504,9 +530,36 @@ void model_plot(model_t* model)
   STOP_FUNCTION_TIMER();
 }
 
+static void model_publish(model_t* model, 
+                          char* datum_name, 
+                          real_array_t* datum)
+{
+  // How do we want to do this??
+}
+
 void model_acquire(model_t* model)
 {
   START_FUNCTION_TIMER();
+  int pos = 0;
+  model_probe_t* probe;
+  real_array_t* acq_times;
+  real_array_t* datum = real_array_new();
+  while (probe_map_next(model->probes, &pos, &probe, &acq_times))
+  {
+    int acq_time_index = real_lower_bound(acq_times->data, acq_times->size, model->time);
+    if ((acq_time_index < acq_times->size) &&
+        reals_nearly_equal(model->time, acq_times->data[acq_time_index], 1e-12)) // FIXME: Good enough?
+    {
+      // Acquire data from this probe.
+      size_t size = model_probe_datum_size(probe);
+      real_array_resize(datum, size);
+      model_probe_acquire(probe, model->time, datum->data);
+
+      // Publish this data.
+      model_publish(model, model_probe_name(probe), datum);
+    }
+  }
+  real_array_free(datum);
   STOP_FUNCTION_TIMER();
 }
 
