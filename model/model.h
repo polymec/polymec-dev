@@ -11,6 +11,7 @@
 #include "core/polymec.h"
 #include "core/options.h"
 #include "core/st_func.h"
+#include "model/model_data_channel.h"
 #include "model/model_probe.h"
 
 // The maximum amount of storage allowed for an explanation of the 
@@ -117,6 +118,12 @@ void* model_context(model_t* model);
 
 // Returns the degree of parallelism supported by this model.
 model_parallelism_t model_parallelism(model_t* model);
+
+// Sets the models' output data channel so that acquired data can be 
+// published to subscribers. The model assumes control of the data 
+// channel.
+void model_set_data_channel(model_t* model,
+                            model_data_channel_t* data_channel);
 
 // Adds a probe to the model which will acquire specific data at each of the 
 // specified times. The model assumes ownership of the probe but copies the array of 
