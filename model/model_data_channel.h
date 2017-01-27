@@ -9,6 +9,7 @@
 #define POLYMEC_MODEL_DATA_CHANNEL_H
 
 #include "core/polymec.h"
+#include "core/array.h"
 
 // A model data channel publishes data acquired from model probes.
 typedef struct model_data_channel_t model_data_channel_t;
@@ -17,7 +18,7 @@ typedef struct model_data_channel_t model_data_channel_t;
 typedef struct 
 {
   // Puts data into the channel for publication. 
-  void (*put)(void* context, real_t t, char* datum_name, real_t* datum_data, size_t datum_size); 
+  void (*put)(void* context, real_t t, char* datum_name, real_t* datum, size_t datum_size); 
 
   // Destructor.
   void (*dtor)(void* context);
@@ -41,6 +42,54 @@ void model_data_channel_put(model_data_channel_t* channel,
                             char* datum_name,
                             real_t* datum,
                             size_t datum_size);
+
+//------------------------------------------------------------------------
+// Bundled local model data channel and outputs. Useful for basic 
+// output, benchmarks, and debugging diagnostics.
+//------------------------------------------------------------------------
+
+// This type represents a subscriber to a local model data channel. It 
+// generates output on a local device such as a disc or screeen.
+typedef struct local_data_output_t local_data_output_t;
+
+// This virtual table must be implemented by any local data output.
+typedef struct 
+{
+  // Delivers data to output.
+  void (*put)(void* context, real_t t, real_t* datum, size_t datum_size); 
+
+  // Destructor.
+  void (*dtor)(void* context);
+} local_data_output_vtable;
+
+// Creates an instance of a local data output with the given context 
+// pointer and behavior determined by the given vtable. 
+local_data_output_t* local_data_output_new(const char* output_name, 
+                                           void* context, 
+                                           local_data_output_vtable vtable);
+
+// Destroys the given local data output object.
+void local_data_output_free(local_data_output_t* output);
+
+// Delivers a datum to the given local data output.
+void local_data_output_put(local_data_output_t* output, 
+                           real_t t, 
+                           real_t* datum,
+                           size_t datum_size);
+
+// Creates a data channel for writing data to local files. No need to bother 
+// with network ports or secure configurations.
+model_data_channel_t* local_data_channel_new(void);
+
+// Adds an output to the given local model data channel, subscribing it 
+// to data with names in the given list. This function consumes data_names
+// and output.
+void local_data_channel_add_output(model_data_channel_t* channel,
+                                   string_array_t* data_names,
+                                   local_data_output_t* output);
+
+// This local model data class writes a Python module that stores time series for data.
+local_data_output_t* python_local_model_data_new(const char* module_filename);
 
 #endif
 
