@@ -551,7 +551,6 @@ void model_acquire(model_t* model)
   int pos = 0;
   model_probe_t* probe;
   real_array_t* acq_times;
-  real_array_t* datum = real_array_new();
   while (probe_map_next(model->probes, &pos, &probe, &acq_times))
   {
     int acq_time_index = real_lower_bound(acq_times->data, acq_times->size, model->time);
@@ -559,20 +558,18 @@ void model_acquire(model_t* model)
         reals_nearly_equal(model->time, acq_times->data[acq_time_index], 1e-12)) // FIXME: Good enough?
     {
       // Acquire data from this probe.
-      size_t size = model_probe_datum_size(probe);
-      real_array_resize(datum, size);
-      model_probe_acquire(probe, model->time, datum->data);
+      model_datum_t* datum = model_probe_new_datum(probe);
+      model_probe_acquire(probe, model->time, datum);
 
       // Publish this data.
       if (model->data_channel != NULL)
       {
         model_data_channel_put(model->data_channel, model->time, 
-                               model_probe_name(probe), 
-                               datum->data, datum->size);
+                               model_probe_name(probe), datum);
       }
+      model_datum_free(datum);
     }
   }
-  real_array_free(datum);
   STOP_FUNCTION_TIMER();
 }
 

@@ -10,6 +10,7 @@
 
 #include "core/polymec.h"
 #include "core/array.h"
+#include "model/model_probe.h"
 
 // A model data channel publishes data acquired from model probes.
 typedef struct model_data_channel_t model_data_channel_t;
@@ -18,7 +19,7 @@ typedef struct model_data_channel_t model_data_channel_t;
 typedef struct 
 {
   // Puts data into the channel for publication. 
-  void (*put)(void* context, real_t t, char* datum_name, real_t* datum, size_t datum_size); 
+  void (*put)(void* context, real_t t, char* datum_name, model_datum_t* datum); 
 
   // Destructor.
   void (*dtor)(void* context);
@@ -40,8 +41,7 @@ char* model_data_channel_name(model_data_channel_t* channel);
 void model_data_channel_put(model_data_channel_t* channel, 
                             real_t t, 
                             char* datum_name,
-                            real_t* datum,
-                            size_t datum_size);
+                            model_datum_t* datum);
 
 //------------------------------------------------------------------------
 // Bundled local model data channel and outputs. Useful for basic 
@@ -56,7 +56,7 @@ typedef struct local_data_output_t local_data_output_t;
 typedef struct 
 {
   // Delivers data to output.
-  void (*put)(void* context, real_t t, real_t* datum, size_t datum_size); 
+  void (*put)(void* context, real_t t, char* datum_name, model_datum_t* datum);
 
   // Destructor.
   void (*dtor)(void* context);
@@ -73,9 +73,9 @@ void local_data_output_free(local_data_output_t* output);
 
 // Delivers a datum to the given local data output.
 void local_data_output_put(local_data_output_t* output, 
-                           real_t t, 
-                           real_t* datum,
-                           size_t datum_size);
+                           real_t t,
+                           char* datum_name,
+                           model_datum_t* datum);
 
 // Creates a data channel for writing data to local files. No need to bother 
 // with network ports or secure configurations.
@@ -88,8 +88,10 @@ void local_data_channel_add_output(model_data_channel_t* channel,
                                    string_array_t* data_names,
                                    local_data_output_t* output);
 
-// This local model data class writes a Python module that stores time series for data.
-local_data_output_t* python_local_model_data_new(const char* module_filename);
+// This local model data class writes a set of text files in the given 
+// directory with the given prefix, storing their time series.
+local_data_output_t* text_local_data_output_new(const char* directory,
+                                                const char* prefix);
 
 #endif
 

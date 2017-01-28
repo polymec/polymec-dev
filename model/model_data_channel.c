@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/unordered_set.h"
+#include "core/file_utils.h"
 #include "model/model_data_channel.h"
 
 struct model_data_channel_t 
@@ -43,10 +44,9 @@ char* model_data_channel_name(model_data_channel_t* channel)
 void model_data_channel_put(model_data_channel_t* channel, 
                             real_t t, 
                             char* datum_name,
-                            real_t* datum,
-                            size_t datum_size)
+                            model_datum_t* datum)
 {
-  channel->vtable.put(channel->context, t, datum_name, datum, datum_size);
+  channel->vtable.put(channel->context, t, datum_name, datum);
 }
 
 struct local_data_output_t
@@ -78,17 +78,16 @@ void local_data_output_free(local_data_output_t* output)
 
 void local_data_output_put(local_data_output_t* output, 
                            real_t t, 
-                           real_t* datum,
-                           size_t datum_size)
+                           char* datum_name,
+                           model_datum_t* datum)
 {
-  output->vtable.put(output->context, t, datum, datum_size);
+  output->vtable.put(output->context, t, datum_name, datum);
 }
 
 static void local_put(void* context, 
                       real_t t, 
                       char* datum_name, 
-                      real_t* datum,
-                      size_t datum_size)
+                      model_datum_t* datum)
 {
   ptr_ptr_unordered_map_t* output_map = context;
   int pos = 0;
@@ -97,7 +96,7 @@ static void local_put(void* context,
   while (ptr_ptr_unordered_map_next(output_map, &pos, (void**)&names, (void**)&output))
   {
     if (string_unordered_set_contains(names, datum_name))
-      local_data_output_put(output, t, datum, datum_size);
+      local_data_output_put(output, t, datum_name, datum);
   }
 }
 
@@ -126,13 +125,63 @@ void local_data_channel_add_output(model_data_channel_t* channel,
                                              DTOR(local_data_output_free));
 }
 
-static void python_put(void* context, real_t t, real_t* datum, size_t datum_size)
+typedef struct
 {
+  char dir[FILENAME_MAX];
+  char prefix[FILENAME_MAX];
+} text_t;
+
+static void text_put(void* context, 
+                     real_t t, 
+                     char* datum_name, 
+                     model_datum_t* datum)
+{
+  text_t* text = polymec_malloc(sizeof(text_t));
+  int rank = model_datum_rank(datum);
+  size_t* shape = model_datum_shape(datum);
+
+  // Construct the line of data.
+  size_t size = 1;
+  for (int r = 0; r < rank; ++r)
+    size *= shape[r];
+  char line[18*(size+1)+1];
+  sprintf(line, "%g ", t);
+  char d[18];
+  real_t* data = model_datum_data(datum);
+  for (size_t i = 0; i < size; ++i)
+  {
+    sprintf(d, "%g ", data[i]);
+    strcat(line, d);
+  }
+  
+  // Append the line to the file.
+  char filename[FILENAME_MAX];
+  snprintf(filename, FILENAME_MAX-1, "%s/%s_%s.dat", text->dir, text->prefix, datum_name);
+  FILE* file = NULL;
+  if (!file_exists(filename))
+  {
+    file = fopen(filename, "w");
+    fprintf(file, "# t %s\n", datum_name);
+  }
+  else
+    file = fopen(filename, "a");
+  fprintf(file, "%s\n", line);
+
+  fclose(file);
 }
 
-local_data_output_t* python_local_model_data_new(const char* module_filename)
+local_data_output_t* text_local_data_output_new(const char* directory,
+                                                const char* prefix)
 {
-  local_data_output_vtable vtable = {.put = python_put};
-  return local_data_output_new(module_filename, (char*)module_filename, vtable);
+  // If the directory doesn't exist, we have a problem.
+  if (!directory_exists(directory))
+    return NULL;
+
+  text_t* text = polymec_malloc(sizeof(text_t));
+  strcpy(text->dir, directory);
+  strcpy(text->prefix, prefix);
+  local_data_output_vtable vtable = {.put = text_put, 
+                                     .dtor = polymec_free};
+  return local_data_output_new("Text", text, vtable);
 }
 
