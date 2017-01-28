@@ -105,3 +105,18 @@ model_t* lua_to_model(lua_State* L, int index)
   return (model_t*)lua_to_object(L, index, "model");
 }
 
+void lua_push_model_probe(lua_State* L, model_probe_t* p)
+{
+  lua_push_object(L, "model_probe", p, DTOR(model_probe_free));
+}
+
+bool lua_is_model_probe(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "model_probe");
+}
+
+model_probe_t* lua_to_model_probe(lua_State* L, int index)
+{
+  return (model_probe_t*)lua_to_object(L, index, "model_probe");
+}
+

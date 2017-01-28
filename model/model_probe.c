@@ -7,54 +7,6 @@
 
 #include "model/model_probe.h"
 
-struct model_datum_t
-{
-  int rank;
-  size_t* shape;
-  real_t* data;
-};
-
-model_datum_t* model_datum_new(int rank, size_t* shape)
-{
-  ASSERT(rank >= 0);
-  ASSERT((shape != NULL) || (rank == 0));
-
-  model_datum_t* datum = polymec_malloc(sizeof(model_datum_t));
-  datum->rank = rank;
-  datum->shape = polymec_malloc(sizeof(size_t) * rank);
-  size_t size = 1;
-  for (int i = 0; i < rank; ++i)
-  {
-    ASSERT(datum->shape[i] > 0);
-    datum->shape[i] = shape[i];
-    size *= shape[i];
-  }
-  datum->data = polymec_malloc(sizeof(real_t) * size);
-  return datum;
-}
-
-void model_datum_free(model_datum_t* datum)
-{
-  polymec_free(datum->data);
-  polymec_free(datum->shape);
-  polymec_free(datum);
-}
-
-int model_datum_rank(model_datum_t* datum)
-{
-  return datum->rank;
-}
-
-size_t* model_datum_shape(model_datum_t* datum)
-{
-  return datum->shape;
-}
-
-real_t* model_datum_data(model_datum_t* datum)
-{
-  return datum->data;
-}
-
 struct model_probe_t
 {
   char* name;
@@ -101,12 +53,12 @@ char* model_probe_name(model_probe_t* probe)
   return probe->name;
 }
 
-model_datum_t* model_probe_new_datum(model_probe_t* probe)
+tensor_t* model_probe_new_datum(model_probe_t* probe)
 {
-  return model_datum_new(probe->datum_rank, probe->datum_shape);
+  return tensor_new(probe->datum_rank, probe->datum_shape);
 }
 
-void model_probe_acquire(model_probe_t* probe, real_t t, model_datum_t* datum)
+void model_probe_acquire(model_probe_t* probe, real_t t, tensor_t* datum)
 {
   probe->vtable.acquire(probe->context, t, datum);
 }

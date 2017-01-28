@@ -19,7 +19,7 @@ typedef struct model_data_channel_t model_data_channel_t;
 typedef struct 
 {
   // Puts data into the channel for publication. 
-  void (*put)(void* context, real_t t, char* datum_name, model_datum_t* datum); 
+  void (*put)(void* context, real_t t, char* datum_name, tensor_t* datum); 
 
   // Destructor.
   void (*dtor)(void* context);
@@ -41,7 +41,7 @@ char* model_data_channel_name(model_data_channel_t* channel);
 void model_data_channel_put(model_data_channel_t* channel, 
                             real_t t, 
                             char* datum_name,
-                            model_datum_t* datum);
+                            tensor_t* datum);
 
 //------------------------------------------------------------------------
 // Bundled local model data channel and outputs. Useful for basic 
@@ -56,7 +56,7 @@ typedef struct local_data_output_t local_data_output_t;
 typedef struct 
 {
   // Delivers data to output.
-  void (*put)(void* context, real_t t, char* datum_name, model_datum_t* datum);
+  void (*put)(void* context, real_t t, char* datum_name, tensor_t* datum);
 
   // Destructor.
   void (*dtor)(void* context);
@@ -75,7 +75,7 @@ void local_data_output_free(local_data_output_t* output);
 void local_data_output_put(local_data_output_t* output, 
                            real_t t,
                            char* datum_name,
-                           model_datum_t* datum);
+                           tensor_t* datum);
 
 // Creates a data channel for writing data to local files. No need to bother 
 // with network ports or secure configurations.

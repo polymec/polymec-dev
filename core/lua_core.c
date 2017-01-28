@@ -1098,3 +1098,19 @@ silo_file_t* lua_to_silo_file(lua_State* L, int index)
 {
   return (silo_file_t*)lua_to_object(L, index, "silo_file");
 }
+
+void lua_push_tensor(lua_State* L, tensor_t* t)
+{
+  lua_push_object(L, "tensor", t, DTOR(tensor_free));
+}
+
+bool lua_is_tensor(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "tensor");
+}
+
+tensor_t* lua_to_tensor(lua_State* L, int index)
+{
+  return (tensor_t*)lua_to_object(L, index, "tensor");
+}
+

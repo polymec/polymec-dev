@@ -44,7 +44,7 @@ char* model_data_channel_name(model_data_channel_t* channel)
 void model_data_channel_put(model_data_channel_t* channel, 
                             real_t t, 
                             char* datum_name,
-                            model_datum_t* datum)
+                            tensor_t* datum)
 {
   channel->vtable.put(channel->context, t, datum_name, datum);
 }
@@ -79,7 +79,7 @@ void local_data_output_free(local_data_output_t* output)
 void local_data_output_put(local_data_output_t* output, 
                            real_t t, 
                            char* datum_name,
-                           model_datum_t* datum)
+                           tensor_t* datum)
 {
   output->vtable.put(output->context, t, datum_name, datum);
 }
@@ -87,7 +87,7 @@ void local_data_output_put(local_data_output_t* output,
 static void local_put(void* context, 
                       real_t t, 
                       char* datum_name, 
-                      model_datum_t* datum)
+                      tensor_t* datum)
 {
   ptr_ptr_unordered_map_t* output_map = context;
   int pos = 0;
@@ -134,11 +134,11 @@ typedef struct
 static void text_put(void* context, 
                      real_t t, 
                      char* datum_name, 
-                     model_datum_t* datum)
+                     tensor_t* datum)
 {
   text_t* text = polymec_malloc(sizeof(text_t));
-  int rank = model_datum_rank(datum);
-  size_t* shape = model_datum_shape(datum);
+  int rank = tensor_rank(datum);
+  size_t* shape = tensor_shape(datum);
 
   // Construct the line of data.
   size_t size = 1;
@@ -147,7 +147,7 @@ static void text_put(void* context,
   char line[18*(size+1)+1];
   sprintf(line, "%g ", t);
   char d[18];
-  real_t* data = model_datum_data(datum);
+  real_t* data = tensor_data(datum);
   for (size_t i = 0; i < size; ++i)
   {
     sprintf(d, "%g ", data[i]);

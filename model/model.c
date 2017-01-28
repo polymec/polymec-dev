@@ -558,7 +558,7 @@ void model_acquire(model_t* model)
         reals_nearly_equal(model->time, acq_times->data[acq_time_index], 1e-12)) // FIXME: Good enough?
     {
       // Acquire data from this probe.
-      model_datum_t* datum = model_probe_new_datum(probe);
+      tensor_t* datum = model_probe_new_datum(probe);
       model_probe_acquire(probe, model->time, datum);
 
       // Publish this data.
@@ -567,7 +567,7 @@ void model_acquire(model_t* model)
         model_data_channel_put(model->data_channel, model->time, 
                                model_probe_name(probe), datum);
       }
-      model_datum_free(datum);
+      tensor_free(datum);
     }
   }
   STOP_FUNCTION_TIMER();
