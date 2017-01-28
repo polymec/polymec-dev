@@ -283,8 +283,11 @@ static int pmain(lua_State* L)
   // Run the input file, if we have one.
   if (filename != NULL)
   {
-    luaL_loadfile(L, (const char*)filename);
-    lua_pcall(L, 0, LUA_MULTRET, 0);
+    int status = luaL_loadfile(L, (const char*)filename);
+    if (status == LUA_OK)
+      status = lua_pcall(L, 0, LUA_MULTRET, 0);
+    if (status != LUA_OK)
+      report_error(L, status);
   }
 
   // If we're interactive, surrender control.

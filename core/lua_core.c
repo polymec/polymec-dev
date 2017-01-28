@@ -339,7 +339,7 @@ static int t_shape(lua_State* L)
   for (int i = 1; i <= rank; ++i)
   {
     lua_pushinteger(L, (lua_Integer)i);
-    lua_pushinteger(L, (lua_Integer)(shape[i]));
+    lua_pushinteger(L, (lua_Integer)(shape[i-1]));
     lua_rawset(L, -3);
   }
   return 1;
@@ -374,8 +374,10 @@ static int t_call(lua_State* L)
   tensor_t* t = lua_to_tensor(L, 1);
   int rank = tensor_rank(t);
   int num_args = lua_gettop(L);
-  if (num_args != (rank + 1))
+  if (num_args < (rank + 1))
     return luaL_error(L, "Tensor has %d indices (only %d given).", rank, num_args-1);
+  else if (num_args > (rank + 2))
+    return luaL_error(L, "Too many arguments. Must use %d indices and possibly one value to assign.", rank);
   size_t offset = 0;
   size_t* shape = tensor_shape(t);
   for (int i = 1; i <= rank; ++i)
@@ -391,8 +393,18 @@ static int t_call(lua_State* L)
       offset += (index-1) * shape[i-1];
   }
   real_t* t_data = tensor_data(t);
-  lua_pushnumber(L, t_data[offset]);
-  return 1;
+  if (num_args == (rank + 2)) // set
+  {
+    if (!lua_isnumber(L, num_args))
+      return luaL_error(L, "Assigned tensor value must be a number.");
+    t_data[offset] = (real_t)lua_tonumber(L, num_args);
+    return 0;
+  }
+  else // get
+  {
+    lua_pushnumber(L, t_data[offset]);
+    return 1;
+  }
 }
 
 static int t_add(lua_State* L)
@@ -480,7 +492,11 @@ static int t_len(lua_State* L)
 static int t_tostring(lua_State* L)
 {
   tensor_t* t = lua_to_tensor(L, 1);
-  lua_pushfstring(L, "tensor (rank %d)", tensor_rank(t));
+  int rank = tensor_rank(t);
+  if (rank == 0)
+    lua_pushfstring(L, "tensor (rank %d, value = %f)", tensor_rank(t), tensor_data(t)[0]);
+  else
+    lua_pushfstring(L, "tensor (rank %d)", tensor_rank(t));
   return 1;
 }
 
@@ -1303,16 +1319,16 @@ silo_file_t* lua_to_silo_file(lua_State* L, int index)
 
 void lua_push_tensor(lua_State* L, tensor_t* t)
 {
-  lua_push_object(L, "tensor", t, DTOR(tensor_free));
+  lua_push_record(L, "tensor", t, DTOR(tensor_free));
 }
 
 bool lua_is_tensor(lua_State* L, int index)
 {
-  return lua_is_object(L, index, "tensor");
+  return lua_is_record(L, index, "tensor");
 }
 
 tensor_t* lua_to_tensor(lua_State* L, int index)
 {
-  return (tensor_t*)lua_to_object(L, index, "tensor");
+  return (tensor_t*)lua_to_record(L, index, "tensor");
 }
 
