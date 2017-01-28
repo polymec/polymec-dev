@@ -25,12 +25,20 @@ tensor_t* tensor_new(int rank, size_t* shape)
   size_t size = 1;
   for (int i = 0; i < rank; ++i)
   {
-    ASSERT(t->shape[i] > 0);
+    ASSERT(shape[i] > 0);
     t->shape[i] = shape[i];
     size *= shape[i];
   }
   t->data = polymec_malloc(sizeof(real_t) * size);
   return t;
+}
+
+tensor_t* tensor_clone(tensor_t* t)
+{
+  tensor_t* clone = tensor_new(t->rank, t->shape);
+  size_t s = tensor_size(t);
+  memcpy(clone->data, t->data, sizeof(real_t) * s);
+  return clone;
 }
 
 void tensor_free(tensor_t* t)
@@ -55,3 +63,10 @@ real_t* tensor_data(tensor_t* t)
   return t->data;
 }
 
+size_t tensor_size(tensor_t* t)
+{
+  size_t s = 1;
+  for (int i = 0; i < t->rank; ++i)
+    s *= t->shape[i];
+  return s;
+}

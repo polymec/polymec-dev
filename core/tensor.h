@@ -20,6 +20,9 @@ typedef struct tensor_t tensor_t;
 // Allocates a tensor with the given rank and shape.
 tensor_t* tensor_new(int rank, size_t* shape);
 
+// Returns a deep copy of the given tensor.
+tensor_t* tensor_clone(tensor_t* t);
+
 // Destroys the given tensor.
 void tensor_free(tensor_t* t);
 
@@ -32,6 +35,9 @@ size_t* tensor_shape(tensor_t* shape);
 
 // Returns an internal pointer to the data within the given tensor.
 real_t* tensor_data(tensor_t* t);
+
+// Returns the total number of components in the tensor.
+size_t tensor_size(tensor_t* t);
 
 #endif
 
