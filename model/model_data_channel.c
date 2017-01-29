@@ -49,26 +49,26 @@ void model_data_channel_put(model_data_channel_t* channel,
   channel->vtable.put(channel->context, t, datum_name, datum);
 }
 
-struct local_data_output_t
+struct model_local_output_t
 {
   char* name;
   void* context;
-  local_data_output_vtable vtable;
+  model_local_output_vtable vtable;
 };
 
-local_data_output_t* local_data_output_new(const char* output_name, 
-                                           void* context, 
-                                           local_data_output_vtable vtable)
+model_local_output_t* model_local_output_new(const char* output_name, 
+                                             void* context, 
+                                             model_local_output_vtable vtable)
 {
   ASSERT(vtable.put != NULL);
-  local_data_output_t* output = polymec_malloc(sizeof(local_data_output_t));
+  model_local_output_t* output = polymec_malloc(sizeof(model_local_output_t));
   output->name = string_dup(output_name);
   output->context = context;
   output->vtable = vtable;
   return output;
 }
 
-void local_data_output_free(local_data_output_t* output)
+void model_local_output_free(model_local_output_t* output)
 {
   string_free(output->name);
   if ((output->context != NULL) && (output->vtable.dtor != NULL))
@@ -76,7 +76,12 @@ void local_data_output_free(local_data_output_t* output)
   polymec_free(output);
 }
 
-void local_data_output_put(local_data_output_t* output, 
+char* model_local_output_name(model_local_output_t* output)
+{
+  return output->name;
+}
+
+void model_local_output_put(model_local_output_t* output, 
                            real_t t, 
                            char* datum_name,
                            tensor_t* datum)
@@ -92,11 +97,11 @@ static void local_put(void* context,
   ptr_ptr_unordered_map_t* output_map = context;
   int pos = 0;
   string_unordered_set_t* names;
-  local_data_output_t* output;
+  model_local_output_t* output;
   while (ptr_ptr_unordered_map_next(output_map, &pos, (void**)&names, (void**)&output))
   {
     if (string_unordered_set_contains(names, datum_name))
-      local_data_output_put(output, t, datum_name, datum);
+      model_local_output_put(output, t, datum_name, datum);
   }
 }
 
@@ -110,8 +115,11 @@ model_data_channel_t* local_data_channel_new(void)
 
 void local_data_channel_add_output(model_data_channel_t* channel,
                                    string_array_t* data_names,
-                                   local_data_output_t* output)
+                                   model_local_output_t* output)
 {
+  // Make sure we're actually a local data channel.
+  ASSERT(strcmp(channel->name, "Local data channel") == 0);
+
   // Create a set from data_names and toss data_names.
   string_unordered_set_t* names = string_unordered_set_new();
   for (size_t i = 0; i < data_names->size; ++i)
@@ -122,7 +130,7 @@ void local_data_channel_add_output(model_data_channel_t* channel,
   ptr_ptr_unordered_map_t* output_map = channel->context;
   ptr_ptr_unordered_map_insert_with_kv_dtors(output_map, names, output, 
                                              DTOR(string_unordered_set_free), 
-                                             DTOR(local_data_output_free));
+                                             DTOR(model_local_output_free));
 }
 
 typedef struct
@@ -170,8 +178,8 @@ static void text_put(void* context,
   fclose(file);
 }
 
-local_data_output_t* text_local_data_output_new(const char* directory,
-                                                const char* prefix)
+model_local_output_t* text_model_local_output_new(const char* directory,
+                                                  const char* prefix)
 {
   // If the directory doesn't exist, we have a problem.
   if (!directory_exists(directory))
@@ -180,8 +188,8 @@ local_data_output_t* text_local_data_output_new(const char* directory,
   text_t* text = polymec_malloc(sizeof(text_t));
   strcpy(text->dir, directory);
   strcpy(text->prefix, prefix);
-  local_data_output_vtable vtable = {.put = text_put, 
+  model_local_output_vtable vtable = {.put = text_put, 
                                      .dtor = polymec_free};
-  return local_data_output_new("Text", text, vtable);
+  return model_local_output_new("Text", text, vtable);
 }
 

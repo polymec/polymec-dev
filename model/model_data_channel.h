@@ -50,7 +50,7 @@ void model_data_channel_put(model_data_channel_t* channel,
 
 // This type represents a subscriber to a local model data channel. It 
 // generates output on a local device such as a disc or screeen.
-typedef struct local_data_output_t local_data_output_t;
+typedef struct model_local_output_t model_local_output_t;
 
 // This virtual table must be implemented by any local data output.
 typedef struct 
@@ -60,19 +60,22 @@ typedef struct
 
   // Destructor.
   void (*dtor)(void* context);
-} local_data_output_vtable;
+} model_local_output_vtable;
 
 // Creates an instance of a local data output with the given context 
 // pointer and behavior determined by the given vtable. 
-local_data_output_t* local_data_output_new(const char* output_name, 
-                                           void* context, 
-                                           local_data_output_vtable vtable);
+model_local_output_t* model_local_output_new(const char* output_name, 
+                                             void* context, 
+                                             model_local_output_vtable vtable);
 
 // Destroys the given local data output object.
-void local_data_output_free(local_data_output_t* output);
+void model_local_output_free(model_local_output_t* output);
+
+// Returns the name of the local output object.
+char* model_local_output_name(model_local_output_t* output);
 
 // Delivers a datum to the given local data output.
-void local_data_output_put(local_data_output_t* output, 
+void model_local_output_put(model_local_output_t* output, 
                            real_t t,
                            char* datum_name,
                            tensor_t* datum);
@@ -86,12 +89,12 @@ model_data_channel_t* local_data_channel_new(void);
 // and output.
 void local_data_channel_add_output(model_data_channel_t* channel,
                                    string_array_t* data_names,
-                                   local_data_output_t* output);
+                                   model_local_output_t* output);
 
 // This local model data class writes a set of text files in the given 
 // directory with the given prefix, storing their time series.
-local_data_output_t* text_local_data_output_new(const char* directory,
-                                                const char* prefix);
+model_local_output_t* text_model_local_output_new(const char* directory,
+                                                  const char* prefix);
 
 #endif
 
