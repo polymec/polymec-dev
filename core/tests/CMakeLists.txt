@@ -38,29 +38,8 @@ add_mpi_polymec_test(test_repartition_point_cloud test_repartition_point_cloud.c
 add_mpi_polymec_test(test_krylov_solver test_krylov_solver.c 1 2)
 
 # Simple driver test with Lua interpreter.
-include(add_polymec_executable)
-add_polymec_executable(test_driver test_driver.c)
-function(add_driver_tests)
-  # Generate inputs.
-  if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/test_driver_input)
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/test_driver.input "p = point.new(1,2,3)\nv1 = vector.new(1,2,3)\nv2 = vector.new(4,5,6)\nprint(p);print(v1);print(2*v2);print(v2-v1)\n")
-  endif()
-  if (HAVE_MPI)
-    foreach (arg ${ARGN})
-      set(proc ${arg})
-
-      # Run test.
-      set(run_test_name test_driver_run_${proc}_procs)
-      add_test(${run_test_name} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/test_driver test_driver.input ${MPIEXEC_POSTFLAGS})
-      set_tests_properties(${run_test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "error")
-    endforeach()
-  else()
-    # Run test.
-    add_test(test_driver_run ${CMAKE_CURRENT_BINARY_DIR}/test_driver test_driver.input)
-    set_tests_properties(test_driver_run PROPERTIES FAIL_REGULAR_EXPRESSION "error")
-  endif()
-endfunction()
-add_driver_tests(1 2 4)
+include(add_driver_test)
+add_driver_test(test_core_driver test_core_driver.c ${CMAKE_CURRENT_SOURCE_DIR}/test_core_driver.input 1 2 4)
 
 # Mark tests expected to fail as such.
 foreach (failing_test ${failing_tests})

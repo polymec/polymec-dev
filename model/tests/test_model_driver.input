@@ -1,0 +1,9 @@
+-- This tests the model, model_probe, and model_data_channel stuff.
+
+function hi(t, val)
+    val(1)
+end
+
+p = model_probe.new(hi, {})
+val = p(0)
+print(p, val)

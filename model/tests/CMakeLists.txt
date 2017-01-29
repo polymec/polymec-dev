@@ -9,6 +9,9 @@ add_mpi_polymec_test(test_partition_point_cloud_with_neighbors test_partition_po
 add_mpi_polymec_test(test_shepard_point_basis test_shepard_point_basis.c 1 2 3 4)
 add_mpi_polymec_test(test_mls_point_basis test_mls_point_basis.c 1 2 3 4)
 
+include(add_driver_test)
+add_driver_test(test_model_driver test_model_driver.c ${CMAKE_CURRENT_SOURCE_DIR}/test_model_driver.input 1 2 4)
+
 #add_polymec_executable(game_of_life game_of_life.c)
 #add_game_of_life_test(still 0 0 1 2 3 4)
 #add_game_of_life_test(still 1 0 1 2 3 4)

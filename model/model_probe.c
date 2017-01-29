@@ -30,6 +30,7 @@ model_probe_t* model_probe_new(const char* name,
   probe->name = string_dup(name);
   probe->datum_rank = datum_rank;
   probe->datum_shape = polymec_malloc(sizeof(size_t) * datum_rank);
+  probe->context = context;
   for (int i = 0; i < datum_rank; ++i)
   {
     ASSERT(probe->datum_shape[i] > 0);

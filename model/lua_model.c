@@ -87,30 +87,77 @@ static lua_class_method model_methods[] = {
 typedef struct 
 {
   lua_State* L;
-  int index;
 } lua_probe_t;
 
 static void p_acquire(void* context, real_t t, tensor_t* datum)
 {
   lua_probe_t* p = context;
-  if (lua_istable(p->L, p->index)) // object
+
+  // Get the callable thingy.
+  lua_pushlightuserdata(p->L, p);
+  lua_gettable(p->L, LUA_REGISTRYINDEX);
+
+  // If it's an object, call thing thing with itself as the first argument.
+  if (lua_istable(p->L, -1))
   {
     lua_pushnumber(p->L, (double)t);
     lua_push_tensor(p->L, datum);
     lua_call(p->L, 3, 1);
   }
-  else // just a function
+  // Otherwise, just all it with (t, val).
+  else 
   {
+    ASSERT(lua_isfunction(p->L, -1));
     lua_pushnumber(p->L, (double)t);
     lua_push_tensor(p->L, datum);
     lua_call(p->L, 2, 1);
   }
 }
 
+static void p_dtor(void* context)
+{
+  lua_probe_t* p = context;
+
+  // Remove the callable thing from our registry.
+  lua_pushlightuserdata(p->L, p);
+  lua_pushnil(p->L);
+  lua_settable(p->L, LUA_REGISTRYINDEX);
+
+  // Kill. 
+  polymec_free(p);
+}
+
 static int p_new(lua_State* L)
 {
-//  lua_probe_t* p = polymec_malloc(sizeof(lua_probe_t));
-  model_probe_t* probe = NULL; // FIXME: Stuff goes here.
+  int num_args = lua_gettop(L);
+  if (num_args != 2)
+    return luaL_error(L, "Arguments must be 1) a callable object needed and 2) a shape array for tensor data.");
+  if (!lua_istable(L, 1) && !lua_isfunction(L, 1))
+    return luaL_error(L, "Argument 1 must be a probe function or a callable object.");
+  if (!lua_istable(L, 2))
+    return luaL_error(L, "Argument 2 must be a shape array for acquired tensor data.");
+
+  // Jot down the Lua state, and stash the given object in Lua's registry.
+  lua_probe_t* p = polymec_malloc(sizeof(lua_probe_t));
+  p->L = L;
+  lua_pushlightuserdata(L, (void*)p); // key   <-- p
+  lua_pushvalue(L, 1);                // value <-- callable object.
+  lua_settable(L, LUA_REGISTRYINDEX);
+
+  // Get the shape of tensor-valued acquired data.
+  int rank = (int)lua_rawlen(L, 2);
+  size_t shape[rank];
+  for (int i = 1; i <= rank; ++i)
+  {
+    lua_rawgeti(L, 2, (lua_Integer)i);
+    if (!lua_isinteger(L, -1))
+      return luaL_error(L, "Shape array must contain only integers.");
+    shape[i-1] = (int)lua_tointeger(L, -1);
+  }
+
+  // Set up our probe.
+  model_probe_vtable vtable = {.acquire = p_acquire, .dtor = p_dtor};
+  model_probe_t* probe = model_probe_new("Lua probe", rank, shape, p, vtable);
   lua_push_model_probe(L, probe);
   return 1;
 }
@@ -123,15 +170,26 @@ static lua_module_function model_probe_funcs[] = {
 static int p_tostring(lua_State* L)
 {
   model_probe_t* p = lua_to_model_probe(L, 1);
-  lua_pushfstring(L, "model probe '%s'", model_probe_name(p));
+  lua_pushfstring(L, "model_probe '%s'", model_probe_name(p));
   return 1;
 }
 
 static int p_call(lua_State* L)
 {
-  model_t* m = lua_to_model(L, 1);
-  model_save(m);
-  return 0;
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || !lua_isnumber(L, 2))
+    return luaL_error(L, "Argument must be a time.");
+
+  // Do the acquisition.
+  model_probe_t* p = lua_to_model_probe(L, 1);
+  ASSERT(p != NULL);
+  real_t t = lua_tonumber(L, 2);
+  tensor_t* val = model_probe_new_datum(p);
+  model_probe_acquire(p, t, val);
+
+  // Return the acquired tensor.
+  lua_push_tensor(L, val);
+  return 1;
 }
 
 static lua_class_method model_probe_methods[] = {
