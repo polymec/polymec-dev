@@ -127,6 +127,7 @@ static int lua_open_class(lua_State* L)
   }
 
   // Create a containing module for this type and register its functions.
+  if (functions != NULL)
   {
     int num_funcs = 0;
     while (functions[num_funcs].name != NULL)
@@ -151,6 +152,8 @@ void lua_register_class(lua_State* L,
                         lua_module_function functions[],
                         lua_class_method methods[])
 {
+  ASSERT(methods != NULL);
+
   // Load the type into a module by calling lua_open_class.
   // First, though, we need to stash the following into the global registry:
   //   1. class name
@@ -369,6 +372,7 @@ static int lua_open_record(lua_State* L)
   }
 
   // Create a containing module for this record and register its functions.
+  if (functions != NULL)
   {
     int num_funcs = 0;
     while (functions[num_funcs].name != NULL)
@@ -394,6 +398,8 @@ void lua_register_record_type(lua_State* L,
                               lua_record_field fields[],
                               lua_record_metamethod metamethods[])
 {
+  ASSERT(fields != NULL);
+  ASSERT(metamethods != NULL);
   // Load the record into a module by calling lua_open_record.
   // First, though, we need to stash the following into the global registry:
   //   1. record type name

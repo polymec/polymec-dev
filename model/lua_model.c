@@ -12,10 +12,6 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-static lua_module_function model_funcs[] = {
-  {NULL, NULL}
-};
-
 static int m_tostring(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
@@ -403,7 +399,7 @@ static lua_class_method model_local_output_methods[] = {
 
 int lua_register_model_modules(lua_State* L)
 {
-  lua_register_class(L, "model", model_funcs, model_methods);
+  lua_register_class(L, "model", NULL, model_methods);
   lua_register_class(L, "model_probe", model_probe_funcs, model_probe_methods);
   lua_register_class(L, "model_data_channel", model_data_channel_funcs, model_data_channel_methods);
   lua_register_class(L, "model_local_output", model_local_output_funcs, model_local_output_methods);
