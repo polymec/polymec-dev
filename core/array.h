@@ -221,6 +221,7 @@ static inline bool array_name##_next(array_name##_t* array, int* pos, element* v
 static inline void array_name##_release_data_and_free(array_name##_t* array) \
 { \
   array->data = NULL; \
+  array->size = 0; \
   array_name##_free(array); \
 } \
 
