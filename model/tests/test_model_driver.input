@@ -1,9 +1,28 @@
 -- This tests the model, model_probe, and model_data_channel stuff.
 
-function hi(t, val)
-    val(1)
+-- Make a simple probe that acquires the time.
+function timer(t, val)
+  val(t)
 end
 
-p = model_probe.new(hi, {})
-val = p(0)
+p = model_probe.new(timer, {})
+val = p:acquire(0.5)
 print(p, val)
+
+-- Now make a data channel that can receive locally acquired data.
+c = model_data_channel.new()
+print(c)
+
+-- Finally, implement an output that just writes columnated data.
+function write(t, name, val)
+  print(t, name, val)
+end
+
+o = model_local_output.new(write)
+c:add_output({'bob'}, o)
+
+-- Acquire a bunch of times from 1 to 10.
+for t=1,10 do
+  val = p:acquire(t)
+  o:put(0, 'bob', val)
+end

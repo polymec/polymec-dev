@@ -89,7 +89,7 @@ typedef struct
   lua_State* L;
 } lua_probe_t;
 
-static void p_acquire(void* context, real_t t, tensor_t* datum)
+static void lp_acquire(void* context, real_t t, tensor_t* datum)
 {
   lua_probe_t* p = context;
 
@@ -114,7 +114,7 @@ static void p_acquire(void* context, real_t t, tensor_t* datum)
   }
 }
 
-static void p_dtor(void* context)
+static void lp_dtor(void* context)
 {
   lua_probe_t* p = context;
 
@@ -156,7 +156,7 @@ static int p_new(lua_State* L)
   }
 
   // Set up our probe.
-  model_probe_vtable vtable = {.acquire = p_acquire, .dtor = p_dtor};
+  model_probe_vtable vtable = {.acquire = lp_acquire, .dtor = lp_dtor};
   model_probe_t* probe = model_probe_new("Lua probe", rank, shape, p, vtable);
   lua_push_model_probe(L, probe);
   return 1;
@@ -167,14 +167,7 @@ static lua_module_function model_probe_funcs[] = {
   {NULL, NULL}
 };
 
-static int p_tostring(lua_State* L)
-{
-  model_probe_t* p = lua_to_model_probe(L, 1);
-  lua_pushfstring(L, "model_probe '%s'", model_probe_name(p));
-  return 1;
-}
-
-static int p_call(lua_State* L)
+static int p_acquire(lua_State* L)
 {
   int num_args = lua_gettop(L);
   if ((num_args != 2) || !lua_isnumber(L, 2))
@@ -192,13 +185,20 @@ static int p_call(lua_State* L)
   return 1;
 }
 
+static int p_tostring(lua_State* L)
+{
+  model_probe_t* p = lua_to_model_probe(L, 1);
+  lua_pushfstring(L, "model_probe '%s'", model_probe_name(p));
+  return 1;
+}
+
 static lua_class_method model_probe_methods[] = {
+  {"acquire", p_acquire},
   {"__tostring", p_tostring},
-  {"__call", p_call},
   {NULL, NULL}
 };
 
-static int c_local(lua_State* L)
+static int c_new(lua_State* L)
 {
   int num_args = lua_gettop(L);
   if (num_args > 0)
@@ -209,7 +209,7 @@ static int c_local(lua_State* L)
 }
 
 static lua_module_function model_data_channel_funcs[] = {
-  {"local", c_local},
+  {"new", c_new},
   {NULL, NULL}
 };
 
@@ -247,19 +247,13 @@ static int c_add_output(lua_State* L)
     return luaL_error(L, "Argument 2 must be a model_local_data_output.");
 
   // Do it.
-  model_local_output_t* o = lua_to_model_local_output(L, 2);
+  model_local_output_t* o = lua_to_model_local_output(L, 3);
   local_data_channel_add_output(c, data_names, o);
 
   return 0;
 }
 
-static int c_tostring(lua_State* L)
-{
-  lua_pushfstring(L, "model data channel");
-  return 1;
-}
-
-static int c_call(lua_State* L)
+static int c_put(lua_State* L)
 {
   model_data_channel_t* c = lua_to_model_data_channel(L, 1);
   int num_args = lua_gettop(L);
@@ -278,12 +272,84 @@ static int c_call(lua_State* L)
   return 0;
 }
 
+static int c_tostring(lua_State* L)
+{
+  model_data_channel_t* c = lua_to_model_data_channel(L, 1);
+  lua_pushfstring(L, "model_data_channel '%s'", model_data_channel_name(c));
+  return 1;
+}
+
 static lua_class_method model_data_channel_methods[] = {
   {"add_output", c_add_output},
+  {"put", c_put},
   {"__tostring", c_tostring},
-  {"__call", c_call},
   {NULL, NULL}
 };
+
+typedef struct 
+{
+  lua_State* L;
+} lua_output_t;
+
+static void lo_put(void* context, real_t t, char* name, tensor_t* datum)
+{
+  lua_output_t* o = context;
+
+  // Get the callable thingy.
+  lua_pushlightuserdata(o->L, o);
+  lua_gettable(o->L, LUA_REGISTRYINDEX);
+
+  // If it's an object, call thing thing with itself as the first argument.
+  if (lua_istable(o->L, -1))
+  {
+    lua_pushnumber(o->L, (double)t);
+    lua_pushstring(o->L, (const char*)name);
+    lua_push_tensor(o->L, datum);
+    lua_call(o->L, 4, 1);
+  }
+  // Otherwise, just all it with (t, name, val).
+  else 
+  {
+    ASSERT(lua_isfunction(o->L, -1));
+    lua_pushnumber(o->L, (double)t);
+    lua_pushstring(o->L, (const char*)name);
+    lua_push_tensor(o->L, datum);
+    lua_call(o->L, 3, 1);
+  }
+}
+
+static void lo_dtor(void* context)
+{
+  lua_output_t* o = context;
+
+  // Remove the callable thing from our registry.
+  lua_pushlightuserdata(o->L, o);
+  lua_pushnil(o->L);
+  lua_settable(o->L, LUA_REGISTRYINDEX);
+
+  // Kill. 
+  polymec_free(o);
+}
+
+static int o_new(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) || (!lua_isfunction(L, 1) && !lua_istable(L, 1)))
+    return luaL_error(L, "Argument should be a callable object.");
+
+  // Jot down the Lua state, and stash the given object in Lua's registry.
+  lua_output_t* o = polymec_malloc(sizeof(lua_output_t));
+  o->L = L;
+  lua_pushlightuserdata(L, (void*)o); // key   <-- o
+  lua_pushvalue(L, 1);                // value <-- callable object.
+  lua_settable(L, LUA_REGISTRYINDEX);
+
+  // Set up our output.
+  model_local_output_vtable vtable = {.put = lo_put, .dtor = lo_dtor};
+  model_local_output_t* output = model_local_output_new("Lua output", o, vtable);
+  lua_push_model_local_output(L, output);
+  return 1;
+}
 
 static int o_text(lua_State* L)
 {
@@ -298,18 +364,12 @@ static int o_text(lua_State* L)
 }
 
 static lua_module_function model_local_output_funcs[] = {
+  {"new", o_new},
   {"text", o_text},
   {NULL, NULL}
 };
 
-static int o_tostring(lua_State* L)
-{
-  model_local_output_t* o = lua_to_model_local_output(L, 1);
-  lua_pushfstring(L, "model local output '%s'", model_local_output_name(o));
-  return 1;
-}
-
-static int o_call(lua_State* L)
+static int o_put(lua_State* L)
 {
   model_local_output_t* o = lua_to_model_local_output(L, 1);
   int num_args = lua_gettop(L);
@@ -328,9 +388,16 @@ static int o_call(lua_State* L)
   return 0;
 }
 
+static int o_tostring(lua_State* L)
+{
+  model_local_output_t* o = lua_to_model_local_output(L, 1);
+  lua_pushfstring(L, "model_local_output '%s'", model_local_output_name(o));
+  return 1;
+}
+
 static lua_class_method model_local_output_methods[] = {
+  {"put", o_put},
   {"__tostring", o_tostring},
-  {"__call", o_call},
   {NULL, NULL}
 };
 
