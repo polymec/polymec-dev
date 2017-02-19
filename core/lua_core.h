@@ -8,8 +8,8 @@
 #ifndef POLYMEC_LUA_CORE_H
 #define POLYMEC_LUA_CORE_H
 
+#include "core/polymec.h"
 #include "core/lua_types.h"
-#include "core/point.h"
 #include "core/tensor.h"
 #include "core/sp_func.h"
 #include "core/st_func.h"
@@ -25,6 +25,19 @@
 // should be called before any of these types are accessed within the 
 // interpreter.
 int lua_register_core_modules(lua_State* L);
+
+#ifndef __cplusplus
+// Pushes a complex number z onto L's stack.
+void lua_push_complex(lua_State* L, complex_t z);
+
+// Returns true if the item at the given index on L's stack is a complex
+// number, false if not.
+bool lua_is_complex(lua_State* L, int index);
+
+// Returns the complex number at the given index on L's stack, or (0, 0)
+// if the item is not a complex number.
+complex_t lua_to_complex(lua_State* L, int index);
+#endif
 
 // Pushes a (3D) point p onto L's stack.
 void lua_push_point(lua_State* L, point_t* p);

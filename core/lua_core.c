@@ -14,6 +14,133 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
+static int z_new(lua_State* L)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || 
+      !lua_isnumber(L, 1) || !lua_isnumber(L, 2))
+  {
+    return luaL_error(L, "Arguments must be real, imag components.");
+  }
+
+  real_t real = (real_t)lua_tonumber(L, 1);
+  real_t imag = (real_t)lua_tonumber(L, 2);
+  complex_t z = CMPLX(real, imag);
+  lua_push_complex(L, z);
+  return 1;
+}
+
+static int z_abs(lua_State* L)
+{
+  complex_t z = lua_to_complex(L, 1);
+  lua_pushnumber(L, (double)(cabs(z)));
+  return 1;
+}
+
+static int z_arg(lua_State* L)
+{
+  complex_t z = lua_to_complex(L, 1);
+  lua_pushnumber(L, (double)(carg(z)));
+  return 1;
+}
+
+static int z_conj(lua_State* L)
+{
+  complex_t z = lua_to_complex(L, 1);
+  lua_push_complex(L, conj(z));
+  return 1;
+}
+
+static lua_module_function complex_funcs[] = {
+  {"new", z_new},
+  {"abs", z_abs},
+  {"arg", z_arg},
+  {"conj", z_conj},
+  {NULL, NULL}
+};
+
+static int z_real(lua_State* L)
+{
+  complex_t z = lua_to_complex(L, 1);
+  lua_pushnumber(L, (double)creal(z));
+  return 1;
+}
+
+static int z_imag(lua_State* L)
+{
+  complex_t z = lua_to_complex(L, 1);
+  lua_pushnumber(L, (double)cimag(z));
+  return 1;
+}
+
+static lua_record_field complex_fields[] = {
+  {"real", z_real, NULL},
+  {"imag", z_imag, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int z_add(lua_State* L)
+{
+  complex_t z1 = lua_to_complex(L, 1);
+  complex_t z2 = lua_to_complex(L, 2);
+  lua_push_complex(L, z1 + z2);
+  return 1;
+}
+
+static int z_sub(lua_State* L)
+{
+  complex_t z1 = lua_to_complex(L, 1);
+  complex_t z2 = lua_to_complex(L, 2);
+  lua_push_complex(L, z1 - z2);
+  return 1;
+}
+
+static int z_mul(lua_State* L)
+{
+  if ((!lua_isnumber(L, 1) || !lua_is_complex(L, 2)) &&
+      (!lua_is_complex(L, 1) || !lua_isnumber(L, 2)))
+    luaL_error(L, "Arguments must be a complex and a real.");
+  complex_t z = lua_to_complex(L, (lua_isnumber(L, 1)) ? 2 : 1);
+  real_t c = (real_t)lua_tonumber(L, (lua_isnumber(L, 1)) ? 1 : 2);
+  lua_push_complex(L, c * z);
+  return 1;
+}
+
+static int z_div(lua_State* L)
+{
+  complex_t z = lua_to_complex(L, 1);
+  if (!lua_isnumber(L, 2))
+    luaL_error(L, "Argument 2 must be a number.");
+  real_t c = (real_t)lua_tonumber(L, 2);
+  lua_push_complex(L, z/c);
+  return 1;
+}
+
+static int z_unm(lua_State* L)
+{
+  complex_t z = lua_to_complex(L, 1);
+  lua_push_complex(L, -z);
+  return 1;
+}
+
+static int z_tostring(lua_State* L)
+{
+  complex_t z = lua_to_complex(L, 1);
+  lua_pushfstring(L, "(%f, %f)", creal(z), cimag(z));
+  return 1;
+}
+
+static lua_record_metamethod complex_mm[] = {
+  {"__add", z_add},
+  {"__sub", z_sub},
+  {"__mul", z_mul},
+  {"__div", z_div},
+  {"__unm", z_unm},
+  {"__tostring", z_tostring},
+  {NULL, NULL}
+};
+
 static int p_new(lua_State* L)
 {
   // Check the arguments.
@@ -939,6 +1066,7 @@ static void register_options(lua_State* L)
 int lua_register_core_modules(lua_State* L)
 {
   // Core types.
+  lua_register_record_type(L, "complex", complex_funcs, complex_fields, complex_mm);
   lua_register_record_type(L, "point", point_funcs, point_fields, point_mm);
   lua_register_record_type(L, "vector", vector_funcs, vector_fields, vector_mm);
   lua_register_record_type(L, "tensor", tensor_funcs, tensor_fields, tensor_mm);
@@ -953,6 +1081,23 @@ int lua_register_core_modules(lua_State* L)
   register_options(L);
 
   return 0;
+}
+
+void lua_push_complex(lua_State* L, complex_t z)
+{
+  complex_t* zz = polymec_malloc(sizeof(complex_t));
+  *zz = z;
+  lua_push_record(L, "complex", zz, polymec_free);
+}
+
+bool lua_is_complex(lua_State* L, int index)
+{
+  return lua_is_record(L, index, "complex");
+}
+
+complex_t lua_to_complex(lua_State* L, int index)
+{
+  return *((complex_t*)lua_to_record(L, index, "complex"));
 }
 
 void lua_push_point(lua_State* L, point_t* p)

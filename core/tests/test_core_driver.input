@@ -1,5 +1,18 @@
 -- This script tests our core driver.
 
+-- Complex ops.
+z1 = complex.new(1,2)
+z2 = complex.new(3,4)
+print(z1)
+print(2*z1)
+print(z1+z2)
+print(z1-z2)
+print(z1-z2/3)
+print(z1.real)
+print(z1.imag)
+print(complex.abs(z1))
+print(complex.conj(z2))
+
 -- Point ops.
 p = point.new(1,2,3)
 print(p)
@@ -9,6 +22,7 @@ v1 = vector.new(1,2,3)
 v2 = vector.new(4,5,6)
 print(v1)
 print(2*v2)
+print(v1+v2)
 print(v2-v1)
 
 -- Tensor ops.
