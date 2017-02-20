@@ -110,6 +110,34 @@ typedef float complex complex_t;
                         double: fabs, \
                         double complex: cabs, \
                         default: abs)(x)
+#define pow(x, y) _Generic((x, y), \
+                           long double: powl, \
+                           long double complex: cpowl, \
+                           float: powf, \
+                           float complex: cpowf, \
+                           double: pow, \
+                           double complex: cpow, \
+                           default: pow)(x, y)
+#define carg(z) _Generic((z), \
+                         long double complex: cargl, \
+                         float complex: cargf, \
+                         double complex: carg, \
+                         default: carg)(z)
+#define conj(z) _Generic((z), \
+                         long double complex: conjl, \
+                         float complex: conjf, \
+                         double complex: conj, \
+                         default: conj)(z)
+#define creal(z) _Generic((z), \
+                          long double complex: creall, \
+                          float complex: crealf, \
+                          double complex: creal, \
+                          default: creal)(z)
+#define cimag(z) _Generic((z), \
+                          long double complex: cimagl, \
+                          float complex: cimagf, \
+                          double complex: cimag, \
+                          default: cimag)(z)
 #endif
 
 #include <limits.h>
