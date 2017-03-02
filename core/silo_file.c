@@ -80,15 +80,6 @@ void silo_enable_compression(int level)
   }
 }
 
-struct silo_field_metadata_t 
-{
-  char* label;
-  char* units;
-  bool conserved;
-  bool extensive;
-  int vector_component;
-};
-
 static void silo_field_metadata_free(void* ctx)
 {
   silo_field_metadata_t* metadata = ctx;
@@ -110,87 +101,15 @@ silo_field_metadata_t* silo_field_metadata_new()
   return metadata;
 }
 
-void silo_field_metadata_set_label(silo_field_metadata_t* metadata,
-                                   const char* label)
-{
-  if (metadata->label != NULL)
-    string_free(metadata->label);
-  if (label != NULL)
-    metadata->label = string_dup(label);
-  else
-    metadata->label = NULL;
-}
-
-void silo_field_metadata_set_units(silo_field_metadata_t* metadata,
-                                   const char* units)
-{
-  if (metadata->units != NULL)
-    string_free(metadata->units);
-  if (units != NULL)
-    metadata->units = string_dup(units);
-  else
-    metadata->units = NULL;
-}
-
-void silo_field_metadata_set_conserved(silo_field_metadata_t* metadata,
-                                       bool is_conserved)
-{
-  metadata->conserved = is_conserved;
-}
-
-void silo_field_metadata_set_extensive(silo_field_metadata_t* metadata,
-                                       bool is_extensive)
-{
-  metadata->extensive = is_extensive;
-}
-
-void silo_field_metadata_set_vector_component(silo_field_metadata_t* metadata,
-                                              int component)
-{
-  ASSERT(component >= -1);
-  ASSERT(component < 3);
-  metadata->vector_component = component;
-}
-
-char* silo_field_metadata_label(silo_field_metadata_t* metadata)
-{
-  return metadata->label;
-}
-
-char* silo_field_metadata_units(silo_field_metadata_t* metadata)
-{
-  return metadata->units;
-}
-
-bool silo_field_metadata_conserved(silo_field_metadata_t* metadata)
-{
-  return metadata->conserved;
-}
-
-bool silo_field_metadata_extensive(silo_field_metadata_t* metadata)
-{
-  return metadata->extensive;
-}
-
-bool silo_field_metadata_is_vector_component(silo_field_metadata_t* metadata)
-{
-  return (metadata->vector_component != -1);
-}
-
-int silo_field_metadata_vector_component(silo_field_metadata_t* metadata)
-{
-  return metadata->vector_component;
-}
-
 // These helpers are used in the read/write operations.
 static void read_mesh_metadata(DBucdvar* var, silo_field_metadata_t* metadata)
 {
   if (metadata != NULL)
   {
-    silo_field_metadata_set_label(metadata, var->label);
-    silo_field_metadata_set_units(metadata, var->units);
-    silo_field_metadata_set_conserved(metadata, var->conserved);
-    silo_field_metadata_set_extensive(metadata, var->extensive);
+    metadata->label = string_dup(var->label);
+    metadata->units = string_dup(var->units);
+    metadata->conserved = var->conserved;
+    metadata->extensive = var->extensive;
   }
 }
 
@@ -198,10 +117,10 @@ static void read_point_metadata(DBmeshvar* var, silo_field_metadata_t* metadata)
 {
   if (metadata != NULL)
   {
-    silo_field_metadata_set_label(metadata, var->label);
-    silo_field_metadata_set_units(metadata, var->units);
-    silo_field_metadata_set_conserved(metadata, var->conserved);
-    silo_field_metadata_set_extensive(metadata, var->extensive);
+    metadata->label = string_dup(var->label);
+    metadata->units = string_dup(var->units);
+    metadata->conserved = var->conserved;
+    metadata->extensive = var->extensive;
   }
 }
 

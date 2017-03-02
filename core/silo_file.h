@@ -22,61 +22,19 @@ void silo_enable_compression(int level);
 
 // This type represents a collection of metadata for field variables in 
 // Silo files. Objects of this type are garbage-collected.
-typedef struct silo_field_metadata_t silo_field_metadata_t;
+typedef struct 
+{
+  char* label;                // A visualization label. Owned by metadata.
+  char* units;                // Units of measure. Owned by metadata.
+  bool conserved;             // True if the field is conserved, false if not.
+  bool extensive;             // True if the field is extensive, false if not.
+  int vector_component;       // The index of the vector component that the 
+                              // field represents, or -1 if the field is not 
+                              // the component of a vector.
+} silo_field_metadata_t;
 
 // Creates a new empty object for storing field metadata.
 silo_field_metadata_t* silo_field_metadata_new(void);
-
-// Sets the label associated with the field for this metadata. This label 
-// appears in visualizations.
-void silo_field_metadata_set_label(silo_field_metadata_t* metadata,
-                                   const char* label);
-
-// Sets the units associated with the field for this metadata. The units 
-// are contained in the given string in some descriptive fashion.
-void silo_field_metadata_set_units(silo_field_metadata_t* metadata,
-                                   const char* units);
-
-// Sets a flag that indicates whether the field for this metadata is 
-// conserved.
-void silo_field_metadata_set_conserved(silo_field_metadata_t* metadata,
-                                       bool is_conserved);
-
-// Sets a flag that indicates whether the field for this metadata is 
-// extensive.
-void silo_field_metadata_set_extensive(silo_field_metadata_t* metadata,
-                                       bool is_extensive);
-
-// Sets parameters that indicate that the field for this metadata is 
-// a component in a (three-dimensional) vector. The value should 
-// be 0 for the first component, 1 for the second, 2 for the third, 
-// and -1 if the field is not to be considered a vector component.
-void silo_field_metadata_set_vector_component(silo_field_metadata_t* metadata,
-                                              int component);
-
-// Returns the internal string containing any label associated with the 
-// field for this metadata, or NULL if there are none.
-char* silo_field_metadata_label(silo_field_metadata_t* metadata);
-
-// Returns the internal string containing any units associated with the 
-// field for this metadata, or NULL if there are none.
-char* silo_field_metadata_units(silo_field_metadata_t* metadata);
-
-// Returns a flag that indicates whether the field for this metadata is 
-// conserved.
-bool silo_field_metadata_conserved(silo_field_metadata_t* metadata);
-
-// Returns a flag that indicates whether the field for this metadata is 
-// extensive.
-bool silo_field_metadata_extensive(silo_field_metadata_t* metadata);
-
-// Returns true if the field for this metadata is a vector component, 
-// false otherwise.
-bool silo_field_metadata_is_vector_component(silo_field_metadata_t* metadata);
-
-// Returns the vector component associated with the field for this metadata, 
-// or -1 if it is not a vector component.
-int silo_field_metadata_vector_component(silo_field_metadata_t* metadata);
 
 // A Silo file can store various geometries (meshes) and data, using 
 // "Poor Man's Parallel I/O" (PMPIO) to achieve scalable throughput.

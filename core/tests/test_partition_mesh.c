@@ -89,8 +89,8 @@ static void test_partition_linear_mesh(void** state)
   silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
   silo_field_metadata_t* p_metadata = silo_field_metadata_new();
-  silo_field_metadata_set_label(p_metadata, "P");
-  silo_field_metadata_set_conserved(p_metadata, false);
+  p_metadata->label = string_dup("P");
+  p_metadata->conserved = true;
   silo_file_write_scalar_cell_field(silo, "rank", "mesh", p, p_metadata);
   silo_file_close(silo);
 
