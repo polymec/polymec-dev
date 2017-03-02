@@ -110,7 +110,7 @@ typedef float complex complex_t;
                         double: fabs, \
                         double complex: cabs, \
                         default: abs)(x)
-#define pow(x, y) _Generic((x, y), \
+#define pow(x, y) _Generic((x), \
                            long double: powl, \
                            long double complex: cpowl, \
                            float: powf, \
@@ -118,6 +118,14 @@ typedef float complex complex_t;
                            double: pow, \
                            double complex: cpow, \
                            default: pow)(x, y)
+#define exp(x) _Generic((x), \
+                        long double: expl, \
+                        long double complex: cexpl, \
+                        float: expf, \
+                        float complex: cexpf, \
+                        double: exp, \
+                        double complex: cexp, \
+                        default: exp)(x)
 #define carg(z) _Generic((z), \
                          long double complex: cargl, \
                          float complex: cargf, \
