@@ -235,6 +235,10 @@ endif ()
 # Other third-party libraries.
 add_subdirectory(3rdparty)
 
+# Record the libraries we've gathered so far as the "base" libraries that 
+# Polymec needs. We use this for efficiently linking unit tests.
+set(POLYMEC_BASE_LIBRARIES ${POLYMEC_LIBRARIES})
+
 # Include the binary directory in the header file search path,
 # since it's where we place the third-party libraries.
 include_directories("${PROJECT_BINARY_DIR}")

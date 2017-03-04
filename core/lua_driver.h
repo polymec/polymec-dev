@@ -5,8 +5,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef POLYMEC_LUA_TYPE_H
-#define POLYMEC_LUA_TYPE_H
+#ifndef POLYMEC_LUA_DRIVER_H
+#define POLYMEC_LUA_DRIVER_H
 
 // This is a forward declaration of the Lua interpreter state.
 typedef struct lua_State lua_State;

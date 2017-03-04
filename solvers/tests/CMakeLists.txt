@@ -1,11 +1,20 @@
 include(add_polymec_test)
 
-add_polymec_test(test_newton_solver foodweb_solver.c create_krylov_factories.c test_newton_solver.c)
-add_polymec_test(test_euler_ode_solver test_euler_ode_solver.c)
-add_polymec_test(test_jfnk_bdf_ode_solver diurnal_solver.c create_krylov_factories.c test_jfnk_bdf_ode_solver.c)
-add_polymec_test(test_ink_bdf_ode_solver diurnal_solver.c create_krylov_factories.c test_ink_bdf_ode_solver.c)
-add_polymec_test(test_jfnk_ark_ode_solver diurnal_solver.c create_krylov_factories.c test_jfnk_ark_ode_solver.c)
-add_polymec_test(test_ink_ark_ode_solver diurnal_solver.c create_krylov_factories.c test_ink_ark_ode_solver.c)
-add_polymec_test(test_dae_solver heat2d_solver.c create_krylov_factories.c test_dae_solver.c)
-add_polymec_test(test_fasmg_solver test_fasmg_solver.c)
+# These functions create the tests for our solvers library.
+function(add_polymec_solvers_test exe)
+  add_polymec_test_with_libs(${exe} "${POLYMEC_BASE_LIBRARIES};polymec_core;polymec_solvers" ${ARGN})
+endfunction()
+
+function(add_mpi_polymec_solvers_test exe)
+  add_mpi_polymec_test_with_libs(${exe} "${POLYMEC_BASE_LIBRARIES};polymec_core;polymec_solvers" ${ARGN})
+endfunction()
+
+add_polymec_solvers_test(test_newton_solver foodweb_solver.c create_krylov_factories.c test_newton_solver.c)
+add_polymec_solvers_test(test_euler_ode_solver test_euler_ode_solver.c)
+add_polymec_solvers_test(test_jfnk_bdf_ode_solver diurnal_solver.c create_krylov_factories.c test_jfnk_bdf_ode_solver.c)
+add_polymec_solvers_test(test_ink_bdf_ode_solver diurnal_solver.c create_krylov_factories.c test_ink_bdf_ode_solver.c)
+add_polymec_solvers_test(test_jfnk_ark_ode_solver diurnal_solver.c create_krylov_factories.c test_jfnk_ark_ode_solver.c)
+add_polymec_solvers_test(test_ink_ark_ode_solver diurnal_solver.c create_krylov_factories.c test_ink_ark_ode_solver.c)
+add_polymec_solvers_test(test_dae_solver heat2d_solver.c create_krylov_factories.c test_dae_solver.c)
+add_polymec_solvers_test(test_fasmg_solver test_fasmg_solver.c)
 

@@ -1,7 +1,7 @@
 include(add_polymec_executable)
 
-function(add_driver_test test_name test_driver_source test_script)
-  add_polymec_executable(${test_name}_exe ${test_driver_source})
+function(add_driver_test_with_libs test_name libs test_driver_source test_script)
+  add_polymec_executable_with_libs(${test_name}_exe "${libs}" ${test_driver_source})
 
   if (HAVE_MPI)
     foreach (arg ${ARGN})
