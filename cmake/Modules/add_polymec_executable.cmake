@@ -5,6 +5,6 @@ function(add_polymec_executable_with_libs exe libs)
 endfunction(add_polymec_executable_with_libs)
 
 function(add_polymec_executable exe)
-  add_polymec_executable(${exe} ${ARGN})
+  add_polymec_executable_with_libs(${exe} "${POLYMEC_LIBRARIES}" ${ARGN})
 endfunction(add_polymec_executable)
 
