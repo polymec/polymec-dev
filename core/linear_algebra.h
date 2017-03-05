@@ -120,11 +120,11 @@ void rgetrs(char* trans, int* n, int* nrhs, real_t* A,
 
 // Solves a linear system using Cholesky factorization (in one step).
 // Note that A should be symmetric and positive definite.
-void dposv(char* uplo, int* n, double* nrhs, double* A, int* lda, 
+void dposv(char* uplo, int* n, int* nrhs, double* A, int* lda, 
            double* b, int* ldb, int* info);
-void sposv(char* uplo, int* n, float* nrhs, double* A, int* lda, 
+void sposv(char* uplo, int* n, int* nrhs, double* A, int* lda, 
            float* b, int* ldb, int* info);
-void rposv(char* uplo, int* n, real_t* nrhs, double* A, int* lda, 
+void rposv(char* uplo, int* n, int* nrhs, double* A, int* lda, 
            real_t* b, int* ldb, int* info);
 
 // Solves a linear system using Cholesky factorization (existing or not), 

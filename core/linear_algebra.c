@@ -77,7 +77,7 @@ void rgetrs(char* trans, int* n, int* nrhs, real_t* A,
 #endif
 }
 
-void rposv(char* uplo, int* n, real_t* nrhs, double* A, int* lda, 
+void rposv(char* uplo, int* n, int* nrhs, double* A, int* lda, 
            real_t* b, int* ldb, int* info)
 {
 #if POLYMEC_HAVE_DOUBLE_PRECISION

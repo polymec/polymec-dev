@@ -436,6 +436,570 @@ static lua_record_metamethod vector_mm[] = {
   {NULL, NULL}
 };
 
+static int t2_new(lua_State* L)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(L);
+  if ((num_args != 9) || 
+      !lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) ||
+      !lua_isnumber(L, 4) || !lua_isnumber(L, 5) || !lua_isnumber(L, 6) ||
+      !lua_isnumber(L, 7) || !lua_isnumber(L, 8) || !lua_isnumber(L, 9))
+  {
+    return luaL_error(L, "Arguments must be xx, xy, xz, yx, yy, yz, zx, zy, zz components.");
+  }
+
+  real_t xx = (real_t)lua_tonumber(L, 1);
+  real_t xy = (real_t)lua_tonumber(L, 2);
+  real_t xz = (real_t)lua_tonumber(L, 3);
+  real_t yx = (real_t)lua_tonumber(L, 4);
+  real_t yy = (real_t)lua_tonumber(L, 5);
+  real_t yz = (real_t)lua_tonumber(L, 6);
+  real_t zx = (real_t)lua_tonumber(L, 7);
+  real_t zy = (real_t)lua_tonumber(L, 8);
+  real_t zz = (real_t)lua_tonumber(L, 9);
+  tensor2_t* t = tensor2_new(xx, xy, xz,
+                             yx, yy, yz,
+                             zx, zy, zz);
+  lua_push_tensor2(L, t);
+  return 1;
+}
+
+static lua_module_function tensor2_funcs[] = {
+  {"new", t2_new},
+  {NULL, NULL}
+};
+
+static int t2_xx(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->xx);
+  return 1;
+}
+
+static int t2_set_xx(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->xx = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int t2_xy(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->xy);
+  return 1;
+}
+
+static int t2_set_xy(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->xy = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int t2_xz(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->xz);
+  return 1;
+}
+
+static int t2_set_xz(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->xz = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int t2_yx(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->yx);
+  return 1;
+}
+
+static int t2_set_yx(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->yx = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int t2_yy(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->yy);
+  return 1;
+}
+
+static int t2_set_yy(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->yy = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int t2_yz(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->yz);
+  return 1;
+}
+
+static int t2_set_yz(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->yz = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int t2_zx(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->zx);
+  return 1;
+}
+
+static int t2_set_zx(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->zx = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int t2_zy(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->zy);
+  return 1;
+}
+
+static int t2_set_zy(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->zy = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int t2_zz(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->zz);
+  return 1;
+}
+
+static int t2_set_zz(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->zz = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static lua_record_field tensor2_fields[] = {
+  {"xx", t2_xx, t2_set_xx},
+  {"xy", t2_xy, t2_set_xy},
+  {"xz", t2_xz, t2_set_xz},
+  {"yx", t2_yx, t2_set_yx},
+  {"yy", t2_yy, t2_set_yy},
+  {"yz", t2_yz, t2_set_yz},
+  {"zx", t2_zx, t2_set_zx},
+  {"zy", t2_zy, t2_set_zy},
+  {"zz", t2_zz, t2_set_zz},
+  {NULL, NULL, NULL}
+};
+
+static int t2_add(lua_State* L)
+{
+  tensor2_t* t1 = lua_to_tensor2(L, 1);
+  tensor2_t* t2 = lua_to_tensor2(L, 2);
+  if (t1 == NULL)
+    luaL_error(L, "Argument 1 must be a tensor2.");
+  if (t2 == NULL)
+    luaL_error(L, "Argument 2 must be a tensor2.");
+  tensor2_t* sum = tensor2_new(t1->xx + t2->xx, t1->xy + t2->xy, t1->xz + t2->xz,
+                               t1->yx + t2->yx, t1->yy + t2->yy, t1->yz + t2->yz,
+                               t1->zx + t2->zx, t1->zy + t2->zy, t1->zz + t2->zz);
+  lua_push_tensor2(L, sum);
+  return 1;
+}
+
+static int t2_sub(lua_State* L)
+{
+  tensor2_t* t1 = lua_to_tensor2(L, 1);
+  tensor2_t* t2 = lua_to_tensor2(L, 2);
+  if (t1 == NULL)
+    luaL_error(L, "Argument 1 must be a tensor2.");
+  if (t2 == NULL)
+    luaL_error(L, "Argument 2 must be a tensor2.");
+  tensor2_t* diff = tensor2_new(t1->xx - t2->xx, t1->xy - t2->xy, t1->xz - t2->xz,
+                                t1->yx - t2->yx, t1->yy - t2->yy, t1->yz - t2->yz,
+                                t1->zx - t2->zx, t1->zy - t2->zy, t1->zz - t2->zz);
+  lua_push_tensor2(L, diff);
+  return 1;
+}
+
+static int t2_mul(lua_State* L)
+{
+  if ((!lua_isnumber(L, 1) || !lua_is_tensor2(L, 2)) &&
+      (!lua_is_tensor2(L, 1) || !lua_isnumber(L, 2)))
+    luaL_error(L, "Arguments must be a tensor2 and a number.");
+  tensor2_t* t = lua_to_tensor2(L, (lua_isnumber(L, 1)) ? 2 : 1);
+  real_t c = (real_t)lua_tonumber(L, (lua_isnumber(L, 1)) ? 1 : 2);
+  tensor2_t* t1 = tensor2_new(c * t->xx, c * t->xy, c * t->xz,
+                              c * t->yx, c * t->yy, c * t->yz,
+                              c * t->zx, c * t->zy, c * t->zz);
+  lua_push_tensor2(L, t1);
+  return 1;
+}
+
+static int t2_div(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  if (t == NULL)
+    luaL_error(L, "Argument 1 must be a tensor2.");
+  if (!lua_isnumber(L, 2))
+    luaL_error(L, "Argument 2 must be a number.");
+  real_t c = (real_t)lua_tonumber(L, 2);
+  tensor2_t* t1 = tensor2_new(t->xx/c, t->xy/c, t->xz/c,
+                              t->yx/c, t->yy/c, t->yz/c,
+                              t->zx/c, t->zy/c, t->zz/c);
+  lua_push_tensor2(L, t1);
+  return 1;
+}
+
+static int t2_unm(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  tensor2_t* t1 = tensor2_new(-1.0 * t->xx, -1.0 * t->xy, -1.0 * t->xz,
+                              -1.0 * t->yx, -1.0 * t->yy, -1.0 * t->yz,
+                              -1.0 * t->zx, -1.0 * t->zy, -1.0 * t->zz);
+  lua_push_tensor2(L, t1);
+  return 1;
+}
+
+static int t2_len(lua_State* L)
+{
+  lua_pushnumber(L, 9.0);
+  return 1;
+}
+
+static int t2_tostring(lua_State* L)
+{
+  tensor2_t* t = lua_to_tensor2(L, 1);
+  lua_pushfstring(L, "tensor2 ((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))", 
+                  t->xx, t->xy, t->xz, t->yx, t->yy, t->yz, t->zx, t->zy, t->zz);
+  return 1;
+}
+
+static lua_record_metamethod tensor2_mm[] = {
+  {"__add", t2_add},
+  {"__sub", t2_sub},
+  {"__mul", t2_mul},
+  {"__div", t2_div},
+  {"__unm", t2_unm},
+  {"__len", t2_len},
+  {"__tostring", t2_tostring},
+  {NULL, NULL}
+};
+
+static int st2_new(lua_State* L)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(L);
+  if ((num_args != 6) || 
+      !lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3) ||
+      !lua_isnumber(L, 4) || !lua_isnumber(L, 5) || !lua_isnumber(L, 6))
+  {
+    return luaL_error(L, "Arguments must be xx, xy, xz, yy, yz, zz components.");
+  }
+
+  real_t xx = (real_t)lua_tonumber(L, 1);
+  real_t xy = (real_t)lua_tonumber(L, 2);
+  real_t xz = (real_t)lua_tonumber(L, 3);
+  real_t yy = (real_t)lua_tonumber(L, 4);
+  real_t yz = (real_t)lua_tonumber(L, 5);
+  real_t zz = (real_t)lua_tonumber(L, 6);
+  sym_tensor2_t* t = sym_tensor2_new(xx, xy, xz,
+                                         yy, yz,
+                                             zz);
+  lua_push_sym_tensor2(L, t);
+  return 1;
+}
+
+static lua_module_function sym_tensor2_funcs[] = {
+  {"new", st2_new},
+  {NULL, NULL}
+};
+
+static int st2_xx(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->xx);
+  return 1;
+}
+
+static int st2_set_xx(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->xx = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int st2_xy(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->xy);
+  return 1;
+}
+
+static int st2_set_xy(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->xy = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int st2_xz(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->xz);
+  return 1;
+}
+
+static int st2_set_xz(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->xz = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int st2_yx(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->xy);
+  return 1;
+}
+
+static int st2_set_yx(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->xy = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int st2_yy(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->yy);
+  return 1;
+}
+
+static int st2_set_yy(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->yy = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int st2_yz(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->yz);
+  return 1;
+}
+
+static int st2_set_yz(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->yz = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int st2_zx(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->xz);
+  return 1;
+}
+
+static int st2_set_zx(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->xz = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int st2_zy(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->yz);
+  return 1;
+}
+
+static int st2_set_zy(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->yz = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static int st2_zz(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  lua_pushnumber(L, (double)t->zz);
+  return 1;
+}
+
+static int st2_set_zz(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Tensor components must be numbers.");
+  t->zz = (real_t)lua_tonumber(L, 2);
+  return 0;
+}
+
+static lua_record_field sym_tensor2_fields[] = {
+  {"xx", st2_xx, st2_set_xx},
+  {"xy", st2_xy, st2_set_xy},
+  {"xz", st2_xz, st2_set_xz},
+  {"yx", st2_yx, st2_set_yx},
+  {"yy", st2_yy, st2_set_yy},
+  {"yz", st2_yz, st2_set_yz},
+  {"zx", st2_zx, st2_set_zx},
+  {"zy", st2_zy, st2_set_zy},
+  {"zz", st2_zz, st2_set_zz},
+  {NULL, NULL, NULL}
+};
+
+static int st2_add(lua_State* L)
+{
+  sym_tensor2_t* t1 = lua_to_sym_tensor2(L, 1);
+  sym_tensor2_t* t2 = lua_to_sym_tensor2(L, 2);
+  if (t1 == NULL)
+    luaL_error(L, "Argument 1 must be a tensor2.");
+  if (t2 == NULL)
+    luaL_error(L, "Argument 2 must be a tensor2.");
+  sym_tensor2_t* sum = sym_tensor2_new(t1->xx + t2->xx, t1->xy + t2->xy, t1->xz + t2->xz,
+                                                        t1->yy + t2->yy, t1->yz + t2->yz,
+                                                                         t1->zz + t2->zz);
+  lua_push_sym_tensor2(L, sum);
+  return 1;
+}
+
+static int st2_sub(lua_State* L)
+{
+  sym_tensor2_t* t1 = lua_to_sym_tensor2(L, 1);
+  sym_tensor2_t* t2 = lua_to_sym_tensor2(L, 2);
+  if (t1 == NULL)
+    luaL_error(L, "Argument 1 must be a tensor2.");
+  if (t2 == NULL)
+    luaL_error(L, "Argument 2 must be a tensor2.");
+  sym_tensor2_t* diff = sym_tensor2_new(t1->xx - t2->xx, t1->xy - t2->xy, t1->xz - t2->xz,
+                                                         t1->yy - t2->yy, t1->yz - t2->yz,
+                                                         t1->zz - t2->zz);
+  lua_push_sym_tensor2(L, diff);
+  return 1;
+}
+
+static int st2_mul(lua_State* L)
+{
+  if ((!lua_isnumber(L, 1) || !lua_is_tensor2(L, 2)) &&
+      (!lua_is_tensor2(L, 1) || !lua_isnumber(L, 2)))
+    luaL_error(L, "Arguments must be a tensor2 and a number.");
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, (lua_isnumber(L, 1)) ? 2 : 1);
+  real_t c = (real_t)lua_tonumber(L, (lua_isnumber(L, 1)) ? 1 : 2);
+  sym_tensor2_t* t1 = sym_tensor2_new(c * t->xx, c * t->xy, c * t->xz,
+                                                 c * t->yy, c * t->yz,
+                                                            c * t->zz);
+  lua_push_sym_tensor2(L, t1);
+  return 1;
+}
+
+static int st2_div(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  if (t == NULL)
+    luaL_error(L, "Argument 1 must be a tensor2.");
+  if (!lua_isnumber(L, 2))
+    luaL_error(L, "Argument 2 must be a number.");
+  real_t c = (real_t)lua_tonumber(L, 2);
+  sym_tensor2_t* t1 = sym_tensor2_new(t->xx/c, t->xy/c, t->xz/c,
+                                               t->yy/c, t->yz/c,
+                                                        t->zz/c);
+  lua_push_sym_tensor2(L, t1);
+  return 1;
+}
+
+static int st2_unm(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  sym_tensor2_t* t1 = sym_tensor2_new(-1.0 * t->xx, -1.0 * t->xy, -1.0 * t->xz,
+                                                    -1.0 * t->yy, -1.0 * t->yz,
+                                                                  -1.0 * t->zz);
+  lua_push_sym_tensor2(L, t1);
+  return 1;
+}
+
+static int st2_len(lua_State* L)
+{
+  lua_pushnumber(L, 6.0);
+  return 1;
+}
+
+static int st2_tostring(lua_State* L)
+{
+  sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
+  lua_pushfstring(L, "sym_tensor2 ((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))", 
+                  t->xx, t->xy, t->xz, t->xy, t->yy, t->yz, t->xz, t->yz, t->zz);
+  return 1;
+}
+
+static lua_record_metamethod sym_tensor2_mm[] = {
+  {"__add", st2_add},
+  {"__sub", st2_sub},
+  {"__mul", st2_mul},
+  {"__div", st2_div},
+  {"__unm", st2_unm},
+  {"__len", st2_len},
+  {"__tostring", st2_tostring},
+  {NULL, NULL}
+};
+
 static int t_new(lua_State* L)
 {
   // Check the arguments.
@@ -657,11 +1221,8 @@ static int bb_new(lua_State* L)
 {
   // Check the arguments.
   int num_args = lua_gettop(L);
-  if (num_args != 1)
-  {
-    if (!lua_istable(L, 1))
-      return luaL_error(L, "Argument must be a table containing x1, x2, y1, y2, z1, z2 values.");
-  }
+  if ((num_args != 1) || !lua_istable(L, 1))
+    return luaL_error(L, "Argument must be a table containing x1, x2, y1, y2, z1, z2 values.");
 
   // Look for x1, x2, y1, y2, z1, z2 in the table.
   bbox_t* bbox = bbox_new(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
@@ -1057,7 +1618,7 @@ static lua_class_method silo_methods[] = {
   {NULL, NULL}
 };
 
-static void register_options(lua_State* L)
+static void lua_register_options(lua_State* L)
 {
   // Create a new table and fill it with our named command line values.
   lua_newtable(L);
@@ -1076,6 +1637,7 @@ static void register_options(lua_State* L)
 //------------------------------------------------------------------------
 //                                API 
 //------------------------------------------------------------------------
+extern int lua_register_array(lua_State* L); // defined in lua_array.c
 
 int lua_register_core_modules(lua_State* L)
 {
@@ -1083,7 +1645,11 @@ int lua_register_core_modules(lua_State* L)
   lua_register_record_type(L, "complex", complex_funcs, complex_fields, complex_mm);
   lua_register_record_type(L, "point", point_funcs, point_fields, point_mm);
   lua_register_record_type(L, "vector", vector_funcs, vector_fields, vector_mm);
+  lua_register_record_type(L, "tensor2", tensor2_funcs, tensor2_fields, tensor2_mm);
+  lua_register_record_type(L, "sym_tensor2", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_mm);
   lua_register_record_type(L, "tensor", tensor_funcs, tensor_fields, tensor_mm);
+  lua_register_array(L);
+
   lua_register_class(L, "bbox", bbox_funcs, bbox_methods);
   lua_register_class(L, "sp_func", sp_funcs, sp_methods);
   lua_register_class(L, "st_func", st_funcs, st_methods);
@@ -1092,7 +1658,7 @@ int lua_register_core_modules(lua_State* L)
   lua_register_class(L, "silo_file", silo_funcs, silo_methods);
 
   // Register the options table.
-  register_options(L);
+  lua_register_options(L);
 
   return 0;
 }
@@ -1129,127 +1695,6 @@ point_t* lua_to_point(lua_State* L, int index)
   return (point_t*)lua_to_record(L, index, "point");
 }
 
-bool lua_is_point_list(lua_State* L, int index)
-{
-  if (lua_istable(L, index)) 
-  {
-    size_t len = lua_rawlen(L, index);
-    if (len == 0) 
-      return false;
-    bool is_point_list = true;
-    for (size_t i = 1; i <= len; ++i)
-    {
-      lua_rawgeti(L, index, (lua_Integer)i);
-      bool is_point = lua_is_point(L, -1);
-      if (!is_point)
-      {
-        bool is_3_tuple = (lua_istable(L, -1) && 
-                           (lua_rawlen(L, -1) == 3));
-        if (!is_3_tuple)
-          is_point_list = false;
-        else
-        {
-          for (size_t j = 1; j <= 3; ++j)
-          {
-            lua_rawgeti(L, index, (lua_Integer)j);
-            if (!lua_isnumber(L, -1))
-              is_point_list = false;
-            lua_pop(L, 1);
-            if (!is_point_list)
-              break;
-          }
-        }
-        if (!is_point_list)
-          break;
-      }
-    }
-    return is_point_list;
-  }
-  else 
-    return false;
-}
-
-bool lua_is_canonical_point_list(lua_State* L, int index)
-{
-  if (lua_istable(L, index)) 
-  {
-    size_t len = lua_rawlen(L, index);
-    if (len == 0) 
-      return false;
-    bool is_point_list = true;
-    for (size_t i = 1; i <= len; ++i)
-    {
-      lua_rawgeti(L, index, (lua_Integer)i);
-      bool is_point = lua_is_point(L, -1);
-      if (!is_point)
-      {
-        is_point_list = false;
-        break;
-      }
-    }
-    return is_point_list;
-  }
-  else 
-    return false;
-}
-
-void lua_canonicalize_point_list(lua_State* L, int index)
-{
-  if (lua_is_point_list(L, index))
-  {
-    size_t len = lua_rawlen(L, index);
-    for (size_t i = 1; i <= len; ++i)
-    {
-      lua_rawgeti(L, index, (lua_Integer)i);
-      if (!lua_is_point(L, -1))
-      {
-        real_t pj[3];
-        for (int j = 1; j <= 3; ++j)
-        {
-          lua_rawgeti(L, -1, (lua_Integer)j);
-          pj[j-1] = (real_t)lua_tonumber(L, -1);
-          lua_pop(L, 1);
-        }
-        point_t* p = point_new(pj[0], pj[1], pj[2]);
-        lua_push_point(L, p);
-        lua_rawseti(L, -2, i); 
-      }
-    }
-  }
-}
-
-void lua_export_point_list(lua_State* L, int index, real_t* array)
-{
-  if (lua_is_canonical_point_list(L, index))
-  {
-    size_t len = lua_rawlen(L, index);
-    for (size_t i = 1; i <= len; ++i)
-    {
-      lua_rawgeti(L, index, (lua_Integer)i);
-      point_t* pi = lua_to_point(L, -1);
-      array[3*(i-1)  ] = pi->x;
-      array[3*(i-1)+1] = pi->y;
-      array[3*(i-1)+2] = pi->z;
-    }
-  }
-}
-
-void lua_import_point_list(lua_State* L, int index, real_t* array)
-{
-  if (lua_is_canonical_point_list(L, index))
-  {
-    size_t len = lua_rawlen(L, index);
-    for (size_t i = 1; i <= len; ++i)
-    {
-      lua_rawgeti(L, index, (lua_Integer)i);
-      point_t* pi = lua_to_point(L, -1);
-      pi->x = array[3*(i-1)];
-      pi->y = array[3*(i-1)+1];
-      pi->z = array[3*(i-1)+2];
-    }
-  }
-}
-
 void lua_push_vector(lua_State* L, vector_t* v)
 {
   lua_push_record(L, "vector", v, NULL);
@@ -1265,125 +1710,34 @@ vector_t* lua_to_vector(lua_State* L, int index)
   return (vector_t*)lua_to_record(L, index, "vector");
 }
 
-bool lua_is_vector_list(lua_State* L, int index)
+void lua_push_tensor2(lua_State* L, tensor2_t* t)
 {
-  if (lua_istable(L, index)) 
-  {
-    size_t len = lua_rawlen(L, index);
-    if (len == 0) 
-      return false;
-    bool is_vector_list = true;
-    for (size_t i = 1; i <= len; ++i)
-    {
-      lua_rawgeti(L, index, (lua_Integer)i);
-      bool is_vector = lua_is_vector(L, -1);
-      if (!is_vector)
-      {
-        bool is_3_tuple = (lua_istable(L, -1) && 
-                           (lua_rawlen(L, -1) == 3));
-        if (!is_3_tuple)
-          is_vector_list = false;
-        else
-        {
-          for (size_t j = 1; j <= 3; ++j)
-          {
-            lua_rawgeti(L, index, (lua_Integer)j);
-            if (!lua_isnumber(L, -1))
-              is_vector_list = false;
-            lua_pop(L, 1);
-            if (!is_vector_list)
-              break;
-          }
-        }
-        if (!is_vector_list)
-          break;
-      }
-    }
-    return is_vector_list;
-  }
-  else 
-    return false;
+  lua_push_record(L, "tensor2", t, NULL);
 }
 
-bool lua_is_canonical_vector_list(lua_State* L, int index)
+bool lua_is_tensor2(lua_State* L, int index)
 {
-  if (lua_istable(L, index)) 
-  {
-    size_t len = lua_rawlen(L, index);
-    if (len == 0) 
-      return false;
-    bool is_vector_list = true;
-    for (size_t i = 1; i <= len; ++i)
-    {
-      lua_rawgeti(L, index, (lua_Integer)i);
-      bool is_vector = lua_is_vector(L, -1);
-      if (!is_vector)
-      {
-        is_vector_list = false;
-        break;
-      }
-    }
-    return is_vector_list;
-  }
-  else 
-    return false;
+  return lua_is_record(L, index, "tensor2");
 }
 
-void lua_canonicalize_vector_list(lua_State* L, int index)
+tensor2_t* lua_to_tensor2(lua_State* L, int index)
 {
-  if (lua_is_vector_list(L, index))
-  {
-    size_t len = lua_rawlen(L, index);
-    for (size_t i = 1; i <= len; ++i)
-    {
-      lua_rawgeti(L, index, (lua_Integer)i);
-      if (!lua_is_vector(L, -1))
-      {
-        real_t vj[3];
-        for (int j = 1; j <= 3; ++j)
-        {
-          lua_rawgeti(L, -1, (lua_Integer)j);
-          vj[j-1] = (real_t)lua_tonumber(L, -1);
-          lua_pop(L, 1);
-        }
-        vector_t* v = vector_new(vj[0], vj[1], vj[2]);
-        lua_push_vector(L, v);
-        lua_rawseti(L, -2, i); 
-      }
-    }
-  }
+  return (tensor2_t*)lua_to_record(L, index, "tensor2");
 }
 
-void lua_export_vector_list(lua_State* L, int index, real_t* array)
+void lua_push_sym_tensor2(lua_State* L, sym_tensor2_t* t)
 {
-  if (lua_is_canonical_vector_list(L, index))
-  {
-    size_t len = lua_rawlen(L, index);
-    for (size_t i = 1; i <= len; ++i)
-    {
-      lua_rawgeti(L, index, (lua_Integer)i);
-      vector_t* vi = lua_to_vector(L, -1);
-      array[3*(i-1)  ] = vi->x;
-      array[3*(i-1)+1] = vi->y;
-      array[3*(i-1)+2] = vi->z;
-    }
-  }
+  lua_push_record(L, "sym_tensor2", t, NULL);
 }
 
-void lua_import_vector_list(lua_State* L, int index, real_t* array)
+bool lua_is_sym_tensor2(lua_State* L, int index)
 {
-  if (lua_is_canonical_vector_list(L, index))
-  {
-    size_t len = lua_rawlen(L, index);
-    for (size_t i = 1; i <= len; ++i)
-    {
-      lua_rawgeti(L, index, (lua_Integer)i);
-      vector_t* vi = lua_to_vector(L, -1);
-      vi->x = array[3*(i-1)];
-      vi->y = array[3*(i-1)+1];
-      vi->z = array[3*(i-1)+2];
-    }
-  }
+  return lua_is_record(L, index, "sym_tensor2");
+}
+
+sym_tensor2_t* lua_to_sym_tensor2(lua_State* L, int index)
+{
+  return (sym_tensor2_t*)lua_to_record(L, index, "sym_tensor2");
 }
 
 void lua_push_bbox(lua_State* L, bbox_t* b)

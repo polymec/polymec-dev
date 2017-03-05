@@ -190,7 +190,7 @@ void* lua_to_object(lua_State* L,
                     int index,
                     const char* class_name)
 {
-  lua_class_t* obj = luaL_checkudata(L, index, class_name);
+  lua_class_t* obj = luaL_testudata(L, index, class_name);
   return (obj != NULL) ? obj->context : NULL;
 }
 
@@ -198,7 +198,7 @@ bool lua_is_object(lua_State* L,
                    int index,
                    const char* class_name)
 {
-  return (luaL_checkudata(L, index, class_name) != NULL);
+  return (luaL_testudata(L, index, class_name) != NULL);
 }
 
 //------------------------------------------------------------------------
@@ -447,7 +447,7 @@ void* lua_to_record(lua_State* L,
                     int index,
                     const char* record_type_name)
 {
-  lua_record_t* r = luaL_checkudata(L, index, record_type_name);
+  lua_record_t* r = luaL_testudata(L, index, record_type_name);
   return (r != NULL) ? r->context : NULL;
 }
 
@@ -455,5 +455,5 @@ bool lua_is_record(lua_State* L,
                    int index,
                    const char* record_type_name)
 {
-  return (luaL_checkudata(L, index, record_type_name) != NULL);
+  return (luaL_testudata(L, index, record_type_name) != NULL);
 }

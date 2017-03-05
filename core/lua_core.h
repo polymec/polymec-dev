@@ -10,6 +10,7 @@
 
 #include "core/polymec.h"
 #include "core/lua_types.h"
+#include "core/tensor2.h"
 #include "core/tensor.h"
 #include "core/sp_func.h"
 #include "core/st_func.h"
@@ -50,32 +51,6 @@ bool lua_is_point(lua_State* L, int index);
 // there is not a point.
 point_t* lua_to_point(lua_State* L, int index);
 
-// Returns true if the item at the given index on L's stack is or can be 
-// interpreted as a list of points. This is true if the item is a table 
-// representing a list of either points or 3-tuples.
-bool lua_is_point_list(lua_State* L, int index);
-
-// Returns true if and only if the item at the given index on L's stack is 
-// a canonical list of points, i.e. a table of points objects.
-bool lua_is_canonical_point_list(lua_State* L, int index);
-
-// Converts the item at the given index on L's stack to canonical point list
-// form, which is a table representing a list of point objects. If the item 
-// at the given index cannot be interpreted as a point list, this function 
-// has no effect.
-void lua_canonicalize_point_list(lua_State* L, int index);
-
-// Copies data out of a canonical point list at the given index, placing it 
-// into the given array of real numbers. If the item is not a canonical point 
-// list, this function has no effect. The array must be able to contain 
-// a number of reals equal to 3*lua_len(L, index).
-void lua_export_point_list(lua_State* L, int index, real_t* array);
-
-// Copies data into a canonical point list at the given index from the given 
-// array of real numbers. The number of reals copied out is determined by 
-// the number of points in the canonical point list.
-void lua_import_point_list(lua_State* L, int index, real_t* array);
-
 // Pushes a (3D) vector v onto L's stack.
 void lua_push_vector(lua_State* L, vector_t* v);
 
@@ -87,31 +62,55 @@ bool lua_is_vector(lua_State* L, int index);
 // there is not a vector.
 vector_t* lua_to_vector(lua_State* L, int index);
 
-// Returns true if the item at the given index on L's stack is or can be 
-// interpreted as a list of vectors. This is true if the item is a table 
-// representing a list of either vectors or 3-tuples.
-bool lua_is_vector_list(lua_State* L, int index);
+// Pushes a (3D) rank-2 tensor t onto L's stack.
+void lua_push_tensor2(lua_State* L, tensor2_t* t);
 
-// Returns true if and only if the item at the given index on L's stack is 
-// a canonical list of vectors, i.e. a table of vector objects.
-bool lua_is_canonical_vector_list(lua_State* L, int index);
+// Returns true if the item at the given index on L's stack is a rank-2 
+// tensor, false if not.
+bool lua_is_tensor2(lua_State* L, int index);
 
-// Converts the item at the given index on L's stack to canonical vector list
-// form, which is a table representing a list of vector objects. If the item 
-// at the given index cannot be interpreted as a vector list, this function 
-// has no effect.
-void lua_canonicalize_vector_list(lua_State* L, int index);
+// Returns the rank-2 tensor at the given index on L's stack, or NULL if 
+// the item there is not a rank-2 tensor.
+tensor2_t* lua_to_tensor2(lua_State* L, int index);
 
-// Copies data out of a canonical vector list at the given index, placing it 
-// into the given array of real numbers. If the item is not a canonical vector 
-// list, this function has no effect. The array must be able to contain 
-// a number of reals equal to 3*lua_len(L, index).
-void lua_export_vector_list(lua_State* L, int index, real_t* array);
+// Pushes a (3D) symmetric rank-2 tensor t onto L's stack.
+void lua_push_sym_tensor2(lua_State* L, sym_tensor2_t* t);
 
-// Copies data into a canonical vector list at the given index from the given 
-// array of real numbers. The number of reals copied out is determined by 
-// the number of vectors in the canonical vector list.
-void lua_import_vector_list(lua_State* L, int index, real_t* array);
+// Returns true if the item at the given index on L's stack is a symmetric 
+// rank-2 tensor, false if not.
+bool lua_is_sym_tensor2(lua_State* L, int index);
+
+// Returns the symmetric rank-2 tensor at the given index on L's stack, or 
+// NULL if the item there is not a symmetric rank-2 tensor.
+sym_tensor2_t* lua_to_sym_tensor2(lua_State* L, int index);
+
+// This enumerated type describes data stored in an array within a 
+// Lua interpreter.
+typedef enum
+{                        // Array of...
+  LUA_ARRAY_BYTE,        // bytes 
+  LUA_ARRAY_INT,         // integers 
+  LUA_ARRAY_UINT64,      // 64-bit unsigned integers 
+  LUA_ARRAY_INT64,       // 64-bit integers 
+  LUA_ARRAY_INDEX,       // indices
+  LUA_ARRAY_REAL,        // real numbers
+  LUA_ARRAY_COMPLEX,     // complex numbers
+  LUA_ARRAY_POINT,       // 3D points
+  LUA_ARRAY_VECTOR,      // 3D vectors
+  LUA_ARRAY_TENSOR2,     // 3D rank-2 tensors
+  LUA_ARRAY_SYM_TENSOR2  // 3D symmetric rank-2 tensors
+} lua_array_data_t;
+
+// Pushes an array of the given type onto L's stack.
+void lua_push_array(lua_State* L, void* array, lua_array_data_t type);
+
+// Returns true if the item at the given index on L's stack is an array 
+// of the given type, false if not.
+bool lua_is_array(lua_State* L, int index, lua_array_data_t type);
+
+// Returns the array of the given type at the given index on L's stack, or 
+// NULL if the item there is not such an array.
+void* lua_to_array(lua_State* L, int index, lua_array_data_t type);
 
 // Pushes a bounding box b onto L's stack.
 void lua_push_bbox(lua_State* L, bbox_t* b);

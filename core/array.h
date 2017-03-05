@@ -19,7 +19,7 @@
 // DEFINE_ARRAY(x_array, x):
 //
 // x_array_t* x_array_new() - Creates a new, empty array on the heap.
-// x_array_t* x_array_new_with_capacity(int capacity) - Creates a new, empty array on the heap with the given capacity.
+// x_array_t* x_array_new_with_capacity(size_t capacity) - Creates a new, empty array on the heap with the given capacity.
 // x_array_t empty_x_array() - Creates a new, empty array on the stack.
 // void x_array_free(x_array_t* array) - Destroys the (heap-allocated) array.
 // x* x_array_find(x_array_t* array, x value, cmp_func comparator) - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
@@ -228,9 +228,15 @@ static inline void array_name##_release_data_and_free(array_name##_t* array) \
 // Define some basic array types.
 DEFINE_ARRAY(byte_array, uint8_t)
 DEFINE_ARRAY(int_array, int)
+DEFINE_ARRAY(int64_array, int64_t)
+DEFINE_ARRAY(uint64_array, uint64_t)
 DEFINE_ARRAY(index_array, index_t)
 DEFINE_ARRAY(real_array, real_t)
 DEFINE_ARRAY(string_array, char*)
 DEFINE_ARRAY(ptr_array, void*)
+
+#ifndef __cplusplus
+DEFINE_ARRAY(complex_array, complex_t)
+#endif
 
 #endif
