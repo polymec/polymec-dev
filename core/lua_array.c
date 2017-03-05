@@ -20,10 +20,44 @@ typedef struct
   size_t size;
 } lua_array_t;
 
+static void get_type_str(lua_array_data_t type, char* type_str)
+{
+  if (type == LUA_ARRAY_BYTE)
+    strcpy(type_str, "byte");
+  else if (type == LUA_ARRAY_INT)
+    strcpy(type_str, "int");
+  else if (type == LUA_ARRAY_INT64)
+    strcpy(type_str, "int64");
+  else if (type == LUA_ARRAY_UINT64)
+    strcpy(type_str, "uint64");
+  else if (type == LUA_ARRAY_INDEX)
+    strcpy(type_str, "index");
+  else if (type == LUA_ARRAY_REAL)
+    strcpy(type_str, "real");
+  else if (type == LUA_ARRAY_COMPLEX)
+    strcpy(type_str, "complex");
+  else if (type == LUA_ARRAY_POINT)
+    strcpy(type_str, "point");
+  else if (type == LUA_ARRAY_VECTOR)
+    strcpy(type_str, "vector");
+  else if (type == LUA_ARRAY_TENSOR2)
+    strcpy(type_str, "tensor2");
+  else // if (type == LUA_ARRAY_SYM_TENSOR2)
+    strcpy(type_str, "sym_tensor2");
+}
+
 static int array_index(lua_State* L)
 {
   lua_array_t* a = luaL_checkudata(L, 1, "array");
-  if (!lua_isinteger(L, 2))
+  if (!lua_isinteger(L, 2) && lua_isstring(L, 2) && 
+      (strcmp(lua_tostring(L, 2), "type") == 0))
+  {
+    char type_str[24];
+    get_type_str(a->type, type_str);
+    lua_pushstring(L, type_str);
+    return 1;
+  }
+  else if (!lua_isinteger(L, 2))
     luaL_error(L, "Array index must be an integer.");
   size_t index = (size_t)lua_tointeger(L, 2);
   if ((index < 1) || (index > a->size))
@@ -189,63 +223,91 @@ static int array_gc(lua_State* L)
   return 0;
 }
 
+static void write_item(lua_State* L, int index, size_t i, char* str)
+{
+  lua_array_t* a = luaL_checkudata(L, index, "array");
+
+  // Get the (i+1)th item in the array.
+  lua_pushinteger(L, (lua_Integer)(i+1));
+  lua_gettable(L, index);
+
+  // Write out the item.
+  if (lua_isinteger(L, -1))
+  {
+    int val = (int)(lua_tointeger(L, -1));
+    if (i < a->size-1)
+      snprintf(str, 128, "%d, ", val);
+    else
+      snprintf(str, 128, "%d", val);
+  }
+  else if (lua_isnumber(L, -1))
+  {
+    double val = (double)(lua_tointeger(L, -1));
+    if (i < a->size-1)
+      snprintf(str, 128, "%g, ", val);
+    else
+      snprintf(str, 128, "%g", val);
+  }
+  else // handle general case with __tostring metamethod.
+  {
+    // Get the __tostring metamethod.
+    luaL_getmetafield(L, -1, "__tostring");
+    ASSERT(lua_isfunction(L, -1));
+
+    // Push the item itself onto the stack so __tostring calls it.
+    lua_pushinteger(L, (lua_Integer)(i+1));
+    lua_gettable(L, 1);
+
+    // Call the __tostring metamethod.
+    lua_call(L, 1, 1);
+    ASSERT(lua_isstring(L, -1));
+
+    // Now write down the thing.
+    if (i < a->size-1)
+      snprintf(str, 128, "%s, ", lua_tostring(L, -1));
+    else
+      snprintf(str, 128, "%s", lua_tostring(L, -1));
+
+    lua_pop(L, 1);
+  }
+
+  lua_pop(L, 1);
+}
+
 static int array_tostring(lua_State* L)
 {
   lua_array_t* a = luaL_checkudata(L, 1, "array");
 
-  char* str = polymec_malloc(sizeof(char) * a->size * 128);
-  sprintf(str, "array: {");
-  for (size_t i = 0; i < a->size; ++i)
+  char type_str[24];
+  get_type_str(a->type, type_str);
+  char* str = NULL;
+  size_t first_leg = a->size, second_leg = 0;
+  if (a->size <= 100)
+    str = polymec_malloc(sizeof(char) * (32 + a->size * 128));
+  else
   {
-    // Get the (i+1)th item in the array.
-    lua_pushinteger(L, (lua_Integer)(i+1));
-    lua_gettable(L, 1);
-
-    // Write out the item.
+    first_leg = second_leg = 50;
+    str = polymec_malloc(sizeof(char) * (32 + 101 * 128));
+  }
+  sprintf(str, "array(%s): {", type_str);
+  for (size_t i = 0; i < first_leg; ++i)
+  {
     char stri[129];
-    if (lua_isinteger(L, -1))
-    {
-      int val = (int)(lua_tointeger(L, -1));
-      if (i < a->size-1)
-        snprintf(stri, 128, "%d, ", val);
-      else
-        snprintf(stri, 128, "%d", val);
-    }
-    else if (lua_isnumber(L, -1))
-    {
-      double val = (double)(lua_tointeger(L, -1));
-      if (i < a->size-1)
-        snprintf(stri, 128, "%g, ", val);
-      else
-        snprintf(stri, 128, "%g", val);
-    }
-    else // handle general case with __tostring metamethod.
-    {
-      // Get the __tostring metamethod.
-      luaL_getmetafield(L, -1, "__tostring");
-      ASSERT(lua_isfunction(L, -1));
-
-      // Push the item itself onto the stack so __tostring calls it.
-      lua_pushinteger(L, (lua_Integer)(i+1));
-      lua_gettable(L, 1);
-
-      // Call the __tostring metamethod.
-      lua_call(L, 1, 1);
-      ASSERT(lua_isstring(L, -1));
-
-      // Now write down the thing.
-      if (i < a->size-1)
-        snprintf(stri, 128, "%s, ", lua_tostring(L, -1));
-      else
-        snprintf(stri, 128, "%s", lua_tostring(L, -1));
-
-      lua_pop(L, 1);
-    }
-
-    lua_pop(L, 1);
+    write_item(L, 1, i, stri);
     strcat(str, stri);
   }
+  if (second_leg > 0)
+  {
+    strcat(str, "..., ");
+    for (size_t i = a->size-second_leg; i < a->size; ++i)
+    {
+      char stri[129];
+      write_item(L, 1, i, stri);
+      strcat(str, stri);
+    }
+  }
   strcat(str, "}");
+
   lua_pushstring(L, str);
   polymec_free(str);
   return 1;
