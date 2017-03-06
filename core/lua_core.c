@@ -244,6 +244,17 @@ static lua_record_field point_fields[] = {
   {NULL, NULL, NULL}
 };
 
+static int p_sub(lua_State* L)
+{
+  point_t* p1 = lua_to_point(L, 1);
+  point_t* p2 = lua_to_point(L, 2);
+  if (p2 == NULL)
+    return luaL_error(L, "Arguments must both be points.");
+  vector_t* diff = vector_new(p1->x - p2->x, p1->y - p2->y, p1->z - p2->z);
+  lua_push_vector(L, diff);
+  return 1;
+}
+
 static int p_len(lua_State* L)
 {
   lua_pushnumber(L, 3.0);
@@ -258,6 +269,7 @@ static int p_tostring(lua_State* L)
 }
 
 static lua_record_metamethod point_mm[] = {
+  {"__sub", p_sub},
   {"__len", p_len},
   {"__tostring", p_tostring},
   {NULL, NULL}
