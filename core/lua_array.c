@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/lua_core.h"
-#include "core/tensor2.h"
 
 #include "lua.h"
 #include "lualib.h"

@@ -41,11 +41,26 @@ void model_probe_free(model_probe_t* probe);
 // Returns the name of the probe.
 char* model_probe_name(model_probe_t* probe);
 
+// Returns the rank of the tensor data acquired by this probe.
+int model_probe_datum_rank(model_probe_t* probe);
+
+// Returns the shape (a rank-sized array) of the tensor data acquired by this probe.
+size_t model_probe_datum_shape(model_probe_t* probe);
+
 // Allocates and returns a tensor of sufficient size to hold an aquisition.
 tensor_t* model_probe_new_datum(model_probe_t* probe);
 
 // Acquires the quantity at the given time t, placing it into datum.
 void model_probe_acquire(model_probe_t* probe, real_t t, tensor_t* datum);
+
+// Adds a callback function that is called when this probe acquires a datum, and the 
+// context pointer with which the function is called. A probe cannot assume ownership
+// of a context pointer, so the pointer must outlive the probe.
+void model_probe_add_callback(model_probe_t* probe, 
+                              void* context, 
+                              void (*callback)(void* context,
+                                               real_t t, 
+                                               tensor_t* datum));
 
 #endif
 

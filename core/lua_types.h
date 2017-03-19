@@ -36,7 +36,7 @@ typedef struct
 
 // Registers a new Lua class with the interpreter L, giving it a name, 
 // a set of static functions and a set of methods. The functions live in 
-// a module named after the type.
+// a module named after the type. functions may be NULL; methods cannot be.
 void lua_register_class(lua_State* L,
                         const char* type_name,
                         lua_module_function functions[],
