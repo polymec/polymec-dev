@@ -36,7 +36,7 @@ endfunction()
 # linking against the specified libraries.
 function(add_polymec_test_with_libs exe libs)
   if (DEFINED BATCH_SYSTEM)
-    add_mpi_polymec_test(${exe} ${ARGN} 1)
+    add_mpi_polymec_test_with_libs(${exe} ${libs} ${ARGN} 1)
   else()
     add_executable(${exe} ${ARGN})
     target_link_libraries(${exe} cmocka ${libs})

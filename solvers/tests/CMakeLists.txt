@@ -2,11 +2,11 @@ include(add_polymec_test)
 
 # These functions create the tests for our solvers library.
 function(add_polymec_solvers_test exe)
-  add_polymec_test_with_libs(${exe} "${POLYMEC_BASE_LIBRARIES};polymec_core;polymec_solvers" ${ARGN})
+  add_polymec_test_with_libs(${exe} "polymec_solvers;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
 endfunction()
 
 function(add_mpi_polymec_solvers_test exe)
-  add_mpi_polymec_test_with_libs(${exe} "${POLYMEC_BASE_LIBRARIES};polymec_core;polymec_solvers" ${ARGN})
+  add_mpi_polymec_test_with_libs(${exe} "polymec_solvers;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
 endfunction()
 
 add_polymec_solvers_test(test_newton_solver foodweb_solver.c create_krylov_factories.c test_newton_solver.c)

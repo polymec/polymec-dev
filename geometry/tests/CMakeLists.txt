@@ -2,11 +2,11 @@ include(add_polymec_test)
 
 # These functions create the tests for our geometry library.
 function(add_polymec_geometry_test exe)
-  add_polymec_test_with_libs(${exe} "${POLYMEC_BASE_LIBRARIES};polymec_core;polymec_geometry" ${ARGN})
+  add_polymec_test_with_libs(${exe} "polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
 endfunction()
 
 function(add_mpi_polymec_geometry_test exe)
-  add_mpi_polymec_test_with_libs(${exe} "${POLYMEC_BASE_LIBRARIES};polymec_core;polymec_geometry" ${ARGN})
+  add_mpi_polymec_test_with_libs(${exe} "polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
 endfunction()
 
 add_polymec_geometry_test(test_plane_sd_func test_plane_sd_func.c)

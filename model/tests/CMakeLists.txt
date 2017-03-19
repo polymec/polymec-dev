@@ -2,11 +2,11 @@ include(add_polymec_test)
 
 # These functions create the tests for our model library.
 function(add_polymec_model_test exe)
-  add_polymec_test_with_libs(${exe} "${POLYMEC_BASE_LIBRARIES};polymec_core;polymec_model" ${ARGN})
+  add_polymec_test_with_libs(${exe} "polymec_model;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
 endfunction()
 
 function(add_mpi_polymec_model_test exe)
-  add_mpi_polymec_test_with_libs(${exe} "${POLYMEC_BASE_LIBRARIES};polymec_core;polymec_model" ${ARGN})
+  add_mpi_polymec_test_with_libs(${exe} "polymec_model;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
 endfunction()
 
 # Some of these tests need some source files from our geometry library.
@@ -23,7 +23,7 @@ add_mpi_polymec_model_test(test_mls_point_basis test_mls_point_basis.c ${geometr
 
 include(add_driver_test)
 function(add_model_driver_test exe source script)
-  add_driver_test_with_libs(${exe} "${POLYMEC_BASE_LIBRARIES};polymec_core;polymec_model" ${source} ${script} ${ARGN})
+  add_driver_test_with_libs(${exe} "polymec_model;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${source} ${script} ${ARGN})
 endfunction()
 add_model_driver_test(test_model_driver test_model_driver.c ${CMAKE_CURRENT_SOURCE_DIR}/test_model_driver.input 1 2 4)
 

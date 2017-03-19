@@ -52,20 +52,6 @@ static int z_conj(lua_State* L)
   return 1;
 }
 
-static int z_pow(lua_State* L)
-{
-  complex_t z = lua_to_complex(L, 1);
-  complex_t p = 0.0;
-  if (lua_is_complex(L, 2))
-    p = lua_to_complex(L, 2);
-  else if (lua_isnumber(L, 2))
-    p = lua_tonumber(L, 2);
-  else
-    luaL_error(L, "Argument 2 must be a real or complex number.");
-  lua_push_complex(L, cpow(z, p));
-  return 1;
-}
-
 static lua_module_function complex_funcs[] = {
   {"new", z_new},
   {"abs", z_abs},
@@ -138,6 +124,20 @@ static int z_unm(lua_State* L)
   return 1;
 }
 
+static int z_pow(lua_State* L)
+{
+  complex_t z = lua_to_complex(L, 1);
+  complex_t p = 0.0;
+  if (lua_is_complex(L, 2))
+    p = lua_to_complex(L, 2);
+  else if (lua_isnumber(L, 2))
+    p = lua_tonumber(L, 2);
+  else
+    luaL_error(L, "Argument 2 must be a real or complex number.");
+  lua_push_complex(L, cpow(z, p));
+  return 1;
+}
+
 static int z_tostring(lua_State* L)
 {
   complex_t z = lua_to_complex(L, 1);
@@ -151,6 +151,7 @@ static lua_record_metamethod complex_mm[] = {
   {"__mul", z_mul},
   {"__div", z_div},
   {"__unm", z_unm},
+  {"__pow", z_pow},
   {"__tostring", z_tostring},
   {NULL, NULL}
 };
