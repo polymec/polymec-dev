@@ -8,7 +8,8 @@
 #include "core/array.h"
 #include "model/model_probe.h"
 
-DEFINE_ARRAY(callback_array, void (*callback)(void*, real_t, tensor_t*))
+typedef void (*callback_t)(void*, real_t, tensor_t*);
+DEFINE_ARRAY(callback_array, callback_t)
 
 struct model_probe_t
 {

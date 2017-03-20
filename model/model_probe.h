@@ -45,7 +45,7 @@ char* model_probe_name(model_probe_t* probe);
 int model_probe_datum_rank(model_probe_t* probe);
 
 // Returns the shape (a rank-sized array) of the tensor data acquired by this probe.
-size_t model_probe_datum_shape(model_probe_t* probe);
+size_t* model_probe_datum_shape(model_probe_t* probe);
 
 // Allocates and returns a tensor of sufficient size to hold an aquisition.
 tensor_t* model_probe_new_datum(model_probe_t* probe);
