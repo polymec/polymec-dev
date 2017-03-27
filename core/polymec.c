@@ -94,13 +94,13 @@ static bool polymec_initialized_mpi = false;
 
 // Functions to call after initialization.
 typedef void (*atinit_func)(int argc, char** argv);
-static atinit_func _atinit_funcs[64];
-static int _num_atinit_funcs = 0;
+DEFINE_ARRAY(atinit_array, atinit_func)
+static atinit_array_t* _atinit_funcs = NULL;
 
 // Functions to call on exit.
 typedef void (*atexit_func)();
-static atexit_func _atexit_funcs[64];
-static int _num_atexit_funcs = 0;
+DEFINE_ARRAY(atexit_array, atexit_func)
+static atexit_array_t* _atexit_funcs = NULL;
 
 static void shutdown()
 {
@@ -141,9 +141,15 @@ static void shutdown()
   }
 
   // Call shutdown functions.
-  log_debug("polymec: Calling %d shutdown functions.", _num_atexit_funcs);
-  for (int i = 0; i < _num_atexit_funcs; ++i)
-    _atexit_funcs[i]();
+  log_debug("polymec: Calling %d shutdown functions.", _atexit_funcs);
+  for (size_t i = 0; i < _atexit_funcs->size; ++i)
+    _atexit_funcs->data[i]();
+
+  // Final clean up.
+  atinit_array_free(_atinit_funcs);
+  _atinit_funcs = NULL;
+  atexit_array_free(_atexit_funcs);
+  _atexit_funcs = NULL;
 
   // Shut down MPI if we're supposed to.
   if (polymec_initialized_mpi)
@@ -350,8 +356,7 @@ static void pause_if_requested()
 void polymec_atinit(void (*func)(int argc, char** argv))
 {
   ASSERT(!polymec_initialized);
-  ASSERT(_num_atinit_funcs < 64);
-  _atinit_funcs[_num_atinit_funcs++] = func;
+  atinit_array_append(_atinit_funcs, func);
 }
 
 void polymec_init(int argc, char** argv)
@@ -360,6 +365,10 @@ void polymec_init(int argc, char** argv)
   {
     // Jot down the invocation time.
     polymec_invoc_time = time(NULL);
+
+    // Set up initialization and exit function arrays.
+    _atinit_funcs = atinit_array_new();
+    _atexit_funcs = atexit_array_new();
 
     // Jot down command line args.
     polymec_argc = argc;
@@ -454,9 +463,9 @@ void polymec_init(int argc, char** argv)
 #endif
 
     // Call initialization functions.
-    log_debug("polymec: Calling %d initialization functions.", _num_atinit_funcs);
-    for (int i = 0; i < _num_atinit_funcs; ++i)
-      _atinit_funcs[i](argc, argv);
+    log_debug("polymec: Calling %d initialization functions.", _atinit_funcs->size);
+    for (size_t i = 0; i < _atinit_funcs->size; ++i)
+      _atinit_funcs->data[i](argc, argv);
 
     // Print memory information if we're debugging.
     if (log_level() == LOG_DEBUG)
@@ -620,8 +629,7 @@ void polymec_not_implemented(const char* component)
 
 void polymec_atexit(void (*func)()) 
 {
-  ASSERT(_num_atexit_funcs < 64);
-  _atexit_funcs[_num_atexit_funcs++] = func;
+  atexit_array_append(_atexit_funcs, func);
 }
 
 void polymec_version_fprintf(const char* exe_name, FILE* stream)
