@@ -324,6 +324,18 @@ void polymec_init(int argc, char** argv);
 // Registers a function to be called upon exit.
 void polymec_atexit(void (*func)(void));
 
+// Adds the given absolute path to the list of directories that polymec 
+// searches for dynamically loadable libraries. If the directory doesn't 
+// exist, this function has no effect.
+void polymec_add_dl_path(const char* path);
+
+// Attempts to dynamically load the library with the given name, searching 
+// polymec's list of paths for dynamically loadable libraries. If polymec
+// successfully loads the library, this function returns a pointer to it.
+// Otherwise it returns NULL. NOTE: lib_name should be the name of the library,
+// excluding the lib prefix and suffix.
+void* polymec_dlopen(const char* lib_name);
+
 // This function writes version information to the given file descriptor.
 void polymec_version_fprintf(const char* exe_name, FILE* stream);
 

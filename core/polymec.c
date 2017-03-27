@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <signal.h>
 #include <gc/gc.h>
+#include <dlfcn.h>
 #include "arena/proto.h"
 #include "arena/pool.h"
 #include "silo.h"
@@ -19,6 +20,7 @@
 #include "core/array.h"
 #include "core/timer.h"
 #include "core/memory_info.h"
+#include "core/file_utils.h"
 #include "core/string_utils.h"
 
 #if POLYMEC_HAVE_OPENMP
@@ -92,6 +94,9 @@ static MPI_Errhandler mpi_error_handler;
 // Are we responsible for finalizing MPI?
 static bool polymec_initialized_mpi = false;
 
+// Directories to search for dynamically loadable libs.
+static string_array_t* _dl_paths = NULL;
+
 // Functions to call after initialization.
 typedef void (*atinit_func)(int argc, char** argv);
 DEFINE_ARRAY(atinit_array, atinit_func)
@@ -146,6 +151,8 @@ static void shutdown()
     _atexit_funcs->data[i]();
 
   // Final clean up.
+  string_array_free(_dl_paths);
+  _dl_paths = NULL;
   atinit_array_free(_atinit_funcs);
   _atinit_funcs = NULL;
   atexit_array_free(_atexit_funcs);
@@ -369,6 +376,9 @@ void polymec_init(int argc, char** argv)
     // Set up initialization and exit function arrays.
     _atinit_funcs = atinit_array_new();
     _atexit_funcs = atexit_array_new();
+
+    // Paths to search for dynamically loadable libraries.
+    _dl_paths = string_array_new();
 
     // Jot down command line args.
     polymec_argc = argc;
@@ -630,6 +640,31 @@ void polymec_not_implemented(const char* component)
 void polymec_atexit(void (*func)()) 
 {
   atexit_array_append(_atexit_funcs, func);
+}
+
+
+void polymec_add_dl_path(const char* path)
+{
+  ASSERT(polymec_initialized);
+  ASSERT(path != NULL);
+  if (directory_exists(path))
+    string_array_append(_dl_paths, (char*)path);
+}
+
+void* polymec_dlopen(const char* lib_name)
+{
+  void* lib = NULL;
+  for (size_t i = 0; i < _dl_paths->size; ++i)
+  {
+    char full_path[FILENAME_MAX+1];
+    snprintf(full_path, FILENAME_MAX, "%s/lib%s%s", _dl_paths->data[i], 
+             lib_name, SHARED_LIBRARY_SUFFIX);
+    if (file_exists(full_path))
+      lib = dlopen(full_path, RTLD_NOW);
+    if (lib != NULL)
+      break;
+  }
+  return lib;
 }
 
 void polymec_version_fprintf(const char* exe_name, FILE* stream)
