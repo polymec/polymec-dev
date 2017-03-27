@@ -18,6 +18,9 @@ typedef struct gfx_figure_t gfx_figure_t;
 // garbage collected.
 typedef struct gfx_page_t gfx_page_t;
 
+// Returns true if graphics are available to Polymec, false if not.
+bool gfx_enabled(void);
+
 // Font families.
 typedef enum
 {
@@ -43,7 +46,27 @@ typedef enum
   GFX_FONT_BOLD
 } gfx_font_weight_t;
 
-// Creates a new figure on its own page.
+// An aggregated font structure. Use this to specify a font for text.
+typedef struct
+{
+  gfx_font_family_t family;
+  gfx_font_style_t style;
+  gfx_font_weight_t weight;
+} gfx_font_t;
+
+// Sets fonts to use for all figures on all pages.
+void gfx_set_fonts(gfx_font_t title_font,
+                   gfx_font_t axis_font,
+                   gfx_font_t annotation_font);
+
+// Defines a colormap by linearly interpolating between a list of discrete 
+// colors.
+void gfx_figure_define_colormap(gfx_figure_t* fig,
+                                const char* colormap_name,
+                                int* rgba_colors,
+                                size_t num_colors);
+
+// Creates a new figure on its own new page.
 gfx_figure_t* gfx_figure_new();
 
 // Returns an internal pointer to the page for the given figure.
@@ -62,44 +85,39 @@ void gfx_figure_set_z_label(gfx_figure_t* fig, const char* label);
 // Sets the title of the figure.
 void gfx_figure_set_title(gfx_figure_t* fig, const char* title);
 
-// Sets the discrete color map for the figure by specifying a given 
-// set of RGBA colors.
-void gfx_figure_set_discrete_colors(gfx_figure_t* fig,
-                                    int* rgba,
-                                    size_t num_colors);
+// Sets colors for the figure by specifying a list of RGBA colors.
+void gfx_figure_set_colors(gfx_figure_t* fig,
+                           int* rgba_colors,
+                           size_t num_colors);
 
-// Sets the continuous color map for the figure by specifying a given 
-// set of RGBA colors.
-void gfx_figure_set_cont_colors(gfx_figure_t* fig,
-                                int* rgba,
-                                size_t num_points);
+// Sets the continuous color map used for the figure by specifying 
+// its name. New colormaps are defined using gfx_define_colormap.
+void gfx_figure_set_colormap(gfx_figure_t* fig,
+                             const char* colormap_name);
 
-// Sets the font to use for subsequent text, specifying the family, style, 
-// and weight.
-void gfx_figure_set_font(gfx_figure_t* fig,
-                         gfx_font_family_t family,
-                         gfx_font_style_t style,
-                         gfx_font_weight_t weight);
-
-// Adds a color bar to the figure, or resets the existing one.
-void gfx_figure_colorbar(gfx_figure_t* fig);
+// Adds a color bar to the figure at the given coordinates, or resets the 
+// existing one.
+void gfx_figure_colorbar(gfx_figure_t* fig, 
+                         double x, 
+                         double y);
 
 // Adds a legend to the figure, or resets the existing one.
-void gfx_figure_legend(gfx_figure_t* fig);
+void gfx_figure_legend(gfx_figure_t* fig,
+                       double x, 
+                       double y);
 
 // Generates a curve consisting of n (x, y) points into the given figure. If 
-// label is non-NULL, the plot will be annotated in any associated legend.
+// annotation is non-NULL, the plot will be annotated in any associated 
+// legend. If glyph is non-NULL, a glyph corresponding to its Unicode value 
+// will be used to plot data points--otherwise a line will be drawn through 
+// the points.
 void gfx_figure_plot(gfx_figure_t* fig, 
                      real_t* x, 
                      real_t* y, 
                      size_t n,
-                     char* label);
-
-// Generates a scatter plot of n (x, y) point data in the given figure. 
-void gfx_figure_scatter(gfx_figure_t* fig,
-                        real_t* x, 
-                        real_t* y,
-                        size_t n);
+                     const char* glyph,
+                     int rgba_color,
+                     const char* label);
 
 // Generates a contour plot in the given figure.
 void gfx_figure_contour(gfx_figure_t* fig);
@@ -112,6 +130,13 @@ void gfx_figure_quiver(gfx_figure_t* fig);
 
 // Generates an image in the given figure.
 void gfx_figure_image(gfx_figure_t* fig);
+
+// Writes the given annotation onto the figure at the given coordinates within 
+// the figure.
+void gfx_figure_annotate(gfx_figure_t* fig, 
+                         const char* text,
+                         double x,
+                         double y);
 
 // Clears the given figure.
 void gfx_figure_clear(gfx_figure_t* fig);
