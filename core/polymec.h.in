@@ -329,6 +329,10 @@ void polymec_atexit(void (*func)(void));
 // exist, this function has no effect.
 void polymec_add_dl_path(const char* path);
 
+// Traverses all of the absolute paths that polymec searches for dynamically 
+// loadable libraries. Set pos to 0 to reset the traversal.
+bool polymec_next_dl_path(int* pos, const char** path);
+
 // Attempts to dynamically load the library with the given name, searching 
 // polymec's list of paths for dynamically loadable libraries. If polymec
 // successfully loads the library, this function returns a pointer to it.

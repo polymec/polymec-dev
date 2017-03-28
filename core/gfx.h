@@ -90,6 +90,9 @@ void gfx_figure_set_z_label(gfx_figure_t* fig, const char* label);
 // Sets the title of the figure.
 void gfx_figure_set_title(gfx_figure_t* fig, const char* title);
 
+// Returns the title of the figure.
+char* gfx_figure_title(gfx_figure_t* fig);
+
 // Adds a color bar to the figure at the given coordinates, or resets the 
 // existing one.
 void gfx_figure_colorbar(gfx_figure_t* fig, 

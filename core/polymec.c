@@ -642,13 +642,17 @@ void polymec_atexit(void (*func)())
   atexit_array_append(_atexit_funcs, func);
 }
 
-
 void polymec_add_dl_path(const char* path)
 {
   ASSERT(polymec_initialized);
   ASSERT(path != NULL);
   if (directory_exists(path))
     string_array_append(_dl_paths, (char*)path);
+}
+
+bool polymec_next_dl_path(int* pos, const char** path)
+{
+  return string_array_next(_dl_paths, pos, (char**)path);
 }
 
 void* polymec_dlopen(const char* lib_name)

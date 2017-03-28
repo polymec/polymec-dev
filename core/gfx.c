@@ -137,7 +137,6 @@ static void gfx_load()
     _gfx->colormaps = string_ptr_unordered_map_new();
     _gfx->palettes = string_ptr_unordered_map_new();
   }
-  _gfx->pages = ptr_array_new();
   _gfx->loaded = true;
 
   // Set up default font.
@@ -174,6 +173,7 @@ static gfx_t* gfx_instance()
     _gfx = polymec_malloc(sizeof(gfx_t));
     _gfx->loaded = false;
     _gfx->plplot = NULL;
+    _gfx->pages = ptr_array_new();
     polymec_atexit(gfx_finalize);
   }
 
@@ -189,7 +189,7 @@ static gfx_t* gfx_instance()
 
 bool gfx_enabled()
 {
-  return (gfx_instance() != NULL);
+  return ((gfx_instance() != NULL) && _gfx->loaded);
 }
 
 void gfx_set_font(gfx_font_t font)
@@ -316,6 +316,11 @@ void gfx_figure_set_title(gfx_figure_t* fig, const char* title)
 {
   string_free(fig->title);
   fig->title = string_dup(title);
+}
+
+char* gfx_figure_title(gfx_figure_t* fig)
+{
+  return fig->title;
 }
 
 void gfx_figure_colorbar(gfx_figure_t* fig,

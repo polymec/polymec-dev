@@ -12,7 +12,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-static int gfx_page_figure(lua_State* L)
+static int gfx_page_fig(lua_State* L)
 {
   gfx_page_t* page = lua_to_gfx_page(L, 1);
 
@@ -46,79 +46,158 @@ static int gfx_page_figure(lua_State* L)
     col = (int)lua_tointeger(L, 2);
   }
 
-  if ((row < 1) || (row > page->nrows))
+  int num_rows = gfx_page_num_rows(page);
+  if ((row < 1) || (row > num_rows))
   {
-    if (page->nrows > 1)
-      return luaL_error(L, "row must be between 1 and %d.", page->nrows);
+    if (num_rows > 1)
+      return luaL_error(L, "row must be between 1 and %d.", num_rows);
     else
       return luaL_error(L, "row must be between 1.");
   }
-  if ((col < 1) || (col > page->ncols))
+  int num_cols = gfx_page_num_columns(page);
+  if ((col < 1) || (col > num_cols))
   {
-    if (page->ncols > 1)
-      return luaL_error(L, "columm must be between 1 and %d.", page->ncols);
+    if (num_cols > 1)
+      return luaL_error(L, "columm must be between 1 and %d.", num_cols);
     else
       return luaL_error(L, "column must be between 1.");
   }
 
-  int fig_index = row*page->ncols + col;
-  gfx_fig_t* fig = page->figures->data[fig_index];
-  lua_push_object(L, "gfx.figure", fig, NULL);
+  gfx_figure_t* fig = gfx_page_figure(page, row, col);
+  lua_push_gfx_figure(L, fig);
   return 1;
 }
 
 static int gfx_page_tostring(lua_State* L)
 {
   gfx_page_t* page = luaL_checkudata(L, 1, "gfx.page");
-  lua_pushfstring(L, "gfx.page (%i figures)", (int)(page->figures->size));
+  lua_pushfstring(L, "gfx.page (%i x %i figures)", gfx_page_num_rows(page),
+                  gfx_page_num_columns(page));
   return 1;
 }
 
 static lua_class_method gfx_page_methods[] = {
-  {"figure", gfx_page_figure},
+  {"figure", gfx_page_fig},
   {"__tostring", gfx_page_tostring},
   {NULL, NULL}
 };
 
 static int gfx_fig_x_axis(lua_State* L)
 {
+//  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
   return 0;
 }
 
 static int gfx_fig_y_axis(lua_State* L)
 {
+//  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  return 0;
+}
+
+static int gfx_fig_z_axis(lua_State* L)
+{
+//  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
   return 0;
 }
 
 static int gfx_fig_title(lua_State* L)
 {
+  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || !lua_isstring(L, 2))
+    return luaL_error(L, "Argument must be a title for the figure.");
+
+  const char* title = lua_tostring(L, 2);
+  gfx_figure_set_title(fig, title);
+  return 0;
+}
+
+static int gfx_fig_plot(lua_State* L)
+{
+  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  gfx_figure_plot(fig, NULL, NULL, 0, "glyphy", 0, "label");
+  return 0;
+}
+
+static int gfx_fig_contour(lua_State* L)
+{
+  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  gfx_figure_contour(fig);
+  return 0;
+}
+
+static int gfx_fig_surface(lua_State* L)
+{
+  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  gfx_figure_surface(fig);
+  return 0;
+}
+
+static int gfx_fig_quiver(lua_State* L)
+{
+  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  gfx_figure_quiver(fig);
+  return 0;
+}
+
+static int gfx_fig_image(lua_State* L)
+{
+  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  gfx_figure_image(fig);
+  return 0;
+}
+
+static int gfx_fig_clear(lua_State* L)
+{
+  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  gfx_figure_clear(fig);
   return 0;
 }
 
 static int gfx_fig_colorbar(lua_State* L)
 {
+  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  gfx_figure_colorbar(fig, 0.0, 0.0);
   return 0;
 }
 
 static int gfx_fig_legend(lua_State* L)
 {
+  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  gfx_figure_legend(fig, 0.0, 0.0);
   return 0;
 }
 
 static int gfx_fig_tostring(lua_State* L)
 {
-  return 0;
+  gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
+  lua_pushfstring(L, "gfx.figure('%s')", gfx_figure_title(fig));
+  return 1;
 }
 
 static lua_class_method gfx_fig_methods[] = {
   {"x_axis", gfx_fig_x_axis},
   {"y_axis", gfx_fig_y_axis},
+  {"z_axis", gfx_fig_z_axis},
   {"title", gfx_fig_title},
+  {"plot", gfx_fig_plot},
+  {"contour", gfx_fig_contour},
+  {"surface", gfx_fig_surface},
+  {"quiver", gfx_fig_quiver},
+  {"image", gfx_fig_image},
+  {"clear", gfx_fig_clear},
   {"colorbar", gfx_fig_colorbar},
   {"legend", gfx_fig_legend},
   {"__tostring", gfx_fig_tostring},
   {NULL, NULL}
 };
+
+static int gfx_figure(lua_State* L)
+{
+  gfx_figure_t* fig = gfx_figure_new();
+  lua_push_gfx_figure(L, fig);
+  return 1;
+}
 
 static int gfx_page(lua_State* L)
 {
@@ -152,120 +231,14 @@ static int gfx_page(lua_State* L)
     ncols = (int)lua_tointeger(L, 2);
   }
 
-  gfx_t* gfx = gfx_instance(L);
-  gfx_page_t* page = gfx_page_new(L, nrows, ncols);
-  ptr_array_append_with_dtor(gfx->pages, page, DTOR(gfx_page_free));
-  lua_push_object(L, "gfx.page", page, NULL);
+  gfx_page_t* page = gfx_page_new(nrows, ncols);
+  lua_push_gfx_page(L, page);
   return 1;
-}
-
-static int gfx_plot(lua_State* L)
-{
-  gfx_fig_t* fig = gfx_current_figure(L);
-  if (fig != NULL)
-  {
-    lua_push_object(L, "gfx.figure", fig, NULL);
-    return 1;
-  }
-  else
-    return 0;
-}
-
-static int gfx_scatter(lua_State* L)
-{
-  gfx_fig_t* fig = gfx_current_figure(L);
-  if (fig != NULL)
-  {
-    lua_push_object(L, "gfx.figure", fig, NULL);
-    return 1;
-  }
-  else
-    return 0;
-}
-
-static int gfx_contour(lua_State* L)
-{
-  gfx_fig_t* fig = gfx_current_figure(L);
-  if (fig != NULL)
-  {
-    lua_push_object(L, "gfx.figure", fig, NULL);
-    return 1;
-  }
-  else
-    return 0;
-}
-
-static int gfx_surface(lua_State* L)
-{
-  gfx_fig_t* fig = gfx_current_figure(L);
-  if (fig != NULL)
-  {
-    lua_push_object(L, "gfx.figure", fig, NULL);
-    return 1;
-  }
-  else
-    return 0;
-}
-
-static int gfx_quiver(lua_State* L)
-{
-  gfx_fig_t* fig = gfx_current_figure(L);
-  if (fig != NULL)
-  {
-    lua_push_object(L, "gfx.figure", fig, NULL);
-    return 1;
-  }
-  else
-    return 0;
-}
-
-static int gfx_surface3d(lua_State* L)
-{
-  gfx_fig_t* fig = gfx_current_figure(L);
-  if (fig != NULL)
-  {
-    lua_push_object(L, "gfx.figure", fig, NULL);
-    return 1;
-  }
-  else
-    return 0;
-}
-
-static int gfx_image(lua_State* L)
-{
-  gfx_fig_t* fig = gfx_current_figure(L);
-  if (fig != NULL)
-  {
-    lua_push_object(L, "gfx.figure", fig, NULL);
-    return 1;
-  }
-  else
-    return 0;
-}
-
-static int gfx_clear(lua_State* L)
-{
-  gfx_fig_t* fig = gfx_current_figure(L);
-  if (fig != NULL)
-  {
-    lua_push_object(L, "gfx.figure", fig, NULL);
-    return 1;
-  }
-  else
-    return 0;
 }
 
 static lua_module_function gfx_functions[] = {
   {"page", gfx_page},
   {"figure", gfx_figure},
-  {"plot", gfx_plot},
-  {"scatter", gfx_scatter},
-  {"contour", gfx_contour},
-  {"surface", gfx_surface},
-  {"quiver", gfx_quiver},
-  {"surface3d", gfx_surface3d},
-  {"image", gfx_image},
-  {"clear", gfx_clear},
   {NULL, NULL}
 };
 
@@ -302,13 +275,13 @@ void lua_push_gfx_page(lua_State* L, gfx_page_t* page)
   lua_push_object(L, "gfx.page", page, NULL);
 }
 
-bool lua_is_gfx_page(lua_State* L, int index);
+bool lua_is_gfx_page(lua_State* L, int index)
 {
   return lua_is_object(L, index, "gfx.page");
 }
 
 gfx_page_t* lua_to_gfx_page(lua_State* L, int index)
 {
-  return (gfx_figure_t*)lua_to_object(L, index, "gfx.page");
+  return (gfx_page_t*)lua_to_object(L, index, "gfx.page");
 }
 
