@@ -8,6 +8,7 @@
 #include "core/polymec.h"
 #include "core/options.h"
 #include "core/lua_core.h"
+#include "core/gfx.h"
 #include "core/partition_mesh.h"
 
 #include "lua.h"
@@ -1651,6 +1652,7 @@ static void lua_register_options(lua_State* L)
 //                                API 
 //------------------------------------------------------------------------
 extern int lua_register_array(lua_State* L); // defined in lua_array.c
+//extern int lua_register_gfx(lua_State* L);   // defined in lua_gfx.c
 
 int lua_register_core_modules(lua_State* L)
 {
@@ -1672,6 +1674,10 @@ int lua_register_core_modules(lua_State* L)
 
   // Register the options table.
   lua_register_options(L);
+
+  // Register the gfx module if it's available.
+//  if (gfx_enabled())
+//    lua_register_gfx();
 
   return 0;
 }

@@ -54,20 +54,25 @@ typedef struct
   gfx_font_weight_t weight;
 } gfx_font_t;
 
-// Sets fonts to use for all figures on all pages.
-void gfx_set_fonts(gfx_font_t title_font,
-                   gfx_font_t axis_font,
-                   gfx_font_t annotation_font);
+// Sets the font to use for all figures on all pages.
+void gfx_set_font(gfx_font_t font);
 
 // Defines a colormap by linearly interpolating between a list of discrete 
 // colors.
-void gfx_figure_define_colormap(gfx_figure_t* fig,
-                                const char* colormap_name,
-                                int* rgba_colors,
-                                size_t num_colors);
+void gfx_define_colormap(const char* colormap_name,
+                         int* rgba_colors,
+                         size_t num_colors);
+
+// Defines a palette of discrete colors comprising a list of RGBA colors.
+void gfx_define_palette(const char* palette_name,
+                        int* rgba_colors,
+                        size_t num_colors);
+
+// Sets the palette to use for plots.
+void gfx_set_palette(const char* palette_name);
 
 // Creates a new figure on its own new page.
-gfx_figure_t* gfx_figure_new();
+gfx_figure_t* gfx_figure_new(void);
 
 // Returns an internal pointer to the page for the given figure.
 gfx_page_t* gfx_figure_page(gfx_figure_t* fig);
@@ -84,16 +89,6 @@ void gfx_figure_set_z_label(gfx_figure_t* fig, const char* label);
 
 // Sets the title of the figure.
 void gfx_figure_set_title(gfx_figure_t* fig, const char* title);
-
-// Sets colors for the figure by specifying a list of RGBA colors.
-void gfx_figure_set_colors(gfx_figure_t* fig,
-                           int* rgba_colors,
-                           size_t num_colors);
-
-// Sets the continuous color map used for the figure by specifying 
-// its name. New colormaps are defined using gfx_define_colormap.
-void gfx_figure_set_colormap(gfx_figure_t* fig,
-                             const char* colormap_name);
 
 // Adds a color bar to the figure at the given coordinates, or resets the 
 // existing one.
@@ -116,7 +111,7 @@ void gfx_figure_plot(gfx_figure_t* fig,
                      real_t* y, 
                      size_t n,
                      const char* glyph,
-                     int rgba_color,
+                     int color,
                      const char* label);
 
 // Generates a contour plot in the given figure.

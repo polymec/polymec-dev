@@ -5,169 +5,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <dlfcn.h>
 #include "core/lua_core.h"
+#include "core/lua_gfx.h"
 
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
 
-typedef struct
-{
-  int page_index;  // Page index.
-  int index; // Figure index within its page.
-} gfx_fig_t;
-
-typedef struct
-{
-  int index;
-  int nrows, ncols;
-  ptr_array_t* figures;
-  size_t current_fig;
-} gfx_page_t;
-
-// Global graphics context.
-typedef struct
-{
-  lua_State* L;
-  char path[FILENAME_MAX+1];
-
-  // PlPlot functions.
-  bool loaded;
-  void* plplot;
-  void (*plinit)();
-  void (*plend)();
-  void (*pladv)(int);
-  void (*plssub)(int, int);
-  void (*plstring)(int, double*, double*, const char*);
-
-  // Pages.
-  ptr_array_t* pages;
-  size_t current_page;
-} gfx_t;
-
-static gfx_t* _gfx = NULL;
-
-// Use this to retrieve symbols from dynamically loaded libraries.
-#define FETCH_SYMBOL(dylib, symbol_name, function_ptr, fail_label) \
-  { \
-    void* ptr = dlsym(dylib, symbol_name); \
-    if (ptr == NULL) \
-    { \
-      log_urgent("%s: unable to find %s in dynamic library.", __func__, symbol_name); \
-      goto fail_label; \
-    } \
-    *((void**)&(function_ptr)) = ptr; \
-  } 
-
-static void gfx_load()
-{
-  ASSERT(_gfx != NULL);
-
-  // Try to discover the path to plplot.
-  lua_getglobal(_gfx->L, "gfx");
-  lua_getfield(_gfx->L, -1, "plplot_path");
-  char plplot_path[FILENAME_MAX+1];
-  if (!lua_isstring(_gfx->L, -1))
-    strncpy(plplot_path, "INVALID_PLPLOT_PATH", FILENAME_MAX);
-  else
-    strncpy(plplot_path, lua_tostring(_gfx->L, -1), FILENAME_MAX);
-
-  // Try to find the library.
-  void* plplot = dlopen(plplot_path, RTLD_NOW);
-#define FETCH_PLPLOT_SYMBOL(symbol_name) \
-  FETCH_SYMBOL(plplot, #symbol_name, _gfx->symbol_name, failure);
-  FETCH_PLPLOT_SYMBOL(plinit);
-  FETCH_PLPLOT_SYMBOL(plend);
-  FETCH_PLPLOT_SYMBOL(pladv);
-  FETCH_PLPLOT_SYMBOL(plssub);
-  FETCH_PLPLOT_SYMBOL(plstring);
-#undef FETCH_PLPLOT_SYMBOL
-
-  _gfx->plplot = plplot;
-  _gfx->pages = ptr_array_new();
-  strncpy(_gfx->path, plplot_path, FILENAME_MAX);
-  _gfx->loaded = true;
-  return;
-
-failure:
-  dlclose(plplot);
-  log_info("Could not load plplot library from %s.", plplot_path);
-  _gfx->loaded = false;
-}
-
-static void gfx_finalize()
-{
-  ptr_array_free(_gfx->pages);
-  polymec_free(_gfx);
-  _gfx = NULL;
-}
-
-static gfx_t* gfx_instance(lua_State* L)
-{
-  if (_gfx == NULL)
-  {
-    _gfx = polymec_malloc(sizeof(gfx_t));
-    _gfx->L = L;
-    _gfx->loaded = false;
-    polymec_atexit(gfx_finalize);
-  }
-
-  // Keep trying to load.
-  if (!_gfx->loaded)
-    gfx_load();
-
-  return _gfx;
-}
-
-static gfx_fig_t* gfx_current_figure(lua_State* L)
-{
-  gfx_t* gfx = gfx_instance(L);
-  gfx_page_t* page = gfx->pages->data[gfx->current_page];
-  return page->figures->data[page->current_fig];
-}
-
-static void gfx_page_free(gfx_page_t* page)
-{
-  ptr_array_free(page->figures);
-  polymec_free(page);
-}
-
-static gfx_fig_t* gfx_figure_new(int page_index, int fig_index)
-{
-  ASSERT(page_index > 0);
-  ASSERT(fig_index > 0);
-
-  gfx_fig_t* fig = polymec_malloc(sizeof(gfx_fig_t));
-  fig->page_index = page_index;
-  fig->index = fig_index;
-  return fig;
-}
-
-static gfx_page_t* gfx_page_new(lua_State* L, int nrows, int ncols)
-{
-  ASSERT(nrows > 0);
-  ASSERT(ncols > 0);
-
-  gfx_t* gfx = gfx_instance(L);
-  gfx_page_t* page = polymec_malloc(sizeof(gfx_page_t));
-  page->index = (int)gfx->pages->size+1;
-  page->nrows = nrows;
-  page->ncols = ncols;
-  page->figures = ptr_array_new();
-  for (int i = 0; i < nrows*ncols; ++i)
-  {
-    gfx_fig_t* fig = gfx_figure_new(page->index, i);
-    ptr_array_append_with_dtor(page->figures, fig, polymec_free);
-  }
-
-  page->current_fig = 0;
-  return page;
-}
-
 static int gfx_page_figure(lua_State* L)
 {
-  gfx_page_t* page = luaL_checkudata(L, 1, "gfx.page");
+  gfx_page_t* page = lua_to_gfx_page(L, 1);
 
   int num_args = lua_gettop(L);
   if ((num_args != 2) && (num_args != 3))
@@ -410,6 +257,7 @@ static int gfx_clear(lua_State* L)
 
 static lua_module_function gfx_functions[] = {
   {"page", gfx_page},
+  {"figure", gfx_figure},
   {"plot", gfx_plot},
   {"scatter", gfx_scatter},
   {"contour", gfx_contour},
@@ -432,9 +280,35 @@ void lua_register_gfx(lua_State* L)
 
   // Define the gfx module itself.
   lua_register_module(L, "gfx", gfx_functions);
+}
 
-  // Add a candidate path to the gfx table.
-  lua_pushstring(L, "/usr/local/lib/libplpath.so");
-  lua_setfield(L, -2, "plplot_path");
+void lua_push_gfx_figure(lua_State* L, gfx_figure_t* fig)
+{
+  lua_push_object(L, "gfx.figure", fig, NULL);
+}
+
+bool lua_is_gfx_figure(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "gfx.figure");
+}
+
+gfx_figure_t* lua_to_gfx_figure(lua_State* L, int index)
+{
+  return (gfx_figure_t*)lua_to_object(L, index, "gfx.figure");
+}
+
+void lua_push_gfx_page(lua_State* L, gfx_page_t* page)
+{
+  lua_push_object(L, "gfx.page", page, NULL);
+}
+
+bool lua_is_gfx_page(lua_State* L, int index);
+{
+  return lua_is_object(L, index, "gfx.page");
+}
+
+gfx_page_t* lua_to_gfx_page(lua_State* L, int index)
+{
+  return (gfx_figure_t*)lua_to_object(L, index, "gfx.page");
 }
 
