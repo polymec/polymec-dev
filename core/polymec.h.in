@@ -340,6 +340,14 @@ bool polymec_next_dl_path(int* pos, const char** path);
 // excluding the lib prefix and suffix.
 void* polymec_dlopen(const char* lib_name);
 
+// Retrieves the symbol with the given name from the given dynamically loaded 
+// library (which was obtained using polymec_dlopen).
+void* polymec_dlsym(void* library, const char* symbol_name);
+
+// Closes the previously open dynamically loaded library (which was obtained 
+// using polymec_dlopen).
+void polymec_dlclose(void* library);
+
 // This function writes version information to the given file descriptor.
 void polymec_version_fprintf(const char* exe_name, FILE* stream);
 

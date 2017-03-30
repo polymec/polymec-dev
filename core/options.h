@@ -27,15 +27,19 @@ void options_parse(int argc, char** argv);
 
 // Returns an internal string holding the numbered argument passed on the 
 // command line, in the same way argv would store it, or NULL if no such 
-// argument was given.
-char* options_argument(options_t* opts, int n);
+// argument was given. 
+char* options_argument(options_t* opts, size_t n);
 
 // Returns the number of arguments given on the command line.
-int options_num_arguments(options_t* opts);
+size_t options_num_arguments(options_t* opts);
 
 // Returns true if the given argument was passed to the command line,
 // with or without an associated value. False otherwise.
 bool options_has_argument(options_t* opts, const char* arg);
+
+// Removes the given argument from the list. Use with caution. This has 
+// no effect if the given argument doesn't exist.
+void options_remove_argument(options_t* opts, size_t n);
 
 // Returns a string holding the given named value, or NULL if no such 
 // parameter exists within opts.

@@ -146,7 +146,7 @@ static void shutdown()
   }
 
   // Call shutdown functions.
-  log_debug("polymec: Calling %d shutdown functions.", _atexit_funcs);
+  log_debug("polymec: Calling %zu shutdown functions.", _atexit_funcs->size);
   for (size_t i = 0; i < _atexit_funcs->size; ++i)
     _atexit_funcs->data[i]();
 
@@ -197,36 +197,8 @@ static noreturn void handle_silo_error(char* message)
 static void set_up_logging()
 {
   options_t* opts = options_argv();
-  bool free_logging = false, free_logging_mode = false;
   char* logging = options_value(opts, "logging");
   char* logging_mode = options_value(opts, "logging_mode");
-  if (logging == NULL)
-  {
-    // Are we maybe in a test environment, in which the logging=xxx 
-    // argument is the first one passed?
-    char* arg = options_argument(opts, 1);
-    if ((arg != NULL) && (strstr(arg, "logging") != NULL) && (string_casecmp(arg, "logging=") != 0))
-    {
-      int num_words;
-      char** words = string_split(arg, "=", &num_words);
-      if (num_words == 2)
-      {
-        if (string_casecmp(words[0], "logging_mode") == 0)
-        {
-          free_logging = true;
-          logging = string_dup(words[1]);
-        }
-        else if (string_casecmp(words[0], "logging_mode") == 0)
-        {
-          free_logging_mode = true;
-          logging_mode = string_dup(words[1]);
-        }
-      }
-      for (int i = 0; i < num_words; ++i)
-        string_free(words[i]);
-      polymec_free(words);
-    }
-  }
   opts = NULL;
   if (logging != NULL)
   {
@@ -240,8 +212,6 @@ static void set_up_logging()
       set_log_level(LOG_URGENT);
     else if (!string_casecmp(logging, "off"))
       set_log_level(LOG_NONE);
-    if (free_logging)
-      string_free(logging);
   }
   if (logging_mode != NULL)
   {
@@ -267,8 +237,34 @@ static void set_up_logging()
       set_log_mpi_rank(log_level(), p);
     }
 #endif
-    if (free_logging_mode)
-      string_free(logging_mode);
+  }
+}
+
+// This sets the dynamically loadable library search path.
+static void set_up_dl_paths()
+{
+  // Paths to search for dynamically loadable libraries.
+  _dl_paths = string_array_new();
+
+  options_t* opts = options_argv();
+  char* dl_paths = options_value(opts, "dl_paths");
+  opts = NULL;
+  if (dl_paths != NULL)
+  {
+    // The paths are delimited by colons.
+    int num_paths;
+    char** paths = string_split(dl_paths, ":", &num_paths);
+    if (num_paths == 0)
+      polymec_add_dl_path(dl_paths);
+    else
+    {
+      for (int i = 0; i < num_paths; ++i)
+      {
+        polymec_add_dl_path(paths[i]);
+        string_free(paths[i]);
+      }
+      polymec_free(paths);
+    }
   }
 }
 
@@ -377,9 +373,6 @@ void polymec_init(int argc, char** argv)
     _atinit_funcs = atinit_array_new();
     _atexit_funcs = atexit_array_new();
 
-    // Paths to search for dynamically loadable libraries.
-    _dl_paths = string_array_new();
-
     // Jot down command line args.
     polymec_argc = argc;
     polymec_argv = polymec_malloc(sizeof(char*) * argc);
@@ -448,6 +441,10 @@ void polymec_init(int argc, char** argv)
     // If we are asked to set a specific logging level/mode, do so.
     set_up_logging();
 
+    // If we are given a set of paths to search for dynamically loadable libraries, 
+    // set them up here.
+    set_up_dl_paths();
+
     // If we are asked to set up threads specifically, do so.
     set_up_threads();
 
@@ -473,7 +470,7 @@ void polymec_init(int argc, char** argv)
 #endif
 
     // Call initialization functions.
-    log_debug("polymec: Calling %d initialization functions.", _atinit_funcs->size);
+    log_debug("polymec: Calling %zu initialization functions.", _atinit_funcs->size);
     for (size_t i = 0; i < _atinit_funcs->size; ++i)
       _atinit_funcs->data[i](argc, argv);
 
@@ -644,7 +641,7 @@ void polymec_atexit(void (*func)())
 
 void polymec_add_dl_path(const char* path)
 {
-  ASSERT(polymec_initialized);
+  ASSERT(_dl_paths != NULL);
   ASSERT(path != NULL);
   if (directory_exists(path))
     string_array_append(_dl_paths, (char*)path);
@@ -663,12 +660,23 @@ void* polymec_dlopen(const char* lib_name)
     char full_path[FILENAME_MAX+1];
     snprintf(full_path, FILENAME_MAX, "%s/lib%s%s", _dl_paths->data[i], 
              lib_name, SHARED_LIBRARY_SUFFIX);
+    log_debug("polymec_dlopen: Trying to open %s", full_path);
     if (file_exists(full_path))
       lib = dlopen(full_path, RTLD_NOW);
     if (lib != NULL)
       break;
   }
   return lib;
+}
+
+void* polymec_dlsym(void* library, const char* symbol_name)
+{
+  return dlsym(library, symbol_name);
+}
+
+void polymec_dlclose(void* library)
+{
+  dlclose(library);
 }
 
 void polymec_version_fprintf(const char* exe_name, FILE* stream)

@@ -267,7 +267,7 @@ static int pmain(lua_State* L)
     char* arg = options_argument(opts, i);
 
     // Disregard named values and flags.
-    if ((options_value(opts, arg) == NULL) && (arg[0] != '-')) 
+    if (!string_contains(arg, "=") && (arg[0] != '-')) 
       filename = arg;
   }
 

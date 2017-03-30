@@ -35,9 +35,10 @@ void string_free(char* s);
 
 // This function allows one to traverse a string containing a number of 
 // delimiters, reading off the tokens encountered in between the delimiters.
-// It returns false if the string has been completely traversed, true otherwise.
-// pos should be set to 0 to begin the traversal. The next token and its length
-// are stored in *token and *length, respectively.
+// It returns false if the string does not contain the given token, or if it has 
+// been completely traversed. Otherwise it returns true. pos should be set to 0 
+// to begin the traversal. The next token and its length are stored in *token and 
+// *length, respectively.
 bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, size_t* length);
 
 // Returns the number of substrings (separated by the given delimiter)

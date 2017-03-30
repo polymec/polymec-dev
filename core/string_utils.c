@@ -81,6 +81,8 @@ bool string_next_token(const char* s, const char* delimiter, int* pos, char** to
   if (*pos >= slen)
     return false;
   char* delim = strstr((const char*)&(s[*pos]), delimiter);
+  if ((delim == NULL) && (*pos == 0))
+    return false;
   *token = (char*)&(s[*pos]);
   if (delim == NULL)
   {

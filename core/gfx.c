@@ -91,22 +91,22 @@ struct gfx_page_t
 // Use this to retrieve symbols from dynamically loaded libraries.
 #define FETCH_SYMBOL(dylib, symbol_name, function_ptr, fail_label) \
   { \
-    void* ptr = dlsym(dylib, symbol_name); \
+    void* ptr = polymec_dlsym(dylib, symbol_name); \
     if (ptr == NULL) \
     { \
       log_urgent("%s: unable to find %s in dynamic library.", __func__, symbol_name); \
       goto fail_label; \
     } \
     *((void**)&(function_ptr)) = ptr; \
-  } 
+  }
+
+static int _mpi_rank = -1;
 
 static void gfx_load()
 {
   ASSERT(_gfx != NULL);
-  int mpi_rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
-  if (mpi_rank == 0)
+  if (_mpi_rank == 0)
   {
     // Try to load the library.
     void* plplot = polymec_dlopen("plplot");
@@ -136,19 +136,34 @@ static void gfx_load()
     _gfx->plinit();
     _gfx->colormaps = string_ptr_unordered_map_new();
     _gfx->palettes = string_ptr_unordered_map_new();
+    _gfx->loaded = true;
+    MPI_Bcast(&_gfx->loaded, 1, MPI_INT, 0, MPI_COMM_WORLD);
   }
-  _gfx->loaded = true;
+  else
+  {
+    int loaded;
+    MPI_Bcast(&loaded, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    _gfx->loaded = loaded;
+  }
 
-  // Set up default font.
-  gfx_font_t font = {.family = GFX_FONT_SERIF,
-                     .style = GFX_FONT_UPRIGHT,
-                     .weight = GFX_FONT_MEDIUM};
-  gfx_set_font(font);
+  if (_gfx->loaded)
+  {
+    // Set up default font.
+    gfx_font_t font = {.family = GFX_FONT_SERIF,
+                       .style = GFX_FONT_UPRIGHT,
+                       .weight = GFX_FONT_MEDIUM};
+    gfx_set_font(font);
+  }
   return;
 
 failure:
-  dlclose(_gfx->plplot);
-  log_info("Could not load plplot library.");
+  {
+    int zero = 0;
+    MPI_Bcast(&zero, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  }
+  if (_gfx->plplot != NULL)
+    polymec_dlclose(_gfx->plplot);
+  log_detail("gfx_load: Could not load plplot library.");
   _gfx->loaded = false;
 }
 
@@ -157,10 +172,13 @@ static void gfx_finalize()
   ptr_array_free(_gfx->pages);
   if (_gfx->plplot != NULL)
   {
-    string_ptr_unordered_map_free(_gfx->palettes);
-    string_ptr_unordered_map_free(_gfx->colormaps);
-    _gfx->plend();
-    dlclose(_gfx->plplot);
+    if (_mpi_rank == 0)
+    {
+      string_ptr_unordered_map_free(_gfx->palettes);
+      string_ptr_unordered_map_free(_gfx->colormaps);
+      _gfx->plend();
+      polymec_dlclose(_gfx->plplot);
+    }
   }
   polymec_free(_gfx);
   _gfx = NULL;
@@ -170,6 +188,7 @@ static gfx_t* gfx_instance()
 {
   if (_gfx == NULL)
   {
+    MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_rank);
     _gfx = polymec_malloc(sizeof(gfx_t));
     _gfx->loaded = false;
     _gfx->plplot = NULL;

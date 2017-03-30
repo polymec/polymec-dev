@@ -29,6 +29,7 @@
 // void x_array_insert_with_dtor(x_array_t* array, size_t i, x value, destructor dtor) - Inserts an x at position i within the array, using dtor to destroy when finished.
 // void x_array_assign(x_array_t* array, size_t i, x value) - Assigns an x to position i within the array.
 // void x_array_assign_with_dtor(x_array_t* array, size_t i, x value, destructor dtor) - Assigns an x to position i within the array, using dtor to destroy when finished.
+// void x_array_remove(x_array_t* array, size_t i) - Removes the ith element from the array, shifting the following elements forward by one.
 // bool x_array_empty(x_array_t* array) - Returns true if empty, false otherwise.
 // void x_array_clear(x_array_t* array) - Clears the given array, making it empty.
 // void x_array_resize(x_array_t* array, size_t new_size) - Resizes the array, keeping data intact if possible.
@@ -123,6 +124,13 @@ static inline void array_name##_free(array_name##_t* array) \
   if (array->data != NULL) \
     polymec_free(array->data); \
   polymec_free(array); \
+} \
+\
+static inline void array_name##_remove(array_name##_t* array, size_t i) \
+{ \
+  for (size_t j = i; j < array->size-1; ++j) \
+    array[j] = array[j+1]; \
+  array->size--; \
 } \
 \
 static inline bool array_name##_empty(array_name##_t* array) \

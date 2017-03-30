@@ -7,12 +7,12 @@
 
 #include "core/polymec.h"
 #include "core/options.h"
+#include "core/array.h"
 #include "core/unordered_map.h"
 
 struct options_t 
 {
-  int num_args;
-  char** args;
+  string_array_t* args;
   string_string_unordered_map_t* params;
 };
 
@@ -22,10 +22,7 @@ static options_t* argv_singleton = NULL;
 static void options_free(void* ctx)
 {
   options_t* opts = (options_t*)ctx;
-
-  for (int i = 0; i < opts->num_args; ++i)
-    polymec_free(opts->args[i]);
-  polymec_free(opts->args);
+  string_array_free(opts->args);
 
   // Delete all parameter data.
   string_string_unordered_map_free(opts->params);
@@ -40,8 +37,7 @@ static void destroy_kv(char* key, char* value)
 options_t* options_new(void)
 {
   options_t* o = polymec_gc_malloc(sizeof(options_t), options_free);
-  o->num_args = 0;
-  o->args = NULL;
+  o->args = string_array_new();
   o->params = string_string_unordered_map_new();
   return o;
 }
@@ -62,19 +58,12 @@ void options_parse(int argc, char** argv)
     argv_singleton = NULL;
   options_t* o = options_new();
 
-  // Parse the basic options.
-  o->num_args = argc;
-  o->args = polymec_malloc(sizeof(char*) * o->num_args);
-  int first_named_value = -1;
+  // Parse the options.
   for (int i = 0; i < argc; ++i)
-  {
-    if (string_contains(argv[i], "=") && (first_named_value == -1))
-      first_named_value = i;
-    o->args[i] = string_dup(argv[i]);
-  }
+    string_array_append_with_dtor(o->args, string_dup(argv[i]), string_free);
 
   // Now parse parameters.
-  int i = (first_named_value == -1) ? 0 : first_named_value;
+  int i = 0;
   while (i < argc)
   {
     // Parse a key=value pair.
@@ -105,32 +94,36 @@ void options_parse(int argc, char** argv)
   polymec_atexit(destroy_options);
 }
 
-char* options_argument(options_t* opts, int i)
+char* options_argument(options_t* opts, size_t n)
 {
-  ASSERT(i >= 0);
-  if (i < opts->num_args)
-    return opts->args[i];
+  if (n < opts->args->size)
+    return opts->args->data[n];
   else
     return NULL;
 }
 
-int options_num_arguments(options_t* opts)
+size_t options_num_arguments(options_t* opts)
 {
-  return opts->num_args;
+  return opts->args->size;
 }
 
 bool options_has_argument(options_t* opts, const char* arg)
 {
   bool has = false;
-  for (int i = 0; i < opts->num_args; ++i)
+  for (size_t i = 0; i < opts->args->size; ++i)
   {
-    if (strcmp(opts->args[i], arg) == 0)
+    if (strcmp(opts->args->data[i], arg) == 0)
     {
       has = true;
       break;
     }
   }
   return has;
+}
+
+void options_remove_argument(options_t* opts, size_t n)
+{
+  string_array_remove(opts->args, n);
 }
 
 char* options_value(options_t* opts, const char* name)
