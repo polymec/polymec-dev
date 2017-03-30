@@ -66,7 +66,7 @@ static void test_ctor(void** state, int p)
   poly = polynomial_new(p, coeffs, &x0);
   assert_int_equal(dim, polynomial_num_terms(poly));
   assert_true(point_distance(&x0, polynomial_x0(poly)) < machine_precision);
-  pos = 0, index = 0;
+  pos = 0; index = 0;
   while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
   {
     assert_true(reals_equal(coeff, coeffs[index]));

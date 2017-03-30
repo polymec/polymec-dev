@@ -261,8 +261,8 @@ static int pmain(lua_State* L)
 
   // Try to identify a file in the argument list.
   char* filename = NULL;
-  int num_args = options_num_arguments(opts);
-  for (int i = 1; i < num_args; ++i)
+  size_t num_args = options_num_arguments(opts);
+  for (size_t i = 1; i < num_args; ++i)
   {
     char* arg = options_argument(opts, i);
 

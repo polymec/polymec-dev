@@ -112,9 +112,9 @@ static void test_polynomial_fit(void** state, polynomial_t** polynomials,
   for (int c = 0; c < num_components; ++c)
     *polynomial_x0(polynomials[c]) = x0;
   polynomial_fit_reset(fit, &x0);
-  bbox.x1 += x0.x, bbox.x2 += x0.x;
-  bbox.y1 += x0.y, bbox.y2 += x0.y;
-  bbox.z1 += x0.z, bbox.z2 += x0.z;
+  bbox.x1 += x0.x; bbox.x2 += x0.x;
+  bbox.y1 += x0.y; bbox.y2 += x0.y;
+  bbox.z1 += x0.z; bbox.z2 += x0.z;
 
   assert_int_equal(0, polynomial_fit_num_equations(fit));
   for (int i = 0; i < 7; ++i)

@@ -119,7 +119,7 @@ static void node_insert(kd_tree_node_t** node_ptr, real_t* pos, int index, int d
 static void kd_tree_insert(kd_tree_t* tree, point_t* point, int index)
 {
   real_t pos[3];
-  pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
+  pos[0] = point->x; pos[1] = point->y; pos[2] = point->z;
   node_insert(&tree->root, pos, index, 0);
   ++(tree->size);
   if (tree->rect == NULL)
@@ -240,7 +240,7 @@ int kd_tree_nearest(kd_tree_t* tree, point_t* point)
   // Start with the root.
   kd_tree_node_t* node = tree->root;
   real_t pos[3];
-  pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
+  pos[0] = point->x; pos[1] = point->y; pos[2] = point->z;
   real_t r2 = square_dist(pos, node->pos);
   kd_tree_rect_t rect;
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
@@ -334,7 +334,7 @@ void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors)
 
   // Start with the root.
   real_t pos[3];
-  pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
+  pos[0] = point->x; pos[1] = point->y; pos[2] = point->z;
   kd_tree_rect_t rect;
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
   rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
@@ -404,7 +404,7 @@ int_array_t* kd_tree_within_radius(kd_tree_t* tree,
     return NULL;
 
   real_t pos[3];
-  pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
+  pos[0] = point->x; pos[1] = point->y; pos[2] = point->z;
   kd_tree_rect_t rect;
   int_array_t* results = int_array_new();
   rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];

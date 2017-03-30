@@ -120,7 +120,7 @@ polynomial_t* polynomial_new(int degree, real_t* coeffs, point_t* x0)
     p->x0 = *x0;
   else
   {
-    p->x0.x = 0.0, p->x0.y = 0.0, p->x0.z = 0.0;
+    p->x0.x = 0.0; p->x0.y = 0.0; p->x0.z = 0.0;
   }
   p->factor = 1.0;
   return p;
@@ -146,7 +146,7 @@ polynomial_t* polynomial_from_monomials(int degree, int num_monomials, real_t* c
     p->x0 = *x0;
   else
   {
-    p->x0.x = 0.0, p->x0.y = 0.0, p->x0.z = 0.0;
+    p->x0.x = 0.0; p->x0.y = 0.0; p->x0.z = 0.0;
   }
   p->factor = 1.0;
   p->num_terms = num_monomials;

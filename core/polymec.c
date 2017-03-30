@@ -728,7 +728,7 @@ void polymec_provenance_fprintf(FILE* stream)
   // Start going backwards through the arguments, throwing out all the ones
   // with equals signs.
   char* input = NULL;
-  int arg = options_num_arguments(options) - 1;
+  size_t arg = options_num_arguments(options) - 1;
   while ((input == NULL) && (arg > 0))
   {
     char* candidate = options_argument(options, arg);

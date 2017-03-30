@@ -51,7 +51,7 @@ sd_func_t* plane_sd_func_new(vector_t* n, point_t* x)
   point_copy(&p->x, x);
 
   // Set up our basis vectors.
-  p->e3.x = -n->x, p->e3.y = -n->y, p->e3.z = -n->z;
+  p->e3.x = -n->x; p->e3.y = -n->y; p->e3.z = -n->z;
   vector_normalize(&p->e3);
   compute_orthonormal_basis(&p->e3, &p->e1, &p->e2);
   return plane;

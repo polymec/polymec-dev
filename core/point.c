@@ -10,7 +10,7 @@
 point_t* point_new(real_t x, real_t y, real_t z)
 {
   point_t* p = polymec_gc_malloc(sizeof(point_t), NULL);
-  p->x = x, p->y = y, p->z = z;
+  p->x = x; p->y = y; p->z = z;
   return p;
 }
 
@@ -22,7 +22,7 @@ void point_fprintf(point_t* x, FILE* stream)
 vector_t* vector_new(real_t vx, real_t vy, real_t vz)
 {
   vector_t* v = polymec_gc_malloc(sizeof(vector_t), NULL);
-  v->x = vx, v->y = vy, v->z = vz;
+  v->x = vx; v->y = vy; v->z = vz;
   return v;
 }
 
@@ -116,17 +116,17 @@ void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3)
   // should work.
   if (!reals_equal(e1->x, 0.0))
   {
-    e2->y = 1.0, e2->z = 1.0; 
+    e2->y = 1.0; e2->z = 1.0; 
     e2->x = -(e1->y + e1->z) / e1->x;
   }
   else if (!reals_equal(e1->y, 0.0))
   {
-    e2->x = 1.0, e2->z = 1.0; 
+    e2->x = 1.0; e2->z = 1.0; 
     e2->y = -(e1->x + e1->z) / e1->y;
   }
   else if (!reals_equal(e1->z, 0.0))
   {
-    e2->x = 1.0, e2->y = 1.0; 
+    e2->x = 1.0; e2->y = 1.0; 
     e2->z = -(e1->x + e1->y) / e1->z;
   }
   vector_normalize(e2);

@@ -163,7 +163,7 @@ static void mpi_message_pack(mpi_message_t* msg,
     ++i;
   }
 
-  pos = 0, i = 0;
+  pos = 0; i = 0;
   while (exchanger_map_next(receive_map, &pos, &proc, &c))
   {
     msg->receive_buffer_sizes[i] = c->num_indices;
@@ -1110,7 +1110,7 @@ int exchanger_start_metadata_transfer(exchanger_t* ex,
   int num_receives = exchanger_num_receives(ex);
   int* source_procs = polymec_malloc(sizeof(int) * num_receives);
   int* receive_buffer_sizes = polymec_malloc(sizeof(int) * num_receives);
-  pos = 0, i = 0;
+  pos = 0; i = 0;
   while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
   {
     source_procs[i] = proc;

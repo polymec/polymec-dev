@@ -215,23 +215,23 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
       if (row == 0)
       {
         num_cols = 2; 
-        rows[0] = 0, cols[0] = 0, Aij[0] = -2.0;
-                     cols[1] = 1, Aij[1] = 1.0;
+        rows[0] = 0; cols[0] = 0; Aij[0] = -2.0;
+                     cols[1] = 1; Aij[1] = 1.0;
         krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
       }
       else if (row == (N_global-1))
       {
         num_cols = 2;
-        rows[0] = row, cols[0] = row-1, Aij[0] = 1.0;
-                       cols[1] = row,   Aij[1] = -2.0;
+        rows[0] = row; cols[0] = row-1; Aij[0] = 1.0;
+                       cols[1] = row;   Aij[1] = -2.0;
         krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
       }
       else
       {
         num_cols = 3;
-        rows[0] = row, cols[0] = row-1, Aij[0] = 1.0;
-        rows[1] = row, cols[1] = row,   Aij[1] = -2.0;
-        rows[2] = row, cols[2] = row+1, Aij[2] = 1.0;
+        rows[0] = row; cols[0] = row-1; Aij[0] = 1.0;
+        rows[1] = row; cols[1] = row;   Aij[1] = -2.0;
+        rows[2] = row; cols[2] = row+1; Aij[2] = 1.0;
         krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
       }
     }
@@ -248,7 +248,7 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
       if (row == 0)
       {
         num_cols = 2; 
-        rows[0] = 0, cols[0] = 0, cols[1] = 1;
+        rows[0] = 0; cols[0] = 0; cols[1] = 1;
         krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
         assert_true(reals_equal(Aij[0], -2.0/(h*h)));
         assert_true(reals_equal(Aij[1],  1.0/(h*h)));
@@ -256,7 +256,7 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
       else if (row == (N_global-1))
       {
         num_cols = 2;
-        rows[0] = row, cols[0] = row-1, cols[1] = row;
+        rows[0] = row; cols[0] = row-1; cols[1] = row;
         krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
         assert_true(reals_equal(Aij[0],  1.0/(h*h)));
         assert_true(reals_equal(Aij[1], -2.0/(h*h)));
@@ -264,7 +264,7 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
       else
       {
         num_cols = 3;
-        rows[0] = row, cols[0] = row-1, cols[1] = row, cols[2] = row+1, 
+        rows[0] = row; cols[0] = row-1; cols[1] = row; cols[2] = row+1; 
         krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
         assert_true(reals_equal(Aij[0],  1.0/(h*h)));
         assert_true(reals_equal(Aij[1], -2.0/(h*h)));
@@ -291,7 +291,7 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
         if (row == 0)
         {
           num_cols = 2; 
-          rows[0] = 0, cols[0] = 0, cols[1] = 1;
+          rows[0] = 0; cols[0] = 0; cols[1] = 1;
           krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
           assert_true(reals_equal(Aij[0], -Li[0]*2.0*Ri[0]));
           assert_true(reals_equal(Aij[1],  Li[0]*1.0*Ri[1]));
@@ -299,7 +299,7 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
         else if (row == (N_global-1))
         {
           num_cols = 2;
-          rows[0] = row, cols[0] = row-1, cols[1] = row;
+          rows[0] = row; cols[0] = row-1; cols[1] = row;
           krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
           assert_true(reals_equal(Aij[0], -Li[row]*2.0*Ri[cols[0]]));
           assert_true(reals_equal(Aij[1],  Li[row]*1.0*Ri[cols[1]]));
@@ -307,7 +307,7 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
         else
         {
           num_cols = 3;
-          rows[0] = row, cols[0] = row-1, cols[1] = row, cols[2] = row+1, 
+          rows[0] = row; cols[0] = row-1; cols[1] = row; cols[2] = row+1; 
           krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
           assert_true(reals_equal(Aij[0],  Li[row]*1.0*Ri[cols[0]]));
           assert_true(reals_equal(Aij[1], -Li[row]*2.0*Ri[cols[1]]));
@@ -332,7 +332,7 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
         if (row == 0)
         {
           num_cols = 2; 
-          rows[0] = 0, cols[0] = 0, cols[1] = 1;
+          rows[0] = 0; cols[0] = 0; cols[1] = 1;
           krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
           assert_true(reals_equal(Aij[0], 0.0));
           assert_true(reals_equal(Aij[1], 1.0));
@@ -340,7 +340,7 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
         else if (row == (N_global-1))
         {
           num_cols = 2;
-          rows[0] = row, cols[0] = row-1, cols[1] = row;
+          rows[0] = row; cols[0] = row-1; cols[1] = row;
           krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
           assert_true(reals_equal(Aij[0], 1.0));
           assert_true(reals_equal(Aij[1], 0.0));
@@ -348,7 +348,7 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
         else
         {
           num_cols = 3;
-          rows[0] = row, cols[0] = row-1, cols[1] = row, cols[2] = row+1, 
+          rows[0] = row; cols[0] = row-1; cols[1] = row; cols[2] = row+1;
           krylov_matrix_get_values(A1, 1, &num_cols, rows, cols, Aij);
           assert_true(reals_equal(Aij[0], 1.0));
           assert_true(reals_equal(Aij[1], 0.0));
@@ -503,8 +503,8 @@ static void test_1d_laplace_eqn(void** state,
       if (row == 0)
       {
         num_cols = 2; 
-        rows[0] = 0, cols[0] = 0, Aij[0] = -2.0;
-                     cols[1] = 1, Aij[1] = 1.0;
+        rows[0] = 0; cols[0] = 0; Aij[0] = -2.0;
+                     cols[1] = 1; Aij[1] = 1.0;
         krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
         bi[0] = 0.0;
         krylov_vector_set_values(b, 1, &row, bi);
@@ -512,8 +512,8 @@ static void test_1d_laplace_eqn(void** state,
       else if (row == (N_global-1))
       {
         num_cols = 2;
-        rows[0] = row, cols[0] = row-1, Aij[0] = 1.0;
-                       cols[1] = row,   Aij[1] = -2.0;
+        rows[0] = row; cols[0] = row-1; Aij[0] = 1.0;
+                       cols[1] = row;   Aij[1] = -2.0;
         krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
         bi[0] = 1.0;
         krylov_vector_set_values(b, 1, &row, bi);
@@ -521,9 +521,9 @@ static void test_1d_laplace_eqn(void** state,
       else
       {
         num_cols = 3;
-        rows[0] = row, cols[0] = row-1, Aij[0] = 1.0;
-                       cols[1] = row,   Aij[1] = -2.0;
-                       cols[2] = row+1, Aij[2] = 1.0;
+        rows[0] = row; cols[0] = row-1; Aij[0] = 1.0;
+                       cols[1] = row;   Aij[1] = -2.0;
+                       cols[2] = row+1; Aij[2] = 1.0;
         krylov_matrix_set_values(A, 1, &num_cols, rows, cols, Aij);
         bi[0] = 0.0;
         krylov_vector_set_values(b, 1, &row, bi);
