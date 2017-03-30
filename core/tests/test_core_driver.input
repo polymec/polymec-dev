@@ -30,3 +30,8 @@ t1 = tensor.new({2,2})
 t1(1,1, 1)
 t1(2,2, 1)
 print(t1)
+
+if gfx ~= nil then
+  fig = gfx.figure()
+  fig:title('heya')
+end
