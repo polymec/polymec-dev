@@ -40,6 +40,8 @@ static int lua_open_module(lua_State* L)
     f[i].name = funcs[i].name;
     f[i].func = funcs[i].func;
   }
+  f[num_funcs].name = NULL;
+  f[num_funcs].func = NULL;
 
   // Register the functions with this module and return it.
   luaL_checkversion(L);

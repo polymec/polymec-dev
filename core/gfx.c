@@ -18,6 +18,7 @@ typedef struct
 
   // PlPlot library and functions.
   void* plplot;
+  void (*plsdev)(const char*);
   void (*plinit)();
   void (*plend)();
   void (*plsstrm)(int);
@@ -91,7 +92,7 @@ struct gfx_page_t
 // Use this to retrieve symbols from dynamically loaded libraries.
 #define FETCH_SYMBOL(dylib, symbol_name, function_ptr, fail_label) \
   { \
-    void* ptr = polymec_dlsym(dylib, symbol_name); \
+    void* ptr = polymec_dlsym(dylib, "c_" symbol_name); \
     if (ptr == NULL) \
     { \
       log_urgent("%s: unable to find %s in dynamic library.", __func__, symbol_name); \
@@ -115,6 +116,7 @@ static void gfx_load()
 
 #define FETCH_PLPLOT_SYMBOL(symbol_name) \
   FETCH_SYMBOL(plplot, #symbol_name, _gfx->symbol_name, failure)
+    FETCH_PLPLOT_SYMBOL(plsdev);
     FETCH_PLPLOT_SYMBOL(plinit);
     FETCH_PLPLOT_SYMBOL(plend);
     FETCH_PLPLOT_SYMBOL(plsstrm);
@@ -133,6 +135,11 @@ static void gfx_load()
 #undef FETCH_PLPLOT_SYMBOL
 
     _gfx->plplot = plplot;
+#ifdef LINUX
+    _gfx->plsdev("wxwidgets");
+#else
+    _gfx->plsdev("cairo");
+#endif
     _gfx->plinit();
     _gfx->colormaps = string_ptr_unordered_map_new();
     _gfx->palettes = string_ptr_unordered_map_new();
