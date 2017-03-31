@@ -84,7 +84,7 @@ void gfx_figure_set_x_label(gfx_figure_t* fig, const char* label);
 void gfx_figure_set_y_label(gfx_figure_t* fig, const char* label);
 
 // Sets the label for the z axis of the given figure, if it has one. 
-// If the figure has no z label, this function has no effect.
+// If the figure has no z axis, this function has no effect.
 void gfx_figure_set_z_label(gfx_figure_t* fig, const char* label);
 
 // Sets the title of the figure.
@@ -93,16 +93,43 @@ void gfx_figure_set_title(gfx_figure_t* fig, const char* title);
 // Returns the title of the figure.
 char* gfx_figure_title(gfx_figure_t* fig);
 
+// Axis scaling type: linear or logarithmic.
+typedef enum
+{
+  GFX_LINEAR_SCALE,
+  GFX_LOG_SCALE
+} gfx_scale_t;
+
+// Sets the scale for the x axis of the given figure.
+void gfx_figure_set_x_scale(gfx_figure_t* fig, 
+                            real_t x_min, real_t x_max,
+                            gfx_scale_t type);
+
+// Clears the scale for the x axis of the given figure so that data is 
+// used for the scaling, but retains the given type.
+void gfx_figure_clear_x_scale(gfx_figure_t* fig, 
+                              gfx_scale_t type);
+
+// Sets the scale for the y axis of the given figure.
+void gfx_figure_set_y_scale(gfx_figure_t* fig, 
+                            real_t y_min, real_t y_max,
+                            gfx_scale_t type);
+
+// Clears the scale for the y axis of the given figure so that data is 
+// used for the scaling, but retains the given type.
+void gfx_figure_clear_y_scale(gfx_figure_t* fig, 
+                              gfx_scale_t type);
+
 // Adds a color bar to the figure at the given coordinates, or resets the 
 // existing one.
 void gfx_figure_colorbar(gfx_figure_t* fig, 
-                         double x, 
-                         double y);
+                         real_t x, 
+                         real_t y);
 
 // Adds a legend to the figure, or resets the existing one.
 void gfx_figure_legend(gfx_figure_t* fig,
-                       double x, 
-                       double y);
+                       real_t x, 
+                       real_t y);
 
 // Generates a curve consisting of n (x, y) points into the given figure. If 
 // annotation is non-NULL, the plot will be annotated in any associated 
@@ -120,6 +147,9 @@ void gfx_figure_plot(gfx_figure_t* fig,
 // Generates a contour plot in the given figure.
 void gfx_figure_contour(gfx_figure_t* fig);
 
+// Generates a shaded plot in the given figure.
+void gfx_figure_shade(gfx_figure_t* fig);
+
 // Generates a surface plot in the given figure.
 void gfx_figure_surface(gfx_figure_t* fig);
 
@@ -133,8 +163,8 @@ void gfx_figure_image(gfx_figure_t* fig);
 // the figure.
 void gfx_figure_annotate(gfx_figure_t* fig, 
                          const char* text,
-                         double x,
-                         double y);
+                         real_t x,
+                         real_t y);
 
 // Clears the given figure.
 void gfx_figure_clear(gfx_figure_t* fig);

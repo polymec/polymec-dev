@@ -79,6 +79,7 @@ struct gfx_figure_t
   char* y_label;
   char* z_label;
   real_t x_min, x_max, y_min, y_max;
+  gfx_scale_t x_scale_type, y_scale_type;
   ptr_array_t* legend;
 };
 
@@ -300,8 +301,10 @@ static gfx_figure_t* _gfx_figure_new(gfx_page_t* page)
   }
   fig->x_min =  REAL_MAX;
   fig->x_max = -REAL_MAX;
+  fig->x_scale_type = GFX_LINEAR_SCALE;
   fig->y_min =  REAL_MAX;
   fig->y_max = -REAL_MAX;
+  fig->y_scale_type = GFX_LINEAR_SCALE;
   fig->title = string_dup("");
   fig->x_label = string_dup("");
   fig->y_label = string_dup("");
@@ -349,19 +352,94 @@ char* gfx_figure_title(gfx_figure_t* fig)
   return fig->title;
 }
 
+void gfx_figure_set_x_scale(gfx_figure_t* fig, 
+                            real_t x_min, real_t x_max,
+                            gfx_scale_t type)
+{
+  ASSERT(x_min < x_max);
+  fig->x_min = x_min;
+  fig->x_max = x_max;
+  fig->x_scale_type = type;
+}
+
+void gfx_figure_clear_x_scale(gfx_figure_t* fig,
+                              gfx_scale_t type)
+{
+  fig->x_min = REAL_MAX;
+  fig->x_max = -REAL_MAX;
+  fig->x_scale_type = type;
+}
+
+void gfx_figure_set_y_scale(gfx_figure_t* fig, 
+                            real_t y_min, real_t y_max,
+                            gfx_scale_t type)
+{
+  ASSERT(y_min < y_max);
+  fig->y_min = y_min;
+  fig->y_max = y_max;
+  fig->y_scale_type = type;
+}
+
+void gfx_figure_clear_y_scale(gfx_figure_t* fig,
+                              gfx_scale_t type)
+{
+  fig->y_min = REAL_MAX;
+  fig->y_max = -REAL_MAX;
+  fig->y_scale_type = type;
+}
+
 void gfx_figure_colorbar(gfx_figure_t* fig,
-                         double x, 
-                         double y)
+                         real_t x, 
+                         real_t y)
 {
 }
 
 void gfx_figure_legend(gfx_figure_t* fig,
-                       double x, 
-                       double y)
+                       real_t x, 
+                       real_t y)
 {
   gfx_t* gfx = gfx_instance();
   if (gfx->plplot != NULL)
   {
+  }
+}
+
+static void get_data_bounds(real_t min0, real_t max0, 
+                            real_t* data, size_t n,
+                            double* min, double* max)
+{
+  *min = DBL_MAX; 
+  *max = -DBL_MAX;
+  if (min0 < max0) 
+  {
+    *min = (double)min0;
+    *max = (double)max0;
+  }
+  else
+  {
+    for (size_t i = 0; i < n; ++i)
+    {
+      *min = MIN(min0, (double)data[i]);
+      *max = MAX(max0, (double)data[i]);
+    }
+  }
+}
+
+static void get_xy_scale_type(gfx_figure_t* fig, int* scale_type)
+{
+  if (fig->x_scale_type == GFX_LINEAR_SCALE)
+  {
+    if (fig->y_scale_type == GFX_LINEAR_SCALE)
+      *scale_type = 0;
+    else // log y scaling
+      *scale_type = 20;
+  }
+  else // log x scaling
+  {
+    if (fig->y_scale_type == GFX_LINEAR_SCALE)
+      *scale_type = 10;
+    else // log y scaling
+      *scale_type = 30;
   }
 }
 
@@ -377,35 +455,12 @@ void gfx_figure_plot(gfx_figure_t* fig,
   if (gfx->plplot != NULL)
   {
     // Set the extents of the window.
-    double x_min = DBL_MAX, x_max = -DBL_MAX, 
-           y_min = DBL_MAX, y_max = -DBL_MAX;
-    if (fig->x_min < fig->x_max) 
-    {
-      x_min = fig->x_min;
-      x_max = fig->x_max;
-    }
-    else
-    {
-      for (size_t i = 0; i < n; ++i)
-      {
-        x_min = MIN(x_min, x[i]);
-        x_max = MIN(x_max, x[i]);
-      }
-    }
-    if (fig->y_min < fig->y_max)
-    {
-      y_min = fig->y_min;
-      y_max = fig->y_max;
-    }
-    else
-    {
-      for (size_t i = 0; i < n; ++i)
-      {
-        y_min = MIN(y_min, y[i]);
-        y_max = MIN(y_max, y[i]);
-      }
-    }
-    gfx->plenv0(x_min, x_max, y_min, y_max, 0, 0);
+    double x_min, x_max, y_min, y_max;
+    get_data_bounds(fig->x_min, fig->x_max, x, n, &x_min, &x_max);
+    get_data_bounds(fig->y_min, fig->y_max, y, n, &y_min, &y_max);
+    int scale_type;
+    get_xy_scale_type(fig, &scale_type);
+    gfx->plenv0(x_min, x_max, y_min, y_max, 0, scale_type);
 
     // Labels and title.
     gfx->pllab(fig->x_label, fig->y_label, fig->title);
@@ -426,6 +481,10 @@ void gfx_figure_plot(gfx_figure_t* fig,
 }
 
 void gfx_figure_contour(gfx_figure_t* fig)
+{
+}
+
+void gfx_figure_shade(gfx_figure_t* fig)
 {
 }
 

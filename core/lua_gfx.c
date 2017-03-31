@@ -115,7 +115,10 @@ static int gfx_fig_title(lua_State* L)
 static int gfx_fig_plot(lua_State* L)
 {
   gfx_figure_t* fig = lua_to_gfx_figure(L, 1);
-  gfx_figure_plot(fig, NULL, NULL, 0, "glyphy", 0, "label");
+  real_t x[3] = {1., 2., 3.};
+  real_t y[3] = {1., 4., 9.};
+  size_t n = 3;
+  gfx_figure_plot(fig, x, y, n, "glyphy", 0, "label");
   return 0;
 }
 
