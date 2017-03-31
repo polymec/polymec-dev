@@ -63,6 +63,13 @@ void* lua_to_object(lua_State* L,
                     int index,
                     const char* class_name);
 
+// This is a wrapper around lua_to_object that throws an error if the value at 
+// the given index is not an object of the correct class. Analogous to 
+// luaL_checkudata.
+void* lua_check_object(lua_State* L,
+                       int index,
+                       const char* class_name);
+
 // This type represents a field in a Lua record, with a name, 
 // a getter, and a setter (if any). A record must have a getter 
 // but may not need a setter if it is read only.
@@ -112,6 +119,13 @@ bool lua_is_record(lua_State* L,
 void* lua_to_record(lua_State* L,
                     int index,
                     const char* record_type_name);
+
+// This is a wrapper around lua_to_record that throws an error if the value at 
+// the given index is not a record of the correct type. Analogous to 
+// luaL_checkudata.
+void* lua_check_record(lua_State* L,
+                       int index,
+                       const char* record_type_name);
 
 #endif
 

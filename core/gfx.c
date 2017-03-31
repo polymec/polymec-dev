@@ -107,6 +107,7 @@ static int _mpi_rank = -1;
 static void gfx_load()
 {
   ASSERT(_gfx != NULL);
+  ASSERT(_gfx->loaded == false);
 
   if (_mpi_rank == 0)
   {
@@ -144,24 +145,26 @@ static void gfx_load()
     _gfx->plinit();
     _gfx->colormaps = string_ptr_unordered_map_new();
     _gfx->palettes = string_ptr_unordered_map_new();
+
+    // Tell all our friends we've loaded.
     _gfx->loaded = true;
     MPI_Bcast(&_gfx->loaded, 1, MPI_INT, 0, MPI_COMM_WORLD);
   }
   else
   {
+    // Ask process 0 whether we've loaded.
     int loaded;
     MPI_Bcast(&loaded, 1, MPI_INT, 0, MPI_COMM_WORLD);
     _gfx->loaded = loaded;
+    if (!_gfx->loaded)
+      goto failure;
   }
 
-  if (_gfx->loaded)
-  {
-    // Set up default font.
-    gfx_font_t font = {.family = GFX_FONT_SERIF,
-                       .style = GFX_FONT_UPRIGHT,
-                       .weight = GFX_FONT_MEDIUM};
-    gfx_set_font(font);
-  }
+  // Set a default font.
+  gfx_font_t font = {.family = GFX_FONT_SERIF,
+                     .style = GFX_FONT_UPRIGHT,
+                     .weight = GFX_FONT_MEDIUM};
+  gfx_set_font(font);
   return;
 
 failure:
@@ -180,13 +183,10 @@ static void gfx_finalize()
   ptr_array_free(_gfx->pages);
   if (_gfx->plplot != NULL)
   {
-    if (_mpi_rank == 0)
-    {
-      string_ptr_unordered_map_free(_gfx->palettes);
-      string_ptr_unordered_map_free(_gfx->colormaps);
-      _gfx->plend();
-      polymec_dlclose(_gfx->plplot);
-    }
+    string_ptr_unordered_map_free(_gfx->palettes);
+    string_ptr_unordered_map_free(_gfx->colormaps);
+    _gfx->plend();
+    polymec_dlclose(_gfx->plplot);
   }
   polymec_free(_gfx);
   _gfx = NULL;
@@ -506,10 +506,11 @@ void gfx_figure_clear(gfx_figure_t* fig)
 
 static void gfx_page_free(gfx_page_t* page)
 {
-  if (_gfx->plplot != NULL)
+  gfx_t* gfx = gfx_instance();
+  if (gfx->plplot != NULL)
   {
-    _gfx->plsstrm(page->index);
-    _gfx->pleop();
+    gfx->plsstrm(page->index);
+    gfx->pleop();
   }
   ptr_array_free(page->figures);
   polymec_free(page);
@@ -519,6 +520,7 @@ gfx_page_t* gfx_page_new(int num_rows, int num_cols)
 {
   ASSERT(num_rows > 0);
   ASSERT(num_cols > 0);
+  gfx_t* gfx = gfx_instance();
   gfx_page_t* page = polymec_gc_malloc(sizeof(gfx_page_t), DTOR(gfx_page_free));
   page->num_rows = num_rows;
   page->num_cols = num_cols;
@@ -528,12 +530,12 @@ gfx_page_t* gfx_page_new(int num_rows, int num_cols)
     gfx_figure_t* fig = _gfx_figure_new(page);
     ptr_array_append(page->figures, fig);
   }
-  ptr_array_append(_gfx->pages, page);
+  ptr_array_append(gfx->pages, page);
 
-  if (_gfx->plplot != NULL)
+  if (gfx->plplot != NULL) 
   {
-    _gfx->plsstrm((int)_gfx->pages->size);
-    _gfx->plssub(num_rows, num_cols);
+    gfx->plsstrm((int)gfx->pages->size);
+    gfx->plssub(num_rows, num_cols);
   }
 
   return page;
