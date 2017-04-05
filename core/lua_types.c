@@ -196,6 +196,20 @@ void* lua_to_object(lua_State* L,
   return (obj != NULL) ? obj->context : NULL;
 }
 
+void* lua_check_object(lua_State* L,
+                       int index,
+                       const char* class_name)
+{
+  void* obj = lua_to_object(L, index, class_name);
+  if (obj == NULL)
+  {
+    luaL_error(L, "Argument must be a %s.", class_name);
+    return NULL;
+  }
+  else 
+    return obj;
+}
+
 bool lua_is_object(lua_State* L,
                    int index,
                    const char* class_name)
@@ -451,6 +465,20 @@ void* lua_to_record(lua_State* L,
 {
   lua_record_t* r = luaL_testudata(L, index, record_type_name);
   return (r != NULL) ? r->context : NULL;
+}
+
+void* lua_check_record(lua_State* L,
+                       int index,
+                       const char* record_type_name)
+{
+  void* r = lua_to_record(L, index, record_type_name);
+  if (r == NULL)
+  {
+    luaL_error(L, "Argument must be a %s.", record_type_name);
+    return NULL;
+  }
+  else 
+    return r;
 }
 
 bool lua_is_record(lua_State* L,

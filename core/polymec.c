@@ -664,7 +664,10 @@ void* polymec_dlopen(const char* lib_name)
     if (file_exists(full_path))
       lib = dlopen(full_path, RTLD_NOW);
     if (lib != NULL)
+    {
+      log_debug("polymec_dlopen: Successfully opened %s", full_path);
       break;
+    }
   }
   return lib;
 }
