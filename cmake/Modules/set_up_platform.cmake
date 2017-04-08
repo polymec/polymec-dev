@@ -29,13 +29,18 @@ macro(set_up_platform)
   set(Z_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libz.a")
   set(Z_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
   get_filename_component(Z_LIBRARY_DIR ${Z_LIBRARY} DIRECTORY)
+
+  set(SODIUM_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libsodium.a")
+
   set(HDF5_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX}")
   set(HDF5_HL_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libhdf5_hl${LIB_SUFFIX}")
   set(HDF5_LIBRARIES hdf5_hl;hdf5)
   set(HDF5_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
   get_filename_component(HDF5_LIBRARY_DIR ${Z_LIBRARY} DIRECTORY)
+
   set(SILO_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libsiloh5.a")
   set(SILO_LIBRARIES siloh5)
+
   if (APPLE)
     set(NEED_LAPACK FALSE)
   else()

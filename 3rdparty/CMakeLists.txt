@@ -213,6 +213,55 @@ if (NOT EXISTS ${Z_LIBRARY})
 endif()
 set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
+# Build sodium for security.
+if (NOT EXISTS ${SODIUM_LIBRARY})
+  set(SODIUM_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static)
+  if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(SODIUM_CONFIG_OPTS ${SODIUM_LIB_CONFIG_OPTS} --enable-opt)
+  endif()
+
+  message(STATUS "Preparing libsodium...")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/libsodium ${CMAKE_CURRENT_BINARY_DIR}/libsodium
+                  RESULT_VARIABLE stat)
+  if (NOT stat EQUAL 0)
+    message(FATAL_ERROR "Copying library source failed.")
+  endif()
+
+  message(STATUS "Configuring libsodium...")
+  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} ./configure ${SODIUM_CONFIG_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libsodium
+                  OUTPUT_VARIABLE libsodium_config_log ERROR_VARIABLE libsodium_config_err
+                  RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/libsodium_config.log ${sodium_config_log})
+  if (NOT stat EQUAL 0)
+    if (TRAVIS_CI)
+      message(WARNING "Configuration of sodium library failed:")
+      message(FATAL_ERROR ${libsodium_config_err})
+    else()
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/libsodium_config_errors.log ${libsodium_config_err})
+      message(FATAL_ERROR "Configuration of sodium library failed. See ${CMAKE_CURRENT_BINARY_DIR}/libsodium_config_*.log.")
+    endif()
+  endif()
+
+  message(STATUS "Building and installing sodium (${NUM_BUILD_THREADS} threads)...")
+  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/libsodium
+                  OUTPUT_VARIABLE libsodium_build_log ERROR_VARIABLE libsodium_build_err
+                  RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/libsodium_build.log ${libsodium_build_log})
+  if (NOT stat EQUAL 0)
+    if (TRAVIS_CI)
+      message(WARNING "Build of sodium library failed:")
+      message(FATAL_ERROR ${libsodium_build_err})
+    else()
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/libsodium_build_errors.log ${libsodium_build_err})
+      message(FATAL_ERROR "Build of sodium library failed. See ${CMAKE_CURRENT_BINARY_DIR}/libsodium_build_*.log.")
+    endif()
+  endif()
+
+endif()
+set(POLYMEC_TP_LIBS sodium;${POLYMEC_TP_LIBS})
+
 # Build the HDF5 parallel I/O library. 
 if (${SILO_LIBRARY} MATCHES "h5")
   if (NOT EXISTS ${HDF5_LIBRARY})

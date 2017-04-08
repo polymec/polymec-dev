@@ -311,11 +311,16 @@ noreturn void polymec_not_implemented(const char* component);
 // argv, and can make use of polymec's environment.
 void polymec_atinit(void (*func)(int argc, char** argv));
 
-// Initializes polymec's services. In particular:
-// * If MPI has not been initialized, polymec will assume responsibility 
+// Initializes polymec's services using the usual argc and argv parameters 
+// for C programs, along with an optional absolute path to a directory that 
+// will be used to store resources for the running process. Specifically:
+// * If MPI has not been initialized, polymec assumes responsibility 
 //   for initializing and finalizing it.
+// * Logging is started at the default (or requested) level.
+// * Paths for dynamically-loaded libraries are set up if requested.
+// * Threads are set up as requested.
+// * A compute engine server is set up to listen on a port if requested.
 // * Timers are started if requested on the command line.
-// * Logging is started at the default level (or that requested).
 // * A signal handler is set up for SIGINT that cleanly shuts down polymec.
 // * Any functions registered using polymec_atinit are called.
 // If polymec has already been initialized, this does nothing.
@@ -366,6 +371,10 @@ const char* polymec_invocation(void);
 // Returns the time at which the present instance of a polymec application 
 // was invoked.
 time_t polymec_invocation_time(void);
+
+// Returns the absolute path for the resource directory, or NULL if there is 
+// no resource directory.
+const char* polymec_resource_dir(void);
 
 // Call this function with a string to append additional information for 
 // provenance.

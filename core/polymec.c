@@ -193,6 +193,25 @@ static noreturn void handle_silo_error(char* message)
   polymec_error("%s: %s", DBErrFuncname(), message);
 }
 
+// This creates the resource directory and populates it with needed items.
+char _resource_dir[FILENAME_MAX+1];
+static void set_up_resource_dir(const char* resource_dir)
+{
+  if (resource_dir != NULL)
+  {
+    if (!directory_exists(resource_dir))
+    {
+      bool created = create_directory(resource_dir, 
+          S_IRUSR | S_IRGRP | S_IWUSR | S_IXUSR);
+      if (!created)
+        polymec_error("Cannot create resource directory %s.", resource_dir);
+    }
+    strncpy(_resource_dir, resource_dir, FILENAME_MAX);
+  }
+  else
+    _resource_dir[0] = '\0';
+}
+
 // This sets the logging level/mode if given as a command-line argument.
 static void set_up_logging()
 {
@@ -362,7 +381,7 @@ void polymec_atinit(void (*func)(int argc, char** argv))
   atinit_array_append(_atinit_funcs, func);
 }
 
-void polymec_init(int argc, char** argv)
+void polymec_init(int argc, char** argv, const char* resource_dir)
 {
   if (!polymec_initialized)
   {
@@ -437,6 +456,9 @@ void polymec_init(int argc, char** argv)
 
     // Parse command line options.
     options_parse(argc, argv);
+
+    // Create the resource directory if needed.
+    set_up_resource_dir(resource_dir);
 
     // If we are asked to set a specific logging level/mode, do so.
     set_up_logging();
@@ -739,7 +761,7 @@ void polymec_provenance_fprintf(FILE* stream)
       --arg;
     else 
     {
-      char path[FILENAME_MAX];
+      char path[FILENAME_MAX+1];
       if (strcmp(polymec_invoc_dir, "(unknown)") != 0)
         snprintf(path, FILENAME_MAX, "%s/%s", polymec_invoc_dir, candidate);
       else
@@ -809,6 +831,11 @@ const char* polymec_invocation()
 time_t polymec_invocation_time()
 {
   return polymec_invoc_time;
+}
+
+const char* polymec_resource_dir()
+{
+  return (_resource_dir[0] != '\0') ? (const char*)_resource_dir : NULL;
 }
 
 void polymec_append_provenance_data(const char* provenance_data)
