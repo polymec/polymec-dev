@@ -8,7 +8,7 @@
 #ifndef POLYMEC_ENGINE_SERVER_H
 #define POLYMEC_ENGINE_SERVER_H
 
-#include "core/polymec.h"
+#include <stdbool.h>
 
 // Polymec allows you to create a server for one or more models to communicate
 // model data with a client. This "engine" server allows one connection at a 
@@ -29,6 +29,21 @@ void engine_server_stop(void);
 
 // Immediately stops the server, interrupting any communications.
 void engine_server_halt(void);
+
+// Inserts a user into the database of authorized users for this engine, assigning 
+// that user a password and a public key. The engine must be running.
+void engine_server_insert_user(const char* username, 
+                               const char* password,
+                               size_t key_len,
+                               uint8_t public_key[key_len]);
+
+// Deletes a user from the database of authorized users for this engine.
+// The engine must be running.
+void engine_server_delete_user(const char* username);
+
+// Returns the engine server's public key, storing its length in key_len.
+// The engine must be running.
+uint8_t* engine_server_public_key(size_t* key_len);
 
 #endif
 
