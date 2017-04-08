@@ -1,11 +1,8 @@
 include(add_polymec_library)
 add_polymec_library(polymec_model model.c model_probe.c model_data_channel.c
-                    point_weight_function.c stencil.c mesh_stencils.c 
-                    neighbor_pairing.c polynomial_fit.c 
+                    stencil.c mesh_stencils.c neighbor_pairing.c 
                     partition_point_cloud_with_neighbors.c
-                    point_kernel.c point_basis.c shepard_point_basis.c
-                    mls_point_basis.c aux_state.c physical_constants.c
-                    lua_model.c)
+                    aux_state.c physical_constants.c lua_model.c)
 
 set(POLYMEC_LIBRARIES polymec_model;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_model;${POLYMEC_LIBRARIES})

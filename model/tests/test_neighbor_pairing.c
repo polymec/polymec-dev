@@ -13,7 +13,6 @@
 #include "core/array_utils.h"
 #include "core/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
-#include "model/point_weight_function.h"
 #include "model/neighbor_pairing.h"
 
 // This creates a neighbor pairing using a hat function.

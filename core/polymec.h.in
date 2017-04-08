@@ -372,10 +372,6 @@ const char* polymec_invocation(void);
 // was invoked.
 time_t polymec_invocation_time(void);
 
-// Returns the absolute path for the resource directory, or NULL if there is 
-// no resource directory.
-const char* polymec_resource_dir(void);
-
 // Call this function with a string to append additional information for 
 // provenance.
 void polymec_append_provenance_data(const char* provenance_data);
