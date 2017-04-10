@@ -24,26 +24,41 @@ bool engine_server_is_running(void);
 // problems with starting the server are logged.
 void engine_server_start(const char* resource_dir);
 
-// Stops the server after all communications with clients finish.
+// Stops the server after all communications with clients finish. If the 
+// engine isn't running, this function has no effect.
 void engine_server_stop(void);
 
-// Immediately stops the server, interrupting any communications.
+// Immediately stops the server, interrupting any communications. If the 
+// engine isn't running, this function has no effect.
 void engine_server_halt(void);
 
+// Given a plain text password, this returns a newly-allocated string 
+// containing a hashed password that can be transmitted across a wire.
+char* engine_server_hash_password(const char* plain_text_password);
+
 // Inserts a user into the database of authorized users for this engine, assigning 
-// that user a password and a public key. The engine must be running.
-void engine_server_insert_user(const char* username, 
-                               const char* password,
-                               size_t key_len,
-                               uint8_t public_key[key_len]);
+// that user a hashed password and a public key. The password is assumed to be
+// hashed using the same method as provided by engine_server_hash_password().
+// Returns true if the user is successfully inserted, false if not. If the engine 
+// isn't running, this function has no effect and returns false.
+bool engine_server_insert_user(const char* username, 
+                               const char* hashed_password,
+                               uint8_t* public_key);
 
 // Deletes a user from the database of authorized users for this engine.
-// The engine must be running.
+// If the engine isn't running, this function has no effect.
 void engine_server_delete_user(const char* username);
 
-// Returns the engine server's public key, storing its length in key_len.
-// The engine must be running.
-uint8_t* engine_server_public_key(size_t* key_len);
+// Returns a newly allocated array containing a copy of the engine server's public 
+// key. If the engine isn't running, this function returns NULL.
+uint8_t* engine_server_public_key(void);
+
+// Given a username and a password hashed using the same method as 
+// engine_server_hash_password(), this returns a newly-allocated array containing 
+// the user's public key if the user is found and the password is correct, NULL otherwise. 
+// If the engine isn't running, this function returns NULL.
+uint8_t* engine_server_client_key(const char* username, 
+                                  const char* hashed_password);
 
 #endif
 

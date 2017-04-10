@@ -35,6 +35,10 @@
 // We only do this stuff on MPI rank 0.
 static int _rank = -1;
 
+//------------------------------------------------------------------------
+//                             Key Database
+//------------------------------------------------------------------------
+
 // This creates the resource directory and populates it with needed items.
 static char _resource_dir[FILENAME_MAX+1];
 static void set_up_resource_dir(const char* resource_dir)
@@ -44,21 +48,18 @@ static void set_up_resource_dir(const char* resource_dir)
   strncpy(_resource_dir, resource_dir, FILENAME_MAX);
 }
 
-//------------------------------------------------------------------------
-//                             Key Database
-//------------------------------------------------------------------------
-
 static const char* _keys_dirname = ".keys";
 static const char* _s_pub_key_filename = "engine.pub";
 static const char* _s_priv_key_filename = "engine";
 static const char* _c_pub_key_filename = "clients";
 static const char* _keys_lock_filename = ".keys.lock";
 
+static char _keys_dir[FILENAME_MAX+1];
+
 typedef struct
 {
   // Server key pair.
-  size_t s_priv_key_len, s_pub_key_len;
-  uint8_t *s_priv_key, *s_pub_key;
+  uint8_t s_priv_key[crypto_box_SECRETKEYBYTES], s_pub_key[crypto_box_PUBLICKEYBYTES];
 
   // Client public keys.
   string_ptr_unordered_map_t* c_keys;
@@ -71,22 +72,19 @@ typedef struct
 typedef struct
 {
   char* username;
-  char* password;
+  char* hashed_password;
   uint8_t* key;
-  size_t key_len;
 } keydb_entry_t;
 
 static keydb_entry_t* keydb_entry_new(const char* username,
-                                      const char* password,
-                                      size_t key_len,
-                                      uint8_t key[key_len])
+                                      const char* hashed_password,
+                                      uint8_t* key)
 {
   keydb_entry_t* entry = polymec_malloc(sizeof(keydb_entry_t));
   entry->username = string_dup(username);
-  entry->password = string_dup(password);
-  entry->key_len = key_len;
-  entry->key = polymec_malloc(sizeof(uint8_t) * key_len);
-  memcpy(entry->key, key, sizeof(uint8_t) * key_len);
+  entry->hashed_password = string_dup(hashed_password);
+  entry->key = polymec_malloc(sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
+  memcpy(entry->key, key, sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
   return entry;
 }
 
@@ -94,9 +92,133 @@ static void keydb_entry_free(void* e)
 {
   keydb_entry_t* entry = e;
   string_free(entry->username);
-  string_free(entry->password);
+  string_free(entry->hashed_password);
   polymec_free(entry->key);
   polymec_free(entry);
+}
+
+static bool keydb_insert_user(keydb_t* keys,
+                              const char* username,
+                              const char* password,
+                              uint8_t* public_key)
+{
+  bool inserted = false;
+  if (!string_ptr_unordered_map_contains(keys->c_keys, (char*)username))
+  {
+    keydb_entry_t* e = keydb_entry_new(username, password, public_key);
+    string_ptr_unordered_map_insert_with_kv_dtors(keys->c_keys, (char*)username, e, 
+                                                  string_free,
+                                                  keydb_entry_free);
+    keys->updated = true;
+    inserted = true;
+  }
+  return inserted;
+}
+
+static void keydb_gen_server_keys(keydb_t* keys)
+{
+  // Open the server key files for writing.
+  char s_pub_key_file[FILENAME_MAX+1], s_priv_key_file[FILENAME_MAX+1];
+  snprintf(s_pub_key_file, FILENAME_MAX, "%s/%s", _keys_dir, _s_pub_key_filename);
+  snprintf(s_priv_key_file, FILENAME_MAX, "%s/%s", _keys_dir, _s_priv_key_filename);
+  if (!file_exists(s_pub_key_file) || !file_exists(s_priv_key_file))
+  {
+    FILE* s_pub = fopen(s_pub_key_file, "w");
+    fclose(s_pub);
+
+    FILE* s_priv = fopen(s_priv_key_file, "w");
+    fclose(s_priv);
+  }
+}
+
+static void keydb_write_client_keys(keydb_t* keys, const char* key_file)
+{
+  // Open the client key database for writing.
+  char c_pub_key_file[FILENAME_MAX+1];
+  snprintf(c_pub_key_file, FILENAME_MAX, "%s/%s", _keys_dir, key_file);
+  FILE* c_keys = fopen(c_pub_key_file, "w");
+
+  // Loop through the client entries and write them out.
+  int pos = 0;
+  char* username;
+  keydb_entry_t* entry;
+  while (string_ptr_unordered_map_next(keys->c_keys, &pos, &username, (void**)(&entry)))
+  {
+    // Write the username and a : delimiter.
+    fprintf(c_keys, "%s:", entry->username);
+
+    // Write the hashed password and a : delimiter.
+    fprintf(c_keys, "%s:", entry->hashed_password);
+
+    // Write the public key.
+    for (size_t i = 0; i < crypto_box_PUBLICKEYBYTES; ++i)
+      fprintf(c_keys, "%02u", entry->key[i]);
+
+    // Newline.
+    fprintf(c_keys, "\n");
+  }
+
+  // Close the file.
+  fclose(c_keys);
+}
+
+static void keydb_read_client_keys(keydb_t* keys, const char* key_file)
+{
+  // Open the client key database for writing.
+  char c_pub_key_file[FILENAME_MAX+1];
+  snprintf(c_pub_key_file, FILENAME_MAX, "%s/%s", _keys_dir, key_file);
+  FILE* c_keys = fopen(c_pub_key_file, "r");
+
+  // Loop through the client entries and read them.
+  int n = 0;
+  while (n != EOF)
+  {
+    // Read the username and a : delimiter.
+    char username[32+1];
+    n = fscanf(c_keys, "%32s:", username);
+    if (n < 0)
+    {
+      log_info("keydb_read_client_keys: Invalid client username read.");
+      continue;
+    }
+    username[n] = '\0';
+
+    // Read the hashed password and a : delimiter.
+    char hashed_pw[32+1];
+    n = fscanf(c_keys, "%32s:", hashed_pw);
+    if (n < 0)
+    {
+      log_info("keydb_read_client_keys: Invalid client password read.");
+      continue;
+    }
+    hashed_pw[n] = '\0';
+
+    // Read the public key.
+    uint8_t key[crypto_box_PUBLICKEYBYTES];
+    for (size_t i = 0; i < crypto_box_PUBLICKEYBYTES; ++i)
+    {
+      n = fscanf(c_keys, "%02u", &key[i]);
+      if (n != 2)
+      {
+        log_info("keydb_read_client_keys: Invalid client key read.");
+        continue;
+      }
+    }
+
+    // Read the newline.
+    n = fscanf(c_keys, "\n");
+    if (n != 1)
+    {
+      log_info("keydb_read_client_keys: Invalid line ending read.");
+      continue;
+    }
+
+    // Insert the entry.
+    keydb_insert_user(keys, username, hashed_pw, key);
+  }
+
+  // Close the file.
+  fclose(c_keys);
 }
 
 static keydb_t* keydb_open()
@@ -117,31 +239,27 @@ static keydb_t* keydb_open()
   fcntl(lock, F_SETLKW, &fl);
 
   // Make sure we have a directory to store our keys.
-  char keys_dir[FILENAME_MAX+1];
-  snprintf(keys_dir, FILENAME_MAX, "%s/%s", _resource_dir, _keys_dirname);
-  if (!directory_exists(keys_dir))
-    create_directory(keys_dir, S_IRUSR | S_IRGRP | S_IWUSR | S_IXUSR);
+  snprintf(_keys_dir, FILENAME_MAX, "%s/%s", _resource_dir, _keys_dirname);
+  if (!directory_exists(_keys_dir))
+    create_directory(_keys_dir, S_IRUSR | S_IRGRP | S_IWUSR | S_IXUSR);
 
-  // Do we already have a key pair for this server? If not, create one.
-  char s_pub_key_file[FILENAME_MAX+1], s_priv_key_file[FILENAME_MAX+1];
-  snprintf(s_pub_key_file, FILENAME_MAX, "%s/%s", keys_dir, _s_pub_key_filename);
-  snprintf(s_priv_key_file, FILENAME_MAX, "%s/%s", keys_dir, _s_priv_key_filename);
-  if (!file_exists(s_pub_key_file) || !file_exists(s_priv_key_file))
-  {
-  }
-
-  // Now check to see whether we have a client key database.
-  char c_pub_key_file[FILENAME_MAX+1];
-  snprintf(c_pub_key_file, FILENAME_MAX, "%s/%s", keys_dir, _c_pub_key_filename);
-  if (!file_exists(c_pub_key_file))
-  {
-  }
-
-  // Load the keys into memory.
+  // Create the database. 
   keydb_t* keys = polymec_malloc(sizeof(keydb_t));
   keys->c_keys = string_ptr_unordered_map_new();
   keys->updated = false;
   keys->lock = lock;
+
+  // Do we already have a key pair for this server? If not, create one.
+  keydb_gen_server_keys(keys);
+
+  // Now check to see whether we have a client key database.
+  char c_pub_key_file[FILENAME_MAX+1];
+  snprintf(c_pub_key_file, FILENAME_MAX, "%s/%s", _keys_dir, _c_pub_key_filename);
+  if (!file_exists(c_pub_key_file))
+    keydb_write_client_keys(keys, c_pub_key_file);
+  else
+    keydb_read_client_keys(keys, c_pub_key_file);
+
   return keys;
 }
 
@@ -150,6 +268,9 @@ static void keydb_close(keydb_t* keys)
   // Write out our client key database if we have updates.
   if (keys->updated)
   {
+    char c_pub_key_file[FILENAME_MAX+1];
+    snprintf(c_pub_key_file, FILENAME_MAX, "%s/%s", _keys_dir, _c_pub_key_filename);
+    keydb_write_client_keys(keys, c_pub_key_file);
   }
 
   // Release the lock file.
@@ -174,39 +295,30 @@ static void keydb_close(keydb_t* keys)
   polymec_free(keys);
 }
 
-static uint8_t* keydb_server_pub_key(keydb_t* keys, size_t* key_len)
+static uint8_t* keydb_server_pub_key(keydb_t* keys)
 {
   return keys->s_pub_key;
 }
 
-static uint8_t* keydb_server_priv_key(keydb_t* keys, size_t* key_len)
-{
-  return keys->s_priv_key;
-}
+//static uint8_t* keydb_server_priv_key(keydb_t* keys)
+//{
+//  return keys->s_priv_key;
+//}
 
-static uint8_t* keydb_client_key(keydb_t* keys, const char* username, size_t* key_len)
+static uint8_t* keydb_client_key(keydb_t* keys, 
+                                 const char* username,
+                                 const char* hashed_password)
 {
   keydb_entry_t** e_ptr = (keydb_entry_t**)string_ptr_unordered_map_get(keys->c_keys, (char*)username);
   if (e_ptr != NULL) 
   {
-    *key_len = (*e_ptr)->key_len;
-    return (*e_ptr)->key;
+    if (strcmp((*e_ptr)->hashed_password, hashed_password) == 0)
+      return (*e_ptr)->key;
+    else
+      return NULL;
   }
   else 
     return NULL;
-}
-
-static void keydb_insert_user(keydb_t* keys,
-                              const char* username,
-                              const char* password,
-                              size_t key_len,
-                              uint8_t public_key[key_len])
-{
-  keydb_entry_t* e = keydb_entry_new(username, password, key_len, public_key);
-  string_ptr_unordered_map_insert_with_kv_dtors(keys->c_keys, (char*)username, e, 
-                                                string_free,
-                                                keydb_entry_free);
-  keys->updated = true;
 }
 
 static void keydb_delete_user(keydb_t* keys,
@@ -245,37 +357,40 @@ thrd_t _listener;
 #endif
 bool _shutting_down = false;
 
-// This authenticates a client that has connected, returning true if successful
-// and false otherwise.
-static bool authenticate_client(int client)
+static uint8_t* authenticate_client(int client)
 {
-  ASSERT(_rank == 0);
+  // Get the username and the hashed password for our client.
 
-  // Open our key database.
-  keydb_t* keys = keydb_open();
+  // Request username.
+  write(_server, "OHAI", sizeof(char)*4);
 
-  // Get the username and password from the client.
-  char* username;
-  char* password;
-  if (!keydb_contains_user(keys, (const char*)username))
-    return false;
+  // Receive username.
+  char username[32+1];
+  ssize_t n = read(client, username, 32);
+  if (n < 0) 
+  {
+    log_info("authenticate_client: Could not read username.");
+    return NULL;
+  }
+  username[n] = '\0';
 
-  // Read our private key.
-  size_t s_priv_key_len;
-  uint8_t *s_priv_key = keydb_server_priv_key(keys, &s_priv_key_len);
+  // Request hashed password.
+  write(_server, "A/S/L", sizeof(char)*5);
+  char hashed_pw[32+1];
+  n = read(client, hashed_pw, 32);
+  if (n < 0) 
+  {
+    log_info("authenticate_client: Could not read password.");
+    return NULL;
+  }
+  hashed_pw[n] = '\0';
 
-  // Retrieve the client's public key from our database.
-  size_t c_pub_key_len;
-  uint8_t* c_pub_key = keydb_client_key(keys, username, &c_pub_key_len);
-
-  // Close the key database.
-  keydb_close(keys);
-
-  return true;
+  uint8_t* key = engine_server_client_key(username, hashed_pw);
+  return key;
 }
 
 // This handles client requests until the client disconnects.
-static void handle_client_requests(int client)
+static void handle_client_requests(int client, uint8_t* client_key)
 {
   while (true)
   {
@@ -317,10 +432,14 @@ static int accept_connections(void* context)
       log_info("accept_connections: Could not accept client connection.");
 
     // Authenticate.
-    if (authenticate_client(client))
+    uint8_t* client_key = authenticate_client(client);
+    if (client_key != NULL)
     {
       // Handle the client's requests.
-      handle_client_requests(client);
+      handle_client_requests(client, client_key);
+
+      // Dispose of the key.
+      polymec_free(client_key);
     }
 
     // Close the client socket.
@@ -335,12 +454,6 @@ static int accept_connections(void* context)
   thrd_exit(0);
   return 0;
 #endif
-}
-
-static void stop_engine_server()
-{
-  if (engine_server_is_running())
-    engine_server_stop();
 }
 
 //------------------------------------------------------------------------
@@ -394,7 +507,7 @@ void engine_server_start(const char* resource_dir)
           // Fire up sodium and register our shutdown function.
           if (sodium_init() != -1)
           {
-            polymec_atexit(stop_engine_server);
+            polymec_atexit(engine_server_stop);
 
             // Spawn our listener thread.
 #if USE_PTHREADS
@@ -421,10 +534,7 @@ void engine_server_start(const char* resource_dir)
 
 void engine_server_stop()
 {
-  ASSERT(_rank != -1);
-  ASSERT(_server != -1);
-
-  if (_rank == 0)
+  if ((_rank == 0) && (_server != -1))
   {
     _shutting_down = true;
 
@@ -441,9 +551,7 @@ void engine_server_stop()
 
 void engine_server_halt()
 {
-  ASSERT(_rank != -1);
-  ASSERT(_server != -1);
-  if (_rank == 0)
+  if ((_rank == 0) && (_server != -1))
   {
     shutdown(_server, SHUT_RDWR);
 #if USE_PTHREADS
@@ -454,31 +562,75 @@ void engine_server_halt()
   }
 }
 
-void engine_server_insert_user(const char* username, 
-                               const char* password,
-                               size_t key_len,
-                               uint8_t public_key[key_len])
+char* engine_server_hash_password(const char* plain_text_password)
 {
-  ASSERT(_server != -1);
-  keydb_t* keys = keydb_open();
-  keydb_insert_user(keys, username, password, key_len, public_key);
-  keydb_close(keys);
+  char* hashed_pw = polymec_malloc(sizeof(char) * crypto_pwhash_STRBYTES);
+  int stat = crypto_pwhash_str(hashed_pw, plain_text_password, strlen(plain_text_password),
+                               crypto_pwhash_OPSLIMIT_SENSITIVE, 
+                               crypto_pwhash_MEMLIMIT_SENSITIVE);
+  ASSERT(stat != 0); // Out of memory?
+  ASSERT(crypto_pwhash_str_verify(hashed_pw, plain_text_password, strlen(plain_text_password)) == 0);
+
+  return hashed_pw;
+}
+
+bool engine_server_insert_user(const char* username, 
+                               const char* password,
+                               uint8_t* public_key)
+{
+  bool inserted = false;
+  if (engine_server_is_running())
+  {
+    keydb_t* keys = keydb_open();
+    if (!keydb_contains_user(keys, username))
+      inserted = keydb_insert_user(keys, username, password, public_key);
+    keydb_close(keys);
+  }
+  return inserted;
 }
 
 void engine_server_delete_user(const char* username)
 {
-  ASSERT(_server != -1);
-  keydb_t* keys = keydb_open();
-  keydb_delete_user(keys, username);
-  keydb_close(keys);
+  if (engine_server_is_running())
+  {
+    keydb_t* keys = keydb_open();
+    keydb_delete_user(keys, username);
+    keydb_close(keys);
+  }
 }
 
-uint8_t* engine_server_public_key(size_t* key_len)
+uint8_t* engine_server_public_key()
 {
-  ASSERT(_server != -1);
-  keydb_t* keys = keydb_open();
-  uint8_t* key = keydb_server_pub_key(keys, key_len);
-  keydb_close(keys);
+  uint8_t* key = NULL;
+  if (engine_server_is_running())
+  {
+    keydb_t* keys = keydb_open();
+    uint8_t* k = keydb_server_pub_key(keys);
+    if (k != NULL)
+    {
+      key = polymec_malloc(sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
+      memcpy(key, k, sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
+    }
+    keydb_close(keys);
+  }
+  return key;
+}
+
+uint8_t* engine_server_client_key(const char* username, 
+                                  const char* hashed_password)
+{
+  uint8_t* key = NULL;
+  if (engine_server_is_running())
+  {
+    keydb_t* keys = keydb_open();
+    uint8_t* k = keydb_client_key(keys, username, hashed_password);
+    if (k != NULL)
+    {
+      key = polymec_malloc(sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
+      memcpy(key, k, sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
+    }
+    keydb_close(keys);
+  }
   return key;
 }
 
