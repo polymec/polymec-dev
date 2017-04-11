@@ -28,6 +28,7 @@
 #include "sodium.h"
 #include "core/polymec.h"
 #include "core/options.h"
+#include "core/slist.h"
 #include "core/array.h"
 #include "core/unordered_map.h"
 #include "core/engine_server.h"
@@ -346,7 +347,14 @@ static int _server = -1;
 char _id_file[FILENAME_MAX+1];
 
 // Queue of outgoing messages from server -> client.
-ptr_array_t* _outgoing_mesgs = NULL;
+ptr_slist_t* _queue = NULL;
+#if USE_PTHREADS
+pthread_mutex_t _queue_lock;
+pthread_cond_t _queue_cond;
+#else
+mtx_t _queue_lock;
+cnd_t _queue_cond;
+#endif
 
 // Listener thread.
 #if USE_PTHREADS
@@ -385,8 +393,50 @@ static uint8_t* authenticate_client(int client)
   }
   hashed_pw[n] = '\0';
 
-  uint8_t* key = engine_server_client_key(username, hashed_pw);
+  // Get the key.
+  uint8_t* key = NULL;
+  {
+    keydb_t* keys = keydb_open();
+    uint8_t* k = keydb_client_key(keys, username, hashed_pw);
+    if (k != NULL)
+    {
+      key = polymec_malloc(sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
+      memcpy(key, k, sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
+    }
+    else
+      log_info("authenticate_client: Authentication failed.");
+    keydb_close(keys);
+  }
   return key;
+}
+
+// Methods for managing access to the message queue.
+static inline void lock_queue()
+{
+#if USE_PTHREADS
+  pthread_mutex_lock(&_queue_lock);
+#else
+  mtx_lock(&_queue_lock);
+#endif
+}
+
+static inline void unlock_queue()
+{
+#if USE_PTHREADS
+  pthread_mutex_unlock(&_queue_lock);
+#else
+  mtx_unlock(&_queue_lock);
+#endif
+}
+
+static inline void wait_for_messages()
+{
+  while (!_shutting_down)
+#if USE_PTHREADS
+    pthread_cond_wait(&_queue_cond, &_queue_lock);
+#else
+    cnd_wait(&_queue_cond, &_queue_lock);
+#endif
 }
 
 // This handles client requests until the client disconnects.
@@ -394,6 +444,33 @@ static void handle_client_requests(int client, uint8_t* client_key)
 {
   while (true)
   {
+    // Lock the message queue and wait for messages.
+    lock_queue();
+    wait_for_messages();
+
+    // If we're asked to shut down, do so quietly.
+    if (_shutting_down)
+    {
+      unlock_queue();
+      break;
+    }
+
+    if (!ptr_slist_empty(_queue))
+    {
+      // Grab the next message.
+      void (*destroy_msg)(void*);
+      byte_array_t* msg = ptr_slist_pop(_queue, &destroy_msg);
+
+      // Encrypt the message using our private key and the client's
+      // public key.
+
+      // Send the encrypted message.
+
+      // Destroy the message on our end.
+      destroy_msg(msg);
+    }
+
+    unlock_queue();
   }
 }
 
@@ -509,6 +586,18 @@ void engine_server_start(const char* resource_dir)
           {
             polymec_atexit(engine_server_stop);
 
+            // Set stuff up.
+#if USE_PTHREADS
+            pthread_mutex_init(&_queue_lock, NULL);
+            pthread_cond_init(&_queue_cond, NULL);
+#else
+            mtx_init(&_queue_lock, mtx_plain);
+            cnd_init(&_queue_cond);
+#endif
+
+            // Lock the queue till we're ready to go.
+            lock_queue();
+
             // Spawn our listener thread.
 #if USE_PTHREADS
             pthread_attr_init(&_listener_attr);
@@ -516,6 +605,8 @@ void engine_server_start(const char* resource_dir)
 #else
             thrd_create(&_listener, accept_connections, NULL);
 #endif
+            // Okay, do it.
+            unlock_queue();
           }
           else
             log_info("engine_server_start: Couldn't initialize encryption library. Not starting server.");
@@ -532,11 +623,39 @@ void engine_server_start(const char* resource_dir)
   MPI_Bcast(&_server, 1, MPI_INT, 0, MPI_COMM_WORLD);
 }
 
+static void cleanup()
+{
+  // Kill the queue.
+  if (_queue != NULL)
+  {
+    ptr_slist_free(_queue);
+    _queue = NULL;
+
+#if USE_PTHREADS
+    pthread_mutex_destroy(&_queue_lock);
+    pthread_cond_destroy(&_queue_cond);
+    pthread_attr_destroy(&_listener_attr);
+#else
+    mtx_destroy(&_queue_lock);
+    cnd_destroy(&_queue_cond);
+#endif
+  }
+  _rank = -1;
+}
+
 void engine_server_stop()
 {
   if ((_rank == 0) && (_server != -1))
   {
+    // Hey, listener! We're shutting down.
+    lock_queue();
     _shutting_down = true;
+#if USE_PTHREADS
+    pthread_cond_signal(&_queue_cond);
+#else
+    cnd_signal(&_queue_cond);
+#endif
+    unlock_queue();
 
     // Wait for the thread to join.
 #if USE_PTHREADS
@@ -547,6 +666,8 @@ void engine_server_stop()
     thrd_join(_listener, &retval);
 #endif
   }
+
+  cleanup();
 }
 
 void engine_server_halt()
@@ -560,6 +681,7 @@ void engine_server_halt()
     engine_server_stop(); // C11 doesn't have noncooperative cancellation. :-/
 #endif
   }
+  cleanup();
 }
 
 char* engine_server_hash_password(const char* plain_text_password)
@@ -616,21 +738,41 @@ uint8_t* engine_server_public_key()
   return key;
 }
 
-uint8_t* engine_server_client_key(const char* username, 
-                                  const char* hashed_password)
+void engine_server_push_command(const char* command)
 {
-  uint8_t* key = NULL;
-  if (engine_server_is_running())
+  ASSERT(sizeof(char) == sizeof(uint8_t));
+  if ((_rank == 0) && engine_server_is_running())
   {
-    keydb_t* keys = keydb_open();
-    uint8_t* k = keydb_client_key(keys, username, hashed_password);
-    if (k != NULL)
-    {
-      key = polymec_malloc(sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
-      memcpy(key, k, sizeof(uint8_t) * crypto_box_PUBLICKEYBYTES);
-    }
-    keydb_close(keys);
+    size_t len = strlen(command);
+    ASSERT(len <= 128);
+    byte_array_t* data = byte_array_new();
+    byte_array_resize(data, len);
+    memcpy(data->data, command, len*sizeof(char));
+    engine_server_push_data(data);
   }
-  return key;
+}
+
+void engine_server_push_data(byte_array_t* data)
+{
+  if ((_rank == 0) && engine_server_is_running())
+  {
+    // Acquire the lock for the message queue.
+    lock_queue();
+
+    if (_queue == NULL)
+      _queue = ptr_slist_new();
+
+    ptr_slist_append_with_dtor(_queue, data, DTOR(byte_array_free));
+
+    // Let the listener thread know there's a new message.
+#if USE_PTHREADS
+    pthread_cond_signal(&_queue_cond);
+#else
+    cnd_signal(&_queue_cond);
+#endif
+
+    // Unlock the queue.
+    unlock_queue();
+  }
 }
 

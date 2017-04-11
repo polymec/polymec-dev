@@ -8,7 +8,7 @@
 #ifndef POLYMEC_ENGINE_SERVER_H
 #define POLYMEC_ENGINE_SERVER_H
 
-#include <stdbool.h>
+#include "core/array.h"
 
 // Polymec allows you to create a server for one or more models to communicate
 // model data with a client. This "engine" server allows one connection at a 
@@ -53,12 +53,14 @@ void engine_server_delete_user(const char* username);
 // key. If the engine isn't running, this function returns NULL.
 uint8_t* engine_server_public_key(void);
 
-// Given a username and a password hashed using the same method as 
-// engine_server_hash_password(), this returns a newly-allocated array containing 
-// the user's public key if the user is found and the password is correct, NULL otherwise. 
-// If the engine isn't running, this function returns NULL.
-uint8_t* engine_server_client_key(const char* username, 
-                                  const char* hashed_password);
+// Pushes a command to the back of the engine's message queue so that it can be 
+// sent to a client. Commands are 128 characters or less. The string is not 
+// consumed by the queue. If the engine isn't running, this function has no effect.
+void engine_server_push_command(const char* command); 
 
+// Pushes an array of bytes to the back of the engine's message queue so that it 
+// can be sent to a client. The data is consumed by the queue. If the engine isn't 
+// running, this function has no effect.
+void engine_server_push_data(byte_array_t* data);
 #endif
 
