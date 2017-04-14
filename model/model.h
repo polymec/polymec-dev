@@ -119,16 +119,16 @@ void* model_context(model_t* model);
 model_parallelism_t model_parallelism(model_t* model);
 
 // Adds a probe to the model which will acquire specific data at each of the 
-// specified times. The model assumes ownership of the probe but copies the array of 
-// times.
+// specified times. The model assumes ownership of the probe but copies the 
+// array of times.
 void model_add_probe(model_t* model, 
                      model_probe_t* probe,
                      real_t* acq_times,
                      size_t num_acq_times);
 
-// Adds several probe to the model which will all acquire specific data at 
-// each of the specified times. The model assumes ownership of the probes but copies
-// the array of times.
+// Adds several probes to the model which will all acquire specific data at 
+// each of the specified times. The model assumes ownership of the probes but 
+// copies the array of times.
 void model_add_probes(model_t* model, 
                       model_probe_t** probes,
                       size_t num_probes,

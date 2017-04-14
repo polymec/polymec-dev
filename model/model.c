@@ -14,6 +14,7 @@
 #include "core/text_buffer.h"
 #include "core/timer.h"
 #include "core/hash_functions.h"
+#include "core/engine_server.h"
 #include "model/model.h"
 
 #ifdef _OPENMP
@@ -547,7 +548,10 @@ void model_acquire(model_t* model)
       model_probe_acquire(probe, model->time, data);
 
       // Publish this data.
-      // FIXME
+//      char* name = model_probe_name(probe);
+      int rank = model_probe_data_rank(probe);
+      size_t* shape = model_probe_data_shape(probe);
+      engine_server_push_real_array(rank, shape, data);
     }
   }
   STOP_FUNCTION_TIMER();
