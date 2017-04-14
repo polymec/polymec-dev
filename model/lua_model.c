@@ -97,7 +97,7 @@ static void lp_acquire(void* context, real_t t, int rank, size_t* shape, real_t*
   if (lua_istable(p->L, -1))
   {
     lua_pushnumber(p->L, (double)t);
-    lua_pushlightuserdata(p->L, data);
+    lua_push_ndarray(p->L, rank, shape, data, LUA_ARRAY_REAL);
     lua_call(p->L, 3, 1);
   }
   // Otherwise, just all it with (t, val).
@@ -105,7 +105,7 @@ static void lp_acquire(void* context, real_t t, int rank, size_t* shape, real_t*
   {
     ASSERT(lua_isfunction(p->L, -1));
     lua_pushnumber(p->L, (double)t);
-    lua_pushlightuserdata(p->L, data);
+    lua_push_ndarray(p->L, rank, shape, data, LUA_ARRAY_REAL);
     lua_call(p->L, 2, 1);
   }
 }

@@ -112,6 +112,21 @@ bool lua_is_array(lua_State* L, int index, lua_array_data_t type);
 // NULL if the item there is not such an array.
 void* lua_to_array(lua_State* L, int index, lua_array_data_t type);
 
+// Pushes a multidimensional ndarray of the given rank, shape, and type onto L's stack.
+void lua_push_ndarray(lua_State* L, int rank, size_t* shape, 
+                      void* array, lua_array_data_t type);
+
+// Returns true if the item at the given index on L's stack is an ndarray 
+// of the given type, false if not.
+bool lua_is_ndarray(lua_State* L, int index, lua_array_data_t type);
+
+// Returns the ndarray of the given type at the given index on L's stack, or 
+// NULL if the item there is not such an ndarray. If this function returns 
+// a non-NULL result, rank stores the rank of the array, and shape stores a
+// borrowed pointer to the shape array.
+void* lua_to_ndarray(lua_State* L, int index, lua_array_data_t type, 
+                     int* rank, size_t** shape);
+
 // Pushes a bounding box b onto L's stack.
 void lua_push_bbox(lua_State* L, bbox_t* b);
 

@@ -19,7 +19,9 @@ typedef struct
   size_t size;
 } lua_array_t;
 
-static void get_type_str(lua_array_data_t type, char* type_str)
+// This is exposed for use by lua_ndarray.
+void lua_array_get_type_str(lua_array_data_t type, char* type_str);
+void lua_array_get_type_str(lua_array_data_t type, char* type_str)
 {
   if (type == LUA_ARRAY_BYTE)
     strcpy(type_str, "byte");
@@ -45,6 +47,36 @@ static void get_type_str(lua_array_data_t type, char* type_str)
     strcpy(type_str, "sym_tensor2");
 }
 
+// Also exposed for use by lua_ndarray.
+size_t lua_array_elem_size(lua_array_data_t type);
+size_t lua_array_elem_size(lua_array_data_t type)
+{
+  size_t size;
+  if (type == LUA_ARRAY_BYTE)
+    size = sizeof(uint8_t);
+  else if (type == LUA_ARRAY_INT)
+    size = sizeof(int);
+  else if (type == LUA_ARRAY_INT64)
+    size = sizeof(int64_t);
+  else if (type == LUA_ARRAY_UINT64)
+    size = sizeof(uint64_t);
+  else if (type == LUA_ARRAY_INDEX)
+    size = sizeof(index_t);
+  else if (type == LUA_ARRAY_REAL)
+    size = sizeof(real_t);
+  else if (type == LUA_ARRAY_COMPLEX)
+    size = sizeof(complex_t);
+  else if (type == LUA_ARRAY_POINT)
+    size = sizeof(point_t);
+  else if (type == LUA_ARRAY_VECTOR)
+    size = sizeof(vector_t);
+  else if (type == LUA_ARRAY_TENSOR2)
+    size = sizeof(tensor2_t);
+  else // if (type == LUA_ARRAY_SYM_TENSOR2)
+    size = sizeof(sym_tensor2_t);
+  return size;
+}
+
 static int array_index(lua_State* L)
 {
   lua_array_t* a = luaL_checkudata(L, 1, "array");
@@ -52,7 +84,7 @@ static int array_index(lua_State* L)
       (strcmp(lua_tostring(L, 2), "type") == 0))
   {
     char type_str[24];
-    get_type_str(a->type, type_str);
+    lua_array_get_type_str(a->type, type_str);
     lua_pushstring(L, type_str);
     return 1;
   }
@@ -676,7 +708,7 @@ static int array_concat(lua_State* L)
   if (ar1 == NULL)
   {
     char type_str[24];
-    get_type_str(type, type_str);
+    lua_array_get_type_str(type, type_str);
     luaL_error(L, "Argument could not be converted to an array (%s) be an array or a table.", type_str);
   }
 
@@ -892,7 +924,7 @@ static int array_tostring(lua_State* L)
   lua_array_t* a = luaL_checkudata(L, 1, "array");
 
   char type_str[24];
-  get_type_str(a->type, type_str);
+  lua_array_get_type_str(a->type, type_str);
   char* str = NULL;
   size_t first_leg = a->size, second_leg = 0;
   if (a->size <= 100)
@@ -936,7 +968,9 @@ static luaL_Reg array_mm[] = {
   {NULL, NULL}
 };
 
-static lua_array_data_t get_type(lua_State* L, const char* type_str)
+// This is exposed for lua_ndarray, too.
+lua_array_data_t lua_array_get_type(lua_State* L, const char* type_str, int index);
+lua_array_data_t lua_array_get_type(lua_State* L, const char* type_str, int index)
 {
   if (strcmp(type_str, "byte") == 0)
     return LUA_ARRAY_BYTE;
@@ -962,8 +996,8 @@ static lua_array_data_t get_type(lua_State* L, const char* type_str)
     return LUA_ARRAY_SYM_TENSOR2;
   else
   {
-    luaL_error(L, "Argument 2 must be one of the following:\n"
-      "byte, int, int64, uint64, index, real, complex, point, vector, tensor2, symtensor2.");
+    luaL_error(L, "Argument %d must be one of the following:\n"
+      "byte, int, int64, uint64, index, real, complex, point, vector, tensor2, symtensor2.", index);
     return LUA_ARRAY_INT;
   }
 }
@@ -972,14 +1006,14 @@ static int array_new(lua_State* L)
 {
   int num_args = lua_gettop(L);
   if (num_args != 2)
-    return luaL_error(L, "Arguments must a table of data and a data type.");
+    return luaL_error(L, "Arguments must be a table of data and a data type.");
   if (!lua_istable(L, 1))
     return luaL_error(L, "Argument 1 must be a table containing data.");
   if (!lua_isstring(L, 2)) 
     return luaL_error(L, "Argument 2 must be a data type.");
 
   const char* type_str = lua_tostring(L, 2);
-  lua_array_data_t type = get_type(L, type_str);
+  lua_array_data_t type = lua_array_get_type(L, type_str, 2);
   void* array = array_from_type(L, 1, type);
   if (array == NULL)
     return luaL_error(L, "Argument 1 must be a table containing %s data.", type_str);

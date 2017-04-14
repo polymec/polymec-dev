@@ -16,7 +16,7 @@ add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
                     bd_matrix.c matrix_sparsity.c krylov_solver.c 
                     petsc_krylov_solver.c hypre_krylov_solver.c
                     silo_file.c exchanger.c lua_types.c lua_core.c 
-                    lua_array.c lua_driver.c engine_server.c)
+                    lua_array.c lua_ndarray.c lua_driver.c engine_server.c)
 
 # polymec.c depends on the creation of polymec_version.h.
 add_dependencies(polymec_core update_version_h)
