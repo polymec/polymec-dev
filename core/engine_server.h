@@ -62,5 +62,24 @@ void engine_server_push_command(const char* command);
 // can be sent to a client. The data is consumed by the queue. If the engine isn't 
 // running, this function has no effect.
 void engine_server_push_data(byte_array_t* data);
+
+// Pushes a dynamically-allocated array of real-valued numeric data to the back of 
+// the engine's message queue so that it can be sent to a client. The array has a rank 
+// (0 for a scalar, 1 or more for a "multi-dimensional" array), a shape (an array with 
+// the dimensions of each of the indices), and a pointer to real-valued numbers. The 
+// array is consumed by the queue.  If the engine isn't running, this function has no 
+// effect.
+void engine_server_push_real_array(int rank, size_t* shape, real_t* array);
+
+#ifndef __cplusplus
+// Pushes a dynamically-allocated array of complex-valued numeric data to the back 
+// of the engine's message queue so that it can be sent to a client. The array has a 
+// rank (0 for a scalar, 1 or more for a "multi-dimensional" array), a shape (an array 
+// with the dimensions of each of the indices), and a pointer to complex-valued numbers. 
+// The array is consumed by the queue.  If the engine isn't running, this function has 
+// no effect.
+void engine_server_push_complex_array(int rank, size_t* shape, complex_t* array);
+#endif
+
 #endif
 

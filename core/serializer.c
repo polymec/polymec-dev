@@ -253,6 +253,34 @@ void byte_array_write_real_ts(byte_array_t* byte_stream, size_t n, real_t* data,
   *offset += sizeof(real_t) * n;
 }
 
+void byte_array_read_complex_ts(byte_array_t* byte_stream, size_t n, complex_t* data, size_t* offset)
+{
+  ASSERT(*offset <= byte_stream->size - sizeof(complex_t) * n);
+  memcpy(data, &byte_stream->data[*offset], sizeof(complex_t) * n);
+  *offset += n * sizeof(complex_t);
+}
+
+void byte_array_write_complex_ts(byte_array_t* byte_stream, size_t n, complex_t* data, size_t* offset)
+{
+  byte_array_resize(byte_stream, *offset + n * sizeof(complex_t));
+  memcpy(&byte_stream->data[*offset], data, sizeof(complex_t) * n);
+  *offset += sizeof(complex_t) * n;
+}
+
+void byte_array_read_floats(byte_array_t* byte_stream, size_t n, float* data, size_t* offset)
+{
+  ASSERT(*offset <= byte_stream->size - sizeof(float) * n);
+  memcpy(data, &byte_stream->data[*offset], sizeof(float) * n);
+  *offset += n * sizeof(float);
+}
+
+void byte_array_write_floats(byte_array_t* byte_stream, size_t n, float* data, size_t* offset)
+{
+  byte_array_resize(byte_stream, *offset + n * sizeof(float));
+  memcpy(&byte_stream->data[*offset], data, sizeof(float) * n);
+  *offset += sizeof(float) * n;
+}
+
 void byte_array_read_doubles(byte_array_t* byte_stream, size_t n, double* data, size_t* offset)
 {
   ASSERT(*offset <= byte_stream->size - sizeof(double) * n);

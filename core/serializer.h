@@ -133,6 +133,22 @@ void byte_array_read_real_ts(byte_array_t* byte_stream, size_t n, real_t* data, 
 // Writes n reals to the byte array at the given offset, updating the offset.
 void byte_array_write_real_ts(byte_array_t* byte_stream, size_t n, real_t* data, size_t* offset);
 
+#ifndef __cplusplus
+// Reads n complex numbers from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_complex_ts(byte_array_t* byte_stream, size_t n, complex_t* data, size_t* offset);
+
+// Writes n complex numbers to the byte array at the given offset, updating the offset.
+void byte_array_write_complex_ts(byte_array_t* byte_stream, size_t n, complex_t* data, size_t* offset);
+#endif
+
+// Reads n floats from the byte array at the given offset, 
+// placing it into the data array and updating the offset.
+void byte_array_read_floats(byte_array_t* byte_stream, size_t n, float* data, size_t* offset);
+
+// Writes n floats to the byte array at the given offset, updating the offset.
+void byte_array_write_floats(byte_array_t* byte_stream, size_t n, float* data, size_t* offset);
+
 // Reads n doubles from the byte array at the given offset, 
 // placing it into the data array and updating the offset.
 void byte_array_read_doubles(byte_array_t* byte_stream, size_t n, double* data, size_t* offset);

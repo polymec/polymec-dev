@@ -809,7 +809,30 @@ static int array_gc(lua_State* L)
 {
   lua_array_t* a = luaL_checkudata(L, 1, "array");
   if (a->owns_data && (a->array != NULL))
-    polymec_free(a->array);
+  {
+    if (a->type == LUA_ARRAY_BYTE)
+      byte_array_free((byte_array_t*)a->array);
+    else if (a->type == LUA_ARRAY_INT)
+      int_array_free((int_array_t*)a->array);
+    else if (a->type == LUA_ARRAY_INT64)
+      int64_array_free((int64_array_t*)a->array);
+    else if (a->type == LUA_ARRAY_UINT64)
+      uint64_array_free((uint64_array_t*)a->array);
+    else if (a->type == LUA_ARRAY_INDEX)
+      index_array_free((index_array_t*)a->array);
+    else if (a->type == LUA_ARRAY_REAL)
+      real_array_free((real_array_t*)a->array);
+    else if (a->type == LUA_ARRAY_COMPLEX)
+      complex_array_free((complex_array_t*)a->array);
+    else if (a->type == LUA_ARRAY_POINT)
+      point_array_free((point_array_t*)a->array);
+    else if (a->type == LUA_ARRAY_VECTOR)
+      vector_array_free((vector_array_t*)a->array);
+    else if (a->type == LUA_ARRAY_TENSOR2)
+      tensor2_array_free((tensor2_array_t*)a->array);
+    else // if (a->type == LUA_ARRAY_SYM_TENSOR2)
+      sym_tensor2_array_free((sym_tensor2_array_t*)a->array);
+  }
   return 0;
 }
 

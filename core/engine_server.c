@@ -30,6 +30,7 @@
 #include "core/options.h"
 #include "core/slist.h"
 #include "core/array.h"
+#include "core/serializer.h"
 #include "core/unordered_map.h"
 #include "core/engine_server.h"
 
@@ -776,3 +777,28 @@ void engine_server_push_data(byte_array_t* data)
   }
 }
 
+void engine_server_push_real_array(int rank, size_t* shape, real_t* array)
+{
+  byte_array_t* bytes = byte_array_new();
+  size_t offset = 0;
+  byte_array_write_ints(bytes, 1, &rank, &offset);
+  byte_array_write_size_ts(bytes, (size_t)rank, shape, &offset);
+  size_t n = 1;
+  for (int i = 0; i < rank; ++i)
+    n *= shape[i];
+  byte_array_write_real_ts(bytes, n, array, &offset);
+  polymec_free(array);
+}
+
+void engine_server_push_complex_array(int rank, size_t* shape, complex_t* array)
+{
+  byte_array_t* bytes = byte_array_new();
+  size_t offset = 0;
+  byte_array_write_ints(bytes, 1, &rank, &offset);
+  byte_array_write_size_ts(bytes, (size_t)rank, shape, &offset);
+  size_t n = 1;
+  for (int i = 0; i < rank; ++i)
+    n *= shape[i];
+  byte_array_write_complex_ts(bytes, n, array, &offset);
+  polymec_free(array);
+}

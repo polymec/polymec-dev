@@ -41,27 +41,5 @@ bool lua_is_model_probe(lua_State* L, int index);
 // the item there is not a model probe.
 model_probe_t* lua_to_model_probe(lua_State* L, int index);
 
-// Pushes a model data channel c onto L's stack.
-void lua_push_model_data_channel(lua_State* L, model_data_channel_t* c);
-
-// Returns true if the item at the given index on L's stack is a 
-// model_data_channel, false if not.
-bool lua_is_model_data_channel(lua_State* L, int index);
-
-// Returns the model_data_channel at the given index on L's stack, or 
-// NULL if the item there is not a model data channel.
-model_data_channel_t* lua_to_model_data_channel(lua_State* L, int index);
-
-// Pushes a model local output o onto L's stack.
-void lua_push_model_local_output(lua_State* L, model_local_output_t* o);
-
-// Returns true if the item at the given index on L's stack is a 
-// model_local_output, false if not.
-bool lua_is_model_local_output(lua_State* L, int index);
-
-// Returns the model_local_output at the given index on L's stack, or 
-// NULL if the item there is not a model local output.
-model_local_output_t* lua_to_model_local_output(lua_State* L, int index);
-
 #endif
 

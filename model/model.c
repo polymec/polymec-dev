@@ -49,9 +49,6 @@ struct model_t
 
   int load_step; // -1 if starting a new sim, >= 0 if loading from a file.
 
-  // Model data channel for publishing acquired data.
-  model_data_channel_t* data_channel;
-
   // Probes and their acquisition times.
   probe_map_t* probes;
 
@@ -158,7 +155,6 @@ model_t* model_new(const char* name,
   model->step = 0;
   model->max_dt = REAL_MAX;
   model->min_dt = 0.0;
-  model->data_channel = NULL;
 
   // Initialize probes.
   model->probes = probe_map_new();
@@ -206,9 +202,6 @@ void model_free(model_t* model)
   if (model->sim_path != NULL)
     polymec_free(model->sim_path);
 
-  if (model->data_channel != NULL)
-    model_data_channel_free(model->data_channel);
-
   // Clear probes.
   probe_map_free(model->probes);
 
@@ -223,14 +216,6 @@ char* model_name(model_t* model)
 model_parallelism_t model_parallelism(model_t* model)
 {
   return model->parallelism;
-}
-
-void model_set_data_channel(model_t* model,
-                            model_data_channel_t* data_channel)
-{
-  if (model->data_channel != NULL)
-    model_data_channel_free(model->data_channel);
-  model->data_channel = data_channel;
 }
 
 void model_add_probe(model_t* model, 
@@ -558,16 +543,11 @@ void model_acquire(model_t* model)
         reals_nearly_equal(model->time, acq_times->data[acq_time_index], 1e-12)) // FIXME: Good enough?
     {
       // Acquire data from this probe.
-      tensor_t* datum = model_probe_new_datum(probe);
-      model_probe_acquire(probe, model->time, datum);
+      real_t* data = model_probe_new_array(probe);
+      model_probe_acquire(probe, model->time, data);
 
       // Publish this data.
-      if (model->data_channel != NULL)
-      {
-        model_data_channel_put(model->data_channel, model->time, 
-                               model_probe_name(probe), datum);
-      }
-      tensor_free(datum);
+      // FIXME
     }
   }
   STOP_FUNCTION_TIMER();
