@@ -199,7 +199,7 @@ static void keydb_read_client_keys(keydb_t* keys, const char* key_file)
     uint8_t key[crypto_box_PUBLICKEYBYTES];
     for (size_t i = 0; i < crypto_box_PUBLICKEYBYTES; ++i)
     {
-      n = fscanf(c_keys, "%02u", &key[i]);
+      n = fscanf(c_keys, "%2s", &key[i]);
       if (n != 2)
       {
         log_info("keydb_read_client_keys: Invalid client key read.");
@@ -341,30 +341,27 @@ static bool keydb_contains_user(keydb_t* keys,
 //------------------------------------------------------------------------
 
 // Server address and socket.
-struct sockaddr_in _server_addr;
+static struct sockaddr_in _server_addr;
 static int _server = -1;
 
-// Server identity file name.
-char _id_file[FILENAME_MAX+1];
-
 // Queue of outgoing messages from server -> client.
-ptr_slist_t* _queue = NULL;
+static ptr_slist_t* _queue = NULL;
 #if USE_PTHREADS
-pthread_mutex_t _queue_lock;
-pthread_cond_t _queue_cond;
+static pthread_mutex_t _queue_lock;
+static pthread_cond_t _queue_cond;
 #else
-mtx_t _queue_lock;
-cnd_t _queue_cond;
+static mtx_t _queue_lock;
+static cnd_t _queue_cond;
 #endif
 
 // Listener thread.
 #if USE_PTHREADS
-pthread_attr_t _listener_attr;
-pthread_t _listener;
+static pthread_attr_t _listener_attr;
+static pthread_t _listener;
 #else
-thrd_t _listener;
+static thrd_t _listener;
 #endif
-bool _shutting_down = false;
+static bool _shutting_down = false;
 
 static uint8_t* authenticate_client(int client)
 {
