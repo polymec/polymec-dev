@@ -217,7 +217,7 @@ set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 if (NOT EXISTS ${SODIUM_LIBRARY})
   set(SODIUM_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --enable-static)
   if (CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(SODIUM_CONFIG_OPTS ${SODIUM_LIB_CONFIG_OPTS} --enable-opt)
+    set(SODIUM_CONFIG_OPTS ${SODIUM_CONFIG_OPTS} --enable-opt)
   endif()
 
   message(STATUS "Preparing libsodium...")
