@@ -15,10 +15,10 @@
 #include "silo.h"
 #include "core/arch.h"
 #include "core/logging.h"
-#include "core/silo_file.h"
 #include "core/array.h"
 #include "core/array_utils.h"
 #include "core/timer.h"
+#include "io/silo_file.h"
 
 #if POLYMEC_HAVE_DOUBLE_PRECISION
 #define SILO_FLOAT_TYPE DB_DOUBLE

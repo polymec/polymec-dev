@@ -11,6 +11,7 @@
 #include <string.h>
 #include "cmocka.h"
 #include "geometry/create_uniform_mesh.h"
+#include "io/silo_file.h"
 
 static void test_create_uniform_mesh(void** state)
 {
@@ -51,6 +52,39 @@ static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   int nx = 10, ny = 10, nz = 10;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
+
+  // Plot it.
+  real_t ones[nx*ny*nz];
+  for (int c = 0; c < ny*ny*nz; ++c)
+    ones[c] = 1.0*c;
+  char prefix[FILENAME_MAX];
+  snprintf(prefix, FILENAME_MAX, "uniform_mesh_%dx%dx%d_%df", nx, ny, nz, num_files);
+  silo_file_t* silo = silo_file_new(mesh->comm, prefix, "", num_files, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, NULL);
+  silo_file_close(silo);
+
+  // Query the plot file to make sure its numbers are good.
+  int nprocs, my_num_files, num_mpi_procs;
+  MPI_Comm_size(mesh->comm, &nprocs);
+  char dir_name[FILENAME_MAX];
+  if (nprocs > 1)
+    snprintf(dir_name, FILENAME_MAX, "%s_%dprocs", prefix, nprocs);
+  else
+    snprintf(dir_name, FILENAME_MAX, ".");
+  assert_true(silo_file_query(prefix, dir_name, &my_num_files, &num_mpi_procs, NULL));
+  assert_int_equal(num_files, my_num_files);
+  assert_int_equal(nprocs, num_mpi_procs);
+
+  // Get cycles too.
+  int_slist_t* cycles = int_slist_new();
+  assert_true(silo_file_query(prefix, dir_name, &my_num_files, &num_mpi_procs, cycles));
+  assert_int_equal(num_files, my_num_files);
+  assert_int_equal(nprocs, num_mpi_procs);
+  assert_int_equal(1, cycles->size);
+  if (cycles->size > 0)
+    assert_int_equal(0, cycles->front->value);
+  int_slist_free(cycles);
 
   // Clean up.
   mesh_free(mesh);

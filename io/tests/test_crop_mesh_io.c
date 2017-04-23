@@ -16,6 +16,7 @@
 #include "geometry/plane_sd_func.h"
 #include "geometry/intersection_sd_func.h"
 #include "geometry/sphere_sd_func.h"
+#include "io/silo_file.h"
 
 static void test_cylindrical_crop(void** state)
 {
@@ -58,6 +59,15 @@ static void test_cylindrical_crop(void** state)
     mesh_free(almost_cropped_mesh);
   }
 
+  // Plot the cropped mesh.
+  real_t ones[Nx*Ny*Nz];
+  for (int c = 0; c < Nx*Ny*Nz; ++c)
+    ones[c] = 1.0*c;
+  silo_file_t* silo = silo_file_new(cropped_mesh->comm, "cyl_cropped_mesh", "", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", cropped_mesh);
+  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, NULL);
+  silo_file_close(silo);
+
   mesh_free(cropped_mesh);
 }
 
@@ -73,6 +83,16 @@ static void test_spherical_crop(void** state)
   sd_func_t* boundary = sphere_sd_func_new(&O, 0.5, INWARD_NORMAL);
   mesh_t* cropped_mesh = crop_mesh(mesh, boundary, PROJECT_NODES);
   mesh_free(mesh);
+
+  // Plot the cropped mesh.
+  real_t ones[Nx*Ny*Nz];
+  for (int c = 0; c < Nx*Ny*Nz; ++c)
+    ones[c] = 1.0*c;
+  silo_file_t* silo = silo_file_new(cropped_mesh->comm, "sph_cropped_mesh", "", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", cropped_mesh);
+  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, NULL);
+  silo_file_close(silo);
+
   mesh_free(cropped_mesh);
 }
 

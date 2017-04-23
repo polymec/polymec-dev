@@ -12,6 +12,7 @@
 #include "cmocka.h"
 #include "core/partition_mesh.h"
 #include "geometry/create_uniform_mesh.h"
+#include "io/silo_file.h"
 
 #if POLYMEC_HAVE_DOUBLE_PRECISION
 static const real_t abs_tolerance = 1e-12;
@@ -200,6 +201,17 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
 
   // Check the resulting exchanger.
   exchanger_verify(mesh_exchanger(mesh), polymec_error);
+
+  // Plot it.
+  real_t r[mesh->num_cells];
+  for (int c = 0; c < mesh->num_cells; ++c)
+    r[c] = 1.0*rank;
+  char prefix[FILENAME_MAX];
+  snprintf(prefix, FILENAME_MAX, "%dx%dx%d_uniform_mesh_repartition", nx, ny, nz);
+  silo_file_t* silo = silo_file_new(mesh->comm, prefix, prefix, 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "rank", "mesh", r, NULL);
+  silo_file_close(silo);
 
   // Clean up.
   mesh_free(mesh);

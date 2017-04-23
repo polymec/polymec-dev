@@ -11,12 +11,10 @@
 #include "core/polymec.h"
 #include "core/lua_types.h"
 #include "core/tensor2.h"
-#include "core/tensor.h"
 #include "core/sp_func.h"
 #include "core/st_func.h"
 #include "core/mesh.h"
 #include "core/point_cloud.h"
-#include "core/silo_file.h"
 
 // This file contains functions for manipulating basic data types in the 
 // Lua interpreter. We attempt to expose these data types in a seamless 
@@ -181,29 +179,6 @@ bool lua_is_point_cloud(lua_State* L, int index);
 // Returns the point cloud at the given index on L's stack, or NULL 
 // if the item there is not a point cloud.
 point_cloud_t* lua_to_point_cloud(lua_State* L, int index);
-
-// Pushes a SILO file s onto L's stack.
-void lua_push_silo_file(lua_State* L, silo_file_t* s);
-
-// Returns true if the item at the given index on L's stack is a SILO
-// file, false if not.
-bool lua_is_silo_file(lua_State* L, int index);
-
-// Returns the SILO file at the given index on L's stack, or NULL 
-// if the item there is not a SILO file.
-silo_file_t* lua_to_silo_file(lua_State* L, int index);
-
-// Pushes a general tensor t onto L's stack.
-void lua_push_tensor(lua_State* L, tensor_t* t);
-
-// Returns true if the item at the given index on L's stack can be 
-// interpreted as a tensor (i.e., as a table of numbers or tables, or 
-// as a number), false if not.
-bool lua_is_tensor(lua_State* L, int index);
-
-// Returns the tensor t at the given index on L's stack, or NULL if 
-// the item there is not a tensor.
-tensor_t* lua_to_tensor(lua_State* L, int index);
 
 #endif
 

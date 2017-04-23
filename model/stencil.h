@@ -15,7 +15,7 @@
 #include "core/point_cloud.h"
 #include "core/adj_graph.h"
 #include "core/matrix_sparsity.h"
-#include "core/silo_file.h"
+#include "io/silo_file.h"
 
 // A stencil is a set of indices and weights associated with a stencil for 
 // some spatial discretization. Stencils can be constructed for any set of 

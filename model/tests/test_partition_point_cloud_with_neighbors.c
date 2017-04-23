@@ -10,8 +10,8 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "core/silo_file.h"
 #include "geometry/create_point_lattice.h"
+#include "io/silo_file.h"
 #include "model/partition_point_cloud_with_neighbors.h"
 
 // This creates a neighbor pairing using a hat function.

@@ -12,6 +12,7 @@
 #include "cmocka.h"
 #include "core/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
+#include "io/silo_file.h"
 
 static void test_partition_linear_cloud(void** state, int N)
 {
@@ -45,8 +46,25 @@ static void test_partition_linear_cloud(void** state, int N)
     assert_true(reals_nearly_equal(z, 0.5, 1e-6));
   }
 
+  // Plot it.
+  real_t p[cloud->num_points];
+  for (int i = 0; i < cloud->num_points; ++i)
+    p[i] = 1.0*rank;
+  char filename[FILENAME_MAX];
+  snprintf(filename, FILENAME_MAX, "linear_cloud_partition_%d", N);
+  silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
+  silo_file_write_point_cloud(silo, "cloud", cloud);
+  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
+  silo_file_close(silo);
+
   // Clean up.
   point_cloud_free(cloud);
+
+  // Superficially check that the file is okay.
+  int num_files, num_procs;
+  assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));
+  assert_int_equal(1, num_files);
+  assert_int_equal(nprocs, num_procs);
 }
 
 static void test_partition_planar_cloud(void** state, int nx, int ny)
@@ -68,8 +86,25 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
   migrator_t* m = partition_point_cloud(&cloud, comm, NULL, 0.05);
   m = NULL;
 
+  // Plot it.
+  real_t p[cloud->num_points];
+  for (int i = 0; i < cloud->num_points; ++i)
+    p[i] = 1.0*rank;
+  char filename[FILENAME_MAX];
+  snprintf(filename, FILENAME_MAX, "planar_cloud_partition_%dx%d", nx, ny);
+  silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
+  silo_file_write_point_cloud(silo, "cloud", cloud);
+  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
+  silo_file_close(silo);
+
   // Clean up.
   point_cloud_free(cloud);
+
+  // Superficially check that the file is okay.
+  int num_files, num_procs;
+  assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));
+  assert_int_equal(1, num_files);
+  assert_int_equal(nprocs, num_procs);
 }
 
 static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
@@ -91,8 +126,25 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   migrator_t* m = partition_point_cloud(&cloud, comm, NULL, 0.05);
   m = NULL;
 
+  // Plot it.
+  real_t p[cloud->num_points];
+  for (int i = 0; i < cloud->num_points; ++i)
+    p[i] = 1.0*rank;
+  char filename[FILENAME_MAX];
+  snprintf(filename, FILENAME_MAX, "cubic_cloud_partition_%dx%dx%d", nx, ny, nz);
+  silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
+  silo_file_write_point_cloud(silo, "cloud", cloud);
+  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
+  silo_file_close(silo);
+
   // Clean up.
   point_cloud_free(cloud);
+
+  // Superficially check that the file is okay.
+  int num_files, num_procs;
+  assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));
+  assert_int_equal(1, num_files);
+  assert_int_equal(nprocs, num_procs);
 }
 
 static void test_partition_small_linear_cloud(void** state)

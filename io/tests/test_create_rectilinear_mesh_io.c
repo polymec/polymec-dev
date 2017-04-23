@@ -12,6 +12,7 @@
 #include "cmocka.h"
 #include "core/array_utils.h"
 #include "geometry/create_rectilinear_mesh.h"
+#include "io/silo_file.h"
 
 static void test_create_rectilinear_mesh(void** state)
 {
@@ -55,6 +56,15 @@ static void test_plot_rectilinear_mesh(void** state)
   real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0};
   real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
   mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 5);
+
+  // Plot it.
+  real_t ones[4*4*4];
+  for (int c = 0; c < 4*4*4; ++c)
+    ones[c] = 1.0*c;
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, NULL);
+  silo_file_close(silo);
 
   // Clean up.
   mesh_free(mesh);
