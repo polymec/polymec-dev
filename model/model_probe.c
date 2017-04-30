@@ -75,6 +75,12 @@ size_t* model_probe_data_shape(model_probe_t* probe)
   return probe->data_shape;
 }
 
+void model_probe_init(model_probe_t* probe)
+{
+  if (probe->vtable.init != NULL)
+    probe->vtable.init(probe->context, probe->data_rank, probe->data_shape);
+}
+
 real_t* model_probe_new_array(model_probe_t* probe)
 {
   size_t n = 1;

@@ -17,6 +17,9 @@ typedef struct model_probe_t model_probe_t;
 // This virtual table must be implemented by any model probe.
 typedef struct 
 {
+  // Initializes the probe.
+  void (*init)(void* context, int rank, size_t* shape);
+
   // Acquire data from a model. The data's rank and shape are given, and 
   // the data is placed into the data array.
   void (*acquire)(void* context, real_t t, int rank, size_t* shape, real_t* data); 
@@ -46,6 +49,10 @@ int model_probe_data_rank(model_probe_t* probe);
 
 // Returns the shape (a rank-sized array) of the data acquired by this probe.
 size_t* model_probe_data_shape(model_probe_t* probe);
+
+// Sets up the model probe for writing a new set of data. What this means is 
+// defined by the model subclass itself.
+void model_probe_init(model_probe_t* probe);
 
 // Allocates and returns an array of sufficient size to hold an aquisition.
 real_t* model_probe_new_array(model_probe_t* probe);
