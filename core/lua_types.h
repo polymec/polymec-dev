@@ -27,6 +27,13 @@ void lua_register_module(lua_State* L,
                          const char* module_name,
                          lua_module_function functions[]);
 
+// Registers a set of functions in a named table within a module. Useful for 
+// factory functions.
+void lua_register_module_function_table(lua_State* L,
+                                        const char* module_name,
+                                        const char* table_name,
+                                        lua_module_function funcs[]);
+
 // This type represents a method for a Lua class.
 typedef struct
 {

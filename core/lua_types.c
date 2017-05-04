@@ -60,6 +60,31 @@ void lua_register_module(lua_State* L,
   luaL_requiref(L, module_name, lua_open_module, 1);
 }
 
+void lua_register_module_function_table(lua_State* L,
+                                        const char* module_name,
+                                        const char* table_name,
+                                        lua_module_function funcs[]) 
+{
+  lua_getglobal(L, module_name);
+
+  // Create a table containing the functions.
+  int num_funcs = 0;
+  while (funcs[num_funcs].name != NULL)
+    ++num_funcs;
+  luaL_Reg f[num_funcs+1];
+  for (int i = 0; i < num_funcs; ++i)
+  {
+    f[i].name = funcs[i].name;
+    f[i].func = funcs[i].func;
+  }
+  f[num_funcs].name = NULL;
+  f[num_funcs].func = NULL;
+  luaL_newlib(L, f);
+
+  // Register the table in the module.
+  lua_setfield(L, -2, table_name);
+}
+
 //------------------------------------------------------------------------
 //                               Classes
 //------------------------------------------------------------------------
