@@ -79,7 +79,11 @@ void lua_register_module_function_table(lua_State* L,
   }
   f[num_funcs].name = NULL;
   f[num_funcs].func = NULL;
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
   luaL_newlib(L, f);
+#pragma clang diagnostic pop
 
   // Register the table in the module.
   lua_setfield(L, -2, table_name);
