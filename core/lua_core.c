@@ -1027,24 +1027,27 @@ static int bb_new(lua_State* L)
   {
     lua_pushstring(L, entries[i]);
     lua_gettable(L, 1); // Reads name from top, replaces with bounds[name].
-    if (!lua_isnumber(L, -1))
+    real_t num = (i % 2) ? -REAL_MAX : REAL_MAX;
+    if (lua_isnumber(L, -1))
+      num = (real_t)lua_tonumber(L, -1);
+    else if (!lua_isnil(L, -1) && !lua_isnumber(L, -1))
     {
       return luaL_error(L, "Invalid entry for '%s'.\n"
                         "x1, x2, y1, y2, z1, z2, must all be numbers.", entries[i]);
     }
     switch(i)
     {
-      case 0: bbox->x1 = (real_t)lua_tonumber(L, -1);
+      case 0: bbox->x1 = num;
               break;
-      case 1: bbox->x2 = (real_t)lua_tonumber(L, -1);
+      case 1: bbox->x2 = num;
               break;
-      case 2: bbox->y1 = (real_t)lua_tonumber(L, -1);
+      case 2: bbox->y1 = num;
               break;
-      case 3: bbox->y2 = (real_t)lua_tonumber(L, -1);
+      case 3: bbox->y2 = num;
               break;
-      case 4: bbox->z1 = (real_t)lua_tonumber(L, -1);
+      case 4: bbox->z1 = num;
               break;
-      case 5: bbox->z2 = (real_t)lua_tonumber(L, -1);
+      case 5: bbox->z2 = num;
               break;
       default: break;
     }
