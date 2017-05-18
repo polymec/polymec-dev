@@ -41,7 +41,7 @@ static int m_advance(lua_State* L)
   model_t* m = lua_to_model(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Argument must be a maximum time step size.");
-  real_t dt_max = (real_t)(lua_tonumber(L, 2));
+  real_t dt_max = lua_to_real(L, 2);
   real_t dt_actual = model_advance(m, dt_max);
   lua_pushnumber(L, dt_actual);
   return 1;
@@ -55,11 +55,11 @@ static int m_run(lua_State* L)
   lua_getfield(L, 2, "t1");
   if (!lua_isnumber(L, -1))
     return luaL_error(L, "t1 must be a number.");
-  real_t t1 = (real_t)(lua_tonumber(L, -1));
+  real_t t1 = lua_to_real(L, -1);
   lua_getfield(L, 2, "t2");
   if (!lua_isnumber(L, -1))
     return luaL_error(L, "t2 must be a number.");
-  real_t t2 = (real_t)(lua_tonumber(L, -1));
+  real_t t2 = lua_to_real(L, -1);
   if (t2 < t1)
     return luaL_error(L, "t2 must be greater than or equal to t1.");
   lua_getfield(L, 2, "max_steps");

@@ -25,6 +25,17 @@
 // interpreter.
 int lua_register_core_modules(lua_State* L);
 
+// Pushes a real number z onto L's stack.
+void lua_push_real(lua_State* L, real_t x);
+
+// Returns true if the item at the given index on L's stack is a real
+// number, false if not.
+bool lua_is_real(lua_State* L, int index);
+
+// Returns the real number at the given index on L's stack, or (0, 0)
+// if the item is not a real number.
+real_t lua_to_real(lua_State* L, int index);
+
 #ifndef __cplusplus
 // Pushes a complex number z onto L's stack.
 void lua_push_complex(lua_State* L, complex_t z);

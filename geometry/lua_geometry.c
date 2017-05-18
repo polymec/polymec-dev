@@ -64,7 +64,7 @@ static int sdt_grad(lua_State* L)
   point_t* x = lua_to_point(L, 2);
   if (!lua_isnumber(L, 3))
     return luaL_error(L, "Argument 2 must be a time.");
-  real_t t = (real_t)lua_tonumber(L, 3);
+  real_t t = lua_to_real(L, 3);
   vector_t* grad = vector_new(0.0, 0.0, 0.0);
   sdt_func_eval_grad(f, x, t, grad);
   lua_push_vector(L, grad);
@@ -79,7 +79,7 @@ static int sdt_call(lua_State* L)
   point_t* x = lua_to_point(L, 2);
   if (!lua_isnumber(L, 3))
     return luaL_error(L, "Argument 2 must be a time.");
-  real_t t = (real_t)lua_tonumber(L, 3);
+  real_t t = lua_to_real(L, 3);
   lua_pushnumber(L, sdt_func_value(f, x, t));
   return 1;
 }

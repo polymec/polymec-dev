@@ -24,8 +24,8 @@ static int z_new(lua_State* L)
     return luaL_error(L, "Arguments must be real, imag components.");
   }
 
-  real_t real = (real_t)lua_tonumber(L, 1);
-  real_t imag = (real_t)lua_tonumber(L, 2);
+  real_t real = lua_to_real(L, 1);
+  real_t imag = lua_to_real(L, 2);
   complex_t z = CMPLX(real, imag);
   lua_push_complex(L, z);
   return 1;
@@ -102,7 +102,7 @@ static int z_mul(lua_State* L)
       (!lua_is_complex(L, 1) || !lua_isnumber(L, 2)))
     luaL_error(L, "Arguments must be a complex and a real.");
   complex_t z = lua_to_complex(L, (lua_isnumber(L, 1)) ? 2 : 1);
-  real_t c = (real_t)lua_tonumber(L, (lua_isnumber(L, 1)) ? 1 : 2);
+  real_t c = lua_to_real(L, (lua_isnumber(L, 1)) ? 1 : 2);
   lua_push_complex(L, c * z);
   return 1;
 }
@@ -110,9 +110,9 @@ static int z_mul(lua_State* L)
 static int z_div(lua_State* L)
 {
   complex_t z = lua_to_complex(L, 1);
-  if (!lua_isnumber(L, 2))
+  if (!lua_is_real(L, 2))
     luaL_error(L, "Argument 2 must be a number.");
-  real_t c = (real_t)lua_tonumber(L, 2);
+  real_t c = lua_to_real(L, 2);
   lua_push_complex(L, z/c);
   return 1;
 }
@@ -130,8 +130,8 @@ static int z_pow(lua_State* L)
   complex_t p = 0.0;
   if (lua_is_complex(L, 2))
     p = lua_to_complex(L, 2);
-  else if (lua_isnumber(L, 2))
-    p = lua_tonumber(L, 2);
+  else if (lua_is_real(L, 2))
+    p = lua_to_real(L, 2);
   else
     luaL_error(L, "Argument 2 must be a real or complex number.");
   lua_push_complex(L, cpow(z, p));
@@ -166,9 +166,9 @@ static int p_new(lua_State* L)
     return luaL_error(L, "Arguments must be x, y, z coordinates.");
   }
 
-  real_t x = (real_t)lua_tonumber(L, 1);
-  real_t y = (real_t)lua_tonumber(L, 2);
-  real_t z = (real_t)lua_tonumber(L, 3);
+  real_t x = lua_to_real(L, 1);
+  real_t y = lua_to_real(L, 2);
+  real_t z = lua_to_real(L, 3);
   point_t* point = point_new(x, y, z);
   lua_push_point(L, point);
   return 1;
@@ -202,7 +202,7 @@ static int p_set_x(lua_State* L)
   point_t* p = lua_to_point(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Point coordinates must be numbers.");
-  p->x = (real_t)lua_tonumber(L, 2);
+  p->x = lua_to_real(L, 2);
   return 0;
 }
 
@@ -218,7 +218,7 @@ static int p_set_y(lua_State* L)
   point_t* p = lua_to_point(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Point coordinates must be numbers.");
-  p->y = (real_t)lua_tonumber(L, 2);
+  p->y = lua_to_real(L, 2);
   return 0;
 }
 
@@ -234,7 +234,7 @@ static int p_set_z(lua_State* L)
   point_t* p = lua_to_point(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Point coordinates must be numbers.");
-  p->z = (real_t)lua_tonumber(L, 2);
+  p->z = lua_to_real(L, 2);
   return 0;
 }
 
@@ -286,9 +286,9 @@ static int v_new(lua_State* L)
     return luaL_error(L, "Arguments must be x, y, z components.");
   }
 
-  real_t x = (real_t)lua_tonumber(L, 1);
-  real_t y = (real_t)lua_tonumber(L, 2);
-  real_t z = (real_t)lua_tonumber(L, 3);
+  real_t x = lua_to_real(L, 1);
+  real_t y = lua_to_real(L, 2);
+  real_t z = lua_to_real(L, 3);
   vector_t* vec = vector_new(x, y, z);
   lua_push_vector(L, vec);
   return 1;
@@ -322,7 +322,7 @@ static int v_set_x(lua_State* L)
   vector_t* v = lua_to_vector(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Vector components must be numbers.");
-  v->x = (real_t)lua_tonumber(L, 2);
+  v->x = lua_to_real(L, 2);
   return 0;
 }
 
@@ -338,7 +338,7 @@ static int v_set_y(lua_State* L)
   vector_t* v = lua_to_vector(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Vector components must be numbers.");
-  v->y = (real_t)lua_tonumber(L, 2);
+  v->y = lua_to_real(L, 2);
   return 0;
 }
 
@@ -354,7 +354,7 @@ static int v_set_z(lua_State* L)
   vector_t* v = lua_to_vector(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Vector components must be numbers.");
-  v->z = (real_t)lua_tonumber(L, 2);
+  v->z = lua_to_real(L, 2);
   return 0;
 }
 
@@ -397,7 +397,7 @@ static int v_mul(lua_State* L)
       (!lua_is_vector(L, 1) || !lua_isnumber(L, 2)))
     luaL_error(L, "Arguments must be a vector and a number.");
   vector_t* v = lua_to_vector(L, (lua_isnumber(L, 1)) ? 2 : 1);
-  real_t c = (real_t)lua_tonumber(L, (lua_isnumber(L, 1)) ? 1 : 2);
+  real_t c = lua_to_real(L, (lua_isnumber(L, 1)) ? 1 : 2);
   vector_t* v1 = vector_new(c * v->x, c * v->y, c * v->z);
   lua_push_vector(L, v1);
   return 1;
@@ -410,7 +410,7 @@ static int v_div(lua_State* L)
     luaL_error(L, "Argument 1 must be a vector.");
   if (!lua_isnumber(L, 2))
     luaL_error(L, "Argument 2 must be a number.");
-  real_t c = (real_t)lua_tonumber(L, 2);
+  real_t c = lua_to_real(L, 2);
   vector_t* v1 = vector_new(v->x/c, v->y/c, v->z/c);
   lua_push_vector(L, v1);
   return 1;
@@ -461,15 +461,15 @@ static int t2_new(lua_State* L)
     return luaL_error(L, "Arguments must be xx, xy, xz, yx, yy, yz, zx, zy, zz components.");
   }
 
-  real_t xx = (real_t)lua_tonumber(L, 1);
-  real_t xy = (real_t)lua_tonumber(L, 2);
-  real_t xz = (real_t)lua_tonumber(L, 3);
-  real_t yx = (real_t)lua_tonumber(L, 4);
-  real_t yy = (real_t)lua_tonumber(L, 5);
-  real_t yz = (real_t)lua_tonumber(L, 6);
-  real_t zx = (real_t)lua_tonumber(L, 7);
-  real_t zy = (real_t)lua_tonumber(L, 8);
-  real_t zz = (real_t)lua_tonumber(L, 9);
+  real_t xx = lua_to_real(L, 1);
+  real_t xy = lua_to_real(L, 2);
+  real_t xz = lua_to_real(L, 3);
+  real_t yx = lua_to_real(L, 4);
+  real_t yy = lua_to_real(L, 5);
+  real_t yz = lua_to_real(L, 6);
+  real_t zx = lua_to_real(L, 7);
+  real_t zy = lua_to_real(L, 8);
+  real_t zz = lua_to_real(L, 9);
   tensor2_t* t = tensor2_new(xx, xy, xz,
                              yx, yy, yz,
                              zx, zy, zz);
@@ -494,7 +494,7 @@ static int t2_set_xx(lua_State* L)
   tensor2_t* t = lua_to_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->xx = (real_t)lua_tonumber(L, 2);
+  t->xx = lua_to_real(L, 2);
   return 0;
 }
 
@@ -510,7 +510,7 @@ static int t2_set_xy(lua_State* L)
   tensor2_t* t = lua_to_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->xy = (real_t)lua_tonumber(L, 2);
+  t->xy = lua_to_real(L, 2);
   return 0;
 }
 
@@ -526,7 +526,7 @@ static int t2_set_xz(lua_State* L)
   tensor2_t* t = lua_to_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->xz = (real_t)lua_tonumber(L, 2);
+  t->xz = lua_to_real(L, 2);
   return 0;
 }
 
@@ -542,7 +542,7 @@ static int t2_set_yx(lua_State* L)
   tensor2_t* t = lua_to_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->yx = (real_t)lua_tonumber(L, 2);
+  t->yx = lua_to_real(L, 2);
   return 0;
 }
 
@@ -558,7 +558,7 @@ static int t2_set_yy(lua_State* L)
   tensor2_t* t = lua_to_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->yy = (real_t)lua_tonumber(L, 2);
+  t->yy = lua_to_real(L, 2);
   return 0;
 }
 
@@ -574,7 +574,7 @@ static int t2_set_yz(lua_State* L)
   tensor2_t* t = lua_to_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->yz = (real_t)lua_tonumber(L, 2);
+  t->yz = lua_to_real(L, 2);
   return 0;
 }
 
@@ -590,7 +590,7 @@ static int t2_set_zx(lua_State* L)
   tensor2_t* t = lua_to_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->zx = (real_t)lua_tonumber(L, 2);
+  t->zx = lua_to_real(L, 2);
   return 0;
 }
 
@@ -606,7 +606,7 @@ static int t2_set_zy(lua_State* L)
   tensor2_t* t = lua_to_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->zy = (real_t)lua_tonumber(L, 2);
+  t->zy = lua_to_real(L, 2);
   return 0;
 }
 
@@ -622,7 +622,7 @@ static int t2_set_zz(lua_State* L)
   tensor2_t* t = lua_to_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->zz = (real_t)lua_tonumber(L, 2);
+  t->zz = lua_to_real(L, 2);
   return 0;
 }
 
@@ -675,7 +675,7 @@ static int t2_mul(lua_State* L)
       (!lua_is_tensor2(L, 1) || !lua_isnumber(L, 2)))
     luaL_error(L, "Arguments must be a tensor2 and a number.");
   tensor2_t* t = lua_to_tensor2(L, (lua_isnumber(L, 1)) ? 2 : 1);
-  real_t c = (real_t)lua_tonumber(L, (lua_isnumber(L, 1)) ? 1 : 2);
+  real_t c = lua_to_real(L, (lua_isnumber(L, 1)) ? 1 : 2);
   tensor2_t* t1 = tensor2_new(c * t->xx, c * t->xy, c * t->xz,
                               c * t->yx, c * t->yy, c * t->yz,
                               c * t->zx, c * t->zy, c * t->zz);
@@ -690,7 +690,7 @@ static int t2_div(lua_State* L)
     luaL_error(L, "Argument 1 must be a tensor2.");
   if (!lua_isnumber(L, 2))
     luaL_error(L, "Argument 2 must be a number.");
-  real_t c = (real_t)lua_tonumber(L, 2);
+  real_t c = lua_to_real(L, 2);
   tensor2_t* t1 = tensor2_new(t->xx/c, t->xy/c, t->xz/c,
                               t->yx/c, t->yy/c, t->yz/c,
                               t->zx/c, t->zy/c, t->zz/c);
@@ -744,12 +744,12 @@ static int st2_new(lua_State* L)
     return luaL_error(L, "Arguments must be xx, xy, xz, yy, yz, zz components.");
   }
 
-  real_t xx = (real_t)lua_tonumber(L, 1);
-  real_t xy = (real_t)lua_tonumber(L, 2);
-  real_t xz = (real_t)lua_tonumber(L, 3);
-  real_t yy = (real_t)lua_tonumber(L, 4);
-  real_t yz = (real_t)lua_tonumber(L, 5);
-  real_t zz = (real_t)lua_tonumber(L, 6);
+  real_t xx = lua_to_real(L, 1);
+  real_t xy = lua_to_real(L, 2);
+  real_t xz = lua_to_real(L, 3);
+  real_t yy = lua_to_real(L, 4);
+  real_t yz = lua_to_real(L, 5);
+  real_t zz = lua_to_real(L, 6);
   sym_tensor2_t* t = sym_tensor2_new(xx, xy, xz,
                                          yy, yz,
                                              zz);
@@ -774,7 +774,7 @@ static int st2_set_xx(lua_State* L)
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->xx = (real_t)lua_tonumber(L, 2);
+  t->xx = lua_to_real(L, 2);
   return 0;
 }
 
@@ -790,7 +790,7 @@ static int st2_set_xy(lua_State* L)
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->xy = (real_t)lua_tonumber(L, 2);
+  t->xy = lua_to_real(L, 2);
   return 0;
 }
 
@@ -806,7 +806,7 @@ static int st2_set_xz(lua_State* L)
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->xz = (real_t)lua_tonumber(L, 2);
+  t->xz = lua_to_real(L, 2);
   return 0;
 }
 
@@ -822,7 +822,7 @@ static int st2_set_yx(lua_State* L)
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->xy = (real_t)lua_tonumber(L, 2);
+  t->xy = lua_to_real(L, 2);
   return 0;
 }
 
@@ -838,7 +838,7 @@ static int st2_set_yy(lua_State* L)
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->yy = (real_t)lua_tonumber(L, 2);
+  t->yy = lua_to_real(L, 2);
   return 0;
 }
 
@@ -854,7 +854,7 @@ static int st2_set_yz(lua_State* L)
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->yz = (real_t)lua_tonumber(L, 2);
+  t->yz = lua_to_real(L, 2);
   return 0;
 }
 
@@ -870,7 +870,7 @@ static int st2_set_zx(lua_State* L)
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->xz = (real_t)lua_tonumber(L, 2);
+  t->xz = lua_to_real(L, 2);
   return 0;
 }
 
@@ -886,7 +886,7 @@ static int st2_set_zy(lua_State* L)
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->yz = (real_t)lua_tonumber(L, 2);
+  t->yz = lua_to_real(L, 2);
   return 0;
 }
 
@@ -902,7 +902,7 @@ static int st2_set_zz(lua_State* L)
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Tensor components must be numbers.");
-  t->zz = (real_t)lua_tonumber(L, 2);
+  t->zz = lua_to_real(L, 2);
   return 0;
 }
 
@@ -955,7 +955,7 @@ static int st2_mul(lua_State* L)
       (!lua_is_tensor2(L, 1) || !lua_isnumber(L, 2)))
     luaL_error(L, "Arguments must be a tensor2 and a number.");
   sym_tensor2_t* t = lua_to_sym_tensor2(L, (lua_isnumber(L, 1)) ? 2 : 1);
-  real_t c = (real_t)lua_tonumber(L, (lua_isnumber(L, 1)) ? 1 : 2);
+  real_t c = lua_to_real(L, (lua_isnumber(L, 1)) ? 1 : 2);
   sym_tensor2_t* t1 = sym_tensor2_new(c * t->xx, c * t->xy, c * t->xz,
                                                  c * t->yy, c * t->yz,
                                                             c * t->zz);
@@ -970,7 +970,7 @@ static int st2_div(lua_State* L)
     luaL_error(L, "Argument 1 must be a tensor2.");
   if (!lua_isnumber(L, 2))
     luaL_error(L, "Argument 2 must be a number.");
-  real_t c = (real_t)lua_tonumber(L, 2);
+  real_t c = lua_to_real(L, 2);
   sym_tensor2_t* t1 = sym_tensor2_new(t->xx/c, t->xy/c, t->xz/c,
                                                t->yy/c, t->yz/c,
                                                         t->zz/c);
@@ -1029,7 +1029,7 @@ static int bb_new(lua_State* L)
     lua_gettable(L, 1); // Reads name from top, replaces with bounds[name].
     real_t num = (i % 2) ? -REAL_MAX : REAL_MAX;
     if (lua_isnumber(L, -1))
-      num = (real_t)lua_tonumber(L, -1);
+      num = lua_to_real(L, -1);
     else if (!lua_isnil(L, -1) && !lua_isnumber(L, -1))
     {
       return luaL_error(L, "Invalid entry for '%s'.\n"
@@ -1097,7 +1097,7 @@ static int sp_constant(lua_State* L)
   {
     if (!lua_isnumber(L, i))
       return luaL_error(L, "Argument %d must be a number.", i);
-    val[i] = (real_t)lua_tonumber(L, i);
+    val[i] = lua_to_real(L, i);
   }
   sp_func_t* f = constant_sp_func_new(val, num_args);
   lua_push_sp_func(L, f);
@@ -1145,7 +1145,7 @@ static int st_constant(lua_State* L)
   {
     if (!lua_isnumber(L, i))
       return luaL_error(L, "Argument %d must be a number.", i);
-    val[i] = (real_t)lua_tonumber(L, i);
+    val[i] = lua_to_real(L, i);
   }
   st_func_t* f = constant_st_func_new(val, num_args);
   lua_push_st_func(L, f);
@@ -1172,7 +1172,7 @@ static int st_call(lua_State* L)
   if (!lua_is_point(L, 3))
     return luaL_error(L, "Second argument must be a time.");
   point_t* x = lua_to_point(L, 2);
-  real_t t = (real_t)lua_tonumber(L, 3);
+  real_t t = lua_to_real(L, 3);
   int nc = st_func_num_comp(f);
   real_t val[nc];
   st_func_eval(f, x, t, val);
@@ -1405,6 +1405,21 @@ int lua_register_core_modules(lua_State* L)
   lua_register_util_funcs(L);
 
   return 0;
+}
+
+void lua_push_real(lua_State* L, real_t x)
+{
+  lua_pushnumber(L, (double)x);
+}
+
+bool lua_is_real(lua_State* L, int index)
+{
+  return lua_isnumber(L, index);
+}
+
+real_t lua_to_real(lua_State* L, int index)
+{
+  return (real_t)(lua_tonumber(L, index));
 }
 
 void lua_push_complex(lua_State* L, complex_t z)

@@ -178,6 +178,41 @@ static int lua_open_class(lua_State* L)
   return 1;
 }
 
+// This helper registers the module on top of the stack in the module contained 
+// within that module name, if there are dots in the name. If the name has no 
+// dots, this function does nothing.
+static void register_in_parent_module(lua_State* L, const char* full_module_name)
+{
+  if (string_contains(full_module_name, "."))
+  {
+    // Determine the module name.
+    char* dot = strstr(full_module_name, ".");
+    char* next_dot = strstr(dot+1, ".");
+    while (next_dot != NULL)
+    {
+      dot = next_dot;
+      next_dot = strstr(dot, ".");
+    }
+    size_t len = dot - full_module_name;
+    char module[len+1];
+    memcpy(module, full_module_name, sizeof(char) * len);
+    module[len] = '\0';
+
+    // Fetch the module from the global table.
+    lua_getglobal(L, module);
+    if (lua_isnil(L, -1))
+    {
+      luaL_error(L, "Couldn't register %s in module %s.", 
+                 &full_module_name[len+1], module);
+    }
+    else
+    {
+      lua_pushvalue(L, -2); // Push our module up top.
+      lua_setfield(L, -2, &full_module_name[len+1]); // Register in the module.
+    }
+  }
+}
+
 void lua_register_class(lua_State* L,
                         const char* class_name,
                         lua_module_function functions[],
@@ -198,6 +233,10 @@ void lua_register_class(lua_State* L,
   lua_pushlightuserdata(L, (void*)methods);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_methods");
   luaL_requiref(L, class_name, lua_open_class, 1);
+
+  // Modules with dots in the name should be registered in the right 
+  // place.
+  register_in_parent_module(L, class_name);
 }
 
 void lua_push_object(lua_State* L,
@@ -461,6 +500,10 @@ void lua_register_record_type(lua_State* L,
   lua_pushlightuserdata(L, (void*)metamethods);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_metamethods");
   luaL_requiref(L, record_type_name, lua_open_record, 1);
+
+  // Modules with dots in the name should be registered in the right 
+  // place.
+  register_in_parent_module(L, record_type_name);
 }
 
 void lua_push_record(lua_State* L,
