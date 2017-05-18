@@ -1337,6 +1337,46 @@ static void lua_register_options(lua_State* L)
   lua_setglobal(L, "options");
 }
 
+// Here's a dir() function just like Python's.
+static int lua_dir(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if (num_args != 1)
+    luaL_error(L, "dir() accepts exactly one argument.");
+
+  int table_index = 0;
+  if (lua_istable(L, 1))
+    table_index = 1;
+  else if (lua_isuserdata(L, 1) && (lua_getmetatable(L, 1) != 0))
+    table_index = 2;
+  else
+  {
+    // Return an empty table.
+    lua_newtable(L);
+    return 1;
+  }
+
+  // Go through the fields of the table and push them into a new table.
+  lua_newtable(L);
+  lua_pushnil(L);
+  int index = 0;
+  while(lua_next(L, table_index) != 0)
+  {
+    lua_pop(L, 1);
+    lua_rawseti(L, -1, index);
+    ++index;
+  }
+  lua_pop(L, 1);
+  return 1;
+}
+
+static void lua_register_util_funcs(lua_State* L)
+{
+  // Python-like dir() function.
+  lua_pushcfunction(L, lua_dir);
+  lua_setglobal(L, "dir");
+}
+
 //------------------------------------------------------------------------
 //                                API 
 //------------------------------------------------------------------------
@@ -1360,6 +1400,9 @@ int lua_register_core_modules(lua_State* L)
 
   // Register the options table.
   lua_register_options(L);
+
+  // Utility functions.
+  lua_register_util_funcs(L);
 
   return 0;
 }
