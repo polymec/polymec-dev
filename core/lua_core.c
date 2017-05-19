@@ -1360,13 +1360,51 @@ static int lua_dir(lua_State* L)
   lua_newtable(L);
   lua_pushnil(L);
   int index = 0;
-  while(lua_next(L, table_index) != 0)
+  while (lua_next(L, table_index))
   {
+    // Key is at index -2, value is at -1, new table is at -3.
+    // First, replace the value with a copy of the key.
     lua_pop(L, 1);
-    lua_rawseti(L, -1, index);
+    lua_pushvalue(L, -1);
+
+    // Now add this key to our new table at -3. This pops the key copy 
+    // off the stack.
+    lua_rawseti(L, -3, index); 
     ++index;
   }
   lua_pop(L, 1);
+  return 1;
+}
+
+static int lua_tostring_replacement(lua_State* L)
+{
+  if (lua_istable(L, 1))
+    lua_pushstring(L, "OHAI\n"); // FIXME
+  else
+  {
+    lua_getglobal(L, "_tostring");
+    lua_pushvalue(L, -2);
+    lua_call(L, 1, 1);
+  }
+  return 1;
+}
+
+static int lua_do_nothing(lua_State* L)
+{
+  // This is just a stub.
+  return 0;
+}
+
+static int fake_io_open(lua_State* L)
+{
+  // We just return a table with some benign entries.
+  lua_newtable(L);
+  lua_pushcfunction(L, lua_do_nothing);
+  lua_setfield(L, -2, "read");
+  lua_pushcfunction(L, lua_do_nothing);
+  lua_setfield(L, -2, "write");
+  lua_pushcfunction(L, lua_do_nothing);
+  lua_setfield(L, -2, "close");
   return 1;
 }
 
@@ -1375,6 +1413,30 @@ static void lua_register_util_funcs(lua_State* L)
   // Python-like dir() function.
   lua_pushcfunction(L, lua_dir);
   lua_setglobal(L, "dir");
+
+  // Replacement for tostring function (displays table contents).
+  lua_getglobal(L, "tostring");
+  lua_setglobal(L, "_tostring");
+  lua_pushcfunction(L, lua_tostring_replacement);
+  lua_setglobal(L, "tostring");
+
+  // On MPI ranks != 0, neutralize I/O functions.
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank != 0)
+  {
+    // print().
+    lua_pushcfunction(L, lua_do_nothing);
+    lua_setglobal(L, "print");
+
+    // io module.
+    lua_getglobal(L, "io");
+    lua_pushcfunction(L, fake_io_open);
+    lua_setfield(L, -2, "open");
+    lua_pushcfunction(L, lua_do_nothing);
+    lua_setfield(L, -2, "close");
+    lua_pop(L, 1);
+  }
 }
 
 //------------------------------------------------------------------------

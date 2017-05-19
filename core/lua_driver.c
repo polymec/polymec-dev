@@ -7,6 +7,8 @@
 
 #include <signal.h>
 
+#include "mpi.h"
+
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
@@ -27,10 +29,13 @@
 // the Lua distribution.
 //------------------------------------------------------------------------
 
+static int _mpi_rank = -1;
+
 // This function reports an error in parsing input.
 static int report_error(lua_State *L, int status) 
 {
-  if (status != LUA_OK) 
+  // Errors are only reported on MPI rank 0.
+  if ((status != LUA_OK) && (_mpi_rank == 0))
   {
     const char *msg = lua_tostring(L, -1);
     lua_writestringerror("%s: ", polymec_executable_name());
@@ -305,6 +310,8 @@ int lua_driver(int argc,
 {
   // Start everything up.
   polymec_init(argc, argv);
+
+  MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_rank);
 
   // Set the maximum history length.
   linenoiseHistorySetMaxLen(500);
