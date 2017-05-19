@@ -52,7 +52,7 @@ static bool has_tostring(lua_State* L,
     lua_getfield(L, -1, "__tostring");
     if (lua_isfunction(L, -1))
     {
-      has_metatable = true;
+      has_tostring_mm = true;
       lua_pop(L, 1);
     }
     lua_pop(L, 1); // Pop the metatable.
@@ -64,6 +64,9 @@ static void append_value_using_tostring(lua_State* L,
                                         int index, 
                                         char_array_t* str)
 {
+  if (index < 0)
+    index += lua_gettop(L) + 1;
+
   lua_getmetatable(L, index);
   lua_getfield(L, -1, "__tostring");
   lua_pushvalue(L, index);
@@ -144,7 +147,7 @@ static void append_table_value(lua_State* L,
     if ((ind != num_items) && (show_as_list == true))
     {
       show_as_list = false;
-      if (ind == 0)
+      if ((ind == 0) && (num_items > 1))
         char_array_append(str, ',');
     }
 
@@ -157,20 +160,20 @@ static void append_table_value(lua_State* L,
         char_array_append(str, ' ');
 
       // Write the value.
-      if (lua_isnumber(L, -1))
-        append_number_value(L, -1, str);
-      else if (lua_isstring(L, -1))
-        append_string_value(L, -1, str);
-      else if (lua_isfunction(L, -1))
-        append_function_value(L, -1, str);
-      else if (lua_islightuserdata(L, -1))
-        append_lightuserdata_value(L, -1, str);
-      else if (has_tostring(L, -1))
-        append_value_using_tostring(L, -1, str);
-      else if (lua_isuserdata(L, -1)) // Userdata without metatable
-        append_userdata_value(L, -1, str);
+      if (lua_isnumber(L, -2))
+        append_number_value(L, -2, str);
+      else if (lua_isstring(L, -2))
+        append_string_value(L, -2, str);
+      else if (lua_isfunction(L, -2))
+        append_function_value(L, -2, str);
+      else if (lua_islightuserdata(L, -2))
+        append_lightuserdata_value(L, -2, str);
+      else if (has_tostring(L, -2))
+        append_value_using_tostring(L, -2, str);
+      else if (lua_isuserdata(L, -2)) // Userdata without metatable
+        append_userdata_value(L, -2, str);
       else // Table without metatable
-        append_table_value(L, -1, 0, str);
+        append_table_value(L, -2, 0, str);
 
       char_array_append(str, ' ');
       char_array_append(str, '=');
