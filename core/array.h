@@ -234,6 +234,7 @@ static inline void array_name##_release_data_and_free(array_name##_t* array) \
 } \
 
 // Define some basic array types.
+DEFINE_ARRAY(char_array, char)
 DEFINE_ARRAY(byte_array, uint8_t)
 DEFINE_ARRAY(int_array, int)
 DEFINE_ARRAY(int64_array, int64_t)

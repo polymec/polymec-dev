@@ -1376,19 +1376,6 @@ static int lua_dir(lua_State* L)
   return 1;
 }
 
-static int lua_tostring_replacement(lua_State* L)
-{
-  if (lua_istable(L, 1))
-    lua_pushstring(L, "OHAI\n"); // FIXME
-  else
-  {
-    lua_getglobal(L, "_tostring");
-    lua_pushvalue(L, -2);
-    lua_call(L, 1, 1);
-  }
-  return 1;
-}
-
 static int lua_do_nothing(lua_State* L)
 {
   // This is just a stub.
@@ -1408,17 +1395,16 @@ static int fake_io_open(lua_State* L)
   return 1;
 }
 
+extern void lua_replace_tostring(lua_State* L);
+
 static void lua_register_util_funcs(lua_State* L)
 {
   // Python-like dir() function.
   lua_pushcfunction(L, lua_dir);
   lua_setglobal(L, "dir");
 
-  // Replacement for tostring function (displays table contents).
-  lua_getglobal(L, "tostring");
-  lua_setglobal(L, "_tostring");
-  lua_pushcfunction(L, lua_tostring_replacement);
-  lua_setglobal(L, "tostring");
+  // Replace the default tostring function.
+  lua_replace_tostring(L);
 
   // On MPI ranks != 0, neutralize I/O functions.
   int rank;
