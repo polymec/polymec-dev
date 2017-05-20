@@ -31,14 +31,31 @@ static void append_number_value(lua_State* L,
   memcpy(&str->data[str->size-val_len], val_str, sizeof(char)*val_len);
 }
 
+static void append_boolean_value(lua_State* L, 
+                                 int index,
+                                 char_array_t* str)
+{
+  bool val = (bool)(lua_toboolean(L, index));
+  const char* val_str;
+  if (val)
+    val_str = "true";
+  else
+    val_str = "false";
+  size_t val_len = strlen(val_str);
+  char_array_resize(str, str->size + val_len);
+  memcpy(&str->data[str->size-val_len], val_str, sizeof(char)*val_len);
+}
+
 static void append_string_value(lua_State* L, 
                                 int index,
                                 char_array_t* str)
 {
   const char* val = lua_tostring(L, index);
+  char_array_append(str, '"');
   size_t val_len = strlen(val);
   char_array_resize(str, str->size + val_len);
   memcpy(&str->data[str->size-val_len], val, sizeof(char)*val_len);
+  char_array_append(str, '"');
 }
 
 static bool has_tostring(lua_State* L,
@@ -64,8 +81,9 @@ static void append_value_using_tostring(lua_State* L,
                                         int index, 
                                         char_array_t* str)
 {
+  int top = lua_gettop(L);
   if (index < 0)
-    index += lua_gettop(L) + 1;
+    index += top + 1;
 
   lua_getmetatable(L, index);
   lua_getfield(L, -1, "__tostring");
@@ -75,7 +93,9 @@ static void append_value_using_tostring(lua_State* L,
   size_t val_len = strlen(val_str);
   char_array_resize(str, str->size + val_len);
   memcpy(&str->data[str->size-val_len], val_str, sizeof(char)*val_len);
-  lua_pop(L, 2);
+
+  // Clean up the stack.
+  lua_pop(L, lua_gettop(L) - top);
 }
 
 static void append_function_value(lua_State* L, 
@@ -118,21 +138,20 @@ static void append_userdata_value(lua_State* L,
 
 static void append_table_value(lua_State* L, 
                                int table_index, 
-                               int indents,
                                char_array_t* str)
 {
+  int top = lua_gettop(L);
+
   // Get the f'reals table index.
   if (table_index < 0)
-    table_index += lua_gettop(L) + 1;
+    table_index += top + 1;
 
   // Opening brace.
-  for (int i = 0; i < indents; ++i)
-    char_array_append(str, ' ');
   char_array_append(str, '{');
 
   // Pick through the table.
   int num_items = 0;
-  bool show_as_list = true;
+  bool show_as_list = true, first = true;
   lua_pushnil(L);
   while (lua_next(L, table_index))
   {
@@ -140,28 +159,28 @@ static void append_table_value(lua_State* L,
 
     // Key is at index -2, value is at -1.
     int ind = 0;
+//printf("%s\n", lua_typename(L, lua_type(L, -2)));
     if (lua_isinteger(L, -2))
       ind = (int)(lua_tointeger(L, -2));
 
     // We show this table as a list if all its keys are consecutive integers.
     if ((ind != num_items) && (show_as_list == true))
-    {
       show_as_list = false;
-      if ((ind == 0) && (num_items > 1))
-        char_array_append(str, ',');
+
+    if (!first)
+    {
+      char_array_append(str, ',');
+      char_array_append(str, ' ');
     }
 
     // Write out the key if we're not displaying in list mode.
     if (!show_as_list)
     {
-      // Start a new line and indent.
-      char_array_append(str, '\n');
-      for (int i = 0; i < indents+1; ++i)
-        char_array_append(str, ' ');
-
       // Write the value.
       if (lua_isnumber(L, -2))
         append_number_value(L, -2, str);
+      else if (lua_isboolean(L, -2))
+        append_boolean_value(L, -2, str);
       else if (lua_isstring(L, -2))
         append_string_value(L, -2, str);
       else if (lua_isfunction(L, -2))
@@ -172,25 +191,19 @@ static void append_table_value(lua_State* L,
         append_value_using_tostring(L, -2, str);
       else if (lua_isuserdata(L, -2)) // Userdata without metatable
         append_userdata_value(L, -2, str);
-      else // Table without metatable
-        append_table_value(L, -2, 0, str);
+      else if (lua_istable(L, -2)) // Table without metatable
+        append_table_value(L, -2, str);
 
       char_array_append(str, ' ');
       char_array_append(str, '=');
       char_array_append(str, ' ');
     }
-    else // Otherwise we have to make allowances for a preceding comma.
-    {
-      if (ind > 1)
-      {
-        char_array_append(str, ',');
-        char_array_append(str, ' ');
-      }
-    }
 
     // Write the value.
     if (lua_isnumber(L, -1))
       append_number_value(L, -1, str);
+    else if (lua_isboolean(L, -1))
+      append_boolean_value(L, -1, str);
     else if (lua_isstring(L, -1))
       append_string_value(L, -1, str);
     else if (lua_isfunction(L, -1))
@@ -201,22 +214,20 @@ static void append_table_value(lua_State* L,
       append_value_using_tostring(L, -1, str);
     else if (lua_isuserdata(L, -1)) // Userdata without metatable
       append_userdata_value(L, -1, str);
-    else // Table without metatable
-      append_table_value(L, -1, 0, str);
-
+    else if (lua_istable(L, -1)) // Table without metatable
+      append_table_value(L, -1, str);
 
     // Pop the value to fetch the next key.
     lua_pop(L, 1);
+
+    first = false;
   }
 
   // Closing brace.
-  if (!show_as_list)
-  {
-    char_array_append(str, '\n');
-    for (int i = 0; i < indents; ++i)
-      char_array_append(str, ' ');
-  }
   char_array_append(str, '}');
+
+  // Pop all the crap off the stack.
+  lua_pop(L, lua_gettop(L) - top);
 }
 
 // This is a fancy replacement for Lua's native tostring() function.
@@ -228,7 +239,7 @@ static int lua_tostring_replacement(lua_State* L)
     {
       // Here's a table with no metatable. Let's asplode its contents.
       char_array_t* str = char_array_new();
-      append_table_value(L, -1, 0, str);
+      append_table_value(L, 1, str);
       char_array_append(str, '\0');
 
       // Push the string to the stack and get on with it.

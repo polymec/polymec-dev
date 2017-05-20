@@ -1356,12 +1356,14 @@ static int lua_dir(lua_State* L)
     return 1;
   }
 
-  // Go through the fields of the table and push them into a new table.
+  // Go through the keys of the table and push them into a new table.
   lua_newtable(L);
-  lua_pushnil(L);
   int index = 0;
+  lua_pushnil(L);
   while (lua_next(L, table_index))
   {
+    ++index;
+
     // Key is at index -2, value is at -1, new table is at -3.
     // First, replace the value with a copy of the key.
     lua_pop(L, 1);
@@ -1370,9 +1372,13 @@ static int lua_dir(lua_State* L)
     // Now add this key to our new table at -3. This pops the key copy 
     // off the stack.
     lua_rawseti(L, -3, index); 
-    ++index;
   }
-  lua_pop(L, 1);
+
+  // Clean up the stack.
+  if (table_index == 2)
+    lua_remove(L, table_index);
+
+  ASSERT(lua_gettop(L) == num_args + 1);
   return 1;
 }
 
