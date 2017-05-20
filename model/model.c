@@ -66,14 +66,6 @@ struct model_t
   real_t min_dt;     // Minimum time step.
 };
 
-// This helper function sets the model's global communicator.
-static void model_set_global_comm(model_t* model, MPI_Comm comm)
-{
-  model->global_comm = comm;
-  if (model->vtable.set_global_comm != NULL)
-    model->vtable.set_global_comm(model->context, comm);
-}
-
 // Here's a static set of all named model instances.
 static string_unordered_set_t* model_singletons = NULL;
 
@@ -105,15 +97,6 @@ static void enforce_mpi_parallelism(model_t* model)
     MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
     if (nprocs > 1)
       polymec_error("Model %s is a serial model and can only be run on a single process.", model->name);
-  }
-  else
-  {
-    // set_global_comm must be defined for the model.
-    if (model->vtable.set_global_comm == NULL)
-    {
-      model_free(model);
-      polymec_error("model_run_files: model.vtable.set_global_comm must be defined.");
-    }
   }
 }
 
@@ -162,15 +145,6 @@ model_t* model_new(const char* name,
   // Enforce our given parallelism model.
   enforce_singleton_instances(model);
   enforce_mpi_parallelism(model);
-
-  // For MPI-enabled models, set the global communicator to MPI_COMM_WORLD 
-  // by default.
-  if ((model->parallelism == MODEL_MPI) || 
-      (model->parallelism == MODEL_MPI_SINGLETON) || 
-      (model->parallelism == MODEL_MPI_THREAD_SAFE))
-    model_set_global_comm(model, MPI_COMM_WORLD);
-  else if (model->vtable.set_global_comm != NULL)
-    model_set_global_comm(model, MPI_COMM_SELF);
 
   return model;
 }
@@ -670,9 +644,6 @@ model_vtable model_get_vtable(model_t* model)
 
 void model_set_vtable(model_t* model, model_vtable vtable)
 {
-  ASSERT((model->vtable.set_global_comm != NULL) || 
-         (model->parallelism == MODEL_SERIAL_SINGLETON) || 
-         (model->parallelism == MODEL_SERIAL));
   model->vtable = vtable;
 }
 

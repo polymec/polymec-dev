@@ -23,11 +23,6 @@ typedef struct model_t model_t;
 // A model constructor function for creating an object context.
 typedef model_t* (*model_ctor)();
 
-// A function for setting the global MPI communicator to be used by the 
-// model for each simulation. This communicator will serve the role of 
-// MPI_COMM_WORLD in parallel communications within the model.
-typedef void (*model_set_global_comm_func)(void* context, MPI_Comm comm);
-
 // A function for initializing the model at time t.
 typedef void (*model_init_func)(void* context, real_t t);
 
@@ -59,7 +54,6 @@ typedef void (*model_dtor)(void* context);
 // This virtual table must be implemented by any model.
 typedef struct 
 {
-  model_set_global_comm_func     set_global_comm;
   model_init_func                init;
   model_max_dt_func              max_dt;
   model_advance_func             advance;
