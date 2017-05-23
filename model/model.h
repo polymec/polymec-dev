@@ -11,7 +11,7 @@
 #include "core/polymec.h"
 #include "core/options.h"
 #include "core/st_func.h"
-#include "model/model_probe.h"
+#include "model/probe.h"
 
 // The maximum amount of storage allowed for an explanation of the 
 // time step choice.
@@ -109,6 +109,9 @@ char* model_name(model_t* model);
 // Returns the context object associated with the model (if any).
 void* model_context(model_t* model);
 
+// Returns an array of acquired data for the given quantity.
+probe_data_array_t* model_probe_data(model_t* model, const char* data_name);
+
 // Returns the degree of parallelism supported by this model.
 model_parallelism_t model_parallelism(model_t* model);
 
@@ -116,18 +119,9 @@ model_parallelism_t model_parallelism(model_t* model);
 // specified times. The model assumes ownership of the probe but copies the 
 // array of times.
 void model_add_probe(model_t* model, 
-                     model_probe_t* probe,
+                     probe_t* probe,
                      real_t* acq_times,
                      size_t num_acq_times);
-
-// Adds several probes to the model which will all acquire specific data at 
-// each of the specified times. The model assumes ownership of the probes but 
-// copies the array of times.
-void model_add_probes(model_t* model, 
-                      model_probe_t** probes,
-                      size_t num_probes,
-                      real_t* acq_times,
-                      size_t num_acq_times);
 
 // Initializes the model at the given time.
 void model_init(model_t* model, real_t t);

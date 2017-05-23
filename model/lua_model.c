@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/lua_core.h"
+#include "core/declare_nd_array.h"
 #include "model/lua_model.h"
 
 #include "lua.h"
@@ -85,7 +86,90 @@ typedef struct
   lua_State* L;
 } lua_probe_t;
 
-static void lp_acquire(void* context, real_t t, int rank, size_t* shape, real_t* data)
+static void table_to_probe_data(lua_State* L, int index, probe_data_t* data)
+{
+  int rank = data->rank;
+  ASSERT((rank >= 0) && (rank <= 4));
+  if (rank == 0)
+  {
+    if (!lua_isnumber(L, index))
+      luaL_error(L, "probe:acquire: data is not a number.");
+    else
+      *data->data = lua_to_real(L, index);
+  }
+  else if (lua_istable(L, index))
+  {
+    for (size_t i = 1; i <= data->shape[0]; ++i)
+    {
+      lua_rawgeti(L, index, (int)i);
+      if (rank == 1)
+      {
+        if (lua_isnumber(L, -1))
+          data->data[i-1] = lua_to_real(L, -1);
+        else if (lua_isnil(L, -1))
+          data->data[i-1] = 0.0;
+        else
+          luaL_error(L, "probe:acquire: data[%d] is not a number.", (int)i);
+      }
+      else 
+      {
+        for (size_t j = 1; j <= data->shape[1]; ++j)
+        {
+          lua_rawgeti(L, -1, (int)j);
+          if (rank == 2)
+          {
+            DECLARE_2D_ARRAY(real_t, xij, data->data, data->shape[0], data->shape[1]);
+            if (lua_isnumber(L, -1))
+              xij[i-1][j-1] = lua_to_real(L, -1);
+            else if (lua_isnil(L, -1))
+              xij[i-1][j-1] = 0.0;
+            else
+              luaL_error(L, "probe:acquire: data[%d][%d] is not a number.", (int)i, (int)j);
+          }
+          else
+          {
+            for (size_t k = 1; k <= data->shape[2]; ++k)
+            {
+              lua_rawgeti(L, -1, (int)k);
+              if (rank == 3)
+              {
+                DECLARE_3D_ARRAY(real_t, xijk, data->data, data->shape[0], data->shape[1], data->shape[2]);
+                if (lua_isnumber(L, -1))
+                  xijk[i-1][j-1][k-1] = lua_to_real(L, -1);
+                else if (lua_isnil(L, -1))
+                  xijk[i-1][j-1][k-1] = 0.0;
+                else
+                  luaL_error(L, "probe:acquire: data[%d][%d][%d] is not a number.", (int)i, (int)j, (int)k);
+              }
+              else // rank == 4
+              {
+                for (size_t l = 1; l <= data->shape[3]; ++l)
+                {
+                  lua_rawgeti(L, -1, (int)l);
+                  DECLARE_4D_ARRAY(real_t, xijkl, data->data, data->shape[0], data->shape[1], data->shape[2], data->shape[3]);
+                  if (lua_isnumber(L, -1))
+                    xijkl[i-1][j-1][k-1][l-1] = lua_to_real(L, -1);
+                  else if (lua_isnil(L, -1))
+                    xijkl[i-1][j-1][k-1][l-1] = 0.0;
+                  else
+                    luaL_error(L, "probe:acquire: data[%d][%d][%d] is not a number.", (int)i, (int)j, (int)k);
+                  lua_pop(L, 1); // pop l index
+                }
+              }
+              lua_pop(L, 1); // pop k index
+            }
+          }
+          lua_pop(L, 1); // pop j index
+        }
+      }
+      lua_pop(L, 1); // pop i index
+    }
+  }
+  else
+    luaL_error(L, "probe:acquire: data is not a table.");
+}
+
+static void lp_acquire(void* context, real_t t, probe_data_t* data)
 {
   lua_probe_t* p = context;
 
@@ -96,18 +180,19 @@ static void lp_acquire(void* context, real_t t, int rank, size_t* shape, real_t*
   // If it's an object, call thing thing with itself as the first argument.
   if (lua_istable(p->L, -1))
   {
-    lua_pushnumber(p->L, (double)t);
-    lua_push_ndarray(p->L, rank, shape, data, LUA_ARRAY_REAL);
-    lua_call(p->L, 3, 1);
+    lua_push_real(p->L, t);
+    lua_call(p->L, 2, 1);
   }
-  // Otherwise, just all it with (t, val).
+  // Otherwise, just call it with t.
   else 
   {
     ASSERT(lua_isfunction(p->L, -1));
-    lua_pushnumber(p->L, (double)t);
-    lua_push_ndarray(p->L, rank, shape, data, LUA_ARRAY_REAL);
-    lua_call(p->L, 2, 1);
+    lua_push_real(p->L, t);
+    lua_call(p->L, 1, 1);
   }
+
+  // The return value is a table, which we use to fill our probe_data.
+  table_to_probe_data(p->L, -1, data);
 }
 
 static void lp_dtor(void* context)
@@ -126,42 +211,111 @@ static void lp_dtor(void* context)
 static int p_new(lua_State* L)
 {
   int num_args = lua_gettop(L);
-  if (num_args != 2)
-    return luaL_error(L, "Arguments must be 1) a callable object needed and 2) a shape array for the data.");
-  if (!lua_istable(L, 1) && !lua_isfunction(L, 1))
-    return luaL_error(L, "Argument 1 must be a probe function or a callable object.");
-  if (!lua_istable(L, 2))
-    return luaL_error(L, "Argument 2 must be a shape array for acquired data.");
+  if (num_args != 3)
+    return luaL_error(L, "Arguments must be 1) a quantity name, 2) a callable object, and 3) a shape array for the data.");
+  if (!lua_isstring(L, 1))
+    return luaL_error(L, "Argument 1 must be a string.");
+  if (!lua_istable(L, 2) && !lua_isfunction(L, 2))
+    return luaL_error(L, "Argument 2 must be a probe function or a callable object.");
+  if (!lua_istable(L, 3))
+    return luaL_error(L, "Argument 3 must be a shape array for acquired data.");
+
+  const char* data_name = lua_tostring(L, 1);
 
   // Jot down the Lua state, and stash the given object in Lua's registry.
   lua_probe_t* p = polymec_malloc(sizeof(lua_probe_t));
   p->L = L;
   lua_pushlightuserdata(L, (void*)p); // key   <-- p
-  lua_pushvalue(L, 1);                // value <-- callable object.
+  lua_pushvalue(L, 2);                // value <-- callable object.
   lua_settable(L, LUA_REGISTRYINDEX);
 
   // Get the shape of the acquired data array.
-  int rank = (int)lua_rawlen(L, 2);
+  int rank = (int)lua_rawlen(L, 3);
+  if (rank > 4)
+    return luaL_error(L, "Shape array must be rank 4 or less.");
   size_t shape[rank];
   for (int i = 1; i <= rank; ++i)
   {
-    lua_rawgeti(L, 2, (lua_Integer)i);
+    lua_rawgeti(L, 3, (lua_Integer)i);
     if (!lua_isinteger(L, -1))
       return luaL_error(L, "Shape array must contain only integers.");
-    shape[i-1] = (int)lua_tointeger(L, -1);
+    shape[i-1] = (size_t)lua_tointeger(L, -1);
   }
 
   // Set up our probe.
-  model_probe_vtable vtable = {.acquire = lp_acquire, .dtor = lp_dtor};
-  model_probe_t* probe = model_probe_new("Lua probe", rank, shape, p, vtable);
-  lua_push_model_probe(L, probe);
+  probe_vtable vtable = {.acquire = lp_acquire, .dtor = lp_dtor};
+  probe_t* probe = probe_new("Lua probe", data_name, rank, shape, p, vtable);
+  lua_push_probe(L, probe);
   return 1;
 }
 
-static lua_module_function model_probe_funcs[] = {
+static lua_module_function probe_funcs[] = {
   {"new", p_new},
   {NULL, NULL}
 };
+
+static int lua_push_probe_data(lua_State* L, probe_data_t* data)
+{
+  int rank = data->rank;
+  if (rank > 4)
+    luaL_error(L, "probe:acquire: rank must be 4 or less.");
+
+  if (rank == 0)
+    lua_push_real(L, data->data[0]);
+  else
+  {
+    lua_newtable(L);
+    for (size_t i = 1; i <= data->shape[0]; ++i)
+    {
+      if (rank == 1)
+      {
+        lua_push_real(L, data->data[i-1]);
+        lua_rawseti(L, -2, (int)i);
+      }
+      else
+      {
+        lua_newtable(L);
+        for (size_t j = 1; j <= data->shape[1]; ++j)
+        {
+          if (rank == 2)
+          {
+            DECLARE_2D_ARRAY(real_t, xij, data->data, data->shape[0], data->shape[1]);
+            lua_push_real(L, xij[i-1][j-1]);
+            lua_rawseti(L, -2, (int)j);
+          }
+          else
+          {
+            lua_newtable(L);
+            for (size_t k = 1; k <= data->shape[2]; ++k)
+            {
+              if (rank == 3)
+              {
+                DECLARE_3D_ARRAY(real_t, xijk, data->data, data->shape[0], data->shape[1], data->shape[2]);
+                lua_push_real(L, xijk[i-1][j-1][k-1]);
+                lua_rawseti(L, -2, (int)k);
+              }
+              else
+              {
+                lua_newtable(L); 
+                for (size_t l = 1; l <= data->shape[3]; ++l)
+                {
+                  // rank == 4
+                  DECLARE_4D_ARRAY(real_t, xijkl, data->data, data->shape[0], data->shape[1], data->shape[2], data->shape[3]);
+                  lua_push_real(L, xijkl[i-1][j-1][k-1][l-1]);
+                  lua_rawseti(L, -2, (int)l);
+                }
+                lua_rawseti(L, -2, (int)k); // push the new table into place
+              }
+            }
+            lua_rawseti(L, -2, (int)j); // push the table into place
+          }
+        }
+        lua_rawseti(L, -2, (int)i); // push the table into place
+      }
+    }
+  }
+  return 1;
+}
 
 static int p_acquire(lua_State* L)
 {
@@ -170,25 +324,28 @@ static int p_acquire(lua_State* L)
     return luaL_error(L, "Argument must be a time.");
 
   // Do the acquisition.
-  model_probe_t* p = lua_to_model_probe(L, 1);
+  probe_t* p = lua_to_probe(L, 1);
   ASSERT(p != NULL);
-  real_t t = lua_tonumber(L, 2);
-  real_t* val = model_probe_new_array(p);
-  model_probe_acquire(p, t, val);
+  real_t t = lua_to_real(L, 2);
+  probe_data_t* data = probe_acquire(p, t);
 
-  // Return the acquired array as an opaque type.
-  lua_pushlightuserdata(L, val);
+  // Return the acquired data as a table.
+  lua_newtable(L);
+  lua_push_real(L, t);
+  lua_setfield(L, -2, "time");
+  lua_push_probe_data(L, data);
+  lua_setfield(L, -2, "data");
   return 1;
 }
 
 static int p_tostring(lua_State* L)
 {
-  model_probe_t* p = lua_to_model_probe(L, 1);
-  lua_pushfstring(L, "model_probe '%s'", model_probe_name(p));
+  probe_t* p = lua_to_probe(L, 1);
+  lua_pushfstring(L, "probe '%s'", probe_name(p));
   return 1;
 }
 
-static lua_class_method model_probe_methods[] = {
+static lua_class_method probe_methods[] = {
   {"acquire", p_acquire},
   {"__tostring", p_tostring},
   {NULL, NULL}
@@ -197,7 +354,7 @@ static lua_class_method model_probe_methods[] = {
 int lua_register_model_modules(lua_State* L)
 {
   lua_register_class(L, "model", NULL, model_methods);
-  lua_register_class(L, "model_probe", model_probe_funcs, model_probe_methods);
+  lua_register_class(L, "probe", probe_funcs, probe_methods);
 
   return 0;
 }
@@ -217,18 +374,18 @@ model_t* lua_to_model(lua_State* L, int index)
   return (model_t*)lua_to_object(L, index, "model");
 }
 
-void lua_push_model_probe(lua_State* L, model_probe_t* p)
+void lua_push_probe(lua_State* L, probe_t* p)
 {
-  lua_push_object(L, "model_probe", p, DTOR(model_probe_free));
+  lua_push_object(L, "probe", p, DTOR(probe_free));
 }
 
-bool lua_is_model_probe(lua_State* L, int index)
+bool lua_is_probe(lua_State* L, int index)
 {
-  return lua_is_object(L, index, "model_probe");
+  return lua_is_object(L, index, "probe");
 }
 
-model_probe_t* lua_to_model_probe(lua_State* L, int index)
+probe_t* lua_to_probe(lua_State* L, int index)
 {
-  return (model_probe_t*)lua_to_object(L, index, "model_probe");
+  return (probe_t*)lua_to_object(L, index, "probe");
 }
 

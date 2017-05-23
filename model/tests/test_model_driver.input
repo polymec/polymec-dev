@@ -1,28 +1,94 @@
--- This tests the model, model_probe, and model_data_channel stuff.
+-- This tests the model and probe classes.
 
 -- Make a simple probe that acquires the time.
-function timer(t, val)
-  val(t)
+function timer(t)
+  return t
 end
-
-p = model_probe.new(timer, {})
-val = p:acquire(0.5)
-print(p, val)
-
--- Now make a data channel that can receive locally acquired data.
-c = model_data_channel.new()
-print(c)
-
--- Finally, implement an output that just writes columnated data.
-function write(t, name, val)
-  print(t, name, val)
-end
-
-o = model_local_output.new(write)
-c:add_output({'bob'}, o)
 
 -- Acquire a bunch of times from 1 to 10.
+p = probe.new('time', timer, {})
 for t=1,10 do
   val = p:acquire(t)
-  o:put(0, 'bob', val)
+  print(t, val)
 end
+
+-- Now make a probe that returns a random 3-vector.
+function rv(t)
+  return {math.random(), math.random(), math.random()}
+end
+p1 = probe.new('randomizer', rv, {3})
+
+for t=1,10 do
+  v = p1:acquire(t)
+  print(t, v)
+end
+
+-- How about a random 3x3 matrix?
+function rm(t)
+  return {{math.random(), math.random(), math.random()},
+          {math.random(), math.random(), math.random()},
+          {math.random(), math.random(), math.random()}}
+end
+p11 = probe.new('random_matrixizer', rm, {3,3})
+
+for t=1,10 do
+  m = p11:acquire(t)
+  print(t, m)
+end
+
+-- Or a random 3x3x3 tensor?
+function rt(t)
+  return {{{math.random(), math.random(), math.random()},
+           {math.random(), math.random(), math.random()},
+           {math.random(), math.random(), math.random()}},
+          {{math.random(), math.random(), math.random()},
+           {math.random(), math.random(), math.random()},
+           {math.random(), math.random(), math.random()}},
+          {{math.random(), math.random(), math.random()},
+           {math.random(), math.random(), math.random()},
+           {math.random(), math.random(), math.random()}}}
+end
+p111 = probe.new('random_tensorizer', rt, {3,3,3})
+
+for t=1,10 do
+  tt = p111:acquire(t)
+  print(t, tt)
+end
+
+-- Or a random 3x3x3x4 ubertensor?
+function rut(t)
+  return {{{{math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()}},
+           {{math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()}},
+           {{math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()}}},
+          {{{math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()}},
+           {{math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()}},
+           {{math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()}}},
+          {{{math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()}},
+           {{math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()}},
+           {{math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()},
+            {math.random(), math.random(), math.random()}}}}
+end
+p1111 = probe.new('random_ubertensorizer', rut, {3,3,3,3})
+
+for t=1,10 do
+  ut = p1111:acquire(t)
+  print(t, ut)
+end
+

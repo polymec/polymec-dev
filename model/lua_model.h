@@ -30,16 +30,16 @@ bool lua_is_model(lua_State* L, int index);
 // the item there is not a model.
 model_t* lua_to_model(lua_State* L, int index);
 
-// Pushes a model probe p onto L's stack.
-void lua_push_model_probe(lua_State* L, model_probe_t* p);
+// Pushes a probe p onto L's stack.
+void lua_push_probe(lua_State* L, probe_t* p);
 
 // Returns true if the item at the given index on L's stack is a 
-// model_probe, false if not.
-bool lua_is_model_probe(lua_State* L, int index);
+// probe, false if not.
+bool lua_is_probe(lua_State* L, int index);
 
-// Returns the model_probe at the given index on L's stack, or NULL if 
+// Returns the probe at the given index on L's stack, or NULL if 
 // the item there is not a model probe.
-model_probe_t* lua_to_model_probe(lua_State* L, int index);
+probe_t* lua_to_probe(lua_State* L, int index);
 
 #endif
 

@@ -21,17 +21,18 @@
 #endif
 
 // This type maps a probe to an array of acquisition times.
-static inline int probe_hash(model_probe_t* p)
+static inline int probe_hash(probe_t* p)
 {
-  return string_hash(model_probe_name(p));
+  return string_hash(probe_name(p));
 }
 
-static inline bool probe_equals(model_probe_t* p, model_probe_t* q)
+static inline bool probe_equals(probe_t* p, probe_t* q)
 {
   return ptr_equals(p, q);
 }
 
-DEFINE_UNORDERED_MAP(probe_map, model_probe_t*, real_array_t*, probe_hash, probe_equals)
+DEFINE_UNORDERED_MAP(probe_map, probe_t*, real_array_t*, probe_hash, probe_equals)
+DEFINE_UNORDERED_MAP(probe_data_map, char*, probe_data_array_t*, string_hash, string_equals)
 
 struct model_t 
 {
@@ -51,6 +52,9 @@ struct model_t
 
   // Probes and their acquisition times.
   probe_map_t* probes;
+
+  // Acquired probe data.
+  probe_data_map_t* probe_data;
 
   // Data related to a given simulation.
   char* sim_name;    // Simulation name.
@@ -139,8 +143,9 @@ model_t* model_new(const char* name,
   model->max_dt = REAL_MAX;
   model->min_dt = 0.0;
 
-  // Initialize probes.
+  // Initialize probe and probe data maps.
   model->probes = probe_map_new();
+  model->probe_data = probe_data_map_new();
 
   // Enforce our given parallelism model.
   enforce_singleton_instances(model);
@@ -176,8 +181,9 @@ void model_free(model_t* model)
   if (model->sim_path != NULL)
     polymec_free(model->sim_path);
 
-  // Clear probes.
+  // Clear probe stuff.
   probe_map_free(model->probes);
+  probe_data_map_free(model->probe_data);
 
   polymec_free(model);
 }
@@ -193,31 +199,14 @@ model_parallelism_t model_parallelism(model_t* model)
 }
 
 void model_add_probe(model_t* model, 
-                     model_probe_t* probe,
+                     probe_t* probe,
                      real_t* acq_times,
                      size_t num_acq_times)
 {
   real_array_t* times = real_array_new();
   real_array_resize(times, num_acq_times);
   memcpy(times->data, acq_times, sizeof(real_t) * num_acq_times);
-  probe_map_insert_with_kv_dtors(model->probes, probe, times, model_probe_free, real_array_free);
-}
-
-void model_add_probes(model_t* model, 
-                      model_probe_t** probes,
-                      size_t num_probes,
-                      real_t* acq_times,
-                      size_t num_acq_times)
-{
-  if (num_probes > 0)
-  {
-    real_array_t* times = real_array_new();
-    real_array_resize(times, num_acq_times);
-    memcpy(times->data, acq_times, sizeof(real_t) * num_acq_times);
-    probe_map_insert_with_kv_dtors(model->probes, probes[0], times, model_probe_free, real_array_free);
-    for (size_t p = 1; p < num_probes; ++p)
-      probe_map_insert_with_k_dtor(model->probes, probes[p], times, model_probe_free);
-  }
+  probe_map_insert_with_kv_dtors(model->probes, probe, times, probe_free, real_array_free);
 }
 
 static void model_do_periodic_work(model_t* model)
@@ -274,7 +263,7 @@ static real_t model_next_acq_time(model_t* model)
   real_t acq_time = REAL_MAX;
 
   int pos = 0;
-  model_probe_t* probe;
+  probe_t* probe;
   real_array_t* acq_times;
   while (probe_map_next(model->probes, &pos, &probe, &acq_times))
   {
@@ -508,7 +497,7 @@ void model_acquire(model_t* model)
 {
   START_FUNCTION_TIMER();
   int pos = 0;
-  model_probe_t* probe;
+  probe_t* probe;
   real_array_t* acq_times;
   while (probe_map_next(model->probes, &pos, &probe, &acq_times))
   {
@@ -517,11 +506,24 @@ void model_acquire(model_t* model)
         reals_nearly_equal(model->time, acq_times->data[acq_time_index], 1e-12)) // FIXME: Good enough?
     {
       // Acquire data from this probe.
-      real_t* data = model_probe_new_array(probe);
-      model_probe_acquire(probe, model->time, data);
+      probe_data_t* data = probe_acquire(probe, model->time);
 
-      // Publish this data.
-//      char* name = model_probe_name(probe);
+      // Get an array in which to stash this data.
+      char* data_name = probe_data_name(probe);
+      probe_data_array_t** array_p = probe_data_map_get(model->probe_data, data_name);
+      probe_data_array_t* array = NULL;
+      if (array_p == NULL)
+      {
+        array = probe_data_array_new();
+        probe_data_map_insert_with_kv_dtors(model->probe_data, 
+                                            string_dup(data_name), array, 
+                                            string_free, probe_data_array_free);
+      }
+      else
+        array = *array_p;
+      
+      // Stash it!
+      probe_data_array_append_with_dtor(array, data, probe_data_free);
     }
   }
   STOP_FUNCTION_TIMER();
@@ -619,6 +621,15 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
 void* model_context(model_t* model)
 {
   return model->context;
+}
+
+probe_data_array_t* model_probe_data(model_t* model, const char* data_name)
+{
+  probe_data_array_t** array_p = probe_data_map_get(model->probe_data, (char*)data_name);
+  if (array_p != NULL)
+    return *array_p;
+  else
+    return NULL;
 }
 
 void model_set_sim_name(model_t* model, const char* sim_name)
