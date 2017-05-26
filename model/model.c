@@ -542,7 +542,8 @@ void model_acquire(model_t* model)
       else
       {
         // Jettison the data on other ranks.
-        probe_data_free(data);
+        if (data != NULL)
+          probe_data_free(data);
       }
     }
   }
