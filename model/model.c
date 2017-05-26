@@ -209,6 +209,10 @@ void model_add_probe(model_t* model,
   real_array_resize(times, num_acq_times);
   memcpy(times->data, acq_times, sizeof(real_t) * num_acq_times);
   probe_map_insert_with_kv_dtors(model->probes, probe, times, probe_free, real_array_free);
+
+  // Perform any work that needs doing.
+  if (model->vtable.add_probe != NULL)
+    model->vtable.add_probe(model->context, probe_context(probe));
   probe_set_model(probe, model);
 }
 
@@ -523,7 +527,7 @@ void model_acquire(model_t* model)
                                             string_free, probe_data_array_free);
       }
       else
-        array = *array_p;
+         array = *array_p;
       
       // Stash it!
       probe_data_array_append_with_dtor(array, data, probe_data_free);
@@ -626,9 +630,17 @@ void* model_context(model_t* model)
   return model->context;
 }
 
-probe_data_array_t* model_probe_data(model_t* model, const char* data_name)
+bool model_next_probe_data(model_t* model, 
+                           int* pos, 
+                           char** quantity, 
+                           probe_data_array_t** data)
 {
-  probe_data_array_t** array_p = probe_data_map_get(model->probe_data, (char*)data_name);
+  return probe_data_map_next(model->probe_data, pos, quantity, data);
+}
+
+probe_data_array_t* model_probe_data(model_t* model, const char* quantity)
+{
+  probe_data_array_t** array_p = probe_data_map_get(model->probe_data, (char*)quantity);
   if (array_p != NULL)
     return *array_p;
   else

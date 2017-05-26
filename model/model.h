@@ -48,6 +48,9 @@ typedef void (*model_save_func)(void* context, const char* file_prefix, const ch
 // A function for plotting the model to the given I/O interface.
 typedef void (*model_plot_func)(void* context, const char* file_prefix, const char* directory, real_t time, int step);
 
+// A function for performing work when a probe is added.
+typedef void (*model_add_probe_func)(void* context, void* probe_context);
+
 // A destructor function for the context object (if any).
 typedef void (*model_dtor)(void* context);
 
@@ -61,6 +64,7 @@ typedef struct
   model_load_func                load;
   model_save_func                save;
   model_plot_func                plot;
+  model_add_probe_func           add_probe;
   model_dtor                     dtor;
 } model_vtable;
 
@@ -109,8 +113,16 @@ char* model_name(model_t* model);
 // Returns the context object associated with the model (if any).
 void* model_context(model_t* model);
 
-// Returns an array of acquired data for the given quantity.
-probe_data_array_t* model_probe_data(model_t* model, const char* data_name);
+// Allows iteration over all available model probe data. Set *pos to 0 to 
+// reset the iteration.
+bool model_next_probe_data(model_t* model, 
+                           int* pos, 
+                           char** quantity, 
+                           probe_data_array_t** data);
+
+// Returns the data array for the given probed quantity in the model, or 
+// NULL if no such quantity is tracked.
+probe_data_array_t* model_probe_data(model_t* model, const char* quantity);
 
 // Returns the degree of parallelism supported by this model.
 model_parallelism_t model_parallelism(model_t* model);

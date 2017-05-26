@@ -35,6 +35,9 @@ typedef struct probe_t probe_t;
 // This virtual table must be implemented by any probe.
 typedef struct 
 {
+  // Called when the probe is added to a model.
+  void (*set_model)(void* context, void* model_context);
+
   // Acquire data from a model. The data's rank and shape are given, and 
   // the data is placed into the data array.
   void (*acquire)(void* context, real_t t, probe_data_t* data);
@@ -62,6 +65,9 @@ char* probe_name(probe_t* probe);
 
 // Returns the name of the data captured by the probe.
 char* probe_data_name(probe_t* probe);
+
+// Returns the context pointer for the probe.
+void* probe_context(probe_t* probe);
 
 // Returns a probe_data object containing newly acquired data at the given 
 // time t.

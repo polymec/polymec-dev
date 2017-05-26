@@ -96,6 +96,90 @@ static int m_add_probe(lua_State* L)
   return 0;
 }
 
+static int lua_push_probe_data(lua_State* L, probe_data_t* data)
+{
+  int rank = data->rank;
+  if (rank > 4)
+    luaL_error(L, "probe:acquire: rank must be 4 or less.");
+
+  if (rank == 0)
+    lua_push_real(L, data->data[0]);
+  else
+  {
+    lua_newtable(L);
+    for (size_t i = 1; i <= data->shape[0]; ++i)
+    {
+      if (rank == 1)
+      {
+        lua_push_real(L, data->data[i-1]);
+        lua_rawseti(L, -2, (int)i);
+      }
+      else
+      {
+        lua_newtable(L);
+        for (size_t j = 1; j <= data->shape[1]; ++j)
+        {
+          if (rank == 2)
+          {
+            DECLARE_2D_ARRAY(real_t, xij, data->data, data->shape[0], data->shape[1]);
+            lua_push_real(L, xij[i-1][j-1]);
+            lua_rawseti(L, -2, (int)j);
+          }
+          else
+          {
+            lua_newtable(L);
+            for (size_t k = 1; k <= data->shape[2]; ++k)
+            {
+              if (rank == 3)
+              {
+                DECLARE_3D_ARRAY(real_t, xijk, data->data, data->shape[0], data->shape[1], data->shape[2]);
+                lua_push_real(L, xijk[i-1][j-1][k-1]);
+                lua_rawseti(L, -2, (int)k);
+              }
+              else
+              {
+                lua_newtable(L); 
+                for (size_t l = 1; l <= data->shape[3]; ++l)
+                {
+                  // rank == 4
+                  DECLARE_4D_ARRAY(real_t, xijkl, data->data, data->shape[0], data->shape[1], data->shape[2], data->shape[3]);
+                  lua_push_real(L, xijkl[i-1][j-1][k-1][l-1]);
+                  lua_rawseti(L, -2, (int)l);
+                }
+                lua_rawseti(L, -2, (int)k); // push the new table into place
+              }
+            }
+            lua_rawseti(L, -2, (int)j); // push the table into place
+          }
+        }
+        lua_rawseti(L, -2, (int)i); // push the table into place
+      }
+    }
+  }
+  return 1;
+}
+
+static int m_data(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  int pos = 0;
+  char* quantity;
+  probe_data_array_t* array;
+  lua_newtable(L);
+  while (model_next_probe_data(m, &pos, &quantity, &array))
+  {
+    lua_newtable(L);
+    for (size_t i = 0; i < array->size; ++i)
+    {
+      lua_push_real(L, array->data[i]->time);
+      lua_push_probe_data(L, array->data[i]);
+      lua_settable(L, -3);
+    }
+    lua_setfield(L, -2, quantity);
+  }
+  return 1;
+}
+
 static int m_tostring(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
@@ -109,6 +193,7 @@ static lua_class_method model_methods[] = {
   {"advance", m_advance},
   {"run", m_run},
   {"add_probe", m_add_probe},
+  {"data", m_data},
   {"__tostring", m_tostring},
   {NULL, NULL}
 };
@@ -285,69 +370,6 @@ static lua_module_function probe_funcs[] = {
   {"new", p_new},
   {NULL, NULL}
 };
-
-static int lua_push_probe_data(lua_State* L, probe_data_t* data)
-{
-  int rank = data->rank;
-  if (rank > 4)
-    luaL_error(L, "probe:acquire: rank must be 4 or less.");
-
-  if (rank == 0)
-    lua_push_real(L, data->data[0]);
-  else
-  {
-    lua_newtable(L);
-    for (size_t i = 1; i <= data->shape[0]; ++i)
-    {
-      if (rank == 1)
-      {
-        lua_push_real(L, data->data[i-1]);
-        lua_rawseti(L, -2, (int)i);
-      }
-      else
-      {
-        lua_newtable(L);
-        for (size_t j = 1; j <= data->shape[1]; ++j)
-        {
-          if (rank == 2)
-          {
-            DECLARE_2D_ARRAY(real_t, xij, data->data, data->shape[0], data->shape[1]);
-            lua_push_real(L, xij[i-1][j-1]);
-            lua_rawseti(L, -2, (int)j);
-          }
-          else
-          {
-            lua_newtable(L);
-            for (size_t k = 1; k <= data->shape[2]; ++k)
-            {
-              if (rank == 3)
-              {
-                DECLARE_3D_ARRAY(real_t, xijk, data->data, data->shape[0], data->shape[1], data->shape[2]);
-                lua_push_real(L, xijk[i-1][j-1][k-1]);
-                lua_rawseti(L, -2, (int)k);
-              }
-              else
-              {
-                lua_newtable(L); 
-                for (size_t l = 1; l <= data->shape[3]; ++l)
-                {
-                  // rank == 4
-                  DECLARE_4D_ARRAY(real_t, xijkl, data->data, data->shape[0], data->shape[1], data->shape[2], data->shape[3]);
-                  lua_push_real(L, xijkl[i-1][j-1][k-1][l-1]);
-                  lua_rawseti(L, -2, (int)l);
-                }
-                lua_rawseti(L, -2, (int)k); // push the new table into place
-              }
-            }
-            lua_rawseti(L, -2, (int)j); // push the table into place
-          }
-        }
-        lua_rawseti(L, -2, (int)i); // push the table into place
-      }
-    }
-  }
-  return 1;
-}
 
 static int p_acquire(lua_State* L)
 {

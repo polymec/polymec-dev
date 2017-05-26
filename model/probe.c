@@ -39,7 +39,6 @@ struct probe_t
   int rank;
   size_t* shape;
   void* context;
-  void* model_context;
   probe_vtable vtable;
 };
 
@@ -89,6 +88,11 @@ char* probe_data_name(probe_t* probe)
   return probe->data_name;
 }
 
+void* probe_context(probe_t* probe)
+{
+  return probe->context;
+}
+
 probe_data_t* probe_acquire(probe_t* probe, real_t t)
 {
   probe_data_t* data = probe_data_new(probe->rank, probe->shape);
@@ -97,10 +101,10 @@ probe_data_t* probe_acquire(probe_t* probe, real_t t)
   return data;
 }
 
-// This internal function is used to set the model context within the probe.
 void probe_set_model(probe_t* probe, model_t* model);
 void probe_set_model(probe_t* probe, model_t* model)
 {
-  probe->model_context = model_context(model);
+  if (probe->vtable.set_model != NULL)
+    probe->vtable.set_model(probe_context(probe), model_context(model));
 }
 
