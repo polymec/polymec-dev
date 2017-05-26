@@ -20,6 +20,8 @@
 #include <omp.h>
 #endif
 
+static int _mpi_rank = -1;
+
 // This type maps a probe to an array of acquisition times.
 static inline int probe_hash(probe_t* p)
 {
@@ -124,6 +126,9 @@ model_t* model_new(const char* name,
                    model_vtable vtable, 
                    model_parallelism_t parallelism)
 {
+  if (_mpi_rank == -1)
+    MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_rank);
+
   model_t* model = polymec_malloc(sizeof(model_t));
   model->vtable = vtable;
   model->context = context;
@@ -515,22 +520,30 @@ void model_acquire(model_t* model)
       // Acquire data from this probe.
       probe_data_t* data = probe_acquire(probe, model->time);
 
-      // Get an array in which to stash this data.
-      char* data_name = probe_data_name(probe);
-      probe_data_array_t** array_p = probe_data_map_get(model->probe_data, data_name);
-      probe_data_array_t* array = NULL;
-      if (array_p == NULL)
+      if (_mpi_rank == 0)
       {
-        array = probe_data_array_new();
-        probe_data_map_insert_with_kv_dtors(model->probe_data, 
-                                            string_dup(data_name), array, 
-                                            string_free, probe_data_array_free);
+        // Get an array in which to stash this data.
+        char* data_name = probe_data_name(probe);
+        probe_data_array_t** array_p = probe_data_map_get(model->probe_data, data_name);
+        probe_data_array_t* array = NULL;
+        if (array_p == NULL)
+        {
+          array = probe_data_array_new();
+          probe_data_map_insert_with_kv_dtors(model->probe_data, 
+                                              string_dup(data_name), array, 
+                                              string_free, probe_data_array_free);
+        }
+        else
+          array = *array_p;
+
+        // Stash it!
+        probe_data_array_append_with_dtor(array, data, probe_data_free);
       }
       else
-         array = *array_p;
-      
-      // Stash it!
-      probe_data_array_append_with_dtor(array, data, probe_data_free);
+      {
+        // Jettison the data on other ranks.
+        probe_data_free(data);
+      }
     }
   }
   STOP_FUNCTION_TIMER();
