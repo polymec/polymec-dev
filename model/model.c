@@ -198,6 +198,8 @@ model_parallelism_t model_parallelism(model_t* model)
   return model->parallelism;
 }
 
+extern void probe_set_model(probe_t* probe, model_t* model);
+
 void model_add_probe(model_t* model, 
                      probe_t* probe,
                      real_t* acq_times,
@@ -207,6 +209,7 @@ void model_add_probe(model_t* model,
   real_array_resize(times, num_acq_times);
   memcpy(times->data, acq_times, sizeof(real_t) * num_acq_times);
   probe_map_insert_with_kv_dtors(model->probes, probe, times, probe_free, real_array_free);
+  probe_set_model(probe, model);
 }
 
 static void model_do_periodic_work(model_t* model)

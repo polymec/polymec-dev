@@ -6,19 +6,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/lua_core.h"
+#include "core/array.h"
 #include "core/declare_nd_array.h"
 #include "model/lua_model.h"
 
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
-
-static int m_tostring(lua_State* L)
-{
-  model_t* m = lua_to_model(L, 1);
-  lua_pushfstring(L, "model '%s'", model_name(m));
-  return 1;
-}
 
 static int m_load(lua_State* L)
 {
@@ -72,11 +66,49 @@ static int m_run(lua_State* L)
   return 0; // No return value.
 }
 
+static int m_add_probe(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  if (!lua_is_probe(L, 2))
+    return luaL_error(L, "Argument 2 must be a probe.");
+  if (!lua_istable(L, 3))
+    return luaL_error(L, "Argument 3 must be a table of acquisition times.");
+
+  // Build an array of acquisition times.
+  real_array_t* times = real_array_new();
+  lua_pushnil(L);
+  while (lua_next(L, 3))
+  {
+    // Key is at index -2, value is at -1.
+    if (!lua_isinteger(L, -2))
+      luaL_error(L, "Argument 3 must be a array of acquisition times.");
+    if (!lua_isnumber(L, -1))
+      luaL_error(L, "Argument 3 must be a array of acquisition times.");
+    real_array_append(times, lua_to_real(L, -1));
+    lua_pop(L, 1);
+  }
+
+  // Add the probe.
+  probe_t* probe = lua_to_probe(L, 2);
+  model_add_probe(m, probe, times->data, times->size);
+  real_array_release_data_and_free(times);
+
+  return 0;
+}
+
+static int m_tostring(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  lua_pushfstring(L, "model '%s'", model_name(m));
+  return 1;
+}
+
 static lua_class_method model_methods[] = {
   {"load", m_load},
   {"save", m_save},
   {"advance", m_advance},
   {"run", m_run},
+  {"add_probe", m_add_probe},
   {"__tostring", m_tostring},
   {NULL, NULL}
 };

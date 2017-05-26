@@ -7,6 +7,7 @@
 
 #include "core/array.h"
 #include "model/probe.h"
+#include "model/model.h"
 
 probe_data_t* probe_data_new(int rank, size_t* shape)
 {
@@ -38,6 +39,7 @@ struct probe_t
   int rank;
   size_t* shape;
   void* context;
+  void* model_context;
   probe_vtable vtable;
 };
 
@@ -93,5 +95,12 @@ probe_data_t* probe_acquire(probe_t* probe, real_t t)
   probe->vtable.acquire(probe->context, t, data);
   data->time = t;
   return data;
+}
+
+// This internal function is used to set the model context within the probe.
+void probe_set_model(probe_t* probe, model_t* model);
+void probe_set_model(probe_t* probe, model_t* model)
+{
+  probe->model_context = model_context(model);
 }
 
