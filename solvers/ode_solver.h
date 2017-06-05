@@ -52,18 +52,18 @@ typedef struct
 // implement time integration. The accuracy of the integration is determined 
 // by its order.
 ode_solver_t* ode_solver_new(const char* name, 
-                                     void* context,
-                                     ode_solver_vtable vtable,
-                                     int order,
-                                     int solution_vector_size);
+                             void* context,
+                             ode_solver_vtable vtable,
+                             int order,
+                             int solution_vector_size);
 
 // Creates an ode_solver that "decorates" the given solver with 
 // another context and (partially-filled) virtual table, calling any 
 // methods specified in the vtable with the given context, and falling 
 // back to the given solver for methods not specified.
 ode_solver_t* decorated_ode_solver_new(ode_solver_t* base_solver,
-                                               void* context,
-                                               ode_solver_vtable decoration_vtable);
+                                       void* context,
+                                       ode_solver_vtable decoration_vtable);
 
 // Frees an ODE solver.
 void ode_solver_free(ode_solver_t* integ);
