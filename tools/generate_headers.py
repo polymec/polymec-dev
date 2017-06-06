@@ -26,7 +26,7 @@ def files_match(file1, file2):
         result = False
     return result
 
-polymec_libs = ['core', 'geometry', 'solvers', 'model', 'meshless']
+polymec_libs = ['core', 'geometry', 'io', 'solvers', 'model']
 
 # Generate library-specific headers.
 for lib in polymec_libs:
