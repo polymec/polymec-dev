@@ -8,12 +8,6 @@
 #include "core/kd_tree.h"
 #include "model/neighbor_pairing.h"
 
-static real_t hat_W(vector_t* y, real_t h)
-{
-  real_t D = vector_mag(y);
-  return (D < h) ? 1.0 - D/h : 0.0;
-}
-
 neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h);
 neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h)
 {
