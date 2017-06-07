@@ -17,46 +17,35 @@
 #include "core/matrix_sparsity.h"
 #include "io/silo_file.h"
 
-// A stencil is a set of indices and weights associated with a stencil for 
-// some spatial discretization. Stencils can be constructed for any set of 
-// indices representing a spatial domain, and the underlying indices and 
-// weights are stored in compressed arrays for efficiency.
+// A stencil is a set of indices associated with a stencil for some spatial 
+// discretization. Stencils can be constructed for any set of indices 
+// representing a spatial domain, and the underlying indices are stored in 
+// compressed arrays for efficiency.
 typedef struct 
 {
   char* name;
   int num_indices;
   int* offsets;
   int* indices;
-  real_t* weights;
   int num_ghosts; // Number of remotely-owned indices.
   exchanger_t* ex; // Used to perform exchanges to fill all values for indices on a domain.
 } stencil_t;
 
-// Creates a stencil object using compressed arrays for (1) the offsets of 
-// the different stencils for each index, (2) the indices of each stencil 
-// therein, and (3) the weights associated with the indices in each stencil.
-// Returns a newly-allocated stencil. These arrays must be allocated using 
-// polymec_malloc, and are consumed by the stencil. Likewise, the stencil's
-// exchanger is consumed by the stencil and is used for its exchanges.
+// Creates a stencil object using compressed arrays for the offsets of 
+// the different stencils for each index and the indices of each stencil 
+// therein. Returns a newly-allocated stencil. These arrays must be allocated 
+// using polymec_malloc, and are consumed by the stencil. Likewise, the 
+// stencil's exchanger is consumed by the stencil and is used for its 
+// exchanges.
 stencil_t* stencil_new(const char* name, int num_indices, 
-                       int* offsets, int* indices, real_t* weights,
+                       int* offsets, int* indices, 
                        int num_ghosts, exchanger_t* ex);
-
-// Creates a stencil object with weights all equal to one. See the other 
-// constructor for details.
-stencil_t* unweighted_stencil_new(const char* name, int num_indices, 
-                                  int* offsets, int* indices, 
-                                  int num_ghosts, exchanger_t* ex);
 
 // Destroys the given stencil object.
 void stencil_free(stencil_t* stencil);
 
 // Creates a (deep) copy of the given stencil.
 stencil_t* stencil_clone(stencil_t* stencil);
-
-// This function sets the weights for the given stencil after its construction. 
-// Any existing weights are deleted, and the weights array is consumed.
-void stencil_set_weights(stencil_t* stencil, real_t* weights);
 
 // Given an array of sets of neighbors to remove from each index (of length 
 // stencil->num_indices), removes those neighbors from their indices within 
@@ -102,11 +91,9 @@ static inline void stencil_get_neighbors(stencil_t* stencil, int i, int* neighbo
 
 // Traverses the stencil for a given index i, returning true if the traversal
 // has more indices remaining and false if it has completed. The pos pointer 
-// must be set to zero to reset the traversal. The j and weight pointers will 
-// store the next stencil index and weight, respectively. If weight is NULL, 
-// the weight obviously can't be returned.
-static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
-                                int* j, real_t* weight)
+// must be set to zero to reset the traversal. The j pointer stores the next 
+// stencil index. 
+static inline bool stencil_next(stencil_t* stencil, int i, int* pos, int* j)
 {
   ASSERT(i < stencil->num_indices);
   if (*pos >= (stencil->offsets[i+1] - stencil->offsets[i]))
@@ -114,8 +101,6 @@ static inline bool stencil_next(stencil_t* stencil, int i, int* pos,
   int k = stencil->offsets[i] + *pos;
   *j = stencil->indices[k];
   ASSERT(*j != -1);
-  if (weight != NULL)
-    *weight = (stencil->weights != NULL) ? stencil->weights[k] : 1.0;
   ++(*pos);
   return true;
 }
@@ -152,8 +137,7 @@ stencil_t* silo_file_read_stencil(silo_file_t* file,
 
 // This pre-fab function creates a stencil for points in a cloud that have 
 // neighbors within a radius given by R[i] for the ith point. num_ghost_points
-// will store the number of ghost points in the stencil. No weights are 
-// assigned.
+// will store the number of ghost points in the stencil.
 stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
                                             real_t* R);
 

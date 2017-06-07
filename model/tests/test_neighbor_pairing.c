@@ -29,30 +29,20 @@ static void test_serial_point_lattice(void** state,
   point_cloud_t* cloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, nz, &bbox);
   neighbor_pairing_t* pairing = create_simple_pairing(cloud, h);
 
-  // Find the numbers of neighbors of each of the points. Do it collecting 
-  // weights first, and then ignoring weights, and make sure we get the same
-  // result.
-  int num_neighbors1[nx*ny*nz], num_neighbors2[nx*ny*nz]; 
-  memset(num_neighbors1, 0, nx*ny*nz * sizeof(int));
-  memset(num_neighbors2, 0, nx*ny*nz * sizeof(int));
+  // Find the numbers of neighbors of each of the points.
+  int num_neighbors[nx*ny*nz];
+  memset(num_neighbors, 0, nx*ny*nz * sizeof(int));
   {
     int pos = 0, i, j;
-    real_t wij;
-    while (neighbor_pairing_next(pairing, &pos, &i, &j, &wij))
+    while (neighbor_pairing_next(pairing, &pos, &i, &j))
     {
-      ++num_neighbors1[i];
-      ++num_neighbors1[j];
-    }
-    pos = 0;
-    while (neighbor_pairing_next(pairing, &pos, &i, &j, NULL))
-    {
-      ++num_neighbors2[i];
-      ++num_neighbors2[j];
+      ++num_neighbors[i];
+      ++num_neighbors[j];
     }
   }
   for (int i = 0; i < nx*ny*nz; ++i)
   {
-    assert_int_equal(num_neighbors1[i], num_neighbors2[i]);
+    assert_true(num_neighbors[i] >= 0);
   }
 
   // Make bins of numbers of neighbors. There shouldn't be more than 4 
@@ -61,7 +51,7 @@ static void test_serial_point_lattice(void** state,
   int bins[1000]; // Up to 1000 neighbors (ridiculous).
   memset(bins, 0, 1000 * sizeof(int));
   for (int i = 0; i < nx*ny*nz; ++i)
-    ++bins[num_neighbors1[i]];
+    ++bins[num_neighbors[i]];
   int num_nonempty_bins = 0;
   for (int i = 0; i < 1000; ++i)
   {
@@ -116,33 +106,22 @@ static void test_parallel_point_lattice(void** state,
   neighbor_pairing_t* pairing = distance_based_neighbor_pairing_new(cloud, R, &num_ghosts);
   point_cloud_set_num_ghosts(cloud, num_ghosts);
 
-  // Find the numbers of neighbors of each of the points. Do it collecting 
-  // weights first, and then ignoring weights, and make sure we get the same
-  // result.
+  // Find the numbers of neighbors of each of the points. 
   int num_points = cloud->num_points;
-  int num_neighbors1[num_points], num_neighbors2[num_points]; 
-  memset(num_neighbors1, 0, num_points * sizeof(int));
-  memset(num_neighbors2, 0, num_points * sizeof(int));
+  int num_neighbors[num_points];
+  memset(num_neighbors, 0, num_points * sizeof(int));
   {
     int pos = 0, i, j;
-    real_t wij;
-    while (neighbor_pairing_next(pairing, &pos, &i, &j, &wij))
+    while (neighbor_pairing_next(pairing, &pos, &i, &j))
     {
-      ++num_neighbors1[i];
+      ++num_neighbors[i];
       if (j < num_points)
-        ++num_neighbors1[j];
-    }
-    pos = 0;
-    while (neighbor_pairing_next(pairing, &pos, &i, &j, NULL))
-    {
-      ++num_neighbors2[i];
-      if (j < num_points)
-        ++num_neighbors2[j];
+        ++num_neighbors[j];
     }
   }
   for (int i = 0; i < num_points; ++i)
   {
-    assert_int_equal(num_neighbors1[i], num_neighbors2[i]);
+    assert_true(num_neighbors[i] >= 0); 
   }
 
   // Make bins of numbers of neighbors. There shouldn't be more than 4 
@@ -151,7 +130,7 @@ static void test_parallel_point_lattice(void** state,
   int bins[1000]; // Up to 1000 neighbors (ridiculous).
   memset(bins, 0, 1000 * sizeof(int));
   for (int i = 0; i < num_points; ++i)
-    ++bins[num_neighbors1[i]];
+    ++bins[num_neighbors[i]];
   int num_nonempty_bins = 0;
   for (int i = 0; i < 1000; ++i)
   {

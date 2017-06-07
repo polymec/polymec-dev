@@ -11,8 +11,7 @@
 #include "model/neighbor_pairing.h"
 
 neighbor_pairing_t* neighbor_pairing_new(const char* name, size_t num_pairs, 
-                                         int* pairs, real_t* weights,
-                                         exchanger_t* ex)
+                                         int* pairs, exchanger_t* ex)
 {
   ASSERT(pairs != NULL);
   ASSERT(ex != NULL);
@@ -20,23 +19,14 @@ neighbor_pairing_t* neighbor_pairing_new(const char* name, size_t num_pairs,
   p->name = string_dup(name);
   p->num_pairs = num_pairs;
   p->pairs = pairs;
-  p->weights = weights;
   p->ex = ex;
   return p;
-}
-
-neighbor_pairing_t* unweighted_neighbor_pairing_new(const char* name, size_t num_pairs, 
-                                                    int* pairs, exchanger_t* ex)
-{
-  return neighbor_pairing_new(name, num_pairs, pairs, NULL, ex);
 }
 
 void neighbor_pairing_free(neighbor_pairing_t* pairing)
 {
   polymec_free(pairing->name);
   polymec_free(pairing->pairs);
-  if (pairing->weights != NULL)
-    polymec_free(pairing->weights);
   pairing->ex = NULL;
   polymec_free(pairing);
 }
@@ -68,8 +58,6 @@ static size_t np_byte_size(void* obj)
   // Data.
   size_t basic_storage = sizeof(int) + sizeof(char) * strlen(np->name) + 
                          sizeof(int) * (1 + 2*np->num_pairs + 1);
-  if (np->weights != NULL)
-    basic_storage += sizeof(real_t) * np->num_pairs;
   
   // Exchanger-related storage.
   serializer_t* ex_s = exchanger_serializer();
@@ -88,21 +76,17 @@ static void* np_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_chars(bytes, name_len, name, offset);
   name[name_len] = '\0';
 
-  // Read the offsets, indices, weights.
-  size_t num_pairs, num_weights;
+  // Read the offsets, indices.
+  size_t num_pairs;
   byte_array_read_size_ts(bytes, 1, &num_pairs, offset);
   int* pairs = polymec_malloc(sizeof(int) * 2 * num_pairs);
   byte_array_read_ints(bytes, 2*num_pairs, pairs, offset);
-  byte_array_read_size_ts(bytes, 1, &num_weights, offset);
-  real_t* weights = NULL;
-  if (num_weights > 0)
-    byte_array_read_real_ts(bytes, num_weights, weights, offset);
 
   // Exchanger stuff.
   serializer_t* ser = exchanger_serializer();
   exchanger_t* ex = serializer_read(ser, bytes, offset);
 
-  return neighbor_pairing_new(name, num_pairs, pairs, weights, ex);
+  return neighbor_pairing_new(name, num_pairs, pairs, ex);
 }
 
 static void np_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
@@ -114,19 +98,9 @@ static void np_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_ints(bytes, 1, &name_len, offset);
   byte_array_write_chars(bytes, name_len, np->name, offset);
 
-  // Write the offsets, indices, weights.
+  // Write the offsets, indices.
   byte_array_write_size_ts(bytes, 1, &np->num_pairs, offset);
   byte_array_write_ints(bytes, 2*np->num_pairs, np->pairs, offset);
-  if (np->weights != NULL)
-  {
-    byte_array_write_size_ts(bytes, 1, &np->num_pairs, offset);
-    byte_array_write_real_ts(bytes, np->num_pairs, np->weights, offset);
-  }
-  else
-  {
-    size_t zero = 0;
-    byte_array_write_size_ts(bytes, 1, &zero, offset);
-  }
 
   // Exchanger.
   serializer_t* ser = exchanger_serializer();
@@ -147,7 +121,6 @@ static void free_pair(int* pair)
 neighbor_pairing_t* neighbor_pairing_from_stencil(stencil_t* stencil)
 {
   int_array_t* pairs = int_array_new();
-  real_array_t* weights = (stencil->weights != NULL) ? real_array_new() : NULL;
   int_pair_int_unordered_map_t* pair_map = int_pair_int_unordered_map_new();
 
   // Extract all the pairs from the stencil.
@@ -155,8 +128,7 @@ neighbor_pairing_t* neighbor_pairing_from_stencil(stencil_t* stencil)
   for (int i = 0; i < num_indices; ++i)
   {
     int pos = 0, j;
-    real_t W;
-    while (stencil_next(stencil, i, &pos, &j, &W))
+    while (stencil_next(stencil, i, &pos, &j))
     {
       int small = MIN(i, j);
       int big = MAX(i, j);
@@ -170,15 +142,6 @@ neighbor_pairing_t* neighbor_pairing_from_stencil(stencil_t* stencil)
         int* p = polymec_malloc(sizeof(int) * 2);
         p[0] = small; p[1] = big;
         int_pair_int_unordered_map_insert_with_k_dtor(pair_map, p, pair_index, free_pair);
-        if (weights != NULL)
-          real_array_append(weights, W);
-      }
-      else if (weights != NULL)
-      {
-        // We need to symmetrize the weight.
-        int pair_index = *pair_index_p;
-        real_t orig_W = weights->data[pair_index];
-        weights->data[pair_index] = 0.5 * (orig_W + W);
       }
     }
   }
@@ -190,13 +153,10 @@ neighbor_pairing_t* neighbor_pairing_from_stencil(stencil_t* stencil)
   neighbor_pairing_t* neighbors = neighbor_pairing_new(stencil->name, 
                                                        pairs->size/2,
                                                        pairs->data,
-                                                       (weights != NULL) ? weights->data : NULL,
                                                        ex);
 
   // Let the neighbor pairing steal the array data.
   int_array_release_data_and_free(pairs);
-  if (weights != NULL)
-    real_array_release_data_and_free(weights);
   int_pair_int_unordered_map_free(pair_map);
 
   return neighbors;
@@ -208,7 +168,7 @@ stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points,
   // Count up the numbers of neighbors for each index.
   int_int_unordered_map_t* counts = int_int_unordered_map_new();
   int pos = 0, i, j;
-  while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+  while (neighbor_pairing_next(neighbors, &pos, &i, &j))
   {
     int small = MIN(i, j);
     int big = MAX(i, j);
@@ -239,22 +199,15 @@ stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points,
   }
   int N = offsets[num_indices];
   int* indices = polymec_malloc(sizeof(int) * N);
-  real_t* weights = (neighbors->weights != NULL) ? polymec_malloc(sizeof(real_t) * N) : NULL;
   int_int_unordered_map_free(counts);
 
   // Now extract the data from the neighbor pairing.
   int num_ghosts = points->num_ghosts;
   pos = 0;
-  real_t W;
   int which[num_indices + num_ghosts];
   memset(which, 0, sizeof(int) * (num_indices + num_ghosts));
-  while (neighbor_pairing_next(neighbors, &pos, &i, &j, &W))
+  while (neighbor_pairing_next(neighbors, &pos, &i, &j))
   {
-    if (weights != NULL)
-    {
-      weights[offsets[i]+which[i]] = W;
-      weights[offsets[j]+which[j]] = W;
-    }
     if (i < num_indices)
     {
       indices[offsets[i]+which[i]] = j;
@@ -269,8 +222,7 @@ stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points,
 
   // Construct the stencil.
   return stencil_new(neighbors->name, num_indices,
-                     offsets, indices, weights,
-                     num_ghosts, ex);
+                     offsets, indices, num_ghosts, ex);
 }
 
 adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points, 
@@ -288,7 +240,7 @@ adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points,
   memset(num_edges, 0, sizeof(int) * num_points);
   {
     int pos = 0, i, j;
-    while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+    while (neighbor_pairing_next(neighbors, &pos, &i, &j))
     {
       if (i < num_points)
         ++num_edges[i];
@@ -303,7 +255,7 @@ adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points,
   memset(num_edges, 0, sizeof(int) * num_points);
   {
     int pos = 0, i, j;
-    while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+    while (neighbor_pairing_next(neighbors, &pos, &i, &j))
     {
       if (i < num_points)
       {
@@ -353,7 +305,7 @@ matrix_sparsity_t* sparsity_from_point_cloud_and_neighbors(point_cloud_t* points
   index_t num_cols[points->num_points];
   memset(num_cols, 0, sizeof(index_t) * points->num_points);
   int pos = 0, i, j;
-  while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+  while (neighbor_pairing_next(neighbors, &pos, &i, &j))
   {
     ++num_cols[i];
     ++num_cols[j];
@@ -371,7 +323,7 @@ matrix_sparsity_t* sparsity_from_point_cloud_and_neighbors(point_cloud_t* points
 
   // Now step through and add each (i, j) pair.
   pos = 0;
-  while (neighbor_pairing_next(neighbors, &pos, &i, &j, NULL))
+  while (neighbor_pairing_next(neighbors, &pos, &i, &j))
   {
     index_t* i_columns = matrix_sparsity_columns(sparsity, global_ids[i]);
     index_t* j_columns = matrix_sparsity_columns(sparsity, global_ids[j]);
@@ -394,18 +346,12 @@ void silo_file_write_neighbor_pairing(silo_file_t* file,
   char pairs_name[FILENAME_MAX];
   snprintf(pairs_name, FILENAME_MAX, "%s_neighbor_pairing_pairs", neighbors_name);
   silo_file_write_int_array(file, pairs_name, neighbors->pairs, 2*neighbors->num_pairs);
-  char weights_name[FILENAME_MAX];
-  snprintf(weights_name, FILENAME_MAX, "%s_neighbor_pairing_weights", neighbors_name);
-  if (neighbors->weights != NULL)
-    silo_file_write_real_array(file, weights_name, neighbors->weights, neighbors->num_pairs);
-  else
-    silo_file_write_real_array(file, weights_name, NULL, 0);
 
   if (neighbors->ex != NULL)
   {
     char ex_name[FILENAME_MAX];
     snprintf(ex_name, FILENAME_MAX, "%s_neighbor_pairing_ex", neighbors_name);
-    silo_file_write_exchanger(file, weights_name, neighbors->ex);
+    silo_file_write_exchanger(file, ex_name, neighbors->ex);
   }
 }
 
@@ -423,12 +369,7 @@ neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
   p->pairs = silo_file_read_int_array(file, pairs_name, &size);
   ASSERT((size % 2) == 0);
   p->num_pairs = (int)size/2;
-  char weights_name[FILENAME_MAX];
-  snprintf(weights_name, FILENAME_MAX, "%s_neighbor_pairing_weights", neighbors_name);
-  size_t num_weights;
-  p->weights = silo_file_read_real_array(file, weights_name, &num_weights);
-  ASSERT((num_weights == p->num_pairs) || 
-         ((num_weights == 0) && (p->weights == NULL)));
+
   char ex_name[FILENAME_MAX];
   snprintf(ex_name, FILENAME_MAX, "%s_neighbor_pairing_ex", neighbors_name);
   p->ex = silo_file_read_exchanger(file, ex_name, comm);
@@ -498,8 +439,8 @@ neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
   // Create a neighbor pairing.
   int num_pairs = (int)pair_array->size/2;
   neighbor_pairing_t* neighbors = 
-    unweighted_neighbor_pairing_new("Distance-based point pairs", 
-                                    num_pairs, pair_array->data, ex);
+    neighbor_pairing_new("Distance-based point pairs", 
+                         num_pairs, pair_array->data, ex);
 
   // Set the number of ghost points referred to within the neighbor pairing.
   *num_ghost_points = (int)(kd_tree_size(tree) - points->num_points);

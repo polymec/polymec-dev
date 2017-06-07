@@ -67,8 +67,7 @@ static void test_NXxNYxNZ_star_stencil(void** state,
     // Make sure the neighbors are all valid, distinct cell indices.
     int_unordered_set_t* neighbors = int_unordered_set_new();
     int pos = 0, n;
-    real_t weight;
-    while (stencil_next(stencil, c, &pos, &n, &weight))
+    while (stencil_next(stencil, c, &pos, &n))
     {
       assert_true(n >= 0);
       assert_false(int_unordered_set_contains(neighbors, n));

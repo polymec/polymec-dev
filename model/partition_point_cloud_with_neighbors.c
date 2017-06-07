@@ -48,19 +48,16 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
     // them all simultaneously.
     int num_pairs[nprocs];
     int_array_t* pairs[nprocs];
-    real_array_t* weights[nprocs];
     int_ptr_unordered_map_t* sends[nprocs];
     int_ptr_unordered_map_t* receives[nprocs];
     int ghost_indices[nprocs];
     memset(num_pairs, 0, sizeof(int) * nprocs);
     memset(pairs, 0, sizeof(int*) * nprocs);
-    memset(weights, 0, sizeof(real_t*) * nprocs);
     memset(sends, 0, sizeof(int_ptr_unordered_map_t*) * nprocs);
     memset(receives, 0, sizeof(int_ptr_unordered_map_t*) * nprocs);
     memset(ghost_indices, 0, sizeof(int) * nprocs);
     int pos = 0, i, j;
-    real_t w;
-    while (neighbor_pairing_next(global_pairing, &pos, &i, &j, &w))
+    while (neighbor_pairing_next(global_pairing, &pos, &i, &j))
     {
       // Find the processes containing i and j.
       ASSERT(i >= vtx_dist[0]);
@@ -78,17 +75,6 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         pairs[pj] = int_array_new();
       int_array_append(pairs[pj], j);
       int_array_append(pairs[pj], i);
-
-      // Deposit weights, if we're into that sort of thing.
-      if (global_pairing->weights != NULL)
-      {
-        if (weights[pi] == NULL)
-          weights[pi] = real_array_new();
-        real_array_append(weights[pi], w);
-        if (weights[pj] == NULL)
-          weights[pj] = real_array_new();
-        real_array_append(weights[pj], w);
-      }
 
       // Set exchanger entries.
       if (pi != pj)
@@ -171,9 +157,8 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
       // NOTE: so we call *_array_release_data_and_free() below to give it to 
       // NOTE: them. 
       neighbor_pairing_t* p_pairing = neighbor_pairing_new(global_pairing->name, num_pairs[p],
-                                                           pairs[p]->data, weights[p]->data, ex);
+                                                           pairs[p]->data, ex);
       int_array_release_data_and_free(pairs[p]);
-      real_array_release_data_and_free(weights[p]);
 
       if (p == 0)
       {

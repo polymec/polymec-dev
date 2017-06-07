@@ -13,32 +13,24 @@
 // A neighbor pairing is a set of index pairs associated with some spatial 
 // discretization (usually a mesh-free method). Pairings can be constructed 
 // for any set of indices representing a spatial domain, and the underlying 
-// indices and weights are stored in compressed arrays for efficiency.
+// indices are stored in compressed arrays for efficiency.
 typedef struct 
 {
   char* name;
   size_t num_pairs;
   int* pairs;
-  real_t* weights;
   exchanger_t* ex; // Used to perform exchanges to fill all values for indices on a domain.
 } neighbor_pairing_t;
 
-// Creates a neighbor pairing object with the given pairs and weights.
+// Creates a neighbor pairing object with the given pairs.
 // pairs is an array of length 2*num_pairs whose (2*i)th element is the first 
 // index in the ith pair, and whose (2*i+1)th is the second such index.
-// The weights array is of length num_pairs whose ith element is the weight 
-// associated with the ith pair. Returns a newly-allocated neighbor pairing. 
-// The arrays must be allocated using polymec_malloc, and are consumed by the 
-// pairing. Likewise, the pairing's exchanger is consumed and is used for its 
-// exchanges. An exchanger must be given even for serial configurations.
+// Returns a newly-allocated neighbor pairing. The array must be allocated 
+// using polymec_malloc, and is consumed by the pairing. Likewise, 
+// the pairing's exchanger is consumed and is used for its exchanges. An 
+// exchanger must be given even for serial configurations.
 neighbor_pairing_t* neighbor_pairing_new(const char* name, size_t num_pairs,
-                                         int* pairs, real_t* weights,
-                                         exchanger_t* ex);
-
-// Creates a neighbor pairing object with weights all equal to one. See the 
-// other constructor for details.
-neighbor_pairing_t* unweighted_neighbor_pairing_new(const char* name, size_t num_pairs, 
-                                                    int* pairs, exchanger_t* ex);
+                                         int* pairs, exchanger_t* ex);
 
 // Destroys the given neighbor pairing object.
 void neighbor_pairing_free(neighbor_pairing_t* pairing);
@@ -65,33 +57,30 @@ static inline size_t neighbor_pairing_num_pairs(neighbor_pairing_t* pairing)
   return pairing->num_pairs;
 }
 
-// Retrieves the index pair (i, j, and the weight, if weight != NULL) of 
-// the pair with the given index within the neighbor pairing.
+// Retrieves the index pair (i, j) of the pair with the given index within 
+// the neighbor pairing.
 static inline void neighbor_pairing_get(neighbor_pairing_t* pairing,
                                         int pair_index,
-                                        int* i, int* j, real_t* weight)
+                                        int* i, int* j)
 {
   ASSERT(pair_index >= 0);
   ASSERT(pair_index < pairing->num_pairs);
 
   *i = pairing->pairs[2*pair_index];
   *j = pairing->pairs[2*pair_index+1];
-  if (weight != NULL)
-    *weight = (pairing->weights != NULL) ? pairing->weights[pair_index] : 1.0;
 }
 
 // Traverses the neighbor pairing, returning true if the traversal
 // has more pairs remaining and false if it has completed. The pos pointer 
-// must be set to zero to reset the traversal. The i, j and weight pointers 
-// will store the next (i, j) index pair and its weight, respectively.
-// If weight is NULL, the weight obviously can't be returned.
+// must be set to zero to reset the traversal. The i, j pointers 
+// store the next (i, j) index pair, respectively.
 static inline bool neighbor_pairing_next(neighbor_pairing_t* pairing, int* pos,
-                                         int* i, int* j, real_t* weight)
+                                         int* i, int* j)
 {
   int k = *pos;
   if(k >= (int)pairing->num_pairs)
     return false;
-  neighbor_pairing_get(pairing, k, i, j, weight);
+  neighbor_pairing_get(pairing, k, i, j);
   ++(*pos);
   return true;
 }

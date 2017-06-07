@@ -30,7 +30,7 @@ static stencil_t* stencil_from_cells(const char* name,
     int_array_free(neighbors);
   }
   polymec_free(stencil_cells);
-  return unweighted_stencil_new(name, num_cells, offsets, indices, num_ghost_cells, ex);
+  return stencil_new(name, num_cells, offsets, indices, num_ghost_cells, ex);
 }
 
 stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
@@ -174,10 +174,10 @@ noreturn stencil_t* cell_halo_stencil_new(mesh_t* mesh)
   exchanger_t* halo_ex = exchanger_new(exchanger_comm(star->ex));
 
   // Create the halo stencil.
-  stencil_t* halo = unweighted_stencil_new("cell halo stencil", 
-                                           star->num_indices,
-                                           halo_offsets, halo_indices, 
-                                           num_halo_ghosts, halo_ex);
+  stencil_t* halo = stencil_new("cell halo stencil", 
+                                star->num_indices,
+                                halo_offsets, halo_indices, 
+                                num_halo_ghosts, halo_ex);
 
   // Clean up.
   exchanger_free_metadata_send_arrays(star->ex, (void**)send_data);

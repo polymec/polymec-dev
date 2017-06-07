@@ -11,7 +11,7 @@
 #include "core/kd_tree.h"
 
 stencil_t* stencil_new(const char* name, int num_indices, 
-                       int* offsets, int* indices, real_t* weights,
+                       int* offsets, int* indices, 
                        int num_ghosts, exchanger_t* ex)
 {
   ASSERT(num_indices > 0);
@@ -23,17 +23,9 @@ stencil_t* stencil_new(const char* name, int num_indices,
   s->num_indices = num_indices;
   s->offsets = offsets;
   s->indices = indices;
-  s->weights = weights;
   s->num_ghosts = num_ghosts;
   s->ex = ex;
   return s;
-}
-
-stencil_t* unweighted_stencil_new(const char* name, int num_indices, 
-                                  int* offsets, int* indices, 
-                                  int num_ghosts, exchanger_t* ex)
-{
-  return stencil_new(name, num_indices, offsets, indices, NULL, num_ghosts, ex);
 }
 
 void stencil_free(stencil_t* stencil)
@@ -41,8 +33,6 @@ void stencil_free(stencil_t* stencil)
   polymec_free(stencil->name);
   polymec_free(stencil->offsets);
   polymec_free(stencil->indices);
-  if (stencil->weights != NULL)
-    polymec_free(stencil->weights);
   stencil->ex = NULL;
   polymec_free(stencil);
 }
@@ -54,23 +44,9 @@ stencil_t* stencil_clone(stencil_t* stencil)
   int size = offsets[stencil->num_indices];
   int* indices = polymec_malloc(sizeof(int) * size);
   memcpy(indices, stencil->indices, sizeof(real_t) * size);
-  real_t* weights = NULL;
-  if (stencil->weights != NULL)
-  {
-    weights = polymec_malloc(sizeof(real_t) * size);
-    memcpy(weights, stencil->weights, sizeof(real_t) * size);
-  }
   exchanger_t* ex = exchanger_clone(stencil->ex);
   return stencil_new(string_dup(stencil->name), stencil->num_indices, offsets, 
-                     indices, weights, stencil->num_ghosts, ex);
-}
-
-void stencil_set_weights(stencil_t* stencil, real_t* weights)
-{
-  ASSERT(weights != NULL);
-  if (stencil->weights != NULL)
-    polymec_free(stencil->weights);
-  stencil->weights = weights;
+                     indices, stencil->num_ghosts, ex);
 }
 
 static inline void swap_indices(int* i, int* j)
@@ -78,13 +54,6 @@ static inline void swap_indices(int* i, int* j)
   int k = *i;
   *i = *j;
   *j = k;
-}
-
-static inline void swap_weights(real_t* wi, real_t* wj)
-{
-  real_t wk = *wi;
-  *wi = *wj;
-  *wj = wk;
 }
 
 void stencil_trim(stencil_t* stencil, int_unordered_set_t** neighbors_to_trim)
@@ -107,8 +76,6 @@ void stencil_trim(stencil_t* stencil, int_unordered_set_t** neighbors_to_trim)
           // Remove k from i's neighbor list by swapping it to the back.
           int last_index = end - 1 - num_trimmed_indices[i];
           swap_indices(&stencil->indices[j], &stencil->indices[last_index]);
-          if (stencil->weights != NULL)
-            swap_weights(&stencil->weights[j], &stencil->weights[last_index]);
           ++num_trimmed_indices[i];
           if (num_trimmed_indices[i] == indices->size)
             break;
@@ -162,8 +129,6 @@ static size_t stencil_byte_size(void* obj)
   // Data.
   size_t basic_storage = sizeof(int) + sizeof(char) * strlen(stencil->name) + 
                          sizeof(int) * (1 + stencil->num_indices + 1 + stencil->offsets[stencil->num_indices] + 1 + 1);
-  if (stencil->weights != NULL)
-    basic_storage += sizeof(real_t) * stencil->offsets[stencil->num_indices];
   
   // Exchanger-related storage.
   serializer_t* ex_s = exchanger_serializer();
@@ -182,25 +147,21 @@ static void* stencil_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_chars(bytes, name_len, name, offset);
   name[name_len] = '\0';
 
-  // Read the offsets, indices, weights.
-  int num_indices, max_offset, num_weights, num_ghosts;
+  // Read the offsets, indices.
+  int num_indices, max_offset, num_ghosts;
   byte_array_read_ints(bytes, 1, &num_indices, offset);
   int* offsets = polymec_malloc(sizeof(int) * (num_indices+1));
   byte_array_read_ints(bytes, num_indices+1, offsets, offset);
   byte_array_read_ints(bytes, 1, &max_offset, offset);
   int* indices = polymec_malloc(sizeof(int) * max_offset);
   byte_array_read_ints(bytes, max_offset, indices, offset);
-  byte_array_read_ints(bytes, 1, &num_weights, offset);
-  real_t* weights = NULL;
-  if (num_weights > 0)
-    byte_array_read_real_ts(bytes, num_weights, weights, offset);
   byte_array_read_ints(bytes, 1, &num_ghosts, offset);
 
   // Exchanger stuff.
   serializer_t* ser = exchanger_serializer();
   exchanger_t* ex = serializer_read(ser, bytes, offset);
 
-  return stencil_new(name, num_indices, offsets, indices, weights, num_ghosts, ex);
+  return stencil_new(name, num_indices, offsets, indices, num_ghosts, ex);
 }
 
 static void stencil_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
@@ -212,22 +173,12 @@ static void stencil_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_ints(bytes, 1, &name_len, offset);
   byte_array_write_chars(bytes, name_len, stencil->name, offset);
 
-  // Write the offsets, indices, weights.
+  // Write the offsets, indices.
   byte_array_write_ints(bytes, 1, &stencil->num_indices, offset);
   byte_array_write_ints(bytes, stencil->num_indices+1, stencil->offsets, offset);
   int max_offset = stencil->offsets[stencil->num_indices];
   byte_array_write_ints(bytes, 1, &max_offset, offset);
   byte_array_write_ints(bytes, max_offset, stencil->indices, offset);
-  if (stencil->weights != NULL)
-  {
-    byte_array_write_ints(bytes, 1, &max_offset, offset);
-    byte_array_write_real_ts(bytes, max_offset, stencil->weights, offset);
-  }
-  else
-  {
-    int zero = 0;
-    byte_array_write_ints(bytes, 1, &zero, offset);
-  }
   byte_array_write_ints(bytes, 1, &(stencil->num_ghosts), offset);
 
   // Exchanger.
@@ -285,18 +236,11 @@ void silo_file_write_stencil(silo_file_t* file,
   snprintf(indices_name, FILENAME_MAX, "%s_stencil_indices", stencil_name);
   silo_file_write_int_array(file, indices_name, stencil->indices, stencil->offsets[stencil->num_indices]);
 
-  char weights_name[FILENAME_MAX];
-  snprintf(weights_name, FILENAME_MAX, "%s_stencil_weights", stencil_name);
-  if (stencil->weights != NULL)
-    silo_file_write_real_array(file, weights_name, stencil->weights, stencil->offsets[stencil->num_indices]);
-  else
-    silo_file_write_real_array(file, weights_name, NULL, 0);
-
   if (stencil->ex != NULL)
   {
     char ex_name[FILENAME_MAX];
     snprintf(ex_name, FILENAME_MAX, "%s_stencil_ex", stencil_name);
-    silo_file_write_exchanger(file, weights_name, stencil->ex);
+    silo_file_write_exchanger(file, ex_name, stencil->ex);
   }
 }
 
@@ -319,13 +263,6 @@ stencil_t* silo_file_read_stencil(silo_file_t* file,
   snprintf(indices_name, FILENAME_MAX, "%s_stencil_indices", stencil_name);
   s->indices = silo_file_read_int_array(file, indices_name, &size);
   ASSERT((int)size == s->offsets[s->num_indices]);
-
-  char weights_name[FILENAME_MAX];
-  snprintf(weights_name, FILENAME_MAX, "%s_stencil_weights", stencil_name);
-  size_t num_weights;
-  s->weights = silo_file_read_real_array(file, weights_name, &num_weights);
-  ASSERT((num_weights == s->offsets[s->num_indices]) || 
-         ((num_weights == 0) && (s->weights == NULL)));
 
   char ex_name[FILENAME_MAX];
   snprintf(ex_name, FILENAME_MAX, "%s_stencil_ex", stencil_name);
@@ -375,10 +312,10 @@ stencil_t* distance_based_point_stencil_new(point_cloud_t* points,
   // Find the number of ghost points referred to within the stencil.
   int num_ghosts = (int)(kd_tree_size(tree) - points->num_points);
 
-  // Create an unweighted stencil.
+  // Create the stencil.
   stencil_t* stencil = 
-    unweighted_stencil_new("Distance-based point stencil", points->num_points, 
-                           offsets, indices->data, num_ghosts, ex);
+    stencil_new("Distance-based point stencil", points->num_points, 
+                offsets, indices->data, num_ghosts, ex);
 
   // Clean up.
   int_array_release_data_and_free(indices); // Release control of index data.

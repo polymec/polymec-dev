@@ -23,7 +23,6 @@ neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h)
   // Now do a neighbor search -- everything that falls within h of a point 
   // is a neighbor.
   int_array_t* pairs = int_array_new();
-  real_array_t* weights = real_array_new();
   for (int i = 0; i < cloud->num_points; ++i)
   {
     point_t* xi = &cloud->points[i];
@@ -38,7 +37,6 @@ neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h)
         point_t* xk = &cloud->points[k];
         vector_t y;
         point_displacement(xk, xi, &y);
-        real_array_append(weights, hat_W(&y, h));
       }
     }
     int_array_free(neighbors);
@@ -49,10 +47,8 @@ neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h)
   neighbor_pairing_t* pairing = neighbor_pairing_new("simple pairing", 
                                                      pairs->size/2,
                                                      pairs->data,
-                                                     weights->data,
                                                      ex);
   int_array_release_data_and_free(pairs);
-  real_array_release_data_and_free(weights);
   return pairing;
 }
 
