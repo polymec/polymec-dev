@@ -82,7 +82,7 @@
 # define CMOCKA_THREAD
 #endif
 
-#ifdef HAVE_CLOCK_GETTIME_REALTIME
+#ifdef HAVE_CLOCK_REALTIME
 #define CMOCKA_CLOCK_GETTIME(clock_id, ts) clock_gettime((clock_id), (ts))
 #else
 #define CMOCKA_CLOCK_GETTIME(clock_id, ts)
@@ -914,15 +914,16 @@ void _function_called(const char *const function,
 {
     ListNode *first_value_node = NULL;
     ListNode *value_node = NULL;
-    FuncOrderingValue *expected_call;
     int rc;
 
     rc = list_first(&global_call_ordering_head, &value_node);
     first_value_node = value_node;
     if (rc) {
+        FuncOrderingValue *expected_call;
         int cmp;
 
         expected_call = (FuncOrderingValue *)value_node->value;
+
         cmp = strcmp(expected_call->function, function);
         if (value_node->refcount < -1) {
             /*
@@ -948,7 +949,7 @@ void _function_called(const char *const function,
                     cmp = strcmp(expected_call->function, function);
                 }
 
-                if (value_node == first_value_node->prev) {
+                if (expected_call == NULL || value_node == first_value_node->prev) {
                     cm_print_error(SOURCE_LOCATION_FORMAT
                                    ": error: No expected mock calls matching "
                                    "called() invocation in %s",
@@ -1729,7 +1730,7 @@ void _assert_not_in_set(const LargestIntegralType value,
 
 
 /* Get the list of allocated blocks. */
-static ListNode* get_allocated_blocks_list() {
+static ListNode* get_allocated_blocks_list(void) {
     /* If it initialized, initialize the list of allocated blocks. */
     if (!global_allocated_blocks.value) {
         list_initialize(&global_allocated_blocks);
@@ -1911,7 +1912,7 @@ void *_test_realloc(void *ptr,
     MallocBlockInfo *block_info;
     char *block = ptr;
     size_t block_size = size;
-    void *new;
+    void *new_block;
 
     if (ptr == NULL) {
         return _test_malloc(size, file, line);
@@ -1925,8 +1926,8 @@ void *_test_realloc(void *ptr,
     block_info = (MallocBlockInfo*)(block - (MALLOC_GUARD_SIZE +
                                              sizeof(*block_info)));
 
-    new = _test_malloc(size, file, line);
-    if (new == NULL) {
+    new_block = _test_malloc(size, file, line);
+    if (new_block == NULL) {
         return NULL;
     }
 
@@ -1934,17 +1935,17 @@ void *_test_realloc(void *ptr,
         block_size = block_info->size;
     }
 
-    memcpy(new, ptr, block_size);
+    memcpy(new_block, ptr, block_size);
 
     /* Free previous memory */
     _test_free(ptr, file, line);
 
-    return new;
+    return new_block;
 }
 #define realloc test_realloc
 
 /* Crudely checkpoint the current heap state. */
-static const ListNode* check_point_allocated_blocks() {
+static const ListNode* check_point_allocated_blocks(void) {
     return get_allocated_blocks_list()->prev;
 }
 
@@ -2216,7 +2217,7 @@ static void cmprintf_group_finish_xml(const char *group_name,
     fprintf(fp, "  <testsuite name=\"%s\" time=\"%.3f\" "
                 "tests=\"%u\" failures=\"%u\" errors=\"%u\" skipped=\"%u\" >\n",
                 group_name,
-                total_runtime * 1000, /* miliseconds */
+                total_runtime, /* seconds */
                 (unsigned)total_executed,
                 (unsigned)total_failed,
                 (unsigned)total_errors,
@@ -2226,7 +2227,7 @@ static void cmprintf_group_finish_xml(const char *group_name,
         struct CMUnitTestState *cmtest = &cm_tests[i];
 
         fprintf(fp, "    <testcase name=\"%s\" time=\"%.3f\" >\n",
-                cmtest->test->name, cmtest->runtime * 1000);
+                cmtest->test->name, cmtest->runtime);
 
         switch (cmtest->status) {
         case CM_TEST_ERROR:
@@ -2334,7 +2335,7 @@ static void cmprintf_standard(enum cm_printf_type type,
 
 static void cmprintf_group_start_tap(const size_t num_tests)
 {
-    print_message("\t1..%u\n", (unsigned)num_tests);
+    print_message("1..%u\n", (unsigned)num_tests);
 }
 
 static void cmprintf_group_finish_tap(const char *group_name,
@@ -2346,7 +2347,7 @@ static void cmprintf_group_finish_tap(const char *group_name,
     if (total_passed + total_skipped == total_executed) {
         status = "ok";
     }
-    print_message("%s - %s\n", status, group_name);
+    print_message("# %s - %s\n", status, group_name);
 }
 
 static void cmprintf_tap(enum cm_printf_type type,
@@ -2358,10 +2359,10 @@ static void cmprintf_tap(enum cm_printf_type type,
     case PRINTF_TEST_START:
         break;
     case PRINTF_TEST_SUCCESS:
-        print_message("\tok %u - %s\n", (unsigned)test_number, test_name);
+        print_message("ok %u - %s\n", (unsigned)test_number, test_name);
         break;
     case PRINTF_TEST_FAILURE:
-        print_message("\tnot ok %u - %s\n", (unsigned)test_number, test_name);
+        print_message("not ok %u - %s\n", (unsigned)test_number, test_name);
         if (error_message != NULL) {
             char *msg;
             char *p;
@@ -2380,7 +2381,7 @@ static void cmprintf_tap(enum cm_printf_type type,
                     p[0] = '\0';
                 }
 
-                print_message("\t# %s\n", q);
+                print_message("# %s\n", q);
 
                 if (p == NULL) {
                     break;
@@ -2391,10 +2392,10 @@ static void cmprintf_tap(enum cm_printf_type type,
         }
         break;
     case PRINTF_TEST_SKIPPED:
-        print_message("\tnot ok %u # SKIP %s\n", (unsigned)test_number, test_name);
+        print_message("not ok %u # SKIP %s\n", (unsigned)test_number, test_name);
         break;
     case PRINTF_TEST_ERROR:
-        print_message("\tnot ok %u - %s %s\n",
+        print_message("not ok %u - %s %s\n",
                       (unsigned)test_number, test_name, error_message);
         break;
     }
