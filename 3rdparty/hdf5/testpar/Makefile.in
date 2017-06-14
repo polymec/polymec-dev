@@ -21,12 +21,10 @@
 #
 # This file is part of HDF5.  The full HDF5 copyright notice, including
 # terms governing use, modification, and redistribution, is contained in
-# the files COPYING and Copyright.html.  COPYING can be found at the root
-# of the source code distribution tree; Copyright.html can be found at the
-# root level of an installed copy of the electronic HDF5 document set and
-# is linked from the top-level documents page.  It can also be found at
-# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from help@hdfgroup.org.
+# the COPYING file, which can be found at the root of the source code
+# distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.
+# If you do not have access to either file, you may request a copy from
+# help@hdfgroup.org.
 #
 # hdf5 Parallel Library Test Makefile(.in)
 #
@@ -135,8 +133,9 @@ CONFIG_HEADER = $(top_builddir)/src/H5config.h \
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__EXEEXT_1 = t_mpi$(EXEEXT) testphdf5$(EXEEXT) t_cache$(EXEEXT) \
-	t_pflush1$(EXEEXT) t_pflush2$(EXEEXT) t_pshutdown$(EXEEXT) \
-	t_prestart$(EXEEXT) t_init_term$(EXEEXT) t_shapesame$(EXEEXT)
+	t_cache_image$(EXEEXT) t_pflush1$(EXEEXT) t_pflush2$(EXEEXT) \
+	t_pshutdown$(EXEEXT) t_prestart$(EXEEXT) t_init_term$(EXEEXT) \
+	t_shapesame$(EXEEXT)
 t_cache_SOURCES = t_cache.c
 t_cache_OBJECTS = t_cache.$(OBJEXT)
 t_cache_LDADD = $(LDADD)
@@ -145,6 +144,10 @@ AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+t_cache_image_SOURCES = t_cache_image.c
+t_cache_image_OBJECTS = t_cache_image.$(OBJEXT)
+t_cache_image_LDADD = $(LDADD)
+t_cache_image_DEPENDENCIES = $(LIBH5TEST) $(LIBHDF5)
 t_init_term_SOURCES = t_init_term.c
 t_init_term_OBJECTS = t_init_term.$(OBJEXT)
 t_init_term_LDADD = $(LDADD)
@@ -215,10 +218,12 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = t_cache.c t_init_term.c t_mpi.c t_pflush1.c t_pflush2.c \
-	t_prestart.c t_pshutdown.c t_shapesame.c $(testphdf5_SOURCES)
-DIST_SOURCES = t_cache.c t_init_term.c t_mpi.c t_pflush1.c t_pflush2.c \
-	t_prestart.c t_pshutdown.c t_shapesame.c $(testphdf5_SOURCES)
+SOURCES = t_cache.c t_cache_image.c t_init_term.c t_mpi.c t_pflush1.c \
+	t_pflush2.c t_prestart.c t_pshutdown.c t_shapesame.c \
+	$(testphdf5_SOURCES)
+DIST_SOURCES = t_cache.c t_cache_image.c t_init_term.c t_mpi.c \
+	t_pflush1.c t_pflush2.c t_prestart.c t_pshutdown.c \
+	t_shapesame.c $(testphdf5_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -494,6 +499,7 @@ DEFAULT_API_VERSION = @DEFAULT_API_VERSION@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DEPRECATED_SYMBOLS = @DEPRECATED_SYMBOLS@
+DEV_WARNINGS = @DEV_WARNINGS@
 DIRECT_VFD = @DIRECT_VFD@
 DLLTOOL = @DLLTOOL@
 DSYMUTIL = @DSYMUTIL@
@@ -615,6 +621,7 @@ PAC_FORTRAN_NATIVE_INTEGER_KIND = @PAC_FORTRAN_NATIVE_INTEGER_KIND@
 PAC_FORTRAN_NATIVE_INTEGER_SIZEOF = @PAC_FORTRAN_NATIVE_INTEGER_SIZEOF@
 PAC_FORTRAN_NATIVE_REAL_KIND = @PAC_FORTRAN_NATIVE_REAL_KIND@
 PAC_FORTRAN_NATIVE_REAL_SIZEOF = @PAC_FORTRAN_NATIVE_REAL_SIZEOF@
+PAC_FORTRAN_NUM_INTEGER_KINDS = @PAC_FORTRAN_NUM_INTEGER_KINDS@
 PARALLEL = @PARALLEL@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PROFILING = @PROFILING@
@@ -771,7 +778,7 @@ CHECK_CLEANFILES = *.chkexe *.chklog *.clog *.clog2 MPItest.h5 \
 
 # Test programs.  These are our main targets.
 #
-TEST_PROG_PARA = t_mpi testphdf5 t_cache t_pflush1 t_pflush2 t_pshutdown t_prestart t_init_term t_shapesame
+TEST_PROG_PARA = t_mpi testphdf5 t_cache t_cache_image t_pflush1 t_pflush2 t_pshutdown t_prestart t_init_term t_shapesame
 testphdf5_SOURCES = testphdf5.c t_dset.c t_file.c t_file_image.c t_mdset.c \
 	t_ph5basic.c t_coll_chunk.c t_span_tree.c t_chunk_alloc.c t_filter_read.c \
 	t_prop.c
@@ -780,18 +787,20 @@ testphdf5_SOURCES = testphdf5.c t_dset.c t_file.c t_file_image.c t_mdset.c \
 # The tests all depend on the hdf5 library and the test library
 LDADD = $(LIBH5TEST) $(LIBHDF5)
 
-# Automake needs to be taught how to build lib, progs, and tests targets.
+# Automake needs to be taught how to build lib, dyn, progs and tests targets.
 # These will be filled in automatically for the most part (e.g.,
 # lib_LIBRARIES are built for lib target), but EXTRA_LIB, EXTRA_PROG, and
 # EXTRA_TEST variables are supplied to allow the user to force targets to
-# be built at certain times. 
+# be built at certain times.
 LIB = $(lib_LIBRARIES) $(lib_LTLIBRARIES) $(noinst_LIBRARIES)                 \
       $(noinst_LTLIBRARIES) $(check_LIBRARIES) $(check_LTLIBRARIES) $(EXTRA_LIB)
 
+DYN = $(dyn_LTLIBRARIES)
 PROGS = $(bin_PROGRAMS) $(bin_SCRIPTS) $(noinst_PROGRAMS) $(noinst_SCRIPTS)   \
         $(EXTRA_PROG)
 
 chk_TESTS = $(check_PROGRAMS) $(check_SCRIPTS) $(EXTRA_TEST) 
+dyndir = $(libdir)
 TEST_EXTENSIONS = .sh
 SH_LOG_COMPILER = $(SHELL)
 AM_SH_LOG_FLAGS = 
@@ -847,6 +856,10 @@ t_cache$(EXEEXT): $(t_cache_OBJECTS) $(t_cache_DEPENDENCIES) $(EXTRA_t_cache_DEP
 	@rm -f t_cache$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(t_cache_OBJECTS) $(t_cache_LDADD) $(LIBS)
 
+t_cache_image$(EXEEXT): $(t_cache_image_OBJECTS) $(t_cache_image_DEPENDENCIES) $(EXTRA_t_cache_image_DEPENDENCIES) 
+	@rm -f t_cache_image$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(t_cache_image_OBJECTS) $(t_cache_image_LDADD) $(LIBS)
+
 t_init_term$(EXEEXT): $(t_init_term_OBJECTS) $(t_init_term_DEPENDENCIES) $(EXTRA_t_init_term_DEPENDENCIES) 
 	@rm -f t_init_term$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(t_init_term_OBJECTS) $(t_init_term_LDADD) $(LIBS)
@@ -886,6 +899,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_cache.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_cache_image.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_chunk_alloc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_coll_chunk.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_dset.Po@am__quote@
@@ -906,22 +920,25 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/testphdf5.Po@am__quote@
 
 .c.o:
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ $<
 
 .c.obj:
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 .c.lo:
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LTCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.lo$$||'`;\
+@am__fastdepCC_TRUE@	$(LTCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Plo
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
@@ -1301,6 +1318,7 @@ help:
 
 # lib/progs/tests targets recurse into subdirectories. build-* targets
 # build files in this directory.
+build-dyn: $(DYN)
 build-lib: $(LIB)
 build-progs: $(LIB) $(PROGS)
 build-tests: $(LIB) $(PROGS) $(chk_TESTS)
@@ -1308,7 +1326,7 @@ build-tests: $(LIB) $(PROGS) $(chk_TESTS)
 # General rule for recursive building targets.
 # BUILT_SOURCES contain targets that need to be built before anything else
 # in the directory (e.g., for Fortran type detection)
-lib progs tests check-s check-p :: $(BUILT_SOURCES)
+lib dyn progs tests check-s check-p :: $(BUILT_SOURCES)
 	@$(MAKE) $(AM_MAKEFLAGS) build-$@ || exit 1;
 	@for d in X $(SUBDIRS); do                                             \
 	    if test $$d != X && test $$d != .; then                           \

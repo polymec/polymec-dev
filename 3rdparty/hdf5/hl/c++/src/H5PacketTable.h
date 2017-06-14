@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* Packet Table wrapper classes
@@ -139,17 +137,19 @@ public:
      * the property list to specify compression, the name of the packet table,
      * the ID of the datatype, and the size of a memory chunk used in chunking.
      */
-    FL_PacketTable(hid_t fileID, hid_t plist_id, const char* name, hid_t dtypeID, hsize_t chunkSize);
+    FL_PacketTable(hid_t fileID, const char* name, hid_t dtypeID, hsize_t chunkSize = 0, hid_t plistID = H5P_DEFAULT);
 
-    /* Constructor
+    /* Constructors - deprecated
      * Creates a packet table in which to store fixed length packets.
      * Takes the ID of the file the packet table will be created in, the name of
      * the packet table, the ID of the datatype of the set, the size
      * of a memory chunk used in chunking, and the desired compression level
      * (0-9, or -1 for no compression).
-     * Note: this overload will be deprecated in favor of the constructor above.
+     * Note: these overloaded constructors will be deprecated in favor of the
+     * constructor above.
      */
-    FL_PacketTable(hid_t fileID, char* name, hid_t dtypeID, hsize_t chunkSize, int compression = -1);
+    FL_PacketTable(hid_t fileID, hid_t plist_id, const char* name, hid_t dtypeID, hsize_t chunkSize);
+    FL_PacketTable(hid_t fileID, char* name, hid_t dtypeID, hsize_t chunkSize, int compression = 0);
 
     /* "Open" Constructor
      * Opens an existing fixed-length packet table.

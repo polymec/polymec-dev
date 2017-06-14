@@ -5,28 +5,15 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * generate plist file
  */
-
-#ifdef H5_STDC_HEADERS
-#   include <assert.h>
-#   include <fcntl.h>
-#   include <stdio.h>
-#   include <stdlib.h>
-#endif
-
-#ifdef H5_HAVE_UNISTD_H
-#  include <unistd.h>
-#endif
 
 #include "H5private.h"
 #include "hdf5.h"
@@ -92,10 +79,16 @@ main(void)
         0.2f,
         (256 * 2048),
         H5AC_METADATA_WRITE_STRATEGY__PROCESS_0_ONLY};
+    H5AC_cache_image_config_t my_cache_image_config = {
+        H5AC__CURR_CACHE_IMAGE_CONFIG_VERSION,
+        TRUE,
+	FALSE,
+        -1};
+
 
     /* check endianess */
     {
-        short int word = 0x0000;
+        short int word = 0x0001;
         char *byte = (char *) &word;
 
         if(byte[0] == 1)
@@ -367,6 +360,9 @@ main(void)
         assert(ret > 0);
     if((ret = H5Pset_mdc_config(fapl1, &my_cache_config)) < 0)
         assert(ret > 0);
+    if((ret = H5Pset_mdc_image_config(fapl1, &my_cache_image_config)) < 0)
+        assert(ret > 0);
+
     if((ret = H5Pset_core_write_tracking(fapl1, TRUE, (size_t)(1024 * 1024))) < 0)
         assert(ret > 0);
 
@@ -403,6 +399,12 @@ main(void)
          assert(ret > 0);
 
     if((ret = H5Pset_sizes(fcpl1, 8, 4) < 0))
+         assert(ret > 0);
+
+    if((ret = H5Pset_file_space_strategy(fcpl1, H5F_FSPACE_STRATEGY_PAGE, TRUE, (hsize_t)1)) < 0)
+         assert(ret > 0);
+
+    if((ret = H5Pset_file_space_page_size(fcpl1, (hsize_t)4096)) < 0)
          assert(ret > 0);
 
     if((ret = encode_plist(fcpl1, little_endian, word_length, "testfiles/plist_files/fcpl_")) < 0)

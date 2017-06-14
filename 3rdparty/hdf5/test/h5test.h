@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -118,9 +116,6 @@ H5TEST_DLLVAR MPI_Info h5_io_info_g;         /* MPI INFO object for IO */
 #define ALARM_ON  TestAlarmOn()
 #define ALARM_OFF  HDalarm(0)
 
-/* The # of seconds to wait for the message file--used by h5_wait_message() */
-#define MESSAGE_TIMEOUT         300             /* Timeout in seconds */
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -169,6 +164,7 @@ H5TEST_DLL void TestParseCmdLine(int argc, char *argv[]);
 H5TEST_DLL void PerformTests(void);
 H5TEST_DLL void TestSummary(void);
 H5TEST_DLL void TestCleanup(void);
+H5TEST_DLL void TestShutdown(void);
 H5TEST_DLL void TestInit(const char *ProgName, void (*private_usage)(void), int (*private_parser)(int ac, char *av[]));
 H5TEST_DLL int  GetTestVerbosity(void);
 H5TEST_DLL int  SetTestVerbosity(int newval);
@@ -199,8 +195,8 @@ H5TEST_DLL char* getenv_all(MPI_Comm comm, int root, const char* name);
 /* Extern global variables */
 H5TEST_DLLVAR int TestVerbosity;
 
-H5TEST_DLL void h5_send_message(const char *file);
-H5TEST_DLL int h5_wait_message(const char *file);
+H5TEST_DLL void h5_send_message(const char *file, const char *arg1, const char *arg2);
+H5TEST_DLL herr_t h5_wait_message(const char *file);
 
 #ifdef __cplusplus
 }

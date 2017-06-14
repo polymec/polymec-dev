@@ -5,17 +5,15 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  *  For details of the HDF libraries, see the HDF Documentation at:
- *    http://hdfdfgroup.org/HDF5/doc/
+ *    http://hdfgroup.org/HDF5/doc/
  *
  */
 
@@ -67,29 +65,17 @@
 
 
 /* Macros for string access */
-#define PIN_JAVA_STRING(javastr,localstr,retdefault) {                           \
+#define PIN_JAVA_STRING(javastr,localstr) {                                     \
     jboolean isCopy;                                                             \
+    (localstr) = NULL;                                                      \
     if ((javastr) == NULL) {                                                     \
         h5nullArgument(env, "java string is NULL");                              \
-        return (retdefault);                                                     \
     }                                                                            \
-    (localstr) = ENVPTR->GetStringUTFChars(ENVPAR (javastr), &isCopy);           \
-    if ((localstr) == NULL) {                                                    \
-        h5JNIFatalError(env, "local c string is not pinned");                    \
-        return (retdefault);                                                     \
-    }                                                                            \
-}
-
-#define PIN_JAVA_STRING0(javastr,localstr) {                                     \
-    jboolean isCopy;                                                             \
-    if ((javastr) == NULL) {                                                     \
-        h5nullArgument(env, "java string is NULL");                              \
-        return;                                                                  \
-    }                                                                            \
-    (localstr) = ENVPTR->GetStringUTFChars(ENVPAR (javastr), &isCopy);           \
-    if ((localstr) == NULL) {                                                    \
-        h5JNIFatalError(env, "local c string is not pinned");                    \
-        return;                                                                  \
+    else {                                                                       \
+        (localstr) = ENVPTR->GetStringUTFChars(ENVPAR (javastr), &isCopy);           \
+        if ((localstr) == NULL) {                                                    \
+            h5JNIFatalError(env, "local c string is not pinned");                    \
+        }                                                                        \
     }                                                                            \
 }
 
@@ -97,49 +83,28 @@
      ENVPTR->ReleaseStringUTFChars(ENVPAR (javastr), (localstr));                \
 }
 
-#define PIN_JAVA_STRING_TWO(javastr,localstr,java2str,local2str,retdefault) {    \
+#define PIN_JAVA_STRING_TWO(javastr,localstr,java2str,local2str) {              \
     jboolean isCopy;                                                             \
+    (localstr) = NULL;                                                      \
+    (local2str) = NULL;                                                      \
     if ((javastr) == NULL) {                                                     \
         h5nullArgument(env, "java string is NULL");                              \
-        return (retdefault);                                                     \
     }                                                                            \
-    if ((java2str) == NULL) {                                                    \
+    else if ((java2str) == NULL) {                                                    \
         h5nullArgument(env, "second java string is NULL");                       \
-        return (retdefault);                                                     \
     }                                                                            \
-    (localstr) = ENVPTR->GetStringUTFChars(ENVPAR (javastr), &isCopy);           \
-    if ((localstr) == NULL) {                                                    \
-        h5JNIFatalError(env, "local c string is not pinned");                    \
-        return (retdefault);                                                     \
-    }                                                                            \
-    (local2str) = ENVPTR->GetStringUTFChars(ENVPAR (java2str), &isCopy);         \
-    if ((local2str) == NULL) {                                                   \
-        ENVPTR->ReleaseStringUTFChars(ENVPAR (javastr), (localstr));             \
-        h5JNIFatalError(env, "second local c string is not pinned");             \
-        return (retdefault);                                                     \
-    }                                                                            \
-}
-
-#define PIN_JAVA_STRING_TWO0(javastr,localstr,java2str,local2str) {              \
-    jboolean isCopy;                                                             \
-    if ((javastr) == NULL) {                                                     \
-        h5nullArgument(env, "java string is NULL");                              \
-        return;                                                                  \
-    }                                                                            \
-    if ((java2str) == NULL) {                                                    \
-        h5nullArgument(env, "second java string is NULL");                       \
-        return;                                                                  \
-    }                                                                            \
-    (localstr) = ENVPTR->GetStringUTFChars(ENVPAR (javastr), &isCopy);           \
-    if ((localstr) == NULL) {                                                    \
-        h5JNIFatalError(env, "local c string is not pinned");                    \
-        return;                                                                  \
-    }                                                                            \
-    (local2str) = ENVPTR->GetStringUTFChars(ENVPAR (java2str), &isCopy);         \
-    if ((local2str) == NULL) {                                                   \
-        ENVPTR->ReleaseStringUTFChars(ENVPAR (javastr), (localstr));             \
-        h5JNIFatalError(env, "second local c string is not pinned");             \
-        return;                                                                  \
+    else {                                                                       \
+        (localstr) = ENVPTR->GetStringUTFChars(ENVPAR (javastr), &isCopy);           \
+        if ((localstr) == NULL) {                                                    \
+            h5JNIFatalError(env, "local c string is not pinned");                    \
+        }                                                                            \
+        else {                                                                   \
+            (local2str) = ENVPTR->GetStringUTFChars(ENVPAR (java2str), &isCopy);         \
+            if ((local2str) == NULL) {                                                   \
+                ENVPTR->ReleaseStringUTFChars(ENVPAR (javastr), (localstr));             \
+                h5JNIFatalError(env, "second local c string is not pinned");             \
+            }                                                                    \
+        }                                                                        \
     }                                                                            \
 }
 
@@ -148,71 +113,40 @@
      ENVPTR->ReleaseStringUTFChars(ENVPAR (java2str), (local2str));              \
 }
 
-#define PIN_JAVA_STRING_THREE(javastr,localstr,java2str,local2str,java3str,local3str,retdefault) {       \
+#define PIN_JAVA_STRING_THREE(javastr,localstr,java2str,local2str,java3str,local3str) {       \
     jboolean isCopy;                                                             \
+    (localstr) = NULL;                                                      \
+    (local2str) = NULL;                                                      \
+    (local3str) = NULL;                                                      \
     if ((javastr) == NULL) {                                                     \
         h5nullArgument(env, "java string is NULL");                              \
-        return (retdefault);                                                     \
     }                                                                            \
-    if ((java2str) == NULL) {                                                    \
+    else if ((java2str) == NULL) {                                                    \
         h5nullArgument(env, "second java string is NULL");                       \
-        return (retdefault);                                                     \
     }                                                                            \
-    if ((java3str) == NULL) {                                                    \
+    else if ((java3str) == NULL) {                                                    \
         h5nullArgument(env, "third java string is NULL");                        \
-        return (retdefault);                                                     \
     }                                                                            \
-    (localstr) = ENVPTR->GetStringUTFChars(ENVPAR (javastr), &isCopy);           \
-    if ((localstr) == NULL) {                                                    \
-        h5JNIFatalError(env, "local c string is not pinned");                    \
-        return (retdefault);                                                     \
-    }                                                                            \
-    (local2str) = ENVPTR->GetStringUTFChars(ENVPAR (java2str), &isCopy);         \
-    if ((local2str) == NULL) {                                                   \
-        ENVPTR->ReleaseStringUTFChars(ENVPAR (javastr), (localstr));             \
-        h5JNIFatalError(env, "second local c string is not pinned");             \
-        return (retdefault);                                                     \
-    }                                                                            \
-    (local3str) = ENVPTR->GetStringUTFChars(ENVPAR (java3str), &isCopy);         \
-    if ((local3str) == NULL) {                                                   \
-        ENVPTR->ReleaseStringUTFChars(ENVPAR (javastr), (localstr));             \
-        ENVPTR->ReleaseStringUTFChars(ENVPAR (java2str), (local2str));           \
-        h5JNIFatalError(env, "third local c string is not pinned");              \
-        return (retdefault);                                                     \
-    }                                                                            \
-}
-
-#define PIN_JAVA_STRING_THREE0(javastr,localstr,java2str,local2str,java3str,local3str) {       \
-    jboolean isCopy;                                                             \
-    if ((javastr) == NULL) {                                                     \
-        h5nullArgument(env, "java string is NULL");                              \
-        return;                                                                  \
-    }                                                                            \
-    if ((java2str) == NULL) {                                                    \
-        h5nullArgument(env, "second java string is NULL");                       \
-        return;                                                                  \
-    }                                                                            \
-    if ((java3str) == NULL) {                                                    \
-        h5nullArgument(env, "third java string is NULL");                        \
-        return;                                                                  \
-    }                                                                            \
-    (localstr) = ENVPTR->GetStringUTFChars(ENVPAR (javastr), &isCopy);           \
-    if ((localstr) == NULL) {                                                    \
-        h5JNIFatalError(env, "local c string is not pinned");                    \
-        return;                                                                  \
-    }                                                                            \
-    (local2str) = ENVPTR->GetStringUTFChars(ENVPAR (java2str), &isCopy);         \
-    if ((local2str) == NULL) {                                                   \
-        ENVPTR->ReleaseStringUTFChars(ENVPAR (javastr), (localstr));             \
-        h5JNIFatalError(env, "second local c string is not pinned");             \
-        return;                                                                  \
-    }                                                                            \
-    (local3str) = ENVPTR->GetStringUTFChars(ENVPAR (java3str), &isCopy);         \
-    if ((local3str) == NULL) {                                                   \
-        ENVPTR->ReleaseStringUTFChars(ENVPAR (javastr), (localstr));             \
-        ENVPTR->ReleaseStringUTFChars(ENVPAR (java2str), (local2str));           \
-        h5JNIFatalError(env, "third local c string is not pinned");              \
-        return;                                                                  \
+    else {                                                                       \
+        (localstr) = ENVPTR->GetStringUTFChars(ENVPAR (javastr), &isCopy);           \
+        if ((localstr) == NULL) {                                                    \
+            h5JNIFatalError(env, "local c string is not pinned");                    \
+        }                                                                            \
+        else {                                                                   \
+            (local2str) = ENVPTR->GetStringUTFChars(ENVPAR (java2str), &isCopy);         \
+            if ((local2str) == NULL) {                                                   \
+                ENVPTR->ReleaseStringUTFChars(ENVPAR (javastr), (localstr));             \
+                h5JNIFatalError(env, "second local c string is not pinned");             \
+            }                                                                            \
+            else {                                                               \
+                (local3str) = ENVPTR->GetStringUTFChars(ENVPAR (java3str), &isCopy);         \
+                if ((local3str) == NULL) {                                                   \
+                    ENVPTR->ReleaseStringUTFChars(ENVPAR (javastr), (localstr));             \
+                    ENVPTR->ReleaseStringUTFChars(ENVPAR (java2str), (local2str));           \
+                    h5JNIFatalError(env, "third local c string is not pinned");              \
+                }                                                                \
+            }                                                                    \
+        }                                                                        \
     }                                                                            \
 }
 

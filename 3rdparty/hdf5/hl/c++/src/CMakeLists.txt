@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.1.0)
+cmake_minimum_required (VERSION 3.2.2)
 PROJECT (HDF5_HL_CPP_SRC)
 
 #-----------------------------------------------------------------------------
@@ -7,10 +7,10 @@ PROJECT (HDF5_HL_CPP_SRC)
 INCLUDE_DIRECTORIES (${HDF5_HL_SRC_DIR}/src)
 INCLUDE_DIRECTORIES (${HDF5_HL_CPP_SRC_SOURCE_DIR})
 
-set (HDF5_HL_CPP_SRCS ${HDF5_HL_CPP_SRC_SOURCE_DIR}/H5PacketTable.cpp)
+set (HDF5_HL_CPP_SOURCES ${HDF5_HL_CPP_SRC_SOURCE_DIR}/H5PacketTable.cpp)
 set (HDF5_HL_CPP_HDRS ${HDF5_HL_CPP_SRC_SOURCE_DIR}/H5PacketTable.h)
 
-add_library (${HDF5_HL_CPP_LIB_TARGET} STATIC ${HDF5_HL_CPP_SRCS})
+add_library (${HDF5_HL_CPP_LIB_TARGET} STATIC ${HDF5_HL_CPP_SOURCES})
 TARGET_C_PROPERTIES (${HDF5_HL_CPP_LIB_TARGET} STATIC " " " ")
 target_link_libraries (
     ${HDF5_HL_CPP_LIB_TARGET}
@@ -26,7 +26,7 @@ set_target_properties (${HDF5_HL_CPP_LIB_TARGET} PROPERTIES
 set (install_targets ${HDF5_HL_CPP_LIB_TARGET})
 
 if (BUILD_SHARED_LIBS)
-  add_library (${HDF5_HL_CPP_LIBSH_TARGET} SHARED ${HDF5_HL_CPP_SRCS})
+  add_library (${HDF5_HL_CPP_LIBSH_TARGET} SHARED ${HDF5_HL_CPP_SOURCES})
   TARGET_C_PROPERTIES (${HDF5_HL_CPP_LIBSH_TARGET} SHARED " " " ")
   target_link_libraries (
       ${HDF5_HL_CPP_LIBSH_TARGET}
@@ -42,10 +42,10 @@ if (BUILD_SHARED_LIBS)
       INTERFACE_COMPILE_DEFINITIONS H5_BUILT_AS_DYNAMIC_LIB=1
   )
   set (install_targets ${install_targets} ${HDF5_HL_CPP_LIBSH_TARGET})
-endif (BUILD_SHARED_LIBS)
+endif ()
 
 #-----------------------------------------------------------------------------
-# Add file(s) to CMake Install 
+# Add file(s) to CMake Install
 #-----------------------------------------------------------------------------
 install (
     FILES
@@ -62,8 +62,9 @@ install (
 if (HDF5_EXPORTED_TARGETS)
   if (BUILD_SHARED_LIBS)
     INSTALL_TARGET_PDB (${HDF5_HL_CPP_LIBSH_TARGET} ${HDF5_INSTALL_BIN_DIR} hlcpplibraries)
-  endif (BUILD_SHARED_LIBS)
-  
+  endif ()
+  INSTALL_TARGET_PDB (${HDF5_HL_CPP_LIB_TARGET} ${HDF5_INSTALL_BIN_DIR} hlcpplibraries)
+
   install (
       TARGETS
           ${install_targets}
@@ -73,5 +74,6 @@ if (HDF5_EXPORTED_TARGETS)
       ARCHIVE DESTINATION ${HDF5_INSTALL_LIB_DIR} COMPONENT hlcpplibraries
       RUNTIME DESTINATION ${HDF5_INSTALL_BIN_DIR} COMPONENT hlcpplibraries
       FRAMEWORK DESTINATION ${HDF5_INSTALL_FWRK_DIR} COMPONENT hlcpplibraries
+      INCLUDES DESTINATION include
   )
-endif (HDF5_EXPORTED_TARGETS)
+endif ()

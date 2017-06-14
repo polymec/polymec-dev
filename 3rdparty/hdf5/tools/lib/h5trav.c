@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
@@ -161,7 +159,7 @@ trav_addr_add(trav_addr_t *visited, haddr_t addr, const char *path)
  *
  *-------------------------------------------------------------------------
  */
-static const char *
+H5_ATTR_PURE static const char *
 trav_addr_visited(trav_addr_t *visited, haddr_t addr)
 {
     size_t u;           /* Local index variable */
@@ -490,7 +488,7 @@ h5trav_getinfo(hid_t file_id, trav_info_t *info)
  *-------------------------------------------------------------------------
  */
 
-ssize_t
+H5_ATTR_PURE ssize_t
 h5trav_getindex(const trav_info_t *info, const char *obj)
 {
     size_t u;           /* Local index variable */
@@ -681,7 +679,7 @@ h5trav_gettable(hid_t fid, trav_table_t *table)
  *-------------------------------------------------------------------------
  */
 
-int
+H5_ATTR_PURE int
 h5trav_getindext(const char *name, const trav_table_t *table)
 {
     unsigned int i;
@@ -1235,7 +1233,7 @@ symlink_visit_add(symlink_trav_t *visited, H5L_type_t type, const char *file, co
  *
  *-------------------------------------------------------------------------
  */
-hbool_t
+H5_ATTR_PURE hbool_t
 symlink_is_visited(symlink_trav_t *visited, H5L_type_t type, const char *file, const char *path)
 {
     size_t u;  /* Local index variable */

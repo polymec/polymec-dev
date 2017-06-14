@@ -4,12 +4,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -36,16 +34,17 @@ typedef enum part_t {
     UC_WRITER,			/* writer only */
     UC_READER			/* reader only */
 } part_t;
+
 typedef struct options_t {
-    int chunksize;		/* chunks are chunksize^2 planes	*/
-    int chunkplanes;		/* number of planes per chunk, default 1 */
+    hsize_t chunksize;		/* chunks are chunksize^2 planes	*/
+    hsize_t chunkplanes;	/* number of planes per chunk, default 1 */
     hsize_t chunkdims[UC_RANK]; /* chunk dims is (chunkplan, chunksize, chunksize) */
     hsize_t dims[UC_RANK];      /* dataset initial dims */
     hsize_t max_dims[UC_RANK];  /* dataset max dims */
     hsize_t nplanes;		/* number of planes to write, default proportional to chunksize */
     char *filename;		/* use case data filename		*/
     part_t launch;		/* launch writer, reader or both	*/
-    int use_swmr;               /* use swmr open (1) or not 		*/
+    hbool_t use_swmr;           /* use swmr open (1) or not 		*/
     int iterations;		/* iterations, default 1		*/
 } options_t;
 
@@ -61,3 +60,4 @@ void usage(const char *prog);
 int create_uc_file(void);
 int write_uc_file(hbool_t tosend);
 int read_uc_file(hbool_t towait);
+

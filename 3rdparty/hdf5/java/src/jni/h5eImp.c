@@ -5,17 +5,15 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  *  For details of the HDF libraries, see the HDF Documentation at:
- *    http://hdfdfgroup.org/HDF5/doc/
+ *    http://hdfgroup.org/HDF5/doc/
  *
  */
 
@@ -70,7 +68,8 @@ static herr_t H5E_walk_cb(int nindx, const H5E_error2_t *info, void *op_data);
  * Signature: (J)Z
  */
 JNIEXPORT jboolean JNICALL
-Java_hdf_hdf5lib_H5_H5Eauto_1is_1v2(JNIEnv *env, jclass cls, jlong stk_id)
+Java_hdf_hdf5lib_H5_H5Eauto_1is_1v2
+    (JNIEnv *env, jclass cls, jlong stk_id)
 {
     unsigned int is_stack = 0;
 
@@ -89,21 +88,23 @@ Java_hdf_hdf5lib_H5_H5Eauto_1is_1v2(JNIEnv *env, jclass cls, jlong stk_id)
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5_H5Eregister_1class(JNIEnv *env, jclass cls, jstring cls_name, jstring lib_name, jstring version)
+Java_hdf_hdf5lib_H5_H5Eregister_1class
+    (JNIEnv *env, jclass cls, jstring cls_name, jstring lib_name, jstring version)
 {
     hid_t       ret_val = -1;
     const char* the_cls_name;
     const char* the_lib_name;
     const char* the_version;
 
-    PIN_JAVA_STRING_THREE(cls_name, the_cls_name, lib_name, the_lib_name, version, the_version, -1);
+    PIN_JAVA_STRING_THREE(cls_name, the_cls_name, lib_name, the_lib_name, version, the_version);
+    if (the_cls_name != NULL && the_lib_name != NULL && the_version != NULL) {
+        ret_val = H5Eregister_class(the_cls_name, the_lib_name, the_version);
 
-    ret_val = H5Eregister_class(the_cls_name, the_lib_name, the_version);
+        UNPIN_JAVA_STRING_THREE(cls_name, the_cls_name, lib_name, the_lib_name, version, the_version);
 
-    UNPIN_JAVA_STRING_THREE(cls_name, the_cls_name, lib_name, the_lib_name, version, the_version);
-
-    if (ret_val < 0)
-        h5libraryError(env);
+        if (ret_val < 0)
+            h5libraryError(env);
+    }
 
     return (jlong)ret_val;
 } /* end Java_hdf_hdf5lib_H5_H5Eregister_1class */
@@ -114,7 +115,8 @@ Java_hdf_hdf5lib_H5_H5Eregister_1class(JNIEnv *env, jclass cls, jstring cls_name
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Eunregister_1class(JNIEnv *env, jclass cls, jlong cls_id)
+Java_hdf_hdf5lib_H5_H5Eunregister_1class
+    (JNIEnv *env, jclass cls, jlong cls_id)
 {
     if (cls_id < 0) {
         h5badArgument(env, "H5Eunregister_class: invalid argument");
@@ -129,7 +131,8 @@ Java_hdf_hdf5lib_H5_H5Eunregister_1class(JNIEnv *env, jclass cls, jlong cls_id)
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Eclose_1msg(JNIEnv *env, jclass cls, jlong err_id)
+Java_hdf_hdf5lib_H5_H5Eclose_1msg
+    (JNIEnv *env, jclass cls, jlong err_id)
 {
     if (err_id < 0) {
         h5badArgument(env, "H5Eclose_msg: invalid argument");
@@ -144,7 +147,8 @@ Java_hdf_hdf5lib_H5_H5Eclose_1msg(JNIEnv *env, jclass cls, jlong err_id)
  * Signature: (JILjava/lang/String;)J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5_H5Ecreate_1msg(JNIEnv *env, jclass cls, jlong err_id, jint msg_type, jstring err_msg)
+Java_hdf_hdf5lib_H5_H5Ecreate_1msg
+    (JNIEnv *env, jclass cls, jlong err_id, jint msg_type, jstring err_msg)
 {
     hid_t       ret_val = -1;
     const char *the_err_msg;
@@ -154,14 +158,15 @@ Java_hdf_hdf5lib_H5_H5Ecreate_1msg(JNIEnv *env, jclass cls, jlong err_id, jint m
         h5badArgument(env, "H5Ecreate_msg: invalid argument");
     } /* end if */
     else {
-        PIN_JAVA_STRING(err_msg, the_err_msg, -1);
+        PIN_JAVA_STRING(err_msg, the_err_msg);
+        if (the_err_msg != NULL) {
+            ret_val = H5Ecreate_msg((hid_t)err_id, error_msg_type, the_err_msg);
 
-        ret_val = H5Ecreate_msg((hid_t)err_id, error_msg_type, the_err_msg);
+            UNPIN_JAVA_STRING(err_msg, the_err_msg);
 
-        UNPIN_JAVA_STRING(err_msg, the_err_msg);
-
-        if (ret_val < 0)
-            h5libraryError(env);
+            if (ret_val < 0)
+                h5libraryError(env);
+        }
     } /* end else */
 
     return (jlong)ret_val;
@@ -173,7 +178,8 @@ Java_hdf_hdf5lib_H5_H5Ecreate_1msg(JNIEnv *env, jclass cls, jlong err_id, jint m
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5_H5Ecreate_1stack(JNIEnv *env, jclass cls)
+Java_hdf_hdf5lib_H5_H5Ecreate_1stack
+    (JNIEnv *env, jclass cls)
 {
     hid_t ret_val = -1;
 
@@ -190,7 +196,8 @@ Java_hdf_hdf5lib_H5_H5Ecreate_1stack(JNIEnv *env, jclass cls)
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5_H5Eget_1current_1stack(JNIEnv *env, jclass cls)
+Java_hdf_hdf5lib_H5_H5Eget_1current_1stack
+    (JNIEnv *env, jclass cls)
 {
     hid_t ret_val = -1;
 
@@ -207,7 +214,8 @@ Java_hdf_hdf5lib_H5_H5Eget_1current_1stack(JNIEnv *env, jclass cls)
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Eclose_1stack(JNIEnv *env, jclass cls, jlong stk_id)
+Java_hdf_hdf5lib_H5_H5Eclose_1stack
+    (JNIEnv *env, jclass cls, jlong stk_id)
 {
     if (stk_id < 0) {
         h5badArgument(env, "H5Eclose_stack: invalid argument");
@@ -222,7 +230,8 @@ Java_hdf_hdf5lib_H5_H5Eclose_1stack(JNIEnv *env, jclass cls, jlong stk_id)
  * Signature: (JLjava/lang/Object;)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Eprint2(JNIEnv *env, jclass cls, jlong stk_id, jobject stream_obj)
+Java_hdf_hdf5lib_H5_H5Eprint2
+    (JNIEnv *env, jclass cls, jlong stk_id, jobject stream_obj)
 {
     herr_t ret_val = -1;
 
@@ -246,7 +255,8 @@ Java_hdf_hdf5lib_H5_H5Eprint2(JNIEnv *env, jclass cls, jlong stk_id, jobject str
  * Signature: (J)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL
-Java_hdf_hdf5lib_H5_H5Eget_1class_1name(JNIEnv *env, jclass cls, jlong cls_id)
+Java_hdf_hdf5lib_H5_H5Eget_1class_1name
+    (JNIEnv *env, jclass cls, jlong cls_id)
 {
     char   *namePtr;
     jstring str = NULL;
@@ -294,7 +304,8 @@ Java_hdf_hdf5lib_H5_H5Eget_1class_1name(JNIEnv *env, jclass cls, jlong cls_id)
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Eset_1current_1stack(JNIEnv *env, jclass cls, jlong stk_id)
+Java_hdf_hdf5lib_H5_H5Eset_1current_1stack
+    (JNIEnv *env, jclass cls, jlong stk_id)
 {
     if (stk_id < 0) {
         h5badArgument(env, "H5Eset_current_stack: invalid argument");
@@ -309,7 +320,8 @@ Java_hdf_hdf5lib_H5_H5Eset_1current_1stack(JNIEnv *env, jclass cls, jlong stk_id
  * Signature: (JJ)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Epop(JNIEnv *env, jclass cls, jlong stk_id, jlong count)
+Java_hdf_hdf5lib_H5_H5Epop
+    (JNIEnv *env, jclass cls, jlong stk_id, jlong count)
 {
     if (stk_id < 0) {
         h5badArgument(env, "H5Epop: invalid argument");
@@ -324,7 +336,8 @@ Java_hdf_hdf5lib_H5_H5Epop(JNIEnv *env, jclass cls, jlong stk_id, jlong count)
  * Signature: (JLjava/lang/String;Ljava/lang/String;IJJJLjava/lang/String;)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Epush2(JNIEnv *env, jclass cls, jlong stk_id, jstring filename, jstring funcname,
+Java_hdf_hdf5lib_H5_H5Epush2
+    (JNIEnv *env, jclass cls, jlong stk_id, jstring filename, jstring funcname,
         jint linenumber, jlong class_id, jlong major_id, jlong minor_id, jstring err_desc)
 {
     herr_t      ret_val = -1;
@@ -345,15 +358,16 @@ Java_hdf_hdf5lib_H5_H5Epush2(JNIEnv *env, jclass cls, jlong stk_id, jstring file
         h5badArgument(env, "H5Epush: invalid minor_id argument");
     } /* end else if */
     else {
-        PIN_JAVA_STRING_THREE0(filename, fName, funcname, fncName, err_desc, errMsg);
+        PIN_JAVA_STRING_THREE(filename, fName, funcname, fncName, err_desc, errMsg);
+        if (fName != NULL && fncName != NULL && errMsg != NULL) {
+            ret_val = H5Epush2((hid_t)stk_id, fName, fncName, (unsigned)linenumber, (hid_t)class_id,
+                    (hid_t)major_id, (hid_t)minor_id, errMsg);
 
-        ret_val = H5Epush2((hid_t)stk_id, fName, fncName, (unsigned)linenumber, (hid_t)class_id,
-                (hid_t)major_id, (hid_t)minor_id, errMsg);
+            UNPIN_JAVA_STRING_THREE(filename, fName, funcname, fncName, err_desc, errMsg);
 
-        UNPIN_JAVA_STRING_THREE(filename, fName, funcname, fncName, err_desc, errMsg);
-
-        if (ret_val < 0)
-            h5libraryError(env);
+            if (ret_val < 0)
+                h5libraryError(env);
+        }
     } /* end else */
 } /* end Java_hdf_hdf5lib_H5_H5Epush2 */
 
@@ -363,7 +377,8 @@ Java_hdf_hdf5lib_H5_H5Epush2(JNIEnv *env, jclass cls, jlong stk_id, jstring file
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Eclear2(JNIEnv *env, jclass cls, jlong stk_id)
+Java_hdf_hdf5lib_H5_H5Eclear2
+    (JNIEnv *env, jclass cls, jlong stk_id)
 {
     if (stk_id < 0) {
         h5badArgument(env, "H5Eclear2: invalid argument");
@@ -378,7 +393,8 @@ Java_hdf_hdf5lib_H5_H5Eclear2(JNIEnv *env, jclass cls, jlong stk_id)
  * Signature: (J[I)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL
-Java_hdf_hdf5lib_H5_H5Eget_1msg(JNIEnv *env, jclass cls, jlong msg_id, jintArray error_msg_type_list)
+Java_hdf_hdf5lib_H5_H5Eget_1msg
+    (JNIEnv *env, jclass cls, jlong msg_id, jintArray error_msg_type_list)
 {
     char      *namePtr;
     jstring    str = NULL;
@@ -441,7 +457,8 @@ Java_hdf_hdf5lib_H5_H5Eget_1msg(JNIEnv *env, jclass cls, jlong msg_id, jintArray
  * Signature: (J)J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5_H5Eget_1num(JNIEnv *env, jclass cls, jlong stk_id)
+Java_hdf_hdf5lib_H5_H5Eget_1num
+    (JNIEnv *env, jclass cls, jlong stk_id)
 {
     ssize_t ret_val = -1;
 
@@ -457,7 +474,8 @@ Java_hdf_hdf5lib_H5_H5Eget_1num(JNIEnv *env, jclass cls, jlong stk_id)
 } /* end Java_hdf_hdf5lib_H5_H5Eget_1num */
 
 static herr_t
-H5E_walk_cb(int nindx, const H5E_error2_t *info, void *op_data)
+H5E_walk_cb
+    (int nindx, const H5E_error2_t *info, void *op_data)
 {
     JNIEnv    *cbenv;
     jint       status = -1;
@@ -507,7 +525,8 @@ H5E_walk_cb(int nindx, const H5E_error2_t *info, void *op_data)
  * Signature: (JJLjava/lang/Object;Ljava/lang/Object;)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Ewalk2(JNIEnv *env, jclass cls, jlong stk_id, jlong direction, jobject callback_op, jobject op_data)
+Java_hdf_hdf5lib_H5_H5Ewalk2
+    (JNIEnv *env, jclass cls, jlong stk_id, jlong direction, jobject callback_op, jobject op_data)
 {
     ENVPTR->GetJavaVM(ENVPAR &jvm);
     visit_callback = callback_op;

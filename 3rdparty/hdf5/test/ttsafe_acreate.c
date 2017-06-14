@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /********************************************************************
@@ -113,7 +111,7 @@ void tts_acreate(void)
      * with the dataset
      */
     for(i = 0; i < NUM_THREADS; i++) {
-        attrib_data = HDmalloc(sizeof(ttsafe_name_data_t));
+        attrib_data = (ttsafe_name_data_t *)HDmalloc(sizeof(ttsafe_name_data_t));
         attrib_data->dataset = dataset;
         attrib_data->datatype = datatype;
         attrib_data->dataspace = dataspace;
@@ -170,7 +168,7 @@ void *tts_acreate_thread(void *client_data)
                           H5P_DEFAULT, H5P_DEFAULT);
 
     /* Write data to the attribute */
-    attribute_data = HDmalloc(sizeof(int));
+    attribute_data = (int *)HDmalloc(sizeof(int));
     *attribute_data = attrib_data->current_index;
     H5Awrite(attribute, H5T_NATIVE_INT, attribute_data);
     H5Aclose(attribute);

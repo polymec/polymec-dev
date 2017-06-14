@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.2.2)
 PROJECT ( HDF5_JAVA C Java )
 
 set (CMAKE_MODULE_PATH "${HDF_RESOURCES_DIR};${HDF_RESOURCES_EXT_DIR}")
@@ -12,6 +12,12 @@ message (STATUS "JAVA: JAVA_HOME=$ENV{JAVA_HOME} JAVA_ROOT=$ENV{JAVA_ROOT}")
 find_package (JNI)
 
 INCLUDE_DIRECTORIES ( ${JNI_INCLUDE_DIRS} )
+
+if (WIN32)
+  set (HDF_JRE_DIRECTORY "C:/Program Files/Java/jre8")
+else ()
+  set (HDF_JRE_DIRECTORY "/usr/lib/jvm/jre")
+endif ()
 
 #-----------------------------------------------------------------------------
 # Include the main src and config directories
@@ -35,14 +41,14 @@ add_subdirectory (${HDF5_JAVA_SOURCE_DIR}/src ${HDF5_JAVA_BINARY_DIR}/src)
 #-----------------------------------------------------------------------------
 if (HDF5_BUILD_EXAMPLES)
   add_subdirectory (${HDF5_JAVA_SOURCE_DIR}/examples ${HDF5_JAVA_BINARY_DIR}/examples)
-endif (HDF5_BUILD_EXAMPLES)
+endif ()
 
 #-----------------------------------------------------------------------------
 # Testing
 #-----------------------------------------------------------------------------
 if (BUILD_TESTING)
   add_subdirectory (${HDF5_JAVA_SOURCE_DIR}/test ${HDF5_JAVA_BINARY_DIR}/test)
-endif (BUILD_TESTING)
+endif ()
 
 #-----------------------------------------------------------------------------
 # Add Required Jar(s)
@@ -61,17 +67,9 @@ install (
 #-----------------------------------------------------------------------------
 option (HDF5_JAVA_PACK_JRE  "Package a JRE installer directory" OFF)
 if (HDF5_JAVA_PACK_JRE)
-  if (WIN32)
-    install (
-        DIRECTORY "C:/Program Files/Java/jre8"
-        DESTINATION ${HDF5_INSTALL_BIN_DIR}
-        USE_SOURCE_PERMISSIONS
-    )
-  else (WIN32)
-    install (
-        DIRECTORY "/usr/lib/jvm/jre"
-        DESTINATION ${HDF5_INSTALL_BIN_DIR}
-        USE_SOURCE_PERMISSIONS
-    )
-  endif (WIN32)
-endif (HDF5_JAVA_PACK_JRE)
+  install (
+      DIRECTORY ${HDF_JRE_DIRECTORY}
+      DESTINATION ${HDF5_INSTALL_BIN_DIR}
+      USE_SOURCE_PERMISSIONS
+  )
+endif ()

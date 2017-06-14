@@ -6,12 +6,10 @@
 #
 # This file is part of HDF5.  The full HDF5 copyright notice, including
 # terms governing use, modification, and redistribution, is contained in
-# the files COPYING and Copyright.html.  COPYING can be found at the root
-# of the source code distribution tree; Copyright.html can be found at the
-# root level of an installed copy of the electronic HDF5 document set and
-# is linked from the top-level documents page.  It can also be found at
-# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from help@hdfgroup.org.
+# the COPYING file, which can be found at the root of the source code
+# distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.
+# If you do not have access to either file, you may request a copy from
+# help@hdfgroup.org.
 
 
 # This file should be sourced into configure if the compiler is the
@@ -94,7 +92,7 @@ case "$cc_vendor-$cc_version" in
     esac
 
     # General
-    H5_CFLAGS="$H5_CFLAGS $arch -std=c99 -pedantic -Wall -W -Wundef -Wshadow -Wpointer-arith -Wbad-function-cast -Wcast-qual -Wcast-align -Wwrite-strings -Wconversion -Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline"
+    H5_CFLAGS="$H5_CFLAGS $arch -std=c99 -pedantic -Wall -W -Wundef -Wshadow -Wpointer-arith -Wbad-function-cast -Wcast-qual -Wcast-align -Wwrite-strings -Wconversion -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs"
 
     # Production
     # NDEBUG is handled explicitly by the configure script
@@ -102,7 +100,7 @@ case "$cc_vendor-$cc_version" in
       gcc-[34].*)
         PROD_CFLAGS=
         ;;
-      gcc-5.*)
+      gcc-[56].*)
         PROD_CFLAGS="-fstdarg-opt"
         ;;
       *)
@@ -116,7 +114,7 @@ case "$cc_vendor-$cc_version" in
     # NDEBUG is handled explicitly by the configure script
     # -g is hanled by the symbols flags
     case "$cc_vendor-$cc_version" in
-      gcc-5.*)
+      gcc-[56].*)
         DEBUG_CFLAGS="-ftrapv -fno-common"
         ;;
       *)
@@ -124,6 +122,10 @@ case "$cc_vendor-$cc_version" in
         ;;
     esac
     #DEBUG_CFLAGS="-fsanitize=undefined"
+
+    # Developer warnings (suggestions from gcc, not code problems)
+    DEVELOPER_WARNING_CFLAGS="-Winline -Waggregate-return"
+    NO_DEVELOPER_WARNING_CFLAGS="-Wno-inline -Wno-aggregate-return"
 
     # Symbols
     NO_SYMBOLS_CFLAGS="-s"
@@ -138,7 +140,7 @@ case "$cc_vendor-$cc_version" in
         HIGH_OPT_CFLAGS="-O3"
         DEBUG_OPT_CFLAGS=
         ;;
-      gcc-5.*)
+      gcc-[56].*)
         HIGH_OPT_CFLAGS="-O3"
         DEBUG_OPT_CFLAGS="-Og"
         ;;
@@ -164,10 +166,10 @@ esac
 # the information from the previous version and adding modifications to that.
 case "$cc_vendor-$cc_version" in
 
-# Closer to the gcc 5.2 release, we should check for additional flags to
+# When the gcc 7.x release is out, we should check for additional flags to
 # include and break it out into it's own section, like the other versions
 # below. -QAK
-  gcc-5*)
+  gcc-6*)
     # Append warning flags
     # Don't use the '-Wtraditional' flag, we're way past having K&R C code
     # H5_CFLAGS="$H5_CFLAGS -Wtraditional"
@@ -183,7 +185,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # Enable more format checking flags, beyond the basic -Wformat included
     # in -Wall
@@ -205,10 +209,10 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wvariadic-macros -Winit-self -Wmissing-include-dirs -Wswitch-default -Wswitch-enum -Wunused-macros"
 
     # Append more extra warning flags that only gcc 4.1+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wunsafe-loop-optimizations -Wc++-compat"
+    H5_CFLAGS="$H5_CFLAGS -Wunsafe-loop-optimizations -Wc++-compat -Wnormalized"
 
     # Append more extra warning flags that only gcc 4.2+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow"
+    # (none, or incorporated in -Wall / -Wextra now)
 
     # Append more extra warning flags that only gcc 4.3+ know about
     #
@@ -223,20 +227,104 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow=5 -Wjump-misses-init -Wunsuffixed-float-constants"
 
     # Append more extra warning flags that only gcc 4.6+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wsuggest-attribute=const -Wtrampolines"
+    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wtrampolines"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=const"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=const"
 
     # Append more extra warning flags that only gcc 4.7+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wstack-usage=8192 -Wvector-operation-performance -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn"
+    H5_CFLAGS="$H5_CFLAGS -Wstack-usage=8192 -Wvector-operation-performance"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=pure -Wno-suggest-attribute=noreturn"
 
     # Append more extra warning flags that only gcc 4.8+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wsuggest-attribute=format"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=format"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=format"
 
     # Append more extra warning flags that only gcc 4.9+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wdate-time -Wopenmp-simd"
+    H5_CFLAGS="$H5_CFLAGS -Wdate-time"
 
-    # (There was no release of gcc 5.0)
+    # Append more extra warning flags that only gcc 5.x+ know about
+    H5_CFLAGS="$H5_CFLAGS -Warray-bounds=2 -Wc99-c11-compat"
 
-    # Append more extra warning flags that only gcc 5.1+ know about
+    # Append more extra warning flags that only gcc 6.x+ know about
+    H5_CFLAGS="$H5_CFLAGS -Wnull-dereference -Wunused-const-variable -Wduplicated-cond -Whsa"
+    ;;
+
+  gcc-5*)
+    # Append warning flags
+    # Don't use the '-Wtraditional' flag, we're way past having K&R C code
+    # H5_CFLAGS="$H5_CFLAGS -Wtraditional"
+    # Don't use the '-Wtraditional-conversion' flag, there's too many warnings
+    #  from GCC's assert macro
+    # H5_CFLAGS="$H5_CFLAGS -Wtraditional-conversion"
+
+    # Append warning flags from gcc-3* case
+    # (don't use -Wpadded flag for normal builds, many of the warnings its
+    #   issuing can't be fixed and they are making it hard to detect other,
+    #   more important warnings)
+    #H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute -Wpadded"
+    H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
+
+    # Append warning flags from gcc-3.2* case
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
+
+    # Enable more format checking flags, beyond the basic -Wformat included
+    # in -Wall
+    H5_CFLAGS="$H5_CFLAGS -Wformat=2"
+
+    # The "unreachable code" warning appears to be reliable now...
+    H5_CFLAGS="$H5_CFLAGS -Wunreachable-code"
+
+    # Append warning flags from gcc-3.3* case
+    H5_CFLAGS="$H5_CFLAGS -Wendif-labels"
+
+    # Append warning flags from gcc-3.4* case
+    H5_CFLAGS="$H5_CFLAGS -Wdeclaration-after-statement -Wold-style-definition -Winvalid-pch"
+
+    # Replace old -W flag with new -Wextra flag
+    H5_CFLAGS="`echo $H5_CFLAGS | sed -e 's/-W\ /-Wextra\ /g'`"
+
+    # Append more extra warning flags that only gcc4.0+ know about
+    H5_CFLAGS="$H5_CFLAGS -Wvariadic-macros -Winit-self -Wmissing-include-dirs -Wswitch-default -Wswitch-enum -Wunused-macros"
+
+    # Append more extra warning flags that only gcc 4.1+ know about
+    H5_CFLAGS="$H5_CFLAGS -Wunsafe-loop-optimizations -Wc++-compat -Wnormalized"
+
+    # Append more extra warning flags that only gcc 4.2+ know about
+    # (none, or incorporated in -Wall / -Wextra now)
+
+    # Append more extra warning flags that only gcc 4.3+ know about
+    #
+    # Technically, variable-length arrays are part of the C99 standard, but
+    #   we should approach them a bit cautiously... -QAK
+    H5_CFLAGS="$H5_CFLAGS -Wlogical-op -Wlarger-than=2048 -Wvla"
+
+    # Append more extra warning flags that only gcc 4.4+ know about
+    H5_CFLAGS="$H5_CFLAGS -Wsync-nand -Wframe-larger-than=16384 -Wpacked-bitfield-compat"
+
+    # Append more extra warning flags that only gcc 4.5+ know about
+    H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow=5 -Wjump-misses-init -Wunsuffixed-float-constants"
+
+    # Append more extra warning flags that only gcc 4.6+ know about
+    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wtrampolines"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=const"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=const"
+
+    # Append more extra warning flags that only gcc 4.7+ know about
+    H5_CFLAGS="$H5_CFLAGS -Wstack-usage=8192 -Wvector-operation-performance"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=pure -Wno-suggest-attribute=noreturn"
+
+    # Append more extra warning flags that only gcc 4.8+ know about
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=format"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=format"
+
+    # Append more extra warning flags that only gcc 4.9+ know about
+    H5_CFLAGS="$H5_CFLAGS -Wdate-time"
+
+    # Append more extra warning flags that only gcc 5.x+ know about
     H5_CFLAGS="$H5_CFLAGS -Warray-bounds=2 -Wc99-c11-compat"
     ;;
 
@@ -256,7 +344,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # Enable more format checking flags, beyond the basic -Wformat included
     # in -Wall
@@ -281,7 +371,7 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wunsafe-loop-optimizations -Wc++-compat"
 
     # Append more extra warning flags that only gcc 4.2+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow"
+    # (none, or incorporated in -Wall / -Wextra now)
 
     # Append more extra warning flags that only gcc 4.3+ know about
     #
@@ -296,16 +386,21 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow=5 -Wjump-misses-init -Wunsuffixed-float-constants"
 
     # Append more extra warning flags that only gcc 4.6+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wsuggest-attribute=const -Wtrampolines"
+    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wtrampolines"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=const"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=const"
 
     # Append more extra warning flags that only gcc 4.7+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wstack-usage=8192 -Wvector-operation-performance -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn"
+    H5_CFLAGS="$H5_CFLAGS -Wstack-usage=8192 -Wvector-operation-performance"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=pure -Wno-suggest-attribute=noreturn"
 
     # Append more extra warning flags that only gcc 4.8+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wsuggest-attribute=format"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=format"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=format"
 
     # Append more extra warning flags that only gcc 4.9+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wdate-time -Wopenmp-simd"
+    H5_CFLAGS="$H5_CFLAGS -Wdate-time"
     ;;
 
   gcc-4.8*)
@@ -324,7 +419,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # Enable more format checking flags, beyond the basic -Wformat included
     # in -Wall
@@ -349,7 +446,7 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wunsafe-loop-optimizations -Wc++-compat"
 
     # Append more extra warning flags that only gcc 4.2+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow"
+    # (none, or incorporated in -Wall / -Wextra now)
 
     # Append more extra warning flags that only gcc 4.3+ know about
     #
@@ -364,13 +461,18 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow=5 -Wjump-misses-init"
 
     # Append more extra warning flags that only gcc 4.6+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wsuggest-attribute=const -Wtrampolines"
+    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wtrampolines"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=const"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=const"
 
     # Append more extra warning flags that only gcc 4.7+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wstack-usage=8192 -Wvector-operation-performance -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn"
+    H5_CFLAGS="$H5_CFLAGS -Wstack-usage=8192 -Wvector-operation-performance"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=pure -Wno-suggest-attribute=noreturn"
 
     # Append more extra warning flags that only gcc 4.8+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wsuggest-attribute=format"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=format"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=format"
     ;;
 
   gcc-4.7*)
@@ -389,7 +491,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # Enable more format checking flags, beyond the basic -Wformat included
     # in -Wall
@@ -415,7 +519,7 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wunsafe-loop-optimizations -Wc++-compat"
 
     # Append more extra warning flags that only gcc 4.2+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow"
+    # (none, or incorporated in -Wall / -Wextra now)
 
     # Append more extra warning flags that only gcc 4.3+ know about
     #
@@ -430,10 +534,14 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow=5 -Wjump-misses-init -Wunsuffixed-float-constants"
 
     # Append more extra warning flags that only gcc 4.6+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wsuggest-attribute=const -Wtrampolines"
+    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wtrampolines"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=const"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=const"
 
     # Append more extra warning flags that only gcc 4.7+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wstack-usage=8192 -Wvector-operation-performance -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn"
+    H5_CFLAGS="$H5_CFLAGS -Wstack-usage=8192 -Wvector-operation-performance"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=pure -Wsuggest-attribute=noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=pure -Wno-suggest-attribute=noreturn"
     ;;
 
   gcc-4.6*)
@@ -448,7 +556,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # Enable more format checking flags, beyond the basic -Wformat included
     # in -Wall
@@ -474,7 +584,7 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wunsafe-loop-optimizations -Wc++-compat"
 
     # Append more extra warning flags that only gcc 4.2+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow"
+    # (none, or incorporated in -Wall / -Wextra now)
 
     # Append more extra warning flags that only gcc 4.3+ know about
     #
@@ -489,7 +599,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wstrict-aliasing -Wstrict-overflow=5 -Wjump-misses-init -Wunsuffixed-float-constants"
 
     # Append more extra warning flags that only gcc 4.6+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wsuggest-attribute=const -Wtrampolines"
+    H5_CFLAGS="$H5_CFLAGS -Wdouble-promotion -Wtrampolines"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wsuggest-attribute=const"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-suggest-attribute=const"
     ;;
 
   gcc-4.5*)
@@ -504,7 +616,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # Enable more format checking flags, beyond the basic -Wformat included
     # in -Wall
@@ -530,7 +644,7 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wunsafe-loop-optimizations -Wc++-compat"
 
     # Append more extra warning flags that only gcc 4.2+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow"
+    # (none, or incorporated in -Wall / -Wextra now)
 
     # Append more extra warning flags that only gcc 4.3+ know about
     #
@@ -557,7 +671,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # Enable more format checking flags, beyond the basic -Wformat included
     # in -Wall
@@ -606,7 +722,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # Enable more format checking flags, beyond the basic -Wformat included
     # in -Wall
@@ -652,7 +770,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # Enable more format checking flags, beyond the basic -Wformat included
     # in -Wall
@@ -680,7 +800,7 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wstrict-overflow"
     ;;
 
-  gcc-4.1.*)
+  gcc-4.1*)
     # Disable warnings about using 'long long' type
     H5_CFLAGS="$H5_CFLAGS -Wno-long-long"
 
@@ -692,7 +812,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # Enable more format checking flags, beyond the basic -Wformat included
     # in -Wall
@@ -729,7 +851,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # The "format=2" warning generates too many warnings about valid
     # usage in the library.
@@ -763,7 +887,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # The "format=2" warning generates too many warnings about valid
     # usage in the library.
@@ -794,7 +920,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # The "format=2" warning generates too many warnings about valid
     # usage in the library.
@@ -819,7 +947,9 @@ case "$cc_vendor-$cc_version" in
     H5_CFLAGS="$H5_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append more extra warning flags that only gcc3.2+ know about
-    H5_CFLAGS="$H5_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization"
+    H5_CFLAGS="$H5_CFLAGS -Wpacked -Wdisabled-optimization"
+    DEVELOPER_WARNING_CFLAGS="$DEVELOPER_WARNING_CFLAGS -Wmissing-noreturn"
+    NO_DEVELOPER_WARNING_CFLAGS="$NO_DEVELOPER_WARNING_CFLAGS -Wno-missing-noreturn"
 
     # The "format=2" warning generates too many warnings about valid
     # usage in the library.

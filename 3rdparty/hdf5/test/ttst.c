@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -32,9 +30,6 @@
    MODIFICATION HISTORY
        12/9/02 - Started coding
  */
-
-#include <time.h>
-#include <stdlib.h>
 
 #include "testhdf5.h"
 #include "H5STprivate.h"
@@ -126,7 +121,7 @@ test_tst_init(void)
     curr_time=HDtime(NULL);
     HDsrandom((unsigned)curr_time);
     for(u=0; u<num_uniq_words; u++) {
-        v=u+(HDrandom()%(num_uniq_words-u));
+        v = u + ((size_t)HDrandom() % (num_uniq_words - u));
         if(u!=v) {
             tmp_word=rand_uniq_words[u];
             rand_uniq_words[u]=rand_uniq_words[v];

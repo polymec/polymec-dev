@@ -6,12 +6,10 @@
 #
 # This file is part of HDF5.  The full HDF5 copyright notice, including
 # terms governing use, modification, and redistribution, is contained in
-# the files COPYING and Copyright.html.  COPYING can be found at the root
-# of the source code distribution tree; Copyright.html can be found at the
-# root level of an installed copy of the electronic HDF5 document set and
-# is linked from the top-level documents page.  It can also be found at
-# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from help@hdfgroup.org.
+# the COPYING file, which can be found at the root of the source code
+# distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.
+# If you do not have access to either file, you may request a copy from
+# help@hdfgroup.org.
 
 
 # This file should be sourced into configure if the compiler is the
@@ -94,7 +92,7 @@ case "$cxx_vendor-$cxx_version" in
     esac
 
     # General (copied from H5_CFLAGS)
-    H5_CXXFLAGS="$H5_CXXFLAGS $arch -pedantic -Wall -W -Wundef -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wconversion -Waggregate-return -Wredundant-decls -Winline"
+    H5_CXXFLAGS="$H5_CXXFLAGS $arch -pedantic -Wall -W -Wundef -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wconversion -Wredundant-decls -Winline"
 
     # C++-specific
     H5_CXXFLAGS="$H5_CXXFLAGS -Wsign-promo -Woverloaded-virtual -Wold-style-cast -Weffc++ -Wreorder -Wnon-virtual-dtor -Wctor-dtor-privacy -Wabi"
@@ -105,7 +103,7 @@ case "$cxx_vendor-$cxx_version" in
       g++-[34].*)
         PROD_CXXFLAGS=
         ;;
-      g++-5.*)
+      g++-[56].*)
         PROD_CXXFLAGS="-fstdarg-opt"
         ;;
       *)
@@ -117,7 +115,7 @@ case "$cxx_vendor-$cxx_version" in
     # NDEBUG is handled explicitly by the configure script
     # -g is hanled by the symbols flags
     case "$cxx_vendor-$cxx_version" in
-      g++-5.*)
+      g++-[56].*)
         DEBUG_CXXFLAGS="-ftrapv -fno-common"
         ;;
       *)
@@ -138,7 +136,7 @@ case "$cxx_vendor-$cxx_version" in
         HIGH_OPT_CXXFLAGS="-O3"
         DEBUG_OPT_CXXFLAGS=
         ;;
-      g++-5.*)
+      g++-[56].*)
         HIGH_OPT_CXXFLAGS="-O3"
         DEBUG_OPT_CXXFLAGS="-Og"
         ;;
@@ -163,7 +161,7 @@ case "$cxx_vendor-$cxx_version" in
 # Closer to the g++ 5.2 release, we should check for additional flags to
 # include and break it out into it's own section, like the other versions
 # below. -QAK
-  g++-5*)
+  g++-[56]*)
 
     # Append warning flags from gcc-3* case
     H5_CXXFLAGS="$H5_CXXFLAGS -Wfloat-equal -Wmissing-format-attribute"

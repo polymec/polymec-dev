@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /************************************************************
@@ -289,11 +287,10 @@ public class H5Ex_T_ObjectReferenceAttribute {
                     object_id = H5.H5Rdereference(dataset_id, HDF5Constants.H5P_DEFAULT, HDF5Constants.H5R_OBJECT, dset_data[indx]);
                     object_type = H5.H5Rget_obj_type(dataset_id, HDF5Constants.H5R_OBJECT, dset_data[indx]);
                 }
-                String[] obj_name = new String[1];
-                long name_size = 1;
+                String obj_name = null;
                 if (object_type >= 0) {
                     // Get the length of the name and retrieve the name.
-                    name_size = 1 + H5.H5Iget_name(object_id, obj_name, name_size);
+                    obj_name = H5.H5Iget_name(object_id);
                 }
                 if ((object_id >= 0) && (object_type >= -1)) {
                     switch (H5G_obj.get(object_type)) {
@@ -332,8 +329,7 @@ public class H5Ex_T_ObjectReferenceAttribute {
                     }
                 }
                 // Print the name.
-                if (name_size > 1)
-                    System.out.println(": " + obj_name[0]);
+                System.out.println(": " + obj_name);
             }
             catch (Exception e) {
                 e.printStackTrace();

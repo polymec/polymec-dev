@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -2625,10 +2623,10 @@ compress_readAll(void)
 
         /* Open dataset with compressed chunks */
         dataset = H5Dopen2(fid, "compressed_data", H5P_DEFAULT);
-        VRFY((dataset >= 0), "H5Dopen2 succeeded");
+        VRFY((dataset > 0), "H5Dopen2 succeeded");
 
         /* Try reading & writing data */
-        if(dataset>=0) {
+        if(dataset>0) {
             /* Create dataset transfer property list */
             xfer_plist = H5Pcreate(H5P_DATASET_XFER);
             VRFY((xfer_plist > 0), "H5Pcreate succeeded");
@@ -3308,7 +3306,7 @@ test_actual_io_mode(int selection_mode) {
         "reading and writing are the same for actual_chunk_opt_mode");
 
     /* Test values */
-    if(actual_chunk_opt_mode_expected != (unsigned) -1 && actual_io_mode_expected != (unsigned) -1) {
+    if(actual_chunk_opt_mode_expected != (H5D_mpio_actual_chunk_opt_mode_t) -1 && actual_io_mode_expected != (H5D_mpio_actual_io_mode_t) -1) {
         sprintf(message, "Actual Chunk Opt Mode has the correct value for %s.\n",test_name);
         VRFY((actual_chunk_opt_mode_write == actual_chunk_opt_mode_expected), message);
         sprintf(message, "Actual IO Mode has the correct value for %s.\n",test_name);

@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -100,7 +98,7 @@ main(void)
     for(i = 0; i < NOBJS; i++) {
         sprintf(buf, "%03d-", i);
         for(j = 4; j < i; j++)
-            buf[j] = '0' + j % 10;
+            buf[j] = (char)('0' + j % 10);
         if(j > 4)
             buf[j] = '\0';
 
@@ -140,7 +138,7 @@ main(void)
     for(i = 0; i < NOBJS; i++) {
         sprintf(buf, "%03d-", i);
         for(j = 4; j < i; j++)
-            buf[j] = '0' + j % 10;
+            buf[j] = (char)('0' + j % 10);
         if(j > 4)
             buf[j] = '\0';
 
@@ -158,9 +156,9 @@ main(void)
 
         if (strcmp(s, buf)) {
             H5_FAILED();
-            printf("    i=%d, heap offset=%lu\n", i, (unsigned long)(obj[i]));
-            printf("    got: \"%s\"\n", s);
-            printf("    ans: \"%s\"\n", buf);
+            HDprintf("    i=%d, heap offset=%lu\n", i, (unsigned long)(obj[i]));
+            HDprintf("    got: \"%s\"\n", s);
+            HDprintf("    ans: \"%s\"\n", buf);
             goto error;
         }
 
@@ -191,7 +189,7 @@ main(void)
         }
         else {
             H5_FAILED();
-            printf("***cannot open the pre-created non-default sizes test file (%s)\n",
+            HDprintf("***cannot open the pre-created non-default sizes test file (%s)\n",
                 testfile);
             goto error;
         } /* end else */
@@ -201,13 +199,13 @@ main(void)
     /* Verify symbol table messages are cached */
     if(h5_verify_cached_stabs(FILENAME, fapl) < 0) TEST_ERROR
 
-    puts("All local heap tests passed.");
+    HDputs("All local heap tests passed.");
     h5_cleanup(FILENAME, fapl);
 
     return 0;
 
  error:
-    puts("*** TESTS FAILED ***");
+    HDputs("*** TESTS FAILED ***");
     H5E_BEGIN_TRY {
         H5Fclose(file);
     } H5E_END_TRY;

@@ -4,12 +4,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "h5test.h"
@@ -69,7 +67,7 @@ parse_option(int argc, char * const argv[])
 	    UC_opts.filename = optarg;
 	    break;
 	  case 'i':	/* iterations */
-	    if ((UC_opts.iterations = atoi(optarg)) <= 0){
+	    if ((UC_opts.iterations = HDatoi(optarg)) <= 0) {
 		fprintf(stderr, "bad iterations number %s, must be a positive integer\n", optarg);
 		usage(progname_g);
 		Hgoto_error(-1);
@@ -91,28 +89,28 @@ parse_option(int argc, char * const argv[])
 	    }
 	    break;
 	  case 'n':	/* number of planes to write/read */
-	    if ((UC_opts.nplanes = atoi(optarg)) <= 0){
+	    if ((UC_opts.nplanes = HDstrtoul(optarg, NULL, 0)) <= 0) {
 		fprintf(stderr, "bad number of planes %s, must be a positive integer\n", optarg);
 		usage(progname_g);
 		Hgoto_error(-1);
 	    };
 	    break;
 	  case 's':	/* use swmr file open mode */
-	    if ((UC_opts.use_swmr = atoi(optarg)) < 0){
+	    if ((UC_opts.use_swmr = HDatoi(optarg)) < 0) {
 		fprintf(stderr, "swmr value should be 0(no) or 1(yes)\n");
 		usage(progname_g);
 		Hgoto_error(-1);
 	    };
 	    break;
 	  case 'y':	/* Number of planes per chunk */
-	    if ((UC_opts.chunkplanes = atoi(optarg)) <= 0){
+	    if ((UC_opts.chunkplanes = HDstrtoul(optarg, NULL, 0)) <= 0) {
 		fprintf(stderr, "bad number of planes per chunk %s, must be a positive integer\n", optarg);
 		usage(progname_g);
 		Hgoto_error(-1);
 	    };
 	    break;
 	  case 'z':	/* size of chunk=(z,z) */
-	    if ((UC_opts.chunksize = atoi(optarg)) <= 0){
+	    if ((UC_opts.chunksize = HDstrtoull(optarg, NULL, 0)) <= 0) {
 		fprintf(stderr, "bad chunksize %s, must be a positive integer\n", optarg);
 		usage(progname_g);
 		Hgoto_error(-1);
@@ -283,7 +281,7 @@ int write_uc_file(hbool_t tosend)
 
     if(tosend)
         /* Send a message that H5Fopen is complete--releasing the file lock */
-        h5_send_message(WRITER_MESSAGE);
+        h5_send_message(WRITER_MESSAGE, NULL, NULL);
 
     /* Open the dataset of the program name */
     if((dsid = H5Dopen2(fid, progname_g, H5P_DEFAULT)) < 0){
@@ -361,7 +359,14 @@ int write_uc_file(hbool_t tosend)
 	bufptr = buffer;
 	for (j=0; j<dims[1]; j++)
 	    for (k=0; k<dims[2]; k++)
-		*bufptr++ = i;
+		*bufptr++ = (UC_CTYPE)i;
+
+        /* Cork the dataset's metadata in the cache, if SWMR is enabled */
+        if(UC_opts.use_swmr)
+            if(H5Odisable_mdc_flushes(dsid) < 0) {
+                fprintf(stderr, "H5Odisable_mdc_flushes failed\n");
+                return -1;
+            }
 
 	/* extend the dataset by one for new plane */
 	dims[0]=i+1;
@@ -388,12 +393,16 @@ int write_uc_file(hbool_t tosend)
 	    fprintf(stderr, "Failed H5Dwrite\n");
             return -1;
 	}
+
+        /* Uncork the dataset's metadata from the cache, if SWMR is enabled */
+        if(UC_opts.use_swmr)
+            if(H5Oenable_mdc_flushes(dsid) < 0) {
+                fprintf(stderr, "H5Oenable_mdc_flushes failed\n");
+                return -1;
+            }
+
 	/* flush file to make the just written plane available. */
-#if 0
-	if(H5Fflush(fid, H5F_SCOPE_GLOBAL) < 0)
-#else
 	if(H5Dflush(dsid) < 0)
-#endif
 	{
 	    fprintf(stderr, "Failed to H5Fflush file\n");
 	    return -1;

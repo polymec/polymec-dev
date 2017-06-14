@@ -5,12 +5,10 @@
 *                                                                           *
 * This file is part of HDF5.  The full HDF5 copyright notice, including     *
 * terms governing use, modification, and redistribution, is contained in    *
-* the files COPYING and Copyright.html.  COPYING can be found at the root   *
-* of the source code distribution tree; Copyright.html can be found at the  *
-* root level of an installed copy of the electronic HDF5 document set and   *
-* is linked from the top-level documents page.  It can also be found at     *
-* http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
-* access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
@@ -308,6 +306,38 @@ h5tbmake_table_c(size_t_f *namelen1,
                   size_t_f *char_len_field_names, /* field_names lenghts */
                   size_t_f *max_char_size_field_names, /* char len of fields */
                   _fcd buf);          /* field_names */
+
+HDF5_HL_F90CSTUBDLL
+int_f
+h5tbread_table_c(hid_t_f *loc_id,
+                  _fcd name,
+                  size_t_f *namelen,
+		  hsize_t_f *nfields,
+                  size_t_f *dst_size,
+                  size_t_f *dst_offset,
+                  size_t_f *dst_sizes,
+		 void *dst_buf);
+
+
+HDF5_HL_F90CSTUBDLL
+int_f
+h5tbmake_table_ptr_c(size_t_f *namelen1,
+		     _fcd name1,
+		     hid_t_f *loc_id,
+		     size_t_f *namelen,
+		     _fcd name,
+		     hsize_t_f *nfields,
+		     hsize_t_f *nrecords,
+		     size_t_f *type_size,
+		     size_t_f *field_offset,
+		     hid_t_f *field_types,
+		     hsize_t_f *chunk_size,
+		     void *fill_data,
+		     int_f *compress,
+		     size_t_f *char_len_field_names, /* field_names lenghts */
+		     size_t_f *max_char_size_field_names, /* char len of fields */
+		     char *field_names, /* field_names */
+		     void *data);
 
 HDF5_HL_F90CSTUBDLL
 int_f

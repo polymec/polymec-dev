@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
@@ -784,7 +782,7 @@ test_genprop_basic_list_prop(void)
     ret = H5Pget(lid1, PROP4_NAME,&prop4_value);
     CHECK_I(ret, "H5Pget");
     /* Verify the floating-poing value in this way to avoid compiler warning. */
-    if(!H5_FLT_ABS_EQUAL(prop4_value,(double)*PROP4_DEF_VALUE))
+    if(!H5_DBL_ABS_EQUAL(prop4_value, *PROP4_DEF_VALUE))
 	printf("*** UNEXPECTED VALUE from %s should be %f, but is %f at line %4d in %s\n",
 	    "H5Pget", *PROP4_DEF_VALUE, prop4_value, (int)__LINE__, __FILE__);
 
@@ -821,7 +819,7 @@ test_genprop_basic_list_prop(void)
     ret = H5Pget(lid1, PROP4_NAME,&prop4_value);
     CHECK_I(ret, "H5Pget");
     /* Verify the floating-poing value in this way to avoid compiler warning. */
-    if(!H5_FLT_ABS_EQUAL(prop4_value,*PROP4_DEF_VALUE))
+    if(!H5_DBL_ABS_EQUAL(prop4_value, *PROP4_DEF_VALUE))
 	printf("*** UNEXPECTED VALUE from %s should be %f, but is %f at line %4d in %s\n",
 	    "H5Pget", *PROP4_DEF_VALUE, prop4_value, (int)__LINE__, __FILE__);
 
@@ -1241,7 +1239,7 @@ test_genprop_list_callback(void)
     ret = H5Pget(lid1, PROP4_NAME,&prop4_value);
     CHECK_I(ret, "H5Pget");
     /* Verify the floating-poing value in this way to avoid compiler warning. */
-    if(!H5_FLT_ABS_EQUAL(prop4_value,(double)*PROP4_DEF_VALUE))
+    if(!H5_DBL_ABS_EQUAL(prop4_value, *PROP4_DEF_VALUE))
 	printf("*** UNEXPECTED VALUE from %s should be %f, but is %f at line %4d in %s\n",
 	    "H5Pget", *PROP4_DEF_VALUE, prop4_value, (int)__LINE__, __FILE__);
 

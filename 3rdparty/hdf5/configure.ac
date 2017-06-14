@@ -6,12 +6,10 @@
 ##
 ## This file is part of HDF5.  The full HDF5 copyright notice, including
 ## terms governing use, modification, and redistribution, is contained in
-## the files COPYING and Copyright.html.  COPYING can be found at the root
-## of the source code distribution tree; Copyright.html can be found at the
-## root level of an installed copy of the electronic HDF5 document set and
-## is linked from the top-level documents page.  It can also be found at
-## http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
-## access to either file, you may request a copy from help@hdfgroup.org.
+## the COPYING file, which can be found at the root of the source code
+## distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.
+## If you do not have access to either file, you may request a copy from
+## help@hdfgroup.org.
 
 ## ----------------------------------------------------------------------
 ## Initialize configure.
@@ -26,7 +24,7 @@ AC_PREREQ([2.69])
 ## NOTE: Do not forget to change the version number here when we do a
 ## release!!!
 ##
-AC_INIT([HDF5], [1.10.0-patch1], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.10.1], [help@hdfgroup.org])
 
 AC_CONFIG_SRCDIR([src/H5.c])
 AC_CONFIG_HEADERS([src/H5config.h])
@@ -36,8 +34,8 @@ AC_CONFIG_MACRO_DIR([m4])
 
 ## AM_INIT_AUTOMAKE takes a list of options that should be applied to
 ## every Makefile.am when automake is run.
-AM_INIT_AUTOMAKE([foreign])
-AM_SILENT_RULES([yes])
+AM_INIT_AUTOMAKE([foreign subdir-objects])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])]) # use silent rules where available - automake 1.11
 
 ## AM_MAINTAINER_MODE turns off "rebuild rules" that contain dependencies
 ## for Makefiles, configure, src/H5config.h, etc. If AM_MAINTAINER_MODE
@@ -50,9 +48,6 @@ AM_SILENT_RULES([yes])
 ##
 ## By default, it is enabled. Users can configure with
 ## --disable-maintainer-mode to prevent running the autotools.
-## AM_MAINTAINER_MODE([enable])
-##
-## Maintainer mode is disabled in releases.
 AM_MAINTAINER_MODE([disable])
 
 ## ----------------------------------------------------------------------
@@ -283,6 +278,7 @@ while test -n "$hname"; do
   hname="`echo $hname | cut -d. -f2-99`"
   test "$hname_tmp" = "$hname" && break
 done
+
 
 ## ----------------------------------------------------------------------
 ## Determine build mode (debug, production, clean).
@@ -553,6 +549,7 @@ if test "X$HDF_FORTRAN" = "Xyes"; then
 
   AC_SUBST([PAC_FC_ALL_REAL_KINDS])
   AC_SUBST([PAC_FC_MAX_REAL_PRECISION])
+  AC_SUBST([PAC_FORTRAN_NUM_INTEGER_KINDS])
   AC_SUBST([PAC_FC_ALL_INTEGER_KINDS])
   AC_SUBST([PAC_FC_ALL_REAL_KINDS_SIZEOF])
   AC_SUBST([PAC_FC_ALL_INTEGER_KINDS_SIZEOF])
@@ -697,11 +694,13 @@ if test "X$HDF_CXX" = "Xyes"; then
   ## Checking if C++ can handle namespaces
   PAC_PROG_CXX_NAMESPACE
 
-  ## Checking if C++ has offsetof extension
-  PAC_PROG_CXX_OFFSETOF
-
   ## if C++ can handle static cast
   PAC_PROG_CXX_STATIC_CAST
+
+  ## Checking if C++ has offsetof extension,
+  ## note: this test has to be the last of the C++ tests because it sets a definition
+  ## which would be used in the other tests, causing them to fail.
+  PAC_PROG_CXX_OFFSETOF
 
 else
   AC_MSG_RESULT([no])
@@ -1801,7 +1800,7 @@ case "`uname`" in
   CYGWIN*)
     ;;
   *)
-    AC_CHECK_FUNCS([GetConsoleScreenBufferInfo])
+    AC_CHECK_FUNCS([GetConsoleScreenBufferInfo getpwuid])
     ;;
 esac
 AC_CHECK_FUNCS([_scrsize ioctl])
@@ -1846,11 +1845,13 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 ##       so we'll search for it before calling AC_CHECK_FUNCS.
 AC_SEARCH_LIBS([clock_gettime], [rt posix4])
 AC_CHECK_FUNCS([alarm clock_gettime difftime fcntl flock fork frexpf])
-AC_CHECK_FUNCS([frexpl gethostname getpwuid getrusage gettimeofday])
+AC_CHECK_FUNCS([frexpl gethostname getrusage gettimeofday])
 AC_CHECK_FUNCS([lstat rand_r random setsysinfo])
 AC_CHECK_FUNCS([signal longjmp setjmp siglongjmp sigsetjmp sigprocmask])
 AC_CHECK_FUNCS([snprintf srandom strdup symlink system])
+AC_CHECK_FUNCS([strtoll strtoull])
 AC_CHECK_FUNCS([tmpfile asprintf vasprintf vsnprintf waitpid])
+AC_CHECK_FUNCS([roundf lroundf llroundf round lround llround])
 
 ## ----------------------------------------------------------------------
 ## Check compiler characteristics
@@ -2049,6 +2050,48 @@ case "X-$ASSERTS" in
     ;;
   *)
     AC_MSG_ERROR([Unrecognized value: $ASSERTS])
+    ;;
+esac
+
+## ----------------------------------------------------------------------
+## Check if developer warnings should be turned on
+## These are warnings that provide suggestions like gcc's -Wsuggest-attribute.
+## They do not indicate code problems.
+##
+## Note that developers don't need to build with these regularly. They
+## are just handy to check once in a while (before releases, etc.).
+##
+AC_MSG_CHECKING([enable developer warnings])
+AC_ARG_ENABLE([developer-warnings],
+              [AS_HELP_STRING([--enable-developer-warnings],
+                              [Determines whether developer warnings will be
+                               emitted. These are usually performance suggestions
+                               (e.g. -Wsuggest-attribute) and do not flag poor code
+                               quality.
+                               [default=no]
+                               ])],
+              [DEV_WARNINGS=$enableval])
+
+## Set default
+if test "X-$DEV_WARNINGS" = X- ; then
+  DEV_WARNINGS=no
+fi
+
+## Allow this variable to be substituted in
+## other files (src/libhdf5.settings.in, etc.)
+AC_SUBST([DEV_WARNINGS])
+
+case "X-$DEV_WARNINGS" in
+  X-yes)
+    H5_CFLAGS="$H5_CFLAGS $DEVELOPER_WARNING_CFLAGS"
+    AC_MSG_RESULT([yes])
+    ;;
+  X-no)
+    H5_CFLAGS="$H5_CFLAGS $NO_DEVELOPER_WARNING_CFLAGS"
+    AC_MSG_RESULT([no])
+    ;;
+  *)
+    AC_MSG_ERROR([Unrecognized value: $DEV_WARNINGS])
     ;;
 esac
 
@@ -2796,63 +2839,18 @@ esac
 ##
 AC_MSG_CHECKING([if using special algorithm to convert long double to (unsigned) long values])
 
+## NOTE: Place all configure test programs into cmake's source file, then use a preprocessor directive
+## to select the proper test program. This is done by echoing the #define and cat'ing the cmake
+## source file. (HDFFV-9467)
+
+TEST_SRC="`(echo \"#define H5_LDOUBLE_TO_LONG_SPECIAL_TEST 1\"; cat $srcdir/config/cmake/ConversionTests.c)`"
+
 if test ${ac_cv_sizeof_long_double} = 0; then
    hdf5_cv_ldouble_to_long_special=${hdf5_cv_ldouble_to_long_special=no}
 else
    AC_CACHE_VAL([hdf5_cv_ldouble_to_long_special],
         [AC_RUN_IFELSE(
-            [AC_LANG_PROGRAM([
-                #include <string.h>
-            ],[[
-                long double         ld = 20041683600089727.779961L;
-                long                ll;
-                unsigned long       ull;
-                unsigned char       s[16];
-                unsigned char       s2[8];
-                int                 ret = 1;
-
-                if(sizeof(long double) == 16 && sizeof(long) == 8) {
-                    /*make sure the long double type has 16 bytes in size and
-                     * 11 bits of exponent.  If it is,
-                     *the bit sequence should be like below.  It's not
-                     *a decent way to check but this info isn't available. */
-                    memcpy(s, &ld, 16);
-                    if(s[0]==0x43 && s[1]==0x51 && s[2]==0xcc && s[3]==0xf3 &&
-                        s[4]==0x85 && s[5]==0xeb && s[6]==0xc8 && s[7]==0xa0 &&
-                        s[8]==0xbf && s[9]==0xcc && s[10]==0x2a && s[11]==0x3c) {
-
-                        /* Assign the hexadecimal value of long double type. */
-                        s[0]=0x43; s[1]=0x51; s[2]=0xcc; s[3]=0xf3;
-                        s[4]=0x85; s[5]=0xeb; s[6]=0xc8; s[7]=0xa0;
-                        s[8]=0xbf; s[9]=0xcc; s[10]=0x2a; s[11]=0x3c;
-                        s[12]=0x3d; s[13]=0x85; s[14]=0x56; s[15]=0x20;
-
-                        memcpy(&ld, s, 16);
-
-                        ll = (long)ld;
-                        memcpy(s2, &ll, 8);
-
-                        /* The library's algorithm converts it to 0x 00 47 33 ce 17 af 22 82
-                         * and gets wrong value 20041683600089730 on the IBM Power6 Linux.
-                         * But the IBM Power6 Linux converts it to 0x00 47 33 ce 17 af 22 7f
-                         * and gets the correct value 20041683600089727.  It uses some special
-                         * algorithm.  We're going to define the macro and skip the test until
-                         * we can figure out how they do it. */
-                        if(s2[0]==0x00 && s2[1]==0x47 && s2[2]==0x33 && s2[3]==0xce &&
-                           s2[4]==0x17 && s2[5]==0xaf && s2[6]==0x22 && s2[7]==0x7f)
-                            ret = 0;
-
-                        ull = (unsigned long)ld;
-                        memcpy(s2, &ull, 8);
-
-                        /* The unsigned long is the same as signed long. */
-                        if(s2[0]==0x00 && s2[1]==0x47 && s2[2]==0x33 && s2[3]==0xce &&
-                           s2[4]==0x17 && s2[5]==0xaf && s2[6]==0x22 && s2[7]==0x7f)
-                            ret = 0;
-                    }
-                }
-                exit(ret);
-        ]])]
+            [AC_LANG_SOURCE([$TEST_SRC])]
     , [hdf5_cv_ldouble_to_long_special=yes], [hdf5_cv_ldouble_to_long_special=no],)])
 fi
 
@@ -2874,66 +2872,14 @@ fi
 ##
 AC_MSG_CHECKING([if using special algorithm to convert (unsigned) long to long double values])
 
+TEST_SRC="`(echo \"#define H5_LONG_TO_LDOUBLE_SPECIAL_TEST 1\"; cat $srcdir/config/cmake/ConversionTests.c)`"
+
 if test ${ac_cv_sizeof_long_double} = 0; then
    hdf5_cv_long_to_ldouble_special=${hdf5_cv_long_to_ldouble_special=no}
 else
    AC_CACHE_VAL([hdf5_cv_long_to_ldouble_special],
         [AC_RUN_IFELSE(
-            [AC_LANG_PROGRAM([
-                #include <string.h>
-            ],[[
-                long double         ld;
-                long                ll;
-                unsigned long       ull;
-                unsigned char       s[16];
-                int                 flag=0, ret=1;
-
-                /*Determine if long double has 16 byte in size, 11 bit exponent, and
-                 *the bias is 0x3ff */
-                if(sizeof(long double) == 16) {
-                    ld = 1.0L;
-                    memcpy(s, &ld, 16);
-                    if(s[0]==0x3f && s[1]==0xf0 && s[2]==0x00 && s[3]==0x00 &&
-                        s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00)
-                        flag = 1;
-                }
-
-                if(flag==1 && sizeof(long)==8) {
-                    ll = 0x003fffffffffffffL;
-                    ld = (long double)ll;
-                    memcpy(s, &ld, 16);
-                    /* The library converts the value to 0x434fffffffffffff8000000000000000.
-                     * In decimal it is 18014398509481982.000000, one value short of the original.
-                     * The IBM Power6 Linux converts it to 0x4350000000000000bff0000000000000.
-                     * The value is correct in decimal. It uses some special
-                     * algorithm.  We're going to define the macro and skip the test until
-                     * we can figure out how they do it. */
-                    if(s[0]==0x43 && s[1]==0x50 && s[2]==0x00 && s[3]==0x00 &&
-                        s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00 &&
-                        s[8]==0xbf && s[9]==0xf0 && s[10]==0x00 && s[11]==0x00 &&
-                        s[12]==0x00 && s[13]==0x00 && s[14]==0x00 && s[15]==0x00)
-                        ret = 0;
-                }
-                if(flag==1 && sizeof(unsigned long)==8) {
-                    ull = 0xffffffffffffffffUL;
-                    ld = (long double)ull;
-                    memcpy(s, &ld, 16);
-                    /* Use a different value from signed long to test. The problem is the same
-                     * for both long and unsigned long. The value is 18446744073709551615.
-                     * The library converts the value to 0x43effffffffffffffe000000000000000.
-                     * In decimal it's 18446744073709548544.000000, very different from the original.
-                     * The IBM Power6 Linux converts it to 0x43f0000000000000bff0000000000000.
-                     * The value is correct in decimal. It uses some special
-                     * algorithm.  We're going to define the macro and skip the test until
-                     * we can figure out how they do it. */
-                    if(s[0]==0x43 && s[1]==0xf0 && s[2]==0x00 && s[3]==0x00 &&
-                        s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00 &&
-                        s[8]==0xbf && s[9]==0xf0 && s[10]==0x00 && s[11]==0x00 &&
-                        s[12]==0x00 && s[13]==0x00 && s[14]==0x00 && s[15]==0x00)
-                        ret = 0;
-                }
-                exit(ret);
-        ]])]
+            [AC_LANG_SOURCE([$TEST_SRC])]
     , [hdf5_cv_long_to_ldouble_special=yes], [hdf5_cv_long_to_ldouble_special=no],)])
 fi
 
@@ -2958,48 +2904,14 @@ fi
 ##
 AC_MSG_CHECKING([if correctly converting long double to (unsigned) long long values])
 
+TEST_SRC="`(echo \"#define H5_LDOUBLE_TO_LLONG_ACCURATE_TEST 1\"; cat $srcdir/config/cmake/ConversionTests.c)`"
+
 if test ${ac_cv_sizeof_long_double} = 0; then
    hdf5_cv_ldouble_to_llong_accurate=${hdf5_cv_ldouble_to_llong_accurate=no}
 else
    AC_CACHE_VAL([hdf5_cv_ldouble_to_llong_accurate],
-        [AC_RUN_IFELSE([AC_LANG_SOURCE([[
-        int main(void)
-        {
-            long double         ld = 20041683600089727.779961L;
-            long long           ll;
-            unsigned long long  ull;
-            unsigned char       s[16];
-            int                 ret = 0;
-
-            if(sizeof(long double) == 16) {
-                /*make sure the long double type is the same as the failing type
-                 *which has 16 bytes in size and 11 bits of exponent.  If it is,
-                 *the bit sequence should be like below.  It's not
-                 *a decent way to check but this info isn't available. */
-                memcpy(s, &ld, 16);
-                if(s[0]==0x43 && s[1]==0x51 && s[2]==0xcc && s[3]==0xf3 &&
-                    s[4]==0x85 && s[5]==0xeb && s[6]==0xc8 && s[7]==0xa0 &&
-                    s[8]==0xbf && s[9]==0xcc && s[10]==0x2a && s[11]==0x3c) {
-
-                    /*slightly adjust the bit sequence (s[8]=0xdf).  The converted
-                     *values will go wild on Mac OS 10.4 and IRIX64 6.5.*/
-                    s[0]=0x43; s[1]=0x51; s[2]=0xcc; s[3]=0xf3;
-                    s[4]=0x85; s[5]=0xeb; s[6]=0xc8; s[7]=0xa0;
-                    s[8]=0xdf; s[9]=0xcc; s[10]=0x2a; s[11]=0x3c;
-                    s[12]=0x3d; s[13]=0x85; s[14]=0x56; s[15]=0x20;
-
-                    memcpy(&ld, s, 16);
-                    ll = (long long)ld;
-                    ull = (unsigned long long)ld;
-
-                    if(ll != 20041683600089728 || ull != 20041683600089728)
-                        ret = 1;
-                }
-            }
-    done:
-            exit(ret);
-        }
-        ]])], [hdf5_cv_ldouble_to_llong_accurate=yes], [hdf5_cv_ldouble_to_llong_accurate=no],[])])
+        [AC_RUN_IFELSE([AC_LANG_SOURCE([$TEST_SRC])],
+        [hdf5_cv_ldouble_to_llong_accurate=yes], [hdf5_cv_ldouble_to_llong_accurate=no],[])])
 fi
 
 if test ${hdf5_cv_ldouble_to_llong_accurate} = "yes"; then
@@ -3021,52 +2933,14 @@ fi
 ##
 AC_MSG_CHECKING([if correctly converting (unsigned) long long to long double values])
 
+TEST_SRC="`(echo \"#define H5_LLONG_TO_LDOUBLE_CORRECT_TEST 1\"; cat $srcdir/config/cmake/ConversionTests.c)`"
+
 if test ${ac_cv_sizeof_long_double} = 0; then
    hdf5_cv_llong_to_ldouble_correct=${hdf5_cv_llong_to_ldouble_correct=no}
 else
    AC_CACHE_VAL([hdf5_cv_llong_to_ldouble_correct],
-        [AC_RUN_IFELSE([AC_LANG_SOURCE([[
-        int main(void)
-        {
-            long double         ld;
-            long long           ll;
-            unsigned long long  ull;
-            unsigned char       s[16];
-            int                 flag=0, ret=0;
-
-            /*Determine if long double has 16 byte in size, 11 bit exponent, and
-             *the bias is 0x3ff */
-            if(sizeof(long double) == 16) {
-                ld = 1.0L;
-                memcpy(s, &ld, 16);
-                if(s[0]==0x3f && s[1]==0xf0 && s[2]==0x00 && s[3]==0x00 &&
-                    s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00)
-                    flag = 1;
-            }
-
-            if(flag==1 && sizeof(long long)==8) {
-                ll = 0x01ffffffffffffffLL;
-                ld = (long double)ll;
-                memcpy(s, &ld, 16);
-                /*Check if the bit sequence is as supposed to be*/
-                if(s[0]!=0x43 || s[1]!=0x7f || s[2]!=0xff || s[3]!=0xff ||
-                    s[4]!=0xff || s[5]!=0xff || s[6]!=0xff || s[7]!=0xff ||
-                    s[8]!=0xf0 || s[9]!=0x00 || s[10]!=0x00 || s[11]!=0x00)
-                    ret = 1;
-            }
-            if(flag==1 && sizeof(unsigned long long)==8) {
-                ull = 0x01ffffffffffffffULL;
-                ld = (long double)ull;
-                memcpy(s, &ld, 16);
-                if(s[0]!=0x43 || s[1]!=0x7f || s[2]!=0xff || s[3]!=0xff ||
-                    s[4]!=0xff || s[5]!=0xff || s[6]!=0xff || s[7]!=0xff ||
-                    s[8]!=0xf0 || s[9]!=0x00 || s[10]!=0x00 || s[11]!=0x00)
-                    ret = 1;
-            }
-    done:
-            exit(ret);
-        }
-        ]])],[hdf5_cv_llong_to_ldouble_correct=yes], [hdf5_cv_llong_to_ldouble_correct=no],[])])
+        [AC_RUN_IFELSE([AC_LANG_SOURCE([$TEST_SRC])],
+        [hdf5_cv_llong_to_ldouble_correct=yes], [hdf5_cv_llong_to_ldouble_correct=no],[])])
 fi
 
 if test ${hdf5_cv_llong_to_ldouble_correct} = "yes"; then
@@ -3360,40 +3234,11 @@ AC_ARG_ENABLE([embedded-libinfo],
 ## Check if pointer alignments are enforced
 ##
 AC_MSG_CHECKING([if alignment restrictions are strictly enforced])
+
+TEST_SRC="`(echo \"#define H5_NO_ALIGNMENT_RESTRICTIONS_TEST 1\"; cat $srcdir/config/cmake/ConversionTests.c)`"
+
 AC_RUN_IFELSE([
-    AC_LANG_PROGRAM([
-        #include <stdlib.h>
-        #include <string.h>
-
-        typedef struct {
-            size_t len;
-            void *p;
-        } hvl_t;
-        ], [
-        char *chp = "beefs";
-        char **chpp = malloc (2 * sizeof (char *));
-        char **chpp2;
-        hvl_t vl = { 12345, (void *) chp };
-        hvl_t *vlp;
-        hvl_t *vlp2;
-
-        memcpy ((void *) ((char *) chpp + 1), &chp, sizeof (char *));
-        chpp2 = (char **) ((char *) chpp + 1);
-        if (strcmp (*chpp2, chp)) {
-            free (chpp);
-            return 1;
-        }
-        free (chpp);
-
-        vlp = malloc (2 * sizeof (hvl_t));
-        memcpy ((void *) ((char *) vlp + 1), &vl, sizeof (hvl_t));
-        vlp2 = (hvl_t *) ((char *) vlp + 1);
-        if (vlp2->len != vl.len || vlp2->p != vl.p) {
-            free (vlp);
-            return 1;
-        }
-        free (vlp);
-    ])
+    AC_LANG_SOURCE([$TEST_SRC])
     ], [
     AC_DEFINE([NO_ALIGNMENT_RESTRICTIONS], [1], [Define if we can violate pointer alignment restrictions])
     AC_MSG_RESULT([no])
@@ -3513,7 +3358,7 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  test/Makefile
                  test/testcheck_version.sh
                  test/testerror.sh
-		        test/testflushrefresh.sh
+                 test/testflushrefresh.sh
                  test/H5srcdir_str.h
                  test/testlibinfo.sh
                  test/testlinks_env.sh
@@ -3523,38 +3368,53 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  test/testvdsswmr.sh
                  testpar/Makefile
                  tools/Makefile
-                 tools/h5dump/Makefile
-                 tools/h5dump/testh5dump.sh
-                 tools/h5dump/testh5dumppbits.sh
-                 tools/h5dump/testh5dumpvds.sh
-                 tools/h5dump/testh5dumpxml.sh
-                 tools/h5ls/testh5ls.sh
-                 tools/h5ls/testh5lsvds.sh
-                 tools/h5import/Makefile
-                 tools/h5import/h5importtestutil.sh
-                 tools/h5diff/Makefile
-                 tools/h5diff/testh5diff.sh
-                 tools/h5diff/testph5diff.sh
-                 tools/h5jam/Makefile
-                 tools/h5jam/testh5jam.sh
-                 tools/h5repack/Makefile
-                 tools/h5repack/h5repack.sh
-                 tools/h5repack/h5repack_plugin.sh
-                 tools/h5ls/Makefile
-                 tools/h5copy/Makefile
-                 tools/h5copy/testh5copy.sh
                  tools/lib/Makefile
-                 tools/misc/Makefile
-                 tools/misc/h5cc
-		 tools/misc/testh5clear.sh
-                 tools/misc/testh5mkgrp.sh
-                 tools/misc/testh5repart.sh
-                 tools/misc/vds/Makefile
-                 tools/h5stat/testh5stat.sh
-                 tools/h5stat/Makefile
-                 tools/h5format_convert/Makefile
-                 tools/h5format_convert/testh5fc.sh
-                 tools/perform/Makefile
+                 tools/src/Makefile
+                 tools/src/h5dump/Makefile
+                 tools/src/h5import/Makefile
+                 tools/src/h5diff/Makefile
+                 tools/src/h5jam/Makefile
+                 tools/src/h5repack/Makefile
+                 tools/src/h5ls/Makefile
+                 tools/src/h5copy/Makefile
+                 tools/src/misc/Makefile
+                 tools/src/misc/h5cc
+                 tools/src/h5stat/Makefile
+                 tools/test/Makefile
+                 tools/test/h5dump/Makefile
+                 tools/test/h5dump/h5dump_plugin.sh
+                 tools/test/h5dump/testh5dump.sh
+                 tools/test/h5dump/testh5dumppbits.sh
+                 tools/test/h5dump/testh5dumpvds.sh
+                 tools/test/h5dump/testh5dumpxml.sh
+                 tools/test/h5ls/Makefile
+                 tools/test/h5ls/h5ls_plugin.sh
+                 tools/test/h5ls/testh5ls.sh
+                 tools/test/h5ls/testh5lsvds.sh
+                 tools/test/h5import/Makefile
+                 tools/test/h5import/h5importtestutil.sh
+                 tools/test/h5diff/Makefile
+                 tools/test/h5diff/h5diff_plugin.sh
+                 tools/test/h5diff/testh5diff.sh
+                 tools/test/h5diff/testph5diff.sh
+                 tools/src/h5format_convert/Makefile
+                 tools/test/h5format_convert/Makefile
+                 tools/test/h5format_convert/testh5fc.sh
+                 tools/test/h5jam/Makefile
+                 tools/test/h5jam/testh5jam.sh
+                 tools/test/h5repack/Makefile
+                 tools/test/h5repack/h5repack.sh
+                 tools/test/h5repack/h5repack_plugin.sh
+                 tools/test/h5copy/Makefile
+                 tools/test/h5copy/testh5copy.sh
+                 tools/test/misc/Makefile
+                 tools/test/misc/testh5clear.sh
+                 tools/test/misc/testh5mkgrp.sh
+                 tools/test/misc/testh5repart.sh
+                 tools/test/misc/vds/Makefile
+                 tools/test/h5stat/Makefile
+                 tools/test/h5stat/testh5stat.sh
+                 tools/test/perform/Makefile
                  examples/Makefile
                  examples/run-c-ex.sh
                  examples/testh5cc.sh
@@ -3596,7 +3456,7 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  hl/tools/Makefile
                  hl/tools/gif2h5/Makefile
                  hl/tools/gif2h5/h52giftest.sh
-		 hl/tools/h5watch/Makefile
+                 hl/tools/h5watch/Makefile
                  hl/tools/h5watch/testh5watch.sh
                  hl/examples/Makefile
                  hl/examples/run-hlc-ex.sh
@@ -3620,7 +3480,7 @@ AC_CONFIG_COMMANDS([.classes], [], [$MKDIR_P java/src/.classes;
 
 AC_OUTPUT
 
-chmod 755 tools/misc/h5cc
+chmod 755 tools/src/misc/h5cc
 
 if test "X$HDF_FORTRAN" = "Xyes"; then
   chmod 755 fortran/src/h5fc

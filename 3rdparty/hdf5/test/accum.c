@@ -4,12 +4,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* Programmer:  Mike McGreevy
@@ -45,18 +43,18 @@
 H5F_t * f = NULL;
 
 /* Function Prototypes */
-unsigned test_write_read(const H5F_io_info_t *fio_info);
-unsigned test_write_read_nonacc_front(const H5F_io_info_t *fio_info);
-unsigned test_write_read_nonacc_end(const H5F_io_info_t *fio_info);
-unsigned test_accum_overlap(const H5F_io_info_t *fio_info);
-unsigned test_accum_overlap_clean(const H5F_io_info_t *fio_info);
-unsigned test_accum_overlap_size(const H5F_io_info_t *fio_info);
-unsigned test_accum_non_overlap_size(const H5F_io_info_t *fio_info);
-unsigned test_accum_adjust(const H5F_io_info_t *fio_info);
-unsigned test_read_after(const H5F_io_info_t *fio_info);
-unsigned test_free(const H5F_io_info_t *fio_info);
-unsigned test_big(const H5F_io_info_t *fio_info);
-unsigned test_random_write(const H5F_io_info_t *fio_info);
+unsigned test_write_read(const H5F_io_info2_t *fio_info);
+unsigned test_write_read_nonacc_front(const H5F_io_info2_t *fio_info);
+unsigned test_write_read_nonacc_end(const H5F_io_info2_t *fio_info);
+unsigned test_accum_overlap(const H5F_io_info2_t *fio_info);
+unsigned test_accum_overlap_clean(const H5F_io_info2_t *fio_info);
+unsigned test_accum_overlap_size(const H5F_io_info2_t *fio_info);
+unsigned test_accum_non_overlap_size(const H5F_io_info2_t *fio_info);
+unsigned test_accum_adjust(const H5F_io_info2_t *fio_info);
+unsigned test_read_after(const H5F_io_info2_t *fio_info);
+unsigned test_free(const H5F_io_info2_t *fio_info);
+unsigned test_big(const H5F_io_info2_t *fio_info);
+unsigned test_random_write(const H5F_io_info2_t *fio_info);
 unsigned test_swmr_write_big(hbool_t newest_format);
 
 /* Helper Function Prototypes */
@@ -90,7 +88,7 @@ void accum_printf(void);
 int
 main(void)
 {
-    H5F_io_info_t fio_info;             /* I/O info for operation */
+    H5F_io_info2_t fio_info;             /* I/O info for operation */
     unsigned nerrors = 0;        /* track errors */
     hid_t fid = -1;
 
@@ -109,7 +107,8 @@ main(void)
 
     /* Set up I/O info for operation */
     fio_info.f = f;
-    if(NULL == (fio_info.dxpl = (H5P_genplist_t *)H5I_object(H5AC_ind_read_dxpl_id))) FAIL_STACK_ERROR
+    if(NULL == (fio_info.meta_dxpl = (H5P_genplist_t *)H5I_object(H5AC_ind_read_dxpl_id))) FAIL_STACK_ERROR
+    if(NULL == (fio_info.raw_dxpl = (H5P_genplist_t *)H5I_object(H5AC_rawdata_dxpl_id))) FAIL_STACK_ERROR
 
     /* Reset metadata accumulator for the file */
     if(accum_reset(&fio_info) < 0) FAIL_STACK_ERROR
@@ -166,7 +165,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned
-test_write_read(const H5F_io_info_t *fio_info)
+test_write_read(const H5F_io_info2_t *fio_info)
 {
     int i = 0;
     int *write_buf, *read_buf;
@@ -222,7 +221,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned
-test_write_read_nonacc_front(const H5F_io_info_t *fio_info)
+test_write_read_nonacc_front(const H5F_io_info2_t *fio_info)
 {
     int i = 0;
     int *write_buf, *read_buf;
@@ -281,7 +280,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned
-test_write_read_nonacc_end(const H5F_io_info_t *fio_info)
+test_write_read_nonacc_end(const H5F_io_info2_t *fio_info)
 {
     int i = 0;
     int *write_buf, *read_buf;
@@ -340,7 +339,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned
-test_free(const H5F_io_info_t *fio_info)
+test_free(const H5F_io_info2_t *fio_info)
 {
     int i = 0;
     int32_t *wbuf = NULL;
@@ -527,7 +526,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned
-test_accum_overlap(const H5F_io_info_t *fio_info)
+test_accum_overlap(const H5F_io_info2_t *fio_info)
 {
     int i = 0;
     int32_t *wbuf, *rbuf;
@@ -699,7 +698,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned
-test_accum_overlap_clean(const H5F_io_info_t *fio_info)
+test_accum_overlap_clean(const H5F_io_info2_t *fio_info)
 {
     int i = 0;
     int32_t *wbuf, *rbuf;
@@ -878,7 +877,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned
-test_accum_non_overlap_size(const H5F_io_info_t *fio_info)
+test_accum_non_overlap_size(const H5F_io_info2_t *fio_info)
 {
     int i = 0;
     int32_t *wbuf, *rbuf;
@@ -945,7 +944,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned
-test_accum_overlap_size(const H5F_io_info_t *fio_info)
+test_accum_overlap_size(const H5F_io_info2_t *fio_info)
 {
     int i = 0;
     int32_t *wbuf, *rbuf;
@@ -1023,7 +1022,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned
-test_accum_adjust(const H5F_io_info_t *fio_info)
+test_accum_adjust(const H5F_io_info2_t *fio_info)
 {
     int i = 0;
     int s = 1048576;    /* size of buffer */
@@ -1279,7 +1278,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned 
-test_read_after(const H5F_io_info_t *fio_info)
+test_read_after(const H5F_io_info2_t *fio_info)
 {
     int i = 0;
     int s = 128;    /* size of buffer */
@@ -1358,7 +1357,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned 
-test_big(const H5F_io_info_t *fio_info)
+test_big(const H5F_io_info2_t *fio_info)
 {
     uint8_t *wbuf, *wbuf2, *rbuf, *zbuf;        /* Buffers for reading & writing, etc */
     unsigned u;                         /* Local index variable */
@@ -1666,7 +1665,7 @@ error:
  *-------------------------------------------------------------------------
  */
 unsigned 
-test_random_write(const H5F_io_info_t *fio_info)
+test_random_write(const H5F_io_info2_t *fio_info)
 {
     uint8_t *wbuf, *rbuf;       /* Buffers for reading & writing */
     unsigned seed = 0;          /* Random # seed */
@@ -1820,7 +1819,7 @@ test_swmr_write_big(hbool_t newest_format)
     pid_t pid;				    /* Process ID */
 #endif /* H5_HAVE_UNISTD_H */
     int status;				    /* Status returned from child process */
-    H5F_io_info_t fio_info;     /* I/O info for operation */
+    H5F_io_info2_t fio_info;     /* I/O info for operation */
     char *new_argv[] = {NULL};
     char *driver = NULL;        /* VFD string (from env variable) */
 
@@ -1877,7 +1876,9 @@ test_swmr_write_big(hbool_t newest_format)
 
     /* Set up I/O info for operation */
     fio_info.f = rf;
-    if(NULL == (fio_info.dxpl = (H5P_genplist_t *)H5I_object(H5AC_ind_read_dxpl_id)))
+    if(NULL == (fio_info.meta_dxpl = (H5P_genplist_t *)H5I_object(H5AC_ind_read_dxpl_id)))
+        FAIL_STACK_ERROR
+    if(NULL == (fio_info.raw_dxpl = (H5P_genplist_t *)H5I_object(H5AC_rawdata_dxpl_id)))
         FAIL_STACK_ERROR
 
     /* We'll be writing lots of garbage data, so extend the

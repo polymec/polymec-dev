@@ -4,12 +4,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -4764,7 +4762,7 @@ void pause_proc(void)
 	    }
 	    printf("waiting(%ds) for file %s ...\n", time_int, greenlight);
 	    fflush(stdout);
-	    HDsleep(time_int);
+            HDsleep(time_int);
 	}
     MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -5078,24 +5076,24 @@ int main(int argc, char **argv)
     /* Shape Same tests using contigous hyperslab */
 #if 1
     AddTest("sscontig1", sscontig1, NULL,
-	"Shape Same, contigous hyperslab, ind IO, contig datasets", PARATESTFILE);
+	"Cntg hslab, ind IO, cntg dsets", PARATESTFILE);
     AddTest("sscontig2", sscontig2, NULL,
-	"Shape Same, contigous hyperslab, col IO, contig datasets", PARATESTFILE);
+	"Cntg hslab, col IO, cntg dsets", PARATESTFILE);
     AddTest("sscontig3", sscontig3, NULL,
-	"Shape Same, contigous hyperslab, ind IO, chunked datasets", PARATESTFILE);
+	"Cntg hslab, ind IO, chnk dsets", PARATESTFILE);
     AddTest("sscontig4", sscontig4, NULL,
-	"Shape Same, contigous hyperslab, col IO, chunked datasets", PARATESTFILE);
+	"Cntg hslab, col IO, chnk dsets", PARATESTFILE);
 #endif
 
     /* Shape Same tests using checker board hyperslab */
     AddTest("sschecker1", sschecker1, NULL,
-	"Shape Same, checker hyperslab, ind IO, contig datasets", PARATESTFILE);
+	"Check hslab, ind IO, cntg dsets", PARATESTFILE);
     AddTest("sschecker2", sschecker2, NULL,
-	"Shape Same, checker hyperslab, col IO, contig datasets", PARATESTFILE);
+	"Check hslab, col IO, cntg dsets", PARATESTFILE);
     AddTest("sschecker3", sschecker3, NULL,
-	"Shape Same, checker hyperslab, ind IO, chunked datasets", PARATESTFILE);
+	"Check hslab, ind IO, chnk dsets", PARATESTFILE);
     AddTest("sschecker4", sschecker4, NULL,
-	"Shape Same, checker hyperslab, col IO, chunked datasets", PARATESTFILE);
+	"Check hslab, col IO, chnk dsets", PARATESTFILE);
 
     /* Display testing information */
     TestInfo(argv[0]);
@@ -5146,6 +5144,12 @@ int main(int argc, char **argv)
 	    printf("Shape Same tests finished with no errors\n");
 	printf("===================================\n");
     }
+
+    /* close HDF5 library */
+    H5close();
+
+    /* Release test infrastructure */
+    TestShutdown();
 
     MPI_Finalize();
 

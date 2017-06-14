@@ -199,8 +199,20 @@
 /* Define to 1 if you have the `z' library (-lz). */
 #undef HAVE_LIBZ
 
+/* Define to 1 if you have the `llround' function. */
+#undef HAVE_LLROUND
+
+/* Define to 1 if you have the `llroundf' function. */
+#undef HAVE_LLROUNDF
+
 /* Define to 1 if you have the `longjmp' function. */
 #undef HAVE_LONGJMP
+
+/* Define to 1 if you have the `lround' function. */
+#undef HAVE_LROUND
+
+/* Define to 1 if you have the `lroundf' function. */
+#undef HAVE_LROUNDF
 
 /* Define to 1 if you have the `lstat' function. */
 #undef HAVE_LSTAT
@@ -237,6 +249,12 @@
 
 /* Define to 1 if you have the `rand_r' function. */
 #undef HAVE_RAND_R
+
+/* Define to 1 if you have the `round' function. */
+#undef HAVE_ROUND
+
+/* Define to 1 if you have the `roundf' function. */
+#undef HAVE_ROUNDF
 
 /* Define to 1 if you have the `setjmp' function. */
 #undef HAVE_SETJMP
@@ -288,6 +306,12 @@
 
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
+
+/* Define to 1 if you have the `strtoll' function. */
+#undef HAVE_STRTOLL
+
+/* Define to 1 if you have the `strtoull' function. */
+#undef HAVE_STRTOULL
 
 /* Define if struct text_info is defined */
 #undef HAVE_STRUCT_TEXT_INFO

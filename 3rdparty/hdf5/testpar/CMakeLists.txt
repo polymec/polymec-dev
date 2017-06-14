@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.1.0)
+cmake_minimum_required (VERSION 3.2.2)
 PROJECT (HDF5_TEST_PAR)
 
 #-----------------------------------------------------------------------------
@@ -7,12 +7,12 @@ PROJECT (HDF5_TEST_PAR)
 add_definitions (${HDF_EXTRA_C_FLAGS})
 
 INCLUDE_DIRECTORIES (${HDF5_TEST_SRC_DIR})
-INCLUDE_DIRECTORIES (${HDF5_TOOLS_SRC_DIR}/lib )
+INCLUDE_DIRECTORIES (${HDF5_TOOLS_DIR}/lib )
 #-----------------------------------------------------------------------------
 # Define Tests
 #-----------------------------------------------------------------------------
 
-set (testphdf5_SRCS
+set (testphdf5_SOURCES
     ${HDF5_TEST_PAR_SOURCE_DIR}/testphdf5.c
     ${HDF5_TEST_PAR_SOURCE_DIR}/t_dset.c
     ${HDF5_TEST_PAR_SOURCE_DIR}/t_file.c
@@ -27,7 +27,7 @@ set (testphdf5_SRCS
 )
 
 #-- Adding test for testhdf5
-add_executable (testphdf5 ${testphdf5_SRCS})
+add_executable (testphdf5 ${testphdf5_SOURCES})
 TARGET_NAMING (testphdf5 STATIC)
 TARGET_C_PROPERTIES (testphdf5 STATIC " " " ")
 target_link_libraries (testphdf5 ${HDF5_TEST_LIB_TARGET} ${HDF5_LIB_TARGET} ${LINK_LIBS})
@@ -54,6 +54,6 @@ set (H5P_TESTS
 
 foreach (testp ${H5P_TESTS})
   ADD_H5P_EXE(${testp})
-endforeach (testp ${H5P_TESTS})
+endforeach ()
 
 include (CMakeTests.cmake)

@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -34,6 +32,9 @@
 /* Macros for printing error messages in loops.  These print up to
  * GHEAP_REPEATED_ERR_LIM errors, and suppress the rest */
 #define GHEAP_REPEATED_ERR_LIM 20
+
+/* Number of heap objects to test */
+#define GHEAP_TEST_NOBJS        1024
 
 #define GHEAP_REPEATED_ERR(MSG)                                                \
 {                                                                              \
@@ -78,16 +79,20 @@ test_1 (hid_t fapl)
 {
     hid_t	file = -1;
     H5F_t 	*f = NULL;
-    H5HG_t	obj[1024];
-    uint8_t	out[1024];
-    uint8_t	in[1024];
-    int		i;
+    H5HG_t	*obj = NULL;
+    uint8_t	out[GHEAP_TEST_NOBJS];
+    uint8_t	in[GHEAP_TEST_NOBJS];
+    size_t	u;
     size_t	size;
     herr_t	status;
     int		nerrors = 0;
     char	filename[1024];
 
     TESTING("monotonically increasing lengths");
+
+    /* Allocate buffer for H5HG_t */
+    if(NULL == (obj = (H5HG_t *)HDmalloc(sizeof(H5HG_t) * GHEAP_TEST_NOBJS)))
+        goto error;
 
     /* Open a clean file */
     h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
@@ -104,16 +109,16 @@ test_1 (hid_t fapl)
      * a clean file, the addresses allocated for the collections should also
      * be monotonically increasing.
      */
-    for(i = 0; i < 1024; i++) {
-	size = i + 1;
-	HDmemset(out, 'A' + i % 26, size);
+    for(u = 0; u < GHEAP_TEST_NOBJS; u++) {
+	size = u + 1;
+	HDmemset(out, (int)('A' + u % 26), size);
 	H5Eclear2(H5E_DEFAULT);
-	status = H5HG_insert(f, H5AC_ind_read_dxpl_id, size, out, obj + i);
+	status = H5HG_insert(f, H5AC_ind_read_dxpl_id, size, out, obj + u);
 	if(status < 0) {
 	    H5_FAILED();
 	    puts("    Unable to insert object into global heap");
 	    nerrors++;
-	} else if(i && H5F_addr_gt(obj[i - 1].addr, obj[i].addr)) {
+	} else if(u && H5F_addr_gt(obj[u - 1].addr, obj[u].addr)) {
 	    H5_FAILED();
 	    puts("    Collection addresses are not monotonically increasing");
 	    nerrors++;
@@ -123,11 +128,11 @@ test_1 (hid_t fapl)
     /*
      * Now try to read each object back.
      */
-    for(i = 0; i < 1024; i++) {
-	size = i + 1;
-	HDmemset(out, 'A' + i % 26, size);
+    for(u = 0; u < GHEAP_TEST_NOBJS; u++) {
+	size = u + 1;
+	HDmemset(out, (int)('A' + u % 26), size);
 	H5Eclear2(H5E_DEFAULT);
-	if(NULL == H5HG_read(f, H5AC_ind_read_dxpl_id, obj + i, in, NULL)) {
+	if(NULL == H5HG_read(f, H5AC_ind_read_dxpl_id, obj + u, in, NULL)) {
 	    H5_FAILED();
 	    puts("    Unable to read object");
 	    nerrors++;
@@ -137,6 +142,10 @@ test_1 (hid_t fapl)
 	    nerrors++;
 	}
     }
+
+    /* Release buffer */
+    HDfree(obj);
+    obj = NULL;
 
     if(H5Fclose(file) < 0) goto error;
     if(nerrors) goto error;
@@ -148,6 +157,8 @@ error:
     H5E_BEGIN_TRY {
 	H5Fclose(file);
     } H5E_END_TRY;
+    if(obj)
+        HDfree(obj);
     return MAX(1, nerrors);
 }
 
@@ -174,15 +185,19 @@ test_2 (hid_t fapl)
 {
     hid_t	file = -1;
     H5F_t 	*f = NULL;
-    H5HG_t	obj[1024];
-    uint8_t	out[1024];
-    uint8_t	in[1024];
-    int		i;
+    H5HG_t	*obj = NULL;
+    uint8_t	out[GHEAP_TEST_NOBJS];
+    uint8_t	in[GHEAP_TEST_NOBJS];
+    size_t	u;
     size_t	size;
     int		nerrors = 0;
     char	filename[1024];
 
     TESTING("monotonically decreasing lengths");
+
+    /* Allocate buffer for H5HG_t */
+    if(NULL == (obj = (H5HG_t *)HDmalloc(sizeof(H5HG_t) * GHEAP_TEST_NOBJS)))
+        goto error;
 
     /* Open a clean file */
     h5_fixname(FILENAME[1], fapl, filename, sizeof filename);
@@ -197,11 +212,11 @@ test_2 (hid_t fapl)
     /*
      * Write the objects, monotonically decreasing in length.
      */
-    for (i=0; i<1024; i++) {
-	size = 1024-i;
-	memset (out, 'A'+i%26, size);
+    for(u = 0; u < GHEAP_TEST_NOBJS; u++) {
+	size = GHEAP_TEST_NOBJS - u;
+	HDmemset(out, (int)('A' + u % 26), size);
 	H5Eclear2(H5E_DEFAULT);
-	if (H5HG_insert (f, H5AC_ind_read_dxpl_id, size, out, obj+i)<0) {
+	if (H5HG_insert (f, H5AC_ind_read_dxpl_id, size, out, obj + u) < 0) {
 	    H5_FAILED();
 	    puts("    Unable to insert object into global heap");
 	    nerrors++;
@@ -211,11 +226,11 @@ test_2 (hid_t fapl)
     /*
      * Now try to read each object back.
      */
-    for (i=0; i<1024; i++) {
-	size = 1024-i;
-	memset (out, 'A'+i%26, size);
+    for(u = 0; u < GHEAP_TEST_NOBJS; u++) {
+	size = GHEAP_TEST_NOBJS - u;
+	HDmemset(out, (int)('A' + u % 26), size);
 	H5Eclear2(H5E_DEFAULT);
-	if (NULL==H5HG_read (f, H5AC_ind_read_dxpl_id, obj+i, in, NULL)) {
+	if (NULL==H5HG_read (f, H5AC_ind_read_dxpl_id, obj + u, in, NULL)) {
 	    H5_FAILED();
 	    puts("    Unable to read object");
 	    nerrors++;
@@ -226,8 +241,13 @@ test_2 (hid_t fapl)
 	}
     }
 
+    /* Release buffer */
+    HDfree(obj);
+    obj = NULL;
+
     if (H5Fclose(file)<0) goto error;
     if (nerrors) goto error;
+
     PASSED();
     return 0;
 
@@ -235,6 +255,8 @@ test_2 (hid_t fapl)
     H5E_BEGIN_TRY {
 	H5Fclose(file);
     } H5E_END_TRY;
+    if(obj)
+        HDfree(obj);
     return MAX(1, nerrors);
 }
 
@@ -261,15 +283,19 @@ test_3 (hid_t fapl)
 {
     hid_t	file = -1;
     H5F_t 	*f = NULL;
-    H5HG_t	obj[1024];
-    uint8_t	out[1024];
-    int		i;
+    H5HG_t	*obj = NULL;
+    uint8_t	out[GHEAP_TEST_NOBJS];
+    size_t	u;
     size_t	size;
     herr_t	status;
     int		nerrors = 0;
     char	filename[1024];
 
     TESTING("complete object removal");
+
+    /* Allocate buffer for H5HG_t */
+    if(NULL == (obj = (H5HG_t *)HDmalloc(sizeof(H5HG_t) * GHEAP_TEST_NOBJS)))
+        goto error;
 
     /* Open a clean file */
     h5_fixname(FILENAME[2], fapl, filename, sizeof filename);
@@ -282,11 +308,11 @@ test_3 (hid_t fapl)
     }
 
     /* Create some stuff */
-    for (i=0; i<1024; i++) {
-	size = i%30+100;
-	memset (out, 'A'+i%26, size);
+    for(u = 0; u < GHEAP_TEST_NOBJS; u++) {
+	size = u % 30 + 100;
+	HDmemset(out, (int)('A' + u % 26), size);
 	H5Eclear2(H5E_DEFAULT);
-	status = H5HG_insert (f, H5AC_ind_read_dxpl_id, size, out, obj+i);
+	status = H5HG_insert (f, H5AC_ind_read_dxpl_id, size, out, obj + u);
 	if (status<0) {
 	    H5_FAILED();
 	    puts("    Unable to insert object into global heap");
@@ -295,8 +321,8 @@ test_3 (hid_t fapl)
     }
 
     /* Remove everything */
-    for (i=0; i<1024; i++) {
-	status = H5HG_remove (f, H5AC_ind_read_dxpl_id, obj+i);
+    for(u = 0; u < GHEAP_TEST_NOBJS; u++) {
+	status = H5HG_remove (f, H5AC_ind_read_dxpl_id, obj + u);
 	if (status<0) {
 	    H5_FAILED();
 	    puts("    Unable to remove object");
@@ -304,8 +330,13 @@ test_3 (hid_t fapl)
 	}
     }
 
+    /* Release buffer */
+    HDfree(obj);
+    obj = NULL;
+
     if (H5Fclose(file)<0) goto error;
     if (nerrors) goto error;
+
     PASSED();
     return 0;
 
@@ -313,6 +344,8 @@ test_3 (hid_t fapl)
     H5E_BEGIN_TRY {
 	H5Fclose(file);
     } H5E_END_TRY;
+    if(obj)
+        HDfree(obj);
     return MAX(1, nerrors);
 }
 
@@ -340,15 +373,19 @@ test_4 (hid_t fapl)
 {
     hid_t	file = -1;
     H5F_t 	*f = NULL;
-    H5HG_t	obj[1024];
-    uint8_t	out[1024];
-    int		i;
+    H5HG_t	*obj = NULL;
+    uint8_t	out[GHEAP_TEST_NOBJS];
+    size_t	u;
     size_t	size;
     herr_t	status;
     int		nerrors = 0;
     char	filename[1024];
 
     TESTING("partial object removal");
+
+    /* Allocate buffer for H5HG_t */
+    if(NULL == (obj = (H5HG_t *)HDmalloc(sizeof(H5HG_t) * GHEAP_TEST_NOBJS)))
+        goto error;
 
     /* Open a clean file */
     h5_fixname(FILENAME[3], fapl, filename, sizeof filename);
@@ -360,12 +397,12 @@ test_4 (hid_t fapl)
 	goto error;
     }
 
-    for (i=0; i<1024; i++) {
+    for(u = 0; u < GHEAP_TEST_NOBJS; u++) {
 	/* Insert */
-	size = i%30+100;
-	memset (out, 'A'+i%26, size);
+	size = u % 30 + 100;
+	HDmemset(out, (int)('A' + u % 26), size);
 	H5Eclear2(H5E_DEFAULT);
-	status = H5HG_insert (f, H5AC_ind_read_dxpl_id, size, out, obj+i);
+	status = H5HG_insert (f, H5AC_ind_read_dxpl_id, size, out, obj + u);
 	if (status<0) {
 	    H5_FAILED();
 	    puts("    Unable to insert object into global heap");
@@ -377,20 +414,25 @@ test_4 (hid_t fapl)
 	 * next one has already been inserted.  That is, insert A, B, C;
 	 * remove B, insert D, E, F; remove E; etc.
 	 */
-	if (1==i%3) {
+	if(1 == (u % 3)) {
 	    H5Eclear2(H5E_DEFAULT);
-	    status = H5HG_remove (f, H5AC_ind_read_dxpl_id, obj+i-1);
+	    status = H5HG_remove (f, H5AC_ind_read_dxpl_id, obj + u - 1);
 	    if (status<0) {
 		H5_FAILED();
 		puts("    Unable to remove object");
 		nerrors++;
 	    }
-	    memset (obj+i-1, 0, sizeof *obj);
+	    HDmemset(obj + u - 1, 0, sizeof *obj);
 	}
     }
 
+    /* Release buffer */
+    HDfree(obj);
+    obj = NULL;
+
     if (H5Fclose(file)<0) goto error;
     if (nerrors) goto error;
+
     PASSED();
     return 0;
 
@@ -398,6 +440,8 @@ test_4 (hid_t fapl)
     H5E_BEGIN_TRY {
 	H5Fclose(file);
     } H5E_END_TRY;
+    if(obj)
+        HDfree(obj);
     return MAX(1, nerrors);
 }
 

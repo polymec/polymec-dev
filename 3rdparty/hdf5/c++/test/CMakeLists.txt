@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.1.0)
+cmake_minimum_required (VERSION 3.2.2)
 PROJECT (HDF5_CPP_TEST)
 # --------------------------------------------------------------------
 # Notes: When creating unit test executables they should be prefixed
@@ -11,7 +11,7 @@ PROJECT (HDF5_CPP_TEST)
 #-----------------------------------------------------------------------------
 # Define Sources
 #-----------------------------------------------------------------------------
-set (CPP_TEST_SRCS
+set (CPP_TEST_SOURCES
     ${HDF5_CPP_TEST_SOURCE_DIR}/testhdf5.cpp
     ${HDF5_CPP_TEST_SOURCE_DIR}/tarray.cpp
     ${HDF5_CPP_TEST_SOURCE_DIR}/tattr.cpp
@@ -20,6 +20,7 @@ set (CPP_TEST_SRCS
     ${HDF5_CPP_TEST_SOURCE_DIR}/tfile.cpp
     ${HDF5_CPP_TEST_SOURCE_DIR}/tfilter.cpp
     ${HDF5_CPP_TEST_SOURCE_DIR}/th5s.cpp
+    ${HDF5_CPP_TEST_SOURCE_DIR}/titerate.cpp
     ${HDF5_CPP_TEST_SOURCE_DIR}/tlinks.cpp
     ${HDF5_CPP_TEST_SOURCE_DIR}/tobject.cpp
     ${HDF5_CPP_TEST_SOURCE_DIR}/trefer.cpp
@@ -35,7 +36,7 @@ set (CPP_TEST_SRCS
 set (srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 configure_file (${HDF5_CPP_TEST_SOURCE_DIR}/H5srcdir_str.h.in H5srcdir_str.h  @ONLY)
 
-add_executable (cpp_testhdf5 ${CPP_TEST_SRCS} )
+add_executable (cpp_testhdf5 ${CPP_TEST_SOURCES} )
 TARGET_NAMING (cpp_testhdf5 STATIC)
 TARGET_C_PROPERTIES (cpp_testhdf5 STATIC " " " ")
 target_link_libraries (cpp_testhdf5
@@ -46,13 +47,6 @@ target_link_libraries (cpp_testhdf5
 set_target_properties (cpp_testhdf5 PROPERTIES
     FOLDER test/cpp
     INTERFACE_INCLUDE_DIRECTORIES "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include>"
-)
-
-add_custom_command (
-    TARGET     cpp_testhdf5
-    POST_BUILD
-    COMMAND    ${CMAKE_COMMAND}
-    ARGS       -E copy_if_different ${HDF5_CPP_TEST_SOURCE_DIR}/th5s.h5 ${PROJECT_BINARY_DIR}/th5s.h5
 )
 
 include (CMakeTests.cmake)

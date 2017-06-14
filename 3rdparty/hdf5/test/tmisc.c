@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
@@ -466,7 +464,7 @@ static void test_misc2_write_attribute(void)
     CHECK(ret, FAIL, "H5Dvlen_reclaim");
 
     ret = H5Aclose(att1);
-    CHECK(ret, FAIL, "HAclose");
+    CHECK(ret, FAIL, "H5Aclose");
 
     ret = H5Gclose(root1);
     CHECK(ret, FAIL, "H5Gclose");
@@ -492,7 +490,7 @@ static void test_misc2_write_attribute(void)
     CHECK(ret, FAIL, "H5Dvlen_reclaim");
 
     ret = H5Aclose(att2);
-    CHECK(ret, FAIL, "HAclose");
+    CHECK(ret, FAIL, "H5Aclose");
 
     ret = H5Gclose(root2);
     CHECK(ret, FAIL, "H5Gclose");
@@ -1819,8 +1817,9 @@ test_misc11(void)
     unsigned    sym_lk;         /* Symbol table B-tree leaf 'K' value */
     unsigned 	nindexes;       /* Shared message number of indexes */
     H5F_info2_t finfo;          /* global information about file */
-    H5F_file_space_type_t strategy;  /* File/free space strategy */
+    H5F_fspace_strategy_t strategy;  /* File space strategy */
     hsize_t  	threshold;      /* Free-space section threshold */
+    hbool_t	persist;	/* To persist free-space or not */
     herr_t      ret;            /* Generic return value */
 
     /* Output message about test being performed */
@@ -1878,11 +1877,11 @@ test_misc11(void)
     ret=H5Pset_shared_mesg_nindexes(fcpl,MISC11_NINDEXES);
     CHECK(ret, FAIL, "H5Pset_shared_mesg");
 
-    ret = H5Pset_file_space(fcpl, H5F_FILE_SPACE_VFD, (hsize_t)0);
+    ret = H5Pset_file_space_strategy(fcpl, H5F_FSPACE_STRATEGY_NONE, FALSE, (hsize_t)1);
     CHECK(ret, FAIL, "H5Pset_file_space");
 
     /* Creating a file with the non-default file creation property list should
-     * create a version 1 superblock
+     * create a version 2 superblock
      */
 
     /* Create file with custom file creation property list */
@@ -1942,10 +1941,11 @@ test_misc11(void)
     CHECK(ret, FAIL, "H5Pget_shared_mesg_nindexes");
     VERIFY(nindexes, MISC11_NINDEXES, "H5Pget_shared_mesg_nindexes");
 
-    ret = H5Pget_file_space(fcpl, &strategy, &threshold);
-    CHECK(ret, FAIL, "H5Pget_file_space");
-    VERIFY(strategy, 4, "H5Pget_file_space");
-    VERIFY(threshold, 1, "H5Pget_file_space");
+    ret = H5Pget_file_space_strategy(fcpl, &strategy, &persist, &threshold);
+    CHECK(ret, FAIL, "H5Pget_file_space_strategy");
+    VERIFY(strategy, 3, "H5Pget_file_space_strategy");
+    VERIFY(persist, FALSE, "H5Pget_file_space_strategy");
+    VERIFY(threshold, 1, "H5Pget_file_space_strategy");
 
     /* Close file */
     ret=H5Fclose(file);
@@ -2928,18 +2928,18 @@ test_misc18(void)
         CHECK(aid, FAIL, "H5Acreate2");
 
         ret = H5Aclose(aid);
-        CHECK(ret, FAIL, "HAclose");
+        CHECK(ret, FAIL, "H5Aclose");
 
         /* Create & close attribute on second dataset */
         aid = H5Acreate2(did2, attr_name, H5T_STD_U32LE, sid, H5P_DEFAULT, H5P_DEFAULT);
         CHECK(aid, FAIL, "H5Acreate2");
 
         ret = H5Aclose(aid);
-        CHECK(ret, FAIL, "HAclose");
+        CHECK(ret, FAIL, "H5Aclose");
 
         /* Flush file, to 'fix' size of dataset object headers */
         ret = H5Fflush(fid,H5F_SCOPE_GLOBAL);
-        CHECK(ret, FAIL, "HAclose");
+        CHECK(ret, FAIL, "H5Fflush");
     } /* end for */
 
     /* Get object information for dataset #1 now */

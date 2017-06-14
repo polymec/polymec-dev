@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -74,7 +72,7 @@ char  *paraprefix = NULL;  /* for command line option para-prefix */
 MPI_Info    h5_io_info_g=MPI_INFO_NULL;/* MPI INFO object for IO */
 #endif
 
-#define READ_BUF_SIZE           4096
+#define READ_BUF_SIZE           65536
 
 /*
  * These are the letters that are appended to the file name when generating
@@ -89,6 +87,15 @@ MPI_Info    h5_io_info_g=MPI_INFO_NULL;/* MPI INFO object for IO */
  *  o: object headers
  */
 static const char *multi_letters = "msbrglo";
+
+/* Length of multi-file VFD filename buffers */
+#define H5TEST_MULTI_FILENAME_LEN       1024
+
+/* Temporary file for sending signal messages */
+#define TMP_SIGNAL_FILE "tmp_signal_file"
+
+/* The # of seconds to wait for the message file--used by h5_wait_message() */
+#define MESSAGE_TIMEOUT         300             /* Timeout in seconds */
 
 /* Previous error reporting function */
 static H5E_auto2_t err_func = NULL;
@@ -196,7 +203,7 @@ h5_clean_files(const char *base_name[], hid_t fapl)
  *
  * Purpose      Clean up temporary test files.
  *
- *              When a test calls h5_fixname() get a VFD-dependent
+ *              When a test calls h5_fixname() to get a VFD-dependent
  *              test file name, this function can be used to clean it up.
  *
  * Return:      void
@@ -767,35 +774,32 @@ h5_fixname_real(const char *base_name, hid_t fapl, const char *_suffix,
  *
  *-------------------------------------------------------------------------
  */
-const char *
+H5_ATTR_PURE const char *
 h5_rmprefix(const char *filename)
 {
     const char *ret_ptr;
 
     if ((ret_ptr = HDstrstr(filename, ":")) == NULL)
-  ret_ptr = filename;
+        ret_ptr = filename;
     else
-  ret_ptr++;
+        ret_ptr++;
 
     return(ret_ptr);
 }
 
 
 /*-------------------------------------------------------------------------
- * Function:  h5_fileaccess
+ * Function:    h5_fileaccess
  *
- * Purpose:  Returns a file access template which is the default template
- *    but with a file driver set according to the constant or
- *    environment variable HDF5_DRIVER
+ * Purpose:     Returns a file access template which is the default template
+ *              but with a file driver set according to the constant or
+ *              environment variable HDF5_DRIVER
  *
- * Return:  Success:  A file access property list
- *
- *    Failure:  -1
+ * Return:      Success:  A file access property list
+ *              Failure:  -1
  *
  * Programmer:  Robb Matzke
  *              Thursday, November 19, 1998
- *
- * Modifications:
  *
  *-------------------------------------------------------------------------
  */
@@ -804,50 +808,61 @@ h5_fileaccess(void)
 {
     const char  *val = NULL;
     const char  *name;
-    char s[1024];
-    hid_t fapl = -1;
+    char        s[1024];
+    hid_t       fapl = -1;
 
     /* First use the environment variable, then the constant */
     val = HDgetenv("HDF5_DRIVER");
 #ifdef HDF5_DRIVER
-    if (!val)
+    if(!val)
         val = HDF5_DRIVER;
 #endif
 
-    if ((fapl=H5Pcreate(H5P_FILE_ACCESS))<0)
+    if((fapl = H5Pcreate(H5P_FILE_ACCESS)) < 0)
         return -1;
-    if (!val || !*val)
-        return fapl; /*use default*/
+    if(!val || !*val)
+        return fapl; /* use default */
 
     HDstrncpy(s, val, sizeof s);
     s[sizeof(s)-1] = '\0';
-    if (NULL==(name=HDstrtok(s, " \t\n\r"))) return fapl;
+    if(NULL == (name = HDstrtok(s, " \t\n\r")))
+        return fapl;
 
-    if (!HDstrcmp(name, "sec2")) {
+    if(!HDstrcmp(name, "sec2")) {
         /* Unix read() and write() system calls */
-        if (H5Pset_fapl_sec2(fapl)<0) return -1;
-    } else if (!HDstrcmp(name, "stdio")) {
-        /* Standard C fread() and fwrite() system calls */
-        if (H5Pset_fapl_stdio(fapl)<0) return -1;
-    } else if (!HDstrcmp(name, "core")) {
-        /* In-memory driver settings (backing store on, 1 MB increment) */
-        if (H5Pset_fapl_core(fapl, (size_t)1, TRUE)<0) return -1;
-    } else if (!HDstrcmp(name, "core_paged")) {
-        /* In-memory driver with write tracking and paging on */
-        if (H5Pset_fapl_core(fapl, (size_t)1, TRUE)<0) return -1;
-        if (H5Pset_core_write_tracking(fapl, TRUE, (size_t)4096)<0) return -1;
-     } else if (!HDstrcmp(name, "split")) {
-        /* Split meta data and raw data each using default driver */
-        if (H5Pset_fapl_split(fapl,
-            "-m.h5", H5P_DEFAULT,
-            "-r.h5", H5P_DEFAULT)<0)
+        if (H5Pset_fapl_sec2(fapl) < 0)
             return -1;
-    } else if (!HDstrcmp(name, "multi")) {
+    }
+    else if(!HDstrcmp(name, "stdio")) {
+        /* Standard C fread() and fwrite() system calls */
+        if (H5Pset_fapl_stdio(fapl) < 0)
+            return -1;
+    }
+    else if(!HDstrcmp(name, "core")) {
+        /* In-memory driver settings (backing store on, 1 MB increment) */
+        if(H5Pset_fapl_core(fapl, (size_t)1, TRUE) < 0)
+            return -1;
+    }
+    else if(!HDstrcmp(name, "core_paged")) {
+        /* In-memory driver with write tracking and paging on */
+        if(H5Pset_fapl_core(fapl, (size_t)1, TRUE) < 0)
+            return -1;
+        if(H5Pset_core_write_tracking(fapl, TRUE, (size_t)4096) < 0)
+            return -1;
+    }
+    else if(!HDstrcmp(name, "split")) {
+        /* Split meta data and raw data each using default driver */
+        if(H5Pset_fapl_split(fapl,
+            "-m.h5", H5P_DEFAULT,
+            "-r.h5", H5P_DEFAULT) < 0)
+            return -1;
+    }
+    else if(!HDstrcmp(name, "multi")) {
         /* Multi-file driver, general case of the split driver */
         H5FD_mem_t memb_map[H5FD_MEM_NTYPES];
         hid_t memb_fapl[H5FD_MEM_NTYPES];
         const char *memb_name[H5FD_MEM_NTYPES];
-        char sv[H5FD_MEM_NTYPES][1024];
+        char *sv[H5FD_MEM_NTYPES];
         haddr_t memb_addr[H5FD_MEM_NTYPES];
         H5FD_mem_t  mt;
 
@@ -858,45 +873,52 @@ h5_fileaccess(void)
 
         HDassert(HDstrlen(multi_letters)==H5FD_MEM_NTYPES);
         for(mt = H5FD_MEM_DEFAULT; mt < H5FD_MEM_NTYPES; H5_INC_ENUM(H5FD_mem_t, mt)) {
-          memb_fapl[mt] = H5P_DEFAULT;
-            sprintf(sv[mt], "%%s-%c.h5", multi_letters[mt]);
+            memb_fapl[mt] = H5P_DEFAULT;
+            if(NULL == (sv[mt] = (char *)HDmalloc(H5TEST_MULTI_FILENAME_LEN)))
+                return -1;
+            HDsprintf(sv[mt], "%%s-%c.h5", multi_letters[mt]);
             memb_name[mt] = sv[mt];
             memb_addr[mt] = (haddr_t)MAX(mt - 1, 0) * (HADDR_MAX / 10);
         } /* end for */
 
-        if (H5Pset_fapl_multi(fapl, memb_map, memb_fapl, memb_name,
-          memb_addr, FALSE)<0) {
+        if(H5Pset_fapl_multi(fapl, memb_map, memb_fapl, memb_name, memb_addr, FALSE) < 0)
             return -1;
-        }
-    } else if (!HDstrcmp(name, "family")) {
+
+        for(mt = H5FD_MEM_DEFAULT; mt < H5FD_MEM_NTYPES; H5_INC_ENUM(H5FD_mem_t, mt))
+            HDfree(sv[mt]);
+    }
+    else if(!HDstrcmp(name, "family")) {
         hsize_t fam_size = 100*1024*1024; /*100 MB*/
 
         /* Family of files, each 1MB and using the default driver */
-        if ((val=HDstrtok(NULL, " \t\n\r")))
+        if((val = HDstrtok(NULL, " \t\n\r")))
             fam_size = (hsize_t)(HDstrtod(val, NULL) * 1024*1024);
-        if (H5Pset_fapl_family(fapl, fam_size, H5P_DEFAULT)<0)
+        if(H5Pset_fapl_family(fapl, fam_size, H5P_DEFAULT)<0)
             return -1;
-    } else if (!HDstrcmp(name, "log")) {
+    }
+    else if(!HDstrcmp(name, "log")) {
         unsigned log_flags = H5FD_LOG_LOC_IO | H5FD_LOG_ALLOC;
 
         /* Log file access */
-        if ((val = HDstrtok(NULL, " \t\n\r")))
+        if((val = HDstrtok(NULL, " \t\n\r")))
             log_flags = (unsigned)HDstrtol(val, NULL, 0);
-
-        if (H5Pset_fapl_log(fapl, NULL, log_flags, (size_t)0) < 0)
+        if(H5Pset_fapl_log(fapl, NULL, log_flags, (size_t)0) < 0)
             return -1;
-    } else if (!HDstrcmp(name, "direct")) {
+    }
+    else if(!HDstrcmp(name, "direct")) {
 #ifdef H5_HAVE_DIRECT
         /* Linux direct read() and write() system calls.  Set memory boundary, file block size,
          * and copy buffer size to the default values. */
-        if (H5Pset_fapl_direct(fapl, 1024, 4096, 8*4096)<0)
+        if(H5Pset_fapl_direct(fapl, 1024, 4096, 8 * 4096) < 0)
             return -1;
 #endif
-    } else if(!HDstrcmp(name, "latest")) {
+    }
+    else if(!HDstrcmp(name, "latest")) {
         /* use the latest format */
         if(H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0)
             return -1;
-    } else {
+    }
+    else {
         /* Unknown driver */
         return -1;
     }
@@ -979,7 +1001,7 @@ h5_get_vfd_fapl(void)
         H5FD_mem_t  memb_map[H5FD_MEM_NTYPES];
         hid_t       memb_fapl[H5FD_MEM_NTYPES];
         const char  *memb_name[H5FD_MEM_NTYPES];
-        char        sv[H5FD_MEM_NTYPES][1024];
+        char        *sv[H5FD_MEM_NTYPES];
         haddr_t     memb_addr[H5FD_MEM_NTYPES];
         H5FD_mem_t  mt;
 
@@ -991,15 +1013,18 @@ h5_get_vfd_fapl(void)
         HDassert(HDstrlen(multi_letters) == H5FD_MEM_NTYPES);
         for(mt = H5FD_MEM_DEFAULT; mt < H5FD_MEM_NTYPES; H5_INC_ENUM(H5FD_mem_t, mt)) {
             memb_fapl[mt] = H5P_DEFAULT;
+            sv[mt] = (char *)HDmalloc(H5TEST_MULTI_FILENAME_LEN);
+            HDassert(sv[mt]);
             HDsprintf(sv[mt], "%%s-%c.h5", multi_letters[mt]);
             memb_name[mt] = sv[mt];
             memb_addr[mt] = (haddr_t)MAX(mt - 1, 0) * (HADDR_MAX / 10);
         } /* end for */
 
-        if(H5Pset_fapl_multi(fapl, memb_map, memb_fapl, memb_name,
-          memb_addr, FALSE) < 0) {
+        if(H5Pset_fapl_multi(fapl, memb_map, memb_fapl, memb_name, memb_addr, FALSE) < 0)
             return -1;
-        } /* end if */
+
+        for(mt = H5FD_MEM_DEFAULT; mt < H5FD_MEM_NTYPES; H5_INC_ENUM(H5FD_mem_t, mt))
+            HDfree(sv[mt]);
     } else if(!HDstrcmp(tok, "family")) {
         /* Family of files, each 1MB and using the default driver */
         hsize_t fam_size = 100*1024*1024; /*100 MB*/
@@ -1563,25 +1588,43 @@ h5_make_local_copy(const char *origfilename, const char *local_copy_name)
 {
     int fd_old = (-1), fd_new = (-1);   /* File descriptors for copying data */
     ssize_t nread;                      /* Number of bytes read in */
-    char  buf[READ_BUF_SIZE];           /* Buffer for copying data */
-    const char *filename = H5_get_srcdir_filename(origfilename);;       /* Get the test file name to copy */
+    void  *buf = NULL;                  /* Buffer for copying data */
+    const char *filename = H5_get_srcdir_filename(origfilename);       /* Get the test file name to copy */
+
+    /* Allocate copy buffer */
+    if(NULL == (buf = HDcalloc((size_t)1, (size_t)READ_BUF_SIZE)))
+        goto error;
 
     /* Copy old file into temporary file */
     if((fd_old = HDopen(filename, O_RDONLY, 0666)) < 0)
-        return -1;
+        goto error;
     if((fd_new = HDopen(local_copy_name, O_RDWR|O_CREAT|O_TRUNC, 0666)) < 0)
-        return -1;
+        goto error;
 
     /* Copy data */
     while((nread = HDread(fd_old, buf, (size_t)READ_BUF_SIZE)) > 0)
         if(HDwrite(fd_new, buf, (size_t)nread) < 0)
-            return -1;
-
+            goto error;
+ 
     /* Close files */
-    if(HDclose(fd_old) < 0) return -1;
-    if(HDclose(fd_new) < 0) return -1;
+    if(HDclose(fd_old) < 0)
+        goto error;
+    if(HDclose(fd_new) < 0)
+        goto error;
+
+    /* Release memory */
+    HDfree(buf);
 
     return 0;
+
+error:
+    /* ignore return values since we're already noted the problem */
+    if(fd_old > 0)
+        HDclose(fd_old);
+    if(fd_new > 0)
+        HDclose(fd_new);
+    HDfree(buf);
+    return -1;
 } /* end h5_make_local_copy() */
 
 
@@ -1672,56 +1715,116 @@ error:
     return -1;
 }
 
-/*
- * To send a message by creating the file.
- * This is a helper routine used in:
- *	1) tfile.c: test_file_lock_concur() and test_file_lock_swmr_concur()
- *	2) use_common.c
- *	3) swmr_addrme_writer.c, swmr_remove_writer.c, swmr_sparse_writer.c, swmr_writer.c
+/*-------------------------------------------------------------------------
+ * Function:    h5_send_message
+ * 
+ * Purpose:     Sends the specified signal.
+ * 
+ *              In terms of this test framework, a signal consists of a file
+ *              on disk. Since there are multiple processes that need to 
+ *              communicate with each other, they do so by writing and
+ *              reading signal files on disk, the names and contents of 
+ *              which are used to inform a process about when it can
+ *              proceed and what it should do next.
+ * 
+ *              This function writes a signal file. The first argument is
+ *              the name of the signal file, and the second and third
+ *              arguments are the contents of the first two lines of the
+ *              signal file. The last two arguments may be NULL.
+ *
+ * Return:      void
+ *
+ * Programmer:  Mike McGreevy
+ *              August 18, 2010
+ * 
+ *-------------------------------------------------------------------------
  */
 void
-h5_send_message(const char *file)
+h5_send_message(const char *send, const char *arg1, const char *arg2)
 {
-    FILE *id;
+    FILE *signalfile = NULL;
 
-    id = HDfopen(file, "w+");
-    HDfclose(id);
+    /* Create signal file (which will send signal to some other process) */
+    signalfile = HDfopen(TMP_SIGNAL_FILE, "w+");
+
+    /* Write messages to signal file, if provided */
+    if(arg2 != NULL) {
+        HDassert(arg1);
+        HDfprintf(signalfile, "%s\n%s\n", arg1, arg2);
+    } /* end if */
+    else if(arg1 != NULL) {
+        HDassert(arg2 == NULL);
+        HDfprintf(signalfile, "%s\n", arg1);
+    } /* end if */ 
+    else {
+        HDassert(arg1 == NULL);
+        HDassert(arg2 == NULL);
+    }/* end else */
+
+    HDfclose(signalfile);
+
+    HDrename(TMP_SIGNAL_FILE, send);
 } /* h5_send_message() */
 
-/*
- * Repeatedly check for the message file.
- * It will stop when the file exists or exceeds the timeout limit.
- * This is a helper routine used in:
- *	1) tfile.c: test_file_lock_concur() and test_file_lock_swmr_concur()
- *	2) use_common.c
+/*-------------------------------------------------------------------------
+ * Function:    h5_wait_message
+ * 
+ * Purpose:     Waits for the specified signal.
+ * 
+ *              In terms of this test framework, a signal consists of a file
+ *              on disk. Since there are multiple processes that need to 
+ *              communicate with each other, they do so by writing and
+ *              reading signal files on disk, the names and contents of 
+ *              which are used to inform a process about when it can
+ *              proceed and what it should do next.
+ * 
+ *              This function continuously attempts to read the specified
+ *              signal file from disk, and only continues once it has
+ *              successfully done so (i.e., only after another process has
+ *              called the "h5_send_message" function to write the signal file).
+ *              This functon will then immediately remove the file (i.e., 
+ *              to indicate that it has been received and can be reused), 
+ *              and then exits, allowing the calling function to continue.
+ *
+ * Return:      void
+ *
+ * Programmer:  Mike McGreevy
+ *              August 18, 2010
+ * 
+ *-------------------------------------------------------------------------
  */
-int
-h5_wait_message(const char *file)
+herr_t
+h5_wait_message(const char *waitfor) 
 {
-    FILE *id;           /* File pointer */
-    time_t t0, t1;      /* Time info */
+    FILE *returnfile;
+    time_t t0,t1;
 
-    /* Start timer */
+    /* Start timer. If this function runs for too long (i.e., 
+        expected signal is never received), it will
+        return failure */
     HDtime(&t0);
 
-    /* Repeatedly check whether the file exists */
-    while((id = HDfopen(file, "r")) == NULL) {
-        /* Get current time */
+    /* Wait for return signal from some other process */
+    while ((returnfile = HDfopen(waitfor, "r")) == NULL) {
+
+        /* make note of current time. */
         HDtime(&t1);
-        /*
-         * Determine time difference--
-         *   if waiting too long for the message, then it is
-         *   unlikely the message will get sent, then fail rather
-         *   than loop forever.
-         */
-        if(HDdifftime(t1, t0) > MESSAGE_TIMEOUT)
-            goto done;
-    }
 
-    if(id != NULL) HDfclose(id);
-    HDunlink(file);
-    return(1);
+        /* If we've been waiting for a signal for too long, then
+            it was likely never sent and we should fail rather
+            than loop infinitely */
+        if(HDdifftime(t1, t0) > MESSAGE_TIMEOUT) {
+            HDfprintf(stdout, "Error communicating between processes. Make sure test script is running.\n");
+            TEST_ERROR;
+        } /* end if */
+    } /* end while */
 
-done:
-    return(-1);
+    HDfclose(returnfile);
+    HDunlink(waitfor);
+
+    return SUCCEED;
+
+error:
+    return FAIL;
 } /* h5_wait_message() */
+

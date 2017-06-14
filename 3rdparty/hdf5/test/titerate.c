@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
@@ -72,7 +70,7 @@ herr_t aiter_cb(hid_t group, const char *name, const H5A_info_t *ainfo,
 **  iter_strcmp(): String comparison routine for qsort
 **
 ****************************************************************/
-int iter_strcmp(const void *s1, const void *s2)
+H5_ATTR_PURE int iter_strcmp(const void *s1, const void *s2)
 {
     return(HDstrcmp(*(const char * const *)s1,*(const char * const *)s2));
 }
@@ -283,7 +281,8 @@ test_iter_group(hid_t fapl, hbool_t new_format)
     /* Test all objects in group, when callback always returns 1 */
     /* This also tests the "restarting" ability, because the index changes */
     info.command = RET_TWO;
-    idx = i = 0;
+    i = 0;
+    idx = 0;
     while((ret = H5Literate(file, H5_INDEX_NAME, H5_ITER_INC, &idx, liter_cb, &info)) > 0) {
         /* Verify return value from iterator gets propagated correctly */
         VERIFY(ret, 2, "H5Literate");
@@ -308,7 +307,8 @@ test_iter_group(hid_t fapl, hbool_t new_format)
     /* Test all objects in group, when callback changes return value */
     /* This also tests the "restarting" ability, because the index changes */
     info.command = new_format ? RET_CHANGE2 : RET_CHANGE;
-    idx = i = 0;
+    i = 0;
+    idx = 0;
     while((ret = H5Literate(file, H5_INDEX_NAME, H5_ITER_INC, &idx, liter_cb, &info)) >= 0) {
         /* Verify return value from iterator gets propagated correctly */
         VERIFY(ret, 1, "H5Literate");
@@ -462,7 +462,8 @@ static void test_iter_attr(hid_t fapl, hbool_t new_format)
     /* Test all attributes on dataset, when callback always returns 1 */
     /* This also tests the "restarting" ability, because the index changes */
     info.command = RET_TWO;
-    idx = i = 0;
+    i = 0;
+    idx = 0;
     while((ret = H5Aiterate2(dataset, H5_INDEX_NAME, H5_ITER_INC, &idx, aiter_cb, &info)) > 0) {
         /* Verify return value from iterator gets propagated correctly */
         VERIFY(ret, 2, "H5Aiterate2");
@@ -488,7 +489,8 @@ static void test_iter_attr(hid_t fapl, hbool_t new_format)
     /* Test all attributes on dataset, when callback changes return value */
     /* This also tests the "restarting" ability, because the index changes */
     info.command = new_format ? RET_CHANGE2 : RET_CHANGE;
-    idx = i = 0;
+    i = 0;
+    idx = 0;
     while((ret = H5Aiterate2(dataset, H5_INDEX_NAME, H5_ITER_INC, &idx, aiter_cb, &info)) > 0) {
         /* Verify return value from iterator gets propagated correctly */
         VERIFY(ret, 1, "H5Aiterate2");
@@ -527,7 +529,7 @@ static void test_iter_attr(hid_t fapl, hbool_t new_format)
 **  iter_strcmp2(): String comparison routine for qsort
 **
 ****************************************************************/
-int iter_strcmp2(const void *s1, const void *s2)
+H5_ATTR_PURE int iter_strcmp2(const void *s1, const void *s2)
 {
     return(HDstrcmp((const char *)s1, (const char *)s2));
 } /* end iter_strcmp2() */
@@ -580,9 +582,9 @@ test_iter_group_large(hid_t fapl)
     hid_t		tid;       /* Datatype ID			*/
     hsize_t		dims[] = {SPACE1_DIM1};
     herr_t		ret;		/* Generic return value		*/
-    char gname[20];         /* Temporary group name */
-    iter_info names[ITER_NGROUPS+2]; /* Names of objects in the root group */
-    iter_info *curr_name;        /* Pointer to the current name in the root group */
+    char gname[20];             /* Temporary group name */
+    iter_info *names;           /* Names of objects in the root group */
+    iter_info *curr_name;       /* Pointer to the current name in the root group */
     int                 i;
 
     /* Compound datatype */
@@ -592,7 +594,9 @@ test_iter_group_large(hid_t fapl)
         float c;
     } s1_t;
 
-    HDmemset(names, 0, sizeof names);
+    /* Allocate & initialize array */
+    names = (iter_info *)HDcalloc(sizeof(iter_info), (ITER_NGROUPS + 2));
+    CHECK(names, NULL, "HDcalloc");
 
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Large Group Iteration Functionality\n"));
@@ -672,7 +676,7 @@ test_iter_group_large(hid_t fapl)
     ret = H5Literate(file, H5_INDEX_NAME, H5_ITER_INC, NULL, liter_cb2, curr_name);
     CHECK(ret, FAIL, "H5Literate");
     for(i = 1; i < 100; i++) {
-        hsize_t idx = i;
+        hsize_t idx = (hsize_t)i;
 
         curr_name = &names[i];
         ret = H5Literate(file, H5_INDEX_NAME, H5_ITER_INC, &idx, liter_cb2, curr_name);
@@ -682,6 +686,9 @@ test_iter_group_large(hid_t fapl)
     /* Close file */
     ret = H5Fclose(file);
     CHECK(ret, FAIL, "H5Fclose");
+
+    /* Release memory */
+    HDfree(names);
 } /* test_iterate_group_large() */
 
 /****************************************************************

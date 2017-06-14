@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*-------------------------------------------------------------------------
@@ -30,6 +28,14 @@
 #include "h5test.h"
 #include "swmr_common.h"
 
+/*
+ * This file needs to access testing codefrom the H5O package.
+ */
+#define H5O_FRIEND	/*suppress error about including H5Opkg	  */
+#define H5O_TESTING
+#include "H5Opkg.h"     /* Object headers			*/
+
+
 /****************/
 /* Local Macros */
 /****************/
@@ -40,8 +46,8 @@
 /* Local Prototypes */
 /********************/
 
-static int gen_skeleton(const char *filename, unsigned verbose,
-    unsigned swmr_write, int comp_level, const char *index_type,
+static int gen_skeleton(const char *filename, hbool_t verbose,
+    hbool_t swmr_write, int comp_level, const char *index_type,
     unsigned random_seed);
 static void usage(void);
 
@@ -55,8 +61,11 @@ static void usage(void);
  * Parameters:  const char *filename
  *              The SWMR test file's name.
  *
- *              unsigned verbose
+ *              hbool_t verbose
  *              Whether verbose console output is desired.
+ *
+ *              hbool_t swmr_write
+ *              Whether to create the file with SWMR writing enabled
  *
  *              int comp_level
  *              The zlib compression level to use. -1 = no compression.
@@ -69,13 +78,12 @@ static void usage(void);
  *              this value.
  *
  * Return:      Success:    0
- *                          
  *              Failure:    Can't fail
  *
  *-------------------------------------------------------------------------
  */
 static int
-gen_skeleton(const char *filename, unsigned verbose, unsigned swmr_write,
+gen_skeleton(const char *filename, hbool_t verbose, hbool_t swmr_write,
     int comp_level, const char *index_type, unsigned random_seed)
 {
     hid_t fid;          /* File ID for new HDF5 file */
@@ -108,7 +116,7 @@ gen_skeleton(const char *filename, unsigned verbose, unsigned swmr_write,
 
     /* There are two chunk indexes tested here.
      * With one unlimited dimension, we get the extensible array index
-     * type, with two unlimited dimensions, we get a v-2 B-tree.
+     * type, with two unlimited dimensions, we get a v2 B-tree.
      */
     if(!HDstrcmp(index_type, "b2"))
         max_dims[0] = H5S_UNLIMITED;
@@ -207,10 +215,32 @@ gen_skeleton(const char *filename, unsigned verbose, unsigned swmr_write,
         for(v = 0; v < symbol_count[u]; v++) {
             hid_t dsid;         /* Dataset ID */
             char name_buf[64];
+            hbool_t move_dataspace_message = FALSE;     /* Whether to move the dataspace message out of object header chunk #0 */
 
             generate_name(name_buf, u, v);
             if((dsid = H5Dcreate2(fid, name_buf, tid, sid, H5P_DEFAULT, dcpl, H5P_DEFAULT)) < 0)
                 return -1;
+
+            /* Determine if the dataspace message for this dataset should be
+             * moved out of chunk #0 of the object header
+             * (Set to TRUE for every fourth dataset)
+             */
+            move_dataspace_message = !(HDrandom() % 4);
+            if(move_dataspace_message) {
+                unsigned chunk_num;        /* Object header chunk # for dataspace message */
+
+                /* Move the dataspace message to a new object header chunk */
+                if(H5O_msg_move_to_new_chunk_test(dsid, H5O_SDSPACE_ID) < 0)
+                    return -1;
+
+                /* Retrieve the chunk # for the dataspace message */
+                chunk_num = UINT_MAX;
+                if(H5O_msg_get_chunkno_test(dsid, H5O_SDSPACE_ID, &chunk_num) < 0)
+                    return -1;
+                /* Should not be in chunk #0 for now */
+                if(0 == chunk_num)
+                    return -1;
+            } /* end if */
 
             if(H5Dclose(dsid) < 0)
                 return -1;
@@ -259,10 +289,10 @@ usage(void)
 int main(int argc, const char *argv[])
 {
     int comp_level = -1;            /* Compression level (-1 is no compression) */
-    unsigned verbose = 1;           /* Whether to emit some informational messages */
-    unsigned swmr_write = 0;        /* Whether to create file with SWMR_WRITE access */
+    hbool_t verbose = TRUE;         /* Whether to emit some informational messages */
+    hbool_t swmr_write = FALSE;     /* Whether to create file with SWMR_WRITE access */
     const char *index_type = "b1";  /* Chunk index type */
-    unsigned use_seed = 0;          /* Set to 1 if a seed was set on the command line */
+    hbool_t use_seed = FALSE;       /* Set to TRUE if a seed was set on the command line */
     unsigned random_seed = 0;       /* Random # seed */
     unsigned u;                     /* Local index variables */
     int temp;
@@ -292,7 +322,7 @@ int main(int argc, const char *argv[])
 
                     /* Random # seed */
                     case 'r':
-                        use_seed = 1;
+                        use_seed = TRUE;
                         temp = HDatoi(argv[u + 1]);
                         if(temp < 0)
                             usage();
@@ -303,13 +333,13 @@ int main(int argc, const char *argv[])
 
                     /* Be quiet */
                     case 'q':
-                        verbose = 0;
+                        verbose = FALSE;
                         u++;
                         break;
 
                     /* Run with SWMR_WRITE */
                     case 's':
-                        swmr_write = 1;
+                        swmr_write = TRUE;
                         u++;
                         break;
 
@@ -330,8 +360,9 @@ int main(int argc, const char *argv[])
     } /* end if */
     
     /* Set the random seed */
-    if(0 == use_seed) {
+    if(!use_seed) {
         struct timeval t;
+
         HDgettimeofday(&t, NULL);
         random_seed = (unsigned)(t.tv_usec);
     } /* end if */

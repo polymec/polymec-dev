@@ -5,17 +5,15 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  *  For details of the HDF libraries, see the HDF Documentation at:
- *    http://hdfdfgroup.org/HDF5/doc/
+ *    http://hdfgroup.org/HDF5/doc/
  *
  */
 #ifdef __cplusplus
@@ -38,52 +36,49 @@ extern jobject visit_callback;
  * Signature: ([BJLjava/lang/String;IJ)I
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5_H5Rcreate(JNIEnv *env, jclass clss, jbyteArray ref, jlong loc_id, jstring name, jint ref_type, jlong space_id)
+Java_hdf_hdf5lib_H5_H5Rcreate
+    (JNIEnv *env, jclass clss, jbyteArray ref, jlong loc_id, jstring name, jint ref_type, jlong space_id)
 {
     const char *rName;
     herr_t      status = -1;
     jbyte      *refP;
     jboolean    isCopy2;
 
-    PIN_JAVA_STRING(name, rName, -1);
-
-    if (ref == NULL) {
-        UNPIN_JAVA_STRING(name, rName);
-        h5nullArgument( env, "H5Rcreate:  ref is NULL");
-    } /* end if */
-    else {
-        if ((ref_type == H5R_OBJECT) && ENVPTR->GetArrayLength(ENVPAR ref) != H5R_OBJ_REF_BUF_SIZE) {
-            UNPIN_JAVA_STRING(name, rName);
-            h5badArgument( env, "H5Rcreate:  ref input array != H5R_OBJ_REF_BUF_SIZE");
+    PIN_JAVA_STRING(name, rName);
+    if (rName != NULL) {
+        if (ref == NULL) {
+            h5nullArgument( env, "H5Rcreate:  ref is NULL");
         } /* end if */
-        else if ((ref_type == H5R_DATASET_REGION) && ENVPTR->GetArrayLength(ENVPAR ref) != H5R_DSET_REG_REF_BUF_SIZE) {
-            UNPIN_JAVA_STRING(name, rName);
-            h5badArgument( env, "H5Rcreate:  region ref input array != H5R_DSET_REG_REF_BUF_SIZE");
-        } /* end else if */
-        else if ((ref_type != H5R_OBJECT) && (ref_type != H5R_DATASET_REGION)) {
-            UNPIN_JAVA_STRING(name, rName);
-            h5badArgument( env, "H5Rcreate:  ref_type unknown type ");
-        } /* end else if */
         else {
-            refP = (jbyte*)ENVPTR->GetByteArrayElements(ENVPAR ref, &isCopy2);
-            if (refP == NULL) {
-                UNPIN_JAVA_STRING(name, rName);
-                h5JNIFatalError(env,  "H5Rcreate:  ref not pinned");
+            if ((ref_type == H5R_OBJECT) && ENVPTR->GetArrayLength(ENVPAR ref) != H5R_OBJ_REF_BUF_SIZE) {
+                h5badArgument( env, "H5Rcreate:  ref input array != H5R_OBJ_REF_BUF_SIZE");
             } /* end if */
+            else if ((ref_type == H5R_DATASET_REGION) && ENVPTR->GetArrayLength(ENVPAR ref) != H5R_DSET_REG_REF_BUF_SIZE) {
+                h5badArgument( env, "H5Rcreate:  region ref input array != H5R_DSET_REG_REF_BUF_SIZE");
+            } /* end else if */
+            else if ((ref_type != H5R_OBJECT) && (ref_type != H5R_DATASET_REGION)) {
+                h5badArgument( env, "H5Rcreate:  ref_type unknown type ");
+            } /* end else if */
             else {
-                status = H5Rcreate(refP, (hid_t)loc_id, rName, (H5R_type_t)ref_type, (hid_t)space_id);
-
-                UNPIN_JAVA_STRING(name, rName);
-                if (status < 0) {
-                    ENVPTR->ReleaseByteArrayElements(ENVPAR ref, refP, JNI_ABORT);
-                    h5libraryError(env);
+                refP = (jbyte*)ENVPTR->GetByteArrayElements(ENVPAR ref, &isCopy2);
+                if (refP == NULL) {
+                    h5JNIFatalError(env,  "H5Rcreate:  ref not pinned");
                 } /* end if */
                 else {
-                    ENVPTR->ReleaseByteArrayElements(ENVPAR ref, refP, 0);
+                    status = H5Rcreate(refP, (hid_t)loc_id, rName, (H5R_type_t)ref_type, (hid_t)space_id);
+
+                    if (status < 0) {
+                        ENVPTR->ReleaseByteArrayElements(ENVPAR ref, refP, JNI_ABORT);
+                        h5libraryError(env);
+                    } /* end if */
+                    else {
+                        ENVPTR->ReleaseByteArrayElements(ENVPAR ref, refP, 0);
+                    } /* end else */
                 } /* end else */
             } /* end else */
         } /* end else */
-    } /* end else */
+        UNPIN_JAVA_STRING(name, rName);
+    }
 
     return (jint)status;
 } /* end Java_hdf_hdf5lib_H5_H5Rcreate */
@@ -94,7 +89,8 @@ Java_hdf_hdf5lib_H5_H5Rcreate(JNIEnv *env, jclass clss, jbyteArray ref, jlong lo
  * Signature: (JJI[B)J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5__1H5Rdereference(JNIEnv *env, jclass clss, jlong dataset, jlong access_list, jint ref_type, jbyteArray ref)
+Java_hdf_hdf5lib_H5__1H5Rdereference
+    (JNIEnv *env, jclass clss, jlong dataset, jlong access_list, jint ref_type, jbyteArray ref)
 {
     jboolean isCopy;
     jbyte   *refP;
@@ -133,7 +129,8 @@ Java_hdf_hdf5lib_H5__1H5Rdereference(JNIEnv *env, jclass clss, jlong dataset, jl
  * Signature: (JI[B)J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5__1H5Rget_1region(JNIEnv *env, jclass clss, jlong dataset, jint ref_type, jbyteArray ref)
+Java_hdf_hdf5lib_H5__1H5Rget_1region
+    (JNIEnv *env, jclass clss, jlong dataset, jint ref_type, jbyteArray ref)
 {
     hid_t    retVal = -1;
     jboolean isCopy;
@@ -172,7 +169,8 @@ Java_hdf_hdf5lib_H5__1H5Rget_1region(JNIEnv *env, jclass clss, jlong dataset, ji
  * Signature: (JI[B)I
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5_H5Rget_1obj_1type(JNIEnv *env, jclass clss, jlong loc_id, jint ref_type, jbyteArray ref)
+Java_hdf_hdf5lib_H5_H5Rget_1obj_1type
+    (JNIEnv *env, jclass clss, jlong loc_id, jint ref_type, jbyteArray ref)
 {
     int      retVal =-1;
     jboolean isCopy;
@@ -209,7 +207,8 @@ Java_hdf_hdf5lib_H5_H5Rget_1obj_1type(JNIEnv *env, jclass clss, jlong loc_id, ji
  * Signature: (JI[B[I)I
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5_H5Rget_1obj_1type2(JNIEnv *env, jclass clss, jlong loc_id, jint ref_type, jbyteArray ref, jintArray ref_obj)
+Java_hdf_hdf5lib_H5_H5Rget_1obj_1type2
+    (JNIEnv *env, jclass clss, jlong loc_id, jint ref_type, jbyteArray ref, jintArray ref_obj)
 {
 
     jint     status;
@@ -261,7 +260,8 @@ Java_hdf_hdf5lib_H5_H5Rget_1obj_1type2(JNIEnv *env, jclass clss, jlong loc_id, j
  * Signature: (JI[B[Ljava/lang/String;J)J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5_H5Rget_1name(JNIEnv *env, jclass clss, jlong loc_id, jint ref_type, jbyteArray ref, jobjectArray name, jlong size)
+Java_hdf_hdf5lib_H5_H5Rget_1name
+    (JNIEnv *env, jclass clss, jlong loc_id, jint ref_type, jbyteArray ref, jobjectArray name, jlong size)
 {
     jlong    ret_val = -1;
     jbyte   *refP;

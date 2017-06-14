@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*-------------------------------------------------------------------------
@@ -98,7 +96,7 @@ choose_dataset(void)
     level = symbol_mapping[HDrandom() % NMAPPING];
 
     /* Determine the offset of the level */
-    offset = HDrandom() % symbol_count[level];
+    offset = (unsigned)(HDrandom() % (int)symbol_count[level]);
 
     return &symbol_info[level][offset];
 } /* end choose_dataset() */
@@ -284,7 +282,7 @@ print_metadata_retries_info(hid_t fid)
     /* Free memory for each non-NULL retries[i] */
     for(i = 0; i < H5F_NUM_METADATA_READ_RETRY_TYPES; i++)
         if(info.retries[i] != NULL)
-            HDfree(info.retries[i]);
+            H5free_memory(info.retries[i]);
 
     return 0;
 } /* print_metadata_retries_info() */

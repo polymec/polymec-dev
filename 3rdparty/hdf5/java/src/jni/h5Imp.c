@@ -5,17 +5,15 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  *  For details of the HDF libraries, see the HDF Documentation at:
- *    http://hdfdfgroup.org/HDF5/doc/
+ *    http://hdfgroup.org/HDF5/doc/
  *
  */
 
@@ -46,7 +44,8 @@ extern jobject visit_callback;
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5_H5open(JNIEnv *env, jclass clss)
+Java_hdf_hdf5lib_H5_H5open
+    (JNIEnv *env, jclass clss)
 {
     herr_t retVal = H5open();
     if (retVal < 0)
@@ -61,7 +60,8 @@ Java_hdf_hdf5lib_H5_H5open(JNIEnv *env, jclass clss)
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5_H5close(JNIEnv *env, jclass clss)
+Java_hdf_hdf5lib_H5_H5close
+    (JNIEnv *env, jclass clss)
 {
     herr_t retVal = H5close();
     if (retVal < 0)
@@ -76,7 +76,8 @@ Java_hdf_hdf5lib_H5_H5close(JNIEnv *env, jclass clss)
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5_H5dont_1atexit(JNIEnv *env, jclass clss)
+Java_hdf_hdf5lib_H5_H5dont_1atexit
+    (JNIEnv *env, jclass clss)
 {
     herr_t retVal = H5dont_atexit();
     if (retVal < 0)
@@ -91,7 +92,8 @@ Java_hdf_hdf5lib_H5_H5dont_1atexit(JNIEnv *env, jclass clss)
  * Signature: ([I)I
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5_H5get_1libversion(JNIEnv *env, jclass clss, jintArray libversion)
+Java_hdf_hdf5lib_H5_H5get_1libversion
+    (JNIEnv *env, jclass clss, jintArray libversion)
 {
     unsigned *theArray = NULL;
     herr_t    status = -1;
@@ -124,7 +126,8 @@ Java_hdf_hdf5lib_H5_H5get_1libversion(JNIEnv *env, jclass clss, jintArray libver
  * Signature: (III)I
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5_H5check_1version(JNIEnv *env, jclass clss, jint majnum, jint minnum, jint relnum)
+Java_hdf_hdf5lib_H5_H5check_1version
+    (JNIEnv *env, jclass clss, jint majnum, jint minnum, jint relnum)
 {
     return (jint)H5check_version((unsigned)majnum, (unsigned)minnum, (unsigned)relnum);
 } /* end Java_hdf_hdf5lib_H5_H5check_1version */
@@ -136,7 +139,8 @@ Java_hdf_hdf5lib_H5_H5check_1version(JNIEnv *env, jclass clss, jint majnum, jint
  *
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5_H5garbage_1collect(JNIEnv *env, jclass clss)
+Java_hdf_hdf5lib_H5_H5garbage_1collect
+    (JNIEnv *env, jclass clss)
 {
     herr_t retVal = H5garbage_collect();
     if (retVal < 0)
@@ -151,7 +155,8 @@ Java_hdf_hdf5lib_H5_H5garbage_1collect(JNIEnv *env, jclass clss)
  * Signature: (IIIIII)I
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5_H5set_1free_1list_1limits(JNIEnv *env, jclass clss, jint reg_global_lim, jint reg_list_lim,
+Java_hdf_hdf5lib_H5_H5set_1free_1list_1limits
+    (JNIEnv *env, jclass clss, jint reg_global_lim, jint reg_list_lim,
         jint arr_global_lim, jint arr_list_lim, jint blk_global_lim, jint blk_list_lim )
 {
     herr_t retVal = H5set_free_list_limits((int)reg_global_lim, (int)reg_list_lim,
@@ -168,7 +173,8 @@ Java_hdf_hdf5lib_H5_H5set_1free_1list_1limits(JNIEnv *env, jclass clss, jint reg
  * Signature: ()Z
  */
 JNIEXPORT jboolean JNICALL
-Java_hdf_hdf5lib_H5_H5is_1library_1threadsafe(JNIEnv *env, jclass clss)
+Java_hdf_hdf5lib_H5_H5is_1library_1threadsafe
+    (JNIEnv *env, jclass clss)
 {
     hbool_t is_ts = false;
     H5is_library_threadsafe(&is_ts);

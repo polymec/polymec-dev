@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <jni.h>
@@ -29,7 +27,8 @@ extern "C" {
  * Method:    _H5Gclose
  * Signature: (J)I
  */
-JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5__1H5Gclose
+JNIEXPORT jint JNICALL
+Java_hdf_hdf5lib_H5__1H5Gclose
   (JNIEnv*, jclass, jlong);
 
 /*
@@ -37,7 +36,8 @@ JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5__1H5Gclose
  * Method:    _H5Gcreate2
  * Signature: (JLjava/lang/String;JJJ)J
  */
-JNIEXPORT jlong JNICALL Java_hdf_hdf5lib_H5__1H5Gcreate2
+JNIEXPORT jlong JNICALL
+Java_hdf_hdf5lib_H5__1H5Gcreate2
   (JNIEnv*, jclass, jlong, jstring, jlong, jlong, jlong);
 
 /*
@@ -45,7 +45,8 @@ JNIEXPORT jlong JNICALL Java_hdf_hdf5lib_H5__1H5Gcreate2
  * Method:    _H5Gcreate_anon
  * Signature: (JJJ)J
  */
-JNIEXPORT jlong JNICALL Java_hdf_hdf5lib_H5__1H5Gcreate_1anon
+JNIEXPORT jlong JNICALL
+Java_hdf_hdf5lib_H5__1H5Gcreate_1anon
   (JNIEnv*, jclass, jlong, jlong, jlong);
 
 /*
@@ -53,7 +54,8 @@ JNIEXPORT jlong JNICALL Java_hdf_hdf5lib_H5__1H5Gcreate_1anon
  * Method:    _H5Gopen2
  * Signature: (JLjava/lang/String;J)J
  */
-JNIEXPORT jlong JNICALL Java_hdf_hdf5lib_H5__1H5Gopen2
+JNIEXPORT jlong JNICALL
+Java_hdf_hdf5lib_H5__1H5Gopen2
   (JNIEnv*, jclass, jlong, jstring, jlong);
 
 
@@ -62,7 +64,8 @@ JNIEXPORT jlong JNICALL Java_hdf_hdf5lib_H5__1H5Gopen2
  * Method:    H5Gget_create_plist
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_hdf_hdf5lib_H5_H5Gget_1create_1plist
+JNIEXPORT jlong JNICALL
+Java_hdf_hdf5lib_H5_H5Gget_1create_1plist
 (JNIEnv*, jclass, jlong);
 
 /*
@@ -70,7 +73,8 @@ JNIEXPORT jlong JNICALL Java_hdf_hdf5lib_H5_H5Gget_1create_1plist
  * Method:    H5Gget_info
  * Signature: (J)Lhdf/hdf5lib/structs/H5G_info_t;
  */
-JNIEXPORT jobject JNICALL Java_hdf_hdf5lib_H5_H5Gget_1info
+JNIEXPORT jobject JNICALL
+Java_hdf_hdf5lib_H5_H5Gget_1info
   (JNIEnv*, jclass, jlong);
 
 /*
@@ -78,7 +82,8 @@ JNIEXPORT jobject JNICALL Java_hdf_hdf5lib_H5_H5Gget_1info
  * Method:    H5Gget_info_by_name
  * Signature: (JLjava/lang/String;J)Lhdf/hdf5lib/structs/H5G_info_t;
  */
-JNIEXPORT jobject JNICALL Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1name
+JNIEXPORT jobject JNICALL
+Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1name
   (JNIEnv*, jclass, jlong, jstring, jlong);
 
 /*
@@ -86,7 +91,8 @@ JNIEXPORT jobject JNICALL Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1name
  * Method:    H5Gget_info_by_idx
  * Signature: (JLjava/lang/String;IIJJ)Lhdf/hdf5lib/structs/H5G_info_t;
  */
-JNIEXPORT jobject JNICALL Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1idx
+JNIEXPORT jobject JNICALL
+Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1idx
   (JNIEnv*, jclass, jlong, jstring, jint, jint, jlong, jlong);
 
 /*
@@ -94,7 +100,8 @@ JNIEXPORT jobject JNICALL Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1idx
  * Method:    H5Gflush
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_hdf_hdf5lib_H5_H5Gflush
+JNIEXPORT void JNICALL
+Java_hdf_hdf5lib_H5_H5Gflush
   (JNIEnv*, jclass, jlong);
 
 /*
@@ -102,7 +109,8 @@ JNIEXPORT void JNICALL Java_hdf_hdf5lib_H5_H5Gflush
  * Method:    H5Grefresh
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_hdf_hdf5lib_H5_H5Grefresh
+JNIEXPORT void JNICALL
+Java_hdf_hdf5lib_H5_H5Grefresh
   (JNIEnv*, jclass, jlong);
 
 #ifdef __cplusplus

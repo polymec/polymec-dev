@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -40,7 +38,7 @@
 #define FLUSHSTREAM(S)           if(S != NULL) HDfflush(S)
 #define PRINTSTREAM(S, F, ...)   if(S != NULL) HDfprintf(S, F, __VA_ARGS__)
 #define PRINTVALSTREAM(S, V)   if(S != NULL) HDfprintf(S, V)
-#define PUTSTREAM(X,S)          if(S != NULL) HDfputs(X, S);
+#define PUTSTREAM(X,S)          do { if(S != NULL) HDfputs(X, S); } while(0)
 
 /*
  * Strings for output - these were duplicated from the h5dump.h
@@ -298,7 +296,7 @@ typedef struct h5tool_format_t {
     const char  *fmt_float;
     int         ascii;
     int         str_locale;
-    int         str_repeat;
+    unsigned    str_repeat;
 
     /*
      * Fields associated with compound array members.
@@ -350,7 +348,7 @@ typedef struct h5tool_format_t {
     const char  *cmpd_pre;
     const char  *cmpd_suf;
     const char  *cmpd_end;
-    const struct H5LD_memb_t **cmpd_listv;
+    const struct H5LD_memb_t * const *cmpd_listv;
 
 
     /*
@@ -518,9 +516,9 @@ typedef struct h5tools_context_t {
     hsize_t size_last_dim;                   /*the size of the last dimension,
                                               *needed so we can break after each
                                               *row */
-    int  indent_level;                /*the number of times we need some
+    unsigned  indent_level;                /*the number of times we need some
                                        *extra indentation */
-    int  default_indent_level;        /*this is used when the indent level gets changed */
+    unsigned  default_indent_level;        /*this is used when the indent level gets changed */
     hsize_t acc[H5S_MAX_RANK];        /* accumulator position */
     hsize_t pos[H5S_MAX_RANK];        /* matrix position */
     hsize_t sm_pos;                   /* current stripmine element position */
@@ -554,9 +552,9 @@ H5TOOLS_DLLVAR const h5tools_dump_header_t* h5tools_dump_header_format;
 extern "C" {
 #endif
 
-H5TOOLS_DLLVAR int     packed_bits_num;     /* number of packed bits to display */
-H5TOOLS_DLLVAR int     packed_data_offset;  /* offset of packed bits to display */
-H5TOOLS_DLLVAR int     packed_data_length; /* lengtht of packed bits to display */
+H5TOOLS_DLLVAR unsigned packed_bits_num;    /* number of packed bits to display */
+H5TOOLS_DLLVAR unsigned packed_data_offset; /* offset of packed bits to display */
+H5TOOLS_DLLVAR unsigned packed_data_length; /* length of packed bits to display */
 H5TOOLS_DLLVAR unsigned long long packed_data_mask;  /* mask in which packed bits to display */
 H5TOOLS_DLLVAR FILE   *rawattrstream;       /* output stream for raw attribute data */
 H5TOOLS_DLLVAR FILE   *rawdatastream;       /* output stream for raw data */
@@ -570,6 +568,9 @@ H5TOOLS_DLLVAR int     oid_output;          /* oid output */
 H5TOOLS_DLLVAR int     data_output;         /* data output */
 H5TOOLS_DLLVAR int     attr_data_output;    /* attribute data output */
 
+/* things to display or which are set via command line parameters */
+H5TOOLS_DLLVAR int     enable_error_stack; /* re-enable error stack */
+
 /* Strings for output */
 #define H5_TOOLS_GROUP           "GROUP"
 #define H5_TOOLS_DATASET         "DATASET"
@@ -578,11 +579,11 @@ H5TOOLS_DLLVAR int     attr_data_output;    /* attribute data output */
 /* Definitions of useful routines */
 H5TOOLS_DLL void    h5tools_init(void);
 H5TOOLS_DLL void    h5tools_close(void);
-H5TOOLS_DLL int 	h5tools_set_data_output_file(const char *fname, int is_bin);
-H5TOOLS_DLL int 	h5tools_set_attr_output_file(const char *fname, int is_bin);
-H5TOOLS_DLL int 	h5tools_set_input_file(const char *fname, int is_bin);
-H5TOOLS_DLL int 	h5tools_set_output_file(const char *fname, int is_bin);
-H5TOOLS_DLL int 	h5tools_set_error_file(const char *fname, int is_bin);
+H5TOOLS_DLL int     h5tools_set_data_output_file(const char *fname, int is_bin);
+H5TOOLS_DLL int     h5tools_set_attr_output_file(const char *fname, int is_bin);
+H5TOOLS_DLL int     h5tools_set_input_file(const char *fname, int is_bin);
+H5TOOLS_DLL int     h5tools_set_output_file(const char *fname, int is_bin);
+H5TOOLS_DLL int     h5tools_set_error_file(const char *fname, int is_bin);
 H5TOOLS_DLL hid_t   h5tools_fopen(const char *fname, unsigned flags, hid_t fapl,
                             const char *driver, char *drivername, size_t drivername_len);
 H5TOOLS_DLL hid_t   h5tools_get_native_type(hid_t type);
@@ -603,11 +604,11 @@ H5TOOLS_DLL void    h5tools_region_simple_prefix(FILE *stream, const h5tool_form
 
 H5TOOLS_DLL int     render_bin_output(FILE *stream, hid_t container, hid_t tid, void *_mem, hsize_t nelmts);
 H5TOOLS_DLL int     render_bin_output_region_data_blocks(hid_t region_id, FILE *stream,
-                            hid_t container, int ndims, hid_t type_id, hssize_t nblocks, hsize_t *ptdata);
+                            hid_t container, unsigned ndims, hid_t type_id, hsize_t nblocks, hsize_t *ptdata);
 H5TOOLS_DLL hbool_t render_bin_output_region_blocks(hid_t region_space, hid_t region_id,
                              FILE *stream, hid_t container);
 H5TOOLS_DLL int     render_bin_output_region_data_points(hid_t region_space, hid_t region_id,
-                            FILE* stream, hid_t container, int ndims, hid_t type_id, hssize_t npoints);
+                            FILE* stream, hid_t container, unsigned ndims, hid_t type_id, hsize_t npoints);
 H5TOOLS_DLL hbool_t render_bin_output_region_points(hid_t region_space, hid_t region_id,
                              FILE *stream, hid_t container);
 

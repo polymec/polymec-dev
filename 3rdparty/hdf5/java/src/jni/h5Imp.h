@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <jni.h>
@@ -28,7 +26,8 @@ extern "C" {
  * Method:    H5open
  * Signature: ()I
  */
-JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5open
+JNIEXPORT jint JNICALL
+Java_hdf_hdf5lib_H5_H5open
   (JNIEnv *, jclass);
 
 /*
@@ -36,7 +35,8 @@ JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5open
  * Method:    H5close
  * Signature: ()I
  */
-JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5close
+JNIEXPORT jint JNICALL
+Java_hdf_hdf5lib_H5_H5close
   (JNIEnv *, jclass);
 
 /*
@@ -44,7 +44,8 @@ JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5close
  * Method:    H5dont_atexit
  * Signature: ()I
  */
-JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5dont_1atexit
+JNIEXPORT jint JNICALL
+Java_hdf_hdf5lib_H5_H5dont_1atexit
   (JNIEnv *, jclass);
 
 /*
@@ -52,7 +53,8 @@ JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5dont_1atexit
  * Method:    H5get_libversion
  * Signature: ([I)I
  */
-JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5get_1libversion
+JNIEXPORT jint JNICALL
+Java_hdf_hdf5lib_H5_H5get_1libversion
   (JNIEnv *, jclass, jintArray);
 
 /*
@@ -60,7 +62,8 @@ JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5get_1libversion
  * Method:    H5check_version
  * Signature: (III)I
  */
-JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5check_1version
+JNIEXPORT jint JNICALL
+Java_hdf_hdf5lib_H5_H5check_1version
   (JNIEnv *, jclass, jint, jint, jint);
 
 /*
@@ -69,7 +72,8 @@ JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5check_1version
  * Signature: ()I
  *
  */
-JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5garbage_1collect
+JNIEXPORT jint JNICALL
+Java_hdf_hdf5lib_H5_H5garbage_1collect
   (JNIEnv *, jclass);
 
 /*
@@ -77,7 +81,8 @@ JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5garbage_1collect
  * Method:    H5set_free_list_limits
  * Signature: (IIIIII)I
  */
-JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5set_1free_1list_1limits
+JNIEXPORT jint JNICALL
+Java_hdf_hdf5lib_H5_H5set_1free_1list_1limits
   (JNIEnv *, jclass, jint, jint, jint, jint, jint, jint );
 
 /*
@@ -85,7 +90,8 @@ JNIEXPORT jint JNICALL Java_hdf_hdf5lib_H5_H5set_1free_1list_1limits
  * Method:    H5is_library_threadsafe
  * Signature: ()Z
  */
-JNIEXPORT jboolean JNICALL Java_hdf_hdf5lib_H5_H5is_1library_1threadsafe
+JNIEXPORT jboolean JNICALL
+Java_hdf_hdf5lib_H5_H5is_1library_1threadsafe
   (JNIEnv *, jclass);
 
 #ifdef __cplusplus

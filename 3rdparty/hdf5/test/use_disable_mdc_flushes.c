@@ -4,12 +4,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -506,33 +504,32 @@ main(int argc, char *argv[])
     int ret_value = 0;
 
     /* initialization */
-    if (setup_parameters(argc, argv) < 0){
+    if(setup_parameters(argc, argv) < 0)
 	Hgoto_error(1);
-    }
 
     /* ============*/
     /* Create file */
     /* ============*/
     printf("Creating skeleton data file for testing H5Odisable_mdc_flushes()...\n");
-    if (create_file() < 0){
+    if(create_file() < 0) {
 	fprintf(stderr, "***encounter error\n");
 	Hgoto_error(1);
-    }else
+    } /* end if */
+    else
 	printf("File created.\n");
 
     printf("writing to the file\n");
-    if (write_file() < 0){
+    if(write_file() < 0) {
 	fprintf(stderr, "write_file encountered error\n");
 	Hgoto_error(1);
     }
 
 done:
     /* Print result and exit */
-    if (ret_value != 0){
+    if(ret_value != 0)
 	printf("Error(s) encountered\n");
-    }else{
+    else
 	printf("All passed\n");
-    }
 
     return(ret_value);
 }

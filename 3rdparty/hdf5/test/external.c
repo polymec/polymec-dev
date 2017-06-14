@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -59,7 +57,7 @@ files_have_same_contents(const char *name1, const char *name2)
     int		fd1 = 0, fd2 = 0;
     ssize_t	n1, n2;
     char	buf1[1024], buf2[1024];
-    hbool_t ret = false;            /* not equal until proven otherwise */
+    hbool_t ret = FALSE;            /* not equal until proven otherwise */
 
     if((fd1 = HDopen(name1, O_RDONLY, 0666)) < 0)
         goto out;
@@ -82,7 +80,7 @@ files_have_same_contents(const char *name1, const char *name2)
             break;
 
         if(n1 == 0 && n2 == 0) {
-            ret = true;
+            ret = TRUE;
             break;
         }
 

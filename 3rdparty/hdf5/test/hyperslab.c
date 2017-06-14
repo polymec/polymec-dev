@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* Programmer:	Robb Matzke <matzke@llnl.gov>
@@ -223,7 +221,7 @@ test_fill(size_t nx, size_t ny, size_t nz,
                                     for(v = (size_t)dst_offset[1]; v < dst_offset[1] + dy; v++)
                                         for(w = (size_t)dst_offset[2]; w < dst_offset[2] + dz; w++)
                                             ref_value -= dst[u * ny * nz + v * nz + w];
-                                ref_value += fill_value * dx * dy * dz;
+                                ref_value += fill_value * (unsigned)dx * (unsigned)dy * (unsigned)dz;
 
                                 /* Fill the hyperslab with some value */
                                 H5VM_hyper_fill(ndims, hs_size, dst_size, dst_offset, dst, fill_value);
@@ -819,8 +817,8 @@ test_transpose(size_t nx, size_t ny)
     size[1] = ny;
     src_stride[0] = 0;
     src_stride[1] = sizeof(*src);
-    dst_stride[0] = (ssize_t)((1 - nx * ny) * sizeof(*src));
-    dst_stride[1] = (ssize_t)(nx * sizeof(*src));
+    dst_stride[0] = (hsize_t)((1 - nx * ny) * sizeof(*src));
+    dst_stride[1] = (hsize_t)(nx * sizeof(*src));
 
     /* Copy and transpose */
     if(nx == ny)
@@ -923,7 +921,7 @@ test_sub_super(size_t nx, size_t ny)
     /* Setup */
     size[0] = nx;
     size[1] = ny;
-    src_stride[0] = (ssize_t)(2 * ny);
+    src_stride[0] = (hsize_t)(2 * ny);
     src_stride[1] = 2;
     dst_stride[0] = 0;
     dst_stride[1] = 1;
@@ -972,9 +970,9 @@ test_sub_super(size_t nx, size_t ny)
     src_stride[1] = 1;
     src_stride[2] = 0;
     src_stride[3] = 0;
-    dst_stride[0] = (ssize_t)(2 * ny);
-    dst_stride[1] = (ssize_t)(2 * sizeof(uint8_t) - 4 * ny);
-    dst_stride[2] = (ssize_t)(2 * ny - 2 * sizeof(uint8_t));
+    dst_stride[0] = (hsize_t)(2 * ny);
+    dst_stride[1] = (hsize_t)(2 * sizeof(uint8_t) - 4 * ny);
+    dst_stride[2] = (hsize_t)(2 * ny - 2 * sizeof(uint8_t));
     dst_stride[3] = sizeof(uint8_t);
 
     /* Copy */
@@ -1144,9 +1142,9 @@ test_array_offset_n_calc(size_t n, size_t x, size_t y, size_t z)
     /* Check offsets */
     for(u = 0; u < n; u++) {
         /* Get random coordinate */
-        coords[0] = (hssize_t)(HDrandom() % z);
-        coords[1] = (hssize_t)(HDrandom() % y);
-        coords[2] = (hssize_t)(HDrandom() % x);
+        coords[0] = (hsize_t)((size_t)HDrandom() % z);
+        coords[1] = (hsize_t)((size_t)HDrandom() % y);
+        coords[2] = (hsize_t)((size_t)HDrandom() % x);
 
         /* Get offset of coordinate */
         off = H5VM_array_offset(ARRAY_OFFSET_NDIMS, dims, coords);
@@ -1188,9 +1186,9 @@ error:
  *		`small' and/or `medium' on the command line or only `small'
  *		is assumed.
  *
- * Return:	Success:	exit(0)
+ * Return:	Success:	exit(EXIT_SUCCESS)
  *
- *		Failure:	exit(non-zero)
+ *		Failure:	exit(EXIT_FAILURE)
  *
  * Programmer:	Robb Matzke
  *		Friday, October 10, 1997
@@ -1217,7 +1215,7 @@ main(int argc, char *argv[])
                 size_of_test |= TEST_MEDIUM;
             else {
                 printf("unrecognized argument: %s\n", argv[i]);
-                HDexit(1);
+                HDexit(EXIT_FAILURE);
             } /* end else */
         } /* end for */
     } /* end else */
@@ -1437,7 +1435,7 @@ main(int argc, char *argv[])
                 == nerrors ? "" : "S");
         if(HDisatty(1))
             printf("(Redirect output to a pager or a file to see debug output)\n");
-        HDexit(1);
+        HDexit(EXIT_FAILURE);
     } /* end if */
 
     printf("All hyperslab tests passed.\n");

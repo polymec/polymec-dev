@@ -5,12 +5,10 @@
 #
 # This file is part of HDF5.  The full HDF5 copyright notice, including
 # terms governing use, modification, and redistribution, is contained in
-# the files COPYING and Copyright.html.  COPYING can be found at the root
-# of the source code distribution tree; Copyright.html can be found at the
-# root level of an installed copy of the electronic HDF5 document set and
-# is linked from the top-level documents page.  It can also be found at
-# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from help@hdfgroup.org.
+# the COPYING file, which can be found at the root of the source code
+# distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.
+# If you do not have access to either file, you may request a copy from
+# help@hdfgroup.org.
 ##
 ## Makefile.am
 ## Run automake to generate a Makefile.in from this file.
@@ -51,9 +49,10 @@ check_SCRIPTS = $(TEST_SCRIPT)
 # executed, generally most specific tests to least specific tests.
 # As an exception, long-running tests should occur earlier in the list.
 # This gives them more time to run when tests are executing in parallel.
-TEST_PROG= testhdf5 cache cache_api cache_tagging lheap ohdr stab gheap \
-           farray earray btree2 fheap \
-           pool accum hyperslab istore bittests dt_arith \
+TEST_PROG= testhdf5 \
+           cache cache_api cache_image cache_tagging lheap ohdr stab gheap \
+           evict_on_close farray earray btree2 fheap \
+           pool accum hyperslab istore bittests dt_arith page_buffer \
            dtypes dsets cmpd_dset filter_fail extend external efc objcopy links unlink \
            twriteorder big mtime fillval mount flush1 flush2 app_ref enum \
            set_extent ttsafe enc_dec_plist enc_dec_plist_cross_platform\
@@ -90,7 +89,7 @@ endif
 # --enable-build-all at configure time.
 # The gen_old_* files can only be compiled with older versions of the library
 # so do not appear in this list.
-BUILD_ALL_PROGS=gen_bad_ohdr gen_bogus gen_cross gen_deflate gen_filters gen_idx gen_new_array \
+BUILD_ALL_PROGS=gen_bad_ohdr gen_bogus gen_cross gen_deflate gen_filters gen_new_array \
     gen_new_fill gen_new_group gen_new_mtime gen_new_super gen_noencoder \
     gen_nullspace gen_udlinks space_overflow gen_filespace gen_specmetaread \
     gen_sizes_lheap gen_file_image gen_plist
@@ -99,23 +98,36 @@ if BUILD_ALL_CONDITIONAL
   noinst_PROGRAMS=$(BUILD_ALL_PROGS)
 endif
 
-if HAVE_SHARED_CONDITIONAL
-  # The libh5test library provides common support code for the tests.
-  noinst_LTLIBRARIES=libh5test.la
+# The libh5test library provides common support code for the tests.
+noinst_LTLIBRARIES=libh5test.la
 
-  # The libdynlib1 and libdynlib2 library for testing plugin module plugin.c.
+if HAVE_SHARED_CONDITIONAL
+  # The libdynlib1, libdynlib2, libdynlib3, and libdynlib4 library for testing plugin module plugin.c.
   # Build it as shared library if configure is enabled for shared library.
-  lib_LTLIBRARIES=libdynlib1.la libdynlib2.la libdynlib3.la
+  dyn_LTLIBRARIES=libdynlib1.la libdynlib2.la libdynlib3.la libdynlib4.la
   libdynlib1_la_SOURCES=dynlib1.c
   libdynlib2_la_SOURCES=dynlib2.c
   libdynlib3_la_SOURCES=dynlib3.c
+  libdynlib4_la_SOURCES=dynlib4.c
+  libdynlib1_la_LDFLAGS = -avoid-version -module -shared -export-dynamic
+  libdynlib2_la_LDFLAGS = -avoid-version -module -shared -export-dynamic
+  libdynlib3_la_LDFLAGS = -avoid-version -module -shared -export-dynamic
+  libdynlib4_la_LDFLAGS = -avoid-version -module -shared -export-dynamic
 
-install-exec-hook:
-	$(RM) $(DESTDIR)$(libdir)/*dynlib*
+libdynlib1.la: $(libdynlib1_la_OBJECTS) $(libdynlib1_la_DEPENDENCIES) $(EXTRA_libdynlib1_la_DEPENDENCIES)
+	$(AM_V_CCLD)$(libdynlib1_la_LINK) $(am_libdynlib1_la_rpath) $(libdynlib1_la_OBJECTS) $(libdynlib1_la_LIBADD)
 
-else
-  # The libh5test library provides common support code for the tests.
-  noinst_LTLIBRARIES=libh5test.la
+libdynlib2.la: $(libdynlib2_la_OBJECTS) $(libdynlib2_la_DEPENDENCIES) $(EXTRA_libdynlib2_la_DEPENDENCIES)
+	$(AM_V_CCLD)$(libdynlib2_la_LINK) $(am_libdynlib2_la_rpath) $(libdynlib2_la_OBJECTS) $(libdynlib2_la_LIBADD)
+
+libdynlib3.la: $(libdynlib3_la_OBJECTS) $(libdynlib3_la_DEPENDENCIES) $(EXTRA_libdynlib3_la_DEPENDENCIES)
+	$(AM_V_CCLD)$(libdynlib3_la_LINK) $(am_libdynlib3_la_rpath) $(libdynlib3_la_OBJECTS) $(libdynlib3_la_LIBADD)
+
+libdynlib4.la: $(libdynlib4_la_OBJECTS) $(libdynlib4_la_DEPENDENCIES) $(EXTRA_libdynlib4_la_DEPENDENCIES)
+	$(AM_V_CCLD)$(libdynlib4_la_LINK) $(am_libdynlib4_la_rpath) $(libdynlib4_la_OBJECTS) $(libdynlib4_la_LIBADD) 
+
+#install-exec-hook:
+#	$(RM) $(DESTDIR)$(dyndir)/*dynlib*
 endif
 
 libh5test_la_SOURCES=h5test.c testframe.c cache_common.c swmr_common.c
@@ -126,6 +138,7 @@ LDADD=libh5test.la $(LIBHDF5)
 # List the source files for tests that have more than one
 ttsafe_SOURCES=ttsafe.c ttsafe_dcreate.c ttsafe_error.c ttsafe_cancel.c       \
                ttsafe_acreate.c
+cache_image_SOURCES=cache_image.c genall5.c
 
 VFD_LIST = sec2 stdio core core_paged split multi family
 if DIRECT_VFD_CONDITIONAL
@@ -150,12 +163,14 @@ flush2.chkexe_: flush1.chkexe_
 # specifying a file prefix or low-level driver.  Changing the file
 # prefix or low-level driver with environment variables will influence
 # the temporary file name in ways that the makefile is not aware of.
-CHECK_CLEANFILES+=accum.h5 cmpd_dset.h5 compact_dataset.h5 dataset.h5 \
-    dset_offset.h5 chunk_fixed.h5 cache_logging.out \
+CHECK_CLEANFILES+=accum.h5 cmpd_dset.h5 compact_dataset.h5 dataset.h5 dset_offset.h5 \
     max_compact_dataset.h5 simple.h5 set_local.h5 random_chunks.h5 \
-    huge_chunks.h5 chunk_cache.h5 big_chunk.h5 chunk_fast.h5 \
-    chunk_expand.h5 layout_extend.h5 swmr_fail.h5 partial_chunks.h5 \
-    copy_dcpl_newfile.h5 extend.h5 istore.h5 extlinks*.h5 frspace.h5 links*.h5 \
+    huge_chunks.h5 chunk_cache.h5 big_chunk.h5 chunk_fast.h5 chunk_expand.h5 \
+    chunk_fixed.h5 copy_dcpl_newfile.h5 partial_chunks.h5 layout_extend.h5 \
+    zero_chunk.h5 chunk_single.h5 swmr_non_latest.h5 \
+    earray_hdr_fd.h5 farray_hdr_fd.h5 bt2_hdr_fd.h5 \
+    storage_size.h5 dls_01_strings.h5 \
+    extend.h5 istore.h5 extlinks*.h5 frspace.h5 links*.h5 \
     sys_file1 tfile[1-7].h5 th5s[1-4].h5 lheap.h5 fheap.h5 ohdr.h5 \
     stab.h5 extern_[1-5].h5 extern_[1-4][rw].raw gheap[0-4].h5 \
     dt_arith[1-2] links.h5 links[0-6]*.h5 extlinks[0-15].h5 tmp \
@@ -163,7 +178,9 @@ CHECK_CLEANFILES+=accum.h5 cmpd_dset.h5 compact_dataset.h5 dataset.h5 \
     stdio.h5 sec2.h5 dtypes[0-9].h5 dtypes1[0].h5 dt_arith[1-2].h5 tattr.h5 \
     tselect.h5 mtime.h5 unlink.h5 unicode.h5 coord.h5 \
     fillval_[0-9].h5 fillval.raw mount_[0-9].h5 testmeta.h5 ttime.h5 \
-    trefer[1-3].h5 tvltypes.h5 tvlstr.h5 tvlstr2.h5 twriteorder.dat flush.h5 \
+    trefer[1-3].h5 tvltypes.h5 tvlstr.h5 tvlstr2.h5 twriteorder.dat \
+    flush.h5 flush-swmr.h5 noflush.h5 noflush-swmr.h5 flush_extend.h5 \
+    flush_extend-swmr.h5 noflush_extend.h5 noflush_extend-swmr.h5 \
     enum1.h5 titerate.h5 ttsafe.h5 tarray1.h5 tgenprop.h5            \
     tmisc[0-9]*.h5 set_extent[1-5].h5 ext[12].bin           \
     getname.h5 getname[1-3].h5 sec2_file.h5 direct_file.h5           \
@@ -182,8 +199,9 @@ CHECK_CLEANFILES+=accum.h5 cmpd_dset.h5 compact_dataset.h5 dataset.h5 \
     flushrefresh.h5 flushrefresh_VERIFICATION_START                  \
     flushrefresh_VERIFICATION_CHECKPOINT1 flushrefresh_VERIFICATION_CHECKPOINT2 \
     flushrefresh_VERIFICATION_DONE atomic_data accum_swmr_big.h5 ohdr_swmr.h5 \
-    tbogus.h5.copy test_swmr*.h5 cache_logging.h5 vds_swmr.h5 vds_swmr_src_*.h5 \
-    earray_hdr_fd.h5
+    test_swmr*.h5 cache_logging.h5 cache_logging.out vds_swmr.h5 vds_swmr_src_*.h5 \
+    swmr[0-2].h5 swmr_writer.out swmr_writer.log.* swmr_reader.out.* swmr_reader.log.* \
+    tbogus.h5.copy cache_image_test.h5
 
 # Sources for testhdf5 executable
 testhdf5_SOURCES=testhdf5.c tarray.c tattr.c tchecksum.c tconfig.c tfile.c \

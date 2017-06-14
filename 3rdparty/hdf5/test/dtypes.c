@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -20,8 +18,6 @@
  * Purpose:     Tests the datatype interface (H5T)
  */
 
-#include <math.h>
-#include <time.h>
 #include "h5test.h"
 #include "H5srcdir.h"
 #include "H5Iprivate.h"     /* For checking that datatype id's don't leak */
@@ -1927,12 +1923,12 @@ test_compound_10(void)
     for(i=0; i<ARRAY_DIM; i++) {
         wdata[i].i1 = i*10+i;
         wdata[i].str = HDstrdup("C string A");
-        wdata[i].str[9] += (char)i;
+        wdata[i].str[9] = (char)(wdata[i].str[9] + i);
         wdata[i].i2 = i*1000+i*10;
 
         wdata[i].text.p   = (void*)HDstrdup("variable-length text A\0");
         len = wdata[i].text.len = HDstrlen((char*)wdata[i].text.p)+1;
-        ((char*)(wdata[i].text.p))[len-2] += (char)i;
+        ((char *)(wdata[i].text.p))[len - 2] = (char)(((char *)(wdata[i].text.p))[len - 2] + i);
         ((char*)(wdata[i].text.p))[len-1] = '\0';
     }
 
@@ -2185,7 +2181,7 @@ test_compound_11(void)
 
     /* Verify converted buffer is correct */
     for(u=0; u<NTESTELEM; u++) {
-        if(((big_t *)buf_orig)[u].d1!=((little_t *)buf)[u].d1) {
+        if(!H5_DBL_ABS_EQUAL(((big_t *)buf_orig)[u].d1, ((little_t *)buf)[u].d1)) {
             printf("Error, line #%d: buf_orig[%u].d1=%f, buf[%u].d1=%f\n",__LINE__,
                     (unsigned)u,((big_t *)buf_orig)[u].d1,(unsigned)u,((little_t *)buf)[u].d1);
             TEST_ERROR
@@ -2229,7 +2225,7 @@ test_compound_11(void)
 
     /* Verify converted buffer is correct */
     for(u=0; u<NTESTELEM; u++) {
-        if(((big_t *)buf_orig)[u].d1!=((little_t *)buf)[u].d1) {
+        if(!H5_DBL_ABS_EQUAL(((big_t *)buf_orig)[u].d1, ((little_t *)buf)[u].d1)) {
             printf("Error, line #%d: buf_orig[%u].d1=%f, buf[%u].d1=%f\n",__LINE__,
                     (unsigned)u,((big_t *)buf_orig)[u].d1,(unsigned)u,((little_t *)buf)[u].d1);
             TEST_ERROR
@@ -2267,7 +2263,7 @@ test_compound_11(void)
 
     /* Verify converted buffer is correct */
     for(u=0; u<NTESTELEM; u++) {
-        if(((big_t *)buf_orig)[u].d1!=((little_t *)buf)[u].d1) {
+        if(!H5_DBL_ABS_EQUAL(((big_t *)buf_orig)[u].d1, ((little_t *)buf)[u].d1)) {
             printf("Error, line #%d: buf_orig[%u].d1=%f, buf[%u].d1=%f\n",__LINE__,
                     (unsigned)u,((big_t *)buf_orig)[u].d1,(unsigned)u,((little_t *)buf)[u].d1);
             TEST_ERROR
@@ -2489,7 +2485,7 @@ test_compound_13(void)
     /* Check the data. */
     for (u = 0; u < COMPOUND13_ARRAY_SIZE + 1; u++)
         if(data_out.x[u] != data_in.x[u]) TEST_ERROR
-    if(data_out.y != data_in.y) TEST_ERROR
+    if(!H5_FLT_ABS_EQUAL(data_out.y, data_in.y)) TEST_ERROR
 
     /* Release all resources. */
     if(H5Aclose(attid) < 0) FAIL_STACK_ERROR
@@ -6115,7 +6111,7 @@ test_int_float_except(void)
     /* Check the buffer after conversion, as floats */
     for(u = 0; u < CONVERT_SIZE; u++) {
         floatp = (float *)&buf[u];
-        if(*floatp != buf_float[u]) TEST_ERROR
+        if(!H5_FLT_ABS_EQUAL(*floatp, buf_float[u])) TEST_ERROR
     } /* end for */
 
     /* Check for proper exceptions */
@@ -6136,7 +6132,7 @@ test_int_float_except(void)
     /* Check the buffer after conversion, as floats */
     for(u = 0; u < CONVERT_SIZE; u++) {
         floatp = (float *)&buf2[u];
-        if(*floatp != buf2_float[u]) TEST_ERROR
+        if(!H5_FLT_ABS_EQUAL(*floatp, buf2_float[u])) TEST_ERROR
     } /* end for */
 
     /* Check for proper exceptions */
@@ -7481,7 +7477,7 @@ main(void)
     if(nerrors) {
         printf("***** %lu FAILURE%s! *****\n",
                nerrors, 1==nerrors?"":"S");
-        HDexit(1);
+        HDexit(EXIT_FAILURE);
     }
 
     printf("All datatype tests passed.\n");

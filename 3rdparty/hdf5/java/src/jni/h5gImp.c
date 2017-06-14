@@ -5,17 +5,15 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  *  For details of the HDF libraries, see the HDF Documentation at:
- *    http://hdfdfgroup.org/HDF5/doc/
+ *    http://hdfgroup.org/HDF5/doc/
  *
  */
 
@@ -40,7 +38,8 @@ extern jobject visit_callback;
  * Signature: (J)I
  */
 JNIEXPORT jint JNICALL
-Java_hdf_hdf5lib_H5__1H5Gclose(JNIEnv *env, jclass clss, jlong group_id)
+Java_hdf_hdf5lib_H5__1H5Gclose
+    (JNIEnv *env, jclass clss, jlong group_id)
 {
     herr_t retVal = -1;
 
@@ -62,38 +61,36 @@ Java_hdf_hdf5lib_H5__1H5Gclose(JNIEnv *env, jclass clss, jlong group_id)
  *
  */
 jobject
-create_H5G_info_t(JNIEnv *env, H5G_info_t group_info)
+create_H5G_info_t
+    (JNIEnv *env, H5G_info_t group_info)
 {
     jclass   cls;
     jboolean jmounted;
     jint     storage_type;
-    jobject  obj;
+    jobject  obj = NULL;
     jfieldID fid_storage_type, fid_nlinks, fid_max_corder, fid_mounted;
 
     cls = ENVPTR->FindClass(ENVPAR "hdf/hdf5lib/structs/H5G_info_t");
-    if (cls == NULL)
-        return NULL;
+    if (cls != NULL) {
+        obj = ENVPTR->AllocObject(ENVPAR cls);
+        if (obj != NULL) {
+            if ((fid_storage_type = ENVPTR->GetFieldID(ENVPAR cls, "storage_type", "I")) != NULL) {
+                if ((fid_nlinks = ENVPTR->GetFieldID(ENVPAR cls, "nlinks", "J")) != NULL) {
+                    if ((fid_max_corder = ENVPTR->GetFieldID(ENVPAR cls, "max_corder", "J")) != NULL) {
+                        if ((fid_mounted = ENVPTR->GetFieldID(ENVPAR cls, "mounted", "Z")) != NULL) {
+                            jmounted = (group_info.mounted==0) ? JNI_FALSE : JNI_TRUE;
+                            storage_type = (jint)group_info.storage_type;
 
-    obj = ENVPTR->AllocObject(ENVPAR cls);
-    if (obj == NULL)
-        return NULL;
-
-    fid_storage_type = ENVPTR->GetFieldID(ENVPAR cls, "storage_type", "I");
-    fid_nlinks = ENVPTR->GetFieldID(ENVPAR cls, "nlinks", "J");
-    fid_max_corder = ENVPTR->GetFieldID(ENVPAR cls, "max_corder", "J");
-    fid_mounted = ENVPTR->GetFieldID(ENVPAR cls, "mounted", "Z");
-
-    if (fid_storage_type==NULL || fid_nlinks==NULL || fid_max_corder==NULL || fid_mounted == NULL)
-        return NULL;
-
-    jmounted = (group_info.mounted==0) ? JNI_FALSE : JNI_TRUE;
-    storage_type = (jint)group_info.storage_type;
-
-    ENVPTR->SetIntField(ENVPAR obj, fid_storage_type, (jint)storage_type);
-    ENVPTR->SetLongField(ENVPAR obj, fid_nlinks, (jlong)group_info.nlinks);
-    ENVPTR->SetLongField(ENVPAR obj, fid_max_corder, (jlong)group_info.max_corder);
-    ENVPTR->SetBooleanField(ENVPAR obj, fid_mounted, jmounted);
-
+                            ENVPTR->SetIntField(ENVPAR obj, fid_storage_type, (jint)storage_type);
+                            ENVPTR->SetLongField(ENVPAR obj, fid_nlinks, (jlong)group_info.nlinks);
+                            ENVPTR->SetLongField(ENVPAR obj, fid_max_corder, (jlong)group_info.max_corder);
+                            ENVPTR->SetBooleanField(ENVPAR obj, fid_mounted, jmounted);
+                        }
+                    }
+                }
+            }
+        }
+    }
     return obj;
 } /* end create_H5G_info_t */
 
@@ -103,19 +100,21 @@ create_H5G_info_t(JNIEnv *env, H5G_info_t group_info)
  * Signature: (JLjava/lang/String;JJJ)J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5__1H5Gcreate2(JNIEnv *env, jclass clss, jlong loc_id, jstring name,
+Java_hdf_hdf5lib_H5__1H5Gcreate2
+    (JNIEnv *env, jclass clss, jlong loc_id, jstring name,
           jlong link_plist_id, jlong create_plist_id, jlong access_plist_id)
 {
     hid_t       group_id = -1;
     const char *gName;
 
-    PIN_JAVA_STRING(name, gName, -1);
+    PIN_JAVA_STRING(name, gName);
+    if (gName != NULL) {
+        group_id = H5Gcreate2((hid_t)loc_id, gName, (hid_t)link_plist_id, (hid_t)create_plist_id, (hid_t)access_plist_id );
 
-    group_id = H5Gcreate2((hid_t)loc_id, gName, (hid_t)link_plist_id, (hid_t)create_plist_id, (hid_t)access_plist_id );
-
-    UNPIN_JAVA_STRING(name, gName);
-    if (group_id < 0)
-        h5libraryError(env);
+        UNPIN_JAVA_STRING(name, gName);
+        if (group_id < 0)
+            h5libraryError(env);
+    }
 
     return (jlong)group_id;
 } /* end Java_hdf_hdf5lib_H5__1H5Gcreate2 */
@@ -126,7 +125,8 @@ Java_hdf_hdf5lib_H5__1H5Gcreate2(JNIEnv *env, jclass clss, jlong loc_id, jstring
  * Signature: (JJJ)J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5__1H5Gcreate_1anon(JNIEnv *env, jclass cls, jlong loc_id, jlong gcpl_id, jlong gapl_id)
+Java_hdf_hdf5lib_H5__1H5Gcreate_1anon
+    (JNIEnv *env, jclass cls, jlong loc_id, jlong gcpl_id, jlong gapl_id)
 {
     hid_t group_id = -1;
 
@@ -135,7 +135,7 @@ Java_hdf_hdf5lib_H5__1H5Gcreate_1anon(JNIEnv *env, jclass cls, jlong loc_id, jlo
         h5libraryError(env);
 
     return (jlong)group_id;
-} /* end JNICALL */
+} /* end Java_hdf_hdf5lib_H5__1H5Gcreate_1anon */
 
 /*
  * Class:     hdf_hdf5lib_H5
@@ -143,19 +143,21 @@ Java_hdf_hdf5lib_H5__1H5Gcreate_1anon(JNIEnv *env, jclass cls, jlong loc_id, jlo
  * Signature: (JLjava/lang/String;J)J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5__1H5Gopen2(JNIEnv *env, jclass clss, jlong loc_id, jstring name, jlong access_plist_id)
+Java_hdf_hdf5lib_H5__1H5Gopen2
+    (JNIEnv *env, jclass clss, jlong loc_id, jstring name, jlong access_plist_id)
 {
     hid_t group_id = -1;
     const char *gName;
 
-    PIN_JAVA_STRING(name, gName, -1);
+    PIN_JAVA_STRING(name, gName);
+    if (gName != NULL) {
+        group_id = H5Gopen2((hid_t)loc_id, gName, (hid_t)access_plist_id );
 
-    group_id = H5Gopen2((hid_t)loc_id, gName, (hid_t)access_plist_id );
+        UNPIN_JAVA_STRING(name, gName);
 
-    UNPIN_JAVA_STRING(name, gName);
-
-    if (group_id < 0)
-        h5libraryError(env);
+        if (group_id < 0)
+            h5libraryError(env);
+    }
 
     return (jlong)group_id;
 } /* end Java_hdf_hdf5lib_H5__1H5Gopen2 */
@@ -167,7 +169,8 @@ Java_hdf_hdf5lib_H5__1H5Gopen2(JNIEnv *env, jclass clss, jlong loc_id, jstring n
  * Signature: (J)J
  */
 JNIEXPORT jlong JNICALL
-Java_hdf_hdf5lib_H5_H5Gget_1create_1plist(JNIEnv *env, jclass cls, jlong loc_id)
+Java_hdf_hdf5lib_H5_H5Gget_1create_1plist
+    (JNIEnv *env, jclass cls, jlong loc_id)
 {
     hid_t plist_id = H5Gget_create_plist((hid_t)loc_id);
 
@@ -183,16 +186,18 @@ Java_hdf_hdf5lib_H5_H5Gget_1create_1plist(JNIEnv *env, jclass cls, jlong loc_id)
  * Signature: (J)Lhdf/hdf5lib/structs/H5G_info_t;
  */
 JNIEXPORT jobject JNICALL
-Java_hdf_hdf5lib_H5_H5Gget_1info(JNIEnv *env, jclass cls, jlong loc_id)
+Java_hdf_hdf5lib_H5_H5Gget_1info
+    (JNIEnv *env, jclass cls, jlong loc_id)
 {
+    jobject    obj = NULL;
     H5G_info_t group_info;
 
-    if (H5Gget_info((hid_t)loc_id, &group_info) < 0) {
+    if (H5Gget_info((hid_t)loc_id, &group_info) < 0)
         h5libraryError(env);
-        return NULL;
-    } /* end if */
+    else
+        obj = create_H5G_info_t(env, group_info);
 
-    return create_H5G_info_t(env, group_info);
+    return obj;
 } /* end Java_hdf_hdf5lib_H5_H5Gget_1info */
 
 /*
@@ -201,24 +206,27 @@ Java_hdf_hdf5lib_H5_H5Gget_1info(JNIEnv *env, jclass cls, jlong loc_id)
  * Signature: (JLjava/lang/String;J)Lhdf/hdf5lib/structs/H5G_info_t;
  */
 JNIEXPORT jobject JNICALL
-Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1name(JNIEnv *env, jclass cls, jlong loc_id, jstring name, jlong lapl_id)
+Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1name
+    (JNIEnv *env, jclass cls, jlong loc_id, jstring name, jlong lapl_id)
 {
+    jobject     obj = NULL;
     herr_t      ret_val = -1;
     const char *gName;
     H5G_info_t  group_info;
 
-    PIN_JAVA_STRING(name, gName, NULL);
+    PIN_JAVA_STRING(name, gName);
+    if (gName != NULL) {
+        ret_val = H5Gget_info_by_name((hid_t)loc_id, gName, &group_info, (hid_t)lapl_id);
 
-    ret_val = H5Gget_info_by_name((hid_t)loc_id, gName, &group_info, (hid_t)lapl_id);
+        UNPIN_JAVA_STRING(name, gName);
 
-    UNPIN_JAVA_STRING(name, gName);
+        if (ret_val < 0)
+            h5libraryError(env);
+        else
+            obj = create_H5G_info_t(env, group_info);
+    }
 
-    if (ret_val < 0) {
-        h5libraryError(env);
-        return NULL;
-    } /* end if */
-
-    return create_H5G_info_t(env, group_info);
+    return obj;
 } /* end Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1name */
 
 /*
@@ -227,28 +235,31 @@ Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1name(JNIEnv *env, jclass cls, jlong loc_id
  * Signature: (JLjava/lang/String;IIJJ)Lhdf/hdf5lib/structs/H5G_info_t;
  */
 JNIEXPORT jobject JNICALL
-Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1idx(JNIEnv *env, jclass cls, jlong loc_id, jstring name, jint index_type,
+Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1idx
+    (JNIEnv *env, jclass cls, jlong loc_id, jstring name, jint index_type,
           jint order, jlong n, jlong lapl_id)
 {
+    jobject         obj = NULL;
     herr_t          ret_val = -1;
     const char     *gName;
     H5G_info_t      group_info;
     H5_index_t      cindex_type = (H5_index_t)index_type;
     H5_iter_order_t corder = (H5_iter_order_t)order;
 
-    PIN_JAVA_STRING(name, gName, NULL);
+    PIN_JAVA_STRING(name, gName);
+    if (gName != NULL) {
+        ret_val = H5Gget_info_by_idx((hid_t)loc_id, gName, cindex_type,
+                corder, (hsize_t)n, &group_info, (hid_t)lapl_id);
 
-    ret_val = H5Gget_info_by_idx((hid_t)loc_id, gName, cindex_type,
-            corder, (hsize_t)n, &group_info, (hid_t)lapl_id);
+        UNPIN_JAVA_STRING(name, gName);
 
-    UNPIN_JAVA_STRING(name, gName);
+        if (ret_val < 0)
+            h5libraryError(env);
+        else
+            obj = create_H5G_info_t(env, group_info);
+    }
 
-    if (ret_val < 0) {
-        h5libraryError(env);
-        return NULL;
-    } /* end if */
-
-    return create_H5G_info_t(env, group_info);
+    return obj;
 } /* end Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1idx */
 
 /*
@@ -257,11 +268,12 @@ Java_hdf_hdf5lib_H5_H5Gget_1info_1by_1idx(JNIEnv *env, jclass cls, jlong loc_id,
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Gflush(JNIEnv *env, jclass clss, jlong loc_id)
+Java_hdf_hdf5lib_H5_H5Gflush
+    (JNIEnv *env, jclass clss, jlong loc_id)
 {
     if (H5Gflush((hid_t)loc_id) < 0)
         h5libraryError(env);
-}
+} /* end Java_hdf_hdf5lib_H5_H5Gflush */
 
 /*
  * Class:     hdf_hdf5lib_H5
@@ -269,11 +281,13 @@ Java_hdf_hdf5lib_H5_H5Gflush(JNIEnv *env, jclass clss, jlong loc_id)
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_hdf_hdf5lib_H5_H5Grefresh(JNIEnv *env, jclass clss, jlong loc_id)
+Java_hdf_hdf5lib_H5_H5Grefresh
+    (JNIEnv *env, jclass clss, jlong loc_id)
 {
     if (H5Grefresh((hid_t)loc_id) < 0)
         h5libraryError(env);
-}
+} /* end Java_hdf_hdf5lib_H5_H5Grefresh */
+
 
 
 #ifdef __cplusplus

@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* Programmer:	Robb Matzke <matzke@llnl.gov>
@@ -529,9 +527,9 @@ test_sparse(hid_t f, const char *prefix, size_t nblocks,
     if((mspace=H5Screate_simple(ndims,size,NULL)) < 0) TEST_ERROR;
 
     for (ctr=0; ctr<nblocks; ctr++) {
-	offset[0] = (hsize_t)(HDrandom() % (TEST_SPARSE_SIZE-nx));
-	offset[1] = (hsize_t)(HDrandom() % (TEST_SPARSE_SIZE-ny));
-	offset[2] = (hsize_t)(HDrandom() % (TEST_SPARSE_SIZE-nz));
+        offset[0] = (hsize_t)(HDrandom() % (int)(TEST_SPARSE_SIZE-nx));
+        offset[1] = (hsize_t)(HDrandom() % (int)(TEST_SPARSE_SIZE-ny));
+        offset[2] = (hsize_t)(HDrandom() % (int)(TEST_SPARSE_SIZE-nz));
 
         /* Select region in file dataspace */
         if(H5Sselect_hyperslab(fspace,H5S_SELECT_SET,offset,NULL,size,NULL) < 0) TEST_ERROR;
@@ -585,9 +583,9 @@ error:
  *
  * Purpose:	Tests indexed storage stuff.
  *
- * Return:	Success:	exit(0)
+ * Return:	Success:	exit(EXIT_SUCCESS)
  *
- *		Failure:	exit(non-zero)
+ *		Failure:	exit(EXIT_FAILURE)
  *
  * Programmer:	Robb Matzke
  *		Wednesday, October 15, 1997
@@ -623,7 +621,7 @@ main(int argc, char *argv[])
             } else {
                 printf("unrecognized argument: %s\n", argv[i]);
 #if 0
-                exit(1);
+                exit(EXIT_FAILURE);
 #endif
             }
         }
@@ -658,7 +656,7 @@ main(int argc, char *argv[])
     h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
     if ((file=H5Fcreate(filename, H5F_ACC_TRUNC, fcpl, fapl)) < 0) {
         printf("Cannot create file %s; test aborted\n", filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Initialize chunk dimensions */
@@ -726,7 +724,7 @@ main(int argc, char *argv[])
     if (nerrors) {
         printf("***** %d I-STORE TEST%s FAILED! *****\n",
                 nerrors, 1 == nerrors ? "" : "S");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     printf("All i-store tests passed.\n");

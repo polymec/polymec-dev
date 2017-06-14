@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
@@ -151,7 +149,7 @@ import hdf.hdf5lib.structs.H5O_info_t;
  * layout of the source and destination, and the data for the array passed as a block of bytes, for instance,
  *
  * <pre>
- *      herr_t H5Dread(int fid, int filetype, int memtype, int memspace,
+ *      herr_t H5Dread(long fid, long filetype, long memtype, long memspace,
  *      void * data);
  * </pre>
  *
@@ -171,7 +169,7 @@ import hdf.hdf5lib.structs.H5O_info_t;
  * library. So the function above would be declared:
  *
  * <pre>
- * public synchronized static native int H5Dread(int fid, int filetype, int memtype, int memspace, Object data);
+ * public synchronized static native int H5Dread(long fid, long filetype, long memtype, long memspace, Object data);
  * </pre>
  *            OPEN_IDS.addElement(id);
 
@@ -192,7 +190,7 @@ import hdf.hdf5lib.structs.H5O_info_t;
  * can be accessed as public variables of the Java class, such as:
  *
  * <pre>
- * int data_type = HDF5CDataTypes.JH5T_NATIVE_INT;
+ * long data_type = HDF5CDataTypes.JH5T_NATIVE_INT;
  * </pre>
  *
  * The Java application uses both types of constants the same way, the only difference is that the
@@ -216,7 +214,7 @@ import hdf.hdf5lib.structs.H5O_info_t;
  * exception handlers to print out the HDF-5 error stack.
  * <hr>
  *
- * @version HDF5 1.10 <BR>
+ * @version HDF5 1.10.1 <BR>
  *          <b>See also: <a href ="./hdf.hdf5lib.HDFArray.html"> hdf.hdf5lib.HDFArray</a> </b><BR>
  *          <a href ="./hdf.hdf5lib.HDF5Constants.html"> hdf.hdf5lib.HDF5Constants</a><BR>
  *          <a href ="./hdf.hdf5lib.HDF5CDataTypes.html"> hdf.hdf5lib.HDF5CDataTypes</a><BR>
@@ -239,7 +237,7 @@ public class H5 implements java.io.Serializable {
      *
      * Make sure to update the versions number when a different library is used.
      */
-    public final static int LIB_VERSION[] = { 1, 10, 0 };
+    public final static int LIB_VERSION[] = { 1, 10, 1 };
 
     public final static String H5PATH_PROPERTY_KEY = "hdf.hdf5lib.H5.hdf5lib";
 
@@ -645,7 +643,7 @@ public class H5 implements java.io.Serializable {
      *                - name is null.
      **/
     public synchronized static native int H5Adelete(long loc_id, String name) throws HDF5LibraryException,
-    NullPointerException;
+            NullPointerException;
 
     /**
      * H5Adelete_by_idx removes an attribute, specified by its location in an index, from an object.
@@ -710,7 +708,7 @@ public class H5 implements java.io.Serializable {
      *                - attr_name is null.
      **/
     public synchronized static native boolean H5Aexists(long obj_id, String attr_name) throws HDF5LibraryException,
-    NullPointerException;
+            NullPointerException;
 
     /**
      * H5Aexists_by_name determines whether the attribute attr_name exists on an object. That object is specified by its
@@ -915,7 +913,7 @@ public class H5 implements java.io.Serializable {
      *                - Name is null.
      **/
     public static long H5Aopen(long obj_id, String attr_name, long aapl_id) throws HDF5LibraryException,
-    NullPointerException {
+            NullPointerException {
         long id = _H5Aopen(obj_id, attr_name, aapl_id);
         if (id > 0) {
             log.trace("OPEN_IDS: H5Aopen add {}", id);
@@ -1043,7 +1041,7 @@ public class H5 implements java.io.Serializable {
      *                - data buffer is null. See public synchronized static native int H5Aread( )
      **/
     public synchronized static int H5Aread(long attr_id, long mem_type_id, Object obj) throws HDF5Exception,
-    NullPointerException {
+            NullPointerException {
         HDFArray theArray = new HDFArray(obj);
         byte[] buf = theArray.emptyBytes();
 
@@ -1059,6 +1057,9 @@ public class H5 implements java.io.Serializable {
     }
 
     public synchronized static native int H5AreadVL(long attr_id, long mem_type_id, String[] buf)
+            throws HDF5LibraryException, NullPointerException;
+
+    public synchronized static native int H5AreadComplex(long attr_id, long mem_type_id, String[] buf)
             throws HDF5LibraryException, NullPointerException;
 
     /**
@@ -1507,7 +1508,7 @@ public class H5 implements java.io.Serializable {
      *                - Error from the HDF-5 Library.
      **/
     public synchronized static native long H5Dget_storage_size(long dataset_id) throws HDF5LibraryException,
-    IllegalArgumentException;
+            IllegalArgumentException;
 
     /**
      * H5Dget_type returns an identifier for a copy of the datatype for a dataset.
@@ -1732,7 +1733,7 @@ public class H5 implements java.io.Serializable {
             status = H5Dread(dataset_id, mem_type_id, mem_space_id, file_space_id, xfer_plist_id, buf,
                     isCriticalPinning);
             if (status >= 0) {
-                // convert the data into a Java Array */
+                // convert the data into a Java Array
                 obj = theArray.arrayify(buf);
             }
 
@@ -1794,6 +1795,9 @@ public class H5 implements java.io.Serializable {
             long file_space_id, long xfer_plist_id, short[] buf) throws HDF5LibraryException, NullPointerException {
         return H5Dread_short(dataset_id, mem_type_id, mem_space_id, file_space_id, xfer_plist_id, buf, true);
     }
+
+    public synchronized static native int H5DreadVL(long dataset_id, long mem_type_id, long mem_space_id,
+            long file_space_id, long xfer_plist_id, Object[] buf) throws HDF5LibraryException, NullPointerException;
 
     public synchronized static native int H5Dread_string(long dataset_id, long mem_type_id, long mem_space_id,
             long file_space_id, long xfer_plist_id, String[] buf) throws HDF5LibraryException, NullPointerException;
@@ -2473,7 +2477,7 @@ public class H5 implements java.io.Serializable {
      *                - name is null.
      **/
     public static long H5Fopen(String name, int flags, long access_id) throws HDF5LibraryException,
-    NullPointerException {
+            NullPointerException {
         long id = _H5Fopen(name, flags, access_id);
         if (id > 0) {
             log.trace("OPEN_IDS: H5Fopen add {}", id);
@@ -2544,7 +2548,7 @@ public class H5 implements java.io.Serializable {
      *                - name is null.
      **/
     public static long H5Fcreate(String name, int flags, long create_id, long access_id) throws HDF5LibraryException,
-    NullPointerException {
+            NullPointerException {
         long id = _H5Fcreate(name, flags, create_id, access_id);
         if (id > 0) {
             log.trace("OPEN_IDS: H5Fcreate add {}", id);
@@ -3323,7 +3327,7 @@ public class H5 implements java.io.Serializable {
      *                - name is null.
      */
     public synchronized static long H5Gn_members(long loc_id, String name) throws HDF5LibraryException,
-    NullPointerException {
+            NullPointerException {
         long grp_id = H5Gopen(loc_id, name, HDF5Constants.H5P_DEFAULT);
         long n = -1;
 
@@ -3403,8 +3407,22 @@ public class H5 implements java.io.Serializable {
 
     public synchronized static native long H5Iget_file_id(long obj_id) throws HDF5LibraryException;
 
-    public synchronized static native long H5Iget_name(long obj_id, String[] name, long size)
+    @Deprecated
+    public synchronized static native long H5Iget_name_long(long obj_id, String[] name, long size)
             throws HDF5LibraryException, NullPointerException;
+    /**
+     * H5Iget_name_str retrieves the name of an object specified by the identifier, obj_id.
+     *
+     * @param obj_id
+     *            IN: Identifier of the object.
+     *
+     * @return String for Attribute name.
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     **/
+    public synchronized static native String H5Iget_name(long obj_id)
+            throws HDF5LibraryException;
 
     public synchronized static native int H5Iget_ref(long obj_id) throws HDF5LibraryException, NullPointerException;
 
@@ -4112,8 +4130,6 @@ public class H5 implements java.io.Serializable {
     public synchronized static native String H5Oget_comment_by_name(long loc_id, String name, long lapl_id)
             throws HDF5LibraryException, IllegalArgumentException, NullPointerException;
 
-    // long H5Oget_comment_by_name(int loc_id, String name, String comment, long bufsize, int lapl_id);
-
     /**
      * H5Oset_comment_by_name sets the comment for the specified object.
      *
@@ -4151,7 +4167,7 @@ public class H5 implements java.io.Serializable {
      *                - name is null.
      **/
     public synchronized static native H5O_info_t H5Oget_info(long loc_id) throws HDF5LibraryException,
-    NullPointerException;
+            NullPointerException;
 
     /**
      * H5Oget_info_by_idx retrieves the metadata for an object, identifying the object by an index position.
@@ -4472,6 +4488,20 @@ public class H5 implements java.io.Serializable {
     private synchronized static native long _H5Pcreate(long type) throws HDF5LibraryException;
 
     /**
+     * H5Pget retrieves a copy of the value for a property in a property list (support integer only)
+     *
+     * @param plid
+     *            IN: Identifier of property object to query
+     * @param name
+     *            IN: Name of property to query
+     * @return value for a property if successful; a negative value if failed
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     */
+    public synchronized static native int H5Pget(long plid, String name) throws HDF5LibraryException;
+
+    /**
      * Sets a property list value (support integer only)
      *
      * @param plid
@@ -4550,20 +4580,6 @@ public class H5 implements java.io.Serializable {
      *                - Error from the HDF-5 Library.
      */
     public synchronized static native long H5Pget_class_parent(long plid) throws HDF5LibraryException;
-
-    /**
-     * H5Pget retrieves a copy of the value for a property in a property list (support integer only)
-     *
-     * @param plid
-     *            IN: Identifier of property object to query
-     * @param name
-     *            IN: Name of property to query
-     * @return value for a property if successful; a negative value if failed
-     *
-     * @exception HDF5LibraryException
-     *                - Error from the HDF-5 Library.
-     */
-    public synchronized static native int H5Pget(long plid, String name) throws HDF5LibraryException;
 
     /**
      * H5Pequal determines if two property lists or classes are equal
@@ -5341,39 +5357,24 @@ public class H5 implements java.io.Serializable {
             throws HDF5LibraryException, IllegalArgumentException;
 
     /**
-     * H5Pset_file_space sets the file space management strategy for the file associated with fcpl_id to strategy.
+     * H5Pset_file_space_strategy sets the file space management strategy for the file associated with fcpl_id to strategy.
      * There are four strategies that applications can select and they are described in the Parameters section.
      *
      * @param fcpl_id
      *            IN: File creation property list identifier
      * @param strategy
      *            IN: The strategy for file space management.
-     *                Passing a value of zero (0) indicates that the value of strategy is not to be modified.
-     *                H5F_FILE_SPACE_ALL_PERSIST
-     *                        With this strategy, the free-space managers track the free space that results from the
-     *                        manipulation of HDF5 objects in the HDF5 file. The free space information is saved when the
-     *                        file is closed, and reloaded when the file is reopened. When space is needed for file metadata
-     *                        or raw data, the HDF5 library first requests space from the library's free-space managers.
-     *                        If the request is not satisfied, the library requests space from the aggregators. If the request
-     *                        is still not satisfied, the library requests space from the virtual file driver. That is, the
-     *                        library will use all of the mechanisms for allocating space.
-     *                H5F_FILE_SPACE_ALL     (Default file space management strategy)
-     *                        With this strategy, the free-space managers track the free space that results from the manipulation
-     *                        of HDF5 objects in the HDF5 file. The free space information is NOT saved when the file is closed
-     *                        and the free space that exists upon file closing becomes unaccounted space in the file.
-     *                        Like the previous strategy, the library will try all of the mechanisms for allocating space. When
-     *                        space is needed for file metadata or raw data, the library first requests space from the free-space
-     *                        managers. If the request is not satisfied, the library requests space from the aggregators. If the
-     *                        request is still not satisfied, the library requests space from the virtual file driver.
-     *                H5F_FILE_SPACE_AGGR_VFD
-     *                        With this strategy, the library does not track free space that results from the manipulation of HDF5
-     *                        obejcts in the HDF5 file and the free space becomes unaccounted space in the file.
-     *                        When space is needed for file metadata or raw data, the library first requests space from the
-     *                        aggregators. If the request is not satisfied, the library requests space from the virtual file driver.
-     *                H5F_FILE_SPACE_VFD
-     *                        With this strategy, the library does not track free space that results from the manipulation of HDF5
-     *                        obejcts in the HDF5 file and the free space becomes unaccounted space in the file.
-     *                        When space is needed for file metadata or raw data, the library requests space from the virtual file driver.
+     *                H5F_FSPACE_STRATEGY_FSM_AGGR
+     *                        Mechanisms: free-space managers, aggregators, and virtual file drivers
+     *                        This is the library default when not set.
+     *                H5F_FSPACE_STRATEGY_PAGE
+     *                        Mechanisms: free-space managers with embedded paged aggregation and virtual file drivers
+     *                H5F_FSPACE_STRATEGY_AGGR
+     *                        Mechanisms: aggregators and virtual file drivers
+     *                H5F_FSPACE_STRATEGY_NONE
+     *                        Mechanisms: virtual file drivers
+     * @param persist
+     *            IN: True to persist free-space.
      * @param threshold
      *            IN: The free-space section threshold. The library default is 1, which is to track all free-space sections.
      *                Passing a value of zero (0) indicates that the value of threshold is not to be modified.
@@ -5384,18 +5385,20 @@ public class H5 implements java.io.Serializable {
      *                - Invalid values of max_list and min_btree.
      *
      **/
-    public synchronized static native void H5Pset_file_space(long fcpl_id, int strategy, long threshold)
+    public synchronized static native void H5Pset_file_space_strategy(long fcpl_id, int strategy, boolean persist, long threshold)
             throws HDF5LibraryException, IllegalArgumentException;
 
     /**
-     * H5Pget_file_space provides the means for applications to manage the HDF5 file's file space for their specific needs.
+     * H5Pget_file_space_strategy provides the means for applications to manage the HDF5 file's file space strategy for their specific needs.
      *
      * @param fcpl_id
      *            IN: File creation property list identifier
-     * @param strategy
-     *            IN/OUT: The current file space management strategy in use for the file. NULL, strategy not queried.
+     * @param persist
+     *            IN/OUT: The current free-space persistence. NULL, persist not queried.
      * @param threshold
      *            IN/OUT: The current free-space section threshold. NULL, threshold not queried.
+     *
+     * @return the current free-space strategy.
      *
      * @exception HDF5LibraryException
      *                - Error from the HDF-5 Library.
@@ -5403,8 +5406,78 @@ public class H5 implements java.io.Serializable {
      *                - Invalid values of max_list and min_btree.
      *
      **/
-    public synchronized static native void H5Pget_file_space(long fcpl_id, int[] strategy, long[] threshold)
+    public synchronized static native int H5Pget_file_space_strategy(long fcpl_id, boolean[] persist, long[] threshold)
             throws HDF5LibraryException, IllegalArgumentException;
+
+    /**
+     * H5Pget_file_space_strategy_persist provides the means for applications to manage the HDF5 file's file space strategy for their specific needs.
+     *
+     * @param fcpl_id
+     *            IN: File creation property list identifier
+     *
+     * @return the current free-space persistence.
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     * @exception IllegalArgumentException
+     *                - Invalid values of max_list and min_btree.
+     *
+     **/
+    public synchronized static native boolean H5Pget_file_space_strategy_persist(long fcpl_id)
+            throws HDF5LibraryException, IllegalArgumentException;
+
+    /**
+     * H5Pget_file_space_strategy_threshold provides the means for applications to manage the HDF5 file's file space strategy for their specific needs.
+     *
+     * @param fcpl_id
+     *            IN: File creation property list identifier
+     *
+     * @return the current free-space section threshold.
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     * @exception IllegalArgumentException
+     *                - Invalid values of max_list and min_btree.
+     *
+     **/
+   public synchronized static native long H5Pget_file_space_strategy_threshold(long fcpl_id)
+            throws HDF5LibraryException, IllegalArgumentException;
+
+   /**
+    * H5Pset_file_space_page_size retrieves the file space page size for aggregating small metadata or raw data.
+    *
+    * @param fcpl_id
+    *            IN: File creation property list identifier
+    * @param page_size
+    *            IN: the file space page size.
+    *
+    *
+    * @exception HDF5LibraryException
+    *                - Error from the HDF-5 Library.
+    * @exception IllegalArgumentException
+    *                - Invalid values of max_list and min_btree.
+    *
+    **/
+  public synchronized static native void H5Pset_file_space_page_size(long fcpl_id, long page_size)
+           throws HDF5LibraryException, IllegalArgumentException;
+
+   /**
+    * H5Pget_file_space_page_size Sets the file space page size for paged aggregation.
+    *
+    * @param fcpl_id
+    *            IN: File creation property list identifier
+    *
+    * @return the current file space page size.
+    *
+    * @exception HDF5LibraryException
+    *                - Error from the HDF-5 Library.
+    * @exception IllegalArgumentException
+    *                - Invalid values of max_list and min_btree.
+    *
+    **/
+  public synchronized static native long H5Pget_file_space_page_size(long fcpl_id)
+           throws HDF5LibraryException, IllegalArgumentException;
+
 
     // File access property list (FAPL) routines
 
@@ -7028,7 +7101,7 @@ public class H5 implements java.io.Serializable {
 
     // File access property list (FAPL) routines //
     // herr_t H5Pset_driver( hid_t plist_id, hid_t new_driver_id, const void *new_driver_info )
-    // void *H5Pget_driver_info( hid_t plist_id )
+    // const void *H5Pget_driver_info( hid_t plist_id )
     // herr_t H5Pget_multi_type ( hid_t fapl_id, H5FD_mem_t *type )
     // herr_t H5Pset_multi_type ( hid_t fapl_id, H5FD_mem_t type )
     // herr_t H5Pget_file_image(hid_t fapl_id, void **buf_ptr_ptr, size_t *buf_len_ptr);
@@ -7129,6 +7202,88 @@ public class H5 implements java.io.Serializable {
      *                - Error from the HDF-5 Library.
      **/
     public synchronized static native int H5PLget_loading_state() throws HDF5LibraryException;
+
+    /**
+     * H5PLappend inserts the plugin path at the end of the table.
+     *
+     * @param plugin_path
+     *            IN: Path for location of filter plugin libraries.
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     **/
+    public synchronized static native void H5PLappend(String plugin_path) throws HDF5LibraryException;
+
+    /**
+     * H5PLprepend inserts the plugin path at the beginning of the table.
+     *
+     * @param plugin_path
+     *            IN: Path for location of filter plugin libraries.
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     **/
+    public synchronized static native void H5PLprepend(String plugin_path) throws HDF5LibraryException;
+
+    /**
+     * H5PLreplace replaces the plugin path at the specified index.
+     *
+     * @param plugin_path
+     *            IN: Path for location of filter plugin libraries.
+     * @param index
+     *            IN: The table index (0-based).
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     **/
+    public synchronized static native void H5PLreplace(String plugin_path, int index) throws HDF5LibraryException;
+
+    /**
+     * H5PLinsert inserts the plugin path at the specified index.
+     *
+     * @param plugin_path
+     *            IN: Path for location of filter plugin libraries.
+     * @param index
+     *            IN: The table index (0-based).
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     **/
+    public synchronized static native void H5PLinsert(String plugin_path, int index) throws HDF5LibraryException;
+
+    /**
+     * H5PLremove removes the plugin path at the specified index.
+     *
+     * @param index
+     *            IN: The table index (0-based).
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     **/
+    public synchronized static native void H5PLremove(int index) throws HDF5LibraryException;
+
+    /**
+     * H5PLget retrieves the plugin path at the specified index.
+     *
+     * @param index
+     *            IN: The table index (0-based).
+     *
+     * @return the current path at the index in plugin path table
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     **/
+    public synchronized static native String H5PLget(int index) throws HDF5LibraryException;
+
+    /**
+     * H5PLsize retrieves the size of the current list of plugin paths.
+     *
+     * @return the current number of paths in the plugin path table
+     *
+     * @exception HDF5LibraryException
+     *                - Error from the HDF-5 Library.
+     **/
+    public synchronized static native int H5PLsize() throws HDF5LibraryException;
 
     // ////////////////////////////////////////////////////////////
     // //
@@ -7396,7 +7551,7 @@ public class H5 implements java.io.Serializable {
      *                - dims or maxdims is null.
      **/
     public static long H5Screate_simple(int rank, long[] dims, long[] maxdims) throws HDF5Exception,
-    NullPointerException {
+            NullPointerException {
         long id = _H5Screate_simple(rank, dims, maxdims);
         if (id > 0) {
             log.trace("OPEN_IDS: H5Screate_simple add {}", id);
@@ -7688,10 +7843,10 @@ public class H5 implements java.io.Serializable {
      *                - offset array is null.
      **/
     public synchronized static native int H5Soffset_simple(long space_id, byte[] offset) throws HDF5LibraryException,
-    NullPointerException;
+            NullPointerException;
 
     public synchronized static int H5Soffset_simple(long space_id, long[] offset) throws HDF5Exception,
-    NullPointerException {
+            NullPointerException {
         if (offset == null) {
             return -1;
         }
@@ -7953,7 +8108,7 @@ public class H5 implements java.io.Serializable {
      *                - dim is null.
      **/
     public static long H5Tarray_create(long base_id, int ndims, long[] dim) throws HDF5LibraryException,
-    NullPointerException {
+            NullPointerException {
         long id = _H5Tarray_create2(base_id, ndims, dim);
         if (id > 0) {
             log.trace("OPEN_IDS: H5Tarray_create add {}", id);
@@ -8195,7 +8350,7 @@ public class H5 implements java.io.Serializable {
      *                - buf is null.
      **/
     public synchronized static native int H5Tencode(long obj_id, byte[] buf, long nalloc) throws HDF5LibraryException,
-    NullPointerException;
+            NullPointerException;
 
     // /**
     // * H5Tencode converts a data type description into binary form in a buffer.
@@ -8269,12 +8424,12 @@ public class H5 implements java.io.Serializable {
      *                - name is null.
      **/
     public static int H5Tenum_insert(long type, String name, int[] value) throws HDF5LibraryException,
-    NullPointerException {
+            NullPointerException {
         return H5Tenum_insert_int(type, name, value);
     }
 
     public static int H5Tenum_insert(long type, String name, int value) throws HDF5LibraryException,
-    NullPointerException {
+            NullPointerException {
         int[] val = { value };
         return H5Tenum_insert_int(type, name, val);
     }
@@ -8324,7 +8479,7 @@ public class H5 implements java.io.Serializable {
      *                - name is null.
      **/
     public static int H5Tenum_nameof(long type, int[] value, String[] name, int size) throws HDF5LibraryException,
-    NullPointerException {
+            NullPointerException {
         return H5Tenum_nameof_int(type, value, name, size);
     }
 
@@ -8365,7 +8520,7 @@ public class H5 implements java.io.Serializable {
      *                - name is null.
      **/
     public static int H5Tenum_valueof(long type, String name, int[] value) throws HDF5LibraryException,
-    NullPointerException {
+            NullPointerException {
         return H5Tenum_valueof_int(type, name, value);
     }
 
@@ -8422,7 +8577,7 @@ public class H5 implements java.io.Serializable {
      *                - dims is null.
      **/
     public synchronized static native int H5Tget_array_dims2(long type_id, long[] dims) throws HDF5LibraryException,
-    NullPointerException;
+            NullPointerException;
 
     /**
      * H5Tget_array_ndims returns the rank, the number of dimensions, of an array datatype object.
@@ -8621,7 +8776,7 @@ public class H5 implements java.io.Serializable {
      *                - fields array is invalid.
      **/
     public synchronized static native void H5Tget_fields(long type_id, long[] fields) throws HDF5LibraryException,
-    NullPointerException, IllegalArgumentException;
+            NullPointerException, IllegalArgumentException;
 
     /**
      * H5Tget_fields retrieves information about the locations of the various bit fields of a floating point datatype.
@@ -8649,12 +8804,12 @@ public class H5 implements java.io.Serializable {
      *                - fields array is invalid.
      **/
     public static int H5Tget_fields(long type_id, int[] fields) throws HDF5LibraryException, NullPointerException,
-    IllegalArgumentException {
+            IllegalArgumentException {
         return H5Tget_fields_int(type_id, fields);
     }
 
     private synchronized static native int H5Tget_fields_int(long type_id, int[] fields) throws HDF5LibraryException,
-    NullPointerException, IllegalArgumentException;
+            NullPointerException, IllegalArgumentException;
 
     /**
      * H5Tset_fields sets the locations and sizes of the various floating point bit fields.
@@ -8852,7 +9007,7 @@ public class H5 implements java.io.Serializable {
      *                - value is null.
      **/
     public static int H5Tget_member_value(long type_id, int membno, int[] value) throws HDF5LibraryException,
-    NullPointerException {
+            NullPointerException {
         return H5Tget_member_value_int(type_id, membno, value);
     }
 
@@ -9033,7 +9188,7 @@ public class H5 implements java.io.Serializable {
      *                - pad is null.
      **/
     public synchronized static native int H5Tget_pad(long type_id, int[] pad) throws HDF5LibraryException,
-    NullPointerException;
+            NullPointerException;
 
     /**
      * H5Tset_pad sets the least and most-significant bits padding types.

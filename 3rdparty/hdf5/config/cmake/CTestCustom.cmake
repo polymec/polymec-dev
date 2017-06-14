@@ -1,4 +1,20 @@
+#
+# Copyright by The HDF Group.
+# All rights reserved.
+#
+# This file is part of HDF5.  The full HDF5 copyright notice, including
+# terms governing use, modification, and redistribution, is contained in
+# the COPYING file, which can be found at the root of the source code
+# distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.
+# If you do not have access to either file, you may request a copy from
+# help@hdfgroup.org.
+#
 set (CTEST_CUSTOM_MAXIMUM_NUMBER_OF_WARNINGS 3000)
+# Allow full output to go to CDash set to 0
+SET(CTEST_CUSTOM_MAXIMUM_PASSED_TEST_OUTPUT_SIZE 50000)
+SET(CTEST_CUSTOM_MAXIMUM_FAILED_TEST_OUTPUT_SIZE 50000)
+# WARNING!  This could be a lot of output and could overwhelm CDash and the
+# MySQL DB so this might not be a good idea!
 
 set (CTEST_CUSTOM_WARNING_EXCEPTION
     ${CTEST_CUSTOM_WARNING_EXCEPTION}
@@ -214,6 +230,7 @@ set (CTEST_CUSTOM_MEMCHECK_IGNORE
     H5REPACK_VERIFY_LAYOUT_ALL-layout_long_switches     #uses grepTest.cmake
     H5REPACK_VERIFY_LAYOUT_ALL-layout_short_switches    #uses grepTest.cmake
     H5REPACK-plugin
+    H5REPACK_CMP-plugin_zero
     ######### tools/h5stat #########
     H5STAT-clearall-objects
     ######### tools/misc #########

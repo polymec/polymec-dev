@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -139,7 +137,8 @@ int total_writes           = 0;
  *		happen to overlap some collective operation.
  *
  *      cleared: Boolean flag that is set to true whenever the entry is
- *              dirty, and is cleared via a call to datum_clear().
+ *              dirty, and is cleared via a call to datum_notify with the
+ *              "entry cleaned" action.
  *
  *      flushed: Boolean flag that is set to true whenever the entry is
  *              dirty, and is flushed by the metadata cache.
@@ -332,7 +331,7 @@ struct mssg_t
     haddr_t	base_addr;
     unsigned	len;
     int		ver;
-    int		count;
+    unsigned	count;
     unsigned	magic;
 };
 
@@ -389,20 +388,16 @@ static hbool_t serve_rw_count_reset_request(struct mssg_t * mssg_ptr);
 
 /* call back functions & related data structures */
 
-static herr_t datum_get_load_size(const void *image_ptr, 
-				  const void *udata_ptr,
-                                  size_t *image_len_ptr,
-                                  size_t *actual_len_ptr);
+static herr_t datum_get_initial_load_size(void *udata_ptr,
+                                  size_t *image_len_ptr);
 
 static void * datum_deserialize(const void * image_ptr,
                                 size_t len,
                                 void * udata_ptr,
                                 hbool_t * dirty_ptr);
 
-static herr_t datum_image_len(void *thing,
-                              size_t *image_len_ptr,
-                              hbool_t *compressed_ptr,
-                              size_t *compressed_len_ptr);
+static herr_t datum_image_len(const void *thing,
+                              size_t *image_len_ptr);
 
 static herr_t datum_serialize(const H5F_t *f,
                               void *image_ptr,
@@ -413,9 +408,8 @@ static herr_t datum_notify(H5C_notify_action_t action, void *thing);
 
 static herr_t datum_free_icr(void * thing);
 
-static herr_t datum_clear(H5F_t * f, void *  thing, hbool_t about_to_destroy);
-
-#define DATUM_ENTRY_TYPE	H5AC_TEST_ID
+/* Masquerade as object header entries to the cache */
+#define DATUM_ENTRY_TYPE	H5AC_OHDR_ID
 
 #define NUMBER_OF_ENTRY_TYPES	1
 
@@ -439,18 +433,18 @@ const H5C_class_t types[NUMBER_OF_ENTRY_TYPES] =
   {
     /* id            */ DATUM_ENTRY_TYPE,
     /* name          */ "datum",
-    /* mem_type      */ H5FD_MEM_DEFAULT,
+    /* mem_type      */ H5FD_MEM_OHDR,
     /* flags         */ H5AC__CLASS_SKIP_READS | H5AC__CLASS_SKIP_WRITES,
-    /* get_load_size */ (H5AC_get_load_size_func_t)datum_get_load_size,
+    /* get_initial_load_size */ datum_get_initial_load_size,
+    /* get_final_load_size */ NULL,
     /* verify_chksum */ NULL,
-    /* deserialize   */ (H5AC_deserialize_func_t)datum_deserialize,
-    /* image_len     */ (H5AC_image_len_func_t)datum_image_len,
-    /* pre_serialize */ (H5AC_pre_serialize_func_t)NULL,
-    /* serialize     */ (H5AC_serialize_func_t)datum_serialize,
-    /* notify        */ (H5AC_notify_func_t)datum_notify,
-    /* free_icr      */ (H5AC_free_icr_func_t)datum_free_icr,
-    /* clear         */ (H5AC_clear_func_t)datum_clear,
-    /* fsf_size      */ (H5AC_get_fsf_size_t)NULL,
+    /* deserialize   */ datum_deserialize,
+    /* image_len     */ datum_image_len,
+    /* pre_serialize */ NULL,
+    /* serialize     */ datum_serialize,
+    /* notify        */ datum_notify,
+    /* free_icr      */ datum_free_icr,
+    /* fsf_size      */ NULL,
   }
 };
 
@@ -489,8 +483,8 @@ static hbool_t take_down_cache(hid_t fid, H5C_t * cache_ptr);
 static hbool_t verify_entry_reads(haddr_t addr, int expected_entry_reads);
 static hbool_t verify_entry_writes(haddr_t addr, int expected_entry_writes);
 static hbool_t verify_total_reads(int expected_total_reads);
-static hbool_t verify_total_writes(int expected_total_writes);
-static void verify_writes(int num_writes, haddr_t * written_entries_tbl);
+static hbool_t verify_total_writes(unsigned expected_total_writes);
+static void verify_writes(unsigned num_writes, haddr_t * written_entries_tbl);
 static void unlock_entry(H5F_t * file_ptr, int32_t type, unsigned int flags);
 static void unpin_entry(H5F_t * file_ptr, int32_t idx, hbool_t global,
                  hbool_t dirty, hbool_t via_unprotect);
@@ -1218,7 +1212,7 @@ setup_derived_types(void)
     int result;
     MPI_Datatype mpi_types[9] = {MPI_INT, MPI_INT, MPI_INT, MPI_LONG,
                                  HADDR_AS_MPI_TYPE, MPI_INT, MPI_INT,
-                                 MPI_INT, MPI_UNSIGNED};
+                                 MPI_UNSIGNED, MPI_UNSIGNED};
     int block_len[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
     MPI_Aint displs[9];
     struct mssg_t sample; /* used to compute displacements */
@@ -2325,7 +2319,7 @@ serve_rw_count_reset_request(struct mssg_t * mssg_ptr)
 
 
 /*-------------------------------------------------------------------------
- * Function:	datum_get_load_size
+ * Function:	datum_get_initial_load_size
  *
  * Purpose:	Query the image size for an entry before deserializing it
  *
@@ -2337,8 +2331,7 @@ serve_rw_count_reset_request(struct mssg_t * mssg_ptr)
  *-------------------------------------------------------------------------
  */
 static herr_t
-datum_get_load_size(const void *image_ptr, const void *udata_ptr,
-                  size_t *image_len_ptr, size_t *actual_len_ptr)
+datum_get_initial_load_size(void *udata_ptr, size_t *image_len_ptr)
 {
     haddr_t addr = *(haddr_t *)udata_ptr;
     int idx;
@@ -2362,7 +2355,7 @@ datum_get_load_size(const void *image_ptr, const void *udata_ptr,
     if ( callbacks_verbose ) {
 
         HDfprintf(stdout,
-	  "%d: get_load_size() idx = %d, addr = %ld, len = %d.\n",
+	  "%d: get_initial_load_size() idx = %d, addr = %ld, len = %d.\n",
               world_mpi_rank, idx, (long)addr, (int)entry_ptr->local_len);
 	fflush(stdout);
     }
@@ -2371,7 +2364,7 @@ datum_get_load_size(const void *image_ptr, const void *udata_ptr,
     *image_len_ptr = entry_ptr->local_len;
 
     return(SUCCEED);
-} /* get_load_size() */
+} /* get_initial_load_size() */
 
 
 /*-------------------------------------------------------------------------
@@ -2451,8 +2444,7 @@ datum_deserialize(const void * image_ptr,
  *-------------------------------------------------------------------------
  */
 static herr_t
-datum_image_len(void *thing, size_t *image_len,
-    hbool_t H5_ATTR_UNUSED *compressed_ptr, size_t H5_ATTR_UNUSED *compressed_len_ptr)
+datum_image_len(const void *thing, size_t *image_len)
 {
     int idx;
     struct datum * entry_ptr;
@@ -2529,7 +2521,6 @@ datum_serialize(const H5F_t *f,
 
     HDassert( aux_ptr );
     HDassert( aux_ptr->magic == H5AC__H5AC_AUX_T_MAGIC );
-    HDassert( entry_ptr->aux_ptr == NULL );
 
     entry_ptr->aux_ptr = aux_ptr;
 
@@ -2611,8 +2602,13 @@ datum_notify(H5C_notify_action_t action, void *thing)
     }
 
     HDassert( entry_ptr->header.addr == entry_ptr->base_addr );
-    HDassert( ( entry_ptr->header.size == entry_ptr->len ) ||
-              ( entry_ptr->header.size == entry_ptr->local_len ) );
+    /* Skip this check when the entry is being dirtied, since the resize
+     * operation sends the message before the len/local_len is updated
+     * (after the resize operation completes successfully) (QAK - 2016/10/19)
+     */
+    if(H5AC_NOTIFY_ACTION_ENTRY_DIRTIED != action)
+        HDassert( ( entry_ptr->header.size == entry_ptr->len ) ||
+                  ( entry_ptr->header.size == entry_ptr->local_len ) );
 
     switch ( action )
     {
@@ -2873,6 +2869,87 @@ datum_notify(H5C_notify_action_t action, void *thing)
             /* do nothing */
             break;
 
+        case H5AC_NOTIFY_ACTION_ENTRY_DIRTIED:
+            if ( callbacks_verbose ) {
+
+                HDfprintf(stdout,
+                      "%d: notify() action = entry dirty, idx = %d, addr = %ld.\n",
+                      world_mpi_rank, idx, (long)entry_ptr->header.addr);
+                fflush(stdout);
+            }
+
+            /* do nothing */
+            break;
+
+        case H5AC_NOTIFY_ACTION_ENTRY_CLEANED:
+            if ( callbacks_verbose ) {
+
+                HDfprintf(stdout,
+                      "%d: notify() action = entry clean, idx = %d, addr = %ld.\n",
+                      world_mpi_rank, idx, (long)entry_ptr->header.addr);
+                fflush(stdout);
+            }
+
+            entry_ptr->cleared = TRUE;
+            entry_ptr->dirty = FALSE;
+
+            datum_clears++;
+
+            if(entry_ptr->header.is_pinned) {
+                datum_pinned_clears++;
+                HDassert( entry_ptr->global_pinned || entry_ptr->local_pinned );
+            } /* end if */
+
+            break;
+
+        case H5AC_NOTIFY_ACTION_CHILD_DIRTIED:
+            if ( callbacks_verbose ) {
+
+                HDfprintf(stdout,
+                      "%d: notify() action = child entry dirty, idx = %d, addr = %ld.\n",
+                      world_mpi_rank, idx, (long)entry_ptr->header.addr);
+                fflush(stdout);
+            }
+
+            /* do nothing */
+            break;
+
+        case H5AC_NOTIFY_ACTION_CHILD_CLEANED:
+            if ( callbacks_verbose ) {
+
+                HDfprintf(stdout,
+                      "%d: notify() action = child entry clean, idx = %d, addr = %ld.\n",
+                      world_mpi_rank, idx, (long)entry_ptr->header.addr);
+                fflush(stdout);
+            }
+
+            /* do nothing */
+            break;
+
+        case H5AC_NOTIFY_ACTION_CHILD_UNSERIALIZED:
+            if ( callbacks_verbose ) {
+
+                HDfprintf(stdout,
+                      "%d: notify() action = child entry unserialized, idx = %d, addr = %ld.\n",
+                      world_mpi_rank, idx, (long)entry_ptr->header.addr);
+                fflush(stdout);
+            }
+
+            /* do nothing */
+            break;
+
+        case H5AC_NOTIFY_ACTION_CHILD_SERIALIZED:
+            if ( callbacks_verbose ) {
+
+                HDfprintf(stdout,
+                      "%d: notify() action = child entry serialized, idx = %d, addr = %ld.\n",
+                      world_mpi_rank, idx, (long)entry_ptr->header.addr);
+                fflush(stdout);
+            }
+
+            /* do nothing */
+            break;
+
 	default:
             nerrors++;
             ret_value = FAIL;
@@ -2944,62 +3021,6 @@ datum_free_icr(void * thing)
 } /* datum_free_icr() */
 
 
-/*-------------------------------------------------------------------------
- * Function:    datum_clear
- *
- * Purpose:     Mark the datum as clean.
- *
- *              Do not write it to the server, or increment the version.
- *
- * Return:      SUCCEED
- *
- * Programmer:  John Mainzer
- *              12/29/05
- *
- *-------------------------------------------------------------------------
- */
-static herr_t
-datum_clear(H5F_t H5_ATTR_UNUSED * f,
-            void *  thing,
-            hbool_t H5_ATTR_UNUSED about_to_destroy)
-{
-    int idx;
-    struct datum * entry_ptr;
-
-    HDassert( thing );
-
-    entry_ptr = (struct datum *)thing;
-
-    idx = addr_to_datum_index(entry_ptr->base_addr);
-
-    HDassert( idx >= 0 );
-    HDassert( idx < NUM_DATA_ENTRIES );
-    HDassert( idx < virt_num_data_entries );
-    HDassert( &(data[idx]) == entry_ptr );
-
-    HDassert( entry_ptr->header.addr == entry_ptr->base_addr );
-    HDassert( ( entry_ptr->header.size == entry_ptr->len ) ||
-              ( entry_ptr->header.size == entry_ptr->local_len ) );
-
-    HDassert( ( entry_ptr->dirty ) ||
-              ( entry_ptr->header.is_dirty == entry_ptr->dirty ) );
-
-    entry_ptr->cleared = TRUE;
-    entry_ptr->dirty = FALSE;
-
-    datum_clears++;
-
-    if ( entry_ptr->header.is_pinned ) {
-
-        datum_pinned_clears++;
-        HDassert( entry_ptr->global_pinned || entry_ptr->local_pinned );
-    }
-
-    return(SUCCEED);
-
-} /* datum_clear() */
-
-
 /*****************************************************************************/
 /************************** test utility functions ***************************/
 /*****************************************************************************/
@@ -3056,7 +3077,7 @@ expunge_entry(H5F_t * file_ptr,
 	HDassert( ! ((entry_ptr->header).is_dirty) );
 
 	result = H5C_get_entry_status(file_ptr, entry_ptr->base_addr,
-				      NULL, &in_cache, NULL, NULL, NULL, NULL, NULL, NULL);
+				      NULL, &in_cache, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 	if ( result < 0 ) {
 
@@ -4311,15 +4332,13 @@ setup_cache_for_test(hid_t * fid_ptr,
  *
  *****************************************************************************/
 static void
-verify_writes(int num_writes,
-	      haddr_t * written_entries_tbl)
+verify_writes(unsigned num_writes, haddr_t *written_entries_tbl)
 {
     const hbool_t report = FALSE;
     hbool_t proceed = TRUE;
-    int i = 0;
+    unsigned u = 0;
 
     HDassert( world_mpi_rank != world_server_mpi_rank );
-    HDassert( num_writes >= 0 );
     HDassert( ( num_writes == 0 ) ||
               ( written_entries_tbl != NULL ) );
 
@@ -4339,15 +4358,12 @@ verify_writes(int num_writes,
         }
     }
 
-    if ( proceed ) {
-
+    if(proceed)
         proceed = verify_total_writes(num_writes);
-    }
 
-    while ( ( proceed ) && ( i < num_writes ) ) 
-    {
-        proceed = verify_entry_writes(written_entries_tbl[i], 1);
-        i++;
+    while(proceed && u < num_writes) {
+        proceed = verify_entry_writes(written_entries_tbl[u], 1);
+        u++;
     }
 
     /* barrier to ensure that all other processes have finished verifying
@@ -4376,12 +4392,12 @@ verify_writes(int num_writes,
 
         if ( proceed ) {
 
-            HDfprintf(stdout, "%d:%s: verified %d writes.\n",
+            HDfprintf(stdout, "%d:%s: verified %u writes.\n",
                       world_mpi_rank, FUNC, num_writes);
 
         } else {
 
-            HDfprintf(stdout, "%d:%s: FAILED to verify %d writes.\n",
+            HDfprintf(stdout, "%d:%s: FAILED to verify %u writes.\n",
                       world_mpi_rank, FUNC, num_writes);
 
         }
@@ -4906,10 +4922,10 @@ verify_total_reads(int expected_total_reads)
  *
  *****************************************************************************/
 static hbool_t
-verify_total_writes(int expected_total_writes)
+verify_total_writes(unsigned expected_total_writes)
 {
     hbool_t success = TRUE; /* will set to FALSE if appropriate. */
-    long reported_total_writes;
+    unsigned reported_total_writes;
     struct mssg_t mssg;
 
     if ( success ) {
@@ -4974,7 +4990,7 @@ verify_total_writes(int expected_total_writes)
             success = FALSE;
             if ( verbose ) {
                 HDfprintf(stdout, 
-                   "%d:%s: reported/expected total writes mismatch (%ld/%ld).\n",
+                   "%d:%s: reported/expected total writes mismatch (%u/%u).\n",
                    world_mpi_rank, FUNC, 
                    reported_total_writes, expected_total_writes);
             }
@@ -5296,7 +5312,7 @@ server_smoke_check(void)
 
         if ( success ) {
 
-            success = verify_total_writes(world_mpi_size - 1);
+            success = verify_total_writes((unsigned)(world_mpi_size - 1));
         }
 
         if ( success ) {
@@ -5400,7 +5416,7 @@ server_smoke_check(void)
 
         if ( success ) {
 
-            success = verify_total_writes(world_mpi_size - 1);
+            success = verify_total_writes((unsigned)(world_mpi_size - 1));
         }
 
         if ( success ) {

@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
@@ -80,7 +78,11 @@ main(int argc, char *argv[])
     /* Write planes to the dataset */
     for(i = 0; i < N_PLANES_TO_WRITE; i++) {
 
-        unsigned delay;     /* Time interval between plane writes */
+        time_t delay;           /* Time interval between plane writes */
+
+        /* Cork the dataset's metadata in the cache */
+        if(H5Odisable_mdc_flushes(did) < 0)
+            TEST_ERROR
 
         /* Set the dataset's extent. This is inefficient but that's ok here. */
         extent[0] = i + 1;
@@ -109,8 +111,12 @@ main(int argc, char *argv[])
         if(H5Dwrite(did, H5T_NATIVE_INT, msid, fsid, H5P_DEFAULT, buffer) < 0)
             TEST_ERROR
 
+        /* Uncork the dataset's metadata from the cache */
+        if(H5Oenable_mdc_flushes(did) < 0)
+            TEST_ERROR
+
         /* Wait one second between writing planes */
-        delay = HDtime(0) + 1;
+        delay = HDtime(0) + (time_t)1;
         while(HDtime(0) < delay)
             ;
 

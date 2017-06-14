@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -22,7 +20,6 @@
  */
 
 #include "h5test.h"
-#include "H5srcdir.h"
 
 #define DSET_NAME 		"dset_fail"
 #define H5Z_FILTER_FAIL_TEST    312
@@ -350,8 +347,8 @@ error:
  * Purpose:     Tests the library's behavior when a mandate filter returns 
  *              failure.
  *
- * Return:      Success:        exit(0)
- *              Failure:        exit(1)
+ * Return:      Success:        exit(EXIT_SUCCESS)
+ *              Failure:        exit(EXIT_FAILURE)
  * 
  * Programmer:  Raymond Lu
  *              25 August 2010
@@ -407,6 +404,6 @@ error:
     if (nerrors) {
         printf("***** %u FAILURE%s! *****\n",
                nerrors, 1==nerrors?"":"S");
-        HDexit(1);
+        HDexit(EXIT_FAILURE);
     }
 }

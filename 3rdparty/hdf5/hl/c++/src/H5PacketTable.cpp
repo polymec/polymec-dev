@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* Packet Table wrapper classes
@@ -130,7 +128,7 @@
 
     /* GetDatatype
      * Returns the datatype identifier used by the packet table, on success,
-     * or FAIL, on failure.
+     * or H5I_INVALID_HID, on failure.
      * Note: it is best to avoid using this identifier in applications, unless
      * the desired functionality cannot be performed via the packet table ID.
      */
@@ -141,7 +139,7 @@
 
     /* GetDataset
      * Returns the dataset identifier associated with the packet table, on
-     * success, or FAIL, on failure.
+     * success, or H5I_INVALID_HID, on failure.
      * Note: it is best to avoid using this identifier in applications, unless
      * the desired functionality cannot be performed via the packet table ID.
      */
@@ -172,9 +170,22 @@
      * the property list to specify compression, the name of the packet table,
      * the ID of the datatype, and the size of a memory chunk used in chunking.
      */
-    FL_PacketTable::FL_PacketTable(hid_t fileID, hid_t plist_id, const char* name, hid_t dtypeID, hsize_t chunkSize)
+    FL_PacketTable::FL_PacketTable(hid_t fileID, const char* name, hid_t dtypeID, hsize_t chunkSize, hid_t plistID)
     {
-        table_id = H5PTcreate(fileID, name, dtypeID, chunkSize, plist_id);
+        table_id = H5PTcreate(fileID, name, dtypeID, chunkSize, plistID);
+    }
+
+    /* Constructor - deprecated
+     * Creates a packet table to store either fixed- or variable-length packets.
+     * Takes the ID of the file the packet table will be created in, the ID of
+     * the property list to specify compression, the name of the packet table,
+     * the ID of the datatype, and the size of a memory chunk used in chunking.
+     * Note: The above constructor has a better prototype, which allows default
+     * values to be used.  This constructor was only released in 1.10.0.
+     */
+    FL_PacketTable::FL_PacketTable(hid_t fileID, hid_t plistID, const char* name, hid_t dtypeID, hsize_t chunkSize)
+    {
+        table_id = H5PTcreate(fileID, name, dtypeID, chunkSize, plistID);
     }
 
     /* Constructor

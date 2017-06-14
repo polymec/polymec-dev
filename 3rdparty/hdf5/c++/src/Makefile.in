@@ -21,12 +21,10 @@
 #
 # This file is part of HDF5.  The full HDF5 copyright notice, including
 # terms governing use, modification, and redistribution, is contained in
-# the files COPYING and Copyright.html.  COPYING can be found at the root
-# of the source code distribution tree; Copyright.html can be found at the
-# root level of an installed copy of the electronic HDF5 document set and
-# is linked from the top-level documents page.  It can also be found at
-# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from help@hdfgroup.org.
+# the COPYING file, which can be found at the root of the source code
+# distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.
+# If you do not have access to either file, you may request a copy from
+# help@hdfgroup.org.
 #
 # HDF5-C++ Makefile(.in)
 #
@@ -169,13 +167,13 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libhdf5_cpp_la_DEPENDENCIES = $(LIBHDF5)
 am_libhdf5_cpp_la_OBJECTS = H5Exception.lo H5IdComponent.lo \
-	H5Library.lo H5Attribute.lo H5Location.lo H5Object.lo \
-	H5PropList.lo H5FaccProp.lo H5FcreatProp.lo H5DcreatProp.lo \
-	H5DxferProp.lo H5OcreatProp.lo H5DataType.lo H5DataSpace.lo \
-	H5AbstractDs.lo H5AtomType.lo H5PredType.lo H5EnumType.lo \
-	H5IntType.lo H5FloatType.lo H5StrType.lo H5ArrayType.lo \
-	H5VarLenType.lo H5CompType.lo H5DataSet.lo H5CommonFG.lo \
-	H5Group.lo H5File.lo
+	H5DataSpace.lo H5PropList.lo H5Library.lo H5FaccProp.lo \
+	H5FcreatProp.lo H5LaccProp.lo H5DxferProp.lo H5DcreatProp.lo \
+	H5Location.lo H5AbstractDs.lo H5Attribute.lo H5Object.lo \
+	H5OcreatProp.lo H5DataType.lo H5AtomType.lo H5PredType.lo \
+	H5EnumType.lo H5IntType.lo H5FloatType.lo H5StrType.lo \
+	H5ArrayType.lo H5VarLenType.lo H5CompType.lo H5DataSet.lo \
+	H5CommonFG.lo H5Group.lo H5File.lo
 libhdf5_cpp_la_OBJECTS = $(am_libhdf5_cpp_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -474,6 +472,7 @@ DEFAULT_API_VERSION = @DEFAULT_API_VERSION@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DEPRECATED_SYMBOLS = @DEPRECATED_SYMBOLS@
+DEV_WARNINGS = @DEV_WARNINGS@
 DIRECT_VFD = @DIRECT_VFD@
 DLLTOOL = @DLLTOOL@
 DSYMUTIL = @DSYMUTIL@
@@ -595,6 +594,7 @@ PAC_FORTRAN_NATIVE_INTEGER_KIND = @PAC_FORTRAN_NATIVE_INTEGER_KIND@
 PAC_FORTRAN_NATIVE_INTEGER_SIZEOF = @PAC_FORTRAN_NATIVE_INTEGER_SIZEOF@
 PAC_FORTRAN_NATIVE_REAL_KIND = @PAC_FORTRAN_NATIVE_REAL_KIND@
 PAC_FORTRAN_NATIVE_REAL_SIZEOF = @PAC_FORTRAN_NATIVE_REAL_SIZEOF@
+PAC_FORTRAN_NUM_INTEGER_KINDS = @PAC_FORTRAN_NUM_INTEGER_KINDS@
 PARALLEL = @PARALLEL@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PROFILING = @PROFILING@
@@ -740,32 +740,27 @@ TRACE = perl $(top_srcdir)/bin/trace
 # .chklog files are output from those tests.
 # *.clog and *.clog2 are from the MPE option.
 CHECK_CLEANFILES = *.chkexe *.chklog *.clog *.clog2
-
-# Add libtool shared library version numbers to the HDF5 library
-# See libtool versioning documentation online.
-# After making changes, run bin/reconfigure to update other configure related
-# files like Makefile.in.
-LT_VERS_INTERFACE = 100
-LT_VERS_REVISION = 1
+LT_VERS_INTERFACE = 101
+LT_VERS_REVISION = 0
 LT_VERS_AGE = 0
-LT_CXX_VERS_INTERFACE = 100
+LT_CXX_VERS_INTERFACE = 101
 LT_CXX_VERS_REVISION = 0
 LT_CXX_VERS_AGE = 0
-LT_F_VERS_INTERFACE = 100
-LT_F_VERS_REVISION = 1
-LT_F_VERS_AGE = 0
+LT_F_VERS_INTERFACE = 101
+LT_F_VERS_REVISION = 0
+LT_F_VERS_AGE = 1
 LT_HL_VERS_INTERFACE = 100
-LT_HL_VERS_REVISION = 0
+LT_HL_VERS_REVISION = 1
 LT_HL_VERS_AGE = 0
-LT_HL_CXX_VERS_INTERFACE = 100
+LT_HL_CXX_VERS_INTERFACE = 101
 LT_HL_CXX_VERS_REVISION = 0
-LT_HL_CXX_VERS_AGE = 0
+LT_HL_CXX_VERS_AGE = 1
 LT_HL_F_VERS_INTERFACE = 100
-LT_HL_F_VERS_REVISION = 0
+LT_HL_F_VERS_REVISION = 1
 LT_HL_F_VERS_AGE = 0
-LT_JAVA_VERS_INTERFACE = 100
+LT_JAVA_VERS_INTERFACE = 101
 LT_JAVA_VERS_REVISION = 0
-LT_JAVA_VERS_AGE = 0
+LT_JAVA_VERS_AGE = 1
 LT_TOOLS_VERS_INTERFACE = 100
 LT_TOOLS_VERS_REVISION = 1
 LT_TOOLS_VERS_AGE = 0
@@ -778,13 +773,16 @@ libhdf5_cpp_la_LDFLAGS = -version-info $(LT_CXX_VERS_INTERFACE):$(LT_CXX_VERS_RE
 bin_SCRIPTS = h5c++
 
 # Source files for the library
-libhdf5_cpp_la_SOURCES = H5Exception.cpp H5IdComponent.cpp H5Library.cpp        \
-        H5Attribute.cpp H5Location.cpp H5Object.cpp H5PropList.cpp	      \
-	H5FaccProp.cpp H5FcreatProp.cpp H5DcreatProp.cpp H5DxferProp.cpp      \
-	H5OcreatProp.cpp H5DataType.cpp H5DataSpace.cpp H5AbstractDs.cpp          \
-	H5AtomType.cpp H5PredType.cpp H5EnumType.cpp H5IntType.cpp            \
-	H5FloatType.cpp H5StrType.cpp H5ArrayType.cpp H5VarLenType.cpp        \
-	H5CompType.cpp H5DataSet.cpp H5CommonFG.cpp H5Group.cpp H5File.cpp
+libhdf5_cpp_la_SOURCES = H5Exception.cpp H5IdComponent.cpp	\
+	H5DataSpace.cpp H5PropList.cpp H5Library.cpp		\
+	H5FaccProp.cpp H5FcreatProp.cpp H5LaccProp.cpp		\
+	H5DxferProp.cpp H5DcreatProp.cpp H5Location.cpp		\
+	H5AbstractDs.cpp H5Attribute.cpp H5Object.cpp		\
+	H5OcreatProp.cpp H5DataType.cpp H5AtomType.cpp		\
+	H5PredType.cpp H5EnumType.cpp H5IntType.cpp		\
+	H5FloatType.cpp H5StrType.cpp H5ArrayType.cpp		\
+	H5VarLenType.cpp H5CompType.cpp H5DataSet.cpp		\
+	H5CommonFG.cpp H5Group.cpp H5File.cpp
 
 
 # HDF5 C++ library depends on HDF5 Library.
@@ -792,12 +790,12 @@ libhdf5_cpp_la_LIBADD = $(LIBHDF5)
 
 # Public headers
 include_HEADERS = H5Cpp.h H5AbstractDs.h H5AtomType.h H5Attribute.h H5Classes.h \
-        H5CommonFG.h H5CompType.h H5DataSet.h H5DataSpace.h H5DataType.h      \
-        H5OcreatProp.h H5DcreatProp.h H5DxferProp.h H5EnumType.h              \
+	H5CommonFG.h H5CompType.h H5DataSet.h H5DataSpace.h H5DataType.h      \
+	H5OcreatProp.h H5DcreatProp.h H5DxferProp.h H5EnumType.h              \
 	H5Exception.h H5FaccProp.h H5FcreatProp.h H5File.h H5FloatType.h      \
-	H5Group.h H5IdComponent.h H5Include.h H5IntType.h H5Library.h         \
-	H5Location.h H5Object.h H5PredType.h H5PropList.h H5StrType.h         \
-	H5CppDoc.h H5ArrayType.h H5VarLenType.h      
+	H5Group.h H5IdComponent.h H5Include.h H5IntType.h H5LaccProp.h        \
+	H5Library.h H5Location.h H5Object.h H5PredType.h H5PropList.h         \
+	H5StrType.h H5CppDoc.h H5ArrayType.h H5VarLenType.h
 
 
 # h5c++ and libhdf5.settings are generated during configure.  Remove only when
@@ -807,18 +805,20 @@ DISTCLEANFILES = h5c++ libhdf5.settings
 # Mark this directory as part of the C++ API
 CXX_API = yes
 
-# Automake needs to be taught how to build lib, progs, and tests targets.
+# Automake needs to be taught how to build lib, dyn, progs and tests targets.
 # These will be filled in automatically for the most part (e.g.,
 # lib_LIBRARIES are built for lib target), but EXTRA_LIB, EXTRA_PROG, and
 # EXTRA_TEST variables are supplied to allow the user to force targets to
-# be built at certain times. 
+# be built at certain times.
 LIB = $(lib_LIBRARIES) $(lib_LTLIBRARIES) $(noinst_LIBRARIES)                 \
       $(noinst_LTLIBRARIES) $(check_LIBRARIES) $(check_LTLIBRARIES) $(EXTRA_LIB)
 
+DYN = $(dyn_LTLIBRARIES)
 PROGS = $(bin_PROGRAMS) $(bin_SCRIPTS) $(noinst_PROGRAMS) $(noinst_SCRIPTS)   \
         $(EXTRA_PROG)
 
 chk_TESTS = $(check_PROGRAMS) $(check_SCRIPTS) $(EXTRA_TEST) 
+dyndir = $(libdir)
 TEST_EXTENSIONS = .sh
 SH_LOG_COMPILER = $(SHELL)
 AM_SH_LOG_FLAGS = 
@@ -962,6 +962,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/H5Group.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/H5IdComponent.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/H5IntType.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/H5LaccProp.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/H5Library.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/H5Location.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/H5Object.Plo@am__quote@
@@ -972,22 +973,25 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/H5VarLenType.Plo@am__quote@
 
 .cpp.o:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCXX_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ $<
 
 .cpp.obj:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+@am__fastdepCXX_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 .cpp.lo:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.lo$$||'`;\
+@am__fastdepCXX_TRUE@	$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCXX_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Plo
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
@@ -1394,19 +1398,6 @@ uninstall-am: uninstall-binSCRIPTS uninstall-includeHEADERS \
 help:
 	@$(top_srcdir)/bin/makehelp
 
-# Copyright by The HDF Group.
-# Copyright by the Board of Trustees of the University of Illinois.
-# All rights reserved.
-#
-# This file is part of HDF5.  The full HDF5 copyright notice, including
-# terms governing use, modification, and redistribution, is contained in
-# the files COPYING and Copyright.html.  COPYING can be found at the root
-# of the source code distribution tree; Copyright.html can be found at the
-# root level of an installed copy of the electronic HDF5 document set and
-# is linked from the top-level documents page.  It can also be found at
-# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from help@hdfgroup.org.
-
 # Some C++ compilers/linkers (PGI?) create a directory named "ii_files" that
 # holds *.ii files, which are template entity instantiations.
 # This entire directory should be cleaned.
@@ -1417,6 +1408,7 @@ mostlyclean-local:
 
 # lib/progs/tests targets recurse into subdirectories. build-* targets
 # build files in this directory.
+build-dyn: $(DYN)
 build-lib: $(LIB)
 build-progs: $(LIB) $(PROGS)
 build-tests: $(LIB) $(PROGS) $(chk_TESTS)
@@ -1424,7 +1416,7 @@ build-tests: $(LIB) $(PROGS) $(chk_TESTS)
 # General rule for recursive building targets.
 # BUILT_SOURCES contain targets that need to be built before anything else
 # in the directory (e.g., for Fortran type detection)
-lib progs tests check-s check-p :: $(BUILT_SOURCES)
+lib dyn progs tests check-s check-p :: $(BUILT_SOURCES)
 	@$(MAKE) $(AM_MAKEFLAGS) build-$@ || exit 1;
 	@for d in X $(SUBDIRS); do                                             \
 	    if test $$d != X && test $$d != .; then                           \
