@@ -13,6 +13,10 @@
 #include "core/polymec.h"
 #include "core/special_functions.h"
 
+// If you're messing with Bessel functions, you probably want double 
+// precision.
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+
 static void test_bessel_find_jn_roots(void** state)
 {
   static real_t jn_roots[6][5] = 
@@ -140,6 +144,8 @@ static void test_bessel_dydx(void** state)
     test_bessel_dyndx(state, n);
 }
 
+#endif // if double precision
+
 static void test_hermite_hn(void** state)
 {
   // Test the first 11 Hermite polynomials against those listed on 
@@ -163,12 +169,14 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
+#if POLYMEC_HAVE_DOUBLE_PRECISION
     cmocka_unit_test(test_bessel_find_jn_roots),
     cmocka_unit_test(test_bessel_j),
     cmocka_unit_test(test_bessel_djdx),
     cmocka_unit_test(test_bessel_find_yn_roots),
     cmocka_unit_test(test_bessel_y),
     cmocka_unit_test(test_bessel_dydx),
+#endif
     cmocka_unit_test(test_hermite_hn)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
