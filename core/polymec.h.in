@@ -77,12 +77,10 @@
 // CMPLX macro.
 #ifndef CMPLX
 #ifdef _Imaginary_I
-#define CMPLX_I _Imaginary_I
+#define CMPLX(x,y) ((real_t)(x)+(complex_t)_Imaginary_I*(real_t)(y))
 #else
-#define CMPLX_I _Complex_I
+#define CMPLX(x,y) ((real_t)(x)+(complex_t)_Complex_I*(real_t)(y))
 #endif
-#define CMPLX(x,y) ((real_t)(x)+(complex_t)CMPLX_I*(real_t)(y))
-#undef CMPLX_I
 #endif
 
 #if POLYMEC_HAVE_DOUBLE_PRECISION
