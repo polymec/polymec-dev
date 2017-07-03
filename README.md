@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/polymec/polymec-dev.svg?branch=master)](https://travis-ci.org/polymec/polymec-dev)
+[![Coverage Status](https://coveralls.io/repos/github/polymec/polymec-dev/badge.svg?branch=master)](https://coveralls.io/github/polymec/polymec-dev?branch=master)
 
 Polymec
 =======
