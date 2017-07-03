@@ -10,6 +10,7 @@ debug      = not-set
 shared     = not-set
 machine    = not-set
 travis     = not-set
+coverage   = not-set
 ide        = not-set
 build      = not-set
 CC         = not-set
@@ -79,6 +80,12 @@ ifneq ($(precision), not-set)
 else
   BUILDDIR := ${BUILDDIR}-double
   CONFIG_FLAGS += -DPOLYMEC_PRECISION=double
+endif
+
+# Code coverage.
+ifeq ($(coverage), 1)
+  BUILDDIR := ${BUILDDIR}-gcov
+  CONFIG_FLAGS += -DCOVERAGE=1
 endif
 
 BUILDDIR := ${BUILDDIR}-`basename ${CC}`
