@@ -1,20 +1,36 @@
+[![Build Status](https://travis-ci.org/polymec/polymec-dev.svg?branch=master)](https://travis-ci.org/polymec/polymec-dev)
+
+Polymec
+=======
+
 Copyright (c) 2012-2017, Jeffrey N. Johnson
 All rights reserved.
 
 Polymec is a set of libraries that can be used to construct models for 
 physical systems. These libraries are designed to allow a computational 
 scientist to construct low-maintenance science applications with robust 
-capabilities. Areas of emphasis are:
+capabilities. 
 
-- Solution of strongly nonlinear partial differential equations on domains 
+Features
+--------
+
+* A comprehensive set of C tools appropriate for high performance computing, 
+  including containers, spatial data structures, and polished interfaces to 
+  important libraries and facilities.
+* A layered structure allowing different levels of buy-in, from using only 
+  basic data structures to adopting a framework for building high performance 
+  simulators.
   represented by unstructured (polyhedral) grids and/or mesh-free methods.
-- Stiffly-accurate, implicit time integrators that use high-quality 
-  preconditioners without a lot of application-specific design.
-- A strategy that favors a small code footprint and good scalability, likely 
+* Stiffly-accurate, implicit time integrators that use high-quality 
+  preconditioners without a lot of application-specific classes.
+* A strategy that favors a small code footprint and good scalability, likely 
   at the expense of implementations that run optimally on serial computers.
 
-Polymec is licensed under the Mozilla Public License (MPL) v. 2.0, which is 
-defined in the LICENSE file, and also available at http://mozilla.org/MPL/2.0/.
+License
+-------
+
+Polymec is licensed under the Mozilla Public License (MPL) version 2.0, which 
+is defined in the LICENSE file, and also available at http://mozilla.org/MPL/2.0/.
 This license allows you to use Polymec in a commercial code as long as 
 certain requirements are satisfied. Please read or read about the license.
 
