@@ -68,14 +68,29 @@
 // We support complex numbers for non-C++ applications.
 #ifndef __cplusplus
 #include <complex.h>
+
+// Let's keep I available.
 #ifdef I
 #undef I
 #endif
+
+// CMPLX macro.
+#ifndef CMPLX
+#ifdef _Imaginary_I
+#define CMPLX_I _Imaginary_I
+#else
+#define CMPLX_I _Complex_I
+#endif
+#define CMPLX(x,y) ((real_t)(x)+(complex_t)CMPLX_I*(real_t)(y))
+#undef CMPLX_I
+#endif
+
 #if POLYMEC_HAVE_DOUBLE_PRECISION
 typedef double complex complex_t;
 #else
 typedef float complex complex_t;
 #endif
+
 #endif
 
 // Type-generic macros for dealing with various mathematical functions.

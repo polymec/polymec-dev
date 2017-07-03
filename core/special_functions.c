@@ -14,10 +14,6 @@
 #define I _Complex_I
 #endif
 
-#ifndef CMPLX
-#define CMPLX(x,y) ((real_t)(x)+(complex_t)I*(real_t)(y))
-#endif
-
 // FIXME: Remove these pragmas when all special functions are implemented.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsuggest-attribute=noreturn"
