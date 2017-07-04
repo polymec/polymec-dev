@@ -18,10 +18,9 @@ Features
 * A comprehensive set of C tools appropriate for high performance computing, 
   including containers, spatial data structures, and polished interfaces to 
   important libraries and facilities.
-* A layered structure allowing different levels of buy-in, from using only 
-  basic data structures to adopting a framework for building high performance 
-  simulators.
-  represented by unstructured (polyhedral) grids and/or mesh-free methods.
+* A layered structure allowing different levels of buy-in: using only 
+  basic data structures, adopting a framework for simulator apps, and 
+  everything between.
 * Stiffly-accurate, implicit time integrators that use high-quality 
   preconditioners without a lot of application-specific classes.
 * A strategy that favors a small code footprint and good scalability, likely 
