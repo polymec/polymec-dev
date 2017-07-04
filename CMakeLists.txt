@@ -207,6 +207,13 @@ if (COVERAGE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fcoverage-mapping")
   endif()
+
+  # If we're building on Travis CI, make sure to upload the coverage data.
+  if (TRAVIS_CI)
+    file(GLOB all_sources "${PROJECT_SOURCE_DIR}/*.c")
+    include(Coveralls)
+    coveralls_setup("${all_sources}" ON)
+  endif()
 endif()
 
 # Give a warning about not setting the install prefix.
