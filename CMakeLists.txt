@@ -212,7 +212,7 @@ if (COVERAGE)
   if (TRAVIS_CI)
     file(GLOB all_sources "${PROJECT_SOURCE_DIR}/*.c")
     include(Coveralls)
-    coveralls_setup("${all_sources}" ON)
+    coveralls_setup("${all_sources}" ON ${PROJECT_SOURCE_DIR}/cmake/Modules)
   endif()
 endif()
 

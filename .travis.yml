@@ -31,7 +31,8 @@ addons:
     - lcov
 
 env:
-  - DEBUG=0 MPI=0 SHARED=0 PRECISION=double COVERAGE=1
+  - DEBUG=0 MPI=1 SHARED=0 PRECISION=double COVERAGE=1
+  - DEBUG=0 MPI=0 SHARED=0 PRECISION=double 
   - DEBUG=0 MPI=0 SHARED=0 PRECISION=single
   - DEBUG=0 MPI=0 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
   - DEBUG=0 MPI=1 SHARED=0 PRECISION=double
@@ -48,10 +49,16 @@ env:
 #   so we exclude the GCC compiler option from Mac builds.
 # * In addition, we exclude Clang from all MPI Linux builds, since the Ubuntu 
 #   OpenMPI package uses GCC no matter what.
+# * We also only do code coverage on Linux.
 matrix:
   exclude:
   - os: osx
+    env: DEBUG=0 MPI=1 SHARED=0 PRECISION=double COVERAGE=1
+  - os: osx
     compiler: gcc
+  - os: linux
+    compiler: clang
+    env: DEBUG=0 MPI=1 SHARED=0 PRECISION=double COVERAGE=1
   - os: linux
     compiler: clang
     env: DEBUG=0 MPI=1 SHARED=0 PRECISION=double
@@ -97,9 +104,9 @@ script:
 
 after_success: 
   - cd $HOME
-  - mkdir -p latest 
-  - tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION/* 
-  - mv polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz latest
+  - if [ "$COVERAGE" = "" ]; then mkdir -p latest; fi
+  - if [ "$COVERAGE" = "" ]; then tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION/*; fi
+  - if [ "$COVERAGE" = "" ]; then mv polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz latest; fi
 
 after_failure: 
   - cat build/*/Testing/Temporary/LastTest.log
