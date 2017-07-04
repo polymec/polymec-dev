@@ -10,6 +10,8 @@ string(REPLACE "-Werror " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-Weverything " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-Wmissing-prototypes " " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-Wfloat-equal" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+string(REPLACE "-fprofile-arcs" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+string(REPLACE "-ftest-coverage" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 
 # Build linenoise -- A readline alternative that provides terminal history
 # in about 1,000 lines of code.
