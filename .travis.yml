@@ -99,8 +99,8 @@ before_script:
   - make config CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION coverage=$COVERAGE travis=1 prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION
 
 script: 
-  - make -j4 CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION install 
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then make CC=$CC debug=1 mpi=$MPI shared=0 precision=$PRECISION memcheck; else make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION test; fi
+  - make -j4 CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION coverage=$COVERAGE install 
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ] && [ "$COVERAGE" = "" ]; then make CC=$CC debug=1 mpi=$MPI shared=0 precision=$PRECISION memcheck; else make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION coverage=$COVERAGE test; fi
 
 after_success: 
   - cd $HOME

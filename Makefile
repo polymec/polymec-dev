@@ -170,6 +170,11 @@ all test clean install:
 		more INSTALL; \
 	else \
 		$(MAKE) -C $(BUILDDIR) $@ --no-print-directory $(MAKEFLAGS); \
+	  if [ "$(coverage)" = "1" ]; then \
+      echo "Writing code coverage report to ./coverage..."; \
+	    lcov --base-directory $(BUILDDIR) --directory $(BUILDDIR) -q -c -o coverage.info; \
+      genhtml -o coverage coverage.info; \
+    fi \
 	fi
 
 memcheck:
