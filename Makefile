@@ -165,7 +165,14 @@ define run-config
 @cd $(BUILDDIR) && cmake $(CURDIR) $(CONFIG_FLAGS)
 endef
 
-all test clean install:
+all clean install:
+	@if [ ! -f $(BUILDDIR)/Makefile ]; then \
+		more INSTALL; \
+	else \
+		$(MAKE) -C $(BUILDDIR) $@ --no-print-directory $(MAKEFLAGS); \
+	fi
+
+test:
 	@if [ ! -f $(BUILDDIR)/Makefile ]; then \
 		more INSTALL; \
 	else \
@@ -174,8 +181,11 @@ all test clean install:
       echo "Writing code coverage report to ./coverage..."; \
 	    lcov --base-directory $(BUILDDIR) --directory $(BUILDDIR) -q -c -o coverage.info; \
       genhtml -o coverage coverage.info; \
+      echo "Sending code coverage report to coveralls.io..."; \
+      python tools/lcov_to_json.py coverage.info; \
+      curl -S -F json_file=@coverage.json https://coveralls.io/api/v1/jobs; \
     fi \
-	fi
+  fi
 
 memcheck:
 	@cd $(BUILDDIR) && ctest -T memcheck
@@ -192,7 +202,7 @@ stats:
 prepend-license: 
 	@python tools/prepend_license.py
 
-ctags-emacs :
+ctags-emacs:
 	@ctags -e -f ETAGS -R --exclude=.git --exclude=build 
 
 #dist:
