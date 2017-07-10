@@ -31,22 +31,22 @@ addons:
     - lcov
 
 env:
-  - DEBUG=0 MPI=1 SHARED=0 PRECISION=double COVERAGE=1 
-  - DEBUG=0 MPI=0 SHARED=0 PRECISION=double 
-  - DEBUG=0 MPI=0 SHARED=0 PRECISION=single
-  - DEBUG=0 MPI=0 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
-  - DEBUG=0 MPI=1 SHARED=0 PRECISION=double
-  - DEBUG=0 MPI=1 SHARED=0 PRECISION=single
-  - DEBUG=0 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
-  - DEBUG=1 MPI=0 SHARED=0 PRECISION=double
-  - DEBUG=1 MPI=0 SHARED=0 PRECISION=single
-  - DEBUG=1 MPI=0 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
-  - DEBUG=1 MPI=1 SHARED=0 PRECISION=double
-  - DEBUG=1 MPI=1 SHARED=0 PRECISION=single
-  - DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
-
   global:
     - CODECOV_TOKEN=2f8c5b82-a350-4e18-acb7-491783624fe0
+  matrix:
+    - DEBUG=0 MPI=1 SHARED=0 PRECISION=double COVERAGE=1 
+    - DEBUG=0 MPI=0 SHARED=0 PRECISION=double 
+    - DEBUG=0 MPI=0 SHARED=0 PRECISION=single
+    - DEBUG=0 MPI=0 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    - DEBUG=0 MPI=1 SHARED=0 PRECISION=double
+    - DEBUG=0 MPI=1 SHARED=0 PRECISION=single
+    - DEBUG=0 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    - DEBUG=1 MPI=0 SHARED=0 PRECISION=double
+    - DEBUG=1 MPI=0 SHARED=0 PRECISION=single
+    - DEBUG=1 MPI=0 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    - DEBUG=1 MPI=1 SHARED=0 PRECISION=double
+    - DEBUG=1 MPI=1 SHARED=0 PRECISION=single
+    - DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
 
 # * Currently Apple doesn't use the real gcc, even if you tell it to,
 #   so we exclude the GCC compiler option from Mac builds.
