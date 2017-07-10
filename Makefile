@@ -178,12 +178,15 @@ test:
 	else \
 		$(MAKE) -C $(BUILDDIR) $@ --no-print-directory $(MAKEFLAGS); \
 	  if [ "$(coverage)" = "1" ]; then \
-      echo "Writing code coverage report to ./coverage..."; \
+      echo "Writing code coverage report to lcov.info..."; \
 	    lcov --base-directory $(BUILDDIR) --directory $(BUILDDIR) -q -c -o coverage.info; \
-      echo "Generating HTML coverage report -> lcov.info..."; \
-      genhtml -o coverage lcov.info; \
-      echo "Sending lcov.info to codecov.io..."; \
-      bash tools/upload_to_codecov.sh; \
+      if [ "$(travis)" = "1" ]; then \
+        echo "Sending lcov.info to codecov.io..."; \
+        bash tools/upload_to_codecov.sh; \
+      else \
+        echo "Generating HTML coverage report -> ./coverage..."; \
+        genhtml -o coverage lcov.info; \
+      fi \
     fi \
   fi
 
