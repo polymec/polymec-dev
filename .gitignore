@@ -19,6 +19,7 @@
 
 # Generated files
 build/
+*.gcov
 
 # Machine files (maintained externally)
 machines/

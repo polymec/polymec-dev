@@ -180,10 +180,10 @@ test:
 	  if [ "$(coverage)" = "1" ]; then \
       echo "Writing code coverage report to ./coverage..."; \
 	    lcov --base-directory $(BUILDDIR) --directory $(BUILDDIR) -q -c -o coverage.info; \
-      genhtml -o coverage coverage.info; \
-      echo "Sending code coverage report to coveralls.io..."; \
-      python tools/lcov_to_json.py coverage.info; \
-      curl -S -F json_file=@coverage.json https://coveralls.io/api/v1/jobs; \
+      echo "Generating HTML coverage report -> lcov.info..."; \
+      genhtml -o coverage lcov.info; \
+      echo "Sending lcov.info to codecov.io..."; \
+      bash tools/upload_to_codecov.sh; \
     fi \
   fi
 
