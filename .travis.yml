@@ -106,6 +106,7 @@ script:
   - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ] && [ "$COVERAGE" = "" ]; then make CC=$CC debug=1 mpi=$MPI shared=0 precision=$PRECISION memcheck; else make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION coverage=$COVERAGE test; fi
 
 after_success: 
+  - if [ "$COVERAGE" = "1" ]; then bash <(curl -s https://codecov.io/bash)
   - cd $HOME
   - if [ "$COVERAGE" = "" ]; then mkdir -p latest; fi
   - if [ "$COVERAGE" = "" ]; then tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION/*; fi
