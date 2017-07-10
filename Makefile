@@ -179,7 +179,7 @@ test:
 		$(MAKE) -C $(BUILDDIR) $@ --no-print-directory $(MAKEFLAGS); \
 	  if [ "$(coverage)" = "1" ]; then \
       echo "Writing code coverage report to lcov.info..."; \
-	    lcov --base-directory $(BUILDDIR) --directory $(BUILDDIR) -q -c -o coverage.info; \
+	    lcov --base-directory $(BUILDDIR) --directory $(BUILDDIR) -q -c -o lcov.info; \
       if [ "$(travis)" = "1" ]; then \
         echo "Sending lcov.info to codecov.io..."; \
         bash tools/upload_to_codecov.sh; \
