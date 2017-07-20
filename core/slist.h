@@ -84,7 +84,6 @@ static inline list_name##_node_t* list_name##_find(list_name##_t* list, element 
 } \
 static inline void list_name##_insert_with_dtor(list_name##_t* list, element value, list_name##_dtor dtor, list_name##_node_t* node) \
 { \
-  ASSERT(node != NULL); \
   list_name##_node_t* n = (list_name##_node_t*)polymec_malloc(sizeof(list_name##_node_t)); \
   n->value = value; \
   n->next = NULL; \
@@ -105,6 +104,7 @@ static inline void list_name##_insert_with_dtor(list_name##_t* list, element val
   } \
   else \
   { \
+    ASSERT(node != NULL); \
     list_name##_node_t* p = list->front; \
     while (p->next != node) \
     { \

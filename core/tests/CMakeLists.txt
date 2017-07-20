@@ -10,6 +10,7 @@ function(add_mpi_polymec_core_test exe)
 endfunction()
 
 add_polymec_core_test(test_polymec_init test_polymec_init.c)
+add_polymec_core_test(test_allocators test_allocators.c)
 add_polymec_core_test(test_high_level_headers test_high_level_headers.c)
 add_polymec_core_test(test_string_utils test_string_utils.c)
 add_polymec_core_test(test_tensor2 test_tensor2.c)
