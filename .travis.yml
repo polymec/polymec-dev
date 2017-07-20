@@ -108,9 +108,9 @@ script:
 after_success: 
   - if [ "$COVERAGE" = "1" ]; then bash <(curl -s https://codecov.io/bash)
   - cd $HOME
-  - if [ "$COVERAGE" = "" ]; then mkdir -p latest; fi
-  - if [ "$COVERAGE" = "" ]; then tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION/*; fi
-  - if [ "$COVERAGE" = "" ]; then mv polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz latest; fi
+  - mkdir -p latest
+  - tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION/*
+  - mv polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz latest
 
 after_failure: 
   - cat build/*/Testing/Temporary/LastTest.log
