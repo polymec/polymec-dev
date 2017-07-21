@@ -61,42 +61,57 @@ static polymec_timer_t* polymec_timer_new(const char* name)
   return t;
 }
 
+void polymec_enable_timers()
+{
+  use_timers = true;
+  log_debug("polymec: Enabled timers.");
+
+  // Set a default timer file.
+  polymec_set_timer_file("timer_report.txt");
+
+  // Record our MPI rank and number of processes.
+  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &mpi_nproc);
+
+  // Get threading information.
+}
+
+void polymec_set_timer_file(const char* timer_file)
+{
+  strncpy(timer_report_file, timer_file, FILENAME_MAX);
+}
+
 polymec_timer_t* polymec_timer_get(const char* name)
 {
+  static bool first_time = true;
+
   polymec_timer_t* t = NULL;
-  if (all_timers == NULL)
+  if (first_time)
   {
     // Do we need timers?
     options_t* options = options_argv();
     char* timers_on = options_value(options, "timers");
     if ((timers_on != NULL) && string_as_boolean(timers_on))
     {
-      use_timers = true;
-      log_debug("polymec: Enabled timers.");
+      polymec_enable_timers();
 
       // Were we given a specific report file?
       char* timer_file = options_value(options, "timer_file");
       if (timer_file != NULL)
-        strncpy(timer_report_file, timer_file, FILENAME_MAX);
-      else
-        strcpy(timer_report_file, "timer_report.txt");
-
-      // Record our MPI rank and number of processes.
-      MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-      MPI_Comm_size(MPI_COMM_WORLD, &mpi_nproc);
-
-      // Get threading information.
+        polymec_set_timer_file(timer_file);
     }
 
-    if (use_timers)
+    first_time = false;
+  }
+
+  if (use_timers)
+  {
+    if (all_timers == NULL)
     {
       // We don't have any timers yet! So make one.
       t = polymec_timer_new(name);
     }
-  }
-  else
-  {
-    if (use_timers)
+    else
     {
       if (current_timer != NULL) // A timer is running...
       {
