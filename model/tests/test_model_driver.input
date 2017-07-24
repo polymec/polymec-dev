@@ -7,21 +7,25 @@ end
 
 -- Acquire a bunch of times from 1 to 10.
 p = probe.new('time', timer, {})
+print(p)
 for t=1,10 do
   val = p:acquire(t)
   print(t, val)
 end
+val = nil
 
 -- Now make a probe that returns a random 3-vector.
 function rv(t)
   return {math.random(), math.random(), math.random()}
 end
 p1 = probe.new('randomizer', rv, {3})
+print(p1)
 
 for t=1,10 do
   v = p1:acquire(t)
   print(t, v)
 end
+v = nil
 
 -- How about a random 3x3 matrix?
 function rm(t)
@@ -30,11 +34,13 @@ function rm(t)
           {math.random(), math.random(), math.random()}}
 end
 p11 = probe.new('random_matrixizer', rm, {3,3})
+print(p11)
 
 for t=1,10 do
   m = p11:acquire(t)
   print(t, m)
 end
+m = nil
 
 -- Or a random 3x3x3 tensor?
 function rt(t)
@@ -49,11 +55,13 @@ function rt(t)
            {math.random(), math.random(), math.random()}}}
 end
 p111 = probe.new('random_tensorizer', rt, {3,3,3})
+print(p111)
 
 for t=1,10 do
   tt = p111:acquire(t)
   print(t, tt)
 end
+tt = nil
 
 -- Or a random 3x3x3x4 ubertensor?
 function rut(t)
@@ -86,9 +94,13 @@ function rut(t)
             {math.random(), math.random(), math.random()}}}}
 end
 p1111 = probe.new('random_ubertensorizer', rut, {3,3,3,3})
+print(p1111)
 
 for t=1,10 do
   ut = p1111:acquire(t)
   print(t, ut)
 end
+ut = nil
 
+-- Force probe garbage collection.
+collectgarbage("collect")

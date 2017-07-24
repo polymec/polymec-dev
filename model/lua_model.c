@@ -388,6 +388,7 @@ static int p_acquire(lua_State* L)
   lua_push_real(L, t);
   lua_setfield(L, -2, "time");
   lua_push_probe_data(L, data);
+  probe_data_free(data);
   lua_setfield(L, -2, "data");
   return 1;
 }
