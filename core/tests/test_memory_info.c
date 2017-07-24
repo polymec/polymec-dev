@@ -19,11 +19,11 @@ static void test_get_memory_info(void** state)
   get_memory_info(&info);
 
   assert_true(info.virtual_memory_used > 0);
-  assert_true(info.total_virtual_memory > info.virtual_memory_used);
+  assert_true(info.total_virtual_memory >= info.virtual_memory_used);
 
   assert_true(info.physical_memory_free > 0);
   assert_true(info.physical_memory_used > 0);
-  assert_true(info.total_physical_memory == info.physical_memory_used + info.physical_memory_free);
+  assert_true(info.total_physical_memory >= info.physical_memory_used);
 
   assert_true(info.process_virtual_size > 0);
   assert_true(info.process_resident_size > 0);

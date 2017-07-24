@@ -26,12 +26,35 @@ print(v1+v2)
 print(v2-v1)
 
 -- Tensor ops.
-t1 = tensor.new({2,2})
-t1(1,1, 1)
-t1(2,2, 1)
+t1 = tensor2.new(1,2,3,4,5,6,7,8,9)
 print(t1)
 
-if gfx ~= nil then
-  fig = gfx.figure()
-  fig:title('heya')
+st1 = sym_tensor2.new(1,2,3,4,5,6)
+print(st1)
+
+-- Test our table print replacement.
+mt = {
+       __tostring = function(s)
+                      return "here's your string"
+                    end
+     }
+obj = {}
+setmetatable(obj, mt)
+
+function f(x)
+  return x*x
 end
+
+tab = {}
+tab['a'] = 1
+tab['b'] = true
+tab['c'] = false
+tab['d'] = obj
+tab[3.14159265] = "pi"
+tab[1] = math.cos
+tab[2] = f
+tab[3] = 'stringy'
+tab[true] = 'true'
+tab['tab'] = {a=1, b=2}
+tab[obj] = obj
+print(tab)

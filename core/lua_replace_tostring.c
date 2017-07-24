@@ -176,7 +176,7 @@ static void append_table_value(lua_State* L,
     // Write out the key if we're not displaying in list mode.
     if (!show_as_list)
     {
-      // Write the value.
+      // Write the key.
       if (lua_isnumber(L, -2))
         append_number_value(L, -2, str);
       else if (lua_isboolean(L, -2))
