@@ -180,7 +180,7 @@ test:
 	  if [ "$(coverage)" = "1" ]; then \
       echo "Writing code coverage report to lcov.info..."; \
 	    lcov --base-directory $(BUILDDIR) --directory $(BUILDDIR) -c -q -o lcov.info; \
-	    lcov --remove lcov.info '*/build/*' '*valgrind.h' -o lcov.info; \
+	    lcov --remove lcov.info '*/build/*' '*valgrind.h' '*/tests/*' -o lcov.info; \
       echo "Generating HTML coverage report -> ./coverage..."; \
       genhtml -o coverage lcov.info; \
     fi \
