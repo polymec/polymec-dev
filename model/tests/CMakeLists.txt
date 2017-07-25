@@ -18,7 +18,7 @@ add_mpi_polymec_model_test(test_partition_point_cloud_with_neighbors test_partit
 
 include(add_driver_test)
 function(add_model_driver_test exe source script)
-  add_driver_test_with_libs(${exe} "polymec_model;polymec_io;polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${source} ${script} ${ARGN})
+  add_driver_test_with_libs(${exe} "polymec_model;polymec_io;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${source} ${script} ${ARGN})
 endfunction()
 add_model_driver_test(test_model_driver test_model_driver.c ${CMAKE_CURRENT_SOURCE_DIR}/test_model_driver.input 1 2 4)
 

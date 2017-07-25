@@ -1,0 +1,4 @@
+-- This tests the various geometry classes.
+
+-- Force probe garbage collection.
+collectgarbage("collect")
