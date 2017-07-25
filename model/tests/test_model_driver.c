@@ -7,11 +7,13 @@
 
 #include "core/lua_driver.h"
 #include "core/lua_core.h"
+#include "geometry/lua_geometry.h"
 #include "model/lua_model.h"
 
 static int register_modules(lua_State* L)
 {
   lua_register_core_modules(L);
+  lua_register_geometry_modules(L);
   lua_register_model_modules(L);
   return 0;
 }
