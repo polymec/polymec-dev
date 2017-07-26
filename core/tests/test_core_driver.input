@@ -32,6 +32,70 @@ print(t1)
 st1 = sym_tensor2.new(1,2,3,4,5,6)
 print(st1)
 
+-- Arrays.
+a = array.new({0, 1, 1, 2, 2, 3}, 'byte')
+a[1] = 1
+a = a .. a
+print(a)
+a = array.new({0, 1, 1, 2, 2, 3}, 'int')
+a[1] = 1
+a = a .. a
+print(a)
+a = array.new({0, 1, 1, 2, 2, 3}, 'int64')
+a[1] = 1
+a = a .. a
+print(a)
+a = array.new({0, 1, 1, 2, 2, 3}, 'uint64')
+a[1] = 1
+a = a .. a
+print(a)
+a = array.new({0, 1, 1, 2, 2, 3}, 'index')
+a[1] = 1
+a = a .. a
+print(a)
+a = array.new({0, 1, 1, 2, 2, 3}, 'real')
+a[1] = 1
+a = a .. a
+print(a)
+a = array.new({{0,0}, {1,1}, {2,2}}, 'complex')
+a[1] = complex.new(1,1)
+a = a .. a
+print(a)
+a = array.new({complex.new(0,0), complex.new(1,1), complex.new(2,2)}, 'complex')
+a[1] = complex.new(1,1)
+a = a .. a
+print(a)
+a = array.new({{0,0,0}, {1,1,1}, {2,2,2}}, 'point')
+a[1] = point.new(1,1,1)
+a = a .. a
+print(a)
+a = array.new({point.new(0,0,0), point.new(1,1,1), point.new(2,2,2)}, 'point')
+a[1] = point.new(1,1,1)
+a = a .. a
+print(a)
+a = array.new({{0,0,0}, {1,1,1}, {2,2,2}}, 'vector')
+a[1] = vector.new(1,1,1)
+a = a .. a
+print(a)
+a = array.new({vector.new(0,0,0), vector.new(1,1,1), vector.new(2,2,2)}, 'vector')
+a[1] = vector.new(1,1,1)
+print(a)
+a = array.new({tensor2.new(0,0,0,0,0,0,0,0,0), tensor2.new(1,1,1,1,1,1,1,1,1), tensor2.new(2,2,2,2,2,2,2,2,2)}, 'tensor2')
+a[1] = tensor2.new(1,1,1,1,1,1,1,1,1)
+a = a .. a
+print(a)
+a = array.new({sym_tensor2.new(0,0,0,0,0,0), sym_tensor2.new(1,1,1,1,1,1), sym_tensor2.new(2,2,2,2,2,2)}, 'sym_tensor2')
+a[1] = sym_tensor2.new(1,1,1,1,1,1)
+a = a .. a
+print(a)
+
+-- Multidimensional arrays.
+for i, t in ipairs({'byte', 'int', 'int64', 'uint64', 'index', 'real', 'complex', 
+                    'point', 'vector', 'tensor2', 'sym_tensor2'}) do
+  a = ndarray.new({10,10}, t)
+  print(a)
+end
+
 -- Test our table print replacement.
 mt = {
        __tostring = function(s)

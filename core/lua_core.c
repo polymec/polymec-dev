@@ -1435,6 +1435,7 @@ static void lua_register_util_funcs(lua_State* L)
 //                                API 
 //------------------------------------------------------------------------
 extern int lua_register_array(lua_State* L); // defined in lua_array.c
+extern int lua_register_ndarray(lua_State* L); // defined in lua_ndarray.c
 
 int lua_register_core_modules(lua_State* L)
 {
@@ -1445,6 +1446,7 @@ int lua_register_core_modules(lua_State* L)
   lua_register_record_type(L, "tensor2", tensor2_funcs, tensor2_fields, tensor2_mm);
   lua_register_record_type(L, "sym_tensor2", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_mm);
   lua_register_array(L);
+  lua_register_ndarray(L);
 
   lua_register_class(L, "bbox", bbox_funcs, bbox_methods);
   lua_register_class(L, "sp_func", sp_funcs, sp_methods);

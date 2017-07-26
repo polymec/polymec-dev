@@ -133,7 +133,9 @@ string_slist_t* directories_within_directory(const char* dirname)
     struct stat statbuf;
     if (stat(entry_name, &statbuf) == 0)
     {
-      if (S_ISDIR(statbuf.st_mode))
+      if (S_ISDIR(statbuf.st_mode) && 
+          (strcmp(p->d_name, ".") != 0) &&
+          (strcmp(p->d_name, "..") != 0))
         string_slist_append_with_dtor(dirs, string_dup(p->d_name), string_free);
     }
   }

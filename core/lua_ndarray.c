@@ -42,7 +42,7 @@ static int ndarray_tostring(lua_State* L)
   for (int i = 1; i < a->rank; ++i)
   {
     char dim_str[24+2];
-    sprintf(dim_str, "x %d", (int)a->shape[i]);
+    sprintf(dim_str, " x %d", (int)a->shape[i]);
     strcat(shape_str, dim_str);
   }
 

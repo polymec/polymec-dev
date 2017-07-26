@@ -11,6 +11,7 @@
 #include <string.h>
 #include "cmocka.h"
 #include "core/polymec.h"
+#include "core/slist.h"
 
 static void test_parse_path(void** state)
 {
@@ -44,6 +45,7 @@ static void test_make_temp_file(void** state)
   temp_file = fopen(actual_file, "r");
   assert_true(temp_file != NULL);
   fclose(temp_file);
+  assert_true(file_exists(actual_file));
 }
 
 static void test_make_temp_directory(void** state)
@@ -66,6 +68,11 @@ static void test_make_temp_directory(void** state)
   new_file = fopen(file_path, "r");
   assert_true(new_file != NULL);
   fclose(new_file);
+
+  // Make sure there aren't any directories in this new directory.
+  string_slist_t* dirs = directories_within_directory(actual_dir);
+  assert_true(string_slist_empty(dirs));
+  string_slist_free(dirs);
 }
 
 int main(int argc, char* argv[]) 

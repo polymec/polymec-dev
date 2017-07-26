@@ -29,7 +29,8 @@ bool file_exists(const char* filename);
 bool directory_exists(const char* dirname);
 
 // Returns a linked list containing the names of all files within the 
-// given directory. Filenames are relative to the directory.
+// given directory. Filenames are relative to the directory. The directories
+// . and .. are excluded from this list.
 string_slist_t* files_within_directory(const char* dirname);
 
 // Returns a linked list containing the names of all directories within 

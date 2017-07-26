@@ -28,6 +28,14 @@ static void test_string_ndup(void** state)
   string_free(s2);
 }
 
+static void test_string_copy_from_raw(void** state)
+{
+  const char s1[] = "dupe me, baby!xoxoxoxo";
+  char s2[8];
+  string_copy_from_raw(s1, 7, s2);
+  assert_true(!strcmp(s2, "dupe me"));
+}
+
 static void test_string_casecmp(void** state)
 {
   const char* s1 = "The case doesn't matter.";
@@ -79,6 +87,34 @@ static void test_string_next_token(void** state)
   assert_true(strncmp("and the other", token_copy, 13) == 0);
 
   assert_false(string_next_token(whole_string, ",", &pos, &token, &len));
+}
+
+static void test_string_num_tokens(void** state)
+{
+  const char* whole_string = "this,that,and the other";
+  assert_int_equal(3, string_num_tokens(whole_string, ","));
+}
+
+static void test_string_split(void** state)
+{
+  const char* whole_string = "this,that,and the other";
+  int num_substrings;
+  char** substrings = string_split(whole_string, ",", &num_substrings);
+  assert_int_equal(3, num_substrings);
+  assert_int_equal(0, strcmp(substrings[0], "this")); 
+  assert_int_equal(0, strcmp(substrings[1], "that")); 
+  assert_int_equal(0, strcmp(substrings[2], "and the other")); 
+  for (int i = 0; i < num_substrings; ++i)
+    string_free(substrings[i]);
+  polymec_free(substrings);
+}
+
+static void test_string_trim(void** state)
+{
+  char whole_string[] = "       look ma no hands     ";
+  int t = string_trim(whole_string);
+  assert_int_equal(0, strcmp(whole_string, "       look ma no hands"));
+  assert_int_equal(0, strcmp(&whole_string[t], "look ma no hands"));
 }
 
 static void test_string_is_number(void** state)
@@ -149,9 +185,13 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_string_dup),
     cmocka_unit_test(test_string_ndup),
+    cmocka_unit_test(test_string_copy_from_raw),
     cmocka_unit_test(test_string_casecmp),
     cmocka_unit_test(test_string_ncasecmp),
     cmocka_unit_test(test_string_next_token),
+    cmocka_unit_test(test_string_num_tokens),
+    cmocka_unit_test(test_string_split),
+    cmocka_unit_test(test_string_trim),
     cmocka_unit_test(test_string_is_number),
     cmocka_unit_test(test_string_is_integer),
     cmocka_unit_test(test_string_as_boolean),
