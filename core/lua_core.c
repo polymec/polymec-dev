@@ -258,7 +258,7 @@ static int p_sub(lua_State* L)
 
 static int p_len(lua_State* L)
 {
-  lua_pushnumber(L, 3.0);
+  lua_pushinteger(L, 3);
   return 1;
 }
 
@@ -426,7 +426,7 @@ static int v_unm(lua_State* L)
 
 static int v_len(lua_State* L)
 {
-  lua_pushnumber(L, 3.0);
+  lua_pushinteger(L, 3);
   return 1;
 }
 
@@ -710,7 +710,7 @@ static int t2_unm(lua_State* L)
 
 static int t2_len(lua_State* L)
 {
-  lua_pushnumber(L, 9.0);
+  lua_pushinteger(L, 9);
   return 1;
 }
 
@@ -924,9 +924,9 @@ static int st2_add(lua_State* L)
   sym_tensor2_t* t1 = lua_to_sym_tensor2(L, 1);
   sym_tensor2_t* t2 = lua_to_sym_tensor2(L, 2);
   if (t1 == NULL)
-    luaL_error(L, "Argument 1 must be a tensor2.");
+    luaL_error(L, "Argument 1 must be a sym_tensor2.");
   if (t2 == NULL)
-    luaL_error(L, "Argument 2 must be a tensor2.");
+    luaL_error(L, "Argument 2 must be a sym_tensor2.");
   sym_tensor2_t* sum = sym_tensor2_new(t1->xx + t2->xx, t1->xy + t2->xy, t1->xz + t2->xz,
                                                         t1->yy + t2->yy, t1->yz + t2->yz,
                                                                          t1->zz + t2->zz);
@@ -939,9 +939,9 @@ static int st2_sub(lua_State* L)
   sym_tensor2_t* t1 = lua_to_sym_tensor2(L, 1);
   sym_tensor2_t* t2 = lua_to_sym_tensor2(L, 2);
   if (t1 == NULL)
-    luaL_error(L, "Argument 1 must be a tensor2.");
+    luaL_error(L, "Argument 1 must be a sym_tensor2.");
   if (t2 == NULL)
-    luaL_error(L, "Argument 2 must be a tensor2.");
+    luaL_error(L, "Argument 2 must be a sym_tensor2.");
   sym_tensor2_t* diff = sym_tensor2_new(t1->xx - t2->xx, t1->xy - t2->xy, t1->xz - t2->xz,
                                                          t1->yy - t2->yy, t1->yz - t2->yz,
                                                          t1->zz - t2->zz);
@@ -951,9 +951,9 @@ static int st2_sub(lua_State* L)
 
 static int st2_mul(lua_State* L)
 {
-  if ((!lua_isnumber(L, 1) || !lua_is_tensor2(L, 2)) &&
-      (!lua_is_tensor2(L, 1) || !lua_isnumber(L, 2)))
-    luaL_error(L, "Arguments must be a tensor2 and a number.");
+  if ((!lua_isnumber(L, 1) || !lua_is_sym_tensor2(L, 2)) &&
+      (!lua_is_sym_tensor2(L, 1) || !lua_isnumber(L, 2)))
+    luaL_error(L, "Arguments must be a sym_tensor2 and a number.");
   sym_tensor2_t* t = lua_to_sym_tensor2(L, (lua_isnumber(L, 1)) ? 2 : 1);
   real_t c = lua_to_real(L, (lua_isnumber(L, 1)) ? 1 : 2);
   sym_tensor2_t* t1 = sym_tensor2_new(c * t->xx, c * t->xy, c * t->xz,
@@ -967,7 +967,7 @@ static int st2_div(lua_State* L)
 {
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
   if (t == NULL)
-    luaL_error(L, "Argument 1 must be a tensor2.");
+    luaL_error(L, "Argument 1 must be a sym_tensor2.");
   if (!lua_isnumber(L, 2))
     luaL_error(L, "Argument 2 must be a number.");
   real_t c = lua_to_real(L, 2);
@@ -990,7 +990,7 @@ static int st2_unm(lua_State* L)
 
 static int st2_len(lua_State* L)
 {
-  lua_pushnumber(L, 6.0);
+  lua_pushinteger(L, 6);
   return 1;
 }
 
@@ -1093,7 +1093,7 @@ static int sp_constant(lua_State* L)
   // Check the argument.
   int num_args = lua_gettop(L);
   real_t val[num_args];
-  for (int i = 0; i < num_args; ++i)
+  for (int i = 1; i <= num_args; ++i)
   {
     if (!lua_isnumber(L, i))
       return luaL_error(L, "Argument %d must be a number.", i);
@@ -1141,7 +1141,7 @@ static int st_constant(lua_State* L)
   // Check the argument.
   int num_args = lua_gettop(L);
   real_t val[num_args];
-  for (int i = 0; i < num_args; ++i)
+  for (int i = 1; i < num_args; ++i)
   {
     if (!lua_isnumber(L, i))
       return luaL_error(L, "Argument %d must be a number.", i);
@@ -1169,7 +1169,7 @@ static int st_call(lua_State* L)
   st_func_t* f = lua_to_st_func(L, 1);
   if (!lua_is_point(L, 2))
     return luaL_error(L, "First argument must be a point.");
-  if (!lua_is_point(L, 3))
+  if (!lua_isnumber(L, 3))
     return luaL_error(L, "Second argument must be a time.");
   point_t* x = lua_to_point(L, 2);
   real_t t = lua_to_real(L, 3);

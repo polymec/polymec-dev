@@ -10,12 +10,22 @@ print(z1-z2)
 print(z1-z2/3)
 print(z1.real)
 print(z1.imag)
+print(-z1)
+print(z1^2)
 print(complex.abs(z1))
 print(complex.conj(z2))
+print(complex.arg(z1))
 
 -- Point ops.
 p = point.new(1,2,3)
 print(p)
+print(p-p)
+print(point.distance(p, p))
+print(#p)
+print(p.x, p.y, p.z)
+p.x = 1
+p.y = 2
+p.z = 3
 
 -- Vector ops.
 v1 = vector.new(1,2,3)
@@ -24,13 +34,75 @@ print(v1)
 print(2*v2)
 print(v1+v2)
 print(v2-v1)
+print(vector.dot(v1, v2))
+print(-v1)
+print(v1/3)
+print(v1.x, v1.y, v1.z)
+v1.x = 1
+v1.y = 2
+v1.z = 3
 
 -- Tensor ops.
 t1 = tensor2.new(1,2,3,4,5,6,7,8,9)
+t2 = tensor2.new(9,8,7,6,5,4,3,2,1)
 print(t1)
+print(t1+t2)
+print(t1-t2)
+print(2*t1)
+print(t1/2)
+print(-t1)
+print(#t1)
+print(t1.xx, t1.xy, t1.xz)
+print(t1.yx, t1.yy, t1.yz)
+print(t1.zx, t1.zy, t1.zz)
+t1.xx = 1
+t1.xy = 2
+t1.xz = 3
+t1.yx = 4
+t1.yy = 5
+t1.yz = 6
+t1.zx = 7
+t1.zy = 8
+t1.zz = 9
 
 st1 = sym_tensor2.new(1,2,3,4,5,6)
+st2 = sym_tensor2.new(6,5,4,3,2,1)
 print(st1)
+print(st1+st2)
+print(st1-st2)
+print(2*st1)
+print(st1/2)
+print(-st1)
+print(#st1)
+print(st1.xx, st1.xy, st1.xz)
+print(st1.yx, st1.yy, st1.yz)
+print(st1.zx, st1.zy, st1.zz)
+st1.xx = 1
+st1.xy = 2
+st1.xz = 3
+st1.yx = 4
+st1.yy = 5
+st1.yz = 6
+st1.zx = 7
+st1.zy = 8
+st1.zz = 9
+
+-- Bounding box ops.
+bb = bbox.new{x1=0, x2=1, y1=0, y2=1, z1=0, z2=1}
+print(bb)
+print(bb:contains(p))
+
+-- Spatial functions.
+f = sp_func.constant(1)
+print(f)
+print(#f)
+print(f(p))
+
+-- Space-time functions.
+f = st_func.constant(1)
+print(f)
+print(#f)
+print(f(p, 0))
 
 -- Arrays.
 a = array.new({0, 1, 1, 2, 2, 3}, 'byte')
