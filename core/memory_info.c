@@ -125,12 +125,11 @@ static void get_memory_info_apple(memory_info_t* info)
 
   // Available physical memory.
   int mib[2];
-  int64_t physical_memory;
+  size_t physical_memory_len = sizeof(int64_t);
   mib[0] = CTL_HW;
   mib[1] = HW_MEMSIZE;
-  info->total_virtual_memory = sizeof(int64_t);
-  sysctl(mib, 2, &physical_memory, &info->total_virtual_memory, NULL, 0);
-  info->total_virtual_memory /= 1024;
+  sysctl(mib, 2, &info->total_physical_memory, &physical_memory_len, NULL, 0);
+  info->total_physical_memory /= 1024;
 
   // Used physical memory.
   vm_size_t page_size;

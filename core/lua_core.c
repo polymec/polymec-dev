@@ -1097,7 +1097,7 @@ static int sp_constant(lua_State* L)
   {
     if (!lua_isnumber(L, i))
       return luaL_error(L, "Argument %d must be a number.", i);
-    val[i] = lua_to_real(L, i);
+    val[i-1] = lua_to_real(L, i);
   }
   sp_func_t* f = constant_sp_func_new(val, num_args);
   lua_push_sp_func(L, f);
@@ -1141,11 +1141,11 @@ static int st_constant(lua_State* L)
   // Check the argument.
   int num_args = lua_gettop(L);
   real_t val[num_args];
-  for (int i = 1; i < num_args; ++i)
+  for (int i = 1; i <= num_args; ++i)
   {
     if (!lua_isnumber(L, i))
       return luaL_error(L, "Argument %d must be a number.", i);
-    val[i] = lua_to_real(L, i);
+    val[i-1] = lua_to_real(L, i);
   }
   st_func_t* f = constant_st_func_new(val, num_args);
   lua_push_st_func(L, f);
