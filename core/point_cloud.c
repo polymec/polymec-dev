@@ -179,11 +179,10 @@ static void remove_points(point_cloud_t* cloud,
                           int_unordered_set_t* points_to_remove)
 {
   point_t* data = polymec_malloc(sizeof(point_t) * (cloud->num_points + cloud->num_ghosts - points_to_remove->size));
-  int j = 0;
 
   // Remove all the points from our data.
-  int removed_points = 0, removed_ghosts = 0;
-  for (int i = 0; i < cloud->num_points + cloud->num_ghosts; ++i, ++j)
+  int removed_points = 0, removed_ghosts = 0, j = 0;
+  for (int i = 0; i < cloud->num_points + cloud->num_ghosts; ++i)
   {
     if (!int_unordered_set_contains(points_to_remove, i))
       data[j++] = cloud->points[i];
@@ -192,9 +191,11 @@ static void remove_points(point_cloud_t* cloud,
     else 
       ++removed_ghosts;
   }
+  polymec_free(cloud->points);
   cloud->points = data;
   cloud->num_points -= removed_points;
   cloud->num_ghosts -= removed_ghosts;
+  ASSERT(j == (cloud->num_points + cloud->num_ghosts));
 
   // Remove any tags that no longer contain points.
   int pos = 0, *indices;
@@ -220,16 +221,15 @@ static void remove_points(point_cloud_t* cloud,
     tagger_delete_tag(cloud->tags, tag_name);
 
   string_unordered_set_free(tags_to_remove);
-  polymec_free(cloud->points);
 }
 
 void point_cloud_intersect(point_cloud_t* cloud, 
                            point_cloud_t* other,
                            real_t distance_tol)
 {
-  kd_tree_t* tree = kd_tree_new(cloud->points, cloud->num_points);
+  kd_tree_t* tree = kd_tree_new(other->points, other->num_points);
   int_unordered_set_t* points_to_remove = int_unordered_set_new();
-  for (int i = 0; i < other->num_points; ++i)
+  for (int i = 0; i < cloud->num_points; ++i)
   {
     point_t* xi = &(cloud->points[i]);
     int j = kd_tree_nearest(tree, xi);
@@ -245,9 +245,9 @@ void point_cloud_difference(point_cloud_t* cloud,
                             point_cloud_t* other,
                             real_t distance_tol)
 {
-  kd_tree_t* tree = kd_tree_new(cloud->points, cloud->num_points);
+  kd_tree_t* tree = kd_tree_new(other->points, other->num_points);
   int_unordered_set_t* points_to_remove = int_unordered_set_new();
-  for (int i = 0; i < other->num_points; ++i)
+  for (int i = 0; i < cloud->num_points; ++i)
   {
     point_t* xi = &(cloud->points[i]);
     int j = kd_tree_nearest(tree, xi);
@@ -255,22 +255,6 @@ void point_cloud_difference(point_cloud_t* cloud,
       int_unordered_set_insert(points_to_remove, i);
   }
   kd_tree_free(tree);
-  remove_points(cloud, points_to_remove);
-  int_unordered_set_free(points_to_remove);
-}
-
-void point_cloud_trim(point_cloud_t* cloud, sp_func_t* F)
-{
-  ASSERT(sp_func_num_comp(F) == 1);
-  int_unordered_set_t* points_to_remove = int_unordered_set_new();
-  for (int i = 0; i < cloud->num_points; ++i)
-  {
-    point_t* xi = &(cloud->points[i]);
-    real_t Fi;
-    sp_func_eval(F, xi, &Fi);
-    if (Fi > 0)
-      int_unordered_set_insert(points_to_remove, i);
-  }
   remove_points(cloud, points_to_remove);
   int_unordered_set_free(points_to_remove);
 }
@@ -325,28 +309,5 @@ static void cloud_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 serializer_t* point_cloud_serializer()
 {
   return serializer_new("point_cloud", cloud_byte_size, cloud_byte_read, cloud_byte_write, NULL);
-}
-
-int_ptr_unordered_map_t* point_cloud_map_points_to_objects(point_cloud_t* cloud,
-                                                           string_ptr_unordered_map_t* objects_for_tags)
-{
-  int_ptr_unordered_map_t* point_map = int_ptr_unordered_map_new();
-
-  int pos = 0;
-  char* tag;
-  void* object;
-  while (string_ptr_unordered_map_next(objects_for_tags, &pos, &tag, &object))
-  {
-    // Retrieve the tag for this boundary condition.
-    ASSERT(point_cloud_has_tag(cloud, tag));
-    size_t num_points;
-    int* points = point_cloud_tag(cloud, tag, &num_points);
-
-    // Now create an entry for each boundary points.
-    for (int i = 0; i < num_points; ++i)
-      int_ptr_unordered_map_insert(point_map, points[i], object);
-  }
-
-  return point_map;
 }
 

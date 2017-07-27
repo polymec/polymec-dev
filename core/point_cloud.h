@@ -131,20 +131,8 @@ void point_cloud_difference(point_cloud_t* cloud,
                             point_cloud_t* other,
                             real_t distance_tol);
 
-// Trims from this cloud any points that fall "outside" of the given implicit 
-// function (that is, points for which F > 0), removing tags for which there
-// subsequently exist no points.
-void point_cloud_trim(point_cloud_t* cloud, sp_func_t* F);
-
 // Returns a serializer object that can read/write point clouds from/to byte arrays.
 serializer_t* point_cloud_serializer(void);
-
-// Given a map associating tag names to objects, this constructs and returns 
-// a mapping of point indices within the given cloud to these objects. The 
-// objects are assumed to be owned by the objects_for_tags map, so this 
-// map must persist for the life time of the the returned map.
-int_ptr_unordered_map_t* point_cloud_map_points_to_objects(point_cloud_t* cloud,
-                                                           string_ptr_unordered_map_t* objects_for_tags);
 
 #endif
 
