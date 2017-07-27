@@ -48,16 +48,20 @@ static void test_exchanger_construct_and_delete(void** state)
   MPI_Comm_rank(comm, &rank);
   int N = 100*nproc;
   exchanger_t* exchanger = exchanger_new(comm);
+  exchanger_set_send_offset(exchanger, 0);
+  exchanger_set_receive_offset(exchanger, 0);
   if (nproc > 1)
   {
     int send_indices[N/nproc];
     for (int i = 0; i < N/nproc; ++i)
       send_indices[i] = i;
     exchanger_set_send(exchanger, (rank+1) % nproc, send_indices, N/nproc, true);
+    assert_true(exchanger_max_send(exchanger) != rank);
     int receive_indices[N/nproc];
     for (int i = 0; i < N/nproc; ++i)
       send_indices[i] = i;
     exchanger_set_receive(exchanger, (rank+nproc-1) % nproc, receive_indices, N/nproc, true);
+    assert_true(exchanger_max_receive(exchanger) != rank);
 
     exchanger_delete_send(exchanger, 1);
     exchanger_delete_receive(exchanger, 1);
