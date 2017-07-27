@@ -234,7 +234,7 @@ FILE* log_stream(log_level_t log_type)
   }
 }
 
-void log_set_indentation_prefix(log_level_t log_type, const char* prefix)
+void set_log_indentation_prefix(log_level_t log_type, const char* prefix)
 {
   logger_t* logger = get_logger(log_type);
   if (logger != NULL)

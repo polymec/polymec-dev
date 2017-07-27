@@ -55,9 +55,9 @@ bbox_t* empty_set_bbox_new()
 
 bool bbox_is_empty_set(bbox_t* box)
 {
-  return ((box->x1 >= REAL_MAX) && (box->x2 <= -REAL_MAX) && 
-          (box->y1 >= REAL_MAX) && (box->y2 <= -REAL_MAX) &&
-          (box->z1 >= REAL_MAX) && (box->z2 <= -REAL_MAX));
+  return ((box->x1 >= box->x2) || 
+          (box->y1 >= box->y2) ||
+          (box->z1 >= box->z2));
 }
 
 bool bbox_is_point(bbox_t* box)
@@ -86,7 +86,10 @@ bool bbox_is_plane(bbox_t* box)
 
 bool bbox_intersects_bbox(bbox_t* box1, bbox_t* box2)
 {
-  // The boxes intersect if their centers x1 and x2 are within the sum of 
+  if (bbox_is_empty_set(box1) || bbox_is_empty_set(box2))
+    return false;
+
+  // Two non-empty boxes intersect if their centers x1 and x2 are within the sum of 
   // their spatial extents of one another along each axis.
   point_t x1 = {.x = 0.5 * (box1->x1 + box1->x2),
                 .y = 0.5 * (box1->y1 + box1->y2),
@@ -98,14 +101,15 @@ bool bbox_intersects_bbox(bbox_t* box1, bbox_t* box2)
           (ABS(x1.y - x2.y) * 2.0 <= (box1->y2 - box1->y1 + box2->y2 - box2->y1)) &&
           (ABS(x1.z - x2.z) * 2.0 <= (box1->z2 - box1->z1 + box2->z2 - box2->z1)));
 }
+
 void bbox_make_empty_set(bbox_t* box)
 {
-  box->x1 = REAL_MAX;
-  box->x2 = -REAL_MAX;
-  box->y1 = REAL_MAX;
-  box->y2 = -REAL_MAX;
-  box->z1 = REAL_MAX;
-  box->z2 = -REAL_MAX;
+  box->x1 = 1.0;
+  box->x2 = 0.0;
+  box->y1 = 1.0;
+  box->y2 = 0.0;
+  box->z1 = 1.0;
+  box->z2 = 0.0;
 }
 
 void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3)
