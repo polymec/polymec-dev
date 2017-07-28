@@ -26,6 +26,7 @@ static void test_exchanger_construct(void** state)
   MPI_Comm_rank(comm, &rank);
   int N = 100*nproc;
   exchanger_t* exchanger = exchanger_new(comm);
+  assert_true(exchanger_comm(exchanger) == comm);
   if (nproc > 1)
   {
     int send_indices[N/nproc];

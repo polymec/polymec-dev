@@ -22,6 +22,28 @@ static void test_constructor(void** state)
   adj_graph_free(g);
 }
 
+static void test_block_constructor(void** state)
+{
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  adj_graph_t* g = adj_graph_new(MPI_COMM_WORLD, 100);
+  int block_sizes[100*nprocs];
+  for (int i = 0; i < 100*nprocs; ++i)
+    block_sizes[i] = i % 9 + 1;
+  adj_graph_t* bg = adj_graph_new_with_block_sizes(g, block_sizes);
+  adj_graph_free(g);
+  adj_graph_free(bg);
+}
+
+static void test_dense_constructor(void** state)
+{
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  adj_graph_t* g = dense_adj_graph_new(MPI_COMM_WORLD, 10, 10*(nprocs-1));
+  assert_int_equal(10*nprocs, adj_graph_num_vertices(g));
+  adj_graph_free(g);
+}
+
 static void test_distributed_constructor(void** state)
 {
   int nprocs;
@@ -37,6 +59,21 @@ static void test_distributed_constructor(void** state)
   assert_int_equal(rank*1000/nprocs, adj_graph_first_vertex(g));
   assert_int_equal((rank+1)*1000/nprocs-1, adj_graph_last_vertex(g));
   adj_graph_free(g);
+}
+
+static void test_array_constructor(void** state)
+{
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  adj_graph_t* g = adj_graph_new(MPI_COMM_WORLD, 100);
+  adj_graph_t* g1 = adj_graph_from_arrays(MPI_COMM_WORLD, 
+                                          adj_graph_vertex_dist(g),
+                                          adj_graph_adjacency(g),
+                                          adj_graph_edge_offsets(g),
+                                          false);
+  assert_int_equal(100*nprocs, adj_graph_num_vertices(g1));
+  adj_graph_free(g);
+  adj_graph_free(g1);
 }
 
 static void test_sort(void** state)
@@ -78,7 +115,10 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_constructor),
+    cmocka_unit_test(test_block_constructor),
     cmocka_unit_test(test_distributed_constructor),
+    cmocka_unit_test(test_dense_constructor),
+    cmocka_unit_test(test_array_constructor),
     cmocka_unit_test(test_sort)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
