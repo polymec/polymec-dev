@@ -64,6 +64,7 @@ static void test_ctor(void** state, int p)
   // Construct a polynomial about a point x0.
   point_t x0 = {.x = 1.0, .y = 2.0, .z = 3.0};
   poly = polynomial_new(p, coeffs, &x0);
+  polynomial_fprintf(poly, stdout);
   assert_int_equal(dim, polynomial_num_terms(poly));
   assert_true(point_distance(&x0, polynomial_x0(poly)) < machine_precision);
   pos = 0; index = 0;
@@ -76,7 +77,29 @@ static void test_ctor(void** state, int p)
     ++index;
   }
 
+  // Clone the polynomial and do an equality comparison.
+  polynomial_t* poly1 = polynomial_clone(poly);
+  assert_true(polynomial_equals(poly, poly1));
+
+  // Create a polynomial representing the x derivative of this one.
+  polynomial_t* dpoly = polynomial_derivative(poly, 1, 0, 0);
+
+  // Create a polynomial representing the y derivative of this one.
+  dpoly = polynomial_derivative(poly, 0, 1, 0);
+
+  // Create a polynomial representing the z derivative of this one.
+  dpoly = polynomial_derivative(poly, 0, 0, 1);
+
+  // Add this polynomial to itself.
+  polynomial_add(poly1, 1.0, poly);
+
+  // Compute the product of this polynomial with itself.
+  polynomial_t* poly2 = polynomial_product(poly, poly);
+
   poly = NULL;
+  poly1 = NULL;
+  poly2 = NULL;
+  dpoly = NULL;
 }
 
 static void test_p0_ctor(void** state)

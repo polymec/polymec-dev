@@ -27,6 +27,7 @@ static void test_tensor2_ctor(void** state)
   assert_true(reals_equal(t->zx, 7.0));
   assert_true(reals_equal(t->zy, 8.0));
   assert_true(reals_equal(t->zz, 9.0));
+  tensor2_fprintf(t, stdout);
   t = NULL;
 }
 
@@ -134,6 +135,18 @@ static void test_tensor2_invert(void** state)
   assert_true(reals_nearly_equal(Ainv.zz, 1.0, 1e-14));
 }
 
+static void test_tensor2_array(void** state)
+{
+  tensor2_array_t* a = tensor2_array_new();
+  tensor2_t A;
+  tensor2_set(&A, 2.0, 0.0, 1.0, 
+                  0.0, 2.0, 0.0,
+                  1.0, 0.0, 2.0);
+  for (size_t i = 0; i < 10; ++i)
+    tensor2_array_append(a, A);
+  tensor2_array_free(a);
+}
+
 static void test_sym_tensor2_ctor(void** state)
 {
   sym_tensor2_t* t = sym_tensor2_new(1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
@@ -143,6 +156,7 @@ static void test_sym_tensor2_ctor(void** state)
   assert_true(reals_equal(t->yy, 4.0));
   assert_true(reals_equal(t->yz, 5.0));
   assert_true(reals_equal(t->zz, 6.0));
+  sym_tensor2_fprintf(t, stdout);
   t = NULL;
 }
 
@@ -273,6 +287,18 @@ static void test_sym_tensor2_get_eigenvectors(void** state)
               is_eigenvector(&A, lambdas[2], &us[2]));
 }
 
+static void test_sym_tensor2_array(void** state)
+{
+  sym_tensor2_array_t* a = sym_tensor2_array_new();
+  sym_tensor2_t A;
+  sym_tensor2_set(&A, 2.0, 0.0, 1.0, 
+                           2.0, 0.0,
+                                2.0);
+  for (size_t i = 0; i < 10; ++i)
+    sym_tensor2_array_append(a, A);
+  sym_tensor2_array_free(a);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -287,6 +313,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_tensor2_dot_vector),
     cmocka_unit_test(test_tensor2_dot_vector_t),
     cmocka_unit_test(test_tensor2_invert),
+    cmocka_unit_test(test_tensor2_array),
     cmocka_unit_test(test_sym_tensor2_ctor),
     cmocka_unit_test(test_sym_tensor2_set),
     cmocka_unit_test(test_sym_tensor2_set_identity),
@@ -296,7 +323,8 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_sym_tensor2_dot_vector),
     cmocka_unit_test(test_sym_tensor2_invert),
     cmocka_unit_test(test_sym_tensor2_get_eigenvalues),
-    cmocka_unit_test(test_sym_tensor2_get_eigenvectors)
+    cmocka_unit_test(test_sym_tensor2_get_eigenvectors),
+    cmocka_unit_test(test_sym_tensor2_array)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

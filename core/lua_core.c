@@ -1109,6 +1109,15 @@ static lua_module_function sp_funcs[] = {
   {NULL, NULL}
 };
 
+static int sp_rename(lua_State* L)
+{
+  sp_func_t* f = lua_to_sp_func(L, 1);
+  if (!lua_isstring(L, 2))
+    return luaL_error(L, "Argument must be a string.");
+  sp_func_rename(f, lua_tostring(L, 2));
+  return 0;
+}
+
 static int sp_len(lua_State* L)
 {
   sp_func_t* f = lua_to_sp_func(L, 1);
@@ -1130,9 +1139,24 @@ static int sp_call(lua_State* L)
   return nc;
 }
 
+static int sp_tostring(lua_State* L)
+{
+  sp_func_t* f = lua_to_sp_func(L, 1);
+  char homo_str[33];
+  if (sp_func_is_homogeneous(f))
+    strcpy(homo_str, "homogeneous, ");
+  else
+    homo_str[0] = '\0';
+  lua_pushfstring(L, "sp_func '%s' (%s%d components)", 
+                  sp_func_name(f), homo_str, sp_func_num_comp(f));
+  return 1;
+}
+
 static lua_class_method sp_methods[] = {
+  {"rename", sp_rename},
   {"__len", sp_len},
   {"__call", sp_call},
+  {"__tostring", sp_tostring},
   {NULL, NULL}
 };
 
@@ -1152,10 +1176,42 @@ static int st_constant(lua_State* L)
   return 1;
 }
 
+static int st_from_sp_func(lua_State* L)
+{
+  // Check the argument.
+  if (!lua_is_sp_func(L, 1))
+    return luaL_error(L, "Argument must be an sp_func.");
+  sp_func_t* f = lua_to_sp_func(L, 1);
+  st_func_t* g = st_func_from_sp_func(f);
+  lua_push_st_func(L, g);
+  return 1;
+}
+
 static lua_module_function st_funcs[] = {
   {"constant", st_constant},
+  {"from_sp_func", st_from_sp_func},
   {NULL, NULL}
 };
+
+static int st_rename(lua_State* L)
+{
+  st_func_t* f = lua_to_st_func(L, 1);
+  if (!lua_isstring(L, 2))
+    return luaL_error(L, "Argument must be a string.");
+  st_func_rename(f, lua_tostring(L, 2));
+  return 0;
+}
+
+static int st_freeze(lua_State* L)
+{
+  st_func_t* f = lua_to_st_func(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Argument must be a time.");
+  real_t t = lua_to_real(L, 3);
+  sp_func_t* g = st_func_freeze(f, t);
+  lua_push_sp_func(L, g);
+  return 1;
+}
 
 static int st_len(lua_State* L)
 {
@@ -1181,9 +1237,30 @@ static int st_call(lua_State* L)
   return nc;
 }
 
+static int st_tostring(lua_State* L)
+{
+  st_func_t* f = lua_to_st_func(L, 1);
+  char homo_str[33];
+  if (st_func_is_homogeneous(f))
+    strcpy(homo_str, "homogeneous, ");
+  else
+    homo_str[0] = '\0';
+  char const_str[33];
+  if (st_func_is_constant(f))
+    strcpy(const_str, "constant, ");
+  else
+    const_str[0] = '\0';
+  lua_pushfstring(L, "sp_func '%s' (%s%s%d components)", 
+                  st_func_name(f), homo_str, const_str, st_func_num_comp(f));
+  return 1;
+}
+
 static lua_class_method st_methods[] = {
+  {"rename", st_rename},
+  {"freeze", st_freeze},
   {"__len", st_len},
   {"__call", st_call},
+  {"__tostring", st_tostring},
   {NULL, NULL}
 };
 
