@@ -22,15 +22,8 @@ typedef struct
   // Allocates and returns size bytes of memory.
   void* (*malloc)(void* context, size_t size);
 
-  // Allocates and returns size bytes of memory with the given alignment.
-  void* (*aligned_alloc)(void* context, size_t alignment, size_t size);
-
   // Reallocates size bytes of the given chunk memory.
   void* (*realloc)(void* context, void* memory, size_t size);
-
-  // Reallocates size bytes of the given chunk memory according to the given alignment.
-  // This might not be available on every allocator.
-  void* (*aligned_realloc)(void* context, void* memory, size_t alignment, size_t size);
 
   // Allocates a traced chunk of memory that is garbage-collected. Also takes 
   // a destructor that is called on the freed memory.
@@ -60,20 +53,9 @@ void polymec_allocator_free(polymec_allocator_t* alloc);
 // calls to polymec_malloc() simply use malloc().
 void* polymec_malloc(size_t size);
 
-// This version of polymec_malloc() returns memory with the given alignment 
-// using the allocator on the top of the allocator stack, or calls 
-// aligned_alloc() if the stack is empty.
-void* polymec_aligned_alloc(size_t alignment, size_t size);
-
 // This reallocates existing memory using the allocator on top of the allocator 
 // stack, or calls realloc() if the stack is empty.
 void* polymec_realloc(void* memory, size_t size);
-
-// This version of polymec_realloc guarantees the given alignment of the 
-// reallocated memory, and using the allocator on top of the allocator stack. 
-// If the stack is empty, a fatal error is issued, since there is no 
-// portable way to perform an aligned realloc with the standard C allocator.
-void* polymec_aligned_realloc(void* memory, size_t alignment, size_t size);
 
 // This version of polymec_malloc returns memory that will be garbage-collected.
 // It should not be freed. It is appropriate for objects that are shared by 

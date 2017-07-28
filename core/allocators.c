@@ -81,31 +81,31 @@ static void* std_malloc(void* context, size_t size)
   return GC_MALLOC_UNCOLLECTABLE(size);
 }
 
-static void* std_aligned_alloc(void* context, size_t alignment, size_t size)
-{
-  // FIXME: Aligned allocations are not traceable at the moment.
-#if defined(APPLE) || defined(__INTEL_COMPILER)
-  polymec_error("Aligned allocations are not available on MacOS/Intel at this time.");
-  return NULL;
-#else
-  polymec_error("Aligned allocations are supported by the standard allocator.");
-  return NULL;
-#endif
-}
-
 static void* std_realloc(void* context, void* memory, size_t size)
 {
   return GC_REALLOC(memory, size);
 }
 
-typedef void (*gc_finalizer)(void* context, void* dummy);
+typedef struct
+{
+  void (*dtor)(void* context);
+} gc_adaptor_t;
+
+static void gc_finalizer_adaptor(void* obj, void* client_data)
+{
+  gc_adaptor_t* adaptor = client_data;
+  adaptor->dtor(obj);
+  polymec_free(adaptor);
+}
+
 static void* std_gc_malloc(void* context, size_t size, void (*dtor)(void* context))
 {
   void* memory = GC_MALLOC(size);
   if (dtor != NULL)
   {
-    gc_finalizer finalizer = (gc_finalizer)dtor;
-    GC_register_finalizer(memory, finalizer, memory, NULL, NULL);
+    gc_adaptor_t* adaptor = std_malloc(NULL, sizeof(gc_adaptor_t));
+    adaptor->dtor = dtor;
+    GC_REGISTER_FINALIZER(memory, gc_finalizer_adaptor, adaptor, NULL, NULL);
   }
   return memory;
 }
@@ -127,23 +127,6 @@ void* polymec_malloc(size_t size)
   }
 }
 
-void* polymec_aligned_alloc(size_t alignment, size_t size)
-{
-  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-    return std_aligned_alloc(NULL, alignment, size);
-  else
-  {
-    polymec_allocator_t* alloc = alloc_stack->front->value;
-    if (alloc->vtable.aligned_alloc != NULL)
-      return alloc->vtable.aligned_alloc(alloc->context, alignment, size);
-    else
-    {
-      polymec_error("%s allocator does not support aligned allocation.");
-      return NULL;
-    }
-  }
-}
-
 void* polymec_realloc(void* memory, size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
@@ -152,27 +135,6 @@ void* polymec_realloc(void* memory, size_t size)
   {
     polymec_allocator_t* alloc = alloc_stack->front->value;
     return alloc->vtable.realloc(alloc->context, memory, size);
-  }
-}
-
-void* polymec_aligned_realloc(void* memory, size_t alignment, size_t size)
-{
-  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-  {
-    // Not possible in general, since we can't get the old memory size.
-    polymec_error("No allocator is available, so aligned realloc() is not possible.");
-    return NULL;
-  }
-  else
-  {
-    polymec_allocator_t* alloc = alloc_stack->front->value;
-    if (alloc->vtable.aligned_realloc != NULL)
-      return alloc->vtable.aligned_realloc(alloc->context, memory, alignment, size);
-    else
-    {
-      polymec_error("%s allocator does not support aligned allocation.");
-      return NULL;
-    }
   }
 }
 
@@ -210,7 +172,6 @@ void polymec_free(void* memory)
 polymec_allocator_t* std_allocator_new()
 {
   polymec_allocator_vtable vtable = {.malloc = std_malloc,
-                                     .aligned_alloc = std_aligned_alloc,
                                      .realloc = std_realloc,
                                      .gc_malloc = std_gc_malloc,
                                      .free = std_free};
@@ -221,12 +182,6 @@ static void* my_arena_malloc(void* context, size_t size)
 {
   ARENA* arena = context;
   return arena_malloc(arena, size, 0);
-}
-
-static void* my_arena_aligned_alloc(void* context, size_t alignment, size_t size)
-{
-  ARENA* arena = context;
-  return arena_malloc(arena, size, alignment);
 }
 
 static void* my_arena_realloc(void* context, void* memory, size_t size)
@@ -250,7 +205,6 @@ static void my_arena_dtor(void* context)
 polymec_allocator_t* arena_allocator_new()
 {
   polymec_allocator_vtable vtable = {.malloc = my_arena_malloc,
-                                     .aligned_alloc = my_arena_aligned_alloc,
                                      .realloc = my_arena_realloc,
                                      .free = my_arena_free,
                                      .dtor = my_arena_dtor};
@@ -262,12 +216,6 @@ static void* my_pool_malloc(void* context, size_t size)
 {
   POOL* pool = context;
   return pool_get(pool, size, 0);
-}
-
-static void* my_pool_aligned_alloc(void* context, size_t alignment, size_t size)
-{
-  POOL* pool = context;
-  return pool_get(pool, size, alignment);
 }
 
 static void* my_pool_realloc(void* context, void* memory, size_t size)
@@ -291,7 +239,6 @@ static void my_pool_dtor(void* context)
 polymec_allocator_t* pool_allocator_new()
 {
   polymec_allocator_vtable vtable = {.malloc = my_pool_malloc,
-                                     .aligned_alloc = my_pool_aligned_alloc,
                                      .realloc = my_pool_realloc,
                                      .free = my_pool_free,
                                      .dtor = my_pool_dtor};

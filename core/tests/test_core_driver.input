@@ -105,7 +105,7 @@ print(f)
 print(#f)
 f:rename('joe')
 print(f(p, 0))
-g = f:freeze()
+g = f:freeze(0)
 h = st_func.from_sp_func(g)
 
 -- Arrays.
