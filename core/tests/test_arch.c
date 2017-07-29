@@ -58,6 +58,10 @@ static void test_memstream(void** state)
   fflush(f);
   assert_int_equal(len, pos);
   assert_int_equal(0, strcmp(s, test_string));
+  rewind(f);
+  assert_int_equal(0, pos);
+  fseek(f, 0, SEEK_END);
+  assert_int_equal(len, pos);
   fclose(f);
 }
 
