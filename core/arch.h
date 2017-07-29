@@ -30,18 +30,24 @@ FILE* open_memstream(char **buf, size_t *len);
 typedef int pthread_barrierattr_t;
 
 // Barrier type.
-typedef struct pthread_barrier_t pthread_barrier_t;
+typedef struct 
+{
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  int count;
+  int trip_count;
+} pthread_barrier_t;
 
 // Initializes a barrier that blocks the given number of threads.
-int pthread_barrier_init(pthread_barrier_t *barrier, 
-                         const pthread_barrierattr_t *attr, 
+int pthread_barrier_init(pthread_barrier_t* barrier, 
+                         const pthread_barrierattr_t* attr, 
                          unsigned int count);
 
 // Destroys a barrier created with pthread_barrier_init().
-int pthread_barrier_destroy(pthread_barrier_t *barrier);
+int pthread_barrier_destroy(pthread_barrier_t* barrier);
 
 // Causes the barrier to block until all of its threads finish their tasks.
-int pthread_barrier_wait(pthread_barrier_t *barrier);
+int pthread_barrier_wait(pthread_barrier_t* barrier);
 
 #endif
 #endif

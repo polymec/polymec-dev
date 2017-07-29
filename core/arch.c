@@ -76,7 +76,7 @@ static int fmem_close(void *context)
 
 FILE *fmemopen(void *buf, size_t size, const char *mode) 
 {
-  fmem_t* fmem = malloc(sizeof(fmem_t)); // Context pointer.
+  fmem_t* fmem = polymec_malloc(sizeof(fmem_t)); // Context pointer.
   fmem->pos = 0;
   fmem->size = size;
   fmem->buffer = buf;
@@ -220,14 +220,6 @@ FILE* open_memstream(char **buf, size_t *len)
   return f;
 }
 
-struct pthread_barrier_t
-{
-  pthread_mutex_t mutex;
-  pthread_cond_t cond;
-  int count;
-  int tripCount;
-};
-
 int pthread_barrier_init(pthread_barrier_t *barrier, const pthread_barrierattr_t *attr, unsigned int count)
 {
   if(count == 0)
@@ -244,7 +236,7 @@ int pthread_barrier_init(pthread_barrier_t *barrier, const pthread_barrierattr_t
     pthread_mutex_destroy(&barrier->mutex);
     return -1;
   }
-  barrier->tripCount = count;
+  barrier->trip_count = count;
   barrier->count = 0;
 
   return 0;
@@ -261,7 +253,7 @@ int pthread_barrier_wait(pthread_barrier_t *barrier)
 {
   pthread_mutex_lock(&barrier->mutex);
   ++(barrier->count);
-  if(barrier->count >= barrier->tripCount)
+  if(barrier->count >= barrier->trip_count)
   {
     barrier->count = 0;
     pthread_cond_broadcast(&barrier->cond);
