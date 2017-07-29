@@ -1197,7 +1197,7 @@ struct migrator_t
 static void migrator_free(void* ctx)
 {
   migrator_t* m = ctx;
-  polymec_free(m->ex);
+  m->ex = NULL;
 }
 
 migrator_t* migrator_new(MPI_Comm comm)

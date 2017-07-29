@@ -535,10 +535,10 @@ void mesh_construct_edges(mesh_t* mesh)
   ASSERT(mesh->edge_nodes == NULL);
 
   // Allocate initial face->edge storage.
-  if (mesh->storage->face_edge_capacity == 0)
+  if (mesh->storage->face_edge_capacity != mesh->storage->face_node_capacity)
   {
     mesh->storage->face_edge_capacity = mesh->storage->face_node_capacity;
-    mesh->face_edges = polymec_malloc(sizeof(int) * mesh->storage->face_edge_capacity);
+    mesh->face_edges = polymec_realloc(mesh->face_edges, sizeof(int) * mesh->storage->face_edge_capacity);
   }
 
   // Construct edge information.
