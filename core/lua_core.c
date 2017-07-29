@@ -1118,6 +1118,13 @@ static int sp_rename(lua_State* L)
   return 0;
 }
 
+static int sp_gc(lua_State* L)
+{
+  sp_func_t* f = lua_to_sp_func(L, 1);
+  f = NULL;
+  return 0;
+}
+
 static int sp_len(lua_State* L)
 {
   sp_func_t* f = lua_to_sp_func(L, 1);
@@ -1154,6 +1161,7 @@ static int sp_tostring(lua_State* L)
 
 static lua_class_method sp_methods[] = {
   {"rename", sp_rename},
+  {"__gc", sp_gc},
   {"__len", sp_len},
   {"__call", sp_call},
   {"__tostring", sp_tostring},
@@ -1213,6 +1221,13 @@ static int st_freeze(lua_State* L)
   return 1;
 }
 
+static int st_gc(lua_State* L)
+{
+  st_func_t* f = lua_to_st_func(L, 1);
+  f = NULL;
+  return 0;
+}
+
 static int st_len(lua_State* L)
 {
   st_func_t* f = lua_to_st_func(L, 1);
@@ -1258,6 +1273,7 @@ static int st_tostring(lua_State* L)
 static lua_class_method st_methods[] = {
   {"rename", st_rename},
   {"freeze", st_freeze},
+  {"__gc", st_gc},
   {"__len", st_len},
   {"__call", st_call},
   {"__tostring", st_tostring},

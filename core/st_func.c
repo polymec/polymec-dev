@@ -189,12 +189,19 @@ static void multicomp_eval_n(void* context, point_t* xs, size_t n, real_t t, rea
   multicomp_st_func_t* mc = (multicomp_st_func_t*)context;
   int nc = mc->num_comp;
   for (int i = 0; i < nc; ++i)
-    st_func_eval_n(mc->functions[i], xs, n, t, &results[i]);
+  {
+    real_t vals[n];
+    st_func_eval_n(mc->functions[i], xs, n, t, vals);
+    for (size_t p = 0; p < n; ++p)
+      results[nc*p+i] = vals[p];
+  }
 }
 
 static void multicomp_dtor(void* context)
 {
   multicomp_st_func_t* mc = (multicomp_st_func_t*)context;
+  for (int c = 0; c < mc->num_comp; ++c)
+    mc->functions[c] = NULL;
   polymec_free(mc->functions);
   polymec_free(mc);
 }
