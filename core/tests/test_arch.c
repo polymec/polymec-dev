@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include <unistd.h>
+#include <time.h>
 #include "cmocka.h"
 #include "core/polymec.h"
 #include "core/arch.h"
@@ -73,7 +73,8 @@ static void* thread_func(void *id_ptr)
   int thread_id = *(int*)id_ptr;
   int wait_usec = 1000 + (int)rng_get(_rng) % 5000;
   log_info("thread %d: Wait for %d us.", thread_id, wait_usec);
-  usleep(wait_usec);
+  struct timespec req = {.tv_sec = 0, .tv_nsec = 1000*wait_usec};
+  nanosleep(&req, NULL);
   log_info("thread %d: I'm ready...", thread_id);
 
   pthread_barrier_wait(&_barrier);
