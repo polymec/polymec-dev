@@ -50,7 +50,7 @@ static void test_memstream(void** state)
   // Open a memory stream for writing our test string.
   size_t len = strlen(test_string) + 1;
   char* s;
-  size_t pos;
+  size_t pos = 0;
   FILE* f = open_memstream(&s, &pos);
   assert_true(s != NULL);
   assert_int_equal(0, pos);
@@ -59,9 +59,8 @@ static void test_memstream(void** state)
   assert_int_equal(len, pos);
   assert_int_equal(0, strcmp(s, test_string));
   rewind(f);
+  pos = ftell(f);
   assert_int_equal(0, pos);
-  fseek(f, 0, SEEK_END);
-  assert_int_equal(len, pos);
   fclose(f);
 }
 
