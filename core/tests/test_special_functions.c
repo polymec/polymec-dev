@@ -17,6 +17,20 @@
 // precision.
 #if POLYMEC_HAVE_DOUBLE_PRECISION
 
+static void test_gamma(void** state)
+{
+//  assert_true(reals_equal(gamma(-1.5), 2.363271801207));
+//  assert_true(reals_equal(gamma(-0.5), -3.544907701811));
+  assert_true(reals_nearly_equal(gamma( 0.5), 1.772453850906, 1e-8));
+  assert_true(reals_nearly_equal(gamma( 1.0), 1.0, 1e-8));
+  assert_true(reals_nearly_equal(gamma( 1.5), 0.886226925453, 1e-8));
+  assert_true(reals_nearly_equal(gamma( 2.0), 1.0, 1e-8));
+  assert_true(reals_nearly_equal(gamma( 2.5), 1.329340388179, 1e-8));
+  assert_true(reals_nearly_equal(gamma( 3.0), 2.0, 1e-8));
+  assert_true(reals_nearly_equal(gamma( 3.5), 3.323350970448, 1e-8));
+  assert_true(reals_nearly_equal(gamma( 4.0), 6.0, 1e-8));
+}
+
 static void test_bessel_find_jn_roots(void** state)
 {
   static real_t jn_roots[6][5] = 
@@ -57,6 +71,8 @@ static void test_bessel_jn(void** state, int n)
 
 static void test_bessel_j(void** state)
 {
+  assert_true(reals_equal(bessel_j0(0.0), 1.0));
+  assert_true(reals_equal(bessel_j1(0.0), 0.0));
   for (int n = 0; n < 20; ++n)
     test_bessel_jn(state, n);
 }
@@ -144,6 +160,43 @@ static void test_bessel_dydx(void** state)
     test_bessel_dyndx(state, n);
 }
 
+static void test_chebyshev_tn(void** state)
+{
+  // Test the first 11 Chebyshev polynomials against those listed on 
+  // Wikipedia.
+  real_t x = 1.5; // an interesting point.
+  assert_true(reals_nearly_equal(chebyshev_tn(0, x),  1.0, 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(1, x),  x, 1e-14));
+printf("t2(1.5) == %f vs %f\n", chebyshev_tn(2, x), 2.0*x*x-1.0);
+  assert_true(reals_nearly_equal(chebyshev_tn(2, x), (2.0*x*x-1.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(3, x), (4.0*pow(x, 3)-3.0*x), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(4, x), (8.0*pow(x, 4)-8.0*x*x+1.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(5, x), (16.0*pow(x, 5)-20.0*pow(x,3)+5.0*x), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(6, x), (32.0*pow(x, 6)-48.0*pow(x,4)+18.0*x*x-1.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(7, x), (64.0*pow(x, 7)-112.0*pow(x, 5)+56.0*pow(x,3)-7.0*x), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(8, x), (128.0*pow(x, 8)-256.0*pow(x, 6)+160.0*pow(x,4)-32.0*pow(x,2)+1.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(9, x), (256.0*pow(x, 8)-576.0*pow(x, 6)+432.0*pow(x,4)-120.0*pow(x,2)+9.0*x), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(10, x), (512.0*pow(x, 9)-1280.0*pow(x, 7)+1120.0*pow(x,5)-400.0*pow(x,3)+50.0*x*x-1.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(11, x), (1024.0*pow(x, 9)-2816.0*pow(x, 7)+2816.0*pow(x,5)-1232.0*pow(x,3)+220.0*x*x*x-11.0*x), 1e-14));
+}
+
+static void test_chebyshev_un(void** state)
+{
+  // Test the first 10 Chebyshev polynomials against those listed on 
+  // Wikipedia.
+  real_t x = 1.5; // an interesting point.
+  assert_true(reals_nearly_equal(chebyshev_un(0, x), (1.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_un(1, x), (2.0*x), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_un(2, x), (4.0*x*x-2.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_un(3, x), (8.0*pow(x, 3)-4.0*x), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_un(4, x), (16.0*pow(x, 4)-12.0*x*x+1.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_un(5, x), (32.0*pow(x, 5)-32.0*pow(x,3)+6.0*x), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_un(6, x), (64.0*pow(x, 6)-80.0*pow(x,4)+24.0*x*x-1.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_un(7, x), (128.0*pow(x, 7)-192.0*pow(x, 5)+80.0*pow(x,3)-8.0*x), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_un(8, x), (256.0*pow(x, 8)-448.0*pow(x, 6)+240.0*pow(x,4)-40.0*pow(x,2) + 1.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_un(9, x), (512.0*pow(x, 9)-1024.0*pow(x, 7)+672.0*pow(x,5)-160.0*pow(x,3) + 10.0*x), 1e-14));
+}
+
 #endif // if double precision
 
 static void test_hermite_hn(void** state)
@@ -170,12 +223,15 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
+    cmocka_unit_test(test_gamma),
     cmocka_unit_test(test_bessel_find_jn_roots),
     cmocka_unit_test(test_bessel_j),
     cmocka_unit_test(test_bessel_djdx),
     cmocka_unit_test(test_bessel_find_yn_roots),
     cmocka_unit_test(test_bessel_y),
     cmocka_unit_test(test_bessel_dydx),
+    cmocka_unit_test(test_chebyshev_tn),
+    cmocka_unit_test(test_chebyshev_un),
 #endif
     cmocka_unit_test(test_hermite_hn)
   };
