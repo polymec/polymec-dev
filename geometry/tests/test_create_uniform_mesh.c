@@ -17,8 +17,11 @@ static void test_create_uniform_mesh(void** state)
   // Create a 10x10x10 uniform mesh.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
+
+  // Verify the mesh's topology.
   assert_true(mesh_verify_topology(mesh, polymec_error));
 
+  // Now check its connectivity.
   int nproc;
   MPI_Comm_size(mesh->comm, &nproc);
   int num_cells, num_faces, num_edges, num_nodes;
@@ -43,6 +46,25 @@ static void test_create_uniform_mesh(void** state)
   }
 
   mesh_free(mesh);
+}
+
+static void test_create_uniform_mesh_on_rank(void** state)
+{
+  // Create a 10x10x10 rectilinear mesh on rank 0.
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  mesh_t* mesh = create_uniform_mesh_on_rank(MPI_COMM_WORLD, 0, 10, 10, 10, &bbox);
+
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0)
+  {
+    assert_true(mesh_verify_topology(mesh, polymec_error));
+    mesh_free(mesh);
+  }
+  else
+  {
+    assert_true(mesh == NULL);
+  }
 }
 
 static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
@@ -74,6 +96,7 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_create_uniform_mesh),
+    cmocka_unit_test(test_create_uniform_mesh_on_rank),
     cmocka_unit_test(test_plot_uniform_mesh_to_single_file),
     cmocka_unit_test(test_plot_uniform_mesh_to_n_files)
   };

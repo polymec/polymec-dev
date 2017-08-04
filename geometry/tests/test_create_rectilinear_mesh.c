@@ -20,8 +20,11 @@ static void test_create_rectilinear_mesh(void** state)
   real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 11, ys, 11, zs, 11);
+
+  // Verify the mesh's topology.
   assert_true(mesh_verify_topology(mesh, polymec_error));
 
+  // Test the connectivity of the mesh.
   int nproc;
   MPI_Comm_size(mesh->comm, &nproc);
   int num_cells, num_faces, num_edges, num_nodes;
@@ -45,7 +48,37 @@ static void test_create_rectilinear_mesh(void** state)
     assert_int_equal(11*11*11, num_nodes);
   }
 
+  // Tag the boundary faces.
+  tag_rectilinear_mesh_faces(mesh, "x1", "x2", "y1", "y2", "z1", "z2");
+  assert_true(mesh_has_tag(mesh->face_tags, "x1"));
+  assert_true(mesh_has_tag(mesh->face_tags, "x2"));
+  assert_true(mesh_has_tag(mesh->face_tags, "y1"));
+  assert_true(mesh_has_tag(mesh->face_tags, "y2"));
+  assert_true(mesh_has_tag(mesh->face_tags, "z1"));
+  assert_true(mesh_has_tag(mesh->face_tags, "z2"));
+
   mesh_free(mesh);
+}
+
+static void test_create_rectilinear_mesh_on_rank(void** state)
+{
+  // Create a 10x10x10 rectilinear mesh on rank 0.
+  real_t xs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
+  real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
+  real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
+  mesh_t* mesh = create_rectilinear_mesh_on_rank(MPI_COMM_WORLD, 0, xs, 11, ys, 11, zs, 11);
+
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0)
+  {
+    assert_true(mesh_verify_topology(mesh, polymec_error));
+    mesh_free(mesh);
+  }
+  else
+  {
+    assert_true(mesh == NULL);
+  }
 }
 
 static void test_plot_rectilinear_mesh(void** state)
@@ -279,6 +312,7 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_create_rectilinear_mesh),
+    cmocka_unit_test(test_create_rectilinear_mesh_on_rank),
     cmocka_unit_test(test_plot_rectilinear_mesh),
     cmocka_unit_test(test_problematic_meshes)
   };
