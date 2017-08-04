@@ -58,12 +58,12 @@ add_mpi_polymec_core_test(test_repartition_point_cloud test_repartition_point_cl
 add_mpi_polymec_core_test(test_krylov_solver test_krylov_solver.c 1 2)
 
 # Simple driver test with Lua interpreter.
-include(add_driver_test)
-function(add_core_driver_test exe source script)
-  add_driver_test_with_libs(${exe} "polymec_core;${POLYMEC_BASE_LIBRARIES}" ${source} ${script} ${ARGN})
-endfunction()
-add_core_driver_test(test_core_driver test_core_driver.c ${CMAKE_CURRENT_SOURCE_DIR}/test_core_driver.input 1 2 4)
+add_driver_with_libs(core_driver "polymec_core;${POLYMEC_BASE_LIBRARIES}" ${source} ${ARGN})
+add_driver_test(test_core_driver core_driver ${CMAKE_CURRENT_SOURCE_DIR}/test_core_driver.input 1 2 4)
+add_driver_test(test_driver_bad_file core_driver bad_file)
 
+# Basic smoke tests of polymec/lua subsystems.
+add_test(${run_test_name} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${test_name}_exe ${test_script} ${MPIEXEC_POSTFLAGS})
 # Mark tests expected to fail as such.
 foreach (failing_test ${failing_tests})
   set_tests_properties(${failing_test} PROPERTIES WILL_FAIL TRUE)

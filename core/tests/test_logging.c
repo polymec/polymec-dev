@@ -114,6 +114,11 @@ static void test_set_log_indentation(void** state)
   }
 }
 
+static void test_debug_during_exit(void** state)
+{
+  set_log_level(LOG_DEBUG);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
@@ -124,7 +129,8 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_set_log_buffering),
     cmocka_unit_test(test_set_log_stream),
     cmocka_unit_test(test_set_log_literals),
-    cmocka_unit_test(test_set_log_indentation)
+    cmocka_unit_test(test_set_log_indentation),
+    cmocka_unit_test(test_debug_during_exit)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

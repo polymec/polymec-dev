@@ -17,18 +17,18 @@
 // precision.
 #if POLYMEC_HAVE_DOUBLE_PRECISION
 
-static void test_gamma(void** state)
+static void test_tgamma(void** state)
 {
-//  assert_true(reals_equal(gamma(-1.5), 2.363271801207));
-//  assert_true(reals_equal(gamma(-0.5), -3.544907701811));
-  assert_true(reals_nearly_equal(gamma( 0.5), 1.772453850906, 1e-8));
-  assert_true(reals_nearly_equal(gamma( 1.0), 1.0, 1e-8));
-  assert_true(reals_nearly_equal(gamma( 1.5), 0.886226925453, 1e-8));
-  assert_true(reals_nearly_equal(gamma( 2.0), 1.0, 1e-8));
-  assert_true(reals_nearly_equal(gamma( 2.5), 1.329340388179, 1e-8));
-  assert_true(reals_nearly_equal(gamma( 3.0), 2.0, 1e-8));
-  assert_true(reals_nearly_equal(gamma( 3.5), 3.323350970448, 1e-8));
-  assert_true(reals_nearly_equal(gamma( 4.0), 6.0, 1e-8));
+  assert_true(reals_nearly_equal(tgamma(-1.5), 2.363271801207, 1e-8));
+  assert_true(reals_nearly_equal(tgamma(-0.5), -3.544907701811, 1e-8));
+  assert_true(reals_nearly_equal(tgamma( 0.5), 1.772453850906, 1e-8));
+  assert_true(reals_nearly_equal(tgamma( 1.0), 1.0, 1e-8));
+  assert_true(reals_nearly_equal(tgamma( 1.5), 0.886226925453, 1e-8));
+  assert_true(reals_nearly_equal(tgamma( 2.0), 1.0, 1e-8));
+  assert_true(reals_nearly_equal(tgamma( 2.5), 1.329340388179, 1e-8));
+  assert_true(reals_nearly_equal(tgamma( 3.0), 2.0, 1e-8));
+  assert_true(reals_nearly_equal(tgamma( 3.5), 3.323350970448, 1e-8));
+  assert_true(reals_nearly_equal(tgamma( 4.0), 6.0, 1e-8));
 }
 
 static void test_bessel_find_jn_roots(void** state)
@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
 #if POLYMEC_HAVE_DOUBLE_PRECISION
-    cmocka_unit_test(test_gamma),
+    cmocka_unit_test(test_tgamma),
     cmocka_unit_test(test_bessel_find_jn_roots),
     cmocka_unit_test(test_bessel_j),
     cmocka_unit_test(test_bessel_djdx),

@@ -17,12 +17,6 @@
 // This copyright/attribution must accompany any reproduction of these 
 // functions.
 
-#ifndef __cplusplus
-// Returns the gamma function with the given real argument. The argument 
-// cannot exceed 171.6, nor can it be a negative integer.
-real_t gamma(real_t x);
-#endif
-
 // Returns the value of J0, the Bessel function of the first kind of order 0, 
 // at the given real value x.
 real_t bessel_j0(real_t x);
