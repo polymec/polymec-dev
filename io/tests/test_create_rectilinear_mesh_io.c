@@ -95,6 +95,7 @@ static void test_plot_rectilinear_mesh(void** state)
   assert_false(metadata->extensive);
   assert_int_equal(2, metadata->vector_component);
   metadata = NULL;
+  silo_file_close(silo);
 
   polymec_free(ones1);
   mesh_free(mesh);
