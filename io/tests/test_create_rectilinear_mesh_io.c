@@ -63,10 +63,40 @@ static void test_plot_rectilinear_mesh(void** state)
     ones[c] = 1.0*c;
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0, 0.0);
   silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, NULL);
+  silo_field_metadata_t* metadata = silo_field_metadata_new();
+  metadata->label = string_dup("solution");
+  metadata->units = string_dup("quatloo");
+  metadata->conserved = true;
+  metadata->extensive = false;
+  metadata->vector_component = 2;
+  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, metadata);
   silo_file_close(silo);
 
   // Clean up.
+  mesh_free(mesh);
+
+  // Now read the mesh from the file.
+  metadata = silo_field_metadata_new();
+  real_t t;
+  silo = silo_file_open(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 0, 0, &t);
+  assert_true(reals_equal(t, 0.0));
+  assert_true(silo_file_contains_mesh(silo, "mesh"));
+  mesh = silo_file_read_mesh(silo, "mesh");
+  assert_true(mesh->num_cells <= 4*4*4);
+  assert_true(silo_file_contains_cell_field(silo, "solution", "mesh"));
+  real_t* ones1 = silo_file_read_scalar_cell_field(silo, "solution", "mesh", metadata);
+  for (int i = 0; i < mesh->num_cells; ++i)
+  {
+    assert_true(reals_equal(ones1[i], ones[i]));
+  }
+  assert_int_equal(0, strcmp(metadata->label, "solution"));
+  assert_int_equal(0, strcmp(metadata->units, "quatloo"));
+  assert_true(metadata->conserved);
+  assert_false(metadata->extensive);
+  assert_int_equal(2, metadata->vector_component);
+  metadata = NULL;
+
+  polymec_free(ones1);
   mesh_free(mesh);
 }
 
@@ -286,6 +316,8 @@ static void test_problematic_meshes(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
+//  silo_enable_compression(5); // create compressed files.
+  set_log_level(LOG_DEBUG);
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_create_rectilinear_mesh),
