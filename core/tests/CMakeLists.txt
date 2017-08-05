@@ -58,12 +58,29 @@ add_mpi_polymec_core_test(test_repartition_point_cloud test_repartition_point_cl
 add_mpi_polymec_core_test(test_krylov_solver test_krylov_solver.c 1 2)
 
 # Simple driver test with Lua interpreter.
-add_driver_with_libs(core_driver "polymec_core;${POLYMEC_BASE_LIBRARIES}" ${source} ${ARGN})
+include(add_driver_test)
+add_driver_with_libs(core_driver "polymec_core;${POLYMEC_BASE_LIBRARIES}" test_core_driver.c)
 add_driver_test(test_core_driver core_driver ${CMAKE_CURRENT_SOURCE_DIR}/test_core_driver.input 1 2 4)
-add_driver_test(test_driver_bad_file core_driver bad_file)
 
 # Basic smoke tests of polymec/lua subsystems.
-add_test(${run_test_name} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${test_name}_exe ${test_script} ${MPIEXEC_POSTFLAGS})
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/ohai "print(\"Ohai!\")")
+add_driver_test(test_driver_bad_file core_driver bad_file)
+list(APPEND failing_tests test_driver_bad_file)
+add_driver_test(test_driver_debug_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=debug logging_mode=all)
+add_driver_test(test_driver_detail_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=detail logging_mode=single)
+add_driver_test(test_driver_info_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=info logging_mode=0)
+add_driver_test(test_driver_urgent_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=urgent)
+add_driver_test(test_driver_no_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=off)
+add_driver_test(test_driver_pause core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai pause=1 1 2)
+add_driver_test(test_driver_dl_paths core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai dl_paths=path1:path2)
+
+if (HAVE_EXPECT)
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/test_core_driver.expect.in"
+                 "${CMAKE_CURRENT_BINARY_DIR}/test_core_driver.expect" 
+                 @ONLY)
+  add_test(test_driver_interactive ${EXPECT} test_core_driver.expect)
+endif()
+
 # Mark tests expected to fail as such.
 foreach (failing_test ${failing_tests})
   set_tests_properties(${failing_test} PROPERTIES WILL_FAIL TRUE)

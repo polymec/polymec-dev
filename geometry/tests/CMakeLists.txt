@@ -22,7 +22,5 @@ add_mpi_polymec_geometry_test(test_create_rectilinear_mesh test_create_rectiline
 add_mpi_polymec_geometry_test(test_crop_mesh test_crop_mesh.c 1 2 4)
 
 include(add_driver_test)
-function(add_geometry_driver_test exe source script)
-  add_driver_test_with_libs(${exe} "polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${source} ${script} ${ARGN})
-endfunction()
-add_geometry_driver_test(test_geometry_driver test_geometry_driver.c ${CMAKE_CURRENT_SOURCE_DIR}/test_geometry_driver.input 1 2 4)
+add_driver_with_libs(geometry_driver "polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" test_geometry_driver.c)
+add_driver_test(test_geometry_driver geometry_driver ${CMAKE_CURRENT_SOURCE_DIR}/test_geometry_driver.input 1 2 4)

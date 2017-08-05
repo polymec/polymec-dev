@@ -17,10 +17,8 @@ add_mpi_polymec_model_test(test_star_stencil test_star_stencil.c 1 2 3 4)
 add_mpi_polymec_model_test(test_partition_point_cloud_with_neighbors test_partition_point_cloud_with_neighbors.c create_simple_pairing.c 1 3 4)
 
 include(add_driver_test)
-function(add_model_driver_test exe source script)
-  add_driver_test_with_libs(${exe} "polymec_model;polymec_io;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${source} ${script} ${ARGN})
-endfunction()
-add_model_driver_test(test_model_driver test_model_driver.c ${CMAKE_CURRENT_SOURCE_DIR}/test_model_driver.input 1 2 4)
+add_driver_with_libs(model_driver "polymec_model;polymec_io;polymec_core;${POLYMEC_BASE_LIBRARIES}" test_model_driver.c)
+add_driver_test(test_model_driver model_driver ${CMAKE_CURRENT_SOURCE_DIR}/test_model_driver.input 1 2 4)
 
 #add_polymec_executable(game_of_life game_of_life.c)
 #add_game_of_life_test(still 0 0 1 2 3 4)

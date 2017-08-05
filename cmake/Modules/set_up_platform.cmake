@@ -2,6 +2,14 @@
 # for particular hosts.
 macro(set_up_platform)
 
+  # Do we have expect?
+  find_program(EXPECT expect)
+  if (EXPECT STREQUAL "EXPECT-NOTFOUND")
+    set(HAVE_EXPECT FALSE)
+  else()
+    set(HAVE_EXPECT TRUE)
+  endif()
+
   # Set library suffix based on whether we're building shared/static.
   # FIXME: We have to hack this together here, since CMAKE_SHARED_LIBRARY_SUFFIX
   # FIXME: isn't available before project() is called, which is when set_up_platform()

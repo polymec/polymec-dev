@@ -390,12 +390,15 @@ polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, i
   int x_pow[p->num_terms], y_pow[p->num_terms], z_pow[p->num_terms];
   for (int i = 0; i < p->num_terms; ++i)
   {
-    coeffs[i] = p->coeffs[i] * fact(p->x_pow[i])/fact(p->x_pow[i]-x_deriv) 
-                             * fact(p->y_pow[i])/fact(p->y_pow[i]-y_deriv)
-                             * fact(p->z_pow[i])/fact(p->z_pow[i]-z_deriv);
-    x_pow[i] = p->x_pow[i] - x_deriv;
-    y_pow[i] = p->y_pow[i] - y_deriv;
-    z_pow[i] = p->z_pow[i] - z_deriv;
+    int x_powdiff = MAX(p->x_pow[i] - x_deriv, 0);
+    int y_powdiff = MAX(p->y_pow[i] - y_deriv, 0);
+    int z_powdiff = MAX(p->z_pow[i] - z_deriv, 0);
+    coeffs[i] = p->coeffs[i] * fact(p->x_pow[i])/fact(x_powdiff)
+                             * fact(p->y_pow[i])/fact(y_powdiff)
+                             * fact(p->z_pow[i])/fact(z_powdiff);
+    x_pow[i] = x_powdiff;
+    y_pow[i] = y_powdiff;
+    z_pow[i] = z_powdiff;
   }
 
   return polynomial_from_monomials(p->degree - (x_deriv + y_deriv + z_deriv), 

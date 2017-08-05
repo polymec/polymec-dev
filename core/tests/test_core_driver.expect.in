@@ -1,0 +1,15 @@
+# Regular execution
+spawn @CMAKE_CURRENT_BINARY_DIR@/core_driver_exe 
+expect "core_driver_exe>"
+send "print(\"Hi\")\r"
+expect "Hi\r"
+send "return\r"
+close $spawn_id
+
+# Syntax error.
+spawn @CMAKE_CURRENT_BINARY_DIR@/core_driver_exe 
+expect "core_driver_exe>"
+send "arfarfarf()\r"
+expect "core_driver_exe: stdin:1: attempt to call global 'arfarfarf' (a nil value)"
+send "return\r"
+close $spawn_id
