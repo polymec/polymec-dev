@@ -1510,15 +1510,17 @@ void silo_file_write_mesh(silo_file_t* file,
 
   set_domain_dir(file);
 
-  // Write out the number of mesh cells/faces/nodes to special variables.
+  // Write out the number of mesh cells/faces/nodes/edges to special variables.
   char num_cells_var[FILENAME_MAX+1], num_faces_var[FILENAME_MAX+1],
-       num_nodes_var[FILENAME_MAX+1];
+       num_edges_var[FILENAME_MAX+1], num_nodes_var[FILENAME_MAX+1];
   snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
   snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
+  snprintf(num_edges_var, FILENAME_MAX, "%s_mesh_num_edges", mesh_name);
   snprintf(num_nodes_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
   int one = 1;
   DBWrite(file->dbfile, num_cells_var, &mesh->num_cells, &one, 1, DB_INT);
   DBWrite(file->dbfile, num_faces_var, &mesh->num_faces, &one, 1, DB_INT);
+  DBWrite(file->dbfile, num_edges_var, &mesh->num_edges, &one, 1, DB_INT);
   DBWrite(file->dbfile, num_nodes_var, &mesh->num_nodes, &one, 1, DB_INT);
   
   // Clean up.
@@ -1648,13 +1650,12 @@ bool silo_file_contains_mesh(silo_file_t* file, const char* mesh_name)
   return result;
 }
 
-static void silo_file_write_mesh_field(silo_file_t* file,
-                                       mesh_centering_t centering,
-                                       const char** field_component_names,
-                                       const char* mesh_name,
-                                       real_t* field_data,
-                                       int num_components,
-                                       silo_field_metadata_t** field_metadata)
+static void silo_file_write_scalar_mesh_field(silo_file_t* file,
+                                              mesh_centering_t centering,
+                                              const char* field_name,
+                                              const char* mesh_name,
+                                              real_t* field_data,
+                                              silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1674,68 +1675,106 @@ static void silo_file_write_mesh_field(silo_file_t* file,
   ASSERT(DBInqVarExists(file->dbfile, num_elems_var));
   int num_elems;
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
-  if (num_components == 1)
+  DBoptlist* optlist = optlist_from_metadata(field_metadata);
+  DBPutUcdvar1(file->dbfile, field_name, mesh_name, field_data, num_elems, NULL, 0, SILO_FLOAT_TYPE, cent, optlist);
+
+  // Store the vector component if needed.
+  if ((field_metadata != NULL) && (field_metadata->vector_component != -1))
   {
-    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[0] : NULL;
-    DBoptlist* optlist = optlist_from_metadata(metadata);
-    DBPutUcdvar1(file->dbfile, field_component_names[0], mesh_name, field_data, num_elems, NULL, 0, SILO_FLOAT_TYPE, cent, optlist);
-
-    // Store the vector component if needed.
-    if ((metadata != NULL) && (metadata->vector_component != -1))
-    {
-      char vec_comp_var[FILENAME_MAX+1];
-      snprintf(vec_comp_var, FILENAME_MAX, "%s_vec_comp", field_component_names[0]);
-      int one = 1;
-      DBWrite(file->dbfile, vec_comp_var, &metadata->vector_component, &one, 1, DB_INT);
-    }
-#if POLYMEC_HAVE_MPI
-    // Add a subdomain entry for parallel environments.
-    if (file->nproc > 1)
-      silo_file_add_subdomain_field(file, mesh_name, field_component_names[0], DB_UCDVAR, optlist);
-#endif
-    optlist_free(optlist);
+    char vec_comp_var[FILENAME_MAX+1];
+    snprintf(vec_comp_var, FILENAME_MAX, "%s_vec_comp", field_name);
+    int one = 1;
+    DBWrite(file->dbfile, vec_comp_var, &field_metadata->vector_component, &one, 1, DB_INT);
   }
-  else
-  {
-    real_t* comp_data = polymec_malloc(sizeof(real_t) * num_elems); 
-    for (int c = 0; c < num_components; ++c)
-    {
-      for (int i = 0; i < num_elems; ++i)
-        comp_data[i] = field_data[num_components*i+c];
-      silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-      DBoptlist* optlist = optlist_from_metadata(metadata);
-      DBPutUcdvar1(file->dbfile, field_component_names[c], mesh_name, comp_data, num_elems, NULL, 0, SILO_FLOAT_TYPE, cent, optlist);
-
-      // Store the vector component if needed.
-      if ((metadata != NULL) && (metadata->vector_component != -1))
-      {
-        char vec_comp_var[FILENAME_MAX+1];
-        snprintf(vec_comp_var, FILENAME_MAX, "%s_vec_comp", field_component_names[c]);
-        int one = 1;
-        DBWrite(file->dbfile, vec_comp_var, &metadata->vector_component, &one, 1, DB_INT);
-      }
-
 #if POLYMEC_HAVE_MPI
-      // Add a subdomain entry for parallel environments.
-      if (file->nproc > 1)
-        silo_file_add_subdomain_field(file, mesh_name, field_component_names[c], DB_UCDVAR, optlist);
+  // Add a subdomain entry for parallel environments.
+  if (file->nproc > 1)
+    silo_file_add_subdomain_field(file, mesh_name, field_name, DB_UCDVAR, optlist);
 #endif
-      optlist_free(optlist);
-    }
-    polymec_free(comp_data);
-  }
+
+  optlist_free(optlist);
   set_root_dir(file);
+
   STOP_FUNCTION_TIMER();
 }
 
-static void silo_file_write_scalar_mesh_field(silo_file_t* file,
-                                              mesh_centering_t centering,
-                                              const char* field_name,
-                                              const char* mesh_name,
-                                              real_t* field_data,
-                                              silo_field_metadata_t* field_metadata)
+static void silo_file_write_mesh_field(silo_file_t* file,
+                                       mesh_centering_t centering,
+                                       const char** field_component_names,
+                                       const char* mesh_name,
+                                       real_t* field_data,
+                                       int num_components,
+                                       silo_field_metadata_t** field_metadata)
 {
-  silo_file_write_mesh_field(file, centering, &field_name, mesh_name, field_data, 1, (field_metadata != NULL) ? &field_metadata : NULL);
+  START_FUNCTION_TIMER();
+  ASSERT(file->mode == DB_CLOBBER);
+
+  // How many elements does our mesh have?
+  set_domain_dir(file);
+  char num_elems_var[FILENAME_MAX+1];
+  int cent;
+  switch(centering)
+  {
+    case MESH_CELL: cent = DB_ZONECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name); break;
+    case MESH_FACE: cent = DB_FACECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name); break;
+    case MESH_EDGE: cent = DB_EDGECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_edges", mesh_name); break;
+    case MESH_NODE: cent = DB_NODECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
+  }
+  ASSERT(DBInqVarExists(file->dbfile, num_elems_var));
+  int num_elems;
+  DBReadVar(file->dbfile, num_elems_var, &num_elems);
+  set_root_dir(file);
+  real_t* comp_data = polymec_malloc(sizeof(real_t) * num_elems); 
+  for (int c = 0; c < num_components; ++c)
+  {
+    for (int i = 0; i < num_elems; ++i)
+      comp_data[i] = field_data[num_components*i+c];
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
+    silo_file_write_scalar_mesh_field(file, centering, field_component_names[c], 
+                                      mesh_name, comp_data, metadata);
+  }
+  polymec_free(comp_data);
+
+  STOP_FUNCTION_TIMER();
+}
+
+static real_t* silo_file_read_scalar_mesh_field(silo_file_t* file,
+                                                mesh_centering_t centering,
+                                                const char* field_name,
+                                                const char* mesh_name,
+                                                silo_field_metadata_t* field_metadata)
+{
+  START_FUNCTION_TIMER();
+  ASSERT(file->mode == DB_READ);
+
+  set_domain_dir(file);
+
+  // How many elements does our mesh have?
+  char num_elems_var[FILENAME_MAX+1];
+  int cent = DB_ZONECENT;
+  switch(centering)
+  {
+    case MESH_CELL: cent = DB_ZONECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name); break;
+    case MESH_FACE: cent = DB_FACECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name); break;
+    case MESH_EDGE: cent = DB_EDGECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_edges", mesh_name); break;
+    case MESH_NODE: cent = DB_NODECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
+  }
+  ASSERT(DBInqVarExists(file->dbfile, num_elems_var));
+  int num_elems;
+  DBReadVar(file->dbfile, num_elems_var, &num_elems);
+  DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_name);
+  if (var == NULL)
+    polymec_error("Field '%s' was not found in the Silo file.", field_name);
+  if (var->centering != cent)
+    polymec_error("Field '%s' has the incorrect centering.", field_name);
+  real_t* field = polymec_malloc(sizeof(real_t) * num_elems);
+  memcpy(field, var->vals[0], sizeof(real_t) * num_elems);
+  read_mesh_metadata(file->dbfile, var, field_metadata);
+  DBFreeUcdvar(var);
+
+  set_root_dir(file);
+  STOP_FUNCTION_TIMER();
+  return field;
 }
 
 static real_t* silo_file_read_mesh_field(silo_file_t* file,
@@ -1763,47 +1802,19 @@ static real_t* silo_file_read_mesh_field(silo_file_t* file,
   ASSERT(DBInqVarExists(file->dbfile, num_elems_var));
   int num_elems;
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
-  real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_elems); 
-  if (num_components == 1)
-  {
-    DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_component_names[0]);
-    if (var == NULL)
-      polymec_error("Field '%s' was not found in the Silo file.", field_component_names[0]);
-    if (var->centering != cent)
-      polymec_error("Field '%s' has the incorrect centering.", field_component_names[0]);
-    memcpy(field, var->vals[0], sizeof(real_t) * num_elems);
-    silo_field_metadata_t* metadata = (field_metadata[0] != NULL) ? field_metadata[0] : NULL;
-    read_mesh_metadata(file->dbfile, var, metadata);
-    DBFreeUcdvar(var);
-  }
-  else
-  {
-    for (int c = 0; c < num_components; ++c)
-    {
-      DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_component_names[c]);
-      if (var == NULL)
-        polymec_error("Field '%s' was not found in the Silo file.", field_component_names[c]);
-      if (var->centering != cent)
-        polymec_error("Field '%s' has the incorrect centering.", field_component_names[c]);
-      real_t* data = var->vals[c];
-      for (int i = 0; i < num_elems; ++i)
-        field[num_components*i+c] = data[i];
-      read_mesh_metadata(file->dbfile, var, (field_metadata != NULL) ? field_metadata[c] : NULL);
-      DBFreeUcdvar(var);
-    }
-  }
   set_root_dir(file);
+  real_t* field = polymec_malloc(sizeof(real_t) * num_elems * num_components);
+  for (int c = 0; c < num_components; ++c)
+  {
+    silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
+    real_t* comp_data = silo_file_read_scalar_mesh_field(file, centering, 
+                          field_component_names[c], mesh_name, metadata);
+    for (int i = 0; i < num_elems; ++i)
+      field[num_components*i+c] = comp_data[i];
+    polymec_free(comp_data);
+  }
   STOP_FUNCTION_TIMER();
   return field;
-}
-
-static real_t* silo_file_read_scalar_mesh_field(silo_file_t* file,
-                                                mesh_centering_t centering,
-                                                const char* field_name,
-                                                const char* mesh_name,
-                                                silo_field_metadata_t* field_metadata)
-{
-  return silo_file_read_mesh_field(file, centering, &field_name, mesh_name, 1, (field_metadata != NULL) ? &field_metadata : NULL);
 }
 
 static bool silo_file_contains_mesh_field(silo_file_t* file, 
@@ -2264,12 +2275,24 @@ void silo_file_write_point_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
+  // How many points does our mesh have?
+  set_domain_dir(file);
+  char num_points_var[FILENAME_MAX+1];
+  snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
+  ASSERT(DBInqVarExists(file->dbfile, num_points_var));
+  int num_points;
+  DBReadVar(file->dbfile, num_points_var, &num_points);
+  set_root_dir(file);
+  real_t* comp_data = polymec_malloc(sizeof(real_t) * num_points); 
   for (int c = 0; c < num_components; ++c)
   {
+    for (int i = 0; i < num_points; ++i)
+      comp_data[i] = field_data[num_components*i+c];
     silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
     silo_file_write_scalar_point_field(file, field_component_names[c], 
                                        cloud_name, field_data, metadata);
   }
+  polymec_free(comp_data);
 
   STOP_FUNCTION_TIMER();
 }

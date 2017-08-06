@@ -70,6 +70,28 @@ static void test_plot_rectilinear_mesh(void** state)
   metadata->extensive = false;
   metadata->vector_component = 2;
   silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, metadata);
+
+  // Add some fields with different centerings.
+  real_t nvals[3*mesh->num_nodes]; 
+  const char* nnames[] = {"nx", "ny", "nz"};
+  for (int n = 0; n < mesh->num_nodes; ++n)
+  {
+    nvals[3*n+0] = mesh->nodes[n].x;
+    nvals[3*n+1] = mesh->nodes[n].y;
+    nvals[3*n+2] = mesh->nodes[n].z;
+  }
+  silo_file_write_node_field(silo, nnames, "mesh", nvals, 3, NULL);
+
+  real_t fvals[mesh->num_faces];
+  for (int f = 0; f < mesh->num_faces; ++f)
+    fvals[f] = 1.0 * f;
+  silo_file_write_scalar_face_field(silo, "fvals", "mesh", fvals, NULL);
+
+  real_t evals[mesh->num_edges];
+  for (int e = 0; e < mesh->num_edges; ++e)
+    evals[e] = 1.0 * e;
+  silo_file_write_scalar_edge_field(silo, "evals", "mesh", evals, NULL);
+
   silo_file_close(silo);
 
   // Clean up.
@@ -95,6 +117,34 @@ static void test_plot_rectilinear_mesh(void** state)
   assert_false(metadata->extensive);
   assert_int_equal(2, metadata->vector_component);
   metadata = NULL;
+
+  // Check on the other fields.
+  assert_true(silo_file_contains_node_field(silo, "nx", "mesh"));
+  assert_true(silo_file_contains_node_field(silo, "ny", "mesh"));
+  assert_true(silo_file_contains_node_field(silo, "nz", "mesh"));
+  real_t* nvals1 = silo_file_read_node_field(silo, nnames, "mesh", 3, NULL);
+  for (int n = 0; n < mesh->num_nodes; ++n)
+  {
+    assert_true(reals_equal(nvals[n], nvals1[n]));
+  }
+  polymec_free(nvals1);
+
+  assert_true(silo_file_contains_face_field(silo, "fvals", "mesh"));
+  real_t* fvals1 = silo_file_read_scalar_face_field(silo, "fvals", "mesh", NULL);
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    assert_true(reals_equal(fvals[f], fvals1[f]));
+  }
+  polymec_free(fvals1);
+
+  assert_true(silo_file_contains_edge_field(silo, "evals", "mesh"));
+  real_t* evals1 = silo_file_read_scalar_edge_field(silo, "evals", "mesh", NULL);
+  for (int e = 0; e < mesh->num_edges; ++e)
+  {
+    assert_true(reals_equal(evals[e], evals1[e]));
+  }
+  polymec_free(evals1);
+
   silo_file_close(silo);
 
   polymec_free(ones1);
