@@ -54,17 +54,45 @@ static void test_partition_linear_cloud(void** state, int N)
   snprintf(filename, FILENAME_MAX, "linear_cloud_partition_%d", N);
   silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
+  silo_field_metadata_t* metadata = silo_field_metadata_new();
+  metadata->label = string_dup("rank");
+  metadata->units = string_dup("quatloo");
+  metadata->conserved = true;
+  metadata->extensive = false;
+  metadata->vector_component = 2;
+  char* field_names[1];
+  field_names[0] = string_dup("rank");
+  silo_file_write_point_field(silo, (const char**)field_names, "cloud", p, 1, &metadata);
   silo_file_close(silo);
 
   // Clean up.
   point_cloud_free(cloud);
 
-  // Superficially check that the file is okay.
-  int num_files, num_procs;
-  assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));
-  assert_int_equal(1, num_files);
-  assert_int_equal(nprocs, num_procs);
+  // Now read the cloud from the file.
+  metadata = silo_field_metadata_new();
+  real_t t;
+  silo = silo_file_open(MPI_COMM_WORLD, filename, filename, 0, 0, &t);
+  assert_true(reals_equal(t, 0.0));
+  assert_true(silo_file_contains_point_cloud(silo, "cloud"));
+  cloud = silo_file_read_point_cloud(silo, "cloud");
+  assert_true(cloud->num_points <= N);
+  assert_true(silo_file_contains_point_field(silo, "rank", "cloud"));
+  real_t* p1 = silo_file_read_point_field(silo, (const char**)field_names, "cloud", 1, &metadata);
+  for (int i = 0; i < cloud->num_points; ++i)
+  {
+    assert_true(reals_equal(p1[i], p[i]));
+  }
+  assert_int_equal(0, strcmp(metadata->label, "rank"));
+  assert_int_equal(0, strcmp(metadata->units, "quatloo"));
+  assert_true(metadata->conserved);
+  assert_false(metadata->extensive);
+  assert_int_equal(2, metadata->vector_component);
+  metadata = NULL;
+  silo_file_close(silo);
+
+  string_free(field_names[0]);
+  polymec_free(p1);
+  point_cloud_free(cloud);
 }
 
 static void test_partition_planar_cloud(void** state, int nx, int ny)

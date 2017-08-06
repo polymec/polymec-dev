@@ -108,8 +108,18 @@ static void read_mesh_metadata(DBfile* db,
 {
   if (metadata != NULL)
   {
-    metadata->label = string_dup(var->label);
-    metadata->units = string_dup(var->units);
+    if (metadata->label != NULL)
+      string_free(metadata->label);
+    if (var->label != NULL)
+      metadata->label = string_dup(var->label);
+    else
+      metadata->label = NULL;
+    if (metadata->units != NULL)
+      string_free(metadata->units);
+    if (var->units != NULL)
+      metadata->units = string_dup(var->units);
+    else
+      metadata->units = NULL;
     metadata->conserved = var->conserved;
     metadata->extensive = var->extensive;
 
@@ -123,14 +133,34 @@ static void read_mesh_metadata(DBfile* db,
   }
 }
 
-static void read_point_metadata(DBmeshvar* var, silo_field_metadata_t* metadata)
+static void read_point_metadata(DBfile* db, 
+                                DBmeshvar* var, 
+                                silo_field_metadata_t* metadata)
 {
   if (metadata != NULL)
   {
-    metadata->label = string_dup(var->label);
-    metadata->units = string_dup(var->units);
+    if (metadata->label != NULL)
+      string_free(metadata->label);
+    if (var->label != NULL)
+      metadata->label = string_dup(var->label);
+    else
+      metadata->label = NULL;
+    if (metadata->units != NULL)
+      string_free(metadata->units);
+    if (var->units != NULL)
+      metadata->units = string_dup(var->units);
+    else
+      metadata->units = NULL;
     metadata->conserved = var->conserved;
     metadata->extensive = var->extensive;
+
+    // Read the vector component for this field.
+    char vec_comp_var[FILENAME_MAX+1];
+    snprintf(vec_comp_var, FILENAME_MAX, "%s_vec_comp", var->name);
+    if (DBInqVarExists(db, vec_comp_var))
+      DBReadVar(db, vec_comp_var, &metadata->vector_component);
+    else
+      metadata->vector_component = -1;
   }
 }
 
@@ -1626,6 +1656,7 @@ static void silo_file_write_mesh_field(silo_file_t* file,
                                        int num_components,
                                        silo_field_metadata_t** field_metadata)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
   set_domain_dir(file);
@@ -1694,6 +1725,7 @@ static void silo_file_write_mesh_field(silo_file_t* file,
     polymec_free(comp_data);
   }
   set_root_dir(file);
+  STOP_FUNCTION_TIMER();
 }
 
 static void silo_file_write_scalar_mesh_field(silo_file_t* file,
@@ -1713,6 +1745,7 @@ static real_t* silo_file_read_mesh_field(silo_file_t* file,
                                          int num_components,
                                          silo_field_metadata_t** field_metadata)
 {
+  START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
   set_domain_dir(file);
@@ -1760,6 +1793,7 @@ static real_t* silo_file_read_mesh_field(silo_file_t* file,
     }
   }
   set_root_dir(file);
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
@@ -2050,6 +2084,8 @@ void silo_file_write_point_cloud(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
+  set_domain_dir(file);
+
   // Point coordinates.
   int num_points = cloud->num_points;
   point_t* points = cloud->points;
@@ -2091,6 +2127,8 @@ void silo_file_write_point_cloud(silo_file_t* file,
     silo_file_add_subdomain_mesh(file, cloud_name, DB_POINTMESH, NULL);
 #endif
 
+  set_root_dir(file);
+
   STOP_FUNCTION_TIMER();
 }
 
@@ -2099,6 +2137,8 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
+
+  set_domain_dir(file);
 
   // How many points does our cloud have?
   int num_points;
@@ -2135,14 +2175,20 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
     silo_file_read_tags(file, tag_name, cloud->tags);
   }
 
+  set_root_dir(file);
+
   STOP_FUNCTION_TIMER();
   return cloud;
 }
 
 bool silo_file_contains_point_cloud(silo_file_t* file, const char* cloud_name)
 {
-  return (DBInqVarExists(file->dbfile, cloud_name) && 
-          (DBInqVarType(file->dbfile, cloud_name) == DB_POINTMESH));
+  bool result = false;
+  set_domain_dir(file);
+  result = (DBInqVarExists(file->dbfile, cloud_name) && 
+            (DBInqVarType(file->dbfile, cloud_name) == DB_POINTMESH));
+  set_root_dir(file);
+  return result;
 }
 
 void silo_file_write_scalar_point_field(silo_file_t* file,
@@ -2154,6 +2200,8 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
+  set_domain_dir(file);
+
   // How many points does our mesh have?
   char num_points_var[FILENAME_MAX+1];
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
@@ -2163,13 +2211,24 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
 
   // Write the field.
   DBoptlist* optlist = optlist_from_metadata(field_metadata);
-  DBPutPointvar1(file->dbfile, field_name, cloud_name, field_data, num_points, SILO_FLOAT_TYPE, NULL);
+  DBPutPointvar1(file->dbfile, field_name, cloud_name, field_data, num_points, SILO_FLOAT_TYPE, optlist);
+
+  // Store the vector component if needed.
+  if ((field_metadata != NULL) && (field_metadata->vector_component != -1))
+  {
+    char vec_comp_var[FILENAME_MAX+1];
+    snprintf(vec_comp_var, FILENAME_MAX, "%s_vec_comp", field_name);
+    int one = 1;
+    DBWrite(file->dbfile, vec_comp_var, &field_metadata->vector_component, &one, 1, DB_INT);
+  }
 
 #if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
     silo_file_add_subdomain_field(file, cloud_name, field_name, DB_POINTVAR, optlist);
 #endif
   optlist_free(optlist);
+
+  set_root_dir(file);
   STOP_FUNCTION_TIMER();
 }
 
@@ -2181,13 +2240,16 @@ real_t* silo_file_read_scalar_point_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
+  set_domain_dir(file);
+
   DBmeshvar* var = DBGetPointvar(file->dbfile, (char*)field_name);
   if (var == NULL)
     polymec_error("Field '%s' was not found in the Silo file.", field_name);
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
-  read_point_metadata(var, field_metadata);
+  read_point_metadata(file->dbfile, var, field_metadata);
   DBFreePointvar(var);
+  set_root_dir(file);
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -2208,6 +2270,7 @@ void silo_file_write_point_field(silo_file_t* file,
     silo_file_write_scalar_point_field(file, field_component_names[c], 
                                        cloud_name, field_data, metadata);
   }
+
   STOP_FUNCTION_TIMER();
 }
 
@@ -2220,6 +2283,8 @@ real_t* silo_file_read_point_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
+  set_domain_dir(file);
+
   // How many points does our mesh have?
   char num_points_var[FILENAME_MAX+1];
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
@@ -2230,11 +2295,12 @@ real_t* silo_file_read_point_field(silo_file_t* file,
   for (int c = 0; c < num_components; ++c)
   {
     silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-    real_t* comp_data = silo_file_read_scalar_cell_field(file, field_component_names[c], cloud_name, metadata);
+    real_t* comp_data = silo_file_read_scalar_point_field(file, field_component_names[c], cloud_name, metadata);
     for (int i = 0; i < num_points; ++i)
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
   }
+  set_root_dir(file);
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -2243,11 +2309,15 @@ bool silo_file_contains_point_field(silo_file_t* file,
                                     const char* field_name, 
                                     const char* cloud_name)
 {
-  bool result = (silo_file_contains_point_cloud(file, cloud_name) &&  // point cloud exists...
-                 (DBInqVarType(file->dbfile, cloud_name) == DB_POINTMESH) &&  // cloud is a point cloud...
-                 (DBInqVarExists(file->dbfile, field_name) &&  // field exists...
-                  (DBInqVarType(file->dbfile, field_name) == DB_POINTVAR))); // field is actually a variable.
-
+  bool result = false;
+  if (silo_file_contains_point_cloud(file, cloud_name))  // point cloud exists...
+  {
+    set_domain_dir(file);
+    result = ((DBInqVarType(file->dbfile, cloud_name) == DB_POINTMESH) &&  // cloud is a point cloud...
+              (DBInqVarExists(file->dbfile, field_name) &&  // field exists...
+              (DBInqVarType(file->dbfile, field_name) == DB_POINTVAR))); // field is actually a variable.
+    set_root_dir(file);
+  }
   return result;
 }
 

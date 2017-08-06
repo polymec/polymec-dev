@@ -317,7 +317,7 @@ static void test_problematic_meshes(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-//  silo_enable_compression(5); // create compressed files.
+  silo_enable_compression(1); // create compressed files.
   set_log_level(LOG_DEBUG);
   const struct CMUnitTest tests[] = 
   {
