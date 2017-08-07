@@ -40,10 +40,10 @@ void stencil_free(stencil_t* stencil)
 stencil_t* stencil_clone(stencil_t* stencil)
 {
   int* offsets = polymec_malloc(sizeof(int) * (stencil->num_indices+1));
-  memcpy(offsets, stencil->offsets, sizeof(real_t) * (stencil->num_indices+1));
+  memcpy(offsets, stencil->offsets, sizeof(int) * (stencil->num_indices+1));
   int size = offsets[stencil->num_indices];
   int* indices = polymec_malloc(sizeof(int) * size);
-  memcpy(indices, stencil->indices, sizeof(real_t) * size);
+  memcpy(indices, stencil->indices, sizeof(int) * size);
   exchanger_t* ex = exchanger_clone(stencil->ex);
   return stencil_new(string_dup(stencil->name), stencil->num_indices, offsets, 
                      indices, stencil->num_ghosts, ex);

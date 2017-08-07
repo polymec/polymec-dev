@@ -68,13 +68,13 @@ matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
   block_sp->row_dist = polymec_malloc(sizeof(index_t) * (block_sp->nproc+1));
 
   // Count up local and global rows, and distribute them accordingly.
+  index_t my_num_rows = 0;
   index_t num_rows[block_sp->nproc];
-  num_rows[block_sp->rank] = 0;
   for (int i = 0; i < sparsity->num_local_rows; ++i)
-    num_rows[block_sp->rank] += block_sizes[i];
-  MPI_Allgather(&num_rows[block_sp->rank], 
-                1, MPI_INDEX_T, num_rows, 
-                1, MPI_INDEX_T, block_sp->comm);
+    my_num_rows += block_sizes[i];
+  MPI_Allgather(&my_num_rows, 1, MPI_INDEX_T, 
+                num_rows, 1, MPI_INDEX_T, 
+                block_sp->comm);
   block_sp->row_dist[0] = 0;
   for (int p = 0; p < block_sp->nproc; ++p)
     block_sp->row_dist[p+1] = block_sp->row_dist[p] + num_rows[p];

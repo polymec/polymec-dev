@@ -15,17 +15,16 @@
 #include "geometry/create_uniform_mesh.h"
 #include "model/mesh_stencils.h"
 
-static void test_NXxNYxNZ_star_stencil(void** state, 
-                                       MPI_Comm comm,
-                                       int radius,
-                                       int nx, int ny, int nz,
-                                       int num_interior_neighbors, 
-                                       int num_boundary_neighbors, 
-                                       int num_edge_neighbors,
-                                       int num_corner_neighbors)
+static void check_stencil(void** state, 
+                          mesh_t* mesh,
+                          int nx, int ny, int nz,
+                          int num_interior_neighbors, 
+                          int num_boundary_neighbors,
+                          int num_edge_neighbors, 
+                          int num_corner_neighbors,
+                          stencil_t* stencil)
 {
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(comm, nx, ny, nz, &bbox);
+  MPI_Comm comm = mesh->comm;
   int rank, nprocs;
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nprocs);
@@ -35,7 +34,7 @@ static void test_NXxNYxNZ_star_stencil(void** state,
   for (int p = 0; p < rank; ++p)
     cell_offset += num_cells[p];
   cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, nz);
-  stencil_t* stencil = cell_star_stencil_new(mesh, radius);
+
   for (int cell = cell_offset; cell < cell_offset + mesh->num_cells; ++cell)
   {
     index_t i, j, k;
@@ -75,6 +74,57 @@ static void test_NXxNYxNZ_star_stencil(void** state,
     }
     int_unordered_set_free(neighbors);
   }
+}
+
+static void test_NXxNYxNZ_star_stencil(void** state, 
+                                       MPI_Comm comm,
+                                       int radius,
+                                       int nx, int ny, int nz,
+                                       int num_interior_neighbors, 
+                                       int num_boundary_neighbors, 
+                                       int num_edge_neighbors,
+                                       int num_corner_neighbors)
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  mesh_t* mesh = create_uniform_mesh(comm, nx, ny, nz, &bbox);
+  stencil_t* stencil = cell_star_stencil_new(mesh, radius);
+  check_stencil(state, mesh, nx, ny, nz, 
+                num_interior_neighbors, num_boundary_neighbors,
+                num_edge_neighbors, num_corner_neighbors,
+                stencil);
+
+  // Make a clone of this stencil and test it.
+  stencil_t* stencil1 = stencil_clone(stencil);
+  check_stencil(state, mesh, nx, ny, nz, 
+                num_interior_neighbors, num_boundary_neighbors,
+                num_edge_neighbors, num_corner_neighbors,
+                stencil1);
+  stencil_free(stencil1);
+
+  // Serialize and deserialize the stencil.
+  serializer_t* S = stencil_serializer();
+  byte_array_t* bytes = byte_array_new();
+  size_t offset = 0;
+  serializer_write(S, stencil, bytes, &offset);
+  offset = 0;
+  stencil1 = serializer_read(S, bytes, &offset);
+  check_stencil(state, mesh, nx, ny, nz, 
+                num_interior_neighbors, num_boundary_neighbors,
+                num_edge_neighbors, num_corner_neighbors,
+                stencil1);
+  stencil_free(stencil1);
+  S = NULL;
+
+  // Create a graph from the stencil.
+  adj_graph_t* G = stencil_as_graph(stencil);
+  assert_int_equal(adj_graph_num_vertices(G), stencil_num_indices(stencil));
+  adj_graph_free(G);
+
+  // Create a matrix sparsity from the stencil.
+  matrix_sparsity_t* sp = sparsity_from_stencil(stencil);
+  assert_int_equal(matrix_sparsity_num_local_rows(sp), stencil_num_indices(stencil));
+  matrix_sparsity_free(sp);
+
   stencil_free(stencil);
   mesh_free(mesh);
 }
