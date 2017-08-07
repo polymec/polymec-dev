@@ -125,6 +125,23 @@ static void test_NXxNYxNZ_star_stencil(void** state,
   assert_int_equal(matrix_sparsity_num_local_rows(sp), stencil_num_indices(stencil));
   matrix_sparsity_free(sp);
 
+  // Write the stencil to a Silo file.
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "star", "", 1, 0, 0, 0.0);
+  silo_file_write_stencil(silo, "stencil", stencil);
+  silo_file_close(silo);
+
+  // Read the stencil from the file and check its contents.
+  real_t t;
+  silo = silo_file_open(MPI_COMM_WORLD, "star", "", 0, 0, &t);
+  assert_true(silo_file_contains_stencil(silo, "stencil"));
+  stencil1 = silo_file_read_stencil(silo, "stencil", mesh->comm);
+  check_stencil(state, mesh, nx, ny, nz, 
+                num_interior_neighbors, num_boundary_neighbors,
+                num_edge_neighbors, num_corner_neighbors,
+                stencil1);
+  silo_file_close(silo);
+  stencil_free(stencil1);
+
   stencil_free(stencil);
   mesh_free(mesh);
 }

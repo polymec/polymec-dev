@@ -366,6 +366,11 @@ void silo_file_write_tensor_expression(silo_file_t* file,
                                        const char* expression_name,
                                        const char* definition);
 
+// Return true if the silo file contains a string with the given name, 
+// false if not.
+bool silo_file_contains_string(silo_file_t* file,
+                               const char* string_name);
+
 // Writes a named string to the silo file.
 void silo_file_write_string(silo_file_t* file,
                             const char* string_name,

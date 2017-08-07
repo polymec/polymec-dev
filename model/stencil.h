@@ -135,6 +135,10 @@ stencil_t* silo_file_read_stencil(silo_file_t* file,
                                   const char* stencil_name,
                                   MPI_Comm comm);
 
+// Returns true if the given silo_file contains a stencil with the given 
+// name, false otherwise.
+bool silo_file_contains_stencil(silo_file_t* file, const char* stencil_name);
+
 // This pre-fab function creates a stencil for points in a cloud that have 
 // neighbors within a radius given by R[i] for the ith point. num_ghost_points
 // will store the number of ghost points in the stencil.

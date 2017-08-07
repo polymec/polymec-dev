@@ -593,7 +593,8 @@ static void write_provenance_to_file(silo_file_t* file)
   fclose(stream);
 
   set_root_dir(file);
-  silo_file_write_string(file, "provenance", provenance_str);
+  int provenance_len = (int)(strlen(provenance_str));
+  DBWrite(file->dbfile, "provenance_string", provenance_str, &provenance_len, 1, DB_CHAR);
 
   // Note we have to use free here instead of string_free or polymec_free, 
   // since open_memstream uses vanilla malloc and realloc.
@@ -960,7 +961,10 @@ static void show_provenance_on_debug_log(silo_file_t* file)
   // If we're printing debug messages, show provenance of the file.
   if (log_level() == LOG_DEBUG)
   {
-    char* provenance = silo_file_read_string(file, "provenance");
+    int provenance_len = DBGetVarLength(file->dbfile, "provenance_string");
+    char* provenance = polymec_malloc(sizeof(char) * (provenance_len + 1));
+    if (provenance_len > 0)
+      DBReadVar(file->dbfile, "provenance_string", provenance);
 
     // We may need to temporarily bump up the debug log's buffness.
     int max_message_size, flush_every;
@@ -2393,12 +2397,26 @@ void silo_file_write_tensor_expression(silo_file_t* file,
                                                expression_dtor);
 }
 
+bool silo_file_contains_string(silo_file_t* file,
+                               const char* string_name)
+{
+  set_domain_dir(file);
+  char name[FILENAME_MAX+1];
+  snprintf(name, FILENAME_MAX, "%s_string", string_name);
+  bool result = DBInqVarExists(file->dbfile, name);
+  set_root_dir(file);
+  return result;
+}
+
 void silo_file_write_string(silo_file_t* file,
                             const char* string_name,
                             char* string_data)
 {
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(string_data != NULL);
+
+  set_domain_dir(file);
+
   int string_size = (int)strlen(string_data);
   if (string_size > 0)
   {
@@ -2408,12 +2426,15 @@ void silo_file_write_string(silo_file_t* file,
     if (result != 0)
       polymec_error("silo_file_write_string: write of string '%s' failed.", string_name);
   }
+  set_root_dir(file);
 }
 
 char* silo_file_read_string(silo_file_t* file,
                             const char* string_name)
 {
   ASSERT(file->mode == DB_READ);
+
+  set_domain_dir(file);
 
   char string_data_name[FILENAME_MAX+1];
   snprintf(string_data_name, FILENAME_MAX, "%s_string", string_name);
@@ -2427,6 +2448,7 @@ char* silo_file_read_string(silo_file_t* file,
   if (string_size > 0)
     DBReadVar(file->dbfile, string_data_name, string);
   string[string_size] = '\0';
+  set_root_dir(file);
   return string;
 }
 
@@ -2437,6 +2459,9 @@ void silo_file_write_real_array(silo_file_t* file,
 {
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(array_data != NULL);
+
+  set_domain_dir(file);
+
   if (array_size > 0)
   {
     char real_array_name[FILENAME_MAX+1];
@@ -2446,6 +2471,7 @@ void silo_file_write_real_array(silo_file_t* file,
     if (result != 0)
       polymec_error("silo_file_write_real_array: write of array '%s' failed.", array_name);
   }
+  set_root_dir(file);
 }
 
 real_t* silo_file_read_real_array(silo_file_t* file,
@@ -2455,22 +2481,22 @@ real_t* silo_file_read_real_array(silo_file_t* file,
   ASSERT(file->mode == DB_READ);
   ASSERT(array_size != NULL);
 
+  set_domain_dir(file);
+
   char real_array_name[FILENAME_MAX+1];
   snprintf(real_array_name, FILENAME_MAX, "%s_real_array", array_name);
+  real_t* result = NULL;
   if (!DBInqVarExists(file->dbfile, real_array_name))
-  {
     polymec_error("silo_file_read_real_array: Could not read array '%s'.", array_name);
-    return NULL;
-  }
   *array_size = (size_t)DBGetVarLength(file->dbfile, real_array_name);
   if (*array_size > 0)
   {
     real_t* array = polymec_malloc(sizeof(real_t) * *array_size);
     DBReadVar(file->dbfile, real_array_name, array);
-    return array;
+    result = array;
   }
-  else
-    return NULL;
+  set_root_dir(file);
+  return result;
 }
 
 void silo_file_write_int_array(silo_file_t* file,
@@ -2480,6 +2506,9 @@ void silo_file_write_int_array(silo_file_t* file,
 {
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(array_data != NULL);
+
+  set_domain_dir(file);
+
   if (array_size > 0)
   {
     char int_array_name[FILENAME_MAX+1];
@@ -2489,6 +2518,7 @@ void silo_file_write_int_array(silo_file_t* file,
     if (result != 0)
       polymec_error("silo_file_write_int_array: write of array '%s' failed.", array_name);
   }
+  set_root_dir(file);
 }
 
 int* silo_file_read_int_array(silo_file_t* file,
@@ -2498,22 +2528,22 @@ int* silo_file_read_int_array(silo_file_t* file,
   ASSERT(file->mode == DB_READ);
   ASSERT(array_size != NULL);
 
+  set_domain_dir(file);
+
   char int_array_name[FILENAME_MAX+1];
   snprintf(int_array_name, FILENAME_MAX, "%s_int_array", array_name);
+  int* result = NULL;
   if (!DBInqVarExists(file->dbfile, int_array_name))
-  {
     polymec_error("silo_file_read_int_array: Could not read array '%s'.", array_name);
-    return NULL;
-  }
   *array_size = (size_t)DBGetVarLength(file->dbfile, int_array_name);
   if (*array_size > 0)
   {
     int* array = polymec_malloc(sizeof(int) * *array_size);
     DBReadVar(file->dbfile, int_array_name, array);
-    return array;
+    result = array;
   }
-  else
-    return NULL;
+  set_root_dir(file);
+  return result;
 }
 
 DBfile* silo_file_dbfile(silo_file_t* file)

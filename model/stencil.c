@@ -16,7 +16,6 @@ stencil_t* stencil_new(const char* name, int num_indices,
 {
   ASSERT(num_indices > 0);
   ASSERT(offsets != NULL);
-  ASSERT(indices != NULL);
   ASSERT(num_ghosts >= 0);
   stencil_t* s = polymec_malloc(sizeof(stencil_t));
   s->name = string_dup(name);
@@ -32,7 +31,8 @@ void stencil_free(stencil_t* stencil)
 {
   polymec_free(stencil->name);
   polymec_free(stencil->offsets);
-  polymec_free(stencil->indices);
+  if (stencil->indices != NULL)
+    polymec_free(stencil->indices);
   stencil->ex = NULL;
   polymec_free(stencil);
 }
@@ -220,25 +220,32 @@ matrix_sparsity_t* sparsity_from_stencil(stencil_t* stencil)
   return matrix_sparsity_from_graph(g, stencil->ex);
 }
 
+bool silo_file_contains_stencil(silo_file_t* file, const char* stencil_name)
+{
+  char name[FILENAME_MAX+1];
+  snprintf(name, FILENAME_MAX, "%s_stencil_name", stencil_name);
+  return silo_file_contains_string(file, name);
+}
+
 void silo_file_write_stencil(silo_file_t* file,
                              const char* stencil_name,
                              stencil_t* stencil)
 {
-  char name_name[FILENAME_MAX];
+  char name_name[FILENAME_MAX+1];
   snprintf(name_name, FILENAME_MAX, "%s_stencil_name", stencil_name);
   silo_file_write_string(file, name_name, stencil->name);
 
-  char offsets_name[FILENAME_MAX];
+  char offsets_name[FILENAME_MAX+1];
   snprintf(offsets_name, FILENAME_MAX, "%s_stencil_offsets", stencil_name);
   silo_file_write_int_array(file, offsets_name, stencil->offsets, stencil->num_indices+1);
 
-  char indices_name[FILENAME_MAX];
+  char indices_name[FILENAME_MAX+1];
   snprintf(indices_name, FILENAME_MAX, "%s_stencil_indices", stencil_name);
   silo_file_write_int_array(file, indices_name, stencil->indices, stencil->offsets[stencil->num_indices]);
 
   if (stencil->ex != NULL)
   {
-    char ex_name[FILENAME_MAX];
+    char ex_name[FILENAME_MAX+1];
     snprintf(ex_name, FILENAME_MAX, "%s_stencil_ex", stencil_name);
     silo_file_write_exchanger(file, ex_name, stencil->ex);
   }
@@ -249,22 +256,27 @@ stencil_t* silo_file_read_stencil(silo_file_t* file,
                                   MPI_Comm comm)
 {
   stencil_t* s = polymec_malloc(sizeof(stencil_t));
-  char name_name[FILENAME_MAX];
+  char name_name[FILENAME_MAX+1];
   snprintf(name_name, FILENAME_MAX, "%s_stencil_name", stencil_name);
   s->name = silo_file_read_string(file, name_name);
 
-  char offsets_name[FILENAME_MAX];
+  char offsets_name[FILENAME_MAX+1];
   snprintf(offsets_name, FILENAME_MAX, "%s_stencil_offsets", stencil_name);
   size_t size;
   s->offsets = silo_file_read_int_array(file, offsets_name, &size);
   s->num_indices = (int)(size) - 1;
 
-  char indices_name[FILENAME_MAX];
-  snprintf(indices_name, FILENAME_MAX, "%s_stencil_indices", stencil_name);
-  s->indices = silo_file_read_int_array(file, indices_name, &size);
-  ASSERT((int)size == s->offsets[s->num_indices]);
+  if (s->offsets[s->num_indices] > 0)
+  {
+    char indices_name[FILENAME_MAX+1];
+    snprintf(indices_name, FILENAME_MAX, "%s_stencil_indices", stencil_name);
+    s->indices = silo_file_read_int_array(file, indices_name, &size);
+    ASSERT((int)size == s->offsets[s->num_indices]);
+  }
+  else
+    s->indices = NULL;
 
-  char ex_name[FILENAME_MAX];
+  char ex_name[FILENAME_MAX+1];
   snprintf(ex_name, FILENAME_MAX, "%s_stencil_ex", stencil_name);
   s->ex = silo_file_read_exchanger(file, ex_name, comm);
   return s;
