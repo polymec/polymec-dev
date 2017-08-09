@@ -396,7 +396,7 @@ static int p_acquire(lua_State* L)
 static int p_tostring(lua_State* L)
 {
   probe_t* p = lua_to_probe(L, 1);
-  lua_pushfstring(L, "probe '%s'", probe_name(p));
+  lua_pushfstring(L, "probe '%s' (measures %s)", probe_name(p), probe_data_name(p));
   return 1;
 }
 
