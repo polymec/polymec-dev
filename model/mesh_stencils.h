@@ -24,6 +24,6 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius);
 // This unweighted stencil is constructed for every cell in the given mesh, 
 // and does not include the "central" cell.
 // NOTE: This stencil is not currently implemented!
-stencil_t* cell_halo_stencil_new(mesh_t* mesh);
+//stencil_t* cell_halo_stencil_new(mesh_t* mesh);
 
 #endif

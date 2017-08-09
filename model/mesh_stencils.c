@@ -75,10 +75,10 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
   return s;
 }
 
+#if 0
 noreturn stencil_t* cell_halo_stencil_new(mesh_t* mesh)
 {
   POLYMEC_NOT_IMPLEMENTED;
-#if 0
 
   // Construct a 2-deep star stencil to start from.
   stencil_t* star = cell_star_stencil_new(mesh, 1);
@@ -187,6 +187,6 @@ noreturn stencil_t* cell_halo_stencil_new(mesh_t* mesh)
   stencil_free(star);
 
   return halo;
-#endif
 }
+#endif
 

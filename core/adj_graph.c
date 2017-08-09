@@ -345,7 +345,10 @@ int adj_graph_max_vertex_index(adj_graph_t* graph)
     graph->max_vertex_index = adj_graph_num_vertices(graph) - 1;
     int i_max = (int)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
     for (int i = 0; i < i_max; ++i)
-      graph->max_vertex_index = MAX(graph->max_vertex_index, graph->adjacency[i]);
+    {
+      for (int j = graph->xadj[i]; j < graph->xadj[i+1]; ++j)
+        graph->max_vertex_index = MAX(graph->max_vertex_index, graph->adjacency[j]);
+    }
   }
   return graph->max_vertex_index;
 }
@@ -379,6 +382,7 @@ void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
     for (int i = vertex + 1; i <= num_vertices; ++i)
       graph->xadj[i] += num_edges_added;
   }
+  graph->max_vertex_index = -1;
 }
 
 int adj_graph_num_edges(adj_graph_t* graph, int vertex)

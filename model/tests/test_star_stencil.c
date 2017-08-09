@@ -135,11 +135,11 @@ static void test_NXxNYxNZ_star_stencil(void** state,
   silo = silo_file_open(MPI_COMM_WORLD, "star", "", 0, 0, &t);
   assert_true(silo_file_contains_stencil(silo, "stencil"));
   stencil1 = silo_file_read_stencil(silo, "stencil", mesh->comm);
+  silo_file_close(silo);
   check_stencil(state, mesh, nx, ny, nz, 
                 num_interior_neighbors, num_boundary_neighbors,
                 num_edge_neighbors, num_corner_neighbors,
                 stencil1);
-  silo_file_close(silo);
   stencil_free(stencil1);
 
   stencil_free(stencil);
