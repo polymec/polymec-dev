@@ -63,7 +63,7 @@ for t=1,10 do
 end
 tt = nil
 
--- Or a random 3x3x3x4 ubertensor?
+-- Or a random 3x3x3x3 ubertensor?
 function rut(t)
   return {{{{math.random(), math.random(), math.random()},
             {math.random(), math.random(), math.random()},
