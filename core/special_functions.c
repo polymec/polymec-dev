@@ -534,38 +534,28 @@ real_t chebyshev_tn(int n, real_t x)
     return 1.0;
   else if (n == 1)
     return x;
-  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
-  real_t tn = 0.0;
-  for (int k = 2; k <= n; ++k)
+  else if (n == 2)
+    return 2.0*x*x - 1.0;
+  else
   {
-    real_t yn = (A*x*B)*y1-C*y0;
-    tn = yn;
-    y0 = y1;
-    y1 = yn;
+    double tnm1 = 2.0*x*x - 1.0;
+    double tnm2 = x;
+    double tn = tnm1;
+
+    for (int i = 3; i <= n; ++i)
+    { 
+      tn = 2.0*x*tnm1 - tnm2;
+      tnm2 = tnm1;
+      tnm1 = tn;
+    }
+
+    return tn;
   }
-  return tn;
 }
 
 real_t chebyshev_dtndx(int n, real_t x)
 {
-  if (n == 0)
-    return 1.0;
-  else if (n == 1)
-    return 1.0;
-  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = x;
-  real_t dy0 = 0.0, dy1 = 1.0;
-  real_t dtndx = 0.0;
-  for (int k = 2; k <= n; ++k)
-  {
-    real_t yn = (A*x*B)*y1-C*y0;
-    real_t dyn = A*y1+(A*x+B)*dy1-C*dy0;
-    dtndx = dyn;
-    y0 = y1;
-    y1 = yn;
-    dy0 = dy1;
-    dy1 = dyn;
-  }
-  return dtndx;
+  return n * chebyshev_un(n-1, x);
 }
 
 real_t chebyshev_un(int n, real_t x)
@@ -574,38 +564,27 @@ real_t chebyshev_un(int n, real_t x)
     return 1.0;
   else if (n == 1)
     return 2.0*x;
-  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
-  real_t un = 0.0;
-  for (int k = 2; k <= n; ++k)
+  else if (n == 2)
+    return 4.0*x*x - 1.0;
+  else
   {
-    real_t yn = (A*x*B)*y1-C*y0;
-    un = yn;
-    y0 = y1;
-    y1 = yn;
+    double unm1 = 4.0*x*x - 1.0;
+    double unm2 = 2.0*x;
+    double un = unm1;
+
+    for (int i = 3; i <= n; ++i)
+    { 
+      un = 2.0*x*unm1 - unm2;
+      unm2 = unm1;
+      unm1 = un;
+    }
+    return un;
   }
-  return un;
 }
 
 real_t chebyshev_dundx(int n, real_t x)
 {
-  if (n == 0)
-    return 1.0;
-  else if (n == 1)
-    return 2.0;
-  real_t A = 2.0, B = 0.0, C = 1.0, y0 = 1.0, y1 = 2.0*x;
-  real_t dy0 = 0.0, dy1 = 2.0;
-  real_t dundx = 0.0;
-  for (int k = 2; k <= n; ++k)
-  {
-    real_t yn = (A*x*B)*y1-C*y0;
-    real_t dyn = A*y1+(A*x+B)*dy1-C*dy0;
-    dundx = dyn;
-    y0 = y1;
-    y1 = yn;
-    dy0 = dy1;
-    dy1 = dyn;
-  }
-  return dundx;
+  return ((n+1) * chebyshev_tn(n+1, x) - x * chebyshev_un(n, x)) / (x*x - 1);
 }
 
 real_t laguerre_ln(int n, real_t x)

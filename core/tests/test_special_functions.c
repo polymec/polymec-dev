@@ -167,7 +167,6 @@ static void test_chebyshev_tn(void** state)
   real_t x = 1.5; // an interesting point.
   assert_true(reals_nearly_equal(chebyshev_tn(0, x),  1.0, 1e-14));
   assert_true(reals_nearly_equal(chebyshev_tn(1, x),  x, 1e-14));
-printf("t2(1.5) == %f vs %f\n", chebyshev_tn(2, x), 2.0*x*x-1.0);
   assert_true(reals_nearly_equal(chebyshev_tn(2, x), (2.0*x*x-1.0), 1e-14));
   assert_true(reals_nearly_equal(chebyshev_tn(3, x), (4.0*pow(x, 3)-3.0*x), 1e-14));
   assert_true(reals_nearly_equal(chebyshev_tn(4, x), (8.0*pow(x, 4)-8.0*x*x+1.0), 1e-14));
@@ -175,9 +174,9 @@ printf("t2(1.5) == %f vs %f\n", chebyshev_tn(2, x), 2.0*x*x-1.0);
   assert_true(reals_nearly_equal(chebyshev_tn(6, x), (32.0*pow(x, 6)-48.0*pow(x,4)+18.0*x*x-1.0), 1e-14));
   assert_true(reals_nearly_equal(chebyshev_tn(7, x), (64.0*pow(x, 7)-112.0*pow(x, 5)+56.0*pow(x,3)-7.0*x), 1e-14));
   assert_true(reals_nearly_equal(chebyshev_tn(8, x), (128.0*pow(x, 8)-256.0*pow(x, 6)+160.0*pow(x,4)-32.0*pow(x,2)+1.0), 1e-14));
-  assert_true(reals_nearly_equal(chebyshev_tn(9, x), (256.0*pow(x, 8)-576.0*pow(x, 6)+432.0*pow(x,4)-120.0*pow(x,2)+9.0*x), 1e-14));
-  assert_true(reals_nearly_equal(chebyshev_tn(10, x), (512.0*pow(x, 9)-1280.0*pow(x, 7)+1120.0*pow(x,5)-400.0*pow(x,3)+50.0*x*x-1.0), 1e-14));
-  assert_true(reals_nearly_equal(chebyshev_tn(11, x), (1024.0*pow(x, 9)-2816.0*pow(x, 7)+2816.0*pow(x,5)-1232.0*pow(x,3)+220.0*x*x*x-11.0*x), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(9, x), (256.0*pow(x, 9)-576.0*pow(x, 7)+432.0*pow(x,5)-120.0*pow(x,3)+9.0*x), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(10, x), (512.0*pow(x, 10)-1280.0*pow(x, 8)+1120.0*pow(x,6)-400.0*pow(x,4)+50.0*x*x-1.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_tn(11, x), (1024.0*pow(x, 11)-2816.0*pow(x, 9)+2816.0*pow(x,7)-1232.0*pow(x,5)+220.0*x*x*x-11.0*x), 1e-14));
 }
 
 static void test_chebyshev_un(void** state)
@@ -187,7 +186,7 @@ static void test_chebyshev_un(void** state)
   real_t x = 1.5; // an interesting point.
   assert_true(reals_nearly_equal(chebyshev_un(0, x), (1.0), 1e-14));
   assert_true(reals_nearly_equal(chebyshev_un(1, x), (2.0*x), 1e-14));
-  assert_true(reals_nearly_equal(chebyshev_un(2, x), (4.0*x*x-2.0), 1e-14));
+  assert_true(reals_nearly_equal(chebyshev_un(2, x), (4.0*x*x-1.0), 1e-14));
   assert_true(reals_nearly_equal(chebyshev_un(3, x), (8.0*pow(x, 3)-4.0*x), 1e-14));
   assert_true(reals_nearly_equal(chebyshev_un(4, x), (16.0*pow(x, 4)-12.0*x*x+1.0), 1e-14));
   assert_true(reals_nearly_equal(chebyshev_un(5, x), (32.0*pow(x, 5)-32.0*pow(x,3)+6.0*x), 1e-14));
