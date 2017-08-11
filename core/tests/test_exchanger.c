@@ -70,12 +70,9 @@ static void test_exchanger_construct_and_delete(void** state)
   exchanger = NULL;
 }
 
-static bool _bad_exchanger = false;
-
 static void handle_bad_exchanger(const char* format, ...)
 {
-  printf("That there exchanger you got is broked!");
-  _bad_exchanger = true;
+  printf("Hoo boy! That was a bad exchanger!");
 }
 
 static void test_exchanger_verify_and_dl_detection(void** state)
@@ -101,9 +98,10 @@ static void test_exchanger_verify_and_dl_detection(void** state)
     exchanger_set_receive(ex, (rank+1) % nproc, receive_indices, 100, true);
 
     // Verify that it's a bad exchanger.
-    exchanger_verify(ex, handle_bad_exchanger);
-//    assert_true(_bad_exchanger); // FIXME
-    _bad_exchanger = false;
+    bool result = exchanger_verify(ex, handle_bad_exchanger);
+    assert_false(result); 
+    result = exchanger_verify(ex, NULL);
+    assert_false(result); 
 
     // Now try to exchange data.
     long data[100];
@@ -133,8 +131,10 @@ static void test_exchanger_verify_and_dl_detection(void** state)
     exchanger_set_send(ex, send_proc, send_indices, 100, true);
 
     // Verify that it's a good exchanger.
-    exchanger_verify(ex, handle_bad_exchanger);
-    assert_false(_bad_exchanger);
+    bool result = exchanger_verify(ex, handle_bad_exchanger);
+    assert_true(result);
+    result = exchanger_verify(ex, NULL);
+    assert_true(result);
 
     // Now try to exchange data.
     long long data[100];
@@ -144,7 +144,6 @@ static void test_exchanger_verify_and_dl_detection(void** state)
     assert_true(data[0] != (long long)rank);
   }
   ex = NULL;
-
 }
 
 int main(int argc, char* argv[]) 

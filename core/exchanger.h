@@ -130,11 +130,13 @@ bool exchanger_next_receive(exchanger_t* ex, int* pos, int* remote_process, int*
 // false if not.
 bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, int* num_indices);
 
-// Verifies the consistency of the exchanger, raising an error in the 
-// case of inconsistency, using the given error handler. Involves parallel 
-// communication, so make sure it is called by all processes on the communicator 
-// for the exchanger.
-void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...));
+// Verifies the consistency of the exchanger, returning true if the 
+// verification succeeds, false if not. If the given handler is non-NULL and 
+// the verification fails, the handler function is called with a descriptive 
+// formatted string describing the error encountered. This funciton is 
+// expensive and involves parallel communication, so make sure it is called 
+// by all processes on the communicator for the exchanger. 
+bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...));
 
 //------------------------------------------------------------------------
 //                      Exchanging parallel metadata

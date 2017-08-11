@@ -520,13 +520,36 @@ bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, i
   }
 }
 
-void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
+bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
   // An exchanger is valid/consistent iff the number of elements that 
   // are exchanged between any two processors are agreed upon between those 
-  // two processors. So we send our expected number of exchanged elements 
+  // two processors. 
+  
+  // First question: do our neighbors agree with us about being our 
+  // neighbors?
+
+#if 0
+  // Tally up the number of indices we're sending to and receiving from 
+  // every other process in the communicator.
+  int my_num_neighbors_for_proc[2*ex->nprocs];
+  memset(num_neighbors_for_proc, 0, 2 * sizeof(int) * ex->nprocs);
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+    ++(num_neighbors_for_proc[2*proc]);
+  pos = 0;
+  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
+    ++(num_neighbors_for_proc[2*proc+1]);
+
+  // Do an all-to-all exchange to get everyone's votes on who is who's 
+  // neighbor.
+  int their_num_neighbors_for_proc[2*ex->nprocs];
+  MPI_Alltoall(num_vertices_to_send, 1, MPI_INT, 
+               num_vertices_to_receive, 1, MPI_INT, comm);
+#endif
+
+  // So we send our expected number of exchanged elements 
   // to our neighbors, and receive their numbers, and then compare.
   int num_send_procs = ex->send_map->size;
   int num_receive_procs = ex->receive_map->size;
@@ -534,10 +557,10 @@ void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
       num_elements_expected_by_neighbors[num_send_procs],
       send_procs[num_send_procs];
   MPI_Request requests[num_send_procs + num_receive_procs];
-  int pos = 0, proc, *indices, num_indices;
 
   // Post receives for numbers of elements we send to others.
   int p = 0;
+  int pos = 0, proc, *indices, num_indices;
   while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
   {
     num_sent_elements[p] = num_indices;
@@ -545,7 +568,11 @@ void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
     int err = MPI_Irecv(&num_elements_expected_by_neighbors[p], 1, 
                         MPI_INT, proc, 0, ex->comm, &requests[p]);
     if (err != MPI_SUCCESS)
-      handler("exchanger_verify: Could not receive sent element data from %d", proc);
+    {
+      if (handler != NULL)
+        handler("exchanger_verify: Could not receive sent element data from %d", proc);
+      return false;
+    }
     ++p;
   }
 
@@ -557,7 +584,11 @@ void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
   {
     int err = MPI_Isend(&num_indices, 1, MPI_INT, proc, 0, ex->comm, &requests[num_send_procs + p]);
     if (err != MPI_SUCCESS)
-      handler("exchanger_verify: Could not send number of received elements to %d", proc);
+    {
+      if (handler != NULL)
+        handler("exchanger_verify: Could not send number of received elements to %d", proc);
+      return false;
+    }
     ++p;
   }
 
@@ -570,13 +601,18 @@ void exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
   {
     if (num_sent_elements[p] != num_elements_expected_by_neighbors[p])
     {
-      handler("exchanger_verify: Sending %d elements to proc %d, but %d elements are expected.", 
-              num_sent_elements[p], send_procs[p],
-              num_elements_expected_by_neighbors[p]);
+      if (handler != NULL)
+      {
+        handler("exchanger_verify: Sending %d elements to proc %d, but %d elements are expected.", 
+                num_sent_elements[p], send_procs[p],
+                num_elements_expected_by_neighbors[p]);
+      }
+      return false;
     }
   }
   STOP_FUNCTION_TIMER();
 #endif
+  return true;
 }
 
 int exchanger_max_send(exchanger_t* ex)
