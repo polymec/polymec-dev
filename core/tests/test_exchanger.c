@@ -70,11 +70,6 @@ static void test_exchanger_construct_and_delete(void** state)
   exchanger = NULL;
 }
 
-static void handle_bad_exchanger(const char* format, ...)
-{
-  printf("Hoo boy! That was a bad exchanger!");
-}
-
 static void test_exchanger_verify_and_dl_detection(void** state)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
@@ -98,7 +93,7 @@ static void test_exchanger_verify_and_dl_detection(void** state)
     exchanger_set_receive(ex, (rank+1) % nproc, receive_indices, 100, true);
 
     // Verify that it's a bad exchanger.
-    bool result = exchanger_verify(ex, handle_bad_exchanger);
+    bool result = exchanger_verify(ex, polymec_warn);
     assert_false(result); 
     result = exchanger_verify(ex, NULL);
     assert_false(result); 
@@ -123,7 +118,8 @@ static void test_exchanger_verify_and_dl_detection(void** state)
     int receive_indices[100];
     for (int i = 0; i < 100; ++i)
       receive_indices[i] = i;
-    exchanger_set_receive(ex, (rank+1) % nproc, receive_indices, 100, true);
+    int receive_proc = (rank+1) % nproc;
+    exchanger_set_receive(ex, receive_proc, receive_indices, 100, true);
     int send_indices[100];
     for (int i = 0; i < 100; ++i)
       send_indices[i] = i;
@@ -131,7 +127,7 @@ static void test_exchanger_verify_and_dl_detection(void** state)
     exchanger_set_send(ex, send_proc, send_indices, 100, true);
 
     // Verify that it's a good exchanger.
-    bool result = exchanger_verify(ex, handle_bad_exchanger);
+    bool result = exchanger_verify(ex, polymec_warn);
     assert_true(result);
     result = exchanger_verify(ex, NULL);
     assert_true(result);

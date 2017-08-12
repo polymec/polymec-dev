@@ -524,6 +524,7 @@ bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
+
   // An exchanger is valid/consistent iff the number of elements that 
   // are exchanged between any two processors are agreed upon between those 
   // two processors. 
@@ -531,23 +532,55 @@ bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
   // First question: do our neighbors agree with us about being our 
   // neighbors?
 
-#if 0
   // Tally up the number of indices we're sending to and receiving from 
   // every other process in the communicator.
-  int my_num_neighbors_for_proc[2*ex->nprocs];
-  memset(num_neighbors_for_proc, 0, 2 * sizeof(int) * ex->nprocs);
+  int pos = 0, proc, *indices, num_indices;
+  int my_neighbors[2*ex->nprocs];
+  memset(my_neighbors, 0, 2 * sizeof(int) * ex->nprocs);
   while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
-    ++(num_neighbors_for_proc[2*proc]);
+    my_neighbors[2*proc] += num_indices;
   pos = 0;
-  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
-    ++(num_neighbors_for_proc[2*proc+1]);
+  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
+    my_neighbors[2*proc+1] += num_indices;
 
-  // Do an all-to-all exchange to get everyone's votes on who is who's 
+  // Do an all-to-all exchange to get everyone's votes on who is whose 
   // neighbor.
-  int their_num_neighbors_for_proc[2*ex->nprocs];
-  MPI_Alltoall(num_vertices_to_send, 1, MPI_INT, 
-               num_vertices_to_receive, 1, MPI_INT, comm);
-#endif
+  int* neighbors_for_proc = polymec_malloc(sizeof(int)*2*ex->nprocs*ex->nprocs);
+  MPI_Allgather(my_neighbors, 2*ex->nprocs, MPI_INT, 
+                neighbors_for_proc, 2*ex->nprocs, MPI_INT, ex->comm);
+
+set_log_mode(LOG_TO_ALL_RANKS);
+set_log_level(LOG_DEBUG);
+  for (int p = 0; p < ex->nprocs; ++p)
+  {
+    if (p != ex->rank)
+    {
+      int num_im_sending = my_neighbors[2*p];
+      int num_theyre_receiving = neighbors_for_proc[2*(p*ex->nprocs+ex->rank)+1];
+      if (num_im_sending != num_theyre_receiving)
+      {
+        polymec_free(neighbors_for_proc);
+        if (handler != NULL)
+          handler("exchanger_verify: Proc %d is sending %d elements to proc %d, which is expecting %d elements.",
+              ex->rank, num_im_sending, p, num_theyre_receiving);
+        return false;
+      }
+
+      int num_im_receiving = my_neighbors[2*p+1];
+      int num_theyre_sending = neighbors_for_proc[2*(p*ex->nprocs+ex->rank)];
+      if (num_im_receiving != num_theyre_sending)
+      {
+        polymec_free(neighbors_for_proc);
+        if (handler != NULL)
+          handler("exchanger_verify: Proc %d is sending %d elements to proc %d, which is expecting %d elements.",
+              p, num_theyre_sending, ex->rank, num_im_receiving);
+        return false;
+      }
+    }
+  }
+  polymec_free(neighbors_for_proc);
+
+  // Next: do our indices agree with those of our neighbors?
 
   // So we send our expected number of exchanged elements 
   // to our neighbors, and receive their numbers, and then compare.
@@ -560,7 +593,6 @@ bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
 
   // Post receives for numbers of elements we send to others.
   int p = 0;
-  int pos = 0, proc, *indices, num_indices;
   while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
   {
     num_sent_elements[p] = num_indices;

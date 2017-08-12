@@ -572,6 +572,7 @@ void polymec_warn(const char* message, ...)
   va_start(argp, message);
   vfprintf(stderr, message, argp);
   va_end(argp);
+  fprintf(stderr, "\n");
 }
 
 static noreturn void handle_fpe_signal(int signal)
