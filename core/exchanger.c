@@ -524,6 +524,7 @@ bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
+  log_debug("exchanger_verify: Checking connectivity.");
 
   // An exchanger is valid/consistent iff the number of elements that 
   // are exchanged between any two processors are agreed upon between those 
@@ -549,8 +550,6 @@ bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...))
   MPI_Allgather(my_neighbors, 2*ex->nprocs, MPI_INT, 
                 neighbors_for_proc, 2*ex->nprocs, MPI_INT, ex->comm);
 
-set_log_mode(LOG_TO_ALL_RANKS);
-set_log_level(LOG_DEBUG);
   for (int p = 0; p < ex->nprocs; ++p)
   {
     if (p != ex->rank)
@@ -563,6 +562,7 @@ set_log_level(LOG_DEBUG);
         if (handler != NULL)
           handler("exchanger_verify: Proc %d is sending %d elements to proc %d, which is expecting %d elements.",
               ex->rank, num_im_sending, p, num_theyre_receiving);
+        STOP_FUNCTION_TIMER();
         return false;
       }
 
@@ -574,74 +574,13 @@ set_log_level(LOG_DEBUG);
         if (handler != NULL)
           handler("exchanger_verify: Proc %d is sending %d elements to proc %d, which is expecting %d elements.",
               p, num_theyre_sending, ex->rank, num_im_receiving);
+        STOP_FUNCTION_TIMER();
         return false;
       }
     }
   }
   polymec_free(neighbors_for_proc);
-
-  // Next: do our indices agree with those of our neighbors?
-
-  // So we send our expected number of exchanged elements 
-  // to our neighbors, and receive their numbers, and then compare.
-  int num_send_procs = ex->send_map->size;
-  int num_receive_procs = ex->receive_map->size;
-  int num_sent_elements[num_send_procs], 
-      num_elements_expected_by_neighbors[num_send_procs],
-      send_procs[num_send_procs];
-  MPI_Request requests[num_send_procs + num_receive_procs];
-
-  // Post receives for numbers of elements we send to others.
-  int p = 0;
-  while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
-  {
-    num_sent_elements[p] = num_indices;
-    send_procs[p] = proc;
-    int err = MPI_Irecv(&num_elements_expected_by_neighbors[p], 1, 
-                        MPI_INT, proc, 0, ex->comm, &requests[p]);
-    if (err != MPI_SUCCESS)
-    {
-      if (handler != NULL)
-        handler("exchanger_verify: Could not receive sent element data from %d", proc);
-      return false;
-    }
-    ++p;
-  }
-
-  // Send our receive neighbors the number that we expect to receive. This 
-  // means that we will get the number that our neighbors expect to receive,
-  // which should be the same number as what we're sending.
-  pos = p = 0;
-  while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
-  {
-    int err = MPI_Isend(&num_indices, 1, MPI_INT, proc, 0, ex->comm, &requests[num_send_procs + p]);
-    if (err != MPI_SUCCESS)
-    {
-      if (handler != NULL)
-        handler("exchanger_verify: Could not send number of received elements to %d", proc);
-      return false;
-    }
-    ++p;
-  }
-
-  // Wait for messages to fly.
-  MPI_Status statuses[num_send_procs + num_receive_procs];
-  MPI_Waitall(num_send_procs + num_receive_procs, requests, statuses);
-
-  // Now verify that the numbers are the same.
-  for (p = 0; p < num_send_procs; ++p)
-  {
-    if (num_sent_elements[p] != num_elements_expected_by_neighbors[p])
-    {
-      if (handler != NULL)
-      {
-        handler("exchanger_verify: Sending %d elements to proc %d, but %d elements are expected.", 
-                num_sent_elements[p], send_procs[p],
-                num_elements_expected_by_neighbors[p]);
-      }
-      return false;
-    }
-  }
+  log_debug("exchanger_verify: Connectivity verified successfully.");
   STOP_FUNCTION_TIMER();
 #endif
   return true;
@@ -883,21 +822,21 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
         fprintf(ex->dl_output_stream, "%d: MPI Deadlock:\n", ex->rank);
         if (num_completed_sends > 0)
         {
-          fprintf(ex->dl_output_stream, "Completed sending data to:\n");
+          fprintf(ex->dl_output_stream, "%d: Completed sending data to:\n", ex->rank);
           for (int i = 0; i < num_completed_sends; ++i)
-            fprintf(ex->dl_output_stream, "  %d (%d bytes)\n", completed_send_procs[i], completed_send_bytes[i]);
+            fprintf(ex->dl_output_stream, "%d:  %d (%d bytes)\n", ex->rank, completed_send_procs[i], completed_send_bytes[i]);
         }
         if (num_completed_receives > 0)
         {
-          fprintf(ex->dl_output_stream, "Completed receiving data from:\n");
+          fprintf(ex->dl_output_stream, "%d: Completed receiving data from:\n", ex->rank);
           for (int i = 0; i < num_completed_receives; ++i)
-            fprintf(ex->dl_output_stream, "  %d (%d bytes)\n", completed_receive_procs[i], completed_receive_bytes[i]);
+            fprintf(ex->dl_output_stream, "%d:  %d (%d bytes)\n", ex->rank, completed_receive_procs[i], completed_receive_bytes[i]);
         }
         if (num_outstanding_sends > 0)
         {
-          fprintf(ex->dl_output_stream, "Still sending data to:\n");
+          fprintf(ex->dl_output_stream, "%d: Still sending data to:\n", ex->rank);
           for (int i = 0; i < num_outstanding_sends; ++i)
-            fprintf(ex->dl_output_stream, "  %d (%d bytes)\n", outstanding_send_procs[i], outstanding_send_bytes[i]);
+            fprintf(ex->dl_output_stream, "%d:  %d (%d bytes)\n", ex->rank, outstanding_send_procs[i], outstanding_send_bytes[i]);
         }
         if (num_outstanding_receives > 0)
         {
@@ -905,7 +844,7 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
           for (int i = 0; i < num_outstanding_receives; ++i)
             fprintf(ex->dl_output_stream, "  %d (%d bytes)\n", outstanding_receive_procs[i], outstanding_receive_bytes[i]);
         }
-        fprintf(ex->dl_output_stream, "Grace period: %g seconds\n", ex->dl_thresh);
+        fprintf(ex->dl_output_stream, "%d: Grace period: %g seconds\n", ex->rank, ex->dl_thresh);
 
         // Bug out. 
         return -1;
@@ -968,7 +907,14 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   // Retrieve the message for the given token.
   mpi_message_t* msg = ex->pending_msgs[token];
   int err = exchanger_waitall(ex, msg);
-  if (err != MPI_SUCCESS) return;
+  if (err != MPI_SUCCESS) 
+  {
+    mpi_message_free(msg);
+    ex->pending_msgs[token] = NULL;
+    ex->orig_buffers[token] = NULL;
+    STOP_FUNCTION_TIMER();
+    return;
+  }
 
   // Copy the received data into the original array.
   void* orig_buffer = ex->orig_buffers[token];
