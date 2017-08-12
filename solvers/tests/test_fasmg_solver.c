@@ -181,7 +181,24 @@ static void test_1d_ctor(void** state)
   read_cl_args(&gamma, &N, &mu, &nu0, &nu1, &nu2);
 
   fasmg_cycle_t* cycle = v_fasmg_cycle_new(nu1, nu2);
+  assert_true(fasmg_cycle_context(cycle) != NULL);
   fasmg_solver_t* fas = fasmg_1d_new(gamma, N, cycle, false);
+  assert_true(fas != NULL);
+
+  fasmg_coarsener_t* C = fasmg_solver_coarsener(fas);
+  assert_int_equal(0, strcmp(fasmg_coarsener_name(C), "1D Nonlinear coarsener"));
+  assert_true(fasmg_coarsener_context(C) == NULL);
+
+  fasmg_restrictor_t* R = fasmg_solver_restrictor(fas);
+  assert_int_equal(0, strcmp(fasmg_restrictor_name(R), "1D Nonlinear restrictor"));
+  assert_true(fasmg_restrictor_context(R) == NULL);
+
+  fasmg_prolongator_t* P = fasmg_solver_prolongator(fas);
+  assert_int_equal(0, strcmp(fasmg_prolongator_name(P), "1D Nonlinear prolongator"));
+  assert_true(fasmg_prolongator_context(P) == NULL);
+
+  assert_true(fasmg_solver_cycler(fas) == cycle);
+
   fasmg_solver_free(fas);
 }
 
