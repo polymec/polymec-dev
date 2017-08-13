@@ -93,6 +93,17 @@ bool lua_is_sym_tensor2(lua_State* L, int index);
 // NULL if the item there is not a symmetric rank-2 tensor.
 sym_tensor2_t* lua_to_sym_tensor2(lua_State* L, int index);
 
+// Pushes an MPI communicator onto L's stack.
+void lua_push_mpi_comm(lua_State* L, MPI_Comm comm);
+
+// Returns true if the item at the given index on L's stack is an MPI
+// communicator, false if not.
+bool lua_is_mpi_comm(lua_State* L, int index);
+
+// Returns the MPI communicator at the given index on L's stack, or 
+// NULL if the item there is not an MPI communicator.
+MPI_Comm lua_to_mpi_comm(lua_State* L, int index);
+
 // This enumerated type describes data stored in an array within a 
 // Lua interpreter.
 typedef enum

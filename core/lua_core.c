@@ -1013,6 +1013,78 @@ static lua_record_metamethod sym_tensor2_mm[] = {
   {NULL, NULL}
 };
 
+static int mpi_comm_split(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if (num_args != 3)
+    return luaL_error(L, "Arguments must be an mpi.comm, a color, and a key.");
+  if (!lua_is_mpi_comm(L, 1))
+    return luaL_error(L, "Argument 1 must be an mpi.comm.");
+  if (!lua_isinteger(L, 2))
+    return luaL_error(L, "Argument 2 must be an integer color.");
+  if (!lua_isinteger(L, 3))
+    return luaL_error(L, "Argument 3 must be an integer key.");
+  MPI_Comm comm = lua_to_mpi_comm(L, 1);
+  int color = (int)lua_tointeger(L, 2);
+  int key = (int)lua_tointeger(L, 3);
+
+  MPI_Comm new_comm;
+  MPI_Comm_split(comm, color, key, &new_comm);
+  lua_push_mpi_comm(L, new_comm);
+
+  return 1;
+}
+
+static lua_module_function mpi_comm_funcs[] = {
+  {"split", mpi_comm_split},
+  {NULL, NULL}
+};
+
+static int mpi_comm_size(lua_State* L)
+{
+  MPI_Comm comm = lua_to_mpi_comm(L, 1);
+  int size;
+  MPI_Comm_size(comm, &size);
+  lua_pushinteger(L, size);
+  return 1;
+}
+
+static int mpi_comm_rank(lua_State* L)
+{
+  MPI_Comm comm = lua_to_mpi_comm(L, 1);
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+  lua_pushinteger(L, rank);
+  return 1;
+}
+
+static lua_record_field mpi_comm_fields[] = {
+  {"size", mpi_comm_size, NULL},
+  {"rank", mpi_comm_rank, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int mpi_comm_tostring(lua_State* L)
+{
+  MPI_Comm comm = lua_to_mpi_comm(L, 1);
+  if (comm == MPI_COMM_WORLD)
+    lua_pushstring(L, "mpi.comm (MPI_COMM_WORLD)");
+  else if (comm == MPI_COMM_SELF)
+    lua_pushstring(L, "mpi.comm (MPI_COMM_SELF)");
+  else
+  {
+    int nprocs;
+    MPI_Comm_size(comm, &nprocs);
+    lua_pushfstring(L, "mpi.comm (%d procs)", nprocs);
+  }
+  return 1;
+}
+
+static lua_record_metamethod mpi_comm_mm[] = {
+  {"__tostring", mpi_comm_tostring},
+  {NULL, NULL}
+};
+
 static int bb_new(lua_State* L)
 {
   // Check the arguments.
@@ -1530,6 +1602,24 @@ static void lua_register_util_funcs(lua_State* L)
 extern int lua_register_array(lua_State* L); // defined in lua_array.c
 extern int lua_register_ndarray(lua_State* L); // defined in lua_ndarray.c
 
+static int lua_register_mpi(lua_State* L)
+{
+  lua_newtable(L);
+  lua_setglobal(L, "mpi");
+
+  // Register the communicator class.
+  lua_register_record_type(L, "mpi.comm", mpi_comm_funcs, mpi_comm_fields, mpi_comm_mm);
+
+  // Now register MPI_COMM_WORLD and MPI_COMM_SELF objects.
+  lua_getglobal(L, "mpi");
+  lua_push_mpi_comm(L, MPI_COMM_WORLD);
+  lua_setfield(L, -2, "COMM_WORLD");
+  lua_push_mpi_comm(L, MPI_COMM_SELF);
+  lua_setfield(L, -2, "COMM_SELF");
+
+  return 0;
+}
+
 int lua_register_core_modules(lua_State* L)
 {
   // Core types.
@@ -1540,6 +1630,7 @@ int lua_register_core_modules(lua_State* L)
   lua_register_record_type(L, "sym_tensor2", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_mm);
   lua_register_array(L);
   lua_register_ndarray(L);
+  lua_register_mpi(L);
 
   lua_register_class(L, "bbox", bbox_funcs, bbox_methods);
   lua_register_class(L, "sp_func", sp_funcs, sp_methods);
@@ -1646,6 +1737,23 @@ bool lua_is_sym_tensor2(lua_State* L, int index)
 sym_tensor2_t* lua_to_sym_tensor2(lua_State* L, int index)
 {
   return (sym_tensor2_t*)lua_to_record(L, index, "sym_tensor2");
+}
+
+void lua_push_mpi_comm(lua_State* L, MPI_Comm comm)
+{
+  MPI_Comm* c = polymec_malloc(sizeof(MPI_Comm));
+  *c = comm;
+  lua_push_record(L, "mpi.comm", c, polymec_free);
+}
+
+bool lua_is_mpi_comm(lua_State* L, int index)
+{
+  return lua_is_record(L, index, "mpi.comm");
+}
+
+MPI_Comm lua_to_mpi_comm(lua_State* L, int index)
+{
+  return *((MPI_Comm*)lua_to_record(L, index, "mpi.comm"));
 }
 
 void lua_push_bbox(lua_State* L, bbox_t* b)

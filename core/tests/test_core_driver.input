@@ -87,6 +87,12 @@ st1.zx = 7
 st1.zy = 8
 st1.zz = 9
 
+-- MPI communicators.
+print(mpi.COMM_WORLD)
+print(mpi.COMM_WORLD.rank, mpi.COMM_WORLD.size)
+print(mpi.COMM_SELF)
+print(mpi.COMM_SELF.rank, mpi.COMM_SELF.size)
+
 -- Bounding box ops.
 bb = bbox.new{x1=0, x2=1, y1=0, y2=1, z1=0, z2=1}
 print(bb)

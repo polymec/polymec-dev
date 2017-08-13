@@ -128,7 +128,8 @@ static int sd_from_sp_funcs(lua_State* L)
 
 static lua_module_function sd_funcs[] = {
   {"new", sd_new},
-  {"from_sp_funcs", sd_from_sp_funcs}
+  {"from_sp_funcs", sd_from_sp_funcs},
+  {NULL, NULL}
 };
 
 static int sd_rename(lua_State* L)
@@ -302,7 +303,8 @@ static int sdt_from_st_funcs(lua_State* L)
 
 static lua_module_function sdt_funcs[] = {
   {"new", sdt_new},
-  {"from_st_funcs", sdt_from_st_funcs}
+  {"from_st_funcs", sdt_from_st_funcs},
+  {NULL, NULL}
 };
 
 static int sdt_rename(lua_State* L)
