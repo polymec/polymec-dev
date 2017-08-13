@@ -540,6 +540,7 @@ typedef struct
 
 static void set_domain_dir(silo_file_t* file)
 {
+#if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
   {
     char domain_dir[FILENAME_MAX+1];
@@ -548,6 +549,9 @@ static void set_domain_dir(silo_file_t* file)
   }
   else
     DBSetDir(file->dbfile, "/");
+#else
+  DBSetDir(file->dbfile, "/");
+#endif
 }
 
 static void set_root_dir(silo_file_t* file)
