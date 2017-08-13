@@ -21,11 +21,6 @@ add_driver_with_libs(model_driver "polymec_model;polymec_io;polymec_core;${POLYM
 add_driver_test(test_model_driver model_driver ${CMAKE_CURRENT_SOURCE_DIR}/test_model_driver.input 1 2 4)
 add_driver_test(test_game_of_life model_driver ${CMAKE_CURRENT_SOURCE_DIR}/game_of_life.input)
 
-#add_polymec_executable(game_of_life game_of_life.c)
-#add_game_of_life_test(still 0 0 1 2 3 4)
-#add_game_of_life_test(still 1 0 1 2 3 4)
-#add_game_of_life_test(still 10 0 1 2 3 4)
-
 # The following tests (failing_tests) are currently expected to fail.
 foreach (failing_test ${failing_tests})
   set_tests_properties(${failing_test} PROPERTIES WILL_FAIL TRUE)

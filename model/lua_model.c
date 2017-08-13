@@ -252,6 +252,16 @@ static lua_module_function model_funcs[] = {
   {NULL, NULL}
 };
 
+static int m_init(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Argument must be a time at which to initialize the model.");
+  real_t t0 = (int)(lua_to_real(L, 2));
+  model_init(m, t0);
+  return 0;
+}
+
 static int m_load(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
@@ -266,6 +276,13 @@ static int m_save(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
   model_save(m);
+  return 0;
+}
+
+static int m_plot(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  model_plot(m);
   return 0;
 }
 
@@ -285,20 +302,103 @@ static int m_run(lua_State* L)
   model_t* m = lua_to_model(L, 1);
   if (!lua_istable(L, 2))
     return luaL_error(L, "Argument must be a table with entries t1, t2, and max_steps.");
-  lua_getfield(L, 2, "t1");
-  if (!lua_isnumber(L, -1))
-    return luaL_error(L, "t1 must be a number.");
-  real_t t1 = lua_to_real(L, -1);
+
   lua_getfield(L, 2, "t2");
   if (!lua_isnumber(L, -1))
-    return luaL_error(L, "t2 must be a number.");
+    return luaL_error(L, "t2 must be a time.");
   real_t t2 = lua_to_real(L, -1);
+
+  real_t t1 = t2;
+  lua_getfield(L, 2, "t1");
+  if (lua_isnumber(L, -1))
+    t1 = lua_to_real(L, -1);
+  else if (!lua_isnil(L, -1))
+    return luaL_error(L, "t1 must be a time.");
+
   if (t2 < t1)
     return luaL_error(L, "t2 must be greater than or equal to t1.");
+
   lua_getfield(L, 2, "max_steps");
   if (!lua_isinteger(L, -1))
-    return luaL_error(L, "max_steps must be an integer.");
+    return luaL_error(L, "max_steps must be a number of steps.");
   int max_steps = (int)(lua_tointeger(L, -1));
+
+  lua_getfield(L, 2, "prefix");
+  if (lua_isstring(L, -1))
+    model_set_prefix(m, lua_tostring(L, -1));
+  else if (!lua_isnil(L, -1))
+    return luaL_error(L, "prefix must be a string.");
+
+  lua_getfield(L, 2, "directory");
+  if (lua_isstring(L, -1))
+    model_set_directory(m, lua_tostring(L, -1));
+  else if (!lua_isnil(L, -1))
+    return luaL_error(L, "directory must be a string.");
+
+  lua_getfield(L, 2, "plot_every");
+  if (lua_isnumber(L, -1))
+  {
+    real_t plot = lua_to_real(L, -1);
+    if (plot <= 0.0)
+      return luaL_error(L, "plot_every must be positive.");
+    model_plot_every(m, plot); 
+  }
+  else if (!lua_isnil(L, -1))
+    return luaL_error(L, "plot_every must be a simulation time interval.");
+
+  lua_getfield(L, 2, "save_every");
+  if (lua_isinteger(L, -1))
+  {
+    int save = (int)lua_tointeger(L, -1);
+    if (save <= 0)
+      return luaL_error(L, "save_every must be positive.");
+    model_save_every(m, save);
+  }
+  else if (!lua_isnil(L, -1))
+    return luaL_error(L, "save_every must be a number of steps.");
+
+  int load_step = -1;
+  lua_getfield(L, 2, "load_step");
+  if (lua_isinteger(L, -1))
+  {
+    load_step = (int)lua_tointeger(L, -1);
+    if (load_step < 0)
+      return luaL_error(L, "load_step must be non-negative.");
+  }
+  else if (!lua_isnil(L, -1))
+    return luaL_error(L, "load_step must be a step.");
+
+  real_t min_dt = 0.0;
+  lua_getfield(L, 2, "min_dt");
+  if (lua_isnumber(L, -1))
+  {
+    min_dt = lua_to_real(L, -1);
+    if (min_dt <= 0.0)
+      return luaL_error(L, "min_dt must be positive.");
+    model_set_min_dt(m, min_dt);
+  }
+  else if (!lua_isnil(L, -1))
+    return luaL_error(L, "min_dt must be a simulation time interval.");
+
+  real_t max_dt;
+  lua_getfield(L, 2, "max_dt");
+  if (lua_isnumber(L, -1))
+  {
+    max_dt = lua_to_real(L, -1);
+    if (max_dt < min_dt)
+      return luaL_error(L, "max_dt must be positive and greater than or equal to min_dt.");
+    model_set_max_dt(m, max_dt);
+  }
+  else if (!lua_isnil(L, -1))
+    return luaL_error(L, "max_dt must be a simulation time interval.");
+
+  // Validate.
+  if ((t1 < t2) && (load_step != -1))
+    return luaL_error(L, "Only t1 or load_step may be given.");
+
+  if (load_step != -1)
+    model_load_from(m, load_step);
+
   model_run(m, t1, t2, max_steps);
 
   return 0; // No return value.
@@ -418,6 +518,20 @@ static int m_data(lua_State* L)
   return 1;
 }
 
+static int m_step(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  lua_pushinteger(L, model_step(m));
+  return 1;
+}
+
+static int m_time(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  lua_push_real(L, model_time(m));
+  return 1;
+}
+
 static int m_tostring(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
@@ -426,12 +540,16 @@ static int m_tostring(lua_State* L)
 }
 
 static lua_class_method model_methods[] = {
+  {"init", m_init},
   {"load", m_load},
   {"save", m_save},
+  {"plot", m_plot},
   {"advance", m_advance},
   {"run", m_run},
   {"add_probe", m_add_probe},
   {"data", m_data},
+  {"step", m_step},
+  {"time", m_time},
   {"__tostring", m_tostring},
   {NULL, NULL}
 };

@@ -36,5 +36,22 @@ gol = model.new{name = 'game_of_life',
                 save = gol_save,
                 plot = gol_plot}
 
-gol:run{t1 = 0, t2 = 10, max_steps = 10}
+-- Do a run from time 0 to 1.
+gol:run{t1 = 0, t2 = 10, max_steps = 10, 
+        plot_every=1, save_every=1, 
+        prefix="gol", directory=".",
+        max_dt=1, min_dt=1}
+print(gol:data())
+
+-- Load the model at the 4th step.
+gol:load(4)
+print(gol:step())
+print(gol:time())
+
+-- Save the state.
+gol:save()
+
+-- Reinitialize and make a plot.
+gol:init(0)
+gol:plot()
 

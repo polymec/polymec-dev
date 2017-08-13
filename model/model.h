@@ -190,13 +190,20 @@ void model_acquire(model_t* model);
 // max_steps.
 void model_run(model_t* model, real_t t1, real_t t2, int max_steps);
 
-// Sets the name of the simulation within the model. This name 
-// will be used to identify and/or generate names of plot and save files.
-void model_set_sim_name(model_t* model, const char* sim_name);
+// Sets the name of the prefix for naming simulation data files.
+void model_set_prefix(model_t* model, const char* prefix);
 
-// Sets the absolute path in which the simulation will be run. All output
-// will be generated relative to this path.
-void model_set_sim_path(model_t* model, const char* sim_path);
+// Sets the absolute path in which the simulation will be run.
+void model_set_directory(model_t* model, const char* directory);
+
+// Tells the model to plot a result every T time units.
+void model_plot_every(model_t* model, real_t T);
+
+// Tells the model to plot a result every n steps.
+void model_save_every(model_t* model, int n);
+
+// Tells the model to load its state from a given step.
+void model_load_from(model_t* model, int n);
 
 // Retrieves (a copy of) the virtual table for the given model.
 model_vtable model_get_vtable(model_t* model);

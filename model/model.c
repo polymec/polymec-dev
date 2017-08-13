@@ -38,9 +38,6 @@ DEFINE_UNORDERED_MAP(probe_data_map, char*, probe_data_array_t*, string_hash, st
 
 struct model_t 
 {
-  // Global communicator.
-  MPI_Comm global_comm;
-
   // Model metadata.
   void* context;
   char* name;
@@ -59,8 +56,8 @@ struct model_t
   probe_data_map_t* probe_data;
 
   // Data related to a given simulation.
-  char* sim_name;    // Simulation name.
-  char* sim_path;    // Simulation directory.
+  char* sim_prefix; // Simulation naming prefix.
+  char* sim_dir;    // Simulation directory.
   real_t time;       // Current simulation time.
   real_t wall_time0; // Wall time at simulation start.
   real_t wall_time;  // Current wall time.
@@ -134,8 +131,8 @@ model_t* model_new(const char* name,
   model->context = context;
   model->name = string_dup(name);
   model->parallelism = parallelism;
-  model->sim_name = NULL;
-  model->sim_path = NULL;
+  model->sim_prefix = string_dup(name);
+  model->sim_dir = string_dup(".");
   model->save_every = -1;
   model->plot_every = -REAL_MAX;
   model->load_step = -1;
@@ -180,11 +177,8 @@ void model_free(model_t* model)
     model->vtable.dtor(model->context);
   polymec_free(model->name);
 
-  if (model->sim_name != NULL)
-    polymec_free(model->sim_name);
-
-  if (model->sim_path != NULL)
-    polymec_free(model->sim_path);
+  polymec_free(model->sim_prefix);
+  polymec_free(model->sim_dir);
 
   // Clear probe stuff.
   probe_map_free(model->probes);
@@ -432,6 +426,12 @@ void model_finalize(model_t* model)
   log_detail("%s: Finalizing model at t = %g", model->name, model->time);
   if (model->vtable.finalize != NULL)
     model->vtable.finalize(model->context, model->step, model->time);
+
+  // Clear any plotting, saving, loading that has been requested.
+  model->plot_every = -REAL_MAX;
+  model->load_step = -1;
+  model->save_every = -1;
+
   STOP_FUNCTION_TIMER();
 }
 
@@ -444,17 +444,9 @@ void model_load(model_t* model, int step)
   if (model->vtable.load == NULL)
     polymec_error("Loading from save files is not supported by this model.");
 
-  int nprocs;
-  MPI_Comm_size(model->global_comm, &nprocs);
-
   ASSERT(step >= 0);
-  if (model->sim_name == NULL)
-    polymec_error("No simulation name was set with model_set_sim_name.");
-  char prefix[FILENAME_MAX], dir[FILENAME_MAX];
-  snprintf(prefix, FILENAME_MAX, "%s_save", model->sim_name);
-  snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
-  log_detail("%s: Loading save file from directory %s...", model->name, dir);
-  model->vtable.load(model->context, prefix, dir, &model->time, step);
+  log_detail("%s: Loading save file from directory %s...", model->name, model->sim_dir);
+  model->vtable.load(model->context, model->sim_prefix, model->sim_dir, &model->time, step);
   model->step = step;
 
   // Reset the wall time(s).
@@ -466,38 +458,22 @@ void model_load(model_t* model, int step)
 void model_save(model_t* model)
 {
   START_FUNCTION_TIMER();
-  int nprocs;
-  MPI_Comm_size(model->global_comm, &nprocs);
+  // Is saving supported by this model?
+  if (model->vtable.save == NULL)
+    polymec_error("Saving is not supported by this model.");
 
-  if (model->sim_name == NULL)
-    polymec_error("No simulation name was set with model_set_sim_name.");
-  char prefix[FILENAME_MAX], dir[FILENAME_MAX];
-  snprintf(prefix, FILENAME_MAX, "%s_save", model->sim_name);
-  if (model->sim_path != NULL)
-    snprintf(dir, FILENAME_MAX, "%s/%s-%d", model->sim_path, model->sim_name, nprocs);
-  else
-    snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
-  log_detail("%s: Writing save file to directory %s...", model->name, dir);
-  model->vtable.save(model->context, prefix, dir, model->time, model->step);
+  log_detail("%s: Writing save file to directory %s...", model->name, model->sim_dir);
+  model->vtable.save(model->context, model->sim_prefix, model->sim_dir, model->time, model->step);
   STOP_FUNCTION_TIMER();
 }
 
 void model_plot(model_t* model)
 {
   START_FUNCTION_TIMER();
-  int nprocs;
-  MPI_Comm_size(model->global_comm, &nprocs);
-
-  if (model->sim_name == NULL)
-    polymec_error("No simulation name was set with model_set_sim_name.");
-  char prefix[FILENAME_MAX], dir[FILENAME_MAX];
-  snprintf(prefix, FILENAME_MAX, "%s_plot", model->sim_name);
-  if (model->sim_path != NULL)
-    snprintf(dir, FILENAME_MAX, "%s/%s-%d", model->sim_path, model->sim_name, nprocs);
-  else
-    snprintf(dir, FILENAME_MAX, "%s-%d", model->sim_name, nprocs);
-  log_detail("%s: Writing plot to directory %s...", model->name, dir);
-  model->vtable.plot(model->context, prefix, dir, model->time, model->step);
+  if (model->vtable.plot == NULL)
+    polymec_error("Plotting is not supported by this model.");
+  log_detail("%s: Writing plot to directory %s...", model->name, model->sim_dir);
+  model->vtable.plot(model->context, model->sim_prefix, model->sim_dir, model->time, model->step);
   STOP_FUNCTION_TIMER();
 }
 
@@ -657,20 +633,40 @@ probe_data_array_t* model_probe_data(model_t* model, const char* quantity)
     return NULL;
 }
 
-void model_set_sim_name(model_t* model, const char* sim_name)
+void model_set_prefix(model_t* model, const char* prefix)
 {
-  ASSERT(sim_name != NULL);
-  if (model->sim_name != NULL)
-    polymec_free(model->sim_name);
-  model->sim_name = string_dup(sim_name);
+  ASSERT(prefix != NULL);
+  log_debug("%s: Setting prefix to %s.", model->name, prefix);
+  polymec_free(model->sim_prefix);
+  model->sim_prefix = string_dup(prefix);
 }
 
-void model_set_sim_path(model_t* model, const char* sim_path)
+void model_set_directory(model_t* model, const char* directory)
 {
-  ASSERT(sim_path != NULL);
-  if (model->sim_path != NULL)
-    polymec_free(model->sim_path);
-  model->sim_path = string_dup(sim_path);
+  ASSERT(directory != NULL);
+  log_debug("%s: Setting directory to %s.", model->name, directory);
+  polymec_free(model->sim_dir);
+  model->sim_dir = string_dup(directory);
+}
+
+void model_plot_every(model_t* model, real_t T)
+{
+  ASSERT(T > 0.0);
+  log_debug("%s: Setting plot frequency: %g.", model->name, T);
+  model->plot_every = T;
+}
+
+void model_save_every(model_t* model, int n)
+{
+  ASSERT(n > 0);
+  log_debug("%s: Setting save frequency: %d.", model->name, n);
+  model->save_every = n;
+}
+
+void model_load_from(model_t* model, int n)
+{
+  ASSERT(n >= 0);
+  model->load_step = n;
 }
 
 model_vtable model_get_vtable(model_t* model)
