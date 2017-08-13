@@ -307,8 +307,20 @@ real_t model_max_dt(model_t* model, char* reason)
   real_t dt = REAL_MAX;
   strcpy(reason, "No time step constraints.");
 
+  // First let the model have at it.
+  if (model->vtable.max_dt != NULL)
+  {
+    char model_reason[POLYMEC_MODEL_MAXDT_REASON_SIZE+1];
+    real_t model_dt = model->vtable.max_dt(model->context, model->time, model_reason);
+    if (model_dt < dt)
+    {
+      dt = model_dt;
+      strcpy(reason, model_reason);
+    }
+  }
+
   // If we specified a maximum timestep, apply it here.
-  if (model->max_dt < REAL_MAX)
+  if (model->max_dt < dt)
   {
     dt = model->max_dt;
     strcpy(reason, "Max dt set in options.");
@@ -349,23 +361,7 @@ real_t model_max_dt(model_t* model, char* reason)
     dt = acq_dt;
     sprintf(reason, "Requested acquisition time: %g", acq_time);
   }
-  else if (2.0 * acq_dt < model->max_dt)
-  {
-    dt = acq_dt;
-    sprintf(reason, "Requested acquisition time: %g", acq_time);
-  }
 
-  // Now let the model have at it.
-  if (model->vtable.max_dt != NULL)
-  {
-    char model_reason[POLYMEC_MODEL_MAXDT_REASON_SIZE+1];
-    real_t model_dt = model->vtable.max_dt(model->context, model->time, model_reason);
-    if (model_dt < dt)
-    {
-      dt = model_dt;
-      strcpy(reason, model_reason);
-    }
-  }
   return dt;
 }
 

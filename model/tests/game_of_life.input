@@ -1,0 +1,40 @@
+-- This is a Lua implementation of the game of life.
+
+function gol_init(self, t)
+  self.grid = {}
+end
+
+function gol_advance(self, max_dt, t)
+  return max_dt
+end
+
+function gol_max_dt(self, t)
+  return 1, "That's just the way it is."
+end
+
+function gol_finalize(self, step, t)
+end
+
+function gol_load(self, prefix, dir, step)
+  return 0
+end
+
+function gol_save(self, prefix, dir, t, step)
+  self.grid = {}
+end
+
+function gol_plot(self, prefix, dir, t, step)
+  self.grid = {}
+end
+
+gol = model.new{name = 'game_of_life', 
+                init = gol_init,
+                advance = gol_advance,
+                max_dt = gol_max_dt,
+                finalize = gol_finalize,
+                load = gol_load,
+                save = gol_save,
+                plot = gol_plot}
+
+gol:run{t1 = 0, t2 = 10, max_steps = 10}
+

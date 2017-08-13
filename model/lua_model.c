@@ -14,6 +14,244 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
+typedef struct
+{
+  lua_State* L;
+} lua_model_t;
+
+static void lm_init(void* context, real_t t)
+{
+  // Fetch our Lua table from the registry.
+  lua_model_t* lm = context;
+  lua_pushlightuserdata(lm->L, lm);
+  lua_gettable(lm->L, LUA_REGISTRYINDEX);
+
+  // Call the init method.
+  lua_getfield(lm->L, -1, "init");
+  lua_pushvalue(lm->L, -2);
+  lua_pushnumber(lm->L, t);
+  lua_call(lm->L, 2, 0);
+}
+
+static real_t lm_max_dt(void* context, real_t t, char* reason)
+{
+  lua_model_t* lm = context;
+  lua_pushlightuserdata(lm->L, lm);
+  lua_gettable(lm->L, LUA_REGISTRYINDEX);
+
+  // Call the max_dt method.
+  lua_getfield(lm->L, -1, "max_dt");
+  lua_pushvalue(lm->L, -2);
+  lua_pushnumber(lm->L, t);
+  lua_call(lm->L, 2, 2);
+
+  if (!lua_isnumber(lm->L, -2))
+  {
+    luaL_error(lm->L, "max_dt function did not return a dt.");
+    return 0.0;
+  }
+  if (!lua_isstring(lm->L, -1))
+  {
+    luaL_error(lm->L, "max_dt function did not return a string.");
+    return 0.0;
+  }
+  const char* r = lua_tostring(lm->L, -1);
+  strcpy(reason, r);
+  return lua_to_real(lm->L, -2);
+}
+
+static real_t lm_advance(void* context, real_t max_dt, real_t t)
+{
+  lua_model_t* lm = context;
+  lua_pushlightuserdata(lm->L, lm);
+  lua_gettable(lm->L, LUA_REGISTRYINDEX);
+
+  // Do it.
+  lua_getfield(lm->L, -1, "advance");
+  lua_pushvalue(lm->L, -2);
+  lua_pushnumber(lm->L, max_dt);
+  lua_pushnumber(lm->L, t);
+  lua_call(lm->L, 3, 1);
+
+  if (!lua_isstring(lm->L, -1))
+    return luaL_error(lm->L, "advance function did not return a dt.");
+  return lua_to_real(lm->L, -1);
+}
+
+static void lm_load(void* context, const char* file_prefix, const char* directory, real_t* time, int step)
+{
+  lua_model_t* lm = context;
+  lua_pushlightuserdata(lm->L, lm);
+  lua_gettable(lm->L, LUA_REGISTRYINDEX);
+
+  // Do it!
+  lua_getfield(lm->L, -1, "load");
+  lua_pushvalue(lm->L, -2);
+  lua_pushstring(lm->L, file_prefix);
+  lua_pushstring(lm->L, directory);
+  lua_pushinteger(lm->L, step);
+  lua_call(lm->L, 4, 1);
+
+  if (!lua_isnumber(lm->L, -1))
+    luaL_error(lm->L, "load function did not return a time.");
+  *time = lua_to_real(lm->L, -1);
+}
+
+static void lm_save(void* context, const char* file_prefix, const char* directory, real_t time, int step)
+{
+  lua_model_t* lm = context;
+  lua_pushlightuserdata(lm->L, lm);
+  lua_gettable(lm->L, LUA_REGISTRYINDEX);
+
+  // Call it!
+  lua_getfield(lm->L, -1, "save");
+  lua_pushvalue(lm->L, -2);
+  lua_pushstring(lm->L, file_prefix);
+  lua_pushstring(lm->L, directory);
+  lua_pushnumber(lm->L, time);
+  lua_pushinteger(lm->L, step);
+  lua_call(lm->L, 5, 0);
+}
+
+static void lm_plot(void* context, const char* file_prefix, const char* directory, real_t time, int step)
+{
+  lua_model_t* lm = context;
+  lua_pushlightuserdata(lm->L, lm);
+  lua_gettable(lm->L, LUA_REGISTRYINDEX);
+
+  // Call it!
+  lua_getfield(lm->L, -1, "plot");
+  lua_pushvalue(lm->L, -2);
+  lua_pushstring(lm->L, file_prefix);
+  lua_pushstring(lm->L, directory);
+  lua_pushnumber(lm->L, time);
+  lua_pushinteger(lm->L, step);
+  lua_call(lm->L, 5, 0);
+}
+
+static void lm_finalize(void* context, int step, real_t t)
+{
+  lua_model_t* lm = context;
+  lua_pushlightuserdata(lm->L, lm);
+  lua_gettable(lm->L, LUA_REGISTRYINDEX);
+
+  // Call it!
+  lua_getfield(lm->L, -1, "finalize");
+  lua_pushvalue(lm->L, -2);
+  lua_pushnumber(lm->L, step);
+  lua_pushnumber(lm->L, t);
+  lua_call(lm->L, 3, 0);
+}
+
+static void lm_dtor(void* context)
+{
+  lua_model_t* lm = context;
+  lua_pushlightuserdata(lm->L, lm);
+  lua_gettable(lm->L, LUA_REGISTRYINDEX);
+  lua_pushnil(lm->L);
+  lua_settable(lm->L, LUA_REGISTRYINDEX);
+  polymec_free(context);
+}
+
+static int m_new(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) || !lua_istable(L, 1))
+    return luaL_error(L, "Argument must be a table with keys for its name and methods.");
+  
+  // Create a table at the top of the stack. This will be the context for 
+  // the methods.
+  lua_newtable(L);
+  int obj_index = num_args + 1;
+
+  // Fetch keys and fill in blanks.
+  char* name = NULL;
+  model_vtable vtable = {.dtor = lm_dtor};
+  lua_pushnil(L);
+  while (lua_next(L, 1))
+  {
+    // Key is at index -2, value is at -1.
+    if (!lua_isstring(L, -2))
+      luaL_error(L, "Keys in table must be strings.");
+    const char* key = lua_tostring(L, -2);
+    if (strcmp(key, "name") == 0)
+    {
+      if (!lua_isstring(L, -1))
+        luaL_error(L, "Name must be a string.");
+      name = string_dup(lua_tostring(L, -1));
+      lua_pop(L, 1);
+    }
+    else
+    {
+      if (!lua_isfunction(L, -1))
+        luaL_error(L, "Methods must be functions.");
+      if (strcmp(key, "init") == 0)
+      {
+        lua_setfield(L, obj_index, "init");
+        vtable.init = lm_init;
+      }
+      else if (strcmp(key, "max_dt") == 0)
+      {
+        lua_setfield(L, obj_index, "max_dt");
+        vtable.max_dt = lm_max_dt;
+      }
+      else if (strcmp(key, "advance") == 0)
+      {
+        lua_setfield(L, obj_index, "advance");
+        vtable.advance = lm_advance;
+      }
+      else if (strcmp(key, "load") == 0)
+      {
+        lua_setfield(L, obj_index, "load");
+        vtable.load = lm_load;
+      }
+      else if (strcmp(key, "save") == 0)
+      {
+        lua_setfield(L, obj_index, "save");
+        vtable.save = lm_save;
+      }
+      else if (strcmp(key, "plot") == 0)
+      {
+        lua_setfield(L, obj_index, "plot");
+        vtable.plot = lm_plot;
+      }
+      else if (strcmp(key, "finalize") == 0)
+      {
+        lua_setfield(L, obj_index, "finalize");
+        vtable.finalize = lm_finalize;
+      }
+    }
+  }
+  
+  // What are we missing?
+  if (vtable.init == NULL)
+    luaL_error(L, "init method must be provided.");
+  if (vtable.advance == NULL)
+    luaL_error(L, "advance method must be provided.");
+
+  // Set up a context to store the Lua state.
+  lua_model_t* lm = polymec_malloc(sizeof(lua_model_t));
+  lm->L = L;
+
+  // Store the table representing our object in the registry, with 
+  // context as a key.
+  lua_rawsetp(L, LUA_REGISTRYINDEX, lm);
+
+  // Set up the model and get on with it.
+  model_t* m = model_new(name, lm, vtable, MODEL_SERIAL);
+  lua_push_model(L, m);
+
+  // Clean up.
+  string_free(name);
+
+  return 1;
+}
+
+static lua_module_function model_funcs[] = {
+  {"new", m_new},
+  {NULL, NULL}
+};
+
 static int m_load(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
@@ -408,7 +646,7 @@ static lua_class_method probe_methods[] = {
 
 int lua_register_model_modules(lua_State* L)
 {
-  lua_register_class(L, "model", NULL, model_methods);
+  lua_register_class(L, "model", model_funcs, model_methods);
   lua_register_class(L, "probe", probe_funcs, probe_methods);
 
   return 0;
