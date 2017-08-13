@@ -1,4 +1,62 @@
 -- This tests the various geometry classes.
 
+-- Try out the shake-n-bake signed distance functions.
+plane = sd_func.plane{normal = vector.new(1, 0, 0),
+                      point = point.new(0, 0, 0)}
+cyl = sd_func.cylinder{point = point.new(0, 0, 0),
+                       radius = 1,
+                       orientation = "inward"}
+sph = sd_func.sphere{point = point.new(0, 0, 0),
+                     radius = 1,
+                     orientation = "inward"}
+union = sd_func.union{plane, cyl, sph}
+int = sd_func.intersection{plane, cyl, sph}
+diff = sd_func.difference(cyl, sph)
+print(plane, cyl, sph, union, int, diff)
+x = point.new(0.5, 0.5, 0.5)
+print(plane(x), cyl(x), sph(x), union(x), int(x), diff(x))
+print(plane:grad(x), cyl:grad(x), sph:grad(x), union:grad(x), int:grad(x), diff:grad(x))
+print(plane:project(x), cyl:project(x), sph:project(x), union:project(x), int:project(x), diff:project(x))
+
+-- Now let's make our own plane function.
+function pl1_value(self, x)
+  n = vector.new(1, 0, 0)
+  x0 = point.new(0, 0, 0)
+  D = x - x0
+  return vector.dot(D, n)
+end
+
+function pl1_grad(self, x)
+  return vector.new(-1, 0, 0)
+end
+
+plane1 = sd_func.new{name = "my plane", 
+                     value = pl1_value, 
+                     grad = pl1_grad}
+print(plane1)
+print(plane1(x))
+print(plane1:grad(x))
+print(plane1:project(x))
+
+-- Now let's make a plane that moves to the right with speed 1.
+function pl2_value(self, x, t)
+  n = vector.new(1, 0, 0)
+  x0 = point.new(t, 0, 0)
+  D = x - x0
+  return vector.dot(D, n)
+end
+
+function pl2_grad(self, x, t)
+  return vector.new(t-1, 0, 0)
+end
+
+plane2 = sdt_func.new{name = "my moving plane", 
+                      value = pl2_value, 
+                      grad = pl2_grad}
+print(plane2)
+print(plane2(x, 1))
+print(plane2:grad(x, 1))
+print(plane2:project(x, 1))
+
 -- Force probe garbage collection.
 collectgarbage("collect")

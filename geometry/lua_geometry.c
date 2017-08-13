@@ -7,6 +7,12 @@
 
 #include "core/lua_core.h"
 #include "geometry/lua_geometry.h"
+#include "geometry/plane_sd_func.h"
+#include "geometry/sphere_sd_func.h"
+#include "geometry/cylinder_sd_func.h"
+#include "geometry/union_sd_func.h"
+#include "geometry/intersection_sd_func.h"
+#include "geometry/difference_sd_func.h"
 
 #include "lua.h"
 #include "lualib.h"
@@ -99,6 +105,7 @@ static int sd_new(lua_State* L)
 
   // Store the table representing our object in the registry, with 
   // context as a key.
+  lua_pushvalue(L, obj_index);
   lua_rawsetp(L, LUA_REGISTRYINDEX, lo);
 
   // Set up the function.
@@ -126,9 +133,166 @@ static int sd_from_sp_funcs(lua_State* L)
   return 1;
 }
 
+static int sd_plane(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) && !lua_istable(L, 1))
+    return luaL_error(L, "Argument must be a table with normal and point entries.");
+
+  lua_getfield(L, 1, "normal");
+  if (!lua_is_vector(L, -1))
+    return luaL_error(L, "normal must be a vector.");
+  vector_t* n = lua_to_vector(L, -1);
+
+  lua_getfield(L, 1, "point");
+  if (!lua_is_point(L, -1))
+    return luaL_error(L, "point must be a point.");
+  point_t* x = lua_to_point(L, -1);
+
+  sd_func_t* f = plane_sd_func_new(n, x);
+  lua_push_sd_func(L, f);
+  return 1;
+}
+
+static int sd_sphere(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) && !lua_istable(L, 1))
+    return luaL_error(L, "Argument must be a table with point, radius, and orientation entries.");
+
+  lua_getfield(L, 1, "point");
+  if (!lua_is_point(L, -1))
+    return luaL_error(L, "point must be a point.");
+  point_t* x = lua_to_point(L, -1);
+
+  lua_getfield(L, 1, "radius");
+  if (!lua_isnumber(L, -1))
+    return luaL_error(L, "radius must be a positive number.");
+  real_t r = lua_to_real(L, -1);
+  if (r <= 0.0)
+    return luaL_error(L, "radius must be positive.");
+
+  normal_orient_t orient;
+  lua_getfield(L, 1, "orientation");
+  if (!lua_isstring(L, -1))
+    return luaL_error(L, "orientation must be 'inward' or 'outward'.");
+  const char* orientation = lua_tostring(L, -1);
+  if (strcasecmp(orientation, "inward") == 0)
+    orient = INWARD_NORMAL;
+  else if (strcasecmp(orientation, "outward") == 0)
+    orient = OUTWARD_NORMAL;
+  else 
+    return luaL_error(L, "invalid orientation: %s (must be 'inward' or 'outward').", orientation);
+
+  sd_func_t* f = sphere_sd_func_new(x, r, orient);
+  lua_push_sd_func(L, f);
+  return 1;
+}
+
+static int sd_cylinder(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) && !lua_istable(L, 1))
+    return luaL_error(L, "Argument must be a table with point, radius, and orientation entries.");
+
+  lua_getfield(L, 1, "point");
+  if (!lua_is_point(L, -1))
+    return luaL_error(L, "point must be a point.");
+  point_t* x = lua_to_point(L, -1);
+
+  lua_getfield(L, 1, "radius");
+  if (!lua_isnumber(L, -1))
+    return luaL_error(L, "radius must be a positive number.");
+  real_t r = lua_to_real(L, -1);
+  if (r <= 0.0)
+    return luaL_error(L, "radius must be positive.");
+
+  normal_orient_t orient;
+  lua_getfield(L, 1, "orientation");
+  if (!lua_isstring(L, -1))
+    return luaL_error(L, "orientation must be 'inward' or 'outward'.");
+  const char* orientation = lua_tostring(L, -1);
+  if (strcasecmp(orientation, "inward") == 0)
+    orient = INWARD_NORMAL;
+  else if (strcasecmp(orientation, "outward") == 0)
+    orient = OUTWARD_NORMAL;
+  else 
+    return luaL_error(L, "invalid orientation: %s (must be 'inward' or 'outward').", orientation);
+
+  sd_func_t* f = cylinder_sd_func_new(x, r, orient);
+  lua_push_sd_func(L, f);
+  return 1;
+}
+
+static int sd_union(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) && !lua_istable(L, 1))
+    return luaL_error(L, "Argument must be a table of sd_funcs.");
+
+  int num_surfaces = (int)lua_rawlen(L, 1);
+  sd_func_t* surfaces[num_surfaces];
+
+  for (int i = 0; i < num_surfaces; ++i)
+  {
+    lua_rawgeti(L, 1, i+1);
+    if (!lua_is_sd_func(L, -1))
+      return luaL_error(L, "Item %d in table is not an sd_func.", i+1);
+    surfaces[i] = lua_to_sd_func(L, -1);
+  }
+
+  sd_func_t* f = union_sd_func_new(surfaces, num_surfaces);
+  lua_push_sd_func(L, f);
+  return 1;
+}
+
+static int sd_intersection(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) && !lua_istable(L, 1))
+    return luaL_error(L, "Argument must be a table of sd_funcs.");
+
+  int num_surfaces = (int)lua_rawlen(L, 1);
+  sd_func_t* surfaces[num_surfaces];
+
+  for (int i = 0; i < num_surfaces; ++i)
+  {
+    lua_rawgeti(L, 1, i+1);
+    if (!lua_is_sd_func(L, -1))
+      return luaL_error(L, "Item %d in table is not an sd_func.", i+1);
+    surfaces[i] = lua_to_sd_func(L, -1);
+  }
+
+  sd_func_t* f = intersection_sd_func_new(surfaces, num_surfaces);
+  lua_push_sd_func(L, f);
+  return 1;
+}
+
+static int sd_difference(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if (num_args != 2)
+    return luaL_error(L, "Arguments must be a pair of sd_funcs.");
+  if (!lua_is_sd_func(L, 1))
+    return luaL_error(L, "Argument 1 must be an sd_func.");
+  if (!lua_is_sd_func(L, 2))
+    return luaL_error(L, "Argument 2 must be an sd_func.");
+
+  sd_func_t* f = difference_sd_func_new(lua_to_sd_func(L, 1), 
+                                        lua_to_sd_func(L, 2));
+  lua_push_sd_func(L, f);
+  return 1;
+}
+
 static lua_module_function sd_funcs[] = {
   {"new", sd_new},
   {"from_sp_funcs", sd_from_sp_funcs},
+  {"plane", sd_plane},
+  {"sphere", sd_sphere},
+  {"cylinder", sd_cylinder},
+  {"union", sd_union},
+  {"intersection", sd_intersection},
+  {"difference", sd_difference},
   {NULL, NULL}
 };
 
@@ -274,6 +438,7 @@ static int sdt_new(lua_State* L)
 
   // Store the table representing our object in the registry, with 
   // context as a key.
+  lua_pushvalue(L, obj_index);
   lua_rawsetp(L, LUA_REGISTRYINDEX, lo);
 
   // Set up the function.

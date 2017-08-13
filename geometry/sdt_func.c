@@ -26,7 +26,7 @@ static void sdt_func_free(void* ctx)
 sdt_func_t* sdt_func_new(const char* name, void* context, sdt_func_vtable vtable)
 {
   ASSERT(vtable.value != NULL);
-  ASSERT(vtable.eval_grad == NULL);
+  ASSERT(vtable.eval_grad != NULL);
   sdt_func_t* f = polymec_gc_malloc(sizeof(sdt_func_t), sdt_func_free);
   f->name = string_dup(name);
   f->context = context;
