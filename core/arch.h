@@ -21,7 +21,6 @@ FILE* fmemopen(void *buf, size_t size, const char *mode);
 // This is a port of open_memstream, which is not part of the C standard.
 FILE* open_memstream(char **buf, size_t *len);
 
-#ifdef APPLE
 //------------------------------------------------------------------------
 // Below is an implementation of the non-standard PThreads barrier type.
 //------------------------------------------------------------------------
@@ -49,5 +48,4 @@ int pthread_barrier_destroy(pthread_barrier_t* barrier);
 // Causes the barrier to block until all of its threads finish their tasks.
 int pthread_barrier_wait(pthread_barrier_t* barrier);
 
-#endif
 #endif
