@@ -9,7 +9,6 @@
 #define POLYMEC_ARCH_H
 
 #include <stdio.h>
-#include "c11threads.h"
 
 // This file contains functions that are unavailable on certain target 
 // architectures.

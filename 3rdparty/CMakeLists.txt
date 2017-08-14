@@ -29,15 +29,6 @@ if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
 endif()
 set(POLYMEC_TP_LIBS linenoise;${POLYMEC_TP_LIBS})
 
-# Install the c11threads.h header, which we use to provide a C11 threads 
-# interface while the C community gets its act together.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/c11threads.h)
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/c11threads/c11threads.h ${PROJECT_BINARY_DIR}/include)
-endif()
-if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/c11threads/c11threads.h DESTINATION include)
-endif()
-
 # Build cmocka, a C unit testing library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
   message(STATUS "Configuring cmocka...")
