@@ -9,7 +9,6 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <string.h>
-#include <time.h>
 #include "cmocka.h"
 #include "core/polymec.h"
 #include "core/arch.h"
@@ -64,57 +63,13 @@ static void test_memstream(void** state)
   fclose(f);
 }
 
-static pthread_barrier_t _barrier;
-static rng_t* _rng = NULL;
-
-static void* thread_func(void *id_ptr) 
-{
-  int thread_id = *(int*)id_ptr;
-  int wait_usec = 1000 + (int)rng_get(_rng) % 5000;
-  log_info("thread %d: Wait for %d us.", thread_id, wait_usec);
-  struct timespec req = {.tv_sec = 0, .tv_nsec = 1000*wait_usec};
-  nanosleep(&req, NULL);
-  log_info("thread %d: I'm ready...", thread_id);
-
-  pthread_barrier_wait(&_barrier);
-
-  log_info("thread %d: going!", thread_id);
-  return NULL;
-}
-
-static void test_pthread_barrier(void** state)
-{
-  int num_threads = 4;
-
-  // Use the system's rand() function for a random number generator.
-  _rng = rand_rng_new();
-  rng_set_seed(_rng, (uint32_t)time(NULL));
-  pthread_barrier_init(&_barrier, NULL, num_threads + 1);
-
-  pthread_t ids[num_threads];
-  int short_ids[num_threads];
-  for (int i = 0; i < num_threads; ++i) 
-  {
-    short_ids[i] = i;
-    pthread_create(&ids[i], NULL, thread_func, &short_ids[i]);
-  }
-
-  pthread_barrier_wait(&_barrier);
-
-  for (int i = 0; i < num_threads; ++i) 
-    pthread_join(ids[i], NULL);
-
-  pthread_barrier_destroy(&_barrier);
-}
-
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_fmemopen),
-    cmocka_unit_test(test_memstream),
-    cmocka_unit_test(test_pthread_barrier)
+    cmocka_unit_test(test_memstream)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

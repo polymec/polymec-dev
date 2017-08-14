@@ -18,18 +18,25 @@ string(REPLACE "-ftest-coverage" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 add_library(linenoise ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.c)
 set_target_properties(linenoise PROPERTIES FOLDER Libraries)
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include)
-  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/include
-                  RESULT_VARIABLE stat)
+  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/include)
 endif()
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/linenoise.h)
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h ${PROJECT_BINARY_DIR}/include
-                  RESULT_VARIABLE stat)
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h ${PROJECT_BINARY_DIR}/include)
 endif()
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h DESTINATION include)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liblinenoise${LIB_SUFFIX} DESTINATION lib)
 endif()
 set(POLYMEC_TP_LIBS linenoise;${POLYMEC_TP_LIBS})
+
+# Install the c11threads.h header, which we use to provide a C11 threads 
+# interface while the C community gets its act together.
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/c11threads.h)
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/c11threads/c11threads.h ${PROJECT_BINARY_DIR}/include)
+endif()
+if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/c11threads/c11threads.h DESTINATION include)
+endif()
 
 # Build cmocka, a C unit testing library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
