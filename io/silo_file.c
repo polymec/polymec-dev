@@ -78,6 +78,8 @@ void silo_enable_compression(int level)
     DBSetCompression(options);
     silo_compression_level = level; 
   }
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 static void silo_field_metadata_free(void* ctx)

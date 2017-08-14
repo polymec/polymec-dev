@@ -11,6 +11,44 @@
 #include <stdint.h>
 #include "mpi.h"
 
+static size_t data_size(MPI_Datatype datatype)
+{
+  if (datatype == MPI_DOUBLE)
+    return sizeof(double);
+  else if (datatype == MPI_FLOAT)
+    return sizeof(float);
+  else if (datatype == MPI_INT)
+    return sizeof(int);
+  else if (datatype == MPI_SHORT)
+    return sizeof(short);
+  else if (datatype == MPI_LONG_LONG_INT)
+    return sizeof(long long);
+  else if (datatype == MPI_CHAR)
+    return sizeof(char);
+  else if (datatype == MPI_LONG)
+    return sizeof(long);
+  else if (datatype == MPI_UNSIGNED_LONG)
+    return sizeof(unsigned long);
+  else if (datatype == MPI_BYTE)
+    return sizeof(unsigned char);
+  else if (datatype == MPI_INT8_T)
+    return sizeof(int8_t);
+  else if (datatype == MPI_INT16_T)
+    return sizeof(int16_t);
+  else if (datatype == MPI_INT32_T)
+    return sizeof(int32_t);
+  else if (datatype == MPI_INT64_T)
+    return sizeof(int64_t);
+  else if (datatype == MPI_UINT8_T)
+    return sizeof(uint8_t);
+  else if (datatype == MPI_UINT16_T)
+    return sizeof(uint16_t);
+  else if (datatype == MPI_UINT32_T)
+    return sizeof(uint32_t);
+  else //if (datatype == MPI_UINT64_T)
+    return sizeof(uint64_t);
+}
+
 int MPI_Initialized(int *flag)
 {
   *flag = 0;
@@ -107,16 +145,19 @@ int MPI_Get_count(MPI_Status *status, MPI_Datatype datatype, int *count)
 
 int MPI_Alltoall(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm)
 {
+  memcpy(recvbuf, sendbuf, datasize(sendtype) * sendcount);
   return MPI_SUCCESS;
 }
 
 int MPI_Allgather(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm)
 {
+  memcpy(recvbuf, sendbuf, datasize(sendtype) * sendcount);
   return MPI_SUCCESS;
 }
 
 int MPI_Allgatherv(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int *recvcounts, int *displs, MPI_Datatype recvtype, MPI_Comm comm)
 {
+  memcpy(recvbuf, sendbuf, datasize(sendtype) * sendcount);
   return MPI_SUCCESS;
 }
 
@@ -213,44 +254,6 @@ int MPI_Waitall(int count, MPI_Request *array_of_requests, MPI_Status *array_of_
 int MPI_Waitany(int count, MPI_Request *array_of_requests, int *index, MPI_Status *status)
 {
   return MPI_SUCCESS;
-}
-
-static size_t data_size(MPI_Datatype datatype)
-{
-  if (datatype == MPI_DOUBLE)
-    return sizeof(double);
-  else if (datatype == MPI_FLOAT)
-    return sizeof(float);
-  else if (datatype == MPI_INT)
-    return sizeof(int);
-  else if (datatype == MPI_SHORT)
-    return sizeof(short);
-  else if (datatype == MPI_LONG_LONG_INT)
-    return sizeof(long long);
-  else if (datatype == MPI_CHAR)
-    return sizeof(char);
-  else if (datatype == MPI_LONG)
-    return sizeof(long);
-  else if (datatype == MPI_UNSIGNED_LONG)
-    return sizeof(unsigned long);
-  else if (datatype == MPI_BYTE)
-    return sizeof(unsigned char);
-  else if (datatype == MPI_INT8_T)
-    return sizeof(int8_t);
-  else if (datatype == MPI_INT16_T)
-    return sizeof(int16_t);
-  else if (datatype == MPI_INT32_T)
-    return sizeof(int32_t);
-  else if (datatype == MPI_INT64_T)
-    return sizeof(int64_t);
-  else if (datatype == MPI_UINT8_T)
-    return sizeof(uint8_t);
-  else if (datatype == MPI_UINT16_T)
-    return sizeof(uint16_t);
-  else if (datatype == MPI_UINT32_T)
-    return sizeof(uint32_t);
-  else //if (datatype == MPI_UINT64_T)
-    return sizeof(uint64_t);
 }
 
 int MPI_Allreduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)

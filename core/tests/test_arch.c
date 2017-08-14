@@ -30,7 +30,8 @@ static void test_fmemopen(void** state)
   assert_int_equal(pos, 0);
 
   char s[len];
-  (void)fread(s, sizeof(char), len, f);
+  size_t bytes_read = fread(s, sizeof(char), len, f);
+  assert_int_equal(bytes_read, sizeof(char)*len);
   assert_int_equal(0, strcmp(s, test_string));
   rewind(f);
   fclose(f);
@@ -48,13 +49,13 @@ static void test_memstream(void** state)
 { 
   // Open a memory stream for writing our test string.
   size_t len = strlen(test_string) + 1;
-  char* s;
+  char* s = NULL;
   size_t pos = 0;
   FILE* f = open_memstream(&s, &pos);
-  assert_true(s != NULL);
   assert_int_equal(0, pos);
   fwrite(test_string, sizeof(char), len, f);
   fflush(f);
+  assert_true(s != NULL);
   assert_int_equal(len, pos);
   assert_int_equal(0, strcmp(s, test_string));
   rewind(f);

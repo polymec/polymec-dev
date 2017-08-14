@@ -17,6 +17,7 @@ typedef struct
   size_t pos;
   size_t size;
   char* buffer;
+  bool own_buff;
 } fmem_t;
 
 static int fmem_read(void* context, char* buf, int size) 
@@ -70,6 +71,8 @@ static fpos_t fmem_seek(void* context, fpos_t offset, int whence)
 static int fmem_close(void *context) 
 {
   fmem_t* fmem = context;
+  if (fmem->own_buff)
+    polymec_free(fmem->buffer);
   polymec_free(fmem);
   return 0;
 }
@@ -79,7 +82,16 @@ FILE *fmemopen(void *buf, size_t size, const char *mode)
   fmem_t* fmem = polymec_malloc(sizeof(fmem_t)); // Context pointer.
   fmem->pos = 0;
   fmem->size = size;
-  fmem->buffer = buf;
+  if (buf != NULL)
+  {
+    fmem->buffer = buf;
+    fmem->own_buff = false;
+  }
+  else
+  {
+    fmem->buffer = polymec_malloc(size);
+    fmem->own_buff = true;
+  }
   return funopen(fmem, fmem_read, fmem_write, fmem_seek, fmem_close);
 }
 
