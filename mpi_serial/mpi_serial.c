@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <time.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -72,8 +73,9 @@ int MPI_Abort(MPI_Comm comm, int errorcode)
 
 double MPI_Wtime()
 {
-  time_t t = time(NULL);
-  return difftime(t, 0);
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return tv.tv_sec + 1e-6 * tv.tv_usec;
 }
 
 double MPI_Wtick()
@@ -145,19 +147,19 @@ int MPI_Get_count(MPI_Status *status, MPI_Datatype datatype, int *count)
 
 int MPI_Alltoall(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm)
 {
-  memcpy(recvbuf, sendbuf, datasize(sendtype) * sendcount);
+  memcpy(recvbuf, sendbuf, data_size(sendtype) * sendcount);
   return MPI_SUCCESS;
 }
 
 int MPI_Allgather(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm)
 {
-  memcpy(recvbuf, sendbuf, datasize(sendtype) * sendcount);
+  memcpy(recvbuf, sendbuf, data_size(sendtype) * sendcount);
   return MPI_SUCCESS;
 }
 
 int MPI_Allgatherv(void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int *recvcounts, int *displs, MPI_Datatype recvtype, MPI_Comm comm)
 {
-  memcpy(recvbuf, sendbuf, datasize(sendtype) * sendcount);
+  memcpy(recvbuf, sendbuf, data_size(sendtype) * sendcount);
   return MPI_SUCCESS;
 }
 
