@@ -30,7 +30,7 @@ static void test_fmemopen(void** state)
   assert_int_equal(pos, 0);
 
   char s[len];
-  fread(s, sizeof(char), len, f);
+  (void)fread(s, sizeof(char), len, f);
   assert_int_equal(0, strcmp(s, test_string));
   rewind(f);
   fclose(f);
