@@ -1301,6 +1301,7 @@ static void silo_file_read_tags(silo_file_t* file, const char* tag_list_name, ta
       j += tag_sizes[i];
     }
     ASSERT(j == var->nvalues);
+    DBFreeCompoundarray(var);
   }
 }
 

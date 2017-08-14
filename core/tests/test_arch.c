@@ -61,6 +61,7 @@ static void test_memstream(void** state)
   pos = ftell(f);
   assert_int_equal(0, pos);
   fclose(f);
+  free(s);
 }
 
 int main(int argc, char* argv[]) 

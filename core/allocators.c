@@ -23,6 +23,7 @@ static polymec_allocator_t* polymec_allocator_new(const char* name,
                                                   void* context,
                                                   polymec_allocator_vtable vtable)
 {
+  ASSERT(name != NULL);
   ASSERT(vtable.malloc != NULL);
   ASSERT(vtable.realloc != NULL);
   ASSERT(vtable.free != NULL);
@@ -39,6 +40,7 @@ void polymec_allocator_free(polymec_allocator_t* alloc)
 {
   if ((alloc->context != NULL) && (alloc->vtable.dtor != NULL))
     alloc->vtable.dtor(alloc->context);
+  free(alloc->name);
   free(alloc);
 }
 
