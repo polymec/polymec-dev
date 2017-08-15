@@ -65,21 +65,30 @@ void silo_file_add_subdomain_field(silo_file_t* file,
 // End unpublished functions
 //-------------------------------------------------------------------------
 
+// SILO Compression -- global parameter. Disabled by default.
+static int _silo_compression_level = -1; 
+static bool _silo_compression_level_changed = false;
+
+static void silo_set_compression(void)
+{
+  if (_silo_compression_level_changed)
+  {
+    char options[1024];
+    snprintf(options, 1024, "METHOD=GZIP,LEVEL=%d", _silo_compression_level);
+    DBSetCompression(options);
+    _silo_compression_level_changed = false;
+  }
+}
+
 void silo_enable_compression(int level)
 {
   ASSERT(level >= 0);
   ASSERT(level <= 9);
-  // Global compression level for Silo.
-  static int silo_compression_level = -1; // Disabled by default.
-  if (level != silo_compression_level)
+  if (level != _silo_compression_level)
   {
-    char options[1024];
-    snprintf(options, 1024, "METHOD=GZIP,LEVEL=%d", level);
-    DBSetCompression(options);
-    silo_compression_level = level; 
+    _silo_compression_level = level; 
+    _silo_compression_level_changed = true;
   }
-
-  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 static void silo_field_metadata_free(void* ctx)
@@ -805,6 +814,10 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 {
   START_FUNCTION_TIMER();
   ASSERT((num_files == -1) || (num_files > 0));
+
+  // Set compression if needed.
+  silo_set_compression();
+
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->expressions = string_ptr_unordered_map_new();
 
@@ -991,6 +1004,10 @@ silo_file_t* silo_file_open(MPI_Comm comm,
                             real_t* time)
 {
   START_FUNCTION_TIMER();
+
+  // Set compression if needed.
+  silo_set_compression();
+
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->mode = DB_READ;
   file->step = -1;
@@ -1035,8 +1052,10 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   // For now, we only support reading files that were written with the same 
   // number of processes.
   if (nproc != num_mpi_procs)
+  {
     polymec_not_implemented("silo_file_open: reading files written with different\n"
                             "number of MPI processes is not yet supported.");
+  }
 
   // Check to see whether the requested step is available, or whether the 
   // latest one is requested (with -1).
