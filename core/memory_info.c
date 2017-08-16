@@ -82,6 +82,7 @@ static void get_memory_info_linux(memory_info_t* info)
         }
       }
     }
+    fclose(proc);
   }
   else if (first_time)
   {

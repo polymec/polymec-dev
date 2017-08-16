@@ -74,7 +74,7 @@ static void silo_set_compression(void)
   if (_silo_compression_level_changed)
   {
     char options[1024];
-    snprintf(options, 1024, "METHOD=GZIP,LEVEL=%d", _silo_compression_level);
+    snprintf(options, 1024, "ERRMODE=FALLBACK,METHOD=GZIP,LEVEL=%d", _silo_compression_level);
     DBSetCompression(options);
     _silo_compression_level_changed = false;
   }
@@ -1375,8 +1375,6 @@ exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_n
 {
   START_FUNCTION_TIMER();
 
-  set_domain_dir(file);
-
   // Read the exchanger array in.
   size_t size;
   int* array = silo_file_read_int_array(file, exchanger_name, &size);
@@ -1408,7 +1406,6 @@ exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_n
 
   // Clean up.
   polymec_free(array);
-  set_root_dir(file);
 
   STOP_FUNCTION_TIMER();
 

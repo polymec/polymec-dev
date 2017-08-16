@@ -29,7 +29,7 @@ static void test_fmemopen(void** state)
   pos = ftell(f);
   assert_int_equal(pos, 0);
 
-  char s[len];
+  char s[len+1];
   size_t bytes_read = fread(s, sizeof(char), len, f);
   assert_int_equal(bytes_read, sizeof(char)*len);
   assert_int_equal(0, strcmp(s, test_string));
