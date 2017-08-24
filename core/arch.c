@@ -40,7 +40,7 @@ static int fmem_write(void* context, const char* buf, int size)
   size_t available = mem->size - mem->pos;
 
   if (size > available) 
-    size = (int)available;
+    return -1;
 
   memcpy(mem->buffer + mem->pos, buf, sizeof(char)*size);
   mem->pos += size;
@@ -58,7 +58,7 @@ static fpos_t fmem_seek(void* context, fpos_t offset, int whence)
     case SEEK_SET: pos = offset; break;
     case SEEK_CUR: pos = mem->pos + offset; break;
     case SEEK_END: pos = mem->size + offset; break;
-    default: return -1;
+    default: errno = EINVAL; return -1;
   }
 
   if (pos > mem->size) 
