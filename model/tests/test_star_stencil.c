@@ -11,6 +11,7 @@
 #include <string.h>
 #include "cmocka.h"
 #include "core/unordered_set.h"
+#include "core/timer.h"
 #include "geometry/cubic_lattice.h"
 #include "geometry/create_uniform_mesh.h"
 #include "model/mesh_stencils.h"
@@ -24,6 +25,8 @@ static void check_stencil(void** state,
                           int num_corner_neighbors,
                           stencil_t* stencil)
 {
+  START_FUNCTION_TIMER();
+
   MPI_Comm comm = mesh->comm;
   int rank, nprocs;
   MPI_Comm_rank(comm, &rank);
@@ -74,6 +77,7 @@ static void check_stencil(void** state,
     }
     int_unordered_set_free(neighbors);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 static void test_NXxNYxNZ_star_stencil(void** state, 
@@ -148,38 +152,52 @@ static void test_NXxNYxNZ_star_stencil(void** state,
 
 static void test_serial_1x1x1_cell_star_stencil(void** state)
 {
+  START_FUNCTION_TIMER();
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_SELF, 1, 1, 1, 1, 0, 0, 0, 0);
+  STOP_FUNCTION_TIMER();
 }
 
 static void test_serial_10x1x1_cell_star_stencil(void** state)
 {
+  START_FUNCTION_TIMER();
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_SELF, 1, 10, 1, 1, 0, 0, 2, 1);
+  STOP_FUNCTION_TIMER();
 }
 
 static void test_serial_10x10x1_cell_star_stencil(void** state)
 {
+  START_FUNCTION_TIMER();
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_SELF, 1, 10, 10, 1, 4, 4, 3, 2);
+  STOP_FUNCTION_TIMER();
 }
 
 static void test_serial_10x10x10_cell_star_stencil(void** state)
 {
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_SELF, 1, 10, 10, 10, 6, 5, 4, 3);
+  START_FUNCTION_TIMER();
+  STOP_FUNCTION_TIMER();
 }
 
 #if POLYMEC_HAVE_MPI
 static void test_parallel_10x1x1_cell_star_stencil(void** state)
 {
+  START_FUNCTION_TIMER();
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_WORLD, 1, 10, 1, 1, 0, 0, 2, 1);
+  STOP_FUNCTION_TIMER();
 }
 
 static void test_parallel_10x10x1_cell_star_stencil(void** state)
 {
+  START_FUNCTION_TIMER();
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_WORLD, 1, 10, 10, 1, 4, 4, 3, 2);
+  STOP_FUNCTION_TIMER();
 }
 
 static void test_parallel_10x10x10_cell_star_stencil(void** state)
 {
+  START_FUNCTION_TIMER();
   test_NXxNYxNZ_star_stencil(state, MPI_COMM_WORLD, 1, 10, 10, 10, 6, 5, 4, 3);
+  STOP_FUNCTION_TIMER();
 }
 #endif
 

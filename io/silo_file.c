@@ -359,6 +359,8 @@ bool silo_file_query(const char* file_prefix,
                      int* num_mpi_processes,
                      int_slist_t* steps)
 {
+  START_FUNCTION_TIMER();
+
   // No blank strings allowed for queries.
   ASSERT(strlen(file_prefix) > 0);
   ASSERT(strlen(directory) > 0);
@@ -372,6 +374,7 @@ bool silo_file_query(const char* file_prefix,
     if (!directory_exists(directory))
     {
       log_urgent("Can't query non-existent directory: %s", directory);
+      STOP_FUNCTION_TIMER();
       return false;
     }
     string_slist_t* files_in_dir = files_within_directory(directory);
@@ -402,6 +405,7 @@ bool silo_file_query(const char* file_prefix,
     {
       log_urgent("silo_file_query: Could not find %s/%s-*.silo.", directory, file_prefix);
       string_slist_free(files_in_dir);
+      STOP_FUNCTION_TIMER();
       return false;
     }
 
@@ -433,6 +437,7 @@ bool silo_file_query(const char* file_prefix,
       {
         log_urgent("silo_file_query: Could not read number of files in set.");
         DBClose(file);
+        STOP_FUNCTION_TIMER();
         return false;
       }
     }
@@ -442,6 +447,7 @@ bool silo_file_query(const char* file_prefix,
       {
         log_urgent("silo_query_file: Invalid Silo file.");
         DBClose(file);
+        STOP_FUNCTION_TIMER();
         return false;
       }
       ASSERT(DBInqVarExists(file, "num_mpi_procs"));
@@ -515,6 +521,7 @@ bool silo_file_query(const char* file_prefix,
     for (int i = 0; i < num_steps; ++i)
       int_slist_append(steps, step_buffer[i]);
   }
+  STOP_FUNCTION_TIMER();
   return true;
 }
 
@@ -620,9 +627,13 @@ static void write_provenance_to_file(silo_file_t* file)
 static void write_subdomains_to_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
+  START_FUNCTION_TIMER();
 
-  if (file->nproc == 1) return;
-  if (file->rank_in_group != 0) return;
+  if ((file->nproc == 1) || (file->rank_in_group != 0))
+  {
+    STOP_FUNCTION_TIMER();
+    return;
+  }
   int num_chunks = file->nproc / file->num_files;
 
   set_root_dir(file);
@@ -687,12 +698,15 @@ static void write_subdomains_to_file(silo_file_t* file)
     for (int j = 0; j < num_chunks; ++j)
       polymec_free(field_names[j]);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 static void write_master_file(silo_file_t* file)
 {
   ASSERT(file->mode == DB_CLOBBER);
   if (file->num_files == 1) return;
+
+  START_FUNCTION_TIMER();
 
   // FIXME: Should change this to use Silo's name schemes for multi-block 
   // FIXME: objects when we start to Get Real Parallel.
@@ -804,6 +818,8 @@ static void write_master_file(silo_file_t* file)
   log_debug("write_master_file: Handing off baton.");
   PMPIO_HandOffBaton(baton, (void*)master);
   PMPIO_Finish(baton);
+
+  STOP_FUNCTION_TIMER();
 }
 #endif
 
@@ -1339,8 +1355,6 @@ void silo_file_write_exchanger(silo_file_t* file, const char* exchanger_name, ex
 {
   START_FUNCTION_TIMER();
 
-  set_domain_dir(file);
-
   // Collapse the exchanger into a set of integers.
   // Format is: [nprocs rank send_map receive_map]
   // where send_map and receive_map are sets of integers encoding mappings
@@ -1376,7 +1390,6 @@ void silo_file_write_exchanger(silo_file_t* file, const char* exchanger_name, ex
 
   // Clean up.
   int_array_free(array);
-  set_root_dir(file);
   STOP_FUNCTION_TIMER();
 }
 
@@ -1417,7 +1430,6 @@ exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_n
   polymec_free(array);
 
   STOP_FUNCTION_TIMER();
-
   return ex;
 }
 
@@ -1672,7 +1684,6 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
   set_root_dir(file);
 
   STOP_FUNCTION_TIMER();
-
   return mesh;
 }
 

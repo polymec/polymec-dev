@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "model/stencil.h"
+#include "core/timer.h"
 #include "core/unordered_set.h"
 #include "core/array.h"
 #include "core/kd_tree.h"
@@ -231,6 +232,7 @@ void silo_file_write_stencil(silo_file_t* file,
                              const char* stencil_name,
                              stencil_t* stencil)
 {
+  START_FUNCTION_TIMER();
   char name_name[FILENAME_MAX+1];
   snprintf(name_name, FILENAME_MAX, "%s_stencil_name", stencil_name);
   silo_file_write_string(file, name_name, stencil->name);
@@ -249,12 +251,14 @@ void silo_file_write_stencil(silo_file_t* file,
     snprintf(ex_name, FILENAME_MAX, "%s_stencil_ex", stencil_name);
     silo_file_write_exchanger(file, ex_name, stencil->ex);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 stencil_t* silo_file_read_stencil(silo_file_t* file,
                                   const char* stencil_name,
                                   MPI_Comm comm)
 {
+  START_FUNCTION_TIMER();
   stencil_t* s = polymec_malloc(sizeof(stencil_t));
   char name_name[FILENAME_MAX+1];
   snprintf(name_name, FILENAME_MAX, "%s_stencil_name", stencil_name);
@@ -279,6 +283,7 @@ stencil_t* silo_file_read_stencil(silo_file_t* file,
   char ex_name[FILENAME_MAX+1];
   snprintf(ex_name, FILENAME_MAX, "%s_stencil_ex", stencil_name);
   s->ex = silo_file_read_exchanger(file, ex_name, comm);
+  STOP_FUNCTION_TIMER();
   return s;
 }
 
