@@ -55,6 +55,13 @@
    ...
 }
 {
+   orte_Read4
+   Memcheck:Addr4
+   ...
+   fun:orte_*
+   ...
+}
+{
    orte_Leak
    Memcheck:Leak
    ...
