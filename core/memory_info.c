@@ -44,6 +44,10 @@ static void get_memory_info_linux(memory_info_t* info)
   ram_used *= mem_info.mem_unit;
   info->physical_memory_used = ram_used / 1024;
 
+  // Free physical memory.
+  long long free_ram = mem_info.freeram * mem_info.mem_unit;
+  info->physical_memory_free = free_ram / 1024;
+
   // Process memory usage.
   info->process_virtual_size = 0;
   info->process_resident_size = 0;
