@@ -273,7 +273,7 @@ if (LINUX)
     set(VALGRIND_FOUND 1) # regularize this value
     include_directories(${VALGRIND_INCLUDE_DIR})
     set(MEMORYCHECK_COMMAND ${VALGRIND_PROGRAM})
-    set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 --trace-children=yes --suppressions=${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp" CACHE STRING "Options passed to Valgrind." FORCE)
+    set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=definite,possible --track-origins=yes --error-exitcode=1 --trace-children=yes --suppressions=${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp" CACHE STRING "Options passed to Valgrind." FORCE)
   else()
     set(VALGRIND_FOUND 0)
   endif()
