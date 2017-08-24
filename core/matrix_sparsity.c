@@ -93,19 +93,24 @@ matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
 
   // Assign column indices.
   block_sp->offsets[0] = 0;
+  index_t row = 0;
   for (index_t i = 0; i < sparsity->num_local_rows; ++i)
   {
     int bs = block_sizes[i];
-    for (index_t ii = 0; ii < bs; ++ii)
+    for (index_t ii = 0; ii < bs; ++ii, ++row)
     {
-      index_t row = bs*i + ii;
+      index_t row_offset = block_sp->offsets[row];
       int l = 0;
       for (index_t j = sparsity->offsets[i]; j < sparsity->offsets[i+1]; ++j)
+      {
+        index_t s_col = sparsity->columns[j];
         for (int jj = 0; jj < bs; ++jj, ++l)
-          block_sp->columns[block_sp->offsets[row]+l] = bs * sparsity->columns[j] + jj;
+          block_sp->columns[row_offset+l] = bs * s_col + jj;
+      }
       block_sp->offsets[row+1] = block_sp->offsets[row] + l;
     }
   }
+  ASSERT(row == block_sp->num_local_rows);
   return block_sp;
 }
 
