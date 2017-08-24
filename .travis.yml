@@ -113,7 +113,7 @@ after_success:
   - mv polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz latest
 
 after_failure: 
-  - cat build/*/Testing/Temporary/LastTest.log || cat build/*/Testing/LastDynamicAnalysis*
+  - cat build/*/Testing/Temporary/LastTest.log || cat build/*/Testing/Temporary/LastDynamicAnalysis*
   - cat build/*/Testing/Temporary/MemoryChecker*.log
 
 after_script:
