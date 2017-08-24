@@ -1438,16 +1438,16 @@ void silo_file_write_mesh(silo_file_t* file,
 
   // Node coordinates.
   int num_nodes = mesh->num_nodes;
-  double* x = polymec_malloc(sizeof(double) * num_nodes);
-  double* y = polymec_malloc(sizeof(double) * num_nodes);
-  double* z = polymec_malloc(sizeof(double) * num_nodes);
+  real_t* x = polymec_malloc(sizeof(real_t) * num_nodes);
+  real_t* y = polymec_malloc(sizeof(real_t) * num_nodes);
+  real_t* z = polymec_malloc(sizeof(real_t) * num_nodes);
   for (int i = 0; i < num_nodes; ++i)
   {
-    x[i] = (double)mesh->nodes[i].x;
-    y[i] = (double)mesh->nodes[i].y;
-    z[i] = (double)mesh->nodes[i].z;
+    x[i] = mesh->nodes[i].x;
+    y[i] = mesh->nodes[i].y;
+    z[i] = mesh->nodes[i].z;
   }
-  double* coords[3];
+  real_t* coords[3];
   coords[0] = x;
   coords[1] = y;
   coords[2] = z;
@@ -1607,9 +1607,9 @@ mesh_t* silo_file_read_mesh(silo_file_t* file,
                           num_faces, num_nodes);
 
   // Set node positions.
-  double* x = ucd_mesh->coords[0];
-  double* y = ucd_mesh->coords[1];
-  double* z = ucd_mesh->coords[2];
+  real_t* x = ucd_mesh->coords[0];
+  real_t* y = ucd_mesh->coords[1];
+  real_t* z = ucd_mesh->coords[2];
   for (int n = 0; n < num_nodes; ++n)
   {
     mesh->nodes[n].x = x[n];
@@ -2197,10 +2197,11 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
   DBpointmesh* pm = DBGetPointmesh(file->dbfile, (char*)cloud_name);
   if (pm == NULL)
     polymec_error("Point mesh '%s' was not found in the Silo file.", cloud_name);
+  ASSERT(num_points == pm->nels);
   point_t* points = polymec_malloc(sizeof(point_t) * num_points);
-  double* x = pm->coords[0];
-  double* y = pm->coords[1];
-  double* z = pm->coords[2];
+  real_t* x = pm->coords[0];
+  real_t* y = pm->coords[1];
+  real_t* z = pm->coords[2];
   for (int p = 0; p < num_points; ++p)
   {
     points[p].x = x[p];
