@@ -705,7 +705,9 @@ static void write_master_file(silo_file_t* file)
   PMPIO_baton_t* baton = PMPIO_Init(1, PMPIO_WRITE, file->comm, file->mpi_tag+1, 
                                     pmpio_create_file, pmpio_open_file, 
                                     pmpio_close_file, 0);
+  log_debug("write_master_file: Waiting for baton...");
   DBfile* master = (DBfile*)PMPIO_WaitForBaton(baton, master_file_name, "/");
+  log_debug("write_master_file: Got the baton...");
 
   // Write our stamp of approval.
   int one = 1;
@@ -799,6 +801,7 @@ static void write_master_file(silo_file_t* file)
 
   DBFreeOptlist(optlist);
 
+  log_debug("write_master_file: Handing off baton.");
   PMPIO_HandOffBaton(baton, (void*)master);
   PMPIO_Finish(baton);
 }
@@ -895,7 +898,9 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     }
     char silo_dir_name[FILENAME_MAX+1];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
+    log_debug("silo_file_new: Waiting for baton...");
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
+    log_debug("silo_file_new: Got the baton...");
 
     file->subdomain_meshes = ptr_array_new();
     file->subdomain_fields = ptr_array_new();
@@ -1145,7 +1150,9 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
     char silo_dir_name[FILENAME_MAX+1];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
+    log_debug("silo_file_open: Waiting for baton...");
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
+    log_debug("silo_file_open: Got the baton...");
 
     DBSetDir(file->dbfile, "/");
     show_provenance_on_debug_log(file);
@@ -1225,6 +1232,7 @@ void silo_file_close(silo_file_t* file)
       write_provenance_to_file(file);
     }
 
+    log_debug("silo_file_close: Handing off baton.");
     PMPIO_HandOffBaton(file->baton, (void*)file->dbfile);
     PMPIO_Finish(file->baton);
 
@@ -1256,6 +1264,7 @@ void silo_file_close(silo_file_t* file)
   }
   DBClose(file->dbfile);
 #endif
+  log_debug("silo_file_close: Closed file.");
 
   // Clean up.
   if (file->expressions != NULL)
