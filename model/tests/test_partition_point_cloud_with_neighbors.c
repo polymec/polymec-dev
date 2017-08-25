@@ -68,6 +68,9 @@ static void test_partition_linear_cloud(void** state, int N)
   neighbor_pairing_free(pairing);
   point_cloud_free(cloud);
 
+  // Make sure all processes have written to the file.
+  MPI_Barrier(comm);
+
   // Superficially check that the file is okay.
   int num_files, num_procs;
   assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));

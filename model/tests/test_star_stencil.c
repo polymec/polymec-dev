@@ -216,8 +216,6 @@ static void test_parallel_10x10x10_cell_star_stencil(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-  set_log_level(LOG_DEBUG);
-  set_log_mode(LOG_TO_ALL_RANKS);
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_serial_1x1x1_cell_star_stencil),

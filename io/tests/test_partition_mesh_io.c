@@ -31,6 +31,7 @@ static void test_partition_linear_mesh(void** state)
 
   // Partition it.
   migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  assert_true(mesh->comm == MPI_COMM_WORLD);
   migrator_verify(m, polymec_error);
   m = NULL;
 
@@ -74,8 +75,8 @@ static void test_partition_linear_mesh(void** state)
       break; 
     }
   }
-  MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, &face_areas_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, mesh->comm);
+  MPI_Allreduce(MPI_IN_PLACE, &face_areas_are_ok, 1, MPI_INT, MPI_MIN, mesh->comm);
   assert_true(cell_volumes_are_ok);
   assert_true(face_areas_are_ok);
 
@@ -86,11 +87,11 @@ static void test_partition_linear_mesh(void** state)
   real_t p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     p[c] = 1.0*rank;
-  silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0, 0.0);
-  silo_file_write_mesh(silo, "mesh", mesh);
   silo_field_metadata_t* p_metadata = silo_field_metadata_new();
   p_metadata->label = string_dup("P");
   p_metadata->conserved = true;
+  silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0, 0.0);
+  silo_file_write_mesh(silo, "mesh", mesh);
   silo_file_write_scalar_cell_field(silo, "rank", "mesh", p, p_metadata);
   silo_file_close(silo);
 
@@ -115,6 +116,7 @@ static void test_partition_slab_mesh(void** state)
 
   // Partition it.
   migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  assert_true(mesh->comm == MPI_COMM_WORLD);
   m = NULL;
 
   // Check the geometry of the mesh.
@@ -136,8 +138,8 @@ static void test_partition_slab_mesh(void** state)
       break; 
     }
   }
-  MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, &face_areas_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, mesh->comm);
+  MPI_Allreduce(MPI_IN_PLACE, &face_areas_are_ok, 1, MPI_INT, MPI_MIN, mesh->comm);
   assert_true(cell_volumes_are_ok);
   assert_true(face_areas_are_ok);
 
@@ -173,6 +175,7 @@ static void test_partition_box_mesh(void** state)
 
   // Partition it.
   migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  assert_true(mesh->comm == MPI_COMM_WORLD);
   m = NULL;
 
   // Check the geometry of the mesh.
@@ -195,8 +198,8 @@ static void test_partition_box_mesh(void** state)
       break; 
     }
   }
-  MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, &face_areas_are_ok, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &cell_volumes_are_ok, 1, MPI_INT, MPI_MIN, mesh->comm);
+  MPI_Allreduce(MPI_IN_PLACE, &face_areas_are_ok, 1, MPI_INT, MPI_MIN, mesh->comm);
   assert_true(cell_volumes_are_ok);
   assert_true(face_areas_are_ok);
 

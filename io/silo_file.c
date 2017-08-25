@@ -914,7 +914,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     }
     char silo_dir_name[FILENAME_MAX+1];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
-    log_debug("silo_file_new: Opening %s and waiting for baton...", file->filename);
+    log_debug("silo_file_new: Opening %s for writing and waiting for baton...", file->filename);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
     log_debug("silo_file_new: Got the baton...");
 
@@ -939,7 +939,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     int driver = DB_HDF5;
     if (strcmp(file->directory, ".") != 0)
       create_directory(file->directory, S_IRWXU | S_IRWXG);
-    log_debug("silo_file_new: Opening %s...", file->filename);
+    log_debug("silo_file_new: Opening %s for writing...", file->filename);
     file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
   }
   set_root_dir(file);
@@ -956,7 +956,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
   int driver = DB_HDF5;
   create_directory(file->directory, S_IRWXU | S_IRWXG);
-  log_debug("silo_file_new: Opening %s...", file->filename);
+  log_debug("silo_file_new: Opening %s for writing...", file->filename);
   file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
   set_root_dir(file);
 #endif
@@ -1168,7 +1168,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
     char silo_dir_name[FILENAME_MAX+1];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
-    log_debug("silo_file_open: Opening %s and waiting for baton...", file->filename);
+    log_debug("silo_file_open: Opening %s for reading and waiting for baton...", file->filename);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
     log_debug("silo_file_open: Got the baton...");
 
@@ -1191,7 +1191,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
       snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, step);
 
     int driver = DB_HDF5;
-    log_debug("silo_file_open: Opening %s...", file->filename);
+    log_debug("silo_file_open: Opening %s for reading...", file->filename);
     file->dbfile = DBOpen(file->filename, driver, file->mode);
     DBSetDir(file->dbfile, "/");
 
@@ -1209,7 +1209,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, step);
 
   int driver = DB_HDF5;
-  log_debug("silo_file_open: Opening %s...", file->filename);
+  log_debug("silo_file_open: Opening %s for reading...", file->filename);
   file->dbfile = DBOpen(file->filename, driver, file->mode);
   DBSetDir(file->dbfile, "/");
 
