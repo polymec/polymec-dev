@@ -389,11 +389,16 @@ void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int n
   ASSERT(remote_process >= 0);
   ASSERT(remote_process != ex->rank);
   ASSERT(remote_process < ex->nprocs);
-  exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
-  exchanger_map_insert_with_kv_dtor(ex->send_map, remote_process, c, delete_map_entry);
+  ASSERT(num_indices >= 0);
 
-  if (remote_process > ex->max_send)
-    ex->max_send = remote_process;
+  if (num_indices > 0)
+  {
+    exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
+    exchanger_map_insert_with_kv_dtor(ex->send_map, remote_process, c, delete_map_entry);
+
+    if (remote_process > ex->max_send)
+      ex->max_send = remote_process;
+  }
 }
 
 void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map)
@@ -457,11 +462,16 @@ void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, in
   ASSERT(remote_process >= 0);
   ASSERT(remote_process != ex->rank);
   ASSERT(remote_process < ex->nprocs);
-  exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
-  exchanger_map_insert_with_kv_dtor(ex->receive_map, remote_process, c, delete_map_entry);
+  ASSERT(num_indices >= 0);
 
-  if (remote_process > ex->max_receive)
-    ex->max_receive = remote_process;
+  if (num_indices > 0)
+  {
+    exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
+    exchanger_map_insert_with_kv_dtor(ex->receive_map, remote_process, c, delete_map_entry);
+
+    if (remote_process > ex->max_receive)
+      ex->max_receive = remote_process;
+  }
 }
 
 void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map)

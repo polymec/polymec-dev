@@ -130,15 +130,27 @@ static void test_NXxNYxNZ_star_stencil(void** state,
   matrix_sparsity_free(sp);
 
   // Write the stencil to a Silo file.
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "star", "", 1, 0, 0, 0.0);
+  char prefix[FILENAME_MAX+1];
+  if (comm == MPI_COMM_WORLD)
+    snprintf(prefix, FILENAME_MAX, "star_all");
+  else
+  {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    snprintf(prefix, FILENAME_MAX, "star_p%d", rank);
+  }
+  silo_file_t* silo = silo_file_new(comm, prefix, "star", 1, 0, 0, 0.0);
   silo_file_write_stencil(silo, "stencil", stencil);
   silo_file_close(silo);
 
+  // Make sure the file is written before we attempt to read it!
+  MPI_Barrier(comm);
+
   // Read the stencil from the file and check its contents.
   real_t t;
-  silo = silo_file_open(MPI_COMM_WORLD, "star", "", 0, 0, &t);
+  silo = silo_file_open(comm, prefix, "star", 0, 0, &t);
   assert_true(silo_file_contains_stencil(silo, "stencil"));
-  stencil1 = silo_file_read_stencil(silo, "stencil", mesh->comm);
+  stencil1 = silo_file_read_stencil(silo, "stencil", comm);
   silo_file_close(silo);
   check_stencil(state, mesh, nx, ny, nz, 
                 num_interior_neighbors, num_boundary_neighbors,

@@ -445,7 +445,7 @@ bool silo_file_query(const char* file_prefix,
     {
       if (!DBInqVarExists(file, "POLYMEC_SILO_FILE"))
       {
-        log_urgent("silo_query_file: Invalid Silo file.");
+        log_urgent("silo_file_query: Invalid Silo file.");
         DBClose(file);
         STOP_FUNCTION_TIMER();
         return false;
@@ -914,7 +914,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     }
     char silo_dir_name[FILENAME_MAX+1];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
-    log_debug("silo_file_new: Waiting for baton...");
+    log_debug("silo_file_new: Opening %s and waiting for baton...", file->filename);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
     log_debug("silo_file_new: Got the baton...");
 
@@ -939,6 +939,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     int driver = DB_HDF5;
     if (strcmp(file->directory, ".") != 0)
       create_directory(file->directory, S_IRWXU | S_IRWXG);
+    log_debug("silo_file_new: Opening %s...", file->filename);
     file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
   }
   set_root_dir(file);
@@ -955,6 +956,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
   int driver = DB_HDF5;
   create_directory(file->directory, S_IRWXU | S_IRWXG);
+  log_debug("silo_file_new: Opening %s...", file->filename);
   file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
   set_root_dir(file);
 #endif
@@ -1068,7 +1070,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   if (!silo_file_query(file_prefix, file->directory, &num_files, &num_mpi_procs, steps))
     polymec_error("silo_file_open: Invalid file.");
 
-  log_debug("silo_file_open: Opened file written by %d MPI processes.", num_mpi_procs);
+  log_debug("silo_file_open: Found file written by %d MPI processes.", num_mpi_procs);
 
   // For now, we only support reading files that were written with the same 
   // number of processes.
@@ -1166,7 +1168,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
     char silo_dir_name[FILENAME_MAX+1];
     snprintf(silo_dir_name, FILENAME_MAX, "domain_%d", file->rank_in_group);
-    log_debug("silo_file_open: Waiting for baton...");
+    log_debug("silo_file_open: Opening %s and waiting for baton...", file->filename);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
     log_debug("silo_file_open: Got the baton...");
 
@@ -1189,6 +1191,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
       snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, step);
 
     int driver = DB_HDF5;
+    log_debug("silo_file_open: Opening %s...", file->filename);
     file->dbfile = DBOpen(file->filename, driver, file->mode);
     DBSetDir(file->dbfile, "/");
 
@@ -1206,6 +1209,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     snprintf(file->filename, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, step);
 
   int driver = DB_HDF5;
+  log_debug("silo_file_open: Opening %s...", file->filename);
   file->dbfile = DBOpen(file->filename, driver, file->mode);
   DBSetDir(file->dbfile, "/");
 
@@ -1361,10 +1365,6 @@ void silo_file_write_exchanger(silo_file_t* file, const char* exchanger_name, ex
   // of processes to sets of indices. Such a map has the format
   // [num_procs [process num_indices i0 i1 ... iN] ... ]
   int_array_t* array = int_array_new();
-#if POLYMEC_HAVE_MPI
-  int_array_append(array, file->nproc);
-  int_array_append(array, file->rank);
-#endif
 
   int pos = 0, proc, *indices, num_indices;
   int_array_append(array, exchanger_num_sends(ex));
@@ -1404,10 +1404,6 @@ exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_n
   // Create the exchanger.
   exchanger_t* ex = exchanger_new(comm);
   int i = 0;
-#if POLYMEC_HAVE_MPI
-  ASSERT(array[i++] == file->nproc);
-  ASSERT(array[i++] == file->rank);
-#endif
   int num_sends = array[i++];
   for (int j = 0; j < num_sends; ++j)
   {
