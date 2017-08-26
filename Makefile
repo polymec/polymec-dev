@@ -16,6 +16,7 @@ build      = not-set
 CC         = not-set
 CXX        = not-set
 FC         = not-set
+GCOV       = gcov
 
 # This dispatches everything to the builddir cmake.
 
@@ -179,7 +180,7 @@ test:
 		$(MAKE) -C $(BUILDDIR) $@ --no-print-directory $(MAKEFLAGS); \
 	  if [ "$(coverage)" = "1" ]; then \
       echo "Writing code coverage report to lcov.info..."; \
-	    lcov --base-directory $(BUILDDIR) --directory $(BUILDDIR) -c -q -o lcov.info; \
+	    lcov --gcov-tool=$(GCOV) --base-directory $(BUILDDIR) --directory $(BUILDDIR) -c -q -o lcov.info; \
 	    lcov --remove lcov.info '*/build/*' '*valgrind.h' '*/tests/*' -o lcov.info; \
       echo "Generating HTML coverage report -> ./coverage..."; \
       genhtml -o coverage lcov.info; \
