@@ -663,10 +663,10 @@ void model_save_every(model_t* model, int n)
   model->save_every = n;
 }
 
-void model_load_from(model_t* model, int n)
+void model_load_from(model_t* model, int step)
 {
-  ASSERT(n >= 0);
-  model->load_step = n;
+  ASSERT(step >= 0);
+  model->load_step = step;
 }
 
 model_vtable model_get_vtable(model_t* model)

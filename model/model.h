@@ -203,7 +203,7 @@ void model_plot_every(model_t* model, real_t T);
 void model_save_every(model_t* model, int n);
 
 // Tells the model to load its state from a given step.
-void model_load_from(model_t* model, int n);
+void model_load_from(model_t* model, int step);
 
 // Retrieves (a copy of) the virtual table for the given model.
 model_vtable model_get_vtable(model_t* model);
