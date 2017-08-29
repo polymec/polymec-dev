@@ -159,6 +159,14 @@ real_t hermite_hn(int n, real_t x);
 // of order n, at the given value of x.
 real_t hermite_dhndx(int n, real_t x);
 
+// Returns the value of Pn, the Legendre polynomial of degree n, at the given 
+// real value of x.
+real_t legendre_pn(int n, real_t x);
+
+// Returns the value of Pml, the associated Legendre polynomial of order m 
+// and degree l, at the given real value x.
+real_t legendre_pml(int m, int l, real_t x);
+
 // C++ doesn't have complex datatypes, so we don't expose complex functions 
 // to those compilers.
 #ifndef __cplusplus
@@ -171,7 +179,7 @@ complex_t bessel_h0(real_t x);
 // function) of order one, at the given real value x.
 complex_t bessel_h1(real_t x);
 
-// Returns the value of H1, the Bessel function of the third kind (Hankel
+// Returns the value of Hn, the Bessel function of the third kind (Hankel
 // function) of order n, at the given real value x.
 complex_t bessel_hn(int n, real_t x);
 
@@ -199,6 +207,27 @@ complex_t bessel_cj1(complex_t z);
 // at the given complex value z.
 complex_t bessel_cjn(int n, complex_t z);
 
+// Returns the value of Jv, the Bessel function of the first kind of 
+// complex order nu (written v), at the given complex value z.
+complex_t bessel_jv(complex_t v, complex_t z);
+
+// Returns the value of the first derivative of J0, the Bessel function of 
+// the first kind of order 0, at the given complex value z.
+complex_t bessel_dj0dz(complex_t z);
+
+// Returns the value of the first derivative of J1, the Bessel function of 
+// the first kind of order 1, at the given complex value z.
+complex_t bessel_dj1dz(complex_t z);
+
+// Returns the value of the first derivative of Jn, the Bessel function of 
+// the first kind of integer order n, at the given complex value z.
+complex_t bessel_djndz(int n, complex_t z);
+
+// Returns the value of the first derivative of Jv, the Bessel function of 
+// the first kind of complex order nu (written v), at the given complex 
+// value z.
+complex_t bessel_djvdz(complex_t v, complex_t z);
+
 // Returns the value of Y0, the Bessel function of the second kind of order 
 // zero, at the given complex value z.
 complex_t bessel_cy0(complex_t z);
@@ -210,6 +239,27 @@ complex_t bessel_cy1(complex_t z);
 // Returns the value of Yn, the Bessel function of the second kind of order n,
 // at the given complex value z.
 complex_t bessel_cyn(int n, complex_t z);
+
+// Returns the value of Yv, the Bessel function of the second kind of 
+// complex order nu (written v), at the given complex value z.
+complex_t bessel_yv(complex_t v, complex_t z);
+
+// Returns the value of the first derivative of Y0, the Bessel function of 
+// the second kind of order 0, at the given complex value z.
+complex_t bessel_dy0dz(complex_t z);
+
+// Returns the value of the first derivative of Y1, the Bessel function of 
+// the second kind of order 1, at the given complex value z.
+complex_t bessel_dy1dz(complex_t z);
+
+// Returns the value of the first derivative of Yn, the Bessel function of 
+// the second kind of integer order n, at the given complex value z.
+complex_t bessel_dyndz(int n, complex_t z);
+
+// Returns the value of the first derivative of Yv, the Bessel function of 
+// the second kind of complex order nu (written v), at the given complex 
+// value z.
+complex_t bessel_dyvdz(complex_t v, complex_t z);
 
 // Returns the value of I0, the modified Bessel function of the first kind of 
 // order zero, at the given complex value z.
@@ -223,6 +273,27 @@ complex_t bessel_ci1(complex_t z);
 // order n, at the given complex value z.
 complex_t bessel_cin(int n, complex_t z);
 
+// Returns the value of Iv, the modified Bessel function of the first kind of 
+// complex order nu (written v), at the given complex value z.
+complex_t bessel_iv(complex_t v, complex_t z);
+
+// Returns the value of the first derivative of I0, the modified Bessel 
+// function of the first kind of order 0, at the given complex value z.
+complex_t bessel_di0dz(complex_t z);
+
+// Returns the value of the first derivative of I1, the modified Bessel 
+// function of the first kind of order 1, at the given complex value z.
+complex_t bessel_di1dz(complex_t z);
+
+// Returns the value of the first derivative of In, the modified Bessel 
+// function of the first kind of integer order n, at the given complex value z.
+complex_t bessel_dindz(int n, complex_t z);
+
+// Returns the value of the first derivative of Iv, the modified Bessel 
+// function of the first kind of complex order nu (written v), at the given 
+// complex value z.
+complex_t bessel_divdz(complex_t v, complex_t z);
+
 // Returns the value of K0, the modified Bessel function of the second kind of 
 // order zero, at the given complex value z.
 complex_t bessel_ck0(complex_t z);
@@ -234,6 +305,31 @@ complex_t bessel_ck1(complex_t z);
 // Returns the value of Kn, the modified Bessel function of the second kind of 
 // order n, at the given complex value z.
 complex_t bessel_ckn(int n, complex_t z);
+
+// Returns the value of Kv, the modified Bessel function of the second kind of 
+// complex order v (written v), at the given complex value z.
+complex_t bessel_kv(int n, complex_t z);
+
+// Returns the value of the first derivative of K0, the modified Bessel 
+// function of the second kind of order 0, at the given complex value z.
+complex_t bessel_dk0dz(complex_t z);
+
+// Returns the value of the first derivative of K1, the modified Bessel 
+// function of the second kind of order 1, at the given complex value z.
+complex_t bessel_dk1dz(complex_t z);
+
+// Returns the value of the first derivative of Kn, the modified Bessel 
+// function of the second kind of integer order n, at the given complex value z.
+complex_t bessel_dkndz(int n, complex_t z);
+
+// Returns the value of the first derivative of Kv, the modified Bessel 
+// function of the second kind of complex order nu (written v), at the given 
+// complex value z.
+complex_t bessel_dkvdz(complex_t v, complex_t z);
+
+// Returns the (complex) value of Ylm, the normalized spherical harmonic, for 
+// which -l <= m <= +l, for the real colatitude theta and azimuth phi.
+complex_t sph_harmonic_ylm(int l, int m, real_t theta, real_t phi);
 
 #endif
 

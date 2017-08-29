@@ -470,62 +470,189 @@ void bessel_find_yn_roots(int n,
 
 real_t bessel_i0(real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  real_t i0;
+  real_t abs_x = abs(x);
+  if (abs_x < 3.75)
+  {
+    real_t y = x/3.75;
+    y *= y;
+    i0 = 1.0 + y * (3.5156229 + y * (3.0899424 + y * (1.2067492 + 
+                    y * (0.2659732 + y * (0.360768e-1 + y * 0.45813e-2)))));
+  }
+  else
+  {
+    real_t y = 3.75 / abs_x;
+    i0 = (exp(abs_x) / sqrt(abs_x)) * (0.39894228 + y * (0.1328592e-1 + 
+          y * (0.225319e-2 + y * (-0.157565e-2 + y * (0.916281e-2 + 
+               y * (-0.2057706e-1 + y * (0.2635537e-1 + y * (-0.1647633e-1 + 
+                    y * 0.392377e-2))))))));
+  }
+  return i0;
 }
 
 real_t bessel_i1(real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  real_t abs_x = abs(x);
+  real_t i1;
+  if (abs_x < 3.75) 
+  {
+    real_t y = x / 3.75;
+    y *= y;
+    i1 = abs_x * (0.5 + y * (0.87890594 + y * (0.51498869 + y * (0.15084934 + 
+                  y * (0.2658733e-1 + y * (0.301532e-2 + y * 0.32411e-3))))));
+  }
+  else
+  {
+    real_t y = 3.75 / abs_x;
+    i1 = 0.2282967e-1 + y * (-0.2895312e-1 + y * (0.1787654e-1 + 
+         -y * 0.420059e-2));
+    i1 = 0.39894228 + y * (-0.3988024e-1 + y * (-0.362018e-2 + 
+                           y * (0.163801e-2 + y * (-0.1031555e-1 + y * i1))));
+    i1 *= exp(abs_x) / sqrt(abs_x);
+  }
+  return (x < 0.0) ? -i1 : i1;
 }
 
 real_t bessel_in(int n, real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  if (n == 0)
+    return bessel_i0(x);
+  else if (n == 1)
+    return bessel_i1(x);
+  else
+  {
+    static real_t acc = 40.0;
+    static real_t big_num = 1e10;
+    static real_t inv_big_num = 1e-10;
+    real_t two_x = 2.0 / abs(x);
+    real_t i = 1.0, ip = 0.0, in = 0.0;
+    for (int j = 2 * (n + (int)(sqrt(n*acc))); j > 0; --j)
+    {
+      real_t im = ip + j * two_x * i;
+      ip = i;
+      i = im;
+      if (abs(i) > big_num)
+      {
+        in *= inv_big_num;
+        i *= inv_big_num;
+        ip *= inv_big_num;
+      }
+      if (j == n)
+        in = ip;
+    }
+    in *= bessel_i0(x) / i;
+    return ((x < 0.0) && (n & 1)) ? -in : in;
+  }
 }
 
 real_t bessel_di0dx(real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  real_t i1 = bessel_i1(x);
+  real_t im1 = i1 + 2.0/M_PI * sin(M_PI) * bessel_k1(x);
+  return 0.5 * (im1 + i1);
 }
 
 real_t bessel_di1dx(real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  return 0.5 * (bessel_i0(x) + bessel_in(2, x));
 }
 
 real_t bessel_dindx(int n, real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  ASSERT(n >= 0);
+
+  if (n == 0)
+    return bessel_di0dx(x);
+  else if (n == 1)
+    return bessel_di1dx(x);
+  else
+    return 0.5 * (bessel_in(n-1, x) + bessel_in(n+1, x));
 }
 
 real_t bessel_k0(real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  ASSERT(x > 0.0);
+  real_t k0;
+  if (x <= 2.0)
+  {
+    real_t y = x * x / 4.0;
+    k0 = (-log(0.5*x) * bessel_i0(x)) + (-0.57721566 + y * (0.42278420 + 
+          y * (0.23069756 + y * (0.3488590e-1 + y * (0.262698e-2 + 
+               y * (0.10750e-3 + y * 0.74e-5))))));
+  }
+  else
+  {
+    real_t y = 2.0 / x;
+    k0 = (exp(-x) / sqrt(x)) * (1.25331414 + y * (-0.7832358e-1 + 
+          y * (0.2189568e-1 + y * (-0.1062446e-1 + y * (0.587872e-2 + 
+               y * (-0.251540e-2 + y * 0.53208e-3))))));
+  }
+  return k0;
 }
 
 real_t bessel_k1(real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  ASSERT(x > 0.0);
+  real_t k1;
+  if (x <= 2.0)
+  {
+    real_t y = x * x / 4.0;
+    k1 = (log(0.5*x) * bessel_i1(x)) + (1.0/x) * (1.0 + y * (0.15443144 + 
+          y * (-0.67278579 + y * (-0.18156897 + y * (-0.1919402e-1 + 
+               y * (-0.110404e-2 + y * (-0.4686e-4)))))));
+  }
+  else
+  {
+    real_t y = 2.0 / x;
+    k1 = (exp(-x)/sqrt(x)) * (1.25331414 + y * (0.23498619 + 
+          y * (-0.3655620e-1 + y * (0.1504268e-1 + y * (-0.780353e-2 + 
+               y * (0.325614e-2 + y * (-0.68245e-3)))))));
+  }
+  return k1;
 }
 
 real_t bessel_kn(int n, real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  ASSERT(x > 0.0);
+  if (n == 0)
+    return bessel_k0(x);
+  else if (n == 1)
+    return bessel_k1(x);
+  else
+  {
+    real_t two_x = 2.0 / x;
+    real_t km = bessel_k0(x);
+    real_t k = bessel_k1(x);
+    for (int j = 1; j < n; ++j)
+    {
+      real_t kp = km + j * two_x * k;
+      km = k;
+      k = kp;
+    }
+    return k;
+  }
 }
 
 real_t bessel_dk0dx(real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  return bessel_k1(x);
 }
 
 real_t bessel_dk1dx(real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  return 0.5 * (bessel_k0(x) + bessel_kn(2, x));
 }
 
 real_t bessel_dkndx(int n, real_t x)
 {
-  POLYMEC_NOT_IMPLEMENTED
+  ASSERT(n >= 0);
+
+  if (n == 0)
+    return bessel_dk0dx(x);
+  else if (n == 1)
+    return bessel_dk1dx(x);
+  else
+    return 0.5 * (bessel_kn(n-1, x) + bessel_kn(n+1, x));
 }
 
 real_t chebyshev_tn(int n, real_t x)
@@ -660,6 +787,55 @@ real_t hermite_dhndx(int n, real_t x)
     return 2.0 * n * hermite_hn(n-1, x);
 }
 
+real_t legendre_pn(int n, real_t x)
+{
+  real_t sum = 0.0;
+  for (int k = 0; k <= n; ++k)
+  {
+    real_t n_choose_k = binomial_coeff(n, k);
+    sum += pow(-1, k) * n_choose_k * n_choose_k * pow(0.5*(x+1.0), n-k) * pow(0.5*(x-1.0), k);
+  }
+  return sum;
+}
+
+real_t legendre_pml(int m, int l, real_t x)
+{
+  ASSERT(m >= 0);
+  ASSERT(m <= l);
+  ASSERT(x <= 1.0);
+
+  real_t pmm = 1.0;
+  if (m > 0)
+  {
+    real_t sq = (1.0-x) * (1.0+x);
+    real_t fact = 1.0;
+    for (int i = 1; i <= m; ++i)
+    {
+      pmm *= -fact * sq;
+      fact += 2.0;
+    }
+  }
+  if (l == m)
+    return pmm;
+  else
+  {
+    real_t pmmp = x * (2 * m + 1) * pmm;
+    if (l == (m + 1))
+      return pmmp;
+    else
+    {
+      real_t pll = 0.0;
+      for (int ll = m + 2; ll <= l; ++ll)
+      {
+        pll = (x * (2*ll-1) * pmmp - (ll + m - 1) * pmm) / (ll - m);
+        pmm = pmmp;
+        pmmp = pll;
+      }
+      return pll;
+    }
+  }
+}
+
 #ifndef __cplusplus
 #include <complex.h>
 
@@ -708,6 +884,31 @@ complex_t bessel_cjn(int n, complex_t z)
   POLYMEC_NOT_IMPLEMENTED
 }
 
+complex_t bessel_jv(complex_t v, complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_dj0dz(complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_dj1dz(complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_djndz(int n, complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_djvdz(complex_t v, complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
 complex_t bessel_cy0(complex_t z)
 {
   POLYMEC_NOT_IMPLEMENTED
@@ -719,6 +920,31 @@ complex_t bessel_cy1(complex_t z)
 }
 
 complex_t bessel_cyn(int n, complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_yv(complex_t v, complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_dy0dz(complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_dy1dz(complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_dyndz(int n, complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_dyvdz(complex_t v, complex_t z)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
@@ -811,6 +1037,29 @@ complex_t bessel_cin(int n, complex_t z)
   POLYMEC_NOT_IMPLEMENTED
 }
 
+complex_t bessel_iv(complex_t v, complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_di0dz(complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_di1dz(complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+// Returns the value of the first derivative of In, the modified Bessel 
+// function of the first kind of integer order n, at the given complex value z.
+complex_t bessel_dindz(int n, complex_t z);
+
+// Returns the value of the first derivative of Iv, the modified Bessel 
+// function of the first kind of complex order nu (written v), at the given 
+// complex value z.
+complex_t bessel_divdz(complex_t v, complex_t z);
 complex_t bessel_ck0(complex_t z)
 {
   real_t a0 = cabs(z);
@@ -887,6 +1136,38 @@ complex_t bessel_ck1(complex_t z)
 complex_t bessel_ckn(int n, complex_t z)
 {
   POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_kv(int n, complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_dk0dz(complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_dk1dz(complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_dkndz(int n, complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t bessel_dkvdz(complex_t v, complex_t z)
+{
+  POLYMEC_NOT_IMPLEMENTED
+}
+
+complex_t sph_harmonic_ylm(int l, int m, real_t theta, real_t phi)
+{
+  return pow(-1, m) * 
+         sqrt((2.0*l+1.0) * factorial(l-m)/(4.0*M_PI*factorial(l+m))) * 
+         legendre_pml(m, l, cos(theta)) * cexp(CMPLX(0, 1) * m * phi);
 }
 
 // FIXME: Remove this when everything is implemented.

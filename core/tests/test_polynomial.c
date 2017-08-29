@@ -145,12 +145,12 @@ static void test_p4_ctor(void** state)
   test_ctor(state, 4);
 }
 
-static int factorial(int n)
+static int fact(int n)
 {
   if (n <= 0)
     return 1;
   else
-    return n * factorial(n-1);
+    return n * fact(n-1);
 }
 
 static void test_basis(void** state, int p)
@@ -201,9 +201,9 @@ static void test_basis(void** state, int p)
         real_t coeff;
         while (polynomial_next(poly, &pos, &coeff, &x_pow, &y_pow, &z_pow))
         {
-          real_t x_term = (x_pow >= i) ? pow(x.x, x_pow - i) * factorial(x_pow) / factorial(x_pow - i) : 0.0;
-          real_t y_term = (y_pow >= j) ? pow(x.y, y_pow - j) * factorial(y_pow) / factorial(y_pow - j) : 0.0;
-          real_t z_term = (z_pow >= k) ? pow(x.z, z_pow - k) * factorial(z_pow) / factorial(z_pow - k) : 0.0;
+          real_t x_term = (x_pow >= i) ? pow(x.x, x_pow - i) * fact(x_pow) / fact(x_pow - i) : 0.0;
+          real_t y_term = (y_pow >= j) ? pow(x.y, y_pow - j) * fact(y_pow) / fact(y_pow - j) : 0.0;
+          real_t z_term = (z_pow >= k) ? pow(x.z, z_pow - k) * fact(z_pow) / fact(z_pow - k) : 0.0;
           real_t term = (i+j+k > p) ? 0.0 : x_term * y_term * z_term;
           assert_true(reals_nearly_equal(term, basis_deriv[index], machine_precision));
           ++index;

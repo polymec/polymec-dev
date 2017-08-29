@@ -159,6 +159,26 @@ typedef float complex complex_t;
                           float complex: cimagf, \
                           double complex: cimag, \
                           default: cimag)(z)
+#define tgamma(x) _Generic((x), \
+                          long double: tgammal, \
+                          float: tgammaf, \
+                          double: tgamma, \
+                          default: tgamma)(x)
+#define lgamma(x) _Generic((x), \
+                           long double: lgammal, \
+                           float: lgammaf, \
+                           double: lgamma, \
+                           default: lgamma)(x)
+#define erf(x) _Generic((x), \
+                        long double: erfl, \
+                        float: erff, \
+                        double: erf, \
+                        default: erf)(x)
+#define erfc(x) _Generic((x), \
+                         long double: erfcl, \
+                         float: erfcf, \
+                         double: erfc, \
+                         default: erfc)(x)
 #endif
 
 #include <limits.h>
@@ -431,6 +451,14 @@ static inline real_t real_frac_diff(real_t a, real_t b)
   else
     return REAL_CONSTANT(0.0);
 }
+
+// This function evaluates the factorial of the non-negative integer n, 
+// returning a real representation.
+real_t factorial(int n);
+
+// This function evaluates the binomial coefficient n choose k, returning  
+// a real representation.
+real_t binomial_coeff(int n, int k);
 
 // Use this macro to indicate that something hasn't been implemented.
 #define POLYMEC_NOT_IMPLEMENTED polymec_error("%s:\n  line %d: Function %s is not implemented!", __FILE__, __LINE__, __func__);

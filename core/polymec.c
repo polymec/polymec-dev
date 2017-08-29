@@ -834,3 +834,26 @@ bool polymec_running_in_valgrind()
   return false;
 #endif
 }
+
+real_t factorial(int n)
+{
+  ASSERT(n >= 0);
+
+  static real_t fact[33] = {1.0, 1.0};
+  static int top = 1;
+  if (n > 32)
+    return tgamma(1.0*(n+1));
+  while (top < n)
+  {
+    fact[top+1] = top * fact[top];
+    ++top;
+  }
+  return fact[n];
+}
+
+real_t binomial_coeff(int n, int k)
+{
+  ASSERT(k >= 0);
+  ASSERT(k <= n);
+  return floor(0.5+exp(lgamma(1.0*(n+1)) - lgamma(1.0*(k+1)) - lgamma(1.0*(n-k))));
+}
