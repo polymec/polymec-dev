@@ -641,4 +641,540 @@ contains
     hermite_dhndx = dpl(n)
   end function
 
+  real(c_real) function legendre_pn(n, x) bind(c, name="legendre_pn")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pn(0:n), pd(0:n)
+
+    interface
+      subroutine lpn(n, x, pn, pd)
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pn(0:n), pd(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call lpn(n, xx, pn, pd)
+    legendre_pn = pn(n)
+  end function
+
+  real(c_real) function legendre_dpndx(n, x) bind(c, name="legendre_dpndx")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pn(0:n), pd(0:n)
+
+    interface
+      subroutine lpn(n, x, pn, pd)
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pn(0:n), pd(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call lpn(n, xx, pn, pd)
+    legendre_dpndx = pd(n)
+  end function
+
+  real(c_real) function legendre_pml(m, l, x) bind(c, name="legendre_pml")
+
+    integer(c_int), value, intent(in) :: m
+    integer(c_int), value, intent(in) :: l
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pm(0:l), pd(0:l)
+
+    interface
+      subroutine lpmns(m, n, x, pm, pd)
+        integer(4), intent(in) :: m
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pm(0:n), pd(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call lpmns(m, l, xx, pm, pd)
+    legendre_pml = pm(l)
+  end function
+
+  real(c_real) function legendre_dpmldx(m, l, x) bind(c, name="legendre_dpmldx")
+
+    integer(c_int), value, intent(in) :: m
+    integer(c_int), value, intent(in) :: l
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pm(0:l), pd(0:l)
+
+    interface
+      subroutine lpmns(m, n, x, pm, pd)
+        integer(4), intent(in) :: m
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pm(0:n), pd(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call lpmns(m, l, xx, pm, pd)
+    legendre_dpmldx = pd(l)
+  end function
+
+  complex(c_complex) function bessel_h1n(n, z) bind(c, name="bessel_h1n")
+
+    integer(c_int), value, intent(in)  :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, chf1(0:n), chd1(0:n), chf2(0:n), chd2(0:n)
+
+    interface
+      subroutine ch12n(n, z, nm, chf1, chd1, chf2, chd2)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: chf1(0:n), chd1(0:n), chf2(0:n), chd2(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call ch12n(n, zz, nm, chf1, chd1, chf2, chd2)
+    bessel_h1n = chf1(n)
+  end function
+
+  complex(c_complex) function bessel_dh1ndz(n, z) bind(c, name="bessel_dh1ndz")
+
+    integer(c_int), value, intent(in)  :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, chf1(0:n), chd1(0:n), chf2(0:n), chd2(0:n)
+
+    interface
+      subroutine ch12n(n, z, nm, chf1, chd1, chf2, chd2)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: chf1(0:n), chd1(0:n), chf2(0:n), chd2(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call ch12n(n, zz, nm, chf1, chd1, chf2, chd2)
+    bessel_dh1ndz = chd1(n)
+  end function
+
+  complex(c_complex) function bessel_h2n(n, z) bind(c, name="bessel_h2n")
+
+    integer(c_int), value, intent(in)  :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, chf1(0:n), chd1(0:n), chf2(0:n), chd2(0:n)
+
+    interface
+      subroutine ch12n(n, z, nm, chf1, chd1, chf2, chd2)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: chf1(0:n), chd1(0:n), chf2(0:n), chd2(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call ch12n(n, zz, nm, chf1, chd1, chf2, chd2)
+    bessel_h2n = chf2(n)
+  end function
+
+  complex(c_complex) function bessel_dh2ndz(n, z) bind(c, name="bessel_dh2ndz")
+
+    integer(c_int), value, intent(in)  :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, chf1(0:n), chd1(0:n), chf2(0:n), chd2(0:n)
+
+    interface
+      subroutine ch12n(n, z, nm, chf1, chd1, chf2, chd2)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: chf1(0:n), chd1(0:n), chf2(0:n), chd2(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call ch12n(n, zz, nm, chf1, chd1, chf2, chd2)
+    bessel_dh2ndz = chd2(n)
+  end function
+
+  complex(c_complex) function bessel_cj0(z) bind(c, name="bessel_cj0")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1
+
+    interface
+      subroutine cjy01(z, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1
+      end subroutine
+    end interface
+
+    zz = z
+    call cjy01(zz, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1)
+    bessel_cj0 = cbj0
+  end function
+
+  complex(c_complex) function bessel_dj0dz(z) bind(c, name="bessel_dj0dz")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1
+
+    interface
+      subroutine cjy01(z, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1
+      end subroutine
+    end interface
+
+    zz = z
+    call cjy01(zz, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1)
+    bessel_dj0dz = cdj0
+  end function
+
+  complex(c_complex) function bessel_cj1(z) bind(c, name="bessel_cj1")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1
+
+    interface
+      subroutine cjy01(z, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1
+      end subroutine
+    end interface
+
+    zz = z
+    call cjy01(zz, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1)
+    bessel_cj1 = cbj1
+  end function
+
+  complex(c_complex) function bessel_dj1dz(z) bind(c, name="bessel_dj1dz")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1
+
+    interface
+      subroutine cjy01(z, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1
+      end subroutine
+    end interface
+
+    zz = z
+    call cjy01(zz, cbj0, cdj0, cbj1, cdj1, cby0, cdy0, cby1, cdy1)
+    bessel_dj1dz = cdj1
+  end function
+
+  complex(c_complex) function bessel_cjn(n, z) bind(c, name="bessel_cjn")
+
+    integer(c_int), value, intent(in) :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, cbj(0:n), cdj(0:n), cby(0:n), cdy(0:n)
+
+    interface
+      subroutine cjyna(n, z, nm, cbj, cdj, cby, cdy)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: cbj(0:n), cdj(0:n), cby(0:n), cdy(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call cjyna(n, zz, nm, cbj, cdj, cby, cdy)
+    bessel_cjn = cbj(n)
+  end function
+
+  complex(c_complex) function bessel_djndz(n, z) bind(c, name="bessel_djndz")
+
+    integer(c_int), value, intent(in) :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, cbj(0:n), cdj(0:n), cby(0:n), cdy(0:n)
+
+    interface
+      subroutine cjyna(n, z, nm, cbj, cdj, cby, cdy)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: cbj(0:n), cdj(0:n), cby(0:n), cdy(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call cjyna(n, zz, nm, cbj, cdj, cby, cdy)
+    bessel_djndz = cdj(n)
+  end function
+
+  complex(c_complex) function bessel_cyn(n, z) bind(c, name="bessel_cyn")
+
+    integer(c_int), value, intent(in) :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, cbj(0:n), cdj(0:n), cby(0:n), cdy(0:n)
+
+    interface
+      subroutine cjyna(n, z, nm, cbj, cdj, cby, cdy)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: cbj(0:n), cdj(0:n), cby(0:n), cdy(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call cjyna(n, zz, nm, cbj, cdj, cby, cdy)
+    bessel_cyn = cby(n)
+  end function
+
+  complex(c_complex) function bessel_dyndz(n, z) bind(c, name="bessel_dyndz")
+
+    integer(c_int), value, intent(in) :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, cbj(0:n), cdj(0:n), cby(0:n), cdy(0:n)
+
+    interface
+      subroutine cjyna(n, z, nm, cbj, cdj, cby, cdy)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: cbj(0:n), cdj(0:n), cby(0:n), cdy(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call cjyna(n, zz, nm, cbj, cdj, cby, cdy)
+    bessel_dyndz = cdy(n)
+  end function
+
+  complex(c_complex) function bessel_ci0(z) bind(c, name="bessel_ci0")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+
+    interface
+      subroutine cik01(z, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+      end subroutine
+    end interface
+
+    zz = z
+    call cik01(zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+    bessel_ci0 = cbi0
+  end function
+
+  complex(c_complex) function bessel_di0dz(z) bind(c, name="bessel_di0dz")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+
+    interface
+      subroutine cik01(z, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+      end subroutine
+    end interface
+
+    zz = z
+    call cik01(zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+    bessel_di0dz = cdi0
+  end function
+
+  complex(c_complex) function bessel_ci1(z) bind(c, name="bessel_ci1")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+
+    interface
+      subroutine cik01(z, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+      end subroutine
+    end interface
+
+    zz = z
+    call cik01(zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+    bessel_ci1 = cbi1
+  end function
+
+  complex(c_complex) function bessel_di1dz(z) bind(c, name="bessel_di1dz")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+
+    interface
+      subroutine cik01(z, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+      end subroutine
+    end interface
+
+    zz = z
+    call cik01(zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+    bessel_di1dz = cdi1
+  end function
+
+  complex(c_complex) function bessel_cin(n, z) bind(c, name="bessel_cin")
+
+    integer(c_int), value, intent(in) :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, cbi(0:n), cdi(0:n), cbk(0:n), cdk(0:n)
+
+    interface
+      subroutine cikna(n, z, nm, cbi, cdi, cbk, cdk)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: cbi(0:n), cdi(0:n), cbk(0:n), cdk(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call cikna(n, zz, nm, cbi, cdi, cbk, cdk)
+    bessel_cin = cbi(n)
+  end function
+
+  complex(c_complex) function bessel_dindz(n, z) bind(c, name="bessel_dindz")
+
+    integer(c_int), value, intent(in) :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, cbi(0:n), cdi(0:n), cbk(0:n), cdk(0:n)
+
+    interface
+      subroutine cikna(n, z, nm, cbi, cdi, cbk, cdk)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: cbi(0:n), cdi(0:n), cbk(0:n), cdk(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call cikna(n, zz, nm, cbi, cdi, cbk, cdk)
+    bessel_dindz = cdi(n)
+  end function
+
+  complex(c_complex) function bessel_ck0(z) bind(c, name="bessel_ck0")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+
+    interface
+      subroutine cik01(z, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+      end subroutine
+    end interface
+
+    zz = z
+    call cik01(zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+    bessel_ck0 = cbk0
+  end function
+
+  complex(c_complex) function bessel_dk0dz(z) bind(c, name="bessel_dk0dz")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+
+    interface
+      subroutine cik01(z, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+      end subroutine
+    end interface
+
+    zz = z
+    call cik01(zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+    bessel_dk0dz = cdk0
+  end function
+
+  complex(c_complex) function bessel_ck1(z) bind(c, name="bessel_ck1")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+
+    interface
+      subroutine cik01(z, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+      end subroutine
+    end interface
+
+    zz = z
+    call cik01(zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+    bessel_ck1 = cbk1
+  end function
+
+  complex(c_complex) function bessel_dk1dz(z) bind(c, name="bessel_dk1dz")
+
+    complex(c_complex), value, intent(in) :: z
+    complex(8) :: zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+
+    interface
+      subroutine cik01(z, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+        complex(8), intent(in) :: z
+        complex(8), intent(inout) :: cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1
+      end subroutine
+    end interface
+
+    zz = z
+    call cik01(zz, cbi0, cdi0, cbi1, cdi1, cbk0, cdk0, cbk1, cdk1)
+    bessel_dk1dz = cdk1
+  end function
+
+  complex(c_complex) function bessel_ckn(n, z) bind(c, name="bessel_ckn")
+
+    integer(c_int), value, intent(in) :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, cbi(0:n), cdi(0:n), cbk(0:n), cdk(0:n)
+
+    interface
+      subroutine cikna(n, z, nm, cbi, cdi, cbk, cdk)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: cbi(0:n), cdi(0:n), cbk(0:n), cdk(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call cikna(n, zz, nm, cbi, cdi, cbk, cdk)
+    bessel_ckn = cbk(n)
+  end function
+
+  complex(c_complex) function bessel_dkndz(n, z) bind(c, name="bessel_dkndz")
+
+    integer(c_int), value, intent(in) :: n
+    complex(c_complex), value, intent(in) :: z
+    integer(4) :: nm
+    complex(8) :: zz, cbi(0:n), cdi(0:n), cbk(0:n), cdk(0:n)
+
+    interface
+      subroutine cikna(n, z, nm, cbi, cdi, cbk, cdk)
+        integer(4), intent(in) :: n
+        complex(8), intent(in) :: z
+        integer(4), intent(inout) :: nm
+        complex(8), intent(inout) :: cbi(0:n), cdi(0:n), cbk(0:n), cdk(0:n)
+      end subroutine
+    end interface
+
+    zz = z
+    call cikna(n, zz, nm, cbi, cdi, cbk, cdk)
+    bessel_dkndz = cdk(n)
+  end function
+
 end module special_functions
