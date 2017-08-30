@@ -15,6 +15,44 @@ implicit none
 
 contains
 
+  complex(c_complex) function cgamma(z) bind(c, name="cgamma")
+
+    complex(c_complex), value, intent(in) :: z
+    real(8) :: x, y, re_g, im_g
+
+    interface
+      subroutine cgama(x, y, kf, gr, gi)
+        real(8), intent(in) :: x, y
+        integer(4), intent(in) :: kf
+        real(8), intent(inout) :: gr, gi
+      end subroutine
+    end interface
+
+    x = real(z)
+    y = aimag(z)
+    call cgama(x, y, 1, re_g, im_g)
+    cgamma = complex(re_g, im_g)
+  end function
+
+  complex(c_complex) function clgamma(z) bind(c, name="clgamma")
+
+    complex(c_complex), value, intent(in) :: z
+    real(8) :: x, y, re_g, im_g
+
+    interface
+      subroutine cgama(x, y, kf, gr, gi)
+        real(8), intent(in) :: x, y
+        integer(4), intent(in) :: kf
+        real(8), intent(inout) :: gr, gi
+      end subroutine
+    end interface
+
+    x = real(z)
+    y = aimag(z)
+    call cgama(x, y, 0, re_g, im_g)
+    clgamma = complex(re_g, im_g)
+  end function
+
   real(c_real) function bessel_j0(x) bind(c, name="bessel_j0")
 
     real(c_real), value, intent(in) :: x

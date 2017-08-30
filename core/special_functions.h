@@ -10,12 +10,12 @@
 
 #include "core/polymec.h"
 
-// This function evaluates the factorial of the non-negative integer n, 
-// returning a real representation.
+// Evaluates the factorial of the non-negative integer n, returning a real 
+// representation.
 real_t factorial(int n);
 
-// This function evaluates the binomial coefficient n choose k, returning  
-// a real representation.
+// Evaluates the binomial coefficient n choose k, returning a real 
+// representation.
 real_t binomial_coeff(int n, int k);
 
 // Returns the value of J0, the Bessel function of the first kind of order 0, 
@@ -214,21 +214,27 @@ real_t legendre_dpmldx(int m, int l, real_t x);
 // to those compilers.
 #ifndef __cplusplus
 
-// Returns the value of H1n, the Hankel function of the first kind,
+// Evaluates the gamma function with a complex argument.
+complex_t cgamma(complex_t z);
+
+// Evaluates the natural log of the gamma function with a complex argument.
+complex_t clgamma(complex_t z);
+
+// Returns the value of H1n, the Hankel function of the first kind of order n,
 // at the given complex value z.
 complex_t bessel_h1n(int n, complex_t z);
 
 // Returns the value of the first derivative of H1n, the Hankel function of 
-// the first kind, at the given complex value z.
-complex_t bessel_dh1dz(complex_t z);
+// the first kind of order n, at the given complex value z.
+complex_t bessel_dh1ndz(int n, complex_t z);
 
-// Returns the value of H2n, the Hankel function of the second kind,
+// Returns the value of H2n, the Hankel function of the second kind of order n,
 // at the given complex value z.
 complex_t bessel_h2n(int n, complex_t z);
 
 // Returns the value of the first derivative of H2n, the Hankel function of 
-// the second kind, at the given complex value z.
-complex_t bessel_dh2dz(int n, complex_t z);
+// the second kind of order n, at the given complex value z.
+complex_t bessel_dh2ndz(int n, complex_t z);
 
 // Returns the value of J0, the Bessel function of the first kind of order 
 // zero, at the given complex value z.
