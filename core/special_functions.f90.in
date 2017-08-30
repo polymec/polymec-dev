@@ -138,6 +138,90 @@ contains
     end do
   end subroutine
 
+  real(c_real) function bessel_jv(v, x) bind(c, name="bessel_jv")
+
+    real(c_real), value, intent(in) :: v
+    real(c_real), value, intent(in) :: x
+    real(8) :: vm
+    real(8) :: xx, bj(0:int(v)), dj(0:int(v)), by(0:int(v)), dy(0:int(v))
+
+    interface
+      subroutine jyv(v, x, vm, bj, dj, by, dy)
+        real(8), intent(in) :: v
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: vm
+        real(8), intent(inout) :: bj(0:*), dj(0:*), by(0:*), dy(0:*)
+      end subroutine
+    end interface
+
+    xx = x
+    call jyv(v, xx, vm, bj, dj, by, dy)
+    bessel_jv = bj(int(v))
+  end function
+
+  real(c_real) function bessel_djvdx(v, x) bind(c, name="bessel_djvdx")
+
+    real(c_real), value, intent(in) :: v
+    real(c_real), value, intent(in) :: x
+    real(8) :: vm
+    real(8) :: xx, bj(0:int(v)), dj(0:int(v)), by(0:int(v)), dy(0:int(v))
+
+    interface
+      subroutine jyv(v, x, vm, bj, dj, by, dy)
+        real(8), intent(in) :: v
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: vm
+        real(8), intent(inout) :: bj(0:*), dj(0:*), by(0:*), dy(0:*)
+      end subroutine
+    end interface
+
+    xx = x
+    call jyv(v, xx, vm, bj, dj, by, dy)
+    bessel_djvdx = dj(int(v))
+  end function
+
+  complex(c_complex) function bessel_cjv(v, z) bind(c, name="bessel_cjv")
+
+    real(c_real), value, intent(in) :: v
+    complex(c_complex), value, intent(in) :: z
+    real(8) :: vm
+    complex(8) :: zz, cbj(0:int(v)), cdj(0:int(v)), cby(0:int(v)), cdy(0:int(v))
+
+    interface
+      subroutine cjyva(v, z, vm, cbj, cdj, cby, cdy)
+        real(8), intent(in) :: v
+        complex(8), intent(in) :: z
+        real(8), intent(inout) :: vm
+        complex(8), intent(inout) :: cbj(0:*), cdj(0:*), cby(0:*), cdy(0:*)
+      end subroutine
+    end interface
+
+    zz = z
+    call cjyva(v, zz, vm, cbj, cdj, cby, cdy)
+    bessel_cjv = cbj(int(v))
+  end function
+
+  complex(c_complex) function bessel_djvdz(v, z) bind(c, name="bessel_djvdz")
+
+    real(c_real), value, intent(in) :: v
+    complex(c_complex), value, intent(in) :: z
+    real(8) :: vm
+    complex(8) :: zz, cbj(0:int(v)), cdj(0:int(v)), cby(0:int(v)), cdy(0:int(v))
+
+    interface
+      subroutine cjyva(v, z, vm, cbj, cdj, cby, cdy)
+        real(8), intent(in) :: v
+        complex(8), intent(in) :: z
+        real(8), intent(inout) :: vm
+        complex(8), intent(inout) :: cbj(0:*), cdj(0:*), cby(0:*), cdy(0:*)
+      end subroutine
+    end interface
+
+    zz = z
+    call cjyva(v, zz, vm, cbj, cdj, cby, cdy)
+    bessel_djvdz = cdj(int(v))
+  end function
+
   real(c_real) function bessel_y0(x) bind(c, name="bessel_y0")
 
     real(c_real), value, intent(in) :: x
@@ -260,6 +344,90 @@ contains
       f_roots(i) = ynr(i)
     end do
   end subroutine
+
+  real(c_real) function bessel_yv(v, x) bind(c, name="bessel_yv")
+
+    real(c_real), value, intent(in) :: v
+    real(c_real), value, intent(in) :: x
+    real(8) :: vm
+    real(8) :: xx, bj(0:int(v)), dj(0:int(v)), by(0:int(v)), dy(0:int(v))
+
+    interface
+      subroutine jyv(v, x, vm, bj, dj, by, dy)
+        real(8), intent(in) :: v
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: vm
+        real(8), intent(inout) :: bj(0:*), dj(0:*), by(0:*), dy(0:*)
+      end subroutine
+    end interface
+
+    xx = x
+    call jyv(v, xx, vm, bj, dj, by, dy)
+    bessel_yv = by(int(v))
+  end function
+
+  real(c_real) function bessel_dyvdx(v, x) bind(c, name="bessel_dyvdx")
+
+    real(c_real), value, intent(in) :: v
+    real(c_real), value, intent(in) :: x
+    real(8) :: vm
+    real(8) :: xx, bj(0:int(v)), dj(0:int(v)), by(0:int(v)), dy(0:int(v))
+
+    interface
+      subroutine jyv(v, x, vm, bj, dj, by, dy)
+        real(8), intent(in) :: v
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: vm
+        real(8), intent(inout) :: bj(0:*), dj(0:*), by(0:*), dy(0:*)
+      end subroutine
+    end interface
+
+    xx = x
+    call jyv(v, xx, vm, bj, dj, by, dy)
+    bessel_dyvdx = dy(int(v))
+  end function
+
+  complex(c_complex) function bessel_cyv(v, z) bind(c, name="bessel_cyv")
+
+    real(c_real), value, intent(in) :: v
+    complex(c_complex), value, intent(in) :: z
+    real(8) :: vm
+    complex(8) :: zz, cbj(0:int(v)), cdj(0:int(v)), cby(0:int(v)), cdy(0:int(v))
+
+    interface
+      subroutine cjyva(v, z, vm, cbj, cdj, cby, cdy)
+        real(8), intent(in) :: v
+        complex(8), intent(in) :: z
+        real(8), intent(inout) :: vm
+        complex(8), intent(inout) :: cbj(0:*), cdj(0:*), cby(0:*), cdy(0:*)
+      end subroutine
+    end interface
+
+    zz = z
+    call cjyva(v, zz, vm, cbj, cdj, cby, cdy)
+    bessel_cyv = cby(int(v))
+  end function
+
+  complex(c_complex) function bessel_dyvdz(v, z) bind(c, name="bessel_dyvdz")
+
+    real(c_real), value, intent(in) :: v
+    complex(c_complex), value, intent(in) :: z
+    real(8) :: vm
+    complex(8) :: zz, cbj(0:int(v)), cdj(0:int(v)), cby(0:int(v)), cdy(0:int(v))
+
+    interface
+      subroutine cjyva(v, z, vm, cbj, cdj, cby, cdy)
+        real(8), intent(in) :: v
+        complex(8), intent(in) :: z
+        real(8), intent(inout) :: vm
+        complex(8), intent(inout) :: cbj(0:*), cdj(0:*), cby(0:*), cdy(0:*)
+      end subroutine
+    end interface
+
+    zz = z
+    call cjyva(v, zz, vm, cbj, cdj, cby, cdy)
+    bessel_dyvdz = cdy(int(v))
+  end function
 
   real(c_real) function bessel_i0(x) bind(c, name="bessel_i0")
 
@@ -439,6 +607,90 @@ contains
     bessel_dindx = di(n)
   end function
 
+  real(c_real) function bessel_iv(v, x) bind(c, name="bessel_iv")
+
+    real(c_real), value, intent(in) :: v
+    real(c_real), value, intent(in) :: x
+    real(8) :: vm
+    real(8) :: xx, bi(0:int(v)), di(0:int(v)), bk(0:int(v)), dk(0:int(v))
+
+    interface
+      subroutine ikv(v, x, vm, bi, di, bk, dk)
+        real(8), intent(in) :: v
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: vm
+        real(8), intent(inout) :: bi(0:*), di(0:*), bk(0:*), dk(0:*)
+      end subroutine
+    end interface
+
+    xx = x
+    call ikv(v, xx, vm, bi, di, bk, dk)
+    bessel_iv = bi(int(v))
+  end function
+
+  real(c_real) function bessel_divdx(v, x) bind(c, name="bessel_divdx")
+
+    real(c_real), value, intent(in) :: v
+    real(c_real), value, intent(in) :: x
+    real(8) :: vm
+    real(8) :: xx, bi(0:int(v)), di(0:int(v)), bk(0:int(v)), dk(0:int(v))
+
+    interface
+      subroutine ikv(v, x, vm, bi, di, bk, dk)
+        real(8), intent(in) :: v
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: vm
+        real(8), intent(inout) :: bi(0:*), di(0:*), bk(0:*), dk(0:*)
+      end subroutine
+    end interface
+
+    xx = x
+    call ikv(v, xx, vm, bi, di, bk, dk)
+    bessel_divdx = di(int(v))
+  end function
+
+  complex(c_complex) function bessel_civ(v, z) bind(c, name="bessel_civ")
+
+    real(c_real), value, intent(in) :: v
+    complex(c_complex), value, intent(in) :: z
+    real(8) :: vm
+    complex(8) :: zz, cbi(0:int(v)), cdi(0:int(v)), cbk(0:int(v)), cdk(0:int(v))
+
+    interface
+      subroutine cikva(v, z, vm, cbi, cdi, cbk, cdk)
+        real(8), intent(in) :: v
+        complex(8), intent(in) :: z
+        real(8), intent(inout) :: vm
+        complex(8), intent(inout) :: cbi(0:*), cdi(0:*), cbk(0:*), cdk(0:*)
+      end subroutine
+    end interface
+
+    zz = z
+    call cikva(v, zz, vm, cbi, cdi, cbk, cdk)
+    bessel_civ = cbi(int(v))
+  end function
+
+  complex(c_complex) function bessel_divdz(v, z) bind(c, name="bessel_divdz")
+
+    real(c_real), value, intent(in) :: v
+    complex(c_complex), value, intent(in) :: z
+    real(8) :: vm
+    complex(8) :: zz, cbi(0:int(v)), cdi(0:int(v)), cbk(0:int(v)), cdk(0:int(v))
+
+    interface
+      subroutine cikva(v, z, vm, cbi, cdi, cbk, cdk)
+        real(8), intent(in) :: v
+        complex(8), intent(in) :: z
+        real(8), intent(inout) :: vm
+        complex(8), intent(inout) :: cbi(0:*), cdi(0:*), cbk(0:*), cdk(0:*)
+      end subroutine
+    end interface
+
+    zz = z
+    call cikva(v, zz, vm, cbi, cdi, cbk, cdk)
+    bessel_divdz = cdk(int(v))
+  end function
+
   real(c_real) function bessel_kn(n, x) bind(c, name="bessel_kn")
 
     integer(c_int), value, intent(in) :: n
@@ -479,6 +731,90 @@ contains
     xx = x
     call ikna(n, xx, nm, bi, di, bk, dk)
     bessel_dkndx = dk(n)
+  end function
+
+  real(c_real) function bessel_kv(v, x) bind(c, name="bessel_kv")
+
+    real(c_real), value, intent(in) :: v
+    real(c_real), value, intent(in) :: x
+    real(8) :: vm
+    real(8) :: xx, bi(0:int(v)), di(0:int(v)), bk(0:int(v)), dk(0:int(v))
+
+    interface
+      subroutine ikv(v, x, vm, bi, di, bk, dk)
+        real(8), intent(in) :: v
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: vm
+        real(8), intent(inout) :: bi(0:*), di(0:*), bk(0:*), dk(0:*)
+      end subroutine
+    end interface
+
+    xx = x
+    call ikv(v, xx, vm, bi, di, bk, dk)
+    bessel_kv = bk(int(v))
+  end function
+
+  real(c_real) function bessel_dkvdx(v, x) bind(c, name="bessel_dkvdx")
+
+    real(c_real), value, intent(in) :: v
+    real(c_real), value, intent(in) :: x
+    real(8) :: vm
+    real(8) :: xx, bi(0:int(v)), di(0:int(v)), bk(0:int(v)), dk(0:int(v))
+
+    interface
+      subroutine ikv(v, x, vm, bi, di, bk, dk)
+        real(8), intent(in) :: v
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: vm
+        real(8), intent(inout) :: bi(0:*), di(0:*), bk(0:*), dk(0:*)
+      end subroutine
+    end interface
+
+    xx = x
+    call ikv(v, xx, vm, bi, di, bk, dk)
+    bessel_dkvdx = dk(int(v))
+  end function
+
+  complex(c_complex) function bessel_ckv(v, z) bind(c, name="bessel_ckv")
+
+    real(c_real), value, intent(in) :: v
+    complex(c_complex), value, intent(in) :: z
+    real(8) :: vm
+    complex(8) :: zz, cbi(0:int(v)), cdi(0:int(v)), cbk(0:int(v)), cdk(0:int(v))
+
+    interface
+      subroutine cikva(v, z, vm, cbi, cdi, cbk, cdk)
+        real(8), intent(in) :: v
+        complex(8), intent(in) :: z
+        real(8), intent(inout) :: vm
+        complex(8), intent(inout) :: cbi(0:*), cdi(0:*), cbk(0:*), cdk(0:*)
+      end subroutine
+    end interface
+
+    zz = z
+    call cikva(v, zz, vm, cbi, cdi, cbk, cdk)
+    bessel_ckv = cbk(int(v))
+  end function
+
+  complex(c_complex) function bessel_dkvdz(v, z) bind(c, name="bessel_dkvdz")
+
+    real(c_real), value, intent(in) :: v
+    complex(c_complex), value, intent(in) :: z
+    real(8) :: vm
+    complex(8) :: zz, cbi(0:int(v)), cdi(0:int(v)), cbk(0:int(v)), cdk(0:int(v))
+
+    interface
+      subroutine cikva(v, z, vm, cbi, cdi, cbk, cdk)
+        real(8), intent(in) :: v
+        complex(8), intent(in) :: z
+        real(8), intent(inout) :: vm
+        complex(8), intent(inout) :: cbi(0:*), cdi(0:*), cbk(0:*), cdk(0:*)
+      end subroutine
+    end interface
+
+    zz = z
+    call cikva(v, zz, vm, cbi, cdi, cbk, cdk)
+    bessel_dkvdz = cdk(int(v))
   end function
 
   real(c_real) function chebyshev_tn(n, x) bind(c, name="chebyshev_tn")
