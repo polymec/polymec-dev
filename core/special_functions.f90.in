@@ -1,0 +1,644 @@
+! Copyright (c) 2012-2017, Jeffrey N. Johnson
+! All rights reserved.
+! 
+! This Source Code Form is subject to the terms of the Mozilla Public
+! License, v. 2.0. If a copy of the MPL was not distributed with this
+! file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#define c_real c_@POLYMEC_PRECISION@
+#define c_complex c_@POLYMEC_PRECISION@_complex
+
+module special_functions
+
+use iso_c_binding
+implicit none
+
+contains
+
+  real(c_real) function bessel_j0(x) bind(c, name="bessel_j0")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+
+    interface
+      subroutine jy01a(x, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+      end subroutine
+    end interface
+
+    xx = x
+    call jy01a(xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+    bessel_j0 = bj0
+  end function
+
+  real(c_real) function bessel_dj0dx(x) bind(c, name="bessel_dj0dx")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+
+    interface
+      subroutine jy01a(x, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+      end subroutine
+    end interface
+
+    xx = x
+    call jy01a(xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+    bessel_dj0dx = dj0
+  end function
+
+  real(c_real) function bessel_j1(x) bind(c, name="bessel_j1")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+
+    interface
+      subroutine jy01a(x, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+      end subroutine
+    end interface
+
+    xx = x
+    call jy01a(xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+    bessel_j1 = bj1
+  end function
+
+  real(c_real) function bessel_dj1dx(x) bind(c, name="bessel_dj1dx")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+
+    interface
+      subroutine jy01a(x, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+      end subroutine
+    end interface
+
+    xx = x
+    call jy01a(xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+    bessel_dj1dx = dj1
+  end function
+
+  real(c_real) function bessel_jn(n, x) bind(c, name="bessel_jn")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bjn, djn, fjn, byn, dyn, fyn
+
+    interface
+      subroutine jyndd(n, x, bjn, djn, fjn, byn, dyn, fyn)
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bjn, djn, fjn, byn, dyn, fyn
+      end subroutine
+    end interface
+
+    xx = x
+    call jyndd(n, xx, bjn, djn, fjn, byn, dyn, fyn)
+    bessel_jn = bjn
+  end function
+
+  real(c_real) function bessel_djndx(n, x) bind(c, name="bessel_djndx")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bjn, djn, fjn, byn, dyn, fyn
+
+    interface
+      subroutine jyndd(n, x, bjn, djn, fjn, byn, dyn, fyn)
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bjn, djn, fjn, byn, dyn, fyn
+      end subroutine
+    end interface
+
+    xx = x
+    call jyndd(n, xx, bjn, djn, fjn, byn, dyn, fyn)
+    bessel_djndx = djn
+  end function
+
+  subroutine bessel_find_jn_roots(n, num_roots, roots) bind(c, name="bessel_find_jn_roots")
+    integer(c_int), value, intent(in) :: n, num_roots
+    type(c_ptr), value :: roots
+
+    integer(4)       :: f_n, f_nr, i
+    real(8), dimension(:), pointer :: f_roots
+    real(8) :: jnr(num_roots), jnpr(num_roots), ynr(num_roots), ynpr(num_roots)
+
+    f_n = n
+    f_nr = num_roots
+    call c_f_pointer(roots, f_roots, (/num_roots/))
+    call jyzo(f_n, f_nr, jnr, jnpr, ynr, ynpr)
+    do i = 1, num_roots
+      f_roots(i) = jnr(i)
+    end do
+  end subroutine
+
+  real(c_real) function bessel_y0(x) bind(c, name="bessel_y0")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+
+    interface
+      subroutine jy01a(x, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+      end subroutine
+    end interface
+
+    xx = x
+    call jy01a(xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+    bessel_y0 = by0
+  end function
+
+  real(c_real) function bessel_dy0dx(x) bind(c, name="bessel_dy0dx")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+
+    interface
+      subroutine jy01a(x, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+      end subroutine
+    end interface
+
+    xx = x
+    call jy01a(xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+    bessel_dy0dx = dy0
+  end function
+
+  real(c_real) function bessel_y1(x) bind(c, name="bessel_y1")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+
+    interface
+      subroutine jy01a(x, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+      end subroutine
+    end interface
+
+    xx = x
+    call jy01a(xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+    bessel_y1 = by1
+  end function
+
+  real(c_real) function bessel_dy1dx(x) bind(c, name="bessel_dy1dx")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+
+    interface
+      subroutine jy01a(x, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bj0, dj0, bj1, dj1, by0, dy0, by1, dy1
+      end subroutine
+    end interface
+
+    xx = x
+    call jy01a(xx, bj0, dj0, bj1, dj1, by0, dy0, by1, dy1)
+    bessel_dy1dx = dy1
+  end function
+
+  real(c_real) function bessel_yn(n, x) bind(c, name="bessel_yn")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bjn, djn, fjn, byn, dyn, fyn
+
+    interface
+      subroutine jyndd(n, x, bjn, djn, fjn, byn, dyn, fyn)
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bjn, djn, fjn, byn, dyn, fyn
+      end subroutine
+    end interface
+
+    xx = x
+    call jyndd(n, xx, bjn, djn, fjn, byn, dyn, fyn)
+    bessel_yn = byn
+  end function
+
+  real(c_real) function bessel_dyndx(n, x) bind(c, name="bessel_dyndx")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bjn, djn, fjn, byn, dyn, fyn
+
+    interface
+      subroutine jyndd(n, x, bjn, djn, fjn, byn, dyn, fyn)
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bjn, djn, fjn, byn, dyn, fyn
+      end subroutine
+    end interface
+
+    xx = x
+    call jyndd(n, xx, bjn, djn, fjn, byn, dyn, fyn)
+    bessel_dyndx = dyn
+  end function
+
+  subroutine bessel_find_yn_roots(n, num_roots, roots) bind(c, name="bessel_find_yn_roots")
+    integer(c_int), value, intent(in) :: n, num_roots
+    type(c_ptr), value :: roots
+
+    integer(4)       :: f_n, f_nr, i
+    real(8), dimension(:), pointer :: f_roots
+    real(8) :: jnr(num_roots), jnpr(num_roots), ynr(num_roots), ynpr(num_roots)
+
+    f_n = n
+    f_nr = num_roots
+    call c_f_pointer(roots, f_roots, (/num_roots/))
+    call jyzo(f_n, f_nr, jnr, jnpr, ynr, ynpr)
+    do i = 1, num_roots
+      f_roots(i) = ynr(i)
+    end do
+  end subroutine
+
+  real(c_real) function bessel_i0(x) bind(c, name="bessel_i0")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+
+    interface
+      subroutine ik01a(x, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+      end subroutine
+    end interface
+
+    xx = x
+    call ik01a(xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+    bessel_i0 = bi0
+  end function
+
+  real(c_real) function bessel_di0dx(x) bind(c, name="bessel_di0dx")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+
+    interface
+      subroutine ik01a(x, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+      end subroutine
+    end interface
+
+    xx = x
+    call ik01a(xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+    bessel_di0dx = di0
+  end function
+
+  real(c_real) function bessel_i1(x) bind(c, name="bessel_i1")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+
+    interface
+      subroutine ik01a(x, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+      end subroutine
+    end interface
+
+    xx = x
+    call ik01a(xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+    bessel_i1 = bi1
+  end function
+
+  real(c_real) function bessel_di1dx(x) bind(c, name="bessel_di1dx")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+
+    interface
+      subroutine ik01a(x, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+      end subroutine
+    end interface
+
+    xx = x
+    call ik01a(xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+    bessel_di1dx = di1
+  end function
+
+  real(c_real) function bessel_k0(x) bind(c, name="bessel_k0")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+
+    interface
+      subroutine ik01a(x, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+      end subroutine
+    end interface
+
+    xx = x
+    call ik01a(xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+    bessel_k0 = bk0
+  end function
+
+  real(c_real) function bessel_dk0dx(x) bind(c, name="bessel_dk0dx")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+
+    interface
+      subroutine ik01a(x, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+      end subroutine
+    end interface
+
+    xx = x 
+    call ik01a(xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+    bessel_dk0dx = dk0
+  end function
+
+  real(c_real) function bessel_k1(x) bind(c, name="bessel_k1")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+
+    interface
+      subroutine ik01a(x, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+      end subroutine
+    end interface
+
+    xx = x
+    call ik01a(xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+    bessel_k1 = bk1
+  end function
+
+  real(c_real) function bessel_dk1dx(x) bind(c, name="bessel_dk1dx")
+
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+
+    interface
+      subroutine ik01a(x, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: bi0, di0, bi1, di1, bk0, dk0, bk1, dk1
+      end subroutine
+    end interface
+
+    xx = x 
+    call ik01a(xx, bi0, di0, bi1, di1, bk0, dk0, bk1, dk1)
+    bessel_dk1dx = dk1
+  end function
+
+  real(c_real) function bessel_in(n, x) bind(c, name="bessel_in")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    integer(4) :: nm
+    real(8) :: xx, bi(0:n), di(0:n), bk(0:n), dk(0:n)
+
+    interface
+      subroutine ikna(n, x, nm, bi, di, bk, dk)
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        integer(4), intent(inout) :: nm
+        real(8), intent(inout) :: bi(0:n), di(0:n), bk(0:n), dk(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call ikna(n, xx, nm, bi, di, bk, dk)
+    bessel_in = bi(n)
+  end function
+
+  real(c_real) function bessel_dindx(n, x) bind(c, name="bessel_dindx")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    integer(4) :: nm
+    real(8) :: xx, bi(0:n), di(0:n), bk(0:n), dk(0:n)
+
+    interface
+      subroutine ikna(n, x, nm, bi, di, bk, dk)
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        integer(4), intent(inout) :: nm
+        real(8), intent(inout) :: bi(0:n), di(0:n), bk(0:n), dk(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call ikna(n, xx, nm, bi, di, bk, dk)
+    bessel_dindx = di(n)
+  end function
+
+  real(c_real) function bessel_kn(n, x) bind(c, name="bessel_kn")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    integer(4) :: nm
+    real(8) :: xx, bi(0:n), di(0:n), bk(0:n), dk(0:n)
+
+    interface
+      subroutine ikna(n, x, nm, bi, di, bk, dk)
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        integer(4), intent(inout) :: nm
+        real(8), intent(inout) :: bi(0:n), di(0:n), bk(0:n), dk(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call ikna(n, xx, nm, bi, di, bk, dk)
+    bessel_kn = bk(n)
+  end function
+
+  real(c_real) function bessel_dkndx(n, x) bind(c, name="bessel_dkndx")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    integer(4) :: nm
+    real(8) :: xx, bi(0:n), di(0:n), bk(0:n), dk(0:n)
+
+    interface
+      subroutine ikna(n, x, nm, bi, di, bk, dk)
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        integer(4), intent(inout) :: nm
+        real(8), intent(inout) :: bi(0:n), di(0:n), bk(0:n), dk(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call ikna(n, xx, nm, bi, di, bk, dk)
+    bessel_dkndx = dk(n)
+  end function
+
+  real(c_real) function chebyshev_tn(n, x) bind(c, name="chebyshev_tn")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pl(0:n), dpl(0:n)
+
+    interface
+      subroutine othpl(kf, n, x, pl, dpl)
+        integer(4), intent(in) :: kf
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call othpl(1, n, xx, pl, dpl)
+    chebyshev_tn = pl(n)
+  end function
+
+  real(c_real) function chebyshev_dtndx(n, x) bind(c, name="chebyshev_dtndx")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pl(0:n), dpl(0:n)
+
+    interface
+      subroutine othpl(kf, n, x, pl, dpl)
+        integer(4), intent(in) :: kf
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call othpl(1, n, xx, pl, dpl)
+    chebyshev_dtndx = dpl(n)
+  end function
+
+  real(c_real) function chebyshev_un(n, x) bind(c, name="chebyshev_un")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pl(0:n), dpl(0:n)
+
+    interface
+      subroutine othpl(kf, n, x, pl, dpl)
+        integer(4), intent(in) :: kf
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call othpl(2, n, xx, pl, dpl)
+    chebyshev_un = pl(n)
+  end function
+
+  real(c_real) function chebyshev_dundx(n, x) bind(c, name="chebyshev_dundx")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pl(0:n), dpl(0:n)
+
+    interface
+      subroutine othpl(kf, n, x, pl, dpl)
+        integer(4), intent(in) :: kf
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call othpl(2, n, xx, pl, dpl)
+    chebyshev_dundx = dpl(n)
+  end function
+
+  real(c_real) function laguerre_ln(n, x) bind(c, name="laguerre_ln")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pl(0:n), dpl(0:n)
+
+    interface
+      subroutine othpl(kf, n, x, pl, dpl)
+        integer(4), intent(in) :: kf
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call othpl(3, n, xx, pl, dpl)
+    laguerre_ln = pl(n)
+  end function
+
+  real(c_real) function laguerre_dlndx(n, x) bind(c, name="laguerre_dlndx")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pl(0:n), dpl(0:n)
+
+    interface
+      subroutine othpl(kf, n, x, pl, dpl)
+        integer(4), intent(in) :: kf
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call othpl(3, n, xx, pl, dpl)
+    laguerre_dlndx = dpl(n)
+  end function
+
+  real(c_real) function hermite_hn(n, x) bind(c, name="hermite_hn")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pl(0:n), dpl(0:n)
+
+    interface
+      subroutine othpl(kf, n, x, pl, dpl)
+        integer(4), intent(in) :: kf
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call othpl(4, n, xx, pl, dpl)
+    hermite_hn = pl(n)
+  end function
+
+  real(c_real) function hermite_dhndx(n, x) bind(c, name="hermite_dhndx")
+
+    integer(c_int), value, intent(in) :: n
+    real(c_real), value, intent(in) :: x
+    real(8) :: xx, pl(0:n), dpl(0:n)
+
+    interface
+      subroutine othpl(kf, n, x, pl, dpl)
+        integer(4), intent(in) :: kf
+        integer(4), intent(in) :: n
+        real(8), intent(in) :: x
+        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+      end subroutine
+    end interface
+
+    xx = x
+    call othpl(4, n, xx, pl, dpl)
+    hermite_dhndx = dpl(n)
+  end function
+
+end module special_functions

@@ -4,9 +4,16 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.h"
 )
 
+# Make sure our Fortran compiler uses its preprocessor.
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/special_functions.f90.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/special_functions.f90"
+)
+
 include(add_polymec_library)
 add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c memory_info.c
-                    special_functions.c point.c point2.c tensor2.c tagger.c mesh.c 
+                    point.c point2.c tensor2.c tagger.c mesh.c 
                     point_cloud.c hilbert.c kd_tree.c octree.c rng.c parallel_sort.c
                     permutations.c adj_graph.c sp_func.c st_func.c polynomial.c 
                     least_squares.c newton.c options.c  
@@ -15,7 +22,10 @@ add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
                     file_utils.c array_utils.c lookup1.c linear_algebra.c 
                     bd_matrix.c matrix_sparsity.c krylov_solver.c 
                     petsc_krylov_solver.c hypre_krylov_solver.c
-                    exchanger.c lua_types.c lua_core.c lua_replace_tostring.c
+                    ${CMAKE_CURRENT_BINARY_DIR}/special_functions.f90 
+                    special_functions.c 
+                    exchanger.c lua_types.c lua_core.c 
+                    lua_replace_tostring.c
                     lua_array.c lua_ndarray.c lua_driver.c)
 
 # polymec.c depends on the creation of polymec_version.h.

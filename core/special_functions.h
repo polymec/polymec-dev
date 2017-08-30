@@ -10,12 +10,13 @@
 
 #include "core/polymec.h"
 
-// These functions implement special functions not available in the 
-// standard C math library. Several of them are adapted from the Fortran 77 
-// subroutines that accompany "Computation of Special Functions" by Shanjie 
-// Zhang and Jianming Jin (Copyright (c) 1996, John Wiley and Sons, Inc).
-// This copyright/attribution must accompany any reproduction of these 
-// functions.
+// This function evaluates the factorial of the non-negative integer n, 
+// returning a real representation.
+real_t factorial(int n);
+
+// This function evaluates the binomial coefficient n choose k, returning  
+// a real representation.
+real_t binomial_coeff(int n, int k);
 
 // Returns the value of J0, the Bessel function of the first kind of order 0, 
 // at the given real value x.

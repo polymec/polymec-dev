@@ -12,9 +12,7 @@ set(CMAKE_Fortran_COMPILER "${FC}")
 set_up_platform()
 enable_language(C)
 enable_language(CXX)
-if (LINUX)
-  enable_language(Fortran)
-endif()
+enable_language(Fortran)
 
 # We declare the project here.
 project (polymec)

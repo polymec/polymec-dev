@@ -512,6 +512,10 @@ if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
 endif()
 set(POLYMEC_TP_LIBS jrs_predicates;${POLYMEC_TP_LIBS})
 
+# Build specfun, a Fortran library implementing special functions.
+add_library(specfun specfun/special_functions.f90)
+set(POLYMEC_TP_LIBS specfun;${POLYMEC_TP_LIBS})
+
 # If we're building a parallel code, build INRIA's Scotch library.
 if (HAVE_MPI)
   if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libscotch.a)
