@@ -180,7 +180,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     real(c_real), value, intent(in) :: x
-    real(8) :: vm
+    real(8) :: vv, vm
     real(8) :: xx, bj(0:int(v)), dj(0:int(v)), by(0:int(v)), dy(0:int(v))
 
     interface
@@ -192,8 +192,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     xx = x
-    call jyv(v, xx, vm, bj, dj, by, dy)
+    call jyv(vv, xx, vm, bj, dj, by, dy)
     bessel_jv = bj(int(v))
   end function
 
@@ -201,7 +202,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     real(c_real), value, intent(in) :: x
-    real(8) :: vm
+    real(8) :: vv, vm
     real(8) :: xx, bj(0:int(v)), dj(0:int(v)), by(0:int(v)), dy(0:int(v))
 
     interface
@@ -213,8 +214,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     xx = x
-    call jyv(v, xx, vm, bj, dj, by, dy)
+    call jyv(vv, xx, vm, bj, dj, by, dy)
     bessel_djvdx = dj(int(v))
   end function
 
@@ -222,7 +224,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     complex(c_complex), value, intent(in) :: z
-    real(8) :: vm
+    real(8) :: vv, vm
     complex(8) :: zz, cbj(0:int(v)), cdj(0:int(v)), cby(0:int(v)), cdy(0:int(v))
 
     interface
@@ -234,8 +236,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     zz = z
-    call cjyva(v, zz, vm, cbj, cdj, cby, cdy)
+    call cjyva(vv, zz, vm, cbj, cdj, cby, cdy)
     bessel_cjv = cbj(int(v))
   end function
 
@@ -243,7 +246,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     complex(c_complex), value, intent(in) :: z
-    real(8) :: vm
+    real(8) :: vv, vm
     complex(8) :: zz, cbj(0:int(v)), cdj(0:int(v)), cby(0:int(v)), cdy(0:int(v))
 
     interface
@@ -255,8 +258,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     zz = z
-    call cjyva(v, zz, vm, cbj, cdj, cby, cdy)
+    call cjyva(vv, zz, vm, cbj, cdj, cby, cdy)
     bessel_djvdz = cdj(int(v))
   end function
 
@@ -387,7 +391,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     real(c_real), value, intent(in) :: x
-    real(8) :: vm
+    real(8) :: vv, vm
     real(8) :: xx, bj(0:int(v)), dj(0:int(v)), by(0:int(v)), dy(0:int(v))
 
     interface
@@ -399,8 +403,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     xx = x
-    call jyv(v, xx, vm, bj, dj, by, dy)
+    call jyv(vv, xx, vm, bj, dj, by, dy)
     bessel_yv = by(int(v))
   end function
 
@@ -408,7 +413,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     real(c_real), value, intent(in) :: x
-    real(8) :: vm
+    real(8) :: vv, vm
     real(8) :: xx, bj(0:int(v)), dj(0:int(v)), by(0:int(v)), dy(0:int(v))
 
     interface
@@ -420,8 +425,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     xx = x
-    call jyv(v, xx, vm, bj, dj, by, dy)
+    call jyv(vv, xx, vm, bj, dj, by, dy)
     bessel_dyvdx = dy(int(v))
   end function
 
@@ -429,7 +435,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     complex(c_complex), value, intent(in) :: z
-    real(8) :: vm
+    real(8) :: vv, vm
     complex(8) :: zz, cbj(0:int(v)), cdj(0:int(v)), cby(0:int(v)), cdy(0:int(v))
 
     interface
@@ -441,8 +447,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     zz = z
-    call cjyva(v, zz, vm, cbj, cdj, cby, cdy)
+    call cjyva(vv, zz, vm, cbj, cdj, cby, cdy)
     bessel_cyv = cby(int(v))
   end function
 
@@ -450,7 +457,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     complex(c_complex), value, intent(in) :: z
-    real(8) :: vm
+    real(8) :: vv, vm
     complex(8) :: zz, cbj(0:int(v)), cdj(0:int(v)), cby(0:int(v)), cdy(0:int(v))
 
     interface
@@ -462,6 +469,7 @@ contains
       end subroutine
     end interface
 
+    vv = v
     zz = z
     call cjyva(v, zz, vm, cbj, cdj, cby, cdy)
     bessel_dyvdz = cdy(int(v))
@@ -649,7 +657,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     real(c_real), value, intent(in) :: x
-    real(8) :: vm
+    real(8) :: vv, vm
     real(8) :: xx, bi(0:int(v)), di(0:int(v)), bk(0:int(v)), dk(0:int(v))
 
     interface
@@ -661,8 +669,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     xx = x
-    call ikv(v, xx, vm, bi, di, bk, dk)
+    call ikv(vv, xx, vm, bi, di, bk, dk)
     bessel_iv = bi(int(v))
   end function
 
@@ -670,7 +679,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     real(c_real), value, intent(in) :: x
-    real(8) :: vm
+    real(8) :: vv, vm
     real(8) :: xx, bi(0:int(v)), di(0:int(v)), bk(0:int(v)), dk(0:int(v))
 
     interface
@@ -682,8 +691,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     xx = x
-    call ikv(v, xx, vm, bi, di, bk, dk)
+    call ikv(vv, xx, vm, bi, di, bk, dk)
     bessel_divdx = di(int(v))
   end function
 
@@ -691,7 +701,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     complex(c_complex), value, intent(in) :: z
-    real(8) :: vm
+    real(8) :: vv, vm
     complex(8) :: zz, cbi(0:int(v)), cdi(0:int(v)), cbk(0:int(v)), cdk(0:int(v))
 
     interface
@@ -703,8 +713,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     zz = z
-    call cikva(v, zz, vm, cbi, cdi, cbk, cdk)
+    call cikva(vv, zz, vm, cbi, cdi, cbk, cdk)
     bessel_civ = cbi(int(v))
   end function
 
@@ -712,7 +723,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     complex(c_complex), value, intent(in) :: z
-    real(8) :: vm
+    real(8) :: vv, vm
     complex(8) :: zz, cbi(0:int(v)), cdi(0:int(v)), cbk(0:int(v)), cdk(0:int(v))
 
     interface
@@ -724,8 +735,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     zz = z
-    call cikva(v, zz, vm, cbi, cdi, cbk, cdk)
+    call cikva(vv, zz, vm, cbi, cdi, cbk, cdk)
     bessel_divdz = cdk(int(v))
   end function
 
@@ -775,7 +787,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     real(c_real), value, intent(in) :: x
-    real(8) :: vm
+    real(8) :: vv, vm
     real(8) :: xx, bi(0:int(v)), di(0:int(v)), bk(0:int(v)), dk(0:int(v))
 
     interface
@@ -787,8 +799,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     xx = x
-    call ikv(v, xx, vm, bi, di, bk, dk)
+    call ikv(vv, xx, vm, bi, di, bk, dk)
     bessel_kv = bk(int(v))
   end function
 
@@ -796,7 +809,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     real(c_real), value, intent(in) :: x
-    real(8) :: vm
+    real(8) :: vv, vm
     real(8) :: xx, bi(0:int(v)), di(0:int(v)), bk(0:int(v)), dk(0:int(v))
 
     interface
@@ -808,8 +821,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     xx = x
-    call ikv(v, xx, vm, bi, di, bk, dk)
+    call ikv(vv, xx, vm, bi, di, bk, dk)
     bessel_dkvdx = dk(int(v))
   end function
 
@@ -817,7 +831,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     complex(c_complex), value, intent(in) :: z
-    real(8) :: vm
+    real(8) :: vv, vm
     complex(8) :: zz, cbi(0:int(v)), cdi(0:int(v)), cbk(0:int(v)), cdk(0:int(v))
 
     interface
@@ -829,8 +843,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     zz = z
-    call cikva(v, zz, vm, cbi, cdi, cbk, cdk)
+    call cikva(vv, zz, vm, cbi, cdi, cbk, cdk)
     bessel_ckv = cbk(int(v))
   end function
 
@@ -838,7 +853,7 @@ contains
 
     real(c_real), value, intent(in) :: v
     complex(c_complex), value, intent(in) :: z
-    real(8) :: vm
+    real(8) :: vv, vm
     complex(8) :: zz, cbi(0:int(v)), cdi(0:int(v)), cbk(0:int(v)), cdk(0:int(v))
 
     interface
@@ -850,8 +865,9 @@ contains
       end subroutine
     end interface
 
+    vv = v
     zz = z
-    call cikva(v, zz, vm, cbi, cdi, cbk, cdk)
+    call cikva(vv, zz, vm, cbi, cdi, cbk, cdk)
     bessel_dkvdz = cdk(int(v))
   end function
 
@@ -859,19 +875,19 @@ contains
 
     integer(c_int), value, intent(in) :: n
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pl(0:n), dpl(0:n)
+    real(8) :: xx, pl(0:max(n,1)), dpl(0:max(n,1))
 
     interface
       subroutine othpl(kf, n, x, pl, dpl)
         integer(4), intent(in) :: kf
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+        real(8), intent(inout) :: pl(0:max(n,1)), dpl(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call othpl(1, n, xx, pl, dpl)
+    call othpl(1, max(n,1), xx, pl, dpl)
     chebyshev_tn = pl(n)
   end function
 
@@ -879,19 +895,19 @@ contains
 
     integer(c_int), value, intent(in) :: n
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pl(0:n), dpl(0:n)
+    real(8) :: xx, pl(0:max(n,1)), dpl(0:max(n,1))
 
     interface
       subroutine othpl(kf, n, x, pl, dpl)
         integer(4), intent(in) :: kf
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+        real(8), intent(inout) :: pl(0:max(n,1)), dpl(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call othpl(1, n, xx, pl, dpl)
+    call othpl(1, max(n,1), xx, pl, dpl)
     chebyshev_dtndx = dpl(n)
   end function
 
@@ -899,19 +915,19 @@ contains
 
     integer(c_int), value, intent(in) :: n
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pl(0:n), dpl(0:n)
+    real(8) :: xx, pl(0:max(n,1)), dpl(0:max(n,1))
 
     interface
       subroutine othpl(kf, n, x, pl, dpl)
         integer(4), intent(in) :: kf
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+        real(8), intent(inout) :: pl(0:max(n,1)), dpl(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call othpl(2, n, xx, pl, dpl)
+    call othpl(2, max(n,1), xx, pl, dpl)
     chebyshev_un = pl(n)
   end function
 
@@ -919,19 +935,19 @@ contains
 
     integer(c_int), value, intent(in) :: n
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pl(0:n), dpl(0:n)
+    real(8) :: xx, pl(0:max(n,1)), dpl(0:max(n,1))
 
     interface
       subroutine othpl(kf, n, x, pl, dpl)
         integer(4), intent(in) :: kf
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+        real(8), intent(inout) :: pl(0:max(n,1)), dpl(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call othpl(2, n, xx, pl, dpl)
+    call othpl(2, max(n,1), xx, pl, dpl)
     chebyshev_dundx = dpl(n)
   end function
 
@@ -939,19 +955,19 @@ contains
 
     integer(c_int), value, intent(in) :: n
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pl(0:n), dpl(0:n)
+    real(8) :: xx, pl(0:max(n,1)), dpl(0:max(n,1))
 
     interface
       subroutine othpl(kf, n, x, pl, dpl)
         integer(4), intent(in) :: kf
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+        real(8), intent(inout) :: pl(0:max(n,1)), dpl(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call othpl(3, n, xx, pl, dpl)
+    call othpl(3, max(n,1), xx, pl, dpl)
     laguerre_ln = pl(n)
   end function
 
@@ -959,19 +975,19 @@ contains
 
     integer(c_int), value, intent(in) :: n
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pl(0:n), dpl(0:n)
+    real(8) :: xx, pl(0:max(n,1)), dpl(0:max(n,1))
 
     interface
       subroutine othpl(kf, n, x, pl, dpl)
         integer(4), intent(in) :: kf
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+        real(8), intent(inout) :: pl(0:max(n,1)), dpl(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call othpl(3, n, xx, pl, dpl)
+    call othpl(3, max(n,1), xx, pl, dpl)
     laguerre_dlndx = dpl(n)
   end function
 
@@ -979,19 +995,19 @@ contains
 
     integer(c_int), value, intent(in) :: n
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pl(0:n), dpl(0:n)
+    real(8) :: xx, pl(0:max(n,1)), dpl(0:max(n,1))
 
     interface
       subroutine othpl(kf, n, x, pl, dpl)
         integer(4), intent(in) :: kf
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+        real(8), intent(inout) :: pl(0:max(n,1)), dpl(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call othpl(4, n, xx, pl, dpl)
+    call othpl(4, max(n,1), xx, pl, dpl)
     hermite_hn = pl(n)
   end function
 
@@ -999,19 +1015,19 @@ contains
 
     integer(c_int), value, intent(in) :: n
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pl(0:n), dpl(0:n)
+    real(8) :: xx, pl(0:max(n,1)), dpl(0:max(n,1))
 
     interface
       subroutine othpl(kf, n, x, pl, dpl)
         integer(4), intent(in) :: kf
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pl(0:n), dpl(0:n)
+        real(8), intent(inout) :: pl(0:max(n,1)), dpl(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call othpl(4, n, xx, pl, dpl)
+    call othpl(4, max(n,1), xx, pl, dpl)
     hermite_dhndx = dpl(n)
   end function
 
@@ -1019,18 +1035,18 @@ contains
 
     integer(c_int), value, intent(in) :: n
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pn(0:n), pd(0:n)
+    real(8) :: xx, pn(0:max(n,1)), pd(0:max(n,1))
 
     interface
       subroutine lpn(n, x, pn, pd)
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pn(0:n), pd(0:n)
+        real(8), intent(inout) :: pn(0:max(n,1)), pd(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call lpn(n, xx, pn, pd)
+    call lpn(max(n,1), xx, pn, pd)
     legendre_pn = pn(n)
   end function
 
@@ -1038,18 +1054,18 @@ contains
 
     integer(c_int), value, intent(in) :: n
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pn(0:n), pd(0:n)
+    real(8) :: xx, pn(0:max(n,1)), pd(0:max(n,1))
 
     interface
       subroutine lpn(n, x, pn, pd)
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pn(0:n), pd(0:n)
+        real(8), intent(inout) :: pn(0:max(n,1)), pd(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call lpn(n, xx, pn, pd)
+    call lpn(max(n,1), xx, pn, pd)
     legendre_dpndx = pd(n)
   end function
 
@@ -1058,19 +1074,19 @@ contains
     integer(c_int), value, intent(in) :: m
     integer(c_int), value, intent(in) :: l
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pm(0:l), pd(0:l)
+    real(8) :: xx, pm(0:max(l,1)), pd(0:max(l,1))
 
     interface
       subroutine lpmns(m, n, x, pm, pd)
         integer(4), intent(in) :: m
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pm(0:n), pd(0:n)
+        real(8), intent(inout) :: pm(0:max(n,1)), pd(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call lpmns(m, l, xx, pm, pd)
+    call lpmns(m, max(l,1), xx, pm, pd)
     legendre_pml = pm(l)
   end function
 
@@ -1079,19 +1095,19 @@ contains
     integer(c_int), value, intent(in) :: m
     integer(c_int), value, intent(in) :: l
     real(c_real), value, intent(in) :: x
-    real(8) :: xx, pm(0:l), pd(0:l)
+    real(8) :: xx, pm(0:max(l,1)), pd(0:max(l,1))
 
     interface
       subroutine lpmns(m, n, x, pm, pd)
         integer(4), intent(in) :: m
         integer(4), intent(in) :: n
         real(8), intent(in) :: x
-        real(8), intent(inout) :: pm(0:n), pd(0:n)
+        real(8), intent(inout) :: pm(0:max(n,1)), pd(0:max(n,1))
       end subroutine
     end interface
 
     xx = x
-    call lpmns(m, l, xx, pm, pd)
+    call lpmns(m, max(l,1), xx, pm, pd)
     legendre_dpmldx = pd(l)
   end function
 
