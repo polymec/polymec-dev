@@ -28,13 +28,9 @@ addons:
     - gfortran
     - git
     - valgrind
-    - lcov
 
 env:
-  global:
-    - CODECOV_TOKEN=2f8c5b82-a350-4e18-acb7-491783624fe0
   matrix:
-    - DEBUG=1 MPI=1 SHARED=0 PRECISION=double COVERAGE=1 
     - DEBUG=0 MPI=0 SHARED=0 PRECISION=double 
     - DEBUG=0 MPI=0 SHARED=0 PRECISION=single
     - DEBUG=0 MPI=0 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
@@ -52,16 +48,10 @@ env:
 #   so we exclude the GCC compiler option from Mac builds.
 # * In addition, we exclude Clang from all MPI Linux builds, since the Ubuntu 
 #   OpenMPI package uses GCC no matter what.
-# * We also only do code coverage on Linux.
 matrix:
   exclude:
   - os: osx
-    env: DEBUG=1 MPI=1 SHARED=0 PRECISION=double COVERAGE=1 
-  - os: osx
     compiler: gcc
-  - os: linux
-    compiler: clang
-    env: DEBUG=1 MPI=1 SHARED=0 PRECISION=double COVERAGE=1
   - os: linux
     compiler: clang
     env: DEBUG=0 MPI=1 SHARED=0 PRECISION=double
@@ -99,14 +89,13 @@ before_script:
   - if [ "$TRAVIS_OS_NAME" = "osx" ] && [ "$MPI" = "1" ]; then export TMPDIR="/tmp"; fi
   - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$CC" = "gcc" ]; then export CC="gcc-5"; fi
   - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$CC" = "clang" ]; then export CC="clang-3.6"; fi
-  - make config CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION coverage=$COVERAGE travis=1 prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION
+  - make config CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION travis=1 prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION
 
 script: 
-  - make -j4 CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION coverage=$COVERAGE install 
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ] && [ "$COVERAGE" = "" ]; then make CC=$CC debug=1 mpi=$MPI shared=0 precision=$PRECISION memcheck; else make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION coverage=$COVERAGE GCOV=gcov-5 test; fi
+  - make -j4 CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION install 
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then make CC=$CC debug=1 mpi=$MPI shared=0 precision=$PRECISION memcheck; else make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION test; fi
 
 after_success: 
-  - if [ "$COVERAGE" = "1" ]; then bash <(curl -s https://codecov.io/bash) -x gcov-5; fi
   - cd $HOME
   - mkdir -p latest
   - tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION/*

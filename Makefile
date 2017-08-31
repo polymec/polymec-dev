@@ -187,6 +187,9 @@ test:
     fi \
   fi
 
+codecov:
+	@bash tools/upload_to_codecov.sh
+
 memcheck:
 	@cd $(BUILDDIR) && ctest -T memcheck
 
