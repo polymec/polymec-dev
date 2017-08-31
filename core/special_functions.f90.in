@@ -471,7 +471,7 @@ contains
 
     vv = v
     zz = z
-    call cjyva(v, zz, vm, cbj, cdj, cby, cdy)
+    call cjyva(vv, zz, vm, cbj, cdj, cby, cdy)
     bessel_dyvdz = cdy(int(v))
   end function
 
