@@ -1,10 +1,92 @@
--- This is a Lua implementation of the game of life.
+-- This is a Lua implementation of the game of life. It isn't supposed to 
+-- be "clever" Lua code, so it's pretty braindead.
+
+patterns = {blinker = {nx = 5, 
+                       ny = 5, 
+                       live_cells = {{2,3}, {3,3}, {4,3}},
+                       steps = 10},
+            block = {nx = 4,
+                     ny = 4,
+                     live_cells = {{2,2}, {2,3}, {3,2}, {3,3}},
+                     steps = 10},
+            glider = {nx = 5,
+                      ny = 5,
+                      live_cells = {{3,2}, {4,3}, {2,4}, {3,4}, {4,4}},
+                      steps = 4}
+           }
+
+-- Which pattern do we use?
+pattern_name = options.pattern or "blinker"
+pattern = patterns[pattern_name]
+if pattern == nil then
+  error(string.format("Unknown pattern: %s", pattern_name))
+end
 
 function gol_init(self, t)
   self.grid = {}
+  self.nx = pattern.nx
+  self.ny = pattern.ny
+  for i = 1,pattern.nx do
+    self.grid[i] = {}
+    for j = 1,pattern.ny do
+      self.grid[i][j] = 0
+    end
+  end
+  for c = 1,#pattern.live_cells do
+    cell = pattern.live_cells[c]
+    x = cell[1]
+    y = cell[2]
+    self.grid[x][y] = 1
+  end
 end
 
 function gol_advance(self, max_dt, t)
+  new_grid = {}
+  for i = 1,self.nx do
+    new_grid[i] = {}
+  end
+
+  for j = 1,self.ny do
+    if j == 1 then
+      ju = self.ny
+    else
+      ju = j-1
+    end
+    if j == self.ny then
+      jd = 1
+    else
+      jd = j+1
+    end
+    for i = 1,self.nx do
+      if i == 1 then
+        il = self.nx
+      else
+        il = i-1
+      end
+      if i == self.nx then
+        ir = 1
+      else
+        ir = i+1
+      end
+      num_neighbors = self.grid[il][ju] + 
+                      self.grid[il][j] + 
+                      self.grid[il][jd] + 
+                      self.grid[i][ju] + 
+                      self.grid[i][jd] + 
+                      self.grid[ir][ju] + 
+                      self.grid[ir][j] + 
+                      self.grid[ir][jd]
+--      print(string.format("cell %d,%d: %d neighbors", i, j, num_neighbors))
+      if num_neighbors < 2 or num_neighbors > 3 then
+        new_grid[i][j] = 0
+      elseif num_neighbors == 3 and self.grid[i][j] == 0 then
+        new_grid[i][j] = 1
+      else
+        new_grid[i][j] = self.grid[i][j]
+      end
+    end
+  end
+  self.grid = new_grid
   return max_dt
 end
 
@@ -15,16 +97,26 @@ end
 function gol_finalize(self, step, t)
 end
 
+function gol_save(self, prefix, dir, t, step)
+end
+
 function gol_load(self, prefix, dir, step)
   return 0
 end
 
-function gol_save(self, prefix, dir, t, step)
-  self.grid = {}
-end
-
 function gol_plot(self, prefix, dir, t, step)
-  self.grid = {}
+  io.write("\n")
+  for j = 1,self.ny do
+    for i = 1,self.nx do
+      if self.grid[i][j] == 1 then
+        io.write("*")
+      else
+        io.write(".")
+      end
+    end
+    io.write("\n")
+  end
+  io.write("\n")
 end
 
 gol = model.new{name = 'game_of_life', 
@@ -36,17 +128,17 @@ gol = model.new{name = 'game_of_life',
                 save = gol_save,
                 plot = gol_plot}
 
--- Do a run from time 0 to 1.
-gol:run{t1 = 0, t2 = 10, max_steps = 10, 
+-- Do a complete run of the pattern, whatever that means.
+gol:run{t1 = 0, t2 = pattern.steps, max_steps = pattern.steps, 
         plot_every=1, save_every=1, 
         prefix="gol", directory=".",
         max_dt=1, min_dt=1}
-print(gol:data())
+print("Data: ", gol:data())
 
 -- Load the model at the 4th step.
+print("Loading step 4...")
 gol:load(4)
-print(gol:step())
-print(gol:time())
+print(string.format("Step %d, time %g", gol:step(), gol:time()))
 
 -- Save the state.
 gol:save()

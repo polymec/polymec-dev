@@ -592,7 +592,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
       // If we are not quite there but we are close enough to encounter the 
       // minimum time step, break the final 2 steps into more equally-spaced
       // sizes.
-      else if ((max_dt + model->min_dt) > remaining_time)
+      else if ((max_dt + model->min_dt) > 2.0 * remaining_time)
       {
         max_dt = 0.5 * remaining_time;
         snprintf(reason, POLYMEC_MODEL_MAXDT_REASON_SIZE, 
