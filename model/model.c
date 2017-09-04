@@ -636,7 +636,7 @@ probe_data_array_t* model_probe_data(model_t* model, const char* quantity)
 void model_set_prefix(model_t* model, const char* prefix)
 {
   ASSERT(prefix != NULL);
-  log_debug("%s: Setting prefix to %s.", model->name, prefix);
+  log_debug("%s: Setting prefix to \"%s\".", model->name, prefix);
   polymec_free(model->sim_prefix);
   model->sim_prefix = string_dup(prefix);
 }
@@ -644,7 +644,7 @@ void model_set_prefix(model_t* model, const char* prefix)
 void model_set_directory(model_t* model, const char* directory)
 {
   ASSERT(directory != NULL);
-  log_debug("%s: Setting directory to %s.", model->name, directory);
+  log_debug("%s: Setting directory to \"%s\".", model->name, directory);
   polymec_free(model->sim_dir);
   model->sim_dir = string_dup(directory);
 }
