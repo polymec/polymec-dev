@@ -98,10 +98,30 @@ function gol_finalize(self, step, t)
 end
 
 function gol_save(self, prefix, dir, t, step)
+  if dir ~= '.' then
+    os.execute(string.format('mkdir %s', dir))
+  end
+  fn = string.format('%s/%s-%d.lif', dir, prefix, step)
+  f = io.open(fn, 'w')
+  f:write(string.format('time = %g\nnx = %d\nny = %d\n', t, self.nx, self.ny))
+  f:write('grid = {}\n')
+  for i = 1,self.nx do
+    f:write(string.format('grid[%d] = {}\n', i))
+    for j = 1,self.ny do
+      f:write(string.format('grid[%d][%d] = %d\n', i, j, self.grid[i][j]))
+    end
+  end
+  f:write('return time, nx, ny, grid\n')
+  f:close()
 end
 
 function gol_load(self, prefix, dir, step)
-  return 0
+  fn = string.format('%s/%s-%d.lif', dir, prefix, step)
+  time, nx, ny, grid = dofile(fn)
+  self.nx = nx
+  self.ny = ny
+  self.grid = grid
+  return time
 end
 
 function gol_plot(self, prefix, dir, t, step)
@@ -136,14 +156,19 @@ gol:run{t1 = 0, t2 = pattern.steps, max_steps = pattern.steps,
 print("Data: ", gol:data())
 
 -- Load the model at the 4th step.
-print("Loading step 4...")
-gol:load(4)
+print("Loading step 3...")
+gol:load(3)
+assert(gol:step() == 3)
+assert(gol:time() == 3)
 print(string.format("Step %d, time %g", gol:step(), gol:time()))
+gol:plot()
 
 -- Save the state.
 gol:save()
 
 -- Reinitialize and make a plot.
+print("Reinitializing and plotting...")
 gol:init(0)
+assert(gol:step() == 0)
 gol:plot()
 
