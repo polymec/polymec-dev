@@ -1,3 +1,27 @@
+Tue Sep  5 13:14:40 PDT 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.0.0
+    * Implemented a proper Lua interpreter for writing input scripts.
+      - Added types and functions for defining records and objects that 
+        represent polymec data structures.
+      - Implemented logic for interactive interpreter, including accommodations 
+        for parallel I/O.
+      - Added Lua representations of all fundamental data types.
+    * Added signed distance function classes: sd_func and sdt_func.
+    * Added vectorized forms for sp_func and st_func.
+    * Replaced model observations with probes, making data acquisition 
+      available to the Lua interpreter.
+    * Added complex_t and corresponding functions for manipulating complex 
+      numbers.
+    * Implemented several special functions (real- and complex-valued).
+    * Added an io library that contains the silo_file class.
+    * Removed the meshless library.
+    * Fixed several significant bugs.
+    * Bumped third-party library versions.
+    * Added support for code coverage using lcov/gcov.
+      - Increased code coverage from ~50% to ~72%.
+    * See https://github.com/polymec/polymec-dev/milestone/3?closed=1 for 
+      full details.
+
 Mon Dec  5 22:56:33 PST 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 1.4.0
     * Added model_get_vtable and model_set_vtable to allow vtable overrides within a model instance.
