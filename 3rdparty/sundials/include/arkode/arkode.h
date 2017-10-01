@@ -393,7 +393,7 @@ typedef int (*ARKPostProcessStepFn)(realtype t, N_Vector y,
  If an initialization error occurs, ARKodeCreate prints an error
  message to standard err and returns NULL.
 ---------------------------------------------------------------*/
-SUNDIALS_EXPORT void *ARKodeCreate();
+SUNDIALS_EXPORT void *ARKodeCreate(void);
 
 /*---------------------------------------------------------------
  Integrator optional input specification functions

@@ -68,7 +68,7 @@ static int world_nprocs = 1;
 
 // This function must be called to take advantage of Jonathan Shewchuk's 
 // exact geometric predicates.
-extern void exactinit();
+extern void exactinit(void);
 
 // Command line arguments (used for provenance information).
 static int polymec_argc = 0;
@@ -103,7 +103,7 @@ DEFINE_ARRAY(atinit_array, atinit_func)
 static atinit_array_t* _atinit_funcs = NULL;
 
 // Functions to call on exit.
-typedef void (*atexit_func)();
+typedef void (*atexit_func)(void);
 DEFINE_ARRAY(atexit_array, atexit_func)
 static atexit_array_t* _atexit_funcs = NULL;
 
@@ -635,7 +635,7 @@ void polymec_not_implemented(const char* component)
   polymec_unreachable();
 }
 
-void polymec_atexit(void (*func)()) 
+void polymec_atexit(void (*func)(void)) 
 {
   atexit_array_append(_atexit_funcs, func);
 }

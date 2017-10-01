@@ -20,9 +20,6 @@
 // A model is a numerical model of a physical phenomenon.
 typedef struct model_t model_t;
 
-// A model constructor function for creating an object context.
-typedef model_t* (*model_ctor)();
-
 // A function for initializing the model at time t.
 typedef void (*model_init_func)(void* context, real_t t);
 

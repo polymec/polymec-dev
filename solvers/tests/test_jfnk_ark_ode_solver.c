@@ -14,7 +14,7 @@
 #include "core/polymec.h"
 #include "solvers/ark_ode_solver.h"
 
-extern ode_solver_t* functional_ark_diurnal_solver_new();
+extern ode_solver_t* functional_ark_diurnal_solver_new(void);
 extern ode_solver_t* bj_jfnk_ark_diurnal_solver_new(newton_pc_side_t side);
 extern real_t* diurnal_initial_conditions(ode_solver_t* integ);
 extern int test_diurnal_step(void** state, ode_solver_t* integ, int max_step);

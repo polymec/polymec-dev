@@ -19,7 +19,7 @@ extern newton_solver_t* block_jacobi_precond_foodweb_solver_new(void);
 extern newton_solver_t* ink_foodweb_solver_new(krylov_factory_t* factory);
 extern krylov_factory_t* create_petsc_krylov_factory(void);
 extern krylov_factory_t* create_hypre_krylov_factory(void);
-extern real_t* foodweb_initial_conditions();
+extern real_t* foodweb_initial_conditions(void);
 
 static void test_block_jacobi_precond_foodweb_ctor(void** state)
 {
