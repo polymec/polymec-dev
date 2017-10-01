@@ -1442,6 +1442,76 @@ static lua_record_metamethod mesh_mm[] = {
   {NULL, NULL}
 };
 
+static int pc_new(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) && (num_args != 3))
+  {
+    luaL_error(L, "Arguments must be an MPI communicator, a list of points, "
+                  "and (optionally) a number of ghost points.");
+  }
+
+  if (!lua_is_mpi_comm(L, 1) )
+    luaL_error(L, "Argument 1 must be an MPI communicator.");
+  MPI_Comm comm = lua_to_mpi_comm(L, 1);
+
+  point_t* points = NULL;
+  int num_points = 0;
+  bool free_points = false;
+  if (!lua_istable(L, 2) && !lua_is_array(L, 2, LUA_ARRAY_POINT))
+    luaL_error(L, "Argument 2 must be a list or an array of points.");
+  if (lua_istable(L, 2))
+  {
+    point_array_t* points_array = point_array_new();
+    int i = 1;
+    while (true)
+    {
+      lua_rawgeti(L, 2, i);
+      if (lua_isnil(L, -1))
+      {
+        lua_pop(L, 1);
+        break;
+      }
+      else
+      {
+        if (!lua_is_point(L, -1))
+          luaL_error(L, "Item %d in argument 1 is not a point.");
+        point_t* x = lua_to_point(L, -1);
+        point_array_append(points_array, *x);
+        lua_pop(L, 1);
+      }
+      ++i;
+    }
+    points = points_array->data;
+    num_points = (int)(points_array->size);
+    point_array_release_data_and_free(points_array);
+    free_points = true;
+  }
+  else
+  {
+    points = lua_to_array(L, 2, LUA_ARRAY_POINT);
+    num_points = (int)lua_array_size(L, 2);
+  }
+
+  if ((num_args == 3) && !lua_isinteger(L, 3))
+    luaL_error(L, "Argument 3 must be a number of ghost points.");
+  int num_ghosts = (int)lua_tointeger(L, 3);
+  if (num_ghosts < 0)
+    luaL_error(L, "Number of ghost points must be positive.");
+
+  // Create the point cloud.
+  point_cloud_t* cloud = point_cloud_from_points(comm, points, (int)num_points);
+  if (num_ghosts > 0)
+    point_cloud_set_num_ghosts(cloud, num_ghosts);
+
+  // Clean up.
+  if (free_points)
+    polymec_free(points);
+
+  lua_push_point_cloud(L, cloud);
+  return 1;
+}
+
 static int pc_repartition(lua_State* L)
 {
   luaL_error(L, "can't repartition point clouds just yet!");
@@ -1449,6 +1519,7 @@ static int pc_repartition(lua_State* L)
 }
 
 static lua_module_function pc_funcs[] = {
+  {"new", pc_new},
   {"repartition", pc_repartition},
   {NULL, NULL}
 };
@@ -1803,31 +1874,31 @@ st_func_t* lua_to_st_func(lua_State* L, int index)
 
 void lua_push_mesh(lua_State* L, mesh_t* m)
 {
-  lua_push_object(L, "mesh", m, DTOR(mesh_free));
+  lua_push_record(L, "mesh", m, DTOR(mesh_free));
 }
 
 bool lua_is_mesh(lua_State* L, int index)
 {
-  return lua_is_object(L, index, "mesh");
+  return lua_is_record(L, index, "mesh");
 }
 
 mesh_t* lua_to_mesh(lua_State* L, int index)
 {
-  return (mesh_t*)lua_to_object(L, index, "mesh");
+  return (mesh_t*)lua_to_record(L, index, "mesh");
 }
 
 void lua_push_point_cloud(lua_State* L, point_cloud_t* c)
 {
-  lua_push_object(L, "point_cloud", c, DTOR(point_cloud_free));
+  lua_push_record(L, "point_cloud", c, DTOR(point_cloud_free));
 }
 
 bool lua_is_point_cloud(lua_State* L, int index)
 {
-  return lua_is_object(L, index, "point_cloud");
+  return lua_is_record(L, index, "point_cloud");
 }
 
 point_cloud_t* lua_to_point_cloud(lua_State* L, int index)
 {
-  return (point_cloud_t*)lua_to_object(L, index, "point_cloud");
+  return (point_cloud_t*)lua_to_record(L, index, "point_cloud");
 }
 

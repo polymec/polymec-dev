@@ -132,6 +132,10 @@ bool lua_is_array(lua_State* L, int index, lua_array_data_t type);
 // NULL if the item there is not such an array.
 void* lua_to_array(lua_State* L, int index, lua_array_data_t type);
 
+// Returns the size of the array at the given index, or 0 if the item there 
+// is not an array.
+size_t lua_array_size(lua_State* L, int index);
+
 // Pushes a multidimensional ndarray of the given rank, shape, and type onto L's stack.
 void lua_push_ndarray(lua_State* L, int rank, size_t* shape, 
                       void* array, lua_array_data_t type);

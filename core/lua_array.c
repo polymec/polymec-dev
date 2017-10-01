@@ -1147,8 +1147,14 @@ void* lua_to_array(lua_State* L, int index, lua_array_data_t type)
 {
   lua_array_t* a = luaL_testudata(L, index, "array");
   if ((a != NULL) && (type == a->type))
-    return a;
+    return a->array;
   else
     return NULL;
+}
+
+size_t lua_array_size(lua_State* L, int index)
+{
+  lua_array_t* a = luaL_testudata(L, index, "array");
+  return a->size;
 }
 

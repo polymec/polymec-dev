@@ -445,11 +445,6 @@ set(POLYMEC_TP_LIBS ${SUNDIALS_LIBS};${POLYMEC_TP_LIBS})
 
 # Build lua, a simple interpreted language library.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
-  if (${APPLE})
-    set(LUA_ARCH macosx)
-  else() 
-    set(LUA_ARCH generic)
-  endif()
   message(STATUS "Preparing lua...")
   execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lua ${CMAKE_CURRENT_BINARY_DIR}/lua
                   RESULT_VARIABLE stat)
@@ -457,20 +452,9 @@ if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
 
-  message(STATUS "Adjusting lua Makefile...")
-  file(READ ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile lua_makefile)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile.old ${lua_makefile})
-  string(REPLACE "gcc" ${CMAKE_C_COMPILER} lua_makefile ${lua_makefile})
-  string(REPLACE "CC=cc" "CC=${CMAKE_C_COMPILER}" lua_makefile ${lua_makefile})
-  string(REPLACE "MYCFLAGS=" "MYCFLAGS=-fPIC ${CMAKE_C_FLAGS}" lua_makefile ${lua_makefile})
-  string(REPLACE "MYLDFLAGS=" "MYLDFLAGS=${CMAKE_EXE_LINKER_FLAGS}" lua_makefile ${lua_makefile})
-  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    string(REPLACE "-O2 -Wall" "${CMAKE_C_FLAGS} -g3" lua_makefile ${lua_makefile})
-  endif()
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua/src/Makefile ${lua_makefile})
-
   message(STATUS "Building lua (${NUM_BUILD_THREADS} threads)...")
-  execute_process(COMMAND make ${LUA_ARCH} CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} -j${NUM_BUILD_THREADS}
+  set(LUA_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -DLUA_USE_POSIX")
+  execute_process(COMMAND make generic CC=${CMAKE_C_COMPILER} CFLAGS=${LUA_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} -j${NUM_BUILD_THREADS}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lua
                   OUTPUT_VARIABLE lua_build_log ERROR_VARIABLE lua_build_err
                   RESULT_VARIABLE stat)
