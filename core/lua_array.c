@@ -722,7 +722,7 @@ static int array_concat(lua_State* L)
       byte_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       byte_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   else if (type == LUA_ARRAY_INT)
   {
@@ -733,7 +733,7 @@ static int array_concat(lua_State* L)
       int_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       int_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   else if (type == LUA_ARRAY_INT64)
   {
@@ -744,7 +744,7 @@ static int array_concat(lua_State* L)
       int64_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       int64_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   else if (type == LUA_ARRAY_UINT64)
   {
@@ -755,7 +755,7 @@ static int array_concat(lua_State* L)
       uint64_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       uint64_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   else if (type == LUA_ARRAY_INDEX)
   {
@@ -766,7 +766,7 @@ static int array_concat(lua_State* L)
       index_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       index_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   else if (type == LUA_ARRAY_REAL)
   {
@@ -777,7 +777,7 @@ static int array_concat(lua_State* L)
       real_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       real_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   else if (type == LUA_ARRAY_COMPLEX)
   {
@@ -788,7 +788,7 @@ static int array_concat(lua_State* L)
       complex_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       complex_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   else if (type == LUA_ARRAY_POINT)
   {
@@ -799,7 +799,7 @@ static int array_concat(lua_State* L)
       point_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       point_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   else if (type == LUA_ARRAY_VECTOR)
   {
@@ -810,7 +810,7 @@ static int array_concat(lua_State* L)
       vector_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       vector_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   else if (type == LUA_ARRAY_TENSOR2)
   {
@@ -821,7 +821,7 @@ static int array_concat(lua_State* L)
       tensor2_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       tensor2_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   else // if (type == LUA_ARRAY_SYM_TENSOR2)
   {
@@ -832,7 +832,7 @@ static int array_concat(lua_State* L)
       sym_tensor2_array_append(concat, d1->data[i]);
     for (size_t i = 0; i < d2->size; ++i)
       sym_tensor2_array_append(concat, d2->data[i]);
-    lua_push_array(L, concat, type);
+    lua_push_array(L, concat, type, true);
   }
   return 1;
 }
@@ -1018,7 +1018,7 @@ static int array_new(lua_State* L)
   if (array == NULL)
     return luaL_error(L, "Argument 1 must be a table containing %s data.", type_str);
 
-  lua_push_array(L, array, type);
+  lua_push_array(L, array, type, true);
   return 1;
 }
 
@@ -1072,7 +1072,7 @@ void lua_register_array(lua_State* L)
   luaL_requiref(L, "array", lua_open_array, 1);
 }
 
-void lua_push_array(lua_State* L, void* array, lua_array_data_t type)
+void lua_push_array(lua_State* L, void* array, lua_array_data_t type, bool free_data)
 {
   lua_array_t* a = lua_newuserdata(L, sizeof(lua_array_t));
   luaL_getmetatable(L, "array");
@@ -1134,7 +1134,7 @@ void lua_push_array(lua_State* L, void* array, lua_array_data_t type)
   }
   a->array = array;
   a->type = type;
-  a->owns_data = false;
+  a->owns_data = free_data;
 }
 
 bool lua_is_array(lua_State* L, int index, lua_array_data_t type)

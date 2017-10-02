@@ -19,7 +19,9 @@
 // DEFINE_ARRAY(x_array, x):
 //
 // x_array_t* x_array_new() - Creates a new, empty array on the heap.
+// x_array_t* x_array_new_with_size(size_t size) - Creates a new array of the given size on the heap.
 // x_array_t* x_array_new_with_capacity(size_t capacity) - Creates a new, empty array on the heap with the given capacity.
+// x_array_t* x_array_new_with_data(x* data, size_t size) - Creates an array around the given existing data.
 // x_array_t empty_x_array() - Creates a new, empty array on the stack.
 // void x_array_free(x_array_t* array) - Destroys the (heap-allocated) array.
 // x* x_array_find(x_array_t* array, x value, cmp_func comparator) - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
@@ -52,6 +54,7 @@ typedef struct \
   array_name##_dtor* dtors; \
   size_t size; \
   size_t capacity; \
+  bool owns; \
 } array_name##_t; \
 \
 typedef int (*array_name##_comparator)(element, element); \
@@ -62,6 +65,7 @@ static inline void array_name##_reserve(array_name##_t* array, size_t new_capaci
   { \
     array->data = (element*)polymec_realloc(array->data, sizeof(element) * new_capacity); \
     array->capacity = new_capacity; \
+    array->owns = true; \
   } \
 } \
 \
@@ -72,6 +76,7 @@ static inline array_name##_t* array_name##_new_with_capacity(size_t capacity) \
   array->dtors = NULL; \
   array->size = 0; \
   array->capacity = 0; \
+  array->owns = true; \
   array_name##_reserve(array, capacity); \
   return array; \
 } \
@@ -83,7 +88,7 @@ static inline array_name##_t* array_name##_new() \
 \
 static inline array_name##_t empty_##array_name() \
 { \
-  static array_name##_t empty = {NULL, NULL, 0, 0}; \
+  static array_name##_t empty = {NULL, NULL, 0, 0, true}; \
   return empty; \
 } \
 \
@@ -111,6 +116,29 @@ static inline void array_name##_resize(array_name##_t* array, size_t new_size) \
   array->size = new_size; \
 } \
 \
+static inline array_name##_t* array_name##_new_with_size(size_t size) \
+{ \
+  array_name##_t* array = (array_name##_t*)polymec_malloc(sizeof(array_name##_t)); \
+  array->data = NULL; \
+  array->dtors = NULL; \
+  array->size = 0; \
+  array->capacity = 0; \
+  array->owns = true; \
+  array_name##_resize(array, size); \
+  return array; \
+} \
+\
+static inline array_name##_t* array_name##_new_with_data(element* data, size_t size) \
+{ \
+  array_name##_t* array = (array_name##_t*)polymec_malloc(sizeof(array_name##_t)); \
+  array->data = data; \
+  array->dtors = NULL; \
+  array->size = size; \
+  array->capacity = size; \
+  array->owns = false; \
+  return array; \
+} \
+\
 static inline void array_name##_clear(array_name##_t* array) \
 { \
   array_name##_resize(array, 0); \
@@ -118,12 +146,15 @@ static inline void array_name##_clear(array_name##_t* array) \
 \
 static inline void array_name##_free(array_name##_t* array) \
 { \
-  array_name##_clear(array); \
-  if (array->dtors != NULL) \
-    polymec_free(array->dtors); \
-  if (array->data != NULL) \
-    polymec_free(array->data); \
-  polymec_free(array); \
+  if (array->owns) \
+  { \
+    array_name##_clear(array); \
+    if (array->dtors != NULL) \
+      polymec_free(array->dtors); \
+    if (array->data != NULL) \
+      polymec_free(array->data); \
+    polymec_free(array); \
+  } \
 } \
 \
 static inline void array_name##_remove(array_name##_t* array, size_t i) \

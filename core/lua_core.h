@@ -121,8 +121,11 @@ typedef enum
   LUA_ARRAY_SYM_TENSOR2  // 3D symmetric rank-2 tensors
 } lua_array_data_t;
 
-// Pushes an array of the given type onto L's stack.
-void lua_push_array(lua_State* L, void* array, lua_array_data_t type);
+// Pushes an array of the given type onto L's stack. If free_data is true, 
+// the array's data is destroyed upon collection--otherwise the data is 
+// assumed to be owned by the caller or another entity.
+void lua_push_array(lua_State* L, void* array, lua_array_data_t type,
+                    bool free_data);
 
 // Returns true if the item at the given index on L's stack is an array 
 // of the given type, false if not.
@@ -183,6 +186,17 @@ bool lua_is_st_func(lua_State* L, int index);
 // Returns the space-time function at the given index on L's stack, or NULL 
 // if the item there is not a space-time function.
 st_func_t* lua_to_st_func(lua_State* L, int index);
+
+// Pushes a tagger t onto L's stack.
+void lua_push_tagger(lua_State* L, tagger_t* t);
+
+// Returns true if the item at the given index on L's stack is a tagger,
+// false if not.
+bool lua_is_tagger(lua_State* L, int index);
+
+// Returns the tagger at the given index on L's stack, or NULL 
+// if the item there is not a tagger.
+tagger_t* lua_to_tagger(lua_State* L, int index);
 
 // Pushes a mesh m onto L's stack.
 void lua_push_mesh(lua_State* L, mesh_t* m);

@@ -1352,6 +1352,97 @@ static lua_class_method st_methods[] = {
   {NULL, NULL}
 };
 
+static lua_module_function tagger_funcs[] = {
+  {NULL, NULL}
+};
+
+static int t_create_tag(lua_State* L)
+{
+  tagger_t* t = lua_to_tagger(L, 1);
+  if (!lua_isstring(L, 2))
+    return luaL_error(L, "Argument 1 must be a string.");
+  if (!lua_istable(L, 3) && !lua_is_array(L, 3, LUA_ARRAY_INT))
+    return luaL_error(L, "Argument 2 must be a table or array of integers.");
+  int* tag = NULL;
+  size_t size = 0;
+  if (lua_is_array(L, 3, LUA_ARRAY_INT))
+  {
+    int_array_t* a = lua_to_array(L, 3, LUA_ARRAY_INT);
+    tag = tagger_create_tag(t, lua_tostring(L, 2), a->size);
+    size = a->size;
+    memcpy(tag, a->data, sizeof(int) * size);
+  }
+  else
+  {
+    int_array_t* a = int_array_new();
+    int i = 1;
+    while (true)
+    {
+      lua_rawgeti(L, 2, i);
+      if (lua_isnil(L, -1))
+      {
+        lua_pop(L, 1);
+        break;
+      }
+      else
+      {
+        if (!lua_isinteger(L, -1))
+          luaL_error(L, "Item %d in argument 1 is not an integer.");
+        int_array_append(a, (int)(lua_tointeger(L, -1)));
+        lua_pop(L, 1);
+      }
+      ++i;
+    }
+    tag = tagger_create_tag(t, lua_tostring(L, 2), a->size);
+    size = a->size;
+    memcpy(tag, a->data, sizeof(int) * size);
+    int_array_free(a);
+  }
+  int_array_t* tt = int_array_new_with_data(tag, size);
+  lua_push_array(L, tt, LUA_ARRAY_INT, true);
+  return 1;
+}
+
+static int t_tag(lua_State* L)
+{
+  tagger_t* t = lua_to_tagger(L, 1);
+  if (!lua_isstring(L, 2))
+    return luaL_error(L, "Argument must be a string.");
+  size_t size;
+  int* tag = tagger_tag(t, lua_tostring(L, 2), &size);
+  if (tag != NULL)
+  {
+    int_array_t* tt = int_array_new_with_data(tag, size);
+    lua_push_array(L, tt, LUA_ARRAY_INT, true);
+    return 1;
+  }
+  else
+    return 0;
+}
+
+static int t_has_tag(lua_State* L)
+{
+  tagger_t* t = lua_to_tagger(L, 1);
+  if (!lua_isstring(L, 2))
+    return luaL_error(L, "Argument must be a string.");
+  lua_pushboolean(L, tagger_has_tag(t, lua_tostring(L, 2)));
+  return 1;
+}
+
+static int t_tostring(lua_State* L)
+{
+  lua_pushstring(L, "tagger");
+  return 1;
+}
+
+static lua_class_method tagger_methods[] = {
+  {"create_tag", t_create_tag},
+  {"tag", t_tag},
+  {"has_tag", t_has_tag},
+  {"__tostring", t_tostring},
+  {NULL, NULL}
+};
+
 static int mesh_repartition(lua_State* L)
 {
   // Check the arguments.
@@ -1538,9 +1629,17 @@ static int pc_num_ghosts(lua_State* L)
   return 1;
 }
 
+static int pc_tags(lua_State* L)
+{
+  point_cloud_t* pc = lua_to_point_cloud(L, 1);
+  lua_push_tagger(L, pc->tags);
+  return 1;
+}
+
 static lua_record_field pc_fields[] = {
   {"num_points", pc_num_points, NULL},
   {"num_ghosts", pc_num_ghosts, NULL},
+  {"tags", pc_tags, NULL},
   {NULL, NULL, NULL}
 };
 
@@ -1673,6 +1772,52 @@ static void lua_register_util_funcs(lua_State* L)
 extern int lua_register_array(lua_State* L); // defined in lua_array.c
 extern int lua_register_ndarray(lua_State* L); // defined in lua_ndarray.c
 
+static int lua_register_constants(lua_State* L)
+{
+  // Register the origin.
+  lua_getglobal(L, "point");
+  point_t* O = point_new(0.0, 0.0, 0.0);
+  lua_push_point(L, O);
+  lua_setfield(L, -2, "origin");
+  O = NULL;
+  lua_pop(L, 1);
+
+  // Register unit vectors in 3D cartesian coordinates.
+  lua_getglobal(L, "vector");
+  vector_t* e1 = vector_new(1.0, 0.0, 0.0);
+  lua_push_vector(L, e1);
+  lua_setfield(L, -2, "e1");
+  e1 = NULL;
+  vector_t* e2 = vector_new(0.0, 1.0, 0.0);
+  lua_push_vector(L, e2);
+  lua_setfield(L, -2, "e2");
+  e2 = NULL;
+  vector_t* e3 = vector_new(0.0, 0.0, 1.0);
+  lua_push_vector(L, e3);
+  lua_setfield(L, -2, "e3");
+  e3 = NULL;
+  lua_pop(L, 1);
+
+  // Register unit tensors.
+  lua_getglobal(L, "tensor2");
+  tensor2_t I = {.xx = 1.0, .xy = 0.0, .xz = 0.0,
+                 .yx = 0.0, .yy = 1.0, .yz = 0.0,
+                 .zx = 0.0, .zy = 0.0, .zz = 1.0};
+  lua_push_tensor2(L, &I);
+  lua_setfield(L, -2, "unit");
+  lua_pop(L, 1);
+
+  lua_getglobal(L, "sym_tensor2");
+  sym_tensor2_t I_sym = {.xx = 1.0, .xy = 0.0, .xz = 0.0,
+                                    .yy = 1.0, .yz = 0.0,
+                                               .zz = 1.0};
+  lua_push_sym_tensor2(L, &I_sym);
+  lua_setfield(L, -2, "unit");
+  lua_pop(L, 1);
+
+  return 0;
+}
+
 static int lua_register_mpi(lua_State* L)
 {
   lua_newtable(L);
@@ -1701,11 +1846,13 @@ int lua_register_core_modules(lua_State* L)
   lua_register_record_type(L, "sym_tensor2", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_mm);
   lua_register_array(L);
   lua_register_ndarray(L);
+  lua_register_constants(L);
   lua_register_mpi(L);
 
   lua_register_class(L, "bbox", bbox_funcs, bbox_methods);
   lua_register_class(L, "sp_func", sp_funcs, sp_methods);
   lua_register_class(L, "st_func", st_funcs, st_methods);
+  lua_register_class(L, "tagger", tagger_funcs, tagger_methods);
   lua_register_record_type(L, "mesh", mesh_funcs, mesh_fields, mesh_mm);
   lua_register_record_type(L, "point_cloud", pc_funcs, pc_fields, pc_mm);
 
@@ -1870,6 +2017,21 @@ bool lua_is_st_func(lua_State* L, int index)
 st_func_t* lua_to_st_func(lua_State* L, int index)
 {
   return (st_func_t*)lua_to_object(L, index, "st_func");
+}
+
+void lua_push_tagger(lua_State* L, tagger_t* t)
+{
+  lua_push_object(L, "tagger", t, NULL);
+}
+
+bool lua_is_tagger(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "tagger");
+}
+
+tagger_t* lua_to_tagger(lua_State* L, int index)
+{
+  return (tagger_t*)lua_to_object(L, index, "tagger");
 }
 
 void lua_push_mesh(lua_State* L, mesh_t* m)

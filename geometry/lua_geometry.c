@@ -14,6 +14,8 @@
 #include "geometry/intersection_sd_func.h"
 #include "geometry/difference_sd_func.h"
 
+#include "geometry/create_uniform_mesh.h"
+
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
@@ -540,7 +542,140 @@ static lua_class_method sdt_methods[] = {
   {NULL, NULL}
 };
 
+static int meshes_uniform_mesh(lua_State* L)
+{
+  if (!lua_istable(L, 1))
+    luaL_error(L, "Argument must be a table with comm, nx, ny, nz, bbox fields.");
+
+  lua_getfield(L, 1, "comm");
+  if (!lua_is_mpi_comm(L, -1))
+    luaL_error(L, "comm must be an mpi.comm object.");
+  MPI_Comm comm = lua_to_mpi_comm(L, -1);
+
+  lua_getfield(L, 1, "nx");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nx must be a positive integer.");
+  int nx = (int)lua_tointeger(L, -1);
+  if (nx < 1)
+    luaL_error(L, "nx must be positive.");
+
+  lua_getfield(L, 1, "ny");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "ny must be a positive integer.");
+  int ny = (int)lua_tointeger(L, -1);
+  if (ny < 1)
+    luaL_error(L, "ny must be positive.");
+
+  lua_getfield(L, 1, "nz");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nz must be a positive integer.");
+  int nz = (int)lua_tointeger(L, -1);
+  if (nz < 1)
+    luaL_error(L, "nz must be positive.");
+
+  lua_getfield(L, 1, "bbox");
+  if (!lua_is_bbox(L, -1))
+    luaL_error(L, "bbox must be a bounding box (bbox).");
+  bbox_t* bbox = lua_to_bbox(L, -1);
+
+  int rank = -1;
+  lua_getfield(L, 1, "rank");
+  if (lua_isinteger(L, -1))
+    rank = (int)lua_tointeger(L, -1);
+
+  mesh_t* mesh = NULL;
+  if (rank == -1) 
+    mesh = create_uniform_mesh(comm, nx, ny, nz, bbox);
+  else
+    mesh = create_uniform_mesh_on_rank(comm, rank, nx, ny, nz, bbox);
+
+  lua_push_mesh(L, mesh);
+  return 1;
+}
+
+static real_array_t* get_coordinates(lua_State* L, int index)
+{
+  real_array_t* array = NULL;
+  if (lua_is_array(L, index, LUA_ARRAY_REAL))
+    array = lua_to_array(L, index, LUA_ARRAY_REAL);
+  else
+  {
+    array = real_array_new();
+    int i = 1;
+    while (true)
+    {
+      lua_rawgeti(L, index, i);
+      if (lua_isnil(L, -1))
+      {
+        lua_pop(L, 1);
+        break;
+      }
+      else
+      {
+        if (!lua_is_real(L, -1))
+          luaL_error(L, "Item %d in table is not a coordinate.");
+        real_array_append(array, lua_to_real(L, -1));
+        lua_pop(L, 1);
+      }
+      ++i;
+    }
+  }
+  return array;
+}
+
+static int meshes_rectilinear_mesh(lua_State* L)
+{
+  if (!lua_istable(L, 1))
+    luaL_error(L, "Argument must be a table with comm, xs, ys, zs fields.");
+
+  lua_getfield(L, 1, "comm");
+  if (!lua_is_mpi_comm(L, -1))
+    luaL_error(L, "comm must be an mpi.comm object.");
+  MPI_Comm comm = lua_to_mpi_comm(L, -1);
+
+  lua_getfield(L, 1, "xs");
+  if (!lua_is_array(L, -1, LUA_ARRAY_REAL) && !lua_istable(L, -1))
+    luaL_error(L, "xs must be a table or array of x coordinates.");
+  real_array_t* xs = get_coordinates(L, -1);
+
+  lua_getfield(L, 1, "ys");
+  if (!lua_is_array(L, -1, LUA_ARRAY_REAL) && !lua_istable(L, -1))
+    luaL_error(L, "ys must be a table or array of y coordinates.");
+  real_array_t* ys = get_coordinates(L, -1);
+
+  lua_getfield(L, 1, "zs");
+  if (!lua_is_array(L, -1, LUA_ARRAY_REAL) && !lua_istable(L, -1))
+    luaL_error(L, "zs must be a table or array of z coordinates.");
+  real_array_t* zs = get_coordinates(L, -1);
+
+  int rank = -1;
+  lua_getfield(L, 1, "rank");
+  if (lua_isinteger(L, -1))
+    rank = (int)lua_tointeger(L, -1);
+
+  mesh_t* mesh = NULL;
+  if (rank == -1) 
+  {
+    mesh = create_rectilinear_mesh(comm, 
+                                   xs->data, (int)xs->size,
+                                   ys->data, (int)ys->size,
+                                   zs->data, (int)zs->size);
+  }
+  else
+  {
+    mesh = create_rectilinear_mesh_on_rank(comm, rank,
+                                           xs->data, (int)xs->size,
+                                           ys->data, (int)ys->size,
+                                           zs->data, (int)zs->size);
+  }
+
+  lua_push_mesh(L, mesh);
+  return 1;
+}
+
 static lua_module_function meshes_funcs[] = {
+  {"uniform", meshes_uniform_mesh},
+  {"rectilinear", meshes_rectilinear_mesh},
   {NULL, NULL}
 };
 
