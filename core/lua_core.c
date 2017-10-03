@@ -1745,7 +1745,7 @@ static int lua_help(lua_State* L)
   // Retrieve the record for the argument.
   lua_pushnil(L);
   lua_copy(L, -3, -1);
-  lua_rawget(L, -2);
+  lua_gettable(L, -2);
   if (lua_isstring(L, -1))
   {
     const char* doc = lua_tostring(L, -1);
@@ -1755,11 +1755,11 @@ static int lua_help(lua_State* L)
   return 0;
 }
 
-extern void lua_set_docstring(lua_State* L, const char* docstring);
+extern void lua_set_docstring(lua_State* L, int index, const char* docstring);
 static int lua_document(lua_State* L)
 {
-  if (lua_isstring(L, 1))
-    lua_set_docstring(L, lua_tostring(L, 1));
+  if (lua_isstring(L, 2))
+    lua_set_docstring(L, 1, lua_tostring(L, 2));
   return 0;
 }
 
@@ -1770,14 +1770,27 @@ static void lua_register_util_funcs(lua_State* L)
   // Python-like dir() function.
   lua_pushcfunction(L, lua_dir);
   lua_setglobal(L, "dir");
+  lua_getglobal(L, "dir");
+  lua_set_docstring(L, -1, "dir(X) -> Shows the contents of X (if it's a table or a module).");
+  lua_pop(L, 1);
 
   // Python-like help() function.
   lua_pushcfunction(L, lua_help);
   lua_setglobal(L, "help");
+  lua_getglobal(L, "help");
+  lua_set_docstring(L, -1, "help(X) -> Prints help on X, which can a module, a function, or an object.");
+  lua_pop(L, 1);
 
   // A string for setting a docstring.
   lua_pushcfunction(L, lua_document);
   lua_setglobal(L, "document");
+  lua_getglobal(L, "document");
+  lua_set_docstring(L, -1, "document(X, S) -> Documents the object X with the docstring S.");
+  lua_pop(L, 1);
+
+  lua_getglobal(L, "print");
+  lua_set_docstring(L, -1, "print(X, ...) -> Prints the value of X (etc) to the screen.");
+  lua_pop(L, 1);
 
   // Replace the default tostring function.
   lua_replace_tostring(L);

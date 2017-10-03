@@ -41,25 +41,29 @@ void lua_get_docstrings(lua_State* L)
   ASSERT(lua_istable(L, -1));
 }
 
-// Documents the object at the top of the stack with the given 
-// docstring.
-void lua_set_docstring(lua_State* L, const char* docstring);
-void lua_set_docstring(lua_State* L, const char* docstring)
+// Documents the object at the given index with the given docstring.
+void lua_set_docstring(lua_State* L, int index, const char* docstring);
+void lua_set_docstring(lua_State* L, int index, const char* docstring)
 {
   if (docstring == NULL) 
     return;
 
+  // Convert to an absolute stack index.
+  if (index < 0)
+    index = lua_gettop(L) + index + 1;
+
+  // Plop the docstrings table on top of the stack.
   lua_get_docstrings(L);
 
-  // Copy the object to the top of the stack.
+  // Copy the object at the given index to the top of the stack.
   lua_pushnil(L);
-  lua_copy(L, -3, -1);
+  lua_copy(L, index, -1);
 
   // Put the docstring up top.
   lua_pushstring(L, docstring);
 
   // Associate the object with its docstring and pop the docstrings table.
-  lua_rawset(L, -3);
+  lua_settable(L, -3);
   lua_pop(L, 1);
 }
 
@@ -93,7 +97,7 @@ static int lua_open_module(lua_State* L)
   luaL_setfuncs(L, f, 0);
 
   // Document this object.
-  lua_set_docstring(L, module_doc);
+  lua_set_docstring(L, -1, module_doc);
 
   // Clean up the registry.
   lua_pushnil(L);
@@ -147,14 +151,14 @@ void lua_register_module_function_table(lua_State* L,
   lua_setfield(L, -2, table_name);
 
   // Document the table.
-  lua_set_docstring(L, table_doc);
+  lua_set_docstring(L, -1, table_doc);
 
   // Document each of the functions.
   lua_getfield(L, -2, table_name);
   for (int i = 0; i < num_funcs; ++i)
   {
     lua_getfield(L, -1, funcs[i].name);
-    lua_set_docstring(L, funcs[i].doc);
+    lua_set_docstring(L, -1, funcs[i].doc);
     lua_pop(L, 1);
   }
   lua_pop(L, 1);
@@ -235,7 +239,7 @@ static int lua_open_class(lua_State* L)
     for (int i = 0; i < num_methods; ++i)
     {
       lua_getfield(L, -1, methods[i].name);
-      lua_set_docstring(L, methods[i].doc);
+      lua_set_docstring(L, -1, methods[i].doc);
       lua_pop(L, 1);
     }
   }
@@ -262,7 +266,7 @@ static int lua_open_class(lua_State* L)
     for (int i = 0; i < num_funcs; ++i)
     {
       lua_getfield(L, -1, functions[i].name);
-      lua_set_docstring(L, functions[i].doc);
+      lua_set_docstring(L, -1, functions[i].doc);
       lua_pop(L, 1);
     }
   }
@@ -270,7 +274,7 @@ static int lua_open_class(lua_State* L)
     lua_newtable(L);
 
   // Document this class.
-  lua_set_docstring(L, class_doc);
+  lua_set_docstring(L, -1, class_doc);
 
   return 1;
 }
@@ -581,7 +585,7 @@ static int lua_open_record(lua_State* L)
     for (int i = 0; i < num_funcs; ++i)
     {
       lua_getfield(L, -1, functions[i].name);
-      lua_set_docstring(L, functions[i].doc);
+      lua_set_docstring(L, -1, functions[i].doc);
       lua_pop(L, 1);
     }
   }
@@ -589,7 +593,7 @@ static int lua_open_record(lua_State* L)
     lua_newtable(L);
 
   // Document the record's module.
-  lua_set_docstring(L, record_type_doc);
+  lua_set_docstring(L, -1, record_type_doc);
 
   return 1;
 }
