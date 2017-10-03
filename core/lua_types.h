@@ -19,12 +19,14 @@ typedef struct
 {
   const char* name;
   int (*func)(lua_State* L);
+  const char* doc;
 } lua_module_function;
 
 // Registers a set of functions with the interpreter L in the module with the 
 // given name.
 void lua_register_module(lua_State* L,
                          const char* module_name,
+                         const char* module_doc,
                          lua_module_function functions[]);
 
 // Registers a set of functions in a named table within a module. Useful for 
@@ -32,6 +34,7 @@ void lua_register_module(lua_State* L,
 void lua_register_module_function_table(lua_State* L,
                                         const char* module_name,
                                         const char* table_name,
+                                        const char* table_doc,
                                         lua_module_function funcs[]);
 
 // This type represents a method for a Lua class.
@@ -39,13 +42,15 @@ typedef struct
 {
   const char* name;
   int (*method)(lua_State* L);
+  const char* doc;
 } lua_class_method;
 
 // Registers a new Lua class with the interpreter L, giving it a name, 
 // a set of static functions and a set of methods. The functions live in 
 // a module named after the type. functions may be NULL; methods cannot be.
 void lua_register_class(lua_State* L,
-                        const char* type_name,
+                        const char* class_name,
+                        const char* class_doc,
                         lua_module_function functions[],
                         lua_class_method methods[]);
 
@@ -102,6 +107,7 @@ typedef struct
 // to extend the richness of the record in expressions.
 void lua_register_record_type(lua_State* L,
                               const char* record_type_name,
+                              const char* record_type_doc,
                               lua_module_function functions[],
                               lua_record_field fields[],
                               lua_record_metamethod metamethods[]);

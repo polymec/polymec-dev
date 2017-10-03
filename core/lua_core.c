@@ -53,11 +53,11 @@ static int z_conj(lua_State* L)
 }
 
 static lua_module_function complex_funcs[] = {
-  {"new", z_new},
-  {"abs", z_abs},
-  {"arg", z_arg},
-  {"conj", z_conj},
-  {NULL, NULL}
+  {"new", z_new, "complex.new(re, im) -> new complex number."},
+  {"abs", z_abs, "complex.abs(z) -> modulus of z."},
+  {"arg", z_arg, "complex.arg(z) -> argument of z."},
+  {"conj", z_conj, "complex.conj(z) -> complex conjugate of z."},
+  {NULL, NULL, NULL}
 };
 
 static int z_real(lua_State* L)
@@ -185,9 +185,9 @@ static int p_distance(lua_State* L)
 }
 
 static lua_module_function point_funcs[] = {
-  {"new", p_new},
-  {"distance", p_distance},
-  {NULL, NULL}
+  {"new", p_new, "point.new(x, y, z) -> new 3D point."},
+  {"distance", p_distance, "point.distance(x, y) -> |x - y|."},
+  {NULL, NULL, NULL}
 };
 
 static int p_x(lua_State* L)
@@ -305,9 +305,9 @@ static int v_dot(lua_State* L)
 }
 
 static lua_module_function vector_funcs[] = {
-  {"new", v_new},
-  {"dot", v_dot},
-  {NULL, NULL}
+  {"new", v_new, "vector.new(vx, vy, vz) -> new 3D vector."},
+  {"dot", v_dot, "vector.dot(v1, v2) -> dot product of v1 with v2."},
+  {NULL, NULL, NULL}
 };
 
 static int v_x(lua_State* L)
@@ -478,8 +478,8 @@ static int t2_new(lua_State* L)
 }
 
 static lua_module_function tensor2_funcs[] = {
-  {"new", t2_new},
-  {NULL, NULL}
+  {"new", t2_new, "tensor2.new(txx, txy, txz, tyx, tyy, tyz, tzx, tzy, tzz) -> new general rank 2 tensor."},
+  {NULL, NULL, NULL}
 };
 
 static int t2_xx(lua_State* L)
@@ -758,8 +758,8 @@ static int st2_new(lua_State* L)
 }
 
 static lua_module_function sym_tensor2_funcs[] = {
-  {"new", st2_new},
-  {NULL, NULL}
+  {"new", st2_new, "sym_tensor2.new(txx, txy, txz, tyy, tyz, tzz) -> new symmetric rank 2 tensor."},
+  {NULL, NULL, NULL}
 };
 
 static int st2_xx(lua_State* L)
@@ -1036,8 +1036,8 @@ static int mpi_comm_split(lua_State* L)
 }
 
 static lua_module_function mpi_comm_funcs[] = {
-  {"split", mpi_comm_split},
-  {NULL, NULL}
+  {"split", mpi_comm_split, "mpi.comm.split(comm, color, key) -> new communicator."},
+  {NULL, NULL, NULL}
 };
 
 static int mpi_comm_size(lua_State* L)
@@ -1142,8 +1142,8 @@ static int bb_contains(lua_State* L)
 }
 
 static lua_module_function bbox_funcs[] = {
-  {"new", bb_new},
-  {NULL, NULL}
+  {"new", bb_new, "bbox.new{x1 = X1, x2 = X2, y1 = Y1, y2 = Y2, z1 = Z1, z2 = Z2} -> new bounding box."},
+  {NULL, NULL, NULL}
 };
 
 static int bb_tostring(lua_State* L)
@@ -1155,9 +1155,9 @@ static int bb_tostring(lua_State* L)
 }
 
 static lua_class_method bbox_methods[] = {
-  {"contains", bb_contains},
-  {"__tostring", bb_tostring},
-  {NULL, NULL}
+  {"contains", bb_contains, "box.contains(x) -> true if box contains x, false otherwise."},
+  {"__tostring", bb_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int sp_constant(lua_State* L)
@@ -1177,8 +1177,8 @@ static int sp_constant(lua_State* L)
 }
 
 static lua_module_function sp_funcs[] = {
-  {"constant", sp_constant},
-  {NULL, NULL}
+  {"constant", sp_constant, "sp_func.constant(F0) -> returns a function with the constant value F0."},
+  {NULL, NULL, NULL}
 };
 
 static int sp_rename(lua_State* L)
@@ -1232,12 +1232,12 @@ static int sp_tostring(lua_State* L)
 }
 
 static lua_class_method sp_methods[] = {
-  {"rename", sp_rename},
-  {"__gc", sp_gc},
-  {"__len", sp_len},
-  {"__call", sp_call},
-  {"__tostring", sp_tostring},
-  {NULL, NULL}
+  {"rename", sp_rename, "f:rename(name) -> renames f to the given name."},
+  {"__gc", sp_gc, NULL},
+  {"__len", sp_len, NULL},
+  {"__call", sp_call, NULL},
+  {"__tostring", sp_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int st_constant(lua_State* L)
@@ -1268,9 +1268,9 @@ static int st_from_sp_func(lua_State* L)
 }
 
 static lua_module_function st_funcs[] = {
-  {"constant", st_constant},
-  {"from_sp_func", st_from_sp_func},
-  {NULL, NULL}
+  {"constant", st_constant, "st_func.constant(F0) -> returns a function with the constant value F0."},
+  {"from_sp_func", st_from_sp_func, "st_func.from_sp_func(f) -> returns a time-dependent function identical to f."},
+  {NULL, NULL, NULL}
 };
 
 static int st_rename(lua_State* L)
@@ -1343,17 +1343,17 @@ static int st_tostring(lua_State* L)
 }
 
 static lua_class_method st_methods[] = {
-  {"rename", st_rename},
-  {"freeze", st_freeze},
-  {"__gc", st_gc},
-  {"__len", st_len},
-  {"__call", st_call},
-  {"__tostring", st_tostring},
-  {NULL, NULL}
+  {"rename", st_rename, "f:rename(name) -> renames f to the given name."},
+  {"freeze", st_freeze, "f:freeze(t) -> freezes value of f at time t."},
+  {"__gc", st_gc, NULL},
+  {"__len", st_len, NULL},
+  {"__call", st_call, NULL},
+  {"__tostring", st_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static lua_module_function tagger_funcs[] = {
-  {NULL, NULL}
+  {NULL, NULL, NULL}
 };
 
 static int t_create_tag(lua_State* L)
@@ -1436,11 +1436,11 @@ static int t_tostring(lua_State* L)
 }
 
 static lua_class_method tagger_methods[] = {
-  {"create_tag", t_create_tag},
-  {"tag", t_tag},
-  {"has_tag", t_has_tag},
-  {"__tostring", t_tostring},
-  {NULL, NULL}
+  {"create_tag", t_create_tag, "tagger:create_tag(name, indices) -> Creates and returns a tag with the given name and indices."},
+  {"tag", t_tag, "tagger:tag(name) -> Returns a tag with the given name."},
+  {"has_tag", t_has_tag, "tagger:has_tag(name) -> Returns true if the tagger has a tag with the given name, false otherwise."},
+  {"__tostring", t_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int mesh_repartition(lua_State* L)
@@ -1472,8 +1472,8 @@ static int mesh_repartition(lua_State* L)
 }
 
 static lua_module_function mesh_funcs[] = {
-  {"repartition", mesh_repartition},
-  {NULL, NULL}
+  {"repartition", mesh_repartition, "mesh.repartition(m) -> Repartitions the mesh m."},
+  {NULL, NULL, NULL}
 };
 
 static int mesh_num_cells(lua_State* L)
@@ -1610,9 +1610,9 @@ static int pc_repartition(lua_State* L)
 }
 
 static lua_module_function pc_funcs[] = {
-  {"new", pc_new},
-  {"repartition", pc_repartition},
-  {NULL, NULL}
+  {"new", pc_new, "point_cloud.new(comm, points [, num_ghosts]) -> new point cloud."},
+  {"repartition", pc_repartition, "point_cloud.repartition(cloud) -> Repartitions the given point cloud."},
+  {NULL, NULL, NULL}
 };
 
 static int pc_num_points(lua_State* L)
@@ -1736,6 +1736,33 @@ static int fake_io_open(lua_State* L)
   return 1;
 }
 
+extern void lua_get_docstrings(lua_State* L);
+static int lua_help(lua_State* L)
+{
+  // Dig up our docstrings table.
+  lua_get_docstrings(L);
+
+  // Retrieve the record for the argument.
+  lua_pushnil(L);
+  lua_copy(L, -3, -1);
+  lua_rawget(L, -2);
+  if (lua_isstring(L, -1))
+  {
+    const char* doc = lua_tostring(L, -1);
+    fprintf(stdout, "%s\n", doc);
+  }
+  lua_pop(L, 2);
+  return 0;
+}
+
+extern void lua_set_docstring(lua_State* L, const char* docstring);
+static int lua_document(lua_State* L)
+{
+  if (lua_isstring(L, 1))
+    lua_set_docstring(L, lua_tostring(L, 1));
+  return 0;
+}
+
 extern void lua_replace_tostring(lua_State* L);
 
 static void lua_register_util_funcs(lua_State* L)
@@ -1743,6 +1770,14 @@ static void lua_register_util_funcs(lua_State* L)
   // Python-like dir() function.
   lua_pushcfunction(L, lua_dir);
   lua_setglobal(L, "dir");
+
+  // Python-like help() function.
+  lua_pushcfunction(L, lua_help);
+  lua_setglobal(L, "help");
+
+  // A string for setting a docstring.
+  lua_pushcfunction(L, lua_document);
+  lua_setglobal(L, "document");
 
   // Replace the default tostring function.
   lua_replace_tostring(L);
@@ -1755,6 +1790,10 @@ static void lua_register_util_funcs(lua_State* L)
     // print().
     lua_pushcfunction(L, lua_do_nothing);
     lua_setglobal(L, "print");
+
+    // help().
+    lua_pushcfunction(L, lua_do_nothing);
+    lua_setglobal(L, "help");
 
     // io module.
     lua_getglobal(L, "io");
@@ -1824,7 +1863,7 @@ static int lua_register_mpi(lua_State* L)
   lua_setglobal(L, "mpi");
 
   // Register the communicator class.
-  lua_register_record_type(L, "mpi.comm", mpi_comm_funcs, mpi_comm_fields, mpi_comm_mm);
+  lua_register_record_type(L, "mpi.comm", "An MPI communicator.", mpi_comm_funcs, mpi_comm_fields, mpi_comm_mm);
 
   // Now register MPI_COMM_WORLD and MPI_COMM_SELF objects.
   lua_getglobal(L, "mpi");
@@ -1839,22 +1878,22 @@ static int lua_register_mpi(lua_State* L)
 int lua_register_core_modules(lua_State* L)
 {
   // Core types.
-  lua_register_record_type(L, "complex", complex_funcs, complex_fields, complex_mm);
-  lua_register_record_type(L, "point", point_funcs, point_fields, point_mm);
-  lua_register_record_type(L, "vector", vector_funcs, vector_fields, vector_mm);
-  lua_register_record_type(L, "tensor2", tensor2_funcs, tensor2_fields, tensor2_mm);
-  lua_register_record_type(L, "sym_tensor2", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_mm);
+  lua_register_record_type(L, "complex", "A complex number.", complex_funcs, complex_fields, complex_mm);
+  lua_register_record_type(L, "point", "A 3D point.", point_funcs, point_fields, point_mm);
+  lua_register_record_type(L, "vector", "A 3D vector.", vector_funcs, vector_fields, vector_mm);
+  lua_register_record_type(L, "tensor2", "A general rank 2 tensor.", tensor2_funcs, tensor2_fields, tensor2_mm);
+  lua_register_record_type(L, "sym_tensor2", "A symmetric rank 2 tensor.", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_mm);
   lua_register_array(L);
   lua_register_ndarray(L);
   lua_register_constants(L);
   lua_register_mpi(L);
 
-  lua_register_class(L, "bbox", bbox_funcs, bbox_methods);
-  lua_register_class(L, "sp_func", sp_funcs, sp_methods);
-  lua_register_class(L, "st_func", st_funcs, st_methods);
-  lua_register_class(L, "tagger", tagger_funcs, tagger_methods);
-  lua_register_record_type(L, "mesh", mesh_funcs, mesh_fields, mesh_mm);
-  lua_register_record_type(L, "point_cloud", pc_funcs, pc_fields, pc_mm);
+  lua_register_class(L, "bbox", "A 3D bounding box.", bbox_funcs, bbox_methods);
+  lua_register_class(L, "sp_func", "A function in 3D space.", sp_funcs, sp_methods);
+  lua_register_class(L, "st_func", "A time-dependent function in 3D space.", st_funcs, st_methods);
+  lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, tagger_methods);
+  lua_register_record_type(L, "mesh", "An arbitrary polyhedral mesh.", mesh_funcs, mesh_fields, mesh_mm);
+  lua_register_record_type(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_mm);
 
   // Register the options table.
   lua_register_options(L);

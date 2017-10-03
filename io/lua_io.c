@@ -97,14 +97,14 @@ static int silo_close(lua_State* L)
 }
 
 static lua_module_function silo_funcs[] = {
-  {"new", silo_new},
-  {"open", silo_open},
-  {NULL, NULL}
+  {"new", silo_new, "silo_file.new{prefix = PREFIX, dir = DIR, num_files = N, step = STEP, time = TIME} -> Opens a SILO file for writing."},
+  {"open", silo_open, "silo_file.open{prefix = PREFIX, dir = DIR, num_files = N, step = STEP} -> Opens a SILO file for reading."},
+  {NULL, NULL, NULL}
 };
 
 static lua_class_method silo_methods[] = {
-  {"close", silo_close},
-  {NULL, NULL}
+  {"close", silo_close, "file:close() -> Closes the SILO file."},
+  {NULL, NULL, NULL}
 };
 
 //------------------------------------------------------------------------
@@ -113,7 +113,7 @@ static lua_class_method silo_methods[] = {
 
 int lua_register_io_modules(lua_State* L)
 {
-  lua_register_class(L, "silo_file", silo_funcs, silo_methods);
+  lua_register_class(L, "silo_file", "A SILO file interface.", silo_funcs, silo_methods);
   return 0;
 }
 

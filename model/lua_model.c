@@ -248,8 +248,8 @@ static int m_new(lua_State* L)
 }
 
 static lua_module_function model_funcs[] = {
-  {"new", m_new},
-  {NULL, NULL}
+  {"new", m_new, "model.new{name = NAME, init = INIT, max_dt = MAX_DT, advance = ADVANCE, load = LOAD, save = SAVE, plot = PLOT, finalize = FINALIZE} -> New model with behavior defined by the given functions."},
+  {NULL, NULL, NULL}
 };
 
 static int m_init(lua_State* L)
@@ -540,18 +540,18 @@ static int m_tostring(lua_State* L)
 }
 
 static lua_class_method model_methods[] = {
-  {"init", m_init},
-  {"load", m_load},
-  {"save", m_save},
-  {"plot", m_plot},
-  {"advance", m_advance},
-  {"run", m_run},
-  {"add_probe", m_add_probe},
-  {"data", m_data},
-  {"step", m_step},
-  {"time", m_time},
-  {"__tostring", m_tostring},
-  {NULL, NULL}
+  {"init", m_init, "model:init(t) -> Initializes the model at time t."},
+  {"load", m_load, "model:load(step) -> Loads the given step from a save file."},
+  {"save", m_save, "model:save() -> Writes a save file for the given simulation step."},
+  {"plot", m_plot, "model:plot() -> Generates a plot for the given simulation step."},
+  {"advance", m_advance, "model:advance(max_dt) -> Advances one step, returning the actual timestep taken."},
+  {"run", m_run, "model:run{t1 = T1, t2 = T2, max_steps = N, prefix = PREFIX, directory = DIR, plot_every = PLOT_EVERY, save_every = SAVE_EVERY, load_step = LOAD_STEP, min_dt = MIN_DT, max_dt = MAX_DT} -> Runs the model from T1 to T2 or for MAX_STEPS."},
+  {"add_probe", m_add_probe, "model:add_probe(probe, times) -> Adds a probe that acquires data at the given list of times."},
+  {"data", m_data, "model:data() -> Returns a table of acquired simulation (probe) data."},
+  {"step", m_step, "model:step() -> Returns the current simulation step."},
+  {"time", m_time, "model:time() -> Returns the current simulation time."},
+  {"__tostring", m_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 typedef struct 
@@ -723,8 +723,8 @@ static int p_new(lua_State* L)
 }
 
 static lua_module_function probe_funcs[] = {
-  {"new", p_new},
-  {NULL, NULL}
+  {"new", p_new, "probe.new(quantity_name, callable_func, data_shape) -> New probe that acquires the given quantity using the given callable function."},
+  {NULL, NULL, NULL}
 };
 
 static int p_acquire(lua_State* L)
@@ -757,15 +757,15 @@ static int p_tostring(lua_State* L)
 }
 
 static lua_class_method probe_methods[] = {
-  {"acquire", p_acquire},
-  {"__tostring", p_tostring},
-  {NULL, NULL}
+  {"acquire", p_acquire, "probe:acquire(t) -> Acquires and returns probe data at time t."},
+  {"__tostring", p_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 int lua_register_model_modules(lua_State* L)
 {
-  lua_register_class(L, "model", model_funcs, model_methods);
-  lua_register_class(L, "probe", probe_funcs, probe_methods);
+  lua_register_class(L, "model", "A simulation model.", model_funcs, model_methods);
+  lua_register_class(L, "probe", "A virtual simulation probe that acquires data.", probe_funcs, probe_methods);
 
   return 0;
 }

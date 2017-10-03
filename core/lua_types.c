@@ -18,17 +18,60 @@
 //                        Module functions
 //------------------------------------------------------------------------
 
+// Places the docstrings table at the top of the stack.
+void lua_get_docstrings(lua_State* L);
+void lua_get_docstrings(lua_State* L)
+{
+  lua_getfield(L, LUA_REGISTRYINDEX, "docstrings");
+  if (lua_isnil(L, -1))
+  {
+    lua_pop(L, 1);
+
+    // Create a table with weak keys that associates these keys (objects) with 
+    // values (their docstrings).
+    lua_newtable(L);
+    lua_newtable(L);
+    lua_pushliteral(L, "k");
+    lua_setfield(L, -2, "__mode");
+    lua_setmetatable(L, -2);
+    lua_setfield(L, LUA_REGISTRYINDEX, "docstrings");
+    lua_getfield(L, LUA_REGISTRYINDEX, "docstrings");
+  }
+
+  ASSERT(lua_istable(L, -1));
+}
+
+// Documents the object at the top of the stack with the given 
+// docstring.
+void lua_set_docstring(lua_State* L, const char* docstring);
+void lua_set_docstring(lua_State* L, const char* docstring)
+{
+  if (docstring == NULL) 
+    return;
+
+  lua_get_docstrings(L);
+
+  // Copy the object to the top of the stack.
+  lua_pushnil(L);
+  lua_copy(L, -3, -1);
+
+  // Put the docstring up top.
+  lua_pushstring(L, docstring);
+
+  // Associate the object with its docstring and pop the docstrings table.
+  lua_rawset(L, -3);
+  lua_pop(L, 1);
+}
+
 static int lua_open_module(lua_State* L)
 {
   // Get stuff out of the registry.
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_module_funcs");
   ASSERT(lua_islightuserdata(L, -1));
   lua_module_function* funcs = lua_touserdata(L, -1);
-  lua_pop(L, 1);
-
-  // Clean up the registry.
-  lua_pushnil(L);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_funcs");
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_module_doc");
+  const char* module_doc = lua_tostring(L, -1);
+  lua_pop(L, 2);
 
   // Module functions.
   int num_funcs = 0;
@@ -43,26 +86,41 @@ static int lua_open_module(lua_State* L)
   f[num_funcs].name = NULL;
   f[num_funcs].func = NULL;
 
-  // Register the functions with this module and return it.
   luaL_checkversion(L);
+
+  // Register the functions with this module.
   lua_createtable(L, 0, 1);
   luaL_setfuncs(L, f, 0);
+
+  // Document this object.
+  lua_set_docstring(L, module_doc);
+
+  // Clean up the registry.
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_funcs");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_doc");
+
   return 1;
 }
 
 void lua_register_module(lua_State* L,
                          const char* module_name,
+                         const char* module_doc,
                          lua_module_function funcs[]) 
 {
   // Load the module by calling lua_open_module with the right globals set.
   lua_pushlightuserdata(L, (void*)funcs);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_funcs");
+  lua_pushstring(L, module_doc);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_doc");
   luaL_requiref(L, module_name, lua_open_module, 1);
 }
 
 void lua_register_module_function_table(lua_State* L,
                                         const char* module_name,
                                         const char* table_name,
+                                        const char* table_doc,
                                         lua_module_function funcs[]) 
 {
   lua_getglobal(L, module_name);
@@ -87,6 +145,19 @@ void lua_register_module_function_table(lua_State* L,
 
   // Register the table in the module.
   lua_setfield(L, -2, table_name);
+
+  // Document the table.
+  lua_set_docstring(L, table_doc);
+
+  // Document each of the functions.
+  lua_getfield(L, -2, table_name);
+  for (int i = 0; i < num_funcs; ++i)
+  {
+    lua_getfield(L, -1, funcs[i].name);
+    lua_set_docstring(L, funcs[i].doc);
+    lua_pop(L, 1);
+  }
+  lua_pop(L, 1);
 }
 
 //------------------------------------------------------------------------
@@ -114,15 +185,19 @@ static int lua_open_class(lua_State* L)
   // Get stuff out of the registry.
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_class_name");
   const char* class_name = lua_tostring(L, -1);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_class_doc");
+  const char* class_doc = lua_tostring(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_class_functions");
   lua_module_function* functions = lua_touserdata(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_class_methods");
   lua_class_method* methods = lua_touserdata(L, -1);
-  lua_pop(L, 3);
+  lua_pop(L, 4);
 
   // Clean up the registry.
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_name");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_doc");
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_functions");
   lua_pushnil(L);
@@ -155,6 +230,14 @@ static int lua_open_class(lua_State* L)
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
+
+    // Document each of the methods.
+    for (int i = 0; i < num_methods; ++i)
+    {
+      lua_getfield(L, -1, methods[i].name);
+      lua_set_docstring(L, methods[i].doc);
+      lua_pop(L, 1);
+    }
   }
 
   // Create a containing module for this type and register its functions.
@@ -170,10 +253,24 @@ static int lua_open_class(lua_State* L)
       f[i].func = functions[i].func;
     }
 
+    // Stick the functions into a new class table.
     luaL_checkversion(L);
     lua_createtable(L, 0, 1);
     luaL_setfuncs(L, f, 0);
+
+    // Document each of the functions.
+    for (int i = 0; i < num_funcs; ++i)
+    {
+      lua_getfield(L, -1, functions[i].name);
+      lua_set_docstring(L, functions[i].doc);
+      lua_pop(L, 1);
+    }
   }
+  else
+    lua_newtable(L);
+
+  // Document this class.
+  lua_set_docstring(L, class_doc);
 
   return 1;
 }
@@ -215,6 +312,7 @@ static void register_in_parent_module(lua_State* L, const char* full_module_name
 
 void lua_register_class(lua_State* L,
                         const char* class_name,
+                        const char* class_doc,
                         lua_module_function functions[],
                         lua_class_method methods[])
 {
@@ -223,11 +321,14 @@ void lua_register_class(lua_State* L,
   // Load the type into a module by calling lua_open_class.
   // First, though, we need to stash the following into the global registry:
   //   1. class name
-  //   2. functions such as constructors, other static functions.
-  //   3. methods
+  //   2. class doc
+  //   3. functions such as constructors, other static functions.
+  //   4. methods
   // so that lua_open_class can retrieve them on the far end.
   lua_pushstring(L, class_name);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_name");
+  lua_pushstring(L, class_doc);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_doc");
   lua_pushlightuserdata(L, (void*)functions);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_functions");
   lua_pushlightuserdata(L, (void*)methods);
@@ -383,6 +484,8 @@ static int lua_open_record(lua_State* L)
   // Get stuff out of the registry.
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_record_type_name");
   const char* record_type_name = lua_tostring(L, -1);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_record_type_doc");
+  const char* record_type_doc = lua_tostring(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_record_functions");
   lua_module_function* functions = lua_touserdata(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_record_fields");
@@ -394,6 +497,8 @@ static int lua_open_record(lua_State* L)
   // Clean up the registry.
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_type_name");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_type_doc");
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_functions");
   lua_pushnil(L);
@@ -471,13 +576,27 @@ static int lua_open_record(lua_State* L)
     luaL_checkversion(L);
     lua_createtable(L, 0, 1);
     luaL_setfuncs(L, funcs, 0);
+
+    // Document each function.
+    for (int i = 0; i < num_funcs; ++i)
+    {
+      lua_getfield(L, -1, functions[i].name);
+      lua_set_docstring(L, functions[i].doc);
+      lua_pop(L, 1);
+    }
   }
+  else
+    lua_newtable(L);
+
+  // Document the record's module.
+  lua_set_docstring(L, record_type_doc);
 
   return 1;
 }
 
 void lua_register_record_type(lua_State* L,
                               const char* record_type_name,
+                              const char* record_type_doc,
                               lua_module_function functions[],
                               lua_record_field fields[],
                               lua_record_metamethod metamethods[])
@@ -487,12 +606,15 @@ void lua_register_record_type(lua_State* L,
   // Load the record into a module by calling lua_open_record.
   // First, though, we need to stash the following into the global registry:
   //   1. record type name
-  //   2. functions such as constructors, other static functions.
-  //   3. fields
-  //   4. metamethods
+  //   2. record type name
+  //   3. functions such as constructors, other static functions.
+  //   4. fields
+  //   5. metamethods
   // so that lua_open_record can retrieve them on the far end.
   lua_pushstring(L, record_type_name);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_type_name");
+  lua_pushstring(L, record_type_doc);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_type_doc");
   lua_pushlightuserdata(L, (void*)functions);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_functions");
   lua_pushlightuserdata(L, (void*)fields);

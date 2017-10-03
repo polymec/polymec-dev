@@ -287,15 +287,15 @@ static int sd_difference(lua_State* L)
 }
 
 static lua_module_function sd_funcs[] = {
-  {"new", sd_new},
-  {"from_sp_funcs", sd_from_sp_funcs},
-  {"plane", sd_plane},
-  {"sphere", sd_sphere},
-  {"cylinder", sd_cylinder},
-  {"union", sd_union},
-  {"intersection", sd_intersection},
-  {"difference", sd_difference},
-  {NULL, NULL}
+  {"new", sd_new, "sd_func.new{name = NAME, value = F, grad = gradF} -> new signed distance function."},
+  {"from_sp_funcs", sd_from_sp_funcs, "sd_func.from_sp_funcs(name, D, G) -> new signed distance function using D for distance and G for gradients."},
+  {"plane", sd_plane, "sd_func.plane{normal = n, point = x} -> new plane signed distance function."},
+  {"sphere", sd_sphere, "sd_func.sphere{point = x, radius = r, orientation = 'inward'|'outward'} -> new sphere signed distance function."},
+  {"cylinder", sd_cylinder, "sd_func.cylinder{point = x, radius = r, orientation = 'inward'|'outward'} -> new (infinite) cylinder signed distance function."},
+  {"union", sd_union, "sd_func.union(funcs) -> new signed distance function (union of funcs)."},
+  {"intersection", sd_intersection, "sd_func.intersection(funcs) -> new signed distance function (intersection of funcs)."},
+  {"difference", sd_difference, "sd_func.difference(f, g) -> new signed distance function (f - g)."},
+  {NULL, NULL, NULL}
 };
 
 static int sd_rename(lua_State* L)
@@ -349,12 +349,12 @@ static int sd_tostring(lua_State* L)
 }
 
 static lua_class_method sd_methods[] = {
-  {"rename", sd_rename},
-  {"grad", sd_grad},
-  {"project", sd_project},
-  {"__call", sd_call},
-  {"__tostring", sd_tostring},
-  {NULL, NULL}
+  {"rename", sd_rename, "f:rename(name) -> Renames f to the given name."},
+  {"grad", sd_grad, "f:grad(x) -> Returns the gradient of f at x."},
+  {"project", sd_project, "f:project(x) -> Returns the projection of f to x."},
+  {"__call", sd_call, NULL},
+  {"__tostring", sd_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static real_t sdt_value(void* context, point_t* x, real_t t)
@@ -469,9 +469,9 @@ static int sdt_from_st_funcs(lua_State* L)
 }
 
 static lua_module_function sdt_funcs[] = {
-  {"new", sdt_new},
-  {"from_st_funcs", sdt_from_st_funcs},
-  {NULL, NULL}
+  {"new", sdt_new, "sdt_func.new{name = NAME, value = F, grad = gradF} -> new signed distance function."},
+  {"from_st_funcs", sdt_from_st_funcs, "sdt_func.from_st_funcs(name, D, G) -> new signed distance function using D for distance and G for gradients."},
+  {NULL, NULL, NULL}
 };
 
 static int sdt_rename(lua_State* L)
@@ -534,12 +534,12 @@ static int sdt_tostring(lua_State* L)
 }
 
 static lua_class_method sdt_methods[] = {
-  {"rename", sdt_rename},
-  {"grad", sdt_grad},
-  {"project", sdt_project},
-  {"__call", sdt_call},
-  {"__tostring", sdt_tostring},
-  {NULL, NULL}
+  {"rename", sdt_rename, "f:rename(name) -> Renames f to the given name."},
+  {"grad", sdt_grad, "f:grad(x) -> Returns the gradient of f at x."},
+  {"project", sdt_project, "f:project(x) -> Returns the projection of f to x."},
+  {"__call", sdt_call, NULL},
+  {"__tostring", sdt_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int meshes_uniform_mesh(lua_State* L)
@@ -674,13 +674,13 @@ static int meshes_rectilinear_mesh(lua_State* L)
 }
 
 static lua_module_function meshes_funcs[] = {
-  {"uniform", meshes_uniform_mesh},
-  {"rectilinear", meshes_rectilinear_mesh},
-  {NULL, NULL}
+  {"uniform", meshes_uniform_mesh, "meshes.uniform{comm = COMM, nx = NX, ny = NY, nz = NZ, bbox = BBOX} -> New uniform resolution mesh."},
+  {"rectilinear", meshes_rectilinear_mesh, "meshes.rectilinear{comm = COMM, xs = XS, ys = YS, zs = ZS} -> New rectilinear mesh with defined node coordinates."},
+  {NULL, NULL, NULL}
 };
 
 static lua_module_function points_funcs[] = {
-  {NULL, NULL}
+  {NULL, NULL, NULL}
 };
 
 //------------------------------------------------------------------------
@@ -690,14 +690,14 @@ static lua_module_function points_funcs[] = {
 int lua_register_geometry_modules(lua_State* L)
 {
   // Core types.
-  lua_register_class(L, "sd_func", sd_funcs, sd_methods);
-  lua_register_class(L, "sdt_func", sdt_funcs, sdt_methods);
+  lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, sd_methods);
+  lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_methods);
 
   // Register a module of mesh factory methods.
-  lua_register_module(L, "meshes", meshes_funcs);
+  lua_register_module(L, "meshes", "Functions for generating meshes.", meshes_funcs);
 
   // Register a module of point factory methods.
-  lua_register_module(L, "points", points_funcs);
+  lua_register_module(L, "points", "Functions for generating points.", points_funcs);
 
   return 0;
 }
