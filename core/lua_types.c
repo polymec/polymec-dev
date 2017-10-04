@@ -45,6 +45,8 @@ void lua_get_docstrings(lua_State* L)
 void lua_set_docstring(lua_State* L, int index, const char* docstring);
 void lua_set_docstring(lua_State* L, int index, const char* docstring)
 {
+  ASSERT(!lua_isnil(L, index));
+
   if (docstring == NULL) 
     return;
 

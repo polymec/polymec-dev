@@ -1,4 +1,4 @@
-Tue Sep  5 13:14:40 PDT 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
+Wed Oct  4 10:49:04 PDT 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.0.0
     * Implemented a proper Lua interpreter for writing input scripts.
       - Added types and functions for defining records and objects that 
@@ -17,10 +17,9 @@ Tue Sep  5 13:14:40 PDT 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
     * Removed the meshless library.
     * Fixed several significant bugs.
     * Bumped third-party library versions.
+    * Added help() and document(), an interactive docstring-based help system.
     * Added support for code coverage using lcov/gcov.
       - Increased code coverage from ~50% to ~72%.
-    * See https://github.com/polymec/polymec-dev/milestone/3?closed=1 for 
-      full details.
 
 Mon Dec  5 22:56:33 PST 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 1.4.0

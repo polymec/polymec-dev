@@ -1758,8 +1758,12 @@ static int lua_help(lua_State* L)
 extern void lua_set_docstring(lua_State* L, int index, const char* docstring);
 static int lua_document(lua_State* L)
 {
+  if (lua_isnil(L, 1))
+    luaL_error(L, "Argument 1 cannot be nil.");
   if (lua_isstring(L, 2))
     lua_set_docstring(L, 1, lua_tostring(L, 2));
+  else
+    luaL_error(L, "Argument 2 must be a docstring for argument 1.");
   return 0;
 }
 
