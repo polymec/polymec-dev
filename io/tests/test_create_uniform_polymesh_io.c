@@ -10,15 +10,15 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "geometry/create_uniform_mesh.h"
+#include "geometry/create_uniform_polymesh.h"
 #include "io/silo_file.h"
 
 static void test_create_uniform_mesh(void** state)
 {
   // Create a 10x10x10 uniform mesh.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
-  assert_true(mesh_verify_topology(mesh, polymec_error));
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
+  assert_true(polymesh_verify_topology(mesh, polymec_error));
 
   int nproc;
   MPI_Comm_size(mesh->comm, &nproc);
@@ -43,7 +43,7 @@ static void test_create_uniform_mesh(void** state)
     assert_int_equal(11*11*11, num_nodes);
   }
 
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
@@ -51,7 +51,7 @@ static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   // Create a uniform mesh.
   int nx = 10, ny = 10, nz = 10;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
 
   // Plot it.
   real_t ones[nx*ny*nz];
@@ -60,8 +60,8 @@ static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   char prefix[FILENAME_MAX];
   snprintf(prefix, FILENAME_MAX, "uniform_mesh_%dx%dx%d_%df", nx, ny, nz, num_files);
   silo_file_t* silo = silo_file_new(mesh->comm, prefix, "", num_files, 0, 0, 0.0);
-  silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, NULL);
+  silo_file_write_polymesh(silo, "mesh", mesh);
+  silo_file_write_scalar_polycell_field(silo, "solution", "mesh", ones, NULL);
   silo_file_close(silo);
 
   // Query the plot file to make sure its numbers are good.
@@ -87,7 +87,7 @@ static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   int_slist_free(cycles);
 
   // Clean up.
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void test_plot_uniform_mesh_to_single_file(void** state)

@@ -8,7 +8,6 @@
 #include "core/polymec.h"
 #include "core/options.h"
 #include "core/lua_core.h"
-#include "core/partition_mesh.h"
 
 #include "lua.h"
 #include "lualib.h"
@@ -1443,96 +1442,6 @@ static lua_class_method tagger_methods[] = {
   {NULL, NULL, NULL}
 };
 
-static int mesh_repartition(lua_State* L)
-{
-  // Check the arguments.
-  int num_args = lua_gettop(L);
-  if ((num_args != 1) || !lua_is_mesh(L, 1))
-    return luaL_error(L, "Argument must be mesh.");
-  mesh_t* mesh = lua_to_mesh(L, 1);
-  real_t imbalance_tol = 0.05;
-
-  // Bug out if there's only one process.
-  int nprocs;
-  MPI_Comm_size(mesh->comm, &nprocs);
-  if (nprocs == 1)
-    return 0;
-
-  // Make sure there are enough cells for our processes.
-  index_t local_num_cells = mesh->num_cells, global_num_cells;
-  MPI_Allreduce(&local_num_cells, &global_num_cells, 1, MPI_INDEX_T, MPI_SUM, mesh->comm);
-  if (global_num_cells < nprocs)
-    return luaL_error(L, "Insufficient number of cells (%zd) for number of processes (%d).", global_num_cells, nprocs);
-
-  // Perform the repartitioning and toss the migrator.
-  migrator_t* m = repartition_mesh(&mesh, NULL, imbalance_tol);
-  m = NULL;
-
-  return 0;
-}
-
-static lua_module_function mesh_funcs[] = {
-  {"repartition", mesh_repartition, "mesh.repartition(m) -> Repartitions the mesh m."},
-  {NULL, NULL, NULL}
-};
-
-static int mesh_num_cells(lua_State* L)
-{
-  mesh_t* m = lua_to_mesh(L, 1);
-  lua_pushinteger(L, m->num_cells);
-  return 1;
-}
-
-static int mesh_num_ghost_cells(lua_State* L)
-{
-  mesh_t* m = lua_to_mesh(L, 1);
-  lua_pushinteger(L, m->num_ghost_cells);
-  return 1;
-}
-
-static int mesh_num_faces(lua_State* L)
-{
-  mesh_t* m = lua_to_mesh(L, 1);
-  lua_pushinteger(L, m->num_faces);
-  return 1;
-}
-
-static int mesh_num_edges(lua_State* L)
-{
-  mesh_t* m = lua_to_mesh(L, 1);
-  lua_pushinteger(L, m->num_edges);
-  return 1;
-}
-
-static int mesh_num_nodes(lua_State* L)
-{
-  mesh_t* m = lua_to_mesh(L, 1);
-  lua_pushinteger(L, m->num_nodes);
-  return 1;
-}
-
-static lua_record_field mesh_fields[] = {
-  {"num_cells", mesh_num_cells, NULL},
-  {"num_ghost_cells", mesh_num_ghost_cells, NULL},
-  {"num_faces", mesh_num_faces, NULL},
-  {"num_edges", mesh_num_edges, NULL},
-  {"num_nodes", mesh_num_nodes, NULL},
-  {NULL, NULL, NULL}
-};
-
-static int mesh_tostring(lua_State* L)
-{
-  mesh_t* m = lua_to_mesh(L, 1);
-  lua_pushfstring(L, "mesh (%d cells, %d faces, %d nodes)", 
-                  m->num_cells, m->num_faces, m->num_nodes);
-  return 1;
-}
-
-static lua_record_metamethod mesh_mm[] = {
-  {"__tostring", mesh_tostring},
-  {NULL, NULL}
-};
-
 static int pc_new(lua_State* L)
 {
   int num_args = lua_gettop(L);
@@ -1909,7 +1818,6 @@ int lua_register_core_modules(lua_State* L)
   lua_register_class(L, "sp_func", "A function in 3D space.", sp_funcs, sp_methods);
   lua_register_class(L, "st_func", "A time-dependent function in 3D space.", st_funcs, st_methods);
   lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, tagger_methods);
-  lua_register_record_type(L, "mesh", "An arbitrary polyhedral mesh.", mesh_funcs, mesh_fields, mesh_mm);
   lua_register_record_type(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_mm);
 
   // Register the options table.
@@ -2088,21 +1996,6 @@ bool lua_is_tagger(lua_State* L, int index)
 tagger_t* lua_to_tagger(lua_State* L, int index)
 {
   return (tagger_t*)lua_to_object(L, index, "tagger");
-}
-
-void lua_push_mesh(lua_State* L, mesh_t* m)
-{
-  lua_push_record(L, "mesh", m, DTOR(mesh_free));
-}
-
-bool lua_is_mesh(lua_State* L, int index)
-{
-  return lua_is_record(L, index, "mesh");
-}
-
-mesh_t* lua_to_mesh(lua_State* L, int index)
-{
-  return (mesh_t*)lua_to_record(L, index, "mesh");
 }
 
 void lua_push_point_cloud(lua_State* L, point_cloud_t* c)

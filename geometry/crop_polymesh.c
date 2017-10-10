@@ -7,19 +7,19 @@
 
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
-#include "geometry/crop_mesh.h"
+#include "geometry/crop_polymesh.h"
 
-static void project_nodes(mesh_t* mesh, sd_func_t* boundary_func)
+static void project_nodes(polymesh_t* mesh, sd_func_t* boundary_func)
 {
   // Go over the boundary faces and project each of the nodes.
   int_unordered_set_t* projected_nodes = int_unordered_set_new();
   size_t nfaces;
-  int* faces = mesh_tag(mesh->face_tags, sd_func_name(boundary_func), &nfaces);
+  int* faces = polymesh_tag(mesh->face_tags, sd_func_name(boundary_func), &nfaces);
   for (int f = 0; f < nfaces; ++f)
   {
     int face = faces[f];
     int pos = 0, node;
-    while (mesh_face_next_node(mesh, face, &pos, &node))
+    while (polymesh_face_next_node(mesh, face, &pos, &node))
     {
       if (!int_unordered_set_contains(projected_nodes, node))
       {
@@ -32,12 +32,14 @@ static void project_nodes(mesh_t* mesh, sd_func_t* boundary_func)
   int_unordered_set_free(projected_nodes);
 }
 
-static noreturn void project_faces(mesh_t* mesh, sd_func_t* boundary_func)
+static noreturn void project_faces(polymesh_t* mesh, sd_func_t* boundary_func)
 {
   POLYMEC_NOT_IMPLEMENTED
 }
 
-mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type)
+polymesh_t* crop_polymesh(polymesh_t* mesh, 
+                          sd_func_t* boundary_func, 
+                          polymesh_crop_t crop_type)
 {
   // Mark the cells whose centers fall outside the boundary.
   int_unordered_set_t* outside_cells = int_unordered_set_new();
@@ -59,20 +61,20 @@ mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type)
     if (int_unordered_set_contains(outside_cells, cell)) continue;
 
     int pos = 0, face;
-    while (mesh_cell_next_face(mesh, cell, &pos, &face))
+    while (polymesh_cell_next_face(mesh, cell, &pos, &face))
     {
       // This face is still in the mesh.
       if (!int_int_unordered_map_contains(remaining_faces, face))
         int_int_unordered_map_insert(remaining_faces, face, new_face_index++);
 
       // A boundary face is a face with only one cell attached to it.
-      int opp_cell = mesh_face_opp_cell(mesh, face, cell);
+      int opp_cell = polymesh_face_opp_cell(mesh, face, cell);
       if ((opp_cell == -1) || int_unordered_set_contains(outside_cells, opp_cell))
         int_unordered_set_insert(boundary_faces, face);
       else if (opp_cell >= mesh->num_cells)
         int_unordered_set_insert(remaining_ghosts, opp_cell);
       int pos1 = 0, node;
-      while (mesh_face_next_node(mesh, face, &pos1, &node))
+      while (polymesh_face_next_node(mesh, face, &pos1, &node))
       {
         if (!int_int_unordered_map_contains(remaining_nodes, node))
           int_int_unordered_map_insert(remaining_nodes, node, new_node_index++);
@@ -107,9 +109,9 @@ mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type)
   int_unordered_set_free(remaining_ghosts);
 
   // Make a new mesh.
-  mesh_t* cropped_mesh = mesh_new(mesh->comm, 
-                                  mesh->num_cells - outside_cells->size,
-                                  num_new_ghosts, num_new_faces, num_new_nodes);
+  polymesh_t* cropped_mesh = polymesh_new(mesh->comm, 
+                                          mesh->num_cells - outside_cells->size,
+                                          num_new_ghosts, num_new_faces, num_new_nodes);
 
   // Reserve storage.
   int new_cell = 0;
@@ -117,7 +119,7 @@ mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type)
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
     if (int_unordered_set_contains(outside_cells, cell)) continue;
-    int num_cell_faces = mesh_cell_num_faces(mesh, cell);
+    int num_cell_faces = polymesh_cell_num_faces(mesh, cell);
     cropped_mesh->cell_face_offsets[new_cell+1] = cropped_mesh->cell_face_offsets[new_cell] + num_cell_faces;
     ++new_cell;
   }
@@ -127,20 +129,20 @@ mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type)
     int new_face = face_map[f];
     if (new_face != -1)
     {
-      int num_face_nodes = mesh_face_num_nodes(mesh, f);
+      int num_face_nodes = polymesh_face_num_nodes(mesh, f);
       cropped_mesh->face_node_offsets[new_face+1] = num_face_nodes;
     }
   }
   for (int f = 0; f < cropped_mesh->num_faces; ++f)
     cropped_mesh->face_node_offsets[f+1] += cropped_mesh->face_node_offsets[f];
-  mesh_reserve_connectivity_storage(cropped_mesh);
+  polymesh_reserve_connectivity_storage(cropped_mesh);
 
   // Hook up the faces and cells.
   new_cell = 0;
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
     if (int_unordered_set_contains(outside_cells, cell)) continue;
-    int num_cell_faces = mesh_cell_num_faces(mesh, cell);
+    int num_cell_faces = polymesh_cell_num_faces(mesh, cell);
     for (int f = 0; f < num_cell_faces; ++f)
     {
       int old_face = mesh->cell_faces[mesh->cell_face_offsets[cell]+f];
@@ -163,7 +165,7 @@ mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type)
     int new_face = face_map[f];
     if (new_face != -1)
     {
-      int num_face_nodes = mesh_face_num_nodes(mesh, f);
+      int num_face_nodes = polymesh_face_num_nodes(mesh, f);
       for (int n = 0; n < num_face_nodes; ++n)
       {
         int old_node = mesh->face_nodes[mesh->face_node_offsets[f]+n];
@@ -181,10 +183,10 @@ mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type)
   }
 
   // Construct edges.
-  mesh_construct_edges(cropped_mesh);
+  polymesh_construct_edges(cropped_mesh);
   
   // Create the boundary faces tag.
-  int* bf_tag = mesh_create_tag(cropped_mesh->face_tags, sd_func_name(boundary_func), boundary_faces->size);
+  int* bf_tag = polymesh_create_tag(cropped_mesh->face_tags, sd_func_name(boundary_func), boundary_faces->size);
   {
     int pos = 0, i = 0, face;
     while (int_unordered_set_next(boundary_faces, &pos, &face))
@@ -193,8 +195,8 @@ mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type)
 
   // Create a new exchanger from the old one.
   {
-    exchanger_t* old_ex = mesh_exchanger(mesh);
-    exchanger_t* new_ex = mesh_exchanger(cropped_mesh);
+    exchanger_t* old_ex = polymesh_exchanger(mesh);
+    exchanger_t* new_ex = polymesh_exchanger(cropped_mesh);
     int pos = 0, remote, *indices, num_indices;
     while (exchanger_next_send(old_ex, &pos, &remote, &indices, &num_indices))
     {
@@ -228,7 +230,7 @@ mesh_t* crop_mesh(mesh_t* mesh, sd_func_t* boundary_func, mesh_crop_t crop_type)
     project_faces(cropped_mesh, boundary_func);
 
   // Finally, compute the mesh geometry.
-  mesh_compute_geometry(cropped_mesh);
+  polymesh_compute_geometry(cropped_mesh);
 
   return cropped_mesh;
 }

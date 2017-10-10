@@ -5,13 +5,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/mesh.h"
 #include "core/unordered_set.h"
 #include "core/hilbert.h"
 #include "core/kd_tree.h"
 #include "core/array_utils.h"
+#include "geometry/polymesh.h"
 
-exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
+exchanger_t* polymesh_1v_node_exchanger_new(polymesh_t* mesh)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
 #if POLYMEC_HAVE_MPI
@@ -23,7 +23,7 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
 
   // First construct the n-valued face exchanger and the associated offsets.
   int offsets[mesh->num_nodes+1];
-  exchanger_t* noden_ex = mesh_nv_node_exchanger_new(mesh, offsets);
+  exchanger_t* noden_ex = polymesh_nv_node_exchanger_new(mesh, offsets);
 
   // Determine the owner of each node. We assign a face to the process on 
   // which it is present, having the lowest rank.
@@ -95,7 +95,7 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh)
   return ex;
 }
 
-exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
+exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
 
@@ -115,7 +115,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
   MPI_Comm_rank(mesh->comm, &rank);
 
   // Create a 2-valued face exchanger.
-  exchanger_t* face_ex = mesh_2v_face_exchanger_new(mesh);
+  exchanger_t* face_ex = polymesh_2v_face_exchanger_new(mesh);
 
   // Generate a list of all the neighbors of our set of neighbors.
   int_array_t* all_neighbors_of_neighbors = int_array_new();
@@ -187,7 +187,7 @@ exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets)
       {
         int face = indices[f]/2; // see docs on face exchanger!
         int npos = 0, node;
-        while (mesh_face_next_node(mesh, face, &npos, &node))
+        while (polymesh_face_next_node(mesh, face, &npos, &node))
           int_unordered_set_insert(node_set, node);
       }
     }

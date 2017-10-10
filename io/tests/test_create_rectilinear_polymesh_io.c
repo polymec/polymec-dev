@@ -11,7 +11,7 @@
 #include <string.h>
 #include "cmocka.h"
 #include "core/array_utils.h"
-#include "geometry/create_rectilinear_mesh.h"
+#include "geometry/create_rectilinear_polymesh.h"
 #include "io/silo_file.h"
 
 static void test_create_rectilinear_mesh(void** state)
@@ -20,8 +20,8 @@ static void test_create_rectilinear_mesh(void** state)
   real_t xs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
-  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 11, ys, 11, zs, 11);
-  assert_true(mesh_verify_topology(mesh, polymec_error));
+  polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 11, ys, 11, zs, 11);
+  assert_true(polymesh_verify_topology(mesh, polymec_error));
 
   int nproc;
   MPI_Comm_size(mesh->comm, &nproc);
@@ -46,7 +46,7 @@ static void test_create_rectilinear_mesh(void** state)
     assert_int_equal(11*11*11, num_nodes);
   }
 
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void test_plot_rectilinear_mesh(void** state)
@@ -55,21 +55,21 @@ static void test_plot_rectilinear_mesh(void** state)
   real_t xs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
   real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0};
   real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
-  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 5);
+  polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 5);
 
   // Plot it.
   real_t ones[4*4*4];
   for (int c = 0; c < 4*4*4; ++c)
     ones[c] = 1.0*c;
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0, 0.0);
-  silo_file_write_mesh(silo, "mesh", mesh);
+  silo_file_write_polymesh(silo, "mesh", mesh);
   silo_field_metadata_t* metadata = silo_field_metadata_new();
   metadata->label = string_dup("solution");
   metadata->units = string_dup("quatloo");
   metadata->conserved = true;
   metadata->extensive = false;
   metadata->vector_component = 2;
-  silo_file_write_scalar_cell_field(silo, "solution", "mesh", ones, metadata);
+  silo_file_write_scalar_polycell_field(silo, "solution", "mesh", ones, metadata);
 
   // Add some fields with different centerings.
   real_t nvals[3*mesh->num_nodes]; 
@@ -80,33 +80,33 @@ static void test_plot_rectilinear_mesh(void** state)
     nvals[3*n+1] = mesh->nodes[n].y;
     nvals[3*n+2] = mesh->nodes[n].z;
   }
-  silo_file_write_node_field(silo, nnames, "mesh", nvals, 3, NULL);
+  silo_file_write_polynode_field(silo, nnames, "mesh", nvals, 3, NULL);
 
   real_t fvals[mesh->num_faces];
   for (int f = 0; f < mesh->num_faces; ++f)
     fvals[f] = 1.0 * f;
-  silo_file_write_scalar_face_field(silo, "fvals", "mesh", fvals, NULL);
+  silo_file_write_scalar_polyface_field(silo, "fvals", "mesh", fvals, NULL);
 
   real_t evals[mesh->num_edges];
   for (int e = 0; e < mesh->num_edges; ++e)
     evals[e] = 1.0 * e;
-  silo_file_write_scalar_edge_field(silo, "evals", "mesh", evals, NULL);
+  silo_file_write_scalar_polyedge_field(silo, "evals", "mesh", evals, NULL);
 
   silo_file_close(silo);
 
   // Clean up.
-  mesh_free(mesh);
+  polymesh_free(mesh);
 
   // Now read the mesh from the file.
   metadata = silo_field_metadata_new();
   real_t t;
   silo = silo_file_open(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 0, 0, &t);
   assert_true(reals_equal(t, 0.0));
-  assert_true(silo_file_contains_mesh(silo, "mesh"));
-  mesh = silo_file_read_mesh(silo, "mesh");
+  assert_true(silo_file_contains_polymesh(silo, "mesh"));
+  mesh = silo_file_read_polymesh(silo, "mesh");
   assert_true(mesh->num_cells <= 4*4*4);
-  assert_true(silo_file_contains_cell_field(silo, "solution", "mesh"));
-  real_t* ones1 = silo_file_read_scalar_cell_field(silo, "solution", "mesh", metadata);
+  assert_true(silo_file_contains_polycell_field(silo, "solution", "mesh"));
+  real_t* ones1 = silo_file_read_scalar_polycell_field(silo, "solution", "mesh", metadata);
   for (int i = 0; i < mesh->num_cells; ++i)
   {
     assert_true(reals_equal(ones1[i], ones[i]));
@@ -119,26 +119,26 @@ static void test_plot_rectilinear_mesh(void** state)
   metadata = NULL;
 
   // Check on the other fields.
-  assert_true(silo_file_contains_node_field(silo, "nx", "mesh"));
-  assert_true(silo_file_contains_node_field(silo, "ny", "mesh"));
-  assert_true(silo_file_contains_node_field(silo, "nz", "mesh"));
-  real_t* nvals1 = silo_file_read_node_field(silo, nnames, "mesh", 3, NULL);
+  assert_true(silo_file_contains_polynode_field(silo, "nx", "mesh"));
+  assert_true(silo_file_contains_polynode_field(silo, "ny", "mesh"));
+  assert_true(silo_file_contains_polynode_field(silo, "nz", "mesh"));
+  real_t* nvals1 = silo_file_read_polynode_field(silo, nnames, "mesh", 3, NULL);
   for (int n = 0; n < mesh->num_nodes; ++n)
   {
     assert_true(reals_equal(nvals[n], nvals1[n]));
   }
   polymec_free(nvals1);
 
-  assert_true(silo_file_contains_face_field(silo, "fvals", "mesh"));
-  real_t* fvals1 = silo_file_read_scalar_face_field(silo, "fvals", "mesh", NULL);
+  assert_true(silo_file_contains_polyface_field(silo, "fvals", "mesh"));
+  real_t* fvals1 = silo_file_read_scalar_polyface_field(silo, "fvals", "mesh", NULL);
   for (int f = 0; f < mesh->num_faces; ++f)
   {
     assert_true(reals_equal(fvals[f], fvals1[f]));
   }
   polymec_free(fvals1);
 
-  assert_true(silo_file_contains_edge_field(silo, "evals", "mesh"));
-  real_t* evals1 = silo_file_read_scalar_edge_field(silo, "evals", "mesh", NULL);
+  assert_true(silo_file_contains_polyedge_field(silo, "evals", "mesh"));
+  real_t* evals1 = silo_file_read_scalar_polyedge_field(silo, "evals", "mesh", NULL);
   for (int e = 0; e < mesh->num_edges; ++e)
   {
     assert_true(reals_equal(evals[e], evals1[e]));
@@ -148,11 +148,11 @@ static void test_plot_rectilinear_mesh(void** state)
   silo_file_close(silo);
 
   polymec_free(ones1);
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void check_cell_face_connectivity(void** state, 
-                                         mesh_t* mesh,
+                                         polymesh_t* mesh,
                                          index_t* global_cell_indices, 
                                          index_t global_cell_index, 
                                          int cell_face_index, 
@@ -169,7 +169,7 @@ static void check_cell_face_connectivity(void** state,
   int face = mesh->cell_faces[6*cell + cell_face_index];
   if (face < 0) 
     face = ~face;
-  int opp_cell = mesh_face_opp_cell(mesh, face, cell);
+  int opp_cell = polymesh_face_opp_cell(mesh, face, cell);
   if ((opp_cell == -1) && (global_opp_cell_index == (index_t)(-1)))
     assert_int_equal(global_opp_cell_index, opp_cell);
   else
@@ -183,8 +183,8 @@ static void test_3proc_4x4x1_mesh(void** state)
   real_t xs[] = {0.0, 1.0, 2.0, 3.0, 4.0};
   real_t ys[] = {0.0, 1.0, 2.0, 3.0, 4.0};
   real_t zs[] = {0.0, 1.0};
-  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 2);
-  assert_true(mesh_verify_topology(mesh, polymec_error));
+  polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 2);
+  assert_true(polymesh_verify_topology(mesh, polymec_error));
 
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
@@ -194,7 +194,7 @@ static void test_3proc_4x4x1_mesh(void** state)
   index_t G[mesh->num_cells + mesh->num_ghost_cells];
   for (int i = 0; i < mesh->num_cells; ++i)
     G[i] = vtx_dist[rank] + i;
-  exchanger_exchange(mesh_exchanger(mesh), G, 1, 0, MPI_INDEX_T);
+  exchanger_exchange(polymesh_exchanger(mesh), G, 1, 0, MPI_INDEX_T);
 
   // Here's the mesh:
   //
@@ -349,7 +349,7 @@ static void test_3proc_4x4x1_mesh(void** state)
     check_cell_face_connectivity(state, mesh, G, 14, 5, -1);
   }
 
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void test_problematic_meshes(void** state)

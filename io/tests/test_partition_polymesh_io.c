@@ -10,8 +10,8 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "core/partition_mesh.h"
-#include "geometry/create_uniform_mesh.h"
+#include "geometry/partition_polymesh.h"
+#include "geometry/create_uniform_polymesh.h"
 #include "io/silo_file.h"
 
 #if POLYMEC_HAVE_DOUBLE_PRECISION
@@ -27,10 +27,10 @@ static void test_partition_linear_mesh(void** state)
   int nx = 100, ny = 1, nz = 1;
   real_t dx = 1.0/nx;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = dx, .z1 = 0.0, .z2 = dx};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
 
   // Partition it.
-  migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  migrator_t* m = partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
   assert_true(mesh->comm == MPI_COMM_WORLD);
   migrator_verify(m, polymec_error);
   m = NULL;
@@ -41,7 +41,7 @@ static void test_partition_linear_mesh(void** state)
   MPI_Comm_size(mesh->comm, &nprocs);
   if (nprocs > 1)
   {
-    exchanger_t* ex = mesh_exchanger(mesh);
+    exchanger_t* ex = polymesh_exchanger(mesh);
     int pos = 0, proc, *indices, num_indices;
     int num_sends = 0, num_receives = 0;
     while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
@@ -81,7 +81,7 @@ static void test_partition_linear_mesh(void** state)
   assert_true(face_areas_are_ok);
 
   // Check the resulting exchanger.
-  exchanger_verify(mesh_exchanger(mesh), polymec_error);
+  exchanger_verify(polymesh_exchanger(mesh), polymec_error);
 
   // Plot it.
   real_t p[mesh->num_cells];
@@ -91,12 +91,12 @@ static void test_partition_linear_mesh(void** state)
   p_metadata->label = string_dup("P");
   p_metadata->conserved = true;
   silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0, 0.0);
-  silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "rank", "mesh", p, p_metadata);
+  silo_file_write_polymesh(silo, "mesh", mesh);
+  silo_file_write_scalar_polycell_field(silo, "rank", "mesh", p, p_metadata);
   silo_file_close(silo);
 
   // Clean up.
-  mesh_free(mesh);
+  polymesh_free(mesh);
 
   // Superficially check that the file is okay.
   int num_files, num_procs;
@@ -112,10 +112,10 @@ static void test_partition_slab_mesh(void** state)
   int nx = 50, ny = 50, nz = 1;
   real_t dx = 1.0/nx;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = dx};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
 
   // Partition it.
-  migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  migrator_t* m = partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
   assert_true(mesh->comm == MPI_COMM_WORLD);
   m = NULL;
 
@@ -151,12 +151,12 @@ static void test_partition_slab_mesh(void** state)
   for (int c = 0; c < mesh->num_cells; ++c)
     p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "slab_mesh_partition", "slab_mesh_partition", 1, 0, 0, 0.0);
-  silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "rank", "mesh", p, NULL);
+  silo_file_write_polymesh(silo, "mesh", mesh);
+  silo_file_write_scalar_polycell_field(silo, "rank", "mesh", p, NULL);
   silo_file_close(silo);
 
   // Clean up.
-  mesh_free(mesh);
+  polymesh_free(mesh);
 
   // Superficially check that the file is okay.
   int num_files, num_procs;
@@ -171,10 +171,10 @@ static void test_partition_box_mesh(void** state)
   // Create a 20x20x20 uniform mesh.
   int nx = 20, ny = 20, nz = 20;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
 
   // Partition it.
-  migrator_t* m = partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  migrator_t* m = partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
   assert_true(mesh->comm == MPI_COMM_WORLD);
   m = NULL;
 
@@ -211,12 +211,12 @@ static void test_partition_box_mesh(void** state)
   for (int c = 0; c < mesh->num_cells; ++c)
     p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "box_mesh_partition", "box_mesh_partition", 1, 0, 0, 0.0);
-  silo_file_write_mesh(silo, "mesh", mesh);
-  silo_file_write_scalar_cell_field(silo, "rank", "mesh", p, NULL);
+  silo_file_write_polymesh(silo, "mesh", mesh);
+  silo_file_write_scalar_polycell_field(silo, "rank", "mesh", p, NULL);
   silo_file_close(silo);
 
   // Clean up.
-  mesh_free(mesh);
+  polymesh_free(mesh);
 
   // Superficially check that the file is okay.
   int num_files, num_procs;

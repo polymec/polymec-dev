@@ -14,7 +14,8 @@
 #include "geometry/intersection_sd_func.h"
 #include "geometry/difference_sd_func.h"
 
-#include "geometry/create_uniform_mesh.h"
+#include "geometry/partition_polymesh.h"
+#include "geometry/create_uniform_polymesh.h"
 
 #include "lua.h"
 #include "lualib.h"
@@ -542,7 +543,97 @@ static lua_class_method sdt_methods[] = {
   {NULL, NULL, NULL}
 };
 
-static int meshes_uniform_mesh(lua_State* L)
+static int polymesh_repartition(lua_State* L)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) || !lua_is_polymesh(L, 1))
+    return luaL_error(L, "Argument must be a polymesh.");
+  polymesh_t* mesh = lua_to_polymesh(L, 1);
+  real_t imbalance_tol = 0.05;
+
+  // Bug out if there's only one process.
+  int nprocs;
+  MPI_Comm_size(mesh->comm, &nprocs);
+  if (nprocs == 1)
+    return 0;
+
+  // Make sure there are enough cells for our processes.
+  index_t local_num_cells = mesh->num_cells, global_num_cells;
+  MPI_Allreduce(&local_num_cells, &global_num_cells, 1, MPI_INDEX_T, MPI_SUM, mesh->comm);
+  if (global_num_cells < nprocs)
+    return luaL_error(L, "Insufficient number of cells (%zd) for number of processes (%d).", global_num_cells, nprocs);
+
+  // Perform the repartitioning and toss the migrator.
+  migrator_t* m = repartition_polymesh(&mesh, NULL, imbalance_tol);
+  m = NULL;
+
+  return 0;
+}
+
+static lua_module_function polymesh_funcs[] = {
+  {"repartition", polymesh_repartition, "mesh.repartition(m) -> Repartitions the polymesh m."},
+  {NULL, NULL, NULL}
+};
+
+static int polymesh_num_cells(lua_State* L)
+{
+  polymesh_t* m = lua_to_polymesh(L, 1);
+  lua_pushinteger(L, m->num_cells);
+  return 1;
+}
+
+static int polymesh_num_ghost_cells(lua_State* L)
+{
+  polymesh_t* m = lua_to_polymesh(L, 1);
+  lua_pushinteger(L, m->num_ghost_cells);
+  return 1;
+}
+
+static int polymesh_num_faces(lua_State* L)
+{
+  polymesh_t* m = lua_to_polymesh(L, 1);
+  lua_pushinteger(L, m->num_faces);
+  return 1;
+}
+
+static int polymesh_num_edges(lua_State* L)
+{
+  polymesh_t* m = lua_to_polymesh(L, 1);
+  lua_pushinteger(L, m->num_edges);
+  return 1;
+}
+
+static int polymesh_num_nodes(lua_State* L)
+{
+  polymesh_t* m = lua_to_polymesh(L, 1);
+  lua_pushinteger(L, m->num_nodes);
+  return 1;
+}
+
+static lua_record_field polymesh_fields[] = {
+  {"num_cells", polymesh_num_cells, NULL},
+  {"num_ghost_cells", polymesh_num_ghost_cells, NULL},
+  {"num_faces", polymesh_num_faces, NULL},
+  {"num_edges", polymesh_num_edges, NULL},
+  {"num_nodes", polymesh_num_nodes, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int polymesh_tostring(lua_State* L)
+{
+  polymesh_t* m = lua_to_polymesh(L, 1);
+  lua_pushfstring(L, "polymesh (%d cells, %d faces, %d nodes)", 
+                  m->num_cells, m->num_faces, m->num_nodes);
+  return 1;
+}
+
+static lua_record_metamethod polymesh_mm[] = {
+  {"__tostring", polymesh_tostring},
+  {NULL, NULL}
+};
+
+static int polymeshes_uniform(lua_State* L)
 {
   if (!lua_istable(L, 1))
     luaL_error(L, "Argument must be a table with comm, nx, ny, nz, bbox fields.");
@@ -583,13 +674,13 @@ static int meshes_uniform_mesh(lua_State* L)
   if (lua_isinteger(L, -1))
     rank = (int)lua_tointeger(L, -1);
 
-  mesh_t* mesh = NULL;
+  polymesh_t* mesh = NULL;
   if (rank == -1) 
-    mesh = create_uniform_mesh(comm, nx, ny, nz, bbox);
+    mesh = create_uniform_polymesh(comm, nx, ny, nz, bbox);
   else
-    mesh = create_uniform_mesh_on_rank(comm, rank, nx, ny, nz, bbox);
+    mesh = create_uniform_polymesh_on_rank(comm, rank, nx, ny, nz, bbox);
 
-  lua_push_mesh(L, mesh);
+  lua_push_polymesh(L, mesh);
   return 1;
 }
 
@@ -623,7 +714,7 @@ static real_array_t* get_coordinates(lua_State* L, int index)
   return array;
 }
 
-static int meshes_rectilinear_mesh(lua_State* L)
+static int polymeshes_rectilinear(lua_State* L)
 {
   if (!lua_istable(L, 1))
     luaL_error(L, "Argument must be a table with comm, xs, ys, zs fields.");
@@ -653,29 +744,29 @@ static int meshes_rectilinear_mesh(lua_State* L)
   if (lua_isinteger(L, -1))
     rank = (int)lua_tointeger(L, -1);
 
-  mesh_t* mesh = NULL;
+  polymesh_t* mesh = NULL;
   if (rank == -1) 
   {
-    mesh = create_rectilinear_mesh(comm, 
-                                   xs->data, (int)xs->size,
-                                   ys->data, (int)ys->size,
-                                   zs->data, (int)zs->size);
+    mesh = create_rectilinear_polymesh(comm, 
+                                       xs->data, (int)xs->size,
+                                       ys->data, (int)ys->size,
+                                       zs->data, (int)zs->size);
   }
   else
   {
-    mesh = create_rectilinear_mesh_on_rank(comm, rank,
-                                           xs->data, (int)xs->size,
-                                           ys->data, (int)ys->size,
-                                           zs->data, (int)zs->size);
+    mesh = create_rectilinear_polymesh_on_rank(comm, rank,
+                                               xs->data, (int)xs->size,
+                                               ys->data, (int)ys->size,
+                                               zs->data, (int)zs->size);
   }
 
-  lua_push_mesh(L, mesh);
+  lua_push_polymesh(L, mesh);
   return 1;
 }
 
-static lua_module_function meshes_funcs[] = {
-  {"uniform", meshes_uniform_mesh, "meshes.uniform{comm = COMM, nx = NX, ny = NY, nz = NZ, bbox = BBOX} -> New uniform resolution mesh."},
-  {"rectilinear", meshes_rectilinear_mesh, "meshes.rectilinear{comm = COMM, xs = XS, ys = YS, zs = ZS} -> New rectilinear mesh with defined node coordinates."},
+static lua_module_function polymeshes_funcs[] = {
+  {"uniform", polymeshes_uniform, "polymeshes.uniform{comm = COMM, nx = NX, ny = NY, nz = NZ, bbox = BBOX} -> New uniform resolution mesh."},
+  {"rectilinear", polymeshes_rectilinear, "polymeshes.rectilinear{comm = COMM, xs = XS, ys = YS, zs = ZS} -> New rectilinear mesh with defined node coordinates."},
   {NULL, NULL, NULL}
 };
 
@@ -692,9 +783,10 @@ int lua_register_geometry_modules(lua_State* L)
   // Core types.
   lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, sd_methods);
   lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_methods);
+  lua_register_record_type(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_mm);
 
   // Register a module of mesh factory methods.
-  lua_register_module(L, "meshes", "Functions for generating meshes.", meshes_funcs);
+  lua_register_module(L, "polymeshes", "Functions for generating polymeshes.", polymeshes_funcs);
 
   // Register a module of point factory methods.
   lua_register_module(L, "points", "Functions for generating points.", points_funcs);
@@ -730,5 +822,20 @@ bool lua_is_sdt_func(lua_State* L, int index)
 sdt_func_t* lua_to_sdt_func(lua_State* L, int index)
 {
   return (sdt_func_t*)lua_to_object(L, index, "sdt_func");
+}
+
+void lua_push_polymesh(lua_State* L, polymesh_t* m)
+{
+  lua_push_record(L, "polymesh", m, DTOR(polymesh_free));
+}
+
+bool lua_is_polymesh(lua_State* L, int index)
+{
+  return lua_is_record(L, index, "polymesh");
+}
+
+polymesh_t* lua_to_polymesh(lua_State* L, int index)
+{
+  return (polymesh_t*)lua_to_record(L, index, "polymesh");
 }
 

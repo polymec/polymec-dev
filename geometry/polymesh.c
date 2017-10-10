@@ -5,11 +5,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/mesh.h"
 #include "core/table.h"
+#include "geometry/polymesh.h"
 
 // Mesh features.
-const char* MESH_IS_TETRAHEDRAL = "mesh_is_tetrahedral";
+const char* POLYMESH_IS_TETRAHEDRAL = "polymesh_is_tetrahedral";
 
 // This function rounds the given number up to the nearest power of 2.
 static int round_to_pow2(int x)
@@ -20,7 +20,7 @@ static int round_to_pow2(int x)
 }
 
 // Mesh storage stuff.
-struct mesh_storage_t
+struct polymesh_storage_t
 {
   int cell_face_capacity;
   int face_edge_capacity;
@@ -28,10 +28,10 @@ struct mesh_storage_t
   exchanger_t* exchanger;
 };
 
-// Initializes a new storage mechanism for a mesh.
-static mesh_storage_t* mesh_storage_new(MPI_Comm comm)
+// Initializes a new storage mechanism for a polymesh.
+static polymesh_storage_t* polymesh_storage_new(MPI_Comm comm)
 {
-  mesh_storage_t* storage = polymec_malloc(sizeof(mesh_storage_t));
+  polymesh_storage_t* storage = polymec_malloc(sizeof(polymesh_storage_t));
   storage->cell_face_capacity = 0;
   storage->face_edge_capacity = 0;
   storage->face_node_capacity = 0;
@@ -40,21 +40,21 @@ static mesh_storage_t* mesh_storage_new(MPI_Comm comm)
 }
 
 // Frees the given storage mechanism.
-static void mesh_storage_free(mesh_storage_t* storage)
+static void polymesh_storage_free(polymesh_storage_t* storage)
 {
   storage->exchanger = NULL;
   polymec_free(storage);
 }
 
-mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
-                 int num_faces, int num_nodes)
+polymesh_t* polymesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
+                         int num_faces, int num_nodes)
 {
   ASSERT(num_cells >= 0);
   ASSERT(num_ghost_cells >= 0);
   ASSERT(num_faces >= 0);
   ASSERT(num_nodes >= 0);
 
-  mesh_t* mesh = polymec_malloc(sizeof(mesh_t));
+  polymesh_t* mesh = polymec_malloc(sizeof(polymesh_t));
   mesh->comm = comm;
 
   // NOTE: We round stored elements up to the nearest power of 2.
@@ -103,7 +103,7 @@ mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
   mesh->face_normals = polymec_malloc(sizeof(vector_t)*num_faces);
 
   // Storage information.
-  mesh->storage = mesh_storage_new(mesh->comm);
+  mesh->storage = polymesh_storage_new(mesh->comm);
   mesh->storage->cell_face_capacity = cell_face_cap;
   mesh->storage->face_node_capacity = face_node_cap;
   mesh->storage->face_edge_capacity = 0;
@@ -115,33 +115,33 @@ mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
   mesh->node_tags = tagger_new();
 
   // Now we create a bogus tag that we can use to store mesh properties.
-  int* prop_tag = mesh_create_tag(mesh->cell_tags, "properties", 1);
+  int* prop_tag = polymesh_create_tag(mesh->cell_tags, "properties", 1);
   prop_tag[0] = 0;
 
   // We also create a bogus tag that we can use to store mesh features.
-  int* feature_tag = mesh_create_tag(mesh->cell_tags, "features", 1);
+  int* feature_tag = polymesh_create_tag(mesh->cell_tags, "features", 1);
   feature_tag[0] = 0;
 
   return mesh;
 }
 
-mesh_t* mesh_new_with_cell_type(MPI_Comm comm, int num_cells, 
-                                int num_ghost_cells, int num_faces, 
-                                int num_nodes, int num_faces_per_cell,
-                                int num_nodes_per_face)
+polymesh_t* polymesh_new_with_cell_type(MPI_Comm comm, int num_cells, 
+                                        int num_ghost_cells, int num_faces, 
+                                        int num_nodes, int num_faces_per_cell,
+                                        int num_nodes_per_face)
 {
-  mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
+  polymesh_t* mesh = polymesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
 
   // Set up connectivity metadata.
   for (int c = 0; c < mesh->num_cells+1; ++c)
     mesh->cell_face_offsets[c] = num_faces_per_cell*c;
   for (int f = 0; f < mesh->num_faces+1; ++f)
     mesh->face_node_offsets[f] = num_nodes_per_face*f;
-  mesh_reserve_connectivity_storage(mesh);
+  polymesh_reserve_connectivity_storage(mesh);
   return mesh;
 }
 
-void mesh_free(mesh_t* mesh)
+void polymesh_free(polymesh_t* mesh)
 {
   ASSERT(mesh != NULL);
 
@@ -152,7 +152,7 @@ void mesh_free(mesh_t* mesh)
   tagger_free(mesh->cell_tags);
 
   // Destroy storage metadata.
-  mesh_storage_free(mesh->storage);
+  polymesh_storage_free(mesh->storage);
 
   // Destroy geometric information.
   polymec_free(mesh->face_normals);
@@ -178,15 +178,16 @@ void mesh_free(mesh_t* mesh)
   polymec_free(mesh);
 }
 
-bool mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...))
+bool polymesh_verify_topology(polymesh_t* mesh, 
+                              void (*handler)(const char* format, ...))
 {
   // All cells must have at least 4 faces.
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    if (mesh_cell_num_faces(mesh, c) < 4)
+    if (polymesh_cell_num_faces(mesh, c) < 4)
     {
-      handler("mesh_verify_topology: polyhedral cell %d has only %d faces.", 
-              c, mesh_cell_num_faces(mesh, c));
+      handler("polymesh_verify_topology: polyhedral cell %d has only %d faces.", 
+              c, polymesh_cell_num_faces(mesh, c));
       return false;
     }
   }
@@ -194,15 +195,15 @@ bool mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
   // All faces must have at least 3 nodes/edges.
   for (int f = 0; f < mesh->num_faces; ++f)
   {
-    int ne = mesh_face_num_edges(mesh, f);
+    int ne = polymesh_face_num_edges(mesh, f);
     if (ne == 0)
     {
-      handler("mesh_verify_topology: polygonal face %d has no edges!", f);
+      handler("polymesh_verify_topology: polygonal face %d has no edges!", f);
       return false;
     }
     if (ne < 3)
     {
-      handler("mesh_verify_topology: polygonal face %d has only %d edges.", f, ne);
+      handler("polymesh_verify_topology: polygonal face %d has only %d edges.", f, ne);
       return false;
     }
   }
@@ -211,11 +212,11 @@ bool mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     int pos = 0, f;
-    while (mesh_cell_next_face(mesh, c, &pos, &f))
+    while (polymesh_cell_next_face(mesh, c, &pos, &f))
     {
       if ((mesh->face_cells[2*f] != c) && (mesh->face_cells[2*f+1] != c))
       {
-        handler("mesh_verify_topology: cell %d has face %d but is not attached to it.", c, f);
+        handler("polymesh_verify_topology: cell %d has face %d but is not attached to it.", c, f);
         return false;
       }
     }
@@ -224,7 +225,7 @@ bool mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
   {
     int pos = 0, ff;
     bool found_face = false;
-    while (mesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
+    while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
     {
       if (ff == f) 
       {
@@ -234,12 +235,12 @@ bool mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
     }
     if (!found_face)
     {
-      handler("mesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f]);
+      handler("polymesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f]);
       return false;
     }
     if (mesh->face_cells[2*f+1] != -1)
     {
-      while (mesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
+      while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
       {
         if (ff == f) 
         {
@@ -249,7 +250,7 @@ bool mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
       }
       if (!found_face)
       {
-        handler("mesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f+1]);
+        handler("polymesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f+1]);
         return false;
       }
     }
@@ -258,15 +259,15 @@ bool mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...)
   return true;
 }
 
-mesh_t* mesh_clone(mesh_t* mesh)
+polymesh_t* polymesh_clone(polymesh_t* mesh)
 {
-  mesh_t* clone = mesh_new(MPI_COMM_WORLD, mesh->num_cells, mesh->num_ghost_cells,
+  polymesh_t* clone = polymesh_new(MPI_COMM_WORLD, mesh->num_cells, mesh->num_ghost_cells,
                            mesh->num_faces, mesh->num_nodes);
 
   // Connectivity metadata.
   memcpy(clone->cell_face_offsets, mesh->cell_face_offsets, sizeof(int)*(mesh->num_cells+1));
   memcpy(clone->face_node_offsets, mesh->face_node_offsets, sizeof(int)*(mesh->num_faces+1));
-  mesh_reserve_connectivity_storage(clone);
+  polymesh_reserve_connectivity_storage(clone);
 
   // Actual connectivity.
   int num_cell_faces = clone->cell_face_offsets[clone->num_cells];
@@ -279,7 +280,7 @@ mesh_t* mesh_clone(mesh_t* mesh)
   memcpy(clone->nodes, mesh->nodes, sizeof(point_t)*clone->num_nodes);
 
   // Construct edges.
-  mesh_construct_edges(clone);
+  polymesh_construct_edges(clone);
 
   // Geometry stuff.
   memcpy(clone->cell_volumes, mesh->cell_volumes, sizeof(real_t)*clone->num_cells);
@@ -297,27 +298,27 @@ mesh_t* mesh_clone(mesh_t* mesh)
   return clone;
 }
 
-void mesh_set_property(mesh_t* mesh, 
-                       const char* property, 
-                       void* data, 
-                       serializer_t* serializer)
+void polymesh_set_property(polymesh_t* mesh, 
+                           const char* property, 
+                           void* data, 
+                           serializer_t* serializer)
 {
   // Use the bogus tag to store our junk.
   tagger_set_property(mesh->cell_tags, "properties", property, data, serializer);
 }
 
-void* mesh_property(mesh_t* mesh, const char* property)
+void* polymesh_property(polymesh_t* mesh, const char* property)
 {
   // Get this property from our bogus tag.
   return tagger_property(mesh->cell_tags, "properties", property);
 }
 
-void mesh_delete_property(mesh_t* mesh, const char* property)
+void polymesh_delete_property(polymesh_t* mesh, const char* property)
 {
   tagger_delete_property(mesh->cell_tags, "properties", property);
 }
 
-bool mesh_next_property(mesh_t* mesh, int* pos, 
+bool polymesh_next_property(polymesh_t* mesh, int* pos, 
                         char** prop_name, void** prop_data, 
                         serializer_t** prop_serializer)
 {
@@ -325,12 +326,12 @@ bool mesh_next_property(mesh_t* mesh, int* pos,
                               prop_data, prop_serializer);
 }
 
-exchanger_t* mesh_exchanger(mesh_t* mesh)
+exchanger_t* polymesh_exchanger(polymesh_t* mesh)
 {
   return mesh->storage->exchanger;
 }
 
-void mesh_set_exchanger(mesh_t* mesh, exchanger_t* ex)
+void polymesh_set_exchanger(polymesh_t* mesh, exchanger_t* ex)
 {
   ASSERT(ex != NULL);
   if (mesh->storage->exchanger != NULL)
@@ -338,7 +339,7 @@ void mesh_set_exchanger(mesh_t* mesh, exchanger_t* ex)
   mesh->storage->exchanger = ex;
 }
 
-void mesh_add_feature(mesh_t* mesh, const char* feature)
+void polymesh_add_feature(polymesh_t* mesh, const char* feature)
 {
   // Use the bogus tag to store our junk.
   bool* data = polymec_malloc(sizeof(bool));
@@ -347,48 +348,48 @@ void mesh_add_feature(mesh_t* mesh, const char* feature)
   tagger_set_property(mesh->cell_tags, "features", feature, data, ser);
 }
 
-bool mesh_has_feature(mesh_t* mesh, const char* feature)
+bool polymesh_has_feature(polymesh_t* mesh, const char* feature)
 {
   // Get this feature from our bogus tag.
   return (tagger_property(mesh->cell_tags, "features", feature) != NULL);
 }
 
-void mesh_delete_feature(mesh_t* mesh, const char* feature)
+void polymesh_delete_feature(polymesh_t* mesh, const char* feature)
 {
   tagger_delete_property(mesh->cell_tags, "features", feature);
 }
 
-int* mesh_create_tag(tagger_t* tagger, const char* tag, size_t num_indices)
+int* polymesh_create_tag(tagger_t* tagger, const char* tag, size_t num_indices)
 {
   return tagger_create_tag(tagger, tag, num_indices);
 }
 
-int* mesh_tag(tagger_t* tagger, const char* tag, size_t* num_indices)
+int* polymesh_tag(tagger_t* tagger, const char* tag, size_t* num_indices)
 {
   return tagger_tag(tagger, tag, num_indices);
 }
 
-bool mesh_has_tag(tagger_t* tagger, const char* tag)
+bool polymesh_has_tag(tagger_t* tagger, const char* tag)
 {
   return tagger_has_tag(tagger, tag);
 }
 
-bool mesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, serializer_t* serializer)
+bool polymesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, serializer_t* serializer)
 {
   return tagger_set_property(tagger, tag, property, data, serializer);
 }
 
-void* mesh_tag_property(tagger_t* tagger, const char* tag, const char* property)
+void* polymesh_tag_property(tagger_t* tagger, const char* tag, const char* property)
 {
   return tagger_property(tagger, tag, property);
 }
 
-void mesh_tag_delete_property(tagger_t* tagger, const char* tag, const char* property)
+void polymesh_tag_delete_property(tagger_t* tagger, const char* tag, const char* property)
 {
   tagger_delete_property(tagger, tag, property);
 }
 
-bool mesh_tag_next_property(tagger_t* tagger, const char* tag, int* pos, 
+bool polymesh_tag_next_property(tagger_t* tagger, const char* tag, int* pos, 
                             char** prop_name, void** prop_data, 
                             serializer_t** prop_serializer)
 {
@@ -396,22 +397,22 @@ bool mesh_tag_next_property(tagger_t* tagger, const char* tag, int* pos,
                               prop_serializer);
 }
 
-void mesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag)
+void polymesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag)
 {
   tagger_rename_tag(tagger, old_tag, new_tag);
 }
 
-void mesh_delete_tag(tagger_t* tagger, const char* tag)
+void polymesh_delete_tag(tagger_t* tagger, const char* tag)
 {
   tagger_delete_tag(tagger, tag);
 }
 
-bool mesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, size_t* tag_size)
+bool polymesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, size_t* tag_size)
 {
   return tagger_next_tag(tagger, pos, tag_name, tag_indices, tag_size);
 }
 
-void mesh_compute_geometry(mesh_t* mesh)
+void polymesh_compute_geometry(polymesh_t* mesh)
 {
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
@@ -423,13 +424,13 @@ void mesh_compute_geometry(mesh_t* mesh)
     point_t xc = {.x = 0.0, .y = 0.0, .z = 0.0};
     int num_cell_nodes = 0, num_cell_faces = 0;
     int pos = 0, face;
-    while (mesh_cell_next_oriented_face(mesh, cell, &pos, &face))
+    while (polymesh_cell_next_oriented_face(mesh, cell, &pos, &face))
     {
       int actual_face = (face >= 0) ? face : ~face;
       ASSERT(actual_face < mesh->num_faces);
       point_t xf = {.x = 0.0, .y = 0.0, .z = 0.0};
       int npos = 0, node;
-      while (mesh_face_next_node(mesh, actual_face, &npos, &node))
+      while (polymesh_face_next_node(mesh, actual_face, &npos, &node))
       {
         ASSERT(node >= 0);
         ASSERT(node < mesh->num_nodes);
@@ -447,13 +448,13 @@ void mesh_compute_geometry(mesh_t* mesh)
       }
       if (cell == mesh->face_cells[2*actual_face])
       {
-        int nn = mesh_face_num_nodes(mesh, actual_face);
+        int nn = polymesh_face_num_nodes(mesh, actual_face);
         xf.x /= nn;
         xf.y /= nn;
         xf.z /= nn;
         mesh->face_centers[actual_face] = xf;
       }
-      num_cell_nodes += mesh_face_num_nodes(mesh, actual_face);
+      num_cell_nodes += polymesh_face_num_nodes(mesh, actual_face);
       ++num_cell_faces;
     }
     xc.x /= num_cell_nodes;
@@ -468,13 +469,13 @@ void mesh_compute_geometry(mesh_t* mesh)
   {
     mesh->cell_volumes[cell] = 0.0;
     int pos = 0, face;
-    while (mesh_cell_next_oriented_face(mesh, cell, &pos, &face))
+    while (polymesh_cell_next_oriented_face(mesh, cell, &pos, &face))
     {
       int actual_face = (face >= 0) ? face : ~face;
       real_t face_area = 0.0;
       vector_t face_normal = {0.0, 0.0, 0.0};
       int epos = 0, edge;
-      while (mesh_face_next_edge(mesh, face, &epos, &edge))
+      while (polymesh_face_next_edge(mesh, face, &epos, &edge))
       {
         ASSERT(edge >= 0);
         ASSERT(edge < mesh->num_edges);
@@ -529,7 +530,7 @@ void mesh_compute_geometry(mesh_t* mesh)
   }
 }
 
-void mesh_construct_edges(mesh_t* mesh)
+void polymesh_construct_edges(polymesh_t* mesh)
 {
   ASSERT(mesh->num_edges == 0);
   ASSERT(mesh->edge_nodes == NULL);
@@ -588,7 +589,7 @@ void mesh_construct_edges(mesh_t* mesh)
   int_table_free(edge_for_nodes);
 }
 
-void mesh_reserve_connectivity_storage(mesh_t* mesh)
+void polymesh_reserve_connectivity_storage(polymesh_t* mesh)
 {
   // Make sure metadata is in order.
   int num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
@@ -610,9 +611,9 @@ void mesh_reserve_connectivity_storage(mesh_t* mesh)
   }
 }
 
-static size_t mesh_byte_size(void* obj)
+static size_t polymesh_byte_size(void* obj)
 {
-  mesh_t* mesh = obj;
+  polymesh_t* mesh = obj;
   
   size_t basic_storage = 
     // cell stuff
@@ -635,13 +636,13 @@ static size_t mesh_byte_size(void* obj)
 
   // Exchanger-related storage.
   serializer_t* ex_s = exchanger_serializer();
-  size_t ex_storage = serializer_size(ex_s, mesh_exchanger(mesh));
+  size_t ex_storage = serializer_size(ex_s, polymesh_exchanger(mesh));
   ex_s = NULL;
 
   return basic_storage + tag_storage + ex_storage;
 }
 
-static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
+static void* polymesh_byte_read(byte_array_t* bytes, size_t* offset)
 {
   // Read the number of cells, faces, nodes, and allocate a mesh
   // accordingly.
@@ -651,15 +652,15 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_ints(bytes, 1, &num_faces, offset);
   byte_array_read_ints(bytes, 1, &num_nodes, offset);
 
-  mesh_t* mesh = mesh_new(MPI_COMM_WORLD, num_cells, num_ghost_cells,
-                          num_faces, num_nodes);
+  polymesh_t* mesh = polymesh_new(MPI_COMM_WORLD, num_cells, num_ghost_cells,
+                                  num_faces, num_nodes);
 
   // Read all the connectivity metadata.
   byte_array_read_ints(bytes, num_cells+1, mesh->cell_face_offsets, offset);
   byte_array_read_ints(bytes, num_faces+1, mesh->face_node_offsets, offset);
 
   // Make sure that connectivity storage is sufficient.
-  mesh_reserve_connectivity_storage(mesh);
+  polymesh_reserve_connectivity_storage(mesh);
 
   // Actual connectivity data.
   int num_cell_faces = mesh->cell_face_offsets[mesh->num_cells];
@@ -672,8 +673,8 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_points(bytes, num_nodes, mesh->nodes, offset);
 
   // Construct edges and compute geometry.
-  mesh_construct_edges(mesh);
-  mesh_compute_geometry(mesh);
+  polymesh_construct_edges(mesh);
+  polymesh_compute_geometry(mesh);
 
   // Tag stuff.
   tagger_free(mesh->cell_tags);
@@ -687,7 +688,7 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
   mesh->node_tags = serializer_read(ser, bytes, offset);
 
   // Storage/exchanger stuff.
-  mesh_storage_t* storage = mesh->storage;
+  polymesh_storage_t* storage = mesh->storage;
   byte_array_read_ints(bytes, 1, &storage->cell_face_capacity, offset);
   byte_array_read_ints(bytes, 1, &storage->face_edge_capacity, offset);
   byte_array_read_ints(bytes, 1, &storage->face_node_capacity, offset);
@@ -698,9 +699,9 @@ static void* mesh_byte_read(byte_array_t* bytes, size_t* offset)
   return mesh;
 }
 
-static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
+static void polymesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
-  mesh_t* mesh = obj;
+  polymesh_t* mesh = obj;
 
   // Write the number of cells, faces, nodes.
   byte_array_write_ints(bytes, 1, &mesh->num_cells, offset);
@@ -728,24 +729,24 @@ static void mesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   serializer_write(ser, mesh->node_tags, bytes, offset);
 
   // Storage/exchanger stuff.
-  mesh_storage_t* storage = mesh->storage;
+  polymesh_storage_t* storage = mesh->storage;
   byte_array_write_ints(bytes, 1, &storage->cell_face_capacity, offset);
   byte_array_write_ints(bytes, 1, &storage->face_edge_capacity, offset);
   byte_array_write_ints(bytes, 1, &storage->face_node_capacity, offset);
   ser = exchanger_serializer();
-  serializer_write(ser, mesh_exchanger(mesh), bytes, offset);
+  serializer_write(ser, polymesh_exchanger(mesh), bytes, offset);
   ser = NULL;
 }
 
-serializer_t* mesh_serializer()
+serializer_t* polymesh_serializer()
 {
-  return serializer_new("mesh", mesh_byte_size, mesh_byte_read, mesh_byte_write, NULL);
+  return serializer_new("mesh", polymesh_byte_size, polymesh_byte_read, polymesh_byte_write, NULL);
 }
 
-exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh)
+exchanger_t* polymesh_1v_face_exchanger_new(polymesh_t* mesh)
 {
   // First construct the 2-valued face exchanger.
-  exchanger_t* face2_ex = mesh_2v_face_exchanger_new(mesh);
+  exchanger_t* face2_ex = polymesh_2v_face_exchanger_new(mesh);
 
   // Determine the owner of each face. We assign a face to the process on 
   // which it is present, having the lowest rank.
@@ -797,12 +798,12 @@ exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh)
   return ex;
 }
 
-exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh)
+exchanger_t* polymesh_2v_face_exchanger_new(polymesh_t* mesh)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
 #if POLYMEC_HAVE_MPI
   // Get the mesh cell exchanger.
-  exchanger_t* cell_ex = mesh_exchanger(mesh);
+  exchanger_t* cell_ex = polymesh_exchanger(mesh);
 
   // Traverse the send cells and create send "faces."
   int_array_t* send_faces = int_array_new();
@@ -817,7 +818,7 @@ exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh)
     int *r_indices, r_size; 
     bool have_it = exchanger_get_receive(cell_ex, proc, &r_indices, &r_size);
     if (!have_it)
-      polymec_error("mesh_2v_face_exchanger_new: Couldn't establish communication!");
+      polymec_error("polymesh_2v_face_exchanger_new: Couldn't establish communication!");
 
     // Now find the face separating each pair of cells.
     ASSERT(r_size == s_size);
@@ -827,9 +828,9 @@ exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh)
       int r_cell = r_indices[i];
 
       int fpos = 0, face;
-      while (mesh_cell_next_face(mesh, s_cell, &fpos, &face))
+      while (polymesh_cell_next_face(mesh, s_cell, &fpos, &face))
       {
-        int neighbor = mesh_face_opp_cell(mesh, face, s_cell);
+        int neighbor = polymesh_face_opp_cell(mesh, face, s_cell);
         if (neighbor == r_cell)
         {
           int_array_append(send_faces, 2*face);
@@ -853,7 +854,7 @@ exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh)
   return ex;
 }
 
-adj_graph_t* graph_from_mesh_cells(mesh_t* mesh)
+adj_graph_t* graph_from_polymesh_cells(polymesh_t* mesh)
 {
   // Create a graph whose vertices are the mesh's cells.
   int rank, nproc;

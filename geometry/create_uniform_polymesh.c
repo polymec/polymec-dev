@@ -5,11 +5,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "geometry/create_uniform_mesh.h"
-#include "geometry/create_rectilinear_mesh.h"
+#include "geometry/create_uniform_polymesh.h"
+#include "geometry/create_rectilinear_polymesh.h"
 #include "geometry/cubic_lattice.h"
 
-mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
+polymesh_t* create_uniform_polymesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
 {
   ASSERT(nx > 0);
   ASSERT(ny > 0);
@@ -37,7 +37,7 @@ mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
   for (int i = 0; i <= nz; ++i)
     zs[i] = bbox->z1 + i*dz;
 
-  mesh_t* mesh = create_rectilinear_mesh(comm, xs, nx+1, ys, ny+1, zs, nz+1);
+  polymesh_t* mesh = create_rectilinear_polymesh(comm, xs, nx+1, ys, ny+1, zs, nz+1);
 
   // Clean up.
   polymec_free(zs);
@@ -47,8 +47,8 @@ mesh_t* create_uniform_mesh(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox)
   return mesh;
 }
 
-mesh_t* create_uniform_mesh_on_rank(MPI_Comm comm, int rank,
-                                    int nx, int ny, int nz, bbox_t* bbox)
+polymesh_t* create_uniform_polymesh_on_rank(MPI_Comm comm, int rank,
+                                            int nx, int ny, int nz, bbox_t* bbox)
 {
   ASSERT(comm != MPI_COMM_SELF);
   ASSERT(rank >= 0);
@@ -58,11 +58,11 @@ mesh_t* create_uniform_mesh_on_rank(MPI_Comm comm, int rank,
   MPI_Comm_rank(comm, &nprocs);
 
   if (rank > nprocs)
-    polymec_error("create_uniform_mesh_on_rank: invalid rank: %d", rank);
+    polymec_error("create_uniform_polymesh_on_rank: invalid rank: %d", rank);
 
-  mesh_t* mesh = NULL;
+  polymesh_t* mesh = NULL;
   if (my_rank == rank)
-    mesh = create_uniform_mesh(comm, nx, ny, nz, bbox);
+    mesh = create_uniform_polymesh(comm, nx, ny, nz, bbox);
   else
   {
     // Initialize serializers.

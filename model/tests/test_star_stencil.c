@@ -13,11 +13,11 @@
 #include "core/unordered_set.h"
 #include "core/timer.h"
 #include "geometry/cubic_lattice.h"
-#include "geometry/create_uniform_mesh.h"
-#include "model/mesh_stencils.h"
+#include "geometry/create_uniform_polymesh.h"
+#include "model/polymesh_stencils.h"
 
 static void check_stencil(void** state, 
-                          mesh_t* mesh,
+                          polymesh_t* mesh,
                           int nx, int ny, int nz,
                           int num_interior_neighbors, 
                           int num_boundary_neighbors,
@@ -90,7 +90,7 @@ static void test_NXxNYxNZ_star_stencil(void** state,
                                        int num_corner_neighbors)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(comm, nx, ny, nz, &bbox);
+  polymesh_t* mesh = create_uniform_polymesh(comm, nx, ny, nz, &bbox);
   stencil_t* stencil = cell_star_stencil_new(mesh, radius);
   check_stencil(state, mesh, nx, ny, nz, 
                 num_interior_neighbors, num_boundary_neighbors,
@@ -159,7 +159,7 @@ static void test_NXxNYxNZ_star_stencil(void** state,
   stencil_free(stencil1);
 
   stencil_free(stencil);
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void test_serial_1x1x1_cell_star_stencil(void** state)

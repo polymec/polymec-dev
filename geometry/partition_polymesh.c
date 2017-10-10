@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/partition_mesh.h"
+#include "geometry/partition_polymesh.h"
 
 #if POLYMEC_HAVE_MPI
 #include "core/array_utils.h"
@@ -15,166 +15,16 @@
 #include "core/timer.h"
 #include "ptscotch.h"
 
-// This helper partitions a (serial) global graph, creating and returning a 
-// global partition vector. It should only be called on rank 0. This is not 
-// declared static because it may be used by other parts of polymec, but is 
-// not part of the public API.
-int64_t* partition_graph(adj_graph_t* global_graph, 
-                         MPI_Comm comm,
-                         int* weights,
-                         real_t imbalance_tol);
-int64_t* partition_graph(adj_graph_t* global_graph, 
-                         MPI_Comm comm,
-                         int* weights,
-                         real_t imbalance_tol)
-{
-  START_FUNCTION_TIMER();
-  ASSERT(adj_graph_comm(global_graph) == MPI_COMM_SELF);
+extern int64_t* partition_graph(adj_graph_t* global_graph, 
+                                MPI_Comm comm,
+                                int* weights,
+                                real_t imbalance_tol);
 
-  int nprocs, rank;
-  MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_rank(comm, &rank);
-  ASSERT(rank == 0);
-
-  SCOTCH_Dgraph dist_graph;
-  SCOTCH_Num *vtx_weights = NULL, *xadj = NULL, *adj = NULL;
-  int num_global_vertices = 0;
-  if (rank == 0)
-  {
-    num_global_vertices = adj_graph_num_vertices(global_graph);
-
-    // Extract the adjacency information.
-    xadj = polymec_malloc(sizeof(SCOTCH_Num) * (num_global_vertices+1));
-    int* edge_offsets = adj_graph_edge_offsets(global_graph);
-    for (int i = 0; i <= num_global_vertices; ++i)
-      xadj[i] = (SCOTCH_Num)edge_offsets[i];
-    SCOTCH_Num num_arcs = xadj[num_global_vertices];
-    adj = polymec_malloc(sizeof(SCOTCH_Num) * num_arcs);
-    int* edges = adj_graph_adjacency(global_graph);
-    for (int i = 0; i < xadj[num_global_vertices]; ++i)
-      adj[i] = (SCOTCH_Num)edges[i];
-
-    // Build a graph on rank 0.
-    SCOTCH_dgraphInit(&dist_graph, MPI_COMM_SELF);
-    if (weights != NULL)
-    {
-      vtx_weights = polymec_malloc(sizeof(SCOTCH_Num) * num_global_vertices);
-      for (int i = 0; i < num_global_vertices; ++i)
-        vtx_weights[i] = (SCOTCH_Num)weights[i];
-    }
-    SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_global_vertices, (SCOTCH_Num)num_global_vertices,
-        xadj, NULL, vtx_weights, NULL, num_arcs, num_arcs,
-        adj, NULL, NULL);
-  }
-
-  // Generate the global partition vector by scattering the global graph.
-  int64_t* global_partition = NULL;
-  if (rank == 0)
-  {
-    global_partition = polymec_malloc(sizeof(int64_t) * num_global_vertices);
-    SCOTCH_Strat strategy;
-    SCOTCH_stratInit(&strategy);
-    SCOTCH_Num strat_flags = SCOTCH_STRATDEFAULT;
-    int result = SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, nprocs, nprocs, (double)imbalance_tol);
-    if (result != 0)
-      polymec_error("Partitioning strategy could not be constructed.");
-    result = SCOTCH_dgraphPart(&dist_graph, nprocs, &strategy, global_partition);
-    if (result != 0)
-      polymec_error("Partitioning failed.");
-    SCOTCH_dgraphExit(&dist_graph);
-    SCOTCH_stratExit(&strategy);
-
-    if (vtx_weights != NULL)
-      polymec_free(vtx_weights);
-    polymec_free(xadj);
-    polymec_free(adj);
-  }
-
-  // Return the global partition vector.
-  STOP_FUNCTION_TIMER();
-  return global_partition;
-}
-
-// This helper repartitions a local graph, creating and returning a 
-// local partition vector with destination ranks included for ghost cells.
-static int64_t* repartition_graph(adj_graph_t* local_graph, 
+extern int64_t* repartition_graph(adj_graph_t* local_graph, 
                                   int num_ghost_vertices,
                                   int* weights,
                                   real_t imbalance_tol,
-                                  exchanger_t* local_graph_ex)
-{
-  START_FUNCTION_TIMER();
-  int nprocs, rank;
-  MPI_Comm comm = adj_graph_comm(local_graph);
-  MPI_Comm_size(comm, &nprocs);
-  MPI_Comm_rank(comm, &rank);
-  int num_vertices = adj_graph_num_vertices(local_graph);
-
-  // Extract the adjacency information.
-  SCOTCH_Num* xadj = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices+1));
-  int* edge_offsets = adj_graph_edge_offsets(local_graph);
-  for (int i = 0; i <= num_vertices; ++i)
-    xadj[i] = (SCOTCH_Num)edge_offsets[i];
-  SCOTCH_Num num_arcs = xadj[num_vertices];
-  SCOTCH_Num* adj = polymec_malloc(sizeof(SCOTCH_Num) * num_arcs);
-  int* edges = adj_graph_adjacency(local_graph);
-  for (int i = 0; i < xadj[num_vertices]; ++i)
-    adj[i] = (SCOTCH_Num)edges[i];
-
-  // Replace the ghost entries in adj with global indices.
-  index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
-  {
-    index_t* global_indices = polymec_malloc(sizeof(index_t) * (num_vertices + num_ghost_vertices));
-    for (int i = 0; i < num_vertices; ++i)
-      global_indices[i] = (index_t)(vtx_dist[rank] + i);
-    exchanger_exchange(local_graph_ex, global_indices, 1, 0, MPI_UINT64_T);
-    for (int i = 0; i < num_arcs; ++i)
-      adj[i] = global_indices[adj[i]];
-    polymec_free(global_indices);
-  }
-
-  // Build a distributed graph.
-  SCOTCH_Num* vtx_weights = NULL;
-  if (weights != NULL)
-  {
-    vtx_weights = polymec_malloc(sizeof(SCOTCH_Num) * num_vertices);
-    for (int i = 0; i < num_vertices; ++i)
-      vtx_weights[i] = (SCOTCH_Num)weights[i];
-  }
-  SCOTCH_Dgraph dist_graph;
-  SCOTCH_dgraphInit(&dist_graph, comm);
-  SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_vertices, (SCOTCH_Num)num_vertices,
-                     xadj, NULL, vtx_weights, NULL, num_arcs, num_arcs,
-                     adj, NULL, NULL);
-
-  // Generate the local partition vector by mapping the distributed graph.
-  int64_t* local_partition = polymec_malloc(sizeof(int64_t) * (num_vertices + num_ghost_vertices));
-  {
-    SCOTCH_Strat strategy;
-    SCOTCH_stratInit(&strategy);
-    SCOTCH_Num strat_flags = SCOTCH_STRATBALANCE;
-    SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, nprocs, nprocs, (double)imbalance_tol);
-    int result = SCOTCH_dgraphPart(&dist_graph, nprocs, &strategy, local_partition);
-    if (result != 0)
-      polymec_error("Repartitioning failed.");
-    SCOTCH_dgraphExit(&dist_graph);
-    SCOTCH_stratExit(&strategy);
-    polymec_free(adj);
-    polymec_free(xadj);
-  }
-  if (vtx_weights != NULL)
-    polymec_free(vtx_weights);
-
-  // At this point, the local partition vector contains only the destination 
-  // ranks of the local vertices. Now we talk amongst ourselves to figure 
-  // out the destination ranks of the ghost vertices. This operation should 
-  // preserve the ordering of the ghost vertices, too.
-  exchanger_exchange(local_graph_ex, local_partition, 1, 0, MPI_UINT64_T);
-
-  // Return the local partition vector.
-  STOP_FUNCTION_TIMER();
-  return local_partition;
-}
+                                  exchanger_t* local_graph_ex);
 
 // This creates tags for a submesh whose elements belong to the given set.
 static void create_submesh_tags(tagger_t* tagger, 
@@ -206,7 +56,7 @@ static void create_submesh_tags(tagger_t* tagger,
 // exception:
 // The indices of ghost cells referenced in submesh->face_cells are 
 // replaced with destination process ranks.
-static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh, 
+static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh, 
                               int64_t* partition, index_t* vtx_dist, 
                               int* indices, size_t num_indices)
 {
@@ -233,9 +83,9 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   for (int i = 0; i < num_indices; ++i)
   {
     int cell = indices[i], fpos = 0, face;
-    while (mesh_cell_next_face(mesh, cell, &fpos, &face))
+    while (polymesh_cell_next_face(mesh, cell, &fpos, &face))
     {
-      int opp_cell = mesh_face_opp_cell(mesh, face, cell);
+      int opp_cell = polymesh_face_opp_cell(mesh, face, cell);
       if ((opp_cell != -1) && !int_unordered_set_contains(cell_set, opp_cell))
       {
         int_unordered_set_insert(cell_set, opp_cell);
@@ -244,7 +94,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
 
       int_unordered_set_insert(face_indices, face);
       int npos = 0, node;
-      while (mesh_face_next_node(mesh, face, &npos, &node))
+      while (polymesh_face_next_node(mesh, face, &npos, &node))
         int_unordered_set_insert(node_indices, node);
     }
   }
@@ -252,9 +102,9 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
 
   // Create the submesh container.
   int num_faces = face_indices->size, num_nodes = node_indices->size;
-  log_debug("create_submesh: Creating mesh (%d cells, %d faces, %d nodes)", 
+  log_debug("create_submesh: Creating polymesh (%d cells, %d faces, %d nodes)", 
             num_cells, num_faces, num_nodes);
-  mesh_t* submesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
+  polymesh_t* submesh = polymesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
 
   // Create mappings for faces and nodes.
   // face_map maps a submesh face to its corresponding mesh face.
@@ -300,7 +150,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   int_int_unordered_map_t* inverse_node_map = int_int_unordered_map_new();
   for (int n = 0; n < submesh->num_nodes; ++n)
     int_int_unordered_map_insert(inverse_node_map, node_map[n], n);
-  mesh_reserve_connectivity_storage(submesh);
+  polymesh_reserve_connectivity_storage(submesh);
 
   // Copy cell faces.
   for (int c = 0; c < submesh->num_cells; ++c)
@@ -384,7 +234,7 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   // Create a tag for boundary faces and an associated property for 
   // global ghost cell indices. 
   {
-    int* pbf_tag = mesh_create_tag(submesh->face_tags, "parallel_boundary_faces", 
+    int* pbf_tag = polymesh_create_tag(submesh->face_tags, "parallel_boundary_faces", 
                                    parallel_bface_map->size);
     int_array_t* pbf_ghost_cells = int_array_new();
     int pos = 0, face, gcell, i = 0;
@@ -395,14 +245,14 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
       ++i;
     }
     serializer_t* s = int_array_serializer();
-    mesh_tag_set_property(submesh->face_tags, "parallel_boundary_faces", 
-                          "ghost_cell_indices", pbf_ghost_cells, s);
+    polymesh_tag_set_property(submesh->face_tags, "parallel_boundary_faces", 
+                              "ghost_cell_indices", pbf_ghost_cells, s);
 
     // Also set up a copy of the  array of global cell indices.
     int_array_t* global_cell_indices = int_array_new();
     int_array_resize(global_cell_indices, num_indices);
     memcpy(global_cell_indices->data, indices, sizeof(int) * num_indices);
-    mesh_set_property(submesh, "global_cell_indices", global_cell_indices, s);
+    polymesh_set_property(submesh, "global_cell_indices", global_cell_indices, s);
   }
   int_int_unordered_map_free(parallel_bface_map);
 
@@ -414,13 +264,13 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   }
 
   // Construct edges.
-  mesh_construct_edges(submesh);
+  polymesh_construct_edges(submesh);
 
   // Verify the submesh's topological correctness.
-  ASSERT(mesh_verify_topology(submesh, polymec_error));
+  ASSERT(polymesh_verify_topology(submesh, polymec_error));
 
   // Do geometry.
-  mesh_compute_geometry(submesh);
+  polymesh_compute_geometry(submesh);
 
   // Dump any tags in the existing global mesh in, too.
   // FIXME: Edge tags are not supported!
@@ -440,12 +290,12 @@ static mesh_t* create_submesh(MPI_Comm comm, mesh_t* mesh,
   char* prop_name;
   void* prop_data;
   serializer_t* prop_ser;
-  while (mesh_next_property(mesh, &pos, &prop_name, &prop_data, &prop_ser))
+  while (polymesh_next_property(mesh, &pos, &prop_name, &prop_data, &prop_ser))
   {
     if (prop_ser != NULL)
     {
       void* prop_data_copy = serializer_clone_object(prop_ser, prop_data);
-      mesh_set_property(submesh, prop_name, prop_data_copy, prop_ser);
+      polymesh_set_property(submesh, prop_name, prop_data_copy, prop_ser);
     }
     else
       log_debug("create_submesh: property '%s' has no serializer.", prop_name);
@@ -493,10 +343,10 @@ static void sort_global_cell_pairs(int* indices, int num_pairs)
   STOP_FUNCTION_TIMER();
 }
 
-static void mesh_distribute(mesh_t** mesh, 
-                            MPI_Comm comm,
-                            adj_graph_t* global_graph, 
-                            int64_t* global_partition)
+static void polymesh_distribute(polymesh_t** mesh, 
+                                MPI_Comm comm,
+                                adj_graph_t* global_graph, 
+                                int64_t* global_partition)
 {
   START_FUNCTION_TIMER();
   int nprocs, rank;
@@ -513,8 +363,8 @@ static void mesh_distribute(mesh_t** mesh,
     s = NULL;
   }
 
-  mesh_t* global_mesh = *mesh;
-  mesh_t* local_mesh = NULL;
+  polymesh_t* global_mesh = *mesh;
+  polymesh_t* local_mesh = NULL;
   uint64_t vtx_dist[nprocs+1];
   if (rank == 0)
   {
@@ -541,7 +391,7 @@ static void mesh_distribute(mesh_t** mesh,
     }
 
     // Now do the other processes.
-    serializer_t* ser = mesh_serializer();
+    serializer_t* ser = polymesh_serializer();
     byte_array_t* bytes = byte_array_new();
     for (int p = 1; p < nprocs; ++p)
     {
@@ -555,7 +405,7 @@ static void mesh_distribute(mesh_t** mesh,
         if (global_partition[i] == p)
           indices[k++] = i;
       }
-      mesh_t* p_mesh = create_submesh(comm, global_mesh, global_partition, NULL, indices, num_cells[p]);
+      polymesh_t* p_mesh = create_submesh(comm, global_mesh, global_partition, NULL, indices, num_cells[p]);
 
       // Serialize it and send its size (and it) to process p.
       size_t offset = 0;
@@ -565,7 +415,7 @@ static void mesh_distribute(mesh_t** mesh,
 
       // Clean up.
       byte_array_clear(bytes);
-      mesh_free(p_mesh);
+      polymesh_free(p_mesh);
     }
     ser = NULL;
     byte_array_free(bytes);
@@ -585,7 +435,7 @@ static void mesh_distribute(mesh_t** mesh,
     byte_array_resize(bytes, mesh_size);
 
     MPI_Recv(bytes->data, mesh_size, MPI_BYTE, 0, rank, comm, &status);
-    serializer_t* ser = mesh_serializer();
+    serializer_t* ser = polymesh_serializer();
     size_t offset = 0;
     local_mesh = serializer_read(ser, bytes, &offset);
     
@@ -597,17 +447,17 @@ static void mesh_distribute(mesh_t** mesh,
 
   // Clean up.
   if (global_mesh != NULL)
-    mesh_free(global_mesh);
+    polymesh_free(global_mesh);
 
   // Extract the boundary faces and the original (global) ghost cell indices
   // associated with them.
-  ASSERT(mesh_has_tag(local_mesh->face_tags, "parallel_boundary_faces"));
+  ASSERT(polymesh_has_tag(local_mesh->face_tags, "parallel_boundary_faces"));
   size_t num_pbfaces;
-  int* pbfaces = mesh_tag(local_mesh->face_tags, "parallel_boundary_faces", &num_pbfaces);
-  int_array_t* pbgcells = mesh_tag_property(local_mesh->face_tags, "parallel_boundary_faces", 
+  int* pbfaces = polymesh_tag(local_mesh->face_tags, "parallel_boundary_faces", &num_pbfaces);
+  int_array_t* pbgcells = polymesh_tag_property(local_mesh->face_tags, "parallel_boundary_faces", 
                                             "ghost_cell_indices");
   ASSERT(pbgcells != NULL);
-  int_array_t* global_cell_indices = mesh_property(local_mesh, "global_cell_indices");
+  int_array_t* global_cell_indices = polymesh_property(local_mesh, "global_cell_indices");
   ASSERT(global_cell_indices != NULL);
 
   // Here's an inverse map for global cell indices to the local ones we have.
@@ -652,7 +502,7 @@ static void mesh_distribute(mesh_t** mesh,
   // Make sure everything lines up.
   ASSERT(next_ghost_index - local_mesh->num_cells == local_mesh->num_ghost_cells);
 
-  exchanger_t* ex = mesh_exchanger(local_mesh);
+  exchanger_t* ex = polymesh_exchanger(local_mesh);
   int pos = 0, proc;
   int_array_t* indices;
   while (int_ptr_unordered_map_next(ghost_cell_indices, &pos, &proc, (void**)&indices))
@@ -688,8 +538,8 @@ static void mesh_distribute(mesh_t** mesh,
 
   // Destroy the tag and global cell index properties. We don't want to have 
   // to rely on them further.
-  mesh_delete_tag(local_mesh->face_tags, "parallel_boundary_faces");
-  mesh_delete_property(local_mesh, "global_cell_indices");
+  polymesh_delete_tag(local_mesh->face_tags, "parallel_boundary_faces");
+  polymesh_delete_property(local_mesh, "global_cell_indices");
   STOP_FUNCTION_TIMER();
 }
 
@@ -741,8 +591,8 @@ static int* create_index_map_with_dups_removed(int num_indices,
 // This helper takes an array of submeshes and stitches them all together into 
 // one single mesh (contiguous or not) on the current domain. The submeshes are 
 // consumed in the process.
-static mesh_t* fuse_submeshes(mesh_t** submeshes, 
-                              int num_submeshes)
+static polymesh_t* fuse_submeshes(polymesh_t** submeshes, 
+                                  int num_submeshes)
 {
   START_FUNCTION_TIMER();
   ASSERT(num_submeshes > 0);
@@ -759,7 +609,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   submesh_cell_offsets[0] = submesh_face_offsets[0] = submesh_node_offsets[0] = 0;
   for (int m = 0; m < num_submeshes; ++m)
   {
-    mesh_t* submesh = submeshes[m];
+    polymesh_t* submesh = submeshes[m];
     num_cells += submesh->num_cells;
     num_ghost_cells += submesh->num_ghost_cells;
     submesh_cell_offsets[m+1] = num_cells;
@@ -776,7 +626,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   int_unordered_set_t* seam_nodes = int_unordered_set_new();
   for (int m = 0; m < num_submeshes; ++m)
   {
-    mesh_t* submesh = submeshes[m];
+    polymesh_t* submesh = submeshes[m];
     for (int f = 0; f < submesh->num_faces; ++f)
     {
       if (submesh->face_cells[2*f+1] == (-rank - 2)) // belongs to this domain
@@ -785,14 +635,14 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
         // These nodes need to be merged with their neighbors.
         int pos = 0, node;
-        while (mesh_face_next_node(submesh, f, &pos, &node))
+        while (polymesh_face_next_node(submesh, f, &pos, &node))
           int_unordered_set_insert(seam_nodes, submesh_node_offsets[m] + node);
       }
       else if (submesh->face_cells[2*f+1] <= -1) // belongs to another domain
       {
         // These nodes may need to be merged with their neighbors.
         int pos = 0, node;
-        while (mesh_face_next_node(submesh, f, &pos, &node))
+        while (polymesh_face_next_node(submesh, f, &pos, &node))
           int_unordered_set_insert(seam_nodes, submesh_node_offsets[m] + node);
       }
     }
@@ -965,10 +815,10 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   int_int_unordered_map_free(dup_node_map);
 
   // Now we create the fused mesh and fill it with the contents of the submeshes.
-  log_debug("fuse_submeshes: Creating mesh (%d cells, %d faces, %d nodes)",
+  log_debug("fuse_submeshes: Creating polymesh (%d cells, %d faces, %d nodes)",
             num_cells, num_faces, num_nodes);
-  mesh_t* fused_mesh = mesh_new(comm, num_cells, num_ghost_cells,
-                                num_faces, num_nodes);
+  polymesh_t* fused_mesh = polymesh_new(comm, num_cells, num_ghost_cells,
+                                        num_faces, num_nodes);
 
   // Allocate storage for cell faces and face nodes.
   fused_mesh->cell_face_offsets[0] = 0;
@@ -976,7 +826,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   int cell = 0;
   for (int m = 0; m < num_submeshes; ++m)
   {
-    mesh_t* submesh = submeshes[m];
+    polymesh_t* submesh = submeshes[m];
     for (int c = 0; c < submesh->num_cells; ++c, ++cell)
     {
       int num_cell_faces = submesh->cell_face_offsets[c+1] - submesh->cell_face_offsets[c];
@@ -990,13 +840,13 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
       fused_mesh->face_node_offsets[face+1] = fused_mesh->face_node_offsets[face] + num_face_nodes;
     }
   }
-  mesh_reserve_connectivity_storage(fused_mesh);
+  polymesh_reserve_connectivity_storage(fused_mesh);
 
   // Copy cell faces.
   cell = 0;
   for (int m = 0; m < num_submeshes; ++m)
   {
-    mesh_t* submesh = submeshes[m];
+    polymesh_t* submesh = submeshes[m];
     for (int c = 0; c < submesh->num_cells; ++c, ++cell)
     {
       int num_cell_faces = submesh->cell_face_offsets[c+1] - submesh->cell_face_offsets[c];
@@ -1024,7 +874,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   for (int icell = 0; icell < fused_mesh->num_cells; ++icell)
   {
     int fpos = 0, face;
-    while (mesh_cell_next_face(fused_mesh, icell, &fpos, &face))
+    while (polymesh_cell_next_face(fused_mesh, icell, &fpos, &face))
     {
       if (fused_mesh->face_cells[2*face] == -1)
         fused_mesh->face_cells[2*face] = icell;
@@ -1039,7 +889,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   // Copy over the remaining face cells and do the face nodes.
   for (int m = 0; m < num_submeshes; ++m)
   {
-    mesh_t* submesh = submeshes[m];
+    polymesh_t* submesh = submeshes[m];
     for (int f = 0; f < submesh->num_faces; ++f)
     {
       int flattened_face = submesh_face_offsets[m] + f;
@@ -1073,7 +923,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   // Copy node positions.
   for (int m = 0; m < num_submeshes; ++m)
   {
-    mesh_t* submesh = submeshes[m];
+    polymesh_t* submesh = submeshes[m];
     for (int n = 0; n < submesh->num_nodes; ++n)
     {
       int flattened_node = submesh_node_offsets[m] + n;
@@ -1084,14 +934,14 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
   polymec_free(node_map);
 
   // Construct edges.
-  mesh_construct_edges(fused_mesh);
+  polymesh_construct_edges(fused_mesh);
 
   // Now compute geometry.
-  mesh_compute_geometry(fused_mesh);
+  polymesh_compute_geometry(fused_mesh);
 
   // Consume the submeshes.
   for (int m = 0; m < num_submeshes; ++m)
-    mesh_free(submeshes[m]);
+    polymesh_free(submeshes[m]);
 
   // Now fill the exchanger for the fused mesh with data.
   int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new(); 
@@ -1123,7 +973,7 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
     }
   }
   ASSERT(ghost_cell == (fused_mesh->num_cells + fused_mesh->num_ghost_cells));
-  exchanger_t* fused_ex = mesh_exchanger(fused_mesh);
+  exchanger_t* fused_ex = polymesh_exchanger(fused_mesh);
   exchanger_set_sends(fused_ex, send_map);
   int_ptr_unordered_map_free(send_map);
   exchanger_set_receives(fused_ex, recv_map);
@@ -1131,19 +981,19 @@ static mesh_t* fuse_submeshes(mesh_t** submeshes,
 
   // Now that we've corrected all of our face->cell connections, we can verify the 
   // topological correctness of the fused mesh.
-  ASSERT(mesh_verify_topology(fused_mesh, polymec_error));
+  ASSERT(polymesh_verify_topology(fused_mesh, polymec_error));
 
   // Return the final fused mesh.
   STOP_FUNCTION_TIMER();
   return fused_mesh;
 }
 
-static void mesh_migrate(mesh_t** mesh, 
-                         adj_graph_t* local_graph, 
-                         int64_t* local_partition,
-                         migrator_t* mig)
+static void polymesh_migrate(polymesh_t** mesh, 
+                             adj_graph_t* local_graph, 
+                             int64_t* local_partition,
+                             migrator_t* mig)
 {
-  mesh_t* m = *mesh;
+  polymesh_t* m = *mesh;
   if (log_level() == LOG_DEBUG)
   {
     char P_string[m->num_cells * 16];
@@ -1155,7 +1005,7 @@ static void mesh_migrate(mesh_t** mesh,
       strcat(P_string, Pi);
     }
     strcat(P_string, "]");
-    log_debug("mesh_migrate: %s", P_string);
+    log_debug("polymesh_migrate: %s", P_string);
   }
 
   START_FUNCTION_TIMER();
@@ -1164,7 +1014,7 @@ static void mesh_migrate(mesh_t** mesh,
   // Make a parallel-aware version of our partition vector.
   int64_t partition[m->num_cells + m->num_ghost_cells];
   memcpy(partition, local_partition, sizeof(int64_t) * m->num_cells);
-  exchanger_t* mesh_ex = mesh_exchanger(m);
+  exchanger_t* mesh_ex = polymesh_exchanger(m);
   exchanger_exchange(mesh_ex, partition, 1, 0, MPI_INT64_T);
 
   // Post receives for buffer sizes.
@@ -1182,7 +1032,7 @@ static void mesh_migrate(mesh_t** mesh,
 
   // Build meshes to send to other processes.
   int_unordered_set_t* sent_cells = int_unordered_set_new();
-  serializer_t* ser = mesh_serializer();
+  serializer_t* ser = polymesh_serializer();
   byte_array_t* send_buffers[num_sends];
   int send_procs[num_sends];
   pos = 0;
@@ -1200,9 +1050,9 @@ static void mesh_migrate(mesh_t** mesh,
 
     // Create the mesh to send. Recall that the submesh encodes the destination
     // process rank in the ghost cells referenced in submesh->face_cells.
-    mesh_t* submesh = create_submesh(m->comm, m, partition, vtx_dist, 
+    polymesh_t* submesh = create_submesh(m->comm, m, partition, vtx_dist, 
                                      indices, num_indices);
-    log_debug("mesh_migrate: Migrating %d cells to process %d.", 
+    log_debug("polymesh_migrate: Migrating %d cells to process %d.", 
               submesh->num_cells, proc);
 
     // Serialize and send the buffer size.
@@ -1211,7 +1061,7 @@ static void mesh_migrate(mesh_t** mesh,
     MPI_Isend(&bytes->size, 1, MPI_INT, proc, 0, m->comm, &requests[i_req]);
 
     // Clean up.
-    mesh_free(submesh);
+    polymesh_free(submesh);
     send_buffers[i_req - num_receives] = bytes;
     ++i_req;
   }
@@ -1236,7 +1086,7 @@ static void mesh_migrate(mesh_t** mesh,
   MPI_Waitall(num_receives + num_sends, requests, statuses);
 
   // Unpack the meshes.
-  mesh_t* submeshes[1+num_receives];
+  polymesh_t* submeshes[1+num_receives];
   for (int i = 0; i < num_receives; ++i)
   {
     size_t offset = 0;
@@ -1267,14 +1117,14 @@ static void mesh_migrate(mesh_t** mesh,
 
   // Fuse all the submeshes into a single mesh.
   int_unordered_set_free(sent_cells);
-  mesh_free(m);
+  polymesh_free(m);
   *mesh = fuse_submeshes(submeshes, 1+num_receives);
   STOP_FUNCTION_TIMER();
 }
 
 #endif
 
-migrator_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
+migrator_t* partition_polymesh(polymesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
@@ -1302,15 +1152,15 @@ migrator_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t im
   log_debug("partition_mesh: Partitioning mesh into %d subdomains.", nprocs);
 
   // If meshes on rank != 0 are not NULL, we delete them.
-  mesh_t* m = *mesh;
+  polymesh_t* m = *mesh;
   if ((rank != 0) && (m != NULL))
   {
-    mesh_free(m);
+    polymesh_free(m);
     *mesh = m = NULL; 
   }
 
   // Generate a global adjacency graph for the mesh.
-  adj_graph_t* global_graph = (m != NULL) ? graph_from_mesh_cells(m) : NULL;
+  adj_graph_t* global_graph = (m != NULL) ? graph_from_polymesh_cells(m) : NULL;
 
 #ifndef NDEBUG
   // Make sure there are enough cells to go around for the processes we're given.
@@ -1325,7 +1175,7 @@ migrator_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t im
 
   // Distribute the mesh.
   log_debug("partition_mesh: Distributing mesh to %d processes.", nprocs);
-  mesh_distribute(mesh, comm, global_graph, global_partition);
+  polymesh_distribute(mesh, comm, global_graph, global_partition);
 
   // Set up a migrator to distribute field data.
   int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
@@ -1348,7 +1198,10 @@ migrator_t* partition_mesh(mesh_t** mesh, MPI_Comm comm, int* weights, real_t im
 #endif
 }
 
-int64_t* partition_vector_from_mesh(mesh_t* global_mesh, MPI_Comm comm, int* weights, real_t imbalance_tol)
+int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh, 
+                                        MPI_Comm comm, 
+                                        int* weights, 
+                                        real_t imbalance_tol)
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
@@ -1371,7 +1224,7 @@ int64_t* partition_vector_from_mesh(mesh_t* global_mesh, MPI_Comm comm, int* wei
   }
 
   // Generate a global adjacency graph for the mesh.
-  adj_graph_t* global_graph = (rank == 0) ? graph_from_mesh_cells(global_mesh) : NULL;
+  adj_graph_t* global_graph = (rank == 0) ? graph_from_polymesh_cells(global_mesh) : NULL;
 
 #ifndef NDEBUG
   // Make sure there are enough cells to go around for the processes we're given.
@@ -1399,7 +1252,7 @@ int64_t* partition_vector_from_mesh(mesh_t* global_mesh, MPI_Comm comm, int* wei
 #endif
 }
 
-migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partition)
+migrator_t* distribute_polymesh(polymesh_t** mesh, MPI_Comm comm, int64_t* global_partition)
 {
 #if POLYMEC_HAVE_MPI
   ASSERT((*mesh == NULL) || ((*mesh)->comm == MPI_COMM_SELF));
@@ -1417,18 +1270,18 @@ migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partit
   START_FUNCTION_TIMER();
 
   // If meshes on rank != 0 are not NULL, we delete them.
-  mesh_t* m = *mesh;
+  polymesh_t* m = *mesh;
   if ((rank != 0) && (m != NULL))
   {
-    mesh_free(m);
+    polymesh_free(m);
     *mesh = m = NULL; 
   }
 
   // Generate a global adjacency graph for the mesh.
-  adj_graph_t* global_graph = (m != NULL) ? graph_from_mesh_cells(m) : NULL;
+  adj_graph_t* global_graph = (m != NULL) ? graph_from_polymesh_cells(m) : NULL;
 
   // Distribute the mesh.
-  mesh_distribute(mesh, comm, global_graph, global_partition);
+  polymesh_distribute(mesh, comm, global_graph, global_partition);
 
   // Set up a migrator to distribute field data.
   int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
@@ -1449,11 +1302,11 @@ migrator_t* distribute_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* global_partit
 //                            Mesh repartitioning
 //------------------------------------------------------------------------
 
-migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
+migrator_t* repartition_polymesh(polymesh_t** mesh, int* weights, real_t imbalance_tol)
 {
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
-  mesh_t* m = *mesh;
+  polymesh_t* m = *mesh;
 
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
@@ -1468,7 +1321,7 @@ migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
     return migrator_new(m->comm);
 
   // Generate a local adjacency graph for the mesh.
-  adj_graph_t* local_graph = graph_from_mesh_cells(m);
+  adj_graph_t* local_graph = graph_from_polymesh_cells(m);
 
 #ifndef NDEBUG
   // Make sure there are enough cells to go around for the processes we're given.
@@ -1477,11 +1330,11 @@ migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   ASSERT(total_num_cells >= nprocs);
 #endif
 
-  log_debug("repartition_mesh: Repartitioning mesh (%d cells) on %d domains...", 
+  log_debug("repartition_mesh: Repartitioning polymesh (%d cells) on %d domains...", 
             m->num_cells, nprocs);
 
   // Get the exchanger for the mesh.
-  exchanger_t* mesh_ex = mesh_exchanger(m);
+  exchanger_t* mesh_ex = polymesh_exchanger(m);
 
   // Map the graph to the different domains, producing a local partition vector.
   int64_t* local_partition = repartition_graph(local_graph, m->num_ghost_cells, weights, imbalance_tol, mesh_ex);
@@ -1491,7 +1344,7 @@ migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
   migrator_t* migrator = migrator_from_local_partition(m->comm, local_partition, num_vertices);
 
   // Migrate the mesh. 
-  mesh_migrate(mesh, local_graph, local_partition, migrator);
+  polymesh_migrate(mesh, local_graph, local_partition, migrator);
 
   // Clean up.
   adj_graph_free(local_graph);
@@ -1505,7 +1358,7 @@ migrator_t* repartition_mesh(mesh_t** mesh, int* weights, real_t imbalance_tol)
 #endif
 }
 
-migrator_t* migrate_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* local_partition)
+migrator_t* migrate_polymesh(polymesh_t** mesh, MPI_Comm comm, int64_t* local_partition)
 {
 #if POLYMEC_HAVE_MPI
   int nprocs;
@@ -1518,14 +1371,14 @@ migrator_t* migrate_mesh(mesh_t** mesh, MPI_Comm comm, int64_t* local_partition)
   START_FUNCTION_TIMER();
 
   // Generate a local adjacency graph for our mesh.
-  adj_graph_t* local_graph = graph_from_mesh_cells(*mesh);
+  adj_graph_t* local_graph = graph_from_polymesh_cells(*mesh);
 
   // Set up a migrator to migrate the mesh and data.
   int num_vertices = adj_graph_num_vertices(local_graph);
   migrator_t* migrator = migrator_from_local_partition((*mesh)->comm, local_partition, num_vertices);
 
   // Migrate the mesh.
-  mesh_migrate(mesh, local_graph, local_partition, migrator);
+  polymesh_migrate(mesh, local_graph, local_partition, migrator);
 
   // Get rid of the graph.
   adj_graph_free(local_graph);

@@ -11,7 +11,7 @@
 #include <string.h>
 #include "cmocka.h"
 #include "core/array_utils.h"
-#include "geometry/create_rectilinear_mesh.h"
+#include "geometry/create_rectilinear_polymesh.h"
 
 static void test_create_rectilinear_mesh(void** state)
 {
@@ -19,10 +19,10 @@ static void test_create_rectilinear_mesh(void** state)
   real_t xs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
-  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 11, ys, 11, zs, 11);
+  polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 11, ys, 11, zs, 11);
 
   // Verify the mesh's topology.
-  assert_true(mesh_verify_topology(mesh, polymec_error));
+  assert_true(polymesh_verify_topology(mesh, polymec_error));
 
   // Test the connectivity of the mesh.
   int nproc;
@@ -49,15 +49,15 @@ static void test_create_rectilinear_mesh(void** state)
   }
 
   // Tag the boundary faces.
-  tag_rectilinear_mesh_faces(mesh, "x1", "x2", "y1", "y2", "z1", "z2");
-  assert_true(mesh_has_tag(mesh->face_tags, "x1"));
-  assert_true(mesh_has_tag(mesh->face_tags, "x2"));
-  assert_true(mesh_has_tag(mesh->face_tags, "y1"));
-  assert_true(mesh_has_tag(mesh->face_tags, "y2"));
-  assert_true(mesh_has_tag(mesh->face_tags, "z1"));
-  assert_true(mesh_has_tag(mesh->face_tags, "z2"));
+  tag_rectilinear_polymesh_faces(mesh, "x1", "x2", "y1", "y2", "z1", "z2");
+  assert_true(polymesh_has_tag(mesh->face_tags, "x1"));
+  assert_true(polymesh_has_tag(mesh->face_tags, "x2"));
+  assert_true(polymesh_has_tag(mesh->face_tags, "y1"));
+  assert_true(polymesh_has_tag(mesh->face_tags, "y2"));
+  assert_true(polymesh_has_tag(mesh->face_tags, "z1"));
+  assert_true(polymesh_has_tag(mesh->face_tags, "z2"));
 
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void test_create_rectilinear_mesh_on_rank(void** state)
@@ -66,14 +66,14 @@ static void test_create_rectilinear_mesh_on_rank(void** state)
   real_t xs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
   real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0};
-  mesh_t* mesh = create_rectilinear_mesh_on_rank(MPI_COMM_WORLD, 0, xs, 11, ys, 11, zs, 11);
+  polymesh_t* mesh = create_rectilinear_polymesh_on_rank(MPI_COMM_WORLD, 0, xs, 11, ys, 11, zs, 11);
 
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank == 0)
   {
-    assert_true(mesh_verify_topology(mesh, polymec_error));
-    mesh_free(mesh);
+    assert_true(polymesh_verify_topology(mesh, polymec_error));
+    polymesh_free(mesh);
   }
   else
   {
@@ -87,14 +87,14 @@ static void test_plot_rectilinear_mesh(void** state)
   real_t xs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
   real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0};
   real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
-  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 5);
+  polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 5);
 
   // Clean up.
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void check_cell_face_connectivity(void** state, 
-                                         mesh_t* mesh,
+                                         polymesh_t* mesh,
                                          index_t* global_cell_indices, 
                                          index_t global_cell_index, 
                                          int cell_face_index, 
@@ -111,7 +111,7 @@ static void check_cell_face_connectivity(void** state,
   int face = mesh->cell_faces[6*cell + cell_face_index];
   if (face < 0) 
     face = ~face;
-  int opp_cell = mesh_face_opp_cell(mesh, face, cell);
+  int opp_cell = polymesh_face_opp_cell(mesh, face, cell);
   if ((opp_cell == -1) && (global_opp_cell_index == (index_t)(-1)))
     assert_int_equal(global_opp_cell_index, opp_cell);
   else
@@ -125,8 +125,8 @@ static void test_3proc_4x4x1_mesh(void** state)
   real_t xs[] = {0.0, 1.0, 2.0, 3.0, 4.0};
   real_t ys[] = {0.0, 1.0, 2.0, 3.0, 4.0};
   real_t zs[] = {0.0, 1.0};
-  mesh_t* mesh = create_rectilinear_mesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 2);
-  assert_true(mesh_verify_topology(mesh, polymec_error));
+  polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 2);
+  assert_true(polymesh_verify_topology(mesh, polymec_error));
 
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
@@ -136,7 +136,7 @@ static void test_3proc_4x4x1_mesh(void** state)
   index_t G[mesh->num_cells + mesh->num_ghost_cells];
   for (int i = 0; i < mesh->num_cells; ++i)
     G[i] = vtx_dist[rank] + i;
-  exchanger_exchange(mesh_exchanger(mesh), G, 1, 0, MPI_INDEX_T);
+  exchanger_exchange(polymesh_exchanger(mesh), G, 1, 0, MPI_INDEX_T);
 
   // Here's the mesh:
   //
@@ -291,7 +291,7 @@ static void test_3proc_4x4x1_mesh(void** state)
     check_cell_face_connectivity(state, mesh, G, 14, 5, -1);
   }
 
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void test_problematic_meshes(void** state)

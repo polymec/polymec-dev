@@ -10,16 +10,16 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "geometry/create_uniform_mesh.h"
+#include "geometry/create_uniform_polymesh.h"
 
 static void test_create_uniform_mesh(void** state)
 {
   // Create a 10x10x10 uniform mesh.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
 
   // Verify the mesh's topology.
-  assert_true(mesh_verify_topology(mesh, polymec_error));
+  assert_true(polymesh_verify_topology(mesh, polymec_error));
 
   // Now check its connectivity.
   int nproc;
@@ -45,21 +45,21 @@ static void test_create_uniform_mesh(void** state)
     assert_int_equal(11*11*11, num_nodes);
   }
 
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void test_create_uniform_mesh_on_rank(void** state)
 {
   // Create a 10x10x10 rectilinear mesh on rank 0.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh_on_rank(MPI_COMM_WORLD, 0, 10, 10, 10, &bbox);
+  polymesh_t* mesh = create_uniform_polymesh_on_rank(MPI_COMM_WORLD, 0, 10, 10, 10, &bbox);
 
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   if (rank == 0)
   {
-    assert_true(mesh_verify_topology(mesh, polymec_error));
-    mesh_free(mesh);
+    assert_true(polymesh_verify_topology(mesh, polymec_error));
+    polymesh_free(mesh);
   }
   else
   {
@@ -72,10 +72,10 @@ static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   // Create a uniform mesh.
   int nx = 10, ny = 10, nz = 10;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
 
   // Clean up.
-  mesh_free(mesh);
+  polymesh_free(mesh);
 }
 
 static void test_plot_uniform_mesh_to_single_file(void** state)

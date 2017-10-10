@@ -5,8 +5,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef POLYMEC_MESH_H
-#define POLYMEC_MESH_H
+#ifndef POLYMEC_POLYMESH_H
+#define POLYMEC_POLYMESH_H
 
 #include "core/polymec.h"
 #include "core/point.h"
@@ -18,18 +18,18 @@
 // Mesh centerings.
 typedef enum
 {
-  MESH_NODE,
-  MESH_EDGE,
-  MESH_FACE,
-  MESH_CELL
-} mesh_centering_t;
+  POLYMESH_NODE,
+  POLYMESH_EDGE,
+  POLYMESH_FACE,
+  POLYMESH_CELL
+} polymesh_centering_t;
 
 // Mesh features.
-extern const char* MESH_IS_TETRAHEDRAL; // indicates that a mesh is tetrahedral.
+extern const char* POLYMESH_IS_TETRAHEDRAL; // indicates that a polymesh is tetrahedral.
 
-typedef struct mesh_storage_t mesh_storage_t;
+typedef struct polymesh_storage_t polymesh_storage_t;
 
-// This data type represents an unstructured mesh, consisting of 
+// This data type represents an unstructured polyhedral mesh, consisting of 
 // stationary cells and the faces connecting them.
 typedef struct 
 {
@@ -89,95 +89,97 @@ typedef struct
   tagger_t* node_tags;
 
   // Mesh storage information -- used internally.
-  mesh_storage_t* storage;
-} mesh_t;
+  polymesh_storage_t* storage;
+} polymesh_t;
 
-// Construct a new mesh with the given number of cells, ghost cells, 
+// Construct a new polymesh with the given number of cells, ghost cells, 
 // faces, and nodes. This function does not provide any description
 // of the mesh's topology and is only useful in the construction of mesh 
-// generation algorithms. NOTE: edges are constructed with mesh_construct_edges().
-mesh_t* mesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
-                 int num_faces, int num_nodes);
+// generation algorithms. 
+// NOTE: edges are constructed with polymesh_construct_edges().
+polymesh_t* polymesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells, 
+                         int num_faces, int num_nodes);
 
-// Construct a new mesh with a single type of polytope.
+// Construct a new polymesh with a single type of polytope.
 // This function does not set up connectivity, but initializes its metadata 
 // according to the prescribed number of faces per cell and nodes per face.
 // No edge connectivity is set up.
-mesh_t* mesh_new_with_cell_type(MPI_Comm comm, int num_cells, 
-                                int num_ghost_cells, int num_faces, 
-                                int num_nodes, int num_faces_per_cell,
-                                int num_nodes_per_face);
+polymesh_t* polymesh_new_with_cell_type(MPI_Comm comm, int num_cells, 
+                                        int num_ghost_cells, int num_faces, 
+                                        int num_nodes, int num_faces_per_cell,
+                                        int num_nodes_per_face);
 
-// Destroys the given mesh.
-void mesh_free(mesh_t* mesh);
+// Destroys the given polymesh.
+void polymesh_free(polymesh_t* mesh);
 
-// Verifies the topological correctness of the mesh, calling the given 
+// Verifies the topological correctness of the polymesh, calling the given 
 // (variadic) handler function with a formatted string containing a 
 // description of any problems encountered. If the topology of the mesh is 
 // correct, this function returns true and the handler function is not called.
 // Otherwise, the function returns false.
-bool mesh_verify_topology(mesh_t* mesh, void (*handler)(const char* format, ...));
+bool polymesh_verify_topology(polymesh_t* mesh, 
+                              void (*handler)(const char* format, ...));
 
-// Returns an exact copy of the given mesh.
-mesh_t* mesh_clone(mesh_t* mesh);
+// Returns an exact copy of the given polymesh.
+polymesh_t* polymesh_clone(polymesh_t* mesh);
 
-// Associates a named piece of metadata (a "property") with the mesh itself.
+// Associates a named piece of metadata (a "property") with the polymesh itself.
 // This can be used to store information about (for example) how the mesh 
 // was generated, which can sometimes be useful. A serializer can 
 // be given so that any partitioning or repartitioning of the mesh can 
 // preserve this property on subdomains. If the given property exists on the 
 // mesh, it is overwritten.
-void mesh_set_property(mesh_t* mesh, 
-                       const char* property, 
-                       void* data, 
-                       serializer_t* serializer);
+void polymesh_set_property(polymesh_t* mesh, 
+                           const char* property, 
+                           void* data, 
+                           serializer_t* serializer);
 
-// Retrieves the given property from the mesh, if any. If the 
+// Retrieves the given property from the polymesh, if any. If the 
 // property is not found, this returns NULL.
-void* mesh_property(mesh_t* mesh, const char* property);
+void* polymesh_property(polymesh_t* mesh, const char* property);
 
-// Deletes the given property from the mesh. This has no effect if the 
+// Deletes the given property from the polymesh. This has no effect if the 
 // property is not found.
-void mesh_delete_property(mesh_t* mesh, const char* property);
+void polymesh_delete_property(polymesh_t* mesh, const char* property);
 
-// Allows the traversal of mesh properties. Set *pos to 0 to reset the 
+// Allows the traversal of polymesh properties. Set *pos to 0 to reset the 
 // iteration.
-bool mesh_next_property(mesh_t* mesh, int* pos, 
-                        char** prop_name, void** prop_data, 
-                        serializer_t** prop_serializer);
+bool polymesh_next_property(polymesh_t* mesh, int* pos, 
+                            char** prop_name, void** prop_data, 
+                            serializer_t** prop_serializer);
 
 // Returns an exchanger object that can be used to perform parallel exchanges
-// on cell-centered mesh data. In serial configurations, this exchanger holds 
+// on cell-centered polymesh data. In serial configurations, this exchanger holds 
 // no data and exchanges have no effect.
-exchanger_t* mesh_exchanger(mesh_t* mesh);
+exchanger_t* polymesh_exchanger(polymesh_t* mesh);
 
-// Sets the exchanger to be used by the mesh, replacing any existing exchanger.
-void mesh_set_exchanger(mesh_t* mesh, exchanger_t* ex);
+// Sets the exchanger to be used by the polymesh, replacing any existing exchanger.
+void polymesh_set_exchanger(polymesh_t* mesh, exchanger_t* ex);
 
-// Adds a named "feature" to the mesh. A mesh either has a feature or it doesn't.
+// Adds a named "feature" to the polymesh. A mesh either has a feature or it doesn't.
 // Features can be used to make algorithmic decisions about how to perform 
 // calculations on a given mesh. This function has no effect if the given 
 // feature exists on the mesh.
-void mesh_add_feature(mesh_t* mesh, const char* feature);
+void polymesh_add_feature(polymesh_t* mesh, const char* feature);
 
-// Returns true if the mesh has the given feature, false if not.
-bool mesh_has_feature(mesh_t* mesh, const char* feature);
+// Returns true if the polymesh has the given feature, false if not.
+bool polymesh_has_feature(polymesh_t* mesh, const char* feature);
 
-// Deletes the given feature from the mesh if it exists. This function has 
+// Deletes the given feature from the polymesh if it exists. This function has 
 // no effect if the mesh does not have the feature.
-void mesh_delete_feature(mesh_t* mesh, const char* feature);
+void polymesh_delete_feature(polymesh_t* mesh, const char* feature);
 
 // Returns a newly-allocated list of indices that will define a tags for 
 // cells/faces/edges/nodes with the given descriptor. If the tag already 
 // exists, returns NULL.
-int* mesh_create_tag(tagger_t* tagger, const char* tag, size_t num_indices);
+int* polymesh_create_tag(tagger_t* tagger, const char* tag, size_t num_indices);
 
 // Retrieves the given tag, returning an array of indices if found (and 
 // writing the number of tagged elements to num_elements), or NULL if not.
-int* mesh_tag(tagger_t* tagger, const char* tag, size_t* num_indices);
+int* polymesh_tag(tagger_t* tagger, const char* tag, size_t* num_indices);
 
 // Returns true if the given tag exists, false if not.
-bool mesh_has_tag(tagger_t* tagger, const char* tag);
+bool polymesh_has_tag(tagger_t* tagger, const char* tag);
 
 // Associates a named piece of metadata (a "property") with the given tag.
 // This can be used to store data related to tagged indices.
@@ -185,58 +187,58 @@ bool mesh_has_tag(tagger_t* tagger, const char* tag);
 // If the tag is not found, this function has no effect. If the given property
 // exists on the tag, it is overwritten. Returns true if the property was 
 // added, false if not.
-bool mesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, serializer_t* serializer);
+bool polymesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, serializer_t* serializer);
 
 // Retrieves the given property associated with the given tag, if any. If the 
 // tag or property are not found, this returns NULL.
-void* mesh_tag_property(tagger_t* tagger, const char* tag, const char* property);
+void* polymesh_tag_property(tagger_t* tagger, const char* tag, const char* property);
 
 // Deletes the given property from the tag. This has no effect if the tag
 // or property are not found.
-void mesh_tag_delete_property(tagger_t* tagger, const char* tag, const char* property);
+void polymesh_tag_delete_property(tagger_t* tagger, const char* tag, const char* property);
 
 // Allows the traversal of properties on a tag. Set *pos to 0 to reset the 
 // iteration.
-bool mesh_tag_next_property(tagger_t* tagger, const char* tag, int* pos, 
-                            char** prop_name, void** prop_data, 
-                            serializer_t** prop_serializer);
+bool polymesh_tag_next_property(tagger_t* tagger, const char* tag, int* pos, 
+                                char** prop_name, void** prop_data, 
+                                serializer_t** prop_serializer);
 
 // Renames the given tag. This has no effect if the tag is not found.
-void mesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag);
+void polymesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag);
 
 // Deletes the given tag. This has no effect if the tag is not found.
-void mesh_delete_tag(tagger_t* tagger, const char* tag);
+void polymesh_delete_tag(tagger_t* tagger, const char* tag);
 
-// Allows the traversal of all mesh tags.
-bool mesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, size_t* tag_size);
+// Allows the traversal of all polymesh tags.
+bool polymesh_next_tag(tagger_t* tagger, int* pos, char** tag_name, int** tag_indices, size_t* tag_size);
 
-// Computes face areas and cell volumes for the mesh (for those that are 
+// Computes face areas and cell volumes for the polymesh (for those that are 
 // bounded).
-void mesh_compute_geometry(mesh_t* mesh);
+void polymesh_compute_geometry(polymesh_t* mesh);
 
 // This helper method makes sure that sufficient storage is reserved for 
 // cell-face and face->node connectivity. This must be called after 
 // the mesh->cell_face_offsets and mesh->face_node_offsets arrays have been 
 // properly initialized. It does *NOT* allocate edge information -- use 
-// mesh_construct_edges() to build face->edge and edge->node connectivity.
-void mesh_reserve_connectivity_storage(mesh_t* mesh);
+// polymesh_construct_edges() to build face->edge and edge->node connectivity.
+void polymesh_reserve_connectivity_storage(polymesh_t* mesh);
 
 // This helper method constructs face->edge and edge->node connectivity, 
 // provided that no edge information exists already.
-void mesh_construct_edges(mesh_t* mesh);
+void polymesh_construct_edges(polymesh_t* mesh);
 
 // Returns the number of faces attached to the given cell in the mesh.
-static inline int mesh_cell_num_faces(mesh_t* mesh, int cell)
+static inline int polymesh_cell_num_faces(polymesh_t* mesh, int cell)
 {
   return mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell];
 }
 
-// Allows iteration over the faces attached to the given cell in the mesh.
+// Allows iteration over the faces attached to the given cell in the polymesh.
 // Set *pos to 0 to reset the iteration. Returns true if faces remain in 
 // the cell, false otherwise. NOTE: the local index of the face within the 
 // cell is *pos - 1 after the call. This method always returns a non-negative 
 // face index.
-static inline bool mesh_cell_next_face(mesh_t* mesh, int cell, int* pos, int* face)
+static inline bool polymesh_cell_next_face(polymesh_t* mesh, int cell, int* pos, int* face)
 {
   *face = mesh->cell_faces[mesh->cell_face_offsets[cell] + *pos];
   if (*face < 0) *face = ~(*face);
@@ -245,13 +247,13 @@ static inline bool mesh_cell_next_face(mesh_t* mesh, int cell, int* pos, int* fa
 }
 
 // Allows iteration over the oriented faces attached to the given cell in the 
-// mesh. Set *pos to 0 to reset the iteration. Returns true if faces remain in 
+// polymesh. Set *pos to 0 to reset the iteration. Returns true if faces remain in 
 // the cell, false otherwise. NOTE: the local index of the face within the 
 // cell is *pos - 1 after the call. This method returns a non-negative face index 
 // if the nodes in the face are to be traversed in order, or the (negative)
 // two's complement to the actual face index if its nodes are to be traversed 
 // in reverse order.
-static inline bool mesh_cell_next_oriented_face(mesh_t* mesh, int cell, int* pos, int* face)
+static inline bool polymesh_cell_next_oriented_face(polymesh_t* mesh, int cell, int* pos, int* face)
 {
   *face = mesh->cell_faces[mesh->cell_face_offsets[cell] + *pos];
   ++(*pos);
@@ -259,15 +261,15 @@ static inline bool mesh_cell_next_oriented_face(mesh_t* mesh, int cell, int* pos
 }
 
 // Allows iteration over the neighboring cells attached to the given cell in 
-// the mesh, in the same order as that given by mesh_cell_next_face(). If the 
+// the polymesh, in the same order as that given by polymesh_cell_next_face(). If the 
 // next neighbor for a cell is non-existent, *neighbor_cell will be set to -1.
 // Set *pos to 0 to reset the iteration. Returns true if the traversal over 
 // all faces of the cell is not complete, false otherwise. NOTE: the local 
 // index of the face separating the cells is *pos - 1 after the call.
-static inline bool mesh_cell_next_neighbor(mesh_t* mesh, int cell, int* pos, int* neighbor_cell)
+static inline bool polymesh_cell_next_neighbor(polymesh_t* mesh, int cell, int* pos, int* neighbor_cell)
 {
   int face;
-  bool result = mesh_cell_next_face(mesh, cell, pos, &face);
+  bool result = polymesh_cell_next_face(mesh, cell, pos, &face);
   if (mesh->face_cells[2*face] == cell)
     *neighbor_cell = mesh->face_cells[2*face+1];
   else
@@ -277,10 +279,10 @@ static inline bool mesh_cell_next_neighbor(mesh_t* mesh, int cell, int* pos, int
 
 // This returns the index of the face shared by cell and neighbor_cell if the two 
 // cells share a face, -1 otherwise.
-static inline int mesh_cell_face_for_neighbor(mesh_t* mesh, int cell, int neighbor_cell)
+static inline int polymesh_cell_face_for_neighbor(polymesh_t* mesh, int cell, int neighbor_cell)
 {
   int pos = 0, face;
-  while (mesh_cell_next_face(mesh, cell, &pos, &face))
+  while (polymesh_cell_next_face(mesh, cell, &pos, &face))
   {
     if ((mesh->face_cells[2*face] == neighbor_cell) || (mesh->face_cells[2*face+1] == neighbor_cell))
       return face;
@@ -290,24 +292,24 @@ static inline int mesh_cell_face_for_neighbor(mesh_t* mesh, int cell, int neighb
 
 // Returns true if cell1 and cell2 are neighbors that share a face, 
 // false otherwise.
-static inline bool mesh_cells_are_neighbors(mesh_t* mesh, int cell1, int cell2)
+static inline bool polymesh_cells_are_neighbors(polymesh_t* mesh, int cell1, int cell2)
 {
-  return (mesh_cell_face_for_neighbor(mesh, cell1, cell2) != -1);
+  return (polymesh_cell_face_for_neighbor(mesh, cell1, cell2) != -1);
 }
 
 // Returns the number of nodes attached to the given face in the mesh.
-static inline int mesh_face_num_nodes(mesh_t* mesh, int face)
+static inline int polymesh_face_num_nodes(polymesh_t* mesh, int face)
 {
   return mesh->face_node_offsets[face+1] - mesh->face_node_offsets[face];
 }
 
-// Allows iteration over the nodes attached to the given face in the mesh.
+// Allows iteration over the nodes attached to the given face in the polymesh.
 // Set *pos to 0 to reset the iteration. Returns true if nodes remain in 
 // the face, false otherwise. NOTE: the local index of the node within the 
 // face is *pos - 1 after the call. If face is the (negative) two's complement 
 // of the actual face index, the nodes of the face will be traversed in reverse
 // order.
-static inline bool mesh_face_next_node(mesh_t* mesh, int face, int* pos, int* node)
+static inline bool polymesh_face_next_node(polymesh_t* mesh, int face, int* pos, int* node)
 {
   int actual_face;
   if (face >= 0)
@@ -328,7 +330,7 @@ static inline bool mesh_face_next_node(mesh_t* mesh, int face, int* pos, int* no
 }
 
 // Returns the number of edges attached to the given face in the mesh.
-static inline int mesh_face_num_edges(mesh_t* mesh, int face)
+static inline int polymesh_face_num_edges(polymesh_t* mesh, int face)
 {
   return mesh->face_node_offsets[face+1] - mesh->face_node_offsets[face];
 }
@@ -339,7 +341,7 @@ static inline int mesh_face_num_edges(mesh_t* mesh, int face)
 // face is *pos - 1 after the call. If face is the (negative) two's complement 
 // of the actual face index, the edges of the face will be traversed in reverse
 // order.
-static inline bool mesh_face_next_edge(mesh_t* mesh, int face, int* pos, int* edge)
+static inline bool polymesh_face_next_edge(polymesh_t* mesh, int face, int* pos, int* edge)
 {
   int actual_face;
   if (face >= 0)
@@ -363,7 +365,7 @@ static inline bool mesh_face_next_edge(mesh_t* mesh, int face, int* pos, int* ed
 // faces share a edge, -1 otherwise. A non-negative face index must be given.
 // This function can be somewhat costly, since it requires a linear search through 
 // the edges of the two faces.
-static inline int mesh_face_edge_for_neighbor(mesh_t* mesh, int face, int neighbor_face)
+static inline int polymesh_face_edge_for_neighbor(polymesh_t* mesh, int face, int neighbor_face)
 {
   for (int e1 = mesh->face_edge_offsets[face]; e1 < mesh->face_edge_offsets[face+1]; ++e1)
   {
@@ -380,35 +382,35 @@ static inline int mesh_face_edge_for_neighbor(mesh_t* mesh, int face, int neighb
 
 // Returns the "first" cell attached to a face. A well-formed face has at least one 
 // cell with a non-negative index.
-static inline int mesh_face_cell1(mesh_t* mesh, int face)
+static inline int polymesh_face_cell1(polymesh_t* mesh, int face)
 {
   return mesh->face_cells[2*face];
 }
 
 // Returns the "second" cell attached to a face. If the face is only attached to 
 // one cell, the second cell is -1.
-static inline int mesh_face_cell2(mesh_t* mesh, int face)
+static inline int polymesh_face_cell2(polymesh_t* mesh, int face)
 {
   return mesh->face_cells[2*face+1];
 }
 
-// Given a face within the mesh and one of its cells, returns the cell on 
+// Given a face within the polymesh and one of its cells, returns the cell on 
 // the opposite side of the face, or -1 if there is no such cell.
-static inline int mesh_face_opp_cell(mesh_t* mesh, int face, int cell)
+static inline int polymesh_face_opp_cell(polymesh_t* mesh, int face, int cell)
 {
   return (cell == mesh->face_cells[2*face]) ? mesh->face_cells[2*face+1] 
                                             : mesh->face_cells[2*face];
 }
 
-// Returns true if the given face in the mesh abuts an external boundary, 
+// Returns true if the given face in the polymesh abuts an external boundary, 
 // false if it has an opposite cell.
-static inline bool mesh_face_is_external(mesh_t* mesh, int face)
+static inline bool polymesh_face_is_external(polymesh_t* mesh, int face)
 {
   return (mesh->face_cells[2*face+1] == -1);
 }
 
-// Returns a serializer object that can read/write meshes from/to byte arrays.
-serializer_t* mesh_serializer(void);
+// Returns a serializer object that can read/write polymeshes from/to byte arrays.
+serializer_t* polymesh_serializer(void);
 
 // 1-value face exchanger: creates and returns a newly-allocated exchanger that allows the 
 // exchange of a UNIQUE face-related value from local to remote processes. The array to be 
@@ -417,7 +419,7 @@ serializer_t* mesh_serializer(void);
 // data[face*stride + s] is the sth value of the data associated with 
 // the local face. The process with the lowest rank on which the face appears
 // owns that face. Communication is required to construct this face exchanger.
-exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh);
+exchanger_t* polymesh_1v_face_exchanger_new(polymesh_t* mesh);
 
 // 2-value face exchanger: creates and returns a newly-allocated exchanger that allows the 
 // exchange of BOTH face-related values from local to remote processes. The array to be 
@@ -428,7 +430,7 @@ exchanger_t* mesh_1v_face_exchanger_new(mesh_t* mesh);
 // with cell 0 of local faces on parallel domain boundaries, and remote values
 // are associated with cell 1.
 // No communication is required to construct this face exchanger.
-exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh);
+exchanger_t* polymesh_2v_face_exchanger_new(polymesh_t* mesh);
 
 // 1-value node exchanger: creates and returns a newly-allocated exchanger that allows the 
 // population of node-centered arrays with a unique value for each node shared between 
@@ -438,7 +440,7 @@ exchanger_t* mesh_2v_face_exchanger_new(mesh_t* mesh);
 // colocated with exactly one node on one or more other domains. If this requirement is not 
 // met, the node exchanger cannot be reliably created.
 // Communication is required to construct such a node exchanger.
-exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh);
+exchanger_t* polymesh_1v_node_exchanger_new(polymesh_t* mesh);
 
 // n-value node exchanger: creates and returns a newly-allocated exchanger that allows the 
 // exchange of multiple node-related values from local to remote processes, and populates 
@@ -453,11 +455,11 @@ exchanger_t* mesh_1v_node_exchanger_new(mesh_t* mesh);
 // colocated with exactly one node on one or more other domains. If this requirement is not 
 // met, the node exchanger cannot be reliably created.
 // Communication is required to construct such a node exchanger.
-exchanger_t* mesh_nv_node_exchanger_new(mesh_t* mesh, int* node_offsets);
+exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets);
 
 // This function constructs an adjacency graph expressing the connectivity of 
-// the cells of the given mesh.
-adj_graph_t* graph_from_mesh_cells(mesh_t* mesh);
+// the cells of the given polymesh.
+adj_graph_t* graph_from_polymesh_cells(polymesh_t* mesh);
 
 #endif
 

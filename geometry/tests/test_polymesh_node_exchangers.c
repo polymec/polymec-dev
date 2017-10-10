@@ -10,9 +10,9 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "core/mesh.h"
-#include "core/partition_mesh.h"
-#include "geometry/create_uniform_mesh.h"
+#include "geometry/polymesh.h"
+#include "geometry/partition_polymesh.h"
+#include "geometry/create_uniform_polymesh.h"
 
 static void test_nv_node_exchanger_on_line(void** state)
 {
@@ -22,10 +22,10 @@ static void test_nv_node_exchanger_on_line(void** state)
 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   int nx = 8;
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, 1, 1, &bbox);
-  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, 1, 1, &bbox);
+  partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
   int node_offsets[mesh->num_nodes+1];
-  exchanger_t* ex = mesh_nv_node_exchanger_new(mesh, node_offsets);
+  exchanger_t* ex = polymesh_nv_node_exchanger_new(mesh, node_offsets);
   int node_owners[node_offsets[mesh->num_nodes]];
   for (int n = 0; n < node_offsets[mesh->num_nodes]; ++n)
     node_owners[n] = -1;
@@ -64,7 +64,7 @@ static void test_nv_node_exchanger_on_line(void** state)
   }
 
   ex = NULL;
-  mesh_free(mesh);
+  polymesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -77,9 +77,9 @@ static void test_1v_node_exchanger_on_line(void** state)
 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   int nx = 8;
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, 1, 1, &bbox);
-  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
-  exchanger_t* ex = mesh_1v_node_exchanger_new(mesh);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, 1, 1, &bbox);
+  partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  exchanger_t* ex = polymesh_1v_node_exchanger_new(mesh);
   exchanger_fprintf(ex, stdout);
   exchanger_verify(ex, polymec_error);
 
@@ -102,7 +102,7 @@ static void test_1v_node_exchanger_on_line(void** state)
   }
 
   ex = NULL;
-  mesh_free(mesh);
+  polymesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -115,10 +115,10 @@ static void test_nv_node_exchanger_in_plane(void** state)
 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   int nx = 8, ny = 8;
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, 1, &bbox);
-  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, 1, &bbox);
+  partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
   int node_offsets[mesh->num_nodes+1];
-  exchanger_t* ex = mesh_nv_node_exchanger_new(mesh, node_offsets);
+  exchanger_t* ex = polymesh_nv_node_exchanger_new(mesh, node_offsets);
   int node_owners[node_offsets[mesh->num_nodes]];
   for (int n = 0; n < node_offsets[mesh->num_nodes]; ++n)
     node_owners[n] = -1;
@@ -138,7 +138,7 @@ static void test_nv_node_exchanger_in_plane(void** state)
   exchanger_fprintf(ex, stdout);
   exchanger_verify(ex, polymec_error);
   ex = NULL;
-  mesh_free(mesh);
+  polymesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -147,13 +147,13 @@ static void test_1v_node_exchanger_in_plane(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   int nx = 4, ny = 4;
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, 1, &bbox);
-  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
-  exchanger_t* ex = mesh_1v_node_exchanger_new(mesh);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, 1, &bbox);
+  partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  exchanger_t* ex = polymesh_1v_node_exchanger_new(mesh);
   exchanger_fprintf(ex, stdout);
   exchanger_verify(ex, polymec_error);
   ex = NULL;
-  mesh_free(mesh);
+  polymesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -166,10 +166,10 @@ static void test_nv_node_exchanger_in_cube(void** state)
 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   int nx = 4, ny = 4, nz = 4;
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
-  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
+  partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
   int node_offsets[mesh->num_nodes+1];
-  exchanger_t* ex = mesh_nv_node_exchanger_new(mesh, node_offsets);
+  exchanger_t* ex = polymesh_nv_node_exchanger_new(mesh, node_offsets);
   int node_owners[node_offsets[mesh->num_nodes]];
   for (int n = 0; n < node_offsets[mesh->num_nodes]; ++n)
     node_owners[n] = -1;
@@ -189,7 +189,7 @@ static void test_nv_node_exchanger_in_cube(void** state)
   exchanger_fprintf(ex, stdout);
   exchanger_verify(ex, polymec_error);
   ex = NULL;
-  mesh_free(mesh);
+  polymesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -198,13 +198,13 @@ static void test_1v_node_exchanger_in_cube(void** state)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   int nx = 8, ny = 8, nz = 8;
-  mesh_t* mesh = create_uniform_mesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
-  partition_mesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
-  exchanger_t* ex = mesh_1v_node_exchanger_new(mesh);
+  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
+  partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.0);
+  exchanger_t* ex = polymesh_1v_node_exchanger_new(mesh);
   exchanger_fprintf(ex, stdout);
   exchanger_verify(ex, polymec_error);
   ex = NULL;
-  mesh_free(mesh);
+  polymesh_free(mesh);
 
   MPI_Barrier(MPI_COMM_WORLD);
 }

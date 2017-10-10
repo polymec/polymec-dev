@@ -10,16 +10,16 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "geometry/create_uniform_mesh.h"
+#include "geometry/create_uniform_polymesh.h"
 
 static adj_graph_t* graph_from_uniform_mesh()
 {
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   bbox_t box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  mesh_t* m = create_uniform_mesh(MPI_COMM_WORLD, 10, 10, 10, &box);
-  adj_graph_t* g = graph_from_mesh_cells(m);
-  mesh_free(m);
+  polymesh_t* m = create_uniform_polymesh(MPI_COMM_WORLD, 10, 10, 10, &box);
+  adj_graph_t* g = graph_from_polymesh_cells(m);
+  polymesh_free(m);
   return g;
 }
 

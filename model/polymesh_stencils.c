@@ -7,7 +7,7 @@
 
 #include "core/unordered_set.h"
 #include "core/kd_tree.h"
-#include "model/mesh_stencils.h"
+#include "model/polymesh_stencils.h"
 
 static stencil_t* stencil_from_cells(const char* name, 
                                      int_array_t** stencil_cells,
@@ -33,7 +33,7 @@ static stencil_t* stencil_from_cells(const char* name,
   return stencil_new(name, num_cells, offsets, indices, num_ghost_cells, ex);
 }
 
-stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
+stencil_t* cell_star_stencil_new(polymesh_t* mesh, int radius)
 {
   ASSERT(radius > 0);
 
@@ -42,7 +42,7 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
 
   // First, we'll exchange the mesh cell centers to make sure they're 
   // consistent.
-  exchanger_t* cell_ex = mesh_exchanger(mesh);
+  exchanger_t* cell_ex = polymesh_exchanger(mesh);
   exchanger_exchange(cell_ex, mesh->cell_centers, 3, 0, MPI_REAL_T);
 
   // First we will make a mapping from each cell to its list of 
@@ -52,7 +52,7 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
   {
     int_array_t* neighbors = int_array_new();
     int pos = 0, opp_cell;
-    while (mesh_cell_next_neighbor(mesh, cell, &pos, &opp_cell))
+    while (polymesh_cell_next_neighbor(mesh, cell, &pos, &opp_cell))
     {
       if (opp_cell != -1)
         int_array_append(neighbors, opp_cell);
@@ -61,7 +61,7 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
   }
 
   // The exchanger for this stencil is the same as that for the mesh.
-  exchanger_t* ex = exchanger_clone(mesh_exchanger(mesh));
+  exchanger_t* ex = exchanger_clone(polymesh_exchanger(mesh));
 
   // Create the stencil from the sets.
   char name[1025];
@@ -76,7 +76,7 @@ stencil_t* cell_star_stencil_new(mesh_t* mesh, int radius)
 }
 
 #if 0
-noreturn stencil_t* cell_halo_stencil_new(mesh_t* mesh)
+noreturn stencil_t* cell_halo_stencil_new(polymesh_t* mesh)
 {
   POLYMEC_NOT_IMPLEMENTED;
 

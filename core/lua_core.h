@@ -13,7 +13,6 @@
 #include "core/tensor2.h"
 #include "core/sp_func.h"
 #include "core/st_func.h"
-#include "core/mesh.h"
 #include "core/point_cloud.h"
 
 // This file contains functions for manipulating basic data types in the 
@@ -197,17 +196,6 @@ bool lua_is_tagger(lua_State* L, int index);
 // Returns the tagger at the given index on L's stack, or NULL 
 // if the item there is not a tagger.
 tagger_t* lua_to_tagger(lua_State* L, int index);
-
-// Pushes a mesh m onto L's stack.
-void lua_push_mesh(lua_State* L, mesh_t* m);
-
-// Returns true if the item at the given index on L's stack is a mesh,
-// false if not.
-bool lua_is_mesh(lua_State* L, int index);
-
-// Returns the mesh at the given index on L's stack, or NULL 
-// if the item there is not a mesh.
-mesh_t* lua_to_mesh(lua_State* L, int index);
 
 // Pushes a point cloud c onto L's stack.
 void lua_push_point_cloud(lua_State* L, point_cloud_t* c);

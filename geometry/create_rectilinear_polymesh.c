@@ -9,13 +9,13 @@
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
 #include "core/slist.h"
-#include "geometry/create_rectilinear_mesh.h"
+#include "geometry/create_rectilinear_polymesh.h"
 #include "geometry/cubic_lattice.h"
 
-mesh_t* create_rectilinear_mesh(MPI_Comm comm, 
-                                real_t* xs, int nxs, 
-                                real_t* ys, int nys, 
-                                real_t* zs, int nzs)
+polymesh_t* create_rectilinear_polymesh(MPI_Comm comm, 
+                                        real_t* xs, int nxs, 
+                                        real_t* ys, int nys, 
+                                        real_t* zs, int nzs)
 {
   ASSERT(nxs > 1);
   ASSERT(nys > 1);
@@ -110,7 +110,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   }
 
   // Create the mesh.
-  mesh_t* mesh = mesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
+  polymesh_t* mesh = polymesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
 
   // Connectivity metadata.
   mesh->cell_face_offsets[0] = 0;
@@ -119,7 +119,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   mesh->face_node_offsets[0] = 0;
   for (int f = 0; f < mesh->num_faces; ++f)
     mesh->face_node_offsets[f+1] = mesh->face_node_offsets[f] + 4;
-  mesh_reserve_connectivity_storage(mesh);
+  polymesh_reserve_connectivity_storage(mesh);
 
   int_unordered_set_t* processed_nodes = int_unordered_set_new();
   int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
@@ -335,7 +335,7 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   ASSERT(ghost_cell_index == num_cells + num_ghost_cells);
 
   // Now we set up the exchanger.
-  exchanger_t* ex = mesh_exchanger(mesh);
+  exchanger_t* ex = polymesh_exchanger(mesh);
   exchanger_set_sends(ex, send_map);
   exchanger_set_receives(ex, recv_map);
 
@@ -347,28 +347,28 @@ mesh_t* create_rectilinear_mesh(MPI_Comm comm,
   int_unordered_set_free(processed_nodes);
 
   // Construct edge information.
-  mesh_construct_edges(mesh);
+  polymesh_construct_edges(mesh);
 
   // Compute mesh geometry.
-  mesh_compute_geometry(mesh);
+  polymesh_compute_geometry(mesh);
 
   // Stash the lattice in the "lattice" property.
   serializer_t* cubic_lattice_ser = cubic_lattice_serializer();
-  mesh_set_property(mesh, "lattice", (void*)lattice, cubic_lattice_ser);
+  polymesh_set_property(mesh, "lattice", (void*)lattice, cubic_lattice_ser);
 
   // Stash a bounding box for easy reference.
   serializer_t* bbox_ser = bbox_serializer();
   bbox_t* bbox = bbox_new(xs[0], xs[nxs-1], ys[0], ys[nys-1], zs[0], zs[nzs-1]);
-  mesh_set_property(mesh, "bbox", (void*)bbox, bbox_ser);
+  polymesh_set_property(mesh, "bbox", (void*)bbox, bbox_ser);
 
   return mesh;
 }
 
-mesh_t* create_rectilinear_mesh_on_rank(MPI_Comm comm,
-                                        int rank,
-                                        real_t* xs, int nxs, 
-                                        real_t* ys, int nys, 
-                                        real_t* zs, int nzs)
+polymesh_t* create_rectilinear_polymesh_on_rank(MPI_Comm comm,
+                                                int rank,
+                                                real_t* xs, int nxs, 
+                                                real_t* ys, int nys, 
+                                                real_t* zs, int nzs)
 {
   ASSERT(comm != MPI_COMM_SELF);
   ASSERT(rank >= 0);
@@ -378,11 +378,11 @@ mesh_t* create_rectilinear_mesh_on_rank(MPI_Comm comm,
   MPI_Comm_rank(comm, &nprocs);
 
   if (rank > nprocs)
-    polymec_error("create_rectilinear_mesh_on_rank: invalid rank: %d", rank);
+    polymec_error("create_rectilinear_polymesh_on_rank: invalid rank: %d", rank);
 
-  mesh_t* mesh = NULL;
+  polymesh_t* mesh = NULL;
   if (my_rank == rank)
-    mesh = create_rectilinear_mesh(comm, xs, nxs, ys, nys, zs, nzs);
+    mesh = create_rectilinear_polymesh(comm, xs, nxs, ys, nys, zs, nzs);
   else
   {
     // Initialize serializers.
@@ -392,18 +392,18 @@ mesh_t* create_rectilinear_mesh_on_rank(MPI_Comm comm,
   return mesh;
 }
 
-void tag_rectilinear_mesh_faces(mesh_t* mesh, 
-                                const char* x1_tag, 
-                                const char* x2_tag, 
-                                const char* y1_tag,
-                                const char* y2_tag,
-                                const char* z1_tag,
-                                const char* z2_tag)
+void tag_rectilinear_polymesh_faces(polymesh_t* mesh, 
+                                    const char* x1_tag, 
+                                    const char* x2_tag, 
+                                    const char* y1_tag,
+                                    const char* y2_tag,
+                                    const char* z1_tag,
+                                    const char* z2_tag)
 {
   // Get some stuff from our rectilinear mesh.
-  cubic_lattice_t* lattice = mesh_property(mesh, "lattice");
+  cubic_lattice_t* lattice = polymesh_property(mesh, "lattice");
   ASSERT(lattice != NULL);
-  bbox_t* bbox = mesh_property(mesh, "bbox");
+  bbox_t* bbox = polymesh_property(mesh, "bbox");
   ASSERT(bbox != NULL);
 
   // Figure out the boundary faces of the mesh by checking their face centers 
@@ -439,37 +439,37 @@ void tag_rectilinear_mesh_faces(mesh_t* mesh,
   // Now create the boundary tags and populate them.
   int_slist_node_t* iter = NULL;
   int f = 0, face;
-  int* x1tag = mesh_create_tag(mesh->face_tags, x1_tag, x1_faces->size);
+  int* x1tag = polymesh_create_tag(mesh->face_tags, x1_tag, x1_faces->size);
   while (int_slist_next(x1_faces, &iter, &face))
     x1tag[f++] = face;
 
   iter = NULL;
   f = 0;
-  int* x2tag = mesh_create_tag(mesh->face_tags, x2_tag, x2_faces->size);
+  int* x2tag = polymesh_create_tag(mesh->face_tags, x2_tag, x2_faces->size);
   while (int_slist_next(x2_faces, &iter, &face))
     x2tag[f++] = face;
 
   iter = NULL;
   f = 0;
-  int* y1tag = mesh_create_tag(mesh->face_tags, y1_tag, y1_faces->size);
+  int* y1tag = polymesh_create_tag(mesh->face_tags, y1_tag, y1_faces->size);
   while (int_slist_next(y1_faces, &iter, &face))
     y1tag[f++] = face;
 
   iter = NULL;
   f = 0;
-  int* y2tag = mesh_create_tag(mesh->face_tags, y2_tag, y2_faces->size);
+  int* y2tag = polymesh_create_tag(mesh->face_tags, y2_tag, y2_faces->size);
   while (int_slist_next(y2_faces, &iter, &face))
     y2tag[f++] = face;
 
   iter = NULL;
   f = 0;
-  int* z1tag = mesh_create_tag(mesh->face_tags, z1_tag, z1_faces->size);
+  int* z1tag = polymesh_create_tag(mesh->face_tags, z1_tag, z1_faces->size);
   while (int_slist_next(z1_faces, &iter, &face))
     z1tag[f++] = face;
 
   iter = NULL;
   f = 0;
-  int* z2tag = mesh_create_tag(mesh->face_tags, z2_tag, z2_faces->size);
+  int* z2tag = polymesh_create_tag(mesh->face_tags, z2_tag, z2_faces->size);
   while (int_slist_next(z2_faces, &iter, &face))
     z2tag[f++] = face;
 
@@ -482,7 +482,7 @@ void tag_rectilinear_mesh_faces(mesh_t* mesh,
   string_array_append_with_dtor(btags, string_dup(z1_tag), string_free);
   string_array_append_with_dtor(btags, string_dup(z2_tag), string_free);
   serializer_t* s = string_array_serializer();
-  mesh_set_property(mesh, "rectilinear_boundary_tags", btags, s);
+  polymesh_set_property(mesh, "rectilinear_boundary_tags", btags, s);
 
   // Clean up.
   int_slist_free(x1_faces);

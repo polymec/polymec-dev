@@ -6,8 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/polymec.h"
-#include "core/mesh.h"
 #include "geometry/cubic_lattice.h"
+#include "geometry/polymesh.h"
 
 cubic_lattice_t* cubic_lattice_new(index_t nx, index_t ny, index_t nz)
 {
