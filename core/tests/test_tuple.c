@@ -28,6 +28,18 @@ static void test_##tuple_name##_ctor(void** state) \
   tuple_name##_free(t); \
 } \
 \
+static void test_##tuple_name##_clone(void** state) \
+{ \
+  tuple_name##_value_t* t = tuple_name##_new(6); \
+  assert_int_equal(6, tuple_name##_length(t)); \
+  for (int i = 0; i < 6; ++i) \
+    t[i] = element##_values[i]; \
+  tuple_name##_value_t* t1 = tuple_name##_clone(t); \
+  assert_int_equal(6, tuple_name##_length(t)); \
+  tuple_name##_free(t1); \
+  tuple_name##_free(t); \
+} \
+\
 static void test_##tuple_name##_cmp(void** state) \
 { \
   tuple_name##_value_t* t1 = tuple_name##_new(6); \
