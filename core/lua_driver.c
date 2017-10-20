@@ -30,6 +30,7 @@
 //------------------------------------------------------------------------
 
 static int _mpi_rank = -1;
+static int _mpi_nprocs = -1;
 
 // This function reports an error in parsing input.
 static int report_error(lua_State *L, int status) 
@@ -297,7 +298,14 @@ static int pmain(lua_State* L)
 
   // If we're interactive, surrender control.
   if (interactive || (filename == NULL))
+  {
+    // We don't currently support interactive mode on more than one 
+    // process.
+    if (_mpi_nprocs > 1)
+      polymec_error("Interactive mode is not supported in a parallel environment.");
+
     interact(L);
+  }
 
   // We made it to the end without incident.
   lua_pushboolean(L, true);
@@ -312,6 +320,7 @@ int lua_driver(int argc,
   polymec_init(argc, argv);
 
   MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &_mpi_nprocs);
 
   // Set the maximum history length.
   linenoiseHistorySetMaxLen(500);
