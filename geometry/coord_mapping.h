@@ -51,7 +51,7 @@ typedef struct
   coord_mapping_map_point_func        map_point;
   coord_mapping_map_vector_func       map_vector; // Optional
   coord_mapping_jacobian_func         jacobian;
-  coord_mapping_inverse_func          inverse;
+  coord_mapping_inverse_func          inverse; // Optional
   coord_mapping_det_J_func            det_J; // Optional
   coord_mapping_metric_func           metric; // Optional
   coord_mapping_dtor                  dtor;

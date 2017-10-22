@@ -27,6 +27,226 @@ typedef struct
   lua_State* L;
 } lua_obj_t;
 
+static void cm_map_point(void* context, point_t* x, point_t* y)
+{
+  // Fetch our Lua table from the registry.
+  lua_obj_t* lo = context;
+  lua_pushlightuserdata(lo->L, lo);
+  lua_gettable(lo->L, LUA_REGISTRYINDEX);
+
+  // Call the map_point method.
+  lua_getfield(lo->L, -1, "map_point");
+  lua_pushvalue(lo->L, -2);
+  lua_push_point(lo->L, x);
+  lua_call(lo->L, 2, 1);
+
+  if (!lua_is_point(lo->L, -1))
+    luaL_error(lo->L, "map_point method did not return a point.");
+  *y = *(lua_to_point(lo->L, -1));
+}
+
+static void cm_compute_jacobian(void* context, point_t* x, tensor2_t* J)
+{
+  // Fetch our Lua table from the registry.
+  lua_obj_t* lo = context;
+  lua_pushlightuserdata(lo->L, lo);
+  lua_gettable(lo->L, LUA_REGISTRYINDEX);
+
+  // Call the jacobian method.
+  lua_getfield(lo->L, -1, "jacobian");
+  lua_pushvalue(lo->L, -2);
+  lua_push_point(lo->L, x);
+  lua_call(lo->L, 2, 1);
+
+  if (!lua_is_tensor2(lo->L, -1))
+    luaL_error(lo->L, "jacobian method did not return a tensor2.");
+  *J = *(lua_to_tensor2(lo->L, -1));
+}
+
+static coord_mapping_t* cm_compute_inverse(void* context)
+{
+  // Fetch our Lua table from the registry.
+  lua_obj_t* lo = context;
+  lua_pushlightuserdata(lo->L, lo);
+  lua_gettable(lo->L, LUA_REGISTRYINDEX);
+
+  // Call the jacobian method.
+  lua_getfield(lo->L, -1, "inverse");
+  lua_pushvalue(lo->L, -2);
+  lua_call(lo->L, 1, 1);
+
+  if (!lua_is_coord_mapping(lo->L, -1))
+  {
+    luaL_error(lo->L, "inverse method did not return a coord_mapping.");
+    return NULL; 
+  }
+  return lua_to_coord_mapping(lo->L, -1);
+}
+
+static void cm_dtor(void* context)
+{
+  lua_obj_t* lo = context;
+  lua_pushlightuserdata(lo->L, lo);
+  lua_gettable(lo->L, LUA_REGISTRYINDEX);
+  lua_pushnil(lo->L);
+  lua_settable(lo->L, LUA_REGISTRYINDEX);
+  polymec_free(context);
+}
+
+static int cm_new(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) || !lua_istable(L, 1))
+    return luaL_error(L, "Argument must be a table with a name and methods.");
+
+  // Create a context that houses this object.
+  lua_newtable(L);
+  int obj_index = num_args + 1;
+
+  coord_mapping_vtable vtable = {.dtor = cm_dtor};
+
+  lua_getfield(L, 1, "name");
+  if (!lua_isstring(L, -1))
+    return luaL_error(L, "Name must be a string.");
+  const char* name = lua_tostring(L, -1);
+
+  lua_getfield(L, 1, "map");
+  if (!lua_isfunction(L, -1))
+    return luaL_error(L, "map must be a method.");
+  lua_setfield(L, obj_index, "map");
+  vtable.map_point = cm_map_point;
+
+  lua_getfield(L, 1, "jacobian");
+  if (!lua_isfunction(L, -1))
+    return luaL_error(L, "jacobian must be a method.");
+  lua_setfield(L, obj_index, "jacobian");
+  vtable.jacobian = cm_compute_jacobian;
+
+  lua_getfield(L, 1, "inverse");
+  if (!lua_isfunction(L, -1))
+    return luaL_error(L, "jacobian must be a method.");
+  lua_setfield(L, obj_index, "jacobian");
+  vtable.inverse = cm_compute_inverse;
+
+  // Allocate a context pointer and stuff our object into the registry.
+  lua_obj_t* lo = polymec_malloc(sizeof(lua_obj_t));
+  lo->L = L;
+
+  // Store the table representing our object in the registry, with 
+  // context as a key.
+  lua_pushvalue(L, obj_index);
+  lua_rawsetp(L, LUA_REGISTRYINDEX, lo);
+
+  // Set up the mapping.
+  coord_mapping_t* X = coord_mapping_new(name, lo, vtable);
+  lua_push_coord_mapping(L, X);
+
+  return 1;
+}
+
+static int cm_compose(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || !lua_is_coord_mapping(L, 2) || !lua_is_coord_mapping(L, 3))
+    return luaL_error(L, "Arguments must both be coord_mappings.");
+
+  coord_mapping_t* X1 = lua_to_coord_mapping(L, 2);
+  coord_mapping_t* X2 = lua_to_coord_mapping(L, 3);
+  coord_mapping_t* X1oX2 = composite_coord_mapping_new(X1, X2);
+  lua_push_coord_mapping(L, X1oX2);
+  return 1;
+}
+
+static lua_module_function cm_funcs[] = {
+  {"new", cm_new, "coord_mapping.new{name = NAME, map = Xp, jacobian = J, inverse = Xinv} -> new coordinate mapping."},
+  {"compose", cm_compose, "coord_mapping.compose(X1, X2) ­> Returns a coordinate mapping for X1 o X2."},
+  {NULL, NULL, NULL}
+};
+
+static int cm_jacobian(lua_State* L)
+{
+  coord_mapping_t* X = lua_to_coord_mapping(L, 1);
+  if (!lua_is_point(L, 2))
+    luaL_error(L, "Argument must be a point.");
+
+  point_t* x = lua_to_point(L, 2);
+  tensor2_t* J = tensor2_new(0.0, 0.0, 0.0,
+                             0.0, 0.0, 0.0,
+                             0.0, 0.0, 0.0);
+  coord_mapping_compute_jacobian(X, x, J);
+  lua_push_tensor2(L, J);
+  return 1;
+}
+
+static int cm_metric(lua_State* L)
+{
+  coord_mapping_t* X = lua_to_coord_mapping(L, 1);
+  if (!lua_is_point(L, 2))
+    luaL_error(L, "Argument must be a point.");
+
+  point_t* x = lua_to_point(L, 2);
+  tensor2_t* G = tensor2_new(0.0, 0.0, 0.0,
+                             0.0, 0.0, 0.0,
+                             0.0, 0.0, 0.0);
+  coord_mapping_compute_metric(X, x, G);
+  lua_push_tensor2(L, G);
+  return 1;
+}
+
+static int cm_inverse(lua_State* L)
+{
+  coord_mapping_t* X = lua_to_coord_mapping(L, 1);
+  coord_mapping_t* Xinv = coord_mapping_inverse(X);
+  if (Xinv != NULL)
+    lua_push_coord_mapping(L, Xinv);
+  else
+    lua_pushnil(L);
+  return 1;
+}
+
+static int cm_call(lua_State* L)
+{
+  coord_mapping_t* X = lua_to_coord_mapping(L, 1);
+  int num_args = lua_gettop(L);
+  if (!((num_args == 2) && lua_is_point(L, 2)) ||
+       ((num_args == 3) && lua_is_point(L, 2) && lua_is_vector(L, 3)))
+    luaL_error(L, "Argument must be a point or a point and a vector.");
+
+  if (lua_is_point(L, 2))
+  {
+    point_t* x = lua_to_point(L, 2);
+    point_t* y = point_new(0.0, 0.0, 0.0);
+    coord_mapping_map_point(X, x, y);
+    lua_push_point(L, y);
+  }
+  else // vector
+  {
+    point_t* x = lua_to_point(L, 2);
+    vector_t* v = lua_to_vector(L, 3);
+    vector_t* v1 = vector_new(0.0, 0.0, 0.0);
+    coord_mapping_map_vector(X, x, v, v1);
+    lua_push_vector(L, v1);
+  }
+
+  return 1;
+}
+
+static int cm_tostring(lua_State* L)
+{
+  coord_mapping_t* X = lua_to_coord_mapping(L, 1);
+  lua_pushfstring(L, "coord_mapping '%s'", coord_mapping_name(X));
+  return 1;
+}
+
+static lua_class_method cm_methods[] = {
+  {"jacobian", cm_jacobian, "X:jacobian(x) -> Returns the jacobian of X at the point x."},
+  {"inverse", cm_inverse, "X:inverse() -> Returns the inverse mapping of X."},
+  {"metric", cm_metric, "X:metric(x) -> Returns the 3x3 metric tensor for X at the point x."},
+  {"__call", cm_call, NULL},
+  {"__tostring", cm_tostring, NULL},
+  {NULL, NULL, NULL}
+};
+
 static real_t sd_value(void* context, point_t* x)
 {
   // Fetch our Lua table from the registry.
@@ -781,6 +1001,7 @@ static lua_module_function points_funcs[] = {
 int lua_register_geometry_modules(lua_State* L)
 {
   // Core types.
+  lua_register_class(L, "coord_mapping", "A coordinate mapping.", cm_funcs, cm_methods);
   lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, sd_methods);
   lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_methods);
   lua_register_record_type(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_mm);
@@ -792,6 +1013,21 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_module(L, "points", "Functions for generating points.", points_funcs);
 
   return 0;
+}
+
+void lua_push_coord_mapping(lua_State* L, coord_mapping_t* X)
+{
+  lua_push_object(L, "coord_mapping", X, NULL);
+}
+
+bool lua_is_coord_mapping(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "coord_mapping");
+}
+
+coord_mapping_t* lua_to_coord_mapping(lua_State* L, int index)
+{
+  return (coord_mapping_t*)lua_to_object(L, index, "coord_mapping");
 }
 
 void lua_push_sd_func(lua_State* L, sd_func_t* f)

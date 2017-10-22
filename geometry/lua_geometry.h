@@ -9,6 +9,7 @@
 #define POLYMEC_LUA_GEOMETRY_H
 
 #include "core/lua_types.h"
+#include "geometry/coord_mapping.h"
 #include "geometry/sd_func.h"
 #include "geometry/sdt_func.h"
 #include "geometry/polymesh.h"
@@ -20,6 +21,17 @@
 // should be called before any of these types are accessed within the 
 // interpreter.
 int lua_register_geometry_modules(lua_State* L);
+
+// Pushes a coordinate mapping object X onto L's stack.
+void lua_push_coord_mapping(lua_State* L, coord_mapping_t* X);
+
+// Returns true if the item at the given index on L's stack is a 
+// coordinate mapping, false if not.
+bool lua_is_coord_mapping(lua_State* L, int index);
+
+// Returns the coordinate mapping at the given index on L's 
+// stack, or NULL if the item there is not a coordinate mapping.
+coord_mapping_t* lua_to_coord_mapping(lua_State* L, int index);
 
 // Pushes a signed distance function f onto L's stack.
 void lua_push_sd_func(lua_State* L, sd_func_t* f);
