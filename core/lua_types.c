@@ -400,6 +400,7 @@ typedef struct
 {
   char* record_type_name;
   lua_record_field* fields;
+  lua_record_metamethod* index;
 
   // Data.
   void* context;
@@ -427,6 +428,10 @@ static int lua_record_index(lua_State* L)
          (strcmp(r->fields[i].name, field) != 0)) ++i;
   if (r->fields[i].name != NULL) // Bingo!
     return r->fields[i].getter(L);
+
+  // Do we have a user-defined __index metamethod?
+  if (r->index != NULL)
+    return r->index->metamethod(L);
 
   // Return nil if we didn't find anything.
   lua_pushnil(L);
@@ -485,6 +490,16 @@ static void destroy_record_fields(void)
     string_ptr_unordered_map_free(lua_record_fields);
 }
 
+// Dictionary of user-defined __index metamethods by record name.
+static string_ptr_unordered_map_t* lua_record_index_mms = NULL;
+
+// This function is called at exit to destroy the above global objects.
+static void destroy_record_index_mms(void)
+{
+  if (lua_record_index_mms != NULL)
+    string_ptr_unordered_map_free(lua_record_index_mms);
+}
+
 static int lua_open_record(lua_State* L)
 {
   // Get stuff out of the registry.
@@ -520,6 +535,14 @@ static int lua_open_record(lua_State* L)
     polymec_atexit(destroy_record_fields);
   }
 
+  // Do the same for our user-defined __index metamethods.
+  // if we haven't.
+  if (lua_record_index_mms == NULL)
+  {
+    lua_record_index_mms = string_ptr_unordered_map_new();
+    polymec_atexit(destroy_record_index_mms);
+  }
+
   // Populate the fields entry for this type.
   int num_fields = 0;
   while (fields[num_fields].name != NULL)
@@ -541,14 +564,29 @@ static int lua_open_record(lua_State* L)
   // Create a metatable for this type and populate it with metamethods.
   if (metamethods != NULL)
   {
-    int num_mm = 0;
+    int num_mm = 0, index_mm = -1, num_index_mm = 0;
     while (metamethods[num_mm].name != NULL)
-      ++num_mm;
-    luaL_Reg mm[num_mm+4];
-    for (int i = 0; i < num_mm; ++i)
     {
-      mm[i].name = metamethods[i].name;
-      mm[i].func = metamethods[i].metamethod;
+      // Register any user-defined __index metamethod.
+      if (strcmp(metamethods[num_mm].name, "__index") == 0)
+      {
+        string_ptr_unordered_map_insert_with_k_dtor(lua_record_index_mms, 
+                                                    string_dup(record_type_name),
+                                                    &metamethods[num_mm],
+                                                    string_free);
+        index_mm = num_mm;
+        num_index_mm = 1;
+      }
+      ++num_mm;
+    }
+    num_mm -= num_index_mm;
+
+    luaL_Reg mm[num_mm+4];
+    for (int i = 0; i < num_mm + num_index_mm; ++i)
+    {
+      int j = (i < index_mm) ? i : i-1;
+      mm[j].name = metamethods[i].name;
+      mm[j].func = metamethods[i].metamethod;
     }
 
     // Add __index, __newindex, __gc methods.
@@ -653,6 +691,11 @@ void lua_push_record(lua_State* L,
   // Assign behaviors.
   r->record_type_name = string_dup(record_type_name);
   r->fields = *string_ptr_unordered_map_get(lua_record_fields, (char*)record_type_name);
+  void** index_p = string_ptr_unordered_map_get(lua_record_index_mms, (char*)record_type_name);
+  if (index_p != NULL)
+    r->index = (lua_record_metamethod*)(*index_p);
+  else
+    r->index = NULL;
 
   // Assign data.
   r->context = context;
