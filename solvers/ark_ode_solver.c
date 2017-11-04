@@ -238,12 +238,14 @@ static bool ark_advance(void* context, real_t t1, real_t t2, real_t* U)
   integ->t = t1;
   ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
   ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
-  ARKodeReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
-  ARKodeSetStopTime(integ->arkode, t2);
-  
+
   // Copy in the solution.
   memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
 
+  // (Re-)initialize and set our end time.
+  ARKodeReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
+  ARKodeSetStopTime(integ->arkode, t2);
+  
   // Integrate.
   int status = ARKode(integ->arkode, t2, integ->U, &integ->t, ARK_NORMAL);
   

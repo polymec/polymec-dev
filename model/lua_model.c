@@ -408,9 +408,9 @@ static int m_add_probe(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
   if (!lua_is_probe(L, 2))
-    return luaL_error(L, "Argument 2 must be a probe.");
+    return luaL_error(L, "Argument 1 must be a probe.");
   if (!lua_istable(L, 3))
-    return luaL_error(L, "Argument 3 must be a table of acquisition times.");
+    return luaL_error(L, "Argument 2 must be a table of acquisition times.");
 
   // Build an array of acquisition times.
   real_array_t* times = real_array_new();
@@ -419,9 +419,9 @@ static int m_add_probe(lua_State* L)
   {
     // Key is at index -2, value is at -1.
     if (!lua_isinteger(L, -2))
-      luaL_error(L, "Argument 3 must be a array of acquisition times.");
+      luaL_error(L, "Argument 2 must be a array of acquisition times.");
     if (!lua_isnumber(L, -1))
-      luaL_error(L, "Argument 3 must be a array of acquisition times.");
+      luaL_error(L, "Argument 2 must be a array of acquisition times.");
     real_array_append(times, lua_to_real(L, -1));
     lua_pop(L, 1);
   }
