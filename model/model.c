@@ -552,6 +552,8 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
   {
     if ((model->plot_every > 0.0) || (model->save_every > 0))
       model_do_periodic_work(model);
+    else
+      model_acquire(model); // make sure probes can acquire data at t1.
 
     // Now run the calculation.
     while ((model->time < t2) && (model->step < max_steps))
