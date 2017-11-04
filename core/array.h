@@ -32,6 +32,7 @@
 // void x_array_assign(x_array_t* array, size_t i, x value) - Assigns an x to position i within the array.
 // void x_array_assign_with_dtor(x_array_t* array, size_t i, x value, destructor dtor) - Assigns an x to position i within the array, using dtor to destroy when finished.
 // void x_array_remove(x_array_t* array, size_t i) - Removes the ith element from the array, shifting the following elements forward by one.
+// void x_array_swap(x_array_t* array, i, j) - Swaps the ith and jth elements in the array.
 // bool x_array_empty(x_array_t* array) - Returns true if empty, false otherwise.
 // void x_array_clear(x_array_t* array) - Clears the given array, making it empty.
 // void x_array_resize(x_array_t* array, size_t new_size) - Resizes the array, keeping data intact if possible.
@@ -162,6 +163,21 @@ static inline void array_name##_remove(array_name##_t* array, size_t i) \
   for (size_t j = i; j < array->size-1; ++j) \
     array[j] = array[j+1]; \
   array->size--; \
+} \
+\
+static inline void array_name##_swap(array_name##_t* array, size_t i, size_t j) \
+{ \
+  ASSERT(i < array->size); \
+  ASSERT(j < array->size); \
+  element tmp = array->data[j]; \
+  array->data[j] = array->data[i]; \
+  array->data[i] = tmp; \
+  if (array->dtors != NULL) \
+  { \
+    array_name##_dtor tmp_dtor = array->dtors[j]; \
+    array->dtors[j] = array->dtors[i]; \
+    array->dtors[i] = tmp_dtor; \
+  } \
 } \
 \
 static inline bool array_name##_empty(array_name##_t* array) \
