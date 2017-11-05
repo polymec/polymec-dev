@@ -31,3 +31,12 @@ foreach (DIR @EXTRA_LINK_DIRECTORIES@)
   link_directories(${DIR})
 endforeach()
 
+# Polymec library targets for dependency tracking.
+foreach (LIB ${POLYMEC_LIBRARIES})
+  if (LIB MATCHES "polymec_")
+    add_library(${LIB} STATIC IMPORTED GLOBAL)
+    set_target_properties(${LIB} PROPERTIES IMPORTED_LOCATION ${POLYMEC_PREFIX}/lib/lib${LIB}@LIB_SUFFIX@)
+  endif()
+endforeach()
+
+
