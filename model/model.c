@@ -350,7 +350,7 @@ real_t model_max_dt(model_t* model, char* reason)
   // constrain the timestep.
   real_t acq_time = model_next_acq_time(model);
   real_t acq_dt = acq_time - model->time;
-  if (acq_dt < model->max_dt)
+  if (acq_dt < dt)
   {
     dt = acq_dt;
     sprintf(reason, "Requested acquisition time: %g", acq_time);
