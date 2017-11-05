@@ -319,7 +319,7 @@ static int m_run(lua_State* L)
     return luaL_error(L, "t2 must be greater than or equal to t1.");
 
   lua_getfield(L, 2, "max_steps");
-  if (!lua_isnumber(L, -1))
+  if (!lua_isinteger(L, -1))
     return luaL_error(L, "max_steps must be a number of steps.");
   int max_steps = (int)(lua_tointeger(L, -1));
 
@@ -347,7 +347,7 @@ static int m_run(lua_State* L)
     return luaL_error(L, "plot_every must be a simulation time interval.");
 
   lua_getfield(L, 2, "save_every");
-  if (lua_isnumber(L, -1))
+  if (lua_isinteger(L, -1))
   {
     int save = (int)lua_tointeger(L, -1);
     if (save <= 0)
@@ -359,7 +359,7 @@ static int m_run(lua_State* L)
 
   int load_step = -1;
   lua_getfield(L, 2, "load_step");
-  if (lua_isnumber(L, -1))
+  if (lua_isinteger(L, -1))
   {
     load_step = (int)lua_tointeger(L, -1);
     if (load_step < 0)
