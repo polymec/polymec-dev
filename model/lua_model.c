@@ -499,21 +499,72 @@ static int lua_push_probe_data(lua_State* L, probe_data_t* data)
 
 static int m_data(lua_State* L)
 {
+  int num_args = lua_gettop(L);
   model_t* m = lua_to_model(L, 1);
-  int pos = 0;
-  char* quantity;
-  probe_data_array_t* array;
-  lua_newtable(L);
-  while (model_next_probe_data(m, &pos, &quantity, &array))
+  if (num_args == 1) // allll the data.
   {
+    int pos = 0;
+    char* quantity;
+    probe_data_array_t* array;
     lua_newtable(L);
-    for (size_t i = 0; i < array->size; ++i)
+    while (model_next_probe_data(m, &pos, &quantity, &array))
     {
-      lua_push_real(L, array->data[i]->time);
-      lua_push_probe_data(L, array->data[i]);
-      lua_settable(L, -3);
+      // We return a table of tables, each with two fields: times and values.
+      lua_newtable(L);
+
+      // Times table.
+      lua_newtable(L);
+      for (size_t i = 1; i <= array->size; ++i)
+      {
+        lua_push_real(L, array->data[i-1]->time);
+        lua_rawseti(L, -2, i);
+      }
+      lua_setfield(L, -2, "times");
+
+      // Values table.
+      lua_newtable(L);
+      for (size_t i = 1; i <= array->size; ++i)
+      {
+        lua_push_probe_data(L, array->data[i-1]);
+        lua_rawseti(L, -2, i);
+      }
+      lua_setfield(L, -2, "values");
+
+      lua_setfield(L, -2, quantity);
     }
-    lua_setfield(L, -2, quantity);
+  }
+  else
+  {
+    if (!lua_isstring(L, 2))
+      luaL_error(L, "Argument must be the name of probe-acquired data.");
+    const char* data_name = lua_tostring(L, 2);
+    probe_data_array_t* array = model_probe_data(m, data_name);
+    if (array == NULL)
+    {
+      lua_pushnil(L);
+      return 0;
+    }
+
+    // We return a table with two fields: times and values.
+    lua_newtable(L);
+
+    // Times table.
+    lua_newtable(L);
+    for (size_t i = 1; i <= array->size; ++i)
+    {
+      lua_push_real(L, array->data[i-1]->time);
+      lua_rawseti(L, -2, i);
+    }
+    lua_setfield(L, -2, "times");
+
+    // Values table.
+    lua_newtable(L);
+    for (size_t i = 1; i <= array->size; ++i)
+    {
+      lua_push_probe_data(L, array->data[i-1]);
+      lua_rawseti(L, -2, i);
+    }
+    lua_setfield(L, -2, "values");
   }
   return 1;
 }
@@ -547,7 +598,7 @@ static lua_class_method model_methods[] = {
   {"advance", m_advance, "model:advance(max_dt) -> Advances one step, returning the actual timestep taken."},
   {"run", m_run, "model:run{t1 = T1, t2 = T2, max_steps = N, prefix = PREFIX, directory = DIR, plot_every = PLOT_EVERY, save_every = SAVE_EVERY, load_step = LOAD_STEP, min_dt = MIN_DT, max_dt = MAX_DT} -> Runs the model from T1 to T2 or for MAX_STEPS."},
   {"add_probe", m_add_probe, "model:add_probe(probe, times) -> Adds a probe that acquires data at the given list of times."},
-  {"data", m_data, "model:data() -> Returns a table of acquired simulation (probe) data."},
+  {"data", m_data, "model:data(data_name) -> Returns a table of acquired probe data, or a table of all data if no name is given."},
   {"step", m_step, "model:step() -> Returns the current simulation step."},
   {"time", m_time, "model:time() -> Returns the current simulation time."},
   {"__tostring", m_tostring, NULL},
@@ -727,6 +778,20 @@ static lua_module_function probe_funcs[] = {
   {NULL, NULL, NULL}
 };
 
+static int p_name(lua_State* L)
+{
+  probe_t* p = lua_to_probe(L, 1);
+  lua_pushfstring(L, probe_name(p));
+  return 1;
+}
+
+static int p_data_name(lua_State* L)
+{
+  probe_t* p = lua_to_probe(L, 1);
+  lua_pushfstring(L, probe_data_name(p));
+  return 1;
+}
+
 static int p_acquire(lua_State* L)
 {
   int num_args = lua_gettop(L);
@@ -758,6 +823,8 @@ static int p_tostring(lua_State* L)
 
 static lua_class_method probe_methods[] = {
   {"acquire", p_acquire, "probe:acquire(t) -> Acquires and returns probe data at time t."},
+  {"name", p_name, "probe:name() -> Returns the name of the probe."},
+  {"data_name", p_data_name, "probe:data_name() -> Returns the name of the data acquired by the probe."},
   {"__tostring", p_tostring, NULL},
   {NULL, NULL, NULL}
 };
