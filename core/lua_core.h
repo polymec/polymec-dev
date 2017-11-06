@@ -14,6 +14,7 @@
 #include "core/sp_func.h"
 #include "core/st_func.h"
 #include "core/point_cloud.h"
+#include "core/rng.h"
 
 // This file contains functions for manipulating basic data types in the 
 // Lua interpreter. We attempt to expose these data types in a seamless 
@@ -207,6 +208,17 @@ bool lua_is_point_cloud(lua_State* L, int index);
 // Returns the point cloud at the given index on L's stack, or NULL 
 // if the item there is not a point cloud.
 point_cloud_t* lua_to_point_cloud(lua_State* L, int index);
+
+// Pushes a random number generator r onto L's stack.
+void lua_push_rng(lua_State* L, rng_t* r);
+
+// Returns true if the item at the given index on L's stack is a random
+// number generator, false if not.
+bool lua_is_rng(lua_State* L, int index);
+
+// Returns the point cloud at the given index on L's stack, or NULL 
+// if the item there is not a random number generator.
+rng_t* lua_to_rng(lua_State* L, int index);
 
 #endif
 

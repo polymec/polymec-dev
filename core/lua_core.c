@@ -1130,20 +1130,22 @@ static int bb_new(lua_State* L)
   return 1;
 }
 
+static lua_module_function bbox_funcs[] = {
+  {"new", bb_new, "bbox.new{x1 = X1, x2 = X2, y1 = Y1, y2 = Y2, z1 = Z1, z2 = Z2} -> new bounding box."},
+  {NULL, NULL, NULL}
+};
+
 static int bb_contains(lua_State* L)
 {
   bbox_t* b = lua_to_bbox(L, 1);
+  if (b == NULL)
+    return luaL_error(L, "Method must be invoked with a bbox.");
   point_t* p = lua_to_point(L, 2);
   if (p == NULL)
     return luaL_error(L, "Argument must be a point.");
   lua_pushboolean(L, bbox_contains(b, p));
   return 1;
 }
-
-static lua_module_function bbox_funcs[] = {
-  {"new", bb_new, "bbox.new{x1 = X1, x2 = X2, y1 = Y1, y2 = Y2, z1 = Z1, z2 = Z2} -> new bounding box."},
-  {NULL, NULL, NULL}
-};
 
 static int bb_tostring(lua_State* L)
 {
@@ -1183,6 +1185,8 @@ static lua_module_function sp_funcs[] = {
 static int sp_rename(lua_State* L)
 {
   sp_func_t* f = lua_to_sp_func(L, 1);
+  if (f == NULL)
+    return luaL_error(L, "Method must be invoked with an sp_func.");
   if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument must be a string.");
   sp_func_rename(f, lua_tostring(L, 2));
@@ -1275,6 +1279,8 @@ static lua_module_function st_funcs[] = {
 static int st_rename(lua_State* L)
 {
   st_func_t* f = lua_to_st_func(L, 1);
+  if (f == NULL)
+    return luaL_error(L, "Method must be invoked with an st_func.");
   if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument must be a string.");
   st_func_rename(f, lua_tostring(L, 2));
@@ -1284,6 +1290,8 @@ static int st_rename(lua_State* L)
 static int st_freeze(lua_State* L)
 {
   st_func_t* f = lua_to_st_func(L, 1);
+  if (f == NULL)
+    return luaL_error(L, "Method must be invoked with an st_func.");
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Argument must be a time.");
   real_t t = lua_to_real(L, 3);
@@ -1358,6 +1366,8 @@ static lua_module_function tagger_funcs[] = {
 static int t_create_tag(lua_State* L)
 {
   tagger_t* t = lua_to_tagger(L, 1);
+  if (t == NULL)
+    return luaL_error(L, "Method must be invoked with a tagger.");
   if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument 1 must be a string.");
   if (!lua_istable(L, 3) && !lua_is_array(L, 3, LUA_ARRAY_INT))
@@ -1405,6 +1415,8 @@ static int t_create_tag(lua_State* L)
 static int t_tag(lua_State* L)
 {
   tagger_t* t = lua_to_tagger(L, 1);
+  if (t == NULL)
+    return luaL_error(L, "Method must be invoked with a tagger.");
   if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument must be a string.");
   size_t size;
@@ -1422,6 +1434,8 @@ static int t_tag(lua_State* L)
 static int t_has_tag(lua_State* L)
 {
   tagger_t* t = lua_to_tagger(L, 1);
+  if (t == NULL)
+    return luaL_error(L, "Method must be invoked with a tagger.");
   if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument must be a string.");
   lua_pushboolean(L, tagger_has_tag(t, lua_tostring(L, 2)));
@@ -1563,6 +1577,140 @@ static lua_record_metamethod pc_mm[] = {
   {"__len", pc_num_points},
   {"__tostring", pc_tostring},
   {NULL, NULL}
+};
+
+#ifdef _BSD_SOURCE
+static int posix_rn(lua_State* L)
+{
+  if (!lua_isinteger(L, 1)
+    luaL_error(L, "Argument must be a number of bytes.");
+  lua_Integer size = lua_tointeger(L, 1);
+  if (size <= 0)
+    luaL_error(L, "Argument must be positive.");
+  lua_push_rng(L, posix_rng_new((size_t)size));
+  return 1;
+}
+#endif
+
+static int rand_rn(lua_State* L)
+{
+  lua_push_rng(L, rand_rng_new());
+  return 1;
+}
+
+static int host_rn(lua_State* L)
+{
+  lua_push_rng(L, host_rng_new());
+  return 1;
+}
+
+static lua_module_function rng_funcs[] = {
+#ifdef _BSD_SOURCE
+  {"posix", posix_rn, "rng.posix(size) -> A POSIX (random()-based) random number generator with the given state size (in bytes)."},
+#endif
+  {"rand", rand_rn, "A rand()-based random number generator."},
+  {"host", host_rn, "The best basic random number generator available."},
+  {NULL, NULL, NULL}
+};
+
+static int rn_name(lua_State* L)
+{
+  rng_t* r = lua_to_rng(L, 1);
+  if (r == NULL)
+    luaL_error(L, "Method must be invoked with an rng.");
+  lua_pushstring(L, rng_name(r));
+  return 1;
+}
+
+static int rn_set_seed(lua_State* L)
+{
+  rng_t* r = lua_to_rng(L, 1);
+  if (r == NULL)
+    luaL_error(L, "Method must be invoked with an rng.");
+  if (!lua_isinteger(L, 2))
+    luaL_error(L, "Argument must be an unsigned 32-bit integer.");
+  lua_Integer seed = lua_tointeger(L, 2);
+  if (seed < 0)
+    luaL_error(L, "Seed must be positive.");
+  rng_set_seed(r, (uint32_t)seed);
+  return 0;
+}
+
+static int rn_min(lua_State* L)
+{
+  rng_t* r = lua_to_rng(L, 1);
+  if (r == NULL)
+    luaL_error(L, "Method must be invoked with an rng.");
+  lua_pushinteger(L, (lua_Integer)(rng_min(r)));
+  return 1;
+}
+
+static int rn_max(lua_State* L)
+{
+  rng_t* r = lua_to_rng(L, 1);
+  if (r == NULL)
+    luaL_error(L, "Method must be invoked with an rng.");
+  lua_pushinteger(L, (lua_Integer)(rng_max(r)));
+  return 1;
+}
+
+static int rn_get(lua_State* L)
+{
+  rng_t* r = lua_to_rng(L, 1);
+  if (r == NULL)
+    luaL_error(L, "Method must be invoked with an rng.");
+  lua_pushinteger(L, (lua_Integer)(rng_get(r)));
+  return 1;
+}
+
+static int rn_uniform(lua_State* L)
+{
+  rng_t* r = lua_to_rng(L, 1);
+  if (r == NULL)
+    luaL_error(L, "Method must be invoked with an rng.");
+  lua_push_real(L, rng_uniform(r));
+  return 1;
+}
+
+static int rn_uniform_positive(lua_State* L)
+{
+  rng_t* r = lua_to_rng(L, 1);
+  if (r == NULL)
+    luaL_error(L, "Method must be invoked with an rng.");
+  lua_push_real(L, rng_uniform_positive(r));
+  return 1;
+}
+
+static int rn_uniform_int(lua_State* L)
+{
+  rng_t* r = lua_to_rng(L, 1);
+  if (!lua_isinteger(L, 2))
+    luaL_error(L, "Argument must be an unsigned 32-bit integer.");
+  lua_Integer n = lua_tointeger(L, 2);
+  if (n < 0)
+    luaL_error(L, "n must be positive.");
+  lua_pushinteger(L, (int)(rng_uniform_int(r, (uint32_t)n)));
+  return 1;
+}
+
+static int rn_tostring(lua_State* L)
+{
+  rng_t* rng = lua_to_rng(L, 1);
+  lua_pushfstring(L, "rng (%s)", rng_name(rng));
+  return 1;
+}
+
+static lua_class_method rng_methods[] = {
+  {"name", rn_name, "rng:name() -> Returns the name of the random number generator."},
+  {"set_seed", rn_set_seed, "rng:set_seed(seed) -> Sets the seed for the random number generator."},
+  {"min", rn_min, "rng:min() -> Returns the minimum random integer that can be generated by this generator."},
+  {"max", rn_max, "rng:max() -> Returns the minimum random integer that can be generated by this generator."},
+  {"get", rn_get, "rng:get() -> Generates and returns a random integer."},
+  {"uniform", rn_uniform, "rng:uniform() -> Generates and returns a random floating point number in [0,1]."},
+  {"uniform_positive", rn_uniform_positive, "rng:uniform_positive() -> Generates and returns a positive random floating point number in (0,1)."},
+  {"uniform_int", rn_uniform_int, "rng:uniform_int(n) -> Generates and returns a random integer in the range [0, n-1]."},
+  {"__tostring", rn_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static void lua_register_options(lua_State* L)
@@ -1819,6 +1967,7 @@ int lua_register_core_modules(lua_State* L)
   lua_register_class(L, "st_func", "A time-dependent function in 3D space.", st_funcs, st_methods);
   lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, tagger_methods);
   lua_register_record_type(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_mm);
+  lua_register_class(L, "rng", "A random number generator.", rng_funcs, rng_methods);
 
   // Register the options table.
   lua_register_options(L);
@@ -2011,5 +2160,20 @@ bool lua_is_point_cloud(lua_State* L, int index)
 point_cloud_t* lua_to_point_cloud(lua_State* L, int index)
 {
   return (point_cloud_t*)lua_to_record(L, index, "point_cloud");
+}
+
+void lua_push_rng(lua_State* L, rng_t* r)
+{
+  lua_push_object(L, "rng", r, NULL);
+}
+
+bool lua_is_rng(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "rng");
+}
+
+rng_t* lua_to_rng(lua_State* L, int index)
+{
+  return (rng_t*)lua_to_object(L, index, "rng");
 }
 

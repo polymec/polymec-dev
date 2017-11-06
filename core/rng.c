@@ -140,7 +140,7 @@ rng_t* posix_rng_new(size_t state_size)
 
 // ARC4 random generator.
 
-static const uint32_t arc4_max = (uint32_t)(-1);
+static const uint32_t arc4_max = RAND_MAX;
 
 static uint32_t arc4_get(void* context)
 {
