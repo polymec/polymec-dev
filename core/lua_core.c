@@ -173,6 +173,23 @@ static int p_new(lua_State* L)
   return 1;
 }
 
+static int p_random(lua_State* L)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || !lua_is_rng(L, 1) || !lua_is_bbox(L, 2))
+  {
+    return luaL_error(L, "Arguments must be a rng and a bbox.");
+  }
+
+  rng_t* rng = lua_to_rng(L, 1);
+  bbox_t* box = lua_to_bbox(L, 2);
+  point_t* point = point_new(0.0, 0.0, 0.0);
+  point_randomize(point, rng, box);
+  lua_push_point(L, point);
+  return 1;
+}
+
 static int p_distance(lua_State* L)
 {
   point_t* p = lua_to_point(L, 1);
@@ -185,6 +202,7 @@ static int p_distance(lua_State* L)
 
 static lua_module_function point_funcs[] = {
   {"new", p_new, "point.new(x, y, z) -> new 3D point."},
+  {"random", p_random, "point.random(rng, bbox) -> new point with random coordinates within the given bounding box."},
   {"distance", p_distance, "point.distance(x, y) -> |x - y|."},
   {NULL, NULL, NULL}
 };
@@ -293,6 +311,23 @@ static int v_new(lua_State* L)
   return 1;
 }
 
+static int v_random(lua_State* L)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || !lua_is_rng(L, 1) || !lua_isnumber(L, 2))
+    return luaL_error(L, "Arguments must be a rng and a (positive) magnitude.");
+
+  rng_t* rng = lua_to_rng(L, 1);
+  real_t mag = lua_to_real(L, 2);
+  if (mag <= 0.0)
+    return luaL_error(L, "Argument 2 must be a positive number.");
+  vector_t* v = vector_new(0.0, 0.0, 0.0);
+  vector_randomize(v, rng, mag);
+  lua_push_vector(L, v);
+  return 1;
+}
+
 static int v_dot(lua_State* L)
 {
   vector_t* v = lua_to_vector(L, 1);
@@ -305,6 +340,7 @@ static int v_dot(lua_State* L)
 
 static lua_module_function vector_funcs[] = {
   {"new", v_new, "vector.new(vx, vy, vz) -> new 3D vector."},
+  {"random", v_random, "vector.random(rng, mag) -> new 3D vector with random components having the given magnitude."},
   {"dot", v_dot, "vector.dot(v1, v2) -> dot product of v1 with v2."},
   {NULL, NULL, NULL}
 };
