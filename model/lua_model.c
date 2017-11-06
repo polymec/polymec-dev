@@ -255,6 +255,8 @@ static lua_module_function model_funcs[] = {
 static int m_init(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Argument must be a time at which to initialize the model.");
   real_t t0 = (int)(lua_to_real(L, 2));
@@ -265,6 +267,8 @@ static int m_init(lua_State* L)
 static int m_load(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   if (!lua_isinteger(L, 2))
     return luaL_error(L, "Argument must be a step to load.");
   int step = (int)(lua_tointeger(L, 2));
@@ -275,6 +279,8 @@ static int m_load(lua_State* L)
 static int m_save(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   model_save(m);
   return 0;
 }
@@ -282,6 +288,8 @@ static int m_save(lua_State* L)
 static int m_plot(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   model_plot(m);
   return 0;
 }
@@ -289,6 +297,8 @@ static int m_plot(lua_State* L)
 static int m_advance(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   if (!lua_isnumber(L, 2))
     return luaL_error(L, "Argument must be a maximum time step size.");
   real_t dt_max = lua_to_real(L, 2);
@@ -300,6 +310,8 @@ static int m_advance(lua_State* L)
 static int m_run(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   if (!lua_istable(L, 2))
     return luaL_error(L, "Argument must be a table with entries t1, t2, and max_steps.");
 
@@ -407,6 +419,8 @@ static int m_run(lua_State* L)
 static int m_add_probe(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   if (!lua_is_probe(L, 2))
     return luaL_error(L, "Argument 1 must be a probe.");
   if (!lua_istable(L, 3))
@@ -501,6 +515,8 @@ static int m_data(lua_State* L)
 {
   int num_args = lua_gettop(L);
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   if (num_args == 1) // allll the data.
   {
     int pos = 0;
@@ -572,6 +588,8 @@ static int m_data(lua_State* L)
 static int m_step(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   lua_pushinteger(L, model_step(m));
   return 1;
 }
@@ -579,6 +597,8 @@ static int m_step(lua_State* L)
 static int m_time(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   lua_push_real(L, model_time(m));
   return 1;
 }
@@ -586,6 +606,8 @@ static int m_time(lua_State* L)
 static int m_tostring(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
   lua_pushfstring(L, "model '%s'", model_name(m));
   return 1;
 }
@@ -781,6 +803,8 @@ static lua_module_function probe_funcs[] = {
 static int p_name(lua_State* L)
 {
   probe_t* p = lua_to_probe(L, 1);
+  if (p == NULL)
+    return luaL_error(L, "Method must be invoked with a probe.");
   lua_pushfstring(L, probe_name(p));
   return 1;
 }
@@ -788,18 +812,22 @@ static int p_name(lua_State* L)
 static int p_data_name(lua_State* L)
 {
   probe_t* p = lua_to_probe(L, 1);
+  if (p == NULL)
+    return luaL_error(L, "Method must be invoked with a probe.");
   lua_pushfstring(L, probe_data_name(p));
   return 1;
 }
 
 static int p_acquire(lua_State* L)
 {
+  probe_t* p = lua_to_probe(L, 1);
+  if (p == NULL)
+    return luaL_error(L, "Method must be invoked with a probe.");
   int num_args = lua_gettop(L);
   if ((num_args != 2) || !lua_isnumber(L, 2))
     return luaL_error(L, "Argument must be a time.");
 
   // Do the acquisition.
-  probe_t* p = lua_to_probe(L, 1);
   ASSERT(p != NULL);
   real_t t = lua_to_real(L, 2);
   probe_data_t* data = probe_acquire(p, t);
@@ -817,6 +845,8 @@ static int p_acquire(lua_State* L)
 static int p_tostring(lua_State* L)
 {
   probe_t* p = lua_to_probe(L, 1);
+  if (p == NULL)
+    return luaL_error(L, "Method must be invoked with a probe.");
   lua_pushfstring(L, "probe '%s' (measures %s)", probe_name(p), probe_data_name(p));
   return 1;
 }

@@ -89,18 +89,20 @@ static int silo_open(lua_State* L)
   return 1;
 }
 
-static int silo_close(lua_State* L)
-{
-  silo_file_t* s = lua_to_silo_file(L, 1);
-  silo_file_close(s);
-  return 0;
-}
-
 static lua_module_function silo_funcs[] = {
   {"new", silo_new, "silo_file.new{prefix = PREFIX, dir = DIR, num_files = N, step = STEP, time = TIME} -> Opens a SILO file for writing."},
   {"open", silo_open, "silo_file.open{prefix = PREFIX, dir = DIR, num_files = N, step = STEP} -> Opens a SILO file for reading."},
   {NULL, NULL, NULL}
 };
+
+static int silo_close(lua_State* L)
+{
+  silo_file_t* s = lua_to_silo_file(L, 1);
+  if (s == NULL)
+    luaL_error(L, "Method must be invoked with a silo_file.");
+  silo_file_close(s);
+  return 0;
+}
 
 static lua_class_method silo_methods[] = {
   {"close", silo_close, "file:close() -> Closes the SILO file."},

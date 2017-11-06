@@ -166,6 +166,8 @@ static lua_module_function cm_funcs[] = {
 static int cm_jacobian(lua_State* L)
 {
   coord_mapping_t* X = lua_to_coord_mapping(L, 1);
+  if (X == NULL)
+    luaL_error(L, "Method must be invoked with a coord_mapping.");
   if (!lua_is_point(L, 2))
     luaL_error(L, "Argument must be a point.");
 
@@ -181,6 +183,8 @@ static int cm_jacobian(lua_State* L)
 static int cm_metric(lua_State* L)
 {
   coord_mapping_t* X = lua_to_coord_mapping(L, 1);
+  if (X == NULL)
+    luaL_error(L, "Method must be invoked with a coord_mapping.");
   if (!lua_is_point(L, 2))
     luaL_error(L, "Argument must be a point.");
 
@@ -196,6 +200,8 @@ static int cm_metric(lua_State* L)
 static int cm_inverse(lua_State* L)
 {
   coord_mapping_t* X = lua_to_coord_mapping(L, 1);
+  if (X == NULL)
+    luaL_error(L, "Method must be invoked with a coord_mapping.");
   coord_mapping_t* Xinv = coord_mapping_inverse(X);
   if (Xinv != NULL)
     lua_push_coord_mapping(L, Xinv);
@@ -207,6 +213,8 @@ static int cm_inverse(lua_State* L)
 static int cm_call(lua_State* L)
 {
   coord_mapping_t* X = lua_to_coord_mapping(L, 1);
+  if (X == NULL)
+    luaL_error(L, "Method must be invoked with a coord_mapping.");
   int num_args = lua_gettop(L);
   if (!((num_args == 2) && lua_is_point(L, 2)) ||
        ((num_args == 3) && lua_is_point(L, 2) && lua_is_vector(L, 3)))
@@ -234,6 +242,8 @@ static int cm_call(lua_State* L)
 static int cm_tostring(lua_State* L)
 {
   coord_mapping_t* X = lua_to_coord_mapping(L, 1);
+  if (X == NULL)
+    luaL_error(L, "Method must be invoked with a coord_mapping.");
   lua_pushfstring(L, "coord_mapping '%s'", coord_mapping_name(X));
   return 1;
 }
@@ -522,6 +532,8 @@ static lua_module_function sd_funcs[] = {
 static int sd_rename(lua_State* L)
 {
   sd_func_t* f = lua_to_sd_func(L, 1);
+  if (f == NULL)
+    luaL_error(L, "Method must be invoked with an sd_func.");
   if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument must be a string.");
   sd_func_rename(f, lua_tostring(L, 2));
@@ -531,6 +543,8 @@ static int sd_rename(lua_State* L)
 static int sd_grad(lua_State* L)
 {
   sd_func_t* f = lua_to_sd_func(L, 1);
+  if (f == NULL)
+    luaL_error(L, "Method must be invoked with an sd_func.");
   if (!lua_is_point(L, 2))
     return luaL_error(L, "Argument 1 must be a point.");
   point_t* x = lua_to_point(L, 2);
@@ -543,6 +557,8 @@ static int sd_grad(lua_State* L)
 static int sd_call(lua_State* L)
 {
   sd_func_t* f = lua_to_sd_func(L, 1);
+  if (f == NULL)
+    luaL_error(L, "Method must be invoked with an sd_func.");
   if (!lua_is_point(L, 2))
     return luaL_error(L, "Argument must be a point.");
   point_t* x = lua_to_point(L, 2);
@@ -553,6 +569,8 @@ static int sd_call(lua_State* L)
 static int sd_project(lua_State* L)
 {
   sd_func_t* f = lua_to_sd_func(L, 1);
+  if (f == NULL)
+    luaL_error(L, "Method must be invoked with an sd_func.");
   if (!lua_is_point(L, 2))
     return luaL_error(L, "Argument must be a point.");
   point_t* x = lua_to_point(L, 2);
@@ -565,6 +583,8 @@ static int sd_project(lua_State* L)
 static int sd_tostring(lua_State* L)
 {
   sd_func_t* f = lua_to_sd_func(L, 1);
+  if (f == NULL)
+    luaL_error(L, "Method must be invoked with an sd_func.");
   lua_pushfstring(L, "sd_func '%s'", sd_func_name(f));
   return 1;
 }
@@ -698,6 +718,8 @@ static lua_module_function sdt_funcs[] = {
 static int sdt_rename(lua_State* L)
 {
   sdt_func_t* f = lua_to_sdt_func(L, 1);
+  if (f == NULL)
+    luaL_error(L, "Method must be invoked with an sdt_func.");
   if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument must be a string.");
   sdt_func_rename(f, lua_tostring(L, 2));
@@ -707,6 +729,8 @@ static int sdt_rename(lua_State* L)
 static int sdt_grad(lua_State* L)
 {
   sdt_func_t* f = lua_to_sdt_func(L, 1);
+  if (f == NULL)
+    luaL_error(L, "Method must be invoked with an sdt_func.");
   if (!lua_is_point(L, 2))
     return luaL_error(L, "Argument 1 must be a point.");
   point_t* x = lua_to_point(L, 2);
@@ -722,6 +746,8 @@ static int sdt_grad(lua_State* L)
 static int sdt_call(lua_State* L)
 {
   sdt_func_t* f = lua_to_sdt_func(L, 1);
+  if (f == NULL)
+    luaL_error(L, "Method must be invoked with an sdt_func.");
   if (!lua_is_point(L, 2))
     return luaL_error(L, "Argument 1 must be a point.");
   point_t* x = lua_to_point(L, 2);
@@ -735,6 +761,8 @@ static int sdt_call(lua_State* L)
 static int sdt_project(lua_State* L)
 {
   sdt_func_t* f = lua_to_sdt_func(L, 1);
+  if (f == NULL)
+    luaL_error(L, "Method must be invoked with an sdt_func.");
   if (!lua_is_point(L, 2))
     return luaL_error(L, "Argument 1 must be a point.");
   if (!lua_isnumber(L, 3))
@@ -750,6 +778,8 @@ static int sdt_project(lua_State* L)
 static int sdt_tostring(lua_State* L)
 {
   sdt_func_t* f = lua_to_sdt_func(L, 1);
+  if (f == NULL)
+    luaL_error(L, "Method must be invoked with an sdt_func.");
   lua_pushfstring(L, "sdt_func '%s'", sdt_func_name(f));
   return 1;
 }
