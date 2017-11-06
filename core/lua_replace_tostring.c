@@ -46,6 +46,16 @@ static void append_boolean_value(lua_State* L,
   memcpy(&str->data[str->size-val_len], val_str, sizeof(char)*val_len);
 }
 
+static void append_string_key(lua_State* L, 
+                              int index,
+                              char_array_t* str)
+{
+  const char* val = lua_tostring(L, index);
+  size_t val_len = strlen(val);
+  char_array_resize(str, str->size + val_len);
+  memcpy(&str->data[str->size-val_len], val, sizeof(char)*val_len);
+}
+
 static void append_string_value(lua_State* L, 
                                 int index,
                                 char_array_t* str)
@@ -68,11 +78,8 @@ static bool has_tostring(lua_State* L,
   {
     lua_getfield(L, -1, "__tostring");
     if (lua_isfunction(L, -1))
-    {
       has_tostring_mm = true;
-      lua_pop(L, 1);
-    }
-    lua_pop(L, 1); // Pop the metatable.
+    lua_pop(L, 2);
   }
   return has_tostring_mm;
 }
@@ -157,6 +164,18 @@ static void append_table_value(lua_State* L,
   {
     ++num_items;
 
+    // If the key is a string and begins with two underscores, we 
+    // skip writing out this field.
+    if (lua_isstring(L, -2))
+    {
+      const char* key = lua_tostring(L, -2);
+      if (strstr(key, "__") == key)
+      {
+        lua_pop(L, 1); // Pop the value to fetch the next key.
+        continue;
+      }
+    }
+
     // Key is at index -2, value is at -1.
     int ind = 0;
 //printf("%s\n", lua_typename(L, lua_type(L, -2)));
@@ -182,7 +201,7 @@ static void append_table_value(lua_State* L,
       else if (lua_isboolean(L, -2))
         append_boolean_value(L, -2, str);
       else if (lua_isstring(L, -2))
-        append_string_value(L, -2, str);
+        append_string_key(L, -2, str);
       else if (lua_isfunction(L, -2))
         append_function_value(L, -2, str);
       else if (lua_islightuserdata(L, -2))
@@ -193,6 +212,12 @@ static void append_table_value(lua_State* L,
         append_userdata_value(L, -2, str);
       else if (lua_istable(L, -2)) // Table without metatable
         append_table_value(L, -2, str);
+      else
+      {
+        // We don't know what this is, so skip it.
+        lua_pop(L, 1); 
+        continue;
+      }
 
       char_array_append(str, ' ');
       char_array_append(str, '=');
