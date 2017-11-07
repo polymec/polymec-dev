@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/octree.h"
+#include "core/timer.h"
 
 // A bucket PR (point region) octree.
 
@@ -20,8 +21,8 @@ typedef struct octree_node_t octree_node_t;
 // Branch node.
 typedef struct 
 {
-  // Children.
-  octree_node_t* children[8];
+  int depth; // root node has depth 0, and its child branch has depth 1, etc.
+  octree_node_t* children[8]; 
 } octree_branch_node_t;
 
 // Leaf node.
@@ -43,11 +44,11 @@ struct octree_node_t
   };
 };
 
-
-static octree_node_t* branch_new()
+static octree_node_t* branch_new(int depth)
 {
   octree_node_t* node = polymec_malloc(sizeof(octree_node_t));
   node->type = OCTREE_BRANCH_NODE;
+  node->branch_node.depth = depth;
   memset(node->branch_node.children, 0, 8*sizeof(octree_node_t*));
   return node;
 }
@@ -130,6 +131,7 @@ void octree_free(octree_t* tree)
 
 void octree_insert(octree_t* tree, point_t* point, int index)
 {
+  START_FUNCTION_TIMER();
   if (tree->root == NULL) // Empty tree
   {
     octree_node_t* node = leaf_new(point, index);
@@ -147,11 +149,14 @@ void octree_insert(octree_t* tree, point_t* point, int index)
 
     // Does the given point already exist here?
     if (points_coincide(&root->leaf_node.point, point)) 
+    {
+      STOP_FUNCTION_TIMER();
       return;
+    }
 
     // We need to create a branch node here.
     octree_node_t* node = root;
-    tree->root = branch_new();
+    tree->root = branch_new(0);
     int slot = find_slot(&center, point);
     tree->root->branch_node.children[slot] = node;
   }
@@ -167,6 +172,7 @@ void octree_insert(octree_t* tree, point_t* point, int index)
   real_t ly = tree->bbox.y2 - tree->bbox.y1;
   real_t lz = tree->bbox.z2 - tree->bbox.z1;
   int slot = find_slot(&center, point);
+  int depth = 0;
   static real_t xf[] = {-0.25, -0.25, -0.25, -0.25, +0.25, +0.25, +0.25, +0.25};
   static real_t yf[] = {-0.25, -0.25, +0.25, +0.25, -0.25, -0.25, +0.25, +0.25};
   static real_t zf[] = {-0.25, +0.25, -0.25, +0.25, -0.25, +0.25, -0.25, +0.25};
@@ -181,6 +187,7 @@ void octree_insert(octree_t* tree, point_t* point, int index)
     center.z += zf[slot]*lz;
     lz *= 0.5;
     slot = find_slot(&center, point);
+    ++depth;
   }
   octree_node_t* leaf = node->branch_node.children[slot];
   if (leaf == NULL)
@@ -194,14 +201,17 @@ void octree_insert(octree_t* tree, point_t* point, int index)
   {
     // Is the point already in this node?
     if (points_coincide(&leaf->leaf_node.point, point)) 
+    {
+      STOP_FUNCTION_TIMER();
       return;
+    }
     else
     {
       // We have to make a new branch.
       int old_slot, new_slot; 
       do
       {
-        node->branch_node.children[slot] = branch_new();
+        node->branch_node.children[slot] = branch_new(depth);
         node = node->branch_node.children[slot];
         center.x += xf[slot]*lx;
         lx *= 0.5;
@@ -219,6 +229,7 @@ void octree_insert(octree_t* tree, point_t* point, int index)
       ++tree->num_points;
     }
   }
+  STOP_FUNCTION_TIMER();
 }
 
 void octree_delete(octree_t* tree, point_t* point, int index)
@@ -303,4 +314,53 @@ int_slist_t* octree_within_radius(octree_t* tree,
 #endif
 }
 
+static void octree_visit_pre(octree_node_t* node, 
+                             void* context,
+                             void (*visit_branch)(void* context, int depth),
+                             void (*visit_leaf)(void* context, int index, point_t* point))
+{
+  if (node != NULL)
+  {
+    if (node->type == OCTREE_BRANCH_NODE)
+    {
+      for (int slot = 0; slot < 8; ++slot)
+        octree_visit_pre(node->branch_node.children[slot], context, visit_branch, visit_leaf);
+      visit_branch(context, node->branch_node.depth);
+    }
+    else
+      visit_leaf(context, node->leaf_node.index, &(node->leaf_node.point));
+  }
+}
+
+static void octree_visit_post(octree_node_t* node, 
+                              void* context,
+                              void (*visit_branch)(void* context, int depth),
+                              void (*visit_leaf)(void* context, int index, point_t* point))
+{
+  if (node != NULL)
+  {
+    if (node->type == OCTREE_BRANCH_NODE)
+    {
+      visit_branch(context, node->branch_node.depth);
+      for (int slot = 0; slot < 8; ++slot)
+        octree_visit_post(node->branch_node.children[slot], context, visit_branch, visit_leaf);
+    }
+    else
+      visit_leaf(context, node->leaf_node.index, &(node->leaf_node.point));
+  }
+}
+
+void octree_visit(octree_t* tree, 
+                  octree_traversal_t order,
+                  void* context,
+                  void (*visit_branch)(void* context, int depth),
+                  void (*visit_leaf)(void* context, int index, point_t* point))
+{
+  START_FUNCTION_TIMER();
+  if (order == OCTREE_PRE_ORDER)
+    octree_visit_pre(tree->root, context, visit_branch, visit_leaf);
+  else // if (order == OCTREE_POST_ORDER)
+    octree_visit_post(tree->root, context, visit_branch, visit_leaf);
+  STOP_FUNCTION_TIMER();
+}
 

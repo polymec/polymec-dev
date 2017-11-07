@@ -17,6 +17,15 @@
 // class supports point removal).
 typedef struct octree_t octree_t;
 
+// This indicates an order in which to traverse an octree. Use with 
+// octree_visit. There's no "in-order" traversal because there's no 
+// unambiguous ordering of nodes in 3D space.
+typedef enum
+{
+  OCTREE_PRE_ORDER, // Visit children first, then visit node.
+  OCTREE_POST_ORDER // Visit node and then visit children.
+} octree_traversal_t;
+
 // Constructs an empty octree with the given bounding box.
 octree_t* octree_new(bbox_t* bounding_box);
 
@@ -46,6 +55,15 @@ int octree_nearest(octree_t* tree, point_t* point);
 int_slist_t* octree_within_radius(octree_t* tree, 
                                   point_t* point, 
                                   real_t radius);
+
+// Traverses the octree, recursively visiting the nodes in the order 
+// specified, and calling the appropriate visitor function for each 
+// branch or leaf node encountered.
+void octree_visit(octree_t* tree, 
+                  octree_traversal_t order,
+                  void* context,
+                  void (*visit_branch)(void* context, int depth),
+                  void (*visit_leaf)(void* context, int index, point_t* point));
 
 #endif
 
