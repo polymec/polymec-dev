@@ -72,7 +72,7 @@ real_t rng_uniform(rng_t* rng)
   if (rng->vtable.uniform != NULL)
     return rng->vtable.uniform(rng->context);
   else
-    return (real_t)(1.0 * rng_get(rng) / (rng->max + 1.0));
+    return (real_t)(1.0 * rng_get(rng) / rng->max);
 }
 
 real_t rng_uniform_positive(rng_t* rng)
@@ -105,7 +105,7 @@ uint32_t rng_uniform_int(rng_t* rng, uint32_t n)
 
 // POSIX random() generator.
 
-static const uint32_t posix_max = (uint32_t)(-1);
+static const uint32_t posix_max = UINT_MAX;
 
 static void posix_set_seed(void* context, uint32_t seed)
 {
@@ -140,7 +140,7 @@ rng_t* posix_rng_new(size_t state_size)
 
 // ARC4 random generator.
 
-static const uint32_t arc4_max = RAND_MAX;
+static const uint32_t arc4_max = UINT_MAX;
 
 static uint32_t arc4_get(void* context)
 {
@@ -162,7 +162,7 @@ static rng_t* arc4_rng_new()
 
 // Standard C rand() generator -- always available.
 
-static const uint32_t rand_max = (uint32_t)(-1);
+static const uint32_t rand_max = RAND_MAX;
 
 static void rand_set_seed(void* context, uint32_t seed)
 {
