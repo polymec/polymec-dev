@@ -581,10 +581,11 @@ static int lua_open_record(lua_State* L)
     }
     num_mm -= num_index_mm;
 
+    // Add the metamethods, skipping over __index if we have it.
     luaL_Reg mm[num_mm+4];
     for (int i = 0; i < num_mm + num_index_mm; ++i)
     {
-      int j = (i < index_mm) ? i : i-1;
+      int j = ((index_mm >= 0) && (i >= index_mm)) ? i-1 : i;
       mm[j].name = metamethods[i].name;
       mm[j].func = metamethods[i].metamethod;
     }

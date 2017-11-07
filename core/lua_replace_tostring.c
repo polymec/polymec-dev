@@ -73,7 +73,7 @@ static bool has_tostring(lua_State* L,
 {
   // Does the data type have a metatable with a __tostring metamethod?
   bool has_tostring_mm = false;
-  bool has_metatable = (lua_getmetatable(L, index) != 0);
+  bool has_metatable = (lua_getmetatable(L, index) == 1);
   if (has_metatable)
   {
     lua_getfield(L, -1, "__tostring");
@@ -166,7 +166,7 @@ static void append_table_value(lua_State* L,
 
     // If the key is a string and begins with two underscores, we 
     // skip writing out this field.
-    if (lua_isstring(L, -2))
+    if (!lua_isinteger(L, -2) && lua_isstring(L, -2))
     {
       const char* key = lua_tostring(L, -2);
       if (strstr(key, "__") == key)
@@ -178,7 +178,6 @@ static void append_table_value(lua_State* L,
 
     // Key is at index -2, value is at -1.
     int ind = 0;
-//printf("%s\n", lua_typename(L, lua_type(L, -2)));
     if (lua_isinteger(L, -2))
       ind = (int)(lua_tointeger(L, -2));
 
