@@ -232,11 +232,6 @@ void octree_insert(octree_t* tree, point_t* point, int index)
   STOP_FUNCTION_TIMER();
 }
 
-void octree_delete(octree_t* tree, point_t* point, int index)
-{
-  // FIXME
-}
-
 int octree_size(octree_t* tree)
 {
   return tree->num_points;
@@ -245,13 +240,9 @@ int octree_size(octree_t* tree)
 static void node_clear(octree_node_t* node)
 {
   if (node == NULL) 
-  {
     return;
-  }
   else if (node->type == OCTREE_LEAF_NODE)
-  {
     polymec_free(node);
-  }
   else 
   {
     ASSERT(node->type == OCTREE_BRANCH_NODE);
@@ -267,51 +258,38 @@ void octree_clear(octree_t* tree)
   tree->num_points = 0;
 }
 
-static octree_node_t* find_leaf(octree_node_t* root, 
-                                bbox_t* bounding_box, 
-                                point_t* x)
+typedef struct
 {
-  if (!bbox_contains(bounding_box, x)) 
-    return NULL;
+  point_t x;
+  int index;
+  real_t distance;
+} nearest_t;
 
-  return NULL;
+static void nearest_visit_leaf(void* context, int index, point_t* point)
+{
+  nearest_t* n = context;
+  real_t D = point_distance(&(n->x), point);
+  if (D < n->distance)
+  {
+    n->index = index;
+    n->distance = D;
+  }
 }
 
 int octree_nearest(octree_t* tree, point_t* point)
 {
   if (tree->root == NULL)
     return -1;
-
-  octree_node_t* leaf = find_leaf(tree->root, &tree->bbox, point);
-  if (leaf == 0) 
-    return -1;
-  else return leaf->leaf_node.index;
-}
-
-int_slist_t* octree_within_radius(octree_t* tree, 
-                                  point_t* point, 
-                                  real_t radius)
-{
-  return NULL;
-#if 0
-  if (tree->root == NULL)
-    return NULL;
-
-  // Start with the root.
-  octree_node_t* node = tree->root;
-  real_t pos[3];
-  pos[0] = point->x, pos[1] = point->y, pos[2] = point->z;
-  real_t r2 = square_dist(pos, node->pos);
-  octree_rect_t rect;
-  int_slist_t* results = int_slist_new();
-  rect.min[0] = tree->rect->min[0]; rect.max[0] = tree->rect->max[0];
-  rect.min[1] = tree->rect->min[1]; rect.max[1] = tree->rect->max[1];
-  rect.min[2] = tree->rect->min[2]; rect.max[2] = tree->rect->max[2];
-  
-  // Search recursively for the closest node.
-  find_within_radius(tree->root, pos, radius, &rect, results);
-  return results;
-#endif
+  else if (tree->root->type == OCTREE_LEAF_NODE)
+    return tree->root->leaf_node.index; 
+  else
+  {
+    nearest_t* n = polymec_malloc(sizeof(nearest_t));
+    octree_visit(tree, OCTREE_PRE_ORDER, n, NULL, nearest_visit_leaf);
+    int index = n->index;
+    polymec_free(n);
+    return index;
+  }
 }
 
 static void octree_visit_pre(octree_node_t* node, 
@@ -325,10 +303,14 @@ static void octree_visit_pre(octree_node_t* node,
     {
       for (int slot = 0; slot < 8; ++slot)
         octree_visit_pre(node->branch_node.children[slot], context, visit_branch, visit_leaf);
-      visit_branch(context, node->branch_node.depth);
+      if (visit_branch != NULL)
+        visit_branch(context, node->branch_node.depth);
     }
     else
-      visit_leaf(context, node->leaf_node.index, &(node->leaf_node.point));
+    {
+      if (visit_leaf != NULL)
+        visit_leaf(context, node->leaf_node.index, &(node->leaf_node.point));
+    }
   }
 }
 
@@ -341,12 +323,16 @@ static void octree_visit_post(octree_node_t* node,
   {
     if (node->type == OCTREE_BRANCH_NODE)
     {
-      visit_branch(context, node->branch_node.depth);
+      if (visit_branch != NULL)
+        visit_branch(context, node->branch_node.depth);
       for (int slot = 0; slot < 8; ++slot)
         octree_visit_post(node->branch_node.children[slot], context, visit_branch, visit_leaf);
     }
     else
-      visit_leaf(context, node->leaf_node.index, &(node->leaf_node.point));
+    {
+      if (visit_leaf != NULL)
+        visit_leaf(context, node->leaf_node.index, &(node->leaf_node.point));
+    }
   }
 }
 
