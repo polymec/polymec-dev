@@ -13,7 +13,7 @@
 #include "cmocka.h"
 #include "core/octree.h"
 
-static void test_construct(void** state) 
+static void test_insert(void** state) 
 { 
   // Create a tree containing 100 random points.
   rng_t* rng = host_rng_new();
@@ -28,6 +28,30 @@ static void test_construct(void** state)
   }
 
   assert_int_equal(100, octree_size(tree));
+  octree_free(tree);
+}
+
+static void test_delete(void** state) 
+{ 
+  // Create a tree containing 100 random points.
+  rng_t* rng = host_rng_new();
+  int N = 100;
+  bbox_t bounding_box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  octree_t* tree = octree_new(&bounding_box);
+  point_t points[N];
+  for (int i = 0; i < N; ++i)
+  {
+    point_randomize(&points[i], rng, &bounding_box);
+    octree_insert(tree, &points[i], i);
+  }
+
+  // Now delete each of them individually.
+  for (int i = 0; i < N; ++i) 
+  {
+    octree_delete(tree, i);
+    assert_int_equal(N-i-1, octree_size(tree));
+  }
+
   octree_free(tree);
 }
 
@@ -80,7 +104,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_construct),
+    cmocka_unit_test(test_insert),
+    cmocka_unit_test(test_delete),
     cmocka_unit_test(test_find_nearest)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

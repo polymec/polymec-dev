@@ -39,6 +39,10 @@ void octree_insert(octree_t* tree, point_t* point, int index);
 // Clears the tree, leaving it empty.
 void octree_clear(octree_t* tree);
 
+// Deletes the point with the given index from the tree. If the tree does
+// not contain a point with this index, this function has no effect. 
+void octree_delete(octree_t* tree, int index);
+
 // Returns the index of the point in the tree that is closest to 
 // the given point, or -1 if the tree is empty.
 int octree_nearest(octree_t* tree, point_t* point);
