@@ -20,8 +20,8 @@ typedef struct octree_t octree_t;
 // unambiguous ordering of nodes in 3D space.
 typedef enum
 {
-  OCTREE_PRE_ORDER, // Visit children first, then visit node.
-  OCTREE_POST_ORDER // Visit node and then visit children.
+  OCTREE_PRE, // Visit children first, then visit node.
+  OCTREE_POST // Visit node and then visit children.
 } octree_traversal_t;
 
 // Constructs an empty octree with the given bounding box.
@@ -39,6 +39,16 @@ void octree_insert(octree_t* tree, point_t* point, int index);
 // Clears the tree, leaving it empty.
 void octree_clear(octree_t* tree);
 
+// Allocates, zeroes, and returns storage for data defined on the leaf nodes 
+// in the octree. Data_size is the number of bytes in each leaf datum. The 
+// array returned by this function must be freed with polymec_free.
+void* octree_new_leaf_array(octree_t* tree, size_t data_size);
+
+// Allocates, zeroes, and returns storage for data defined on the branch nodes 
+// in the octree. Data_size is the number of bytes in each branch datum. The 
+// array returned by this function must be freed with polymec_free.
+void* octree_new_branch_array(octree_t* tree, size_t data_size);
+
 // Deletes the point with the given index from the tree. If the tree does
 // not contain a point with this index, this function has no effect. 
 void octree_delete(octree_t* tree, int index);
@@ -53,8 +63,8 @@ int octree_nearest(octree_t* tree, point_t* point);
 void octree_visit(octree_t* tree, 
                   octree_traversal_t order,
                   void* context,
-                  void (*visit_branch)(void* context, int depth),
-                  void (*visit_leaf)(void* context, int index, point_t* point));
+                  void (*visit_branch)(void* context, int branch_index, int parent_branch_index),
+                  void (*visit_leaf)(void* context, int leaf_index, point_t* point, int parent_branch_index));
 
 #endif
 
