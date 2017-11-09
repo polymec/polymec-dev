@@ -21,6 +21,7 @@ typedef struct octree_node_t octree_node_t;
 // Branch node.
 typedef struct 
 {
+  int depth;
   octree_node_t* children[8]; 
 } octree_branch_node_t;
 
@@ -52,12 +53,13 @@ struct octree_t
   int num_branches; // Total number of branch nodes in the tree.
 };
 
-static octree_node_t* branch_new(octree_t* tree, int parent)
+static octree_node_t* branch_new(octree_t* tree, int parent, int depth)
 {
   octree_node_t* node = polymec_malloc(sizeof(octree_node_t));
   node->type = OCTREE_BRANCH_NODE;
   node->index = tree->num_branches;
   node->parent = parent;
+  node->branch_node.depth = depth;
   memset(node->branch_node.children, 0, 8*sizeof(octree_node_t*));
   ++(tree->num_branches);
   return node;
@@ -162,7 +164,7 @@ void octree_insert(octree_t* tree, point_t* point, int index)
     // We need to create a branch node here and place the existing 
     // leaf under it.
     octree_node_t* node = root;
-    tree->root = branch_new(tree, -1);
+    tree->root = branch_new(tree, -1, 0);
     int slot = find_slot(&center, point);
     tree->root->branch_node.children[slot] = node;
     node->parent = tree->root->index;
@@ -182,6 +184,7 @@ void octree_insert(octree_t* tree, point_t* point, int index)
   static real_t xf[] = {-0.25, -0.25, -0.25, -0.25, +0.25, +0.25, +0.25, +0.25};
   static real_t yf[] = {-0.25, -0.25, +0.25, +0.25, -0.25, -0.25, +0.25, +0.25};
   static real_t zf[] = {-0.25, +0.25, -0.25, +0.25, -0.25, +0.25, -0.25, +0.25};
+  int depth = 0;
 
   // Locate a branch node in the tree on which we can hang a new leaf.
   while ((node->branch_node.children[slot] != NULL) && 
@@ -195,6 +198,7 @@ void octree_insert(octree_t* tree, point_t* point, int index)
     center.z += zf[slot] * lz;
     lz *= 0.5;
     slot = find_slot(&center, point);
+    ++depth;
   }
 
   // Is there a leaf in our spot already?
@@ -222,7 +226,7 @@ void octree_insert(octree_t* tree, point_t* point, int index)
       do
       {
         // Make a new branch node and point node at it.
-        node->branch_node.children[new_point_slot] = branch_new(tree, node->index);
+        node->branch_node.children[new_point_slot] = branch_new(tree, node->index, depth+1);
         node = node->branch_node.children[new_point_slot];
 
         // Construct the geometry for the new octant.
@@ -236,6 +240,7 @@ void octree_insert(octree_t* tree, point_t* point, int index)
         // Compute the slots for the existing and new points.
         new_point_slot = find_slot(&center, point);
         old_point_slot = find_slot(&center, &(leaf->leaf_node.point));
+        ++depth;
       }
       while (new_point_slot == old_point_slot);
 
@@ -286,7 +291,7 @@ void* octree_new_leaf_array(octree_t* tree, size_t data_size)
 void* octree_new_branch_array(octree_t* tree, size_t data_size)
 {
   void* array = polymec_malloc(data_size * tree->num_branches);
-  memset(array, 0, data_size * tree->branches);
+  memset(array, 0, data_size * tree->num_branches);
   return array;
 }
 
@@ -375,7 +380,7 @@ int octree_nearest(octree_t* tree, point_t* point)
 
 static void octree_visit_pre(octree_node_t* node, 
                              void* context,
-                             void (*visit_branch)(void* context, int branch_index, int parent_branch_index),
+                             void (*visit_branch)(void* context, int depth, int branch_index, int parent_branch_index),
                              void (*visit_leaf)(void* context, int leaf_index, point_t* point, int parent_branch_index))
 {
   if (node != NULL)
@@ -385,7 +390,7 @@ static void octree_visit_pre(octree_node_t* node,
       for (int slot = 0; slot < 8; ++slot)
         octree_visit_pre(node->branch_node.children[slot], context, visit_branch, visit_leaf);
       if (visit_branch != NULL)
-        visit_branch(context, node->index, node->parent);
+        visit_branch(context, node->branch_node.depth, node->index, node->parent);
     }
     else
     {
@@ -397,7 +402,7 @@ static void octree_visit_pre(octree_node_t* node,
 
 static void octree_visit_post(octree_node_t* node, 
                               void* context,
-                              void (*visit_branch)(void* context, int branch_index, int parent_branch_index),
+                              void (*visit_branch)(void* context, int depth, int branch_index, int parent_branch_index),
                               void (*visit_leaf)(void* context, int leaf_index, point_t* point, int parent_branch_index))
 {
   if (node != NULL)
@@ -405,7 +410,7 @@ static void octree_visit_post(octree_node_t* node,
     if (node->type == OCTREE_BRANCH_NODE)
     {
       if (visit_branch != NULL)
-        visit_branch(context, node->index, node->parent);
+        visit_branch(context, node->branch_node.depth, node->index, node->parent);
       for (int slot = 0; slot < 8; ++slot)
         octree_visit_post(node->branch_node.children[slot], context, visit_branch, visit_leaf);
     }
@@ -420,7 +425,7 @@ static void octree_visit_post(octree_node_t* node,
 void octree_visit(octree_t* tree, 
                   octree_traversal_t order,
                   void* context,
-                  void (*visit_branch)(void* context, int branch_index, int parent_branch_index),
+                  void (*visit_branch)(void* context, int depth, int branch_index, int parent_branch_index),
                   void (*visit_leaf)(void* context, int leaf_index, point_t* point, int parent_branch_index))
 {
   START_FUNCTION_TIMER();

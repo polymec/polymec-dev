@@ -63,7 +63,7 @@ int octree_nearest(octree_t* tree, point_t* point);
 void octree_visit(octree_t* tree, 
                   octree_traversal_t order,
                   void* context,
-                  void (*visit_branch)(void* context, int branch_index, int parent_branch_index),
+                  void (*visit_branch)(void* context, int depth, int branch_index, int parent_branch_index),
                   void (*visit_leaf)(void* context, int leaf_index, point_t* point, int parent_branch_index));
 
 #endif
