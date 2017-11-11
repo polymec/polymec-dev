@@ -72,6 +72,9 @@ int octree_nearest(octree_t* tree, point_t* point);
 //  visit_leaf - Called on leaf nodes with the context, the leaf index, 
 //               the point contained in the leaf, and the branch index of 
 //               the leaf's parent.
+//
+// In either function, if the node being visited is the root, it has no parent 
+// and the parent_branch_index is -1.
 void octree_visit(octree_t* tree, 
                   octree_traversal_t order,
                   void* context,

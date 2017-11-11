@@ -78,7 +78,7 @@ static octree_node_t* leaf_new(octree_t* tree, point_t* point, int parent)
 
 // This returns the slot within a branch into which the given point fits given 
 // a rectangular domain centered at the given center point.
-static int find_slot(point_t* center, point_t* point)
+static inline int find_slot(point_t* center, point_t* point)
 {
   return ((point->x >= center->x) << 2) + 
          ((point->y >= center->y) << 1) + 
