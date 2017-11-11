@@ -55,6 +55,7 @@ static void test_delete(void** state)
   octree_free(tree);
 }
 
+#if 0
 static void test_find_nearest(void** state) 
 { 
   // Create a tree containing 100 random points.
@@ -98,6 +99,7 @@ static void test_find_nearest(void** state)
 
   octree_free(tree);
 }
+#endif
 
 int main(int argc, char* argv[]) 
 {
@@ -105,8 +107,7 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_insert),
-    cmocka_unit_test(test_delete),
-    cmocka_unit_test(test_find_nearest)
+    cmocka_unit_test(test_delete)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

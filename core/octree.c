@@ -80,40 +80,9 @@ static octree_node_t* leaf_new(octree_t* tree, point_t* point, int parent)
 // a rectangular domain centered at the given center point.
 static int find_slot(point_t* center, point_t* point)
 {
-  if (point->x < center->x)
-  {
-    if (point->y < center->y)
-    {
-      if (point->z < center->z)
-        return 0;
-      else 
-        return 1;
-    }
-    else
-    {
-      if (point->z < center->z)
-        return 2;
-      else 
-        return 3;
-    }
-  }
-  else // (point->x >= center->x)
-  {
-    if (point->y < center->y)
-    {
-      if (point->z < center->z)
-        return 4;
-      else 
-        return 5;
-    }
-    else
-    {
-      if (point->z < center->z)
-        return 6;
-      else 
-        return 7;
-    }
-  }
+  return ((point->x >= center->x) << 2) + 
+         ((point->y >= center->y) << 1) + 
+          (point->z >= center->z);
 }
 
 octree_t* octree_new(bbox_t* bounding_box)
@@ -304,13 +273,25 @@ static int octree_delete_node(octree_node_t* node,
   {
     if (node->type == OCTREE_BRANCH_NODE)
     {
+      bool has_children = false;
+      int num_deleted = 0;
       for (int s = 0; s < 8; ++s)
       {
-        int num_deleted = octree_delete_node(node->branch_node.children[s], 
-                                             node, s, index);
-        if (num_deleted > 0)
-          return 1;
+        if (num_deleted == 0)
+        {
+          num_deleted = octree_delete_node(node->branch_node.children[s], 
+                                           node, s, index);
+        }
+        if (node->branch_node.children[s] != NULL)
+          has_children = true;
       }
+      // Prune this branch node if we need to.
+      if (!has_children && (parent != NULL))
+      {
+        polymec_free(node);
+        parent->branch_node.children[slot] = NULL;
+      }
+      return num_deleted;
     }
     else
     {
@@ -339,48 +320,16 @@ void octree_delete(octree_t* tree, int index)
   }
   else
   {
+    // Try to delete the leaf with the given index.
     int num_deleted = octree_delete_node(tree->root, NULL, -1, index);
     tree->num_leaves -= num_deleted;
   }
   STOP_FUNCTION_TIMER();
 }
 
-typedef struct
-{
-  point_t x;
-  int index;
-  real_t distance;
-} query_t;
-
-static void nearest_visit_leaf(void* context, int index, point_t* point, int parent_index)
-{
-  query_t* q = context;
-  real_t D = point_distance(&(q->x), point);
-  if (D < q->distance)
-  {
-    q->index = index;
-    q->distance = D;
-  }
-}
-
-int octree_nearest(octree_t* tree, point_t* point)
-{
-  if (tree->root == NULL)
-    return -1;
-  else if (tree->root->type == OCTREE_LEAF_NODE)
-    return tree->root->index; 
-  else
-  {
-    query_t q = {.x = *point, .index = -1, .distance = REAL_MAX};
-    octree_visit(tree, OCTREE_PRE, &q, NULL, nearest_visit_leaf);
-    int index = q.index;
-    return index;
-  }
-}
-
 static void octree_visit_pre(octree_node_t* node, 
                              void* context,
-                             void (*visit_branch)(void* context, int depth, int branch_index, int parent_branch_index),
+                             bool (*visit_branch)(void* context, int depth, int branch_index, int parent_branch_index),
                              void (*visit_leaf)(void* context, int leaf_index, point_t* point, int parent_branch_index))
 {
   if (node != NULL)
@@ -402,17 +351,21 @@ static void octree_visit_pre(octree_node_t* node,
 
 static void octree_visit_post(octree_node_t* node, 
                               void* context,
-                              void (*visit_branch)(void* context, int depth, int branch_index, int parent_branch_index),
+                              bool (*visit_branch)(void* context, int depth, int branch_index, int parent_branch_index),
                               void (*visit_leaf)(void* context, int leaf_index, point_t* point, int parent_branch_index))
 {
   if (node != NULL)
   {
     if (node->type == OCTREE_BRANCH_NODE)
     {
+      bool traverse_children = false;
       if (visit_branch != NULL)
-        visit_branch(context, node->branch_node.depth, node->index, node->parent);
-      for (int slot = 0; slot < 8; ++slot)
-        octree_visit_post(node->branch_node.children[slot], context, visit_branch, visit_leaf);
+        traverse_children = visit_branch(context, node->branch_node.depth, node->index, node->parent);
+      if (traverse_children)
+      {
+        for (int slot = 0; slot < 8; ++slot)
+          octree_visit_post(node->branch_node.children[slot], context, visit_branch, visit_leaf);
+      }
     }
     else
     {
@@ -425,7 +378,7 @@ static void octree_visit_post(octree_node_t* node,
 void octree_visit(octree_t* tree, 
                   octree_traversal_t order,
                   void* context,
-                  void (*visit_branch)(void* context, int depth, int branch_index, int parent_branch_index),
+                  bool (*visit_branch)(void* context, int depth, int branch_index, int parent_branch_index),
                   void (*visit_leaf)(void* context, int leaf_index, point_t* point, int parent_branch_index))
 {
   START_FUNCTION_TIMER();
