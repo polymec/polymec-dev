@@ -112,6 +112,7 @@ void octree_insert(octree_t* tree, point_t* point, int index)
   {
     octree_node_t* node = leaf_new(tree, point, -1);
     tree->root = node;
+    STOP_FUNCTION_TIMER();
     return;
   }
   else if (tree->root->type == OCTREE_LEAF_NODE)
