@@ -57,10 +57,6 @@ void* octree_new_branch_array(octree_t* tree, size_t data_size);
 // not contain a point with this index, this function has no effect. 
 void octree_delete(octree_t* tree, int index);
 
-// Returns the index of the point in the tree that is closest to 
-// the given point, or -1 if the tree is empty.
-int octree_nearest(octree_t* tree, point_t* point);
-
 // Traverses the octree, recursively visiting the nodes in the order 
 // specified, and calling the appropriate visitor function for each 
 // branch or leaf node encountered. The visitor functions are:
