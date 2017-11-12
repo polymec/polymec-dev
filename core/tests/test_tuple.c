@@ -83,6 +83,7 @@ static void test_##tuple_name##_hash(void** state) \
 static void test_##tuple_name(void** state) \
 { \
   test_##tuple_name##_ctor(state); \
+  test_##tuple_name##_clone(state); \
   test_##tuple_name##_cmp(state); \
   test_##tuple_name##_hash(state); \
 }
