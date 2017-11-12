@@ -443,7 +443,7 @@ static int m_add_probe(lua_State* L)
   // Add the probe.
   probe_t* probe = lua_to_probe(L, 2);
   model_add_probe(m, probe, times->data, times->size);
-  real_array_release_data_and_free(times);
+  real_array_free(times);
 
   return 0;
 }
@@ -814,7 +814,7 @@ static int p_data_name(lua_State* L)
   probe_t* p = lua_to_probe(L, 1);
   if (p == NULL)
     return luaL_error(L, "Method must be invoked with a probe.");
-  lua_pushfstring(L, probe_data_name(p));
+  lua_pushstring(L, probe_data_name(p));
   return 1;
 }
 
@@ -884,7 +884,7 @@ model_t* lua_to_model(lua_State* L, int index)
 
 void lua_push_probe(lua_State* L, probe_t* p)
 {
-  lua_push_object(L, "probe", p, DTOR(probe_free));
+  lua_push_object(L, "probe", p, NULL); //DTOR(probe_free));
 }
 
 bool lua_is_probe(lua_State* L, int index)

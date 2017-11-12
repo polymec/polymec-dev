@@ -204,6 +204,8 @@ void model_add_probe(model_t* model,
                      real_t* acq_times,
                      size_t num_acq_times)
 {
+  log_debug("%s: Adding probe %s (measures %s)", model->name, 
+            probe_name(probe), probe_data_name(probe));
   real_array_t* times = real_array_new();
   real_array_resize(times, num_acq_times);
   memcpy(times->data, acq_times, sizeof(real_t) * num_acq_times);
