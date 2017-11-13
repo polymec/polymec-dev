@@ -71,6 +71,7 @@ static octree_node_t* leaf_new(octree_t* tree, point_t* point, int parent)
   octree_node_t* node = polymec_malloc(sizeof(octree_node_t));
   node->type = OCTREE_LEAF_NODE;
   node->index = tree->num_leaves;
+  node->parent = parent;
   node->leaf_node.point = *point;
   ++(tree->num_leaves);
   return node;
