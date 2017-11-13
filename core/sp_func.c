@@ -52,6 +52,7 @@ sp_func_t* sp_func_from_func(const char* name, sp_eval_func func,
   f->context = NULL;
   f->vtable.eval = func;
   f->vtable.eval_n = NULL;
+  f->vtable.dtor = NULL;
   f->homogeneous = (homogeneity == SP_FUNC_HOMOGENEOUS);
   f->num_comp = num_comp;
   return f;
