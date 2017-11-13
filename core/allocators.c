@@ -5,12 +5,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "gc/gc.h"
 #include "core/allocators.h"
 #include "core/slist.h"
 #include "core/logging.h"
 #include "arena/proto.h"
 #include "arena/pool.h"
+
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
 
 struct polymec_allocator_t 
 {
@@ -80,41 +83,17 @@ static void* std_malloc(void* context, size_t size)
 {
   // We want to trace pointers within this memory, so we need to use the 
   // garbage collector's allocator.
-  return GC_MALLOC_UNCOLLECTABLE(size);
+  return malloc(size);
 }
 
 static void* std_realloc(void* context, void* memory, size_t size)
 {
-  return GC_REALLOC(memory, size);
-}
-
-typedef struct
-{
-  void (*dtor)(void* context);
-} gc_adaptor_t;
-
-static void gc_finalizer_adaptor(void* obj, void* client_data)
-{
-  gc_adaptor_t* adaptor = client_data;
-  adaptor->dtor(obj);
-  polymec_free(adaptor);
-}
-
-static void* std_gc_malloc(void* context, size_t size, void (*dtor)(void* context))
-{
-  void* memory = GC_MALLOC(size);
-  if (dtor != NULL)
-  {
-    gc_adaptor_t* adaptor = std_malloc(NULL, sizeof(gc_adaptor_t));
-    adaptor->dtor = dtor;
-    GC_REGISTER_FINALIZER(memory, gc_finalizer_adaptor, adaptor, NULL, NULL);
-  }
-  return memory;
+  return realloc(memory, size);
 }
 
 static void std_free(void* context, void* memory)
 {
-  GC_FREE(memory);
+  free(memory);
 }
 //------------------------------------------------------------------------
 
@@ -140,26 +119,6 @@ void* polymec_realloc(void* memory, size_t size)
   }
 }
 
-void* polymec_gc_malloc(size_t size, void (*dtor)(void* memory))
-{
-  if ((alloc_stack == NULL) || (alloc_stack->size == 0))
-    return std_gc_malloc(NULL, size, dtor);
-  polymec_allocator_t* alloc = alloc_stack->front->value;
-  if (alloc->vtable.gc_malloc != NULL) 
-    return alloc->vtable.gc_malloc(alloc->context, size, dtor);
-  else
-  {
-    static bool first_time = true;
-    if (first_time)
-    {
-      log_urgent("%s allocator lacks garbage collection!", alloc->name);
-      log_urgent("Using regular malloc.");
-      first_time = false;
-    }
-    return alloc->vtable.malloc(alloc->context, size);
-  }
-}
-
 void polymec_free(void* memory)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
@@ -175,7 +134,6 @@ polymec_allocator_t* std_allocator_new()
 {
   polymec_allocator_vtable vtable = {.malloc = std_malloc,
                                      .realloc = std_realloc,
-                                     .gc_malloc = std_gc_malloc,
                                      .free = std_free};
   return polymec_allocator_new("Standard", NULL, vtable);
 }
@@ -246,5 +204,99 @@ polymec_allocator_t* pool_allocator_new()
                                      .dtor = my_pool_dtor};
   POOL* pool = pool_open(&pool_defaults, NULL);
   return polymec_allocator_new("Pool", pool, vtable);
+}
+
+//------------------------------------------------------------------------ 
+//                       Garbage collection
+//------------------------------------------------------------------------ 
+// We use Lua's garbage collector, since this is the only way to provide 
+// a single context for lifetimes of collected objects shared between 
+// Lua and C.
+//------------------------------------------------------------------------ 
+
+// This unpublished function lets us access the main Lua state initiated 
+// by polymec_init.
+extern lua_State* polymec_lua_State(void);
+
+// We use this to store a function pointer portably.
+typedef struct
+{
+  void (*finalize)(void* context);
+} gc_finalizer_t;
+
+// This is the destructor/finalizer that gets called by Lua when an 
+// object is collected.
+static int lua_finalize_object(lua_State* L)
+{
+  // Fetch our userdata.
+  void* storage = lua_touserdata(L, 1);
+  ASSERT(storage != NULL);
+
+  // Fetch our destructor.
+  gc_finalizer_t* storage_f = (gc_finalizer_t*)storage;
+  void (*finalize)(void*) = storage_f[1].finalize;
+  ASSERT(finalize != NULL);
+
+  // Fetch our object.
+  void* obj = &(storage_f[2]);
+
+  // Finalize the object.
+  finalize(obj);
+  
+  return 0;
+}
+
+void* polymec_gc_malloc(size_t size, void (*finalize)(void* memory))
+{
+  lua_State* L = polymec_lua_State();
+  ASSERT(L != NULL);
+
+  // The first time we do this, we create a metatable for all 
+  // C garbage-collected objects.
+  static bool first_time = true;
+  if (first_time)
+  {
+    luaL_newmetatable(L, "gc_C_obj");
+    lua_pushcfunction(L, lua_finalize_object);
+    lua_setfield(L, -2, "__gc");
+    first_time = false;
+  }
+
+  // We store a reference to each garbage-collected object in Lua's registry.
+  // We refer to this reference using an integer key, so we allocate storage 
+  // for a userdata of the desired size preceded by a reference int.
+  void* storage = lua_newuserdata(L, 2 * sizeof(gc_finalizer_t) + size);
+
+  // If we're given a finalizer, set the metatable for this object.
+  if (finalize != NULL)
+  {
+    luaL_getmetatable(L, "gc_C_obj");
+    lua_setmetatable(L, -2);
+  }
+
+  // Get a key for this object and stash it at the front of the userdata.
+  int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  int* storage_ref = (int*)storage;
+  storage_ref[0] = ref;
+
+  // Stash the destructor right behind it.
+  gc_finalizer_t* storage_f = (gc_finalizer_t*)storage;
+  storage_f[1].finalize = finalize;
+
+  // The actual object goes behind the ref and the destructor.
+  storage = &(storage_f[2]);
+  return storage;
+}
+
+void polymec_release(void* memory)
+{
+  // Fetch the reference for this object.
+  int* storage_ref = (int*)memory;
+  int ref = storage_ref[0];
+  
+  // Release the reference from the registry.
+  lua_State* L = polymec_lua_State();
+  ASSERT(L != NULL);
+  luaL_unref(L, LUA_REGISTRYINDEX, ref);
 }
 

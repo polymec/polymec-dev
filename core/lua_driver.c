@@ -312,6 +312,8 @@ static int pmain(lua_State* L)
   return 1;
 }
 
+extern lua_State* polymec_lua_State(void);
+
 int lua_driver(int argc,
                char** argv,
                int (*register_types_and_modules)(lua_State* L))
@@ -325,10 +327,8 @@ int lua_driver(int argc,
   // Set the maximum history length.
   linenoiseHistorySetMaxLen(500);
 
-  // Create a Lua state.
-  lua_State* L = luaL_newstate();
-  if (L == NULL)
-    polymec_error("%s: cannot create Lua interpreter: not enough memory.", argv[0]);
+  // Access our Lua state.
+  lua_State* L = polymec_lua_State();
 
   // Pass the command line arguments into the main function, which runs in 
   // protected mode.
@@ -340,6 +340,5 @@ int lua_driver(int argc,
   int result = lua_toboolean(L, -1);
 
   // Shut down and report any error(s).
-  lua_close(L);
   return (result && status == LUA_OK) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

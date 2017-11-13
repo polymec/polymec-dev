@@ -9,7 +9,6 @@
 #include <time.h>
 #include <stdarg.h>
 #include <signal.h>
-#include <gc/gc.h>
 #include <dlfcn.h>
 #include "arena/proto.h"
 #include "arena/pool.h"
@@ -22,6 +21,11 @@
 #include "core/memory_info.h"
 #include "core/file_utils.h"
 #include "core/string_utils.h"
+
+// For Lua state.
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
 
 #if POLYMEC_HAVE_OPENMP
 #include <omp.h>
@@ -79,6 +83,9 @@ static char polymec_exe_name[FILENAME_MAX+1];
 static char* polymec_invoc_str = NULL;
 static time_t polymec_invoc_time = 0;
 static char* polymec_invoc_dir = NULL;
+
+// Lua state for garbage collection and interpreter.
+static lua_State* polymec_L = NULL;
 
 // Extra provenance information.
 static string_array_t* polymec_extra_provenance = NULL;
@@ -138,12 +145,8 @@ static void shutdown()
     string_free(polymec_argv[i]);
   polymec_free(polymec_argv);
 
-  // Finalize any remaining garbage-collected objects.
-  if (GC_should_invoke_finalizers())
-  {
-    int num_finalized = GC_invoke_finalizers();
-    log_debug("polymec: finalized %d garbage-collected objects.", num_finalized);
-  }
+  // Shut down the Lua interpreter.
+  lua_close(polymec_L);
 
   // Call shutdown functions.
   log_debug("polymec: Calling %zu shutdown functions.", _atexit_funcs->size);
@@ -426,8 +429,10 @@ void polymec_init(int argc, char** argv)
     // Set up the Silo I/O error handler.
     DBShowErrors(DB_ALL, handle_silo_error);
 
-    // Start up the garbage collector.
-    GC_INIT();
+    // Initialize our Lua state so that we can use its garbage collector.
+    polymec_L = luaL_newstate();
+    if (polymec_L == NULL)
+      polymec_error("%s: cannot create Lua interpreter: not enough memory.", argv[0]);
 
     // Initialize variables for exact arithmetic.
     exactinit();
@@ -835,3 +840,11 @@ bool polymec_running_in_valgrind()
 #endif
 }
 
+// This function isn't public, but is made available to code that manipulates
+// the garbage collector.
+lua_State* polymec_lua_State(void);
+lua_State* polymec_lua_State(void)
+{
+  ASSERT(polymec_L != NULL);
+  return polymec_L;
+}

@@ -79,65 +79,6 @@ endif()
 add_library(cmocka STATIC IMPORTED GLOBAL)
 set_target_properties(cmocka PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
 
-# Build libgc, the C garbage collector library.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
-  if (BUILD_SHARED_LIBS)
-    set(SHARED_OPTS --enable-shared --disable-static)
-  else()
-    set(SHARED_OPTS --enable-static --disable-shared)
-  endif()
-  set(GC_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} ${SHARED_OPTS} --enable-threads=pthreads --disable-gcj-support --disable-dependency-tracking)
-  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(GC_CONFIG_OPTS ${GC_CONFIG_OPTS} --enable-gc-debug)
-  endif()
-
-  message(STATUS "Preparing gc...")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/gc ${CMAKE_CURRENT_BINARY_DIR}/gc
-                  RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Copying library source failed.")
-  endif()
-
-  message(STATUS "Configuring gc...")
-  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} ./configure ${GC_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc
-                  OUTPUT_VARIABLE gc_config_log ERROR_VARIABLE gc_config_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/gc_config.log ${gc_config_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Configuration of gc library failed:")
-      message(FATAL_ERROR ${gc_config_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/gc_config_errors.log ${gc_config_err})
-      message(FATAL_ERROR "Configuration of gc library failed. See ${CMAKE_CURRENT_BINARY_DIR}/gc_config_*.log.")
-    endif()
-  endif()
-
-  message(STATUS "Building and installing gc (${NUM_BUILD_THREADS} threads)...")
-  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gc
-                  OUTPUT_VARIABLE gc_build_log ERROR_VARIABLE gc_build_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/gc_build.log ${gc_build_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Build of gc library failed:")
-      message(FATAL_ERROR ${gc_build_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/gc_build_errors.log ${gc_build_err})
-      message(FATAL_ERROR "Build of gc library failed. See ${CMAKE_CURRENT_BINARY_DIR}/gc_build_*.log.")
-    endif()
-  endif()
-
-  # On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
-  if (APPLE AND BUILD_SHARED_LIBS)
-    execute_process(COMMAND install_name_tool -id @rpath/libgc${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/libgc${LIB_SUFFIX})
-  endif()
-
-endif()
-set(POLYMEC_TP_LIBS gc;${POLYMEC_TP_LIBS})
-
 # Install libarena -- A fast C arena/memory pool implementation.
 if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
 

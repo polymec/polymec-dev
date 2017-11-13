@@ -25,10 +25,6 @@ typedef struct
   // Reallocates size bytes of the given chunk memory.
   void* (*realloc)(void* context, void* memory, size_t size);
 
-  // Allocates a traced chunk of memory that is garbage-collected. Also takes 
-  // a destructor that is called on the freed memory.
-  void* (*gc_malloc)(void* context, size_t size, void (*dtor)(void* context));
-
   // Frees the given chunk of memory.
   void (*free)(void* context, void* memory);
   
@@ -57,19 +53,33 @@ void* polymec_malloc(size_t size);
 // stack, or calls realloc() if the stack is empty.
 void* polymec_realloc(void* memory, size_t size);
 
-// This version of polymec_malloc returns memory that will be garbage-collected.
-// It should not be freed. It is appropriate for objects that are shared by 
-// many systems, and that don't consume large amounts of resources. It includes
-// a destructor that is called on the returned pointer when the memory is 
-// collected.
-// NOTE: There is no garbage-collected realloc (polymec_gc_realloc), since we 
-// NOTE: don't want to encourage the use of garbage collection for 
-// NOTE: data-intensive objects.
-void* polymec_gc_malloc(size_t size, void (*dtor)(void* memory));
-
 // Frees memory, returning it to the allocator on top of the allocator stack 
 // (or calling free() if the stack is empty).
 void polymec_free(void* memory);
+
+//------------------------------------------------------------------------
+//                       Selective Garbage Collection
+//------------------------------------------------------------------------
+// polymec_gc_malloc returns memory that will be garbage-collected. This
+// memory should not be freed--use polymec_release instead of polymec_free 
+// to tell the collector that you're finished with a garbage-collected 
+// resource. When an object is collected, the supplied finalizer is 
+// invoked.
+//
+// Garbage collection is appropriate for objects that are shared by many 
+// systems, and that don't consume large amounts of resources. There is no 
+// garbage-collected realloc (polymec_gc_realloc), since we don't encourage 
+// garbage collection for data-intensive objects.
+//------------------------------------------------------------------------
+void* polymec_gc_malloc(size_t size, void (*finalize)(void* memory));
+
+// Call polymec_release when you are finished with a garbage-collected 
+// resource so that it can be collected. Calling polymec_release on a 
+// resource allocated by polymec_malloc is an error.
+// 
+// This function is usually wrapped by a type-specific release function to 
+// make things look more consistent.
+void polymec_release(void* memory);
 
 // Pushes a new memory allocator to the allocator stack, using this allocator 
 // to allocate all memory with polymec_malloc() until it is popped.
