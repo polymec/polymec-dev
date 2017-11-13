@@ -79,7 +79,7 @@ static bool mark_branch_pre(void* context, int depth, int branch_index, int pare
   tree_data_t* data = context;
 
   // The parent shouldn't be marked yet.
-  ASSERT(data->branch_data[parent_index] == 0);
+  ASSERT((parent_index == -1) || (data->branch_data[parent_index] == 0));
   data->branch_data[branch_index] = 1;
 
   return true; // Visit the kids.
