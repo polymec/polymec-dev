@@ -60,6 +60,7 @@ static void free_alloc_stack()
 
   // Now do the deed.
   ptr_slist_free(alloc_stack);
+  alloc_stack = NULL;
 }
 
 void push_allocator(polymec_allocator_t* alloc)
@@ -81,8 +82,6 @@ polymec_allocator_t* pop_allocator()
 //------------------------------------------------------------------------
 static void* std_malloc(void* context, size_t size)
 {
-  // We want to trace pointers within this memory, so we need to use the 
-  // garbage collector's allocator.
   return malloc(size);
 }
 
