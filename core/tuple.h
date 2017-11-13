@@ -66,8 +66,7 @@ static inline void tuple_name##_copy(element* dest, element* src) \
 { \
   size_t offset = MAX((sizeof(int) / sizeof(element)), 1); \
   int src_len = *((int*)(src - offset)); \
-  int dest_len = *((int*)(dest - offset)); \
-  ASSERT(dest_len == src_len); \
+  ASSERT(*((int*)(dest - offset)) == src_len); \
   for (int i = 0; i < src_len; ++i) \
     dest[i] = src[i]; \
 } \
