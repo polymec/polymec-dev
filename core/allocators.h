@@ -73,12 +73,15 @@ void polymec_free(void* memory);
 //------------------------------------------------------------------------
 void* polymec_gc_malloc(size_t size, void (*finalize)(void* memory));
 
+// Call polymec_retain when you need to retain a reference to a garbage-
+// collected object in a C data structure or context. Calling polymec_retain
+// on a resource not allocated by polymec_gc_malloc throws a fatal 
+// runtime error.
+void polymec_retain(void* memory);
+
 // Call polymec_release when you are finished with a garbage-collected 
 // resource so that it can be collected. Calling polymec_release on a 
-// resource allocated by polymec_malloc is an error.
-// 
-// This function is usually wrapped by a type-specific release function to 
-// make things look more consistent.
+// resource not allocated by polymec_gc_malloc throws a fatal runtime error.
 void polymec_release(void* memory);
 
 // Pushes a new memory allocator to the allocator stack, using this allocator 

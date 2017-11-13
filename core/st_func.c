@@ -55,6 +55,7 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
   f->name = string_dup(name);
   f->context = NULL;
   f->vtable.eval = func;
+  f->vtable.eval_n = NULL;
   f->homogeneous = (homogeneity == ST_FUNC_HOMOGENEOUS);
   f->constant = (constancy == ST_FUNC_CONSTANT);
   f->num_comp = num_comp;
