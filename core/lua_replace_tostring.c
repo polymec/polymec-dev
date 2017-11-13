@@ -166,7 +166,7 @@ static void append_table_value(lua_State* L,
 
     // If the key is a string and begins with two underscores, we 
     // skip writing out this field.
-    if (!lua_isinteger(L, -2) && lua_isstring(L, -2))
+    if (!lua_isnumber(L, -2) && lua_isstring(L, -2))
     {
       const char* key = lua_tostring(L, -2);
       if (strstr(key, "__") == key)
