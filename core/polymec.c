@@ -148,10 +148,15 @@ static void shutdown()
   // Shut down the Lua interpreter.
   lua_close(polymec_L);
 
-  // Call shutdown functions.
+#ifndef NDEBUG
+  // Shut off floating point exception trapping.
+  polymec_disable_fpe();
+#endif
+
+  // Call shutdown functions in reverse order.
   log_debug("polymec: Calling %zu shutdown functions.", _atexit_funcs->size);
   for (size_t i = 0; i < _atexit_funcs->size; ++i)
-    _atexit_funcs->data[i]();
+    _atexit_funcs->data[_atexit_funcs->size-i-1]();
 
   // Final clean up.
   string_array_free(_dl_paths);
@@ -164,10 +169,6 @@ static void shutdown()
   // Shut down MPI if we're supposed to.
   if (polymec_initialized_mpi)
     MPI_Finalize();
-
-#ifndef NDEBUG
-  polymec_disable_fpe();
-#endif
 }
 
 static noreturn void handle_sigint(int signal)

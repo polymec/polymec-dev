@@ -35,6 +35,7 @@ matrix_sparsity_t* matrix_sparsity_new(MPI_Comm comm,
   int init_row_cap = 4; // Initial allocation for columns per row (incl. diagonal)
   sparsity->columns_cap = init_row_cap * sparsity->num_local_rows;
   sparsity->columns = polymec_malloc(sizeof(index_t) * sparsity->columns_cap);
+  memset(sparsity->columns, 0, sizeof(index_t) * sparsity->columns_cap);
   sparsity->offsets = polymec_malloc(sizeof(index_t) * (sparsity->num_local_rows + 1));
   sparsity->offsets[0] = 0;
   for (index_t i = 0; i < sparsity->num_local_rows; ++i)

@@ -25,6 +25,8 @@ static void find_line_breaks(text_buffer_t* buffer)
   {
     if (buffer->data[i] == '\n')
       size_t_slist_append(line_list, i+1);
+    else if (buffer->data[i] == '\0')
+      break;
   }
   // Pick up the detritus at the end if necessary.
   if (buffer->data[buffer->size-2] != '\n')

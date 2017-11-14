@@ -414,6 +414,8 @@ static int lua_record_gc(lua_State* L)
   lua_record_t* r = lua_touserdata(L, 1);
   if ((r->dtor != NULL) && (r->context != NULL))
     r->dtor(r->context);
+  if (r->record_type_name != NULL)
+    string_free(r->record_type_name);
   return 0;
 }
 
