@@ -33,11 +33,14 @@ migrator_t* repartition_polymesh(polymesh_t** mesh, int* weights, real_t imbalan
 // This function creates a newly-allocated global partition vector that can be used 
 // to distribute a global polymesh on rank 0 to all processes on the given communicator, 
 // according to the given weights and the specified imbalance tolerance. Mesh objects 
-// on non-zero ranks are ignored.
+// on non-zero ranks are ignored. If broadcast is set to true, the global 
+// partition vector is returned on every process--otherwise, it is just 
+// returned on rank 0 of the given communicator.
 int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh, 
                                         MPI_Comm comm, 
                                         int* weights, 
-                                        real_t imbalance_tol);
+                                        real_t imbalance_tol,
+                                        bool broadcast);
 
 // Given a global partition vector, distributes the mesh from rank 0 to all 
 // processes in the given communicator according to the global partition vector, 

@@ -1201,7 +1201,8 @@ migrator_t* partition_polymesh(polymesh_t** mesh, MPI_Comm comm, int* weights, r
 int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh, 
                                         MPI_Comm comm, 
                                         int* weights, 
-                                        real_t imbalance_tol)
+                                        real_t imbalance_tol,
+                                        bool broadcast)
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
@@ -1240,6 +1241,16 @@ int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh,
   // Get rid of the graph.
   if (global_graph != NULL)
     adj_graph_free(global_graph);
+
+  // Now broadcast the partition vector if we're asked to.
+  if (broadcast)
+  {
+    int N = (rank == 0) ? global_mesh->num_cells: 0;
+    MPI_Bcast(&N, 1, MPI_INT, 0, comm);
+    if (rank != 0)
+      global_partition = polymec_malloc(sizeof(int64_t) * N);
+    MPI_Bcast(global_partition, N, MPI_INT64_T, 0, comm);
+  }
 
   STOP_FUNCTION_TIMER();
   return global_partition;
