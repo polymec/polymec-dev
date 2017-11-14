@@ -117,7 +117,8 @@ static void test_NXxNYxNZ_star_stencil(void** state,
                 num_edge_neighbors, num_corner_neighbors,
                 stencil1);
   stencil_free(stencil1);
-  S = NULL;
+  byte_array_free(bytes);
+  //polymec_release(S); <-- FIXME: broken.
 
   // Create a graph from the stencil.
   adj_graph_t* G = stencil_as_graph(stencil);

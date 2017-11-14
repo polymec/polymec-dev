@@ -543,6 +543,8 @@ dae_solver_t* dae_solver_new(const char* name,
 
 void dae_solver_free(dae_solver_t* integ)
 {
+  string_free(integ->name);
+
   // Kill the preconditioner stuff.
   if (integ->precond != NULL)
     newton_pc_free(integ->precond);

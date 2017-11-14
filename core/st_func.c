@@ -76,6 +76,8 @@ st_func_t* st_func_from_sp_func(sp_func_t* func)
   f->name = string_dup(sp_func_name(func));
   f->context = func;
   f->vtable.eval = eval_sp_func;
+  f->vtable.eval_n = NULL;
+  f->vtable.dtor = NULL;
   f->homogeneous = sp_func_is_homogeneous(func);
   f->constant = true;
   f->num_comp = sp_func_num_comp(func);

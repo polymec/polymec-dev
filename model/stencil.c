@@ -46,7 +46,7 @@ stencil_t* stencil_clone(stencil_t* stencil)
   int* indices = polymec_malloc(sizeof(int) * size);
   memcpy(indices, stencil->indices, sizeof(int) * size);
   exchanger_t* ex = exchanger_clone(stencil->ex);
-  return stencil_new(string_dup(stencil->name), stencil->num_indices, offsets, 
+  return stencil_new(stencil->name, stencil->num_indices, offsets, 
                      indices, stencil->num_ghosts, ex);
 }
 
@@ -218,7 +218,9 @@ serializer_t* stencil_serializer()
 matrix_sparsity_t* sparsity_from_stencil(stencil_t* stencil)
 {
   adj_graph_t* g = stencil_as_graph(stencil);
-  return matrix_sparsity_from_graph(g, stencil->ex);
+  matrix_sparsity_t* sp = matrix_sparsity_from_graph(g, stencil->ex);
+  adj_graph_free(g);
+  return sp;
 }
 
 bool silo_file_contains_stencil(silo_file_t* file, const char* stencil_name)

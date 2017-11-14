@@ -1068,7 +1068,10 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   int num_files, num_mpi_procs;
   int_slist_t* steps = int_slist_new();
   if (!silo_file_query(file_prefix, file->directory, &num_files, &num_mpi_procs, steps))
+  {
+    int_slist_free(steps);
     polymec_error("silo_file_open: Invalid file.");
+  }
 
   log_debug("silo_file_open: Found file written by %d MPI processes.", num_mpi_procs);
 
@@ -1100,6 +1103,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     if (!step_found)
       polymec_error("silo_file_open: Step %d was not found for prefix '%s' in directory %s.", step, file->prefix, directory);
   }
+  int_slist_free(steps);
 
 #if POLYMEC_HAVE_MPI
   // The way these things are defined for a file has to do with how the 

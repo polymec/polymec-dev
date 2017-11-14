@@ -140,7 +140,7 @@ void lua_push_ndarray(lua_State* L,
     a->shape[r] = shape[r];
   a->array = array;
   a->type = type;
-  a->owns_data = false;
+  a->owns_data = true;
 }
 
 bool lua_is_ndarray(lua_State* L, int index, lua_array_data_t type)
@@ -156,7 +156,8 @@ void* lua_to_ndarray(lua_State* L, int index, lua_array_data_t type, int* rank, 
   {
     *rank = a->rank;
     *shape = a->shape;
-    return a;
+    a->owns_data = false;
+    return a->array;
   }
   else
     return NULL;
