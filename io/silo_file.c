@@ -1006,7 +1006,10 @@ static void show_provenance_on_debug_log(silo_file_t* file)
     int provenance_len = DBGetVarLength(file->dbfile, "provenance_string");
     char* provenance = polymec_malloc(sizeof(char) * (provenance_len + 1));
     if (provenance_len > 0)
+    {
       DBReadVar(file->dbfile, "provenance_string", provenance);
+      provenance[provenance_len] = '\0';
+    }
 
     // We may need to temporarily bump up the debug log's buffness.
     int max_message_size, flush_every;

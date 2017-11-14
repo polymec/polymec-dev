@@ -12,10 +12,19 @@
 static int_ptr_unordered_map_t* units_systems = NULL;
 static int_real_unordered_map_t* current_units = NULL;
 
+static void free_units_systems(void)
+{
+  if (units_systems != NULL)
+    int_ptr_unordered_map_free(units_systems);
+}
+
 void define_units_system(int units_system_name)
 {
   if (units_systems == NULL)
+  {
     units_systems = int_ptr_unordered_map_new();
+    polymec_atexit(free_units_systems);
+  }
   if (int_ptr_unordered_map_contains(units_systems, units_system_name))
     polymec_error("define_units_system: units system %d is already defined.", units_system_name);
   int_ptr_unordered_map_insert_with_v_dtor(units_systems, 
