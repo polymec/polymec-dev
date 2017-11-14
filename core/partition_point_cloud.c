@@ -202,7 +202,8 @@ migrator_t* distribute_point_cloud(point_cloud_t** cloud,
 int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud, 
                                            MPI_Comm comm, 
                                            int* weights, 
-                                           real_t imbalance_tol)
+                                           real_t imbalance_tol,
+                                           bool broadcast)
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
@@ -315,6 +316,16 @@ int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud,
     
     // Clean up.
     polymec_free(part_array);
+
+  }
+
+  // Now broadcast the partition vector if we're asked to.
+  if (broadcast)
+  {
+    MPI_Bcast(&num_global_points, 1, MPI_INT, 0, comm);
+    if (rank != 0)
+      global_partition = polymec_malloc(sizeof(int64_t) * num_global_points);
+    MPI_Bcast(global_partition, num_global_points, MPI_INT64_T, 0, comm);
   }
 
   STOP_FUNCTION_TIMER();
@@ -350,13 +361,14 @@ migrator_t* partition_point_cloud(point_cloud_t** cloud, MPI_Comm comm, int* wei
   }
 
   // Now do the space-filling curve thing.
-  int64_t* global_partition = partition_vector_from_point_cloud(cl, comm, weights, imbalance_tol);
+  int64_t* global_partition = partition_vector_from_point_cloud(cl, comm, weights, imbalance_tol, false);
 
   // Distribute the point cloud.
   migrator_t* migrator = distribute_point_cloud(cloud, comm, global_partition);
 
   // Clean up.
-  polymec_free(global_partition);
+  if (rank == 0)
+    polymec_free(global_partition);
 
   // Return the migrator.
   STOP_FUNCTION_TIMER();
