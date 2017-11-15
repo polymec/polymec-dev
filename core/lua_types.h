@@ -82,6 +82,13 @@ void* lua_check_object(lua_State* L,
                        int index,
                        const char* class_name);
 
+// This allows a C object to assume ownership of the lua object at the given 
+// index. If this is called, the data in the lua object is not freed by Lua's
+// garbage collector. 
+void lua_transfer_object(lua_State* L, 
+                         int index,
+                         const char* class_name);
+
 // This type represents a field in a Lua record, with a name, 
 // a getter, and a setter (if any). A record must have a getter 
 // but may not need a setter if it is read only.
@@ -139,6 +146,13 @@ void* lua_to_record(lua_State* L,
 void* lua_check_record(lua_State* L,
                        int index,
                        const char* record_type_name);
+
+// This allows a C object to assume ownership of the record at the given 
+// index. If this is called, the data in the record is not freed by Lua's
+// garbage collector. 
+void lua_transfer_record(lua_State* L, 
+                         int index,
+                         const char* record_type_name);
 
 #endif
 

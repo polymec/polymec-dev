@@ -440,8 +440,9 @@ static int m_add_probe(lua_State* L)
     lua_pop(L, 1);
   }
 
-  // Add the probe.
+  // Add the probe, transferring its ownership to the model.
   probe_t* probe = lua_to_probe(L, 2);
+  lua_transfer_object(L, 2, "probe");
   model_add_probe(m, probe, times->data, times->size);
   real_array_free(times);
 
@@ -884,7 +885,7 @@ model_t* lua_to_model(lua_State* L, int index)
 
 void lua_push_probe(lua_State* L, probe_t* p)
 {
-  lua_push_object(L, "probe", p, NULL); //DTOR(probe_free));
+  lua_push_object(L, "probe", p, DTOR(probe_free));
 }
 
 bool lua_is_probe(lua_State* L, int index)

@@ -392,6 +392,15 @@ bool lua_is_object(lua_State* L,
   return (luaL_testudata(L, index, class_name) != NULL);
 }
 
+void lua_transfer_object(lua_State* L, 
+                         int index,
+                         const char* class_name)
+{
+  lua_class_t* obj = luaL_testudata(L, index, class_name);
+  ASSERT(obj != NULL);
+  obj->dtor = NULL;
+}
+
 //------------------------------------------------------------------------
 //                               Records
 //------------------------------------------------------------------------
@@ -732,4 +741,13 @@ bool lua_is_record(lua_State* L,
                    const char* record_type_name)
 {
   return (luaL_testudata(L, index, record_type_name) != NULL);
+}
+
+void lua_transfer_record(lua_State* L, 
+                         int index,
+                         const char* record_type_name)
+{
+  lua_record_t* r = luaL_testudata(L, index, record_type_name);
+  ASSERT(r != NULL);
+  r->dtor = NULL;
 }
