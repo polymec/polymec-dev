@@ -294,11 +294,18 @@ void* polymec_gc_malloc(size_t size, void (*finalize)(void* memory))
   return storage;
 }
 
+// Use this to get to the head of a collected object's block of memory.
+static inline void* collected_obj_header(void* memory)
+{
+  gc_finalizer_t* storage_f = memory;
+  return (void*)&(storage_f[-3]);
+}
+
 void polymec_retain(void* memory)
 {
   // Fetch the reference for this object and make sure it exists in the 
   // Lua registry.
-  int* storage_ref = (int*)memory;
+  int* storage_ref = (int*)collected_obj_header(memory);
   int ref = storage_ref[0];
   lua_State* L = polymec_lua_State();
   lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
@@ -315,7 +322,7 @@ void polymec_release(void* memory)
 {
   // Fetch the reference for this object and make sure it exists in the 
   // Lua registry.
-  int* storage_ref = (int*)memory;
+  int* storage_ref = (int*)collected_obj_header(memory);
   int ref = storage_ref[0];
   lua_State* L = polymec_lua_State();
   lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
@@ -326,10 +333,9 @@ void polymec_release(void* memory)
   // Decrement our C reference count.
   --storage_ref[1];
   int ref_count = storage_ref[1];
-  ASSERT(ref_count >= 0);
 
   // If we've hit zero, delete the reference from the registry.
-  if (ref_count == 0)
+  if (ref_count <= 0)
   {
     ASSERT(L != NULL);
     luaL_unref(L, LUA_REGISTRYINDEX, ref);
