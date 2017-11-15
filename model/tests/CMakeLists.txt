@@ -2,11 +2,11 @@ include(add_polymec_test)
 
 # These functions create the tests for our model library.
 function(add_polymec_model_test exe)
-  add_polymec_test_with_libs(${exe} "polymec_model;polymec_io;polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
+  add_polymec_test_with_libs(${exe} "polymec_model;polymec_io;polymec_solvers;polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
 endfunction()
 
 function(add_mpi_polymec_model_test exe)
-  add_mpi_polymec_test_with_libs(${exe} "polymec_model;polymec_io;polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
+  add_mpi_polymec_test_with_libs(${exe} "polymec_model;polymec_io;polymec_solvers;polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
 endfunction()
 
 # Some of these tests need some source files from our geometry library.

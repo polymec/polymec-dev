@@ -8,7 +8,7 @@
 #ifndef POLYMEC_DAE_SOLVER_H
 #define POLYMEC_DAE_SOLVER_H
 
-#include "core/krylov_solver.h"
+#include "solvers/krylov_solver.h"
 #include "solvers/newton_pc.h"
 
 // This type indicates whether a given equation in a DAE system is 

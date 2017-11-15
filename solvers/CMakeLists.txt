@@ -1,7 +1,11 @@
 include(add_polymec_library)
-add_polymec_library(polymec_solvers newton_pc.c bj_newton_pc.c 
-                    newton_solver.c ode_solver.c am_ode_solver.c bdf_ode_solver.c 
-                    ark_ode_solver.c euler_ode_solver.c dae_solver.c fasmg_solver.c)
+add_polymec_library(polymec_solvers 
+                    bd_matrix.c matrix_sparsity.c krylov_solver.c 
+                    petsc_krylov_solver.c hypre_krylov_solver.c
+                    newton_pc.c bj_newton_pc.c newton_solver.c 
+                    ode_solver.c am_ode_solver.c bdf_ode_solver.c 
+                    ark_ode_solver.c euler_ode_solver.c dae_solver.c 
+                    fasmg_solver.c)
 set(POLYMEC_LIBRARIES polymec_solvers;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_solvers;${POLYMEC_LIBRARIES})
 

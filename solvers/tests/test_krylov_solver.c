@@ -11,9 +11,7 @@
 #include <string.h>
 
 #include "cmocka.h"
-#include "core/polymec.h"
-#include "core/file_utils.h"
-#include "core/krylov_solver.h"
+#include "solvers/krylov_solver.h"
 
 // This helper creates a sparsity pattern for a finite difference 
 // discretization of the Laplacian operator. This pattern can be 

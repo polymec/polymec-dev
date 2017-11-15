@@ -14,7 +14,7 @@
 #include "core/unordered_set.h"
 #include "core/point_cloud.h"
 #include "core/adj_graph.h"
-#include "core/matrix_sparsity.h"
+#include "solvers/matrix_sparsity.h"
 #include "io/silo_file.h"
 
 // A stencil is a set of indices associated with a stencil for some spatial 

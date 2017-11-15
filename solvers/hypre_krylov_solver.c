@@ -7,11 +7,10 @@
 
 #include <float.h>
 #include <dlfcn.h>
-#include "core/krylov_solver.h"
+#include "core/polymec.h"
 #include "core/timer.h"
 #include "core/text_buffer.h"
-#include "core/string_utils.h"
-#include "core/file_utils.h"
+#include "solvers/krylov_solver.h"
 
 #if POLYMEC_HAVE_SHARED_LIBS
 

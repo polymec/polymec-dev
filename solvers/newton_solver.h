@@ -9,7 +9,7 @@
 #define POLYMEC_NEWTON_SOLVER_H
 
 #include "core/polymec.h"
-#include "core/krylov_solver.h"
+#include "solvers/krylov_solver.h"
 #include "solvers/newton_pc.h"
 
 // This class represents a collection of algorithms for integrating partial 

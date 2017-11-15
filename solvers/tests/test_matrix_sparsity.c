@@ -12,8 +12,8 @@
 #include "cmocka.h"
 #include "core/polymec.h"
 #include "geometry/polymesh.h"
-#include "core/matrix_sparsity.h"
 #include "geometry/create_uniform_polymesh.h"
+#include "solvers/matrix_sparsity.h"
 
 static void test_constructor(void** state)
 {

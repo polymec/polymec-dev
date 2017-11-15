@@ -9,8 +9,8 @@
 #define POLYMEC_KRYLOV_SOLVER_H
 
 #include "core/polymec.h"
-#include "core/matrix_sparsity.h"
 #include "core/unordered_map.h"
+#include "solvers/matrix_sparsity.h"
 
 // The Krylov solver interface is an abstract interface that can be used with 
 // third-party parallel sparse linear solvers. The linkage to these solvers is 

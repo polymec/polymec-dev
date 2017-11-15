@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/timer.h"
-#include "core/bd_matrix.h"
+#include "solvers/bd_matrix.h"
 #include "solvers/bj_newton_pc.h"
 
 typedef struct 

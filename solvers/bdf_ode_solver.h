@@ -8,7 +8,7 @@
 #ifndef POLYMEC_BDF_ODE_SOLVER_H
 #define POLYMEC_BDF_ODE_SOLVER_H
 
-#include "core/krylov_solver.h"
+#include "solvers/krylov_solver.h"
 #include "solvers/ode_solver.h"
 #include "solvers/newton_pc.h"
 

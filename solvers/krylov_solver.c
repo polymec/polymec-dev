@@ -6,10 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <float.h>
-#include "core/krylov_solver.h"
+#include "core/polymec.h"
 #include "core/timer.h"
-#include "core/string_utils.h"
 #include "core/array_utils.h"
+#include "solvers/krylov_solver.h"
 
 extern void distribute_matrix_sparsity(matrix_sparsity_t** sparsity,
                                        MPI_Comm comm,
