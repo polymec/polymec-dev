@@ -261,7 +261,6 @@ static void* polymec_timer_byte_read(byte_array_t* bytes, size_t* offset)
   timer->name = string_dup(name);
   timer->parent = NULL;
   timer->children = ptr_array_new();
-  ptr_array_resize(timer->children, num_children);
 
   // Read in the timing data.
   byte_array_read_doubles(bytes, 1, &timer->accum_time, offset);
@@ -269,11 +268,11 @@ static void* polymec_timer_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_unsigned_long_longs(bytes, 1, &timer->count, offset);
 
   // Read in all the children and set their parent.
-  for (size_t i = 0; i < timer->children->size; ++i)
+  for (size_t i = 0; i < num_children; ++i)
   {
     polymec_timer_t* child = polymec_timer_byte_read(bytes, offset);
     child->parent = timer;
-    timer->children->data[i] = child;
+    ptr_array_append_with_dtor(timer->children, child, DTOR(polymec_timer_free));
   }
   
   return timer;
@@ -360,7 +359,6 @@ void polymec_timer_report()
           timer = serializer_read(s, bytes, &offset);
 
           // Clean up.
-          s = NULL;
           byte_array_free(bytes);
         } 
 
@@ -384,7 +382,6 @@ void polymec_timer_report()
         byte_array_t* bytes = byte_array_new();
         size_t offset = 0;
         serializer_write(s, all_timers->data[0], bytes, &offset);
-        s = NULL;
 
         // Send the data to rank 0.
         int send_size = (int)bytes->size;
