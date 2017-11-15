@@ -14,6 +14,28 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
+// Container for storing C destructors in Lua.
+typedef struct
+{
+  void (*c_dtor)(void* context);
+} lua_c_dtor_t;
+
+// Dictionary of C destructors by object or record name.
+static string_ptr_unordered_map_t* lua_c_dtors = NULL;
+
+static void destroy_c_dtors(void)
+{
+  if (lua_c_dtors != NULL)
+    string_ptr_unordered_map_free(lua_c_dtors);
+}
+
+typedef void (*c_dtor_t)(void*);
+static c_dtor_t dtor_for_object_or_record(const char* type_name)
+{
+  lua_c_dtor_t* c_dtor = *string_ptr_unordered_map_get(lua_c_dtors, (char*)type_name);
+  return c_dtor->c_dtor;
+}
+
 //------------------------------------------------------------------------
 //                        Module functions
 //------------------------------------------------------------------------
@@ -197,7 +219,9 @@ static int lua_open_class(lua_State* L)
   lua_module_function* functions = lua_touserdata(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_class_methods");
   lua_class_method* methods = lua_touserdata(L, -1);
-  lua_pop(L, 4);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_class_c_dtor");
+  lua_c_dtor_t* c_dtor = lua_touserdata(L, -1);
+  lua_pop(L, 5);
 
   // Clean up the registry.
   lua_pushnil(L);
@@ -208,6 +232,22 @@ static int lua_open_class(lua_State* L)
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_functions");
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_methods");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_c_dtor");
+
+  // Create our global dictionary for C destructors if we haven't.
+  if (lua_c_dtors == NULL)
+  {
+    lua_c_dtors = string_ptr_unordered_map_new();
+    polymec_atexit(destroy_c_dtors);
+  }
+
+  // Register the given C destructor.
+  string_ptr_unordered_map_insert_with_kv_dtors(lua_c_dtors, 
+                                                string_dup(class_name),
+                                                c_dtor,
+                                                string_free,
+                                                polymec_free);
 
   // Create a metatable for this type and populate it with methods.
   {
@@ -278,6 +318,9 @@ static int lua_open_class(lua_State* L)
   // Document this class.
   lua_set_docstring(L, -1, class_doc);
 
+  // Set up a C destructor if we have one.
+
+
   return 1;
 }
 
@@ -320,16 +363,18 @@ void lua_register_class(lua_State* L,
                         const char* class_name,
                         const char* class_doc,
                         lua_module_function functions[],
-                        lua_class_method methods[])
+                        lua_class_method methods[],
+                        void (*c_dtor)(void* context))
 {
   ASSERT(methods != NULL);
 
   // Load the type into a module by calling lua_open_class.
   // First, though, we need to stash the following into the global registry:
   //   1. class name
-  //   2. class doc
+  //   2. class docstring
   //   3. functions such as constructors, other static functions.
   //   4. methods
+  //   5. a C destructor function
   // so that lua_open_class can retrieve them on the far end.
   lua_pushstring(L, class_name);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_name");
@@ -339,6 +384,10 @@ void lua_register_class(lua_State* L,
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_functions");
   lua_pushlightuserdata(L, (void*)methods);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_methods");
+  lua_c_dtor_t* my_c_dtor = polymec_malloc(sizeof(lua_c_dtor_t));
+  my_c_dtor->c_dtor = c_dtor;
+  lua_pushlightuserdata(L, (void*)my_c_dtor);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_c_dtor");
   luaL_requiref(L, class_name, lua_open_class, 1);
 
   // Modules with dots in the name should be registered in the right 
@@ -348,8 +397,7 @@ void lua_register_class(lua_State* L,
 
 void lua_push_object(lua_State* L,
                      const char* class_name,
-                     void* context,
-                     void (*dtor)(void* context))
+                     void* context)
 {
   // Allocate the object in the interpreter.
   lua_class_t* obj = lua_newuserdata(L, sizeof(lua_class_t));
@@ -360,7 +408,10 @@ void lua_push_object(lua_State* L,
 
   // Assign data.
   obj->context = context;
-  obj->dtor = dtor;
+
+  // By default, Lua owns this object, so find the C destructor associated 
+  // with it.
+  obj->dtor = dtor_for_object_or_record(class_name);
 }
 
 void* lua_to_object(lua_State* L,
@@ -394,11 +445,15 @@ bool lua_is_object(lua_State* L,
 
 void lua_transfer_object(lua_State* L, 
                          int index,
-                         const char* class_name)
+                         const char* class_name,
+                         lua_ownership_t ownership)
 {
   lua_class_t* obj = luaL_testudata(L, index, class_name);
   ASSERT(obj != NULL);
-  obj->dtor = NULL;
+  if (ownership == LUA_OWNED_BY_C)
+    obj->dtor = NULL; // Not our problem!
+  else
+    obj->dtor = dtor_for_object_or_record(class_name);
 }
 
 //------------------------------------------------------------------------
@@ -524,7 +579,9 @@ static int lua_open_record(lua_State* L)
   lua_record_field* fields = lua_touserdata(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_record_metamethods");
   lua_record_metamethod* metamethods = lua_touserdata(L, -1);
-  lua_pop(L, 4);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_record_c_dtor");
+  lua_c_dtor_t* c_dtor = lua_touserdata(L, -1);
+  lua_pop(L, 6);
 
   // Clean up the registry.
   lua_pushnil(L);
@@ -537,9 +594,24 @@ static int lua_open_record(lua_State* L)
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_fields");
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_metamethods");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_c_dtor");
 
-  // First of all, create our global dictionary for fields 
-  // if we haven't.
+  // Create our global dictionary for C destructors if we haven't.
+  if (lua_c_dtors == NULL)
+  {
+    lua_c_dtors = string_ptr_unordered_map_new();
+    polymec_atexit(destroy_c_dtors);
+  }
+
+  // Register the given C destructor.
+  string_ptr_unordered_map_insert_with_kv_dtors(lua_c_dtors, 
+                                                string_dup(record_type_name),
+                                                c_dtor,
+                                                string_free,
+                                                polymec_free);
+
+  // Create our global dictionary for record fields if we haven't.
   if (lua_record_fields == NULL)
   {
     lua_record_fields = string_ptr_unordered_map_new();
@@ -655,17 +727,19 @@ void lua_register_record_type(lua_State* L,
                               const char* record_type_doc,
                               lua_module_function functions[],
                               lua_record_field fields[],
-                              lua_record_metamethod metamethods[])
+                              lua_record_metamethod metamethods[],
+                              void (*c_dtor)(void* context))
 {
   ASSERT(fields != NULL);
   ASSERT(metamethods != NULL);
   // Load the record into a module by calling lua_open_record.
   // First, though, we need to stash the following into the global registry:
   //   1. record type name
-  //   2. record type name
+  //   2. record type docstring
   //   3. functions such as constructors, other static functions.
   //   4. fields
   //   5. metamethods
+  //   6. a C destructor function.
   // so that lua_open_record can retrieve them on the far end.
   lua_pushstring(L, record_type_name);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_type_name");
@@ -677,6 +751,10 @@ void lua_register_record_type(lua_State* L,
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_fields");
   lua_pushlightuserdata(L, (void*)metamethods);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_metamethods");
+  lua_c_dtor_t* my_c_dtor = polymec_malloc(sizeof(lua_c_dtor_t));
+  my_c_dtor->c_dtor = c_dtor;
+  lua_pushlightuserdata(L, (void*)my_c_dtor);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_record_c_dtor");
   luaL_requiref(L, record_type_name, lua_open_record, 1);
 
   // Modules with dots in the name should be registered in the right 
@@ -686,8 +764,7 @@ void lua_register_record_type(lua_State* L,
 
 void lua_push_record(lua_State* L,
                      const char* record_type_name,
-                     void* context,
-                     void (*dtor)(void* context))
+                     void* context)
 {
   // Is this record registered?
   if (!string_ptr_unordered_map_contains(lua_record_fields, (char*)record_type_name))
@@ -711,7 +788,10 @@ void lua_push_record(lua_State* L,
 
   // Assign data.
   r->context = context;
-  r->dtor = dtor;
+
+  // By default, Lua owns this record, so find the C destructor associated 
+  // with it.
+  r->dtor = dtor_for_object_or_record(record_type_name);
 }
 
 void* lua_to_record(lua_State* L,
@@ -745,9 +825,13 @@ bool lua_is_record(lua_State* L,
 
 void lua_transfer_record(lua_State* L, 
                          int index,
-                         const char* record_type_name)
+                         const char* record_type_name,
+                         lua_ownership_t ownership)
 {
   lua_record_t* r = luaL_testudata(L, index, record_type_name);
   ASSERT(r != NULL);
-  r->dtor = NULL;
+  if (ownership == LUA_OWNED_BY_C)
+    r->dtor = NULL; // Not our problem!
+  else
+    r->dtor = dtor_for_object_or_record(record_type_name);
 }

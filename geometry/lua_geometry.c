@@ -1031,10 +1031,10 @@ static lua_module_function points_funcs[] = {
 int lua_register_geometry_modules(lua_State* L)
 {
   // Core types.
-  lua_register_class(L, "coord_mapping", "A coordinate mapping.", cm_funcs, cm_methods);
-  lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, sd_methods);
-  lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_methods);
-  lua_register_record_type(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_mm);
+  lua_register_class(L, "coord_mapping", "A coordinate mapping.", cm_funcs, cm_methods, NULL);
+  lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, sd_methods, NULL);
+  lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_methods, NULL);
+  lua_register_record_type(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_mm, DTOR(polymesh_free));
 
   // Register a module of mesh factory methods.
   lua_register_module(L, "polymeshes", "Functions for generating polymeshes.", polymeshes_funcs);
@@ -1047,7 +1047,7 @@ int lua_register_geometry_modules(lua_State* L)
 
 void lua_push_coord_mapping(lua_State* L, coord_mapping_t* X)
 {
-  lua_push_object(L, "coord_mapping", X, NULL);
+  lua_push_object(L, "coord_mapping", X);
 }
 
 bool lua_is_coord_mapping(lua_State* L, int index)
@@ -1062,7 +1062,7 @@ coord_mapping_t* lua_to_coord_mapping(lua_State* L, int index)
 
 void lua_push_sd_func(lua_State* L, sd_func_t* f)
 {
-  lua_push_object(L, "sd_func", f, NULL);
+  lua_push_object(L, "sd_func", f);
 }
 
 bool lua_is_sd_func(lua_State* L, int index)
@@ -1077,7 +1077,7 @@ sd_func_t* lua_to_sd_func(lua_State* L, int index)
 
 void lua_push_sdt_func(lua_State* L, sdt_func_t* f)
 {
-  lua_push_object(L, "sdt_func", f, NULL);
+  lua_push_object(L, "sdt_func", f);
 }
 
 bool lua_is_sdt_func(lua_State* L, int index)
@@ -1092,7 +1092,7 @@ sdt_func_t* lua_to_sdt_func(lua_State* L, int index)
 
 void lua_push_polymesh(lua_State* L, polymesh_t* m)
 {
-  lua_push_record(L, "polymesh", m, DTOR(polymesh_free));
+  lua_push_record(L, "polymesh", m);
 }
 
 bool lua_is_polymesh(lua_State* L, int index)

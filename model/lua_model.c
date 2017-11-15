@@ -442,7 +442,7 @@ static int m_add_probe(lua_State* L)
 
   // Add the probe, transferring its ownership to the model.
   probe_t* probe = lua_to_probe(L, 2);
-  lua_transfer_object(L, 2, "probe");
+  lua_transfer_object(L, 2, "probe", LUA_OWNED_BY_C);
   model_add_probe(m, probe, times->data, times->size);
   real_array_free(times);
 
@@ -862,15 +862,15 @@ static lua_class_method probe_methods[] = {
 
 int lua_register_model_modules(lua_State* L)
 {
-  lua_register_class(L, "model", "A simulation model.", model_funcs, model_methods);
-  lua_register_class(L, "probe", "A virtual simulation probe that acquires data.", probe_funcs, probe_methods);
+  lua_register_class(L, "model", "A simulation model.", model_funcs, model_methods, DTOR(model_free));
+  lua_register_class(L, "probe", "A virtual simulation probe that acquires data.", probe_funcs, probe_methods, DTOR(probe_free));
 
   return 0;
 }
 
 void lua_push_model(lua_State* L, model_t* m)
 {
-  lua_push_object(L, "model", m, DTOR(model_free));
+  lua_push_object(L, "model", m);
 }
 
 bool lua_is_model(lua_State* L, int index)
@@ -885,7 +885,7 @@ model_t* lua_to_model(lua_State* L, int index)
 
 void lua_push_probe(lua_State* L, probe_t* p)
 {
-  lua_push_object(L, "probe", p, DTOR(probe_free));
+  lua_push_object(L, "probe", p);
 }
 
 bool lua_is_probe(lua_State* L, int index)

@@ -1973,7 +1973,9 @@ static int lua_register_mpi(lua_State* L)
   lua_setglobal(L, "mpi");
 
   // Register the communicator class.
-  lua_register_record_type(L, "mpi.comm", "An MPI communicator.", mpi_comm_funcs, mpi_comm_fields, mpi_comm_mm);
+  lua_register_record_type(L, "mpi.comm", "An MPI communicator.", 
+                           mpi_comm_funcs, mpi_comm_fields, mpi_comm_mm, 
+                           polymec_free);
 
   // Now register MPI_COMM_WORLD and MPI_COMM_SELF objects.
   lua_getglobal(L, "mpi");
@@ -1988,22 +1990,22 @@ static int lua_register_mpi(lua_State* L)
 int lua_register_core_modules(lua_State* L)
 {
   // Core types.
-  lua_register_record_type(L, "complex", "A complex number.", complex_funcs, complex_fields, complex_mm);
-  lua_register_record_type(L, "point", "A 3D point.", point_funcs, point_fields, point_mm);
-  lua_register_record_type(L, "vector", "A 3D vector.", vector_funcs, vector_fields, vector_mm);
-  lua_register_record_type(L, "tensor2", "A general rank 2 tensor.", tensor2_funcs, tensor2_fields, tensor2_mm);
-  lua_register_record_type(L, "sym_tensor2", "A symmetric rank 2 tensor.", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_mm);
+  lua_register_record_type(L, "complex", "A complex number.", complex_funcs, complex_fields, complex_mm, polymec_free);
+  lua_register_record_type(L, "point", "A 3D point.", point_funcs, point_fields, point_mm, NULL);
+  lua_register_record_type(L, "vector", "A 3D vector.", vector_funcs, vector_fields, vector_mm, NULL);
+  lua_register_record_type(L, "tensor2", "A general rank 2 tensor.", tensor2_funcs, tensor2_fields, tensor2_mm, NULL);
+  lua_register_record_type(L, "sym_tensor2", "A symmetric rank 2 tensor.", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_mm, NULL);
   lua_register_array(L);
   lua_register_ndarray(L);
   lua_register_constants(L);
   lua_register_mpi(L);
 
-  lua_register_class(L, "bbox", "A 3D bounding box.", bbox_funcs, bbox_methods);
-  lua_register_class(L, "sp_func", "A function in 3D space.", sp_funcs, sp_methods);
-  lua_register_class(L, "st_func", "A time-dependent function in 3D space.", st_funcs, st_methods);
-  lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, tagger_methods);
-  lua_register_record_type(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_mm);
-  lua_register_class(L, "rng", "A random number generator.", rng_funcs, rng_methods);
+  lua_register_class(L, "bbox", "A 3D bounding box.", bbox_funcs, bbox_methods, NULL);
+  lua_register_class(L, "sp_func", "A function in 3D space.", sp_funcs, sp_methods, NULL);
+  lua_register_class(L, "st_func", "A time-dependent function in 3D space.", st_funcs, st_methods, NULL);
+  lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, tagger_methods, NULL);
+  lua_register_record_type(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_mm, DTOR(point_cloud_free));
+  lua_register_class(L, "rng", "A random number generator.", rng_funcs, rng_methods, NULL);
 
   // Register the options table.
   lua_register_options(L);
@@ -2033,7 +2035,7 @@ void lua_push_complex(lua_State* L, complex_t z)
 {
   complex_t* zz = polymec_malloc(sizeof(complex_t));
   *zz = z;
-  lua_push_record(L, "complex", zz, polymec_free);
+  lua_push_record(L, "complex", zz);
 }
 
 bool lua_is_complex(lua_State* L, int index)
@@ -2048,7 +2050,7 @@ complex_t lua_to_complex(lua_State* L, int index)
 
 void lua_push_point(lua_State* L, point_t* p)
 {
-  lua_push_record(L, "point", p, NULL);
+  lua_push_record(L, "point", p);
 }
 
 bool lua_is_point(lua_State* L, int index)
@@ -2063,7 +2065,7 @@ point_t* lua_to_point(lua_State* L, int index)
 
 void lua_push_vector(lua_State* L, vector_t* v)
 {
-  lua_push_record(L, "vector", v, NULL);
+  lua_push_record(L, "vector", v);
 }
 
 bool lua_is_vector(lua_State* L, int index)
@@ -2078,7 +2080,7 @@ vector_t* lua_to_vector(lua_State* L, int index)
 
 void lua_push_tensor2(lua_State* L, tensor2_t* t)
 {
-  lua_push_record(L, "tensor2", t, NULL);
+  lua_push_record(L, "tensor2", t);
 }
 
 bool lua_is_tensor2(lua_State* L, int index)
@@ -2093,7 +2095,7 @@ tensor2_t* lua_to_tensor2(lua_State* L, int index)
 
 void lua_push_sym_tensor2(lua_State* L, sym_tensor2_t* t)
 {
-  lua_push_record(L, "sym_tensor2", t, NULL);
+  lua_push_record(L, "sym_tensor2", t);
 }
 
 bool lua_is_sym_tensor2(lua_State* L, int index)
@@ -2110,7 +2112,7 @@ void lua_push_mpi_comm(lua_State* L, MPI_Comm comm)
 {
   MPI_Comm* c = polymec_malloc(sizeof(MPI_Comm));
   *c = comm;
-  lua_push_record(L, "mpi.comm", c, polymec_free);
+  lua_push_record(L, "mpi.comm", c);
 }
 
 bool lua_is_mpi_comm(lua_State* L, int index)
@@ -2125,7 +2127,7 @@ MPI_Comm lua_to_mpi_comm(lua_State* L, int index)
 
 void lua_push_bbox(lua_State* L, bbox_t* b)
 {
-  lua_push_object(L, "bbox", b, NULL);
+  lua_push_object(L, "bbox", b);
 }
 
 bool lua_is_bbox(lua_State* L, int index)
@@ -2140,7 +2142,7 @@ bbox_t* lua_to_bbox(lua_State* L, int index)
 
 void lua_push_sp_func(lua_State* L, sp_func_t* f)
 {
-  lua_push_object(L, "sp_func", f, NULL);
+  lua_push_object(L, "sp_func", f);
 }
 
 bool lua_is_sp_func(lua_State* L, int index)
@@ -2155,7 +2157,7 @@ sp_func_t* lua_to_sp_func(lua_State* L, int index)
 
 void lua_push_st_func(lua_State* L, st_func_t* f)
 {
-  lua_push_object(L, "st_func", f, NULL);
+  lua_push_object(L, "st_func", f);
 }
 
 bool lua_is_st_func(lua_State* L, int index)
@@ -2170,7 +2172,7 @@ st_func_t* lua_to_st_func(lua_State* L, int index)
 
 void lua_push_tagger(lua_State* L, tagger_t* t)
 {
-  lua_push_object(L, "tagger", t, NULL);
+  lua_push_object(L, "tagger", t);
 }
 
 bool lua_is_tagger(lua_State* L, int index)
@@ -2185,7 +2187,7 @@ tagger_t* lua_to_tagger(lua_State* L, int index)
 
 void lua_push_point_cloud(lua_State* L, point_cloud_t* c)
 {
-  lua_push_record(L, "point_cloud", c, DTOR(point_cloud_free));
+  lua_push_record(L, "point_cloud", c);
 }
 
 bool lua_is_point_cloud(lua_State* L, int index)
@@ -2200,7 +2202,7 @@ point_cloud_t* lua_to_point_cloud(lua_State* L, int index)
 
 void lua_push_rng(lua_State* L, rng_t* r)
 {
-  lua_push_object(L, "rng", r, NULL);
+  lua_push_object(L, "rng", r);
 }
 
 bool lua_is_rng(lua_State* L, int index)

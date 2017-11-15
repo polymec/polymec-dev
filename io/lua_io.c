@@ -115,13 +115,13 @@ static lua_class_method silo_methods[] = {
 
 int lua_register_io_modules(lua_State* L)
 {
-  lua_register_class(L, "silo_file", "A SILO file interface.", silo_funcs, silo_methods);
+  lua_register_class(L, "silo_file", "A SILO file interface.", silo_funcs, silo_methods, DTOR(silo_file_close));
   return 0;
 }
 
 void lua_push_silo_file(lua_State* L, silo_file_t* s)
 {
-  lua_push_object(L, "silo_file", s, DTOR(silo_file_close));
+  lua_push_object(L, "silo_file", s);
 }
 
 bool lua_is_silo_file(lua_State* L, int index)
