@@ -375,7 +375,7 @@ static int pmain(lua_State* L)
 
 extern lua_State* polymec_lua_State(void);
 
-static void usage(int argc, char** argv)
+static noreturn void usage(int argc, char** argv)
 {
   // Fire up MPI real quick and fetch our rank.
   int prev_initialized, rank;
