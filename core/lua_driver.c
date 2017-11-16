@@ -256,6 +256,55 @@ static void interact(lua_State* L)
   lua_writeline();
 }
 
+// This function writes an executable chunk to a string that can be 
+// sent across the wire. Adapted from 3rdparty/lua/src/lstrlib.c.
+static int serialize_chunk(lua_State *L, const void *b, size_t size, void *B) 
+{
+  luaL_addlstring((luaL_Buffer*)B, (const char *)b, size);
+  return 0;
+}
+
+// This function broadcasts an executable chunk at the top of the stack 
+// from process 0 to all other processes.
+static int broadcast_chunk(lua_State *L) 
+{
+  ASSERT(_mpi_rank == 0);
+  if (_mpi_nprocs > 1)
+  {
+    int strip = 0; // Don't bother stripping debug info.
+    luaL_checktype(L, -1, LUA_TFUNCTION);
+
+    luaL_Buffer buffer;
+    luaL_buffinit(L, &buffer);
+    if (lua_dump(L, serialize_chunk, &buffer, strip) != 0)
+      return luaL_error(L, "Could not serialize compiled input on rank 0.");
+
+    // Now broadcast the contents of the buffer to other ranks.
+    int n = (int)buffer.n;
+    MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(buffer.b, n, MPI_CHAR, 0, MPI_COMM_WORLD);
+  }
+  return LUA_OK;
+}
+
+static int receive_chunk(lua_State *L) 
+{
+  ASSERT(_mpi_rank != 0);
+  ASSERT(_mpi_nprocs > 1);
+
+  // Receive the broadcast from rank 0.
+  int n;
+  MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  char* buffer = polymec_malloc(sizeof(char) * (n+1));
+  MPI_Bcast(buffer, (int)n, MPI_CHAR, 0, MPI_COMM_WORLD);
+  buffer[n] = '\0';
+
+  // Compile the buffer into an executable chunk.
+  int status = luaL_loadstring(L, buffer);
+  polymec_free(buffer);
+  return status;
+}
+
 // This function controls the main loop, and is called in Lua's protected mode.
 static int pmain(lua_State* L)
 {
@@ -289,7 +338,19 @@ static int pmain(lua_State* L)
   // Run the input file, if we have one.
   if (filename != NULL)
   {
-    int status = luaL_loadfile(L, (const char*)filename);
+    // Load the file on rank 0, parse it into an executable chunk, and 
+    // broadcast this chunk to other ranks.
+    int status;
+    if (_mpi_rank == 0)
+    {
+      status = luaL_loadfile(L, (const char*)filename);
+      if (status == LUA_OK)
+        status = broadcast_chunk(L);
+    }
+    else
+      status = receive_chunk(L);
+
+    // Execute the chunk on every rank.
     if (status == LUA_OK)
       status = lua_pcall(L, 0, LUA_MULTRET, 0);
     if (status != LUA_OK)
