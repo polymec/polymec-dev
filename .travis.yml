@@ -50,6 +50,7 @@ env:
 #   OpenMPI package uses GCC no matter what.
 matrix:
   exclude:
+  - os: linux
   - os: osx
     compiler: gcc
   - os: linux
