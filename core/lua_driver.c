@@ -314,30 +314,52 @@ static int pmain(lua_State* L)
 
 extern lua_State* polymec_lua_State(void);
 
-static void usage(const char* exe_name)
+static void usage(int argc, char** argv)
 {
-  if (_mpi_rank == 0)
+  // Fire up MPI real quick and fetch our rank.
+  int prev_initialized, rank;
+  MPI_Initialized(&prev_initialized);
+  if (!prev_initialized)
+    MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  // Explain usage only on rank 0.
+  if (rank == 0)
   {
-    printf("%s: usage:\n", exe_name);
-    printf("%s [flags] <input> [option1=val1 [option2=val2 [...]]]\n\n", exe_name);
+    printf("%s: usage:\n", argv[0]);
+    printf("%s [flags] <input> [option1=val1 [option2=val2 [...]]]\n\n", argv[0]);
     printf("Flags are:\n");
-    printf(" -i            Start an interactive session (valid for 1 process only).\n");
-    printf(" --help, -h    Display help.\n\n");
+    printf(" -i                Starts an interactive session (valid for 1 process only).\n");
+    printf(" --help, -h        Displays help.\n\n");
     printf("Options are:\n");
-    printf(" pause=N       Pauses for N seconds before executing, showing PID(s).\n");
-    printf(" logging=LEVEL Sets the level of detail at which messages are logged.\n");
-    printf("               Levels in ascending verbosity are:\n");
-    printf("               off,urgent,info,detail,debug\n");
-    printf(" num_threads=N Sets number of OpenMP threads to use.\n");
-    printf(" timers=VAL    Enables or disables timers.\n");
-    printf("               Case-insensitive values are:\n"); 
-    printf("               1,true,yes,on    <-- enable\n");
-    printf("               (everything else <-- disable\n");
-    printf(" dl_paths=PATH Sets path(s) to search for dynamically loaded libraries.\n");
-    printf("               PATH is a colon-delimited list of directories.\n\n");
+    printf(" pause=N           Pauses for N seconds before executing, showing PID(s).\n");
+    printf(" logging=LEVEL     Sets the level of detail at which messages are logged.\n");
+    printf("                   Case-insensitive levels in ascending verbosity are:\n");
+    printf("                   off,urgent,info,detail,debug\n");
+    printf("                   (Default is info)\n");
+    printf(" logging_mode=MODE Specifies how messages are logged.\n");
+    printf("                   Case-insensitive modes are:\n");
+    printf("                   single <-- Logs messages to MPI rank 0\n");
+    printf("                   all    <-- Logs messages to all MPI ranks\n");
+    printf("                   P      <-- Logs messages to MPI rank P\n");
+    printf(" log_file=PREFIX   Logs messages to PREFIX.log.\n");
+    printf("                   If logging_mode=all, logs messages for MPI\n");
+    printf("                   rank P in PREFIX.P.log.\n");
+    printf("                   Existing log files are overwritten.\n");
+    printf(" num_threads=N     Sets number of OpenMP threads to use.\n");
+    printf(" timers=VAL        Enables or disables timers.\n");
+    printf("                   Case-insensitive values are:\n"); 
+    printf("                   1,true,yes,on    <-- enable\n");
+    printf("                   (everything else <-- disable\n");
+    printf(" dl_paths=PATH     Sets path(s) to search for dynamically loaded libraries.\n");
+    printf("                   PATH is a colon-delimited list of directories.\n\n");
     printf("You can specify other options as well. All options are made available\n");
     printf("in the options table, accessible in your input.\n");
   }
+
+  // Shut down if we have to.
+  if (!prev_initialized)
+    MPI_Finalize();
   exit(0);
 }
 
@@ -345,19 +367,19 @@ int lua_driver(int argc,
                char** argv,
                int (*register_types_and_modules)(lua_State* L))
 {
-  // Start everything up.
-  polymec_init(argc, argv);
-
-  MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &_mpi_nprocs);
-
   // Look for "-h" or "--help" in the command line args and print usage 
   // info if we find it.
   for (int i = 1; i < argc; ++i)
   {
     if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0))
-      usage(argv[0]);
+      usage(argc, argv);
   }
+
+  // Start everything up.
+  polymec_init(argc, argv);
+
+  MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &_mpi_nprocs);
 
   // Set the maximum history length.
   linenoiseHistorySetMaxLen(500);

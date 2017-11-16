@@ -56,13 +56,14 @@ add_mpi_polymec_core_test(test_repartition_point_cloud test_repartition_point_cl
 include(add_driver_test)
 add_driver_with_libs(core_driver "polymec_core;${POLYMEC_BASE_LIBRARIES}" test_core_driver.c)
 add_driver_test(test_core_driver core_driver ${CMAKE_CURRENT_SOURCE_DIR}/test_core_driver.input 1 2 4)
+add_driver_test(test_core_driver_usage core_driver --help 1 2)
 
 # Basic smoke tests of polymec/lua subsystems.
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/ohai "print(\"Ohai!\")")
 add_driver_test(test_driver_bad_file core_driver bad_file)
 list(APPEND failing_tests test_driver_bad_file)
-add_driver_test(test_driver_debug_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=debug logging_mode=all)
-add_driver_test(test_driver_detail_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=detail logging_mode=single)
+add_driver_test(test_driver_debug_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=debug logging_mode=all log_file=ohai)
+add_driver_test(test_driver_detail_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=detail logging_mode=single log_file=ohai)
 add_driver_test(test_driver_info_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=info logging_mode=0)
 add_driver_test(test_driver_urgent_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=urgent)
 add_driver_test(test_driver_no_logging core_driver ${CMAKE_CURRENT_BINARY_DIR}/ohai logging=off)

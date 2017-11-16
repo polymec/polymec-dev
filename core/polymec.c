@@ -203,6 +203,7 @@ static void set_up_logging()
   options_t* opts = options_argv();
   char* logging = options_value(opts, "logging");
   char* logging_mode = options_value(opts, "logging_mode");
+  char* log_file = options_value(opts, "log_file");
   opts = NULL;
   if (logging != NULL)
   {
@@ -241,6 +242,19 @@ static void set_up_logging()
       set_log_mpi_rank(log_level(), p);
     }
 #endif
+  }
+  if (log_file != NULL)
+  {
+    FILE* log_f = NULL;
+    char filename[FILENAME_MAX+1];
+    if (log_mode() == LOG_TO_SINGLE_RANK)
+      snprintf(filename, FILENAME_MAX, "%s.log", log_file);
+    else
+      snprintf(filename, FILENAME_MAX, "%s.%d.log", log_file, world_rank);
+    log_f = fopen(filename, "w");
+    if (log_f == NULL)
+      polymec_error("Could not open log file %s for writing.");
+    set_log_stream(log_level(), log_f);
   }
 }
 
