@@ -319,7 +319,7 @@ real_t model_max_dt(model_t* model, char* reason)
   if (model->max_dt < dt)
   {
     dt = model->max_dt;
-    strcpy(reason, "Max dt set in options.");
+    strcpy(reason, "Specified maximum timestep.");
   }
 
   // If we have a plot time coming up, perhaps the next one will 

@@ -314,6 +314,33 @@ static int pmain(lua_State* L)
 
 extern lua_State* polymec_lua_State(void);
 
+static void usage(const char* exe_name)
+{
+  if (_mpi_rank == 0)
+  {
+    printf("%s: usage:\n", exe_name);
+    printf("%s [flags] <input> [option1=val1 [option2=val2 [...]]]\n\n", exe_name);
+    printf("Flags are:\n");
+    printf(" -i            Start an interactive session (valid for 1 process only).\n");
+    printf(" --help, -h    Display help.\n\n");
+    printf("Options are:\n");
+    printf(" pause=N       Pauses for N seconds before executing, showing PID(s).\n");
+    printf(" logging=LEVEL Sets the level of detail at which messages are logged.\n");
+    printf("               Levels in ascending verbosity are:\n");
+    printf("               off,urgent,info,detail,debug\n");
+    printf(" num_threads=N Sets number of OpenMP threads to use.\n");
+    printf(" timers=VAL    Enables or disables timers.\n");
+    printf("               Case-insensitive values are:\n"); 
+    printf("               1,true,yes,on    <-- enable\n");
+    printf("               (everything else <-- disable\n");
+    printf(" dl_paths=PATH Sets path(s) to search for dynamically loaded libraries.\n");
+    printf("               PATH is a colon-delimited list of directories.\n\n");
+    printf("You can specify other options as well. All options are made available\n");
+    printf("in the options table, accessible in your input.\n");
+  }
+  exit(0);
+}
+
 int lua_driver(int argc,
                char** argv,
                int (*register_types_and_modules)(lua_State* L))
@@ -323,6 +350,14 @@ int lua_driver(int argc,
 
   MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &_mpi_nprocs);
+
+  // Look for "-h" or "--help" in the command line args and print usage 
+  // info if we find it.
+  for (int i = 1; i < argc; ++i)
+  {
+    if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0))
+      usage(argv[0]);
+  }
 
   // Set the maximum history length.
   linenoiseHistorySetMaxLen(500);
