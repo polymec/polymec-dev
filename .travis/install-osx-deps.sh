@@ -1,6 +1,6 @@
 # Install required software
 brew update
-brew install gcc openmpi lcov
+brew install --overwrite gcc openmpi lcov
 brew upgrade cmake
 
 # Make sure the weird gfortran library links are in place.
