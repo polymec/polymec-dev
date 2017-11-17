@@ -98,193 +98,59 @@ polymesh_t* silo_file_read_polymesh(silo_file_t* file,
 // with the given name, false otherwise.
 bool silo_file_contains_polymesh(silo_file_t* file, const char* mesh_name);
 
-// Writes a named scalar cell-centered field, understood to exist on 
-// the polymesh with the given name, to the given Silo file. If a silo_field_metadata
-// object is passed as the last argument, the metadata for the field will also 
-// be written to the file--otherwise it can be NULL.
-void silo_file_write_scalar_polycell_field(silo_file_t* file,
+// Writes a named scalar field with the given centering on a polymesh, 
+// understood to exist on the polymesh with the given name within the file, 
+// to the given Silo file. If a silo_field_metadata object is passed as the 
+// last argument, the metadata for the field will also be written to the 
+// file--otherwise it can be NULL.
+void silo_file_write_scalar_polymesh_field(silo_file_t* file,
                                            const char* field_name,
                                            const char* mesh_name,
                                            real_t* field_data,
+                                           polymesh_centering_t centering,
                                            silo_field_metadata_t* field_metadata);
 
-// Reads a named scalar cell-centered field from the Silo file, returning a newly-
-// allocated array of field data. If a silo_field_metadata object is passed as 
-// the last argument, the metadata for the field will be read into it--
-// otherwise it can be NULL.
-real_t* silo_file_read_scalar_polycell_field(silo_file_t* file,
-                                             const char* field_name,
-                                             const char* mesh_name,
-                                             silo_field_metadata_t* field_metadata);
-
-// Writes a named multicomponent cell-centered field, understood to exist on 
-// the polymesh with the given name, to the given Silo file. The field data is 
-// interpreted to be in component-minor order. If an array of metadata
-// objects is passed as the last argument, the metadata for the field will also 
-// be written to the file--otherwise it can be NULL.
-void silo_file_write_polycell_field(silo_file_t* file,
+// Writes a named multicomponent field of the given centering on a polymesh, 
+// understood to exist on the polymesh with the given name, to the given Silo 
+// file. The field data is interpreted to be in component-minor order. If an 
+// array of metadata objects is passed as the last argument, the metadata for 
+// the field will also be written to the file--otherwise it can be NULL.
+void silo_file_write_polymesh_field(silo_file_t* file,
                                     const char** field_component_names,
                                     const char* mesh_name,
                                     real_t* field_data,
                                     int num_components,
+                                    polymesh_centering_t centering,
                                     silo_field_metadata_t** field_metadata);
 
-// Reads a named multicomponent cell-centered field from the Silo file, returning a 
-// newly-allocated array of field data. If an array of metadata objects is 
-// passed as the last argument, the metadata for the field will be read into 
-// it--otherwise it can be NULL.
-real_t* silo_file_read_polycell_field(silo_file_t* file,
-                                      const char** field_component_names,
-                                      const char* mesh_name,
-                                      int num_components,
-                                      silo_field_metadata_t** field_metadata);
-
-// Returns true if the given Silo file contains a (scalar) cell-centered field 
-// with the given name and associated with the given polymesh, false otherwise.
-bool silo_file_contains_polycell_field(silo_file_t* file, 
-                                       const char* field_name,
-                                       const char* mesh_name);
-
-// Writes a named scalar face-centered field, understood to exist on 
-// the polymesh with the given name, to the given Silo file. If a silo_field_metadata
-// object is passed as the last argument, the metadata for the field will also 
-// be written to the file--otherwise it can be NULL.
-void silo_file_write_scalar_polyface_field(silo_file_t* file,
-                                           const char* field_name,
-                                           const char* mesh_name,
-                                           real_t* field_data,
-                                           silo_field_metadata_t* field_metadata);
-
-// Reads a named scalar face-centered field from the Silo file, returning a newly-
-// allocated array of field data. If a silo_field_metadata object is 
-// passed as the last argument, the metadata for the field will be read into 
-// it--otherwise it can be NULL.
-real_t* silo_file_read_scalar_polyface_field(silo_file_t* file,
+// Reads a named scalar field with the given polymesh centering from the Silo 
+// file, returning a newly-allocated array of field data. If a 
+// silo_field_metadata object is passed as the last argument, the metadata for 
+// the field will be read into it--otherwise it can be NULL.
+real_t* silo_file_read_scalar_polymesh_field(silo_file_t* file,
                                              const char* field_name,
                                              const char* mesh_name,
+                                             polymesh_centering_t centering,
                                              silo_field_metadata_t* field_metadata);
 
-// Writes a named multicomponent face-centered field, understood to exist on 
-// the polymesh with the given name, to the given Silo file. The field data is 
-// interpreted to be in component-minor order. If an array of metadata
-// objects is passed as the last argument, the metadata for the field will also 
-// be written to the file--otherwise it can be NULL.
-void silo_file_write_polyface_field(silo_file_t* file,
-                                    const char** field_component_names,
-                                    const char* mesh_name,
-                                    real_t* field_data,
-                                    int num_components,
-                                    silo_field_metadata_t** field_metadata);
-
-// Reads a named multicomponent face-centered field from the Silo file, returning a 
-// newly-allocated array of field data. If an array of metadata objects is 
-// passed as the last argument, the metadata for the field will be read into 
-// it--otherwise it can be NULL.
-real_t* silo_file_read_polyface_field(silo_file_t* file,
+// Reads a named multicomponent field with the given polymesh centering from 
+// the Silo file, returning a newly-allocated array of field data. If an array 
+// of metadata objects is passed as the last argument, the metadata for the 
+// field will be read into it--otherwise it can be NULL.
+real_t* silo_file_read_polymesh_field(silo_file_t* file,
                                       const char** field_component_names,
                                       const char* mesh_name,
                                       int num_components,
+                                      polymesh_centering_t centering,
                                       silo_field_metadata_t** field_metadata);
 
-// Returns true if the given Silo file contains a (scalar) face-centered field 
-// with the given name and associated with the given polymesh, false otherwise.
-bool silo_file_contains_polyface_field(silo_file_t* file, 
+// Returns true if the given Silo file contains a (scalar) field 
+// with the given centering and name, and associated with the given polymesh, 
+// false otherwise.
+bool silo_file_contains_polymesh_field(silo_file_t* file, 
                                        const char* field_name,
-                                       const char* mesh_name);
-
-// Writes a named scalar node-centered field, understood to exist on 
-// the polymesh with the given name, to the given Silo file. If a silo_field_metadata
-// object is passed as the last argument, the metadata for the field will also 
-// be written to the file--otherwise it can be NULL.
-void silo_file_write_scalar_polynode_field(silo_file_t* file,
-                                           const char* field_name,
-                                           const char* mesh_name,
-                                           real_t* field_data,
-                                           silo_field_metadata_t* field_metadata);
-
-// Reads a named scalar node-centered field from the Silo file, returning a newly-
-// allocated array of field data. If a silo_field_metadata object is 
-// passed as the last argument, the metadata for the field will be read into 
-// it--otherwise it can be NULL.
-real_t* silo_file_read_scalar_polynode_field(silo_file_t* file,
-                                             const char* field_name,
-                                             const char* mesh_name,
-                                             silo_field_metadata_t* field_metadata);
-
-// Writes a named multicomponent node-centered field, understood to exist on 
-// the polymesh with the given name, to the given Silo file. The field data is 
-// interpreted to be in component-minor order. If an array of metadata
-// objects is passed as the last argument, the metadata for the field will also 
-// be written to the file--otherwise it can be NULL.
-void silo_file_write_polynode_field(silo_file_t* file,
-                                    const char** field_component_names,
-                                    const char* mesh_name,
-                                    real_t* field_data,
-                                    int num_components,
-                                    silo_field_metadata_t** field_metadata);
-
-// Reads a named multicomponent node-centered field from the Silo file, returning a 
-// newly-allocated array of field data. If an array of metadata objects is 
-// passed as the last argument, the metadata for the field will be read into 
-// it--otherwise it can be NULL.
-real_t* silo_file_read_polynode_field(silo_file_t* file,
-                                      const char** field_component_names,
-                                      const char* mesh_name,
-                                      int num_components,
-                                      silo_field_metadata_t** field_metadata);
-
-// Returns true if the given Silo file contains a (scalar) node-centered field 
-// with the given name and associated with the given polymesh, false otherwise.
-bool silo_file_contains_polynode_field(silo_file_t* file, 
-                                       const char* field_name,
-                                       const char* mesh_name);
-
-// Writes a named scalar edge-centered field, understood to exist on 
-// the polymesh with the given name, to the given Silo file. If a silo_field_metadata object is 
-// passed as the last argument, the metadata for the field will be read into 
-// it--otherwise it can be NULL.
-void silo_file_write_scalar_polyedge_field(silo_file_t* file,
-                                           const char* field_name,
-                                           const char* mesh_name,
-                                           real_t* field_data,
-                                           silo_field_metadata_t* field_metadata);
-
-// Reads a named scalar edge-centered field from the Silo file, returning a newly-
-// allocated array of field data. If an array of metadata objects is 
-// passed as the last argument, the metadata for the field will be read into 
-// it--otherwise it can be NULL.
-real_t* silo_file_read_scalar_polyedge_field(silo_file_t* file,
-                                             const char* field_name,
-                                             const char* mesh_name,
-                                             silo_field_metadata_t* field_metadata);
-
-// Writes a named multicomponent edge-centered field, understood to exist on 
-// the polymesh with the given name, to the given Silo file. The field data is 
-// interpreted to be in component-minor order. If an array of metadata
-// objects is passed as the last argument, the metadata for the field will also 
-// be written to the file--otherwise it can be NULL.
-void silo_file_write_polyedge_field(silo_file_t* file,
-                                    const char** field_component_names,
-                                    const char* mesh_name,
-                                    real_t* field_data,
-                                    int num_components,
-                                    silo_field_metadata_t** field_metadata);
-
-// Reads a named multicomponent edge-centered field from the Silo file, returning a 
-// newly-allocated array of field data. If an array of metadata objects is 
-// passed as the last argument, the metadata for the field will be read into 
-// it--otherwise it can be NULL.
-real_t* silo_file_read_polyedge_field(silo_file_t* file,
-                                      const char** field_component_names,
-                                      const char* mesh_name,
-                                      int num_components,
-                                      silo_field_metadata_t** field_metadata);
-
-// Returns true if the given Silo file contains a (scalar) node-centered field 
-// with the given name and associated with the given polymesh, false otherwise.
-bool silo_file_contains_polyedge_field(silo_file_t* file, 
-                                       const char* field_name,
-                                       const char* mesh_name);
+                                       const char* mesh_name,
+                                       polymesh_centering_t centering);
 
 // Adds a point cloud to the given Silo file.
 void silo_file_write_point_cloud(silo_file_t* file,

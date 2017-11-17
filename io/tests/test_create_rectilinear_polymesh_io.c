@@ -69,7 +69,8 @@ static void test_plot_rectilinear_mesh(void** state)
   metadata->conserved = true;
   metadata->extensive = false;
   metadata->vector_component = 2;
-  silo_file_write_scalar_polycell_field(silo, "solution", "mesh", ones, metadata);
+  silo_file_write_scalar_polymesh_field(silo, "solution", "mesh", ones, 
+                                        POLYMESH_CELL, metadata);
 
   // Add some fields with different centerings.
   real_t nvals[3*mesh->num_nodes]; 
@@ -80,17 +81,19 @@ static void test_plot_rectilinear_mesh(void** state)
     nvals[3*n+1] = mesh->nodes[n].y;
     nvals[3*n+2] = mesh->nodes[n].z;
   }
-  silo_file_write_polynode_field(silo, nnames, "mesh", nvals, 3, NULL);
+  silo_file_write_polymesh_field(silo, nnames, "mesh", nvals, 3, POLYMESH_NODE, NULL);
 
   real_t fvals[mesh->num_faces];
   for (int f = 0; f < mesh->num_faces; ++f)
     fvals[f] = 1.0 * f;
-  silo_file_write_scalar_polyface_field(silo, "fvals", "mesh", fvals, NULL);
+  silo_file_write_scalar_polymesh_field(silo, "fvals", "mesh", fvals, 
+                                        POLYMESH_FACE, NULL);
 
   real_t evals[mesh->num_edges];
   for (int e = 0; e < mesh->num_edges; ++e)
     evals[e] = 1.0 * e;
-  silo_file_write_scalar_polyedge_field(silo, "evals", "mesh", evals, NULL);
+  silo_file_write_scalar_polymesh_field(silo, "evals", "mesh", evals, 
+                                        POLYMESH_EDGE, NULL);
 
   silo_file_close(silo);
 
@@ -105,8 +108,8 @@ static void test_plot_rectilinear_mesh(void** state)
   assert_true(silo_file_contains_polymesh(silo, "mesh"));
   mesh = silo_file_read_polymesh(silo, "mesh");
   assert_true(mesh->num_cells <= 4*4*4);
-  assert_true(silo_file_contains_polycell_field(silo, "solution", "mesh"));
-  real_t* ones1 = silo_file_read_scalar_polycell_field(silo, "solution", "mesh", metadata);
+  assert_true(silo_file_contains_polymesh_field(silo, "solution", "mesh", POLYMESH_CELL));
+  real_t* ones1 = silo_file_read_scalar_polymesh_field(silo, "solution", "mesh", POLYMESH_CELL, metadata);
   for (int i = 0; i < mesh->num_cells; ++i)
   {
     assert_true(reals_equal(ones1[i], ones[i]));
@@ -119,26 +122,26 @@ static void test_plot_rectilinear_mesh(void** state)
   metadata = NULL;
 
   // Check on the other fields.
-  assert_true(silo_file_contains_polynode_field(silo, "nx", "mesh"));
-  assert_true(silo_file_contains_polynode_field(silo, "ny", "mesh"));
-  assert_true(silo_file_contains_polynode_field(silo, "nz", "mesh"));
-  real_t* nvals1 = silo_file_read_polynode_field(silo, nnames, "mesh", 3, NULL);
+  assert_true(silo_file_contains_polymesh_field(silo, "nx", "mesh", POLYMESH_NODE));
+  assert_true(silo_file_contains_polymesh_field(silo, "ny", "mesh", POLYMESH_NODE));
+  assert_true(silo_file_contains_polymesh_field(silo, "nz", "mesh", POLYMESH_NODE));
+  real_t* nvals1 = silo_file_read_polymesh_field(silo, nnames, "mesh", 3, POLYMESH_NODE, NULL);
   for (int n = 0; n < mesh->num_nodes; ++n)
   {
     assert_true(reals_equal(nvals[n], nvals1[n]));
   }
   polymec_free(nvals1);
 
-  assert_true(silo_file_contains_polyface_field(silo, "fvals", "mesh"));
-  real_t* fvals1 = silo_file_read_scalar_polyface_field(silo, "fvals", "mesh", NULL);
+  assert_true(silo_file_contains_polymesh_field(silo, "fvals", "mesh", POLYMESH_FACE));
+  real_t* fvals1 = silo_file_read_scalar_polymesh_field(silo, "fvals", "mesh", POLYMESH_FACE, NULL);
   for (int f = 0; f < mesh->num_faces; ++f)
   {
     assert_true(reals_equal(fvals[f], fvals1[f]));
   }
   polymec_free(fvals1);
 
-  assert_true(silo_file_contains_polyedge_field(silo, "evals", "mesh"));
-  real_t* evals1 = silo_file_read_scalar_polyedge_field(silo, "evals", "mesh", NULL);
+  assert_true(silo_file_contains_polymesh_field(silo, "evals", "mesh", POLYMESH_EDGE));
+  real_t* evals1 = silo_file_read_scalar_polymesh_field(silo, "evals", "mesh", POLYMESH_EDGE, NULL);
   for (int e = 0; e < mesh->num_edges; ++e)
   {
     assert_true(reals_equal(evals[e], evals1[e]));
