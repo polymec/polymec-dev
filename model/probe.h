@@ -14,10 +14,10 @@
 // Here's a single datum acquired by a probe.
 typedef struct 
 {
-  real_t time;
-  int rank;
-  size_t* shape;
-  real_t* data;
+  real_t time;    // time of acquisition
+  int rank;       // rank of array storing data (0 = scalar)
+  size_t* shape;  // shape[i] specifies ith dimension of data array
+  real_t* data;   // array itself
 } probe_data_t;
 
 // Allocates probe_data with the given characteristics.
@@ -48,7 +48,7 @@ typedef struct
 
 // Creates an instance of a probe that acquires a quantity of the given 
 // name, placing its data into an array large enough to store all of its 
-// contents. Here, datum_size is the number of real numbers required to store 
+// contents. Here, rank and shape define the size of the array used to store
 // a datum.
 probe_t* probe_new(const char* name, 
                    const char* data_name,
