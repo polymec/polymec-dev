@@ -45,6 +45,13 @@
 #define MPI_UINT32_T        15             
 #define MPI_UINT64_T        16
 
+// For MPI_MINLOC, MPI_MAXLOC
+#define MPI_DOUBLE_INT      17
+#define MPI_FLOAT_INT       18
+#define MPI_2INT            19
+#define MPI_LONG_INT        19
+#define MPI_SHORT_INT       20
+
 #define MPI_SUM             0              
 #define MPI_MIN             1              
 #define MPI_MAX             2              
