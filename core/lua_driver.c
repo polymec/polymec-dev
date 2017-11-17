@@ -296,11 +296,11 @@ static int receive_chunk(lua_State *L)
   int n;
   MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
   char* buffer = polymec_malloc(sizeof(char) * (n+1));
-  MPI_Bcast(buffer, (int)n, MPI_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(buffer, n, MPI_CHAR, 0, MPI_COMM_WORLD);
   buffer[n] = '\0';
 
   // Compile the buffer into an executable chunk.
-  int status = luaL_loadstring(L, buffer);
+  int status = luaL_loadbuffer(L, (const char*)buffer, (size_t)n, "input");
   polymec_free(buffer);
   return status;
 }
@@ -374,6 +374,8 @@ static int pmain(lua_State* L)
 }
 
 extern lua_State* polymec_lua_State(void);
+
+extern noreturn void exit(int status);
 
 static noreturn void usage(int argc, char** argv)
 {
