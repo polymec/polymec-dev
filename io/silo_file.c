@@ -1700,12 +1700,12 @@ bool silo_file_contains_polymesh(silo_file_t* file, const char* mesh_name)
   return result;
 }
 
-static void silo_file_write_scalar_polymesh_field(silo_file_t* file,
-                                                  polymesh_centering_t centering,
-                                                  const char* field_name,
-                                                  const char* mesh_name,
-                                                  real_t* field_data,
-                                                  silo_field_metadata_t* field_metadata)
+void silo_file_write_scalar_polymesh_field(silo_file_t* file,
+                                           const char* field_name,
+                                           const char* mesh_name,
+                                           real_t* field_data,
+                                           polymesh_centering_t centering,
+                                           silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1748,13 +1748,13 @@ static void silo_file_write_scalar_polymesh_field(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-static void silo_file_write_polymesh_field(silo_file_t* file,
-                                           polymesh_centering_t centering,
-                                           const char** field_component_names,
-                                           const char* mesh_name,
-                                           real_t* field_data,
-                                           int num_components,
-                                           silo_field_metadata_t** field_metadata)
+void silo_file_write_polymesh_field(silo_file_t* file,
+                                    const char** field_component_names,
+                                    const char* mesh_name,
+                                    real_t* field_data,
+                                    int num_components,
+                                    polymesh_centering_t centering,
+                                    silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1780,19 +1780,19 @@ static void silo_file_write_polymesh_field(silo_file_t* file,
     for (int i = 0; i < num_elems; ++i)
       comp_data[i] = field_data[num_components*i+c];
     silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-    silo_file_write_scalar_polymesh_field(file, centering, field_component_names[c], 
-                                          mesh_name, comp_data, metadata);
+    silo_file_write_scalar_polymesh_field(file, field_component_names[c], 
+                                          mesh_name, comp_data, centering, metadata);
   }
   polymec_free(comp_data);
 
   STOP_FUNCTION_TIMER();
 }
 
-static real_t* silo_file_read_scalar_polymesh_field(silo_file_t* file,
-                                                    polymesh_centering_t centering,
-                                                    const char* field_name,
-                                                    const char* mesh_name,
-                                                    silo_field_metadata_t* field_metadata)
+real_t* silo_file_read_scalar_polymesh_field(silo_file_t* file,
+                                             const char* field_name,
+                                             const char* mesh_name,
+                                             polymesh_centering_t centering,
+                                             silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1827,12 +1827,12 @@ static real_t* silo_file_read_scalar_polymesh_field(silo_file_t* file,
   return field;
 }
 
-static real_t* silo_file_read_polymesh_field(silo_file_t* file,
-                                             polymesh_centering_t centering,
-                                             const char** field_component_names,
-                                             const char* mesh_name,
-                                             int num_components,
-                                             silo_field_metadata_t** field_metadata)
+real_t* silo_file_read_polymesh_field(silo_file_t* file,
+                                      const char** field_component_names,
+                                      const char* mesh_name,
+                                      int num_components,
+                                      polymesh_centering_t centering,
+                                      silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1857,8 +1857,7 @@ static real_t* silo_file_read_polymesh_field(silo_file_t* file,
   for (int c = 0; c < num_components; ++c)
   {
     silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-    real_t* comp_data = silo_file_read_scalar_polymesh_field(file, centering, 
-                          field_component_names[c], mesh_name, metadata);
+    real_t* comp_data = silo_file_read_scalar_polymesh_field(file, field_component_names[c], mesh_name, centering, metadata);
     for (int i = 0; i < num_elems; ++i)
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
@@ -1867,17 +1866,18 @@ static real_t* silo_file_read_polymesh_field(silo_file_t* file,
   return field;
 }
 
-static bool silo_file_contains_polymesh_field(silo_file_t* file, 
-                                              polymesh_centering_t centering, 
-                                              const char* field_name, 
-                                              const char* mesh_name)
+bool silo_file_contains_polymesh_field(silo_file_t* file, 
+                                       const char* field_name, 
+                                       const char* mesh_name,
+                                       polymesh_centering_t centering)
 {
+  START_FUNCTION_TIMER();
   bool result = false;
   if (silo_file_contains_polymesh(file, mesh_name)) // mesh exists...
   {
     set_domain_dir(file);
 
-    result = ((DBInqVarType(file->dbfile, mesh_name) == DB_UCDMESH) &&  // mesh is a point cloud...
+    result = ((DBInqVarType(file->dbfile, mesh_name) == DB_UCDMESH) &&  // mesh is a UCD mesh...
               (DBInqVarExists(file->dbfile, field_name) &&  // field exists...
               (DBInqVarType(file->dbfile, field_name) == DB_UCDVAR))); // field is actually a variable.
 
@@ -1909,231 +1909,6 @@ static bool silo_file_contains_polymesh_field(silo_file_t* file,
     set_root_dir(file);
   }
 
-  return result;
-}
-
-void silo_file_write_scalar_polycell_field(silo_file_t* file,
-                                           const char* field_name,
-                                           const char* mesh_name,
-                                           real_t* field_data,
-                                           silo_field_metadata_t* field_metadata)
-{
-  START_FUNCTION_TIMER();
-  silo_file_write_scalar_polymesh_field(file, POLYMESH_CELL, field_name, mesh_name, field_data, field_metadata);
-  STOP_FUNCTION_TIMER();
-}
-
-real_t* silo_file_read_scalar_polycell_field(silo_file_t* file,
-                                             const char* field_name,
-                                             const char* mesh_name,
-                                             silo_field_metadata_t* field_metadata)
-{
-  START_FUNCTION_TIMER();
-  real_t* field = silo_file_read_scalar_polymesh_field(file, POLYMESH_CELL, field_name, mesh_name, field_metadata);
-  STOP_FUNCTION_TIMER();
-  return field;
-}
-
-
-void silo_file_write_polycell_field(silo_file_t* file,
-                                    const char** field_component_names,
-                                    const char* mesh_name,
-                                    real_t* field_data,
-                                    int num_components,
-                                    silo_field_metadata_t** field_metadata)
-{
-  START_FUNCTION_TIMER();
-  silo_file_write_polymesh_field(file, POLYMESH_CELL, field_component_names, mesh_name, field_data,
-                                 num_components, field_metadata);
-  STOP_FUNCTION_TIMER();
-}
-
-real_t* silo_file_read_polycell_field(silo_file_t* file,
-                                      const char** field_component_names,
-                                      const char* mesh_name,
-                                      int num_components,
-                                      silo_field_metadata_t** field_metadata)
-{
-  START_FUNCTION_TIMER();
-  real_t* field = silo_file_read_polymesh_field(file, POLYMESH_CELL, field_component_names, mesh_name, 
-                                                num_components, field_metadata);
-  STOP_FUNCTION_TIMER();
-  return field;
-}
-
-bool silo_file_contains_polycell_field(silo_file_t* file, const char* field_name, const char* mesh_name)
-{
-  START_FUNCTION_TIMER();
-  bool result = silo_file_contains_polymesh_field(file, POLYMESH_CELL, field_name, mesh_name);
-  STOP_FUNCTION_TIMER();
-  return result;
-}
-
-void silo_file_write_scalar_polyface_field(silo_file_t* file,
-                                           const char* field_name,
-                                           const char* mesh_name,
-                                           real_t* field_data,
-                                           silo_field_metadata_t* field_metadata)
-{
-  START_FUNCTION_TIMER();
-  silo_file_write_scalar_polymesh_field(file, POLYMESH_FACE, field_name, mesh_name, field_data, field_metadata);
-  STOP_FUNCTION_TIMER();
-}
-
-real_t* silo_file_read_scalar_polyface_field(silo_file_t* file,
-                                             const char* field_name,
-                                             const char* mesh_name,
-                                             silo_field_metadata_t* field_metadata)
-{
-  START_FUNCTION_TIMER();
-  real_t* field = silo_file_read_scalar_polymesh_field(file, POLYMESH_FACE, field_name, mesh_name, field_metadata);
-  STOP_FUNCTION_TIMER();
-  return field;
-}
-
-void silo_file_write_polyface_field(silo_file_t* file,
-                                    const char** field_component_names,
-                                    const char* mesh_name,
-                                    real_t* field_data,
-                                    int num_components,
-                                    silo_field_metadata_t** field_metadata)
-{
-  START_FUNCTION_TIMER();
-  silo_file_write_polymesh_field(file, POLYMESH_FACE, field_component_names, mesh_name, field_data,
-                             num_components, field_metadata);
-  STOP_FUNCTION_TIMER();
-}
-
-real_t* silo_file_read_polyface_field(silo_file_t* file,
-                                      const char** field_component_names,
-                                      const char* mesh_name,
-                                      int num_components,
-                                      silo_field_metadata_t** field_metadata)
-{
-  START_FUNCTION_TIMER();
-  real_t* field = silo_file_read_polymesh_field(file, POLYMESH_FACE, field_component_names, mesh_name, 
-                                            num_components, field_metadata);
-  ASSERT(file->mode == DB_READ);
-  STOP_FUNCTION_TIMER();
-  return field;
-}
-
-bool silo_file_contains_polyface_field(silo_file_t* file, const char* field_name, const char* mesh_name)
-{
-  START_FUNCTION_TIMER();
-  bool result = silo_file_contains_polymesh_field(file, POLYMESH_FACE, field_name, mesh_name);
-  STOP_FUNCTION_TIMER();
-  return result;
-}
-
-void silo_file_write_scalar_polynode_field(silo_file_t* file,
-                                           const char* field_name,
-                                           const char* mesh_name,
-                                           real_t* field_data,
-                                           silo_field_metadata_t* field_metadata)
-{
-  START_FUNCTION_TIMER();
-  silo_file_write_scalar_polymesh_field(file, POLYMESH_NODE, field_name, mesh_name, field_data, field_metadata);
-  STOP_FUNCTION_TIMER();
-}
-
-real_t* silo_file_read_scalar_polynode_field(silo_file_t* file,
-                                             const char* field_name,
-                                             const char* mesh_name,
-                                             silo_field_metadata_t* field_metadata)
-{
-  START_FUNCTION_TIMER();
-  real_t* field = silo_file_read_scalar_polymesh_field(file, POLYMESH_NODE, field_name, mesh_name, field_metadata);
-  STOP_FUNCTION_TIMER();
-  return field;
-}
-
-void silo_file_write_polynode_field(silo_file_t* file,
-                                    const char** field_component_names,
-                                    const char* mesh_name,
-                                    real_t* field_data,
-                                    int num_components,
-                                    silo_field_metadata_t** field_metadata)
-{
-  START_FUNCTION_TIMER();
-  silo_file_write_polymesh_field(file, POLYMESH_NODE, field_component_names, mesh_name, field_data,
-                                 num_components, field_metadata);
-  STOP_FUNCTION_TIMER();
-}
-
-real_t* silo_file_read_polynode_field(silo_file_t* file,
-                                      const char** field_component_names,
-                                      const char* mesh_name,
-                                      int num_components,
-                                      silo_field_metadata_t** field_metadata)
-{
-  START_FUNCTION_TIMER();
-  real_t* field = silo_file_read_polymesh_field(file, POLYMESH_NODE, field_component_names, mesh_name, 
-                                                num_components, field_metadata);
-  STOP_FUNCTION_TIMER();
-  return field;
-}
-
-bool silo_file_contains_polynode_field(silo_file_t* file, const char* field_name, const char* mesh_name)
-{
-  START_FUNCTION_TIMER();
-  bool result = silo_file_contains_polymesh_field(file, POLYMESH_NODE, field_name, mesh_name);
-  STOP_FUNCTION_TIMER();
-  return result;
-}
-
-void silo_file_write_scalar_polyedge_field(silo_file_t* file,
-                                           const char* field_name,
-                                           const char* mesh_name,
-                                           real_t* field_data,
-                                           silo_field_metadata_t* field_metadata)
-{
-  START_FUNCTION_TIMER();
-  silo_file_write_scalar_polymesh_field(file, POLYMESH_EDGE, field_name, mesh_name, field_data, field_metadata);
-  STOP_FUNCTION_TIMER();
-}
-
-real_t* silo_file_read_scalar_polyedge_field(silo_file_t* file,
-                                             const char* field_name,
-                                             const char* mesh_name,
-                                             silo_field_metadata_t* field_metadata)
-{
-  START_FUNCTION_TIMER();
-  real_t* field = silo_file_read_scalar_polymesh_field(file, POLYMESH_EDGE, field_name, mesh_name, field_metadata);
-  STOP_FUNCTION_TIMER();
-  return field;
-}
-
-void silo_file_write_polyedge_field(silo_file_t* file,
-                                    const char** field_component_names,
-                                    const char* mesh_name,
-                                    real_t* field_data,
-                                    int num_components,
-                                    silo_field_metadata_t** field_metadata)
-{
-  START_FUNCTION_TIMER();
-  silo_file_write_polymesh_field(file, POLYMESH_EDGE, field_component_names, mesh_name, field_data,
-                                 num_components, field_metadata);
-  STOP_FUNCTION_TIMER();
-}
-
-real_t* silo_file_read_polyedge_field(silo_file_t* file,
-                                      const char** field_component_names,
-                                      const char* mesh_name,
-                                      int num_components,
-                                      silo_field_metadata_t** field_metadata)
-{
-  START_FUNCTION_TIMER();
-  real_t* field = silo_file_read_polymesh_field(file, POLYMESH_EDGE, field_component_names, mesh_name, 
-                                                num_components, field_metadata);
-  STOP_FUNCTION_TIMER();
-  return field;
-}
-
-bool silo_file_contains_polyedge_field(silo_file_t* file, const char* field_name, const char* mesh_name)
-{
-  START_FUNCTION_TIMER();
-  bool result = silo_file_contains_polymesh_field(file, POLYMESH_EDGE, field_name, mesh_name);
   STOP_FUNCTION_TIMER();
   return result;
 }

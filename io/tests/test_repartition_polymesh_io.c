@@ -210,7 +210,7 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   snprintf(prefix, FILENAME_MAX, "%dx%dx%d_uniform_mesh_repartition", nx, ny, nz);
   silo_file_t* silo = silo_file_new(mesh->comm, prefix, prefix, 1, 0, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
-  silo_file_write_scalar_polycell_field(silo, "rank", "mesh", r, NULL);
+  silo_file_write_scalar_polymesh_field(silo, "rank", "mesh", r, POLYMESH_CELL, NULL);
   silo_file_close(silo);
 
   // Clean up.
