@@ -39,7 +39,8 @@ typedef struct
   void (*set_model)(void* context, void* model_context);
 
   // Acquire data from a model. The data's rank and shape are given, and 
-  // the data is placed into the data array.
+  // the data is placed into the data array. Data must be acquired on every 
+  // process for every probe.
   void (*acquire)(void* context, real_t t, probe_data_t* data);
 
   // Destructor.
