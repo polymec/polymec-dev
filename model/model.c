@@ -562,7 +562,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
   if (!model_initialized)
   {
     STOP_FUNCTION_TIMER();
-    return; 
+    polymec_error("%s: Could not load model from step %d", model->name, model->load_step);
   }
 
   if (reals_equal(t1, t2))
