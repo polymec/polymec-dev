@@ -14,6 +14,7 @@
 #include "core/text_buffer.h"
 #include "core/timer.h"
 #include "core/hash_functions.h"
+#include "core/lua_driver.h"
 #include "model/model.h"
 
 #ifdef _OPENMP
@@ -131,8 +132,6 @@ model_t* model_new(const char* name,
   model->context = context;
   model->name = string_dup(name);
   model->parallelism = parallelism;
-  model->sim_prefix = string_dup(name);
-  model->sim_dir = string_dup(".");
   model->save_every = -1;
   model->plot_every = -REAL_MAX;
   model->load_step = -1;
@@ -144,6 +143,21 @@ model_t* model_new(const char* name,
   model->step = 0;
   model->max_dt = REAL_MAX;
   model->min_dt = 0.0;
+
+  // Set defaults for the simulation file prefix and directory.
+  const char* script = lua_driver_script();
+  if (script != NULL)
+  {
+    char dirname[FILENAME_MAX], filename[FILENAME_MAX];
+    parse_path(script, dirname, filename);
+    model->sim_prefix = string_dup(filename);
+    model->sim_dir = string_dup(filename);
+  }
+  else
+  {
+    model->sim_prefix = string_dup(name);
+    model->sim_dir = string_dup(".");
+  }
 
   // Initialize probe and probe data maps.
   model->probes = probe_map_new();

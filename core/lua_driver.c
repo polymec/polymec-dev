@@ -32,6 +32,9 @@
 static int _mpi_rank = -1;
 static int _mpi_nprocs = -1;
 
+static bool _lua_driver_running = false;
+static char* _script = NULL;
+
 // This function reports an error in parsing input.
 static int report_error(lua_State *L, int status) 
 {
@@ -308,6 +311,9 @@ static int receive_chunk(lua_State *L)
 // This function controls the main loop, and is called in Lua's protected mode.
 static int pmain(lua_State* L)
 {
+  // We're up and running!
+  _lua_driver_running = true;
+
   int (*register_types_and_modules)(lua_State* L) = lua_tocfunction(L, 1);
 
   // Get the parsed command line options.
@@ -351,6 +357,7 @@ static int pmain(lua_State* L)
       status = receive_chunk(L);
 
     // Execute the chunk on every rank.
+    _script = filename;
     if (status == LUA_OK)
       status = lua_pcall(L, 0, LUA_MULTRET, 0);
     if (status != LUA_OK)
@@ -369,6 +376,8 @@ static int pmain(lua_State* L)
   }
 
   // We made it to the end without incident.
+  _script = NULL;
+  _lua_driver_running = false;
   lua_pushboolean(L, true);
   return 1;
 }
@@ -473,3 +482,14 @@ int lua_driver(int argc,
   // Shut down and report any error(s).
   return (result && status == LUA_OK) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+
+bool lua_driver_running(void)
+{
+  return _lua_driver_running;
+}
+
+const char* lua_driver_script(void)
+{
+  return _script;
+}
+
