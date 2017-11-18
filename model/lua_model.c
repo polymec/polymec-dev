@@ -78,7 +78,7 @@ static real_t lm_advance(void* context, real_t max_dt, real_t t)
   return lua_to_real(lm->L, -1);
 }
 
-static void lm_load(void* context, const char* file_prefix, const char* directory, real_t* time, int step)
+static bool lm_load(void* context, const char* file_prefix, const char* directory, real_t* time, int step)
 {
   lua_model_t* lm = context;
   lua_pushlightuserdata(lm->L, lm);
@@ -92,9 +92,12 @@ static void lm_load(void* context, const char* file_prefix, const char* director
   lua_pushinteger(lm->L, step);
   lua_call(lm->L, 4, 1);
 
-  if (!lua_isnumber(lm->L, -1))
-    luaL_error(lm->L, "load function did not return a time.");
-  *time = lua_to_real(lm->L, -1);
+  if (lua_isnumber(lm->L, -1))
+  {
+    *time = lua_to_real(lm->L, -1);
+    return true;
+  }
+  return false;
 }
 
 static void lm_save(void* context, const char* file_prefix, const char* directory, real_t time, int step)
@@ -272,7 +275,9 @@ static int m_load(lua_State* L)
   if (!lua_isinteger(L, 2))
     return luaL_error(L, "Argument must be a step to load.");
   int step = (int)(lua_tointeger(L, 2));
-  model_load(m, step);
+  bool loaded = model_load(m, step);
+  if (!loaded)
+    return luaL_error(L, "Model could not be loaded from step %d.", step);
   return 0;
 }
 

@@ -74,6 +74,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 // can be found, in which case the single set of files containing no step 
 // information will be loaded. If time is not NULL, it will store the time 
 // found in the file (or 0.0 if it does not exist in the file).
+// If the file does not exist or fails to load, this function returns NULL.
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,

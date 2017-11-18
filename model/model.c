@@ -437,7 +437,7 @@ void model_finalize(model_t* model)
   STOP_FUNCTION_TIMER();
 }
 
-void model_load(model_t* model, int step)
+bool model_load(model_t* model, int step)
 {
   START_FUNCTION_TIMER();
   check_thread_safety(model);
@@ -448,13 +448,19 @@ void model_load(model_t* model, int step)
 
   ASSERT(step >= 0);
   log_detail("%s: Loading save file from directory %s...", model->name, model->sim_dir);
-  model->vtable.load(model->context, model->sim_prefix, model->sim_dir, &model->time, step);
-  model->step = step;
+  bool loaded = model->vtable.load(model->context, model->sim_prefix, model->sim_dir, &model->time, step);
+  if (loaded)
+  {
+    model->step = step;
 
-  // Reset the wall time(s).
-  model->wall_time0 = MPI_Wtime();
-  model->wall_time = MPI_Wtime();
+    // Reset the wall time(s).
+    model->wall_time0 = MPI_Wtime();
+    model->wall_time = MPI_Wtime();
+  }
+  else
+    log_detail("%s: Could not load save file.", model->name);
   STOP_FUNCTION_TIMER();
+  return loaded;
 }
 
 void model_save(model_t* model)
@@ -474,8 +480,11 @@ void model_plot(model_t* model)
   START_FUNCTION_TIMER();
   if (model->vtable.plot == NULL)
     polymec_error("Plotting is not supported by this model.");
+
   log_detail("%s: Writing plot to directory %s...", model->name, model->sim_dir);
-  model->vtable.plot(model->context, model->sim_prefix, model->sim_dir, model->time, model->step);
+  char plot_prefix[FILENAME_MAX+1];
+  snprintf(plot_prefix, FILENAME_MAX, "%s-plot", model->sim_prefix);
+  model->vtable.plot(model->context, plot_prefix, model->sim_dir, model->time, model->step);
   STOP_FUNCTION_TIMER();
 }
 
@@ -529,6 +538,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
   START_FUNCTION_TIMER();
   ASSERT(t2 >= t1);
 
+  bool model_initialized = false;
   if (model->load_step == -1)
   {
     if (t2 > t1)
@@ -541,11 +551,18 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
     else
       log_detail("%s: Running simulation at time %g.", model->name, t1);
     model_init(model, t1);
+    model_initialized = true;
   }
   else
   {
-    model_load(model, model->load_step);
+    model_initialized = model_load(model, model->load_step);
     t1 = model->time;
+  }
+
+  if (!model_initialized)
+  {
+    STOP_FUNCTION_TIMER();
+    return; 
   }
 
   if (reals_equal(t1, t2))

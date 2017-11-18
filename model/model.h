@@ -36,8 +36,8 @@ typedef void (*model_finalize_func)(void* context, int step, real_t t);
 // A function for loading the model's state. All data within a model must be 
 // loaded from the file in order to ensure that the state is exactly 
 // preserved. This function is called INSTEAD OF model_init when saved data
-// is loaded.
-typedef void (*model_load_func)(void* context, const char* file_prefix, const char* directory, real_t* time, int step);
+// is loaded. Returns true if the load is successful, false if not.
+typedef bool (*model_load_func)(void* context, const char* file_prefix, const char* directory, real_t* time, int step);
 
 // A function for saving the model's state to the given I/O interface.
 typedef void (*model_save_func)(void* context, const char* file_prefix, const char* directory, real_t time, int step);
@@ -136,8 +136,9 @@ void model_add_probe(model_t* model,
 void model_init(model_t* model, real_t t);
 
 // Loads the model's state. This is called instead of model_init when 
-// input instructs the model to load from a given step.
-void model_load(model_t* model, int step);
+// input instructs the model to load from a given step. Returns true if 
+// the model was successfully loaded, false if not.
+bool model_load(model_t* model, int step);
 
 // Sets the initial time step to be taken by the model.
 void model_set_initial_dt(model_t* model, real_t dt0);

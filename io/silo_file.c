@@ -1073,7 +1073,9 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   if (!silo_file_query(file_prefix, file->directory, &num_files, &num_mpi_procs, steps))
   {
     int_slist_free(steps);
-    polymec_error("silo_file_open: Invalid file.");
+    log_info("silo_file_open: Invalid file.");
+    STOP_FUNCTION_TIMER();
+    return NULL;
   }
 
   log_debug("silo_file_open: Found file written by %d MPI processes.", num_mpi_procs);
