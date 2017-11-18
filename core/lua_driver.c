@@ -426,6 +426,12 @@ static noreturn void usage(int argc, char** argv)
   exit(0);
 }
 
+static void lua_error_handler(const char* message)
+{
+  lua_State* L = polymec_lua_State();
+  luaL_error(L, "%s", message);
+}
+
 int lua_driver(int argc,
                char** argv,
                int (*register_types_and_modules)(lua_State* L))
@@ -441,8 +447,13 @@ int lua_driver(int argc,
   // Start everything up.
   polymec_init(argc, argv);
 
+  // Take note of our rank and number of processes.
   MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &_mpi_nprocs);
+
+  // Override the default error handler so that polymec_error reports to 
+  // Lua.
+  polymec_set_error_handler(lua_error_handler);
 
   // Set the maximum history length.
   linenoiseHistorySetMaxLen(500);

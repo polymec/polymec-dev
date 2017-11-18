@@ -187,12 +187,12 @@ static noreturn void mpi_fatal_error_handler(MPI_Comm* comm, int* error_code, ..
   char error_string[1024];
   MPI_Error_string(*error_code, error_string, &len);
   ASSERT(len < 1024);
-  polymec_error("%s on rank %d\n", error_string, world_rank);
+  polymec_fatal_error("%s on rank %d\n", error_string, world_rank);
 }
 #endif
 
 // This Silo error handler intercepts I/O-related errors.
-static noreturn void handle_silo_error(char* message)
+static void handle_silo_error(char* message)
 {
   polymec_error("%s: %s", DBErrFuncname(), message);
 }
@@ -236,7 +236,7 @@ static void set_up_logging()
       char* ptr;
       int p = (int)strtol(logging_mode, &ptr, 10);
       if ((p < 0) || (p >= world_nprocs))
-        polymec_error("polymec_init: invalid logging rank: %d", p);
+        polymec_fatal_error("polymec_init: invalid logging rank: %d", p);
       log_debug("polymec_init: logging MPI rank %d.", p);
       set_log_mode(LOG_TO_SINGLE_RANK);
       set_log_mpi_rank(log_level(), p);
@@ -253,7 +253,7 @@ static void set_up_logging()
       snprintf(filename, FILENAME_MAX, "%s.%d.log", log_file, world_rank);
     log_f = fopen(filename, "w");
     if (log_f == NULL)
-      polymec_error("Could not open log file %s for writing.");
+      polymec_fatal_error("Could not open log file %s for writing.");
     set_log_stream(log_level(), log_f);
   }
 }
@@ -340,7 +340,7 @@ static void pause_if_requested()
   {
     int secs = atoi((const char*)delay);
     if (secs <= 0)
-      polymec_error("Cannot pause for a non-positive interval.");
+      polymec_fatal_error("Cannot pause for a non-positive interval.");
     if (world_nprocs > 1)
     {
       log_urgent("Pausing for %d seconds. PIDS: ", secs);
@@ -447,7 +447,7 @@ void polymec_init(int argc, char** argv)
     // Initialize our Lua state so that we can use its garbage collector.
     polymec_L = luaL_newstate();
     if (polymec_L == NULL)
-      polymec_error("%s: cannot create Lua interpreter: not enough memory.", argv[0]);
+      polymec_fatal_error("%s: cannot create Lua interpreter: not enough memory.", argv[0]);
 
     // Initialize variables for exact arithmetic.
     exactinit();
@@ -526,7 +526,7 @@ noreturn void SCOTCH_errorPrint(const char* const errstr, ...)
 {
   va_list argp;
   va_start(argp, errstr);
-  polymec_error(errstr, argp);
+  polymec_fatal_error(errstr, argp);
   va_end(argp);
 }
 
@@ -574,9 +574,24 @@ void polymec_error(const char* message, ...)
 
   // Call the handler.
   error_handler(err);
+}
 
-  // Make sure we don't return.
+void polymec_fatal_error(const char* message, ...)
+{
+  // Extract the variadic arguments and splat them into a string.
+  char err[1024];
+  va_list argp;
+  va_start(argp, message);
+  vsnprintf(err, 1024, message, argp);
+  va_end(argp);
+
+  // Issue the fatal error.
+  printf("%d: Fatal error: %s\n", world_rank, err);
+#if POLYMEC_HAVE_MPI
+  MPI_Abort(MPI_COMM_WORLD, -1);
+#else
   exit(-1);
+#endif
   polymec_unreachable();
 }
 
@@ -597,7 +612,7 @@ void polymec_warn(const char* message, ...)
 
 static noreturn void handle_fpe_signal(int signal)
 {
-  polymec_error("%d: Detected a floating point exception signal.", world_rank);
+  polymec_fatal_error("%d: Detected a floating point exception signal.", world_rank);
 }
 
 void polymec_enable_fpe()

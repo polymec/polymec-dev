@@ -308,15 +308,22 @@ for (int i = start; i < start + num; ++i) \
 
 typedef void (*polymec_error_handler_function)(const char*);
 
-// Issues an error with the given message. By default, an error issues a 
-// message to stdout and exits the program with status -1.
-noreturn void polymec_error(const char* message, ...);
+// Issues a run-time error with the given message. By default, an error sends a 
+// message to stdout and exits the program with status -1. If you are 
+// using lua_driver to provide an interpreter environment, the error will 
+// be issued to the interpreter. To override the default error handler(s), use
+// polymec_set_error_handler().
+void polymec_error(const char* message, ...);
+
+// Issues a fatal run-time error with the given message, printing a message
+// to stdout and exiting the program with status -1.
+noreturn void polymec_fatal_error(const char* message, ...);
 
 // Aborts execution in a proper manner that respects MPI if needed, 
 // writing the given message to stderr.
 noreturn void polymec_abort(const char* message, ...);
 
-// Sets the error handler for the polymec library.
+// Sets the error handler for polymec_error.
 void polymec_set_error_handler(polymec_error_handler_function handler);
 
 // Issues a warning to stderr.
@@ -454,7 +461,7 @@ static inline real_t real_frac_diff(real_t a, real_t b)
 }
 
 // Use this macro to indicate that something hasn't been implemented.
-#define POLYMEC_NOT_IMPLEMENTED polymec_error("%s:\n  line %d: Function %s is not implemented!", __FILE__, __LINE__, __func__);
+#define POLYMEC_NOT_IMPLEMENTED polymec_fatal_error("%s:\n  line %d: Function %s is not implemented!", __FILE__, __LINE__, __func__);
 
 // Use this macro to indicate that the current function is deprecated.
 #define POLYMEC_DEPRECATED log_urgent("%s:\n line %d: Function %s is deprecated.", __FILE__, __LINE__, __func__);
