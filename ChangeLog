@@ -1,4 +1,4 @@
-Wed Oct  4 10:49:04 PDT 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
+Sun Nov 19 14:41:52 PST 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.0.0
     * Implemented a proper Lua interpreter for writing input scripts.
       - Added types and functions for defining records and objects that 
@@ -6,6 +6,10 @@ Wed Oct  4 10:49:04 PDT 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
       - Implemented logic for interactive interpreter, including accommodations 
         for parallel I/O.
       - Added Lua representations of all fundamental data types.
+      - Added help() and document(), an interactive docstring-based help 
+        system.
+      - Provided lua_driver, which handles startup and provides a Lua
+        interpreter inside which input is executed.
     * Added signed distance function classes: sd_func and sdt_func.
     * Added vectorized forms for sp_func and st_func.
     * Replaced model observations with probes, making data acquisition 
@@ -13,13 +17,16 @@ Wed Oct  4 10:49:04 PDT 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
     * Added complex_t and corresponding functions for manipulating complex 
       numbers.
     * Implemented several special functions (real- and complex-valued).
+    * Renamed integrators library to solvers and moved several classes there.
     * Added an io library that contains the silo_file class.
+    * Streamlined the silo_file interface.
+    * Renamed mesh to polymesh and moved it to the geometry library.
     * Removed the meshless library.
-    * Fixed several significant bugs.
+    * Improved defaults for parameters in the model class.
+    * Fixed several significant bugs and added several new unit tests.
     * Bumped third-party library versions.
-    * Added help() and document(), an interactive docstring-based help system.
     * Added support for code coverage using lcov/gcov.
-      - Increased code coverage from ~50% to ~72%.
+      - Increased code coverage from ~50% to ~75%.
 
 Mon Dec  5 22:56:33 PST 2016  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 1.4.0
