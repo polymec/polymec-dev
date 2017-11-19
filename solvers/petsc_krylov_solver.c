@@ -1300,7 +1300,7 @@ static PetscErrorCode polymec_petsc_error_handler(MPI_Comm comm,
                                                   const char* mess,
                                                   void* ctx)
 {
-  polymec_error("PETSC error detected in %s (%s:%d): %s", func, file, line, mess);
+  polymec_fatal_error("PETSC error detected in %s (%s:%d): %s", func, file, line, mess);
 }
 
 #endif
