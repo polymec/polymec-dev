@@ -965,6 +965,17 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   file->step = step;
   file->time = time;
 
+  // Write the step and cycle.
+  {
+    char dir[256];
+    DBGetDir(file->dbfile, dir);
+    DBSetDir(file->dbfile, "/");
+    int one = 1;
+    DBWrite(file->dbfile, "dtime", &(file->time), &one, 1, DB_DOUBLE);
+    DBWrite(file->dbfile, "cycle", &(file->step), &one, 1, DB_INT);
+    DBSetDir(file->dbfile, dir);
+  }
+
   // Write our stamp of approval.
   int one = 1;
 #if POLYMEC_HAVE_MPI

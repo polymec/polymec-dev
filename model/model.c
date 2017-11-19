@@ -45,8 +45,9 @@ struct model_t
   model_vtable vtable;
   model_parallelism_t parallelism;
 
-  int save_every;    // Save frequency (steps).
-  real_t plot_every; // Plot frequency (time units).
+  int save_every;       // Save frequency (steps).
+  real_t plot_every;    // Plot frequency (time units).
+  bool plot_this_cycle; // Flag to plot after the current cycle completes.
 
   int load_step; // -1 if starting a new sim, >= 0 if loading from a file.
 
@@ -236,9 +237,11 @@ static void model_do_periodic_work(model_t* model)
   // Do plots and saves.
   if (model->plot_every > 0.0)
   {
-    int n = (int)(model->time / model->plot_every);
-    if (reals_nearly_equal(model->time, n * model->plot_every, 1e-12)) // FIXME: cheesy...
+    if (model->plot_this_cycle)
+    {
       model_plot(model);
+      model->plot_this_cycle = false;
+    }
   }
 
   // Save if the step # is right and if we're not on a freshly-loaded step.
@@ -265,6 +268,7 @@ void model_init(model_t* model, real_t t)
   model->time = t;
   model->wall_time0 = MPI_Wtime();
   model->wall_time = MPI_Wtime();
+  model->plot_this_cycle = true;
   STOP_FUNCTION_TIMER();
 }
 
@@ -336,6 +340,16 @@ real_t model_max_dt(model_t* model, char* reason)
     strcpy(reason, "Specified maximum timestep.");
   }
 
+  // If we have an observation time coming up, perhaps the next one will 
+  // constrain the timestep.
+  real_t acq_time = model_next_acq_time(model);
+  real_t acq_dt = acq_time - model->time;
+  if (acq_dt < dt)
+  {
+    dt = acq_dt;
+    sprintf(reason, "Requested acquisition time: %g", acq_time);
+  }
+
   // If we have a plot time coming up, perhaps the next one will 
   // constrain the timestep.
   if (model->plot_every > 0.0)
@@ -348,28 +362,23 @@ real_t model_max_dt(model_t* model, char* reason)
     {
       // We're already at one plot time; set our sights on the next.
       plot_dt = model->plot_every;
-      sprintf(reason, "Requested plot time: %g", plot_time);
     }
-    else if (plot_dt < model->max_dt)
-    {
-      dt = plot_dt;
-      sprintf(reason, "Requested plot time: %g", plot_time);
-    }
-    else if (2.0 * plot_dt < model->max_dt)
-    {
-      dt = plot_dt;
-      sprintf(reason, "Requested plot time: %g", plot_time);
-    }
-  }
 
-  // If we have an observation time coming up, perhaps the next one will 
-  // constrain the timestep.
-  real_t acq_time = model_next_acq_time(model);
-  real_t acq_dt = acq_time - model->time;
-  if (acq_dt < dt)
-  {
-    dt = acq_dt;
-    sprintf(reason, "Requested acquisition time: %g", acq_time);
+    // Is our plot timestep the limiting factor?
+    if (plot_dt < dt)
+    {
+      dt = plot_dt;
+      model->plot_this_cycle = true;
+      sprintf(reason, "Requested plot time: %g", plot_time);
+    }
+    else if (2.0 * plot_dt < dt)
+    {
+      dt = plot_dt;
+      model->plot_this_cycle = true;
+      sprintf(reason, "Requested plot time: %g", plot_time);
+    }
+    else if (reals_nearly_equal(plot_dt, dt, 1e-12)) // FIXME: corny
+      model->plot_this_cycle = true;
   }
 
   return dt;
@@ -466,6 +475,7 @@ bool model_load(model_t* model, int step)
   if (loaded)
   {
     model->step = step;
+    model->plot_this_cycle = true;
 
     // Reset the wall time(s).
     model->wall_time0 = MPI_Wtime();
