@@ -234,13 +234,13 @@ static int lua_finalize_object(lua_State* L)
   // Fetch our destructor.
   gc_finalizer_t* storage_f = (gc_finalizer_t*)storage;
   void (*finalize)(void*) = storage_f[2].finalize;
-  ASSERT(finalize != NULL);
 
   // Fetch our object.
   void* obj = &(storage_f[3]);
 
-  // Finalize the object.
-  finalize(obj);
+  // Finalize the object if needed.
+  if (finalize != NULL)
+    finalize(obj);
   
   return 0;
 }
@@ -270,12 +270,9 @@ void* polymec_gc_malloc(size_t size, void (*finalize)(void* memory))
   // for a userdata of the desired size preceded by 2 ints and a finalizer.
   void* storage = lua_newuserdata(L, 3 * sizeof(gc_finalizer_t) + size);
 
-  // If we're given a finalizer, set the metatable for this object.
-  if (finalize != NULL)
-  {
-    luaL_getmetatable(L, GC_C_OBJ);
-    lua_setmetatable(L, -2);
-  }
+  // Set the metatable for this object.
+  luaL_getmetatable(L, GC_C_OBJ);
+  lua_setmetatable(L, -2);
 
   // Get a key for this object and stash it at the front of the userdata.
   int ref = luaL_ref(L, LUA_REGISTRYINDEX);
