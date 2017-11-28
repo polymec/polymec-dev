@@ -15,7 +15,6 @@
 #include "core/point_cloud.h"
 #include "core/adj_graph.h"
 #include "solvers/matrix_sparsity.h"
-#include "io/silo_file.h"
 
 // A stencil is a set of indices associated with a stencil for some spatial 
 // discretization. Stencils can be constructed for any set of indices 
@@ -119,25 +118,7 @@ adj_graph_t* stencil_as_graph(stencil_t* stencil);
 serializer_t* stencil_serializer(void);
 
 // Returns a newly-created matrix sparsity constructed from this stencil.
-matrix_sparsity_t* sparsity_from_stencil(stencil_t* stencil);
-
-// This function extends the silo_file type to allow it to write out a 
-// stencil object to an entry with the given name.
-void silo_file_write_stencil(silo_file_t* file,
-                             const char* stencil_name,
-                             stencil_t* stencil);
-
-// This function extends the silo_file type to allow it to read in and 
-// return a newly-allocated stencil object from the entry in the 
-// file with the given name. The exchanger for the stencil is assigned
-// to the given MPI communicator.
-stencil_t* silo_file_read_stencil(silo_file_t* file,
-                                  const char* stencil_name,
-                                  MPI_Comm comm);
-
-// Returns true if the given silo_file contains a stencil with the given 
-// name, false otherwise.
-bool silo_file_contains_stencil(silo_file_t* file, const char* stencil_name);
+matrix_sparsity_t* matrix_sparsity_from_stencil(stencil_t* stencil);
 
 // This pre-fab function creates a stencil for points in a cloud that have 
 // neighbors within a radius given by R[i] for the ith point. num_ghost_points

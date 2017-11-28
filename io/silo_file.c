@@ -2419,3 +2419,117 @@ void silo_file_add_subdomain_field(silo_file_t* file,
 #endif
 }
 
+bool silo_file_contains_stencil(silo_file_t* file, const char* stencil_name)
+{
+  char name[FILENAME_MAX+1];
+  snprintf(name, FILENAME_MAX, "%s_stencil_name", stencil_name);
+  return silo_file_contains_string(file, name);
+}
+
+void silo_file_write_stencil(silo_file_t* file,
+                             const char* stencil_name,
+                             stencil_t* stencil)
+{
+  START_FUNCTION_TIMER();
+  char name_name[FILENAME_MAX+1];
+  snprintf(name_name, FILENAME_MAX, "%s_stencil_name", stencil_name);
+  silo_file_write_string(file, name_name, stencil->name);
+
+  char offsets_name[FILENAME_MAX+1];
+  snprintf(offsets_name, FILENAME_MAX, "%s_stencil_offsets", stencil_name);
+  silo_file_write_int_array(file, offsets_name, stencil->offsets, stencil->num_indices+1);
+
+  char indices_name[FILENAME_MAX+1];
+  snprintf(indices_name, FILENAME_MAX, "%s_stencil_indices", stencil_name);
+  silo_file_write_int_array(file, indices_name, stencil->indices, stencil->offsets[stencil->num_indices]);
+
+  if (stencil->ex != NULL)
+  {
+    char ex_name[FILENAME_MAX+1];
+    snprintf(ex_name, FILENAME_MAX, "%s_stencil_ex", stencil_name);
+    silo_file_write_exchanger(file, ex_name, stencil->ex);
+  }
+  STOP_FUNCTION_TIMER();
+}
+
+stencil_t* silo_file_read_stencil(silo_file_t* file,
+                                  const char* stencil_name,
+                                  MPI_Comm comm)
+{
+  START_FUNCTION_TIMER();
+  stencil_t* s = polymec_malloc(sizeof(stencil_t));
+  char name_name[FILENAME_MAX+1];
+  snprintf(name_name, FILENAME_MAX, "%s_stencil_name", stencil_name);
+  s->name = silo_file_read_string(file, name_name);
+
+  char offsets_name[FILENAME_MAX+1];
+  snprintf(offsets_name, FILENAME_MAX, "%s_stencil_offsets", stencil_name);
+  size_t size;
+  s->offsets = silo_file_read_int_array(file, offsets_name, &size);
+  s->num_indices = (int)(size) - 1;
+
+  if (s->offsets[s->num_indices] > 0)
+  {
+    char indices_name[FILENAME_MAX+1];
+    snprintf(indices_name, FILENAME_MAX, "%s_stencil_indices", stencil_name);
+    s->indices = silo_file_read_int_array(file, indices_name, &size);
+    ASSERT((int)size == s->offsets[s->num_indices]);
+  }
+  else
+    s->indices = NULL;
+
+  char ex_name[FILENAME_MAX+1];
+  snprintf(ex_name, FILENAME_MAX, "%s_stencil_ex", stencil_name);
+  s->ex = silo_file_read_exchanger(file, ex_name, comm);
+  STOP_FUNCTION_TIMER();
+  return s;
+}
+
+bool silo_file_contains_neighbor_pairing(silo_file_t* file, 
+                                         const char* neighbors_name)
+{
+  char name[FILENAME_MAX+1];
+  snprintf(name, FILENAME_MAX, "%s_neighbor_pairing_name", neighbors_name);
+  return silo_file_contains_string(file, name);
+}
+
+void silo_file_write_neighbor_pairing(silo_file_t* file,
+                                      const char* neighbors_name,
+                                      neighbor_pairing_t* neighbors)
+{
+  char name_name[FILENAME_MAX];
+  snprintf(name_name, FILENAME_MAX, "%s_neighbor_pairing_name", neighbors_name);
+  silo_file_write_string(file, name_name, neighbors->name);
+  char pairs_name[FILENAME_MAX];
+  snprintf(pairs_name, FILENAME_MAX, "%s_neighbor_pairing_pairs", neighbors_name);
+  silo_file_write_int_array(file, pairs_name, neighbors->pairs, 2*neighbors->num_pairs);
+
+  if (neighbors->ex != NULL)
+  {
+    char ex_name[FILENAME_MAX];
+    snprintf(ex_name, FILENAME_MAX, "%s_neighbor_pairing_ex", neighbors_name);
+    silo_file_write_exchanger(file, ex_name, neighbors->ex);
+  }
+}
+
+neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
+                                                    const char* neighbors_name,
+                                                    MPI_Comm comm)
+{
+  neighbor_pairing_t* p = polymec_malloc(sizeof(neighbor_pairing_t));
+  char name_name[FILENAME_MAX];
+  snprintf(name_name, FILENAME_MAX, "%s_neighbor_pairing_name", neighbors_name);
+  p->name = silo_file_read_string(file, name_name);
+  char pairs_name[FILENAME_MAX];
+  snprintf(pairs_name, FILENAME_MAX, "%s_neighbor_pairing_pairs", neighbors_name);
+  size_t size;
+  p->pairs = silo_file_read_int_array(file, pairs_name, &size);
+  ASSERT((size % 2) == 0);
+  p->num_pairs = (int)size/2;
+
+  char ex_name[FILENAME_MAX];
+  snprintf(ex_name, FILENAME_MAX, "%s_neighbor_pairing_ex", neighbors_name);
+  p->ex = silo_file_read_exchanger(file, ex_name, comm);
+  return p;
+}
+
