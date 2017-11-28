@@ -8,10 +8,15 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include "core/polymec.h"
+
 #if POLYMEC_HAVE_MPI
-#include "mpi.h"
+// We use this MPI tag to pass batons back and forth between processes.
+static int SILO_FILE_MPI_TAG = 1111;
+
+// Poor Man's Parallel I/O stuff.
 #include "pmpio.h"
 #endif
+
 #include "silo.h"
 #include "core/arch.h"
 #include "core/logging.h"
@@ -247,7 +252,6 @@ void optlist_free(DBoptlist* optlist)
 }
 
 #if POLYMEC_HAVE_MPI
-
 static void* pmpio_create_file(const char* filename,
                                const char* dir_name,
                                void* user_data)
@@ -823,11 +827,22 @@ static void write_master_file(silo_file_t* file)
 }
 #endif
 
+// Sets the prefix for the file, stripping .silo off if it's there.
+static void set_prefix(silo_file_t* file,
+                       const char* prefix)
+{
+  char pre[FILENAME_MAX+1];
+  strncpy(pre, prefix, FILENAME_MAX);
+  char* suffix = strstr(pre, ".silo");
+  if (suffix != NULL)
+    suffix[0] = '\0';
+  strcpy(file->prefix, pre);
+}
+
 silo_file_t* silo_file_new(MPI_Comm comm,
                            const char* file_prefix,
                            const char* directory,
                            int num_files,
-                           int mpi_tag,
                            int step,
                            real_t time)
 {
@@ -840,17 +855,10 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->expressions = string_ptr_unordered_map_new();
 
-  // Strip .silo off of the prefix if it's there.
-  {
-    char prefix[FILENAME_MAX+1];
-    strncpy(prefix, file_prefix, FILENAME_MAX);
-    char* suffix = strstr(prefix, ".silo");
-    if (suffix != NULL)
-      suffix[0] = '\0';
-    strcpy(file->prefix, prefix);
-  }
+  set_prefix(file, file_prefix);
 
 #if POLYMEC_HAVE_MPI
+  file->mpi_tag = SILO_FILE_MPI_TAG;
   file->comm = comm;
   MPI_Comm_size(file->comm, &file->nproc);
   MPI_Comm_rank(file->comm, &file->rank);
@@ -859,7 +867,6 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   else
     file->num_files = num_files;
   ASSERT(file->num_files <= file->nproc);
-  file->mpi_tag = mpi_tag;
 
   if (file->nproc > 1)
   {
@@ -1036,7 +1043,6 @@ static void show_provenance_on_debug_log(silo_file_t* file)
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
-                            int mpi_tag,
                             int step, 
                             real_t* time)
 {
@@ -1046,23 +1052,17 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   silo_set_compression();
 
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
+  memset(file, 0, sizeof(silo_file_t));
   file->mode = DB_READ;
   file->step = -1;
   file->time = -REAL_MAX;
   file->expressions = NULL;
 
-  // Strip .silo off of the prefix if it's there.
-  {
-    char prefix[FILENAME_MAX+1];
-    strncpy(prefix, file_prefix, FILENAME_MAX);
-    char* suffix = strstr(prefix, ".silo");
-    if (suffix != NULL)
-      suffix[0] = '\0';
-    strcpy(file->prefix, prefix);
-  }
+  set_prefix(file, file_prefix);
 
   int nproc = 1;
 #if POLYMEC_HAVE_MPI
+  file->mpi_tag = SILO_FILE_MPI_TAG;
   file->comm = comm;
   MPI_Comm_size(file->comm, &nproc); 
 #endif
@@ -1095,8 +1095,10 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   // number of processes.
   if (nproc != num_mpi_procs)
   {
-    polymec_not_implemented("silo_file_open: reading files written with different\n"
-                            "number of MPI processes is not yet supported.");
+    log_urgent("silo_file_open: Cannot read file written by %d MPI processes "
+               "into communicator with %d processes.", nproc, num_mpi_procs);
+    STOP_FUNCTION_TIMER();
+    return NULL;
   }
 
   // Check to see whether the requested step is available, or whether the 
@@ -1117,18 +1119,22 @@ silo_file_t* silo_file_open(MPI_Comm comm,
       node = node->next;
     }
     if (!step_found)
-      polymec_error("silo_file_open: Step %d was not found for prefix '%s' in directory %s.", step, file->prefix, directory);
+    {
+      log_urgent("silo_file_open: Step %d was not found for prefix '%s' in directory %s.", step, file->prefix, directory);
+      int_slist_free(steps);
+      polymec_free(file);
+      STOP_FUNCTION_TIMER();
+      return NULL;
+    }
   }
   int_slist_free(steps);
 
 #if POLYMEC_HAVE_MPI
   // The way these things are defined for a file has to do with how the 
   // file was generated, not how we are currently running.
-  file->comm = comm; // ...for lack of a better value. Plus, might be useful.
-  MPI_Comm_rank(file->comm, &file->rank); // ...also might be useful.
+  MPI_Comm_rank(file->comm, &file->rank); 
   file->num_files = num_files; // number of files in the data set.
   file->nproc = num_mpi_procs; // number of MPI procs used to write the thing.
-  file->mpi_tag = mpi_tag; // this is fine.
 
   if (file->nproc > 1)
   {
@@ -1137,13 +1143,17 @@ silo_file_t* silo_file_open(MPI_Comm comm,
       snprintf(file->directory, FILENAME_MAX, "%s_%dprocs", file->prefix, file->nproc);
     else
       strncpy(file->directory, directory, FILENAME_MAX);
+    int dir_exists;
     if (file->rank == 0)
+      dir_exists = (int)(directory_exists(file->directory));
+    MPI_Bcast(&dir_exists, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (!dir_exists)
     {
-      if (!directory_exists(file->directory))
-      {
-        polymec_error("silo_file_open: Master directory %s does not exist for file prefix %s.",
-            file->directory, file->prefix);
-      }
+      log_urgent("silo_file_open: Master directory %s does not exist for file prefix %s.",
+                 file->directory, file->prefix);
+      polymec_free(file);
+      STOP_FUNCTION_TIMER();
+      return NULL;
     }
 
     // Initialize poor man's I/O and figure out group ranks.
@@ -1163,8 +1173,11 @@ silo_file_t* silo_file_open(MPI_Comm comm,
         DIR* group_dir = opendir(group_dir_name);
         if (group_dir == NULL)
         {
-          polymec_error("silo_file_open: Group directory %s does not exist for file prefix %s.",
-              group_dir_name, file->prefix);
+          log_urgent("silo_file_open: Group directory %s does not exist for file prefix %s.",
+                     group_dir_name, file->prefix);
+          polymec_free(file);
+          STOP_FUNCTION_TIMER();
+          return NULL;
         }
         else
           closedir(group_dir);
@@ -1194,9 +1207,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
     DBSetDir(file->dbfile, "/");
     show_provenance_on_debug_log(file);
-
-    file->subdomain_meshes = ptr_array_new();
-    file->subdomain_fields = ptr_array_new();
   }
   else
   {
@@ -1281,10 +1291,13 @@ void silo_file_close(silo_file_t* file)
       // Write the uber-master file containing any multiobjects if need be.
       write_master_file(file);
     }
+
     MPI_Barrier(file->comm);
 
-    ptr_array_free(file->subdomain_meshes);
-    ptr_array_free(file->subdomain_fields);
+    if (file->subdomain_meshes != NULL)
+      ptr_array_free(file->subdomain_meshes);
+    if (file->subdomain_fields != NULL)
+      ptr_array_free(file->subdomain_fields);
   }
   else
   {
@@ -1304,6 +1317,7 @@ void silo_file_close(silo_file_t* file)
   }
   DBClose(file->dbfile);
 #endif
+
   log_debug("silo_file_close: Closed file.");
 
   // Clean up.

@@ -203,6 +203,11 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag, 
   return MPI_SUCCESS;
 }
 
+int MPI_Ssend(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
+{
+  return MPI_SUCCESS;
+}
+
 int MPI_Send_init(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request)
 {
   return MPI_SUCCESS;

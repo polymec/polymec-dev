@@ -61,7 +61,7 @@ static void test_plot_rectilinear_mesh(void** state)
   real_t ones[4*4*4];
   for (int c = 0; c < 4*4*4; ++c)
     ones[c] = 1.0*c;
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
   silo_field_metadata_t* metadata = silo_field_metadata_new();
   metadata->label = string_dup("solution");
@@ -103,7 +103,7 @@ static void test_plot_rectilinear_mesh(void** state)
   // Now read the mesh from the file.
   metadata = silo_field_metadata_new();
   real_t t;
-  silo = silo_file_open(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 0, 0, &t);
+  silo = silo_file_open(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 0, &t);
   assert_true(reals_equal(t, 0.0));
   assert_true(silo_file_contains_polymesh(silo, "mesh"));
   mesh = silo_file_read_polymesh(silo, "mesh");
@@ -119,7 +119,8 @@ static void test_plot_rectilinear_mesh(void** state)
   assert_true(metadata->conserved);
   assert_false(metadata->extensive);
   assert_int_equal(2, metadata->vector_component);
-  metadata = NULL;
+  polymec_release(metadata);
+  polymec_free(ones1);
 
   // Check on the other fields.
   assert_true(silo_file_contains_polymesh_field(silo, "nx", "mesh", POLYMESH_NODE));
@@ -146,11 +147,10 @@ static void test_plot_rectilinear_mesh(void** state)
   {
     assert_true(reals_equal(evals[e], evals1[e]));
   }
-  polymec_free(evals1);
-
   silo_file_close(silo);
 
-  polymec_free(ones1);
+  // Clean up.
+  polymec_free(evals1);
   polymesh_free(mesh);
 }
 
