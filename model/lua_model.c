@@ -385,6 +385,20 @@ static int m_run(lua_State* L)
   else if (!lua_isnil(L, -1))
     return luaL_error(L, "load_step must be a step.");
 
+  model_diag_mode_t diag_mode = MODEL_DIAG_NEAREST_STEP;
+  lua_getfield(L, 2, "diag_mode");
+  if (lua_isstring(L, -1))
+  {
+    const char* mode_str = lua_tostring(L, -1);
+    if (strcasecmp(mode_str, "exact_time") == 0)
+      diag_mode = MODEL_DIAG_EXACT_TIME;
+    else if (strcasecmp(mode_str, "nearest_step") != 0)
+      return luaL_error(L, "diag_mode must be a 'nearest_step' or 'exact_time'.");
+    model_set_diagnostic_mode(m, diag_mode);
+  }
+  else if (!lua_isnil(L, -1))
+    return luaL_error(L, "diag_mode must be a 'nearest_step' or 'exact_time'.");
+
   real_t min_dt = 0.0;
   lua_getfield(L, 2, "min_dt");
   if (lua_isnumber(L, -1))

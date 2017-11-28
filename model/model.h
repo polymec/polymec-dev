@@ -90,6 +90,21 @@ typedef enum
   MODEL_MPI_THREAD_SAFE 
 } model_parallelism_t;
 
+// This type identifies one of two possible modes of operation for 
+// diagnostics: plots and probe measurements:
+// 1. MODEL_DIAG_EXACT_TIME: This tells the model to create plots and 
+//    acquire probe measurements at the exact time at which they are requested,
+//    altering the simulation to set time step sizes so that these data can 
+//    be collected.
+// 2. MODEL_DIAG_NEAREST_STEP: This tells the model to create plots and 
+//    acquire probe measurements on the step that falls nearest its requested
+//    time. In this setting, time steps are not chosen to collect measurements.
+typedef enum
+{ 
+   MODEL_DIAG_EXACT_TIME,
+   MODEL_DIAG_NEAREST_STEP
+} model_diag_mode_t;
+
 // Creates an instance of a model with the given name and characteristics.
 // The name should uniquely identify the model, BUT SHOULD NOT BE SPECIFIC 
 // TO THE INSTANCE OF THE MODEL. Constructors that use this function should 
@@ -202,6 +217,9 @@ void model_save_every(model_t* model, int n);
 
 // Tells the model to load its state from a given step.
 void model_load_from(model_t* model, int step);
+
+// Sets the diagnostic mode for the model to collect measurements.
+void model_set_diagnostic_mode(model_t* model, model_diag_mode_t mode);
 
 // Retrieves (a copy of) the virtual table for the given model.
 model_vtable model_get_vtable(model_t* model);
