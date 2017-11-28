@@ -155,7 +155,7 @@ static void test_repartition_linear_cloud(void** state,
   snprintf(dataset_name, 1024, "%s_%s_%s_linear_cloud_repartition", 
            balance_str, random_str, weight_str);
 
-  silo_file_t* silo = silo_file_new(comm, dataset_name, dataset_name, 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(comm, dataset_name, dataset_name, 1, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
   silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);

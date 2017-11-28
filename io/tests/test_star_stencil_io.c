@@ -40,7 +40,7 @@ static void test_NXxNYxNZ_star_stencil(void** state,
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     snprintf(prefix, FILENAME_MAX, "star_p%d", rank);
   }
-  silo_file_t* silo = silo_file_new(comm, prefix, "star", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(comm, prefix, "star", 1, 0, 0.0);
   silo_file_write_stencil(silo, "stencil", stencil);
   silo_file_close(silo);
 
@@ -49,7 +49,7 @@ static void test_NXxNYxNZ_star_stencil(void** state,
 
   // Read the stencil from the file and check its contents.
   real_t t;
-  silo = silo_file_open(comm, prefix, "star", 0, 0, &t);
+  silo = silo_file_open(comm, prefix, "star", 0, &t);
   assert_true(silo_file_contains_stencil(silo, "stencil"));
   stencil_t* stencil1 = silo_file_read_stencil(silo, "stencil", comm);
   silo_file_close(silo);

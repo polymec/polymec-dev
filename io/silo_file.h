@@ -58,30 +58,55 @@ bool silo_file_query(const char* file_prefix,
 // Creates and opens a new Silo file for writing simulation data, 
 // returning the Silo file object. If step is non-negative, the file associates 
 // itself with the given simulation step number, which is incorporated into 
-// its filename. If directory is the blank string (""), a directory named 
-// <prefix>_<nprocs>procs is generated and used.
+// its filename. 
+// * If directory is the blank string (""), a directory named 
+//   <prefix>_<nprocs>procs is generated and used for parallel runs. For 
+//   serial runs, the current working directory is used.
+// * If the step is -1, the most recent step will be loaded, unless no files 
+//   with step information can be found, in which case the single set of files 
+//   containing no step information will be loaded. 
+// * If the file cannot be created, this function returns NULL.
 silo_file_t* silo_file_new(MPI_Comm comm,
                            const char* file_prefix,
                            const char* directory,
                            int num_files,
-                           int mpi_tag,
                            int step,
                            real_t time);
 
 // Opens an existing Silo file for reading simulation data, returning the 
-// Silo file object. If the directory is the blank string(""), the directory 
-// is assumed to be the current working directory. If the step is -1, the 
-// most recent step will be loaded, unless no files with step information 
-// can be found, in which case the single set of files containing no step 
-// information will be loaded. If time is not NULL, it will store the time 
-// found in the file (or 0.0 if it does not exist in the file).
-// If the file does not exist or fails to load, this function returns NULL.
+// Silo file object. 
+// * If directory is the blank string (""), a directory named 
+//   <prefix>_<nprocs>procs is generated and used for parallel runs. For 
+//   serial runs, the current working directory is used.
+// * If the step is -1, the most recent step will be loaded, unless no files 
+//   with step information can be found, in which case the single set of files 
+//   containing no step information will be loaded. 
+// * If time is not NULL, it will store the time found in the file (or 0.0 if 
+//   it does not exist in the file).
+// * If the file does not exist or fails to load, this function returns NULL.
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
-                            int mpi_tag,
                             int step, 
                             real_t* time);
+
+// Opens an existing Silo file for reading simulation data, masquerading as 
+// the given MPI rank. Returns the Silo file object that stores data 
+// originally written by the given rank. 
+// * If directory is the blank string (""), a directory named 
+//   <prefix>_<nprocs>procs is generated and used for parallel runs. For 
+//   serial runs, the current working directory is used.
+// * If the step is -1, the most recent step will be loaded, unless no files 
+//   with step information can be found, in which case the single set of files 
+//   containing no step information will be loaded. 
+// * If time is not NULL, it will store the time found in the file (or 0.0 if 
+//   it does not exist in the file).
+// * If the file does not exist or fails to load, this function returns NULL.
+silo_file_t* silo_file_open_as_rank(int mpi_rank,
+                                    const char* file_prefix,
+                                    const char* directory,
+                                    int step, 
+                                    real_t* time);
 
 // Closes and destroys the given Silo file, writing all its data to disk.
 void silo_file_close(silo_file_t* file);

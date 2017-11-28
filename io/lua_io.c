@@ -47,7 +47,7 @@ static int silo_new(lua_State* L)
     time = (real_t)(lua_tonumber(L, -1));
   lua_pop(L, 1);
 
-  silo_file_t* s = silo_file_new(MPI_COMM_WORLD, prefix, dir, num_files, 0, step, time);
+  silo_file_t* s = silo_file_new(MPI_COMM_WORLD, prefix, dir, num_files, step, time);
   lua_push_silo_file(L, s);
   return 1;
 }
@@ -84,7 +84,7 @@ static int silo_open(lua_State* L)
   lua_pop(L, 1);
 
   real_t time;
-  silo_file_t* s = silo_file_open(MPI_COMM_WORLD, prefix, dir, 0, step, &time);
+  silo_file_t* s = silo_file_open(MPI_COMM_WORLD, prefix, dir, step, &time);
   lua_push_silo_file(L, s);
   return 1;
 }

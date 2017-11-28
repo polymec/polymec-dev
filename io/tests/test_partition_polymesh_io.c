@@ -90,7 +90,7 @@ static void test_partition_linear_mesh(void** state)
   silo_field_metadata_t* p_metadata = silo_field_metadata_new();
   p_metadata->label = string_dup("P");
   p_metadata->conserved = true;
-  silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
   silo_file_write_scalar_polymesh_field(silo, "rank", "mesh", p, POLYMESH_CELL, p_metadata);
   silo_file_close(silo);
@@ -150,7 +150,7 @@ static void test_partition_slab_mesh(void** state)
   real_t p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     p[c] = 1.0*rank;
-  silo_file_t* silo = silo_file_new(mesh->comm, "slab_mesh_partition", "slab_mesh_partition", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(mesh->comm, "slab_mesh_partition", "slab_mesh_partition", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
   silo_file_write_scalar_polymesh_field(silo, "rank", "mesh", p, POLYMESH_CELL, NULL);
   silo_file_close(silo);
@@ -210,7 +210,7 @@ static void test_partition_box_mesh(void** state)
   real_t p[mesh->num_cells];
   for (int c = 0; c < mesh->num_cells; ++c)
     p[c] = 1.0*rank;
-  silo_file_t* silo = silo_file_new(mesh->comm, "box_mesh_partition", "box_mesh_partition", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(mesh->comm, "box_mesh_partition", "box_mesh_partition", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
   silo_file_write_scalar_polymesh_field(silo, "rank", "mesh", p, POLYMESH_CELL, NULL);
   silo_file_close(silo);

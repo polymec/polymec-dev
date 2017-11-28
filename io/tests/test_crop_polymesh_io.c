@@ -63,7 +63,7 @@ static void test_cylindrical_crop(void** state)
   real_t ones[Nx*Ny*Nz];
   for (int c = 0; c < Nx*Ny*Nz; ++c)
     ones[c] = 1.0*c;
-  silo_file_t* silo = silo_file_new(cropped_mesh->comm, "cyl_cropped_mesh", "", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(cropped_mesh->comm, "cyl_cropped_mesh", "", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", cropped_mesh);
   silo_file_write_scalar_polymesh_field(silo, "solution", "mesh", ones, POLYMESH_CELL, NULL);
   silo_file_close(silo);
@@ -88,7 +88,7 @@ static void test_spherical_crop(void** state)
   real_t ones[Nx*Ny*Nz];
   for (int c = 0; c < Nx*Ny*Nz; ++c)
     ones[c] = 1.0*c;
-  silo_file_t* silo = silo_file_new(cropped_mesh->comm, "sph_cropped_mesh", "", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(cropped_mesh->comm, "sph_cropped_mesh", "", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", cropped_mesh);
   silo_file_write_scalar_polymesh_field(silo, "solution", "mesh", ones, POLYMESH_CELL, NULL);
   silo_file_close(silo);
