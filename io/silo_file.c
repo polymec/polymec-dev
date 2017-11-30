@@ -850,6 +850,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
   silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
   file->expressions = string_ptr_unordered_map_new();
+  file->mpi_tag = SILO_FILE_MPI_TAG;
 
   set_prefix(file, file_prefix);
 
@@ -862,7 +863,6 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   else
     file->num_files = num_files;
   ASSERT(file->num_files <= file->nproc);
-  file->mpi_tag = SILO_FILE_MPI_TAG;
 
   if (file->nproc > 1)
   {
@@ -947,6 +947,12 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   }
   set_root_dir(file);
 #else
+  file->nproc = 1;
+  file->rank = 0;
+  file->num_files = 1;
+  file->group_rank = 0;
+  file->rank_in_group = 0;
+
   if (strlen(directory) == 0)
     strncpy(file->directory, ".", FILENAME_MAX);
   else
@@ -1053,6 +1059,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   file->step = -1;
   file->time = -REAL_MAX;
   file->expressions = NULL;
+  file->mpi_tag = SILO_FILE_MPI_TAG;
 
   set_prefix(file, file_prefix);
 
@@ -1130,7 +1137,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   MPI_Comm_rank(file->comm, &file->rank); 
   file->num_files = num_files; // number of files in the data set.
   file->nproc = num_mpi_procs; // number of MPI procs used to write the thing.
-  file->mpi_tag = SILO_FILE_MPI_TAG;
 
   if (file->nproc > 1)
   {
@@ -1224,6 +1230,11 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     show_provenance_on_debug_log(file);
   }
 #else
+  file->nproc = 1;
+  file->rank = 0;
+  file->num_files = 1;
+  file->group_rank = 0;
+  file->rank_in_group = 0;
   if (strlen(directory) == 0)
     strncpy(file->directory, ".", FILENAME_MAX);
   else
