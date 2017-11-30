@@ -106,20 +106,6 @@ adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points,
 matrix_sparsity_t* sparsity_from_point_cloud_and_neighbors(point_cloud_t* points, 
                                                            neighbor_pairing_t* neighbors);
 
-// This function extends the silo_file type to allow it to write out a 
-// neighbor_pairing object to an entry with the given name.
-void silo_file_write_neighbor_pairing(silo_file_t* file,
-                                      const char* neighbors_name,
-                                      neighbor_pairing_t* neighbors);
-
-// This function extends the silo_file type to allow it to read in and 
-// return a newly-allocated neighbor_pairing object from the entry in the 
-// file with the given name. The exchanger for the neighbor pairing is assigned
-// to the given MPI communicator.
-neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
-                                                    const char* neighbors_name,
-                                                    MPI_Comm comm);
-
 // This is a shake-n-bake method for constructing pairs of neighboring 
 // points using a neighbor relationship that relates points (xi, xj) that are 
 // closer to each other than a specified distance Dij = max(R[i], R[j]), where 

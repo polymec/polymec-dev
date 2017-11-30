@@ -11,8 +11,8 @@
 #include <string.h>
 #include "cmocka.h"
 #include "geometry/create_point_lattice.h"
-#include "io/silo_file.h"
 #include "model/partition_point_cloud_with_neighbors.h"
+//#include "io/silo_file.h"
 
 // This creates a neighbor pairing using a hat function.
 extern neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h);
@@ -53,6 +53,7 @@ static void test_partition_linear_cloud(void** state, int N)
     assert_true(reals_nearly_equal(z, 0.5, 1e-6));
   }
 
+#if 0
   // Plot it.
   real_t p[cloud->num_points];
   for (int i = 0; i < cloud->num_points; ++i)
@@ -64,10 +65,6 @@ static void test_partition_linear_cloud(void** state, int N)
   silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);
 
-  // Clean up.
-  neighbor_pairing_free(pairing);
-  point_cloud_free(cloud);
-
   // Make sure all processes have written to the file.
   MPI_Barrier(comm);
 
@@ -76,6 +73,11 @@ static void test_partition_linear_cloud(void** state, int N)
   assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));
   assert_int_equal(1, num_files);
   assert_int_equal(nprocs, num_procs);
+#endif
+
+  // Clean up.
+  neighbor_pairing_free(pairing);
+  point_cloud_free(cloud);
 }
 
 static void test_partition_planar_cloud(void** state, int nx, int ny)
@@ -114,7 +116,6 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
     assert_true(reals_nearly_equal(y, 0.0, 1e-6));
     assert_true(reals_nearly_equal(z, 0.0, 1e-6));
   }
-#endif
 
   // Plot it.
   real_t p[cloud->num_points];
@@ -127,10 +128,6 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
   silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);
 
-  // Clean up.
-  neighbor_pairing_free(pairing);
-  point_cloud_free(cloud);
-
   // Make sure all processes have written to the file.
   MPI_Barrier(comm);
 
@@ -139,6 +136,11 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
   assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));
   assert_int_equal(1, num_files);
   assert_int_equal(nprocs, num_procs);
+#endif
+
+  // Clean up.
+  neighbor_pairing_free(pairing);
+  point_cloud_free(cloud);
 }
 
 static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
@@ -177,7 +179,6 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
     assert_true(reals_nearly_equal(y, 0.0, 1e-6));
     assert_true(reals_nearly_equal(z, 0.0, 1e-6));
   }
-#endif
 
   // Plot it.
   real_t p[cloud->num_points];
@@ -190,10 +191,6 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);
 
-  // Clean up.
-  neighbor_pairing_free(pairing);
-  point_cloud_free(cloud);
-
   // Make sure all processes have written to the file.
   MPI_Barrier(comm);
 
@@ -202,6 +199,11 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));
   assert_int_equal(1, num_files);
   assert_int_equal(nprocs, num_procs);
+#endif
+
+  // Clean up.
+  neighbor_pairing_free(pairing);
+  point_cloud_free(cloud);
 }
 
 static void test_partition_small_linear_cloud(void** state)

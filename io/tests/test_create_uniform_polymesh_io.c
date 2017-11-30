@@ -59,7 +59,7 @@ static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
     ones[c] = 1.0*c;
   char prefix[FILENAME_MAX];
   snprintf(prefix, FILENAME_MAX, "uniform_mesh_%dx%dx%d_%df", nx, ny, nz, num_files);
-  silo_file_t* silo = silo_file_new(mesh->comm, prefix, "", num_files, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(mesh->comm, prefix, "", num_files, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
   silo_file_write_scalar_polymesh_field(silo, "solution", "mesh", ones, POLYMESH_CELL, NULL);
   silo_file_close(silo);

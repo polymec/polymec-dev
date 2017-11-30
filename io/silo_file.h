@@ -12,6 +12,7 @@
 #include "core/point_cloud.h"
 #include "core/slist.h"
 #include "geometry/polymesh.h"
+#include "model/neighbor_pairing.h"
 
 // Enables GZIP compression at the given level for Silo files. This is 
 // invoked globally and effects all file writes until it is set to a different 
@@ -57,28 +58,35 @@ bool silo_file_query(const char* file_prefix,
 // Creates and opens a new Silo file for writing simulation data, 
 // returning the Silo file object. If step is non-negative, the file associates 
 // itself with the given simulation step number, which is incorporated into 
-// its filename. If directory is the blank string (""), a directory named 
-// <prefix>_<nprocs>procs is generated and used.
+// its filename. 
+// * If directory is the blank string (""), a directory named 
+//   <prefix>_<nprocs>procs is generated and used for parallel runs. For 
+//   serial runs, the current working directory is used.
+// * If the step is -1, the most recent step will be loaded, unless no files 
+//   with step information can be found, in which case the single set of files 
+//   containing no step information will be loaded. 
+// * If the file cannot be created, this function returns NULL.
 silo_file_t* silo_file_new(MPI_Comm comm,
                            const char* file_prefix,
                            const char* directory,
                            int num_files,
-                           int mpi_tag,
                            int step,
                            real_t time);
 
 // Opens an existing Silo file for reading simulation data, returning the 
-// Silo file object. If the directory is the blank string(""), the directory 
-// is assumed to be the current working directory. If the step is -1, the 
-// most recent step will be loaded, unless no files with step information 
-// can be found, in which case the single set of files containing no step 
-// information will be loaded. If time is not NULL, it will store the time 
-// found in the file (or 0.0 if it does not exist in the file).
-// If the file does not exist or fails to load, this function returns NULL.
+// Silo file object. 
+// * If directory is the blank string (""), a directory named 
+//   <prefix>_<nprocs>procs is generated and used for parallel runs. For 
+//   serial runs, the current working directory is used.
+// * If the step is -1, the most recent step will be loaded, unless no files 
+//   with step information can be found, in which case the single set of files 
+//   containing no step information will be loaded. 
+// * If time is not NULL, it will store the time found in the file (or 0.0 if 
+//   it does not exist in the file).
+// * If the file does not exist or fails to load, this function returns NULL.
 silo_file_t* silo_file_open(MPI_Comm comm,
                             const char* file_prefix,
                             const char* directory,
-                            int mpi_tag,
                             int step, 
                             real_t* time);
 
@@ -281,5 +289,40 @@ exchanger_t* silo_file_read_exchanger(silo_file_t* file, const char* exchanger_n
 
 // Writes an exchanger object with the given name.
 void silo_file_write_exchanger(silo_file_t* file, const char* exchanger_name, exchanger_t* ex);
+
+// Returns true if the given silo_file contains a stencil with the given 
+// name, false otherwise.
+bool silo_file_contains_stencil(silo_file_t* file, const char* stencil_name);
+
+// Writes a stencil object with the given name.
+void silo_file_write_stencil(silo_file_t* file,
+                             const char* stencil_name,
+                             stencil_t* stencil);
+
+// This function extends the silo_file type to allow it to read in and 
+// return a newly-allocated stencil object from the entry in the 
+// file with the given name. The exchanger for the stencil is assigned
+// to the given MPI communicator.
+stencil_t* silo_file_read_stencil(silo_file_t* file,
+                                  const char* stencil_name,
+                                  MPI_Comm comm);
+
+// Returns true if the given silo file contains a neighbor_pairing object 
+// with the given name, false otherwise.
+bool silo_file_contains_neighbor_pairing(silo_file_t* file,
+                                         const char* neighbors_name);
+
+// Writes a neighbor_pairing object to an entry with the given name.
+void silo_file_write_neighbor_pairing(silo_file_t* file,
+                                      const char* neighbors_name,
+                                      neighbor_pairing_t* neighbors);
+
+// This function extends the silo_file type to allow it to read in and 
+// return a newly-allocated neighbor_pairing object from the entry in the 
+// file with the given name. The exchanger for the neighbor pairing is assigned
+// to the given MPI communicator.
+neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
+                                                    const char* neighbors_name,
+                                                    MPI_Comm comm);
 
 #endif
