@@ -1482,6 +1482,7 @@ void silo_file_close(silo_file_t* file)
   if (file->nproc > 1)
   {
     // Finish working on this process.
+#if POLYMEC_HAVE_MPI
     if (file->mode == DB_CLOBBER)
     {
       // Write multi-block objects to the file if needed.
@@ -1489,12 +1490,21 @@ void silo_file_close(silo_file_t* file)
       write_expressions_to_file(file, file->dbfile);
       write_provenance_to_file(file);
     }
+    MPI_Comm baton_comm = file->baton->mpiComm;
+#else
+    if (file->mode == DB_CLOBBER)
+    {
+      // Write multi-block objects to the file if needed.
+      write_expressions_to_file(file, file->dbfile);
+      write_provenance_to_file(file);
+    }
+#endif
 
     log_debug("silo_file_close: Handing off baton.");
-    MPI_Comm baton_comm = file->baton->mpiComm;
     PMPIO_HandOffBaton(file->baton, (void*)file->dbfile);
     PMPIO_Finish(file->baton);
 
+#if POLYMEC_HAVE_MPI
     if (file->mode == DB_CLOBBER)
     {
       // Write the uber-master file containing any multiobjects if need be.
@@ -1510,6 +1520,7 @@ void silo_file_close(silo_file_t* file)
       ptr_array_free(file->subdomain_meshes);
     if (file->subdomain_fields != NULL)
       ptr_array_free(file->subdomain_fields);
+#endif
   }
   else
   {
