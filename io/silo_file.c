@@ -11,9 +11,9 @@
 
 // Poor Man's Parallel I/O stuff.
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Werror=unused-function"
+#pragma GCC diagnostic ignored "-Wunused-function"
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Werror=unused-function"
+#pragma clang diagnostic ignored "-Wunused-function"
 #include "pmpio.h"
 #pragma GCC diagnostic pop
 #pragma clang diagnostic pop
