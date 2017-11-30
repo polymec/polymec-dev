@@ -1479,7 +1479,6 @@ silo_file_t* silo_file_open_as_rank(MPI_Comm comm,
 void silo_file_close(silo_file_t* file)
 {
   START_FUNCTION_TIMER();
-#if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
   {
     // Finish working on this process.
@@ -1504,7 +1503,7 @@ void silo_file_close(silo_file_t* file)
 
     // We use the baton's communicator for this barrier, since 
     // silo_file_open_as_rank complicates the role of a silo file's
-    // communicator
+    // communicator.
     MPI_Barrier(baton_comm);
 
     if (file->subdomain_meshes != NULL)
@@ -1521,15 +1520,6 @@ void silo_file_close(silo_file_t* file)
     }
     DBClose(file->dbfile);
   }
-#else
-  // Write the file.
-  if (file->mode == DB_CLOBBER)
-  {
-    write_expressions_to_file(file, file->dbfile);
-    write_provenance_to_file(file);
-  }
-  DBClose(file->dbfile);
-#endif
   log_debug("silo_file_close: Closed file.");
 
   // Clean up.
