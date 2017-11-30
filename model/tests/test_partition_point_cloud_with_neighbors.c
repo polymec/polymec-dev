@@ -65,10 +65,6 @@ static void test_partition_linear_cloud(void** state, int N)
   silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);
 
-  // Clean up.
-  neighbor_pairing_free(pairing);
-  point_cloud_free(cloud);
-
   // Make sure all processes have written to the file.
   MPI_Barrier(comm);
 
@@ -78,6 +74,10 @@ static void test_partition_linear_cloud(void** state, int N)
   assert_int_equal(1, num_files);
   assert_int_equal(nprocs, num_procs);
 #endif
+
+  // Clean up.
+  neighbor_pairing_free(pairing);
+  point_cloud_free(cloud);
 }
 
 static void test_partition_planar_cloud(void** state, int nx, int ny)
@@ -128,10 +128,6 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
   silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);
 
-  // Clean up.
-  neighbor_pairing_free(pairing);
-  point_cloud_free(cloud);
-
   // Make sure all processes have written to the file.
   MPI_Barrier(comm);
 
@@ -141,6 +137,10 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
   assert_int_equal(1, num_files);
   assert_int_equal(nprocs, num_procs);
 #endif
+
+  // Clean up.
+  neighbor_pairing_free(pairing);
+  point_cloud_free(cloud);
 }
 
 static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
@@ -191,10 +191,6 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
   silo_file_close(silo);
 
-  // Clean up.
-  neighbor_pairing_free(pairing);
-  point_cloud_free(cloud);
-
   // Make sure all processes have written to the file.
   MPI_Barrier(comm);
 
@@ -204,6 +200,10 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   assert_int_equal(1, num_files);
   assert_int_equal(nprocs, num_procs);
 #endif
+
+  // Clean up.
+  neighbor_pairing_free(pairing);
+  point_cloud_free(cloud);
 }
 
 static void test_partition_small_linear_cloud(void** state)
