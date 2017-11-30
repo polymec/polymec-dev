@@ -8,7 +8,16 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include "core/polymec.h"
+
+// Poor Man's Parallel I/O stuff.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Werror=unused-function"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Werror=unused-function"
 #include "pmpio.h"
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
+
 #include "silo.h"
 #include "core/arch.h"
 #include "core/logging.h"
@@ -1386,6 +1395,7 @@ silo_file_t* silo_file_open_as_rank(MPI_Comm comm,
     // rank in group ourselves, though.
     file->baton = PMPIO_Init(file->num_files, PMPIO_READ, MPI_COMM_SELF, file->mpi_tag, 
                              pmpio_create_file, pmpio_open_file, pmpio_close_file, 0);
+
     int num_groups = file->num_files;
     int group_size = file->nproc / num_groups;
     int num_groups_with_extra_proc = file->nproc % num_groups;
@@ -1490,10 +1500,10 @@ silo_file_t* silo_file_open_as_rank(MPI_Comm comm,
 void silo_file_close(silo_file_t* file)
 {
   START_FUNCTION_TIMER();
+#if POLYMEC_HAVE_MPI
   if (file->nproc > 1)
   {
     // Finish working on this process.
-#if POLYMEC_HAVE_MPI
     if (file->mode == DB_CLOBBER)
     {
       // Write multi-block objects to the file if needed.
@@ -1502,20 +1512,11 @@ void silo_file_close(silo_file_t* file)
       write_provenance_to_file(file);
     }
     MPI_Comm baton_comm = file->baton->mpiComm;
-#else
-    if (file->mode == DB_CLOBBER)
-    {
-      // Write multi-block objects to the file if needed.
-      write_expressions_to_file(file, file->dbfile);
-      write_provenance_to_file(file);
-    }
-#endif
 
     log_debug("silo_file_close: Handing off baton.");
     PMPIO_HandOffBaton(file->baton, (void*)file->dbfile);
     PMPIO_Finish(file->baton);
 
-#if POLYMEC_HAVE_MPI
     if (file->mode == DB_CLOBBER)
     {
       // Write the uber-master file containing any multiobjects if need be.
@@ -1531,7 +1532,6 @@ void silo_file_close(silo_file_t* file)
       ptr_array_free(file->subdomain_meshes);
     if (file->subdomain_fields != NULL)
       ptr_array_free(file->subdomain_fields);
-#endif
   }
   else
   {
@@ -1542,6 +1542,16 @@ void silo_file_close(silo_file_t* file)
     }
     DBClose(file->dbfile);
   }
+#else
+  // Write the file.
+  if (file->mode == DB_CLOBBER)
+  {
+    write_expressions_to_file(file, file->dbfile);
+    write_provenance_to_file(file);
+  }
+  DBClose(file->dbfile);
+#endif
+
   log_debug("silo_file_close: Closed file.");
 
   // Clean up.
