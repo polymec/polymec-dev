@@ -1263,7 +1263,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   return file;
 }
 
-silo_file_t* silo_file_open_as_rank(int mpi_rank,
+silo_file_t* silo_file_open_as_rank(MPI_Comm comm,
+                                    int mpi_rank,
                                     const char* file_prefix,
                                     const char* directory,
                                     int step, 
@@ -1283,8 +1284,8 @@ silo_file_t* silo_file_open_as_rank(int mpi_rank,
 
   set_prefix(file, file_prefix);
 
-  int nproc = 1;
-  file->comm = MPI_COMM_SELF;
+  int nproc;
+  MPI_Comm_size(comm, &nproc);
 
   // Provide a default for the directory for querying.
   if (strlen(directory) == 0)
@@ -1304,6 +1305,14 @@ silo_file_t* silo_file_open_as_rank(int mpi_rank,
   {
     int_slist_free(steps);
     log_info("silo_file_open_as_rank: Invalid file.");
+    polymec_free(file);
+    STOP_FUNCTION_TIMER();
+    return NULL;
+  }
+  if (num_mpi_procs != nproc)
+  {
+    log_info("silo_file_open_as_rank: Given MPI communicator (%d processes) is incompatible with file (%d processes).",
+             nproc, num_mpi_procs);
     polymec_free(file);
     STOP_FUNCTION_TIMER();
     return NULL;
@@ -1339,6 +1348,7 @@ silo_file_t* silo_file_open_as_rank(int mpi_rank,
   }
   int_slist_free(steps);
 
+  file->comm = comm;
   file->rank = mpi_rank;
   file->num_files = num_files; // number of files in the data set.
   file->nproc = num_mpi_procs; // number of MPI procs used to write the thing.
@@ -1363,7 +1373,7 @@ silo_file_t* silo_file_open_as_rank(int mpi_rank,
     // We don't need poor man's I/O, since we're reading one file ourselves, 
     // but it's easy to keep it in place. We calculate the group rank and 
     // rank in group ourselves, though.
-    file->baton = PMPIO_Init(file->num_files, PMPIO_READ, file->comm, file->mpi_tag, 
+    file->baton = PMPIO_Init(file->num_files, PMPIO_READ, MPI_COMM_SELF, file->mpi_tag, 
                              pmpio_create_file, pmpio_open_file, pmpio_close_file, 0);
     int num_groups = file->num_files;
     int group_size = file->nproc / num_groups;
@@ -1482,6 +1492,7 @@ void silo_file_close(silo_file_t* file)
     }
 
     log_debug("silo_file_close: Handing off baton.");
+    MPI_Comm baton_comm = file->baton->mpiComm;
     PMPIO_HandOffBaton(file->baton, (void*)file->dbfile);
     PMPIO_Finish(file->baton);
 
@@ -1490,7 +1501,11 @@ void silo_file_close(silo_file_t* file)
       // Write the uber-master file containing any multiobjects if need be.
       write_master_file(file);
     }
-    MPI_Barrier(file->comm);
+
+    // We use the baton's communicator for this barrier, since 
+    // silo_file_open_as_rank complicates the role of a silo file's
+    // communicator
+    MPI_Barrier(baton_comm);
 
     if (file->subdomain_meshes != NULL)
       ptr_array_free(file->subdomain_meshes);

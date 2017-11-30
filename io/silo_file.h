@@ -91,8 +91,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
                             real_t* time);
 
 // Opens an existing Silo file for reading simulation data, masquerading as 
-// the given MPI rank. Returns the Silo file object that stores data 
-// originally written by the given rank. 
+// the given MPI rank in the given communicator. Returns the Silo file object 
+// that stores data originally written by the given rank. 
 // * If directory is the blank string (""), a directory named 
 //   <prefix>_<nprocs>procs is generated and used for parallel runs. For 
 //   serial runs, the current working directory is used.
@@ -102,7 +102,8 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 // * If time is not NULL, it will store the time found in the file (or 0.0 if 
 //   it does not exist in the file).
 // * If the file does not exist or fails to load, this function returns NULL.
-silo_file_t* silo_file_open_as_rank(int mpi_rank,
+silo_file_t* silo_file_open_as_rank(MPI_Comm comm,
+                                    int mpi_rank,
                                     const char* file_prefix,
                                     const char* directory,
                                     int step, 
