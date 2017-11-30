@@ -61,7 +61,7 @@ static void test_plot_rectilinear_mesh(void** state)
   real_t ones[4*4*4];
   for (int c = 0; c < 4*4*4; ++c)
     ones[c] = 1.0*c;
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0, 0.0);
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
   silo_field_metadata_t* metadata = silo_field_metadata_new();
   metadata->label = string_dup("solution");
@@ -103,7 +103,7 @@ static void test_plot_rectilinear_mesh(void** state)
   // Now read the mesh from the file.
   metadata = silo_field_metadata_new();
   real_t t;
-  silo = silo_file_open(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 0, 0, &t);
+  silo = silo_file_open(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 0, &t);
   assert_true(reals_equal(t, 0.0));
   assert_true(silo_file_contains_polymesh(silo, "mesh"));
   mesh = silo_file_read_polymesh(silo, "mesh");
@@ -119,7 +119,7 @@ static void test_plot_rectilinear_mesh(void** state)
   assert_true(metadata->conserved);
   assert_false(metadata->extensive);
   assert_int_equal(2, metadata->vector_component);
-  metadata = NULL;
+  polymec_free(ones1);
 
   // Check on the other fields.
   assert_true(silo_file_contains_polymesh_field(silo, "nx", "mesh", POLYMESH_NODE));
@@ -147,10 +147,45 @@ static void test_plot_rectilinear_mesh(void** state)
     assert_true(reals_equal(evals[e], evals1[e]));
   }
   polymec_free(evals1);
+  silo_file_close(silo);
 
+  // Open the file once more, this time using silo_file_open_as_rank, to make 
+  // sure that the process can read from a specific rank correctly.
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  silo = silo_file_open_as_rank(MPI_COMM_WORLD, rank, "rectilinear_4x4x4", "", 0, &t);
+  assert_true(reals_equal(t, 0.0));
+  assert_true(silo_file_contains_polymesh(silo, "mesh"));
+  polymesh_t* mesh1 = silo_file_read_polymesh(silo, "mesh");
+  assert_int_equal(mesh->num_cells, mesh1->num_cells);
+  assert_int_equal(mesh->num_faces, mesh1->num_faces);
+  assert_int_equal(mesh->num_edges, mesh1->num_edges);
+  assert_int_equal(mesh->num_nodes, mesh1->num_nodes);
+  for (int i = 0; i < mesh1->num_cells; ++i)
+  {
+    int pos = 0, pos1 = 0, f, f1;
+    while (polymesh_cell_next_face(mesh, i, &pos, &f))
+    {
+      assert_true(polymesh_cell_next_face(mesh1, i, &pos1, &f1));
+      assert_int_equal(f, f1);
+    }
+  }
+  assert_true(silo_file_contains_polymesh_field(silo, "solution", "mesh", POLYMESH_CELL));
+  ones1 = silo_file_read_scalar_polymesh_field(silo, "solution", "mesh", POLYMESH_CELL, metadata);
+  for (int i = 0; i < mesh1->num_cells; ++i)
+  {
+    assert_true(reals_equal(ones1[i], ones[i]));
+  }
+  assert_int_equal(0, strcmp(metadata->label, "solution"));
+  assert_int_equal(0, strcmp(metadata->units, "quatloo"));
+  assert_true(metadata->conserved);
+  assert_false(metadata->extensive);
+  assert_int_equal(2, metadata->vector_component);
   silo_file_close(silo);
 
   polymec_free(ones1);
+  polymec_release(metadata);
+  polymesh_free(mesh1);
   polymesh_free(mesh);
 }
 

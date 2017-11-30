@@ -47,7 +47,7 @@ struct model_t
 
   int save_every;       // Save frequency (steps).
   real_t plot_every;    // Plot frequency (time units).
-  bool plot_this_cycle; // Flag to plot after the current cycle completes.
+  bool plot_this_step;  // Flag to plot after the current step completes.
 
   int load_step; // -1 if starting a new sim, >= 0 if loading from a file.
 
@@ -56,6 +56,9 @@ struct model_t
 
   // Acquired probe data.
   probe_data_map_t* probe_data;
+
+  // Diagnostics mode.
+  model_diag_mode_t diag_mode;
 
   // Data related to a given simulation.
   char* sim_prefix; // Simulation naming prefix.
@@ -144,6 +147,7 @@ model_t* model_new(const char* name,
   model->step = 0;
   model->max_dt = REAL_MAX;
   model->min_dt = 0.0;
+  model->diag_mode = MODEL_DIAG_NEAREST_STEP;
 
   // Set defaults for the simulation file prefix and directory.
   const char* script = lua_driver_script();
@@ -237,10 +241,10 @@ static void model_do_periodic_work(model_t* model)
   // Do plots and saves.
   if (model->plot_every > 0.0)
   {
-    if (model->plot_this_cycle)
+    if (model->plot_this_step)
     {
       model_plot(model);
-      model->plot_this_cycle = false;
+      model->plot_this_step = false;
     }
   }
 
@@ -268,7 +272,7 @@ void model_init(model_t* model, real_t t)
   model->time = t;
   model->wall_time0 = MPI_Wtime();
   model->wall_time = MPI_Wtime();
-  model->plot_this_cycle = true;
+  model->plot_this_step = true;
   STOP_FUNCTION_TIMER();
 }
 
@@ -340,45 +344,63 @@ real_t model_max_dt(model_t* model, char* reason)
     strcpy(reason, "Specified maximum timestep.");
   }
 
-  // If we have an observation time coming up, perhaps the next one will 
-  // constrain the timestep.
-  real_t acq_time = model_next_acq_time(model);
-  real_t acq_dt = acq_time - model->time;
-  if (acq_dt < dt)
+  // The following constraints only apply if we are collecting diagnostics
+  // at exact times.
+  if (model->diag_mode == MODEL_DIAG_EXACT_TIME)
   {
-    dt = acq_dt;
-    sprintf(reason, "Requested acquisition time: %g", acq_time);
+    // If we have an observation time coming up, perhaps the next one will 
+    // constrain the timestep.
+    real_t acq_time = model_next_acq_time(model);
+    real_t acq_dt = acq_time - model->time;
+    if (acq_dt < dt)
+    {
+      dt = acq_dt;
+      sprintf(reason, "Requested acquisition time: %g", acq_time);
+    }
+
+    // If we have a plot time coming up, perhaps the next one will 
+    // constrain the timestep.
+    if (model->plot_every > 0.0)
+    {
+      int n = (int)(model->time / model->plot_every);
+      real_t plot_time = (n+1) * model->plot_every;
+      real_t plot_dt = plot_time - model->time;
+      ASSERT(plot_dt >= 0.0);
+      if (plot_dt < 1e-12) 
+      {
+        // We're already at one plot time; set our sights on the next.
+        plot_dt = model->plot_every;
+      }
+
+      // Is our plot timestep the limiting factor?
+      if (plot_dt < dt)
+      {
+        dt = plot_dt;
+        model->plot_this_step = true;
+        sprintf(reason, "Requested plot time: %g", plot_time);
+      }
+      else if (2.0 * plot_dt < dt)
+      {
+        dt = plot_dt;
+        model->plot_this_step = true;
+        sprintf(reason, "Requested plot time: %g", plot_time);
+      }
+      else if (reals_nearly_equal(plot_dt, dt, 1e-12)) // FIXME: corny
+        model->plot_this_step = true;
+    }
   }
-
-  // If we have a plot time coming up, perhaps the next one will 
-  // constrain the timestep.
-  if (model->plot_every > 0.0)
+  else
   {
-    int n = (int)(model->time / model->plot_every);
-    real_t plot_time = (n+1) * model->plot_every;
-    real_t plot_dt = plot_time - model->time;
-    ASSERT(plot_dt >= 0.0);
-    if (plot_dt < 1e-12) 
+    // We still need to create plots, even if we're not stopping exactly 
+    // at the right time.
+    if (model->plot_every > 0.0)
     {
-      // We're already at one plot time; set our sights on the next.
-      plot_dt = model->plot_every;
+      int n = (int)(model->time / model->plot_every);
+      real_t plot_time = (n+1) * model->plot_every;
+      real_t plot_dt = plot_time - model->time;
+      if (plot_dt < dt)
+        model->plot_this_step = true;
     }
-
-    // Is our plot timestep the limiting factor?
-    if (plot_dt < dt)
-    {
-      dt = plot_dt;
-      model->plot_this_cycle = true;
-      sprintf(reason, "Requested plot time: %g", plot_time);
-    }
-    else if (2.0 * plot_dt < dt)
-    {
-      dt = plot_dt;
-      model->plot_this_cycle = true;
-      sprintf(reason, "Requested plot time: %g", plot_time);
-    }
-    else if (reals_nearly_equal(plot_dt, dt, 1e-12)) // FIXME: corny
-      model->plot_this_cycle = true;
   }
 
   return dt;
@@ -475,7 +497,7 @@ bool model_load(model_t* model, int step)
   if (loaded)
   {
     model->step = step;
-    model->plot_this_cycle = true;
+    model->plot_this_step = true;
 
     // Reset the wall time(s).
     model->wall_time0 = MPI_Wtime();
@@ -520,9 +542,25 @@ void model_acquire(model_t* model)
   real_array_t* acq_times;
   while (probe_map_next(model->probes, &pos, &probe, &acq_times))
   {
-    int acq_time_index = real_lower_bound(acq_times->data, acq_times->size, model->time);
+    // Figure out whether to actually acquire the data now.
+    bool acquire_now = false;
+    int acq_time_index = real_lower_bound(acq_times->data, acq_times->size, 
+                                          model->time);
     if ((acq_time_index < acq_times->size) &&
-        reals_nearly_equal(model->time, acq_times->data[acq_time_index], 1e-12)) // FIXME: Good enough?
+         reals_nearly_equal(model->time, acq_times->data[acq_time_index], 1e-12)) // FIXME: Good enough?
+      acquire_now = true;
+    else if (model->diag_mode == MODEL_DIAG_NEAREST_STEP)
+    {
+      real_t last_dt = model->dt;
+      int last_acq_time_index = real_lower_bound(acq_times->data, 
+                                                 acq_times->size, 
+                                                 model->time - last_dt);
+      if (last_acq_time_index < acq_time_index)
+        acquire_now = true;
+    }
+
+    // Do what needs doing.
+    if (acquire_now)
     {
       // Acquire data from this probe.
       probe_data_t* data = probe_acquire(probe, model->time);
@@ -712,6 +750,11 @@ void model_load_from(model_t* model, int step)
 {
   ASSERT(step >= 0);
   model->load_step = step;
+}
+
+void model_set_diagnostic_mode(model_t* model, model_diag_mode_t mode)
+{
+  model->diag_mode = mode;
 }
 
 model_vtable model_get_vtable(model_t* model)

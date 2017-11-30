@@ -336,46 +336,6 @@ matrix_sparsity_t* sparsity_from_point_cloud_and_neighbors(point_cloud_t* points
   return sparsity;
 }
 
-void silo_file_write_neighbor_pairing(silo_file_t* file,
-                                      const char* neighbors_name,
-                                      neighbor_pairing_t* neighbors)
-{
-  char name_name[FILENAME_MAX];
-  snprintf(name_name, FILENAME_MAX, "%s_neighbor_pairing_name", neighbors_name);
-  silo_file_write_string(file, name_name, neighbors->name);
-  char pairs_name[FILENAME_MAX];
-  snprintf(pairs_name, FILENAME_MAX, "%s_neighbor_pairing_pairs", neighbors_name);
-  silo_file_write_int_array(file, pairs_name, neighbors->pairs, 2*neighbors->num_pairs);
-
-  if (neighbors->ex != NULL)
-  {
-    char ex_name[FILENAME_MAX];
-    snprintf(ex_name, FILENAME_MAX, "%s_neighbor_pairing_ex", neighbors_name);
-    silo_file_write_exchanger(file, ex_name, neighbors->ex);
-  }
-}
-
-neighbor_pairing_t* silo_file_read_neighbor_pairing(silo_file_t* file,
-                                                    const char* neighbors_name,
-                                                    MPI_Comm comm)
-{
-  neighbor_pairing_t* p = polymec_malloc(sizeof(neighbor_pairing_t));
-  char name_name[FILENAME_MAX];
-  snprintf(name_name, FILENAME_MAX, "%s_neighbor_pairing_name", neighbors_name);
-  p->name = silo_file_read_string(file, name_name);
-  char pairs_name[FILENAME_MAX];
-  snprintf(pairs_name, FILENAME_MAX, "%s_neighbor_pairing_pairs", neighbors_name);
-  size_t size;
-  p->pairs = silo_file_read_int_array(file, pairs_name, &size);
-  ASSERT((size % 2) == 0);
-  p->num_pairs = (int)size/2;
-
-  char ex_name[FILENAME_MAX];
-  snprintf(ex_name, FILENAME_MAX, "%s_neighbor_pairing_ex", neighbors_name);
-  p->ex = silo_file_read_exchanger(file, ex_name, comm);
-  return p;
-}
-
 neighbor_pairing_t* distance_based_neighbor_pairing_new(point_cloud_t* points,
                                                         real_t* R,
                                                         int* num_ghost_points)
