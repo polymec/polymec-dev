@@ -1,3 +1,13 @@
+Thu Nov 30 13:38:42 PST 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.0.1
+      - Fixed a bug in garbage collection.
+      - Added diagnostic modes for models to control whether time steps 
+        are affected by plots and/or probe measurements.
+      - The io library now depends on all other libraries. Silo features 
+        have been consolidated into this library.
+      - Removed MPI tag arguments from silo_file_new, silo_file_open. This 
+        breaks compatibility, strictly speaking, but remains a very minor 
+        change.
 Sun Nov 19 14:41:52 PST 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.0.0
     * Implemented a proper Lua interpreter for writing input scripts.
