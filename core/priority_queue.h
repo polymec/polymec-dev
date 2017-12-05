@@ -22,8 +22,8 @@
 // void x_priority_queue_free(x_priority_queue_t* queue) - Destroys the priority queue.
 // void x_priority_queue_push_with_dtor(x_priority_queue_t* queue, x datum, int priority, dtor) - Inserts a datum into the queue with a destructor.
 // void x_priority_queue_push(x_priority_queue_t* queue, x datum, int priority) - Inserts a datum into the queue.
-// int x_priority_queue_pop(x_priority_queue_t* queue) - Removes the element with the largest priority (and its priority) from the queue.
-// int x_priority_queue_highest(x_priority_queue_t* queue) - Returns thelargest priority in the queue.
+// void x_priority_queue_pop(x_priority_queue_t* queue) - Removes the element with the largest priority (and its priority) from the queue.
+// int x_priority_queue_highest(x_priority_queue_t* queue) - Returns the largest priority in the queue.
 // x x_priority_queue_front(x_priority_queue_t* queue) - Returns the element with the largest priority in the queue.
 // bool x_priority_queue_empty(x_priority_queue_t* queue) - Returns true if the queue is empty, false otherwise.
 // void x_priority_queue_clear(x_priority_queue_t* queue) - Clears the contents of the queue.
@@ -52,7 +52,7 @@ struct queue_name##_t \
 \
 static inline queue_name##_t* queue_name##_new() \
 { \
-  queue_name##_t* queue = (queue_name##_t*)polymec_malloc(sizeof(queue_name##_t)); \
+  queue_name##_t* queue = polymec_malloc(sizeof(queue_name##_t)); \
   queue->heap = queue_name##_heap_new(); \
   return queue; \
 } \
@@ -85,18 +85,22 @@ static inline void queue_name##_pop(queue_name##_t* queue) \
 { \
   queue_name##_heap_pop(queue->heap); \
 } \
+\
 static inline int queue_name##_highest(queue_name##_t* queue) \
 { \
   return queue_name##_heap_front(queue->heap).priority; \
 } \
+\
 static inline queue_name##_element_t queue_name##_front(queue_name##_t* queue) \
 { \
   return queue_name##_heap_front(queue->heap).value; \
 } \
+\
 static inline bool queue_name##_empty(queue_name##_t* queue) \
 { \
   return queue_name##_heap_empty(queue->heap); \
 } \
+\
 static inline void queue_name##_clear(queue_name##_t* queue) \
 { \
   queue_name##_heap_clear(queue->heap); \
