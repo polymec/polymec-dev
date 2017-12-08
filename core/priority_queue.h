@@ -52,7 +52,7 @@ struct queue_name##_t \
 \
 static inline queue_name##_t* queue_name##_new() \
 { \
-  queue_name##_t* queue = polymec_malloc(sizeof(queue_name##_t)); \
+  queue_name##_t* queue = (queue_name##_t*)polymec_malloc(sizeof(queue_name##_t)); \
   queue->heap = queue_name##_heap_new(); \
   return queue; \
 } \
