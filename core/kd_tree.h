@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2017, Jeffrey N. Johnson
+// Copyright (c) 2012-2018, Jeffrey N. Johnson
 // All rights reserved.
 // 
 // This Source Code Form is subject to the terms of the Mozilla Public
