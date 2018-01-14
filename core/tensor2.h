@@ -92,6 +92,14 @@ static inline void tensor2_dot_vector_t(tensor2_t* t, vector_t* v, vector_t* tv)
   tv->z = t->xz*v->x + t->yz*v->y + t->zz*v->z;
 }
 
+// Computes the double dot product x dot t dot y.
+static inline real_t tensor2_ddot(tensor2_t* t, vector_t* x, vector_t* y)
+{
+  vector_t ty;
+  tensor2_dot_vector(t, y, &ty);
+  return vector_dot(x, &ty);
+}
+
 // Computes the inverse of the tensor.
 static inline void tensor2_invert(tensor2_t* t, tensor2_t* t_inverse)
 {
@@ -185,6 +193,14 @@ static inline void sym_tensor2_dot_vector(sym_tensor2_t* t, vector_t* v, vector_
   tv->z = t->xz*v->x + t->yz*v->y + t->zz*v->z;
 }
 
+// Computes the double dot product x dot t dot y.
+static inline real_t sym_tensor2_ddot(sym_tensor2_t* t, vector_t* x, vector_t* y)
+{
+  vector_t ty;
+  sym_tensor2_dot_vector(t, y, &ty);
+  return vector_dot(x, &ty);
+}
+
 // Computes the inverse of the symmetric tensor.
 static inline void sym_tensor2_invert(sym_tensor2_t* t, sym_tensor2_t* t_inverse)
 {
@@ -200,14 +216,16 @@ static inline void sym_tensor2_invert(sym_tensor2_t* t, sym_tensor2_t* t_inverse
   t_inverse->zz = t->xx*t->yy - t->xy*t->xy;
 }
 
-// Computes the 3 eigenvalues of the symmetric tensor, storing them in the 
-// given array.
+// Computes the 3 eigenvalues of the symmetric tensor, storing them in 
+// the given array in ascending order.
 void sym_tensor2_get_eigenvalues(sym_tensor2_t* t, real_t eigenvalues[3]);
 
 // Computes the 3 eigenvalues and eigenvectors of the symmetric tensor, 
 // storing the former as scalars in the given array and the later as 
 // vectors in the array eigenvectors.
-void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, real_t eigenvalues[3], vector_t eigenvectors[3]);
+void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, 
+                                  real_t eigenvalues[3], 
+                                  vector_t eigenvectors[3]);
 
 // Writes a text representation of the symmetric tensor to the given stream.
 void sym_tensor2_fprintf(sym_tensor2_t* t, FILE* stream);

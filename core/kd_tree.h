@@ -11,6 +11,7 @@
 #include "core/polymec.h"
 #include "core/point.h"
 #include "core/array.h"
+#include "core/tensor2.h"
 #include "core/exchanger.h"
 
 // A kd_tree is a collection of points in a 3D domain, stored in a kd-tree 
@@ -37,11 +38,19 @@ int kd_tree_nearest(kd_tree_t* tree, point_t* point);
 // array has space for n integers.
 void kd_tree_nearest_n(kd_tree_t* tree, point_t* point, int n, int* neighbors);
 
-// Returns a linked list containing the indices of the points in the set 
-// found within the given radius of the given point.
+// Returns an array containing the indices of the points in the set 
+// found within the given radius of the given point. 
 int_array_t* kd_tree_within_radius(kd_tree_t* tree, 
                                    point_t* point, 
                                    real_t radius);
+
+// Returns an array containing the indices of the points in the set 
+// found within the ellipsoid represented by the symmetric tensor E.
+// The equation of the ellipsoid is given by xi o Eij o xj = 1, where
+// "o" denotes the Cartesian dot product.
+int_array_t* kd_tree_within_ellipsoid(kd_tree_t* tree, 
+                                      point_t* point, 
+                                      sym_tensor2_t* E);
 
 // Traverses a kd tree, returning the index of the point within the tree and 
 // its coordinates. To initialiaze a traversal, set *pos to 0.
