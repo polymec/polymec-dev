@@ -82,10 +82,15 @@ static real_t rect_square_dist(kd_tree_rect_t* rect, real_t* pos)
   return r2;
 }
 
-// Returns the double dot product of the ellipsoid E with the nearest point 
-// to E in the rectangle.
-static real_t rect_min_ddot(kd_tree_rect_t* rect, real_t* pos, sym_tensor2_t* E)
+// Returns true if any point within the given rectangle satisfies the given 
+// predicate with the coordinates pos, false if not.
+static bool rect_satisfies_predicate(kd_tree_rect_t* rect, 
+                                     real_t* pos, 
+                                     bool (*predicate)(void* context, point_t* x, point_t* y),
+                                     void* context)
 {
+  // Find the coordinates of the closest point in rect to pos and 
+  // store them in xi.
   real_t xi[3];
   for (int i = 0; i < 3; ++i)
   {
@@ -96,8 +101,10 @@ static real_t rect_min_ddot(kd_tree_rect_t* rect, real_t* pos, sym_tensor2_t* E)
     else
       xi[i] = pos[i];
   }
-  vector_t* x = (vector_t*)xi;
-  return sym_tensor2_ddot(E, x, x);
+
+  // Does this closest point satisfy the predicate?
+  point_t *x = (point_t*)pos, *y = (point_t*)xi;
+  return predicate(context, x, y);
 }
 
 static void rect_extend(kd_tree_rect_t* rect, real_t* pos)
@@ -436,11 +443,12 @@ int_array_t* kd_tree_within_radius(kd_tree_t* tree,
   return results;
 }
 
-static void find_within_ellipsoid(kd_tree_node_t* node, 
-                                  real_t* pos, 
-                                  sym_tensor2_t* E,
-                                  kd_tree_rect_t* rect,
-                                  int_array_t* results)
+static void find_for_predicate(kd_tree_node_t* node, 
+                               real_t* pos, 
+                               bool (*pred)(void* context, point_t* x, point_t* y),
+                               void* context,
+                               kd_tree_rect_t* rect,
+                               int_array_t* results)
 {
   // Go left or right?
   int dir = node->dir;
@@ -467,15 +475,14 @@ static void find_within_ellipsoid(kd_tree_node_t* node,
     // Bisect and recurse.
     real_t coord = *near_coord;
     *near_coord = node->pos[dir];
-    find_within_ellipsoid(near_subtree, pos, E, rect, results);
+    find_for_predicate(near_subtree, pos, pred, context, rect, results);
     *near_coord = coord;
   }
 
   // Does the current node satisfy the predicate?
-  vector_t x = {node->pos[0] - pos[0], 
-                node->pos[1] - pos[1], 
-                node->pos[2] - pos[2]};
-  if (sym_tensor2_ddot(E, &x, &x) < 1.0)
+  point_t x = {pos[0], pos[1], pos[2]};
+  point_t y = {node->pos[0], node->pos[1], node->pos[2]};
+  if (pred(context, &x, &y))
     int_array_append(results, node->index);
 
   if (far_subtree != NULL)
@@ -483,15 +490,16 @@ static void find_within_ellipsoid(kd_tree_node_t* node,
     // Bisect and recurse (if needed).
     real_t coord = *far_coord;
     *far_coord = node->pos[dir];
-    if (rect_min_ddot(rect, pos, E) < 1.0) 
-      find_within_ellipsoid(far_subtree, pos, E, rect, results);
+    if (rect_satisfies_predicate(rect, pos, pred, context)) 
+      find_for_predicate(far_subtree, pos, pred, context, rect, results);
     *far_coord = coord;
   }
 }
 
-int_array_t* kd_tree_within_ellipsoid(kd_tree_t* tree, 
-                                      point_t* point, 
-                                      sym_tensor2_t* E)
+int_array_t* kd_tree_for_predicate(kd_tree_t* tree, 
+                                   point_t* point, 
+                                   bool (*pred)(void* context, point_t* point, point_t* x),
+                                   void* context)
 {
   int_array_t* results = int_array_new();
   if (tree->root == NULL)
@@ -505,7 +513,7 @@ int_array_t* kd_tree_within_ellipsoid(kd_tree_t* tree,
   rect.min[2] = tree->rect->min[2]; rect.max[2] = tree->rect->max[2];
   
   // Search recursively for the closest node.
-  find_within_ellipsoid(tree->root, pos, E, &rect, results);
+  find_for_predicate(tree->root, pos, pred, context, &rect, results);
   return results;
 }
 

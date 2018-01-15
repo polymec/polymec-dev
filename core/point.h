@@ -202,6 +202,26 @@ static inline bool bbox_contains(bbox_t* bbox, point_t* p)
           (p->z >= bbox->z1) && (p->z <= bbox->z2));
 }
 
+// Computes the nearest point to p within the box, storing it in nearest.
+static inline void bbox_find_nearest_point(bbox_t* bbox, 
+                                           point_t* p,
+                                           point_t* nearest)
+{
+  *nearest = *p;
+  if (p->x < bbox->x1)
+    nearest->x = bbox->x1;
+  else if (p->x > bbox->x2)
+    nearest->x = bbox->x2;
+  if (p->y < bbox->y1)
+    nearest->y = bbox->y1;
+  else if (p->y > bbox->y2)
+    nearest->y = bbox->y2;
+  if (p->z < bbox->y1)
+    nearest->z = bbox->y1;
+  else if (p->z > bbox->z2)
+    nearest->z = bbox->z2;
+}
+
 // Returns true if the first bounding box completely contains the 2nd box, 
 // false otherwise.
 static inline bool bbox_contains_bbox(bbox_t* bbox, bbox_t* box)

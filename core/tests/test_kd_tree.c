@@ -12,6 +12,8 @@
 #include <time.h>
 #include "cmocka.h"
 #include "core/kd_tree.h"
+#include "core/array_utils.h"
+#include "core/tensor2.h"
 
 static void test_construct(void** state) 
 { 
@@ -64,6 +66,106 @@ static void test_find_nearest(void** state)
 
     // The two queries must agree with each other.
     assert_true(j == kk);
+  }
+
+  kd_tree_free(tree);
+}
+
+static void test_within_radius(void** state) 
+{ 
+  // Create a point set containing 100 random points.
+  rng_t* rng = host_rng_new();
+  int N = 100;
+  bbox_t bounding_box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  point_t points[N];
+  for (int i = 0; i < N; ++i)
+    point_randomize(&points[i], rng, &bounding_box);
+  kd_tree_t* tree = kd_tree_new(points, N);
+
+  // Now try out our radius query and measure it against a brute force 
+  // calculation.
+  real_t radius = 0.25;
+  for (int i = 0; i < 10; ++i) // 10 queries.
+  {
+    // Pick a random point p.
+    point_t p;
+    point_randomize(&p, rng, &bounding_box);
+
+    // Which points are within our radius?
+    int_array_t* candidates = kd_tree_within_radius(tree, &p, radius);
+
+    // Do a linear search for points within the radius.
+    int_array_t* actual_points = int_array_new();
+    for (int k = 0; k < N; ++k)
+    {
+      real_t dist = point_distance(&p, &points[k]);
+      if (dist < radius)
+        int_array_append(actual_points, k);
+    }
+
+    // The two arrays must contain the same indices.
+    assert_int_equal(actual_points->size, candidates->size);
+    for (int k = 0; k < actual_points->size; ++k)
+      assert_true(int_lsearch(candidates->data, candidates->size, actual_points->data[k]) != NULL);
+
+    // Clean up.
+    int_array_free(candidates);
+    int_array_free(actual_points);
+  }
+
+  kd_tree_free(tree);
+}
+
+// Returns true if y is in the given ellipse centered at x.
+static bool point_in_ellipse(void* context, point_t* x, point_t* y)
+{
+  sym_tensor2_t* E = context;
+  vector_t d;
+  point_displacement(x, y, &d);
+  return (sym_tensor2_ddot(E, &d, &d) < 1.0);
+}
+
+static void test_within_ellipse(void** state) 
+{ 
+  // Create a point set containing 100 random points.
+  rng_t* rng = host_rng_new();
+  int N = 100;
+  bbox_t bounding_box = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
+  point_t points[N];
+  for (int i = 0; i < N; ++i)
+    point_randomize(&points[i], rng, &bounding_box);
+  kd_tree_t* tree = kd_tree_new(points, N);
+
+  // Now use a predicate query and compare it to the results of a brute force 
+  // calculation.
+  sym_tensor2_t E = {0.2, 0.0, 0.0, 
+                          0.3, 0.0,
+                               0.4};
+  for (int i = 0; i < 10; ++i) // 10 queries.
+  {
+    // Pick a random point p.
+    point_t p;
+    point_randomize(&p, rng, &bounding_box);
+
+    // Which points fall within the ellipse E at this point?
+    int_array_t* candidates = kd_tree_for_predicate(tree, &p, point_in_ellipse, &E);
+
+    // Do a linear search for points within the radius.
+    int_array_t* actual_points = int_array_new();
+    for (int k = 0; k < N; ++k)
+    {
+      if (point_in_ellipse(&E, &p, &points[k]))
+        int_array_append(actual_points, k);
+    }
+
+    // The two arrays must contain the same indices.
+    assert_int_equal(actual_points->size, candidates->size);
+    for (int k = 0; k < actual_points->size; ++k)
+      assert_true(int_lsearch(candidates->data, candidates->size, actual_points->data[k]) != NULL);
+
+    // Clean up.
+    int_array_free(candidates);
+    int_array_free(actual_points);
   }
 
   kd_tree_free(tree);
@@ -131,6 +233,8 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_construct),
     cmocka_unit_test(test_find_nearest),
+    cmocka_unit_test(test_within_radius),
+    cmocka_unit_test(test_within_ellipse),
     cmocka_unit_test(test_find_ghost_points)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
