@@ -45,6 +45,25 @@ static void cm_map_point(void* context, point_t* x, point_t* y)
   *y = *(lua_to_point(lo->L, -1));
 }
 
+static void cm_map_vector(void* context, point_t* x, vector_t* v, vector_t* w)
+{
+  // Fetch our Lua table from the registry.
+  lua_obj_t* lo = context;
+  lua_pushlightuserdata(lo->L, lo);
+  lua_gettable(lo->L, LUA_REGISTRYINDEX);
+
+  // Call the map_vector method.
+  lua_getfield(lo->L, -1, "map_vector");
+  lua_pushvalue(lo->L, -2);
+  lua_push_point(lo->L, x);
+  lua_push_vector(lo->L, v);
+  lua_call(lo->L, 3, 1);
+
+  if (!lua_is_vector(lo->L, -1))
+    luaL_error(lo->L, "map_vector method did not return a vector.");
+  *w = *(lua_to_vector(lo->L, -1));
+}
+
 static void cm_compute_jacobian(void* context, point_t* x, tensor2_t* J)
 {
   // Fetch our Lua table from the registry.
@@ -113,8 +132,15 @@ static int cm_new(lua_State* L)
   lua_getfield(L, 1, "map");
   if (!lua_isfunction(L, -1))
     return luaL_error(L, "map must be a method.");
-  lua_setfield(L, obj_index, "map");
+  lua_setfield(L, obj_index, "map_point");
   vtable.map_point = cm_map_point;
+
+  lua_getfield(L, 1, "map_vector");
+  if (lua_isfunction(L, -1))
+  {
+    lua_setfield(L, obj_index, "map_vector");
+    vtable.map_vector = cm_map_vector;
+  }
 
   lua_getfield(L, 1, "jacobian");
   if (!lua_isfunction(L, -1))
@@ -158,7 +184,7 @@ static int cm_compose(lua_State* L)
 }
 
 static lua_module_function cm_funcs[] = {
-  {"new", cm_new, "coord_mapping.new{name = NAME, map = Xp, jacobian = J, inverse = Xinv} -> new coordinate mapping."},
+  {"new", cm_new, "coord_mapping.new{name = NAME, map = Xp, [map_vector = Xv], jacobian = J, inverse = Xinv} -> new coordinate mapping."},
   {"compose", cm_compose, "coord_mapping.compose(X1, X2) ­> Returns a coordinate mapping for X1 o X2."},
   {NULL, NULL, NULL}
 };
@@ -220,7 +246,7 @@ static int cm_call(lua_State* L)
        ((num_args == 3) && lua_is_point(L, 2) && lua_is_vector(L, 3)))
     luaL_error(L, "Argument must be a point or a point and a vector.");
 
-  if (lua_is_point(L, 2))
+  if (num_args == 2) // point
   {
     point_t* x = lua_to_point(L, 2);
     point_t* y = point_new(0.0, 0.0, 0.0);

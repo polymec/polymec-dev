@@ -155,7 +155,6 @@ static void test_stiffly_accurate_kinetics(void** state)
       bool success = ode_solver_step(I, dt, &t, X);
       assert_true(success);
     }
-printf("%g %g %g\n", X[0], X[1], X[2]);
 
     // Compute error norms from reference values.
     real_t L2 = sqrt((X[0]-X0)*(X[0]-X0) + (X[1]-X1)*(X[1]-X1) + (X[2]-X2)*(X[2]-X2));
