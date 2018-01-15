@@ -91,15 +91,13 @@ static bool rect_satisfies_predicate(kd_tree_rect_t* rect,
 {
   // Find the coordinates of the closest point in rect to pos and 
   // store them in xi.
-  real_t xi[3];
+  real_t xi[3] = {pos[0], pos[1], pos[2]};
   for (int i = 0; i < 3; ++i)
   {
     if (pos[i] < rect->min[i])
-      xi[i] = rect->min[i] - pos[i];
+      xi[i] = rect->min[i];
     else if (pos[i] > rect->max[i])
-      xi[i] = rect->max[i] - pos[i];
-    else
-      xi[i] = pos[i];
+      xi[i] = rect->max[i];
   }
 
   // Does this closest point satisfy the predicate?
