@@ -89,10 +89,16 @@ static coord_mapping_t* cm_compute_inverse(void* context)
   lua_pushlightuserdata(lo->L, lo);
   lua_gettable(lo->L, LUA_REGISTRYINDEX);
 
-  // Call the jacobian method.
+  // Call the inverse method. If inverse is the string "self", that means 
+  // we return the original object.
   lua_getfield(lo->L, -1, "inverse");
-  lua_pushvalue(lo->L, -2);
-  lua_call(lo->L, 1, 1);
+  if (lua_isstring(lo->L, -1) && (strcmp(lua_tostring(lo->L, -1), "self") == 0))
+    lua_pushvalue(lo->L, 1);
+  else
+  {
+    lua_pushvalue(lo->L, -2);
+    lua_call(lo->L, 1, 1);
+  }
 
   if (!lua_is_coord_mapping(lo->L, -1))
   {
@@ -149,9 +155,10 @@ static int cm_new(lua_State* L)
   vtable.jacobian = cm_compute_jacobian;
 
   lua_getfield(L, 1, "inverse");
-  if (!lua_isfunction(L, -1))
-    return luaL_error(L, "jacobian must be a method.");
-  lua_setfield(L, obj_index, "jacobian");
+  if (!lua_isfunction(L, -1) && 
+      !(lua_isstring(L, -1) && (strcmp(lua_tostring(L, -1), "self") == 0)))
+    return luaL_error(L, "inverse must be a method or the string 'self'.");
+  lua_setfield(L, obj_index, "inverse");
   vtable.inverse = cm_compute_inverse;
 
   // Allocate a context pointer and stuff our object into the registry.
@@ -242,8 +249,8 @@ static int cm_call(lua_State* L)
   if (X == NULL)
     luaL_error(L, "Method must be invoked with a coord_mapping.");
   int num_args = lua_gettop(L);
-  if (!((num_args == 2) && lua_is_point(L, 2)) ||
-       ((num_args == 3) && lua_is_point(L, 2) && lua_is_vector(L, 3)))
+  if (!(((num_args == 2) && lua_is_point(L, 2)) ||
+        ((num_args == 3) && lua_is_point(L, 2) && lua_is_vector(L, 3))))
     luaL_error(L, "Argument must be a point or a point and a vector.");
 
   if (num_args == 2) // point

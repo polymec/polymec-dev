@@ -1,26 +1,31 @@
 -- This tests the various geometry classes.
 
 -- Make a coordinate mapping and try it out.
-function uniform_map_x(self, x)
+function ident_map_x(self, x)
   return x
 end
 
-function uniform_map_v(self, x, v)
+function ident_map_v(self, x, v)
   return v
 end
 
-function uniform_jac(self, x)
+function ident_jac(self, x)
   return tensor2.new(1, 0, 0, 0, 1, 0, 0, 0, 1)
 end
 
 I = coord_mapping.new{name = "I",
-                      map = uniform_map_x, 
-                      map_vector = uniform_map_v, 
-                      jacobian = uniform_jac,
-                      inverse = uniform_map_x}
+                      map = ident_map_x, 
+                      map_vector = ident_map_v, 
+                      jacobian = ident_jac,
+                      inverse = "self"}
 x = point.new(1, 2, 3)
 v = vector.new(4, 5, 6)
-print(I(x), I(x, v), I.jacobian(x), I.inverse(x))
+print(I) 
+print(I(x)) 
+print(I(x, v)) 
+print(I:jacobian(x)) 
+print(I:inverse()) 
+print(I:metric(x))
 
 -- Try out the shake-n-bake signed distance functions.
 plane = sd_func.plane{normal = vector.new(1, 0, 0),
@@ -82,9 +87,9 @@ print(plane2:project(x, 1))
 
 -- Polyhedral meshes.
 box = bbox.new{x1 = 0, x2 = 1, y1 = 0, y2 = 1, z1 = 0, z2 = 1}
-mesh1 = polymeshes.uniform{comm = mpi.COMM_WORLD, nx = 10, ny = 10, nz = 10}
+mesh1 = polymeshes.uniform{comm = mpi.COMM_WORLD, nx = 10, ny = 10, nz = 10, bbox = box}
 print(mesh1.num_cells, mesh1.num_faces, mesh1.num_edges, mesh1.num_nodes)
-mesh2 = polymeshes.uniform{comm = mpi.COMM_WORLD, rank = 0, nx = 10, ny = 10, nz = 10}
+mesh2 = polymeshes.uniform{comm = mpi.COMM_WORLD, rank = 0, nx = 10, ny = 10, nz = 10, bbox = box}
 assert(mesh2.num_cells == 1000)
 
 xs = {0.1, 0.2, 0.3, 0.4, 0.5}
