@@ -191,6 +191,67 @@ static int newton_lfree(KINMem kin_mem)
   return 0;
 }
 
+static newton_solver_t* create_newton_solver(MPI_Comm comm,
+                                             int num_local_values,
+                                             int num_remote_values,
+                                             void* context,
+                                             int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
+                                             void (*dtor)(void* context))
+{
+  ASSERT(num_local_values > 0);
+  ASSERT(num_remote_values >= 0);
+  ASSERT(F_func != NULL);
+
+  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
+  solver->context = context;
+  solver->comm = comm;
+  solver->F_func = F_func;
+  solver->Jv_func = NULL;
+  solver->reset_func = NULL;
+  solver->newton_setup_func = NULL;
+  solver->picard_setup_func = NULL;
+  solver->solve_func = NULL;
+  solver->dtor = dtor;
+  solver->precond = NULL;
+  solver->num_local_values = num_local_values;
+  solver->num_remote_values = num_remote_values;
+  solver->max_krylov_dim = -1;
+  solver->max_restarts = -1;
+  solver->strategy = KIN_NONE;
+
+  // Set up KINSol and accessories.
+  solver->kinsol = KINCreate();
+  KINSetUserData(solver->kinsol, solver);
+  solver->U = N_VNew(solver->comm, num_local_values);
+  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->U_scale = N_VNew(solver->comm, num_local_values);
+  solver->F_scale = N_VNew(solver->comm, num_local_values);
+  solver->constraints = N_VNew(solver->comm, num_local_values);
+  solver->status_message = NULL;
+  solver->t = 0.0;
+
+  KINInit(solver->kinsol, evaluate_F, solver->U);
+
+  // Set trivial scaling by default.
+  newton_solver_set_U_scale(solver, NULL);
+  newton_solver_set_F_scale(solver, NULL);
+
+  // Enable debugging diagnostics if logging permits.
+  FILE* info_stream = log_stream(LOG_DEBUG);
+  if (info_stream != NULL)
+  {
+    KINSetPrintLevel(solver->kinsol, 3);
+    KINSetInfoFile(solver->kinsol, info_stream);
+  }
+  else
+  {
+    KINSetPrintLevel(solver->kinsol, 0);
+    KINSetInfoFile(solver->kinsol, NULL);
+  }
+
+  return solver;
+}
+
 newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int num_local_values,
                                    int num_remote_values,
@@ -216,42 +277,22 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    void (*dtor)(void* context),
                                    newton_solver_strategy_t strategy)
 {
-  ASSERT(num_local_values > 0);
-  ASSERT(num_remote_values >= 0);
-  ASSERT(F_func != NULL);
   ASSERT(reset_func != NULL);
   ASSERT(setup_func != NULL);
   ASSERT(solve_func != NULL);
 
-  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
-  solver->context = context;
-  solver->comm = comm;
-  solver->F_func = F_func;
-  solver->Jv_func = NULL;
+  newton_solver_t* solver = create_newton_solver(comm,
+                                                 num_local_values,
+                                                 num_remote_values,
+                                                 context,
+                                                 F_func,
+                                                 dtor);
+
+  // Fill in the holes.
   solver->reset_func = reset_func;
   solver->newton_setup_func = setup_func;
   solver->solve_func = solve_func;
-  solver->dtor = dtor;
-  solver->precond = NULL;
-  solver->num_local_values = num_local_values;
-  solver->num_remote_values = num_remote_values;
-  solver->max_krylov_dim = -1;
-  solver->max_restarts = -1;
-
   solver->strategy = (strategy == NEWTON_FULL_STEP) ? KIN_NONE : KIN_LINESEARCH;
-
-  // Set up KINSol and accessories.
-  solver->kinsol = KINCreate();
-  KINSetUserData(solver->kinsol, solver);
-  solver->U = N_VNew(solver->comm, num_local_values);
-  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
-  solver->U_scale = N_VNew(solver->comm, num_local_values);
-  solver->F_scale = N_VNew(solver->comm, num_local_values);
-  solver->constraints = N_VNew(solver->comm, num_local_values);
-  solver->status_message = NULL;
-  solver->t = 0.0;
-
-  KINInit(solver->kinsol, evaluate_F, solver->U);
 
   // Set up our generalized solver.
   KINMem kin_mem = solver->kinsol;
@@ -261,23 +302,6 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   kin_mem->kin_lfree = newton_lfree;
   kin_mem->kin_setupNonNull = 1;  // need this for lsetup to be called
   kin_mem->kin_inexact_ls = 1;    // need this for iterative solvers
-
-  // Set trivial scaling by default.
-  newton_solver_set_U_scale(solver, NULL);
-  newton_solver_set_F_scale(solver, NULL);
-
-  // Enable debugging diagnostics if logging permits.
-  FILE* info_stream = log_stream(LOG_DEBUG);
-  if (info_stream != NULL)
-  {
-    KINSetPrintLevel(solver->kinsol, 3);
-    KINSetInfoFile(solver->kinsol, info_stream);
-  }
-  else
-  {
-    KINSetPrintLevel(solver->kinsol, 0);
-    KINSetInfoFile(solver->kinsol, NULL);
-  }
 
   return solver;
 }
@@ -306,43 +330,23 @@ newton_solver_t* picard_newton_solver_new(MPI_Comm comm,
                                           void (*dtor)(void* context),
                                           int num_residuals)
 {
-  ASSERT(num_local_values > 0);
-  ASSERT(num_remote_values >= 0);
-  ASSERT(F_func != NULL);
   ASSERT(reset_func != NULL);
   ASSERT(setup_func != NULL);
   ASSERT(solve_func != NULL);
 
-  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
-  solver->context = context;
-  solver->comm = comm;
-  solver->F_func = F_func;
-  solver->Jv_func = NULL;
+  newton_solver_t* solver = create_newton_solver(comm,
+                                                 num_local_values,
+                                                 num_remote_values,
+                                                 context,
+                                                 F_func,
+                                                 dtor);
+
+  // Fill in the holes.
   solver->reset_func = reset_func;
   solver->picard_setup_func = setup_func;
   solver->solve_func = solve_func;
-  solver->dtor = dtor;
-  solver->precond = NULL;
-  solver->num_local_values = num_local_values;
-  solver->num_remote_values = num_remote_values;
-  solver->max_krylov_dim = -1;
-  solver->max_restarts = -1;
-
   solver->strategy = KIN_PICARD;
   KINSetMAA(solver->kinsol, num_residuals);
-
-  // Set up KINSol and accessories.
-  solver->kinsol = KINCreate();
-  KINSetUserData(solver->kinsol, solver);
-  solver->U = N_VNew(solver->comm, num_local_values);
-  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
-  solver->U_scale = N_VNew(solver->comm, num_local_values);
-  solver->F_scale = N_VNew(solver->comm, num_local_values);
-  solver->constraints = N_VNew(solver->comm, num_local_values);
-  solver->status_message = NULL;
-  solver->t = 0.0;
-
-  KINInit(solver->kinsol, evaluate_F, solver->U);
 
   // Set up our generalized solver.
   KINMem kin_mem = solver->kinsol;
@@ -352,23 +356,6 @@ newton_solver_t* picard_newton_solver_new(MPI_Comm comm,
   kin_mem->kin_lfree = newton_lfree;
   kin_mem->kin_setupNonNull = 1;  // need this for lsetup to be called
   kin_mem->kin_inexact_ls = 1;    // need this for iterative solvers
-
-  // Set trivial scaling by default.
-  newton_solver_set_U_scale(solver, NULL);
-  newton_solver_set_F_scale(solver, NULL);
-
-  // Enable debugging diagnostics if logging permits.
-  FILE* info_stream = log_stream(LOG_DEBUG);
-  if (info_stream != NULL)
-  {
-    KINSetPrintLevel(solver->kinsol, 3);
-    KINSetInfoFile(solver->kinsol, info_stream);
-  }
-  else
-  {
-    KINSetPrintLevel(solver->kinsol, 0);
-    KINSetInfoFile(solver->kinsol, NULL);
-  }
 
   return solver;
 }
@@ -381,61 +368,17 @@ newton_solver_t* fixed_point_newton_solver_new(MPI_Comm comm,
                                                void (*dtor)(void* context),
                                                int num_residuals)
 {
-  ASSERT(num_local_values > 0);
-  ASSERT(num_remote_values >= 0);
-  ASSERT(G_func != NULL);
-
-  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
-  solver->context = context;
-  solver->comm = comm;
-  solver->F_func = G_func;
-  solver->Jv_func = NULL;
-  solver->dtor = dtor;
-  solver->precond = NULL;
-  solver->num_local_values = num_local_values;
-  solver->num_remote_values = num_remote_values;
-  solver->max_krylov_dim = -1;
-  solver->max_restarts = -1;
-
+  newton_solver_t* solver = create_newton_solver(comm,
+                                                 num_local_values,
+                                                 num_remote_values,
+                                                 context,
+                                                 G_func,
+                                                 dtor);
   solver->strategy = KIN_FP;
   KINSetMAA(solver->kinsol, num_residuals);
 
-  // Set up KINSol and accessories.
-  solver->kinsol = KINCreate();
-  KINSetUserData(solver->kinsol, solver);
-  solver->U = N_VNew(solver->comm, num_local_values);
-  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
-  solver->U_scale = N_VNew(solver->comm, num_local_values);
-  solver->F_scale = N_VNew(solver->comm, num_local_values);
-  solver->constraints = N_VNew(solver->comm, num_local_values);
-  solver->status_message = NULL;
-  solver->reset_func = NULL;
-  solver->newton_setup_func = NULL;
-  solver->picard_setup_func = NULL;
-  solver->solve_func = NULL;
-  solver->t = 0.0;
-
-  KINInit(solver->kinsol, evaluate_F, solver->U);
-
   // Do we need this?
   KINSpbcg(solver->kinsol, 30);
-
-  // Set trivial scaling by default.
-  newton_solver_set_U_scale(solver, NULL);
-  newton_solver_set_F_scale(solver, NULL);
-
-  // Enable debugging diagnostics if logging permits.
-  FILE* info_stream = log_stream(LOG_DEBUG);
-  if (info_stream != NULL)
-  {
-    KINSetPrintLevel(solver->kinsol, 3);
-    KINSetInfoFile(solver->kinsol, info_stream);
-  }
-  else
-  {
-    KINSetPrintLevel(solver->kinsol, 0);
-    KINSetInfoFile(solver->kinsol, NULL);
-  }
 
   return solver;
 }
@@ -466,46 +409,24 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
                                         int max_krylov_dim, 
                                         int max_restarts)
 {
-  ASSERT(num_local_values > 0);
-  ASSERT(num_remote_values >= 0);
-  ASSERT(F_func != NULL);
   ASSERT(max_krylov_dim >= 3);
   ASSERT(((solver_type != NEWTON_GMRES) && (solver_type != NEWTON_FGMRES)) || 
          (max_restarts >= 0));
   ASSERT(precond != NULL);
   ASSERT(newton_pc_side(precond) == NEWTON_PC_LEFT);
 
-  newton_solver_t* solver = polymec_malloc(sizeof(newton_solver_t));
-  solver->context = context;
-  solver->comm = comm;
-  solver->F_func = F_func;
+  newton_solver_t* solver = create_newton_solver(comm,
+                                                 num_local_values,
+                                                 num_remote_values,
+                                                 context,
+                                                 F_func,
+                                                 dtor);
   solver->Jv_func = Jv_func;
-  solver->dtor = dtor;
   solver->precond = precond;
   solver->solver_type = solver_type;
-  solver->num_local_values = num_local_values;
-  solver->num_remote_values = num_remote_values;
   solver->max_krylov_dim = max_krylov_dim;
   solver->max_restarts = max_restarts;
-
   solver->strategy = (strategy == NEWTON_FULL_STEP) ? KIN_NONE : KIN_LINESEARCH;
-
-  // Set up KINSol and accessories.
-  solver->kinsol = KINCreate();
-  KINSetUserData(solver->kinsol, solver);
-  solver->U = N_VNew(solver->comm, num_local_values);
-  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
-  solver->U_scale = N_VNew(solver->comm, num_local_values);
-  solver->F_scale = N_VNew(solver->comm, num_local_values);
-  solver->constraints = N_VNew(solver->comm, num_local_values);
-  solver->status_message = NULL;
-  solver->reset_func = NULL;
-  solver->newton_setup_func = NULL;
-  solver->picard_setup_func = NULL;
-  solver->solve_func = NULL;
-  solver->t = 0.0;
-
-  KINInit(solver->kinsol, evaluate_F, solver->U);
 
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver->solver_type == NEWTON_GMRES)
@@ -528,23 +449,6 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
     KINSpilsSetJacTimesVecFn(solver->kinsol, jfnk_Jv_func_wrapper);
   else
     KINSpilsSetJacTimesVecFn(solver->kinsol, NULL);
-
-  // Set trivial scaling by default.
-  newton_solver_set_U_scale(solver, NULL);
-  newton_solver_set_F_scale(solver, NULL);
-
-  // Enable debugging diagnostics if logging permits.
-  FILE* info_stream = log_stream(LOG_DEBUG);
-  if (info_stream != NULL)
-  {
-    KINSetPrintLevel(solver->kinsol, 3);
-    KINSetInfoFile(solver->kinsol, info_stream);
-  }
-  else
-  {
-    KINSetPrintLevel(solver->kinsol, 0);
-    KINSetInfoFile(solver->kinsol, NULL);
-  }
 
   // Set up the preconditioner.
   if (solver->precond != NULL)
