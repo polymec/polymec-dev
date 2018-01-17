@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "core/newton.h"
+#include "solvers/dense_newton_solver.h"
 
 static real_t cubic_poly(void* context, real_t x)
 {

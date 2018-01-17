@@ -9,6 +9,7 @@ function(add_mpi_polymec_solvers_test exe)
   add_mpi_polymec_test_with_libs(${exe} "polymec_solvers;polymec_core;${POLYMEC_BASE_LIBRARIES}" ${ARGN})
 endfunction()
 
+add_polymec_solvers_test(test_dense_newton_solver test_dense_newton_solver.c)
 add_polymec_solvers_test(test_matrix_sparsity test_matrix_sparsity.c ../../geometry/create_uniform_polymesh.c ../../geometry/create_rectilinear_polymesh.c ../../geometry/cubic_lattice.c ../../geometry/polymesh.c)
 add_polymec_solvers_test(test_newton_solver foodweb_solver.c create_krylov_factories.c test_newton_solver.c)
 add_polymec_solvers_test(test_euler_ode_solver test_euler_ode_solver.c)

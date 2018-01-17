@@ -5,8 +5,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef POLYMEC_NEWTON_H
-#define POLYMEC_NEWTON_H
+#ifndef POLYMEC_DENSE_NEWTON_SOLVER_H
+#define POLYMEC_DENSE_NEWTON_SOLVER_H
 
 #include "core/polymec.h"
 

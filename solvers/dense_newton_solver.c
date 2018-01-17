@@ -5,9 +5,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/newton.h"
 #include "core/linear_algebra.h"
 #include "core/norms.h"
+#include "solvers/dense_newton_solver.h"
 #include "nvector/nvector_serial.h"
 #include "sundials/sundials_direct.h"
 #include "kinsol/kinsol.h"
