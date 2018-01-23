@@ -826,6 +826,176 @@ static lua_class_method sdt_methods[] = {
   {NULL, NULL, NULL}
 };
 
+static int um_new(lua_State* L)
+{
+  if (!lua_istable(L, 1))
+    luaL_error(L, "Argument must be a table with comm, bbox, npx, npy, npz, nx, ny, nz fields.");
+
+  lua_getfield(L, 1, "comm");
+  if (!lua_is_mpi_comm(L, -1))
+    luaL_error(L, "comm must be an mpi.comm object.");
+  MPI_Comm comm = lua_to_mpi_comm(L, -1);
+
+  lua_getfield(L, 1, "bbox");
+  if (!lua_is_bbox(L, -1))
+    luaL_error(L, "bbox must be a bounding box.");
+  bbox_t* bbox = lua_to_bbox(L, -1);
+  if (bbox_is_empty_set(bbox))
+    luaL_error(L, "bbox must be non-empty.");
+
+  lua_getfield(L, 1, "npx");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "npx must be a positive integer.");
+  int npx = (int)lua_tointeger(L, -1);
+  if (npx < 1)
+    luaL_error(L, "npx must be positive.");
+
+  lua_getfield(L, 1, "npy");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "npy must be a positive integer.");
+  int npy = (int)lua_tointeger(L, -1);
+  if (npy < 1)
+    luaL_error(L, "npy must be positive.");
+
+  lua_getfield(L, 1, "npz");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "npz must be a positive integer.");
+  int npz = (int)lua_tointeger(L, -1);
+  if (npz < 1)
+    luaL_error(L, "npz must be positive.");
+
+  lua_getfield(L, 1, "nx");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nx must be a positive integer.");
+  int nx = (int)lua_tointeger(L, -1);
+  if (nx < 1)
+    luaL_error(L, "nx must be positive.");
+
+  lua_getfield(L, 1, "ny");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "ny must be a positive integer.");
+  int ny = (int)lua_tointeger(L, -1);
+  if (ny < 1)
+    luaL_error(L, "ny must be positive.");
+
+  lua_getfield(L, 1, "nz");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nz must be a positive integer.");
+  int nz = (int)lua_tointeger(L, -1);
+  if (nz < 1)
+    luaL_error(L, "nz must be positive.");
+
+  unimesh_t* mesh = unimesh_new(comm, bbox, npx, npy, npz, nx, ny, nz);
+  lua_push_unimesh(L, mesh);
+  return 1;
+}
+
+static lua_module_function um_funcs[] = {
+  {"new", um_new, "unimesh.new{comm, bbox, npx, npy, npz, nx, ny, nz} -> "
+                  "Creates a new uniform mesh on the communicator comm, which "
+                  "fills the bounding box bbox with a lattice of npx x npy x npz "
+                  "patches, each having nx x ny x nz identical cells."},
+  {NULL, NULL, NULL}
+};
+
+static int um_bbox(lua_State* L)
+{
+  unimesh_t* m = lua_to_unimesh(L, 1);
+  lua_push_bbox(L, unimesh_bbox(m));
+  return 1;
+}
+
+static int um_spacings(lua_State* L)
+{
+  unimesh_t* m = lua_to_unimesh(L, 1);
+  real_t dx, dy, dz;
+  unimesh_get_spacings(m, &dx, &dy, &dz);
+  lua_newtable(L);
+  lua_push_real(L, dx);
+  lua_rawseti(L, -2, 1);
+  lua_push_real(L, dy);
+  lua_rawseti(L, -2, 2);
+  lua_push_real(L, dz);
+  lua_rawseti(L, -2, 3);
+  lua_pushvalue(L, -1);
+  return 1;
+}
+
+static int um_extents(lua_State* L)
+{
+  unimesh_t* m = lua_to_unimesh(L, 1);
+  int npx, npy, npz;
+  unimesh_get_extents(m, &npx, &npy, &npz);
+  lua_newtable(L);
+  lua_pushinteger(L, npx);
+  lua_rawseti(L, -2, 1);
+  lua_pushinteger(L, npy);
+  lua_rawseti(L, -2, 2);
+  lua_pushinteger(L, npz);
+  lua_rawseti(L, -2, 3);
+  lua_pushvalue(L, -1);
+  return 1;
+}
+
+static int um_patch_size(lua_State* L)
+{
+  unimesh_t* m = lua_to_unimesh(L, 1);
+  int nx, ny, nz;
+  unimesh_get_patch_size(m, &nx, &ny, &nz);
+  lua_newtable(L);
+  lua_pushinteger(L, nx);
+  lua_rawseti(L, -2, 1);
+  lua_pushinteger(L, ny);
+  lua_rawseti(L, -2, 2);
+  lua_pushinteger(L, nz);
+  lua_rawseti(L, -2, 3);
+  lua_pushvalue(L, -1);
+  return 1;
+}
+
+static int um_patches(lua_State* L)
+{
+  unimesh_t* m = lua_to_unimesh(L, 1);
+  lua_newtable(L);
+  int pos = 0, i, j, k, index = 1;
+  while (unimesh_next_patch(m, &pos, &i, &j, &k))
+  {
+    lua_newtable(L);
+    lua_pushinteger(L, i);
+    lua_rawseti(L, -2, 1);
+    lua_pushinteger(L, j);
+    lua_rawseti(L, -2, 2);
+    lua_pushinteger(L, k);
+    lua_rawseti(L, -2, 3);
+    lua_rawseti(L, -2, index);
+    ++index;
+  }
+  lua_pushvalue(L, -1);
+  return 1;
+}
+
+static lua_record_field um_fields[] = {
+  {"bbox", um_bbox, NULL},
+  {"spacings", um_spacings, NULL},
+  {"extents", um_extents, NULL},
+  {"patch_size", um_patch_size, NULL},
+  {"patches", um_patches, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int um_tostring(lua_State* L)
+{
+  unimesh_t* m = lua_to_unimesh(L, 1);
+  lua_pushfstring(L, "unimesh (%d local patches)", 
+                  unimesh_num_patches(m));
+  return 1;
+}
+
+static lua_record_metamethod um_mm[] = {
+  {"__tostring", um_tostring},
+  {NULL, NULL}
+};
+
 static int polymesh_repartition(lua_State* L)
 {
   // Check the arguments.
@@ -850,7 +1020,6 @@ static int polymesh_repartition(lua_State* L)
   // Perform the repartitioning and toss the migrator.
   migrator_t* m = repartition_polymesh(&mesh, NULL, imbalance_tol);
   m = NULL;
-
   return 0;
 }
 
@@ -1067,6 +1236,7 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_class(L, "coord_mapping", "A coordinate mapping.", cm_funcs, cm_methods, NULL);
   lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, sd_methods, NULL);
   lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_methods, NULL);
+  lua_register_record_type(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_mm, DTOR(unimesh_free));
   lua_register_record_type(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_mm, DTOR(polymesh_free));
 
   // Register a module of mesh factory methods.
@@ -1121,6 +1291,21 @@ bool lua_is_sdt_func(lua_State* L, int index)
 sdt_func_t* lua_to_sdt_func(lua_State* L, int index)
 {
   return (sdt_func_t*)lua_to_object(L, index, "sdt_func");
+}
+
+void lua_push_unimesh(lua_State* L, unimesh_t* m)
+{
+  lua_push_record(L, "unimesh", m);
+}
+
+bool lua_is_unimesh(lua_State* L, int index)
+{
+  return lua_is_record(L, index, "unimesh");
+}
+
+unimesh_t* lua_to_unimesh(lua_State* L, int index)
+{
+  return (unimesh_t*)lua_to_record(L, index, "unimesh");
 }
 
 void lua_push_polymesh(lua_State* L, polymesh_t* m)

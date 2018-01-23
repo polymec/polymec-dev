@@ -12,6 +12,7 @@
 #include "geometry/coord_mapping.h"
 #include "geometry/sd_func.h"
 #include "geometry/sdt_func.h"
+#include "geometry/unimesh.h"
 #include "geometry/polymesh.h"
 
 // This file contains functions for manipulating geometric data types in the 
@@ -55,6 +56,17 @@ bool lua_is_sdt_func(lua_State* L, int index);
 // on L's stack, or NULL if the item there is not a temporal signed 
 // distance function.
 sdt_func_t* lua_to_sdt_func(lua_State* L, int index);
+
+// Pushes a unimesh m onto L's stack.
+void lua_push_unimesh(lua_State* L, unimesh_t* m);
+
+// Returns true if the item at the given index on L's stack is a unimesh,
+// false if not.
+bool lua_is_unimesh(lua_State* L, int index);
+
+// Returns the unimesh at the given index on L's stack, or NULL 
+// if the item there is not a unimesh.
+unimesh_t* lua_to_unimesh(lua_State* L, int index);
 
 // Pushes a polymesh m onto L's stack.
 void lua_push_polymesh(lua_State* L, polymesh_t* m);
