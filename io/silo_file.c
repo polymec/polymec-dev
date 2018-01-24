@@ -37,6 +37,9 @@ static int SILO_FILE_MPI_TAG = 1111;
 // directly in other polymec-based libraries.
 //-------------------------------------------------------------------------
 
+// Access the underlying SILO file MPI communicator.
+MPI_Comm silo_file_comm(silo_file_t* file);
+
 // Access the underlying SILO file descriptor.
 DBfile* silo_file_dbfile(silo_file_t* file);
 
@@ -1339,7 +1342,7 @@ static void silo_file_write_tags(silo_file_t* file, tagger_t* tagger, const char
   int pos = 0, *tag;
   size_t tag_size;
   char* tag_name;
-  while (polymesh_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
+  while (tagger_next_tag(tagger, &pos, &tag_name, &tag, &tag_size))
   {
     int_array_append(elem_lengths, (int)tag_size);
     string_array_append(elem_names, tag_name);
@@ -2393,6 +2396,11 @@ int* silo_file_read_int_array(silo_file_t* file,
   }
   set_root_dir(file);
   return result;
+}
+
+MPI_Comm silo_file_comm(silo_file_t* file)
+{
+  return file->comm;
 }
 
 DBfile* silo_file_dbfile(silo_file_t* file)

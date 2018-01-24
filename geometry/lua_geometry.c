@@ -958,7 +958,7 @@ static int um_patches(lua_State* L)
   unimesh_t* m = lua_to_unimesh(L, 1);
   lua_newtable(L);
   int pos = 0, i, j, k, index = 1;
-  while (unimesh_next_patch(m, &pos, &i, &j, &k))
+  while (unimesh_next_patch(m, &pos, &i, &j, &k, NULL))
   {
     lua_newtable(L);
     lua_pushinteger(L, i);

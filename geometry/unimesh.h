@@ -110,9 +110,13 @@ void unimesh_get_patch_size(unimesh_t* mesh, int* nx, int* ny, int* nz);
 int unimesh_num_patches(unimesh_t* mesh);
 
 // Traverses the patches in the mesh, returning true and the next (i, j, k) 
-// triple if the traversal is incomplete, false otherwise. 
-// Set *pos to zero to reset the traversal.
-bool unimesh_next_patch(unimesh_t* mesh, int* pos, int* i, int* j, int* k);
+// triple if the traversal is incomplete, false otherwise. Set *pos to zero 
+// to reset the traversal. Additionally, if bbox is non-NULL, its fields 
+// x1, x2, y1, y2, z1, z2 will be set to the coordinates of the patch's 
+// extent, including ghost cells.
+bool unimesh_next_patch(unimesh_t* mesh, int* pos, 
+                        int* i, int* j, int* k,
+                        bbox_t* bbox);
 
 // Returns true if the mesh has a patch at (i, j, k), false if not.
 bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k);

@@ -183,7 +183,9 @@ void unimesh_get_spacings(unimesh_t* mesh,
   *dz = mesh->dz;
 }
 
-bool unimesh_next_patch(unimesh_t* mesh, int* pos, int* i, int* j, int* k)
+bool unimesh_next_patch(unimesh_t* mesh, int* pos, 
+                        int* i, int* j, int* k,
+                        bbox_t* bbox)
 {
   ASSERT(mesh->finalized);
   ASSERT(*pos >= 0);
@@ -204,6 +206,18 @@ bool unimesh_next_patch(unimesh_t* mesh, int* pos, int* i, int* j, int* k)
     *j = mesh->patch_indices[3*l+1];
     *k = mesh->patch_indices[3*l+2];
     *pos += num_threads;
+    if (bbox != NULL)
+    {
+      real_t Lx = mesh->nx * mesh->dx,
+             Ly = mesh->ny * mesh->dy,
+             Lz = mesh->nz * mesh->dz;
+      bbox->x1 = mesh->bbox.x1 + (*i) * Lx;
+      bbox->x2 = bbox->x1 + Lx;
+      bbox->y1 = mesh->bbox.y1 + (*j) * Ly;
+      bbox->y2 = bbox->y1 + Ly;
+      bbox->z1 = mesh->bbox.z1 + (*k) * Lz;
+      bbox->z2 = bbox->z1 + Lz;
+    }
   }
   return result;
 }

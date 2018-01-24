@@ -116,6 +116,12 @@ DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny+1, patch->nz
 #define DECLARE_UNIMESH_NODE_ARRAY(array, patch) \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny+1, patch->nz+1, patch->nc)
 
+// This helper function returns the number of data in a patch with the 
+// given centering, numbers of cells in x, y, and z, and number of 
+// components.
+size_t unimesh_patch_data_size(unimesh_centering_t centering,
+                               int nx, int ny, int nz, int nc);
+
 // Creates a new unimesh patch with the given centering, defined on a lattice 
 // of cells with the given numbers in each direction. The data has nc 
 // components.

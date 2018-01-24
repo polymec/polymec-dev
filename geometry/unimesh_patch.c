@@ -7,8 +7,8 @@
 
 #include "geometry/unimesh_patch.h"
 
-static size_t data_size(unimesh_centering_t centering,
-                        int nx, int ny, int nz, int nc)
+size_t unimesh_patch_data_size(unimesh_centering_t centering,
+                               int nx, int ny, int nz, int nc)
 {
   int num_data;
   switch (centering)
@@ -36,7 +36,7 @@ unimesh_patch_t* unimesh_patch_new(unimesh_centering_t centering,
   // We allocate one big slab of memory for storage and lean on C99's 
   // VLA semantics.
   size_t storage_size = sizeof(unimesh_patch_t) + 
-                        data_size(centering, nx, ny, nz, nc);
+                        unimesh_patch_data_size(centering, nx, ny, nz, nc);
   unimesh_patch_t* p = polymec_malloc(sizeof(unimesh_patch_t) + storage_size);
   p->data = (char*)p + sizeof(unimesh_patch_t);
   memset(p->data, 0, storage_size);
@@ -85,8 +85,8 @@ void unimesh_patch_free(unimesh_patch_t* patch)
 void unimesh_patch_copy(unimesh_patch_t* patch,
                         unimesh_patch_t* dest)
 {
-  size_t size = data_size(patch->centering, patch->nx, patch->ny, patch->nz, patch->nc);
-  ASSERT(size == data_size(dest->centering, dest->nx, dest->ny, dest->nz, dest->nc));
+  size_t size = unimesh_patch_data_size(patch->centering, patch->nx, patch->ny, patch->nz, patch->nc);
+  ASSERT(size == unimesh_patch_data_size(dest->centering, dest->nx, dest->ny, dest->nz, dest->nc));
   memcpy(dest->data, patch->data, size);
 }
 
