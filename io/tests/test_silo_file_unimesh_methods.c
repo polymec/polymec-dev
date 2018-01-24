@@ -11,205 +11,417 @@
 #include <string.h>
 #include "cmocka.h"
 #include "io/silo_file.h"
-//#include "polyamri/grid_to_bbox_coord_mapping.h"
 
-static void test_write_str_grid_patch(void** state) 
+static void test_write_unimesh(void** state) 
 { 
-  // Create a patch for testing.
-  str_grid_patch_t* patch = str_grid_patch_new(10, 10, 10, 4, 0); 
-  {
-    DECLARE_STR_GRID_PATCH_ARRAY(a, patch);
-    for (int i = patch->i1; i < patch->i2; ++i)
-      for (int j = patch->j1; j < patch->j2; ++j)
-        for (int k = patch->k1; k < patch->k2; ++k)
-          for (int l = 0; l < 4; ++l)
-            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
-  }
+  // Make a mesh with 4x4x4 patches, each with 10x10x10 cells. 
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
+                 .y1 = 0.0, .y2 = 1.0, 
+                 .z1 = 0.0, .z2 = 1.0};
+  unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
+                                4, 4, 4, 10, 10, 10); 
 
-  // Write the patch to a file.
-  const char* fields[4] = {"s1", "s2", "s3", "s4"};
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_str_methods", "test_write_str_grid_patch", 1, 0, 0, 0.0);
-  silo_file_write_str_grid_patch(silo, fields, "patch_without_bbox", patch, NULL, NULL);
-  bbox_t bbox = {.x1 = -50.0, .x2 = 50.0,
-                 .y1 = -25.0, .y2 = 25.0,
-                 .z1 = -12.5, .z2 = 12.5};
-  coord_mapping_t* mapping = grid_to_bbox_coord_mapping_new(&bbox);
-  silo_file_write_str_grid_patch(silo, fields, "patch_with_bbox", patch, mapping, NULL);
+  // Write the mesh to a file.
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh", 1, 0, 0.0);
+  silo_file_write_unimesh(silo, "mesh", mesh, NULL);
   silo_file_close(silo);
-  str_grid_patch_free(patch); 
+  unimesh_free(mesh); 
 
-  // Read the patch in from the file and check its contents.
+  // Read the mesh back in from the file.
   real_t time;
-  silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_str_methods", "test_write_str_grid_patch", 0, 0, &time);
+  silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh", 0, &time);
   assert_true(reals_equal(time, 0.0));
-  patch = silo_file_read_str_grid_patch(silo, fields, "patch_without_bbox", 4, NULL);
-  {
-    DECLARE_STR_GRID_PATCH_ARRAY(a, patch);
-    for (int i = patch->i1; i < patch->i2; ++i)
-      for (int j = patch->j1; j < patch->j2; ++j)
-        for (int k = patch->k1; k < patch->k2; ++k)
-          for (int l = 0; l < 4; ++l)
-            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
-  }
-  silo_file_close(silo);
-  str_grid_patch_free(patch); 
-} 
-
-static void test_write_str_grid(void** state) 
-{ 
-  // Make a grid of 4x4x4 patches, each with 10x10x10 cells, 
-  // and no periodicity.
-  str_grid_t* grid = str_grid_new(4, 4, 4, 10, 10, 10); 
-  for (int i = 0; i < 4; ++i)
-    for (int j = 0; j < 4; ++j)
-      for (int k = 0; k < 4; ++k)
-        str_grid_insert_patch(grid, i, j, k);
-  str_grid_finalize(grid);
-
-  // Write the grid to a file.
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_str_methods", "test_write_str_grid", 1, 0, 0, 0.0);
-  silo_file_write_str_grid(silo, "grid", grid, NULL);
-  silo_file_close(silo);
-  str_grid_free(grid); 
-
-  // Read the grid in from the file.
-  real_t time;
-  silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_str_methods", "test_write_str_grid", 0, 0, &time);
-  assert_true(reals_equal(time, 0.0));
-  grid = silo_file_read_str_grid(silo, "grid");
+  assert_true(silo_file_contains_unimesh(silo, "mesh"));
+  mesh = silo_file_read_unimesh(silo, "mesh");
   int npx, npy, npz, nx, ny, nz;
-  str_grid_get_extents(grid, &npx, &npy, &npz);
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
   assert_int_equal(npx, 4);
   assert_int_equal(npy, 4);
   assert_int_equal(npz, 4);
-  str_grid_get_patch_size(grid, &nx, &ny, &nz);
+  unimesh_get_patch_size(mesh, &nx, &ny, &nz);
   assert_int_equal(nx, 10);
   assert_int_equal(ny, 10);
   assert_int_equal(nz, 10);
   for (int i = 0; i < 4; ++i)
     for (int j = 0; j < 4; ++j)
       for (int k = 0; k < 4; ++k)
-        assert_true(str_grid_has_patch(grid, i, j, k));
+        assert_true(unimesh_has_patch(mesh, i, j, k));
   silo_file_close(silo);
-  str_grid_free(grid); 
+  unimesh_free(mesh); 
 } 
 
-static void test_write_str_grid_cell_data(void** state) 
+static void test_write_unimesh_cell_field(void** state) 
 { 
-  // Make a grid of 4x4x4 patches, each with 10x10x10 cells, 
-  // and no periodicity.
-  str_grid_t* grid = str_grid_new(4, 4, 4, 10, 10, 10); 
-  for (int i = 0; i < 4; ++i)
-    for (int j = 0; j < 4; ++j)
-      for (int k = 0; k < 4; ++k)
-        str_grid_insert_patch(grid, i, j, k);
-  str_grid_finalize(grid);
+  // Make a mesh with 4x4x4 patches, each with 10x10x10 cells. 
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
+                 .y1 = 0.0, .y2 = 1.0, 
+                 .z1 = 0.0, .z2 = 1.0};
+  unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
+                                4, 4, 4, 10, 10, 10); 
 
-  // Make a 4-component solution on this grid (no ghosts).
-  str_grid_cell_data_t* solution = str_grid_cell_data_new(grid, 4, 0);
+  // Make a 4-component cell-centered field on this mesh.
+  unimesh_field_t* field = unimesh_field_new(mesh, UNIMESH_CELL, 4);
   
   // Fill it with goodness.
   int pos = 0, I, J, K;
-  str_grid_patch_t* patch;
-  while (str_grid_cell_data_next_patch(solution, &pos, &I, &J, &K, &patch, NULL))
+  unimesh_patch_t* patch;
+  while (unimesh_field_next_patch(field, &pos, &I, &J, &K, &patch, NULL))
   {
-    DECLARE_STR_GRID_PATCH_ARRAY(a, patch);
-    for (int i = patch->i1; i < patch->i2; ++i)
-      for (int j = patch->j1; j < patch->j2; ++j)
-        for (int k = patch->k1; k < patch->k2; ++k)
+    DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+    for (int i = 1; i <= patch->nx; ++i)
+      for (int j = 1; j <= patch->ny; ++j)
+        for (int k = 1; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
             a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
   }
 
-  // Plot the thing.
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_str_methods", "test_write_str_grid_cell_data", 1, 0, 0, 0.0);
-  silo_file_write_str_grid(silo, "grid", grid, NULL);
-  const char* field_names[4] = {"sol1", "sol2", "sol3", "sol4"};
-  silo_file_write_str_grid_cell_data(silo, field_names, "grid", solution, NULL, NULL);
+  // Write a plot to a file.
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_cell_field", 1, 0, 0.0);
+  silo_file_write_unimesh(silo, "mesh", mesh, NULL);
+  const char* field_names[4] = {"f1", "f2", "f3", "f4"};
+  silo_file_write_unimesh_field(silo, field_names, "mesh", field, NULL, NULL);
   silo_file_close(silo);
-  str_grid_cell_data_free(solution);
-  str_grid_free(grid); 
+  unimesh_field_free(field);
+  unimesh_free(mesh); 
 
-  // Read the data in from the file and verify its goodness.
+  // Read the field in from the file and verify its goodness.
   real_t time;
-  silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_str_methods", "test_write_str_grid_cell_data", 0, 0, &time);
+  silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_cell_field", 0, &time);
   assert_true(reals_equal(time, 0.0));
-  grid = silo_file_read_str_grid(silo, "grid");
-  solution = str_grid_cell_data_new(grid, 4, 0);
-  silo_file_read_str_grid_cell_data(silo, field_names, "grid", solution, NULL);
+  mesh = silo_file_read_unimesh(silo, "mesh");
+  field = unimesh_field_new(mesh, UNIMESH_CELL, 4);
+  assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_CELL));
+  assert_true(silo_file_contains_unimesh_field(silo, "f2", "mesh", UNIMESH_CELL));
+  assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_CELL));
+  assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_CELL));
+  silo_file_read_unimesh_field(silo, field_names, "mesh", field, NULL);
   pos = 0;
-  while (str_grid_cell_data_next_patch(solution, &pos, &I, &J, &K, &patch, NULL))
+  while (unimesh_field_next_patch(field, &pos, &I, &J, &K, &patch, NULL))
   {
-    DECLARE_STR_GRID_PATCH_ARRAY(a, patch);
-    for (int i = patch->i1; i < patch->i2; ++i)
-      for (int j = patch->j1; j < patch->j2; ++j)
-        for (int k = patch->k1; k < patch->k2; ++k)
+    DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+    for (int i = 1; i <= patch->nx; ++i)
+      for (int j = 1; j <= patch->ny; ++j)
+        for (int k = 1; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
             assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
   }
 
   silo_file_close(silo);
-  str_grid_cell_data_free(solution); 
-  str_grid_free(grid); 
+  unimesh_field_free(field);
+  unimesh_free(mesh); 
 } 
 
-static void test_write_str_grid_node_data(void** state) 
+static void test_write_unimesh_face_field(void** state) 
 { 
-  // Make a grid of 4x4x4 patches, each with 11x11x11 nodes, 
-  // and no periodicity.
-  str_grid_t* grid = str_grid_new(4, 4, 4, 10, 10, 10); 
-  for (int i = 0; i < 4; ++i)
-    for (int j = 0; j < 4; ++j)
-      for (int k = 0; k < 4; ++k)
-        str_grid_insert_patch(grid, i, j, k);
-  str_grid_finalize(grid);
+  // Make a mesh with 4x4x4 patches, each with 10x10x10 cells. 
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
+                 .y1 = 0.0, .y2 = 1.0, 
+                 .z1 = 0.0, .z2 = 1.0};
+  unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
+                                4, 4, 4, 10, 10, 10); 
 
-  // Make a 4-component solution on this grid.
-  str_grid_node_data_t* solution = str_grid_node_data_new(grid, 4);
+  // Make 4-component face-centered fields on this mesh.
+  unimesh_field_t* x_field = unimesh_field_new(mesh, UNIMESH_XFACE, 4);
+  unimesh_field_t* y_field = unimesh_field_new(mesh, UNIMESH_YFACE, 4);
+  unimesh_field_t* z_field = unimesh_field_new(mesh, UNIMESH_ZFACE, 4);
+  
+  // Fill them each with goodness.
+  int pos = 0, I, J, K;
+  unimesh_patch_t* patch;
+  while (unimesh_field_next_patch(x_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_XFACE_ARRAY(a, patch);
+    for (int i = 0; i <= patch->nx; ++i)
+      for (int j = 0; j < patch->ny; ++j)
+        for (int k = 0; k < patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+  }
+
+  pos = 0;
+  while (unimesh_field_next_patch(y_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_YFACE_ARRAY(a, patch);
+    for (int i = 0; i < patch->nx; ++i)
+      for (int j = 0; j <= patch->ny; ++j)
+        for (int k = 0; k < patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+  }
+
+  pos = 0;
+  while (unimesh_field_next_patch(z_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
+    for (int i = 0; i < patch->nx; ++i)
+      for (int j = 0; j < patch->ny; ++j)
+        for (int k = 0; k <= patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+  }
+
+  // Write a plot to a file.
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_face_field", 1, 0, 0.0);
+  silo_file_write_unimesh(silo, "mesh", mesh, NULL);
+  const char* field_names[4] = {"f1", "f2", "f3", "f4"};
+  silo_file_write_unimesh_field(silo, field_names, "mesh", x_field, NULL, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", y_field, NULL, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", z_field, NULL, NULL);
+  silo_file_close(silo);
+  unimesh_field_free(x_field);
+  unimesh_field_free(y_field);
+  unimesh_field_free(z_field);
+  unimesh_free(mesh); 
+
+  // Read the field in from the file and verify its goodness.
+  real_t time;
+  silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_face_field", 0, &time);
+  assert_true(reals_equal(time, 0.0));
+  mesh = silo_file_read_unimesh(silo, "mesh");
+
+  assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_XFACE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f2", "mesh", UNIMESH_XFACE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_XFACE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_XFACE));
+  x_field = unimesh_field_new(mesh, UNIMESH_XFACE, 4);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", x_field, NULL);
+  pos = 0;
+  while (unimesh_field_next_patch(x_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_XFACE_ARRAY(a, patch);
+    for (int i = 0; i <= patch->nx; ++i)
+      for (int j = 0; j < patch->ny; ++j)
+        for (int k = 0; k < patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+  }
+
+  assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_YFACE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f2", "mesh", UNIMESH_YFACE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_YFACE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_YFACE));
+  y_field = unimesh_field_new(mesh, UNIMESH_YFACE, 4);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", y_field, NULL);
+  pos = 0;
+  while (unimesh_field_next_patch(y_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_YFACE_ARRAY(a, patch);
+    for (int i = 0; i < patch->nx; ++i)
+      for (int j = 0; j <= patch->ny; ++j)
+        for (int k = 0; k < patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+  }
+
+  assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_ZFACE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f2", "mesh", UNIMESH_ZFACE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_ZFACE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_ZFACE));
+  z_field = unimesh_field_new(mesh, UNIMESH_ZFACE, 4);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", z_field, NULL);
+  pos = 0;
+  while (unimesh_field_next_patch(z_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
+    for (int i = 0; i < patch->nx; ++i)
+      for (int j = 0; j < patch->ny; ++j)
+        for (int k = 0; k <= patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+  }
+
+  silo_file_close(silo);
+  unimesh_field_free(x_field);
+  unimesh_field_free(y_field);
+  unimesh_field_free(z_field);
+  unimesh_free(mesh); 
+} 
+
+static void test_write_unimesh_edge_field(void** state) 
+{ 
+  // Make a mesh with 4x4x4 patches, each with 10x10x10 cells. 
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
+                 .y1 = 0.0, .y2 = 1.0, 
+                 .z1 = 0.0, .z2 = 1.0};
+  unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
+                                4, 4, 4, 10, 10, 10); 
+
+  // Make 4-component edge-centered fields on this mesh.
+  unimesh_field_t* x_field = unimesh_field_new(mesh, UNIMESH_XEDGE, 4);
+  unimesh_field_t* y_field = unimesh_field_new(mesh, UNIMESH_YEDGE, 4);
+  unimesh_field_t* z_field = unimesh_field_new(mesh, UNIMESH_ZEDGE, 4);
+  
+  // Fill them each with goodness.
+  int pos = 0, I, J, K;
+  unimesh_patch_t* patch;
+  while (unimesh_field_next_patch(x_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
+    for (int i = 0; i < patch->nx; ++i)
+      for (int j = 0; j <= patch->ny; ++j)
+        for (int k = 0; k <= patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+  }
+
+  pos = 0;
+  while (unimesh_field_next_patch(y_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
+    for (int i = 0; i <= patch->nx; ++i)
+      for (int j = 0; j < patch->ny; ++j)
+        for (int k = 0; k <= patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+  }
+
+  pos = 0;
+  while (unimesh_field_next_patch(z_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
+    for (int i = 0; i <= patch->nx; ++i)
+      for (int j = 0; j <= patch->ny; ++j)
+        for (int k = 0; k < patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+  }
+
+  // Write a plot to a file.
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_edge_field", 1, 0, 0.0);
+  silo_file_write_unimesh(silo, "mesh", mesh, NULL);
+  const char* field_names[4] = {"f1", "f2", "f3", "f4"};
+  silo_file_write_unimesh_field(silo, field_names, "mesh", x_field, NULL, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", y_field, NULL, NULL);
+  silo_file_write_unimesh_field(silo, field_names, "mesh", z_field, NULL, NULL);
+  silo_file_close(silo);
+  unimesh_field_free(x_field);
+  unimesh_field_free(y_field);
+  unimesh_field_free(z_field);
+  unimesh_free(mesh); 
+
+  // Read the field in from the file and verify its goodness.
+  real_t time;
+  silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_edge_field", 0, &time);
+  assert_true(reals_equal(time, 0.0));
+  mesh = silo_file_read_unimesh(silo, "mesh");
+
+  assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_XEDGE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f2", "mesh", UNIMESH_XEDGE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_XEDGE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_XEDGE));
+  x_field = unimesh_field_new(mesh, UNIMESH_XEDGE, 4);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", x_field, NULL);
+  pos = 0;
+  while (unimesh_field_next_patch(x_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
+    for (int i = 0; i < patch->nx; ++i)
+      for (int j = 0; j <= patch->ny; ++j)
+        for (int k = 0; k <= patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+  }
+
+  assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_YEDGE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f2", "mesh", UNIMESH_YEDGE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_YEDGE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_YEDGE));
+  y_field = unimesh_field_new(mesh, UNIMESH_YEDGE, 4);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", y_field, NULL);
+  pos = 0;
+  while (unimesh_field_next_patch(y_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
+    for (int i = 0; i <= patch->nx; ++i)
+      for (int j = 0; j < patch->ny; ++j)
+        for (int k = 0; k <= patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+  }
+
+  assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_ZEDGE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f2", "mesh", UNIMESH_ZEDGE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_ZEDGE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_ZEDGE));
+  z_field = unimesh_field_new(mesh, UNIMESH_ZEDGE, 4);
+  silo_file_read_unimesh_field(silo, field_names, "mesh", z_field, NULL);
+  pos = 0;
+  while (unimesh_field_next_patch(z_field, &pos, &I, &J, &K, &patch, NULL))
+  {
+    DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
+    for (int i = 0; i <= patch->nx; ++i)
+      for (int j = 0; j <= patch->ny; ++j)
+        for (int k = 0; k < patch->nz; ++k)
+          for (int l = 0; l < 4; ++l)
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+  }
+
+  silo_file_close(silo);
+  unimesh_field_free(x_field);
+  unimesh_field_free(y_field);
+  unimesh_field_free(z_field);
+  unimesh_free(mesh); 
+} 
+
+static void test_write_unimesh_node_field(void** state) 
+{ 
+  // Make a mesh with 4x4x4 patches, each with 10x10x10 cells. 
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
+                 .y1 = 0.0, .y2 = 1.0, 
+                 .z1 = 0.0, .z2 = 1.0};
+  unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
+                                4, 4, 4, 10, 10, 10); 
+
+  // Make a 4-component node-centered field on this mesh.
+  unimesh_field_t* field = unimesh_field_new(mesh, UNIMESH_NODE, 4);
   
   // Fill it with goodness.
   int pos = 0, I, J, K;
-  str_grid_patch_t* patch;
-  while (str_grid_node_data_next_patch(solution, &pos, &I, &J, &K, &patch, NULL))
+  unimesh_patch_t* patch;
+  while (unimesh_field_next_patch(field, &pos, &I, &J, &K, &patch, NULL))
   {
-    DECLARE_STR_GRID_PATCH_ARRAY(a, patch);
-    for (int i = patch->i1; i < patch->i2; ++i)
-      for (int j = patch->j1; j < patch->j2; ++j)
-        for (int k = patch->k1; k < patch->k2; ++k)
+    DECLARE_UNIMESH_NODE_ARRAY(a, patch);
+    for (int i = 0; i <= patch->nx; ++i)
+      for (int j = 0; j <= patch->ny; ++j)
+        for (int k = 0; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            a[i][j][k][l] = (real_t)(11*11*4*i + 11*4*j + 4*k + l);
+            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
   }
 
-  // Plot the thing.
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_str_methods", "test_write_str_grid_node_data", 1, 0, 0, 0.0);
-  silo_file_write_str_grid(silo, "grid", grid, NULL);
-  const char* field_names[4] = {"sol1", "sol2", "sol3", "sol4"};
-  silo_file_write_str_grid_node_data(silo, field_names, "grid", solution, NULL, NULL);
+  // Write a plot to a file.
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_node_field", 1, 0, 0.0);
+  silo_file_write_unimesh(silo, "mesh", mesh, NULL);
+  const char* field_names[4] = {"f1", "f2", "f3", "f4"};
+  silo_file_write_unimesh_field(silo, field_names, "mesh", field, NULL, NULL);
   silo_file_close(silo);
-  str_grid_node_data_free(solution);
-  str_grid_free(grid); 
+  unimesh_field_free(field);
+  unimesh_free(mesh); 
 
-  // Read the data in from the file and verify its goodness.
+  // Read the field in from the file and verify its goodness.
   real_t time;
-  silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_str_methods", "test_write_str_grid_node_data", 0, 0, &time);
+  silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_node_field", 0, &time);
   assert_true(reals_equal(time, 0.0));
-  grid = silo_file_read_str_grid(silo, "grid");
-  solution = str_grid_node_data_new(grid, 4);
-  silo_file_read_str_grid_node_data(silo, field_names, "grid", solution, NULL);
+  mesh = silo_file_read_unimesh(silo, "mesh");
+  field = unimesh_field_new(mesh, UNIMESH_NODE, 4);
+  assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_NODE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f2", "mesh", UNIMESH_NODE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_NODE));
+  assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_NODE));
+  silo_file_read_unimesh_field(silo, field_names, "mesh", field, NULL);
   pos = 0;
-  while (str_grid_node_data_next_patch(solution, &pos, &I, &J, &K, &patch, NULL))
+  while (unimesh_field_next_patch(field, &pos, &I, &J, &K, &patch, NULL))
   {
-    DECLARE_STR_GRID_PATCH_ARRAY(a, patch);
-    for (int i = patch->i1; i < patch->i2; ++i)
-      for (int j = patch->j1; j < patch->j2; ++j)
-        for (int k = patch->k1; k < patch->k2; ++k)
+    DECLARE_UNIMESH_NODE_ARRAY(a, patch);
+    for (int i = 0; i <= patch->nx; ++i)
+      for (int j = 0; j <= patch->ny; ++j)
+        for (int k = 0; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            assert_true(reals_equal(a[i][j][k][l], (real_t)(11*11*4*i + 11*4*j + 4*k + l)));
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
   }
 
   silo_file_close(silo);
-  str_grid_node_data_free(solution); 
-  str_grid_free(grid); 
+  unimesh_field_free(field);
+  unimesh_free(mesh); 
 } 
 
 int main(int argc, char* argv[]) 
@@ -217,10 +429,11 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_write_str_grid_patch),
-    cmocka_unit_test(test_write_str_grid),
-    cmocka_unit_test(test_write_str_grid_cell_data),
-    cmocka_unit_test(test_write_str_grid_node_data)
+    cmocka_unit_test(test_write_unimesh),
+    cmocka_unit_test(test_write_unimesh_cell_field),
+    cmocka_unit_test(test_write_unimesh_face_field),
+    cmocka_unit_test(test_write_unimesh_edge_field),
+    cmocka_unit_test(test_write_unimesh_node_field)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -127,7 +127,7 @@ bool silo_file_contains_unimesh(silo_file_t* file,
 // fields, will preserve the existing information when writing each component.
 void silo_file_write_unimesh_field(silo_file_t* file, 
                                    const char** field_component_names,
-                                   const char* grid_name,
+                                   const char* mesh_name,
                                    unimesh_field_t* field,
                                    silo_field_metadata_t** field_metadata,
                                    coord_mapping_t* mapping);
@@ -145,10 +145,11 @@ void silo_file_read_unimesh_field(silo_file_t* file,
 
 // Returns true if the Silo file contains a uniform cartesian mesh field
 // (or component) with the given name, associated with mesh with the given 
-// name, and false if not. 
+// name, and with the given centering. Returns false otherwise.
 bool silo_file_contains_unimesh_field(silo_file_t* file, 
                                       const char* field_name,
-                                      const char* mesh_name);
+                                      const char* mesh_name,
+                                      unimesh_centering_t centering);
 
 // Writes a named arbitrary polyhedral mesh to the given Silo file.
 void silo_file_write_polymesh(silo_file_t* file,

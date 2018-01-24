@@ -1393,7 +1393,8 @@ void silo_file_read_unimesh_field(silo_file_t* file,
 
 bool silo_file_contains_unimesh_field(silo_file_t* file, 
                                       const char* field_name,
-                                      const char* mesh_name)
+                                      const char* mesh_name,
+                                      unimesh_centering_t centering)
 {
   // FIXME
   DBfile* dbfile = silo_file_dbfile(file);
