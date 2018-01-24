@@ -137,7 +137,9 @@ unimesh_patch_t* unimesh_patch_new(unimesh_centering_t centering,
                                    int nx, int ny, int nz, int nc);
 
 // Creates a unimesh patch whose data is contained in the given buffer.
-// This buffer is not managed by the grid patch.
+// This buffer is not managed by the grid patch. The buffer can be NULL
+// as long as the patch's data is not referenced. NULL buffers can be 
+// reset using unimesh_patch_set_buffer.
 unimesh_patch_t* unimesh_patch_with_buffer(unimesh_centering_t centering,
                                            int nx, int ny, int nz, int nc, 
                                            void* buffer);

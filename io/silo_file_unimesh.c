@@ -309,7 +309,10 @@ bool silo_file_contains_unimesh(silo_file_t* file,
   if (exists)
   {
     static const char* data_fields[4] = 
-      {"bbox", "extents", "patch_sizes", "patch_indices"};
+      {"bbox_real_array", 
+       "extents_int_array", 
+       "patch_sizes_int_array", 
+       "patch_indices_int_array"};
     for (int i = 0; i < 4; ++i)
     {
       char data_name[FILENAME_MAX+1];

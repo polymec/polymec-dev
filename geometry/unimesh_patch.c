@@ -56,7 +56,6 @@ unimesh_patch_t* unimesh_patch_with_buffer(unimesh_centering_t centering,
   ASSERT(ny > 0);
   ASSERT(nz > 0);
   ASSERT(nc > 0);
-  ASSERT(buffer != NULL);
 
   unimesh_patch_t* p = polymec_malloc(sizeof(unimesh_patch_t));
   p->data = buffer;
