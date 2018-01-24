@@ -44,6 +44,7 @@ typedef struct
 //   patch->nz+1.
 // * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_CELL_ARRAY(array, patch) \
+ASSERT(patch->centering == UNIMESH_CELL); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+2, patch->ny+2, patch->nz+2, patch->nc)
 
 // X-face arrays are indexed the following way:
@@ -54,6 +55,7 @@ DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+2, patch->ny+2, patch->nz
 // * k runs from 0 to patch->nz-1.
 // * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_XFACE_ARRAY(array, patch) \
+ASSERT(patch->centering == UNIMESH_XFACE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny, patch->nz, patch->nc)
 
 // Y-face arrays are indexed the following way:
@@ -64,6 +66,7 @@ DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny, patch->nz, 
 // * k runs from 0 to patch->nz-1.
 // * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_YFACE_ARRAY(array, patch) \
+ASSERT(patch->centering == UNIMESH_YFACE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx, patch->ny+1, patch->nz, patch->nc)
 
 // Z-face arrays are indexed the following way:
@@ -74,6 +77,7 @@ DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx, patch->ny+1, patch->nz, 
 // * k runs from 0 to patch->nz.
 // * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_ZFACE_ARRAY(array, patch) \
+ASSERT(patch->centering == UNIMESH_ZFACE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx, patch->ny, patch->nz+1, patch->nc)
 
 // X-edge arrays are indexed the following way:
@@ -84,6 +88,7 @@ DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx, patch->ny, patch->nz+1, 
 // * k runs from 0 to patch->nz.
 // * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_XEDGE_ARRAY(array, patch) \
+ASSERT(patch->centering == UNIMESH_XEDGE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx, patch->ny+1, patch->nz+1, patch->nc)
 
 // Y-edge arrays are indexed the following way:
@@ -94,6 +99,7 @@ DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx, patch->ny+1, patch->nz+1
 // * k runs from 0 to patch->nz.
 // * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_YEDGE_ARRAY(array, patch) \
+ASSERT(patch->centering == UNIMESH_YEDGE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny, patch->nz+1, patch->nc)
 
 // Z-edge arrays are indexed the following way:
@@ -104,6 +110,7 @@ DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny, patch->nz+1
 // * k runs from 0 to patch->nz.
 // * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_ZEDGE_ARRAY(array, patch) \
+ASSERT(patch->centering == UNIMESH_ZEDGE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny+1, patch->nz, patch->nc)
 
 // Node arrays are indexed the following way:
@@ -114,6 +121,7 @@ DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny+1, patch->nz
 // * k runs from 0 to patch->nz.
 // * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_NODE_ARRAY(array, patch) \
+ASSERT(patch->centering == UNIMESH_NODE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny+1, patch->nz+1, patch->nc)
 
 // This helper function returns the number of data in a patch with the 

@@ -69,6 +69,10 @@ void silo_file_add_subdomain_field(silo_file_t* file,
                                    int silo_var_type,
                                    DBoptlist* optlist);
 
+// This provides access to a "scratch space" in memory that allows named 
+// temporary data to be stored and passed between methods. 
+string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
+
 //-------------------------------------------------------------------------
 // End unpublished functions
 //-------------------------------------------------------------------------
@@ -544,6 +548,9 @@ struct silo_file_t
   int mode; // Open for reading (DB_READ) or writing (DB_CLOBBER)? 
   string_ptr_unordered_map_t* expressions;
 
+  // Scratch space for storing named temporary data.
+  string_ptr_unordered_map_t* scratch;
+
 #if POLYMEC_HAVE_MPI
   // Stuff for poor man's parallel I/O.
   PMPIO_baton_t* baton;
@@ -1015,6 +1022,9 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     DBSetDir(file->dbfile, dir);
   }
 
+  // Initialize scratch space.
+  file->scratch = string_ptr_unordered_map_new();
+
   STOP_FUNCTION_TIMER();
   return file;
 }
@@ -1266,6 +1276,9 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   if (time != NULL)
     *time = file->time;
 
+  // Initialize scratch space.
+  file->scratch = string_ptr_unordered_map_new();
+
   STOP_FUNCTION_TIMER();
   return file;
 }
@@ -1324,6 +1337,8 @@ void silo_file_close(silo_file_t* file)
   log_debug("silo_file_close: Closed file.");
 
   // Clean up.
+  if (file->scratch != NULL)
+    string_ptr_unordered_map_free(file->scratch);
   if (file->expressions != NULL)
     string_ptr_unordered_map_free(file->expressions);
   polymec_free(file);
@@ -2439,6 +2454,11 @@ void silo_file_add_subdomain_field(silo_file_t* file,
     ptr_array_append_with_dtor(file->subdomain_fields, field, DTOR(subdomain_field_free));
   }
 #endif
+}
+
+string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file)
+{
+  return file->scratch;
 }
 
 bool silo_file_contains_stencil(silo_file_t* file, const char* stencil_name)
