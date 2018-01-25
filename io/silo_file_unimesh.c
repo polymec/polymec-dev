@@ -31,18 +31,21 @@ extern DBoptlist* optlist_from_metadata(silo_field_metadata_t* metadata);
 extern void optlist_free(DBoptlist* optlist);
 extern void silo_file_add_subdomain_mesh(silo_file_t* file, const char* mesh_name, int silo_mesh_type, DBoptlist* optlist);
 extern void silo_file_add_subdomain_field(silo_file_t* file, const char* mesh_name, const char* field_name, int silo_field_type, DBoptlist* optlist);
+extern void silo_file_push_domain_dir(silo_file_t* file);
+extern void silo_file_pop_dir(silo_file_t* file);
 extern string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
 
 static void write_unimesh_patch_grid(silo_file_t* file,
                                      const char* patch_grid_name,
                                      int nx, int ny, int nz,
                                      bbox_t* bbox,
-                                     coord_mapping_t* mapping,
-                                     bool hide_from_gui)
+                                     coord_mapping_t* mapping)
 {
   ASSERT(nx > 0);
   ASSERT(ny > 0);
   ASSERT(nz > 0);
+
+  silo_file_push_domain_dir(file);
 
   DBfile* dbfile = silo_file_dbfile(file);
 
@@ -99,25 +102,17 @@ static void write_unimesh_patch_grid(silo_file_t* file,
   coords[2] = z_node;
 
   // Write the patch grid.
-#if 0
-  int num_options = (hide_from_gui) ? 3 : 2;
-  DBoptlist* optlist = DBMakeOptlist(num_options); 
-  int lo_offsets[3] = {i1, j1, k1};
-  DBAddOption(optlist, DBOPT_LO_OFFSET, lo_offsets);
-  int hi_offsets[3] = {i1, j1, k1};
-  DBAddOption(optlist, DBOPT_HI_OFFSET, hi_offsets);
-  if (hide_from_gui)
-  {
-    int one = 1;
-    DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
-  }
-#endif
+  DBoptlist* optlist = DBMakeOptlist(1); 
+  int one = 1;
+  DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
   DBPutQuadmesh(dbfile, patch_grid_name, coord_names, coords, dimensions, 3, 
-                SILO_FLOAT_TYPE, coord_type, NULL); //optlist);
-//  DBFreeOptlist(optlist);
+                SILO_FLOAT_TYPE, coord_type, optlist);
+  DBFreeOptlist(optlist);
   polymec_free(x_node);
   polymec_free(y_node);
   polymec_free(z_node);
+
+  silo_file_pop_dir(file);
 }
 
 void silo_file_write_unimesh(silo_file_t* file, 
@@ -126,6 +121,9 @@ void silo_file_write_unimesh(silo_file_t* file,
                              coord_mapping_t* mapping)
 {
   START_FUNCTION_TIMER();
+
+  silo_file_push_domain_dir(file);
+
   DBfile* dbfile = silo_file_dbfile(file);
 
   // This mesh is really just a grouping of patches, as far as SILO is 
@@ -167,8 +165,8 @@ void silo_file_write_unimesh(silo_file_t* file,
     snprintf(patch_grid_name, FILENAME_MAX, "%s_%d_%d_%d", mesh_name, i, j, k);
     patch_grid_names[l] = string_dup(patch_grid_name);
     patch_grid_types[l] = DB_QUAD_RECT;
-    write_unimesh_patch_grid(file, patch_grid_names[l], nx, ny, nz, &bbox, 
-                             mapping, true);
+    write_unimesh_patch_grid(file, patch_grid_names[l], nx, ny, nz, 
+                             &bbox, mapping);
 
     // Jot down this (i, j, k) triple.
     int_array_append(patch_indices, i);
@@ -196,6 +194,9 @@ void silo_file_write_unimesh(silo_file_t* file,
 
   // Add subdomain information for this mesh.
   silo_file_add_subdomain_mesh(file, mesh_name, DB_QUAD_RECT, NULL);
+
+  silo_file_pop_dir(file);
+
   STOP_FUNCTION_TIMER();
 }
 
@@ -256,6 +257,8 @@ unimesh_t* silo_file_read_unimesh(silo_file_t* file,
                                   const char* mesh_name)
 {
   START_FUNCTION_TIMER();
+
+  silo_file_push_domain_dir(file);
   // Read the bounding box.
   char bbox_name[FILENAME_MAX+1];
   snprintf(bbox_name, FILENAME_MAX, "%s_bbox", mesh_name);
@@ -289,6 +292,9 @@ unimesh_t* silo_file_read_unimesh(silo_file_t* file,
   int_array_free(k_array);
 
   unimesh_finalize(mesh);
+
+  silo_file_pop_dir(file);
+
   STOP_FUNCTION_TIMER();
   return mesh;
 }
@@ -296,6 +302,7 @@ unimesh_t* silo_file_read_unimesh(silo_file_t* file,
 bool silo_file_contains_unimesh(silo_file_t* file, 
                                 const char* mesh_name)
 {
+  silo_file_push_domain_dir(file);
   DBfile* dbfile = silo_file_dbfile(file);
   bool exists = (DBInqVarExists(dbfile, mesh_name) && 
                  (DBInqVarType(dbfile, mesh_name) == DB_MULTIMESH));
@@ -314,6 +321,7 @@ bool silo_file_contains_unimesh(silo_file_t* file,
       if (!exists) break;
     }
   }
+  silo_file_pop_dir(file);
   return exists;
 }
 
@@ -1052,7 +1060,9 @@ static void write_unimesh_patch_data(silo_file_t* file,
   for (int c = 0; c < patch->nc; ++c)
   {
     // Copy the data in the component into our array.
-    DBoptlist* optlist = (field_metadata != NULL) ? optlist_from_metadata(field_metadata[c]) : NULL;
+    DBoptlist* optlist = (field_metadata != NULL) ? optlist_from_metadata(field_metadata[c]) : DBMakeOptlist(1);
+    int one = 1;
+    DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
     bool ready_to_write = false;
     if (patch->centering == UNIMESH_NODE) 
     {
@@ -1118,6 +1128,9 @@ void silo_file_write_unimesh_field(silo_file_t* file,
                                    coord_mapping_t* mapping)
 {
   START_FUNCTION_TIMER();
+
+  silo_file_push_domain_dir(file);
+
   int num_local_patches = unimesh_field_num_patches(field);
   int num_components = unimesh_field_num_components(field);
 
@@ -1173,6 +1186,9 @@ void silo_file_write_unimesh_field(silo_file_t* file,
   for (int c = 0; c < num_components; ++c)
     for (int p = 0; p < num_local_patches; ++p)
       string_free(multi_field_names[c][p]);
+
+  silo_file_pop_dir(file);
+
   STOP_FUNCTION_TIMER();
 }
 
@@ -1368,6 +1384,7 @@ void silo_file_read_unimesh_field(silo_file_t* file,
                                   silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
+  silo_file_push_domain_dir(file);
   unimesh_patch_t* patch;
   int pos = 0, i, j, k;
   while (unimesh_field_next_patch(field, &pos, &i, &j, &k, &patch, NULL))
@@ -1384,6 +1401,7 @@ void silo_file_read_unimesh_field(silo_file_t* file,
     for (int c = 0; c < patch->nc; ++c)
       string_free(field_names[c]);
   }
+  silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
 }
 
@@ -1393,8 +1411,11 @@ bool silo_file_contains_unimesh_field(silo_file_t* file,
                                       unimesh_centering_t centering)
 {
   // FIXME
+  silo_file_push_domain_dir(file);
   DBfile* dbfile = silo_file_dbfile(file);
-  return (DBInqVarExists(dbfile, mesh_name) && 
-          (DBInqVarType(dbfile, mesh_name) == DB_MULTIMESH));
+  bool exists = (DBInqVarExists(dbfile, mesh_name) && 
+                 (DBInqVarType(dbfile, mesh_name) == DB_MULTIMESH));
+  silo_file_pop_dir(file);
+  return exists;
 }
 

@@ -69,6 +69,15 @@ void silo_file_add_subdomain_field(silo_file_t* file,
                                    int silo_var_type,
                                    DBoptlist* optlist);
 
+// This pushes the given directory onto the silo file's directory stack.
+void silo_file_push_dir(silo_file_t* file, const char* dir);
+
+// This pushes the domain directory onto the silo file's directory stack.
+void silo_file_push_domain_dir(silo_file_t* file);
+
+// This pops the last directory off the silo file's directory stack.
+void silo_file_pop_dir(silo_file_t* file);
+
 // This provides access to a "scratch space" in memory that allows named 
 // temporary data to be stored and passed between methods. 
 string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
@@ -548,6 +557,9 @@ struct silo_file_t
   int mode; // Open for reading (DB_READ) or writing (DB_CLOBBER)? 
   string_ptr_unordered_map_t* expressions;
 
+  // Directory stack.
+  string_slist_t* dirs;
+
   // Scratch space for storing named temporary data.
   string_ptr_unordered_map_t* scratch;
 
@@ -569,27 +581,6 @@ typedef struct
   int type;
   char* definition;
 } silo_expression_t;
-
-static void set_domain_dir(silo_file_t* file)
-{
-#if POLYMEC_HAVE_MPI
-  if (file->nproc > 1)
-  {
-    char domain_dir[FILENAME_MAX+1];
-    snprintf(domain_dir, FILENAME_MAX, "/domain_%d", file->rank_in_group);
-    DBSetDir(file->dbfile, domain_dir);
-  }
-  else
-    DBSetDir(file->dbfile, "/");
-#else
-  DBSetDir(file->dbfile, "/");
-#endif
-}
-
-static void set_root_dir(silo_file_t* file)
-{
-  DBSetDir(file->dbfile, "/");
-}
 
 static void write_expressions_to_file(silo_file_t* file, DBfile* dbfile)
 {
@@ -628,9 +619,10 @@ static void write_provenance_to_file(silo_file_t* file)
   polymec_provenance_fprintf(stream);
   fclose(stream);
 
-  set_root_dir(file);
+  silo_file_push_dir(file, "/");
   int provenance_len = (int)(strlen(provenance_str));
   DBWrite(file->dbfile, "provenance_string", provenance_str, &provenance_len, 1, DB_CHAR);
+  silo_file_pop_dir(file);
 
   // Note we have to use free here instead of string_free or polymec_free, 
   // since open_memstream uses vanilla malloc and realloc.
@@ -650,7 +642,7 @@ static void write_subdomains_to_file(silo_file_t* file)
   }
   int num_chunks = file->nproc / file->num_files;
 
-  set_root_dir(file);
+  silo_file_pop_dir(file);
 
   // Stick in step/time information if needed.
   DBoptlist* optlist = DBMakeOptlist(2);
@@ -877,6 +869,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   else
     file->num_files = num_files;
   ASSERT(file->num_files <= file->nproc);
+  file->dirs = NULL;
 
   if (file->nproc > 1)
   {
@@ -959,7 +952,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     log_debug("silo_file_new: Opening %s for writing...", file->filename);
     file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
   }
-  set_root_dir(file);
+  DBSetDir(file->dbfile, "/");
 #else
   if (strlen(directory) == 0)
     strncpy(file->directory, ".", FILENAME_MAX);
@@ -975,7 +968,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   create_directory(file->directory, S_IRWXU | S_IRWXG);
   log_debug("silo_file_new: Opening %s for writing...", file->filename);
   file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
-  set_root_dir(file);
+  DBSetDir(file->dbfile, "/");
 #endif
 
   file->mode = DB_CLOBBER;
@@ -1148,6 +1141,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   MPI_Comm_rank(file->comm, &file->rank); 
   file->num_files = num_files; // number of files in the data set.
   file->nproc = num_mpi_procs; // number of MPI procs used to write the thing.
+  file->dirs = NULL;
 
   if (file->nproc > 1)
   {
@@ -1323,6 +1317,7 @@ void silo_file_close(silo_file_t* file)
       write_provenance_to_file(file);
     }
     DBClose(file->dbfile);
+    string_slist_free(file->dirs);
   }
 #else
   // Write the file.
@@ -1488,7 +1483,7 @@ void silo_file_write_polymesh(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   // This is optional for now, but we'll give it anyway.
   char *coordnames[3];
@@ -1596,15 +1591,12 @@ void silo_file_write_polymesh(silo_file_t* file,
     silo_file_write_tags(file, mesh->cell_tags, tag_name);
   }
 
-  // Write out exchanger information. Note that this resets the 
-  // directory to "/".
+  // Write out exchanger information. 
   {
     char ex_name[FILENAME_MAX+1];
     snprintf(ex_name, FILENAME_MAX, "%s_exchanger", mesh_name);
     silo_file_write_exchanger(file, ex_name, polymesh_exchanger(mesh));
   }
-
-  set_domain_dir(file);
 
   // Write out the number of mesh cells/faces/nodes/edges to special variables.
   char num_cells_var[FILENAME_MAX+1], num_faces_var[FILENAME_MAX+1],
@@ -1628,7 +1620,7 @@ void silo_file_write_polymesh(silo_file_t* file,
     silo_file_add_subdomain_mesh(file, mesh_name, DB_UCDMESH, NULL);
 #endif
 
-  set_root_dir(file);
+  silo_file_pop_dir(file);
 
   STOP_FUNCTION_TIMER();
 }
@@ -1639,7 +1631,7 @@ polymesh_t* silo_file_read_polymesh(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   DBucdmesh* ucd_mesh = DBGetUcdmesh(file->dbfile, mesh_name);
   if (ucd_mesh == NULL)
@@ -1729,7 +1721,7 @@ polymesh_t* silo_file_read_polymesh(silo_file_t* file,
   DBFreeUcdmesh(ucd_mesh);
   DBFreePHZonelist(ph_zonelist);
 
-  set_root_dir(file);
+  silo_file_pop_dir(file);
 
   STOP_FUNCTION_TIMER();
   return mesh;
@@ -1738,10 +1730,10 @@ polymesh_t* silo_file_read_polymesh(silo_file_t* file,
 bool silo_file_contains_polymesh(silo_file_t* file, const char* mesh_name)
 {
   bool result = false;
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
   result = (DBInqVarExists(file->dbfile, mesh_name) && 
             (DBInqVarType(file->dbfile, mesh_name) == DB_UCDMESH));
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   return result;
 }
 
@@ -1755,7 +1747,7 @@ void silo_file_write_scalar_polymesh_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   // How many elements does our mesh have?
   char num_elems_var[FILENAME_MAX+1];
@@ -1788,7 +1780,7 @@ void silo_file_write_scalar_polymesh_field(silo_file_t* file,
 #endif
 
   optlist_free(optlist);
-  set_root_dir(file);
+  silo_file_pop_dir(file);
 
   STOP_FUNCTION_TIMER();
 }
@@ -1805,7 +1797,7 @@ void silo_file_write_polymesh_field(silo_file_t* file,
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many elements does our mesh have?
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
   char num_elems_var[FILENAME_MAX+1];
   int cent;
   switch(centering)
@@ -1818,7 +1810,7 @@ void silo_file_write_polymesh_field(silo_file_t* file,
   ASSERT(DBInqVarExists(file->dbfile, num_elems_var));
   int num_elems;
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   real_t* comp_data = polymec_malloc(sizeof(real_t) * num_elems); 
   for (int c = 0; c < num_components; ++c)
   {
@@ -1842,7 +1834,7 @@ real_t* silo_file_read_scalar_polymesh_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   // How many elements does our mesh have?
   char num_elems_var[FILENAME_MAX+1];
@@ -1867,7 +1859,7 @@ real_t* silo_file_read_scalar_polymesh_field(silo_file_t* file,
   read_polymesh_metadata(file->dbfile, var, field_metadata);
   DBFreeUcdvar(var);
 
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -1882,7 +1874,7 @@ real_t* silo_file_read_polymesh_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   // How many elements does our mesh have?
   char num_elems_var[FILENAME_MAX+1];
@@ -1897,7 +1889,7 @@ real_t* silo_file_read_polymesh_field(silo_file_t* file,
   ASSERT(DBInqVarExists(file->dbfile, num_elems_var));
   int num_elems;
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   real_t* field = polymec_malloc(sizeof(real_t) * num_elems * num_components);
   for (int c = 0; c < num_components; ++c)
   {
@@ -1920,7 +1912,7 @@ bool silo_file_contains_polymesh_field(silo_file_t* file,
   bool result = false;
   if (silo_file_contains_polymesh(file, mesh_name)) // mesh exists...
   {
-    set_domain_dir(file);
+    silo_file_push_domain_dir(file);
 
     result = ((DBInqVarType(file->dbfile, mesh_name) == DB_UCDMESH) &&  // mesh is a UCD mesh...
               (DBInqVarExists(file->dbfile, field_name) &&  // field exists...
@@ -1951,7 +1943,7 @@ bool silo_file_contains_polymesh_field(silo_file_t* file,
       }
 #endif
     }
-    set_root_dir(file);
+    silo_file_pop_dir(file);
   }
 
   STOP_FUNCTION_TIMER();
@@ -1965,7 +1957,7 @@ void silo_file_write_point_cloud(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   // Point coordinates.
   int num_points = cloud->num_points;
@@ -2008,7 +2000,7 @@ void silo_file_write_point_cloud(silo_file_t* file,
     silo_file_add_subdomain_mesh(file, cloud_name, DB_POINTMESH, NULL);
 #endif
 
-  set_root_dir(file);
+  silo_file_pop_dir(file);
 
   STOP_FUNCTION_TIMER();
 }
@@ -2019,7 +2011,7 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   // How many points does our cloud have?
   int num_points;
@@ -2057,7 +2049,7 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
     silo_file_read_tags(file, tag_name, cloud->tags);
   }
 
-  set_root_dir(file);
+  silo_file_pop_dir(file);
 
   STOP_FUNCTION_TIMER();
   return cloud;
@@ -2066,10 +2058,10 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
 bool silo_file_contains_point_cloud(silo_file_t* file, const char* cloud_name)
 {
   bool result = false;
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
   result = (DBInqVarExists(file->dbfile, cloud_name) && 
             (DBInqVarType(file->dbfile, cloud_name) == DB_POINTMESH));
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   return result;
 }
 
@@ -2082,7 +2074,7 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   // How many points does our mesh have?
   char num_points_var[FILENAME_MAX+1];
@@ -2110,7 +2102,7 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
 #endif
   optlist_free(optlist);
 
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
 }
 
@@ -2122,7 +2114,7 @@ real_t* silo_file_read_scalar_point_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   DBmeshvar* var = DBGetPointvar(file->dbfile, (char*)field_name);
   if (var == NULL)
@@ -2131,7 +2123,7 @@ real_t* silo_file_read_scalar_point_field(silo_file_t* file,
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
   read_point_metadata(file->dbfile, var, field_metadata);
   DBFreePointvar(var);
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -2147,13 +2139,13 @@ void silo_file_write_point_field(silo_file_t* file,
   ASSERT(file->mode == DB_CLOBBER);
 
   // How many points does our mesh have?
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
   char num_points_var[FILENAME_MAX+1];
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
   int num_points;
   DBReadVar(file->dbfile, num_points_var, &num_points);
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   real_t* comp_data = polymec_malloc(sizeof(real_t) * num_points); 
   for (int c = 0; c < num_components; ++c)
   {
@@ -2177,7 +2169,7 @@ real_t* silo_file_read_point_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   // How many points does our mesh have?
   char num_points_var[FILENAME_MAX+1];
@@ -2194,7 +2186,7 @@ real_t* silo_file_read_point_field(silo_file_t* file,
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
   }
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -2206,11 +2198,11 @@ bool silo_file_contains_point_field(silo_file_t* file,
   bool result = false;
   if (silo_file_contains_point_cloud(file, cloud_name))  // point cloud exists...
   {
-    set_domain_dir(file);
+    silo_file_push_domain_dir(file);
     result = ((DBInqVarType(file->dbfile, cloud_name) == DB_POINTMESH) &&  // cloud is a point cloud...
               (DBInqVarExists(file->dbfile, field_name) &&  // field exists...
               (DBInqVarType(file->dbfile, field_name) == DB_POINTVAR))); // field is actually a variable.
-    set_root_dir(file);
+    silo_file_pop_dir(file);
   }
   return result;
 }
@@ -2267,11 +2259,11 @@ void silo_file_write_tensor_expression(silo_file_t* file,
 bool silo_file_contains_string(silo_file_t* file,
                                const char* string_name)
 {
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
   char name[FILENAME_MAX+1];
   snprintf(name, FILENAME_MAX, "%s_string", string_name);
   bool result = DBInqVarExists(file->dbfile, name);
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   return result;
 }
 
@@ -2282,7 +2274,7 @@ void silo_file_write_string(silo_file_t* file,
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(string_data != NULL);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   int string_size = (int)strlen(string_data);
   if (string_size > 0)
@@ -2293,7 +2285,7 @@ void silo_file_write_string(silo_file_t* file,
     if (result != 0)
       polymec_error("silo_file_write_string: write of string '%s' failed.", string_name);
   }
-  set_root_dir(file);
+  silo_file_pop_dir(file);
 }
 
 char* silo_file_read_string(silo_file_t* file,
@@ -2301,7 +2293,7 @@ char* silo_file_read_string(silo_file_t* file,
 {
   ASSERT(file->mode == DB_READ);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   char string_data_name[FILENAME_MAX+1];
   snprintf(string_data_name, FILENAME_MAX, "%s_string", string_name);
@@ -2315,7 +2307,7 @@ char* silo_file_read_string(silo_file_t* file,
   if (string_size > 0)
     DBReadVar(file->dbfile, string_data_name, string);
   string[string_size] = '\0';
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   return string;
 }
 
@@ -2327,7 +2319,7 @@ void silo_file_write_real_array(silo_file_t* file,
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(array_data != NULL);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   if (array_size > 0)
   {
@@ -2338,7 +2330,7 @@ void silo_file_write_real_array(silo_file_t* file,
     if (result != 0)
       polymec_error("silo_file_write_real_array: write of array '%s' failed.", array_name);
   }
-  set_root_dir(file);
+  silo_file_pop_dir(file);
 }
 
 real_t* silo_file_read_real_array(silo_file_t* file,
@@ -2348,7 +2340,7 @@ real_t* silo_file_read_real_array(silo_file_t* file,
   ASSERT(file->mode == DB_READ);
   ASSERT(array_size != NULL);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   char real_array_name[FILENAME_MAX+1];
   snprintf(real_array_name, FILENAME_MAX, "%s_real_array", array_name);
@@ -2362,7 +2354,7 @@ real_t* silo_file_read_real_array(silo_file_t* file,
     DBReadVar(file->dbfile, real_array_name, array);
     result = array;
   }
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   return result;
 }
 
@@ -2374,7 +2366,7 @@ void silo_file_write_int_array(silo_file_t* file,
   ASSERT(file->mode == DB_CLOBBER);
   ASSERT(array_data != NULL);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   if (array_size > 0)
   {
@@ -2385,7 +2377,7 @@ void silo_file_write_int_array(silo_file_t* file,
     if (result != 0)
       polymec_error("silo_file_write_int_array: write of array '%s' failed.", array_name);
   }
-  set_root_dir(file);
+  silo_file_pop_dir(file);
 }
 
 int* silo_file_read_int_array(silo_file_t* file,
@@ -2395,7 +2387,7 @@ int* silo_file_read_int_array(silo_file_t* file,
   ASSERT(file->mode == DB_READ);
   ASSERT(array_size != NULL);
 
-  set_domain_dir(file);
+  silo_file_push_domain_dir(file);
 
   char int_array_name[FILENAME_MAX+1];
   snprintf(int_array_name, FILENAME_MAX, "%s_int_array", array_name);
@@ -2409,7 +2401,7 @@ int* silo_file_read_int_array(silo_file_t* file,
     DBReadVar(file->dbfile, int_array_name, array);
     result = array;
   }
-  set_root_dir(file);
+  silo_file_pop_dir(file);
   return result;
 }
 
@@ -2454,6 +2446,43 @@ void silo_file_add_subdomain_field(silo_file_t* file,
     ptr_array_append_with_dtor(file->subdomain_fields, field, DTOR(subdomain_field_free));
   }
 #endif
+}
+
+void silo_file_push_dir(silo_file_t* file, const char* dir)
+{
+  if (file->dirs == NULL)
+    file->dirs = string_slist_new();
+     
+  // Push the current directory onto the stack.
+  char cwd[FILENAME_MAX+1];
+  DBGetDir(file->dbfile, cwd);
+  string_slist_append_with_dtor(file->dirs, string_dup(cwd), string_free);
+  DBSetDir(file->dbfile, dir);
+}
+
+void silo_file_push_domain_dir(silo_file_t* file)
+{
+#if POLYMEC_HAVE_MPI
+  // Determine the domain directory.
+  char domain_dir[FILENAME_MAX+1];
+  if (file->nproc > 1)
+  {
+    snprintf(domain_dir, FILENAME_MAX, "/domain_%d", file->rank_in_group);
+    DBSetDir(file->dbfile, domain_dir);
+  }
+  else
+    sprintf(domain_dir, "/");
+  silo_file_push_dir(file, domain_dir);
+#else
+  silo_file_push_dir(file, "/");
+#endif
+}
+
+void silo_file_pop_dir(silo_file_t* file)
+{
+  char* dir = string_slist_pop(file->dirs, NULL);
+  DBSetDir(file->dbfile, dir);
+  string_free(dir);
 }
 
 string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file)
