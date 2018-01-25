@@ -35,52 +35,49 @@ extern string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
 
 static void write_unimesh_patch_grid(silo_file_t* file,
                                      const char* patch_grid_name,
-                                     int N1, int N2, int N3, // index dimensions of containing space, if any
-                                     int i1, int i2, int j1, int j2, int k1, int k2, // bounds of patch grid
+                                     int nx, int ny, int nz,
                                      bbox_t* bbox,
                                      coord_mapping_t* mapping,
                                      bool hide_from_gui)
 {
-  ASSERT(i2 > i1);
-  ASSERT(j2 > j1);
-  ASSERT(k2 > k1);
+  ASSERT(nx > 0);
+  ASSERT(ny > 0);
+  ASSERT(nz > 0);
 
   DBfile* dbfile = silo_file_dbfile(file);
 
   // Name the coordinate axes.
-  const char* const coord_names[3] = {"x1", "x2", "x3"};
+  const char* const coord_names[3] = {"x", "y", "z"};
 
   // Provide coordinates.
-  int n1 = i1 + i2, n2 = j1 + j2, n3 = k1 + k2;
-  ASSERT(n1 > 0);
-  ASSERT(n2 > 0);
-  ASSERT(n3 > 0);
-  int N = (n1+1) * (n2+1) * (n3+1);
-  real_t* x1_node = polymec_malloc(sizeof(real_t) * N);
-  real_t* x2_node = polymec_malloc(sizeof(real_t) * N);
-  real_t* x3_node = polymec_malloc(sizeof(real_t) * N);
-  int dimensions[3] = {n1+1, n2+1, n3+1};
+  int N = (nx+1)*(ny+1)*(nz+1);
+  real_t* x_node = polymec_malloc(sizeof(real_t) * N);
+  real_t* y_node = polymec_malloc(sizeof(real_t) * N);
+  real_t* z_node = polymec_malloc(sizeof(real_t) * N);
+  int dimensions[3] = {nx+1, ny+1, nz+1};
+  real_t dx = (bbox->x2 - bbox->x1) / nx, 
+         dy = (bbox->y2 - bbox->y1) / ny,
+         dz = (bbox->z2 - bbox->z1) / nz;
   int coord_type;
   if (mapping != NULL)
   {
     coord_type = DB_NONCOLLINEAR;
-    real_t dx1 = 1.0 / N1, dx2 = 1.0 / N2, dx3 = 1.0 / N3;
     point_t x;
     int l = 0;
-    for (int i = i1; i <= i2; ++i)
+    for (int i = 0; i <= nx; ++i)
     {
-      x.x = i * dx1;
-      for (int j = j1; j <= j2; ++j)
+      x.x = bbox->x1 + i*dx;
+      for (int j = 0; j <= ny; ++j)
       {
-        x.y = j * dx2;
-        for (int k = k1; k <= k2; ++k, ++l)
+        x.y = bbox->y1 + j*dy;
+        for (int k = 0; k <= nz; ++k, ++l)
         {
-          x.z = k * dx3;
+          x.z = bbox->z1 + k*dz;
           point_t y;
           coord_mapping_map_point(mapping, &x, &y);
-          x1_node[l] = y.x;
-          x2_node[l] = y.y;
-          x3_node[l] = y.z;
+          x_node[l] = y.x;
+          y_node[l] = y.y;
+          z_node[l] = y.z;
         }
       }
     }
@@ -88,23 +85,21 @@ static void write_unimesh_patch_grid(silo_file_t* file,
   else
   {
     coord_type = DB_COLLINEAR;
-    real_t dx = 1.0 / N1;
-    for (int i = i1; i <= i2; ++i)
-      x1_node[i-i1] = i*dx;
-    real_t dy = 1.0 / N2;
-    for (int j = j1; j <= j2; ++j)
-      x2_node[j-j1] = j*dy;
-    real_t dz = 1.0 / N3;
-    for (int k = k1; k <= k2; ++k)
-      x3_node[k-k1] = k*dz;
+    for (int i = 0; i <= nx; ++i)
+      x_node[i] = bbox->x1 + i*dx;
+    for (int j = 0; j <= ny; ++j)
+      y_node[j] = bbox->y1 + j*dy;
+    for (int k = 0; k <= nz; ++k)
+      z_node[k] = bbox->z1 + k*dz;
   }
 
   real_t* coords[3];
-  coords[0] = x1_node;
-  coords[1] = x2_node;
-  coords[2] = x3_node;
+  coords[0] = x_node;
+  coords[1] = y_node;
+  coords[2] = z_node;
 
   // Write the patch grid.
+#if 0
   int num_options = (hide_from_gui) ? 3 : 2;
   DBoptlist* optlist = DBMakeOptlist(num_options); 
   int lo_offsets[3] = {i1, j1, k1};
@@ -116,12 +111,13 @@ static void write_unimesh_patch_grid(silo_file_t* file,
     int one = 1;
     DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
   }
+#endif
   DBPutQuadmesh(dbfile, patch_grid_name, coord_names, coords, dimensions, 3, 
-                SILO_FLOAT_TYPE, coord_type, optlist);
-  DBFreeOptlist(optlist);
-  polymec_free(x1_node);
-  polymec_free(x2_node);
-  polymec_free(x3_node);
+                SILO_FLOAT_TYPE, coord_type, NULL); //optlist);
+//  DBFreeOptlist(optlist);
+  polymec_free(x_node);
+  polymec_free(y_node);
+  polymec_free(z_node);
 }
 
 void silo_file_write_unimesh(silo_file_t* file, 
@@ -161,21 +157,18 @@ void silo_file_write_unimesh(silo_file_t* file,
 
   char* patch_grid_names[num_local_patches];
   int patch_grid_types[num_local_patches];
-  int N1 = npx * nx, N2 = npy * ny, N3 = npz * nz;
   int pos = 0, i, j, k, l = 0;
   int_array_t* patch_indices = int_array_new();
   bbox_t bbox;
   while (unimesh_next_patch(mesh, &pos, &i, &j, &k, &bbox)) 
   {
     // Write out the grid for the patch itself.
-    int i1 = nx*i, i2 = nx*(i+1), j1 = ny*j, j2 = ny*(j+1), k1 = nz*k, k2 = nz*(k+1);
     char patch_grid_name[FILENAME_MAX+1];
     snprintf(patch_grid_name, FILENAME_MAX, "%s_%d_%d_%d", mesh_name, i, j, k);
     patch_grid_names[l] = string_dup(patch_grid_name);
     patch_grid_types[l] = DB_QUAD_RECT;
-    write_unimesh_patch_grid(file, patch_grid_names[l], N1, N2, N3, 
-                                                    i1, i2, j1, j2, k1, k2, 
-                                                    &bbox, mapping, true);
+    write_unimesh_patch_grid(file, patch_grid_names[l], nx, ny, nz, &bbox, 
+                             mapping, true);
 
     // Jot down this (i, j, k) triple.
     int_array_append(patch_indices, i);
@@ -924,7 +917,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_z", field_component_name);
         this_one = polymec_malloc(sizeof(real_t) * (patch->nx+1)*(patch->ny+1)*patch->nz);
-        DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
+        DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
         int l = 0;
         for (int i = 0; i <= patch->nx; ++i)
           for (int j = 0; j <= patch->ny; ++j)
@@ -996,7 +989,7 @@ static void copy_out_other_centerings(silo_file_t* file,
             for (int k = 0; k < patch->nz; ++k, ++l)
               this_one[l] = a[i][j][k][c];
       }
-      else if (patch->centering == UNIMESH_YEDGE)
+      else if (patch->centering == UNIMESH_YFACE)
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_y", field_component_name);
         this_one = polymec_malloc(sizeof(real_t) * patch->nx*(patch->ny+1)*patch->nz);
@@ -1011,7 +1004,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_z", field_component_name);
         this_one = polymec_malloc(sizeof(real_t) * patch->nx*patch->ny*(patch->nz+1));
-        DECLARE_UNIMESH_YFACE_ARRAY(a, patch);
+        DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
         int l = 0;
         for (int i = 0; i < patch->nx; ++i)
           for (int j = 0; j < patch->ny; ++j)
@@ -1192,7 +1185,7 @@ static void copy_in_unimesh_node_component(DBquadvar* var,
   ASSERT(var->dims[2] == patch->nz + 1);
   int l = 0;
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+  DECLARE_UNIMESH_NODE_ARRAY(a, patch);
   for (int i = 0; i <= patch->nx; ++i)
     for (int j = 0; j <= patch->ny; ++j)
       for (int k = 0; k <= patch->nz; ++k, ++l)
@@ -1208,7 +1201,7 @@ static void copy_in_unimesh_xedge_component(DBquadvar* var,
   ASSERT(var->dims[2] == patch->nz + 1);
   int l = 0;
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+  DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
   for (int i = 0; i < patch->nx; ++i)
     for (int j = 0; j <= patch->ny; ++j)
       for (int k = 0; k <= patch->nz; ++k, ++l)
@@ -1224,7 +1217,7 @@ static void copy_in_unimesh_yedge_component(DBquadvar* var,
   ASSERT(var->dims[2] == patch->nz + 1);
   int l = var->dims[0]*var->dims[1]*var->dims[2];
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+  DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
   for (int i = 0; i <= patch->nx; ++i)
     for (int j = 0; j < patch->ny; ++j)
       for (int k = 0; k <= patch->nz; ++k, ++l)
@@ -1240,7 +1233,7 @@ static void copy_in_unimesh_zedge_component(DBquadvar* var,
   ASSERT(var->dims[2] == patch->nz + 1);
   int l = 2*var->dims[0]*var->dims[1]*var->dims[2];
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+  DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
   for (int i = 0; i <= patch->nx; ++i)
     for (int j = 0; j <= patch->ny; ++j)
       for (int k = 0; k < patch->nz; ++k, ++l)
@@ -1256,7 +1249,7 @@ static void copy_in_unimesh_xface_component(DBquadvar* var,
   ASSERT(var->dims[2] == patch->nz + 1);
   int l = 0;
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+  DECLARE_UNIMESH_XFACE_ARRAY(a, patch);
   for (int i = 0; i <= patch->nx; ++i)
     for (int j = 0; j < patch->ny; ++j)
       for (int k = 0; k < patch->nz; ++k, ++l)
@@ -1272,7 +1265,7 @@ static void copy_in_unimesh_yface_component(DBquadvar* var,
   ASSERT(var->dims[2] == patch->nz + 1);
   int l = var->dims[0]*var->dims[1]*var->dims[2];
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+  DECLARE_UNIMESH_YFACE_ARRAY(a, patch);
   for (int i = 0; i < patch->nx; ++i)
     for (int j = 0; j <= patch->ny; ++j)
       for (int k = 0; k < patch->nz; ++k, ++l)
@@ -1288,7 +1281,7 @@ static void copy_in_unimesh_zface_component(DBquadvar* var,
   ASSERT(var->dims[2] == patch->nz + 1);
   int l = 2*var->dims[0]*var->dims[1]*var->dims[2];
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+  DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
   for (int i = 0; i < patch->nx; ++i)
     for (int j = 0; j < patch->ny; ++j)
       for (int k = 0; k <= patch->nz; ++k, ++l)
@@ -1340,7 +1333,7 @@ static void read_unimesh_patch_data(silo_file_t* file,
         copy_in_unimesh_yedge_component(var, c, patch);
         break;
       case UNIMESH_ZEDGE:
-        copy_in_unimesh_yedge_component(var, c, patch);
+        copy_in_unimesh_zedge_component(var, c, patch);
         break;
       case UNIMESH_XFACE:
         copy_in_unimesh_xface_component(var, c, patch);
@@ -1349,9 +1342,9 @@ static void read_unimesh_patch_data(silo_file_t* file,
         copy_in_unimesh_yface_component(var, c, patch);
         break;
       case UNIMESH_ZFACE:
-        copy_in_unimesh_yface_component(var, c, patch);
+        copy_in_unimesh_zface_component(var, c, patch);
         break;
-      case UNIMESH_CELL: 
+      default:
         copy_in_unimesh_cell_component(var, c, patch);
     }
 

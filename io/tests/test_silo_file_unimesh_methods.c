@@ -89,11 +89,11 @@ static void test_write_unimesh_cell_field(void** state)
   silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh_cell_field", 0, &time);
   assert_true(reals_equal(time, 0.0));
   mesh = silo_file_read_unimesh(silo, "mesh");
-  field = unimesh_field_new(mesh, UNIMESH_CELL, 4);
   assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_CELL));
   assert_true(silo_file_contains_unimesh_field(silo, "f2", "mesh", UNIMESH_CELL));
   assert_true(silo_file_contains_unimesh_field(silo, "f3", "mesh", UNIMESH_CELL));
   assert_true(silo_file_contains_unimesh_field(silo, "f4", "mesh", UNIMESH_CELL));
+  field = unimesh_field_new(mesh, UNIMESH_CELL, 4);
   silo_file_read_unimesh_field(silo, field_names, "mesh", field, NULL);
   pos = 0;
   while (unimesh_field_next_patch(field, &pos, &I, &J, &K, &patch, NULL))

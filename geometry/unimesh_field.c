@@ -29,25 +29,6 @@ static inline int patch_index(unimesh_field_t* field, int i, int j, int k)
   return field->ny*field->nz*i + field->nz*j + k;
 }
 
-static void compute_storage(unimesh_field_t* field)
-{
-  unimesh_centering_t centering = field->centering;
-  int nx, ny, nz, nc = field->nc;
-  unimesh_get_patch_size(field->mesh, &nx, &ny, &nz);
-
-  field->bytes = 0;
-  field->patch_offsets[0] = 0;
-  int pos = 0, i, j, k, l = 0;
-  unimesh_patch_t* patch;
-  while (unimesh_field_next_patch(field, &pos, &i, &j, &k, &patch, NULL))
-  {
-    size_t patch_bytes = unimesh_patch_data_size(centering, nx, ny, nz, nc);
-    field->bytes += patch_bytes;
-    field->patch_offsets[l] = field->bytes;
-    ++l;
-  }
-}
-
 unimesh_field_t* unimesh_field_new(unimesh_t* mesh, 
                                    unimesh_centering_t centering,
                                    int num_components)
@@ -57,6 +38,25 @@ unimesh_field_t* unimesh_field_new(unimesh_t* mesh,
   void* buffer = polymec_malloc(sizeof(real_t) * field->bytes);
   unimesh_field_set_buffer(field, buffer, true);
   return field;
+}
+
+static void compute_offsets(unimesh_field_t* field)
+{
+  unimesh_centering_t centering = field->centering;
+  int nx, ny, nz;
+  unimesh_get_patch_size(field->mesh, &nx, &ny, &nz);
+  int nc = field->nc;
+
+  field->bytes = 0;
+  field->patch_offsets[0] = 0;
+  int pos = 0, i, j, k, l = 1;
+  while (unimesh_next_patch(field->mesh, &pos, &i, &j, &k, NULL))
+  {
+    size_t patch_bytes = unimesh_patch_data_size(centering, nx, ny, nz, nc);
+    field->bytes += patch_bytes;
+    field->patch_offsets[l] = field->bytes;
+    ++l;
+  }
 }
 
 unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh, 
@@ -91,12 +91,12 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
       DTOR(unimesh_patch_free));
     ++l;
   }
-  compute_storage(field);
+
+  // Figure out buffer offsets and use the given buffer.
+  compute_offsets(field);
+  unimesh_field_set_buffer(field, buffer, false);
 
   field->token = -1; // No data in flight.
-
-  // Set the buffer.
-  unimesh_field_set_buffer(field, buffer, false);
 
   return field;
 }
@@ -117,16 +117,6 @@ void unimesh_field_copy(unimesh_field_t* field,
   ASSERT(dest->centering == field->centering);
   ASSERT(dest->bytes == field->bytes);
   memcpy(dest->buffer, field->buffer, field->bytes);
-#if 0
-  int pos = 0, i, j, k;
-  while (unimesh_next_patch(field->mesh, &pos, &i, &j, &k, NULL))
-  {
-    int index = patch_index(field, i, j, k);
-    unimesh_patch_t* src_patch = *int_ptr_unordered_map_get(field->patches, index);
-    unimesh_patch_t* dest_patch = *int_ptr_unordered_map_get(dest->patches, index);
-    unimesh_patch_copy(src_patch, dest_patch);
-  }
-#endif
 }
 
 unimesh_centering_t unimesh_field_centering(unimesh_field_t* field)
