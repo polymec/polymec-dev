@@ -2435,12 +2435,6 @@ void silo_file_push_dir(silo_file_t* file, const char* dir)
   // Set the new directory and push it onto the stack.
   DBSetDir(file->dbfile, dir);
   string_slist_push_with_dtor(file->dirs, string_dup(dir), string_free);
-printf("%d: ", file->rank);
-string_slist_node_t* node = NULL;
-char* d;
-while (string_slist_next(file->dirs, &node, &d))
-printf("%s ", d);
-printf("\n");
 }
 
 void silo_file_push_domain_dir(silo_file_t* file)
@@ -2468,12 +2462,6 @@ void silo_file_pop_dir(silo_file_t* file)
   // Pop the current directory off the stack and delete it.
   char* dir = string_slist_pop(file->dirs, NULL);
   string_free(dir);
-printf("%d: ", file->rank);
-string_slist_node_t* node = NULL;
-char* d;
-while (string_slist_next(file->dirs, &node, &d))
-printf("%s ", d);
-printf("\n");
 
   // Set the directory to the front of the stack.
   DBSetDir(file->dbfile, file->dirs->front->value);
