@@ -29,7 +29,7 @@
 // void x_slist_push_with_dtor(x_slist_t* list, x value, x_slist_dtor dtor) - Inserts an x at the front of the list with a destructor.
 // x x_slist_pop(x_slist_t* list, x_slist_dtor* dtor) - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
 // void x_slist_remove(x_slist_t* list, x_slist_node_t* node) - Removes a node from the list.
-// bool x_slist_next(x_slist_t* list, x_slist_node_t** pos, x* value) - Allows the traversal of the linked list.
+// bool x_slist_next(x_slist_t* list, x_slist_node_t** pos, x* value) - Allows the traversal of the linked list. Set *pos to NULL to begin iteration.
 // bool x_slist_empty(x_slist_t* list) - Returns true if empty, false otherwise.
 // void x_slist_clear(x_slist_t* list) - Clears the given list, making it empty.
 
@@ -86,6 +86,7 @@ static inline void list_name##_insert_with_dtor(list_name##_t* list, element val
 { \
   list_name##_node_t* n = (list_name##_node_t*)polymec_malloc(sizeof(list_name##_node_t)); \
   n->value = value; \
+  n->dtor = dtor; \
   n->next = NULL; \
   if (list->front == NULL) \
   { \
@@ -101,6 +102,12 @@ static inline void list_name##_insert_with_dtor(list_name##_t* list, element val
     list->front = n; \
     list->back = n->next; \
     list->size = 2; \
+  } \
+  else if (node == list->front) \
+  { \
+    n->next = list->front; \
+    list->front = n; \
+    list->size += 1; \
   } \
   else \
   { \
