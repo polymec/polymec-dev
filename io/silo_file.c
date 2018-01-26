@@ -276,7 +276,6 @@ static void* pmpio_create_file(const char* filename,
   DBfile* file = DBCreate(filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
   if (strcmp(dir_name, "/") != 0)
     DBMkDir(file, dir_name);
-  DBSetDir(file, dir_name);
   return (void*)file;
 }
 
@@ -299,13 +298,9 @@ static void* pmpio_open_file(const char* filename,
     }
     if (strcmp(dir_name, "/") != 0)
       DBMkDir(file, dir_name);
-    DBSetDir(file, dir_name);
   }
   else
-  {
     file = DBOpen(filename, driver, DB_READ);
-    DBSetDir(file, dir_name);
-  }
   return (void*)file;
 }
 
@@ -642,8 +637,6 @@ static void write_subdomains_to_file(silo_file_t* file)
   }
   int num_chunks = file->nproc / file->num_files;
 
-  silo_file_pop_dir(file);
-
   // Stick in step/time information if needed.
   DBoptlist* optlist = DBMakeOptlist(2);
   if (file->step >= 0)
@@ -722,9 +715,9 @@ static void write_master_file(silo_file_t* file)
     snprintf(master_file_name, FILENAME_MAX, "%s/%s.silo", file->directory, file->prefix);
   else
     snprintf(master_file_name, FILENAME_MAX, "%s/%s-%d.silo", file->directory, file->prefix, file->step);
-  PMPIO_baton_t* baton = PMPIO_Init(1, PMPIO_WRITE, file->comm, file->mpi_tag+1, 
-                                    pmpio_create_file, pmpio_open_file, 
-                                    pmpio_close_file, 0);
+  PMPIO_baton_t* baton = PMPIO_Init(1, PMPIO_WRITE, file->comm, 
+                                    file->mpi_tag+1, pmpio_create_file, 
+                                    pmpio_open_file, pmpio_close_file, NULL);
   log_debug("write_master_file: Waiting for baton...");
   DBfile* master = (DBfile*)PMPIO_WaitForBaton(baton, master_file_name, "/");
   log_debug("write_master_file: Got the baton...");
@@ -952,7 +945,6 @@ silo_file_t* silo_file_new(MPI_Comm comm,
     log_debug("silo_file_new: Opening %s for writing...", file->filename);
     file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
   }
-  DBSetDir(file->dbfile, "/");
 #else
   if (strlen(directory) == 0)
     strncpy(file->directory, ".", FILENAME_MAX);
@@ -968,22 +960,18 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   create_directory(file->directory, S_IRWXU | S_IRWXG);
   log_debug("silo_file_new: Opening %s for writing...", file->filename);
   file->dbfile = DBCreate(file->filename, DB_CLOBBER, DB_LOCAL, NULL, driver);
-  DBSetDir(file->dbfile, "/");
 #endif
 
+  silo_file_push_dir(file, "/");
   file->mode = DB_CLOBBER;
   file->step = step;
   file->time = time;
 
   // Write the step and cycle.
   {
-    char dir[256];
-    DBGetDir(file->dbfile, dir);
-    DBSetDir(file->dbfile, "/");
     int one = 1;
     DBWrite(file->dbfile, "dtime", &(file->time), &one, 1, DB_DOUBLE);
     DBWrite(file->dbfile, "cycle", &(file->step), &one, 1, DB_INT);
-    DBSetDir(file->dbfile, dir);
   }
 
   // Write our stamp of approval.
@@ -991,28 +979,18 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 #if POLYMEC_HAVE_MPI
   if (file->rank_in_group == 0)
 #endif
-  {
-    char dir[256];
-    DBGetDir(file->dbfile, dir);
-    DBSetDir(file->dbfile, "/");
     DBWrite(file->dbfile, "POLYMEC_SILO_FILE", &one, &one, 1, DB_INT);
-    DBSetDir(file->dbfile, dir);
-  }
 
   // If we're writing to a single file, encode our number of processes.
 #if POLYMEC_HAVE_MPI
   if ((file->num_files == 1) && (file->rank == 0))
 #endif
   {
-    char dir[256];
-    DBGetDir(file->dbfile, dir);
-    DBSetDir(file->dbfile, "/");
 #if POLYMEC_HAVE_MPI
     DBWrite(file->dbfile, "num_mpi_procs", &file->nproc, &one, 1, DB_INT);
 #else
     DBWrite(file->dbfile, "num_mpi_procs", &one, &one, 1, DB_INT);
 #endif
-    DBSetDir(file->dbfile, dir);
   }
 
   // Initialize scratch space.
@@ -1211,9 +1189,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     log_debug("silo_file_open: Opening %s for reading and waiting for baton...", file->filename);
     file->dbfile = (DBfile*)PMPIO_WaitForBaton(file->baton, file->filename, silo_dir_name);
     log_debug("silo_file_open: Got the baton...");
-
-    DBSetDir(file->dbfile, "/");
-    show_provenance_on_debug_log(file);
   }
   else
   {
@@ -1230,9 +1205,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
     int driver = DB_HDF5;
     log_debug("silo_file_open: Opening %s for reading...", file->filename);
     file->dbfile = DBOpen(file->filename, driver, file->mode);
-    DBSetDir(file->dbfile, "/");
-
-    show_provenance_on_debug_log(file);
   }
 #else
   if (strlen(directory) == 0)
@@ -1248,10 +1220,10 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   int driver = DB_HDF5;
   log_debug("silo_file_open: Opening %s for reading...", file->filename);
   file->dbfile = DBOpen(file->filename, driver, file->mode);
-  DBSetDir(file->dbfile, "/");
-
-  show_provenance_on_debug_log(file);
 #endif
+
+  silo_file_push_dir(file, "/");
+  show_provenance_on_debug_log(file);
 
   // Get step/time information.
   if (DBInqVarExists(file->dbfile, "dtime"))
@@ -1889,7 +1861,9 @@ real_t* silo_file_read_polymesh_field(silo_file_t* file,
   ASSERT(DBInqVarExists(file->dbfile, num_elems_var));
   int num_elems;
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
+
   silo_file_pop_dir(file);
+
   real_t* field = polymec_malloc(sizeof(real_t) * num_elems * num_components);
   for (int c = 0; c < num_components; ++c)
   {
@@ -2140,12 +2114,15 @@ void silo_file_write_point_field(silo_file_t* file,
 
   // How many points does our mesh have?
   silo_file_push_domain_dir(file);
+
   char num_points_var[FILENAME_MAX+1];
   snprintf(num_points_var, FILENAME_MAX, "%s_num_points", cloud_name);
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
   int num_points;
   DBReadVar(file->dbfile, num_points_var, &num_points);
+
   silo_file_pop_dir(file);
+
   real_t* comp_data = polymec_malloc(sizeof(real_t) * num_points); 
   for (int c = 0; c < num_components; ++c)
   {
@@ -2186,7 +2163,9 @@ real_t* silo_file_read_point_field(silo_file_t* file,
       field[num_components*i+c] = comp_data[i];
     polymec_free(comp_data);
   }
+
   silo_file_pop_dir(file);
+
   STOP_FUNCTION_TIMER();
   return field;
 }
@@ -2452,12 +2431,16 @@ void silo_file_push_dir(silo_file_t* file, const char* dir)
 {
   if (file->dirs == NULL)
     file->dirs = string_slist_new();
-     
-  // Push the current directory onto the stack.
-  char cwd[FILENAME_MAX+1];
-  DBGetDir(file->dbfile, cwd);
-  string_slist_append_with_dtor(file->dirs, string_dup(cwd), string_free);
+
+  // Set the new directory and push it onto the stack.
   DBSetDir(file->dbfile, dir);
+  string_slist_push_with_dtor(file->dirs, string_dup(dir), string_free);
+printf("%d: ", file->rank);
+string_slist_node_t* node = NULL;
+char* d;
+while (string_slist_next(file->dirs, &node, &d))
+printf("%s ", d);
+printf("\n");
 }
 
 void silo_file_push_domain_dir(silo_file_t* file)
@@ -2480,9 +2463,20 @@ void silo_file_push_domain_dir(silo_file_t* file)
 
 void silo_file_pop_dir(silo_file_t* file)
 {
+  ASSERT(!string_slist_empty(file->dirs));
+
+  // Pop the current directory off the stack and delete it.
   char* dir = string_slist_pop(file->dirs, NULL);
-  DBSetDir(file->dbfile, dir);
   string_free(dir);
+printf("%d: ", file->rank);
+string_slist_node_t* node = NULL;
+char* d;
+while (string_slist_next(file->dirs, &node, &d))
+printf("%s ", d);
+printf("\n");
+
+  // Set the directory to the front of the stack.
+  DBSetDir(file->dbfile, file->dirs->front->value);
 }
 
 string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file)
