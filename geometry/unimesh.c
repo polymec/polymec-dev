@@ -94,14 +94,20 @@ void unimesh_finalize(unimesh_t* mesh)
   {
     for (int j = 0; j < mesh->npy; ++j)
     {
-      for (int k = 0; k < mesh->npz; ++k, ++l)
+      for (int k = 0; k < mesh->npz; ++k)
       {
-        mesh->patch_indices[3*l]   = i;
-        mesh->patch_indices[3*l+1] = j;
-        mesh->patch_indices[3*l+2] = k;
+        int index = patch_index(mesh, i, j, k);
+        if (int_unordered_set_contains(mesh->patches, index))
+        {
+          mesh->patch_indices[3*l]   = i;
+          mesh->patch_indices[3*l+1] = j;
+          mesh->patch_indices[3*l+2] = k;
+          ++l;
+        }
       }
     }
   }
+  ASSERT(l == mesh->patches->size);
 
   mesh->finalized = true;
 }

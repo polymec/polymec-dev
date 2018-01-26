@@ -259,6 +259,7 @@ unimesh_t* silo_file_read_unimesh(silo_file_t* file,
   START_FUNCTION_TIMER();
 
   silo_file_push_domain_dir(file);
+
   // Read the bounding box.
   char bbox_name[FILENAME_MAX+1];
   snprintf(bbox_name, FILENAME_MAX, "%s_bbox", mesh_name);
