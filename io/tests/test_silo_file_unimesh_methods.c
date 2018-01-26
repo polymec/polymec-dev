@@ -18,36 +18,36 @@ static void test_write_unimesh(void** state)
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
-  unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                4, 4, 4, 10, 10, 10); 
+  unimesh_t* mesh1 = unimesh_new(MPI_COMM_WORLD, &bbox, 
+                                 4, 4, 4, 10, 10, 10); 
 
   // Write the mesh to a file.
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh", 1, 0, 0.0);
-  silo_file_write_unimesh(silo, "mesh", mesh, NULL);
+  silo_file_write_unimesh(silo, "mesh", mesh1, NULL);
   silo_file_close(silo);
-  unimesh_free(mesh); 
 
   // Read the mesh back in from the file.
   real_t time;
   silo = silo_file_open(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh", 0, &time);
   assert_true(reals_equal(time, 0.0));
   assert_true(silo_file_contains_unimesh(silo, "mesh"));
-  mesh = silo_file_read_unimesh(silo, "mesh");
+  unimesh_t* mesh2 = silo_file_read_unimesh(silo, "mesh");
   int npx, npy, npz, nx, ny, nz;
-  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  unimesh_get_extents(mesh2, &npx, &npy, &npz);
   assert_int_equal(npx, 4);
   assert_int_equal(npy, 4);
   assert_int_equal(npz, 4);
-  unimesh_get_patch_size(mesh, &nx, &ny, &nz);
+  unimesh_get_patch_size(mesh2, &nx, &ny, &nz);
   assert_int_equal(nx, 10);
   assert_int_equal(ny, 10);
   assert_int_equal(nz, 10);
   for (int i = 0; i < 4; ++i)
     for (int j = 0; j < 4; ++j)
       for (int k = 0; k < 4; ++k)
-        assert_true(unimesh_has_patch(mesh, i, j, k));
+        assert_true(unimesh_has_patch(mesh1, i, j, k) == unimesh_has_patch(mesh2, i, j, k));
   silo_file_close(silo);
-  unimesh_free(mesh); 
+  unimesh_free(mesh1); 
+  unimesh_free(mesh2); 
 } 
 
 static void test_write_unimesh_cell_field(void** state) 
