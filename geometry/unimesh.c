@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2016, Jeffrey N. Johnson
+// Copyright (c) 2012-2018, Jeffrey N. Johnson
 // All rights reserved.
 // 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -54,9 +54,9 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
   real_t Lx = bbox->x2 - bbox->x1,
          Ly = bbox->y2 - bbox->y1,
          Lz = bbox->z2 - bbox->z1;
-  mesh->dx = Lx / nx;
-  mesh->dy = Ly / ny;
-  mesh->dz = Lz / nz;
+  mesh->dx = Lx / (npx*nx);
+  mesh->dy = Ly / (npy*ny);
+  mesh->dz = Lz / (npz*nz);
   mesh->npx = npx;
   mesh->npy = npy;
   mesh->npz = npz;
