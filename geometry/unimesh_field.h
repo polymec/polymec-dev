@@ -82,5 +82,25 @@ void unimesh_field_set_buffer(unimesh_field_t* field,
                               void* buffer, 
                               bool assume_control);
 
+// Performs a synchronous exchange of data between the patches in this field,
+// returning when the exchange has completed. For cell-centered data, this 
+// means filling ghost cells. For faces, nodes, and edges, it means 
+// overwriting data on the boundary of a patch with that stored in the patch 
+// that "owns" the face, edge, or node. The patch containing a given face, 
+// edge, or node and with the smallest patch index (ip, jp, kp) in the grid 
+// owns the data for that face, edge, or node.
+void unimesh_field_exchange(unimesh_field_t* field);
+
+// Begins an asynchronous exchange of data between the patches in this field.
+void unimesh_field_start_exchange(unimesh_field_t* field);
+
+// Finishes an asynchronous exchange initiated with 
+// unimesh_field_start_exchange.
+void unimesh_field_finish_exchange(unimesh_field_t* field);
+
+// Returns true if this field is in the middle of an asynchronous exchange,
+// false if not.
+bool unimesh_field_is_exchanging(unimesh_field_t* field);
+
 #endif
 

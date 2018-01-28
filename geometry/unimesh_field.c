@@ -5,23 +5,75 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/array.h"
 #include "core/unordered_map.h"
 #include "geometry/unimesh_field.h"
+
+typedef struct
+{
+#if POLYMEC_HAVE_MPI
+  int src_proc, dest_proc;
+  MPI_Request request;
+#endif
+  void (*write_to_comm_buffer)(unimesh_field_t* field, void* comm_buffer);
+  void (*read_from_comm_buffer)(void* comm_buffer, unimesh_field_t* data_buffer);
+
+  void* comm_buffer;
+} exchange_t;
+DEFINE_ARRAY(ex_array, exchange_t*)
+
+static exchange_t* exchange_new(int src_proc, unimesh_boundary_t src_boundary,
+                                int dest_proc, unimesh_boundary_t dest_boundary)
+{
+  exchange_t* ex = polymec_malloc(sizeof(exchange_t));
+#if POLYMEC_HAVE_MPI
+  ASSERT(src_proc >= 0);
+  ASSERT(dest_proc >= 0);
+#else
+  ASSERT(src_proc == 0);
+  ASSERT(dest_proc == 0);
+#endif
+  return ex;
+}
+
+static void exchange_free(exchange_t* ex)
+{
+  polymec_free(ex->comm_buffer);
+  polymec_free(ex);
+}
+
+static void exchange_start(exchange_t* ex, unimesh_field_t* field)
+{
+  ex->write_to_comm_buffer(field, ex->comm_buffer);
+#if POLYMEC_HAVE_MPI
+#endif
+}
+
+static void exchange_finish(exchange_t* ex, unimesh_field_t* field)
+{
+#if POLYMEC_HAVE_MPI
+#endif
+  ex->read_from_comm_buffer(ex->comm_buffer, field);
+}
 
 struct unimesh_field_t 
 {
   unimesh_t* mesh;
   unimesh_centering_t centering;
 
+  // Patch metadata
   int nx, ny, nz, nc;
   int_ptr_unordered_map_t* patches;
   size_t* patch_offsets;
 
+  // Data storage
   void* buffer;
   size_t bytes;
   bool owns_buffer;
 
-  int token;
+  // Parallel stuff.
+  bool is_exchanging;
+  ex_array_t* exchanges;
 };
 
 static inline int patch_index(unimesh_field_t* field, int i, int j, int k)
@@ -96,13 +148,16 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
   compute_offsets(field);
   unimesh_field_set_buffer(field, buffer, false);
 
-  field->token = -1; // No data in flight.
+  // Set up communications equipment.
+  field->is_exchanging = false;
+  field->exchanges = ex_array_new();
 
   return field;
 }
 
 void unimesh_field_free(unimesh_field_t* field)
 {
+  ex_array_free(field->exchanges);
   int_ptr_unordered_map_free(field->patches);
   polymec_free(field->patch_offsets);
   if (field->owns_buffer)
@@ -183,5 +238,38 @@ void unimesh_field_set_buffer(unimesh_field_t* field,
     patch->data = &(((real_t*)buffer)[patch_offset]);
     ++l;
   }
+}
+
+void unimesh_field_exchange(unimesh_field_t* field)
+{
+#if POLYMEC_HAVE_MPI
+  unimesh_field_start_exchange(field);
+  unimesh_field_finish_exchange(field);
+#endif
+}
+
+void unimesh_field_start_exchange(unimesh_field_t* field)
+{
+  ASSERT(!field->is_exchanging);
+
+#if POLYMEC_HAVE_MPI
+#endif
+
+  field->is_exchanging = true;
+}
+
+void unimesh_field_finish_exchange(unimesh_field_t* field)
+{
+  ASSERT(field->is_exchanging);
+
+#if POLYMEC_HAVE_MPI
+#endif
+
+  field->is_exchanging = false;
+}
+
+bool unimesh_field_is_exchanging(unimesh_field_t* field)
+{
+  return field->is_exchanging;
 }
 
