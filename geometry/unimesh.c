@@ -9,10 +9,41 @@
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
 #include "geometry/unimesh.h"
+#include "geometry/unimesh_patch_bc.h"
 
 #if POLYMEC_HAVE_OPENMP
 #include <omp.h>
 #endif
+
+// This thingy holds the data we need to track for pending patch updates.
+typedef struct
+{
+  int i, j, k;
+  real_t t;
+} pending_update_t;
+
+static void update_free(pending_update_t* update)
+{
+  polymec_free(update);
+}
+
+typedef struct
+{
+  unimesh_boundary_t boundary;
+  unimesh_patch_t* patch;
+} update_key_t;
+
+static inline int update_key_hash(update_key_t key)
+{
+  return djb2_xor_hash((unsigned char*)&key, sizeof(update_key_t));
+}
+
+static inline bool update_key_equals(update_key_t k1, update_key_t k2)
+{
+  return ((k1.boundary == k2.boundary) && (k1.patch == k2.patch));
+}
+
+DEFINE_UNORDERED_MAP(update_map, update_key_t, pending_update_t*, update_key_hash, update_key_equals)
 
 struct unimesh_t
 {
@@ -28,6 +59,10 @@ struct unimesh_t
   // Information about which patches are present.
   int_unordered_set_t* patches;
   int* patch_indices;
+
+  // Patch boundary conditions.
+  ptr_array_t* patch_bcs;
+  update_map_t* pending_updates;
 
   // This flag is set by unimesh_finalize() after a mesh has been assembled.
   bool finalized;
@@ -65,6 +100,8 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
   mesh->nz = nz;
   mesh->patches = int_unordered_set_new();
   mesh->patch_indices = NULL;
+  mesh->patch_bcs = ptr_array_new();
+  mesh->pending_updates = update_map_new();
   mesh->finalized = false;
   mesh->properties = string_ptr_unordered_map_new();
   return mesh;
@@ -81,6 +118,52 @@ void unimesh_insert_patch(unimesh_t* mesh, int i, int j, int k)
   int index = patch_index(mesh, i, j, k);
   ASSERT(!int_unordered_set_contains(mesh->patches, index));
   int_unordered_set_insert(mesh->patches, index);
+}
+
+void unimesh_set_patch_bc(unimesh_t* mesh,
+                          int i, int j, int k,
+                          unimesh_boundary_t patch_boundary,
+                          unimesh_patch_bc_t* patch_bc)
+{
+  ASSERT(!mesh->finalized);
+  ASSERT(unimesh_has_patch(mesh, i, j, k));
+  ASSERT(unimesh_patch_bc_num_components(patch_bc) == 0);
+  int index = patch_index(mesh, i, j, k);
+  if (mesh->patch_bcs->size <= index)
+  {
+    size_t old_size = mesh->patch_bcs->size;
+    ptr_array_resize(mesh->patch_bcs, index+1);
+    memset(&mesh->patch_bcs->data[old_size], 0, sizeof(void*) * mesh->patch_bcs->size - old_size);
+  }
+  ptr_array_append_with_dtor(mesh->patch_bcs, patch_bc, polymec_release);
+}
+
+static void set_up_local_patch_bcs(unimesh_t* mesh)
+{
+}
+
+static void set_up_remote_patch_bcs(unimesh_t* mesh)
+{
+}
+
+static void verify_all_patches_have_bcs(unimesh_t* mesh)
+{
+  for (size_t index = 0; index < mesh->patches->size; ++index)
+  {
+    int i = mesh->patch_indices[3*index];
+    int j = mesh->patch_indices[3*index+1];
+    int k = mesh->patch_indices[3*index+2];
+    static const char* bc_name[6] = {"x1", "x2", "y1", "y2", "z1", "z2"};
+    for (int l = 0; l < 6; ++l)
+    {
+      unimesh_patch_bc_t* bc = mesh->patch_bcs->data[6*index+l];
+      if (bc == NULL)
+      {
+        polymec_error("unimesh_finalize: patch (%d, %d, %d) missing %s boundary condition!",
+                      i, j, k, bc_name);
+      }
+    }
+  }
 }
 
 void unimesh_finalize(unimesh_t* mesh)
@@ -108,6 +191,11 @@ void unimesh_finalize(unimesh_t* mesh)
     }
   }
   ASSERT(l == mesh->patches->size);
+
+  // Now make sure every patch has a set of boundary conditions.
+  set_up_local_patch_bcs(mesh);
+  set_up_remote_patch_bcs(mesh);
+  verify_all_patches_have_bcs(mesh);
 
   mesh->finalized = true;
 }
@@ -164,7 +252,8 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
 
 void unimesh_free(unimesh_t* mesh)
 {
-  string_ptr_unordered_map_free(mesh->properties);
+  update_map_free(mesh->pending_updates);
+  ptr_array_free(mesh->patch_bcs);
   int_unordered_set_free(mesh->patches);
   if (mesh->patch_indices != NULL)
     polymec_free(mesh->patch_indices);
@@ -253,74 +342,65 @@ bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k)
   return int_unordered_set_contains(mesh->patches, index);
 }
 
-// Properties stashed on the mesh.
-typedef struct
+void unimesh_update_patch_boundary(unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t boundary,
+                                   unimesh_patch_t* patch)
 {
-  void* data;
-  serializer_t* serializer;
-} prop_t;
-
-static prop_t* prop_new(void* data, serializer_t* ser)
-{
-  prop_t* prop = polymec_malloc(sizeof(prop_t));
-  prop->data = data;
-  prop->serializer = ser;
-  return prop;
+  unimesh_start_updating_patch_boundary(mesh, i, j, k, t, boundary, patch);
+  unimesh_finish_updating_patch_boundary(mesh, boundary, patch);
 }
 
-static void prop_dtor(void* context)
+void unimesh_start_updating_patch_boundary(unimesh_t* mesh,
+                                           int i, int j, int k, real_t t,
+                                           unimesh_boundary_t boundary,
+                                           unimesh_patch_t* patch)
 {
-  prop_t* prop = context;
-  if (prop->serializer != NULL)
-    serializer_destroy_object(prop->serializer, prop->data);
-  prop->data = NULL;
-  prop->serializer = NULL;
-  polymec_free(prop);
+  ASSERT(mesh->finalized);
+  ASSERT(unimesh_has_patch(mesh, i, j, k));
+  int index = patch_index(mesh, i, j, k);
+
+  // Make sure we don't have a pending update for this boundary/patch.
+  update_key_t update_key = {.boundary = boundary, .patch = patch};
+  ASSERT(!update_map_contains(mesh->pending_updates, update_key));
+
+  // Start the update.
+  int b = (int)boundary;
+  unimesh_patch_bc_t* bc = mesh->patch_bcs->data[6*index+b];
+  unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, patch);
+
+  // Create a pending update record.
+  pending_update_t* update = polymec_malloc(sizeof(pending_update_t));
+  update->i = i;
+  update->j = j;
+  update->k = k;
+  update->t = t;
+  update_map_insert_with_v_dtor(mesh->pending_updates, 
+                                update_key, update, update_free);
 }
 
-void unimesh_set_property(unimesh_t* mesh, 
-                          const char* property, 
-                          void* data, 
-                          serializer_t* serializer)
+void unimesh_finish_updating_patch_boundary(unimesh_t* mesh,
+                                            unimesh_boundary_t boundary,
+                                            unimesh_patch_t* patch)
 {
-  prop_t* prop = prop_new(data, serializer);
-  string_ptr_unordered_map_insert_with_kv_dtors(mesh->properties, 
-                                                string_dup(property),
-                                                prop,
-                                                string_free,
-                                                prop_dtor);
-}
+  ASSERT(mesh->finalized);
 
-void* unimesh_property(unimesh_t* mesh, const char* property)
-{
-  void** prop_p = string_ptr_unordered_map_get(mesh->properties, (char*)property);
-  if (prop_p != NULL)
-  {
-    prop_t* prop = *((prop_t**)prop_p);
-    return prop->data;
-  }
-  else
-    return NULL;
-}
+  // Retrieve the record for this update.
+  update_key_t update_key = {.boundary = boundary, .patch = patch};
+  pending_update_t** update_p = update_map_get(mesh->pending_updates, 
+                                               update_key);
+  ASSERT(update_p != NULL); // We ARE updating this patch, aren't we?
+  pending_update_t* update = *update_p;
+  int i = update->i, j = update->j, k = update->k;
+  real_t t = update->t;
 
-void unimesh_delete_property(unimesh_t* mesh, const char* property)
-{
-  string_ptr_unordered_map_delete(mesh->properties, (char*)property);
-}
+  // Finish the update.
+  int index = patch_index(mesh, i, j, k);
+  int b = (int)boundary;
+  unimesh_patch_bc_t* bc = mesh->patch_bcs->data[6*index+b];
+  unimesh_patch_bc_finish_update(bc, i, j, k, t, boundary, patch);
 
-bool unimesh_next_property(unimesh_t* mesh, int* pos, 
-                           char** prop_name, void** prop_data, 
-                           serializer_t** prop_serializer)
-{
-  void* val;
-  bool result = string_ptr_unordered_map_next(mesh->properties, pos,
-                                              prop_name, &val);
-  if (result)
-  {
-    prop_t* prop = val;
-    *prop_data = prop->data;
-    *prop_serializer = prop->serializer;
-  }
-  return result;
+  // Delete the record.
+  update_map_delete(mesh->pending_updates, update_key);
 }
 

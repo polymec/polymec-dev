@@ -14,7 +14,7 @@
 // A unimesh_patch is a (3D) rectangular prism of identical cells on which 
 // multicomponent data can be stored. The data can be associated with the 
 // cells themselves, or with the faces, edges, or nodes shared by the cells.
-typedef struct 
+struct unimesh_patch_t
 {
   // Data storage for the patch. Use DECLARE_UNIMESH_*_ARRAY to provide 
   // multidimensional array access to this data.
@@ -28,7 +28,7 @@ typedef struct
 
   // The centering of the data.
   unimesh_centering_t centering;
-} unimesh_patch_t;
+};
 
 // These macros generate multidimensional arrays that can access the given
 // patch's data using C99 variable-length arrays.

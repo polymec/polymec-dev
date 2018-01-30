@@ -82,25 +82,34 @@ void unimesh_field_set_buffer(unimesh_field_t* field,
                               void* buffer, 
                               bool assume_control);
 
-// Performs a synchronous exchange of data between the patches in this field,
-// returning when the exchange has completed. For cell-centered data, this 
-// means filling ghost cells. For faces, nodes, and edges, it means 
-// overwriting data on the boundary of a patch with that stored in the patch 
-// that "owns" the face, edge, or node. The patch containing a given face, 
-// edge, or node and with the smallest patch index (ip, jp, kp) in the grid 
-// owns the data for that face, edge, or node.
-void unimesh_field_exchange(unimesh_field_t* field);
+// Assigns the given boundary condition to the patch (i, j, k) within this 
+// field. This boundary condition will be used to update the patch boundary 
+// data indicated by the patch boundary, for this field only.
+void unimesh_field_set_patch_bc(unimesh_field_t* field,
+                                int i, int j, int k,
+                                unimesh_boundary_t patch_boundary,
+                                unimesh_patch_bc_t* patch_bc);
 
-// Begins an asynchronous exchange of data between the patches in this field.
-void unimesh_field_start_exchange(unimesh_field_t* field);
+// Synchronously updates all of the boundary data in the patches within this 
+// field at time t, returning when finished. For cell-centered data, this 
+// means filling ghost cells. For face-, node-, and edge-centered data, it 
+// means overwriting values on the boundary of each patch with data supplied 
+// by the boundary condition for that patch. 
+void unimesh_field_update_patch_boundaries(unimesh_field_t* field,
+                                           real_t t);
 
-// Finishes an asynchronous exchange initiated with 
-// unimesh_field_start_exchange.
-void unimesh_field_finish_exchange(unimesh_field_t* field);
+// Begins an asynchronous update of boundary data for the patches in this 
+// field at time t.
+void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
+                                                   real_t t);
 
-// Returns true if this field is in the middle of an asynchronous exchange,
-// false if not.
-bool unimesh_field_is_exchanging(unimesh_field_t* field);
+// Finishes an asynchronous patch boundary update initiated with 
+// unimesh_field_start_updating_patch_boundaries.
+void unimesh_field_finish_updating_patch_boundaries(unimesh_field_t* field);
+
+// Returns true if this field is in the middle of an asynchronous patch,
+// boundary update, false if not.
+bool unimesh_field_is_updating_patch_boundaries(unimesh_field_t* field);
 
 #endif
 

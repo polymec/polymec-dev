@@ -1,0 +1,114 @@
+// Copyright (c) 2012-2018, Jeffrey N. Johnson
+// All rights reserved.
+// 
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#ifndef POLYMEC_UNIMESH_PATCH_BC_H
+#define POLYMEC_UNIMESH_PATCH_BC_H
+
+#include "geometry/unimesh.h"
+
+// Forward declaration of unimesh_patch.
+typedef struct unimesh_patch_t unimesh_patch_t;
+
+// A unimesh_patch_bc is a boundary condition that can update boundary data
+// on one or more patches within a unimesh. Objects of this type are garbage 
+// collected.
+typedef struct unimesh_patch_bc_t unimesh_patch_bc_t;
+
+// This virtual table allows one to define the behavior of a unimesh_patch_bc.
+typedef struct 
+{
+  // This method returns true if this object can deal with patch data with 
+  // the given centering, false if not.
+  bool (*handles_centering)(void* context, unimesh_centering_t centering);
+
+  // This method starts updating boundary data for patch (i, j, k) on the 
+  // given mesh, ultimately filling in values on the specified boundary at 
+  // time t. The data components updated are identified by the indices stored 
+  // in the components array. If num_components is 0, components will be NULL, 
+  // and all data components should be updated.
+  void (*start_update)(void* context, 
+                       unimesh_t* mesh, 
+                       int i, int j, int k,
+                       real_t t,
+                       int* components,
+                       int num_components,
+                       unimesh_boundary_t patch_boundary,
+                       unimesh_patch_t* patch);
+
+  // This method finishes updating boundary data for patch (i, j, k) on the 
+  // given mesh, filling in values on the specified boundary at 
+  // time t. 
+  void (*finish_update)(void* context, 
+                        unimesh_t* mesh, 
+                        int i, int j, int k,
+                        real_t t,
+                        int* components,
+                        int num_components,
+                        unimesh_boundary_t patch_boundary,
+                        unimesh_patch_t* patch);
+
+  // This destructor frees the context pointer and any data within.
+  void (*dtor)(void* context);
+} unimesh_patch_bc_vtable;
+
+// Creates a new unimesh patch boundary condition with the given name context 
+// pointer, and vtable, associated with the given unimesh. The boundary
+// conditions operates on all components for all patch data and does not 
+// depend on the number of components.
+unimesh_patch_bc_t* unimesh_patch_bc_new(const char* name,
+                                         void* context,
+                                         unimesh_patch_bc_vtable vtable,
+                                         unimesh_t* mesh);
+
+// Creates a new multi-component unimesh patch boundary condition with the 
+// given name context pointer, and vtable, associated with the given unimesh, 
+// and operating on the given number of components.
+unimesh_patch_bc_t* multicomp_unimesh_patch_bc_new(const char* name,
+                                                   void* context,
+                                                   unimesh_patch_bc_vtable vtable,
+                                                   unimesh_t* mesh,
+                                                   int num_components);
+
+// Returns an internal pointer to the name of this patch boundary condition.
+char* unimesh_patch_bc_name(unimesh_patch_bc_t* bc);
+
+// Returns the number of components affected by this boundary condition, 
+// or 0 if the boundary condition affects all components.
+int unimesh_patch_bc_num_components(unimesh_patch_bc_t* bc);
+
+// Returns an internal pointer to the mesh on which the boundary condition is
+// defined.
+unimesh_t* unimesh_patch_bc_mesh(unimesh_patch_bc_t* bc);
+
+// Returns true if the boundary condition handles data with the given 
+// centering.
+bool unimesh_patch_bc_handles_centering(unimesh_patch_bc_t* bc,
+                                        unimesh_centering_t centering);
+
+// Synchronously updates the boundary data for the given patch at (i, j, k) 
+// on the specified boundary at time t.
+void unimesh_patch_bc_update(unimesh_patch_bc_t* bc,
+                             int i, int j, int k, real_t t,
+                             unimesh_boundary_t patch_boundary,
+                             unimesh_patch_t* patch);
+
+// Begins an asynchronous update of the boundary data for the given patch
+// (previously invoked by unimesh_patch_bc_start_update).
+void unimesh_patch_bc_start_update(unimesh_patch_bc_t* bc,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch);
+
+// Finishes a asynchronous update of the boundary data for the given patch
+// (previously invoked by unimesh_patch_bc_start_update).
+void unimesh_patch_bc_finish_update(unimesh_patch_bc_t* bc,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch);
+
+#endif
+

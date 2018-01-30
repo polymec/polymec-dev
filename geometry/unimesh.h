@@ -9,7 +9,6 @@
 #define POLYMEC_UNIMESH_H
 
 #include "core/point.h"
-#include "core/serializer.h"
 
 // A unimesh, or uniform mesh is a three-dimensional cartesian mesh whose
 // cells are all identical. It consists of a set of uniformly-sized patches. 
@@ -40,6 +39,12 @@ typedef enum
   UNIMESH_Z2_BOUNDARY
 } unimesh_boundary_t;
 
+// Patch data itself.
+typedef struct unimesh_patch_t unimesh_patch_t;
+
+// Boundary condition type for patch data.
+typedef struct unimesh_patch_bc_t unimesh_patch_bc_t;
+
 //------------------------------------------------------------------------
 //                          Construction methods
 //------------------------------------------------------------------------
@@ -57,6 +62,15 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
 
 // Inserts a new patch at (i, j, k) in the nx x ny x nz array of patches.
 void unimesh_insert_patch(unimesh_t* mesh, int i, int j, int k);
+
+// Assigns the given boundary condition to the patch (i, j, k) on this 
+// mesh, using it to update the patch boundary data indicated by the 
+// patch boundary. Only boundary conditions that update ALL components
+// may be assigned to a mesh.
+void unimesh_set_patch_bc(unimesh_t* mesh,
+                          int i, int j, int k,
+                          unimesh_boundary_t patch_boundary,
+                          unimesh_patch_bc_t* patch_bc);
 
 // Finalizes the construction process for the mesh. This must be called 
 // before any of the mesh's usage methods (below) are invoked. Should only 
@@ -121,30 +135,25 @@ bool unimesh_next_patch(unimesh_t* mesh, int* pos,
 // Returns true if the mesh has a patch at (i, j, k), false if not.
 bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k);
 
-// Associates a named piece of metadata (a "property") with the mesh itself.
-// This can be used to store information about (for example) how the mesh 
-// was generated, which can sometimes be useful. A serializer can 
-// be given so that any partitioning or repartitioning of the mesh can 
-// preserve this property on subdomains. If the given property exists on the 
-// mesh, it is overwritten.
-void unimesh_set_property(unimesh_t* mesh, 
-                          const char* property, 
-                          void* data, 
-                          serializer_t* serializer);
+// Synchronously updates the boundary data on the patch (i, j, k) on this 
+// mesh at time t, returning when the update is complete.
+void unimesh_update_patch_boundary(unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t boundary,
+                                   unimesh_patch_t* patch);
 
-// Retrieves the given property from the mesh, if any. If the 
-// property is not found, this returns NULL.
-void* unimesh_property(unimesh_t* mesh, const char* property);
+// Begins an asynchronous update to boundary data on the patch (i, j, k) on 
+// this mesh at time t.
+void unimesh_start_updating_patch_boundary(unimesh_t* mesh,
+                                           int i, int j, int k, real_t t,
+                                           unimesh_boundary_t boundary,
+                                           unimesh_patch_t* patch);
 
-// Deletes the given property from the mesh. This has no effect if the 
-// property is not found.
-void unimesh_delete_property(unimesh_t* mesh, const char* property);
-
-// Allows the traversal of mesh properties. Set *pos to 0 to reset the 
-// iteration.
-bool unimesh_next_property(unimesh_t* mesh, int* pos, 
-                           char** prop_name, void** prop_data, 
-                           serializer_t** prop_serializer);
+// Finishes an asynchronous update to boundary data invoked previously by 
+// unimesh_start_updating_patch_boundaries.
+void unimesh_finish_updating_patch_boundary(unimesh_t* mesh,
+                                            unimesh_boundary_t boundary,
+                                            unimesh_patch_t* patch);
 
 #endif
 
