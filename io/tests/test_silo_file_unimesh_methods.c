@@ -19,7 +19,8 @@ static void test_write_unimesh(void** state)
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
   unimesh_t* mesh1 = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                 4, 4, 4, 10, 10, 10); 
+                                 4, 4, 4, 10, 10, 10, 
+                                 false, false, false); 
 
   // Write the mesh to a file.
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "test_silo_file_unimesh_methods", "test_write_unimesh", 1, 0, 0.0);
@@ -57,7 +58,8 @@ static void test_write_unimesh_cell_field(void** state)
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
   unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                4, 4, 4, 10, 10, 10); 
+                                4, 4, 4, 10, 10, 10,
+                                false, false, false); 
 
   // Make a 4-component cell-centered field on this mesh.
   unimesh_field_t* field = unimesh_field_new(mesh, UNIMESH_CELL, 4);
@@ -118,7 +120,8 @@ static void test_write_unimesh_face_field(void** state)
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
   unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                4, 4, 4, 10, 10, 10); 
+                                4, 4, 4, 10, 10, 10,
+                                false, false, false); 
 
   // Make 4-component face-centered fields on this mesh.
   unimesh_field_t* x_field = unimesh_field_new(mesh, UNIMESH_XFACE, 4);
@@ -244,7 +247,8 @@ static void test_write_unimesh_edge_field(void** state)
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
   unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                4, 4, 4, 10, 10, 10); 
+                                4, 4, 4, 10, 10, 10,
+                                false, false, false); 
 
   // Make 4-component edge-centered fields on this mesh.
   unimesh_field_t* x_field = unimesh_field_new(mesh, UNIMESH_XEDGE, 4);
@@ -370,7 +374,8 @@ static void test_write_unimesh_node_field(void** state)
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
   unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                4, 4, 4, 10, 10, 10); 
+                                4, 4, 4, 10, 10, 10,
+                                false, false, false); 
 
   // Make a 4-component node-centered field on this mesh.
   unimesh_field_t* field = unimesh_field_new(mesh, UNIMESH_NODE, 4);

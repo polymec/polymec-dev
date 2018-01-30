@@ -142,7 +142,7 @@ void silo_file_write_unimesh(silo_file_t* file,
     silo_file_write_real_array(file, bbox_name, (real_t*)bbox, 6);
   }
 
-  // Write extent and patch size information for this mesh.
+  // Write extent, patch size, and periodicity information for this mesh.
   {
     char array_name[FILENAME_MAX+1];
     snprintf(array_name, FILENAME_MAX, "%s_extents", mesh_name);
@@ -151,6 +151,12 @@ void silo_file_write_unimesh(silo_file_t* file,
     snprintf(array_name, FILENAME_MAX, "%s_patch_sizes", mesh_name);
     int patch_sizes[3] = {nx, ny, nz};
     silo_file_write_int_array(file, array_name, patch_sizes, 3);
+    snprintf(array_name, FILENAME_MAX, "%s_periodicity", mesh_name);
+    int periodicity[3];
+    periodicity[0] = unimesh_is_periodic_in_x(mesh);
+    periodicity[1] = unimesh_is_periodic_in_y(mesh);
+    periodicity[2] = unimesh_is_periodic_in_z(mesh);
+    silo_file_write_int_array(file, array_name, periodicity, 3);
   }
 
   char* patch_grid_names[num_local_patches];
@@ -226,6 +232,22 @@ static void read_unimesh_extent_and_patch_size(silo_file_t* file,
   polymec_free(patch_sizes);
 }
 
+static void read_unimesh_periodicity(silo_file_t* file,
+                                     const char* mesh_name,
+                                     bool* x_periodic, bool* y_periodic, bool* z_periodic)
+{
+  char array_name[FILENAME_MAX+1];
+  snprintf(array_name, FILENAME_MAX, "%s_periodicity", mesh_name);
+  size_t size;
+  int* periodicity = silo_file_read_int_array(file, array_name, &size);
+  if (size != 3)
+    polymec_error("silo_file_read_unimesh: Invalid periodicity data.");
+  *x_periodic = (periodicity[0] != 0);
+  *y_periodic = (periodicity[1] != 0);
+  *z_periodic = (periodicity[2] != 0);
+  polymec_free(periodicity);
+}
+
 static void read_unimesh_patch_indices(silo_file_t* file,
                                        const char* mesh_name,
                                        int_array_t* i_array,
@@ -273,13 +295,20 @@ unimesh_t* silo_file_read_unimesh(silo_file_t* file,
   int npx, npy, npz, nx, ny, nz;
   read_unimesh_extent_and_patch_size(file, mesh_name, &npx, &npy, &npz, &nx, &ny, &nz);
 
+  // Read the periodicity information for the mesh.
+  bool x_periodic, y_periodic, z_periodic;
+  read_unimesh_periodicity(file, mesh_name, &x_periodic, &y_periodic, &z_periodic);
+
   // Create the mesh.
 #if POLYMEC_HAVE_MPI
   MPI_Comm comm = silo_file_comm(file);
 #else
   MPI_Comm comm = MPI_COMM_WORLD;
 #endif
-  unimesh_t* mesh = create_empty_unimesh(comm, &bbox, npx, npy, npz, nx, ny, nz);
+  unimesh_t* mesh = create_empty_unimesh(comm, &bbox, 
+                                         npx, npy, npz, 
+                                         nx, ny, nz,
+                                         x_periodic, y_periodic, z_periodic);
 
   // Fill it with patches whose indices we read from the file.
   int_array_t* i_array = int_array_new();

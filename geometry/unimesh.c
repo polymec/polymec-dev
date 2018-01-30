@@ -55,6 +55,7 @@ struct unimesh_t
 
   // Intrinsic metadata.
   int npx, npy, npz, nx, ny, nz;
+  bool periodic_in_x, periodic_in_y, periodic_in_z;
   
   // Information about which patches are present.
   int_unordered_set_t* patches;
@@ -64,16 +65,17 @@ struct unimesh_t
   ptr_array_t* patch_bcs;
   update_map_t* pending_updates;
 
+  // Buffer for local and remote copying of patch boundaries.
+  real_array_t* patch_boundary_buffer;
+
   // This flag is set by unimesh_finalize() after a mesh has been assembled.
   bool finalized;
-
-  // Properties stored in this mesh.
-  string_ptr_unordered_map_t* properties;
 };
 
 unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
                                 int npx, int npy, int npz, 
-                                int nx, int ny, int nz)
+                                int nx, int ny, int nz,
+                                bool periodic_in_x, bool periodic_in_y, bool periodic_in_z)
 {
   ASSERT(!bbox_is_empty_set(bbox));
   ASSERT(npx > 0);
@@ -98,12 +100,15 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
   mesh->nx = nx;
   mesh->ny = ny;
   mesh->nz = nz;
+  mesh->periodic_in_x = periodic_in_x;
+  mesh->periodic_in_y = periodic_in_y;
+  mesh->periodic_in_z = periodic_in_z;
   mesh->patches = int_unordered_set_new();
   mesh->patch_indices = NULL;
   mesh->patch_bcs = ptr_array_new();
   mesh->pending_updates = update_map_new();
+  mesh->patch_boundary_buffer = real_array_new();
   mesh->finalized = false;
-  mesh->properties = string_ptr_unordered_map_new();
   return mesh;
 }
 
@@ -120,50 +125,109 @@ void unimesh_insert_patch(unimesh_t* mesh, int i, int j, int k)
   int_unordered_set_insert(mesh->patches, index);
 }
 
-void unimesh_set_patch_bc(unimesh_t* mesh,
-                          int i, int j, int k,
-                          unimesh_boundary_t patch_boundary,
-                          unimesh_patch_bc_t* patch_bc)
+static void unimesh_set_patch_bc(unimesh_t* mesh,
+                                 int i, int j, int k,
+                                 unimesh_boundary_t patch_boundary,
+                                 unimesh_patch_bc_t* patch_bc)
 {
-  ASSERT(!mesh->finalized);
   ASSERT(unimesh_has_patch(mesh, i, j, k));
   ASSERT(unimesh_patch_bc_num_components(patch_bc) == 0);
   int index = patch_index(mesh, i, j, k);
   if (mesh->patch_bcs->size <= index)
   {
     size_t old_size = mesh->patch_bcs->size;
-    ptr_array_resize(mesh->patch_bcs, index+1);
+    ptr_array_resize(mesh->patch_bcs, 6*(index+1));
     memset(&mesh->patch_bcs->data[old_size], 0, sizeof(void*) * mesh->patch_bcs->size - old_size);
   }
+  polymec_retain(patch_bc);
   ptr_array_append_with_dtor(mesh->patch_bcs, patch_bc, polymec_release);
 }
 
-static void set_up_local_patch_bcs(unimesh_t* mesh)
+static unimesh_patch_bc_t* unimesh_copy_bc(unimesh_t* mesh)
 {
+  return NULL;
 }
 
-static void set_up_remote_patch_bcs(unimesh_t* mesh)
+static unimesh_patch_bc_t* unimesh_periodic_bc(unimesh_t* mesh)
 {
+  return NULL;
 }
 
-static void verify_all_patches_have_bcs(unimesh_t* mesh)
+static unimesh_patch_bc_t* unimesh_remote_bc(unimesh_t* mesh)
 {
-  for (size_t index = 0; index < mesh->patches->size; ++index)
+  return NULL;
+}
+
+static void set_up_patch_bcs(unimesh_t* mesh)
+{
+  // Here's some ready-made boundary conditions.
+  unimesh_patch_bc_t* copy_bc = unimesh_copy_bc(mesh);
+  unimesh_patch_bc_t* periodic_bc = unimesh_periodic_bc(mesh);
+  unimesh_patch_bc_t* remote_bc = unimesh_remote_bc(mesh);
+
+  // Assign these to each patch in the mesh.
+  int pos = 0, i, j, k;
+  while (unimesh_next_patch(mesh, &pos, &i, &j, &k, NULL))
   {
-    int i = mesh->patch_indices[3*index];
-    int j = mesh->patch_indices[3*index+1];
-    int k = mesh->patch_indices[3*index+2];
-    static const char* bc_name[6] = {"x1", "x2", "y1", "y2", "z1", "z2"};
-    for (int l = 0; l < 6; ++l)
-    {
-      unimesh_patch_bc_t* bc = mesh->patch_bcs->data[6*index+l];
-      if (bc == NULL)
-      {
-        polymec_error("unimesh_finalize: patch (%d, %d, %d) missing %s boundary condition!",
-                      i, j, k, bc_name);
-      }
-    }
+    unimesh_patch_bc_t *x1_bc, *x2_bc, *y1_bc, *y2_bc, *z1_bc, *z2_bc;
+
+    // x boundaries
+    if (unimesh_has_patch(mesh, i-1, j, k))
+      x1_bc = copy_bc;
+    else if (mesh->periodic_in_x && (i == 0) && unimesh_has_patch(mesh, mesh->npx-1, j, k))
+      x1_bc = periodic_bc;
+    else
+      x1_bc = remote_bc;
+
+    if (unimesh_has_patch(mesh, i+1, j, k))
+      x2_bc = copy_bc;
+    else if (mesh->periodic_in_x && (i == mesh->npx-1) && unimesh_has_patch(mesh, 0, j, k))
+      x2_bc = periodic_bc;
+    else
+      x2_bc = remote_bc;
+
+    // y boundaries
+    if (unimesh_has_patch(mesh, i, j-1, k))
+      y1_bc = copy_bc;
+    else if (mesh->periodic_in_y && (j == 0) && unimesh_has_patch(mesh, i, mesh->npy-1, k))
+      y1_bc = periodic_bc;
+    else
+      y1_bc = remote_bc;
+
+    if (unimesh_has_patch(mesh, i, j+1, k))
+      y2_bc = copy_bc;
+    else if (mesh->periodic_in_y && (j == mesh->npy-1) && unimesh_has_patch(mesh, i, 0, k))
+      y2_bc = periodic_bc;
+    else
+      y2_bc = remote_bc;
+
+    // z boundaries
+    if (unimesh_has_patch(mesh, i, j, k-1))
+      z1_bc = copy_bc;
+    else if (mesh->periodic_in_z && (k == 0) && unimesh_has_patch(mesh, i, j, mesh->npz-1))
+      z1_bc = periodic_bc;
+    else
+      z1_bc = remote_bc;
+
+    if (unimesh_has_patch(mesh, i, j, k+1))
+      z2_bc = copy_bc;
+    else if (mesh->periodic_in_z && (i == mesh->npz-1) && unimesh_has_patch(mesh, i, j, 0))
+      z2_bc = periodic_bc;
+    else
+      z2_bc = remote_bc;
+
+    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_X1_BOUNDARY, x1_bc);
+    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_X2_BOUNDARY, x2_bc);
+    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Y1_BOUNDARY, y1_bc);
+    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Y2_BOUNDARY, y2_bc);
+    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Z1_BOUNDARY, z1_bc);
+    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Z2_BOUNDARY, z2_bc);
   }
+
+  // Get rid of extra references.
+  polymec_release(copy_bc);
+  polymec_release(periodic_bc);
+  polymec_release(remote_bc);
 }
 
 void unimesh_finalize(unimesh_t* mesh)
@@ -193,20 +257,20 @@ void unimesh_finalize(unimesh_t* mesh)
   ASSERT(l == mesh->patches->size);
 
   // Now make sure every patch has a set of boundary conditions.
-  set_up_local_patch_bcs(mesh);
-  set_up_remote_patch_bcs(mesh);
-  verify_all_patches_have_bcs(mesh);
+  set_up_patch_bcs(mesh);
 
   mesh->finalized = true;
 }
 
 unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                        int npx, int npy, int npz, 
-                       int nx, int ny, int nz)
+                       int nx, int ny, int nz,
+                       bool periodic_in_x, bool periodic_in_y, bool periodic_in_z)
 {
   unimesh_t* mesh = create_empty_unimesh(comm, bbox, 
                                          npx, npy, npz,
-                                         nx, ny, nz);
+                                         nx, ny, nz,
+                                         periodic_in_x, periodic_in_y, periodic_in_z);
 
   if (comm == MPI_COMM_SELF) // every proc gets all patches!
   {
@@ -252,6 +316,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
 
 void unimesh_free(unimesh_t* mesh)
 {
+  real_array_free(mesh->patch_boundary_buffer);
   update_map_free(mesh->pending_updates);
   ptr_array_free(mesh->patch_bcs);
   int_unordered_set_free(mesh->patches);
@@ -334,6 +399,21 @@ void unimesh_get_patch_size(unimesh_t* mesh, int* nx, int* ny, int* nz)
 int unimesh_num_patches(unimesh_t* mesh)
 {
   return mesh->patches->size;
+}
+
+bool unimesh_is_periodic_in_x(unimesh_t* mesh)
+{
+  return mesh->periodic_in_x;
+}
+
+bool unimesh_is_periodic_in_y(unimesh_t* mesh)
+{
+  return mesh->periodic_in_y;
+}
+
+bool unimesh_is_periodic_in_z(unimesh_t* mesh)
+{
+  return mesh->periodic_in_z;
 }
 
 bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k)

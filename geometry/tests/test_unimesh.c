@@ -18,7 +18,8 @@ static void test_ctors(void** state)
                  .y1 = 0.0, .y2 = 1.0,
                  .z1 = 0.0, .z2 = 1.0};
 
-  unimesh_t* mesh = unimesh_new(MPI_COMM_SELF, &bbox, 4, 4, 4, 10, 10, 10);
+  unimesh_t* mesh = unimesh_new(MPI_COMM_SELF, &bbox, 4, 4, 4, 10, 10, 10,
+                                false, false, false);
   assert_true(unimesh_comm(mesh) == MPI_COMM_SELF);
   assert_int_equal(4*4*4, unimesh_num_patches(mesh));
   real_t dx, dy, dz;
@@ -35,9 +36,13 @@ static void test_ctors(void** state)
   assert_int_equal(10, nx);
   assert_int_equal(10, ny);
   assert_int_equal(10, nz);
+  assert_false(unimesh_is_periodic_in_x(mesh));
+  assert_false(unimesh_is_periodic_in_y(mesh));
+  assert_false(unimesh_is_periodic_in_z(mesh));
   unimesh_free(mesh);
 
-  mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 4, 4, 4, 10, 10, 10);
+  mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 4, 4, 4, 10, 10, 10, 
+                     true, true, true);
   assert_true(unimesh_comm(mesh) == MPI_COMM_WORLD);
   assert_true(unimesh_num_patches(mesh) <= 4*4*4);
   unimesh_get_spacings(mesh, &dx, &dy, &dz);
@@ -52,6 +57,9 @@ static void test_ctors(void** state)
   assert_int_equal(10, nx);
   assert_int_equal(10, ny);
   assert_int_equal(10, nz);
+  assert_true(unimesh_is_periodic_in_x(mesh));
+  assert_true(unimesh_is_periodic_in_y(mesh));
+  assert_true(unimesh_is_periodic_in_z(mesh));
   unimesh_free(mesh);
 }
 

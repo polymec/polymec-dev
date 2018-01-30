@@ -885,7 +885,29 @@ static int um_new(lua_State* L)
   if (nz < 1)
     luaL_error(L, "nz must be positive.");
 
-  unimesh_t* mesh = unimesh_new(comm, bbox, npx, npy, npz, nx, ny, nz);
+  bool x_periodic = false;
+  lua_getfield(L, 1, "periodic_in_x");
+  if (lua_isboolean(L, -1))
+    x_periodic = lua_toboolean(L, -1);
+  else if (!lua_isnil(L, -1))
+    luaL_error(L, "periodic_in_x must be a boolean.");
+
+  bool y_periodic = false;
+  lua_getfield(L, 1, "periodic_in_y");
+  if (lua_isboolean(L, -1))
+    y_periodic = lua_toboolean(L, -1);
+  else if (!lua_isnil(L, -1))
+    luaL_error(L, "periodic_in_y must be a boolean.");
+
+  bool z_periodic = false;
+  lua_getfield(L, 1, "periodic_in_z");
+  if (lua_isboolean(L, -1))
+    z_periodic = lua_toboolean(L, -1);
+  else if (!lua_isnil(L, -1))
+    luaL_error(L, "periodic_in_z must be a boolean.");
+
+  unimesh_t* mesh = unimesh_new(comm, bbox, npx, npy, npz, nx, ny, nz,
+                                x_periodic, y_periodic, z_periodic);
   lua_push_unimesh(L, mesh);
   return 1;
 }

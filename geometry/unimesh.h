@@ -55,22 +55,15 @@ typedef struct unimesh_patch_bc_t unimesh_patch_bc_t;
 
 // Creates a new empty mesh level defined on the region filling 
 // the given bounding box with npx x npy x npz patches of size nx x ny x nz. 
-// This mesh is not associated with any other meshs.
+// Use periodic_in_[x,y,z] to indicate whether the mesh is periodic in the 
+// x, y, and/or z directions. This mesh is not associated with any other meshs.
 unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox, 
                                 int npx, int npy, int npz, 
-                                int nx, int ny, int nz);
+                                int nx, int ny, int nz,
+                                bool periodic_in_x, bool periodic_in_y, bool periodic_in_z);
 
 // Inserts a new patch at (i, j, k) in the nx x ny x nz array of patches.
 void unimesh_insert_patch(unimesh_t* mesh, int i, int j, int k);
-
-// Assigns the given boundary condition to the patch (i, j, k) on this 
-// mesh, using it to update the patch boundary data indicated by the 
-// patch boundary. Only boundary conditions that update ALL components
-// may be assigned to a mesh.
-void unimesh_set_patch_bc(unimesh_t* mesh,
-                          int i, int j, int k,
-                          unimesh_boundary_t patch_boundary,
-                          unimesh_patch_bc_t* patch_bc);
 
 // Finalizes the construction process for the mesh. This must be called 
 // before any of the mesh's usage methods (below) are invoked. Should only 
@@ -89,7 +82,8 @@ void unimesh_finalize(unimesh_t* mesh);
 // cells, filling the region defined by the given bounding box.
 unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                        int npx, int npy, int npz, 
-                       int nx, int ny, int nz);
+                       int nx, int ny, int nz,
+                       bool periodic_in_x, bool periodic_in_y, bool periodic_in_z);
 
 //------------------------------------------------------------------------
 //                          Usage methods
@@ -122,6 +116,15 @@ void unimesh_get_patch_size(unimesh_t* mesh, int* nx, int* ny, int* nz);
 
 // Returns the number of patches that can be stored on this mesh.
 int unimesh_num_patches(unimesh_t* mesh);
+
+// Returns true if the mesh is periodic in the x direction, false if not.
+bool unimesh_is_periodic_in_x(unimesh_t* mesh);
+
+// Returns true if the mesh is periodic in the y direction, false if not.
+bool unimesh_is_periodic_in_y(unimesh_t* mesh);
+
+// Returns true if the mesh is periodic in the z direction, false if not.
+bool unimesh_is_periodic_in_z(unimesh_t* mesh);
 
 // Traverses the patches in the mesh, returning true and the next (i, j, k) 
 // triple if the traversal is incomplete, false otherwise. Set *pos to zero 
