@@ -21,35 +21,77 @@ typedef struct unimesh_patch_bc_t unimesh_patch_bc_t;
 // This virtual table allows one to define the behavior of a unimesh_patch_bc.
 typedef struct 
 {
-  // This method returns true if this object can deal with patch data with 
-  // the given centering, false if not.
-  bool (*handles_centering)(void* context, unimesh_centering_t centering);
+  // The start_*_update methods start updating boundary data for patch 
+  // (i, j, k) on the given mesh, ultimately filling in values on the 
+  // specified boundary at time t. 
+  void (*start_cell_update)(void* context, unimesh_t* mesh, 
+                            int i, int j, int k, real_t t,
+                            unimesh_boundary_t patch_boundary,
+                            unimesh_patch_t* patch);
+  void (*start_xface_update)(void* context, unimesh_t* mesh, 
+                             int i, int j, int k, real_t t,
+                             unimesh_boundary_t patch_boundary,
+                             unimesh_patch_t* patch);
+  void (*start_yface_update)(void* context, unimesh_t* mesh, 
+                             int i, int j, int k, real_t t,
+                             unimesh_boundary_t patch_boundary,
+                             unimesh_patch_t* patch);
+  void (*start_zface_update)(void* context, unimesh_t* mesh, 
+                             int i, int j, int k, real_t t,
+                             unimesh_boundary_t patch_boundary,
+                             unimesh_patch_t* patch);
+  void (*start_xedge_update)(void* context, unimesh_t* mesh, 
+                             int i, int j, int k, real_t t,
+                             unimesh_boundary_t patch_boundary,
+                             unimesh_patch_t* patch);
+  void (*start_yedge_update)(void* context, unimesh_t* mesh, 
+                             int i, int j, int k, real_t t,
+                             unimesh_boundary_t patch_boundary,
+                             unimesh_patch_t* patch);
+  void (*start_zedge_update)(void* context, unimesh_t* mesh, 
+                             int i, int j, int k, real_t t,
+                             unimesh_boundary_t patch_boundary,
+                             unimesh_patch_t* patch);
+  void (*start_node_update)(void* context, unimesh_t* mesh, 
+                            int i, int j, int k, real_t t,
+                            unimesh_boundary_t patch_boundary,
+                            unimesh_patch_t* patch);
 
-  // This method starts updating boundary data for patch (i, j, k) on the 
-  // given mesh, ultimately filling in values on the specified boundary at 
-  // time t. The data components updated are identified by the indices stored 
-  // in the components array. If num_components is 0, components will be NULL, 
-  // and all data components should be updated.
-  void (*start_update)(void* context, 
-                       unimesh_t* mesh, 
-                       int i, int j, int k,
-                       real_t t,
-                       int* components,
-                       int num_components,
-                       unimesh_boundary_t patch_boundary,
-                       unimesh_patch_t* patch);
-
-  // This method finishes updating boundary data for patch (i, j, k) on the 
-  // given mesh, filling in values on the specified boundary at 
-  // time t. 
-  void (*finish_update)(void* context, 
-                        unimesh_t* mesh, 
-                        int i, int j, int k,
-                        real_t t,
-                        int* components,
-                        int num_components,
-                        unimesh_boundary_t patch_boundary,
-                        unimesh_patch_t* patch);
+  // The finish_*_update methods finish updating boundary data for patch 
+  // (i, j, k) on the given mesh, filling in values on the specified boundary 
+  // at time t. 
+  void (*finish_cell_update)(void* context, unimesh_t* mesh, 
+                             int i, int j, int k, real_t t,
+                             unimesh_boundary_t patch_boundary,
+                             unimesh_patch_t* patch);
+  void (*finish_xface_update)(void* context, unimesh_t* mesh, 
+                              int i, int j, int k, real_t t,
+                              unimesh_boundary_t patch_boundary,
+                              unimesh_patch_t* patch);
+  void (*finish_yface_update)(void* context, unimesh_t* mesh, 
+                              int i, int j, int k, real_t t,
+                              unimesh_boundary_t patch_boundary,
+                              unimesh_patch_t* patch);
+  void (*finish_zface_update)(void* context, unimesh_t* mesh, 
+                              int i, int j, int k, real_t t,
+                              unimesh_boundary_t patch_boundary,
+                              unimesh_patch_t* patch);
+  void (*finish_xedge_update)(void* context, unimesh_t* mesh, 
+                              int i, int j, int k, real_t t,
+                              unimesh_boundary_t patch_boundary,
+                              unimesh_patch_t* patch);
+  void (*finish_yedge_update)(void* context, unimesh_t* mesh, 
+                              int i, int j, int k, real_t t,
+                              unimesh_boundary_t patch_boundary,
+                              unimesh_patch_t* patch);
+  void (*finish_zedge_update)(void* context, unimesh_t* mesh, 
+                              int i, int j, int k, real_t t,
+                              unimesh_boundary_t patch_boundary,
+                              unimesh_patch_t* patch);
+  void (*finish_node_update)(void* context, unimesh_t* mesh, 
+                             int i, int j, int k, real_t t,
+                             unimesh_boundary_t patch_boundary,
+                             unimesh_patch_t* patch);
 
   // This destructor frees the context pointer and any data within.
   void (*dtor)(void* context);

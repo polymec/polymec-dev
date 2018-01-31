@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "geometry/unimesh_patch_bc.h"
+#include "geometry/unimesh_patch.h"
 
 struct unimesh_patch_bc_t 
 {
@@ -32,10 +33,6 @@ unimesh_patch_bc_t* unimesh_patch_bc_new(const char* name,
                                          unimesh_patch_bc_vtable vtable,
                                          unimesh_t* mesh)
 {
-  ASSERT(vtable.handles_centering != NULL);
-  ASSERT(vtable.start_update != NULL);
-  ASSERT(vtable.finish_update != NULL);
-
   unimesh_patch_bc_t* bc = polymec_gc_malloc(sizeof(unimesh_patch_bc_t), 
                                              unimesh_patch_bc_free);
   bc->name = string_dup(name);
@@ -52,17 +49,8 @@ unimesh_patch_bc_t* multicomp_unimesh_patch_bc_new(const char* name,
                                                    unimesh_t* mesh,
                                                    int num_components)
 {
-  ASSERT(vtable.handles_centering != NULL);
-  ASSERT(vtable.start_update != NULL);
-  ASSERT(vtable.finish_update != NULL);
   ASSERT(num_components > 0);
-
-  unimesh_patch_bc_t* bc = polymec_gc_malloc(sizeof(unimesh_patch_bc_t), 
-                                             unimesh_patch_bc_free);
-  bc->name = string_dup(name);
-  bc->context = context;
-  bc->vtable = vtable;
-  bc->mesh = mesh;
+  unimesh_patch_bc_t* bc = unimesh_patch_bc_new(name, context, vtable, mesh);
   bc->num_components = num_components;
   return bc;
 }
@@ -85,7 +73,14 @@ unimesh_t* unimesh_patch_bc_mesh(unimesh_patch_bc_t* bc)
 bool unimesh_patch_bc_handles_centering(unimesh_patch_bc_t* bc,
                                         unimesh_centering_t centering)
 {
-  return bc->vtable.handles_centering(bc->context, centering);
+  return (((centering == UNIMESH_CELL) && (bc->vtable.start_cell_update != NULL)) ||
+          ((centering == UNIMESH_XFACE) && (bc->vtable.start_xface_update != NULL)) ||
+          ((centering == UNIMESH_YFACE) && (bc->vtable.start_yface_update != NULL)) ||
+          ((centering == UNIMESH_ZFACE) && (bc->vtable.start_zface_update != NULL)) ||
+          ((centering == UNIMESH_XEDGE) && (bc->vtable.start_xedge_update != NULL)) ||
+          ((centering == UNIMESH_YEDGE) && (bc->vtable.start_yedge_update != NULL)) ||
+          ((centering == UNIMESH_ZEDGE) && (bc->vtable.start_zedge_update != NULL)) ||
+          ((centering == UNIMESH_NODE) && (bc->vtable.start_node_update != NULL)));
 }
 
 void unimesh_patch_bc_update(unimesh_patch_bc_t* bc,
@@ -102,9 +97,29 @@ void unimesh_patch_bc_start_update(unimesh_patch_bc_t* bc,
                                    unimesh_boundary_t patch_boundary,
                                    unimesh_patch_t* patch)
 {
-  bc->vtable.start_update(bc->context, bc->mesh, i, j, k, t,
-                          bc->components, bc->num_components, 
-                          patch_boundary, patch);
+  void (*start_update)(void*, unimesh_t*, int, int, int, real_t, 
+                       unimesh_boundary_t, unimesh_patch_t*);
+  switch(patch->centering) 
+  {
+    case UNIMESH_CELL:
+      start_update = bc->vtable.start_cell_update; break;
+    case UNIMESH_XFACE:
+      start_update = bc->vtable.start_xface_update; break;
+    case UNIMESH_YFACE:
+      start_update = bc->vtable.start_yface_update; break;
+    case UNIMESH_ZFACE:
+      start_update = bc->vtable.start_zface_update; break;
+    case UNIMESH_XEDGE:
+      start_update = bc->vtable.start_xedge_update; break;
+    case UNIMESH_YEDGE:
+      start_update = bc->vtable.start_yedge_update; break;
+    case UNIMESH_ZEDGE:
+      start_update = bc->vtable.start_zedge_update; break;
+    default:
+      start_update = bc->vtable.start_node_update; 
+  }
+  ASSERT(start_update != NULL);
+  start_update(bc->context, bc->mesh, i, j, k, t, patch_boundary, patch);
 }
 
 void unimesh_patch_bc_finish_update(unimesh_patch_bc_t* bc,
@@ -112,8 +127,28 @@ void unimesh_patch_bc_finish_update(unimesh_patch_bc_t* bc,
                                     unimesh_boundary_t patch_boundary,
                                     unimesh_patch_t* patch)
 {
-  bc->vtable.finish_update(bc->context, bc->mesh, i, j, k, t,
-                           bc->components, bc->num_components, 
-                           patch_boundary, patch);
+  void (*finish_update)(void*, unimesh_t*, int, int, int, real_t, 
+                        unimesh_boundary_t, unimesh_patch_t*);
+  switch(patch->centering) 
+  {
+    case UNIMESH_CELL:
+      finish_update = bc->vtable.finish_cell_update; break;
+    case UNIMESH_XFACE:
+      finish_update = bc->vtable.finish_xface_update; break;
+    case UNIMESH_YFACE:
+      finish_update = bc->vtable.finish_yface_update; break;
+    case UNIMESH_ZFACE:
+      finish_update = bc->vtable.finish_zface_update; break;
+    case UNIMESH_XEDGE:
+      finish_update = bc->vtable.finish_xedge_update; break;
+    case UNIMESH_YEDGE:
+      finish_update = bc->vtable.finish_yedge_update; break;
+    case UNIMESH_ZEDGE:
+      finish_update = bc->vtable.finish_zedge_update; break;
+    default:
+      finish_update = bc->vtable.finish_node_update;
+  }
+  if (finish_update != NULL)
+    finish_update(bc->context, bc->mesh, i, j, k, t, patch_boundary, patch);
 }
 

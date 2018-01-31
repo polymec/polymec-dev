@@ -15,6 +15,8 @@
 #include <omp.h>
 #endif
 
+DEFINE_UNORDERED_MAP(patch_bc_map, int, unimesh_patch_bc_t**, int_hash, int_equals)
+
 // This thingy holds the data we need to track for pending patch updates.
 typedef struct
 {
@@ -62,7 +64,7 @@ struct unimesh_t
   int* patch_indices;
 
   // Patch boundary conditions.
-  ptr_array_t* patch_bcs;
+  patch_bc_map_t* patch_bcs;
   update_map_t* pending_updates;
 
   // Buffer for local and remote copying of patch boundaries.
@@ -105,7 +107,7 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
   mesh->periodic_in_z = periodic_in_z;
   mesh->patches = int_unordered_set_new();
   mesh->patch_indices = NULL;
-  mesh->patch_bcs = ptr_array_new();
+  mesh->patch_bcs = patch_bc_map_new();
   mesh->pending_updates = update_map_new();
   mesh->patch_boundary_buffer = real_array_new();
   mesh->finalized = false;
@@ -125,6 +127,13 @@ void unimesh_insert_patch(unimesh_t* mesh, int i, int j, int k)
   int_unordered_set_insert(mesh->patches, index);
 }
 
+static void patch_bcs_free(unimesh_patch_bc_t** bcs)
+{
+  for (int b = 0; b < 6; ++b)
+    polymec_release(bcs[b]);
+  polymec_free(bcs);
+}
+
 static void unimesh_set_patch_bc(unimesh_t* mesh,
                                  int i, int j, int k,
                                  unimesh_boundary_t patch_boundary,
@@ -133,30 +142,447 @@ static void unimesh_set_patch_bc(unimesh_t* mesh,
   ASSERT(unimesh_has_patch(mesh, i, j, k));
   ASSERT(unimesh_patch_bc_num_components(patch_bc) == 0);
   int index = patch_index(mesh, i, j, k);
-  if (mesh->patch_bcs->size <= index)
+  unimesh_patch_bc_t*** bcs_p = patch_bc_map_get(mesh->patch_bcs, index);
+  unimesh_patch_bc_t** bcs;
+  if (bcs_p == NULL)
   {
-    size_t old_size = mesh->patch_bcs->size;
-    ptr_array_resize(mesh->patch_bcs, 6*(index+1));
-    memset(&mesh->patch_bcs->data[old_size], 0, sizeof(void*) * mesh->patch_bcs->size - old_size);
+    bcs = polymec_malloc(6*sizeof(unimesh_patch_bc_t*));
+    patch_bc_map_insert_with_v_dtor(mesh->patch_bcs, index, bcs, patch_bcs_free);
   }
+  else
+    bcs = *bcs_p;
   polymec_retain(patch_bc);
-  ptr_array_append_with_dtor(mesh->patch_bcs, patch_bc, polymec_release);
+  int b = (int)patch_boundary;
+  bcs[b] = patch_bc;
+}
+
+//------------------------------------------------------------------------
+//                         Local patch copy BC
+//------------------------------------------------------------------------
+static void start_local_cell_copy(void* context, unimesh_t* mesh,
+                                  int i, int j, int k, real_t t,
+                                  unimesh_boundary_t patch_boundary,
+                                  unimesh_patch_t* patch)
+{
+#if 0
+  DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+  if (patch_boundary == UNIMESH_X1_BOUNDARY)
+  {
+    for (int j = 0; j < patch->ny; ++j)
+      for (int k = 0; k < patch->nz; ++k)
+        for (int c = 0; c < patch->nc; ++c)
+          buffer[j][k][c] = a[1][j][c];
+  }
+  else if (patch_boundary == UNIMESH_X1_BOUNDARY)
+  {
+    for (int j = 0; j < patch->ny; ++j)
+      for (int k = 0; k < patch->nz; ++k)
+        for (int c = 0; c < patch->nc; ++c)
+          buffer[j][k][c] = a[patch->nx][j][c];
+  }
+#endif
+}
+
+static void start_local_xface_copy(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch)
+{
+}
+
+static void start_local_yface_copy(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch)
+{
+}
+
+static void start_local_zface_copy(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch)
+{
+}
+
+static void start_local_xedge_copy(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch)
+{
+}
+
+static void start_local_yedge_copy(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch)
+{
+}
+
+static void start_local_zedge_copy(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch)
+{
+}
+
+static void start_local_node_copy(void* context, unimesh_t* mesh,
+                                  int i, int j, int k, real_t t,
+                                  unimesh_boundary_t patch_boundary,
+                                  unimesh_patch_t* patch)
+{
+}
+
+static void finish_local_cell_copy(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch)
+{
+}
+
+static void finish_local_xface_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void finish_local_yface_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void finish_local_zface_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void finish_local_xedge_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void finish_local_yedge_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void finish_local_zedge_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void finish_local_node_copy(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch)
+{
 }
 
 static unimesh_patch_bc_t* unimesh_copy_bc(unimesh_t* mesh)
 {
-  return NULL;
+  unimesh_patch_bc_vtable vtable = {.start_cell_update = start_local_cell_copy,
+                                    .start_xface_update = start_local_xface_copy,
+                                    .start_yface_update = start_local_yface_copy,
+                                    .start_zface_update = start_local_zface_copy,
+                                    .start_xedge_update = start_local_xedge_copy,
+                                    .start_yedge_update = start_local_yedge_copy,
+                                    .start_zedge_update = start_local_zedge_copy,
+                                    .start_node_update = start_local_node_copy,
+                                    .finish_cell_update = finish_local_cell_copy,
+                                    .finish_xface_update = finish_local_xface_copy,
+                                    .finish_yface_update = finish_local_yface_copy,
+                                    .finish_zface_update = finish_local_zface_copy,
+                                    .finish_xedge_update = finish_local_xedge_copy,
+                                    .finish_yedge_update = finish_local_yedge_copy,
+                                    .finish_zedge_update = finish_local_zedge_copy,
+                                    .finish_node_update = finish_local_node_copy};
+  return unimesh_patch_bc_new("local patch copy BC", NULL, vtable, mesh);
+}
+//------------------------------------------------------------------------
+
+//------------------------------------------------------------------------
+//                         Periodic patch copy BC
+//------------------------------------------------------------------------
+static void start_periodic_cell_copy(void* context, unimesh_t* mesh,
+                                     int i, int j, int k, real_t t,
+                                     unimesh_boundary_t patch_boundary,
+                                     unimesh_patch_t* patch)
+{
+}
+
+static void start_periodic_xface_copy(void* context, unimesh_t* mesh,
+                                      int i, int j, int k, real_t t,
+                                      unimesh_boundary_t patch_boundary,
+                                      unimesh_patch_t* patch)
+{
+}
+
+static void start_periodic_yface_copy(void* context, unimesh_t* mesh,
+                                      int i, int j, int k, real_t t,
+                                      unimesh_boundary_t patch_boundary,
+                                      unimesh_patch_t* patch)
+{
+}
+
+static void start_periodic_zface_copy(void* context, unimesh_t* mesh,
+                                      int i, int j, int k, real_t t,
+                                      unimesh_boundary_t patch_boundary,
+                                      unimesh_patch_t* patch)
+{
+}
+
+static void start_periodic_xedge_copy(void* context, unimesh_t* mesh,
+                                      int i, int j, int k, real_t t,
+                                      unimesh_boundary_t patch_boundary,
+                                      unimesh_patch_t* patch)
+{
+}
+
+static void start_periodic_yedge_copy(void* context, unimesh_t* mesh,
+                                      int i, int j, int k, real_t t,
+                                      unimesh_boundary_t patch_boundary,
+                                      unimesh_patch_t* patch)
+{
+}
+
+static void start_periodic_zedge_copy(void* context, unimesh_t* mesh,
+                                      int i, int j, int k, real_t t,
+                                      unimesh_boundary_t patch_boundary,
+                                      unimesh_patch_t* patch)
+{
+}
+
+static void start_periodic_node_copy(void* context, unimesh_t* mesh,
+                                     int i, int j, int k, real_t t,
+                                     unimesh_boundary_t patch_boundary,
+                                     unimesh_patch_t* patch)
+{
+}
+
+static void finish_periodic_cell_copy(void* context, unimesh_t* mesh,
+                                      int i, int j, int k, real_t t,
+                                      unimesh_boundary_t patch_boundary,
+                                      unimesh_patch_t* patch)
+{
+}
+
+static void finish_periodic_xface_copy(void* context, unimesh_t* mesh,
+                                       int i, int j, int k, real_t t,
+                                       unimesh_boundary_t patch_boundary,
+                                       unimesh_patch_t* patch)
+{
+}
+
+static void finish_periodic_yface_copy(void* context, unimesh_t* mesh,
+                                       int i, int j, int k, real_t t,
+                                       unimesh_boundary_t patch_boundary,
+                                       unimesh_patch_t* patch)
+{
+}
+
+static void finish_periodic_zface_copy(void* context, unimesh_t* mesh,
+                                       int i, int j, int k, real_t t,
+                                       unimesh_boundary_t patch_boundary,
+                                       unimesh_patch_t* patch)
+{
+}
+
+static void finish_periodic_xedge_copy(void* context, unimesh_t* mesh,
+                                       int i, int j, int k, real_t t,
+                                       unimesh_boundary_t patch_boundary,
+                                       unimesh_patch_t* patch)
+{
+}
+
+static void finish_periodic_yedge_copy(void* context, unimesh_t* mesh,
+                                       int i, int j, int k, real_t t,
+                                       unimesh_boundary_t patch_boundary,
+                                       unimesh_patch_t* patch)
+{
+}
+
+static void finish_periodic_zedge_copy(void* context, unimesh_t* mesh,
+                                       int i, int j, int k, real_t t,
+                                       unimesh_boundary_t patch_boundary,
+                                       unimesh_patch_t* patch)
+{
+}
+
+static void finish_periodic_node_copy(void* context, unimesh_t* mesh,
+                                      int i, int j, int k, real_t t,
+                                      unimesh_boundary_t patch_boundary,
+                                      unimesh_patch_t* patch)
+{
 }
 
 static unimesh_patch_bc_t* unimesh_periodic_bc(unimesh_t* mesh)
 {
-  return NULL;
+  unimesh_patch_bc_vtable vtable = {.start_cell_update = start_periodic_cell_copy,
+                                    .start_xface_update = start_periodic_xface_copy,
+                                    .start_yface_update = start_periodic_yface_copy,
+                                    .start_zface_update = start_periodic_zface_copy,
+                                    .start_xedge_update = start_periodic_xedge_copy,
+                                    .start_yedge_update = start_periodic_yedge_copy,
+                                    .start_zedge_update = start_periodic_zedge_copy,
+                                    .start_node_update = start_periodic_node_copy,
+                                    .finish_cell_update = finish_periodic_cell_copy,
+                                    .finish_xface_update = finish_periodic_xface_copy,
+                                    .finish_yface_update = finish_periodic_yface_copy,
+                                    .finish_zface_update = finish_periodic_zface_copy,
+                                    .finish_xedge_update = finish_periodic_xedge_copy,
+                                    .finish_yedge_update = finish_periodic_yedge_copy,
+                                    .finish_zedge_update = finish_periodic_zedge_copy,
+                                    .finish_node_update = finish_periodic_node_copy};
+  return unimesh_patch_bc_new("remote periodic patch copy BC", NULL, vtable, mesh);
+}
+//------------------------------------------------------------------------
+
+//------------------------------------------------------------------------
+//                         Remote (MPI) patch copy BC
+//------------------------------------------------------------------------
+static void start_remote_cell_copy(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch)
+{
+}
+
+static void start_remote_xface_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void start_remote_yface_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void start_remote_zface_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void start_remote_xedge_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void start_remote_yedge_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void start_remote_zedge_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void start_remote_node_copy(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_boundary_t patch_boundary,
+                                   unimesh_patch_t* patch)
+{
+}
+
+static void finish_remote_cell_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
+}
+
+static void finish_remote_xface_copy(void* context, unimesh_t* mesh,
+                                     int i, int j, int k, real_t t,
+                                     unimesh_boundary_t patch_boundary,
+                                     unimesh_patch_t* patch)
+{
+}
+
+static void finish_remote_yface_copy(void* context, unimesh_t* mesh,
+                                     int i, int j, int k, real_t t,
+                                     unimesh_boundary_t patch_boundary,
+                                     unimesh_patch_t* patch)
+{
+}
+
+static void finish_remote_zface_copy(void* context, unimesh_t* mesh,
+                                     int i, int j, int k, real_t t,
+                                     unimesh_boundary_t patch_boundary,
+                                     unimesh_patch_t* patch)
+{
+}
+
+static void finish_remote_xedge_copy(void* context, unimesh_t* mesh,
+                                     int i, int j, int k, real_t t,
+                                     unimesh_boundary_t patch_boundary,
+                                     unimesh_patch_t* patch)
+{
+}
+
+static void finish_remote_yedge_copy(void* context, unimesh_t* mesh,
+                                     int i, int j, int k, real_t t,
+                                     unimesh_boundary_t patch_boundary,
+                                     unimesh_patch_t* patch)
+{
+}
+
+static void finish_remote_zedge_copy(void* context, unimesh_t* mesh,
+                                     int i, int j, int k, real_t t,
+                                     unimesh_boundary_t patch_boundary,
+                                     unimesh_patch_t* patch)
+{
+}
+
+static void finish_remote_node_copy(void* context, unimesh_t* mesh,
+                                    int i, int j, int k, real_t t,
+                                    unimesh_boundary_t patch_boundary,
+                                    unimesh_patch_t* patch)
+{
 }
 
 static unimesh_patch_bc_t* unimesh_remote_bc(unimesh_t* mesh)
 {
-  return NULL;
+  unimesh_patch_bc_vtable vtable = {.start_cell_update = start_remote_cell_copy,
+                                    .start_xface_update = start_remote_xface_copy,
+                                    .start_yface_update = start_remote_yface_copy,
+                                    .start_zface_update = start_remote_zface_copy,
+                                    .start_xedge_update = start_remote_xedge_copy,
+                                    .start_yedge_update = start_remote_yedge_copy,
+                                    .start_zedge_update = start_remote_zedge_copy,
+                                    .start_node_update = start_remote_node_copy,
+                                    .finish_cell_update = finish_remote_cell_copy,
+                                    .finish_xface_update = finish_remote_xface_copy,
+                                    .finish_yface_update = finish_remote_yface_copy,
+                                    .finish_zface_update = finish_remote_zface_copy,
+                                    .finish_xedge_update = finish_remote_xedge_copy,
+                                    .finish_yedge_update = finish_remote_yedge_copy,
+                                    .finish_zedge_update = finish_remote_zedge_copy,
+                                    .finish_node_update = finish_remote_node_copy};
+  return unimesh_patch_bc_new("remote patch copy BC", NULL, vtable, mesh);
 }
+//------------------------------------------------------------------------
 
 static void set_up_patch_bcs(unimesh_t* mesh)
 {
@@ -318,7 +744,7 @@ void unimesh_free(unimesh_t* mesh)
 {
   real_array_free(mesh->patch_boundary_buffer);
   update_map_free(mesh->pending_updates);
-  ptr_array_free(mesh->patch_bcs);
+  patch_bc_map_free(mesh->patch_bcs);
   int_unordered_set_free(mesh->patches);
   if (mesh->patch_indices != NULL)
     polymec_free(mesh->patch_indices);
@@ -446,7 +872,7 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh,
 
   // Start the update.
   int b = (int)boundary;
-  unimesh_patch_bc_t* bc = mesh->patch_bcs->data[6*index+b];
+  unimesh_patch_bc_t* bc = (*patch_bc_map_get(mesh->patch_bcs, index))[b];
   unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, patch);
 
   // Create a pending update record.
@@ -477,7 +903,7 @@ void unimesh_finish_updating_patch_boundary(unimesh_t* mesh,
   // Finish the update.
   int index = patch_index(mesh, i, j, k);
   int b = (int)boundary;
-  unimesh_patch_bc_t* bc = mesh->patch_bcs->data[6*index+b];
+  unimesh_patch_bc_t* bc = (*patch_bc_map_get(mesh->patch_bcs, index))[b];
   unimesh_patch_bc_finish_update(bc, i, j, k, t, boundary, patch);
 
   // Delete the record.
