@@ -18,25 +18,25 @@ typedef struct unimesh_t unimesh_t;
 // Centerings for data on uniform meshes.
 typedef enum
 {
-  UNIMESH_NODE,
-  UNIMESH_XEDGE,
-  UNIMESH_YEDGE,
-  UNIMESH_ZEDGE,
-  UNIMESH_XFACE,
-  UNIMESH_YFACE,
-  UNIMESH_ZFACE,
-  UNIMESH_CELL
+  UNIMESH_CELL = 0,
+  UNIMESH_XFACE = 1,
+  UNIMESH_YFACE = 2,
+  UNIMESH_ZFACE = 3,
+  UNIMESH_XEDGE = 4,
+  UNIMESH_YEDGE = 5,
+  UNIMESH_ZEDGE = 6,
+  UNIMESH_NODE = 7
 } unimesh_centering_t;
 
 // This type identifies the six different logical mesh boundaries.
 typedef enum
 {
-  UNIMESH_X1_BOUNDARY,
-  UNIMESH_X2_BOUNDARY,
-  UNIMESH_Y1_BOUNDARY,
-  UNIMESH_Y2_BOUNDARY,
-  UNIMESH_Z1_BOUNDARY,
-  UNIMESH_Z2_BOUNDARY
+  UNIMESH_X1_BOUNDARY = 0,
+  UNIMESH_X2_BOUNDARY = 1,
+  UNIMESH_Y1_BOUNDARY = 2,
+  UNIMESH_Y2_BOUNDARY = 3,
+  UNIMESH_Z1_BOUNDARY = 4,
+  UNIMESH_Z2_BOUNDARY = 5
 } unimesh_boundary_t;
 
 // Patch data itself.

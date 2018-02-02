@@ -6,6 +6,7 @@ add_polymec_library(polymec_geometry coord_mapping.c sd_func.c sdt_func.c
                     tetrahedron.c gauss_rules.c cubic_lattice.c
                     generate_random_points.c create_point_lattice.c
                     unimesh.c unimesh_patch.c unimesh_patch_bc.c unimesh_field.c
+                    unimesh_copy_bc.c unimesh_periodic_bc.c unimesh_remote_bc.c
                     polymesh.c polymesh_node_exchangers.c partition_polymesh.c 
                     create_rectilinear_polymesh.c create_uniform_polymesh.c crop_polymesh.c
                     lua_geometry.c)
