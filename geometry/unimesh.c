@@ -640,11 +640,15 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
   boundary_update_array_append_with_dtor(updates, update, boundary_update_free);
 }
 
+static void unimesh_waitall(unimesh_t* mesh, int token);
 void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token);
 void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
 {
   ASSERT(token >= 0);
   ASSERT((size_t)token < mesh->boundary_buffers->buffers->size);
+
+  // Finish remote boundary updates.
+  unimesh_waitall(mesh, token);
 
   // Go over the patches that correspond to this token.
   boundary_update_array_t* updates = *((boundary_update_array_t**)int_ptr_unordered_map_get(mesh->boundary_updates, token));
@@ -674,12 +678,12 @@ static void start_local_cell_copy(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   mesh_patch_bc_t* mbc = context;
-  void* buffer = boundary_buffer_pool_buffer(mesh->boundary_buffers, 
-                                             mbc->token, i, j, k, 
-                                             patch_boundary);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   if (patch_boundary == UNIMESH_X1_BOUNDARY)
   {
+    void* buffer = boundary_buffer_pool_buffer(mesh->boundary_buffers, 
+                                               mbc->token, i-1, j, k, 
+                                               patch_boundary);
     DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
     for (int jj = 0; jj < patch->ny; ++jj)
       for (int kk = 0; kk < patch->nz; ++kk)
@@ -688,6 +692,9 @@ static void start_local_cell_copy(void* context, unimesh_t* mesh,
   }
   else if (patch_boundary == UNIMESH_X2_BOUNDARY)
   {
+    void* buffer = boundary_buffer_pool_buffer(mesh->boundary_buffers, 
+                                               mbc->token, i+1, j, k, 
+                                               patch_boundary);
     DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
     for (int jj = 0; jj < patch->ny; ++jj)
       for (int kk = 0; kk < patch->nz; ++kk)
@@ -696,6 +703,9 @@ static void start_local_cell_copy(void* context, unimesh_t* mesh,
   }
   else if (patch_boundary == UNIMESH_Y1_BOUNDARY)
   {
+    void* buffer = boundary_buffer_pool_buffer(mesh->boundary_buffers, 
+                                               mbc->token, i, j-1, k, 
+                                               patch_boundary);
     DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
     for (int ii = 0; ii < patch->nx; ++ii)
       for (int kk = 0; kk < patch->nz; ++kk)
@@ -704,6 +714,9 @@ static void start_local_cell_copy(void* context, unimesh_t* mesh,
   }
   else if (patch_boundary == UNIMESH_Y2_BOUNDARY)
   {
+    void* buffer = boundary_buffer_pool_buffer(mesh->boundary_buffers, 
+                                               mbc->token, i, j+1, k, 
+                                               patch_boundary);
     DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
     for (int ii = 0; ii < patch->nx; ++ii)
       for (int kk = 0; kk < patch->nz; ++kk)
@@ -712,6 +725,9 @@ static void start_local_cell_copy(void* context, unimesh_t* mesh,
   }
   else if (patch_boundary == UNIMESH_Z1_BOUNDARY)
   {
+    void* buffer = boundary_buffer_pool_buffer(mesh->boundary_buffers, 
+                                               mbc->token, i, j, k-1, 
+                                               patch_boundary);
     DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
     for (int ii = 0; ii < patch->nx; ++ii)
       for (int jj = 0; jj < patch->ny; ++jj)
@@ -720,6 +736,9 @@ static void start_local_cell_copy(void* context, unimesh_t* mesh,
   }
   else if (patch_boundary == UNIMESH_Z2_BOUNDARY)
   {
+    void* buffer = boundary_buffer_pool_buffer(mesh->boundary_buffers, 
+                                               mbc->token, i, j, k+1, 
+                                               patch_boundary);
     DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
     for (int ii = 0; ii < patch->nx; ++ii)
       for (int jj = 0; jj < patch->ny; ++jj)
@@ -1251,5 +1270,9 @@ static void set_up_patch_bcs(unimesh_t* mesh)
   polymec_release(copy_bc);
   polymec_release(periodic_bc);
   polymec_release(remote_bc);
+}
+
+static void unimesh_waitall(unimesh_t* mesh, int token)
+{
 }
 
