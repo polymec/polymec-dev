@@ -10,24 +10,11 @@
 #include "geometry/unimesh_field.h"
 #include "geometry/unimesh_patch_bc.h"
 
-// This thingy holds the data we need to track for pending patch updates.
-typedef struct
-{
-  int i, j, k;
-  real_t t;
-} pending_update_t;
-
-static void update_free(pending_update_t* update)
-{
-  polymec_free(update);
-}
-
 static void patch_bc_release(unimesh_patch_bc_t* patch_bc)
 {
   polymec_release(patch_bc);
 }
 
-DEFINE_UNORDERED_MAP(update_map, int*, pending_update_t*, int_pair_hash, int_pair_equals)
 DEFINE_UNORDERED_MAP(patch_bc_map, int*, unimesh_patch_bc_t*, int_pair_hash, int_pair_equals)
 
 struct unimesh_field_t 
@@ -46,9 +33,9 @@ struct unimesh_field_t
   bool owns_buffer;
 
   // Boundary conditions.
-  bool is_updating;
+  int token; // -1 if not updating, otherwise non-negative.
+  real_t update_t; // Time of pending update (or -REAL_MAX).
   patch_bc_map_t* patch_bcs;
-  update_map_t* pending_updates;
 };
 
 static inline int patch_index(unimesh_field_t* field, int i, int j, int k)
@@ -124,16 +111,15 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
   unimesh_field_set_buffer(field, buffer, false);
 
   // Set up boundary conditions.
-  field->is_updating = false;
+  field->token = -1;
+  field->update_t = -REAL_MAX;
   field->patch_bcs = patch_bc_map_new();
-  field->pending_updates = update_map_new();
 
   return field;
 }
 
 void unimesh_field_free(unimesh_field_t* field)
 {
-  update_map_free(field->pending_updates);
   patch_bc_map_free(field->patch_bcs);
   int_ptr_unordered_map_free(field->patches);
   polymec_free(field->patch_offsets);
@@ -237,11 +223,31 @@ void unimesh_field_update_patch_boundaries(unimesh_field_t* field,
   unimesh_field_finish_updating_patch_boundaries(field);
 }
 
+// We need these Unofficial unimesh doohickies.
+extern int unimesh_patch_boundary_buffer_token(unimesh_t* mesh,
+                                               unimesh_centering_t centering,
+                                               int num_components);
+extern void unimesh_start_updating_patch_boundary(unimesh_t* mesh, 
+                                                  int token,
+                                                  int i, int j, int k,
+                                                  real_t t, 
+                                                  unimesh_boundary_t boundary,
+                                                  unimesh_patch_t* patch);
+extern void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, 
+                                                     int token);
+
 void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
                                                    real_t t)
 {
-  ASSERT(!field->is_updating);
+  ASSERT(field->token == -1);
 
+  // Get a token from the mesh that represents this particular set of 
+  // patch boundary updates.
+  int token = unimesh_patch_boundary_buffer_token(field->mesh,
+                                                  field->centering,
+                                                  field->nc);
+
+  // Loop over the patches in the field and enforce boundary conditions.
   int pos = 0, i, j, k;
   unimesh_patch_t* patch;
   while (unimesh_field_next_patch(field, &pos, &i, &j, &k, &patch, NULL))
@@ -252,7 +258,6 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
     for (int b = 0; b < 6; ++b)
     {
       int key[2] = {index, b};
-      ASSERT(!update_map_contains(field->pending_updates, key));
       unimesh_patch_bc_t** bc_p = patch_bc_map_get(field->patch_bcs, key);
       unimesh_boundary_t boundary = (unimesh_boundary_t)b;
       if (bc_p != NULL)
@@ -260,33 +265,27 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
         // Found a BC for the field. Begin the update.
         unimesh_patch_bc_t* bc = *bc_p;
         unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, patch);
-
-        // Create a pending update record.
-        pending_update_t* update = polymec_malloc(sizeof(pending_update_t));
-        update->i = i;
-        update->j = j;
-        update->k = k;
-        update->t = t;
-        update_map_insert_with_v_dtor(field->pending_updates, 
-                                      key, update, update_free);
       }
       else
       {
         // This field has no BC for this patch/boundary. Fall back on the 
         // mesh boundary condition.
-        unimesh_start_updating_patch_boundary(field->mesh, i, j, k, t, 
-                                              boundary, patch);
+        unimesh_start_updating_patch_boundary(field->mesh, token, 
+                                              i, j, k, t, boundary, patch);
       }
     }
   }
 
-  field->is_updating = true;
+  // Jot down the token and the update time.
+  field->token = token;
+  field->update_t = t;
 }
 
 void unimesh_field_finish_updating_patch_boundaries(unimesh_field_t* field)
 {
-  ASSERT(field->is_updating);
+  ASSERT(field->token != -1);
 
+  // Loop over the patches in the field and finish the boundary updates.
   int pos = 0, i, j, k;
   unimesh_patch_t* patch;
   while (unimesh_field_next_patch(field, &pos, &i, &j, &k, &patch, NULL))
@@ -297,36 +296,28 @@ void unimesh_field_finish_updating_patch_boundaries(unimesh_field_t* field)
     for (int b = 0; b < 6; ++b)
     {
       int key[2] = {index, b};
-      pending_update_t** update_p = update_map_get(field->pending_updates, key);
       unimesh_patch_bc_t** bc_p = patch_bc_map_get(field->patch_bcs, key);
-      ASSERT(((update_p != NULL) && (bc_p != NULL)) || 
-             ((update_p == NULL) && (bc_p == NULL)));
       unimesh_boundary_t boundary = (unimesh_boundary_t)b;
       if (bc_p != NULL)
       {
         // Found a BC for the field. Finish the update.
         unimesh_patch_bc_t* bc = *bc_p;
-        pending_update_t* update = *update_p;
-        unimesh_patch_bc_finish_update(bc, update->i, update->j, update->k, 
-                                       update->t, boundary, patch);
-
-        // Wipe the pending update record.
-        update_map_delete(field->pending_updates, key);
-      }
-      else
-      {
-        // This field has no BC for this patch/boundary. Fall back on the 
-        // mesh boundary condition.
-        unimesh_finish_updating_patch_boundary(field->mesh, boundary, patch);
+        unimesh_patch_bc_finish_update(bc, i, j, k, field->update_t, 
+                                       boundary, patch);
       }
     }
   }
 
-  field->is_updating = false;
+  // Wrap up the mesh-based boundary updates.
+  unimesh_finish_updating_patch_boundaries(field->mesh, field->token);
+
+  // Clear our update metadata.
+  field->token = -1;
+  field->update_t = -REAL_MAX;
 }
 
 bool unimesh_field_is_updating_patch_boundaries(unimesh_field_t* field)
 {
-  return field->is_updating;
+  return (field->token != -1);
 }
 

@@ -122,6 +122,9 @@ char* unimesh_patch_bc_name(unimesh_patch_bc_t* bc);
 // or 0 if the boundary condition affects all components.
 int unimesh_patch_bc_num_components(unimesh_patch_bc_t* bc);
 
+// Returns the context pointer associated with this boundary condition.
+void* unimesh_patch_bc_context(unimesh_patch_bc_t* bc);
+
 // Returns an internal pointer to the mesh on which the boundary condition is
 // defined.
 unimesh_t* unimesh_patch_bc_mesh(unimesh_patch_bc_t* bc);

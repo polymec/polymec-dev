@@ -65,6 +65,11 @@ int unimesh_patch_bc_num_components(unimesh_patch_bc_t* bc)
   return bc->num_components;
 }
 
+void* unimesh_patch_bc_context(unimesh_patch_bc_t* bc)
+{
+  return bc->context;
+}
+
 unimesh_t* unimesh_patch_bc_mesh(unimesh_patch_bc_t* bc)
 {
   return bc->mesh;

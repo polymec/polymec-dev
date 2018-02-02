@@ -138,25 +138,5 @@ bool unimesh_next_patch(unimesh_t* mesh, int* pos,
 // Returns true if the mesh has a patch at (i, j, k), false if not.
 bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k);
 
-// Synchronously updates the boundary data on the patch (i, j, k) on this 
-// mesh at time t, returning when the update is complete.
-void unimesh_update_patch_boundary(unimesh_t* mesh,
-                                   int i, int j, int k, real_t t,
-                                   unimesh_boundary_t boundary,
-                                   unimesh_patch_t* patch);
-
-// Begins an asynchronous update to boundary data on the patch (i, j, k) on 
-// this mesh at time t.
-void unimesh_start_updating_patch_boundary(unimesh_t* mesh,
-                                           int i, int j, int k, real_t t,
-                                           unimesh_boundary_t boundary,
-                                           unimesh_patch_t* patch);
-
-// Finishes an asynchronous update to boundary data invoked previously by 
-// unimesh_start_updating_patch_boundaries.
-void unimesh_finish_updating_patch_boundary(unimesh_t* mesh,
-                                            unimesh_boundary_t boundary,
-                                            unimesh_patch_t* patch);
-
 #endif
 

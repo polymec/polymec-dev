@@ -9,43 +9,20 @@
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
 #include "geometry/unimesh.h"
+#include "geometry/unimesh_patch.h"
 #include "geometry/unimesh_patch_bc.h"
 
 #if POLYMEC_HAVE_OPENMP
 #include <omp.h>
 #endif
 
+// This maps patch indices to patch boundary conditions for the unimesh.
 DEFINE_UNORDERED_MAP(patch_bc_map, int, unimesh_patch_bc_t**, int_hash, int_equals)
 
-// This thingy holds the data we need to track for pending patch updates.
-typedef struct
-{
-  int i, j, k;
-  real_t t;
-} pending_update_t;
-
-static void update_free(pending_update_t* update)
-{
-  polymec_free(update);
-}
-
-typedef struct
-{
-  unimesh_boundary_t boundary;
-  unimesh_patch_t* patch;
-} update_key_t;
-
-static inline int update_key_hash(update_key_t key)
-{
-  return djb2_xor_hash((unsigned char*)&key, sizeof(update_key_t));
-}
-
-static inline bool update_key_equals(update_key_t k1, update_key_t k2)
-{
-  return ((k1.boundary == k2.boundary) && (k1.patch == k2.patch));
-}
-
-DEFINE_UNORDERED_MAP(update_map, update_key_t, pending_update_t*, update_key_hash, update_key_equals)
+// This stuff allows us to perform patch boundary updates.
+typedef struct boundary_buffer_pool_t boundary_buffer_pool_t;
+static boundary_buffer_pool_t* boundary_buffer_pool_new(unimesh_t* mesh);
+static void boundary_buffer_pool_free(boundary_buffer_pool_t* pool);
 
 struct unimesh_t
 {
@@ -65,10 +42,8 @@ struct unimesh_t
 
   // Patch boundary conditions.
   patch_bc_map_t* patch_bcs;
-  update_map_t* pending_updates;
-
-  // Buffer for local and remote copying of patch boundaries.
-  real_array_t* patch_boundary_buffer;
+  boundary_buffer_pool_t* boundary_buffers;
+  int_ptr_unordered_map_t* boundary_updates; // maps tokens to patch arrays.
 
   // This flag is set by unimesh_finalize() after a mesh has been assembled.
   bool finalized;
@@ -108,8 +83,8 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
   mesh->patches = int_unordered_set_new();
   mesh->patch_indices = NULL;
   mesh->patch_bcs = patch_bc_map_new();
-  mesh->pending_updates = update_map_new();
-  mesh->patch_boundary_buffer = real_array_new();
+  mesh->boundary_buffers = boundary_buffer_pool_new(mesh);
+  mesh->boundary_updates = int_ptr_unordered_map_new();
   mesh->finalized = false;
   return mesh;
 }
@@ -156,6 +131,540 @@ static void unimesh_set_patch_bc(unimesh_t* mesh,
   bcs[b] = patch_bc;
 }
 
+static void set_up_patch_bcs(unimesh_t* mesh);
+void unimesh_finalize(unimesh_t* mesh)
+{
+  ASSERT(!mesh->finalized);
+
+  // Make an array of indices for locally-present patches.
+  mesh->patch_indices = polymec_malloc(sizeof(int) * 3 * mesh->patches->size);
+  int l = 0;
+  for (int i = 0; i < mesh->npx; ++i)
+  {
+    for (int j = 0; j < mesh->npy; ++j)
+    {
+      for (int k = 0; k < mesh->npz; ++k)
+      {
+        int index = patch_index(mesh, i, j, k);
+        if (int_unordered_set_contains(mesh->patches, index))
+        {
+          mesh->patch_indices[3*l]   = i;
+          mesh->patch_indices[3*l+1] = j;
+          mesh->patch_indices[3*l+2] = k;
+          ++l;
+        }
+      }
+    }
+  }
+  ASSERT(l == mesh->patches->size);
+
+  // Now make sure every patch has a set of boundary conditions.
+  set_up_patch_bcs(mesh);
+
+  mesh->finalized = true;
+}
+
+unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
+                       int npx, int npy, int npz, 
+                       int nx, int ny, int nz,
+                       bool periodic_in_x, bool periodic_in_y, bool periodic_in_z)
+{
+  unimesh_t* mesh = create_empty_unimesh(comm, bbox, 
+                                         npx, npy, npz,
+                                         nx, ny, nz,
+                                         periodic_in_x, periodic_in_y, periodic_in_z);
+
+  if (comm == MPI_COMM_SELF) // every proc gets all patches!
+  {
+    for (int i = 0; i < npx; ++i)
+      for (int j = 0; j < npy; ++j)
+        for (int k = 0; k < npz; ++k)
+          unimesh_insert_patch(mesh, i, j, k);
+  }
+  else // we do a naive allotment
+  {
+    // Total up the number of patches and allocate them to available 
+    // processes.
+    int nproc, rank;
+    MPI_Comm_size(comm, &nproc);
+    MPI_Comm_rank(comm, &rank);
+    int num_patches = npx * npy * npz;
+    int num_local_patches = num_patches / nproc;
+    if (rank == nproc-1)
+      num_local_patches = num_patches - (nproc-1) * num_local_patches;
+    int start_patch = (num_patches / nproc) * rank;
+
+    int l = 0;
+    for (int i = 0; i < npx; ++i)
+    {
+      for (int j = 0; j < npy; ++j)
+      {
+        for (int k = 0; k < npz; ++k, ++l)
+        {
+          if (l >= start_patch)
+            unimesh_insert_patch(mesh, i, j, k);
+          if (l >= start_patch + num_local_patches) break;
+        }
+        if (l >= start_patch + num_local_patches) break;
+      }
+      if (l >= start_patch + num_local_patches) break;
+    }
+  }
+  
+  // Finalize and send 'er off.
+  unimesh_finalize(mesh);
+  return mesh;
+}
+
+void unimesh_free(unimesh_t* mesh)
+{
+  int_ptr_unordered_map_free(mesh->boundary_updates);
+  boundary_buffer_pool_free(mesh->boundary_buffers);
+  patch_bc_map_free(mesh->patch_bcs);
+  int_unordered_set_free(mesh->patches);
+  if (mesh->patch_indices != NULL)
+    polymec_free(mesh->patch_indices);
+  polymec_free(mesh);
+}
+
+MPI_Comm unimesh_comm(unimesh_t* mesh)
+{
+  return mesh->comm;
+}
+
+bbox_t* unimesh_bbox(unimesh_t* mesh)
+{
+  return &(mesh->bbox);
+}
+
+void unimesh_get_spacings(unimesh_t* mesh, 
+                          real_t* dx, real_t* dy, real_t* dz)
+{
+  *dx = mesh->dx;
+  *dy = mesh->dy;
+  *dz = mesh->dz;
+}
+
+bool unimesh_next_patch(unimesh_t* mesh, int* pos, 
+                        int* i, int* j, int* k,
+                        bbox_t* bbox)
+{
+  ASSERT(mesh->finalized);
+  ASSERT(*pos >= 0);
+#if POLYMEC_HAVE_OPENMP
+  int num_threads = omp_get_num_threads();
+  int tid = omp_get_thread_num();
+#else
+  int num_threads = 1;
+  int tid = 0;
+#endif
+  if (*pos == 0) 
+    *pos = tid;
+  bool result = (*pos < mesh->patches->size);
+  if (result)
+  {
+    int l = *pos;
+    *i = mesh->patch_indices[3*l];
+    *j = mesh->patch_indices[3*l+1];
+    *k = mesh->patch_indices[3*l+2];
+    *pos += num_threads;
+    if (bbox != NULL)
+    {
+      real_t Lx = mesh->nx * mesh->dx,
+             Ly = mesh->ny * mesh->dy,
+             Lz = mesh->nz * mesh->dz;
+      bbox->x1 = mesh->bbox.x1 + (*i) * Lx;
+      bbox->x2 = bbox->x1 + Lx;
+      bbox->y1 = mesh->bbox.y1 + (*j) * Ly;
+      bbox->y2 = bbox->y1 + Ly;
+      bbox->z1 = mesh->bbox.z1 + (*k) * Lz;
+      bbox->z2 = bbox->z1 + Lz;
+    }
+  }
+  return result;
+}
+
+void unimesh_get_extents(unimesh_t* mesh, int* npx, int* npy, int* npz)
+{
+  *npx = mesh->npx;
+  *npy = mesh->npy;
+  *npz = mesh->npz;
+}
+
+void unimesh_get_patch_size(unimesh_t* mesh, int* nx, int* ny, int* nz)
+{
+  *nx = mesh->nx;
+  *ny = mesh->ny;
+  *nz = mesh->nz;
+}
+
+int unimesh_num_patches(unimesh_t* mesh)
+{
+  return mesh->patches->size;
+}
+
+bool unimesh_is_periodic_in_x(unimesh_t* mesh)
+{
+  return mesh->periodic_in_x;
+}
+
+bool unimesh_is_periodic_in_y(unimesh_t* mesh)
+{
+  return mesh->periodic_in_y;
+}
+
+bool unimesh_is_periodic_in_z(unimesh_t* mesh)
+{
+  return mesh->periodic_in_z;
+}
+
+bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k)
+{
+  int index = patch_index(mesh, i, j, k);
+  return int_unordered_set_contains(mesh->patches, index);
+}
+
+//------------------------------------------------------------------------ 
+//                   Patch boundary condition machinery
+//------------------------------------------------------------------------ 
+// The following functions are not part of the proper API for the unimesh, 
+// but need to be exposed to the unimesh_field class to enable patch 
+// boundary updates.
+//------------------------------------------------------------------------ 
+
+// This struct contains a context for each mesh-specific patch boundary 
+// condition.
+typedef struct
+{
+  int token; // The token corresponding to the boundary update.
+} mesh_patch_bc_t;
+
+// The boundary buffer class is an annotated blob of memory that stores 
+// patch boundary data for patches in a unimesh with data of a given centering
+// and number of components.
+typedef struct
+{
+  unimesh_t* mesh;
+  unimesh_centering_t centering;
+  int nx, ny, nz, nc;
+  bool in_use;
+  size_t* patch_offsets;
+  size_t boundary_offsets[6];
+  real_t* storage;
+} boundary_buffer_t;
+
+static void boundary_buffer_reset(boundary_buffer_t* buffer, 
+                                  unimesh_centering_t centering,
+                                  int num_components)
+{
+  ASSERT(num_components > 0);
+  ASSERT(!buffer->in_use);
+
+  // Do we need to do anything?
+  if ((buffer->centering == centering) && 
+      (buffer->nc == num_components))
+    return;
+
+  // Compute buffer offsets based on centering and boundary.
+  int nx = buffer->nx, ny = buffer->ny, nz = buffer->nz, nc = buffer->nc;
+  size_t patch_sizes[8] = {2*nc*(ny*nz + nx*nz + nx*ny), // cells
+                           2*nc*(ny*nz + (nx+1)*nz + (nx+1)*ny), // x faces
+                           2*nc*((ny+1)*nz + nx*nz + nx*(ny+1)), // y faces
+                           2*nc*(ny*(nz+1) + nx*(nz+1) + nx*ny), // z faces
+                           2*nc*((ny+1)*(nz+1) + nx*(nz+1) + nx*(ny+1)),     // x edges
+                           2*nc*(ny*(nz+1) + (nx+1)*(nz+1) + (nx+1)*ny), // y edges
+                           2*nc*((ny+1)*nz + (nx+1)*nz + (nx+1)*(ny+1)), // z edges
+                           2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1) + (nx+1)*(ny+1))}; // nodes
+
+  size_t offsets[8][6] =  { // cells
+                           {0, nc*ny*nz, 
+                            2*nc*ny*nz, 2*nc*ny*nz + nc*nx*nz,
+                            2*nc*(ny*nz + nx*nz), 2*nc*(ny*nz + nx*nz) + nc*nx*ny},
+                            // x faces
+                           {0, nc*ny*nz,
+                            2*nc*ny*nz, 2*nc*ny*nz + nc*(nx+1)*nz,
+                            2*nc*(ny*nz + (nx+1)*nz), 2*nc*(ny*nz + (nx+1)*nz) + nc*(nx+1)*ny},
+                            // y faces
+                           {0, nc*(ny+1)*nz,
+                            2*nc*(ny+1)*nz, 2*nc*(ny+1)*nz + nc*nx*nz,
+                            2*nc*((ny+1)*nz + nx*nz), 2*nc*((ny+1)*nz + nx*nz) + nc*nx*(ny+1)},
+                            // z faces
+                           {0, nc*ny*(nz+1),
+                            2*nc*ny*(nz+1), 2*nc*ny*(nz+1) + nc*nx*(nz+1),
+                            2*nc*(ny*(nz+1) + nx*(nz+1)), 2*nc*(ny*(nz+1) + nx*(nz+1)) + nc*nx*ny},
+                            // x edges
+                           {0, nc*(ny+1)*(nz+1),
+                            2*nc*(ny+1)*(nz+1), 2*nc*(ny+1)*(nz+1) + nc*nx*(nz+1),
+                            2*nc*((ny+1)*(nz+1) + nx*(nz+1)), 2*nc*((ny+1)*(nz+1) + nx*(nz+1)) + nc*nx*(ny+1)},
+                            // y edges
+                           {0, nc*ny*(nz+1),
+                            2*nc*ny*(nz+1), 2*nc*ny*(nz+1) + nc*(nx+1)*(nz+1),
+                            2*nc*(ny*(nz+1) + (nx+1)*(nz+1)), 2*nc*(ny*(nz+1) + (nx+1)*(nz+1)) + nc*(nx+1)*ny},
+                            // z edges
+                           {0, nc*(ny+1)*nz,
+                            2*nc*(ny+1)*nz, 2*nc*(ny+1)*nz + nc*(nx+1)*nz,
+                            2*nc*((ny+1)*nz + (nx+1)*nz), 2*nc*((ny+1)*nz + (nx+1)*nz) + nc*(nx+1)*(ny+1)},
+                            // nodes
+                           {0, nc*(ny+1)*(nz+1),
+                            2*nc*(ny+1)*(nz+1), 2*nc*(ny+1)*(nz+1) + nc*(nx+1)*(nz+1),
+                            2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1)), 2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1)) + nc*(nx+1)*(ny+1)}};
+
+  // Now compute offsets.
+  int cent = (int)centering;
+  int pos = 0, i, j, k;
+  size_t last_offset = 0;
+  buffer->patch_offsets[0] = 0;
+  while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
+  {
+    int index = patch_index(buffer->mesh, i, j, k);
+    buffer->patch_offsets[index] = last_offset;
+    last_offset += patch_sizes[cent];
+  }
+  memcpy(buffer->boundary_offsets, offsets[cent], 6*sizeof(size_t));
+
+  // Allocate storage if needed.
+  buffer->storage = polymec_realloc(buffer->storage, sizeof(real_t) * last_offset);
+}
+
+static boundary_buffer_t* boundary_buffer_new(unimesh_t* mesh, 
+                                              unimesh_centering_t centering,
+                                              int num_components)
+{
+  boundary_buffer_t* buffer = polymec_malloc(sizeof(boundary_buffer_t));
+  buffer->mesh = mesh;
+  buffer->centering = UNIMESH_CELL;
+  unimesh_get_patch_size(mesh, &buffer->nx, &buffer->ny, &buffer->nz);
+  buffer->nc = -1;
+  buffer->in_use = false;
+  int np = mesh->npx * mesh->npy * mesh->npz;
+  buffer->patch_offsets = polymec_malloc(sizeof(size_t) * (np+1));
+  buffer->storage = NULL;
+  boundary_buffer_reset(buffer, centering, num_components);
+  return buffer;
+}
+
+static void boundary_buffer_free(boundary_buffer_t* buffer)
+{
+  if (buffer->storage != NULL)
+    polymec_free(buffer->storage);
+  polymec_free(buffer->patch_offsets);
+  polymec_free(buffer);
+}
+
+static inline void* boundary_buffer_data(boundary_buffer_t* buffer,
+                                         int i, int j, int k,
+                                         unimesh_boundary_t boundary)
+{
+  int index = patch_index(buffer->mesh, i, j, k);
+  int b = (int)boundary;
+  size_t offset = buffer->patch_offsets[index] + buffer->boundary_offsets[b];
+  return &(buffer->storage[offset]);
+}
+
+DEFINE_ARRAY(boundary_buffer_array, boundary_buffer_t*)
+
+// The boundary_buffer_pool class maintains a set of resources for supporting
+// patch boundary updates on the mesh. Specifically, the pool allows several 
+// concurrent patch boundary updates for asynchronous communication over 
+// several unimesh_fields.
+struct boundary_buffer_pool_t
+{
+  unimesh_t* mesh;
+  boundary_buffer_array_t* buffers;
+};
+
+// Creates a new boundary update pool.
+static boundary_buffer_pool_t* boundary_buffer_pool_new(unimesh_t* mesh)
+{
+  boundary_buffer_pool_t* pool = polymec_malloc(sizeof(boundary_buffer_pool_t));
+  pool->mesh = mesh;
+  pool->buffers = boundary_buffer_array_new();
+
+  // Start off with a handful of single-component, cell-centered buffers.
+  for (int i = 0; i < 4; ++i)
+  {
+    boundary_buffer_t* buffer = boundary_buffer_new(mesh, UNIMESH_CELL, 1);
+    boundary_buffer_array_append_with_dtor(pool->buffers, buffer, boundary_buffer_free);
+  }
+  
+  return pool;
+}
+
+// Destroys the given boundary update pool.
+static void boundary_buffer_pool_free(boundary_buffer_pool_t* pool)
+{
+  boundary_buffer_array_free(pool->buffers);
+  polymec_free(pool);
+}
+
+// Returns an integer token that uniquely identifies a set of resources
+// that can be used for patch boundary updates for data with the given 
+// centering.
+static int boundary_buffer_pool_acquire(boundary_buffer_pool_t* pool,
+                                        unimesh_centering_t centering,
+                                        int num_components)
+{
+  ASSERT(num_components > 0);
+
+  size_t token = 0; 
+  while (token < pool->buffers->size)
+  {
+    boundary_buffer_t* buffer = pool->buffers->data[token];
+    if (!buffer->in_use)
+    {
+      // Repurpose this buffer if needed.
+      boundary_buffer_reset(buffer, centering, num_components);
+      buffer->in_use = true;
+      break;
+    }
+    else
+      ++token;
+  }
+
+  if (token == pool->buffers->size) // We're out of buffers!
+  {
+    // Add another one.
+    boundary_buffer_t* buffer = boundary_buffer_new(pool->mesh, centering, num_components);
+    boundary_buffer_array_append_with_dtor(pool->buffers, buffer, boundary_buffer_free);
+  }
+
+  return (int)token;
+}
+
+// Releases the resources associated with the given integer token, returning 
+// them to the pool for later use.
+static void boundary_buffer_pool_release(boundary_buffer_pool_t* pool,
+                                         int token)
+{
+  ASSERT(token >= 0);
+  ASSERT((size_t)token < pool->buffers->size);
+  pool->buffers->data[token]->in_use = false;
+}
+
+// Retrieves a buffer for the given token that stores patch boundary data 
+// for the given boundary on patch (i, j, k). 
+static void* boundary_buffer_pool_buffer(boundary_buffer_pool_t* pool,
+                                         int token,
+                                         int i, int j, int k,
+                                         unimesh_boundary_t boundary)
+{
+  ASSERT(token >= 0);
+  ASSERT((size_t)token < pool->buffers->size);
+  return boundary_buffer_data(pool->buffers->data[token], i, j, k, boundary);
+}
+
+// Returns a unique token that can be used to identify a patch boundary 
+// update operation on patches with the given centering, so that boundary 
+// conditions can be enforced asynchronously.
+int unimesh_patch_boundary_buffer_token(unimesh_t* mesh, 
+                                        unimesh_centering_t centering,
+                                        int num_components);
+int unimesh_patch_boundary_buffer_token(unimesh_t* mesh, 
+                                        unimesh_centering_t centering,
+                                        int num_components)
+{
+  return boundary_buffer_pool_acquire(mesh->boundary_buffers, 
+                                      centering, num_components); 
+}
+
+// A boundary update is a set of data that allows us to finish processing
+// patch boundary updates in progress.
+typedef struct
+{
+  int i, j, k;
+  real_t t;
+  unimesh_boundary_t boundary;
+  unimesh_patch_t* patch;
+} boundary_update_t;
+
+static boundary_update_t* boundary_update_new(int i, int j, int k, real_t t,
+                                              unimesh_boundary_t boundary,
+                                              unimesh_patch_t* patch)
+{
+  ASSERT(patch != NULL);
+  boundary_update_t* update = polymec_malloc(sizeof(boundary_update_t));
+  update->i = i;
+  update->j = j;
+  update->k = k;
+  update->t = t;
+  update->boundary = boundary;
+  update->patch = patch;
+  return update;
+}
+
+static void boundary_update_free(boundary_update_t* update)
+{
+  polymec_free(update);
+}
+
+DEFINE_ARRAY(boundary_update_array, boundary_update_t*)
+
+// This starts updating the given patch using boundary conditions in the mesh
+// at the given time, tracking the transaction with the given token.
+void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
+                                           int i, int j, int k, real_t t,
+                                           unimesh_boundary_t boundary,
+                                           unimesh_patch_t* patch);
+void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
+                                           int i, int j, int k, real_t t,
+                                           unimesh_boundary_t boundary,
+                                           unimesh_patch_t* patch)
+{
+  ASSERT(mesh->finalized);
+  ASSERT(unimesh_has_patch(mesh, i, j, k));
+  int index = patch_index(mesh, i, j, k);
+
+  // Fetch the boundary condition.
+  int b = (int)boundary;
+  unimesh_patch_bc_t* bc = (*patch_bc_map_get(mesh->patch_bcs, index))[b];
+
+  // Set the boundary update token.
+  mesh_patch_bc_t* mbc = unimesh_patch_bc_context(bc);
+  mbc->token = token;
+
+  // Start the update.
+  unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, patch);
+
+  // Stash information for this patch in our boundary updates.
+  boundary_update_array_t** updates_p = (boundary_update_array_t**)int_ptr_unordered_map_get(mesh->boundary_updates, token);
+  boundary_update_array_t* updates;
+  if (updates_p == NULL)
+  {
+    updates = boundary_update_array_new();
+    int_ptr_unordered_map_insert_with_v_dtor(mesh->boundary_updates, token, 
+                                             updates, DTOR(boundary_update_array_free));
+  }
+  else
+    updates = *updates_p;
+  boundary_update_t* update = boundary_update_new(i, j, k, t, boundary, patch);
+  boundary_update_array_append_with_dtor(updates, update, boundary_update_free);
+}
+
+void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token);
+void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
+{
+  ASSERT(token >= 0);
+  ASSERT((size_t)token < mesh->boundary_buffers->buffers->size);
+
+  // Go over the patches that correspond to this token.
+  boundary_update_array_t* updates = *((boundary_update_array_t**)int_ptr_unordered_map_get(mesh->boundary_updates, token));
+  for (size_t i = 0; i < updates->size; ++i)
+  {
+    boundary_update_t* update = updates->data[i];
+    int index = patch_index(mesh, update->i, update->j, update->k);
+    int b = (int)update->boundary;
+    unimesh_patch_bc_t* bc = (*patch_bc_map_get(mesh->patch_bcs, index))[b];
+    unimesh_patch_bc_finish_update(bc, update->i, update->j, update->k, 
+                                   update->t, update->boundary, update->patch);
+  }
+
+  // Clear the updates array.
+  boundary_update_array_clear(updates);
+
+  // Release the boundary update corresponding to this token.
+  boundary_buffer_pool_release(mesh->boundary_buffers, token);
+}
+
 //------------------------------------------------------------------------
 //                         Local patch copy BC
 //------------------------------------------------------------------------
@@ -164,23 +673,59 @@ static void start_local_cell_copy(void* context, unimesh_t* mesh,
                                   unimesh_boundary_t patch_boundary,
                                   unimesh_patch_t* patch)
 {
-#if 0
+  mesh_patch_bc_t* mbc = context;
+  void* buffer = boundary_buffer_pool_buffer(mesh->boundary_buffers, 
+                                             mbc->token, i, j, k, 
+                                             patch_boundary);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   if (patch_boundary == UNIMESH_X1_BOUNDARY)
   {
-    for (int j = 0; j < patch->ny; ++j)
-      for (int k = 0; k < patch->nz; ++k)
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
+    for (int jj = 0; jj < patch->ny; ++jj)
+      for (int kk = 0; kk < patch->nz; ++kk)
         for (int c = 0; c < patch->nc; ++c)
-          buffer[j][k][c] = a[1][j][c];
+          buf[jj][kk][c] = a[1][jj][kk][c];
   }
-  else if (patch_boundary == UNIMESH_X1_BOUNDARY)
+  else if (patch_boundary == UNIMESH_X2_BOUNDARY)
   {
-    for (int j = 0; j < patch->ny; ++j)
-      for (int k = 0; k < patch->nz; ++k)
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
+    for (int jj = 0; jj < patch->ny; ++jj)
+      for (int kk = 0; kk < patch->nz; ++kk)
         for (int c = 0; c < patch->nc; ++c)
-          buffer[j][k][c] = a[patch->nx][j][c];
+          buf[jj][kk][c] = a[patch->nx][jj][kk][c];
   }
-#endif
+  else if (patch_boundary == UNIMESH_Y1_BOUNDARY)
+  {
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
+    for (int ii = 0; ii < patch->nx; ++ii)
+      for (int kk = 0; kk < patch->nz; ++kk)
+        for (int c = 0; c < patch->nc; ++c)
+          buf[ii][kk][c] = a[ii][1][kk][c];
+  }
+  else if (patch_boundary == UNIMESH_Y2_BOUNDARY)
+  {
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
+    for (int ii = 0; ii < patch->nx; ++ii)
+      for (int kk = 0; kk < patch->nz; ++kk)
+        for (int c = 0; c < patch->nc; ++c)
+          buf[ii][kk][c] = a[ii][patch->ny][kk][c];
+  }
+  else if (patch_boundary == UNIMESH_Z1_BOUNDARY)
+  {
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
+    for (int ii = 0; ii < patch->nx; ++ii)
+      for (int jj = 0; jj < patch->ny; ++jj)
+        for (int c = 0; c < patch->nc; ++c)
+          buf[ii][jj][c] = a[ii][jj][1][c];
+  }
+  else if (patch_boundary == UNIMESH_Z2_BOUNDARY)
+  {
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
+    for (int ii = 0; ii < patch->nx; ++ii)
+      for (int jj = 0; jj < patch->ny; ++jj)
+        for (int c = 0; c < patch->nc; ++c)
+          buf[ii][jj][c] = a[ii][jj][patch->nz][c];
+  }
 }
 
 static void start_local_xface_copy(void* context, unimesh_t* mesh,
@@ -237,6 +782,59 @@ static void finish_local_cell_copy(void* context, unimesh_t* mesh,
                                    unimesh_boundary_t patch_boundary,
                                    unimesh_patch_t* patch)
 {
+  mesh_patch_bc_t* mbc = context;
+  void* buffer = boundary_buffer_pool_buffer(mesh->boundary_buffers, 
+                                             mbc->token, i, j, k, 
+                                             patch_boundary);
+  DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+  if (patch_boundary == UNIMESH_X1_BOUNDARY)
+  {
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
+    for (int jj = 0; jj < patch->ny; ++jj)
+      for (int kk = 0; kk < patch->nz; ++kk)
+        for (int c = 0; c < patch->nc; ++c)
+          a[0][jj][kk][c] = buf[jj][kk][c];
+  }
+  else if (patch_boundary == UNIMESH_X2_BOUNDARY)
+  {
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
+    for (int jj = 0; jj < patch->ny; ++jj)
+      for (int kk = 0; kk < patch->nz; ++kk)
+        for (int c = 0; c < patch->nc; ++c)
+          a[patch->nx+1][jj][kk][c] = buf[jj][kk][c];
+  }
+  else if (patch_boundary == UNIMESH_Y1_BOUNDARY)
+  {
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
+    for (int ii = 0; ii < patch->nx; ++ii)
+      for (int kk = 0; kk < patch->nz; ++kk)
+        for (int c = 0; c < patch->nc; ++c)
+          a[ii][0][kk][c] = buf[ii][kk][c];
+  }
+  else if (patch_boundary == UNIMESH_Y2_BOUNDARY)
+  {
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
+    for (int ii = 0; ii < patch->nx; ++ii)
+      for (int kk = 0; kk < patch->nz; ++kk)
+        for (int c = 0; c < patch->nc; ++c)
+          a[ii][patch->ny+1][kk][c] = buf[ii][kk][c];
+  }
+  else if (patch_boundary == UNIMESH_Z1_BOUNDARY)
+  {
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
+    for (int ii = 0; ii < patch->nx; ++ii)
+      for (int jj = 0; jj < patch->ny; ++jj)
+        for (int c = 0; c < patch->nc; ++c)
+          a[ii][jj][0][c] = buf[ii][jj][c];
+  }
+  else if (patch_boundary == UNIMESH_Z2_BOUNDARY)
+  {
+    DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
+    for (int ii = 0; ii < patch->nx; ++ii)
+      for (int jj = 0; jj < patch->ny; ++jj)
+        for (int c = 0; c < patch->nc; ++c)
+          a[ii][jj][patch->nz+1][c] = buf[ii][jj][c];
+  }
 }
 
 static void finish_local_xface_copy(void* context, unimesh_t* mesh,
@@ -582,7 +1180,6 @@ static unimesh_patch_bc_t* unimesh_remote_bc(unimesh_t* mesh)
                                     .finish_node_update = finish_remote_node_copy};
   return unimesh_patch_bc_new("remote patch copy BC", NULL, vtable, mesh);
 }
-//------------------------------------------------------------------------
 
 static void set_up_patch_bcs(unimesh_t* mesh)
 {
@@ -654,259 +1251,5 @@ static void set_up_patch_bcs(unimesh_t* mesh)
   polymec_release(copy_bc);
   polymec_release(periodic_bc);
   polymec_release(remote_bc);
-}
-
-void unimesh_finalize(unimesh_t* mesh)
-{
-  ASSERT(!mesh->finalized);
-
-  // Make an array of indices for locally-present patches.
-  mesh->patch_indices = polymec_malloc(sizeof(int) * 3 * mesh->patches->size);
-  int l = 0;
-  for (int i = 0; i < mesh->npx; ++i)
-  {
-    for (int j = 0; j < mesh->npy; ++j)
-    {
-      for (int k = 0; k < mesh->npz; ++k)
-      {
-        int index = patch_index(mesh, i, j, k);
-        if (int_unordered_set_contains(mesh->patches, index))
-        {
-          mesh->patch_indices[3*l]   = i;
-          mesh->patch_indices[3*l+1] = j;
-          mesh->patch_indices[3*l+2] = k;
-          ++l;
-        }
-      }
-    }
-  }
-  ASSERT(l == mesh->patches->size);
-
-  // Now make sure every patch has a set of boundary conditions.
-  set_up_patch_bcs(mesh);
-
-  mesh->finalized = true;
-}
-
-unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
-                       int npx, int npy, int npz, 
-                       int nx, int ny, int nz,
-                       bool periodic_in_x, bool periodic_in_y, bool periodic_in_z)
-{
-  unimesh_t* mesh = create_empty_unimesh(comm, bbox, 
-                                         npx, npy, npz,
-                                         nx, ny, nz,
-                                         periodic_in_x, periodic_in_y, periodic_in_z);
-
-  if (comm == MPI_COMM_SELF) // every proc gets all patches!
-  {
-    for (int i = 0; i < npx; ++i)
-      for (int j = 0; j < npy; ++j)
-        for (int k = 0; k < npz; ++k)
-          unimesh_insert_patch(mesh, i, j, k);
-  }
-  else // we do a naive allotment
-  {
-    // Total up the number of patches and allocate them to available 
-    // processes.
-    int nproc, rank;
-    MPI_Comm_size(comm, &nproc);
-    MPI_Comm_rank(comm, &rank);
-    int num_patches = npx * npy * npz;
-    int num_local_patches = num_patches / nproc;
-    if (rank == nproc-1)
-      num_local_patches = num_patches - (nproc-1) * num_local_patches;
-    int start_patch = (num_patches / nproc) * rank;
-
-    int l = 0;
-    for (int i = 0; i < npx; ++i)
-    {
-      for (int j = 0; j < npy; ++j)
-      {
-        for (int k = 0; k < npz; ++k, ++l)
-        {
-          if (l >= start_patch)
-            unimesh_insert_patch(mesh, i, j, k);
-          if (l >= start_patch + num_local_patches) break;
-        }
-        if (l >= start_patch + num_local_patches) break;
-      }
-      if (l >= start_patch + num_local_patches) break;
-    }
-  }
-  
-  // Finalize and send 'er off.
-  unimesh_finalize(mesh);
-  return mesh;
-}
-
-void unimesh_free(unimesh_t* mesh)
-{
-  real_array_free(mesh->patch_boundary_buffer);
-  update_map_free(mesh->pending_updates);
-  patch_bc_map_free(mesh->patch_bcs);
-  int_unordered_set_free(mesh->patches);
-  if (mesh->patch_indices != NULL)
-    polymec_free(mesh->patch_indices);
-  polymec_free(mesh);
-}
-
-MPI_Comm unimesh_comm(unimesh_t* mesh)
-{
-  return mesh->comm;
-}
-
-bbox_t* unimesh_bbox(unimesh_t* mesh)
-{
-  return &(mesh->bbox);
-}
-
-void unimesh_get_spacings(unimesh_t* mesh, 
-                          real_t* dx, real_t* dy, real_t* dz)
-{
-  *dx = mesh->dx;
-  *dy = mesh->dy;
-  *dz = mesh->dz;
-}
-
-bool unimesh_next_patch(unimesh_t* mesh, int* pos, 
-                        int* i, int* j, int* k,
-                        bbox_t* bbox)
-{
-  ASSERT(mesh->finalized);
-  ASSERT(*pos >= 0);
-#if POLYMEC_HAVE_OPENMP
-  int num_threads = omp_get_num_threads();
-  int tid = omp_get_thread_num();
-#else
-  int num_threads = 1;
-  int tid = 0;
-#endif
-  if (*pos == 0) 
-    *pos = tid;
-  bool result = (*pos < mesh->patches->size);
-  if (result)
-  {
-    int l = *pos;
-    *i = mesh->patch_indices[3*l];
-    *j = mesh->patch_indices[3*l+1];
-    *k = mesh->patch_indices[3*l+2];
-    *pos += num_threads;
-    if (bbox != NULL)
-    {
-      real_t Lx = mesh->nx * mesh->dx,
-             Ly = mesh->ny * mesh->dy,
-             Lz = mesh->nz * mesh->dz;
-      bbox->x1 = mesh->bbox.x1 + (*i) * Lx;
-      bbox->x2 = bbox->x1 + Lx;
-      bbox->y1 = mesh->bbox.y1 + (*j) * Ly;
-      bbox->y2 = bbox->y1 + Ly;
-      bbox->z1 = mesh->bbox.z1 + (*k) * Lz;
-      bbox->z2 = bbox->z1 + Lz;
-    }
-  }
-  return result;
-}
-
-void unimesh_get_extents(unimesh_t* mesh, int* npx, int* npy, int* npz)
-{
-  *npx = mesh->npx;
-  *npy = mesh->npy;
-  *npz = mesh->npz;
-}
-
-void unimesh_get_patch_size(unimesh_t* mesh, int* nx, int* ny, int* nz)
-{
-  *nx = mesh->nx;
-  *ny = mesh->ny;
-  *nz = mesh->nz;
-}
-
-int unimesh_num_patches(unimesh_t* mesh)
-{
-  return mesh->patches->size;
-}
-
-bool unimesh_is_periodic_in_x(unimesh_t* mesh)
-{
-  return mesh->periodic_in_x;
-}
-
-bool unimesh_is_periodic_in_y(unimesh_t* mesh)
-{
-  return mesh->periodic_in_y;
-}
-
-bool unimesh_is_periodic_in_z(unimesh_t* mesh)
-{
-  return mesh->periodic_in_z;
-}
-
-bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k)
-{
-  int index = patch_index(mesh, i, j, k);
-  return int_unordered_set_contains(mesh->patches, index);
-}
-
-void unimesh_update_patch_boundary(unimesh_t* mesh,
-                                   int i, int j, int k, real_t t,
-                                   unimesh_boundary_t boundary,
-                                   unimesh_patch_t* patch)
-{
-  unimesh_start_updating_patch_boundary(mesh, i, j, k, t, boundary, patch);
-  unimesh_finish_updating_patch_boundary(mesh, boundary, patch);
-}
-
-void unimesh_start_updating_patch_boundary(unimesh_t* mesh,
-                                           int i, int j, int k, real_t t,
-                                           unimesh_boundary_t boundary,
-                                           unimesh_patch_t* patch)
-{
-  ASSERT(mesh->finalized);
-  ASSERT(unimesh_has_patch(mesh, i, j, k));
-  int index = patch_index(mesh, i, j, k);
-
-  // Make sure we don't have a pending update for this boundary/patch.
-  update_key_t update_key = {.boundary = boundary, .patch = patch};
-  ASSERT(!update_map_contains(mesh->pending_updates, update_key));
-
-  // Start the update.
-  int b = (int)boundary;
-  unimesh_patch_bc_t* bc = (*patch_bc_map_get(mesh->patch_bcs, index))[b];
-  unimesh_patch_bc_start_update(bc, i, j, k, t, boundary, patch);
-
-  // Create a pending update record.
-  pending_update_t* update = polymec_malloc(sizeof(pending_update_t));
-  update->i = i;
-  update->j = j;
-  update->k = k;
-  update->t = t;
-  update_map_insert_with_v_dtor(mesh->pending_updates, 
-                                update_key, update, update_free);
-}
-
-void unimesh_finish_updating_patch_boundary(unimesh_t* mesh,
-                                            unimesh_boundary_t boundary,
-                                            unimesh_patch_t* patch)
-{
-  ASSERT(mesh->finalized);
-
-  // Retrieve the record for this update.
-  update_key_t update_key = {.boundary = boundary, .patch = patch};
-  pending_update_t** update_p = update_map_get(mesh->pending_updates, 
-                                               update_key);
-  ASSERT(update_p != NULL); // We ARE updating this patch, aren't we?
-  pending_update_t* update = *update_p;
-  int i = update->i, j = update->j, k = update->k;
-  real_t t = update->t;
-
-  // Finish the update.
-  int index = patch_index(mesh, i, j, k);
-  int b = (int)boundary;
-  unimesh_patch_bc_t* bc = (*patch_bc_map_get(mesh->patch_bcs, index))[b];
-  unimesh_patch_bc_finish_update(bc, i, j, k, t, boundary, patch);
-
-  // Delete the record.
-  update_map_delete(mesh->pending_updates, update_key);
 }
 
