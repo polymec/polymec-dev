@@ -342,7 +342,7 @@ typedef struct
   unimesh_centering_t centering;
   int nx, ny, nz, nc;
   bool in_use;
-  size_t* patch_offsets;
+  int_int_unordered_map_t* patch_offsets;
   size_t boundary_offsets[6];
   real_t* storage;
 } boundary_buffer_t;
@@ -407,11 +407,10 @@ static void boundary_buffer_reset(boundary_buffer_t* buffer,
   int cent = (int)centering;
   int pos = 0, i, j, k;
   size_t last_offset = 0;
-  buffer->patch_offsets[0] = 0;
   while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
   {
     int index = patch_index(buffer->mesh, i, j, k);
-    buffer->patch_offsets[index] = last_offset;
+    int_int_unordered_map_insert(buffer->patch_offsets, index, (int)last_offset);
     last_offset += patch_sizes[cent];
   }
   memcpy(buffer->boundary_offsets, offsets[cent], 6*sizeof(size_t));
@@ -430,8 +429,7 @@ static boundary_buffer_t* boundary_buffer_new(unimesh_t* mesh,
   unimesh_get_patch_size(mesh, &buffer->nx, &buffer->ny, &buffer->nz);
   buffer->nc = -1;
   buffer->in_use = false;
-  int np = mesh->npx * mesh->npy * mesh->npz;
-  buffer->patch_offsets = polymec_malloc(sizeof(size_t) * (np+1));
+  buffer->patch_offsets = int_int_unordered_map_new();
   buffer->storage = NULL;
   boundary_buffer_reset(buffer, centering, num_components);
   return buffer;
@@ -441,7 +439,7 @@ static void boundary_buffer_free(boundary_buffer_t* buffer)
 {
   if (buffer->storage != NULL)
     polymec_free(buffer->storage);
-  polymec_free(buffer->patch_offsets);
+  int_int_unordered_map_free(buffer->patch_offsets);
   polymec_free(buffer);
 }
 
@@ -451,7 +449,8 @@ static inline void* boundary_buffer_data(boundary_buffer_t* buffer,
 {
   int index = patch_index(buffer->mesh, i, j, k);
   int b = (int)boundary;
-  size_t offset = buffer->patch_offsets[index] + buffer->boundary_offsets[b];
+  size_t offset = *int_int_unordered_map_get(buffer->patch_offsets, index) + 
+                  buffer->boundary_offsets[b];
   return &(buffer->storage[offset]);
 }
 
