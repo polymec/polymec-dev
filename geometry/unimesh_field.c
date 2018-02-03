@@ -216,8 +216,18 @@ void unimesh_field_set_patch_bc(unimesh_field_t* field,
                                   patch_bc, patch_bc_release);
 }
 
+bool unimesh_field_has_patch_bc(unimesh_field_t* field,
+                                int i, int j, int k,
+                                unimesh_boundary_t patch_boundary)
+{
+  int index = patch_index(field, i, j, k);
+  int b = (int)patch_boundary; // number between 0 and 5.
+  int key[2] = {index, b};
+  return patch_bc_map_contains(field->patch_bcs, key);
+}
+
 void unimesh_field_update_patch_boundaries(unimesh_field_t* field,
-                                                   real_t t)
+                                           real_t t)
 {
   unimesh_field_start_updating_patch_boundaries(field, t);
   unimesh_field_finish_updating_patch_boundaries(field);

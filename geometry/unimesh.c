@@ -370,10 +370,10 @@ static void boundary_buffer_reset(boundary_buffer_t* buffer,
                            2*nc*((ny+1)*nz + (nx+1)*nz + (nx+1)*(ny+1)), // z edges
                            2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1) + (nx+1)*(ny+1))}; // nodes
 
-  size_t offsets[8][6] =  { // cells
-                           {0, nc*ny*nz, 
-                            2*nc*ny*nz, 2*nc*ny*nz + nc*nx*nz,
-                            2*nc*(ny*nz + nx*nz), 2*nc*(ny*nz + nx*nz) + nc*nx*ny},
+  size_t offsets[8][6] =  { // cells (including ghosts for simplicity)
+                           {0, nc*(ny+2)*(nz+2), 
+                            2*nc*(ny+2)*(nz+2), 2*nc*(ny+2)*(nz+2) + nc*(nx+2)*(nz+2),
+                            2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2)), 2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2)) + nc*(nx+2)*(ny+2)},
                             // x faces
                            {0, nc*ny*nz,
                             2*nc*ny*nz, 2*nc*ny*nz + nc*(nx+1)*nz,
@@ -685,6 +685,7 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
 
   // Release the boundary update corresponding to this token.
   boundary_buffer_pool_release(mesh->boundary_buffers, token);
+  mesh->boundary_update_token = -1;
 }
 
 extern unimesh_patch_bc_t* unimesh_copy_bc_new(unimesh_t* mesh);
@@ -701,21 +702,26 @@ static void set_up_patch_bcs(unimesh_t* mesh)
   int pos = 0, i, j, k;
   while (unimesh_next_patch(mesh, &pos, &i, &j, &k, NULL))
   {
-    unimesh_patch_bc_t *x1_bc, *x2_bc, *y1_bc, *y2_bc, *z1_bc, *z2_bc;
+    unimesh_patch_bc_t *x1_bc = NULL, 
+                       *x2_bc = NULL, 
+                       *y1_bc = NULL, 
+                       *y2_bc = NULL, 
+                       *z1_bc = NULL, 
+                       *z2_bc = NULL;
 
     // x boundaries
     if (unimesh_has_patch(mesh, i-1, j, k))
       x1_bc = copy_bc;
     else if (mesh->periodic_in_x && (i == 0) && unimesh_has_patch(mesh, mesh->npx-1, j, k))
       x1_bc = periodic_bc;
-    else
+    else if (i > 0)
       x1_bc = remote_bc;
 
     if (unimesh_has_patch(mesh, i+1, j, k))
       x2_bc = copy_bc;
     else if (mesh->periodic_in_x && (i == mesh->npx-1) && unimesh_has_patch(mesh, 0, j, k))
       x2_bc = periodic_bc;
-    else
+    else if (i < mesh->npx-1)
       x2_bc = remote_bc;
 
     // y boundaries
@@ -723,14 +729,14 @@ static void set_up_patch_bcs(unimesh_t* mesh)
       y1_bc = copy_bc;
     else if (mesh->periodic_in_y && (j == 0) && unimesh_has_patch(mesh, i, mesh->npy-1, k))
       y1_bc = periodic_bc;
-    else
+    else if (j > 0)
       y1_bc = remote_bc;
 
     if (unimesh_has_patch(mesh, i, j+1, k))
       y2_bc = copy_bc;
     else if (mesh->periodic_in_y && (j == mesh->npy-1) && unimesh_has_patch(mesh, i, 0, k))
       y2_bc = periodic_bc;
-    else
+    else if (j < mesh->npy-1)
       y2_bc = remote_bc;
 
     // z boundaries
@@ -738,22 +744,28 @@ static void set_up_patch_bcs(unimesh_t* mesh)
       z1_bc = copy_bc;
     else if (mesh->periodic_in_z && (k == 0) && unimesh_has_patch(mesh, i, j, mesh->npz-1))
       z1_bc = periodic_bc;
-    else
+    else if (k > 0)
       z1_bc = remote_bc;
 
     if (unimesh_has_patch(mesh, i, j, k+1))
       z2_bc = copy_bc;
     else if (mesh->periodic_in_z && (i == mesh->npz-1) && unimesh_has_patch(mesh, i, j, 0))
       z2_bc = periodic_bc;
-    else
+    else if (k < mesh->npz-1)
       z2_bc = remote_bc;
 
-    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_X1_BOUNDARY, x1_bc);
-    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_X2_BOUNDARY, x2_bc);
-    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Y1_BOUNDARY, y1_bc);
-    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Y2_BOUNDARY, y2_bc);
-    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Z1_BOUNDARY, z1_bc);
-    unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Z2_BOUNDARY, z2_bc);
+    if (x1_bc != NULL)
+      unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_X1_BOUNDARY, x1_bc);
+    if (x2_bc != NULL)
+      unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_X2_BOUNDARY, x2_bc);
+    if (y1_bc != NULL)
+      unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Y1_BOUNDARY, y1_bc);
+    if (y2_bc != NULL)
+      unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Y2_BOUNDARY, y2_bc);
+    if (z1_bc != NULL)
+      unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Z1_BOUNDARY, z1_bc);
+    if (z2_bc != NULL)
+      unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Z2_BOUNDARY, z2_bc);
   }
 
   // Get rid of extra references.

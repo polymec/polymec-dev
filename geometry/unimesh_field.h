@@ -90,6 +90,12 @@ void unimesh_field_set_patch_bc(unimesh_field_t* field,
                                 unimesh_boundary_t patch_boundary,
                                 unimesh_patch_bc_t* patch_bc);
 
+// Returns true if the field has a patch boundary condition assigned to 
+// the patch (i, j, k) on the given boundary, false if not.
+bool unimesh_field_has_patch_bc(unimesh_field_t* field,
+                                int i, int j, int k,
+                                unimesh_boundary_t patch_boundary);
+
 // Synchronously updates all of the boundary data in the patches within this 
 // field at time t, returning when finished. For cell-centered data, this 
 // means filling ghost cells. For face-, node-, and edge-centered data, it 
