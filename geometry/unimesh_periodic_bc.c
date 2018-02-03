@@ -19,9 +19,11 @@ static void start_update_cell_x1(void* context, unimesh_t* mesh,
                                  unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               patch->nx-1, j, k, 
+                                               npx-1, j, k, 
                                                UNIMESH_X2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -35,7 +37,9 @@ static void start_update_cell_x2(void* context, unimesh_t* mesh,
                                  int i, int j, int k, real_t t,
                                  unimesh_patch_t* patch)
 {
-  ASSERT(i == patch->nx-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(i == npx-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                0, j, k, 
@@ -53,9 +57,11 @@ static void start_update_cell_y1(void* context, unimesh_t* mesh,
                                  unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, patch->ny-1, k, 
+                                               i, npy-1, k, 
                                                UNIMESH_Y2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -69,7 +75,9 @@ static void start_update_cell_y2(void* context, unimesh_t* mesh,
                                  int i, int j, int k, real_t t,
                                  unimesh_patch_t* patch)
 {
-  ASSERT(j == patch->ny-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(j == npy-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, 0, k, 
@@ -87,9 +95,11 @@ static void start_update_cell_z1(void* context, unimesh_t* mesh,
                                  unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, patch->nz-1, 
+                                               i, j, npz-1, 
                                                UNIMESH_Z2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -103,7 +113,9 @@ static void start_update_cell_z2(void* context, unimesh_t* mesh,
                                  int i, int j, int k, real_t t,
                                  unimesh_patch_t* patch)
 {
-  ASSERT(k == patch->nz-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(k == npz-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, j, 0, 
@@ -129,7 +141,9 @@ static void start_update_xface_x2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(i == patch->nx-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(i == npx-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                0, j, k, 
@@ -197,7 +211,9 @@ static void start_update_yface_y2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(j == patch->ny-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(j == npy-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, 0, k, 
@@ -265,7 +281,9 @@ static void start_update_zface_z2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(k == patch->nz-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(k == npz-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, j, 0, 
@@ -305,7 +323,9 @@ static void start_update_xedge_y2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(j == patch->ny-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(j == npy-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, 0, k, 
@@ -331,7 +351,9 @@ static void start_update_xedge_z2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(k == patch->nz-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(k == npz-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, j, 0, 
@@ -357,7 +379,9 @@ static void start_update_yedge_x2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(i == patch->nx-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(i == npx-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                0, j, k, 
@@ -397,7 +421,9 @@ static void start_update_yedge_z2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(k == patch->nz-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(k == npz-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, j, 0, 
@@ -423,7 +449,9 @@ static void start_update_zedge_x2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(i == patch->nx-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(i == npx-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                0, j, k, 
@@ -449,7 +477,9 @@ static void start_update_zedge_y2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(j == patch->ny-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(j == npy-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, 0, k, 
@@ -489,7 +519,9 @@ static void start_update_node_x2(void* context, unimesh_t* mesh,
                                  int i, int j, int k, real_t t,
                                  unimesh_patch_t* patch)
 {
-  ASSERT(i == patch->nx-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(i == npx-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                0, j, k, 
@@ -515,7 +547,9 @@ static void start_update_node_y2(void* context, unimesh_t* mesh,
                                  int i, int j, int k, real_t t,
                                  unimesh_patch_t* patch)
 {
-  ASSERT(j == patch->ny-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(j == npy-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, 0, k, 
@@ -541,7 +575,9 @@ static void start_update_node_z2(void* context, unimesh_t* mesh,
                                  int i, int j, int k, real_t t,
                                  unimesh_patch_t* patch)
 {
-  ASSERT(k == patch->nz-1);
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  ASSERT(k == npz-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, j, 0, 
@@ -575,7 +611,6 @@ static void finish_update_cell_x2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(i == patch->nx-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, j, k, 
@@ -609,7 +644,6 @@ static void finish_update_cell_y2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(j == patch->ny-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, j, k, 
@@ -643,7 +677,6 @@ static void finish_update_cell_z2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(k == patch->nz-1);
   int token = unimesh_boundary_update_token(mesh);
   void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
                                                i, j, k, 
@@ -677,7 +710,6 @@ static void finish_update_xface_x2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(i == patch->nx-1);
   // We don't receive anything from our x2 boundary.
 }
 
@@ -744,7 +776,6 @@ static void finish_update_yface_y2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(j == patch->ny-1);
   // We don't receive anything from our x2 boundary.
 }
 
@@ -811,7 +842,6 @@ static void finish_update_zface_z2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(k == patch->nz-1);
   // We don't receive anything from our z2 neighbor.
 }
 
@@ -850,7 +880,6 @@ static void finish_update_xedge_y2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(j == patch->ny-1);
   // We don't receive anything from our y2 neighbor.
 }
 
@@ -875,7 +904,6 @@ static void finish_update_xedge_z2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(k == patch->nz-1);
   // We don't receive anything from our z2 neighbor.
 }
 
@@ -900,7 +928,6 @@ static void finish_update_yedge_x2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(i == patch->nx-1);
   // We don't receive anything from our y2 neighbor.
 }
 
@@ -939,7 +966,6 @@ static void finish_update_yedge_z2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(k == patch->nz-1);
   // We don't receive anything from our z2 neighbor.
 }
 
@@ -964,7 +990,6 @@ static void finish_update_zedge_x2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(i == patch->nx-1);
   // We don't receive anything from our x2 neighbor.
 }
 
@@ -989,7 +1014,6 @@ static void finish_update_zedge_y2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(j == patch->ny-1);
   // We don't receive anything from our y2 neighbor.
 }
 
@@ -1028,7 +1052,6 @@ static void finish_update_node_x2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(i == patch->nx-1);
   // We don't receive anything from our x2 neighbor.
 }
 
@@ -1053,7 +1076,6 @@ static void finish_update_node_y2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(j == patch->ny-1);
   // We don't receive anything from our y2 neighbor.
 }
 
@@ -1078,7 +1100,6 @@ static void finish_update_node_z2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(k == patch->nz-1);
   // We don't receive anything from our z2 neighbor.
 }
 
