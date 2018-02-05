@@ -152,10 +152,9 @@ void silo_file_write_unimesh(silo_file_t* file,
     int patch_sizes[3] = {nx, ny, nz};
     silo_file_write_int_array(file, array_name, patch_sizes, 3);
     snprintf(array_name, FILENAME_MAX, "%s_periodicity", mesh_name);
-    int periodicity[3];
-    periodicity[0] = unimesh_is_periodic_in_x(mesh);
-    periodicity[1] = unimesh_is_periodic_in_y(mesh);
-    periodicity[2] = unimesh_is_periodic_in_z(mesh);
+    bool x_periodic, y_periodic, z_periodic;
+    unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
+    int periodicity[3] = {(int)x_periodic, (int)y_periodic, (int)z_periodic};
     silo_file_write_int_array(file, array_name, periodicity, 3);
   }
 

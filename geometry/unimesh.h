@@ -114,17 +114,14 @@ void unimesh_get_extents(unimesh_t* mesh, int* npx, int* npy, int* npz);
 // directions, placing them in nx, ny, nz.
 void unimesh_get_patch_size(unimesh_t* mesh, int* nx, int* ny, int* nz);
 
+// Retrieves flags that indicate whether the mesh is periodic in x, y, and z.
+void unimesh_get_periodicity(unimesh_t* mesh, 
+                             bool* periodic_in_x,
+                             bool* periodic_in_y,
+                             bool* periodic_in_z);
+
 // Returns the number of patches that can be stored on this mesh.
 int unimesh_num_patches(unimesh_t* mesh);
-
-// Returns true if the mesh is periodic in the x direction, false if not.
-bool unimesh_is_periodic_in_x(unimesh_t* mesh);
-
-// Returns true if the mesh is periodic in the y direction, false if not.
-bool unimesh_is_periodic_in_y(unimesh_t* mesh);
-
-// Returns true if the mesh is periodic in the z direction, false if not.
-bool unimesh_is_periodic_in_z(unimesh_t* mesh);
 
 // Traverses the patches in the mesh, returning true and the next (i, j, k) 
 // triple if the traversal is incomplete, false otherwise. Set *pos to zero 

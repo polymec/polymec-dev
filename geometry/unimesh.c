@@ -304,19 +304,14 @@ int unimesh_num_patches(unimesh_t* mesh)
   return mesh->patches->size;
 }
 
-bool unimesh_is_periodic_in_x(unimesh_t* mesh)
+void unimesh_get_periodicity(unimesh_t* mesh, 
+                             bool* periodic_in_x,
+                             bool* periodic_in_y,
+                             bool* periodic_in_z)
 {
-  return mesh->periodic_in_x;
-}
-
-bool unimesh_is_periodic_in_y(unimesh_t* mesh)
-{
-  return mesh->periodic_in_y;
-}
-
-bool unimesh_is_periodic_in_z(unimesh_t* mesh)
-{
-  return mesh->periodic_in_z;
+  *periodic_in_x = mesh->periodic_in_x;
+  *periodic_in_y = mesh->periodic_in_y;
+  *periodic_in_z = mesh->periodic_in_z;
 }
 
 bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k)
