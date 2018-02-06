@@ -5,6 +5,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/unordered_map.h"
+#include "core/exchanger.h"
 #include "geometry/unimesh.h"
 #include "geometry/unimesh_patch.h"
 #include "geometry/unimesh_patch_bc.h"
@@ -13,6 +15,37 @@ extern int unimesh_boundary_update_token(unimesh_t* mesh);
 extern void* unimesh_patch_boundary_buffer(unimesh_t* mesh, int token, 
                                            int i, int j, int k, 
                                            unimesh_boundary_t boundary);
+extern int unimesh_owner_proc(unimesh_t* mesh, 
+                              int i, int j, int k,
+                              unimesh_boundary_t boundary);
+
+typedef struct
+{
+  exchanger_t *cell_ex, *xface_ex, *yface_ex, *zface_ex,
+              *xedge_ex, *yedge_ex, *zedge_ex, *node_ex;
+  int_int_unordered_map_t* token_map; // maps mesh tokens to exchanger tokens
+} remote_bc_t;
+
+static remote_bc_t* remote_bc_new(unimesh_t* mesh)
+{
+  remote_bc_t* bc = polymec_malloc(sizeof(remote_bc_t));
+  bc->token_map = int_int_unordered_map_new();
+  return bc;
+}
+
+static void remote_bc_free(remote_bc_t* bc)
+{
+  polymec_release(bc->cell_ex);
+  polymec_release(bc->xface_ex);
+  polymec_release(bc->yface_ex);
+  polymec_release(bc->zface_ex);
+  polymec_release(bc->xedge_ex);
+  polymec_release(bc->yedge_ex);
+  polymec_release(bc->zedge_ex);
+  polymec_release(bc->node_ex);
+  int_int_unordered_map_free(bc->token_map);
+  polymec_free(bc);
+}
 
 static void start_update_cell_x1(void* context, unimesh_t* mesh,
                                  int i, int j, int k, real_t t,
@@ -1025,7 +1058,7 @@ static void finish_update_node_z2(void* context, unimesh_t* mesh,
 unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh);
 unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
 {
-  unimesh_patch_bc_vtable vtable = {.dtor = NULL};
+  unimesh_patch_bc_vtable vtable = {.dtor = DTOR(remote_bc_free)};
   vtable.start_update[0][0] = start_update_cell_x1;
   vtable.start_update[0][1] = start_update_cell_x2;
   vtable.start_update[0][2] = start_update_cell_y1;
@@ -1124,5 +1157,6 @@ unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
   vtable.finish_update[0][4] = finish_update_node_z1;
   vtable.finish_update[0][5] = finish_update_node_z2;
 
-  return unimesh_patch_bc_new("local patch copy BC", NULL, vtable, mesh);
+  remote_bc_t* bc = remote_bc_new(mesh);
+  return unimesh_patch_bc_new("remote patch copy BC", bc, vtable, mesh);
 }
