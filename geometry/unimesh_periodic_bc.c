@@ -9,8 +9,7 @@
 #include "geometry/unimesh_patch.h"
 #include "geometry/unimesh_patch_bc.h"
 
-extern int unimesh_boundary_update_token(unimesh_t* mesh);
-extern void* unimesh_patch_boundary_buffer(unimesh_t* mesh, int token, 
+extern void* unimesh_patch_boundary_buffer(unimesh_t* mesh, 
                                            int i, int j, int k, 
                                            unimesh_boundary_t boundary);
 
@@ -21,9 +20,7 @@ static void start_update_cell_x1(void* context, unimesh_t* mesh,
   ASSERT(i == 0);
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               npx-1, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, npx-1, j, k, 
                                                UNIMESH_X2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -40,9 +37,7 @@ static void start_update_cell_x2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(i == npx-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               0, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, 0, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -59,9 +54,7 @@ static void start_update_cell_y1(void* context, unimesh_t* mesh,
   ASSERT(j == 0);
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, npy-1, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, npy-1, k, 
                                                UNIMESH_Y2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -78,9 +71,7 @@ static void start_update_cell_y2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, 0, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -97,9 +88,7 @@ static void start_update_cell_z1(void* context, unimesh_t* mesh,
   ASSERT(k == 0);
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, npz-1, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, npz-1, 
                                                UNIMESH_Z2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -116,9 +105,7 @@ static void start_update_cell_z2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(k == npz-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, 0, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, 0, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -144,9 +131,7 @@ static void start_update_xface_x2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(i == npx-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               0, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, 0, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
   DECLARE_UNIMESH_XFACE_ARRAY(a, patch);
@@ -214,9 +199,7 @@ static void start_update_yface_y2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, 0, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
   DECLARE_UNIMESH_YFACE_ARRAY(a, patch);
@@ -284,9 +267,7 @@ static void start_update_zface_z2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(k == npz-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, 0, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, 0, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
   DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
@@ -326,9 +307,7 @@ static void start_update_xedge_y2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, 0, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
@@ -354,9 +333,7 @@ static void start_update_xedge_z2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(k == npz-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, 0, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, 0, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny+1, patch->nc);
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
@@ -382,9 +359,7 @@ static void start_update_yedge_x2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(i == npx-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               0, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, 0, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
@@ -424,9 +399,7 @@ static void start_update_yedge_z2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(k == npz-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, 0, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, 0, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny, patch->nc);
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
@@ -452,9 +425,7 @@ static void start_update_zedge_x2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(i == npx-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               0, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, 0, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+1, patch->nz, patch->nc);
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
@@ -480,9 +451,7 @@ static void start_update_zedge_y2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, 0, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz, patch->nc);
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
@@ -522,9 +491,7 @@ static void start_update_node_x2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(i == npx-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               0, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, 0, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+1, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
@@ -550,9 +517,7 @@ static void start_update_node_y2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, 0, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
@@ -578,9 +543,7 @@ static void start_update_node_z2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(k == npz-1);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, 0, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, 0, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny+1, patch->nc);
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
@@ -595,9 +558,7 @@ static void finish_update_cell_x1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -611,9 +572,7 @@ static void finish_update_cell_x2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_X2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -628,9 +587,7 @@ static void finish_update_cell_y1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -644,9 +601,7 @@ static void finish_update_cell_y2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Y2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -661,9 +616,7 @@ static void finish_update_cell_z1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -677,9 +630,7 @@ static void finish_update_cell_z2(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -694,9 +645,7 @@ static void finish_update_xface_x1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
@@ -760,9 +709,7 @@ static void finish_update_yface_y1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
   DECLARE_UNIMESH_YFACE_ARRAY(a, patch);
@@ -826,9 +773,7 @@ static void finish_update_zface_z1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
   DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
@@ -864,9 +809,7 @@ static void finish_update_xedge_y1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
@@ -888,9 +831,7 @@ static void finish_update_xedge_z1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny+1, patch->nc);
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
@@ -912,9 +853,7 @@ static void finish_update_yedge_x1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
@@ -950,9 +889,7 @@ static void finish_update_yedge_z1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny, patch->nc);
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
@@ -974,9 +911,7 @@ static void finish_update_zedge_x1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+1, patch->nz, patch->nc);
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
@@ -998,9 +933,7 @@ static void finish_update_zedge_y1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz, patch->nc);
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
@@ -1036,9 +969,7 @@ static void finish_update_node_x1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+1, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
@@ -1060,9 +991,7 @@ static void finish_update_node_y1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
@@ -1084,9 +1013,7 @@ static void finish_update_node_z1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
-  int token = unimesh_boundary_update_token(mesh);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, token, 
-                                               i, j, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny+1, patch->nc);
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
