@@ -14,9 +14,6 @@ struct unimesh_patch_bc_t
   void* context;
   unimesh_patch_bc_vtable vtable;
   unimesh_t* mesh;
-
-  int num_components;
-  int* components;
 };
 
 static void unimesh_patch_bc_free(void* context)
@@ -25,7 +22,6 @@ static void unimesh_patch_bc_free(void* context)
   if ((bc->context != NULL) && (bc->vtable.dtor != NULL))
     bc->vtable.dtor(bc->context);
   string_free(bc->name);
-  polymec_free(bc->components);
 }
 
 unimesh_patch_bc_t* unimesh_patch_bc_new(const char* name,
@@ -47,30 +43,12 @@ unimesh_patch_bc_t* unimesh_patch_bc_new(const char* name,
   }
   bc->vtable.dtor = vtable.dtor;
   bc->mesh = mesh;
-  bc->num_components = 0; // all components
-  return bc;
-}
-
-unimesh_patch_bc_t* multicomp_unimesh_patch_bc_new(const char* name,
-                                                   void* context,
-                                                   unimesh_patch_bc_vtable vtable,
-                                                   unimesh_t* mesh,
-                                                   int num_components)
-{
-  ASSERT(num_components > 0);
-  unimesh_patch_bc_t* bc = unimesh_patch_bc_new(name, context, vtable, mesh);
-  bc->num_components = num_components;
   return bc;
 }
 
 char* unimesh_patch_bc_name(unimesh_patch_bc_t* bc)
 {
   return bc->name;
-}
-
-int unimesh_patch_bc_num_components(unimesh_patch_bc_t* bc)
-{
-  return bc->num_components;
 }
 
 void* unimesh_patch_bc_context(unimesh_patch_bc_t* bc)

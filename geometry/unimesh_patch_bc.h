@@ -43,29 +43,14 @@ typedef struct
 } unimesh_patch_bc_vtable;
 
 // Creates a new unimesh patch boundary condition with the given name context 
-// pointer, and vtable, associated with the given unimesh. The boundary
-// conditions operates on all components for all patch data and does not 
-// depend on the number of components.
+// pointer, and vtable, associated with the given unimesh. 
 unimesh_patch_bc_t* unimesh_patch_bc_new(const char* name,
                                          void* context,
                                          unimesh_patch_bc_vtable vtable,
                                          unimesh_t* mesh);
 
-// Creates a new multi-component unimesh patch boundary condition with the 
-// given name context pointer, and vtable, associated with the given unimesh, 
-// and operating on the given number of components.
-unimesh_patch_bc_t* multicomp_unimesh_patch_bc_new(const char* name,
-                                                   void* context,
-                                                   unimesh_patch_bc_vtable vtable,
-                                                   unimesh_t* mesh,
-                                                   int num_components);
-
 // Returns an internal pointer to the name of this patch boundary condition.
 char* unimesh_patch_bc_name(unimesh_patch_bc_t* bc);
-
-// Returns the number of components affected by this boundary condition, 
-// or 0 if the boundary condition affects all components.
-int unimesh_patch_bc_num_components(unimesh_patch_bc_t* bc);
 
 // Returns the context pointer associated with this boundary condition.
 void* unimesh_patch_bc_context(unimesh_patch_bc_t* bc);

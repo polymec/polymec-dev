@@ -87,7 +87,7 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
   mesh->patches = int_unordered_set_new();
   mesh->patch_indices = NULL;
   mesh->patch_bcs = patch_bc_map_new();
-  mesh->boundary_buffers = boundary_buffer_pool_new(mesh);
+  mesh->boundary_buffers = NULL;
   mesh->boundary_updates = int_ptr_unordered_map_new();
   mesh->boundary_update_token = -1;
   mesh->comm = comm;
@@ -123,7 +123,6 @@ static void unimesh_set_patch_bc(unimesh_t* mesh,
                                  unimesh_patch_bc_t* patch_bc)
 {
   ASSERT(unimesh_has_patch(mesh, i, j, k));
-  ASSERT(unimesh_patch_bc_num_components(patch_bc) == 0);
   int index = patch_index(mesh, i, j, k);
   unimesh_patch_bc_t*** bcs_p = patch_bc_map_get(mesh->patch_bcs, index);
   unimesh_patch_bc_t** bcs;
@@ -165,11 +164,14 @@ void unimesh_finalize(unimesh_t* mesh)
     }
   }
   ASSERT(l == mesh->patches->size);
+  mesh->finalized = true;
+
+  // Set up boundary buffers.
+  mesh->boundary_buffers = boundary_buffer_pool_new(mesh);
 
   // Now make sure every patch has a set of boundary conditions.
   set_up_patch_bcs(mesh);
 
-  mesh->finalized = true;
 }
 
 unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
@@ -386,7 +388,8 @@ void unimesh_free(unimesh_t* mesh)
 {
   int_int_unordered_map_free(mesh->owner_procs);
   int_ptr_unordered_map_free(mesh->boundary_updates);
-  boundary_buffer_pool_free(mesh->boundary_buffers);
+  if (mesh->boundary_buffers != NULL)
+    boundary_buffer_pool_free(mesh->boundary_buffers);
   patch_bc_map_free(mesh->patch_bcs);
   int_unordered_set_free(mesh->patches);
   if (mesh->patch_indices != NULL)
@@ -521,6 +524,8 @@ static void boundary_buffer_reset(boundary_buffer_t* buffer,
     return;
 
   // Compute buffer offsets based on centering and boundary.
+  buffer->centering = centering;
+  buffer->nc = num_components;
   int nx = buffer->nx, ny = buffer->ny, nz = buffer->nz, nc = buffer->nc;
   size_t patch_sizes[8] = {2*nc*(ny*nz + nx*nz + nx*ny), // cells
                            2*nc*(ny*nz + (nx+1)*nz + (nx+1)*ny), // x faces
@@ -907,7 +912,7 @@ static void set_up_patch_bcs(unimesh_t* mesh)
 
     if (unimesh_has_patch(mesh, i, j, k+1))
       z2_bc = copy_bc;
-    else if (mesh->periodic_in_z && (i == mesh->npz-1) && unimesh_has_patch(mesh, i, j, 0))
+    else if (mesh->periodic_in_z && (k == mesh->npz-1) && unimesh_has_patch(mesh, i, j, 0))
       z2_bc = periodic_bc;
     else if (k < mesh->npz-1)
       z2_bc = remote_bc;
