@@ -113,7 +113,10 @@ void unimesh_insert_patch(unimesh_t* mesh, int i, int j, int k)
 static void patch_bcs_free(unimesh_patch_bc_t** bcs)
 {
   for (int b = 0; b < 6; ++b)
-    polymec_release(bcs[b]);
+  {
+    if (bcs[b] != NULL)
+      polymec_release(bcs[b]);
+  }
   polymec_free(bcs);
 }
 
@@ -128,7 +131,7 @@ static void unimesh_set_patch_bc(unimesh_t* mesh,
   unimesh_patch_bc_t** bcs;
   if (bcs_p == NULL)
   {
-    bcs = polymec_malloc(6*sizeof(unimesh_patch_bc_t*));
+    bcs = polymec_calloc(6*sizeof(unimesh_patch_bc_t*));
     patch_bc_map_insert_with_v_dtor(mesh->patch_bcs, index, bcs, patch_bcs_free);
   }
   else
@@ -527,7 +530,7 @@ static void boundary_buffer_reset(boundary_buffer_t* buffer,
   buffer->centering = centering;
   buffer->nc = num_components;
   int nx = buffer->nx, ny = buffer->ny, nz = buffer->nz, nc = buffer->nc;
-  size_t patch_sizes[8] = {2*nc*(ny*nz + nx*nz + nx*ny), // cells
+  size_t patch_sizes[8] = {2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2) + (nx+2)*(ny+2)), // cells
                            2*nc*(ny*nz + (nx+1)*nz + (nx+1)*ny), // x faces
                            2*nc*((ny+1)*nz + nx*nz + nx*(ny+1)), // y faces
                            2*nc*(ny*(nz+1) + nx*(nz+1) + nx*ny), // z faces

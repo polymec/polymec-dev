@@ -107,6 +107,13 @@ void* polymec_malloc(size_t size)
   }
 }
 
+void* polymec_calloc(size_t size)
+{
+  void* memory = polymec_malloc(size);
+  memset(memory, 0, size);
+  return memory;
+}
+
 void* polymec_realloc(void* memory, size_t size)
 {
   if ((alloc_stack == NULL) || (alloc_stack->size == 0))
@@ -317,6 +324,8 @@ void polymec_retain(void* memory)
 
 void polymec_release(void* memory)
 {
+  ASSERT(memory != NULL);
+
   // Fetch the reference for this object and make sure it exists in the 
   // Lua registry.
   int* storage_ref = (int*)collected_obj_header(memory);

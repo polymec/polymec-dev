@@ -69,7 +69,7 @@ static void test_serial_periodic_cell_field(void** state)
   while (unimesh_field_next_patch(field, &pos, &pi, &pj, &pk, &patch, NULL))
   {
     assert_true(patch->centering == UNIMESH_CELL);
-    assert_true(patch->nc == 2);
+    assert_true(patch->nc == 3);
     DECLARE_UNIMESH_CELL_ARRAY(f, patch);
 
     // x boundaries.
