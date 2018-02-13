@@ -11,6 +11,7 @@
 #include <string.h>
 #include "cmocka.h"
 #include "geometry/unimesh_field.h"
+#include "geometry/unimesh_patch_bc.h"
 
 static unimesh_t* periodic_mesh(MPI_Comm comm)
 {
@@ -32,12 +33,56 @@ static unimesh_t* aperiodic_mesh(MPI_Comm comm)
                      false, false, false);
 }
 
-static void test_serial_periodic_cell_field(void** state)
+static void set_up_periodic_bcs_if_needed(unimesh_field_t* field)
 {
-  unimesh_t* mesh = periodic_mesh(MPI_COMM_SELF);
+  unimesh_t* mesh = unimesh_field_mesh(field);
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
+  bool x_periodic, y_periodic, z_periodic;
+  unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
+
+  // If the mesh isn't periodic, we set up zero boundary conditions on 
+  // the field at the boundaries of the mesh.
+  real_t zeros[3] = {0.0, 0.0, 0.0};
+  unimesh_patch_bc_t* zero_bc = constant_unimesh_patch_bc_new(mesh, zeros, 3);
+
+  int pos = 0, pi, pj, pk;
+  while (unimesh_next_patch(mesh, &pos, &pi, &pj, &pk, NULL))
+  {
+    if (!x_periodic)
+    {
+      if (pi == 0)
+        unimesh_field_set_patch_bc(field, pi, pj, pk, UNIMESH_X1_BOUNDARY, zero_bc);
+      else if (pi == npx-1)
+        unimesh_field_set_patch_bc(field, pi, pj, pk, UNIMESH_X2_BOUNDARY, zero_bc);
+    }
+    if (!y_periodic)
+    {
+      if (pj == 0)
+        unimesh_field_set_patch_bc(field, pi, pj, pk, UNIMESH_Y1_BOUNDARY, zero_bc);
+      else if (pj == npy-1)
+        unimesh_field_set_patch_bc(field, pi, pj, pk, UNIMESH_Y2_BOUNDARY, zero_bc);
+    }
+    if (!z_periodic)
+    {
+      if (pk == 0)
+        unimesh_field_set_patch_bc(field, pi, pj, pk, UNIMESH_Z1_BOUNDARY, zero_bc);
+      else if (pk == npz-1)
+        unimesh_field_set_patch_bc(field, pi, pj, pk, UNIMESH_Z2_BOUNDARY, zero_bc);
+    }
+  }
+  polymec_release(zero_bc);
+}
+
+static void test_cell_field(void** state, unimesh_t* mesh)
+{
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  bool x_periodic, y_periodic, z_periodic;
+  unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
   unimesh_field_t* field = unimesh_field_new(mesh, UNIMESH_CELL, 3);
+
+  set_up_periodic_bcs_if_needed(field);
 
   // Fill our field with patch-specific values.
   int pos = 0, pi, pj, pk;
@@ -73,50 +118,60 @@ static void test_serial_periodic_cell_field(void** state)
     DECLARE_UNIMESH_CELL_ARRAY(f, patch);
 
     // x boundaries.
-    int pi_m = (pi >= 0) ? pi - 1 : npx-1;
+    int pi_m = (pi > 0) ? pi - 1 
+                        : x_periodic ? npx-1 : 0;
     int pi_p = (pi < npx-1) ? pi + 1 : 0;
     for (int j = 1; j <= patch->ny; ++j)
     {
       for (int k = 1; k <= patch->nz; ++k)
       {
+        for (int i = 1; i <= patch->nx; ++i)
+          assert_true(reals_equal(f[i][j][k][0], 1.0 * pi));
         assert_true(reals_equal(f[0][j][k][0], 1.0 * pi_m));
-        assert_true(reals_equal(f[patch->nx][j][k][0], 1.0 * pi_p));
+        assert_true(reals_equal(f[patch->nx+1][j][k][0], 1.0 * pi_p));
       }
     }
 
     // y boundaries.
-    int pj_m = (pj >= 0) ? pj - 1 : npy-1;
+    int pj_m = (pj > 0) ? pj - 1 
+                        : y_periodic ? npy-1 : 0;
     int pj_p = (pj < npy-1) ? pj + 1 : 0;
     for (int i = 1; i <= patch->nx; ++i)
     {
       for (int k = 1; k <= patch->nz; ++k)
       {
-        for (int c = 0; c <= patch->nc; ++c)
-        {
-          assert_true(reals_equal(f[i][0][k][1], 1.0 * pj_m));
-          assert_true(reals_equal(f[i][patch->ny][k][1], 1.0 * pj_p));
-        }
+        for (int j = 1; j <= patch->ny; ++j)
+          assert_true(reals_equal(f[i][j][k][1], 1.0 * pj));
+        assert_true(reals_equal(f[i][0][k][1], 1.0 * pj_m));
+        assert_true(reals_equal(f[i][patch->ny+1][k][1], 1.0 * pj_p));
       }
     }
 
     // z boundaries.
-    int pk_m = (pk >= 0) ? pk - 1 : npz-1;
+    int pk_m = (pk > 0) ? pk - 1 
+                        : z_periodic ? npz-1 : 0;
     int pk_p = (pk < npz-1) ? pk + 1 : 0;
     for (int i = 1; i <= patch->nx; ++i)
     {
       for (int j = 1; j <= patch->ny; ++j)
       {
-        for (int c = 0; c <= patch->nc; ++c)
-        {
-          assert_true(reals_equal(f[i][j][0][2], 1.0 * pk_m));
-          assert_true(reals_equal(f[i][j][patch->nz][2], 1.0 * pk_p));
-        }
+        for (int k = 1; k <= patch->nz; ++k)
+          assert_true(reals_equal(f[i][j][k][2], 1.0 * pk));
+        assert_true(reals_equal(f[i][j][0][2], 1.0 * pk_m));
+        assert_true(reals_equal(f[i][j][patch->nz+1][2], 1.0 * pk_p));
       }
     }
   }
 
+  // Clean up.
   unimesh_field_free(field);
   unimesh_free(mesh);
+}
+
+static void test_serial_periodic_cell_field(void** state)
+{
+  unimesh_t* mesh = periodic_mesh(MPI_COMM_SELF);
+  test_cell_field(state, mesh);
 }
 
 static void test_serial_periodic_face_fields(void** state)
@@ -134,7 +189,7 @@ static void test_serial_periodic_node_field(void** state)
 static void test_serial_aperiodic_cell_field(void** state)
 {
   unimesh_t* mesh = aperiodic_mesh(MPI_COMM_SELF);
-  unimesh_free(mesh);
+  test_cell_field(state, mesh);
 }
 
 static void test_serial_aperiodic_face_fields(void** state)
@@ -152,7 +207,7 @@ static void test_serial_aperiodic_node_field(void** state)
 static void test_parallel_periodic_cell_field(void** state)
 {
   unimesh_t* mesh = periodic_mesh(MPI_COMM_WORLD);
-  unimesh_free(mesh);
+  test_cell_field(state, mesh);
 }
 
 static void test_parallel_periodic_face_fields(void** state)
@@ -170,7 +225,7 @@ static void test_parallel_periodic_node_field(void** state)
 static void test_parallel_aperiodic_cell_field(void** state)
 {
   unimesh_t* mesh = aperiodic_mesh(MPI_COMM_WORLD);
-  unimesh_free(mesh);
+  test_cell_field(state, mesh);
 }
 
 static void test_parallel_aperiodic_face_fields(void** state)

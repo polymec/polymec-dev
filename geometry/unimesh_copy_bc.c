@@ -495,8 +495,8 @@ static void finish_update_cell_x1(void* context, unimesh_t* mesh,
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
-  for (int jj = 0; jj < patch->ny; ++jj)
-    for (int kk = 0; kk < patch->nz; ++kk)
+  for (int jj = 1; jj <= patch->ny; ++jj)
+    for (int kk = 1; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[0][jj][kk][c] = buf[jj][kk][c];
 }
@@ -509,8 +509,8 @@ static void finish_update_cell_x2(void* context, unimesh_t* mesh,
                                                UNIMESH_X2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
-  for (int jj = 0; jj < patch->ny; ++jj)
-    for (int kk = 0; kk < patch->nz; ++kk)
+  for (int jj = 1; jj <= patch->ny; ++jj)
+    for (int kk = 1; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[patch->nx+1][jj][kk][c] = buf[jj][kk][c];
 }
@@ -523,8 +523,8 @@ static void finish_update_cell_y1(void* context, unimesh_t* mesh,
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
-  for (int ii = 0; ii < patch->nx; ++ii)
-    for (int kk = 0; kk < patch->nz; ++kk)
+  for (int ii = 1; ii <= patch->nx; ++ii)
+    for (int kk = 1; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][0][kk][c] = buf[ii][kk][c];
 }
@@ -537,8 +537,8 @@ static void finish_update_cell_y2(void* context, unimesh_t* mesh,
                                                UNIMESH_Y2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
-  for (int ii = 0; ii < patch->nx; ++ii)
-    for (int kk = 0; kk < patch->nz; ++kk)
+  for (int ii = 1; ii <= patch->nx; ++ii)
+    for (int kk = 1; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][patch->ny+1][kk][c] = buf[ii][kk][c];
 }
@@ -551,8 +551,8 @@ static void finish_update_cell_z1(void* context, unimesh_t* mesh,
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
-  for (int ii = 0; ii < patch->nx; ++ii)
-    for (int jj = 0; jj < patch->ny; ++jj)
+  for (int ii = 1; ii <= patch->nx; ++ii)
+    for (int jj = 1; jj <= patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][0][c] = buf[ii][jj][c];
 }
@@ -565,8 +565,8 @@ static void finish_update_cell_z2(void* context, unimesh_t* mesh,
                                                UNIMESH_Z2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
-  for (int ii = 0; ii < patch->nx; ++ii)
-    for (int jj = 0; jj < patch->ny; ++jj)
+  for (int ii = 1; ii <= patch->nx; ++ii)
+    for (int jj = 1; jj <= patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][patch->nz+1][c] = buf[ii][jj][c];
 }

@@ -801,6 +801,7 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
   // Fetch the boundary condition.
   int b = (int)boundary;
   unimesh_patch_bc_t* bc = (*patch_bc_map_get(mesh->patch_bcs, index))[b];
+  ASSERT(bc != NULL);
 
   // Set the boundary update token.
   mesh->boundary_update_token = token;

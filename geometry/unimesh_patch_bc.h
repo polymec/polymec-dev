@@ -85,5 +85,11 @@ void unimesh_patch_bc_finish_update(unimesh_patch_bc_t* bc,
                                     unimesh_boundary_t patch_boundary,
                                     unimesh_patch_t* patch);
 
+// This is a shake-n-bake boundary condition that fills boundary cells, 
+// faces, edges, and nodes with the given constant values. 
+unimesh_patch_bc_t* constant_unimesh_patch_bc_new(unimesh_t* mesh, 
+                                                  real_t* values, 
+                                                  int num_components);
+
 #endif
 

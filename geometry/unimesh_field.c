@@ -10,7 +10,12 @@
 #include "geometry/unimesh_field.h"
 #include "geometry/unimesh_patch_bc.h"
 
-static void patch_bc_release(unimesh_patch_bc_t* patch_bc)
+static void key_dtor(int* key)
+{
+  polymec_free(key);
+}
+
+static void patch_bc_dtor(unimesh_patch_bc_t* patch_bc)
 {
   polymec_release(patch_bc);
 }
@@ -209,11 +214,16 @@ void unimesh_field_set_patch_bc(unimesh_field_t* field,
                                 unimesh_patch_bc_t* patch_bc)
 {
   ASSERT(unimesh_has_patch(field->mesh, i, j, k));
+  ASSERT(patch_bc != NULL);
+
   int index = patch_index(field, i, j, k);
   int b = (int)patch_boundary; // number between 0 and 5.
-  int key[2] = {index, b};
-  patch_bc_map_insert_with_v_dtor(field->patch_bcs, key,
-                                  patch_bc, patch_bc_release);
+  int* key = polymec_malloc(sizeof(int) * 2);
+  key[0] = index;
+  key[1] = b;
+  polymec_retain(patch_bc);
+  patch_bc_map_insert_with_kv_dtors(field->patch_bcs, key, patch_bc, 
+                                    key_dtor, patch_bc_dtor);
 }
 
 bool unimesh_field_has_patch_bc(unimesh_field_t* field,
