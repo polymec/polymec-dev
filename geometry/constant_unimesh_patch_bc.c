@@ -98,6 +98,90 @@ static void update_z2_cells(void* context, unimesh_t* mesh,
         a[ii][jj][patch->nz+1][c] = bc->values[c];
 }
 
+static void update_x1_nodes(void* context, unimesh_t* mesh,
+                            int i, int j, int k, real_t t,
+                            unimesh_patch_t* patch)
+{
+  constant_bc_t* bc = context;
+  ASSERT(bc->num_components == patch->nc);
+
+  DECLARE_UNIMESH_NODE_ARRAY(a, patch);
+  for (int jj = 0; jj <= patch->ny; ++jj)
+    for (int kk = 0; kk <= patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        a[0][jj][kk][c] = bc->values[c];
+}
+
+static void update_x2_nodes(void* context, unimesh_t* mesh,
+                            int i, int j, int k, real_t t,
+                            unimesh_patch_t* patch)
+{
+  constant_bc_t* bc = context;
+  ASSERT(bc->num_components == patch->nc);
+
+  DECLARE_UNIMESH_NODE_ARRAY(a, patch);
+  for (int jj = 0; jj <= patch->ny; ++jj)
+    for (int kk = 0; kk <= patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        a[patch->nx][jj][kk][c] = bc->values[c];
+}
+
+static void update_y1_nodes(void* context, unimesh_t* mesh,
+                            int i, int j, int k, real_t t,
+                            unimesh_patch_t* patch)
+{
+  constant_bc_t* bc = context;
+  ASSERT(bc->num_components == patch->nc);
+
+  DECLARE_UNIMESH_NODE_ARRAY(a, patch);
+  for (int ii = 0; ii <= patch->nx; ++ii)
+    for (int kk = 0; kk <= patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        a[ii][0][kk][c] = bc->values[c];
+}
+
+static void update_y2_nodes(void* context, unimesh_t* mesh,
+                            int i, int j, int k, real_t t,
+                            unimesh_patch_t* patch)
+{
+  constant_bc_t* bc = context;
+  ASSERT(bc->num_components == patch->nc);
+
+  DECLARE_UNIMESH_NODE_ARRAY(a, patch);
+  for (int ii = 0; ii <= patch->nx; ++ii)
+    for (int kk = 0; kk <= patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        a[ii][patch->ny][kk][c] = bc->values[c];
+}
+
+static void update_z1_nodes(void* context, unimesh_t* mesh,
+                            int i, int j, int k, real_t t,
+                            unimesh_patch_t* patch)
+{
+  constant_bc_t* bc = context;
+  ASSERT(bc->num_components == patch->nc);
+
+  DECLARE_UNIMESH_NODE_ARRAY(a, patch);
+  for (int ii = 0; ii <= patch->nx; ++ii)
+    for (int jj = 0; jj <= patch->ny; ++jj)
+      for (int c = 0; c < patch->nc; ++c)
+        a[ii][jj][0][c] = bc->values[c];
+}
+
+static void update_z2_nodes(void* context, unimesh_t* mesh,
+                            int i, int j, int k, real_t t,
+                            unimesh_patch_t* patch)
+{
+  constant_bc_t* bc = context;
+  ASSERT(bc->num_components == patch->nc);
+
+  DECLARE_UNIMESH_NODE_ARRAY(a, patch);
+  for (int ii = 0; ii <= patch->nx; ++ii)
+    for (int jj = 0; jj <= patch->ny; ++jj)
+      for (int c = 0; c < patch->nc; ++c)
+        a[ii][jj][patch->nz][c] = bc->values[c];
+}
+
 static void constant_bc_free(void* context)
 {
   constant_bc_t* bc = context;
@@ -161,13 +245,13 @@ unimesh_patch_bc_t* constant_unimesh_patch_bc_new(unimesh_t* mesh,
   vtable.start_update[6][3] = start_update_zedge_y2;
   vtable.start_update[6][4] = start_update_zedge_z1;
   vtable.start_update[6][5] = start_update_zedge_z2;
-  vtable.start_update[7][0] = start_update_node_x1;
-  vtable.start_update[7][1] = start_update_node_x2;
-  vtable.start_update[7][2] = start_update_node_y1;
-  vtable.start_update[7][3] = start_update_node_y2;
-  vtable.start_update[7][4] = start_update_node_z1;
-  vtable.start_update[7][5] = start_update_node_z2;
 #endif
+  vtable.start_update[7][0] = update_x1_nodes;
+  vtable.start_update[7][1] = update_x2_nodes;
+  vtable.start_update[7][2] = update_y1_nodes;
+  vtable.start_update[7][3] = update_y2_nodes;
+  vtable.start_update[7][4] = update_z1_nodes;
+  vtable.start_update[7][5] = update_z2_nodes;
 
   char name[257];
   snprintf(name, 256, "constant bc (%d components)", num_components);
