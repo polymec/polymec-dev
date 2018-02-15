@@ -1,18 +1,4 @@
 {
-   boehm_Value8
-   Memcheck:Value8
-   ...
-   fun:GC_*
-   ...
-}
-{
-   boehm_Cond
-   Memcheck:Cond
-   ...
-   fun:GC_*
-   ...
-}
-{
    PMPI_Leak
    Memcheck:Leak
    ...
