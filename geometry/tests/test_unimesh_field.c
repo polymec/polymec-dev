@@ -230,28 +230,40 @@ static void test_node_field(void** state, unimesh_t* mesh)
     }
 
     // x boundaries
-    int pi_m = (pi > 0) ? pi - 1 
-                        : x_periodic ? npx-1 : 0;
-    for (int j = 0; j <= patch->ny; ++j)
-      for (int k = 0; k <= patch->nz; ++k)
+    int pi_m = (pi > 0) ? pi - 1 : 0;
+    int pi_p = (pi < npx-1) ? pi : 0;
+    for (int j = 1; j < patch->ny; ++j)
+    {
+      for (int k = 1; k < patch->nz; ++k)
+      {
         assert_true(reals_equal(f[0][j][k][0], 1.0 * pi_m));
+        assert_true(reals_equal(f[patch->nx][j][k][0], 1.0 * pi_p));
+      }
+    }
 
-    // y boundaries (note that we leave out the x boundary values)
-    int pj_m = (pj > 0) ? pj - 1 
-                        : y_periodic ? npy-1 : 0;
+    // y boundaries 
+    int pj_m = (pj > 0) ? pj - 1 : 0;
+    int pj_p = (pj < npy-1) ? pj : 0;
     for (int i = 1; i < patch->nx; ++i)
-      for (int k = 0; k <= patch->nz; ++k)
-{
-printf("[%d, %d, %d]: (%d, %d, %d): %g vs %g\n", pi, pj, pk, i, 0, k, f[i][0][k][1], 1.0*pj_m);
+    {
+      for (int k = 1; k < patch->nz; ++k)
+      {
         assert_true(reals_equal(f[i][0][k][1], 1.0 * pj_m));
-}
+        assert_true(reals_equal(f[i][patch->ny][k][1], 1.0 * pj_p));
+      }
+    }
 
-    // z boundaries (note that we leave out the x and y boundary values)
-    int pk_m = (pk > 0) ? pk - 1 
-                        : z_periodic ? npz-1 : 0;
+    // z boundaries 
+    int pk_m = (pk > 0) ? pk - 1 : 0;
+    int pk_p = (pk < npz-1) ? pk : 0;
     for (int i = 1; i < patch->nx; ++i)
+    {
       for (int j = 1; j < patch->ny; ++j)
+      {
         assert_true(reals_equal(f[i][j][0][2], 1.0 * pk_m));
+        assert_true(reals_equal(f[i][j][patch->nz][2], 1.0 * pk_p));
+      }
+    }
   }
 
   // Clean up.
