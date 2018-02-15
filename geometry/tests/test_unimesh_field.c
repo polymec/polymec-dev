@@ -216,15 +216,14 @@ static void test_node_field(void** state, unimesh_t* mesh)
       {
         for (int i = 1; i <= patch->nx; ++i)
           assert_true(reals_equal(f[i][j][k][0], 1.0 * pi));
-printf("(%d, %d, %d): %g vs %g\n", pi, pj, pk, f[0][j][k][0], 1.0*pi_m);
         assert_true(reals_equal(f[0][j][k][0], 1.0 * pi_m));
       }
     }
 
-    // y boundaries.
+    // y boundaries. (Note that we leave out the x boundary values!)
     int pj_m = (pj > 0) ? pj - 1 
                         : y_periodic ? npy-1 : 0;
-    for (int i = 0; i <= patch->nx; ++i)
+    for (int i = 1; i < patch->nx; ++i)
     {
       for (int k = 0; k <= patch->nz; ++k)
       {
@@ -234,12 +233,12 @@ printf("(%d, %d, %d): %g vs %g\n", pi, pj, pk, f[0][j][k][0], 1.0*pi_m);
       }
     }
 
-    // z boundaries.
+    // z boundaries (Note that we leave out the x and y boundary values!)
     int pk_m = (pk > 0) ? pk - 1 
                         : z_periodic ? npz-1 : 0;
-    for (int i = 0; i <= patch->nx; ++i)
+    for (int i = 1; i < patch->nx; ++i)
     {
-      for (int j = 0; j <= patch->ny; ++j)
+      for (int j = 1; j < patch->ny; ++j)
       {
         for (int k = 1; k <= patch->nz; ++k)
           assert_true(reals_equal(f[i][j][k][2], 1.0 * pk));

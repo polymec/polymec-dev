@@ -491,6 +491,7 @@ static void start_update_node_x2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(i == npx-1);
+
   void* buffer = unimesh_patch_boundary_buffer(mesh, 0, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+1, patch->nz+1, patch->nc);
@@ -517,11 +518,18 @@ static void start_update_node_y2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
+
+  // Figure out x and z bounds.
+  bool x_periodic, y_periodic, z_periodic;
+  unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
+  int i1 = x_periodic ? 1 : 0;
+  int i2 = x_periodic ? patch->nx : patch->nx+1;
+
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
+  for (int ii = i1; ii < i2; ++ii)
     for (int kk = 0; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         buf[ii][kk][c] = a[ii][patch->ny][kk][c];
@@ -543,12 +551,21 @@ static void start_update_node_z2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(k == npz-1);
+
+  // Figure out x and y bounds.
+  bool x_periodic, y_periodic, z_periodic;
+  unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
+  int i1 = x_periodic ? 1 : 0;
+  int i2 = x_periodic ? patch->nx : patch->nx+1;
+  int j1 = (x_periodic || y_periodic) ? 1 : 0;
+  int j2 = (x_periodic || y_periodic) ? patch->ny : patch->ny+1;
+
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, 0, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny+1, patch->nc);
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
-    for (int jj = 0; jj <= patch->ny; ++jj)
+  for (int ii = i1; ii < i2; ++ii)
+    for (int jj = j1; jj < j2; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         buf[ii][jj][c] = a[ii][jj][patch->nz][c];
 }
@@ -969,6 +986,7 @@ static void finish_update_node_x1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
+
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+1, patch->nz+1, patch->nc);
@@ -991,11 +1009,18 @@ static void finish_update_node_y1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
+
+  // Figure out x and z bounds.
+  bool x_periodic, y_periodic, z_periodic;
+  unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
+  int i1 = x_periodic ? 1 : 0;
+  int i2 = x_periodic ? patch->nx : patch->nx+1;
+
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
+  for (int ii = i1; ii < i2; ++ii)
     for (int kk = 0; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][0][kk][c] = buf[ii][kk][c];
@@ -1013,12 +1038,22 @@ static void finish_update_node_z1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
+
+  // Figure out x and y bounds.
+  bool x_periodic, y_periodic, z_periodic;
+  unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
+  int i1 = x_periodic ? 1 : 0;
+  int i2 = x_periodic ? patch->nx : patch->nx+1;
+  int j1 = (x_periodic || y_periodic) ? 1 : 0;
+  int j2 = (x_periodic || y_periodic) ? patch->ny : patch->ny+1;
+
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z1_BOUNDARY);
+
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny+1, patch->nc);
   DECLARE_UNIMESH_NODE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
-    for (int jj = 0; jj <= patch->ny; ++jj)
+  for (int ii = i1; ii < i2; ++ii)
+    for (int jj = j1; jj < j2; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][0][c] = buf[ii][jj][c];
 }
