@@ -91,6 +91,7 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
   size_t field_size = sizeof(unimesh_field_t) + patches_size;
   unimesh_field_t* field = polymec_malloc(field_size);
   field->mesh = mesh;
+  field->centering = centering;
   field->nc = num_components;
 
   unimesh_get_extents(mesh, &field->nx, &field->ny, &field->nz);

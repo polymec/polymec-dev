@@ -24,7 +24,7 @@ size_t unimesh_patch_data_size(unimesh_centering_t centering,
     case UNIMESH_XFACE: num_data = nc * (nx+1) * ny * nz; break;
     case UNIMESH_YFACE: num_data = nc * nx * (ny+1) * nz; break;
     case UNIMESH_ZFACE: num_data = nc * nx * ny * (nz+1); break;
-    default:  num_data = nc * (nx+2) * (ny+2) * (nz+2); 
+    case UNIMESH_CELL:  num_data = nc * (nx+2) * (ny+2) * (nz+2); 
   }
   return sizeof(real_t) * num_data;
 }
