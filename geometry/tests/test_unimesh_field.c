@@ -174,6 +174,148 @@ static void test_cell_field(void** state, unimesh_t* mesh)
   unimesh_free(mesh);
 }
 
+static void test_face_fields(void** state, unimesh_t* mesh)
+{
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  bool x_periodic, y_periodic, z_periodic;
+  unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
+  unimesh_field_t* x_field = unimesh_field_new(mesh, UNIMESH_XFACE, 3);
+  unimesh_field_t* y_field = unimesh_field_new(mesh, UNIMESH_YFACE, 3);
+  unimesh_field_t* z_field = unimesh_field_new(mesh, UNIMESH_ZFACE, 3);
+
+  set_up_bcs_if_needed(x_field);
+  set_up_bcs_if_needed(y_field);
+  set_up_bcs_if_needed(z_field);
+
+  // Fill our fields with patch-specific values.
+  int pos = 0, pi, pj, pk;
+  while (unimesh_next_patch(mesh, &pos, &pi, &pj, &pk, NULL))
+  {
+    unimesh_patch_t* x_patch = unimesh_field_patch(x_field, pi, pj, pk);
+    assert_true(x_patch != NULL);
+    assert_true(x_patch->centering == UNIMESH_XFACE);
+    assert_true(x_patch->nc == 3);
+
+    DECLARE_UNIMESH_XFACE_ARRAY(fx, x_patch);
+    for (int i = 0; i <= x_patch->nx; ++i)
+    {
+      for (int j = 0; j < x_patch->ny; ++j)
+      {
+        for (int k = 0; k < x_patch->nz; ++k)
+        {
+          fx[i][j][k][0] = 1.0 * pi;
+          fx[i][j][k][1] = 1.0 * pj;
+          fx[i][j][k][2] = 1.0 * pk;
+        }
+      }
+    }
+
+    unimesh_patch_t* y_patch = unimesh_field_patch(y_field, pi, pj, pk);
+    assert_true(y_patch != NULL);
+    assert_true(y_patch->centering == UNIMESH_YFACE);
+    assert_true(y_patch->nc == 3);
+
+    DECLARE_UNIMESH_YFACE_ARRAY(fy, y_patch);
+    for (int i = 0; i < y_patch->nx; ++i)
+    {
+      for (int j = 0; j <= y_patch->ny; ++j)
+      {
+        for (int k = 0; k < y_patch->nz; ++k)
+        {
+          fy[i][j][k][0] = 1.0 * pi;
+          fy[i][j][k][1] = 1.0 * pj;
+          fy[i][j][k][2] = 1.0 * pk;
+        }
+      }
+    }
+
+    unimesh_patch_t* z_patch = unimesh_field_patch(z_field, pi, pj, pk);
+    assert_true(z_patch != NULL);
+    assert_true(z_patch->centering == UNIMESH_ZFACE);
+    assert_true(z_patch->nc == 3);
+
+    DECLARE_UNIMESH_ZFACE_ARRAY(fz, z_patch);
+    for (int i = 0; i < z_patch->nx; ++i)
+    {
+      for (int j = 0; j < z_patch->ny; ++j)
+      {
+        for (int k = 0; k <= z_patch->nz; ++k)
+        {
+          fz[i][j][k][0] = 1.0 * pi;
+          fz[i][j][k][1] = 1.0 * pj;
+          fz[i][j][k][2] = 1.0 * pk;
+        }
+      }
+    }
+  }
+
+  // Update the patch boundaries in the fields.
+  unimesh_field_update_patch_boundaries(x_field, 0.0);
+  unimesh_field_update_patch_boundaries(y_field, 0.0);
+  unimesh_field_update_patch_boundaries(z_field, 0.0);
+
+  // Check the patch boundary data.
+  pos = 0;
+  unimesh_patch_t* patch;
+  while (unimesh_field_next_patch(x_field, &pos, &pi, &pj, &pk, &patch, NULL))
+  {
+    DECLARE_UNIMESH_XFACE_ARRAY(fx, patch);
+
+    // interior values
+    for (int i = 1; i < patch->nx; ++i)
+    {
+      for (int j = 1; j < patch->ny-1; ++j)
+      {
+        for (int k = 1; k < patch->nz-1; ++k)
+        {
+           assert_true(reals_equal(fx[i][j][k][0], 1.0 * pi));
+           assert_true(reals_equal(fx[i][j][k][1], 1.0 * pj));
+           assert_true(reals_equal(fx[i][j][k][2], 1.0 * pk));
+        }
+      }
+    }
+
+    // x boundaries
+    int pi_m = (pi > 0) ? pi - 1 : 0;
+    int pi_p = (pi < npx-1) ? pi : 0;
+    for (int j = 1; j < patch->ny-1; ++j)
+    {
+      for (int k = 1; k < patch->nz-1; ++k)
+      {
+        assert_true(reals_equal(fx[0][j][k][0], 1.0 * pi_m));
+        assert_true(reals_equal(fx[patch->nx][j][k][0], 1.0 * pi_p));
+      }
+    }
+
+    // y boundaries 
+    for (int i = 1; i < patch->nx; ++i)
+    {
+      for (int k = 1; k < patch->nz-1; ++k)
+      {
+        assert_true(reals_equal(fx[i][0][k][1], 1.0 * pj));
+        assert_true(reals_equal(fx[i][patch->ny-1][k][1], 1.0 * pj));
+      }
+    }
+
+    // z boundaries 
+    for (int i = 1; i < patch->nx; ++i)
+    {
+      for (int j = 1; j < patch->ny-1; ++j)
+      {
+        assert_true(reals_equal(fx[i][j][0][2], 1.0 * pk));
+        assert_true(reals_equal(fx[i][j][patch->nz-1][2], 1.0 * pk));
+      }
+    }
+  }
+
+  // Clean up.
+  unimesh_field_free(x_field);
+  unimesh_field_free(y_field);
+  unimesh_field_free(z_field);
+  unimesh_free(mesh);
+}
+
 static void test_node_field(void** state, unimesh_t* mesh)
 {
   int npx, npy, npz;
@@ -279,6 +421,8 @@ static void test_serial_periodic_cell_field(void** state)
 
 static void test_serial_periodic_face_fields(void** state)
 {
+  unimesh_t* mesh = periodic_mesh(MPI_COMM_SELF);
+  test_face_fields(state, mesh);
 }
 
 static void test_serial_periodic_edge_fields(void** state)
@@ -299,6 +443,8 @@ static void test_serial_aperiodic_cell_field(void** state)
 
 static void test_serial_aperiodic_face_fields(void** state)
 {
+  unimesh_t* mesh = aperiodic_mesh(MPI_COMM_SELF);
+  test_face_fields(state, mesh);
 }
 
 static void test_serial_aperiodic_edge_fields(void** state)
@@ -319,6 +465,8 @@ static void test_parallel_periodic_cell_field(void** state)
 
 static void test_parallel_periodic_face_fields(void** state)
 {
+  unimesh_t* mesh = periodic_mesh(MPI_COMM_WORLD);
+  test_face_fields(state, mesh);
 }
 
 static void test_parallel_periodic_edge_fields(void** state)
@@ -339,6 +487,8 @@ static void test_parallel_aperiodic_cell_field(void** state)
 
 static void test_parallel_aperiodic_face_fields(void** state)
 {
+  unimesh_t* mesh = aperiodic_mesh(MPI_COMM_WORLD);
+  test_face_fields(state, mesh);
 }
 
 static void test_parallel_aperiodic_edge_fields(void** state)

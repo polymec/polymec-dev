@@ -187,7 +187,7 @@ static void start_update_yface_y1(void* context, unimesh_t* mesh,
                                   int i, int j, int k, real_t t,
                                   unimesh_patch_t* patch)
 {
-  ASSERT(i == 0);
+  ASSERT(j == 0);
   // We only receive face values from our y1 neighbor, since it's the 
   // owner of those faces, so no need to copy anything anywhere.
 }
@@ -674,7 +674,7 @@ static void finish_update_xface_x1(void* context, unimesh_t* mesh,
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_X1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
-  DECLARE_UNIMESH_CELL_ARRAY(a, patch);
+  DECLARE_UNIMESH_XFACE_ARRAY(a, patch);
   for (int jj = 0; jj < patch->ny; ++jj)
     for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
