@@ -768,7 +768,7 @@ static void finish_update_yface_y1(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  // We don't receive anything from our x1 boundary.
+  // We don't receive anything from our y1 boundary.
 }
 
 static void finish_update_yface_y2(void* context, unimesh_t* mesh,

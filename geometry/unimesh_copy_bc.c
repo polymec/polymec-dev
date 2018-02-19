@@ -645,7 +645,7 @@ static void finish_update_yface_y1(void* context, unimesh_t* mesh,
   for (int ii = 0; ii < patch->nx; ++ii)
     for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
-        a[ii][patch->ny][kk][c] = buf[ii][kk][c];
+        a[ii][0][kk][c] = buf[ii][kk][c];
 }
 
 static void finish_update_yface_y2(void* context, unimesh_t* mesh,
@@ -708,7 +708,7 @@ static void finish_update_zface_z1(void* context, unimesh_t* mesh,
   for (int ii = 0; ii < patch->nx; ++ii)
     for (int jj = 0; jj < patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
-        a[ii][jj][patch->nz][c] = buf[ii][jj][c];
+        a[ii][jj][0][c] = buf[ii][jj][c];
 }
 
 static void finish_update_zface_z2(void* context, unimesh_t* mesh,
@@ -743,7 +743,7 @@ static void finish_update_xedge_y1(void* context, unimesh_t* mesh,
   for (int ii = 0; ii < patch->nx; ++ii)
     for (int kk = 0; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
-        a[ii][patch->ny][kk][c] = buf[ii][kk][c];
+        a[ii][0][kk][c] = buf[ii][kk][c];
 }
 
 static void finish_update_xedge_y2(void* context, unimesh_t* mesh,
@@ -764,7 +764,7 @@ static void finish_update_xedge_z1(void* context, unimesh_t* mesh,
   for (int ii = 0; ii < patch->nx; ++ii)
     for (int jj = 0; jj <= patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
-        a[ii][jj][patch->nz][c] = buf[ii][jj][c];
+        a[ii][jj][0][c] = buf[ii][jj][c];
 }
 
 static void finish_update_xedge_z2(void* context, unimesh_t* mesh,
@@ -785,7 +785,7 @@ static void finish_update_yedge_x1(void* context, unimesh_t* mesh,
   for (int jj = 0; jj < patch->ny; ++jj)
     for (int kk = 0; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
-        a[patch->nx][jj][kk][c] = buf[jj][kk][c];
+        a[0][jj][kk][c] = buf[jj][kk][c];
 }
 
 static void finish_update_yedge_x2(void* context, unimesh_t* mesh,
@@ -820,7 +820,7 @@ static void finish_update_yedge_z1(void* context, unimesh_t* mesh,
   for (int ii = 0; ii <= patch->nx; ++ii)
     for (int jj = 0; jj < patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
-        a[ii][jj][patch->nz][c] = buf[ii][jj][c];
+        a[ii][jj][0][c] = buf[ii][jj][c];
 }
 
 static void finish_update_yedge_z2(void* context, unimesh_t* mesh,
@@ -841,7 +841,7 @@ static void finish_update_zedge_x1(void* context, unimesh_t* mesh,
   for (int jj = 0; jj <= patch->ny; ++jj)
     for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
-        a[patch->nx][jj][kk][c] = buf[jj][kk][c];
+        a[0][jj][kk][c] = buf[jj][kk][c];
 }
 
 static void finish_update_zedge_x2(void* context, unimesh_t* mesh,
@@ -862,7 +862,7 @@ static void finish_update_zedge_y1(void* context, unimesh_t* mesh,
   for (int ii = 0; ii <= patch->nx; ++ii)
     for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
-        a[ii][patch->ny][kk][c] = buf[ii][kk][c];
+        a[ii][0][kk][c] = buf[ii][kk][c];
 }
 
 static void finish_update_zedge_y2(void* context, unimesh_t* mesh,

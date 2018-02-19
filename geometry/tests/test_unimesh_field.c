@@ -561,7 +561,6 @@ static void test_edge_fields(void** state, unimesh_t* mesh)
     {
       for (int j = 1; j < patch->ny; ++j)
       {
-printf("%g vs %g\n", fx[i][j][0][2], 1.0*pk_m);
         assert_true(reals_equal(fx[i][j][0][2], 1.0 * pk_m));
         assert_true(reals_equal(fx[i][j][patch->nz][2], 1.0 * pk_p));
       }
