@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/timer.h"
 #include "core/array.h"
 #include "core/unordered_map.h"
 #include "geometry/unimesh_field.h"
@@ -52,10 +53,12 @@ unimesh_field_t* unimesh_field_new(unimesh_t* mesh,
                                    unimesh_centering_t centering,
                                    int num_components)
 {
+  START_FUNCTION_TIMER();
   unimesh_field_t* field = 
     unimesh_field_with_buffer(mesh, centering, num_components, NULL);
   void* buffer = polymec_malloc(sizeof(real_t) * field->bytes);
   unimesh_field_set_buffer(field, buffer, true);
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
@@ -83,6 +86,7 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
                                            int num_components, 
                                            void* buffer)
 {
+  START_FUNCTION_TIMER();
   ASSERT(num_components > 0);
 
   // Allocate storage.
@@ -120,6 +124,7 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
   field->token = -1;
   field->update_t = -REAL_MAX;
   field->patch_bcs = patch_bc_map_new();
+  STOP_FUNCTION_TIMER();
 
   return field;
 }
@@ -137,10 +142,12 @@ void unimesh_field_free(unimesh_field_t* field)
 void unimesh_field_copy(unimesh_field_t* field,
                         unimesh_field_t* dest)
 {
+  START_FUNCTION_TIMER();
   ASSERT(dest->mesh == field->mesh);
   ASSERT(dest->centering == field->centering);
   ASSERT(dest->bytes == field->bytes);
   memcpy(dest->buffer, field->buffer, field->bytes);
+  STOP_FUNCTION_TIMER();
 }
 
 unimesh_centering_t unimesh_field_centering(unimesh_field_t* field)
@@ -193,6 +200,7 @@ void unimesh_field_set_buffer(unimesh_field_t* field,
                               void* buffer, 
                               bool assume_control)
 {
+  START_FUNCTION_TIMER();
   if ((field->buffer != NULL) && field->owns_buffer)
     polymec_free(field->buffer);
   field->buffer = buffer;
@@ -207,6 +215,7 @@ void unimesh_field_set_buffer(unimesh_field_t* field,
     patch->data = &(((real_t*)buffer)[patch_offset]);
     ++l;
   }
+  STOP_FUNCTION_TIMER();
 }
 
 void unimesh_field_set_patch_bc(unimesh_field_t* field,
@@ -214,6 +223,7 @@ void unimesh_field_set_patch_bc(unimesh_field_t* field,
                                 unimesh_boundary_t patch_boundary,
                                 unimesh_patch_bc_t* patch_bc)
 {
+  START_FUNCTION_TIMER();
   ASSERT(unimesh_has_patch(field->mesh, i, j, k));
   ASSERT(patch_bc != NULL);
 
@@ -225,6 +235,7 @@ void unimesh_field_set_patch_bc(unimesh_field_t* field,
   polymec_retain(patch_bc);
   patch_bc_map_insert_with_kv_dtors(field->patch_bcs, key, patch_bc, 
                                     key_dtor, patch_bc_dtor);
+  STOP_FUNCTION_TIMER();
 }
 
 bool unimesh_field_has_patch_bc(unimesh_field_t* field,
@@ -260,6 +271,7 @@ extern void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh,
 void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
                                                    real_t t)
 {
+  START_FUNCTION_TIMER();
   ASSERT(field->token == -1);
 
   // Get a token from the mesh that represents this particular set of 
@@ -300,10 +312,12 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
   // Jot down the token and the update time.
   field->token = token;
   field->update_t = t;
+  STOP_FUNCTION_TIMER();
 }
 
 void unimesh_field_finish_updating_patch_boundaries(unimesh_field_t* field)
 {
+  START_FUNCTION_TIMER();
   ASSERT(field->token != -1);
 
   // Loop over the patches in the field and finish the boundary updates.
@@ -335,6 +349,7 @@ void unimesh_field_finish_updating_patch_boundaries(unimesh_field_t* field)
   // Clear our update metadata.
   field->token = -1;
   field->update_t = -REAL_MAX;
+  STOP_FUNCTION_TIMER();
 }
 
 bool unimesh_field_is_updating_patch_boundaries(unimesh_field_t* field)
