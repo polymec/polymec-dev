@@ -120,8 +120,17 @@ static void start_update_xface_x1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
-  // We only receive face values from our x1 neighbor, since it's the 
-  // owner of those faces, so no need to copy anything anywhere.
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+
+  void* buffer = unimesh_patch_boundary_buffer(mesh, npx-1, j, k, 
+                                               UNIMESH_X2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
+  DECLARE_UNIMESH_XFACE_ARRAY(a, patch);
+  for (int jj = 0; jj < patch->ny; ++jj)
+    for (int kk = 0; kk < patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        buf[jj][kk][c] = a[0][jj][kk][c];
 }
 
 static void start_update_xface_x2(void* context, unimesh_t* mesh,
@@ -131,14 +140,9 @@ static void start_update_xface_x2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(i == npx-1);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, 0, j, k, 
-                                               UNIMESH_X1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
-  DECLARE_UNIMESH_XFACE_ARRAY(a, patch);
-  for (int jj = 0; jj < patch->ny; ++jj)
-    for (int kk = 0; kk < patch->nz; ++kk)
-      for (int c = 0; c < patch->nc; ++c)
-        buf[jj][kk][c] = a[patch->nx][jj][kk][c];
+
+  // We only receive face values from our x2 neighbor, since it's the 
+  // owner of those faces, so no need to copy anything anywhere.
 }
 
 static void start_update_xface_y1(void* context, unimesh_t* mesh,
@@ -188,8 +192,16 @@ static void start_update_yface_y1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
-  // We only receive face values from our y1 neighbor, since it's the 
-  // owner of those faces, so no need to copy anything anywhere.
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, npy-1, k, 
+                                               UNIMESH_Y2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
+  DECLARE_UNIMESH_YFACE_ARRAY(a, patch);
+  for (int ii = 0; ii < patch->nx; ++ii)
+    for (int kk = 0; kk < patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        buf[ii][kk][c] = a[ii][0][kk][c];
 }
 
 static void start_update_yface_y2(void* context, unimesh_t* mesh,
@@ -199,14 +211,9 @@ static void start_update_yface_y2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
-                                               UNIMESH_Y1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
-  DECLARE_UNIMESH_YFACE_ARRAY(a, patch);
-  for (int ii = 0; ii < patch->nx; ++ii)
-    for (int kk = 0; kk < patch->nz; ++kk)
-      for (int c = 0; c < patch->nc; ++c)
-        buf[ii][kk][c] = a[ii][patch->ny][kk][c];
+
+  // We only receive face values from our y2 neighbor, since it's the 
+  // owner of those faces, so no need to copy anything anywhere.
 }
 
 static void start_update_yface_z1(void* context, unimesh_t* mesh,
@@ -256,8 +263,17 @@ static void start_update_zface_z1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
-  // We only receive face values from our z1 neighbor, since it's the 
-  // owner of those faces, so no need to copy anything anywhere.
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, npz-1, 
+                                               UNIMESH_Z2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
+  DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
+  for (int ii = 0; ii < patch->nx; ++ii)
+    for (int jj = 0; jj < patch->ny; ++jj)
+      for (int c = 0; c < patch->nc; ++c)
+        buf[ii][jj][c] = a[ii][jj][0][c];
 }
 
 static void start_update_zface_z2(void* context, unimesh_t* mesh,
@@ -267,14 +283,9 @@ static void start_update_zface_z2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(k == npz-1);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, 0, 
-                                               UNIMESH_Z1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
-  DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
-  for (int ii = 0; ii < patch->nx; ++ii)
-    for (int jj = 0; jj < patch->ny; ++jj)
-      for (int c = 0; c < patch->nc; ++c)
-        buf[ii][jj][c] = a[ii][jj][patch->nz][c];
+
+  // We only receive face values from our z1 neighbor, since it's the 
+  // owner of those faces, so no need to copy anything anywhere.
 }
 
 static void start_update_xedge_x1(void* context, unimesh_t* mesh,
@@ -296,8 +307,17 @@ static void start_update_xedge_y1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
-  // We only receive edge values from our y1 neighbor, since it's the 
-  // owner of those edges, so no need to copy anything anywhere.
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, npy-1, k, 
+                                               UNIMESH_Y2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz+1, patch->nc);
+  DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
+  for (int ii = 0; ii < patch->nx; ++ii)
+    for (int kk = 0; kk <= patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        buf[ii][kk][c] = a[ii][0][kk][c];
 }
 
 static void start_update_xedge_y2(void* context, unimesh_t* mesh,
@@ -307,14 +327,9 @@ static void start_update_xedge_y2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
-                                               UNIMESH_Y1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz+1, patch->nc);
-  DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii < patch->nx; ++ii)
-    for (int kk = 0; kk <= patch->nz; ++kk)
-      for (int c = 0; c < patch->nc; ++c)
-        buf[ii][kk][c] = a[ii][patch->ny][kk][c];
+
+  // We only receive edge values from our y1 neighbor, since it's the 
+  // owner of those edges, so no need to copy anything anywhere.
 }
 
 static void start_update_xedge_z1(void* context, unimesh_t* mesh,
@@ -322,8 +337,17 @@ static void start_update_xedge_z1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
-  // We only receive edge values from our z1 neighbor, since it's the 
-  // owner of those edges, so no need to copy anything anywhere.
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, npz-1, 
+                                               UNIMESH_Z2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny+1, patch->nc);
+  DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
+  for (int ii = 0; ii < patch->nx; ++ii)
+    for (int jj = 0; jj <= patch->ny; ++jj)
+      for (int c = 0; c < patch->nc; ++c)
+        buf[ii][jj][c] = a[ii][jj][0][c];
 }
 
 static void start_update_xedge_z2(void* context, unimesh_t* mesh,
@@ -333,14 +357,9 @@ static void start_update_xedge_z2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(k == npz-1);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, 0, 
-                                               UNIMESH_Z1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny+1, patch->nc);
-  DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii < patch->nx; ++ii)
-    for (int jj = 0; jj <= patch->ny; ++jj)
-      for (int c = 0; c < patch->nc; ++c)
-        buf[ii][jj][c] = a[ii][jj][patch->nz][c];
+
+  // We only receive edge values from our z1 neighbor, since it's the 
+  // owner of those edges, so no need to copy anything anywhere.
 }
 
 static void start_update_yedge_x1(void* context, unimesh_t* mesh,
@@ -348,8 +367,17 @@ static void start_update_yedge_x1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
-  // We only receive edge values from our x1 neighbor, since it's the 
-  // owner of those edges, so no need to copy anything anywhere.
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+
+  void* buffer = unimesh_patch_boundary_buffer(mesh, npx-1, j, k, 
+                                               UNIMESH_X2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz+1, patch->nc);
+  DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
+  for (int jj = 0; jj < patch->ny; ++jj)
+    for (int kk = 0; kk <= patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        buf[jj][kk][c] = a[0][jj][kk][c];
 }
 
 static void start_update_yedge_x2(void* context, unimesh_t* mesh,
@@ -359,14 +387,9 @@ static void start_update_yedge_x2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(i == npx-1);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, 0, j, k, 
-                                               UNIMESH_X1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz+1, patch->nc);
-  DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
-  for (int jj = 0; jj < patch->ny; ++jj)
-    for (int kk = 0; kk <= patch->nz; ++kk)
-      for (int c = 0; c < patch->nc; ++c)
-        buf[jj][kk][c] = a[patch->nx][jj][kk][c];
+
+  // We only receive edge values from our x1 neighbor, since it's the 
+  // owner of those edges, so no need to copy anything anywhere.
 }
 
 static void start_update_yedge_y1(void* context, unimesh_t* mesh,
@@ -388,8 +411,17 @@ static void start_update_yedge_z1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
-  // We only receive edge values from our z1 neighbor, since it's the 
-  // owner of those edges, so no need to copy anything anywhere.
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, npz-1, 
+                                               UNIMESH_Z2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny, patch->nc);
+  DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
+  for (int ii = 0; ii <= patch->nx; ++ii)
+    for (int jj = 0; jj < patch->ny; ++jj)
+      for (int c = 0; c < patch->nc; ++c)
+        buf[ii][jj][c] = a[ii][jj][0][c];
 }
 
 static void start_update_yedge_z2(void* context, unimesh_t* mesh,
@@ -399,14 +431,9 @@ static void start_update_yedge_z2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(k == npz-1);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, 0, 
-                                               UNIMESH_Z1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny, patch->nc);
-  DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
-    for (int jj = 0; jj < patch->ny; ++jj)
-      for (int c = 0; c < patch->nc; ++c)
-        buf[ii][jj][c] = a[ii][jj][patch->nz][c];
+
+  // We only receive edge values from our z1 neighbor, since it's the 
+  // owner of those edges, so no need to copy anything anywhere.
 }
 
 static void start_update_zedge_x1(void* context, unimesh_t* mesh,
@@ -414,8 +441,17 @@ static void start_update_zedge_x1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
-  // We only receive edge values from our x1 neighbor, since it's the 
-  // owner of those edges, so no need to copy anything anywhere.
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+
+  void* buffer = unimesh_patch_boundary_buffer(mesh, npx-1, j, k, 
+                                               UNIMESH_X2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+1, patch->nz, patch->nc);
+  DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
+  for (int jj = 0; jj <= patch->ny; ++jj)
+    for (int kk = 0; kk < patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        buf[jj][kk][c] = a[0][jj][kk][c];
 }
 
 static void start_update_zedge_x2(void* context, unimesh_t* mesh,
@@ -425,14 +461,9 @@ static void start_update_zedge_x2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(i == npx-1);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, 0, j, k, 
-                                               UNIMESH_X1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+1, patch->nz, patch->nc);
-  DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
-  for (int jj = 0; jj <= patch->ny; ++jj)
-    for (int kk = 0; kk < patch->nz; ++kk)
-      for (int c = 0; c < patch->nc; ++c)
-        buf[jj][kk][c] = a[patch->nx][jj][kk][c];
+
+  // We only receive edge values from our x1 neighbor, since it's the 
+  // owner of those edges, so no need to copy anything anywhere.
 }
 
 static void start_update_zedge_y1(void* context, unimesh_t* mesh,
@@ -440,8 +471,17 @@ static void start_update_zedge_y1(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
-  // We only receive edge values from our y1 neighbor, since it's the 
-  // owner of those edges, so no need to copy anything anywhere.
+  int npx, npy, npz;
+  unimesh_get_extents(mesh, &npx, &npy, &npz);
+
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, npy-1, k, 
+                                               UNIMESH_Y2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz, patch->nc);
+  DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
+  for (int ii = 0; ii <= patch->nx; ++ii)
+    for (int kk = 0; kk < patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        buf[ii][kk][c] = a[ii][0][kk][c];
 }
 
 static void start_update_zedge_y2(void* context, unimesh_t* mesh,
@@ -451,14 +491,9 @@ static void start_update_zedge_y2(void* context, unimesh_t* mesh,
   int npx, npy, npz;
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
-                                               UNIMESH_Y1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz, patch->nc);
-  DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
-    for (int kk = 0; kk < patch->nz; ++kk)
-      for (int c = 0; c < patch->nc; ++c)
-        buf[ii][kk][c] = a[ii][patch->ny][kk][c];
+
+  // We only receive edge values from our y1 neighbor, since it's the 
+  // owner of those edges, so no need to copy anything anywhere.
 }
 
 static void start_update_zedge_z1(void* context, unimesh_t* mesh,
@@ -670,22 +705,21 @@ static void finish_update_xface_x1(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(i == 0);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
-                                               UNIMESH_X1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
-  DECLARE_UNIMESH_XFACE_ARRAY(a, patch);
-  for (int jj = 0; jj < patch->ny; ++jj)
-    for (int kk = 0; kk < patch->nz; ++kk)
-      for (int c = 0; c < patch->nc; ++c)
-        a[0][jj][kk][c] = buf[jj][kk][c];
+  // We don't receive anything from our x1 boundary.
 }
 
 static void finish_update_xface_x2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  // We don't receive anything from our x2 boundary.
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
+                                               UNIMESH_X2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
+  DECLARE_UNIMESH_XFACE_ARRAY(a, patch);
+  for (int jj = 0; jj < patch->ny; ++jj)
+    for (int kk = 0; kk < patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        a[patch->nx][jj][kk][c] = buf[jj][kk][c];
 }
 
 static void finish_update_xface_y1(void* context, unimesh_t* mesh,
@@ -734,22 +768,21 @@ static void finish_update_yface_y1(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  ASSERT(j == 0);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
-                                               UNIMESH_Y1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
-  DECLARE_UNIMESH_YFACE_ARRAY(a, patch);
-  for (int ii = 0; ii < patch->nx; ++ii)
-    for (int kk = 0; kk < patch->nz; ++kk)
-      for (int c = 0; c < patch->nc; ++c)
-        a[ii][patch->ny][kk][c] = buf[ii][kk][c];
+  // We don't receive anything from our x1 boundary.
 }
 
 static void finish_update_yface_y2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  // We don't receive anything from our x2 boundary.
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
+                                               UNIMESH_Y2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
+  DECLARE_UNIMESH_YFACE_ARRAY(a, patch);
+  for (int ii = 0; ii < patch->nx; ++ii)
+    for (int kk = 0; kk < patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        a[ii][patch->ny][kk][c] = buf[ii][kk][c];
 }
 
 static void finish_update_yface_z1(void* context, unimesh_t* mesh,
@@ -799,21 +832,21 @@ static void finish_update_zface_z1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
-                                               UNIMESH_Z1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
-  DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
-  for (int ii = 0; ii < patch->nx; ++ii)
-    for (int jj = 0; jj < patch->ny; ++jj)
-      for (int c = 0; c < patch->nc; ++c)
-        a[ii][jj][patch->nz][c] = buf[ii][jj][c];
+  // We don't receive anything from our z1 neighbor.
 }
 
 static void finish_update_zface_z2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  // We don't receive anything from our z2 neighbor.
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
+                                               UNIMESH_Z2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
+  DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
+  for (int ii = 0; ii < patch->nx; ++ii)
+    for (int jj = 0; jj < patch->ny; ++jj)
+      for (int c = 0; c < patch->nc; ++c)
+        a[ii][jj][patch->nz][c] = buf[ii][jj][c];
 }
 
 static void finish_update_xedge_x1(void* context, unimesh_t* mesh,
@@ -835,8 +868,15 @@ static void finish_update_xedge_y1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
+  // We don't receive anything from our y1 neighbor.
+}
+
+static void finish_update_xedge_y2(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_patch_t* patch)
+{
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
-                                               UNIMESH_Y1_BOUNDARY);
+                                               UNIMESH_Y2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz+1, patch->nc);
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
   for (int ii = 0; ii < patch->nx; ++ii)
@@ -845,20 +885,20 @@ static void finish_update_xedge_y1(void* context, unimesh_t* mesh,
         a[ii][patch->ny][kk][c] = buf[ii][kk][c];
 }
 
-static void finish_update_xedge_y2(void* context, unimesh_t* mesh,
-                                   int i, int j, int k, real_t t,
-                                   unimesh_patch_t* patch)
-{
-  // We don't receive anything from our y2 neighbor.
-}
-
 static void finish_update_xedge_z1(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
+  // We don't receive anything from our z1 neighbor.
+}
+
+static void finish_update_xedge_z2(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_patch_t* patch)
+{
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
-                                               UNIMESH_Z1_BOUNDARY);
+                                               UNIMESH_Z2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny+1, patch->nc);
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
   for (int ii = 0; ii < patch->nx; ++ii)
@@ -867,33 +907,26 @@ static void finish_update_xedge_z1(void* context, unimesh_t* mesh,
         a[ii][jj][patch->nz][c] = buf[ii][jj][c];
 }
 
-static void finish_update_xedge_z2(void* context, unimesh_t* mesh,
-                                   int i, int j, int k, real_t t,
-                                   unimesh_patch_t* patch)
-{
-  // We don't receive anything from our z2 neighbor.
-}
-
 static void finish_update_yedge_x1(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
-                                               UNIMESH_X1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz+1, patch->nc);
-  DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
-  for (int jj = 0; jj < patch->ny; ++jj)
-    for (int kk = 0; kk <= patch->nz; ++kk)
-      for (int c = 0; c < patch->nc; ++c)
-        a[patch->nx][jj][kk][c] = buf[jj][kk][c];
+  // We don't receive anything from our y2 neighbor.
 }
 
 static void finish_update_yedge_x2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  // We don't receive anything from our y2 neighbor.
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
+                                               UNIMESH_X2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz+1, patch->nc);
+  DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
+  for (int jj = 0; jj < patch->ny; ++jj)
+    for (int kk = 0; kk <= patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        a[patch->nx][jj][kk][c] = buf[jj][kk][c];
 }
 
 static void finish_update_yedge_y1(void* context, unimesh_t* mesh,
@@ -915,8 +948,15 @@ static void finish_update_yedge_z1(void* context, unimesh_t* mesh,
                                    unimesh_patch_t* patch)
 {
   ASSERT(k == 0);
+  // We don't receive anything from our z1 neighbor.
+}
+
+static void finish_update_yedge_z2(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_patch_t* patch)
+{
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
-                                               UNIMESH_Z1_BOUNDARY);
+                                               UNIMESH_Z2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny, patch->nc);
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
   for (int ii = 0; ii <= patch->nx; ++ii)
@@ -925,20 +965,20 @@ static void finish_update_yedge_z1(void* context, unimesh_t* mesh,
         a[ii][jj][patch->nz][c] = buf[ii][jj][c];
 }
 
-static void finish_update_yedge_z2(void* context, unimesh_t* mesh,
-                                   int i, int j, int k, real_t t,
-                                   unimesh_patch_t* patch)
-{
-  // We don't receive anything from our z2 neighbor.
-}
-
 static void finish_update_zedge_x1(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
   ASSERT(i == 0);
+  // We don't receive anything from our x1 neighbor.
+}
+
+static void finish_update_zedge_x2(void* context, unimesh_t* mesh,
+                                   int i, int j, int k, real_t t,
+                                   unimesh_patch_t* patch)
+{
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
-                                               UNIMESH_X1_BOUNDARY);
+                                               UNIMESH_X2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+1, patch->nz, patch->nc);
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
   for (int jj = 0; jj <= patch->ny; ++jj)
@@ -947,33 +987,26 @@ static void finish_update_zedge_x1(void* context, unimesh_t* mesh,
         a[patch->nx][jj][kk][c] = buf[jj][kk][c];
 }
 
-static void finish_update_zedge_x2(void* context, unimesh_t* mesh,
-                                   int i, int j, int k, real_t t,
-                                   unimesh_patch_t* patch)
-{
-  // We don't receive anything from our x2 neighbor.
-}
-
 static void finish_update_zedge_y1(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
   ASSERT(j == 0);
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
-                                               UNIMESH_Y1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz, patch->nc);
-  DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
-    for (int kk = 0; kk < patch->nz; ++kk)
-      for (int c = 0; c < patch->nc; ++c)
-        a[ii][patch->ny][kk][c] = buf[ii][kk][c];
+  // We don't receive anything from our y1 neighbor.
 }
 
 static void finish_update_zedge_y2(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  // We don't receive anything from our y2 neighbor.
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
+                                               UNIMESH_Y2_BOUNDARY);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz, patch->nc);
+  DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
+  for (int ii = 0; ii <= patch->nx; ++ii)
+    for (int kk = 0; kk < patch->nz; ++kk)
+      for (int c = 0; c < patch->nc; ++c)
+        a[ii][patch->ny][kk][c] = buf[ii][kk][c];
 }
 
 static void finish_update_zedge_z1(void* context, unimesh_t* mesh,

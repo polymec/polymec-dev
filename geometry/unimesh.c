@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/timer.h"
 #include "core/array.h"
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
@@ -144,6 +145,7 @@ static void unimesh_set_patch_bc(unimesh_t* mesh,
 static void set_up_patch_bcs(unimesh_t* mesh);
 void unimesh_finalize(unimesh_t* mesh)
 {
+  START_FUNCTION_TIMER();
   ASSERT(!mesh->finalized);
 
   // Make an array of indices for locally-present patches.
@@ -174,7 +176,7 @@ void unimesh_finalize(unimesh_t* mesh)
 
   // Now make sure every patch has a set of boundary conditions.
   set_up_patch_bcs(mesh);
-
+  STOP_FUNCTION_TIMER();
 }
 
 unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
@@ -182,6 +184,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                        int nx, int ny, int nz,
                        bool periodic_in_x, bool periodic_in_y, bool periodic_in_z)
 {
+  START_FUNCTION_TIMER();
   unimesh_t* mesh = create_empty_unimesh(comm, bbox, 
                                          npx, npy, npz,
                                          nx, ny, nz,
@@ -384,6 +387,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
   
   // Finalize and send 'er off.
   unimesh_finalize(mesh);
+  STOP_FUNCTION_TIMER();
   return mesh;
 }
 
@@ -526,6 +530,7 @@ static void boundary_buffer_reset(boundary_buffer_t* buffer,
       (buffer->nc == num_components))
     return;
 
+  START_FUNCTION_TIMER();
   // Compute buffer offsets based on centering and boundary.
   buffer->centering = centering;
   buffer->nc = num_components;
@@ -586,6 +591,7 @@ static void boundary_buffer_reset(boundary_buffer_t* buffer,
 
   // Allocate storage if needed.
   buffer->storage = polymec_realloc(buffer->storage, sizeof(real_t) * last_offset);
+  STOP_FUNCTION_TIMER();
 }
 
 static boundary_buffer_t* boundary_buffer_new(unimesh_t* mesh, 
@@ -666,6 +672,7 @@ static int boundary_buffer_pool_acquire(boundary_buffer_pool_t* pool,
                                         unimesh_centering_t centering,
                                         int num_components)
 {
+  START_FUNCTION_TIMER();
   ASSERT(num_components > 0);
 
   size_t token = 0; 
@@ -690,6 +697,7 @@ static int boundary_buffer_pool_acquire(boundary_buffer_pool_t* pool,
     boundary_buffer_array_append_with_dtor(pool->buffers, buffer, boundary_buffer_free);
   }
 
+  STOP_FUNCTION_TIMER();
   return (int)token;
 }
 
@@ -794,6 +802,7 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
                                            unimesh_boundary_t boundary,
                                            unimesh_patch_t* patch)
 {
+  START_FUNCTION_TIMER();
   ASSERT(mesh->finalized);
   ASSERT(unimesh_has_patch(mesh, i, j, k));
   int index = patch_index(mesh, i, j, k);
@@ -824,11 +833,13 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
   boundary_update_array_append_with_dtor(updates, update, boundary_update_free);
 
   mesh->boundary_update_token = -1;
+  STOP_FUNCTION_TIMER();
 }
 
 void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token);
 void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
 {
+  START_FUNCTION_TIMER();
   ASSERT(token >= 0);
   ASSERT((size_t)token < mesh->boundary_buffers->buffers->size);
 
@@ -853,6 +864,7 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
   // Release the boundary update corresponding to this token.
   boundary_buffer_pool_release(mesh->boundary_buffers, token);
   mesh->boundary_update_token = -1;
+  STOP_FUNCTION_TIMER();
 }
 
 extern unimesh_patch_bc_t* unimesh_copy_bc_new(unimesh_t* mesh);

@@ -10,7 +10,7 @@
 
 #include "core/point.h"
 
-// A unimesh, or uniform mesh is a three-dimensional cartesian mesh whose
+// A unimesh, or uniform mesh, is a three-dimensional cartesian mesh whose
 // cells are all identical. It consists of a set of uniformly-sized patches. 
 // The mesh manages these patches and their connectivity.
 typedef struct unimesh_t unimesh_t;
@@ -120,14 +120,14 @@ void unimesh_get_periodicity(unimesh_t* mesh,
                              bool* periodic_in_y,
                              bool* periodic_in_z);
 
-// Returns the number of patches that can be stored on this mesh.
+// Returns the number of patches that can be stored locally on this mesh.
 int unimesh_num_patches(unimesh_t* mesh);
 
-// Traverses the patches in the mesh, returning true and the next (i, j, k) 
-// triple if the traversal is incomplete, false otherwise. Set *pos to zero 
-// to reset the traversal. Additionally, if bbox is non-NULL, its fields 
-// x1, x2, y1, y2, z1, z2 will be set to the coordinates of the patch's 
-// extent, including ghost cells.
+// Traverses the locally-stored patches in the mesh, returning true and the 
+// next (i, j, k) triple if the traversal is incomplete, false otherwise. 
+// Set *pos to zero to reset the traversal. Additionally, if bbox is non-NULL, 
+// its fields x1, x2, y1, y2, z1, z2 will be set to the coordinates of the 
+// patch's extent, excluding ghost cells.
 bool unimesh_next_patch(unimesh_t* mesh, int* pos, 
                         int* i, int* j, int* k,
                         bbox_t* bbox);
