@@ -22,7 +22,7 @@ static void start_update_cell_x1(void* context, unimesh_t* mesh,
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   void* buffer = unimesh_patch_boundary_buffer(mesh, npx-1, j, k, 
                                                UNIMESH_X2_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+2, patch->nz+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int jj = 1; jj <= patch->ny; ++jj)
     for (int kk = 1; kk <= patch->nz; ++kk)
@@ -39,7 +39,7 @@ static void start_update_cell_x2(void* context, unimesh_t* mesh,
   ASSERT(i == npx-1);
   void* buffer = unimesh_patch_boundary_buffer(mesh, 0, j, k, 
                                                UNIMESH_X1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+2, patch->nz+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int jj = 1; jj <= patch->ny; ++jj)
     for (int kk = 1; kk <= patch->nz; ++kk)
@@ -56,7 +56,7 @@ static void start_update_cell_y1(void* context, unimesh_t* mesh,
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, npy-1, k, 
                                                UNIMESH_Y2_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+2, patch->nz+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int ii = 1; ii <= patch->nx; ++ii)
     for (int kk = 1; kk <= patch->nz; ++kk)
@@ -73,7 +73,7 @@ static void start_update_cell_y2(void* context, unimesh_t* mesh,
   ASSERT(j == npy-1);
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
                                                UNIMESH_Y1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+2, patch->nz+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int ii = 1; ii <= patch->nx; ++ii)
     for (int kk = 1; kk <= patch->nz; ++kk)
@@ -90,7 +90,7 @@ static void start_update_cell_z1(void* context, unimesh_t* mesh,
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, npz-1, 
                                                UNIMESH_Z2_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+2, patch->ny+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int ii = 1; ii <= patch->nx; ++ii)
     for (int jj = 1; jj <= patch->ny; ++jj)
@@ -107,7 +107,7 @@ static void start_update_cell_z2(void* context, unimesh_t* mesh,
   ASSERT(k == npz-1);
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, 0, 
                                                UNIMESH_Z1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+2, patch->ny+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int ii = 1; ii <= patch->nx; ++ii)
     for (int jj = 1; jj <= patch->ny; ++jj)
@@ -621,7 +621,7 @@ static void finish_update_cell_x1(void* context, unimesh_t* mesh,
   ASSERT(i == 0);
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_X1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+2, patch->nz+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int jj = 1; jj <= patch->ny; ++jj)
     for (int kk = 1; kk <= patch->nz; ++kk)
@@ -635,7 +635,7 @@ static void finish_update_cell_x2(void* context, unimesh_t* mesh,
 {
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_X2_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny, patch->nz, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->ny+2, patch->nz+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int jj = 1; jj <= patch->ny; ++jj)
     for (int kk = 1; kk <= patch->nz; ++kk)
@@ -650,7 +650,7 @@ static void finish_update_cell_y1(void* context, unimesh_t* mesh,
   ASSERT(j == 0);
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Y1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+2, patch->nz+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int ii = 1; ii <= patch->nx; ++ii)
     for (int kk = 1; kk <= patch->nz; ++kk)
@@ -664,7 +664,7 @@ static void finish_update_cell_y2(void* context, unimesh_t* mesh,
 {
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Y2_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->nz, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+2, patch->nz+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int ii = 1; ii <= patch->nx; ++ii)
     for (int kk = 1; kk <= patch->nz; ++kk)
@@ -679,7 +679,7 @@ static void finish_update_cell_z1(void* context, unimesh_t* mesh,
   ASSERT(k == 0);
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z1_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+2, patch->ny+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int ii = 1; ii <= patch->nx; ++ii)
     for (int jj = 1; jj <= patch->ny; ++jj)
@@ -693,7 +693,7 @@ static void finish_update_cell_z2(void* context, unimesh_t* mesh,
 {
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z2_BOUNDARY);
-  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
+  DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+2, patch->ny+2, patch->nc);
   DECLARE_UNIMESH_CELL_ARRAY(a, patch);
   for (int ii = 1; ii <= patch->nx; ++ii)
     for (int jj = 1; jj <= patch->ny; ++jj)

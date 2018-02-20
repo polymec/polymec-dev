@@ -20,7 +20,7 @@
 // This maps patch indices to patch boundary conditions for the unimesh.
 DEFINE_UNORDERED_MAP(patch_bc_map, int, unimesh_patch_bc_t**, int_hash, int_equals)
 
-// This stuff allows us to perform patch boundary updates.
+// This stuff allows us to perform local patch boundary updates.
 typedef struct boundary_buffer_pool_t boundary_buffer_pool_t;
 static boundary_buffer_pool_t* boundary_buffer_pool_new(unimesh_t* mesh);
 static void boundary_buffer_pool_free(boundary_buffer_pool_t* pool);
@@ -632,9 +632,9 @@ static inline void* boundary_buffer_data(boundary_buffer_t* buffer,
 DEFINE_ARRAY(boundary_buffer_array, boundary_buffer_t*)
 
 // The boundary_buffer_pool class maintains a set of resources for supporting
-// patch boundary updates on the mesh. Specifically, the pool allows several 
-// concurrent patch boundary updates for asynchronous communication over 
-// several unimesh_fields.
+// local patch boundary updates on the mesh. Specifically, the pool allows 
+// several concurrent patch boundary updates for asynchronous communication 
+// over several unimesh_fields.
 struct boundary_buffer_pool_t
 {
   unimesh_t* mesh;
