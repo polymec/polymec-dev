@@ -45,9 +45,14 @@ struct unimesh_t
   int boundary_update_token; // current transaction
   int_ptr_unordered_map_t* boundary_updates; // maps tokens to patch arrays
 
+  // Special, custom-made boundary conditions, owned and managed by the mesh.
+  unimesh_patch_bc_t* copy_bc;
+  unimesh_patch_bc_t* periodic_bc;
+  unimesh_patch_bc_t* remote_bc;
+
   // Parallel metadata.
   MPI_Comm comm;
-  int rank;
+  int nproc, rank;
   int_int_unordered_map_t* owner_procs; // maps (patch index, boundary) pairs
                                         // to processes that own them.
 
@@ -91,8 +96,12 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
   mesh->boundary_buffers = NULL;
   mesh->boundary_updates = int_ptr_unordered_map_new();
   mesh->boundary_update_token = -1;
+  mesh->copy_bc = NULL;
+  mesh->periodic_bc = NULL;
+  mesh->remote_bc = NULL;
   mesh->comm = comm;
   MPI_Comm_rank(comm, &mesh->rank);
+  MPI_Comm_size(comm, &mesh->nproc);
   mesh->owner_procs = int_int_unordered_map_new();
   mesh->finalized = false;
   return mesh;
@@ -201,14 +210,11 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
   {
     // Total up the number of patches and allocate them to available 
     // processes.
-    int nproc, rank;
-    MPI_Comm_size(comm, &nproc);
-    MPI_Comm_rank(comm, &rank);
     int num_patches = npx * npy * npz;
-    int num_local_patches = num_patches / nproc;
-    if (rank == nproc-1)
-      num_local_patches = num_patches - (nproc-1) * num_local_patches;
-    int start_patch = (num_patches / nproc) * rank;
+    int num_local_patches = num_patches / mesh->nproc;
+    if (mesh->rank == mesh->nproc-1)
+      num_local_patches = num_patches - (mesh->nproc-1) * num_local_patches;
+    int start_patch = (num_patches / mesh->nproc) * mesh->rank;
 
     // We allocate patches to our own process, and track the processes that
     // own neighboring patches.
@@ -228,7 +234,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
             int index = patch_index(mesh, i, j, k);
 
             // x1 boundary
-            int x1_rank = rank;
+            int x1_rank = mesh->rank;
             if (i > 0)
             {
               int x1_index = patch_index(mesh, i-1, j, k);
@@ -236,7 +242,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (x1_index < x1_start_patch)
               {
                 --x1_rank;
-                x1_start_patch = (num_patches / nproc) * x1_rank;
+                x1_start_patch = (num_patches / mesh->nproc) * x1_rank;
               }
             }
             else if (mesh->periodic_in_x)
@@ -246,14 +252,14 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (x1_index > x1_start_patch)
               {
                 ++x1_rank;
-                x1_start_patch = (num_patches / nproc) * x1_rank;
+                x1_start_patch = (num_patches / mesh->nproc) * x1_rank;
               }
             }
-            if (x1_rank != rank)
+            if (x1_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index, x1_rank);
 
             // x2 boundary
-            int x2_rank = rank;
+            int x2_rank = mesh->rank;
             if (i < npx-1)
             {
               int x2_index = patch_index(mesh, i+1, j, k);
@@ -261,7 +267,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (x2_index > x2_start_patch)
               {
                 ++x2_rank;
-                x2_start_patch = (num_patches / nproc) * x2_rank;
+                x2_start_patch = (num_patches / mesh->nproc) * x2_rank;
               }
             }
             else if (mesh->periodic_in_x)
@@ -271,14 +277,14 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (x2_index < x2_start_patch)
               {
                 --x2_rank;
-                x2_start_patch = (num_patches / nproc) * x2_rank;
+                x2_start_patch = (num_patches / mesh->nproc) * x2_rank;
               }
             }
-            if (x2_rank != rank)
+            if (x2_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index+1, x2_rank);
 
             // y1 boundary
-            int y1_rank = rank;
+            int y1_rank = mesh->rank;
             if (j > 0)
             {
               int y1_index = patch_index(mesh, i, j-1, k);
@@ -286,7 +292,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (y1_index < y1_start_patch)
               {
                 --y1_rank;
-                y1_start_patch = (num_patches / nproc) * y1_rank;
+                y1_start_patch = (num_patches / mesh->nproc) * y1_rank;
               }
             }
             else if (mesh->periodic_in_y)
@@ -296,14 +302,14 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (y1_index > y1_start_patch)
               {
                 ++y1_rank;
-                y1_start_patch = (num_patches / nproc) * y1_rank;
+                y1_start_patch = (num_patches / mesh->nproc) * y1_rank;
               }
             }
-            if (y1_rank != rank)
+            if (y1_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index+2, y1_rank);
 
             // y2 boundary
-            int y2_rank = rank;
+            int y2_rank = mesh->rank;
             if (j < npy-1)
             {
               int y2_index = patch_index(mesh, i, j+1, k);
@@ -311,7 +317,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (y2_index > y2_start_patch)
               {
                 ++y2_rank;
-                y2_start_patch = (num_patches / nproc) * y2_rank;
+                y2_start_patch = (num_patches / mesh->nproc) * y2_rank;
               }
             }
             else if (mesh->periodic_in_y)
@@ -321,14 +327,14 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (y2_index < y2_start_patch)
               {
                 --y2_rank;
-                y2_start_patch = (num_patches / nproc) * y2_rank;
+                y2_start_patch = (num_patches / mesh->nproc) * y2_rank;
               }
             }
-            if (y2_rank != rank)
+            if (y2_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index+3, y2_rank);
 
             // z1 boundary
-            int z1_rank = rank;
+            int z1_rank = mesh->rank;
             if (k > 0)
             {
               int z1_index = patch_index(mesh, i, j, k-1);
@@ -336,7 +342,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (z1_index < z1_start_patch)
               {
                 --z1_rank;
-                z1_start_patch = (num_patches / nproc) * z1_rank;
+                z1_start_patch = (num_patches / mesh->nproc) * z1_rank;
               }
             }
             else if (mesh->periodic_in_z)
@@ -346,14 +352,14 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (z1_index > z1_start_patch)
               {
                 ++z1_rank;
-                z1_start_patch = (num_patches / nproc) * z1_rank;
+                z1_start_patch = (num_patches / mesh->nproc) * z1_rank;
               }
             }
-            if (z1_rank != rank)
+            if (z1_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index+4, z1_rank);
 
             // z2 boundary
-            int z2_rank = rank;
+            int z2_rank = mesh->rank;
             if (k < npz-1)
             {
               int z2_index = patch_index(mesh, i, j, k+1);
@@ -361,7 +367,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (z2_index > z2_start_patch)
               {
                 ++z2_rank;
-                z2_start_patch = (num_patches / nproc) * z2_rank;
+                z2_start_patch = (num_patches / mesh->nproc) * z2_rank;
               }
             }
             else if (mesh->periodic_in_z)
@@ -371,10 +377,10 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
               while (z2_index < z2_start_patch)
               {
                 --z2_rank;
-                z2_start_patch = (num_patches / nproc) * z2_rank;
+                z2_start_patch = (num_patches / mesh->nproc) * z2_rank;
               }
             }
-            if (z2_rank != rank)
+            if (z2_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index+5, z2_rank);
           }
           if (l >= start_patch + num_local_patches) break;
@@ -398,6 +404,12 @@ void unimesh_free(unimesh_t* mesh)
   if (mesh->boundary_buffers != NULL)
     boundary_buffer_pool_free(mesh->boundary_buffers);
   patch_bc_map_free(mesh->patch_bcs);
+  if (mesh->copy_bc != NULL)
+    polymec_release(mesh->copy_bc);
+  if (mesh->periodic_bc != NULL)
+    polymec_release(mesh->periodic_bc);
+  if (mesh->remote_bc != NULL)
+    polymec_release(mesh->remote_bc);
   int_unordered_set_free(mesh->patches);
   if (mesh->patch_indices != NULL)
     polymec_free(mesh->patch_indices);
@@ -600,7 +612,7 @@ static boundary_buffer_t* boundary_buffer_new(unimesh_t* mesh,
 {
   boundary_buffer_t* buffer = polymec_malloc(sizeof(boundary_buffer_t));
   buffer->mesh = mesh;
-  buffer->centering = UNIMESH_CELL;
+  buffer->centering = centering;
   unimesh_get_patch_size(mesh, &buffer->nx, &buffer->ny, &buffer->nz);
   buffer->nc = -1;
   buffer->in_use = false;
@@ -873,9 +885,11 @@ extern unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh);
 static void set_up_patch_bcs(unimesh_t* mesh)
 {
   // Here's some ready-made boundary conditions.
-  unimesh_patch_bc_t* copy_bc = unimesh_copy_bc_new(mesh);
-  unimesh_patch_bc_t* periodic_bc = unimesh_periodic_bc_new(mesh);
-  unimesh_patch_bc_t* remote_bc = unimesh_remote_bc_new(mesh);
+  mesh->copy_bc = unimesh_copy_bc_new(mesh);
+  if (mesh->periodic_in_x || mesh->periodic_in_y || mesh->periodic_in_z)
+    mesh->periodic_bc = unimesh_periodic_bc_new(mesh);
+  if (mesh->nproc > 1)
+    mesh->remote_bc = unimesh_remote_bc_new(mesh);
 
   // Assign these to each patch in the mesh.
   int pos = 0, i, j, k;
@@ -890,48 +904,48 @@ static void set_up_patch_bcs(unimesh_t* mesh)
 
     // x boundaries
     if (unimesh_has_patch(mesh, i-1, j, k))
-      x1_bc = copy_bc;
+      x1_bc = mesh->copy_bc;
     else if (mesh->periodic_in_x && (i == 0) && unimesh_has_patch(mesh, mesh->npx-1, j, k))
-      x1_bc = periodic_bc;
+      x1_bc = mesh->periodic_bc;
     else if (i > 0)
-      x1_bc = remote_bc;
+      x1_bc = mesh->remote_bc;
 
     if (unimesh_has_patch(mesh, i+1, j, k))
-      x2_bc = copy_bc;
+      x2_bc = mesh->copy_bc;
     else if (mesh->periodic_in_x && (i == mesh->npx-1) && unimesh_has_patch(mesh, 0, j, k))
-      x2_bc = periodic_bc;
+      x2_bc = mesh->periodic_bc;
     else if (i < mesh->npx-1)
-      x2_bc = remote_bc;
+      x2_bc = mesh->remote_bc;
 
     // y boundaries
     if (unimesh_has_patch(mesh, i, j-1, k))
-      y1_bc = copy_bc;
+      y1_bc = mesh->copy_bc;
     else if (mesh->periodic_in_y && (j == 0) && unimesh_has_patch(mesh, i, mesh->npy-1, k))
-      y1_bc = periodic_bc;
+      y1_bc = mesh->periodic_bc;
     else if (j > 0)
-      y1_bc = remote_bc;
+      y1_bc = mesh->remote_bc;
 
     if (unimesh_has_patch(mesh, i, j+1, k))
-      y2_bc = copy_bc;
+      y2_bc = mesh->copy_bc;
     else if (mesh->periodic_in_y && (j == mesh->npy-1) && unimesh_has_patch(mesh, i, 0, k))
-      y2_bc = periodic_bc;
+      y2_bc = mesh->periodic_bc;
     else if (j < mesh->npy-1)
-      y2_bc = remote_bc;
+      y2_bc = mesh->remote_bc;
 
     // z boundaries
     if (unimesh_has_patch(mesh, i, j, k-1))
-      z1_bc = copy_bc;
+      z1_bc = mesh->copy_bc;
     else if (mesh->periodic_in_z && (k == 0) && unimesh_has_patch(mesh, i, j, mesh->npz-1))
-      z1_bc = periodic_bc;
+      z1_bc = mesh->periodic_bc;
     else if (k > 0)
-      z1_bc = remote_bc;
+      z1_bc = mesh->remote_bc;
 
     if (unimesh_has_patch(mesh, i, j, k+1))
-      z2_bc = copy_bc;
+      z2_bc = mesh->copy_bc;
     else if (mesh->periodic_in_z && (k == mesh->npz-1) && unimesh_has_patch(mesh, i, j, 0))
-      z2_bc = periodic_bc;
+      z2_bc = mesh->periodic_bc;
     else if (k < mesh->npz-1)
-      z2_bc = remote_bc;
+      z2_bc = mesh->remote_bc;
 
     if (x1_bc != NULL)
       unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_X1_BOUNDARY, x1_bc);
@@ -946,12 +960,6 @@ static void set_up_patch_bcs(unimesh_t* mesh)
     if (z2_bc != NULL)
       unimesh_set_patch_bc(mesh, i, j, k, UNIMESH_Z2_BOUNDARY, z2_bc);
   }
-
-  // Get rid of extra references.
-  polymec_release(copy_bc);
-  polymec_release(periodic_bc);
-  if (remote_bc != NULL)
-    polymec_release(remote_bc);
 }
 
 // This returns the process that owns the patch attached to the given 
@@ -973,3 +981,10 @@ int unimesh_owner_proc(unimesh_t* mesh,
     return *proc_p;
 }
 
+// This provides direct access to our remote BC, in order to simplify access
+// to send/receive buffers. Tight coupling much? :-)
+unimesh_patch_bc_t* unimesh_remote_bc(unimesh_t* mesh);
+unimesh_patch_bc_t* unimesh_remote_bc(unimesh_t* mesh)
+{
+  return mesh->remote_bc;
+}

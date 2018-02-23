@@ -307,6 +307,8 @@ static inline void* collected_obj_header(void* memory)
 
 void polymec_retain(void* memory)
 {
+  ASSERT(memory != NULL);
+
   // Fetch the reference for this object and make sure it exists in the 
   // Lua registry.
   int* storage_ref = (int*)collected_obj_header(memory);

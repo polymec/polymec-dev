@@ -10,6 +10,7 @@
 
 #if POLYMEC_HAVE_MPI
 
+#include "core/timer.h"
 #include "core/unordered_map.h"
 #include "core/array.h"
 #include "geometry/unimesh_patch.h"
@@ -19,6 +20,7 @@ extern int unimesh_boundary_update_token(unimesh_t* mesh);
 extern int unimesh_owner_proc(unimesh_t* mesh, 
                               int i, int j, int k,
                               unimesh_boundary_t boundary);
+extern unimesh_patch_bc_t* unimesh_remote_bc(unimesh_t* mesh);
 
 #if 0
 // A "trans" object is a context for a process-to-process transaction.
@@ -131,6 +133,14 @@ static void trans_wait(trans_t* trans)
 
 DEFINE_UNORDERED_MAP(trans_map, int, trans_t*, int_hash, int_equals)
 #endif 
+
+//------------------------------------------------------------------------
+//                      Unimesh send/receive buffers
+//------------------------------------------------------------------------
+// These functions give access to the send and receive buffers maintained 
+// for a mesh by its remote BC.
+//------------------------------------------------------------------------
+
 void* unimesh_patch_boundary_send_buffer(unimesh_t* mesh, 
                                          int i, int j, int k, 
                                          unimesh_boundary_t boundary);
@@ -151,6 +161,12 @@ void* unimesh_patch_boundary_receive_buffer(unimesh_t* mesh,
   return NULL; // FIXME
 }
 
+//------------------------------------------------------------------------
+//                      Unimesh communications functions
+//------------------------------------------------------------------------
+// These functions post sends and receives when data is ready, and wait 
+// for all messages to be received.
+//------------------------------------------------------------------------
 void unimesh_prep_for_comm(unimesh_t* mesh, 
                            int i, int j, int k, 
                            unimesh_boundary_t boundary);
@@ -1392,6 +1408,321 @@ unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
 
   remote_bc_t* bc = remote_bc_new(mesh);
   return unimesh_patch_bc_new("remote patch copy BC", bc, vtable, mesh);
+}
+
+//------------------------------------------------------------------------ 
+//                          Send/receive buffers
+//------------------------------------------------------------------------ 
+
+// The comm_buffer class is an annotated blob of memory that stores 
+// patch boundary data for patches in a unimesh with data of a given centering
+// and number of components.
+typedef struct
+{
+  unimesh_t* mesh;
+  unimesh_centering_t centering;
+  int nx, ny, nz, nc;
+  bool in_use;
+  enum { SEND, RECEIVE } type;
+  int_int_unordered_map_t* patch_offsets;
+  size_t boundary_offsets[6];
+  real_t* storage;
+} comm_buffer_t;
+
+static void comm_buffer_reset(comm_buffer_t* buffer, 
+                              unimesh_centering_t centering,
+                              int num_components)
+{
+  ASSERT(num_components > 0);
+  ASSERT(!buffer->in_use);
+
+  // Do we need to do anything?
+  if ((buffer->centering == centering) && 
+      (buffer->nc == num_components))
+    return;
+
+  START_FUNCTION_TIMER();
+  // Compute buffer offsets based on centering and boundary.
+  buffer->centering = centering;
+  buffer->nc = num_components;
+  int nx = buffer->nx, ny = buffer->ny, nz = buffer->nz, nc = buffer->nc;
+
+  size_t send_patch_sizes[8] = {2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2) + (nx+2)*(ny+2)), // cells
+                                2*nc*(ny*nz + (nx+1)*nz + (nx+1)*ny), // x faces
+                                2*nc*((ny+1)*nz + nx*nz + nx*(ny+1)), // y faces
+                                2*nc*(ny*(nz+1) + nx*(nz+1) + nx*ny), // z faces
+                                2*nc*((ny+1)*(nz+1) + nx*(nz+1) + nx*(ny+1)),     // x edges
+                                2*nc*(ny*(nz+1) + (nx+1)*(nz+1) + (nx+1)*ny), // y edges
+                                2*nc*((ny+1)*nz + (nx+1)*nz + (nx+1)*(ny+1)), // z edges
+                                2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1) + (nx+1)*(ny+1))}; // nodes
+
+  size_t send_offsets[8][6] =  { // cells (including ghosts for simplicity)
+                                {0, nc*(ny+2)*(nz+2), 
+                                 2*nc*(ny+2)*(nz+2), 2*nc*(ny+2)*(nz+2) + nc*(nx+2)*(nz+2),
+                                 2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2)), 2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2)) + nc*(nx+2)*(ny+2)},
+                                 // x faces
+                                {0, nc*ny*nz,
+                                 2*nc*ny*nz, 2*nc*ny*nz + nc*(nx+1)*nz,
+                                 2*nc*(ny*nz + (nx+1)*nz), 2*nc*(ny*nz + (nx+1)*nz) + nc*(nx+1)*ny},
+                                 // y faces
+                                {0, nc*(ny+1)*nz,
+                                 2*nc*(ny+1)*nz, 2*nc*(ny+1)*nz + nc*nx*nz,
+                                 2*nc*((ny+1)*nz + nx*nz), 2*nc*((ny+1)*nz + nx*nz) + nc*nx*(ny+1)},
+                                 // z faces
+                                {0, nc*ny*(nz+1),
+                                 2*nc*ny*(nz+1), 2*nc*ny*(nz+1) + nc*nx*(nz+1),
+                                 2*nc*(ny*(nz+1) + nx*(nz+1)), 2*nc*(ny*(nz+1) + nx*(nz+1)) + nc*nx*ny},
+                                 // x edges
+                                {0, nc*(ny+1)*(nz+1),
+                                 2*nc*(ny+1)*(nz+1), 2*nc*(ny+1)*(nz+1) + nc*nx*(nz+1),
+                                 2*nc*((ny+1)*(nz+1) + nx*(nz+1)), 2*nc*((ny+1)*(nz+1) + nx*(nz+1)) + nc*nx*(ny+1)},
+                                 // y edges
+                                {0, nc*ny*(nz+1),
+                                 2*nc*ny*(nz+1), 2*nc*ny*(nz+1) + nc*(nx+1)*(nz+1),
+                                 2*nc*(ny*(nz+1) + (nx+1)*(nz+1)), 2*nc*(ny*(nz+1) + (nx+1)*(nz+1)) + nc*(nx+1)*ny},
+                                 // z edges
+                                {0, nc*(ny+1)*nz,
+                                 2*nc*(ny+1)*nz, 2*nc*(ny+1)*nz + nc*(nx+1)*nz,
+                                 2*nc*((ny+1)*nz + (nx+1)*nz), 2*nc*((ny+1)*nz + (nx+1)*nz) + nc*(nx+1)*(ny+1)},
+                                 // nodes
+                                {0, nc*(ny+1)*(nz+1),
+                                 2*nc*(ny+1)*(nz+1), 2*nc*(ny+1)*(nz+1) + nc*(nx+1)*(nz+1),
+                                 2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1)), 2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1)) + nc*(nx+1)*(ny+1)}};
+
+  size_t receive_patch_sizes[8] = {2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2) + (nx+2)*(ny+2)), // cells
+                                   2*nc*(ny*nz + (nx+1)*nz + (nx+1)*ny), // x faces
+                                   2*nc*((ny+1)*nz + nx*nz + nx*(ny+1)), // y faces
+                                   2*nc*(ny*(nz+1) + nx*(nz+1) + nx*ny), // z faces
+                                   2*nc*((ny+1)*(nz+1) + nx*(nz+1) + nx*(ny+1)),     // x edges
+                                   2*nc*(ny*(nz+1) + (nx+1)*(nz+1) + (nx+1)*ny), // y edges
+                                   2*nc*((ny+1)*nz + (nx+1)*nz + (nx+1)*(ny+1)), // z edges
+                                   2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1) + (nx+1)*(ny+1))}; // nodes
+
+  size_t receive_offsets[8][6] =  { // cells (including ghosts for simplicity)
+                                   {0, nc*(ny+2)*(nz+2), 
+                                    2*nc*(ny+2)*(nz+2), 2*nc*(ny+2)*(nz+2) + nc*(nx+2)*(nz+2),
+                                    2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2)), 2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2)) + nc*(nx+2)*(ny+2)},
+                                    // x faces
+                                   {0, nc*ny*nz,
+                                    2*nc*ny*nz, 2*nc*ny*nz + nc*(nx+1)*nz,
+                                    2*nc*(ny*nz + (nx+1)*nz), 2*nc*(ny*nz + (nx+1)*nz) + nc*(nx+1)*ny},
+                                    // y faces
+                                   {0, nc*(ny+1)*nz,
+                                    2*nc*(ny+1)*nz, 2*nc*(ny+1)*nz + nc*nx*nz,
+                                    2*nc*((ny+1)*nz + nx*nz), 2*nc*((ny+1)*nz + nx*nz) + nc*nx*(ny+1)},
+                                    // z faces
+                                   {0, nc*ny*(nz+1),
+                                    2*nc*ny*(nz+1), 2*nc*ny*(nz+1) + nc*nx*(nz+1),
+                                    2*nc*(ny*(nz+1) + nx*(nz+1)), 2*nc*(ny*(nz+1) + nx*(nz+1)) + nc*nx*ny},
+                                    // x edges
+                                   {0, nc*(ny+1)*(nz+1),
+                                    2*nc*(ny+1)*(nz+1), 2*nc*(ny+1)*(nz+1) + nc*nx*(nz+1),
+                                    2*nc*((ny+1)*(nz+1) + nx*(nz+1)), 2*nc*((ny+1)*(nz+1) + nx*(nz+1)) + nc*nx*(ny+1)},
+                                    // y edges
+                                   {0, nc*ny*(nz+1),
+                                    2*nc*ny*(nz+1), 2*nc*ny*(nz+1) + nc*(nx+1)*(nz+1),
+                                    2*nc*(ny*(nz+1) + (nx+1)*(nz+1)), 2*nc*(ny*(nz+1) + (nx+1)*(nz+1)) + nc*(nx+1)*ny},
+                                    // z edges
+                                   {0, nc*(ny+1)*nz,
+                                    2*nc*(ny+1)*nz, 2*nc*(ny+1)*nz + nc*(nx+1)*nz,
+                                    2*nc*((ny+1)*nz + (nx+1)*nz), 2*nc*((ny+1)*nz + (nx+1)*nz) + nc*(nx+1)*(ny+1)},
+                                    // nodes
+                                   {0, nc*(ny+1)*(nz+1),
+                                    2*nc*(ny+1)*(nz+1), 2*nc*(ny+1)*(nz+1) + nc*(nx+1)*(nz+1),
+                                    2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1)), 2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1)) + nc*(nx+1)*(ny+1)}};
+
+  // Now compute offsets.
+  int cent = (int)centering;
+  int pos = 0, i, j, k;
+  size_t last_offset = 0;
+  while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
+  {
+    int index = patch_index(buffer->mesh, i, j, k);
+    int_int_unordered_map_insert(buffer->patch_offsets, index, (int)last_offset);
+    last_offset += (buffer->type == SEND) ? send_patch_sizes[cent] : receive_patch_sizes[cent];
+  }
+  size_t off = (buffer->type == SEND) ? send_offsets[cent] : receive_offsets[cent];
+  memcpy(buffer->boundary_offsets, off, 6*sizeof(size_t));
+
+  // Allocate storage if needed.
+  buffer->storage = polymec_realloc(buffer->storage, sizeof(real_t) * last_offset);
+  STOP_FUNCTION_TIMER();
+}
+
+static comm_buffer_t* send_buffer_new(unimesh_t* mesh, 
+                                      unimesh_centering_t centering,
+                                      int num_components)
+{
+  comm_buffer_t* buffer = polymec_malloc(sizeof(comm_buffer_t));
+  buffer->mesh = mesh;
+  buffer->type = SEND;
+  buffer->centering = centering;
+  unimesh_get_patch_size(mesh, &buffer->nx, &buffer->ny, &buffer->nz);
+  buffer->nc = -1;
+  buffer->in_use = false;
+  buffer->patch_offsets = int_int_unordered_map_new();
+  buffer->storage = NULL;
+  comm_buffer_reset(buffer, centering, num_components);
+  return buffer;
+}
+
+static comm_buffer_t* receive_buffer_new(unimesh_t* mesh, 
+                                         unimesh_centering_t centering,
+                                         int num_components)
+{
+  comm_buffer_t* buffer = polymec_malloc(sizeof(comm_buffer_t));
+  buffer->mesh = mesh;
+  buffer->type = RECEIVE;
+  buffer->centering = centering;
+  unimesh_get_patch_size(mesh, &buffer->nx, &buffer->ny, &buffer->nz);
+  buffer->nc = -1;
+  buffer->in_use = false;
+  buffer->patch_offsets = int_int_unordered_map_new();
+  buffer->storage = NULL;
+  comm_buffer_reset(buffer, centering, num_components);
+  return buffer;
+}
+
+static void comm_buffer_free(comm_buffer_t* buffer)
+{
+  if (buffer->storage != NULL)
+    polymec_free(buffer->storage);
+  int_int_unordered_map_free(buffer->patch_offsets);
+  polymec_free(buffer);
+}
+
+static inline void* comm_buffer_data(comm_buffer_t* buffer,
+                                     int i, int j, int k,
+                                     unimesh_boundary_t boundary)
+{
+  int index = patch_index(buffer->mesh, i, j, k);
+  int b = (int)boundary;
+  size_t offset = *int_int_unordered_map_get(buffer->patch_offsets, index) + 
+                  buffer->boundary_offsets[b];
+  return &(buffer->storage[offset]);
+}
+
+DEFINE_ARRAY(comm_buffer_array, comm_buffer_t*)
+
+// The comm_buffer_pool class maintains a set of resources for supporting
+// local patch boundary updates on the mesh. Specifically, the pool allows 
+// several concurrent patch boundary updates for asynchronous communication 
+// over several unimesh_fields.
+struct comm_buffer_pool_t
+{
+  unimesh_t* mesh;
+  comm_buffer_array_t* buffers;
+};
+
+// Creates a new boundary update pool.
+static comm_buffer_pool_t* comm_buffer_pool_new(unimesh_t* mesh)
+{
+  comm_buffer_pool_t* pool = polymec_malloc(sizeof(comm_buffer_pool_t));
+  pool->mesh = mesh;
+  pool->buffers = comm_buffer_array_new();
+
+  // Start off with a handful of single-component, cell-centered buffers.
+  for (int i = 0; i < 4; ++i)
+  {
+    comm_buffer_t* buffer = comm_buffer_new(mesh, UNIMESH_CELL, 1);
+    comm_buffer_array_append_with_dtor(pool->buffers, buffer, comm_buffer_free);
+  }
+  
+  return pool;
+}
+
+// Destroys the given boundary update pool.
+static void comm_buffer_pool_free(comm_buffer_pool_t* pool)
+{
+  comm_buffer_array_free(pool->buffers);
+  polymec_free(pool);
+}
+
+// Returns an integer token that uniquely identifies a set of resources
+// that can be used for patch boundary updates for data with the given 
+// centering.
+static int comm_buffer_pool_acquire(comm_buffer_pool_t* pool,
+                                    unimesh_centering_t centering,
+                                    int num_components)
+{
+  START_FUNCTION_TIMER();
+  ASSERT(num_components > 0);
+
+  size_t token = 0; 
+  while (token < pool->buffers->size)
+  {
+    comm_buffer_t* buffer = pool->buffers->data[token];
+    if (!buffer->in_use)
+    {
+      // Repurpose this buffer if needed.
+      comm_buffer_reset(buffer, centering, num_components);
+      buffer->in_use = true;
+      break;
+    }
+    else
+      ++token;
+  }
+
+  if (token == pool->buffers->size) // We're out of buffers!
+  {
+    // Add another one.
+    comm_buffer_t* buffer = comm_buffer_new(pool->mesh, centering, num_components);
+    comm_buffer_array_append_with_dtor(pool->buffers, buffer, comm_buffer_free);
+  }
+
+  STOP_FUNCTION_TIMER();
+  return (int)token;
+}
+
+// Releases the resources associated with the given integer token, returning 
+// them to the pool for later use.
+static inline void comm_buffer_pool_release(comm_buffer_pool_t* pool,
+                                                int token)
+{
+  ASSERT(token >= 0);
+  ASSERT((size_t)token < pool->buffers->size);
+  pool->buffers->data[token]->in_use = false;
+}
+
+// Retrieves a buffer for the given token that stores patch boundary data 
+// for the given boundary on patch (i, j, k). 
+static inline void* comm_buffer_pool_buffer(comm_buffer_pool_t* pool,
+                                                int token,
+                                                int i, int j, int k,
+                                                unimesh_boundary_t boundary)
+{
+  ASSERT(token >= 0);
+  ASSERT((size_t)token < pool->buffers->size);
+  return comm_buffer_data(pool->buffers->data[token], i, j, k, boundary);
+}
+
+// Returns a unique token that can be used to identify a patch boundary 
+// update operation on patches with the given centering, so that boundary 
+// conditions can be enforced asynchronously.
+int unimesh_patch_comm_buffer_token(unimesh_t* mesh, 
+                                        unimesh_centering_t centering,
+                                        int num_components);
+int unimesh_patch_comm_buffer_token(unimesh_t* mesh, 
+                                        unimesh_centering_t centering,
+                                        int num_components)
+{
+  return comm_buffer_pool_acquire(mesh->boundary_buffers, 
+                                      centering, num_components); 
+}
+
+// This allows access to the buffer that stores data for the specific boundary 
+// of the (i, j, k)th patch in the current transaction.
+void* unimesh_patch_boundary_buffer(unimesh_t* mesh, 
+                                    int i, int j, int k, 
+                                    unimesh_boundary_t boundary);
+void* unimesh_patch_boundary_buffer(unimesh_t* mesh, 
+                                    int i, int j, int k, 
+                                    unimesh_boundary_t boundary)
+{
+  ASSERT(mesh->boundary_update_token != -1);
+  return comm_buffer_pool_buffer(mesh->boundary_buffers, 
+                                 mesh->boundary_update_token,
+                                 i, j, k, boundary);
 }
 
 #else
