@@ -17,6 +17,14 @@
 #include <omp.h>
 #endif
 
+struct unimesh_observer_t
+{
+  void* context;
+  unimesh_observer_vtable vtable;
+};
+
+DEFINE_ARRAY(unimesh_observer_array, unimesh_observer_t*)
+
 // This maps patch indices to patch boundary conditions for the unimesh.
 DEFINE_UNORDERED_MAP(patch_bc_map, int, unimesh_patch_bc_t**, int_hash, int_equals)
 
@@ -55,6 +63,9 @@ struct unimesh_t
   int nproc, rank;
   int_int_unordered_map_t* owner_procs; // maps (patch index, boundary) pairs
                                         // to processes that own them.
+
+  // Observers.
+  unimesh_observer_array_t* observers;
 
   // This flag is set by unimesh_finalize() after a mesh has been assembled.
   bool finalized;
@@ -103,6 +114,7 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
   MPI_Comm_rank(comm, &mesh->rank);
   MPI_Comm_size(comm, &mesh->nproc);
   mesh->owner_procs = int_int_unordered_map_new();
+  mesh->observers = unimesh_observer_array_new();
   mesh->finalized = false;
   return mesh;
 }
@@ -399,6 +411,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
 
 void unimesh_free(unimesh_t* mesh)
 {
+  unimesh_observer_array_free(mesh->observers);
   int_int_unordered_map_free(mesh->owner_procs);
   int_ptr_unordered_map_free(mesh->boundary_updates);
   if (mesh->boundary_buffers != NULL)
@@ -745,8 +758,21 @@ int unimesh_patch_boundary_buffer_token(unimesh_t* mesh,
                                         unimesh_centering_t centering,
                                         int num_components)
 {
-  return boundary_buffer_pool_acquire(mesh->boundary_buffers, 
-                                      centering, num_components); 
+  // Acquire a buffer and a token.
+  int token = boundary_buffer_pool_acquire(mesh->boundary_buffers, 
+                                           centering, num_components); 
+  // Report the token and metadata to our observers.
+  for (size_t i = 0; i < mesh->observers->size; ++i)
+  {
+    if (mesh->observers->data[i]->vtable.acquired_boundary_update_token != NULL)
+    {
+      mesh->observers->data[i]->vtable.acquired_boundary_update_token(mesh->observers->data[i]->context,
+                                                                      mesh, token, centering,
+                                                                      num_components);
+    }
+  }
+
+  return token;
 }
 
 // This allows access to the buffer that stores data for the specific boundary 
@@ -988,3 +1014,47 @@ unimesh_patch_bc_t* unimesh_remote_bc(unimesh_t* mesh)
 {
   return mesh->remote_bc;
 }
+
+unimesh_observer_t* unimesh_observer_new(void* context,
+                                         unimesh_observer_vtable vtable)
+{
+  unimesh_observer_t* observer = polymec_malloc(sizeof(unimesh_observer_t));
+  observer->context = context;
+  observer->vtable = vtable;
+  return observer;
+}
+
+void unimesh_observer_free(unimesh_observer_t* observer)
+{
+  if ((observer->vtable.dtor != NULL) && (observer->context != NULL))
+    observer->vtable.dtor(observer->context);
+  polymec_free(observer);
+}
+
+void unimesh_add_observer(unimesh_t* mesh,
+                          unimesh_observer_t* observer)
+{
+  for (size_t i = 0; i < mesh->observers->size; ++i)
+  {
+    if (mesh->observers->data[i] == observer) // already there!
+      return;
+  }
+
+  unimesh_observer_array_append_with_dtor(mesh->observers, observer,
+                                          unimesh_observer_free);
+}
+
+void unimesh_remove_observer(unimesh_t* mesh,
+                             unimesh_observer_t* observer)
+{
+  for (size_t i = 0; i < mesh->observers->size; ++i)
+  {
+    if (mesh->observers->data[i] == observer) 
+    {
+      unimesh_observer_array_remove(mesh->observers, i);
+      unimesh_observer_free(observer);
+      return;
+    }
+  }
+}
+

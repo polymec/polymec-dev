@@ -135,5 +135,41 @@ bool unimesh_next_patch(unimesh_t* mesh, int* pos,
 // Returns true if the mesh has a patch at (i, j, k), false if not.
 bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k);
 
+// A unimesh observer is an object that is notified of changes within the 
+// unimesh's state.
+
+typedef struct unimesh_observer_t unimesh_observer_t;
+
+// This vtable defines the behavior of a unimesh observer.
+typedef struct
+{
+  // Called when a new boundary update token is acquired by the mesh.
+  void (*acquired_boundary_update_token)(void* context, 
+                                         unimesh_t* mesh, 
+                                         int token,
+                                         unimesh_centering_t centering,
+                                         int num_components);
+
+  // Destructor for observer context (optional).
+  void (*dtor)(void* context);
+} unimesh_observer_vtable;
+
+// Create a new unimesh observer that observes the given unimesh, using the 
+// given context pointer and vtable.
+unimesh_observer_t* unimesh_observer_new(void* context,
+                                         unimesh_observer_vtable vtable);
+
+// Destroys the given observer.
+void unimesh_observer_free(unimesh_observer_t* observer);
+
+// Add the observer to the given unimesh. The unimesh assumes responsibility
+// for ownership of the observer.
+void unimesh_add_observer(unimesh_t* mesh,
+                          unimesh_observer_t* observer);
+
+// Remove the observer remove the given unimesh, deleting the observer.
+void unimesh_remove_observer(unimesh_t* mesh,
+                             unimesh_observer_t* observer);
+
 #endif
 
