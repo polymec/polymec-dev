@@ -764,11 +764,11 @@ int unimesh_patch_boundary_buffer_token(unimesh_t* mesh,
   // Report the token and metadata to our observers.
   for (size_t i = 0; i < mesh->observers->size; ++i)
   {
-    if (mesh->observers->data[i]->vtable.acquired_boundary_update_token != NULL)
+    if (mesh->observers->data[i]->vtable.started_boundary_update != NULL)
     {
-      mesh->observers->data[i]->vtable.acquired_boundary_update_token(mesh->observers->data[i]->context,
-                                                                      mesh, token, centering,
-                                                                      num_components);
+      mesh->observers->data[i]->vtable.started_boundary_update(mesh->observers->data[i]->context,
+                                                               mesh, token, centering,
+                                                               num_components);
     }
   }
 

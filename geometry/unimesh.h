@@ -140,22 +140,28 @@ bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k);
 
 typedef struct unimesh_observer_t unimesh_observer_t;
 
-// This vtable defines the behavior of a unimesh observer.
+// This vtable defines the behavior of a unimesh observer. All methods are 
+// optional.
 typedef struct
 {
-  // Called when a new boundary update token is acquired by the mesh.
-  void (*acquired_boundary_update_token)(void* context, 
-                                         unimesh_t* mesh, 
-                                         int token,
-                                         unimesh_centering_t centering,
-                                         int num_components);
+  // Called when a boundary update is triggered by a field on the mesh.
+  // Arguments passed:
+  // * mesh - the mesh on which the boundary update is triggered
+  // * token - a unique integer token identifying the boundary update
+  // * centering - the centering of the field being updated
+  // * num_component - the number of components in the field being updated
+  void (*started_boundary_update)(void* context, 
+                                  unimesh_t* mesh, 
+                                  int token,
+                                  unimesh_centering_t centering,
+                                  int num_components);
 
-  // Destructor for observer context (optional).
+  // Destructor for observer context.
   void (*dtor)(void* context);
 } unimesh_observer_vtable;
 
-// Create a new unimesh observer that observes the given unimesh, using the 
-// given context pointer and vtable.
+// Create a new unimesh observer with a state defined by the given context 
+// pointer and behavior defined by the vtable.
 unimesh_observer_t* unimesh_observer_new(void* context,
                                          unimesh_observer_vtable vtable);
 

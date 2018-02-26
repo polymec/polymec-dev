@@ -11,8 +11,10 @@
 #if POLYMEC_HAVE_MPI
 
 #include "core/timer.h"
+#include "core/ordered_set.h"
 #include "core/unordered_map.h"
 #include "core/array.h"
+#include "core/array_utils.h"
 #include "geometry/unimesh_patch.h"
 #include "geometry/unimesh_patch_bc.h"
 
@@ -59,13 +61,14 @@ void unimesh_finish_comm(unimesh_t* mesh,
 // and number of components.
 typedef struct
 {
-  unimesh_t* mesh;
-  unimesh_centering_t centering;
-  int nx, ny, nz, nc;
-  enum { SEND, RECEIVE } type;
-  int_int_unordered_map_t* patch_offsets;
-  size_t boundary_offsets[6];
-  real_t* storage;
+  unimesh_t* mesh; // underlying mesh
+  unimesh_centering_t centering; // field centering
+  int rank; // rank in mesh communicator.
+  int nx, ny, nz, nc; // patch dimensions and number of components
+  enum { SEND, RECEIVE } type; // is this a send or receive buffer?
+  int_array_t* procs; // sorted list of remote processes
+  int_int_unordered_map_t* offsets; // mapping from 6*patch_index+boundary to buffer offset
+  real_t* storage; // the buffer itself
 } comm_buffer_t;
 
 static inline int patch_index(comm_buffer_t* buffer, int i, int j, int k)
@@ -85,6 +88,7 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
     return;
 
   START_FUNCTION_TIMER();
+
   // Compute buffer offsets based on centering and boundary.
   buffer->centering = centering;
   buffer->nc = num_components;
@@ -100,110 +104,169 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
                                 2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1) + (nx+1)*(ny+1))}; // nodes
 
   size_t send_offsets[8][6] =  { // cells (including ghosts for simplicity)
-                                {0, nc*(ny+2)*(nz+2), 
-                                 2*nc*(ny+2)*(nz+2), 2*nc*(ny+2)*(nz+2) + nc*(nx+2)*(nz+2),
-                                 2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2)), 2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2)) + nc*(nx+2)*(ny+2)},
+                                {0, (ny+2)*(nz+2), 
+                                 2*(ny+2)*(nz+2), 2*(ny+2)*(nz+2) + (nx+2)*(nz+2),
+                                 2*((ny+2)*(nz+2) + (nx+2)*(nz+2)), 2*((ny+2)*(nz+2) + (nx+2)*(nz+2)) + (nx+2)*(ny+2)},
                                  // x faces
-                                {0, nc*ny*nz,
-                                 2*nc*ny*nz, 2*nc*ny*nz + nc*(nx+1)*nz,
-                                 2*nc*(ny*nz + (nx+1)*nz), 2*nc*(ny*nz + (nx+1)*nz) + nc*(nx+1)*ny},
+                                {0, ny*nz,
+                                 2*ny*nz, 2*ny*nz + (nx+1)*nz,
+                                 2*(ny*nz + (nx+1)*nz), 2*(ny*nz + (nx+1)*nz) + (nx+1)*ny},
                                  // y faces
-                                {0, nc*(ny+1)*nz,
-                                 2*nc*(ny+1)*nz, 2*nc*(ny+1)*nz + nc*nx*nz,
-                                 2*nc*((ny+1)*nz + nx*nz), 2*nc*((ny+1)*nz + nx*nz) + nc*nx*(ny+1)},
+                                {0, (ny+1)*nz,
+                                 2*(ny+1)*nz, 2*(ny+1)*nz + nx*nz,
+                                 2*((ny+1)*nz + nx*nz), 2*((ny+1)*nz + nx*nz) + nx*(ny+1)},
                                  // z faces
-                                {0, nc*ny*(nz+1),
-                                 2*nc*ny*(nz+1), 2*nc*ny*(nz+1) + nc*nx*(nz+1),
-                                 2*nc*(ny*(nz+1) + nx*(nz+1)), 2*nc*(ny*(nz+1) + nx*(nz+1)) + nc*nx*ny},
+                                {0, ny*(nz+1),
+                                 2*ny*(nz+1), 2*ny*(nz+1) + nx*(nz+1),
+                                 2*(ny*(nz+1) + nx*(nz+1)), 2*(ny*(nz+1) + nx*(nz+1)) + nx*ny},
                                  // x edges
-                                {0, nc*(ny+1)*(nz+1),
-                                 2*nc*(ny+1)*(nz+1), 2*nc*(ny+1)*(nz+1) + nc*nx*(nz+1),
-                                 2*nc*((ny+1)*(nz+1) + nx*(nz+1)), 2*nc*((ny+1)*(nz+1) + nx*(nz+1)) + nc*nx*(ny+1)},
+                                {0, (ny+1)*(nz+1),
+                                 2*(ny+1)*(nz+1), 2*(ny+1)*(nz+1) + nx*(nz+1),
+                                 2*((ny+1)*(nz+1) + nx*(nz+1)), 2*((ny+1)*(nz+1) + nx*(nz+1)) + nx*(ny+1)},
                                  // y edges
-                                {0, nc*ny*(nz+1),
-                                 2*nc*ny*(nz+1), 2*nc*ny*(nz+1) + nc*(nx+1)*(nz+1),
-                                 2*nc*(ny*(nz+1) + (nx+1)*(nz+1)), 2*nc*(ny*(nz+1) + (nx+1)*(nz+1)) + nc*(nx+1)*ny},
+                                {0, ny*(nz+1),
+                                 2*ny*(nz+1), 2*ny*(nz+1) + (nx+1)*(nz+1),
+                                 2*(ny*(nz+1) + (nx+1)*(nz+1)), 2*(ny*(nz+1) + (nx+1)*(nz+1)) + (nx+1)*ny},
                                  // z edges
-                                {0, nc*(ny+1)*nz,
-                                 2*nc*(ny+1)*nz, 2*nc*(ny+1)*nz + nc*(nx+1)*nz,
-                                 2*nc*((ny+1)*nz + (nx+1)*nz), 2*nc*((ny+1)*nz + (nx+1)*nz) + nc*(nx+1)*(ny+1)},
+                                {0, (ny+1)*nz,
+                                 2*(ny+1)*nz, 2*(ny+1)*nz + (nx+1)*nz,
+                                 2*((ny+1)*nz + (nx+1)*nz), 2*((ny+1)*nz + (nx+1)*nz) + (nx+1)*(ny+1)},
                                  // nodes
-                                {0, nc*(ny+1)*(nz+1),
-                                 2*nc*(ny+1)*(nz+1), 2*nc*(ny+1)*(nz+1) + nc*(nx+1)*(nz+1),
-                                 2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1)), 2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1)) + nc*(nx+1)*(ny+1)}};
+                                {0, (ny+1)*(nz+1),
+                                 2*(ny+1)*(nz+1), 2*(ny+1)*(nz+1) + (nx+1)*(nz+1),
+                                 2*((ny+1)*(nz+1) + (nx+1)*(nz+1)), 2*((ny+1)*(nz+1) + (nx+1)*(nz+1)) + (nx+1)*(ny+1)}};
 
-  size_t receive_patch_sizes[8] = {2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2) + (nx+2)*(ny+2)), // cells
-                                   2*nc*(ny*nz + (nx+1)*nz + (nx+1)*ny), // x faces
-                                   2*nc*((ny+1)*nz + nx*nz + nx*(ny+1)), // y faces
-                                   2*nc*(ny*(nz+1) + nx*(nz+1) + nx*ny), // z faces
-                                   2*nc*((ny+1)*(nz+1) + nx*(nz+1) + nx*(ny+1)),     // x edges
-                                   2*nc*(ny*(nz+1) + (nx+1)*(nz+1) + (nx+1)*ny), // y edges
-                                   2*nc*((ny+1)*nz + (nx+1)*nz + (nx+1)*(ny+1)), // z edges
-                                   2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1) + (nx+1)*(ny+1))}; // nodes
+  size_t receive_patch_sizes[8] = {2*((ny+2)*(nz+2) + (nx+2)*(nz+2) + (nx+2)*(ny+2)), // cells
+                                   2*(ny*nz + (nx+1)*nz + (nx+1)*ny), // x faces
+                                   2*((ny+1)*nz + nx*nz + nx*(ny+1)), // y faces
+                                   2*(ny*(nz+1) + nx*(nz+1) + nx*ny), // z faces
+                                   2*((ny+1)*(nz+1) + nx*(nz+1) + nx*(ny+1)),     // x edges
+                                   2*(ny*(nz+1) + (nx+1)*(nz+1) + (nx+1)*ny), // y edges
+                                   2*((ny+1)*nz + (nx+1)*nz + (nx+1)*(ny+1)), // z edges
+                                   2*((ny+1)*(nz+1) + (nx+1)*(nz+1) + (nx+1)*(ny+1))}; // nodes
 
   size_t receive_offsets[8][6] =  { // cells (including ghosts for simplicity)
-                                   {0, nc*(ny+2)*(nz+2), 
-                                    2*nc*(ny+2)*(nz+2), 2*nc*(ny+2)*(nz+2) + nc*(nx+2)*(nz+2),
-                                    2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2)), 2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2)) + nc*(nx+2)*(ny+2)},
+                                   {0, (ny+2)*(nz+2), 
+                                    2*(ny+2)*(nz+2), 2*(ny+2)*(nz+2) + (nx+2)*(nz+2),
+                                    2*((ny+2)*(nz+2) + (nx+2)*(nz+2)), 2*((ny+2)*(nz+2) + (nx+2)*(nz+2)) + (nx+2)*(ny+2)},
                                     // x faces
-                                   {0, nc*ny*nz,
-                                    2*nc*ny*nz, 2*nc*ny*nz + nc*(nx+1)*nz,
-                                    2*nc*(ny*nz + (nx+1)*nz), 2*nc*(ny*nz + (nx+1)*nz) + nc*(nx+1)*ny},
+                                   {0, ny*nz,
+                                    2*ny*nz, 2*ny*nz + (nx+1)*nz,
+                                    2*(ny*nz + (nx+1)*nz), 2*(ny*nz + (nx+1)*nz) + (nx+1)*ny},
                                     // y faces
-                                   {0, nc*(ny+1)*nz,
-                                    2*nc*(ny+1)*nz, 2*nc*(ny+1)*nz + nc*nx*nz,
-                                    2*nc*((ny+1)*nz + nx*nz), 2*nc*((ny+1)*nz + nx*nz) + nc*nx*(ny+1)},
+                                   {0, (ny+1)*nz,
+                                    2*(ny+1)*nz, 2*(ny+1)*nz + nx*nz,
+                                    2*((ny+1)*nz + nx*nz), 2*((ny+1)*nz + nx*nz) + nx*(ny+1)},
                                     // z faces
-                                   {0, nc*ny*(nz+1),
-                                    2*nc*ny*(nz+1), 2*nc*ny*(nz+1) + nc*nx*(nz+1),
-                                    2*nc*(ny*(nz+1) + nx*(nz+1)), 2*nc*(ny*(nz+1) + nx*(nz+1)) + nc*nx*ny},
+                                   {0, ny*(nz+1),
+                                    2*ny*(nz+1), 2*ny*(nz+1) + nx*(nz+1),
+                                    2*(ny*(nz+1) + nx*(nz+1)), 2*(ny*(nz+1) + nx*(nz+1)) + nx*ny},
                                     // x edges
-                                   {0, nc*(ny+1)*(nz+1),
-                                    2*nc*(ny+1)*(nz+1), 2*nc*(ny+1)*(nz+1) + nc*nx*(nz+1),
-                                    2*nc*((ny+1)*(nz+1) + nx*(nz+1)), 2*nc*((ny+1)*(nz+1) + nx*(nz+1)) + nc*nx*(ny+1)},
+                                   {0, (ny+1)*(nz+1),
+                                    2*(ny+1)*(nz+1), 2*(ny+1)*(nz+1) + nx*(nz+1),
+                                    2*((ny+1)*(nz+1) + nx*(nz+1)), 2*((ny+1)*(nz+1) + nx*(nz+1)) + nx*(ny+1)},
                                     // y edges
-                                   {0, nc*ny*(nz+1),
-                                    2*nc*ny*(nz+1), 2*nc*ny*(nz+1) + nc*(nx+1)*(nz+1),
-                                    2*nc*(ny*(nz+1) + (nx+1)*(nz+1)), 2*nc*(ny*(nz+1) + (nx+1)*(nz+1)) + nc*(nx+1)*ny},
+                                   {0, ny*(nz+1),
+                                    2*ny*(nz+1), 2*ny*(nz+1) + (nx+1)*(nz+1),
+                                    2*(ny*(nz+1) + (nx+1)*(nz+1)), 2*(ny*(nz+1) + (nx+1)*(nz+1)) + (nx+1)*ny},
                                     // z edges
-                                   {0, nc*(ny+1)*nz,
-                                    2*nc*(ny+1)*nz, 2*nc*(ny+1)*nz + nc*(nx+1)*nz,
-                                    2*nc*((ny+1)*nz + (nx+1)*nz), 2*nc*((ny+1)*nz + (nx+1)*nz) + nc*(nx+1)*(ny+1)},
+                                   {0, (ny+1)*nz,
+                                    2*(ny+1)*nz, 2*(ny+1)*nz + (nx+1)*nz,
+                                    2*((ny+1)*nz + (nx+1)*nz), 2*((ny+1)*nz + (nx+1)*nz) + (nx+1)*(ny+1)},
                                     // nodes
-                                   {0, nc*(ny+1)*(nz+1),
-                                    2*nc*(ny+1)*(nz+1), 2*nc*(ny+1)*(nz+1) + nc*(nx+1)*(nz+1),
-                                    2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1)), 2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1)) + nc*(nx+1)*(ny+1)}};
+                                   {0, (ny+1)*(nz+1),
+                                    2*(ny+1)*(nz+1), 2*(ny+1)*(nz+1) + (nx+1)*(nz+1),
+                                    2*((ny+1)*(nz+1) + (nx+1)*(nz+1)), 2*((ny+1)*(nz+1) + (nx+1)*(nz+1)) + (nx+1)*(ny+1)}};
 
-  // Now compute offsets.
+  // Now compute offsets. This is a little tedious, since we allocate one 
+  // giant buffer and then carve it up into portions for use by each process.
+  // We proceed one process at a time, starting with the lowest remote rank 
+  // we communicate with and proceeding in ascending order.
   int cent = (int)centering;
-  int pos = 0, i, j, k;
-  size_t last_offset = 0;
-  while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
+  int proc_offsets[buffer->procs->size+1];
+  memset(proc_offsets, 0, sizeof(int) * buffer->procs->size);
+  for (size_t p = 0; p < buffer->procs->size; ++p)
   {
-    int index = patch_index(buffer, i, j, k);
-    int_int_unordered_map_insert(buffer->patch_offsets, index, (int)last_offset);
-    last_offset += (buffer->type == SEND) ? send_patch_sizes[cent] : receive_patch_sizes[cent];
+    int offset_proc = buffer->procs->data[p];
+    int pos = 0, i, j, k;
+    while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
+    {
+      static unimesh_boundary_t boundaries[6] = {UNIMESH_X1_BOUNDARY, 
+                                                 UNIMESH_X2_BOUNDARY,
+                                                 UNIMESH_Y1_BOUNDARY, 
+                                                 UNIMESH_Y2_BOUNDARY,
+                                                 UNIMESH_Z1_BOUNDARY, 
+                                                 UNIMESH_Z2_BOUNDARY};
+      for (int b = 0; b < 6; ++b)
+      {
+        unimesh_boundary_t boundary = boundaries[b];
+        int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
+        if (remote_proc == offset_proc)
+        {
+          // We're figuring out offsets for this process.
+          size_t offset = proc_offsets[p]; // FIXME
+          int p_index = patch_index(buffer, i, j, k);
+          int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
+        }
+      }
+    }
   }
-  size_t off = (buffer->type == SEND) ? send_offsets[cent] : receive_offsets[cent];
-  memcpy(buffer->boundary_offsets, off, 6*sizeof(size_t));
 
   // Allocate storage if needed.
-  buffer->storage = polymec_realloc(buffer->storage, sizeof(real_t) * last_offset);
+  buffer->storage = polymec_realloc(buffer->storage, 
+                                    sizeof(real_t) * proc_offsets[buffer->procs->size]);
   STOP_FUNCTION_TIMER();
+}
+
+static comm_buffer_t* comm_buffer_new(unimesh_t* mesh)
+{
+  START_FUNCTION_TIMER();
+  comm_buffer_t* buffer = polymec_malloc(sizeof(comm_buffer_t));
+  buffer->mesh = mesh;
+  unimesh_get_patch_size(mesh, &buffer->nx, &buffer->ny, &buffer->nz);
+  buffer->nc = -1;
+  buffer->storage = NULL;
+  buffer->offsets = int_int_unordered_map_new();
+
+  // Get our rank within the mesh's communicator.
+  MPI_Comm comm = unimesh_comm(mesh);
+  MPI_Comm_rank(comm, &buffer->rank);
+
+  // Generate a sorted list of unique remote processes we talk to.
+  buffer->procs = int_array_new();
+  int pos = 0, i, j, k;
+  while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
+  {
+    static unimesh_boundary_t boundaries[6] = {UNIMESH_X1_BOUNDARY, 
+                                               UNIMESH_X2_BOUNDARY,
+                                               UNIMESH_Y1_BOUNDARY, 
+                                               UNIMESH_Y2_BOUNDARY,
+                                               UNIMESH_Z1_BOUNDARY, 
+                                               UNIMESH_Z2_BOUNDARY};
+    for (int b = 0; b < 6; ++b)
+    {
+      unimesh_boundary_t boundary = boundaries[b];
+      int p_b = unimesh_owner_proc(mesh, i, j, k, boundary);
+      if (p_b != buffer->rank)
+      {
+        int pp = int_lower_bound(buffer->procs->data, buffer->procs->size, p_b);
+        if (buffer->procs->data[pp] != p_b)
+          int_array_insert(buffer->procs, (size_t)pp, p_b);
+      }
+    }
+  }
+
+  STOP_FUNCTION_TIMER();
+  return buffer;
 }
 
 static comm_buffer_t* send_buffer_new(unimesh_t* mesh, 
                                       unimesh_centering_t centering,
                                       int num_components)
 {
-  comm_buffer_t* buffer = polymec_malloc(sizeof(comm_buffer_t));
-  buffer->mesh = mesh;
+  comm_buffer_t* buffer = comm_buffer_new(mesh);
   buffer->type = SEND;
   buffer->centering = centering;
-  unimesh_get_patch_size(mesh, &buffer->nx, &buffer->ny, &buffer->nz);
-  buffer->nc = -1;
-  buffer->patch_offsets = int_int_unordered_map_new();
-  buffer->storage = NULL;
   comm_buffer_reset(buffer, centering, num_components);
   return buffer;
 }
@@ -212,14 +275,9 @@ static comm_buffer_t* receive_buffer_new(unimesh_t* mesh,
                                          unimesh_centering_t centering,
                                          int num_components)
 {
-  comm_buffer_t* buffer = polymec_malloc(sizeof(comm_buffer_t));
-  buffer->mesh = mesh;
+  comm_buffer_t* buffer = comm_buffer_new(mesh);
   buffer->type = RECEIVE;
   buffer->centering = centering;
-  unimesh_get_patch_size(mesh, &buffer->nx, &buffer->ny, &buffer->nz);
-  buffer->nc = -1;
-  buffer->patch_offsets = int_int_unordered_map_new();
-  buffer->storage = NULL;
   comm_buffer_reset(buffer, centering, num_components);
   return buffer;
 }
@@ -228,7 +286,8 @@ static void comm_buffer_free(comm_buffer_t* buffer)
 {
   if (buffer->storage != NULL)
     polymec_free(buffer->storage);
-  int_int_unordered_map_free(buffer->patch_offsets);
+  int_int_unordered_map_free(buffer->offsets);
+  int_array_free(buffer->procs);
   polymec_free(buffer);
 }
 
@@ -236,11 +295,17 @@ static inline void* comm_buffer_data(comm_buffer_t* buffer,
                                      int i, int j, int k,
                                      unimesh_boundary_t boundary)
 {
-  int proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
-  int index = patch_index(buffer, i, j, k);
+  // Mash (i, j, k) and the boundary into a single index.
+  int p_index = patch_index(buffer, i, j, k);
   int b = (int)boundary;
-  size_t offset = *int_int_unordered_map_get(buffer->patch_offsets, index) + 
-                  buffer->boundary_offsets[b];
+  int index = 6*p_index + b;
+
+  // Get the base offset using the offset map, and multiply by the number 
+  // of components to get the actual offset.
+  int base_offset = *int_int_unordered_map_get(buffer->offsets, index);
+  size_t offset = buffer->nc * base_offset;
+
+  // Now return the pointer.
   return &(buffer->storage[offset]);
 }
 
@@ -1303,12 +1368,12 @@ static void finish_update_node_z2(void* context, unimesh_t* mesh,
   unimesh_finish_comm(mesh, i, j, k, UNIMESH_Z2_BOUNDARY);
 }
 
-// This is called when the mesh gets a token for boundary updates.
-// We use it to initialize send and receive buffers.
-static void remote_bc_acquired_boundary_update_token(void* context, 
-                                                     unimesh_t* mesh, int token, 
-                                                     unimesh_centering_t centering,
-                                                     int num_components)
+// This observer method is called when a field starts a boundary update on 
+// the mesh. We use it to initialize send and receive buffers.
+static void remote_bc_started_boundary_update(void* context, 
+                                              unimesh_t* mesh, int token, 
+                                              unimesh_centering_t centering,
+                                              int num_components)
 {
   remote_bc_t* bc = context;
 
@@ -1444,10 +1509,10 @@ unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
   remote_bc_t* bc = remote_bc_new(mesh);
 
   // Register the remote BC as a unimesh observer.
-  unimesh_observer_vtable o_vtable = {
-    .acquired_boundary_update_token = remote_bc_acquired_boundary_update_token
+  unimesh_observer_vtable obs_vtable = {
+    .started_boundary_update = remote_bc_started_boundary_update
   };
-  unimesh_observer_t* obs = unimesh_observer_new(bc, o_vtable);
+  unimesh_observer_t* obs = unimesh_observer_new(bc, obs_vtable);
   unimesh_add_observer(mesh, obs);
 
   // Create the patch BC.
