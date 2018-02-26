@@ -1310,26 +1310,30 @@ static void remote_bc_acquired_boundary_update_token(void* context,
                                                      unimesh_centering_t centering,
                                                      int num_components)
 {
+  remote_bc_t* bc = context;
+
   // Create the send buffer for this token if it doesn't yet exist.
-  while ((size_t)token >= remote_bc->send_buffers->size)
-    comm_buffer_array_append(remote_bc->send_buffers, NULL);
-  comm_buffer_t* send_buff = remote_bc->send_buffers->data[token];
+  while ((size_t)token >= bc->send_buffers->size)
+    comm_buffer_array_append(bc->send_buffers, NULL);
+  comm_buffer_t* send_buff = bc->send_buffers->data[token];
   if (send_buff == NULL)
   {
     send_buff = send_buffer_new(mesh, centering, num_components);
-    comm_buffer_assign_with_dtor(remote_bc->send_buffers, send_buff, comm_buffer_free);
+    comm_buffer_array_assign_with_dtor(bc->send_buffers, token, 
+                                       send_buff, comm_buffer_free);
   }
   else
     comm_buffer_reset(send_buff, centering, num_components);
 
   // Do the same for the receive buffer.
-  while ((size_t)token >= remote_bc->receive_buffers->size)
-    comm_buffer_array_append(remote_bc->receive_buffers, NULL);
-  comm_buffer_t* receive_buff = remote_bc->receive_buffers->data[token];
+  while ((size_t)token >= bc->receive_buffers->size)
+    comm_buffer_array_append(bc->receive_buffers, NULL);
+  comm_buffer_t* receive_buff = bc->receive_buffers->data[token];
   if (receive_buff == NULL)
   {
     receive_buff = receive_buffer_new(mesh, centering, num_components);
-    comm_buffer_assign_with_dtor(remote_bc->receive_buffers, receive_buff, comm_buffer_free);
+    comm_buffer_array_assign_with_dtor(bc->receive_buffers, token,
+                                       receive_buff, comm_buffer_free);
   }
   else
     comm_buffer_reset(receive_buff, centering, num_components);
@@ -1440,10 +1444,10 @@ unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
   remote_bc_t* bc = remote_bc_new(mesh);
 
   // Register the remote BC as a unimesh observer.
-  unimesh_observer_vtable vtable = {
+  unimesh_observer_vtable o_vtable = {
     .acquired_boundary_update_token = remote_bc_acquired_boundary_update_token
   };
-  unimesh_observer_t* obs = unimesh_observer_new(bc, vtable);
+  unimesh_observer_t* obs = unimesh_observer_new(bc, o_vtable);
   unimesh_add_observer(mesh, obs);
 
   // Create the patch BC.
