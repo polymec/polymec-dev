@@ -94,97 +94,46 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
   buffer->nc = num_components;
   int nx = buffer->nx, ny = buffer->ny, nz = buffer->nz, nc = buffer->nc;
 
-  size_t send_patch_sizes[8] = {2*nc*((ny+2)*(nz+2) + (nx+2)*(nz+2) + (nx+2)*(ny+2)), // cells
-                                2*nc*(ny*nz + (nx+1)*nz + (nx+1)*ny), // x faces
-                                2*nc*((ny+1)*nz + nx*nz + nx*(ny+1)), // y faces
-                                2*nc*(ny*(nz+1) + nx*(nz+1) + nx*ny), // z faces
-                                2*nc*((ny+1)*(nz+1) + nx*(nz+1) + nx*(ny+1)),     // x edges
-                                2*nc*(ny*(nz+1) + (nx+1)*(nz+1) + (nx+1)*ny), // y edges
-                                2*nc*((ny+1)*nz + (nx+1)*nz + (nx+1)*(ny+1)), // z edges
-                                2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1) + (nx+1)*(ny+1))}; // nodes
-
-  size_t send_offsets[8][6] =  { // cells (including ghosts for simplicity)
-                                {0, (ny+2)*(nz+2), 
-                                 2*(ny+2)*(nz+2), 2*(ny+2)*(nz+2) + (nx+2)*(nz+2),
-                                 2*((ny+2)*(nz+2) + (nx+2)*(nz+2)), 2*((ny+2)*(nz+2) + (nx+2)*(nz+2)) + (nx+2)*(ny+2)},
-                                 // x faces
-                                {0, ny*nz,
-                                 2*ny*nz, 2*ny*nz + (nx+1)*nz,
-                                 2*(ny*nz + (nx+1)*nz), 2*(ny*nz + (nx+1)*nz) + (nx+1)*ny},
-                                 // y faces
-                                {0, (ny+1)*nz,
-                                 2*(ny+1)*nz, 2*(ny+1)*nz + nx*nz,
-                                 2*((ny+1)*nz + nx*nz), 2*((ny+1)*nz + nx*nz) + nx*(ny+1)},
-                                 // z faces
-                                {0, ny*(nz+1),
-                                 2*ny*(nz+1), 2*ny*(nz+1) + nx*(nz+1),
-                                 2*(ny*(nz+1) + nx*(nz+1)), 2*(ny*(nz+1) + nx*(nz+1)) + nx*ny},
-                                 // x edges
-                                {0, (ny+1)*(nz+1),
-                                 2*(ny+1)*(nz+1), 2*(ny+1)*(nz+1) + nx*(nz+1),
-                                 2*((ny+1)*(nz+1) + nx*(nz+1)), 2*((ny+1)*(nz+1) + nx*(nz+1)) + nx*(ny+1)},
-                                 // y edges
-                                {0, ny*(nz+1),
-                                 2*ny*(nz+1), 2*ny*(nz+1) + (nx+1)*(nz+1),
-                                 2*(ny*(nz+1) + (nx+1)*(nz+1)), 2*(ny*(nz+1) + (nx+1)*(nz+1)) + (nx+1)*ny},
-                                 // z edges
-                                {0, (ny+1)*nz,
-                                 2*(ny+1)*nz, 2*(ny+1)*nz + (nx+1)*nz,
-                                 2*((ny+1)*nz + (nx+1)*nz), 2*((ny+1)*nz + (nx+1)*nz) + (nx+1)*(ny+1)},
-                                 // nodes
-                                {0, (ny+1)*(nz+1),
-                                 2*(ny+1)*(nz+1), 2*(ny+1)*(nz+1) + (nx+1)*(nz+1),
-                                 2*((ny+1)*(nz+1) + (nx+1)*(nz+1)), 2*((ny+1)*(nz+1) + (nx+1)*(nz+1)) + (nx+1)*(ny+1)}};
-
-  size_t receive_patch_sizes[8] = {2*((ny+2)*(nz+2) + (nx+2)*(nz+2) + (nx+2)*(ny+2)), // cells
-                                   2*(ny*nz + (nx+1)*nz + (nx+1)*ny), // x faces
-                                   2*((ny+1)*nz + nx*nz + nx*(ny+1)), // y faces
-                                   2*(ny*(nz+1) + nx*(nz+1) + nx*ny), // z faces
-                                   2*((ny+1)*(nz+1) + nx*(nz+1) + nx*(ny+1)),     // x edges
-                                   2*(ny*(nz+1) + (nx+1)*(nz+1) + (nx+1)*ny), // y edges
-                                   2*((ny+1)*nz + (nx+1)*nz + (nx+1)*(ny+1)), // z edges
-                                   2*((ny+1)*(nz+1) + (nx+1)*(nz+1) + (nx+1)*(ny+1))}; // nodes
-
-  size_t receive_offsets[8][6] =  { // cells (including ghosts for simplicity)
-                                   {0, (ny+2)*(nz+2), 
-                                    2*(ny+2)*(nz+2), 2*(ny+2)*(nz+2) + (nx+2)*(nz+2),
-                                    2*((ny+2)*(nz+2) + (nx+2)*(nz+2)), 2*((ny+2)*(nz+2) + (nx+2)*(nz+2)) + (nx+2)*(ny+2)},
-                                    // x faces
-                                   {0, ny*nz,
-                                    2*ny*nz, 2*ny*nz + (nx+1)*nz,
-                                    2*(ny*nz + (nx+1)*nz), 2*(ny*nz + (nx+1)*nz) + (nx+1)*ny},
-                                    // y faces
-                                   {0, (ny+1)*nz,
-                                    2*(ny+1)*nz, 2*(ny+1)*nz + nx*nz,
-                                    2*((ny+1)*nz + nx*nz), 2*((ny+1)*nz + nx*nz) + nx*(ny+1)},
-                                    // z faces
-                                   {0, ny*(nz+1),
-                                    2*ny*(nz+1), 2*ny*(nz+1) + nx*(nz+1),
-                                    2*(ny*(nz+1) + nx*(nz+1)), 2*(ny*(nz+1) + nx*(nz+1)) + nx*ny},
-                                    // x edges
-                                   {0, (ny+1)*(nz+1),
-                                    2*(ny+1)*(nz+1), 2*(ny+1)*(nz+1) + nx*(nz+1),
-                                    2*((ny+1)*(nz+1) + nx*(nz+1)), 2*((ny+1)*(nz+1) + nx*(nz+1)) + nx*(ny+1)},
-                                    // y edges
-                                   {0, ny*(nz+1),
-                                    2*ny*(nz+1), 2*ny*(nz+1) + (nx+1)*(nz+1),
-                                    2*(ny*(nz+1) + (nx+1)*(nz+1)), 2*(ny*(nz+1) + (nx+1)*(nz+1)) + (nx+1)*ny},
-                                    // z edges
-                                   {0, (ny+1)*nz,
-                                    2*(ny+1)*nz, 2*(ny+1)*nz + (nx+1)*nz,
-                                    2*((ny+1)*nz + (nx+1)*nz), 2*((ny+1)*nz + (nx+1)*nz) + (nx+1)*(ny+1)},
-                                    // nodes
-                                   {0, (ny+1)*(nz+1),
-                                    2*(ny+1)*(nz+1), 2*(ny+1)*(nz+1) + (nx+1)*(nz+1),
-                                    2*((ny+1)*(nz+1) + (nx+1)*(nz+1)), 2*((ny+1)*(nz+1) + (nx+1)*(nz+1)) + (nx+1)*(ny+1)}};
+  size_t remote_offsets[8][6] =  { // cells (including ghosts for simplicity)
+                                  {(ny+2)*(nz+2), (ny+2)*(nz+2), 
+                                   (nx+2)*(nz+2), (nx+2)*(nz+2),
+                                   (nx+2)*(ny+2), (nx+2)*(ny+2)},
+                                   // x faces
+                                  {ny*nz, ny*nz,
+                                   (nx+1)*nz, (nx+1)*nz,
+                                   (nx+1)*ny, (nx+1)*ny},
+                                   // y faces
+                                  {(ny+1)*nz, (ny+1)*nz,
+                                   nx*nz, nx*nz,
+                                   nx*(ny+1), nx*(ny+1)},
+                                   // z faces
+                                  {ny*(nz+1), ny*(nz+1),
+                                   nx*(nz+1), nx*(nz+1),
+                                   nx*ny, nx*ny},
+                                   // x edges
+                                  {(ny+1)*(nz+1), (ny+1)*(nz+1),
+                                   nx*(nz+1), nx*(nz+1),
+                                   nx*(ny+1), nx*(ny+1)},
+                                   // y edges
+                                  {ny*(nz+1), ny*(nz+1),
+                                   (nx+1)*(nz+1), (nx+1)*(nz+1),
+                                   (nx+1)*ny, (nx+1)*ny},
+                                   // z edges
+                                  {(ny+1)*nz, (ny+1)*nz,
+                                   (nx+1)*nz, (nx+1)*nz,
+                                   (nx+1)*(ny+1), (nx+1)*(ny+1)},
+                                   // nodes
+                                  {(ny+1)*(nz+1), (ny+1)*(nz+1),
+                                   (nx+1)*(nz+1), (nx+1)*(nz+1),
+                                   (nx+1)*(ny+1), (nx+1)*(ny+1)}};
 
   // Now compute offsets. This is a little tedious, since we allocate one 
   // giant buffer and then carve it up into portions for use by each process.
   // We proceed one process at a time, starting with the lowest remote rank 
   // we communicate with and proceeding in ascending order.
   int cent = (int)centering;
-  int proc_offsets[buffer->procs->size+1];
-  memset(proc_offsets, 0, sizeof(int) * buffer->procs->size);
+  size_t proc_offsets[buffer->procs->size+1];
+  memset(proc_offsets, 0, sizeof(int) * (buffer->procs->size+1));
   for (size_t p = 0; p < buffer->procs->size; ++p)
   {
     int offset_proc = buffer->procs->data[p];
@@ -203,16 +152,23 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
         int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
         if (remote_proc == offset_proc)
         {
-          // We're figuring out offsets for this process.
-          size_t offset = proc_offsets[p]; // FIXME
+          size_t offset = proc_offsets[p+1];
+
+          // Stash the offset for this patch/boundary.
           int p_index = patch_index(buffer, i, j, k);
           int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
+
+          // Update the new offset.
+          offset += nc * remote_offsets[cent][b];
+
+          // Save our offset so that the next process begins where we left off.
+          proc_offsets[p+1] = offset;
         }
       }
     }
   }
 
-  // Allocate storage if needed.
+  // Allocate storage.
   buffer->storage = polymec_realloc(buffer->storage, 
                                     sizeof(real_t) * proc_offsets[buffer->procs->size]);
   STOP_FUNCTION_TIMER();
