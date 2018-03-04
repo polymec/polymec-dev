@@ -156,6 +156,30 @@ typedef struct
                                   unimesh_centering_t centering,
                                   int num_components);
 
+  // Called right before a boundary update is completed for a field on the mesh.
+  // Arguments passed:
+  // * mesh - the mesh on which the boundary update is triggered
+  // * token - a unique integer token identifying the boundary update
+  // * centering - the centering of the field being updated
+  // * num_component - the number of components in the field being updated
+  void (*about_to_finish_boundary_update)(void* context, 
+                                          unimesh_t* mesh, 
+                                          int token,
+                                          unimesh_centering_t centering,
+                                          int num_components);
+
+  // Called after a boundary update is completed for a field on the mesh.
+  // Arguments passed:
+  // * mesh - the mesh on which the boundary update is triggered
+  // * token - a unique integer token identifying the boundary update
+  // * centering - the centering of the field being updated
+  // * num_component - the number of components in the field being updated
+  void (*finished_boundary_update)(void* context, 
+                                   unimesh_t* mesh, 
+                                   int token,
+                                   unimesh_centering_t centering,
+                                   int num_components);
+
   // Destructor for observer context.
   void (*dtor)(void* context);
 } unimesh_observer_vtable;

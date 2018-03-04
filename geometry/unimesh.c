@@ -759,20 +759,8 @@ int unimesh_patch_boundary_buffer_token(unimesh_t* mesh,
                                         int num_components)
 {
   // Acquire a buffer and a token.
-  int token = boundary_buffer_pool_acquire(mesh->boundary_buffers, 
-                                           centering, num_components); 
-  // Report the token and metadata to our observers.
-  for (size_t i = 0; i < mesh->observers->size; ++i)
-  {
-    if (mesh->observers->data[i]->vtable.started_boundary_update != NULL)
-    {
-      mesh->observers->data[i]->vtable.started_boundary_update(mesh->observers->data[i]->context,
-                                                               mesh, token, centering,
-                                                               num_components);
-    }
-  }
-
-  return token;
+  return boundary_buffer_pool_acquire(mesh->boundary_buffers, 
+                                      centering, num_components); 
 }
 
 // This allows access to the buffer that stores data for the specific boundary 
@@ -874,6 +862,26 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
   STOP_FUNCTION_TIMER();
 }
 
+void unimesh_start_updating_patch_boundaries(unimesh_t* mesh, int token);
+void unimesh_start_updating_patch_boundaries(unimesh_t* mesh, int token)
+{
+  START_FUNCTION_TIMER();
+  ASSERT(token >= 0);
+  ASSERT((size_t)token < mesh->boundary_buffers->buffers->size);
+
+  // Inform our observers that we've started this boundary update. 
+  boundary_buffer_t* buffer = mesh->boundary_buffers->buffers->data[token];
+  for (size_t i = 0; i < mesh->observers->size; ++i)
+  {
+    if (mesh->observers->data[i]->vtable.started_boundary_update != NULL)
+    {
+      mesh->observers->data[i]->vtable.started_boundary_update(mesh->observers->data[i]->context,
+                                                               mesh, token, buffer->centering,
+                                                               buffer->nc);
+    }
+  }
+}
+
 void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token);
 void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
 {
@@ -883,6 +891,18 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
 
   // We're working on this transaction now.
   mesh->boundary_update_token = token;
+
+  // Inform our observers that we're about to finish this boundary update. 
+  boundary_buffer_t* buffer = mesh->boundary_buffers->buffers->data[token];
+  for (size_t i = 0; i < mesh->observers->size; ++i)
+  {
+    if (mesh->observers->data[i]->vtable.about_to_finish_boundary_update != NULL)
+    {
+      mesh->observers->data[i]->vtable.about_to_finish_boundary_update(mesh->observers->data[i]->context,
+                                                                       mesh, token, buffer->centering,
+                                                                       buffer->nc);
+    }
+  }
 
   // Go over the patches that correspond to this token.
   boundary_update_array_t* updates = *((boundary_update_array_t**)int_ptr_unordered_map_get(mesh->boundary_updates, token));
@@ -894,6 +914,17 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
     unimesh_patch_bc_t* bc = (*patch_bc_map_get(mesh->patch_bcs, index))[b];
     unimesh_patch_bc_finish_update(bc, update->i, update->j, update->k, 
                                    update->t, update->boundary, update->patch);
+  }
+
+  // Inform our observers that we're finished with this boundary update. 
+  for (size_t i = 0; i < mesh->observers->size; ++i)
+  {
+    if (mesh->observers->data[i]->vtable.finished_boundary_update != NULL)
+    {
+      mesh->observers->data[i]->vtable.finished_boundary_update(mesh->observers->data[i]->context,
+                                                                mesh, token, buffer->centering,
+                                                                buffer->nc);
+    }
   }
 
   // Clear the updates array.

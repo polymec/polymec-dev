@@ -265,6 +265,8 @@ extern void unimesh_start_updating_patch_boundary(unimesh_t* mesh,
                                                   real_t t, 
                                                   unimesh_boundary_t boundary,
                                                   unimesh_patch_t* patch);
+extern void unimesh_start_updating_patch_boundaries(unimesh_t* mesh, 
+                                                    int token);
 extern void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, 
                                                      int token);
 
@@ -308,6 +310,9 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
       }
     }
   }
+
+  // Tell the mesh that we've started updating boundary updates in general.
+  unimesh_start_updating_patch_boundaries(field->mesh, field->token);
 
   // Jot down the token and the update time.
   field->token = token;
