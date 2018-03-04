@@ -312,7 +312,7 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
   }
 
   // Tell the mesh that we've started updating boundary updates in general.
-  unimesh_start_updating_patch_boundaries(field->mesh, field->token);
+  unimesh_start_updating_patch_boundaries(field->mesh, token);
 
   // Jot down the token and the update time.
   field->token = token;

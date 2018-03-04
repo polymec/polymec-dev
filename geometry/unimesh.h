@@ -156,29 +156,61 @@ typedef struct
                                   unimesh_centering_t centering,
                                   int num_components);
 
-  // Called right before a boundary update is completed for a field on the mesh.
+  // Called just before boundary updates is completed for a field on the mesh.
   // Arguments passed:
   // * mesh - the mesh on which the boundary update is triggered
   // * token - a unique integer token identifying the boundary update
   // * centering - the centering of the field being updated
   // * num_component - the number of components in the field being updated
+  void (*about_to_finish_boundary_updates)(void* context, 
+                                           unimesh_t* mesh, 
+                                           int token,
+                                           unimesh_centering_t centering,
+                                           int num_components);
+
+  // Called just before a boundary update is completed for a patch on the mesh.
+  // Arguments passed:
+  // * mesh - the mesh on which the boundary update is triggered
+  // * token - a unique integer token identifying the boundary update
+  // * i, j, k - the indices identifying the updated patch.
+  // * boundary - the patch boundary being updated.
+  // * t - the time at which the patch is updated.
+  // * patch - the patch being updated.
   void (*about_to_finish_boundary_update)(void* context, 
                                           unimesh_t* mesh, 
                                           int token,
-                                          unimesh_centering_t centering,
-                                          int num_components);
+                                          int i, int j, int k,
+                                          unimesh_boundary_t boundary,
+                                          real_t t, 
+                                          unimesh_patch_t* patch);
 
-  // Called after a boundary update is completed for a field on the mesh.
+  // Called after a boundary update is completed for a patch on the mesh.
+  // Arguments passed:
+  // * mesh - the mesh on which the boundary update is triggered
+  // * token - a unique integer token identifying the boundary update
+  // * i, j, k - the indices identifying the updated patch.
+  // * boundary - the patch boundary being updated.
+  // * t - the time at which the patch is updated.
+  // * patch - the patch being updated.
+  void (*finished_boundary_update)(void* context, 
+                                   unimesh_t* mesh, 
+                                   int token,
+                                   int i, int j, int k,
+                                   unimesh_boundary_t boundary,
+                                   real_t t, 
+                                   unimesh_patch_t* patch);
+
+  // Called after boundary updates are completed for a field on the mesh.
   // Arguments passed:
   // * mesh - the mesh on which the boundary update is triggered
   // * token - a unique integer token identifying the boundary update
   // * centering - the centering of the field being updated
   // * num_component - the number of components in the field being updated
-  void (*finished_boundary_update)(void* context, 
-                                   unimesh_t* mesh, 
-                                   int token,
-                                   unimesh_centering_t centering,
-                                   int num_components);
+  void (*finished_boundary_updates)(void* context, 
+                                    unimesh_t* mesh, 
+                                    int token,
+                                    unimesh_centering_t centering,
+                                    int num_components);
 
   // Destructor for observer context.
   void (*dtor)(void* context);

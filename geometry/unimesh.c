@@ -892,15 +892,16 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
   // We're working on this transaction now.
   mesh->boundary_update_token = token;
 
-  // Inform our observers that we're about to finish this boundary update. 
+  // Inform our observers that we're about to finish updating all patch
+  // boundaries.
   boundary_buffer_t* buffer = mesh->boundary_buffers->buffers->data[token];
   for (size_t i = 0; i < mesh->observers->size; ++i)
   {
     if (mesh->observers->data[i]->vtable.about_to_finish_boundary_update != NULL)
     {
-      mesh->observers->data[i]->vtable.about_to_finish_boundary_update(mesh->observers->data[i]->context,
-                                                                       mesh, token, buffer->centering,
-                                                                       buffer->nc);
+      mesh->observers->data[i]->vtable.about_to_finish_boundary_updates(mesh->observers->data[i]->context,
+                                                                        mesh, token, buffer->centering,
+                                                                        buffer->nc);
     }
   }
 
@@ -911,9 +912,34 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
     boundary_update_t* update = updates->data[i];
     int index = patch_index(mesh, update->i, update->j, update->k);
     int b = (int)update->boundary;
+
+    // Inform our observers that we're about to finish updating this particular
+    // patch boundary.
+    for (size_t o = 0; o < mesh->observers->size; ++o)
+    {
+      if (mesh->observers->data[o]->vtable.about_to_finish_boundary_update != NULL)
+      {
+        mesh->observers->data[o]->vtable.about_to_finish_boundary_update(mesh->observers->data[i]->context,
+                                                                         mesh, token, update->i, update->j, update->boundary,
+                                                                         update->k, update->t, update->patch);
+      }
+    }
+
     unimesh_patch_bc_t* bc = (*patch_bc_map_get(mesh->patch_bcs, index))[b];
     unimesh_patch_bc_finish_update(bc, update->i, update->j, update->k, 
                                    update->t, update->boundary, update->patch);
+
+    // Inform our observers that we've just finished updating this particular
+    // patch boundary.
+    for (size_t o = 0; o < mesh->observers->size; ++o)
+    {
+      if (mesh->observers->data[o]->vtable.finished_boundary_update != NULL)
+      {
+        mesh->observers->data[o]->vtable.finished_boundary_update(mesh->observers->data[i]->context,
+                                                                  mesh, token, update->i, update->j, update->boundary,
+                                                                  update->k, update->t, update->patch);
+      }
+    }
   }
 
   // Inform our observers that we're finished with this boundary update. 
@@ -921,9 +947,9 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
   {
     if (mesh->observers->data[i]->vtable.finished_boundary_update != NULL)
     {
-      mesh->observers->data[i]->vtable.finished_boundary_update(mesh->observers->data[i]->context,
-                                                                mesh, token, buffer->centering,
-                                                                buffer->nc);
+      mesh->observers->data[i]->vtable.finished_boundary_updates(mesh->observers->data[i]->context,
+                                                                 mesh, token, buffer->centering,
+                                                                 buffer->nc);
     }
   }
 
