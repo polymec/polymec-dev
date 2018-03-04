@@ -250,10 +250,18 @@ static inline void array_name##_insert(array_name##_t* array, size_t i, element 
 static inline void array_name##_assign_with_dtor(array_name##_t* array, size_t i, element value, array_name##_dtor dtor) \
 { \
   ASSERT(i < array->size); \
-  if (array->dtors[i] != NULL) \
+  if ((array->dtors != NULL) && (array->dtors[i] != NULL)) \
     array->dtors[i](array->data[i]); \
   array->data[i] = value; \
-  array->dtors[i] = dtor; \
+  if (dtor != NULL) \
+  { \
+    if (array->dtors == NULL) \
+    { \
+      array->dtors = (array_name##_dtor*)polymec_malloc(sizeof(array_name##_dtor) * array->capacity); \
+      memset(array->dtors, 0, sizeof(array_name##_dtor) * array->capacity); \
+    } \
+    array->dtors[i] = dtor; \
+  } \
 } \
 \
 static inline void array_name##_assign(array_name##_t* array, size_t i, element value) \
