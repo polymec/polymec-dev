@@ -282,6 +282,9 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
                                                   field->centering,
                                                   field->nc);
 
+  // Tell the mesh that we're starting to update boundary updates in general.
+  unimesh_start_updating_patch_boundaries(field->mesh, token);
+
   // Loop over the patches in the field and enforce boundary conditions.
   int pos = 0, i, j, k;
   unimesh_patch_t* patch;
@@ -310,9 +313,6 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
       }
     }
   }
-
-  // Tell the mesh that we've started updating boundary updates in general.
-  unimesh_start_updating_patch_boundaries(field->mesh, token);
 
   // Jot down the token and the update time.
   field->token = token;

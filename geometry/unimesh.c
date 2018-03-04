@@ -197,6 +197,10 @@ void unimesh_finalize(unimesh_t* mesh)
 
   // Now make sure every patch has a set of boundary conditions.
   set_up_patch_bcs(mesh);
+
+  // Don't let anyone in our communicator go flying ahead.
+  MPI_Barrier(mesh->comm);
+
   STOP_FUNCTION_TIMER();
 }
 
@@ -988,45 +992,75 @@ static void set_up_patch_bcs(unimesh_t* mesh)
     // x boundaries
     if (unimesh_has_patch(mesh, i-1, j, k))
       x1_bc = mesh->copy_bc;
-    else if (mesh->periodic_in_x && (i == 0) && unimesh_has_patch(mesh, mesh->npx-1, j, k))
-      x1_bc = mesh->periodic_bc;
+    else if (mesh->periodic_in_x && (i == 0))
+    {
+      if (unimesh_has_patch(mesh, mesh->npx-1, j, k))
+        x1_bc = mesh->periodic_bc;
+      else
+        x1_bc = mesh->remote_bc;
+    }
     else if (i > 0)
       x1_bc = mesh->remote_bc;
 
     if (unimesh_has_patch(mesh, i+1, j, k))
       x2_bc = mesh->copy_bc;
-    else if (mesh->periodic_in_x && (i == mesh->npx-1) && unimesh_has_patch(mesh, 0, j, k))
-      x2_bc = mesh->periodic_bc;
+    else if (mesh->periodic_in_x && (i == mesh->npx-1))
+    {
+      if (unimesh_has_patch(mesh, 0, j, k))
+        x2_bc = mesh->periodic_bc;
+      else
+        x2_bc = mesh->remote_bc;
+    }
     else if (i < mesh->npx-1)
       x2_bc = mesh->remote_bc;
 
     // y boundaries
     if (unimesh_has_patch(mesh, i, j-1, k))
       y1_bc = mesh->copy_bc;
-    else if (mesh->periodic_in_y && (j == 0) && unimesh_has_patch(mesh, i, mesh->npy-1, k))
-      y1_bc = mesh->periodic_bc;
+    else if (mesh->periodic_in_y && (j == 0))
+    {
+      if (unimesh_has_patch(mesh, i, mesh->npy-1, k))
+        y1_bc = mesh->periodic_bc;
+      else 
+        y1_bc = mesh->remote_bc;
+    }
     else if (j > 0)
       y1_bc = mesh->remote_bc;
 
     if (unimesh_has_patch(mesh, i, j+1, k))
       y2_bc = mesh->copy_bc;
-    else if (mesh->periodic_in_y && (j == mesh->npy-1) && unimesh_has_patch(mesh, i, 0, k))
-      y2_bc = mesh->periodic_bc;
+    else if (mesh->periodic_in_y && (j == mesh->npy-1))
+    {
+      if (unimesh_has_patch(mesh, i, 0, k))
+        y2_bc = mesh->periodic_bc;
+      else
+        y2_bc = mesh->remote_bc;
+    }
     else if (j < mesh->npy-1)
       y2_bc = mesh->remote_bc;
 
     // z boundaries
     if (unimesh_has_patch(mesh, i, j, k-1))
       z1_bc = mesh->copy_bc;
-    else if (mesh->periodic_in_z && (k == 0) && unimesh_has_patch(mesh, i, j, mesh->npz-1))
-      z1_bc = mesh->periodic_bc;
+    else if (mesh->periodic_in_z && (k == 0))
+    {
+      if (unimesh_has_patch(mesh, i, j, mesh->npz-1))
+        z1_bc = mesh->periodic_bc;
+      else
+        z1_bc = mesh->remote_bc;
+    }
     else if (k > 0)
       z1_bc = mesh->remote_bc;
 
     if (unimesh_has_patch(mesh, i, j, k+1))
       z2_bc = mesh->copy_bc;
-    else if (mesh->periodic_in_z && (k == mesh->npz-1) && unimesh_has_patch(mesh, i, j, 0))
-      z2_bc = mesh->periodic_bc;
+    else if (mesh->periodic_in_z && (k == mesh->npz-1))
+    {
+      if (unimesh_has_patch(mesh, i, j, 0))
+        z2_bc = mesh->periodic_bc;
+      else
+        z2_bc = mesh->remote_bc;
+    }
     else if (k < mesh->npz-1)
       z2_bc = mesh->remote_bc;
 

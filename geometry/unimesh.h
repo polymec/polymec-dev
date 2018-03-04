@@ -144,7 +144,8 @@ typedef struct unimesh_observer_t unimesh_observer_t;
 // optional.
 typedef struct
 {
-  // Called when a boundary update is triggered by a field on the mesh.
+  // Called when a boundary update is triggered by a field on the mesh, 
+  // before any patch boundaries actually get updated.
   // Arguments passed:
   // * mesh - the mesh on which the boundary update is triggered
   // * token - a unique integer token identifying the boundary update
