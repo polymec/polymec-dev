@@ -271,6 +271,8 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                 x1_start_patch = (num_patches / mesh->nproc) * x1_rank;
               }
             }
+            ASSERT(x1_rank >= 0);
+            ASSERT(x1_rank < mesh->nproc);
             if (x1_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index, x1_rank);
 
@@ -296,6 +298,8 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                 x2_start_patch = (num_patches / mesh->nproc) * x2_rank;
               }
             }
+            ASSERT(x2_rank >= 0);
+            ASSERT(x2_rank < mesh->nproc);
             if (x2_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index+1, x2_rank);
 
@@ -321,6 +325,8 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                 y1_start_patch = (num_patches / mesh->nproc) * y1_rank;
               }
             }
+            ASSERT(y1_rank >= 0);
+            ASSERT(y1_rank < mesh->nproc);
             if (y1_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index+2, y1_rank);
 
@@ -346,6 +352,8 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                 y2_start_patch = (num_patches / mesh->nproc) * y2_rank;
               }
             }
+            ASSERT(y2_rank >= 0);
+            ASSERT(y2_rank < mesh->nproc);
             if (y2_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index+3, y2_rank);
 
@@ -371,6 +379,8 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                 z1_start_patch = (num_patches / mesh->nproc) * z1_rank;
               }
             }
+            ASSERT(z1_rank >= 0);
+            ASSERT(z1_rank < mesh->nproc);
             if (z1_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index+4, z1_rank);
 
@@ -396,6 +406,8 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                 z2_start_patch = (num_patches / mesh->nproc) * z2_rank;
               }
             }
+            ASSERT(z2_rank >= 0);
+            ASSERT(z2_rank < mesh->nproc);
             if (z2_rank != mesh->rank)
               int_int_unordered_map_insert(mesh->owner_procs, 6*index+5, z2_rank);
           }
