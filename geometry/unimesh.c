@@ -128,6 +128,12 @@ static inline int patch_index(unimesh_t* mesh, int i, int j, int k)
 void unimesh_insert_patch(unimesh_t* mesh, int i, int j, int k)
 {
   ASSERT(!mesh->finalized);
+  ASSERT(i >= 0);
+  ASSERT(i < mesh->npx);
+  ASSERT(j >= 0);
+  ASSERT(j < mesh->npy);
+  ASSERT(k >= 0);
+  ASSERT(k < mesh->npz);
   int index = patch_index(mesh, i, j, k);
   ASSERT(!int_unordered_set_contains(mesh->patches, index));
   int_unordered_set_insert(mesh->patches, index);
@@ -230,7 +236,6 @@ static int find_naive_rank_for_patch(unimesh_t* mesh,
     rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, index);
     ASSERT(rank <= mesh->nproc);
     if (index != start_patch_for_proc[rank]) --rank;
-printf("Patch (%d, %d, %d) has index %d and lives on proc %d\n", i, j, k, index, rank);
   }
   return rank;
 }
@@ -253,10 +258,6 @@ static void do_naive_partitioning(unimesh_t* mesh)
   for (int p = 0; p < mesh->nproc; ++p)
     start_patch_for_proc[p+1] = start_patch_for_proc[p] + num_local_patches;
   start_patch_for_proc[mesh->nproc] = num_patches;
-printf("[ ");
-for (int p = 0; p <= mesh->nproc; ++p)
-printf("%d ", start_patch_for_proc[p]);
-printf("]\n");
 
   // We allocate patches to our own process, and track the processes that
   // own neighboring patches.
