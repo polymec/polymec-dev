@@ -195,7 +195,9 @@ static comm_buffer_t* comm_buffer_new(unimesh_t* mesh)
       if (p_b != buffer->rank)
       {
         int pp = int_lower_bound(buffer->procs->data, buffer->procs->size, p_b);
-        if (buffer->procs->data[pp] != p_b)
+        if ((size_t)pp == buffer->procs->size)
+          int_array_append(buffer->procs, p_b);
+        else if (buffer->procs->data[pp] != p_b)
           int_array_insert(buffer->procs, (size_t)pp, p_b);
       }
     }

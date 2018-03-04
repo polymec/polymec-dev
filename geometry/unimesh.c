@@ -205,6 +205,36 @@ void unimesh_finalize(unimesh_t* mesh)
   STOP_FUNCTION_TIMER();
 }
 
+static int find_naive_rank_for_patch(unimesh_t* mesh, 
+                                     int start_patch_for_proc[mesh->nproc+1], 
+                                     int i, int j, int k)
+{
+  int rank = mesh->rank;
+  if ((i < 0) && mesh->periodic_in_x)
+    i = mesh->npx - 1;
+  else if ((i >= mesh->npx) && mesh->periodic_in_x)
+    i = 0;
+  if ((j < 0) && mesh->periodic_in_y)
+    j = mesh->npy - 1;
+  else if ((j >= mesh->npy) && mesh->periodic_in_y)
+    j = 0;
+  if ((k < 0) && mesh->periodic_in_z)
+    k = mesh->npz - 1;
+  else if ((k >= mesh->npz) && mesh->periodic_in_z)
+    k = 0;
+  if ((i >= 0) && (i < mesh->npx) && 
+      (j >= 0) && (j < mesh->npy) &&
+      (k >= 0) && (k < mesh->npz))
+  {
+    int index = patch_index(mesh, i, j, k);
+    rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, index);
+    ASSERT(rank <= mesh->nproc);
+    if (index != start_patch_for_proc[rank]) --rank;
+printf("Patch (%d, %d, %d) has index %d and lives on proc %d\n", i, j, k, index, rank);
+  }
+  return rank;
+}
+
 static void do_naive_partitioning(unimesh_t* mesh)
 {
   START_FUNCTION_TIMER();
@@ -237,100 +267,43 @@ printf("]\n");
       for (int k = 0; k < npz; ++k)
       {
         // Which processes own this patch and its neighbors?
-        int my_index = patch_index(mesh, i, j, k);
-        int my_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, my_index);
-        if (my_rank != start_patch_for_proc[my_index]) --my_rank;
-printf("I (%d) live on proc %d\n", my_index, my_rank);
+        int my_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i, j, k);
         if (my_rank == mesh->rank)
         {
+          int my_index = patch_index(mesh, i, j, k);
+
           // Insert this patch locally.
           unimesh_insert_patch(mesh, i, j, k);
 
           // x1 boundary
-          int x1_index = (i > 0) ? patch_index(mesh, i-1, j, k)
-                                 : mesh->periodic_in_x ? patch_index(mesh, npx-1, j, k)
-                                                       : -1;
-          if (x1_index >= 0)
-          {
-            int x1_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, x1_index);
-            if (x1_rank != start_patch_for_proc[x1_index]) --x1_rank;
-            ASSERT(x1_rank >= 0);
-            ASSERT(x1_rank < mesh->nproc);
-            if (x1_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index, x1_rank);
-          }
+          int x1_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i-1, j, k);
+          if (x1_rank != mesh->rank)
+            int_int_unordered_map_insert(mesh->owner_procs, 6*my_index, x1_rank);
 
           // x2 boundary
-          int x2_index = (i < npx-1) ? patch_index(mesh, i+1, j, k)
-                                     : mesh->periodic_in_x ? patch_index(mesh, 0, j, k)
-                                                           : -1;
-          if (x2_index >= 0)
-          {
-            int x2_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, x2_index);
-printf("%d vs %d\n", x2_rank, start_patch_for_proc[x2_rank]);
-            if (x2_rank != start_patch_for_proc[x2_index]) --x2_rank;
-printf("patch index %d lives on proc %d\n", x2_index, x2_rank);
-            ASSERT(x2_rank >= 0);
-            ASSERT(x2_rank < mesh->nproc);
-            if (x2_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+1, x2_rank);
-          }
+          int x2_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i+1, j, k);
+          if (x2_rank != mesh->rank)
+            int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+1, x2_rank);
 
           // y1 boundary
-          int y1_index = (j > 0) ? patch_index(mesh, i, j-1, k)
-                                 : mesh->periodic_in_y ? patch_index(mesh, i, npy-1, k)
-                                                       : -1;
-          if (y1_index >= 0)
-          {
-            int y1_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, y1_index);
-            if (y1_rank != start_patch_for_proc[y1_index]) --y1_rank;
-            ASSERT(y1_rank >= 0);
-            ASSERT(y1_rank < mesh->nproc);
-            if (y1_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+2, y1_rank);
-          }
+          int y1_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i, j-1, k);
+          if (y1_rank != mesh->rank)
+            int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+2, y1_rank);
 
           // y2 boundary
-          int y2_index = (j < npy-1) ? patch_index(mesh, i, j+1, k)
-                                     : mesh->periodic_in_y ? patch_index(mesh, i, 0, k) 
-                                                           : -1;
-          if (y2_index >= 0)
-          {
-            int y2_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, y2_index);
-            if (y2_rank != start_patch_for_proc[y2_index]) --y2_rank;
-            ASSERT(y2_rank >= 0);
-            ASSERT(y2_rank < mesh->nproc);
-            if (y2_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+3, y2_rank);
-          }
+          int y2_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i, j+1, k);
+          if (y2_rank != mesh->rank)
+            int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+3, y2_rank);
 
           // z1 boundary
-          int z1_index = (k > 0) ? patch_index(mesh, i, j, k-1)
-                                 : mesh->periodic_in_z ? patch_index(mesh, i, j, npz-1)
-                                                       : -1;
-          if (z1_index >= 0)
-          {
-            int z1_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, z1_index);
-            if (z1_rank != start_patch_for_proc[z1_index]) --z1_rank;
-            ASSERT(z1_rank >= 0);
-            ASSERT(z1_rank < mesh->nproc);
-            if (z1_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+4, z1_rank);
-          }
+          int z1_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i, j, k-1);
+          if (z1_rank != mesh->rank)
+            int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+4, z1_rank);
 
           // z2 boundary
-          int z2_index = (k < npz-1) ? patch_index(mesh, i, j, k+1)
-                                     : mesh->periodic_in_z ? patch_index(mesh, i, j, 0)
-                                                           : -1;
-          if (z2_index >= 0)
-          {
-            int z2_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, z2_index);
-            if (z2_rank != start_patch_for_proc[z2_index]) --z2_rank;
-            ASSERT(z2_rank >= 0);
-            ASSERT(z2_rank < mesh->nproc);
-            if (z2_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+5, z2_rank);
-          }
+          int z2_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i, j, k+1);
+          if (z2_rank != mesh->rank)
+            int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+5, z2_rank);
         }
       }
     }
