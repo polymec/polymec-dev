@@ -7,6 +7,7 @@
 
 #include "core/timer.h"
 #include "core/array.h"
+#include "core/array_utils.h"
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
 #include "geometry/unimesh.h"
@@ -121,7 +122,7 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
 
 static inline int patch_index(unimesh_t* mesh, int i, int j, int k)
 {
-  return mesh->ny*mesh->nz*i + mesh->nz*j + k;
+  return mesh->npy*mesh->npz*i + mesh->npz*j + k;
 }
 
 void unimesh_insert_patch(unimesh_t* mesh, int i, int j, int k)
@@ -204,6 +205,139 @@ void unimesh_finalize(unimesh_t* mesh)
   STOP_FUNCTION_TIMER();
 }
 
+static void do_naive_partitioning(unimesh_t* mesh)
+{
+  START_FUNCTION_TIMER();
+  // Total up the number of patches and allocate them to available 
+  // processes.
+  int npx = mesh->npx, npy = mesh->npy, npz = mesh->npz;
+  int num_patches = npx * npy * npz;
+  int num_local_patches = num_patches / mesh->nproc;
+
+  // This is the index of the first patch stored on the local process.
+  // The patches are alloted to ranks 0 thru nproc-1, with the first 
+  // num_local_patches assigned to rank 0, the next num_local_patches 
+  // to rank 1, and so on till all the patches are assigned.
+  int start_patch_for_proc[mesh->nproc+1];
+  start_patch_for_proc[0] = 0;
+  for (int p = 0; p < mesh->nproc; ++p)
+    start_patch_for_proc[p+1] = start_patch_for_proc[p] + num_local_patches;
+  start_patch_for_proc[mesh->nproc] = num_patches;
+printf("[ ");
+for (int p = 0; p <= mesh->nproc; ++p)
+printf("%d ", start_patch_for_proc[p]);
+printf("]\n");
+
+  // We allocate patches to our own process, and track the processes that
+  // own neighboring patches.
+  for (int i = 0; i < npx; ++i)
+  {
+    for (int j = 0; j < npy; ++j)
+    {
+      for (int k = 0; k < npz; ++k)
+      {
+        // Which processes own this patch and its neighbors?
+        int my_index = patch_index(mesh, i, j, k);
+        int my_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, my_index);
+        if (my_rank != start_patch_for_proc[my_index]) --my_rank;
+printf("I (%d) live on proc %d\n", my_index, my_rank);
+        if (my_rank == mesh->rank)
+        {
+          // Insert this patch locally.
+          unimesh_insert_patch(mesh, i, j, k);
+
+          // x1 boundary
+          int x1_index = (i > 0) ? patch_index(mesh, i-1, j, k)
+                                 : mesh->periodic_in_x ? patch_index(mesh, npx-1, j, k)
+                                                       : -1;
+          if (x1_index >= 0)
+          {
+            int x1_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, x1_index);
+            if (x1_rank != start_patch_for_proc[x1_index]) --x1_rank;
+            ASSERT(x1_rank >= 0);
+            ASSERT(x1_rank < mesh->nproc);
+            if (x1_rank != mesh->rank)
+              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index, x1_rank);
+          }
+
+          // x2 boundary
+          int x2_index = (i < npx-1) ? patch_index(mesh, i+1, j, k)
+                                     : mesh->periodic_in_x ? patch_index(mesh, 0, j, k)
+                                                           : -1;
+          if (x2_index >= 0)
+          {
+            int x2_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, x2_index);
+printf("%d vs %d\n", x2_rank, start_patch_for_proc[x2_rank]);
+            if (x2_rank != start_patch_for_proc[x2_index]) --x2_rank;
+printf("patch index %d lives on proc %d\n", x2_index, x2_rank);
+            ASSERT(x2_rank >= 0);
+            ASSERT(x2_rank < mesh->nproc);
+            if (x2_rank != mesh->rank)
+              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+1, x2_rank);
+          }
+
+          // y1 boundary
+          int y1_index = (j > 0) ? patch_index(mesh, i, j-1, k)
+                                 : mesh->periodic_in_y ? patch_index(mesh, i, npy-1, k)
+                                                       : -1;
+          if (y1_index >= 0)
+          {
+            int y1_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, y1_index);
+            if (y1_rank != start_patch_for_proc[y1_index]) --y1_rank;
+            ASSERT(y1_rank >= 0);
+            ASSERT(y1_rank < mesh->nproc);
+            if (y1_rank != mesh->rank)
+              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+2, y1_rank);
+          }
+
+          // y2 boundary
+          int y2_index = (j < npy-1) ? patch_index(mesh, i, j+1, k)
+                                     : mesh->periodic_in_y ? patch_index(mesh, i, 0, k) 
+                                                           : -1;
+          if (y2_index >= 0)
+          {
+            int y2_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, y2_index);
+            if (y2_rank != start_patch_for_proc[y2_index]) --y2_rank;
+            ASSERT(y2_rank >= 0);
+            ASSERT(y2_rank < mesh->nproc);
+            if (y2_rank != mesh->rank)
+              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+3, y2_rank);
+          }
+
+          // z1 boundary
+          int z1_index = (k > 0) ? patch_index(mesh, i, j, k-1)
+                                 : mesh->periodic_in_z ? patch_index(mesh, i, j, npz-1)
+                                                       : -1;
+          if (z1_index >= 0)
+          {
+            int z1_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, z1_index);
+            if (z1_rank != start_patch_for_proc[z1_index]) --z1_rank;
+            ASSERT(z1_rank >= 0);
+            ASSERT(z1_rank < mesh->nproc);
+            if (z1_rank != mesh->rank)
+              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+4, z1_rank);
+          }
+
+          // z2 boundary
+          int z2_index = (k < npz-1) ? patch_index(mesh, i, j, k+1)
+                                     : mesh->periodic_in_z ? patch_index(mesh, i, j, 0)
+                                                           : -1;
+          if (z2_index >= 0)
+          {
+            int z2_rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, z2_index);
+            if (z2_rank != start_patch_for_proc[z2_index]) --z2_rank;
+            ASSERT(z2_rank >= 0);
+            ASSERT(z2_rank < mesh->nproc);
+            if (z2_rank != mesh->rank)
+              int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+5, z2_rank);
+          }
+        }
+      }
+    }
+  }
+  STOP_FUNCTION_TIMER();
+}
+
 unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                        int npx, int npy, int npz, 
                        int nx, int ny, int nz,
@@ -223,201 +357,7 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
           unimesh_insert_patch(mesh, i, j, k);
   }
   else // we do a naive allotment
-  {
-    // Total up the number of patches and allocate them to available 
-    // processes.
-    int num_patches = npx * npy * npz;
-    int num_local_patches = num_patches / mesh->nproc;
-    if (mesh->rank == mesh->nproc-1)
-      num_local_patches = num_patches - (mesh->nproc-1) * num_local_patches;
-    int start_patch = (num_patches / mesh->nproc) * mesh->rank;
-
-    // We allocate patches to our own process, and track the processes that
-    // own neighboring patches.
-    int l = 0;
-    for (int i = 0; i < npx; ++i)
-    {
-      for (int j = 0; j < npy; ++j)
-      {
-        for (int k = 0; k < npz; ++k, ++l)
-        {
-          if (l >= start_patch)
-          {
-            // Insert this patch locally.
-            unimesh_insert_patch(mesh, i, j, k);
-
-            // Which processes own the neighboring patches?
-            int index = patch_index(mesh, i, j, k);
-
-            // x1 boundary
-            int x1_rank = mesh->rank;
-            if (i > 0)
-            {
-              int x1_index = patch_index(mesh, i-1, j, k);
-              int x1_start_patch = start_patch;
-              while (x1_index < x1_start_patch)
-              {
-                --x1_rank;
-                x1_start_patch = (num_patches / mesh->nproc) * x1_rank;
-              }
-            }
-            else if (mesh->periodic_in_x)
-            {
-              int x1_index = patch_index(mesh, npx-1, j, k);
-              int x1_start_patch = start_patch;
-              while (x1_index > x1_start_patch)
-              {
-                ++x1_rank;
-                x1_start_patch = (num_patches / mesh->nproc) * x1_rank;
-              }
-            }
-            ASSERT(x1_rank >= 0);
-            ASSERT(x1_rank < mesh->nproc);
-            if (x1_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*index, x1_rank);
-
-            // x2 boundary
-            int x2_rank = mesh->rank;
-            if (i < npx-1)
-            {
-              int x2_index = patch_index(mesh, i+1, j, k);
-              int x2_start_patch = start_patch;
-              while (x2_index > x2_start_patch)
-              {
-                ++x2_rank;
-                x2_start_patch = (num_patches / mesh->nproc) * x2_rank;
-              }
-            }
-            else if (mesh->periodic_in_x)
-            {
-              int x2_index = patch_index(mesh, 0, j, k);
-              int x2_start_patch = start_patch;
-              while (x2_index < x2_start_patch)
-              {
-                --x2_rank;
-                x2_start_patch = (num_patches / mesh->nproc) * x2_rank;
-              }
-            }
-            ASSERT(x2_rank >= 0);
-            ASSERT(x2_rank < mesh->nproc);
-            if (x2_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*index+1, x2_rank);
-
-            // y1 boundary
-            int y1_rank = mesh->rank;
-            if (j > 0)
-            {
-              int y1_index = patch_index(mesh, i, j-1, k);
-              int y1_start_patch = start_patch;
-              while (y1_index < y1_start_patch)
-              {
-                --y1_rank;
-                y1_start_patch = (num_patches / mesh->nproc) * y1_rank;
-              }
-            }
-            else if (mesh->periodic_in_y)
-            {
-              int y1_index = patch_index(mesh, i, npy-1, k);
-              int y1_start_patch = start_patch;
-              while (y1_index > y1_start_patch)
-              {
-                ++y1_rank;
-                y1_start_patch = (num_patches / mesh->nproc) * y1_rank;
-              }
-            }
-            ASSERT(y1_rank >= 0);
-            ASSERT(y1_rank < mesh->nproc);
-            if (y1_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*index+2, y1_rank);
-
-            // y2 boundary
-            int y2_rank = mesh->rank;
-            if (j < npy-1)
-            {
-              int y2_index = patch_index(mesh, i, j+1, k);
-              int y2_start_patch = start_patch;
-              while (y2_index > y2_start_patch)
-              {
-                ++y2_rank;
-                y2_start_patch = (num_patches / mesh->nproc) * y2_rank;
-              }
-            }
-            else if (mesh->periodic_in_y)
-            {
-              int y2_index = patch_index(mesh, i, 0, k);
-              int y2_start_patch = start_patch;
-              while (y2_index < y2_start_patch)
-              {
-                --y2_rank;
-                y2_start_patch = (num_patches / mesh->nproc) * y2_rank;
-              }
-            }
-            ASSERT(y2_rank >= 0);
-            ASSERT(y2_rank < mesh->nproc);
-            if (y2_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*index+3, y2_rank);
-
-            // z1 boundary
-            int z1_rank = mesh->rank;
-            if (k > 0)
-            {
-              int z1_index = patch_index(mesh, i, j, k-1);
-              int z1_start_patch = start_patch;
-              while (z1_index < z1_start_patch)
-              {
-                --z1_rank;
-                z1_start_patch = (num_patches / mesh->nproc) * z1_rank;
-              }
-            }
-            else if (mesh->periodic_in_z)
-            {
-              int z1_index = patch_index(mesh, i, j, npz-1);
-              int z1_start_patch = start_patch;
-              while (z1_index > z1_start_patch)
-              {
-                ++z1_rank;
-                z1_start_patch = (num_patches / mesh->nproc) * z1_rank;
-              }
-            }
-            ASSERT(z1_rank >= 0);
-            ASSERT(z1_rank < mesh->nproc);
-            if (z1_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*index+4, z1_rank);
-
-            // z2 boundary
-            int z2_rank = mesh->rank;
-            if (k < npz-1)
-            {
-              int z2_index = patch_index(mesh, i, j, k+1);
-              int z2_start_patch = start_patch;
-              while (z2_index > z2_start_patch)
-              {
-                ++z2_rank;
-                z2_start_patch = (num_patches / mesh->nproc) * z2_rank;
-              }
-            }
-            else if (mesh->periodic_in_z)
-            {
-              int z2_index = patch_index(mesh, i, j, 0);
-              int z2_start_patch = start_patch;
-              while (z2_index < z2_start_patch)
-              {
-                --z2_rank;
-                z2_start_patch = (num_patches / mesh->nproc) * z2_rank;
-              }
-            }
-            ASSERT(z2_rank >= 0);
-            ASSERT(z2_rank < mesh->nproc);
-            if (z2_rank != mesh->rank)
-              int_int_unordered_map_insert(mesh->owner_procs, 6*index+5, z2_rank);
-          }
-          if (l >= start_patch + num_local_patches) break;
-        }
-        if (l >= start_patch + num_local_patches) break;
-      }
-      if (l >= start_patch + num_local_patches) break;
-    }
-  }
+    do_naive_partitioning(mesh);
   
   // Finalize and send 'er off.
   unimesh_finalize(mesh);
