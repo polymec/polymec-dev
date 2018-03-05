@@ -1290,6 +1290,12 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
   unimesh_patch_bc_t* bc = unimesh_remote_bc(mesh);
   remote_bc_t* remote_bc = unimesh_patch_bc_context(bc);
 
+  // Get the remote process for this patch boundary. If the "remote process" 
+  // is our own rank, there's nothing to do.
+  int remote_proc = unimesh_owner_proc(mesh, i, j, k, boundary);
+  if (remote_proc == remote_bc->rank)
+    return;
+
   // Retrieve the send and receive buffers for this token.
   ASSERT((size_t)token < remote_bc->send_buffers->size);
   ASSERT(remote_bc->send_buffers->data[token] != NULL);
@@ -1299,61 +1305,53 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
   comm_buffer_t* receive_buffer = remote_bc->receive_buffers->data[token];
   ASSERT(send_buffer->procs->size == receive_buffer->procs->size);
 
-  // Get the remote process for this patch boundary and use it to fetch 
-  // the corresponding MPI requests.
-  int remote_proc = unimesh_owner_proc(send_buffer->mesh, i, j, k, boundary);
-  int proc_index = int_lower_bound(send_buffer->procs->data, send_buffer->procs->size, remote_proc);
+  // Use the remote process to fetch the corresponding MPI requests. 
+  int* remote_proc_p = int_bsearch(send_buffer->procs->data, send_buffer->procs->size, remote_proc);
+  ASSERT(remote_proc_p != NULL);
+  size_t proc_index = remote_proc_p - send_buffer->procs->data;
+  ASSERT(send_buffer->procs->data[proc_index] == remote_proc);
+  ASSERT(receive_buffer->procs->data[proc_index] == remote_proc);
 
   // If the transaction has completed, there's nothing left to do.
   if (send_buffer->completed[proc_index] && 
       receive_buffer->completed[proc_index])
     return;
 
-  MPI_Request requests[2];
-  requests[0] = send_buffer->requests[proc_index];
-  requests[1] = receive_buffer->requests[proc_index];
+  // Wait for our message to be sent.
+  MPI_Status status;
+  int err = MPI_Wait(&(send_buffer->requests[proc_index]), &status);
 
-  // Wait for all the messages to be received.
-  MPI_Status statuses[2];
-  int err = MPI_Waitall(2, requests, statuses);
-
-  // If the status buffer contains any errors, check it out. 
+  // Handle errors.
   if (err == MPI_ERR_IN_STATUS)
   {
     char errstr[MPI_MAX_ERROR_STRING];
     int errlen;
-    for (size_t r = 0; r < 2; ++r)
+    MPI_Error_string(status.MPI_ERROR, errstr, &errlen);
+    int proc = send_buffer->procs->data[proc_index];
+    fprintf(stderr, "%d: MPI error sending to %d (%d) %s\n",
+            send_buffer->rank, proc, status.MPI_ERROR, errstr);
+    return;
+  }
+
+  // Now wait till we receive a message.
+  err = MPI_Wait(&(receive_buffer->requests[proc_index]), &status);
+
+  // Handle errors.
+  if (err == MPI_ERR_IN_STATUS)
+  {
+    char errstr[MPI_MAX_ERROR_STRING];
+    int errlen;
+    MPI_Error_string(status.MPI_ERROR, errstr, &errlen);
+    // Now we can really get nitty-gritty and try to diagnose the
+    // problem carefully! 
+    int proc = receive_buffer->procs->data[proc_index];
+    if (status.MPI_ERROR == MPI_ERR_TRUNCATE)
     {
-      if (statuses[r].MPI_ERROR != MPI_SUCCESS)
-      {
-        MPI_Error_string(statuses[r].MPI_ERROR, errstr, &errlen);
-        if (r >= send_buffer->procs->size)
-        {
-          // Now we can really get nitty-gritty and try to diagnose the
-          // problem carefully! 
-          int proc = receive_buffer->procs->data[r];
-          if (statuses[r].MPI_ERROR == MPI_ERR_TRUNCATE)
-          {
-            fprintf(stderr, "%d: MPI error receiving from %d (%d) %s\n"
-                    "(Expected %d bytes)\n", receive_buffer->rank, proc, 
-                    statuses[r].MPI_ERROR, errstr, (int)(receive_buffer->size));
-          }
-          else
-          {
-            fprintf(stderr, "%d: MPI error receiving from %d (%d) %s\n",
-                    receive_buffer->rank, proc, statuses[r].MPI_ERROR, errstr);
-          }
-        }
-        else 
-        {
-          int proc = send_buffer->procs->data[r];
-          fprintf(stderr, "%d: MPI error sending to %d (%d) %s\n",
-                  send_buffer->rank, proc, statuses[r].MPI_ERROR, errstr);
-        }
-        return;
-      }
-      // We shouldn't get here. 
+      fprintf(stderr, "%d: MPI error receiving from %d (%d) %s\n"
+              "(Expected %d bytes)\n", receive_buffer->rank, proc, 
+              status.MPI_ERROR, errstr, (int)(receive_buffer->size));
     }
+    return;
   }
 
   // The transaction has completed.

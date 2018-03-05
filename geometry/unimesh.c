@@ -807,11 +807,11 @@ void unimesh_start_updating_patch_boundaries(unimesh_t* mesh, int token)
   boundary_buffer_t* buffer = mesh->boundary_buffers->buffers->data[token];
   for (size_t i = 0; i < mesh->observers->size; ++i)
   {
-    if (mesh->observers->data[i]->vtable.started_boundary_update != NULL)
+    unimesh_observer_t* obs = mesh->observers->data[i];
+    if (obs->vtable.started_boundary_update != NULL)
     {
-      mesh->observers->data[i]->vtable.started_boundary_update(mesh->observers->data[i]->context,
-                                                               mesh, token, buffer->centering,
-                                                               buffer->nc);
+      obs->vtable.started_boundary_update(obs->context, mesh, token, 
+                                          buffer->centering, buffer->nc);
     }
   }
 }
@@ -831,11 +831,11 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
   boundary_buffer_t* buffer = mesh->boundary_buffers->buffers->data[token];
   for (size_t i = 0; i < mesh->observers->size; ++i)
   {
-    if (mesh->observers->data[i]->vtable.about_to_finish_boundary_update != NULL)
+    unimesh_observer_t* obs = mesh->observers->data[i];
+    if (obs->vtable.about_to_finish_boundary_updates != NULL)
     {
-      mesh->observers->data[i]->vtable.about_to_finish_boundary_updates(mesh->observers->data[i]->context,
-                                                                        mesh, token, buffer->centering,
-                                                                        buffer->nc);
+      obs->vtable.about_to_finish_boundary_updates(obs->context, mesh, token, 
+                                                   buffer->centering, buffer->nc);
     }
   }
 
@@ -851,11 +851,12 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
     // patch boundary.
     for (size_t o = 0; o < mesh->observers->size; ++o)
     {
-      if (mesh->observers->data[o]->vtable.about_to_finish_boundary_update != NULL)
+      unimesh_observer_t* obs = mesh->observers->data[o];
+      if (obs->vtable.about_to_finish_boundary_update != NULL)
       {
-        mesh->observers->data[o]->vtable.about_to_finish_boundary_update(mesh->observers->data[i]->context,
-                                                                         mesh, token, update->i, update->j, update->boundary,
-                                                                         update->k, update->t, update->patch);
+        obs->vtable.about_to_finish_boundary_update(obs->context, mesh, token, 
+                                                    update->i, update->j, update->k,
+                                                    update->boundary, update->t, update->patch);
       }
     }
 
@@ -867,11 +868,12 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
     // patch boundary.
     for (size_t o = 0; o < mesh->observers->size; ++o)
     {
-      if (mesh->observers->data[o]->vtable.finished_boundary_update != NULL)
+      unimesh_observer_t* obs = mesh->observers->data[o];
+      if (obs->vtable.finished_boundary_update != NULL)
       {
-        mesh->observers->data[o]->vtable.finished_boundary_update(mesh->observers->data[i]->context,
-                                                                  mesh, token, update->i, update->j, update->boundary,
-                                                                  update->k, update->t, update->patch);
+        obs->vtable.finished_boundary_update(obs->context, mesh, token, 
+                                             update->i, update->j, update->k, 
+                                             update->boundary, update->t, update->patch);
       }
     }
   }
@@ -879,11 +881,11 @@ void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token)
   // Inform our observers that we're finished with this boundary update. 
   for (size_t i = 0; i < mesh->observers->size; ++i)
   {
-    if (mesh->observers->data[i]->vtable.finished_boundary_update != NULL)
+    unimesh_observer_t* obs = mesh->observers->data[i];
+    if (obs->vtable.finished_boundary_update != NULL)
     {
-      mesh->observers->data[i]->vtable.finished_boundary_updates(mesh->observers->data[i]->context,
-                                                                 mesh, token, buffer->centering,
-                                                                 buffer->nc);
+      obs->vtable.finished_boundary_updates(obs->context, mesh, token, 
+                                            buffer->centering, buffer->nc);
     }
   }
 
