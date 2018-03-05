@@ -267,11 +267,8 @@ DEFINE_ARRAY(comm_buffer_array, comm_buffer_t*)
 typedef struct
 {
   int rank, nprocs;
-  int npx, npy, npz;
   comm_buffer_array_t* send_buffers;
   comm_buffer_array_t* receive_buffers;
-  int_array_t* num_patches;
-  int_array_t* num_posted;
 } remote_bc_t;
 
 static remote_bc_t* remote_bc_new(unimesh_t* mesh)
@@ -280,7 +277,6 @@ static remote_bc_t* remote_bc_new(unimesh_t* mesh)
   MPI_Comm comm = unimesh_comm(mesh);
   MPI_Comm_rank(comm, &bc->rank);
   MPI_Comm_size(comm, &bc->nprocs);
-  unimesh_get_extents(mesh, &bc->npx, &bc->npy, &bc->npz);
   bc->send_buffers = comm_buffer_array_new();
   bc->receive_buffers = comm_buffer_array_new();
   return bc;
