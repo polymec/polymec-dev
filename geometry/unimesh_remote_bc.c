@@ -58,7 +58,7 @@ typedef struct
   real_t* storage; // the buffer itself
   size_t size; // the size of the buffer in elements
   MPI_Request* requests; // MPI requests for posted sends/receives.
-  bool* completed; // flags for whether transacations are complete
+  bool* completed; // flags for whether transactions are complete
 } comm_buffer_t;
 
 static inline int patch_index(comm_buffer_t* buffer, int i, int j, int k)
@@ -256,12 +256,9 @@ static inline void* comm_buffer_data(comm_buffer_t* buffer,
   int b = (int)boundary;
   int index = 6*p_index + b;
 
-  // Get the base offset using the offset map, and multiply by the number 
-  // of components to get the actual offset.
-  int base_offset = *int_int_unordered_map_get(buffer->offsets, index);
-  size_t offset = buffer->nc * base_offset;
-
-  // Now return the pointer.
+  // Get the offset for this patch boundary and return a pointer to the 
+  // appropriate place in the buffer.
+  int offset = *int_int_unordered_map_get(buffer->offsets, index);
   return &(buffer->storage[offset]);
 }
 
@@ -1328,10 +1325,10 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
     int errlen;
     MPI_Error_string(status.MPI_ERROR, errstr, &errlen);
     int proc = send_buffer->procs->data[proc_index];
-    fprintf(stderr, "%d: MPI error sending to %d (%d) %s\n",
-            send_buffer->rank, proc, status.MPI_ERROR, errstr);
-    return;
+    polymec_error("%d: MPI error sending to %d (%d) %s\n",
+                  send_buffer->rank, proc, status.MPI_ERROR, errstr);
   }
+  send_buffer->completed[proc_index] = true;
 
   // Now wait till we receive a message.
   err = MPI_Wait(&(receive_buffer->requests[proc_index]), &status);
@@ -1347,15 +1344,16 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
     int proc = receive_buffer->procs->data[proc_index];
     if (status.MPI_ERROR == MPI_ERR_TRUNCATE)
     {
-      fprintf(stderr, "%d: MPI error receiving from %d (%d) %s\n"
-              "(Expected %d bytes)\n", receive_buffer->rank, proc, 
-              status.MPI_ERROR, errstr, (int)(receive_buffer->size));
+      polymec_error("%d: MPI error receiving from %d (%d) %s\n"
+                    "(Expected %d bytes)\n", receive_buffer->rank, proc, 
+                    status.MPI_ERROR, errstr, (int)(receive_buffer->size));
     }
-    return;
+    else
+    {
+      polymec_error("%d: MPI error receiving from %d (%d) %s\n",
+                    receive_buffer->rank, proc, status.MPI_ERROR, errstr);
+    }
   }
-
-  // The transaction has completed.
-  send_buffer->completed[proc_index] = true;
   receive_buffer->completed[proc_index] = true;
 }
 
