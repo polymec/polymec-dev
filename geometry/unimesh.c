@@ -447,6 +447,10 @@ void unimesh_get_periodicity(unimesh_t* mesh,
 
 bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k)
 {
+  if ((i < 0) || (i >= mesh->npx) ||
+      (j < 0) || (j >= mesh->npy) ||
+      (k < 0) || (k >= mesh->npz))
+    return false;
   int index = patch_index(mesh, i, j, k);
   return int_unordered_set_contains(mesh->patches, index);
 }

@@ -29,7 +29,7 @@ struct unimesh_field_t
   unimesh_centering_t centering;
 
   // Patch metadata
-  int nx, ny, nz, nc;
+  int npx, npy, npz, nc;
   int_ptr_unordered_map_t* patches;
   size_t* patch_offsets;
 
@@ -46,7 +46,7 @@ struct unimesh_field_t
 
 static inline int patch_index(unimesh_field_t* field, int i, int j, int k)
 {
-  return field->ny*field->nz*i + field->nz*j + k;
+  return field->npy*field->npz*i + field->npz*j + k;
 }
 
 unimesh_field_t* unimesh_field_new(unimesh_t* mesh, 
@@ -98,7 +98,7 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
   field->centering = centering;
   field->nc = num_components;
 
-  unimesh_get_extents(mesh, &field->nx, &field->ny, &field->nz);
+  unimesh_get_extents(mesh, &field->npx, &field->npy, &field->npz);
   field->patches = int_ptr_unordered_map_new();
   field->patch_offsets = polymec_malloc(sizeof(size_t) * (num_patches+1));
   field->buffer = NULL;
