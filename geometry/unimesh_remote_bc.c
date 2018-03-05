@@ -1359,80 +1359,6 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
   receive_buffer->completed[proc_index] = true;
 }
 
-#if 0
-// This observer method is called right before remote boundary updates are finished.
-// We use it to wait for messages to be received.
-static void remote_bc_about_to_finish_boundary_updates(void* context, 
-                                                       unimesh_t* mesh, int token, 
-                                                       unimesh_centering_t centering,
-                                                       int num_components)
-{  
-  // Access our remote BC object.
-  unimesh_patch_bc_t* bc = unimesh_remote_bc(mesh);
-  remote_bc_t* remote_bc = unimesh_patch_bc_context(bc);
-
-  // Retrieve the send and receive buffers.
-  ASSERT((size_t)token < remote_bc->send_buffers->size);
-  ASSERT(remote_bc->send_buffers->data[token] != NULL);
-  ASSERT((size_t)token < remote_bc->receive_buffers->size);
-  ASSERT(remote_bc->receive_buffers->data[token] != NULL);
-  comm_buffer_t* send_buffer = remote_bc->send_buffers->data[token];
-  comm_buffer_t* receive_buffer = remote_bc->receive_buffers->data[token];
-
-  // Assemble the requests from the send and receive buffers.
-  ASSERT(send_buffer->procs->size == receive_buffer->procs->size);
-  int num_requests = (int)(send_buffer->procs->size + receive_buffer->procs->size);
-  MPI_Request requests[num_requests];
-  for (size_t r = 0; r < send_buffer->procs->size; ++r)
-    requests[r] = send_buffer->requests[r];
-  for (size_t r = 0; r < receive_buffer->procs->size; ++r)
-    requests[r+send_buffer->size] = receive_buffer->requests[r];
-
-  // Wait for all the messages to be received.
-  MPI_Status statuses[num_requests];
-  int err = MPI_Waitall(num_requests, requests, statuses);
-
-  // If the status buffer contains any errors, check it out. 
-  if (err == MPI_ERR_IN_STATUS)
-  {
-    char errstr[MPI_MAX_ERROR_STRING];
-    int errlen;
-    for (size_t r = 0; r < num_requests; ++r)
-    {
-      if (statuses[r].MPI_ERROR != MPI_SUCCESS)
-      {
-        MPI_Error_string(statuses[r].MPI_ERROR, errstr, &errlen);
-        if (r >= send_buffer->procs->size)
-        {
-          // Now we can really get nitty-gritty and try to diagnose the
-          // problem carefully! 
-          int proc = receive_buffer->procs->data[r];
-          if (statuses[r].MPI_ERROR == MPI_ERR_TRUNCATE)
-          {
-            fprintf(stderr, "%d: MPI error receiving from %d (%d) %s\n"
-                    "(Expected %d bytes)\n", receive_buffer->rank, proc, 
-                    statuses[r].MPI_ERROR, errstr, (int)(receive_buffer->size));
-          }
-          else
-          {
-            fprintf(stderr, "%d: MPI error receiving from %d (%d) %s\n",
-                    receive_buffer->rank, proc, statuses[r].MPI_ERROR, errstr);
-          }
-        }
-        else 
-        {
-          int proc = send_buffer->procs->data[r];
-          fprintf(stderr, "%d: MPI error sending to %d (%d) %s\n",
-                  send_buffer->rank, proc, statuses[r].MPI_ERROR, errstr);
-        }
-        return;
-      }
-      // We shouldn't get here. 
-    }
-  }
-}
-#endif
-
 unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh);
 unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
 {
@@ -1541,7 +1467,6 @@ unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
   unimesh_observer_vtable obs_vtable = {
     .started_boundary_update = remote_bc_started_boundary_update,
     .about_to_finish_boundary_update = remote_bc_about_to_finish_boundary_update
-//    .about_to_finish_boundary_updates = remote_bc_about_to_finish_boundary_updates
   };
   unimesh_observer_t* obs = unimesh_observer_new(bc, obs_vtable);
   unimesh_add_observer(mesh, obs);
