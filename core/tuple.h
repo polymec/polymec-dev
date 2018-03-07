@@ -25,7 +25,7 @@
 // void x_tuple_free(x* tuple) - Frees the resources associated with the tuple.
 // int x_tuple_length(x* tuple) - Returns the length (N) of the tuple.
 // x* x_tuple_clone(x* tuple) - Creates a new copy of the given tuple.
-// void x_tuple_copy(x* dest, x* src) - Copies the elements of src to dest. The tuples 
+// void x_tuple_copy(x* src, x* dest) - Copies the elements of src to dest. The tuples 
 //                                      must be of equal length.
 // int x_tuple_cmp(x* tuple1, x* tuple2) - Returns -1 if tuple1 < tuple2, 
 //                                                  0 if tuple1 == tuple2,
@@ -62,7 +62,7 @@ static inline int tuple_name##_length(element* tuple) \
   return *length; \
 } \
 \
-static inline void tuple_name##_copy(element* dest, element* src) \
+static inline void tuple_name##_copy(element* src, element* dest) \
 { \
   size_t offset = MAX((sizeof(int) / sizeof(element)), 1); \
   int src_len = *((int*)(src - offset)); \
@@ -74,7 +74,7 @@ static inline void tuple_name##_copy(element* dest, element* src) \
 static inline element* tuple_name##_clone(element* tuple) \
 { \
   element* clone = tuple_name##_new(tuple_name##_length(tuple)); \
-  tuple_name##_copy(clone, tuple); \
+  tuple_name##_copy(tuple, clone); \
   return clone; \
 } \
 \

@@ -14,6 +14,9 @@
 // associated with a uniform cartesian mesh in 3D space.
 typedef struct unimesh_field_t unimesh_field_t;
 
+// Boundary condition type for patch data.
+typedef struct unimesh_patch_bc_t unimesh_patch_bc_t;
+
 // Creates a unimesh_field object associated with the given mesh, with 
 // the given centering and number of components. This object manages its 
 // own memory. NOTE that edge-centered and face-centered unimesh fields have 

@@ -10,6 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
+#include "core/tuple.h"
 #include "geometry/unimesh.h"
 
 static void test_ctors(void** state) 
@@ -77,12 +78,52 @@ static void test_ctors(void** state)
   unimesh_free(mesh);
 }
 
+// Guarantees that unimesh_next_patch traverses patches in lexicographic order,
+// especially in parallel environments.
+static void test_next_patch(void** state) 
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0,
+                 .y1 = 0.0, .y2 = 1.0,
+                 .z1 = 0.0, .z2 = 1.0};
+
+  unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 4, 4, 4, 10, 10, 10,
+                                false, false, false);
+
+  int pos = 0, i, j, k;
+  bbox_t bb;
+  int* this_tuple = int_tuple_new(3);
+  int* prev_tuple = NULL;
+  while (unimesh_next_patch(mesh, &pos, &i, &j, &k, &bb))
+  {
+    this_tuple[0] = i;
+    this_tuple[1] = j;
+    this_tuple[2] = k;
+    if (prev_tuple == NULL)
+    {
+      prev_tuple = int_tuple_new(3);
+      prev_tuple[0] = i;
+      prev_tuple[1] = j;
+      prev_tuple[2] = k;
+    }
+    else
+    {
+      assert_int_equal(-1, int_tuple_cmp(prev_tuple, this_tuple));
+      int_tuple_copy(this_tuple, prev_tuple);
+    }
+  }
+  int_tuple_free(this_tuple);
+  if (prev_tuple != NULL)
+    int_tuple_free(prev_tuple);
+  unimesh_free(mesh);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_ctors)
+    cmocka_unit_test(test_ctors),
+    cmocka_unit_test(test_next_patch)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
