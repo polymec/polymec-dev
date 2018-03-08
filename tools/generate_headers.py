@@ -12,7 +12,7 @@ def visit_c_files(headers, dirname, files):
 
 def find_c_headers(dirname):
     headers = []
-    os.path.walk(dirname, visit_c_files, headers)
+    os.walk(dirname, visit_c_files, headers)
     return headers
 
 def files_match(file1, file2):
