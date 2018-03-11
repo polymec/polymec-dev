@@ -10,6 +10,7 @@
 
 #if POLYMEC_HAVE_MPI
 
+#include "core/options.h"
 #include "core/timer.h"
 #include "core/ordered_set.h"
 #include "core/unordered_map.h"
@@ -260,6 +261,34 @@ static inline void* comm_buffer_data(comm_buffer_t* buffer,
   // appropriate place in the buffer.
   int offset = *int_int_unordered_map_get(buffer->offsets, index);
   return &(buffer->storage[offset]);
+}
+
+static void comm_buffer_fprintf(comm_buffer_t* buffer, FILE* stream)
+{
+  const char* buffer_types[2] = {"Send", "Receive"};
+  fprintf(stream, "%s buffer on rank %d:\n", buffer_types[(int)buffer->type], buffer->rank);
+  fprintf(stream, "Patch size: %d x %d x %d\n", buffer->nx, buffer->ny, buffer->nz);
+  fprintf(stream, "Num components: %d\n", buffer->nc);
+  fprintf(stream, "Buffer size: %d\n", (int)buffer->size);
+  for (size_t p = 0; p < buffer->procs->size; ++p)
+  {
+    fprintf(stream, "Proc %d offsets:\n", buffer->procs->data[p]);
+    int pos = 0, i, j, k;
+    while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
+    {
+      int index = patch_index(buffer, i, j, k);
+      static const char* bnames[6] = {"x1", "x2", "y1", "y2", "z1", "z2"};
+      for (int b = 0; b < 6; ++b)
+      {
+        int* off_p = int_int_unordered_map_get(buffer->offsets, 6*index+b);
+        if (off_p != NULL)
+        {
+          size_t offset = buffer->proc_offsets[p] + *off_p;
+          fprintf(stream, " (%d, %d, %d), %s: %d\n", i, j, k, bnames[b], (int)offset);
+        }
+      }
+    }
+  }
 }
 
 DEFINE_ARRAY(comm_buffer_array, comm_buffer_t*)
@@ -1197,6 +1226,9 @@ static void remote_bc_started_boundary_update(void* context,
                                               unimesh_centering_t centering,
                                               int num_components)
 {
+  static bool first_time = true;
+  bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
+
   remote_bc_t* bc = context;
 
   // Create the send buffer for this token if it doesn't yet exist.
@@ -1206,6 +1238,14 @@ static void remote_bc_started_boundary_update(void* context,
   if (send_buff == NULL)
   {
     send_buff = send_buffer_new(mesh, centering, num_components);
+    if (first_time && write_comm_buffers)
+    {
+      char file[FILENAME_MAX+1];
+      snprintf(file, FILENAME_MAX, "send_buffer.%d", send_buff->rank);
+      FILE* f = fopen(file, "w");
+      comm_buffer_fprintf(send_buff, f);
+      fclose(f);
+    }
     comm_buffer_array_assign_with_dtor(bc->send_buffers, token, 
                                        send_buff, comm_buffer_free);
   }
@@ -1219,11 +1259,22 @@ static void remote_bc_started_boundary_update(void* context,
   if (receive_buff == NULL)
   {
     receive_buff = receive_buffer_new(mesh, centering, num_components);
+    if (first_time && write_comm_buffers)
+    {
+      char file[FILENAME_MAX+1];
+      snprintf(file, FILENAME_MAX, "receive_buffer.%d", receive_buff->rank);
+      FILE* f = fopen(file, "w");
+      comm_buffer_fprintf(receive_buff, f);
+      fclose(f);
+    }
     comm_buffer_array_assign_with_dtor(bc->receive_buffers, token,
                                        receive_buff, comm_buffer_free);
   }
   else
     comm_buffer_reset(receive_buff, centering, num_components);
+
+  if (first_time)
+    first_time = false;
 
   // Post the receives for the receive buffer, using the token as a tag.
   MPI_Comm comm = unimesh_comm(mesh);
