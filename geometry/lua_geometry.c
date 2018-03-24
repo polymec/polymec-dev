@@ -958,12 +958,27 @@ static int polymeshes_uniform(lua_State* L)
     rank = (int)lua_tointeger(L, -1);
 
   polymesh_t* mesh = NULL;
-  if (rank == -1) 
+  if (rank == -1)
+  {
     mesh = create_uniform_polymesh(comm, nx, ny, nz, bbox);
+    lua_push_polymesh(L, mesh);
+  }
   else
+  {
     mesh = create_uniform_polymesh_on_rank(comm, rank, nx, ny, nz, bbox);
-
-  lua_push_polymesh(L, mesh);
+    int my_rank;
+    MPI_Comm_rank(comm, &my_rank);
+    if (rank == my_rank)
+    {
+      ASSERT(mesh != NULL);
+      lua_push_polymesh(L, mesh);
+    }
+    else
+    {
+      ASSERT(mesh == NULL);
+      lua_pushnil(L);
+    }
+  }
   return 1;
 }
 
