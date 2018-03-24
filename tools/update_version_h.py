@@ -7,16 +7,14 @@ major_version, minor_version, patch_version = [int(v) for v in version_number.sp
 header_file = sys.argv[3]
 
 # Escape characters for use in C strings.
-def escape(string, special_chars):
-    for c in special_chars:
-        if c == '"':
-            string = string.replace('"', 'XXXDOUBLE_QUOTESXXX')
-        elif c == '\n':
-            string = string.replace('\n', '\\n"\n"')
-        else:
-            string = string.replace(c, '\\' + c)
-    string = string.replace('XXXDOUBLE_QUOTESXXX', '\\"')
-    return string
+def escape(string):
+    return string.translate(str.maketrans({"-":  r"\-",
+                                           "]":  r"\]",
+                                           "\\": r"\\",
+                                           "^":  r"\^",
+                                           "$":  r"\$",
+                                           "*":  r"\*",
+                                           ".":  r"\."}))
 
 # Git revision ID
 try:
@@ -40,12 +38,11 @@ try:
                         break
             if skip:
                 continue
-            this_diff = git_diffs[i].replace('"', 'XXXDOUBLE_QUOTESXXX')
+            this_diff = escape(git_diffs[i])
             git_diff += '  \"%s\\n\"'%this_diff
             if i < len(git_diffs)-1:
                 git_diff += ',\n'
             num_git_diffs += 1
-            git_diff = git_diff.replace('XXXDOUBLE_QUOTESXXX', '\\"')
         git_revision += ', modified'
     git_revision += ')'
 except:
