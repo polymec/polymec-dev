@@ -10,6 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
+#include "core/options.h"
 #include "geometry/unimesh_field.h"
 #include "geometry/unimesh_patch_bc.h"
 
@@ -745,8 +746,11 @@ static void test_parallel_periodic_node_field(void** state)
 
 static void test_parallel_aperiodic_cell_field(void** state)
 {
+  options_t* opt = options_argv();
+  options_add_argument(opt, "write_comm_buffers");
   unimesh_t* mesh = aperiodic_mesh(MPI_COMM_WORLD);
   test_cell_field(state, mesh);
+  options_remove_argument(opt, options_num_arguments(opt)-1);
 }
 
 static void test_parallel_aperiodic_face_fields(void** state)

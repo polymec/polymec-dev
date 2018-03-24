@@ -1226,7 +1226,6 @@ static void remote_bc_started_boundary_update(void* context,
                                               unimesh_centering_t centering,
                                               int num_components)
 {
-  static bool first_time = true;
   bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
 
   remote_bc_t* bc = context;
@@ -1238,7 +1237,7 @@ static void remote_bc_started_boundary_update(void* context,
   if (send_buff == NULL)
   {
     send_buff = send_buffer_new(mesh, centering, num_components);
-    if (first_time && write_comm_buffers)
+    if (write_comm_buffers)
     {
       char file[FILENAME_MAX+1];
       snprintf(file, FILENAME_MAX, "send_buffer.%d", send_buff->rank);
@@ -1259,7 +1258,7 @@ static void remote_bc_started_boundary_update(void* context,
   if (receive_buff == NULL)
   {
     receive_buff = receive_buffer_new(mesh, centering, num_components);
-    if (first_time && write_comm_buffers)
+    if (write_comm_buffers)
     {
       char file[FILENAME_MAX+1];
       snprintf(file, FILENAME_MAX, "receive_buffer.%d", receive_buff->rank);
@@ -1272,9 +1271,6 @@ static void remote_bc_started_boundary_update(void* context,
   }
   else
     comm_buffer_reset(receive_buff, centering, num_components);
-
-  if (first_time)
-    first_time = false;
 
   // Post the receives for the receive buffer, using the token as a tag.
   MPI_Comm comm = unimesh_comm(mesh);
