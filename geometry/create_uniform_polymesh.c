@@ -62,7 +62,7 @@ polymesh_t* create_uniform_polymesh_on_rank(MPI_Comm comm, int rank,
 
   polymesh_t* mesh = NULL;
   if (my_rank == rank)
-    mesh = create_uniform_polymesh(comm, nx, ny, nz, bbox);
+    mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, bbox);
   else
   {
     // Initialize serializers.

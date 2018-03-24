@@ -121,6 +121,11 @@ bool options_has_argument(options_t* opts, const char* arg)
   return has;
 }
 
+void options_add_argument(options_t* opts, const char* arg)
+{
+  string_array_append_with_dtor(opts->args, string_dup(arg), string_free);
+}
+
 void options_remove_argument(options_t* opts, size_t n)
 {
   string_array_remove(opts->args, n);

@@ -17,7 +17,8 @@ polymesh_t* create_uniform_polymesh(MPI_Comm comm, int nx, int ny, int nz, bbox_
 // This function creates and returns a uniform mesh of nx x ny x nz cells
 // on the given communicator ONLY ON THE GIVEN RANK. The function returns the 
 // mesh on that rank and a NULL pointer on all other ranks. MPI_COMM_SELF 
-// cannot be used as the communicator.
+// cannot be used as the communicator, but it will ultimately be the 
+// communicator associated with the mesh returned.
 polymesh_t* create_uniform_polymesh_on_rank(MPI_Comm comm, int rank,
                                             int nx, int ny, int nz, bbox_t* bbox);
 #endif

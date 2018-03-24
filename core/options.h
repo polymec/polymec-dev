@@ -30,12 +30,16 @@ void options_parse(int argc, char** argv);
 // argument was given. 
 char* options_argument(options_t* opts, size_t n);
 
-// Returns the number of arguments given on the command line.
+// Returns the number of arguments given on the command line, including
+// parameters with values.
 size_t options_num_arguments(options_t* opts);
 
 // Returns true if the given argument was passed to the command line,
 // with or without an associated value. False otherwise.
 bool options_has_argument(options_t* opts, const char* arg);
+
+// Appends the given argument to the list.
+void options_add_argument(options_t* opts, const char* arg);
 
 // Removes the given argument from the list. Use with caution. This has 
 // no effect if the given argument doesn't exist.

@@ -109,7 +109,9 @@ assert(#patches == 8)
 mesh1 = polymeshes.uniform{comm = mpi.COMM_WORLD, nx = 10, ny = 10, nz = 10, bbox = box}
 print(mesh1.num_cells, mesh1.num_faces, mesh1.num_edges, mesh1.num_nodes)
 mesh2 = polymeshes.uniform{comm = mpi.COMM_WORLD, rank = 0, nx = 10, ny = 10, nz = 10, bbox = box}
-assert(mesh2.num_cells == 1000)
+if mpi.rank == 0 then
+  assert(mesh2.num_cells == 1000)
+end
 
 xs = {0.1, 0.2, 0.3, 0.4, 0.5}
 ys = xs

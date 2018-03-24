@@ -160,8 +160,17 @@ static inline void array_name##_free(array_name##_t* array) \
 \
 static inline void array_name##_remove(array_name##_t* array, size_t i) \
 { \
+  if (array->dtors != NULL) \
+  { \
+    if (array->dtors[i] != NULL) \
+      array->dtors[i](array->data[i]); \
+  } \
   for (size_t j = i; j < array->size-1; ++j) \
-    array[j] = array[j+1]; \
+  { \
+    array->data[j] = array->data[j+1]; \
+    if (array->dtors != NULL) \
+      array->dtors[j] = array->dtors[j+1]; \
+  } \
   array->size--; \
 } \
 \

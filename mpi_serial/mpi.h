@@ -54,8 +54,15 @@
 
 #define MPI_SUM             0              
 #define MPI_MIN             1              
-#define MPI_MAX             2              
-#define MPI_LOR             3              
+#define MPI_MIN_LOC         2
+#define MPI_MAX             3
+#define MPI_MAX_LOC         4
+#define MPI_LAND            5
+#define MPI_BAND            6
+#define MPI_LOR             7
+#define MPI_LXOR            8
+#define MPI_BOR             9
+#define MPI_BXOR            10
 
 #define MPI_UNDEFINED       0        
 #define MPI_REQUEST_NULL    1        
