@@ -150,7 +150,7 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
           int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
 
           // Stash a zero in the post requests mapping.
-          int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, 0);
+          int_int_unordered_map_insert(buffer->post_requests, 6*p_index+b, 0);
 
           // Update the new offset.
           offset += nc * remote_offsets[cent][b];
@@ -165,10 +165,15 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
   // Allocate storage.
   buffer->size = buffer->proc_offsets[buffer->procs->size];
   buffer->storage = polymec_realloc(buffer->storage, sizeof(real_t) * buffer->size);
-#ifndef NDEBUG
-  // Zero the storage arrays for debugging!
-  memset(buffer->storage, 0, sizeof(real_t) * buffer->size);
+
+  // Zero the storage arrays for debugging.
+#ifdef NDEBUG
+  bool zero_storage = options_has_argument(options_argv(), "write_comm_buffers");
+#else
+  bool zero_storage = true;
 #endif
+  if (zero_storage)
+    memset(buffer->storage, 0, sizeof(real_t) * buffer->size);
   STOP_FUNCTION_TIMER();
 }
 
@@ -292,6 +297,7 @@ static comm_buffer_t* receive_buffer_new(unimesh_t* mesh,
 // This posts all receives for the given receive buffer, using the given tag.
 static void receive_buffer_post(comm_buffer_t* receive_buff, int tag)
 {
+  START_FUNCTION_TIMER();
   MPI_Comm comm = unimesh_comm(receive_buff->mesh);
   for (size_t p = 0; p < receive_buff->procs->size; ++p)
   {
@@ -312,6 +318,7 @@ static void receive_buffer_post(comm_buffer_t* receive_buff, int tag)
     }
     receive_buff->completed[p] = false;
   }
+  STOP_FUNCTION_TIMER();
 }
 
 // This posts a send for the send buffer, for the given patch/boundary, using 
@@ -324,6 +331,8 @@ static void send_buffer_post(comm_buffer_t* send_buff,
   int remote_proc = unimesh_owner_proc(send_buff->mesh, i, j, k, boundary);
   if (remote_proc == send_buff->rank)
     return; // Nothing to do!
+
+  START_FUNCTION_TIMER();
 
   // Jot down this request to post for this patch/boundary, and determine 
   // whether this function has been called for all patch/boundary pairs 
@@ -346,12 +355,17 @@ static void send_buffer_post(comm_buffer_t* send_buff,
 
   if (ready_to_post)
   {
+printf("Posting send\n");
     bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
     if (write_comm_buffers)
     {
+      static const char* centering_str[8] = 
+        {"cell", "x_face", "y_face", "z_face", "x_edge", "y_edge", "z_edge", "node"};
+
       // Write out the send buffer.
       char file[FILENAME_MAX+1];
-      snprintf(file, FILENAME_MAX, "send_buffer.%d", send_buff->rank);
+      snprintf(file, FILENAME_MAX, "%s_send_buffer.%d", 
+        centering_str[(int)send_buff->centering], send_buff->rank);
       FILE* f = fopen(file, "w");
       comm_buffer_fprintf(send_buff, true, f);
       fclose(f);
@@ -389,6 +403,7 @@ static void send_buffer_post(comm_buffer_t* send_buff,
     while (int_int_unordered_map_next(send_buff->post_requests, &pos, &key, &val))
       int_int_unordered_map_insert(send_buff->post_requests, key, 0);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 static void comm_buffer_free(comm_buffer_t* buffer)
@@ -1424,6 +1439,8 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
   if (remote_proc == remote_bc->rank)
     return;
 
+  START_FUNCTION_TIMER();
+
   // Retrieve the send and receive buffers for this token.
   ASSERT((size_t)token < remote_bc->send_buffers->size);
   ASSERT(remote_bc->send_buffers->data[token] != NULL);
@@ -1490,13 +1507,18 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
   bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
   if (write_comm_buffers)
   {
+    static const char* centering_str[8] = 
+      {"cell", "x_face", "y_face", "z_face", "x_edge", "y_edge", "z_edge", "node"};
+
     // Write out the receive buffer.
     char file[FILENAME_MAX+1];
-    snprintf(file, FILENAME_MAX, "receive_buffer.%d", receive_buffer->rank);
+    snprintf(file, FILENAME_MAX, "%s_receive_buffer.%d", 
+      centering_str[(int)receive_buffer->centering], receive_buffer->rank);
     FILE* f = fopen(file, "w");
     comm_buffer_fprintf(receive_buffer, true, f);
     fclose(f);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh);
