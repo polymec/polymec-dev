@@ -56,6 +56,7 @@ typedef struct
   int_array_t* procs; // sorted list of remote processes
   size_t* proc_offsets; // offsets for process data in buffer
   int_int_unordered_map_t* offsets; // mapping from 6*patch_index+boundary to buffer offset
+  int_int_unordered_map_t* post_requests; // mapping from 6*patch_index+boundary to post requests
   real_t* storage; // the buffer itself
   size_t size; // the size of the buffer in elements
   MPI_Request* requests; // MPI requests for posted sends/receives.
@@ -148,6 +149,9 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
           int p_index = patch_index(buffer, i, j, k);
           int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
 
+          // Stash a zero in the post requests mapping.
+          int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, 0);
+
           // Update the new offset.
           offset += nc * remote_offsets[cent][b];
 
@@ -161,6 +165,10 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
   // Allocate storage.
   buffer->size = buffer->proc_offsets[buffer->procs->size];
   buffer->storage = polymec_realloc(buffer->storage, sizeof(real_t) * buffer->size);
+#ifndef NDEBUG
+  // Zero the storage arrays for debugging!
+  memset(buffer->storage, 0, sizeof(real_t) * buffer->size);
+#endif
   STOP_FUNCTION_TIMER();
 }
 
@@ -173,6 +181,7 @@ static comm_buffer_t* comm_buffer_new(unimesh_t* mesh)
   buffer->nc = -1;
   buffer->storage = NULL;
   buffer->offsets = int_int_unordered_map_new();
+  buffer->post_requests = int_int_unordered_map_new();
 
   // Get our rank within the mesh's communicator.
   MPI_Comm comm = unimesh_comm(mesh);
@@ -214,56 +223,9 @@ static comm_buffer_t* comm_buffer_new(unimesh_t* mesh)
   return buffer;
 }
 
-static comm_buffer_t* send_buffer_new(unimesh_t* mesh, 
-                                      unimesh_centering_t centering,
-                                      int num_components)
-{
-  comm_buffer_t* buffer = comm_buffer_new(mesh);
-  buffer->type = SEND;
-  buffer->centering = centering;
-  comm_buffer_reset(buffer, centering, num_components);
-  return buffer;
-}
-
-static comm_buffer_t* receive_buffer_new(unimesh_t* mesh, 
-                                         unimesh_centering_t centering,
-                                         int num_components)
-{
-  comm_buffer_t* buffer = comm_buffer_new(mesh);
-  buffer->type = RECEIVE;
-  buffer->centering = centering;
-  comm_buffer_reset(buffer, centering, num_components);
-  return buffer;
-}
-
-static void comm_buffer_free(comm_buffer_t* buffer)
-{
-  polymec_free(buffer->completed);
-  polymec_free(buffer->requests);
-  if (buffer->storage != NULL)
-    polymec_free(buffer->storage);
-  int_int_unordered_map_free(buffer->offsets);
-  polymec_free(buffer->proc_offsets);
-  int_array_free(buffer->procs);
-  polymec_free(buffer);
-}
-
-static inline void* comm_buffer_data(comm_buffer_t* buffer,
-                                     int i, int j, int k,
-                                     unimesh_boundary_t boundary)
-{
-  // Mash (i, j, k) and the boundary into a single index.
-  int p_index = patch_index(buffer, i, j, k);
-  int b = (int)boundary;
-  int index = 6*p_index + b;
-
-  // Get the offset for this patch boundary and return a pointer to the 
-  // appropriate place in the buffer.
-  int offset = *int_int_unordered_map_get(buffer->offsets, index);
-  return &(buffer->storage[offset]);
-}
-
-static void comm_buffer_fprintf(comm_buffer_t* buffer, FILE* stream)
+static void comm_buffer_fprintf(comm_buffer_t* buffer, 
+                                bool show_data,
+                                FILE* stream)
 {
   const char* buffer_types[2] = {"Send", "Receive"};
   fprintf(stream, "%s buffer on rank %d:\n", buffer_types[(int)buffer->type], buffer->rank);
@@ -289,6 +251,172 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer, FILE* stream)
       }
     }
   }
+
+  if (show_data)
+  {
+    char* str = polymec_malloc(sizeof(char) * buffer->size * 20);
+    size_t pos = 0;
+    for (size_t i = 0; i < buffer->size; ++i)
+    {
+      char num_str[18];
+      snprintf(num_str, 16, "%g ", buffer->storage[i]);
+      strcpy(&(str[pos]), num_str);
+      pos += strlen(num_str);
+    }
+    fprintf(stream, "\ndata: %s\n", str);
+  }
+}
+
+static comm_buffer_t* send_buffer_new(unimesh_t* mesh, 
+                                      unimesh_centering_t centering,
+                                      int num_components)
+{
+  comm_buffer_t* buffer = comm_buffer_new(mesh);
+  buffer->type = SEND;
+  buffer->centering = centering;
+  comm_buffer_reset(buffer, centering, num_components);
+  return buffer;
+}
+
+static comm_buffer_t* receive_buffer_new(unimesh_t* mesh, 
+                                         unimesh_centering_t centering,
+                                         int num_components)
+{
+  comm_buffer_t* buffer = comm_buffer_new(mesh);
+  buffer->type = RECEIVE;
+  buffer->centering = centering;
+  comm_buffer_reset(buffer, centering, num_components);
+  return buffer;
+}
+
+// This posts all receives for the given receive buffer, using the given tag.
+static void receive_buffer_post(comm_buffer_t* receive_buff, int tag)
+{
+  MPI_Comm comm = unimesh_comm(receive_buff->mesh);
+  for (size_t p = 0; p < receive_buff->procs->size; ++p)
+  {
+    int proc = receive_buff->procs->data[p];
+    void* receive_data = &(receive_buff->storage[receive_buff->proc_offsets[p]]);
+    size_t receive_size = receive_buff->proc_offsets[p+1] - receive_buff->proc_offsets[p];
+    int err = MPI_Irecv(receive_data, (int)receive_size, MPI_REAL_T, proc, 
+                        tag, comm, &(receive_buff->requests[p]));
+    if (err != MPI_SUCCESS)
+    {
+      int resultlen;
+      char str[MPI_MAX_ERROR_STRING];
+      MPI_Error_string(err, str, &resultlen);
+      char err_msg[1024];
+      snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
+               receive_buff->rank, proc, err, str);
+      polymec_error(err_msg);
+    }
+    receive_buff->completed[p] = false;
+  }
+}
+
+// This posts a send for the send buffer, for the given patch/boundary, using 
+// the given tag.
+static void send_buffer_post(comm_buffer_t* send_buff, 
+                             int i, int j, int k, unimesh_boundary_t boundary, 
+                             int tag)
+{
+  // Get the remote process for this patch/boundary.
+  int remote_proc = unimesh_owner_proc(send_buff->mesh, i, j, k, boundary);
+  if (remote_proc == send_buff->rank)
+    return; // Nothing to do!
+
+  // Jot down this request to post for this patch/boundary, and determine 
+  // whether this function has been called for all patch/boundary pairs 
+  // that correspond to this process.
+  bool ready_to_post = true;
+  {
+    int p_index = patch_index(send_buff, i, j, k);
+    int b = (int)boundary;
+    int_int_unordered_map_insert(send_buff->post_requests, 6*p_index+b, 1);
+    int pos = 0, key, val;
+    while (int_int_unordered_map_next(send_buff->post_requests, &pos, &key, &val))
+    {
+      if (val == 0) // nope! There are still patches that haven't been posted.
+      {
+        ready_to_post = false;
+        break;
+      }
+    }
+  }
+
+  if (ready_to_post)
+  {
+    bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
+    if (write_comm_buffers)
+    {
+      // Write out the send buffer.
+      char file[FILENAME_MAX+1];
+      snprintf(file, FILENAME_MAX, "send_buffer.%d", send_buff->rank);
+      FILE* f = fopen(file, "w");
+      comm_buffer_fprintf(send_buff, true, f);
+      fclose(f);
+    }
+
+    // Find this process in the send buffer's process list.
+    int* remote_proc_p = int_bsearch(send_buff->procs->data, send_buff->procs->size, remote_proc);
+    ASSERT(remote_proc_p != NULL);
+    size_t proc_index = remote_proc_p - send_buff->procs->data;
+
+    // Get the actual buffer and its size.
+    void* send_data = unimesh_patch_boundary_send_buffer(send_buff->mesh, 
+        i, j, k, boundary);
+    size_t send_size = send_buff->proc_offsets[proc_index+1] - 
+      send_buff->proc_offsets[proc_index];
+
+    // Post the send and handle errors.
+    MPI_Comm comm = unimesh_comm(send_buff->mesh);
+    int err = MPI_Isend(send_data, (int)send_size, MPI_REAL_T, remote_proc, 
+        tag, comm, &(send_buff->requests[proc_index]));
+    if (err != MPI_SUCCESS)
+    {
+      int resultlen;
+      char str[MPI_MAX_ERROR_STRING];
+      MPI_Error_string(err, str, &resultlen);
+      char err_msg[1024];
+      snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
+          send_buff->rank, remote_proc, err, str);
+      polymec_error(err_msg);
+    }
+    send_buff->completed[proc_index] = false;
+
+    // Reset the post requests. 
+    int pos = 0, key, val;
+    while (int_int_unordered_map_next(send_buff->post_requests, &pos, &key, &val))
+      int_int_unordered_map_insert(send_buff->post_requests, key, 0);
+  }
+}
+
+static void comm_buffer_free(comm_buffer_t* buffer)
+{
+  polymec_free(buffer->completed);
+  polymec_free(buffer->requests);
+  if (buffer->storage != NULL)
+    polymec_free(buffer->storage);
+  int_int_unordered_map_free(buffer->post_requests);
+  int_int_unordered_map_free(buffer->offsets);
+  polymec_free(buffer->proc_offsets);
+  int_array_free(buffer->procs);
+  polymec_free(buffer);
+}
+
+static inline void* comm_buffer_data(comm_buffer_t* buffer,
+                                     int i, int j, int k,
+                                     unimesh_boundary_t boundary)
+{
+  // Mash (i, j, k) and the boundary into a single index.
+  int p_index = patch_index(buffer, i, j, k);
+  int b = (int)boundary;
+  int index = 6*p_index + b;
+
+  // Get the offset for this patch boundary and return a pointer to the 
+  // appropriate place in the buffer.
+  int offset = *int_int_unordered_map_get(buffer->offsets, index);
+  return &(buffer->storage[offset]);
 }
 
 DEFINE_ARRAY(comm_buffer_array, comm_buffer_t*)
@@ -1218,16 +1346,13 @@ static void finish_update_node_z2(void* context, unimesh_t* mesh,
 {
 }
 
-// This observer method is called when a field starts a boundary update on 
-// the mesh. We use it to initialize send and receive buffers and to post 
-// sends and receives.
-static void remote_bc_started_boundary_update(void* context, 
-                                              unimesh_t* mesh, int token, 
-                                              unimesh_centering_t centering,
-                                              int num_components)
+// This observer method is called when a field starts a set of boundary 
+// updates on the mesh. We use it to initialize send and receive buffers.
+static void remote_bc_started_boundary_updates(void* context, 
+                                               unimesh_t* mesh, int token, 
+                                               unimesh_centering_t centering,
+                                               int num_components)
 {
-  bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
-
   remote_bc_t* bc = context;
 
   // Create the send buffer for this token if it doesn't yet exist.
@@ -1237,14 +1362,6 @@ static void remote_bc_started_boundary_update(void* context,
   if (send_buff == NULL)
   {
     send_buff = send_buffer_new(mesh, centering, num_components);
-    if (write_comm_buffers)
-    {
-      char file[FILENAME_MAX+1];
-      snprintf(file, FILENAME_MAX, "send_buffer.%d", send_buff->rank);
-      FILE* f = fopen(file, "w");
-      comm_buffer_fprintf(send_buff, f);
-      fclose(f);
-    }
     comm_buffer_array_assign_with_dtor(bc->send_buffers, token, 
                                        send_buff, comm_buffer_free);
   }
@@ -1258,14 +1375,6 @@ static void remote_bc_started_boundary_update(void* context,
   if (receive_buff == NULL)
   {
     receive_buff = receive_buffer_new(mesh, centering, num_components);
-    if (write_comm_buffers)
-    {
-      char file[FILENAME_MAX+1];
-      snprintf(file, FILENAME_MAX, "receive_buffer.%d", receive_buff->rank);
-      FILE* f = fopen(file, "w");
-      comm_buffer_fprintf(receive_buff, f);
-      fclose(f);
-    }
     comm_buffer_array_assign_with_dtor(bc->receive_buffers, token,
                                        receive_buff, comm_buffer_free);
   }
@@ -1273,47 +1382,26 @@ static void remote_bc_started_boundary_update(void* context,
     comm_buffer_reset(receive_buff, centering, num_components);
 
   // Post the receives for the receive buffer, using the token as a tag.
-  MPI_Comm comm = unimesh_comm(mesh);
-  for (size_t p = 0; p < receive_buff->procs->size; ++p)
-  {
-    int proc = receive_buff->procs->data[p];
-    void* receive_data = &(receive_buff->storage[receive_buff->proc_offsets[p]]);
-    size_t receive_size = receive_buff->proc_offsets[p+1] - receive_buff->proc_offsets[p];
-    int err = MPI_Irecv(receive_data, (int)receive_size, MPI_REAL_T, proc, 
-                        token, comm, &(receive_buff->requests[p]));
-    if (err != MPI_SUCCESS)
-    {
-      int resultlen;
-      char str[MPI_MAX_ERROR_STRING];
-      MPI_Error_string(err, str, &resultlen);
-      char err_msg[1024];
-      snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
-               receive_buff->rank, proc, err, str);
-      polymec_error(err_msg);
-    }
-    receive_buff->completed[p] = false;
-  }
+  receive_buffer_post(receive_buff, token);
+}
 
-  // Post the sends for the send buffer, using the token as a tag.
-  for (size_t p = 0; p < receive_buff->procs->size; ++p)
-  {
-    int proc = receive_buff->procs->data[p];
-    void* send_data = &(send_buff->storage[send_buff->proc_offsets[p]]);
-    size_t send_size = send_buff->proc_offsets[p+1] - send_buff->proc_offsets[p];
-    int err = MPI_Isend(send_data, (int)send_size, MPI_REAL_T, proc, 
-                        token, comm, &(send_buff->requests[p]));
-    if (err != MPI_SUCCESS)
-    {
-      int resultlen;
-      char str[MPI_MAX_ERROR_STRING];
-      MPI_Error_string(err, str, &resultlen);
-      char err_msg[1024];
-      snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
-               send_buff->rank, proc, err, str);
-      polymec_error(err_msg);
-    }
-    send_buff->completed[p] = false;
-  }
+// This observer method is called right after the update for the patch 
+// (i, j, k) starts. We use it to post the send for the patch if the 
+// send buffer is ready for it.
+static void remote_bc_started_boundary_update(void* context, 
+                                              unimesh_t* mesh, int token, 
+                                              int i, int j, int k, 
+                                              unimesh_boundary_t boundary,
+                                              real_t t,
+                                              unimesh_patch_t* patch)
+{
+  // Access our remote BC object.
+  unimesh_patch_bc_t* bc = unimesh_remote_bc(mesh);
+  remote_bc_t* remote_bc = unimesh_patch_bc_context(bc);
+
+  // Post the send for the send buffer corresponding to patch (i, j, k).
+  comm_buffer_t* send_buffer = remote_bc->send_buffers->data[token];
+  send_buffer_post(send_buffer, i, j, k, boundary, token);
 }
 
 // This observer method is called right before a remote boundary update is 
@@ -1398,6 +1486,17 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
     }
   }
   receive_buffer->completed[proc_index] = true;
+
+  bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
+  if (write_comm_buffers)
+  {
+    // Write out the receive buffer.
+    char file[FILENAME_MAX+1];
+    snprintf(file, FILENAME_MAX, "receive_buffer.%d", receive_buffer->rank);
+    FILE* f = fopen(file, "w");
+    comm_buffer_fprintf(receive_buffer, true, f);
+    fclose(f);
+  }
 }
 
 unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh);
@@ -1506,6 +1605,7 @@ unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
 
   // Register the remote BC as a unimesh observer.
   unimesh_observer_vtable obs_vtable = {
+    .started_boundary_updates = remote_bc_started_boundary_updates,
     .started_boundary_update = remote_bc_started_boundary_update,
     .about_to_finish_boundary_update = remote_bc_about_to_finish_boundary_update
   };

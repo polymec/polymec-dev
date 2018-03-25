@@ -792,6 +792,18 @@ void unimesh_start_updating_patch_boundary(unimesh_t* mesh, int token,
   boundary_update_t* update = boundary_update_new(i, j, k, t, boundary, patch);
   boundary_update_array_append_with_dtor(updates, update, boundary_update_free);
 
+  // Inform our observers that we've started this boundary update. 
+  for (size_t o = 0; o < mesh->observers->size; ++o)
+  {
+    unimesh_observer_t* obs = mesh->observers->data[o];
+    if (obs->vtable.started_boundary_update != NULL)
+    {
+      obs->vtable.started_boundary_update(obs->context, mesh, token, 
+                                          update->i, update->j, update->k,
+                                          update->boundary, update->t, update->patch);
+    }
+  }
+
   mesh->boundary_update_token = -1;
   STOP_FUNCTION_TIMER();
 }
@@ -803,15 +815,15 @@ void unimesh_start_updating_patch_boundaries(unimesh_t* mesh, int token)
   ASSERT(token >= 0);
   ASSERT((size_t)token < mesh->boundary_buffers->buffers->size);
 
-  // Inform our observers that we've started this boundary update. 
+  // Inform our observers that we've started these boundary updates. 
   boundary_buffer_t* buffer = mesh->boundary_buffers->buffers->data[token];
   for (size_t i = 0; i < mesh->observers->size; ++i)
   {
     unimesh_observer_t* obs = mesh->observers->data[i];
     if (obs->vtable.started_boundary_update != NULL)
     {
-      obs->vtable.started_boundary_update(obs->context, mesh, token, 
-                                          buffer->centering, buffer->nc);
+      obs->vtable.started_boundary_updates(obs->context, mesh, token, 
+                                           buffer->centering, buffer->nc);
     }
   }
 }
