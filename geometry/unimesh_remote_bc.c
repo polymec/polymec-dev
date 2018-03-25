@@ -355,7 +355,6 @@ static void send_buffer_post(comm_buffer_t* send_buff,
 
   if (ready_to_post)
   {
-printf("Posting send\n");
     bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
     if (write_comm_buffers)
     {
@@ -377,10 +376,9 @@ printf("Posting send\n");
     size_t proc_index = remote_proc_p - send_buff->procs->data;
 
     // Get the actual buffer and its size.
-    void* send_data = unimesh_patch_boundary_send_buffer(send_buff->mesh, 
-        i, j, k, boundary);
+    void* send_data = &(send_buff->storage[send_buff->proc_offsets[proc_index]]);
     size_t send_size = send_buff->proc_offsets[proc_index+1] - 
-      send_buff->proc_offsets[proc_index];
+                       send_buff->proc_offsets[proc_index];
 
     // Post the send and handle errors.
     MPI_Comm comm = unimesh_comm(send_buff->mesh);
@@ -431,6 +429,7 @@ static inline void* comm_buffer_data(comm_buffer_t* buffer,
   // Get the offset for this patch boundary and return a pointer to the 
   // appropriate place in the buffer.
   int offset = *int_int_unordered_map_get(buffer->offsets, index);
+  ASSERT((offset >= 0) && (offset < buffer->size));
   return &(buffer->storage[offset]);
 }
 
