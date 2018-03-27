@@ -294,42 +294,15 @@ static comm_buffer_t* receive_buffer_new(unimesh_t* mesh,
   return buffer;
 }
 
-// This posts all receives for the given receive buffer, using the given tag.
-static void receive_buffer_post(comm_buffer_t* receive_buff, int tag)
-{
-  START_FUNCTION_TIMER();
-  MPI_Comm comm = unimesh_comm(receive_buff->mesh);
-  for (size_t p = 0; p < receive_buff->procs->size; ++p)
-  {
-    int proc = receive_buff->procs->data[p];
-    void* receive_data = &(receive_buff->storage[receive_buff->proc_offsets[p]]);
-    size_t receive_size = receive_buff->proc_offsets[p+1] - receive_buff->proc_offsets[p];
-    int err = MPI_Irecv(receive_data, (int)receive_size, MPI_REAL_T, proc, 
-                        tag, comm, &(receive_buff->requests[p]));
-    if (err != MPI_SUCCESS)
-    {
-      int resultlen;
-      char str[MPI_MAX_ERROR_STRING];
-      MPI_Error_string(err, str, &resultlen);
-      char err_msg[1024];
-      snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
-               receive_buff->rank, proc, err, str);
-      polymec_error(err_msg);
-    }
-    receive_buff->completed[p] = false;
-  }
-  STOP_FUNCTION_TIMER();
-}
-
 // This posts a send for the send buffer, for the given patch/boundary, using 
 // the given tag.
-static void send_buffer_post(comm_buffer_t* send_buff, 
+static void comm_buffer_post(comm_buffer_t* comm_buff, 
                              int i, int j, int k, unimesh_boundary_t boundary, 
                              int tag)
 {
   // Get the remote process for this patch/boundary.
-  int remote_proc = unimesh_owner_proc(send_buff->mesh, i, j, k, boundary);
-  if (remote_proc == send_buff->rank)
+  int remote_proc = unimesh_owner_proc(comm_buff->mesh, i, j, k, boundary);
+  if (remote_proc == comm_buff->rank)
     return; // Nothing to do!
 
   START_FUNCTION_TIMER();
@@ -339,11 +312,11 @@ static void send_buffer_post(comm_buffer_t* send_buff,
   // that correspond to this process.
   bool ready_to_post = true;
   {
-    int p_index = patch_index(send_buff, i, j, k);
+    int p_index = patch_index(comm_buff, i, j, k);
     int b = (int)boundary;
-    int_int_unordered_map_insert(send_buff->post_requests, 6*p_index+b, 1);
+    int_int_unordered_map_insert(comm_buff->post_requests, 6*p_index+b, 1);
     int pos = 0, key, val;
-    while (int_int_unordered_map_next(send_buff->post_requests, &pos, &key, &val))
+    while (int_int_unordered_map_next(comm_buff->post_requests, &pos, &key, &val))
     {
       if (val == 0) // nope! There are still patches that haven't been posted.
       {
@@ -360,46 +333,72 @@ static void send_buffer_post(comm_buffer_t* send_buff,
     {
       static const char* centering_str[8] = 
         {"cell", "x_face", "y_face", "z_face", "x_edge", "y_edge", "z_edge", "node"};
+      static const char* type_str[2] = {"send", "receive"}; 
 
       // Write out the send buffer.
       char file[FILENAME_MAX+1];
-      snprintf(file, FILENAME_MAX, "%s_send_buffer.%d", 
-        centering_str[(int)send_buff->centering], send_buff->rank);
+      snprintf(file, FILENAME_MAX, "%s_%s_buffer.%d", 
+               centering_str[(int)comm_buff->centering], type_str[(int)comm_buff->type], 
+               comm_buff->rank);
       FILE* f = fopen(file, "w");
-      comm_buffer_fprintf(send_buff, true, f);
+      comm_buffer_fprintf(comm_buff, true, f);
       fclose(f);
     }
 
-    // Find this process in the send buffer's process list.
-    int* remote_proc_p = int_bsearch(send_buff->procs->data, send_buff->procs->size, remote_proc);
+    // Find this process in the comm buffer's process list.
+    int* remote_proc_p = int_bsearch(comm_buff->procs->data, comm_buff->procs->size, remote_proc);
     ASSERT(remote_proc_p != NULL);
-    size_t proc_index = remote_proc_p - send_buff->procs->data;
+    size_t proc_index = remote_proc_p - comm_buff->procs->data;
+static const char* type_str[2] = {"send", "receive"}; 
+printf("%d: Posting %s for %d\n", comm_buff->rank, type_str[(int)comm_buff->type], remote_proc);
+printf("%d: [", comm_buff->rank);
+for (size_t kk = 0; kk < comm_buff->procs->size; ++kk)
+printf("%d ", comm_buff->procs->data[kk]);
+printf("] -> %d\n", (int)proc_index);
 
     // Get the actual buffer and its size.
-    void* send_data = &(send_buff->storage[send_buff->proc_offsets[proc_index]]);
-    size_t send_size = send_buff->proc_offsets[proc_index+1] - 
-                       send_buff->proc_offsets[proc_index];
+    void* data = &(comm_buff->storage[comm_buff->proc_offsets[proc_index]]);
+    size_t size = comm_buff->proc_offsets[proc_index+1] - 
+                  comm_buff->proc_offsets[proc_index];
 
     // Post the send and handle errors.
-    MPI_Comm comm = unimesh_comm(send_buff->mesh);
-    int err = MPI_Isend(send_data, (int)send_size, MPI_REAL_T, remote_proc, 
-        tag, comm, &(send_buff->requests[proc_index]));
-    if (err != MPI_SUCCESS)
+    MPI_Comm comm = unimesh_comm(comm_buff->mesh);
+    if (comm_buff->type == SEND)
     {
-      int resultlen;
-      char str[MPI_MAX_ERROR_STRING];
-      MPI_Error_string(err, str, &resultlen);
-      char err_msg[1024];
-      snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
-          send_buff->rank, remote_proc, err, str);
-      polymec_error(err_msg);
+      int err = MPI_Isend(data, (int)size, MPI_REAL_T, remote_proc, 
+                          tag, comm, &(comm_buff->requests[proc_index]));
+      if (err != MPI_SUCCESS)
+      {
+        int resultlen;
+        char str[MPI_MAX_ERROR_STRING];
+        MPI_Error_string(err, str, &resultlen);
+        char err_msg[1024];
+        snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
+                 comm_buff->rank, remote_proc, err, str);
+        polymec_error(err_msg);
+      }
     }
-    send_buff->completed[proc_index] = false;
+    else
+    {
+      int err = MPI_Irecv(data, (int)size, MPI_REAL_T, remote_proc, 
+                          tag, comm, &(comm_buff->requests[proc_index]));
+      if (err != MPI_SUCCESS)
+      {
+        int resultlen;
+        char str[MPI_MAX_ERROR_STRING];
+        MPI_Error_string(err, str, &resultlen);
+        char err_msg[1024];
+        snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
+                 comm_buff->rank, remote_proc, err, str);
+        polymec_error(err_msg);
+      }
+    }
+    comm_buff->completed[proc_index] = false;
 
     // Reset the post requests. 
     int pos = 0, key, val;
-    while (int_int_unordered_map_next(send_buff->post_requests, &pos, &key, &val))
-      int_int_unordered_map_insert(send_buff->post_requests, key, 0);
+    while (int_int_unordered_map_next(comm_buff->post_requests, &pos, &key, &val))
+      int_int_unordered_map_insert(comm_buff->post_requests, key, 0);
   }
   STOP_FUNCTION_TIMER();
 }
@@ -1394,9 +1393,6 @@ static void remote_bc_started_boundary_updates(void* context,
   }
   else
     comm_buffer_reset(receive_buff, centering, num_components);
-
-  // Post the receives for the receive buffer, using the token as a tag.
-  receive_buffer_post(receive_buff, token);
 }
 
 // This observer method is called right after the update for the patch 
@@ -1413,9 +1409,13 @@ static void remote_bc_started_boundary_update(void* context,
   unimesh_patch_bc_t* bc = unimesh_remote_bc(mesh);
   remote_bc_t* remote_bc = unimesh_patch_bc_context(bc);
 
+  // Post the receive for the receive buffer corresponding to patch (i, j, k).
+  comm_buffer_t* receive_buffer = remote_bc->receive_buffers->data[token];
+  comm_buffer_post(receive_buffer, i, j, k, boundary, token);
+
   // Post the send for the send buffer corresponding to patch (i, j, k).
   comm_buffer_t* send_buffer = remote_bc->send_buffers->data[token];
-  send_buffer_post(send_buffer, i, j, k, boundary, token);
+  comm_buffer_post(send_buffer, i, j, k, boundary, token);
 }
 
 // This observer method is called right before a remote boundary update is 
@@ -1462,6 +1462,11 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
     return;
 
   // Wait for our message to be sent.
+printf("%d: Waiting for %d\n", send_buffer->rank, remote_proc);
+printf("%d: [", send_buffer->rank);
+for (size_t kk = 0; kk < send_buffer->procs->size; ++kk)
+printf("%d ", send_buffer->procs->data[kk]);
+printf("] -> %d\n", (int)proc_index);
   MPI_Status status;
   int err = MPI_Wait(&(send_buffer->requests[proc_index]), &status);
 
