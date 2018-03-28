@@ -98,8 +98,6 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
   // Compute buffer offsets based on centering and boundary.
   buffer->centering = centering;
   buffer->nc = num_components;
-  int_int_unordered_map_clear(buffer->offsets);
-  int_int_unordered_map_clear(buffer->post_requests);
   int nx = buffer->nx, ny = buffer->ny, nz = buffer->nz, nc = buffer->nc;
 
   size_t remote_offsets[8][6] =  { // cells (including ghosts for simplicity)
@@ -135,12 +133,11 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
                                    (nx+1)*(nz+1), (nx+1)*(nz+1),
                                    (nx+1)*(ny+1), (nx+1)*(ny+1)}};
 
-  // Now compute offsets. This is a little tedious, since we allocate one 
-  // giant buffer and then carve it up into portions for use by each process.
-  // We proceed one process at a time, starting with the lowest remote rank 
-  // we communicate with and proceeding in ascending order.
+  // Compute counts for data for all buffers this process uses to 
+  // communicate with other processes.
   int cent = (int)centering;
-  memset(buffer->proc_offsets, 0, sizeof(size_t) * (buffer->procs->size+1));
+  size_t proc_data_counts[buffer->procs->size];
+  memset(proc_data_counts, 0, sizeof(size_t) * buffer->procs->size);
   for (size_t p = 0; p < buffer->procs->size; ++p)
   {
     int offset_proc = buffer->procs->data[p];
@@ -155,32 +152,59 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
         {
           ASSERT(remote_proc != buffer->rank);
 
-          // Since we're in a delicate loop, we have to compute our offsets
-          // the honest way, starting from the beginning of our process list.
-          size_t offset = 0;
-          for (size_t pp = 0; pp < p; ++pp)
-            offset += buffer->proc_offsets[pp+1];
-
-          // Stash the offset for this patch/boundary.
-          int p_index = patch_index(buffer, i, j, k);
-          int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
-
-          // Stash a zero in the post requests mapping.
-          int_int_unordered_map_insert(buffer->post_requests, 6*p_index+b, 0);
-
-          // Update the new offset.
-          offset += nc * remote_offsets[cent][b];
-
-          // Save our offset so that the next process begins where we left off.
-          buffer->proc_offsets[p+1] = offset;
+          // Update our data count for this process.
+          proc_data_counts[p] += nc * remote_offsets[cent][b];
         }
       }
     }
   }
 
+  // Convert our counts to offsets. This gives us starting offsets for 
+  // each segment of our buffer.
+  buffer->proc_offsets[0] = 0;
+  for (size_t p = 0; p < buffer->procs->size; ++p)
+    buffer->proc_offsets[p+1] = buffer->proc_offsets[p] + proc_data_counts[p];
+
   // Allocate storage.
   buffer->size = buffer->proc_offsets[buffer->procs->size];
   buffer->storage = polymec_realloc(buffer->storage, sizeof(real_t) * buffer->size);
+
+  // Now initialize our offset and post request maps.
+  int_int_unordered_map_clear(buffer->offsets);
+  int_int_unordered_map_clear(buffer->post_requests);
+  size_t last_offset_for_proc[buffer->procs->size];
+  memset(last_offset_for_proc, 0, sizeof(size_t) * buffer->procs->size);
+  for (size_t p = 0; p < buffer->procs->size; ++p)
+  {
+    int offset_proc = buffer->procs->data[p];
+    int pos = 0, i, j, k;
+    while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
+    {
+      for (int b = 0; b < 6; ++b)
+      {
+        unimesh_boundary_t boundary = (unimesh_boundary_t)b;
+        int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
+        if (remote_proc == offset_proc)
+        {
+          ASSERT(remote_proc != buffer->rank);
+
+          // Extract the offset for this patch.
+          size_t offset = last_offset_for_proc[p];
+          ASSERT(offset < proc_data_counts[p]);
+
+          // Stash the offset for this patch/boundary.
+          int p_index = patch_index(buffer, i, j, k);
+          int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
+
+          // Accumulate our running tally. 
+          last_offset_for_proc[p] = offset + nc * remote_offsets[cent][b];
+
+          // Stash a zero in the post requests mapping.
+          int_int_unordered_map_insert(buffer->post_requests, 6*p_index+b, 0);
+        }
+      }
+    }
+  }
 
   // Zero the storage arrays for debugging.
 #ifdef NDEBUG
