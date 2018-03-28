@@ -14,8 +14,6 @@
 #include "geometry/unimesh_field.h"
 #include "geometry/unimesh_patch_bc.h"
 
-static int rank_ = -1;
-
 static unimesh_t* periodic_mesh(MPI_Comm comm)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0,
@@ -140,11 +138,7 @@ static void test_cell_field(void** state, unimesh_t* mesh)
     {
       for (int k = 1; k <= patch->nz; ++k)
       {
-if (!reals_equal(f[0][j][k][0], 1.0 * pi_m))
-printf("%d: %g vs %g\n", rank_, f[0][j][k][0], 1.0 * pi_m);
         assert_true(reals_equal(f[0][j][k][0], 1.0 * pi_m));
-if (!reals_equal(f[patch->nx+1][j][k][0], 1.0 * pi_p))
-printf("%d: %g vs %g\n", rank_, f[patch->nx+1][j][k][0], 1.0 * pi_p);
         assert_true(reals_equal(f[patch->nx+1][j][k][0], 1.0 * pi_p));
       }
     }
@@ -752,11 +746,8 @@ static void test_parallel_periodic_node_field(void** state)
 
 static void test_parallel_aperiodic_cell_field(void** state)
 {
-  options_t* opt = options_argv();
-  options_add_argument(opt, "write_comm_buffers");
   unimesh_t* mesh = aperiodic_mesh(MPI_COMM_WORLD);
   test_cell_field(state, mesh);
-  options_remove_argument(opt, options_num_arguments(opt)-1);
 }
 
 static void test_parallel_aperiodic_face_fields(void** state)
@@ -783,7 +774,6 @@ static void test_parallel_aperiodic_node_field(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
-MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
   const struct CMUnitTest tests[] = 
   {
 #if 0
@@ -801,11 +791,9 @@ MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
     cmocka_unit_test(test_parallel_periodic_node_field),
 #endif
     cmocka_unit_test(test_parallel_aperiodic_cell_field),
-#if 0
     cmocka_unit_test(test_parallel_aperiodic_face_fields),
     cmocka_unit_test(test_parallel_aperiodic_edge_fields),
-    cmocka_unit_test(test_parallel_aperiodic_node_field),
-#endif
+    cmocka_unit_test(test_parallel_aperiodic_node_field)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
