@@ -487,25 +487,20 @@ static inline void* comm_buffer_data(comm_buffer_t* buffer,
                                      int i, int j, int k,
                                      unimesh_boundary_t boundary)
 {
+  int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
+  size_t proc_index = int_lower_bound(buffer->procs->data, buffer->procs->size, remote_proc);
+  ASSERT(proc_index < buffer->procs->size);
+
   // Mash (i, j, k) and the boundary into a single index.
   int p_index = patch_index(buffer, i, j, k);
   int b = (int)boundary;
   int index = 6*p_index + b;
 
-#ifndef DEBUG
-  // Make sure our remote process is actually in our list of processes.
-  int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
-  size_t proc_index = int_lower_bound(buffer->procs->data, buffer->procs->size, remote_proc);
-  ASSERT(proc_index < buffer->procs->size);
-#endif
-
   // Get the offset for this patch boundary and return a pointer to the 
   // appropriate place in the buffer.
   int offset = *int_int_unordered_map_get(buffer->offsets, index);
-if ((offset < 0) || (offset >= buffer->size))
-printf("%d: %d/%d (proc_index = %d)\n", buffer->rank, offset, (int)buffer->size, (int)proc_index);
   ASSERT((offset >= 0) && (offset < buffer->size));
-  return &(buffer->storage[offset]);
+  return &(buffer->storage[buffer->proc_offsets[proc_index] + offset]);
 }
 
 DEFINE_ARRAY(comm_buffer_array, comm_buffer_t*)
@@ -1565,7 +1560,7 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
   ASSERT(send_buffer->procs->data[proc_index] == remote_proc);
   ASSERT(receive_buffer->procs->data[proc_index] == remote_proc);
 
-  if (!(send_buffer->request_states[proc_index] == COMPLETED))
+  if (send_buffer->request_states[proc_index] != COMPLETED)
   {
     // Wait for our message to be sent.
     MPI_Status status;
@@ -1584,7 +1579,7 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
     send_buffer->request_states[proc_index] = COMPLETED;
   }
 
-  if (!(receive_buffer->request_states[proc_index] != COMPLETED))
+  if (receive_buffer->request_states[proc_index] != COMPLETED)
   {
     // Now wait till we receive a message.
     MPI_Status status;
