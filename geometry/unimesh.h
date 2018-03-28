@@ -133,9 +133,14 @@ bool unimesh_next_patch(unimesh_t* mesh, int* pos,
 // Returns true if the mesh has a patch at (i, j, k), false if not.
 bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k);
 
+// Return true if the mesh has its own boundary condition on the given
+// boundary of a given patch, false if not. This is used to disallow 
+// the adding of patch BCs to patch boundaries that the mesh maintains.
+bool unimesh_has_patch_bc(unimesh_t* mesh, int i, int j, int k, 
+                          unimesh_boundary_t patch_boundary);
+
 // A unimesh observer is an object that is notified of changes within the 
 // unimesh's state.
-
 typedef struct unimesh_observer_t unimesh_observer_t;
 
 // This vtable defines the behavior of a unimesh observer. All methods are 

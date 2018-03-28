@@ -233,7 +233,7 @@ static int find_naive_rank_for_patch(unimesh_t* mesh,
       (k >= 0) && (k < mesh->npz))
   {
     int index = patch_index(mesh, i, j, k);
-    rank = int_lower_bound(start_patch_for_proc, mesh->nproc+1, index);
+    rank = (int)(int_lower_bound(start_patch_for_proc, mesh->nproc+1, index));
     ASSERT(rank <= mesh->nproc);
     if (index != start_patch_for_proc[rank]) --rank;
   }
@@ -453,6 +453,21 @@ bool unimesh_has_patch(unimesh_t* mesh, int i, int j, int k)
     return false;
   int index = patch_index(mesh, i, j, k);
   return int_unordered_set_contains(mesh->patches, index);
+}
+
+bool unimesh_has_patch_bc(unimesh_t* mesh, int i, int j, int k, 
+                          unimesh_boundary_t patch_boundary)
+{
+  int index = patch_index(mesh, i, j, k);
+  unimesh_patch_bc_t*** bcs_p = patch_bc_map_get(mesh->patch_bcs, index);
+  if (bcs_p != NULL)
+  {
+    unimesh_patch_bc_t** bcs = *bcs_p;
+    int b = (int)patch_boundary;
+    return (bcs[b] != NULL);
+  }
+  else
+    return false;
 }
 
 //------------------------------------------------------------------------ 

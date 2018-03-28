@@ -60,12 +60,22 @@ typedef struct
   real_t* storage; // the buffer itself
   size_t size; // the size of the buffer in elements
   MPI_Request* requests; // MPI requests for posted sends/receives.
-  bool* completed; // flags for whether transactions are complete
+  enum { NOT_POSTED, POSTED, COMPLETED }* request_states; // transaction states for requests.
 } comm_buffer_t;
 
+// Maps (i, j, k) to a flat patch index.
 static inline int patch_index(comm_buffer_t* buffer, int i, int j, int k)
 {
   return buffer->ny*buffer->nz*i + buffer->nz*j + k;
+}
+
+// Maps a flat patch index back to (i, j, k).
+static inline void get_patch_indices(comm_buffer_t* buffer, int index, 
+                                     int* i, int* j, int* k)
+{
+  *i = index/(buffer->ny*buffer->nz);
+  *j = (index - buffer->ny*buffer->nz*(*i))/buffer->nz;
+  *k = index - buffer->ny*buffer->nz*(*i) - buffer->nz*(*j);
 }
 
 static void comm_buffer_reset(comm_buffer_t* buffer, 
@@ -74,16 +84,22 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
 {
   ASSERT(num_components > 0);
 
-  // Do we need to do anything?
+  START_FUNCTION_TIMER();
+
+  // Reset the request states for the buffer.
+  for (size_t p = 0; p < buffer->procs->size; ++p)
+    buffer->request_states[p] = NOT_POSTED;
+
+  // Do we need to do anything else?
   if ((buffer->centering == centering) && 
       (buffer->nc == num_components))
     return;
 
-  START_FUNCTION_TIMER();
-
   // Compute buffer offsets based on centering and boundary.
   buffer->centering = centering;
   buffer->nc = num_components;
+  int_int_unordered_map_clear(buffer->offsets);
+  int_int_unordered_map_clear(buffer->post_requests);
   int nx = buffer->nx, ny = buffer->ny, nz = buffer->nz, nc = buffer->nc;
 
   size_t remote_offsets[8][6] =  { // cells (including ghosts for simplicity)
@@ -131,19 +147,19 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
     int pos = 0, i, j, k;
     while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
     {
-      static unimesh_boundary_t boundaries[6] = {UNIMESH_X1_BOUNDARY, 
-                                                 UNIMESH_X2_BOUNDARY,
-                                                 UNIMESH_Y1_BOUNDARY, 
-                                                 UNIMESH_Y2_BOUNDARY,
-                                                 UNIMESH_Z1_BOUNDARY, 
-                                                 UNIMESH_Z2_BOUNDARY};
       for (int b = 0; b < 6; ++b)
       {
-        unimesh_boundary_t boundary = boundaries[b];
+        unimesh_boundary_t boundary = (unimesh_boundary_t)b;
         int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
         if (remote_proc == offset_proc)
         {
-          size_t offset = buffer->proc_offsets[p+1];
+          ASSERT(remote_proc != buffer->rank);
+
+          // Since we're in a delicate loop, we have to compute our offsets
+          // the honest way, starting from the beginning of our process list.
+          size_t offset = 0;
+          for (size_t pp = 0; pp < p; ++pp)
+            offset += buffer->proc_offsets[pp+1];
 
           // Stash the offset for this patch/boundary.
           int p_index = patch_index(buffer, i, j, k);
@@ -209,20 +225,21 @@ static comm_buffer_t* comm_buffer_new(unimesh_t* mesh)
       int p_b = unimesh_owner_proc(mesh, i, j, k, boundary);
       if (p_b != buffer->rank)
       {
-        int pp = int_lower_bound(buffer->procs->data, buffer->procs->size, p_b);
-        if ((size_t)pp == buffer->procs->size)
+        size_t pp = int_lower_bound(buffer->procs->data, buffer->procs->size, p_b);
+        if (pp == buffer->procs->size)
           int_array_append(buffer->procs, p_b);
         else if (buffer->procs->data[pp] != p_b)
-          int_array_insert(buffer->procs, (size_t)pp, p_b);
+          int_array_insert(buffer->procs, pp, p_b);
       }
     }
   }
   buffer->proc_offsets = polymec_malloc(sizeof(size_t) * (buffer->procs->size+1));
 
-  // Allocate a set of MPI_Requests for the processes and some flags to 
-  // indicate whether requests have completed.
+  // Allocate a set of MPI_Requests for the processes and some state information.
   buffer->requests = polymec_malloc(sizeof(MPI_Request) * buffer->procs->size);
-  buffer->completed = polymec_malloc(sizeof(bool) * buffer->procs->size);
+  buffer->request_states = polymec_malloc(sizeof(int) * buffer->procs->size);
+  for (size_t p = 0; p < buffer->procs->size; ++p)
+    buffer->request_states[p] = NOT_POSTED;
 
   STOP_FUNCTION_TIMER();
   return buffer;
@@ -302,8 +319,17 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
 {
   // Get the remote process for this patch/boundary.
   int remote_proc = unimesh_owner_proc(comm_buff->mesh, i, j, k, boundary);
-  if (remote_proc == comm_buff->rank)
-    return; // Nothing to do!
+  if (remote_proc == comm_buff->rank) // nothing to do!
+    return; 
+
+  // Find this process in the comm buffer's process list.
+  int* remote_proc_p = int_bsearch(comm_buff->procs->data, comm_buff->procs->size, remote_proc);
+  ASSERT(remote_proc_p != NULL);
+  size_t proc_index = remote_proc_p - comm_buff->procs->data;
+
+  // If we've already posted this time around, we don't need to do it again.
+  if (comm_buff->request_states[proc_index] == POSTED)
+    return;
 
   START_FUNCTION_TIMER();
 
@@ -318,10 +344,26 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
     int pos = 0, key, val;
     while (int_int_unordered_map_next(comm_buff->post_requests, &pos, &key, &val))
     {
-      if (val == 0) // nope! There are still patches that haven't been posted.
+      if (key != 6*p_index+b) // skip the one we just added
       {
-        ready_to_post = false;
-        break;
+        // Back the patch indices and the boundary out of the key.
+        int req_p_index = key/6;
+        int req_i, req_j, req_k;
+        get_patch_indices(comm_buff, req_p_index, &req_i, &req_j, &req_k);
+        int req_b = key - 6*req_p_index;
+        unimesh_boundary_t req_boundary = (unimesh_boundary_t)req_b;
+
+        // Get the process for this patch.
+        int req_proc = unimesh_owner_proc(comm_buff->mesh, req_i, req_j, req_k, req_boundary);
+
+        // If the process matches this one and there's a missing post request, 
+        // we can't do the post.
+        if ((req_proc == remote_proc) && (val == 0)) 
+        {
+          // Nope! There are still patches for this process that haven't been posted.
+          ready_to_post = false;
+          break;
+        }
       }
     }
   }
@@ -344,17 +386,6 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
       comm_buffer_fprintf(comm_buff, true, f);
       fclose(f);
     }
-
-    // Find this process in the comm buffer's process list.
-    int* remote_proc_p = int_bsearch(comm_buff->procs->data, comm_buff->procs->size, remote_proc);
-    ASSERT(remote_proc_p != NULL);
-    size_t proc_index = remote_proc_p - comm_buff->procs->data;
-static const char* type_str[2] = {"send", "receive"}; 
-printf("%d: Posting %s for %d\n", comm_buff->rank, type_str[(int)comm_buff->type], remote_proc);
-printf("%d: [", comm_buff->rank);
-for (size_t kk = 0; kk < comm_buff->procs->size; ++kk)
-printf("%d ", comm_buff->procs->data[kk]);
-printf("] -> %d\n", (int)proc_index);
 
     // Get the actual buffer and its size.
     void* data = &(comm_buff->storage[comm_buff->proc_offsets[proc_index]]);
@@ -393,19 +424,31 @@ printf("] -> %d\n", (int)proc_index);
         polymec_error(err_msg);
       }
     }
-    comm_buff->completed[proc_index] = false;
+    comm_buff->request_states[proc_index] = POSTED;
 
-    // Reset the post requests. 
+    // Reset the post requests for our remote process 
     int pos = 0, key, val;
     while (int_int_unordered_map_next(comm_buff->post_requests, &pos, &key, &val))
-      int_int_unordered_map_insert(comm_buff->post_requests, key, 0);
+    {
+      // Back the patch indices and the boundary out of the key.
+      int req_p_index = key/6;
+      int req_i, req_j, req_k;
+      get_patch_indices(comm_buff, req_p_index, &req_i, &req_j, &req_k);
+      int req_b = key - 6*req_p_index;
+      unimesh_boundary_t req_boundary = (unimesh_boundary_t)req_b;
+
+      // Get the process for this patch.
+      int req_proc = unimesh_owner_proc(comm_buff->mesh, req_i, req_j, req_k, req_boundary);
+      if (req_proc == remote_proc)
+        int_int_unordered_map_insert(comm_buff->post_requests, key, 0);
+    }
   }
   STOP_FUNCTION_TIMER();
 }
 
 static void comm_buffer_free(comm_buffer_t* buffer)
 {
-  polymec_free(buffer->completed);
+  polymec_free(buffer->request_states);
   polymec_free(buffer->requests);
   if (buffer->storage != NULL)
     polymec_free(buffer->storage);
@@ -425,9 +468,18 @@ static inline void* comm_buffer_data(comm_buffer_t* buffer,
   int b = (int)boundary;
   int index = 6*p_index + b;
 
+#ifndef DEBUG
+  // Make sure our remote process is actually in our list of processes.
+  int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
+  size_t proc_index = int_lower_bound(buffer->procs->data, buffer->procs->size, remote_proc);
+  ASSERT(proc_index < buffer->procs->size);
+#endif
+
   // Get the offset for this patch boundary and return a pointer to the 
   // appropriate place in the buffer.
   int offset = *int_int_unordered_map_get(buffer->offsets, index);
+if ((offset < 0) || (offset >= buffer->size))
+printf("%d: %d/%d (proc_index = %d)\n", buffer->rank, offset, (int)buffer->size, (int)proc_index);
   ASSERT((offset >= 0) && (offset < buffer->size));
   return &(buffer->storage[offset]);
 }
@@ -1418,6 +1470,39 @@ static void remote_bc_started_boundary_update(void* context,
   comm_buffer_post(send_buffer, i, j, k, boundary, token);
 }
 
+// This observer method is called right before any remote boundary updates begin.
+// We use it to verify that all sends/receives have posted.
+static void remote_bc_about_to_finish_boundary_updates(void* context, 
+                                                       unimesh_t* mesh, 
+                                                       int token,
+                                                       unimesh_centering_t centering,
+                                                       int num_components)
+{
+  // Access our remote BC object.
+  unimesh_patch_bc_t* bc = unimesh_remote_bc(mesh);
+  remote_bc_t* remote_bc = unimesh_patch_bc_context(bc);
+
+  // Retrieve the send and receive buffers for this token.
+  ASSERT((size_t)token < remote_bc->send_buffers->size);
+  ASSERT(remote_bc->send_buffers->data[token] != NULL);
+  ASSERT((size_t)token < remote_bc->receive_buffers->size);
+  ASSERT(remote_bc->receive_buffers->data[token] != NULL);
+  comm_buffer_t* send_buffer = remote_bc->send_buffers->data[token];
+  comm_buffer_t* receive_buffer = remote_bc->receive_buffers->data[token];
+  ASSERT(send_buffer->procs->size == receive_buffer->procs->size);
+
+  // Make sure the sends and receives have posted for each remote process.
+  for (size_t p = 0; p < send_buffer->procs->size; ++p)
+  {
+    int remote_proc = send_buffer->procs->data[p];
+    if (send_buffer->request_states[p] != POSTED)
+      polymec_error("unimesh_remote_bc: message send to %d did not post!", remote_proc);
+    ASSERT(remote_proc == receive_buffer->procs->data[p]);
+    if (receive_buffer->request_states[p] != POSTED)
+      polymec_error("unimesh_remote_bc: message receive from %d did not post!", remote_proc);
+  }
+}
+
 // This observer method is called right before a remote boundary update is 
 // finished for a particular patch. We use it to wait for messages to be 
 // received for a given process.
@@ -1456,57 +1541,54 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
   ASSERT(send_buffer->procs->data[proc_index] == remote_proc);
   ASSERT(receive_buffer->procs->data[proc_index] == remote_proc);
 
-  // If the transaction has completed, there's nothing left to do.
-  if (send_buffer->completed[proc_index] && 
-      receive_buffer->completed[proc_index])
-    return;
-
-  // Wait for our message to be sent.
-printf("%d: Waiting for %d\n", send_buffer->rank, remote_proc);
-printf("%d: [", send_buffer->rank);
-for (size_t kk = 0; kk < send_buffer->procs->size; ++kk)
-printf("%d ", send_buffer->procs->data[kk]);
-printf("] -> %d\n", (int)proc_index);
-  MPI_Status status;
-  int err = MPI_Wait(&(send_buffer->requests[proc_index]), &status);
-
-  // Handle errors.
-  if (err == MPI_ERR_IN_STATUS)
+  if (!(send_buffer->request_states[proc_index] == COMPLETED))
   {
-    char errstr[MPI_MAX_ERROR_STRING];
-    int errlen;
-    MPI_Error_string(status.MPI_ERROR, errstr, &errlen);
-    int proc = send_buffer->procs->data[proc_index];
-    polymec_error("%d: MPI error sending to %d (%d) %s\n",
-                  send_buffer->rank, proc, status.MPI_ERROR, errstr);
+    // Wait for our message to be sent.
+    MPI_Status status;
+    int err = MPI_Wait(&(send_buffer->requests[proc_index]), &status);
+
+    // Handle errors.
+    if (err == MPI_ERR_IN_STATUS)
+    {
+      char errstr[MPI_MAX_ERROR_STRING];
+      int errlen;
+      MPI_Error_string(status.MPI_ERROR, errstr, &errlen);
+      int proc = send_buffer->procs->data[proc_index];
+      polymec_error("%d: MPI error sending to %d (%d) %s\n",
+                    send_buffer->rank, proc, status.MPI_ERROR, errstr);
+    }
+    send_buffer->request_states[proc_index] = COMPLETED;
   }
-  send_buffer->completed[proc_index] = true;
 
-  // Now wait till we receive a message.
-  err = MPI_Wait(&(receive_buffer->requests[proc_index]), &status);
-
-  // Handle errors.
-  if (err == MPI_ERR_IN_STATUS)
+  if (!(receive_buffer->request_states[proc_index] != COMPLETED))
   {
-    char errstr[MPI_MAX_ERROR_STRING];
-    int errlen;
-    MPI_Error_string(status.MPI_ERROR, errstr, &errlen);
-    // Now we can really get nitty-gritty and try to diagnose the
-    // problem carefully! 
-    int proc = receive_buffer->procs->data[proc_index];
-    if (status.MPI_ERROR == MPI_ERR_TRUNCATE)
+    // Now wait till we receive a message.
+    MPI_Status status;
+    int err = MPI_Wait(&(receive_buffer->requests[proc_index]), &status);
+
+    // Handle errors.
+    if (err == MPI_ERR_IN_STATUS)
     {
-      polymec_error("%d: MPI error receiving from %d (%d) %s\n"
-                    "(Expected %d bytes)\n", receive_buffer->rank, proc, 
-                    status.MPI_ERROR, errstr, (int)(receive_buffer->size));
+      char errstr[MPI_MAX_ERROR_STRING];
+      int errlen;
+      MPI_Error_string(status.MPI_ERROR, errstr, &errlen);
+      // Now we can really get nitty-gritty and try to diagnose the
+      // problem carefully! 
+      int proc = receive_buffer->procs->data[proc_index];
+      if (status.MPI_ERROR == MPI_ERR_TRUNCATE)
+      {
+        polymec_error("%d: MPI error receiving from %d (%d) %s\n"
+                      "(Expected %d bytes)\n", receive_buffer->rank, proc, 
+                      status.MPI_ERROR, errstr, (int)(receive_buffer->size));
+      }
+      else
+      {
+        polymec_error("%d: MPI error receiving from %d (%d) %s\n",
+                      receive_buffer->rank, proc, status.MPI_ERROR, errstr);
+      }
     }
-    else
-    {
-      polymec_error("%d: MPI error receiving from %d (%d) %s\n",
-                    receive_buffer->rank, proc, status.MPI_ERROR, errstr);
-    }
+    receive_buffer->request_states[proc_index] = COMPLETED;
   }
-  receive_buffer->completed[proc_index] = true;
 
   bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
   if (write_comm_buffers)
@@ -1633,6 +1715,7 @@ unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
   unimesh_observer_vtable obs_vtable = {
     .started_boundary_updates = remote_bc_started_boundary_updates,
     .started_boundary_update = remote_bc_started_boundary_update,
+    .about_to_finish_boundary_updates = remote_bc_about_to_finish_boundary_updates,
     .about_to_finish_boundary_update = remote_bc_about_to_finish_boundary_update
   };
   unimesh_observer_t* obs = unimesh_observer_new(bc, obs_vtable);
@@ -1656,6 +1739,12 @@ void* unimesh_patch_boundary_send_buffer(unimesh_t* mesh,
   ASSERT(remote_bc->send_buffers->data[token] != NULL);
   comm_buffer_t* buffer = remote_bc->send_buffers->data[token];
 
+#ifndef NDEBUG
+  // Make sure this is actually a process boundary.
+  int remote_proc = unimesh_owner_proc(mesh, i, j, k, boundary);
+  ASSERT(remote_proc != buffer->rank);
+#endif
+
   // Now return the pointer at the proper offset.
   return comm_buffer_data(buffer, i, j, k, boundary);
 }
@@ -1673,6 +1762,12 @@ void* unimesh_patch_boundary_receive_buffer(unimesh_t* mesh,
   ASSERT((size_t)token < remote_bc->receive_buffers->size);
   ASSERT(remote_bc->receive_buffers->data[token] != NULL);
   comm_buffer_t* buffer = remote_bc->receive_buffers->data[token];
+
+#ifndef NDEBUG
+  // Make sure this is actually a process boundary.
+  int remote_proc = unimesh_owner_proc(mesh, i, j, k, boundary);
+  ASSERT(remote_proc != buffer->rank);
+#endif
 
   // Now return the pointer at the proper offset.
   return comm_buffer_data(buffer, i, j, k, boundary);

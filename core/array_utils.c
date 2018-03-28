@@ -9,9 +9,9 @@
 #include "core/array_utils.h"
 
 // This is the generic implementation of lower_bound(). 
-static int lower_bound(void* array, size_t length, void* element, size_t elem_size, int (*comp)(const void*, const void*))
+static size_t lower_bound(void* array, size_t length, void* element, size_t elem_size, int (*comp)(const void*, const void*))
 {
-  int first = 0;
+  size_t first = 0;
   size_t count = length, step;
   while (count > 0)
   {
@@ -19,7 +19,7 @@ static int lower_bound(void* array, size_t length, void* element, size_t elem_si
     char* bytes = (char*)array;
     if (comp((void*)&bytes[elem_size*(first+step)], element) < 0)
     {
-      first += (int)(step+1);
+      first += step+1;
       count -= (step+1);
     }
     else
@@ -49,7 +49,7 @@ int* int_bsearch(int* array, size_t length, int element)
   return bsearch(&element, array, (size_t)length, sizeof(int), int_bsearch_comp);
 }
 
-int int_lower_bound(int* array, size_t length, int element)
+size_t int_lower_bound(int* array, size_t length, int element)
 {
   return lower_bound(array, length, &element, sizeof(int), int_bsearch_comp);
 }
@@ -85,7 +85,7 @@ index_t* index_bsearch(index_t* array, size_t length, index_t element)
   return bsearch(&element, array, (size_t)length, sizeof(index_t), index_bsearch_comp);
 }
 
-int index_lower_bound(index_t* array, size_t length, index_t element)
+size_t index_lower_bound(index_t* array, size_t length, index_t element)
 {
   return lower_bound(array, length, &element, sizeof(index_t), index_bsearch_comp);
 }
@@ -116,7 +116,7 @@ real_t* real_bsearch(real_t* array, size_t length, real_t element)
   return bsearch(&element, array, (size_t)length, sizeof(real_t), real_bsearch_comp);
 }
 
-int real_lower_bound(real_t* array, size_t length, real_t element)
+size_t real_lower_bound(real_t* array, size_t length, real_t element)
 {
   return lower_bound(array, length, &element, sizeof(real_t), real_bsearch_comp);
 }

@@ -225,6 +225,7 @@ void unimesh_field_set_patch_bc(unimesh_field_t* field,
 {
   START_FUNCTION_TIMER();
   ASSERT(unimesh_has_patch(field->mesh, i, j, k));
+  ASSERT(!unimesh_has_patch_bc(field->mesh, i, j, k, patch_boundary));
   ASSERT(patch_bc != NULL);
 
   int index = patch_index(field, i, j, k);

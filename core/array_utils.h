@@ -66,7 +66,7 @@ int* int_bsearch(int* array, size_t length, int element);
 
 // Returns the index of the (sorted) array at which the desired element 
 // appears (if it is present), or would appear (if it is not).
-int int_lower_bound(int* array, size_t length, int element);
+size_t int_lower_bound(int* array, size_t length, int element);
 
 // Sorts (in-place) the elements in an array of integers. Uses qsort().
 void int_qsort(int* array, size_t length);
@@ -87,7 +87,7 @@ index_t* index_bsearch(index_t* array, size_t length, index_t element);
 
 // Returns the index of the (sorted) array at which the desired element 
 // appears (if it is present), or would appear (if it is not).
-int index_lower_bound(index_t* array, size_t length, index_t element);
+size_t index_lower_bound(index_t* array, size_t length, index_t element);
 
 // Sorts (in-place) the elements in an array of indices. Uses qsort().
 void index_qsort(index_t* array, size_t length);
@@ -105,7 +105,7 @@ real_t* real_bsearch(real_t* array, size_t length, real_t element);
 
 // Returns the index of the (sorted) array at which the desired element 
 // appears (if it is present), or would appear (if it is not).
-int real_lower_bound(real_t* array, size_t length, real_t element);
+size_t real_lower_bound(real_t* array, size_t length, real_t element);
 
 // Sorts (in-place) the elements in an array of reals. Uses qsort().
 void real_qsort(real_t* array, size_t length);

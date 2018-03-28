@@ -297,7 +297,7 @@ static real_t model_next_acq_time(model_t* model)
   real_array_t* acq_times;
   while (probe_map_next(model->probes, &pos, &probe, &acq_times))
   {
-    int acq_time_index = real_lower_bound(acq_times->data, acq_times->size, model->time);
+    size_t acq_time_index = real_lower_bound(acq_times->data, acq_times->size, model->time);
     if (acq_time_index < acq_times->size)
     {
       real_t t = acq_times->data[acq_time_index];
@@ -544,17 +544,16 @@ void model_acquire(model_t* model)
   {
     // Figure out whether to actually acquire the data now.
     bool acquire_now = false;
-    int acq_time_index = real_lower_bound(acq_times->data, acq_times->size, 
-                                          model->time);
+    size_t acq_time_index = real_lower_bound(acq_times->data, acq_times->size, 
+                                             model->time);
     if ((acq_time_index < acq_times->size) &&
          reals_nearly_equal(model->time, acq_times->data[acq_time_index], 1e-12)) // FIXME: Good enough?
       acquire_now = true;
     else if (model->diag_mode == MODEL_DIAG_NEAREST_STEP)
     {
       real_t last_dt = model->dt;
-      int last_acq_time_index = real_lower_bound(acq_times->data, 
-                                                 acq_times->size, 
-                                                 model->time - last_dt);
+      size_t last_acq_time_index = real_lower_bound(acq_times->data, acq_times->size, 
+                                                    model->time - last_dt);
       if (last_acq_time_index < acq_time_index)
         acquire_now = true;
     }
