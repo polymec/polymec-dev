@@ -283,7 +283,8 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer,
   fprintf(stream, "Buffer size: %d\n", (int)buffer->size);
   for (size_t p = 0; p < buffer->procs->size; ++p)
   {
-    fprintf(stream, "Proc %d offsets:\n", buffer->procs->data[p]);
+    int proc = buffer->procs->data[p];
+    fprintf(stream, "Proc %d offsets:\n", proc);
     int pos = 0, i, j, k;
     while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
     {
@@ -291,12 +292,16 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer,
       static const char* bnames[6] = {"x1", "x2", "y1", "y2", "z1", "z2"};
       for (int b = 0; b < 6; ++b)
       {
-        int* off_p = int_int_unordered_map_get(buffer->offsets, 6*index+b);
-        if (off_p != NULL)
+        unimesh_boundary_t boundary = (unimesh_boundary_t)b;
+        if (proc == unimesh_owner_proc(buffer->mesh, i, j, k, boundary))
         {
-          size_t offset = buffer->proc_offsets[p] + *off_p;
-          fprintf(stream, " (%d, %d, %d), %s: %d (%d)\n", 
-                  i, j, k, bnames[b], (int)offset, *off_p);
+          int* off_p = int_int_unordered_map_get(buffer->offsets, 6*index+b);
+          if (off_p != NULL)
+          {
+            size_t offset = buffer->proc_offsets[p] + *off_p;
+            fprintf(stream, " (%d, %d, %d), %s: %d (%d)\n", 
+                i, j, k, bnames[b], (int)offset, *off_p);
+          }
         }
       }
     }
