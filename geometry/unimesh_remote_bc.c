@@ -314,6 +314,7 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer,
       pos += strlen(num_str);
     }
     fprintf(stream, "\ndata: %s\n", str);
+    polymec_free(str);
   }
 }
 
