@@ -292,7 +292,8 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer,
         if (off_p != NULL)
         {
           size_t offset = buffer->proc_offsets[p] + *off_p;
-          fprintf(stream, " (%d, %d, %d), %s: %d\n", i, j, k, bnames[b], (int)offset);
+          fprintf(stream, " (%d, %d, %d), %s: %d (%d)\n", 
+                  i, j, k, bnames[b], (int)offset, *off_p);
         }
       }
     }
@@ -466,6 +467,60 @@ static void comm_buffer_post(comm_buffer_t* comm_buff,
       if (req_proc == remote_proc)
         int_int_unordered_map_insert(comm_buff->post_requests, key, 0);
     }
+  }
+  STOP_FUNCTION_TIMER();
+}
+
+// This tells a comm buffer to wait for its requests to complete for 
+// the given process.
+static void comm_buffer_wait(comm_buffer_t* comm_buffer, int process)
+{
+  START_FUNCTION_TIMER();
+  // Find the process in the comm buffer's list.
+  int* proc_p = int_bsearch(comm_buffer->procs->data, 
+                            comm_buffer->procs->size, 
+                            process);
+  ASSERT(proc_p != NULL);
+  size_t proc_index = proc_p - comm_buffer->procs->data;
+  ASSERT(comm_buffer->procs->data[proc_index] == process);
+  ASSERT(comm_buffer->request_states[proc_index] != NOT_POSTED);
+
+  if (comm_buffer->request_states[proc_index] == POSTED)
+  {
+    MPI_Status status;
+    int err = MPI_Wait(&(comm_buffer->requests[proc_index]), &status);
+
+    // Handle errors.
+    if (err == MPI_ERR_IN_STATUS)
+    {
+      char errstr[MPI_MAX_ERROR_STRING];
+      int errlen;
+      MPI_Error_string(status.MPI_ERROR, errstr, &errlen);
+      int proc = comm_buffer->procs->data[proc_index];
+
+      // Now we can really get nitty-gritty and try to diagnose the
+      // problem carefully! 
+      if (comm_buffer->type == SEND)
+      {
+        polymec_error("%d: MPI error sending to %d (%d) %s\n",
+                      comm_buffer->rank, proc, status.MPI_ERROR, errstr);
+      }
+      else
+      {
+        if (status.MPI_ERROR == MPI_ERR_TRUNCATE)
+        {
+          polymec_error("%d: MPI error receiving from %d (%d) %s\n"
+                        "(Expected %d bytes)\n", comm_buffer->rank, proc, 
+                        status.MPI_ERROR, errstr, (int)(comm_buffer->size));
+        }
+        else
+        {
+          polymec_error("%d: MPI error receiving from %d (%d) %s\n",
+                        comm_buffer->rank, proc, status.MPI_ERROR, errstr);
+        }
+      }
+    }
+    comm_buffer->request_states[proc_index] = COMPLETED;
   }
   STOP_FUNCTION_TIMER();
 }
@@ -1560,54 +1615,11 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
   ASSERT(send_buffer->procs->data[proc_index] == remote_proc);
   ASSERT(receive_buffer->procs->data[proc_index] == remote_proc);
 
-  if (send_buffer->request_states[proc_index] != COMPLETED)
-  {
-    // Wait for our message to be sent.
-    MPI_Status status;
-    int err = MPI_Wait(&(send_buffer->requests[proc_index]), &status);
+  // Wait for our message to be sent.
+  comm_buffer_wait(send_buffer, remote_proc);
 
-    // Handle errors.
-    if (err == MPI_ERR_IN_STATUS)
-    {
-      char errstr[MPI_MAX_ERROR_STRING];
-      int errlen;
-      MPI_Error_string(status.MPI_ERROR, errstr, &errlen);
-      int proc = send_buffer->procs->data[proc_index];
-      polymec_error("%d: MPI error sending to %d (%d) %s\n",
-                    send_buffer->rank, proc, status.MPI_ERROR, errstr);
-    }
-    send_buffer->request_states[proc_index] = COMPLETED;
-  }
-
-  if (receive_buffer->request_states[proc_index] != COMPLETED)
-  {
-    // Now wait till we receive a message.
-    MPI_Status status;
-    int err = MPI_Wait(&(receive_buffer->requests[proc_index]), &status);
-
-    // Handle errors.
-    if (err == MPI_ERR_IN_STATUS)
-    {
-      char errstr[MPI_MAX_ERROR_STRING];
-      int errlen;
-      MPI_Error_string(status.MPI_ERROR, errstr, &errlen);
-      // Now we can really get nitty-gritty and try to diagnose the
-      // problem carefully! 
-      int proc = receive_buffer->procs->data[proc_index];
-      if (status.MPI_ERROR == MPI_ERR_TRUNCATE)
-      {
-        polymec_error("%d: MPI error receiving from %d (%d) %s\n"
-                      "(Expected %d bytes)\n", receive_buffer->rank, proc, 
-                      status.MPI_ERROR, errstr, (int)(receive_buffer->size));
-      }
-      else
-      {
-        polymec_error("%d: MPI error receiving from %d (%d) %s\n",
-                      receive_buffer->rank, proc, status.MPI_ERROR, errstr);
-      }
-    }
-    receive_buffer->request_states[proc_index] = COMPLETED;
-  }
+  // Now wait for the receive to finish.
+  comm_buffer_wait(receive_buffer, remote_proc);
 
   bool write_comm_buffers = options_has_argument(options_argv(), "write_comm_buffers");
   if (write_comm_buffers)
