@@ -196,7 +196,7 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
           int p_index = patch_index(buffer, i, j, k);
           int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
 
-          // Accumulate our running tally. 
+          // Update our running tally. 
           last_offset_for_proc[p] = offset + nc * remote_offsets[cent][b];
 
           // Stash a zero in the post requests mapping.
@@ -276,6 +276,9 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer,
   const char* buffer_types[2] = {"Send", "Receive"};
   fprintf(stream, "%s buffer on rank %d:\n", buffer_types[(int)buffer->type], buffer->rank);
   fprintf(stream, "Patch size: %d x %d x %d\n", buffer->nx, buffer->ny, buffer->nz);
+  static const char* centering_str[8] = 
+    {"cell", "x_face", "y_face", "z_face", "x_edge", "y_edge", "z_edge", "node"};
+  fprintf(stream, "Centering: %s\n", centering_str[(int)buffer->centering]);
   fprintf(stream, "Num components: %d\n", buffer->nc);
   fprintf(stream, "Buffer size: %d\n", (int)buffer->size);
   for (size_t p = 0; p < buffer->procs->size; ++p)
