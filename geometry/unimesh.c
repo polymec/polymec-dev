@@ -13,6 +13,7 @@
 #include "geometry/unimesh.h"
 #include "geometry/unimesh_patch.h"
 #include "geometry/unimesh_patch_bc.h"
+#include "geometry/unimesh_field.h"
 
 #if POLYMEC_HAVE_OPENMP
 #include <omp.h>
@@ -211,9 +212,9 @@ void unimesh_finalize(unimesh_t* mesh)
   STOP_FUNCTION_TIMER();
 }
 
-static int find_naive_rank_for_patch(unimesh_t* mesh, 
-                                     int start_patch_for_proc[mesh->nproc+1], 
-                                     int i, int j, int k)
+static int naive_rank_for_patch(unimesh_t* mesh, 
+                                int start_patch_for_proc[mesh->nproc+1], 
+                                int i, int j, int k)
 {
   int rank = mesh->rank;
   if ((i < 0) && mesh->periodic_in_x)
@@ -268,7 +269,7 @@ static void do_naive_partitioning(unimesh_t* mesh)
       for (int k = 0; k < npz; ++k)
       {
         // Which processes own this patch and its neighbors?
-        int my_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i, j, k);
+        int my_rank = naive_rank_for_patch(mesh, start_patch_for_proc, i, j, k);
         if (my_rank == mesh->rank)
         {
           int my_index = patch_index(mesh, i, j, k);
@@ -277,32 +278,32 @@ static void do_naive_partitioning(unimesh_t* mesh)
           unimesh_insert_patch(mesh, i, j, k);
 
           // x1 boundary
-          int x1_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i-1, j, k);
+          int x1_rank = naive_rank_for_patch(mesh, start_patch_for_proc, i-1, j, k);
           if (x1_rank != mesh->rank)
             int_int_unordered_map_insert(mesh->owner_procs, 6*my_index, x1_rank);
 
           // x2 boundary
-          int x2_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i+1, j, k);
+          int x2_rank = naive_rank_for_patch(mesh, start_patch_for_proc, i+1, j, k);
           if (x2_rank != mesh->rank)
             int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+1, x2_rank);
 
           // y1 boundary
-          int y1_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i, j-1, k);
+          int y1_rank = naive_rank_for_patch(mesh, start_patch_for_proc, i, j-1, k);
           if (y1_rank != mesh->rank)
             int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+2, y1_rank);
 
           // y2 boundary
-          int y2_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i, j+1, k);
+          int y2_rank = naive_rank_for_patch(mesh, start_patch_for_proc, i, j+1, k);
           if (y2_rank != mesh->rank)
             int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+3, y2_rank);
 
           // z1 boundary
-          int z1_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i, j, k-1);
+          int z1_rank = naive_rank_for_patch(mesh, start_patch_for_proc, i, j, k-1);
           if (z1_rank != mesh->rank)
             int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+4, z1_rank);
 
           // z2 boundary
-          int z2_rank = find_naive_rank_for_patch(mesh, start_patch_for_proc, i, j, k+1);
+          int z2_rank = naive_rank_for_patch(mesh, start_patch_for_proc, i, j, k+1);
           if (z2_rank != mesh->rank)
             int_int_unordered_map_insert(mesh->owner_procs, 6*my_index+5, z2_rank);
         }
@@ -1108,3 +1109,8 @@ void unimesh_remove_observer(unimesh_t* mesh,
   }
 }
 
+void repartition_unimesh(unimesh_t* mesh, 
+                         unimesh_field_t** fields,
+                         size_t num_fields)
+{
+}

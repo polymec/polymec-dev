@@ -77,6 +77,8 @@ void unimesh_finalize(unimesh_t* mesh);
 // Creates a new unimesh on the given MPI communicator with the given number 
 // of patches in the x, y, and z directions, each patch having nx x ny x nz
 // cells, filling the region defined by the given bounding box.
+// The initial partitioning for this mesh isn't great, so you might want to 
+// use repartition_unimesh() to improve it.
 unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                        int npx, int npy, int npz, 
                        int nx, int ny, int nz,
@@ -252,6 +254,13 @@ void unimesh_add_observer(unimesh_t* mesh,
 // Remove the observer remove the given unimesh, deleting the observer.
 void unimesh_remove_observer(unimesh_t* mesh,
                              unimesh_observer_t* observer);
+
+// Repartitions the given unimesh and redistributes data to each of the 
+// given fields.
+typedef struct unimesh_field_t unimesh_field_t;
+void repartition_unimesh(unimesh_t* mesh, 
+                         unimesh_field_t** fields,
+                         size_t num_fields);
 
 #endif
 
