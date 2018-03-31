@@ -23,7 +23,9 @@ typedef struct
 static int perm_cmp_func(void* thunk, const void* l, const void* r)
 {
   qsort_perm_cmp_t* cmp = thunk;
-  return cmp->cmp(l, r);
+  const qsort_perm_t* ll = l;
+  const qsort_perm_t* rr = r;
+  return cmp->cmp(ll->elem, rr->elem);
 }
 
 static void qsort_to_perm(void* array, 

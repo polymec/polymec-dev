@@ -22,6 +22,7 @@
 // x_array_t* x_array_new_with_size(size_t size) - Creates a new array of the given size on the heap.
 // x_array_t* x_array_new_with_capacity(size_t capacity) - Creates a new, empty array on the heap with the given capacity.
 // x_array_t* x_array_new_with_data(x* data, size_t size) - Creates an array around the given existing data.
+// x_array_t* x_array_clone(x_array_t* array) - Creates a copy of the given array.
 // x_array_t empty_x_array() - Creates a new, empty array on the stack.
 // void x_array_free(x_array_t* array) - Destroys the (heap-allocated) array.
 // x* x_array_find(x_array_t* array, x value, cmp_func comparator) - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
@@ -138,6 +139,17 @@ static inline array_name##_t* array_name##_new_with_data(element* data, size_t s
   array->capacity = size; \
   array->owns = false; \
   return array; \
+} \
+\
+static inline array_name##_t* array_name##_clone(array_name##_t* array) \
+{ \
+  array_name##_t* clone = array_name##_new_with_data(array->data, array->size); \
+  if (array->dtors != NULL) \
+  { \
+    clone->dtors = (array_name##_dtor*)polymec_malloc(sizeof(array_name##_dtor) * clone->capacity); \
+    memcpy(clone->dtors, array->dtors, sizeof(array_name##_dtor) * array->size); \
+  } \
+  return clone; \
 } \
 \
 static inline void array_name##_clear(array_name##_t* array) \
