@@ -8,6 +8,42 @@
 #include <stdlib.h>
 #include "core/array_utils.h"
 
+// Sort to a permutation array.
+typedef struct
+{
+  void* elem;
+  size_t index;
+} qsort_perm_t;
+
+typedef struct
+{
+  int (*cmp)(const void* l, const void* r);
+} qsort_perm_cmp_t;
+
+static int perm_cmp_func(void* thunk, const void* l, const void* r)
+{
+  qsort_perm_cmp_t* cmp = thunk;
+  return cmp->cmp(l, r);
+}
+
+static void qsort_to_perm(void* array, 
+                          size_t length, 
+                          size_t elem_size, 
+                          int (*cmp)(const void* l, const void* r),
+                          size_t* perm)
+{
+  qsort_perm_t elems[length];
+  for (size_t i = 0; i < length; ++i)
+  {
+    elems[i].elem = &(((char*)array)[elem_size*i]);
+    elems[i].index = i;
+  }
+  qsort_perm_cmp_t perm_cmp = {.cmp = cmp};
+  qsort_r(elems, (size_t)length, sizeof(qsort_perm_t), &perm_cmp, perm_cmp_func);
+  for (size_t i = 0; i < length; ++i)
+    perm[i] = elems[i].index;
+}
+
 // This is the generic implementation of lower_bound(). 
 static size_t lower_bound(void* array, size_t length, void* element, size_t elem_size, int (*comp)(const void*, const void*))
 {
@@ -59,6 +95,11 @@ void int_qsort(int* array, size_t length)
   qsort(array, (size_t)length, sizeof(int), int_bsearch_comp);
 }
 
+void int_qsort_to_perm(int* array, size_t length, size_t* perm)
+{
+  qsort_to_perm(array, length, sizeof(int), int_bsearch_comp, perm);
+}
+
 void int_pair_qsort(int* array, size_t length)
 {
   qsort(array, (size_t)length, 2*sizeof(int), int_pair_bsearch_comp);
@@ -95,6 +136,11 @@ void index_qsort(index_t* array, size_t length)
   qsort(array, (size_t)length, sizeof(index_t), index_bsearch_comp);
 }
 
+void index_qsort_to_perm(index_t* array, size_t length, size_t* perm)
+{
+  qsort_to_perm(array, length, sizeof(index_t), index_bsearch_comp, perm);
+}
+
 void real_fill(real_t* array, size_t length, real_t value)
 {
   for (int i = 0; i < length; ++i)
@@ -124,5 +170,10 @@ size_t real_lower_bound(real_t* array, size_t length, real_t element)
 void real_qsort(real_t* array, size_t length)
 {
   qsort(array, (size_t)length, sizeof(real_t), real_bsearch_comp);
+}
+
+void real_qsort_to_perm(real_t* array, size_t length, size_t* perm)
+{
+  qsort_to_perm(array, length, sizeof(real_t), real_bsearch_comp, perm);
 }
 

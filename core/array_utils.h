@@ -71,6 +71,9 @@ size_t int_lower_bound(int* array, size_t length, int element);
 // Sorts (in-place) the elements in an array of integers. Uses qsort().
 void int_qsort(int* array, size_t length);
 
+// Sorts the elements in an array of integers into the permutation array perm.
+void int_qsort_to_perm(int* array, size_t length, size_t* perm);
+
 // Sorts (in-place) the elements in an array of integer pairs. Uses qsort().
 void int_pair_qsort(int* array, size_t length);
 
@@ -92,6 +95,9 @@ size_t index_lower_bound(index_t* array, size_t length, index_t element);
 // Sorts (in-place) the elements in an array of indices. Uses qsort().
 void index_qsort(index_t* array, size_t length);
 
+// Sorts the elements in an array of indices into the permutation array perm.
+void index_qsort_to_perm(index_t* array, size_t length, size_t* perm);
+
 // Fills an array of real numbers with the given value.
 void real_fill(real_t* array, size_t length, real_t value);
 
@@ -109,5 +115,8 @@ size_t real_lower_bound(real_t* array, size_t length, real_t element);
 
 // Sorts (in-place) the elements in an array of reals. Uses qsort().
 void real_qsort(real_t* array, size_t length);
+
+// Sorts the elements in an array of reals into the permutation array perm.
+void real_qsort_to_perm(real_t* array, size_t length, size_t* perm);
 
 #endif
