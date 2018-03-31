@@ -35,6 +35,7 @@
 // void x_map_insert_with_k_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_k_dtor) - Sets the value for the given key and associates a destructor for the key.
 // void x_map_insert_with_v_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_v_dtor) - Sets the value for the given key and associates a destructor for the value.
 // key_type x_map_change_key(x_map_t* map, x_map_key_t old_key, x_map_key_t new_key) - Renames old_key to new_key, overwriting new_key if it exists. Returns old key.
+// void x_map_swap(x_map_t* map, x_map_key_t key1, x_map_key_t key2) - Swaps the values for key1 and key2, including destructors.
 // void x_map_delete(x_map_t* map, x_map_key_t key) - Deletes the value for the given key.
 // bool x_map_next(x_map_t* map, int* pos, x_map_key_t* key, x_map_value_t* value) - Allows the traversal of the maps keys and values.
 // bool x_map_empty(x_map_t* map) - Returns true if empty, false otherwise.
@@ -145,7 +146,7 @@ static inline bool map_name##_keys_equal(map_name##_t* map, key_type key1, int h
   return ((hash1 == hash2) && map->equals(key1, key2)); \
 } \
 \
-static inline map_name##_value_t* map_name##_get(map_name##_t* map, key_type key) \
+static inline map_name##_entry_t* map_name##_get_entry(map_name##_t* map, key_type key) \
 { \
   int h = map_name##_hash(map, key); \
   int index = map_name##_index(map->bucket_count, h); \
@@ -153,10 +154,19 @@ static inline map_name##_value_t* map_name##_get(map_name##_t* map, key_type key
   while (entry != NULL) \
   { \
     if (map_name##_keys_equal(map, entry->key, entry->hash, key, h)) \
-      return &(entry->value); \
+      return entry; \
     entry = entry->next; \
   } \
   return NULL; \
+} \
+\
+static inline map_name##_value_t* map_name##_get(map_name##_t* map, key_type key) \
+{ \
+  map_name##_entry_t* entry = map_name##_get_entry(map, key); \
+  if (entry != NULL) \
+    return &(entry->value); \
+  else \
+    return NULL; \
 } \
 \
 static inline bool map_name##_contains(map_name##_t* map, key_type key) \
@@ -289,6 +299,19 @@ static inline key_type map_name##_change_key(map_name##_t* map, key_type old_key
       p = &current->next; \
   } \
   return key; \
+} \
+\
+static inline void map_name##_swap(map_name##_t* map, key_type key1, key_type key2) \
+{ \
+  map_name##_entry_t* e1 = map_name##_get_entry(map, key1); \
+  map_name##_entry_t* e2 = map_name##_get_entry(map, key2); \
+  ASSERT((e1 != NULL) && (e2 != NULL)); \
+  map_name##_entry_t temp = {.value = e1->value, .kv_dtor = e1->kv_dtor, \
+                             .k_dtor = e1->k_dtor, .v_dtor = e1->v_dtor}; \
+  e1->value = e2->value; e1->kv_dtor = e2->kv_dtor; \
+  e1->k_dtor = e2->k_dtor; e1->v_dtor = e2->v_dtor; \
+  e2->value = temp.value; e2->kv_dtor = temp.kv_dtor; \
+  e2->k_dtor = temp.k_dtor; e2->v_dtor = temp.v_dtor; \
 } \
 \
 static inline void map_name##_delete(map_name##_t* map, key_type key) \

@@ -46,10 +46,24 @@ static void test_##map_name##_insert(void** state) \
   map_name##_free(m); \
 } \
 \
+static void test_##map_name##_swap(void** state) \
+{ \
+  map_name##_t* m = map_name##_new(); \
+  for (int i = 0; i < 2; ++i) \
+    map_name##_insert(m, (char*)keys[i], element##_values[i]); \
+  map_name##_swap(m, (char*)keys[0], (char*)keys[1]); \
+  assert_true(map_name##_contains(m, (char*)keys[0])); \
+  assert_true(map_name##_contains(m, (char*)keys[1])); \
+  assert_true(*map_name##_get(m, (char*)keys[0]) == element##_values[1]); \
+  assert_true(*map_name##_get(m, (char*)keys[1]) == element##_values[0]); \
+  map_name##_free(m); \
+} \
+\
 static void test_##element##_unordered_map(void** state) \
 { \
   test_##map_name##_ctor(state); \
   test_##map_name##_insert(state); \
+  test_##map_name##_swap(state); \
 }
 
 DEFINE_UNORDERED_MAP_TEST(int_unordered_map, int)
