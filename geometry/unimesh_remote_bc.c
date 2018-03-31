@@ -78,6 +78,65 @@ static inline void get_patch_indices(comm_buffer_t* buffer, int index,
   *k = index - buffer->ny*buffer->nz*(*i) - buffer->nz*(*j);
 }
 
+// Helper for reordering receive buffer offsets to match its corresponding 
+// remote send buffer(s).
+static void receive_buffer_reorder(comm_buffer_t* buffer)
+{
+  ASSERT(buffer->type == RECEIVE);
+  START_FUNCTION_TIMER();
+
+  for (size_t p = 0; p < buffer->procs->size; ++p)
+  {
+    // Make a list of patch+boundary indices for the remote send buffer for 
+    // neighbor process p.
+    int_array_t* indices = int_array_new();
+    int_array_t* neighbor_indices = int_array_new();
+    int offset_proc = buffer->procs->data[p];
+    int pos = 0, i, j, k;
+    while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
+    {
+      for (int b = 0; b < 6; ++b)
+      {
+        unimesh_boundary_t boundary = (unimesh_boundary_t)b;
+        int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
+        if (remote_proc == offset_proc)
+        {
+          // Compute the index and append it.
+          int p_index = patch_index(buffer, i, j, k);
+          int index = 6*p_index + b;
+          int_array_append(indices, index);
+
+          // Compute the neighbor index and append it.
+          static int di[6] = {-1,1,0,0,0,0};
+          static int dj[6] = {0,0,-1,1,0,0};
+          static int dk[6] = {0,0,0,0,-1,1};
+          static int db[6] = {1,-1,1,-1,1,-1};
+          int i1 = i + di[b], j1 = j + dj[b], k1 = k + dk[b];
+          int p1_index = patch_index(buffer, i1, j1, k1);
+          int b1 = b + db[b];
+          int neighbor_index = 6*p1_index + b1;
+          int_array_append(neighbor_indices, neighbor_index);
+        }
+      }
+    }
+
+    // Create a permutation that can recreate the ordering of the neighbor 
+    // indices.
+    size_t perm[neighbor_indices->size];
+    int_qsort_to_perm(neighbor_indices->data, neighbor_indices->size, perm);
+
+    // Now remap the offsets from our old indices to our new ones.
+    for (size_t l = 0; l < indices->size; ++l)
+      int_int_unordered_map_swap(buffer->offsets, indices->data[l], indices->data[perm[l]]);
+
+    // Clean up.
+    int_array_free(indices);
+    int_array_free(neighbor_indices);
+  }
+
+  STOP_FUNCTION_TIMER();
+}
+
 static void comm_buffer_reset(comm_buffer_t* buffer, 
                               unimesh_centering_t centering,
                               int num_components)
@@ -205,6 +264,11 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
       }
     }
   }
+
+  // If this is a receive buffer, reorder its offsets to match its 
+  // remote send buffers.
+  if (buffer->type == RECEIVE)
+    receive_buffer_reorder(buffer);
 
   // Zero the storage arrays for debugging.
 #ifdef NDEBUG
