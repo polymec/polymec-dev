@@ -24,7 +24,7 @@ static unimesh_t* periodic_mesh(MPI_Comm comm)
                      true, true, true);
 }
 
-static unimesh_t* aperiodic_mesh(MPI_Comm comm)
+static unimesh_t* nonperiodic_mesh(MPI_Comm comm)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0,
                  .y1 = 0.0, .y2 = 1.0,
@@ -696,27 +696,27 @@ static void test_serial_periodic_node_field(void** state)
   test_node_field(state, mesh);
 }
 
-static void test_serial_aperiodic_cell_field(void** state)
+static void test_serial_nonperiodic_cell_field(void** state)
 {
-  unimesh_t* mesh = aperiodic_mesh(MPI_COMM_SELF);
+  unimesh_t* mesh = nonperiodic_mesh(MPI_COMM_SELF);
   test_cell_field(state, mesh);
 }
 
-static void test_serial_aperiodic_face_fields(void** state)
+static void test_serial_nonperiodic_face_fields(void** state)
 {
-  unimesh_t* mesh = aperiodic_mesh(MPI_COMM_SELF);
+  unimesh_t* mesh = nonperiodic_mesh(MPI_COMM_SELF);
   test_face_fields(state, mesh);
 }
 
-static void test_serial_aperiodic_edge_fields(void** state)
+static void test_serial_nonperiodic_edge_fields(void** state)
 {
-  unimesh_t* mesh = aperiodic_mesh(MPI_COMM_SELF);
+  unimesh_t* mesh = nonperiodic_mesh(MPI_COMM_SELF);
   test_edge_fields(state, mesh);
 }
 
-static void test_serial_aperiodic_node_field(void** state)
+static void test_serial_nonperiodic_node_field(void** state)
 {
-  unimesh_t* mesh = aperiodic_mesh(MPI_COMM_SELF);
+  unimesh_t* mesh = nonperiodic_mesh(MPI_COMM_SELF);
   test_node_field(state, mesh);
 }
 
@@ -744,34 +744,34 @@ static void test_parallel_periodic_node_field(void** state)
   test_node_field(state, mesh);
 }
 
-static void test_parallel_aperiodic_cell_field(void** state)
+static void test_parallel_nonperiodic_cell_field(void** state)
 {
-  options_t* opt = options_argv();
-  options_add_argument(opt, "write_comm_buffers");
-  unimesh_t* mesh = aperiodic_mesh(MPI_COMM_WORLD);
+  unimesh_t* mesh = nonperiodic_mesh(MPI_COMM_WORLD);
   test_cell_field(state, mesh);
-  options_remove_argument(opt, options_num_arguments(opt)-1);
 }
 
-static void test_parallel_aperiodic_face_fields(void** state)
-{
-  unimesh_t* mesh = aperiodic_mesh(MPI_COMM_WORLD);
-  test_face_fields(state, mesh);
-}
-
-static void test_parallel_aperiodic_edge_fields(void** state)
-{
-  unimesh_t* mesh = aperiodic_mesh(MPI_COMM_WORLD);
-  test_edge_fields(state, mesh);
-}
-
-static void test_parallel_aperiodic_node_field(void** state)
+static void test_parallel_nonperiodic_face_fields(void** state)
 {
   options_t* opt = options_argv();
   options_add_argument(opt, "write_comm_buffers");
-  unimesh_t* mesh = aperiodic_mesh(MPI_COMM_WORLD);
-  test_node_field(state, mesh);
+  unimesh_t* mesh = nonperiodic_mesh(MPI_COMM_WORLD);
+  test_face_fields(state, mesh);
   options_remove_argument(opt, options_num_arguments(opt)-1);
+}
+
+static void test_parallel_nonperiodic_edge_fields(void** state)
+{
+  options_t* opt = options_argv();
+  options_add_argument(opt, "write_comm_buffers");
+  unimesh_t* mesh = nonperiodic_mesh(MPI_COMM_WORLD);
+  test_edge_fields(state, mesh);
+  options_remove_argument(opt, options_num_arguments(opt)-1);
+}
+
+static void test_parallel_nonperiodic_node_field(void** state)
+{
+  unimesh_t* mesh = nonperiodic_mesh(MPI_COMM_WORLD);
+  test_node_field(state, mesh);
 }
 
 int main(int argc, char* argv[]) 
@@ -783,20 +783,20 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_serial_periodic_face_fields),
     cmocka_unit_test(test_serial_periodic_edge_fields),
     cmocka_unit_test(test_serial_periodic_node_field),
-    cmocka_unit_test(test_serial_aperiodic_cell_field),
-    cmocka_unit_test(test_serial_aperiodic_face_fields),
-    cmocka_unit_test(test_serial_aperiodic_edge_fields),
-    cmocka_unit_test(test_serial_aperiodic_node_field),
+    cmocka_unit_test(test_serial_nonperiodic_cell_field),
+    cmocka_unit_test(test_serial_nonperiodic_face_fields),
+    cmocka_unit_test(test_serial_nonperiodic_edge_fields),
+    cmocka_unit_test(test_serial_nonperiodic_node_field),
 #if 0
     cmocka_unit_test(test_parallel_periodic_cell_field),
     cmocka_unit_test(test_parallel_periodic_face_fields),
     cmocka_unit_test(test_parallel_periodic_edge_fields),
     cmocka_unit_test(test_parallel_periodic_node_field),
 #endif
-    cmocka_unit_test(test_parallel_aperiodic_cell_field),
-    cmocka_unit_test(test_parallel_aperiodic_face_fields),
-    cmocka_unit_test(test_parallel_aperiodic_edge_fields),
-    cmocka_unit_test(test_parallel_aperiodic_node_field)
+    cmocka_unit_test(test_parallel_nonperiodic_cell_field),
+    cmocka_unit_test(test_parallel_nonperiodic_face_fields),
+    cmocka_unit_test(test_parallel_nonperiodic_edge_fields),
+    cmocka_unit_test(test_parallel_nonperiodic_node_field)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
