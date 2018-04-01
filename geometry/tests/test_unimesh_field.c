@@ -20,7 +20,7 @@ static unimesh_t* periodic_mesh(MPI_Comm comm)
                  .y1 = 0.0, .y2 = 1.0,
                  .z1 = 0.0, .z2 = 1.0};
   return unimesh_new(comm, &bbox, 
-                     4, 4, 4, 10, 10, 10,
+                     4, 4, 4, 4, 8, 16,
                      true, true, true);
 }
 
@@ -30,7 +30,7 @@ static unimesh_t* nonperiodic_mesh(MPI_Comm comm)
                  .y1 = 0.0, .y2 = 1.0,
                  .z1 = 0.0, .z2 = 1.0};
   return unimesh_new(comm, &bbox, 
-                     4, 4, 4, 10, 10, 10,
+                     4, 4, 4, 4, 8, 16,
                      false, false, false);
 }
 

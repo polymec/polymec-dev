@@ -125,10 +125,10 @@ static void send_buffer_compute_offsets(comm_buffer_t* buffer,
   for (size_t p = 0; p < buffer->procs->size; ++p)
   {
     size_t last_offset = 0;
-    int offset_proc = buffer->procs->data[p];
+    int proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
     unimesh_boundary_t boundary;
-    while (comm_buffer_next_remote_boundary(buffer, offset_proc, &pos, 
+    while (comm_buffer_next_remote_boundary(buffer, proc, &pos, 
                                             &i, &j, &k, &boundary))
     {
       // Extract the offset for this patch.
@@ -152,16 +152,19 @@ static void receive_buffer_compute_offsets(comm_buffer_t* buffer,
 {
   START_FUNCTION_TIMER();
   int_int_unordered_map_clear(buffer->offsets);
+  int_array_t* indices = int_array_new();
+  int_array_t* remote_indices = int_array_new();
   for (size_t p = 0; p < buffer->procs->size; ++p)
   {
+    int_array_clear(indices);
+    int_array_clear(remote_indices);
+
     // Make a list of patch+boundary indices for the remote send buffer 
-    // for neighbor process p.
-    int_array_t* indices = int_array_new();
-    int_array_t* neighbor_indices = int_array_new();
-    int offset_proc = buffer->procs->data[p];
+    // on process p.
+    int proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
     unimesh_boundary_t boundary;
-    while (comm_buffer_next_remote_boundary(buffer, offset_proc, &pos, 
+    while (comm_buffer_next_remote_boundary(buffer, proc, &pos, 
                                             &i, &j, &k, &boundary))
     {
       // Compute our own patch+boundary index and append it.
@@ -179,14 +182,14 @@ static void receive_buffer_compute_offsets(comm_buffer_t* buffer,
       int i1 = i + di[b], j1 = j + dj[b], k1 = k + dk[b];
       int p1_index = patch_index(buffer, i1, j1, k1);
       int b1 = b + db[b];
-      int neighbor_index = 6*p1_index + b1;
-      int_array_append(neighbor_indices, neighbor_index);
+      int remote_index = 6*p1_index + b1;
+      int_array_append(remote_indices, remote_index);
     }
 
     // Create a permutation that can recreate the ordering of the remote
     // send buffer's indices.
-    size_t perm[neighbor_indices->size];
-    int_qsort_to_perm(neighbor_indices->data, neighbor_indices->size, perm);
+    size_t perm[remote_indices->size];
+    int_qsort_to_perm(remote_indices->data, remote_indices->size, perm);
 
     // Sort our indices with this permutation. This will order our local 
     // patch+boundary pairs to match the ordering for our remote send buffer.
@@ -198,14 +201,17 @@ static void receive_buffer_compute_offsets(comm_buffer_t* buffer,
     {
       // Stash the offset for this patch/boundary.
       int index = indices->data[l];
-      int p_index = index/6;
-      int b = index - 6*p_index;
-      int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
+      int_int_unordered_map_insert(buffer->offsets, index, (int)offset);
 
       // Update our running tally. 
+      int b = index - 6*(index/6);
       offset += buffer->nc * boundary_offsets[b];
     }
   }
+
+  // Clean up.
+  int_array_free(indices);
+  int_array_free(remote_indices);
   STOP_FUNCTION_TIMER();
 }
 
@@ -271,10 +277,10 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
   memset(proc_data_counts, 0, sizeof(size_t) * buffer->procs->size);
   for (size_t p = 0; p < buffer->procs->size; ++p)
   {
-    int offset_proc = buffer->procs->data[p];
+    int proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
     unimesh_boundary_t boundary;
-    while (comm_buffer_next_remote_boundary(buffer, offset_proc, &pos, 
+    while (comm_buffer_next_remote_boundary(buffer, proc, &pos, 
                                             &i, &j, &k, &boundary))
     {
       // Update our data count for this process.
@@ -303,10 +309,11 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
   int_int_unordered_map_clear(buffer->post_requests);
   for (size_t p = 0; p < buffer->procs->size; ++p)
   {
-    int offset_proc = buffer->procs->data[p];
+    int proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
     unimesh_boundary_t boundary;
-    while (comm_buffer_next_remote_boundary(buffer, offset_proc, &pos, &i, &j, &k, &boundary))
+    while (comm_buffer_next_remote_boundary(buffer, proc, &pos, 
+                                            &i, &j, &k, &boundary))
     {
       int p_index = patch_index(buffer, i, j, k);
       int b = (int)boundary;
