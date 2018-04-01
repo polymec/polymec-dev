@@ -33,12 +33,13 @@
 // void x_array_assign(x_array_t* array, size_t i, x value) - Assigns an x to position i within the array.
 // void x_array_assign_with_dtor(x_array_t* array, size_t i, x value, destructor dtor) - Assigns an x to position i within the array, using dtor to destroy when finished.
 // void x_array_remove(x_array_t* array, size_t i) - Removes the ith element from the array, shifting the following elements forward by one.
-// void x_array_swap(x_array_t* array, i, j) - Swaps the ith and jth elements in the array.
+// void x_array_swap(x_array_t* array, size_t i, size_t j) - Swaps the ith and jth elements in the array.
 // bool x_array_empty(x_array_t* array) - Returns true if empty, false otherwise.
 // void x_array_clear(x_array_t* array) - Clears the given array, making it empty.
 // void x_array_resize(x_array_t* array, size_t new_size) - Resizes the array, keeping data intact if possible.
 // void x_array_reserve(x_array_t* array, size_t new_capacity) - Reserves storage for the given capacity within the array. No effect if the array already has sufficient storage.
 // bool x_array_next(x_array_t* array, int* pos, x* element) - Allows traversal over the items in the array.
+// void x_array_reorder(x_array_t* array, size_t* permutation) - Reorders the elements of the array using the permutation array (which must be the same length as the array).
 // void x_array_release_data_and_free(x_array_t* array) - Releases control of the array data, allowing another entity to assume responsibility. Also destroys this object. USE CAREFULLY!!!
 // 
 // Member data for an array a:
@@ -300,6 +301,12 @@ static inline bool array_name##_next(array_name##_t* array, int* pos, element* v
   } \
   else \
     return false; \
+} \
+\
+static inline void array_name##_reorder(array_name##_t* array, size_t* permutation) \
+{ \
+  for (size_t i = 0; i < array->size-1; ++i) \
+    array_name##_swap(array, permutation[i], permutation[i+1]); \
 } \
 \
 static inline void array_name##_release_data_and_free(array_name##_t* array) \
