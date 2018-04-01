@@ -306,7 +306,12 @@ static inline bool array_name##_next(array_name##_t* array, int* pos, element* v
 static inline void array_name##_reorder(array_name##_t* array, size_t* permutation) \
 { \
   for (size_t i = 0; i < array->size-1; ++i) \
-    array_name##_swap(array, permutation[i], permutation[i+1]); \
+  { \
+    size_t index = permutation[i]; \
+    while (index < i) \
+      index = permutation[index]; \
+    array_name##_swap(array, i, index); \
+  } \
 } \
 \
 static inline void array_name##_release_data_and_free(array_name##_t* array) \
