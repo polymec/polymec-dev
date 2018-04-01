@@ -126,8 +126,14 @@ static void receive_buffer_reorder(comm_buffer_t* buffer)
     int_qsort_to_perm(neighbor_indices->data, neighbor_indices->size, perm);
 
     // Now remap the offsets from our old indices to our new ones.
+    // This is a bit delicate: we remap the offsets (values) to the keys 
+    // (patch+boundary indices) of the map using the inverse of the 
+    // permutation.
+    int old_offsets[indices->size]; 
     for (size_t l = 0; l < indices->size; ++l)
-      int_int_unordered_map_swap(buffer->offsets, indices->data[l], indices->data[perm[l]]);
+      old_offsets[l] = *int_int_unordered_map_get(buffer->offsets, indices->data[l]);
+    for (size_t l = 0; l < indices->size; ++l)
+      int_int_unordered_map_insert(buffer->offsets, indices->data[perm[l]], old_offsets[l]);
 
     // Clean up.
     int_array_free(indices);

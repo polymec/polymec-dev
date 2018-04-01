@@ -779,7 +779,6 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-#if 0
     cmocka_unit_test(test_serial_periodic_cell_field),
     cmocka_unit_test(test_serial_periodic_face_fields),
     cmocka_unit_test(test_serial_periodic_edge_fields),
@@ -788,17 +787,16 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_serial_aperiodic_face_fields),
     cmocka_unit_test(test_serial_aperiodic_edge_fields),
     cmocka_unit_test(test_serial_aperiodic_node_field),
+#if 0
     cmocka_unit_test(test_parallel_periodic_cell_field),
     cmocka_unit_test(test_parallel_periodic_face_fields),
     cmocka_unit_test(test_parallel_periodic_edge_fields),
     cmocka_unit_test(test_parallel_periodic_node_field),
 #endif
     cmocka_unit_test(test_parallel_aperiodic_cell_field),
-#if 0
     cmocka_unit_test(test_parallel_aperiodic_face_fields),
     cmocka_unit_test(test_parallel_aperiodic_edge_fields),
     cmocka_unit_test(test_parallel_aperiodic_node_field)
-#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
