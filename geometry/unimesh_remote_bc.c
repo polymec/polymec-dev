@@ -78,6 +78,44 @@ static inline void get_patch_indices(comm_buffer_t* buffer, int index,
   *k = index - buffer->ny*buffer->nz*(*i) - buffer->nz*(*j);
 }
 
+// Helper for traversing patch+boundary pairs for a given remote process 
+// in a comm buffer.
+static bool comm_buffer_next_remote_boundary(comm_buffer_t* buffer, 
+                                             int remote_proc, int* pos, 
+                                             int* i, int* j, int* k, 
+                                             unimesh_boundary_t* boundary)
+{
+  if (*pos == 0)
+    *boundary = UNIMESH_Z2_BOUNDARY;
+  bool result = true;
+  if (*boundary == UNIMESH_Z2_BOUNDARY) // move to the next patch
+  {
+    result = unimesh_next_patch(buffer->mesh, pos, i, j, k, NULL);
+    if (!result) return false;
+    *boundary = UNIMESH_X1_BOUNDARY;
+  }
+  else // stay in this patch and increment the boundary
+    *boundary = (unimesh_boundary_t)((int)(*boundary) + 1);
+
+  // Now we find out whether this patch+boundary pair belongs to our 
+  // remote_proc. If not, move along till we find one that does.
+  int proc = unimesh_owner_proc(buffer->mesh, *i, *j, *k, *boundary);
+  if (proc == remote_proc) return true;
+  while (proc != remote_proc) // not ours
+  {
+    if (*boundary == UNIMESH_Z2_BOUNDARY)
+    {
+      result = unimesh_next_patch(buffer->mesh, pos, i, j, k, NULL);
+      if (!result) return false;
+      *boundary = UNIMESH_X1_BOUNDARY;
+    }
+    else
+      *boundary = (unimesh_boundary_t)((int)(*boundary) + 1);
+    proc = unimesh_owner_proc(buffer->mesh, *i, *j, *k, *boundary);
+  }
+  return result;
+}
+
 // Helper for reordering receive buffer offsets to match its corresponding 
 // remote send buffer(s).
 static void receive_buffer_reorder(comm_buffer_t* buffer)
@@ -141,6 +179,40 @@ static void receive_buffer_reorder(comm_buffer_t* buffer)
   }
 
   STOP_FUNCTION_TIMER();
+}
+
+static void comm_buffer_compute_offsets(comm_buffer_t* buffer, 
+                                        size_t boundary_offsets[6])
+{
+  // Now initialize our offset and post request maps.
+  int_int_unordered_map_clear(buffer->offsets);
+  size_t last_offset_for_proc[buffer->procs->size];
+  memset(last_offset_for_proc, 0, sizeof(size_t) * buffer->procs->size);
+  for (size_t p = 0; p < buffer->procs->size; ++p)
+  {
+    int offset_proc = buffer->procs->data[p];
+    int pos = 0, i, j, k;
+    unimesh_boundary_t boundary;
+    while (comm_buffer_next_remote_boundary(buffer, offset_proc, &pos, 
+                                            &i, &j, &k, &boundary))
+    {
+      // Extract the offset for this patch.
+      size_t offset = last_offset_for_proc[p];
+
+      // Stash the offset for this patch/boundary.
+      int p_index = patch_index(buffer, i, j, k);
+      int b = (int)boundary;
+      int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
+
+      // Update our running tally. 
+      last_offset_for_proc[p] = offset + buffer->nc * boundary_offsets[b];
+    }
+  }
+
+  // If this is a receive buffer, reorder its offsets to match its 
+  // remote send buffers.
+  if (buffer->type == RECEIVE)
+    receive_buffer_reorder(buffer);
 }
 
 static void comm_buffer_reset(comm_buffer_t* buffer, 
@@ -207,20 +279,13 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
   {
     int offset_proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
-    while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
+    unimesh_boundary_t boundary;
+    while (comm_buffer_next_remote_boundary(buffer, offset_proc, &pos, 
+                                            &i, &j, &k, &boundary))
     {
-      for (int b = 0; b < 6; ++b)
-      {
-        unimesh_boundary_t boundary = (unimesh_boundary_t)b;
-        int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
-        if (remote_proc == offset_proc)
-        {
-          ASSERT(remote_proc != buffer->rank);
-
-          // Update our data count for this process.
-          proc_data_counts[p] += nc * remote_offsets[cent][b];
-        }
-      }
+      // Update our data count for this process.
+      int b = (int)boundary;
+      proc_data_counts[p] += nc * remote_offsets[cent][b];
     }
   }
 
@@ -234,47 +299,23 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
   buffer->size = buffer->proc_offsets[buffer->procs->size];
   buffer->storage = polymec_realloc(buffer->storage, sizeof(real_t) * buffer->size);
 
-  // Now initialize our offset and post request maps.
-  int_int_unordered_map_clear(buffer->offsets);
+  // Compute offsets within our buffer segment.
+  comm_buffer_compute_offsets(buffer, remote_offsets[cent]);
+
+  // Initialize our post request map.
   int_int_unordered_map_clear(buffer->post_requests);
-  size_t last_offset_for_proc[buffer->procs->size];
-  memset(last_offset_for_proc, 0, sizeof(size_t) * buffer->procs->size);
   for (size_t p = 0; p < buffer->procs->size; ++p)
   {
     int offset_proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
-    while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
+    unimesh_boundary_t boundary;
+    while (comm_buffer_next_remote_boundary(buffer, offset_proc, &pos, &i, &j, &k, &boundary))
     {
-      for (int b = 0; b < 6; ++b)
-      {
-        unimesh_boundary_t boundary = (unimesh_boundary_t)b;
-        int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
-        if (remote_proc == offset_proc)
-        {
-          ASSERT(remote_proc != buffer->rank);
-
-          // Extract the offset for this patch.
-          size_t offset = last_offset_for_proc[p];
-          ASSERT(offset < proc_data_counts[p]);
-
-          // Stash the offset for this patch/boundary.
-          int p_index = patch_index(buffer, i, j, k);
-          int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
-
-          // Update our running tally. 
-          last_offset_for_proc[p] = offset + nc * remote_offsets[cent][b];
-
-          // Stash a zero in the post requests mapping.
-          int_int_unordered_map_insert(buffer->post_requests, 6*p_index+b, 0);
-        }
-      }
+      int p_index = patch_index(buffer, i, j, k);
+      int b = (int)boundary;
+      int_int_unordered_map_insert(buffer->post_requests, 6*p_index+b, 0);
     }
   }
-
-  // If this is a receive buffer, reorder its offsets to match its 
-  // remote send buffers.
-  if (buffer->type == RECEIVE)
-    receive_buffer_reorder(buffer);
 
   // Zero the storage arrays for debugging.
 #ifdef NDEBUG
@@ -307,15 +348,9 @@ static comm_buffer_t* comm_buffer_new(unimesh_t* mesh)
   int pos = 0, i, j, k;
   while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
   {
-    static unimesh_boundary_t boundaries[6] = {UNIMESH_X1_BOUNDARY, 
-                                               UNIMESH_X2_BOUNDARY,
-                                               UNIMESH_Y1_BOUNDARY, 
-                                               UNIMESH_Y2_BOUNDARY,
-                                               UNIMESH_Z1_BOUNDARY, 
-                                               UNIMESH_Z2_BOUNDARY};
     for (int b = 0; b < 6; ++b)
     {
-      unimesh_boundary_t boundary = boundaries[b];
+      unimesh_boundary_t boundary = (unimesh_boundary_t)b;
       int p_b = unimesh_owner_proc(mesh, i, j, k, boundary);
       if (p_b != buffer->rank)
       {
