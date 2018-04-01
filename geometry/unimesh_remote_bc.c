@@ -116,80 +116,15 @@ static bool comm_buffer_next_remote_boundary(comm_buffer_t* buffer,
   return result;
 }
 
-// Helper for reordering receive buffer offsets to match its corresponding 
-// remote send buffer(s).
-static void receive_buffer_reorder(comm_buffer_t* buffer)
-{
-  ASSERT(buffer->type == RECEIVE);
-  START_FUNCTION_TIMER();
-
-  for (size_t p = 0; p < buffer->procs->size; ++p)
-  {
-    // Make a list of patch+boundary indices for the remote send buffer for 
-    // neighbor process p.
-    int_array_t* indices = int_array_new();
-    int_array_t* neighbor_indices = int_array_new();
-    int offset_proc = buffer->procs->data[p];
-    int pos = 0, i, j, k;
-    while (unimesh_next_patch(buffer->mesh, &pos, &i, &j, &k, NULL))
-    {
-      for (int b = 0; b < 6; ++b)
-      {
-        unimesh_boundary_t boundary = (unimesh_boundary_t)b;
-        int remote_proc = unimesh_owner_proc(buffer->mesh, i, j, k, boundary);
-        if (remote_proc == offset_proc)
-        {
-          // Compute the index and append it.
-          int p_index = patch_index(buffer, i, j, k);
-          int index = 6*p_index + b;
-          int_array_append(indices, index);
-
-          // Compute the neighbor index and append it.
-          static int di[6] = {-1,1,0,0,0,0};
-          static int dj[6] = {0,0,-1,1,0,0};
-          static int dk[6] = {0,0,0,0,-1,1};
-          static int db[6] = {1,-1,1,-1,1,-1};
-          int i1 = i + di[b], j1 = j + dj[b], k1 = k + dk[b];
-          int p1_index = patch_index(buffer, i1, j1, k1);
-          int b1 = b + db[b];
-          int neighbor_index = 6*p1_index + b1;
-          int_array_append(neighbor_indices, neighbor_index);
-        }
-      }
-    }
-
-    // Create a permutation that can recreate the ordering of the neighbor 
-    // indices.
-    size_t perm[neighbor_indices->size];
-    int_qsort_to_perm(neighbor_indices->data, neighbor_indices->size, perm);
-
-    // Now remap the offsets from our old indices to our new ones.
-    // This is a bit delicate: we remap the offsets (values) to the keys 
-    // (patch+boundary indices) of the map using the inverse of the 
-    // permutation.
-    int old_offsets[indices->size]; 
-    for (size_t l = 0; l < indices->size; ++l)
-      old_offsets[l] = *int_int_unordered_map_get(buffer->offsets, indices->data[l]);
-    for (size_t l = 0; l < indices->size; ++l)
-      int_int_unordered_map_insert(buffer->offsets, indices->data[perm[l]], old_offsets[l]);
-
-    // Clean up.
-    int_array_free(indices);
-    int_array_free(neighbor_indices);
-  }
-
-  STOP_FUNCTION_TIMER();
-}
-
-static void comm_buffer_compute_offsets(comm_buffer_t* buffer, 
+// Computes patch+boundary offsets for send buffers.
+static void send_buffer_compute_offsets(comm_buffer_t* buffer, 
                                         size_t boundary_offsets[6])
 {
-  // Now initialize our offset and post request maps.
+  START_FUNCTION_TIMER();
   int_int_unordered_map_clear(buffer->offsets);
-  size_t last_offset_for_proc[buffer->procs->size];
-  memset(last_offset_for_proc, 0, sizeof(size_t) * buffer->procs->size);
   for (size_t p = 0; p < buffer->procs->size; ++p)
   {
+    size_t last_offset = 0;
     int offset_proc = buffer->procs->data[p];
     int pos = 0, i, j, k;
     unimesh_boundary_t boundary;
@@ -197,7 +132,7 @@ static void comm_buffer_compute_offsets(comm_buffer_t* buffer,
                                             &i, &j, &k, &boundary))
     {
       // Extract the offset for this patch.
-      size_t offset = last_offset_for_proc[p];
+      size_t offset = last_offset;
 
       // Stash the offset for this patch/boundary.
       int p_index = patch_index(buffer, i, j, k);
@@ -205,14 +140,73 @@ static void comm_buffer_compute_offsets(comm_buffer_t* buffer,
       int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
 
       // Update our running tally. 
-      last_offset_for_proc[p] = offset + buffer->nc * boundary_offsets[b];
+      last_offset = offset + buffer->nc * boundary_offsets[b];
     }
   }
+  STOP_FUNCTION_TIMER();
+}
 
-  // If this is a receive buffer, reorder its offsets to match its 
-  // remote send buffers.
-  if (buffer->type == RECEIVE)
-    receive_buffer_reorder(buffer);
+// Computes patch+boundary offsets for receive buffers.
+static void receive_buffer_compute_offsets(comm_buffer_t* buffer, 
+                                           size_t boundary_offsets[6])
+{
+  START_FUNCTION_TIMER();
+  int_int_unordered_map_clear(buffer->offsets);
+  for (size_t p = 0; p < buffer->procs->size; ++p)
+  {
+    // Make a list of patch+boundary indices for the remote send buffer 
+    // for neighbor process p.
+    int_array_t* indices = int_array_new();
+    int_array_t* neighbor_indices = int_array_new();
+    int offset_proc = buffer->procs->data[p];
+    int pos = 0, i, j, k;
+    unimesh_boundary_t boundary;
+    while (comm_buffer_next_remote_boundary(buffer, offset_proc, &pos, 
+                                            &i, &j, &k, &boundary))
+    {
+      // Compute our own patch+boundary index and append it.
+      int p_index = patch_index(buffer, i, j, k);
+      int b = (int)boundary;
+      int index = 6*p_index + b;
+      int_array_append(indices, index);
+
+      // Compute the remote send buffer's patch+boundary index
+      // and append it.
+      static int di[6] = {-1,1,0,0,0,0};
+      static int dj[6] = {0,0,-1,1,0,0};
+      static int dk[6] = {0,0,0,0,-1,1};
+      static int db[6] = {1,-1,1,-1,1,-1};
+      int i1 = i + di[b], j1 = j + dj[b], k1 = k + dk[b];
+      int p1_index = patch_index(buffer, i1, j1, k1);
+      int b1 = b + db[b];
+      int neighbor_index = 6*p1_index + b1;
+      int_array_append(neighbor_indices, neighbor_index);
+    }
+
+    // Create a permutation that can recreate the ordering of the remote
+    // send buffer's indices.
+    size_t perm[neighbor_indices->size];
+    int_qsort_to_perm(neighbor_indices->data, neighbor_indices->size, perm);
+
+    // Sort our indices with this permutation. This will order our local 
+    // patch+boundary pairs to match the ordering for our remote send buffer.
+    int_array_reorder(indices, perm);
+    
+    // Now compute our offsets for each of these patch+boundary pairs.
+    size_t offset = 0;
+    for (size_t l = 0; l < indices->size; ++l)
+    {
+      // Stash the offset for this patch/boundary.
+      int index = indices->data[l];
+      int p_index = index/6;
+      int b = index - 6*p_index;
+      int_int_unordered_map_insert(buffer->offsets, 6*p_index+b, (int)offset);
+
+      // Update our running tally. 
+      offset += buffer->nc * boundary_offsets[b];
+    }
+  }
+  STOP_FUNCTION_TIMER();
 }
 
 static void comm_buffer_reset(comm_buffer_t* buffer, 
@@ -300,7 +294,10 @@ static void comm_buffer_reset(comm_buffer_t* buffer,
   buffer->storage = polymec_realloc(buffer->storage, sizeof(real_t) * buffer->size);
 
   // Compute offsets within our buffer segment.
-  comm_buffer_compute_offsets(buffer, remote_offsets[cent]);
+  if (buffer->type == SEND)
+    send_buffer_compute_offsets(buffer, remote_offsets[cent]);
+  else
+    receive_buffer_compute_offsets(buffer, remote_offsets[cent]);
 
   // Initialize our post request map.
   int_int_unordered_map_clear(buffer->post_requests);
@@ -378,6 +375,7 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer,
                                 bool show_data,
                                 FILE* stream)
 {
+  START_FUNCTION_TIMER();
   const char* buffer_types[2] = {"Send", "Receive"};
   fprintf(stream, "%s buffer on rank %d:\n", buffer_types[(int)buffer->type], buffer->rank);
   fprintf(stream, "Patch size: %d x %d x %d\n", buffer->nx, buffer->ny, buffer->nz);
@@ -426,6 +424,7 @@ static void comm_buffer_fprintf(comm_buffer_t* buffer,
     fprintf(stream, "\ndata: %s\n", str);
     polymec_free(str);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 static comm_buffer_t* send_buffer_new(unimesh_t* mesh, 

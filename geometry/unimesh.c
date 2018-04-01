@@ -842,6 +842,7 @@ void unimesh_start_updating_patch_boundaries(unimesh_t* mesh, int token)
                                            buffer->centering, buffer->nc);
     }
   }
+  STOP_FUNCTION_TIMER();
 }
 
 void unimesh_finish_updating_patch_boundaries(unimesh_t* mesh, int token);
