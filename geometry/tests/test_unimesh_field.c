@@ -758,11 +758,8 @@ static void test_parallel_nonperiodic_face_fields(void** state)
 
 static void test_parallel_nonperiodic_edge_fields(void** state)
 {
-  options_t* opt = options_argv();
-  options_add_argument(opt, "write_comm_buffers");
   unimesh_t* mesh = nonperiodic_mesh(MPI_COMM_WORLD);
   test_edge_fields(state, mesh);
-  options_remove_argument(opt, options_num_arguments(opt)-1);
 }
 
 static void test_parallel_nonperiodic_node_field(void** state)
