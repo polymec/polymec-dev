@@ -1747,15 +1747,6 @@ static void remote_bc_about_to_finish_boundary_update(void* context,
   comm_buffer_t* receive_buffer = remote_bc->receive_buffers->data[token];
   ASSERT(send_buffer->procs->size == receive_buffer->procs->size);
 
-  // Use the remote process to fetch the corresponding MPI requests. 
-  int* remote_proc_p = int_bsearch(send_buffer->procs->data, send_buffer->procs->size, remote_proc);
-  ASSERT(remote_proc_p != NULL);
-#ifndef NDEBUG
-  size_t proc_index = remote_proc_p - send_buffer->procs->data;
-  ASSERT(send_buffer->procs->data[proc_index] == remote_proc);
-  ASSERT(receive_buffer->procs->data[proc_index] == remote_proc);
-#endif
-
   // Wait for our message to be sent.
   comm_buffer_wait(send_buffer, remote_proc);
 
