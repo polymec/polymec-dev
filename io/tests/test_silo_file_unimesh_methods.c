@@ -33,6 +33,7 @@ static void test_write_unimesh(void** state)
   assert_true(reals_equal(time, 0.0));
   assert_true(silo_file_contains_unimesh(silo, "mesh"));
   unimesh_t* mesh2 = silo_file_read_unimesh(silo, "mesh");
+  silo_file_close(silo);
   int npx, npy, npz, nx, ny, nz;
   unimesh_get_extents(mesh2, &npx, &npy, &npz);
   assert_int_equal(npx, 4);
@@ -46,7 +47,6 @@ static void test_write_unimesh(void** state)
     for (int j = 0; j < 4; ++j)
       for (int k = 0; k < 4; ++k)
         assert_true(unimesh_has_patch(mesh1, i, j, k) == unimesh_has_patch(mesh2, i, j, k));
-  silo_file_close(silo);
   unimesh_free(mesh1); 
   unimesh_free(mesh2); 
 } 

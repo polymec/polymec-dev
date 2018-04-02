@@ -345,7 +345,6 @@ static void sort_global_cell_pairs(int* indices, int num_pairs)
 
 static void polymesh_distribute(polymesh_t** mesh, 
                                 MPI_Comm comm,
-                                adj_graph_t* global_graph, 
                                 int64_t* global_partition)
 {
   START_FUNCTION_TIMER();
@@ -1175,7 +1174,7 @@ migrator_t* partition_polymesh(polymesh_t** mesh, MPI_Comm comm, int* weights, r
 
   // Distribute the mesh.
   log_debug("partition_mesh: Distributing mesh to %d processes.", nprocs);
-  polymesh_distribute(mesh, comm, global_graph, global_partition);
+  polymesh_distribute(mesh, comm, global_partition);
 
   // Set up a migrator to distribute field data.
   int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
@@ -1221,6 +1220,7 @@ int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh,
     // Dumb, but correct.
     int64_t* global_partition = polymec_malloc(sizeof(int64_t) * global_mesh->num_cells);
     memset(global_partition, 0, sizeof(int64_t) * global_mesh->num_cells);
+    STOP_FUNCTION_TIMER();
     return global_partition;
   }
 
@@ -1292,7 +1292,7 @@ migrator_t* distribute_polymesh(polymesh_t** mesh, MPI_Comm comm, int64_t* globa
   adj_graph_t* global_graph = (m != NULL) ? graph_from_polymesh_cells(m) : NULL;
 
   // Distribute the mesh.
-  polymesh_distribute(mesh, comm, global_graph, global_partition);
+  polymesh_distribute(mesh, comm, global_partition);
 
   // Set up a migrator to distribute field data.
   int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
@@ -1329,7 +1329,10 @@ migrator_t* repartition_polymesh(polymesh_t** mesh, int* weights, real_t imbalan
 
   // On a single process, repartitioning has no meaning.
   if (nprocs == 1)
+  {
+    STOP_FUNCTION_TIMER();
     return migrator_new(m->comm);
+  }
 
   // Generate a local adjacency graph for the mesh.
   adj_graph_t* local_graph = graph_from_polymesh_cells(m);

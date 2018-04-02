@@ -256,9 +256,14 @@ void unimesh_remove_observer(unimesh_t* mesh,
                              unimesh_observer_t* observer);
 
 // Repartitions the given unimesh and redistributes data to each of the 
-// given fields.
+// given fields. Here, the old mesh is consumed and a new one is created in 
+// its place. The fields are modified to hold the data in the new mesh.
+// Weights can be provided for each patch, and the partitioning is performed 
+// so that the load imbalance does not exceed the given tolerance.
 typedef struct unimesh_field_t unimesh_field_t;
-void repartition_unimesh(unimesh_t* mesh, 
+void repartition_unimesh(unimesh_t** mesh, 
+                         int* weights,
+                         real_t imbalance_tol,
                          unimesh_field_t** fields,
                          size_t num_fields);
 

@@ -15,6 +15,11 @@
 #include "geometry/unimesh_patch_bc.h"
 #include "geometry/unimesh_field.h"
 
+#if POLYMEC_HAVE_MPI
+#include "core/adj_graph.h"
+#include "ptscotch.h"
+#endif
+
 #if POLYMEC_HAVE_OPENMP
 #include <omp.h>
 #endif
@@ -205,9 +210,6 @@ void unimesh_finalize(unimesh_t* mesh)
 
   // Now make sure every patch has a set of boundary conditions.
   set_up_patch_bcs(mesh);
-
-  // Don't let anyone in our communicator go flying ahead.
-  MPI_Barrier(mesh->comm);
 
   STOP_FUNCTION_TIMER();
 }
@@ -1110,8 +1112,74 @@ void unimesh_remove_observer(unimesh_t* mesh,
   }
 }
 
-void repartition_unimesh(unimesh_t* mesh, 
+#if POLYMEC_HAVE_MPI
+extern int64_t* partition_graph(adj_graph_t* global_graph, 
+                                MPI_Comm comm,
+                                int* weights,
+                                real_t imbalance_tol);
+
+static adj_graph_t* graph_from_unimesh_patches(unimesh_t* mesh)
+{
+  return NULL;
+}
+
+static void redistribute_unimesh(unimesh_t** mesh, int64_t* partition)
+{
+}
+
+static void redistribute_unimesh_field(unimesh_field_t* field, int64_t* partition)
+{
+}
+#endif
+
+void repartition_unimesh(unimesh_t** mesh, 
+                         int* weights,
+                         real_t imbalance_tol,
                          unimesh_field_t** fields,
                          size_t num_fields)
 {
+  ASSERT((weights == NULL) || (imbalance_tol > 0.0));
+  ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
+  ASSERT(imbalance_tol > 0.0);
+  ASSERT(imbalance_tol <= 1.0);
+#if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
+  _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
+
+  // On a single process, repartitioning has no meaning.
+  if ((*mesh)->nproc == 1) 
+  {
+    STOP_FUNCTION_TIMER();
+    return;
+  }
+
+  // If meshes on rank != 0 are not NULL, we delete them.
+  unimesh_t* m = *mesh;
+  if ((m->rank != 0) && (m != NULL))
+  {
+    unimesh_free(m);
+    *mesh = m = NULL; 
+  }
+
+  // Generate a global adjacency graph for the mesh.
+  adj_graph_t* graph = graph_from_unimesh_patches(m);
+
+  log_debug("repartition_unimesh: Repartitioning mesh on %d subdomains.", m->nproc);
+
+  // Map the graph to the different domains, producing a partition vector.
+  int64_t* partition = (m->rank == 0) ? partition_graph(graph, m->comm, weights, imbalance_tol): NULL;
+
+  // Redistribute the mesh. 
+  redistribute_unimesh(mesh, partition);
+
+  // Redistribute the fields.
+  for (size_t f = 0; f < num_fields; ++f)
+    redistribute_unimesh_field(fields[f], partition);
+
+  // Clean up.
+  adj_graph_free(graph);
+  polymec_free(partition);
+
+  STOP_FUNCTION_TIMER();
+#endif
 }
