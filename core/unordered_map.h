@@ -325,10 +325,13 @@ static inline void map_name##_delete(map_name##_t* map, key_type key) \
       *p = current->next; \
       if (current->kv_dtor != NULL) \
         (*current->kv_dtor)(current->key, current->value); \
-      else if (current->k_dtor != NULL) \
-        (*current->k_dtor)(current->key); \
-      else if (current->v_dtor != NULL) \
-        (*current->v_dtor)(current->value); \
+      else \
+      { \
+        if (current->k_dtor != NULL) \
+          (*current->k_dtor)(current->key); \
+        if (current->v_dtor != NULL) \
+          (*current->v_dtor)(current->value); \
+      } \
       polymec_free(current); \
       map->size--; \
     }\
