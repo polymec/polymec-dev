@@ -558,10 +558,10 @@ struct silo_file_t
   // Scratch space for storing named temporary data.
   string_ptr_unordered_map_t* scratch;
 
+  MPI_Comm comm;
 #if POLYMEC_HAVE_MPI
   // Stuff for poor man's parallel I/O.
   PMPIO_baton_t* baton;
-  MPI_Comm comm;
   int num_files, mpi_tag, nproc, rank, group_rank, rank_in_group;
 
   // Data appearing on more than one proc within a domain decomposition.
@@ -852,9 +852,9 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
   set_prefix(file, file_prefix);
 
+  file->comm = comm;
 #if POLYMEC_HAVE_MPI
   file->mpi_tag = SILO_FILE_MPI_TAG;
-  file->comm = comm;
   MPI_Comm_size(file->comm, &file->nproc);
   MPI_Comm_rank(file->comm, &file->rank);
   if (num_files == -1)
@@ -1045,9 +1045,9 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   set_prefix(file, file_prefix);
 
   int nproc = 1;
+  file->comm = comm;
 #if POLYMEC_HAVE_MPI
   file->mpi_tag = SILO_FILE_MPI_TAG;
-  file->comm = comm;
   MPI_Comm_size(file->comm, &nproc); 
 #endif
 
