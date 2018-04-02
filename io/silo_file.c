@@ -852,6 +852,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 
   set_prefix(file, file_prefix);
 
+  file->dirs = NULL;
   file->comm = comm;
 #if POLYMEC_HAVE_MPI
   file->mpi_tag = SILO_FILE_MPI_TAG;
@@ -862,7 +863,6 @@ silo_file_t* silo_file_new(MPI_Comm comm,
   else
     file->num_files = num_files;
   ASSERT(file->num_files <= file->nproc);
-  file->dirs = NULL;
 
   if (file->nproc > 1)
   {
@@ -1046,6 +1046,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
 
   int nproc = 1;
   file->comm = comm;
+  file->dirs = NULL;
 #if POLYMEC_HAVE_MPI
   file->mpi_tag = SILO_FILE_MPI_TAG;
   MPI_Comm_size(file->comm, &nproc); 
@@ -1119,7 +1120,6 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   MPI_Comm_rank(file->comm, &file->rank); 
   file->num_files = num_files; // number of files in the data set.
   file->nproc = num_mpi_procs; // number of MPI procs used to write the thing.
-  file->dirs = NULL;
 
   if (file->nproc > 1)
   {
@@ -1289,7 +1289,6 @@ void silo_file_close(silo_file_t* file)
       write_provenance_to_file(file);
     }
     DBClose(file->dbfile);
-    string_slist_free(file->dirs);
   }
 #else
   // Write the file.
@@ -1304,6 +1303,8 @@ void silo_file_close(silo_file_t* file)
   log_debug("silo_file_close: Closed file.");
 
   // Clean up.
+  if (file->dirs != NULL)
+    string_slist_free(file->dirs);
   if (file->scratch != NULL)
     string_ptr_unordered_map_free(file->scratch);
   if (file->expressions != NULL)
