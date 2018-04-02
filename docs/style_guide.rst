@@ -61,7 +61,7 @@ ISO standard, which at the time of this writing is the "C11" standard
 Source Code Organization
 ========================
 
-Polymec comprises four C libraries:
+Polymec comprises five C libraries:
 
 * The ``core`` library, which contains utilities, scientific data structures,
   and components that can be used in applications. This library is used by the 
@@ -71,13 +71,17 @@ Polymec comprises four C libraries:
   algorithms for mesh generation, implicit functions and space-time functions, 
   and geometric operations in general. This library uses the ``core`` library.
 
-* The ``integrators`` library, which has classes and tools for integrating 
-  partial differential equations in space and in time. This library uses 
-  the ``core`` library.
+* The ``solvers`` library, which has classes and tools for solving 
+  nonlinear equations. This library uses the ``core`` library.
 
 * The ``model`` library, which contains high-level data structures for 
   constructing science applications and numerical models. This library uses 
-  the ``core`` library.
+  the ``core`` and ``geometry`` libraries.
+
+* The ``io`` library, which contains high-performance input/output classes
+  and functions that support most of the important types from the other 
+  libraries. This library uses the ``core``, ``model``, and ``geometry`` 
+  libraries.
 
 Each Polymec source file belongs to one of these libraries, and is located 
 in the subdirectory of Polymec named after that library.
@@ -403,24 +407,26 @@ Garbage Collection
 ------------------
 
 Classes representing small objects whose ownership is not clear-cut may use 
-garbage collection, enabled by the ``gc`` library of Boehm. An 
-object of a garbage-collected type has no destructor in its API, since its 
-destruction is performed automatically some time after all references to it 
-have been destroyed.
+a simple reference counting system supported by Lua. An object of a 
+garbage-collected type has no destructor in its API, since its destruction is 
+performed automatically some time after all references to it have been 
+destroyed.
 
-The Boehm garbage collector provides a malloc-replacement mechanism, 
-``GC_MALLOC``, that should be used to allocate memory for a garbage-collected
-object. Any resources managed by the garbage-collected object should be 
-allocated with ``polymec_malloc`` and freed with ``polymec_free``. The resources 
-should be freed in a private destructor that is registered with the garbage-
-collected object using the ``GC_register_finalizer`` function, also included 
-in the Boehm ``gc`` library.
+Use ``polymec_gc_malloc`` to allocate garbage-collected resources. Any 
+resources managed by the garbage-collected object should be allocated with 
+``polymec_malloc`` and freed with ``polymec_free``. The resources should be 
+freed in a private destructor supplied to ``polymec_gc_malloc``. 
+
+In Lua, garbage-collected objects are managed automatically. In C, you need 
+to increment the reference count of an object you need to keep around. Do 
+this with ``polymec_retain``. When you're finished with an object and you 
+don't care when it gets collected, release it with ``polymec_release``.
 
 For an example of a simple garbage-collected type in Polymec, see the ``point``
-class in ``core/point.h`` (and its ``gc``-based implementation in 
-``core/point.c``). For a more elaborate example of a garbage-collected type 
-that manages its own resources, see the ``st_func`` class in ``core/st_func.h`` 
-and ``core/st_func.c``.
+class in ``core/point.h`` (and its implementation in ``core/point.c``). For a 
+more elaborate example of a garbage-collected type that manages its own 
+resources, see the ``st_func`` class in ``core/st_func.h`` and 
+``core/st_func.c``.
 
 Special Allocators
 ------------------
