@@ -1,3 +1,13 @@
+Mon Apr  2 00:07:19 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.1.0
+      - Added structured mesh classes unimesh, unimesh_field, unimesh_patch.
+      - Added silo_file support for unimesh_*.
+      - Various bugfixes and enhancements to core data structures.
+      - Updated Python tools for Python 3.
+      - Filled out the mpi_serial stub library.
+      - Added a directory stack to silo_file.
+      - Enhanced code coverage for existing assets.
+      - Minor enhancements and bugfixes to kd-trees.
 Thu Nov 30 13:38:42 PST 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.0.1
       - Fixed a bug in garbage collection.
