@@ -13,19 +13,14 @@ typedef struct
 {
   void* elem;
   size_t index;
+  int (*cmp)(const void* l, const void* r);
 } qsort_perm_t;
 
-typedef struct
+static int perm_cmp_func(const void* l, const void* r)
 {
-  int (*cmp)(const void* l, const void* r);
-} qsort_perm_cmp_t;
-
-static int perm_cmp_func(void* thunk, const void* l, const void* r)
-{
-  qsort_perm_cmp_t* cmp = thunk;
   const qsort_perm_t* ll = l;
   const qsort_perm_t* rr = r;
-  return cmp->cmp(ll->elem, rr->elem);
+  return ll->cmp(ll->elem, rr->elem);
 }
 
 static void qsort_to_perm(void* array, 
@@ -39,9 +34,9 @@ static void qsort_to_perm(void* array,
   {
     elems[i].elem = &(((char*)array)[elem_size*i]);
     elems[i].index = i;
+    elems[i].cmp = cmp;
   }
-  qsort_perm_cmp_t perm_cmp = {.cmp = cmp};
-  qsort_r(elems, (size_t)length, sizeof(qsort_perm_t), &perm_cmp, perm_cmp_func);
+  qsort(elems, (size_t)length, sizeof(qsort_perm_t), perm_cmp_func);
   for (size_t i = 0; i < length; ++i)
     perm[i] = elems[i].index;
 }
