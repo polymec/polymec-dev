@@ -1080,8 +1080,17 @@ static void write_unimesh_patch_data(silo_file_t* file,
 
   // Allocate an array to use for writing Silo data.
   int dimensions[3] = {patch->nx+1, patch->ny+1, patch->nz+1};
-  size_t data_size = unimesh_patch_data_size(patch->centering, 
-                                             patch->nx, patch->ny, patch->nz, 1);
+  if (patch->centering == UNIMESH_CELL)
+  {
+    dimensions[0] = patch->nx;
+    dimensions[1] = patch->ny;
+    dimensions[2] = patch->nz;
+  }
+  size_t data_size;
+  if ((patch->centering == UNIMESH_CELL) || (patch->centering == UNIMESH_NODE))
+    data_size = dimensions[0] * dimensions[1] * dimensions[2];
+  else 
+    data_size = 3 * dimensions[0] * dimensions[1] * dimensions[2];
   real_t* data = polymec_malloc(sizeof(real_t) * data_size);
   int centering;
 
@@ -1128,9 +1137,6 @@ static void write_unimesh_patch_data(silo_file_t* file,
     else
     {
       ASSERT(patch->centering == UNIMESH_CELL);
-      dimensions[0] = patch->nx;
-      dimensions[1] = patch->ny;
-      dimensions[2] = patch->nz;
       centering = DB_ZONECENT;
       copy_out_unimesh_cell_component(patch, field_metadata, c, bbox, mapping, data);
       ready_to_write = true;
