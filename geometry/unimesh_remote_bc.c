@@ -155,6 +155,8 @@ static void receive_buffer_compute_offsets(comm_buffer_t* buffer,
   int_int_unordered_map_clear(buffer->offsets);
   int_array_t* indices = int_array_new();
   int_array_t* remote_indices = int_array_new();
+  bool x_periodic, y_periodic, z_periodic;
+  unimesh_get_periodicity(buffer->mesh, &x_periodic, &y_periodic, &z_periodic);
   for (size_t p = 0; p < buffer->procs->size; ++p)
   {
     int_array_clear(indices);
@@ -181,6 +183,21 @@ static void receive_buffer_compute_offsets(comm_buffer_t* buffer,
       static int dk[6] = {0,0,0,0,-1,1};
       static int db[6] = {1,-1,1,-1,1,-1};
       int i1 = i + di[b], j1 = j + dj[b], k1 = k + dk[b];
+      if ((i1 == -1) || (i1 == buffer->npx))
+      {
+        ASSERT(x_periodic);
+        i1 = (i1 == -1) ? buffer->npx-1 : 0;
+      }
+      if ((j1 == -1) || (j1 == buffer->npy))
+      {
+        ASSERT(y_periodic);
+        j1 = (j1 == -1) ? buffer->npy-1 : 0;
+      }
+      if ((k1 == -1) || (k1 == buffer->npz))
+      {
+        ASSERT(z_periodic);
+        k1 = (k1 == -1) ? buffer->npz-1 : 0;
+      }
       int p1_index = patch_index(buffer, i1, j1, k1);
       int b1 = b + db[b];
       int remote_index = 6*p1_index + b1;
