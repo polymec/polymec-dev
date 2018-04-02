@@ -51,6 +51,7 @@ typedef struct
   unimesh_t* mesh; // underlying mesh
   unimesh_centering_t centering; // field centering
   int rank; // rank in mesh communicator.
+  int npx, npy, npz; // number of patches in each dimension
   int nx, ny, nz, nc; // patch dimensions and number of components
   enum { SEND, RECEIVE } type; // is this a send or receive buffer?
   int_array_t* procs; // sorted list of remote processes
@@ -66,16 +67,16 @@ typedef struct
 // Maps (i, j, k) to a flat patch index.
 static inline int patch_index(comm_buffer_t* buffer, int i, int j, int k)
 {
-  return buffer->ny*buffer->nz*i + buffer->nz*j + k;
+  return buffer->npy*buffer->npz*i + buffer->npz*j + k;
 }
 
 // Maps a flat patch index back to (i, j, k).
 static inline void get_patch_indices(comm_buffer_t* buffer, int index, 
                                      int* i, int* j, int* k)
 {
-  *i = index/(buffer->ny*buffer->nz);
-  *j = (index - buffer->ny*buffer->nz*(*i))/buffer->nz;
-  *k = index - buffer->ny*buffer->nz*(*i) - buffer->nz*(*j);
+  *i = index/(buffer->npy*buffer->npz);
+  *j = (index - buffer->npy*buffer->npz*(*i))/buffer->npz;
+  *k = index - buffer->npy*buffer->npz*(*i) - buffer->npz*(*j);
 }
 
 // Helper for traversing patch+boundary pairs for a given remote process 
@@ -337,6 +338,7 @@ static comm_buffer_t* comm_buffer_new(unimesh_t* mesh)
   START_FUNCTION_TIMER();
   comm_buffer_t* buffer = polymec_malloc(sizeof(comm_buffer_t));
   buffer->mesh = mesh;
+  unimesh_get_extents(mesh, &buffer->npx, &buffer->npy, &buffer->npz);
   unimesh_get_patch_size(mesh, &buffer->nx, &buffer->ny, &buffer->nz);
   buffer->nc = -1;
   buffer->storage = NULL;

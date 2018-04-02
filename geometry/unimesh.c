@@ -131,6 +131,14 @@ static inline int patch_index(unimesh_t* mesh, int i, int j, int k)
   return mesh->npy*mesh->npz*i + mesh->npz*j + k;
 }
 
+static inline void get_patch_indices(unimesh_t* mesh, int index, 
+                                     int* i, int* j, int* k)
+{
+  *i = index/(mesh->npy*mesh->npz);
+  *j = (index - mesh->npy*mesh->npz*(*i))/mesh->npz;
+  *k = index - mesh->npy*mesh->npz*(*i) - mesh->npz*(*j);
+}
+
 void unimesh_insert_patch(unimesh_t* mesh, int i, int j, int k)
 {
   ASSERT(!mesh->finalized);
@@ -435,7 +443,7 @@ void unimesh_get_patch_size(unimesh_t* mesh, int* nx, int* ny, int* nz)
 
 int unimesh_num_patches(unimesh_t* mesh)
 {
-  return mesh->patches->size;
+  return (int)mesh->patches->size;
 }
 
 void unimesh_get_periodicity(unimesh_t* mesh, 
@@ -1120,15 +1128,235 @@ extern int64_t* partition_graph(adj_graph_t* global_graph,
 
 static adj_graph_t* graph_from_unimesh_patches(unimesh_t* mesh)
 {
-  return NULL;
+  // Create a graph whose vertices are the mesh's patches. NOTE
+  // that we associate this graph with the MPI_COMM_SELF communicator 
+  // because it's a global graph.
+  int num_patches = mesh->npx * mesh->npy * mesh->npz;
+  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, num_patches);
+
+  // Allocate space in the graph for the edges (patch boundaries).
+  for (int i = 0; i < mesh->npx; ++i)
+  {
+    int num_x_edges = (i == 0) ? (i == mesh->npx-1) ? mesh->periodic_in_x ? 2 
+                                                                          : 0
+                                                    : 1
+                               : (i == mesh->npx-1) ? 1
+                                                    : 2;
+    for (int j = 0; j < mesh->npy; ++j)
+    {
+      int num_y_edges = (j == 0) ? (j == mesh->npy-1) ? mesh->periodic_in_y ? 2 
+                                                                            : 0
+                                                      : 1
+                                 : (j == mesh->npy-1) ? 1
+                                                      : 2;
+      for (int k = 0; k < mesh->npz; ++k)
+      {
+        int num_z_edges = (k == 0) ? (k == mesh->npz-1) ? mesh->periodic_in_z ? 2 
+                                                                              : 0
+                                                        : 1
+                                   : (k == mesh->npz-1) ? 1
+                                                        : 2;
+        int num_edges = num_x_edges + num_y_edges + num_z_edges;
+        int p_index = patch_index(mesh, i, j, k);
+        adj_graph_set_num_edges(g, p_index, num_edges);
+      }
+    }
+  }
+
+  // Now fill in the edges.
+  for (int i = 0; i < mesh->npx; ++i)
+  {
+    for (int j = 0; j < mesh->npy; ++j)
+    {
+      for (int k = 0; k < mesh->npz; ++k)
+      {
+        int p_index = patch_index(mesh, i, j, k);
+        int* edges = adj_graph_edges(g, p_index);
+        int offset = 0;
+
+        if ((i == 0) && mesh->periodic_in_x)
+          edges[offset++] = patch_index(mesh, mesh->npx-1, j, k);
+        else if (i > 0)
+          edges[offset++] = patch_index(mesh, i-1, j, k);
+        if ((i == mesh->npx-1) && mesh->periodic_in_x)
+          edges[offset++] = patch_index(mesh, 0, j, k);
+        else if (i < mesh->npx-1)
+          edges[offset++] = patch_index(mesh, i+1, j, k);
+
+        if ((j == 0) && mesh->periodic_in_y)
+          edges[offset++] = patch_index(mesh, i, mesh->npy-1, k);
+        else if (j > 0)
+          edges[offset++] = patch_index(mesh, i, j-1, k);
+        if ((j == mesh->npy-1) && mesh->periodic_in_y)
+          edges[offset++] = patch_index(mesh, i, 0, k);
+        else if (j < mesh->npy-1)
+          edges[offset++] = patch_index(mesh, i, j+1, k);
+
+        if ((k == 0) && mesh->periodic_in_z)
+          edges[offset++] = patch_index(mesh, i, j, mesh->npz-1);
+        else if (k > 0)
+          edges[offset++] = patch_index(mesh, i, j, k-1);
+        if ((k == mesh->npz-1) && mesh->periodic_in_z)
+          edges[offset++] = patch_index(mesh, i, j, 0);
+        else if (k < mesh->npz-1)
+          edges[offset++] = patch_index(mesh, i, j, k+1);
+      }
+    }
+  }
+
+  return g;
 }
 
-static void redistribute_unimesh(unimesh_t** mesh, int64_t* partition)
+static int64_t* source_vector(unimesh_t* mesh)
 {
+  // Catalog all the patches on this process.
+  int_array_t* my_patches = int_array_new();
+  for (int i = 0; i < mesh->npx; ++i)
+  {
+    for (int j = 0; j < mesh->npy; ++j)
+    {
+      for (int k = 0; k < mesh->npz; ++k)
+      {
+        if (unimesh_has_patch(mesh, i, j, k))
+          int_array_append(my_patches, patch_index(mesh, i, j, k));
+      }
+    }
+  }
+
+  // Gather the numbers of patches owned by each process.
+  int num_my_patches = (int)my_patches->size;
+  int num_patches_for_proc[mesh->nproc];
+  MPI_Allgather(&num_my_patches, 1, MPI_INT, 
+                num_patches_for_proc, 1, MPI_INT, mesh->comm);
+
+  // Arrange for the storage of the patch indices for the patches stored 
+  // on each process.
+  int proc_offsets[mesh->nproc+1];
+  proc_offsets[0] = 0;
+  for (int p = 0; p < mesh->nproc; ++p)
+    proc_offsets[p+1] = proc_offsets[p] + num_patches_for_proc[p];
+
+  // Gæther the indices of the patches owned by all processes into a huge list.
+  int num_all_patches = mesh->npx * mesh->npy * mesh->npz;
+  ASSERT(num_all_patches == proc_offsets[mesh->nproc]);
+  int* all_patches = polymec_malloc(sizeof(int) * num_all_patches);
+  MPI_Allgatherv(my_patches->data, num_my_patches, MPI_INT, 
+                 all_patches, num_patches_for_proc, proc_offsets,
+                 MPI_INT, mesh->comm);
+
+  // Clean up a bit.
+  int_array_free(my_patches);
+
+  // Convert the huge list into a source vector.
+  int64_t* sources = polymec_malloc(sizeof(int64_t) * num_all_patches);
+  for (int p = 0; p < mesh->nproc; ++p)
+  {
+    for (int offset = proc_offsets[p]; offset < proc_offsets[p+1]; ++offset)
+      sources[all_patches[offset]] = (int64_t)p;
+  }
+
+  polymec_free(all_patches);
+  return sources;
 }
 
-static void redistribute_unimesh_field(unimesh_field_t* field, int64_t* partition)
+static void redistribute_unimesh(unimesh_t** mesh, 
+                                 int64_t* partition)
 {
+  START_FUNCTION_TIMER();
+
+  // Create a new mesh from the old one.
+  unimesh_t* old_mesh = *mesh;
+  unimesh_t* new_mesh = create_empty_unimesh(old_mesh->comm, &old_mesh->bbox,
+                                             old_mesh->npx, old_mesh->npy,
+                                             old_mesh->npz, old_mesh->nx,
+                                             old_mesh->ny, old_mesh->nz,
+                                             old_mesh->periodic_in_x, 
+                                             old_mesh->periodic_in_y,
+                                             old_mesh->periodic_in_z);
+
+  // Insert the new patches as prescribed by the partition vector.
+  int num_patches = new_mesh->npx * new_mesh->npy * new_mesh->npz;
+  for (int p = 0; p < num_patches; ++p)
+  {
+    if (partition[p] == new_mesh->rank)
+    {
+      int i, j, k;
+      get_patch_indices(new_mesh, p, &i, &j, &k);
+      unimesh_insert_patch(new_mesh, i, j, k);
+    }
+  }
+  unimesh_finalize(new_mesh);
+
+  // Replace the old mesh with the new one.
+  *mesh = new_mesh;
+  STOP_FUNCTION_TIMER();
+}
+
+static void redistribute_unimesh_field(unimesh_field_t** field, 
+                                       int64_t* partition,
+                                       int64_t* sources,
+                                       unimesh_t* new_mesh)
+{
+  START_FUNCTION_TIMER();
+
+  // Create a new field from the old one.
+  unimesh_field_t* old_field = *field;
+  unimesh_field_t* new_field = unimesh_field_new(new_mesh,
+                                                 unimesh_field_centering(old_field),
+                                                 unimesh_field_num_components(old_field));
+
+  // Post receives for each patch in the new field.
+  int num_new_local_patches = unimesh_field_num_patches(new_field);
+  MPI_Request recv_requests[num_new_local_patches];
+  int pos = 0, i, j, k;
+  unimesh_patch_t* patch;
+  int num_recv_reqs = 0;
+  while (unimesh_field_next_patch(new_field, &pos, &i, &j, &k, &patch, NULL))
+  {
+    int p = patch_index(new_mesh, i, j, k);
+    if (partition[p] == new_mesh->rank)
+    {
+      size_t data_size = unimesh_patch_data_size(patch->centering, 
+                                                 patch->nx, patch->ny, patch->nz,
+                                                 patch->nc);
+      int err = MPI_Irecv(patch->data, (int)data_size, MPI_REAL_T, (int)sources[p],
+                          0, new_mesh->comm, &(recv_requests[num_recv_reqs]));
+      if (err != MPI_SUCCESS)
+        polymec_error("Error receiving field data from rank %d", (int)sources[p]);
+      ++num_recv_reqs;
+    }
+  }
+  ASSERT(num_recv_reqs <= num_new_local_patches);
+
+  // Post sends.
+  int num_old_local_patches = unimesh_field_num_patches(old_field);
+  MPI_Request send_requests[num_old_local_patches];
+  pos = 0;
+  int num_send_reqs = 0;
+  while (unimesh_field_next_patch(old_field, &pos, &i, &j, &k, &patch, NULL))
+  {
+    int p = patch_index(new_mesh, i, j, k);
+    if (sources[p] == new_mesh->rank)
+    {
+      size_t data_size = unimesh_patch_data_size(patch->centering, 
+                                                 patch->nx, patch->ny, patch->nz,
+                                                 patch->nc);
+      int err = MPI_Isend(patch->data, (int)data_size, MPI_REAL_T, (int)partition[p],
+                          0, new_mesh->comm, &(send_requests[num_send_reqs]));
+      if (err != MPI_SUCCESS)
+        polymec_error("Error sending field data to rank %d", (int)partition[p]);
+      ++num_send_reqs;
+    }
+  }
+  ASSERT(num_send_reqs <= num_old_local_patches);
+
+  // Wait for everything to finish.
+  MPI_Waitall(num_send_reqs, send_requests, MPI_STATUSES_IGNORE);
+  MPI_Waitall(num_recv_reqs, recv_requests, MPI_STATUSES_IGNORE);
+
+  // Replace the old field with the new one.
+  *field = new_field;
+  STOP_FUNCTION_TIMER();
 }
 #endif
 
@@ -1142,42 +1370,53 @@ void repartition_unimesh(unimesh_t** mesh,
   ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
+  ASSERT((fields != NULL) || (num_fields == 0));
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
 
   // On a single process, repartitioning has no meaning.
-  if ((*mesh)->nproc == 1) 
+  unimesh_t* old_mesh = *mesh;
+  if (old_mesh->nproc == 1) 
   {
     STOP_FUNCTION_TIMER();
     return;
   }
 
-  // If meshes on rank != 0 are not NULL, we delete them.
-  unimesh_t* m = *mesh;
-  if ((m->rank != 0) && (m != NULL))
-  {
-    unimesh_free(m);
-    *mesh = m = NULL; 
-  }
-
   // Generate a global adjacency graph for the mesh.
-  adj_graph_t* graph = graph_from_unimesh_patches(m);
-
-  log_debug("repartition_unimesh: Repartitioning mesh on %d subdomains.", m->nproc);
+  adj_graph_t* graph = graph_from_unimesh_patches(old_mesh);
 
   // Map the graph to the different domains, producing a partition vector.
-  int64_t* partition = (m->rank == 0) ? partition_graph(graph, m->comm, weights, imbalance_tol): NULL;
+  // We need the partition vector on all processes, so we scatter it 
+  // from rank 0.
+  log_debug("repartition_unimesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
+  int num_patches = old_mesh->npx * old_mesh->npy * old_mesh->npz;
+  int64_t* partition = (old_mesh->rank == 0) ? partition_graph(graph, old_mesh->comm, weights, imbalance_tol) 
+                                             : polymec_malloc(sizeof(int64_t) * num_patches);
+  MPI_Bcast(partition, num_patches, MPI_INT64_T, 0, old_mesh->comm);
 
   // Redistribute the mesh. 
+  log_debug("repartition_unimesh: Redistributing mesh.");
   redistribute_unimesh(mesh, partition);
 
+  // Build a sources vector whose ith component is the rank that used to own 
+  // the ith patch.
+  int64_t* sources = source_vector(old_mesh);
+
   // Redistribute the fields.
+  if (num_fields > 0)
+    log_debug("repartition_unimesh: Redistributing %d fields.", (int)num_fields);
   for (size_t f = 0; f < num_fields; ++f)
-    redistribute_unimesh_field(fields[f], partition);
+  {
+    unimesh_field_t* old_field = fields[f];
+    redistribute_unimesh_field(&(fields[f]), partition, sources, *mesh);
+    unimesh_field_free(old_field);
+  }
 
   // Clean up.
+  unimesh_free(old_mesh);
   adj_graph_free(graph);
+  polymec_free(sources);
   polymec_free(partition);
 
   STOP_FUNCTION_TIMER();

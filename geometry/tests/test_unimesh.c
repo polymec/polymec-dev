@@ -117,13 +117,31 @@ static void test_next_patch(void** state)
   unimesh_free(mesh);
 }
 
+static void test_repartition(void** state) 
+{
+  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0,
+                 .y1 = 0.0, .y2 = 1.0,
+                 .z1 = 0.0, .z2 = 1.0};
+
+  // This is created using the naive partitioning.
+  unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 4, 4, 4, 10, 10, 10,
+                                false, false, false);
+
+  // Repartition it!
+  repartition_unimesh(&mesh, NULL, 0.05, NULL, 0);
+
+  // Just a smoke test for now, folks.
+  unimesh_free(mesh);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_ctors),
-    cmocka_unit_test(test_next_patch)
+    cmocka_unit_test(test_next_patch),
+    cmocka_unit_test(test_repartition)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

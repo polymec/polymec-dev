@@ -170,6 +170,9 @@ static void test_cell_field(void** state, unimesh_t* mesh)
     }
   }
 
+  // Repartition!
+  repartition_unimesh(&mesh, NULL, 0.05, &field, 1);
+
   // Clean up.
   unimesh_field_free(field);
   unimesh_free(mesh);
@@ -421,10 +424,14 @@ static void test_face_fields(void** state, unimesh_t* mesh)
     }
   }
 
+  // Repartition!
+  unimesh_field_t* fields[3] = {x_field, y_field, z_field};
+  repartition_unimesh(&mesh, NULL, 0.05, fields, 3);
+
   // Clean up.
-  unimesh_field_free(x_field);
-  unimesh_field_free(y_field);
-  unimesh_field_free(z_field);
+  unimesh_field_free(fields[0]);
+  unimesh_field_free(fields[1]);
+  unimesh_field_free(fields[2]);
   unimesh_free(mesh);
 }
 
@@ -568,10 +575,14 @@ static void test_edge_fields(void** state, unimesh_t* mesh)
     }
   }
 
+  // Repartition!
+  unimesh_field_t* fields[3] = {x_field, y_field, z_field};
+  repartition_unimesh(&mesh, NULL, 0.05, fields, 3);
+
   // Clean up.
-  unimesh_field_free(x_field);
-  unimesh_field_free(y_field);
-  unimesh_field_free(z_field);
+  unimesh_field_free(fields[0]);
+  unimesh_field_free(fields[1]);
+  unimesh_field_free(fields[2]);
   unimesh_free(mesh);
 }
 
@@ -666,6 +677,9 @@ static void test_node_field(void** state, unimesh_t* mesh)
       }
     }
   }
+
+  // Repartition!
+  repartition_unimesh(&mesh, NULL, 0.05, &field, 1);
 
   // Clean up.
   unimesh_field_free(field);
