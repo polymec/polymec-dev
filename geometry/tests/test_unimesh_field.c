@@ -795,12 +795,10 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_serial_nonperiodic_face_fields),
     cmocka_unit_test(test_serial_nonperiodic_edge_fields),
     cmocka_unit_test(test_serial_nonperiodic_node_field),
-#if 0
     cmocka_unit_test(test_parallel_periodic_cell_field),
     cmocka_unit_test(test_parallel_periodic_face_fields),
     cmocka_unit_test(test_parallel_periodic_edge_fields),
     cmocka_unit_test(test_parallel_periodic_node_field),
-#endif
     cmocka_unit_test(test_parallel_nonperiodic_cell_field),
     cmocka_unit_test(test_parallel_nonperiodic_face_fields),
     cmocka_unit_test(test_parallel_nonperiodic_edge_fields),
