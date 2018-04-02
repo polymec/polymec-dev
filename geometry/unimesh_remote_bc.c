@@ -1945,6 +1945,8 @@ void* unimesh_patch_boundary_receive_buffer(unimesh_t* mesh,
 
 #else
 
+#include "geometry/unimesh_patch_bc.h"
+
 unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh);
 unimesh_patch_bc_t* unimesh_remote_bc_new(unimesh_t* mesh)
 {
