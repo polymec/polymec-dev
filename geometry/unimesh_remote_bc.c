@@ -924,7 +924,7 @@ static void start_update_zface_z2(void* context, unimesh_t* mesh,
                                   unimesh_patch_t* patch)
 {
   void* buffer = unimesh_patch_boundary_send_buffer(mesh, i, j, k, 
-                                                    UNIMESH_Y2_BOUNDARY);
+                                                    UNIMESH_Z2_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny, patch->nc);
   DECLARE_UNIMESH_ZFACE_ARRAY(a, patch);
   for (int ii = 0; ii < patch->nx; ++ii)
@@ -1312,7 +1312,7 @@ static void finish_update_yface_y1(void* context, unimesh_t* mesh,
   for (int ii = 0; ii < patch->nx; ++ii)
     for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
-        a[ii][patch->ny][kk][c] = buf[ii][kk][c];
+        a[ii][0][kk][c] = buf[ii][kk][c];
 }
 
 static void finish_update_yface_y2(void* context, unimesh_t* mesh,
@@ -1374,7 +1374,7 @@ static void finish_update_zface_z1(void* context, unimesh_t* mesh,
   for (int ii = 0; ii < patch->nx; ++ii)
     for (int jj = 0; jj < patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
-        a[ii][jj][patch->nz][c] = buf[ii][jj][c];
+        a[ii][jj][0][c] = buf[ii][jj][c];
 }
 
 static void finish_update_zface_z2(void* context, unimesh_t* mesh,
