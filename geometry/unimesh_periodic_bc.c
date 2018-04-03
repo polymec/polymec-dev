@@ -519,7 +519,7 @@ static void start_update_node_y2(void* context, unimesh_t* mesh,
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
 
-  // Figure out x and z bounds.
+  // Figure out x bounds.
   bool x_periodic, y_periodic, z_periodic;
   unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
   int i1 = x_periodic ? 1 : 0;

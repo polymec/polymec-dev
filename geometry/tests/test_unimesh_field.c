@@ -585,6 +585,126 @@ static void test_edge_fields(void** state, unimesh_t* mesh)
     }
   }
 
+  pos = 0;
+  while (unimesh_field_next_patch(y_field, &pos, &pi, &pj, &pk, &patch, NULL))
+  {
+    DECLARE_UNIMESH_YEDGE_ARRAY(fy, patch);
+
+    // interior values
+    for (int i = 1; i < patch->nx; ++i)
+    {
+      for (int j = 1; j < patch->ny-1; ++j)
+      {
+        for (int k = 1; k < patch->nz; ++k)
+        {
+           assert_true(reals_equal(fy[i][j][k][0], 1.0 * pi));
+           assert_true(reals_equal(fy[i][j][k][1], 1.0 * pj));
+           assert_true(reals_equal(fy[i][j][k][2], 1.0 * pk));
+        }
+      }
+    }
+
+    // x boundaries
+    int pi_m = (pi > 0) ? pi - 1 
+                        : x_periodic ? npx-1 : 0;
+    int pi_p = (pi < npx-1) ? pi 
+                            : x_periodic ? pi : 0;
+    for (int j = 1; j < patch->ny-1; ++j)
+    {
+      for (int k = 1; k < patch->nz; ++k)
+      {
+        assert_true(reals_equal(fy[0][j][k][0], 1.0 * pi_m));
+        assert_true(reals_equal(fy[patch->nx][j][k][0], 1.0 * pi_p));
+      }
+    }
+
+    // y boundaries 
+    for (int i = 1; i < patch->nx; ++i)
+    {
+      for (int k = 1; k < patch->nz; ++k)
+      {
+if (!reals_equal(fy[i][0][k][1], 1.0 * pj))
+log_debug("%g != %g", fy[i][0][k][1], 1.0 * pj);
+if (!reals_equal(fy[i][patch->ny-1][k][1], 1.0 * pj))
+log_debug("%g != %g", fy[i][patch->ny-1][k][1], 1.0 * pj);
+        assert_true(reals_equal(fy[i][0][k][1], 1.0 * pj));
+        assert_true(reals_equal(fy[i][patch->ny-1][k][1], 1.0 * pj));
+      }
+    }
+
+    // z boundaries 
+    int pk_m = (pk > 0) ? pk - 1 
+                        : z_periodic ? npz - 1 : 0;
+    int pk_p = (pk < npz-1) ? pk  
+                            : z_periodic ? pk : 0;
+    for (int i = 1; i < patch->nx; ++i)
+    {
+      for (int j = 1; j < patch->ny-1; ++j)
+      {
+        assert_true(reals_equal(fy[i][j][0][2], 1.0 * pk_m));
+        assert_true(reals_equal(fy[i][j][patch->nz][2], 1.0 * pk_p));
+      }
+    }
+  }
+
+  pos = 0;
+  while (unimesh_field_next_patch(z_field, &pos, &pi, &pj, &pk, &patch, NULL))
+  {
+    DECLARE_UNIMESH_ZEDGE_ARRAY(fz, patch);
+
+    // interior values
+    for (int i = 1; i < patch->nx; ++i)
+    {
+      for (int j = 1; j < patch->ny; ++j)
+      {
+        for (int k = 1; k < patch->nz-1; ++k)
+        {
+           assert_true(reals_equal(fz[i][j][k][0], 1.0 * pi));
+           assert_true(reals_equal(fz[i][j][k][1], 1.0 * pj));
+           assert_true(reals_equal(fz[i][j][k][2], 1.0 * pk));
+        }
+      }
+    }
+
+    // x boundaries
+    int pi_m = (pi > 0) ? pi - 1 
+                        : x_periodic ? npx - 1 : 0;
+    int pi_p = (pi < npx-1) ? pi  
+                            : x_periodic ? pi : 0;
+    for (int j = 1; j < patch->ny; ++j)
+    {
+      for (int k = 1; k < patch->nz-1; ++k)
+      {
+        assert_true(reals_equal(fz[0][j][k][0], 1.0 * pi_m));
+        assert_true(reals_equal(fz[patch->nx][j][k][0], 1.0 * pi_p));
+      }
+    }
+
+    // y boundaries 
+    int pj_m = (pj > 0) ? pj - 1 
+                        : y_periodic ? npy-1 : 0;
+    int pj_p = (pj < npy-1) ? pj 
+                            : y_periodic ? pj : 0;
+    for (int i = 1; i < patch->nx; ++i)
+    {
+      for (int k = 1; k < patch->nz-1; ++k)
+      {
+        assert_true(reals_equal(fz[i][0][k][1], 1.0 * pj_m));
+        assert_true(reals_equal(fz[i][patch->ny][k][1], 1.0 * pj_p));
+      }
+    }
+
+    // z boundaries 
+    for (int i = 1; i < patch->nx; ++i)
+    {
+      for (int j = 1; j < patch->ny; ++j)
+      {
+        assert_true(reals_equal(fz[i][j][0][2], 1.0 * pk));
+        assert_true(reals_equal(fz[i][j][patch->nz-1][2], 1.0 * pk));
+      }
+    }
+  }
+
   // Repartition!
   unimesh_field_t* fields[3] = {x_field, y_field, z_field};
   repartition_unimesh(&mesh, NULL, 0.05, fields, 3);
