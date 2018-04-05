@@ -762,7 +762,7 @@ static void finish_update_xedge_z1(void* context, unimesh_t* mesh,
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny+1, patch->nc);
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
   for (int ii = 0; ii < patch->nx; ++ii)
-    for (int jj = 0; jj <= patch->ny; ++jj)
+    for (int jj = 1; jj < patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][0][c] = buf[ii][jj][c];
 }
@@ -817,8 +817,8 @@ static void finish_update_yedge_z1(void* context, unimesh_t* mesh,
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny, patch->nc);
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
-    for (int jj = 0; jj < patch->ny; ++jj)
+  for (int ii = 1; ii < patch->nx; ++ii)
+    for (int jj = 1; jj < patch->ny-1; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][0][c] = buf[ii][jj][c];
 }
@@ -859,7 +859,7 @@ static void finish_update_zedge_y1(void* context, unimesh_t* mesh,
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz, patch->nc);
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
+  for (int ii = 1; ii < patch->nx; ++ii)
     for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][0][kk][c] = buf[ii][kk][c];

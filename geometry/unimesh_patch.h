@@ -105,9 +105,9 @@ DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny, patch->nz+1
 // Z-edge arrays are indexed the following way:
 // array[i][j][k][c] with (i, j, k) identifying the upper-x-upper-y edge of 
 // the cell in the (i, j, k) position, and c as the component.
-// * i runs from 0 to patch->nx-1.
-// * j runs from 0 to patch->ny-1.
-// * k runs from 0 to patch->nz.
+// * i runs from 0 to patch->nx.
+// * j runs from 0 to patch->ny.
+// * k runs from 0 to patch->nz-1.
 // * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_ZEDGE_ARRAY(array, patch) \
 ASSERT(patch->centering == UNIMESH_ZEDGE); \
