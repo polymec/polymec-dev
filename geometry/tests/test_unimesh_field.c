@@ -624,9 +624,9 @@ static void test_edge_fields(void** state, unimesh_t* mesh)
       for (int k = 1; k < patch->nz; ++k)
       {
 if (!reals_equal(fy[i][0][k][1], 1.0 * pj))
-log_debug("%g != %g", fy[i][0][k][1], 1.0 * pj);
+log_debug("(%d, %d, %d): %g != %g", i, 0, k, fy[i][0][k][1], 1.0 * pj);
 if (!reals_equal(fy[i][patch->ny-1][k][1], 1.0 * pj))
-log_debug("%g != %g", fy[i][patch->ny-1][k][1], 1.0 * pj);
+log_debug("(%d, %d, %d): %g != %g", i, patch->ny-1, k, fy[i][patch->ny-1][k][1], 1.0 * pj);
         assert_true(reals_equal(fy[i][0][k][1], 1.0 * pj));
         assert_true(reals_equal(fy[i][patch->ny-1][k][1], 1.0 * pj));
       }

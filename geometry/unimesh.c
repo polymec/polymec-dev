@@ -524,7 +524,7 @@ static void boundary_buffer_reset(boundary_buffer_t* buffer,
                            2*nc*(ny*nz + (nx+1)*nz + (nx+1)*ny), // x faces
                            2*nc*((ny+1)*nz + nx*nz + nx*(ny+1)), // y faces
                            2*nc*(ny*(nz+1) + nx*(nz+1) + nx*ny), // z faces
-                           2*nc*((ny+1)*(nz+1) + nx*(nz+1) + nx*(ny+1)),     // x edges
+                           2*nc*((ny+1)*(nz+1) + nx*(nz+1) + nx*(ny+1)), // x edges
                            2*nc*(ny*(nz+1) + (nx+1)*(nz+1) + (nx+1)*ny), // y edges
                            2*nc*((ny+1)*nz + (nx+1)*nz + (nx+1)*(ny+1)), // z edges
                            2*nc*((ny+1)*(nz+1) + (nx+1)*(nz+1) + (nx+1)*(ny+1))}; // nodes
