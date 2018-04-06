@@ -56,7 +56,7 @@ unimesh_field_t* unimesh_field_new(unimesh_t* mesh,
   START_FUNCTION_TIMER();
   unimesh_field_t* field = 
     unimesh_field_with_buffer(mesh, centering, num_components, NULL);
-  void* buffer = polymec_malloc(sizeof(real_t) * field->bytes);
+  void* buffer = polymec_malloc(field->bytes);
   unimesh_field_set_buffer(field, buffer, true);
   STOP_FUNCTION_TIMER();
   return field;
@@ -76,7 +76,7 @@ static void compute_offsets(unimesh_field_t* field)
   {
     size_t patch_bytes = unimesh_patch_data_size(centering, nx, ny, nz, nc);
     field->bytes += patch_bytes;
-    field->patch_offsets[l] = field->bytes;
+    field->patch_offsets[l] = field->bytes / sizeof(real_t);
     ++l;
   }
 }
