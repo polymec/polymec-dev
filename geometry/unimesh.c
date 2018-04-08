@@ -1305,11 +1305,20 @@ static void redistribute_unimesh_field(unimesh_field_t** field,
                                                  unimesh_field_centering(old_field),
                                                  unimesh_field_num_components(old_field));
 
+  // Copy all local patches from one field to the other.
+  unimesh_patch_t* patch;
+  int pos = 0, i, j, k;
+  while (unimesh_field_next_patch(new_field, &pos, &i, &j, &k, &patch, NULL))
+  {
+    unimesh_patch_t* old_patch = unimesh_field_patch(old_field, i, j, k);
+    if (old_patch != NULL)
+      unimesh_patch_copy(old_patch, patch);
+  }
+
   // Post receives for each patch in the new field.
   int num_new_local_patches = unimesh_field_num_patches(new_field);
   MPI_Request recv_requests[num_new_local_patches];
-  int pos = 0, i, j, k;
-  unimesh_patch_t* patch;
+  pos = 0;
   int num_recv_reqs = 0;
   while (unimesh_field_next_patch(new_field, &pos, &i, &j, &k, &patch, NULL))
   {
