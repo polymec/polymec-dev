@@ -1318,7 +1318,7 @@ static void redistribute_unimesh_field(unimesh_field_t** field,
     {
       size_t data_size = unimesh_patch_data_size(patch->centering, 
                                                  patch->nx, patch->ny, patch->nz,
-                                                 patch->nc);
+                                                 patch->nc) / sizeof(real_t);
       int err = MPI_Irecv(patch->data, (int)data_size, MPI_REAL_T, (int)sources[p],
                           0, new_mesh->comm, &(recv_requests[num_recv_reqs]));
       if (err != MPI_SUCCESS)
@@ -1340,7 +1340,7 @@ static void redistribute_unimesh_field(unimesh_field_t** field,
     {
       size_t data_size = unimesh_patch_data_size(patch->centering, 
                                                  patch->nx, patch->ny, patch->nz,
-                                                 patch->nc);
+                                                 patch->nc) / sizeof(real_t);
       int err = MPI_Isend(patch->data, (int)data_size, MPI_REAL_T, (int)partition[p],
                           0, new_mesh->comm, &(send_requests[num_send_reqs]));
       if (err != MPI_SUCCESS)
