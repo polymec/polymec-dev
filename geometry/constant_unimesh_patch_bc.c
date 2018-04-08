@@ -288,7 +288,7 @@ static void update_y1_xedges(void* context, unimesh_t* mesh,
   ASSERT(bc->num_components == patch->nc);
 
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
+  for (int ii = 0; ii < patch->nx; ++ii)
     for (int kk = 0; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][0][kk][c] = bc->values[c];
@@ -302,7 +302,7 @@ static void update_y2_xedges(void* context, unimesh_t* mesh,
   ASSERT(bc->num_components == patch->nc);
 
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
+  for (int ii = 0; ii < patch->nx; ++ii)
     for (int kk = 0; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][patch->ny][kk][c] = bc->values[c];
@@ -316,7 +316,7 @@ static void update_z1_xedges(void* context, unimesh_t* mesh,
   ASSERT(bc->num_components == patch->nc);
 
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
+  for (int ii = 0; ii < patch->nx; ++ii)
     for (int jj = 0; jj <= patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][0][c] = bc->values[c];
@@ -330,7 +330,7 @@ static void update_z2_xedges(void* context, unimesh_t* mesh,
   ASSERT(bc->num_components == patch->nc);
 
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
-  for (int ii = 0; ii <= patch->nx; ++ii)
+  for (int ii = 0; ii < patch->nx; ++ii)
     for (int jj = 0; jj <= patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][patch->nz][c] = bc->values[c];
@@ -344,7 +344,7 @@ static void update_x1_yedges(void* context, unimesh_t* mesh,
   ASSERT(bc->num_components == patch->nc);
 
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
-  for (int jj = 0; jj <= patch->ny; ++jj)
+  for (int jj = 0; jj < patch->ny; ++jj)
     for (int kk = 0; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[0][jj][kk][c] = bc->values[c];
@@ -358,7 +358,7 @@ static void update_x2_yedges(void* context, unimesh_t* mesh,
   ASSERT(bc->num_components == patch->nc);
 
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
-  for (int jj = 0; jj <= patch->ny; ++jj)
+  for (int jj = 0; jj < patch->ny; ++jj)
     for (int kk = 0; kk <= patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[patch->nx][jj][kk][c] = bc->values[c];
@@ -387,7 +387,7 @@ static void update_z1_yedges(void* context, unimesh_t* mesh,
 
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
   for (int ii = 0; ii <= patch->nx; ++ii)
-    for (int jj = 0; jj <= patch->ny; ++jj)
+    for (int jj = 0; jj < patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][0][c] = bc->values[c];
 }
@@ -401,7 +401,7 @@ static void update_z2_yedges(void* context, unimesh_t* mesh,
 
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
   for (int ii = 0; ii <= patch->nx; ++ii)
-    for (int jj = 0; jj <= patch->ny; ++jj)
+    for (int jj = 0; jj < patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][patch->nz][c] = bc->values[c];
 }
@@ -415,7 +415,7 @@ static void update_x1_zedges(void* context, unimesh_t* mesh,
 
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
   for (int jj = 0; jj <= patch->ny; ++jj)
-    for (int kk = 0; kk <= patch->nz; ++kk)
+    for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[0][jj][kk][c] = bc->values[c];
 }
@@ -429,7 +429,7 @@ static void update_x2_zedges(void* context, unimesh_t* mesh,
 
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
   for (int jj = 0; jj <= patch->ny; ++jj)
-    for (int kk = 0; kk <= patch->nz; ++kk)
+    for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[patch->nx][jj][kk][c] = bc->values[c];
 }
@@ -443,7 +443,7 @@ static void update_y1_zedges(void* context, unimesh_t* mesh,
 
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
   for (int ii = 0; ii <= patch->nx; ++ii)
-    for (int kk = 0; kk <= patch->nz; ++kk)
+    for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][0][kk][c] = bc->values[c];
 }
@@ -457,7 +457,7 @@ static void update_y2_zedges(void* context, unimesh_t* mesh,
 
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
   for (int ii = 0; ii <= patch->nx; ++ii)
-    for (int kk = 0; kk <= patch->nz; ++kk)
+    for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][patch->ny][kk][c] = bc->values[c];
 }

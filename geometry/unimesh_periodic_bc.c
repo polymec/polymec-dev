@@ -453,11 +453,11 @@ static void start_update_zedge_y2(void* context, unimesh_t* mesh,
   unimesh_get_extents(mesh, &npx, &npy, &npz);
   ASSERT(j == npy-1);
 
-  void* buffer = unimesh_patch_boundary_buffer(mesh, i, npy-1, k, 
+  void* buffer = unimesh_patch_boundary_buffer(mesh, i, 0, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz, patch->nc);
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
-  for (int ii = 1; ii < patch->nx; ++ii)
+  for (int ii = 0; ii < patch->nx; ++ii)
     for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         buf[ii][kk][c] = a[ii][patch->ny][kk][c];
@@ -842,17 +842,11 @@ static void finish_update_xedge_z1(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  // Figure out x bounds.
-  bool x_periodic, y_periodic, z_periodic;
-  unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
-  int i1 = x_periodic ? 1 : 0;
-  int i2 = x_periodic ? patch->nx-1 : patch->nx;
-
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx, patch->ny+1, patch->nc);
   DECLARE_UNIMESH_XEDGE_ARRAY(a, patch);
-  for (int ii = i1; ii < i2; ++ii)
+  for (int ii = 0; ii < patch->nx; ++ii)
     for (int jj = 0; jj <= patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][0][c] = buf[ii][jj][c];
@@ -904,17 +898,11 @@ static void finish_update_yedge_z1(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  // Figure out x bounds.
-  bool x_periodic, y_periodic, z_periodic;
-  unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
-  int i1 = x_periodic ? 1 : 0;
-  int i2 = x_periodic ? patch->nx : patch->nx+1;
-
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Z1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->ny, patch->nc);
   DECLARE_UNIMESH_YEDGE_ARRAY(a, patch);
-  for (int ii = i1; ii < i2; ++ii)
+  for (int ii = 0; ii <= patch->nx; ++ii)
     for (int jj = 0; jj < patch->ny; ++jj)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][jj][0][c] = buf[ii][jj][c];
@@ -952,17 +940,11 @@ static void finish_update_zedge_y1(void* context, unimesh_t* mesh,
                                    int i, int j, int k, real_t t,
                                    unimesh_patch_t* patch)
 {
-  // Figure out x bounds.
-  bool x_periodic, y_periodic, z_periodic;
-  unimesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
-  int i1 = x_periodic ? 1 : 0;
-  int i2 = x_periodic ? patch->nx : patch->nx+1;
-
   void* buffer = unimesh_patch_boundary_buffer(mesh, i, j, k, 
                                                UNIMESH_Y1_BOUNDARY);
   DECLARE_3D_ARRAY(real_t, buf, buffer, patch->nx+1, patch->nz, patch->nc);
   DECLARE_UNIMESH_ZEDGE_ARRAY(a, patch);
-  for (int ii = i1; ii < i2; ++ii)
+  for (int ii = 0; ii <= patch->nx; ++ii)
     for (int kk = 0; kk < patch->nz; ++kk)
       for (int c = 0; c < patch->nc; ++c)
         a[ii][0][kk][c] = buf[ii][kk][c];
