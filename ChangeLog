@@ -1,3 +1,8 @@
+Sat Apr  7 17:35:33 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.1.1
+      - Fixed bugs in edge-centered unimesh_field exchanges.
+      - Fixed a bug that caused excessive memory usage for unimesh_fields.
+      - Added a fancy license badge to README.md.
 Mon Apr  2 00:07:19 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.1.0
       - Added structured mesh classes unimesh, unimesh_field, unimesh_patch.
