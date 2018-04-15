@@ -33,7 +33,7 @@ static int central_force_rhs(void* null_context, real_t t, real_t* X, real_t* rh
 static ode_solver_t* symplectic_central_force_solver()
 {
   return functional_euler_ode_solver_new(0.5, MPI_COMM_WORLD, 4, 0, NULL, 
-                                             central_force_rhs, NULL);
+                                         central_force_rhs, NULL);
 }
 
 static void test_symplectic_central_force(void** state)
@@ -116,7 +116,7 @@ static ode_solver_t* stiffly_accurate_kinetics_solver()
   adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, 1);
   adj_graph_t* bg = adj_graph_new_with_block_size(g, 3);
   adj_graph_free(g);
-  newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, NULL, kinetics_rhs, NULL, NEWTON_PC_LEFT, bg, 1, 0, 3);
+  newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, NULL, kinetics_rhs, NULL, NEWTON_PC_RIGHT, bg, 1, 0, 3);
   adj_graph_free(bg);
   return jfnk_euler_ode_solver_new(MPI_COMM_WORLD, 3, 0, NULL, 
                                        kinetics_rhs, NULL, precond,

@@ -821,7 +821,6 @@ ode_solver_t* bdf_ode_solver_new(const char* name,
   cv_mem->cv_lsetup = bdf_lsetup;
   cv_mem->cv_lsolve = bdf_lsolve;
   cv_mem->cv_lfree = bdf_lfree;
-//  cv_mem->cv_setupNonNull = 1; // needs to be set for lsetup to be called.
 
   ode_solver_vtable vtable = {.step = bdf_step, 
                                   .advance = bdf_advance, 

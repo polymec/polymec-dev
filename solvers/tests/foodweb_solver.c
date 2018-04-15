@@ -481,7 +481,7 @@ static newton_solver_t* jfnk_foodweb_solver_new(foodweb_t* data, newton_pc_t* pr
   // Set up a nonlinear solver using GMRES with a full Newton step.
   newton_solver_t* solver = jfnk_newton_solver_new(MPI_COMM_SELF, NEQ, 0, data,
                                                    foodweb_func, NULL, foodweb_dtor, 
-                                                   NEWTON_FULL_STEP, precond, NEWTON_GMRES, 15, 2);
+                                                   NEWTON_FULL_STEP, precond, NEWTON_GMRES, 20, 2);
 
   // Enforce positivity on all components.
   real_t constraints[NEQ];
@@ -492,6 +492,9 @@ static newton_solver_t* jfnk_foodweb_solver_new(foodweb_t* data, newton_pc_t* pr
   // Scale the U and F vectors.
   set_scaling_vectors(solver);
 
+  newton_solver_set_tolerances(solver, FTOL, STOL);
+  newton_solver_set_max_iterations(solver, 250);
+
   return solver;
 }
 
@@ -501,7 +504,7 @@ newton_solver_t* block_jacobi_precond_foodweb_solver_new()
 {
   foodweb_t* data = foodweb_new();
   int block_size = NUM_SPECIES;
-  newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, foodweb_func, NULL, NEWTON_PC_LEFT, data->sparsity, NEQ/block_size, 0, block_size);
+  newton_pc_t* precond = cpr_bj_newton_pc_new(MPI_COMM_WORLD, data, foodweb_func, NULL, NEWTON_PC_RIGHT, data->sparsity, NEQ/block_size, 0, block_size);
   return jfnk_foodweb_solver_new(data, precond);
 }
 
@@ -547,6 +550,9 @@ newton_solver_t* ink_foodweb_solver_new(krylov_factory_t* factory)
 
   // Scale the U and F scaling vectors.
   set_scaling_vectors(solver);
+
+  newton_solver_set_tolerances(solver, FTOL, STOL);
+  newton_solver_set_max_iterations(solver, 250);
 
   return solver;
 }

@@ -544,7 +544,6 @@ dae_solver_t* dae_solver_new(const char* name,
   ida_mem->ida_lsolve = dae_lsolve;
   ida_mem->ida_lperf = dae_lperf;
   ida_mem->ida_lfree = dae_lfree;
-//  ida_mem->ida_setupNonNull = 1; // needs to be set for lsetup to be called.
 
   // Set up the equation types and constraints.
   set_up_equations_and_constraints(integ, equation_types, constraints);

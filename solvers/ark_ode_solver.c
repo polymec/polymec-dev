@@ -785,7 +785,6 @@ ode_solver_t* ark_ode_solver_new(const char* name,
   ark_mem->ark_lsetup = ark_lsetup;
   ark_mem->ark_lsolve = ark_lsolve;
   ark_mem->ark_lfree = ark_lfree;
-//  ark_mem->ark_setupNonNull = 1; // needs to be set for lsetup to be called.
   ark_mem->ark_lsolve_type = 0; // iterative solution method.
 
   ode_solver_vtable vtable = {.step = ark_step, 

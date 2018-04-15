@@ -5,7 +5,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <float.h>
 #include "core/sundials_helpers.h"
 #include "core/timer.h"
 #include "solvers/newton_solver.h"
@@ -299,7 +298,6 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   kin_mem->kin_lsetup = newton_lsetup;
   kin_mem->kin_lsolve = newton_lsolve;
   kin_mem->kin_lfree = newton_lfree;
-//  kin_mem->kin_setupNonNull = 1;  // need this for lsetup to be called
   kin_mem->kin_inexact_ls = 1;    // need this for iterative solvers
 
   return solver;
@@ -353,7 +351,6 @@ newton_solver_t* picard_newton_solver_new(MPI_Comm comm,
   kin_mem->kin_lsetup = picard_lsetup;
   kin_mem->kin_lsolve = newton_lsolve;
   kin_mem->kin_lfree = newton_lfree;
-//  kin_mem->kin_setupNonNull = 1;  // need this for lsetup to be called
   kin_mem->kin_inexact_ls = 1;    // need this for iterative solvers
 
   return solver;
@@ -412,7 +409,6 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
   ASSERT(((solver_type != NEWTON_GMRES) && (solver_type != NEWTON_FGMRES)) || 
          (max_restarts >= 0));
   ASSERT(precond != NULL);
-  ASSERT(newton_pc_side(precond) == NEWTON_PC_LEFT);
 
   newton_solver_t* solver = create_newton_solver(comm,
                                                  num_local_values,
@@ -427,27 +423,41 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
   solver->max_restarts = max_restarts;
   solver->strategy = (strategy == NEWTON_FULL_STEP) ? KIN_NONE : KIN_LINESEARCH;
 
+  newton_pc_side_t newton_side = newton_pc_side(precond);
+  int side;
+  switch (newton_side)
+  {
+    case NEWTON_PC_LEFT:
+      side = PREC_LEFT;
+      break;
+    case NEWTON_PC_RIGHT:
+      side = PREC_RIGHT;
+      break;
+    case NEWTON_PC_BOTH:
+      side = PREC_BOTH;
+  }
+
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver->solver_type == NEWTON_GMRES)
   {
-    SUNLinearSolver ls = SUNSPGMR(solver->U, PREC_LEFT, solver->max_krylov_dim);
+    SUNLinearSolver ls = SUNSPGMR(solver->U, side, solver->max_krylov_dim);
     SUNSPGMRSetMaxRestarts(ls, solver->max_restarts);
     KINSpilsSetLinearSolver(solver->kinsol, ls);
   }
   else if (solver->solver_type == NEWTON_FGMRES)
   {
-    SUNLinearSolver ls = SUNSPFGMR(solver->U, PREC_LEFT, solver->max_krylov_dim);
+    SUNLinearSolver ls = SUNSPFGMR(solver->U, side, solver->max_krylov_dim);
     SUNSPFGMRSetMaxRestarts(ls, solver->max_restarts);
     KINSpilsSetLinearSolver(solver->kinsol, ls);
   }
   else if (solver->solver_type == NEWTON_BICGSTAB)
   {
-    SUNLinearSolver ls = SUNSPBCGS(solver->U, PREC_LEFT, solver->max_krylov_dim);
+    SUNLinearSolver ls = SUNSPBCGS(solver->U, side, solver->max_krylov_dim);
     KINSpilsSetLinearSolver(solver->kinsol, ls);
   }
   else
   {
-    SUNLinearSolver ls = SUNSPTFQMR(solver->U, PREC_LEFT, solver->max_krylov_dim);
+    SUNLinearSolver ls = SUNSPTFQMR(solver->U, side, solver->max_krylov_dim);
     KINSpilsSetLinearSolver(solver->kinsol, ls);
   }
 
@@ -623,7 +633,7 @@ bool newton_solver_solve(newton_solver_t* solver,
   memcpy(NV_DATA(solver->U), U, sizeof(real_t) * solver->num_local_values);
 
   // Suspend the currently active floating point exceptions for now.
-//  polymec_suspend_fpe_exceptions();
+//  polymec_suspend_fpe();
 
   // Solve.
   log_debug("newton_solver: solving...");
@@ -638,7 +648,7 @@ bool newton_solver_solve(newton_solver_t* solver,
   }
 
   // Reinstate the floating point exceptions.
-//  polymec_restore_fpe_exceptions();
+//  polymec_restore_fpe();
 
   if ((status == KIN_SUCCESS) || (status == KIN_INITIAL_GUESS_OK))
   {

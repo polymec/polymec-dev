@@ -15,7 +15,7 @@
 // This class represents a collection of algorithms for integrating partial 
 // differential equations that are discretized into a (sparse) system of 
 // nonlinear equations. The integration is performed using Matrix-free 
-// Newton-Krylov methods provided by KINSol with right preconditioning.
+// Newton-Krylov methods provided by KINSol with preconditioning.
 typedef struct newton_solver_t newton_solver_t;
 
 // This type distinguishes between the different strategies used to perform
