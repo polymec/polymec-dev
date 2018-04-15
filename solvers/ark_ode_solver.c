@@ -10,15 +10,21 @@
 #include "core/timer.h"
 #include "solvers/ark_ode_solver.h"
 #include "solvers/newton_pc.h"
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wstrict-prototypes"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
 #include "arkode/arkode.h"
+#pragma clang diagnostic pop
+#pragma GCC diagnostic pop
+#include "arkode/arkode_spils.h"
 
 // JFNK stuff.
-#include "arkode/arkode_spils.h"
-#include "arkode/arkode_spgmr.h"
-#include "arkode/arkode_spfgmr.h"
-#include "arkode/arkode_spbcgs.h"
-#include "arkode/arkode_pcg.h"
-#include "arkode/arkode_sptfqmr.h"
+#include "sunlinsol/sunlinsol_spgmr.h"
+#include "sunlinsol/sunlinsol_spfgmr.h"
+#include "sunlinsol/sunlinsol_spbcgs.h"
+#include "sunlinsol/sunlinsol_sptfqmr.h"
 
 // Stuff for generalized ARK solvers.
 #include "arkode/arkode_impl.h"
@@ -313,8 +319,7 @@ static void ark_dtor(void* context)
 // This function sets up the preconditioner data within the solver.
 static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
                                  int jacobian_is_current, int* jacobian_was_updated, 
-                                 real_t gamma, void* context, 
-                                 N_Vector work1, N_Vector work2, N_Vector work3)
+                                 real_t gamma, void* context)
 {
   ark_ode_t* integ = context;
   if (!jacobian_is_current)
@@ -335,8 +340,7 @@ static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
 static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector F, 
                                        N_Vector r, N_Vector z, 
                                        real_t gamma, real_t delta, 
-                                       int lr, void* context, 
-                                       N_Vector work)
+                                       int lr, void* context)
 {
   ark_ode_t* integ = context;
   
@@ -359,6 +363,13 @@ static int stable_dt(N_Vector y, real_t t, real_t* dt_stable, void* context)
   *dt_stable = integ->stable_dt(integ->context, t, NV_DATA(y));
   STOP_FUNCTION_TIMER();
   return ARK_SUCCESS;
+}
+
+// Adaptor for J*y setup function
+static int set_up_Jy(real_t t, N_Vector y, N_Vector Jy, void* context)
+{
+  // Nothing here!
+  return 0;
 }
 
 // Adaptor for J*y function
@@ -560,26 +571,32 @@ ode_solver_t* jfnk_ark_ode_solver_new(int order,
   // Set up the solver type.
   if (solver_type == JFNK_ARK_GMRES)
   {
-    ARKSpgmr(integ->arkode, side, max_krylov_dim); 
+    SUNLinearSolver ls = SUNSPGMR(integ->U, side, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
-    ARKSpilsSetGSType(integ->arkode, MODIFIED_GS);
+    SUNSPGMRSetGSType(ls, MODIFIED_GS);
+    ARKSpilsSetLinearSolver(integ->arkode, ls);
   }
   else if (solver_type == JFNK_ARK_FGMRES)
   {
-    ARKSpfgmr(integ->arkode, side, max_krylov_dim); 
+    SUNLinearSolver ls = SUNSPFGMR(integ->U, side, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
-    ARKSpilsSetGSType(integ->arkode, MODIFIED_GS);
+    SUNSPFGMRSetGSType(ls, MODIFIED_GS);
+    ARKSpilsSetLinearSolver(integ->arkode, ls);
   }
   else if (solver_type == JFNK_ARK_BICGSTAB)
-    ARKSpbcg(integ->arkode, side, max_krylov_dim);
-  else if (solver_type == JFNK_ARK_PCG)
-    ARKPcg(integ->arkode, side, max_krylov_dim);
+  {
+    SUNLinearSolver ls = SUNSPBCGS(integ->U, side, max_krylov_dim);
+    ARKSpilsSetLinearSolver(integ->arkode, ls);
+  }
   else
-    ARKSptfqmr(integ->arkode, side, max_krylov_dim);
+  {
+    SUNLinearSolver ls = SUNSPTFQMR(integ->U, side, max_krylov_dim);
+    ARKSpilsSetLinearSolver(integ->arkode, ls);
+  }
 
   // Set up the Jacobian function and preconditioner.
   if (Jy_func != NULL)
-    ARKSpilsSetJacTimesVecFn(integ->arkode, eval_Jy);
+    ARKSpilsSetJacTimes(integ->arkode, set_up_Jy, eval_Jy);
   integ->precond = precond;
   ARKSpilsSetPreconditioner(integ->arkode, set_up_preconditioner,
                             solve_preconditioner_system);
@@ -661,7 +678,6 @@ static int ark_lsetup(ARKodeMem ark_mem,
 
 static int ark_lsolve(ARKodeMem ark_mem, 
                       N_Vector b, 
-                      N_Vector weight,
                       N_Vector ycur, 
                       N_Vector fcur)
 {
@@ -669,7 +685,7 @@ static int ark_lsolve(ARKodeMem ark_mem,
   real_t t = ark_mem->ark_tn;
   real_t* U = NV_DATA(ycur);
   real_t* U_dot = NV_DATA(fcur);
-  real_t* W = NV_DATA(weight);
+  real_t* W = ark->error_weights; // FIXME: ???
   // NOTE: We multiply the residual norm tolerance by sqrt(N) to turn the 
   // NOTE: 2-norm of the residual into its WRMS norm.
   real_t res_norm_tol = 0.05 * ark->sqrtN * ark_mem->ark_eRNrm; 
@@ -769,7 +785,7 @@ ode_solver_t* ark_ode_solver_new(const char* name,
   ark_mem->ark_lsetup = ark_lsetup;
   ark_mem->ark_lsolve = ark_lsolve;
   ark_mem->ark_lfree = ark_lfree;
-  ark_mem->ark_setupNonNull = 1; // needs to be set for lsetup to be called.
+//  ark_mem->ark_setupNonNull = 1; // needs to be set for lsetup to be called.
   ark_mem->ark_lsolve_type = 0; // iterative solution method.
 
   ode_solver_vtable vtable = {.step = ark_step, 

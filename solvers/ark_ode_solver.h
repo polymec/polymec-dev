@@ -39,8 +39,7 @@ typedef enum
   JFNK_ARK_GMRES,    // Generalized minimum residual Krylov solver
   JFNK_ARK_FGMRES,   // Flexible GMRES Krylov solver
   JFNK_ARK_BICGSTAB, // Stabilized Biconjugate Gradient Krylov solver
-  JFNK_ARK_TFQMR,    // Transpose-Free QMR Krylov solver
-  JFNK_ARK_PCG       // Preconditioned Conjugate Gradient Krylov solver
+  JFNK_ARK_TFQMR     // Transpose-Free QMR Krylov solver
 } jfnk_ark_krylov_t;
 
 // This constructs an solver for the slowly-varying system

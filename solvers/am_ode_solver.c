@@ -11,12 +11,13 @@
 #include "solvers/am_ode_solver.h"
 #include "solvers/newton_pc.h"
 #include "cvode/cvode.h"
+#include "cvode/cvode_spils.h"
 
 // JFNK stuff.
-#include "cvode/cvode_spils.h"
-#include "cvode/cvode_spgmr.h"
-#include "cvode/cvode_spbcgs.h"
-#include "cvode/cvode_sptfqmr.h"
+#include "sunlinsol/sunlinsol_spgmr.h"
+#include "sunlinsol/sunlinsol_spfgmr.h"
+#include "sunlinsol/sunlinsol_spbcgs.h"
+#include "sunlinsol/sunlinsol_sptfqmr.h"
 
 struct am_ode_observer_t 
 {
@@ -299,8 +300,7 @@ ode_solver_t* functional_am_ode_solver_new(int order,
 // This function sets up the preconditioner data within the solver.
 static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
                                  int jacobian_is_current, int* jacobian_was_updated, 
-                                 real_t gamma, void* context, 
-                                 N_Vector work1, N_Vector work2, N_Vector work3)
+                                 real_t gamma, void* context)
 {
   START_FUNCTION_TIMER();
   am_ode_t* integ = context;
@@ -323,8 +323,7 @@ static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
 static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector F, 
                                        N_Vector r, N_Vector z, 
                                        real_t gamma, real_t delta, 
-                                       int lr, void* context, 
-                                       N_Vector work)
+                                       int lr, void* context)
 {
   START_FUNCTION_TIMER();
   ASSERT(lr == 1); // Left preconditioning only.
@@ -340,7 +339,14 @@ static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector F,
   return status;
 }
 
-// Adaptor for J*y function
+// Adaptor for J*y setup function
+static int set_up_Jy(real_t t, N_Vector y, N_Vector Jy, void* context)
+{
+  // Nothing here!
+  return 0;
+}
+
+// Adaptor for J*y evaluation function
 static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector U, N_Vector U_dot, void* context, N_Vector tmp)
 {
   START_FUNCTION_TIMER();
@@ -426,18 +432,25 @@ ode_solver_t* jfnk_am_ode_solver_new(int order,
   // Set up the solver type.
   if (solver_type == JFNK_AM_GMRES)
   {
-    CVSpgmr(integ->cvode, side, max_krylov_dim); 
+    SUNLinearSolver ls = SUNSPGMR(integ->U, side, integ->max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
-    CVSpilsSetGSType(integ->cvode, MODIFIED_GS);
+    SUNSPGMRSetGSType(ls, MODIFIED_GS);
+    CVSpilsSetLinearSolver(integ->cvode, ls);
   }
   else if (solver_type == JFNK_AM_BICGSTAB)
-    CVSpbcg(integ->cvode, side, max_krylov_dim);
+  {
+    SUNLinearSolver ls = SUNSPBCGS(integ->U, side, integ->max_krylov_dim);
+    CVSpilsSetLinearSolver(integ->cvode, ls);
+  }
   else
-    CVSptfqmr(integ->cvode, side, max_krylov_dim);
+  {
+    SUNLinearSolver ls = SUNSPTFQMR(integ->U, side, integ->max_krylov_dim);
+    CVSpilsSetLinearSolver(integ->cvode, ls);
+  }
 
   // Set up the Jacobian function and preconditioner.
   if (Jy_func != NULL)
-    CVSpilsSetJacTimesVecFn(integ->cvode, eval_Jy);
+    CVSpilsSetJacTimes(integ->cvode, set_up_Jy, eval_Jy);
   integ->precond = precond;
   CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
                            solve_preconditioner_system);

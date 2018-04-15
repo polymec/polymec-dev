@@ -11,12 +11,13 @@
 #include "solvers/bdf_ode_solver.h"
 #include "solvers/newton_pc.h"
 #include "cvode/cvode.h"
+#include "cvode/cvode_spils.h"
 
 // JFNK stuff.
-#include "cvode/cvode_spils.h"
-#include "cvode/cvode_spgmr.h"
-#include "cvode/cvode_spbcgs.h"
-#include "cvode/cvode_sptfqmr.h"
+#include "sunlinsol/sunlinsol_spgmr.h"
+#include "sunlinsol/sunlinsol_spfgmr.h"
+#include "sunlinsol/sunlinsol_spbcgs.h"
+#include "sunlinsol/sunlinsol_sptfqmr.h"
 
 // Stuff for generalized BDF solvers.
 #include "cvode/cvode_impl.h"
@@ -275,8 +276,7 @@ static void bdf_dtor(void* context)
 // This function sets up the preconditioner data within the solver.
 static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
                                  int jacobian_is_current, int* jacobian_was_updated, 
-                                 real_t gamma, void* context, 
-                                 N_Vector work1, N_Vector work2, N_Vector work3)
+                                 real_t gamma, void* context)
 {
   bdf_ode_t* integ = context;
   if (!jacobian_is_current)
@@ -298,8 +298,7 @@ static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
 static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector F, 
                                        N_Vector r, N_Vector z, 
                                        real_t gamma, real_t delta, 
-                                       int lr, void* context, 
-                                       N_Vector work)
+                                       int lr, void* context)
 {
   bdf_ode_t* integ = context;
   
@@ -312,6 +311,13 @@ static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector F,
   int result = (newton_pc_solve(integ->precond, t, NV_DATA(U), NULL,
                                 NV_DATA(r), NV_DATA(z))) ? 0 : 1;
   return result;
+}
+
+// Adaptor for J*y setup function
+static int set_up_Jy(real_t t, N_Vector y, N_Vector Jy, void* context)
+{
+  // Nothing here!
+  return 0;
 }
 
 // Adaptor for J*y function
@@ -405,18 +411,25 @@ ode_solver_t* jfnk_bdf_ode_solver_new(int order,
   // Set up the solver type.
   if (solver_type == JFNK_BDF_GMRES)
   {
-    CVSpgmr(integ->cvode, side, max_krylov_dim); 
+    SUNLinearSolver ls = SUNSPGMR(integ->U, side, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
-    CVSpilsSetGSType(integ->cvode, MODIFIED_GS);
+    SUNSPGMRSetGSType(ls, MODIFIED_GS);
+    CVSpilsSetLinearSolver(integ->cvode, ls);
   }
   else if (solver_type == JFNK_BDF_BICGSTAB)
-    CVSpbcg(integ->cvode, side, max_krylov_dim);
+  {
+    SUNLinearSolver ls = SUNSPBCGS(integ->U, side, max_krylov_dim);
+    CVSpilsSetLinearSolver(integ->cvode, ls);
+  }
   else
-    CVSptfqmr(integ->cvode, side, max_krylov_dim);
+  {
+    SUNLinearSolver ls = SUNSPTFQMR(integ->U, side, max_krylov_dim);
+    CVSpilsSetLinearSolver(integ->cvode, ls);
+  }
 
   // Set up the Jacobian function and preconditioner.
   if (Jy_func != NULL)
-    CVSpilsSetJacTimesVecFn(integ->cvode, eval_Jy);
+    CVSpilsSetJacTimes(integ->cvode, set_up_Jy, eval_Jy);
   integ->precond = precond;
   CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
                            solve_preconditioner_system);
@@ -808,7 +821,7 @@ ode_solver_t* bdf_ode_solver_new(const char* name,
   cv_mem->cv_lsetup = bdf_lsetup;
   cv_mem->cv_lsolve = bdf_lsolve;
   cv_mem->cv_lfree = bdf_lfree;
-  cv_mem->cv_setupNonNull = 1; // needs to be set for lsetup to be called.
+//  cv_mem->cv_setupNonNull = 1; // needs to be set for lsetup to be called.
 
   ode_solver_vtable vtable = {.step = bdf_step, 
                                   .advance = bdf_advance, 

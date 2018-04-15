@@ -17,6 +17,7 @@
 #include "sunlinsol/sunlinsol_sptfqmr.h"
 #include "kinsol/kinsol.h"
 #include "kinsol/kinsol_impl.h"
+#include "kinsol/kinsol_spils.h"
 
 struct newton_solver_t 
 {
@@ -86,8 +87,7 @@ static int evaluate_F(N_Vector U, N_Vector F, void* context)
 // This function sets up the preconditioner data within the solver.
 static int set_up_preconditioner(N_Vector U, N_Vector U_scale, 
                                  N_Vector F, N_Vector F_scale,
-                                 void* context, 
-                                 N_Vector work1, N_Vector work2)
+                                 void* context)
 {
   newton_solver_t* solver = context;
   real_t t = solver->t;
@@ -101,18 +101,17 @@ static int set_up_preconditioner(N_Vector U, N_Vector U_scale,
 // it contains the solution to the system.
 static int solve_preconditioner_system(N_Vector U, N_Vector U_scale,
                                        N_Vector F, N_Vector F_scale,
-                                       N_Vector r, void* context,
-                                       N_Vector work)
+                                       N_Vector r, void* context)
 {
   newton_solver_t* solver = context;
 
   // FIXME: Apply scaling if needed.
-
+  real_t work[NV_LOCLENGTH(r)];
   if (newton_pc_solve(solver->precond, solver->t, NV_DATA(U), NULL,
-                      NV_DATA(r), NV_DATA(work)))
+                      NV_DATA(r), work))
   {
     // Copy the solution to r.
-    memcpy(NV_DATA(r), NV_DATA(work), sizeof(real_t) * NV_LOCLENGTH(r));
+    memcpy(NV_DATA(r), work, sizeof(real_t) * NV_LOCLENGTH(r));
     return 0;
   }
   else 
@@ -300,7 +299,7 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
   kin_mem->kin_lsetup = newton_lsetup;
   kin_mem->kin_lsolve = newton_lsolve;
   kin_mem->kin_lfree = newton_lfree;
-  kin_mem->kin_setupNonNull = 1;  // need this for lsetup to be called
+//  kin_mem->kin_setupNonNull = 1;  // need this for lsetup to be called
   kin_mem->kin_inexact_ls = 1;    // need this for iterative solvers
 
   return solver;
@@ -354,7 +353,7 @@ newton_solver_t* picard_newton_solver_new(MPI_Comm comm,
   kin_mem->kin_lsetup = picard_lsetup;
   kin_mem->kin_lsolve = newton_lsolve;
   kin_mem->kin_lfree = newton_lfree;
-  kin_mem->kin_setupNonNull = 1;  // need this for lsetup to be called
+//  kin_mem->kin_setupNonNull = 1;  // need this for lsetup to be called
   kin_mem->kin_inexact_ls = 1;    // need this for iterative solvers
 
   return solver;
@@ -377,8 +376,8 @@ newton_solver_t* fixed_point_newton_solver_new(MPI_Comm comm,
   solver->strategy = KIN_FP;
   KINSetMAA(solver->kinsol, num_residuals);
 
-  // Do we need this?
-  KINSpbcg(solver->kinsol, 30);
+  // Do we need to do anything here? Here's what we used to have:
+  // KINSpbcg(solver->kinsol, 30);
 
   return solver;
 }
@@ -432,14 +431,14 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
   if (solver->solver_type == NEWTON_GMRES)
   {
     SUNLinearSolver ls = SUNSPGMR(solver->U, PREC_LEFT, solver->max_krylov_dim);
+    SUNSPGMRSetMaxRestarts(ls, solver->max_restarts);
     KINSpilsSetLinearSolver(solver->kinsol, ls);
-    KINSpilsSetMaxRestarts(solver->kinsol, solver->max_restarts);
   }
   else if (solver->solver_type == NEWTON_FGMRES)
   {
     SUNLinearSolver ls = SUNSPFGMR(solver->U, PREC_LEFT, solver->max_krylov_dim);
+    SUNSPFGMRSetMaxRestarts(ls, solver->max_restarts);
     KINSpilsSetLinearSolver(solver->kinsol, ls);
-    KINSpilsSetMaxRestarts(solver->kinsol, solver->max_restarts);
   }
   else if (solver->solver_type == NEWTON_BICGSTAB)
   {

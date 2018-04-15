@@ -11,9 +11,12 @@
 
 #include "ida/ida.h"
 #include "ida/ida_spils.h"
-#include "ida/ida_spgmr.h"
-#include "ida/ida_spbcgs.h"
-#include "ida/ida_sptfqmr.h"
+
+// JFNK stuff.
+#include "sunlinsol/sunlinsol_spgmr.h"
+#include "sunlinsol/sunlinsol_spfgmr.h"
+#include "sunlinsol/sunlinsol_spbcgs.h"
+#include "sunlinsol/sunlinsol_sptfqmr.h"
 
 // Stuff for generalized solvers.
 #include "ida/ida_impl.h"
@@ -144,8 +147,7 @@ static int evaluate_residual(real_t t, N_Vector U, N_Vector U_dot,
 
 // This function sets up the preconditioner data within the solver.
 static int set_up_preconditioner(real_t t, N_Vector U, N_Vector U_dot, N_Vector F,
-                                 real_t cj, void* context,
-                                 N_Vector work1, N_Vector work2, N_Vector work3)
+                                 real_t cj, void* context)
 {
   START_FUNCTION_TIMER();
   dae_solver_t* integ = context;
@@ -163,8 +165,7 @@ static int set_up_preconditioner(real_t t, N_Vector U, N_Vector U_dot, N_Vector 
 // it contains the solution to the system.
 static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector U_dot, 
                                        N_Vector F, N_Vector r, N_Vector z, 
-                                       real_t cj, real_t delta, 
-                                       void* context, N_Vector work)
+                                       real_t cj, real_t delta, void* context)
 {
   START_FUNCTION_TIMER();
   dae_solver_t* integ = context;
@@ -176,6 +177,13 @@ static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector U_dot,
                                 NV_DATA(r), NV_DATA(z))) ? 0 : 1;
   STOP_FUNCTION_TIMER();
   return result;
+}
+
+// Adaptor for J*y setup function
+static int set_up_Jy(real_t t, N_Vector y, N_Vector ydot, N_Vector Jy, real_t cj, void* context)
+{
+  // Nothing here!
+  return 0;
 }
 
 // Adaptor for J*y function.
@@ -356,21 +364,29 @@ dae_solver_t* jfnk_dae_solver_new(int order,
 
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver_type == JFNK_DAE_GMRES)
-    IDASpgmr(integ->ida, max_krylov_dim); 
+  {
+    SUNLinearSolver ls = SUNSPGMR(integ->U, PREC_LEFT, max_krylov_dim);
+    // We use modified Gram-Schmidt orthogonalization.
+    SUNSPGMRSetGSType(ls, MODIFIED_GS);
+    IDASpilsSetLinearSolver(integ->ida, ls);
+  }
   else if (solver_type == JFNK_DAE_BICGSTAB)
-    IDASpbcg(integ->ida, max_krylov_dim);
+  {
+    SUNLinearSolver ls = SUNSPBCGS(integ->U, PREC_LEFT, max_krylov_dim);
+    IDASpilsSetLinearSolver(integ->ida, ls);
+  }
   else
-    IDASptfqmr(integ->ida, max_krylov_dim);
+  {
+    SUNLinearSolver ls = SUNSPTFQMR(integ->U, PREC_LEFT, max_krylov_dim);
+    IDASpilsSetLinearSolver(integ->ida, ls);
+  }
 
   // Set up the equation types and constraints.
   set_up_equations_and_constraints(integ, equation_types, constraints);
 
-  // We use modified Gram-Schmidt orthogonalization.
-  IDASpilsSetGSType(integ->ida, MODIFIED_GS);
-
   // Set up the Jacobian function if given.
   if (integ->Jy != NULL)
-    IDASpilsSetJacTimesVecFn(integ->ida, eval_Jy);
+    IDASpilsSetJacTimes(integ->ida, set_up_Jy, eval_Jy);
 
   // Set up preconditioner machinery.
   IDASpilsSetPreconditioner(integ->ida, set_up_preconditioner,
@@ -528,7 +544,7 @@ dae_solver_t* dae_solver_new(const char* name,
   ida_mem->ida_lsolve = dae_lsolve;
   ida_mem->ida_lperf = dae_lperf;
   ida_mem->ida_lfree = dae_lfree;
-  ida_mem->ida_setupNonNull = 1; // needs to be set for lsetup to be called.
+//  ida_mem->ida_setupNonNull = 1; // needs to be set for lsetup to be called.
 
   // Set up the equation types and constraints.
   set_up_equations_and_constraints(integ, equation_types, constraints);

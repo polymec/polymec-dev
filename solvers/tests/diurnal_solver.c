@@ -42,7 +42,6 @@
 // Jacobian is saved and conditionally reused within the Precond
 // routine.
 
-#include <cvode/cvode_spgmr.h>        // prototypes & constants for CVSPGMR 
 #include <nvector/nvector_serial.h>   // serial N_Vector types, fct., macros 
 #include <sundials/sundials_dense.h>  // use generic dense solver in precond. 
 #include <sundials/sundials_types.h>  // definition of real_t 
