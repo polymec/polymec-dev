@@ -1,8 +1,4 @@
-/*
- * -----------------------------------------------------------------
- * $Revision: 4396 $
- * $Date: 2015-02-26 16:59:39 -0800 (Thu, 26 Feb 2015) $
- * -----------------------------------------------------------------
+/* -----------------------------------------------------------------
  * Programmer(s): Jean M. Sexton @ SMU
  *                Slaven Peles @ LLNL
  * -----------------------------------------------------------------
@@ -21,8 +17,7 @@
  * -----------------------------------------------------------------
  * This is the implementation file for a parhyp MPI implementation
  * of the NVECTOR package.
- * -----------------------------------------------------------------
- */
+ * -----------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,7 +45,7 @@
  * are assumed:
  *
  * N_Vector v;
- * long int v_len, s_len, i;
+ * sunindextype v_len, s_len, i;
  *
  * (1) NV_CONTENT_PH
  *
@@ -165,8 +160,8 @@ N_Vector_ID N_VGetVectorID_ParHyp(N_Vector v)
  * HYPRE vector.
  */
 N_Vector N_VNewEmpty_ParHyp(MPI_Comm comm, 
-                            long int local_length,
-                            long int global_length)
+                            sunindextype local_length,
+                            sunindextype global_length)
 {
   N_Vector v;
   N_Vector_Ops ops;
@@ -218,7 +213,7 @@ N_Vector N_VNewEmpty_ParHyp(MPI_Comm comm,
   content->local_length  = local_length;
   content->global_length = global_length;
   content->comm          = comm;
-  content->own_parvector = FALSE;
+  content->own_parvector = SUNFALSE;
   content->x             = NULL;
   
   /* Attach content and ops */
@@ -248,7 +243,7 @@ N_Vector N_VMake_ParHyp(hypre_ParVector *x)
   if (v == NULL) 
     return(NULL);
 
-  NV_OWN_PARVEC_PH(v)   = FALSE;
+  NV_OWN_PARVEC_PH(v)   = SUNFALSE;
   NV_HYPRE_PARVEC_PH(v) = x;
 
   return(v);
@@ -344,7 +339,17 @@ hypre_ParVector* N_VGetVector_ParHyp(N_Vector v)
 
 void N_VPrint_ParHyp(N_Vector x)
 {
-  long int i, N;
+  N_VPrintFile_ParHyp(x, stdout);
+}
+
+/* ---------------------------------------------------------------- 
+ * Function to print a parhyp vector.
+ * TODO: Consider using a HYPRE function for this.
+ */
+
+void N_VPrintFile_ParHyp(N_Vector x, FILE *outfile)
+{
+  sunindextype i, N;
   realtype *xd;
 
   xd = NULL;
@@ -354,14 +359,14 @@ void N_VPrint_ParHyp(N_Vector x)
 
   for (i = 0; i < N; i++) {
 #if defined(SUNDIALS_EXTENDED_PRECISION)
-    printf("%Lg\n", xd[i]);
+    fprintf(outfile, "%Lg\n", xd[i]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    printf("%g\n", xd[i]);
+    fprintf(outfile, "%g\n", xd[i]);
 #else
-    printf("%g\n", xd[i]);
+    fprintf(outfile, "%g\n", xd[i]);
 #endif
   }
-  printf("\n");
+  fprintf(outfile, "\n");
 
   return;
 }
@@ -431,7 +436,7 @@ N_Vector N_VCloneEmpty_ParHyp(N_Vector w)
   content->local_length  = NV_LOCLENGTH_PH(w);
   content->global_length = NV_GLOBLENGTH_PH(w);
   content->comm          = NV_COMM_PH(w);
-  content->own_parvector = FALSE;
+  content->own_parvector = SUNFALSE;
   content->x             = NULL;
   
   /* Attach content and ops */
@@ -464,14 +469,14 @@ N_Vector N_VClone_ParHyp(N_Vector w)
   hypre_SeqVectorSetDataOwner(hypre_ParVectorLocalVector(vx), 1);
   
   NV_HYPRE_PARVEC_PH(v) = vx;
-  NV_OWN_PARVEC_PH(v) = TRUE;
+  NV_OWN_PARVEC_PH(v) = SUNTRUE;
   
   return(v);
 }
 
 void N_VDestroy_ParHyp(N_Vector v)
 {
-  if ((NV_OWN_PARVEC_PH(v) == TRUE)) {
+  if ((NV_OWN_PARVEC_PH(v) == SUNTRUE)) {
     hypre_ParVectorDestroy(NV_HYPRE_PARVEC_PH(v));
   }
   
@@ -483,7 +488,7 @@ void N_VDestroy_ParHyp(N_Vector v)
 }
 
 
-void N_VSpace_ParHyp(N_Vector v, long int *lrw, long int *liw)
+void N_VSpace_ParHyp(N_Vector v, sunindextype *lrw, sunindextype *liw)
 {
   MPI_Comm comm;
   int npes;
@@ -525,7 +530,7 @@ void N_VSetArrayPointer_ParHyp(realtype *v_data, N_Vector v)
  */
 void N_VLinearSum_ParHyp(realtype a, N_Vector x, realtype b, N_Vector y, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype c, *xd, *yd, *zd;
   N_Vector v1, v2;
   booleantype test;
@@ -627,7 +632,7 @@ void N_VConst_ParHyp(realtype c, N_Vector z)
 
 void N_VProd_ParHyp(N_Vector x, N_Vector y, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *yd, *zd;
 
   xd = yd = zd = NULL;
@@ -650,7 +655,7 @@ void N_VProd_ParHyp(N_Vector x, N_Vector y, N_Vector z)
 
 void N_VDiv_ParHyp(N_Vector x, N_Vector y, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *yd, *zd;
 
   xd = yd = zd = NULL;
@@ -682,7 +687,7 @@ void N_VScale_ParHyp(realtype c, N_Vector x, N_Vector z)
 
 void N_VAbs_ParHyp(N_Vector x, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *zd;
 
   xd = zd = NULL;
@@ -699,7 +704,7 @@ void N_VAbs_ParHyp(N_Vector x, N_Vector z)
 
 void N_VInv_ParHyp(N_Vector x, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *zd;
 
   xd = zd = NULL;
@@ -716,7 +721,7 @@ void N_VInv_ParHyp(N_Vector x, N_Vector z)
 
 void N_VAddConst_ParHyp(N_Vector x, realtype b, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *zd;
 
   xd = zd = NULL;
@@ -743,7 +748,7 @@ realtype N_VDotProd_ParHyp(N_Vector x, N_Vector y)
 
 realtype N_VMaxNorm_ParHyp(N_Vector x)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype max, *xd, gmax;
   MPI_Comm comm;
 
@@ -766,7 +771,7 @@ realtype N_VMaxNorm_ParHyp(N_Vector x)
 
 realtype N_VWrmsNorm_ParHyp(N_Vector x, N_Vector w)
 {
-  long int i, N, N_global;
+  sunindextype i, N, N_global;
   realtype sum, prodi, *xd, *wd, gsum;
   MPI_Comm comm;
 
@@ -791,7 +796,7 @@ realtype N_VWrmsNorm_ParHyp(N_Vector x, N_Vector w)
 
 realtype N_VWrmsNormMask_ParHyp(N_Vector x, N_Vector w, N_Vector id)
 {
-  long int i, N, N_global;
+  sunindextype i, N, N_global;
   realtype sum, prodi, *xd, *wd, *idd, gsum;
   MPI_Comm comm;
 
@@ -819,7 +824,7 @@ realtype N_VWrmsNormMask_ParHyp(N_Vector x, N_Vector w, N_Vector id)
 
 realtype N_VMin_ParHyp(N_Vector x)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype min, *xd, gmin;
   MPI_Comm comm;
 
@@ -850,7 +855,7 @@ realtype N_VMin_ParHyp(N_Vector x)
 
 realtype N_VWL2Norm_ParHyp(N_Vector x, N_Vector w)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype sum, prodi, *xd, *wd, gsum;
   MPI_Comm comm;
 
@@ -874,7 +879,7 @@ realtype N_VWL2Norm_ParHyp(N_Vector x, N_Vector w)
 
 realtype N_VL1Norm_ParHyp(N_Vector x)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype sum, gsum, *xd;
   MPI_Comm comm;
 
@@ -895,7 +900,7 @@ realtype N_VL1Norm_ParHyp(N_Vector x)
 
 void N_VCompare_ParHyp(realtype c, N_Vector x, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *zd;
 
   xd = zd = NULL;
@@ -913,7 +918,7 @@ void N_VCompare_ParHyp(realtype c, N_Vector x, N_Vector z)
 
 booleantype N_VInvTest_ParHyp(N_Vector x, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *zd, val, gval;
   MPI_Comm comm;
 
@@ -935,14 +940,14 @@ booleantype N_VInvTest_ParHyp(N_Vector x, N_Vector z)
   gval = VAllReduce_ParHyp(val, 3, comm);
 
   if (gval == ZERO)
-    return(FALSE);
+    return(SUNFALSE);
   else
-    return(TRUE);
+    return(SUNTRUE);
 }
 
 booleantype N_VConstrMask_ParHyp(N_Vector c, N_Vector x, N_Vector m)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype temp;
   realtype *cd, *xd, *md;
   MPI_Comm comm;
@@ -978,15 +983,15 @@ booleantype N_VConstrMask_ParHyp(N_Vector c, N_Vector x, N_Vector m)
   temp = VAllReduce_ParHyp(temp, 3, comm);
 
   if (temp == ONE) 
-    return(TRUE);
+    return(SUNTRUE);
   else 
-    return(FALSE);
+    return(SUNFALSE);
 }
 
 realtype N_VMinQuotient_ParHyp(N_Vector num, N_Vector denom)
 {
   booleantype notEvenOnce;
-  long int i, N;
+  sunindextype i, N;
   realtype *nd, *dd, min;
   MPI_Comm comm;
 
@@ -997,7 +1002,7 @@ realtype N_VMinQuotient_ParHyp(N_Vector num, N_Vector denom)
   dd = NV_DATA_PH(denom);
   comm = NV_COMM_PH(num);
 
-  notEvenOnce = TRUE;
+  notEvenOnce = SUNTRUE;
   min = BIG_REAL;
 
   for (i = 0; i < N; i++) {
@@ -1006,7 +1011,7 @@ realtype N_VMinQuotient_ParHyp(N_Vector num, N_Vector denom)
       if (!notEvenOnce) min = SUNMIN(min, nd[i]/dd[i]);
       else {
         min = nd[i]/dd[i];
-        notEvenOnce = FALSE;
+        notEvenOnce = SUNFALSE;
       }
     }
   }
@@ -1051,7 +1056,7 @@ static realtype VAllReduce_ParHyp(realtype d, int op, MPI_Comm comm)
 
 static void VSum_ParHyp(N_Vector x, N_Vector y, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *yd, *zd;
 
   xd = yd = zd = NULL;
@@ -1069,7 +1074,7 @@ static void VSum_ParHyp(N_Vector x, N_Vector y, N_Vector z)
 
 static void VDiff_ParHyp(N_Vector x, N_Vector y, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *yd, *zd;
 
   xd = yd = zd = NULL;
@@ -1088,7 +1093,7 @@ static void VDiff_ParHyp(N_Vector x, N_Vector y, N_Vector z)
 
 static void VScaleSum_ParHyp(realtype c, N_Vector x, N_Vector y, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *yd, *zd;
 
   xd = yd = zd = NULL;
@@ -1106,7 +1111,7 @@ static void VScaleSum_ParHyp(realtype c, N_Vector x, N_Vector y, N_Vector z)
 
 static void VScaleDiff_ParHyp(realtype c, N_Vector x, N_Vector y, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *yd, *zd;
 
   xd = yd = zd = NULL;
@@ -1124,7 +1129,7 @@ static void VScaleDiff_ParHyp(realtype c, N_Vector x, N_Vector y, N_Vector z)
 
 static void VLin1_ParHyp(realtype a, N_Vector x, N_Vector y, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *yd, *zd;
 
   xd = yd = zd = NULL;
@@ -1142,7 +1147,7 @@ static void VLin1_ParHyp(realtype a, N_Vector x, N_Vector y, N_Vector z)
 
 static void VLin2_ParHyp(realtype a, N_Vector x, N_Vector y, N_Vector z)
 {
-  long int i, N;
+  sunindextype i, N;
   realtype *xd, *yd, *zd;
 
   xd = yd = zd = NULL;

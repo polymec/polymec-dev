@@ -1,8 +1,4 @@
-/*
- * -----------------------------------------------------------------
- * $Revision: 4867 $
- * $Date: 2016-08-19 10:05:14 -0700 (Fri, 19 Aug 2016) $
- * ----------------------------------------------------------------- 
+/* -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh, Radu Serban,
  *                and Aaron Collier @ LLNL
  * -----------------------------------------------------------------
@@ -48,8 +44,7 @@
  *
  *     (which stores the result of the operation a*x+b*y in y)
  *     is legal.
- * -----------------------------------------------------------------
- */
+ * -----------------------------------------------------------------*/
 
 #ifndef _NVECTOR_SERIAL_H
 #define _NVECTOR_SERIAL_H
@@ -72,7 +67,7 @@ extern "C" {
    the data */
 
 struct _N_VectorContent_Serial {
-  long int length;
+  sunindextype length;
   booleantype own_data;
   realtype *data;
 };
@@ -88,7 +83,7 @@ typedef struct _N_VectorContent_Serial *N_VectorContent_Serial;
  * are assumed:
  *
  * N_Vector v;
- * long int i;
+ * sunindextype i;
  *
  * (1) NV_CONTENT_S
  *
@@ -154,6 +149,7 @@ typedef struct _N_VectorContent_Serial *N_VectorContent_Serial;
  * OTHER:
  *    N_VGetLength_Serial
  *    N_VPrint_Serial
+ *    N_VPrintFile_Serial
  * -----------------------------------------------------------------
  */
 
@@ -165,7 +161,7 @@ typedef struct _N_VectorContent_Serial *N_VectorContent_Serial;
  * -----------------------------------------------------------------
  */
 
-SUNDIALS_EXPORT N_Vector N_VNew_Serial(long int vec_length);
+SUNDIALS_EXPORT N_Vector N_VNew_Serial(sunindextype vec_length);
 
 /*
  * -----------------------------------------------------------------
@@ -176,7 +172,7 @@ SUNDIALS_EXPORT N_Vector N_VNew_Serial(long int vec_length);
  * -----------------------------------------------------------------
  */
 
-SUNDIALS_EXPORT N_Vector N_VNewEmpty_Serial(long int vec_length);
+SUNDIALS_EXPORT N_Vector N_VNewEmpty_Serial(sunindextype vec_length);
 
 /*
  * -----------------------------------------------------------------
@@ -187,7 +183,7 @@ SUNDIALS_EXPORT N_Vector N_VNewEmpty_Serial(long int vec_length);
  * -----------------------------------------------------------------
  */
 
-SUNDIALS_EXPORT N_Vector N_VMake_Serial(long int vec_length, realtype *v_data);
+SUNDIALS_EXPORT N_Vector N_VMake_Serial(sunindextype vec_length, realtype *v_data);
 
 /*
  * -----------------------------------------------------------------
@@ -230,7 +226,7 @@ SUNDIALS_EXPORT void N_VDestroyVectorArray_Serial(N_Vector *vs, int count);
  * -----------------------------------------------------------------
  */
 
-SUNDIALS_EXPORT long int N_VGetLength_Serial(N_Vector v);
+SUNDIALS_EXPORT sunindextype N_VGetLength_Serial(N_Vector v);
 
 /*
  * -----------------------------------------------------------------
@@ -244,6 +240,16 @@ SUNDIALS_EXPORT void N_VPrint_Serial(N_Vector v);
 
 /*
  * -----------------------------------------------------------------
+ * Function : N_VPrintFile_Serial
+ * -----------------------------------------------------------------
+ * This function prints the content of a serial vector to outfile.
+ * -----------------------------------------------------------------
+ */
+
+SUNDIALS_EXPORT void N_VPrintFile_Serial(N_Vector v, FILE *outfile);
+
+/*
+ * -----------------------------------------------------------------
  * serial implementations of various useful vector operations
  * -----------------------------------------------------------------
  */
@@ -252,7 +258,7 @@ SUNDIALS_EXPORT N_Vector_ID N_VGetVectorID_Serial(N_Vector v);
 SUNDIALS_EXPORT N_Vector N_VCloneEmpty_Serial(N_Vector w);
 SUNDIALS_EXPORT N_Vector N_VClone_Serial(N_Vector w);
 SUNDIALS_EXPORT void N_VDestroy_Serial(N_Vector v);
-SUNDIALS_EXPORT void N_VSpace_Serial(N_Vector v, long int *lrw, long int *liw);
+SUNDIALS_EXPORT void N_VSpace_Serial(N_Vector v, sunindextype *lrw, sunindextype *liw);
 SUNDIALS_EXPORT realtype *N_VGetArrayPointer_Serial(N_Vector v);
 SUNDIALS_EXPORT void N_VSetArrayPointer_Serial(realtype *v_data, N_Vector v);
 SUNDIALS_EXPORT void N_VLinearSum_Serial(realtype a, N_Vector x, realtype b, N_Vector y, N_Vector z);

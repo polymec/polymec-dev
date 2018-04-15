@@ -9,9 +9,10 @@
 #include "core/norms.h"
 #include "solvers/dense_newton_solver.h"
 #include "nvector/nvector_serial.h"
-#include "sundials/sundials_direct.h"
+#include "sunmatrix/sunmatrix_dense.h"
+#include "sunlinsol/sunlinsol_dense.h"
 #include "kinsol/kinsol.h"
-#include "kinsol/kinsol_dense.h"
+#include "kinsol/kinsol_direct.h"
 
 struct dense_newton_solver_t 
 {
@@ -38,12 +39,12 @@ static int eval_system_func(N_Vector X, N_Vector F, void* context)
 }
 
 // Wrapper for system Jacobian.
-static int eval_system_jac(long N, N_Vector X, N_Vector F, DlsMat J,
+static int eval_system_jac(N_Vector X, N_Vector F, SUNMatrix J,
                            void* context, N_Vector work1, N_Vector work2)
 {
   dense_newton_solver_t* solver = context;
-  return solver->sys_jac(context, (int)N, NV_DATA_S(X), NV_DATA_S(F), 
-                         NV_DATA_S(work1), NV_DATA_S(work2), J->data);
+  return solver->sys_jac(context, (int)(SM_CONTENT_D(J)->N), NV_DATA_S(X), NV_DATA_S(F), 
+                         NV_DATA_S(work1), NV_DATA_S(work2), SM_CONTENT_D(J)->data);
 }
 
 dense_newton_solver_t* dense_newton_solver_new(int dimension,
@@ -75,11 +76,15 @@ dense_newton_solver_t* dense_newton_solver_new_with_jacobian(int dimension,
   solver->sys_jac = jacobian_func;
   KINSetUserData(solver->kinsol, solver);
   KINInit(solver->kinsol, eval_system_func, solver->x);
-  KINDense(solver->kinsol, dimension);
+
+  // Set up a dense linear solver.
+  SUNMatrix J = SUNDenseMatrix(dimension, dimension);
+  SUNLinearSolver ls = SUNDenseLinearSolver(solver->x, J);
+  KINDlsSetLinearSolver(solver->kinsol, ls, J);
 
   // Do we have a Jacobian function?
   if (solver->sys_jac != NULL)
-    KINDlsSetDenseJacFn(solver->kinsol, eval_system_jac);
+    KINDlsSetJacFn(solver->kinsol, eval_system_jac);
 
   // Use exact Newton?
   // KINSetMaxSetupCalls(solver->kinsol, 1);

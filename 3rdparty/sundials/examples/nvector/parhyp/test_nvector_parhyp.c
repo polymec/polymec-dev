@@ -1,8 +1,4 @@
-/*
- * -----------------------------------------------------------------
- * $Revision: 4137 $
- * $Date: 2014-06-15 12:26:15 -0700 (Sun, 15 Jun 2014) $
- * ----------------------------------------------------------------- 
+/* ----------------------------------------------------------------- 
  * Programmer(s): Slaven Peles @ LLNL
  * -----------------------------------------------------------------
  * LLNS Copyright Start
@@ -17,8 +13,7 @@
  * -----------------------------------------------------------------
  * This is the testing routine to check the NVECTOR Parallel module 
  * implementation. 
- * -----------------------------------------------------------------
- */
+ * -----------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +24,6 @@
 #include "test_nvector.h"
 
 #include <mpi.h>
-#include <omp.h>
 
 #if defined( SUNDIALS_HAVE_POSIX_TIMERS) && defined(_POSIX_TIMERS)
 #include <time.h>
@@ -48,16 +42,17 @@ static int Test_N_VGetVectorID(N_Vector W, int myid);
  * --------------------------------------------------------------------*/
 int main(int argc, char *argv[]) 
 {
-  int      fails = 0;                   /* counter for test failures */
-  long int local_length, global_length; /* vector lengths            */
-  N_Vector W;
-  N_Vector X, Y, Z;                     /* test vectors              */
-  MPI_Comm comm;                        /* MPI Communicator          */
-  int      nprocs, myid;                /* Number of procs, proc id  */
-  long int veclen;                      /* vector length             */
-  int      print_timing;
-  HYPRE_Int *partitioning;      /* Vector Partitioning */
-  HYPRE_ParVector Xhyp;         /* Instantiate hypre parallel vector */
+  int              fails = 0;                   /* counter for test failures */
+  int              globfails = 0;               /* counter for test failures */
+  sunindextype     local_length, global_length; /* vector lengths            */
+  N_Vector         W, X, Y, Z;                  /* test vectors              */
+  MPI_Comm         comm;                        /* MPI Communicator          */
+  int              nprocs, myid;                /* Number of procs, proc id  */
+  sunindextype     veclen;                      /* vector length             */
+  int              print_timing;
+  HYPRE_Int       *partitioning;                /* Vector Partitioning       */
+  HYPRE_ParVector  Xhyp;                        /* Instantiate hypre parallel vector */
+  int              mpierr;                      /* mpi error flag            */
 
   /* check input and set vector length */
   if (argc < 3) {
@@ -80,7 +75,7 @@ int main(int argc, char *argv[])
   /* printf("\nRunning with vector length %ld \n \n", veclen); */
   /* Get processor number and total number of processes */
   MPI_Init(&argc, &argv);
-  /* omp_set_num_threads(4); */
+
   comm = MPI_COMM_WORLD;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &myid);
@@ -167,11 +162,15 @@ int main(int argc, char *argv[])
      }
   }
 
+  /* check if any other process failed */
+  mpierr = MPI_Allreduce(&fails, &globfails, 1, MPI_INT, MPI_MAX, comm);
+
   /* Free hypre template vector */
   HYPRE_ParVectorDestroy(Xhyp);
   
   MPI_Finalize();
-  return(0);
+
+  return(globfails);
 }
 
 /* ----------------------------------------------------------------------
@@ -179,10 +178,10 @@ int main(int argc, char *argv[])
  * 
  * Checks if all elements of vector X are set to value ans. 
  * --------------------------------------------------------------------*/
-int check_ans(realtype ans, N_Vector X, long int local_length)
+int check_ans(realtype ans, N_Vector X, sunindextype local_length)
 {
   int      failure = 0;
-  long int i;
+  sunindextype i;
   hypre_ParVector *Xvec = N_VGetVector_ParHyp(X);
   realtype *Xdata = Xvec == NULL ? NULL : hypre_VectorData(hypre_ParVectorLocalVector(Xvec));
   
@@ -208,9 +207,9 @@ booleantype has_data(N_Vector X)
   hypre_ParVector *Xvec = N_VGetVector_ParHyp(X);
   realtype *Xdata = Xvec == NULL ? NULL : hypre_VectorData(hypre_ParVectorLocalVector(Xvec));
   if (Xdata == NULL)
-    return FALSE;
+    return SUNFALSE;
   else
-    return TRUE;
+    return SUNTRUE;
 }
 
 
@@ -220,7 +219,7 @@ booleantype has_data(N_Vector X)
  * Sets single element in hypre vector by accessing its raw block. 
  * Probably not the most efficient way to set the entire vector.
  * --------------------------------------------------------------------*/
-void set_element(N_Vector X, long int i, realtype val)
+void set_element(N_Vector X, sunindextype i, realtype val)
 {
   hypre_ParVector *Xvec = N_VGetVector_ParHyp(X);
   realtype *Xdata = hypre_VectorData(hypre_ParVectorLocalVector(Xvec));
@@ -233,7 +232,7 @@ void set_element(N_Vector X, long int i, realtype val)
  * Reads single element from hypre vector by accessing its raw block. 
  * Probably not the most efficient way to get the vector values.
  * --------------------------------------------------------------------*/
-realtype get_element(N_Vector X, long int i)
+realtype get_element(N_Vector X, sunindextype i)
 {
   hypre_ParVector *Xvec = N_VGetVector_ParHyp(X);
   const realtype *Xdata = hypre_VectorData(hypre_ParVectorLocalVector(Xvec));

@@ -1,8 +1,5 @@
 # ---------------------------------------------------------------
-# $Revision: 4096 $
-# $Date: 2014-05-02 14:49:50 -0700 (Fri, 02 May 2014) $
-# ---------------------------------------------------------------
-# Programmer:  Radu Serban @ LLNL
+# Programmer: Radu Serban @ LLNL
 # ---------------------------------------------------------------
 # LLNS Copyright Start
 # Copyright (c) 2014, Lawrence Livermore National Security
@@ -15,80 +12,66 @@
 # LLNS Copyright End
 # ---------------------------------------------------------------
 # CMakeLists.txt file for the FKINSOL serial examples
+# ---------------------------------------------------------------
 
+# Example lists are tuples "name\;type" where the type is
+# 'develop' for examples excluded from 'make test' in releases
 
-# Add variable kinsol_examples with the names of the serial FKINSOL examples
-
+# Examples using SUNDIALS linear solvers
 SET(FKINSOL_examples
-  fkinDiagon_kry
-  )
-
-# Add variable FKINSOL_examples_BL with the names of the serial FKINSOL examples
-# that use Lapack
-
-SET(FKINSOL_examples_BL
+  "fkinDiagon_kry\;develop"
   )
 
 # Specify libraries to link against (through the target that was used to 
 # generate them) based on the value of the variable LINK_LIBRARY_TYPE
-
 IF(LINK_LIBRARY_TYPE MATCHES "static")
   SET(KINSOL_LIB sundials_kinsol_static)
   SET(NVECS_LIB sundials_nvecserial_static)
   SET(FNVECS_LIB sundials_fnvecserial_static)
-ELSE(LINK_LIBRARY_TYPE MATCHES "static")
+ELSE()
   SET(KINSOL_LIB sundials_kinsol_shared)
   SET(NVECS_LIB sundials_nvecserial_shared)
   SET(FNVECS_LIB sundials_fnvecserial_shared)
-ENDIF(LINK_LIBRARY_TYPE MATCHES "static")
+ENDIF()
 
 # Only static FCMIX libraries are available
-
 SET(FKINSOL_LIB sundials_fkinsol_static)
 
 # Set-up linker flags and link libraries
-
 SET(SUNDIALS_LIBS ${FKINSOL_LIB} ${KINSOL_LIB} ${FNVECS_LIB} ${NVECS_LIB} ${EXTRA_LINK_LIBS})
-IF(LAPACK_FOUND)
-  LIST(APPEND SUNDIALS_LIBS ${LAPACK_LIBRARIES})
-ENDIF(LAPACK_FOUND)
 
-IF(KLU_FOUND)
-  LIST(APPEND SUNDIALS_LIBS ${KLU_LIBRARIES})
-ENDIF(KLU_FOUND)
 
-IF(SUPERLUMT_FOUND)
-  LIST(APPEND SUNDIALS_LIBS ${SUPERLUMT_LIBRARIES})
-ENDIF(SUPERLUMT_FOUND)
+# Add the build and install targets for each example
+FOREACH(example_tuple ${FKINSOL_examples})
 
-# Add the build and install targets for each FKINSOL example
+  # parse the example tuple
+  LIST(GET example_tuple 0 example)
+  LIST(GET example_tuple 1 example_type)
 
-FOREACH(example ${FKINSOL_examples})
+  # example source files
   ADD_EXECUTABLE(${example} ${example}.f)
+
   SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
-  SUNDIALS_ADD_TEST(${example} ${example})
+
+  # add example to regression tests
+  SUNDIALS_ADD_TEST(${example} ${example}
+    ANSWER_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+    ANSWER_FILE ${example}.out
+    EXAMPLE_TYPE ${example_type})
+
+  # libraries to link against
   TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
+
+   # install example source and out files
   IF(EXAMPLES_INSTALL)
-    INSTALL(FILES ${example}.f ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/kinsol/fcmix_serial)
-  ENDIF(EXAMPLES_INSTALL)
-ENDFOREACH(example ${FKINSOL_examples})
+    INSTALL(FILES ${example}.f ${example}.out
+      DESTINATION ${EXAMPLES_INSTALL_PATH}/kinsol/fcmix_serial)
+  ENDIF()
 
-# If Lapack support is enabled, add the build and install targets for
-# the examples using Lapack
-
-IF(LAPACK_FOUND)
-  FOREACH(example ${FKINSOL_examples_BL})
-    ADD_EXECUTABLE(${example} ${example}.f)
-    SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
-    SUNDIALS_ADD_TEST(${example} ${example})
-    TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
-    IF(EXAMPLES_INSTALL)
-      INSTALL(FILES ${example}.f ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/kinsol/fcmix_serial)
-    ENDIF(EXAMPLES_INSTALL)
-  ENDFOREACH(example ${FKINSOL_examples_BL})
-ENDIF(LAPACK_FOUND)
+ENDFOREACH(example_tuple ${FKINSOL_examples})
 
 
+# create Makfile and CMakeLists.txt for examples
 IF(EXAMPLES_INSTALL)
 
   # Install the README file
@@ -98,12 +81,8 @@ IF(EXAMPLES_INSTALL)
   SET(SOLVER "KINSOL")
   SET(SOLVER_LIB "sundials_kinsol")
   SET(SOLVER_FLIB "sundials_fkinsol")
-  LIST2STRING(FKINSOL_examples EXAMPLES)
-  IF(LAPACK_FOUND)
-    LIST2STRING(FKINSOL_examples_BL EXAMPLES_BL)
-  ELSE(LAPACK_FOUND)
-    SET(EXAMPLES_BL "")
-  ENDIF(LAPACK_FOUND)
+
+  EXAMPLES2STRING(FKINSOL_examples EXAMPLES)
 
   # Regardless of the platform we're on, we will generate and install 
   # CMakeLists.txt file for building the examples. This file  can then 
@@ -111,10 +90,10 @@ IF(EXAMPLES_INSTALL)
 
   # generate CMakelists.txt in the binary directory
   CONFIGURE_FILE(
-      ${PROJECT_SOURCE_DIR}/examples/templates/cmakelists_serial_F77_ex.in
-      ${PROJECT_BINARY_DIR}/examples/kinsol/fcmix_serial/CMakeLists.txt
-      @ONLY
-      )
+    ${PROJECT_SOURCE_DIR}/examples/templates/cmakelists_serial_F77_ex.in
+    ${PROJECT_BINARY_DIR}/examples/kinsol/fcmix_serial/CMakeLists.txt
+    @ONLY
+    )
 
   # install CMakelists.txt
   INSTALL(

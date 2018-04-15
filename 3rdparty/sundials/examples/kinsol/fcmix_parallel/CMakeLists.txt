@@ -1,7 +1,4 @@
 # ---------------------------------------------------------------
-# $Revision: 4096 $
-# $Date: 2014-05-02 14:49:50 -0700 (Fri, 02 May 2014) $
-# ---------------------------------------------------------------
 # Programmer:  Radu Serban @ LLNL
 # ---------------------------------------------------------------
 # LLNS Copyright Start
@@ -15,77 +12,84 @@
 # LLNS Copyright End
 # ---------------------------------------------------------------
 # CMakeLists.txt file for the FKINSOL parallel examples
+# ---------------------------------------------------------------
 
+# Example lists are tuples "name\;nodes\;tasks\;type" where the
+# type is develop for examples excluded from 'make test' in releases
 
-# Add variable kinsol_examples with the names of the parallel KINSOL examples
-
+# Examples using SUNDIALS linear solvers
 SET(FKINSOL_examples
-  "fkinDiagon_kry_p\;1\;4"
+  "fkinDiagon_kry_p\;1\;4\;develop"
   )
 
 # Check whether we use MPI compiler scripts.
 # If yes, then change the Fortran compiler to the MPIF77 script.
 # If not, then add the MPI include directory for MPI headers.
-
-IF(MPI_MPIF77 )
+IF(MPI_MPIF77)
   # use MPI_MPIF77 as the compiler
   SET(CMAKE_Fortran_COMPILER ${MPI_MPIF77})
-ELSE(MPI_MPIF77)
+ELSE()
   # add MPI_INCLUDE_PATH to include directories
   INCLUDE_DIRECTORIES(${MPI_INCLUDE_PATH})
-ENDIF(MPI_MPIF77)
+ENDIF()
 
 # Specify libraries to link against (through the target that was used to 
 # generate them) based on the value of the variable LINK_LIBRARY_TYPE
-
 IF(LINK_LIBRARY_TYPE MATCHES "static")
   SET(KINSOL_LIB sundials_kinsol_static)
   SET(NVECP_LIB sundials_nvecparallel_static)
   SET(FNVECP_LIB sundials_fnvecparallel_static)
-ELSE(LINK_LIBRARY_TYPE MATCHES "static")
+ELSE()
   SET(KINSOL_LIB sundials_kinsol_shared)
   SET(NVECP_LIB sundials_nvecparallel_shared)
   SET(FNVECP_LIB sundials_fnvecparallel_shared)
-ENDIF(LINK_LIBRARY_TYPE MATCHES "static")
+ENDIF()
 
 # Only static FCMIX libraries are available
-
 SET(FKINSOL_LIB sundials_fkinsol_static)
 
 # Set-up linker flags and link libraries
-
 SET(SUNDIALS_LIBS ${FKINSOL_LIB} ${KINSOL_LIB} ${FNVECP_LIB} ${NVECP_LIB} ${EXTRA_LINK_LIBS})
-IF(LAPACK_FOUND)
-  LIST(APPEND SUNDIALS_LIBS ${LAPACK_LIBRARIES})
-ENDIF(LAPACK_FOUND)
 
-IF(KLU_FOUND)
-  LIST(APPEND SUNDIALS_LIBS ${KLU_LIBRARIES})
-ENDIF(KLU_FOUND)
 
-IF(SUPERLUMT_FOUND)
-  LIST(APPEND SUNDIALS_LIBS ${SUPERLUMT_LIBRARIES})
-ENDIF(SUPERLUMT_FOUND)
-
-# Add the build and install targets for each KINSOL example
-
+# Add the build and install targets for each example
 FOREACH(example_tuple ${FKINSOL_examples})
-  list(GET example_tuple 0 example)
-  list(GET example_tuple 1 number_of_nodes)
-  list(GET example_tuple 2 number_of_tasks)
-  # first item is example
+
+  # parse the example tuple
+  LIST(GET example_tuple 0 example)
+  LIST(GET example_tuple 1 number_of_nodes)
+  LIST(GET example_tuple 2 number_of_tasks)
+  LIST(GET example_tuple 3 example_type)
+
+  # example source files
   ADD_EXECUTABLE(${example} ${example}.f)
+
   SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
-  SUNDIALS_ADD_TEST(${example} ${example} MPI_NPROCS ${number_of_tasks})
+  
+  # add example to regression tests
+  SUNDIALS_ADD_TEST(${example} ${example}
+    MPI_NPROCS ${number_of_tasks}
+    ANSWER_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+    ANSWER_FILE ${example}.out
+    EXAMPLE_TYPE ${example_type})
+
+  # libraries to link against
   TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
+
   IF(NOT MPI_MPIF77)
     TARGET_LINK_LIBRARIES(${example} ${MPI_LIBRARY} ${MPI_EXTRA_LIBRARIES})
-  ENDIF(NOT MPI_MPIF77)
+  ENDIF()
+
+  # install example source and out files
   IF(EXAMPLES_INSTALL)
-    INSTALL(FILES ${example}.f ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/kinsol/fcmix_parallel)
-  ENDIF(EXAMPLES_INSTALL)
+    INSTALL(FILES ${example}.f ${example}.out
+      DESTINATION ${EXAMPLES_INSTALL_PATH}/kinsol/fcmix_parallel)
+  ENDIF()
+
 ENDFOREACH(example_tuple ${FKINSOL_examples})
 
+
+# create Makfile and CMakeLists.txt for examples
 IF(EXAMPLES_INSTALL)
 
   # Install the README file
@@ -95,10 +99,8 @@ IF(EXAMPLES_INSTALL)
   SET(SOLVER "KINSOL")
   SET(SOLVER_LIB "sundials_kinsol")
   SET(SOLVER_FLIB "sundials_fkinsol")
-  FOREACH(example_tuple ${FKINSOL_examples})
-    list(GET example_tuple 0 example)
-    LIST2STRING(example EXAMPLES)
-  ENDFOREACH(example_tuple ${FKINSOL_examples})
+
+  EXAMPLES2STRING(FKINSOL_examples EXAMPLES)
 
   # Regardless of the platform we're on, we will generate and install 
   # CMakeLists.txt file for building the examples. This file  can then 
@@ -106,10 +108,10 @@ IF(EXAMPLES_INSTALL)
 
   # generate CMakelists.txt in the binary directory
   CONFIGURE_FILE(
-      ${PROJECT_SOURCE_DIR}/examples/templates/cmakelists_parallel_F77_ex.in
-      ${PROJECT_BINARY_DIR}/examples/kinsol/fcmix_parallel/CMakeLists.txt
-      @ONLY
-      )
+    ${PROJECT_SOURCE_DIR}/examples/templates/cmakelists_parallel_F77_ex.in
+    ${PROJECT_BINARY_DIR}/examples/kinsol/fcmix_parallel/CMakeLists.txt
+    @ONLY
+    )
 
   # install CMakelists.txt
   INSTALL(
@@ -137,4 +139,3 @@ IF(EXAMPLES_INSTALL)
   ENDIF(UNIX)
 
 ENDIF(EXAMPLES_INSTALL)
-

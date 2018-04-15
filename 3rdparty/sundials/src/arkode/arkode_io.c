@@ -26,6 +26,12 @@
 #include <sundials/sundials_math.h>
 #include <sundials/sundials_types.h>
 
+#if defined(SUNDIALS_EXTENDED_PRECISION)
+#define RSYM "Lg"
+#else
+#define RSYM "g"
+#endif
+
 
 /*===============================================================
  ARKODE optional input functions
@@ -57,7 +63,7 @@ int ARKodeSetDefaults(void *arkode_mem)
   ark_mem->ark_dense_q          = QDENSE_DEF;     /* dense output order */
   ark_mem->ark_expstab          = arkExpStab;     /* explicit stability fn */
   ark_mem->ark_estab_data       = ark_mem;        /* explicit stability data */
-  ark_mem->ark_fixedstep        = FALSE;          /* default to use adaptive steps */
+  ark_mem->ark_fixedstep        = SUNFALSE;       /* default to use adaptive steps */
   ark_mem->ark_hadapt           = NULL;           /* step adaptivity fn */
   ark_mem->ark_hadapt_data      = NULL;           /* step adaptivity data */
   ark_mem->ark_hadapt_cfl       = CFLFAC;         /* explicit stability factor */
@@ -66,7 +72,7 @@ int ARKodeSetDefaults(void *arkode_mem)
   ark_mem->ark_hadapt_growth    = GROWTH;         /* step adaptivity growth factor */
   ark_mem->ark_hadapt_lbound    = HFIXED_LB;      /* step adaptivity no-change lower bound */
   ark_mem->ark_hadapt_ubound    = HFIXED_UB;      /* step adaptivity no-change upper bound */
-  ark_mem->ark_hadapt_pq        = FALSE;          /* use embedding order */
+  ark_mem->ark_hadapt_pq        = SUNFALSE;       /* use embedding order */
   ark_mem->ark_hadapt_imethod   = 0;              /* PID controller */
   ark_mem->ark_hadapt_k1        = AD0_K1;         /* step adaptivity parameter */
   ark_mem->ark_hadapt_k2        = AD0_K2;         /* step adaptivity parameter */
@@ -77,16 +83,16 @@ int ARKodeSetDefaults(void *arkode_mem)
   ark_mem->ark_ritol            = ARK_SS;         /* scalar-scalar residual tolerances */
   ark_mem->ark_Sabstol          = 1.e-9;          /* solution absolute tolerance */
   ark_mem->ark_SRabstol         = 1.e-9;          /* residual absolute tolerance */
-  ark_mem->ark_user_efun        = FALSE;          /* no user-supplied ewt function */
+  ark_mem->ark_user_efun        = SUNFALSE;       /* no user-supplied ewt function */
   ark_mem->ark_efun             = arkEwtSet;      /* built-in ewt function */
   ark_mem->ark_e_data           = NULL;           /* ewt function data */
-  ark_mem->ark_user_rfun        = FALSE;          /* no user-supplied rwt function */
+  ark_mem->ark_user_rfun        = SUNFALSE;       /* no user-supplied rwt function */
   ark_mem->ark_rfun             = arkRwtSet;      /* built-in rwt function */
   ark_mem->ark_e_data           = NULL;           /* rwt function data */
-  ark_mem->ark_linear           = FALSE;          /* nonlinear problem */
-  ark_mem->ark_linear_timedep   = TRUE;           /* dfi/dy depends on t */
-  ark_mem->ark_explicit         = FALSE;          /* fi(t,y) will be used */
-  ark_mem->ark_implicit         = FALSE;          /* fe(t,y) will be used */
+  ark_mem->ark_linear           = SUNFALSE;       /* nonlinear problem */
+  ark_mem->ark_linear_timedep   = SUNTRUE;        /* dfi/dy depends on t */
+  ark_mem->ark_explicit         = SUNFALSE;       /* fi(t,y) will be used */
+  ark_mem->ark_implicit         = SUNFALSE;       /* fe(t,y) will be used */
   ark_mem->ark_ehfun            = arkErrHandler;  /* default error handler fn */
   ark_mem->ark_eh_data          = ark_mem;        /* error handler data */
   ark_mem->ark_errfp            = stderr;         /* output stream for errors */
@@ -95,7 +101,7 @@ int ARKodeSetDefaults(void *arkode_mem)
   ark_mem->ark_hin              = ZERO;           /* determine initial step on-the-fly */
   ark_mem->ark_hmin             = ZERO;           /* no minimum step size */
   ark_mem->ark_hmax_inv         = ZERO;           /* no maximum step size */
-  ark_mem->ark_tstopset         = FALSE;          /* no stop time set */
+  ark_mem->ark_tstopset         = SUNFALSE;       /* no stop time set */
   ark_mem->ark_tstop            = ZERO;           /* no fixed stop time */
   ark_mem->ark_maxcor           = MAXCOR;         /* max nonlinear iters/stage */
   ark_mem->ark_maxnef           = MAXNEF;         /* max error test fails */
@@ -109,10 +115,10 @@ int ARKodeSetDefaults(void *arkode_mem)
   ark_mem->ark_rdiv             = RDIV;           /* nonlinear divergence tolerance */
   ark_mem->ark_dgmax            = DGMAX;          /* max step change before recomputing J or P */
   ark_mem->ark_msbp             = MSBP;           /* max steps between updates to J or P */
-  ark_mem->ark_use_fp           = FALSE;          /* use Newton solver */
+  ark_mem->ark_use_fp           = SUNFALSE;       /* use Newton solver */
   ark_mem->ark_fp_m             = FP_ACCEL_M;     /* num Anderson acceleration vectors */
   ark_mem->ark_diagfp           = NULL;           /* no solver diagnostics file */
-  ark_mem->ark_report           = FALSE;          /* don't report solver diagnostics */
+  ark_mem->ark_report           = SUNFALSE;       /* don't report solver diagnostics */
   ark_mem->ark_stages           = 0;              /* no stages */
   ark_mem->ark_istage           = 0;              /* current stage */
   for (i=0; i<ARK_S_MAX; i++) {                   /* no Butcher table */
@@ -385,9 +391,9 @@ int ARKodeSetDiagnostics(void *arkode_mem, FILE *diagfp)
 
   ark_mem->ark_diagfp = diagfp;
   if (diagfp != NULL) {
-    ark_mem->ark_report = TRUE;
+    ark_mem->ark_report = SUNTRUE;
   } else {
-    ark_mem->ark_report = FALSE;
+    ark_mem->ark_report = SUNFALSE;
   }
 
   return(ARK_SUCCESS);
@@ -511,7 +517,7 @@ int ARKodeSetLinear(void *arkode_mem, int timedepend)
   }
 
   ark_mem = (ARKodeMem) arkode_mem;
-  ark_mem->ark_linear = TRUE;
+  ark_mem->ark_linear = SUNTRUE;
   ark_mem->ark_linear_timedep = (timedepend == 1);
   ark_mem->ark_dgmax = RCONST(100.0)*UNIT_ROUNDOFF;
 
@@ -536,8 +542,8 @@ int ARKodeSetNonlinear(void *arkode_mem)
   }
 
   ark_mem = (ARKodeMem) arkode_mem;
-  ark_mem->ark_linear = FALSE;
-  ark_mem->ark_linear_timedep = TRUE;
+  ark_mem->ark_linear = SUNFALSE;
+  ark_mem->ark_linear_timedep = SUNTRUE;
   ark_mem->ark_dgmax = DGMAX;
 
   return(ARK_SUCCESS);
@@ -563,7 +569,7 @@ int ARKodeSetFixedPoint(void *arkode_mem, long int fp_m)
   }
 
   ark_mem = (ARKodeMem) arkode_mem;
-  ark_mem->ark_use_fp = TRUE;
+  ark_mem->ark_use_fp = SUNTRUE;
   if (fp_m < 0) {
     ark_mem->ark_fp_m = FP_ACCEL_M;
   } else {
@@ -591,7 +597,7 @@ int ARKodeSetNewton(void *arkode_mem)
   }
 
   ark_mem = (ARKodeMem) arkode_mem;
-  ark_mem->ark_use_fp = FALSE;
+  ark_mem->ark_use_fp = SUNFALSE;
 
   return(ARK_SUCCESS);
 }
@@ -621,8 +627,8 @@ int ARKodeSetExplicit(void *arkode_mem)
   }
 
   /* set the relevant parameters */
-  ark_mem->ark_explicit = TRUE;
-  ark_mem->ark_implicit = FALSE;
+  ark_mem->ark_explicit = SUNTRUE;
+  ark_mem->ark_implicit = SUNFALSE;
 
   return(ARK_SUCCESS);
 }
@@ -652,8 +658,8 @@ int ARKodeSetImplicit(void *arkode_mem)
   }
 
   /* set the relevant parameters */
-  ark_mem->ark_implicit = TRUE;
-  ark_mem->ark_explicit = FALSE;
+  ark_mem->ark_implicit = SUNTRUE;
+  ark_mem->ark_explicit = SUNFALSE;
 
   return(ARK_SUCCESS);
 }
@@ -688,8 +694,8 @@ int ARKodeSetImEx(void *arkode_mem)
   }
 
   /* set the relevant parameters */
-  ark_mem->ark_explicit = FALSE;
-  ark_mem->ark_implicit = FALSE;
+  ark_mem->ark_explicit = SUNFALSE;
+  ark_mem->ark_implicit = SUNFALSE;
 
   return(ARK_SUCCESS);
 }
@@ -757,7 +763,7 @@ int ARKodeSetERKTable(void *arkode_mem, int s, int q, int p,
 
   /* set embedding (if applicable), otherwise set as fixed-step method */
   if (bembed == NULL) {
-    ark_mem->ark_fixedstep = TRUE;
+    ark_mem->ark_fixedstep = SUNTRUE;
   } else {
     for (i=0; i<s; i++) 
       ark_mem->ark_b2e[i] = bembed[i];
@@ -836,7 +842,7 @@ int ARKodeSetIRKTable(void *arkode_mem, int s, int q, int p,
 
   /* set embedding (if applicable), otherwise set as fixed-step method */
   if (bembed == NULL) {
-    ark_mem->ark_fixedstep = TRUE;
+    ark_mem->ark_fixedstep = SUNTRUE;
   } else {
     for (i=0; i<s; i++) 
       ark_mem->ark_b2i[i] = bembed[i];
@@ -927,7 +933,7 @@ int ARKodeSetARKTables(void *arkode_mem, int s, int q, int p,
 
   /* set embeddings (if applicable), otherwise set as fixed-step method */
   if ((b2e == NULL) || (b2i == NULL)) {
-    ark_mem->ark_fixedstep = TRUE;
+    ark_mem->ark_fixedstep = SUNTRUE;
   } else {
     for (i=0; i<s; i++) {
       ark_mem->ark_b2e[i] = b2e[i];
@@ -1311,7 +1317,7 @@ int ARKodeSetStopTime(void *arkode_mem, realtype tstop)
   }
 
   ark_mem->ark_tstop    = tstop;
-  ark_mem->ark_tstopset = TRUE;
+  ark_mem->ark_tstopset = SUNTRUE;
 
   return(ARK_SUCCESS);
 }
@@ -1343,10 +1349,10 @@ int ARKodeSetFixedStep(void *arkode_mem, realtype hfixed)
 
   /* set ark_mem entry */
   if (hfixed != ZERO) {
-    ark_mem->ark_fixedstep = TRUE;
+    ark_mem->ark_fixedstep = SUNTRUE;
     ark_mem->ark_hin = hfixed;
   } else {
-    ark_mem->ark_fixedstep = FALSE;
+    ark_mem->ark_fixedstep = SUNFALSE;
   }
     
   return(ARK_SUCCESS);
@@ -2237,48 +2243,6 @@ int ARKodeGetNumLinSolvSetups(void *arkode_mem, long int *nlinsetups)
 
 
 /*---------------------------------------------------------------
- ARKodeGetNumMassSolves:
-
- Returns the current number of calls to the mass matrix solver.
----------------------------------------------------------------*/
-int ARKodeGetNumMassSolves(void *arkode_mem, long int *nMassSolves)
-{
-  ARKodeMem ark_mem;
-  if (arkode_mem==NULL) {
-    arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
-		    "ARKodeGetNumMassSolves", MSGARK_NO_MEM);
-    return(ARK_MEM_NULL);
-  }
-  ark_mem = (ARKodeMem) arkode_mem;
-
-  *nMassSolves = ark_mem->ark_mass_solves;
-
-  return(ARK_SUCCESS);
-}
-
-
-/*---------------------------------------------------------------
- ARKodeGetNumMassMultiplies:
-
- Returns the current number of calls to the mass matrix product.
----------------------------------------------------------------*/
-int ARKodeGetNumMassMultiplies(void *arkode_mem, long int *nMassMult)
-{
-  ARKodeMem ark_mem;
-  if (arkode_mem==NULL) {
-    arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
-		    "ARKodeGetNumMassMult", MSGARK_NO_MEM);
-    return(ARK_MEM_NULL);
-  }
-  ark_mem = (ARKodeMem) arkode_mem;
-
-  *nMassMult = ark_mem->ark_mass_mult;
-
-  return(ARK_SUCCESS);
-}
-
-
-/*---------------------------------------------------------------
  ARKodeGetNumErrTestFails:
 
  Returns the current number of error test failures
@@ -2453,7 +2417,7 @@ int ARKodeGetTolScaleFactor(void *arkode_mem, realtype *tolsfact)
 /*---------------------------------------------------------------
  ARKodeGetErrWeights:
 
- This routine returns the current weight vector.
+ This routine returns the current error weight vector.
 ---------------------------------------------------------------*/
 int ARKodeGetErrWeights(void *arkode_mem, N_Vector eweight)
 {
@@ -2466,6 +2430,27 @@ int ARKodeGetErrWeights(void *arkode_mem, N_Vector eweight)
   ark_mem = (ARKodeMem) arkode_mem;
 
   N_VScale(ONE, ark_mem->ark_ewt, eweight);
+
+  return(ARK_SUCCESS);
+}
+
+
+/*---------------------------------------------------------------
+ ARKodeGetResWeights:
+
+ This routine returns the current residual weight vector.
+---------------------------------------------------------------*/
+int ARKodeGetResWeights(void *arkode_mem, N_Vector rweight)
+{
+  ARKodeMem ark_mem;
+  if (arkode_mem==NULL) {
+    arkProcessError(NULL, ARK_MEM_NULL, "ARKODE", 
+		    "ARKodeGetResWeights", MSGARK_NO_MEM);
+    return(ARK_MEM_NULL);
+  }
+  ark_mem = (ARKodeMem) arkode_mem;
+
+  N_VScale(ONE, ark_mem->ark_rwt, rweight);
 
   return(ARK_SUCCESS);
 }
@@ -2810,14 +2795,14 @@ int ARKodeWriteParameters(void *arkode_mem, FILE *fp)
   } else {
     if (ark_mem->ark_hadapt == NULL) {
       fprintf(fp, "  Time step adaptivity method %i\n", ark_mem->ark_hadapt_imethod);
-      fprintf(fp, "     Safety factor = %g\n", ark_mem->ark_hadapt_safety);
-      fprintf(fp, "     Bias factor = %g\n", ark_mem->ark_hadapt_bias);
-      fprintf(fp, "     Growth factor = %g\n", ark_mem->ark_hadapt_growth);
-      fprintf(fp, "     Step growth lower bound = %g\n", ark_mem->ark_hadapt_lbound);
-      fprintf(fp, "     Step growth upper bound = %g\n", ark_mem->ark_hadapt_ubound);
-      fprintf(fp, "     k1 = %g\n", ark_mem->ark_hadapt_k1);
-      fprintf(fp, "     k2 = %g\n", ark_mem->ark_hadapt_k2);
-      fprintf(fp, "     k3 = %g\n", ark_mem->ark_hadapt_k3);
+      fprintf(fp, "     Safety factor = %"RSYM"\n", ark_mem->ark_hadapt_safety);
+      fprintf(fp, "     Bias factor = %"RSYM"\n", ark_mem->ark_hadapt_bias);
+      fprintf(fp, "     Growth factor = %"RSYM"\n", ark_mem->ark_hadapt_growth);
+      fprintf(fp, "     Step growth lower bound = %"RSYM"\n", ark_mem->ark_hadapt_lbound);
+      fprintf(fp, "     Step growth upper bound = %"RSYM"\n", ark_mem->ark_hadapt_ubound);
+      fprintf(fp, "     k1 = %"RSYM"\n", ark_mem->ark_hadapt_k1);
+      fprintf(fp, "     k2 = %"RSYM"\n", ark_mem->ark_hadapt_k2);
+      fprintf(fp, "     k3 = %"RSYM"\n", ark_mem->ark_hadapt_k3);
     } else {
       fprintf(fp, "  User provided time step adaptivity function\n");
     }
@@ -2825,9 +2810,9 @@ int ARKodeWriteParameters(void *arkode_mem, FILE *fp)
   if (ark_mem->ark_itol == ARK_WF) {
     fprintf(fp, "  User provided error weight function\n");
   } else {
-    fprintf(fp, "  Solver relative tolerance = %g\n", ark_mem->ark_reltol);
+    fprintf(fp, "  Solver relative tolerance = %"RSYM"\n", ark_mem->ark_reltol);
     if (ark_mem->ark_itol == ARK_SS) {
-      fprintf(fp, "  Solver absolute tolerance = %g\n", ark_mem->ark_Sabstol);
+      fprintf(fp, "  Solver absolute tolerance = %"RSYM"\n", ark_mem->ark_Sabstol);
     } else {
       fprintf(fp, "  Vector-valued solver absolute tolerance\n");
     }
@@ -2837,24 +2822,24 @@ int ARKodeWriteParameters(void *arkode_mem, FILE *fp)
       fprintf(fp, "  User provided residual weight function\n");
     } else {
       if (ark_mem->ark_ritol == ARK_SS) {
-	fprintf(fp, "  Absolute residual tolerance = %g\n", ark_mem->ark_SRabstol);
+	fprintf(fp, "  Absolute residual tolerance = %"RSYM"\n", ark_mem->ark_SRabstol);
       } else {
 	fprintf(fp, "  Vector-valued residual absolute tolerance\n");
       }
     }
   }
   if (ark_mem->ark_hin != ZERO)  
-    fprintf(fp, "  Initial step size = %g\n",ark_mem->ark_hin);
+    fprintf(fp, "  Initial step size = %"RSYM"\n",ark_mem->ark_hin);
   if (ark_mem->ark_hmin != ZERO)  
-    fprintf(fp, "  Minimum step size = %g\n",ark_mem->ark_hmin);
+    fprintf(fp, "  Minimum step size = %"RSYM"\n",ark_mem->ark_hmin);
   if (ark_mem->ark_hmax_inv != ZERO)  
-    fprintf(fp, "  Maximum step size = %g\n",ONE/ark_mem->ark_hmax_inv);
+    fprintf(fp, "  Maximum step size = %"RSYM"\n",ONE/ark_mem->ark_hmax_inv);
   fprintf(fp, "  Maximum number of error test failures = %i\n",ark_mem->ark_maxnef);
   fprintf(fp, "  Maximum number of convergence test failures = %i\n",ark_mem->ark_maxncf);
-  fprintf(fp, "  Maximum step increase (first step) = %g\n",ark_mem->ark_etamx1);
-  fprintf(fp, "  Step reduction factor on multiple error fails = %g\n",ark_mem->ark_etamxf);
+  fprintf(fp, "  Maximum step increase (first step) = %"RSYM"\n",ark_mem->ark_etamx1);
+  fprintf(fp, "  Step reduction factor on multiple error fails = %"RSYM"\n",ark_mem->ark_etamxf);
   fprintf(fp, "  Minimum error fails before above factor is used = %i\n",ark_mem->ark_small_nef);
-  fprintf(fp, "  Step reduction factor on nonlinear convergence failure = %g\n",ark_mem->ark_etacf);
+  fprintf(fp, "  Step reduction factor on nonlinear convergence failure = %"RSYM"\n",ark_mem->ark_etacf);
 
   if (!ark_mem->ark_implicit) {
     if (ark_mem->ark_expstab == arkExpStab) {
@@ -2862,15 +2847,15 @@ int ARKodeWriteParameters(void *arkode_mem, FILE *fp)
     } else {
       fprintf(fp, "  User provided explicit stability function\n");
     }
-    fprintf(fp, "  Explicit safety factor = %g\n",ark_mem->ark_hadapt_cfl);
+    fprintf(fp, "  Explicit safety factor = %"RSYM"\n",ark_mem->ark_hadapt_cfl);
   }
   if (!ark_mem->ark_explicit) {
     fprintf(fp, "  Implicit predictor method = %i\n",ark_mem->ark_predictor);
-    fprintf(fp, "  Implicit solver tolerance coefficient = %g\n",ark_mem->ark_nlscoef);
+    fprintf(fp, "  Implicit solver tolerance coefficient = %"RSYM"\n",ark_mem->ark_nlscoef);
     fprintf(fp, "  Maximum number of nonlinear corrections = %i\n",ark_mem->ark_maxcor);
-    fprintf(fp, "  Nonlinear convergence rate constant = %g\n",ark_mem->ark_crdown);
-    fprintf(fp, "  Nonlinear divergence tolerance = %g\n",ark_mem->ark_rdiv);
-    fprintf(fp, "  Gamma factor LSetup tolerance = %g\n",ark_mem->ark_dgmax);
+    fprintf(fp, "  Nonlinear convergence rate constant = %"RSYM"\n",ark_mem->ark_crdown);
+    fprintf(fp, "  Nonlinear divergence tolerance = %"RSYM"\n",ark_mem->ark_rdiv);
+    fprintf(fp, "  Gamma factor LSetup tolerance = %"RSYM"\n",ark_mem->ark_dgmax);
     fprintf(fp, "  Number of steps between LSetup calls = %i\n",ark_mem->ark_msbp);
   }
   fprintf(fp, "\n");
@@ -2900,35 +2885,35 @@ int ARKodeWriteButcher(void *arkode_mem, FILE *fp)
   if (!ark_mem->ark_implicit) {
     fprintf(fp, "  Explicit Butcher table:\n");
     for (i=0; i<ark_mem->ark_stages; i++) {
-      fprintf(fp, "     %.5f",ark_mem->ark_ce[i]);
+      fprintf(fp, "     %"RSYM"",ark_mem->ark_ce[i]);
       for (j=0; j<ark_mem->ark_stages; j++) 
-	fprintf(fp, " %.5f",ARK_A(ark_mem->ark_Ae,i,j));
+	fprintf(fp, " %"RSYM"",ARK_A(ark_mem->ark_Ae,i,j));
       fprintf(fp,"\n");
     }
     fprintf(fp, "            ");
     for (j=0; j<ark_mem->ark_stages; j++) 
-      fprintf(fp, " %.5f",ark_mem->ark_be[j]);
+      fprintf(fp, " %"RSYM"",ark_mem->ark_be[j]);
     fprintf(fp,"\n");
     fprintf(fp, "            ");
     for (j=0; j<ark_mem->ark_stages; j++) 
-      fprintf(fp, " %.5f",ark_mem->ark_b2e[j]);
+      fprintf(fp, " %"RSYM"",ark_mem->ark_b2e[j]);
     fprintf(fp,"\n");
   }
   if (!ark_mem->ark_explicit) {
     fprintf(fp, "  Implicit Butcher table:\n");
     for (i=0; i<ark_mem->ark_stages; i++) {
-      fprintf(fp, "     %.5f",ark_mem->ark_ci[i]);
+      fprintf(fp, "     %"RSYM"",ark_mem->ark_ci[i]);
       for (j=0; j<ark_mem->ark_stages; j++) 
-	fprintf(fp, " %.5f",ARK_A(ark_mem->ark_Ai,i,j));
+	fprintf(fp, " %"RSYM"",ARK_A(ark_mem->ark_Ai,i,j));
       fprintf(fp,"\n");
     }
     fprintf(fp, "            ");
     for (j=0; j<ark_mem->ark_stages; j++) 
-      fprintf(fp, " %.5f",ark_mem->ark_bi[j]);
+      fprintf(fp, " %"RSYM"",ark_mem->ark_bi[j]);
     fprintf(fp,"\n");
     fprintf(fp, "            ");
     for (j=0; j<ark_mem->ark_stages; j++) 
-      fprintf(fp, " %.5f",ark_mem->ark_b2i[j]);
+      fprintf(fp, " %"RSYM"",ark_mem->ark_b2i[j]);
     fprintf(fp,"\n");
   }
   fprintf(fp, "\n");

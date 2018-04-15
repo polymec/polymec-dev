@@ -19,75 +19,81 @@
 # For details, see the LICENSE file.
 # -----------------------------------------------------------------
 # CMakeLists.txt file for CVODE OpenMP examples
+# -----------------------------------------------------------------
+
+# Example lists are tuples "name\;args\;type" where the type is
+# 'develop' for examples excluded from 'make test' in releases
 
 # Only include tests if OpenMP is enabled
 IF(OPENMP_FOUND)
 
-# Add variable CVODE_examples_OMP with the names of the openmp CVODE examples
-SET(CVODE_examples_OMP
-  cvAdvDiff_bnd_omp
-  )
+  # Examples using SUNDIALS linear solvers
+  SET(CVODE_examples
+    "cvAdvDiff_bnd_omp\;4\;develop"
+    )
 
 ENDIF(OPENMP_FOUND)
 
 # Specify libraries to link against (through the target that was used to 
 # generate them) based on the value of the variable LINK_LIBRARY_TYPE
-
 IF(LINK_LIBRARY_TYPE MATCHES "static")
   SET(CVODE_LIB sundials_cvode_static)
   SET(NVECOMP_LIB sundials_nvecopenmp_static)
-ELSE(LINK_LIBRARY_TYPE MATCHES "static")
+ELSE()
   SET(CVODE_LIB sundials_cvode_shared)
   SET(NVECOMP_LIB sundials_nvecopenmp_shared)
-ENDIF(LINK_LIBRARY_TYPE MATCHES "static")
+ENDIF()
 
 # Set-up linker flags and link libraries
 SET(SUNDIALS_LIBS ${CVODE_LIB} ${NVECOMP_LIB} ${EXTRA_LINK_LIBS})
-IF(LAPACK_FOUND)
-  LIST(APPEND SUNDIALS_LIBS ${LAPACK_LIBRARIES})
-ENDIF(LAPACK_FOUND)
-
-IF(KLU_FOUND)
-  LIST(APPEND SUNDIALS_LIBS ${KLU_LIBRARIES})
-ENDIF(KLU_FOUND)
-
-IF(SUPERLUMT_FOUND)
-  LIST(APPEND SUNDIALS_LIBS ${SUPERLUMT_LIBRARIES})
-ENDIF(SUPERLUMT_FOUND)
 
 # update the compilation flags to include OpenMP support
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_C_FLAGS}")
 
-# Add the build and install targets for each CVODE example
-FOREACH(example ${CVODE_examples_OMP})
-  ADD_EXECUTABLE(${example} ${example}.c)
-  SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
-  SUNDIALS_ADD_TEST(${example} ${example} TEST_ARGS 4)
-  TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
-  IF(EXAMPLES_INSTALL)
-    INSTALL(FILES ${example}.c ${example}.out DESTINATION ${EXAMPLES_INSTALL_PATH}/cvode/C_openmp)
-  ENDIF(EXAMPLES_INSTALL)
-ENDFOREACH(example ${CVODE_examples_OMP})
+# Add the build and install targets for each example
+FOREACH(example_tuple ${CVODE_examples})
 
+  # parse the example tuple
+  LIST(GET example_tuple 0 example)
+  LIST(GET example_tuple 1 example_args)
+  LIST(GET example_tuple 2 example_type)
+
+  # example source files
+  ADD_EXECUTABLE(${example} ${example}.c)
+
+  SET_TARGET_PROPERTIES(${example} PROPERTIES FOLDER "Examples")
+
+  # add to regression tests
+  SUNDIALS_ADD_TEST(${example} ${example}
+    TEST_ARGS ${example_args}
+    ANSWER_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+    ANSWER_FILE ${example}.out
+    EXAMPLE_TYPE ${example_type})
+
+  # libraries to link against
+  TARGET_LINK_LIBRARIES(${example} ${SUNDIALS_LIBS})
+
+  # install example source and out files
+  IF(EXAMPLES_INSTALL)
+    INSTALL(FILES ${example}.c ${example}.out
+      DESTINATION ${EXAMPLES_INSTALL_PATH}/cvode/C_openmp)
+  ENDIF()
+
+ENDFOREACH(example_tuple ${CVODE_examples})
+
+
+# create Makfile and CMakeLists.txt for examples
 IF(EXAMPLES_INSTALL)
 
   # Install the README file
   INSTALL(FILES README DESTINATION ${EXAMPLES_INSTALL_PATH}/cvode/C_openmp)
 
-  # Install the extra files
-  FOREACH(extrafile ${CVODE_extras_OMP})
-    INSTALL(FILES ${extrafile} DESTINATION ${EXAMPLES_INSTALL_PATH}/cvode/C_openmp)
-  ENDFOREACH(extrafile ${CVODE_extras_OMP})
-
   # Prepare substitution variables for Makefile and/or CMakeLists templates
   SET(SOLVER "CVODE")
   SET(SOLVER_LIB "sundials_cvode")
-  LIST2STRING(CVODE_examples_OMP EXAMPLES)
 
-  STRING (REPLACE ";" " " TMP_STR ${EXAMPLES})
-  SET(EXAMPLES ${TMP_STR})
-
+  EXAMPLES2STRING(CVODE_examples EXAMPLES)
 
   # Regardless of the platform we're on, we will generate and install 
   # CMakeLists.txt file for building the examples. This file  can then 
@@ -95,10 +101,10 @@ IF(EXAMPLES_INSTALL)
 
   # generate CMakelists.txt in the binary directory
   CONFIGURE_FILE(
-      ${PROJECT_SOURCE_DIR}/examples/templates/cmakelists_openmp_C_ex.in
-      ${PROJECT_BINARY_DIR}/examples/cvode/C_openmp/CMakeLists.txt
-      @ONLY
-      )
+    ${PROJECT_SOURCE_DIR}/examples/templates/cmakelists_openmp_C_ex.in
+    ${PROJECT_BINARY_DIR}/examples/cvode/C_openmp/CMakeLists.txt
+    @ONLY
+    )
 
   # install CMakelists.txt
   INSTALL(

@@ -1,7 +1,7 @@
 /*
  * -----------------------------------------------------------------
- * $Revision: 4845 $
- * $Date: 2016-08-03 15:45:09 -0700 (Wed, 03 Aug 2016) $
+ * $Revision$
+ * $Date$
  * ----------------------------------------------------------------- 
  * Programmer(s): Allan G. Taylor, Alan C. Hindmarsh, Radu Serban,
  *                and Aaron Collier @ LLNL
@@ -291,9 +291,9 @@ SUNDIALS_EXPORT void *IDACreate(void);
  * IDASetSuppressAlg    | flag to indicate whether or not to      
  *                      | suppress algebraic variables in the     
  *                      | local error tests:                      
- *                      | FALSE = do not suppress;                 
- *                      | TRUE = do suppress;                     
- *                      | [FALSE]                                 
+ *                      | SUNFALSE = do not suppress;                 
+ *                      | SUNTRUE = do suppress;                     
+ *                      | [SUNFALSE]                                 
  *                      | NOTE: if suppressed algebraic variables 
  *                      | is selected, the nvector 'id' must be   
  *                      | supplied for identification of those    
@@ -516,18 +516,21 @@ SUNDIALS_EXPORT int IDAWFtolerances(void *ida_mem, IDAEwtFn efun);
  *                        |                                        
  * IDASetLineSearchOffIC  | a boolean flag to turn off the        
  *                        | linesearch algorithm.                 
- *                        | [FALSE]                               
+ *                        | [SUNFALSE]                               
  *                        |                                        
  * IDASetStepToleranceIC  | positive lower bound on the norm of   
  *                        | a Newton step.                        
  *                        | [(unit roundoff)^(2/3)                
- *                                                                
+ *                        |                                        
+ * IDASetMaxBacksIC       | maximum number of linesearch backtrack
+ *                        | operations per Newton iteration.
+ *                        | [100]
+ *
  * ---------------------------------------------------------------- 
  * Return flag:
  *   IDA_SUCCESS   if successful
  *   IDA_MEM_NULL  if the ida memory is NULL
  *   IDA_ILL_INPUT if an argument has an illegal value
- *
  * ----------------------------------------------------------------
  */
 
@@ -537,6 +540,7 @@ SUNDIALS_EXPORT int IDASetMaxNumJacsIC(void *ida_mem, int maxnj);
 SUNDIALS_EXPORT int IDASetMaxNumItersIC(void *ida_mem, int maxnit);
 SUNDIALS_EXPORT int IDASetLineSearchOffIC(void *ida_mem, booleantype lsoff);
 SUNDIALS_EXPORT int IDASetStepToleranceIC(void *ida_mem, realtype steptol);
+SUNDIALS_EXPORT int IDASetMaxBacksIC(void *ida_mem, int maxbacks);
 
 /*
  * -----------------------------------------------------------------

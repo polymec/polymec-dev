@@ -11,12 +11,12 @@
 #include "solvers/newton_solver.h"
 
 // We use KINSOL for doing the matrix-free nonlinear solve.
+#include "sunlinsol/sunlinsol_spgmr.h"
+#include "sunlinsol/sunlinsol_spfgmr.h"
+#include "sunlinsol/sunlinsol_spbcgs.h"
+#include "sunlinsol/sunlinsol_sptfqmr.h"
 #include "kinsol/kinsol.h"
 #include "kinsol/kinsol_impl.h"
-#include "kinsol/kinsol_spgmr.h"
-#include "kinsol/kinsol_spfgmr.h"
-#include "kinsol/kinsol_spbcgs.h"
-#include "kinsol/kinsol_sptfqmr.h"
 
 struct newton_solver_t 
 {
@@ -431,18 +431,26 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver->solver_type == NEWTON_GMRES)
   {
-    KINSpgmr(solver->kinsol, solver->max_krylov_dim); 
+    SUNLinearSolver ls = SUNSPGMR(solver->U, PREC_LEFT, solver->max_krylov_dim);
+    KINSpilsSetLinearSolver(solver->kinsol, ls);
     KINSpilsSetMaxRestarts(solver->kinsol, solver->max_restarts);
   }
   else if (solver->solver_type == NEWTON_FGMRES)
   {
-    KINSpfgmr(solver->kinsol, solver->max_krylov_dim); 
+    SUNLinearSolver ls = SUNSPFGMR(solver->U, PREC_LEFT, solver->max_krylov_dim);
+    KINSpilsSetLinearSolver(solver->kinsol, ls);
     KINSpilsSetMaxRestarts(solver->kinsol, solver->max_restarts);
   }
   else if (solver->solver_type == NEWTON_BICGSTAB)
-    KINSpbcg(solver->kinsol, solver->max_krylov_dim);
+  {
+    SUNLinearSolver ls = SUNSPBCGS(solver->U, PREC_LEFT, solver->max_krylov_dim);
+    KINSpilsSetLinearSolver(solver->kinsol, ls);
+  }
   else
-    KINSptfqmr(solver->kinsol, solver->max_krylov_dim);
+  {
+    SUNLinearSolver ls = SUNSPTFQMR(solver->U, PREC_LEFT, solver->max_krylov_dim);
+    KINSpilsSetLinearSolver(solver->kinsol, ls);
+  }
 
   // Set up the Jacobian-vector product.
   if (Jv_func != NULL)

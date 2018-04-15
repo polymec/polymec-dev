@@ -1,8 +1,4 @@
-/*
- * -----------------------------------------------------------------
- * $Revision: 4790 $
- * $Date: 2016-06-29 14:47:05 -0700 (Wed, 29 Jun 2016) $
- * ----------------------------------------------------------------- 
+/* ----------------------------------------------------------------- 
  * Programmer(s): David J. Gardner @ LLNL
  * -----------------------------------------------------------------
  * LLNS Copyright Start
@@ -15,10 +11,9 @@
  * For details, see the LICENSE file.
  * LLNS Copyright End
  * -----------------------------------------------------------------
- * This is the testing routine to check the open MP NVECTOR module
+ * This is the testing routine to check the OpenMP NVECTOR module
  * implementation. 
- * -----------------------------------------------------------------
- */
+ * -----------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,11 +29,11 @@
  * --------------------------------------------------------------------*/
 int main(int argc, char *argv[]) 
 {
-  int      fails = 0;            /* counter for test failures */
-  long int veclen;               /* vector length             */
-  N_Vector W, X, Y, Z;           /* test vectors              */
-  int      num_threads;
-  int      print_timing;
+  int          fails = 0;     /* counter for test failures */
+  sunindextype veclen;        /* vector length             */
+  N_Vector     W, X, Y, Z;    /* test vectors              */
+  int          num_threads;
+  int          print_timing;
 
   /* check input and set vector length */
   if (argc < 4){
@@ -61,7 +56,7 @@ int main(int argc, char *argv[])
   print_timing = atoi(argv[3]);
   SetTiming(print_timing);
 
-  printf("\nRunning with vector length %ld \n \n", veclen);
+  printf("\nRunning with vector length %ld \n \n", (long int) veclen);
   printf("\nRunning with number of threads %d \n \n", num_threads);
 
   /* Create vectors */
@@ -114,16 +109,16 @@ int main(int argc, char *argv[])
     printf("SUCCESS: NVector module passed all tests \n \n");
   }
 
-  return(0);
+  return(fails);
 }
 
 /* ----------------------------------------------------------------------
  * Check vector
  * --------------------------------------------------------------------*/
-int check_ans(realtype ans, N_Vector X, long int local_length)
+int check_ans(realtype ans, N_Vector X, sunindextype local_length)
 {
   int      failure = 0;
-  long int i;
+  sunindextype i;
   realtype *Xdata;
   
   Xdata = N_VGetArrayPointer(X);
@@ -143,17 +138,17 @@ booleantype has_data(N_Vector X)
 {
   realtype *Xdata = N_VGetArrayPointer(X);
   if (Xdata == NULL)
-    return FALSE;
+    return SUNFALSE;
   else
-    return TRUE;
+    return SUNTRUE;
 }
 
-void set_element(N_Vector X, long int i, realtype val)
+void set_element(N_Vector X, sunindextype i, realtype val)
 {
   NV_Ith_OMP(X,i) = val;
 }
  
-realtype get_element(N_Vector X, long int i)
+realtype get_element(N_Vector X, sunindextype i)
 {
   return NV_Ith_OMP(X,i);
 }
