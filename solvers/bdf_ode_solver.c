@@ -44,6 +44,7 @@ typedef struct
   real_t* U_with_ghosts;
   real_t t;
   char* status_message; // status of most recent integration.
+  SUNLinearSolver ls;
 
   // JFNK stuff.
   int max_krylov_dim;
@@ -260,6 +261,7 @@ static void bdf_dtor(void* context)
   // Kill the CVode stuff.
   polymec_free(integ->U_with_ghosts);
   N_VDestroy(integ->U);
+  SUNLinSolFree(integ->ls);
   CVodeFree(&integ->cvode);
 
   // Kill the rest.
@@ -411,20 +413,20 @@ ode_solver_t* jfnk_bdf_ode_solver_new(int order,
   // Set up the solver type.
   if (solver_type == JFNK_BDF_GMRES)
   {
-    SUNLinearSolver ls = SUNSPGMR(integ->U, side, max_krylov_dim);
+    integ->ls = SUNSPGMR(integ->U, side, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
-    SUNSPGMRSetGSType(ls, MODIFIED_GS);
-    CVSpilsSetLinearSolver(integ->cvode, ls);
+    SUNSPGMRSetGSType(integ->ls, MODIFIED_GS);
+    CVSpilsSetLinearSolver(integ->cvode, integ->ls);
   }
   else if (solver_type == JFNK_BDF_BICGSTAB)
   {
-    SUNLinearSolver ls = SUNSPBCGS(integ->U, side, max_krylov_dim);
-    CVSpilsSetLinearSolver(integ->cvode, ls);
+    integ->ls = SUNSPBCGS(integ->U, side, max_krylov_dim);
+    CVSpilsSetLinearSolver(integ->cvode, integ->ls);
   }
   else
   {
-    SUNLinearSolver ls = SUNSPTFQMR(integ->U, side, max_krylov_dim);
-    CVSpilsSetLinearSolver(integ->cvode, ls);
+    integ->ls = SUNSPTFQMR(integ->U, side, max_krylov_dim);
+    CVSpilsSetLinearSolver(integ->cvode, integ->ls);
   }
 
   // Set up the Jacobian function and preconditioner.

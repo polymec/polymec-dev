@@ -70,6 +70,7 @@ struct dae_solver_t
   jfnk_dae_krylov_t solver_type;
   int (*Jy)(void* context, real_t t, real_t* U, real_t alpha, real_t* U_dot, real_t* F,
             real_t* y, real_t* Jy, real_t* tmp1, real_t* tmp2);
+  SUNLinearSolver ls;
 
   // Generalized adaptor stuff.
   real_t sqrtN;
@@ -365,20 +366,20 @@ dae_solver_t* jfnk_dae_solver_new(int order,
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver_type == JFNK_DAE_GMRES)
   {
-    SUNLinearSolver ls = SUNSPGMR(integ->U, PREC_LEFT, max_krylov_dim);
+    integ->ls = SUNSPGMR(integ->U, PREC_LEFT, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
-    SUNSPGMRSetGSType(ls, MODIFIED_GS);
-    IDASpilsSetLinearSolver(integ->ida, ls);
+    SUNSPGMRSetGSType(integ->ls, MODIFIED_GS);
+    IDASpilsSetLinearSolver(integ->ida, integ->ls);
   }
   else if (solver_type == JFNK_DAE_BICGSTAB)
   {
-    SUNLinearSolver ls = SUNSPBCGS(integ->U, PREC_LEFT, max_krylov_dim);
-    IDASpilsSetLinearSolver(integ->ida, ls);
+    integ->ls = SUNSPBCGS(integ->U, PREC_LEFT, max_krylov_dim);
+    IDASpilsSetLinearSolver(integ->ida, integ->ls);
   }
   else
   {
-    SUNLinearSolver ls = SUNSPTFQMR(integ->U, PREC_LEFT, max_krylov_dim);
-    IDASpilsSetLinearSolver(integ->ida, ls);
+    integ->ls = SUNSPTFQMR(integ->U, PREC_LEFT, max_krylov_dim);
+    IDASpilsSetLinearSolver(integ->ida, integ->ls);
   }
 
   // Set up the equation types and constraints.
@@ -569,6 +570,7 @@ void dae_solver_free(dae_solver_t* integ)
   polymec_free(integ->U_with_ghosts);
   N_VDestroy(integ->U);
   polymec_free(integ->U_dot_with_ghosts);
+  SUNLinSolFree(integ->ls);
   IDAFree(&integ->ida);
 
   // Kill the rest.

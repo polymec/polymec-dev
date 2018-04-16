@@ -67,6 +67,9 @@ struct newton_solver_t
   real_t* U_with_ghosts;
   char* status_message; // status of most recent integration.
 
+  // Linear solver.
+  SUNLinearSolver ls;
+
   // Current simulation time.
   real_t t;
 };
@@ -440,25 +443,25 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
   // Select the particular type of Krylov method for the underlying linear solves.
   if (solver->solver_type == NEWTON_GMRES)
   {
-    SUNLinearSolver ls = SUNSPGMR(solver->U, side, solver->max_krylov_dim);
-    SUNSPGMRSetMaxRestarts(ls, solver->max_restarts);
-    KINSpilsSetLinearSolver(solver->kinsol, ls);
+    solver->ls = SUNSPGMR(solver->U, side, solver->max_krylov_dim);
+    SUNSPGMRSetMaxRestarts(solver->ls, solver->max_restarts);
+    KINSpilsSetLinearSolver(solver->kinsol, solver->ls);
   }
   else if (solver->solver_type == NEWTON_FGMRES)
   {
-    SUNLinearSolver ls = SUNSPFGMR(solver->U, side, solver->max_krylov_dim);
-    SUNSPFGMRSetMaxRestarts(ls, solver->max_restarts);
-    KINSpilsSetLinearSolver(solver->kinsol, ls);
+    solver->ls = SUNSPFGMR(solver->U, side, solver->max_krylov_dim);
+    SUNSPFGMRSetMaxRestarts(solver->ls, solver->max_restarts);
+    KINSpilsSetLinearSolver(solver->kinsol, solver->ls);
   }
   else if (solver->solver_type == NEWTON_BICGSTAB)
   {
-    SUNLinearSolver ls = SUNSPBCGS(solver->U, side, solver->max_krylov_dim);
-    KINSpilsSetLinearSolver(solver->kinsol, ls);
+    solver->ls = SUNSPBCGS(solver->U, side, solver->max_krylov_dim);
+    KINSpilsSetLinearSolver(solver->kinsol, solver->ls);
   }
   else
   {
-    SUNLinearSolver ls = SUNSPTFQMR(solver->U, side, solver->max_krylov_dim);
-    KINSpilsSetLinearSolver(solver->kinsol, ls);
+    solver->ls = SUNSPTFQMR(solver->U, side, solver->max_krylov_dim);
+    KINSpilsSetLinearSolver(solver->kinsol, solver->ls);
   }
 
   // Set up the Jacobian-vector product.
@@ -511,6 +514,7 @@ void newton_solver_free(newton_solver_t* solver)
   N_VDestroy(solver->U_scale);
   N_VDestroy(solver->F_scale);
   N_VDestroy(solver->constraints);
+  SUNLinSolFree(solver->ls);
   KINFree(&solver->kinsol);
 
   // Kill the rest.

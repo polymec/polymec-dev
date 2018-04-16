@@ -27,7 +27,11 @@ struct dense_newton_solver_t
   // Nonlinear solver.
   void* kinsol;
 
-  // Work vectors.
+  // Linear solver.
+  SUNLinearSolver ls;
+
+  // Vectors, matrix.
+  SUNMatrix J;
   N_Vector x, x_scale, F_scale;
 };
 
@@ -78,9 +82,9 @@ dense_newton_solver_t* dense_newton_solver_new_with_jacobian(int dimension,
   KINInit(solver->kinsol, eval_system_func, solver->x);
 
   // Set up a dense linear solver.
-  SUNMatrix J = SUNDenseMatrix(dimension, dimension);
-  SUNLinearSolver ls = SUNDenseLinearSolver(solver->x, J);
-  KINDlsSetLinearSolver(solver->kinsol, ls, J);
+  solver->J = SUNDenseMatrix(dimension, dimension);
+  solver->ls = SUNDenseLinearSolver(solver->x, solver->J);
+  KINDlsSetLinearSolver(solver->kinsol, solver->ls, solver->J);
 
   // Do we have a Jacobian function?
   if (solver->sys_jac != NULL)
@@ -97,6 +101,8 @@ void dense_newton_solver_free(dense_newton_solver_t* solver)
   N_VDestroy(solver->x);
   N_VDestroy(solver->x_scale);
   N_VDestroy(solver->F_scale);
+  SUNMatDestroy_Dense(solver->J);
+  SUNLinSolFree_Dense(solver->ls);
   KINFree(&(solver->kinsol));
   if ((solver->context != NULL) && (solver->dtor != NULL))
     solver->dtor(solver->context);

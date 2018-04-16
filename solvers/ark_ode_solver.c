@@ -59,6 +59,7 @@ typedef struct
   int max_krylov_dim;
   newton_pc_t* precond;
   int (*Jy)(void* context, real_t t, real_t* U, real_t* U_dot, real_t* y, real_t* temp, real_t* Jy);
+  SUNLinearSolver ls;
 
   // Generalized adaptor stuff.
   real_t sqrtN;
@@ -302,6 +303,8 @@ static void ark_dtor(void* context)
 
   // Kill the ARKode stuff.
   polymec_free(integ->U_with_ghosts);
+  if (integ->ls != NULL)
+    SUNLinSolFree(integ->ls);
   N_VDestroy(integ->U);
   ARKodeFree(&integ->arkode);
 
@@ -455,6 +458,7 @@ ode_solver_t* functional_ark_ode_solver_new(int order,
   // Set up ARKode and accessories.
   integ->U = N_VNew(integ->comm, integ->num_local_values);
   integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
+  integ->ls = NULL;
   integ->arkode = ARKodeCreate();
   ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
   ARKodeSetOrder(integ->arkode, order);
@@ -571,27 +575,27 @@ ode_solver_t* jfnk_ark_ode_solver_new(int order,
   // Set up the solver type.
   if (solver_type == JFNK_ARK_GMRES)
   {
-    SUNLinearSolver ls = SUNSPGMR(integ->U, side, max_krylov_dim);
+    integ->ls = SUNSPGMR(integ->U, side, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
-    SUNSPGMRSetGSType(ls, MODIFIED_GS);
-    ARKSpilsSetLinearSolver(integ->arkode, ls);
+    SUNSPGMRSetGSType(integ->ls, MODIFIED_GS);
+    ARKSpilsSetLinearSolver(integ->arkode, integ->ls);
   }
   else if (solver_type == JFNK_ARK_FGMRES)
   {
-    SUNLinearSolver ls = SUNSPFGMR(integ->U, side, max_krylov_dim);
+    integ->ls = SUNSPFGMR(integ->U, side, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
-    SUNSPFGMRSetGSType(ls, MODIFIED_GS);
-    ARKSpilsSetLinearSolver(integ->arkode, ls);
+    SUNSPFGMRSetGSType(integ->ls, MODIFIED_GS);
+    ARKSpilsSetLinearSolver(integ->arkode, integ->ls);
   }
   else if (solver_type == JFNK_ARK_BICGSTAB)
   {
-    SUNLinearSolver ls = SUNSPBCGS(integ->U, side, max_krylov_dim);
-    ARKSpilsSetLinearSolver(integ->arkode, ls);
+    integ->ls = SUNSPBCGS(integ->U, side, max_krylov_dim);
+    ARKSpilsSetLinearSolver(integ->arkode, integ->ls);
   }
   else
   {
-    SUNLinearSolver ls = SUNSPTFQMR(integ->U, side, max_krylov_dim);
-    ARKSpilsSetLinearSolver(integ->arkode, ls);
+    integ->ls = SUNSPTFQMR(integ->U, side, max_krylov_dim);
+    ARKSpilsSetLinearSolver(integ->arkode, integ->ls);
   }
 
   // Set up the Jacobian function and preconditioner.
