@@ -1,109 +1,66 @@
-language: c
-
-# We need Ubuntu 14.04 instead of 12.04.
 sudo: required
-dist: trusty
 
-os:
-  - linux
-  - osx
+services:
+  - docker
 
-osx_image: xcode7.3
-
-compiler:
-  - clang
-  - gcc
-
-addons:
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    - llvm-toolchain-precise-3.6
-    packages:
-    - gcc-5
-    - g++-5
-    - clang-3.6
-    - cmake
-    - liblapack-dev
-    - gfortran
-    - git
-    - valgrind
+language: c
 
 env:
   matrix:
     - DEBUG=0 MPI=0 SHARED=0 PRECISION=double 
     - DEBUG=0 MPI=0 SHARED=0 PRECISION=single
-    - DEBUG=0 MPI=0 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    - DEBUG=0 MPI=0 SHARED=1 PRECISION=double
     - DEBUG=0 MPI=1 SHARED=0 PRECISION=double
     - DEBUG=0 MPI=1 SHARED=0 PRECISION=single
-    - DEBUG=0 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    - DEBUG=0 MPI=1 SHARED=1 PRECISION=double
     - DEBUG=1 MPI=0 SHARED=0 PRECISION=double
     - DEBUG=1 MPI=0 SHARED=0 PRECISION=single
-    - DEBUG=1 MPI=0 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    - DEBUG=1 MPI=0 SHARED=1 PRECISION=double
     - DEBUG=1 MPI=1 SHARED=0 PRECISION=double
     - DEBUG=1 MPI=1 SHARED=0 PRECISION=single
-    - DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+    - DEBUG=1 MPI=1 SHARED=1 PRECISION=double
 
-# * Currently Apple doesn't use the real gcc, even if you tell it to,
-#   so we exclude the GCC compiler option from Mac builds.
-# * In addition, we exclude Clang from all MPI Linux builds, since the Ubuntu 
-#   OpenMPI package uses GCC no matter what.
-matrix:
-  exclude:
-  - os: osx
-    compiler: gcc
-  - os: linux
-    compiler: clang
-    env: DEBUG=0 MPI=1 SHARED=0 PRECISION=double
-  - os: linux
-    compiler: clang
-    env: DEBUG=0 MPI=1 SHARED=0 PRECISION=single
-  - os: linux
-    compiler: clang
-    env: DEBUG=0 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_opt HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
-  - os: linux
-    compiler: clang
-    env: DEBUG=1 MPI=1 SHARED=0 PRECISION=double
-  - os: linux
-    compiler: clang
-    env: DEBUG=1 MPI=1 SHARED=0 PRECISION=single
-  - os: linux
-    compiler: clang
-    env: DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=$PWD/petsc-3.7.4 PETSC_ARCH=petsc_debug HYPRE_DIR=$PWD/hypre-2.10.1/src/cmbuild
+before_install:
+  - docker run -d --name polymec-build -v $PWD:/travis ubuntu:xenial tail -f /dev/null
+  - docker ps
 
-install: travis_wait bash ./.travis/install-$TRAVIS_OS_NAME-deps.sh
-
-deploy:
-  provider: s3
-  access_key_id: $S3_ACCESS_KEY_ID
-  secret_access_key: $S3_SECRET_KEY
-  bucket: polymec-dev.travis-ci
-  region: us-west-2
-  skip_cleanup: true
-  local_dir: $HOME/latest
-  upload-dir: polymec-dev
-  acl: public_read
+install:
+  - docker exec -t polymec-build bash -c "apt-get update;
+    apt-get install -y openmpi-bin libopenmpi-dev g++ liblapack-dev cmake autotools-dev valgrind python"
 
 before_script:
-  - if [ "$MPI" = "1" ]; then export CC="mpicc"; fi
-  - if [ "$TRAVIS_OS_NAME" = "osx" ] && [ "$MPI" = "1" ]; then export TMPDIR="/tmp"; fi
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$CC" = "gcc" ]; then export CC="gcc-5"; fi
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$CC" = "clang" ]; then export CC="clang-3.6"; fi
-  - make config CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION travis=1 prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION
+  - docker exec -t polymec-build bash -c "cd travis;
+    make config CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION travis=1 prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION"
 
 script: 
-  - make -j4 CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION install 
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then make CC=$CC debug=1 mpi=$MPI shared=0 precision=$PRECISION memcheck; else make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION test; fi
+  - if [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then export TEST=memcheck; else export TEST=test; fi
+  - docker exec -t polymec-build bash -c "cd travis;
+    make -j4 CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION install;
+    make CC=$CC debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION $TEST"
 
-after_success: 
-  - cd $HOME
-  - mkdir -p latest
-  - tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION/*
-  - mv polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz latest
+#after_success: 
+#  - cd $HOME
+#  - mkdir -p latest
+#  - tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION/*
+#  - mv polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz latest
 
 after_failure: 
-  - cat build/*/Testing/Temporary/LastTest.log || cat build/*/Testing/Temporary/LastDynamicAnalysis*
-  - cat build/*/Testing/Temporary/MemoryChecker*.log
+  - docker exec -t polymec-build bash -c "cd travis;
+    cat build/*/Testing/Temporary/LastTest.log || cat build/*/Testing/Temporary/LastDynamicAnalysis*;
+    cat build/*/Testing/Temporary/MemoryChecker*.log"
 
 after_script:
-  - cat build/*/3rdparty/*error*.log
+  - docker exec -t polymec-build bash -c "cd travis;
+    cat build/*/3rdparty/*error*.log"
+
+#deploy:
+#  provider: s3
+#  access_key_id: $S3_ACCESS_KEY_ID
+#  secret_access_key: $S3_SECRET_KEY
+#  bucket: polymec-dev.travis-ci
+#  region: us-west-2
+#  skip_cleanup: true
+#  local_dir: $HOME/latest
+#  upload-dir: polymec-dev
+#  acl: public_read
+

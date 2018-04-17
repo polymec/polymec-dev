@@ -255,13 +255,6 @@ if (NOT EXISTS ${SILO_LIBRARY})
   if (NOT stat EQUAL 0)
     message(FATAL_ERROR "Copying library source failed.")
   endif()
-  execute_process(COMMAND patch -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/silo.patch 
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo
-                  OUTPUT_VARIABLE patchy
-                  RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Patching library source failed.")
-  endif()
 
   message(STATUS "Configuring silo...")
   set(SILO_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR})

@@ -79,9 +79,6 @@ EXTRA_DIST = \
  silo.h.in
 
 include_HEADERS = \
- silo.inc \
- silo_f77.inc \
- silo_f9x.inc \
  pmpio.h \
  silo_exports.h
 
@@ -105,16 +102,5 @@ FILES = \
  silo_ns.c \
  $(EXTRAFILES)
 
-BUILT_SOURCES = silo.inc silo_f9x.inc
 DISTCLEANFILES = silo_version.h
 
-# built if it doesn't exit, could cause problem with VPATH
-# be extra careful about check-in time-stamps! silo.inc MUST be the oldest.
-silo.inc: silo.h.in silo_f.h
-	cat ./silo.h $(srcdir)/silo_f.h | $(top_srcdir)/config/mkinc > $@
-
-silo_f77.inc: silo.inc
-	@ln -s $< $@ 2>/dev/null
-
-silo_f9x.inc: silo.h.in silo_f.h
-	cat ./silo.h $(srcdir)/silo_f.h | $(top_srcdir)/config/mkinc --f90 > $@
