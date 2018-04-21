@@ -119,27 +119,27 @@ typedef char const * const *         DBCAS_t;
 #endif
 
 /* Major release number of silo library. */
-#define _SILO_VERS_MAJ_@SILO_VERS_MAJ@
+#define _SILO_VERS_MAJ_@USILO_MAJOR_VERSION@
 #ifdef _SILO_VERS_MAJ_
 #define SILO_VERS_MAJ 0 /* NO_FORTRAN_DEFINE */
 #else
-#define SILO_VERS_MAJ @SILO_VERS_MAJ@
+#define SILO_VERS_MAJ @USILO_MAJOR_VERSION@
 #endif
 
 /* Minor release number of silo library. Can be empty. */
-#define _SILO_VERS_MIN_@SILO_VERS_MIN@
+#define _SILO_VERS_MIN_@USILO_MINOR_VERSION@
 #ifdef _SILO_VERS_MIN_
 #define SILO_VERS_MIN 0 /* NO_FORTRAN_DEFINE */
 #else
-#define SILO_VERS_MIN @SILO_VERS_MIN@
+#define SILO_VERS_MIN @USILO_MINOR_VERSION@
 #endif
 
 /* Patch release number of silo library.  Can be empty. */
-#define _SILO_VERS_PAT_@SILO_VERS_PAT@
+#define _SILO_VERS_PAT_@USILO_PATCH_VERSION@
 #ifdef _SILO_VERS_PAT_
 #define SILO_VERS_PAT 0 /* NO_FORTRAN_DEFINE */
 #else
-#define SILO_VERS_PAT @SILO_VERS_PAT@
+#define SILO_VERS_PAT @USILO_PATCH_VERSION@
 #endif
 
 /* Pre-release release number of silo library.  Can be empty. */

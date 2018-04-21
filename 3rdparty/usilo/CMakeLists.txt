@@ -61,47 +61,24 @@ else ()
   endif ()
 endif ()
 
+# -------
+# Options 
+# -------
+
+OPTION(BUILD_STATIC_LIBS "Build static libraries" ON)
+OPTION(BUILD_SHARED_LIBS "Build shared libraries")
+OPTION(HDF5_INCLUDE_DIR "HDF5 include directory")
+OPTION(HDF5_LIBRARY_DIR "HDF5 library directory")
+OPTION(ZLIB_INCLUDE_DIR "zlib include directory")
+OPTION(ZLIB_LIBRARY_DIR "zlib library directory")
+
 # General C compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall -pedantic-errors -Werror -Wextra -Werror-implicit-function-declaration")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow -Wfloat-equal -Wmissing-noreturn -Wmissing-prototypes")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-pragmas -Wno-format -Wno-maybe-uninitialized")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function")
-  if (HAVE_DOUBLE_PRECISION)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wfloat-conversion")
-  endif()
-
-  # Strip out impertinent warnings for older compilers.
-  if (CMAKE_C_COMPILER_VERSION STRLESS "5")
-    # Not available before GCC 5.
-    string(REPLACE "-Wfloat-conversion" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-  endif()
-
-  if (LINUX)
-    # Counter some of GCC's more recent stinginess on Linux.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200809L")# -D_BSD_SOURCE")
-    # Pass some more needed flags to the compiler.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
-  endif()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Weverything -Werror -pedantic-errors -Werror-implicit-function-declaration -fno-builtin")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-unused-function")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-reserved-id-macro -Wno-unused-macros -Wno-sign-conversion -Wno-padded -Wno-vla")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format-nonliteral -Wno-cast-qual -Wno-switch-enum -Wno-unknown-pragmas -Wno-source-uses-openmp")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-warning-option -Wno-documentation-deprecated-sync")
-  if (NOT HAVE_DOUBLE_PRECISION)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-double-promotion -Wno-conversion")
-  endif()
-
-  # Clang proper behaves differently from Apple Clang, and requires 
-  # more suppressions.
-  if (NOT CMAKE_C_COMPILER_ID MATCHES "AppleClang")
-    # tolower() is a recursive macro, which causes issues.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-disabled-macro-expansion")
-  endif()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Weverything")
 elseif (CMAKE_C_COMPILER_ID STREQUAL "Intel")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 endif()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SYS_FLAGS}")
 
@@ -118,10 +95,6 @@ if (BUILD_SHARED_LIBS)
     set(CMAKE_MACOSX_RPATH TRUE)
     set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
   endif()
-
-  set(LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
-else()
-  set(LIB_SUFFIX .a)
 endif()
 
 # Give a warning about not setting the install prefix.
@@ -131,58 +104,25 @@ else()
   message(STATUS "Installation prefix is ${CMAKE_INSTALL_PREFIX}")
 endif()
 
-# Basic libraries to be linked in.
-set(USILO_LIBRARIES m)
-if (${NEED_LAPACK})
-  include(FindBLAS)
-  include(FindLAPACK)
-  find_package(BLAS REQUIRED QUIET)
-  if (NOT BLAS_FOUND)
-    message(FATAL_ERROR "Couldn't find BLAS. Please make sure it's installed.")
-  endif()
-  find_package(LAPACK REQUIRED QUIET)
-  if (NOT LAPACK_FOUND)
-    message(FATAL_ERROR "Couldn't find LAPACK. Please make sure it's installed.")
-  endif()
-  if (${LAPACK_LIBRARY_DIR})
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${LAPACK_LIBRARY_DIR}")
-  endif()
-  if (${BLAS_LIBRARY_DIR})
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${BLAS_LIBRARY_DIR}")
-  endif()
-  set(USILO_LIBRARIES ${USILO_LIBRARIES};${LAPACK_LIBRARIES};${BLAS_LIBRARIES})
-endif()
-
-# NOTE: HDF5 requires dynamic loading as of v1.8.11, so we need libdl.
-set(USILO_LIBRARIES ${USILO_LIBRARIES};dl)
-
-# Other third-party libraries.
-add_subdirectory(3rdparty)
-
-# Record the libraries we've gathered so far as the "base" libraries that 
-# USILO needs. We use this for efficiently linking unit tests.
-set(USILO_BASE_LIBRARIES ${USILO_LIBRARIES})
-
-# Include the binary directory in the header file search path,
-# since it's where we place the third-party libraries.
+# Include the binary directory in the header file search path.
 include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_BINARY_DIR}/include")
-link_directories("${PROJECT_BINARY_DIR}/lib")
-include_directories(${USILO_INCDIRS})
+link_directories("${PROJECT_BINARY_DIR}/src")
+
+# Source code.
+include_directories("${PROJECT_SOURCE_DIR}")
+add_subdirectory(src)
 
 # Unit testing.
 include(CTest)
 enable_testing()
-
-# Core libraries.
-include_directories("${PROJECT_SOURCE_DIR}")
-add_subdirectory(src)
+add_subdirectory(tests)
 
 # Now that we have gathered all our libraries, generate a silo_version.c
 # file that contains the version information information.
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/src/silo_version.c.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/silo_version.c"
+  "${CMAKE_CURRENT_BINARY_DIR}/src/silo_version.c"
   @ONLY
 )
 
