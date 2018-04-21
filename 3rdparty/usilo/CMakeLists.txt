@@ -130,7 +130,7 @@ add_subdirectory(src)
 
 # Installation.
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(FILES src/silo.h src/silo_exports.h DESTINATION include)
+  install(FILES ${PROJECT_BINARY_DIR}/src/silo.h src/silo_exports.h DESTINATION include)
   install(FILES ${PROJECT_BINARY_DIR}/src/libusilo${LIB_SUFFIX} DESTINATION lib)
 else()
   message(WARNING "Installation is not enabled. Please rerun cmake with CMAKE_INSTALL_PREFIX=/your/prefix.")

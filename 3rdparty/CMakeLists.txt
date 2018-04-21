@@ -155,180 +155,137 @@ endif()
 set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
 # Build the HDF5 parallel I/O library. 
-if (${SILO_LIBRARY} MATCHES "h5")
-  if (NOT EXISTS ${HDF5_LIBRARY})
-    message(STATUS "Configuring hdf5...")
-    set(HDF5_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
-    set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}) 
-    set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DZLIB_INCLUDE_DIRS=${PROJECT_BINARY_DIR}/include -DZLIB_LIBARIES=z -DZLIB_USE_EXTERNAL=OFF -DHDF5_ENABLE_PARALLEL=${HAVE_MPI})
-    set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_CPP_LIB=OFF)
-    set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_FORTRAN=OFF)
-    set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_TOOLS=ON -DBUILD_TESTING=OFF -DHDF5_BUILD_EXAMPLES=OFF)
-    if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
-      execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_CURRENT_BINARY_DIR}/hdf5/CMakeCache.txt)
-    else()
-      execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
-    endif()
-    execute_process(COMMAND ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/hdf5 ${HDF5_CMAKE_OPTS}
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-                    OUTPUT_VARIABLE hdf5_config_log ERROR_VARIABLE hdf5_config_err
-                    RESULT_VARIABLE stat)
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config.log ${hdf5_config_log})
-    if (NOT stat EQUAL 0)
-      if (TRAVIS_CI)
-        message(WARNING "Configuration of hdf5 library failed:")
-        message(FATAL_ERROR ${hdf5_config_err})
-      else()
-        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config_errors.log ${hdf5_config_err})
-        message(FATAL_ERROR "Configuration of hdf5 library failed. See ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config_*.log.")
-      endif()
-    endif()
-
-    message(STATUS "Building and installing hdf5 (${NUM_BUILD_THREADS} threads)...")
-    execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-                    OUTPUT_VARIABLE hdf5_build_log ERROR_VARIABLE hdf5_build_err
-                    RESULT_VARIABLE stat)
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build.log ${hdf5_build_log})
-    if (NOT stat EQUAL 0)
-      if (TRAVIS_CI)
-        message(WARNING "Build of hdf5 library failed:")
-        message(FATAL_ERROR ${hdf5_build_err})
-      else()
-        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build_errors.log ${hdf5_build_err})
-        message(FATAL_ERROR "Build of hdf5 library failed. See ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build_*.log.")
-      endif()
-    endif()
-  endif()
-
-  # Installation considerations.
-  file(GLOB hdf5_libs "${PROJECT_BINARY_DIR}/lib/libhdf5*${LIB_SUFFIX}")
-  foreach(hdf5_lib ${hdf5_libs})
-    if (${hdf5_lib} MATCHES "_hl")
-      set(HDF5_HL_LIBRARY_PATH ${hdf5_lib})
-      get_filename_component(HDF5_HL_LIBRARY_NAME ${HDF5_HL_LIBRARY_PATH} NAME)
-    elseif (${hdf5_lib} MATCHES "_tools")
-      set(HDF5_TOOLS_LIBRARY_PATH ${hdf5_lib})
-    else()
-      set(HDF5_LIBRARY_PATH ${hdf5_lib})
-      get_filename_component(HDF5_LIBRARY_NAME ${HDF5_LIBRARY_PATH} NAME)
-    endif()
-  endforeach()
-  if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-    # On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
-    if (APPLE AND BUILD_SHARED_LIBS)
-      execute_process(COMMAND otool -DX ${HDF5_LIBRARY_PATH} OUTPUT_VARIABLE libhdf5_id)
-      string(STRIP ${libhdf5_id} libhdf5_id)
-      execute_process(COMMAND install_name_tool -id @rpath/${HDF5_LIBRARY_NAME} ${PROJECT_BINARY_DIR}/lib/${HDF5_LIBRARY_NAME})
-      execute_process(COMMAND install_name_tool -id @rpath/${HDF5_HL_LIBRARY_NAME} ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY_NAME})
-      execute_process(COMMAND install_name_tool -change ${libhdf5_id} @rpath/libhdf5${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY_NAME})
-    endif()
-  endif()
-
-  if (HDF5_LIBRARY STREQUAL "${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX}")
-    set(POLYMEC_HDF5_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/${HDF5_LIBRARY_NAME}" PARENT_SCOPE)
-    set(POLYMEC_HDF5_HL_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/${HDF5_HL_LIBRARY_NAME}" PARENT_SCOPE)
-    set(POLYMEC_HDF5_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" PARENT_SCOPE)
+if (NOT EXISTS ${HDF5_LIBRARY})
+  message(STATUS "Configuring hdf5...")
+  set(HDF5_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
+  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}) 
+  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DZLIB_INCLUDE_DIRS=${PROJECT_BINARY_DIR}/include -DZLIB_LIBARIES=z -DZLIB_USE_EXTERNAL=OFF -DHDF5_ENABLE_PARALLEL=${HAVE_MPI})
+  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_CPP_LIB=OFF)
+  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_FORTRAN=OFF)
+  set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_TOOLS=ON -DBUILD_TESTING=OFF -DHDF5_BUILD_EXAMPLES=OFF)
+  if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_CURRENT_BINARY_DIR}/hdf5/CMakeCache.txt)
   else()
-    set(POLYMEC_HDF5_LIBRARY ${HDF5_LIBRARY} PARENT_SCOPE)
-    set(POLYMEC_HDF5_HL_LIBRARY ${HDF5_HL_LIBRARY} PARENT_SCOPE)
-    set(POLYMEC_HDF5_INCLUDE_DIR ${HDF5_INCLUDE_DIR} PARENT_SCOPE)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/hdf5 ${HDF5_CMAKE_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+                  OUTPUT_VARIABLE hdf5_config_log ERROR_VARIABLE hdf5_config_err
+                  RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config.log ${hdf5_config_log})
+  if (NOT stat EQUAL 0)
+    if (TRAVIS_CI)
+      message(WARNING "Configuration of hdf5 library failed:")
+      message(FATAL_ERROR ${hdf5_config_err})
+    else()
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config_errors.log ${hdf5_config_err})
+      message(FATAL_ERROR "Configuration of hdf5 library failed. See ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config_*.log.")
+    endif()
   endif()
 
-  # If our HDF5 library is named something weird, copy it to a file with the 
-  # regular boring name. This prevents libraries like Silo and Exodus (which 
-  # take a while to catch up to recent developments) from freaking out.
-  if (HDF5_LIBRARY MATCHES "${PROJECT_BINARY_DIR}/lib" AND NOT EXISTS ${HDF5_LIBRARY})
-    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${HDF5_LIBRARY_PATH} ${HDF5_LIBRARY})
-    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${HDF5_HL_LIBRARY_PATH} ${HDF5_HL_LIBRARY})
+  message(STATUS "Building and installing hdf5 (${NUM_BUILD_THREADS} threads)...")
+  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+                  OUTPUT_VARIABLE hdf5_build_log ERROR_VARIABLE hdf5_build_err
+                  RESULT_VARIABLE stat)
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build.log ${hdf5_build_log})
+  if (NOT stat EQUAL 0)
+    if (TRAVIS_CI)
+      message(WARNING "Build of hdf5 library failed:")
+      message(FATAL_ERROR ${hdf5_build_err})
+    else()
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build_errors.log ${hdf5_build_err})
+      message(FATAL_ERROR "Build of hdf5 library failed. See ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build_*.log.")
+    endif()
   endif()
-
-  set(POLYMEC_TP_LIBS ${HDF5_LIBRARIES};${POLYMEC_TP_LIBS})
 endif()
+
+# Installation considerations.
+file(GLOB hdf5_libs "${PROJECT_BINARY_DIR}/lib/libhdf5*${LIB_SUFFIX}")
+foreach(hdf5_lib ${hdf5_libs})
+  if (${hdf5_lib} MATCHES "_hl")
+    set(HDF5_HL_LIBRARY_PATH ${hdf5_lib})
+    get_filename_component(HDF5_HL_LIBRARY_NAME ${HDF5_HL_LIBRARY_PATH} NAME)
+  elseif (${hdf5_lib} MATCHES "_tools")
+    set(HDF5_TOOLS_LIBRARY_PATH ${hdf5_lib})
+  else()
+    set(HDF5_LIBRARY_PATH ${hdf5_lib})
+    get_filename_component(HDF5_LIBRARY_NAME ${HDF5_LIBRARY_PATH} NAME)
+  endif()
+endforeach()
+if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  # On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
+  if (APPLE AND BUILD_SHARED_LIBS)
+    execute_process(COMMAND otool -DX ${HDF5_LIBRARY_PATH} OUTPUT_VARIABLE libhdf5_id)
+    string(STRIP ${libhdf5_id} libhdf5_id)
+    execute_process(COMMAND install_name_tool -id @rpath/${HDF5_LIBRARY_NAME} ${PROJECT_BINARY_DIR}/lib/${HDF5_LIBRARY_NAME})
+    execute_process(COMMAND install_name_tool -id @rpath/${HDF5_HL_LIBRARY_NAME} ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY_NAME})
+    execute_process(COMMAND install_name_tool -change ${libhdf5_id} @rpath/libhdf5${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY_NAME})
+  endif()
+endif()
+
+if (HDF5_LIBRARY STREQUAL "${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX}")
+  set(POLYMEC_HDF5_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/${HDF5_LIBRARY_NAME}" PARENT_SCOPE)
+  set(POLYMEC_HDF5_HL_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/${HDF5_HL_LIBRARY_NAME}" PARENT_SCOPE)
+  set(POLYMEC_HDF5_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" PARENT_SCOPE)
+else()
+  set(POLYMEC_HDF5_LIBRARY ${HDF5_LIBRARY} PARENT_SCOPE)
+  set(POLYMEC_HDF5_HL_LIBRARY ${HDF5_HL_LIBRARY} PARENT_SCOPE)
+  set(POLYMEC_HDF5_INCLUDE_DIR ${HDF5_INCLUDE_DIR} PARENT_SCOPE)
+endif()
+
+# If our HDF5 library is named something weird, copy it to a file with the 
+# regular boring name. This prevents libraries like Silo and Exodus (which 
+# take a while to catch up to recent developments) from freaking out.
+if (HDF5_LIBRARY MATCHES "${PROJECT_BINARY_DIR}/lib" AND NOT EXISTS ${HDF5_LIBRARY})
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${HDF5_LIBRARY_PATH} ${HDF5_LIBRARY})
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${HDF5_HL_LIBRARY_PATH} ${HDF5_HL_LIBRARY})
+endif()
+
+set(POLYMEC_TP_LIBS ${HDF5_LIBRARIES};${POLYMEC_TP_LIBS})
 
 # Install silo with HDF5 support.
-if (NOT EXISTS ${SILO_LIBRARY})
-
-  message(STATUS "Preparing silo...")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/silo ${CMAKE_CURRENT_BINARY_DIR}/silo
+if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libusilo${LIB_SUFFIX})
+  if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/usilo)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/usilo)
+  endif()
+  message(STATUS "Configuring usilo...")
+  set(USILO_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
+  set(USILO_CMAKE_OPTS ${USILO_CMAKE_OPTS} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}) 
+  set(USILO_CMAKE_OPTS ${USILO_CMAKE_OPTS} -DZLIB_INCLUDE_DIR=${Z_INCLUDE_DIR} -DZLIB_LIBRARY_DIR=${Z_LIBRARY_DIR})
+  set(USILO_CMAKE_OPTS ${USILO_CMAKE_OPTS} -DHDF5_INCLUDE_DIR=${HDF5_INCLUDE_DIR} -DHDF5_LIBRARY_DIR=${HDF5_LIBRARY_DIR})
+  execute_process(COMMAND ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/usilo ${USILO_CMAKE_OPTS}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/usilo
+                  OUTPUT_VARIABLE usilo_config_log ERROR_VARIABLE usilo_config_err
                   RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Copying library source failed.")
-  endif()
-  execute_process(COMMAND patch -p1 -i ${CMAKE_CURRENT_SOURCE_DIR}/silo.patch 
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo
-                  OUTPUT_VARIABLE patchy
-                  RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Patching library source failed.")
-  endif()
-
-  message(STATUS "Configuring silo...")
-  set(SILO_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR})
-  set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --with-hdf5=${HDF5_INCLUDE_DIR},${HDF5_LIBRARY_DIR})
-  set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --with-zlib=${Z_INCLUDE_DIR},${Z_LIBRARY_DIR})
-  set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --disable-fortran --without-readline --disable-silex)
-  set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --disable-dependency-tracking)
-  set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --disable-hzip --disable-fpzip)
-  if (CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(SILO_CONFIG_OPTS ${SILO_CONFIG_OPTS} --enable-optimization)
-    set(SILO_C_FLAGS -O2)
-  else()
-    set(SILO_C_FLAGS -g)
-  endif()
-  if (BUILD_SHARED_LIBS AND LINUX)
-    set(SILO_C_FLAGS "${SILO_C_FLAGS} -fPIC")
-  endif()
-  set(SILO_ENV CC=${CMAKE_C_COMPILER} CFLAGS=${SILO_C_FLAGS})
-  if (LINUX)
-    # Linux needs -ldl when building Silo because of HDF5's new 
-    # dynamically-loaded filters.
-    set(SILO_ENV ${SILO_ENV} LIBS=-ldl)
-  endif()
-  execute_process(COMMAND env ${SILO_ENV} ./configure ${SILO_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo
-                  OUTPUT_VARIABLE silo_config_log ERROR_VARIABLE silo_config_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_config.log ${silo_config_log})
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/usilo_config.log ${usilo_config_log})
   if (NOT stat EQUAL 0)
     if (TRAVIS_CI)
-      message(WARNING "Configuration of silo library failed:")
-      message(WARNING "silo config command: configure ${SILO_CONFIG_OPTS}")
-      message(WARNING "silo config log:")
-      message(WARNING "${silo_config_log}")
-      message(WARNING "silo config error log:")
-      message(WARNING "${silo_config_err}")
-      if (NOT EXISTS ${HDF5_LIBRARY})
-        message(WARNING "HDF5 library ${HDF5_LIBRARY} not found.")
-      endif()
-      if (NOT EXISTS ${HDF5_HL_LIBRARY})
-        message(WARNING "HDF5 HL library ${HDF5_HL_LIBRARY} not found.")
-      endif()
-      message(FATAL_ERROR ${silo_config_err})
+      message(WARNING "Configuration of usilo library failed:")
+      message(FATAL_ERROR ${usilo_config_err})
     else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_config_errors.log ${silo_config_err})
-      message(FATAL_ERROR "Configuration of silo library failed. See ${CMAKE_CURRENT_BINARY_DIR}/silo_config_*.log.")
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/usilo_config_errors.log ${usilo_config_err})
+      message(FATAL_ERROR "Configuration of usilo library failed. See ${CMAKE_CURRENT_BINARY_DIR}/usilo_config_*.log.")
     endif()
   endif()
 
-  message(STATUS "Building and installing silo (${NUM_BUILD_THREADS} threads)...")
+  message(STATUS "Building and installing usilo (${NUM_BUILD_THREADS} threads)...")
   execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/silo
-                  OUTPUT_VARIABLE silo_build_log ERROR_VARIABLE silo_build_err
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/usilo
+                  OUTPUT_VARIABLE usilo_build_log ERROR_VARIABLE usilo_build_err
                   RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_build.log ${silo_build_log})
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/usilo_build.log ${usilo_build_log})
   if (NOT stat EQUAL 0)
     if (TRAVIS_CI)
-      message(WARNING "Build of silo library failed:")
-      message(FATAL_ERROR ${silo_build_err})
+      message(WARNING "Build of usilo library failed:")
+      message(FATAL_ERROR ${usilo_build_err})
     else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/silo_build_errors.log ${silo_build_err})
-      message(FATAL_ERROR "Build of silo library failed. See ${CMAKE_CURRENT_BINARY_DIR}/silo_build_*.log.")
+      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/usilo_build_errors.log ${usilo_build_err})
+      message(FATAL_ERROR "Build of usilo library failed. See ${CMAKE_CURRENT_BINARY_DIR}/usilo_build_*.log.")
     endif()
   endif()
-
 endif()
-set(POLYMEC_TP_LIBS ${SILO_LIBRARIES};${POLYMEC_TP_LIBS})
+set(POLYMEC_TP_LIBS usilo;${POLYMEC_TP_LIBS})
 
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
 # differential-algebraic equations.
