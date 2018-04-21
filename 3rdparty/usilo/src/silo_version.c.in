@@ -63,9 +63,8 @@ be used for advertising or product endorsement purposes.
  *
  *-------------------------------------------------------------------------
  */
-static char *silo_configuration = {
-#include "libsilo.settings"
-};
+static char *silo_configuration = "usilo version @USILO_VERSION@";
+
 char * 
 silo_version()
 {

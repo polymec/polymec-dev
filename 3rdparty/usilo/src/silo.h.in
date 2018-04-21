@@ -152,7 +152,7 @@ typedef char const * const *         DBCAS_t;
 
 /* The symbol Silo uses to enforce link-time
    header/object version compatibility */
-#define SILO_VERS_TAG @SILO_VERS_TAG@
+#define SILO_VERS_TAG SILO_VERS_TAG  // FIXME?
 
 /* Useful macro for comparing Silo versions (and DB_ alias) */
 #define SILO_VERSION_GE(Maj,Min,Pat)  \

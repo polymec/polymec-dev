@@ -5,8 +5,6 @@ cmake_minimum_required (VERSION 3.1.0)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 # Set compilers. This must be done before enabling languages.
-include(set_up_platform)
-set(CMAKE_C_COMPILER "${CC}")
 enable_language(C)
 
 # We declare the project here.
@@ -23,60 +21,67 @@ set (USILO_PATCH_VERSION 0)
 set (USILO_VERSION "${USILO_MAJOR_VERSION}.${USILO_MINOR_VERSION}.${USILO_PATCH_VERSION}")
 
 # Report shared library status.
+OPTION(BUILD_SHARED_LIBS "Build shared libraries")
 if (BUILD_SHARED_LIBS)
   message(STATUS "Building shared libraries with dynamic loading enabled.")
-  set(HAVE_SHARED_LIBS 1)
+  set(LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
 else()
-  set(HAVE_SHARED_LIBS 0)
+  set(LIB_SUFFIX .a)
   message(STATUS "Building static libraries with dynamic loading disabled.")
 endif()
 
 # Figure out the system type.
 if (APPLE)
   set(SYS_FLAGS "-DAPPLE=1")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Accelerate")
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -framework Accelerate")
-
-  # Find the number of (logical) cores available on the machine.
-  execute_process(COMMAND sysctl -n hw.ncpu OUTPUT_VARIABLE NUMBER_OF_CORES)
-  string(REPLACE "\n" "" NUMBER_OF_CORES ${NUMBER_OF_CORES})
-  if (NUMBER_OF_CORES LESS 0)
-    set(NUMBER_OF_CORES 1)
-  endif()
-  message(STATUS "Configuring on Mac with ${NUMBER_OF_CORES} logical cores.")
 else ()
   if (LINUX)
     set(SYS_FLAGS "-DLINUX=1")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
-
-    # Find the number of (logical) cores available on the machine.
-    execute_process(COMMAND nproc OUTPUT_VARIABLE NUMBER_OF_CORES)
-    string(REPLACE "\n" "" NUMBER_OF_CORES ${NUMBER_OF_CORES})
-    if (NUMBER_OF_CORES LESS 0)
-      set(NUMBER_OF_CORES 1)
-    endif()
-    message(STATUS "Configuring on Linux with ${NUMBER_OF_CORES} logical cores.")
-  else()
-    message(FATAL_ERROR "Unknown system type! Currently only Mac and Linux are supported.")
   endif ()
 endif ()
 
-# -------
-# Options 
-# -------
+# Give a warning about not setting the install prefix.
+if (CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
+  message(WARNING "No installation prefix was set! Installation is disabled.")
+else()
+  message(STATUS "Installation prefix is ${CMAKE_INSTALL_PREFIX}")
+endif()
 
-OPTION(BUILD_STATIC_LIBS "Build static libraries" ON)
-OPTION(BUILD_SHARED_LIBS "Build shared libraries")
-OPTION(HDF5_INCLUDE_DIR "HDF5 include directory")
-OPTION(HDF5_LIBRARY_DIR "HDF5 library directory")
-OPTION(ZLIB_INCLUDE_DIR "zlib include directory")
-OPTION(ZLIB_LIBRARY_DIR "zlib library directory")
+# Make sure we have locations for HDF5 and zlib.
+if (NOT HDF5_INCLUDE_DIR) 
+  message(FATAL_ERROR "HDF5_INCLUDE_DIR is not set!")
+elseif (NOT EXISTS ${HDF5_INCLUDE_DIR})
+  message(FATAL_ERROR "HDF5_INCLUDE_DIR not found: ${HDF5_INCLUDE_DIR}")
+elseif (NOT EXISTS ${HDF5_INCLUDE_DIR}/hdf5.h)
+  message(FATAL_ERROR "Header not found: ${HDF5_INCLUDE_DIR}/hdf5.h")
+endif()
+if (NOT HDF5_LIBRARY_DIR)
+  message(FATAL_ERROR "HDF5_LIBRARY_DIR is not set!")
+elseif (NOT EXISTS ${HDF5_LIBRARY_DIR})
+  message(FATAL_ERROR "HDF5_LIBRARY_DIR not found: ${HDF5_LIBRARY_DIR}")
+elseif (NOT EXISTS ${HDF5_LIBRARY_DIR}/libhdf5${LIB_SUFFIX})
+  message(FATAL_ERROR "Library not found: ${HDF5_LIBRARY_DIR}/libhdf5${LIB_SUFFIX}")
+endif()
+if (NOT ZLIB_INCLUDE_DIR)
+  message(FATAL_ERROR "ZLIB_INCLUDE_DIR is not set!")
+elseif (NOT EXISTS ${ZLIB_INCLUDE_DIR})
+  message(FATAL_ERROR "ZLIB_INCLUDE_DIR not found: ${ZLIB_INCLUDE_DIR}")
+elseif (NOT EXISTS ${ZLIB_INCLUDE_DIR}/zlib.h)
+  message(FATAL_ERROR "Header not found: ${ZLIB_INCLUDE_DIR}/zlib.h")
+endif()
+if (NOT ZLIB_LIBRARY_DIR)
+  message(FATAL_ERROR "ZLIB_LIBRARY_DIR is not set!")
+elseif (NOT EXISTS ${ZLIB_LIBRARY_DIR})
+  message(FATAL_ERROR "ZLIB_LIBRARY_DIR not found: ${ZLIB_LIBRARY_DIR}")
+elseif (NOT EXISTS ${ZLIB_LIBRARY_DIR}/libz${LIB_SUFFIX})
+  message(FATAL_ERROR "Library not found: ${ZLIB_LIBRARY_DIR}/libz${LIB_SUFFIX}")
+endif()
 
 # General C compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Weverything")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-self-assign -Wno-unused-variable -Wno-incompatible-pointer-types -Wno-sign-conversion -Wno-unused-macros -Wno-double-promotion -Wno-padded -Wno-sign-compare -Wno-cast-align -Wno-unreachable-code -Wno-unused-function -Wno-shorten-64-to-32 -Wno-int-conversion -Wno-missing-field-initializers -Wno-cast-qual -Wno-missing-braces -Wno-missing-prototypes -Wno-float-conversion -Wno-unused-parameter -Wno-undef -Wno-format-nonliteral -Wno-gnu-empty-struct -Wno-c++-compat -Wno-missing-variable-declarations -Wno-conversion -Wno-strict-prototypes -Wno-reserved-id-macro -Wno-missing-declarations -Wno-switch-enum -Wno-float-equal -Wno-shadow -Wno-pedantic -Wno-unreachable-code-break")
 elseif (CMAKE_C_COMPILER_ID STREQUAL "Intel")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 endif()
@@ -97,12 +102,18 @@ if (BUILD_SHARED_LIBS)
   endif()
 endif()
 
-# Give a warning about not setting the install prefix.
-if (CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  message(WARNING "No installation prefix was set! Installation is disabled.")
-else()
-  message(STATUS "Installation prefix is ${CMAKE_INSTALL_PREFIX}")
-endif()
+# Now that we have gathered all our libraries, generate silo.h and 
+# silo_version.c files that contain version information.
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/silo.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/src/silo.h"
+  @ONLY
+)
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/silo_version.c.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/src/silo_version.c"
+  @ONLY
+)
 
 # Include the binary directory in the header file search path.
 include_directories("${PROJECT_BINARY_DIR}")
@@ -110,65 +121,18 @@ include_directories("${PROJECT_BINARY_DIR}/include")
 link_directories("${PROJECT_BINARY_DIR}/src")
 
 # Source code.
-include_directories("${PROJECT_SOURCE_DIR}")
 add_subdirectory(src)
 
 # Unit testing.
-include(CTest)
-enable_testing()
-add_subdirectory(tests)
-
-# Now that we have gathered all our libraries, generate a silo_version.c
-# file that contains the version information information.
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/silo_version.c.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/src/silo_version.c"
-  @ONLY
-)
+#include(CTest)
+#enable_testing()
+#add_subdirectory(tests)
 
 # Installation.
 if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  file(GLOB all_headers "${PROJECT_BINARY_DIR}/include/*")
-  foreach(header ${all_headers})
-    get_filename_component(filename ${header} NAME)
-    if (filename MATCHES "USILO")
-      list(APPEND USILO_headers ${header})
-    elseif(filename MATCHES ".h")
-      list(APPEND tp_headers ${header})
-    else()
-      install(DIRECTORY ${header} DESTINATION include)
-    endif()
-  endforeach()
-  set(USILO_headers ${USILO_headers} CACHE STRING "generated USILO headers" )
-
-  # Install all third-party library USILO source headers.
-  install(FILES ${tp_headers} DESTINATION include)
-
-  # Install all third-party libraries.
-  file(GLOB tp_libs "${PROJECT_BINARY_DIR}/lib/*.a")
-  if (BUILD_SHARED_LIBS)
-    file(GLOB shared_tp_libs "${PROJECT_BINARY_DIR}/lib/*${LIB_SUFFIX}*")
-    list(APPEND tp_libs ${shared_tp_libs})
-  endif()
-  install(FILES ${tp_libs} DESTINATION lib)
-
-  # Install all third-party executables.
-  file(GLOB tp_exes "${PROJECT_BINARY_DIR}/bin/*")
-  install(FILES ${tp_exes} DESTINATION bin
-          PERMISSIONS OWNER_READ;OWNER_WRITE;OWNER_EXECUTE;
-                      GROUP_READ;GROUP_EXECUTE;WORLD_READ;WORLD_EXECUTE)
-
-  # Install all generated USILO source headers.
-  install(FILES ${USILO_headers} DESTINATION include/USILO)
-
-  # Install miscellaneous build/test files.
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tools/update_version_h.py DESTINATION share/USILO)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/USILO.cmake DESTINATION share/USILO)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_USILO_executable.cmake DESTINATION share/USILO)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_USILO_library.cmake DESTINATION share/USILO)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_USILO_test.cmake DESTINATION share/USILO)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/FindValgrind.cmake DESTINATION share/USILO)
+  install(FILES src/silo.h src/silo_exports.h DESTINATION include)
+  install(FILES ${PROJECT_BINARY_DIR}/src/libusilo${LIB_SUFFIX} DESTINATION lib)
 else()
-  message(WARNING "Installation is not enabled. Please rerun make config with prefix=/your/prefix.")
+  message(WARNING "Installation is not enabled. Please rerun cmake with CMAKE_INSTALL_PREFIX=/your/prefix.")
 endif()
 

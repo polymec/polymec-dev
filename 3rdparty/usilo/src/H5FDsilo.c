@@ -56,7 +56,7 @@ product endorsement purposes.
    is explicitly upgraded to the 1.8 API, this symbol should be removed. */
 #define H5_USE_16_API
 
-#include <config.h>
+#include "config.h"
 #if defined(HAVE_HDF5_H) && defined(HAVE_LIBHDF5)
 
 #include "hdf5.h"

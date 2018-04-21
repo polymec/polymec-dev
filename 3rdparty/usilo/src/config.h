@@ -30,9 +30,11 @@
 #define HAVE_STRING_H H5_HAVE_STRING_H
 #endif
 
-#ifdef H5_HAVE_STRINGS_H 1
+#ifdef H5_HAVE_STRINGS_H 
 #define HAVE_STRINGS_H H5_HAVE_STRINGS_H
 #endif
+
+#define SIZEOF_OFF64_T 4 // FIXME?
 
 #define HAVE_STRERROR 1
 
@@ -41,5 +43,11 @@
 #define HAVE_HDF5_DRIVER 1
 #define HAVE_LIBZ 1
 
+#define PACKAGE "usilo"
+#define PACKAGE_BUGREPORT "--"
+#define PACKAGE_NAME "usilo"
+#define PACKAGE_STRING "usilo @USILO_VERSION@"
+#define PACKAGE_TARNAME "usilo"
+#define PACKAGE_VERSION "@USILO_VERSION@"
 
 #endif
