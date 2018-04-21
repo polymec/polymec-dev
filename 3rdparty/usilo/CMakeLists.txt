@@ -116,6 +116,7 @@ configure_file(
 )
 
 # Include the binary directory in the header file search path.
+include_directories("${HDF5_INCLUDE_DIR}")
 include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_BINARY_DIR}/include")
 link_directories("${PROJECT_BINARY_DIR}/src")
