@@ -50,9 +50,9 @@ static const char* MATSAME = "same";
 #define PETSC_DETERMINE PETSC_DECIDE
 typedef struct
 {
-  PetscErrorCode (*PetscInitializeNoArguments)();
+  PetscErrorCode (*PetscInitializeNoArguments)(void);
   PetscErrorCode (*PetscInitialized)(PetscBool*);
-  PetscErrorCode (*PetscFinalize)();
+  PetscErrorCode (*PetscFinalize)(void);
   PetscErrorCode (*PetscPushErrorHandler)(PetscErrorCode (*handler)(MPI_Comm comm, int, const char*, const char*, PetscErrorCode, int, const char*, void*), void*);
   void* (*PETSC_VIEWER_STDOUT_)(MPI_Comm);
   PetscErrorCode (*PetscViewerASCIIOpenWithFILE)(MPI_Comm, FILE*, PetscViewer*);

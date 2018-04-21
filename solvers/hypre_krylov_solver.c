@@ -50,9 +50,9 @@ typedef enum
 // Here's a table of function pointers for the HYPRE library.
 typedef struct
 {
-  HYPRE_Int (*HYPRE_GetError)();
+  HYPRE_Int (*HYPRE_GetError)(void);
   void      (*HYPRE_DescribeError)(HYPRE_Int, char*);
-  HYPRE_Int (*HYPRE_ClearAllErrors)();
+  HYPRE_Int (*HYPRE_ClearAllErrors)(void);
 
   HYPRE_Int (*HYPRE_ParCSRPCGCreate)(HYPRE_MPI_Comm, HYPRE_Solver*);
   HYPRE_Int (*HYPRE_ParCSRPCGDestroy)(HYPRE_Solver);

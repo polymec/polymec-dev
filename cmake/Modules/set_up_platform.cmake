@@ -46,9 +46,6 @@ macro(set_up_platform)
   set(HDF5_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
   get_filename_component(HDF5_LIBRARY_DIR ${Z_LIBRARY} DIRECTORY)
 
-  set(SILO_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/lib/libsiloh5.a")
-  set(SILO_LIBRARIES siloh5)
-
   if (APPLE)
     set(NEED_LAPACK FALSE)
   else()
