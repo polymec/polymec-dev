@@ -30,15 +30,6 @@ else()
   message(STATUS "Building static libraries with dynamic loading disabled.")
 endif()
 
-# Figure out the system type.
-if (APPLE)
-  set(SYS_FLAGS "-DAPPLE=1")
-else ()
-  if (LINUX)
-    set(SYS_FLAGS "-DLINUX=1")
-  endif ()
-endif ()
-
 # Give a warning about not setting the install prefix.
 if (CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
   message(WARNING "No installation prefix was set! Installation is disabled.")
@@ -76,12 +67,23 @@ elseif (NOT EXISTS ${ZLIB_LIBRARY_DIR}/libz${LIB_SUFFIX})
   message(FATAL_ERROR "Library not found: ${ZLIB_LIBRARY_DIR}/libz${LIB_SUFFIX}")
 endif()
 
+# Figure out the system type.
+if (APPLE)
+  set(SYS_FLAGS "-DAPPLE=1")
+else ()
+  if (LINUX)
+    set(SYS_FLAGS "-DLINUX=1 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64")
+  endif ()
+endif ()
+
 # General C compiler flags.
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
+elseif (CMAKE_C_COMPILER_ID STREQUAL "Clang")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Weverything")
-#  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-self-assign -Wno-unused-variable -Wno-incompatible-pointer-types -Wno-sign-conversion -Wno-unused-macros -Wno-double-promotion -Wno-padded -Wno-sign-compare -Wno-cast-align -Wno-unreachable-code -Wno-unused-function -Wno-shorten-64-to-32 -Wno-int-conversion -Wno-missing-field-initializers -Wno-cast-qual -Wno-missing-braces -Wno-missing-prototypes -Wno-float-conversion -Wno-unused-parameter -Wno-undef -Wno-format-nonliteral -Wno-gnu-empty-struct -Wno-c++-compat -Wno-missing-variable-declarations -Wno-conversion -Wno-strict-prototypes -Wno-reserved-id-macro -Wno-missing-declarations -Wno-switch-enum -Wno-float-equal -Wno-shadow -Wno-pedantic -Wno-unreachable-code-break")
+elseif (CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Weverything")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-self-assign -Wno-unused-variable -Wno-incompatible-pointer-types -Wno-sign-conversion -Wno-unused-macros -Wno-double-promotion -Wno-padded -Wno-sign-compare -Wno-cast-align -Wno-unreachable-code -Wno-unused-function -Wno-shorten-64-to-32 -Wno-int-conversion -Wno-missing-field-initializers -Wno-cast-qual -Wno-missing-braces -Wno-missing-prototypes -Wno-float-conversion -Wno-unused-parameter -Wno-undef -Wno-format-nonliteral -Wno-gnu-empty-struct -Wno-c++-compat -Wno-missing-variable-declarations -Wno-conversion -Wno-strict-prototypes -Wno-reserved-id-macro -Wno-missing-declarations -Wno-switch-enum -Wno-float-equal -Wno-shadow -Wno-pedantic -Wno-unreachable-code-break")
 elseif (CMAKE_C_COMPILER_ID STREQUAL "Intel")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 endif()

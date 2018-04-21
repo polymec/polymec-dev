@@ -155,32 +155,17 @@ product endorsement purposes.
 #define SILO_LOGSTS_PROPNAME "silo_log_stats"
 #define SILO_USEDIR_PROPNAME "silo_use_direct"
 
-/* definitions related to the file stat utilities.
- * For Unix, if off_t is not 64bit big, try use the pseudo-standard
- * xxx64 versions if available.
- */
+/* definitions related to the file stat utilities. */
 #if !defined(HDfstat) || !defined(HDstat)
-    #if H5_SIZEOF_OFF_T!=8 && H5_SIZEOF_OFF64_T==8 && defined(H5_HAVE_STAT64)
-        #ifndef HDfstat
-            #define HDfstat(F,B)        fstat64(F,B)
-        #endif /* HDfstat */
-        #ifndef HDstat
-            #define HDstat(S,B)         stat64(S,B)
-        #endif /* HDstat */
-        typedef struct stat64       h5_stat_t;
-        typedef off64_t             h5_stat_size_t;
-        #define H5_SIZEOF_H5_STAT_SIZE_T H5_SIZEOF_OFF64_T
-    #else /* H5_SIZEOF_OFF_T!=8 && ... */
-        #ifndef HDfstat
-            #define HDfstat(F,B)        fstat(F,B)
-        #endif /* HDfstat */
-        #ifndef HDstat
-            #define HDstat(S,B)         stat(S,B)
-        #endif /* HDstat */
-        typedef struct stat         h5_stat_t;
-        typedef off_t               h5_stat_size_t;
-        #define H5_SIZEOF_H5_STAT_SIZE_T H5_SIZEOF_OFF_T
-    #endif /* H5_SIZEOF_OFF_T!=8 && ... */
+    #ifndef HDfstat
+        #define HDfstat(F,B)        fstat(F,B)
+    #endif /* HDfstat */
+    #ifndef HDstat
+        #define HDstat(S,B)         stat(S,B)
+    #endif /* HDstat */
+    typedef struct stat         h5_stat_t;
+    typedef off_t               h5_stat_size_t;
+    #define H5_SIZEOF_H5_STAT_SIZE_T H5_SIZEOF_OFF_T
 #endif /* !defined(HDfstat) || !defined(HDstat) */
 #ifndef HDlseek
     #ifdef H5_HAVE_LSEEK64
@@ -438,14 +423,7 @@ typedef struct H5FD_silo_t {
                                  * and convert this file to a single file */
 } H5FD_silo_t;
 
-#ifdef H5_HAVE_LSEEK64
-#   define file_offset_t        off64_t
-#elif defined (_WIN32) && !defined(__MWERKS__)
-# /*MSVC*/
-#   define file_offset_t        __int64
-#else
-#   define file_offset_t        off_t
-#endif
+#define file_offset_t off_t
 
 /*
  * These macros check for overflow of various quantities.  These macros

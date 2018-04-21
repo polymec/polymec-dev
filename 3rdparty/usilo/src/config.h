@@ -34,7 +34,9 @@
 #define HAVE_STRINGS_H H5_HAVE_STRINGS_H
 #endif
 
-#define SIZEOF_OFF64_T 4 // FIXME?
+#ifdef H5_SIZEOF_OFF_T 
+#define SIDEOF_OFF_T H5_SIZEOF_OFF_T
+#endif
 
 #define HAVE_STRERROR 1
 

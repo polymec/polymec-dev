@@ -228,16 +228,7 @@ const static char *api_dummy = 0;
 
 /* stat struct definition */
 typedef struct db_silo_stat_t {
-#ifndef SIZEOF_OFF64_T
-#error missing definition for SIZEOF_OFF64_T in silo_private.h
-#else
-#if SIZEOF_OFF64_T > 4
-#warning FIXME
     struct stat s;
-#else
-    struct stat s;
-#endif
-#endif
 #ifdef _WIN32
     DWORD fileindexlo;
     DWORD fileindexhi;
@@ -2317,11 +2308,7 @@ db_silo_stat_one_file(const char *name, db_silo_stat_t *statbuf)
     errno = 0;
     memset(&(statbuf->s), 0, sizeof(statbuf->s));
 
-#if SIZEOF_OFF64_T > 4
-    retval = stat64(name, &(statbuf->s));
-#else
     retval = stat(name, &(statbuf->s));
-#endif /* #if SIZEOF_OFF64_T > 4 */
 
 #ifdef _WIN32
     if (retval == 0)
@@ -4285,11 +4272,7 @@ DBOpenReal(const char *name, int type, int mode)
                 /********************************/
                 /* System level error occured.  */
                 /********************************/
-#if SIZEOF_OFF64_T > 4
-                printf("stat64() failed with error: ");
-#else
                 printf("stat() failed with error: ");
-#endif
                 switch (errno)
                 {
                   case EACCES:       printf("EACCES\n");       break;
