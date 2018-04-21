@@ -190,7 +190,7 @@ test:
 memcheck:
 	@cd $(BUILDDIR) && ctest -T memcheck
 
-config: #distclean
+config: distclean
 	$(run-config)
 
 distclean:
