@@ -63,8 +63,6 @@ if (NOT ZLIB_LIBRARY_DIR)
   message(FATAL_ERROR "ZLIB_LIBRARY_DIR is not set!")
 elseif (NOT EXISTS ${ZLIB_LIBRARY_DIR})
   message(FATAL_ERROR "ZLIB_LIBRARY_DIR not found: ${ZLIB_LIBRARY_DIR}")
-elseif (NOT EXISTS ${ZLIB_LIBRARY_DIR}/libz${LIB_SUFFIX})
-  message(FATAL_ERROR "Library not found: ${ZLIB_LIBRARY_DIR}/libz${LIB_SUFFIX}")
 endif()
 
 # Figure out the system type.
@@ -122,6 +120,8 @@ include_directories("${HDF5_INCLUDE_DIR}")
 include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_BINARY_DIR}/include")
 link_directories("${PROJECT_BINARY_DIR}/src")
+link_directories("${HDF5_LIBRARY_DIR}")
+link_directories("${ZLIB_LIBRARY_DIR}")
 
 # Source code.
 add_subdirectory(src)
