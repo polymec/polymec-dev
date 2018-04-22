@@ -91,9 +91,9 @@ mesh = unimesh.new{comm = mpi.COMM_WORLD, bbox = box,
                    npx = 2, npy = 2, npz = 2, 
                    nx = 10, ny = 10, nz = 10}
 sp = mesh.spacings
-assert(sp[1] == 0.1)
-assert(sp[2] == 0.1)
-assert(sp[3] == 0.1)
+assert(sp[1] == 0.05)
+assert(sp[2] == 0.05)
+assert(sp[3] == 0.05)
 ex = mesh.extents
 assert(ex[1] == 2)
 assert(ex[2] == 2)
