@@ -1390,23 +1390,11 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
     }
     text_buffer_free(buffer);
   }
-  if (sizeof(index_t) == sizeof(int64_t))
+  if (!petsc_uses_64bit_indices)
   {
-    if (!petsc_uses_64bit_indices)
-    {
-      log_urgent("petsc_krylov_factory: Since polymec is configured for 64-bit indices,\n"
-                 "  PETSc must be built using --with-64-bit-indices.");
-      goto failure;
-    }
-  }
-  else
-  {
-    if (petsc_uses_64bit_indices)
-    {
-      log_urgent("petsc_krylov_factory: Since polymec is configured for 32-bit indices,\n"
-                 "  PETSc must be built with 32-bit indices (not using --with-64-bit-indices).");
-      goto failure;
-    }
+    log_urgent("petsc_krylov_factory: polymec uses 64-bit indices, so\n"
+               "  PETSc must be built using --with-64-bit-indices.");
+    goto failure;
   }
 
   // Get the symbols.

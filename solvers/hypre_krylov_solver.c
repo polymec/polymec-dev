@@ -1901,23 +1901,11 @@ krylov_factory_t* hypre_krylov_factory(const char* hypre_dir)
 
   // HYPRE defines a function called hypre_printf if it is configured for "big" (64-bit) integers.
   bool hypre_uses_64bit_indices = (dlsym(hypre, "hypre_printf") != NULL);
-  if (sizeof(index_t) == sizeof(int64_t))
+  if (!hypre_uses_64bit_indices)
   {
-    if (!hypre_uses_64bit_indices)
-    {
-      log_urgent("hypre_krylov_factory: Since polymec is configured for 64-bit indices,\n"
-                 "  HYPRE must be built using -DHYPRE_BIGINT=ON.");
+    log_urgent("hypre_krylov_factory: polymec uses 64-bit indices, so\n"
+               "  HYPRE must be built using -DHYPRE_BIGINT=ON.");
       goto failure;
-    }
-  }
-  else
-  {
-    if (hypre_uses_64bit_indices)
-    {
-      log_urgent("hypre_krylov_factory: Since polymec is configured for 32-bit indices,\n"
-                 "  HYPRE must be built using -DHYPRE_BIGINT=OFF.");
-      goto failure;
-    }
   }
 
   // Get the symbols.
