@@ -1249,6 +1249,11 @@ static int polymeshes_rectilinear(lua_State* L)
                                                zs->data, (int)zs->size);
   }
 
+  // Clean up.
+  real_array_free(xs);
+  real_array_free(ys);
+  real_array_free(zs);
+
   lua_push_polymesh(L, mesh);
   return 1;
 }
