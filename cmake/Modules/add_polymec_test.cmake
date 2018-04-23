@@ -5,7 +5,11 @@ link_directories(${PROJECT_BINARY_DIR}/lib)
 # (OpenMPI) really hates being run as root, so we have to ask it nicely to 
 # do so.
 if (TRAVIS_CI)
-  set(MPIEXEC_PREFLAGS "${MPIEXEC_PREFLAGS} --allow-run-as-root")
+  if (MPIEXEC_PREFLAGS)
+    set(MPIEXEC_PREFLAGS "${MPIEXEC_PREFLAGS} --allow-run-as-root")
+  else()
+    set(MPIEXEC_PREFLAGS "--allow-run-as-root")
+  endif()
 endif()
 
 # This function adds a parallel unit test executable to be built using cmocka,
