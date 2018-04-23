@@ -1,6 +1,13 @@
 include_directories(${PROJECT_SOURCE_DIR}/tests;${PROJECT_BINARY_DIR}/include)
 link_directories(${PROJECT_BINARY_DIR}/lib)
 
+# Travis CI and docker run everything as root, and our MPI environment there
+# (OpenMPI) really hates being run as root, so we have to ask it nicely to 
+# do so.
+if (TRAVIS_CI)
+  set(MPIEXEC_PREFLAGS "${MPIEXEC_PREFLAGS} --allow-run-as-root")
+endif()
+
 # This function adds a parallel unit test executable to be built using cmocka,
 # linking against the specified libraries. Other arguments are source files 
 # and numbers of processes (in no particular order, but usually with process 
