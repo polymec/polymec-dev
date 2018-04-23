@@ -1765,6 +1765,18 @@ static void lua_register_options(lua_State* L)
   lua_setglobal(L, "options");
 }
 
+// Here's a reals_equal(a, b) function just like our C version.
+static int lua_reals_equal(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || !lua_is_real(L, 1) || !lua_is_real(L, 2))
+    luaL_error(L, "reals_equal() accepts exactly two real arguments.");
+  real_t a = lua_to_real(L, 1);
+  real_t b = lua_to_real(L, 2);
+  lua_pushboolean(L, reals_equal(a, b));
+  return 1;
+}
+
 // Here's a dir() function just like Python's.
 static int lua_dir(lua_State* L)
 {
@@ -1864,6 +1876,14 @@ extern void lua_replace_tostring(lua_State* L);
 
 static void lua_register_util_funcs(lua_State* L)
 {
+  // reals_equal(a, b) returns true if a == b to without polymec's tolerance,
+  // false if not.
+  lua_pushcfunction(L, lua_reals_equal);
+  lua_setglobal(L, "reals_equal");
+  lua_getglobal(L, "reals_equal");
+  lua_set_docstring(L, -1, "reals_equal(a, b) -> Returns true if a == b for a, b real, false if not.");
+  lua_pop(L, 1);
+
   // Python-like dir() function.
   lua_pushcfunction(L, lua_dir);
   lua_setglobal(L, "dir");
