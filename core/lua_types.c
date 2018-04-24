@@ -298,6 +298,8 @@ static int lua_open_class(lua_State* L)
       f[i].name = functions[i].name;
       f[i].func = functions[i].func;
     }
+    f[num_funcs].name = NULL;
+    f[num_funcs].func = NULL;
 
     // Stick the functions into a new class table.
     luaL_checkversion(L);
@@ -700,6 +702,8 @@ static int lua_open_record(lua_State* L)
       funcs[i].name = functions[i].name;
       funcs[i].func = functions[i].func;
     }
+    funcs[num_funcs].name = NULL;
+    funcs[num_funcs].func = NULL;
 
     luaL_checkversion(L);
     lua_createtable(L, 0, 1);
