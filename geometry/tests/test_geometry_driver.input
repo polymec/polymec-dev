@@ -103,7 +103,7 @@ assert(ps[1] == 10)
 assert(ps[2] == 10)
 assert(ps[3] == 10)
 patches = mesh.patches
-assert(#patches == 8)
+assert(#patches <= 8)
 
 -- Polyhedral meshes.
 mesh1 = polymeshes.uniform{comm = mpi.COMM_WORLD, nx = 10, ny = 10, nz = 10, bbox = box}
