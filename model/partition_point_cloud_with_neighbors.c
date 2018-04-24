@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/timer.h"
 #include "core/partition_point_cloud.h"
 #include "model/partition_point_cloud_with_neighbors.h"
 
@@ -20,6 +21,8 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
                                         int64_t* global_partition,
                                         int num_indices)
 {
+  START_FUNCTION_TIMER();
+
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
@@ -46,13 +49,14 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
     // Now we create representations of pairings for each process. Since the 
     // ordering of nodes (i, j) within a pair is unpredictable, we construct 
     // them all simultaneously.
+    log_debug("neighbor_pairing_distribute: creating pair representations on rank 0.");
     int num_pairs[nprocs];
     int_array_t* pairs[nprocs];
     int_ptr_unordered_map_t* sends[nprocs];
     int_ptr_unordered_map_t* receives[nprocs];
     int ghost_indices[nprocs];
     memset(num_pairs, 0, sizeof(int) * nprocs);
-    memset(pairs, 0, sizeof(int*) * nprocs);
+    memset(pairs, 0, sizeof(int_array_t*) * nprocs);
     memset(sends, 0, sizeof(int_ptr_unordered_map_t*) * nprocs);
     memset(receives, 0, sizeof(int_ptr_unordered_map_t*) * nprocs);
     memset(ghost_indices, 0, sizeof(int) * nprocs);
@@ -89,7 +93,7 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         {
           int_array_t* send_indices = int_array_new();
           int_ptr_unordered_map_insert_with_v_dtor(sends[pi], pj, send_indices, DTOR(int_array_free));
-          send_indices_p = &send_indices;
+          send_indices_p = (int_array_t**)int_ptr_unordered_map_get(sends[pi], pj);
         }
         int_array_append(*send_indices_p, i);
 
@@ -101,7 +105,7 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         {
           int_array_t* send_indices = int_array_new();
           int_ptr_unordered_map_insert_with_v_dtor(sends[pj], pi, send_indices, DTOR(int_array_free));
-          send_indices_p = &send_indices;
+          send_indices_p = (int_array_t**)int_ptr_unordered_map_get(sends[pj], pi);
         }
         int_array_append(*send_indices_p, j);
 
@@ -113,7 +117,7 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         {
           int_array_t* recv_indices = int_array_new();
           int_ptr_unordered_map_insert_with_v_dtor(receives[pi], pj, recv_indices, DTOR(int_array_free));
-          recv_indices_p = &recv_indices;
+          recv_indices_p = (int_array_t**)int_ptr_unordered_map_get(receives[pi], pj);
         }
         int_array_append(*recv_indices_p, ghost_indices[pi]++);
 
@@ -125,13 +129,14 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         {
           int_array_t* recv_indices = int_array_new();
           int_ptr_unordered_map_insert_with_v_dtor(receives[pj], pi, recv_indices, DTOR(int_array_free));
-          recv_indices_p = &recv_indices;
+          recv_indices_p = (int_array_t**)int_ptr_unordered_map_get(receives[pj], pi);
         }
         int_array_append(*recv_indices_p, ghost_indices[pj]++);
       }
     }
 
     // Now we create the pairings and ship them to the various processes.
+    log_debug("neighbor_pairing_distribute: Distributing to other ranks.");
     serializer_t* ser = neighbor_pairing_serializer();
     byte_array_t* bytes = byte_array_new();
     for (int p = 0; p < nprocs; ++p)
@@ -170,6 +175,7 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         // Send the pairing to process p.
         size_t offset = 0;
         serializer_write(ser, p_pairing, bytes, &offset);
+        log_debug("neighbor_pairing_distribute: sending neighbors to rank %d.", p);
         MPI_Send(&bytes->size, 1, MPI_INT, p, p, comm);
         MPI_Send(bytes->data, (int)bytes->size, MPI_BYTE, p, p, comm);
 
@@ -190,6 +196,7 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
 
     // Receive the size of the incoming pairing.
     int pairing_size;
+    log_debug("neighbor_pairing_distribute: receiving neighbors from rank 0.");
     MPI_Recv(&pairing_size, 1, MPI_INT, 0, rank, comm, &status);
 
     // Now receive the pairing.
@@ -209,6 +216,7 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
   // Clean up.
   if (global_pairing != NULL)
     neighbor_pairing_free(global_pairing);
+  STOP_FUNCTION_TIMER();
 }
 #endif
 
@@ -220,6 +228,8 @@ migrator_t* partition_point_cloud_with_neighbors(point_cloud_t** points,
 {
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
+
+  START_FUNCTION_TIMER();
 
 #if POLYMEC_HAVE_MPI
   ASSERT((*points == NULL) || ((*points)->comm == MPI_COMM_SELF));
@@ -253,7 +263,12 @@ migrator_t* partition_point_cloud_with_neighbors(point_cloud_t** points,
 #endif
 
   // Map the graph to the different domains, producing a local partition vector.
-  int64_t* global_partition = (rank == 0) ? partition_graph(global_graph, comm, weights, imbalance_tol): NULL;
+  int64_t* global_partition = NULL;
+  if (rank == 0) 
+  {
+    log_debug("partition_point_cloud_with_neighbors: partitioning graph on rank 0.");
+    global_partition = partition_graph(global_graph, comm, weights, imbalance_tol);
+  }
 
   // Break the neighbor pairing into chunks and send them to the other processes.
   neighbor_pairing_distribute(neighbors, comm, global_partition, 
@@ -271,6 +286,8 @@ migrator_t* partition_point_cloud_with_neighbors(point_cloud_t** points,
     adj_graph_free(global_graph);
   if (global_partition != NULL)
     polymec_free(global_partition);
+
+  STOP_FUNCTION_TIMER();
 
   // Return the migrator.
   return m;
