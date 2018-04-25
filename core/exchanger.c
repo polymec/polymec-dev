@@ -1285,7 +1285,6 @@ migrator_t* migrator_from_global_partition(MPI_Comm comm,
     // Send this number.
     size_t n;
     MPI_Scatter(num_vertices_to_send, 1, MPI_SIZE_T, &n, 1, MPI_SIZE_T, 0, comm);
-printf("Yeah\n");
 
     // Now send the vertices to each process and register these sends
     // with the distributor.
