@@ -94,7 +94,6 @@ adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
     for (int v = 0; v < (int)num_vertices; ++v)
     {
       size_t num_edges = adj_graph_num_edges(graph, v);
-      ASSERT(num_edges >= 0);
       int* edges = adj_graph_edges(graph, v);
       for (size_t e = 0; e < num_edges; ++e)
       {
@@ -171,7 +170,6 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
     for (int v = 0; v < (int)num_vertices; ++v)
     {
       size_t num_edges = adj_graph_num_edges(graph, v);
-      ASSERT(num_edges >= 0);
       int* edges = adj_graph_edges(graph, v);
       for (size_t e = 0; e < num_edges; ++e)
       {

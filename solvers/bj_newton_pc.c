@@ -150,7 +150,6 @@ static cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
                                               size_t num_remote_rows)
 {
   ASSERT(num_local_rows > 0);
-  ASSERT(num_remote_rows >= 0);
 
   // Exactly one of F and F_dae must be given.
   ASSERT((F != NULL) || (F_dae != NULL));
