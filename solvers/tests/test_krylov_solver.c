@@ -153,8 +153,8 @@ static void test_krylov_matrix(void** state, krylov_factory_t* factory)
 static void test_krylov_matrix_from_file(void** state, 
                                          krylov_factory_t* factory, 
                                          const char* filename,
-                                         int num_global_rows,
-                                         int num_test_values,
+                                         size_t num_global_rows,
+                                         size_t num_test_values,
                                          index_t* test_rows,
                                          index_t* test_cols,
                                          real_t* test_values)
@@ -165,7 +165,7 @@ static void test_krylov_matrix_from_file(void** state,
     int rank, nprocs;
     MPI_Comm_size(comm, &nprocs);
     MPI_Comm_rank(comm, &rank);
-    int num_local_rows = num_global_rows / nprocs;
+    size_t num_local_rows = num_global_rows / nprocs;
     if (rank == (nprocs-1))
       num_local_rows = num_global_rows - rank*num_local_rows;
 
@@ -179,7 +179,7 @@ static void test_krylov_matrix_from_file(void** state,
       index_t r = test_rows[i] - rank*num_local_rows;
       if (r < num_local_rows)
       {
-        index_t one = 1;
+        size_t one = 1;
         real_t val;
         krylov_matrix_get_values(mat, 1, &one, 
                                  &test_rows[i], &test_cols[i], &val);
@@ -209,7 +209,8 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
     while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
       real_t Aij[3];
-      index_t rows[3], cols[3], num_cols;
+      index_t rows[3], cols[3];
+      size_t num_cols;
       if (row == 0)
       {
         num_cols = 2; 
@@ -242,7 +243,8 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
     while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
       real_t Aij[3];
-      index_t rows[3], cols[3], num_cols;
+      index_t rows[3], cols[3];
+      size_t num_cols;
       if (row == 0)
       {
         num_cols = 2; 
@@ -285,7 +287,8 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
       while (matrix_sparsity_next_row(sparsity, &rpos, &row))
       {
         real_t Aij[3];
-        index_t rows[3], cols[3], num_cols;
+        index_t rows[3], cols[3];
+        size_t num_cols;
         if (row == 0)
         {
           num_cols = 2; 
@@ -326,7 +329,8 @@ static void test_krylov_matrix_ops(void** state, krylov_factory_t* factory)
       while (matrix_sparsity_next_row(sparsity, &rpos, &row))
       {
         real_t Aij[3];
-        index_t rows[3], cols[3], num_cols;
+        index_t rows[3], cols[3];
+        size_t num_cols;
         if (row == 0)
         {
           num_cols = 2; 
@@ -497,7 +501,8 @@ static void test_1d_laplace_eqn(void** state,
     while (matrix_sparsity_next_row(sparsity, &rpos, &row))
     {
       real_t Aij[3], bi[1];
-      index_t rows[1], cols[3], num_cols;
+      index_t rows[1], cols[3];
+      size_t num_cols;
       if (row == 0)
       {
         num_cols = 2; 

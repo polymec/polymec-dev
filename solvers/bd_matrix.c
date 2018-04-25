@@ -10,25 +10,25 @@
 
 struct bd_matrix_t
 {
-  int num_block_rows;
+  size_t num_block_rows;
   int *D_offsets, *B_offsets; // For variable block sizes.
   real_t* D;
   int block_size; // -1 if variable, set to constant size if applicable.
 };
 
-bd_matrix_t* bd_matrix_new(int num_block_rows,
-                           int block_size)
+bd_matrix_t* bd_matrix_new(size_t num_block_rows,
+                           size_t block_size)
 {
   ASSERT(num_block_rows > 0);
   ASSERT(block_size > 0);
-  int block_sizes[num_block_rows];
-  for (int i = 0; i < num_block_rows; ++i)
+  size_t block_sizes[num_block_rows];
+  for (size_t i = 0; i < num_block_rows; ++i)
     block_sizes[i] = block_size;
   return var_bd_matrix_new(num_block_rows, block_sizes);
 }
 
-bd_matrix_t* var_bd_matrix_new(int num_block_rows,
-                               int* block_sizes)
+bd_matrix_t* var_bd_matrix_new(size_t num_block_rows,
+                               size_t* block_sizes)
 {
   ASSERT(num_block_rows > 0);
 
@@ -39,16 +39,16 @@ bd_matrix_t* var_bd_matrix_new(int num_block_rows,
   A->D_offsets[0] = A->B_offsets[0] = 0;
   bool constant_block_size = true;
   int bs0 = -1;
-  for (int i = 0; i < num_block_rows; ++i)
+  for (int i = 0; i < (int)num_block_rows; ++i)
   {
-    int bs = block_sizes[i];
+    size_t bs = block_sizes[i];
     if (bs0 == -1)
-      bs0 = bs;
+      bs0 = (int)bs;
     else if (bs != bs0)
       constant_block_size = false;
     ASSERT(bs >= 1);
-    A->D_offsets[i+1] = A->D_offsets[i] + bs*bs;
-    A->B_offsets[i+1] = A->B_offsets[i] + bs;
+    A->D_offsets[i+1] = (int)(A->D_offsets[i] + bs*bs);
+    A->B_offsets[i+1] = (int)(A->B_offsets[i] + bs);
   }
   if (constant_block_size)
     A->block_size = bs0;
@@ -83,12 +83,12 @@ void bd_matrix_free(bd_matrix_t* matrix)
   polymec_free(matrix);
 }
 
-int bd_matrix_num_block_rows(bd_matrix_t* matrix)
+size_t bd_matrix_num_block_rows(bd_matrix_t* matrix)
 {
   return matrix->num_block_rows;
 }
 
-int bd_matrix_num_rows(bd_matrix_t* matrix)
+size_t bd_matrix_num_rows(bd_matrix_t* matrix)
 {
   return matrix->B_offsets[matrix->num_block_rows];
 }
@@ -109,22 +109,22 @@ void bd_matrix_add_identity(bd_matrix_t* matrix, real_t scale_factor)
   }
 }
 
-int bd_matrix_block_size(bd_matrix_t* matrix, int block_row)
+size_t bd_matrix_block_size(bd_matrix_t* matrix, int block_row)
 {
-  return (matrix->block_size != -1) ? matrix->block_size 
-                                    : (matrix->B_offsets[block_row+1] - matrix->B_offsets[block_row]);
+  return (matrix->block_size != -1) ? (size_t)matrix->block_size 
+                                    : (size_t)(matrix->B_offsets[block_row+1] - matrix->B_offsets[block_row]);
 }
 
 void bd_matrix_insert_block(bd_matrix_t* matrix, int block_row, real_t* block)
 {
-  int bs = bd_matrix_block_size(matrix, block_row);
+  size_t bs = bd_matrix_block_size(matrix, block_row);
   real_t* B = bd_matrix_block(matrix, block_row);
   memcpy(B, block, sizeof(real_t) * bs * bs);
 }
 
 void bd_matrix_add_block(bd_matrix_t* matrix, int block_row, real_t* block)
 {
-  int bs = bd_matrix_block_size(matrix, block_row);
+  size_t bs = bd_matrix_block_size(matrix, block_row);
   real_t* B = bd_matrix_block(matrix, block_row);
   for (int i = 0; i < bs*bs; ++i)
     B[i] += block[i];
@@ -132,7 +132,7 @@ void bd_matrix_add_block(bd_matrix_t* matrix, int block_row, real_t* block)
 
 void bd_matrix_matvec(bd_matrix_t* matrix, real_t* vector, real_t* product)
 {
-  for (int i = 0; i < matrix->num_block_rows; ++i)
+  for (int i = 0; i < (int)matrix->num_block_rows; ++i)
   {
     int bs = matrix->B_offsets[i+1] - matrix->B_offsets[i];
     real_t* Ai = &matrix->D[matrix->D_offsets[i]];
@@ -147,10 +147,10 @@ void bd_matrix_matvec(bd_matrix_t* matrix, real_t* vector, real_t* product)
 
 void bd_matrix_fprintf(bd_matrix_t* matrix, FILE* stream)
 {
-  int N = matrix->num_block_rows;
+  size_t N = matrix->num_block_rows;
   real_t* D = matrix->D;
-  fprintf(stream, "\nBlock diagonal matrix (N = %d):\n", N);
-  for (int i = 0; i < N; ++i)
+  fprintf(stream, "\nBlock diagonal matrix (N = %d):\n", (int)N);
+  for (int i = 0; i < (int)N; ++i)
   {
     fprintf(stream, "%d: [", i);
     int bs = matrix->B_offsets[i+1] - matrix->B_offsets[i];

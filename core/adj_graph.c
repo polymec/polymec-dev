@@ -25,7 +25,7 @@ struct adj_graph_t
   index_t* vtx_dist; 
 
   // The current capacity of adjacency.
-  int edge_cap;
+  size_t edge_cap;
 
   // The maximum vertex index referred to within the graph.
   int max_vertex_index;
@@ -35,29 +35,30 @@ struct adj_graph_t
   bool manages_arrays;
 };
 
-adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices)
+adj_graph_t* adj_graph_new(MPI_Comm comm, size_t num_local_vertices)
 {
   int nprocs;
   MPI_Comm_size(comm, &nprocs);
-  int num_verts[nprocs];
-  memset(num_verts, 0, sizeof(int) * nprocs);
+  size_t num_verts[nprocs];
+  memset(num_verts, 0, sizeof(size_t) * nprocs);
 #if POLYMEC_HAVE_MPI
-  MPI_Allgather(&num_local_vertices, 1, MPI_INT, num_verts, 1, MPI_INT, comm);
+  MPI_Allgather(&num_local_vertices, 1, MPI_SIZE_T, num_verts, 1, MPI_SIZE_T, comm);
 #else
   num_verts[0] = num_local_vertices;
 #endif
-  index_t vtxdist[nprocs+1], num_global_vertices = 0;
+  index_t vtxdist[nprocs+1];
+  size_t num_global_vertices = 0;
   vtxdist[0] = 0;
   for (int p = 0; p < nprocs; ++p)
   {
-    vtxdist[p+1] = vtxdist[p] + num_verts[p];
+    vtxdist[p+1] = vtxdist[p] + (index_t)num_verts[p];
     num_global_vertices += num_verts[p];
   }
   return adj_graph_new_with_dist(comm, num_global_vertices, vtxdist);
 }
 
 adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm, 
-                                     index_t num_global_vertices, 
+                                     size_t num_global_vertices, 
                                      index_t* vertex_dist)
 {
   adj_graph_t* graph = polymec_malloc(sizeof(adj_graph_t));
@@ -68,7 +69,7 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
   graph->vtx_dist = polymec_malloc(sizeof(index_t) * (graph->nproc+1));
   memcpy(graph->vtx_dist, vertex_dist, sizeof(index_t) * (graph->nproc+1));
 
-  int num_local_vertices = (int)(vertex_dist[graph->rank+1] - vertex_dist[graph->rank]);
+  size_t num_local_vertices = (size_t)(vertex_dist[graph->rank+1] - vertex_dist[graph->rank]);
   graph->edge_cap = 4 * num_local_vertices;
   graph->adjacency = polymec_malloc(sizeof(int) * graph->edge_cap);
   memset(graph->adjacency, 0, sizeof(int) * graph->edge_cap);
@@ -82,20 +83,20 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
 }
 
 adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
-                                           int block_size)
+                                           size_t block_size)
 {
   ASSERT(block_size >= 1);
 
 #ifndef NDEBUG
   // Check the validity of the given graph.
   {
-    int num_vertices = adj_graph_num_vertices(graph);
-    for (int v = 0; v < num_vertices; ++v)
+    size_t num_vertices = adj_graph_num_vertices(graph);
+    for (int v = 0; v < (int)num_vertices; ++v)
     {
-      int num_edges = adj_graph_num_edges(graph, v);
+      size_t num_edges = adj_graph_num_edges(graph, v);
       ASSERT(num_edges >= 0);
       int* edges = adj_graph_edges(graph, v);
-      for (int e = 0; e < num_edges; ++e)
+      for (size_t e = 0; e < num_edges; ++e)
       {
         ASSERT(edges[e] >= 0);
       }
@@ -110,45 +111,45 @@ adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
 
   // Distribute the vertices in a manner analogous to the way they are 
   // distributed in the given graph.
-  int num_global_vertices = (int)(block_size * graph->vtx_dist[nproc]);
+  size_t num_global_vertices = (size_t)(block_size * graph->vtx_dist[nproc]);
   index_t vtx_dist[nproc+1];
   vtx_dist[0] = 0;
   for (int p = 1; p <= nproc; ++p)
-    vtx_dist[p] = block_size * graph->vtx_dist[p];
+    vtx_dist[p] = (index_t)(block_size * graph->vtx_dist[p]);
   adj_graph_t* block_graph = adj_graph_new_with_dist(comm, 
                                                      num_global_vertices,
                                                      vtx_dist);
 
   // Now traverse the original graph and set up the edges.
-  int num_vertices = adj_graph_num_vertices(graph);
-  for (int block_vertex = 0; block_vertex < num_vertices; ++block_vertex)
+  size_t num_vertices = adj_graph_num_vertices(graph);
+  for (int block_vertex = 0; block_vertex < (int)num_vertices; ++block_vertex)
   {
-    int num_block_edges = adj_graph_num_edges(graph, block_vertex);
+    size_t num_block_edges = adj_graph_num_edges(graph, block_vertex);
     int* block_edges = adj_graph_edges(graph, block_vertex);
-    for (int b = 0; b < block_size; ++b)
+    for (size_t b = 0; b < block_size; ++b)
     {
-      int vertex = block_size * block_vertex + b;
+      int vertex = (int)(block_size * block_vertex + b);
       // Make sure to include "block diagonal" edges, too (block_size - 1 of these).
       adj_graph_set_num_edges(block_graph, vertex, block_size * num_block_edges + (block_size - 1));
       int* edges = adj_graph_edges(block_graph, vertex);
       int diag_offset = 0;
 
       // Block diagonal edges (excluding loops).
-      for (int bb = 0; bb < block_size; ++bb)
+      for (size_t bb = 0; bb < block_size; ++bb)
       {
-        int other_vertex = block_size * block_vertex + bb;
+        int other_vertex = (int)(block_size * block_vertex + bb);
         if (other_vertex != vertex)
         {
-          edges[diag_offset] = block_size * block_vertex + bb;
+          edges[diag_offset] = (int)(block_size * block_vertex + bb);
           ++diag_offset;
         }
       }
       ASSERT(diag_offset == (block_size - 1));
-      for (int e = 0; e < num_block_edges; ++e)
+      for (size_t e = 0; e < num_block_edges; ++e)
       {
-        for (int bb = 0; bb < block_size; ++bb)
+        for (size_t bb = 0; bb < block_size; ++bb)
         {
-          int v = block_size * block_edges[e] + bb;
+          int v = (int)(block_size * block_edges[e] + bb);
           edges[block_size - 1 + block_size * e + bb] = v;
         }
       }
@@ -159,20 +160,20 @@ adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph,
 }
 
 adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
-                                            int* block_sizes)
+                                            size_t* block_sizes)
 {
   ASSERT(block_sizes != NULL);
 
 #ifndef NDEBUG
   // Check the validity of the given graph.
   {
-    int num_vertices = adj_graph_num_vertices(graph);
-    for (int v = 0; v < num_vertices; ++v)
+    size_t num_vertices = adj_graph_num_vertices(graph);
+    for (int v = 0; v < (int)num_vertices; ++v)
     {
-      int num_edges = adj_graph_num_edges(graph, v);
+      size_t num_edges = adj_graph_num_edges(graph, v);
       ASSERT(num_edges >= 0);
       int* edges = adj_graph_edges(graph, v);
-      for (int e = 0; e < num_edges; ++e)
+      for (size_t e = 0; e < num_edges; ++e)
       {
         ASSERT(edges[e] >= 0);
       }
@@ -188,63 +189,63 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
   // Since the block size is variable, we have to be careful about 
   // counting up the vertices in the resulting block graph. If this is 
   // a distributed graph, we need to communicate.
-  int num_block_vertices = adj_graph_num_vertices(graph);
+  size_t num_block_vertices = adj_graph_num_vertices(graph);
   int vertex_offsets[num_block_vertices+1];
   vertex_offsets[0] = 0;
-  for (int v = 0; v < num_block_vertices; ++v)
-    vertex_offsets[v+1] = vertex_offsets[v] + block_sizes[v];
-  int tot_num_vertices = vertex_offsets[num_block_vertices];
+  for (size_t v = 0; v < num_block_vertices; ++v)
+    vertex_offsets[v+1] = vertex_offsets[v] + (int)block_sizes[v];
+  size_t tot_num_vertices = vertex_offsets[num_block_vertices];
   adj_graph_t* block_graph = adj_graph_new(comm, tot_num_vertices);
 
   // Now traverse the original graph and set up the edges.
   for (int block_vertex = 0; block_vertex < num_block_vertices; ++block_vertex)
   {
-    int block_size = block_sizes[block_vertex];
+    size_t block_size = block_sizes[block_vertex];
     ASSERT(block_size >= 1);
-    int num_block_edges = adj_graph_num_edges(graph, block_vertex);
+    size_t num_block_edges = adj_graph_num_edges(graph, block_vertex);
     int* block_edges = adj_graph_edges(graph, block_vertex);
-    for (int b = 0; b < block_size; ++b)
+    for (size_t b = 0; b < block_size; ++b)
     {
-      int vertex = vertex_offsets[block_vertex] + b;
+      int vertex = (int)(vertex_offsets[block_vertex] + b);
 
       // Count up the edges in all the blocks. Be sure to include "block 
       // diagonal" edges, too (block_size - 1 of these), and accomodate the 
       // fact that some of these edges may connect block_vertex to a 
       // vertex with a different block size!!
-      int num_edges = block_size - 1;
+      size_t num_edges = block_size - 1;
       int edge_offsets[num_block_edges+1];
-      edge_offsets[0] = num_edges;
-      for (int e = 0; e < num_block_edges; ++e)
+      edge_offsets[0] = (int)num_edges;
+      for (size_t e = 0; e < num_block_edges; ++e)
       {
-        int bs = (block_edges[e] < num_block_vertices) ? block_sizes[block_edges[e]] : block_size;
+        size_t bs = (block_edges[e] < num_block_vertices) ? block_sizes[block_edges[e]] : block_size;
         num_edges += bs;
-        edge_offsets[e+1] = num_edges;
+        edge_offsets[e+1] = (int)num_edges;
       }
       adj_graph_set_num_edges(block_graph, vertex, num_edges);
 
       // Block diagonal edges (excluding loops).
       int* edges = adj_graph_edges(block_graph, vertex);
       int diag_offset = 0;
-      for (int bb = 0; bb < block_size; ++bb)
+      for (size_t bb = 0; bb < block_size; ++bb)
       {
-        int other_vertex = vertex_offsets[block_vertex] + bb;
+        int other_vertex = (int)(vertex_offsets[block_vertex] + bb);
         if (other_vertex != vertex)
         {
           edges[diag_offset] = other_vertex;
           ++diag_offset;
         }
       }
-      ASSERT(diag_offset == (block_size - 1));
-      for (int e = 0; e < num_block_edges; ++e)
+      ASSERT(diag_offset == (int)(block_size - 1));
+      for (size_t e = 0; e < num_block_edges; ++e)
       {
-        int bs = (block_edges[e] < num_block_vertices) ? block_sizes[block_edges[e]] : block_size;
-        for (int bb = 0; bb < bs; ++bb)
+        size_t bs = (block_edges[e] < num_block_vertices) ? block_sizes[block_edges[e]] : block_size;
+        for (size_t bb = 0; bb < bs; ++bb)
         {
           int v;
           if (block_edges[e] < num_block_vertices)
-            v = vertex_offsets[block_edges[e]] + bb;
+            v = (int)(vertex_offsets[block_edges[e]] + bb);
           else // off-process vertex
-            v = tot_num_vertices + bs * (block_edges[e] - tot_num_vertices);
+            v = (int)(tot_num_vertices + bs * (block_edges[e] - tot_num_vertices));
           edges[edge_offsets[e] + bb] = v;
         }
       }
@@ -255,17 +256,17 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
 }
 
 adj_graph_t* dense_adj_graph_new(MPI_Comm comm, 
-                                 int num_local_vertices,
-                                 int num_remote_vertices)
+                                 size_t num_local_vertices,
+                                 size_t num_remote_vertices)
 {
   adj_graph_t* graph = adj_graph_new(comm, num_local_vertices);
-  int num_vertices = adj_graph_num_vertices(graph);
-  for (int v = 0; v < num_vertices; ++v)
+  size_t num_vertices = adj_graph_num_vertices(graph);
+  for (int v = 0; v < (int)num_vertices; ++v)
   {
-    adj_graph_set_num_edges(graph, v, num_vertices+num_remote_vertices-1);
+    adj_graph_set_num_edges(graph, (int)v, num_vertices+num_remote_vertices-1);
     int* edges = adj_graph_edges(graph, v);
     int k = 0;
-    for (int e = 0; e < num_vertices+num_remote_vertices; ++e)
+    for (int e = 0; e < (int)(num_vertices+num_remote_vertices); ++e)
     {
       if (e == v) continue;
       edges[k++] = e;
@@ -306,7 +307,7 @@ adj_graph_t* adj_graph_clone(adj_graph_t* graph)
   g->edge_cap = graph->edge_cap;
   g->adjacency = polymec_malloc(sizeof(int) * g->edge_cap);
   memcpy(g->adjacency, graph->adjacency, sizeof(int) * g->edge_cap);
-  int num_local_vertices = (int)(g->vtx_dist[g->rank+1] - g->vtx_dist[g->rank]);
+  size_t num_local_vertices = (size_t)(g->vtx_dist[g->rank+1] - g->vtx_dist[g->rank]);
   g->xadj = polymec_malloc(sizeof(int) * (num_local_vertices + 1));
   memcpy(g->xadj, graph->xadj, sizeof(int) * (num_local_vertices + 1));
   g->max_vertex_index = graph->max_vertex_index;
@@ -333,16 +334,16 @@ MPI_Comm adj_graph_comm(adj_graph_t* graph)
   return graph->comm;
 }
 
-int adj_graph_num_vertices(adj_graph_t* graph)
+size_t adj_graph_num_vertices(adj_graph_t* graph)
 {
-  return (int)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
+  return (size_t)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
 }
 
 int adj_graph_max_vertex_index(adj_graph_t* graph)
 {
   if (graph->max_vertex_index == -1)
   {
-    graph->max_vertex_index = adj_graph_num_vertices(graph) - 1;
+    graph->max_vertex_index = (int)(adj_graph_num_vertices(graph) - 1);
     int i_max = (int)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
     for (int i = 0; i < i_max; ++i)
     {
@@ -353,41 +354,41 @@ int adj_graph_max_vertex_index(adj_graph_t* graph)
   return graph->max_vertex_index;
 }
 
-void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges)
+void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, size_t num_edges)
 {
   ASSERT(vertex >= 0);
   ASSERT(vertex < adj_graph_num_vertices(graph));
-  int old_num_edges = graph->xadj[vertex+1] - graph->xadj[vertex];
-  int num_vertices = (int)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
-  int tot_num_edges = graph->xadj[num_vertices];
+  size_t old_num_edges = (size_t)(graph->xadj[vertex+1] - graph->xadj[vertex]);
+  size_t num_vertices = (size_t)(graph->vtx_dist[graph->rank+1] - graph->vtx_dist[graph->rank]);
+  size_t tot_num_edges = (size_t)graph->xadj[num_vertices];
   if (num_edges < old_num_edges)
   {
-    int num_edges_removed = old_num_edges - num_edges;
+    size_t num_edges_removed = old_num_edges - num_edges;
     for (int i = graph->xadj[vertex]; i < tot_num_edges - num_edges_removed; ++i)
       graph->adjacency[i] = graph->adjacency[i + num_edges_removed];
-    for (int i = vertex + 1; i <= num_vertices; ++i)
+    for (int i = vertex + 1; i <= (int)num_vertices; ++i)
       graph->xadj[i] -= num_edges_removed;
   }
   else if (num_edges > old_num_edges)
   {
-    int num_edges_added = num_edges - old_num_edges;
+    size_t num_edges_added = num_edges - old_num_edges;
     if (tot_num_edges + num_edges_added > graph->edge_cap)
     {
       while (tot_num_edges + num_edges_added > graph->edge_cap)
         graph->edge_cap *= 2;
       graph->adjacency = polymec_realloc(graph->adjacency, sizeof(int) * graph->edge_cap);
     }
-    for (int i = tot_num_edges-1; i >= graph->xadj[vertex]; --i)
+    for (int i = (int)(tot_num_edges-1); i >= graph->xadj[vertex]; --i)
       graph->adjacency[i + num_edges_added] = graph->adjacency[i];
-    for (int i = vertex + 1; i <= num_vertices; ++i)
+    for (int i = vertex + 1; i <= (int)num_vertices; ++i)
       graph->xadj[i] += num_edges_added;
   }
   graph->max_vertex_index = -1;
 }
 
-int adj_graph_num_edges(adj_graph_t* graph, int vertex)
+size_t adj_graph_num_edges(adj_graph_t* graph, int vertex)
 {
-  return graph->xadj[vertex+1] - graph->xadj[vertex];
+  return (size_t)(graph->xadj[vertex+1] - graph->xadj[vertex]);
 }
 
 int* adj_graph_edges(adj_graph_t* graph, int vertex)
@@ -489,8 +490,8 @@ bool adj_graph_sort(adj_graph_t* graph, int* sorted_vertices)
 {
   START_FUNCTION_TIMER();
   bool sorted = true;
-  int N = adj_graph_num_vertices(graph);
-  int topo_index = N - 1;
+  size_t N = adj_graph_num_vertices(graph);
+  int topo_index = (int)(N - 1);
   int visited[N];
   memset(visited, 0, sizeof(int) * N);
   for (int v = 0; v < N; ++v)
@@ -514,12 +515,12 @@ void adj_graph_manage_arrays(adj_graph_t* graph, bool flag)
 void adj_graph_fprintf(adj_graph_t* graph, FILE* stream)
 {
   if (stream == NULL) return;
-  int num_vertices = adj_graph_num_vertices(graph);
-  fprintf(stream, "Adjacency graph (%d/%" PRIu64 " vertices locally):\n", num_vertices, graph->vtx_dist[graph->nproc]);
-  for (int i = 0; i < num_vertices; ++i)
+  size_t num_vertices = adj_graph_num_vertices(graph);
+  fprintf(stream, "Adjacency graph (%d/%d vertices locally):\n", (int)num_vertices, (int)(graph->vtx_dist[graph->nproc]));
+  for (int i = 0; i < (int)num_vertices; ++i)
   {
     fprintf(stream, " %d: ", i);
-    int num_edges = adj_graph_num_edges(graph, i);
+    size_t num_edges = adj_graph_num_edges(graph, i);
     int* edges = adj_graph_edges(graph, i);
     for (int j = 0; j < num_edges; ++j)
       fprintf(stream, "%d ", edges[j]);
@@ -532,7 +533,7 @@ struct adj_graph_coloring_t
 {
   int* vertices; // Vertices of colors in compressed row storage (CRS).
   int* offsets; // Offsets, also in compressed row storage.
-  int num_colors;
+  size_t num_colors;
 };
 
 typedef struct 
@@ -555,9 +556,9 @@ static int compare_degrees(const void* left, const void* right)
 
 // This function sorts an array consisting of interlaced (vertex, degree) 
 // tuples in order of vertex degrees.
-static void sort_vertices_by_degree(int* v_degrees, int num_vertices)
+static void sort_vertices_by_degree(int* v_degrees, size_t num_vertices)
 {
-  qsort(v_degrees, (size_t)num_vertices, 2*sizeof(int), compare_degrees);
+  qsort(v_degrees, num_vertices, 2*sizeof(int), compare_degrees);
 }
 
 static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
@@ -567,7 +568,7 @@ static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
   int v_max = adj_graph_max_vertex_index(graph);
 
   // The vertices with the largest degree appear first in the list.
-  int num_vertices = adj_graph_num_vertices(graph);
+  size_t num_vertices = adj_graph_num_vertices(graph);
 
   // Compute the degree of each vertex. We compute the negative of the 
   // degree so that we can sort the vertices in "ascending" order.
@@ -575,7 +576,7 @@ static void compute_largest_first_ordering(adj_graph_t* graph, int* vertices)
   for (int v = 0; v <= v_max; ++v)
   {
     v_degrees[2*v] = v;
-    v_degrees[2*v+1] = (v < num_vertices) ? -adj_graph_num_edges(graph, v) : 0;
+    v_degrees[2*v+1] = (v < num_vertices) ? -((int)adj_graph_num_edges(graph, v)) : 0;
   }
 
   // Now sort the vertices on their degree.
@@ -590,7 +591,7 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
   START_FUNCTION_TIMER();
 
   int v_max = adj_graph_max_vertex_index(graph);
-  int num_vertices = adj_graph_num_vertices(graph);
+  size_t num_vertices = adj_graph_num_vertices(graph);
 
   // The vertices with the smallest degree appear last in the list, and 
   // the calculation of the degree of a vertex excludes all vertices that 
@@ -602,9 +603,9 @@ static void compute_smallest_last_ordering(adj_graph_t* graph, int* vertices)
     v_degrees[2*v] = v;
     if (v < num_vertices)
     {
-      int num_edges = adj_graph_num_edges(graph, v);
+      size_t num_edges = adj_graph_num_edges(graph, v);
       int* edges = adj_graph_edges(graph, v);
-      int degree = -num_edges;
+      int degree = -((int)num_edges);
       for (int e = 0; e < num_edges; ++e)
       {
         if (edges[e] > v)
@@ -638,12 +639,12 @@ static noreturn void compute_incidence_degree_ordering(adj_graph_t* graph, int* 
 // index of the ith vertex, and num_colors contains the number of colors 
 // used to color the graph. This is Algorithm 3.1 of Gebremedhin (2005).
 static void color_sequentially(adj_graph_t* graph, int* vertices, 
-                               int* colors, int* num_colors)
+                               int* colors, size_t* num_colors)
 {
   START_FUNCTION_TIMER();
 
   *num_colors = 0;
-  int num_vertices = adj_graph_num_vertices(graph);
+  size_t num_vertices = adj_graph_num_vertices(graph);
   int v_max = adj_graph_max_vertex_index(graph);
   int* forbidden_colors = polymec_malloc(sizeof(int) * 2 * (v_max+1));
   for (int v = 0; v <= v_max; ++v)
@@ -658,9 +659,9 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
     // Determine which colors are forbidden by adjacency relations.
     if (v < num_vertices)
     {
-      int num_v_edges = adj_graph_num_edges(graph, v);
+      size_t num_v_edges = adj_graph_num_edges(graph, v);
       int* N1 = adj_graph_edges(graph, v);
-      for (int e = 0; e < num_v_edges; ++e)
+      for (int e = 0; e < (int)num_v_edges; ++e)
       {
         int w = N1[e];
         if (w <= v_max)
@@ -669,9 +670,9 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
             forbidden_colors[colors[w]] = v;
           if (w < num_vertices)
           {
-            int num_w_edges = adj_graph_num_edges(graph, w);
+            size_t num_w_edges = adj_graph_num_edges(graph, w);
             int* N2 = adj_graph_edges(graph, w);
-            for (int ee = 0; ee < num_w_edges; ++ee)
+            for (size_t ee = 0; ee < num_w_edges; ++ee)
             {
               int x = N2[ee];
               if ((x != v) && (x < num_vertices) && (colors[x] >= 0))
@@ -683,11 +684,11 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
     }
 
     // Assign any valid existing color to the vertex v.
-    for (int c = 0; c < *num_colors; ++c)
+    for (size_t c = 0; c < *num_colors; ++c)
     {
       if (forbidden_colors[c] != v)
       {
-        colors[v] = c;
+        colors[v] = (int)c;
         break;
       }
     }
@@ -696,7 +697,7 @@ static void color_sequentially(adj_graph_t* graph, int* vertices,
     // and assign it to v.
     if (colors[v] == -1)
     {
-      colors[v] = *num_colors;
+      colors[v] = (int)(*num_colors);
       ++(*num_colors);
     }
   }
@@ -727,7 +728,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
 
   // Now color the graph using a (greedy) sequential algoritm. 
   int* colors = polymec_malloc(sizeof(int) * (v_max + 1));
-  int num_colors;
+  size_t num_colors;
   color_sequentially(graph, vertices, colors, &num_colors);
   ASSERT(num_colors > 0);
 
@@ -767,7 +768,7 @@ void adj_graph_coloring_free(adj_graph_coloring_t* coloring)
   polymec_free(coloring);
 }
 
-int adj_graph_coloring_num_colors(adj_graph_coloring_t* coloring)
+size_t adj_graph_coloring_num_colors(adj_graph_coloring_t* coloring)
 {
   return coloring->num_colors;
 }

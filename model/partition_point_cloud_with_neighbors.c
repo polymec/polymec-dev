@@ -278,7 +278,7 @@ migrator_t* partition_point_cloud_with_neighbors(point_cloud_t** points,
   distribute_point_cloud(points, comm, global_partition);
 
   // Set up a migrator to distribute field data.
-  int num_vertices = (cloud != NULL) ? adj_graph_num_vertices(global_graph) : 0;
+  size_t num_vertices = (cloud != NULL) ? adj_graph_num_vertices(global_graph) : 0;
   migrator_t* m = migrator_from_global_partition(comm, global_partition, num_vertices);
 
   // Clean up.

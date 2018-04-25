@@ -1102,10 +1102,10 @@ static void polymesh_migrate(polymesh_t** mesh,
   // Construct a local submesh and store it in submeshes[0]. This submesh
   // consists of all cells not sent to other processes.
   {
-    int num_cells = adj_graph_num_vertices(local_graph);
-    int num_local_cells = num_cells - sent_cells->size;
+    size_t num_cells = adj_graph_num_vertices(local_graph);
+    size_t num_local_cells = num_cells - sent_cells->size;
     int local_cells[num_local_cells], j = 0;
-    for (int i = 0; i < num_cells; ++i)
+    for (int i = 0; i < (int)num_cells; ++i)
     {
       if (!int_unordered_set_contains(sent_cells, i))
         local_cells[j++] = i;
@@ -1177,7 +1177,7 @@ migrator_t* partition_polymesh(polymesh_t** mesh, MPI_Comm comm, int* weights, r
   polymesh_distribute(mesh, comm, global_partition);
 
   // Set up a migrator to distribute field data.
-  int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
+  size_t num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
   migrator_t* migrator = migrator_from_global_partition(comm, global_partition, num_vertices);
 
   // Clean up.
@@ -1295,7 +1295,7 @@ migrator_t* distribute_polymesh(polymesh_t** mesh, MPI_Comm comm, int64_t* globa
   polymesh_distribute(mesh, comm, global_partition);
 
   // Set up a migrator to distribute field data.
-  int num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
+  size_t num_vertices = (m != NULL) ? adj_graph_num_vertices(global_graph) : 0;
   migrator_t* migrator = migrator_from_global_partition(comm, global_partition, num_vertices);
 
   // Get rid of the graph.
@@ -1354,7 +1354,7 @@ migrator_t* repartition_polymesh(polymesh_t** mesh, int* weights, real_t imbalan
   int64_t* local_partition = repartition_graph(local_graph, m->num_ghost_cells, weights, imbalance_tol, mesh_ex);
 
   // Set up a migrator to migrate field data.
-  int num_vertices = adj_graph_num_vertices(local_graph);
+  size_t num_vertices = adj_graph_num_vertices(local_graph);
   migrator_t* migrator = migrator_from_local_partition(m->comm, local_partition, num_vertices);
 
   // Migrate the mesh. 
@@ -1388,7 +1388,7 @@ migrator_t* migrate_polymesh(polymesh_t** mesh, MPI_Comm comm, int64_t* local_pa
   adj_graph_t* local_graph = graph_from_polymesh_cells(*mesh);
 
   // Set up a migrator to migrate the mesh and data.
-  int num_vertices = adj_graph_num_vertices(local_graph);
+  size_t num_vertices = adj_graph_num_vertices(local_graph);
   migrator_t* migrator = migrator_from_local_partition((*mesh)->comm, local_partition, num_vertices);
 
   // Migrate the mesh.

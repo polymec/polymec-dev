@@ -1265,7 +1265,7 @@ void migrator_verify(migrator_t* m, void (*handler)(const char* format, ...))
 
 migrator_t* migrator_from_global_partition(MPI_Comm comm, 
                                            int64_t* global_partition,
-                                           int num_global_vertices)
+                                           size_t num_global_vertices)
 {
   START_FUNCTION_TIMER();
   int nprocs, rank;
@@ -1277,14 +1277,15 @@ migrator_t* migrator_from_global_partition(MPI_Comm comm,
   if (rank == 0)
   {
     // Get the number of vertices we're going to send to each other process.
-    int num_vertices_to_send[nprocs];
-    memset(num_vertices_to_send, 0, sizeof(int) * nprocs);
-    for (int v = 0; v < num_global_vertices; ++v)
+    size_t num_vertices_to_send[nprocs];
+    memset(num_vertices_to_send, 0, sizeof(size_t) * nprocs);
+    for (int v = 0; v < (int)num_global_vertices; ++v)
       num_vertices_to_send[global_partition[v]]++;
 
     // Send this number.
-    int n;
-    MPI_Scatter(num_vertices_to_send, 1, MPI_INT, &n, 1, MPI_INT, 0, comm);
+    size_t n;
+    MPI_Scatter(num_vertices_to_send, 1, MPI_SIZE_T, &n, 1, MPI_SIZE_T, 0, comm);
+printf("Yeah\n");
 
     // Now send the vertices to each process and register these sends
     // with the distributor.
@@ -1292,18 +1293,18 @@ migrator_t* migrator_from_global_partition(MPI_Comm comm,
     {
       ASSERT(num_vertices_to_send[p] > 0);
       int vertices[num_vertices_to_send[p]], k = 0;
-      for (int i = 0; i < num_global_vertices; ++i)
+      for (int i = 0; i < (int)num_global_vertices; ++i)
       {
         if (global_partition[i] == p)
           vertices[k++] = i;
       }
-      exchanger_set_send(ex, p, vertices, num_vertices_to_send[p], true);
+      exchanger_set_send(ex, p, vertices, (int)num_vertices_to_send[p], true);
     }
 
     // Figure out the local vertices for rank 0.
-    int num_local_vertices = num_vertices_to_send[0];
+    size_t num_local_vertices = num_vertices_to_send[0];
     int local_vertices[num_local_vertices], k = 0;
-    for (int i = 0; i < num_global_vertices; ++i)
+    for (int i = 0; i < (int)num_global_vertices; ++i)
     {
       if (global_partition[i] == 0)
         local_vertices[k++] = i;
@@ -1312,17 +1313,17 @@ migrator_t* migrator_from_global_partition(MPI_Comm comm,
   else
   {
     // Get the number of vertices we will receive from rank 0.
-    int num_local_vertices;
-    MPI_Scatter(NULL, 1, MPI_INT, &num_local_vertices, 1, MPI_INT, 0, comm);
+    size_t num_local_vertices;
+    MPI_Scatter(NULL, 1, MPI_SIZE_T, &num_local_vertices, 1, MPI_SIZE_T, 0, comm);
 
     // Now get the vertices.
     int local_vertices[num_local_vertices];
-    for (int i = 0; i < num_local_vertices; ++i)
+    for (int i = 0; i < (int)num_local_vertices; ++i)
       local_vertices[i] = i;
 
     // Now register all the vertices we're receiving with the distributor.
     ASSERT(num_local_vertices > 0);
-    exchanger_set_receive(ex, 0, local_vertices, num_local_vertices, true);
+    exchanger_set_receive(ex, 0, local_vertices, (int)num_local_vertices, true);
   }
 
   migrator_t* m = polymec_gc_malloc(sizeof(migrator_t), migrator_free);
@@ -1333,7 +1334,7 @@ migrator_t* migrator_from_global_partition(MPI_Comm comm,
 
 migrator_t* migrator_from_local_partition(MPI_Comm comm,
                                           int64_t* local_partition,
-                                          int num_vertices)
+                                          size_t num_vertices)
 {
   START_FUNCTION_TIMER();
   exchanger_t* ex = exchanger_new(comm);
@@ -1345,7 +1346,7 @@ migrator_t* migrator_from_local_partition(MPI_Comm comm,
   MPI_Comm_rank(comm, &rank);
   int num_vertices_to_send[nprocs];
   memset(num_vertices_to_send, 0, sizeof(int) * nprocs);
-  for (int v = 0; v < num_vertices; ++v)
+  for (int v = 0; v < (int)num_vertices; ++v)
     num_vertices_to_send[local_partition[v]]++;
 
   // Get the number of vertices we're going to receive from every other process.

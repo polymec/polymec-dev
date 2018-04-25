@@ -247,7 +247,7 @@ static void insert_J_values(index_t row,
                             index_real_unordered_map_t* col_map, 
                             krylov_matrix_t* J)
 {
-  index_t num_cols = (index_t)col_map->size;
+  size_t num_cols = col_map->size;
   index_t indices[num_cols];
   real_t values[num_cols];
   int pos = 0, k = 0;

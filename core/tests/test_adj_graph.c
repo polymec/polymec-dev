@@ -27,9 +27,9 @@ static void test_block_constructor(void** state)
   int nprocs;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   adj_graph_t* g = adj_graph_new(MPI_COMM_WORLD, 100);
-  int block_sizes[100*nprocs];
+  size_t block_sizes[100*nprocs];
   for (int i = 0; i < 100*nprocs; ++i)
-    block_sizes[i] = i % 9 + 1;
+    block_sizes[i] = (size_t)(i % 9 + 1);
   adj_graph_t* bg = adj_graph_new_with_block_sizes(g, block_sizes);
   adj_graph_free(g);
   adj_graph_free(bg);

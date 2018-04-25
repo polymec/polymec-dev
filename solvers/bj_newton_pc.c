@@ -16,7 +16,7 @@ typedef struct
                              real_t alpha, real_t beta, real_t gamma,
                              real_t t, real_t* x, real_t* x_dot, real_t* diag_block);
   void (*dtor)(void* context);
-  int num_block_rows;
+  size_t num_block_rows;
   bd_matrix_t* D;
 } bj_pc_t;
 
@@ -25,7 +25,7 @@ static void bj_compute_p(void* context,
                          real_t t, real_t* x, real_t* x_dot)
 {
   bj_pc_t* pc = context;
-  for (int i = 0; i < pc->num_block_rows; ++i)
+  for (int i = 0; i < (int)pc->num_block_rows; ++i)
   {
     real_t* J = bd_matrix_block(pc->D, i);
     pc->compute_diag_block(pc->context, i, alpha, beta, gamma, t, x, x_dot, J);
@@ -41,7 +41,7 @@ static bool bj_solve(void* context,
   if (solved)
   {
     // Compute the L2 norm and measure against tolerance.
-    int N = bd_matrix_num_rows(pc->D);
+    size_t N = bd_matrix_num_rows(pc->D);
     real_t Pz[N];
     bd_matrix_matvec(pc->D, z, Pz);
     *error_L2_norm = 0.0;
@@ -65,8 +65,8 @@ newton_pc_t* bj_newton_pc_new(void* context,
                               void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                               void (*dtor)(void* context),
                               newton_pc_side_t side,
-                              int num_block_rows,
-                              int block_size)
+                              size_t num_block_rows,
+                              size_t block_size)
 {
   ASSERT(compute_diag_block != NULL);
   ASSERT(num_block_rows > 0);
@@ -90,11 +90,10 @@ newton_pc_t* var_bj_newton_pc_new(void* context,
                                   void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                                   void (*dtor)(void* context),
                                   newton_pc_side_t side,
-                                  int num_block_rows,
-                                  int* block_sizes)
+                                  size_t num_block_rows,
+                                  size_t* block_sizes)
 {
   ASSERT(compute_diag_block != NULL);
-  ASSERT(num_block_rows > 0);
   ASSERT(block_sizes != NULL);
 
   bj_pc_t* pc = polymec_malloc(sizeof(bj_pc_t));
@@ -130,7 +129,7 @@ typedef struct
   void (*F_dtor)(void* context);
 
   // Matrix information.
-  int num_local_rows, num_remote_rows;
+  size_t num_local_rows, num_remote_rows;
   adj_graph_coloring_t* coloring;
   int max_colors;
 
@@ -147,8 +146,8 @@ static cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
                                               int (*F_dae)(void* context, real_t, real_t* x, real_t* xdot, real_t* Fval),
                                               void (*F_dtor)(void* context),
                                               adj_graph_t* sparsity,
-                                              int num_local_rows,
-                                              int num_remote_rows)
+                                              size_t num_local_rows,
+                                              size_t num_remote_rows)
 {
   ASSERT(num_local_rows > 0);
   ASSERT(num_remote_rows >= 0);
@@ -180,14 +179,14 @@ static cpr_differencer_t* cpr_differencer_new(MPI_Comm comm,
 
   // Get the maximum number of colors on all MPI processes so that we can 
   // compute in lockstep.
-  int num_colors = adj_graph_coloring_num_colors(diff->coloring);
-  MPI_Allreduce(&num_colors, &diff->max_colors, 1, MPI_INT, MPI_MAX, diff->comm);
+  size_t num_colors = adj_graph_coloring_num_colors(diff->coloring);
+  MPI_Allreduce(&num_colors, &diff->max_colors, 1, MPI_SIZE_T, MPI_MAX, diff->comm);
   log_debug("cpr_differencer: graph coloring produced %d colors.", diff->max_colors);
 
   // Make work vectors.
   diff->num_work_vectors = 4;
   diff->work = polymec_malloc(sizeof(real_t*) * diff->num_work_vectors);
-  int N = diff->num_local_rows + diff->num_remote_rows;
+  size_t N = diff->num_local_rows + diff->num_remote_rows;
   for (int i = 0; i < diff->num_work_vectors; ++i)
     diff->work[i] = polymec_malloc(sizeof(real_t) * N);
   diff->Jv = polymec_malloc(sizeof(real_t) * (diff->num_local_rows + diff->num_remote_rows));
@@ -215,8 +214,8 @@ static void cpr_finite_diff_dFdx_v(void* context,
                                    real_t t, 
                                    real_t* x, 
                                    real_t* xdot, 
-                                   int num_local_rows,
-                                   int num_remote_rows,
+                                   size_t num_local_rows,
+                                   size_t num_remote_rows,
                                    real_t* v, 
                                    real_t** work, 
                                    real_t* dFdx_v)
@@ -249,8 +248,8 @@ static void cpr_finite_diff_dFdxdot_v(void* context,
                                       real_t t, 
                                       real_t* x, 
                                       real_t* xdot, 
-                                      int num_local_rows,
-                                      int num_remote_rows,
+                                      size_t num_local_rows,
+                                      size_t num_remote_rows,
                                       real_t* v, 
                                       real_t** work, 
                                       real_t* dFdxdot_v)
@@ -296,16 +295,16 @@ static void add_column_vector_to_matrix(void* matrix, real_t beta, int column, r
   int block_col = 0, col_count = 0;
   while (true)
   {
-    int block_size = bd_matrix_block_size(A, block_col);
+    size_t block_size = bd_matrix_block_size(A, block_col);
     if ((col_count + block_size) > column) break;
     col_count += block_size;
     ++block_col;
   }
 
-  int num_block_rows = bd_matrix_num_block_rows(A);
+  size_t num_block_rows = bd_matrix_num_block_rows(A);
   if (block_col < num_block_rows)
   {
-    int block_size = bd_matrix_block_size(A, block_col);
+    size_t block_size = bd_matrix_block_size(A, block_col);
     int c = column % block_size;
     real_t* block = bd_matrix_block(A, block_col);
     for (int r = 0; r < block_size; ++r)
@@ -379,7 +378,7 @@ static void cpr_differencer_compute(cpr_differencer_t* diff,
     log_debug("cpr_differencer: approximating J = %g * dF/dx...", beta);
 
   // Now iterate over all of the colors in our coloring. 
-  int num_colors = adj_graph_coloring_num_colors(coloring);
+  size_t num_colors = adj_graph_coloring_num_colors(coloring);
 
   for (int c = 0; c < num_colors; ++c)
   {
@@ -422,7 +421,7 @@ static void cpr_differencer_compute(cpr_differencer_t* diff,
   // Now call the RHS functions in the same way as we would for all the colors
   // we don't have, up through the maximum number, so our neighboring 
   // processes can get exchanged data from us if they need it.
-  int num_neighbor_colors = diff->max_colors - num_colors;
+  size_t num_neighbor_colors = (size_t)(diff->max_colors - num_colors);
   for (int c = 0; c < num_neighbor_colors; ++c)
   {
     F(F_context, t, x, xdot, work[1]);
@@ -466,7 +465,7 @@ static bool cpr_newton_pc_solve(void* context,
   if (solved)
   {
     // Compute the L2 norm and measure against tolerance.
-    int N = bd_matrix_num_rows(pc->P);
+    size_t N = bd_matrix_num_rows(pc->P);
     real_t Pz[N];
     bd_matrix_matvec(pc->P, z, Pz);
     *error_L2_norm = 0.0;
@@ -496,8 +495,8 @@ static newton_pc_t* cpr_bj_newton_pc_from_function(MPI_Comm comm,
                                                    void (*dtor)(void* context),
                                                    newton_pc_side_t side,
                                                    adj_graph_t* sparsity,
-                                                   int num_local_rows,
-                                                   int num_remote_rows,
+                                                   size_t num_local_rows,
+                                                   size_t num_remote_rows,
                                                    bd_matrix_t* P)
 {
   cpr_newton_pc_t* pc = polymec_malloc(sizeof(cpr_newton_pc_t));
@@ -524,13 +523,13 @@ newton_pc_t* cpr_bj_newton_pc_new(MPI_Comm comm,
                                   void (*dtor)(void* context),
                                   newton_pc_side_t side,
                                   adj_graph_t* sparsity,
-                                  int num_local_block_rows,
-                                  int num_remote_block_rows,
-                                  int block_size)
+                                  size_t num_local_block_rows,
+                                  size_t num_remote_block_rows,
+                                  size_t block_size)
 {
-  int num_local_rows = adj_graph_num_vertices(sparsity);
+  size_t num_local_rows = adj_graph_num_vertices(sparsity);
   ASSERT(num_local_rows == block_size * num_local_block_rows);
-  int num_remote_rows = block_size * num_remote_block_rows;
+  size_t num_remote_rows = block_size * num_remote_block_rows;
   bd_matrix_t* P = bd_matrix_new(num_local_block_rows, block_size);
   return cpr_bj_newton_pc_from_function(comm, context, F, NULL, dtor, 
                                         side, sparsity, num_local_rows, 
@@ -543,13 +542,13 @@ newton_pc_t* var_cpr_bj_newton_pc_new(MPI_Comm comm,
                                       void (*dtor)(void* context),
                                       newton_pc_side_t side,
                                       adj_graph_t* sparsity,
-                                      int num_local_block_rows,
-                                      int num_remote_block_rows,
-                                      int* block_sizes)
+                                      size_t num_local_block_rows,
+                                      size_t num_remote_block_rows,
+                                      size_t* block_sizes)
 {
-  int num_local_rows = adj_graph_num_vertices(sparsity);
-  int alleged_num_local_rows = 0;
-  int max_block_size = 1;
+  size_t num_local_rows = adj_graph_num_vertices(sparsity);
+  size_t alleged_num_local_rows = 0;
+  size_t max_block_size = 1;
   for (int r = 0; r < num_local_block_rows; ++r)
   {
     ASSERT(block_sizes[r] >= 1);
@@ -557,7 +556,7 @@ newton_pc_t* var_cpr_bj_newton_pc_new(MPI_Comm comm,
     alleged_num_local_rows += block_sizes[r];
   }
   ASSERT(num_local_rows == alleged_num_local_rows);
-  int num_remote_rows = max_block_size * num_remote_block_rows;
+  size_t num_remote_rows = max_block_size * num_remote_block_rows;
   bd_matrix_t* P = var_bd_matrix_new(num_local_block_rows, block_sizes);
   return cpr_bj_newton_pc_from_function(comm, context, F, NULL, dtor, 
                                         side, sparsity, num_local_rows, 
@@ -569,13 +568,13 @@ newton_pc_t* dae_cpr_bj_newton_pc_new(MPI_Comm comm,
                                       int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                       void (*dtor)(void* context),
                                       adj_graph_t* sparsity,
-                                      int num_local_block_rows,
-                                      int num_remote_block_rows,
-                                      int block_size)
+                                      size_t num_local_block_rows,
+                                      size_t num_remote_block_rows,
+                                      size_t block_size)
 {
-  int num_local_rows = adj_graph_num_vertices(sparsity);
+  size_t num_local_rows = adj_graph_num_vertices(sparsity);
   ASSERT(num_local_rows == block_size * num_local_block_rows);
-  int num_remote_rows = block_size * num_remote_block_rows;
+  size_t num_remote_rows = block_size * num_remote_block_rows;
   bd_matrix_t* P = bd_matrix_new(num_local_block_rows, block_size);
   return cpr_bj_newton_pc_from_function(comm, context, NULL, F, dtor, 
                                         NEWTON_PC_LEFT, sparsity, num_local_rows, 
@@ -587,21 +586,21 @@ newton_pc_t* var_dae_cpr_bj_newton_pc_new(MPI_Comm comm,
                                           int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
                                           void (*dtor)(void* context),
                                           adj_graph_t* sparsity,
-                                          int num_local_block_rows,
-                                          int num_remote_block_rows,
-                                          int* block_sizes)
+                                          size_t num_local_block_rows,
+                                          size_t num_remote_block_rows,
+                                          size_t* block_sizes)
 {
-  int num_local_rows = adj_graph_num_vertices(sparsity);
-  int alleged_num_local_rows = 0;
-  int max_block_size = 1;
-  for (int r = 0; r < num_local_block_rows; ++r)
+  size_t num_local_rows = adj_graph_num_vertices(sparsity);
+  size_t alleged_num_local_rows = 0;
+  size_t max_block_size = 1;
+  for (int r = 0; r < (int)num_local_block_rows; ++r)
   {
     ASSERT(block_sizes[r] >= 1);
     max_block_size = MAX(block_sizes[r], max_block_size);
     alleged_num_local_rows += block_sizes[r];
   }
   ASSERT(num_local_rows == alleged_num_local_rows);
-  int num_remote_rows = max_block_size * num_remote_block_rows;
+  size_t num_remote_rows = max_block_size * num_remote_block_rows;
   bd_matrix_t* P = var_bd_matrix_new(num_local_block_rows, block_sizes);
   return cpr_bj_newton_pc_from_function(comm, context, NULL, F, dtor, 
                                         NEWTON_PC_LEFT, sparsity, num_local_rows, 

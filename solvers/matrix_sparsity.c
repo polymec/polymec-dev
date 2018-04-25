@@ -12,11 +12,11 @@ struct matrix_sparsity_t
   MPI_Comm comm;
   int rank, nproc;
   index_t* row_dist; // Global row distribution.
-  index_t num_local_rows; // Number of locally stored rows.
-  index_t num_global_rows; // Number of locally stored rows.
+  size_t num_local_rows; // Number of locally stored rows.
+  size_t num_global_rows; // Number of locally stored rows.
   index_t* columns; // Column indices in compressed row storage format.
-  index_t* offsets; // Column offsets array.
-  index_t columns_cap; // Current capacity of columns array.
+  size_t* offsets; // Column offsets array.
+  size_t columns_cap; // Current capacity of columns array.
 };
 
 matrix_sparsity_t* matrix_sparsity_new(MPI_Comm comm, 
@@ -36,9 +36,9 @@ matrix_sparsity_t* matrix_sparsity_new(MPI_Comm comm,
   sparsity->columns_cap = init_row_cap * sparsity->num_local_rows;
   sparsity->columns = polymec_malloc(sizeof(index_t) * sparsity->columns_cap);
   memset(sparsity->columns, 0, sizeof(index_t) * sparsity->columns_cap);
-  sparsity->offsets = polymec_malloc(sizeof(index_t) * (sparsity->num_local_rows + 1));
+  sparsity->offsets = polymec_malloc(sizeof(size_t) * (sparsity->num_local_rows + 1));
   sparsity->offsets[0] = 0;
-  for (index_t i = 0; i < sparsity->num_local_rows; ++i)
+  for (size_t i = 0; i < sparsity->num_local_rows; ++i)
   {
     sparsity->columns[init_row_cap*i] = i;
     sparsity->offsets[i+1] = sparsity->offsets[i] + init_row_cap;
@@ -47,18 +47,18 @@ matrix_sparsity_t* matrix_sparsity_new(MPI_Comm comm,
 }
 
 matrix_sparsity_t* matrix_sparsity_with_block_size(matrix_sparsity_t* sparsity,
-                                                   int block_size)
+                                                   size_t block_size)
 {
   ASSERT(block_size > 0);
   int nr = (int)sparsity->num_local_rows;
-  int block_sizes[nr];
-  for (int i = 0; i < nr; ++i)
+  size_t block_sizes[nr];
+  for (size_t i = 0; i < nr; ++i)
     block_sizes[i] = block_size;
   return matrix_sparsity_with_block_sizes(sparsity, block_sizes);
 }
 
 matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
-                                                    int* block_sizes)
+                                                    size_t* block_sizes)
 {
   // We will create a new matrix sparsity pattern with the same layout as 
   // the original one.
@@ -69,12 +69,12 @@ matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
   block_sp->row_dist = polymec_malloc(sizeof(index_t) * (block_sp->nproc+1));
 
   // Count up local and global rows, and distribute them accordingly.
-  index_t my_num_rows = 0;
-  index_t num_rows[block_sp->nproc];
-  for (int i = 0; i < sparsity->num_local_rows; ++i)
+  size_t my_num_rows = 0;
+  size_t num_rows[block_sp->nproc];
+  for (size_t i = 0; i < sparsity->num_local_rows; ++i)
     my_num_rows += block_sizes[i];
-  MPI_Allgather(&my_num_rows, 1, MPI_INDEX_T, 
-                num_rows, 1, MPI_INDEX_T, 
+  MPI_Allgather(&my_num_rows, 1, MPI_SIZE_T, 
+                num_rows, 1, MPI_SIZE_T, 
                 block_sp->comm);
   block_sp->row_dist[0] = 0;
   for (int p = 0; p < block_sp->nproc; ++p)
@@ -84,24 +84,24 @@ matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
 
   // Allocate memory for columns.
   block_sp->columns_cap = 0;
-  for (index_t i = 0; i < sparsity->num_local_rows; ++i)
+  for (size_t i = 0; i < sparsity->num_local_rows; ++i)
   {
-    int bs = block_sizes[i];
+    size_t bs = block_sizes[i];
     block_sp->columns_cap += bs * bs * (sparsity->offsets[i+1] - sparsity->offsets[i]);
   }
   block_sp->columns = polymec_malloc(sizeof(index_t) * block_sp->columns_cap);
-  block_sp->offsets = polymec_malloc(sizeof(index_t) * (block_sp->num_local_rows + 1));
+  block_sp->offsets = polymec_malloc(sizeof(size_t) * (block_sp->num_local_rows + 1));
 
   // Assign column indices.
   block_sp->offsets[0] = 0;
   index_t row = 0;
-  for (index_t i = 0; i < sparsity->num_local_rows; ++i)
+  for (size_t i = 0; i < sparsity->num_local_rows; ++i)
   {
-    int bs = block_sizes[i];
-    for (index_t ii = 0; ii < bs; ++ii, ++row)
+    size_t bs = block_sizes[i];
+    for (size_t ii = 0; ii < bs; ++ii, ++row)
     {
-      index_t row_offset = block_sp->offsets[row];
-      int l = 0;
+      size_t row_offset = block_sp->offsets[row];
+      size_t l = 0;
       for (index_t j = sparsity->offsets[i]; j < sparsity->offsets[i+1]; ++j)
       {
         index_t s_col = sparsity->columns[j];
@@ -122,19 +122,19 @@ matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
   ASSERT((ex != NULL) || (comm == MPI_COMM_SELF));
   index_t* row_dist = adj_graph_vertex_dist(graph);
   matrix_sparsity_t* sparsity = matrix_sparsity_new(comm, row_dist);
-  int num_local_rows = adj_graph_num_vertices(graph);
+  size_t num_local_rows = adj_graph_num_vertices(graph);
 
   // Build a mapping from ghost indices to global indices.
   int_index_unordered_map_t* globals = int_index_unordered_map_new();
   if (sparsity->nproc > 1)
   {
-    int num_padded_rows = adj_graph_max_vertex_index(graph) + 1;
+    size_t num_padded_rows = (size_t)(adj_graph_max_vertex_index(graph) + 1);
     index_t* indices = polymec_malloc(sizeof(index_t) * num_padded_rows);
-    for (int i = 0; i < num_local_rows; ++i)
+    for (int i = 0; i < (int)num_local_rows; ++i)
       indices[i] = row_dist[sparsity->rank] + i;
     exchanger_exchange(ex, indices, 1, 0, MPI_INDEX_T);
 
-    for (int i = num_local_rows; i < num_padded_rows; ++i)
+    for (int i = (int)num_local_rows; i < (int)num_padded_rows; ++i)
       int_index_unordered_map_insert(globals, i, indices[i]);
     polymec_free(indices);
   }
@@ -146,8 +146,8 @@ matrix_sparsity_t* matrix_sparsity_from_graph(adj_graph_t* graph,
   {
     // Set the number of columns.
     int v = (int)(row - first_row);
-    int ne = adj_graph_num_edges(graph, v);
-    matrix_sparsity_set_num_columns(sparsity, row, (index_t)(ne + 1));
+    size_t ne = adj_graph_num_edges(graph, v);
+    matrix_sparsity_set_num_columns(sparsity, row, ne + 1);
 
     // Now add the edges.
     index_t* columns = matrix_sparsity_columns(sparsity, row);
@@ -179,8 +179,8 @@ matrix_sparsity_t* matrix_sparsity_clone(matrix_sparsity_t* sparsity)
   memcpy(clone->row_dist, sparsity->row_dist, sizeof(index_t) * (sparsity->nproc+1));
   clone->num_local_rows = sparsity->num_local_rows;
   clone->num_global_rows = sparsity->num_global_rows;
-  clone->offsets = polymec_malloc(sizeof(index_t) * (clone->num_local_rows + 1));
-  memcpy(clone->offsets, sparsity->offsets, sizeof(index_t) * (clone->num_local_rows + 1));
+  clone->offsets = polymec_malloc(sizeof(size_t) * (clone->num_local_rows + 1));
+  memcpy(clone->offsets, sparsity->offsets, sizeof(size_t) * (clone->num_local_rows + 1));
   clone->columns_cap = sparsity->columns_cap;
   clone->columns = polymec_malloc(sizeof(index_t) * clone->columns_cap);
   memcpy(clone->columns, sparsity->columns, sizeof(index_t) * (clone->offsets[clone->num_local_rows]));
@@ -200,12 +200,12 @@ MPI_Comm matrix_sparsity_comm(matrix_sparsity_t* sparsity)
   return sparsity->comm;
 }
 
-index_t matrix_sparsity_num_global_rows(matrix_sparsity_t* sparsity)
+size_t matrix_sparsity_num_global_rows(matrix_sparsity_t* sparsity)
 {
   return sparsity->num_global_rows;
 }
 
-index_t matrix_sparsity_num_local_rows(matrix_sparsity_t* sparsity)
+size_t matrix_sparsity_num_local_rows(matrix_sparsity_t* sparsity)
 {
   return sparsity->num_local_rows;
 }
@@ -215,45 +215,45 @@ index_t* matrix_sparsity_row_distribution(matrix_sparsity_t* sparsity)
   return sparsity->row_dist;
 }
 
-index_t matrix_sparsity_num_nonzeros(matrix_sparsity_t* sparsity)
+size_t matrix_sparsity_num_nonzeros(matrix_sparsity_t* sparsity)
 {
   return sparsity->offsets[sparsity->num_local_rows];
 }
 
 void matrix_sparsity_set_num_columns(matrix_sparsity_t* sparsity, 
                                      index_t row, 
-                                     index_t num_columns)
+                                     size_t num_columns)
 {
   ASSERT(row < sparsity->num_global_rows);
   index_t local_row = row - sparsity->row_dist[sparsity->rank];
-  index_t old_num_columns = sparsity->offsets[local_row+1] - sparsity->offsets[local_row];
-  index_t tot_num_columns = sparsity->offsets[sparsity->num_local_rows];
+  size_t old_num_columns = sparsity->offsets[local_row+1] - sparsity->offsets[local_row];
+  size_t tot_num_columns = sparsity->offsets[sparsity->num_local_rows];
   if (num_columns < old_num_columns)
   {
-    index_t num_columns_removed = old_num_columns - num_columns;
-    for (index_t i = sparsity->offsets[local_row]; i < tot_num_columns - num_columns_removed; ++i)
+    size_t num_columns_removed = old_num_columns - num_columns;
+    for (size_t i = sparsity->offsets[local_row]; i < tot_num_columns - num_columns_removed; ++i)
       sparsity->columns[i] = sparsity->columns[i + num_columns_removed];
-    for (index_t i = local_row + 1; i <= sparsity->num_local_rows; ++i)
+    for (index_t i = local_row + 1; i <= (index_t)sparsity->num_local_rows; ++i)
       sparsity->offsets[i] -= num_columns_removed;
   }
   else if (num_columns > old_num_columns)
   {
-    index_t num_columns_added = num_columns - old_num_columns;
+    size_t num_columns_added = num_columns - old_num_columns;
     if (tot_num_columns + num_columns_added > sparsity->columns_cap)
     {
       while (tot_num_columns + num_columns_added > sparsity->columns_cap)
         sparsity->columns_cap *= 2;
       sparsity->columns = polymec_realloc(sparsity->columns, sizeof(index_t) * sparsity->columns_cap);
     }
-    for (index_t i = tot_num_columns-1; (i >= sparsity->offsets[local_row]) && (i < tot_num_columns); --i)
+    for (size_t i = tot_num_columns-1; (i >= sparsity->offsets[local_row]) && (i < tot_num_columns); --i)
       sparsity->columns[i + num_columns_added] = sparsity->columns[i];
-    for (index_t i = local_row + 1; i <= sparsity->num_local_rows; ++i)
+    for (index_t i = local_row + 1; i <= (index_t)sparsity->num_local_rows; ++i)
       sparsity->offsets[i] += num_columns_added;
   }
 }
 
-index_t matrix_sparsity_num_columns(matrix_sparsity_t* sparsity, 
-                                    index_t row)
+size_t matrix_sparsity_num_columns(matrix_sparsity_t* sparsity, 
+                                   index_t row)
 {
   index_t local_row = row - sparsity->row_dist[sparsity->rank];
   return sparsity->offsets[local_row+1] - sparsity->offsets[local_row];
@@ -308,17 +308,17 @@ bool matrix_sparsity_next_column(matrix_sparsity_t* sparsity,
 void matrix_sparsity_fprintf(matrix_sparsity_t* sparsity, FILE* stream)
 {
   if (stream == NULL) return;
-  index_t num_global_rows = matrix_sparsity_num_global_rows(sparsity);
-  fprintf(stream, "Matrix sparsity (%" PRIu64" / %" PRIu64 " rows locally):\n", 
-          sparsity->num_local_rows, num_global_rows);
+  size_t num_global_rows = matrix_sparsity_num_global_rows(sparsity);
+  fprintf(stream, "Matrix sparsity (%d / %d rows locally):\n", 
+          (int)sparsity->num_local_rows, (int)num_global_rows);
   index_t begin = sparsity->row_dist[sparsity->rank];
   index_t end = sparsity->row_dist[sparsity->rank+1];
   for (index_t i = begin; i < end; ++i)
   {
     fprintf(stream, " %" PRIu64 ": ", i);
-    index_t num_cols = matrix_sparsity_num_columns(sparsity, i);
+    size_t num_cols = matrix_sparsity_num_columns(sparsity, i);
     index_t* cols = matrix_sparsity_columns(sparsity, i);
-    for (index_t j = 0; j < num_cols; ++j)
+    for (size_t j = 0; j < num_cols; ++j)
       fprintf(stream, "%" PRIu64 " ", cols[j]);
     fprintf(stream, "\n");
   }
@@ -342,7 +342,7 @@ void distribute_matrix_sparsity(matrix_sparsity_t** sparsity,
   index_t row;
   while (matrix_sparsity_next_row(dist_sparsity, &rpos, &row))
   {
-    index_t ncol = matrix_sparsity_num_columns(*sparsity, row);
+    size_t ncol = matrix_sparsity_num_columns(*sparsity, row);
     matrix_sparsity_set_num_columns(dist_sparsity, row, ncol);
     index_t* columns = matrix_sparsity_columns(dist_sparsity, row);
     int cpos = 0;

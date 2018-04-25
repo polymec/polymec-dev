@@ -55,7 +55,7 @@ static void test_graph_constructor(void** state)
   assert_int_equal(2000, matrix_sparsity_num_global_rows(S1));
 
   // Make a sparsity with variable-sized blocks.
-  int block_sizes[1000];
+  size_t block_sizes[1000];
   for (int i = 0; i < 1000; ++i)
     block_sizes[i] = i % 4 + 1;
   matrix_sparsity_t* S11 = matrix_sparsity_with_block_sizes(S, block_sizes);

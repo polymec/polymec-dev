@@ -105,12 +105,12 @@ typedef struct
   void (*add_diagonal)(void* context, void* D);
   void (*set_diagonal)(void* context, void* D);
   void (*matvec)(void* context, void* x, bool transpose, void* y);
-  void (*set_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
-  void (*add_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
-  void (*get_values)(void* context, index_t num_rows, index_t* num_columns, index_t* rows, index_t* columns, real_t* values);
-  void (*set_blocks)(void* context, index_t num_blocks, index_t* block_rows, index_t* block_columns, real_t* block_values);
-  void (*add_blocks)(void* context, index_t num_blocks, index_t* block_rows, index_t* block_columns, real_t* block_values);
-  void (*get_blocks)(void* context, index_t num_blocks, index_t* block_rows, index_t* block_columns, real_t* block_values);
+  void (*set_values)(void* context, size_t num_rows, size_t* num_columns, index_t* rows, index_t* columns, real_t* values);
+  void (*add_values)(void* context, size_t num_rows, size_t* num_columns, index_t* rows, index_t* columns, real_t* values);
+  void (*get_values)(void* context, size_t num_rows, size_t* num_columns, index_t* rows, index_t* columns, real_t* values);
+  void (*set_blocks)(void* context, size_t num_blocks, index_t* block_rows, index_t* block_columns, real_t* block_values);
+  void (*add_blocks)(void* context, size_t num_blocks, index_t* block_rows, index_t* block_columns, real_t* block_values);
+  void (*get_blocks)(void* context, size_t num_blocks, index_t* block_rows, index_t* block_columns, real_t* block_values);
   void (*assemble)(void* context);
   void (*fprintf)(void* context, FILE* stream);
   void (*dtor)(void* context);
@@ -121,8 +121,8 @@ typedef struct
 krylov_matrix_t* krylov_matrix_new(void* context,
                                    krylov_matrix_vtable vtable,
                                    MPI_Comm comm,
-                                   int num_local_rows,
-                                   index_t num_global_rows);
+                                   size_t num_local_rows,
+                                   size_t num_global_rows);
 
 // This virtual table must be filled out for any subclass of krylov_matrix.
 typedef struct
@@ -133,9 +133,9 @@ typedef struct
   void (*set_value)(void* context, real_t value);
   void (*scale)(void* context, real_t scale_factor);
   void (*diag_scale)(void* context, void* D);
-  void (*set_values)(void* context, index_t num_values, index_t* indices, real_t* values);
-  void (*add_values)(void* context, index_t num_values, index_t* indices, real_t* values);
-  void (*get_values)(void* context, index_t num_values, index_t* indices, real_t* values);
+  void (*set_values)(void* context, size_t num_values, index_t* indices, real_t* values);
+  void (*add_values)(void* context, size_t num_values, index_t* indices, real_t* values);
+  void (*get_values)(void* context, size_t num_values, index_t* indices, real_t* values);
   void (*copy_in)(void* context, real_t* local_values);
   void (*copy_out)(void* context, real_t* local_values);
   real_t (*dot)(void* context, void* w);
@@ -151,8 +151,8 @@ typedef struct
 // table to create an instance of a krylov_vector subclass.
 krylov_vector_t* krylov_vector_new(void* context,
                                    krylov_vector_vtable vtable,
-                                   int local_size,
-                                   index_t global_size);
+                                   size_t local_size,
+                                   size_t global_size);
 
 //------------------------------------------------------------------------
 //                  Bundled Krylov factories 
@@ -382,10 +382,10 @@ krylov_matrix_t* krylov_matrix_redistribute(krylov_matrix_t* A,
 void* krylov_matrix_impl(krylov_matrix_t* A);
 
 // Returns the number of locally stored rows in the matrix.
-int krylov_matrix_num_local_rows(krylov_matrix_t* A);
+size_t krylov_matrix_num_local_rows(krylov_matrix_t* A);
 
 // Returns the number of globally stored rows in the matrix.
-index_t krylov_matrix_num_global_rows(krylov_matrix_t* A);
+size_t krylov_matrix_num_global_rows(krylov_matrix_t* A);
 
 // Zeros all of the entries in the given matrix.
 // This is collective and must be called by all processes.
@@ -435,8 +435,8 @@ void krylov_matrix_matvec(krylov_matrix_t* A,
 // order. values is an array with values corresponding to the entries in the columns 
 // array.
 void krylov_matrix_set_values(krylov_matrix_t* A,
-                              index_t num_rows,
-                              index_t* num_columns,
+                              size_t num_rows,
+                              size_t* num_columns,
                               index_t* rows, 
                               index_t* columns,
                               real_t* values);
@@ -449,17 +449,19 @@ void krylov_matrix_set_values(krylov_matrix_t* A,
 // column-minor order. values is an array with values corresponding to the entries in the 
 // columns array.
 void krylov_matrix_add_values(krylov_matrix_t* A,
-                              index_t num_rows,
-                              index_t* num_columns,
-                              index_t* rows, index_t* columns,
+                              size_t num_rows,
+                              size_t* num_columns,
+                              index_t* rows, 
+                              index_t* columns,
                               real_t* values);
                               
 // Retrieves the values of the elements in the matrix identified by the 
 // given (globally-indexed) rows and columns, storing them in the values array.
 void krylov_matrix_get_values(krylov_matrix_t* A,
-                              index_t num_rows,
-                              index_t* num_columns,
-                              index_t* rows, index_t* columns,
+                              size_t num_rows,
+                              size_t* num_columns,
+                              index_t* rows, 
+                              index_t* columns,
                               real_t* values);
 
 // Sets the values of the blocks in the matrix identified by the given 
@@ -469,7 +471,7 @@ void krylov_matrix_get_values(krylov_matrix_t* A,
 // block_values is an array of size block_size*block_size*num_blocks whose data
 // consists of an array of num_blocks column-major-ordered blocks of data.
 void krylov_matrix_set_blocks(krylov_matrix_t* A,
-                              index_t num_blocks,
+                              size_t num_blocks,
                               index_t* block_rows, 
                               index_t* block_columns,
                               real_t* block_values);
@@ -481,7 +483,7 @@ void krylov_matrix_set_blocks(krylov_matrix_t* A,
 // block_values is an array of size block_size*block_size*num_blocks whose data
 // consists of an array of num_blocks column-major-ordered blocks of data.
 void krylov_matrix_add_blocks(krylov_matrix_t* A,
-                              index_t num_blocks,
+                              size_t num_blocks,
                               index_t* block_rows, 
                               index_t* block_columns,
                               real_t* block_values);
@@ -492,7 +494,7 @@ void krylov_matrix_add_blocks(krylov_matrix_t* A,
 // column-major-ordered values). These blocks must be stored on the local 
 // process.  
 void krylov_matrix_get_blocks(krylov_matrix_t* A,
-                              index_t num_blocks,
+                              size_t num_blocks,
                               index_t* block_rows, 
                               index_t* block_columns,
                               real_t* block_values);
@@ -555,10 +557,10 @@ void krylov_vector_copy(krylov_vector_t* v, krylov_vector_t* copy);
 void* krylov_vector_impl(krylov_vector_t* v);
 
 // Returns the locally-stored size (dimension) of the vector.
-int krylov_vector_local_size(krylov_vector_t* v);
+size_t krylov_vector_local_size(krylov_vector_t* v);
 
 // Returns the global size (dimension) of the vector.
-index_t krylov_vector_global_size(krylov_vector_t* v);
+size_t krylov_vector_global_size(krylov_vector_t* v);
 
 // Zeros all of the entries in the given vector.
 // This is collective, and must be called by all MPI processes.
@@ -582,14 +584,14 @@ void krylov_vector_diag_scale(krylov_vector_t* v,
 // Sets the values of the elements in the vector identified by the given 
 // (globally-indexed) indices.
 void krylov_vector_set_values(krylov_vector_t* v,
-                              index_t num_values,
+                              size_t num_values,
                               index_t* indices,
                               real_t* values);
                               
 // Adds the given values of the elements to those in the vector.
 // The values are identified by the given (globally-indexed) indices.
 void krylov_vector_add_values(krylov_vector_t* v,
-                              index_t num_values,
+                              size_t num_values,
                               index_t* indices,
                               real_t* values);
 
@@ -615,7 +617,7 @@ void krylov_vector_assemble(krylov_vector_t* A);
 // given (global) indices, storing them in the values array. The values 
 // must exist on the local process.
 void krylov_vector_get_values(krylov_vector_t* v,
-                              index_t num_values,
+                              size_t num_values,
                               index_t* indices,
                               real_t* values);
 

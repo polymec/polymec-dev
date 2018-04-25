@@ -27,11 +27,11 @@ static void test_graph_from_uniform_mesh_cells(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
 
-  int Nv = adj_graph_num_vertices(g);
+  size_t Nv = adj_graph_num_vertices(g);
   int interior_cells = 0, plane_cells = 0, edge_cells = 0, corner_cells = 0;
-  for (int v = 0; v < Nv; ++v)
+  for (int v = 0; v < (int)Nv; ++v)
   {
-    int ne = adj_graph_num_edges(g, v);
+    size_t ne = adj_graph_num_edges(g, v);
     if (ne == 6) ++interior_cells;
     else if (ne == 5) ++plane_cells;
     else if (ne == 4) ++edge_cells;
@@ -51,17 +51,17 @@ static void test_graph_from_uniform_mesh_cells(void** state)
 static void test_block_graphs_from_uniform_mesh_cells(void** state)
 {
   adj_graph_t* g = graph_from_uniform_mesh();
-  int Nv = adj_graph_num_vertices(g);
+  size_t Nv = adj_graph_num_vertices(g);
 
   // Test with block sizes of 1-5.
   for (int b = 1; b <= 5; ++b)
   {
     // Make a block graph from the single one.
     adj_graph_t* bg = adj_graph_new_with_block_size(g, b);
-    int nv = adj_graph_num_vertices(bg);
+    size_t nv = adj_graph_num_vertices(bg);
     assert_int_equal(b * adj_graph_num_vertices(g), nv);
 
-    for (int v = 0; v < Nv; ++v)
+    for (int v = 0; v < (int)Nv; ++v)
     {
       assert_int_equal(b * adj_graph_num_edges(g, v) + (b-1), adj_graph_num_edges(bg, b*v));
       assert_false(adj_graph_contains_edge(bg, b*v, b*v));
@@ -88,8 +88,8 @@ static void test_block_graphs_from_uniform_mesh_cells(void** state)
 
 static void test_coloring_against_graph(adj_graph_coloring_t* coloring, adj_graph_t* graph)
 {
-  int num_colors = adj_graph_coloring_num_colors(coloring);
-  for (int color = 0; color < num_colors; ++color)
+  size_t num_colors = adj_graph_coloring_num_colors(coloring);
+  for (int color = 0; color < (int)num_colors; ++color)
   {
     int pos = 0, v;
     while (adj_graph_coloring_next_vertex(coloring, color, &pos, &v))

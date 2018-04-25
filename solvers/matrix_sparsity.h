@@ -35,7 +35,7 @@ matrix_sparsity_t* matrix_sparsity_new(MPI_Comm comm,
 // resulting sparsity pattern will contain non-zero elements for each of those
 // within the blocks of the originally given sparsity pattern.
 matrix_sparsity_t* matrix_sparsity_with_block_size(matrix_sparsity_t* sparsity,
-                                                   int block_size);
+                                                   size_t block_size);
 
 // Creates a new matrix sparsity pattern using the given sparsity pattern, 
 // and interpreting each non-zero element as a block of size specified for 
@@ -44,7 +44,7 @@ matrix_sparsity_t* matrix_sparsity_with_block_size(matrix_sparsity_t* sparsity,
 // Here, block_sizes[i] contains the block size of the ith row in the original
 // sparsity pattern.
 matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
-                                                    int* block_sizes);
+                                                    size_t* block_sizes);
 
 // Creates a new sparsity pattern using the given adjacency graph (which 
 // provides a topology connecting local indices) and an exchanger (which 
@@ -67,10 +67,10 @@ void matrix_sparsity_free(matrix_sparsity_t* sparsity);
 MPI_Comm matrix_sparsity_comm(matrix_sparsity_t* sparsity);
 
 // Returns the number of global rows in the sparsity object.
-index_t matrix_sparsity_num_global_rows(matrix_sparsity_t* sparsity);
+size_t matrix_sparsity_num_global_rows(matrix_sparsity_t* sparsity);
 
 // Returns the number of local rows in the sparsity object.
-index_t matrix_sparsity_num_local_rows(matrix_sparsity_t* sparsity);
+size_t matrix_sparsity_num_local_rows(matrix_sparsity_t* sparsity);
 
 // Returns an internal pointer to an array that describes the distribution
 // of rows on each process. The pth entry in the array holds the global 
@@ -80,16 +80,16 @@ index_t matrix_sparsity_num_local_rows(matrix_sparsity_t* sparsity);
 index_t* matrix_sparsity_row_distribution(matrix_sparsity_t* sparsity);
 
 // Returns the total number of nonzero entries in the sparsity pattern.
-index_t matrix_sparsity_num_nonzeros(matrix_sparsity_t* sparsity);
+size_t matrix_sparsity_num_nonzeros(matrix_sparsity_t* sparsity);
 
 // Sets the number of columns for the given row in the sparsity object.
 void matrix_sparsity_set_num_columns(matrix_sparsity_t* sparsity, 
                                      index_t row, 
-                                     index_t num_columns);
+                                     size_t num_columns);
 
 // Returns the number of columns for the given row in the sparsity object.
-index_t matrix_sparsity_num_columns(matrix_sparsity_t* sparsity, 
-                                    index_t row);
+size_t matrix_sparsity_num_columns(matrix_sparsity_t* sparsity, 
+                                   index_t row);
 
 // Returns an internal pointer to the array of column indices for the given
 // row of the sparsity object. This can be used to retrieve or to set the 

@@ -45,16 +45,16 @@ struct krylov_matrix_t
   void* context;
   krylov_matrix_vtable vtable;
   MPI_Comm comm;
-  int num_local_rows;
-  index_t num_global_rows;
+  size_t num_local_rows;
+  size_t num_global_rows;
 };
 
 struct krylov_vector_t
 {
   void* context;
   krylov_vector_vtable vtable;
-  int local_size;
-  index_t global_size;
+  size_t local_size;
+  size_t global_size;
 };
 
 struct krylov_factory_t
@@ -195,10 +195,10 @@ bool krylov_solver_solve_scaled(krylov_solver_t* solver,
       if (solver->s2_inv == NULL)
         solver->s2_inv = krylov_vector_clone(s2);
 
-      int N_local = krylov_vector_local_size(s2);
+      size_t N_local = krylov_vector_local_size(s2);
       real_t s2_data[N_local], s2_inv_data[N_local];
       krylov_vector_copy_out(s2, s2_data);
-      for (int i = 0; i < N_local; ++i)
+      for (int i = 0; i < (int)N_local; ++i)
         s2_inv_data[i] = 1.0/s2_data[i];
       krylov_vector_copy_in(solver->s2_inv, s2_inv_data);
     }
@@ -276,8 +276,8 @@ char* krylov_pc_name(krylov_solver_t* preconditioner)
 krylov_matrix_t* krylov_matrix_new(void* context,
                                    krylov_matrix_vtable vtable,
                                    MPI_Comm comm,
-                                   int num_local_rows,
-                                   index_t num_global_rows)
+                                   size_t num_local_rows,
+                                   size_t num_global_rows)
 {
   ASSERT(vtable.clone != NULL);
   ASSERT(vtable.copy != NULL);
@@ -515,7 +515,7 @@ static int mm_read_banner(FILE *f, MM_typecode *matcode)
   return 0;
 }
 
-static int mm_read_mtx_crd_size(FILE *f, index_t *M, index_t *N, index_t *nnz)
+static int mm_read_mtx_crd_size(FILE *f, size_t *M, size_t *N, size_t *nnz)
 {
   char line[MM_MAX_LINE_LENGTH];
   int num_items_read;
@@ -532,16 +532,25 @@ static int mm_read_mtx_crd_size(FILE *f, index_t *M, index_t *N, index_t *nnz)
   while (line[0] == '%');
 
   // line[] is either blank or has M,N, nnz 
-  if (sscanf(line, "%" SCNu64 " %" SCNu64 " %" SCNu64, M, N, nnz) == 3)
+  int iM, iN, innz;
+  if (sscanf(line, "%d %d %d", &iM, &iN, &innz) == 3)
+  {
+    *M = (size_t)iM;
+    *N = (size_t)iN;
+    *nnz = (size_t)innz;
     return 0;
+  }
   else
   {
     do
     { 
-      num_items_read = fscanf(f, "%" SCNu64 " %" SCNu64 " %" SCNu64, M, N, nnz); 
+      num_items_read = fscanf(f, "%d %d %d", &iM, &iN, &innz); 
       if (num_items_read == EOF) return MM_PREMATURE_EOF;
     }
     while (num_items_read != 3);
+    *M = (size_t)iM;
+    *N = (size_t)iN;
+    *nnz = (size_t)innz;
   }
 
   return 0;
@@ -614,9 +623,10 @@ static void distribute_matrix(krylov_factory_t* factory,
   krylov_matrix_t* dist_A = krylov_factory_matrix(factory, *sparsity);
 
   // Shuttle the coefficients from the global into the local matrix.
-  index_t nnz = matrix_sparsity_num_nonzeros(*sparsity);
-  index_t num_local_rows = matrix_sparsity_num_local_rows(*sparsity);
-  index_t rows[num_local_rows], num_cols[num_local_rows], cols[nnz];
+  size_t nnz = matrix_sparsity_num_nonzeros(*sparsity);
+  size_t num_local_rows = matrix_sparsity_num_local_rows(*sparsity);
+  index_t rows[num_local_rows], cols[nnz];
+  size_t num_cols[num_local_rows]; 
   int k = 0, rpos = 0, r = 0;
   index_t row;
   while (matrix_sparsity_next_row(*sparsity, &rpos, &row))
@@ -665,7 +675,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   }
 
   // Size the thing up.
-  index_t M, N, nnz;
+  size_t M, N, nnz;
   if (mm_read_mtx_crd_size(f, &M, &N, &nnz) != 0)
     polymec_error("krylov_factory_matrix_from_mm: error reading matrix size.");
 
@@ -742,7 +752,7 @@ static krylov_matrix_t* krylov_factory_matrix_from_mm(krylov_factory_t* factory,
   // And we've already hit the disk, so it's not a big deal.
   for (int i = 0; i < nnz; ++i)
   {
-    index_t num_columns = 1;
+    size_t num_columns = 1;
     index_t row = I[i];
     index_t column = J[i];
     krylov_matrix_set_values(A, 1, &num_columns, &row, &column, &val[i]);
@@ -846,12 +856,12 @@ void* krylov_matrix_impl(krylov_matrix_t* A)
   return A->context;
 }
 
-int krylov_matrix_num_local_rows(krylov_matrix_t* A)
+size_t krylov_matrix_num_local_rows(krylov_matrix_t* A)
 {
   return A->num_local_rows;
 }
 
-index_t krylov_matrix_num_global_rows(krylov_matrix_t* A)
+size_t krylov_matrix_num_global_rows(krylov_matrix_t* A)
 {
   return A->num_global_rows;
 }
@@ -913,8 +923,8 @@ void krylov_matrix_matvec(krylov_matrix_t* A,
 }
 
 void krylov_matrix_set_values(krylov_matrix_t* A,
-                              index_t num_rows,
-                              index_t* num_columns,
+                              size_t num_rows,
+                              size_t* num_columns,
                               index_t* rows, index_t* columns,
                               real_t* values)
 {
@@ -924,8 +934,8 @@ void krylov_matrix_set_values(krylov_matrix_t* A,
 }
                               
 void krylov_matrix_add_values(krylov_matrix_t* A,
-                              index_t num_rows,
-                              index_t* num_columns,
+                              size_t num_rows,
+                              size_t* num_columns,
                               index_t* rows, index_t* columns,
                               real_t* values)
 {
@@ -935,7 +945,7 @@ void krylov_matrix_add_values(krylov_matrix_t* A,
 }
                               
 void krylov_matrix_set_blocks(krylov_matrix_t* A,
-                              index_t num_blocks,
+                              size_t num_blocks,
                               index_t* block_rows, 
                               index_t* block_columns,
                               real_t* block_values)
@@ -949,7 +959,7 @@ void krylov_matrix_set_blocks(krylov_matrix_t* A,
 }
                               
 void krylov_matrix_add_blocks(krylov_matrix_t* A,
-                              index_t num_blocks,
+                              size_t num_blocks,
                               index_t* block_rows, 
                               index_t* block_columns,
                               real_t* block_values)
@@ -963,7 +973,7 @@ void krylov_matrix_add_blocks(krylov_matrix_t* A,
 }
                               
 void krylov_matrix_get_blocks(krylov_matrix_t* A,
-                              index_t num_blocks,
+                              size_t num_blocks,
                               index_t* block_rows, 
                               index_t* block_columns,
                               real_t* block_values)
@@ -1011,9 +1021,10 @@ void krylov_matrix_assemble(krylov_matrix_t* A)
 }
 
 void krylov_matrix_get_values(krylov_matrix_t* A,
-                              index_t num_rows,
-                              index_t* num_columns,
-                              index_t* rows, index_t* columns,
+                              size_t num_rows,
+                              size_t* num_columns,
+                              index_t* rows, 
+                              index_t* columns,
                               real_t* values)
 {
   START_FUNCTION_TIMER();
@@ -1034,8 +1045,8 @@ void krylov_matrix_fprintf(krylov_matrix_t* A,
 
 krylov_vector_t* krylov_vector_new(void* context,
                                    krylov_vector_vtable vtable,
-                                   int local_size,
-                                   index_t global_size)
+                                   size_t local_size,
+                                   size_t global_size)
 {
   ASSERT(vtable.clone != NULL);
   ASSERT(vtable.copy != NULL);
@@ -1093,12 +1104,12 @@ void* krylov_vector_impl(krylov_vector_t* v)
   return v->context;
 }
 
-int krylov_vector_local_size(krylov_vector_t* v)
+size_t krylov_vector_local_size(krylov_vector_t* v)
 {
   return v->local_size;
 }
 
-index_t krylov_vector_global_size(krylov_vector_t* v)
+size_t krylov_vector_global_size(krylov_vector_t* v)
 {
   return v->global_size;
 }
@@ -1136,7 +1147,7 @@ void krylov_vector_diag_scale(krylov_vector_t* v,
 }
 
 void krylov_vector_set_values(krylov_vector_t* v,
-                              index_t num_values,
+                              size_t num_values,
                               index_t* indices,
                               real_t* values)
 {
@@ -1146,7 +1157,7 @@ void krylov_vector_set_values(krylov_vector_t* v,
 }
                               
 void krylov_vector_add_values(krylov_vector_t* v,
-                              index_t num_values,
+                              size_t num_values,
                               index_t* indices,
                               real_t* values)
 {
@@ -1156,7 +1167,7 @@ void krylov_vector_add_values(krylov_vector_t* v,
 }
 
 void krylov_vector_get_values(krylov_vector_t* v,
-                              index_t num_values,
+                              size_t num_values,
                               index_t* indices,
                               real_t* values)
 {
@@ -1252,12 +1263,12 @@ static void distribute_vector(krylov_factory_t* factory,
 
   // Create a local representation of the vector.
   krylov_vector_t* dist_x = krylov_factory_vector(factory, comm, row_dist);
-  index_t num_local_rows = row_dist[rank+1] - row_dist[rank];
+  size_t num_local_rows = (size_t)(row_dist[rank+1] - row_dist[rank]);
 
   // Shuttle the values from the global into the local vector.
   index_t rows[num_local_rows];
   real_t values[num_local_rows];
-  for (int i = 0; i < num_local_rows; ++i)
+  for (int i = 0; i < (int)num_local_rows; ++i)
   {
     index_t I = row_dist[rank] + i; // global vertex index
     rows[i] = I;

@@ -36,7 +36,7 @@ int64_t* partition_graph(adj_graph_t* global_graph,
 
   SCOTCH_Dgraph dist_graph;
   SCOTCH_Num *vtx_weights = NULL, *xadj = NULL, *adj = NULL;
-  int num_global_vertices = 0;
+  size_t num_global_vertices = 0;
   if (rank == 0)
   {
     num_global_vertices = adj_graph_num_vertices(global_graph);
@@ -118,7 +118,7 @@ int64_t* repartition_graph(adj_graph_t* local_graph,
   MPI_Comm comm = adj_graph_comm(local_graph);
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
-  int num_vertices = adj_graph_num_vertices(local_graph);
+  size_t num_vertices = adj_graph_num_vertices(local_graph);
 
   // Extract the adjacency information.
   SCOTCH_Num* xadj = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices+1));

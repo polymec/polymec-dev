@@ -227,13 +227,13 @@ migrator_t* migrator_new(MPI_Comm comm);
 // vector is NULL on all nonzero ranks and defined on rank 0.
 migrator_t* migrator_from_global_partition(MPI_Comm comm, 
                                            int64_t* global_partition,
-                                           int num_global_vertices);
+                                           size_t num_global_vertices);
 
 // This function creates a migrator that can migrate data from all 
 // processes to others according to their respective local partition vectors.
 migrator_t* migrator_from_local_partition(MPI_Comm comm,
                                           int64_t* local_partition,
-                                          int num_local_vertices);
+                                          size_t num_local_vertices);
 
 // Creates a complete copy of the given migrator.
 migrator_t* migrator_clone(migrator_t* m);

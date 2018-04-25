@@ -127,7 +127,8 @@ static int heat2d_J(void* context,
   // Boundary points correspond to rows of the identity matrix.
   for (int i = 0; i < MGRID; ++i) 
   {
-    index_t num_cols = 1, row, indices[1];
+    size_t num_cols = 1;
+    index_t row, indices[1];
     real_t values[1] = {1.0};
     row = indices[0] = ARRAY_INDEX_2D(MGRID, MGRID, 0, i);
     krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);
@@ -159,7 +160,8 @@ static int heat2d_J(void* context,
       J_down = -coeff;
 
       // Stick 'em into the matrix.
-      index_t row = I_self, num_cols = 5;
+      size_t num_cols = 5;
+      index_t row = I_self;
       index_t indices[5] = {I_self, I_left, I_right, I_up, I_down};
       real_t values[5] = {J_self, J_left, J_right, J_up, J_down};
       krylov_matrix_set_values(J, 1, &num_cols, &row, indices, values);

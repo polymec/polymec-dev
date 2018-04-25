@@ -20,12 +20,12 @@ typedef struct adj_graph_t adj_graph_t;
 // Allocates a new adjacency graph on the given MPI communicator 
 // with the vertices distributed according to the number of local vertices 
 // on each process.
-adj_graph_t* adj_graph_new(MPI_Comm comm, int num_local_vertices);
+adj_graph_t* adj_graph_new(MPI_Comm comm, size_t num_local_vertices);
 
 // Allocates a new adjacency graph on the given MPI communicator 
 // with the given number of vertices distributed according to vertex_dist.
 adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm, 
-                                     index_t num_global_vertices,
+                                     size_t num_global_vertices,
                                      index_t* vertex_dist);
 
 // Constructs an adjacency graph that represents the connectivity between 
@@ -34,19 +34,19 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
 // rows and/or columns of block matrices. The connectivity of the super
 // vertices is given by the given graph.
 adj_graph_t* adj_graph_new_with_block_size(adj_graph_t* graph, 
-                                           int block_size);
+                                           size_t block_size);
 
 // Constructs an adjacency graph using the given graph and a row-specific 
 // block size expressed by block_sizes[row]. The data in the block_sizes 
 // array is copied.
 adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
-                                            int* block_sizes);
+                                            size_t* block_sizes);
 
 // Constructs a dense graph on the given communicator with the given number 
 // of local and remote vertices. This is really only useful for debugging.
 adj_graph_t* dense_adj_graph_new(MPI_Comm comm, 
-                                 int num_local_vertices,
-                                 int num_remote_vertices);
+                                 size_t num_local_vertices,
+                                 size_t num_remote_vertices);
 
 // Creates an adjacency graph using the information contained in the given 
 // adjacency and offset arrays. If assume_ownership is set to true, adjacency 
@@ -69,17 +69,17 @@ void adj_graph_free(adj_graph_t* graph);
 MPI_Comm adj_graph_comm(adj_graph_t* graph);
 
 // Returns the number of (local) vertices in the adjacency graph.
-int adj_graph_num_vertices(adj_graph_t* graph);
+size_t adj_graph_num_vertices(adj_graph_t* graph);
 
 // Returns the maximum vertex index referred to within this graph. Can exceed the 
 // number of vertices if there are edges that refer to "ghost" vertices.
 int adj_graph_max_vertex_index(adj_graph_t* graph);
 
 // Sets the number of edges for the given vertex in the graph.
-void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, int num_edges);
+void adj_graph_set_num_edges(adj_graph_t* graph, int vertex, size_t num_edges);
 
 // Returns the number of edges attached to the given vertex in the graph.
-int adj_graph_num_edges(adj_graph_t* graph, int vertex);
+size_t adj_graph_num_edges(adj_graph_t* graph, int vertex);
 
 // Returns the portion of the adjacency array containing the vertices to 
 // which the given vertex is attached. This can be used to retrieve or to
@@ -170,7 +170,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
 void adj_graph_coloring_free(adj_graph_coloring_t* coloring);
 
 // Returns the number of colors in this coloring.
-int adj_graph_coloring_num_colors(adj_graph_coloring_t* coloring);
+size_t adj_graph_coloring_num_colors(adj_graph_coloring_t* coloring);
 
 // Allows iteration over the vertices in the given color. Returns true if 
 // more vertices are found, false if not. Set pos to 0 to reset an iteration.

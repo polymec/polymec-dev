@@ -58,7 +58,21 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <inttypes.h> // for printing uint64_t, etc.
+#include <limits.h>
 #include <string.h>
+
+// MPI size_t type.
+#if SIZE_MAX == USHRT_MAX
+#define MPI_SIZE_T MPI_UNSIGNED_SHORT
+#elif SIZE_MAX == UINT_MAX
+#define MPI_SIZE_T MPI_UNSIGNED
+#elif SIZE_MAX == ULONG_MAX
+#define MPI_SIZE_T MPI_UNSIGNED_LONG
+#elif SIZE_MAX == ULLONG_MAX
+#define MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
+#else
+#error "Could not determine MPI_SIZE_T."
+#endif
 
 // We have to redirect the declaration of the legacy function gamma 
 // to prevent it from interfering with our own.
