@@ -49,8 +49,8 @@ typedef struct
   krylov_solver_t* (*special_solver)(void* context, MPI_Comm comm, const char* solver_name, string_string_unordered_map_t* options);
   krylov_pc_t* (*preconditioner)(void* context, MPI_Comm comm, const char* pc_name, string_string_unordered_map_t* options);
   krylov_matrix_t* (*matrix)(void* context, matrix_sparsity_t* sparsity);
-  krylov_matrix_t* (*block_matrix)(void* context, matrix_sparsity_t* sparsity, int block_size);
-  krylov_matrix_t* (*var_block_matrix)(void* context, matrix_sparsity_t* sparsity, int* block_sizes);
+  krylov_matrix_t* (*block_matrix)(void* context, matrix_sparsity_t* sparsity, size_t block_size);
+  krylov_matrix_t* (*var_block_matrix)(void* context, matrix_sparsity_t* sparsity, size_t* block_sizes);
   krylov_vector_t* (*vector)(void* context, MPI_Comm comm, index_t* row_dist);
   void (*dtor)(void* context);
 } krylov_factory_vtable;
@@ -94,7 +94,7 @@ krylov_pc_t* krylov_pc_new(const char* name,
 // This virtual table must be filled out for any subclass of krylov_matrix.
 typedef struct
 {
-  int (*block_size)(void* context, index_t block_row);
+  size_t (*block_size)(void* context, index_t block_row);
   void* (*clone)(void* context);
   void (*copy)(void* context, void* copy);
   void (*redistribute)(void* context, MPI_Comm);
@@ -159,30 +159,21 @@ krylov_vector_t* krylov_vector_new(void* context,
 //------------------------------------------------------------------------
 
 // This creates a PETSc-based Krylov factory that can be used for constructing
-// matrices, vectors, solvers, using the given petsc directory and architecture 
-// (or the environment variables PETSC_DIR and PETSC_ARCH if these strings are 
-// NULL) to find the underlying PETSc implementation. If no such 
-// underlying implementation can be found, this function returns NULL.
-// Polymec requires the following for any PETSc library with which it
-// interfaces:
-// * The PETSc library must be built as a shared library.
-// * It must be built with the --with-64-bit-indices as an option. 
-// * It must be built with support for real numbers, not complex ones.
-// * It must be built with or without MPI support, in a fashion that matches 
-//   Polymec's configuration.
-krylov_factory_t* petsc_krylov_factory(const char* petsc_dir,
-                                       const char* petsc_arch);
+// matrices, vectors, solvers. The factory attempts to load the dynamic library
+// located at petsc_library. If no such library can be found or loaded, 
+// this function returns NULL. Use the use_64_bit_indices flag to indicate 
+// whether this PETSc library was built using --with-64-bit-indices (since 
+// we can't infer this using dynamic loading).
+krylov_factory_t* petsc_krylov_factory(const char* petsc_library,
+                                       bool use_64_bit_indices);
 
 // This creates a HYPRE-based Krylov factory that can be used for constructing
-// matrices, vectors, solvers, using the HYPRE library (libHYPRE.so, etc) 
-// located in the given directory. If no such library can be found or loaded, 
-// this function returns NULL. Polymec requires the following for any HYPRE 
-// library with which it interfaces:
-// * The HYPRE library must be built as a shared library
-// * It must be built with BIGINT support (64-bit indices)
-// * It must be built with or without MPI support, in a fashion that matches 
-//   Polymec's configuration.
-krylov_factory_t* hypre_krylov_factory(const char* hypre_dir);
+// matrices, vectors, solvers, using the dynamic library located at 
+// hypre_library. Use the use_64_bit_indices flag to indicate 
+// whether this PETSc library was built using --with-64-bit-indices (since 
+// we can't infer this using dynamic loading).
+krylov_factory_t* hypre_krylov_factory(const char* hypre_library,
+                                       bool use_64_bit_indices);
 
 //------------------------------------------------------------------------
 //                    Krylov factory interface
@@ -204,13 +195,13 @@ krylov_matrix_t* krylov_factory_matrix(krylov_factory_t* factory,
 // given by an adjacency graph, and the given block size.
 krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory, 
                                              matrix_sparsity_t* sparsity,
-                                             int block_size);
+                                             size_t block_size);
 
 // Constructs a (square) Krylov sparse block matrix with the sparsity pattern 
 // given by an adjacency graph, and different block sizes for each row.
 krylov_matrix_t* krylov_factory_var_block_matrix(krylov_factory_t* factory, 
                                                  matrix_sparsity_t* sparsity,
-                                                 int* block_sizes);
+                                                 size_t* block_sizes);
 
 // Reads a matrix into memory from the given file (assuming it is the 
 // in a supported file format), distributing it over the processes
@@ -363,7 +354,7 @@ MPI_Comm krylov_matrix_comm(krylov_matrix_t* A);
 
 // Returns the size of the given block row. If the matrix doesn't use block 
 // rows, the block size is 1.
-int krylov_matrix_block_size(krylov_matrix_t* A, index_t block_row);
+size_t krylov_matrix_block_size(krylov_matrix_t* A, index_t block_row);
 
 // Creates and returns a deep copy of a matrix.
 krylov_matrix_t* krylov_matrix_clone(krylov_matrix_t* A);

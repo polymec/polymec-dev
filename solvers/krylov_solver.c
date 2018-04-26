@@ -823,7 +823,7 @@ MPI_Comm krylov_matrix_comm(krylov_matrix_t* A)
   return A->comm;
 }
 
-int krylov_matrix_block_size(krylov_matrix_t* A, index_t block_row)
+size_t krylov_matrix_block_size(krylov_matrix_t* A, index_t block_row)
 {
   if (A->vtable.block_size != NULL)
     return A->vtable.block_size(A->context, block_row);
@@ -1425,7 +1425,7 @@ krylov_matrix_t* krylov_factory_matrix(krylov_factory_t* factory,
 
 krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory, 
                                              matrix_sparsity_t* sparsity,
-                                             int block_size)
+                                             size_t block_size)
 {
   ASSERT(block_size > 0);
   return factory->vtable.block_matrix(factory->context, sparsity, block_size);
@@ -1433,7 +1433,7 @@ krylov_matrix_t* krylov_factory_block_matrix(krylov_factory_t* factory,
 
 krylov_matrix_t* krylov_factory_var_block_matrix(krylov_factory_t* factory, 
                                                  matrix_sparsity_t* sparsity,
-                                                 int* block_sizes)
+                                                 size_t* block_sizes)
 {
   ASSERT(block_sizes != NULL);
   if (factory->vtable.var_block_matrix != NULL)

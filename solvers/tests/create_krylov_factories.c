@@ -24,7 +24,7 @@ krylov_factory_t* create_petsc_krylov_factory()
       snprintf(petsc_path, FILENAME_MAX, "%s/%s/lib/libpetsc%s", petsc_dir, petsc_arch, SHARED_LIBRARY_SUFFIX);
       if (file_exists(petsc_path))
       {
-        factory = petsc_krylov_factory(petsc_dir, petsc_arch);
+        factory = petsc_krylov_factory(petsc_path, false);
         if (factory == NULL)
           log_urgent("Could not load PETSc. Skipping PETSc test.");
       }
@@ -51,7 +51,7 @@ krylov_factory_t* create_hypre_krylov_factory()
     snprintf(hypre_path, FILENAME_MAX, "%s/libHYPRE%s", hypre_dir, SHARED_LIBRARY_SUFFIX);
     if (file_exists(hypre_path))
     {
-      factory = hypre_krylov_factory(hypre_dir);
+      factory = hypre_krylov_factory(hypre_path, false);
       if (factory == NULL)
         log_urgent("Could not load HYPRE. Skipping HYPRE test.");
     }

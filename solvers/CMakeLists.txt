@@ -2,7 +2,8 @@ include(add_polymec_library)
 add_polymec_library(polymec_solvers 
                     dense_newton_solver.c
                     bd_matrix.c matrix_sparsity.c krylov_solver.c 
-                    petsc_krylov_solver.c hypre_krylov_solver.c
+                    petsc_krylov_solver.c petsc_krylov_solver_32.c petsc_krylov_solver_64.c
+                    hypre_krylov_solver.c hypre_krylov_solver_32.c hypre_krylov_solver_64.c
                     newton_pc.c bj_newton_pc.c newton_solver.c 
                     ode_solver.c am_ode_solver.c bdf_ode_solver.c 
                     ark_ode_solver.c euler_ode_solver.c dae_solver.c 
