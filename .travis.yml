@@ -38,7 +38,7 @@ script:
   - if [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then export TEST=memcheck; else export TEST=test; fi
   - docker exec -t polymec-build bash -c "cd travis;
     make -j4 debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION install;
-    make debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION $TEST"
+    env PETSC_DIR=$PETSC_DIR PETSC_ARCH=$PETSC_ARCH HYPRE_DIR=$HYPRE_DIR make debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION $TEST"
 
 #after_success: 
 #  - cd $HOME
