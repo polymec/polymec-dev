@@ -261,7 +261,8 @@ static void bdf_dtor(void* context)
   // Kill the CVode stuff.
   polymec_free(integ->U_with_ghosts);
   N_VDestroy(integ->U);
-  SUNLinSolFree(integ->ls);
+  if (integ->ls != NULL)
+    SUNLinSolFree(integ->ls);
   CVodeFree(&integ->cvode);
 
   // Kill the rest.
@@ -815,6 +816,7 @@ ode_solver_t* bdf_ode_solver_new(const char* name,
   CVodeInit(integ->cvode, bdf_evaluate_rhs, 0.0, integ->U);
 
   // Set up the solver.
+  integ->ls = NULL;
   integ->reset_func = reset_func;
   integ->setup_func = setup_func;
   integ->solve_func = solve_func;
@@ -1081,9 +1083,9 @@ ode_solver_t* ink_bdf_ode_solver_new(int order,
   snprintf(name, 1024, "INK Backwards-Difference-Formulae (order %d)", order);
   int num_local_values = (int)(matrix_sparsity_num_local_rows(J_sparsity));
   ode_solver_t* I = bdf_ode_solver_new(name, order, comm, 
-                                               num_local_values, 0,
-                                               ink, ink_rhs, ink_reset, 
-                                               ink_setup, ink_solve, ink_dtor);
+                                       num_local_values, 0,
+                                       ink, ink_rhs, ink_reset, 
+                                       ink_setup, ink_solve, ink_dtor);
 
   // Set default tolerances.
   // relative error of 1e-4 means errors are controlled to 0.01%.

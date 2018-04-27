@@ -536,6 +536,7 @@ dae_solver_t* dae_solver_new(const char* name,
   IDAInit(integ->ida, evaluate_residual, integ->t, integ->U, integ->U_dot);
 
   // Set up the INK solver.
+  integ->ls = NULL;
   integ->reset_func = reset_func;
   integ->setup_func = setup_func;
   integ->solve_func = solve_func;
@@ -570,7 +571,8 @@ void dae_solver_free(dae_solver_t* integ)
   polymec_free(integ->U_with_ghosts);
   N_VDestroy(integ->U);
   polymec_free(integ->U_dot_with_ghosts);
-  SUNLinSolFree(integ->ls);
+  if (integ->ls != NULL)
+    SUNLinSolFree(integ->ls);
   IDAFree(&integ->ida);
 
   // Kill the rest.

@@ -403,13 +403,13 @@ static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector U, N_Vector U_dot
 }
 
 ode_solver_t* explicit_ark_ode_solver_new(int order, 
-                                                  MPI_Comm comm,
-                                                  int num_local_values, 
-                                                  int num_remote_values, 
-                                                  void* context, 
-                                                  int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
-                                                  real_t (*stable_dt_func)(void* context, real_t, real_t* U),
-                                                  void (*dtor)(void* context))
+                                          MPI_Comm comm,
+                                          int num_local_values, 
+                                          int num_remote_values, 
+                                          void* context, 
+                                          int (*fe_func)(void* context, real_t t, real_t* U, real_t* fe),
+                                          real_t (*stable_dt_func)(void* context, real_t, real_t* U),
+                                          void (*dtor)(void* context))
 {
   return functional_ark_ode_solver_new(order, comm, num_local_values, 
                                            num_remote_values, context, fe_func, 
@@ -765,6 +765,7 @@ ode_solver_t* ark_ode_solver_new(const char* name,
   integ->U = N_VNew(integ->comm, integ->num_local_values);
   integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->arkode = ARKodeCreate();
+  integ->ls = NULL;
   ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
   ARKodeSetOrder(integ->arkode, order);
   ARKodeSetUserData(integ->arkode, integ);
@@ -1257,7 +1258,12 @@ static int ink_solve(void* context,
   krylov_vector_copy_in(ink->B, B);
 
   // Copy weights into ink->W.
-  krylov_vector_copy_in(ink->W, W);
+  krylov_vector_t* WW = NULL;
+  if (W != NULL)
+  {
+    krylov_vector_copy_in(ink->W, W);
+    WW = ink->W;
+  }
 
   // If the 2-norm of B is less than our tolerance, return X = 0.
   real_t B_norm = krylov_vector_norm(ink->B, 2);
@@ -1278,8 +1284,8 @@ static int ink_solve(void* context,
 
   // Solve A*X = B.
   real_t res_norm;
-  bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, ink->W, ink->W, 
-                                          ink->X, &res_norm, num_iters);
+  bool solved = krylov_solver_solve_scaled(ink->solver, ink->B, WW, WW, 
+                                           ink->X, &res_norm, num_iters);
 
   if (solved)
   {
