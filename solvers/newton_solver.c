@@ -228,6 +228,7 @@ static newton_solver_t* create_newton_solver(MPI_Comm comm,
   solver->U_scale = N_VNew(solver->comm, num_local_values);
   solver->F_scale = N_VNew(solver->comm, num_local_values);
   solver->constraints = N_VNew(solver->comm, num_local_values);
+  solver->ls = NULL;
   solver->status_message = NULL;
   solver->t = 0.0;
 
@@ -514,7 +515,8 @@ void newton_solver_free(newton_solver_t* solver)
   N_VDestroy(solver->U_scale);
   N_VDestroy(solver->F_scale);
   N_VDestroy(solver->constraints);
-  SUNLinSolFree(solver->ls);
+  if (solver->ls != NULL)
+    SUNLinSolFree(solver->ls);
   KINFree(&solver->kinsol);
 
   // Kill the rest.
