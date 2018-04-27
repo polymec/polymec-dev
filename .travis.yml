@@ -53,6 +53,7 @@ after_failure:
 
 after_script:
   - docker exec -t polymec-build bash -c "cd travis;
+    cat build/*/Testing/Temporary/LastTest.log;
     cat build/*/3rdparty/*error*.log"
 
 #deploy:
