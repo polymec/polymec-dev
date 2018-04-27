@@ -21,7 +21,7 @@ env:
     - DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=/usr PETSC_ARCH="" HYPRE_DIR=/usr/lib
 
 before_install:
-  - docker run -d --name polymec-build -v $PWD:/travis ubuntu:xenial tail -f /dev/null
+  - docker run -d --name polymec-build -v $PWD:/travis -e "PETSC_DIR=$PETSC_DIR" -e "PETSC_ARCH=$PETSC_ARCH" -e "HYPRE_DIR=$HYPRE_DIR" ubuntu:xenial tail -f /dev/null
   - docker ps
 
 install:
@@ -38,7 +38,7 @@ script:
   - if [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then export TEST=memcheck; else export TEST=test; fi
   - docker exec -t polymec-build bash -c "cd travis;
     make -j4 debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION install;
-    env PETSC_DIR=$PETSC_DIR PETSC_ARCH=$PETSC_ARCH HYPRE_DIR=$HYPRE_DIR make debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION $TEST"
+    make debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION $TEST"
 
 #after_success: 
 #  - cd $HOME
