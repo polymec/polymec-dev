@@ -168,11 +168,11 @@ krylov_factory_t* petsc_krylov_factory(const char* petsc_library,
                                        bool use_64_bit_indices);
 
 // This creates a HYPRE-based Krylov factory that can be used for constructing
-// matrices, vectors, solvers, using the dynamic library located at 
-// hypre_library. Use the use_64_bit_indices flag to indicate 
-// whether this PETSc library was built using --with-64-bit-indices (since 
-// we can't infer this using dynamic loading).
-krylov_factory_t* hypre_krylov_factory(const char* hypre_library,
+// matrices, vectors, solvers, using a HYPRE dynamic library located in hypre_dir.
+// Use the use_64_bit_indices flag to indicate whether this PETSc library was 
+// built using --with-64-bit-indices (since we can't infer this using dynamic 
+// loading).
+krylov_factory_t* hypre_krylov_factory(const char* hypre_dir,
                                        bool use_64_bit_indices);
 
 //------------------------------------------------------------------------

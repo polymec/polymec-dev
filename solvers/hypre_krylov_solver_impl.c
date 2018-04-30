@@ -17,9 +17,13 @@
 #include "core/polymec.h"
 #include "core/timer.h"
 #include "core/text_buffer.h"
+#include "core/slist.h"
+#include "core/array.h"
 #include "solvers/krylov_solver.h"
 
 // HYPRE types and definitions.
+typedef real_t HYPRE_Real;
+typedef complex_t HYPRE_Complex;
 #define HYPRE_PARCSR  5555
 typedef void* HYPRE_Solver;
 typedef void* HYPRE_Matrix;
@@ -107,7 +111,6 @@ typedef struct
   HYPRE_Int (*HYPRE_BoomerAMGSetTol)(HYPRE_Solver, HYPRE_Real);
   HYPRE_Int (*HYPRE_BoomerAMGSetMaxIter)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_BoomerAMGSetMaxCoarseSize)(HYPRE_Solver, HYPRE_Int);
-  HYPRE_Int (*HYPRE_BoomerAMGSetMinCoarseSize)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_BoomerAMGSetMaxLevels)(HYPRE_Solver, HYPRE_Int);
   HYPRE_Int (*HYPRE_BoomerAMGSetStrongThreshold)(HYPRE_Solver, HYPRE_Real);
   HYPRE_Int (*HYPRE_BoomerAMGSetMaxRowSum)(HYPRE_Solver, HYPRE_Real);
@@ -189,7 +192,8 @@ typedef struct
 
 typedef struct
 {
-  void* hypre;
+  ptr_array_t* hypre_libs;
+  string_array_t* hypre_lib_names;
   hypre_methods_table methods;
 
   void* hypre_ext;
@@ -1821,44 +1825,94 @@ static void hypre_factory_dtor(void* context)
     dlclose(factory->hypre_ext);
   }
   log_debug("hypre_krylov_factory: Closing HYPRE library.");
-  dlclose(factory->hypre);
+  ptr_array_free(factory->hypre_libs);
+  string_array_free(factory->hypre_lib_names);
   polymec_free(factory);
 }
 
 // Use this to retrieve symbols from dynamically loaded libraries.
-#define FETCH_SYMBOL(dylib, symbol_name, function_ptr, fail_label) \
+#define FETCH_SYMBOL(dylib, symbol_name, function_ptr) \
   { \
     void* ptr = dlsym(dylib, symbol_name); \
-    if (ptr == NULL) \
-    { \
-      log_urgent("%s: unable to find %s in dynamic library.", __func__, symbol_name); \
-      goto fail_label; \
-    } \
     *((void**)&(function_ptr)) = ptr; \
   }
 
 #define STR(s) SSTR(s)
 #define SSTR(s) #s
-krylov_factory_t* HypreFactory(const char* hypre_library);
-krylov_factory_t* HypreFactory(const char* hypre_library)
+krylov_factory_t* HypreFactory(const char* hypre_dir);
+krylov_factory_t* HypreFactory(const char* hypre_dir)
 {
-  ASSERT(file_exists(hypre_library)); // checked by caller
-  hypre_factory_t* factory = polymec_malloc(sizeof(hypre_factory_t));
+  ASSERT(directory_exists(hypre_dir)); // checked by caller
+  hypre_factory_t* factory = polymec_calloc(sizeof(hypre_factory_t));
+  factory->hypre_libs = ptr_array_new();
+  factory->hypre_lib_names = string_array_new();
+  factory->hypre_ext = NULL;
 
   // Try to open libHYPRE and mine it for symbols.
-  log_debug(STR(HypreFactory) ": Opening HYPRE library at %s.", hypre_library);
-  void* hypre = dlopen(hypre_library, RTLD_NOW);
-  void* hypre_ext = NULL;
-  if (hypre == NULL)
+  log_debug(STR(HypreFactory) ": Opening HYPRE libraries in %s.", hypre_dir);
+
+  // Make a list of all the HYPRE libraries in our given directory.
+  string_array_t* all_hypre_libs = string_array_new();
   {
-    char* msg = dlerror();
-    polymec_error(STR(HypreFactory) ": %s.", msg);
+    string_slist_t* files_in_dir = files_within_directory(hypre_dir);
+    string_slist_node_t* node = files_in_dir->front;
+    while (node != NULL)
+    {
+      if (string_contains(node->value, "libHYPRE") && 
+          string_contains(node->value, SHARED_LIBRARY_SUFFIX))
+      {
+        char lib_name[FILENAME_MAX+1];
+        snprintf(lib_name, FILENAME_MAX, "%s/%s", hypre_dir, node->value);
+        string_array_append_with_dtor(all_hypre_libs, string_dup(lib_name), string_free);
+      }
+      node = node->next;
+    }
+    string_slist_free(files_in_dir);
   }
-  log_debug(STR(HypreFactory) ": Succeeded.");
 
   // Get the symbols.
 #define FETCH_HYPRE_SYMBOL(symbol_name) \
-  FETCH_SYMBOL(hypre, #symbol_name, factory->methods.symbol_name, failure);
+  { \
+    for (size_t ilib = 0; ilib < factory->hypre_libs->size; ++ilib) \
+    { \
+      FETCH_SYMBOL(factory->hypre_libs->data[ilib], #symbol_name, factory->methods.symbol_name); \
+      if (factory->methods.symbol_name != NULL) \
+        break; \
+    } \
+    if (factory->methods.symbol_name == NULL) \
+    { \
+      for (size_t ilib = 0; ilib < all_hypre_libs->size; ++ilib) \
+      { \
+        for (size_t jlib = 0; jlib < factory->hypre_libs->size; ++jlib) \
+        { \
+          if (strcmp(all_hypre_libs->data[ilib], factory->hypre_libs->data[jlib]) == 0) \
+            continue; \
+        } \
+        log_debug(STR(HypreFactory) ": Looking for symbols in %s...", all_hypre_libs->data[ilib]); \
+        void* lib = dlopen(all_hypre_libs->data[ilib], RTLD_NOW); \
+        if (lib != NULL) \
+        { \
+          FETCH_SYMBOL(lib, #symbol_name, factory->methods.symbol_name); \
+          if (factory->methods.symbol_name != NULL) \
+          { \
+            string_array_append_with_dtor(factory->hypre_lib_names, string_dup(all_hypre_libs->data[ilib]), string_free); \
+            ptr_array_append_with_dtor(factory->hypre_libs, lib, DTOR(dlclose)); \
+            break; \
+          } \
+        } \
+        else \
+        { \
+          char* msg = dlerror(); \
+          log_debug(STR(HypreFactory) ": Couldn't open %s: %s", all_hypre_libs->data[ilib], msg); \
+        } \
+      } \
+      if (factory->methods.symbol_name == NULL) \
+      { \
+        log_urgent(STR(HypreFactory) ": Couldn't find %s in any HYPRE library.", #symbol_name); \
+        goto failure; \
+      } \
+    } \
+  } \
 
   FETCH_HYPRE_SYMBOL(HYPRE_GetError);
   FETCH_HYPRE_SYMBOL(HYPRE_DescribeError);
@@ -1919,7 +1973,6 @@ krylov_factory_t* HypreFactory(const char* hypre_library)
   FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetTol);
   FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMaxIter);
   FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMaxCoarseSize);
-  FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMinCoarseSize);
   FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMaxLevels);
   FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetStrongThreshold);
   FETCH_HYPRE_SYMBOL(HYPRE_BoomerAMGSetMaxRowSum);
@@ -1989,10 +2042,7 @@ krylov_factory_t* HypreFactory(const char* hypre_library)
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixMatvec);
   FETCH_HYPRE_SYMBOL(HYPRE_ParCSRMatrixMatvecT);
 #undef FETCH_HYPRE_SYMBOL
-  log_debug(STR(HypreFactory) ": Got HYPRE symbols.");
-
-  // Stash the library.
-  factory->hypre = hypre; 
+  log_debug(STR(HypreFactory) ": Got HYPRE symbols in %d libraries.", (int)factory->hypre_libs->size);
 
 #if 0
   // Now try to find HYPRE_ext, the HYPRE "extension" library.
@@ -2025,6 +2075,9 @@ krylov_factory_t* HypreFactory(const char* hypre_library)
     factory->hypre_ext = NULL;
 #endif
 
+  // Clean up.
+  string_array_free(all_hypre_libs);
+
   // Construct the factory.
   krylov_factory_vtable vtable = {.pcg_solver = hypre_factory_pcg_solver,
                                   .gmres_solver = hypre_factory_gmres_solver,
@@ -2039,9 +2092,11 @@ krylov_factory_t* HypreFactory(const char* hypre_library)
   return krylov_factory_new("2.10", factory, vtable);
 
 failure:
-  if (hypre_ext != NULL)
-    dlclose(hypre_ext);
-  dlclose(hypre);
+  if (factory->hypre_ext != NULL)
+    dlclose(factory->hypre_ext);
+  string_array_free(all_hypre_libs);
+  string_array_free(factory->hypre_lib_names);
+  ptr_array_free(factory->hypre_libs);
   polymec_free(factory);
   return NULL;
 }

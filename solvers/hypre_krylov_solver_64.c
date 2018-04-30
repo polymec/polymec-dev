@@ -9,17 +9,15 @@
 
 #if POLYMEC_HAVE_SHARED_LIBS
 typedef long long HYPRE_Int;
-typedef real_t HYPRE_Real;
-typedef complex_t HYPRE_Complex;
 #define HypreFactory hypre_krylov_factory_impl_64
 #include "solvers/hypre_krylov_solver_impl.c"
 #endif
 
-krylov_factory_t* hypre_krylov_factory_64(const char* hypre_library);
-krylov_factory_t* hypre_krylov_factory_64(const char* hypre_library)
+krylov_factory_t* hypre_krylov_factory_64(const char* hypre_dir);
+krylov_factory_t* hypre_krylov_factory_64(const char* hypre_dir)
 {
 #if POLYMEC_HAVE_SHARED_LIBS
-  return HypreFactory(hypre_library);
+  return HypreFactory(hypre_dir);
 #else
   log_urgent("hypre_krylov_factory: Polymec must be configured with shared library support to use HYPRE.");
   return NULL;

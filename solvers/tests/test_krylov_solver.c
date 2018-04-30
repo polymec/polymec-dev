@@ -96,17 +96,14 @@ static krylov_factory_t* create_hypre_krylov_factory()
   char* hypre_dir = getenv("HYPRE_DIR"); // Absent other info, we rely on this.
   if (hypre_dir != NULL)
   {
-    // Check for the existence of the HYPRE dynamic library.
-    char hypre_path[FILENAME_MAX+1];
-    snprintf(hypre_path, FILENAME_MAX, "%s/libHYPRE%s", hypre_dir, SHARED_LIBRARY_SUFFIX);
-    if (file_exists(hypre_path))
+    if (directory_exists(hypre_dir))
     {
-      factory = hypre_krylov_factory(hypre_path, false);
+      factory = hypre_krylov_factory(hypre_dir, false);
       if (factory == NULL)
         log_urgent("Could not load HYPRE. Skipping HYPRE test.");
     }
     else
-      log_urgent("HYPRE library not found. Skipping HYPRE test.");
+      log_urgent("HYPRE library directory not found. Skipping HYPRE test.");
   }
   else
     log_urgent("HYPRE_DIR not set. Skipping HYPRE test.");
