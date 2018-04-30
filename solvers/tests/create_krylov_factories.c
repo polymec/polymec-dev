@@ -52,29 +52,29 @@ krylov_factory_t* create_petsc_krylov_factory()
 krylov_factory_t* create_hypre_krylov_factory(void);
 krylov_factory_t* create_hypre_krylov_factory()
 {
-  char hypre_library[FILENAME_MAX+1];
-  hypre_library[0] = '\0';
+  char hypre_dir[FILENAME_MAX+1];
+  hypre_dir[0] = '\0';
   options_t* options = options_argv();
-  char* hypre_lib = options_value(options, "hypre_library");
+  char* hypre_opt_dir = options_value(options, "hypre_dir");
   char* hypre_64 = options_value(options, "hypre_64");
   bool use_64_bit_indices = false;
   if (hypre_64 != NULL)
     use_64_bit_indices = string_as_boolean(hypre_64);
-  if (hypre_lib != NULL)
-    strcpy(hypre_library, hypre_lib);
+  if (hypre_opt_dir != NULL)
+    strcpy(hypre_dir, hypre_opt_dir);
   else
   {
-    log_urgent("hypre_library option not given. Using HYPRE_DIR.");
-    char* hypre_dir = getenv("HYPRE_DIR"); // Absent other info, we rely on this.
-    if (hypre_dir != NULL)
-      snprintf(hypre_library, FILENAME_MAX, "%s/libHYPRE%s", hypre_dir, SHARED_LIBRARY_SUFFIX);
+    log_urgent("hypre_dir option not given. Using HYPRE_DIR.");
+    char* hypre_env_dir = getenv("HYPRE_DIR"); // Absent other info, we rely on this.
+    if (hypre_env_dir != NULL)
+      strcpy(hypre_dir, hypre_env_dir);
     else
       log_urgent("HYPRE_DIR not set. Skipping HYPRE test.");
   }
   krylov_factory_t* factory = NULL;
-  if (strlen(hypre_library) > 0)
+  if (strlen(hypre_dir) > 0)
   {
-    factory = hypre_krylov_factory(hypre_library, use_64_bit_indices);
+    factory = hypre_krylov_factory(hypre_dir, use_64_bit_indices);
     if (factory == NULL)
       log_urgent("Could not load HYPRE. Skipping HYPRE test.");
   }
