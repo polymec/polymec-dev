@@ -14,7 +14,8 @@ configure_file(
 include(add_polymec_library)
 add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c memory_info.c
                     point.c point2.c tensor2.c tagger.c 
-                    point_cloud.c hilbert.c kd_tree.c octree.c rng.c parallel_sort.c
+                    point_cloud.c point_cloud_field.c 
+                    hilbert.c kd_tree.c octree.c rng.c parallel_sort.c
                     permutations.c adj_graph.c sp_func.c st_func.c polynomial.c 
                     least_squares.c options.c  
                     partition_graph.c partition_point_cloud.c

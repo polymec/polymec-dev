@@ -9,6 +9,36 @@
 #include "core/kd_tree.h"
 #include "core/unordered_set.h"
 
+struct point_cloud_observer_t 
+{
+  void* context;
+  point_cloud_observer_vtable vtable;
+};
+
+point_cloud_observer_t* point_cloud_observer_new(void* context,
+                                                 point_cloud_observer_vtable vtable)
+{
+  point_cloud_observer_t* obs = polymec_malloc(sizeof(point_cloud_observer_t));
+  obs->context = context;
+  obs->vtable = vtable;
+  return obs;
+}
+
+static void point_cloud_observer_free(void* o)
+{
+  point_cloud_observer_t* obs = o;
+  if ((obs->context != NULL) && (obs->vtable.dtor != NULL))
+    obs->vtable.dtor(obs->context);
+  polymec_free(obs);
+}
+
+void point_cloud_add_observer(point_cloud_t* cloud,
+                              point_cloud_observer_t* observer)
+{
+  ASSERT(observer->vtable.set_num_ghosts != NULL);
+  ptr_array_append_with_dtor(cloud->observers, observer, point_cloud_observer_free);
+}
+
 point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points)
 {
   ASSERT(num_points >= 0);
@@ -25,6 +55,9 @@ point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points)
   // Now we create a bogus tag that we can use to store cloud properties.
   int* prop_tag = tagger_create_tag(cloud->tags, "properties", 1);
   prop_tag[0] = 0;
+
+  // Observers.
+  cloud->observers = ptr_array_new();
 
   return cloud;
 }
@@ -51,6 +84,11 @@ void point_cloud_set_num_ghosts(point_cloud_t* cloud,
   cloud->num_ghosts = num_ghosts;
   cloud->points = polymec_realloc(cloud->points, 
       sizeof(point_t) * (cloud->num_points + cloud->num_ghosts));
+  for (size_t i = 0; i < cloud->observers->size; ++i)
+  {
+    point_cloud_observer_t* obs = cloud->observers->data[i];
+    obs->vtable.set_num_ghosts(obs->context, num_ghosts);
+  }
 }
 
 void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, serializer_t* serializer)

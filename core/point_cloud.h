@@ -33,6 +33,9 @@ typedef struct
 
   // Point tagging mechanism.
   tagger_t* tags;
+
+  // Observers.
+  ptr_array_t* observers;
 } point_cloud_t;
 
 // Constructs a new point cloud whose point coordinates are all set to the 
@@ -133,6 +136,26 @@ void point_cloud_difference(point_cloud_t* cloud,
 
 // Returns a serializer object that can read/write point clouds from/to byte arrays.
 serializer_t* point_cloud_serializer(void);
+
+//------------------------------------------------------------------------
+//                        Point cloud observers
+//------------------------------------------------------------------------
+typedef struct
+{
+  void (*set_num_ghosts)(void* observer, int num_ghosts);
+  void (*dtor)(void* observer);
+} point_cloud_observer_vtable;
+
+typedef struct point_cloud_observer_t point_cloud_observer_t;
+
+// Creates an observer for a point cloud.
+point_cloud_observer_t* point_cloud_observer_new(void* context,
+                                                 point_cloud_observer_vtable vtable);
+
+// Adds an observer to the point cloud. The point cloud assumes control of 
+// the observer.
+void point_cloud_add_observer(point_cloud_t* cloud,
+                              point_cloud_observer_t* observer);
 
 #endif
 
