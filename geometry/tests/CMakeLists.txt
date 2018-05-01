@@ -16,6 +16,7 @@ add_polymec_geometry_test(test_union_sd_func test_union_sd_func.c)
 add_polymec_geometry_test(test_intersection_sd_func test_intersection_sd_func.c)
 add_polymec_geometry_test(test_difference_sd_func test_difference_sd_func.c)
 add_polymec_geometry_test(test_polymesh test_polymesh.c)
+add_polymec_geometry_test(test_polymesh_field test_polymesh_field.c)
 add_polymec_geometry_test(test_graph_from_polymesh_cells test_graph_from_polymesh_cells.c)
 add_polymec_geometry_test(test_unimesh_patch test_unimesh_patch.c)
 
