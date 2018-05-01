@@ -72,6 +72,7 @@ point_cloud_t* point_cloud_from_points(MPI_Comm comm, point_t* points, int num_p
 void point_cloud_free(point_cloud_t* cloud)
 {
   ASSERT(cloud != NULL);
+  ptr_array_free(cloud->observers);
   tagger_free(cloud->tags);
   polymec_free(cloud->points);
   polymec_free(cloud);

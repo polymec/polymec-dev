@@ -7,37 +7,29 @@
 
 #include "core/point_cloud_field.h"
 
-struct point_cloud_field_t 
-{
-  point_cloud_t* cloud;
-  int num_comps, num_local, num_ghost, capacity;
-  real_t* data;
-};
-
 // Observer function.
 static void pcf_set_num_ghosts(void* context, int num_ghosts)
 {
   point_cloud_field_t* field = context;
-  field->num_ghost = num_ghosts;
-  if (field->num_local + field->num_ghost > field->capacity)
+  field->num_ghost_values = num_ghosts;
+  if (field->num_local_values + field->num_ghost_values > field->capacity)
   {
-    field->capacity = field->num_local + field->num_ghost;
-    field->data = polymec_realloc(field->data, sizeof(real_t) * field->num_comps * field->capacity);
+    field->capacity = field->num_local_values + field->num_ghost_values;
+    field->data = polymec_realloc(field->data, sizeof(real_t) * field->num_components * field->capacity);
   }
 }
 
 point_cloud_field_t* point_cloud_field_new(point_cloud_t* cloud,
-                                           int num_components)
+                                           size_t num_components)
 {
   ASSERT(num_components > 0);
   point_cloud_field_t* field = polymec_malloc(sizeof(point_cloud_field_t));
   field->cloud = cloud;
-  field->num_comps = num_components;
-  field->num_local = cloud->num_points;
-  field->num_ghost = cloud->num_ghosts;
-  field->capacity = field->num_local + field->num_ghost;
-  int N = field->num_local + field->num_ghost;
-  field->data = polymec_calloc(sizeof(real_t) * num_components * N);
+  field->num_components = num_components;
+  field->num_local_values= cloud->num_points;
+  field->num_ghost_values = cloud->num_ghosts;
+  field->capacity = field->num_local_values + field->num_ghost_values;
+  field->data = polymec_calloc(sizeof(real_t) * num_components * field->capacity);
 
   // Register this field as an observer on its cloud.
   point_cloud_observer_vtable obs_vtable = {.set_num_ghosts = pcf_set_num_ghosts};
@@ -51,30 +43,5 @@ void point_cloud_field_free(point_cloud_field_t* field)
 {
   polymec_free(field->data);
   polymec_free(field);
-}
-
-point_cloud_t* point_cloud_field_cloud(point_cloud_field_t* field)
-{
-  return field->cloud;
-}
-
-int point_cloud_field_num_components(point_cloud_field_t* field)
-{
-  return field->num_comps;
-}
-
-int point_cloud_field_num_local_values(point_cloud_field_t* field)
-{
-  return field->num_local;
-}
-
-int point_cloud_field_num_ghost_values(point_cloud_field_t* field)
-{
-  return field->num_ghost;
-}
-
-real_t* point_floud_field_data(point_cloud_field_t* field)
-{
-  return field->data;
 }
 

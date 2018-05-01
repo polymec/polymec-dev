@@ -18,15 +18,15 @@ static void test_ctor(void** state)
   point_cloud_field_t* f1 = point_cloud_field_new(cloud, 1);
   point_cloud_field_t* f2 = point_cloud_field_new(cloud, 2);
   point_cloud_field_t* f3 = point_cloud_field_new(cloud, 3);
-  assert_int_equal(point_cloud_field_num_components(f1), 1);
-  assert_int_equal(point_cloud_field_num_local_values(f1), 1000);
-  assert_int_equal(point_cloud_field_num_ghost_values(f1), 0);
-  assert_int_equal(point_cloud_field_num_components(f2), 2);
-  assert_int_equal(point_cloud_field_num_local_values(f2), 1000);
-  assert_int_equal(point_cloud_field_num_ghost_values(f2), 0);
-  assert_int_equal(point_cloud_field_num_components(f3), 3);
-  assert_int_equal(point_cloud_field_num_local_values(f3), 1000);
-  assert_int_equal(point_cloud_field_num_ghost_values(f3), 0);
+  assert_int_equal(f1->num_components, 1);
+  assert_int_equal(f1->num_local_values, 1000);
+  assert_int_equal(f1->num_ghost_values, 0);
+  assert_int_equal(f2->num_components, 2);
+  assert_int_equal(f2->num_local_values, 1000);
+  assert_int_equal(f2->num_ghost_values, 0);
+  assert_int_equal(f3->num_components, 3);
+  assert_int_equal(f3->num_local_values, 1000);
+  assert_int_equal(f3->num_ghost_values, 0);
   point_cloud_field_free(f1);
   point_cloud_field_free(f2);
   point_cloud_field_free(f3);
@@ -37,11 +37,11 @@ static void test_set_ghosts(void** state)
 {
   point_cloud_t* cloud = point_cloud_new(MPI_COMM_SELF, 1000);
   point_cloud_field_t* f = point_cloud_field_new(cloud, 1);
-  assert_int_equal(point_cloud_field_num_local_values(f), 1000);
-  assert_int_equal(point_cloud_field_num_ghost_values(f), 0);
+  assert_int_equal(f->num_local_values, 1000);
+  assert_int_equal(f->num_ghost_values, 0);
   point_cloud_set_num_ghosts(cloud, 100);
-  assert_int_equal(point_cloud_field_num_local_values(f), 1000);
-  assert_int_equal(point_cloud_field_num_ghost_values(f), 100);
+  assert_int_equal(f->num_local_values, 1000);
+  assert_int_equal(f->num_ghost_values, 100);
   point_cloud_field_free(f);
   point_cloud_free(cloud);
 }
