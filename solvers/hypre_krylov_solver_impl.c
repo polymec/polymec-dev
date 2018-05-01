@@ -1899,6 +1899,8 @@ krylov_factory_t* HypreFactory(const char* hypre_dir)
             ptr_array_append_with_dtor(factory->hypre_libs, lib, DTOR(dlclose)); \
             break; \
           } \
+          else \
+            dlclose(lib); \
         } \
         else \
         { \
