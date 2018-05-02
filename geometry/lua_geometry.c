@@ -1259,10 +1259,10 @@ static int polymesh_repartition(lua_State* L)
   if (global_num_cells < nprocs)
     return luaL_error(L, "Insufficient number of cells (%zd) for number of processes (%d).", global_num_cells, nprocs);
 
-  // Perform the repartitioning and toss the migrator.
-  migrator_t* m = repartition_polymesh(&mesh, NULL, imbalance_tol);
-  m = NULL;
-  return 0;
+  // Perform the repartitioning and toss the migrator. FIXME: Add fields
+  bool result = repartition_polymesh(&mesh, NULL, imbalance_tol, NULL, 0);
+  lua_pushboolean(L, result);
+  return 1;
 }
 
 static lua_module_function polymesh_funcs[] = {

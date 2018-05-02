@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "core/partition_point_cloud.h"
+#include "geometry/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
 #include "io/silo_file.h"
 
@@ -31,8 +31,7 @@ static void test_partition_linear_cloud(void** state, int N)
   }
 
   // Partition it.
-  migrator_t* m = partition_point_cloud(&cloud, comm, NULL, 0.05);
-  m = NULL;
+  assert_true(partition_point_cloud(&cloud, comm, NULL, 0.05, NULL, 0));
 
   // Now check data. Points should all fall on dx tick marks.
   for (int i = 0; i < cloud->num_points; ++i)
@@ -111,8 +110,7 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
   }
 
   // Partition it.
-  migrator_t* m = partition_point_cloud(&cloud, comm, NULL, 0.05);
-  m = NULL;
+  assert_true(partition_point_cloud(&cloud, comm, NULL, 0.05, NULL, 0));
 
   // Plot it.
   real_t p[cloud->num_points];
@@ -151,8 +149,7 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   }
 
   // Partition it.
-  migrator_t* m = partition_point_cloud(&cloud, comm, NULL, 0.05);
-  m = NULL;
+  assert_true(partition_point_cloud(&cloud, comm, NULL, 0.05, NULL, 0));
 
   // Plot it.
   real_t p[cloud->num_points];

@@ -12,7 +12,7 @@
 #include "cmocka.h"
 #include "core/rng.h"
 #include "core/array_utils.h"
-#include "core/partition_point_cloud.h"
+#include "geometry/partition_point_cloud.h"
 
 static void test_repartition_linear_cloud(void** state, 
                                           bool balanced, 

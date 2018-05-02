@@ -124,7 +124,7 @@ neighbor_pairing_t* neighbor_pairing_from_stencil(stencil_t* stencil)
   int_pair_int_unordered_map_t* pair_map = int_pair_int_unordered_map_new();
 
   // Extract all the pairs from the stencil.
-  int num_indices = stencil_num_indices(stencil);
+  size_t num_indices = stencil_num_indices(stencil);
   for (int i = 0; i < num_indices; ++i)
   {
     int pos = 0, j;
@@ -188,7 +188,7 @@ stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points,
   exchanger_t* ex = exchanger_clone(neighbors->ex);
 
   // Set up the arrays for the stencil data.
-  int num_indices = points->num_points;
+  size_t num_indices = points->num_points;
   int* offsets = polymec_malloc(sizeof(int) * (num_indices+1));
   offsets[0] = 0;
   for (int k = 0; k < num_indices; ++k)
@@ -202,7 +202,7 @@ stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points,
   int_int_unordered_map_free(counts);
 
   // Now extract the data from the neighbor pairing.
-  int num_ghosts = points->num_ghosts;
+  size_t num_ghosts = points->num_ghosts;
   pos = 0;
   int which[num_indices + num_ghosts];
   memset(which, 0, sizeof(int) * (num_indices + num_ghosts));
@@ -235,7 +235,7 @@ adj_graph_t* graph_from_point_cloud_and_neighbors(point_cloud_t* points,
   adj_graph_t* g = adj_graph_new(points->comm, points->num_points);
 
   // Allocate space in the graph for the edges (neighbors associating points).
-  int num_points = points->num_points;
+  size_t num_points = points->num_points;
   int* num_edges = polymec_malloc(sizeof(int) * num_points);
   memset(num_edges, 0, sizeof(int) * num_points);
   {

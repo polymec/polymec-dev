@@ -9,9 +9,9 @@
 #define POLYMEC_SILO_FILE_H
 
 #include "core/polymec.h"
-#include "core/point_cloud.h"
 #include "core/slist.h"
 #include "geometry/coord_mapping.h"
+#include "geometry/point_cloud.h"
 #include "geometry/unimesh.h"
 #include "geometry/unimesh_field.h"
 #include "geometry/polymesh.h"

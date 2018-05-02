@@ -12,7 +12,7 @@
 #include "cmocka.h"
 #include "core/rng.h"
 #include "core/array_utils.h"
-#include "core/partition_point_cloud.h"
+#include "geometry/partition_point_cloud.h"
 #include "io/silo_file.h"
 
 static void test_repartition_linear_cloud(void** state, 
@@ -62,11 +62,9 @@ static void test_repartition_linear_cloud(void** state,
   }
 
   // Repartition it.
-  migrator_t* m = NULL;
   if (!weighted)
   {
-    m = repartition_point_cloud(&cloud, NULL, imbalance_tol);
-    assert_true(m != NULL); // successful repartitioning
+    assert_true(repartition_point_cloud(&cloud, NULL, imbalance_tol, NULL, 0));
 
     // Check the number of points on each domain. 
     assert_true(ABS(1.0*(nprocs*cloud->num_points - N)/N) < imbalance_tol);
@@ -75,27 +73,29 @@ static void test_repartition_linear_cloud(void** state,
   {
     // Provide an imbalance to work with.
     int loads[Np];
+    point_cloud_field_t* f_loads = point_cloud_field_new(cloud, 1);
     if (rank % 2)
+    {
       int_fill(loads, Np, 10);
+      real_fill(f_loads->data, Np, 10.0);
+    }
     else
+    {
       int_fill(loads, Np, 12);
-    m = repartition_point_cloud(&cloud, loads, imbalance_tol);
-    assert_true(m != NULL); // successful repartitioning
+      real_fill(f_loads->data, Np, 12.0);
+    }
+    assert_true(repartition_point_cloud(&cloud, loads, imbalance_tol, &f_loads, 1));
 
     // Check that the loads are balanced.
-    int balanced_loads[MAX(Np, cloud->num_points)], load_size = Np;
-    memcpy(balanced_loads, loads, sizeof(int) * Np);
-    migrator_transfer(m, balanced_loads, &load_size, 1, 0, MPI_INT);
-    assert_int_equal(cloud->num_points, load_size);
-    int my_load = 0;
+    assert_int_equal(cloud->num_points, f_loads->num_local_values);
+    real_t my_load = 0.0;
     for (int i = 0; i < cloud->num_points; ++i)
-      my_load += balanced_loads[i];
-    int total_load;
-    MPI_Allreduce(&my_load, &total_load, 1, MPI_INT, MPI_SUM, comm);
-    int ideal_load = (int)(1.0 * total_load / nprocs);
-    assert_true(ABS(1.0 * (my_load - ideal_load))/ideal_load < imbalance_tol);
+      my_load += f_loads->data[i];
+    real_t total_load;
+    MPI_Allreduce(&my_load, &total_load, 1, MPI_REAL_T, MPI_SUM, comm);
+    real_t ideal_load = total_load / nprocs;
+    assert_true(ABS((my_load - ideal_load))/ideal_load < imbalance_tol);
   }
-  m = NULL;
 
   // Now check data. 
   if (!random_points) // Points should all fall on dx tick marks.

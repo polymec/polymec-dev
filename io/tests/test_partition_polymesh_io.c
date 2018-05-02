@@ -30,10 +30,8 @@ static void test_partition_linear_mesh(void** state)
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
 
   // Partition it.
-  migrator_t* m = partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  assert_true(partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.05, NULL, 0));
   assert_true(mesh->comm == MPI_COMM_WORLD);
-  migrator_verify(m, polymec_error);
-  m = NULL;
 
   // Check the ghost cells.
   int rank, nprocs;
@@ -115,9 +113,8 @@ static void test_partition_slab_mesh(void** state)
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
 
   // Partition it.
-  migrator_t* m = partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  assert_true(partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.05, NULL, 0));
   assert_true(mesh->comm == MPI_COMM_WORLD);
-  m = NULL;
 
   // Check the geometry of the mesh.
   int cell_volumes_are_ok = 1;
@@ -174,9 +171,8 @@ static void test_partition_box_mesh(void** state)
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
 
   // Partition it.
-  migrator_t* m = partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.05);
+  assert_true(partition_polymesh(&mesh, MPI_COMM_WORLD, NULL, 0.05, NULL, 0));
   assert_true(mesh->comm == MPI_COMM_WORLD);
-  m = NULL;
 
   // Check the geometry of the mesh.
   real_t dx = 1.0/nx;

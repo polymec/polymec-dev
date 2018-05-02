@@ -33,9 +33,7 @@ static void test_migrate_mesh_1_proc(void** state)
 
   int64_t P[mesh->num_cells];
   memset(P, 0, sizeof(int64_t) * mesh->num_cells);
-  migrator_t* m = migrate_polymesh(&mesh, MPI_COMM_WORLD, P);
-  assert_true(m != NULL);
-  m = NULL;
+  redistribute_polymesh(&mesh, P, NULL, 0);
 
   polymesh_free(mesh);
 }
@@ -77,9 +75,7 @@ static void test_migrate_4x1x1_mesh_2_proc(void** state)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   int other = (rank == 1) ? 0 : 1;
   int64_t P[2] = {other, other};
-  migrator_t* m = migrate_polymesh(&mesh, MPI_COMM_WORLD, P);
-  assert_true(m != NULL);
-  m = NULL;
+  redistribute_polymesh(&mesh, P, NULL, 0);
 
   // Check the numbers.
   assert_int_equal(2, mesh->num_cells);
@@ -110,9 +106,7 @@ static void test_migrate_4x1x1_mesh_3_proc(void** state)
     P[i] = rank;
   int right = (rank + 1) % 3;
   P[mesh->num_cells-1] = right;
-  migrator_t* m = migrate_polymesh(&mesh, MPI_COMM_WORLD, P);
-  assert_true(m != NULL);
-  m = NULL;
+  redistribute_polymesh(&mesh, P, NULL, 0);
 
   // Check the numbers.
   if (rank == 2)
@@ -151,9 +145,7 @@ static void test_migrate_4x1x1_mesh_4_proc(void** state)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   int left = (rank == 0) ? 3 : (rank - 1) % 4;
   int64_t P[1] = {left};
-  migrator_t* m = migrate_polymesh(&mesh, MPI_COMM_WORLD, P);
-  assert_true(m != NULL);
-  m = NULL;
+  redistribute_polymesh(&mesh, P, NULL, 0);
 
   // Check the numbers.
   assert_int_equal(1, mesh->num_cells);
@@ -179,8 +171,7 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   polymesh_verify_topology(mesh, polymec_error);
 
   // Repartition it.
-  migrator_t* m = repartition_polymesh(&mesh, NULL, 0.05);
-  migrator_verify(m, polymec_error);
+  assert_true(repartition_polymesh(&mesh, NULL, 0.05, NULL, 0));
 
   // Since the mesh is uniform, we can check the properties of each cell.
   for (int c = 0; c < mesh->num_cells; ++c)

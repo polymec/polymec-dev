@@ -1935,12 +1935,12 @@ void silo_file_write_point_cloud(silo_file_t* file,
   silo_file_push_domain_dir(file);
 
   // Point coordinates.
-  int num_points = cloud->num_points;
+  size_t num_points = cloud->num_points;
   point_t* points = cloud->points;
   real_t* x = polymec_malloc(sizeof(real_t) * num_points);
   real_t* y = polymec_malloc(sizeof(real_t) * num_points);
   real_t* z = polymec_malloc(sizeof(real_t) * num_points);
-  for (int i = 0; i < num_points; ++i)
+  for (size_t i = 0; i < num_points; ++i)
   {
     x[i] = points[i].x;
     y[i] = points[i].y;
@@ -1952,7 +1952,7 @@ void silo_file_write_point_cloud(silo_file_t* file,
   coords[2] = &(z[0]);
 
   // Write out the point mesh.
-  DBPutPointmesh(file->dbfile, (char*)cloud_name, 3, coords, num_points, SILO_FLOAT_TYPE, NULL); 
+  DBPutPointmesh(file->dbfile, (char*)cloud_name, 3, coords, (int)num_points, SILO_FLOAT_TYPE, NULL); 
   polymec_free(x);
   polymec_free(y);
   polymec_free(z);

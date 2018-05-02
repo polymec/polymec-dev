@@ -63,6 +63,7 @@ int64_t* partition_graph(adj_graph_t* global_graph,
                          bool broadcast)
 {
 #if POLYMEC_HAVE_MPI
+  _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
   START_FUNCTION_TIMER();
   ASSERT(adj_graph_comm(global_graph) == MPI_COMM_SELF);
 
@@ -292,6 +293,7 @@ int64_t* repartition_graph(adj_graph_t* local_graph,
                            real_t imbalance_tol)
 {
 #if POLYMEC_HAVE_MPI
+  _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
   START_FUNCTION_TIMER();
   int nprocs, rank;
   MPI_Comm comm = adj_graph_comm(local_graph);

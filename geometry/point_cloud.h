@@ -51,7 +51,7 @@ void point_cloud_free(point_cloud_t* cloud);
 
 // Sets the number of ghost points for the cloud. This may reallocate
 // storage for the points array to accommodate the extra needed space.
-void point_cloud_set_num_ghosts(point_cloud_t* cloud, int num_ghosts);
+void point_cloud_set_num_ghosts(point_cloud_t* cloud, size_t num_ghosts);
 
 // Associates a named piece of metadata (a "property") with the point cloud itself.
 // This can be used to store information about (for example) how the cloud 
@@ -142,7 +142,7 @@ serializer_t* point_cloud_serializer(void);
 //------------------------------------------------------------------------
 typedef struct
 {
-  void (*set_num_ghosts)(void* observer, int num_ghosts);
+  void (*set_num_ghosts)(void* observer, size_t num_ghosts);
   void (*dtor)(void* observer);
 } point_cloud_observer_vtable;
 

@@ -53,7 +53,7 @@ static void test_NXxNYxNZ_star_stencil(void** state,
   assert_true(silo_file_contains_stencil(silo, "stencil"));
   stencil_t* stencil1 = silo_file_read_stencil(silo, "stencil", comm);
   silo_file_close(silo);
-  int N = stencil_num_indices(stencil);
+  size_t N = stencil_num_indices(stencil);
   assert_int_equal(N, stencil_num_indices(stencil1));
   for (int i = 0; i < N; ++i)
   {

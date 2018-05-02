@@ -11,9 +11,9 @@
 #include "core/array.h"
 #include "core/kd_tree.h"
 
-stencil_t* stencil_new(const char* name, int num_indices, 
+stencil_t* stencil_new(const char* name, size_t num_indices, 
                        int* offsets, int* indices, 
-                       int num_ghosts, exchanger_t* ex)
+                       size_t num_ghosts, exchanger_t* ex)
 {
   ASSERT(num_indices > 0);
   ASSERT(offsets != NULL);
@@ -175,12 +175,12 @@ static void stencil_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_chars(bytes, name_len, stencil->name, offset);
 
   // Write the offsets, indices.
-  byte_array_write_ints(bytes, 1, &stencil->num_indices, offset);
+  byte_array_write_size_ts(bytes, 1, &stencil->num_indices, offset);
   byte_array_write_ints(bytes, stencil->num_indices+1, stencil->offsets, offset);
   int max_offset = stencil->offsets[stencil->num_indices];
   byte_array_write_ints(bytes, 1, &max_offset, offset);
   byte_array_write_ints(bytes, max_offset, stencil->indices, offset);
-  byte_array_write_ints(bytes, 1, &(stencil->num_ghosts), offset);
+  byte_array_write_size_ts(bytes, 1, &(stencil->num_ghosts), offset);
 
   // Exchanger.
   serializer_t* ser = exchanger_serializer();
@@ -195,9 +195,9 @@ adj_graph_t* stencil_as_graph(stencil_t* stencil)
   int rank, nproc;
   MPI_Comm_size(comm, &nproc);
   MPI_Comm_rank(comm, &rank);
-  int N_local = stencil_num_indices(stencil), num_verts[nproc];
+  size_t N_local = stencil_num_indices(stencil), num_verts[nproc];
 #if POLYMEC_HAVE_MPI
-  MPI_Allgather(&N_local, 1, MPI_INT, num_verts, 1, MPI_INT, comm);
+  MPI_Allgather(&N_local, 1, MPI_SIZE_T, num_verts, 1, MPI_INT, comm);
 #else
   num_verts[0] = N_local;
 #endif

@@ -56,7 +56,7 @@ static void check_stencil(void** state,
 
     // Count the number of neighbors.
     int c = cell - cell_offset;
-    int num_neighbors = stencil_size(stencil, c);
+    size_t num_neighbors = stencil_size(stencil, c);
     if (cell_score == 0)
       assert_int_equal(num_interior_neighbors, num_neighbors);
     else if (cell_score == 1)

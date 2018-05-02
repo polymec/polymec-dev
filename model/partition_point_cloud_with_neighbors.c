@@ -6,20 +6,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/timer.h"
-#include "core/partition_point_cloud.h"
+#include "core/partitioning.h"
+#include "geometry/partition_point_cloud.h"
 #include "model/partition_point_cloud_with_neighbors.h"
-
-// Defined in core/partition_mesh.c, but not part of API.
-extern int64_t* partition_graph(adj_graph_t* global_graph, 
-                                MPI_Comm comm, 
-                                int* weights, 
-                                real_t imbalance_tol);
 
 #if POLYMEC_HAVE_MPI
 static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
                                         MPI_Comm comm,
                                         int64_t* global_partition,
-                                        int num_indices)
+                                        size_t num_indices)
 {
   START_FUNCTION_TIMER();
 
@@ -220,11 +215,13 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
 }
 #endif
 
-migrator_t* partition_point_cloud_with_neighbors(point_cloud_t** points, 
-                                                 neighbor_pairing_t** neighbors, 
-                                                 MPI_Comm comm, 
-                                                 int* weights, 
-                                                 real_t imbalance_tol)
+bool partition_point_cloud_with_neighbors(point_cloud_t** points, 
+                                          neighbor_pairing_t** neighbors, 
+                                          MPI_Comm comm, 
+                                          int* weights, 
+                                          real_t imbalance_tol,
+                                          point_cloud_field_t** fields,
+                                          size_t num_fields)
 {
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
@@ -240,7 +237,7 @@ migrator_t* partition_point_cloud_with_neighbors(point_cloud_t** points,
 
   // On a single process, partitioning has no meaning.
   if (nprocs == 1)
-    return migrator_new(comm);
+    return true;
 
   // If points on rank != 0 are not NULL, we delete them.
   point_cloud_t* cloud = *points;
@@ -265,21 +262,18 @@ migrator_t* partition_point_cloud_with_neighbors(point_cloud_t** points,
   // Map the graph to the different domains, producing a local partition vector.
   int64_t* global_partition = NULL;
   if (rank == 0) 
-  {
     log_debug("partition_point_cloud_with_neighbors: partitioning graph on rank 0.");
-    global_partition = partition_graph(global_graph, comm, weights, imbalance_tol);
-  }
+
+  global_partition = partition_graph(global_graph, comm, weights, imbalance_tol, true);
+  if (global_partition == NULL)
+    return false;
 
   // Break the neighbor pairing into chunks and send them to the other processes.
   neighbor_pairing_distribute(neighbors, comm, global_partition, 
                               (*points != NULL) ? (*points)->num_points : 0);
 
   // Distribute the point cloud.
-  distribute_point_cloud(points, comm, global_partition);
-
-  // Set up a migrator to distribute field data.
-  size_t num_vertices = (cloud != NULL) ? adj_graph_num_vertices(global_graph) : 0;
-  migrator_t* m = migrator_from_global_partition(comm, global_partition, num_vertices);
+  distribute_point_cloud(points, comm, global_partition, fields, num_fields);
 
   // Clean up.
   if (global_graph != NULL)
@@ -289,10 +283,9 @@ migrator_t* partition_point_cloud_with_neighbors(point_cloud_t** points,
 
   STOP_FUNCTION_TIMER();
 
-  // Return the migrator.
-  return m;
+  return true;
 #else
-  return migrator_new(comm);
+  return true;
 #endif
 }
 

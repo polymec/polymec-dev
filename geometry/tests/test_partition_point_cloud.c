@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "core/partition_point_cloud.h"
+#include "geometry/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
 
 static void test_partition_linear_cloud(void** state, int N)

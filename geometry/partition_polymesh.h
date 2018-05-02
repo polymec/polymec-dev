@@ -8,24 +8,34 @@
 #ifndef POLYMEC_PARTITION_MESH_H
 #define POLYMEC_PARTITION_MESH_H
 
-#include "geometry/polymesh.h"
+#include "geometry/polymesh_field.h"
 
 // This function partitions the given polymesh on rank 0 with the given cell-centered 
 // load weights, distributing the cells to parallel domains on the given 
 // communicator to balance the load. If weights is NULL, the cells are assumed 
-// all to have equal weights. The function creates and returns a migrator 
-// object that can be used to distribute data from the rank 0 to the partition. 
-// The mesh on rank 0 (as well as any non-NULL mesh on rank != 0) is consumed. 
-// In each case, the mesh is replaced with a partitioned mesh.
-migrator_t* partition_polymesh(polymesh_t** mesh, MPI_Comm comm, int* weights, real_t imbalance_tol);
+// all to have equal weights. The mesh is replaced with a partitioned mesh. 
+// Any fields given are also partitioned similarly. On success, this function 
+// returns true. If the per-process workload cannot be balanced to within the 
+// imbalance tolerance, this function fails with no effect and returns false.
+bool partition_polymesh(polymesh_t** mesh, 
+                        MPI_Comm comm, 
+                        int* weights, 
+                        real_t imbalance_tol,
+                        polymesh_field_t** fields,
+                        size_t num_fields);
 
 // This function repartitions the given mesh with the given load weights, 
 // alloting the cells to parallel domains to balance their load. If weights is 
-// NULL, the cells are all assumed to have equal weights. The function creates 
-// and returns an migrator object that can be used to migrate data from the 
-// old partition to the new. The mesh is consumed and replaced with a 
-// repartitioned mesh.
-migrator_t* repartition_polymesh(polymesh_t** mesh, int* weights, real_t imbalance_tol);
+// NULL, the cells are all assumed to have equal weights. The mesh is replaced 
+// with a partitioned mesh. Any fields given are also partitioned similarly. 
+// On success, this function returns true. If the per-process workload cannot 
+// be balanced to within the imbalance tolerance, this function fails with no 
+// effect and returns false.
+bool repartition_polymesh(polymesh_t** mesh, 
+                          int* weights, 
+                          real_t imbalance_tol,
+                          polymesh_field_t** fields,
+                          size_t num_fields);
 
 // While partition_polymesh and repartition_polymesh are all-in-one mesh partitioners, the 
 // following functions allow one to mix-n-match the pieces of the underlying algorithms.
@@ -44,17 +54,19 @@ int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh,
 
 // Given a global partition vector, distributes the mesh from rank 0 to all 
 // processes in the given communicator according to the global partition vector, 
-// and returns a distributor object that can be used to distribute its data. 
-// The mesh on rank 0 is replaced with a partitioned mesh, and meshes are 
-// written (or overwritten) on other ranks.
-migrator_t* distribute_polymesh(polymesh_t** mesh, MPI_Comm comm, int64_t* global_partition);
+// distributing field data accordingly. The mesh and fields are replaced with 
+// partitioned equivalents. 
+void distribute_polymesh(polymesh_t** mesh, 
+                         MPI_Comm comm, 
+                         int64_t* global_partition,
+                         polymesh_field_t** fields,
+                         size_t num_fields);
 
-// Given a local partition vector on each process, migrates the given distributed 
-// polymesh from its current configuration on the set of processes in the given communicator 
-// to the one described by that partition vector, and returns a migrator object that can be 
-// used to migrate its data.  The mesh replaced with a repartitioned counterpart on each 
-// process.
-migrator_t* migrate_polymesh(polymesh_t** mesh, MPI_Comm comm, int64_t* local_partition);
+// Given a local partition vector, redistributes the mesh and the given fields.
+void redistribute_polymesh(polymesh_t** mesh, 
+                           int64_t* local_partition, 
+                           polymesh_field_t** fields, 
+                           size_t num_fields);
 
 #endif
 

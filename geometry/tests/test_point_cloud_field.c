@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
-#include "core/point_cloud_field.h"
+#include "geometry/point_cloud_field.h"
 
 static void test_ctor(void** state)
 {

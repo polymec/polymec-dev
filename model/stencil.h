@@ -12,8 +12,8 @@
 #include "core/exchanger.h"
 #include "core/serializer.h"
 #include "core/unordered_set.h"
-#include "core/point_cloud.h"
 #include "core/adj_graph.h"
+#include "geometry/point_cloud.h"
 #include "solvers/matrix_sparsity.h"
 
 // A stencil is a set of indices associated with a stencil for some spatial 
@@ -23,10 +23,10 @@
 typedef struct 
 {
   char* name;
-  int num_indices;
+  size_t num_indices;
   int* offsets;
   int* indices;
-  int num_ghosts; // Number of remotely-owned indices.
+  size_t num_ghosts; // Number of remotely-owned indices.
   exchanger_t* ex; // Used to perform exchanges to fill all values for indices on a domain.
 } stencil_t;
 
@@ -36,9 +36,9 @@ typedef struct
 // using polymec_malloc, and are consumed by the stencil. Likewise, the 
 // stencil's exchanger is consumed by the stencil and is used for its 
 // exchanges.
-stencil_t* stencil_new(const char* name, int num_indices, 
+stencil_t* stencil_new(const char* name, size_t num_indices, 
                        int* offsets, int* indices, 
-                       int num_ghosts, exchanger_t* ex);
+                       size_t num_ghosts, exchanger_t* ex);
 
 // Destroys the given stencil object.
 void stencil_free(stencil_t* stencil);
@@ -68,16 +68,16 @@ void stencil_finish_exchange(stencil_t* stencil, int token);
 exchanger_t* stencil_exchanger(stencil_t* stencil);
 
 // Returns the number of indices for which the stencil has data.
-static inline int stencil_num_indices(stencil_t* stencil)
+static inline size_t stencil_num_indices(stencil_t* stencil)
 {
   return stencil->num_indices;
 }
 
 // Returns the number of indices in the stencil for the given index i.
-static inline int stencil_size(stencil_t* stencil, int i)
+static inline size_t stencil_size(stencil_t* stencil, int i)
 {
   ASSERT(i < stencil->num_indices);
-  return stencil->offsets[i+1] - stencil->offsets[i];
+  return (size_t)(stencil->offsets[i+1] - stencil->offsets[i]);
 }
 
 // Copies the indices of the neighbors for the index i into the given neighbors array.
@@ -105,7 +105,7 @@ static inline bool stencil_next(stencil_t* stencil, int i, int* pos, int* j)
 }
 
 // Returns the number of remotely-owned indices in the stencil.
-static inline int stencil_num_ghosts(stencil_t* stencil)
+static inline size_t stencil_num_ghosts(stencil_t* stencil)
 {
   return stencil->num_ghosts;
 }

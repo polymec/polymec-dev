@@ -78,9 +78,8 @@ void point_cloud_free(point_cloud_t* cloud)
 }
 
 void point_cloud_set_num_ghosts(point_cloud_t* cloud, 
-                                int num_ghosts)
+                                size_t num_ghosts)
 {
-  ASSERT(num_ghosts >= 0);
   cloud->num_ghosts = num_ghosts;
   cloud->points = polymec_realloc(cloud->points, 
       sizeof(point_t) * (cloud->num_points + cloud->num_ghosts));

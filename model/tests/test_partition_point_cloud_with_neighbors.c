@@ -38,8 +38,7 @@ static void test_partition_linear_cloud(void** state, int N)
   }
 
   // Partition it.
-  migrator_t* distributor = partition_point_cloud_with_neighbors(&cloud, &pairing, comm, NULL, 0.05);
-  distributor = NULL;
+  assert_true(partition_point_cloud_with_neighbors(&cloud, &pairing, comm, NULL, 0.05, NULL, 0));
 
   // Now check data. Points should all fall on dx tick marks.
   for (int i = 0; i < cloud->num_points; ++i)
@@ -101,8 +100,7 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
   }
 
   // Partition it.
-  migrator_t* distributor = partition_point_cloud_with_neighbors(&cloud, &pairing, comm, NULL, 0.05);
-  distributor = NULL;
+  assert_true(partition_point_cloud_with_neighbors(&cloud, &pairing, comm, NULL, 0.05, NULL, 0));
 
 #if 0
   // Now check data. Points should all fall on dx tick marks.
@@ -164,8 +162,7 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   }
 
   // Partition it.
-  migrator_t* distributor = partition_point_cloud_with_neighbors(&cloud, &pairing, comm, NULL, 0.05);
-  distributor = NULL;
+  assert_true(partition_point_cloud_with_neighbors(&cloud, &pairing, comm, NULL, 0.05, NULL, 0));
 
 #if 0
   // Now check data. Points should all fall on dx tick marks.

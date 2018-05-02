@@ -8,7 +8,7 @@
 #include "geometry/point_cloud_field.h"
 
 // Observer function.
-static void pcf_set_num_ghosts(void* context, int num_ghosts)
+static void pcf_set_num_ghosts(void* context, size_t num_ghosts)
 {
   point_cloud_field_t* field = context;
   field->num_ghost_values = num_ghosts;

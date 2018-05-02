@@ -11,7 +11,7 @@
 #include <string.h>
 #include "cmocka.h"
 #include "core/array_utils.h"
-#include "core/partition_point_cloud.h"
+#include "geometry/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
 #include "model/neighbor_pairing.h"
 
@@ -96,7 +96,7 @@ static void test_parallel_point_lattice(void** state,
   // Set up and partition the point cloud.
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   point_cloud_t* cloud = create_uniform_point_lattice(MPI_COMM_SELF, nx, ny, nz, &bbox);
-  partition_point_cloud(&cloud, MPI_COMM_WORLD, NULL, 0.10);
+  assert_true(partition_point_cloud(&cloud, MPI_COMM_WORLD, NULL, 0.10, NULL, 0));
 
   // Now set up the point radius field and use it to find neighbor pairs.
   int num_ghosts;
@@ -107,7 +107,7 @@ static void test_parallel_point_lattice(void** state,
   point_cloud_set_num_ghosts(cloud, num_ghosts);
 
   // Find the numbers of neighbors of each of the points. 
-  int num_points = cloud->num_points;
+  size_t num_points = cloud->num_points;
   int num_neighbors[num_points];
   memset(num_neighbors, 0, num_points * sizeof(int));
   {
