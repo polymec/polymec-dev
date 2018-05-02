@@ -826,6 +826,226 @@ static lua_class_method sdt_methods[] = {
   {NULL, NULL, NULL}
 };
 
+static lua_module_function tagger_funcs[] = {
+  {NULL, NULL, NULL}
+};
+
+static int t_create_tag(lua_State* L)
+{
+  tagger_t* t = lua_to_tagger(L, 1);
+  if (t == NULL)
+    return luaL_error(L, "Method must be invoked with a tagger.");
+  if (!lua_isstring(L, 2))
+    return luaL_error(L, "Argument 1 must be a string.");
+  if (!lua_istable(L, 3) && !lua_is_array(L, 3, LUA_ARRAY_INT))
+    return luaL_error(L, "Argument 2 must be a table or array of integers.");
+  int* tag = NULL;
+  size_t size = 0;
+  if (lua_is_array(L, 3, LUA_ARRAY_INT))
+  {
+    int_array_t* a = lua_to_array(L, 3, LUA_ARRAY_INT);
+    tag = tagger_create_tag(t, lua_tostring(L, 2), a->size);
+    size = a->size;
+    memcpy(tag, a->data, sizeof(int) * size);
+  }
+  else
+  {
+    int_array_t* a = int_array_new();
+    int i = 1;
+    while (true)
+    {
+      lua_rawgeti(L, 2, i);
+      if (lua_isnil(L, -1))
+      {
+        lua_pop(L, 1);
+        break;
+      }
+      else
+      {
+        if (!lua_isinteger(L, -1))
+          luaL_error(L, "Item %d in argument 1 is not an integer.");
+        int_array_append(a, (int)(lua_tointeger(L, -1)));
+        lua_pop(L, 1);
+      }
+      ++i;
+    }
+    tag = tagger_create_tag(t, lua_tostring(L, 2), a->size);
+    size = a->size;
+    memcpy(tag, a->data, sizeof(int) * size);
+    int_array_free(a);
+  }
+  int_array_t* tt = int_array_new_with_data(tag, size);
+  lua_push_array(L, tt, LUA_ARRAY_INT, true);
+  return 1;
+}
+
+static int t_tag(lua_State* L)
+{
+  tagger_t* t = lua_to_tagger(L, 1);
+  if (t == NULL)
+    return luaL_error(L, "Method must be invoked with a tagger.");
+  if (!lua_isstring(L, 2))
+    return luaL_error(L, "Argument must be a string.");
+  size_t size;
+  int* tag = tagger_tag(t, lua_tostring(L, 2), &size);
+  if (tag != NULL)
+  {
+    int_array_t* tt = int_array_new_with_data(tag, size);
+    lua_push_array(L, tt, LUA_ARRAY_INT, true);
+    return 1;
+  }
+  else
+    return 0;
+}
+
+static int t_has_tag(lua_State* L)
+{
+  tagger_t* t = lua_to_tagger(L, 1);
+  if (t == NULL)
+    return luaL_error(L, "Method must be invoked with a tagger.");
+  if (!lua_isstring(L, 2))
+    return luaL_error(L, "Argument must be a string.");
+  lua_pushboolean(L, tagger_has_tag(t, lua_tostring(L, 2)));
+  return 1;
+}
+
+static int t_tostring(lua_State* L)
+{
+  lua_pushstring(L, "tagger");
+  return 1;
+}
+
+static lua_class_method tagger_methods[] = {
+  {"create_tag", t_create_tag, "tagger:create_tag(name, indices) -> Creates and returns a tag with the given name and indices."},
+  {"tag", t_tag, "tagger:tag(name) -> Returns a tag with the given name."},
+  {"has_tag", t_has_tag, "tagger:has_tag(name) -> Returns true if the tagger has a tag with the given name, false otherwise."},
+  {"__tostring", t_tostring, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int pc_new(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) && (num_args != 3))
+  {
+    luaL_error(L, "Arguments must be an MPI communicator, a list of points, "
+                  "and (optionally) a number of ghost points.");
+  }
+
+  if (!lua_is_mpi_comm(L, 1) )
+    luaL_error(L, "Argument 1 must be an MPI communicator.");
+  MPI_Comm comm = lua_to_mpi_comm(L, 1);
+
+  point_t* points = NULL;
+  int num_points = 0;
+  bool free_points = false;
+  if (!lua_istable(L, 2) && !lua_is_array(L, 2, LUA_ARRAY_POINT))
+    luaL_error(L, "Argument 2 must be a list or an array of points.");
+  if (lua_istable(L, 2))
+  {
+    point_array_t* points_array = point_array_new();
+    int i = 1;
+    while (true)
+    {
+      lua_rawgeti(L, 2, i);
+      if (lua_isnil(L, -1))
+      {
+        lua_pop(L, 1);
+        break;
+      }
+      else
+      {
+        if (!lua_is_point(L, -1))
+          luaL_error(L, "Item %d in argument 1 is not a point.");
+        point_t* x = lua_to_point(L, -1);
+        point_array_append(points_array, *x);
+        lua_pop(L, 1);
+      }
+      ++i;
+    }
+    points = points_array->data;
+    num_points = (int)(points_array->size);
+    point_array_release_data_and_free(points_array);
+    free_points = true;
+  }
+  else
+  {
+    points = lua_to_array(L, 2, LUA_ARRAY_POINT);
+    num_points = (int)lua_array_size(L, 2);
+  }
+
+  if ((num_args == 3) && !lua_isinteger(L, 3))
+    luaL_error(L, "Argument 3 must be a number of ghost points.");
+  int num_ghosts = (int)lua_tointeger(L, 3);
+  if (num_ghosts < 0)
+    luaL_error(L, "Number of ghost points must be positive.");
+
+  // Create the point cloud.
+  point_cloud_t* cloud = point_cloud_from_points(comm, points, (int)num_points);
+  if (num_ghosts > 0)
+    point_cloud_set_num_ghosts(cloud, num_ghosts);
+
+  // Clean up.
+  if (free_points)
+    polymec_free(points);
+
+  lua_push_point_cloud(L, cloud);
+  return 1;
+}
+
+static int pc_repartition(lua_State* L)
+{
+  luaL_error(L, "can't repartition point clouds just yet!");
+  return 0;
+}
+
+static lua_module_function pc_funcs[] = {
+  {"new", pc_new, "point_cloud.new(comm, points [, num_ghosts]) -> new point cloud."},
+  {"repartition", pc_repartition, "point_cloud.repartition(cloud) -> Repartitions the given point cloud."},
+  {NULL, NULL, NULL}
+};
+
+static int pc_num_points(lua_State* L)
+{
+  point_cloud_t* pc = lua_to_point_cloud(L, 1);
+  lua_pushinteger(L, pc->num_points);
+  return 1;
+}
+
+static int pc_num_ghosts(lua_State* L)
+{
+  point_cloud_t* pc = lua_to_point_cloud(L, 1);
+  lua_pushinteger(L, pc->num_ghosts);
+  return 1;
+}
+
+static int pc_tags(lua_State* L)
+{
+  point_cloud_t* pc = lua_to_point_cloud(L, 1);
+  lua_push_tagger(L, pc->tags);
+  return 1;
+}
+
+static lua_record_field pc_fields[] = {
+  {"num_points", pc_num_points, NULL},
+  {"num_ghosts", pc_num_ghosts, NULL},
+  {"tags", pc_tags, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int pc_tostring(lua_State* L)
+{
+  point_cloud_t* pc = lua_to_point_cloud(L, 1);
+  lua_pushfstring(L, "point cloud (%d points)", pc->num_points);
+  return 1;
+}
+
+static lua_record_metamethod pc_mm[] = {
+  {"__len", pc_num_points},
+  {"__tostring", pc_tostring},
+  {NULL, NULL}
+};
+
 static int um_new(lua_State* L)
 {
   if (!lua_istable(L, 1))
@@ -1278,6 +1498,8 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_class(L, "coord_mapping", "A coordinate mapping.", cm_funcs, cm_methods, NULL);
   lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, sd_methods, NULL);
   lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_methods, NULL);
+  lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, tagger_methods, NULL);
+  lua_register_record_type(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_mm, DTOR(point_cloud_free));
   lua_register_record_type(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_mm, DTOR(unimesh_free));
   lua_register_record_type(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_mm, DTOR(polymesh_free));
 
@@ -1320,6 +1542,21 @@ sd_func_t* lua_to_sd_func(lua_State* L, int index)
   return (sd_func_t*)lua_to_object(L, index, "sd_func");
 }
 
+void lua_push_tagger(lua_State* L, tagger_t* t)
+{
+  lua_push_object(L, "tagger", t);
+}
+
+bool lua_is_tagger(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "tagger");
+}
+
+tagger_t* lua_to_tagger(lua_State* L, int index)
+{
+  return (tagger_t*)lua_to_object(L, index, "tagger");
+}
+
 void lua_push_sdt_func(lua_State* L, sdt_func_t* f)
 {
   lua_push_object(L, "sdt_func", f);
@@ -1333,6 +1570,21 @@ bool lua_is_sdt_func(lua_State* L, int index)
 sdt_func_t* lua_to_sdt_func(lua_State* L, int index)
 {
   return (sdt_func_t*)lua_to_object(L, index, "sdt_func");
+}
+
+void lua_push_point_cloud(lua_State* L, point_cloud_t* c)
+{
+  lua_push_record(L, "point_cloud", c);
+}
+
+bool lua_is_point_cloud(lua_State* L, int index)
+{
+  return lua_is_record(L, index, "point_cloud");
+}
+
+point_cloud_t* lua_to_point_cloud(lua_State* L, int index)
+{
+  return (point_cloud_t*)lua_to_record(L, index, "point_cloud");
 }
 
 void lua_push_unimesh(lua_State* L, unimesh_t* m)

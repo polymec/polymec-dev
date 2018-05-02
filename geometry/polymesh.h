@@ -10,10 +10,10 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
-#include "core/tagger.h"
 #include "core/exchanger.h"
 #include "core/adj_graph.h"
 #include "core/serializer.h"
+#include "geometry/tagger.h"
 
 // Mesh centerings.
 typedef enum

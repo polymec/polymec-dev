@@ -4,7 +4,8 @@ add_polymec_library(polymec_geometry coord_mapping.c sd_func.c sdt_func.c
                     intersection_sd_func.c union_sd_func.c difference_sd_func.c 
                     cylinder_sd_func.c sphere_sd_func.c 
                     tetrahedron.c gauss_rules.c cubic_lattice.c
-                    generate_random_points.c create_point_lattice.c
+                    generate_random_points.c create_point_lattice.c tagger.c
+                    point_cloud.c point_cloud_field.c partition_point_cloud.c
                     unimesh.c unimesh_patch.c unimesh_patch_bc.c unimesh_field.c
                     unimesh_copy_bc.c unimesh_periodic_bc.c unimesh_remote_bc.c
                     constant_unimesh_patch_bc.c

@@ -13,7 +13,6 @@
 #include "core/tensor2.h"
 #include "core/sp_func.h"
 #include "core/st_func.h"
-#include "core/point_cloud.h"
 #include "core/rng.h"
 
 // This file contains functions for manipulating basic data types in the 
@@ -186,28 +185,6 @@ bool lua_is_st_func(lua_State* L, int index);
 // Returns the space-time function at the given index on L's stack, or NULL 
 // if the item there is not a space-time function.
 st_func_t* lua_to_st_func(lua_State* L, int index);
-
-// Pushes a tagger t onto L's stack.
-void lua_push_tagger(lua_State* L, tagger_t* t);
-
-// Returns true if the item at the given index on L's stack is a tagger,
-// false if not.
-bool lua_is_tagger(lua_State* L, int index);
-
-// Returns the tagger at the given index on L's stack, or NULL 
-// if the item there is not a tagger.
-tagger_t* lua_to_tagger(lua_State* L, int index);
-
-// Pushes a point cloud c onto L's stack.
-void lua_push_point_cloud(lua_State* L, point_cloud_t* c);
-
-// Returns true if the item at the given index on L's stack is a point
-// cloud, false if not.
-bool lua_is_point_cloud(lua_State* L, int index);
-
-// Returns the point cloud at the given index on L's stack, or NULL 
-// if the item there is not a point cloud.
-point_cloud_t* lua_to_point_cloud(lua_State* L, int index);
 
 // Pushes a random number generator r onto L's stack.
 void lua_push_rng(lua_State* L, rng_t* r);

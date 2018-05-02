@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/point_cloud_field.h"
+#include "geometry/point_cloud_field.h"
 
 // Observer function.
 static void pcf_set_num_ghosts(void* context, int num_ghosts)

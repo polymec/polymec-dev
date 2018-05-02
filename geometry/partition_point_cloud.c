@@ -5,10 +5,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/partition_point_cloud.h"
 #include "core/partitioning.h"
 #include "core/unordered_set.h"
 #include "core/timer.h"
+#include "geometry/partition_point_cloud.h"
 
 #if POLYMEC_HAVE_MPI
 

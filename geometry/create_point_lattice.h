@@ -8,7 +8,7 @@
 #ifndef POLYMEC_CREATE_POINT_LATTICE_H
 #define POLYMEC_CREATE_POINT_LATTICE_H
 
-#include "core/point_cloud.h"
+#include "geometry/point_cloud.h"
 
 // This function creates and returns a lattice of points whose x, y, and z 
 // coordinates are given by arrays.

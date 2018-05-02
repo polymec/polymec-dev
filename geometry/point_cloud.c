@@ -5,9 +5,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/point_cloud.h"
 #include "core/kd_tree.h"
 #include "core/unordered_set.h"
+#include "geometry/point_cloud.h"
 
 struct point_cloud_observer_t 
 {

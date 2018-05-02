@@ -8,7 +8,7 @@
 #ifndef POLYMEC_POINT_CLOUD_FIELD_H
 #define POLYMEC_POINT_CLOUD_FIELD_H
 
-#include "core/point_cloud.h"
+#include "geometry/point_cloud.h"
 
 // This thin wrapper represents a field of values defined on the points of 
 // a point cloud.

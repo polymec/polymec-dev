@@ -10,10 +10,10 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
-#include "core/tagger.h"
 #include "core/sp_func.h"
 #include "core/unordered_map.h"
 #include "core/serializer.h"
+#include "geometry/tagger.h"
 
 // This data type represents a cloud consisting of points, possibly with 
 // remotely-managed ghost points, and associated properties.

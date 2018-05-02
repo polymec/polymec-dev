@@ -8,8 +8,7 @@
 #ifndef POLYMEC_PARTITION_POINT_CLOUD_H
 #define POLYMEC_PARTITION_POINT_CLOUD_H
 
-#include "core/point_cloud_field.h"
-#include "core/exchanger.h"
+#include "geometry/point_cloud_field.h"
 
 // These functions provide partitioning and load balancing capabilities. In 
 // each of these, the imbalance tolerance is value between 0 and 1, defined as 
