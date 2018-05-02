@@ -39,9 +39,8 @@ void point_cloud_add_observer(point_cloud_t* cloud,
   ptr_array_append_with_dtor(cloud->observers, observer, point_cloud_observer_free);
 }
 
-point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points)
+point_cloud_t* point_cloud_new(MPI_Comm comm, size_t num_points)
 {
-  ASSERT(num_points >= 0);
   point_cloud_t* cloud = polymec_malloc(sizeof(point_cloud_t));
   cloud->comm = comm;
   cloud->num_points = num_points;
@@ -160,7 +159,7 @@ void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag)
 
 void point_cloud_fprintf(point_cloud_t* cloud, FILE* stream)
 {
-  fprintf(stream, "Point cloud (%d points, %d ghosts):\n", cloud->num_points, cloud->num_ghosts);
+  fprintf(stream, "Point cloud (%d points, %d ghosts):\n", (int)cloud->num_points, (int)cloud->num_ghosts);
   for (int i = 0; i < cloud->num_points + cloud->num_ghosts; ++i)
     fprintf(stream, "%d: (%g, %g, %g)\n", i, cloud->points[i].x, cloud->points[i].y, cloud->points[i].z);
 }
@@ -192,20 +191,20 @@ void point_cloud_unite(point_cloud_t* cloud,
       size_t new_size = old_size + other->num_points + other->num_ghosts;
       tagger_resize_tag(cloud->tags, tag, new_size);
       t = point_cloud_tag(cloud, tag, &new_size);
-      for (int i = 0; i < other->num_points; ++i)
-        t[old_size + i] = cloud->num_points + i;
-      for (int i = other->num_points; i < other->num_points + other->num_ghosts; ++i)
-        t[old_size + i] = cloud->num_points + other->num_points + cloud->num_ghosts + i;
+      for (size_t i = 0; i < other->num_points; ++i)
+        t[old_size + i] = (int)(cloud->num_points + i);
+      for (size_t i = other->num_points; i < other->num_points + other->num_ghosts; ++i)
+        t[old_size + i] = (int)(cloud->num_points + other->num_points + cloud->num_ghosts + i);
     }
     else
     {
       // Make a new tag for these points.
-      int size = other->num_points + other->num_ghosts;
+      size_t size = other->num_points + other->num_ghosts;
       int* t = point_cloud_create_tag(cloud, tag, size);
-      for (int i = 0; i < other->num_points; ++i)
-        t[i] = cloud->num_points + i;
-      for (int i = other->num_points; i < other->num_points + other->num_ghosts; ++i)
-        t[i] = cloud->num_points + other->num_points + cloud->num_ghosts + i;
+      for (size_t i = 0; i < other->num_points; ++i)
+        t[i] = (int)(cloud->num_points + i);
+      for (size_t i = other->num_points; i < other->num_points + other->num_ghosts; ++i)
+        t[i] = (int)(cloud->num_points + other->num_points + cloud->num_ghosts + i);
     }
   }
 
@@ -315,8 +314,8 @@ static size_t cloud_byte_size(void* obj)
 static void* cloud_byte_read(byte_array_t* bytes, size_t* offset)
 {
   // Read the number of points and allocate a point cloud accordingly.
-  int num_points;
-  byte_array_read_ints(bytes, 1, &num_points, offset);
+  size_t num_points;
+  byte_array_read_size_ts(bytes, 1, &num_points, offset);
   point_cloud_t* cloud = point_cloud_new(MPI_COMM_WORLD, num_points);
 
   // Read the point coordinates.
@@ -335,7 +334,7 @@ static void cloud_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   point_cloud_t* cloud = obj;
 
   // Write the number of points and their coordinates.
-  byte_array_write_ints(bytes, 1, &cloud->num_points, offset);
+  byte_array_write_size_ts(bytes, 1, &cloud->num_points, offset);
   byte_array_write_points(bytes, cloud->num_points, cloud->points, offset);
 
   // Tag stuff.

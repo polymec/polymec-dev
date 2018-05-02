@@ -23,10 +23,10 @@ typedef struct
   MPI_Comm comm;
 
   // The total number of (locally-owned) points in the cloud.
-  int num_points;
+  size_t num_points;
 
   // The number of (remotely-owned) ghost points in the cloud.
-  int num_ghosts;
+  size_t num_ghosts;
 
   // Coordinates of the points, indexed from 0 to num_points + num_ghosts.
   point_t* points;
@@ -40,7 +40,7 @@ typedef struct
 
 // Constructs a new point cloud whose point coordinates are all set to the 
 // origin. This cloud has no ghost points.
-point_cloud_t* point_cloud_new(MPI_Comm comm, int num_points);
+point_cloud_t* point_cloud_new(MPI_Comm comm, size_t num_points);
 
 // Construct a new point cloud from the set of points with the given 
 // coordinates. Coordinates are copied, and there are no ghost points.

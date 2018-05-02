@@ -18,7 +18,7 @@ add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
                     hilbert.c kd_tree.c octree.c rng.c parallel_sort.c
                     permutations.c adj_graph.c sp_func.c st_func.c polynomial.c 
                     least_squares.c options.c  
-                    partition_graph.c partition_point_cloud.c
+                    partitioning.c partition_point_cloud.c
                     text_buffer.c serializer.c string_utils.c 
                     file_utils.c array_utils.c lookup1.c linear_algebra.c 
                     ${CMAKE_CURRENT_BINARY_DIR}/special_functions.f90 
