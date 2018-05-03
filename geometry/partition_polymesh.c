@@ -1198,6 +1198,15 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
                                              size_t num_fields)
 {
 #if POLYMEC_HAVE_MPI
+
+#ifndef NDEBUG
+  // Only cell-centered fields can be redistributed at the moment.
+  for (size_t i = 0; i < num_fields; ++i)
+  {
+    ASSERT(fields[i]->centering == POLYMESH_CELL);
+  }
+#endif
+
   polymesh_t* m = *mesh;
   if (log_level() == LOG_DEBUG)
   {
@@ -1262,9 +1271,23 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
     log_debug("redistribute_polymesh: Redistributing %d cells to process %d.", 
               submesh->num_cells, proc);
 
-    // Serialize and send the buffer size.
+    // Serialize the submesh.
     size_t offset = 0;
     serializer_write(ser, submesh, bytes, &offset);
+
+    // Pack the relevant contents of the fields into the buffer.
+    for (size_t i = 0; i < num_fields; ++i)
+    {
+      size_t num_comps = fields[i]->num_components;
+      byte_array_write_ints(send_buffers[p], 1, &submesh->num_cells, &offset);
+      real_t field_data[num_comps*submesh->num_cells];
+      for (int j = 0; j < submesh->num_cells; ++j)
+        for (size_t c = 0; c < num_comps; ++c)
+          field_data[num_comps*j+c] = fields[i]->data[num_comps*indices->data[j]+c];
+      byte_array_write_real_ts(send_buffers[p], num_comps*submesh->num_cells, field_data, &offset);
+    }
+
+    // Send the buffer size.
     MPI_Isend(&bytes->size, 1, MPI_INT, proc, 0, m->comm, &requests[p + num_receives]);
 
     // Clean up.
@@ -1295,39 +1318,68 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
   MPI_Waitall((int)(num_receives + num_sends), requests, statuses);
 
   // Unpack the meshes.
+  size_t receive_offsets[num_receives];
   polymesh_t* submeshes[1+num_receives];
   for (size_t i = 0; i < num_receives; ++i)
   {
-    size_t offset = 0;
-    submeshes[i+1] = serializer_read(ser, receive_buffers[i], &offset);
+    receive_offsets[i] = 0;
+    submeshes[i+1] = serializer_read(ser, receive_buffers[i], &receive_offsets[i]);
   }
 
-  // Clean up all the stuff from the exchange.
+  // Clean up the send buffers and the serializer. We still need the 
+  // receive buffer.
   ser = NULL;
-  for (size_t i = 0; i < num_receives; ++i)
-    byte_array_free(receive_buffers[i]);
   for (size_t i = 0; i < num_sends; ++i)
     byte_array_free(send_buffers[i]);
 
   // Construct a local submesh and store it in submeshes[0]. This submesh
   // consists of all cells not sent to other processes.
+  size_t num_cells = adj_graph_num_vertices(local_graph);
+  size_t num_local_cells = num_cells - sent_cells->size;
+  int local_cells[num_local_cells], j = 0;
+  for (size_t i = 0; i < num_cells; ++i)
   {
-    size_t num_cells = adj_graph_num_vertices(local_graph);
-    size_t num_local_cells = num_cells - sent_cells->size;
-    int local_cells[num_local_cells], j = 0;
-    for (size_t i = 0; i < num_cells; ++i)
-    {
-      if (!int_unordered_set_contains(sent_cells, (int)i))
-        local_cells[j++] = (int)i;
-    }
-    submeshes[0] = create_submesh(m->comm, m, partition, vtx_dist, 
-                                  local_cells, num_local_cells);
+    if (!int_unordered_set_contains(sent_cells, (int)i))
+      local_cells[j++] = (int)i;
   }
+  submeshes[0] = create_submesh(m->comm, m, partition, vtx_dist, 
+                                local_cells, num_local_cells);
 
   // Fuse all the submeshes into a single mesh.
-  int_unordered_set_free(sent_cells);
-  polymesh_free(m);
   *mesh = fuse_submeshes(submeshes, 1+num_receives);
+
+  // Unpack the migrated field data.
+  for (size_t i = 0; i < num_fields; ++i)
+  {
+    size_t num_comps = fields[i]->num_components;
+    polymesh_field_t* new_field = polymesh_field_new(*mesh, POLYMESH_CELL, num_comps);
+
+    // Local portion of the field.
+    for (int k = 0; k < num_local_cells; ++k)
+      for (size_t c = 0; c < num_comps; ++c)
+        new_field->data[num_comps*local_cells[k]+c] = fields[i]->data[num_comps*k+c];
+    size_t offset = num_comps*num_local_cells;
+
+    // Remote portions.
+    for (size_t r = 0; r < num_receives; ++r)
+    {
+      int num_values;
+      byte_array_read_ints(receive_buffers[r], 1, &num_values, &receive_offsets[r]);
+      byte_array_read_real_ts(receive_buffers[r], num_comps*num_values, &(new_field->data[offset]), &receive_offsets[r]);
+      offset += num_comps*num_values;
+    }
+
+    // Out with the old, in with the new!
+    polymesh_field_free(fields[i]);
+    fields[i] = new_field;
+  }
+
+  // Clean up the rest.
+  for (size_t i = 0; i < num_receives; ++i)
+    byte_array_free(receive_buffers[i]);
+  int_unordered_set_free(sent_cells);
+  redistribution_free(redist);
+  polymesh_free(m);
 
   STOP_FUNCTION_TIMER();
 #endif

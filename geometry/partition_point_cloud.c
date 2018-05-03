@@ -372,9 +372,23 @@ void redistribute_point_cloud(point_cloud_t** cloud,
     // Create the subcloud to send. 
     point_cloud_t* subcloud = create_subcloud(c->comm, c, indices->data, indices->size);
 
-    // Serialize and send the buffer size.
+    // Serialize the cloud.
     size_t offset = 0;
     serializer_write(ser, subcloud, bytes, &offset);
+
+    // Pack the relevant contents of the fields into the buffer.
+    for (size_t i = 0; i < num_fields; ++i)
+    {
+      size_t num_comps = fields[i]->num_components;
+      byte_array_write_size_ts(bytes, 1, &subcloud->num_points, &offset);
+      real_t field_data[num_comps*subcloud->num_points];
+      for (size_t j = 0; j < subcloud->num_points; ++j)
+        for (size_t cc = 0; cc < num_comps; ++cc)
+          field_data[num_comps*j+cc] = fields[i]->data[num_comps*indices->data[j]+cc];
+      byte_array_write_real_ts(bytes, num_comps*subcloud->num_points, field_data, &offset);
+    }
+
+    // Send the buffer size.
     MPI_Isend(&bytes->size, 1, MPI_INT, proc, 0, c->comm, &requests[p + num_receives]);
 
     // Clean up.
@@ -405,37 +419,66 @@ void redistribute_point_cloud(point_cloud_t** cloud,
   MPI_Waitall((int)(num_receives + num_sends), requests, statuses);
 
   // Unpack the clouds.
+  size_t receive_offsets[num_receives];
   point_cloud_t* subclouds[1+num_receives];
   for (size_t i = 0; i < num_receives; ++i)
   {
-    size_t offset = 0;
-    subclouds[i+1] = serializer_read(ser, receive_buffers[i], &offset);
+    receive_offsets[i] = 0;
+    subclouds[i+1] = serializer_read(ser, receive_buffers[i], &receive_offsets[i]);
   }
 
-  // Clean up all the stuff from the exchange.
+  // Clean up the send buffers and the serializer. We still need the 
+  // receive buffer.
   ser = NULL;
-  for (size_t i = 0; i < num_receives; ++i)
-    byte_array_free(receive_buffers[i]);
   for (size_t i = 0; i < num_sends; ++i)
     byte_array_free(send_buffers[i]);
 
   // Construct a local subcloud and store it in subclouds[0]. This subcloud
   // consists of all points not sent to other processes.
+  size_t num_local_points = c->num_points - sent_points->size;
+  int local_points[num_local_points], j = 0;
+  for (size_t i = 0; i < c->num_points; ++i)
   {
-    size_t num_local_points = c->num_points - sent_points->size;
-    int local_points[num_local_points], j = 0;
-    for (size_t i = 0; i < c->num_points; ++i)
-    {
-      if (!int_unordered_set_contains(sent_points, (int)i))
-        local_points[j++] = (int)i;
-    }
-    subclouds[0] = create_subcloud(c->comm, c, local_points, num_local_points);
+    if (!int_unordered_set_contains(sent_points, (int)i))
+      local_points[j++] = (int)i;
   }
+  subclouds[0] = create_subcloud(c->comm, c, local_points, num_local_points);
 
   // Fuse all the subclouds into a single point cloud.
-  int_unordered_set_free(sent_points);
-  point_cloud_free(c);
   *cloud = fuse_clouds(subclouds, 1+num_receives);
+
+  // Unpack the migrated field data.
+  for (size_t i = 0; i < num_fields; ++i)
+  {
+    size_t num_comps = fields[i]->num_components;
+    point_cloud_field_t* new_field = point_cloud_field_new(*cloud, num_comps);
+
+    // Local portion of the field.
+    for (int k = 0; k < num_local_points; ++k)
+      for (size_t cc = 0; cc < num_comps; ++cc)
+        new_field->data[num_comps*local_points[k]+cc] = fields[i]->data[num_comps*k+cc];
+    size_t offset = num_comps*num_local_points;
+
+    // Remote portions.
+    for (size_t r = 0; r < num_receives; ++r)
+    {
+      size_t num_values;
+      byte_array_read_size_ts(receive_buffers[r], 1, &num_values, &receive_offsets[r]);
+      byte_array_read_real_ts(receive_buffers[r], num_comps*num_values, &(new_field->data[offset]), &receive_offsets[r]);
+      offset += num_comps*num_values;
+    }
+
+    // Out with the old, in with the new!
+    point_cloud_field_free(fields[i]);
+    fields[i] = new_field;
+  }
+
+  // Clean up the rest.
+  for (size_t i = 0; i < num_receives; ++i)
+    byte_array_free(receive_buffers[i]);
+  int_unordered_set_free(sent_points);
+  redistribution_free(redist);
+  point_cloud_free(c);
   STOP_FUNCTION_TIMER();
 }
 
