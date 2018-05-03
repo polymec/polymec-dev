@@ -94,6 +94,8 @@ static void test_repartition_linear_cloud(void** state,
     MPI_Allreduce(&my_load, &total_load, 1, MPI_REAL_T, MPI_SUM, comm);
     real_t ideal_load = total_load / nprocs;
     assert_true(ABS((my_load - ideal_load))/ideal_load < imbalance_tol);
+
+    point_cloud_field_free(f_loads);
   }
 
   // Now check data. 
