@@ -245,7 +245,7 @@ bool partition_point_cloud(point_cloud_t** cloud,
   distribute_point_cloud(cloud, comm, global_partition, fields, num_fields);
 
   // Clean up.
-  if (rank == 0)
+  if (global_partition != NULL)
     polymec_free(global_partition);
 
   STOP_FUNCTION_TIMER();
