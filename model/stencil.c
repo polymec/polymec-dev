@@ -17,7 +17,6 @@ stencil_t* stencil_new(const char* name, size_t num_indices,
 {
   ASSERT(num_indices > 0);
   ASSERT(offsets != NULL);
-  ASSERT(num_ghosts >= 0);
   stencil_t* s = polymec_malloc(sizeof(stencil_t));
   s->name = string_dup(name);
   s->num_indices = num_indices;

@@ -1357,7 +1357,7 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
     // Local portion of the field.
     for (int k = 0; k < num_local_cells; ++k)
       for (size_t c = 0; c < num_comps; ++c)
-        new_field->data[num_comps*local_cells[k]+c] = fields[i]->data[num_comps*k+c];
+        new_field->data[num_comps*k+c] = fields[i]->data[num_comps*local_cells[k]+c];
     size_t offset = num_comps*num_local_cells;
 
     // Remote portions.

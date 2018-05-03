@@ -456,7 +456,7 @@ void redistribute_point_cloud(point_cloud_t** cloud,
     // Local portion of the field.
     for (int k = 0; k < num_local_points; ++k)
       for (size_t cc = 0; cc < num_comps; ++cc)
-        new_field->data[num_comps*local_points[k]+cc] = fields[i]->data[num_comps*k+cc];
+        new_field->data[num_comps*k+cc] = fields[i]->data[num_comps*local_points[k]+cc];
     size_t offset = num_comps*num_local_points;
 
     // Remote portions.
