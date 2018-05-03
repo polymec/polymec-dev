@@ -16,8 +16,7 @@
 #include "geometry/unimesh_field.h"
 
 #if POLYMEC_HAVE_MPI
-#include "core/adj_graph.h"
-#include "ptscotch.h"
+#include "core/partitioning.h"
 #endif
 
 #if POLYMEC_HAVE_OPENMP
@@ -1121,11 +1120,6 @@ void unimesh_remove_observer(unimesh_t* mesh,
 }
 
 #if POLYMEC_HAVE_MPI
-extern int64_t* partition_graph(adj_graph_t* global_graph, 
-                                MPI_Comm comm,
-                                int* weights,
-                                real_t imbalance_tol);
-
 static adj_graph_t* graph_from_unimesh_patches(unimesh_t* mesh)
 {
   // Create a graph whose vertices are the mesh's patches. NOTE
@@ -1382,7 +1376,6 @@ void repartition_unimesh(unimesh_t** mesh,
   ASSERT((fields != NULL) || (num_fields == 0));
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
-  _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
 
   // On a single process, repartitioning has no meaning.
   unimesh_t* old_mesh = *mesh;
@@ -1399,10 +1392,7 @@ void repartition_unimesh(unimesh_t** mesh,
   // We need the partition vector on all processes, so we scatter it 
   // from rank 0.
   log_debug("repartition_unimesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
-  int num_patches = old_mesh->npx * old_mesh->npy * old_mesh->npz;
-  int64_t* partition = (old_mesh->rank == 0) ? partition_graph(graph, old_mesh->comm, weights, imbalance_tol) 
-                                             : polymec_malloc(sizeof(int64_t) * num_patches);
-  MPI_Bcast(partition, num_patches, MPI_INT64_T, 0, old_mesh->comm);
+  int64_t* partition = partition_graph(graph, old_mesh->comm, weights, imbalance_tol, true);
 
   // Redistribute the mesh. 
   log_debug("repartition_unimesh: Redistributing mesh.");

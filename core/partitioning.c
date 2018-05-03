@@ -70,7 +70,7 @@ int64_t* partition_graph(adj_graph_t* global_graph,
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
-  ASSERT(rank == 0);
+  ASSERT((rank == 0) || broadcast);
 
   SCOTCH_Dgraph dist_graph;
   SCOTCH_Num *vtx_weights = NULL, *xadj = NULL, *adj = NULL;
