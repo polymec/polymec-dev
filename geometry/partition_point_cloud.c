@@ -228,8 +228,14 @@ bool partition_point_cloud(point_cloud_t** cloud,
   }
 
   // Now do the space-filling curve thing.
-  int64_t* global_partition = partition_points(cl->points, cl->num_points, comm, 
-                                               weights, imbalance_tol, false);
+  int64_t* global_partition;
+  if (rank == 0)
+  {
+    global_partition = partition_points(cl->points, cl->num_points, comm, 
+                                        weights, imbalance_tol, true);
+  }
+  else
+    global_partition = partition_points(NULL, 0, comm, weights, imbalance_tol, true);
   if (global_partition == NULL) // couldn't balance the load!
   {
     STOP_FUNCTION_TIMER();
@@ -285,11 +291,52 @@ static point_cloud_t* fuse_clouds(point_cloud_t** subclouds, size_t num_subcloud
   return fused_cloud;
 }
 
-// Redistribute point cloud data using a local partition vector.
-static void redistribute_point_cloud(point_cloud_t** cloud, 
-                                     int64_t* local_partition,
-                                     point_cloud_field_t** fields,
-                                     size_t num_fields)
+#endif
+
+bool repartition_point_cloud(point_cloud_t** cloud, 
+                             int* weights, 
+                             real_t imbalance_tol,
+                             point_cloud_field_t** fields,
+                             size_t num_fields)
+{
+  ASSERT(imbalance_tol > 0.0);
+  ASSERT(imbalance_tol <= 1.0);
+  point_cloud_t* cl = *cloud;
+
+#if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
+  int nprocs, rank;
+  MPI_Comm_size(cl->comm, &nprocs);
+  MPI_Comm_rank(cl->comm, &rank);
+
+  // On a single process, repartitioning has no meaning.
+  if (nprocs == 1)
+  {
+    STOP_FUNCTION_TIMER();
+    return true;
+  }
+
+  // Create local partition/load vectors for each process.
+  int64_t* local_partition = repartition_points(cl->points, cl->num_points, cl->comm,
+                                                weights, imbalance_tol);
+
+  // Redistribute the point cloud and its fields.
+  redistribute_point_cloud(cloud, local_partition, fields, num_fields);
+
+  // Clean up.
+  polymec_free(local_partition);
+
+  STOP_FUNCTION_TIMER();
+  return true;
+#else
+  return true;
+#endif
+}
+
+void redistribute_point_cloud(point_cloud_t** cloud, 
+                              int64_t* local_partition,
+                              point_cloud_field_t** fields,
+                              size_t num_fields)
 {
   START_FUNCTION_TIMER();
   point_cloud_t* c = *cloud;
@@ -390,47 +437,5 @@ static void redistribute_point_cloud(point_cloud_t** cloud,
   point_cloud_free(c);
   *cloud = fuse_clouds(subclouds, 1+num_receives);
   STOP_FUNCTION_TIMER();
-}
-
-#endif
-
-bool repartition_point_cloud(point_cloud_t** cloud, 
-                             int* weights, 
-                             real_t imbalance_tol,
-                             point_cloud_field_t** fields,
-                             size_t num_fields)
-{
-  ASSERT(imbalance_tol > 0.0);
-  ASSERT(imbalance_tol <= 1.0);
-  point_cloud_t* cl = *cloud;
-
-#if POLYMEC_HAVE_MPI
-  START_FUNCTION_TIMER();
-  int nprocs, rank;
-  MPI_Comm_size(cl->comm, &nprocs);
-  MPI_Comm_rank(cl->comm, &rank);
-
-  // On a single process, repartitioning has no meaning.
-  if (nprocs == 1)
-  {
-    STOP_FUNCTION_TIMER();
-    return true;
-  }
-
-  // Create local partition/load vectors for each process.
-  int64_t* local_partition = repartition_points(cl->points, cl->num_points, cl->comm,
-                                                weights, imbalance_tol);
-
-  // Redistribute the point cloud and its fields.
-  redistribute_point_cloud(cloud, local_partition, fields, num_fields);
-
-  // Clean up.
-  polymec_free(local_partition);
-
-  STOP_FUNCTION_TIMER();
-  return true;
-#else
-  return true;
-#endif
 }
 

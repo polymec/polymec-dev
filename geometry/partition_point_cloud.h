@@ -68,5 +68,11 @@ void distribute_point_cloud(point_cloud_t** cloud,
                             point_cloud_field_t** fields,
                             size_t num_fields);
 
+// Given a local partition vector, redistributes the point cloud and the given fields.
+void redistribute_point_cloud(point_cloud_t** cloud, 
+                              int64_t* local_partition,
+                              point_cloud_field_t** fields,
+                              size_t num_fields);
+
 #endif
 
