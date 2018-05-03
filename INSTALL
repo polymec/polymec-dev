@@ -11,7 +11,8 @@ The polymec library requires the following software for installation:
   - A C compiler that adheres to (or aspires to) the C11 standard. 
     Currently, GCC 4.9 and Clang 3.4 work well (though others
     may work as well).
-  - On Linux, a Fortran compiler is required to link against LAPACK/BLAS.
+  - A reasonable C++ compiler (for the C++ build/link test).
+  - A Fortran compiler for LAPACK/BLAS and for special functions.
   - A working set of LAPACK/BLAS libraries.
   - CMake 3.1.0+ (found at http://www.cmake.org)
   - GNU Make
@@ -59,6 +60,9 @@ Available options are:
                     Used to generate project files for an integrated
                     development environment (IDE) instead of UNIX 
                     makefiles (default: UNIX makefiles).
+
+    coverage=0,1 <-- Used to build and run with code coverage analysis 
+                     (default: 0).
 
     build=build_name <-- Used to explicitly name a build directory (within 
                          the build/ subdirectory), instead of having the 
