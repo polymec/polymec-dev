@@ -1385,12 +1385,11 @@ bool repartition_polymesh(polymesh_t** mesh,
                           polymesh_field_t** fields,
                           size_t num_fields)
 {
+#if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
   polymesh_t* m = *mesh;
-
-#if POLYMEC_HAVE_MPI
-  START_FUNCTION_TIMER();
 
   int nprocs;
   MPI_Comm_size(m->comm, &nprocs);

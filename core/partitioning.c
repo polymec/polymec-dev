@@ -140,7 +140,7 @@ int64_t* partition_graph(adj_graph_t* global_graph,
   STOP_FUNCTION_TIMER();
   return global_partition;
 #else
-  int num_global_vertices = adj_graph_num_vertices(global_graph);
+  size_t num_global_vertices = adj_graph_num_vertices(global_graph);
   int64_t* P = polymec_malloc(sizeof(int64_t)*num_global_vertices);
   memset(P, 0, sizeof(int64_t)*num_global_vertices);
   return P;
@@ -367,7 +367,7 @@ int64_t* repartition_graph(adj_graph_t* local_graph,
   STOP_FUNCTION_TIMER();
   return local_partition;
 #else
-  int num_global_vertices = adj_graph_num_vertices(local_graph);
+  size_t num_global_vertices = adj_graph_num_vertices(local_graph);
   int64_t* P = polymec_malloc(sizeof(int64_t)*num_global_vertices);
   memset(P, 0, sizeof(int64_t)*num_global_vertices);
   return P;

@@ -208,12 +208,10 @@ bool partition_point_cloud(point_cloud_t** cloud,
                            point_cloud_field_t** fields,
                            size_t num_fields)
 {
-  ASSERT((weights == NULL) || (imbalance_tol > 0.0));
-  ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
-  point_cloud_t* cl = *cloud;
-
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
+  ASSERT((weights == NULL) || (imbalance_tol > 0.0));
+  ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
   ASSERT((*cloud == NULL) || ((*cloud)->comm == MPI_COMM_SELF));
 
   int nprocs, rank;
@@ -231,6 +229,7 @@ bool partition_point_cloud(point_cloud_t** cloud,
   int64_t* global_partition;
   if (rank == 0)
   {
+    point_cloud_t* cl = *cloud;
     global_partition = partition_points(cl->points, cl->num_points, comm, 
                                         weights, imbalance_tol, true);
   }
@@ -299,12 +298,11 @@ bool repartition_point_cloud(point_cloud_t** cloud,
                              point_cloud_field_t** fields,
                              size_t num_fields)
 {
+#if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
   ASSERT(imbalance_tol > 0.0);
   ASSERT(imbalance_tol <= 1.0);
   point_cloud_t* cl = *cloud;
-
-#if POLYMEC_HAVE_MPI
-  START_FUNCTION_TIMER();
   int nprocs, rank;
   MPI_Comm_size(cl->comm, &nprocs);
   MPI_Comm_rank(cl->comm, &rank);
@@ -338,6 +336,7 @@ void redistribute_point_cloud(point_cloud_t** cloud,
                               point_cloud_field_t** fields,
                               size_t num_fields)
 {
+#if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
   point_cloud_t* c = *cloud;
 
@@ -480,5 +479,6 @@ void redistribute_point_cloud(point_cloud_t** cloud,
   redistribution_free(redist);
   point_cloud_free(c);
   STOP_FUNCTION_TIMER();
+#endif
 }
 
