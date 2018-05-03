@@ -148,14 +148,15 @@ static void* stencil_byte_read(byte_array_t* bytes, size_t* offset)
   name[name_len] = '\0';
 
   // Read the offsets, indices.
-  int num_indices, max_offset, num_ghosts;
-  byte_array_read_ints(bytes, 1, &num_indices, offset);
+  size_t num_indices, num_ghosts;
+  int max_offset;
+  byte_array_read_size_ts(bytes, 1, &num_indices, offset);
   int* offsets = polymec_malloc(sizeof(int) * (num_indices+1));
   byte_array_read_ints(bytes, num_indices+1, offsets, offset);
   byte_array_read_ints(bytes, 1, &max_offset, offset);
   int* indices = polymec_malloc(sizeof(int) * max_offset);
   byte_array_read_ints(bytes, max_offset, indices, offset);
-  byte_array_read_ints(bytes, 1, &num_ghosts, offset);
+  byte_array_read_size_ts(bytes, 1, &num_ghosts, offset);
 
   // Exchanger stuff.
   serializer_t* ser = exchanger_serializer();
@@ -196,7 +197,7 @@ adj_graph_t* stencil_as_graph(stencil_t* stencil)
   MPI_Comm_rank(comm, &rank);
   size_t N_local = stencil_num_indices(stencil), num_verts[nproc];
 #if POLYMEC_HAVE_MPI
-  MPI_Allgather(&N_local, 1, MPI_SIZE_T, num_verts, 1, MPI_INT, comm);
+  MPI_Allgather(&N_local, 1, MPI_SIZE_T, num_verts, 1, MPI_SIZE_T, comm);
 #else
   num_verts[0] = N_local;
 #endif

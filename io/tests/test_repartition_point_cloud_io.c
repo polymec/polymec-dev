@@ -67,7 +67,7 @@ static void test_repartition_linear_cloud(void** state,
     assert_true(repartition_point_cloud(&cloud, NULL, imbalance_tol, NULL, 0));
 
     // Check the number of points on each domain. 
-    assert_true(ABS(1.0*(nprocs*cloud->num_points - N)/N) < imbalance_tol);
+    assert_true(ABS((1.0*nprocs*cloud->num_points - N)/N) < imbalance_tol);
   }
   else
   {

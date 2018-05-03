@@ -65,11 +65,12 @@ int64_t* partition_graph(adj_graph_t* global_graph,
 #if POLYMEC_HAVE_MPI
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
   START_FUNCTION_TIMER();
-  ASSERT(adj_graph_comm(global_graph) == MPI_COMM_SELF);
 
   int nprocs, rank;
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
+  ASSERT((global_graph != NULL) || (rank != 0));
+  ASSERT((global_graph == NULL) || (adj_graph_comm(global_graph) == MPI_COMM_SELF));
   ASSERT((rank == 0) || broadcast);
 
   SCOTCH_Dgraph dist_graph;

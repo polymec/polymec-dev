@@ -947,10 +947,10 @@ void distribute_polymesh(polymesh_t** mesh,
   polymesh_t* global_mesh = *mesh;
   polymesh_t* local_mesh = NULL;
   uint64_t vtx_dist[nprocs+1];
+  int num_cells[nprocs];
   if (rank == 0)
   {
     // Take stock of how many cells we'll have per process.
-    int num_cells[nprocs];
     memset(num_cells, 0, sizeof(int) * nprocs);
     for (int i = 0; i < global_mesh->num_cells; ++i)
       num_cells[global_partition[i]]++;
@@ -1126,12 +1126,6 @@ void distribute_polymesh(polymesh_t** mesh,
   polymesh_field_t* local_fields[num_fields];
   if (rank == 0)
   {
-    // Once again, count how many cells we send to each process.
-    int num_cells[nprocs];
-    memset(num_cells, 0, sizeof(int) * nprocs);
-    for (int i = 0; i < global_mesh->num_cells; ++i)
-      num_cells[global_partition[i]]++;
-
     // Do the local portion.
     for (size_t i = 0; i < num_fields; ++i)
     {
