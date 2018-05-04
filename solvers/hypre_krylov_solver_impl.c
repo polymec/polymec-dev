@@ -1848,10 +1848,8 @@ krylov_factory_t* HypreFactory(const char* hypre_dir)
   factory->hypre_lib_names = string_array_new();
   factory->hypre_ext = NULL;
 
-  // Try to open libHYPRE and mine it for symbols.
-  log_debug(STR(HypreFactory) ": Opening HYPRE libraries in %s.", hypre_dir);
-
   // Make a list of all the HYPRE libraries in our given directory.
+  log_debug(STR(HypreFactory) ": Looking for HYPRE libraries in %s.", hypre_dir);
   string_array_t* all_hypre_libs = string_array_new();
   {
     string_slist_t* files_in_dir = files_within_directory(hypre_dir);
@@ -1869,6 +1867,13 @@ krylov_factory_t* HypreFactory(const char* hypre_dir)
     }
     string_slist_free(files_in_dir);
   }
+  if (all_hypre_libs->size == 0)
+  {
+    log_urgent(STR(HypreFactory) ": Didn't find any HYPRE libraries!");
+    goto failure;
+  }
+
+  log_debug(STR(HypreFactory) ": Found %d HYPRE libraries.", (int)all_hypre_libs->size);
 
   // Get the symbols.
 #define FETCH_HYPRE_SYMBOL(symbol_name) \
