@@ -1,3 +1,9 @@
+Sun May 13 21:53:54 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.2.1
+      - Removed remaining contents of 3rdparty/silo/ directory.
+      - HYPRE library discovery/error checking is improved.
+      - Bumped Sundials version to 3.1.1.
+      - Number of physical cores is now detected and used to run MPI tests.
 Thu May  3 6:29:35 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.0
       - A low-level partitioning interface has been added.
