@@ -5,11 +5,16 @@ link_directories(${PROJECT_BINARY_DIR}/lib)
 # (OpenMPI) really hates being run as root, so we have to ask it nicely to 
 # do so.
 if (TRAVIS_CI)
+  # On Travis, we use the number of logical cores for MPI testing.
+  set(NUMBER_OF_TEST_CORES ${NUMBER_OF_CORES}) 
   if (MPIEXEC_PREFLAGS)
     set(MPIEXEC_PREFLAGS "${MPIEXEC_PREFLAGS} --allow-run-as-root")
   else()
     set(MPIEXEC_PREFLAGS "--allow-run-as-root")
   endif()
+else()
+  # ...otherwise we use the number of physical cores.
+  set(NUMBER_OF_TEST_CORES ${NUMBER_OF_PHYSICAL_CORES}) 
 endif()
 
 # This function adds a parallel unit test executable to be built using cmocka,
@@ -31,7 +36,7 @@ function(add_mpi_polymec_test_with_libs exe libs)
   set_target_properties(${exe} PROPERTIES FOLDER Tests)
   if (HAVE_MPI)
     foreach (proc ${procs})
-      if (NOT ${proc} GREATER ${NUMBER_OF_PHYSICAL_CORES})
+      if (NOT ${proc} GREATER ${NUMBER_OF_TEST_CORES})
         add_test(${exe}_${proc}_proc ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${exe} ${MPIEXEC_POSTFLAGS})
         set_tests_properties(${exe}_${proc}_proc PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
       endif()

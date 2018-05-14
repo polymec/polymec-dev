@@ -1,5 +1,15 @@
 include(add_polymec_executable)
 
+# Travis CI's Docker environment is pretty spare, with 1 single physical core
+# for testing. 
+if (TRAVIS_CI)
+  # On Travis, we use the number of logical cores for MPI testing.
+  set(NUMBER_OF_TEST_CORES ${NUMBER_OF_CORES}) 
+else()
+  # ...otherwise we use the number of physical cores.
+  set(NUMBER_OF_TEST_CORES ${NUMBER_OF_PHYSICAL_CORES}) 
+endif()
+
 function(add_driver_with_libs driver_name libs driver_source)
   add_polymec_executable_with_libs(${driver_name}_exe "${libs}" ${driver_source})
 endfunction()
@@ -20,7 +30,7 @@ function(add_driver_test test_name driver_name test_script)
       set_tests_properties(${test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "${test_script}:")
     else()
       foreach (proc ${procs})
-        if (NOT ${proc} GREATER ${NUMBER_OF_PHYSICAL_CORES})
+        if (NOT ${proc} GREATER ${NUMBER_OF_TEST_CORES})
           set(run_test_name ${test_name}_${proc}_proc)
           add_test(${run_test_name} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${proc} ${MPIEXEC_PREFLAGS} ${CMAKE_CURRENT_BINARY_DIR}/${driver_name}_exe ${test_script} ${options} ${MPIEXEC_POSTFLAGS})
           set_tests_properties(${run_test_name} PROPERTIES FAIL_REGULAR_EXPRESSION "${test_script}:")
