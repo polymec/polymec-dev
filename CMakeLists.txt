@@ -76,25 +76,46 @@ if (APPLE)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Accelerate")
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -framework Accelerate")
 
-  # Find the number of (logical) cores available on the machine.
+  # Find the number of cores available on the machine.
   execute_process(COMMAND sysctl -n hw.ncpu OUTPUT_VARIABLE NUMBER_OF_CORES)
   string(REPLACE "\n" "" NUMBER_OF_CORES ${NUMBER_OF_CORES})
   if (NUMBER_OF_CORES LESS 0)
     set(NUMBER_OF_CORES 1)
   endif()
-  message(STATUS "Configuring on Mac with ${NUMBER_OF_CORES} logical cores.")
+
+  # Physical cores.
+  execute_process(COMMAND sysctl -n hw.physicalcpu OUTPUT_VARIABLE NUMBER_OF_PHYSICAL_CORES)
+  string(REPLACE "\n" "" NUMBER_OF_PHYSICAL_CORES ${NUMBER_OF_PHYSICAL_CORES})
+  if (NUMBER_OF_PHYSICAL_CORES LESS 0)
+    set(NUMBER_OF_PHYSICAL_CORES 1)
+  endif()
+
+  message(STATUS "Configuring on Mac with ${NUMBER_OF_CORES} logical (${NUMBER_OF_PHYSICAL_CORES} physical) cores.")
 else ()
   if (LINUX)
     set(SYS_FLAGS "-DLINUX=1")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
 
-    # Find the number of (logical) cores available on the machine.
+    # Find the number of cores available on the machine.
     execute_process(COMMAND nproc OUTPUT_VARIABLE NUMBER_OF_CORES)
     string(REPLACE "\n" "" NUMBER_OF_CORES ${NUMBER_OF_CORES})
     if (NUMBER_OF_CORES LESS 0)
       set(NUMBER_OF_CORES 1)
     endif()
-    message(STATUS "Configuring on Linux with ${NUMBER_OF_CORES} logical cores.")
+
+    # Physical cores: tricky in general. We'll parse the lscpu command to 
+    # find out the number of threads per core and then just divide 
+    # NUMBER_OF_CORES by that to get NUMBER_OF_PHYSICAL_CORES.
+    execute_process(COMMAND lscpu OUTPUT_VARIABLE lscpu_output)
+    string(FIND ${lscpu_output} "Thread(s) per core:" pos)
+    string(SUBSTRING ${lscpu_output} ${pos} -1 lscpu_output) # chop the front
+    string(FIND ${lscpu_output} "\n" pos)
+    string(SUBSTRING ${lscpu_output} 0 ${pos} lscpu_output) # chop the back
+    string(REPLACE "Thread(s) per core: " "" lscpu_output ${lscpu_output})
+    string(REPLACE " " "" THREADS_PER_CORE ${lscpu_output}) 
+    math(EXPR NUMBER_OF_PHYSICAL_CORES "${NUMBER_OF_CORES} / ${THREADS_PER_CORE}")
+
+    message(STATUS "Configuring on Linux with ${NUMBER_OF_CORES} logical (${NUMBER_OF_PHYSICAL_CORES} physical) cores.")
   else()
     message(FATAL_ERROR "Unknown system type! Currently only Mac and Linux are supported.")
   endif ()
