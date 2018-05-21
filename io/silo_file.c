@@ -103,6 +103,7 @@ static void silo_set_compression(void)
     snprintf(options, 1024, "ERRMODE=FALLBACK,METHOD=GZIP,LEVEL=%d", _silo_compression_level);
     DBSetCompression(options);
     _silo_compression_level_changed = false;
+    polymec_atexit(silo_atexit);
   }
 }
 
@@ -114,7 +115,6 @@ void silo_enable_compression(int level)
   {
     _silo_compression_level = level; 
     _silo_compression_level_changed = true;
-    polymec_atexit(silo_atexit);
   }
 }
 

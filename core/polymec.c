@@ -377,7 +377,17 @@ static void pause_if_requested()
 void polymec_atinit(void (*func)(int argc, char** argv))
 {
   ASSERT(!polymec_initialized);
-  atinit_array_append(_atinit_funcs, func);
+  bool found = false;
+  for (size_t i = 0; i < _atinit_funcs->size; ++i)
+  {
+    if (func == _atinit_funcs->data[i])
+    {
+      found = true;
+      break;
+    }
+  }
+  if (!found)
+    atinit_array_append(_atinit_funcs, func);
 }
 
 void polymec_init(int argc, char** argv)
@@ -672,7 +682,17 @@ void polymec_not_implemented(const char* component)
 
 void polymec_atexit(void (*func)(void)) 
 {
-  atexit_array_append(_atexit_funcs, func);
+  bool found = false;
+  for (size_t i = 0; i < _atexit_funcs->size; ++i)
+  {
+    if (func == _atexit_funcs->data[i])
+    {
+      found = true;
+      break;
+    }
+  }
+  if (!found)
+    atexit_array_append(_atexit_funcs, func);
 }
 
 void polymec_add_dl_path(const char* path)
