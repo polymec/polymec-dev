@@ -90,6 +90,11 @@ string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
 static int _silo_compression_level = -1; 
 static bool _silo_compression_level_changed = false;
 
+static void silo_atexit(void)
+{
+  DBSetCompression(NULL);
+}
+
 static void silo_set_compression(void)
 {
   if (_silo_compression_level_changed)
@@ -109,6 +114,7 @@ void silo_enable_compression(int level)
   {
     _silo_compression_level = level; 
     _silo_compression_level_changed = true;
+    polymec_atexit(silo_atexit);
   }
 }
 
