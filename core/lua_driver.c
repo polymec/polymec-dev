@@ -421,8 +421,8 @@ static noreturn void usage(int argc, char** argv)
     printf(" num_threads=N     Sets number of OpenMP threads to use.\n");
     printf(" timers=VAL        Enables or disables timers.\n");
     printf("                   Case-insensitive values are:\n"); 
-    printf("                   1,true,yes,on    <-- enable\n");
-    printf("                   (everything else <-- disable\n");
+    printf("                   1,true,yes,on     <-- enable\n");
+    printf("                   (everything else) <-- disable\n");
     printf(" timer_file=PATH   Specifies the file for the timer report if\n");
     printf("                   timers=1. Default: timer_report.txt\n");
     printf(" dl_paths=PATH     Sets path(s) to search for dynamically loaded libraries.\n");
