@@ -1,4 +1,11 @@
 {
+   scotch_parser_Leak
+   Memcheck:Leak
+   ...
+   fun:_SCOTCHstratParserParse
+   ...
+}
+{
    PMPI_Leak
    Memcheck:Leak
    ...
