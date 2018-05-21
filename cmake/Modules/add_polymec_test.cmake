@@ -1,19 +1,21 @@
 include_directories(${PROJECT_SOURCE_DIR}/tests;${PROJECT_BINARY_DIR}/include)
 link_directories(${PROJECT_BINARY_DIR}/lib)
 
-# Travis CI and docker run everything as root, and our MPI environment there
-# (OpenMPI) really hates being run as root, so we have to ask it nicely to 
-# do so.
 if (TRAVIS_CI)
-  # On Travis, we use the number of logical cores for MPI testing.
+  # On Travis CI, we use the number of logical cores for MPI testing.
   set(NUMBER_OF_TEST_CORES ${NUMBER_OF_CORES}) 
+
+  # Travis CI and docker run everything as root, and our MPI environment there
+  # (OpenMPI) really hates being run as root, so we have to ask it nicely to 
+  # do so.
   if (MPIEXEC_PREFLAGS)
     set(MPIEXEC_PREFLAGS "${MPIEXEC_PREFLAGS} --allow-run-as-root")
   else()
     set(MPIEXEC_PREFLAGS "--allow-run-as-root")
   endif()
 else()
-  # ...otherwise we use the number of physical cores.
+  # When we're not running Travis CI, we use the number of physical cores
+  # for MPI testing.
   set(NUMBER_OF_TEST_CORES ${NUMBER_OF_PHYSICAL_CORES}) 
 endif()
 
