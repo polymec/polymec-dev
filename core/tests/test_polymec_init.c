@@ -42,9 +42,30 @@ static void test_polymec_num_cores(void** state)
   assert_true(polymec_num_cores() >= 1);
 }
 
+static int* global_mem = NULL;
+
+static void init_mem(int argc, char** argv)
+{
+  global_mem = polymec_malloc(sizeof(int));
+}
+
+static void free_mem(void)
+{
+  free(global_mem);
+}
+
+static void test_polymec_atinit(void** state)
+{
+  assert_true(global_mem != NULL);
+}
+
 int main(int argc, char* argv[]) 
 {
+  polymec_atinit(init_mem);
+  polymec_atinit(init_mem);
   polymec_init(argc, argv);
+  polymec_atexit(free_mem);
+  polymec_atexit(free_mem);
 
   const struct CMUnitTest tests[] = 
   {
@@ -54,6 +75,7 @@ int main(int argc, char* argv[])
     cmocka_unit_test(test_polymec_invocation),
     cmocka_unit_test(test_polymec_invocation_time),
     cmocka_unit_test(test_polymec_num_cores),
+    cmocka_unit_test(test_polymec_atinit),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

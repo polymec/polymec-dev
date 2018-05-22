@@ -377,6 +377,10 @@ static void pause_if_requested()
 void polymec_atinit(void (*func)(int argc, char** argv))
 {
   ASSERT(!polymec_initialized);
+
+  if (_atexit_funcs == NULL)
+    _atinit_funcs = atinit_array_new();
+
   bool found = false;
   for (size_t i = 0; i < _atinit_funcs->size; ++i)
   {
@@ -398,7 +402,8 @@ void polymec_init(int argc, char** argv)
     polymec_invoc_time = time(NULL);
 
     // Set up initialization and exit function arrays.
-    _atinit_funcs = atinit_array_new();
+    if (_atinit_funcs == NULL)
+      _atinit_funcs = atinit_array_new();
     _atexit_funcs = atexit_array_new();
 
     // Jot down command line args.
