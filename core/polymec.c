@@ -378,7 +378,7 @@ void polymec_atinit(void (*func)(int argc, char** argv))
 {
   ASSERT(!polymec_initialized);
 
-  if (_atexit_funcs == NULL)
+  if (_atinit_funcs == NULL)
     _atinit_funcs = atinit_array_new();
 
   bool found = false;
@@ -687,6 +687,7 @@ void polymec_not_implemented(const char* component)
 
 void polymec_atexit(void (*func)(void)) 
 {
+  ASSERT(_atexit_funcs != NULL);
   bool found = false;
   for (size_t i = 0; i < _atexit_funcs->size; ++i)
   {

@@ -364,7 +364,8 @@ noreturn void polymec_not_implemented(const char* component);
 // This registers a function to be called by polymec_init, after all of 
 // polymec's services have been started. This function gets passed argc and 
 // argv, and can make use of polymec's environment. If the function is already
-// registered, it is not registered again.
+// registered, it is not registered again. polymec_atinit must be called
+// before polymec_init.
 void polymec_atinit(void (*func)(int argc, char** argv));
 
 // Initializes polymec's services using the usual argc and argv parameters 
@@ -383,7 +384,8 @@ void polymec_atinit(void (*func)(int argc, char** argv));
 void polymec_init(int argc, char** argv);
 
 // Registers a function to be called upon exit. If the function is already
-// registered, it is not registered again.
+// registered, it is not registered again. polymec_atexit must be called 
+// after polymec_init.
 void polymec_atexit(void (*func)(void));
 
 // Adds the given absolute path to the list of directories that polymec 
