@@ -1,5 +1,5 @@
 # Minimum CMake version -- currently determined by HDF5.
-cmake_minimum_required (VERSION 3.1.0)
+cmake_minimum_required (VERSION 3.10.0)
 
 # Adjust CMake's module path.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
@@ -32,7 +32,7 @@ endif()
 # Version numbers.
 set (POLYMEC_MAJOR_VERSION 2)
 set (POLYMEC_MINOR_VERSION 2)
-set (POLYMEC_PATCH_VERSION 1)
+set (POLYMEC_PATCH_VERSION 2)
 
 set (POLYMEC_VERSION "${POLYMEC_MAJOR_VERSION}.${POLYMEC_MINOR_VERSION}.${POLYMEC_PATCH_VERSION}")
 
