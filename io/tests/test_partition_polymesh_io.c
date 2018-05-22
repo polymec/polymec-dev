@@ -106,8 +106,8 @@ static void test_partition_linear_mesh(void** state)
 
 static void test_partition_slab_mesh(void** state)
 {
-  // Create a 50x50x1 uniform mesh.
-  int nx = 50, ny = 50, nz = 1;
+  // Create a 10x10x1 uniform mesh.
+  int nx = 10, ny = 10, nz = 1;
   real_t dx = 1.0/nx;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = dx};
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
@@ -165,8 +165,8 @@ static void test_partition_slab_mesh(void** state)
 
 static void test_partition_box_mesh(void** state)
 {
-  // Create a 20x20x20 uniform mesh.
-  int nx = 20, ny = 20, nz = 20;
+  // Create a 10x10x10 uniform mesh.
+  int nx = 10, ny = 10, nz = 10;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_SELF, nx, ny, nz, &bbox);
 

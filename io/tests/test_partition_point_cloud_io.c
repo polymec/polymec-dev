@@ -14,8 +14,10 @@
 #include "geometry/create_point_lattice.h"
 #include "io/silo_file.h"
 
-static void test_partition_linear_cloud(void** state, int N)
+static void test_partition_linear_cloud(void** state)
 {
+  int N = 10;
+
   MPI_Comm comm = MPI_COMM_WORLD;
   int rank, nprocs;
   MPI_Comm_rank(comm, &rank);
@@ -94,8 +96,10 @@ static void test_partition_linear_cloud(void** state, int N)
   point_cloud_free(cloud);
 }
 
-static void test_partition_planar_cloud(void** state, int nx, int ny)
+static void test_partition_planar_cloud(void** state)
 {
+  int nx = 10, ny = 10;
+
   MPI_Comm comm = MPI_COMM_WORLD;
   int rank, nprocs;
   MPI_Comm_rank(comm, &rank);
@@ -133,8 +137,10 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
   assert_int_equal(nprocs, num_procs);
 }
 
-static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
+static void test_partition_cubic_cloud(void** state)
 {
+  int nx = 10, ny = 10, nz = 10;
+
   MPI_Comm comm = MPI_COMM_WORLD;
   int rank, nprocs;
   MPI_Comm_rank(comm, &rank);
@@ -172,47 +178,14 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   assert_int_equal(nprocs, num_procs);
 }
 
-static void test_partition_small_linear_cloud(void** state)
-{
-  test_partition_linear_cloud(state, 10);
-}
-
-static void test_partition_large_linear_cloud(void** state)
-{
-  test_partition_linear_cloud(state, 1000);
-}
-
-static void test_partition_small_planar_cloud(void** state)
-{
-  test_partition_planar_cloud(state, 10, 10);
-}
-
-static void test_partition_large_planar_cloud(void** state)
-{
-  test_partition_planar_cloud(state, 200, 200);
-}
-
-static void test_partition_small_cubic_cloud(void** state)
-{
-  test_partition_cubic_cloud(state, 10, 10, 10);
-}
-
-static void test_partition_large_cubic_cloud(void** state)
-{
-  test_partition_cubic_cloud(state, 50, 50, 50);
-}
-
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_partition_small_linear_cloud),
-    cmocka_unit_test(test_partition_large_linear_cloud),
-    cmocka_unit_test(test_partition_small_planar_cloud),
-    cmocka_unit_test(test_partition_large_planar_cloud),
-    cmocka_unit_test(test_partition_small_cubic_cloud),
-    cmocka_unit_test(test_partition_large_cubic_cloud)
+    cmocka_unit_test(test_partition_linear_cloud),
+    cmocka_unit_test(test_partition_planar_cloud),
+    cmocka_unit_test(test_partition_cubic_cloud)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

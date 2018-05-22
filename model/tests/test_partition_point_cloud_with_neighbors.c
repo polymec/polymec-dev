@@ -17,8 +17,10 @@
 // This creates a neighbor pairing using a hat function.
 extern neighbor_pairing_t* create_simple_pairing(point_cloud_t* cloud, real_t h);
 
-static void test_partition_linear_cloud(void** state, int N)
+static void test_partition_linear_cloud(void** state)
 {
+  int N = 10;
+
   MPI_Comm comm = MPI_COMM_WORLD;
   int rank, nprocs;
   MPI_Comm_rank(comm, &rank);
@@ -52,35 +54,15 @@ static void test_partition_linear_cloud(void** state, int N)
     assert_true(reals_nearly_equal(z, 0.5, 1e-6));
   }
 
-#if 0
-  // Plot it.
-  real_t p[cloud->num_points];
-  for (int i = 0; i < cloud->num_points; ++i)
-    p[i] = 1.0*rank;
-  char filename[FILENAME_MAX];
-  snprintf(filename, FILENAME_MAX, "linear_cloud_partition_with_neighbors_%d", N);
-  silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
-  silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
-  silo_file_close(silo);
-
-  // Make sure all processes have written to the file.
-  MPI_Barrier(comm);
-
-  // Superficially check that the file is okay.
-  int num_files, num_procs;
-  assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));
-  assert_int_equal(1, num_files);
-  assert_int_equal(nprocs, num_procs);
-#endif
-
   // Clean up.
   neighbor_pairing_free(pairing);
   point_cloud_free(cloud);
 }
 
-static void test_partition_planar_cloud(void** state, int nx, int ny)
+static void test_partition_planar_cloud(void** state)
 {
+  int nx = 10, ny = 10;
+
   MPI_Comm comm = MPI_COMM_WORLD;
   int rank, nprocs;
   MPI_Comm_rank(comm, &rank);
@@ -102,47 +84,15 @@ static void test_partition_planar_cloud(void** state, int nx, int ny)
   // Partition it.
   assert_true(partition_point_cloud_with_neighbors(&cloud, &pairing, comm, NULL, 0.05, NULL, 0));
 
-#if 0
-  // Now check data. Points should all fall on dx tick marks.
-  for (int i = 0; i < cloud->num_points; ++i)
-  {
-    real_t x = cloud->points[i].x;
-    real_t y = cloud->points[i].y;
-    real_t z = cloud->points[i].z;
-    int j = lround(x/dx - 0.5);
-    assert_true(reals_nearly_equal(x, (0.5+j)*dx, 1e-6));
-    assert_true(reals_nearly_equal(y, 0.0, 1e-6));
-    assert_true(reals_nearly_equal(z, 0.0, 1e-6));
-  }
-
-  // Plot it.
-  real_t p[cloud->num_points];
-  for (int i = 0; i < cloud->num_points; ++i)
-    p[i] = 1.0*rank;
-  char filename[FILENAME_MAX];
-  snprintf(filename, FILENAME_MAX, "planar_cloud_partition_with_neighbors_%dx%d", nx, ny);
-  silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
-  silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
-  silo_file_close(silo);
-
-  // Make sure all processes have written to the file.
-  MPI_Barrier(comm);
-
-  // Superficially check that the file is okay.
-  int num_files, num_procs;
-  assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));
-  assert_int_equal(1, num_files);
-  assert_int_equal(nprocs, num_procs);
-#endif
-
   // Clean up.
   neighbor_pairing_free(pairing);
   point_cloud_free(cloud);
 }
 
-static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
+static void test_partition_cubic_cloud(void** state)
 {
+  int nx = 10, ny = 10, nz = 10;
+
   MPI_Comm comm = MPI_COMM_WORLD;
   int rank, nprocs;
   MPI_Comm_rank(comm, &rank);
@@ -164,73 +114,9 @@ static void test_partition_cubic_cloud(void** state, int nx, int ny, int nz)
   // Partition it.
   assert_true(partition_point_cloud_with_neighbors(&cloud, &pairing, comm, NULL, 0.05, NULL, 0));
 
-#if 0
-  // Now check data. Points should all fall on dx tick marks.
-  for (int i = 0; i < cloud->num_points; ++i)
-  {
-    real_t x = cloud->points[i].x;
-    real_t y = cloud->points[i].y;
-    real_t z = cloud->points[i].z;
-    int j = lround(x/dx - 0.5);
-    assert_true(reals_nearly_equal(x, (0.5+j)*dx, 1e-6));
-    assert_true(reals_nearly_equal(y, 0.0, 1e-6));
-    assert_true(reals_nearly_equal(z, 0.0, 1e-6));
-  }
-
-  // Plot it.
-  real_t p[cloud->num_points];
-  for (int i = 0; i < cloud->num_points; ++i)
-    p[i] = 1.0*rank;
-  char filename[FILENAME_MAX];
-  snprintf(filename, FILENAME_MAX, "cubic_cloud_partition_with_neighbors_%dx%dx%d", nx, ny, nz);
-  silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0, 0.0);
-  silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
-  silo_file_close(silo);
-
-  // Make sure all processes have written to the file.
-  MPI_Barrier(comm);
-
-  // Superficially check that the file is okay.
-  int num_files, num_procs;
-  assert_true(silo_file_query(filename, filename, &num_files, &num_procs, NULL));
-  assert_int_equal(1, num_files);
-  assert_int_equal(nprocs, num_procs);
-#endif
-
   // Clean up.
   neighbor_pairing_free(pairing);
   point_cloud_free(cloud);
-}
-
-static void test_partition_small_linear_cloud(void** state)
-{
-  test_partition_linear_cloud(state, 10);
-}
-
-static void test_partition_large_linear_cloud(void** state)
-{
-  test_partition_linear_cloud(state, 1000);
-}
-
-static void test_partition_small_planar_cloud(void** state)
-{
-  test_partition_planar_cloud(state, 10, 10);
-}
-
-static void test_partition_large_planar_cloud(void** state)
-{
-  test_partition_planar_cloud(state, 200, 200);
-}
-
-static void test_partition_small_cubic_cloud(void** state)
-{
-  test_partition_cubic_cloud(state, 10, 10, 10);
-}
-
-static void test_partition_large_cubic_cloud(void** state)
-{
-  test_partition_cubic_cloud(state, 20, 20, 20);
 }
 
 int main(int argc, char* argv[]) 
@@ -238,12 +124,9 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_partition_small_linear_cloud),
-    cmocka_unit_test(test_partition_large_linear_cloud),
-    cmocka_unit_test(test_partition_small_planar_cloud),
-    cmocka_unit_test(test_partition_large_planar_cloud),
-    cmocka_unit_test(test_partition_small_cubic_cloud),
-    cmocka_unit_test(test_partition_large_cubic_cloud)
+    cmocka_unit_test(test_partition_linear_cloud),
+    cmocka_unit_test(test_partition_planar_cloud),
+    cmocka_unit_test(test_partition_cubic_cloud)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

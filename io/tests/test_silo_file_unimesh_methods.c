@@ -12,14 +12,19 @@
 #include "cmocka.h"
 #include "io/silo_file.h"
 
+// Patch dimensions.
+static const int nx = 4;
+static const int ny = 4;
+static const int nz = 4;
+
 static void test_write_unimesh(void** state) 
 { 
-  // Make a mesh with 4x4x4 patches, each with 10x10x10 cells. 
+  // Make a mesh with 4x4x4 patches, each with nx x ny x nz cells. 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
   unimesh_t* mesh1 = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                 4, 4, 4, 10, 10, 10, 
+                                 4, 4, 4, nx, ny, nz, 
                                  false, false, false); 
 
   // Write the mesh to a file.
@@ -34,15 +39,15 @@ static void test_write_unimesh(void** state)
   assert_true(silo_file_contains_unimesh(silo, "mesh"));
   unimesh_t* mesh2 = silo_file_read_unimesh(silo, "mesh");
   silo_file_close(silo);
-  int npx, npy, npz, nx, ny, nz;
+  int npx, npy, npz, nx_, ny_, nz_;
   unimesh_get_extents(mesh2, &npx, &npy, &npz);
   assert_int_equal(npx, 4);
   assert_int_equal(npy, 4);
   assert_int_equal(npz, 4);
-  unimesh_get_patch_size(mesh2, &nx, &ny, &nz);
-  assert_int_equal(nx, 10);
-  assert_int_equal(ny, 10);
-  assert_int_equal(nz, 10);
+  unimesh_get_patch_size(mesh2, &nx_, &ny_, &nz_);
+  assert_int_equal(nx_, nx);
+  assert_int_equal(ny_, ny);
+  assert_int_equal(nz_, nz);
   for (int i = 0; i < 4; ++i)
     for (int j = 0; j < 4; ++j)
       for (int k = 0; k < 4; ++k)
@@ -53,12 +58,12 @@ static void test_write_unimesh(void** state)
 
 static void test_write_unimesh_cell_field(void** state) 
 { 
-  // Make a mesh with 4x4x4 patches, each with 10x10x10 cells. 
+  // Make a mesh with 4x4x4 patches, each with nx x ny x nz cells. 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
   unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                4, 4, 4, 10, 10, 10,
+                                4, 4, 4, nx, ny, nz, 
                                 false, false, false); 
 
   // Make a 4-component cell-centered field on this mesh.
@@ -74,7 +79,7 @@ static void test_write_unimesh_cell_field(void** state)
       for (int j = 1; j <= patch->ny; ++j)
         for (int k = 1; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+            a[i][j][k][l] = (real_t)(ny*nz*4*i + nz*4*j + 4*k + l);
   }
 
   // Write a plot to a file.
@@ -105,7 +110,7 @@ static void test_write_unimesh_cell_field(void** state)
       for (int j = 1; j <= patch->ny; ++j)
         for (int k = 1; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(ny*nz*4*i + nz*4*j + 4*k + l)));
   }
 
   silo_file_close(silo);
@@ -115,12 +120,12 @@ static void test_write_unimesh_cell_field(void** state)
 
 static void test_write_unimesh_face_field(void** state) 
 { 
-  // Make a mesh with 4x4x4 patches, each with 10x10x10 cells. 
+  // Make a mesh with 4x4x4 patches, each with nx x ny x nz cells. 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
   unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                4, 4, 4, 10, 10, 10,
+                                4, 4, 4, nx, ny, nz, 
                                 false, false, false); 
 
   // Make 4-component face-centered fields on this mesh.
@@ -138,7 +143,7 @@ static void test_write_unimesh_face_field(void** state)
       for (int j = 0; j < patch->ny; ++j)
         for (int k = 0; k < patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+            a[i][j][k][l] = (real_t)(ny*nz*4*i + nz*4*j + 4*k + l);
   }
 
   pos = 0;
@@ -149,7 +154,7 @@ static void test_write_unimesh_face_field(void** state)
       for (int j = 0; j <= patch->ny; ++j)
         for (int k = 0; k < patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+            a[i][j][k][l] = (real_t)(ny*nz*4*i + nz*4*j + 4*k + l);
   }
 
   pos = 0;
@@ -160,7 +165,7 @@ static void test_write_unimesh_face_field(void** state)
       for (int j = 0; j < patch->ny; ++j)
         for (int k = 0; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+            a[i][j][k][l] = (real_t)(ny*nz*4*i + nz*4*j + 4*k + l);
   }
 
   // Write a plot to a file.
@@ -196,7 +201,7 @@ static void test_write_unimesh_face_field(void** state)
       for (int j = 0; j < patch->ny; ++j)
         for (int k = 0; k < patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(ny*nz*4*i + nz*4*j + 4*k + l)));
   }
 
   assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_YFACE));
@@ -213,7 +218,7 @@ static void test_write_unimesh_face_field(void** state)
       for (int j = 0; j <= patch->ny; ++j)
         for (int k = 0; k < patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(ny*nz*4*i + nz*4*j + 4*k + l)));
   }
 
   assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_ZFACE));
@@ -230,7 +235,7 @@ static void test_write_unimesh_face_field(void** state)
       for (int j = 0; j < patch->ny; ++j)
         for (int k = 0; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(ny*nz*4*i + nz*4*j + 4*k + l)));
   }
 
   silo_file_close(silo);
@@ -242,12 +247,12 @@ static void test_write_unimesh_face_field(void** state)
 
 static void test_write_unimesh_edge_field(void** state) 
 { 
-  // Make a mesh with 4x4x4 patches, each with 10x10x10 cells. 
+  // Make a mesh with 4x4x4 patches, each with nx x ny x nz cells. 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
   unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                4, 4, 4, 10, 10, 10,
+                                4, 4, 4, nx, ny, nz, 
                                 false, false, false); 
 
   // Make 4-component edge-centered fields on this mesh.
@@ -265,7 +270,7 @@ static void test_write_unimesh_edge_field(void** state)
       for (int j = 0; j <= patch->ny; ++j)
         for (int k = 0; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+            a[i][j][k][l] = (real_t)(ny*nz*4*i + nz*4*j + 4*k + l);
   }
 
   pos = 0;
@@ -276,7 +281,7 @@ static void test_write_unimesh_edge_field(void** state)
       for (int j = 0; j < patch->ny; ++j)
         for (int k = 0; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+            a[i][j][k][l] = (real_t)(ny*nz*4*i + nz*4*j + 4*k + l);
   }
 
   pos = 0;
@@ -287,7 +292,7 @@ static void test_write_unimesh_edge_field(void** state)
       for (int j = 0; j <= patch->ny; ++j)
         for (int k = 0; k < patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+            a[i][j][k][l] = (real_t)(ny*nz*4*i + nz*4*j + 4*k + l);
   }
 
   // Write a plot to a file.
@@ -323,7 +328,7 @@ static void test_write_unimesh_edge_field(void** state)
       for (int j = 0; j <= patch->ny; ++j)
         for (int k = 0; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(ny*nz*4*i + nz*4*j + 4*k + l)));
   }
 
   assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_YEDGE));
@@ -340,7 +345,7 @@ static void test_write_unimesh_edge_field(void** state)
       for (int j = 0; j < patch->ny; ++j)
         for (int k = 0; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(ny*nz*4*i + nz*4*j + 4*k + l)));
   }
 
   assert_true(silo_file_contains_unimesh_field(silo, "f1", "mesh", UNIMESH_ZEDGE));
@@ -357,7 +362,7 @@ static void test_write_unimesh_edge_field(void** state)
       for (int j = 0; j <= patch->ny; ++j)
         for (int k = 0; k < patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(ny*nz*4*i + nz*4*j + 4*k + l)));
   }
 
   silo_file_close(silo);
@@ -369,12 +374,12 @@ static void test_write_unimesh_edge_field(void** state)
 
 static void test_write_unimesh_node_field(void** state) 
 { 
-  // Make a mesh with 4x4x4 patches, each with 10x10x10 cells. 
+  // Make a mesh with 4x4x4 patches, each with nx x ny x nz cells. 
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, 
                  .y1 = 0.0, .y2 = 1.0, 
                  .z1 = 0.0, .z2 = 1.0};
   unimesh_t* mesh = unimesh_new(MPI_COMM_WORLD, &bbox, 
-                                4, 4, 4, 10, 10, 10,
+                                4, 4, 4, nx, ny, nz, 
                                 false, false, false); 
 
   // Make a 4-component node-centered field on this mesh.
@@ -390,7 +395,7 @@ static void test_write_unimesh_node_field(void** state)
       for (int j = 0; j <= patch->ny; ++j)
         for (int k = 0; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            a[i][j][k][l] = (real_t)(10*10*4*i + 10*4*j + 4*k + l);
+            a[i][j][k][l] = (real_t)(ny*nz*4*i + nz*4*j + 4*k + l);
   }
 
   // Write a plot to a file.
@@ -421,7 +426,7 @@ static void test_write_unimesh_node_field(void** state)
       for (int j = 0; j <= patch->ny; ++j)
         for (int k = 0; k <= patch->nz; ++k)
           for (int l = 0; l < 4; ++l)
-            assert_true(reals_equal(a[i][j][k][l], (real_t)(10*10*4*i + 10*4*j + 4*k + l)));
+            assert_true(reals_equal(a[i][j][k][l], (real_t)(ny*nz*4*i + nz*4*j + 4*k + l)));
   }
 
   silo_file_close(silo);
