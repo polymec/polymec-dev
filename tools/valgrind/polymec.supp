@@ -98,6 +98,12 @@
    ...
 }
 {
+   orte_get_attribute
+   Memcheck:Cond
+   fun:orte_get_attribute
+   ...
+}
+{
    rgelsy_Cond
    Memcheck:Cond
    ...
