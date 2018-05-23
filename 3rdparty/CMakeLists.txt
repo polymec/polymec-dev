@@ -51,6 +51,7 @@ ExternalProject_Add(cmocka_proj
                     LOG_BUILD TRUE
                     LOG_INSTALL TRUE)
 add_library(cmocka STATIC IMPORTED GLOBAL)
+add_dependencies(cmocka cmocka_proj)
 set_target_properties(cmocka PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
 set(POLYMEC_TP_LIBS cmocka;${POLYMEC_TP_LIBS})
 
@@ -87,6 +88,7 @@ ExternalProject_Add(zlib_proj
                     INSTALL_COMMAND make install
                     LOG_INSTALL TRUE)
 add_library(z STATIC IMPORTED GLOBAL)
+add_dependencies(z zlib_proj)
 set_target_properties(z PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libz.a)
 set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
@@ -125,7 +127,9 @@ else()
   add_library(hdf5 SHARED IMPORTED GLOBAL)
   add_library(hdf5_hl SHARED IMPORTED GLOBAL)
 endif()
+add_dependencies(hdf5 hdf5_proj)
 set_target_properties(hdf5 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/${HDF5_LIBRARY})
+add_dependencies(hdf5_hl hdf5_proj)
 set_target_properties(hdf5_hl PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY})
 
 # On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
@@ -171,6 +175,7 @@ if (BUILD_SHARED_LIBS)
 else()
   add_library(usilo STATIC IMPORTED GLOBAL)
 endif()
+add_dependencies(usilo usilo_proj)
 set_target_properties(usilo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libusilo${LIB_SUFFIX})
 set(POLYMEC_TP_LIBS usilo;${POLYMEC_TP_LIBS})
 
@@ -206,6 +211,7 @@ foreach(component arkode;cvode;cvodes;ida;idas;kinsol;${NVEC_LIBS})
   else()
     add_library(${lib} STATIC IMPORTED GLOBAL)
   endif()
+  add_dependencies(${lib} sundials_proj)
   set_target_properties(${lib} PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/lib${lib}${LIB_SUFFIX})
   list(APPEND SUNDIALS_LIBS ${lib})
 endforeach()
@@ -223,6 +229,7 @@ ExternalProject_Add(lua_proj
                     CONFIGURE_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lua ${CMAKE_CURRENT_BINARY_DIR}/lua 
                     LOG_CONFIGURE TRUE
                     BUILD_COMMAND make generic CC=${CMAKE_C_COMPILER} CFLAGS=${LUA_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} -j${NUM_BUILD_THREADS}
+                    DEPENDS linenoise
                     LOG_BUILD TRUE
                     INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/lua/src/liblua.a ${PROJECT_BINARY_DIR}/lib
                     LOG_INSTALL TRUE)
@@ -232,6 +239,7 @@ foreach(inc ${lua_includes})
 endforeach()
 add_library(lua STATIC IMPORTED GLOBAL)
 set_target_properties(lua PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblua.a)
+add_dependencies(lua lua_proj)
 set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
 
 #----------------------------------------------------------------------------
@@ -314,10 +322,16 @@ if (HAVE_MPI)
     add_library(scotch STATIC IMPORTED GLOBAL)
     add_library(ptscotch STATIC IMPORTED GLOBAL)
   endif()
+  add_dependencies(scotch scotch_proj)
   set_target_properties(scotch PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libscotch.a)
+  add_dependencies(ptscotch scotch_proj)
   set_target_properties(ptscotch PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libptscotch.a)
   set(POLYMEC_TP_LIBS ptscotch;scotch;${POLYMEC_TP_LIBS})
 endif()
+
+# This target expresses a single dependency on all third-party libs.
+add_custom_target(all_3rdparty_libs ALL 
+                  DEPENDS ${POLYMEC_TP_LIBS})
 
 # Add all the libraries to the build system at large.
 set(POLYMEC_LIBRARIES ${POLYMEC_TP_LIBS};${POLYMEC_LIBRARIES} PARENT_SCOPE)
