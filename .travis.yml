@@ -18,7 +18,7 @@ env:
     - DEBUG=1 MPI=0 SHARED=1 PRECISION=double
     - DEBUG=1 MPI=1 SHARED=0 PRECISION=double
     - DEBUG=1 MPI=1 SHARED=0 PRECISION=single
-    - DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=/usr PETSC_ARCH="" HYPRE_DIR=/usr/lib
+    - DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=/usr PETSC_ARCH="" HYPRE_DIR=/usr/lib/x86_64-linux-gnu
 
 before_install:
   - docker run -d --name polymec-build -v $PWD:/travis -e "PETSC_DIR=$PETSC_DIR" -e "PETSC_ARCH=$PETSC_ARCH" -e "HYPRE_DIR=$HYPRE_DIR" ubuntu:bionic tail -f /dev/null
