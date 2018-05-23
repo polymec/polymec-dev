@@ -2,6 +2,11 @@
 # for particular hosts.
 macro(set_up_platform)
 
+  # Are we on Linux?
+  if (UNIX AND NOT APPLE)
+    set(LINUX ON)
+  endif()
+
   # Do we have expect?
   find_program(EXPECT expect)
   if (EXPECT STREQUAL "EXPECT-NOTFOUND")

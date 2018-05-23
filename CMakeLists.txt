@@ -6,9 +6,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 # Set compilers. This must be done before enabling languages.
 include(set_up_platform)
-set(CMAKE_C_COMPILER "${CC}")
-set(CMAKE_CXX_COMPILER "${CXX}")
-set(CMAKE_Fortran_COMPILER "${FC}")
 set_up_platform()
 enable_language(C)
 enable_language(CXX)
@@ -188,25 +185,6 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
   endif()
 endif()
 
-# OpenMP support?
-if (USE_OPENMP)
-  find_package(OpenMP QUIET)
-  if (OPENMP_FOUND)
-    message(STATUS "OpenMP is enabled.")
-    set(HAVE_OPENMP 1)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${OpenMP_Fortran_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-  else()
-    message(STATUS "OpenMP is not supported.")
-    set(HAVE_OPENMP 0)
-  endif()
-else()
-  message(STATUS "OpenMP is disabled.")
-  set(HAVE_OPENMP 0)
-endif()
-
 # Considerations for shared libraries, including library suffixes.
 if (BUILD_SHARED_LIBS)
   if (LINUX)
@@ -216,10 +194,8 @@ if (BUILD_SHARED_LIBS)
 
   # Here we make sure CMake-installed binaries use the correct runpath, and 
   # that the path is not stripped during installation.
-  if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-    set(CMAKE_MACOSX_RPATH TRUE)
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-  endif()
+  set(CMAKE_MACOSX_RPATH TRUE)
+  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
   set(LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
 else()
@@ -238,14 +214,19 @@ if (COVERAGE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
   endif()
+
+  # Set up a coverage target.
+  find_program(GCOV gcov)
+  find_program(LCOV lcov)
+  find_program(GENHTML genhtml)
+  add_custom_target(coverage ${LCOV} --gcov-tool=${GCOV} --directory ${PROJECT_BINARY_DIR} -c -q -o lcov.info
+                    COMMAND ${LCOV} --remove lcov.info '*valgrind.h' '*/tests/*' -o lcov.info
+                    COMMAND ${GENHTML} -o coverage lcov.info 
+                    COMMENT "Writing code coverage report to ${PROJECT_BINARY_DIR}/coverage.")
 endif()
 
 # Give a warning about not setting the install prefix.
-if (CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  message(WARNING "No installation prefix was set! Installation is disabled.")
-else()
-  message(STATUS "Installation prefix is ${CMAKE_INSTALL_PREFIX}")
-endif()
+message(STATUS "Installation prefix is ${CMAKE_INSTALL_PREFIX}")
 
 # Basic libraries to be linked in.
 set(POLYMEC_LIBRARIES m)
@@ -274,14 +255,39 @@ set(POLYMEC_LIBRARIES ${POLYMEC_LIBRARIES};dl)
 
 # Figure out MPI.
 if (HAVE_MPI)
+  message(STATUS "MPI is enabled.")
+  set(HAVE_MPI 1) # Normalize.
+
   # NOTE: Disable C++ bindings for MPI, since they have never worked for anyone. 
   set(NO_MPI_CXX_FLAGS "-DMPICH_SKIP_MPICXX -UHAVE_MPI_CPP -DLAM_WANT_MPI2CPP=0 -DLAM_BUILDING=1 -DOMPI_WANT_CXX_BINDINGS=0 -DOMPI_BUILDING=1")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NO_MPI_CXX_FLAGS}")
 else()
+  message(STATUS "MPI is disabled.")
+  set(HAVE_MPI 0) # Normalize.
+
   # Include our own serial implementation of MPI.
   add_subdirectory(mpi_serial)
   include_directories("${PROJECT_SOURCE_DIR}/mpi_serial")
 endif ()
+
+# OpenMP support?
+if (USE_OPENMP)
+  find_package(OpenMP QUIET)
+  if (OPENMP_FOUND)
+    message(STATUS "OpenMP is enabled.")
+    set(HAVE_OPENMP 1)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${OpenMP_Fortran_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+  else()
+    message(STATUS "OpenMP is not supported.")
+    set(HAVE_OPENMP 0)
+  endif()
+else()
+  message(STATUS "OpenMP is disabled.")
+  set(HAVE_OPENMP 0)
+endif()
 
 # Other third-party libraries.
 add_subdirectory(3rdparty)
@@ -334,48 +340,52 @@ configure_file(
 )
 
 # Installation.
-if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  file(GLOB all_headers "${PROJECT_BINARY_DIR}/include/*")
-  foreach(header ${all_headers})
-    get_filename_component(filename ${header} NAME)
-    if (filename MATCHES "polymec")
-      list(APPEND polymec_headers ${header})
-    elseif(filename MATCHES ".h")
-      list(APPEND tp_headers ${header})
-    else()
-      install(DIRECTORY ${header} DESTINATION include)
-    endif()
-  endforeach()
-  set(polymec_headers ${polymec_headers} CACHE STRING "generated polymec headers" )
-
-  # Install all third-party library Polymec source headers.
-  install(FILES ${tp_headers} DESTINATION include)
-
-  # Install all third-party libraries.
-  file(GLOB tp_libs "${PROJECT_BINARY_DIR}/lib/*.a")
-  if (BUILD_SHARED_LIBS)
-    file(GLOB shared_tp_libs "${PROJECT_BINARY_DIR}/lib/*${LIB_SUFFIX}*")
-    list(APPEND tp_libs ${shared_tp_libs})
+file(GLOB all_headers "${PROJECT_BINARY_DIR}/include/*")
+foreach(header ${all_headers})
+  get_filename_component(filename ${header} NAME)
+  if (filename MATCHES "polymec")
+    list(APPEND polymec_headers ${header})
+  elseif(filename MATCHES ".h")
+    list(APPEND tp_headers ${header})
+  else()
+    install(DIRECTORY ${header} DESTINATION include)
   endif()
-  install(FILES ${tp_libs} DESTINATION lib)
+endforeach()
+set(polymec_headers ${polymec_headers} CACHE STRING "generated polymec headers" )
 
-  # Install all third-party executables.
-  file(GLOB tp_exes "${PROJECT_BINARY_DIR}/bin/*")
-  install(FILES ${tp_exes} DESTINATION bin
-          PERMISSIONS OWNER_READ;OWNER_WRITE;OWNER_EXECUTE;
-                      GROUP_READ;GROUP_EXECUTE;WORLD_READ;WORLD_EXECUTE)
+# Install all third-party library Polymec source headers.
+install(FILES ${tp_headers} DESTINATION include)
 
-  # Install all generated Polymec source headers.
-  install(FILES ${polymec_headers} DESTINATION include/polymec)
-
-  # Install miscellaneous build/test files.
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tools/update_version_h.py DESTINATION share/polymec)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polymec)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_library.cmake DESTINATION share/polymec)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_test.cmake DESTINATION share/polymec)
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/FindValgrind.cmake DESTINATION share/polymec)
-else()
-  message(WARNING "Installation is not enabled. Please rerun make config with prefix=/your/prefix.")
+# Install all third-party libraries.
+file(GLOB tp_libs "${PROJECT_BINARY_DIR}/lib/*.a")
+if (BUILD_SHARED_LIBS)
+  file(GLOB shared_tp_libs "${PROJECT_BINARY_DIR}/lib/*${LIB_SUFFIX}*")
+  list(APPEND tp_libs ${shared_tp_libs})
 endif()
+install(FILES ${tp_libs} DESTINATION lib)
 
+# Install all third-party executables.
+file(GLOB tp_exes "${PROJECT_BINARY_DIR}/bin/*")
+install(FILES ${tp_exes} DESTINATION bin
+        PERMISSIONS OWNER_READ;OWNER_WRITE;OWNER_EXECUTE;
+                    GROUP_READ;GROUP_EXECUTE;WORLD_READ;WORLD_EXECUTE)
+
+# Install all generated Polymec source headers.
+install(FILES ${polymec_headers} DESTINATION include/polymec)
+
+# Install miscellaneous build/test files.
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tools/update_version_h.py DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_library.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_test.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/FindValgrind.cmake DESTINATION share/polymec)
+
+# Additional targets.
+find_program(PYTHON python)
+if (NOT ${PYTHON} STREQUAL "PYTHON-NOTFOUND")
+  # make stats
+  add_custom_target(stats ${PYTHON} ${PROJECT_SOURCE_DIR}/tools/gather_stats.py ${PROJECT_SOURCE_DIR})
+  # make prepend-license
+  add_custom_target(prepend-license ${PYTHON} ${PROJECT_SOURCE_DIR}/tools/prepend_license.py ${PROJECT_SOURCE_DIR})
+endif()

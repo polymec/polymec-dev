@@ -69,8 +69,14 @@ def count_others(source_files):
         fp.close()
     return num_fixmes
 
+import sys
+if len(sys.argv) < 2:
+    print('python gather_stats.py <dir>')
+    exit(0)
+root = sys.argv[1]
+
 # Find the relevant source/header files.
-headers, sources = find_sources('.')
+headers, sources = find_sources(root)
 num_header_files = len(headers)
 num_source_files = len(sources)
 
@@ -83,13 +89,13 @@ num_source_files = len(sources)
 # Miscellany.
 num_fixmes = count_others(headers + sources)
 
-print '-----------------------'
-print 'Statistics for polymec:'
-print '-----------------------'
-print 'number of header files:                    %i'%num_header_files
-print 'number of source files:                    %i'%num_source_files
-print 'number of source lines (without comments): %i (%i) '%(num_lines, num_lines_wo_comments)
-print 'number of types:                           %i'%num_types
-print 'number of functions:                       %i'%num_functions
-print 'number of FIXMEs:                          %i'%num_fixmes
+print('-----------------------')
+print('Statistics for polymec:')
+print('-----------------------')
+print('number of header files:                    %i'%num_header_files)
+print('number of source files:                    %i'%num_source_files)
+print('number of source lines (without comments): %i (%i) '%(num_lines, num_lines_wo_comments))
+print('number of types:                           %i'%num_types)
+print('number of functions:                       %i'%num_functions)
+print('number of FIXMEs:                          %i'%num_fixmes)
 

@@ -9,70 +9,26 @@ Software Requirements
 The polymec library requires the following software for installation:
 
   - A C compiler that adheres to (or aspires to) the C11 standard. 
-    Currently, GCC 4.9 and Clang 3.4 work well (though others
-    may work as well).
+    GCC 4.9+ and Clang 3.4+ work well.
   - A reasonable C++ compiler (for the C++ build/link test).
   - A Fortran compiler for LAPACK/BLAS and for special functions.
   - A working set of LAPACK/BLAS libraries.
-  - CMake 3.1.0+ (found at http://www.cmake.org)
+  - CMake 3.10+ (found at http://www.cmake.org)
   - GNU Make
 
 --------
 Building 
 --------
 
-To build polymec on a UNIX-like system, use the following commands:
+To build polymec on a UNIX-like system, change to the polymec-dev directory 
+and type the following commands:
 
-     $ make config [options]
-     $ make [options]
+     $ ./bootstrap build_dir
 
-Available options are:
-
-    prefix=/path/to/install <-- Installation prefix (no default).
-
-    verbose=0,1 <-- selects a silent (0) or verbose (1) CMake/Make build 
-                    (default: 0).
-
-    precision=single,double <-- selects precision of floating point numbers
-                                (default: double).
-
-    mpi=0,1  <-- specifies a serial (0) or MPI (1) build (default: 0).
-
-    openmp=0,1  <-- specifies to disable (0) or enable (1) OpenMP if 
-                    supported (default: 1).
-
-    debug=0,1  <-- specifies a Release (0) or Debug (1) build (default: 0).
-
-    shared=0,1  <-- specifies static (0) or shared (1) libraries (default: 0).
-
-    machine=xyz  <-- specifies the use of a specific machine. Check the 
-                     downloaded machines/ directory after using this option 
-                     to look for a file for your specific machine. These 
-                     files are maintained in the polymec/polymec-machines 
-                     repo on GitHub (default: none).
-
-    travis=0,1  <-- Used to inform the build system when building within the
-                    Travis CI environment (1) or outside of it (0).
-                    In a perfect world we wouldn't need this, but we do 
-                    (default: 0).
-
-    ide=codeblocks,xcode,codelite,eclipse,kate,sublime <--
-                    Used to generate project files for an integrated
-                    development environment (IDE) instead of UNIX 
-                    makefiles (default: UNIX makefiles).
-
-    coverage=0,1 <-- Used to build and run with code coverage analysis 
-                     (default: 0).
-
-    build=build_name <-- Used to explicitly name a build directory (within 
-                         the build/ subdirectory), instead of having the 
-                         build system automatically generate one based on the 
-                         platform, compiler, optimization level, etc.
-                         (default: auto-generated build name).
-
-    Compilers can also be selected with CC, CXX, FC. When MPI is enabled, 
-    these compilers default to mpicc, mpicxx, and mpif90, respectively. 
-    Otherwise their respective defaults are cc, c++, and gfortran.
+where build_dir is the directory in which you want to build. Then just 
+follow the onscreen directions. You'll be asked to edit a config.sh file 
+in your build directory that contains several parameters for your build. Then 
+you can just start the build from within that directory with 'make'.
 
 ------------
 Installation
@@ -82,26 +38,26 @@ To install polymec, run
 
     $ make install [options]
 
-NOTE that there is no default installation prefix, so you must specify one 
-with the prefix=[path] argument described above.
+from within your build directory. 
 
--------------------
-Other make commands
--------------------
+------------------
+Other make targets
+------------------
 
    $ make test 
           Runs all unit tests for the library.
 
    $ make memcheck 
           Runs all unit tests for the library using a memory checking tool
-          if available (currently only Valgrind on Linux is supported).
+          if available (Valgrind on Linux, basically).
 
-   $ make uninstall 
-          Removes all files installed by 'make install'.
-   
    $ make clean 
           Removes all object files but retains the configuration options.
-   
-   $ make distclean 
-          Performs clean and completely removes the build directory.
 
+   $ make stats 
+          Prints some interesting code statistics to the screen.
+   
+   $ make coverage 
+          Generates a code coverage report. This only works if you enable 
+          the COVERAGE build option in config.sh.
+   

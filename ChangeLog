@@ -1,5 +1,6 @@
-Tue May 22 00:30:31 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+Wed May 23 15:22:01 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.2
+      - Replaced 'make config' system with a simpler bootstrap process.
       - Switched Travis CI Docker image to Ubuntu 18.04 LTS from 16.04 LTS.
       - Added a couple of Valgrind suppressions.
       - Refined polymec_atinit and polymec_atexit.

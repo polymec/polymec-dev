@@ -76,8 +76,14 @@ def add_new_license(source_file):
             f.write(line)
     f.close()
 
+import sys
+if len(sys.argv) < 2:
+    print('python prepend_license.py <dir>')
+    exit(0)
+root = sys.argv[1]
+
 # Find the relevant source/header files.
-sources = find_sources('.')
+sources = find_sources(root)
 
 # Add the license.
 for source in sources:

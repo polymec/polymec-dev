@@ -7,18 +7,18 @@ language: c
 
 env:
   matrix:
-    - DEBUG=0 MPI=0 SHARED=0 PRECISION=double 
-    - DEBUG=0 MPI=0 SHARED=0 PRECISION=single
-    - DEBUG=0 MPI=0 SHARED=1 PRECISION=double
-    - DEBUG=0 MPI=1 SHARED=0 PRECISION=double
-    - DEBUG=0 MPI=1 SHARED=0 PRECISION=single
-    - DEBUG=0 MPI=1 SHARED=1 PRECISION=double
-    - DEBUG=1 MPI=0 SHARED=0 PRECISION=double
-    - DEBUG=1 MPI=0 SHARED=0 PRECISION=single
-    - DEBUG=1 MPI=0 SHARED=1 PRECISION=double
-    - DEBUG=1 MPI=1 SHARED=0 PRECISION=double
-    - DEBUG=1 MPI=1 SHARED=0 PRECISION=single
-    - DEBUG=1 MPI=1 SHARED=1 PRECISION=double PETSC_DIR=/usr PETSC_ARCH="" HYPRE_DIR=/usr/lib/x86_64-linux-gnu
+    - BUILD_TYPE=Debug MPI=ON SHARED_LIBS=OFF PRECISION=double
+    - BUILD_TYPE=Debug MPI=ON SHARED_LIBS=OFF PRECISION=single
+    - BUILD_TYPE=Debug MPI=ON SHARED_LIBS=ON PRECISION=double PETSC_DIR=/usr PETSC_ARCH="" HYPRE_DIR=/usr/lib/x86_64-linux-gnu
+    - BUILD_TYPE=Debug MPI=OFF SHARED_LIBS=OFF PRECISION=double
+    - BUILD_TYPE=Debug MPI=OFF SHARED_LIBS=OFF PRECISION=single
+    - BUILD_TYPE=Debug MPI=OFF SHARED_LIBS=ON PRECISION=double
+    - BUILD_TYPE=Release MPI=ON SHARED_LIBS=OFF PRECISION=double
+    - BUILD_TYPE=Release MPI=ON SHARED_LIBS=OFF PRECISION=single
+    - BUILD_TYPE=Release MPI=ON SHARED_LIBS=ON PRECISION=double
+    - BUILD_TYPE=Release MPI=OFF SHARED_LIBS=OFF PRECISION=double 
+    - BUILD_TYPE=Release MPI=OFF SHARED_LIBS=OFF PRECISION=single
+    - BUILD_TYPE=Release MPI=OFF SHARED_LIBS=ON PRECISION=double
 
 before_install:
   - docker run -d --name polymec-build -v $PWD:/travis -e "PETSC_DIR=$PETSC_DIR" -e "PETSC_ARCH=$PETSC_ARCH" -e "HYPRE_DIR=$HYPRE_DIR" ubuntu:bionic tail -f /dev/null
@@ -31,13 +31,14 @@ install:
 
 before_script:
   - docker exec -t polymec-build bash -c "cd travis;
-    make config debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION travis=1 prefix=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION"
+    ./bootstrap build;
+    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DHAVE_MPI=$MPI -DBUILD_SHARED_LIBS=$SHARED_LIBS -DPOLYMEC_PRECISION=$PRECISION -DTRAVIS_CI=ON -DCMAKE_INSTALL_PREFIX=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$BUILD_TYPE-mpi=$MPI-shared=$SHARED-precision=$PRECISION"
 
 script: 
   - if [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then export TEST=memcheck; else export TEST=test; fi
-  - docker exec -t polymec-build bash -c "cd travis;
-    make -j4 debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION install;
-    make debug=$DEBUG mpi=$MPI shared=$SHARED precision=$PRECISION $TEST"
+  - docker exec -t polymec-build bash -c "cd travis/build;
+    make -j3 install;
+    make $TEST"
 
 #after_success: 
 #  - cd $HOME
@@ -47,13 +48,13 @@ script:
 
 after_failure: 
   - docker exec -t polymec-build bash -c "cd travis;
-    cat build/*/Testing/Temporary/LastTest.log || cat build/*/Testing/Temporary/LastDynamicAnalysis*;
-    cat build/*/Testing/Temporary/MemoryChecker*.log"
+    cat build/Testing/Temporary/LastTest.log || cat build/*/Testing/Temporary/LastDynamicAnalysis*;
+    cat build/Testing/Temporary/MemoryChecker*.log"
 
 after_script:
   - docker exec -t polymec-build bash -c "cd travis;
-    cat build/*/Testing/Temporary/LastTest.log;
-    cat build/*/3rdparty/*error*.log"
+    cat build/Testing/Temporary/LastTest.log;
+    cat build/3rdparty/*error*.log"
 
 #deploy:
 #  provider: s3
