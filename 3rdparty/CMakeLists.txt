@@ -1,3 +1,4 @@
+include(ExternalProject)
 include_directories(${PROJECT_BINARY_DIR}/include)
 
 # We use the rule of thumb that the optimal number of build threads is 
@@ -13,371 +14,230 @@ string(REPLACE "-Wfloat-equal" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-fprofile-arcs" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 string(REPLACE "-ftest-coverage" " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 
+# Create canonical top-level directories in the build directory.
+foreach(dir include;lib;bin;share)
+  set(top_level_dir ${PROJECT_BINARY_DIR}/${dir})
+  if (NOT EXISTS ${top_level_dir})
+    execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${top_level_dir})
+  endif()
+endforeach()
+
+#----------------------------------------------------------------------------
 # Build linenoise -- A readline alternative that provides terminal history
 # in about 1,000 lines of code.
+#----------------------------------------------------------------------------
 add_library(linenoise ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.c)
 set_target_properties(linenoise PROPERTIES FOLDER Libraries)
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/include)
-  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/include)
-endif()
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/linenoise.h)
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h ${PROJECT_BINARY_DIR}/include)
-endif()
-if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h DESTINATION include)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liblinenoise${LIB_SUFFIX} DESTINATION lib)
-endif()
+execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h ${PROJECT_BINARY_DIR}/include)
+install(TARGETS linenoise DESTINATION ${PROJECT_BINARY_DIR}/lib)
 set(POLYMEC_TP_LIBS linenoise;${POLYMEC_TP_LIBS})
 
+#----------------------------------------------------------------------------
 # Build cmocka, a C unit testing library.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
-  message(STATUS "Configuring cmocka...")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/cmocka
-                  RESULT_VARIABLE stat)
-  set(CMOCKA_C_FLAGS ${CMAKE_C_FLAGS})
-  string(REPLACE "-pedantic-errors" "-Wno-format-pedantic" CMOCKA_C_FLAGS ${CMOCKA_C_FLAGS})
-  set(CMOCKA_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS=${CMOCKA_C_FLAGS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DWITH_STATIC_LIB=ON -DWITH_EXAMPLES=OFF)
-  if (CMAKE_C_COMPILER_ID STREQUAL "Intel" OR CMAKE_C_COMPILER_ID MATCHES "AppleClang")
-    set(CMOCKA_CMAKE_OPTS ${CMOCKA_CMAKE_OPTS} -DHAVE_WORDS_BIGENDIAN=TRUE -DWORDS_BIGENDIAN=FALSE)
-  endif()
-  execute_process(COMMAND cmake ${CMOCKA_CMAKE_OPTS} ${CMAKE_CURRENT_SOURCE_DIR}/cmocka
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cmocka
-                  OUTPUT_VARIABLE cmocka_config.log ERROR_VARIABLE cmocka_config_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmocka_config.log ${cmocka_config_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Configuration of cmocka library failed:")
-      message(FATAL_ERROR ${cmocka_config_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmocka_config_errors.log ${cmocka_config_err})
-      message(FATAL_ERROR "Configuration of cmocka library failed. See ${CMAKE_CURRENT_BINARY_DIR}/cmocka_config_*.log.")
-    endif()
-  endif()
-  message(STATUS "Building and installing cmocka (${NUM_BUILD_THREADS} threads)...")
-  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cmocka
-                  OUTPUT_VARIABLE cmocka_build_log ERROR_VARIABLE cmocka_build_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmocka_build.log ${cmocka_build_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Build of cmocka library failed:")
-      message(FATAL_ERROR ${cmocka_build_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmocka_build_errors.log ${cmocka_build_err})
-      message(FATAL_ERROR "Build of cmocka library failed. See ${CMAKE_CURRENT_BINARY_DIR}/cmocka_build_*.log.")
-    endif()
-  endif()
-
-  # On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
-  if (APPLE AND BUILD_SHARED_LIBS)
-    execute_process(COMMAND install_name_tool -id @rpath/libcmocka${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/libcmocka${LIB_SUFFIX})
-  endif()
-
+#----------------------------------------------------------------------------
+set(CMOCKA_C_FLAGS ${CMAKE_C_FLAGS})
+string(REPLACE "-pedantic-errors" "-Wno-format-pedantic" CMOCKA_C_FLAGS ${CMOCKA_C_FLAGS})
+set(CMOCKA_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS=${CMOCKA_C_FLAGS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DWITH_STATIC_LIB=ON -DWITH_EXAMPLES=OFF)
+if (CMAKE_C_COMPILER_ID STREQUAL "Intel" OR CMAKE_C_COMPILER_ID MATCHES "AppleClang")
+  set(CMOCKA_CMAKE_OPTS ${CMOCKA_CMAKE_OPTS} -DHAVE_WORDS_BIGENDIAN=TRUE -DWORDS_BIGENDIAN=FALSE)
 endif()
+ExternalProject_Add(cmocka_proj
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/cmocka
+                    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cmocka
+                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/cmocka
+                    INSTALL_DIR ${PROJECT_BINARY_DIR}
+                    CMAKE_ARGS ${CMOCKA_CMAKE_OPTS}
+                    LOG_CONFIGURE TRUE
+                    LOG_BUILD TRUE
+                    LOG_INSTALL TRUE)
 add_library(cmocka STATIC IMPORTED GLOBAL)
 set_target_properties(cmocka PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
+set(POLYMEC_TP_LIBS cmocka;${POLYMEC_TP_LIBS})
 
-# Install libarena -- A fast C arena/memory pool implementation.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/include/arena)
-
-  message(STATUS "Preparing libarena...")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/libarena ${CMAKE_CURRENT_BINARY_DIR}/libarena
-                  RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Copying library source failed.")
-  endif()
-
-  message(STATUS "Copying libarena headers into place...")
-  file(GLOB arena_includes "${CMAKE_CURRENT_BINARY_DIR}/libarena/src/*.h")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
-  foreach(inc ${arena_includes})
-    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${inc} ${PROJECT_BINARY_DIR}/include/arena)
-  endforeach()
-
-endif()
-file(GLOB arena_sources "${CMAKE_CURRENT_BINARY_DIR}/libarena/src/*.c")
+#----------------------------------------------------------------------------
+# Build libarena -- A fast C arena/memory pool implementation.
+#----------------------------------------------------------------------------
+file(GLOB arena_sources "${CMAKE_CURRENT_SOURCE_DIR}/libarena/src/*.c")
 add_library(arena ${arena_sources})
-set_target_properties(arena PROPERTIES FOLDER Libraries)
 if (CMAKE_C_COMPILER_ID MATCHES "Clang")
   set_target_properties(arena PROPERTIES COMPILE_OPTIONS "-Wno-everything")
 endif()
-if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libarena${LIB_SUFFIX} DESTINATION lib)
-endif()
+set_target_properties(arena PROPERTIES FOLDER Libraries)
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/include/arena)
+file(GLOB arena_includes "${CMAKE_CURRENT_SOURCE_DIR}/libarena/src/*.h")
+foreach(inc ${arena_includes})
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${inc} ${PROJECT_BINARY_DIR}/include/arena)
+endforeach()
 set(POLYMEC_TP_LIBS arena;${POLYMEC_TP_LIBS})
 
-# Build zlib for compression.
-if (NOT EXISTS ${Z_LIBRARY})
-  set(ZLIB_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --static)
-
-  message(STATUS "Preparing zlib...")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib
-                  RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Copying library source failed.")
-  endif()
-
-  message(STATUS "Configuring zlib...")
-  execute_process(COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} ./configure ${ZLIB_CONFIG_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib
-                  OUTPUT_VARIABLE zlib_config_log ERROR_VARIABLE zlib_config_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zlib_config.log ${zlib_config_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Configuration of zlib library failed:")
-      message(FATAL_ERROR ${zlib_config_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zlib_config_errors.log ${zlib_config_err})
-      message(FATAL_ERROR "Configuration of zlib library failed. See ${CMAKE_CURRENT_BINARY_DIR}/zlib_config_*.log.")
-    endif()
-  endif()
-
-  message(STATUS "Building and installing zlib (${NUM_BUILD_THREADS} threads)...")
-  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/zlib
-                  OUTPUT_VARIABLE zlib_build_log ERROR_VARIABLE zlib_build_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zlib_build.log ${zlib_build_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Build of zlib library failed:")
-      message(FATAL_ERROR ${zlib_build_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zlib_build_errors.log ${zlib_build_err})
-      message(FATAL_ERROR "Build of zlib library failed. See ${CMAKE_CURRENT_BINARY_DIR}/zlib_build_*.log.")
-    endif()
-  endif()
-
-endif()
+#----------------------------------------------------------------------------
+# Build zlib: simple compression.
+#----------------------------------------------------------------------------
+set(ZLIB_CONFIG_OPTS --prefix=${PROJECT_BINARY_DIR} --static)
+ExternalProject_Add(zlib_proj
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/zlib
+                    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/zlib
+                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/zlib
+                    INSTALL_DIR ${PROJECT_BINARY_DIR}
+                    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib 
+                    COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} ./configure ${ZLIB_CONFIG_OPTS}
+                    LOG_CONFIGURE TRUE
+                    BUILD_COMMAND make -j${NUM_BUILD_THREADS}
+                    LOG_BUILD TRUE
+                    INSTALL_COMMAND make install
+                    LOG_INSTALL TRUE)
+add_library(z STATIC IMPORTED GLOBAL)
+set_target_properties(z PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libz.a)
 set(POLYMEC_TP_LIBS z;${POLYMEC_TP_LIBS})
 
+#----------------------------------------------------------------------------
 # Build the HDF5 parallel I/O library. 
+#----------------------------------------------------------------------------
 if (NOT EXISTS ${HDF5_LIBRARY})
-  message(STATUS "Configuring hdf5...")
   set(HDF5_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
   set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}) 
   set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DZLIB_INCLUDE_DIRS=${PROJECT_BINARY_DIR}/include -DZLIB_LIBARIES=z -DZLIB_USE_EXTERNAL=OFF -DHDF5_ENABLE_PARALLEL=${HAVE_MPI})
   set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_CPP_LIB=OFF)
   set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_FORTRAN=OFF)
   set(HDF5_CMAKE_OPTS ${HDF5_CMAKE_OPTS} -DHDF5_BUILD_TOOLS=ON -DBUILD_TESTING=OFF -DHDF5_BUILD_EXAMPLES=OFF)
-  if (EXISTS ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
-    execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_CURRENT_BINARY_DIR}/hdf5/CMakeCache.txt)
-  else()
-    execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
-  endif()
-  execute_process(COMMAND ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/hdf5 ${HDF5_CMAKE_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-                  OUTPUT_VARIABLE hdf5_config_log ERROR_VARIABLE hdf5_config_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config.log ${hdf5_config_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Configuration of hdf5 library failed:")
-      message(FATAL_ERROR ${hdf5_config_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config_errors.log ${hdf5_config_err})
-      message(FATAL_ERROR "Configuration of hdf5 library failed. See ${CMAKE_CURRENT_BINARY_DIR}/hdf5_config_*.log.")
-    endif()
-  endif()
-
-  message(STATUS "Building and installing hdf5 (${NUM_BUILD_THREADS} threads)...")
-  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-                  OUTPUT_VARIABLE hdf5_build_log ERROR_VARIABLE hdf5_build_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build.log ${hdf5_build_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Build of hdf5 library failed:")
-      message(FATAL_ERROR ${hdf5_build_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build_errors.log ${hdf5_build_err})
-      message(FATAL_ERROR "Build of hdf5 library failed. See ${CMAKE_CURRENT_BINARY_DIR}/hdf5_build_*.log.")
-    endif()
-  endif()
+  ExternalProject_Add(hdf5_proj
+                      PREFIX ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+                      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/hdf5
+                      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+                      INSTALL_DIR ${PROJECT_BINARY_DIR}
+                      CMAKE_ARGS ${HDF5_CMAKE_OPTS}
+                      DEPENDS zlib_proj
+                      LOG_CONFIGURE TRUE
+                      LOG_BUILD TRUE
+                      LOG_INSTALL TRUE)
 endif()
-
-# Installation considerations.
-file(GLOB hdf5_libs "${PROJECT_BINARY_DIR}/lib/libhdf5*${LIB_SUFFIX}")
-foreach(hdf5_lib ${hdf5_libs})
-  if (${hdf5_lib} MATCHES "_hl")
-    set(HDF5_HL_LIBRARY_PATH ${hdf5_lib})
-    get_filename_component(HDF5_HL_LIBRARY_NAME ${HDF5_HL_LIBRARY_PATH} NAME)
-  elseif (${hdf5_lib} MATCHES "_tools")
-    set(HDF5_TOOLS_LIBRARY_PATH ${hdf5_lib})
-  else()
-    set(HDF5_LIBRARY_PATH ${hdf5_lib})
-    get_filename_component(HDF5_LIBRARY_NAME ${HDF5_LIBRARY_PATH} NAME)
-  endif()
-endforeach()
-if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  # On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
-  if (APPLE AND BUILD_SHARED_LIBS)
-    execute_process(COMMAND otool -DX ${HDF5_LIBRARY_PATH} OUTPUT_VARIABLE libhdf5_id)
-    string(STRIP ${libhdf5_id} libhdf5_id)
-    execute_process(COMMAND install_name_tool -id @rpath/${HDF5_LIBRARY_NAME} ${PROJECT_BINARY_DIR}/lib/${HDF5_LIBRARY_NAME})
-    execute_process(COMMAND install_name_tool -id @rpath/${HDF5_HL_LIBRARY_NAME} ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY_NAME})
-    execute_process(COMMAND install_name_tool -change ${libhdf5_id} @rpath/libhdf5${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY_NAME})
-  endif()
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(HDF5_LIBRARY "libhdf5_debug${LIB_SUFFIX}")
+  set(HDF5_HL_LIBRARY "libhdf5_hl_debug${LIB_SUFFIX}")
+else()
+  set(HDF5_LIBRARY "libhdf5${LIB_SUFFIX}")
+  set(HDF5_HL_LIBRARY "libhdf5_hl${LIB_SUFFIX}")
 endif()
+if (BUILD_SHARED_LIBS)
+  add_library(hdf5 STATIC IMPORTED GLOBAL)
+  add_library(hdf5_hl STATIC IMPORTED GLOBAL)
+else()
+  add_library(hdf5 SHARED IMPORTED GLOBAL)
+  add_library(hdf5_hl SHARED IMPORTED GLOBAL)
+endif()
+set_target_properties(hdf5 PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/${HDF5_LIBRARY})
+set_target_properties(hdf5_hl PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY})
+
+# On Macs we need to change the rpath of shared libraries so we can install them elsewhere.
+# FIXME: Broken!
+#if (APPLE AND BUILD_SHARED_LIBS)
+#  execute_process(COMMAND otool -DX ${HDF5_LIBRARY_PATH} OUTPUT_VARIABLE libhdf5_id)
+#  string(STRIP ${libhdf5_id} libhdf5_id)
+#  execute_process(COMMAND install_name_tool -id @rpath/${HDF5_LIBRARY} ${PROJECT_BINARY_DIR}/lib/${HDF5_LIBRARY})
+#  execute_process(COMMAND install_name_tool -id @rpath/${HDF5_HL_LIBRARY} ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY})
+#  execute_process(COMMAND install_name_tool -change ${libhdf5_id} @rpath/libhdf5${LIB_SUFFIX} ${PROJECT_BINARY_DIR}/lib/${HDF5_HL_LIBRARY})
+#endif()
 
 if (HDF5_LIBRARY STREQUAL "${PROJECT_BINARY_DIR}/lib/libhdf5${LIB_SUFFIX}")
-  set(POLYMEC_HDF5_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/${HDF5_LIBRARY_NAME}" PARENT_SCOPE)
-  set(POLYMEC_HDF5_HL_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/${HDF5_HL_LIBRARY_NAME}" PARENT_SCOPE)
+  set(POLYMEC_HDF5_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/${HDF5_LIBRARY}" PARENT_SCOPE)
+  set(POLYMEC_HDF5_HL_LIBRARY "${CMAKE_INSTALL_PREFIX}/lib/${HDF5_HL_LIBRARY}" PARENT_SCOPE)
   set(POLYMEC_HDF5_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" PARENT_SCOPE)
 else()
   set(POLYMEC_HDF5_LIBRARY ${HDF5_LIBRARY} PARENT_SCOPE)
   set(POLYMEC_HDF5_HL_LIBRARY ${HDF5_HL_LIBRARY} PARENT_SCOPE)
   set(POLYMEC_HDF5_INCLUDE_DIR ${HDF5_INCLUDE_DIR} PARENT_SCOPE)
 endif()
+set(POLYMEC_TP_LIBS hdf5_hl;hdf5;${POLYMEC_TP_LIBS})
 
-# If our HDF5 library is named something weird, copy it to a file with the 
-# regular boring name. This prevents libraries like Silo and Exodus (which 
-# take a while to catch up to recent developments) from freaking out.
-if (HDF5_LIBRARY MATCHES "${PROJECT_BINARY_DIR}/lib" AND NOT EXISTS ${HDF5_LIBRARY})
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${HDF5_LIBRARY_PATH} ${HDF5_LIBRARY})
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${HDF5_HL_LIBRARY_PATH} ${HDF5_HL_LIBRARY})
-endif()
-
-set(POLYMEC_TP_LIBS ${HDF5_LIBRARIES};${POLYMEC_TP_LIBS})
-
+#----------------------------------------------------------------------------
 # Install silo with HDF5 support.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libusilo${LIB_SUFFIX})
-  if (NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/usilo)
-    execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/usilo)
-  endif()
-  message(STATUS "Configuring usilo...")
-  set(USILO_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
-  set(USILO_CMAKE_OPTS ${USILO_CMAKE_OPTS} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}) 
-  set(USILO_CMAKE_OPTS ${USILO_CMAKE_OPTS} -DZLIB_INCLUDE_DIR=${Z_INCLUDE_DIR} -DZLIB_LIBRARY_DIR=${Z_LIBRARY_DIR})
-  set(USILO_CMAKE_OPTS ${USILO_CMAKE_OPTS} -DHDF5_INCLUDE_DIR=${HDF5_INCLUDE_DIR} -DHDF5_LIBRARY_DIR=${HDF5_LIBRARY_DIR})
-  execute_process(COMMAND ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/usilo ${USILO_CMAKE_OPTS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/usilo
-                  OUTPUT_VARIABLE usilo_config_log ERROR_VARIABLE usilo_config_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/usilo_config.log ${usilo_config_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Configuration of usilo library failed:")
-      message(FATAL_ERROR ${usilo_config_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/usilo_config_errors.log ${usilo_config_err})
-      message(FATAL_ERROR "Configuration of usilo library failed. See ${CMAKE_CURRENT_BINARY_DIR}/usilo_config_*.log.")
-    endif()
-  endif()
-
-  message(STATUS "Building and installing usilo (${NUM_BUILD_THREADS} threads)...")
-  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/usilo
-                  OUTPUT_VARIABLE usilo_build_log ERROR_VARIABLE usilo_build_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/usilo_build.log ${usilo_build_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Build of usilo library failed:")
-      message(FATAL_ERROR ${usilo_build_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/usilo_build_errors.log ${usilo_build_err})
-      message(FATAL_ERROR "Build of usilo library failed. See ${CMAKE_CURRENT_BINARY_DIR}/usilo_build_*.log.")
-    endif()
-  endif()
+#----------------------------------------------------------------------------
+set(USILO_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
+set(USILO_CMAKE_OPTS ${USILO_CMAKE_OPTS} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}) 
+set(USILO_CMAKE_OPTS ${USILO_CMAKE_OPTS} -DZLIB_INCLUDE_DIR=${Z_INCLUDE_DIR} -DZLIB_LIBRARY_DIR=${Z_LIBRARY_DIR})
+set(USILO_CMAKE_OPTS ${USILO_CMAKE_OPTS} -DHDF5_INCLUDE_DIR=${HDF5_INCLUDE_DIR} -DHDF5_LIBRARY_DIR=${HDF5_LIBRARY_DIR})
+ExternalProject_Add(usilo_proj
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/usilo
+                    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/usilo
+                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/usilo
+                    INSTALL_DIR ${PROJECT_BINARY_DIR}
+                    CMAKE_ARGS ${USILO_CMAKE_OPTS}
+                    DEPENDS hdf5_proj zlib_proj
+                    LOG_CONFIGURE TRUE
+                    LOG_BUILD TRUE
+                    LOG_INSTALL TRUE)
+if (BUILD_SHARED_LIBS)
+  add_library(usilo SHARED IMPORTED GLOBAL)
+else()
+  add_library(usilo STATIC IMPORTED GLOBAL)
 endif()
+set_target_properties(usilo PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libusilo${LIB_SUFFIX})
 set(POLYMEC_TP_LIBS usilo;${POLYMEC_TP_LIBS})
 
+#----------------------------------------------------------------------------
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
 # differential-algebraic equations.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libsundials_cvode.a)
-  message(STATUS "Configuring sundials...")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sundials
-                  RESULT_VARIABLE stat)
-  set(SUNDIALS_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DEXAMPLES_ENABLE=OFF -DFCMIX_ENABLE=OFF -DSUNDIALS_PRECISION=${POLYMEC_PRECISION})
-  set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
-  if (HAVE_MPI)
-    set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=ON -DMPI_MPICC=${CMAKE_C_COMPILER})
-  else()
-    set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=OFF)
-  endif()
-  execute_process(COMMAND cmake ${SUNDIALS_CMAKE_OPTS} ${CMAKE_CURRENT_SOURCE_DIR}/sundials
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
-                  OUTPUT_VARIABLE sundials_config_log ERROR_VARIABLE sundials_config_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_config.log ${sundials_config_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Configuration of sundials library failed:")
-      message(FATAL_ERROR ${sundials_config_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_config_errors.log ${sundials_config_err})
-      message(FATAL_ERROR "Configuration of sundials library failed. See ${CMAKE_CURRENT_BINARY_DIR}/sundials_config_*.log.")
-    endif()
-  endif()
-
-  message(STATUS "Building and installing sundials (${NUM_BUILD_THREADS} threads)...")
-  execute_process(COMMAND make install -j${NUM_BUILD_THREADS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sundials
-                  OUTPUT_VARIABLE sundials_build_log ERROR_VARIABLE sundials_build_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_build.log ${sundials_build_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Build of sundials library failed:")
-      message(FATAL_ERROR ${sundials_build_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sundials_build_errors.log ${sundials_build_err})
-      message(FATAL_ERROR "Build of sundials library failed. See ${CMAKE_CURRENT_BINARY_DIR}/sundials_build_*.log.")
-    endif()
-  endif()
+#----------------------------------------------------------------------------
+set(SUNDIALS_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DEXAMPLES_ENABLE=OFF -DFCMIX_ENABLE=OFF -DSUNDIALS_PRECISION=${POLYMEC_PRECISION})
+set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
+if (HAVE_MPI)
+  set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=ON -DMPI_MPICC=${CMAKE_C_COMPILER})
+else()
+  set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=OFF)
 endif()
+ExternalProject_Add(sundials_proj
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/sundials
+                    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sundials
+                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/sundials
+                    INSTALL_DIR ${PROJECT_BINARY_DIR}
+                    CMAKE_ARGS ${SUNDIALS_CMAKE_OPTS}
+                    LOG_CONFIGURE TRUE
+                    LOG_BUILD TRUE
+                    LOG_INSTALL TRUE)
 if (NOT HAVE_MPI)
   set (NVEC_LIBS nvecserial)
 else()
   set (NVEC_LIBS nvecparallel;nvecserial)
 endif()
 foreach(component arkode;cvode;cvodes;ida;idas;kinsol;${NVEC_LIBS})
-  list(APPEND SUNDIALS_LIBS sundials_${component})
+  set(lib sundials_${component})
+  if (BUILD_SHARED_LIBS)
+    add_library(${lib} SHARED IMPORTED GLOBAL)
+  else()
+    add_library(${lib} STATIC IMPORTED GLOBAL)
+  endif()
+  set_target_properties(${lib} PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/lib${lib}${LIB_SUFFIX})
+  list(APPEND SUNDIALS_LIBS ${lib})
 endforeach()
 set(POLYMEC_TP_LIBS ${SUNDIALS_LIBS};${POLYMEC_TP_LIBS})
 
+#----------------------------------------------------------------------------
 # Build lua, a simple interpreted language library.
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
-  message(STATUS "Preparing lua...")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lua ${CMAKE_CURRENT_BINARY_DIR}/lua
-                  RESULT_VARIABLE stat)
-  if (NOT stat EQUAL 0)
-    message(FATAL_ERROR "Copying library source failed.")
-  endif()
-
-  message(STATUS "Building lua (${NUM_BUILD_THREADS} threads)...")
-  set(LUA_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -DLUA_USE_POSIX")
-  execute_process(COMMAND make generic CC=${CMAKE_C_COMPILER} CFLAGS=${LUA_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} -j${NUM_BUILD_THREADS}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lua
-                  OUTPUT_VARIABLE lua_build_log ERROR_VARIABLE lua_build_err
-                  RESULT_VARIABLE stat)
-  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua_build.log ${lua_build_log})
-  if (NOT stat EQUAL 0)
-    if (TRAVIS_CI)
-      message(WARNING "Build of lua library failed:")
-      message(FATAL_ERROR ${lua_build_err})
-    else()
-      file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/lua_build_errors.log ${lua_build_err})
-      message(FATAL_ERROR "Build of lua library failed. See ${CMAKE_CURRENT_BINARY_DIR}/lua_build_*.log.")
-    endif()
-  endif()
-endif()
-file(GLOB lua_includes "${CMAKE_CURRENT_BINARY_DIR}/lua/src/*.h")
-if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/liblua.a)
-  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/lua/src/liblua.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
-  foreach(inc ${lua_includes})
-    execute_process(COMMAND ${CMAKE_COMMAND} -E copy ${inc} ${PROJECT_BINARY_DIR}/include)
-  endforeach()
-endif()
+#----------------------------------------------------------------------------
+set(LUA_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -DLUA_USE_POSIX")
+ExternalProject_Add(lua_proj
+                    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/lua
+                    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lua
+                    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/lua
+                    INSTALL_DIR ${PROJECT_BINARY_DIR}
+                    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/lua ${CMAKE_CURRENT_BINARY_DIR}/lua 
+                    LOG_CONFIGURE TRUE
+                    BUILD_COMMAND make generic CC=${CMAKE_C_COMPILER} CFLAGS=${LUA_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} -j${NUM_BUILD_THREADS}
+                    LOG_BUILD TRUE
+                    INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/lua/src/liblua.a ${PROJECT_BINARY_DIR}/lib
+                    LOG_INSTALL TRUE)
+file(GLOB lua_includes "${CMAKE_CURRENT_SOURCE_DIR}/lua/src/*.h")
+foreach(inc ${lua_includes})
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${inc} ${PROJECT_BINARY_DIR}/include)
+endforeach()
+add_library(lua STATIC IMPORTED GLOBAL)
+set_target_properties(lua PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/liblua.a)
 set(POLYMEC_TP_LIBS lua;${POLYMEC_TP_LIBS})
 
+#----------------------------------------------------------------------------
 # Build jrs_predicates, Jonathan Richard Shewchuk's (public domain) library 
 # for arbitrary-precision geometric predicates. 
+#----------------------------------------------------------------------------
 # Since random() is not part of the C standard, we can't lean on it in general.
 add_library(jrs_predicates jrs_predicates/predicates.c)
 if (LINUX)
@@ -389,76 +249,73 @@ else()
                         "${CMAKE_C_FLAGS}")
 endif()
 set_target_properties(jrs_predicates PROPERTIES FOLDER Libraries)
-if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(TARGETS jrs_predicates DESTINATION lib)
-endif()
 set(POLYMEC_TP_LIBS jrs_predicates;${POLYMEC_TP_LIBS})
+install(TARGETS jrs_predicates DESTINATION lib)
 
+#----------------------------------------------------------------------------
 # Build specfun, a Fortran library implementing special functions.
+#----------------------------------------------------------------------------
 add_library(specfun specfun/special_functions.f90)
 set(POLYMEC_TP_LIBS specfun;${POLYMEC_TP_LIBS})
-if (NOT CMAKE_INSTALL_PREFIX STREQUAL "INSTALL_DISABLED")
-  install(TARGETS specfun DESTINATION lib)
-endif()
+install(TARGETS specfun DESTINATION lib)
 
-# If we're building a parallel code, build INRIA's Scotch library.
+#----------------------------------------------------------------------------
+# If we're using MPI, build INRIA's Scotch library.
+#----------------------------------------------------------------------------
 if (HAVE_MPI)
-  if (NOT EXISTS ${PROJECT_BINARY_DIR}/lib/libscotch.a)
-    find_program(FLEX flex)
-    find_program(BISON bison)
+  find_program(FLEX flex)
+  find_program(BISON bison)
 
-    # Scotch is a little funky -- it has empty structs when built without 
-    # threading support (and uses non-standard threading mechanisms like 
-    # pthread barriers when built with threading support!). So we have 
-    # to be a little more accommodating, use the gnu99 standard instead 
-    # of c11, and turn off some error checking. I'm not wild about this, 
-    # but if Scotch does its job, it doesn't much matter.
-    set(SCOTCH_C_FLAGS ${CMAKE_C_FLAGS})
-    if (NOT CMAKE_C_COMPILER_ID STREQUAL "Intel")
-      string(REPLACE "c11" "gnu99" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
-    endif()
-    string(REPLACE "-pedantic-errors" "" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
-    string(REPLACE "-Werror-implicit-function-declaration" "" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
-
-    # For now, we use the "old" timing mechanism to simplify builds using 
-    # older GNU compilers.
-    set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -DCOMMON_TIMING_OLD")
-
-    # Respect debug flags.
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-      set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -g")
-    endif()
-
-    message(STATUS "Preparing scotch...")
-    execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/scotch ${CMAKE_CURRENT_BINARY_DIR}/scotch
-                    RESULT_VARIABLE stat)
-    if (NOT stat EQUAL 0)
-      message(FATAL_ERROR "Copying library source failed.")
-    endif()
-    configure_file(
-      "scotch.Makefile.inc.in"
-      "${CMAKE_CURRENT_BINARY_DIR}/scotch/src/Makefile.inc"
-    )
-
-    message(STATUS "Building scotch (${NUM_BUILD_THREADS} threads)...")
-    execute_process(COMMAND make ptscotch -j${NUM_BUILD_THREADS} 
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/scotch/src
-                    OUTPUT_VARIABLE scotch_build_log ERROR_VARIABLE scotch_build_err
-                    RESULT_VARIABLE stat)
-    if (NOT stat EQUAL 0)
-      if (TRAVIS_CI)
-        message(WARNING "Build of scotch library failed:")
-        message(FATAL_ERROR ${scotch_build_err})
-      else()
-        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/scotch_build_errors.log ${scotch_build_err})
-        message(FATAL_ERROR "Build of scotch library failed. See ${CMAKE_CURRENT_BINARY_DIR}/scotch_build_*.log.")
-      endif()
-    endif()
+  # Scotch is a little funky -- it has empty structs when built without 
+  # threading support (and uses non-standard threading mechanisms like 
+  # pthread barriers when built with threading support!). So we have 
+  # to be a little more accommodating, use the gnu99 standard instead 
+  # of c11, and turn off some error checking. I'm not wild about this, 
+  # but if Scotch does its job, it doesn't much matter.
+  set(SCOTCH_C_FLAGS ${CMAKE_C_FLAGS})
+  if (NOT CMAKE_C_COMPILER_ID STREQUAL "Intel")
+    string(REPLACE "c11" "gnu99" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
   endif()
-  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/scotch/include/scotch.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/scotch/include/ptscotch.h DESTINATION ${PROJECT_BINARY_DIR}/include)
-  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/scotch/lib/libscotch.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
-  file(COPY ${CMAKE_CURRENT_BINARY_DIR}/scotch/lib/libptscotch.a DESTINATION ${PROJECT_BINARY_DIR}/lib)
+  string(REPLACE "-pedantic-errors" "" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
+  string(REPLACE "-Werror-implicit-function-declaration" "" SCOTCH_C_FLAGS ${SCOTCH_C_FLAGS})
+
+  # For now, we use the "old" timing mechanism to simplify builds using 
+  # older GNU compilers.
+  set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -DCOMMON_TIMING_OLD")
+
+  # Respect debug flags.
+  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(SCOTCH_C_FLAGS "${SCOTCH_C_FLAGS} -g")
+  endif()
+
+  execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/scotch)
+  configure_file(
+    "scotch.Makefile.inc.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/scotch/src/Makefile.inc"
+  )
+  ExternalProject_Add(scotch_proj
+                      PREFIX ${CMAKE_CURRENT_BINARY_DIR}/scotch
+                      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scotch
+                      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/scotch/src
+                      INSTALL_DIR ${PROJECT_BINARY_DIR}
+                      CONFIGURE_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/scotch ${CMAKE_CURRENT_BINARY_DIR}/scotch 
+                      LOG_CONFIGURE TRUE
+                      BUILD_COMMAND make ptscotch -j${NUM_BUILD_THREADS}
+                      LOG_BUILD TRUE
+                      INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/scotch/include/scotch.h ${PROJECT_BINARY_DIR}/include
+                      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/scotch/include/ptscotch.h ${PROJECT_BINARY_DIR}/include
+                      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/scotch/lib/libscotch.a ${PROJECT_BINARY_DIR}/lib
+                      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/scotch/lib/libptscotch.a ${PROJECT_BINARY_DIR}/lib
+                      LOG_INSTALL TRUE)
+  if (BUILD_SHARED_LIBS)
+    add_library(scotch SHARED IMPORTED GLOBAL)
+    add_library(ptscotch SHARED IMPORTED GLOBAL)
+  else()
+    add_library(scotch STATIC IMPORTED GLOBAL)
+    add_library(ptscotch STATIC IMPORTED GLOBAL)
+  endif()
+  set_target_properties(scotch PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libscotch.a)
+  set_target_properties(ptscotch PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libptscotch.a)
   set(POLYMEC_TP_LIBS ptscotch;scotch;${POLYMEC_TP_LIBS})
 endif()
 
