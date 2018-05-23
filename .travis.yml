@@ -30,10 +30,11 @@ install:
     ln -s /usr/lib/x86_64-linux-gnu/libpetsc_real.so.3.7.7 /usr/lib/libpetsc.so"
 
 before_script:
+  - if [ "$MPI" = "ON" ]; then export CC=mpicc; export CXX=mpic++; export FC=mpif90; else export CC=cc; export CXX=c++; export FC=gfortran; fi
   - docker exec -t polymec-build bash -c "cd travis;
     ./bootstrap build;
     cd build;
-    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DHAVE_MPI=$MPI -DBUILD_SHARED_LIBS=$SHARED_LIBS -DPOLYMEC_PRECISION=$PRECISION -DTRAVIS_CI=ON .."
+    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DHAVE_MPI=$MPI -DBUILD_SHARED_LIBS=$SHARED_LIBS -DPOLYMEC_PRECISION=$PRECISION -DTRAVIS_CI=ON -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_Fortran_COMPILER=$FC .."
 
 script: 
   - if [ "$BUILD_TYPE" = "Debug" ] && [ "$SHARED_LIBS" = "OFF" ]; then export TEST=memcheck; else export TEST=test; fi
