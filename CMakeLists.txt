@@ -382,6 +382,10 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_test.cmake D
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/FindValgrind.cmake DESTINATION share/polymec)
 
 # Additional targets.
+
+# make memcheck
+add_custom_target(memcheck ctest -T memcheck)
+
 find_program(PYTHON python)
 if (NOT ${PYTHON} STREQUAL "PYTHON-NOTFOUND")
   # make stats
