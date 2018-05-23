@@ -33,19 +33,13 @@ before_script:
   - docker exec -t polymec-build bash -c "cd travis;
     ./bootstrap build;
     cd build;
-    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DHAVE_MPI=$MPI -DBUILD_SHARED_LIBS=$SHARED_LIBS -DPOLYMEC_PRECISION=$PRECISION -DTRAVIS_CI=ON -DCMAKE_INSTALL_PREFIX=$HOME/polymec-$TRAVIS_OS_NAME-$CC-debug=$BUILD_TYPE-mpi=$MPI-shared=$SHARED-precision=$PRECISION .."
+    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DHAVE_MPI=$MPI -DBUILD_SHARED_LIBS=$SHARED_LIBS -DPOLYMEC_PRECISION=$PRECISION -DTRAVIS_CI=ON .."
 
 script: 
-  - if [ "$DEBUG" = "1" ] && [ "$SHARED" = "0" ]; then export TEST=memcheck; else export TEST=test; fi
+  - if [ "$BUILD_TYPE" = "Debug" ] && [ "$SHARED_LIBS" = "OFF" ]; then export TEST=memcheck; else export TEST=test; fi
   - docker exec -t polymec-build bash -c "cd travis/build;
     make -j3 install;
     make $TEST"
-
-#after_success: 
-#  - cd $HOME
-#  - mkdir -p latest
-#  - tar czvf polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION/*
-#  - mv polymec-$TRAVIS_OS_NAME-$CC-debug=$DEBUG-mpi=$MPI-shared=$SHARED-precision=$PRECISION.tar.gz latest
 
 after_failure: 
   - docker exec -t polymec-build bash -c "cd travis;
