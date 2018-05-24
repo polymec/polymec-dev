@@ -217,8 +217,19 @@ if (COVERAGE)
 
   # Set up a coverage target.
   find_program(GCOV gcov)
+  if (GCOV STREQUAL "GCOV-NOTFOUND")
+    message(FATAL_ERROR "gcov not found--can't measure code coverage!")
+  endif()
+
   find_program(LCOV lcov)
+  if (LCOV STREQUAL "LCOV-NOTFOUND")
+    message(FATAL_ERROR "lcov not found--can't report code coverage!")
+  endif()
   find_program(GENHTML genhtml)
+  if (NOT GENHTML STREQUAL "GENHTML-NOTFOUND")
+    message(FATAL_ERROR "genhtml not found--can't format code coverage report!")
+  endif()
+
   add_custom_target(coverage ${LCOV} --gcov-tool=${GCOV} --directory ${PROJECT_BINARY_DIR} -c -q -o lcov.info
                     COMMAND ${LCOV} --remove lcov.info '*valgrind.h' '*/tests/*' -o lcov.info
                     COMMAND ${GENHTML} -o coverage lcov.info 
@@ -230,7 +241,7 @@ message(STATUS "Installation prefix is ${CMAKE_INSTALL_PREFIX}")
 
 # Basic libraries to be linked in.
 set(POLYMEC_LIBRARIES m)
-if (${NEED_LAPACK})
+if (NEED_LAPACK)
   include(FindBLAS)
   include(FindLAPACK)
   find_package(BLAS REQUIRED QUIET)
@@ -311,6 +322,9 @@ if (LINUX)
     include_directories(${VALGRIND_INCLUDE_DIR})
     set(MEMORYCHECK_COMMAND ${VALGRIND_PROGRAM})
     set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=definite,possible --track-origins=yes --error-exitcode=1 --trace-children=yes --suppressions=${PROJECT_SOURCE_DIR}/tools/valgrind/polymec.supp" CACHE STRING "Options passed to Valgrind." FORCE)
+
+    # make memcheck target
+    add_custom_target(memcheck ctest -T memcheck)
   else()
     set(VALGRIND_FOUND 0)
   endif()
@@ -323,7 +337,7 @@ endif()
 include(CTest)
 enable_testing()
 
-# Core libraries.
+# Libraries.
 include_directories("${PROJECT_SOURCE_DIR}")
 add_subdirectory(core)
 add_subdirectory(geometry)
@@ -383,11 +397,8 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/FindValgrind.cmake DESTI
 
 # Additional targets.
 
-# make memcheck
-add_custom_target(memcheck ctest -T memcheck)
-
 find_program(PYTHON python)
-if (NOT ${PYTHON} STREQUAL "PYTHON-NOTFOUND")
+if (NOT PYTHON STREQUAL "PYTHON-NOTFOUND")
   # make stats
   add_custom_target(stats ${PYTHON} ${PROJECT_SOURCE_DIR}/tools/gather_stats.py ${PROJECT_SOURCE_DIR})
   # make prepend-license
