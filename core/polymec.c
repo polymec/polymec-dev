@@ -747,7 +747,10 @@ void polymec_dlclose(void* library)
 void polymec_version_fprintf(const char* exe_name, FILE* stream)
 {
   if (stream == NULL) return;
-  fprintf(stream, "%s v%s\n", exe_name, POLYMEC_VERSION);
+  if (strlen(POLYMEC_REVISION) > 0)
+    fprintf(stream, "%s v%s (%s)\n", exe_name, POLYMEC_VERSION, POLYMEC_REVISION);
+  else
+    fprintf(stream, "%s v%s\n", exe_name, POLYMEC_VERSION);
 }
 
 void polymec_provenance_fprintf(FILE* stream)
@@ -759,6 +762,8 @@ void polymec_provenance_fprintf(FILE* stream)
   fprintf(stream, "                                Provenance:\n");
   fprintf(stream, "=======================================================================\n");
   fprintf(stream, "Version: %s\n", POLYMEC_VERSION);
+  if (strlen(POLYMEC_REVISION) > 0)
+    fprintf(stream, "Revision: %s\n", POLYMEC_REVISION);
   fprintf(stream, "Invoked with: %s\n", polymec_invoc_str);
   fprintf(stream, "Invoked on: %s", ctime(&polymec_invoc_time)); // No \n because of ctime
   fprintf(stream, "Invocation dir: %s\n\n", polymec_invoc_dir);
@@ -778,13 +783,10 @@ void polymec_provenance_fprintf(FILE* stream)
     fprintf(stream, "\n");
   }
 
-  if (POLYMEC_NUM_GIT_DIFFS > 0)
+  if (POLYMEC_HAS_DIFFS)
   {
-    fprintf(stream, "=======================================================================\n");
-    fprintf(stream, "Modifications to revision:\n");
-    for (int i = 0; i < POLYMEC_NUM_GIT_DIFFS; ++i)
-      fprintf(stream, "%s", POLYMEC_GIT_DIFFS[i]);
-    fprintf(stream, "\n\n");
+    fprintf(stream, "WARNING: This executable was built from code that differs from the\n");
+    fprintf(stream, "WARNING: above revision! DO NOT ATTEMPT TO DO REAL SCIENCE WITH IT!\n");
   }
 
   // If we received an input script, write out its contents.

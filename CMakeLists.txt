@@ -59,7 +59,7 @@ endif()
 
 # Add a custom target (always out of date) that generates polymec_version.h.
 add_custom_target(update_version_h ALL
-                  python ${PROJECT_SOURCE_DIR}/tools/update_version_h.py polymec ${POLYMEC_VERSION} ${PROJECT_BINARY_DIR}/core/polymec_version.h)
+                  sh ${PROJECT_SOURCE_DIR}/tools/update_version_h.sh ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/core/polymec_version.h)
 set_target_properties(update_version_h PROPERTIES FOLDER Misc)
                   
 # Add a custom target that generates polymec.h and friends at the top level.
