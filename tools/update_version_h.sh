@@ -1,8 +1,14 @@
+# update_version_h.sh
+# usage: sh update_version_h.sh source_dir dest_dir/polymec_version.h
+
+# Search source_dir/CMakeLists.txt for version information.
 major_version=`grep '(POLYMEC_MAJOR_VERSION' $1/CMakeLists.txt | sed -e 's/set (//' -e 's/)$//' -e 's/POLYMEC_MAJOR_VERSION //'`
 minor_version=`grep '(POLYMEC_MINOR_VERSION' $1/CMakeLists.txt | sed -e 's/set (//' -e 's/)$//' -e 's/POLYMEC_MINOR_VERSION //'`
 patch_version=`grep '(POLYMEC_PATCH_VERSION' $1/CMakeLists.txt | sed -e 's/set (//' -e 's/)$//' -e 's/POLYMEC_PATCH_VERSION //'`
+
+# Ask git for the revision and for diff information.
 git_revision=`git log -1 --format=format:%h`
-git_diff_wc=`git diff | wc -l`
+git_diff_wc=`git diff | wc -l` 
 
 # Write a temporary file with the new contents.
 cat > $2.tmp <<- END
