@@ -15,6 +15,8 @@ The polymec library requires the following software for installation:
   - A working set of LAPACK/BLAS libraries.
   - CMake 3.10+ (found at http://www.cmake.org)
   - GNU Make
+  - The Bourne Again SHell (bash)
+  - A recent version of Git (if you're doing code development).
 
 --------
 Building 

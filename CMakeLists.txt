@@ -59,7 +59,7 @@ endif()
 
 # Add a custom target (always out of date) that generates polymec_version.h.
 add_custom_target(update_version_h ALL
-                  sh ${PROJECT_SOURCE_DIR}/tools/update_version_h.sh ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/core/polymec_version.h)
+                  ${BASH} ${PROJECT_SOURCE_DIR}/tools/update_version_h.sh ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/core/polymec_version.h)
 set_target_properties(update_version_h PROPERTIES FOLDER Misc)
                   
 # Figure out the system type.
@@ -342,7 +342,7 @@ add_subdirectory(io)
 
 # Add a custom target that generates polymec.h and friends at the top level.
 add_custom_target(generate_headers ALL
-                  sh ${PROJECT_SOURCE_DIR}/tools/generate_headers.sh ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/include core geometry solvers model io)
+                  ${BASH} ${PROJECT_SOURCE_DIR}/tools/generate_headers.sh ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/include core geometry solvers model io)
 set_target_properties(generate_headers PROPERTIES FOLDER Misc)
                   
 # Now that we have gathered all our libraries, generate a polymec.cmake 
@@ -388,7 +388,6 @@ install(FILES ${tp_exes} DESTINATION bin
 install(FILES ${polymec_headers} DESTINATION include/polymec)
 
 # Install miscellaneous build/test files.
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tools/update_version_h.py DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_library.cmake DESTINATION share/polymec)

@@ -7,6 +7,27 @@ macro(set_up_platform)
     set(LINUX ON)
   endif()
 
+  # Do we have bash?
+  find_program(BASH bash)
+  if (BASH STREQUAL "BASH_NOTFOUND")
+    message(FATAL_ERROR "Bash is required, but is not available on this system.")
+  endif()
+
+  # Do we have make?
+  find_program(MAKE make)
+  if (MAKE STREQUAL "MAKE_NOTFOUND")
+    message(FATAL_ERROR "Make is required, but is not available on this system.")
+  endif()
+
+  # Do we have git?
+  find_program(GIT git)
+  if (GIT STREQUAL "GIT_NOTFOUND")
+    message(WARNING "Git not found. Hope you're not developing on this system.")
+    set(HAVE_GIT FALSE)
+  else()
+    set(HAVE_GIT TRUE)
+  endif()
+
   # Do we have expect?
   find_program(EXPECT expect)
   if (EXPECT STREQUAL "EXPECT-NOTFOUND")
