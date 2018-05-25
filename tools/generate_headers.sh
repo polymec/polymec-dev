@@ -28,6 +28,8 @@ gen_lib_header()
 
   # Write a temporary file with the new contents.
   tmp=$dest_dir/polymec_$lib.h.tmp
+
+  # File header.
   echo "// polymec_$lib.h -- automatically generated." > $tmp
   cat >> $tmp <<- END1
 // This file is part of the polymec HPC library. See the license
@@ -42,11 +44,15 @@ extern "C" {
 #endif
 
 END2
+
+  # Headers.
   if [ "$lib" = "core" ]; then
     echo "#include \"core/polymec.h\"" >> $tmp
   fi
-  find $lib -regex ".*/[a-zA-Z0-9_]*.h" -exec echo "#include \"{}\"" >> $tmp \;
+  # This command concatenaates each found header into our tmp file.
+  find $lib -regex ".*/[a-zA-Z0-9_]*.h" -maxdepth 1 -type f -exec echo "#include \"{}\"" >> $tmp \;
   cat >> $tmp <<- END3
+
 #ifdef __cplusplus
 }
 #endif
