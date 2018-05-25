@@ -1,11 +1,13 @@
-Wed May 23 15:22:01 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+Thu May 24 20:00:12 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.2
-      - Replaced 'make config' system with a simpler bootstrap process.
       - Switched Travis CI Docker image to Ubuntu 18.04 LTS from 16.04 LTS.
       - Added a couple of Valgrind suppressions.
       - Refined polymec_atinit and polymec_atexit.
       - Fixed a minor cleanup issue with Silo compression.
       - Bumped HDF5 version to 1.10.2.
+      - Replaced 'make config' system with a simpler bootstrap process.
+      - Replaced update_version_h and generate_headers Python scripts with 
+        sh scripts, easing a build dependency.
 Sun May 13 21:53:54 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.1
       - Removed remaining contents of 3rdparty/silo/ directory.
