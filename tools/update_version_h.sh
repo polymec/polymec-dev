@@ -30,13 +30,18 @@ else
 fi
 echo "\n#endif" >> $2.tmp
 
-# Diff the temporary file against what's there.
-tmp_diff_wc=`diff $2 $2.tmp | wc -l`
+if [ -f $2 ]; then
+  # Diff the temporary file against what's there.
+  tmp_diff_wc=`diff $2 $2.tmp | wc -l`
 
-# If the files differ, move the temporary file into place. Otherwise
-# discard it.
-if [ $tmp_diff_wc -gt 0 ]; then
-  mv $2.tmp $2
+  # If the files differ, move the temporary file into place. Otherwise
+  # discard it.
+  if [ $tmp_diff_wc -gt 0 ]; then
+    mv $2.tmp $2
+  else
+    rm $2.tmp
+  fi
 else
-  rm $2.tmp
+  mv $2.tmp $2
 fi
+
