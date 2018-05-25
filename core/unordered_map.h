@@ -307,9 +307,10 @@ static inline void map_name##_swap(map_name##_t* map, key_type key1, key_type ke
   map_name##_entry_t* e2 = map_name##_get_entry(map, key2); \
   ASSERT((e1 != NULL) && (e2 != NULL)); \
   ASSERT(e1->kv_dtor == e2->kv_dtor); \
-  map_name##_entry_t temp = {.value = e1->value, .v_dtor = e1->v_dtor}; \
+  value_type temp_val = e1->value; \
+  map_name##_v_dtor temp_v_dtor = e1->v_dtor; \
   e1->value = e2->value; e1->v_dtor = e2->v_dtor; \
-  e2->value = temp.value; e2->v_dtor = temp.v_dtor; \
+  e2->value = temp_val; e2->v_dtor = temp_v_dtor; \
 } \
 \
 static inline void map_name##_delete(map_name##_t* map, key_type key) \
