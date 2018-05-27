@@ -28,15 +28,17 @@ and type the following commands:
      $ ./bootstrap build_dir
 
 where build_dir is the directory in which you want to build. Then just 
-follow the onscreen directions. You'll be asked to edit a config.sh file 
-in your build directory that contains several parameters for your build. Then 
-you can just start the build from within that directory with 'make'.
+follow the onscreen directions: You change to that build directory, edit a 
+config.sh file to define your build, and then start the build using your 
+generator's build process. For the default generator (UNIX makefiles), this 
+is just 'make'.
 
 ------------
 Installation
 ------------
 
-To install polymec, run
+To install polymec, use the install command for the generator you've selected.
+For example, if you're using a generator that writes UNIX makefiles, run
 
     $ make install [options]
 
