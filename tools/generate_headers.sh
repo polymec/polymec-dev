@@ -50,7 +50,7 @@ END2
     echo "#include \"core/polymec.h\"" >> $tmp
   fi
   # This command concatenaates each found header into our tmp file.
-  find $lib -regex ".*/[a-zA-Z0-9_]*.h" -maxdepth 1 -type f -exec echo "#include \"{}\"" \; >> $tmp 
+  find $lib -maxdepth 1 -regex ".*/[a-zA-Z0-9_]*.h" -type f -exec echo "#include \"{}\"" \; >> $tmp 
   cat >> $tmp <<- END3
 
 #ifdef __cplusplus

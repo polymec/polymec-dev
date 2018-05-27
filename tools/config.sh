@@ -83,7 +83,7 @@ GENERATOR="Unix Makefiles"
 #-----------------------------------------------------------------------------
 
 # Uncomment this if you want really verbose builds.
-#VERBOSE = ON
+#VERBOSE=ON
 
 #-----------------------------------------------------------------------------
 #                           Building on Special Machines
