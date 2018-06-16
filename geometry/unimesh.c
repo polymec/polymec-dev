@@ -845,7 +845,7 @@ void unimesh_start_updating_patch_boundaries(unimesh_t* mesh, int token)
   for (size_t i = 0; i < mesh->observers->size; ++i)
   {
     unimesh_observer_t* obs = mesh->observers->data[i];
-    if (obs->vtable.started_boundary_update != NULL)
+    if (obs->vtable.started_boundary_updates != NULL)
     {
       obs->vtable.started_boundary_updates(obs->context, mesh, token, 
                                            buffer->centering, buffer->nc);
