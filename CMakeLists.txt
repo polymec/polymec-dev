@@ -180,6 +180,19 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
   endif()
 endif()
 
+# Address Sanitizer
+if (USE_ASAN)
+  message(STATUS "Enabling Address Sanitizer.")
+  if (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    message(STATUS "  asan-gcc: Set the following environment variables:")
+    message(STATUS "  ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer-3.4")
+    message(STATUS "  ASAN_OPTIONS=symbolize=1")
+  endif()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+endif()
+
 # Considerations for shared libraries, including library suffixes.
 if (BUILD_SHARED_LIBS)
   if (LINUX)

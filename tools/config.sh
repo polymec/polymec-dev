@@ -24,6 +24,13 @@ PREFIX=$HOME/opt
 #OPENMP=ON
 
 #-----------------------------------------------------------------------------
+#                           Address Sanitizer (Asan)
+#-----------------------------------------------------------------------------
+
+# Enable Asan.
+#ASAN=ON
+
+#-----------------------------------------------------------------------------
 #                             Floating Point Precision
 #-----------------------------------------------------------------------------
 # Choose one of the following.
@@ -140,6 +147,9 @@ if [ "$MPI" = "ON" ]; then
 fi
 if [ "$OPENMP" = "ON" ]; then
   OPTIONS="$OPTIONS -DUSE_OPENMP=ON"
+fi
+if [ "$ASAN" = "ON" ]; then
+  OPTIONS="$OPTIONS -DUSE_ASAN=ON"
 fi
 if [ "$SHARED_LIBS" = "ON" ]; then
   OPTIONS="$OPTIONS -DBUILD_SHARED_LIBS=ON"
