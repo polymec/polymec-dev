@@ -69,6 +69,7 @@ struct unimesh_t
   int nproc, rank;
   int_int_unordered_map_t* owner_procs; // maps (patch index, boundary) pairs
                                         // to processes that own them.
+  int unique_id;
 
   // Observers.
   unimesh_observer_array_t* observers;
@@ -122,6 +123,35 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
   mesh->owner_procs = int_int_unordered_map_new();
   mesh->observers = unimesh_observer_array_new();
   mesh->finalized = false;
+
+  // Set the mesh's unique ID on this communicator.
+#if POLYMEC_HAVE_MPI
+  // Get the info object for this communicator.
+  MPI_Info info;
+  MPI_Comm_get_info(mesh->comm, &info);
+
+  // Retrieve the next unimesh ID, if present. If it's not there, use 0.
+  char id_str[16];
+  int present;
+  MPI_Info_get(info, "next_unimesh_id", 15, id_str, &present);
+  if (!present)
+    mesh->unique_id = 0;
+  else
+    mesh->unique_id = atoi(id_str);
+
+  // Increment the ID and write it to the info object.
+  snprintf(id_str, 15, "%d", mesh->unique_id+1);
+  MPI_Info_set(info, "next_unimesh_id", id_str);
+
+  // Stash the info in the communicator and clean up.
+  MPI_Comm_set_info(mesh->comm, info);
+  MPI_Info_free(&info);
+#else
+  // In the serial case, there's only one possible communicator.
+  static int next_unique_mesh_id = 0;
+  mesh->unique_id = next_unique_mesh_id;
+  ++next_unique_mesh_id;
+#endif
   return mesh;
 }
 
@@ -1066,6 +1096,16 @@ int unimesh_owner_proc(unimesh_t* mesh,
     return mesh->rank;
   else
     return *proc_p;
+}
+
+// This returns a unique identifier for the given mesh, which is the same 
+// on all processes that belong to the mesh's communicator. If the local
+// process doesn't belong to the mesh's communicator, this function returns
+// -1.
+int unimesh_id(unimesh_t* mesh);
+int unimesh_id(unimesh_t* mesh)
+{
+  return mesh->unique_id;
 }
 
 // This provides direct access to our remote BC, in order to simplify access
