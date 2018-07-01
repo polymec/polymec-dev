@@ -258,6 +258,35 @@ static void set_up_logging()
   }
 }
 
+static void set_up_mpi_error_handling()
+{
+  // Create an MPI error handler that handles fatal errors gracefully.
+  MPI_Comm_create_errhandler(mpi_fatal_error_handler, &mpi_error_handler);
+
+  // Now which handler do we use?
+  options_t* opts = options_argv();
+  char* handler = options_value(opts, "mpi_errors");
+  if ((handler == NULL) || (strcasecmp(handler, "fatal") == 0))
+  {
+    log_debug("polymec: MPI errors are fatal.");
+    MPI_Comm_set_errhandler(MPI_COMM_SELF, mpi_error_handler);
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, mpi_error_handler);
+  }
+  else if (strcasecmp(handler, "return") == 0)
+  {
+    log_debug("polymec: MPI errors return error codes.");
+    MPI_Comm_set_errhandler(MPI_COMM_SELF, MPI_ERRORS_RETURN);
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+  }
+  else 
+  {
+    log_debug("polymec: unknown option for mpi_errors: %s", handler);
+    log_debug("polymec: Using fatal MPI error handler.");
+    MPI_Comm_set_errhandler(MPI_COMM_SELF, mpi_error_handler);
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, mpi_error_handler);
+  }
+}
+
 // This sets the dynamically loadable library search path.
 static void set_up_dl_paths()
 {
@@ -451,10 +480,6 @@ void polymec_init(int argc, char** argv)
     // Cache our rank and number of processes.
     MPI_Comm_size(MPI_COMM_WORLD, &world_nprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-
-    // Set up the MPI error handler.
-    MPI_Comm_create_errhandler(mpi_fatal_error_handler, &mpi_error_handler);
-    MPI_Comm_set_errhandler(MPI_COMM_WORLD, mpi_error_handler);
 #endif
 
     // Set up the Silo I/O error handler.
@@ -476,6 +501,8 @@ void polymec_init(int argc, char** argv)
 
     // If we are asked to set a specific logging level/mode, do so.
     set_up_logging();
+
+    set_up_mpi_error_handling();
 
     // If we are given a set of paths to search for dynamically loadable libraries, 
     // set them up here.

@@ -418,6 +418,9 @@ static noreturn void usage(int argc, char** argv)
     printf("                   If logging_mode=all, logs messages for MPI\n");
     printf("                   rank P in PREFIX.P.log.\n");
     printf("                   Existing log files are overwritten.\n");
+    printf(" mpi_errors=VAL    Sets up an error handler for MPI:\n");
+    printf("                   fatal  <-- MPI errors are fatal\n");
+    printf("                   return <-- MPI errors return error codes\n");
     printf(" num_threads=N     Sets number of OpenMP threads to use.\n");
     printf(" timers=VAL        Enables or disables timers.\n");
     printf("                   Case-insensitive values are:\n"); 
