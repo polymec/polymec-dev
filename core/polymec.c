@@ -316,7 +316,8 @@ static void pause_if_requested()
     // Are we maybe in a test environment, in which the pause=xxx 
     // argument is the first one passed?
     char* arg = options_argument(opts, 1);
-    if ((arg != NULL) && (strstr(arg, "pause") != NULL) && (string_casecmp(arg, "pause=") != 0))
+    if ((arg != NULL) && (strstr(arg, "pause") == arg) && 
+        (string_casecmp(arg, "pause=") != 0))
     {
       int num_words;
       char** words = string_split(arg, "=", &num_words);
