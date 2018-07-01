@@ -296,8 +296,10 @@ typedef uint64_t index_t;
 // Some macros.
 #ifndef NDEBUG
 #define ASSERT(x) \
-  if (!(x)) \
-    polymec_abort("Assertion %s failed\nat %s: %d\n", #x, __FILE__, __LINE__);
+  { \
+    if (!(x)) \
+      polymec_abort("Assertion %s failed\nat %s: %d\n", #x, __FILE__, __LINE__); \
+  } 
 #else
 #define ASSERT(x) 
 #endif
