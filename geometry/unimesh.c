@@ -1319,13 +1319,14 @@ static void redistribute_unimesh(unimesh_t** mesh,
       unimesh_insert_patch(new_mesh, i, j, k);
     }
   }
-  unimesh_finalize(new_mesh);
 
   // Replace the old mesh with the new one.
   *mesh = new_mesh;
   STOP_FUNCTION_TIMER();
 }
 
+// Redistributes the given unimesh using the given partition vector, but 
+// does not finalize the mesh.
 static void redistribute_unimesh_field(unimesh_field_t** field, 
                                        int64_t* partition,
                                        int64_t* sources,
