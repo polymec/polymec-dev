@@ -271,35 +271,5 @@ void repartition_unimesh(unimesh_t** mesh,
                          unimesh_field_t** fields,
                          size_t num_fields);
 
-// Repartitions the given set of (possibly connected) unimeshes and redistributes 
-// data to each of the given fields. Here, the old meshes and fields are consumed, 
-// and new ones are created in their place. Weights can be provided for each patch, 
-// and the partitioning is performed so that the load imbalance does not exceed 
-// the given tolerance.
-// NOTE: The meshes aren't finalized. Any connections between these meshes must be 
-// NOTE: reestablished because the patch mappings can't be transmitted between 
-// NOTE: processes without stringent assumptions about architectures and binaries.
-// NOTE: For the same reason, boundary conditions must be reinstated on all 
-// NOTE: repartitioned fields.
-// 
-// This function is necessarily complicated, so here are the parameters:
-// meshes - An array of pointers to unimesh objects. meshes[i] is the ith mesh.
-// num_meshes - The number of meshes in the meshes array.
-// weights - An array of arrays of mesh patch weights. weights[i][j] is the 
-//           weight for the jth patch in the ith mesh.
-// imbalance_tol - The allowable imbalance tolerance, same as usual.
-// fields - An array of pointers to unimesh_field objects of length 
-//          num_fields * num_meshes. The first num_fields elements in this 
-//          array are the fields on mesh 0, the second are the fields on 
-//          mesh 1, ..., and the last num_fields elements are the fields in 
-//          mesh num_meshes - 1.
-// num_fields - The number of fields per mesh.
-void repartition_unimeshes(unimesh_t** meshes, 
-                           size_t num_meshes,
-                           int** weights,
-                           real_t imbalance_tol,
-                           unimesh_field_t** fields,
-                           size_t num_fields);
-
 #endif
 
