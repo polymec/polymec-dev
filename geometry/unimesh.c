@@ -1438,6 +1438,7 @@ void repartition_unimesh(unimesh_t** mesh,
   // Redistribute the mesh. 
   log_debug("repartition_unimesh: Redistributing mesh.");
   redistribute_unimesh(mesh, partition);
+  unimesh_finalize(*mesh);
 
   // Build a sources vector whose ith component is the rank that used to own 
   // the ith patch.

@@ -260,10 +260,9 @@ void unimesh_remove_observer(unimesh_t* mesh,
 // are created in their place. Weights can be provided for each patch, and 
 // the partitioning is performed so that the load imbalance does not exceed 
 // the given tolerance.
-// NOTE: The repartitioned unimesh isn't finalized, in case you need to do 
-// NOTE: anything else to it before you use it. In addition, each repartitioned
-// NOTE: field needs to have any boundary conditions reinstated, since these
-// NOTE: boundary conditions are not transmitted between processes.
+// NOTE: In addition, each repartitioned field needs to have any boundary 
+// NOTE: conditions reinstated, since these boundary conditions are not 
+// NOTE: transmitted between processes.
 typedef struct unimesh_field_t unimesh_field_t;
 void repartition_unimesh(unimesh_t** mesh, 
                          int* weights,
