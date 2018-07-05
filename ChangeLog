@@ -1,3 +1,12 @@
+Wed Jul  4 16:48:41 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.2.3
+      - Fixed a bug in unimesh observer calls.
+      - Fixed a bug in parsing the pause=X argument.
+      - Added CL support for enhanced MPI error handling.
+      - Added scoping to ASSERTs.
+      - Added support for Address Sanitizer.
+      - Improved comments and docs for building.
+      - Other minor bugfixes included.
 Thu May 24 20:00:12 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.2
       - Switched Travis CI Docker image to Ubuntu 18.04 LTS from 16.04 LTS.

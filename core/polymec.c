@@ -260,6 +260,7 @@ static void set_up_logging()
 
 static void set_up_mpi_error_handling()
 {
+#if POLYMEC_HAVE_MPI
   // Create an MPI error handler that handles fatal errors gracefully.
   MPI_Comm_create_errhandler(mpi_fatal_error_handler, &mpi_error_handler);
 
@@ -285,6 +286,7 @@ static void set_up_mpi_error_handling()
     MPI_Comm_set_errhandler(MPI_COMM_SELF, mpi_error_handler);
     MPI_Comm_set_errhandler(MPI_COMM_WORLD, mpi_error_handler);
   }
+#endif
 }
 
 // This sets the dynamically loadable library search path.
