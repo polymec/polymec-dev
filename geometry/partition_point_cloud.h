@@ -47,18 +47,6 @@ bool repartition_point_cloud(point_cloud_t** cloud,
 // the pieces of the underlying algorithms.
 //------------------------------------------------------------------------
 
-// This function creates a newly-allocated global partition vector that can be used 
-// to distribute a global point cloud on rank 0 to all processes on the given communicator, 
-// according to the given weights and the specified imbalance tolerance. Point clouds 
-// on non-zero ranks are ignored. If broadcast is set to true, the global 
-// partition vector is returned on every process--otherwise, it is just 
-// returned on rank 0 of the given communicator.
-int64_t* partition_vector_from_point_cloud(point_cloud_t* global_cloud, 
-                                           MPI_Comm comm, 
-                                           int* weights, 
-                                           real_t imbalance_tol,
-                                           bool broadcast);
-
 // Given a global partition vector, distribute the point cloud to the given communicator, 
 // and distribute the data in the given fields accordingly. The cloud and fields are 
 // replaced with partitioned equivalents.
