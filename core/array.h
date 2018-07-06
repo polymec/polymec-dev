@@ -305,6 +305,8 @@ static inline bool array_name##_next(array_name##_t* array, int* pos, element* v
 \
 static inline void array_name##_reorder(array_name##_t* array, size_t* permutation) \
 { \
+  if (array->size == 0) \
+    return; \
   for (size_t i = 0; i < array->size-1; ++i) \
   { \
     size_t index = permutation[i]; \

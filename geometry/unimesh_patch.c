@@ -93,3 +93,151 @@ void unimesh_patch_copy(unimesh_patch_t* patch,
   memcpy(dest->data, patch->data, size);
 }
 
+void unimesh_patch_get_box(unimesh_patch_t* patch,
+                           unimesh_patch_box_t* box)
+{
+  if (patch->centering == UNIMESH_CELL)
+  {
+    box->i1 = 1;
+    box->i2 = patch->nx+1;
+    box->j1 = 1;
+    box->j2 = patch->ny+1;
+    box->k1 = 1;
+    box->k2 = patch->nz+1;
+  }
+  else
+  {
+    box->i1 = 0;
+    box->j1 = 0;
+    box->k1 = 0;
+    if (patch->centering == UNIMESH_XFACE)
+    {
+      box->i2 = patch->nx+1;
+      box->j2 = patch->ny;
+      box->k2 = patch->nz;
+    }
+    else if (patch->centering == UNIMESH_YFACE)
+    {
+      box->i2 = patch->nx;
+      box->j2 = patch->ny+1;
+      box->k2 = patch->nz;
+    }
+    else if (patch->centering == UNIMESH_ZFACE)
+    {
+      box->i2 = patch->nx;
+      box->j2 = patch->ny;
+      box->k2 = patch->nz+1;
+    }
+    else if (patch->centering == UNIMESH_XEDGE)
+    {
+      box->i2 = patch->nx;
+      box->j2 = patch->ny+1;
+      box->k2 = patch->nz+1;
+    }
+    else if (patch->centering == UNIMESH_YEDGE)
+    {
+      box->i2 = patch->nx+1;
+      box->j2 = patch->ny;
+      box->k2 = patch->nz+1;
+    }
+    else if (patch->centering == UNIMESH_ZEDGE)
+    {
+      box->i2 = patch->nx+1;
+      box->j2 = patch->ny+1;
+      box->k2 = patch->nz;
+    }
+    else if (patch->centering == UNIMESH_NODE)
+    {
+      box->i2 = patch->nx+1;
+      box->j2 = patch->ny+1;
+      box->k2 = patch->nz+1;
+    }
+  }
+}
+
+void unimesh_patch_get_boundary_box(unimesh_patch_t* patch,
+                                    unimesh_boundary_t boundary,
+                                    unimesh_patch_box_t* box)
+{
+  unimesh_patch_get_box(patch, box);
+
+  if (patch->centering == UNIMESH_CELL)
+  {
+    switch (boundary)
+    {
+      case UNIMESH_X1_BOUNDARY:
+        box->i2 = box->i1 + 1;
+        unimesh_patch_box_shift(box, -1, 0, 0);
+        break;
+      case UNIMESH_X2_BOUNDARY:
+        box->i1 = box->i2 - 1;
+        unimesh_patch_box_shift(box, 1, 0, 0);
+        break;
+      case UNIMESH_Y1_BOUNDARY:
+        box->j2 = box->j1 + 1;
+        unimesh_patch_box_shift(box, 0, -1, 0);
+        break;
+      case UNIMESH_Y2_BOUNDARY:
+        box->j1 = box->j2 - 1;
+        unimesh_patch_box_shift(box, 0, 1, 0);
+        break;
+      case UNIMESH_Z1_BOUNDARY:
+        box->k2 = box->k1 + 1;
+        unimesh_patch_box_shift(box, 0, 0, -1);
+        break;
+      case UNIMESH_Z2_BOUNDARY:
+        box->k1 = box->k2 - 1;
+        unimesh_patch_box_shift(box, 0, 0, 1);
+    }
+  }
+  else
+  {
+    switch (boundary)
+    {
+      case UNIMESH_X1_BOUNDARY:
+        box->i2 = box->i1 + 1;
+        break;
+      case UNIMESH_X2_BOUNDARY:
+        box->i1 = box->i2 - 1;
+        break;
+      case UNIMESH_Y1_BOUNDARY:
+        box->j2 = box->j1 + 1;
+        break;
+      case UNIMESH_Y2_BOUNDARY:
+        box->j1 = box->j2 - 1;
+        break;
+      case UNIMESH_Z1_BOUNDARY:
+        box->k2 = box->k1 + 1;
+        break;
+      case UNIMESH_Z2_BOUNDARY:
+        box->k1 = box->k2 - 1;
+    }
+  }
+}
+
+void unimesh_patch_box_bisect(unimesh_patch_box_t* box, int axis, int half)
+{
+  if (axis == 0)
+  {
+    if (half == 0)
+      box->i2 /= 2;
+    else
+      box->i1 = box->i2/2;
+  }
+  else if (axis == 1)
+  {
+    if (half == 0)
+      box->j2 /= 2;
+    else
+      box->j1 = box->j2/2;
+  }
+  else
+  {
+    ASSERT(axis == 2);
+    if (half == 0)
+      box->k2 /= 2;
+    else
+      box->k1 = box->k2/2;
+  }
+}
+

@@ -11,9 +11,13 @@
 struct unimesh_patch_bc_t 
 {
   char* name;
+  unimesh_t* mesh;
   void* context;
   unimesh_patch_bc_vtable vtable;
-  unimesh_t* mesh;
+
+  // Easy version stuff.
+  void* easy_context;
+  unimesh_patch_bc_easy_vtable easy_vtable;
 };
 
 static void unimesh_patch_bc_free(void* context)
@@ -42,6 +46,9 @@ unimesh_patch_bc_t* unimesh_patch_bc_new(const char* name,
     }
   }
   bc->vtable.dtor = vtable.dtor;
+
+  bc->easy_context = NULL;
+  memset(&(bc->easy_vtable), 0, sizeof(unimesh_patch_bc_easy_vtable));
   bc->mesh = mesh;
   return bc;
 }
@@ -53,7 +60,8 @@ char* unimesh_patch_bc_name(unimesh_patch_bc_t* bc)
 
 void* unimesh_patch_bc_context(unimesh_patch_bc_t* bc)
 {
-  return bc->context;
+  return (bc != NULL) ? (bc->easy_context != NULL) ? bc->easy_context : bc->context
+                      : NULL;
 }
 
 unimesh_t* unimesh_patch_bc_mesh(unimesh_patch_bc_t* bc)
@@ -111,5 +119,72 @@ void unimesh_patch_bc_finish_update(unimesh_patch_bc_t* bc,
   unimesh_patch_bc_update_method finish_update = bc->vtable.finish_update[cent][bnd];
   if (finish_update != NULL)
     finish_update(bc->context, bc->mesh, i, j, k, t, patch);
+}
+
+#define DEFINE_EASY_UPDATES(boundary_name, boundary) \
+static void easy_##boundary_name##_start_update(void* context, \
+                                                unimesh_t* mesh, \
+                                                int i, int j, int k, real_t t, \
+                                                unimesh_patch_t* patch) \
+{ \
+  unimesh_patch_bc_t* bc = context; \
+  bc->easy_vtable.start_update(bc->easy_context, mesh, i, j, k, t, boundary, patch); \
+} \
+\
+static void easy_##boundary_name##_finish_update(void* context, \
+                                                 unimesh_t* mesh, \
+                                                 int i, int j, int k, real_t t, \
+                                                 unimesh_patch_t* patch) \
+{ \
+  unimesh_patch_bc_t* bc = context; \
+  if (bc->easy_vtable.finish_update != NULL) \
+    bc->easy_vtable.finish_update(bc->easy_context, mesh, i, j, k, t, boundary, patch); \
+} \
+
+DEFINE_EASY_UPDATES(x1, UNIMESH_X1_BOUNDARY)
+DEFINE_EASY_UPDATES(x2, UNIMESH_X2_BOUNDARY)
+DEFINE_EASY_UPDATES(y1, UNIMESH_Y1_BOUNDARY)
+DEFINE_EASY_UPDATES(y2, UNIMESH_Y2_BOUNDARY)
+DEFINE_EASY_UPDATES(z1, UNIMESH_Z1_BOUNDARY)
+DEFINE_EASY_UPDATES(z2, UNIMESH_Z2_BOUNDARY)
+
+static void easy_dtor(void* context) 
+{
+  unimesh_patch_bc_t* bc = context; 
+  if ((bc->easy_context != NULL) && (bc->easy_vtable.dtor != NULL))
+    bc->easy_vtable.dtor(bc->easy_context);
+}
+
+unimesh_patch_bc_t* unimesh_patch_bc_new_easy(const char* name,
+                                              void* context,
+                                              unimesh_patch_bc_easy_vtable vtable,
+                                              unimesh_t* mesh)
+{
+  unimesh_patch_bc_t* bc = polymec_gc_malloc(sizeof(unimesh_patch_bc_t), 
+                                             unimesh_patch_bc_free);
+  bc->name = string_dup(name);
+  bc->context = bc;
+  for (int c = 0; c < 8; ++c)
+  {
+    bc->vtable.start_update[c][0] = easy_x1_start_update;
+    bc->vtable.start_update[c][1] = easy_x2_start_update;
+    bc->vtable.start_update[c][2] = easy_y1_start_update;
+    bc->vtable.start_update[c][3] = easy_y2_start_update;
+    bc->vtable.start_update[c][4] = easy_z1_start_update;
+    bc->vtable.start_update[c][5] = easy_z2_start_update;
+
+    bc->vtable.finish_update[c][0] = easy_x1_finish_update;
+    bc->vtable.finish_update[c][1] = easy_x2_finish_update;
+    bc->vtable.finish_update[c][2] = easy_y1_finish_update;
+    bc->vtable.finish_update[c][3] = easy_y2_finish_update;
+    bc->vtable.finish_update[c][4] = easy_z1_finish_update;
+    bc->vtable.finish_update[c][5] = easy_z2_finish_update;
+  }
+  bc->vtable.dtor = easy_dtor;
+
+  bc->easy_context = context;
+  bc->easy_vtable = vtable;
+  bc->mesh = mesh;
+  return bc;
 }
 

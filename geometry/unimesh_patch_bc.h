@@ -35,12 +35,34 @@ typedef struct
 
   // This array allows you to implement methods that finish updating boundary 
   // data for patch (i, j, k) on the given mesh, filling in values on a 
-  // boundary at time t. 
+  // boundary at time t. These methods are optional.
   unimesh_patch_bc_update_method finish_update[8][6];
 
   // This destructor frees the context pointer and any data within.
   void (*dtor)(void* context);
 } unimesh_patch_bc_vtable;
+
+// Since the above virtual table is optimal but often a pain in the ass to 
+// define, we allow an "easier" version, useful for testing and prototyping.
+// Instead of defining a method for each centering/boundary combination, you 
+// can just call an easy update method with the desired boundary, and use 
+// the centering of the patch to determine what to do.
+typedef void (*unimesh_patch_bc_easy_update_method)(void* context, unimesh_t* mesh, 
+                                                    int i, int j, int k, real_t t,
+                                                    unimesh_boundary_t boundary,
+                                                    unimesh_patch_t* patch);
+
+typedef struct 
+{
+  // Easy version of the start_update method above.
+  unimesh_patch_bc_easy_update_method start_update;
+
+  // Easy version of the finish_update method above (optional).
+  unimesh_patch_bc_easy_update_method finish_update;
+
+  // This destructor frees the context pointer and any data within.
+  void (*dtor)(void* context);
+} unimesh_patch_bc_easy_vtable;
 
 // Creates a new unimesh patch boundary condition with the given name context 
 // pointer, and vtable, associated with the given unimesh. 
@@ -48,6 +70,13 @@ unimesh_patch_bc_t* unimesh_patch_bc_new(const char* name,
                                          void* context,
                                          unimesh_patch_bc_vtable vtable,
                                          unimesh_t* mesh);
+
+// Creates a new unimesh patch boundary condition with the given name context 
+// pointer, and "easy" vtable, associated with the given unimesh. 
+unimesh_patch_bc_t* unimesh_patch_bc_new_easy(const char* name,
+                                              void* context,
+                                              unimesh_patch_bc_easy_vtable vtable,
+                                              unimesh_t* mesh);
 
 // Returns an internal pointer to the name of this patch boundary condition.
 char* unimesh_patch_bc_name(unimesh_patch_bc_t* bc);

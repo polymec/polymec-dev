@@ -10,9 +10,9 @@ The polymec library requires the following software for installation:
 
   - A C compiler that adheres to (or aspires to) the C11 standard. 
     GCC 4.9+ and Clang 3.4+ work well.
-  - A reasonable C++ compiler (for the C++ build/link test).
-  - A Fortran compiler for LAPACK/BLAS and for special functions.
-  - A working set of LAPACK/BLAS libraries.
+  - A reasonable C++ compiler (for the C++ build/link test)
+  - A Fortran compiler for LAPACK/BLAS and for special functions
+  - A working set of LAPACK/BLAS libraries
   - CMake 3.10+ (found at http://www.cmake.org)
   - GNU Make
   - The Bourne Again SHell (bash)
@@ -40,9 +40,9 @@ Installation
 To install polymec, use the install command for the generator you've selected.
 For example, if you're using a generator that writes UNIX makefiles, run
 
-    $ make install [options]
+    $ make install [-j #threads]
 
-from within your build directory. 
+from your build directory. 
 
 ------------------
 Other make targets
@@ -53,15 +53,17 @@ Other make targets
 
    $ make memcheck 
           Runs all unit tests for the library using a memory checking tool
-          if available (Valgrind on Linux, basically).
+          if you're on Linux and Valgrind is available.
 
    $ make clean 
           Removes all object files but retains the configuration options.
 
    $ make stats 
-          Prints some interesting code statistics to the screen.
+          Prints some interesting code statistics to the screen. 
+          Requires Python.
    
    $ make coverage 
           Generates a code coverage report. This only works if you enable 
-          the COVERAGE build option in config.sh.
+          the COVERAGE build option in config.sh, and if gcov and lcov 
+          are available.
    

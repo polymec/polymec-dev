@@ -30,6 +30,12 @@ struct unimesh_patch_t
   unimesh_centering_t centering;
 };
 
+// This type is a rectangular box in "patch" index space.
+typedef struct
+{
+  int i1, i2, j1, j2, k1, k2;
+} unimesh_patch_box_t;
+
 // These macros generate multidimensional arrays that can access the given
 // patch's data using C99 variable-length arrays.
 
@@ -155,6 +161,52 @@ void unimesh_patch_free(unimesh_patch_t* patch);
 // this one.
 void unimesh_patch_copy(unimesh_patch_t* patch,
                         unimesh_patch_t* dest);
+
+// Copies all of the data in this patch within the source box to the 
+// destination patch, within the destination box. The patches need not 
+// have the same size, but the source and destination boxes must have 
+// matching sizes.
+void unimesh_patch_copy_box(unimesh_patch_t* patch,
+                            unimesh_patch_box_t* src_box,
+                            unimesh_patch_box_t* dest_box,
+                            unimesh_patch_t* dest);
+
+// Fills all degrees of freedom on the given boundary of the patch with the 
+// given component data. Here, data is an array of length patch->nc. 
+// For cells, all ghost cells are filled. For faces, edges, and nodes, all 
+// elements on the boundary are filled.
+void unimesh_patch_fill_boundary(unimesh_patch_t* patch,
+                                 unimesh_boundary_t boundary,
+                                 real_t* data);
+
+// Sets the given box to the set of elements that occupy the given patch.
+// (For cells, this is the set of non-ghost cells in the patch.)
+void unimesh_patch_get_box(unimesh_patch_t* patch,
+                           unimesh_patch_box_t* box);
+
+// Sets the given box to the set of elements (according to the patch's 
+// centering) that fall on the given boundary of the patch. 
+// (For cells, this is the set of ghost cells on that boundary.)
+void unimesh_patch_get_boundary_box(unimesh_patch_t* patch,
+                                    unimesh_boundary_t boundary,
+                                    unimesh_patch_box_t* box);
+
+// Shifts the unimesh patch box by the given delta in i, j, and k.
+static inline void unimesh_patch_box_shift(unimesh_patch_box_t* box,
+                                           int delta_i, int delta_j, int delta_k)
+{
+  box->i1 += delta_i;
+  box->i2 += delta_i;
+  box->j1 += delta_j;
+  box->j2 += delta_j;
+  box->k1 += delta_k;
+  box->k2 += delta_k;
+}
+
+// Bisects the box along the given axis (0 -> x, 1 -> y, 2 ->z).
+// Setting half to 0 results in the box occupying its former lower half;
+// setting it to a nonzero value makes the box occupy its former upper half.
+void unimesh_patch_box_bisect(unimesh_patch_box_t* box, int axis, int half);
 
 #endif
 

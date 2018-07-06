@@ -361,7 +361,7 @@ void polymec_restore_fpe(void);
 
 // Call this function to indicate that something is not implemented
 // with a fatal exit.
-noreturn void polymec_not_implemented(const char* component);
+void polymec_not_implemented(const char* component);
 
 // This registers a function to be called by polymec_init, after all of 
 // polymec's services have been started. This function gets passed argc and 
