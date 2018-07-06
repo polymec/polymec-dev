@@ -1185,14 +1185,13 @@ void distribute_polymesh(polymesh_t** mesh,
 //                            Mesh repartitioning
 //------------------------------------------------------------------------
 
+#if POLYMEC_HAVE_MPI
 static void redistribute_polymesh_with_graph(polymesh_t** mesh, 
                                              int64_t* local_partition, 
                                              adj_graph_t* local_graph, 
                                              polymesh_field_t** fields, 
                                              size_t num_fields)
 {
-#if POLYMEC_HAVE_MPI
-
 #ifndef NDEBUG
   // Only cell-centered fields can be redistributed at the moment.
   for (size_t i = 0; i < num_fields; ++i)
@@ -1376,8 +1375,8 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
   polymesh_free(m);
 
   STOP_FUNCTION_TIMER();
-#endif
 }
+#endif
 
 bool repartition_polymesh(polymesh_t** mesh, 
                           int* weights, 
