@@ -1,3 +1,9 @@
+Fri Jul  6 10:22:24 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.2.4
+      - Fixed a bug in x_array_reorder.
+      - Added unimesh_patch_box and other unimesh_patch creature comforts.
+      - Added an "easy" alternative for constructing unimesh_patch_bc types.
+      - More improved build instructions.
 Wed Jul  4 16:48:41 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.3
       - Fixed a bug in unimesh observer calls.
