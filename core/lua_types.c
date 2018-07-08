@@ -320,9 +320,6 @@ static int lua_open_class(lua_State* L)
   // Document this class.
   lua_set_docstring(L, -1, class_doc);
 
-  // Set up a C destructor if we have one.
-
-
   return 1;
 }
 
