@@ -1561,14 +1561,22 @@ static int lua_reals_equal(lua_State* L)
 static int lua_dir(lua_State* L)
 {
   int num_args = lua_gettop(L);
-  if (num_args != 1)
-    luaL_error(L, "dir() accepts exactly one argument.");
+  if ((num_args != 0) && (num_args != 1))
+    luaL_error(L, "dir() accepts exactly zero or one arguments.");
+
+  if (num_args == 0)
+    lua_getglobal(L, "_G");
 
   int table_index = 0;
   if (lua_istable(L, 1))
     table_index = 1;
   else if (lua_isuserdata(L, 1) && (lua_getmetatable(L, 1) != 0))
     table_index = 2;
+  else if (lua_isnil(L, 1))
+  {
+    lua_pushnil(L);
+    return 1;
+  }
   else
   {
     // Return an empty table.
@@ -1596,7 +1604,9 @@ static int lua_dir(lua_State* L)
 
   // Clean up the stack.
   if (table_index == 2)
-    lua_remove(L, table_index);
+    lua_remove(L, 2);
+  if (num_args == 0)
+    lua_remove(L, 1);
 
   ASSERT(lua_gettop(L) == num_args + 1);
   return 1;
