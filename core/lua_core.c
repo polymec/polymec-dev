@@ -1586,29 +1586,40 @@ static int lua_dir(lua_State* L)
 
   // Go through the keys of the table and push them into a new table.
   lua_newtable(L);
+  int new_table_index = lua_gettop(L);
   int index = 0;
   lua_pushnil(L);
   while (lua_next(L, table_index))
   {
     ++index;
 
-    // Key is at index -2, value is at -1, new table is at -3.
+    // Key is at index -2, value is at -1.
     // First, replace the value with a copy of the key.
     lua_pop(L, 1);
     lua_pushvalue(L, -1);
 
-    // Now add this key to our new table at -3. This pops the key copy 
+    // Now add this key to our new table. This pops the key copy 
     // off the stack.
-    lua_rawseti(L, -3, index); 
+    lua_rawseti(L, new_table_index, index); 
   }
 
-  // Clean up the stack.
-  if (table_index == 2)
-    lua_remove(L, 2);
-  if (num_args == 0)
-    lua_remove(L, 1);
+  // Sort the table.
+  lua_getglobal(L, "table");
+  lua_getfield(L, -1, "sort");
+  lua_pushvalue(L, new_table_index);
+  lua_call(L, 1, 0);
 
-  ASSERT(lua_gettop(L) == num_args + 1);
+  // Clean up the stack. The "table" module is at the top of the stack,
+  // and our new table is underneath it, so we rotate once in the direction 
+  // of the top of the stack to bring our result to the top. This essentially
+  // swaps the two indices.
+  lua_rotate(L, lua_gettop(L)-1, 1);
+  
+  // Now just get rid of all the garbage in between our result and the 
+  // original arguments.
+  while (lua_gettop(L) > (num_args + 1))
+    lua_remove(L, -2);
+
   return 1;
 }
 
