@@ -29,7 +29,7 @@ endforeach()
 add_library(linenoise ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.c)
 set_target_properties(linenoise PROPERTIES FOLDER Libraries)
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/linenoise/linenoise.h ${PROJECT_BINARY_DIR}/include)
-install(TARGETS linenoise DESTINATION ${PROJECT_BINARY_DIR}/lib)
+install(TARGETS linenoise DESTINATION lib)
 set(POLYMEC_TP_LIBS linenoise;${POLYMEC_TP_LIBS})
 
 #----------------------------------------------------------------------------
