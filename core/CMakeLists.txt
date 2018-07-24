@@ -25,6 +25,7 @@ add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c
                     lua_replace_tostring.c
                     lua_array.c lua_ndarray.c lua_driver.c)
 set_target_properties(polymec_core PROPERTIES LINKER_LANGUAGE C)
+add_dependencies(polymec_core all_3rdparty_libs)
 
 # polymec.c depends on the creation of polymec_version.h and on the creation
 # of the high-level headers.
