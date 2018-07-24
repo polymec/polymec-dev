@@ -1,5 +1,6 @@
 include(add_polymec_library)
 add_polymec_library(polymec_io silo_file.c silo_file_unimesh.c lua_io.c)
+add_dependencies(polymec_io all_3rdparty_libs)
 
 set(POLYMEC_LIBRARIES polymec_io;${POLYMEC_LIBRARIES} PARENT_SCOPE)
 set(POLYMEC_LIBRARIES polymec_io;${POLYMEC_LIBRARIES})
