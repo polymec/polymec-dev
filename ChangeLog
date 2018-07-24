@@ -1,3 +1,10 @@
+Tue Jul 24 09:57:53 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.2.5
+      - Fixed various installation-related glitches.
+      - The lua dir() function is better:
+        - When called with no arguments, it lists the members of the global 
+          namespace.
+        - It alphabetizes the members it returns.
 Fri Jul  6 10:22:24 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.4
       - Fixed a bug in x_array_reorder.
