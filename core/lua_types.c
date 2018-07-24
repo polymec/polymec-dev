@@ -207,6 +207,7 @@ typedef struct
 static int lua_class_gc(lua_State* L)
 {
   lua_class_t* obj = lua_touserdata(L, 1);
+  string_free(obj->name);
   if ((obj->dtor != NULL) && (obj->context != NULL))
     obj->dtor(obj->context);
   return 0;
