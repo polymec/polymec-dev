@@ -881,8 +881,8 @@ static lua_class_method probe_methods[] = {
 
 int lua_register_model_modules(lua_State* L)
 {
-  lua_register_class(L, "model", "A simulation model.", model_funcs, model_methods, DTOR(model_free));
-  lua_register_class(L, "probe", "A virtual simulation probe that acquires data.", probe_funcs, probe_methods, DTOR(probe_free));
+  lua_register_class(L, "model", "A simulation model.", model_funcs, NULL, model_methods, DTOR(model_free));
+  lua_register_class(L, "probe", "A virtual simulation probe that acquires data.", probe_funcs, NULL, probe_methods, DTOR(probe_free));
 
   return 0;
 }

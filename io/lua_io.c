@@ -115,7 +115,7 @@ static lua_class_method silo_methods[] = {
 
 int lua_register_io_modules(lua_State* L)
 {
-  lua_register_class(L, "silo_file", "A SILO file interface.", silo_funcs, silo_methods, DTOR(silo_file_close));
+  lua_register_class(L, "silo_file", "A SILO file interface.", silo_funcs, NULL, silo_methods, DTOR(silo_file_close));
   return 0;
 }
 

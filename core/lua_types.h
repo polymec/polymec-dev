@@ -37,13 +37,23 @@ void lua_register_module_function_table(lua_State* L,
                                         const char* table_doc,
                                         lua_module_function funcs[]);
 
-// This type specifies whether a Lua object or record is owned by the Lua 
+// This type specifies whether a Lua object is owned by the Lua 
 // environment or by some C component.
 typedef enum
 {
   LUA_OWNED_BY_LUA, // owned by Lua environment
   LUA_OWNED_BY_C,   // owned by C environment
 } lua_ownership_t;
+
+// This type represents a field in a Lua class, with a name, 
+// a getter, and a setter (if any). A field must have a getter 
+// but may not need a setter if it is read only.
+typedef struct 
+{
+  const char* name;
+  int (*getter)(lua_State* L);
+  int (*setter)(lua_State* L);
+} lua_class_field;
 
 // This type represents a method for a Lua class.
 typedef struct
@@ -62,6 +72,7 @@ void lua_register_class(lua_State* L,
                         const char* class_name,
                         const char* class_doc,
                         lua_module_function functions[],
+                        lua_class_field fields[],
                         lua_class_method methods[],
                         void (*c_dtor)(void* context));
 
@@ -92,78 +103,11 @@ void* lua_check_object(lua_State* L,
                        int index,
                        const char* class_name);
 
-// This function transfers the ownership of the record with the given type 
-// to C or to Lua. By default, Lua owns all records pushed to the stack.
+// This function transfers the ownership of the object with the given type 
+// to C or to Lua. By default, Lua owns all objects pushed to the stack.
 void lua_transfer_object(lua_State* L, 
                          int index,
                          const char* class_name,
-                         lua_ownership_t ownership);
-
-// This type represents a field in a Lua record, with a name, 
-// a getter, and a setter (if any). A record must have a getter 
-// but may not need a setter if it is read only.
-typedef struct 
-{
-  const char* name;
-  int (*getter)(lua_State* L);
-  int (*setter)(lua_State* L);
-} lua_record_field;
-
-// This type represents a metamethod for a Lua record.
-typedef struct
-{
-  const char* name;
-  int (*metamethod)(lua_State* L);
-} lua_record_metamethod;
-
-// Registers a new Lua record with the interpreter L, giving it a name,
-// a set of static functions and a set of fields. The functions live in 
-// a module named after the record. By record, we mean a plain old data type 
-// (POD), or a Passive Data Structure (PDS), which has only attributes and 
-// no methods or dynamic behavior. Optionally, metamethods may be specified
-// to extend the richness of the record in expressions. The last argument is 
-// a C destructor function that frees the data within the context pointer 
-// passed to lua_push_record.
-void lua_register_record_type(lua_State* L,
-                              const char* record_type_name,
-                              const char* record_type_doc,
-                              lua_module_function functions[],
-                              lua_record_field fields[],
-                              lua_record_metamethod metamethods[],
-                              void (*c_dtor)(void* context));
-
-// Pushes a new (polymec) Lua record of the given type to the top of the 
-// stack in the interpreter L, associating it with a context pointer and a 
-// destructor to be called when the object is garbage-collected. 
-void lua_push_record(lua_State* L,
-                     const char* record_type_name,
-                     void* context);
-
-// Returns true if the record at the given index in the interpreter is of 
-// the type identified by the given type name, false if not.
-bool lua_is_record(lua_State* L,
-                   int index,
-                   const char* record_type_name);
-
-// Returns the context pointer associated with the (polymec) Lua record of the 
-// given type at the given index in the interpreter L, or NULL if the value at that index is 
-// not of that type.
-void* lua_to_record(lua_State* L,
-                    int index,
-                    const char* record_type_name);
-
-// This is a wrapper around lua_to_record that throws an error if the value at 
-// the given index is not a record of the correct type. Analogous to 
-// luaL_checkudata.
-void* lua_check_record(lua_State* L,
-                       int index,
-                       const char* record_type_name);
-
-// This function transfers the ownership of the record with the given type 
-// to C or to Lua. By default, Lua owns all records pushed to the stack.
-void lua_transfer_record(lua_State* L, 
-                         int index,
-                         const char* record_type_name,
                          lua_ownership_t ownership);
 
 #endif

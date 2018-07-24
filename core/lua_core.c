@@ -73,7 +73,7 @@ static int z_imag(lua_State* L)
   return 1;
 }
 
-static lua_record_field complex_fields[] = {
+static lua_class_field complex_fields[] = {
   {"real", z_real, NULL},
   {"imag", z_imag, NULL},
   {NULL, NULL, NULL}
@@ -144,15 +144,15 @@ static int z_tostring(lua_State* L)
   return 1;
 }
 
-static lua_record_metamethod complex_mm[] = {
-  {"__add", z_add},
-  {"__sub", z_sub},
-  {"__mul", z_mul},
-  {"__div", z_div},
-  {"__unm", z_unm},
-  {"__pow", z_pow},
-  {"__tostring", z_tostring},
-  {NULL, NULL}
+static lua_class_method complex_methods[] = {
+  {"__add", z_add, NULL},
+  {"__sub", z_sub, NULL},
+  {"__mul", z_mul, NULL},
+  {"__div", z_div, NULL},
+  {"__unm", z_unm, NULL},
+  {"__pow", z_pow, NULL},
+  {"__tostring", z_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int p_new(lua_State* L)
@@ -255,7 +255,7 @@ static int p_set_z(lua_State* L)
   return 0;
 }
 
-static lua_record_field point_fields[] = {
+static lua_class_field point_fields[] = {
   {"x", p_x, p_set_x},
   {"y", p_y, p_set_y},
   {"z", p_z, p_set_z},
@@ -286,11 +286,11 @@ static int p_tostring(lua_State* L)
   return 1;
 }
 
-static lua_record_metamethod point_mm[] = {
-  {"__sub", p_sub},
-  {"__len", p_len},
-  {"__tostring", p_tostring},
-  {NULL, NULL}
+static lua_class_method point_methods[] = {
+  {"__sub", p_sub, NULL},
+  {"__len", p_len, NULL},
+  {"__tostring", p_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int v_new(lua_State* L)
@@ -393,7 +393,7 @@ static int v_set_z(lua_State* L)
   return 0;
 }
 
-static lua_record_field vector_fields[] = {
+static lua_class_field vector_fields[] = {
   {"x", v_x, v_set_x},
   {"y", v_y, v_set_y},
   {"z", v_z, v_set_z},
@@ -472,16 +472,16 @@ static int v_tostring(lua_State* L)
   return 1;
 }
 
-static lua_record_metamethod vector_mm[] = {
-  {"__add", v_add},
-  {"__sub", v_sub},
-  {"__mul", v_mul},
-  {"__div", v_div},
-  {"__unm", v_unm},
-  {"__len", v_len},
-  {"__tostring", v_tostring},
-  {"dot", v_dot},
-  {NULL, NULL}
+static lua_class_method vector_methods[] = {
+  {"__add", v_add, NULL},
+  {"__sub", v_sub, NULL},
+  {"__mul", v_mul, NULL},
+  {"__div", v_div, NULL},
+  {"__unm", v_unm, NULL},
+  {"__len", v_len, NULL},
+  {"__tostring", v_tostring, NULL},
+  {"dot", v_dot, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int t2_new(lua_State* L)
@@ -661,7 +661,7 @@ static int t2_set_zz(lua_State* L)
   return 0;
 }
 
-static lua_record_field tensor2_fields[] = {
+static lua_class_field tensor2_fields[] = {
   {"xx", t2_xx, t2_set_xx},
   {"xy", t2_xy, t2_set_xy},
   {"xz", t2_xz, t2_set_xz},
@@ -757,15 +757,15 @@ static int t2_tostring(lua_State* L)
   return 1;
 }
 
-static lua_record_metamethod tensor2_mm[] = {
-  {"__add", t2_add},
-  {"__sub", t2_sub},
-  {"__mul", t2_mul},
-  {"__div", t2_div},
-  {"__unm", t2_unm},
-  {"__len", t2_len},
-  {"__tostring", t2_tostring},
-  {NULL, NULL}
+static lua_class_method tensor2_methods[] = {
+  {"__add", t2_add, NULL},
+  {"__sub", t2_sub, NULL},
+  {"__mul", t2_mul, NULL},
+  {"__div", t2_div, NULL},
+  {"__unm", t2_unm, NULL},
+  {"__len", t2_len, NULL},
+  {"__tostring", t2_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int st2_new(lua_State* L)
@@ -941,7 +941,7 @@ static int st2_set_zz(lua_State* L)
   return 0;
 }
 
-static lua_record_field sym_tensor2_fields[] = {
+static lua_class_field sym_tensor2_fields[] = {
   {"xx", st2_xx, st2_set_xx},
   {"xy", st2_xy, st2_set_xy},
   {"xz", st2_xz, st2_set_xz},
@@ -1037,15 +1037,15 @@ static int st2_tostring(lua_State* L)
   return 1;
 }
 
-static lua_record_metamethod sym_tensor2_mm[] = {
-  {"__add", st2_add},
-  {"__sub", st2_sub},
-  {"__mul", st2_mul},
-  {"__div", st2_div},
-  {"__unm", st2_unm},
-  {"__len", st2_len},
-  {"__tostring", st2_tostring},
-  {NULL, NULL}
+static lua_class_method sym_tensor2_methods[] = {
+  {"__add", st2_add, NULL},
+  {"__sub", st2_sub, NULL},
+  {"__mul", st2_mul, NULL},
+  {"__div", st2_div, NULL},
+  {"__unm", st2_unm, NULL},
+  {"__len", st2_len, NULL},
+  {"__tostring", st2_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int mpi_comm_split(lua_State* L)
@@ -1093,7 +1093,7 @@ static int mpi_comm_rank(lua_State* L)
   return 1;
 }
 
-static lua_record_field mpi_comm_fields[] = {
+static lua_class_field mpi_comm_fields[] = {
   {"size", mpi_comm_size, NULL},
   {"rank", mpi_comm_rank, NULL},
   {NULL, NULL, NULL}
@@ -1115,9 +1115,9 @@ static int mpi_comm_tostring(lua_State* L)
   return 1;
 }
 
-static lua_record_metamethod mpi_comm_mm[] = {
-  {"__tostring", mpi_comm_tostring},
-  {NULL, NULL}
+static lua_class_method mpi_comm_methods[] = {
+  {"__tostring", mpi_comm_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int bb_new(lua_State* L)
@@ -1168,6 +1168,112 @@ static int bb_new(lua_State* L)
 
 static lua_module_function bbox_funcs[] = {
   {"new", bb_new, "bbox.new{x1 = X1, x2 = X2, y1 = Y1, y2 = Y2, z1 = Z1, z2 = Z2} -> new bounding box."},
+  {NULL, NULL, NULL}
+};
+
+static int bb_x1(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  lua_pushnumber(L, (double)bb->x1);
+  return 1;
+}
+
+static int bb_set_x1(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Bounding box limits must be numbers.");
+  bb->x1 = lua_to_real(L, 2);
+  return 0;
+}
+
+static int bb_x2(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  lua_pushnumber(L, (double)bb->x2);
+  return 1;
+}
+
+static int bb_set_x2(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Bounding box limits must be numbers.");
+  bb->x2 = lua_to_real(L, 2);
+  return 0;
+}
+
+static int bb_y1(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  lua_pushnumber(L, (double)bb->y1);
+  return 1;
+}
+
+static int bb_set_y1(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Bounding box limits must be numbers.");
+  bb->y1 = lua_to_real(L, 2);
+  return 0;
+}
+
+static int bb_y2(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  lua_pushnumber(L, (double)bb->y2);
+  return 1;
+}
+
+static int bb_set_y2(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Bounding box limits must be numbers.");
+  bb->y2 = lua_to_real(L, 2);
+  return 0;
+}
+
+static int bb_z1(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  lua_pushnumber(L, (double)bb->z1);
+  return 1;
+}
+
+static int bb_set_z1(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Bounding box limits must be numbers.");
+  bb->z1 = lua_to_real(L, 2);
+  return 0;
+}
+
+static int bb_z2(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  lua_pushnumber(L, (double)bb->z2);
+  return 1;
+}
+
+static int bb_set_z2(lua_State* L)
+{
+  bbox_t* bb = lua_to_bbox(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Bounding box limits must be numbers.");
+  bb->z2 = lua_to_real(L, 2);
+  return 0;
+}
+
+static lua_class_field bbox_fields[] = {
+  {"x1", bb_x1, bb_set_x1},
+  {"x2", bb_x2, bb_set_x2},
+  {"y1", bb_y1, bb_set_y1},
+  {"y2", bb_y2, bb_set_y2},
+  {"z1", bb_z1, bb_set_z1},
+  {"z2", bb_z2, bb_set_z2},
   {NULL, NULL, NULL}
 };
 
@@ -1648,7 +1754,7 @@ static int lua_help(lua_State* L)
   // Dig up our docstrings table.
   lua_get_docstrings(L);
 
-  // Retrieve the record for the argument.
+  // Retrieve the object for the argument.
   lua_pushnil(L);
   lua_copy(L, -3, -1);
   lua_gettable(L, -2);
@@ -1794,9 +1900,9 @@ static int lua_register_mpi(lua_State* L)
   lua_setglobal(L, "mpi");
 
   // Register the communicator class.
-  lua_register_record_type(L, "mpi.comm", "An MPI communicator.", 
-                           mpi_comm_funcs, mpi_comm_fields, mpi_comm_mm, 
-                           polymec_free);
+  lua_register_class(L, "mpi.comm", "An MPI communicator.", 
+                     mpi_comm_funcs, mpi_comm_fields, mpi_comm_methods, 
+                     polymec_free);
 
   // Now register MPI_COMM_WORLD and MPI_COMM_SELF objects.
   lua_getglobal(L, "mpi");
@@ -1811,20 +1917,20 @@ static int lua_register_mpi(lua_State* L)
 int lua_register_core_modules(lua_State* L)
 {
   // Core types.
-  lua_register_record_type(L, "complex", "A complex number.", complex_funcs, complex_fields, complex_mm, polymec_free);
-  lua_register_record_type(L, "point", "A 3D point.", point_funcs, point_fields, point_mm, NULL);
-  lua_register_record_type(L, "vector", "A 3D vector.", vector_funcs, vector_fields, vector_mm, NULL);
-  lua_register_record_type(L, "tensor2", "A general rank 2 tensor.", tensor2_funcs, tensor2_fields, tensor2_mm, NULL);
-  lua_register_record_type(L, "sym_tensor2", "A symmetric rank 2 tensor.", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_mm, NULL);
+  lua_register_class(L, "complex", "A complex number.", complex_funcs, complex_fields, complex_methods, polymec_free);
+  lua_register_class(L, "point", "A 3D point.", point_funcs, point_fields, point_methods, NULL);
+  lua_register_class(L, "vector", "A 3D vector.", vector_funcs, vector_fields, vector_methods, NULL);
+  lua_register_class(L, "tensor2", "A general rank 2 tensor.", tensor2_funcs, tensor2_fields, tensor2_methods, NULL);
+  lua_register_class(L, "sym_tensor2", "A symmetric rank 2 tensor.", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_methods, NULL);
   lua_register_array(L);
   lua_register_ndarray(L);
   lua_register_constants(L);
   lua_register_mpi(L);
 
-  lua_register_class(L, "bbox", "A 3D bounding box.", bbox_funcs, bbox_methods, NULL);
-  lua_register_class(L, "sp_func", "A function in 3D space.", sp_funcs, sp_methods, NULL);
-  lua_register_class(L, "st_func", "A time-dependent function in 3D space.", st_funcs, st_methods, NULL);
-  lua_register_class(L, "rng", "A random number generator.", rng_funcs, rng_methods, NULL);
+  lua_register_class(L, "bbox", "A 3D bounding box.", bbox_funcs, bbox_fields, bbox_methods, NULL);
+  lua_register_class(L, "sp_func", "A function in 3D space.", sp_funcs, NULL, sp_methods, NULL);
+  lua_register_class(L, "st_func", "A time-dependent function in 3D space.", st_funcs, NULL, st_methods, NULL);
+  lua_register_class(L, "rng", "A random number generator.", rng_funcs, NULL, rng_methods, NULL);
 
   // Register the options table.
   lua_register_options(L);
@@ -1854,94 +1960,94 @@ void lua_push_complex(lua_State* L, complex_t z)
 {
   complex_t* zz = polymec_malloc(sizeof(complex_t));
   *zz = z;
-  lua_push_record(L, "complex", zz);
+  lua_push_object(L, "complex", zz);
 }
 
 bool lua_is_complex(lua_State* L, int index)
 {
-  return lua_is_record(L, index, "complex");
+  return lua_is_object(L, index, "complex");
 }
 
 complex_t lua_to_complex(lua_State* L, int index)
 {
-  return *((complex_t*)lua_to_record(L, index, "complex"));
+  return *((complex_t*)lua_to_object(L, index, "complex"));
 }
 
 void lua_push_point(lua_State* L, point_t* p)
 {
-  lua_push_record(L, "point", p);
+  lua_push_object(L, "point", p);
 }
 
 bool lua_is_point(lua_State* L, int index)
 {
-  return lua_is_record(L, index, "point");
+  return lua_is_object(L, index, "point");
 }
 
 point_t* lua_to_point(lua_State* L, int index)
 {
-  return (point_t*)lua_to_record(L, index, "point");
+  return (point_t*)lua_to_object(L, index, "point");
 }
 
 void lua_push_vector(lua_State* L, vector_t* v)
 {
-  lua_push_record(L, "vector", v);
+  lua_push_object(L, "vector", v);
 }
 
 bool lua_is_vector(lua_State* L, int index)
 {
-  return lua_is_record(L, index, "vector");
+  return lua_is_object(L, index, "vector");
 }
 
 vector_t* lua_to_vector(lua_State* L, int index)
 {
-  return (vector_t*)lua_to_record(L, index, "vector");
+  return (vector_t*)lua_to_object(L, index, "vector");
 }
 
 void lua_push_tensor2(lua_State* L, tensor2_t* t)
 {
-  lua_push_record(L, "tensor2", t);
+  lua_push_object(L, "tensor2", t);
 }
 
 bool lua_is_tensor2(lua_State* L, int index)
 {
-  return lua_is_record(L, index, "tensor2");
+  return lua_is_object(L, index, "tensor2");
 }
 
 tensor2_t* lua_to_tensor2(lua_State* L, int index)
 {
-  return (tensor2_t*)lua_to_record(L, index, "tensor2");
+  return (tensor2_t*)lua_to_object(L, index, "tensor2");
 }
 
 void lua_push_sym_tensor2(lua_State* L, sym_tensor2_t* t)
 {
-  lua_push_record(L, "sym_tensor2", t);
+  lua_push_object(L, "sym_tensor2", t);
 }
 
 bool lua_is_sym_tensor2(lua_State* L, int index)
 {
-  return lua_is_record(L, index, "sym_tensor2");
+  return lua_is_object(L, index, "sym_tensor2");
 }
 
 sym_tensor2_t* lua_to_sym_tensor2(lua_State* L, int index)
 {
-  return (sym_tensor2_t*)lua_to_record(L, index, "sym_tensor2");
+  return (sym_tensor2_t*)lua_to_object(L, index, "sym_tensor2");
 }
 
 void lua_push_mpi_comm(lua_State* L, MPI_Comm comm)
 {
   MPI_Comm* c = polymec_malloc(sizeof(MPI_Comm));
   *c = comm;
-  lua_push_record(L, "mpi.comm", c);
+  lua_push_object(L, "mpi.comm", c);
 }
 
 bool lua_is_mpi_comm(lua_State* L, int index)
 {
-  return lua_is_record(L, index, "mpi.comm");
+  return lua_is_object(L, index, "mpi.comm");
 }
 
 MPI_Comm lua_to_mpi_comm(lua_State* L, int index)
 {
-  return *((MPI_Comm*)lua_to_record(L, index, "mpi.comm"));
+  return *((MPI_Comm*)lua_to_object(L, index, "mpi.comm"));
 }
 
 void lua_push_bbox(lua_State* L, bbox_t* b)

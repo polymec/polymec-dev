@@ -1026,7 +1026,7 @@ static int pc_tags(lua_State* L)
   return 1;
 }
 
-static lua_record_field pc_fields[] = {
+static lua_class_field pc_fields[] = {
   {"num_points", pc_num_points, NULL},
   {"num_ghosts", pc_num_ghosts, NULL},
   {"tags", pc_tags, NULL},
@@ -1040,10 +1040,10 @@ static int pc_tostring(lua_State* L)
   return 1;
 }
 
-static lua_record_metamethod pc_mm[] = {
-  {"__len", pc_num_points},
-  {"__tostring", pc_tostring},
-  {NULL, NULL}
+static lua_class_method pc_methods[] = {
+  {"__len", pc_num_points, NULL},
+  {"__tostring", pc_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int um_new(lua_State* L)
@@ -1216,7 +1216,7 @@ static int um_patches(lua_State* L)
   return 1;
 }
 
-static lua_record_field um_fields[] = {
+static lua_class_field um_fields[] = {
   {"bbox", um_bbox, NULL},
   {"spacings", um_spacings, NULL},
   {"extents", um_extents, NULL},
@@ -1233,9 +1233,9 @@ static int um_tostring(lua_State* L)
   return 1;
 }
 
-static lua_record_metamethod um_mm[] = {
-  {"__tostring", um_tostring},
-  {NULL, NULL}
+static lua_class_method um_methods[] = {
+  {"__tostring", um_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int polymesh_repartition(lua_State* L)
@@ -1305,7 +1305,7 @@ static int polymesh_num_nodes(lua_State* L)
   return 1;
 }
 
-static lua_record_field polymesh_fields[] = {
+static lua_class_field polymesh_fields[] = {
   {"num_cells", polymesh_num_cells, NULL},
   {"num_ghost_cells", polymesh_num_ghost_cells, NULL},
   {"num_faces", polymesh_num_faces, NULL},
@@ -1322,9 +1322,9 @@ static int polymesh_tostring(lua_State* L)
   return 1;
 }
 
-static lua_record_metamethod polymesh_mm[] = {
-  {"__tostring", polymesh_tostring},
-  {NULL, NULL}
+static lua_class_method polymesh_methods[] = {
+  {"__tostring", polymesh_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 static int polymeshes_uniform(lua_State* L)
@@ -1495,13 +1495,13 @@ static lua_module_function points_funcs[] = {
 int lua_register_geometry_modules(lua_State* L)
 {
   // Core types.
-  lua_register_class(L, "coord_mapping", "A coordinate mapping.", cm_funcs, cm_methods, NULL);
-  lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, sd_methods, NULL);
-  lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_methods, NULL);
-  lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, tagger_methods, NULL);
-  lua_register_record_type(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_mm, DTOR(point_cloud_free));
-  lua_register_record_type(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_mm, DTOR(unimesh_free));
-  lua_register_record_type(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_mm, DTOR(polymesh_free));
+  lua_register_class(L, "coord_mapping", "A coordinate mapping.", cm_funcs, NULL, cm_methods, NULL);
+  lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, NULL, sd_methods, NULL);
+  lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, NULL, sdt_methods, NULL);
+  lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, NULL, tagger_methods, NULL);
+  lua_register_class(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_methods, DTOR(point_cloud_free));
+  lua_register_class(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_methods, DTOR(unimesh_free));
+  lua_register_class(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_methods, DTOR(polymesh_free));
 
   // Register a module of mesh factory methods.
   lua_register_module(L, "polymeshes", "Functions for generating polymeshes.", polymeshes_funcs);
@@ -1574,46 +1574,46 @@ sdt_func_t* lua_to_sdt_func(lua_State* L, int index)
 
 void lua_push_point_cloud(lua_State* L, point_cloud_t* c)
 {
-  lua_push_record(L, "point_cloud", c);
+  lua_push_object(L, "point_cloud", c);
 }
 
 bool lua_is_point_cloud(lua_State* L, int index)
 {
-  return lua_is_record(L, index, "point_cloud");
+  return lua_is_object(L, index, "point_cloud");
 }
 
 point_cloud_t* lua_to_point_cloud(lua_State* L, int index)
 {
-  return (point_cloud_t*)lua_to_record(L, index, "point_cloud");
+  return (point_cloud_t*)lua_to_object(L, index, "point_cloud");
 }
 
 void lua_push_unimesh(lua_State* L, unimesh_t* m)
 {
-  lua_push_record(L, "unimesh", m);
+  lua_push_object(L, "unimesh", m);
 }
 
 bool lua_is_unimesh(lua_State* L, int index)
 {
-  return lua_is_record(L, index, "unimesh");
+  return lua_is_object(L, index, "unimesh");
 }
 
 unimesh_t* lua_to_unimesh(lua_State* L, int index)
 {
-  return (unimesh_t*)lua_to_record(L, index, "unimesh");
+  return (unimesh_t*)lua_to_object(L, index, "unimesh");
 }
 
 void lua_push_polymesh(lua_State* L, polymesh_t* m)
 {
-  lua_push_record(L, "polymesh", m);
+  lua_push_object(L, "polymesh", m);
 }
 
 bool lua_is_polymesh(lua_State* L, int index)
 {
-  return lua_is_record(L, index, "polymesh");
+  return lua_is_object(L, index, "polymesh");
 }
 
 polymesh_t* lua_to_polymesh(lua_State* L, int index)
 {
-  return (polymesh_t*)lua_to_record(L, index, "polymesh");
+  return (polymesh_t*)lua_to_object(L, index, "polymesh");
 }
 
