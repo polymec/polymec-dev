@@ -1,4 +1,4 @@
-/* Copyright 2004,2007,2009,2012 IPB, Universite de Bordeaux, INRIA & CNRS
+/* Copyright 2004,2007,2009,2012,2015,2018 IPB, Universite de Bordeaux, INRIA & CNRS
 **
 ** This file is part of the Scotch software package for static mapping,
 ** graph partitioning and sparse matrix ordering.
@@ -45,7 +45,7 @@
 /**                # Version 5.1  : from : 22 jan 2009     **/
 /**                                 to     22 jan 2009     **/
 /**                # Version 6.0  : from : 01 dec 2012     **/
-/**                                 to     01 dec 2012     **/
+/**                                 to     21 may 2018     **/
 /**                                                        **/
 /************************************************************/
 
@@ -54,11 +54,7 @@
 */
 
 #include "common.h"
-#ifdef SCOTCH_PTSCOTCH
-#include "ptscotch.h"
-#else /* SCOTCH_PTSCOTCH */
 #include "scotch.h"
-#endif /* SCOTCH_PTSCOTCH */
 #include "graph.h"
 #include "esmumps.h"
 
@@ -109,11 +105,16 @@ char *              argv[];
 
   graphData (&grafdat, NULL, &vertnbr, &verttab, NULL, NULL, NULL, &edgenbr, &edgetab, NULL);
 
-  if ((lentab = (INT *) memAlloc (vertnbr * sizeof (INT))) == NULL) {
-    errorPrint ("main_esmumps: out of memory (1)");
+  if (memAllocGroup ((void **) (void *)
+                     &lentab,  (size_t) (vertnbr * sizeof (INT)),
+                     &nvtab,   (size_t) (vertnbr * sizeof (INT)),
+                     &elentab, (size_t) (vertnbr * sizeof (INT)),
+                     &lasttab, (size_t) (vertnbr * sizeof (INT)), NULL) == NULL) {
+    errorPrint ("main_esmumps: out of memory");
     graphExit  (&grafdat);
     return     (1);
   }
+
   for (vertnum = 0; vertnum < vertnbr; vertnum ++) {
     if (verttab[vertnum] == verttab[vertnum + 1]) {
       lentab[vertnum] = 0;
@@ -123,27 +124,11 @@ char *              argv[];
       lentab[vertnum] = verttab[vertnum + 1] - verttab[vertnum];
   }
 
-  if (((nvtab   = (INT *) memAlloc (vertnbr * sizeof (INT))) == NULL) ||
-      ((elentab = (INT *) memAlloc (vertnbr * sizeof (INT))) == NULL) ||
-      ((lasttab = (INT *) memAlloc (vertnbr * sizeof (INT))) == NULL)) {
-    errorPrint ("main_esmumps: out of memory (2)");
-    if (nvtab != NULL) {
-      if (elentab != NULL)
-        memFree (elentab);
-      memFree (nvtab);
-    }
-    graphExit (&grafdat);
-    return    (1);
-  }
-
   pfree = edgenbr + 1;
   ESMUMPSF (&vertnbr, &edgenbr, verttab, &pfree,
             lentab, edgetab, nvtab, elentab, lasttab, &ncmpa);
 
-  memFree   (lasttab);
-  memFree   (elentab);
-  memFree   (nvtab);
-  memFree   (lentab);
+  memFree   (lentab);                             /* Free group leader */
   graphExit (&grafdat);
 
   if (ncmpa < 0) {

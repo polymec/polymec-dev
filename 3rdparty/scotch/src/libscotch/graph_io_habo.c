@@ -1,4 +1,4 @@
-/* Copyright 2004,2007,2008,2010 ENSEIRB, INRIA & CNRS
+/* Copyright 2004,2007,2008,2010,2016,2018 IPB, Universite de Bordeaux, INRIA & CNRS
 **
 ** This file is part of the Scotch software package for static mapping,
 ** graph partitioning and sparse matrix ordering.
@@ -49,6 +49,8 @@
 /**                                 to     31 aug 2007     **/
 /**                # Version 5.1  : from : 09 nov 2008     **/
 /**                                 to     27 apr 2010     **/
+/**                # Version 6.0  : from : 04 aug 2016     **/
+/**                                 to     31 may 2018     **/
 /**                                                        **/
 /************************************************************/
 
@@ -85,7 +87,6 @@ const char * const          dataptr)              /* Tag value        */
   char                          habmattype[3];    /* Matrix type                     */
   Gnum                          habcrdnbr;        /* Total number of data lines      */
   Gnum                          habrhsnbr;        /* Number of right hand side lines */
-  Gnum                          habrownbr;        /* Number of rows                  */
   GraphGeomHaboLine             habcolfmt;        /* Format of column line           */
   int                           habvalnum;        /* Number of value in line         */
   Gnum                          habcolnbr;        /* Number of columns               */
@@ -135,8 +136,10 @@ const char * const          dataptr)              /* Tag value        */
     habnzrnbr = (Gnum) atol (&habmatbuf[2][43]);
     habmatbuf[2][42] = '\0';
     habcolnbr = (Gnum) atol (&habmatbuf[2][29]);
+#if 0                                             /* Number of rows not used since only square matrices considered */
     habmatbuf[2][28] = '\0';
     habrownbr = (Gnum) atol (&habmatbuf[2][14]);
+#endif
 
     habmatbuf[3][32] = '\0';
     if (graphGeomLoadHaboFormat (&habnzrfmt, &habmatbuf[3][16]) != 0) {
@@ -180,10 +183,10 @@ const char * const          dataptr)              /* Tag value        */
   }
 
   if (((grafptr->verttax = (Gnum *) memAlloc ((habcolnbr + 1) * sizeof (Gnum))) == NULL) ||
-      ((grafptr->edgetax = (Gnum *) memAllocGroup ((void **) (void *)
-                                                   &grafptr->edgetax, (size_t) (habnzrnbr * 2   * sizeof (Gnum)),
-                                                   &habcoltab,        (size_t) ((habcolnbr + 1) * sizeof (Gnum)),
-                                                   &habnzrtab,        (size_t) (habnzrnbr       * sizeof (Gnum)), NULL)) == NULL)) {
+      (memAllocGroup ((void **) (void *)
+                      &grafptr->edgetax, (size_t) (habnzrnbr * 2   * sizeof (Gnum)),
+                      &habcoltab,        (size_t) ((habcolnbr + 1) * sizeof (Gnum)),
+                      &habnzrtab,        (size_t) (habnzrnbr       * sizeof (Gnum)), NULL) == NULL)) {
     errorPrint ("graphGeomLoadHabo: out of memory (1)");
     if (grafptr->verttax != NULL) {
       memFree (grafptr->verttax);
@@ -191,7 +194,7 @@ const char * const          dataptr)              /* Tag value        */
     }
     return (1);
   }
-  grafptr->flagval = GRAPHFREETABS;               /* Totally new graph structure       */
+  grafptr->flagval = GRAPHFREETABS | GRAPHVERTGROUP | GRAPHEDGEGROUP;
   grafptr->baseval = 1;                           /* Harwell-Boeing graphs have base 1 */
   grafptr->vertnbr = (Gnum) habcolnbr;
   grafptr->vertnnd = grafptr->vertnbr + 1;
@@ -199,6 +202,10 @@ const char * const          dataptr)              /* Tag value        */
   grafptr->vendtax = grafptr->verttax;            /* Use compact representation for array based at 1     */
   grafptr->verttax --;                            /* Base verttab array at 1, with vendtab = verttab + 1 */
   grafptr->edgetax --;
+  grafptr->velotax = NULL;
+  grafptr->vnumtax = NULL;
+  grafptr->vlbltax = NULL;
+  grafptr->edlotax = NULL;
 
   ungetc ('\n', filesrcptr);                      /* Create fake previous line     */
   for (habcolnum = 0, habvalnum = habcolfmt.datanbr; /* Eat up fake previous line  */

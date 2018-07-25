@@ -1,4 +1,4 @@
-/* Copyright 2004,2007,2009,2011,2012,2015 IPB, Universite de Bordeaux, INRIA & CNRS
+/* Copyright 2004,2007,2009,2011,2012,2015,2018 IPB, Universite de Bordeaux, INRIA & CNRS
 **
 ** This file is part of the Scotch software package for static mapping,
 ** graph partitioning and sparse matrix ordering.
@@ -40,7 +40,7 @@
 /**                generic pattern.                        **/
 /**                                                        **/
 /**   DATES      : # Version 6.0  : from : 05 oct 2012     **/
-/**                                 to     26 feb 2015     **/
+/**                                 to     05 jun 2018     **/
 /**                                                        **/
 /************************************************************/
 
@@ -386,7 +386,7 @@ GraphCoarsenData * restrict coarptr)
 }
 
 /* This routine merges the results of two mating
-** threads and re-launches a mating operations
+** threads and re-launches a mating operation
 ** if necessary.
 */
 
@@ -442,10 +442,6 @@ GraphCoarsenThread * restrict thrdptr)            /*+ Pointer to incomplete matc
   const Gnum                        finevertbas = thrdptr->finevertbas; /* Get fine vertex range */
   const Gnum                        finevertnnd = thrdptr->finevertnnd;
   Gnum * restrict const             finematetax = coarptr->finematetax;
-  const Gnum                        baseval     = finegrafptr->baseval;
-
-  if (coarptr->fbegptr == NULL)                   /* If user-provided mating, nothing to do */
-    return;
 
   thrdptr->finequeubas = finevertbas;             /* Assume matching range is fine vertex processing range */
   thrdptr->finequeunnd = finevertnnd;

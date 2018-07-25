@@ -1,4 +1,4 @@
-/* Copyright 2004,2007,2008 ENSEIRB, INRIA & CNRS
+/* Copyright 2004,2007,2008,2018 IPB, Universite de Bordeaux, INRIA & CNRS
 **
 ** This file is part of the Scotch software package for static mapping,
 ** graph partitioning and sparse matrix ordering.
@@ -45,6 +45,8 @@
 /**                                 to   : 12 sep 2007     **/
 /**                # Version 5.1  : from : 30 oct 2007     **/
 /**                                 to   : 09 nov 2008     **/
+/**                # Version 6.0  : from : 31 may 2018     **/
+/**                                 to   : 31 may 2018     **/
 /**                                                        **/
 /************************************************************/
 
@@ -94,6 +96,7 @@ const VgraphSeparateBdParam * const paraptr)      /*+ Method parameters +*/
   Gnum                        bndedgetmp;
   Gnum                        bnddegrmax;
   Gnum                        fronnum;
+
   const Gnum * restrict const orgverttax = orggrafptr->s.verttax; /* Fast accesses */
   const Gnum * restrict const orgvendtax = orggrafptr->s.vendtax;
   const Gnum * restrict const orgvelotax = orggrafptr->s.velotax;
@@ -176,7 +179,6 @@ const VgraphSeparateBdParam * const paraptr)      /*+ Method parameters +*/
 
       orgvertend = orgedgetax[orgedgenum];
       if (orgdisttax[orgvertend] == ~0) {         /* If vertex not visited yet */
-
 #ifdef SCOTCH_DEBUG_VGRAPH2
         if (orggrafptr->parttax[orgvertend] > 1) {
           errorPrint ("vgraphSeparateBd: internal error (5)");
@@ -334,12 +336,9 @@ const VgraphSeparateBdParam * const paraptr)      /*+ Method parameters +*/
   }
 #endif /* SCOTCH_DEBUG_VGRAPH2 */
   bndgrafdat.s.edgenbr =
-  bndgrafdat.s.edlosum = bndedgetmp - orggrafptr->s.baseval; /* Since edge load array not kept       */
-  bndgrafdat.s.verttax[bndvertnnd + 2] = bndedgetmp; /* Mark end of edge array with anchor vertices  */
-  for (bndvertnum = bndvlvlnum; bndvertnum < bndvertnnd; bndvertnum ++) { /* Fill anchor edge arrays */
-    Gnum                orgvertnum;
-
-    orgvertnum = bndvnumtax[bndvertnum];
+  bndgrafdat.s.edlosum = bndedgetmp - orggrafptr->s.baseval; /* Since edge load array not kept                  */
+  bndgrafdat.s.verttax[bndvertnnd + 2] = bndedgetmp; /* Mark end of edge array with anchor vertices             */
+  for (bndvertnum = bndvlvlnum; bndvertnum < bndvertnnd; bndvertnum ++) { /* Fill anchor edge arrays            */
     if (bndgrafdat.s.verttax[bndvertnum + 1] > bndgrafdat.s.verttax[bndvertnum]) { /* If vertex is not isolated */
       Gnum                bndvertend;
 

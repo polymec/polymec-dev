@@ -1,4 +1,4 @@
-/* Copyright 2004,2007,2008,2011,2014 IPB, Universite de Bordeaux, INRIA & CNRS
+/* Copyright 2004,2007,2008,2011,2014,2015,2018 IPB, Universite de Bordeaux, INRIA & CNRS
 **
 ** This file is part of the Scotch software package for static mapping,
 ** graph partitioning and sparse matrix ordering.
@@ -62,8 +62,8 @@
 /**                                 to     09 jan 2004     **/
 /**                # Version 5.1  : from : 19 jan 2008     **/
 /**                                 to     19 jan 2008     **/
-/**                # Version 6.0  : from : 14 fev 2011     **/
-/**                                 to     01 jul 2014     **/
+/**                # Version 6.0  : from : 14 feb 2011     **/
+/**                                 to     28 may 2018     **/
 /**                                                        **/
 /************************************************************/
 
@@ -77,13 +77,19 @@
 /*+ The complete graph definitions. +*/
 
 typedef struct ArchCmplt_ {
-  Anum                      numnbr;               /*+ Number of vertices +*/
+  Anum                      termnbr;              /*+ Number of vertices +*/
 } ArchCmplt;
 
 typedef struct ArchCmpltDom_ {
-  Anum                      nummin;               /*+ Minimum vertex number +*/
-  Anum                      numnbr;               /*+ Number of vertices    +*/
+  Anum                      termmin;              /*+ Minimum vertex number +*/
+  Anum                      termnbr;              /*+ Number of vertices    +*/
 } ArchCmpltDom;
+
+typedef struct ArchCmpltMatch_ {
+  ArchCoarsenMulti *        multtab;              /*+ Multinode array for all coarsenings +*/
+  Anum                      vertnbr;              /*+ Number of vertices in fine graph    +*/
+  Anum                      passnum;              /*+ Pass number                         +*/
+} ArchCmpltMatch;
 
 #endif /* ARCH_CMPLT_H_STRUCT */
 
@@ -95,13 +101,14 @@ typedef struct ArchCmpltDom_ {
 #ifndef ARCH_CMPLT_H_PROTO
 #define ARCH_CMPLT_H_PROTO
 
-#ifndef ARCH_CMPLT
-#define static
-#endif
-
 int                         archCmpltArchLoad   (ArchCmplt * restrict const, FILE * restrict const);
 int                         archCmpltArchSave   (const ArchCmplt * const, FILE * restrict const);
 #define archCmpltArchFree           NULL
+
+int                         archCmpltMatchInit  (ArchCmpltMatch * restrict const, const ArchCmplt * restrict const);
+void                        archCmpltMatchExit  (ArchCmpltMatch * restrict const);
+Anum                        archCmpltMatchMate  (ArchCmpltMatch * restrict const, ArchCoarsenMulti ** restrict const);
+
 ArchDomNum                  archCmpltDomNum     (const ArchCmplt * const, const ArchCmpltDom * const);
 int                         archCmpltDomTerm    (const ArchCmplt * const, ArchCmpltDom * restrict const, const ArchDomNum);
 Anum                        archCmpltDomSize    (const ArchCmplt * const, const ArchCmpltDom * const);
@@ -115,8 +122,6 @@ int                         archCmpltDomIncl    (const ArchCmplt * const, const 
 #ifdef SCOTCH_PTSCOTCH
 int                         archCmpltDomMpiType (const ArchCmplt * const, MPI_Datatype * const);
 #endif /* SCOTCH_PTSCOTCH */
-
-#undef static
 
 #endif /* ARCH_CMPLT_H_PROTO */
 #endif /* ARCH_NOPROTO       */
