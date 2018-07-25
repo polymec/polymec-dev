@@ -338,10 +338,38 @@ static int v_dot(lua_State* L)
   return 1;
 }
 
+static int v_cross(lua_State* L)
+{
+  vector_t* v = lua_to_vector(L, 1);
+  vector_t* w = lua_to_vector(L, 2);
+  if (w == NULL)
+    return luaL_error(L, "Argument must be a vector.");
+  vector_t* vxw = vector_new(v->y*w->z - v->z*w->y,
+                             v->z*w->x - v->x*w->z,
+                             v->x*w->y - v->y*w->x);
+  lua_push_vector(L, vxw);
+  return 1;
+}
+
+static int v_dyad(lua_State* L)
+{
+  vector_t* v = lua_to_vector(L, 1);
+  vector_t* w = lua_to_vector(L, 2);
+  if (w == NULL)
+    return luaL_error(L, "Argument must be a vector.");
+  tensor2_t* vw = tensor2_new(v->x*w->x, v->x*w->y, v->x*w->z,
+                              v->y*w->x, v->y*w->y, v->y*w->z,
+                              v->z*w->x, v->z*w->y, v->z*w->z);
+  lua_push_tensor2(L, vw);
+  return 1;
+}
+
 static lua_module_function vector_funcs[] = {
   {"new", v_new, "vector.new(vx, vy, vz) -> new 3D vector."},
   {"random", v_random, "vector.random(rng, mag) -> new 3D vector with random components having the given magnitude."},
   {"dot", v_dot, "vector.dot(v1, v2) -> dot product of v1 with v2."},
+  {"cross", v_cross, "vector.cross(v1, v2) -> cross product of v1 with v2."},
+  {"dyad", v_dyad, "vector.dyad(v1, v2) -> dyadic product of v1 with v2."},
   {NULL, NULL, NULL}
 };
 
@@ -393,10 +421,26 @@ static int v_set_z(lua_State* L)
   return 0;
 }
 
+static int v_mag(lua_State* L)
+{
+  vector_t* v = lua_to_vector(L, 1);
+  lua_pushnumber(L, (double)vector_mag(v));
+  return 1;
+}
+
+static int v_mag2(lua_State* L)
+{
+  vector_t* v = lua_to_vector(L, 1);
+  lua_pushnumber(L, (double)vector_dot(v, v));
+  return 1;
+}
+
 static lua_class_field vector_fields[] = {
   {"x", v_x, v_set_x},
   {"y", v_y, v_set_y},
   {"z", v_z, v_set_z},
+  {"mag", v_mag, NULL},
+  {"mag2", v_mag2, NULL},
   {NULL, NULL, NULL}
 };
 
@@ -468,7 +512,7 @@ static int v_len(lua_State* L)
 static int v_tostring(lua_State* L)
 {
   vector_t* v = lua_to_vector(L, 1);
-  lua_pushfstring(L, "vector (%f, %f, %f)", v->x, v->y, v->z);
+  lua_pushfstring(L, "vector(%f, %f, %f)", v->x, v->y, v->z);
   return 1;
 }
 
@@ -480,7 +524,9 @@ static lua_class_method vector_methods[] = {
   {"__unm", v_unm, NULL},
   {"__len", v_len, NULL},
   {"__tostring", v_tostring, NULL},
-  {"dot", v_dot, NULL},
+  {"dot", v_dot, "v:dot(w) -> dot product of vectors v and w."},
+  {"cross", v_cross, "v:cross(w) -> cross product of vectors v and w."},
+  {"dyad", v_dyad, "v:dyad(w) -> dyadic product of vectors v and w."},
   {NULL, NULL, NULL}
 };
 
@@ -752,7 +798,7 @@ static int t2_len(lua_State* L)
 static int t2_tostring(lua_State* L)
 {
   tensor2_t* t = lua_to_tensor2(L, 1);
-  lua_pushfstring(L, "tensor2 ((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))", 
+  lua_pushfstring(L, "tensor2((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))", 
                   t->xx, t->xy, t->xz, t->yx, t->yy, t->yz, t->zx, t->zy, t->zz);
   return 1;
 }
@@ -1032,7 +1078,7 @@ static int st2_len(lua_State* L)
 static int st2_tostring(lua_State* L)
 {
   sym_tensor2_t* t = lua_to_sym_tensor2(L, 1);
-  lua_pushfstring(L, "sym_tensor2 ((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))", 
+  lua_pushfstring(L, "sym_tensor2((%f, %f, %f), (%f, %f, %f), (%f, %f, %f))", 
                   t->xx, t->xy, t->xz, t->xy, t->yy, t->yz, t->xz, t->yz, t->zz);
   return 1;
 }
