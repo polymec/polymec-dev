@@ -220,6 +220,20 @@ void set_log_mpi_rank(log_level_t log_type, int rank)
     logger->mpi_rank = rank;
 }
 
+int log_mpi_rank(log_level_t log_type)
+{
+  if (log_mode() == LOG_TO_SINGLE_RANK)
+  {
+    logger_t* logger = get_logger(log_type);
+    if (logger != NULL)
+      return logger->mpi_rank;
+    else
+      return -1;
+  }
+  else
+    return -1;
+}
+
 FILE* log_stream(log_level_t log_type)
 {
   if (logging_level < log_type) 

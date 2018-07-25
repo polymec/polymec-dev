@@ -199,6 +199,18 @@ function f(x)
   return x*x
 end
 
+-- Logging.
+logging.mode = 'single_rank'
+assert(logging.mode == 'single_rank')
+logging.mode = 'all_ranks'
+assert(logging.mode == 'all_ranks')
+logging.level = 'info'
+assert(logging.level == 'info')
+logging.level = 'debug'
+assert(logging.level == 'debug')
+logging.stream = io.stdout
+logging.stream = nil
+
 tab = {}
 tab['a'] = 1
 tab['b'] = true

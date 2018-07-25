@@ -45,6 +45,10 @@ log_mode_t log_mode(void);
 // be reported on this rank if the log mode is set to LOG_TO_SINGLE_RANK.
 void set_log_mpi_rank(log_level_t log_type, int rank);
 
+// Retrieves the output MPI rank for parallel logging output if the log mode 
+// is set to LOG_TO_SINGLE_RANK, -1 otherwise.
+int log_mpi_rank(log_level_t log_type);
+
 // Retrieves the current buffering parameters for logging, including the size limit 
 // on log messages and the flush frequency. If a logger is not found at the 
 // given level, -1 is returned for each of these.
