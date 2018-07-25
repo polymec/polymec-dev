@@ -14,6 +14,16 @@
 // implement functions in Lua.
 typedef struct lua_State lua_State;
 
+// This type represents a field in a Lua module, with a name, 
+// a getter, and a setter (if any). A field must have a getter 
+// but doesn't need a setter if it is read only.
+typedef struct 
+{
+  const char* name;
+  int (*getter)(lua_State* L);
+  int (*setter)(lua_State* L);
+} lua_module_field;
+
 // This type represents a function for a Lua module.
 typedef struct
 {
@@ -22,11 +32,12 @@ typedef struct
   const char* doc;
 } lua_module_function;
 
-// Registers a set of functions with the interpreter L in the module with the 
-// given name.
+// Registers a set of fields and functions with the interpreter L in the 
+// module with the given name.
 void lua_register_module(lua_State* L,
                          const char* module_name,
                          const char* module_doc,
+                         lua_module_field fields[],
                          lua_module_function functions[]);
 
 // Registers a set of functions in a named table within a module. Useful for 

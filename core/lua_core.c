@@ -1772,6 +1772,27 @@ static int lua_dir(lua_State* L)
     lua_rawseti(L, new_table_index, index); 
   }
 
+  // If this is a table *AND* it has a metatable, add the keys from the 
+  // metatable, too.
+  if ((table_index == 1) && (lua_getmetatable(L, 1) != 0))
+  {
+    lua_pushnil(L);
+    while (lua_next(L, -2))
+    {
+      ++index;
+
+      // Key is at index -2, value is at -1.
+      // First, replace the value with a copy of the key.
+      lua_pop(L, 1);
+      lua_pushvalue(L, -1);
+
+      // Now add this key to our new table. This pops the key copy 
+      // off the stack.
+      lua_rawseti(L, new_table_index, index); 
+    }
+    lua_pop(L, 1); // pop the metatable
+  }
+
   // Sort the table.
   lua_getglobal(L, "table");
   lua_getfield(L, -1, "sort");
@@ -1977,151 +1998,145 @@ static int lua_register_mpi(lua_State* L)
   return 0;
 }
 
-static int logging_index(lua_State* L)
+static int l_get_level(lua_State* L)
 {
-  // We are passed the logging table and a field name.
-  ASSERT(lua_istable(L, 1));
-  const char* field = lua_tostring(L, 2);
-  if (strcmp(field, "level") == 0)
-  {
-    log_level_t level = log_level();
-    if (level == LOG_NONE)
-      lua_pushstring(L, "none");
-    else if (level == LOG_URGENT)
-      lua_pushstring(L, "urgent");
-    else if (level == LOG_INFO)
-      lua_pushstring(L, "info");
-    else if (level == LOG_DETAIL)
-      lua_pushstring(L, "detail");
-    else // if (level == LOG_DEBUG)
-      lua_pushstring(L, "debug");
-  }
-  else if (strcmp(field, "mode") == 0)
-  {
-    log_mode_t mode = log_mode();
-    if (mode == LOG_TO_SINGLE_RANK)
-      lua_pushstring(L, "single_rank");
-    else // if (mode == LOG_TO_ALL_RANKS)
-      lua_pushstring(L, "all_ranks");
-  }
-  else if (strcmp(field, "rank") == 0)
-  {
-    int rank = log_mpi_rank(log_level());
-    if (rank != -1)
-      lua_pushinteger(L, rank);
-    else
-      lua_pushnil(L);
-  }
-  else if (strcmp(field, "stream") == 0)
-  {
-    FILE* stream = log_stream(log_level());
-    if (stream != NULL)
-    {
-      luaL_Stream* s = lua_newuserdata(L, sizeof(luaL_Stream));
-      s->f = stream;
-      s->closef = NULL; // not responsible for closing!
-      luaL_setmetatable(L, LUA_FILEHANDLE);
-    }
-    else
-      lua_pushnil(L);
-  }
+  log_level_t level = log_level();
+  if (level == LOG_NONE)
+    lua_pushstring(L, "none");
+  else if (level == LOG_URGENT)
+    lua_pushstring(L, "urgent");
+  else if (level == LOG_INFO)
+    lua_pushstring(L, "info");
+  else if (level == LOG_DETAIL)
+    lua_pushstring(L, "detail");
+  else // if (level == LOG_DEBUG)
+    lua_pushstring(L, "debug");
   return 1;
 }
 
-#define tolstream(L)	((LStream *)luaL_checkudata(L, 1, LUA_FILEHANDLE))
-
-static int logging_newindex(lua_State* L)
+static int l_set_level(lua_State* L)
 {
-  // We are passed the logging table, a field name, and a value.
-  ASSERT(lua_istable(L, 1));
-  const char* field = lua_tostring(L, 2);
-  if (strcmp(field, "level") == 0)
-  {
-    if (!lua_isstring(L, 3))
-      return luaL_error(L, "log level must be 'none', 'urgent', 'info', 'detail', or 'debug'.");
-    const char* level_str = lua_tostring(L, 3);
-    log_level_t level;
-    if (strcmp(level_str, "none") == 0)
-      level = LOG_NONE;
-    else if (strcmp(level_str, "urgent") == 0)
-      level = LOG_URGENT;
-    else if (strcmp(level_str, "info") == 0)
-      level = LOG_INFO;
-    else if (strcmp(level_str, "detail") == 0)
-      level = LOG_DETAIL;
-    else if (strcmp(level_str, "debug") == 0)
-      level = LOG_DEBUG;
-    else 
-      return luaL_error(L, "log level must be 'none', 'urgent', 'info', 'detail', or 'debug'.");
-    set_log_level(level);
-  }
-  else if (strcmp(field, "mode") == 0)
-  {
-    if (!lua_isstring(L, 3))
-      return luaL_error(L, "log mode must be 'single_rank' or 'all_ranks'.");
-    const char* mode_str = lua_tostring(L, 3);
-    log_mode_t mode;
-    if (strcmp(mode_str, "single_rank") == 0)
-      mode = LOG_TO_SINGLE_RANK;
-    else if (strcmp(mode_str, "all_ranks") == 0)
-      mode = LOG_TO_ALL_RANKS;
-    else 
-      return luaL_error(L, "log mode must be 'single_rank' or 'all_ranks'.");
-    set_log_mode(mode);
-  }
-  else if (strcmp(field, "rank") == 0)
-  {
-    log_mode_t mode = log_mode();
-    if (mode == LOG_TO_ALL_RANKS)
-      return luaL_error(L, "cannot specify a log rank in 'all_ranks' log mode.");
-    else
-    {
-      if (!lua_isinteger(L, 3))
-        return luaL_error(L, "rank must be an integer.");
-      int rank = (int)lua_tointeger(L, 3);
-      int nprocs;
-      MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-      if ((rank < 0) || (rank >= nprocs))
-        return luaL_error(L, "rank must be an integer between 0 and %d.", nprocs);
-      set_log_mpi_rank(log_level(), rank);
-    }
-  }
-  else if (strcmp(field, "stream") == 0)
-  {
-    if (lua_isnil(L, 3))
-      set_log_stream(log_level(), NULL);
-    else
-    {
-      luaL_Stream* stream = luaL_checkudata(L, 3, LUA_FILEHANDLE);
-      if (stream == NULL)
-        return luaL_error(L, "stream must be a file handle.");
-      set_log_stream(log_level(), stream->f);
-      stream->closef = NULL; // we assume responsibility. FIXME: Cannot guarantee is fclose!
-    }
-  }
-  return 1;
-}
-
-static int lua_register_logging(lua_State* L)
-{
-  // Create a logging table.
-  lua_newtable(L);
-
-  // Now create and populate a metatable for the logging table.
-  lua_newtable(L); // metatable
-  lua_pushcfunction(L, logging_index);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, logging_newindex);
-  lua_setfield(L, -2, "__newindex");
-
-  // Set up logging for business: get the metatable in place and set the 
-  // global variable.
-  lua_setmetatable(L, -2);
-  lua_setglobal(L, "logging");
-
+  if (!lua_isstring(L, 2))
+    return luaL_error(L, "log level must be 'none', 'urgent', 'info', 'detail', or 'debug'.");
+  const char* level_str = lua_tostring(L, 2);
+  log_level_t level;
+  if (strcmp(level_str, "none") == 0)
+    level = LOG_NONE;
+  else if (strcmp(level_str, "urgent") == 0)
+    level = LOG_URGENT;
+  else if (strcmp(level_str, "info") == 0)
+    level = LOG_INFO;
+  else if (strcmp(level_str, "detail") == 0)
+    level = LOG_DETAIL;
+  else if (strcmp(level_str, "debug") == 0)
+    level = LOG_DEBUG;
+  else 
+    return luaL_error(L, "log level must be 'none', 'urgent', 'info', 'detail', or 'debug'.");
+  set_log_level(level);
   return 0;
 }
 
+static int l_get_mode(lua_State* L)
+{
+  log_mode_t mode = log_mode();
+  if (mode == LOG_TO_SINGLE_RANK)
+    lua_pushstring(L, "single_rank");
+  else // if (mode == LOG_TO_ALL_RANKS)
+    lua_pushstring(L, "all_ranks");
+  return 1;
+}
+
+static int l_set_mode(lua_State* L)
+{
+  if (!lua_isstring(L, 2))
+    return luaL_error(L, "log mode must be 'single_rank' or 'all_ranks'.");
+  const char* mode_str = lua_tostring(L, 2);
+  log_mode_t mode;
+  if (strcmp(mode_str, "single_rank") == 0)
+    mode = LOG_TO_SINGLE_RANK;
+  else if (strcmp(mode_str, "all_ranks") == 0)
+    mode = LOG_TO_ALL_RANKS;
+  else 
+    return luaL_error(L, "log mode must be 'single_rank' or 'all_ranks'.");
+  set_log_mode(mode);
+  return 0;
+}
+
+static int l_get_rank(lua_State* L)
+{
+  int rank = log_mpi_rank(log_level());
+  if (rank != -1)
+    lua_pushinteger(L, rank);
+  else
+    lua_pushnil(L);
+  return 1;
+}
+
+static int l_set_rank(lua_State* L)
+{
+  log_mode_t mode = log_mode();
+  if (mode == LOG_TO_ALL_RANKS)
+    return luaL_error(L, "cannot specify a log rank in 'all_ranks' log mode.");
+  else
+  {
+    if (!lua_isinteger(L, 2))
+      return luaL_error(L, "rank must be an integer.");
+    int rank = (int)lua_tointeger(L, 2);
+    int nprocs;
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    if ((rank < 0) || (rank >= nprocs))
+      return luaL_error(L, "rank must be an integer between 0 and %d.", nprocs);
+    set_log_mpi_rank(log_level(), rank);
+  }
+  return 0;
+}
+
+static int l_get_stream(lua_State* L)
+{
+  FILE* stream = log_stream(log_level());
+  if (stream != NULL)
+  {
+    luaL_Stream* s = lua_newuserdata(L, sizeof(luaL_Stream));
+    s->f = stream;
+    s->closef = NULL; // not responsible for closing!
+    luaL_setmetatable(L, LUA_FILEHANDLE);
+  }
+  else
+    lua_pushnil(L);
+  return 1;
+}
+
+static int l_set_stream(lua_State* L)
+{
+  if (lua_isnil(L, 2))
+    set_log_stream(log_level(), NULL);
+  else
+  {
+    luaL_Stream* stream = luaL_checkudata(L, 2, LUA_FILEHANDLE);
+    if (stream == NULL)
+      return luaL_error(L, "stream must be a file handle.");
+    set_log_stream(log_level(), stream->f);
+    stream->closef = NULL; // we assume responsibility. FIXME: Cannot guarantee is fclose!
+  }
+  return 0;
+}
+
+static lua_module_field logging_fields[] = 
+{
+  {"level", l_get_level, l_set_level},
+  {"mode", l_get_mode, l_set_mode},
+  {"rank", l_get_rank, l_set_rank},
+  {"stream", l_get_stream, l_set_stream},
+  {NULL, NULL, NULL}
+};
+
+static int lua_register_logging(lua_State* L)
+{
+  lua_register_module(L, "logging", "Settings for logging.",
+                      logging_fields, NULL);
+
+  return 0;
+}
 int lua_register_core_modules(lua_State* L)
 {
   // Core types.

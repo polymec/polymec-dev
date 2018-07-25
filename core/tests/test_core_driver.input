@@ -200,6 +200,7 @@ function f(x)
 end
 
 -- Logging.
+print(logging.mode)
 logging.mode = 'single_rank'
 assert(logging.mode == 'single_rank')
 logging.mode = 'all_ranks'

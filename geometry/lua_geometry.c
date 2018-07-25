@@ -1522,10 +1522,10 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_class(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_methods, DTOR(polymesh_free));
 
   // Register a module of mesh factory methods.
-  lua_register_module(L, "polymeshes", "Functions for generating polymeshes.", polymeshes_funcs);
+  lua_register_module(L, "polymeshes", "Functions for generating polymeshes.", NULL, polymeshes_funcs);
 
   // Register a module of point factory methods.
-  lua_register_module(L, "points", "Functions for generating points.", points_funcs);
+  lua_register_module(L, "points", "Functions for generating points.", NULL, points_funcs);
 
   return 0;
 }

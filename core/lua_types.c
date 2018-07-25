@@ -91,41 +91,158 @@ void lua_set_docstring(lua_State* L, int index, const char* docstring)
   lua_pop(L, 1);
 }
 
+static int module_index(lua_State* L)
+{
+  // We are passed the logging table and a field name.
+  ASSERT(lua_istable(L, 1));
+  const char* field = lua_tostring(L, 2);
+
+  // Fetch the fields from the metatable.
+  lua_getmetatable(L, -2);
+  lua_getfield(L, -1, "__fields");
+  lua_module_field* fields = lua_touserdata(L, -1);
+  ASSERT(fields != NULL);
+
+  if (fields != NULL)
+  {
+    int i = 0;
+    while ((fields[i].name != NULL) &&
+           (strcmp(fields[i].name, field) != 0)) ++i;
+    if (fields[i].name != NULL) // Bingo!
+      return fields[i].getter(L);
+  }
+
+  // If we didn't find a field, return nil.
+  lua_pushnil(L);
+  return 1;
+}
+
+static int module_newindex(lua_State* L)
+{
+  // We are passed the logging table, a field name, and a value.
+  ASSERT(lua_istable(L, 1));
+  const char* field = lua_tostring(L, 2);
+
+  // Fetch the fields from the metatable.
+  lua_getmetatable(L, -3);
+  lua_getfield(L, -1, "__fields");
+  lua_module_field* fields = lua_touserdata(L, -1);
+  ASSERT(fields != NULL);
+
+  int i = 0;
+  while ((fields[i].name != NULL) &&
+         (strcmp(fields[i].name, field) != 0)) ++i;
+  if (fields[i].name != NULL) // Found it!
+  {
+    if (fields[i].setter != NULL) // It's writeable!
+    {
+      lua_remove(L, 2); // Remove the field name from the stack.
+      return fields[i].setter(L);
+    }
+    else
+      return luaL_error(L, "%s is a read-only module field.", field);
+  }
+
+  // It's not a field after all.
+  return luaL_error(L, "%s is not a module field.", field);
+}
+
+static int module_gc(lua_State* L)
+{
+  // Free the fields.
+  lua_getmetatable(L, -1);
+  lua_getfield(L, -1, "__fields");
+  lua_module_field* fields = lua_touserdata(L, -1);
+  ASSERT(fields != NULL);
+  int i = 0;
+  while (fields[i].name != NULL)
+  {
+    string_free((char*)fields[i].name);
+    ++i;
+  }
+  return 0;
+}
+
 static int lua_open_module(lua_State* L)
 {
   // Get stuff out of the registry.
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_module_funcs");
   ASSERT(lua_islightuserdata(L, -1));
   lua_module_function* funcs = lua_touserdata(L, -1);
+  lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_module_fields");
+  lua_class_field* fields = lua_touserdata(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_module_doc");
   const char* module_doc = lua_tostring(L, -1);
-  lua_pop(L, 2);
+  lua_pop(L, 3);
 
   // Module functions.
-  int num_funcs = 0;
-  while (funcs[num_funcs].name != NULL)
-    ++num_funcs;
-  luaL_Reg f[num_funcs+1];
-  for (int i = 0; i < num_funcs; ++i)
+  if (funcs != NULL)
   {
-    f[i].name = funcs[i].name;
-    f[i].func = funcs[i].func;
+    int num_funcs = 0;
+    while (funcs[num_funcs].name != NULL)
+      ++num_funcs;
+    luaL_Reg f[num_funcs+1];
+    for (int i = 0; i < num_funcs; ++i)
+    {
+      f[i].name = funcs[i].name;
+      f[i].func = funcs[i].func;
+    }
+    f[num_funcs].name = NULL;
+    f[num_funcs].func = NULL;
+
+    luaL_checkversion(L);
+
+    // Register the functions with this module.
+    lua_createtable(L, 0, 1);
+    luaL_setfuncs(L, f, 0);
   }
-  f[num_funcs].name = NULL;
-  f[num_funcs].func = NULL;
+  else
+    lua_newtable(L); // create an empty module table.
 
-  luaL_checkversion(L);
+  // If we have fields, create and populate a metatable.
+  if (fields != NULL)
+  {
+    lua_newtable(L); 
+    lua_pushcfunction(L, module_index);
+    lua_setfield(L, -2, "__index");
+    lua_pushcfunction(L, module_newindex);
+    lua_setfield(L, -2, "__newindex");
+    lua_pushcfunction(L, module_gc);
+    lua_setfield(L, -2, "__gc");
 
-  // Register the functions with this module.
-  lua_createtable(L, 0, 1);
-  luaL_setfuncs(L, f, 0);
+    // Create a registry of fields witin the metatable.
+    int num_fields = 0;
+    while (fields[num_fields].name != NULL)
+      ++num_fields;
+    lua_module_field* f = lua_newuserdata(L, sizeof(lua_module_field) * (num_fields+1));
+    for (int i = 0; i < num_fields; ++i)
+    {
+      f[i].name = string_dup(fields[i].name);
+      f[i].getter = fields[i].getter;
+      f[i].setter = fields[i].setter;
+    }
+    f[num_fields].name = NULL;
+    lua_setfield(L, -2, "__fields");
 
-  // Document this object.
+    // Add the field names to the metatable so that dir() can find them.
+    for (int i = 0; i < num_fields; ++i)
+    {
+      lua_pushboolean(L, true);
+      lua_setfield(L, -2, fields[i].name);
+    }
+
+    // Set the metatable for our module table.
+    lua_setmetatable(L, -2);
+  }
+
+  // Document this module.
   lua_set_docstring(L, -1, module_doc);
 
   // Clean up the registry.
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_funcs");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_fields");
   lua_pushnil(L);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_doc");
 
@@ -135,11 +252,14 @@ static int lua_open_module(lua_State* L)
 void lua_register_module(lua_State* L,
                          const char* module_name,
                          const char* module_doc,
+                         lua_module_field fields[],
                          lua_module_function funcs[]) 
 {
   // Load the module by calling lua_open_module with the right globals set.
   lua_pushlightuserdata(L, (void*)funcs);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_funcs");
+  lua_pushlightuserdata(L, (void*)fields);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_fields");
   lua_pushstring(L, module_doc);
   lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_module_doc");
   luaL_requiref(L, module_name, lua_open_module, 1);
@@ -151,6 +271,7 @@ void lua_register_module_function_table(lua_State* L,
                                         const char* table_doc,
                                         lua_module_function funcs[]) 
 {
+  ASSERT(funcs != NULL);
   lua_getglobal(L, module_name);
 
   // Create a table containing the functions.
@@ -314,7 +435,7 @@ static int lua_open_class(lua_State* L)
   lua_class_method* methods = lua_touserdata(L, -1);
   lua_getfield(L, LUA_REGISTRYINDEX, "lua_open_class_c_dtor");
   lua_c_dtor_t* c_dtor = lua_touserdata(L, -1);
-  lua_pop(L, 5);
+  lua_pop(L, 6);
 
   // Clean up the registry.
   lua_pushnil(L);
