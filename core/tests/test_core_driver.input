@@ -108,14 +108,16 @@ print(bb:contains(p))
 f = sp_func.constant(1)
 print(f)
 print(#f)
-f:rename('bob')
+f.name = 'bob'
+assert(f.name == 'bob')
 print(f(p))
 
 -- Space-time functions.
 f = st_func.constant(1)
 print(f)
 print(#f)
-f:rename('joe')
+f.name = 'joe'
+assert(f.name == 'joe')
 print(f(p, 0))
 g = f:freeze(0)
 h = st_func.from_sp_func(g)

@@ -360,9 +360,9 @@ static int lua_open_class(lua_State* L)
   }
 
   // Populate the fields entry for this type.
+  int num_fields = 0;
   if (fields != NULL)
   {
-    int num_fields = 0;
     while (fields[num_fields].name != NULL)
       ++num_fields;
     lua_class_field* f = polymec_malloc(sizeof(lua_class_field) * (num_fields+1));
@@ -430,6 +430,13 @@ static int lua_open_class(lua_State* L)
       lua_set_docstring(L, -1, methods[i].doc);
       lua_pop(L, 1);
     }
+  }
+
+  // Add the field names to the metatable so that dir() can find them.
+  for (int f = 0; f < num_fields; ++f)
+  {
+    lua_pushboolean(L, true);
+    lua_setfield(L, -2, fields[f].name);
   }
 
   // Create a containing module for this type and register its functions.

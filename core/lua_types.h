@@ -47,7 +47,7 @@ typedef enum
 
 // This type represents a field in a Lua class, with a name, 
 // a getter, and a setter (if any). A field must have a getter 
-// but may not need a setter if it is read only.
+// but doesn't need a setter if it is read only.
 typedef struct 
 {
   const char* name;

@@ -255,6 +255,26 @@ static lua_module_function model_funcs[] = {
   {NULL, NULL, NULL}
 };
 
+static int m_get_step(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  lua_pushinteger(L, model_step(m));
+  return 1;
+}
+
+static int m_get_time(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  lua_push_real(L, model_time(m));
+  return 1;
+}
+
+static lua_class_field model_fields[] = {
+  {"step", m_get_step, NULL},
+  {"time", m_get_time, NULL},
+  {NULL, NULL, NULL}
+};
+
 static int m_init(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
@@ -605,24 +625,6 @@ static int m_data(lua_State* L)
   return 1;
 }
 
-static int m_step(lua_State* L)
-{
-  model_t* m = lua_to_model(L, 1);
-  if (m == NULL)
-    return luaL_error(L, "Method must be invoked with a model.");
-  lua_pushinteger(L, model_step(m));
-  return 1;
-}
-
-static int m_time(lua_State* L)
-{
-  model_t* m = lua_to_model(L, 1);
-  if (m == NULL)
-    return luaL_error(L, "Method must be invoked with a model.");
-  lua_push_real(L, model_time(m));
-  return 1;
-}
-
 static int m_tostring(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
@@ -641,8 +643,6 @@ static lua_class_method model_methods[] = {
   {"run", m_run, "model:run{t1 = T1, t2 = T2, max_steps = N, prefix = PREFIX, directory = DIR, plot_every = PLOT_EVERY, save_every = SAVE_EVERY, load_step = LOAD_STEP, min_dt = MIN_DT, max_dt = MAX_DT} -> Runs the model from T1 to T2 or for MAX_STEPS."},
   {"add_probe", m_add_probe, "model:add_probe(probe, times) -> Adds a probe that acquires data at the given list of times."},
   {"data", m_data, "model:data(data_name) -> Returns a table of acquired probe data, or a table of all data if no name is given."},
-  {"step", m_step, "model:step() -> Returns the current simulation step."},
-  {"time", m_time, "model:time() -> Returns the current simulation time."},
   {"__tostring", m_tostring, NULL},
   {NULL, NULL, NULL}
 };
@@ -820,23 +820,25 @@ static lua_module_function probe_funcs[] = {
   {NULL, NULL, NULL}
 };
 
-static int p_name(lua_State* L)
+static int p_get_name(lua_State* L)
 {
   probe_t* p = lua_to_probe(L, 1);
-  if (p == NULL)
-    return luaL_error(L, "Method must be invoked with a probe.");
   lua_pushfstring(L, probe_name(p));
   return 1;
 }
 
-static int p_data_name(lua_State* L)
+static int p_get_data_name(lua_State* L)
 {
   probe_t* p = lua_to_probe(L, 1);
-  if (p == NULL)
-    return luaL_error(L, "Method must be invoked with a probe.");
   lua_pushstring(L, probe_data_name(p));
   return 1;
 }
+
+static lua_class_field probe_fields[] = {
+  {"name", p_get_name, NULL},
+  {"data_name", p_get_data_name, NULL},
+  {NULL, NULL, NULL}
+};
 
 static int p_acquire(lua_State* L)
 {
@@ -848,7 +850,6 @@ static int p_acquire(lua_State* L)
     return luaL_error(L, "Argument must be a time.");
 
   // Do the acquisition.
-  ASSERT(p != NULL);
   real_t t = lua_to_real(L, 2);
   probe_data_t* data = probe_acquire(p, t);
 
@@ -873,16 +874,14 @@ static int p_tostring(lua_State* L)
 
 static lua_class_method probe_methods[] = {
   {"acquire", p_acquire, "probe:acquire(t) -> Acquires and returns probe data at time t."},
-  {"name", p_name, "probe:name() -> Returns the name of the probe."},
-  {"data_name", p_data_name, "probe:data_name() -> Returns the name of the data acquired by the probe."},
   {"__tostring", p_tostring, NULL},
   {NULL, NULL, NULL}
 };
 
 int lua_register_model_modules(lua_State* L)
 {
-  lua_register_class(L, "model", "A simulation model.", model_funcs, NULL, model_methods, DTOR(model_free));
-  lua_register_class(L, "probe", "A virtual simulation probe that acquires data.", probe_funcs, NULL, probe_methods, DTOR(probe_free));
+  lua_register_class(L, "model", "A simulation model.", model_funcs, model_fields, model_methods, DTOR(model_free));
+  lua_register_class(L, "probe", "A virtual simulation probe that acquires data.", probe_funcs, probe_fields, probe_methods, DTOR(probe_free));
 
   return 0;
 }
