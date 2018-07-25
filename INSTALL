@@ -67,3 +67,7 @@ Other make targets
           the COVERAGE build option in config.sh, and if gcov and lcov 
           are available.
    
+   $ make docs
+          Generates HTML and man reference pages using Doxygen. This target 
+          is only available when CMake finds Doxygen.
+   

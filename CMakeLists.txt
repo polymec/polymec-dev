@@ -411,3 +411,13 @@ if (NOT PYTHON STREQUAL "PYTHON-NOTFOUND")
   # make prepend-license
   add_custom_target(prepend-license ${PYTHON} ${PROJECT_SOURCE_DIR}/tools/prepend_license.py ${PROJECT_SOURCE_DIR})
 endif()
+
+# Documentation.
+
+find_package(Doxygen)
+if (DOXYGEN_FOUND)
+  set(DOXYGEN_GENERATE_HTML ON)
+  set(DOXYGEN_GENERATE_MAN ON)
+  doxygen_add_docs(docs core;geometry;solvers;model;io
+                   COMMENT "Generating Documentation")
+endif()
