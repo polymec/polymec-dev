@@ -61,6 +61,8 @@ plane1 = sd_func.new{name = "my plane",
                      value = pl1_value, 
                      grad = pl1_grad}
 print(plane1)
+plane1.name = 'your plane'
+assert(plane1.name == 'your plane')
 print(plane1(x))
 print(plane1:grad(x))
 print(plane1:project(x))
@@ -81,6 +83,8 @@ plane2 = sdt_func.new{name = "my moving plane",
                       value = pl2_value, 
                       grad = pl2_grad}
 print(plane2)
+plane2.name = 'your moving plane'
+assert(plane2.name == 'your moving plane')
 print(plane2(x, 1))
 print(plane2:grad(x, 1))
 print(plane2:project(x, 1))

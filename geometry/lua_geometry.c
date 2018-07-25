@@ -562,16 +562,26 @@ static lua_module_function sd_funcs[] = {
   {NULL, NULL, NULL}
 };
 
-static int sd_rename(lua_State* L)
+static int sd_get_name(lua_State* L)
 {
   sd_func_t* f = lua_to_sd_func(L, 1);
-  if (f == NULL)
-    luaL_error(L, "Method must be invoked with an sd_func.");
+  lua_pushstring(L, sd_func_name(f));
+  return 1;
+}
+
+static int sd_set_name(lua_State* L)
+{
+  sd_func_t* f = lua_to_sd_func(L, 1);
   if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument must be a string.");
   sd_func_rename(f, lua_tostring(L, 2));
   return 0;
 }
+
+static lua_class_field sd_fields[] = {
+  {"name", sd_get_name, sd_set_name},
+  {NULL, NULL, NULL}
+};
 
 static int sd_grad(lua_State* L)
 {
@@ -623,7 +633,6 @@ static int sd_tostring(lua_State* L)
 }
 
 static lua_class_method sd_methods[] = {
-  {"rename", sd_rename, "f:rename(name) -> Renames f to the given name."},
   {"grad", sd_grad, "f:grad(x) -> Returns the gradient of f at x."},
   {"project", sd_project, "f:project(x) -> Returns the projection of f to x."},
   {"__call", sd_call, NULL},
@@ -748,16 +757,26 @@ static lua_module_function sdt_funcs[] = {
   {NULL, NULL, NULL}
 };
 
-static int sdt_rename(lua_State* L)
+static int sdt_get_name(lua_State* L)
 {
   sdt_func_t* f = lua_to_sdt_func(L, 1);
-  if (f == NULL)
-    luaL_error(L, "Method must be invoked with an sdt_func.");
+  lua_pushstring(L, sdt_func_name(f));
+  return 1;
+}
+
+static int sdt_set_name(lua_State* L)
+{
+  sdt_func_t* f = lua_to_sdt_func(L, 1);
   if (!lua_isstring(L, 2))
     return luaL_error(L, "Argument must be a string.");
   sdt_func_rename(f, lua_tostring(L, 2));
   return 0;
 }
+
+static lua_class_field sdt_fields[] = {
+  {"name", sdt_get_name, sdt_set_name},
+  {NULL, NULL, NULL}
+};
 
 static int sdt_grad(lua_State* L)
 {
@@ -818,7 +837,6 @@ static int sdt_tostring(lua_State* L)
 }
 
 static lua_class_method sdt_methods[] = {
-  {"rename", sdt_rename, "f:rename(name) -> Renames f to the given name."},
   {"grad", sdt_grad, "f:grad(x) -> Returns the gradient of f at x."},
   {"project", sdt_project, "f:project(x) -> Returns the projection of f to x."},
   {"__call", sdt_call, NULL},
@@ -1496,8 +1514,8 @@ int lua_register_geometry_modules(lua_State* L)
 {
   // Core types.
   lua_register_class(L, "coord_mapping", "A coordinate mapping.", cm_funcs, NULL, cm_methods, NULL);
-  lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, NULL, sd_methods, NULL);
-  lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, NULL, sdt_methods, NULL);
+  lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, sd_fields, sd_methods, NULL);
+  lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_fields, sdt_methods, NULL);
   lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, NULL, tagger_methods, NULL);
   lua_register_class(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_methods, DTOR(point_cloud_free));
   lua_register_class(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_methods, DTOR(unimesh_free));
