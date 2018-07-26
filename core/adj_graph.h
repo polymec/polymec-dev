@@ -14,9 +14,11 @@
 //                          Adjacency graph 
 //------------------------------------------------------------------------
 /// \addtogroup adj_graph adj_graph
-/// This type represents an adjacency graph with a number of vertices and 
-/// edges. Its format is inspired by the Metis partitioner.
+/// This type represents a distributed adjacency graph with a number of 
+/// vertices and edges. Its format is inspired by the Metis partitioner.
 /// @{
+
+/// The graph type itself.
 typedef struct adj_graph_t adj_graph_t;
 
 /// Allocates a new adjacency graph on the given MPI communicator 
@@ -27,7 +29,7 @@ typedef struct adj_graph_t adj_graph_t;
 adj_graph_t* adj_graph_new(MPI_Comm comm, size_t num_local_vertices);
 
 /// Allocates a new adjacency graph on the given MPI communicator 
-// /with the given number of vertices distributed according to vertex_dist.
+/// with the given number of vertices distributed according to vertex_dist.
 adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm, 
                                      size_t num_global_vertices,
                                      index_t* vertex_dist);
@@ -48,6 +50,10 @@ adj_graph_t* adj_graph_new_with_block_sizes(adj_graph_t* graph,
 
 /// Constructs a dense graph on the given communicator with the given number 
 /// of local and remote vertices. This is really only useful for debugging.
+/// \param [in] comm The MPI communicator to use for the graph.
+/// \param [in] num_local_vertices The number of local vertices in the graph.
+/// \param [in] num_remote_vertices The number of remote vertices in the graph.
+/// \returns A newly allocated graph.
 adj_graph_t* dense_adj_graph_new(MPI_Comm comm, 
                                  size_t num_local_vertices,
                                  size_t num_remote_vertices);
@@ -156,8 +162,11 @@ void adj_graph_fprintf(adj_graph_t* graph, FILE* stream);
 /// is essentially a partitioning of a graph into independent portions, and 
 /// is useful for determining dependencies.
 /// @{
+
+/// The graph coloring type.
 typedef struct adj_graph_coloring_t adj_graph_coloring_t;
 
+/// \enum adj_graph_vertex_ordering_t
 /// These are different types of vertex orderings for constructing colorings
 /// using the sequential algorithm. See Coleman and More, "Estimation of 
 /// Sparse Jacobian Matrices and Graph Coloring Problems," 
@@ -172,24 +181,38 @@ typedef enum
 /// Create a new coloring from the given adjacency graph using the given 
 /// vertex ordering. Two vertices have the same color if the distance 
 /// between them in their graph is greater than 2.
+/// \param [in] graph The graph from which to produce the coloring.
+/// \param [in] ordering The ordering to use for the coloring.
+/// \returns A newly allocated graph coloring.
 adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph, 
                                              adj_graph_vertex_ordering_t ordering);
 
 /// Destroys the coloring object.
+/// \param [in,out] coloring The coloring object.
 void adj_graph_coloring_free(adj_graph_coloring_t* coloring);
 
 /// Returns the number of colors in this coloring.
+/// \param [in] coloring The coloring object.
+/// \returns The number of distinct colors in the coloring.
 size_t adj_graph_coloring_num_colors(adj_graph_coloring_t* coloring);
 
 /// Allows iteration over the vertices in the given color. Returns true if 
-/// more vertices are found, false if not. Set pos to 0 to reset an iteration.
+/// more vertices are found, false if not. 
+/// \param [in] coloring The coloring object.
+/// \param [in] color The index of the color to traverse.
+/// \param [in,out] pos Controls the iteration. Set to 0 to reset an iteration.
+/// \param [out] vertex Stores the next vertex in the given color.
 bool adj_graph_coloring_next_vertex(adj_graph_coloring_t* coloring, 
                                     int color,
                                     int* pos, 
                                     int* vertex);
 
-/// Returns true if the given vertex matches the given color in the coloring,
-/// false otherwise.
+/// Queries whether the given vertex matches the given color in the coloring.
+/// \param [in] coloring The coloring object.
+/// \param [in] color The index of the color in question.
+/// \param [in] vertex The index of the vertex in question.
+/// \returns true if the given vertex matches the given color in the 
+/// coloring, false otherwise.
 bool adj_graph_coloring_has_vertex(adj_graph_coloring_t* coloring,
                                    int color,
                                    int vertex);
