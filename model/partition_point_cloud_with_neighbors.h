@@ -11,23 +11,28 @@
 #include "geometry/point_cloud_field.h"
 #include "model/neighbor_pairing.h"
 
-// Given a global point cloud and a neighbor pairing connecting its points on 
-// rank 0, this function partitions the points onto the processes on the given 
-// communicator, replacing the point cloud and the stencil on each process 
-// with the newly partitioned data. Each point can have a weight alloted to 
-// it that characterizes its workload, and the load will be balanced within
-// the given imbalance tolerance. Fields are distributed appropriately.
-// Returns true on success, false on failure.
-// NOTE: partitioning of point clouds using stencils instead of neighbor 
-// NOTE: pairings is NOT supported, since stencils generally represent 
-// NOTE: asymmetric neighbor relations, which produce directed graphs, and 
-// NOTE: our graph partitioning algorithms all operate on undirected graphs.
+/// \addtogroup model model
+///@{
+
+/// Given a global point cloud and a neighbor pairing connecting its points on 
+/// rank 0, this function partitions the points onto the processes on the given 
+/// communicator, replacing the point cloud and the stencil on each process 
+/// with the newly partitioned data. Each point can have a weight alloted to 
+/// it that characterizes its workload, and the load will be balanced within
+/// the given imbalance tolerance. Fields are distributed appropriately.
+/// \returns true on success, false on failure.
+/// \note partitioning of point clouds using stencils instead of neighbor 
+///       pairings is NOT supported, since stencils generally represent 
+///       asymmetric neighbor relations, which produce directed graphs, and 
+///       our graph partitioning algorithms all operate on undirected graphs.
 bool partition_point_cloud_with_neighbors(point_cloud_t** points, 
-                                                 neighbor_pairing_t** neighbors, 
-                                                 MPI_Comm comm, 
-                                                 int* weights, 
-                                                 real_t imbalance_tol,
-                                                 point_cloud_field_t** fields,
-                                                 size_t num_fields);
+                                          neighbor_pairing_t** neighbors, 
+                                          MPI_Comm comm, 
+                                          int* weights, 
+                                          real_t imbalance_tol,
+                                          point_cloud_field_t** fields,
+                                          size_t num_fields);
+
+///@}
 
 #endif

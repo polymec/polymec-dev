@@ -11,7 +11,11 @@
 #include "core/polymec.h"
 #include "core/array.h"
 
-// Here's a single datum acquired by a probe.
+/// \addtogroup model model
+///@{
+
+/// \struct probe_data 
+/// A single datum acquired by a probe.
 typedef struct 
 {
   real_t time;    // time of acquisition
@@ -20,19 +24,24 @@ typedef struct
   real_t* data;   // array itself
 } probe_data_t;
 
-// Allocates probe_data with the given characteristics.
+/// Allocates probe_data with the given characteristics.
+/// \memberof probe_data
 probe_data_t* probe_data_new(int rank, size_t* shape);
 
-// Frees probe_data.
+/// Frees probe_data.
+/// \memberof probe_data
 void probe_data_free(probe_data_t* data);
 
-// Here's an array of probe data.
+/// \class probe_data_array
+/// An array of probe data.
 DEFINE_ARRAY(probe_data_array, probe_data_t*)
 
-// A probe is a virtual instrument that acquires data from a model.
+/// \class probe
+/// A probe is a virtual instrument that acquires data from a model.
 typedef struct probe_t probe_t;
 
-// This virtual table must be implemented by any probe.
+/// \class probe_vtable
+/// This virtual table must be implemented by any probe.
 typedef struct 
 {
   // Called when the probe is added to a model.
@@ -47,10 +56,11 @@ typedef struct
   void (*dtor)(void* context);
 } probe_vtable;
 
-// Creates an instance of a probe that acquires a quantity of the given 
-// name, placing its data into an array large enough to store all of its 
-// contents. Here, rank and shape define the size of the array used to store
-// a datum.
+/// Creates an instance of a probe that acquires a quantity of the given 
+/// name, placing its data into an array large enough to store all of its 
+/// contents. Here, rank and shape define the size of the array used to store
+/// a datum.
+/// \memberof probe
 probe_t* probe_new(const char* name, 
                    const char* data_name,
                    int rank,
@@ -58,21 +68,28 @@ probe_t* probe_new(const char* name,
                    void* context, 
                    probe_vtable vtable);
 
-// Destroys the probe.
+/// Destroys the probe.
+/// \memberof probe
 void probe_free(probe_t* probe);
 
-// Returns the name of the probe.
+/// Returns the name of the probe.
+/// \memberof probe
 char* probe_name(probe_t* probe);
 
-// Returns the name of the data captured by the probe.
+/// Returns the name of the data captured by the probe.
+/// \memberof probe
 char* probe_data_name(probe_t* probe);
 
-// Returns the context pointer for the probe.
+/// Returns the context pointer for the probe.
+/// \memberof probe
 void* probe_context(probe_t* probe);
 
-// Returns a probe_data object containing newly acquired data at the given 
-// time t.
+/// Returns a probe_data object containing newly acquired data at the given 
+/// time t.
+/// \memberof probe
 probe_data_t* probe_acquire(probe_t* probe, real_t t);
+
+///@}
 
 #endif
 

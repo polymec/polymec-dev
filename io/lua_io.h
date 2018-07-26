@@ -15,21 +15,26 @@
 // in the Lua interpreter. We attempt to expose these data types in a seamless 
 // fashion using Lua's prototype-based object-oriented formalism.
 
-// This function registers the I/O modules within the interpreter L. It 
-// should be called before any of these types are accessed within the 
-// interpreter.
+/// \addtogroup io io
+///@{
+
+/// This function registers the I/O modules within the interpreter L. It 
+/// should be called before any of these types are accessed within the 
+/// interpreter.
 int lua_register_io_modules(lua_State* L);
 
-// Pushes a SILO file s onto L's stack.
+/// Pushes a SILO file s onto L's stack.
 void lua_push_silo_file(lua_State* L, silo_file_t* s);
 
-// Returns true if the item at the given index on L's stack is a SILO
-// file, false if not.
+/// Returns true if the item at the given index on L's stack is a SILO
+/// file, false if not.
 bool lua_is_silo_file(lua_State* L, int index);
 
-// Returns the SILO file at the given index on L's stack, or NULL 
-// if the item there is not a SILO file.
+/// Returns the SILO file at the given index on L's stack, or NULL 
+/// if the item there is not a SILO file.
 silo_file_t* lua_to_silo_file(lua_State* L, int index);
+
+///@}
 
 #endif
 
