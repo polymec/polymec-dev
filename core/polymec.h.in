@@ -504,7 +504,7 @@ static inline bool reals_equal(real_t a, real_t b)
 }
 
 /// This function sets polymec's floating point tolerance for \ref reals_equal.
-/// \param [in] episilon The tolerance.
+/// \param [in] epsilon The tolerance.
 static inline void set_real_epsilon(real_t epsilon)
 {
   _polymec_epsilon = epsilon;
