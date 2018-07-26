@@ -14,6 +14,21 @@
 /// physical systems. These libraries are designed to allow a computational 
 /// scientist to construct low-maintenance science applications with robust 
 /// capabilities.
+///
+/// The libraries are:
+/// * \ref core - A set of basic data structures useful for scientific 
+///   calculations: containers (arrays, hashes, trees), points, vectors, 
+///   spatial and spatio-temporal functions, adjacency graphs, timers, logging 
+///   facilities, and access to a simple but effective Lua interpreter.
+/// * \ref geometry - Data structures for expressing spatial and geometric 
+///   relationships: meshes, point clouds, signed distance functions, and 
+///   facilities for partitioning and load balancing.
+/// * \ref solvers - Tools for constructing linear and nonlinear solvers for 
+///   the approximation of mathematical and physical systems.
+/// * \ref model - A simple framework for creating simulation models that 
+///   evolve systems in time.
+/// * \ref io - A parallel I/O library that includes an interface to the 
+///   HDF5-based SILO format. Useful for any real high-performance science app.
 
 // We only use standard C11 around here. 
 #if (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L) && !defined(__cplusplus)
@@ -44,7 +59,7 @@
 #include <stdnoreturn.h>
 #endif
 
-/// \addtogroup polymec polymec
+/// \addtogroup core core
 ///@{
 
 // Real number representation. 

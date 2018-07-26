@@ -10,13 +10,17 @@
 
 #include "core/polymec.h"
 
-// This class provides an abstract interface for integrating systems of 
-// nonlinear differential equations. These systems usually arise in the 
-// context of nonlinear partial differential equations that have been 
-// made semi-discrete using the method of lines.
+/// \addtogroup solvers solvers
+
+/// \class ode_solver
+/// This class provides an abstract interface for integrating systems of 
+/// nonlinear differential equations. These systems usually arise in the 
+/// context of nonlinear partial differential equations that have been 
+/// made semi-discrete using the method of lines.
 typedef struct ode_solver_t ode_solver_t;
 
-// This virtual table determines the implementation of the ode solver.
+/// \struct ode_solver_vtable
+/// This virtual table determines the implementation of the ode solver.
 typedef struct
 {
   // This function resets the internal state of the solver to use the 
@@ -48,64 +52,79 @@ typedef struct
 
 } ode_solver_vtable;
 
-// Creates an ode_solver that uses the given context and vtable to 
-// implement time integration. The accuracy of the integration is determined 
-// by its order.
+/// Creates an ode_solver that uses the given context and vtable to 
+/// implement time integration. The accuracy of the integration is determined 
+/// by its order.
+/// \memberof ode_solver
 ode_solver_t* ode_solver_new(const char* name, 
                              void* context,
                              ode_solver_vtable vtable,
                              int order,
                              int solution_vector_size);
 
-// Creates an ode_solver that "decorates" the given solver with 
-// another context and (partially-filled) virtual table, calling any 
-// methods specified in the vtable with the given context, and falling 
-// back to the given solver for methods not specified.
+/// Creates an ode_solver that "decorates" the given solver with 
+/// another context and (partially-filled) virtual table, calling any 
+/// methods specified in the vtable with the given context, and falling 
+/// back to the given solver for methods not specified.
+/// \memberof ode_solver
 ode_solver_t* decorated_ode_solver_new(ode_solver_t* base_solver,
                                        void* context,
                                        ode_solver_vtable decoration_vtable);
 
-// Frees an ODE solver.
+/// Frees an ODE solver.
+/// \memberof ode_solver
 void ode_solver_free(ode_solver_t* integ);
 
-// Returns the name of the solver (internally stored).
+/// Returns the name of the solver (internally stored).
+/// \memberof ode_solver
 char* ode_solver_name(ode_solver_t* integ);
 
-// Returns the context object for this solver.
+/// Returns the context object for this solver.
+/// \memberof ode_solver
 void* ode_solver_context(ode_solver_t* integ);
 
-// Returns the order of the integration method.
+/// Returns the order of the integration method.
+/// \memberof ode_solver
 int ode_solver_order(ode_solver_t* integ);
 
-// Returns the size of the solution vector for this solver.
+/// Returns the size of the solution vector for this solver.
+/// \memberof ode_solver
 int ode_solver_solution_vector_size(ode_solver_t* integ);
 
-// Sets the maximum time step size for the next integration step.
+/// Sets the maximum time step size for the next integration step.
+/// \memberof ode_solver
 void ode_solver_set_max_dt(ode_solver_t* integ, real_t max_dt);
 
-// Sets the time past which the solver will not step.
+/// Sets the time past which the solver will not step.
+/// \memberof ode_solver
 void ode_solver_set_stop_time(ode_solver_t* integ, real_t stop_time);
 
-// Integrates the given solution U in place, taking a single step with a maximum 
-// size of max_dt, starting at time *t and storing the new time there as well. 
-// Returns true if the step succeeded, false if it failed for some reason. 
-// If a step fails, both *t and U remain unchanged.
+/// Integrates the given solution U in place, taking a single step with a maximum 
+/// size of max_dt, starting at time *t and storing the new time there as well. 
+/// Returns true if the step succeeded, false if it failed for some reason. 
+/// If a step fails, both *t and U remain unchanged.
+/// \memberof ode_solver
 bool ode_solver_step(ode_solver_t* integ, real_t max_dt, real_t* t, real_t* U);
 
-// Integrates the given solution U in place from time t1 to t2, taking as 
-// many steps as are needed. The amount of work done by this method depends on the 
-// number of steps taken, so do not call it in contexts that require a 
-// predictable amount of work. Returns true if the integration succeeded, 
-// false if it failed for some reason. If a step fails, U remains unchanged.
+/// Integrates the given solution U in place from time t1 to t2, taking as 
+/// many steps as are needed. The amount of work done by this method depends on the 
+/// number of steps taken, so do not call it in contexts that require a 
+/// predictable amount of work. Returns true if the integration succeeded, 
+/// false if it failed for some reason. If a step fails, U remains unchanged.
+/// \memberof ode_solver
 bool ode_solver_advance(ode_solver_t* integ, real_t t1, real_t t2, real_t* U);
 
-// Resets the internal state of the solver to use the given solution data 
-// U at the given time t. It is necessary to call this function when the 
-// solution data has been altered since the last step.
+/// Resets the internal state of the solver to use the given solution data 
+/// U at the given time t. It is necessary to call this function when the 
+/// solution data has been altered since the last step.
+/// \memberof ode_solver
 void ode_solver_reset(ode_solver_t* integ, real_t t, real_t* U);
 
-// Returns the current time at which the solver sits.
+/// Returns the current time at which the solver sits.
+/// \memberof ode_solver
 real_t ode_solver_current_time(ode_solver_t* integ);
+
+///@}
 
 #endif
 
