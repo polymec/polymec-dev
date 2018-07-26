@@ -416,8 +416,13 @@ endif()
 
 find_package(Doxygen)
 if (DOXYGEN_FOUND)
+  set(DOXYGEN_FILE_PATTERNS "*.h")
   set(DOXYGEN_GENERATE_HTML ON)
   set(DOXYGEN_GENERATE_MAN ON)
+  set(DOXYGEN_JAVADOC_AUTOBRIEF ON)
+  set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C ON)
+  set(DOXYGEN_QUIET ON)
+  set(DOXYGEN_SHOW_NAMESPACES OFF)
   doxygen_add_docs(docs core;geometry;solvers;model;io
                    COMMENT "Generating Documentation")
 endif()
