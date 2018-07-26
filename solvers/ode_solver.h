@@ -23,31 +23,31 @@ typedef struct ode_solver_t ode_solver_t;
 /// This virtual table determines the implementation of the ode solver.
 typedef struct
 {
-  // This function resets the internal state of the solver to use the 
-  // given solution data U at the given time.
+  /// This function resets the internal state of the solver to use the 
+  /// given solution data U at the given time.
   void (*reset)(void* context, real_t t, real_t* U);
 
-  // This function takes a single step in time, updating x and t and returning 
-  // true on success and false on failure.
+  /// This function takes a single step in time, updating x and t and returning 
+  /// true on success and false on failure.
   bool (*step)(void* context, real_t max_dt, real_t* t, real_t* U);
 
-  // This function integrates the solution x to time max_t, returning true 
-  // on success and false on failure.
+  /// This function integrates the solution x to time max_t, returning true 
+  /// on success and false on failure.
   bool (*advance)(void* context, real_t t1, real_t t2, real_t* U);
 
-  // This optional function defines how non-standard solution data is copied 
-  // into the solver's solution vecor x. Define this if you are 
-  // implementing a custom solver that handles data in strange and 
-  // wonderful layouts.
+  /// This optional function defines how non-standard solution data is copied 
+  /// into the solver's solution vecor x. Define this if you are 
+  /// implementing a custom solver that handles data in strange and 
+  /// wonderful layouts.
   void (*copy_in)(void* context, real_t* solution_data, real_t* U);
 
-  // This optional function defines how non-standard solution data is copied 
-  // from the solver's solution vecor U. Define this if you have defined 
-  // copy_in above.
+  /// This optional function defines how non-standard solution data is copied 
+  /// from the solver's solution vecor U. Define this if you have defined 
+  /// copy_in above.
   void (*copy_out)(void* context, real_t* U, real_t* solution_data);
 
-  // This function destroys the state (context) when the solver 
-  // is destroyed.
+  /// This function destroys the state (context) when the solver 
+  /// is destroyed.
   void (*dtor)(void* context);
 
 } ode_solver_vtable;

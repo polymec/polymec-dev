@@ -25,50 +25,41 @@
 /// A model is a numerical model of a physical phenomenon.
 typedef struct model_t model_t;
 
-/// A function for initializing the model at time t.
-typedef void (*model_init_func)(void* context, real_t t);
-
-/// A function for calculating the maximum step size.
-typedef real_t (*model_max_dt_func)(void* context, real_t t, char* reason);
-
-/// A function for advancing the model from t by a step of maximum size max_dt.
-/// Returns the actual size of the time step.
-typedef real_t (*model_advance_func)(void* context, real_t max_dt, real_t t);
-
-/// A function for work to be performed after a run completes.
-typedef void (*model_finalize_func)(void* context, int step, real_t t);
-
-/// A function for loading the model's state. All data within a model must be 
-/// loaded from the file in order to ensure that the state is exactly 
-/// preserved. This function is called INSTEAD OF model_init when saved data
-/// is loaded. Returns true if the load is successful, false if not.
-typedef bool (*model_load_func)(void* context, const char* file_prefix, const char* directory, real_t* time, int step);
-
-/// A function for saving the model's state to the given I/O interface.
-typedef void (*model_save_func)(void* context, const char* file_prefix, const char* directory, real_t time, int step);
-
-/// A function for plotting the model to the given I/O interface.
-typedef void (*model_plot_func)(void* context, const char* file_prefix, const char* directory, real_t time, int step);
-
-/// A function for performing work when a probe is added.
-typedef void (*model_add_probe_func)(void* context, void* probe_context);
-
-/// A destructor function for the context object (if any).
-typedef void (*model_dtor)(void* context);
-
 /// \struct model_vtable
 /// This virtual table must be implemented by any model.
 typedef struct 
 {
-  model_init_func                init;
-  model_max_dt_func              max_dt;
-  model_advance_func             advance;
-  model_finalize_func            finalize;
-  model_load_func                load;
-  model_save_func                save;
-  model_plot_func                plot;
-  model_add_probe_func           add_probe;
-  model_dtor                     dtor;
+  /// A function for initializing the model at time t.
+  void (*init)(void* context, real_t t);
+
+  /// A function for calculating the maximum step size.
+  real_t (*max_dt)(void* context, real_t, char* reason);
+
+  /// A function for advancing the model from t by a step of maximum size max_dt.
+  /// Returns the actual size of the time step.
+  real_t (*advance)(void* context, real_t max_dt, real_t t);
+
+  /// A function for work to be performed after a run completes.
+  void (*finalize)(void* context, int step, real_t t);
+
+  /// A function for loading the model's state. All data within a model must be 
+  /// loaded from the file in order to ensure that the state is exactly 
+  /// preserved. This function is called INSTEAD OF model_init when saved data
+  /// is loaded. 
+  /// \returns true if the load is successful, false if not.
+  bool (*load)(void* context, const char* file_prefix, const char* directory, real_t* time, int step);
+
+  /// A function for saving the model's state to the given I/O interface.
+  void (*save)(void* context, const char* file_prefix, const char* directory, real_t time, int step);
+
+  /// A function for plotting the model to the given I/O interface.
+  void (*plot)(void* context, const char* file_prefix, const char* directory, real_t time, int step);
+
+  /// A function for performing work when a probe is added.
+  void (*add_probe)(void* context, void* probe_context);
+
+  /// A destructor function for the context object (if any).
+  void (*dtor)(void* context);
 } model_vtable;
 
 /// \enum model_parallelism
