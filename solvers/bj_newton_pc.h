@@ -14,11 +14,15 @@
 // The block Jacobi Newton PC implements block Jacobi preconditioning given 
 // a function that computes the diagonal block of the Jacobian.
 
-// Creates a block Jacobi Newton preconditioner using the given function 
-// compute_diag_block, which computes the diagonal block of the Jacobian 
-// matrix alpha*I + beta*dFdx + gamma*dFd(x_dot) for the ith block row at 
-// time t and given x and x_dot. The diagonal block is stored in column-major 
-// format (so it is compatible with calls to LAPACK).
+/// \addtogroup solvers solvers
+///@{
+
+/// Creates a block Jacobi Newton preconditioner using the given function 
+/// compute_diag_block, which computes the diagonal block of the Jacobian 
+/// matrix alpha*I + beta*dFdx + gamma*dFd(x_dot) for the ith block row at 
+/// time t and given x and x_dot. The diagonal block is stored in column-major 
+/// format (so it is compatible with calls to LAPACK).
+/// \relates newton_pc
 newton_pc_t* bj_newton_pc_new(void* context,
                               void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                               void (*dtor)(void* context),
@@ -26,7 +30,8 @@ newton_pc_t* bj_newton_pc_new(void* context,
                               size_t num_block_rows,
                               size_t block_size);
  
-// Creates a block Jacobi Newton preconditioner with variable block sizes.
+/// Creates a block Jacobi Newton preconditioner with variable block sizes.
+/// \relates newton_pc
 newton_pc_t* var_bj_newton_pc_new(void* context,
                                   void (*compute_diag_block)(void* context, int i, real_t alpha, real_t beta, real_t gamma, real_t t, real_t* x, real_t* x_dot, real_t* diag_block),
                                   void (*dtor)(void* context),
@@ -34,11 +39,12 @@ newton_pc_t* var_bj_newton_pc_new(void* context,
                                   size_t num_block_rows,
                                   size_t* block_sizes);
 
-// Creates a block Jacobi Newton preconditioner that uses Curtis, Powell, and 
-// Reed's method (On the estimation of sparse Jacobian Matrices, 
-// J. Inst. Math. Appl., 13 (1974), pp. 117-119) for computing the Jacobian 
-// matrix alpha*I + beta*dFdx using finite differences with graph coloring to 
-// minimize function calls.
+/// Creates a block Jacobi Newton preconditioner that uses Curtis, Powell, and 
+/// Reed's method (On the estimation of sparse Jacobian Matrices, 
+/// J. Inst. Math. Appl., 13 (1974), pp. 117-119) for computing the Jacobian 
+/// matrix alpha*I + beta*dFdx using finite differences with graph coloring to 
+/// minimize function calls.
+/// \relates newton_pc
 newton_pc_t* cpr_bj_newton_pc_new(MPI_Comm comm,
                                   void* context,
                                   int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
@@ -49,8 +55,9 @@ newton_pc_t* cpr_bj_newton_pc_new(MPI_Comm comm,
                                   size_t num_remote_block_rows,
                                   size_t block_size);
 
-// This is the variable-block-size version of the Curtis-Powell-Reed block 
-// Jacobi preconditioner described above.
+/// This is the variable-block-size version of the Curtis-Powell-Reed block 
+/// Jacobi preconditioner described above.
+/// \relates newton_pc
 newton_pc_t* var_cpr_bj_newton_pc_new(MPI_Comm comm,
                                       void* context,
                                       int (*F)(void* context, real_t t, real_t* x, real_t* Fval),
@@ -61,12 +68,13 @@ newton_pc_t* var_cpr_bj_newton_pc_new(MPI_Comm comm,
                                       size_t num_remote_block_rows,
                                       size_t* block_sizes);
 
-// Creates a block Jacobi Newton preconditioner that uses Curtis, Powell, and 
-// Reed's method (On the estimation of sparse Jacobian Matrices, 
-// J. Inst. Math. Appl., 13 (1974), pp. 117-119) for computing the Jacobian 
-// matrix alpha*I + beta*dFdx + gamma*dFdxdot appropriate for Differential 
-// Algebraic Equaions, using finite differences with graph coloring to 
-// minimize function calls.
+/// Creates a block Jacobi Newton preconditioner that uses Curtis, Powell, and 
+/// Reed's method (On the estimation of sparse Jacobian Matrices, 
+/// J. Inst. Math. Appl., 13 (1974), pp. 117-119) for computing the Jacobian 
+/// matrix alpha*I + beta*dFdx + gamma*dFdxdot appropriate for Differential 
+/// Algebraic Equaions, using finite differences with graph coloring to 
+/// minimize function calls.
+/// \relates newton_pc
 newton_pc_t* dae_cpr_bj_newton_pc_new(MPI_Comm comm,
                                       void* context,
                                       int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
@@ -76,8 +84,9 @@ newton_pc_t* dae_cpr_bj_newton_pc_new(MPI_Comm comm,
                                       size_t num_remote_block_rows,
                                       size_t block_size);
 
-// This is the variable-block-size version of the Differential Algebraic 
-// Equation (DAE) Curtis-Powell-Reed block Jacobi preconditioner described above.
+/// This is the variable-block-size version of the Differential Algebraic 
+/// Equation (DAE) Curtis-Powell-Reed block Jacobi preconditioner described above.
+/// \relates newton_pc
 newton_pc_t* var_dae_cpr_bj_newton_pc_new(MPI_Comm comm,
                                           void* context,
                                           int (*F)(void* context, real_t t, real_t* x, real_t* xdot, real_t* Fval),
@@ -86,6 +95,8 @@ newton_pc_t* var_dae_cpr_bj_newton_pc_new(MPI_Comm comm,
                                           size_t num_local_block_rows,
                                           size_t num_remote_block_rows,
                                           size_t* block_sizes);
+
+///@}
 
 #endif
 

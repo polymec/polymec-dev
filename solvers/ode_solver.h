@@ -11,6 +11,7 @@
 #include "core/polymec.h"
 
 /// \addtogroup solvers solvers
+///@{
 
 /// \class ode_solver
 /// This class provides an abstract interface for integrating systems of 
