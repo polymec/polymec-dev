@@ -8,6 +8,13 @@
 #ifndef POLYMEC_H
 #define POLYMEC_H
 
+/// \mainpage The Polymec High Performance Computing Libraries
+///
+/// Polymec is a set of libraries that can be used to construct models for 
+/// physical systems. These libraries are designed to allow a computational 
+/// scientist to construct low-maintenance science applications with robust 
+/// capabilities.
+
 // We only use standard C11 around here. 
 #if (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L) && !defined(__cplusplus)
 #error "Polymec requires a C11-compliant compiler."
