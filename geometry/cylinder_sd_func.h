@@ -10,10 +10,16 @@
 
 #include "geometry/sd_func.h"
 
-// This signed distance function represents an infinite cylinder with a given 
-// axial point x and radius r. The orientation of the normal vector 
-// (inward/outward) is also given.
+/// \addtogroup geometry geometry
+///@{
+
+/// This signed distance function represents an infinite cylinder with a given 
+/// axial point x and radius r. The orientation of the normal vector 
+/// (inward/outward) is also given.
+/// \relates sd_func
 sd_func_t* cylinder_sd_func_new(point_t* x, real_t r, normal_orient_t normal_orientation);
+
+///@}
 
 #endif
 

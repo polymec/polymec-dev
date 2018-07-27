@@ -15,147 +15,177 @@
 #include "core/serializer.h"
 #include "geometry/tagger.h"
 
-// This data type represents a cloud consisting of points, possibly with 
-// remotely-managed ghost points, and associated properties.
+/// \addtogroup geometry geometry
+///@{
+
+/// \class point_cloud
+/// This data type represents a cloud consisting of points, possibly with 
+/// remotely-managed ghost points, and associated properties.
 typedef struct 
 {
-  // MPI communicator.
+  /// MPI communicator.
   MPI_Comm comm;
 
-  // The total number of (locally-owned) points in the cloud.
+  /// The total number of (locally-owned) points in the cloud.
   size_t num_points;
 
-  // The number of (remotely-owned) ghost points in the cloud.
+  /// The number of (remotely-owned) ghost points in the cloud.
   size_t num_ghosts;
 
-  // Coordinates of the points, indexed from 0 to num_points + num_ghosts.
+  /// Coordinates of the points, indexed from 0 to num_points + num_ghosts.
   point_t* points;
 
-  // Point tagging mechanism.
+  /// Point tagging mechanism.
   tagger_t* tags;
 
-  // Observers.
+  /// Observers.
   ptr_array_t* observers;
 } point_cloud_t;
 
-// Constructs a new point cloud whose point coordinates are all set to the 
-// origin. This cloud has no ghost points.
+/// Constructs a new point cloud whose point coordinates are all set to the 
+/// origin. This cloud has no ghost points.
+/// \memberof point_cloud
 point_cloud_t* point_cloud_new(MPI_Comm comm, size_t num_points);
 
-// Construct a new point cloud from the set of points with the given 
-// coordinates. Coordinates are copied, and there are no ghost points.
+/// Construct a new point cloud from the set of points with the given 
+/// coordinates. Coordinates are copied, and there are no ghost points.
+/// \memberof point_cloud
 point_cloud_t* point_cloud_from_points(MPI_Comm comm, point_t* coords, int num_points);
 
-// Destroys the given point cloud.
+/// Destroys the given point cloud.
+/// \memberof point_cloud
 void point_cloud_free(point_cloud_t* cloud);
 
-// Sets the number of ghost points for the cloud. This may reallocate
-// storage for the points array to accommodate the extra needed space.
+/// Sets the number of ghost points for the cloud. This may reallocate
+/// storage for the points array to accommodate the extra needed space.
+/// \memberof point_cloud
 void point_cloud_set_num_ghosts(point_cloud_t* cloud, size_t num_ghosts);
 
-// Associates a named piece of metadata (a "property") with the point cloud itself.
-// This can be used to store information about (for example) how the cloud 
-// was generated, which can sometimes be useful. A (non-NULL) serializer 
-// can be given to pass properties between processes. If the given property 
-// exists on the cloud, it is overwritten.
+/// Associates a named piece of metadata (a "property") with the point cloud itself.
+/// This can be used to store information about (for example) how the cloud 
+/// was generated, which can sometimes be useful. A (non-NULL) serializer 
+/// can be given to pass properties between processes. If the given property 
+/// exists on the cloud, it is overwritten.
+/// \memberof point_cloud
 void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, serializer_t* serializer);
 
-// Retrieves the given property from the cloud, if any. If the 
-// property is not found, this returns NULL.
+/// Retrieves the given property from the cloud, if any. If the 
+/// property is not found, this returns NULL.
+/// \memberof point_cloud
 void* point_cloud_property(point_cloud_t* cloud, const char* property);
 
-// Deletes the given property from the cloud. This has no effect if the 
-// property is not found.
+/// Deletes the given property from the cloud. This has no effect if the 
+/// property is not found.
+/// \memberof point_cloud
 void point_cloud_delete_property(point_cloud_t* cloud, const char* property);
 
-// Allows traversal over point cloud properties. Set *pos to 0 to reset the 
-// iteration.
+/// Allows traversal over point cloud properties. Set *pos to 0 to reset the 
+/// iteration.
+/// \memberof point_cloud
 bool point_cloud_next_property(point_cloud_t* cloud, int* pos, 
                                char** prop_name, void** prop_data, 
                                serializer_t** prop_serializer);
 
-// Returns a newly-allocated list of indices that will define a tags for 
-// cells/faces/edges/nodes with the given descriptor. If the tag already 
-// exists, returns NULL.
+/// Returns a newly-allocated list of indices that will define a tags for 
+/// cells/faces/edges/nodes with the given descriptor. If the tag already 
+/// exists, returns NULL.
+/// \memberof point_cloud
 int* point_cloud_create_tag(point_cloud_t* cloud, const char* tag, size_t num_indices);
 
-// Retrieves the given tag, returning an array of indices if found (and 
-// writing the number of tagged elements to num_elements), or NULL if not.
+/// Retrieves the given tag, returning an array of indices if found (and 
+/// writing the number of tagged elements to num_elements), or NULL if not.
+/// \memberof point_cloud
 int* point_cloud_tag(point_cloud_t* cloud, const char* tag, size_t* num_indices);
 
-// Returns true if the given tag exists, false if not.
+/// Returns true if the given tag exists, false if not.
+/// \memberof point_cloud
 bool point_cloud_has_tag(point_cloud_t* cloud, const char* tag);
 
-// Associates a named piece of metadata (a "property") with the given tag.
-// This can be used to store data related to tagged indices.
-// A destructor function can be passed in to handle freeing of resources.
-// If the tag is not found, this function has no effect. If the given property
-// exists on the tag, it is overwritten. Returns true if the property was 
-// added, false if not.
+/// Associates a named piece of metadata (a "property") with the given tag.
+/// This can be used to store data related to tagged indices.
+/// A destructor function can be passed in to handle freeing of resources.
+/// If the tag is not found, this function has no effect. If the given property
+/// exists on the tag, it is overwritten. Returns true if the property was 
+/// added, false if not.
+/// \memberof point_cloud
 bool point_cloud_tag_set_property(point_cloud_t* cloud, const char* tag, const char* property, void* data, serializer_t* serializer);
 
-// Retrieves the given property associated with the given tag, if any. If the 
-// tag or property are not found, this returns NULL.
+/// Retrieves the given property associated with the given tag, if any. If the 
+/// tag or property are not found, this returns NULL.
+/// \memberof point_cloud
 void* point_cloud_tag_property(point_cloud_t* cloud, const char* tag, const char* property);
 
-// Deletes the given property from the tag. This has no effect if the tag
-// or property are not found.
+/// Deletes the given property from the tag. This has no effect if the tag
+/// or property are not found.
+/// \memberof point_cloud
 void point_cloud_tag_delete_property(point_cloud_t* cloud, const char* tag, const char* property);
 
-// Renames the given tag. This has no effect if the tag is not found.
+/// Renames the given tag. This has no effect if the tag is not found.
+/// \memberof point_cloud
 void point_cloud_rename_tag(point_cloud_t* cloud, const char* old_tag, const char* new_tag);
 
-// Deletes the given tag. This has no effect if the tag is not found.
+/// Deletes the given tag. This has no effect if the tag is not found.
+/// \memberof point_cloud
 void point_cloud_delete_tag(point_cloud_t* cloud, const char* tag);
 
-// Writes a text representation of the point cloud to the given file stream.
+/// Writes a text representation of the point cloud to the given file stream.
+/// \memberof point_cloud
 void point_cloud_fprintf(point_cloud_t* cloud, FILE* stream);
 
-// Performs an in-place union of this point cloud with another. If tag is not 
-// NULL, the points from other are added to the tag with the given name (and 
-// the tag is created if it dœes not already exist).
+/// Performs an in-place union of this point cloud with another. If tag is not 
+/// NULL, the points from other are added to the tag with the given name (and 
+/// the tag is created if it dœes not already exist).
+/// \memberof point_cloud
 void point_cloud_unite(point_cloud_t* cloud, 
                        point_cloud_t* other,
                        const char* tag);
 
-// Performs an in-place intersection of this point cloud with another, 
-// removing tags for which there subsequently exist no points. A point in 
-// cloud is removed if it does not fall within distance_tol of a point in 
-// other.
+/// Performs an in-place intersection of this point cloud with another, 
+/// removing tags for which there subsequently exist no points. A point in 
+/// cloud is removed if it does not fall within distance_tol of a point in 
+/// other.
+/// \memberof point_cloud
 void point_cloud_intersect(point_cloud_t* cloud, 
                            point_cloud_t* other,
                            real_t distance_tol);
 
-// Performs an in-place differencing of this point cloud with another, 
-// removing tags for which there subsequently exist no points. A point in 
-// cloud is removed if it falls within distance_tol of a point in 
-// other.
+/// Performs an in-place differencing of this point cloud with another, 
+/// removing tags for which there subsequently exist no points. A point in 
+/// cloud is removed if it falls within distance_tol of a point in 
+/// other.
+/// \memberof point_cloud
 void point_cloud_difference(point_cloud_t* cloud, 
                             point_cloud_t* other,
                             real_t distance_tol);
 
-// Returns a serializer object that can read/write point clouds from/to byte arrays.
+/// Returns a serializer object that can read/write point clouds from/to byte arrays.
+/// \memberof point_cloud
 serializer_t* point_cloud_serializer(void);
 
-//------------------------------------------------------------------------
-//                        Point cloud observers
-//------------------------------------------------------------------------
+/// \struct point_cloud_observer_vtable
+/// This virtual table implements behavior for observing point clouds.
 typedef struct
 {
   void (*set_num_ghosts)(void* observer, size_t num_ghosts);
   void (*dtor)(void* observer);
 } point_cloud_observer_vtable;
 
+/// \class point_cloud_observer
+/// An object that observes changes to a point cloud.
 typedef struct point_cloud_observer_t point_cloud_observer_t;
 
-// Creates an observer for a point cloud.
+/// Creates an observer for a point cloud.
+/// \memberof point_cloud_observer
 point_cloud_observer_t* point_cloud_observer_new(void* context,
                                                  point_cloud_observer_vtable vtable);
 
-// Adds an observer to the point cloud. The point cloud assumes control of 
-// the observer.
+/// Adds an observer to the point cloud. The point cloud assumes control of 
+/// the observer.
+/// \memberof point_cloud
 void point_cloud_add_observer(point_cloud_t* cloud,
                               point_cloud_observer_t* observer);
+
+///@}
 
 #endif
 

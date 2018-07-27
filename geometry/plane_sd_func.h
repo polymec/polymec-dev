@@ -10,13 +10,20 @@
 
 #include "geometry/sd_func.h"
 
-// This signed distance function represents a plane with a given normal 
-// vector and point.
+/// \addtogroup geometry geometry
+///@{
+
+/// This signed distance function represents a plane with a given normal 
+/// vector and point.
+/// \relates sd_func
 sd_func_t* plane_sd_func_new(vector_t* n, point_t* x);
 
-// Construct a plane that contains the three points p1, p2, and p3, 
-// assuming that these points are not co-linear.
+/// Construct a plane that contains the three points p1, p2, and p3, 
+/// assuming that these points are not co-linear.
+/// \relates sd_func
 sd_func_t* plane_sd_func_from_points(point_t* p1, point_t* p2, point_t* p3);
+
+///@}
 
 #endif
 

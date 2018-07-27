@@ -11,7 +11,11 @@
 #include "geometry/polymesh.h"
 #include "geometry/sd_func.h"
 
-// Types of cropping algorithms.
+/// \addtogroup geometry geometry
+///@{
+
+/// \enum polymesh_crop
+/// Types of algorithms for cropping polymesh cells.
 typedef enum
 {
   REMOVE_CELLS,  // cells are removed and nothing else is done
@@ -20,13 +24,16 @@ typedef enum
                  // from the boundary F(x) == 0.
 } polymesh_crop_t;
 
-// This function marks the cells in a mesh whose centroids fall outside the 
-// given implicit function, returning a copy of the mesh with these marked 
-// cells removed. The resulting boundary faces of the cropped mesh are 
-// tagged with the name of the boundary function.
+/// This function marks the cells in a mesh whose centroids fall outside the 
+/// given implicit function, returning a copy of the mesh with these marked 
+/// cells removed. The resulting boundary faces of the cropped mesh are 
+/// tagged with the name of the boundary function.
+/// \relates polymesh
 polymesh_t* crop_polymesh(polymesh_t* mesh, 
                           sd_func_t* boundary_func, 
                           polymesh_crop_t crop_type);
+
+///@}
 
 #endif
 

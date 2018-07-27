@@ -10,13 +10,20 @@
 
 #include "geometry/sd_func.h"
 
-// This signed distance function represents the union of the set of 
-// given surfaces represented by signed distance functions.
+/// \addtogroup geometry geometry
+///@{
+
+/// This signed distance function represents the union of the set of 
+/// given surfaces represented by signed distance functions.
+/// \relates sd_func
 sd_func_t* union_sd_func_new(sd_func_t** surfaces, int num_surfaces);
 
-// This is a shorthand function that creates the union of two 
-// surfaces.
+/// This is a shorthand function that creates the union of two 
+/// surfaces.
+/// \relates sd_func
 sd_func_t* union_sd_func_new2(sd_func_t* surface1, sd_func_t* surface2);
+
+///@}
 
 #endif
 

@@ -10,16 +10,23 @@
 
 #include "geometry/point_cloud.h"
 
-// This function creates and returns a lattice of points whose x, y, and z 
-// coordinates are given by arrays.
+/// \addtogroup geometry geometry
+///@{
+
+/// This function creates and returns a lattice of points whose x, y, and z 
+/// coordinates are given by arrays.
+/// \relates point_cloud
 point_cloud_t* create_point_lattice(MPI_Comm comm, 
                                     real_t* xs, int nxs, 
                                     real_t* ys, int nys, 
                                     real_t* zs, int nzs);
 
-// This function creates and returns a uniform nx x ny x nz lattice of points.
-// The lattice spans the rectangular region of space defined by the bounding box.
+/// This function creates and returns a uniform nx x ny x nz lattice of points.
+/// The lattice spans the rectangular region of space defined by the bounding box.
+/// \relates point_cloud
 point_cloud_t* create_uniform_point_lattice(MPI_Comm comm, int nx, int ny, int nz, bbox_t* bbox);
+
+///@}
 
 #endif
 

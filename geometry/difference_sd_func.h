@@ -10,9 +10,15 @@
 
 #include "geometry/sd_func.h"
 
-// This signed distance function represents the difference of two 
-// given surfaces represented by signed distance functions.
+/// \addtogroup geometry geometry
+///@{
+
+/// This signed distance function represents the difference of two 
+/// given surfaces represented by signed distance functions.
+/// \relates sd_func
 sd_func_t* difference_sd_func_new(sd_func_t* surface1, sd_func_t* surface2);
+
+///@}
 
 #endif
 

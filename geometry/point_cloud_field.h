@@ -10,35 +10,43 @@
 
 #include "geometry/point_cloud.h"
 
-// This thin wrapper represents a field of values defined on the points of 
-// a point cloud.
+/// \addtogroup geometry geometry
+///@{
+
+/// \class point_cloud_field
+/// This thin wrapper represents a field of values defined on the points of 
+/// a point cloud.
 typedef struct 
 {
-  // The underlying point cloud.
+  /// The underlying point cloud.
   point_cloud_t* cloud;
 
-  // The number of components for a datum in the field.
+  /// The number of components for a datum in the field.
   size_t num_components;
 
-  // The number of locally-stored values in the field.
+  /// The number of locally-stored values in the field.
   size_t num_local_values;
 
-  // The number of ghost values in the field (which changes with the 
-  // number of ghost points in the cloud).
+  /// The number of ghost values in the field (which changes with the 
+  /// number of ghost points in the cloud).
   size_t num_ghost_values;
 
-  // Data for the field, and its storage capacity.
+  /// Data for the field, and its storage capacity.
   real_t* data;
   size_t capacity;
 } point_cloud_field_t;
 
-// Constructs a new point cloud field with the given number of components
-// on the given point cloud.
+/// Constructs a new point cloud field with the given number of components
+/// on the given point cloud.
+/// \memberof point_cloud_field
 point_cloud_field_t* point_cloud_field_new(point_cloud_t* cloud,
                                            size_t num_components);
 
-// Destroys the given point cloud field.
+/// Destroys the given point cloud field.
+/// \memberof point_cloud_field
 void point_cloud_field_free(point_cloud_field_t* field);
+
+///@}
 
 // Defines a 2D array that allows the field to be indexed thus:
 // f[i][c] returns the cth component of the value for the ith point.

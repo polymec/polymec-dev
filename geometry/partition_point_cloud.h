@@ -14,14 +14,18 @@
 // each of these, the imbalance tolerance is value between 0 and 1, defined as 
 // imbalance_tol = (process_work_load - balanced_work_load) / balanced_work_load.
 
-// This function partitions the given point cloud on rank 0 with the given pointwise
-// load weights, distributing it to parallel subdomains on the given communicator 
-// in such a way as to balance the load. The cloud on rank 0 (as 
-// well as any non-NULL cloud on rank != 0) is consumed. In each case, the 
-// cloud is replaced with a partitioned cloud. Any fields given are also partitioned 
-// similarly. On success, this function returns true. If the per-process workload cannot 
-// be balanced to within the imbalance tolerance, this function fails with no effect 
-// and returns false.
+/// \addtogroup geometry geometry
+///@{
+
+/// This function partitions the given point cloud on rank 0 with the given pointwise
+/// load weights, distributing it to parallel subdomains on the given communicator 
+/// in such a way as to balance the load. The cloud on rank 0 (as 
+/// well as any non-NULL cloud on rank != 0) is consumed. In each case, the 
+/// cloud is replaced with a partitioned cloud. Any fields given are also partitioned 
+/// similarly. On success, this function returns true. If the per-process workload cannot 
+/// be balanced to within the imbalance tolerance, this function fails with no effect 
+/// and returns false.
+/// \relates point_cloud
 bool partition_point_cloud(point_cloud_t** cloud, 
                            MPI_Comm comm, 
                            int* weights, 
@@ -29,12 +33,13 @@ bool partition_point_cloud(point_cloud_t** cloud,
                            point_cloud_field_t** fields,
                            size_t num_fields);
 
-// This function repartitions the given point cloud with the given load weights, 
-// alloting them to parallel domains to balance their load. If weights is NULL, the 
-// points are assigned equal weights. The cloud is consumed and replaced with a 
-// repartitioned cloud, as are any given fields. On success, the function returns true. 
-// If the per-process workload cannot be balanced to within the imbalance tolerance, 
-// the function fails with no effect and returns false.
+/// This function repartitions the given point cloud with the given load weights, 
+/// alloting them to parallel domains to balance their load. If weights is NULL, the 
+/// points are assigned equal weights. The cloud is consumed and replaced with a 
+/// repartitioned cloud, as are any given fields. On success, the function returns true. 
+/// If the per-process workload cannot be balanced to within the imbalance tolerance, 
+/// the function fails with no effect and returns false.
+/// \relates point_cloud
 bool repartition_point_cloud(point_cloud_t** cloud, 
                              int* weights, 
                              real_t imbalance_tol,
@@ -47,20 +52,24 @@ bool repartition_point_cloud(point_cloud_t** cloud,
 // the pieces of the underlying algorithms.
 //------------------------------------------------------------------------
 
-// Given a global partition vector, distribute the point cloud to the given communicator, 
-// and distribute the data in the given fields accordingly. The cloud and fields are 
-// replaced with partitioned equivalents.
+/// Given a global partition vector, distribute the point cloud to the given communicator, 
+/// and distribute the data in the given fields accordingly. The cloud and fields are 
+/// replaced with partitioned equivalents.
+/// \relates point_cloud
 void distribute_point_cloud(point_cloud_t** cloud, 
                             MPI_Comm comm, 
                             int64_t* global_partition,
                             point_cloud_field_t** fields,
                             size_t num_fields);
 
-// Given a local partition vector, redistributes the point cloud and the given fields.
+/// Given a local partition vector, redistributes the point cloud and the given fields.
+/// \relates point_cloud
 void redistribute_point_cloud(point_cloud_t** cloud, 
                               int64_t* local_partition,
                               point_cloud_field_t** fields,
                               size_t num_fields);
+
+///@}
 
 #endif
 

@@ -11,31 +11,34 @@
 #include "geometry/unimesh.h"
 #include "core/declare_nd_array.h"
 
-// A unimesh_patch is a (3D) rectangular prism of identical cells on which 
-// multicomponent data can be stored. The data can be associated with the 
-// cells themselves, or with the faces, edges, or nodes shared by the cells.
+/// \class unimesh_patch
+/// A unimesh_patch is a (3D) rectangular prism of identical cells on which 
+/// multicomponent data can be stored. The data can be associated with the 
+/// cells themselves, or with the faces, edges, or nodes shared by the cells.
 struct unimesh_patch_t
 {
-  // Data storage for the patch. Use DECLARE_UNIMESH_*_ARRAY to provide 
-  // multidimensional array access to this data.
+  /// Data storage for the patch. Use DECLARE_UNIMESH_*_ARRAY to provide 
+  /// multidimensional array access to this data.
   void* data;
   
-  // The number of cells in the patch in each direction.
+  /// The number of cells in the patch in each direction.
   int nx, ny, nz;
 
-  // The number of components.
+  /// The number of components.
   int nc;
 
-  // The centering of the data.
+  /// The centering of the data.
   unimesh_centering_t centering;
 };
 
-// This type is a rectangular box in "patch" index space.
+/// \struct unimesh_patch_box`
+/// This type is a rectangular box in "patch" index space.
 typedef struct
 {
   int i1, i2, j1, j2, k1, k2;
 } unimesh_patch_box_t;
 
+///@{
 // These macros generate multidimensional arrays that can access the given
 // patch's data using C99 variable-length arrays.
 
@@ -130,68 +133,81 @@ DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny+1, patch->nz
 ASSERT(patch->centering == UNIMESH_NODE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny+1, patch->nz+1, patch->nc)
 
-// This helper function returns the number of data in a patch with the 
-// given centering, numbers of cells in x, y, and z, and number of 
-// components.
+///@}
+
+/// This helper function returns the number of data in a patch with the 
+/// given centering, numbers of cells in x, y, and z, and number of 
+/// components.
+/// \memberof unimesh_patch
 size_t unimesh_patch_data_size(unimesh_centering_t centering,
                                int nx, int ny, int nz, int nc);
 
-// Creates a new unimesh patch with the given centering, defined on a lattice 
-// of cells with the given numbers in each direction. The data has nc 
-// components.
+/// Creates a new unimesh patch with the given centering, defined on a lattice 
+/// of cells with the given numbers in each direction. The data has nc 
+/// components.
+/// \memberof unimesh_patch
 unimesh_patch_t* unimesh_patch_new(unimesh_centering_t centering,
                                    int nx, int ny, int nz, int nc);
 
-// Creates a unimesh patch whose data is contained in the given buffer.
-// This buffer is not managed by the grid patch. The buffer can be NULL
-// as long as the patch's data is not referenced. NULL buffers can be 
-// reset using unimesh_patch_set_buffer.
+/// Creates a unimesh patch whose data is contained in the given buffer.
+/// This buffer is not managed by the grid patch. The buffer can be NULL
+/// as long as the patch's data is not referenced. NULL buffers can be 
+/// reset using unimesh_patch_set_buffer.
+/// \memberof unimesh_patch
 unimesh_patch_t* unimesh_patch_with_buffer(unimesh_centering_t centering,
                                            int nx, int ny, int nz, int nc, 
                                            void* buffer);
 
-// Creates a deep copy of the unimesh patch.
+/// Creates a deep copy of the unimesh patch.
+/// \memberof unimesh_patch
 unimesh_patch_t* unimesh_patch_clone(unimesh_patch_t* patch);
 
-// Frees the given unimesh patch.
+/// Frees the given unimesh patch.
+/// \memberof unimesh_patch
 void unimesh_patch_free(unimesh_patch_t* patch);
 
-// Copies all of the non-ghost data in this patch to the destination one.
-// The destination patch must have the same number of non-ghost cells as 
-// this one.
+/// Copies all of the non-ghost data in this patch to the destination one.
+/// The destination patch must have the same number of non-ghost cells as 
+/// this one.
+/// \memberof unimesh_patch
 void unimesh_patch_copy(unimesh_patch_t* patch,
                         unimesh_patch_t* dest);
 
-// Copies all of the data in this patch within the source box to the 
-// destination patch, within the destination box. The patches need not 
-// have the same size, but the source and destination boxes must have 
-// matching sizes.
+/// Copies all of the data in this patch within the source box to the 
+/// destination patch, within the destination box. The patches need not 
+/// have the same size, but the source and destination boxes must have 
+/// matching sizes.
+/// \memberof unimesh_patch
 void unimesh_patch_copy_box(unimesh_patch_t* patch,
                             unimesh_patch_box_t* src_box,
                             unimesh_patch_box_t* dest_box,
                             unimesh_patch_t* dest);
 
-// Fills all degrees of freedom on the given boundary of the patch with the 
-// given component data. Here, data is an array of length patch->nc. 
-// For cells, all ghost cells are filled. For faces, edges, and nodes, all 
-// elements on the boundary are filled.
+/// Fills all degrees of freedom on the given boundary of the patch with the 
+/// given component data. Here, data is an array of length patch->nc. 
+/// For cells, all ghost cells are filled. For faces, edges, and nodes, all 
+/// elements on the boundary are filled.
+/// \memberof unimesh_patch
 void unimesh_patch_fill_boundary(unimesh_patch_t* patch,
                                  unimesh_boundary_t boundary,
                                  real_t* data);
 
-// Sets the given box to the set of elements that occupy the given patch.
-// (For cells, this is the set of non-ghost cells in the patch.)
+/// Sets the given box to the set of elements that occupy the given patch.
+/// (For cells, this is the set of non-ghost cells in the patch.)
+/// \memberof unimesh_patch
 void unimesh_patch_get_box(unimesh_patch_t* patch,
                            unimesh_patch_box_t* box);
 
-// Sets the given box to the set of elements (according to the patch's 
-// centering) that fall on the given boundary of the patch. 
-// (For cells, this is the set of ghost cells on that boundary.)
+/// Sets the given box to the set of elements (according to the patch's 
+/// centering) that fall on the given boundary of the patch. 
+/// (For cells, this is the set of ghost cells on that boundary.)
+/// \memberof unimesh_patch
 void unimesh_patch_get_boundary_box(unimesh_patch_t* patch,
                                     unimesh_boundary_t boundary,
                                     unimesh_patch_box_t* box);
 
-// Shifts the unimesh patch box by the given delta in i, j, and k.
+/// Shifts the unimesh patch box by the given delta in i, j, and k.
+/// \memberof unimesh_patch_box
 static inline void unimesh_patch_box_shift(unimesh_patch_box_t* box,
                                            int delta_i, int delta_j, int delta_k)
 {
@@ -203,10 +219,13 @@ static inline void unimesh_patch_box_shift(unimesh_patch_box_t* box,
   box->k2 += delta_k;
 }
 
-// Bisects the box along the given axis (0 -> x, 1 -> y, 2 ->z).
-// Setting half to 0 results in the box occupying its former lower half;
-// setting it to a nonzero value makes the box occupy its former upper half.
+/// Bisects the box along the given axis (0 -> x, 1 -> y, 2 ->z).
+/// Setting half to 0 results in the box occupying its former lower half;
+/// setting it to a nonzero value makes the box occupy its former upper half.
+/// \memberof unimesh_patch_box
 void unimesh_patch_box_bisect(unimesh_patch_box_t* box, int axis, int half);
+
+///@}
 
 #endif
 

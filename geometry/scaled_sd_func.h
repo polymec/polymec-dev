@@ -10,9 +10,15 @@
 
 #include "geometry/sd_func.h"
 
-// This signed distance function takes another such function and scales it 
-// by a given factor.
+/// \addtogroup geometry geometry
+///@{
+
+/// This signed distance function takes another such function and scales it 
+/// by a given factor.
+/// \relates sd_func
 sd_func_t* scaled_sd_func_new(sd_func_t* func, real_t scale_factor);
+
+///@}
 
 #endif
 

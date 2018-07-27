@@ -10,30 +10,35 @@
 
 #include "geometry/polymesh.h"
 
-// This function creates and returns a rectilinear mesh whose nodes are 
-// given by the xs, ys, and zs arrays. If comm == MPI_COMM_SELF, the 
-// indices of the cells, faces, and nodes can all be navigated using a
-// an (nxs-1) x (nys-1) x (nzs-1) cubic lattice object.
+/// \addtogroup geometry geometry
+///@{
+
+/// This function creates and returns a rectilinear mesh whose nodes are 
+/// given by the xs, ys, and zs arrays. If comm == MPI_COMM_SELF, the 
+/// indices of the cells, faces, and nodes can all be navigated using a
+/// an (nxs-1) x (nys-1) x (nzs-1) cubic lattice object.
+/// \relates polymesh
 polymesh_t* create_rectilinear_polymesh(MPI_Comm comm, 
                                         real_t* xs, int nxs, 
                                         real_t* ys, int nys, 
                                         real_t* zs, int nzs);
 
-// This function creates and returns a rectilinear mesh whose nodes are 
-// given by the xs, ys, and zs arrays on the given communicator 
-// ONLY ON THE GIVEN RANK. The function returns the mesh on that rank and 
-// a NULL pointer on all other ranks. MPI_COMM_SELF cannot be used as the 
-// communicator.
+/// This function creates and returns a rectilinear mesh whose nodes are 
+/// given by the xs, ys, and zs arrays on the given communicator 
+/// ONLY ON THE GIVEN RANK. The function returns the mesh on that rank and 
+/// a NULL pointer on all other ranks. MPI_COMM_SELF cannot be used as the 
+/// communicator.
+/// \relates polymesh
 polymesh_t* create_rectilinear_polymesh_on_rank(MPI_Comm comm,
                                                 int rank,
                                                 real_t* xs, int nxs, 
                                                 real_t* ys, int nys, 
                                                 real_t* zs, int nzs);
 
-// This function tags the faces of a rectilinear mesh for convenient boundary 
-// condition assignments. This also creates a property named 
-// "rectilinear_boundary_tags" containing an array of 6 strings:
-// [x1_tag, x2_tag, y1_tag, y2_tag, z1_tag, z2_tag].
+/// This function tags the faces of a rectilinear mesh for convenient boundary 
+/// condition assignments. This also creates a property named 
+/// "rectilinear_boundary_tags" containing an array of 6 strings:
+/// [x1_tag, x2_tag, y1_tag, y2_tag, z1_tag, z2_tag].
 void tag_rectilinear_polymesh_faces(polymesh_t* mesh, 
                                     const char* x1_tag, 
                                     const char* x2_tag, 
@@ -41,6 +46,8 @@ void tag_rectilinear_polymesh_faces(polymesh_t* mesh,
                                     const char* y2_tag,
                                     const char* z1_tag,
                                     const char* z2_tag);
+
+///@}
 
 #endif
 

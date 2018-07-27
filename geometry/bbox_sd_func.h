@@ -10,9 +10,15 @@
 
 #include "geometry/sd_func.h"
 
-// This creates a signed distance function equivalent to the given 
-// bounding box.
+/// \addtogroup geometry geometry
+///@{
+
+/// This creates a signed distance function equivalent to the given 
+/// bounding box.
+/// \relates sd_func
 sd_func_t* bbox_sd_func_new(bbox_t* bounding_box);
+
+///@}
 
 #endif
 
