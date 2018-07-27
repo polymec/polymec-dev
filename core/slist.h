@@ -33,6 +33,11 @@
 // bool x_slist_empty(x_slist_t* list) - Returns true if empty, false otherwise.
 // void x_slist_clear(x_slist_t* list) - Clears the given list, making it empty.
 
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_SLIST
+/// Defines a singly-linked list for an element type.
 #define DEFINE_SLIST(list_name, element) \
 typedef struct list_name##_node_t list_name##_node_t; \
 typedef void (*list_name##_dtor)(element); \
@@ -220,6 +225,8 @@ static inline void list_name##_clear(list_name##_t* list) \
   while (list->front != NULL) \
     list_name##_pop(list, NULL); \
 } \
+
+///@}
 
 // Define some basic slist types.
 DEFINE_SLIST(int_slist, int)

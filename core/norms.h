@@ -10,7 +10,10 @@
 
 #include "core/polymec.h"
 
-// Computes the L1 norm of the given vector.
+/// \addtogroup core core
+///@{
+
+/// Computes the L1 norm of the given vector.
 static inline real_t l1_norm(real_t* vec, int dim)
 {
   real_t sum = 0.0;
@@ -19,7 +22,7 @@ static inline real_t l1_norm(real_t* vec, int dim)
   return sum;
 }
 
-// Computes the L2 norm of the given vector.
+/// Computes the L2 norm of the given vector.
 static inline real_t l2_norm(real_t* vec, int dim)
 {
   real_t sum = 0.0;
@@ -28,7 +31,7 @@ static inline real_t l2_norm(real_t* vec, int dim)
   return sqrt(sum);
 }
 
-// Computes the L infinity norm of the given vector.
+/// Computes the L infinity norm of the given vector.
 static inline real_t linf_norm(real_t* vec, int dim)
 {
   real_t max = -REAL_MAX;
@@ -36,6 +39,8 @@ static inline real_t linf_norm(real_t* vec, int dim)
     max = MAX(max, ABS(vec[i]));
   return max;
 }
+
+///@}
 
 #endif
 

@@ -27,6 +27,12 @@
 // x x_priority_queue_front(x_priority_queue_t* queue) - Returns the element with the largest priority in the queue.
 // bool x_priority_queue_empty(x_priority_queue_t* queue) - Returns true if the queue is empty, false otherwise.
 // void x_priority_queue_clear(x_priority_queue_t* queue) - Clears the contents of the queue.
+
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_PRIORITY_QUEUE
+/// Defines a priority queue with the given element type.
 #define DEFINE_PRIORITY_QUEUE(queue_name, element) \
 typedef element queue_name##_element_t; \
 typedef struct queue_name##_t queue_name##_t; \
@@ -106,6 +112,8 @@ static inline void queue_name##_clear(queue_name##_t* queue) \
   queue_name##_heap_clear(queue->heap); \
 } \
 \
+
+///@}
 
 // Define some priority_queues.
 DEFINE_PRIORITY_QUEUE(int_priority_queue, int)

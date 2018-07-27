@@ -17,6 +17,9 @@
 /// \addtogroup model model
 ///@{
 
+/// \addtogroup lua lua
+///@{
+
 /// This function registers the model modules within the interpreter L. It 
 /// should be called before any of these types are accessed within the 
 /// interpreter.
@@ -43,6 +46,8 @@ bool lua_is_probe(lua_State* L, int index);
 /// Returns the probe at the given index on L's stack, or NULL if 
 /// the item there is not a model probe.
 probe_t* lua_to_probe(lua_State* L, int index);
+
+///@}
 
 ///@}
 

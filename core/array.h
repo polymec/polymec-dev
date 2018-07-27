@@ -49,6 +49,11 @@
 // a.size - Number of elements in the array.
 // a.capacity - Number of elements in the array.
 
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_ARRAY
+/// Defines an array for a given element type.
 #define DEFINE_ARRAY(array_name, element) \
 typedef void (*array_name##_dtor)(element); \
 typedef struct \
@@ -338,5 +343,7 @@ DEFINE_ARRAY(ptr_array, void*)
 #ifndef __cplusplus
 DEFINE_ARRAY(complex_array, complex_t)
 #endif
+
+///@}
 
 #endif

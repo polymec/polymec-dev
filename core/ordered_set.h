@@ -88,9 +88,16 @@ static inline void set_name##_delete(set_name##_t* set, set_name##_element_t dat
 } \
 \
 
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_ORDERED_SET
+/// Defines an ordered set with the given element type.
 #define DEFINE_ORDERED_SET(set_name, element, comparator) \
 DEFINE_AVL_TREE(set_name##_avl_tree, element, comparator) \
 DEFINE_ORDERED_SET_USING_TREE(set_name, set_name##_avl_tree)
+
+///@}
 
 // Define some ordered_sets.
 DEFINE_ORDERED_SET_USING_AVL_TREE(int_ordered_set, int_avl_tree)

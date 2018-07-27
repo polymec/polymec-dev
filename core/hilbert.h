@@ -10,26 +10,36 @@
 
 #include "core/point.h"
 
-// This class implements a Hilbert (Peano) space-filling curve that can 
-// map points in 3D space to integer indices which are ordered by spatial 
-// proximity. Objects of this type are garbage-collected.
+/// \addtogroup core core
+///@{
+
+/// \class hilbert
+/// This class implements a Hilbert (Peano) space-filling curve that can 
+/// map points in 3D space to integer indices which are ordered by spatial 
+/// proximity. Objects of this type are garbage-collected.
 typedef struct hilbert_t hilbert_t;
 
-// Creates a Hilbert space-filling curve that fills the space in the given 
-// bounding box.
+/// Creates a Hilbert space-filling curve that fills the space in the given 
+/// bounding box.
+/// \memberof hilbert
 hilbert_t* hilbert_new(bbox_t* bbox);
 
-// Translates the given point x to its Hilbert index using the algorithm 
-// described in Skilling's 2004 paper "Programming the Hilbert Curve."
+/// Translates the given point x to its Hilbert index using the algorithm 
+/// described in Skilling's 2004 paper "Programming the Hilbert Curve."
+/// \memberof hilbert
 index_t hilbert_index(hilbert_t* curve, point_t* x);
 
-// Recreates a 3D point from the given Hilbert index, storing it in x.
+/// Recreates a 3D point from the given Hilbert index, storing it in x.
+/// \memberof hilbert
 void hilbert_create_point(hilbert_t* curve, index_t index, point_t* x);
 
-// Performs a quick sort of the list of points by mapping them to indices 
-// using a Hilbert curve, reordering the indices corresponding to the points 
-// as well. The points and indices are sorted in place. If indices is NULL, 
-// no index reordering is performed.
+/// Performs a quick sort of the list of points by mapping them to indices 
+/// using a Hilbert curve, reordering the indices corresponding to the points 
+/// as well. The points and indices are sorted in place. If indices is NULL, 
+/// no index reordering is performed.
+/// \memberof hilbert
 void hilbert_sort_points(hilbert_t* curve, point_t* points, int* indices, int num_points);
+
+///@}
 
 #endif

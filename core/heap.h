@@ -28,6 +28,12 @@
 // x x_heap_front(x_heap_t* heap) - Returns the largest element in the heap.
 // bool x_heap_empty(x_heap_t* heap) - Returns true if the heap is empty, false otherwise.
 // void x_heap_clear(x_heap_t* heap) - Clears the contents of the heap.
+
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_HEAP
+/// Defines a heap for a given element type.
 #define DEFINE_HEAP(heap_name, element, comparator) \
 typedef element heap_name##_element_t; \
 typedef struct heap_name##_t heap_name##_t; \
@@ -153,6 +159,8 @@ static inline void heap_name##_clear(heap_name##_t* heap) \
   } \
 } \
 \
+
+///@}
 
 // Define some heaps.
 DEFINE_HEAP(int_heap, int, int_cmp)

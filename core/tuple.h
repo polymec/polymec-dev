@@ -35,6 +35,11 @@
 // int x_tuple_hash(x* tuple) - Returns a hash index for the given tuple.
 // tuple[i] - The ith value in the tuple.
 
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_TUPLE
+/// Defines a tuple for the given element type.
 #define DEFINE_TUPLE(tuple_name, element, element_cmp) \
 \
 typedef element tuple_name##_value_t; \
@@ -108,6 +113,8 @@ static inline int tuple_name##_hash(element* tuple) \
   int N = tuple_name##_length(tuple); \
   return djb2_xor_hash((unsigned char*)tuple, N*sizeof(element)); \
 } \
+
+///@}
 
 // Define some basic tuple types.
 DEFINE_TUPLE(int_tuple, int, int_cmp)

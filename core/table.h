@@ -37,6 +37,11 @@
 // bool x_table_next_cell(x_table_t* table, x_table_cell_pos_t* pos, int* row, int* col, x_table_value_t* value) - Allows the traversal of the table values.
 // x_table_cell_pos_t x_table_start(x_table_t* table) - Returns a new value position for use with x_table_next.
 
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_TABLE
+/// Defines a table with a given value type.
 #define DEFINE_TABLE(table_name, value_type) \
 typedef value_type table_name##_value_t; \
 typedef void (*table_name##_value_dtor)(table_name##_value_t); \
@@ -202,6 +207,8 @@ static inline table_name##_cell_pos_t table_name##_start(table_name##_t* table) 
   table_name##_cell_pos_t pos = {0, 0, 0}; \
   return pos; \
 } \
+
+///@}
 
 // Define some tables.
 DEFINE_TABLE(int_table, int)

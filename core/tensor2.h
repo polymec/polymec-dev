@@ -11,9 +11,13 @@
 #include "core/polymec.h"
 #include "core/point.h"
 
-// A rank-2 general (non-symmetric) tensor in 3D space. You can cast this to 
-// and from an array of 9 real_t. It is stored in column-major order so that 
-// you can cast it to and from a 3x3 matrix.
+/// \addtogroup core core
+///@{
+
+/// \class tensor2
+/// A rank-2 general (non-symmetric) tensor in 3D space. You can cast this to 
+/// and from an array of 9 real_t. It is stored in column-major order so that 
+/// you can cast it to and from a 3x3 matrix.
 typedef struct
 {
   real_t xx, yx, zx,
@@ -21,20 +25,23 @@ typedef struct
          xz, yz, zz;
 } tensor2_t;
 
-// Allocates a new tensor2 on the heap with the given components. Not 
-// necessary if you are allocating a tensor2 on the stack. Objects of this 
-// type are garbage-collected when allocated on the heap.
+/// Allocates a new tensor2 on the heap with the given components. Not 
+/// necessary if you are allocating a tensor2 on the stack. Objects of this 
+/// type are garbage-collected when allocated on the heap.
+/// \memberof tensor2
 tensor2_t* tensor2_new(real_t xx, real_t xy, real_t xz,
                        real_t yx, real_t yy, real_t yz,
                        real_t zx, real_t zy, real_t zz);
 
-// Copies tensor components from src to dest.
+/// Copies tensor components from src to dest.
+/// \memberof tensor2
 static inline void tensor2_copy(tensor2_t* src, tensor2_t* dest)
 {
   memcpy(dest, src, 9*sizeof(real_t));
 }
 
-// Sets the components of the given tensor.
+/// Sets the components of the given tensor.
+/// \memberof tensor2
 static inline void tensor2_set(tensor2_t* t, 
                                real_t xx, real_t xy, real_t xz, 
                                real_t yx, real_t yy, real_t yz,
@@ -45,8 +52,9 @@ static inline void tensor2_set(tensor2_t* t,
   t->zx = zx; t->zy = zy; t->zz = zz;
 }
 
-// Sets the the given tensor to the 3x3 identity tensor, scaled by the 
-// given factor.
+/// Sets the the given tensor to the 3x3 identity tensor, scaled by the 
+/// given factor.
+/// \memberof tensor2
 static inline void tensor2_set_identity(tensor2_t* t, real_t factor)
 {
   t->xx = factor; t->xy = 0.0;    t->xz = 0.0;
@@ -54,7 +62,8 @@ static inline void tensor2_set_identity(tensor2_t* t, real_t factor)
   t->zx = 0.0;    t->zy = 0.0;    t->zz = factor;
 }
 
-// Scales the components of the given tensor.
+/// Scales the components of the given tensor.
+/// \memberof tensor2
 static inline void tensor2_scale(tensor2_t* t, real_t factor)
 {
   t->xx *= factor; t->xy *= factor; t->xz *= factor;
@@ -62,7 +71,8 @@ static inline void tensor2_scale(tensor2_t* t, real_t factor)
   t->zx *= factor; t->zy *= factor; t->zz *= factor;
 }
 
-// Returns the determinant of the tensor.
+/// Returns the determinant of the tensor.
+/// \memberof tensor2
 static inline real_t tensor2_det(tensor2_t* t)
 {
   return t->xx * (t->yy*t->zz - t->zy*t->yz) - 
@@ -70,13 +80,15 @@ static inline real_t tensor2_det(tensor2_t* t)
          t->xz * (t->yx*t->zy - t->zx*t->yy);
 }
 
-// Returns the trace of the tensor.
+/// Returns the trace of the tensor.
+/// \memberof tensor2
 static inline real_t tensor2_trace(tensor2_t* t)
 {
   return t->xx + t->yy + t->zz;
 }
 
-// Computes the (vector-valued) tensor-vector product.
+/// Computes the (vector-valued) tensor-vector product.
+/// \memberof tensor2
 static inline void tensor2_dot_vector(tensor2_t* t, vector_t* v, vector_t* tv)
 {
   tv->x = t->xx*v->x + t->xy*v->y + t->xz*v->z;
@@ -84,7 +96,8 @@ static inline void tensor2_dot_vector(tensor2_t* t, vector_t* v, vector_t* tv)
   tv->z = t->zx*v->x + t->zy*v->y + t->zz*v->z;
 }
 
-// Computes the (vector-valued) transposed tensor-vector product.
+/// Computes the (vector-valued) transposed tensor-vector product.
+/// \memberof tensor2
 static inline void tensor2_dot_vector_t(tensor2_t* t, vector_t* v, vector_t* tv)
 {
   tv->x = t->xx*v->x + t->yx*v->y + t->zx*v->z;
@@ -92,7 +105,8 @@ static inline void tensor2_dot_vector_t(tensor2_t* t, vector_t* v, vector_t* tv)
   tv->z = t->xz*v->x + t->yz*v->y + t->zz*v->z;
 }
 
-// Computes the double dot product x dot t dot y.
+/// Computes the double dot product x dot t dot y.
+/// \memberof tensor2
 static inline real_t tensor2_ddot(tensor2_t* t, vector_t* x, vector_t* y)
 {
   vector_t ty;
@@ -100,7 +114,8 @@ static inline real_t tensor2_ddot(tensor2_t* t, vector_t* x, vector_t* y)
   return vector_dot(x, &ty);
 }
 
-// Computes the inverse of the tensor.
+/// Computes the inverse of the tensor.
+/// \memberof tensor2
 static inline void tensor2_invert(tensor2_t* t, tensor2_t* t_inverse)
 {
 #ifndef NDEBUG
@@ -118,11 +133,13 @@ static inline void tensor2_invert(tensor2_t* t, tensor2_t* t_inverse)
   t_inverse->zz = t->xx*t->yy - t->xy*t->yx;
 }
 
-// Writes a text representation of the tensor to the given stream.
+/// Writes a text representation of the tensor to the given stream.
+/// \memberof tensor2
 void tensor2_fprintf(tensor2_t* t, FILE* stream);
 
-// A rank-2 symmetric tensor in 3D space. You can cast this to and from an 
-// array of 6 real_t. Not castable to any Fortran matrix type.
+/// \class sym_tensor2
+/// A rank-2 symmetric tensor in 3D space. You can cast this to and from an 
+/// array of 6 real_t. Not castable to any Fortran matrix type.
 typedef struct
 {
   real_t xx, xy, xz,
@@ -130,20 +147,23 @@ typedef struct
                  zz;
 } sym_tensor2_t;
 
-// Allocates a new symmetric tensor2 on the heap with the given components. Not 
-// necessary if you are allocating a symmetric tensor2 on the stack. Objects of 
-// this type are garbage-collected when allocated on the heap.
+/// Allocates a new symmetric tensor2 on the heap with the given components. Not 
+/// necessary if you are allocating a symmetric tensor2 on the stack. Objects of 
+/// this type are garbage-collected when allocated on the heap.
+/// \memberof sym_tensor2
 sym_tensor2_t* sym_tensor2_new(real_t xx, real_t xy, real_t xz,
                                           real_t yy, real_t yz,
                                                      real_t zz);
 
-// Copies symmetric tensor components from src to dest.
+/// Copies symmetric tensor components from src to dest.
+/// \memberof sym_tensor2
 static inline void sym_tensor2_copy(sym_tensor2_t* src, sym_tensor2_t* dest)
 {
   memcpy(dest, src, 6*sizeof(real_t));
 }
 
-// Sets the components of the given symmetric tensor.
+/// Sets the components of the given symmetric tensor.
+/// \memberof sym_tensor2
 static inline void sym_tensor2_set(sym_tensor2_t* t, 
                                    real_t xx, real_t xy, real_t xz, 
                                               real_t yy, real_t yz,
@@ -154,8 +174,9 @@ static inline void sym_tensor2_set(sym_tensor2_t* t,
                           t->zz = zz;
 }
 
-// Sets the given symmetric tensor to a 3x3 identity tensor scaled by 
-// the given factor.
+/// Sets the given symmetric tensor to a 3x3 identity tensor scaled by 
+/// the given factor.
+/// \memberof sym_tensor2
 static inline void sym_tensor2_set_identity(sym_tensor2_t* t, real_t factor)
 {
   t->xx = factor; t->xy = 0.0;    t->xz = 0.0;
@@ -163,7 +184,8 @@ static inline void sym_tensor2_set_identity(sym_tensor2_t* t, real_t factor)
                                   t->zz = factor;
 }
 
-// Scales the components of the given symmetric tensor.
+/// Scales the components of the given symmetric tensor.
+/// \memberof sym_tensor2
 static inline void sym_tensor2_scale(sym_tensor2_t* t, real_t factor)
 {
   t->xx *= factor; t->xy *= factor; t->xz *= factor;
@@ -171,7 +193,8 @@ static inline void sym_tensor2_scale(sym_tensor2_t* t, real_t factor)
                                     t->zz *= factor;
 }
 
-// Returns the determinant of the symmetric tensor.
+/// Returns the determinant of the symmetric tensor.
+/// \memberof sym_tensor2
 static inline real_t sym_tensor2_det(sym_tensor2_t* t)
 {
   return t->xx * (t->yy*t->zz - t->yz*t->yz) - 
@@ -179,13 +202,15 @@ static inline real_t sym_tensor2_det(sym_tensor2_t* t)
          t->xz * (t->xy*t->yz - t->xz*t->yy);
 }
 
-// Returns the trace of the symmetric tensor.
+/// Returns the trace of the symmetric tensor.
+/// \memberof sym_tensor2
 static inline real_t sym_tensor2_trace(sym_tensor2_t* t)
 {
   return t->xx + t->yy + t->zz;
 }
 
-// Computes the (vector-valued) symmetric-tensor-vector product.
+/// Computes the (vector-valued) symmetric-tensor-vector product.
+/// \memberof sym_tensor2
 static inline void sym_tensor2_dot_vector(sym_tensor2_t* t, vector_t* v, vector_t* tv)
 {
   tv->x = t->xx*v->x + t->xy*v->y + t->xz*v->z;
@@ -193,7 +218,8 @@ static inline void sym_tensor2_dot_vector(sym_tensor2_t* t, vector_t* v, vector_
   tv->z = t->xz*v->x + t->yz*v->y + t->zz*v->z;
 }
 
-// Computes the double dot product x dot t dot y.
+/// Computes the double dot product x dot t dot y.
+/// \memberof sym_tensor2
 static inline real_t sym_tensor2_ddot(sym_tensor2_t* t, vector_t* x, vector_t* y)
 {
   vector_t ty;
@@ -201,7 +227,8 @@ static inline real_t sym_tensor2_ddot(sym_tensor2_t* t, vector_t* x, vector_t* y
   return vector_dot(x, &ty);
 }
 
-// Computes the inverse of the symmetric tensor.
+/// Computes the inverse of the symmetric tensor.
+/// \memberof sym_tensor2
 static inline void sym_tensor2_invert(sym_tensor2_t* t, sym_tensor2_t* t_inverse)
 {
 #ifndef NDEBUG
@@ -216,19 +243,24 @@ static inline void sym_tensor2_invert(sym_tensor2_t* t, sym_tensor2_t* t_inverse
   t_inverse->zz = t->xx*t->yy - t->xy*t->xy;
 }
 
-// Computes the 3 eigenvalues of the symmetric tensor, storing them in 
-// the given array in ascending order.
+/// Computes the 3 eigenvalues of the symmetric tensor, storing them in 
+/// the given array in ascending order.
+/// \memberof sym_tensor2
 void sym_tensor2_get_eigenvalues(sym_tensor2_t* t, real_t eigenvalues[3]);
 
-// Computes the 3 eigenvalues and eigenvectors of the symmetric tensor, 
-// storing the former as scalars in the given array and the later as 
-// vectors in the array eigenvectors.
+/// Computes the 3 eigenvalues and eigenvectors of the symmetric tensor, 
+/// storing the former as scalars in the given array and the later as 
+/// vectors in the array eigenvectors.
+/// \memberof sym_tensor2
 void sym_tensor2_get_eigenvectors(sym_tensor2_t* t, 
                                   real_t eigenvalues[3], 
                                   vector_t eigenvectors[3]);
 
-// Writes a text representation of the symmetric tensor to the given stream.
+/// Writes a text representation of the symmetric tensor to the given stream.
+/// \memberof sym_tensor2
 void sym_tensor2_fprintf(sym_tensor2_t* t, FILE* stream);
+
+///@}
 
 // Arrays of tensors.
 DEFINE_ARRAY(tensor2_array, tensor2_t)

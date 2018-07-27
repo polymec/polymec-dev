@@ -10,8 +10,13 @@
 
 #include "core/rng.h"
 
-// Generates a random permutation of N elements using Knuth shuffles and the 
-// given random number generator.
+/// \addtogroup core core
+///@{
+
+/// Generates a random permutation of N elements using Knuth shuffles and the 
+/// given random number generator.
 void random_permutation(int N, rng_t* rng, int* permutation);
+
+///@}
 
 #endif

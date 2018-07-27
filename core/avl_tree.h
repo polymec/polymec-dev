@@ -27,12 +27,17 @@
 // void x_tree_node_visit(x_tree_node_t* node, x_tree_node_visitor visit, void*) - Visits the given node and its subtree.
 // int x_tree_size(x_tree_t* tree) - Returns the number of nodes in the tree. Computed, not stored.
 
+/// \addtogroup core core
+///@{
+
 // This maximum function is used to keep AVL trees ordered.
 static int avl_tree_max(int x, int y)
 {
   return ((x > y) ? x : y);
 }
 
+/// \def DEFINE_AVL_TREE
+/// Defines an AVL tree for a given element type.
 #define DEFINE_AVL_TREE(tree_name, element, comparator) \
 typedef struct tree_name##_node_t tree_name##_node_t; \
 typedef element tree_name##_element_t; \
@@ -302,10 +307,11 @@ static inline int tree_name##_size(tree_name##_t* tree) \
 } \
 \
 
-
 // Define some avl_trees.
 DEFINE_AVL_TREE(int_avl_tree, int, int_cmp)
 DEFINE_AVL_TREE(real_avl_tree, real_t, real_cmp)
 DEFINE_AVL_TREE(string_avl_tree, char*, strcmp)
+
+///@}
 
 #endif

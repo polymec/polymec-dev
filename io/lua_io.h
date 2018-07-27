@@ -18,6 +18,9 @@
 /// \addtogroup io io
 ///@{
 
+/// \addtogroup lua lua
+///@{
+
 /// This function registers the I/O modules within the interpreter L. It 
 /// should be called before any of these types are accessed within the 
 /// interpreter.
@@ -33,6 +36,8 @@ bool lua_is_silo_file(lua_State* L, int index);
 /// Returns the SILO file at the given index on L's stack, or NULL 
 /// if the item there is not a SILO file.
 silo_file_t* lua_to_silo_file(lua_State* L, int index);
+
+///@}
 
 ///@}
 

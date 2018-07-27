@@ -40,6 +40,11 @@
 // bool x_map_next(x_map_t* map, int* pos, x_map_key_t* key, x_map_value_t* value) - Allows the traversal of the maps keys and values.
 // bool x_map_empty(x_map_t* map) - Returns true if empty, false otherwise.
 
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_UNORDERED_MAP
+/// Defines an unordered map for the given key and value types.
 #define DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, equals_func) \
 typedef key_type map_name##_key_t; \
 typedef value_type map_name##_value_t; \
@@ -377,6 +382,8 @@ static inline bool map_name##_empty(map_name##_t* map) \
   return (map->size == 0); \
 } \
 \
+
+///@}
 
 // Define some unordered maps.
 DEFINE_UNORDERED_MAP(int_int_unordered_map, int, int, int_hash, int_equals)

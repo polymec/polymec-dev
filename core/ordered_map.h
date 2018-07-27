@@ -27,6 +27,11 @@
 // void x_map_insert(x_map_t* map, x datum) - Inserts a datum into the map.
 // void x_map_delete(x_map_t* map, x datum) - Deletes the datum from the map.
 
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_ORDERED_MAP
+/// Defines an ordered map with the given key and value types.
 #define DEFINE_ORDERED_MAP(map_name, key_type, value_type, key_comparator) \
 DEFINE_KEY_VALUE(map_name##_key_value, key_type, value_type) \
 static inline int map_name##_key_value_cmp(map_name##_key_value_t x, map_name##_key_value_t y) \
@@ -100,5 +105,7 @@ static inline void map_name##_delete(map_name##_t* map, key_type key) \
   } \
 } \
 \
+
+///@}
 
 #endif

@@ -10,50 +10,67 @@
 
 #include "core/polymec.h"
 
-// A type that stores command line options. Objects of this type are 
-// garbage-collected.
+/// \addtogroup core core
+///@{
+
+/// \class options
+/// A type that stores command line options. Objects of this type are 
+/// garbage-collected.
 typedef struct options_t options_t;
 
-// Creates an empty options object. This is mostly for simplifying logic.
+/// Creates an empty options object. This is mostly for simplifying logic.
+/// \memberof options
 options_t* options_new(void);
 
-// Returns the options_argv singleton that holds all of the parsed command 
-// line options.
+/// Returns the options_argv singleton that holds all of the parsed command 
+/// line options.
+/// \memberof options
 options_t* options_argv(void);
 
-// Parses options from the command line, initializing the command line 
-// options singleton.
+/// Parses options from the command line, initializing the command line 
+/// options singleton.
+/// \memberof options
 void options_parse(int argc, char** argv);
 
-// Returns an internal string holding the numbered argument passed on the 
-// command line, in the same way argv would store it, or NULL if no such 
-// argument was given. 
+/// Returns an internal string holding the numbered argument passed on the 
+/// command line, in the same way argv would store it, or NULL if no such 
+/// argument was given. 
+/// \memberof options
 char* options_argument(options_t* opts, size_t n);
 
-// Returns the number of arguments given on the command line, including
-// parameters with values.
+/// Returns the number of arguments given on the command line, including
+/// parameters with values.
+/// \memberof options
 size_t options_num_arguments(options_t* opts);
 
-// Returns true if the given argument was passed to the command line,
-// with or without an associated value. False otherwise.
+/// Returns true if the given argument was passed to the command line,
+/// with or without an associated value. False otherwise.
+/// \memberof options
 bool options_has_argument(options_t* opts, const char* arg);
 
-// Appends the given argument to the list.
+/// Appends the given argument to the list.
+/// \memberof options
 void options_add_argument(options_t* opts, const char* arg);
 
-// Removes the given argument from the list. Use with caution. This has 
-// no effect if the given argument doesn't exist.
+/// Removes the given argument from the list. Use with caution. This has 
+/// no effect if the given argument doesn't exist.
+/// \memberof options
 void options_remove_argument(options_t* opts, size_t n);
 
-// Returns a string holding the given named value, or NULL if no such 
-// parameter exists within opts.
+/// Returns a string holding the given named value, or NULL if no such 
+/// parameter exists within opts.
+/// \memberof options
 char* options_value(options_t* opts, const char* name);
 
-// Sets the given value for the the given option.
+/// Sets the given value for the the given option.
+/// \memberof options
 void options_set(options_t* opts, const char* name, const char* value);
 
-// Use this to traverse the named values in the list. Set *pos to 0 to reset.
+/// Use this to traverse the named values in the list. Set *pos to 0 to reset.
+/// \memberof options
 bool options_next_value(options_t* opts, int* pos, const char** name, const char** value);
+
+///@}
 
 #endif
 

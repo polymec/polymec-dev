@@ -10,7 +10,10 @@
 
 #include <string.h>
 
-// A solid string hash function by Dan Bernstein.
+/// \addtogroup core core
+///@{
+
+/// A solid string hash function by Dan Bernstein.
 static inline int djb2_hash(unsigned char* str, int len)
 {
   int hash = 5381;
@@ -24,7 +27,7 @@ static inline int djb2_hash(unsigned char* str, int len)
   return hash;
 }
 
-// A slightly improved version of djb2 using xor.
+/// A slightly improved version of djb2 using xor.
 static inline int djb2_xor_hash(unsigned char* str, int len)
 {
   int hash = 5381;
@@ -38,34 +41,42 @@ static inline int djb2_xor_hash(unsigned char* str, int len)
   return hash;
 }
 
+/// Integer hash function
 static inline int int_hash(int i)
 {
   return djb2_xor_hash((unsigned char*)&i, sizeof(int));
 }
 
+/// Index hash function
 static inline int index_hash(index_t i)
 {
   return djb2_xor_hash((unsigned char*)&i, sizeof(index_t));
 }
 
+/// Hash function for a pair of ints.
 static inline int int_pair_hash(int* i)
 {
   return djb2_xor_hash((unsigned char*)i, 2*sizeof(int));
 }
 
+/// Hash function for a pair of indices.
 static inline int index_pair_hash(index_t* i)
 {
   return djb2_xor_hash((unsigned char*)i, 2*sizeof(index_t));
 }
 
+/// String hash function
 static inline int string_hash(char* str)
 {
   return djb2_xor_hash((unsigned char*)str, (int)strlen(str));
 }
 
+/// Pointer hash function
 static inline int ptr_hash(void* p)
 {
   return djb2_xor_hash((unsigned char*)p, sizeof(void*));
 }
+
+///@}
 
 #endif

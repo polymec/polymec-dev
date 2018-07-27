@@ -34,7 +34,12 @@
 // bool x_dlist_empty(x_dlist_t* list) - Returns true if empty, false otherwise.
 // void x_dlist_clear(x_dlist_t* list) - Clears the given list, making it empty.
 
-#define DEFINE_dlist(list_name, element) \
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_DLIST
+/// Defines a doubly-linked list for a given element type.
+#define DEFINE_DLIST(list_name, element) \
 typedef struct list_name##_node_t list_name##_node_t; \
 typedef void (*list_name##_dtor)(element); \
 struct list_name##_node_t \
@@ -233,11 +238,13 @@ static inline void list_name##_clear(list_name##_t* list) \
     list_name##_pop(list, NULL); \
 } \
 
+///@}
+
 // Define some basic dlist types.
-DEFINE_dlist(int_dlist, int)
-DEFINE_dlist(long_dlist, long)
-DEFINE_dlist(real_dlist, real_t)
-DEFINE_dlist(string_dlist, char*)
-DEFINE_dlist(ptr_dlist, void*)
+DEFINE_DLIST(int_dlist, int)
+DEFINE_DLIST(long_dlist, long)
+DEFINE_DLIST(real_dlist, real_t)
+DEFINE_DLIST(string_dlist, char*)
+DEFINE_DLIST(ptr_dlist, void*)
 
 #endif

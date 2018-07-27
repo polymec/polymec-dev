@@ -34,6 +34,11 @@
 // void x_set_difference(x_set_t* set, x_set_t* other_set, x_set_t* difference) - Differences this set with the other set, storing the result in intersection.
 // bool x_set_empty(x_set_t* set) - Returns true if empty, false otherwise.
 
+/// \addtogroup core core
+///@{
+
+/// \def DEFINE_UNORDERED_SET
+/// Defines an ordered set for the given element type.
 #define DEFINE_UNORDERED_SET(set_name, element, hash_func, equals_func) \
 DEFINE_UNORDERED_MAP(set_name##_unordered_map, element, bool, hash_func, equals_func) \
 typedef element set_name##_element_t; \
@@ -135,6 +140,8 @@ static inline bool set_name##_empty(set_name##_t* set) \
   return (set->size == 0); \
 } \
 \
+
+///@}
 
 // Define some ordered_sets.
 DEFINE_UNORDERED_SET(int_unordered_set, int, int_hash, int_equals)
