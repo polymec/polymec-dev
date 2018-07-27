@@ -1,3 +1,10 @@
+Thu Jul 26 20:03:08 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.3.0
+      - Lua type system now just uses classes (no more record types).
+      - It's easier to add fields (with getters/setters) to classes and to modules.
+      - The Lua interface is a bit more comfortable, since objects can have 
+        fields now, and not just methods.
+      - Added a "doc" target that generates API documentation with Doxygen.
 Tue Jul 24 09:57:53 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.5
       - Fixed various installation-related glitches.
