@@ -158,9 +158,9 @@ print("Data: ", gol:data())
 -- Load the model at the 4th step.
 print("Loading step 3...")
 gol:load(3)
-assert(gol:step() == 3)
-assert(gol:time() == 3)
-print(string.format("Step %d, time %g", gol:step(), gol:time()))
+assert(gol.step == 3)
+assert(gol.time == 3)
+print(string.format("Step %d, time %g", gol.step, gol.time))
 gol:plot()
 
 -- Save the state.
@@ -169,6 +169,6 @@ gol:save()
 -- Reinitialize and make a plot.
 print("Reinitializing and plotting...")
 gol:init(0)
-assert(gol:step() == 0)
+assert(gol.step == 0)
 gol:plot()
 
