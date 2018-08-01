@@ -9,6 +9,7 @@
 #define POLYMEC_PEXMESH_H
 
 #include "core/point.h"
+#include "geometry/polygon.h"
 
 /// \addtogroup geometry geometry
 ///@{
@@ -36,13 +37,21 @@ typedef enum
 /// A layer of columns within a pexmesh.
 typedef struct pexmesh_layer_t pexmesh_layer_t;
 
+typedef struct pexmesh_column_t pexmesh_column_t;
+
 /// \class pexmesh_column
 /// A column of cells within a pexmesh.
-typedef struct pexmesh_column_t pexmesh_column_t
+struct pexmesh_column_t
 {
+  /// Polygon representing the top and bottom facet.
+  polygon_t* polygon;
   /// Number of cells in the column.
   size_t num_cells; 
-};
+  /// Array of neighboring columns (arranged in the same order as the 
+  /// vertices/edges of the polygon). NULL if the column is on a parallel 
+  /// domain boundary or on the boundary of the mesh.
+  pexmesh_column_t** neighbors;
+}; 
 
 /// Creates a pexmesh with the given number of layers and columns.
 /// The layers and columns are managed by the mesh.
@@ -56,6 +65,38 @@ typedef struct pexmesh_column_t pexmesh_column_t
 pexmesh_t* pexmesh_new(MPI_Comm comm,
                        size_t num_layers, real_t* z,
                        size_t num_columns);
+
+//------------------------------------------------------------------------
+//                        Construction methods
+//------------------------------------------------------------------------
+// The following methods are used to construct pexmeshes.
+// pexmesh_finalize() must be called after a mesh has been properly
+// constructed.
+//------------------------------------------------------------------------
+
+/// Sets the polygon for the top/bottom face of the given (global) 
+/// column in the mesh. Subsequently, all segments of this column share this 
+/// polygon for their top/bottom faces.
+/// \memberof pexmesh
+void pexmesh_set_polygon(pexmesh_t* mesh, size_t column, polygon_t* polygon);
+
+/// Sets the distance within which two polygon vertices are considered to 
+/// be identical. This helps the pexmesh figure out which columns neighbor 
+/// one another.
+void pexmesh_set_vertex_tolerance(pexmesh_t* mesh, real_t tolerance);
+
+/// Finalizes the construction process for the mesh. This must be called 
+/// before any of the mesh's usage methods (below) are invoked. Should only 
+/// be called once.
+/// \memberof pexmesh
+void pexmesh_finalize(pexmesh_t* mesh);
+
+//------------------------------------------------------------------------
+//                        Usage methods
+//------------------------------------------------------------------------
+// The following methods can only be used after a pexmesh has been 
+// fully constructed and finalized.
+//------------------------------------------------------------------------
 
 /// Destroys the given mesh.
 /// \memberof pexmesh
@@ -82,7 +123,7 @@ bool pexmesh_next_layer(pexmesh_t* mesh, int* pos, pexmesh_layer_t** layer);
 
 /// Returns the number of columns in the pexmesh layer.
 /// \memberof pexmesh_layer
-size_t pexmesh_layer_num_columns(pexmesh_layert* layer);
+size_t pexmesh_layer_num_columns(pexmesh_layer_t* layer);
 
 /// Returns the bottom and top z coordinates of the pexmesh layer.
 /// \memberof pexmesh_layer

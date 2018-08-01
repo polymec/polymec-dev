@@ -13,10 +13,11 @@ static void free_column(pexmesh_column_t* col)
   polymec_free(col);
 }
 
-DEFINE_ARRAY(column_array, pexmesh_column_t*);
+DEFINE_ARRAY(column_array, pexmesh_column_t*)
 
 struct pexmesh_layer_t 
 {
+  pexmesh_t* mesh;
   real_t z1, z2;
   column_array_t* columns;
 };
@@ -27,13 +28,19 @@ static void free_layer(pexmesh_layer_t* layer)
   polymec_free(layer);
 }
 
-DEFINE_ARRAY(layer_array, pexmesh_layer_t*);
+DEFINE_ARRAY(layer_array, pexmesh_layer_t*)
+
+DEFINE_ARRAY(polygon_array, polygon_t*)
 
 struct pexmesh_t 
 {
   MPI_Comm comm;
   layer_array_t* layers;
+  polygon_array_t* polygons;
   size_t num_columns;
+
+  real_t vertex_tol;
+  bool finalized;
 };
 
 static void allocate_layers(pexmesh_t* mesh,
@@ -53,17 +60,43 @@ pexmesh_t* pexmesh_new(MPI_Comm comm,
   ASSERT(z != NULL);
   pexmesh_t* mesh = polymec_malloc(sizeof(pexmesh_t));
   mesh->comm = comm;
-
   allocate_layers(mesh, num_layers, z);
-
-  mesh->num_columns = num_columns;
+  mesh->polygons = polygon_array_new_with_size(num_columns);
+  mesh->vertex_tol = 1e-12;
+  mesh->finalized = false;
   return mesh;
 }
 
 void pexmesh_free(pexmesh_t* mesh)
 {
+  polygon_array_free(mesh->polygons);
   layer_array_free(mesh->layers);
   polymec_free(mesh);
+}
+
+void pexmesh_set_vertex_tolerance(pexmesh_t* mesh, real_t tolerance)
+{
+  ASSERT(!mesh->finalized);
+}
+
+void pexmesh_set_polygon(pexmesh_t* mesh, size_t column, polygon_t* polygon)
+{
+  ASSERT(!mesh->finalized);
+  ASSERT(column < mesh->polygons->size);
+  mesh->polygons->data[column] = polygon;
+}
+
+void pexmesh_finalize(pexmesh_t* mesh)
+{
+  ASSERT(!mesh->finalized);
+
+  // Set layers and neighbors.
+  for (size_t l = 0; l < mesh->layers->size; ++l)
+  {
+
+  }
+
+  mesh->finalized = true;
 }
 
 MPI_Comm pexmesh_comm(pexmesh_t* mesh)
@@ -78,7 +111,7 @@ size_t pexmesh_num_layers(pexmesh_t* mesh)
 
 size_t pexmesh_num_columns(pexmesh_t* mesh)
 {
-  return mesh->num_columns;
+  return mesh->polygons->size;
 }
 
 bool pexmesh_next_layer(pexmesh_t* mesh, int* pos, pexmesh_layer_t** layer)
@@ -93,7 +126,7 @@ bool pexmesh_next_layer(pexmesh_t* mesh, int* pos, pexmesh_layer_t** layer)
   }
 }
 
-size_t pexmesh_layer_num_columns(pexmesh_layert* layer)
+size_t pexmesh_layer_num_columns(pexmesh_layer_t* layer)
 {
   return layer->columns->size;
 }
