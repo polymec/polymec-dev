@@ -10,7 +10,6 @@
 
 #include "core/point.h"
 #include "geometry/polygon.h"
-#include "geometry/polymesh.h"
 
 /// \addtogroup geometry geometry
 ///@{
@@ -167,6 +166,8 @@ void repartition_pexmesh(pexmesh_t** mesh,
                          real_t imbalance_tol,
                          pexmesh_field_t** fields,
                          size_t num_fields);
+
+typedef struct polymesh_t polymesh_t;
 
 /// Returns a polymesh that represents the same geometry as this pexmesh.
 /// \memberof pexmesh

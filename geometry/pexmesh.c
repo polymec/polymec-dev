@@ -7,6 +7,7 @@
 
 #include "core/array.h"
 #include "geometry/pexmesh.h"
+#include "geometry/polymesh.h"
 
 static void free_column(pexmesh_column_t* col)
 {

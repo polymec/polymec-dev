@@ -33,10 +33,12 @@ extern const char* POLYMESH_IS_TETRAHEDRAL; // indicates that a polymesh is tetr
 
 typedef struct polymesh_storage_t polymesh_storage_t;
 
+typedef struct polymesh_t polymesh_t;
+
 /// \class polymesh
 /// This type represents an unstructured polyhedral mesh consisting of 
 /// stationary cells and the faces connecting them.
-typedef struct 
+struct polymesh_t
 {
   /// MPI communicator.
   MPI_Comm comm;
@@ -95,7 +97,7 @@ typedef struct
 
   /// Mesh storage information -- used internally.
   polymesh_storage_t* storage;
-} polymesh_t;
+};
 
 /// Constructs a new polymesh with the given number of cells, ghost cells, 
 /// faces, and nodes. This function does not provide any description
