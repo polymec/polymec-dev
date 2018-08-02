@@ -68,7 +68,7 @@ int unimesh_field_num_components(unimesh_field_t* field);
 /// \memberof unimesh_field
 int unimesh_field_num_patches(unimesh_field_t* field);
 
-/// Returns an internal pointer to the given object's underlying unimesh.
+/// Returns an internal pointer to the field's underlying unimesh.
 /// \memberof unimesh_field
 unimesh_t* unimesh_field_mesh(unimesh_field_t* field);
 
@@ -78,11 +78,10 @@ unimesh_t* unimesh_field_mesh(unimesh_field_t* field);
 /// \memberof unimesh_field
 unimesh_patch_t* unimesh_field_patch(unimesh_field_t* field, int i, int j, int k);
 
-/// Traverses the mesh data, returning true if a patch was found and false if not.
-/// Set *pos to 0 to reset the traversal. patch is set to the cell patch.
+/// Traverses the field data, returning true if a patch was found and false if not.
+/// Set *pos to 0 to reset the traversal. patch is set to the patch found.
 /// Additionally, if bbox is non-NULL, its fields x1, x2, y1, y2, z1, z2 will 
-/// be set to the coordinates of the patch's extent, 
-/// including ghost cells.
+/// be set to the coordinates of the patch's extent, including ghost cells.
 /// \memberof unimesh_field
 bool unimesh_field_next_patch(unimesh_field_t* field, int* pos, 
                               int* i, int* j, int* k, 

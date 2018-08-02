@@ -54,7 +54,7 @@ void polymesh_field_free(polymesh_field_t* field);
 
 // Defines a 2D array that allows the field to be indexed thus:
 // f[i][c] returns the cth component of the value for the ith point.
-#define DECLARE_POINT_CLOUD_FIELD_ARRAY(array, field) \
+#define DECLARE_POLYMESH_FIELD_ARRAY(array, field) \
 DECLARE_2D_ARRAY(real_t, array, field->data, field->num_local_values + field->num_ghost_values, field->num_components)
 
 #endif

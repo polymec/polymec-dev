@@ -42,93 +42,109 @@ typedef struct
 // These macros generate multidimensional arrays that can access the given
 // patch's data using C99 variable-length arrays.
 
-// Cell arrays are indexed the following way:
-// array[i][j][k][c] where i is the x index, j is the y index, k is the z index,
-// and c is the component.
-// * i runs from 1 to patch->nx for interior cells, with ghost cells at 0 and 
-//   patch->nx+1.
-// * j runs from 1 to patch->ny for interior cells, with ghost cells at 0 and 
-//   patch->ny+1.
-// * k runs from 1 to patch->nz for interior cells, with ghost cells at 0 and 
-//   patch->nz+1.
-// * c runs from 0 to patch->nc-1.
+/// \def DECLARE_UNIMESH_CELL_ARRAY
+/// Allows access to unimesh cell data. Cell arrays are indexed the following 
+/// way:
+/// array[i][j][k][c] where i is the x index, j is the y index, k is the z index,
+/// and c is the component.
+/// * i runs from 1 to patch->nx for interior cells, with ghost values at 0 and 
+///   patch->nx+1.
+/// * j runs from 1 to patch->ny for interior cells, with ghost values at 0 and 
+///   patch->ny+1.
+/// * k runs from 1 to patch->nz for interior cells, with ghost values at 0 and 
+///   patch->nz+1.
+/// * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_CELL_ARRAY(array, patch) \
 ASSERT(patch->centering == UNIMESH_CELL); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+2, patch->ny+2, patch->nz+2, patch->nc)
 
-// X-face arrays are indexed the following way:
-// array[i][j][k][c] with (i, j, k) identifying the upper x face of the 
-// cell in the (i, j, k) position, and c as the component.
-// * i runs from 0 to patch->nx.
-// * j runs from 0 to patch->ny-1.
-// * k runs from 0 to patch->nz-1.
-// * c runs from 0 to patch->nc-1.
+/// \def DECLARE_UNIMESH_XFACE_ARRAY
+/// Allows access to unimesh x-face data. X-face arrays are indexed the 
+/// following way:
+/// array[i][j][k][c] with (i, j, k) identifying the upper x face of the 
+/// cell in the (i, j, k) position, and c as the component.
+/// * i runs from 0 to patch->nx.
+/// * j runs from 0 to patch->ny-1.
+/// * k runs from 0 to patch->nz-1.
+/// * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_XFACE_ARRAY(array, patch) \
 ASSERT(patch->centering == UNIMESH_XFACE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny, patch->nz, patch->nc)
 
-// Y-face arrays are indexed the following way:
-// array[i][j][k][c] with (i, j, k) identifying the upper y face of the 
-// cell in the (i, j, k) position, and c as the component.
-// * i runs from 0 to patch->nx-1.
-// * j runs from 0 to patch->ny.
-// * k runs from 0 to patch->nz-1.
-// * c runs from 0 to patch->nc-1.
+/// \def DECLARE_UNIMESH_YFACE_ARRAY
+/// Allows access to unimesh y-face data. Y-face arrays are indexed the 
+/// following way:
+/// array[i][j][k][c] with (i, j, k) identifying the upper y face of the 
+/// cell in the (i, j, k) position, and c as the component.
+/// * i runs from 0 to patch->nx-1.
+/// * j runs from 0 to patch->ny.
+/// * k runs from 0 to patch->nz-1.
+/// * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_YFACE_ARRAY(array, patch) \
 ASSERT(patch->centering == UNIMESH_YFACE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx, patch->ny+1, patch->nz, patch->nc)
 
-// Z-face arrays are indexed the following way:
-// array[i][j][k][c] with (i, j, k) identifying the upper z face of the 
-// cell in the (i, j, k) position, and c as the component.
-// * i runs from 0 to patch->nx-1.
-// * j runs from 0 to patch->ny-1.
-// * k runs from 0 to patch->nz.
+/// \def DECLARE_UNIMESH_ZFACE_ARRAY
+/// Allows access to unimesh z-face data. Z-face arrays are indexed the 
+/// following way:
+/// array[i][j][k][c] with (i, j, k) identifying the upper z face of the 
+/// cell in the (i, j, k) position, and c as the component.
+/// * i runs from 0 to patch->nx-1.
+/// * j runs from 0 to patch->ny-1.
+/// * k runs from 0 to patch->nz.
 // * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_ZFACE_ARRAY(array, patch) \
 ASSERT(patch->centering == UNIMESH_ZFACE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx, patch->ny, patch->nz+1, patch->nc)
 
-// X-edge arrays are indexed the following way:
-// array[i][j][k][c] with (i, j, k) identifying the upper-y-upper-z edge of 
-// the cell in the (i, j, k) position, and c as the component.
-// * i runs from 0 to patch->nx-1.
-// * j runs from 0 to patch->ny.
-// * k runs from 0 to patch->nz.
-// * c runs from 0 to patch->nc-1.
+/// \def DECLARE_UNIMESH_XEDGE_ARRAY
+/// Allows access to unimesh x-edge data. X-edge arrays are indexed the 
+/// following way:
+/// array[i][j][k][c] with (i, j, k) identifying the upper-y-upper-z edge of 
+/// the cell in the (i, j, k) position, and c as the component.
+/// * i runs from 0 to patch->nx-1.
+/// * j runs from 0 to patch->ny.
+/// * k runs from 0 to patch->nz.
+/// * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_XEDGE_ARRAY(array, patch) \
 ASSERT(patch->centering == UNIMESH_XEDGE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx, patch->ny+1, patch->nz+1, patch->nc)
 
-// Y-edge arrays are indexed the following way:
-// array[i][j][k][c] with (i, j, k) identifying the upper-x-upper-z edge of 
-// the cell in the (i, j, k) position, and c as the component.
-// * i runs from 0 to patch->nx.
-// * j runs from 0 to patch->ny-1.
-// * k runs from 0 to patch->nz.
-// * c runs from 0 to patch->nc-1.
+/// \def DECLARE_UNIMESH_YEDGE_ARRAY
+/// Allows access to unimesh y-edge data. Y-edge arrays are indexed the 
+/// following way:
+/// array[i][j][k][c] with (i, j, k) identifying the upper-x-upper-z edge of 
+/// the cell in the (i, j, k) position, and c as the component.
+/// * i runs from 0 to patch->nx.
+/// * j runs from 0 to patch->ny-1.
+/// * k runs from 0 to patch->nz.
+/// * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_YEDGE_ARRAY(array, patch) \
 ASSERT(patch->centering == UNIMESH_YEDGE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny, patch->nz+1, patch->nc)
 
-// Z-edge arrays are indexed the following way:
-// array[i][j][k][c] with (i, j, k) identifying the upper-x-upper-y edge of 
-// the cell in the (i, j, k) position, and c as the component.
-// * i runs from 0 to patch->nx.
-// * j runs from 0 to patch->ny.
-// * k runs from 0 to patch->nz-1.
-// * c runs from 0 to patch->nc-1.
+/// \def DECLARE_UNIMESH_ZEDGE_ARRAY
+/// Allows access to unimesh z-edge data. Z-edge arrays are indexed the 
+/// following way:
+/// array[i][j][k][c] with (i, j, k) identifying the upper-x-upper-y edge of 
+/// the cell in the (i, j, k) position, and c as the component.
+/// * i runs from 0 to patch->nx.
+/// * j runs from 0 to patch->ny.
+/// * k runs from 0 to patch->nz-1.
+/// * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_ZEDGE_ARRAY(array, patch) \
 ASSERT(patch->centering == UNIMESH_ZEDGE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny+1, patch->nz, patch->nc)
 
-// Node arrays are indexed the following way:
-// array[i][j][k][c] with (i, j, k) identifying the upper-x-upper-y-upper-z 
-// node of the cell in the (i, j, k) position, and c as the component.
-// * i runs from 0 to patch->nx.
-// * j runs from 0 to patch->ny.
-// * k runs from 0 to patch->nz.
-// * c runs from 0 to patch->nc-1.
+/// \def DECLARE_UNIMESH_NODE_ARRAY
+/// Allows access to unimesh node data. Node arrays are indexed the 
+/// following way:
+/// array[i][j][k][c] with (i, j, k) identifying the upper-x-upper-y-upper-z 
+/// node of the cell in the (i, j, k) position, and c as the component.
+/// * i runs from 0 to patch->nx.
+/// * j runs from 0 to patch->ny.
+/// * k runs from 0 to patch->nz.
+/// * c runs from 0 to patch->nc-1.
 #define DECLARE_UNIMESH_NODE_ARRAY(array, patch) \
 ASSERT(patch->centering == UNIMESH_NODE); \
 DECLARE_4D_ARRAY(real_t, array, patch->data, patch->nx+1, patch->ny+1, patch->nz+1, patch->nc)

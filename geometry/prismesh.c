@@ -7,14 +7,14 @@
 
 #include "core/timer.h"
 #include "core/array.h"
-#include "geometry/pexmesh.h"
+#include "geometry/prismesh.h"
 #include "geometry/polymesh.h"
 
 #if POLYMEC_HAVE_MPI
 #include "core/partitioning.h"
 #endif
 
-static void free_column(pexmesh_column_t* col)
+static void free_column(prismesh_column_t* col)
 {
   if (col->polygon != NULL)
     col->polygon = NULL;
@@ -23,26 +23,17 @@ static void free_column(pexmesh_column_t* col)
   polymec_free(col);
 }
 
-DEFINE_ARRAY(column_array, pexmesh_column_t*)
-
-struct pexmesh_layer_t 
+static void free_layer(prismesh_layer_t* layer)
 {
-  pexmesh_t* mesh;
-  real_t z1, z2;
-  column_array_t* columns;
-};
-
-static void free_layer(pexmesh_layer_t* layer)
-{
-  column_array_free(layer->columns);
+  prism_column_array_free(layer->columns);
   polymec_free(layer);
 }
 
-DEFINE_ARRAY(layer_array, pexmesh_layer_t*)
+DEFINE_ARRAY(layer_array, prismesh_layer_t*)
 
 DEFINE_ARRAY(polygon_array, polygon_t*)
 
-struct pexmesh_t 
+struct prismesh_t 
 {
   MPI_Comm comm;
   int nproc, rank;
@@ -55,39 +46,7 @@ struct pexmesh_t
   bool finalized;
 };
 
-static void allocate_layers(pexmesh_t* mesh,
-                            real_t* z)
-{
-  mesh->layers = layer_array_new();
-#if POLYMEC_HAVE_MPI
-  if (mesh->nproc == 1)
-  {
-#endif
-    pexmesh_layer_t* layer = polymec_malloc(sizeof(pexmesh_layer_t));
-    layer->mesh = mesh;
-    layer->z1 = z[0];
-    layer->z2 = z[mesh->num_vertical_cells];
-    layer->columns = column_array_new();
-    for (size_t c = 0; c < mesh->num_columns; ++c)
-    {
-      pexmesh_column_t* col = polymec_malloc(sizeof(pexmesh_column_t));
-      col->index = c;
-      col->polygon = NULL;
-      col->num_cells = mesh->num_vertical_cells;
-      col->neighbors = NULL;
-      column_array_append_with_dtor(layer->columns, col, free_column);
-    }
-    layer_array_append_with_dtor(mesh->layers, layer, free_layer);
-#if POLYMEC_HAVE_MPI
-  }
-  else
-  {
-    polymec_error("Distributed pexmesh not supported yet!");
-  }
-#endif
-}
-
-pexmesh_t* pexmesh_new(MPI_Comm comm,
+prismesh_t* prismesh_new(MPI_Comm comm,
                        size_t num_columns, 
                        size_t num_vertical_cells,
                        real_t* z)
@@ -99,19 +58,19 @@ pexmesh_t* pexmesh_new(MPI_Comm comm,
   for (size_t i = 1; i < num_vertical_cells; ++i)
     ASSERT(z[i+1] > z[i]);
 #endif
-  pexmesh_t* mesh = polymec_malloc(sizeof(pexmesh_t));
+  prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
   mesh->comm = comm;
   MPI_Comm_size(comm, &mesh->nproc);
   MPI_Comm_rank(comm, &mesh->rank);
+  mesh->layers = layer_array_new();
   mesh->polygons = polygon_array_new_with_size(num_columns);
   mesh->neighbors = ptr_array_new_with_size(num_columns);
   mesh->num_vertical_cells = num_vertical_cells;
   mesh->finalized = false;
-  allocate_layers(mesh, z);
   return mesh;
 }
 
-void pexmesh_free(pexmesh_t* mesh)
+void prismesh_free(prismesh_t* mesh)
 {
   ptr_array_free(mesh->neighbors);
   polygon_array_free(mesh->polygons);
@@ -119,7 +78,7 @@ void pexmesh_free(pexmesh_t* mesh)
   polymec_free(mesh);
 }
 
-void pexmesh_set_column(pexmesh_t* mesh, 
+void prismesh_set_column(prismesh_t* mesh, 
                         size_t column, 
                         polygon_t* polygon,
                         size_t* neighbors)
@@ -134,72 +93,72 @@ void pexmesh_set_column(pexmesh_t* mesh,
     n->data[i] = neighbors[i];
 }
 
-void pexmesh_finalize(pexmesh_t* mesh)
+void prismesh_finalize(prismesh_t* mesh)
 {
   ASSERT(!mesh->finalized);
 
   // Set up columns within layers.
   for (size_t l = 0; l < mesh->layers->size; ++l)
   {
-    pexmesh_layer_t* layer = mesh->layers->data[l];
+    prismesh_layer_t* layer = mesh->layers->data[l];
 
     if (mesh->layers->size == 1) // easy case! All columns present in layer
     {
       size_t ncols = layer->columns->size;
       for (size_t c = 0; c < ncols; ++c)
       {
-        pexmesh_column_t* col = layer->columns->data[c];
+        prismesh_column_t* col = layer->columns->data[c];
         ASSERT(c == col->index);
         polygon_t* polygon = mesh->polygons->data[c];
         ASSERT(polygon != NULL);
         col->polygon = polygon;
         int num_edges = polygon_num_edges(polygon);
-        col->neighbors = polymec_malloc(sizeof(pexmesh_column_t*) * num_edges);
+        col->neighbors = polymec_malloc(sizeof(prismesh_column_t*) * num_edges);
 
         size_t_array_t* neighbors = mesh->neighbors->data[c];
         for (size_t n = 0; n < num_edges; ++n)
         {
-          pexmesh_column_t* ncol = layer->columns->data[neighbors->data[n]];
+          prismesh_column_t* ncol = layer->columns->data[neighbors->data[n]];
           col->neighbors[n] = ncol;
         }
       }
     }
     else
     {
-      polymec_error("Distributed pexmesh not yet supported!");
+      polymec_error("Distributed prismesh not yet supported!");
     }
   }
 
   mesh->finalized = true;
 }
 
-MPI_Comm pexmesh_comm(pexmesh_t* mesh)
+MPI_Comm prismesh_comm(prismesh_t* mesh)
 {
   return mesh->comm;
 }
 
-size_t pexmesh_num_layers(pexmesh_t* mesh)
+size_t prismesh_num_layers(prismesh_t* mesh)
 {
   return mesh->layers->size;
 }
 
-size_t pexmesh_num_columns(pexmesh_t* mesh)
+size_t prismesh_num_columns(prismesh_t* mesh)
 {
   return mesh->polygons->size;
 }
 
-size_t pexmesh_num_vertical_cells(pexmesh_t* mesh)
+size_t prismesh_num_vertical_cells(prismesh_t* mesh)
 {
   return mesh->num_vertical_cells;
 }
 
-polygon_t* pexmesh_polygon(pexmesh_t* mesh, size_t column)
+polygon_t* prismesh_polygon(prismesh_t* mesh, size_t column)
 {
   ASSERT(column < mesh->polygons->size);
   return mesh->polygons->data[column];
 }
 
-bool pexmesh_next_layer(pexmesh_t* mesh, int* pos, pexmesh_layer_t** layer)
+bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer)
 {
   if (*pos >= (int)mesh->layers->size)
     return false;
@@ -211,20 +170,20 @@ bool pexmesh_next_layer(pexmesh_t* mesh, int* pos, pexmesh_layer_t** layer)
   }
 }
 
-size_t pexmesh_layer_num_columns(pexmesh_layer_t* layer)
+size_t prismesh_layer_num_columns(prismesh_layer_t* layer)
 {
   return layer->columns->size;
 }
 
-void pexmesh_layer_get_bounds(pexmesh_layer_t* layer, real_t* z1, real_t *z2)
+void prismesh_layer_get_bounds(prismesh_layer_t* layer, real_t* z1, real_t *z2)
 {
   *z1 = layer->z1;
   *z2 = layer->z2;
 }
 
-bool pexmesh_layer_next_column(pexmesh_layer_t* layer, 
+bool prismesh_layer_next_column(prismesh_layer_t* layer, 
                                int* pos, 
-                               pexmesh_column_t** column)
+                               prismesh_column_t** column)
 {
   if (*pos >= (int)layer->columns->size)
     return false;
@@ -237,7 +196,7 @@ bool pexmesh_layer_next_column(pexmesh_layer_t* layer,
 }
 
 #if POLYMEC_HAVE_MPI
-static adj_graph_t* graph_from_polygons(pexmesh_t* mesh)
+static adj_graph_t* graph_from_polygons(prismesh_t* mesh)
 {
   // Create a graph whose vertices are the centroids of the mesh's 
   // collection of polygons in the plane. NOTE that we associate this graph 
@@ -269,14 +228,14 @@ static adj_graph_t* graph_from_polygons(pexmesh_t* mesh)
   return g;
 }
 
-static void redistribute_pexmesh(pexmesh_t** mesh, 
+static void redistribute_prismesh(prismesh_t** mesh, 
                                  int64_t* partition)
 {
   START_FUNCTION_TIMER();
 
   // Create a new mesh from the old one.
-  pexmesh_t* old_mesh = *mesh;
-  pexmesh_t* new_mesh = polymec_malloc(sizeof(pexmesh_t));
+  prismesh_t* old_mesh = *mesh;
+  prismesh_t* new_mesh = polymec_malloc(sizeof(prismesh_t));
   new_mesh->comm = old_mesh->comm;
   new_mesh->nproc = old_mesh->nproc;
   new_mesh->rank = old_mesh->rank;
@@ -307,7 +266,7 @@ static void redistribute_pexmesh(pexmesh_t** mesh,
   STOP_FUNCTION_TIMER();
 }
 
-static int64_t* source_vector(pexmesh_t* mesh)
+static int64_t* source_vector(prismesh_t* mesh)
 {
   // Catalog all the patches on this process.
   int_array_t* my_patches = int_array_new();
@@ -359,18 +318,18 @@ static int64_t* source_vector(pexmesh_t* mesh)
   return sources;
 }
 
-static void redistribute_pexmesh_field(pexmesh_field_t** field, 
+static void redistribute_prismesh_field(prismesh_field_t** field, 
                                        int64_t* partition,
                                        int64_t* sources,
-                                       pexmesh_t* new_mesh)
+                                       prismesh_t* new_mesh)
 {
   START_FUNCTION_TIMER();
 
   // Create a new field from the old one.
-  pexmesh_field_t* old_field = *field;
-  pexmesh_field_t* new_field = pexmesh_field_new(new_mesh,
-                                                 pexmesh_field_centering(old_field),
-                                                 pexmesh_field_num_components(old_field));
+  prismesh_field_t* old_field = *field;
+  prismesh_field_t* new_field = prismesh_field_new(new_mesh,
+                                                 prismesh_field_centering(old_field),
+                                                 prismesh_field_num_components(old_field));
 
   // Copy all local layers from one field to the other.
   unimesh_patch_t* patch;
@@ -436,10 +395,10 @@ static void redistribute_pexmesh_field(pexmesh_field_t** field,
 }
 #endif
 
-void repartition_pexmesh(pexmesh_t** mesh, 
+void repartition_prismesh(prismesh_t** mesh, 
                          int* weights,
                          real_t imbalance_tol,
-                         pexmesh_field_t** fields,
+                         prismesh_field_t** fields,
                          size_t num_fields)
 {
   ASSERT((weights == NULL) || (imbalance_tol > 0.0));
@@ -451,7 +410,7 @@ void repartition_pexmesh(pexmesh_t** mesh,
   START_FUNCTION_TIMER();
 
   // On a single process, repartitioning has no meaning.
-  pexmesh_t* old_mesh = *mesh;
+  prismesh_t* old_mesh = *mesh;
   if (old_mesh->nproc == 1) 
   {
     STOP_FUNCTION_TIMER();
@@ -470,7 +429,7 @@ void repartition_pexmesh(pexmesh_t** mesh,
   // Map the graph to the different domains, producing a partition vector.
   // We need the partition vector on all processes in the communicator, so we 
   // scatter it from rank 0.
-  log_debug("repartition_pexmesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
+  log_debug("repartition_prismesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
   int64_t* poly_partition = partition_graph(graph, poly_comm, weights, imbalance_tol, true);
 
   // Translate our polygonal partition vector into the real one (which includes
@@ -480,8 +439,8 @@ void repartition_pexmesh(pexmesh_t** mesh,
 
   // Redistribute the mesh. 
   log_debug("repartition_peximesh: Redistributing mesh.");
-  redistribute_pexmesh(mesh, partition);
-  pexmesh_finalize(*mesh);
+  redistribute_prismesh(mesh, partition);
+  prismesh_finalize(*mesh);
 
   // Build a sources vector whose ith component is the rank that used to own 
   // the ith patch.
@@ -492,13 +451,13 @@ void repartition_pexmesh(pexmesh_t** mesh,
     log_debug("repartition_unimesh: Redistributing %d fields.", (int)num_fields);
   for (size_t f = 0; f < num_fields; ++f)
   {
-    pexmesh_field_t* old_field = fields[f];
-    redistribute_pexmesh_field(&(fields[f]), partition, sources, *mesh);
-    pexmesh_field_free(old_field);
+    prismesh_field_t* old_field = fields[f];
+    redistribute_prismesh_field(&(fields[f]), partition, sources, *mesh);
+    prismesh_field_free(old_field);
   }
 
   // Clean up.
-  pexmesh_free(old_mesh);
+  prismesh_free(old_mesh);
   adj_graph_free(graph);
   polymec_free(sources);
   polymec_free(partition);
@@ -507,7 +466,7 @@ void repartition_pexmesh(pexmesh_t** mesh,
 #endif
 }
 
-polymesh_t* pexmesh_as_polymesh(pexmesh_t* mesh)
+polymesh_t* prismesh_as_polymesh(prismesh_t* mesh)
 {
   return NULL; // FIXME
 }
