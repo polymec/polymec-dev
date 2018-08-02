@@ -78,25 +78,18 @@ pexmesh_t* pexmesh_new(MPI_Comm comm,
 // constructed.
 //------------------------------------------------------------------------
 
-/// Sets the polygon for the top/bottom face of the given (global) 
-/// column in the mesh. Subsequently, all segments of this column share this 
-/// polygon for their top/bottom faces.
+/// Sets the geometry and the neighbors for the given column in the mesh. 
 /// \memberof pexmesh
 /// \param [in] column The index for the desired column.
-void pexmesh_set_polygon(pexmesh_t* mesh, size_t column, polygon_t* polygon);
-
-/// Sets the neighboring columns for the given column.
-/// \param [in] column The index for the desired column.
+/// \param [in] polygon The polygonal face for the top and bottom of each 
+///                     cell in the column.
 /// \param [in] neighbors An array of column indices indicating the neighbors 
 ///                       of the given column. The length of this array is 
-///                       determined by the polygon for the column.
-/// \memberof pexmesh
-void pexmesh_set_neighbors(pexmesh_t* mesh, size_t column, size_t* neighbors);
-
-/// Sets the distance within which two polygon vertices are considered to 
-/// be identical. This helps the pexmesh figure out which columns neighbor 
-/// one another.
-void pexmesh_set_vertex_tolerance(pexmesh_t* mesh, real_t tolerance);
+///                       \ref polygon_num_edges(polygon).
+void pexmesh_set_column(pexmesh_t* mesh, 
+                        size_t column, 
+                        polygon_t* polygon,
+                        size_t* neighbors);
 
 /// Finalizes the construction process for the mesh. This must be called 
 /// before any of the mesh's usage methods (below) are invoked. Should only 

@@ -46,7 +46,6 @@ struct pexmesh_t
   ptr_array_t* neighbors;
   size_t num_columns, num_vertical_cells;
 
-  real_t vertex_tol;
   bool finalized;
 };
 
@@ -101,7 +100,6 @@ pexmesh_t* pexmesh_new(MPI_Comm comm,
   mesh->polygons = polygon_array_new_with_size(num_columns);
   mesh->neighbors = ptr_array_new_with_size(num_columns);
   mesh->num_vertical_cells = num_vertical_cells;
-  mesh->vertex_tol = 1e-12;
   mesh->finalized = false;
   allocate_layers(mesh, z);
   return mesh;
@@ -115,22 +113,15 @@ void pexmesh_free(pexmesh_t* mesh)
   polymec_free(mesh);
 }
 
-void pexmesh_set_vertex_tolerance(pexmesh_t* mesh, real_t tolerance)
-{
-  ASSERT(!mesh->finalized);
-}
-
-void pexmesh_set_polygon(pexmesh_t* mesh, size_t column, polygon_t* polygon)
+void pexmesh_set_column(pexmesh_t* mesh, 
+                        size_t column, 
+                        polygon_t* polygon,
+                        size_t* neighbors)
 {
   ASSERT(!mesh->finalized);
   ASSERT(column < mesh->polygons->size);
   mesh->polygons->data[column] = polygon;
-}
-
-void pexmesh_set_neighbors(pexmesh_t* mesh, size_t column, size_t* neighbors)
-{
-  ASSERT(column < mesh->polygons->size);
-  size_t nn = (size_t)(polygon_num_edges(mesh->polygons->data[column])); 
+  size_t nn = (size_t)(polygon_num_edges(polygon));
   size_t_array_t* n = size_t_array_new_with_size(nn);
   mesh->neighbors->data[column] = n;
   for (size_t i = 0; i < nn; ++i)
@@ -145,21 +136,31 @@ void pexmesh_finalize(pexmesh_t* mesh)
   for (size_t l = 0; l < mesh->layers->size; ++l)
   {
     pexmesh_layer_t* layer = mesh->layers->data[l];
-    for (size_t c = 0; c < layer->columns->size; ++c)
+
+    if (mesh->layers->size == 1) // easy case! All columns present in layer
     {
-      pexmesh_column_t* col = layer->columns->data[c];
-      polygon_t* polygon = mesh->polygons->data[col->index];
-      ASSERT(polygon != NULL);
-      col->polygon = polygon;
-      int num_edges = polygon_num_edges(polygon);
-      col->neighbors = polymec_malloc(sizeof(pexmesh_column_t*) * num_edges);
-      ASSERT(mesh->nprocs == 1); // else the code below doesn't work!
-      size_t_array_t* neighbors = mesh->neighbors->data[c];
-      for (size_t n = 0; n < num_edges; ++n)
+      size_t ncols = layer->columns->size;
+      for (size_t c = 0; c < ncols; ++c)
       {
-        pexmesh_column_t* ncol = layer->columns->data[neighbors->data[n]]; // FIXME: Not general!
-        col->neighbors[n] = ncol;
+        pexmesh_column_t* col = layer->columns->data[c];
+        ASSERT(c == col->index);
+        polygon_t* polygon = mesh->polygons->data[c];
+        ASSERT(polygon != NULL);
+        col->polygon = polygon;
+        int num_edges = polygon_num_edges(polygon);
+        col->neighbors = polymec_malloc(sizeof(pexmesh_column_t*) * num_edges);
+
+        size_t_array_t* neighbors = mesh->neighbors->data[c];
+        for (size_t n = 0; n < num_edges; ++n)
+        {
+          pexmesh_column_t* ncol = layer->columns->data[neighbors->data[n]];
+          col->neighbors[n] = ncol;
+        }
       }
+    }
+    else
+    {
+      polymec_error("Distributed pexmesh not yet supported!");
     }
   }
 
