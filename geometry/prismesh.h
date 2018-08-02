@@ -24,12 +24,16 @@
 typedef struct prismesh_t prismesh_t;
 
 /// \enum prismesh_centering
-/// Centerings for data on prismeshes.
+/// Centerings for data on prismeshes. The structure of a prismesh 
+/// distinguishes between elements aligned with the z axis and those that 
+/// lie in the x-y plane.
 typedef enum
 {
   prismesh_CELL = 0,
-  prismesh_FACE = 1,
-  prismesh_EDGE = 2,
+  prismesh_XYFACE = 1,
+  prismesh_ZFACE = 2,
+  prismesh_XYEDGE = 3,
+  prismesh_ZEDGE = 3,
   prismesh_NODE = 3
 } prismesh_centering_t;
 
