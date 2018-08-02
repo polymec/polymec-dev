@@ -5,9 +5,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/timer.h"
 #include "core/array.h"
 #include "geometry/pexmesh.h"
 #include "geometry/polymesh.h"
+
+#if POLYMEC_HAVE_MPI
+#include "core/partitioning.h"
+#endif
 
 static void free_column(pexmesh_column_t* col)
 {
@@ -40,7 +45,7 @@ DEFINE_ARRAY(polygon_array, polygon_t*)
 struct pexmesh_t 
 {
   MPI_Comm comm;
-  int nprocs, rank;
+  int nproc, rank;
 
   layer_array_t* layers;
   polygon_array_t* polygons;
@@ -55,7 +60,7 @@ static void allocate_layers(pexmesh_t* mesh,
 {
   mesh->layers = layer_array_new();
 #if POLYMEC_HAVE_MPI
-  if (mesh->nprocs == 1)
+  if (mesh->nproc == 1)
   {
 #endif
     pexmesh_layer_t* layer = polymec_malloc(sizeof(pexmesh_layer_t));
@@ -96,7 +101,7 @@ pexmesh_t* pexmesh_new(MPI_Comm comm,
 #endif
   pexmesh_t* mesh = polymec_malloc(sizeof(pexmesh_t));
   mesh->comm = comm;
-  MPI_Comm_size(comm, &mesh->nprocs);
+  MPI_Comm_size(comm, &mesh->nproc);
   MPI_Comm_rank(comm, &mesh->rank);
   mesh->polygons = polygon_array_new_with_size(num_columns);
   mesh->neighbors = ptr_array_new_with_size(num_columns);
@@ -231,12 +236,275 @@ bool pexmesh_layer_next_column(pexmesh_layer_t* layer,
   }
 }
 
+#if POLYMEC_HAVE_MPI
+static adj_graph_t* graph_from_polygons(pexmesh_t* mesh)
+{
+  // Create a graph whose vertices are the centroids of the mesh's 
+  // collection of polygons in the plane. NOTE that we associate this graph 
+  // with the MPI_COMM_SELF communicator because it's a global graph.
+  size_t num_polygons = mesh->polygons->size;
+  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, num_polygons);
+
+  // Allocate space in the graph for the edges (polygon edges).
+  for (size_t i = 0; i < num_polygons; ++i)
+  {
+    polygon_t* p = mesh->polygons->data[i];
+    int nn = polygon_num_edges(p);
+    adj_graph_set_num_edges(g, i, nn);
+  }
+
+  // Now fill in the edges.
+  for (size_t i = 0; i < num_polygons; ++i)
+  {
+    polygon_t* p = mesh->polygons->data[i];
+    int nn = polygon_num_edges(p);
+    size_t_array_t* neighbors = mesh->neighbors->data[i];
+    int* edges = adj_graph_edges(g, i);
+    int offset = 0;
+
+    for (int j = 0; j < nn; ++j)
+      edges[j] = (int)neighbors->data[j];
+  }
+
+  return g;
+}
+
+static void redistribute_pexmesh(pexmesh_t** mesh, 
+                                 int64_t* partition)
+{
+  START_FUNCTION_TIMER();
+
+  // Create a new mesh from the old one.
+  pexmesh_t* old_mesh = *mesh;
+  pexmesh_t* new_mesh = polymec_malloc(sizeof(pexmesh_t));
+  new_mesh->comm = old_mesh->comm;
+  new_mesh->nproc = old_mesh->nproc;
+  new_mesh->rank = old_mesh->rank;
+  new_mesh->polygons = polygon_array_clone(old_mesh->polygons);
+  new_mesh->neighbors = ptr_array_new();
+  for (size_t i = 0; i < new_mesh->neighbors->size; ++i)
+  {
+    size_t_array_t* n = old_mesh->neighbors->data[i];
+    ptr_array_append_with_dtor(new_mesh->neighbors, n, size_t_array_free); 
+  }
+  new_mesh->num_vertical_cells = old_mesh->vertical_cells;
+  new_mesh->finalized = false;
+
+  // Insert the new layers as prescribed by the partition vector.
+  int num_patches = new_mesh->npx * new_mesh->npy * new_mesh->npz;
+  for (int p = 0; p < num_patches; ++p)
+  {
+    if (partition[p] == new_mesh->rank)
+    {
+      int i, j, k;
+      get_patch_indices(new_mesh, p, &i, &j, &k);
+      unimesh_insert_patch(new_mesh, i, j, k);
+    }
+  }
+
+  // Replace the old mesh with the new one.
+  *mesh = new_mesh;
+  STOP_FUNCTION_TIMER();
+}
+
+static int64_t* source_vector(pexmesh_t* mesh)
+{
+  // Catalog all the patches on this process.
+  int_array_t* my_patches = int_array_new();
+  for (int i = 0; i < mesh->npx; ++i)
+  {
+    for (int j = 0; j < mesh->npy; ++j)
+    {
+      for (int k = 0; k < mesh->npz; ++k)
+      {
+        if (unimesh_has_patch(mesh, i, j, k))
+          int_array_append(my_patches, patch_index(mesh, i, j, k));
+      }
+    }
+  }
+
+  // Gather the numbers of patches owned by each process.
+  int num_my_patches = (int)my_patches->size;
+  int num_patches_for_proc[mesh->nproc];
+  MPI_Allgather(&num_my_patches, 1, MPI_INT, 
+                num_patches_for_proc, 1, MPI_INT, mesh->comm);
+
+  // Arrange for the storage of the patch indices for the patches stored 
+  // on each process.
+  int proc_offsets[mesh->nproc+1];
+  proc_offsets[0] = 0;
+  for (int p = 0; p < mesh->nproc; ++p)
+    proc_offsets[p+1] = proc_offsets[p] + num_patches_for_proc[p];
+
+  // Gæther the indices of the patches owned by all processes into a huge list.
+  int num_all_patches = mesh->npx * mesh->npy * mesh->npz;
+  ASSERT(num_all_patches == proc_offsets[mesh->nproc]);
+  int* all_patches = polymec_malloc(sizeof(int) * num_all_patches);
+  MPI_Allgatherv(my_patches->data, num_my_patches, MPI_INT, 
+                 all_patches, num_patches_for_proc, proc_offsets,
+                 MPI_INT, mesh->comm);
+
+  // Clean up a bit.
+  int_array_free(my_patches);
+
+  // Convert the huge list into a source vector.
+  int64_t* sources = polymec_malloc(sizeof(int64_t) * num_all_patches);
+  for (int p = 0; p < mesh->nproc; ++p)
+  {
+    for (int offset = proc_offsets[p]; offset < proc_offsets[p+1]; ++offset)
+      sources[all_patches[offset]] = (int64_t)p;
+  }
+
+  polymec_free(all_patches);
+  return sources;
+}
+
+static void redistribute_pexmesh_field(pexmesh_field_t** field, 
+                                       int64_t* partition,
+                                       int64_t* sources,
+                                       pexmesh_t* new_mesh)
+{
+  START_FUNCTION_TIMER();
+
+  // Create a new field from the old one.
+  pexmesh_field_t* old_field = *field;
+  pexmesh_field_t* new_field = pexmesh_field_new(new_mesh,
+                                                 pexmesh_field_centering(old_field),
+                                                 pexmesh_field_num_components(old_field));
+
+  // Copy all local layers from one field to the other.
+  unimesh_patch_t* patch;
+  int pos = 0, i, j, k;
+  while (unimesh_field_next_patch(new_field, &pos, &i, &j, &k, &patch, NULL))
+  {
+    unimesh_patch_t* old_patch = unimesh_field_patch(old_field, i, j, k);
+    if (old_patch != NULL)
+      unimesh_patch_copy(old_patch, patch);
+  }
+
+  // Post receives for each patch in the new field.
+  int num_new_local_patches = unimesh_field_num_patches(new_field);
+  MPI_Request recv_requests[num_new_local_patches];
+  pos = 0;
+  int num_recv_reqs = 0;
+  while (unimesh_field_next_patch(new_field, &pos, &i, &j, &k, &patch, NULL))
+  {
+    int p = patch_index(new_mesh, i, j, k);
+    if (partition[p] == new_mesh->rank)
+    {
+      size_t data_size = unimesh_patch_data_size(patch->centering, 
+                                                 patch->nx, patch->ny, patch->nz,
+                                                 patch->nc) / sizeof(real_t);
+      int err = MPI_Irecv(patch->data, (int)data_size, MPI_REAL_T, (int)sources[p],
+                          0, new_mesh->comm, &(recv_requests[num_recv_reqs]));
+      if (err != MPI_SUCCESS)
+        polymec_error("Error receiving field data from rank %d", (int)sources[p]);
+      ++num_recv_reqs;
+    }
+  }
+  ASSERT(num_recv_reqs <= num_new_local_patches);
+
+  // Post sends.
+  int num_old_local_patches = unimesh_field_num_patches(old_field);
+  MPI_Request send_requests[num_old_local_patches];
+  pos = 0;
+  int num_send_reqs = 0;
+  while (unimesh_field_next_patch(old_field, &pos, &i, &j, &k, &patch, NULL))
+  {
+    int p = patch_index(new_mesh, i, j, k);
+    if (sources[p] == new_mesh->rank)
+    {
+      size_t data_size = unimesh_patch_data_size(patch->centering, 
+                                                 patch->nx, patch->ny, patch->nz,
+                                                 patch->nc) / sizeof(real_t);
+      int err = MPI_Isend(patch->data, (int)data_size, MPI_REAL_T, (int)partition[p],
+                          0, new_mesh->comm, &(send_requests[num_send_reqs]));
+      if (err != MPI_SUCCESS)
+        polymec_error("Error sending field data to rank %d", (int)partition[p]);
+      ++num_send_reqs;
+    }
+  }
+  ASSERT(num_send_reqs <= num_old_local_patches);
+
+  // Wait for everything to finish.
+  MPI_Waitall(num_send_reqs, send_requests, MPI_STATUSES_IGNORE);
+  MPI_Waitall(num_recv_reqs, recv_requests, MPI_STATUSES_IGNORE);
+
+  // Replace the old field with the new one.
+  *field = new_field;
+  STOP_FUNCTION_TIMER();
+}
+#endif
+
 void repartition_pexmesh(pexmesh_t** mesh, 
                          int* weights,
                          real_t imbalance_tol,
                          pexmesh_field_t** fields,
                          size_t num_fields)
 {
+  ASSERT((weights == NULL) || (imbalance_tol > 0.0));
+  ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
+  ASSERT(imbalance_tol > 0.0);
+  ASSERT(imbalance_tol <= 1.0);
+  ASSERT((fields != NULL) || (num_fields == 0));
+#if POLYMEC_HAVE_MPI
+  START_FUNCTION_TIMER();
+
+  // On a single process, repartitioning has no meaning.
+  pexmesh_t* old_mesh = *mesh;
+  if (old_mesh->nproc == 1) 
+  {
+    STOP_FUNCTION_TIMER();
+    return;
+  }
+
+  // Generate a global adjacency graph for the mesh.
+  adj_graph_t* graph = graph_from_polygons(old_mesh);
+
+  // Figure out how many ways we want to partition the polygon graph by 
+  // chopping the z axis into segments of appropriate length. The number of 
+  // segments in the z direction is the factor by which we reduce the 
+  // number of ways we partition the polygon graph.
+  MPI_Comm poly_comm; // FIXME
+
+  // Map the graph to the different domains, producing a partition vector.
+  // We need the partition vector on all processes in the communicator, so we 
+  // scatter it from rank 0.
+  log_debug("repartition_pexmesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
+  int64_t* poly_partition = partition_graph(graph, poly_comm, weights, imbalance_tol, true);
+
+  // Translate our polygonal partition vector into the real one (which includes
+  // axial decomposition).
+  int64_t* partition; // FIXME
+  polymec_free(poly_partition);
+
+  // Redistribute the mesh. 
+  log_debug("repartition_peximesh: Redistributing mesh.");
+  redistribute_pexmesh(mesh, partition);
+  pexmesh_finalize(*mesh);
+
+  // Build a sources vector whose ith component is the rank that used to own 
+  // the ith patch.
+  int64_t* sources = source_vector(old_mesh);
+
+  // Redistribute the fields.
+  if (num_fields > 0)
+    log_debug("repartition_unimesh: Redistributing %d fields.", (int)num_fields);
+  for (size_t f = 0; f < num_fields; ++f)
+  {
+    pexmesh_field_t* old_field = fields[f];
+    redistribute_pexmesh_field(&(fields[f]), partition, sources, *mesh);
+    pexmesh_field_free(old_field);
+  }
+
+  // Clean up.
+  pexmesh_free(old_mesh);
+  adj_graph_free(graph);
+  polymec_free(sources);
+  polymec_free(partition);
+
+  STOP_FUNCTION_TIMER();
+#endif
 }
 
 polymesh_t* pexmesh_as_polymesh(pexmesh_t* mesh)
