@@ -10,6 +10,7 @@
 
 #include "core/point.h"
 #include "geometry/polygon.h"
+#include "geometry/polymesh.h"
 
 /// \addtogroup geometry geometry
 ///@{
@@ -43,6 +44,8 @@ typedef struct pexmesh_column_t pexmesh_column_t;
 /// A column of cells within a pexmesh.
 struct pexmesh_column_t
 {
+  /// Index of the column within the pexmesh.
+  size_t index;
   /// Polygon representing the top and bottom facet.
   polygon_t* polygon;
   /// Number of cells in the column.
@@ -53,18 +56,19 @@ struct pexmesh_column_t
   pexmesh_column_t** neighbors;
 }; 
 
-/// Creates a pexmesh with the given number of layers and columns.
-/// The layers and columns are managed by the mesh.
+/// Creates a pexmesh with the given number of layers and columns. 
+/// Layers and columns are automatically created and are managed by the mesh.
 /// \param comm [in] The MPI communicator used by the mesh.
-/// \param num_layers [in] The number of layers in the mesh.
-/// \param z [in] An array of length (num_layers+1) that gives the z 
-///               coordinates of the interfaces between layers, from bottom
-///               to top.
 /// \param num_columns [in] The number of columns in the mesh.
+/// \param num_vertical_cells [in] The number of cells along the z axis.
+/// \param z [in] An array of length (num_vertical+1) that gives the z 
+///               coordinates of the interfaces between cells, from bottom
+///               to top.
 /// \memberof pexmesh
-pexmesh_t* pexmesh_new(MPI_Comm comm,
-                       size_t num_layers, real_t* z,
-                       size_t num_columns);
+pexmesh_t* pexmesh_new(MPI_Comm comm, 
+                       size_t num_columns, 
+                       size_t num_vertical_cells,
+                       real_t* z);
 
 //------------------------------------------------------------------------
 //                        Construction methods
@@ -78,7 +82,16 @@ pexmesh_t* pexmesh_new(MPI_Comm comm,
 /// column in the mesh. Subsequently, all segments of this column share this 
 /// polygon for their top/bottom faces.
 /// \memberof pexmesh
+/// \param [in] column The index for the desired column.
 void pexmesh_set_polygon(pexmesh_t* mesh, size_t column, polygon_t* polygon);
+
+/// Sets the neighboring columns for the given column.
+/// \param [in] column The index for the desired column.
+/// \param [in] neighbors An array of column indices indicating the neighbors 
+///                       of the given column. The length of this array is 
+///                       determined by the polygon for the column.
+/// \memberof pexmesh
+void pexmesh_set_neighbors(pexmesh_t* mesh, size_t column, size_t* neighbors);
 
 /// Sets the distance within which two polygon vertices are considered to 
 /// be identical. This helps the pexmesh figure out which columns neighbor 
@@ -114,7 +127,12 @@ size_t pexmesh_num_layers(pexmesh_t* mesh);
 /// looking down on the top layer. This is *not* the same as the 
 /// total number of pexmesh_columns globally accessible in the mesh, 
 /// since these columns are divided along the z axis for scalability.
+/// \memberof pexmesh
 size_t pexmesh_num_columns(pexmesh_t* mesh);
+
+/// Returns the polygon associated with the given column.
+/// \memberof pexmesh
+polygon_t* pexmesh_polygon(pexmesh_t* mesh, size_t column);
 
 /// Traverses the locally-stored layers in the mesh, returning true and the 
 /// next layer if the traversal is incomplete, false otherwise. 
@@ -152,6 +170,10 @@ void repartition_pexmesh(pexmesh_t** mesh,
                          real_t imbalance_tol,
                          pexmesh_field_t** fields,
                          size_t num_fields);
+
+/// Returns a polymesh that represents the same geometry as this pexmesh.
+/// \memberof pexmesh
+polymesh_t* pexmesh_as_polymesh(pexmesh_t* mesh);
 
 ///@}
 

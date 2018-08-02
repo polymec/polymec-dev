@@ -10,6 +10,10 @@
 
 static void free_column(pexmesh_column_t* col)
 {
+  if (col->polygon != NULL)
+    col->polygon = NULL;
+  if (col->neighbors != NULL)
+    polymec_free(col->neighbors);
   polymec_free(col);
 }
 
@@ -35,40 +39,77 @@ DEFINE_ARRAY(polygon_array, polygon_t*)
 struct pexmesh_t 
 {
   MPI_Comm comm;
+  int nprocs, rank;
+
   layer_array_t* layers;
   polygon_array_t* polygons;
-  size_t num_columns;
+  ptr_array_t* neighbors;
+  size_t num_columns, num_vertical_cells;
 
   real_t vertex_tol;
   bool finalized;
 };
 
 static void allocate_layers(pexmesh_t* mesh,
-                            size_t num_layers,
                             real_t* z)
 {
-  // FIXME
   mesh->layers = layer_array_new();
+#if POLYMEC_HAVE_MPI
+  if (mesh->nprocs == 1)
+  {
+#endif
+    pexmesh_layer_t* layer = polymec_malloc(sizeof(pexmesh_layer_t));
+    layer->mesh = mesh;
+    layer->z1 = z[0];
+    layer->z2 = z[mesh->num_vertical_cells];
+    layer->columns = column_array_new();
+    for (size_t c = 0; c < mesh->num_columns; ++c)
+    {
+      pexmesh_column_t* col = polymec_malloc(sizeof(pexmesh_column_t));
+      col->index = c;
+      col->polygon = NULL;
+      col->num_cells = mesh->num_vertical_cells;
+      col->neighbors = NULL;
+      column_array_append_with_dtor(layer->columns, col, free_column);
+    }
+    layer_array_append_with_dtor(mesh->layers, layer, free_layer);
+#if POLYMEC_HAVE_MPI
+  }
+  else
+  {
+    polymec_error("Distributed pexmesh not supported yet!");
+  }
+#endif
 }
 
 pexmesh_t* pexmesh_new(MPI_Comm comm,
-                       size_t num_layers, real_t* z,
-                       size_t num_columns)
+                       size_t num_columns, 
+                       size_t num_vertical_cells,
+                       real_t* z)
 {
-  ASSERT(num_layers > 0);
   ASSERT(num_columns > 0);
+  ASSERT(num_vertical_cells > 0);
   ASSERT(z != NULL);
+#ifndef NDEBUG
+  for (size_t i = 1; i < num_vertical_cells; ++i)
+    ASSERT(z[i+1] > z[i]);
+#endif
   pexmesh_t* mesh = polymec_malloc(sizeof(pexmesh_t));
   mesh->comm = comm;
-  allocate_layers(mesh, num_layers, z);
+  MPI_Comm_size(comm, &mesh->nprocs);
+  MPI_Comm_rank(comm, &mesh->rank);
   mesh->polygons = polygon_array_new_with_size(num_columns);
+  mesh->neighbors = ptr_array_new_with_size(num_columns);
+  mesh->num_vertical_cells = num_vertical_cells;
   mesh->vertex_tol = 1e-12;
   mesh->finalized = false;
+  allocate_layers(mesh, z);
   return mesh;
 }
 
 void pexmesh_free(pexmesh_t* mesh)
 {
+  ptr_array_free(mesh->neighbors);
   polygon_array_free(mesh->polygons);
   layer_array_free(mesh->layers);
   polymec_free(mesh);
@@ -86,14 +127,40 @@ void pexmesh_set_polygon(pexmesh_t* mesh, size_t column, polygon_t* polygon)
   mesh->polygons->data[column] = polygon;
 }
 
+void pexmesh_set_neighbors(pexmesh_t* mesh, size_t column, size_t* neighbors)
+{
+  ASSERT(column < mesh->polygons->size);
+  size_t nn = (size_t)(polygon_num_edges(mesh->polygons->data[column])); 
+  size_t_array_t* n = size_t_array_new_with_size(nn);
+  mesh->neighbors->data[column] = n;
+  for (size_t i = 0; i < nn; ++i)
+    n->data[i] = neighbors[i];
+}
+
 void pexmesh_finalize(pexmesh_t* mesh)
 {
   ASSERT(!mesh->finalized);
 
-  // Set layers and neighbors.
+  // Set up columns within layers.
   for (size_t l = 0; l < mesh->layers->size; ++l)
   {
-
+    pexmesh_layer_t* layer = mesh->layers->data[l];
+    for (size_t c = 0; c < layer->columns->size; ++c)
+    {
+      pexmesh_column_t* col = layer->columns->data[c];
+      polygon_t* polygon = mesh->polygons->data[col->index];
+      ASSERT(polygon != NULL);
+      col->polygon = polygon;
+      int num_edges = polygon_num_edges(polygon);
+      col->neighbors = polymec_malloc(sizeof(pexmesh_column_t*) * num_edges);
+      ASSERT(mesh->nprocs == 1); // else the code below doesn't work!
+      size_t_array_t* neighbors = mesh->neighbors->data[c];
+      for (size_t n = 0; n < num_edges; ++n)
+      {
+        pexmesh_column_t* ncol = layer->columns->data[neighbors->data[n]]; // FIXME: Not general!
+        col->neighbors[n] = ncol;
+      }
+    }
   }
 
   mesh->finalized = true;
@@ -112,6 +179,12 @@ size_t pexmesh_num_layers(pexmesh_t* mesh)
 size_t pexmesh_num_columns(pexmesh_t* mesh)
 {
   return mesh->polygons->size;
+}
+
+polygon_t* pexmesh_polygon(pexmesh_t* mesh, size_t column)
+{
+  ASSERT(column < mesh->polygons->size);
+  return mesh->polygons->data[column];
 }
 
 bool pexmesh_next_layer(pexmesh_t* mesh, int* pos, pexmesh_layer_t** layer)
@@ -157,5 +230,10 @@ void repartition_pexmesh(pexmesh_t** mesh,
                          pexmesh_field_t** fields,
                          size_t num_fields)
 {
+}
+
+polymesh_t* pexmesh_as_polymesh(pexmesh_t* mesh)
+{
+  return NULL; // FIXME
 }
 
