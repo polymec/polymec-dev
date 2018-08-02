@@ -1256,6 +1256,73 @@ static lua_class_method um_methods[] = {
   {NULL, NULL, NULL}
 };
 
+static int pexmesh_repartition(lua_State* L)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) || !lua_is_pexmesh(L, 1))
+    return luaL_error(L, "Argument must be a pexmesh.");
+  pexmesh_t* mesh = lua_to_pexmesh(L, 1);
+  real_t imbalance_tol = 0.05;
+
+  // Bug out if there's only one process.
+  int nprocs;
+  MPI_Comm_size(pexmesh_comm(mesh), &nprocs);
+  if (nprocs == 1)
+    return 0;
+
+  // Perform the repartitioning and toss the migrator. FIXME: Add fields
+  repartition_pexmesh(&mesh, NULL, imbalance_tol, NULL, 0);
+  return 0;
+}
+
+static lua_module_function pexmesh_funcs[] = {
+  {"repartition", pexmesh_repartition, "mesh.repartition(m) -> Repartitions the pexmesh m."},
+  {NULL, NULL, NULL}
+};
+
+static int pxmesh_num_layers(lua_State* L)
+{
+  pexmesh_t* m = lua_to_pexmesh(L, 1);
+  lua_pushinteger(L, pexmesh_num_layers(m));
+  return 1;
+}
+
+static int pxmesh_num_columns(lua_State* L)
+{
+  pexmesh_t* m = lua_to_pexmesh(L, 1);
+  lua_pushinteger(L, pexmesh_num_columns(m));
+  return 1;
+}
+
+static int pxmesh_num_vertical_cells(lua_State* L)
+{
+  pexmesh_t* m = lua_to_pexmesh(L, 1);
+  lua_pushinteger(L, pexmesh_num_vertical_cells(m));
+  return 1;
+}
+
+static lua_class_field pexmesh_fields[] = {
+  {"num_layers", pxmesh_num_layers, NULL},
+  {"num_columns", pxmesh_num_columns, NULL},
+  {"num_vertical_cells", pxmesh_num_vertical_cells, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int pexmesh_tostring(lua_State* L)
+{
+  pexmesh_t* m = lua_to_pexmesh(L, 1);
+  lua_pushfstring(L, "pexmesh (%d layers, %d columns, %d vertical cells)", 
+                  (int)pexmesh_num_layers(m), (int)pexmesh_num_columns(m),
+                  (int)pexmesh_num_vertical_cells(m));
+  return 1;
+}
+
+static lua_class_method pexmesh_methods[] = {
+  {"__tostring", pexmesh_tostring, NULL},
+  {NULL, NULL, NULL}
+};
+
 static int polymesh_repartition(lua_State* L)
 {
   // Check the arguments.
@@ -1519,6 +1586,7 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, NULL, tagger_methods, NULL);
   lua_register_class(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_methods, DTOR(point_cloud_free));
   lua_register_class(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_methods, DTOR(unimesh_free));
+  lua_register_class(L, "pexmesh", "A polygonal extruded (pex) mesh.", pexmesh_funcs, pexmesh_fields, pexmesh_methods, DTOR(pexmesh_free));
   lua_register_class(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_methods, DTOR(polymesh_free));
 
   // Register a module of mesh factory methods.
@@ -1618,6 +1686,21 @@ bool lua_is_unimesh(lua_State* L, int index)
 unimesh_t* lua_to_unimesh(lua_State* L, int index)
 {
   return (unimesh_t*)lua_to_object(L, index, "unimesh");
+}
+
+void lua_push_pexmesh(lua_State* L, pexmesh_t* m)
+{
+  lua_push_object(L, "pexmesh", m);
+}
+
+bool lua_is_pexmesh(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "pexmesh");
+}
+
+pexmesh_t* lua_to_pexmesh(lua_State* L, int index)
+{
+  return (pexmesh_t*)lua_to_object(L, index, "pexmesh");
 }
 
 void lua_push_polymesh(lua_State* L, polymesh_t* m)

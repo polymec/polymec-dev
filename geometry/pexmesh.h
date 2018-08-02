@@ -123,6 +123,10 @@ size_t pexmesh_num_layers(pexmesh_t* mesh);
 /// \memberof pexmesh
 size_t pexmesh_num_columns(pexmesh_t* mesh);
 
+/// Returns the total number of vertical cells in each column in the pexmesh.
+/// \memberof pexmesh
+size_t pexmesh_num_vertical_cells(pexmesh_t* mesh);
+
 /// Returns the polygon associated with the given column.
 /// \memberof pexmesh
 polygon_t* pexmesh_polygon(pexmesh_t* mesh, size_t column);
