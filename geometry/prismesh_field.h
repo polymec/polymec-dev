@@ -27,17 +27,11 @@ struct prismesh_layer_data_t
   /// multidimensional array access to this data.
   void* data;
   
-  /// The underlying prismesh.
-  prismesh_t* mesh;
-
   /// The number of locally-stored data across the x-y plane.
   size_t num_xy_data;
 
   /// The number of vertical cells in the layer.
   size_t num_vertical_cells;
-
-  /// The number of components.
-  int num_components;
 
   /// The centering of the data.
   prismesh_centering_t centering;
@@ -58,13 +52,17 @@ prismesh_field_t* prismesh_field_new(prismesh_t* mesh,
 /// \memberof prismesh_field
 void prismesh_field_free(prismesh_field_t* field);
 
+/// Returns the centering for the field.
+/// \memberof prismesh_field
+prismesh_centering_t prismesh_field_centering(prismesh_field_t* field);
+
 /// Returns the number of components in the field.
 /// \memberof prismesh_field
-int prismesh_field_num_components(prismesh_field_t* field);
+size_t prismesh_field_num_components(prismesh_field_t* field);
 
 /// Returns the number of (locally stored) layers in the field.
 /// \memberof prismesh_field
-int prismesh_field_num_layers(prismesh_field_t* field);
+size_t prismesh_field_num_layers(prismesh_field_t* field);
 
 /// Returns an internal pointer to the field's underlying prismesh.
 /// \memberof prismesh_field
@@ -77,8 +75,8 @@ prismesh_t* prismesh_field_mesh(prismesh_field_t* field);
 /// \returns true if a locally-stored layer is found, false if not.
 /// \memberof prismesh_field
 bool prismesh_field_next_layer(prismesh_field_t* field, int* pos, 
-                               prismesh_layer_t* layer, 
-                               prismesh_layer_data** data);
+                               prismesh_layer_t** layer, 
+                               prismesh_layer_data_t** data);
 
 ///@}
 

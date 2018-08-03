@@ -8,12 +8,14 @@
 #include "core/timer.h"
 #include "core/array.h"
 #include "geometry/prismesh.h"
+#include "geometry/prismesh_field.h"
 #include "geometry/polymesh.h"
 
 #if POLYMEC_HAVE_MPI
 #include "core/partitioning.h"
 #endif
 
+// Destroys a column managed by a layer.
 static void free_column(prismesh_column_t* col)
 {
   if (col->polygon != NULL)
@@ -23,6 +25,7 @@ static void free_column(prismesh_column_t* col)
   polymec_free(col);
 }
 
+// Destroys a layer managed by a mesh.
 static void free_layer(prismesh_layer_t* layer)
 {
   prism_column_array_free(layer->columns);
@@ -30,7 +33,6 @@ static void free_layer(prismesh_layer_t* layer)
 }
 
 DEFINE_ARRAY(layer_array, prismesh_layer_t*)
-
 DEFINE_ARRAY(polygon_array, polygon_t*)
 
 struct prismesh_t 
@@ -47,9 +49,9 @@ struct prismesh_t
 };
 
 prismesh_t* prismesh_new(MPI_Comm comm,
-                       size_t num_columns, 
-                       size_t num_vertical_cells,
-                       real_t* z)
+                         size_t num_columns, 
+                         size_t num_vertical_cells,
+                         real_t* z)
 {
   ASSERT(num_columns > 0);
   ASSERT(num_vertical_cells > 0);
@@ -227,7 +229,7 @@ static adj_graph_t* graph_from_polygons(prismesh_t* mesh)
 }
 
 static void redistribute_prismesh(prismesh_t** mesh, 
-                                 int64_t* partition)
+                                  int64_t* partition)
 {
   START_FUNCTION_TIMER();
 
@@ -248,16 +250,6 @@ static void redistribute_prismesh(prismesh_t** mesh,
   new_mesh->finalized = false;
 
   // Insert the new layers as prescribed by the partition vector.
-  int num_patches = new_mesh->npx * new_mesh->npy * new_mesh->npz;
-  for (int p = 0; p < num_patches; ++p)
-  {
-    if (partition[p] == new_mesh->rank)
-    {
-      int i, j, k;
-      get_patch_indices(new_mesh, p, &i, &j, &k);
-      unimesh_insert_patch(new_mesh, i, j, k);
-    }
-  }
 
   // Replace the old mesh with the new one.
   *mesh = new_mesh;
@@ -266,8 +258,9 @@ static void redistribute_prismesh(prismesh_t** mesh,
 
 static int64_t* source_vector(prismesh_t* mesh)
 {
-  // Catalog all the patches on this process.
-  int_array_t* my_patches = int_array_new();
+#if 0
+  // Catalog all the layers on this process.
+  int_array_t* my_layers = int_array_new();
   for (int i = 0; i < mesh->npx; ++i)
   {
     for (int j = 0; j < mesh->npy; ++j)
@@ -314,20 +307,23 @@ static int64_t* source_vector(prismesh_t* mesh)
 
   polymec_free(all_patches);
   return sources;
+#endif
+  return NULL;
 }
 
 static void redistribute_prismesh_field(prismesh_field_t** field, 
-                                       int64_t* partition,
-                                       int64_t* sources,
-                                       prismesh_t* new_mesh)
+                                        int64_t* partition,
+                                        int64_t* sources,
+                                        prismesh_t* new_mesh)
 {
   START_FUNCTION_TIMER();
 
   // Create a new field from the old one.
   prismesh_field_t* old_field = *field;
   prismesh_field_t* new_field = prismesh_field_new(new_mesh,
-                                                 prismesh_field_centering(old_field),
-                                                 prismesh_field_num_components(old_field));
+                                                   prismesh_field_centering(old_field),
+                                                   prismesh_field_num_components(old_field));
+#if 0
 
   // Copy all local layers from one field to the other.
   unimesh_patch_t* patch;
@@ -386,6 +382,7 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
   // Wait for everything to finish.
   MPI_Waitall(num_send_reqs, send_requests, MPI_STATUSES_IGNORE);
   MPI_Waitall(num_recv_reqs, recv_requests, MPI_STATUSES_IGNORE);
+#endif
 
   // Replace the old field with the new one.
   *field = new_field;
@@ -432,7 +429,7 @@ void repartition_prismesh(prismesh_t** mesh,
 
   // Translate our polygonal partition vector into the real one (which includes
   // axial decomposition).
-  int64_t* partition; // FIXME
+  int64_t* partition = NULL; // FIXME
   polymec_free(poly_partition);
 
   // Redistribute the mesh. 

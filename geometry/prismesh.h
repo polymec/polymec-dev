@@ -64,6 +64,9 @@ struct prismesh_layer_t
   /// The underlying mesh.
   prismesh_t* mesh;
 
+  /// The index of the layer within this mesh.
+  int index;
+
   /// The z coordinate of the layer's lower boundary.
   real_t z1;
   /// The z coordinate of the layer's upper boundary.

@@ -111,7 +111,7 @@ static bool test_poly_fit(void** state, int p, point_t* x0, point_t* points, int
     data[i] = polynomial_value(poly, &points[i]);
 
   // Assemble the linear system to recover the coefficients.
-  int dim = polynomial_num_terms(poly);
+  int dim = (int)polynomial_num_terms(poly);
   real_t A[dim*dim], b[dim];
   if (weighted)
   {
