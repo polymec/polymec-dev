@@ -14,7 +14,7 @@
 #include "geometry/sdt_func.h"
 #include "geometry/point_cloud.h"
 #include "geometry/unimesh.h"
-#include "geometry/pexmesh.h"
+#include "geometry/prismesh.h"
 #include "geometry/polymesh.h"
 
 // This file contains functions for manipulating geometric data types in the 
@@ -98,16 +98,16 @@ bool lua_is_unimesh(lua_State* L, int index);
 /// if the item there is not a unimesh.
 unimesh_t* lua_to_unimesh(lua_State* L, int index);
 
-/// Pushes a pexmesh m onto L's stack.
-void lua_push_pexmesh(lua_State* L, pexmesh_t* m);
+/// Pushes a prismesh m onto L's stack.
+void lua_push_prismesh(lua_State* L, prismesh_t* m);
 
-/// Returns true if the item at the given index on L's stack is a pexmesh,
+/// Returns true if the item at the given index on L's stack is a prismesh,
 /// false if not.
-bool lua_is_pexmesh(lua_State* L, int index);
+bool lua_is_prismesh(lua_State* L, int index);
 
-/// Returns the pexmesh at the given index on L's stack, or NULL 
-/// if the item there is not a pexmesh.
-pexmesh_t* lua_to_pexmesh(lua_State* L, int index);
+/// Returns the prismesh at the given index on L's stack, or NULL 
+/// if the item there is not a prismesh.
+prismesh_t* lua_to_prismesh(lua_State* L, int index);
 
 /// Pushes a polymesh m onto L's stack.
 void lua_push_polymesh(lua_State* L, polymesh_t* m);

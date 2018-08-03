@@ -37,6 +37,8 @@ typedef enum
   prismesh_NODE = 3
 } prismesh_centering_t;
 
+typedef struct prismesh_column_t prismesh_column_t;
+
 /// \class prismesh_column
 /// A column of cells within a prismesh.
 struct prismesh_column_t
@@ -52,7 +54,6 @@ struct prismesh_column_t
   /// domain boundary or on the boundary of the mesh.
   prismesh_column_t** neighbors;
 }; 
-typedef struct prismesh_column_t prismesh_column_t;
 
 DEFINE_ARRAY(prism_column_array, prismesh_column_t*)
 

@@ -238,7 +238,7 @@ char* string_substitute(const char* string, string_substitution_t substitutions[
       }
     }
   }
-  int num_occ = token_occ->size;
+  size_t num_occ = token_occ->size;
 
   // If there are no occurrences of the tokens, we simply copy 
   // the original string.

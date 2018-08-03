@@ -55,7 +55,7 @@ struct list_name##_t \
 { \
   list_name##_node_t* front; \
   list_name##_node_t* back; \
-  int size; \
+  size_t size; \
 }; \
 \
 typedef int (*list_name##_comparator)(element, element); \

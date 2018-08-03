@@ -48,7 +48,7 @@ polynomial_t* polynomial_new(int degree, real_t* coeffs, point_t* x0);
 /// polynomial is expanded about x0, unless x0 is NULL, in which case it is 
 /// expanded about the origin.
 /// \memberof polynomial
-polynomial_t* polynomial_from_monomials(int degree, int num_monomials, real_t* coeffs, 
+polynomial_t* polynomial_from_monomials(int degree, size_t num_monomials, real_t* coeffs, 
                                         int* x_powers, int* y_powers, int* z_powers, 
                                         point_t* x0);
 
@@ -66,7 +66,7 @@ int polynomial_degree(polynomial_t* p);
 
 /// Returns the number of terms in the polynomial.
 /// \memberof polynomial
-int polynomial_num_terms(polynomial_t* p);
+size_t polynomial_num_terms(polynomial_t* p);
 
 /// Returns an internal array of the polynomial's coefficients. Can be used 
 /// to get or set the coefficients.

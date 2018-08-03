@@ -20,6 +20,8 @@ typedef struct prismesh_field_t prismesh_field_t;
 /// \struct prismesh_layer_data
 /// This type holds locally-stored field data for a layer in a prismesh.
 typedef struct prismesh_layer_data_t prismesh_layer_data_t;
+
+struct prismesh_layer_data_t
 {
   /// Data storage for the layer. Use DECLARE_PRISMESH_*_ARRAY to provide 
   /// multidimensional array access to this data.
@@ -43,7 +45,7 @@ typedef struct prismesh_layer_data_t prismesh_layer_data_t;
   /// The number of components for a datum in the field.
   size_t num_components;
 
-} prismesh_layer_data_t;
+};
 
 /// Constructs a new prismesh field with the given number of components
 /// on the given mesh.

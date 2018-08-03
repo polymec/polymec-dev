@@ -112,7 +112,7 @@ void prismesh_finalize(prismesh_t* mesh)
         polygon_t* polygon = mesh->polygons->data[c];
         ASSERT(polygon != NULL);
         col->polygon = polygon;
-        int num_edges = polygon_num_edges(polygon);
+        size_t num_edges = polygon_num_edges(polygon);
         col->neighbors = polymec_malloc(sizeof(prismesh_column_t*) * num_edges);
 
         size_t_array_t* neighbors = mesh->neighbors->data[c];
@@ -208,20 +208,18 @@ static adj_graph_t* graph_from_polygons(prismesh_t* mesh)
   for (size_t i = 0; i < num_polygons; ++i)
   {
     polygon_t* p = mesh->polygons->data[i];
-    int nn = polygon_num_edges(p);
-    adj_graph_set_num_edges(g, i, nn);
+    size_t nn = polygon_num_edges(p);
+    adj_graph_set_num_edges(g, (int)i, nn);
   }
 
   // Now fill in the edges.
   for (size_t i = 0; i < num_polygons; ++i)
   {
     polygon_t* p = mesh->polygons->data[i];
-    int nn = polygon_num_edges(p);
+    size_t nn = polygon_num_edges(p);
     size_t_array_t* neighbors = mesh->neighbors->data[i];
-    int* edges = adj_graph_edges(g, i);
-    int offset = 0;
-
-    for (int j = 0; j < nn; ++j)
+    int* edges = adj_graph_edges(g, (int)i);
+    for (size_t j = 0; j < nn; ++j)
       edges[j] = (int)neighbors->data[j];
   }
 
@@ -244,9 +242,9 @@ static void redistribute_prismesh(prismesh_t** mesh,
   for (size_t i = 0; i < new_mesh->neighbors->size; ++i)
   {
     size_t_array_t* n = old_mesh->neighbors->data[i];
-    ptr_array_append_with_dtor(new_mesh->neighbors, n, size_t_array_free); 
+    ptr_array_append_with_dtor(new_mesh->neighbors, n, DTOR(size_t_array_free)); 
   }
-  new_mesh->num_vertical_cells = old_mesh->vertical_cells;
+  new_mesh->num_vertical_cells = old_mesh->num_vertical_cells;
   new_mesh->finalized = false;
 
   // Insert the new layers as prescribed by the partition vector.

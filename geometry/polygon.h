@@ -20,27 +20,27 @@ typedef struct polygon_t polygon_t;
 
 /// Creates a new polygon in the plane given an ordered sequence of points 
 /// that identify consecutive vertices.
-polygon_t* polygon_new(point2_t* vertices, int num_vertices);
+polygon_t* polygon_new(point2_t* vertices, size_t num_vertices);
 
 /// Creates a new polygon in the plane given a set of vertices and an 
 /// ordering in which they are traversed.
-polygon_t* polygon_new_with_ordering(point2_t* points, int* ordering, int num_points);
+polygon_t* polygon_new_with_ordering(point2_t* points, int* ordering, size_t num_points);
 
 /// Creates a new convex polygon in the plane by applying the "gift-wrap" 
 /// convex hull algorithm to the set of points.
-polygon_t* polygon_giftwrap(point2_t* points, int num_points);
+polygon_t* polygon_giftwrap(point2_t* points, size_t num_points);
 
 /// Creates a new nonconvex "star-shaped" polygon in the plane by ordering 
 /// the given set of points according to their angles of displacement about 
 /// a given center x0. The points must all be distinct from x0.
-polygon_t* polygon_star(point2_t* x0, point2_t* points, int num_points);
+polygon_t* polygon_star(point2_t* x0, point2_t* points, size_t num_points);
 
 /// Returns the number of vertices in the polygon.
-int polygon_num_vertices(polygon_t* poly);
+size_t polygon_num_vertices(polygon_t* poly);
 
 /// Returns the number of edges in the polygon (same as the number of 
 /// vertices).
-static inline int polygon_num_edges(polygon_t* poly)
+static inline size_t polygon_num_edges(polygon_t* poly)
 {
   return polygon_num_vertices(poly);
 }

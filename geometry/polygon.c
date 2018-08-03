@@ -11,7 +11,7 @@
 struct polygon_t 
 {
   point2_t* vertices;
-  int num_vertices;
+  size_t num_vertices;
   int* ordering;
   real_t area;
 };
@@ -28,7 +28,7 @@ static void polygon_compute_area(polygon_t* poly)
   // Compute the area using the fan algorithm.
   poly->area = 0.0;
   int I = poly->ordering[0];
-  for (int j = 1; j < poly->num_vertices - 1; ++j)
+  for (size_t j = 1; j < poly->num_vertices - 1; ++j)
   {
     // Form a triangle from vertex 0, vertex j, and vertex j+1.
     int J = poly->ordering[j];
@@ -37,15 +37,15 @@ static void polygon_compute_area(polygon_t* poly)
   }
 }
 
-polygon_t* polygon_new(point2_t* vertices, int num_vertices)
+polygon_t* polygon_new(point2_t* vertices, size_t num_vertices)
 {
   int ordering[num_vertices];
-  for (int i = 0; i < num_vertices; ++i)
-    ordering[i] = i;
+  for (size_t i = 0; i < num_vertices; ++i)
+    ordering[i] = (int)i;
   return polygon_new_with_ordering(vertices, ordering, num_vertices);
 }
 
-polygon_t* polygon_new_with_ordering(point2_t* points, int* ordering, int num_points)
+polygon_t* polygon_new_with_ordering(point2_t* points, int* ordering, size_t num_points)
 {
   ASSERT(points != NULL);
   ASSERT(num_points >= 3);
@@ -59,7 +59,7 @@ polygon_t* polygon_new_with_ordering(point2_t* points, int* ordering, int num_po
   return poly;
 }
 
-polygon_t* polygon_giftwrap(point2_t* points, int num_points)
+polygon_t* polygon_giftwrap(point2_t* points, size_t num_points)
 {
   ASSERT(num_points > 2);
 
@@ -68,12 +68,12 @@ polygon_t* polygon_giftwrap(point2_t* points, int num_points)
   // Find the "lowest" point in the set.
   real_t ymin = REAL_MAX;
   int index0 = -1;
-  for (int p = 0; p < num_points; ++p)
+  for (size_t p = 0; p < num_points; ++p)
   {
     if (ymin > points[p].y)
     {
       ymin = points[p].y;
-      index0 = p;
+      index0 = (int)p;
     }
   }
 
@@ -87,7 +87,7 @@ polygon_t* polygon_giftwrap(point2_t* points, int num_points)
   {
     real_t dtheta_min = 2.0*M_PI;
     int j_min = -1;
-    for (int j = 0; j < num_points; ++j)
+    for (size_t j = 0; j < num_points; ++j)
     {
       if (j != i)
       {
@@ -100,7 +100,7 @@ polygon_t* polygon_giftwrap(point2_t* points, int num_points)
         if (dtheta_min > dtheta)
         {
           dtheta_min = dtheta;
-          j_min = j;
+          j_min = (int)j;
         }
       }
     }
@@ -133,10 +133,10 @@ static inline int star_angle_cmp(const void* l, const void* r)
          (sl->angle > sr->angle) ?  1 : 0;             
 }
 
-polygon_t* polygon_star(point2_t* x0, point2_t* points, int num_points)
+polygon_t* polygon_star(point2_t* x0, point2_t* points, size_t num_points)
 {
   // Make sure x0 is not one of the points.
-  for (int i = 0; i < num_points; ++i)
+  for (size_t i = 0; i < num_points; ++i)
   {
     if (point2_distance(x0, &points[i]) < 1e-14)
       polymec_error("polygon_star: Point %d coincides with x0.", i);
@@ -144,21 +144,21 @@ polygon_t* polygon_star(point2_t* x0, point2_t* points, int num_points)
 
   // Sort the points by angles.
   star_angle_t angles[num_points];
-  for (int i = 0; i < num_points; ++i)
+  for (size_t i = 0; i < num_points; ++i)
   {
     angles[i].angle = atan2(points[i].y - x0->y, points[i].x - x0->x);
-    angles[i].index = i;
+    angles[i].index = (int)i;
   }
   qsort(angles, (size_t)num_points, sizeof(star_angle_t), star_angle_cmp);
   
   // Create a polygon from the new ordering.
   int ordering[num_points];
-  for (int i = 0; i < num_points; ++i)
+  for (size_t i = 0; i < num_points; ++i)
     ordering[i] = angles[i].index;
   return polygon_new_with_ordering(points, ordering, num_points);
 }
 
-int polygon_num_vertices(polygon_t* poly)
+size_t polygon_num_vertices(polygon_t* poly)
 {
   return poly->num_vertices;
 }
@@ -275,7 +275,7 @@ static polygon_inout_t in_out(point2_t* p, polygon_inout_t inflag, int aHB, int 
     return inflag;
 }
 
-static int advance(int a, int* aa, int n, bool inside, point2_t* v, real_slist_t* xlist, real_slist_t* ylist)
+static int advance(int a, int* aa, size_t n, bool inside, point2_t* v, real_slist_t* xlist, real_slist_t* ylist)
 {
   if (inside)
   {
@@ -292,7 +292,7 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
   // Joseph O'Rourke's _Computational_Geometry_In_C_.
 
   int a = 0, b = 0, aa = 0, ba = 0;
-  int n = poly->num_vertices, m = other->num_vertices;
+  size_t n = poly->num_vertices, m = other->num_vertices;
   polygon_inout_t inflag = UNKNOWN;
   static point2_t origin = {.x = 0.0, .y = 0.0};
   point2_t p0; // First point.
@@ -305,8 +305,8 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
   do
   {
     // Computations of key variables.
-    int a1 = (a + n - 1) % n;
-    int b1 = (b + m - 1) % m;
+    int a1 = (int)(a + n - 1) % n;
+    int b1 = (int)(b + m - 1) % m;
 
     aa = poly->ordering[a];
     int aa1 = poly->ordering[a1];

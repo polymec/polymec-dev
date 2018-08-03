@@ -11,7 +11,8 @@
 
 struct polynomial_t 
 {
-  int degree, num_terms;
+  int degree; 
+  size_t num_terms;
   real_t* coeffs;
   int *x_pow, *y_pow, *z_pow;
   point_t x0;
@@ -78,7 +79,7 @@ void polynomial_compute_basis(int degree,
 // Trims terms with zero coefficients from polynomials.
 static void polynomial_trim(polynomial_t* p)
 {
-  for (int i = 0; i < p->num_terms; ++i)
+  for (size_t i = 0; i < p->num_terms; ++i)
   {
     if (reals_equal(p->coeffs[i], 0.0))
     {
@@ -126,7 +127,7 @@ polynomial_t* polynomial_new(int degree, real_t* coeffs, point_t* x0)
   return p;
 }
 
-polynomial_t* polynomial_from_monomials(int degree, int num_monomials, real_t* coeffs, 
+polynomial_t* polynomial_from_monomials(int degree, size_t num_monomials, real_t* coeffs, 
                                         int* x_powers, int* y_powers, int* z_powers, 
                                         point_t* x0)
 {
@@ -168,7 +169,7 @@ polynomial_t* scaled_polynomial_new(polynomial_t* p, real_t factor)
   q->degree = p->degree;
   q->num_terms = p->num_terms;
   q->coeffs = polymec_malloc(sizeof(real_t) * q->num_terms);
-  for (int i = 0; i < q->num_terms; ++i)
+  for (size_t i = 0; i < q->num_terms; ++i)
   {
     if (reals_equal(factor, 1.0))
       q->coeffs[i] = p->coeffs[i];
@@ -191,7 +192,7 @@ int polynomial_degree(polynomial_t* p)
   return p->degree;
 }
 
-int polynomial_num_terms(polynomial_t* p)
+size_t polynomial_num_terms(polynomial_t* p)
 {
   return p->num_terms;
 }
@@ -258,7 +259,7 @@ real_t polynomial_deriv_value(polynomial_t* p, int x_deriv, int y_deriv, int z_d
 
 bool polynomial_next(polynomial_t* p, int* pos, real_t* coeff, int* x_power, int* y_power, int* z_power)
 {
-  if (*pos >= p->num_terms)
+  if (*pos >= (int)p->num_terms)
     return false;
   *coeff = p->coeffs[*pos];
   *x_power = p->x_pow[*pos];
@@ -273,10 +274,10 @@ bool polynomial_next(polynomial_t* p, int* pos, real_t* coeff, int* x_power, int
 // uses a linear search.
 static int matching_term_index(polynomial_t* p, int x_pow, int y_pow, int z_pow)
 {
-  for (int i = 0; i < p->num_terms; ++i)
+  for (size_t i = 0; i < p->num_terms; ++i)
   {
     if ((p->x_pow[i] == x_pow) && (p->y_pow[i] == y_pow) && (p->z_pow[i] == z_pow))
-      return i;
+      return (int)i;
   }
   return -1;
 }
@@ -289,25 +290,25 @@ void polynomial_add(polynomial_t* p, real_t factor, polynomial_t* q)
   // 2. We have no such matching term, and a new term should be appended 
   //    to p.
   int_slist_t* terms_to_append = int_slist_new();
-  for (int i = 0; i < q->num_terms; ++i)
+  for (size_t i = 0; i < q->num_terms; ++i)
   {
     int index = matching_term_index(p, q->x_pow[i], q->y_pow[i], q->z_pow[i]);
     if (index != -1)
       p->coeffs[index] += factor * q->coeffs[i];
     else
-      int_slist_append(terms_to_append, i);
+      int_slist_append(terms_to_append, (int)i);
   }
 
   if (!int_slist_empty(terms_to_append))
   {
-    int old_size = p->num_terms;
+    size_t old_size = p->num_terms;
     p->num_terms = old_size + terms_to_append->size;
     p->coeffs = polymec_realloc(p->coeffs, sizeof(real_t) * p->num_terms);
     p->x_pow = polymec_realloc(p->x_pow, sizeof(int) * p->num_terms);
     p->y_pow = polymec_realloc(p->y_pow, sizeof(int) * p->num_terms);
     p->z_pow = polymec_realloc(p->z_pow, sizeof(int) * p->num_terms);
 
-    for (int i = old_size; i < p->num_terms; ++i)
+    for (size_t i = old_size; i < p->num_terms; ++i)
     {
       int j = int_slist_pop(terms_to_append, NULL);
       p->coeffs[i] = factor * q->coeffs[j];
@@ -331,13 +332,13 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
   int degree = p->degree + q->degree;
 
   // All terms in the product.
-  int num_terms = p->num_terms * q->num_terms;
+  size_t num_terms = p->num_terms * q->num_terms;
   real_t coeffs[num_terms];
   int x_pow[num_terms], y_pow[num_terms], z_pow[num_terms];
   int k = 0;
-  for (int i = 0; i < p->num_terms; ++i)
+  for (size_t i = 0; i < p->num_terms; ++i)
   {
-    for (int j = 0; j < q->num_terms; ++j, ++k)
+    for (size_t j = 0; j < q->num_terms; ++j, ++k)
     {
       coeffs[k] = p->coeffs[i] * q->coeffs[j];
       x_pow[k] = p->x_pow[i] + q->x_pow[j];
@@ -347,9 +348,9 @@ polynomial_t* polynomial_product(polynomial_t* p, polynomial_t* q)
   }
 
   // Add like terms. This is probably slower than it needs to be.
-  for (int i = 0; i < num_terms; ++i)
+  for (size_t i = 0; i < num_terms; ++i)
   {
-    for (int j = i+1; j < num_terms; ++j)
+    for (size_t j = i+1; j < num_terms; ++j)
     {
       if ((x_pow[j] == x_pow[i]) && (y_pow[j] == y_pow[i]) && (z_pow[j] == z_pow[i]))
       {
@@ -388,7 +389,7 @@ polynomial_t* polynomial_derivative(polynomial_t* p, int x_deriv, int y_deriv, i
 
   real_t coeffs[p->num_terms];
   int x_pow[p->num_terms], y_pow[p->num_terms], z_pow[p->num_terms];
-  for (int i = 0; i < p->num_terms; ++i)
+  for (size_t i = 0; i < p->num_terms; ++i)
   {
     int x_powdiff = MAX(p->x_pow[i] - x_deriv, 0);
     int y_powdiff = MAX(p->y_pow[i] - y_deriv, 0);

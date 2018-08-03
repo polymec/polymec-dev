@@ -12,7 +12,7 @@
 struct text_buffer_t 
 {
   size_t size;
-  int num_lines;
+  size_t num_lines;
   size_t* line_offsets;
   char* data;
 };
@@ -101,14 +101,14 @@ size_t text_buffer_size(text_buffer_t* buffer)
   return buffer->size - 1;
 }
 
-int text_buffer_num_lines(text_buffer_t* buffer)
+size_t text_buffer_num_lines(text_buffer_t* buffer)
 {
   return buffer->num_lines;
 }
 
 bool text_buffer_next(text_buffer_t* buffer, int* pos, char** line, size_t* line_length)
 {
-  if (*pos >= buffer->num_lines) 
+  if (*pos >= (int)buffer->num_lines) 
     return false;
   size_t offset = buffer->line_offsets[*pos];
   size_t next_offset = buffer->line_offsets[*pos+1];

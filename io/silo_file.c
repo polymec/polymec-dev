@@ -509,7 +509,7 @@ bool silo_file_query(const char* file_prefix,
   }
 
   // Now spread the word to other processes.
-  int num_steps = (steps != NULL) ? steps->size : 0;
+  int num_steps = (steps != NULL) ? (int)steps->size : 0;
   int data[3] = {*num_files, *num_mpi_processes, num_steps};
   MPI_Bcast(data, 3, MPI_INT, 0, MPI_COMM_WORLD);
   if (rank != 0)

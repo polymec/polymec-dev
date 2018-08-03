@@ -36,7 +36,7 @@ size_t text_buffer_size(text_buffer_t* buffer);
 
 /// Returns the number of lines in the buffer.
 /// \memberof text_buffer
-int text_buffer_num_lines(text_buffer_t* buffer);
+size_t text_buffer_num_lines(text_buffer_t* buffer);
 
 /// Iterates over the file, returning the next line. Set pos to 0 
 /// to reset the iteration. line is not NULL-terminated--it is just the portion
