@@ -135,6 +135,22 @@ typedef float complex complex_t;
 // Type-generic macros for dealing with various mathematical functions.
 // Also not available to C++.
 #ifndef __cplusplus
+#define floor(x) _Generic((x), \
+                          long double: floorl, \
+                          float: floorf, \
+                          double: floor)(x)
+#define ceil(x) _Generic((x), \
+                         long double: ceill, \
+                         float: ceilf, \
+                         double: ceil)(x)
+#define round(x) _Generic((x), \
+                          long double: roundl, \
+                          float: roundf, \
+                          double: round)(x)
+#define trunc(x) _Generic((x), \
+                          long double: truncl, \
+                          float: truncf, \
+                          double: trunc)(x)
 #define cos(x) _Generic((x), \
                         long double: cosl, \
                         long double complex: ccosl, \

@@ -15,14 +15,24 @@
 ///@{
 
 /// Partitions a (serial) global graph, creating and returning a global 
-/// partition vector. If broadcast is true, the partition vector is broadcasted
-/// and returned on all ranks. Otherwise only rank 0 returns the partition vector,
+/// partition vector. The partitioning is only performed on rank 0. 
+/// If broadcast is true, the partition vector is broadcasted and returned on 
+/// all ranks. Otherwise only rank 0 returns the partition vector,
 /// and all other ranks return NULL.
 int64_t* partition_graph(adj_graph_t* global_graph, 
                          MPI_Comm comm,
                          int* weights,
                          real_t imbalance_tol, 
                          bool broadcast);
+
+/// Partitions a (serial) global graph into n pieces, creating a returning a 
+/// global partition vector. Unlike \ref partition_graph, this function 
+/// performs the partitioning on every process and returns the partition 
+/// vector on every process.
+int64_t* partition_graph_n_ways(adj_graph_t* global_graph, 
+                                int n,
+                                int* weights,
+                                real_t imbalance_tol);
 
 /// Partitions a (serial) list of points, creating and returning a global 
 /// partition vector. If broadcast is true, the partition vector is broadcasted
