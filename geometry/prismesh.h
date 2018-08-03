@@ -176,16 +176,6 @@ polygon_t* prismesh_polygon(prismesh_t* mesh, size_t column);
 /// \memberof prismesh
 bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer);
 
-/// Returns the number of columns in the prismesh layer.
-/// \memberof prismesh_layer
-size_t prismesh_layer_num_columns(prismesh_layer_t* layer);
-
-/// Returns the bottom and top z coordinates of the prismesh layer.
-/// \memberof prismesh_layer
-/// \param [out] z1 Stores the bottom z coordinate of the layer.
-/// \param [out] z2 Stores the top z coordinate of the layer.
-void prismesh_layer_get_bounds(prismesh_layer_t* layer, real_t* z1, real_t *z2);
-
 /// Traverses the locally-stored columns in the prismesh layer, returning true 
 /// and the next column if the traversal is incomplete, false otherwise. 
 /// \memberof prismesh_layer

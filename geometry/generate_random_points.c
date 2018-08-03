@@ -7,7 +7,7 @@
 
 #include "geometry/generate_random_points.h"
 
-void generate_random_points(rng_t* rng, sp_func_t* density, bbox_t* bounding_box, int num_points, point_t* points)
+void generate_random_points(rng_t* rng, sp_func_t* density, bbox_t* bounding_box, size_t num_points, point_t* points)
 {
   ASSERT(density != NULL);
   ASSERT(bounding_box != NULL);
@@ -17,7 +17,7 @@ void generate_random_points(rng_t* rng, sp_func_t* density, bbox_t* bounding_box
   // Keep track of the maximum value of the density we've hit so far.
   real_t rho_max = 1e-12;
 
-  for (int i = 0; i < num_points; ++i)
+  for (size_t i = 0; i < num_points; ++i)
   {
     bool rejected;
     do

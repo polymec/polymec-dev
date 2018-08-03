@@ -172,17 +172,6 @@ bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer)
   }
 }
 
-size_t prismesh_layer_num_columns(prismesh_layer_t* layer)
-{
-  return layer->columns->size;
-}
-
-void prismesh_layer_get_bounds(prismesh_layer_t* layer, real_t* z1, real_t *z2)
-{
-  *z1 = layer->z1;
-  *z2 = layer->z2;
-}
-
 bool prismesh_layer_next_column(prismesh_layer_t* layer, 
                                int* pos, 
                                prismesh_column_t** column)
