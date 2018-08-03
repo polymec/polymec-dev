@@ -29,12 +29,12 @@ typedef struct prismesh_t prismesh_t;
 /// lie in the x-y plane.
 typedef enum
 {
-  prismesh_CELL = 0,
-  prismesh_XYFACE = 1,
-  prismesh_ZFACE = 2,
-  prismesh_XYEDGE = 3,
-  prismesh_ZEDGE = 3,
-  prismesh_NODE = 3
+  PRISMESH_CELL = 0,
+  PRISMESH_XYFACE = 1,
+  PRISMESH_ZFACE = 2,
+  PRISMESH_XYEDGE = 3,
+  PRISMESH_ZEDGE = 3,
+  PRISMESH_NODE = 3
 } prismesh_centering_t;
 
 typedef struct prismesh_column_t prismesh_column_t;
@@ -61,16 +61,20 @@ DEFINE_ARRAY(prism_column_array, prismesh_column_t*)
 /// A layer of columns within a prismesh.
 struct prismesh_layer_t 
 {
-  /// The underlying mesh.
-  prismesh_t* mesh;
-
   /// The index of the layer within this mesh.
   int index;
 
   /// The z coordinate of the layer's lower boundary.
   real_t z1;
+
   /// The z coordinate of the layer's upper boundary.
   real_t z2;
+
+  /// The total number of lateral (xy-) faces in this layer.
+  size_t num_lateral_faces;
+
+  /// The number of vertical cells in this layer.
+  size_t num_vertical_cells;
 
   /// Columns locally stored within this layer.
   prism_column_array_t* columns;

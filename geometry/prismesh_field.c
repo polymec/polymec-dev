@@ -12,8 +12,44 @@ static prismesh_layer_data_t* prismesh_layer_data_new(prismesh_layer_t* layer,
                                                       size_t num_components)
 {
   prismesh_layer_data_t* data = polymec_malloc(sizeof(prismesh_layer_data_t));
-  data->data = NULL;
-  // FIXME
+  data->centering = centering;
+  data->num_components = num_components;
+
+  // Figure out the dimensions of our data.
+  if (centering == PRISMESH_CELL)
+  {
+    size_t num_ghost_xyvals = 0;
+    data->xy_size = layer->columns->size + num_ghost_xyvals;
+    data->z_size = layer->num_vertical_cells + 2;
+  }
+  else if (centering == PRISMESH_XYFACE)
+  {
+    data->xy_size = layer->num_lateral_faces;
+    data->z_size = layer->num_vertical_cells;
+  }
+  else if (centering == PRISMESH_ZFACE)
+  {
+    data->xy_size = layer->columns->size;
+    data->z_size = 2*layer->num_vertical_cells;
+  }
+  else if (centering == PRISMESH_XYEDGE)
+  {
+    data->xy_size = 2*layer->num_lateral_faces;
+    data->z_size = 2*layer->num_vertical_cells;
+  }
+  else if (centering == PRISMESH_ZEDGE)
+  {
+    data->xy_size = 2*layer->num_lateral_faces;
+    data->z_size = 2*layer->num_vertical_cells;
+  }
+  else // (centering == PRISMESH_NODE)
+  {
+    data->xy_size = layer->num_lateral_faces;
+    data->z_size = 2*layer->num_vertical_cells;
+  }
+  size_t data_size = data->xy_size * data->z_size * num_components;
+  data->data = polymec_malloc(sizeof(real_t) * data_size);
+  memset(data->data, 0, sizeof(real_t) * data_size);
   return data;
 }
 
