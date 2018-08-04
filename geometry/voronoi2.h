@@ -14,8 +14,8 @@
 /// \addtogroup geometry geometry
 ///@{
 
-/// \class voronoi2
-/// This class contains data defining a 2D Vornoi diagram in the plane.
+/// \struct voronoi2
+/// This struct contains data defining a 2D Vornoi diagram in the plane.
 struct voronoi2_t
 {
   /// Points used to generate the diagram.
@@ -24,7 +24,8 @@ struct voronoi2_t
   size_t num_generators;
   /// The polygonal cells in the diagram.
   polygon_t** cells;
-  /// An adjacency graph that defines the neighbor relations for the polygons.
+  /// An adjacency graph that defines the neighbor relations for the cells,
+  /// and also their parallel distribution.
   adj_graph_t* graph;
 };
 typedef struct voronoi2_t voronoi2_t;
