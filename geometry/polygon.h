@@ -55,6 +55,9 @@ bool polygon_next_vertex(polygon_t* poly, int* pos, point2_t** vertex);
 /// Returns the area of the polygon.
 real_t polygon_area(polygon_t* poly);
 
+/// Computes the centroid of the polygon.
+void polygon_compute_centroid(polygon_t* poly, point2_t* centroid);
+
 /// Clones the polygon, returning an exact copy.
 polygon_t* polygon_clone(polygon_t* poly);
 

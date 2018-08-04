@@ -56,9 +56,14 @@ bool polyhedron_next_vertex(polyhedron_t* poly, int* pos, point_t* vertex);
 /// \param pos [in,out] Controls the traversal. Set to 0 to reset the traversal.
 /// \param face_vertices [out] Stores an array of vertices for the next face.
 /// \param num_face_vertices [out] Stores the number of vertices in the next face.
+/// \param face_area [out] If non-NULL, stores the area of the next face.
+/// \param face_normal [out] If non-NULL, stores the normal vector for the next face.
 /// \memberof polyhedron
 bool polyhedron_next_face(polyhedron_t* poly, int* pos, 
-                          point_t** face_vertices, size_t* num_face_vertices);
+                          point_t** face_vertices, 
+                          size_t* num_face_vertices,
+                          real_t* face_area,
+                          vector_t* face_normal);
 
 /// Returns the volume of the polyhedron.
 /// \memberof polyhedron

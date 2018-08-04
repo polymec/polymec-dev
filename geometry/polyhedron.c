@@ -7,6 +7,8 @@
 
 #include "geometry/polyhedron.h"
 #include "geometry/tetrahedron.h"
+#include "geometry/plane_sd_func.h"
+#include "geometry/polygon.h"
 
 struct polyhedron_t 
 {
@@ -75,18 +77,83 @@ bool polyhedron_next_vertex(polyhedron_t* poly, int* pos, point_t* vertex)
     return false;
 }
 
-bool polyhedron_next_face(polyhedron_t* poly, int* pos, 
-                          point_t** face_vertices, size_t* num_face_vertices)
+static real_t compute_face_area(polyhedron_t* poly, size_t face_index)
+{
+  // Compute the area using the fan algorithm.
+  real_t area = 0.0;
+  vector_t A, B;
+  for (size_t j = 1; j < poly->num_face_vertices[face_index] - 1; ++j)
+  {
+    // Form a triangle from vertex 0, vertex j, and vertex j+1.
+    point_displacement(&(poly->face_vertices[face_index][0]), 
+                       &(poly->face_vertices[face_index][j]), &A);
+    point_displacement(&(poly->face_vertices[face_index][0]), 
+                       &(poly->face_vertices[face_index][j+1]), &B);
+    area += 0.5 * vector_cross_mag(&A, &B);
+  }
+  return area;
+}
+
+static void compute_face_normal(polyhedron_t* poly, 
+                                size_t face_index,
+                                vector_t* normal)
+{
+  vector_t A, B;
+  point_displacement(&(poly->face_vertices[face_index][0]), 
+                     &(poly->face_vertices[face_index][1]), &A);
+  point_displacement(&(poly->face_vertices[face_index][0]), 
+                     &(poly->face_vertices[face_index][2]), &B);
+  vector_cross(&A, &B, normal);
+  ASSERT(vector_mag(normal) > 0.0);
+  vector_normalize(normal);
+}
+
+bool polyhedron_next_face(polyhedron_t* poly, 
+                          int* pos, 
+                          point_t** face_vertices, 
+                          size_t* num_face_vertices,
+                          real_t* face_area,
+                          vector_t* face_normal)
 {
   if (*pos < (int)poly->num_faces)
   {
-    *face_vertices = poly->face_vertices;
-    *num_face_vertices = poly->num_face_vertices;
+    *face_vertices = poly->face_vertices[*pos];
+    *num_face_vertices = poly->num_face_vertices[*pos];
+    if (face_area != NULL)
+      *face_area = compute_face_area(poly, *pos);
+    if (face_normal != NULL)
+      compute_face_normal(poly, *pos, face_normal);
     ++(*pos);
     return true;
   }
   else
     return false;
+}
+
+static void compute_face_centroid(polyhedron_t* poly,
+                                  size_t face_index,
+                                  point_t* centroid)
+{
+  // Create a plane for this face.
+  point_t* x1 = &(poly->face_vertices[face_index][0]);
+  point_t* x2 = &(poly->face_vertices[face_index][1]);
+  point_t* x3 = &(poly->face_vertices[face_index][2]);
+  sd_func_t* plane = plane_sd_func_from_points(x1, x2, x3);
+
+  // Project the vertices into this plane.
+  size_t nv = poly->num_face_vertices[face_index];
+  point2_t points[nv];
+  for (size_t v = 0; v < nv; ++v)
+    plane_sd_func_project(plane, &(poly->face_vertices[face_index][v]), &points[v]);
+
+  // Construct a polygon and compute its centroid.
+  polygon_t* face = polygon_new(points, nv);
+  point2_t centroid2;
+  polygon_compute_centroid(face, &centroid2);
+  face = NULL;
+
+  // Embed the 2D centroid back in 3D space.
+  plane_sd_func_embed(plane, &centroid2, centroid);
 }
 
 real_t polyhedron_volume(polyhedron_t* poly)
@@ -102,9 +169,8 @@ real_t polyhedron_volume(polyhedron_t* poly)
   for (size_t f = 0; f < poly->num_faces; ++f)
   {
     // Compute the (3D) centroid of this face. 
-    // FIXME
     point_t xf;
-    polygon_compute_centroid(face, &xf);
+    compute_face_centroid(poly, f, &xf);
 
     // Sum the volumes of the tets formed by this face's vertex and its 
     // centroid.
@@ -126,7 +192,7 @@ void polyhedron_compute_centroid(polyhedron_t* poly, point_t* centroid)
   for (size_t f = 0; f < poly->num_faces; ++f)
   {
     point_t xf;
-    polygon_compute_centroid(poly->face_vertices[f], &xf);
+    compute_face_centroid(poly, f, &xf);
     centroid->x += xf.x;
     centroid->y += xf.y;
     centroid->z += xf.z;

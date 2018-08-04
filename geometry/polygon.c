@@ -14,6 +14,7 @@ struct polygon_t
   size_t num_vertices;
   int* ordering;
   real_t area;
+  bool area_computed;
 };
 
 static void polygon_free(void* ctx)
@@ -37,6 +38,26 @@ static void polygon_compute_area(polygon_t* poly)
   }
 }
 
+void polygon_compute_centroid(polygon_t* poly, point2_t* centroid)
+{
+  centroid->x = centroid->y = 0.0;
+  size_t nv = poly->num_vertices;
+  for (size_t i = 0; i < nv; ++i)
+  {
+    size_t i1 = (i+1) % nv;
+    real_t xi = poly->vertices[i].x;
+    real_t xi1 = poly->vertices[i1].x;
+    real_t yi = poly->vertices[i].y;
+    real_t yi1 = poly->vertices[i1].y;
+    centroid->x += (xi + xi1) * (xi*yi1 - xi1*yi);
+    centroid->y += (yi + yi1) * (xi*yi1 - xi1*yi);
+  }
+  real_t A = polygon_area(poly);
+  real_t factor = 1.0/(6.0*A);
+  centroid->x *= factor;
+  centroid->y *= factor;
+}
+
 polygon_t* polygon_new(point2_t* vertices, size_t num_vertices)
 {
   int ordering[num_vertices];
@@ -54,8 +75,8 @@ polygon_t* polygon_new_with_ordering(point2_t* points, int* ordering, size_t num
   memcpy(poly->vertices, points, sizeof(point2_t)*num_points);
   poly->num_vertices = num_points;
   poly->ordering = polymec_malloc(sizeof(int)*num_points);
+  poly->area_computed = false;
   memcpy(poly->ordering, ordering, sizeof(int)*num_points);
-  polygon_compute_area(poly);
   return poly;
 }
 
@@ -179,6 +200,11 @@ bool polygon_next_vertex(polygon_t* poly, int* pos, point2_t** vertex)
 
 real_t polygon_area(polygon_t* poly)
 {
+  if (!poly->area_computed)
+  {
+    polygon_compute_area(poly);
+    poly->area_computed = true;
+  }
   return poly->area;
 }
 
@@ -374,7 +400,7 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
     poly->vertices[i].x = real_slist_pop(xlist, NULL);
     poly->vertices[i].y = real_slist_pop(ylist, NULL);
   }
-  polygon_compute_area(poly);
+  poly->area_computed = false;
 
   // Clean up.
   real_slist_free(xlist);

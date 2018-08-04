@@ -69,3 +69,21 @@ sd_func_t* plane_sd_func_from_points(point_t* p1, point_t* p2, point_t* p3)
   return plane_sd_func_new(&n, p1);
 }
 
+void plane_sd_func_project(sd_func_t* plane, point_t* x, point2_t* y)
+{
+  plane_t* p = sd_func_context(plane);
+  vector_t v = {.x = x->x - p->x.x, .y = x->y - p->x.y, .z = x->z - p->x.z};
+  real_t voe3 = vector_dot(&v, &p->e3);
+  vector_t v_perp = {.x = v.x - voe3 * p->e3.x, .y = v.y - voe3 * p->e3.y, .z = v.z - voe3 * p->e3.z};
+  y->x = vector_dot(&v_perp, &p->e1);
+  y->y = vector_dot(&v_perp, &p->e2);
+}
+
+void plane_sd_func_embed(sd_func_t* plane, point2_t* y, point_t* x)
+{
+  plane_t* p = sd_func_context(plane);
+  x->x = p->x.x + p->e1.x * y->x + p->e2.x * y->y;
+  x->y = p->x.y + p->e1.y * y->x * p->e2.y + y->y;
+  x->z = p->x.z + p->e1.z * y->x * p->e2.z + y->y;
+}
+
