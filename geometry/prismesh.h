@@ -163,9 +163,13 @@ size_t prismesh_num_layers(prismesh_t* mesh);
 /// \memberof prismesh
 size_t prismesh_num_columns(prismesh_t* mesh);
 
-/// Returns the total number of vertical cells in each column in the prismesh.
+/// Returns the total number of cells along the z axis in the prismesh.
 /// \memberof prismesh
 size_t prismesh_num_vertical_cells(prismesh_t* mesh);
+
+/// Returns the total number of locally-stored cells in the prismesh.
+/// \memberof prismesh
+size_t prismesh_num_cells(prismesh_t* mesh);
 
 /// Returns the polygon associated with the given column.
 /// \memberof prismesh

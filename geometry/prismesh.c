@@ -44,6 +44,7 @@ struct prismesh_t
   polygon_array_t* polygons;
   ptr_array_t* neighbors;
   size_t num_columns, num_vertical_cells;
+  size_t num_cells;
 
   bool finalized;
 };
@@ -152,6 +153,11 @@ size_t prismesh_num_columns(prismesh_t* mesh)
 size_t prismesh_num_vertical_cells(prismesh_t* mesh)
 {
   return mesh->num_vertical_cells;
+}
+
+size_t prismesh_num_cells(prismesh_t* mesh)
+{
+  return mesh->num_cells;
 }
 
 polygon_t* prismesh_polygon(prismesh_t* mesh, size_t column)
