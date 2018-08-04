@@ -150,7 +150,7 @@ static void compute_face_centroid(polyhedron_t* poly,
   polygon_t* face = polygon_new(points, nv);
   point2_t centroid2;
   polygon_compute_centroid(face, &centroid2);
-  face = NULL;
+  polymec_release(face);
 
   // Embed the 2D centroid back in 3D space.
   plane_sd_func_embed(plane, &centroid2, centroid);
