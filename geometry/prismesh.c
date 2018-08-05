@@ -16,16 +16,6 @@
 #endif
 
 #if 0
-// Destroys a column managed by a layer.
-static void free_column(prismesh_column_t* col)
-{
-  if (col->polygon != NULL)
-    col->polygon = NULL;
-  if (col->neighbors != NULL)
-    polymec_free(col->neighbors);
-  polymec_free(col);
-}
-
 // Destroys a layer managed by a mesh.
 static void free_layer(prismesh_layer_t* layer)
 {
@@ -109,9 +99,10 @@ void prismesh_finalize(prismesh_t* mesh)
 
     if (mesh->layers->size == 1) // easy case! All columns present in layer
     {
-      size_t ncols = layer->columns->size;
+      size_t ncols = layer->num_columns;
       for (size_t c = 0; c < ncols; ++c)
       {
+#if 0
         prismesh_column_t* col = layer->columns->data[c];
         ASSERT(c == col->index);
         polygon_t* polygon = mesh->polygons->data[c];
@@ -126,6 +117,7 @@ void prismesh_finalize(prismesh_t* mesh)
           prismesh_column_t* ncol = layer->columns->data[neighbors->data[n]];
           col->neighbors[n] = ncol;
         }
+#endif
       }
     }
     else
@@ -175,20 +167,6 @@ bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer)
   else
   {
     *layer = mesh->layers->data[*pos];
-    ++(*pos);
-    return true;
-  }
-}
-
-bool prismesh_layer_next_column(prismesh_layer_t* layer, 
-                               int* pos, 
-                               prismesh_column_t** column)
-{
-  if (*pos >= (int)layer->columns->size)
-    return false;
-  else
-  {
-    *column = layer->columns->data[*pos];
     ++(*pos);
     return true;
   }

@@ -39,24 +39,6 @@ typedef enum
 
 typedef struct prismesh_column_t prismesh_column_t;
 
-/// \class prismesh_column
-/// A column of cells within a prismesh.
-struct prismesh_column_t
-{
-  /// Index of the column within the prismesh.
-  size_t index;
-  /// Polygon representing the top and bottom facet.
-  polygon_t* polygon;
-  /// Number of (vertical) cells in the column.
-  size_t num_cells; 
-  /// Array of neighboring columns (arranged in the same order as the 
-  /// vertices/edges of the polygon). NULL if the column is on a parallel 
-  /// domain boundary or on the boundary of the mesh.
-  prismesh_column_t** neighbors;
-}; 
-
-DEFINE_ARRAY(prism_column_array, prismesh_column_t*)
-
 /// \class prismesh_layer
 /// A layer of columns within a prismesh.
 struct prismesh_layer_t 
@@ -70,29 +52,51 @@ struct prismesh_layer_t
   /// The z coordinate of the layer's upper boundary.
   real_t z2;
 
-  /// The total number of lateral (xy-) faces in this layer.
-  size_t num_lateral_faces;
+  /// The number of (polygonal) columns in this layer.
+  size_t num_columns;
 
-  /// The number of vertical cells in this layer.
-  size_t num_vertical_cells;
+  /// The number of vertical (z) cells in this layer. Notice that 
+  /// * the number of "z" faces is \ref num_zcells + 1.
+  /// * the number of "z" edges is \ref num_zcells.
+  /// * the number of "z" nodes is \ref num_zcells + 1.
+  size_t num_z_cells;
 
-  /// Columns locally stored within this layer.
-  prism_column_array_t* columns;
+  /// Offsets of lateral (xy-) faces attached to columns, stored in compressed-row 
+  /// storage (CRS) format. column_xy_face_offsets[i] stores the offset within
+  /// \ref column_faces for the ith xy-face.
+  int* column_xy_face_offsets;
 
-  /// cell_xyfaces[m][n] stores the index of the nth xy-face for the mth cell.
-  int** cell_xyfaces;
+  /// The indices of xy-faces for columns, stored in CRS format.
+  int* column_xy_faces;
 
-  /// xyface_zedges[m][n] stores the index of the nth z-edge for the mth xy-face.
-  int** xyface_zedges;
+  /// The columns attached to the xy-faces in the mesh. Each xy-face 
+  /// connects 2 columns, so the first column of the ith face is 
+  /// face_columns[2*i] and the second is face_columns[2*i+1].
+  int* xy_face_columns;
 
-  /// zface_xyedges[m][n] stores the index of the nth xy-edge for the mth z-face.
-  int** zface_xyedges;
+  /// The total number of lateral (xy-) faces at a single z location.
+  size_t num_xy_faces;
 
-  /// xyface_nodes[m][n] stores the index of the nth node for the mth xy-face.
-  int** xyface_nodes;
+  /// The offsets of the sets of column nodes (polygon vertices) attached to 
+  /// xy-faces, stored in CRS format.
+  int* xy_face_node_offsets;
 
-  /// zface_nodes[m][n] stores the index of the nth node for the mth z-face.
-  int** zface_nodes;
+  /// The indices of column nodes (polygon vertices) attached to xy-faces, 
+  /// stored in CRS format.
+  int* xy_face_nodes;
+
+  /// The offsets of the sets of column (polygon) edges attached to xy-faces, 
+  /// stored in CRS format.
+  int* xy_face_edge_offsets;
+  /// The indices of column (polygon) xy-edges attached to xy-faces, stored in 
+  /// CRS format.
+  int* xy_face_edges;
+
+  /// The total number of lateral (xy-) edges at a single z location.
+  size_t num_xy_edges;
+
+  /// The total number of nodes at a single z location.
+  size_t num_xy_nodes;
 };
 typedef struct prismesh_layer_t prismesh_layer_t;
 
@@ -179,11 +183,6 @@ polygon_t* prismesh_polygon(prismesh_t* mesh, size_t column);
 /// next layer if the traversal is incomplete, false otherwise. 
 /// \memberof prismesh
 bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer);
-
-/// Traverses the locally-stored columns in the prismesh layer, returning true 
-/// and the next column if the traversal is incomplete, false otherwise. 
-/// \memberof prismesh_layer
-bool prismesh_layer_next_column(prismesh_layer_t* layer, int* pos, prismesh_column_t** column);
 
 typedef struct prismesh_field_t prismesh_field_t;
 

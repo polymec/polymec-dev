@@ -104,7 +104,7 @@ DECLARE_3D_ARRAY(real_t, array, data->data, data->num_xy_data, data->num_vertica
 /// * i runs from 0 to data->num_xy_data.
 /// * k runs from 0 to data->num_vertical_cells-1.
 /// * c runs from 0 to data->num_components-1.
-/// Use layer->cell_xyfaces[m][n] to retrieve the index for the nth xy-face 
+/// Use layer->cell_xy_faces[m][n] to retrieve the index for the nth xy-face 
 /// of the mth cell.
 #define DECLARE_PRISMESH_XYFACE_ARRAY(array, data) \
 ASSERT(data->centering == PRISMESH_XYFACE); \
@@ -145,8 +145,8 @@ DECLARE_3D_ARRAY(real_t, array, data->data, data->num_xy_data, data->num_vertica
 /// * i runs from 0 to data->num_xy_data-1.
 /// * k runs from 0 to data->num_vertical_cells-1.
 /// * c runs from 0 to data->num_components-1.
-/// Use layer->xyface_zedges[m][n] to retrieve the index for the nth z-edge 
-/// of the mth xy-face.
+/// Z-edges are indexed the same as nodes, so use layer->xy_face_nodes[m][n] to 
+/// retrieve the index for the nth z-edge of the mth xy-face.
 #define DECLARE_PRISMESH_ZEDGE_ARRAY(array, data) \
 ASSERT(data->centering == PRISMESH_ZEDGE); \
 DECLARE_3D_ARRAY(real_t, array, data->data, data->num_xy_data, data->num_vertical_cells, data->num_components)
@@ -159,7 +159,7 @@ DECLARE_3D_ARRAY(real_t, array, data->data, data->num_xy_data, data->num_vertica
 /// * i runs from 0 to data->num_xy_data-1.
 /// * k runs from 0 to data->num_vertical_cells.
 /// * c runs from 0 to data->num_components-1.
-/// Use layer->xyface_nodes[m][n] to retrieve the index for the nth node
+/// Use layer->xy_face_nodes[m][n] to retrieve the index for the nth node
 /// of the mth xy-face, and layer->zface_nodes[m][n] to retrieve the index
 /// for the nth node of the mth z-face.
 #define DECLARE_PRISMESH_NODE_ARRAY(array, data) \
