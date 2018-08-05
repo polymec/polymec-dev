@@ -879,18 +879,11 @@ static int p2_new(lua_State* L)
   }
   else
   {
-    int i = 1;
-    while (true)
+    for (int i = 1; i <= num_args; ++i)
     {
-      if (lua_isnil(L, i))
-        break;
-      else
-      {
-        if (!lua_is_point2(L, i))
-          luaL_error(L, "Argument %d is not a 2D point.", i);
-        point2_array_append(vertices, *lua_to_point2(L, i));
-      }
-      ++i;
+      if (!lua_is_point2(L, i))
+        luaL_error(L, "Argument %d is not a 2D point.", i);
+      point2_array_append(vertices, *lua_to_point2(L, i));
     }
   }
   if (vertices->size < 3)
