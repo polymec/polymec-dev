@@ -81,6 +81,8 @@ static lua_class_field complex_fields[] = {
 
 static int z_add(lua_State* L)
 {
+  if (!lua_is_complex(L, 1) || (!lua_is_complex(L, 2)))
+    return luaL_error(L, "Arguments must both be complex numbers.");
   complex_t z1 = lua_to_complex(L, 1);
   complex_t z2 = lua_to_complex(L, 2);
   lua_push_complex(L, z1 + z2);
@@ -89,6 +91,8 @@ static int z_add(lua_State* L)
 
 static int z_sub(lua_State* L)
 {
+  if (!lua_is_complex(L, 1) || (!lua_is_complex(L, 2)))
+    return luaL_error(L, "Arguments must both be complex numbers.");
   complex_t z1 = lua_to_complex(L, 1);
   complex_t z2 = lua_to_complex(L, 2);
   lua_push_complex(L, z1 - z2);
@@ -266,7 +270,7 @@ static int p_sub(lua_State* L)
 {
   point_t* p1 = lua_to_point(L, 1);
   point_t* p2 = lua_to_point(L, 2);
-  if (p2 == NULL)
+  if ((p1 == NULL) || (p2 == NULL))
     return luaL_error(L, "Arguments must both be points.");
   vector_t* diff = vector_new(p1->x - p2->x, p1->y - p2->y, p1->z - p2->z);
   lua_push_vector(L, diff);
@@ -538,10 +542,8 @@ static int v_add(lua_State* L)
 {
   vector_t* v = lua_to_vector(L, 1);
   vector_t* w = lua_to_vector(L, 2);
-  if (v == NULL)
-    luaL_error(L, "Argument 1 must be a vector.");
-  if (w == NULL)
-    luaL_error(L, "Argument 2 must be a vector.");
+  if ((v == NULL) || (w == NULL))
+    luaL_error(L, "Arguments must both be vectors.");
   vector_t* sum = vector_new(v->x + w->x, v->y + w->y, v->z + w->z);
   lua_push_vector(L, sum);
   return 1;
@@ -551,10 +553,8 @@ static int v_sub(lua_State* L)
 {
   vector_t* v = lua_to_vector(L, 1);
   vector_t* w = lua_to_vector(L, 2);
-  if (v == NULL)
-    luaL_error(L, "Argument 1 must be a vector.");
-  if (w == NULL)
-    luaL_error(L, "Argument 2 must be a vector.");
+  if ((v == NULL) || (w == NULL))
+    luaL_error(L, "Arguments must both be vectors.");
   vector_t* diff = vector_new(v->x - w->x, v->y - w->y, v->z - w->z);
   lua_push_vector(L, diff);
   return 1;
@@ -814,10 +814,8 @@ static int t2_add(lua_State* L)
 {
   tensor2_t* t1 = lua_to_tensor2(L, 1);
   tensor2_t* t2 = lua_to_tensor2(L, 2);
-  if (t1 == NULL)
-    luaL_error(L, "Argument 1 must be a tensor2.");
-  if (t2 == NULL)
-    luaL_error(L, "Argument 2 must be a tensor2.");
+  if ((t1 == NULL) || (t2 == NULL))
+    luaL_error(L, "Arguments must both be tensor2s.");
   tensor2_t* sum = tensor2_new(t1->xx + t2->xx, t1->xy + t2->xy, t1->xz + t2->xz,
                                t1->yx + t2->yx, t1->yy + t2->yy, t1->yz + t2->yz,
                                t1->zx + t2->zx, t1->zy + t2->zy, t1->zz + t2->zz);
@@ -829,10 +827,8 @@ static int t2_sub(lua_State* L)
 {
   tensor2_t* t1 = lua_to_tensor2(L, 1);
   tensor2_t* t2 = lua_to_tensor2(L, 2);
-  if (t1 == NULL)
-    luaL_error(L, "Argument 1 must be a tensor2.");
-  if (t2 == NULL)
-    luaL_error(L, "Argument 2 must be a tensor2.");
+  if ((t1 == NULL) || (t2 == NULL))
+    luaL_error(L, "Arguments must both be tensor2s.");
   tensor2_t* diff = tensor2_new(t1->xx - t2->xx, t1->xy - t2->xy, t1->xz - t2->xz,
                                 t1->yx - t2->yx, t1->yy - t2->yy, t1->yz - t2->yz,
                                 t1->zx - t2->zx, t1->zy - t2->zy, t1->zz - t2->zz);
@@ -1094,10 +1090,8 @@ static int st2_add(lua_State* L)
 {
   sym_tensor2_t* t1 = lua_to_sym_tensor2(L, 1);
   sym_tensor2_t* t2 = lua_to_sym_tensor2(L, 2);
-  if (t1 == NULL)
-    luaL_error(L, "Argument 1 must be a sym_tensor2.");
-  if (t2 == NULL)
-    luaL_error(L, "Argument 2 must be a sym_tensor2.");
+  if ((t1 == NULL) || (t2 == NULL))
+    luaL_error(L, "Arguments must both be sym_tensor2s.");
   sym_tensor2_t* sum = sym_tensor2_new(t1->xx + t2->xx, t1->xy + t2->xy, t1->xz + t2->xz,
                                                         t1->yy + t2->yy, t1->yz + t2->yz,
                                                                          t1->zz + t2->zz);
@@ -1109,10 +1103,8 @@ static int st2_sub(lua_State* L)
 {
   sym_tensor2_t* t1 = lua_to_sym_tensor2(L, 1);
   sym_tensor2_t* t2 = lua_to_sym_tensor2(L, 2);
-  if (t1 == NULL)
-    luaL_error(L, "Argument 1 must be a sym_tensor2.");
-  if (t2 == NULL)
-    luaL_error(L, "Argument 2 must be a sym_tensor2.");
+  if ((t1 == NULL) || (t2 == NULL))
+    luaL_error(L, "Arguments must both be sym_tensor2s.");
   sym_tensor2_t* diff = sym_tensor2_new(t1->xx - t2->xx, t1->xy - t2->xy, t1->xz - t2->xz,
                                                          t1->yy - t2->yy, t1->yz - t2->yz,
                                                          t1->zz - t2->zz);
