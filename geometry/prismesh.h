@@ -47,7 +47,7 @@ struct prismesh_column_t
   size_t index;
   /// Polygon representing the top and bottom facet.
   polygon_t* polygon;
-  /// Number of cells in the column.
+  /// Number of (vertical) cells in the column.
   size_t num_cells; 
   /// Array of neighboring columns (arranged in the same order as the 
   /// vertices/edges of the polygon). NULL if the column is on a parallel 
@@ -79,19 +79,19 @@ struct prismesh_layer_t
   /// Columns locally stored within this layer.
   prism_column_array_t* columns;
 
-  /// cell_xyfaces[m][n] stores the nth xy-face for the mth cell.
+  /// cell_xyfaces[m][n] stores the index of the nth xy-face for the mth cell.
   int** cell_xyfaces;
 
-  /// xyface_zedges[m][n] stores the nth z-edge for the mth xy-face.
+  /// xyface_zedges[m][n] stores the index of the nth z-edge for the mth xy-face.
   int** xyface_zedges;
 
-  /// zface_xyedges[m][n] stores the nth xy-edge for the mth z-face.
+  /// zface_xyedges[m][n] stores the index of the nth xy-edge for the mth z-face.
   int** zface_xyedges;
 
-  /// xyface_nodes[m][n] stores the nth node for the mth xy-face.
+  /// xyface_nodes[m][n] stores the index of the nth node for the mth xy-face.
   int** xyface_nodes;
 
-  /// zface_nodes[m][n] stores the nth node for the mth z-face.
+  /// zface_nodes[m][n] stores the index of the nth node for the mth z-face.
   int** zface_nodes;
 };
 typedef struct prismesh_layer_t prismesh_layer_t;
