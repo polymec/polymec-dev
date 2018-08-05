@@ -10,6 +10,7 @@
 
 #include <math.h>
 #include "core/polymec.h"
+#include "core/array.h"
 
 /// \addtogroup core core
 ///@{
@@ -152,6 +153,9 @@ static inline bool point2_is_between(point2_t* p1, point2_t* p2, point2_t* p3)
 }
 
 ///@}
+
+// Array of point2s.
+DEFINE_ARRAY(point2_array, point2_t)
 
 #endif
 

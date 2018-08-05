@@ -15,6 +15,7 @@
 #include "core/partitioning.h"
 #endif
 
+#if 0
 // Destroys a column managed by a layer.
 static void free_column(prismesh_column_t* col)
 {
@@ -31,6 +32,7 @@ static void free_layer(prismesh_layer_t* layer)
   prism_column_array_free(layer->columns);
   polymec_free(layer);
 }
+#endif
 
 DEFINE_ARRAY(layer_array, prismesh_layer_t*)
 DEFINE_ARRAY(polygon_array, polygon_t*)

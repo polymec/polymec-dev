@@ -844,6 +844,410 @@ static lua_class_method sdt_methods[] = {
   {NULL, NULL, NULL}
 };
 
+static int p2_new(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if (num_args == 1)
+  {
+    if (!lua_istable(L, 1))
+      return luaL_error(L, "Single argument must be a table with 3 or more vertices.");
+  }
+  else if (num_args < 3)
+    return luaL_error(L, "Arguments must be vertices (at least 3).");
+
+  point2_array_t* vertices = point2_array_new();
+  if (num_args == 1)
+  {
+    int i = 1;
+    while (true)
+    {
+      lua_rawgeti(L, 1, i);
+      if (lua_isnil(L, -1))
+      {
+        lua_pop(L, 1);
+        break;
+      }
+      else
+      {
+        if (!lua_is_point2(L, -1))
+          luaL_error(L, "Item %d in argument is not a 2D point.", i);
+        point2_array_append(vertices, *lua_to_point2(L, -1));
+        lua_pop(L, 1);
+      }
+      ++i;
+    }
+  }
+  else
+  {
+    int i = 1;
+    while (true)
+    {
+      if (lua_isnil(L, i))
+        break;
+      else
+      {
+        if (!lua_is_point2(L, i))
+          luaL_error(L, "Argument %d is not a 2D point.", i);
+        point2_array_append(vertices, *lua_to_point2(L, i));
+      }
+      ++i;
+    }
+  }
+  if (vertices->size < 3)
+    luaL_error(L, "Argument table must contain at least 3 vertices.");
+
+  lua_push_polygon(L, polygon_new(vertices->data, vertices->size));
+  point2_array_free(vertices);
+  return 1;
+}
+
+static lua_module_function p2_funcs[] = {
+  {"new", p2_new, "polygon.new(vertices) or polygon.new(v1, v2, ..., vn) -> new polygon in the plane with vertices given as 2D points."},
+  {NULL, NULL, NULL}
+};
+
+static int p2_get_vertices(lua_State* L)
+{
+  polygon_t* p = lua_to_polygon(L, 1);
+  lua_newtable(L);
+  int pos = 0, i = 1;
+  point2_t v;
+  while (polygon_next_vertex(p, &pos, &v))
+  {
+    lua_push_point2(L, &v);
+    lua_rawseti(L, -2, i);
+    ++i;
+  }
+  return 1;
+}
+
+static int p2_get_area(lua_State* L)
+{
+  polygon_t* p = lua_to_polygon(L, 1);
+  lua_push_real(L, polygon_area(p));
+  return 1;
+}
+
+static int p2_get_centroid(lua_State* L)
+{
+  polygon_t* p = lua_to_polygon(L, 1);
+  point2_t centroid;
+  polygon_compute_centroid(p, &centroid);
+  lua_push_point2(L, &centroid);
+  return 1;
+}
+
+static lua_class_field p2_fields[] = {
+  {"vertices", p2_get_vertices, NULL},
+  {"area", p2_get_area, NULL},
+  {"centroid", p2_get_centroid, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int p2_tostring(lua_State* L)
+{
+  polygon_t* p = lua_to_polygon(L, 1);
+  lua_pushfstring(L, "polygon (%d sides)", polygon_num_edges(p));
+  return 1;
+}
+
+static lua_class_method p2_methods[] = {
+  {"__tostring", p2_tostring, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int p3_new(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || !lua_istable(L, 1) || !lua_istable(L, 2))
+    return luaL_error(L, "Arguments are a list of vertices, and a table of faces consisting of lists of vertex indices.");
+
+  // Get vertices.
+  point_array_t* vertices = point_array_new();
+  {
+    int i = 1;
+    while (true)
+    {
+      lua_rawgeti(L, 1, i);
+      if (lua_isnil(L, -1))
+      {
+        lua_pop(L, 1);
+        break;
+      }
+      else
+      {
+        if (!lua_is_point(L, -1))
+          luaL_error(L, "Item %d in argument is not a point.", i);
+        point_array_append(vertices, *lua_to_point(L, -1));
+        lua_pop(L, 1);
+      }
+      ++i;
+    }
+  }
+  if (vertices->size < 4)
+    luaL_error(L, "A polyhedron must contain at least 4 vertices.");
+
+  // Get faces.
+  int_array_t* face_array = int_array_new();
+  size_t_array_t* num_face_vertices = size_t_array_new();
+  {
+    int i = 1;
+    while (true)
+    {
+      lua_rawgeti(L, 2, i);
+      if (lua_isnil(L, -1))
+      {
+        lua_pop(L, 1);
+        break;
+      }
+      else
+      {
+        if (!lua_istable(L, -1))
+          luaL_error(L, "Item %d in argument 2 is not a list of vertex indices.", i);
+        int j = 1;
+        size_t num_vertices = 0;
+        while (true)
+        {
+          lua_rawgeti(L, -1, j);
+          if (lua_isnil(L, -1))
+          {
+            lua_pop(L, 1);
+            break;
+          }
+          else
+          {
+            if (!lua_isinteger(L, -1))
+              luaL_error(L, "Item %d in list of vertex indices for face %d is not an index.", j, i);
+            int index = (int)lua_tointeger(L, -1);
+            if ((index < 1) || (index > (int)(vertices->size)))
+              luaL_error(L, "Vertex index %d for face %d is invalid: %d.", j, i, index);
+            int_array_append(face_array, index);
+            ++num_vertices;
+            lua_pop(L, 1);
+          }
+        }
+        if (num_vertices < 4)
+          luaL_error(L, "Face %d must contain at least 4 vertices.", i);
+        size_t_array_append(num_face_vertices, num_vertices);
+        lua_pop(L, 1);
+      }
+      ++i;
+    }
+  }
+
+  // Organize the face indices.
+  int** faces = polymec_malloc(sizeof(int*) * num_face_vertices->size);
+  size_t offset = 0;
+  for (size_t f = 0; f < num_face_vertices->size; ++f)
+  {
+    size_t nv = num_face_vertices->data[f];
+    faces[f] = polymec_malloc(sizeof(int) * nv);
+    memcpy(faces[f], &(face_array->data[offset]), sizeof(int) * nv);
+    offset += nv;
+  }
+  int_array_free(face_array);
+
+  // Create and push our polyhedron.
+  lua_push_polyhedron(L, polyhedron_new(vertices->data, vertices->size,
+                                        faces, num_face_vertices->data,
+                                        num_face_vertices->size));
+
+  // Clean up.
+  for (size_t f = 0; f < num_face_vertices->size; ++f)
+    polymec_free(faces[f]);
+  polymec_free(faces);
+  point_array_free(vertices);
+  size_t_array_free(num_face_vertices);
+  return 1;
+}
+
+static lua_module_function p3_funcs[] = {
+  {"new", p3_new, "polyhedron.new(vertices, faces) -> new polyhedron with the given vertices and faces."},
+  {NULL, NULL, NULL}
+};
+
+static int p3_get_vertices(lua_State* L)
+{
+  polyhedron_t* p = lua_to_polyhedron(L, 1);
+  lua_newtable(L);
+  int pos = 0, i = 1;
+  point_t v;
+  while (polyhedron_next_vertex(p, &pos, &v))
+  {
+    lua_push_point(L, &v);
+    lua_rawseti(L, -2, i);
+    ++i;
+  }
+  return 1;
+}
+
+static int p3_get_faces(lua_State* L)
+{
+  polyhedron_t* p = lua_to_polyhedron(L, 1);
+  lua_newtable(L);
+  int pos = 0, i = 1;
+  point_t* face_vertices;
+  size_t num_face_vertices;
+  while (polyhedron_next_face(p, &pos, &face_vertices, &num_face_vertices, NULL, NULL))
+  {
+    lua_newtable(L);
+    for (size_t v = 0; v < num_face_vertices; ++v)
+    {
+      lua_push_point(L, &face_vertices[v]);
+      lua_rawseti(L, -2, (int)(v+1));
+    }
+    lua_rawseti(L, -2, i);
+    ++i;
+  }
+  return 1;
+}
+
+static int p3_get_volume(lua_State* L)
+{
+  polyhedron_t* p = lua_to_polyhedron(L, 1);
+  lua_push_real(L, polyhedron_volume(p));
+  return 1;
+}
+
+static int p3_get_centroid(lua_State* L)
+{
+  polyhedron_t* p = lua_to_polyhedron(L, 1);
+  point_t centroid;
+  polyhedron_compute_centroid(p, &centroid);
+  lua_push_point(L, &centroid);
+  return 1;
+}
+
+static lua_class_field p3_fields[] = {
+  {"vertices", p3_get_vertices, NULL},
+  {"faces", p3_get_faces, NULL},
+  {"volume", p3_get_volume, NULL},
+  {"centroid", p3_get_centroid, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int p3_tostring(lua_State* L)
+{
+  polyhedron_t* p = lua_to_polyhedron(L, 1);
+  lua_pushfstring(L, "polyhedron (%d faces)", polyhedron_num_faces(p));
+  return 1;
+}
+
+static lua_class_method p3_methods[] = {
+  {"__tostring", p3_tostring, NULL},
+  {NULL, NULL, NULL}
+};
+
+// FIXME: No constructors for voronoi diagrams yet!
+static lua_module_function v2_funcs[] = {
+  {NULL, NULL, NULL}
+};
+
+static int v2_get_generators(lua_State* L)
+{
+  voronoi2_t* v = lua_to_voronoi2(L, 1);
+  lua_newtable(L);
+  for (size_t i = 0; i < v->num_generators; ++i)
+  {
+    lua_push_point2(L, &(v->generators[i]));
+    lua_rawseti(L, -2, (int)(i+1));
+  }
+  return 1;
+}
+
+static int v2_get_cells(lua_State* L)
+{
+  voronoi2_t* v = lua_to_voronoi2(L, 1);
+  lua_newtable(L);
+  for (size_t i = 0; i < v->num_generators; ++i)
+  {
+    lua_push_polygon(L, v->cells[i]);
+    lua_rawseti(L, -2, (int)(i+1));
+  }
+  return 1;
+}
+
+static int v2_get_graph(lua_State* L)
+{
+  voronoi2_t* v = lua_to_voronoi2(L, 1);
+  lua_push_adj_graph(L, v->graph);
+  return 1;
+}
+
+static lua_class_field v2_fields[] = {
+  {"generators", v2_get_generators, NULL},
+  {"cells", v2_get_cells, NULL},
+  {"graph", v2_get_graph, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int v2_tostring(lua_State* L)
+{
+  voronoi2_t* v = lua_to_voronoi2(L, 1);
+  lua_pushfstring(L, "voronoi2 (%d generators)", (int)v->num_generators);
+  return 1;
+}
+
+static lua_class_method v2_methods[] = {
+  {"__tostring", v2_tostring, NULL},
+  {NULL, NULL, NULL}
+};
+
+// FIXME: No constructors for voronoi diagrams yet!
+static lua_module_function v3_funcs[] = {
+  {NULL, NULL, NULL}
+};
+
+static int v3_get_generators(lua_State* L)
+{
+  voronoi3_t* v = lua_to_voronoi3(L, 1);
+  lua_newtable(L);
+  for (size_t i = 0; i < v->num_generators; ++i)
+  {
+    lua_push_point(L, &(v->generators[i]));
+    lua_rawseti(L, -2, (int)(i+1));
+  }
+  return 1;
+}
+
+static int v3_get_cells(lua_State* L)
+{
+  voronoi3_t* v = lua_to_voronoi3(L, 1);
+  lua_newtable(L);
+  for (size_t i = 0; i < v->num_generators; ++i)
+  {
+    lua_push_polyhedron(L, v->cells[i]);
+    lua_rawseti(L, -2, (int)(i+1));
+  }
+  return 1;
+}
+
+static int v3_get_graph(lua_State* L)
+{
+  voronoi3_t* v = lua_to_voronoi3(L, 1);
+  lua_push_adj_graph(L, v->graph);
+  return 1;
+}
+
+static lua_class_field v3_fields[] = {
+  {"generators", v3_get_generators, NULL},
+  {"cells", v3_get_cells, NULL},
+  {"graph", v3_get_graph, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int v3_tostring(lua_State* L)
+{
+  voronoi3_t* v = lua_to_voronoi3(L, 1);
+  lua_pushfstring(L, "voronoi3 (%d generators)", (int)v->num_generators);
+  return 1;
+}
+
+static lua_class_method v3_methods[] = {
+  {"__tostring", v3_tostring, NULL},
+  {NULL, NULL, NULL}
+};
+
 static lua_module_function tagger_funcs[] = {
   {NULL, NULL, NULL}
 };
@@ -881,7 +1285,7 @@ static int t_create_tag(lua_State* L)
       else
       {
         if (!lua_isinteger(L, -1))
-          luaL_error(L, "Item %d in argument 1 is not an integer.");
+          luaL_error(L, "Item %d in argument 1 is not an integer.", i);
         int_array_append(a, (int)(lua_tointeger(L, -1)));
         lua_pop(L, 1);
       }
@@ -1583,6 +1987,11 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_class(L, "coord_mapping", "A coordinate mapping.", cm_funcs, NULL, cm_methods, NULL);
   lua_register_class(L, "sd_func", "A signed distance function.", sd_funcs, sd_fields, sd_methods, NULL);
   lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_fields, sdt_methods, NULL);
+  lua_register_class(L, "polygon", "A polygon in the plane.", p2_funcs, p2_fields, p2_methods, NULL);
+  lua_register_class(L, "polyhedron", "A polyhedron.", p3_funcs, p3_fields, p3_methods, NULL);
+  lua_register_class(L, "voronoi2", "A 2D voronoi diagram.", v2_funcs, v2_fields, v2_methods, NULL);
+  lua_register_class(L, "voronoi3", "A 3D voronoi diagram.", v3_funcs, v3_fields, v3_methods, NULL);
+
   lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, NULL, tagger_methods, NULL);
   lua_register_class(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_methods, DTOR(point_cloud_free));
   lua_register_class(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_methods, DTOR(unimesh_free));
@@ -1656,6 +2065,66 @@ bool lua_is_sdt_func(lua_State* L, int index)
 sdt_func_t* lua_to_sdt_func(lua_State* L, int index)
 {
   return (sdt_func_t*)lua_to_object(L, index, "sdt_func");
+}
+
+void lua_push_polygon(lua_State* L, polygon_t* p)
+{
+  lua_push_object(L, "polygon", p);
+}
+
+bool lua_is_polygon(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "polygon");
+}
+
+polygon_t* lua_to_polygon(lua_State* L, int index)
+{
+  return (polygon_t*)lua_to_object(L, index, "polygon");
+}
+
+void lua_push_polyhedron(lua_State* L, polyhedron_t* p)
+{
+  lua_push_object(L, "polyhedron", p);
+}
+
+bool lua_is_polyhedron(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "polyhedron");
+}
+
+polyhedron_t* lua_to_polyhedron(lua_State* L, int index)
+{
+  return (polyhedron_t*)lua_to_object(L, index, "polyhedron");
+}
+
+void lua_push_voronoi2(lua_State* L, voronoi2_t* v)
+{
+  lua_push_object(L, "voronoi2", v);
+}
+
+bool lua_is_voronoi2(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "voronoi2");
+}
+
+voronoi2_t* lua_to_voronoi2(lua_State* L, int index)
+{
+  return (voronoi2_t*)lua_to_object(L, index, "voronoi2");
+}
+
+void lua_push_voronoi3(lua_State* L, voronoi3_t* v)
+{
+  lua_push_object(L, "voronoi3", v);
+}
+
+bool lua_is_voronoi3(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "voronoi3");
+}
+
+voronoi3_t* lua_to_voronoi3(lua_State* L, int index)
+{
+  return (voronoi3_t*)lua_to_object(L, index, "voronoi3");
 }
 
 void lua_push_point_cloud(lua_State* L, point_cloud_t* c)

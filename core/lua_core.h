@@ -10,10 +10,12 @@
 
 #include "core/polymec.h"
 #include "core/lua_types.h"
+#include "core/point2.h"
 #include "core/tensor2.h"
 #include "core/sp_func.h"
 #include "core/st_func.h"
 #include "core/rng.h"
+#include "core/adj_graph.h"
 
 // This file contains functions for manipulating basic data types in the 
 // Lua interpreter. We attempt to expose these data types in a seamless 
@@ -57,13 +59,24 @@ complex_t lua_to_complex(lua_State* L, int index);
 /// Pushes a (3D) point p onto L's stack.
 void lua_push_point(lua_State* L, point_t* p);
 
-/// Returns true if the item at the given index on L's stack is a point, 
+/// Returns true if the item at the given index on L's stack is a (3D) point, 
 /// false if not.
 bool lua_is_point(lua_State* L, int index);
 
-/// Returns the point at the given index on L's stack, or NULL if the item 
-/// there is not a point.
+/// Returns the (3D) point at the given index on L's stack, or NULL if the item 
+/// there is not a (3D) point.
 point_t* lua_to_point(lua_State* L, int index);
+
+/// Pushes a 2D point p onto L's stack.
+void lua_push_point2(lua_State* L, point2_t* p);
+
+/// Returns true if the item at the given index on L's stack is a 2D point, 
+/// false if not.
+bool lua_is_point2(lua_State* L, int index);
+
+/// Returns the 2D point at the given index on L's stack, or NULL if the item 
+/// there is not a 2D point.
+point2_t* lua_to_point2(lua_State* L, int index);
 
 /// Pushes a (3D) vector v onto L's stack.
 void lua_push_vector(lua_State* L, vector_t* v);
@@ -200,9 +213,20 @@ void lua_push_rng(lua_State* L, rng_t* r);
 /// number generator, false if not.
 bool lua_is_rng(lua_State* L, int index);
 
-/// Returns the point cloud at the given index on L's stack, or NULL 
-/// if the item there is not a random number generator.
+/// Returns the random number generator at the given index on L's stack, 
+/// or NULL if the item there is not a random number generator.
 rng_t* lua_to_rng(lua_State* L, int index);
+
+/// Pushes an adjacency graph g onto L's stack.
+void lua_push_adj_graph(lua_State* L, adj_graph_t* g);
+
+/// Returns true if the item at the given index on L's stack is an adjacency
+/// graph, false if not.
+bool lua_is_adj_graph(lua_State* L, int index);
+
+/// Returns the adjacency graph at the given index on L's stack, or NULL 
+/// if the item there is not an adjacency graph.
+adj_graph_t* lua_to_adj_graph(lua_State* L, int index);
 
 ///@}
 

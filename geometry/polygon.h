@@ -50,7 +50,7 @@ static inline size_t polygon_num_edges(polygon_t* poly)
 int* polygon_ordering(polygon_t* poly);
 
 /// Allows the traversal of the vertices in the polygon.
-bool polygon_next_vertex(polygon_t* poly, int* pos, point2_t** vertex);
+bool polygon_next_vertex(polygon_t* poly, int* pos, point2_t* vertex);
 
 /// Returns the area of the polygon.
 real_t polygon_area(polygon_t* poly);

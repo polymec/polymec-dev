@@ -293,6 +293,96 @@ static lua_class_method point_methods[] = {
   {NULL, NULL, NULL}
 };
 
+static int p2_new(lua_State* L)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || 
+      !lua_isnumber(L, 1) || !lua_isnumber(L, 2))
+  {
+    return luaL_error(L, "Arguments must be x, y coordinates.");
+  }
+
+  real_t x = lua_to_real(L, 1);
+  real_t y = lua_to_real(L, 2);
+  point2_t* point = point2_new(x, y);
+  lua_push_point2(L, point);
+  return 1;
+}
+
+static int p2_distance(lua_State* L)
+{
+  point2_t* p = lua_to_point2(L, 1);
+  point2_t* q = lua_to_point2(L, 2);
+  if (q == NULL)
+    return luaL_error(L, "Argument must be a point2.");
+  lua_pushnumber(L, (double)point2_distance(p, q));
+  return 1;
+}
+
+static lua_module_function point2_funcs[] = {
+  {"new", p2_new, "point2.new(x, y, z) -> new 3D point."},
+  {"distance", p2_distance, "point2.distance(x, y) -> |x - y|."},
+  {NULL, NULL, NULL}
+};
+
+static int p2_x(lua_State* L)
+{
+  point2_t* p = lua_to_point2(L, 1);
+  lua_pushnumber(L, (double)p->x);
+  return 1;
+}
+
+static int p2_set_x(lua_State* L)
+{
+  point2_t* p = lua_to_point2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Point coordinates must be numbers.");
+  p->x = lua_to_real(L, 2);
+  return 0;
+}
+
+static int p2_y(lua_State* L)
+{
+  point2_t* p = lua_to_point2(L, 1);
+  lua_pushnumber(L, (double)p->y);
+  return 1;
+}
+
+static int p2_set_y(lua_State* L)
+{
+  point2_t* p = lua_to_point2(L, 1);
+  if (!lua_isnumber(L, 2))
+    return luaL_error(L, "Point coordinates must be numbers.");
+  p->y = lua_to_real(L, 2);
+  return 0;
+}
+
+static lua_class_field point2_fields[] = {
+  {"x", p2_x, p2_set_x},
+  {"y", p2_y, p2_set_y},
+  {NULL, NULL, NULL}
+};
+
+static int p2_len(lua_State* L)
+{
+  lua_pushinteger(L, 2);
+  return 1;
+}
+
+static int p2_tostring(lua_State* L)
+{
+  point2_t* p = lua_to_point2(L, 1);
+  lua_pushfstring(L, "point2 (%f, %f)", p->x, p->y);
+  return 1;
+}
+
+static lua_class_method point2_methods[] = {
+  {"__len", p2_len, NULL},
+  {"__tostring", p2_tostring, NULL},
+  {NULL, NULL, NULL}
+};
+
 static int v_new(lua_State* L)
 {
   // Check the arguments.
@@ -1698,6 +1788,84 @@ static lua_class_method rng_methods[] = {
   {NULL, NULL, NULL}
 };
 
+// FIXME: No adj_graph constructors yet!
+static lua_module_function adj_funcs[] = {
+  {NULL, NULL, NULL}
+};
+
+static int adj_get_comm(lua_State* L)
+{
+  adj_graph_t* g = lua_to_adj_graph(L, 1);
+  lua_push_mpi_comm(L, adj_graph_comm(g));
+  return 1;
+}
+
+static int adj_get_num_vertices(lua_State* L)
+{
+  adj_graph_t* g = lua_to_adj_graph(L, 1);
+  lua_pushinteger(L, (lua_Integer)(adj_graph_num_vertices(g)));
+  return 1;
+}
+
+static lua_class_field adj_fields[] = {
+  {"comm", adj_get_comm, NULL},
+  {"num_vertices", adj_get_num_vertices, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int adj_num_edges(lua_State* L)
+{
+  adj_graph_t* g = lua_to_adj_graph(L, 1);
+  if (g == NULL)
+    luaL_error(L, "Method must be invoked with an adj_graph.");
+  if (!lua_isinteger(L, 2))
+    luaL_error(L, "Argument must be a vertex index.");
+  int vertex = (int)lua_tointeger(L, 2);
+  if (vertex < 0)
+    luaL_error(L, "Vertex must be non-negative.");
+  if (vertex >= adj_graph_num_vertices(g))
+    luaL_error(L, "Invalid vertex: %d", vertex);
+  lua_pushinteger(L, (lua_Integer)adj_graph_num_edges(g, vertex));
+  return 0;
+}
+
+static int adj_edges(lua_State* L)
+{
+  adj_graph_t* g = lua_to_adj_graph(L, 1);
+  if (g == NULL)
+    luaL_error(L, "Method must be invoked with an adj_graph.");
+  if (!lua_isinteger(L, 2))
+    luaL_error(L, "Argument must be a vertex index.");
+  int vertex = (int)lua_tointeger(L, 2);
+  if (vertex < 0)
+    luaL_error(L, "Vertex must be non-negative.");
+  if (vertex >= adj_graph_num_vertices(g))
+    luaL_error(L, "Invalid vertex: %d", vertex);
+  size_t num_edges = adj_graph_num_edges(g, vertex);
+  int* edges = adj_graph_edges(g, vertex);
+  lua_newtable(L);
+  for (size_t i = 0; i < num_edges; ++i)
+  {
+    lua_pushinteger(L, (lua_Integer)(edges[i]));
+    lua_seti(L, -2, (int)i);
+  }
+  return 1;
+}
+
+static int adj_tostring(lua_State* L)
+{
+  adj_graph_t* g = lua_to_adj_graph(L, 1);
+  lua_pushfstring(L, "adj_graph (%d vertices)", adj_graph_num_vertices(g));
+  return 1;
+}
+
+static lua_class_method adj_methods[] = {
+  {"num_edges", adj_num_edges, "graph:num_edges(vertex) -> Returns the number of edges for the given vertex."},
+  {"edges", adj_edges, "graph:edges(vertex) -> Returns the set of edges for the given vertex."},
+  {"__tostring", adj_tostring, NULL},
+  {NULL, NULL, NULL}
+};
+
 static void lua_register_options(lua_State* L)
 {
   // Create a new table and fill it with our named command line values.
@@ -2142,6 +2310,7 @@ int lua_register_core_modules(lua_State* L)
   // Core types.
   lua_register_class(L, "complex", "A complex number.", complex_funcs, complex_fields, complex_methods, polymec_free);
   lua_register_class(L, "point", "A 3D point.", point_funcs, point_fields, point_methods, NULL);
+  lua_register_class(L, "point2", "A 2D point.", point2_funcs, point2_fields, point2_methods, NULL);
   lua_register_class(L, "vector", "A 3D vector.", vector_funcs, vector_fields, vector_methods, NULL);
   lua_register_class(L, "tensor2", "A general rank 2 tensor.", tensor2_funcs, tensor2_fields, tensor2_methods, NULL);
   lua_register_class(L, "sym_tensor2", "A symmetric rank 2 tensor.", sym_tensor2_funcs, sym_tensor2_fields, sym_tensor2_methods, NULL);
@@ -2155,6 +2324,7 @@ int lua_register_core_modules(lua_State* L)
   lua_register_class(L, "sp_func", "A function in 3D space.", sp_funcs, sp_fields, sp_methods, NULL);
   lua_register_class(L, "st_func", "A time-dependent function in 3D space.", st_funcs, st_fields, st_methods, NULL);
   lua_register_class(L, "rng", "A random number generator.", rng_funcs, rng_fields, rng_methods, NULL);
+  lua_register_class(L, "adj_graph", "An adjacency graph.", adj_funcs, adj_fields, adj_methods, NULL);
 
   // Register the options table.
   lua_register_options(L);
@@ -2210,6 +2380,21 @@ bool lua_is_point(lua_State* L, int index)
 point_t* lua_to_point(lua_State* L, int index)
 {
   return (point_t*)lua_to_object(L, index, "point");
+}
+
+void lua_push_point2(lua_State* L, point2_t* p)
+{
+  lua_push_object(L, "point2", p);
+}
+
+bool lua_is_point2(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "point2");
+}
+
+point2_t* lua_to_point2(lua_State* L, int index)
+{
+  return (point2_t*)lua_to_object(L, index, "point2");
 }
 
 void lua_push_vector(lua_State* L, vector_t* v)
@@ -2332,5 +2517,20 @@ bool lua_is_rng(lua_State* L, int index)
 rng_t* lua_to_rng(lua_State* L, int index)
 {
   return (rng_t*)lua_to_object(L, index, "rng");
+}
+
+void lua_push_adj_graph(lua_State* L, adj_graph_t* g)
+{
+  lua_push_object(L, "adj_graph", g);
+}
+
+bool lua_is_adj_graph(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "adj_graph");
+}
+
+adj_graph_t* lua_to_adj_graph(lua_State* L, int index)
+{
+  return (adj_graph_t*)lua_to_object(L, index, "adj_graph");
 }
 

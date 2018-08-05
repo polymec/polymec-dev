@@ -12,6 +12,10 @@
 #include "geometry/coord_mapping.h"
 #include "geometry/sd_func.h"
 #include "geometry/sdt_func.h"
+#include "geometry/polygon.h"
+#include "geometry/polyhedron.h"
+#include "geometry/voronoi2.h"
+#include "geometry/voronoi3.h"
 #include "geometry/point_cloud.h"
 #include "geometry/unimesh.h"
 #include "geometry/prismesh.h"
@@ -64,6 +68,50 @@ bool lua_is_sdt_func(lua_State* L, int index);
 /// on L's stack, or NULL if the item there is not a temporal signed 
 /// distance function.
 sdt_func_t* lua_to_sdt_func(lua_State* L, int index);
+
+/// Pushes a polygon p onto L's stack.
+void lua_push_polygon(lua_State* L, polygon_t* p);
+
+/// Returns true if the item at the given index on L's stack is a 
+/// polygon, false if not.
+bool lua_is_polygon(lua_State* L, int index);
+
+/// Returns the polygon at the given index on L's stack, or NULL if the 
+/// item there is not a polygon.
+polygon_t* lua_to_polygon(lua_State* L, int index);
+
+/// Pushes a polyhedron p onto L's stack.
+void lua_push_polyhedron(lua_State* L, polyhedron_t* p);
+
+/// Returns true if the item at the given index on L's stack is a 
+/// polyhedron, false if not.
+bool lua_is_polyhedron(lua_State* L, int index);
+
+/// Returns the polyhedron at the given index on L's stack, or NULL if the 
+/// item there is not a polyhedron.
+polyhedron_t* lua_to_polyhedron(lua_State* L, int index);
+
+/// Pushes a 2D voronoi diagram v onto L's stack.
+void lua_push_voronoi2(lua_State* L, voronoi2_t* v);
+
+/// Returns true if the item at the given index on L's stack is a 
+/// 2D voronoi diagram, false if not.
+bool lua_is_voronoi2(lua_State* L, int index);
+
+/// Returns the 2D voronoi diagram at the given index on L's stack, 
+/// or NULL if the item there is not a 2D voronoi diagram.
+voronoi2_t* lua_to_voronoi2(lua_State* L, int index);
+
+/// Pushes a 3D voronoi diagram v onto L's stack.
+void lua_push_voronoi3(lua_State* L, voronoi3_t* v);
+
+/// Returns true if the item at the given index on L's stack is a 
+/// 3D voronoi diagram, false if not.
+bool lua_is_voronoi3(lua_State* L, int index);
+
+/// Returns the 3D voronoi diagram at the given index on L's stack, 
+/// or NULL if the item there is not a 3D voronoi diagram.
+voronoi3_t* lua_to_voronoi3(lua_State* L, int index);
 
 /// Pushes a tagger t onto L's stack.
 void lua_push_tagger(lua_State* L, tagger_t* t);

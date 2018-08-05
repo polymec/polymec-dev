@@ -189,11 +189,11 @@ int* polygon_ordering(polygon_t* poly)
   return poly->ordering;
 }
 
-bool polygon_next_vertex(polygon_t* poly, int* pos, point2_t** vertex)
+bool polygon_next_vertex(polygon_t* poly, int* pos, point2_t* vertex)
 {
   if (*pos >= poly->num_vertices) 
     return false;
-  *vertex = &poly->vertices[poly->ordering[*pos]];
+  *vertex = poly->vertices[poly->ordering[*pos]];
   ++(*pos);
   return true;
 }
