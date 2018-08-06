@@ -9,6 +9,7 @@
 #define POLYMEC_PRISMESH_H
 
 #include "core/point.h"
+#include "core/adj_graph.h"
 #include "geometry/polygon.h"
 
 /// \addtogroup geometry geometry
@@ -46,12 +47,6 @@ struct prismesh_layer_t
   /// The index of the layer within this mesh.
   int index;
 
-  /// The z coordinate of the layer's lower boundary.
-  real_t z1;
-
-  /// The z coordinate of the layer's upper boundary.
-  real_t z2;
-
   /// The number of (polygonal) columns in this layer.
   size_t num_columns;
 
@@ -60,6 +55,11 @@ struct prismesh_layer_t
   /// * the number of "z" edges is \ref num_zcells.
   /// * the number of "z" nodes is \ref num_zcells + 1.
   size_t num_z_cells;
+
+  /// The z positions of the vertical cell interfaces. z_positions[0] is 
+  /// the lower boundary of the layer, and z_positions[num_z_cells] is the 
+  /// upper boundary.
+  real_t* z_positions;
 
   /// Offsets of lateral (xy-) faces attached to columns, stored in compressed-row 
   /// storage (CRS) format. column_xy_face_offsets[i] stores the offset within
@@ -97,57 +97,38 @@ struct prismesh_layer_t
 
   /// The total number of nodes at a single z location.
   size_t num_xy_nodes;
+
+  /// The positions of the nodes in this layer.
+  point_t* nodes;
 };
 typedef struct prismesh_layer_t prismesh_layer_t;
 
-/// Creates a prismesh with the given number of layers and columns. 
-/// Layers and columns are automatically created and are managed by the mesh.
-/// \param comm [in] The MPI communicator used by the mesh.
-/// \param num_columns [in] The number of columns in the mesh.
+/// Creates a prismesh consisting of the given polygonal columns, with
+/// connectivity between columns defined by the given adjacency graph.
+/// If the adjacency graph is defined on the MPI_COMM_SELF communicator, 
+/// the prismesh is defined entirely on each process. Otherwise (if the 
+/// adjacency graph is distributed across the processes for another 
+/// communicator, the resulting prismesh is distributed in the same way.
+/// In any case, the mesh emerging from this function is not necessarily 
+/// optimally load balanced.
+/// \param columns [in] An array of polygonal prism columns that define the 
+///                     mesh.
+/// \param num_columns [in] The length of the \ref columns array.
+/// \param connectivity [in] An adjacency graph defining the connectivity 
+///                          between columns. The vertices of this graph 
+///                          are the polygonal columns, and the edges represent
+///                          the faces that connect different columns.
 /// \param num_vertical_cells [in] The number of cells along the z axis.
-/// \param z [in] An array of length (num_vertical+1) that gives the z 
-///               coordinates of the interfaces between cells, from bottom
-///               to top.
+/// \param z_positions [in] An array of length (num_vertical_cells+1) that 
+///                         contains the z coordinates of the interfaces 
+///                         between cells, from bottom to top.
 /// \memberof prismesh
-prismesh_t* prismesh_new(MPI_Comm comm, 
+prismesh_t* prismesh_new(polygon_t** columns,
                          size_t num_columns, 
+                         adj_graph_t* connectivity,
                          size_t num_vertical_cells,
-                         real_t* z);
+                         real_t* z_positions);
  
-//------------------------------------------------------------------------
-//                        Construction methods
-//------------------------------------------------------------------------
-// The following methods are used to construct prismeshes.
-// prismesh_finalize() must be called after a mesh has been properly
-// constructed.
-//------------------------------------------------------------------------
-
-/// Sets the geometry and the neighbors for the given column in the mesh. 
-/// \memberof prismesh
-/// \param [in] column The index for the desired column.
-/// \param [in] polygon The polygonal face for the top and bottom of each 
-///                     cell in the column.
-/// \param [in] neighbors An array of column indices indicating the neighbors 
-///                       of the given column. The length of this array is 
-///                       \ref polygon_num_edges(polygon).
-void prismesh_set_column(prismesh_t* mesh, 
-                         size_t column, 
-                         polygon_t* polygon,
-                         size_t* neighbors);
-
-/// Finalizes the construction process for the mesh. This must be called 
-/// before any of the mesh's usage methods (below) are invoked. Should only 
-/// be called once.
-/// \memberof prismesh
-void prismesh_finalize(prismesh_t* mesh);
-
-//------------------------------------------------------------------------
-//                        Usage methods
-//------------------------------------------------------------------------
-// The following methods can only be used after a prismesh has been 
-// fully constructed and finalized.
-//------------------------------------------------------------------------
-
 /// Destroys the given mesh.
 /// \memberof prismesh
 void prismesh_free(prismesh_t* mesh);
@@ -174,6 +155,12 @@ size_t prismesh_num_vertical_cells(prismesh_t* mesh);
 /// Returns the total number of locally-stored cells in the prismesh.
 /// \memberof prismesh
 size_t prismesh_num_cells(prismesh_t* mesh);
+
+/// Returns the z coordinate of the bottom boundary of the mesh.
+real_t primesh_z1(prismesh_t* mesh);
+
+/// Returns the z coordinate of the top boundary of the mesh.
+real_t primesh_z2(prismesh_t* mesh);
 
 /// Returns the polygon associated with the given column.
 /// \memberof prismesh

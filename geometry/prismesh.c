@@ -32,101 +32,61 @@ struct prismesh_t
   MPI_Comm comm;
   int nproc, rank;
 
-  layer_array_t* layers;
   polygon_array_t* polygons;
-  ptr_array_t* neighbors;
+  layer_array_t* layers;
+  adj_graph_t* neighbors;
   size_t num_columns, num_vertical_cells;
-  size_t num_cells;
-
-  bool finalized;
+  real_t z1, z2;
 };
 
-prismesh_t* prismesh_new(MPI_Comm comm,
-                         size_t num_columns, 
-                         size_t num_vertical_cells,
-                         real_t* z)
+static void free_polygon(polygon_t* polygon)
 {
+  polymec_release(polygon);
+}
+
+prismesh_t* prismesh_new(polygon_t** columns,
+                         size_t num_columns, 
+                         adj_graph_t* connectivity,
+                         size_t num_vertical_cells,
+                         real_t* z_positions)
+{
+  ASSERT(columns != NULL);
   ASSERT(num_columns > 0);
+  ASSERT(connectivity != NULL);
   ASSERT(num_vertical_cells > 0);
-  ASSERT(z != NULL);
+  ASSERT(z_positions != NULL);
 #ifndef NDEBUG
   for (size_t i = 1; i < num_vertical_cells; ++i)
-    ASSERT(z[i+1] > z[i]);
+    ASSERT(z_positions[i+1] > z_positions[i]);
 #endif
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
-  mesh->comm = comm;
-  MPI_Comm_size(comm, &mesh->nproc);
-  MPI_Comm_rank(comm, &mesh->rank);
+  mesh->polygons = polygon_array_new(num_columns);
+  for (size_t i = 0; i < num_columns; ++i)
+  {
+    polymec_retain(columns[i]);
+    polygon_array_append_with_dtor(mesh->polygons, columns[i], free_polygon);
+  }
+  mesh->neighbors = adj_graph_clone(connectivity);
+  mesh->comm = adj_graph_comm(connectivity);
+  MPI_Comm_size(mesh->comm, &mesh->nproc);
+  MPI_Comm_rank(mesh->comm, &mesh->rank);
   mesh->layers = layer_array_new();
-  mesh->polygons = polygon_array_new_with_size(num_columns);
-  mesh->neighbors = ptr_array_new_with_size(num_columns);
   mesh->num_vertical_cells = num_vertical_cells;
-  mesh->finalized = false;
+  mesh->z1 = z_positions[0];
+  mesh->z2 = z_positions[num_vertical_cells];
+
+  // Figure out geometry!
+  // FIXME
+
   return mesh;
 }
 
 void prismesh_free(prismesh_t* mesh)
 {
-  ptr_array_free(mesh->neighbors);
-  polygon_array_free(mesh->polygons);
+  adj_graph_free(mesh->neighbors);
   layer_array_free(mesh->layers);
+  polygon_array_free(mesh->polygons);
   polymec_free(mesh);
-}
-
-void prismesh_set_column(prismesh_t* mesh, 
-                        size_t column, 
-                        polygon_t* polygon,
-                        size_t* neighbors)
-{
-  ASSERT(!mesh->finalized);
-  ASSERT(column < mesh->polygons->size);
-  mesh->polygons->data[column] = polygon;
-  size_t nn = (size_t)(polygon_num_edges(polygon));
-  size_t_array_t* n = size_t_array_new_with_size(nn);
-  mesh->neighbors->data[column] = n;
-  for (size_t i = 0; i < nn; ++i)
-    n->data[i] = neighbors[i];
-}
-
-void prismesh_finalize(prismesh_t* mesh)
-{
-  ASSERT(!mesh->finalized);
-
-  // Set up columns within layers.
-  for (size_t l = 0; l < mesh->layers->size; ++l)
-  {
-    prismesh_layer_t* layer = mesh->layers->data[l];
-
-    if (mesh->layers->size == 1) // easy case! All columns present in layer
-    {
-      size_t ncols = layer->num_columns;
-      for (size_t c = 0; c < ncols; ++c)
-      {
-#if 0
-        prismesh_column_t* col = layer->columns->data[c];
-        ASSERT(c == col->index);
-        polygon_t* polygon = mesh->polygons->data[c];
-        ASSERT(polygon != NULL);
-        col->polygon = polygon;
-        size_t num_edges = polygon_num_edges(polygon);
-        col->neighbors = polymec_malloc(sizeof(prismesh_column_t*) * num_edges);
-
-        size_t_array_t* neighbors = mesh->neighbors->data[c];
-        for (size_t n = 0; n < num_edges; ++n)
-        {
-          prismesh_column_t* ncol = layer->columns->data[neighbors->data[n]];
-          col->neighbors[n] = ncol;
-        }
-#endif
-      }
-    }
-    else
-    {
-      polymec_error("Distributed prismesh not yet supported!");
-    }
-  }
-
-  mesh->finalized = true;
 }
 
 MPI_Comm prismesh_comm(prismesh_t* mesh)
@@ -151,7 +111,17 @@ size_t prismesh_num_vertical_cells(prismesh_t* mesh)
 
 size_t prismesh_num_cells(prismesh_t* mesh)
 {
-  return mesh->num_cells;
+  return mesh->polygons->size * mesh->num_vertical_cells;
+}
+
+real_t primesh_z1(prismesh_t* mesh)
+{
+  return mesh->z1;
+}
+
+real_t primesh_z2(prismesh_t* mesh)
+{
+  return mesh->z2;
 }
 
 polygon_t* prismesh_polygon(prismesh_t* mesh, size_t column)
@@ -172,62 +142,11 @@ bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer)
   }
 }
 
-#if POLYMEC_HAVE_MPI
-static adj_graph_t* graph_from_polygons(prismesh_t* mesh)
-{
-  // Create a graph whose vertices are the centroids of the mesh's 
-  // collection of polygons in the plane. NOTE that we associate this graph 
-  // with the MPI_COMM_SELF communicator because it's a global graph.
-  size_t num_polygons = mesh->polygons->size;
-  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, num_polygons);
-
-  // Allocate space in the graph for the edges (polygon edges).
-  for (size_t i = 0; i < num_polygons; ++i)
-  {
-    polygon_t* p = mesh->polygons->data[i];
-    size_t nn = polygon_num_edges(p);
-    adj_graph_set_num_edges(g, (int)i, nn);
-  }
-
-  // Now fill in the edges.
-  for (size_t i = 0; i < num_polygons; ++i)
-  {
-    polygon_t* p = mesh->polygons->data[i];
-    size_t nn = polygon_num_edges(p);
-    size_t_array_t* neighbors = mesh->neighbors->data[i];
-    int* edges = adj_graph_edges(g, (int)i);
-    for (size_t j = 0; j < nn; ++j)
-      edges[j] = (int)neighbors->data[j];
-  }
-
-  return g;
-}
-
 static void redistribute_prismesh(prismesh_t** mesh, 
                                   int64_t* partition)
 {
   START_FUNCTION_TIMER();
-
-  // Create a new mesh from the old one.
-  prismesh_t* old_mesh = *mesh;
-  prismesh_t* new_mesh = polymec_malloc(sizeof(prismesh_t));
-  new_mesh->comm = old_mesh->comm;
-  new_mesh->nproc = old_mesh->nproc;
-  new_mesh->rank = old_mesh->rank;
-  new_mesh->polygons = polygon_array_clone(old_mesh->polygons);
-  new_mesh->neighbors = ptr_array_new();
-  for (size_t i = 0; i < new_mesh->neighbors->size; ++i)
-  {
-    size_t_array_t* n = old_mesh->neighbors->data[i];
-    ptr_array_append_with_dtor(new_mesh->neighbors, n, DTOR(size_t_array_free)); 
-  }
-  new_mesh->num_vertical_cells = old_mesh->num_vertical_cells;
-  new_mesh->finalized = false;
-
-  // Insert the new layers as prescribed by the partition vector.
-
-  // Replace the old mesh with the new one.
-  *mesh = new_mesh;
+  // FIXME
   STOP_FUNCTION_TIMER();
 }
 
@@ -363,7 +282,6 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
   *field = new_field;
   STOP_FUNCTION_TIMER();
 }
-#endif
 
 void repartition_prismesh(prismesh_t** mesh, 
                          int* weights,
@@ -388,7 +306,7 @@ void repartition_prismesh(prismesh_t** mesh,
   }
 
   // Generate a global adjacency graph for the mesh.
-  adj_graph_t* graph = graph_from_polygons(old_mesh);
+  adj_graph_t* graph = NULL;//graph_from_polygons(old_mesh);
 
   // Figure out how many ways we want to partition the polygon graph by 
   // chopping the z axis into segments of appropriate length. The number of 
@@ -410,7 +328,6 @@ void repartition_prismesh(prismesh_t** mesh,
   // Redistribute the mesh. 
   log_debug("repartition_peximesh: Redistributing mesh.");
   redistribute_prismesh(mesh, partition);
-  prismesh_finalize(*mesh);
 
   // Build a sources vector whose ith component is the rank that used to own 
   // the ith patch.
