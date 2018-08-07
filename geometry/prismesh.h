@@ -56,10 +56,11 @@ struct prismesh_layer_t
   /// * the number of "z" nodes is \ref num_zcells + 1.
   size_t num_z_cells;
 
-  /// The z positions of the vertical cell interfaces. z_positions[0] is 
-  /// the lower boundary of the layer, and z_positions[num_z_cells] is the 
-  /// upper boundary.
-  real_t* z_positions;
+  /// The z coordinate of the lower boundary of the layer.
+  real_t z1;
+
+  /// The z coordinate of the upper boundary of the layer.
+  real_t z2;
 
   /// Offsets of lateral (xy-) faces attached to columns, stored in compressed-row 
   /// storage (CRS) format. column_xy_face_offsets[i] stores the offset within
@@ -119,15 +120,14 @@ typedef struct prismesh_layer_t prismesh_layer_t;
 ///                          are the polygonal columns, and the edges represent
 ///                          the faces that connect different columns.
 /// \param num_vertical_cells [in] The number of cells along the z axis.
-/// \param z_positions [in] An array of length (num_vertical_cells+1) that 
-///                         contains the z coordinates of the interfaces 
-///                         between cells, from bottom to top.
+/// \param z1 [in] The z coordinate of the lower boundary of the mesh.
+/// \param z2 [in] The z coordinate of the upper boundary of the mesh.
 /// \memberof prismesh
 prismesh_t* prismesh_new(polygon_t** columns,
                          size_t num_columns, 
                          adj_graph_t* connectivity,
                          size_t num_vertical_cells,
-                         real_t* z_positions);
+                         real_t z1, real_t z2);
  
 /// Destroys the given mesh.
 /// \memberof prismesh

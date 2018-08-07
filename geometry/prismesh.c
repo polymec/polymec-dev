@@ -48,19 +48,16 @@ prismesh_t* prismesh_new(polygon_t** columns,
                          size_t num_columns, 
                          adj_graph_t* connectivity,
                          size_t num_vertical_cells,
-                         real_t* z_positions)
+                         real_t z1,
+                         real_t z2)
 {
   ASSERT(columns != NULL);
   ASSERT(num_columns > 0);
   ASSERT(connectivity != NULL);
   ASSERT(num_vertical_cells > 0);
-  ASSERT(z_positions != NULL);
-#ifndef NDEBUG
-  for (size_t i = 1; i < num_vertical_cells; ++i)
-    ASSERT(z_positions[i+1] > z_positions[i]);
-#endif
+  ASSERT(z1 < z2);
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
-  mesh->polygons = polygon_array_new(num_columns);
+  mesh->polygons = polygon_array_new();
   for (size_t i = 0; i < num_columns; ++i)
   {
     polymec_retain(columns[i]);
@@ -72,8 +69,8 @@ prismesh_t* prismesh_new(polygon_t** columns,
   MPI_Comm_rank(mesh->comm, &mesh->rank);
   mesh->layers = layer_array_new();
   mesh->num_vertical_cells = num_vertical_cells;
-  mesh->z1 = z_positions[0];
-  mesh->z2 = z_positions[num_vertical_cells];
+  mesh->z1 = z1;
+  mesh->z2 = z2;
 
   // Figure out geometry!
   // FIXME
