@@ -519,11 +519,17 @@ static inline bool reals_equal(real_t a, real_t b)
   return (ABS(a - b) < _polymec_epsilon);
 }
 
-/// This function sets polymec's floating point tolerance for \ref reals_equal.
+/// Sets polymec's floating point tolerance for \ref reals_equal.
 /// \param [in] epsilon The tolerance.
 static inline void set_real_epsilon(real_t epsilon)
 {
   _polymec_epsilon = epsilon;
+}
+
+/// Returns the floating point tolerance used for \ref reals_equal.
+static inline real_t real_epsilon(void)
+{
+  return _polymec_epsilon;
 }
 
 /// This function returns true if \f$ |a - b| < \epsilon \f$, false otherwise. 

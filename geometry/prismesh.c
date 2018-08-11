@@ -25,64 +25,38 @@ static void free_layer(prismesh_layer_t* layer)
 #endif
 
 DEFINE_ARRAY(layer_array, prismesh_layer_t*)
-DEFINE_ARRAY(polygon_array, polygon_t*)
 
 struct prismesh_t 
 {
   MPI_Comm comm;
   int nproc, rank;
 
-  polygon_array_t* polygons;
   layer_array_t* layers;
-  adj_graph_t* neighbors;
   size_t num_columns, num_vertical_cells;
   real_t z1, z2;
 };
 
-static void free_polygon(polygon_t* polygon)
-{
-  polymec_release(polygon);
-}
-
-prismesh_t* prismesh_new(polygon_t** columns,
-                         size_t num_columns, 
-                         adj_graph_t* connectivity,
+prismesh_t* prismesh_new(planar_polymesh_t* columns,
                          size_t num_vertical_cells,
-                         real_t z1,
-                         real_t z2)
+                         real_t z1, real_t z2)
 {
   ASSERT(columns != NULL);
-  ASSERT(num_columns > 0);
-  ASSERT(connectivity != NULL);
   ASSERT(num_vertical_cells > 0);
   ASSERT(z1 < z2);
+
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
-  mesh->polygons = polygon_array_new();
-  for (size_t i = 0; i < num_columns; ++i)
-  {
-    polymec_retain(columns[i]);
-    polygon_array_append_with_dtor(mesh->polygons, columns[i], free_polygon);
-  }
-  mesh->neighbors = adj_graph_clone(connectivity);
-  mesh->comm = adj_graph_comm(connectivity);
-  MPI_Comm_size(mesh->comm, &mesh->nproc);
-  MPI_Comm_rank(mesh->comm, &mesh->rank);
+  mesh->comm = columns->comm;
   mesh->layers = layer_array_new();
+  mesh->num_columns = (size_t)columns->num_cells;
   mesh->num_vertical_cells = num_vertical_cells;
   mesh->z1 = z1;
   mesh->z2 = z2;
-
-  // Figure out geometry!
-  // FIXME
-
   return mesh;
 }
 
 void prismesh_free(prismesh_t* mesh)
 {
-  adj_graph_free(mesh->neighbors);
   layer_array_free(mesh->layers);
-  polygon_array_free(mesh->polygons);
   polymec_free(mesh);
 }
 
@@ -98,7 +72,7 @@ size_t prismesh_num_layers(prismesh_t* mesh)
 
 size_t prismesh_num_columns(prismesh_t* mesh)
 {
-  return mesh->polygons->size;
+  return mesh->num_columns;
 }
 
 size_t prismesh_num_vertical_cells(prismesh_t* mesh)
@@ -108,7 +82,7 @@ size_t prismesh_num_vertical_cells(prismesh_t* mesh)
 
 size_t prismesh_num_cells(prismesh_t* mesh)
 {
-  return mesh->polygons->size * mesh->num_vertical_cells;
+  return mesh->num_columns * mesh->num_vertical_cells;
 }
 
 real_t primesh_z1(prismesh_t* mesh)
@@ -123,8 +97,8 @@ real_t primesh_z2(prismesh_t* mesh)
 
 polygon_t* prismesh_polygon(prismesh_t* mesh, size_t column)
 {
-  ASSERT(column < mesh->polygons->size);
-  return mesh->polygons->data[column];
+  ASSERT(column < mesh->num_columns);
+  return NULL; // FIXME
 }
 
 bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer)

@@ -10,8 +10,8 @@
 
 #include "core/polymec.h"
 #include "core/point.h"
-#include "core/exchanger.h"
 #include "core/adj_graph.h"
+#include "core/exchanger.h"
 #include "core/serializer.h"
 #include "geometry/tagger.h"
 
@@ -32,8 +32,6 @@ typedef enum
 extern const char* POLYMESH_IS_TETRAHEDRAL; // indicates that a polymesh is tetrahedral.
 
 typedef struct polymesh_storage_t polymesh_storage_t;
-
-typedef struct polymesh_t polymesh_t;
 
 /// \class polymesh
 /// This type represents an unstructured polyhedral mesh consisting of 
@@ -89,15 +87,18 @@ struct polymesh_t
   real_t* face_areas;
   vector_t* face_normals;
 
+  ///@{
   /// Mesh tagging mechanisms.
   tagger_t* cell_tags;
   tagger_t* face_tags;
   tagger_t* edge_tags;
   tagger_t* node_tags;
+  ///@}
 
   /// Mesh storage information -- used internally.
   polymesh_storage_t* storage;
 };
+typedef struct polymesh_t polymesh_t;
 
 /// Constructs a new polymesh with the given number of cells, ghost cells, 
 /// faces, and nodes. This function does not provide any description

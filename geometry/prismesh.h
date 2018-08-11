@@ -9,7 +9,7 @@
 #define POLYMEC_PRISMESH_H
 
 #include "core/point.h"
-#include "core/adj_graph.h"
+#include "geometry/planar_polymesh.h"
 #include "geometry/polygon.h"
 
 /// \addtogroup geometry geometry
@@ -104,28 +104,18 @@ struct prismesh_layer_t
 };
 typedef struct prismesh_layer_t prismesh_layer_t;
 
-/// Creates a prismesh consisting of the given polygonal columns, with
-/// connectivity between columns defined by the given adjacency graph.
-/// If the adjacency graph is defined on the MPI_COMM_SELF communicator, 
-/// the prismesh is defined entirely on each process. Otherwise (if the 
-/// adjacency graph is distributed across the processes for another 
-/// communicator, the resulting prismesh is distributed in the same way.
-/// In any case, the mesh emerging from this function is not necessarily 
-/// optimally load balanced.
-/// \param columns [in] An array of polygonal prism columns that define the 
-///                     mesh.
-/// \param num_columns [in] The length of the \ref columns array.
-/// \param connectivity [in] An adjacency graph defining the connectivity 
-///                          between columns. The vertices of this graph 
-///                          are the polygonal columns, and the edges represent
-///                          the faces that connect different columns.
+/// Creates a prismesh consisting of polygonal columns from the given 
+/// planar polygonal mesh on the same communicator as that mesh. The columns 
+/// are distributed in the same way as the planar polygonal mesh, which is 
+/// probably not optimal for calculations on the prismesh.
+/// \param columns [in] A planar polygonal mesh that defines a set of connected
+///                     polygonal columns for the prismesh.
 /// \param num_vertical_cells [in] The number of cells along the z axis.
 /// \param z1 [in] The z coordinate of the lower boundary of the mesh.
 /// \param z2 [in] The z coordinate of the upper boundary of the mesh.
+/// \returns A newly created prismesh.
 /// \memberof prismesh
-prismesh_t* prismesh_new(polygon_t** columns,
-                         size_t num_columns, 
-                         adj_graph_t* connectivity,
+prismesh_t* prismesh_new(planar_polymesh_t* columns,
                          size_t num_vertical_cells,
                          real_t z1, real_t z2);
  
@@ -162,7 +152,8 @@ real_t primesh_z1(prismesh_t* mesh);
 /// Returns the z coordinate of the top boundary of the mesh.
 real_t primesh_z2(prismesh_t* mesh);
 
-/// Returns the polygon associated with the given column.
+/// Returns a newly created polygon that represents the geometry of the 
+/// given column.
 /// \memberof prismesh
 polygon_t* prismesh_polygon(prismesh_t* mesh, size_t column);
 

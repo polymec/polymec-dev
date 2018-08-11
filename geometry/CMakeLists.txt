@@ -12,8 +12,9 @@ add_polymec_library(polymec_geometry coord_mapping.c sd_func.c sdt_func.c
                     unimesh_remote_bc.c constant_unimesh_patch_bc.c
                     polymesh.c polymesh_field.c
                     polymesh_node_exchangers.c partition_polymesh.c 
-                    create_rectilinear_polymesh.c create_uniform_polymesh.c crop_polymesh.c
-                    prismesh.c prismesh_field.c voronoi2.c voronoi3.c
+                    create_rectilinear_polymesh.c create_uniform_polymesh.c 
+                    crop_polymesh.c
+                    prismesh.c prismesh_field.c planar_polymesh.c
                     lua_geometry.c)
 add_dependencies(polymec_geometry all_3rdparty_libs)
 
