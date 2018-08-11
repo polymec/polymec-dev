@@ -28,9 +28,6 @@ typedef enum
   POLYMESH_CELL
 } polymesh_centering_t;
 
-/// Mesh features.
-extern const char* POLYMESH_IS_TETRAHEDRAL; // indicates that a polymesh is tetrahedral.
-
 typedef struct polymesh_storage_t polymesh_storage_t;
 
 /// \class polymesh
@@ -133,35 +130,6 @@ bool polymesh_verify_topology(polymesh_t* mesh,
 /// \memberof polymesh
 polymesh_t* polymesh_clone(polymesh_t* mesh);
 
-/// Associates a named piece of metadata (a "property") with the polymesh itself.
-/// This can be used to store information about (for example) how the mesh 
-/// was generated, which can sometimes be useful. A serializer can 
-/// be given so that any partitioning or repartitioning of the mesh can 
-/// preserve this property on subdomains. If the given property exists on the 
-/// mesh, it is overwritten.
-/// \memberof polymesh
-void polymesh_set_property(polymesh_t* mesh, 
-                           const char* property, 
-                           void* data, 
-                           serializer_t* serializer);
-
-/// Retrieves the given property from the polymesh, if any. If the 
-/// property is not found, this returns NULL.
-/// \memberof polymesh
-void* polymesh_property(polymesh_t* mesh, const char* property);
-
-/// Deletes the given property from the polymesh. This has no effect if the 
-/// property is not found.
-/// \memberof polymesh
-void polymesh_delete_property(polymesh_t* mesh, const char* property);
-
-/// Allows the traversal of polymesh properties. Set *pos to 0 to reset the 
-/// iteration.
-/// \memberof polymesh
-bool polymesh_next_property(polymesh_t* mesh, int* pos, 
-                            char** prop_name, void** prop_data, 
-                            serializer_t** prop_serializer);
-
 /// Returns an exchanger object that can be used to perform parallel exchanges
 /// on cell-centered polymesh data. In serial configurations, this exchanger holds 
 /// no data and exchanges have no effect.
@@ -171,22 +139,6 @@ exchanger_t* polymesh_exchanger(polymesh_t* mesh);
 /// Sets the exchanger to be used by the polymesh, replacing any existing exchanger.
 /// \memberof polymesh
 void polymesh_set_exchanger(polymesh_t* mesh, exchanger_t* ex);
-
-/// Adds a named "feature" to the polymesh. A mesh either has a feature or it doesn't.
-/// Features can be used to make algorithmic decisions about how to perform 
-/// calculations on a given mesh. This function has no effect if the given 
-/// feature exists on the mesh.
-/// \memberof polymesh
-void polymesh_add_feature(polymesh_t* mesh, const char* feature);
-
-/// Returns true if the polymesh has the given feature, false if not.
-/// \memberof polymesh
-bool polymesh_has_feature(polymesh_t* mesh, const char* feature);
-
-/// Deletes the given feature from the polymesh if it exists. This function has 
-/// no effect if the mesh does not have the feature.
-/// \memberof polymesh
-void polymesh_delete_feature(polymesh_t* mesh, const char* feature);
 
 /// Returns a newly-allocated list of indices that will define a tags for 
 /// cells/faces/edges/nodes with the given descriptor. If the tag already 
@@ -202,32 +154,6 @@ int* polymesh_tag(tagger_t* tagger, const char* tag, size_t* num_indices);
 /// Returns true if the given tag exists, false if not.
 /// \memberof polymesh
 bool polymesh_has_tag(tagger_t* tagger, const char* tag);
-
-/// Associates a named piece of metadata (a "property") with the given tag.
-/// This can be used to store data related to tagged indices.
-/// A serializer should be provided for the property's data.
-/// If the tag is not found, this function has no effect. If the given property
-/// exists on the tag, it is overwritten. Returns true if the property was 
-/// added, false if not.
-/// \memberof polymesh
-bool polymesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, serializer_t* serializer);
-
-/// Retrieves the given property associated with the given tag, if any. If the 
-/// tag or property are not found, this returns NULL.
-/// \memberof polymesh
-void* polymesh_tag_property(tagger_t* tagger, const char* tag, const char* property);
-
-/// Deletes the given property from the tag. This has no effect if the tag
-/// or property are not found.
-/// \memberof polymesh
-void polymesh_tag_delete_property(tagger_t* tagger, const char* tag, const char* property);
-
-/// Allows the traversal of properties on a tag. Set *pos to 0 to reset the 
-/// iteration.
-/// \memberof polymesh
-bool polymesh_tag_next_property(tagger_t* tagger, const char* tag, int* pos, 
-                                char** prop_name, void** prop_data, 
-                                serializer_t** prop_serializer);
 
 /// Renames the given tag. This has no effect if the tag is not found.
 /// \memberof polymesh
@@ -266,6 +192,17 @@ static inline int polymesh_cell_num_faces(polymesh_t* mesh, int cell)
   return mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell];
 }
 
+/// Retrieves the faces attached to the given cell in the polymesh.
+/// \param faces [out] An array large enough to store all the faces for the given cell.
+/// \memberof polymesh
+static inline void polymesh_cell_get_faces(polymesh_t* mesh, int cell, int* faces)
+{
+  int start = mesh->cell_face_offsets[cell];
+  int end = mesh->cell_face_offsets[cell+1];
+  for (int f = start; f < end; ++f)
+    faces[f-start] = (mesh->cell_faces[f] < 0) ? ~(mesh->cell_faces[f]) : mesh->cell_faces[f];
+}
+
 /// Allows iteration over the faces attached to the given cell in the polymesh.
 /// Set *pos to 0 to reset the iteration. Returns true if faces remain in 
 /// the cell, false otherwise. NOTE: the local index of the face within the 
@@ -278,6 +215,19 @@ static inline bool polymesh_cell_next_face(polymesh_t* mesh, int cell, int* pos,
   if (*face < 0) *face = ~(*face);
   ++(*pos);
   return (*pos <= (mesh->cell_face_offsets[cell+1] - mesh->cell_face_offsets[cell]));
+}
+
+/// Retrieves the oriented faces attached to the given cell in the polymesh.
+/// \param faces [out] An array large enough to store all the faces for the given 
+///                    cell. If the face is negative, it points inward relative
+///                    to the cell, and its 1's complement is its index.
+/// \memberof polymesh
+static inline void polymesh_cell_get_oriented_faces(polymesh_t* mesh, int cell, int* faces)
+{
+  int start = mesh->cell_face_offsets[cell];
+  int end = mesh->cell_face_offsets[cell+1];
+  for (int f = start; f < end; ++f)
+    faces[f-start] = mesh->cell_faces[f];
 }
 
 /// Allows iteration over the oriented faces attached to the given cell in the 
@@ -342,6 +292,20 @@ static inline int polymesh_face_num_nodes(polymesh_t* mesh, int face)
   return mesh->face_node_offsets[face+1] - mesh->face_node_offsets[face];
 }
 
+/// Retrieves the nodes attached to the given face in the polymesh.
+/// \param nodes [out] An array large enough to store all the nodes for the given 
+///                    face. 
+/// \memberof polymesh
+static inline void polymesh_face_get_nodes(polymesh_t* mesh, int face, int* nodes)
+{
+  if (face < 0)
+    face = ~face;
+  int start = mesh->face_node_offsets[face];
+  int end = mesh->face_node_offsets[face+1];
+  for (int n = start; n < end; ++n)
+    nodes[n-start] = mesh->face_nodes[n];
+}
+
 /// Allows iteration over the nodes attached to the given face in the polymesh.
 /// Set *pos to 0 to reset the iteration. Returns true if nodes remain in 
 /// the face, false otherwise. NOTE: the local index of the node within the 
@@ -373,7 +337,21 @@ static inline bool polymesh_face_next_node(polymesh_t* mesh, int face, int* pos,
 /// \memberof polymesh
 static inline int polymesh_face_num_edges(polymesh_t* mesh, int face)
 {
-  return mesh->face_node_offsets[face+1] - mesh->face_node_offsets[face];
+  return mesh->face_edge_offsets[face+1] - mesh->face_edge_offsets[face];
+}
+
+/// Retrieves the edges attached to the given face in the polymesh.
+/// \param edges [out] An array large enough to store all the edges for the given 
+///                    face. 
+/// \memberof polymesh
+static inline void polymesh_face_get_edges(polymesh_t* mesh, int face, int* edges)
+{
+  if (face < 0)
+    face = ~face;
+  int start = mesh->face_edge_offsets[face];
+  int end = mesh->face_edge_offsets[face+1];
+  for (int e = start; e < end; ++e)
+    edges[e-start] = mesh->face_edges[e];
 }
 
 /// Allows iteration over the edges attached to the given face in the mesh.

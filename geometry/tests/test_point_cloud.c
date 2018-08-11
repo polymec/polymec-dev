@@ -37,17 +37,6 @@ static void test_ctor2(void** state)
   point_cloud_free(cloud);
 }
 
-static void test_properties(void** state)
-{
-  point_cloud_t* cloud = point_cloud_new(MPI_COMM_SELF, 1000);
-  real_array_t* A = real_array_new();
-  point_cloud_set_property(cloud, "A", A, real_array_serializer());
-  real_array_t* A1 = point_cloud_property(cloud, "A");
-  assert_true(A1 == A);
-  point_cloud_delete_property(cloud, "A");
-  point_cloud_free(cloud);
-}
-
 static void test_tags(void** state)
 {
   point_cloud_t* cloud = point_cloud_new(MPI_COMM_SELF, 1000);
@@ -77,18 +66,6 @@ static void test_tags(void** state)
     point_cloud_rename_tag(cloud, old_tag_name, new_tag_name);
     assert_false(point_cloud_has_tag(cloud, old_tag_name));
     assert_true(point_cloud_has_tag(cloud, new_tag_name));
-  }
-
-  // Mess around with tag properties.
-  for (int i = 0; i < 10; ++i)
-  {
-    char tag_name[129];
-    snprintf(tag_name, 128, "tag%d", i);
-    int_array_t* P = int_array_new();
-    point_cloud_tag_set_property(cloud, tag_name, "P", P, int_array_serializer());
-    int_array_t* P1 = point_cloud_tag_property(cloud, tag_name, "P");
-    assert_true(P1 == P);
-    point_cloud_tag_delete_property(cloud, tag_name, "P");
   }
 
   // Delete the tags.
@@ -211,7 +188,6 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_ctor1),
     cmocka_unit_test(test_ctor2),
-    cmocka_unit_test(test_properties),
     cmocka_unit_test(test_tags),
     cmocka_unit_test(test_unite),
     cmocka_unit_test(test_intersect),
