@@ -15,16 +15,48 @@
 #include "core/partitioning.h"
 #endif
 
-#if 0
-// Destroys a layer managed by a mesh.
+DEFINE_ARRAY(layer_array, prismesh_layer_t*)
+
+static prismesh_layer_t* layer_from_planar_polymesh(planar_polymesh_t* mesh,
+                                                    size_t num_vertical_cells,
+                                                    real_t z1, real_t z2)
+{
+  ASSERT(z1 < z2);
+  prismesh_layer_t* layer = polymec_malloc(sizeof(prismesh_layer_t));
+  layer->num_columns = (size_t)mesh->num_cells;
+  layer->num_z_cells = num_vertical_cells;
+  layer->z1 = z1;
+  layer->z2 = z2;
+
+  // cell -> xy face connectivity.
+  layer->column_xy_face_offsets = polymec_malloc(sizeof(int) * (layer->num_columns+1));
+  memcpy(layer->column_xy_face_offsets, mesh->cell_edge_offsets, sizeof(int) * (layer->num_columns+1));
+
+  layer->column_xy_faces = polymec_malloc(sizeof(int) * layer->column_xy_face_offsets[layer->num_columns]);
+  memcpy(layer->column_xy_faces, mesh->cell_edges, sizeof(int) * layer->column_xy_face_offsets[layer->num_columns]);
+
+  // xy face -> cell connectivity.
+  layer->num_xy_faces = (size_t)mesh->num_edges;
+  layer->xy_face_columns = polymec_malloc(sizeof(int) * 2 * layer->num_xy_faces);
+  memcpy(layer->xy_face_columns, mesh->edge_cells, sizeof(int) * 2 * layer->num_xy_faces);
+
+  // Node xy coordinates.
+  layer->num_xy_edges = (size_t)mesh->num_edges;
+  layer->num_xy_nodes = (size_t)mesh->num_nodes;
+  layer->xy_nodes = polymec_malloc(sizeof(point2_t) * layer->num_xy_nodes);
+  memcpy(layer->xy_nodes, mesh->nodes, sizeof(point2_t) * layer->num_xy_nodes);
+
+  return layer;
+}
+
 static void free_layer(prismesh_layer_t* layer)
 {
-  prism_column_array_free(layer->columns);
+  polymec_free(layer->xy_nodes);
+  polymec_free(layer->xy_face_columns);
+  polymec_free(layer->column_xy_faces);
+  polymec_free(layer->column_xy_face_offsets);
   polymec_free(layer);
 }
-#endif
-
-DEFINE_ARRAY(layer_array, prismesh_layer_t*)
 
 struct prismesh_t 
 {
@@ -44,6 +76,7 @@ prismesh_t* prismesh_new(planar_polymesh_t* columns,
   ASSERT(num_vertical_cells > 0);
   ASSERT(z1 < z2);
 
+  // Set up the easy stuff.
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
   mesh->comm = columns->comm;
   mesh->layers = layer_array_new();
@@ -51,6 +84,16 @@ prismesh_t* prismesh_new(planar_polymesh_t* columns,
   mesh->num_vertical_cells = num_vertical_cells;
   mesh->z1 = z1;
   mesh->z2 = z2;
+
+  // Now allocate a single layer to this process with columns corresponding 
+  // to the cells of the planar polymesh. The layer spans the entire vertical 
+  // extent of the mesh. This isn't ideal, but it's a decent initial 
+  // partitioning.
+  prismesh_layer_t* layer = layer_from_planar_polymesh(columns, 
+                                                       num_vertical_cells, 
+                                                       z1, z2);
+  layer_array_append_with_dtor(mesh->layers, layer, free_layer);
+
   return mesh;
 }
 
