@@ -15,15 +15,6 @@
 #include "core/timer.h"
 #include "core/partitioning.h"
 
-// This key-value store provides a context that simplifies bookkeeping for 
-// distributing submeshes.
-static ptr_ptr_unordered_map_t* kv_store_ = NULL;
-
-static void free_kv_store()
-{
-  ptr_ptr_unordered_map_free(kv_store_);
-}
-
 // This creates tags for a submesh whose elements belong to the given set.
 static void create_submesh_tags(tagger_t* tagger, 
                                 int_int_unordered_map_t* element_map)
@@ -242,21 +233,16 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
       ++i;
     }
 
-    // Stash the ghost cell indices in our key-value store.
-    if (kv_store_ == NULL)
-    {
-      kv_store_ = ptr_ptr_unordered_map_new();
-      polymec_atexit(free_kv_store);
-    }
-    ptr_ptr_unordered_map_insert_with_v_dtor(kv_store_, submesh->face_tags, 
-                                             pbf_ghost_cells, DTOR(int_array_free));
+    // Stash the ghost cell indices in another tag.
+    int* gci_tag = polymesh_create_tag(submesh->cell_tags, "ghost_cell_indices", 
+                                       pbf_ghost_cells->size);
+    memcpy(gci_tag, pbf_ghost_cells->data, sizeof(int) * pbf_ghost_cells->size);
+    int_array_free(pbf_ghost_cells);
 
     // Also set up a copy of the array of global cell indices.
-    int_array_t* global_cell_indices = int_array_new();
-    int_array_resize(global_cell_indices, num_indices);
-    memcpy(global_cell_indices->data, indices, sizeof(int) * num_indices);
-    ptr_ptr_unordered_map_insert_with_v_dtor(kv_store_, submesh, 
-                                             global_cell_indices, DTOR(int_array_free));
+    gci_tag = polymesh_create_tag(submesh->cell_tags, "global_cell_indices", 
+                                  num_indices);
+    memcpy(gci_tag, indices, sizeof(int) * num_indices);
   }
   int_int_unordered_map_free(parallel_bface_map);
 
@@ -940,7 +926,7 @@ void distribute_polymesh(polymesh_t** mesh,
   // registered on all processes. See serializer.h for details.
   {
     serializer_t* s = int_array_serializer();
-    s = NULL;
+    polymec_release(s);
   }
 
   polymesh_t* global_mesh = *mesh;
@@ -997,7 +983,7 @@ void distribute_polymesh(polymesh_t** mesh,
       byte_array_clear(bytes);
       polymesh_free(p_mesh);
     }
-    ser = NULL;
+    polymec_release(ser);
     byte_array_free(bytes);
   }
   else
@@ -1020,7 +1006,7 @@ void distribute_polymesh(polymesh_t** mesh,
     local_mesh = serializer_read(ser, bytes, &offset);
     
     byte_array_free(bytes);
-    ser = NULL;
+    polymec_release(ser);
   }
 
   *mesh = local_mesh;
@@ -1032,21 +1018,20 @@ void distribute_polymesh(polymesh_t** mesh,
   // Extract the boundary faces and the original (global) ghost cell indices
   // associated with them.
   ASSERT(polymesh_has_tag(local_mesh->face_tags, "parallel_boundary_faces"));
-  size_t num_pbfaces;
+  ASSERT(polymesh_has_tag(local_mesh->cell_tags, "ghost_cell_indices"));
+  size_t num_pbfaces, num_pbgcells;
   int* pbfaces = polymesh_tag(local_mesh->face_tags, "parallel_boundary_faces", &num_pbfaces);
-  int_array_t** pbgcells_p = (int_array_t**)ptr_ptr_unordered_map_get(kv_store_, local_mesh->face_tags);
-  ASSERT(pbgcells_p != NULL);
-  int_array_t* pbgcells = *pbgcells_p;
+  int* pbgcells = polymesh_tag(local_mesh->cell_tags, "ghost_cell_indices", &num_pbgcells);
 
-  // Get our global cell indices out of the key-value store.
-  int_array_t** gci_p = (int_array_t**)ptr_ptr_unordered_map_get(kv_store_, local_mesh);
-  ASSERT(gci_p != NULL);
-  int_array_t* global_cell_indices = *gci_p;
+  // Retrieve our global cell indices.
+  ASSERT(polymesh_has_tag(local_mesh->cell_tags, "global_cell_indices"));
+  size_t num_global_cell_indices;
+  int* global_cell_indices = polymesh_tag(local_mesh->cell_tags, "global_cell_indices", &num_global_cell_indices);
 
   // Here's an inverse map for global cell indices to the local ones we have.
   int_int_unordered_map_t* inverse_cell_map = int_int_unordered_map_new();
   for (int i = 0; i < local_mesh->num_cells; ++i)
-    int_int_unordered_map_insert(inverse_cell_map, global_cell_indices->data[i], i);
+    int_int_unordered_map_insert(inverse_cell_map, global_cell_indices[i], i);
 
   // Now we create pairwise global cell indices for the exchanger.
   int_ptr_unordered_map_t* ghost_cell_indices = int_ptr_unordered_map_new();
@@ -1061,7 +1046,7 @@ void distribute_polymesh(polymesh_t** mesh,
     ASSERT(proc < nprocs);
 
     // Generate a mapping from a global index to its ghost cell.
-    int global_ghost_index = pbgcells->data[i];
+    int global_ghost_index = pbgcells[i];
     int local_ghost_index;
     int* ghost_index_p = int_int_unordered_map_get(inverse_cell_map, global_ghost_index);
     if (ghost_index_p == NULL)
@@ -1077,7 +1062,7 @@ void distribute_polymesh(polymesh_t** mesh,
       int_ptr_unordered_map_insert_with_v_dtor(ghost_cell_indices, proc, int_array_new(), DTOR(int_array_free));
     int_array_t* indices = *int_ptr_unordered_map_get(ghost_cell_indices, proc);
     int local_cell = local_mesh->face_cells[2*f];
-    int global_cell = global_cell_indices->data[local_cell];
+    int global_cell = global_cell_indices[local_cell];
     int_array_append(indices, global_cell);
     int_array_append(indices, global_ghost_index);
   }
@@ -1119,9 +1104,9 @@ void distribute_polymesh(polymesh_t** mesh,
   int_ptr_unordered_map_free(ghost_cell_indices);
   int_int_unordered_map_free(inverse_cell_map);
 
-  // Remove the data we've stashed in the key-value store.
-  ptr_ptr_unordered_map_delete(kv_store_, local_mesh->face_tags);
-  ptr_ptr_unordered_map_delete(kv_store_, local_mesh);
+  // Remove the tags we used for ghost cells and global cell indices.
+  polymesh_delete_tag(local_mesh->cell_tags, "ghost_cell_indices");
+  polymesh_delete_tag(local_mesh->cell_tags, "global_cell_indices");
 
   // Now handle field data.
   polymesh_field_t* local_fields[num_fields];
@@ -1322,7 +1307,7 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
 
   // Clean up the send buffers and the serializer. We still need the 
   // receive buffer.
-  ser = NULL;
+  polymec_release(ser);
   for (size_t i = 0; i < num_sends; ++i)
     byte_array_free(send_buffers[i]);
 
