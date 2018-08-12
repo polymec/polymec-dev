@@ -138,10 +138,17 @@ real_t primesh_z2(prismesh_t* mesh)
   return mesh->z2;
 }
 
-polygon_t* prismesh_polygon(prismesh_t* mesh, size_t column)
+polygon_t* prismesh_layer_polygon(prismesh_layer_t* layer, int column)
 {
-  ASSERT(column < mesh->num_columns);
-  return NULL; // FIXME
+  ASSERT(column < (int)layer->num_columns);
+  int z_face = column;
+  int num_nodes = prismesh_layer_z_face_num_nodes(layer, z_face);
+  int nodes[num_nodes];
+  prismesh_layer_z_face_get_nodes(layer, z_face, nodes);
+  point2_t vertices[num_nodes];
+  for (int n = 0; n < num_nodes; ++n)
+    vertices[n] = layer->xy_nodes[nodes[n]];
+  return polygon_new(vertices, num_nodes);
 }
 
 bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer)
@@ -319,7 +326,7 @@ void repartition_prismesh(prismesh_t** mesh,
     return;
   }
 
-  // Generate a global adjacency graph for the mesh.
+  // Generate an adjacency graph for the mesh.
   adj_graph_t* graph = NULL;//graph_from_polygons(old_mesh);
 
   // Figure out how many ways we want to partition the polygon graph by 

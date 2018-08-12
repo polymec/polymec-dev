@@ -134,15 +134,15 @@ real_t primesh_z1(prismesh_t* mesh);
 /// Returns the z coordinate of the top boundary of the mesh.
 real_t primesh_z2(prismesh_t* mesh);
 
-/// Returns a newly created polygon that represents the geometry of the 
-/// given column.
-/// \memberof prismesh
-polygon_t* prismesh_polygon(prismesh_t* mesh, size_t column);
-
 /// Traverses the locally-stored layers in the mesh, returning true and the 
 /// next layer if the traversal is incomplete, false otherwise. 
 /// \memberof prismesh
 bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer);
+
+/// Returns a newly created polygon that represents the geometry of the 
+/// given column in the layer.
+/// \memberof prismesh_layer
+polygon_t* prismesh_layer_polygon(prismesh_layer_t* layer, int column);
 
 /// Returns the number of xy faces for the given column in the layer.
 /// \memberof prismesh_layer
@@ -231,6 +231,28 @@ static inline void prismesh_layer_xy_face_get_edges(prismesh_layer_t* layer,
   edge_z_indices[1] = z_index+1;
   edge_z_indices[2] = z_index;
   edge_z_indices[3] = z_index;
+}
+
+/// Returns the number of nodes for the given z face in the layer.
+/// \memberof prismesh_layer
+static inline int prismesh_layer_z_face_num_nodes(prismesh_layer_t* layer,
+                                                  int z_face)
+{
+  // Nodes on z faces are indexed the same way as xy faces on columns.
+  return prismesh_layer_column_num_xy_faces(layer, z_face);
+}
+
+/// Returns the indices of the nodes for the given z face in the layer.
+/// \param z_face [in] The index for the z face (same as the column index).
+/// \param nodes [out] An array big enough to store the indices of the
+///                    nodes of the z face.
+/// \memberof prismesh_layer
+static inline void prismesh_layer_z_face_get_nodes(prismesh_layer_t* layer,
+                                                   int z_face,
+                                                   int* nodes)
+{
+  // Nodes on z faces are indexed the same way as xy faces on columns.
+  prismesh_layer_column_get_xy_faces(layer, z_face, nodes);
 }
 
 typedef struct prismesh_field_t prismesh_field_t;
