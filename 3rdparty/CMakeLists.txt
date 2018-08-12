@@ -188,8 +188,18 @@ set(POLYMEC_TP_LIBS usilo;${POLYMEC_TP_LIBS})
 # Build Sundials, a C library for integrating stiff, nonlinear ODEs and 
 # differential-algebraic equations.
 #----------------------------------------------------------------------------
-set(SUNDIALS_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DEXAMPLES_ENABLE=OFF -DFCMIX_ENABLE=OFF -DSUNDIALS_PRECISION=${POLYMEC_PRECISION})
-set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
+set(SUNDIALS_CMAKE_OPTS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DSUNDIALS_PRECISION=${POLYMEC_PRECISION})
+set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS})
+
+# We must build Sundials as a static library. If we build it as a shared library,
+# things get much more complicated when we use it to interface with PETSc and HYPRE as 
+# shared libraries. I'd rather not pick this fight.
+set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON)
+
+# We don't build what we don't need.
+set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DEXAMPLES_ENABLE=OFF -DFCMIX_ENABLE=OFF)
+
+# Enable MPI if we've got it.
 if (HAVE_MPI)
   set(SUNDIALS_CMAKE_OPTS ${SUNDIALS_CMAKE_OPTS} -DMPI_ENABLE=ON -DMPI_MPICC=${CMAKE_C_COMPILER})
 else()
