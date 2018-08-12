@@ -1,19 +1,17 @@
 """gather_stats.py -- gathers statistics for the polymec code base."""
 
-import os.path
+# Here are the libraries we search for source files.
+libs = ['core', 'geometry', 'solvers', 'model', 'io']
 
-def visit_files(headers_and_sources, dirname, files):
-    excluded_dirs = ['3rdparty', 'build']
-    for ex_dir in excluded_dirs:
-        if ex_dir in files:
-            # Don't go there, girlfriend.
-            files.remove(ex_dir)
-    headers_and_sources[0].extend([os.path.join(dirname, f) for f in files if f[-2:] == '.h'])
-    headers_and_sources[1].extend([os.path.join(dirname, f) for f in files if f[-2:] == '.c'])
+import os, os.path
 
-def find_sources(dirname):
+def find_sources(root):
     headers_and_sources = ([], [])
-    os.path.walk(dirname, visit_files, headers_and_sources)
+    for dir in libs:
+        path = os.path.join(root, dir)
+        files = os.listdir(path)
+        headers_and_sources[0].extend([os.path.join(root, dir, f) for f in files if f.endswith('.h') or f.endswith('.h.in')])
+        headers_and_sources[1].extend([os.path.join(root, dir, f) for f in files if f.endswith('.c')])
     return headers_and_sources
 
 def count_source_lines(source_files):
