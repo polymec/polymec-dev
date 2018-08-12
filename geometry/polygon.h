@@ -24,7 +24,7 @@ polygon_t* polygon_new(point2_t* vertices, size_t num_vertices);
 
 /// Creates a new polygon in the plane given a set of vertices and an 
 /// ordering in which they are traversed.
-polygon_t* polygon_new_with_ordering(point2_t* points, int* ordering, size_t num_points);
+polygon_t* polygon_new_with_ordering(point2_t* vertices, int* ordering, size_t num_vertices);
 
 /// Creates a new convex polygon in the plane by applying the "gift-wrap" 
 /// convex hull algorithm to the set of points.

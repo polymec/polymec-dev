@@ -12,7 +12,6 @@ struct polygon_t
 {
   point2_t* vertices;
   size_t num_vertices;
-  int* ordering;
   real_t area;
   bool area_computed;
 };
@@ -21,20 +20,18 @@ static void polygon_free(void* ctx)
 {
   polygon_t* poly = ctx;
   polymec_free(poly->vertices);
-  polymec_free(poly->ordering);
 }
 
 static void polygon_compute_area(polygon_t* poly)
 {
   // Compute the area using the fan algorithm.
   poly->area = 0.0;
-  int I = poly->ordering[0];
+  int i = 0;
   for (size_t j = 1; j < poly->num_vertices - 1; ++j)
   {
     // Form a triangle from vertex 0, vertex j, and vertex j+1.
-    int J = poly->ordering[j];
-    int K = poly->ordering[j+1];
-    poly->area += triangle_area(&poly->vertices[I], &poly->vertices[J], &poly->vertices[K]);
+    int k = j+1;
+    poly->area += triangle_area(&poly->vertices[i], &poly->vertices[j], &poly->vertices[k]);
   }
 }
 
@@ -60,24 +57,24 @@ void polygon_compute_centroid(polygon_t* poly, point2_t* centroid)
 
 polygon_t* polygon_new(point2_t* vertices, size_t num_vertices)
 {
-  int ordering[num_vertices];
-  for (size_t i = 0; i < num_vertices; ++i)
-    ordering[i] = (int)i;
-  return polygon_new_with_ordering(vertices, ordering, num_vertices);
+  ASSERT(vertices != NULL);
+  ASSERT(num_vertices >= 3);
+  polygon_t* poly = polymec_gc_malloc(sizeof(polygon_t), polygon_free);
+  poly->vertices = polymec_malloc(sizeof(point2_t)*num_vertices);
+  memcpy(poly->vertices, vertices, sizeof(point2_t)*num_vertices);
+  poly->num_vertices = num_vertices;
+  poly->area_computed = false;
+  return poly;
 }
 
-polygon_t* polygon_new_with_ordering(point2_t* points, int* ordering, size_t num_points)
+polygon_t* polygon_new_with_ordering(point2_t* vertices, 
+                                     int* ordering, 
+                                     size_t num_vertices)
 {
-  ASSERT(points != NULL);
-  ASSERT(num_points >= 3);
-  polygon_t* poly = polymec_gc_malloc(sizeof(polygon_t), polygon_free);
-  poly->vertices = polymec_malloc(sizeof(point2_t)*num_points);
-  memcpy(poly->vertices, points, sizeof(point2_t)*num_points);
-  poly->num_vertices = num_points;
-  poly->ordering = polymec_malloc(sizeof(int)*num_points);
-  poly->area_computed = false;
-  memcpy(poly->ordering, ordering, sizeof(int)*num_points);
-  return poly;
+  point2_t reordered_vertices[num_vertices];
+  for (size_t i = 0; i < num_vertices; ++i)
+    reordered_vertices[i] = vertices[ordering[i]];
+  return polygon_new(reordered_vertices, num_vertices);
 }
 
 polygon_t* polygon_giftwrap(point2_t* points, size_t num_points)
@@ -184,16 +181,11 @@ size_t polygon_num_vertices(polygon_t* poly)
   return poly->num_vertices;
 }
 
-int* polygon_ordering(polygon_t* poly)
-{
-  return poly->ordering;
-}
-
 bool polygon_next_vertex(polygon_t* poly, int* pos, point2_t* vertex)
 {
   if (*pos >= poly->num_vertices) 
     return false;
-  *vertex = poly->vertices[poly->ordering[*pos]];
+  *vertex = poly->vertices[*pos];
   ++(*pos);
   return true;
 }
@@ -334,15 +326,10 @@ void polygon_clip(polygon_t* poly, polygon_t* other)
     int a1 = (int)(a + n - 1) % n;
     int b1 = (int)(b + m - 1) % m;
 
-    aa = poly->ordering[a];
-    int aa1 = poly->ordering[a1];
-    int bb = poly->ordering[b];
-    int bb1 = poly->ordering[b1];
-
-    point2_t* Pa = &poly->vertices[aa];
-    point2_t* Pa1 = &poly->vertices[aa1];
-    point2_t* Qb = &other->vertices[bb];
-    point2_t* Qb1 = &other->vertices[bb1];
+    point2_t* Pa = &poly->vertices[a];
+    point2_t* Pa1 = &poly->vertices[a1];
+    point2_t* Qb = &other->vertices[b];
+    point2_t* Qb1 = &other->vertices[b1];
 
     point2_t A, B;
     A.x = Pa1->x - Pa->x;
