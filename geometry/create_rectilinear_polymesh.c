@@ -352,15 +352,6 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
   // Compute mesh geometry.
   polymesh_compute_geometry(mesh);
 
-  // Stash the lattice in the "lattice" property.
-  serializer_t* cubic_lattice_ser = cubic_lattice_serializer();
-  polymesh_set_property(mesh, "lattice", (void*)lattice, cubic_lattice_ser);
-
-  // Stash a bounding box for easy reference.
-  serializer_t* bbox_ser = bbox_serializer();
-  bbox_t* bbox = bbox_new(xs[0], xs[nxs-1], ys[0], ys[nys-1], zs[0], zs[nzs-1]);
-  polymesh_set_property(mesh, "bbox", (void*)bbox, bbox_ser);
-
   return mesh;
 }
 
@@ -383,16 +374,10 @@ polymesh_t* create_rectilinear_polymesh_on_rank(MPI_Comm comm,
   polymesh_t* mesh = NULL;
   if (my_rank == rank)
     mesh = create_rectilinear_polymesh(comm, xs, nxs, ys, nys, zs, nzs);
-  else
-  {
-    // Initialize serializers.
-    serializer_t* s = cubic_lattice_serializer();
-    s = bbox_serializer();
-  }
   return mesh;
 }
 
-void tag_rectilinear_polymesh_faces(polymesh_t* mesh, 
+void tag_rectilinear_polymesh_faces(polymesh_t* mesh,
                                     const char* x1_tag, 
                                     const char* x2_tag, 
                                     const char* y1_tag,
@@ -400,11 +385,12 @@ void tag_rectilinear_polymesh_faces(polymesh_t* mesh,
                                     const char* z1_tag,
                                     const char* z2_tag)
 {
-  // Get some stuff from our rectilinear mesh.
-  cubic_lattice_t* lattice = polymesh_property(mesh, "lattice");
-  ASSERT(lattice != NULL);
-  bbox_t* bbox = polymesh_property(mesh, "bbox");
-  ASSERT(bbox != NULL);
+  // Find the min/max extents of the mesh (in terms of face centers.
+  bbox_t bbox = {.x1 = REAL_MAX, .x2 = -REAL_MAX,
+                 .y1 = REAL_MAX, .y2 = -REAL_MAX,
+                 .z1 = REAL_MAX, .z2 = -REAL_MAX};
+  for (int f = 0; f < mesh->num_faces; ++f)
+    bbox_grow(&bbox, &(mesh->face_centers[f]));
 
   // Figure out the boundary faces of the mesh by checking their face centers 
   // against the boundary coordinates. We don't have to be too clever, since 
@@ -421,17 +407,17 @@ void tag_rectilinear_polymesh_faces(polymesh_t* mesh,
   {
     if (mesh->face_cells[2*f+1] == -1)
     {
-      if (reals_nearly_equal(mesh->face_centers[f].x, bbox->x1, face_tol))
+      if (reals_nearly_equal(mesh->face_centers[f].x, bbox.x1, face_tol))
         int_slist_append(x1_faces, f);
-      else if (reals_nearly_equal(mesh->face_centers[f].x, bbox->x2, face_tol))
+      else if (reals_nearly_equal(mesh->face_centers[f].x, bbox.x2, face_tol))
         int_slist_append(x2_faces, f);
-      if (reals_nearly_equal(mesh->face_centers[f].y, bbox->y1, face_tol))
+      if (reals_nearly_equal(mesh->face_centers[f].y, bbox.y1, face_tol))
         int_slist_append(y1_faces, f);
-      else if (reals_nearly_equal(mesh->face_centers[f].y, bbox->y2, face_tol))
+      else if (reals_nearly_equal(mesh->face_centers[f].y, bbox.y2, face_tol))
         int_slist_append(y2_faces, f);
-      if (reals_nearly_equal(mesh->face_centers[f].z, bbox->z1, face_tol))
+      if (reals_nearly_equal(mesh->face_centers[f].z, bbox.z1, face_tol))
         int_slist_append(z1_faces, f);
-      else if (reals_nearly_equal(mesh->face_centers[f].z, bbox->z2, face_tol))
+      else if (reals_nearly_equal(mesh->face_centers[f].z, bbox.z2, face_tol))
         int_slist_append(z2_faces, f);
     }
   }
@@ -473,17 +459,6 @@ void tag_rectilinear_polymesh_faces(polymesh_t* mesh,
   while (int_slist_next(z2_faces, &iter, &face))
     z2tag[f++] = face;
 
-  // Now make our "rectilinear_boundary_tags" property.
-  string_array_t* btags = string_array_new();
-  string_array_append_with_dtor(btags, string_dup(x1_tag), string_free);
-  string_array_append_with_dtor(btags, string_dup(x2_tag), string_free);
-  string_array_append_with_dtor(btags, string_dup(y1_tag), string_free);
-  string_array_append_with_dtor(btags, string_dup(y2_tag), string_free);
-  string_array_append_with_dtor(btags, string_dup(z1_tag), string_free);
-  string_array_append_with_dtor(btags, string_dup(z2_tag), string_free);
-  serializer_t* s = string_array_serializer();
-  polymesh_set_property(mesh, "rectilinear_boundary_tags", btags, s);
-
   // Clean up.
   int_slist_free(x1_faces);
   int_slist_free(x2_faces);
@@ -491,7 +466,5 @@ void tag_rectilinear_polymesh_faces(polymesh_t* mesh,
   int_slist_free(y2_faces);
   int_slist_free(z1_faces);
   int_slist_free(z2_faces);
-  lattice = NULL;
-  bbox = NULL;
 }
 

@@ -90,32 +90,6 @@ void point_cloud_set_num_ghosts(point_cloud_t* cloud,
   }
 }
 
-void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, serializer_t* serializer)
-{
-  // Use the bogus tag to store our junk.
-  tagger_set_property(cloud->tags, "properties", property, data, serializer);
-}
-
-void* point_cloud_property(point_cloud_t* cloud, const char* property)
-{
-  // Get this property from our bogus tag.
-  return tagger_property(cloud->tags, "properties", property);
-}
-
-void point_cloud_delete_property(point_cloud_t* cloud, const char* property)
-{
-  // Delete this property from our bogus tag.
-  tagger_delete_property(cloud->tags, "properties", (char*)property);
-}
-
-bool point_cloud_next_property(point_cloud_t* cloud, int* pos, 
-                               char** prop_name, void** prop_data, 
-                               serializer_t** prop_serializer)
-{
-  return tagger_next_property(cloud->tags, "properties", pos, prop_name, 
-                              prop_data, prop_serializer);
-}
-
 int* point_cloud_create_tag(point_cloud_t* cloud, const char* tag, size_t num_indices)
 {
   return tagger_create_tag(cloud->tags, tag, num_indices);
@@ -129,21 +103,6 @@ int* point_cloud_tag(point_cloud_t* cloud, const char* tag, size_t* num_indices)
 bool point_cloud_has_tag(point_cloud_t* cloud, const char* tag)
 {
   return tagger_has_tag(cloud->tags, tag);
-}
-
-bool point_cloud_tag_set_property(point_cloud_t* cloud, const char* tag, const char* property, void* data, serializer_t* serializer)
-{
-  return tagger_set_property(cloud->tags, tag, property, data, serializer);
-}
-
-void* point_cloud_tag_property(point_cloud_t* cloud, const char* tag, const char* property)
-{
-  return tagger_property(cloud->tags, tag, property);
-}
-
-void point_cloud_tag_delete_property(point_cloud_t* cloud, const char* tag, const char* property)
-{
-  tagger_delete_property(cloud->tags, tag, property);
 }
 
 void point_cloud_rename_tag(point_cloud_t* cloud, const char* old_tag, const char* new_tag)

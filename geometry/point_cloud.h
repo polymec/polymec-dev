@@ -61,31 +61,6 @@ void point_cloud_free(point_cloud_t* cloud);
 /// \memberof point_cloud
 void point_cloud_set_num_ghosts(point_cloud_t* cloud, size_t num_ghosts);
 
-/// Associates a named piece of metadata (a "property") with the point cloud itself.
-/// This can be used to store information about (for example) how the cloud 
-/// was generated, which can sometimes be useful. A (non-NULL) serializer 
-/// can be given to pass properties between processes. If the given property 
-/// exists on the cloud, it is overwritten.
-/// \memberof point_cloud
-void point_cloud_set_property(point_cloud_t* cloud, const char* property, void* data, serializer_t* serializer);
-
-/// Retrieves the given property from the cloud, if any. If the 
-/// property is not found, this returns NULL.
-/// \memberof point_cloud
-void* point_cloud_property(point_cloud_t* cloud, const char* property);
-
-/// Deletes the given property from the cloud. This has no effect if the 
-/// property is not found.
-/// \memberof point_cloud
-void point_cloud_delete_property(point_cloud_t* cloud, const char* property);
-
-/// Allows traversal over point cloud properties. Set *pos to 0 to reset the 
-/// iteration.
-/// \memberof point_cloud
-bool point_cloud_next_property(point_cloud_t* cloud, int* pos, 
-                               char** prop_name, void** prop_data, 
-                               serializer_t** prop_serializer);
-
 /// Returns a newly-allocated list of indices that will define a tags for 
 /// cells/faces/edges/nodes with the given descriptor. If the tag already 
 /// exists, returns NULL.
@@ -100,25 +75,6 @@ int* point_cloud_tag(point_cloud_t* cloud, const char* tag, size_t* num_indices)
 /// Returns true if the given tag exists, false if not.
 /// \memberof point_cloud
 bool point_cloud_has_tag(point_cloud_t* cloud, const char* tag);
-
-/// Associates a named piece of metadata (a "property") with the given tag.
-/// This can be used to store data related to tagged indices.
-/// A destructor function can be passed in to handle freeing of resources.
-/// If the tag is not found, this function has no effect. If the given property
-/// exists on the tag, it is overwritten. Returns true if the property was 
-/// added, false if not.
-/// \memberof point_cloud
-bool point_cloud_tag_set_property(point_cloud_t* cloud, const char* tag, const char* property, void* data, serializer_t* serializer);
-
-/// Retrieves the given property associated with the given tag, if any. If the 
-/// tag or property are not found, this returns NULL.
-/// \memberof point_cloud
-void* point_cloud_tag_property(point_cloud_t* cloud, const char* tag, const char* property);
-
-/// Deletes the given property from the tag. This has no effect if the tag
-/// or property are not found.
-/// \memberof point_cloud
-void point_cloud_tag_delete_property(point_cloud_t* cloud, const char* tag, const char* property);
 
 /// Renames the given tag. This has no effect if the tag is not found.
 /// \memberof point_cloud

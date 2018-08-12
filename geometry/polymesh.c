@@ -8,9 +8,6 @@
 #include "core/table.h"
 #include "geometry/polymesh.h"
 
-// Mesh features.
-const char* POLYMESH_IS_TETRAHEDRAL = "polymesh_is_tetrahedral";
-
 // This function rounds the given number up to the nearest power of 2.
 static int round_to_pow2(int x)
 {
@@ -117,10 +114,6 @@ polymesh_t* polymesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
   // Now we create a bogus tag that we can use to store mesh properties.
   int* prop_tag = polymesh_create_tag(mesh->cell_tags, "properties", 1);
   prop_tag[0] = 0;
-
-  // We also create a bogus tag that we can use to store mesh features.
-  int* feature_tag = polymesh_create_tag(mesh->cell_tags, "features", 1);
-  feature_tag[0] = 0;
 
   return mesh;
 }
@@ -298,34 +291,6 @@ polymesh_t* polymesh_clone(polymesh_t* mesh)
   return clone;
 }
 
-void polymesh_set_property(polymesh_t* mesh, 
-                           const char* property, 
-                           void* data, 
-                           serializer_t* serializer)
-{
-  // Use the bogus tag to store our junk.
-  tagger_set_property(mesh->cell_tags, "properties", property, data, serializer);
-}
-
-void* polymesh_property(polymesh_t* mesh, const char* property)
-{
-  // Get this property from our bogus tag.
-  return tagger_property(mesh->cell_tags, "properties", property);
-}
-
-void polymesh_delete_property(polymesh_t* mesh, const char* property)
-{
-  tagger_delete_property(mesh->cell_tags, "properties", property);
-}
-
-bool polymesh_next_property(polymesh_t* mesh, int* pos, 
-                        char** prop_name, void** prop_data, 
-                        serializer_t** prop_serializer)
-{
-  return tagger_next_property(mesh->cell_tags, "properties", pos, prop_name, 
-                              prop_data, prop_serializer);
-}
-
 exchanger_t* polymesh_exchanger(polymesh_t* mesh)
 {
   return mesh->storage->exchanger;
@@ -337,26 +302,6 @@ void polymesh_set_exchanger(polymesh_t* mesh, exchanger_t* ex)
   if (mesh->storage->exchanger != NULL)
     mesh->storage->exchanger = NULL;
   mesh->storage->exchanger = ex;
-}
-
-void polymesh_add_feature(polymesh_t* mesh, const char* feature)
-{
-  // Use the bogus tag to store our junk.
-  bool* data = polymec_malloc(sizeof(bool));
-  *data = true;
-  serializer_t* ser = string_serializer();
-  tagger_set_property(mesh->cell_tags, "features", feature, data, ser);
-}
-
-bool polymesh_has_feature(polymesh_t* mesh, const char* feature)
-{
-  // Get this feature from our bogus tag.
-  return (tagger_property(mesh->cell_tags, "features", feature) != NULL);
-}
-
-void polymesh_delete_feature(polymesh_t* mesh, const char* feature)
-{
-  tagger_delete_property(mesh->cell_tags, "features", feature);
 }
 
 int* polymesh_create_tag(tagger_t* tagger, const char* tag, size_t num_indices)
@@ -372,29 +317,6 @@ int* polymesh_tag(tagger_t* tagger, const char* tag, size_t* num_indices)
 bool polymesh_has_tag(tagger_t* tagger, const char* tag)
 {
   return tagger_has_tag(tagger, tag);
-}
-
-bool polymesh_tag_set_property(tagger_t* tagger, const char* tag, const char* property, void* data, serializer_t* serializer)
-{
-  return tagger_set_property(tagger, tag, property, data, serializer);
-}
-
-void* polymesh_tag_property(tagger_t* tagger, const char* tag, const char* property)
-{
-  return tagger_property(tagger, tag, property);
-}
-
-void polymesh_tag_delete_property(tagger_t* tagger, const char* tag, const char* property)
-{
-  tagger_delete_property(tagger, tag, property);
-}
-
-bool polymesh_tag_next_property(tagger_t* tagger, const char* tag, int* pos, 
-                            char** prop_name, void** prop_data, 
-                            serializer_t** prop_serializer)
-{
-  return tagger_next_property(tagger, tag, pos, prop_name, prop_data,
-                              prop_serializer);
 }
 
 void polymesh_rename_tag(tagger_t* tagger, const char* old_tag, const char* new_tag)

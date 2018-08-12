@@ -220,11 +220,10 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
     }
   }
 
-  // Create a tag for boundary faces and an associated property for 
-  // global ghost cell indices. 
+  // Create a tag for boundary faces.
   {
     int* pbf_tag = polymesh_create_tag(submesh->face_tags, "parallel_boundary_faces", 
-                                   parallel_bface_map->size);
+                                       parallel_bface_map->size);
     int_array_t* pbf_ghost_cells = int_array_new();
     int pos = 0, face, gcell, i = 0;
     while (int_int_unordered_map_next(parallel_bface_map, &pos, &face, &gcell))
@@ -233,15 +232,17 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
       int_array_append(pbf_ghost_cells, gcell);
       ++i;
     }
-    serializer_t* s = int_array_serializer();
-    polymesh_tag_set_property(submesh->face_tags, "parallel_boundary_faces", 
-                              "ghost_cell_indices", pbf_ghost_cells, s);
 
-    // Also set up a copy of the  array of global cell indices.
-    int_array_t* global_cell_indices = int_array_new();
-    int_array_resize(global_cell_indices, num_indices);
-    memcpy(global_cell_indices->data, indices, sizeof(int) * num_indices);
-    polymesh_set_property(submesh, "global_cell_indices", global_cell_indices, s);
+    // Stash the ghost cell indices in another tag.
+    int* gci_tag = polymesh_create_tag(submesh->cell_tags, "ghost_cell_indices", 
+                                       pbf_ghost_cells->size);
+    memcpy(gci_tag, pbf_ghost_cells->data, sizeof(int) * pbf_ghost_cells->size);
+    int_array_free(pbf_ghost_cells);
+
+    // Also set up a copy of the array of global cell indices.
+    gci_tag = polymesh_create_tag(submesh->cell_tags, "global_cell_indices", 
+                                  num_indices);
+    memcpy(gci_tag, indices, sizeof(int) * num_indices);
   }
   int_int_unordered_map_free(parallel_bface_map);
 
@@ -273,22 +274,6 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
   int_int_unordered_map_free(inverse_node_map);
   polymec_free(face_map);
   polymec_free(node_map);
-
-  // Copy properties using their serializers.
-  int pos = 0;
-  char* prop_name;
-  void* prop_data;
-  serializer_t* prop_ser;
-  while (polymesh_next_property(mesh, &pos, &prop_name, &prop_data, &prop_ser))
-  {
-    if (prop_ser != NULL)
-    {
-      void* prop_data_copy = serializer_clone_object(prop_ser, prop_data);
-      polymesh_set_property(submesh, prop_name, prop_data_copy, prop_ser);
-    }
-    else
-      log_debug("create_submesh: property '%s' has no serializer.", prop_name);
-  }
 
   STOP_FUNCTION_TIMER();
   return submesh;
@@ -941,7 +926,7 @@ void distribute_polymesh(polymesh_t** mesh,
   // registered on all processes. See serializer.h for details.
   {
     serializer_t* s = int_array_serializer();
-    s = NULL;
+    polymec_release(s);
   }
 
   polymesh_t* global_mesh = *mesh;
@@ -998,7 +983,7 @@ void distribute_polymesh(polymesh_t** mesh,
       byte_array_clear(bytes);
       polymesh_free(p_mesh);
     }
-    ser = NULL;
+    polymec_release(ser);
     byte_array_free(bytes);
   }
   else
@@ -1021,7 +1006,7 @@ void distribute_polymesh(polymesh_t** mesh,
     local_mesh = serializer_read(ser, bytes, &offset);
     
     byte_array_free(bytes);
-    ser = NULL;
+    polymec_release(ser);
   }
 
   *mesh = local_mesh;
@@ -1033,18 +1018,20 @@ void distribute_polymesh(polymesh_t** mesh,
   // Extract the boundary faces and the original (global) ghost cell indices
   // associated with them.
   ASSERT(polymesh_has_tag(local_mesh->face_tags, "parallel_boundary_faces"));
-  size_t num_pbfaces;
+  ASSERT(polymesh_has_tag(local_mesh->cell_tags, "ghost_cell_indices"));
+  size_t num_pbfaces, num_pbgcells;
   int* pbfaces = polymesh_tag(local_mesh->face_tags, "parallel_boundary_faces", &num_pbfaces);
-  int_array_t* pbgcells = polymesh_tag_property(local_mesh->face_tags, "parallel_boundary_faces", 
-                                                "ghost_cell_indices");
-  ASSERT(pbgcells != NULL);
-  int_array_t* global_cell_indices = polymesh_property(local_mesh, "global_cell_indices");
-  ASSERT(global_cell_indices != NULL);
+  int* pbgcells = polymesh_tag(local_mesh->cell_tags, "ghost_cell_indices", &num_pbgcells);
+
+  // Retrieve our global cell indices.
+  ASSERT(polymesh_has_tag(local_mesh->cell_tags, "global_cell_indices"));
+  size_t num_global_cell_indices;
+  int* global_cell_indices = polymesh_tag(local_mesh->cell_tags, "global_cell_indices", &num_global_cell_indices);
 
   // Here's an inverse map for global cell indices to the local ones we have.
   int_int_unordered_map_t* inverse_cell_map = int_int_unordered_map_new();
   for (int i = 0; i < local_mesh->num_cells; ++i)
-    int_int_unordered_map_insert(inverse_cell_map, global_cell_indices->data[i], i);
+    int_int_unordered_map_insert(inverse_cell_map, global_cell_indices[i], i);
 
   // Now we create pairwise global cell indices for the exchanger.
   int_ptr_unordered_map_t* ghost_cell_indices = int_ptr_unordered_map_new();
@@ -1059,7 +1046,7 @@ void distribute_polymesh(polymesh_t** mesh,
     ASSERT(proc < nprocs);
 
     // Generate a mapping from a global index to its ghost cell.
-    int global_ghost_index = pbgcells->data[i];
+    int global_ghost_index = pbgcells[i];
     int local_ghost_index;
     int* ghost_index_p = int_int_unordered_map_get(inverse_cell_map, global_ghost_index);
     if (ghost_index_p == NULL)
@@ -1075,7 +1062,7 @@ void distribute_polymesh(polymesh_t** mesh,
       int_ptr_unordered_map_insert_with_v_dtor(ghost_cell_indices, proc, int_array_new(), DTOR(int_array_free));
     int_array_t* indices = *int_ptr_unordered_map_get(ghost_cell_indices, proc);
     int local_cell = local_mesh->face_cells[2*f];
-    int global_cell = global_cell_indices->data[local_cell];
+    int global_cell = global_cell_indices[local_cell];
     int_array_append(indices, global_cell);
     int_array_append(indices, global_ghost_index);
   }
@@ -1117,10 +1104,9 @@ void distribute_polymesh(polymesh_t** mesh,
   int_ptr_unordered_map_free(ghost_cell_indices);
   int_int_unordered_map_free(inverse_cell_map);
 
-  // Destroy the tag and global cell index properties. We don't want to have 
-  // to rely on them further.
-  polymesh_delete_tag(local_mesh->face_tags, "parallel_boundary_faces");
-  polymesh_delete_property(local_mesh, "global_cell_indices");
+  // Remove the tags we used for ghost cells and global cell indices.
+  polymesh_delete_tag(local_mesh->cell_tags, "ghost_cell_indices");
+  polymesh_delete_tag(local_mesh->cell_tags, "global_cell_indices");
 
   // Now handle field data.
   polymesh_field_t* local_fields[num_fields];
@@ -1321,7 +1307,7 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
 
   // Clean up the send buffers and the serializer. We still need the 
   // receive buffer.
-  ser = NULL;
+  polymec_release(ser);
   for (size_t i = 0; i < num_sends; ++i)
     byte_array_free(send_buffers[i]);
 

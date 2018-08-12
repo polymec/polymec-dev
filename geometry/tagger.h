@@ -16,7 +16,7 @@
 ///@{
 
 /// \class tagger
-/// A tagger is an object that stores tag and property information. A tag is 
+/// A tagger is an object that stores tag information. A tag is 
 /// a set of integer indices associated with a name. It can be used to store 
 /// material or geometry information in the context of a spatial discretization.
 typedef struct tagger_t tagger_t;
@@ -29,8 +29,7 @@ tagger_t* tagger_new(void);
 /// \memberof tagger
 void tagger_free(tagger_t* tags);
 
-/// Copies all tags in src to dest. Does not copy property information, since 
-/// the sizes of properties are not stored.
+/// Copies all tags in src to dest.
 /// \memberof tagger
 void tagger_copy(tagger_t* dest, tagger_t* src);
 
@@ -52,35 +51,6 @@ bool tagger_has_tag(tagger_t* tagger, const char* tag);
 /// existing data. If the given tag does not exist, this function does nothing.
 /// \memberof tagger
 void tagger_resize_tag(tagger_t* tagger, const char* tag, size_t new_num_indices);
-
-/// Associates a "property" (of unspecified size and type) with the given tag 
-/// within the tagger. A serializer can be given so that the property can be
-/// copied automatically between tags. If the serializer is NULL, the property
-/// is not transferable to other tags.
-/// \memberof tagger
-bool tagger_set_property(tagger_t* tagger, 
-                         const char* tag, 
-                         const char* property, 
-                         void* data, 
-                         serializer_t* serializer);
-
-/// Returns a pointer to the data for the property of the given name 
-/// associated with the given tag. Returns NULL if the property or tag are 
-/// not found.
-/// \memberof tagger
-void* tagger_property(tagger_t* tagger, const char* tag, const char* property);
-
-/// Deletes the property from the tag, calling its destructor. Has no effect 
-/// if the property and/or tag are not found.
-/// \memberof tagger
-void tagger_delete_property(tagger_t* tagger, const char* tag, const char* property);
-
-/// Allows the traversal of properties for a tag. Set *pos to 0 to reset the 
-/// iteration.
-/// \memberof tagger
-bool tagger_next_property(tagger_t* tagger, const char* tag, int* pos, 
-                          char** prop_name, void** prop_data, 
-                          serializer_t** prop_serializer);
 
 /// Renames a tag within the tagger, preserving all information and associations.
 /// \memberof tagger
