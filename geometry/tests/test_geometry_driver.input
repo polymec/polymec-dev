@@ -110,9 +110,9 @@ patches = mesh.patches
 assert(#patches <= 8)
 
 -- Polyhedral meshes.
-mesh1 = polymeshes.uniform{comm = mpi.COMM_WORLD, nx = 10, ny = 10, nz = 10, bbox = box}
+mesh1 = polymesh.uniform{comm = mpi.COMM_WORLD, nx = 10, ny = 10, nz = 10, bbox = box}
 print(mesh1.num_cells, mesh1.num_faces, mesh1.num_edges, mesh1.num_nodes)
-mesh2 = polymeshes.uniform{comm = mpi.COMM_WORLD, rank = 0, nx = 10, ny = 10, nz = 10, bbox = box}
+mesh2 = polymesh.uniform{comm = mpi.COMM_WORLD, rank = 0, nx = 10, ny = 10, nz = 10, bbox = box}
 if mpi.rank == 0 then
   assert(mesh2.num_cells == 1000)
 end
@@ -120,8 +120,8 @@ end
 xs = {0.1, 0.2, 0.3, 0.4, 0.5}
 ys = xs
 zs = xs
-mesh3 = polymeshes.rectilinear{comm = mpi.COMM_WORLD, xs = xs, ys = ys, zs = zs}
-mesh4 = polymeshes.rectilinear{comm = mpi.COMM_WORLD, rank = 0, xs = xs, ys = ys, zs = zs}
+mesh3 = polymesh.rectilinear{comm = mpi.COMM_WORLD, xs = xs, ys = ys, zs = zs}
+mesh4 = polymesh.rectilinear{comm = mpi.COMM_WORLD, rank = 0, xs = xs, ys = ys, zs = zs}
 
 -- Force probe garbage collection.
 collectgarbage("collect")
