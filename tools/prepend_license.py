@@ -14,20 +14,19 @@ This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at http://mozilla.org/MPL/2.0/."""
 
-import os.path
+# Here are the libraries we search for source files.
+libs = ['core', 'geometry', 'solvers', 'model', 'io']
 
-def visit_files(sources, dirname, files):
-    excluded_dirs = ['3rdparty', 'build']
-    for ex_dir in excluded_dirs:
-        if ex_dir in files:
-            # Don't go there, girlfriend.
-            files.remove(ex_dir)
-    sources.extend([os.path.join(dirname, f) for f in files if f[-2:] == '.h'])
-    sources.extend([os.path.join(dirname, f) for f in files if (f[-2:] == '.c' or f[-4:] == '.cpp')])
+import os, os.path
 
-def find_sources(dirname):
+def find_sources(top_dir):
     sources = []
-    os.path.walk(dirname, visit_files, sources)
+    for ldir in libs:
+        libdir = os.path.join(top_dir, ldir)
+        for root, dirs, files in os.walk(libdir):
+            sources.extend([os.path.join(root, f) \
+                for f in files if f.endswith('.h') or f.endswith('.h.in') or \
+                                  f.endswith('.c') or f.endswith('.cpp')])
     return sources
 
 def remove_old_license(source_file):
