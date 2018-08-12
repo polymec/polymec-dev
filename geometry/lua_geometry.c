@@ -1131,113 +1131,60 @@ static lua_class_method p3_methods[] = {
   {NULL, NULL, NULL}
 };
 
-// FIXME: No constructors for voronoi diagrams yet!
-static lua_module_function v2_funcs[] = {
+// FIXME: No constructors for planar_polymeshes yet!
+static lua_module_function pp_funcs[] = {
   {NULL, NULL, NULL}
 };
 
-static int v2_get_generators(lua_State* L)
+static int pp_num_cells(lua_State* L)
 {
-  voronoi2_t* v = lua_to_voronoi2(L, 1);
+  planar_polymesh_t* m = lua_to_planar_polymesh(L, 1);
   lua_newtable(L);
-  for (size_t i = 0; i < v->num_generators; ++i)
-  {
-    lua_push_point2(L, &(v->generators[i]));
-    lua_rawseti(L, -2, (int)(i+1));
-  }
+  lua_pushinteger(L, m->num_cells);
   return 1;
 }
 
-static int v2_get_cells(lua_State* L)
+static int pp_num_ghost_cells(lua_State* L)
 {
-  voronoi2_t* v = lua_to_voronoi2(L, 1);
+  planar_polymesh_t* m = lua_to_planar_polymesh(L, 1);
   lua_newtable(L);
-  for (size_t i = 0; i < v->num_generators; ++i)
-  {
-    lua_push_polygon(L, v->cells[i]);
-    lua_rawseti(L, -2, (int)(i+1));
-  }
+  lua_pushinteger(L, m->num_ghost_cells);
   return 1;
 }
 
-static int v2_get_graph(lua_State* L)
+static int pp_num_edges(lua_State* L)
 {
-  voronoi2_t* v = lua_to_voronoi2(L, 1);
-  lua_push_adj_graph(L, v->graph);
-  return 1;
-}
-
-static lua_class_field v2_fields[] = {
-  {"generators", v2_get_generators, NULL},
-  {"cells", v2_get_cells, NULL},
-  {"graph", v2_get_graph, NULL},
-  {NULL, NULL, NULL}
-};
-
-static int v2_tostring(lua_State* L)
-{
-  voronoi2_t* v = lua_to_voronoi2(L, 1);
-  lua_pushfstring(L, "voronoi2 (%d generators)", (int)v->num_generators);
-  return 1;
-}
-
-static lua_class_method v2_methods[] = {
-  {"__tostring", v2_tostring, NULL},
-  {NULL, NULL, NULL}
-};
-
-// FIXME: No constructors for voronoi diagrams yet!
-static lua_module_function v3_funcs[] = {
-  {NULL, NULL, NULL}
-};
-
-static int v3_get_generators(lua_State* L)
-{
-  voronoi3_t* v = lua_to_voronoi3(L, 1);
+  planar_polymesh_t* m = lua_to_planar_polymesh(L, 1);
   lua_newtable(L);
-  for (size_t i = 0; i < v->num_generators; ++i)
-  {
-    lua_push_point(L, &(v->generators[i]));
-    lua_rawseti(L, -2, (int)(i+1));
-  }
+  lua_pushinteger(L, m->num_edges);
   return 1;
 }
 
-static int v3_get_cells(lua_State* L)
+static int pp_num_nodes(lua_State* L)
 {
-  voronoi3_t* v = lua_to_voronoi3(L, 1);
+  planar_polymesh_t* m = lua_to_planar_polymesh(L, 1);
   lua_newtable(L);
-  for (size_t i = 0; i < v->num_generators; ++i)
-  {
-    lua_push_polyhedron(L, v->cells[i]);
-    lua_rawseti(L, -2, (int)(i+1));
-  }
+  lua_pushinteger(L, m->num_nodes);
   return 1;
 }
 
-static int v3_get_graph(lua_State* L)
-{
-  voronoi3_t* v = lua_to_voronoi3(L, 1);
-  lua_push_adj_graph(L, v->graph);
-  return 1;
-}
-
-static lua_class_field v3_fields[] = {
-  {"generators", v3_get_generators, NULL},
-  {"cells", v3_get_cells, NULL},
-  {"graph", v3_get_graph, NULL},
+static lua_class_field pp_fields[] = {
+  {"num_cells", pp_num_cells, NULL},
+  {"num_ghost_cells", pp_num_ghost_cells, NULL},
+  {"num_edges", pp_num_edges, NULL},
+  {"num_nodes", pp_num_nodes, NULL},
   {NULL, NULL, NULL}
 };
 
-static int v3_tostring(lua_State* L)
+static int pp_tostring(lua_State* L)
 {
-  voronoi3_t* v = lua_to_voronoi3(L, 1);
-  lua_pushfstring(L, "voronoi3 (%d generators)", (int)v->num_generators);
+  planar_polymesh_t* m = lua_to_planar_polymesh(L, 1);
+  lua_pushfstring(L, "planar_polymesh (%d cells)", m->num_cells);
   return 1;
 }
 
-static lua_class_method v3_methods[] = {
-  {"__tostring", v3_tostring, NULL},
+static lua_class_method pp_methods[] = {
+  {"__tostring", pp_tostring, NULL},
   {NULL, NULL, NULL}
 };
 
@@ -1982,14 +1929,13 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_class(L, "sdt_func", "A time-dependent signed distance function.", sdt_funcs, sdt_fields, sdt_methods, NULL);
   lua_register_class(L, "polygon", "A polygon in the plane.", p2_funcs, p2_fields, p2_methods, NULL);
   lua_register_class(L, "polyhedron", "A polyhedron.", p3_funcs, p3_fields, p3_methods, NULL);
-  lua_register_class(L, "voronoi2", "A 2D voronoi diagram.", v2_funcs, v2_fields, v2_methods, NULL);
-  lua_register_class(L, "voronoi3", "A 3D voronoi diagram.", v3_funcs, v3_fields, v3_methods, NULL);
 
   lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, NULL, tagger_methods, NULL);
   lua_register_class(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_methods, DTOR(point_cloud_free));
   lua_register_class(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_methods, DTOR(unimesh_free));
   lua_register_class(L, "prismesh", "A polygonal extruded (pex) mesh.", prismesh_funcs, prismesh_fields, prismesh_methods, DTOR(prismesh_free));
   lua_register_class(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_methods, DTOR(polymesh_free));
+  lua_register_class(L, "planar_polymesh", "A planar polygonal mesh.", pp_funcs, pp_fields, pp_methods, NULL);
 
   // Register a module of mesh factory methods.
   lua_register_module(L, "polymeshes", "Functions for generating polymeshes.", NULL, polymeshes_funcs);
@@ -2090,34 +2036,19 @@ polyhedron_t* lua_to_polyhedron(lua_State* L, int index)
   return (polyhedron_t*)lua_to_object(L, index, "polyhedron");
 }
 
-void lua_push_voronoi2(lua_State* L, voronoi2_t* v)
+void lua_push_planar_polymesh(lua_State* L, planar_polymesh_t* m)
 {
-  lua_push_object(L, "voronoi2", v);
+  lua_push_object(L, "planar_polymesh", m);
 }
 
-bool lua_is_voronoi2(lua_State* L, int index)
+bool lua_is_planar_polymesh(lua_State* L, int index)
 {
-  return lua_is_object(L, index, "voronoi2");
+  return lua_is_object(L, index, "planar_polymesh");
 }
 
-voronoi2_t* lua_to_voronoi2(lua_State* L, int index)
+planar_polymesh_t* lua_to_planar_polymesh(lua_State* L, int index)
 {
-  return (voronoi2_t*)lua_to_object(L, index, "voronoi2");
-}
-
-void lua_push_voronoi3(lua_State* L, voronoi3_t* v)
-{
-  lua_push_object(L, "voronoi3", v);
-}
-
-bool lua_is_voronoi3(lua_State* L, int index)
-{
-  return lua_is_object(L, index, "voronoi3");
-}
-
-voronoi3_t* lua_to_voronoi3(lua_State* L, int index)
-{
-  return (voronoi3_t*)lua_to_object(L, index, "voronoi3");
+  return (planar_polymesh_t*)lua_to_object(L, index, "planar_polymesh");
 }
 
 void lua_push_point_cloud(lua_State* L, point_cloud_t* c)

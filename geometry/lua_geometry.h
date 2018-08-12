@@ -14,12 +14,11 @@
 #include "geometry/sdt_func.h"
 #include "geometry/polygon.h"
 #include "geometry/polyhedron.h"
-#include "geometry/voronoi2.h"
-#include "geometry/voronoi3.h"
 #include "geometry/point_cloud.h"
 #include "geometry/unimesh.h"
 #include "geometry/prismesh.h"
 #include "geometry/polymesh.h"
+#include "geometry/planar_polymesh.h"
 
 // This file contains functions for manipulating geometric data types in the 
 // Lua interpreter. 
@@ -91,28 +90,6 @@ bool lua_is_polyhedron(lua_State* L, int index);
 /// item there is not a polyhedron.
 polyhedron_t* lua_to_polyhedron(lua_State* L, int index);
 
-/// Pushes a 2D voronoi diagram v onto L's stack.
-void lua_push_voronoi2(lua_State* L, voronoi2_t* v);
-
-/// Returns true if the item at the given index on L's stack is a 
-/// 2D voronoi diagram, false if not.
-bool lua_is_voronoi2(lua_State* L, int index);
-
-/// Returns the 2D voronoi diagram at the given index on L's stack, 
-/// or NULL if the item there is not a 2D voronoi diagram.
-voronoi2_t* lua_to_voronoi2(lua_State* L, int index);
-
-/// Pushes a 3D voronoi diagram v onto L's stack.
-void lua_push_voronoi3(lua_State* L, voronoi3_t* v);
-
-/// Returns true if the item at the given index on L's stack is a 
-/// 3D voronoi diagram, false if not.
-bool lua_is_voronoi3(lua_State* L, int index);
-
-/// Returns the 3D voronoi diagram at the given index on L's stack, 
-/// or NULL if the item there is not a 3D voronoi diagram.
-voronoi3_t* lua_to_voronoi3(lua_State* L, int index);
-
 /// Pushes a tagger t onto L's stack.
 void lua_push_tagger(lua_State* L, tagger_t* t);
 
@@ -167,6 +144,17 @@ bool lua_is_polymesh(lua_State* L, int index);
 /// Returns the polymesh at the given index on L's stack, or NULL 
 /// if the item there is not a polymesh.
 polymesh_t* lua_to_polymesh(lua_State* L, int index);
+
+/// Pushes a planar_polymesh m onto L's stack.
+void lua_push_planar_polymesh(lua_State* L, planar_polymesh_t* m);
+
+/// Returns true if the item at the given index on L's stack is a 
+/// planar_polymesh, false if not.
+bool lua_is_planar_polymesh(lua_State* L, int index);
+
+/// Returns the planar_polymesh at the given index on L's stack, or NULL 
+/// if the item there is not a planar_polymesh.
+planar_polymesh_t* lua_to_planar_polymesh(lua_State* L, int index);
 
 ///@}
 
