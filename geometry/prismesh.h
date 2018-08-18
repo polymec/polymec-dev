@@ -26,7 +26,7 @@
 /// along the z axis.
 typedef struct prismesh_t prismesh_t;
 
-/// \enum prismesh_centering
+/// \enum prismesh_centering_t
 /// Centerings for data on prismeshes. The structure of a prismesh 
 /// distinguishes between elements aligned with the z axis and those that 
 /// lie in the x-y plane.
@@ -92,6 +92,13 @@ typedef struct prismesh_chunk_t prismesh_chunk_t;
 /// planar polygonal mesh on the same communicator as that mesh. The columns 
 /// are distributed in the same way as the planar polygonal mesh, which is 
 /// probably not optimal for calculations on the prismesh.
+/// \param comm [in] The communicator on which the mesh is constructed. If 
+///                  different from the communicator for \ref columns, 
+///                  partitioning will be done so the mesh is load balanced, 
+///                  assuming a uniform work distribution. If the communicators
+///                  are the same, the partitioning will follow that for 
+///                  \ref columns, with every process containing a single chunk
+///                  that spans [z1, z2].
 /// \param columns [in] A planar polygonal mesh that defines a set of connected
 ///                     polygonal columns for the prismesh.
 /// \param num_vertical_cells [in] The number of cells along the z axis.
@@ -99,6 +106,7 @@ typedef struct prismesh_chunk_t prismesh_chunk_t;
 /// \param z2 [in] The z coordinate of the upper boundary of the mesh.
 /// \returns A newly created prismesh.
 /// \memberof prismesh
+/// \collective This function is collective on \ref comm.
 prismesh_t* prismesh_new(planar_polymesh_t* columns,
                          size_t num_vertical_cells,
                          real_t z1, real_t z2);

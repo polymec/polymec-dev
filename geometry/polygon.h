@@ -66,5 +66,7 @@ polygon_t* polygon_clone(polygon_t* poly);
 /// This algorithm only works reliably if both polygons are convex.
 void polygon_clip(polygon_t* poly, polygon_t* other);
 
+///@}
+
 #endif
 

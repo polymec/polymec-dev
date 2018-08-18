@@ -428,6 +428,8 @@ if (DOXYGEN_FOUND)
   set(DOXYGEN_QUIET YES)
   set(DOXYGEN_SHOW_FILES NO)
   set(DOXYGEN_SHOW_NAMESPACES NO)
+  set(DOXYGEN_ALIASES [[collective=\xrefitem collective \"\" \"Collective functions\"]])
+  set(DOXYGEN_VERBATIM_VARS DOXYGEN_ALIASES)
   doxygen_add_docs(doc ${PROJECT_BINARY_DIR}/core/polymec.h;core;geometry;solvers;model;io
                    COMMENT "Generating Documentation")
 endif()
