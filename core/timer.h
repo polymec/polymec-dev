@@ -27,10 +27,10 @@
 //                              Named timers
 //------------------------------------------------------------------------
 ///@{
-// These macros allow the creation and use of a timer with a given name, that 
-// occupies the given symbol/variable (unique to its scope). It can be started
-// and stopped any number of times, though starting a started timer or 
-// stopping a stopped timer produces a run-time error.
+/// These macros allow the creation and use of a timer with a given name, that 
+/// occupies the given symbol/variable (unique to its scope). It can be started
+/// and stopped any number of times, though starting a started timer or 
+/// stopping a stopped timer produces a run-time error.
 #define CREATE_TIMER(name, symbol) \
   polymec_timer_t* symbol = polymec_timer_get(name)
 #define START_TIMER(symbol) \
