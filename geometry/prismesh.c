@@ -15,47 +15,47 @@
 #include "core/partitioning.h"
 #endif
 
-DEFINE_ARRAY(layer_array, prismesh_layer_t*)
+DEFINE_ARRAY(chunk_array, prismesh_chunk_t*)
 
-static prismesh_layer_t* layer_from_planar_polymesh(planar_polymesh_t* mesh,
+static prismesh_chunk_t* chunk_from_planar_polymesh(planar_polymesh_t* mesh,
                                                     size_t num_vertical_cells,
                                                     real_t z1, real_t z2)
 {
   ASSERT(z1 < z2);
-  prismesh_layer_t* layer = polymec_malloc(sizeof(prismesh_layer_t));
-  layer->num_columns = (size_t)mesh->num_cells;
-  layer->num_z_cells = num_vertical_cells;
-  layer->z1 = z1;
-  layer->z2 = z2;
+  prismesh_chunk_t* chunk = polymec_malloc(sizeof(prismesh_chunk_t));
+  chunk->num_columns = (size_t)mesh->num_cells;
+  chunk->num_z_cells = num_vertical_cells;
+  chunk->z1 = z1;
+  chunk->z2 = z2;
 
   // cell -> xy face connectivity.
-  layer->column_xy_face_offsets = polymec_malloc(sizeof(int) * (layer->num_columns+1));
-  memcpy(layer->column_xy_face_offsets, mesh->cell_edge_offsets, sizeof(int) * (layer->num_columns+1));
+  chunk->column_xy_face_offsets = polymec_malloc(sizeof(int) * (chunk->num_columns+1));
+  memcpy(chunk->column_xy_face_offsets, mesh->cell_edge_offsets, sizeof(int) * (chunk->num_columns+1));
 
-  layer->column_xy_faces = polymec_malloc(sizeof(int) * layer->column_xy_face_offsets[layer->num_columns]);
-  memcpy(layer->column_xy_faces, mesh->cell_edges, sizeof(int) * layer->column_xy_face_offsets[layer->num_columns]);
+  chunk->column_xy_faces = polymec_malloc(sizeof(int) * chunk->column_xy_face_offsets[chunk->num_columns]);
+  memcpy(chunk->column_xy_faces, mesh->cell_edges, sizeof(int) * chunk->column_xy_face_offsets[chunk->num_columns]);
 
   // xy face -> cell connectivity.
-  layer->num_xy_faces = (size_t)mesh->num_edges;
-  layer->xy_face_columns = polymec_malloc(sizeof(int) * 2 * layer->num_xy_faces);
-  memcpy(layer->xy_face_columns, mesh->edge_cells, sizeof(int) * 2 * layer->num_xy_faces);
+  chunk->num_xy_faces = (size_t)mesh->num_edges;
+  chunk->xy_face_columns = polymec_malloc(sizeof(int) * 2 * chunk->num_xy_faces);
+  memcpy(chunk->xy_face_columns, mesh->edge_cells, sizeof(int) * 2 * chunk->num_xy_faces);
 
   // Node xy coordinates.
-  layer->num_xy_edges = (size_t)mesh->num_edges;
-  layer->num_xy_nodes = (size_t)mesh->num_nodes;
-  layer->xy_nodes = polymec_malloc(sizeof(point2_t) * layer->num_xy_nodes);
-  memcpy(layer->xy_nodes, mesh->nodes, sizeof(point2_t) * layer->num_xy_nodes);
+  chunk->num_xy_edges = (size_t)mesh->num_edges;
+  chunk->num_xy_nodes = (size_t)mesh->num_nodes;
+  chunk->xy_nodes = polymec_malloc(sizeof(point2_t) * chunk->num_xy_nodes);
+  memcpy(chunk->xy_nodes, mesh->nodes, sizeof(point2_t) * chunk->num_xy_nodes);
 
-  return layer;
+  return chunk;
 }
 
-static void free_layer(prismesh_layer_t* layer)
+static void free_chunk(prismesh_chunk_t* chunk)
 {
-  polymec_free(layer->xy_nodes);
-  polymec_free(layer->xy_face_columns);
-  polymec_free(layer->column_xy_faces);
-  polymec_free(layer->column_xy_face_offsets);
-  polymec_free(layer);
+  polymec_free(chunk->xy_nodes);
+  polymec_free(chunk->xy_face_columns);
+  polymec_free(chunk->column_xy_faces);
+  polymec_free(chunk->column_xy_face_offsets);
+  polymec_free(chunk);
 }
 
 struct prismesh_t 
@@ -63,7 +63,7 @@ struct prismesh_t
   MPI_Comm comm;
   int nproc, rank;
 
-  layer_array_t* layers;
+  chunk_array_t* chunks;
   size_t num_columns, num_vertical_cells;
   real_t z1, z2;
 };
@@ -79,27 +79,27 @@ prismesh_t* prismesh_new(planar_polymesh_t* columns,
   // Set up the easy stuff.
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
   mesh->comm = columns->comm;
-  mesh->layers = layer_array_new();
+  mesh->chunks = chunk_array_new();
   mesh->num_columns = (size_t)columns->num_cells;
   mesh->num_vertical_cells = num_vertical_cells;
   mesh->z1 = z1;
   mesh->z2 = z2;
 
-  // Now allocate a single layer to this process with columns corresponding 
-  // to the cells of the planar polymesh. The layer spans the entire vertical 
+  // Now allocate a single chunk to this process with columns corresponding 
+  // to the cells of the planar polymesh. The chunk spans the entire vertical 
   // extent of the mesh. This isn't ideal, but it's a decent initial 
   // partitioning.
-  prismesh_layer_t* layer = layer_from_planar_polymesh(columns, 
+  prismesh_chunk_t* chunk = chunk_from_planar_polymesh(columns, 
                                                        num_vertical_cells, 
                                                        z1, z2);
-  layer_array_append_with_dtor(mesh->layers, layer, free_layer);
+  chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
 
   return mesh;
 }
 
 void prismesh_free(prismesh_t* mesh)
 {
-  layer_array_free(mesh->layers);
+  chunk_array_free(mesh->chunks);
   polymec_free(mesh);
 }
 
@@ -108,9 +108,9 @@ MPI_Comm prismesh_comm(prismesh_t* mesh)
   return mesh->comm;
 }
 
-size_t prismesh_num_layers(prismesh_t* mesh)
+size_t prismesh_num_chunks(prismesh_t* mesh)
 {
-  return mesh->layers->size;
+  return mesh->chunks->size;
 }
 
 size_t prismesh_num_columns(prismesh_t* mesh)
@@ -128,36 +128,36 @@ size_t prismesh_num_cells(prismesh_t* mesh)
   return mesh->num_columns * mesh->num_vertical_cells;
 }
 
-real_t primesh_z1(prismesh_t* mesh)
+real_t prismesh_z1(prismesh_t* mesh)
 {
   return mesh->z1;
 }
 
-real_t primesh_z2(prismesh_t* mesh)
+real_t prismesh_z2(prismesh_t* mesh)
 {
   return mesh->z2;
 }
 
-polygon_t* prismesh_layer_polygon(prismesh_layer_t* layer, int column)
+polygon_t* prismesh_chunk_polygon(prismesh_chunk_t* chunk, int column)
 {
-  ASSERT(column < (int)layer->num_columns);
+  ASSERT(column < (int)chunk->num_columns);
   int z_face = column;
-  int num_nodes = prismesh_layer_z_face_num_nodes(layer, z_face);
+  int num_nodes = prismesh_chunk_z_face_num_nodes(chunk, z_face);
   int nodes[num_nodes];
-  prismesh_layer_z_face_get_nodes(layer, z_face, nodes);
+  prismesh_chunk_z_face_get_nodes(chunk, z_face, nodes);
   point2_t vertices[num_nodes];
   for (int n = 0; n < num_nodes; ++n)
-    vertices[n] = layer->xy_nodes[nodes[n]];
+    vertices[n] = chunk->xy_nodes[nodes[n]];
   return polygon_new(vertices, num_nodes);
 }
 
-bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer)
+bool prismesh_next_chunk(prismesh_t* mesh, int* pos, prismesh_chunk_t** chunk)
 {
-  if (*pos >= (int)mesh->layers->size)
+  if (*pos >= (int)mesh->chunks->size)
     return false;
   else
   {
-    *layer = mesh->layers->data[*pos];
+    *chunk = mesh->chunks->data[*pos];
     ++(*pos);
     return true;
   }
@@ -174,8 +174,8 @@ static void redistribute_prismesh(prismesh_t** mesh,
 static int64_t* source_vector(prismesh_t* mesh)
 {
 #if 0
-  // Catalog all the layers on this process.
-  int_array_t* my_layers = int_array_new();
+  // Catalog all the chunks on this process.
+  int_array_t* my_chunks = int_array_new();
   for (int i = 0; i < mesh->npx; ++i)
   {
     for (int j = 0; j < mesh->npy; ++j)
@@ -240,7 +240,7 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
                                                    prismesh_field_num_components(old_field));
 #if 0
 
-  // Copy all local layers from one field to the other.
+  // Copy all local chunks from one field to the other.
   unimesh_patch_t* patch;
   int pos = 0, i, j, k;
   while (unimesh_field_next_patch(new_field, &pos, &i, &j, &k, &patch, NULL))
@@ -304,11 +304,51 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
   STOP_FUNCTION_TIMER();
 }
 
+#if 0
+// Creates a graph connecting the planar columns in a prismesh.
+static adj_graph_t* graph_from_columns(prismesh_t* mesh)
+{
+  adj_graph_t* g = adj_graph_new(mesh->comm, mesh->num_columns);
+
+  // Allocate space in the graph for the edges (faces connecting columns).
+  for (int i = 0; i < mesh->num_columns; ++i)
+  {
+    // How many faces don't have opposite cells?
+    int outer_faces = 0;
+    for (int j = mesh->column_xy_face_offsets[i]; j < mesh->column_xy_face_offsets[i+1]; ++j)
+    {
+      int f = mesh->column_xy_faces[j];
+      if (mesh->column_xy_faces[2*f+1] == -1)
+        ++outer_faces;
+    }
+    adj_graph_set_num_edges(g, i, mesh->column_xy_face_offsets[i+1] - mesh->column_xy_face_offsets[i] - outer_faces);
+  }
+
+  // Now fill in the edges.
+  for (int i = 0; i < mesh->num_columns; ++i)
+  {
+    int* edges = adj_graph_edges(g, i);
+    int offset = 0;
+    for (int j = mesh->column_xy_face_offsets[i]; j < mesh->column_xy_face_offsets[i+1]; ++j)
+    {
+      int f = mesh->column_xy_faces[j];
+      if (mesh->xy_face_columns[2*f+1] != -1)
+      {
+        int c = (i == mesh->xy_face_columns[2*f]) ? mesh->xy_face_columns[2*f+1] : mesh->xy_face_columns[2*f];
+        edges[offset] = c;
+        ++offset;
+      }
+    }
+  }
+  return g;
+}
+#endif
+
 void repartition_prismesh(prismesh_t** mesh, 
-                         int* weights,
-                         real_t imbalance_tol,
-                         prismesh_field_t** fields,
-                         size_t num_fields)
+                          int* weights,
+                          real_t imbalance_tol,
+                          prismesh_field_t** fields,
+                          size_t num_fields)
 {
   ASSERT((weights == NULL) || (imbalance_tol > 0.0));
   ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
@@ -326,8 +366,9 @@ void repartition_prismesh(prismesh_t** mesh,
     return;
   }
 
-  // Generate an adjacency graph for the mesh.
-  adj_graph_t* graph = NULL;//graph_from_polygons(old_mesh);
+  // Generate a distributed adjacency graph for the mesh. This graph is
+  // distributed over all the processes in the mesh's communicator.
+  adj_graph_t* graph = NULL;//graph_from_columns(old_mesh);
 
   // Figure out how many ways we want to partition the polygon graph by 
   // chopping the z axis into segments of appropriate length. The number of 

@@ -205,9 +205,8 @@ adj_graph_t* graph_from_planar_polymesh_cells(planar_polymesh_t* mesh)
     int outer_edges = 0;
     for (int j = mesh->cell_edge_offsets[i]; j < mesh->cell_edge_offsets[i+1]; ++j)
     {
-      int f = mesh->cell_edges[j];
-      if (f < 0) f = ~f;
-      if (mesh->edge_cells[2*f+1] == -1)
+      int e = mesh->cell_edges[j];
+      if (mesh->edge_cells[2*e+1] == -1)
         ++outer_edges;
     }
     adj_graph_set_num_edges(g, i, mesh->cell_edge_offsets[i+1] - mesh->cell_edge_offsets[i] - outer_edges);

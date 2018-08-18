@@ -17,11 +17,11 @@
 /// This type represents field values defined on a prismesh.
 typedef struct prismesh_field_t prismesh_field_t;
 
-/// \struct prismesh_layer_data
-/// This type holds locally-stored field data for a layer in a prismesh.
-struct prismesh_layer_data_t
+/// \struct prismesh_chunk_data
+/// This type holds locally-stored field data for a chunk in a prismesh.
+struct prismesh_chunk_data_t
 {
-  /// Data storage for the layer. Use DECLARE_PRISMESH_*_ARRAY to provide 
+  /// Data storage for the chunk. Use DECLARE_PRISMESH_*_ARRAY to provide 
   /// multidimensional array access to this data.
   void* data;
   
@@ -37,7 +37,7 @@ struct prismesh_layer_data_t
   /// The number of components for a datum in the field.
   size_t num_components;
 };
-typedef struct prismesh_layer_data_t prismesh_layer_data_t;
+typedef struct prismesh_chunk_data_t prismesh_chunk_data_t;
 
 /// Constructs a new prismesh field with the given number of components
 /// on the given mesh.
@@ -58,29 +58,29 @@ prismesh_centering_t prismesh_field_centering(prismesh_field_t* field);
 /// \memberof prismesh_field
 size_t prismesh_field_num_components(prismesh_field_t* field);
 
-/// Returns the number of (locally stored) layers in the field.
+/// Returns the number of (locally stored) chunks in the field.
 /// \memberof prismesh_field
-size_t prismesh_field_num_layers(prismesh_field_t* field);
+size_t prismesh_field_num_chunks(prismesh_field_t* field);
 
 /// Returns an internal pointer to the field's underlying prismesh.
 /// \memberof prismesh_field
 prismesh_t* prismesh_field_mesh(prismesh_field_t* field);
 
-/// Traverses locally-stored field data layer by layer.
+/// Traverses locally-stored field data chunk by chunk.
 /// \param [in,out] pos Controls the traversal. Set to 0 to reset.
-/// \param [out] layer Stores the layer found in the traversal.
-/// \param [out] data Stores the layer data associated with \ref layer.
-/// \returns true if a locally-stored layer is found, false if not.
+/// \param [out] chunk Stores the chunk found in the traversal.
+/// \param [out] data Stores the chunk data associated with \ref chunk.
+/// \returns true if a locally-stored chunk is found, false if not.
 /// \memberof prismesh_field
-bool prismesh_field_next_layer(prismesh_field_t* field, int* pos, 
-                               prismesh_layer_t** layer, 
-                               prismesh_layer_data_t** data);
+bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos, 
+                               prismesh_chunk_t** chunk, 
+                               prismesh_chunk_data_t** data);
 
 ///@}
 
 ///@{
 // These macros generate multidimensional arrays that can access the given
-// layer data using C99 variable-length arrays.
+// chunk data using C99 variable-length arrays.
 
 /// \def DECLARE_PRISMESH_CELL_ARRAY
 /// Allows access to prismesh cell data. Cell arrays are indexed the following 
@@ -104,7 +104,7 @@ DECLARE_3D_ARRAY(real_t, array, data->data, data->num_xy_data, data->num_vertica
 /// * i runs from 0 to data->num_xy_data.
 /// * k runs from 0 to data->num_vertical_cells-1.
 /// * c runs from 0 to data->num_components-1.
-/// Use layer->cell_xy_faces[m][n] to retrieve the index for the nth xy-face 
+/// Use chunk->cell_xy_faces[m][n] to retrieve the index for the nth xy-face 
 /// of the mth cell.
 #define DECLARE_PRISMESH_XYFACE_ARRAY(array, data) \
 ASSERT(data->centering == PRISMESH_XYFACE); \
@@ -131,7 +131,7 @@ DECLARE_3D_ARRAY(real_t, array, data->data, data->num_xy_data, data->num_vertica
 /// * i runs from 0 to data->num_xy_data-1.
 /// * k runs from 0 to data->num_vertical_cells.
 /// * c runs from 0 to data->num_components-1.
-/// Use layer->zface_xyedges[m][n] to retrieve the index for the nth xy-edge 
+/// Use chunk->zface_xyedges[m][n] to retrieve the index for the nth xy-edge 
 /// of the mth z-face.
 #define DECLARE_PRISMESH_XYEDGE_ARRAY(array, data) \
 ASSERT(data->centering == PRISMESH_XYEDGE); \
@@ -145,7 +145,7 @@ DECLARE_3D_ARRAY(real_t, array, data->data, data->num_xy_data, data->num_vertica
 /// * i runs from 0 to data->num_xy_data-1.
 /// * k runs from 0 to data->num_vertical_cells-1.
 /// * c runs from 0 to data->num_components-1.
-/// Z-edges are indexed the same as nodes, so use layer->xy_face_nodes[m][n] to 
+/// Z-edges are indexed the same as nodes, so use chunk->xy_face_nodes[m][n] to 
 /// retrieve the index for the nth z-edge of the mth xy-face.
 #define DECLARE_PRISMESH_ZEDGE_ARRAY(array, data) \
 ASSERT(data->centering == PRISMESH_ZEDGE); \
@@ -159,8 +159,8 @@ DECLARE_3D_ARRAY(real_t, array, data->data, data->num_xy_data, data->num_vertica
 /// * i runs from 0 to data->num_xy_data-1.
 /// * k runs from 0 to data->num_vertical_cells.
 /// * c runs from 0 to data->num_components-1.
-/// Use layer->xy_face_nodes[m][n] to retrieve the index for the nth node
-/// of the mth xy-face, and layer->zface_nodes[m][n] to retrieve the index
+/// Use chunk->xy_face_nodes[m][n] to retrieve the index for the nth node
+/// of the mth xy-face, and chunk->zface_nodes[m][n] to retrieve the index
 /// for the nth node of the mth z-face.
 #define DECLARE_PRISMESH_NODE_ARRAY(array, data) \
 ASSERT(data->centering == PRISMESH_NODE); \

@@ -1625,10 +1625,10 @@ static lua_module_function prismesh_funcs[] = {
   {NULL, NULL, NULL}
 };
 
-static int pxmesh_num_layers(lua_State* L)
+static int pxmesh_num_chunks(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_pushinteger(L, prismesh_num_layers(m));
+  lua_pushinteger(L, prismesh_num_chunks(m));
   return 1;
 }
 
@@ -1647,7 +1647,7 @@ static int pxmesh_num_vertical_cells(lua_State* L)
 }
 
 static lua_class_field prismesh_fields[] = {
-  {"num_layers", pxmesh_num_layers, NULL},
+  {"num_chunks", pxmesh_num_chunks, NULL},
   {"num_columns", pxmesh_num_columns, NULL},
   {"num_vertical_cells", pxmesh_num_vertical_cells, NULL},
   {NULL, NULL, NULL}
@@ -1656,8 +1656,8 @@ static lua_class_field prismesh_fields[] = {
 static int prismesh_tostring(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_pushfstring(L, "prismesh (%d layers, %d columns, %d vertical cells)", 
-                  (int)prismesh_num_layers(m), (int)prismesh_num_columns(m),
+  lua_pushfstring(L, "prismesh (%d chunks, %d columns, %d vertical cells)", 
+                  (int)prismesh_num_chunks(m), (int)prismesh_num_columns(m),
                   (int)prismesh_num_vertical_cells(m));
   return 1;
 }

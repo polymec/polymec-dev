@@ -16,12 +16,14 @@
 ///@{
 
 /// \class prismesh
-/// A prismesh, or polygonal extruded mesh, is a semi-structured mesh consisting 
-/// of a set of columns of cells. Each cell has "top" and "bottom" faces that 
-/// are polygons, and rectangular lateral faces. The "top" and "bottom" faces 
-/// lie in the x-y plane, and the column extends along the z axis. The columns 
-/// are divided into layers along the z axis to facilitate load balancing of 
-/// large prismeshes.
+/// A prismesh, or "prism mesh", is a semi-structured mesh consisting 
+/// of a set of columns of cells made by extruding polygons along the z axis.
+/// Accordingly, each cell has polygonal "top" and "bottom" faces whose normals 
+/// align with the z axis, and rectangular "lateral" faces with normals that 
+/// lie in the xy plane. 
+/// To help with load balancing, a prismesh is divided into chunks. The chunks
+/// consist of load-balanced sets of columns that span a well-defined segment 
+/// along the z axis.
 typedef struct prismesh_t prismesh_t;
 
 /// \enum prismesh_centering
@@ -40,23 +42,23 @@ typedef enum
 
 typedef struct prismesh_column_t prismesh_column_t;
 
-/// \class prismesh_layer
-/// A layer of columns within a prismesh.
-struct prismesh_layer_t 
+/// \class prismesh_chunk
+/// A group of columns within a prismesh.
+struct prismesh_chunk_t 
 {
-  /// The number of (polygonal) columns in this layer.
+  /// The number of (polygonal) columns in this chunk.
   size_t num_columns;
 
-  /// The number of vertical (z) cells in this layer. Note that 
+  /// The number of vertical (z) cells in this chunk. Note that 
   /// * the number of "z" faces is \ref num_zcells + 1.
   /// * the number of "z" edges is \ref num_zcells.
   /// * the number of "z" nodes is \ref num_zcells + 1.
   size_t num_z_cells;
 
-  /// The z coordinate of the lower boundary of the layer.
+  /// The z coordinate of the lower boundary of the chunk.
   real_t z1;
 
-  /// The z coordinate of the upper boundary of the layer.
+  /// The z coordinate of the upper boundary of the chunk.
   real_t z2;
 
   /// Offsets of lateral (xy) faces attached to columns, stored in compressed-row 
@@ -81,10 +83,10 @@ struct prismesh_layer_t
   /// The total number of nodes at a single z location.
   size_t num_xy_nodes;
 
-  /// The positions of the nodes in this layer (in the xy plane).
+  /// The positions of the nodes in this chunk (in the xy plane).
   point2_t* xy_nodes;
 };
-typedef struct prismesh_layer_t prismesh_layer_t;
+typedef struct prismesh_chunk_t prismesh_chunk_t;
 
 /// Creates a prismesh consisting of polygonal columns from the given 
 /// planar polygonal mesh on the same communicator as that mesh. The columns 
@@ -109,12 +111,12 @@ void prismesh_free(prismesh_t* mesh);
 /// \memberof prismesh
 MPI_Comm prismesh_comm(prismesh_t* mesh);
 
-/// Returns the number of layers in the prismesh.
+/// Returns the number of locally-stored chunks in the prismesh.
 /// \memberof prismesh
-size_t prismesh_num_layers(prismesh_t* mesh);
+size_t prismesh_num_chunks(prismesh_t* mesh);
 
 /// Returns the total number of columns in the prismesh, as seen 
-/// looking down on the top layer. This is *not* the same as the 
+/// looking down on its top boundary. This is *not* the same as the 
 /// total number of prismesh_columns globally accessible in the mesh, 
 /// since these columns are divided along the z axis for scalability.
 /// \memberof prismesh
@@ -129,42 +131,44 @@ size_t prismesh_num_vertical_cells(prismesh_t* mesh);
 size_t prismesh_num_cells(prismesh_t* mesh);
 
 /// Returns the z coordinate of the bottom boundary of the mesh.
-real_t primesh_z1(prismesh_t* mesh);
+/// \memberof prismesh
+real_t prismesh_z1(prismesh_t* mesh);
 
 /// Returns the z coordinate of the top boundary of the mesh.
-real_t primesh_z2(prismesh_t* mesh);
-
-/// Traverses the locally-stored layers in the mesh, returning true and the 
-/// next layer if the traversal is incomplete, false otherwise. 
 /// \memberof prismesh
-bool prismesh_next_layer(prismesh_t* mesh, int* pos, prismesh_layer_t** layer);
+real_t prismesh_z2(prismesh_t* mesh);
+
+/// Traverses the locally-stored chunks in the mesh, returning true and the 
+/// next chunk if the traversal is incomplete, false otherwise. 
+/// \memberof prismesh
+bool prismesh_next_chunk(prismesh_t* mesh, int* pos, prismesh_chunk_t** chunk);
 
 /// Returns a newly created polygon that represents the geometry of the 
-/// given column in the layer.
-/// \memberof prismesh_layer
-polygon_t* prismesh_layer_polygon(prismesh_layer_t* layer, int column);
+/// given column in the chunk.
+/// \memberof prismesh_chunk
+polygon_t* prismesh_chunk_polygon(prismesh_chunk_t* chunk, int column);
 
-/// Returns the number of xy faces for the given column in the layer.
-/// \memberof prismesh_layer
-static inline int prismesh_layer_column_num_xy_faces(prismesh_layer_t* layer,
+/// Returns the number of xy faces for the given column in the chunk.
+/// \memberof prismesh_chunk
+static inline int prismesh_chunk_column_num_xy_faces(prismesh_chunk_t* chunk,
                                                      int column)
 {
-  return layer->column_xy_face_offsets[column+1] - layer->column_xy_face_offsets[column];
+  return chunk->column_xy_face_offsets[column+1] - chunk->column_xy_face_offsets[column];
 }
 
-/// Returns the indices of the xy faces for the given column in the layer.
+/// Returns the indices of the xy faces for the given column in the chunk.
 /// \param column [in] The index for the column.
 /// \param xy_faces [out] An array big enough to store the (xy) indices of the
 ///                       xy faces of the column.
-/// \memberof prismesh_layer
-static inline void prismesh_layer_column_get_xy_faces(prismesh_layer_t* layer,
+/// \memberof prismesh_chunk
+static inline void prismesh_chunk_column_get_xy_faces(prismesh_chunk_t* chunk,
                                                       int column,
                                                       int* xy_faces)
 {
-  int start = layer->column_xy_face_offsets[column];
-  int end = layer->column_xy_face_offsets[column+1];
+  int start = chunk->column_xy_face_offsets[column];
+  int end = chunk->column_xy_face_offsets[column+1];
   for (int f = start; f < end; ++f)
-    xy_faces[f] = layer->column_xy_faces[f];
+    xy_faces[f] = chunk->column_xy_faces[f];
 }
 
 /// Returns the xy and z indices for the nodes of the given xy face at the 
@@ -178,14 +182,14 @@ static inline void prismesh_layer_column_get_xy_faces(prismesh_layer_t* layer,
 /// * Node 3 is the node on the far side of the xy edge connected to node 2
 ///   for this xy face. This should be the node connected to node 0 by a z 
 ///   edge, attached to this face.
-/// \param xy_face_index The index of the xy face within this layer.
+/// \param xy_face_index The index of the xy face within this chunk.
 /// \param z_index The index indicating the z position of the xy face.
 /// \param node_xy_indices An array of length 4 that stores the xy indices
 ///                        of the nodes for this face.
 /// \param node_z_indices An array of length 4 that stores the z indices
 ///                       of the nodes for this face.
-/// \memberof prismesh_layer
-static inline void prismesh_layer_xy_face_get_nodes(prismesh_layer_t* layer,
+/// \memberof prismesh_chunk
+static inline void prismesh_chunk_xy_face_get_nodes(prismesh_chunk_t* chunk,
                                                     int xy_face_index,
                                                     int z_index,
                                                     int* node_xy_indices,
@@ -210,14 +214,14 @@ static inline void prismesh_layer_xy_face_get_nodes(prismesh_layer_t* layer,
 ///   traversed counterclockwise from edge 0.
 /// * Edge 2 is the bottom edge for the xy face, 
 /// * Edge 3 is the remaining edge for the face, opposite edge 1.
-/// \param xy_face_index The index of the xy face within this layer.
+/// \param xy_face_index The index of the xy face within this chunk.
 /// \param z_index The index indicating the z position of the xy face.
 /// \param edge_xy_indices An array of length 4 that stores the xy indices
 ///                        of the edges for this face.
 /// \param edge_z_indices An array of length 4 that stores the z indices
 ///                       of the edges for this face.
-/// \memberof prismesh_layer
-static inline void prismesh_layer_xy_face_get_edges(prismesh_layer_t* layer,
+/// \memberof prismesh_chunk
+static inline void prismesh_chunk_xy_face_get_edges(prismesh_chunk_t* chunk,
                                                     int xy_face_index,
                                                     int z_index,
                                                     int* edge_xy_indices,
@@ -233,26 +237,26 @@ static inline void prismesh_layer_xy_face_get_edges(prismesh_layer_t* layer,
   edge_z_indices[3] = z_index;
 }
 
-/// Returns the number of nodes for the given z face in the layer.
-/// \memberof prismesh_layer
-static inline int prismesh_layer_z_face_num_nodes(prismesh_layer_t* layer,
+/// Returns the number of nodes for the given z face in the chunk.
+/// \memberof prismesh_chunk
+static inline int prismesh_chunk_z_face_num_nodes(prismesh_chunk_t* chunk,
                                                   int z_face)
 {
   // Nodes on z faces are indexed the same way as xy faces on columns.
-  return prismesh_layer_column_num_xy_faces(layer, z_face);
+  return prismesh_chunk_column_num_xy_faces(chunk, z_face);
 }
 
-/// Returns the indices of the nodes for the given z face in the layer.
+/// Returns the indices of the nodes for the given z face in the chunk.
 /// \param z_face [in] The index for the z face (same as the column index).
 /// \param nodes [out] An array big enough to store the indices of the
 ///                    nodes of the z face.
-/// \memberof prismesh_layer
-static inline void prismesh_layer_z_face_get_nodes(prismesh_layer_t* layer,
+/// \memberof prismesh_chunk
+static inline void prismesh_chunk_z_face_get_nodes(prismesh_chunk_t* chunk,
                                                    int z_face,
                                                    int* nodes)
 {
   // Nodes on z faces are indexed the same way as xy faces on columns.
-  prismesh_layer_column_get_xy_faces(layer, z_face, nodes);
+  prismesh_chunk_column_get_xy_faces(chunk, z_face, nodes);
 }
 
 typedef struct prismesh_field_t prismesh_field_t;
