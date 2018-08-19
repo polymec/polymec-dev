@@ -85,18 +85,81 @@ prismesh_t* prismesh_new(MPI_Comm comm,
   mesh->num_vertical_cells = num_vertical_cells;
   mesh->z1 = z1;
   mesh->z2 = z2;
+  MPI_Comm_size(comm, &mesh->nproc);
+  MPI_Comm_rank(comm, &mesh->rank);
 
-  // Now allocate a single chunk to this process with columns corresponding 
-  // to the cells of the planar polymesh. The chunk spans the entire vertical 
-  // extent of the mesh. This isn't ideal, but it's a decent initial 
-  // partitioning.
-  prismesh_chunk_t* chunk = chunk_from_planar_polymesh(columns, 
-                                                       num_vertical_cells, 
-                                                       z1, z2);
-  chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
+  if (mesh->nproc > 1)
+  {
+    // Figure out an optimal partitioning "geometry". How many "axial" 
+    // processes do we want, vs how many process in the xy plane?
+    int num_xy_procs = (int)(floor(pow(mesh->nproc, 2.0/3.0)));
+    int num_z_procs = mesh->nproc / num_xy_procs;
 
-  if (comm != columns->comm)
-    repartition_prismesh(&mesh, NULL, 0.05, NULL, 0);
+    if (num_xy_procs > 1)
+    {
+      // Create an "xy communicator" that exists across the xy plane.
+      MPI_Comm xy_comm;
+      int color = mesh->rank / num_z_procs;
+      int key = mesh->rank % num_z_procs;
+      MPI_Comm_split(comm, color, key, &xy_comm);
+
+      // Construct a graph for the planar polymesh.
+      adj_graph_t* graph = graph_from_planar_polymesh_cells(columns);
+
+      // Cut it up in the xy plane and get the partition vector.
+      int64_t* P = partition_graph(graph, xy_comm, NULL, 0.05, true);
+
+      // Allocate chunks to this process.
+      // FIXME: We could store chunk xy connectivity more efficiently by 
+      // FIXME: aliasing all chunks' data to the xy data in the first 
+      // FIXME: chunk created in each column.
+      real_t dz = (z2 - z1) / num_z_procs;
+      for (int ij = 0; ij < num_xy_procs; ++ij)
+      {
+        for (int k = 0; k < num_z_procs; ++k)
+        {
+          real_t z1_k = z1 + k*dz;
+          real_t z2_k = z1 + (k+1)*dz;
+          size_t nz = num_vertical_cells / num_z_procs;
+          if ((k*num_vertical_cells/num_z_procs + nz) > num_vertical_cells)
+            nz = num_vertical_cells - k*num_vertical_cells/num_z_procs;
+          prismesh_chunk_t* chunk = chunk_from_planar_polymesh(columns, nz, z1_k, z2_k);
+          chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
+        }
+      }
+
+      // Clean up.
+      MPI_Comm_free(&xy_comm);
+      polymec_free(P);
+    }
+    else
+    {
+      // Allocate chunks to this process along the z axis.
+      // FIXME: We could store chunk xy connectivity more efficiently by 
+      // FIXME: aliasing all chunks' data to the xy data in the first 
+      // FIXME: chunk created in each column.
+      real_t dz = (z2 - z1) / num_z_procs;
+      for (int k = 0; k < num_z_procs; ++k)
+      {
+        real_t z1_k = z1 + k*dz;
+        real_t z2_k = z1 + (k+1)*dz;
+        size_t nz = num_vertical_cells / num_z_procs;
+        if ((k*num_vertical_cells/num_z_procs + nz) > num_vertical_cells)
+          nz = num_vertical_cells - k*num_vertical_cells/num_z_procs;
+        prismesh_chunk_t* chunk = chunk_from_planar_polymesh(columns, nz, z1_k, z2_k);
+        chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
+      }
+    }
+  }
+  else
+  {
+    // Allocate a single chunk to this process with columns corresponding 
+    // to the cells of the planar polymesh. 
+    prismesh_chunk_t* chunk = chunk_from_planar_polymesh(columns, 
+                                                         num_vertical_cells, 
+                                                         z1, z2);
+    chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
+  }
 
   return mesh;
 }
@@ -168,6 +231,7 @@ bool prismesh_next_chunk(prismesh_t* mesh, int* pos, prismesh_chunk_t** chunk)
 }
 
 static void redistribute_prismesh(prismesh_t** mesh, 
+                                  MPI_Comm super_comm,
                                   int64_t* partition)
 {
   START_FUNCTION_TIMER();
@@ -308,46 +372,6 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
   STOP_FUNCTION_TIMER();
 }
 
-#if 0
-// Creates a graph connecting the planar columns in a prismesh.
-static adj_graph_t* graph_from_columns(prismesh_t* mesh)
-{
-  adj_graph_t* g = adj_graph_new(mesh->comm, mesh->num_columns);
-
-  // Allocate space in the graph for the edges (faces connecting columns).
-  for (int i = 0; i < mesh->num_columns; ++i)
-  {
-    // How many faces don't have opposite cells?
-    int outer_faces = 0;
-    for (int j = mesh->column_xy_face_offsets[i]; j < mesh->column_xy_face_offsets[i+1]; ++j)
-    {
-      int f = mesh->column_xy_faces[j];
-      if (mesh->column_xy_faces[2*f+1] == -1)
-        ++outer_faces;
-    }
-    adj_graph_set_num_edges(g, i, mesh->column_xy_face_offsets[i+1] - mesh->column_xy_face_offsets[i] - outer_faces);
-  }
-
-  // Now fill in the edges.
-  for (int i = 0; i < mesh->num_columns; ++i)
-  {
-    int* edges = adj_graph_edges(g, i);
-    int offset = 0;
-    for (int j = mesh->column_xy_face_offsets[i]; j < mesh->column_xy_face_offsets[i+1]; ++j)
-    {
-      int f = mesh->column_xy_faces[j];
-      if (mesh->xy_face_columns[2*f+1] != -1)
-      {
-        int c = (i == mesh->xy_face_columns[2*f]) ? mesh->xy_face_columns[2*f+1] : mesh->xy_face_columns[2*f];
-        edges[offset] = c;
-        ++offset;
-      }
-    }
-  }
-  return g;
-}
-#endif
-
 void repartition_prismesh(prismesh_t** mesh, 
                           int* weights,
                           real_t imbalance_tol,
@@ -368,9 +392,9 @@ void repartition_prismesh(prismesh_t** mesh,
     return;
   }
 
-  // Generate a distributed adjacency graph for the mesh. This graph is
-  // distributed over all the processes in the mesh's communicator.
-  adj_graph_t* graph = NULL;//graph_from_columns(old_mesh);
+  // Generate a distributed adjacency graph for the polygonal columns.
+//  planar_polymesh_t* columns = planar_polymesh_from_columns(old_mesh);
+//  adj_graph_t* graph = graph_from_planar_polymesh_cells(columns);
 
   // Map the graph to the different domains, producing a partition vector.
   // We need the partition vector on all processes in the communicator, so we 
@@ -385,7 +409,7 @@ void repartition_prismesh(prismesh_t** mesh,
 
   // Redistribute the mesh. 
   log_debug("repartition_peximesh: Redistributing mesh.");
-  redistribute_prismesh(mesh, partition);
+  redistribute_prismesh(mesh, old_mesh->comm, partition);
 
   // Build a sources vector whose ith component is the rank that used to own 
   // the ith patch.
@@ -403,7 +427,7 @@ void repartition_prismesh(prismesh_t** mesh,
 
   // Clean up.
   prismesh_free(old_mesh);
-  adj_graph_free(graph);
+//  adj_graph_free(graph);
   polymec_free(sources);
   polymec_free(partition);
 

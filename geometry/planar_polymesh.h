@@ -17,16 +17,13 @@
 
 /// \class planar_polymesh
 /// This type represents a polygonal mesh in the x-y plane consisting of
-/// cells connected by edges which are bounded by nodes.
+/// cells connected by edges which are bounded by nodes. This mesh is NOT a
+/// distributed object--it exists in its entireity on each process on which 
+/// it is created.
 struct planar_polymesh_t
 {
-  /// MPI communicator on which the mesh is defined.
-  MPI_Comm comm;
-
   /// The total number of (locally-owned) polygonal cells in the mesh.
   int num_cells;
-  /// The number of ghost cells on the local domain in the mesh.
-  int num_ghost_cells;
   /// The offsets of the sets of edges attached to cells, stored in CRS format.
   int* cell_edge_offsets;
   /// The indices of edges attached to cells, stored in CRS format.
@@ -53,22 +50,19 @@ struct planar_polymesh_t
 };
 typedef struct planar_polymesh_t planar_polymesh_t;
 
-/// Constructs a new planar_polymesh with the given number of cells, ghost 
-/// cells, edges, and nodes. This function does not provide any description
+/// Constructs a new planar_polymesh with the given number of cells, 
+/// edges, and nodes. This function does not provide any description
 /// of the mesh's topology and is only useful in the construction of mesh 
 /// generation algorithms. 
 /// \memberof planar_polymesh
-planar_polymesh_t* planar_polymesh_new(MPI_Comm comm, 
-                                       int num_cells, int num_ghost_cells, 
+planar_polymesh_t* planar_polymesh_new(int num_cells, 
                                        int num_edges, int num_nodes);
 
 /// Constructs a new planar_polymesh with a single type of polytope.
 /// This function does not set up connectivity, but initializes its metadata 
 /// according to the prescribed number of edges per cell.
 /// \memberof planar_polymesh
-planar_polymesh_t* planar_polymesh_new_with_cell_type(MPI_Comm comm, 
-                                                      int num_cells, 
-                                                      int num_ghost_cells, 
+planar_polymesh_t* planar_polymesh_new_with_cell_type(int num_cells, 
                                                       int num_edges, 
                                                       int num_nodes, 
                                                       int num_edges_per_cell);
@@ -223,7 +217,9 @@ static inline int planar_polymesh_edge_node2(planar_polymesh_t* mesh, int edge)
 }
 
 /// This function constructs an adjacency graph expressing the connectivity of 
-/// the cells of the given planar_polymesh.
+/// the cells of the given planar_polymesh. Like its mesh, this graph exists
+/// solely on the process on which the mesh is defined, so its communicator is 
+/// MPI_COMM_SELF.
 /// \relates planar_polymesh
 adj_graph_t* graph_from_planar_polymesh_cells(planar_polymesh_t* mesh);
 

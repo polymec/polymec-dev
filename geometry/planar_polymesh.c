@@ -16,23 +16,18 @@ static int round_to_pow2(int x)
   return y;
 }
 
-planar_polymesh_t* planar_polymesh_new(MPI_Comm comm, 
-                                       int num_cells, int num_ghost_cells, 
-                                       int num_edges, int num_nodes)
+planar_polymesh_t* planar_polymesh_new(int num_cells, int num_edges, int num_nodes)
 {
   ASSERT(num_cells >= 0);
-  ASSERT(num_ghost_cells >= 0);
   ASSERT(num_edges >= 0);
   ASSERT(num_nodes >= 0);
 
   planar_polymesh_t* mesh = polymec_malloc(sizeof(planar_polymesh_t));
-  mesh->comm = comm;
 
   // NOTE: We round stored elements up to the nearest power of 2.
 
   // Allocate cell information.
   mesh->num_cells = num_cells;
-  mesh->num_ghost_cells = num_ghost_cells;
   mesh->cell_edge_offsets = polymec_malloc(sizeof(int)*(num_cells+1));
   memset(mesh->cell_edge_offsets, 0, sizeof(int)*(num_cells+1));
   mesh->cell_edge_cap = round_to_pow2(12 * num_cells);
@@ -53,15 +48,12 @@ planar_polymesh_t* planar_polymesh_new(MPI_Comm comm,
   return mesh;
 }
 
-planar_polymesh_t* planar_polymesh_new_with_cell_type(MPI_Comm comm, 
-                                                      int num_cells, 
-                                                      int num_ghost_cells, 
+planar_polymesh_t* planar_polymesh_new_with_cell_type(int num_cells, 
                                                       int num_edges, 
                                                       int num_nodes, 
                                                       int num_edges_per_cell)
 {
-  planar_polymesh_t* mesh = planar_polymesh_new(comm, num_cells, num_ghost_cells, 
-                                                num_edges, num_nodes);
+  planar_polymesh_t* mesh = planar_polymesh_new(num_cells, num_edges, num_nodes);
 
   // Set up connectivity metadata.
   for (int c = 0; c < mesh->num_cells+1; ++c)
@@ -154,9 +146,7 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
 
 planar_polymesh_t* planar_polymesh_clone(planar_polymesh_t* mesh)
 {
-  planar_polymesh_t* clone = planar_polymesh_new(MPI_COMM_WORLD, 
-                                                 mesh->num_cells, 
-                                                 mesh->num_ghost_cells,
+  planar_polymesh_t* clone = planar_polymesh_new(mesh->num_cells, 
                                                  mesh->num_edges, 
                                                  mesh->num_nodes);
 
@@ -193,10 +183,7 @@ void planar_polymesh_reserve_connectivity_storage(planar_polymesh_t* mesh)
 adj_graph_t* graph_from_planar_polymesh_cells(planar_polymesh_t* mesh)
 {
   // Create a graph whose vertices are the mesh's cells.
-  int rank, nproc;
-  MPI_Comm_size(mesh->comm, &nproc);
-  MPI_Comm_rank(mesh->comm, &rank);
-  adj_graph_t* g = adj_graph_new(mesh->comm, mesh->num_cells);
+  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, mesh->num_cells);
 
   // Allocate space in the graph for the edges (edges connecting cells).
   for (int i = 0; i < mesh->num_cells; ++i)

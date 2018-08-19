@@ -1144,14 +1144,6 @@ static int pp_num_cells(lua_State* L)
   return 1;
 }
 
-static int pp_num_ghost_cells(lua_State* L)
-{
-  planar_polymesh_t* m = lua_to_planar_polymesh(L, 1);
-  lua_newtable(L);
-  lua_pushinteger(L, m->num_ghost_cells);
-  return 1;
-}
-
 static int pp_num_edges(lua_State* L)
 {
   planar_polymesh_t* m = lua_to_planar_polymesh(L, 1);
@@ -1170,7 +1162,6 @@ static int pp_num_nodes(lua_State* L)
 
 static lua_class_field pp_fields[] = {
   {"num_cells", pp_num_cells, NULL},
-  {"num_ghost_cells", pp_num_ghost_cells, NULL},
   {"num_edges", pp_num_edges, NULL},
   {"num_nodes", pp_num_nodes, NULL},
   {NULL, NULL, NULL}

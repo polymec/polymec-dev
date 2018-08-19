@@ -19,6 +19,18 @@
 /// If broadcast is true, the partition vector is broadcasted and returned on 
 /// all ranks. Otherwise only rank 0 returns the partition vector,
 /// and all other ranks return NULL.
+/// \param global_graph [in] An adjacency graph defined on MPI_COMM_SELF.
+/// \param comm [in] the communicator across which the graph is to be partitioned.
+/// \param weights [in] An array of weights for the graph's vertices, or NULL.
+/// \param imbalance_tol [in] A number between 0 and 1 representing the maximum 
+///                           acceptable load imbalance, defined by the ratio 
+///                           of the load on any given vertex to the average load.
+/// \param broadcast [in] If true, the partition vector is broadcast to all 
+///                       processes in comm. If false, only the process with 
+///                       rank 0 in comm receives the partition vector--others 
+///                       receive NULL.
+/// \returns A global partition vector, or NULL if the graph couldn't be 
+///          partitioned successfully.
 /// \collective Collective on comm.
 int64_t* partition_graph(adj_graph_t* global_graph, 
                          MPI_Comm comm,
