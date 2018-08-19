@@ -106,8 +106,9 @@ typedef struct prismesh_chunk_t prismesh_chunk_t;
 /// \param z2 [in] The z coordinate of the upper boundary of the mesh.
 /// \returns A newly created prismesh.
 /// \memberof prismesh
-/// \collective This function is collective on \ref comm.
-prismesh_t* prismesh_new(planar_polymesh_t* columns,
+/// \collective This function is collective on \ref comm if comm != columns->comm.
+prismesh_t* prismesh_new(MPI_Comm comm,
+                         planar_polymesh_t* columns,
                          size_t num_vertical_cells,
                          real_t z1, real_t z2);
  

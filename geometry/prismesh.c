@@ -68,7 +68,8 @@ struct prismesh_t
   real_t z1, z2;
 };
 
-prismesh_t* prismesh_new(planar_polymesh_t* columns,
+prismesh_t* prismesh_new(MPI_Comm comm,
+                         planar_polymesh_t* columns,
                          size_t num_vertical_cells,
                          real_t z1, real_t z2)
 {
@@ -78,7 +79,7 @@ prismesh_t* prismesh_new(planar_polymesh_t* columns,
 
   // Set up the easy stuff.
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
-  mesh->comm = columns->comm;
+  mesh->comm = comm;
   mesh->chunks = chunk_array_new();
   mesh->num_columns = (size_t)columns->num_cells;
   mesh->num_vertical_cells = num_vertical_cells;
@@ -93,6 +94,9 @@ prismesh_t* prismesh_new(planar_polymesh_t* columns,
                                                        num_vertical_cells, 
                                                        z1, z2);
   chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
+
+  if (comm != columns->comm)
+    repartition_prismesh(&mesh, NULL, 0.05, NULL, 0);
 
   return mesh;
 }
@@ -352,8 +356,6 @@ void repartition_prismesh(prismesh_t** mesh,
 {
   ASSERT((weights == NULL) || (imbalance_tol > 0.0));
   ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
-  ASSERT(imbalance_tol > 0.0);
-  ASSERT(imbalance_tol <= 1.0);
   ASSERT((fields != NULL) || (num_fields == 0));
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
