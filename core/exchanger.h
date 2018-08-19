@@ -168,6 +168,7 @@ bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, i
 /// expensive and involves parallel communication, so make sure it is called 
 /// by all processes on the communicator for the exchanger. 
 /// \memberof exchanger
+/// \collective Collective on the exchanger's communicator.
 bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...));
 
 //------------------------------------------------------------------------

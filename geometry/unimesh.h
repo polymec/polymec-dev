@@ -292,6 +292,7 @@ typedef struct unimesh_field_t unimesh_field_t;
 /// conditions reinstated, since these boundary conditions are not 
 /// transmitted between processes.
 /// \relates unimesh
+/// \collective Collective on mesh's communicator.
 void repartition_unimesh(unimesh_t** mesh, 
                          int* weights,
                          real_t imbalance_tol,

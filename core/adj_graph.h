@@ -25,6 +25,7 @@ typedef struct adj_graph_t adj_graph_t;
 /// \param [in] comm The MPI communicator to use for the graph.
 /// \param [in] num_local_vertices The number of local vertices for each process.
 /// \returns A newly created graph.
+/// \collective Collective on comm.
 adj_graph_t* adj_graph_new(MPI_Comm comm, size_t num_local_vertices);
 
 /// Allocates a new adjacency graph on the given MPI communicator 

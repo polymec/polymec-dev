@@ -292,8 +292,9 @@ void bbox_fprintf(bbox_t* box, FILE* stream);
 /// Returns an array containing the ranks of the processes on the given MPI 
 /// communicator whose given bbox intersects the one on this process. num_procs
 /// will store the length of this array. If no processes supply bounding boxes 
-// that intersect the one given here, *num_procs == 0 and NULL is returned.
+/// that intersect the one given here, *num_procs == 0 and NULL is returned.
 /// \memberof bbox
+/// \collective Collective on comm.
 int* bbox_intersecting_processes(bbox_t* bbox, MPI_Comm comm, int* num_procs);
 
 /// Given a random number generator and a bounding box, generate random 

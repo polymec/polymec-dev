@@ -1848,7 +1848,7 @@ static int polymesh_repartition(lua_State* L)
 static lua_module_function polymesh_funcs[] = {
   {"uniform", polymesh_uniform, "polymesh.uniform{comm = COMM, nx = NX, ny = NY, nz = NZ, bbox = BBOX} -> New uniform resolution mesh."},
   {"rectilinear", polymesh_rectilinear, "polymesh.rectilinear{comm = COMM, xs = XS, ys = YS, zs = ZS} -> New rectilinear mesh with defined node coordinates."},
-  {"repartition", polymesh_repartition, "mesh.repartition(m) -> Repartitions the polymesh m."},
+  {"repartition", polymesh_repartition, "mesh.repartition(m) -> Repartitions the polymesh m. Collective."},
   {NULL, NULL, NULL}
 };
 

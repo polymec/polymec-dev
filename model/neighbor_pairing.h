@@ -109,6 +109,7 @@ neighbor_pairing_t* neighbor_pairing_from_stencil(stencil_t* stencil);
 
 /// Creates a stencil from the given point cloud and neighbor pairing. 
 /// \memberof neighbor_pairing
+/// \collective Collective on point_cloud's communicator.
 stencil_t* stencil_from_point_cloud_and_neighbors(point_cloud_t* points, 
                                                   neighbor_pairing_t* neighbors);
 

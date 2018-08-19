@@ -19,25 +19,18 @@
 /// If broadcast is true, the partition vector is broadcasted and returned on 
 /// all ranks. Otherwise only rank 0 returns the partition vector,
 /// and all other ranks return NULL.
+/// \collective Collective on comm.
 int64_t* partition_graph(adj_graph_t* global_graph, 
                          MPI_Comm comm,
                          int* weights,
                          real_t imbalance_tol, 
                          bool broadcast);
 
-/// Partitions a (serial) global graph into n pieces, creating a returning a 
-/// global partition vector. Unlike \ref partition_graph, this function 
-/// performs the partitioning on every process and returns the partition 
-/// vector on every process.
-int64_t* partition_graph_n_ways(adj_graph_t* global_graph, 
-                                int n,
-                                int* weights,
-                                real_t imbalance_tol);
-
 /// Partitions a (serial) list of points, creating and returning a global 
 /// partition vector. If broadcast is true, the partition vector is broadcasted
 /// and returned on all ranks. Otherwise only rank 0 returns the partition vector,
 /// and all other ranks return NULL.
+/// \collective Collective on comm.
 int64_t* partition_points(point_t* points,
                           size_t num_points,
                           MPI_Comm comm,
@@ -47,6 +40,7 @@ int64_t* partition_points(point_t* points,
 
 /// Repartitions a local graph, creating and returning a local partition 
 /// vector with destination ranks included for ghost vertices.
+/// \collective Collective on local_graph's communicator.
 int64_t* repartition_graph(adj_graph_t* local_graph, 
                            exchanger_t* local_graph_ex,
                            int num_ghost_vertices,
@@ -55,6 +49,7 @@ int64_t* repartition_graph(adj_graph_t* local_graph,
 
 /// Repartitions a local list of points, creating and returning a local 
 /// partition vector with destination ranks included for ghost points.
+/// \collective Collective on comm.
 int64_t* repartition_points(point_t* local_points, 
                             size_t num_local_points,
                             MPI_Comm comm,
@@ -75,6 +70,7 @@ typedef struct
 /// Creates redistribution data from a local partition vector on the given 
 /// MPI communicator for each calling rank. 
 /// \memberof redistribution
+/// \collective Collective on comm.
 redistribution_t* redistribution_from_partition(MPI_Comm comm, 
                                                 int64_t* local_partition,
                                                 size_t num_vertices);

@@ -133,6 +133,7 @@ static inline size_t stencil_num_ghosts(stencil_t* stencil)
 /// Returns an adjacency graph that represents the stencil. This graph "borrows" 
 /// the stencil's data and consumes minimal resources.
 /// \memberof stencil
+/// \collective Collective on the stencil's exchanger communicator.
 adj_graph_t* stencil_as_graph(stencil_t* stencil);
 
 /// Returns a serializer object that can read/write stencils from/to byte arrays.

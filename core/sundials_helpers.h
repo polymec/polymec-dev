@@ -31,6 +31,7 @@
 #define NV_Ith(v,i) NV_Ith_S(v,i)
 #endif
 
+/// \collective Collective on comm.
 static inline N_Vector N_VNew(MPI_Comm comm, int local_len)
 {
 #if POLYMEC_HAVE_MPI
@@ -42,6 +43,7 @@ static inline N_Vector N_VNew(MPI_Comm comm, int local_len)
 #endif
 }
 
+/// \collective Collective on comm.
 static inline N_Vector N_VNewEmpty(MPI_Comm comm, int local_len)
 {
 #if POLYMEC_HAVE_MPI
@@ -53,6 +55,7 @@ static inline N_Vector N_VNewEmpty(MPI_Comm comm, int local_len)
 #endif
 }
 
+/// \collective Collective on comm.
 static inline N_Vector N_VMake(MPI_Comm comm, int local_len, real_t* v_data)
 {
 #if POLYMEC_HAVE_MPI

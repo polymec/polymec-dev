@@ -47,6 +47,7 @@ matrix_sparsity_t* matrix_sparsity_with_block_size(matrix_sparsity_t* sparsity,
 /// Here, block_sizes[i] contains the block size of the ith row in the original
 /// sparsity pattern.
 /// \memberof matrix_sparsity
+/// \collective Collective on sparsity's communicator.
 matrix_sparsity_t* matrix_sparsity_with_block_sizes(matrix_sparsity_t* sparsity,
                                                     size_t* block_sizes);
 

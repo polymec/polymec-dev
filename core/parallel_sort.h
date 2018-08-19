@@ -21,6 +21,7 @@
 /// before, but its data has been sorted on each process p such that processes 
 /// preceding p contain sorted data preceding that on p, and processes 
 /// following p contain sorted data following that on p.
+/// \collective Collective on comm.
 void parallel_sort(MPI_Comm comm, 
                    void* base, 
                    size_t nel, 

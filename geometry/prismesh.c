@@ -370,17 +370,11 @@ void repartition_prismesh(prismesh_t** mesh,
   // distributed over all the processes in the mesh's communicator.
   adj_graph_t* graph = NULL;//graph_from_columns(old_mesh);
 
-  // Figure out how many ways we want to partition the polygon graph by 
-  // chopping the z axis into segments of appropriate length. The number of 
-  // segments in the z direction is the factor by which we reduce the 
-  // number of ways we partition the polygon graph.
-  int num_poly_pieces = 1; // FIXME
-
   // Map the graph to the different domains, producing a partition vector.
   // We need the partition vector on all processes in the communicator, so we 
   // scatter it from rank 0.
   log_debug("repartition_prismesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
-  int64_t* poly_partition = partition_graph_n_ways(graph, num_poly_pieces, weights, imbalance_tol);
+  int64_t* poly_partition = NULL; //partition_graph_n_ways(graph, num_poly_pieces, weights, imbalance_tol);
 
   // Translate our polygonal partition vector into the real one (which includes
   // axial decomposition).
