@@ -110,7 +110,7 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
   {
     int pos = 0, ee;
     bool found_edge = false;
-    while (planar_polymesh_cell_next_edge(mesh, mesh->edge_cells[2*e], &pos, &e))
+    while (planar_polymesh_cell_next_edge(mesh, mesh->edge_cells[2*e], &pos, &ee))
     {
       if (ee == e) 
       {

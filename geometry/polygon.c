@@ -30,7 +30,7 @@ static void polygon_compute_area(polygon_t* poly)
   for (size_t j = 1; j < poly->num_vertices - 1; ++j)
   {
     // Form a triangle from vertex 0, vertex j, and vertex j+1.
-    int k = j+1;
+    size_t k = j+1;
     poly->area += triangle_area(&poly->vertices[i], &poly->vertices[j], &poly->vertices[k]);
   }
 }
