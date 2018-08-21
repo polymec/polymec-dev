@@ -18,13 +18,13 @@
 DEFINE_ARRAY(chunk_array, prismesh_chunk_t*)
 
 static prismesh_chunk_t* chunk_from_planar_polymesh(planar_polymesh_t* mesh,
-                                                    size_t num_vertical_cells,
-                                                    real_t z1, real_t z2)
+                                                    real_t z1, real_t z2,
+                                                    size_t nz)
 {
   ASSERT(z1 < z2);
   prismesh_chunk_t* chunk = polymec_malloc(sizeof(prismesh_chunk_t));
   chunk->num_columns = (size_t)mesh->num_cells;
-  chunk->num_z_cells = num_vertical_cells;
+  chunk->num_z_cells = nz;
   chunk->z1 = z1;
   chunk->z2 = z2;
 
@@ -63,31 +63,67 @@ struct prismesh_t
   MPI_Comm comm;
   int nproc, rank;
 
+  planar_polymesh_t* columns;
   chunk_array_t* chunks;
-  size_t num_columns, num_vertical_cells;
+  size_t num_columns, nz;
   real_t z1, z2;
+
+  // This flag is set by prismesh_finalize() after a mesh has been assembled.
+  bool finalized;
 };
 
-prismesh_t* prismesh_new(MPI_Comm comm,
-                         planar_polymesh_t* columns,
-                         size_t num_vertical_cells,
-                         real_t z1, real_t z2)
+prismesh_t* create_empty_prismesh(MPI_Comm comm, 
+                                  planar_polymesh_t* columns,
+                                  real_t z1, real_t z2,
+                                  size_t num_xy_chunks, size_t num_z_chunks,
+                                  size_t nz)
 {
   ASSERT(columns != NULL);
-  ASSERT(num_vertical_cells > 0);
   ASSERT(z1 < z2);
+  ASSERT(num_xy_chunks > 0);
+  ASSERT(num_z_chunks > 0);
+  ASSERT(nz > 0);
 
-  // Set up the easy stuff.
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
   mesh->comm = comm;
+  mesh->columns = columns; // FIXME
   mesh->chunks = chunk_array_new();
   mesh->num_columns = (size_t)columns->num_cells;
-  mesh->num_vertical_cells = num_vertical_cells;
+  mesh->nz = nz;
   mesh->z1 = z1;
   mesh->z2 = z2;
   MPI_Comm_size(comm, &mesh->nproc);
   MPI_Comm_rank(comm, &mesh->rank);
+  mesh->finalized = false;
 
+  return mesh;
+}
+
+void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
+{
+  ASSERT(!mesh->finalized);
+
+  // FIXME
+  prismesh_chunk_t* chunk = chunk_from_planar_polymesh(mesh->columns, 
+                                                       mesh->z1, mesh->z2,
+                                                       mesh->nz);
+  chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
+}
+
+void prismesh_finalize(prismesh_t* mesh)
+{
+  ASSERT(!mesh->finalized);
+  mesh->finalized = true;
+}
+
+prismesh_t* prismesh_new(MPI_Comm comm,
+                         planar_polymesh_t* columns,
+                         real_t z1, real_t z2,
+                         size_t nz)
+{
+  prismesh_t* mesh = create_empty_prismesh(comm, columns, z1, z2, 10, 5, nz);
+
+#if 0
   if (mesh->nproc > 1)
   {
     // Figure out an optimal partitioning "geometry". How many "axial" 
@@ -160,7 +196,9 @@ prismesh_t* prismesh_new(MPI_Comm comm,
                                                          z1, z2);
     chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
   }
+#endif
 
+  prismesh_finalize(mesh);
   return mesh;
 }
 
@@ -187,12 +225,12 @@ size_t prismesh_num_columns(prismesh_t* mesh)
 
 size_t prismesh_num_vertical_cells(prismesh_t* mesh)
 {
-  return mesh->num_vertical_cells;
+  return mesh->nz;
 }
 
 size_t prismesh_num_cells(prismesh_t* mesh)
 {
-  return mesh->num_columns * mesh->num_vertical_cells;
+  return mesh->num_columns * mesh->nz;
 }
 
 real_t prismesh_z1(prismesh_t* mesh)

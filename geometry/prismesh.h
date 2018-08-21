@@ -88,30 +88,74 @@ struct prismesh_chunk_t
 };
 typedef struct prismesh_chunk_t prismesh_chunk_t;
 
-/// Creates a prismesh consisting of polygonal columns from the given 
-/// (global) planar polygonal mesh.
-/// \param comm [in] The communicator on which the mesh is constructed. If 
-///                  different from the communicator for \ref columns, 
-///                  partitioning will be done so the mesh is load balanced, 
-///                  assuming a uniform work distribution. If the communicators
-///                  are the same, the partitioning will follow that for 
-///                  \ref columns, with every process containing a single chunk
-///                  that spans [z1, z2].
+//------------------------------------------------------------------------
+//                          Construction methods
+//------------------------------------------------------------------------
+// The following methods are used to construct prismeshs.
+// prismesh_finalize() must be called after a mesh has been properly
+// constructed.
+//------------------------------------------------------------------------
+
+/// Creates a new empty prismesh level defined within the segment [z1, z2] of 
+/// of the z axis, with cellular columns defined by the given planar polymesh.
+/// \param comm [in] The communicator on which the mesh is constructed.
 /// \param columns [in] A planar polygonal mesh that defines a set of connected
-///                     polygonal columns for the prismesh. This mesh must be 
-///                     defined on the communicator MPI_COMM_SELF. In other words,
-///                     the mesh must not be distributed across different processes.
-/// \param num_vertical_cells [in] The number of cells along the z axis.
+///                     polygonal columns for the prismesh. 
 /// \param z1 [in] The z coordinate of the lower boundary of the mesh.
 /// \param z2 [in] The z coordinate of the upper boundary of the mesh.
+/// \param num_xy_chunks [in] The number of chunks in the distributed mesh within the xy plane.
+/// \param num_z_chunks [in] The number of chunks in the distributed mesh along the z axis.
+/// \param nz [in] The total number of mesh cells along the z axis.
+/// \returns A newly created prismesh containing no chunks.
+/// \memberof prismesh
+prismesh_t* create_empty_prismesh(MPI_Comm comm, 
+                                  planar_polymesh_t* columns,
+                                  real_t z1, real_t z2,
+                                  size_t num_xy_chunks, size_t num_z_chunks,
+                                  size_t nz);
+
+/// Inserts a new locally-stored chunk with the given xy and z indices into the mesh.
+/// \param xy_index [in] The index identifying the polygonal column that contains the new chunk.
+/// \param z_index [in] The index identifying the vertical (z) segment that contains the new chunk.
+/// \memberof prismesh
+void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index);
+
+/// Finalizes the construction process for the prismesh. This must be called 
+/// before any of the mesh's usage methods (below) are invoked. Should only 
+/// be called once.
+/// \memberof prismesh
+void prismesh_finalize(prismesh_t* mesh);
+
+//------------------------------------------------------------------------
+//                          Ready-made constructors
+//------------------------------------------------------------------------
+// The following methods create prismeshes that are ready to go.
+// No need to call prismesh_finalize() on these.
+//------------------------------------------------------------------------
+
+/// Creates a prismesh consisting of polygonal columns from the given 
+/// (global) planar polygonal mesh.
+/// \param comm [in] The communicator on which the mesh is constructed.
+/// \param columns [in] A planar polygonal mesh that defines a set of connected
+///                     polygonal columns for the prismesh. 
+/// \param z1 [in] The z coordinate of the lower boundary of the mesh.
+/// \param z2 [in] The z coordinate of the upper boundary of the mesh.
+/// \param nz [in] The total number of cells along the z axis.
 /// \returns A newly created prismesh.
 /// \memberof prismesh
 /// \collective Collective on comm.
 prismesh_t* prismesh_new(MPI_Comm comm,
                          planar_polymesh_t* columns,
-                         size_t num_vertical_cells,
-                         real_t z1, real_t z2);
+                         real_t z1, real_t z2,
+                         size_t nz);
  
+//------------------------------------------------------------------------
+//                          Usage methods
+//------------------------------------------------------------------------
+// The following methods can only be used after a prismesh has been 
+// fully constructed and finalized.
+//------------------------------------------------------------------------
+
 /// Destroys the given mesh.
 /// \memberof prismesh
 void prismesh_free(prismesh_t* mesh);

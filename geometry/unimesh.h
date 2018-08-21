@@ -56,10 +56,9 @@ typedef struct unimesh_patch_t unimesh_patch_t;
 // constructed.
 //------------------------------------------------------------------------
 
-/// Creates a new empty mesh level defined on the region filling 
-/// the given bounding box with npx x npy x npz patches of size nx x ny x nz. 
-/// Use periodic_in_[x,y,z] to indicate whether the mesh is periodic in the 
-/// x, y, and/or z directions. This mesh is not associated with any other meshs.
+/// Creates a new empty unimesh defined on the region filling the given bounding box 
+/// with npx x npy x npz patches of size nx x ny x nz. Use periodic_in_[x,y,z] to 
+/// indicate whether the mesh is periodic in the x, y, and/or z directions.
 /// \memberof unimesh
 unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox, 
                                 int npx, int npy, int npz, 
@@ -87,7 +86,18 @@ void unimesh_finalize(unimesh_t* mesh);
 /// of patches in the x, y, and z directions, each patch having nx x ny x nz
 /// cells, filling the region defined by the given bounding box.
 /// The initial partitioning for this mesh isn't great, so you might want to 
-/// use repartition_unimesh() to improve it.
+/// use \ref repartition_unimesh to improve it.
+/// \param comm [in] The communicator on which the unimesh is defined.
+/// \param bbox [in] The bounding box inside which the unimesh is defined.
+/// \param npx [in] The number of patches in the x direction for the mesh.
+/// \param npy [in] The number of patches in the y direction for the mesh.
+/// \param npz [in] The number of patches in the z direction for the mesh.
+/// \param nx [in] The number of cells in the x direction for each patch.
+/// \param ny [in] The number of cells in the y direction for each patch.
+/// \param nz [in] The number of cells in the z direction for each patch.
+/// \param periodic_in_x [in] If true, the mesh is periodic in the x direction.
+/// \param periodic_in_y [in] If true, the mesh is periodic in the y direction.
+/// \param periodic_in_z [in] If true, the mesh is periodic in the z direction.
 /// \memberof unimesh
 unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
                        int npx, int npy, int npz, 
