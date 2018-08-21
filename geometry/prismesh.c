@@ -86,7 +86,7 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
 
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
   mesh->comm = comm;
-  mesh->columns = columns; // FIXME
+  mesh->columns = columns; 
   mesh->chunks = chunk_array_new();
   mesh->num_columns = (size_t)columns->num_cells;
   mesh->nz = nz;
@@ -113,6 +113,8 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
 void prismesh_finalize(prismesh_t* mesh)
 {
   ASSERT(!mesh->finalized);
+  planar_polymesh_free(mesh->columns);
+  mesh->columns = NULL;
   mesh->finalized = true;
 }
 
@@ -205,6 +207,8 @@ prismesh_t* prismesh_new(MPI_Comm comm,
 void prismesh_free(prismesh_t* mesh)
 {
   chunk_array_free(mesh->chunks);
+  if (mesh->columns != NULL)
+    planar_polymesh_free(mesh->columns);
   polymec_free(mesh);
 }
 

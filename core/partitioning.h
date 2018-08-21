@@ -38,6 +38,22 @@ int64_t* partition_graph(adj_graph_t* global_graph,
                          real_t imbalance_tol, 
                          bool broadcast);
 
+/// Partitions a (serial) global graph into n pieces, creating a returning a 
+/// global partition vector. Unlike \ref partition_graph, this function 
+/// performs the partitioning on every process and returns the partition 
+/// vector on every process.
+/// \param n [in] The number of pieces that graph will be cut into.
+/// \param weights [in] An array of weights for the graph's vertices, or NULL.
+/// \param imbalance_tol [in] A number between 0 and 1 representing the maximum 
+///                           acceptable load imbalance, defined by the ratio 
+///                           of the load on any given vertex to the average load.
+/// \returns A partition vector whose ith component indicates which of the n 
+///          pieces the graph vertex i belongs to.
+int64_t* partition_graph_n_ways(adj_graph_t* global_graph, 
+                                int n,
+                                int* weights,
+                                real_t imbalance_tol);
+
 /// Partitions a (serial) list of points, creating and returning a global 
 /// partition vector. If broadcast is true, the partition vector is broadcasted
 /// and returned on all ranks. Otherwise only rank 0 returns the partition vector,
