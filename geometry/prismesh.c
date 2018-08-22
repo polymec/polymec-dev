@@ -17,36 +17,61 @@
 
 DEFINE_ARRAY(chunk_array, prismesh_chunk_t*)
 
-static prismesh_chunk_t* chunk_from_planar_polymesh(planar_polymesh_t* mesh,
-                                                    real_t z1, real_t z2,
-                                                    size_t nz)
+// Chunk xy data. Shared across all "stacked" chunks.
+typedef struct 
 {
-  ASSERT(z1 < z2);
-  prismesh_chunk_t* chunk = polymec_malloc(sizeof(prismesh_chunk_t));
-  chunk->num_columns = (size_t)mesh->num_cells;
-  chunk->num_z_cells = nz;
-  chunk->z1 = z1;
-  chunk->z2 = z2;
+  size_t num_columns;
+  size_t num_z_cells;
+  real_t z1, z2;
+  int* column_xy_face_offsets;
+  int* column_xy_faces;
+  int* xy_face_columns;
+  size_t num_xy_faces;
+  size_t num_xy_edges;
+  size_t num_xy_nodes;
+  point2_t* xy_nodes;
+} chunk_xy_data_t;
+
+DEFINE_ARRAY(chunk_xy_data_array, chunk_xy_data_t*)
+
+static void free_chunk_xy_data(chunk_xy_data_t* xy_data)
+{
+  polymec_free(xy_data->xy_nodes);
+  polymec_free(xy_data->xy_face_columns);
+  polymec_free(xy_data->column_xy_faces);
+  polymec_free(xy_data->column_xy_face_offsets);
+  polymec_free(xy_data);
+}
+
+static chunk_xy_data_array_t* create_chunk_xy_data(planar_polymesh_t* mesh,
+                                                   int64_t* partition_vector)
+{
+  chunk_xy_data_array_t* all_xy_data = chunk_xy_data_array_new();
+
+  chunk_xy_data_t* xy_data = polymec_malloc(sizeof(chunk_xy_data_t));
+
+  xy_data->num_columns = (size_t)mesh->num_cells;
 
   // cell -> xy face connectivity.
-  chunk->column_xy_face_offsets = polymec_malloc(sizeof(int) * (chunk->num_columns+1));
-  memcpy(chunk->column_xy_face_offsets, mesh->cell_edge_offsets, sizeof(int) * (chunk->num_columns+1));
+  xy_data->column_xy_face_offsets = polymec_malloc(sizeof(int) * (xy_data->num_columns+1));
+  memcpy(xy_data->column_xy_face_offsets, mesh->cell_edge_offsets, sizeof(int) * (xy_data->num_columns+1));
 
-  chunk->column_xy_faces = polymec_malloc(sizeof(int) * chunk->column_xy_face_offsets[chunk->num_columns]);
-  memcpy(chunk->column_xy_faces, mesh->cell_edges, sizeof(int) * chunk->column_xy_face_offsets[chunk->num_columns]);
+  xy_data->column_xy_faces = polymec_malloc(sizeof(int) * xy_data->column_xy_face_offsets[xy_data->num_columns]);
+  memcpy(xy_data->column_xy_faces, mesh->cell_edges, sizeof(int) * xy_data->column_xy_face_offsets[xy_data->num_columns]);
 
   // xy face -> cell connectivity.
-  chunk->num_xy_faces = (size_t)mesh->num_edges;
-  chunk->xy_face_columns = polymec_malloc(sizeof(int) * 2 * chunk->num_xy_faces);
-  memcpy(chunk->xy_face_columns, mesh->edge_cells, sizeof(int) * 2 * chunk->num_xy_faces);
+  xy_data->num_xy_faces = (size_t)mesh->num_edges;
+  xy_data->xy_face_columns = polymec_malloc(sizeof(int) * 2 * xy_data->num_xy_faces);
+  memcpy(xy_data->xy_face_columns, mesh->edge_cells, sizeof(int) * 2 * xy_data->num_xy_faces);
 
   // Node xy coordinates.
-  chunk->num_xy_edges = (size_t)mesh->num_edges;
-  chunk->num_xy_nodes = (size_t)mesh->num_nodes;
-  chunk->xy_nodes = polymec_malloc(sizeof(point2_t) * chunk->num_xy_nodes);
-  memcpy(chunk->xy_nodes, mesh->nodes, sizeof(point2_t) * chunk->num_xy_nodes);
+  xy_data->num_xy_edges = (size_t)mesh->num_edges;
+  xy_data->num_xy_nodes = (size_t)mesh->num_nodes;
+  xy_data->xy_nodes = polymec_malloc(sizeof(point2_t) * xy_data->num_xy_nodes);
+  memcpy(xy_data->xy_nodes, mesh->nodes, sizeof(point2_t) * xy_data->num_xy_nodes);
 
-  return chunk;
+  chunk_xy_data_array_append_with_dtor(all_xy_data, xy_data, free_chunk_xy_data);
+  return all_xy_data;
 }
 
 static void free_chunk(prismesh_chunk_t* chunk)
@@ -64,6 +89,7 @@ struct prismesh_t
   int nproc, rank;
 
   planar_polymesh_t* columns;
+  chunk_xy_data_array_t* chunk_xy_data;
   chunk_array_t* chunks;
   int_array_t* xy_indices;
   int_array_t* z_indices;
@@ -88,7 +114,6 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
 
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
   mesh->comm = comm;
-  mesh->columns = columns; 
   mesh->chunks = chunk_array_new();
   mesh->xy_indices = int_array_new();
   mesh->z_indices = int_array_new();
@@ -101,6 +126,17 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   MPI_Comm_rank(comm, &mesh->rank);
   mesh->finalized = false;
 
+  // Partition the planar polymesh.
+  adj_graph_t* graph = graph_from_planar_polymesh_cells(columns);
+  int64_t* P = partition_graph_n_ways(graph, num_xy_chunks, NULL, 0.05);
+
+  // Create xy data for chunks.
+  mesh->chunk_xy_data = create_chunk_xy_data(columns, P);
+
+  // Clean up.
+  adj_graph_free(graph);
+  polymec_free(P);
+
   return mesh;
 }
 
@@ -112,13 +148,29 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
   ASSERT(z_index >= 0);
   ASSERT(z_index < mesh->num_z_chunks);
 
+  prismesh_chunk_t* chunk = polymec_malloc(sizeof(prismesh_chunk_t));
+
+  // Chunk xy data.
+  chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy_index];
+  chunk->num_columns = xy_data->num_columns;
+  chunk->column_xy_face_offsets = xy_data->column_xy_face_offsets;
+  chunk->column_xy_faces = xy_data->column_xy_faces;
+  chunk->num_xy_faces = xy_data->num_xy_faces;
+  chunk->xy_face_columns = xy_data->xy_face_columns;
+  chunk->num_xy_edges = xy_data->num_xy_edges;
+  chunk->num_xy_nodes = xy_data->num_xy_nodes;
+  chunk->xy_nodes = xy_data->xy_nodes;
+
+  // Chunk z data.
   size_t nz = mesh->nz_per_chunk * mesh->num_z_chunks;
   real_t dz = (mesh->z2 - mesh->z1) / nz;
   real_t z1 = mesh->z1 + z_index * dz;
   real_t z2 = mesh->z1 + (z_index+1) * dz;
-  prismesh_chunk_t* chunk = chunk_from_planar_polymesh(mesh->columns, 
-                                                       z1, z2, 
-                                                       mesh->nz_per_chunk);
+  chunk->num_z_cells = nz;
+  chunk->z1 = z1;
+  chunk->z2 = z2;
+
+  // Add this chunk to our list.
   chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
   int_array_append(mesh->xy_indices, xy_index);
   int_array_append(mesh->z_indices, z_index);
@@ -127,8 +179,28 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
 void prismesh_finalize(prismesh_t* mesh)
 {
   ASSERT(!mesh->finalized);
-  planar_polymesh_free(mesh->columns);
-  mesh->columns = NULL;
+
+  // Sift through the xy data array and get rid of the entries we don't 
+  // use locally.
+  size_t num_xy_indices = mesh->xy_indices->size;
+  bool used[num_xy_indices];
+  memset(used, 0, sizeof(bool) * num_xy_indices);
+  for (size_t i = 0; i < num_xy_indices; ++i)
+  {
+    int xy_index = mesh->xy_indices->data[i];
+    used[xy_index] = true;
+  }
+
+  for (size_t i = 0; i < mesh->chunk_xy_data->size; ++i)
+  {
+    if (!used[i])
+    {
+      free_chunk_xy_data(mesh->chunk_xy_data->data[i]);
+      mesh->chunk_xy_data->data[i] = NULL;
+      mesh->chunk_xy_data->dtors[i] = NULL;
+    }
+  }
+
   mesh->finalized = true;
 }
 
@@ -223,6 +295,7 @@ void prismesh_free(prismesh_t* mesh)
   int_array_free(mesh->z_indices);
   int_array_free(mesh->xy_indices);
   chunk_array_free(mesh->chunks);
+  chunk_xy_data_array_free(mesh->chunk_xy_data);
   if (mesh->columns != NULL)
     planar_polymesh_free(mesh->columns);
   polymec_free(mesh);
@@ -271,12 +344,16 @@ polygon_t* prismesh_chunk_polygon(prismesh_chunk_t* chunk, int column)
   return polygon_new(vertices, num_nodes);
 }
 
-bool prismesh_next_chunk(prismesh_t* mesh, int* pos, prismesh_chunk_t** chunk)
+bool prismesh_next_chunk(prismesh_t* mesh, int* pos, 
+                         int* xy_index, int* z_index,
+                         prismesh_chunk_t** chunk)
 {
   if (*pos >= (int)mesh->chunks->size)
     return false;
   else
   {
+    *xy_index = mesh->xy_indices->data[*pos];
+    *z_index = mesh->z_indices->data[*pos];
     *chunk = mesh->chunks->data[*pos];
     ++(*pos);
     return true;

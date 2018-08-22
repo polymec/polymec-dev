@@ -100,8 +100,7 @@ typedef struct prismesh_chunk_t prismesh_chunk_t;
 /// of the z axis, with cellular columns defined by the given planar polymesh.
 /// \param comm [in] The communicator on which the mesh is constructed.
 /// \param columns [in] A planar polygonal mesh that defines a set of connected
-///                     polygonal columns for the prismesh. Ownership of this 
-///                     mesh is passed to the newly-created prismesh.
+///                     polygonal columns for the prismesh. 
 /// \param z1 [in] The z coordinate of the lower boundary of the mesh.
 /// \param z2 [in] The z coordinate of the upper boundary of the mesh.
 /// \param num_xy_chunks [in] The number of chunks in the distributed mesh within the xy plane.
@@ -185,10 +184,16 @@ real_t prismesh_z1(prismesh_t* mesh);
 /// \memberof prismesh
 real_t prismesh_z2(prismesh_t* mesh);
 
-/// Traverses the locally-stored chunks in the mesh, returning true and the 
-/// next chunk if the traversal is incomplete, false otherwise. 
+/// Traverses the locally-stored chunks in the mesh.
+/// \param pos [in,out] Controls the traversal. Set to 0 to reset traversal.
+/// \param xy_index [out] Stores the xy index of the next chunk.
+/// \param z_index [out] Stores the z index of the next chunk.
+/// \param chunk [out] Stores the next chunk.
+/// \returns true if more locally-stored chunks remain, false otherwise. 
 /// \memberof prismesh
-bool prismesh_next_chunk(prismesh_t* mesh, int* pos, prismesh_chunk_t** chunk);
+bool prismesh_next_chunk(prismesh_t* mesh, int* pos, 
+                         int* xy_index, int* z_index,
+                         prismesh_chunk_t** chunk);
 
 /// Returns a newly created polygon that represents the geometry of the 
 /// given column in the chunk.

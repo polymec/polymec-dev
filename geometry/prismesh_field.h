@@ -67,12 +67,15 @@ size_t prismesh_field_num_chunks(prismesh_field_t* field);
 prismesh_t* prismesh_field_mesh(prismesh_field_t* field);
 
 /// Traverses locally-stored field data chunk by chunk.
-/// \param [in,out] pos Controls the traversal. Set to 0 to reset.
-/// \param [out] chunk Stores the chunk found in the traversal.
-/// \param [out] data Stores the chunk data associated with \ref chunk.
+/// \param pos [in,out] Controls the traversal. Set to 0 to reset.
+/// \param xy_index [out] Stores the xy index of the next chunk.
+/// \param z_index [out] Stores the z index of the next chunk.
+/// \param chunk [out] Stores the chunk found in the traversal.
+/// \param data [out] Stores the chunk data associated with \ref chunk.
 /// \returns true if a locally-stored chunk is found, false if not.
 /// \memberof prismesh_field
 bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos, 
+                               int* xy_index, int* z_index,
                                prismesh_chunk_t** chunk, 
                                prismesh_chunk_data_t** data);
 

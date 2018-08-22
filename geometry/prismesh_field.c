@@ -82,9 +82,9 @@ prismesh_field_t* prismesh_field_new(prismesh_t* mesh,
   field->num_components = num_components;
 
   // Create data for each of the chunks in the mesh.
-  int pos = 0;
+  int pos = 0, xy_index, z_index;
   prismesh_chunk_t* chunk;
-  while (prismesh_next_chunk(mesh, &pos, &chunk))
+  while (prismesh_next_chunk(mesh, &pos, &xy_index, &z_index, &chunk))
   {
     prismesh_chunk_data_t* data = prismesh_chunk_data_new(chunk, centering, num_components);
     chunk_data_array_append_with_dtor(field->chunk_data, data, prismesh_chunk_data_free);
@@ -119,6 +119,7 @@ prismesh_t* prismesh_field_mesh(prismesh_field_t* field)
 }
 
 bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos, 
+                               int* xy_index, int* z_index,
                                prismesh_chunk_t** chunk, 
                                prismesh_chunk_data_t** data)
 {
@@ -127,7 +128,7 @@ bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos,
   else
   {
     *data = field->chunk_data->data[*pos];
-    return prismesh_next_chunk(field->mesh, pos, chunk);
+    return prismesh_next_chunk(field->mesh, pos, xy_index, z_index, chunk);
   }
 }
 
