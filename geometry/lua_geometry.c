@@ -1616,40 +1616,57 @@ static lua_module_function prismesh_funcs[] = {
   {NULL, NULL, NULL}
 };
 
-static int pxmesh_num_chunks(lua_State* L)
+static int pmesh_num_chunks(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
   lua_pushinteger(L, prismesh_num_chunks(m));
   return 1;
 }
 
-static int pxmesh_num_columns(lua_State* L)
+static int pmesh_num_xy_chunks(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_pushinteger(L, prismesh_num_columns(m));
+  lua_pushinteger(L, prismesh_num_xy_chunks(m));
   return 1;
 }
 
-static int pxmesh_num_vertical_cells(lua_State* L)
+static int pmesh_num_z_chunks(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_pushinteger(L, prismesh_num_vertical_cells(m));
+  lua_pushinteger(L, prismesh_num_z_chunks(m));
+  return 1;
+}
+
+static int pmesh_z1(lua_State* L)
+{
+  prismesh_t* m = lua_to_prismesh(L, 1);
+  lua_push_real(L, prismesh_z1(m));
+  return 1;
+}
+
+static int pmesh_z2(lua_State* L)
+{
+  prismesh_t* m = lua_to_prismesh(L, 1);
+  lua_push_real(L, prismesh_z2(m));
   return 1;
 }
 
 static lua_class_field prismesh_fields[] = {
-  {"num_chunks", pxmesh_num_chunks, NULL},
-  {"num_columns", pxmesh_num_columns, NULL},
-  {"num_vertical_cells", pxmesh_num_vertical_cells, NULL},
+  {"num_chunks", pmesh_num_chunks, NULL},
+  {"num_xy_chunks", pmesh_num_xy_chunks, NULL},
+  {"num_z_chunks", pmesh_num_z_chunks, NULL},
+  {"z1", pmesh_z1, NULL},
+  {"z2", pmesh_z2, NULL},
   {NULL, NULL, NULL}
 };
 
 static int prismesh_tostring(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_pushfstring(L, "prismesh (%d chunks, %d columns, %d vertical cells)", 
-                  (int)prismesh_num_chunks(m), (int)prismesh_num_columns(m),
-                  (int)prismesh_num_vertical_cells(m));
+  lua_pushfstring(L, "prismesh (%d chunks, %d xy chunks, %d z chunks, z1 = %g, z2 = %g)", 
+                  (int)prismesh_num_chunks(m), (int)prismesh_num_xy_chunks(m),
+                  (int)prismesh_num_z_chunks(m), (double)prismesh_z1(m), 
+                  (double)prismesh_z2(m));
   return 1;
 }
 

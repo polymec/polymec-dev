@@ -65,7 +65,9 @@ struct prismesh_t
 
   planar_polymesh_t* columns;
   chunk_array_t* chunks;
-  size_t num_columns, nz;
+  int_array_t* xy_indices;
+  int_array_t* z_indices;
+  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
   real_t z1, z2;
 
   // This flag is set by prismesh_finalize() after a mesh has been assembled.
@@ -76,20 +78,23 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
                                   planar_polymesh_t* columns,
                                   real_t z1, real_t z2,
                                   size_t num_xy_chunks, size_t num_z_chunks,
-                                  size_t nz)
+                                  size_t nz_per_chunk)
 {
   ASSERT(columns != NULL);
   ASSERT(z1 < z2);
   ASSERT(num_xy_chunks > 0);
   ASSERT(num_z_chunks > 0);
-  ASSERT(nz > 0);
+  ASSERT(nz_per_chunk > 0);
 
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
   mesh->comm = comm;
   mesh->columns = columns; 
   mesh->chunks = chunk_array_new();
-  mesh->num_columns = (size_t)columns->num_cells;
-  mesh->nz = nz;
+  mesh->xy_indices = int_array_new();
+  mesh->z_indices = int_array_new();
+  mesh->num_xy_chunks = num_xy_chunks;
+  mesh->num_z_chunks = num_z_chunks;
+  mesh->nz_per_chunk = nz_per_chunk;
   mesh->z1 = z1;
   mesh->z2 = z2;
   MPI_Comm_size(comm, &mesh->nproc);
@@ -102,12 +107,21 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
 void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
 {
   ASSERT(!mesh->finalized);
+  ASSERT(xy_index >= 0);
+  ASSERT(xy_index < mesh->num_xy_chunks);
+  ASSERT(z_index >= 0);
+  ASSERT(z_index < mesh->num_z_chunks);
 
-  // FIXME
+  size_t nz = mesh->nz_per_chunk * mesh->num_z_chunks;
+  real_t dz = (mesh->z2 - mesh->z1) / nz;
+  real_t z1 = mesh->z1 + z_index * dz;
+  real_t z2 = mesh->z1 + (z_index+1) * dz;
   prismesh_chunk_t* chunk = chunk_from_planar_polymesh(mesh->columns, 
-                                                       mesh->z1, mesh->z2,
-                                                       mesh->nz);
+                                                       z1, z2, 
+                                                       mesh->nz_per_chunk);
   chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
+  int_array_append(mesh->xy_indices, xy_index);
+  int_array_append(mesh->z_indices, z_index);
 }
 
 void prismesh_finalize(prismesh_t* mesh)
@@ -206,6 +220,8 @@ prismesh_t* prismesh_new(MPI_Comm comm,
 
 void prismesh_free(prismesh_t* mesh)
 {
+  int_array_free(mesh->z_indices);
+  int_array_free(mesh->xy_indices);
   chunk_array_free(mesh->chunks);
   if (mesh->columns != NULL)
     planar_polymesh_free(mesh->columns);
@@ -222,19 +238,14 @@ size_t prismesh_num_chunks(prismesh_t* mesh)
   return mesh->chunks->size;
 }
 
-size_t prismesh_num_columns(prismesh_t* mesh)
+size_t prismesh_num_xy_chunks(prismesh_t* mesh)
 {
-  return mesh->num_columns;
+  return mesh->num_xy_chunks;
 }
 
-size_t prismesh_num_vertical_cells(prismesh_t* mesh)
+size_t prismesh_num_z_chunks(prismesh_t* mesh)
 {
-  return mesh->nz;
-}
-
-size_t prismesh_num_cells(prismesh_t* mesh)
-{
-  return mesh->num_columns * mesh->nz;
+  return mesh->num_z_chunks;
 }
 
 real_t prismesh_z1(prismesh_t* mesh)

@@ -106,14 +106,14 @@ typedef struct prismesh_chunk_t prismesh_chunk_t;
 /// \param z2 [in] The z coordinate of the upper boundary of the mesh.
 /// \param num_xy_chunks [in] The number of chunks in the distributed mesh within the xy plane.
 /// \param num_z_chunks [in] The number of chunks in the distributed mesh along the z axis.
-/// \param nz [in] The total number of mesh cells along the z axis.
+/// \param nz_per_chunk [in] The number of mesh cells along the z axis in a chunk.
 /// \returns A newly created prismesh containing no chunks.
 /// \memberof prismesh
 prismesh_t* create_empty_prismesh(MPI_Comm comm, 
                                   planar_polymesh_t* columns,
                                   real_t z1, real_t z2,
                                   size_t num_xy_chunks, size_t num_z_chunks,
-                                  size_t nz);
+                                  size_t nz_per_chunk);
 
 /// Inserts a new locally-stored chunk with the given xy and z indices into the mesh.
 /// \param xy_index [in] The index identifying the polygonal column that contains the new chunk.
@@ -169,20 +169,13 @@ MPI_Comm prismesh_comm(prismesh_t* mesh);
 /// \memberof prismesh
 size_t prismesh_num_chunks(prismesh_t* mesh);
 
-/// Returns the total number of columns in the prismesh, as seen 
-/// looking down on its top boundary. This is *not* the same as the 
-/// total number of prismesh_columns globally accessible in the mesh, 
-/// since these columns are divided along the z axis for scalability.
+/// Returns the total number of chunks that the mesh can store in the xy plane.
 /// \memberof prismesh
-size_t prismesh_num_columns(prismesh_t* mesh);
+size_t prismesh_num_xy_chunks(prismesh_t* mesh);
 
-/// Returns the total number of cells along the z axis in the prismesh.
+/// Returns the total number of chunks that the mesh can store along the z axis.
 /// \memberof prismesh
-size_t prismesh_num_vertical_cells(prismesh_t* mesh);
-
-/// Returns the total number of locally-stored cells in the prismesh.
-/// \memberof prismesh
-size_t prismesh_num_cells(prismesh_t* mesh);
+size_t prismesh_num_z_chunks(prismesh_t* mesh);
 
 /// Returns the z coordinate of the bottom boundary of the mesh.
 /// \memberof prismesh
