@@ -56,6 +56,31 @@ static int hilbert_comp(const void* l, const void* r)
 
 #endif
 
+static void extract_graph_info(adj_graph_t* graph,
+                               int* weights,
+                               SCOTCH_Num** xadj, 
+                               SCOTCH_Num** adj, 
+                               SCOTCH_Num *num_arcs,
+                               SCOTCH_Num** vtx_weights)
+{
+  size_t num_vertices = adj_graph_num_vertices(graph);
+  *xadj = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices+1));
+  int* edge_offsets = adj_graph_edge_offsets(graph);
+  for (int i = 0; i <= num_vertices; ++i)
+    (*xadj)[i] = (SCOTCH_Num)edge_offsets[i];
+  *num_arcs = (*xadj)[num_vertices];
+  *adj = polymec_malloc(sizeof(SCOTCH_Num) * (*num_arcs));
+  int* edges = adj_graph_adjacency(graph);
+  for (int i = 0; i < *num_arcs; ++i)
+    (*adj)[i] = (SCOTCH_Num)edges[i];
+  if (weights != NULL)
+  {
+    *vtx_weights = polymec_malloc(sizeof(SCOTCH_Num) * num_vertices);
+    for (int i = 0; i < num_vertices; ++i)
+      (*vtx_weights)[i] = (SCOTCH_Num)weights[i];
+  }
+}
+
 int64_t* partition_graph(adj_graph_t* global_graph, 
                          MPI_Comm comm,
                          int* weights,
@@ -81,24 +106,11 @@ int64_t* partition_graph(adj_graph_t* global_graph,
     num_global_vertices = adj_graph_num_vertices(global_graph);
 
     // Extract the adjacency information.
-    xadj = polymec_malloc(sizeof(SCOTCH_Num) * (num_global_vertices+1));
-    int* edge_offsets = adj_graph_edge_offsets(global_graph);
-    for (int i = 0; i <= num_global_vertices; ++i)
-      xadj[i] = (SCOTCH_Num)edge_offsets[i];
-    SCOTCH_Num num_arcs = xadj[num_global_vertices];
-    adj = polymec_malloc(sizeof(SCOTCH_Num) * num_arcs);
-    int* edges = adj_graph_adjacency(global_graph);
-    for (int i = 0; i < xadj[num_global_vertices]; ++i)
-      adj[i] = (SCOTCH_Num)edges[i];
+    SCOTCH_Num num_arcs;
+    extract_graph_info(global_graph, weights, &xadj, &adj, &num_arcs, &vtx_weights);
 
     // Build a graph on rank 0.
     SCOTCH_dgraphInit(&dist_graph, MPI_COMM_SELF);
-    if (weights != NULL)
-    {
-      vtx_weights = polymec_malloc(sizeof(SCOTCH_Num) * num_global_vertices);
-      for (int i = 0; i < num_global_vertices; ++i)
-        vtx_weights[i] = (SCOTCH_Num)weights[i];
-    }
     SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_global_vertices, (SCOTCH_Num)num_global_vertices,
         xadj, NULL, vtx_weights, NULL, num_arcs, num_arcs,
         adj, NULL, NULL);
@@ -148,7 +160,7 @@ int64_t* partition_graph(adj_graph_t* global_graph,
 }
 
 int64_t* partition_graph_n_ways(adj_graph_t* global_graph, 
-                                int n,
+                                size_t n,
                                 int* weights,
                                 real_t imbalance_tol)
 {
@@ -156,30 +168,19 @@ int64_t* partition_graph_n_ways(adj_graph_t* global_graph,
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
   START_FUNCTION_TIMER();
   ASSERT(global_graph != NULL);
-  SCOTCH_Dgraph dist_graph;
-  SCOTCH_Num *vtx_weights = NULL;
-  size_t num_global_vertices = adj_graph_num_vertices(global_graph);
+
   // Extract the adjacency information.
-  SCOTCH_Num* xadj = polymec_malloc(sizeof(SCOTCH_Num) * (num_global_vertices+1));
-  int* edge_offsets = adj_graph_edge_offsets(global_graph);
-  for (int i = 0; i <= num_global_vertices; ++i)
-    xadj[i] = (SCOTCH_Num)edge_offsets[i];
-  SCOTCH_Num num_arcs = xadj[num_global_vertices];
-  SCOTCH_Num* adj = polymec_malloc(sizeof(SCOTCH_Num) * num_arcs);
-  int* edges = adj_graph_adjacency(global_graph);
-  for (int i = 0; i < xadj[num_global_vertices]; ++i)
-    adj[i] = (SCOTCH_Num)edges[i];
+  SCOTCH_Num *vtx_weights = NULL, *xadj = NULL, *adj = NULL, num_arcs = 0;
+  extract_graph_info(global_graph, weights, &xadj, &adj, &num_arcs, &vtx_weights);
+
   // Build a graph.
+  size_t num_global_vertices = adj_graph_num_vertices(global_graph);
+  SCOTCH_Dgraph dist_graph;
   SCOTCH_dgraphInit(&dist_graph, MPI_COMM_SELF);
-  if (weights != NULL)
-  {
-    vtx_weights = polymec_malloc(sizeof(SCOTCH_Num) * num_global_vertices);
-    for (int i = 0; i < num_global_vertices; ++i)
-      vtx_weights[i] = (SCOTCH_Num)weights[i];
-  }
   SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_global_vertices, (SCOTCH_Num)num_global_vertices,
                      xadj, NULL, vtx_weights, NULL, num_arcs, num_arcs,
                      adj, NULL, NULL);
+
   // Cut up the graph -> global partition vector.
   int64_t* global_partition = polymec_malloc(sizeof(int64_t) * num_global_vertices);
   SCOTCH_Strat strategy;
@@ -361,20 +362,13 @@ int64_t* repartition_graph(adj_graph_t* local_graph,
   MPI_Comm comm = adj_graph_comm(local_graph);
   MPI_Comm_size(comm, &nprocs);
   MPI_Comm_rank(comm, &rank);
-  size_t num_vertices = adj_graph_num_vertices(local_graph);
 
   // Extract the adjacency information.
-  SCOTCH_Num* xadj = polymec_malloc(sizeof(SCOTCH_Num) * (num_vertices+1));
-  int* edge_offsets = adj_graph_edge_offsets(local_graph);
-  for (int i = 0; i <= num_vertices; ++i)
-    xadj[i] = (SCOTCH_Num)edge_offsets[i];
-  SCOTCH_Num num_arcs = xadj[num_vertices];
-  SCOTCH_Num* adj = polymec_malloc(sizeof(SCOTCH_Num) * num_arcs);
-  int* edges = adj_graph_adjacency(local_graph);
-  for (int i = 0; i < xadj[num_vertices]; ++i)
-    adj[i] = (SCOTCH_Num)edges[i];
+  SCOTCH_Num *vtx_weights = NULL, *xadj = NULL, *adj = NULL, num_arcs = 0;
+  extract_graph_info(local_graph, weights, &xadj, &adj, &num_arcs, &vtx_weights);
 
   // Replace the ghost entries in adj with global indices.
+  size_t num_vertices = adj_graph_num_vertices(local_graph);
   index_t* vtx_dist = adj_graph_vertex_dist(local_graph);
   {
     index_t* global_indices = polymec_malloc(sizeof(index_t) * (num_vertices + num_ghost_vertices));
@@ -387,13 +381,6 @@ int64_t* repartition_graph(adj_graph_t* local_graph,
   }
 
   // Build a distributed graph.
-  SCOTCH_Num* vtx_weights = NULL;
-  if (weights != NULL)
-  {
-    vtx_weights = polymec_malloc(sizeof(SCOTCH_Num) * num_vertices);
-    for (int i = 0; i < num_vertices; ++i)
-      vtx_weights[i] = (SCOTCH_Num)weights[i];
-  }
   SCOTCH_Dgraph dist_graph;
   SCOTCH_dgraphInit(&dist_graph, comm);
   SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_vertices, (SCOTCH_Num)num_vertices,

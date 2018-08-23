@@ -50,7 +50,7 @@ int64_t* partition_graph(adj_graph_t* global_graph,
 /// \returns A partition vector whose ith component indicates which of the n 
 ///          pieces the graph vertex i belongs to.
 int64_t* partition_graph_n_ways(adj_graph_t* global_graph, 
-                                int n,
+                                size_t n,
                                 int* weights,
                                 real_t imbalance_tol);
 
