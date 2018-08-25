@@ -326,7 +326,7 @@ static inline void vector_randomize(vector_t* vector, rng_t* rng, real_t magnitu
 /// \relates vector
 void compute_orthonormal_basis(vector_t* e1, vector_t* e2, vector_t* e3);
 
-/// \enum normal_orient
+/// \enum normal_orient_t
 /// This type allows us to distinguish between normal vectors that are 
 /// "outward" or "inward". This is useful for creating implicit functions 
 /// representing closed surfaces.

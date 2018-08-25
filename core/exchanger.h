@@ -211,7 +211,7 @@ void** exchanger_create_metadata_receive_arrays(exchanger_t* ex,
 void exchanger_free_metadata_receive_arrays(exchanger_t* ex,
                                             void** arrays);
  
-/// \enum exchanger_metadata_dir
+/// \enum exchanger_metadata_dir_t
 /// This enumerated type indicates the direction of metadata transfer. 
 /// EX_METADATA_FORWARD indicates a "forward" transfer (from sends to receives), 
 /// while EX_METADATA_REVERSE indicates a "reverse" transer (from receives to sends).
@@ -219,7 +219,7 @@ typedef enum
 {
   EX_METADATA_FORWARD,
   EX_METADATA_REVERSE
-} exchanger_metadata_dir;
+} exchanger_metadata_dir_t;
 
 /// Performs a transfer of metadata of the given type, with the given stride, 
 /// in the given direction.
@@ -230,7 +230,7 @@ void exchanger_transfer_metadata(exchanger_t* ex,
                                  int stride,
                                  int tag,
                                  MPI_Datatype type,
-                                 exchanger_metadata_dir direction);
+                                 exchanger_metadata_dir_t direction);
 
 /// Starts an asyncronous transfer of metadata, returning a token that can be used 
 /// to finish it.
@@ -241,7 +241,7 @@ int exchanger_start_metadata_transfer(exchanger_t* ex,
                                       int stride,
                                       int tag,
                                       MPI_Datatype type,
-                                      exchanger_metadata_dir direction);
+                                      exchanger_metadata_dir_t direction);
 
 /// Finishes the asyncronous metadata transfer associated with the given token.
 /// \memberof exchanger

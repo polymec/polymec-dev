@@ -13,7 +13,7 @@ struct lookup1_t
   real_t x_min, x_max, dx;
   int num_values;
   real_t *values, *fit_data;
-  lookup1_interpolation_t interp;
+  lookup1_interp_t interp;
   real_t (*compute)(lookup1_t*, real_t);
 };
 
@@ -42,7 +42,7 @@ static real_t lookup1_quadratic(lookup1_t* table, real_t x)
 }
 
 lookup1_t* lookup1_new(real_t x_min, real_t x_max, int num_values, 
-                       real_t* y_values, lookup1_interpolation_t interpolation)
+                       real_t* y_values, lookup1_interp_t interpolation)
 {
   ASSERT(x_min < x_max);
   ASSERT(num_values > 1);
@@ -148,7 +148,7 @@ int lookup1_num_values(lookup1_t* table)
   return table->num_values;
 }
 
-lookup1_interpolation_t lookup1_interpolation(lookup1_t* table)
+lookup1_interp_t lookup1_interpolation(lookup1_t* table)
 {
   return table->interp;
 }

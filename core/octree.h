@@ -19,7 +19,7 @@
 /// This is a PR (point-region) octree implementation. 
 typedef struct octree_t octree_t;
 
-/// \enum octree_traversal
+/// \enum octree_traversal_t
 /// This indicates an order in which to traverse an octree with 
 /// octree_visit(). There's no "in-order" traversal because there's no 
 /// unambiguous ordering of nodes in 3D space.
@@ -74,16 +74,18 @@ void octree_delete(octree_t* tree, int index);
 
 /// Traverses the octree, recursively visiting the nodes in the order 
 /// specified, and calling the appropriate visitor function for each 
-/// branch or leaf node encountered. The visitor functions are:
-///  visit_branch - Called on branch nodes with the context, the depth of 
-///                 the branch node, its branch index, and the branch index
-///                 of its parent. If this function returns true, its 
-///                 children will be visited in post-order traversals. 
-///                 Otherwise they will be skipped.
-///  visit_leaf - Called on leaf nodes with the context, the leaf index, 
-///               the point contained in the leaf, and the branch index of 
-///               the leaf's parent.
-///
+/// branch or leaf node encountered. 
+/// \param order [in] The order in which the nodes of the octree are traversed.
+/// \param context [in,out] The context passed to the visitor function(s).
+/// \param visit_branch [in] This function is called on branch nodes with the 
+///                          context, the depth of the branch node, its branch 
+///                          index, and the branch index of its parent. If 
+///                          this function returns true, its children will be 
+///                          visited in post-order traversals. Otherwise they 
+///                          will be skipped.
+/// \param visit_leaf [in] This function is called on leaf nodes with the 
+///                        context, the leaf index, the point contained in the 
+///                        leaf, and the branch index of the leaf's parent.
 /// In either function, if the node being visited is the root, it has no parent 
 /// and the parent_branch_index is -1.
 /// \memberof octree

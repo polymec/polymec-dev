@@ -27,10 +27,10 @@
 /// compression.
 void silo_enable_compression(int level);
 
-/// \struct silo_file_metadata
+/// \struct silo_field_metadata
 /// This type represents a collection of metadata for field variables in 
 /// Silo files. Objects of this type are garbage-collected.
-typedef struct 
+struct silo_field_metadata_t
 {
   char* label;                // A visualization label. Owned by metadata.
   char* units;                // Units of measure. Owned by metadata.
@@ -39,10 +39,11 @@ typedef struct
   int vector_component;       // The index of the vector component that the 
                               // field represents, or -1 if the field is not 
                               // the component of a vector.
-} silo_field_metadata_t;
+};
+typedef struct silo_field_metadata_t silo_field_metadata_t;
 
 /// Creates a new empty object for storing field metadata.
-/// \memberof silo_file_metadata_new
+/// \memberof silo_field_metadata
 silo_field_metadata_t* silo_field_metadata_new(void);
 
 /// \class silo_file
@@ -70,7 +71,7 @@ bool silo_file_query(const char* file_prefix,
 /// itself with the given simulation step number, which is incorporated into 
 /// its filename. 
 /// * If directory is the blank string (""), a directory named 
-///   <prefix>_<nprocs>procs is generated and used for parallel runs. For 
+///   `prefix`_`nprocs`procs is generated and used for parallel runs. For 
 ///   serial runs, the current working directory is used.
 /// * If the step is -1, the most recent step will be loaded, unless no files 
 ///   with step information can be found, in which case the single set of files 
@@ -87,7 +88,7 @@ silo_file_t* silo_file_new(MPI_Comm comm,
 /// Opens an existing Silo file for reading simulation data, returning the 
 /// Silo file object. 
 /// * If directory is the blank string (""), a directory named 
-///   <prefix>_<nprocs>procs is generated and used for parallel runs. For 
+///   `prefix`_`nprocs`procs is generated and used for parallel runs. For 
 ///   serial runs, the current working directory is used.
 /// * If the step is -1, the most recent step will be loaded, unless no files 
 ///   with step information can be found, in which case the single set of files 

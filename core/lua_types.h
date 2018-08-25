@@ -26,8 +26,11 @@ typedef struct lua_State lua_State;
 /// but doesn't need a setter if it is read only.
 typedef struct 
 {
+  /// The name of the field in the lua module.
   const char* name;
+  /// The function for retrieving this lua module field.
   int (*getter)(lua_State* L);
+  /// The function for setting the value of the lua module field.
   int (*setter)(lua_State* L);
 } lua_module_field;
 
@@ -35,8 +38,11 @@ typedef struct
 /// This type represents a function for a Lua module.
 typedef struct
 {
+  /// The name of the function in the lua module.
   const char* name;
+  /// The C function implementing the lua module function.
   int (*func)(lua_State* L);
+  /// A string documenting the lua module function.
   const char* doc;
 } lua_module_function;
 
@@ -56,7 +62,7 @@ void lua_register_module_function_table(lua_State* L,
                                         const char* table_doc,
                                         lua_module_function funcs[]);
 
-/// \enum lua_ownership
+/// \enum lua_ownership_t
 /// This type specifies whether a Lua object is owned by the Lua 
 /// environment or by some C component.
 typedef enum
@@ -71,8 +77,11 @@ typedef enum
 /// but doesn't need a setter if it is read only.
 typedef struct 
 {
+  /// The name of the field belonging to a lua class.
   const char* name;
+  /// The function that retrieves the lua class field.
   int (*getter)(lua_State* L);
+  /// The function that sets the value of the lua class field.
   int (*setter)(lua_State* L);
 } lua_class_field;
 
@@ -80,8 +89,11 @@ typedef struct
 /// This type represents a method for a Lua class.
 typedef struct
 {
+  /// The name of a method in a lua class.
   const char* name;
+  /// The C function that implements the lua class method.
   int (*method)(lua_State* L);
+  /// A string documenting the lua class method.
   const char* doc;
 } lua_class_method;
 

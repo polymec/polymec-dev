@@ -22,7 +22,7 @@
 /// model using it. Objects of this type are garbage-collected.
 typedef struct aux_state_t aux_state_t;
 
-/// \enum aux_state_var
+/// \enum aux_state_var_t
 /// This type describes quantities that can be stored in an auxiliary 
 /// state.
 typedef enum

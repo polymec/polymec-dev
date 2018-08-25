@@ -62,7 +62,7 @@ typedef struct
   void (*dtor)(void* context);
 } model_vtable;
 
-/// \enum model_parallelism
+/// \enum model_parallelism_t
 /// This type is used to identify the degree of parallelism that a given 
 /// model can take advantage of. We distinguish between five different "types"
 /// of parallelism, based on the implementation of the underlying model:
@@ -88,7 +88,7 @@ typedef enum
   MODEL_MPI_THREAD_SAFE 
 } model_parallelism_t;
 
-/// \enum model_diag_mode
+/// \enum model_diag_mode_t
 /// This type identifies one of two possible modes of operation for 
 /// diagnostics: plots and probe measurements:
 /// 1. MODEL_DIAG_EXACT_TIME: This tells the model to create plots and 

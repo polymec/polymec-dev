@@ -23,7 +23,7 @@
 /// st_func objects are garbage-collected.
 typedef struct st_func_t st_func_t;
 
-/// \enum st_func_homogeneity
+/// \enum st_func_homogeneity_t
 /// Enumerated type indicating whether a function is homogeneous in space.
 typedef enum
 {
@@ -31,7 +31,7 @@ typedef enum
   ST_FUNC_HETEROGENEOUS
 } st_func_homogeneity_t;
 
-/// \enum st_func_constancy
+/// \enum st_func_constancy_t
 /// Enumerated type indicating whether a function is constant in time.
 typedef enum
 {

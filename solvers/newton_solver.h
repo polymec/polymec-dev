@@ -22,14 +22,14 @@
 /// Newton-Krylov methods provided by KINSol with preconditioning.
 typedef struct newton_solver_t newton_solver_t;
 
-/// \enum newton_solver_strategy
+/// \enum newton_strategy_t
 /// This type distinguishes between the different strategies used to perform
 /// the Newton iteration.
 typedef enum
 {
   NEWTON_FULL_STEP,   // Full Newton step
   NEWTON_LINE_SEARCH  // Line search
-} newton_solver_strategy_t; 
+} newton_strategy_t; 
 
 /// Creates a generic Newton solver that uses the given methods to define how it 
 /// solves the linear systems that underlie the Newton iteration. These methods 
@@ -78,7 +78,7 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
                                    int (*reset_func)(void* context),
                                    int (*setup_func)(void* context, 
-                                                     newton_solver_strategy_t strategy,
+                                                     newton_strategy_t strategy,
                                                      real_t t,
                                                      real_t* U,
                                                      real_t* F),
@@ -94,7 +94,7 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                                      real_t* F_o_Jp,
                                                      int* num_iters), 
                                    void (*dtor)(void* context),
-                                   newton_solver_strategy_t strategy);
+                                   newton_strategy_t strategy);
 
 /// Creates a generic Picard solver that uses the given methods to define how it 
 /// solves the linear systems that underlie the Newton iteration. These methods 
@@ -203,7 +203,7 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
                                         int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
                                         int (*Jv_func)(void* context, bool new_U, real_t t, real_t* U, real_t* v, real_t* Jv),
                                         void (*dtor)(void* context),
-                                        newton_solver_strategy_t strategy,
+                                        newton_strategy_t strategy,
                                         newton_pc_t* precond,
                                         jfnk_newton_t solver_type,
                                         int max_krylov_dim,
@@ -250,7 +250,7 @@ newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
                                        int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
                                        int (*J_func)(void* context, real_t t, real_t* U, real_t* F, krylov_matrix_t* J),
                                        void (*dtor)(void* context),
-                                       newton_solver_strategy_t strategy);
+                                       newton_strategy_t strategy);
 
 /// This function creates a Picard solver that uses an inexact Newton-Krylov 
 /// method to solve the system F(U) = L*U - N(U), where L is a constant nonsingular 
@@ -323,7 +323,7 @@ void newton_solver_set_tolerances(newton_solver_t* solver,
 /// \memberof newton_solver
 void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iterations);
 
-/// \enum newton_solver_stopping_criteria
+/// \enum newton_stop_criteria_t
 /// Criteria for stopping a newton iteration. T
 /// See the Kinsol documentation for details on these criteria.
 typedef enum
@@ -331,13 +331,13 @@ typedef enum
   NEWTON_EISENSTAT_WALKER1,
   NEWTON_EISENSTAT_WALKER2,
   NEWTON_CONSTANT_ETA,
-} newton_solver_stopping_criteria_t;
+} newton_stop_criteria_t;
 
 /// Sets the stopping critieria for the underlying linear solver.
 /// The default setting is NEWTON_EISENSTAT_WALKER1.
 /// \memberof newton_solver
-void newton_solver_set_linear_solver_stopping_criteria(newton_solver_t* solver,
-                                                       newton_solver_stopping_criteria_t criteria);
+void newton_solver_set_linear_solver_stop_criteria(newton_solver_t* solver,
+                                                   newton_stop_criteria_t criteria);
 
 /// In the case that the linear solver is set to NEWTON_CONSTANT_ETA, this function 
 /// sets the value of the constant coefficient used to determine convergence of the 

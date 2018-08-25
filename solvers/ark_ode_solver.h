@@ -24,7 +24,7 @@
 /// \addtogroup solvers solvers
 ///@{
 
-/// \enum ark_predictor
+/// \enum ark_predictor_t
 /// This type identifies a predictor method to use for implicit integration.
 typedef enum
 {
@@ -36,7 +36,7 @@ typedef enum
   ARK_BOOTSTRAP_PREDICTOR // predictor that uses only current step information
 } ark_predictor_t;
 
-/// \enum jfnk_ark_krylov
+/// \enum jfnk_ark_krylov_t
 /// This type identifies a Krylov method to use for the Jacobian-Free
 /// Newton-Krylov version of this solver.
 typedef enum 
@@ -175,7 +175,7 @@ void ink_ark_ode_solver_set_block_size(ode_solver_t* ink_ark_ode_integ,
 /// \relates ode_solver
 void* ink_ark_ode_solver_context(ode_solver_t* ink_ark_ode_integ);
 
-/// \enum ark_conv_status
+/// \enum ark_conv_status_t
 /// Convergence failure status codes, used by the ARK solver machinery below to determine whether 
 /// the Newton operator needs to be recomputed.
 typedef enum

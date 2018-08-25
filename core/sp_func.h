@@ -21,7 +21,7 @@
 /// sp_func objects are garbage-collected.
 typedef struct sp_func_t sp_func_t;
 
-/// \enum sp_func_homogeneity
+/// \enum sp_func_homogeneity_t
 /// Enumerated type indicating whether a function is homogeneous.
 typedef enum
 {

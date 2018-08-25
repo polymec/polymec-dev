@@ -18,20 +18,20 @@
 /// values are uniformly spaced between a minimum and maximum value.
 typedef struct lookup1_t lookup1_t;
 
-/// \enum lookup1_interpolation
+/// \enum lookup1_interp_t
 /// Types of interpolation for single-parameter lookups.
 typedef enum
 {
   LOOKUP1_LINEAR,
   LOOKUP1_QUADRATIC
-} lookup1_interpolation_t;
+} lookup1_interp_t;
 
 /// Constructs a new "x-y" lookup table with the given number of x values 
 /// distributed uniformly within [x_min, x_max], and corresponding (sorted) 
 /// y values.
 /// \memberof lookup1
 lookup1_t* lookup1_new(real_t x_min, real_t x_max, int num_values, 
-                       real_t* y_values, lookup1_interpolation_t interpolation);
+                       real_t* y_values, lookup1_interp_t interpolation);
 
 /// Destroys the given lookup table.
 /// \memberof lookup1
@@ -43,7 +43,7 @@ int lookup1_num_values(lookup1_t* table);
 
 /// Returns the type of interpolation used by this table.
 /// \memberof lookup1
-lookup1_interpolation_t lookup1_interpolation(lookup1_t* table);
+lookup1_interp_t lookup1_interpolation(lookup1_t* table);
 
 /// Fills x_min and x_max with the lower and upper bounds of the "x" values 
 /// within the table.

@@ -15,7 +15,7 @@
 
 #define assert_approx_equal(x, y, tol) assert_true(reals_nearly_equal((x), (y), tol))
 
-static void test_zero(void** state, lookup1_interpolation_t interpolation)
+static void test_zero(void** state, lookup1_interp_t interpolation)
 {
   rng_t* rng = host_rng_new();
 
@@ -51,7 +51,7 @@ static void test_zero_quadratic(void** state)
   test_zero(state, LOOKUP1_QUADRATIC);
 }
 
-static void test_line(void** state, lookup1_interpolation_t interpolation)
+static void test_line(void** state, lookup1_interp_t interpolation)
 {
   rng_t* rng = host_rng_new();
 
@@ -89,7 +89,7 @@ static void test_line_quadratic(void** state)
   test_line(state, LOOKUP1_QUADRATIC);
 }
 
-static void test_v(void** state, lookup1_interpolation_t interpolation)
+static void test_v(void** state, lookup1_interp_t interpolation)
 {
   rng_t* rng = host_rng_new();
 

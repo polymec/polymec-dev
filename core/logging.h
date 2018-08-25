@@ -16,7 +16,7 @@
 /// \addtogroup logging core:logging
 ///@{
 
-/// \enum log_level
+/// \enum log_level_t
 /// Types of log messages / log levels. The levels are increasing in amount 
 /// of output: LOG_URGENT logs only urgent messages, LOG_INFO logs those and 
 /// informational messages, and so on and so forth.
@@ -35,7 +35,7 @@ void set_log_level(log_level_t level);
 /// Retrieves the current logging level.
 log_level_t log_level(void);
 
-/// \enum log_mode
+/// \enum log_mode_t
 /// Logging output modes to control degrees of output.
 typedef enum
 {

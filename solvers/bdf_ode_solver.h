@@ -22,7 +22,7 @@
 /// \addtogroup solvers solvers
 ///@{
 
-/// \enum jfnk_bdf_krylov
+/// \enum jfnk_bdf_krylov_t
 /// Variants of the Jacobian-Free Newton-Krylov BDF solvers described below.
 typedef enum 
 {
@@ -122,7 +122,7 @@ void ink_bdf_ode_solver_set_block_size(ode_solver_t* ink_bdf_ode_integ,
 /// \relates ode_solver
 void* ink_bdf_ode_solver_context(ode_solver_t* ink_bdf_ode_integ);
 
-/// \enum bdf_conv_status
+/// \enum bdf_conv_status_t
 /// Convergence failure status codes, used by the BDF solver machinery below to determine whether 
 /// the Newton operator needs to be recomputed.
 typedef enum

@@ -19,7 +19,7 @@
 /// The mesh manages these patches and their connectivity.
 typedef struct unimesh_t unimesh_t;
 
-/// \enum unimesh_centering
+/// \enum unimesh_centering_t
 /// Centerings for data on uniform meshes.
 typedef enum
 {
@@ -33,7 +33,7 @@ typedef enum
   UNIMESH_NODE = 7
 } unimesh_centering_t;
 
-/// \enum unimesh_boundary
+/// \enum unimesh_boundary_t
 /// This type identifies the six different logical mesh boundaries.
 typedef enum
 {

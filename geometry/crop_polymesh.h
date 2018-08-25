@@ -14,7 +14,7 @@
 /// \addtogroup geometry geometry
 ///@{
 
-/// \enum polymesh_crop
+/// \enum polymesh_crop_t
 /// Types of algorithms for cropping polymesh cells.
 typedef enum
 {

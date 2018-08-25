@@ -48,7 +48,7 @@ typedef struct
   void (*dtor)(void* context);
 } newton_pc_vtable;
 
-/// \enum newton_pc_side
+/// \enum newton_pc_side_t
 /// Preconditioner sided-ness.
 typedef enum
 {

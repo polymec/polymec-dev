@@ -39,7 +39,7 @@ struct newton_solver_t
   // Generized adaptor stuff.
   int (*reset_func)(void* context);
   int (*newton_setup_func)(void* context, 
-                           newton_solver_strategy_t strategy,
+                           newton_strategy_t strategy,
                            real_t t, 
                            real_t* U,
                            real_t* F);
@@ -136,7 +136,7 @@ static int newton_lsetup(KINMem kin_mem)
 {
   newton_solver_t* newton = kin_mem->kin_user_data;
   real_t t = newton->t;
-  newton_solver_strategy_t strategy = NEWTON_FULL_STEP;
+  newton_strategy_t strategy = NEWTON_FULL_STEP;
   if (newton->strategy == KIN_LINESEARCH) 
     strategy = NEWTON_LINE_SEARCH;
   int result = newton->newton_setup_func(newton->context, strategy, t, 
@@ -261,7 +261,7 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                    int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
                                    int (*reset_func)(void* context),
                                    int (*setup_func)(void* context, 
-                                                     newton_solver_strategy_t strategy,
+                                                     newton_strategy_t strategy,
                                                      real_t t,
                                                      real_t* U,
                                                      real_t* F),
@@ -277,7 +277,7 @@ newton_solver_t* newton_solver_new(MPI_Comm comm,
                                                      real_t* F_o_Jp,
                                                      int* num_iters), 
                                    void (*dtor)(void* context),
-                                   newton_solver_strategy_t strategy)
+                                   newton_strategy_t strategy)
 {
   ASSERT(reset_func != NULL);
   ASSERT(setup_func != NULL);
@@ -403,7 +403,7 @@ newton_solver_t* jfnk_newton_solver_new(MPI_Comm comm,
                                         int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
                                         int (*Jv_func)(void* context, bool new_U, real_t t, real_t* U, real_t* v, real_t* Jv),
                                         void (*dtor)(void* context),
-                                        newton_solver_strategy_t strategy,
+                                        newton_strategy_t strategy,
                                         newton_pc_t* precond,
                                         jfnk_newton_t solver_type,
                                         int max_krylov_dim, 
@@ -594,8 +594,8 @@ void newton_solver_set_max_iterations(newton_solver_t* solver, int max_iteration
   KINSetNumMaxIters(solver->kinsol, max_iterations);
 }
 
-void newton_solver_set_linear_solver_stopping_criteria(newton_solver_t* solver,
-                                                       newton_solver_stopping_criteria_t criteria)
+void newton_solver_set_linear_solver_stop_criteria(newton_solver_t* solver,
+                                                   newton_stop_criteria_t criteria)
 {
   if (criteria == NEWTON_EISENSTAT_WALKER1)
     KINSetEtaForm(solver->kinsol, KIN_ETACHOICE1);
@@ -832,7 +832,7 @@ static int ink_reset(void* context)
 }
 
 static int ink_newton_setup(void* context, 
-                            newton_solver_strategy_t strategy,
+                            newton_strategy_t strategy,
                             real_t t,
                             real_t* U,
                             real_t* F)
@@ -972,7 +972,7 @@ newton_solver_t* ink_newton_solver_new(MPI_Comm comm,
                                        int (*F_func)(void* context, real_t t, real_t* U, real_t* F),
                                        int (*J_func)(void* context, real_t t, real_t* U, real_t* F, krylov_matrix_t* J),
                                        void (*dtor)(void* context),
-                                       newton_solver_strategy_t strategy)
+                                       newton_strategy_t strategy)
 {
   ink_newton_t* ink = polymec_malloc(sizeof(ink_newton_t));
   ink->comm = comm;

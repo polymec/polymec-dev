@@ -1113,7 +1113,7 @@ int exchanger_start_metadata_transfer(exchanger_t* ex,
                                       int stride,
                                       int tag,
                                       MPI_Datatype type,
-                                      exchanger_metadata_dir direction)
+                                      exchanger_metadata_dir_t direction)
 {
 #if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
@@ -1207,7 +1207,7 @@ void exchanger_transfer_metadata(exchanger_t* ex,
                                  int stride,
                                  int tag,
                                  MPI_Datatype type,
-                                 exchanger_metadata_dir direction)
+                                 exchanger_metadata_dir_t direction)
 {
   int token = exchanger_start_metadata_transfer(ex, send_arrays, receive_arrays, stride, tag, type, direction);
   exchanger_finish_metadata_transfer(ex, token);

@@ -122,7 +122,7 @@ bool lua_is_mpi_comm(lua_State* L, int index);
 /// NULL if the item there is not an MPI communicator.
 MPI_Comm lua_to_mpi_comm(lua_State* L, int index);
 
-/// \enum lua_array_data
+/// \enum lua_array_data_t
 /// This enumerated type describes data stored in an array within a 
 /// Lua interpreter.
 typedef enum

@@ -18,7 +18,7 @@
 /// \addtogroup geometry geometry
 ///@{
 
-/// \enum polymesh_centering
+/// \enum polymesh_centering_t
 /// Centerings for polyhedral meshes (polymeshes).
 typedef enum
 {

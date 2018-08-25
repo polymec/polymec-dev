@@ -14,7 +14,7 @@
 /// \addtogroup solvers solvers
 ///@{
 
-/// \enum dae_equation
+/// \enum dae_equation_t
 /// This type indicates whether a given equation in a DAE system is 
 /// algebraic or differential.
 typedef enum
@@ -31,7 +31,7 @@ extern dae_equation_t* DAE_ALL_ALGEBRAIC;
 /// all equations are differential.
 extern dae_equation_t* DAE_ALL_DIFFERENTIAL;
 
-/// \enum dae_constraint
+/// \enum dae_constraint_t
 /// This type indicates constraints (if any) on equations in a DAE system.
 typedef enum
 {
@@ -62,7 +62,7 @@ extern dae_constraint_t* DAE_ALL_NONNEGATIVE;
 /// all equations have solution values that are positive.
 extern dae_constraint_t* DAE_ALL_POSITIVE;
 
-/// \enum dae_ic_correction
+/// \enum dae_ic_correction_t
 /// This type describes methods of correcting initial conditions (U, U_dot) for 
 /// differential-algebraic systems.
 typedef enum
@@ -72,7 +72,7 @@ typedef enum
   DAE_IC_ASSUME_CONSISTENT    // Assume that U and U_dot are consistent.
 } dae_ic_correction_t;
 
-/// \enum jfnk_dae_krylov
+/// \enum jfnk_dae_krylov_t
 /// Types of Krylov solver to use for the Jacobian-Free Newton-Krylov DAE method.
 typedef enum 
 {

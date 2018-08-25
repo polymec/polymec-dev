@@ -37,9 +37,9 @@ ode_solver_t* functional_am_ode_solver_new(int order,
                                            int (*rhs)(void* context, real_t t, real_t* x, real_t* xdot),
                                            void (*dtor)(void* context));
 
-/// \enum jfnk_am_krylov
+/// \enum jfnk_am_krylov_t
 /// Describes different types of Jacobian-Free Newton-Krylov iteration 
-/// available for the \ref am_ode_solver
+/// available for the Adams-Moulton ode_solvers.
 typedef enum 
 {
   JFNK_AM_GMRES,    // Generalized minimum residual Krylov solver

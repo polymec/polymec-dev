@@ -120,11 +120,12 @@ serializer_t* point_cloud_serializer(void);
 
 /// \struct point_cloud_observer_vtable
 /// This virtual table implements behavior for observing point clouds.
-typedef struct
+struct point_cloud_observer_vtable
 {
   void (*set_num_ghosts)(void* observer, size_t num_ghosts);
   void (*dtor)(void* observer);
-} point_cloud_observer_vtable;
+};
+typedef struct point_cloud_observer_vtable point_cloud_observer_vtable;
 
 /// \class point_cloud_observer
 /// An object that observes changes to a point cloud.
