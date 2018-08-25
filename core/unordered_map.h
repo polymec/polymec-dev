@@ -386,21 +386,69 @@ static inline bool map_name##_empty(map_name##_t* map) \
 ///@}
 
 // Define some unordered maps.
+
+/// \class int_int_unordered_map
+/// A mapping of integers to integers.
 DEFINE_UNORDERED_MAP(int_int_unordered_map, int, int, int_hash, int_equals)
+
+/// \class int_index_unordered_map
+/// A mapping of integers to 64-bit indices.
 DEFINE_UNORDERED_MAP(int_index_unordered_map, int, index_t, int_hash, int_equals)
+
+/// \class int_real_unordered_map
+/// A mapping of integers to real numbers.
 DEFINE_UNORDERED_MAP(int_real_unordered_map, int, real_t, int_hash, int_equals)
+
+/// \class int_ptr_unordered_map
+/// A mapping of integers to pointers.
 DEFINE_UNORDERED_MAP(int_ptr_unordered_map, int, void*, int_hash, int_equals)
+
+/// \class int_pair_int_unordered_map
+/// A mapping of integer pairs (int[2]) to integers.
 DEFINE_UNORDERED_MAP(int_pair_int_unordered_map, int*, int, int_pair_hash, int_pair_equals)
+
+/// \class int_tuple_int_unordered_map
+/// A mapping of integer tuples (int*) to integers.
 DEFINE_UNORDERED_MAP(int_tuple_int_unordered_map, int*, int, int_tuple_hash, int_tuple_equals)
+
+/// \class index_index_unordered_map
+/// A mapping of 64-bit indices to 64-bit indices.
 DEFINE_UNORDERED_MAP(index_index_unordered_map, index_t, index_t, index_hash, index_equals)
+
+/// \class index_int_unordered_map
+/// A mapping of 64-bit indices to integers.
 DEFINE_UNORDERED_MAP(index_int_unordered_map, index_t, int, index_hash, index_equals)
+
+/// \class index_real_unordered_map
+/// A mapping of 64-bit indices to real numbers.
 DEFINE_UNORDERED_MAP(index_real_unordered_map, index_t, real_t, index_hash, index_equals)
+
+/// \class index_pair_int_unordered_map
+/// A mapping of 64-bit index pairs (index_t[2]) to integers.
 DEFINE_UNORDERED_MAP(index_pair_int_unordered_map, index_t*, int, index_pair_hash, index_pair_equals)
+
+/// \class index_pair_real_unordered_map
+/// A mapping of 64-bit index pairs (index_t[2]) to real numbers.
 DEFINE_UNORDERED_MAP(index_pair_real_unordered_map, index_t*, real_t, index_pair_hash, index_pair_equals)
+
+/// \class index_ptr_unordered_map
+/// A mapping of 64-bit indices to real numbers.
 DEFINE_UNORDERED_MAP(index_ptr_unordered_map, index_t, void*, index_hash, index_equals)
+
+/// \class string_int_unordered_map
+/// A mapping of strings (char*) to integers.
 DEFINE_UNORDERED_MAP(string_int_unordered_map, char*, int, string_hash, string_equals)
+
+/// \class string_string_unordered_map
+/// A mapping of strings (char*) to strings.
 DEFINE_UNORDERED_MAP(string_string_unordered_map, char*, char*, string_hash, string_equals)
+
+/// \class string_ptr_unordered_map
+/// A mapping of strings (char*) to pointers.
 DEFINE_UNORDERED_MAP(string_ptr_unordered_map, char*, void*, string_hash, string_equals)
+
+/// \class string_ptr_unordered_map
+/// A mapping of pointers to pointers.
 DEFINE_UNORDERED_MAP(ptr_ptr_unordered_map, void*, void*, ptr_hash, ptr_equals)
 
 #endif

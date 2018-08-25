@@ -144,12 +144,29 @@ static inline bool set_name##_empty(set_name##_t* set) \
 ///@}
 
 // Define some ordered_sets.
-DEFINE_UNORDERED_SET(int_unordered_set, int, int_hash, int_equals)
-DEFINE_UNORDERED_SET(index_unordered_set, index_t, index_hash, index_equals)
-DEFINE_UNORDERED_SET(string_unordered_set, char*, string_hash, string_equals)
-DEFINE_UNORDERED_SET(int_tuple_unordered_set, int*, int_tuple_hash, int_tuple_equals)
-DEFINE_UNORDERED_SET(int_pair_unordered_set, int*, int_pair_hash, int_pair_equals)
-DEFINE_UNORDERED_SET(ptr_unordered_set, void*, ptr_hash, ptr_equals)
 
+/// \class int_unordered_set
+/// An unordered set of integers.
+DEFINE_UNORDERED_SET(int_unordered_set, int, int_hash, int_equals)
+
+/// \class index_unordered_set
+/// An unordered set of 64-bit indices.
+DEFINE_UNORDERED_SET(index_unordered_set, index_t, index_hash, index_equals)
+
+/// \class string_unordered_set
+/// An unordered set of strings (char*).
+DEFINE_UNORDERED_SET(string_unordered_set, char*, string_hash, string_equals)
+
+/// \class int_tuple_unordered_set
+/// An unordered set of int tuples (int*).
+DEFINE_UNORDERED_SET(int_tuple_unordered_set, int*, int_tuple_hash, int_tuple_equals)
+
+/// \class int_pair_unordered_set
+/// An unordered set of int pairs (int[2]).
+DEFINE_UNORDERED_SET(int_pair_unordered_set, int*, int_pair_hash, int_pair_equals)
+
+/// \class ptr_unordered_set
+/// An unordered set of pointers.
+DEFINE_UNORDERED_SET(ptr_unordered_set, void*, ptr_hash, ptr_equals)
 
 #endif

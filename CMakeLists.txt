@@ -415,7 +415,8 @@ endif()
 
 # Documentation.
 
-find_package(Doxygen)
+find_package(Doxygen
+             OPTIONAL_COMPONENTS dot)
 if (DOXYGEN_FOUND)
   set(DOXYGEN_EXTRACT_LOCAL_CLASSES NO)
   set(DOXYGEN_FILE_PATTERNS "*.h")
@@ -430,8 +431,10 @@ if (DOXYGEN_FOUND)
   set(DOXYGEN_JAVADOC_AUTOBRIEF YES)
   set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
   set(DOXYGEN_QUIET YES)
+  set(DOXYGEN_WARN_LOGFILE Doxygen_warnings.log)
   set(DOXYGEN_SHOW_FILES NO)
   set(DOXYGEN_SHOW_NAMESPACES NO)
+  set(DOXYGEN_CALL_GRAPH YES)
   set(DOXYGEN_ALIASES [[collective=\xrefitem collective \"\" \"Collective functions\"]])
   set(DOXYGEN_VERBATIM_VARS DOXYGEN_ALIASES)
   doxygen_add_docs(doc ${PROJECT_BINARY_DIR}/core/polymec.h;core;geometry;solvers;model;io
