@@ -9,6 +9,7 @@
 #define POLYMEC_PRISMESH_H
 
 #include "core/point.h"
+#include "core/exchanger.h"
 #include "geometry/planar_polymesh.h"
 #include "geometry/polygon.h"
 
@@ -134,7 +135,9 @@ void prismesh_finalize(prismesh_t* mesh);
 //------------------------------------------------------------------------
 
 /// Creates a prismesh consisting of polygonal columns from the given 
-/// (global) planar polygonal mesh.
+/// (global) planar polygonal mesh. The partitioning does not minimize 
+/// communication, so you might want to call repartition_prismesh on the 
+/// resulting mesh.
 /// \param comm [in] The communicator on which the mesh is constructed.
 /// \param columns [in] A planar polygonal mesh that defines a set of connected
 ///                     polygonal columns for the prismesh. 

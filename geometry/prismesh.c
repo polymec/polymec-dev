@@ -98,6 +98,9 @@ struct prismesh_t
 
   // This flag is set by prismesh_finalize() after a mesh has been assembled.
   bool finalized;
+
+  // Exchangers for field data on each centering.
+  exchanger_t *c_ex, *xyf_ex, *zf_ex, *xye_ex, *ze_ex, *n_ex;
 };
 
 prismesh_t* create_empty_prismesh(MPI_Comm comm, 
@@ -126,15 +129,28 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   MPI_Comm_rank(comm, &mesh->rank);
   mesh->finalized = false;
 
+  // Initialize exchangers. Unless we ask for anything else, we only 
+  // set up the cell exchanger.
+  mesh->c_ex = exchanger_new(comm);
+  mesh->xyf_ex = NULL;
+  mesh->zf_ex = NULL;
+  mesh->xye_ex = NULL;
+  mesh->ze_ex = NULL;
+  mesh->n_ex = NULL;
+
   // Partition the planar polymesh.
+#if POLYMEC_HAVE_MPI
   adj_graph_t* graph = graph_from_planar_polymesh_cells(columns);
   int64_t* P = partition_graph_n_ways(graph, num_xy_chunks, NULL, 0.05);
+  adj_graph_free(graph);
+#else
+  int64_t* P = polymec_calloc(sizeof(int64_t) * columns->num_cells);
+#endif
 
   // Create xy data for chunks.
   mesh->chunk_xy_data = create_chunk_xy_data(columns, P);
 
   // Clean up.
-  adj_graph_free(graph);
   polymec_free(P);
 
   return mesh;
@@ -147,10 +163,11 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
   ASSERT(xy_index < mesh->num_xy_chunks);
   ASSERT(z_index >= 0);
   ASSERT(z_index < mesh->num_z_chunks);
+  // FIXME: Assert that we haven't already inserted this chunk!
 
   prismesh_chunk_t* chunk = polymec_malloc(sizeof(prismesh_chunk_t));
 
-  // Chunk xy data.
+  // Chunk xy data (points to data owned by mesh->chunk_xy_data).
   chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy_index];
   chunk->num_columns = xy_data->num_columns;
   chunk->column_xy_face_offsets = xy_data->column_xy_face_offsets;
@@ -195,12 +212,15 @@ void prismesh_finalize(prismesh_t* mesh)
   {
     if (!used[i])
     {
+      // Punch out this data on this process, and clear the corresponding 
+      // destructor so it doesn't get double-freed.
       free_chunk_xy_data(mesh->chunk_xy_data->data[i]);
       mesh->chunk_xy_data->data[i] = NULL;
       mesh->chunk_xy_data->dtors[i] = NULL;
     }
   }
 
+  // We're finished here.
   mesh->finalized = true;
 }
 
@@ -209,89 +229,56 @@ prismesh_t* prismesh_new(MPI_Comm comm,
                          real_t z1, real_t z2,
                          size_t nz)
 {
-  prismesh_t* mesh = create_empty_prismesh(comm, columns, z1, z2, 10, 5, nz);
-
-#if 0
-  if (mesh->nproc > 1)
+  size_t num_xy_chunks = 1;
+  size_t num_z_chunks = 1; 
+  int nproc, rank;
+  MPI_Comm_size(comm, &nproc);
+  MPI_Comm_rank(comm, &rank);
+  if (nproc > 1)
   {
-    // Figure out an optimal partitioning "geometry". How many "axial" 
-    // processes do we want, vs how many process in the xy plane?
-    int num_xy_procs = (int)(floor(pow(mesh->nproc, 2.0/3.0)));
-    int num_z_procs = mesh->nproc / num_xy_procs;
+    // Figure out how many chunks we want in the xy and z "directions".
+    // FIXME
+  }
 
-    if (num_xy_procs > 1)
+  // Now create an empty prismesh with the desired numbers of chunks, and 
+  // insert all the chunks on each process. We do a "naive" placement of 
+  // the chunks by allocating them sequentially to processes in a flattened 
+  // index space I(xy_index, z_index) = num_z_chunks * xy_index + z_index.
+  // This is definitely not ideal, but it's the easiest way to get a start.
+  size_t nz_per_chunk = nz / num_z_chunks;
+  prismesh_t* mesh = create_empty_prismesh(comm, columns, z1, z2, 
+                                           num_xy_chunks, num_z_chunks, 
+                                           nz_per_chunk);
+  size_t tot_num_chunks = num_xy_chunks * num_z_chunks;
+  size_t chunks_per_proc = tot_num_chunks / nproc;
+  for (size_t i = 0; i < tot_num_chunks; ++i)
+  {
+    if ((i >= rank*chunks_per_proc) && (i < rank*(chunks_per_proc+1)))
     {
-      // Create an "xy communicator" that exists across the xy plane.
-      MPI_Comm xy_comm;
-      int color = mesh->rank / num_z_procs;
-      int key = mesh->rank % num_z_procs;
-      MPI_Comm_split(comm, color, key, &xy_comm);
-
-      // Construct a graph for the planar polymesh.
-      adj_graph_t* graph = graph_from_planar_polymesh_cells(columns);
-
-      // Cut it up in the xy plane and get the partition vector.
-      int64_t* P = partition_graph(graph, xy_comm, NULL, 0.05, true);
-
-      // Allocate chunks to this process.
-      // FIXME: We could store chunk xy connectivity more efficiently by 
-      // FIXME: aliasing all chunks' data to the xy data in the first 
-      // FIXME: chunk created in each column.
-      real_t dz = (z2 - z1) / num_z_procs;
-      for (int ij = 0; ij < num_xy_procs; ++ij)
-      {
-        for (int k = 0; k < num_z_procs; ++k)
-        {
-          real_t z1_k = z1 + k*dz;
-          real_t z2_k = z1 + (k+1)*dz;
-          size_t nz = num_vertical_cells / num_z_procs;
-          if ((k*num_vertical_cells/num_z_procs + nz) > num_vertical_cells)
-            nz = num_vertical_cells - k*num_vertical_cells/num_z_procs;
-          prismesh_chunk_t* chunk = chunk_from_planar_polymesh(columns, nz, z1_k, z2_k);
-          chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
-        }
-      }
-
-      // Clean up.
-      MPI_Comm_free(&xy_comm);
-      polymec_free(P);
-    }
-    else
-    {
-      // Allocate chunks to this process along the z axis.
-      // FIXME: We could store chunk xy connectivity more efficiently by 
-      // FIXME: aliasing all chunks' data to the xy data in the first 
-      // FIXME: chunk created in each column.
-      real_t dz = (z2 - z1) / num_z_procs;
-      for (int k = 0; k < num_z_procs; ++k)
-      {
-        real_t z1_k = z1 + k*dz;
-        real_t z2_k = z1 + (k+1)*dz;
-        size_t nz = num_vertical_cells / num_z_procs;
-        if ((k*num_vertical_cells/num_z_procs + nz) > num_vertical_cells)
-          nz = num_vertical_cells - k*num_vertical_cells/num_z_procs;
-        prismesh_chunk_t* chunk = chunk_from_planar_polymesh(columns, nz, z1_k, z2_k);
-        chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
-      }
+      size_t xy_index = i / num_z_chunks;
+      size_t z_index = i % num_z_chunks;
+      prismesh_insert_chunk(mesh, xy_index, z_index);
     }
   }
-  else
-  {
-    // Allocate a single chunk to this process with columns corresponding 
-    // to the cells of the planar polymesh. 
-    prismesh_chunk_t* chunk = chunk_from_planar_polymesh(columns, 
-                                                         num_vertical_cells, 
-                                                         z1, z2);
-    chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
-  }
-#endif
 
+  // Put the lid on it and ship it.
   prismesh_finalize(mesh);
   return mesh;
 }
 
 void prismesh_free(prismesh_t* mesh)
 {
+  if (mesh->xyf_ex != NULL)
+    polymec_release(mesh->xyf_ex);
+  if (mesh->zf_ex != NULL)
+    polymec_release(mesh->zf_ex);
+  if (mesh->xye_ex != NULL)
+    polymec_release(mesh->xye_ex);
+  if (mesh->ze_ex != NULL)
+    polymec_release(mesh->ze_ex);
+  if (mesh->n_ex != NULL)
+    polymec_release(mesh->n_ex);
+  polymec_release(mesh->c_ex);
   int_array_free(mesh->z_indices);
   int_array_free(mesh->xy_indices);
   chunk_array_free(mesh->chunks);
@@ -358,6 +345,65 @@ bool prismesh_next_chunk(prismesh_t* mesh, int* pos,
     ++(*pos);
     return true;
   }
+}
+
+//------------------------------------------------------------------------
+// Exchanger accessors. Not public, but externally available.
+//------------------------------------------------------------------------
+exchanger_t* prismesh_cell_exchanger(prismesh_t* mesh);
+exchanger_t* prismesh_cell_exchanger(prismesh_t* mesh)
+{
+  return mesh->c_ex;
+}
+
+exchanger_t* prismesh_xyface_exchanger(prismesh_t* mesh);
+exchanger_t* prismesh_xyface_exchanger(prismesh_t* mesh)
+{
+  if (mesh->xyf_ex == NULL)
+  {
+    // FIXME
+  }
+  return mesh->xyf_ex;
+}
+
+exchanger_t* prismesh_zface_exchanger(prismesh_t* mesh);
+exchanger_t* prismesh_zface_exchanger(prismesh_t* mesh)
+{
+  if (mesh->zf_ex == NULL)
+  {
+    // FIXME
+  }
+  return mesh->zf_ex;
+}
+
+exchanger_t* prismesh_xyedge_exchanger(prismesh_t* mesh);
+exchanger_t* prismesh_xyedge_exchanger(prismesh_t* mesh)
+{
+  if (mesh->xye_ex == NULL)
+  {
+    // FIXME
+  }
+  return mesh->xye_ex;
+}
+
+exchanger_t* prismesh_zedge_exchanger(prismesh_t* mesh);
+exchanger_t* prismesh_zedge_exchanger(prismesh_t* mesh)
+{
+  if (mesh->ze_ex == NULL)
+  {
+    // FIXME
+  }
+  return mesh->ze_ex;
+}
+
+exchanger_t* prismesh_node_exchanger(prismesh_t* mesh);
+exchanger_t* prismesh_node_exchanger(prismesh_t* mesh)
+{
+  if (mesh->n_ex == NULL)
+  {
+    // FIXME
+  }
+  return mesh->n_ex;
 }
 
 static void redistribute_prismesh(prismesh_t** mesh, 
