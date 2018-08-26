@@ -406,6 +406,7 @@ exchanger_t* prismesh_node_exchanger(prismesh_t* mesh)
   return mesh->n_ex;
 }
 
+#if POLYMEC_HAVE_MPI
 static void redistribute_prismesh(prismesh_t** mesh, 
                                   MPI_Comm super_comm,
                                   int64_t* partition)
@@ -413,6 +414,89 @@ static void redistribute_prismesh(prismesh_t** mesh,
   START_FUNCTION_TIMER();
   // FIXME
   STOP_FUNCTION_TIMER();
+}
+
+static adj_graph_t* graph_from_prismesh_chunks(prismesh_t* mesh)
+{
+  // Create a graph whose vertices are the mesh's patches. NOTE
+  // that we associate this graph with the MPI_COMM_SELF communicator 
+  // because it's a global graph.
+  int num_chunks = mesh->num_xy_chunks * mesh->num_z_chunks;
+  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, num_chunks);
+
+#if 0
+  // Allocate space in the graph for the edges (patch boundaries).
+  for (int i = 0; i < mesh->npx; ++i)
+  {
+    int num_x_edges = (i == 0) ? (i == mesh->npx-1) ? mesh->periodic_in_x ? 2 
+                                                                          : 0
+                                                    : 1
+                               : (i == mesh->npx-1) ? 1
+                                                    : 2;
+    for (int j = 0; j < mesh->npy; ++j)
+    {
+      int num_y_edges = (j == 0) ? (j == mesh->npy-1) ? mesh->periodic_in_y ? 2 
+                                                                            : 0
+                                                      : 1
+                                 : (j == mesh->npy-1) ? 1
+                                                      : 2;
+      for (int k = 0; k < mesh->npz; ++k)
+      {
+        int num_z_edges = (k == 0) ? (k == mesh->npz-1) ? mesh->periodic_in_z ? 2 
+                                                                              : 0
+                                                        : 1
+                                   : (k == mesh->npz-1) ? 1
+                                                        : 2;
+        int num_edges = num_x_edges + num_y_edges + num_z_edges;
+        int p_index = patch_index(mesh, i, j, k);
+        adj_graph_set_num_edges(g, p_index, num_edges);
+      }
+    }
+  }
+
+  // Now fill in the edges.
+  for (int i = 0; i < mesh->npx; ++i)
+  {
+    for (int j = 0; j < mesh->npy; ++j)
+    {
+      for (int k = 0; k < mesh->npz; ++k)
+      {
+        int p_index = patch_index(mesh, i, j, k);
+        int* edges = adj_graph_edges(g, p_index);
+        int offset = 0;
+
+        if ((i == 0) && mesh->periodic_in_x)
+          edges[offset++] = patch_index(mesh, mesh->npx-1, j, k);
+        else if (i > 0)
+          edges[offset++] = patch_index(mesh, i-1, j, k);
+        if ((i == mesh->npx-1) && mesh->periodic_in_x)
+          edges[offset++] = patch_index(mesh, 0, j, k);
+        else if (i < mesh->npx-1)
+          edges[offset++] = patch_index(mesh, i+1, j, k);
+
+        if ((j == 0) && mesh->periodic_in_y)
+          edges[offset++] = patch_index(mesh, i, mesh->npy-1, k);
+        else if (j > 0)
+          edges[offset++] = patch_index(mesh, i, j-1, k);
+        if ((j == mesh->npy-1) && mesh->periodic_in_y)
+          edges[offset++] = patch_index(mesh, i, 0, k);
+        else if (j < mesh->npy-1)
+          edges[offset++] = patch_index(mesh, i, j+1, k);
+
+        if ((k == 0) && mesh->periodic_in_z)
+          edges[offset++] = patch_index(mesh, i, j, mesh->npz-1);
+        else if (k > 0)
+          edges[offset++] = patch_index(mesh, i, j, k-1);
+        if ((k == mesh->npz-1) && mesh->periodic_in_z)
+          edges[offset++] = patch_index(mesh, i, j, 0);
+        else if (k < mesh->npz-1)
+          edges[offset++] = patch_index(mesh, i, j, k+1);
+      }
+    }
+  }
+#endif
+
+  return g;
 }
 
 static int64_t* source_vector(prismesh_t* mesh)
@@ -547,6 +631,7 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
   *field = new_field;
   STOP_FUNCTION_TIMER();
 }
+#endif // POLYMEC_HAVE_MPI
 
 void repartition_prismesh(prismesh_t** mesh, 
                           int* weights,
@@ -568,24 +653,18 @@ void repartition_prismesh(prismesh_t** mesh,
     return;
   }
 
-  // Generate a distributed adjacency graph for the polygonal columns.
-//  planar_polymesh_t* columns = planar_polymesh_from_columns(old_mesh);
-//  adj_graph_t* graph = graph_from_planar_polymesh_cells(columns);
+  // Generate a distributed adjacency graph for the mesh's chunks.
+  adj_graph_t* graph = graph_from_prismesh_chunks(old_mesh);
 
   // Map the graph to the different domains, producing a partition vector.
   // We need the partition vector on all processes in the communicator, so we 
   // scatter it from rank 0.
   log_debug("repartition_prismesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
-  int64_t* poly_partition = NULL; //partition_graph_n_ways(graph, num_poly_pieces, weights, imbalance_tol);
-
-  // Translate our polygonal partition vector into the real one (which includes
-  // axial decomposition).
-  int64_t* partition = NULL; // FIXME
-  polymec_free(poly_partition);
+  int64_t* P = partition_graph(graph, old_mesh->comm, weights, imbalance_tol, true);
 
   // Redistribute the mesh. 
   log_debug("repartition_peximesh: Redistributing mesh.");
-  redistribute_prismesh(mesh, old_mesh->comm, partition);
+  redistribute_prismesh(mesh, old_mesh->comm, P);
 
   // Build a sources vector whose ith component is the rank that used to own 
   // the ith patch.
@@ -593,19 +672,19 @@ void repartition_prismesh(prismesh_t** mesh,
 
   // Redistribute the fields.
   if (num_fields > 0)
-    log_debug("repartition_unimesh: Redistributing %d fields.", (int)num_fields);
+    log_debug("repartition_prismesh: Redistributing %d fields.", (int)num_fields);
   for (size_t f = 0; f < num_fields; ++f)
   {
     prismesh_field_t* old_field = fields[f];
-    redistribute_prismesh_field(&(fields[f]), partition, sources, *mesh);
+    redistribute_prismesh_field(&(fields[f]), P, sources, *mesh);
     prismesh_field_free(old_field);
   }
 
   // Clean up.
   prismesh_free(old_mesh);
-//  adj_graph_free(graph);
+  adj_graph_free(graph);
   polymec_free(sources);
-  polymec_free(partition);
+  polymec_free(P);
 
   STOP_FUNCTION_TIMER();
 #endif
