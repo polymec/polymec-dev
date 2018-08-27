@@ -187,6 +187,12 @@ real_t prismesh_z1(prismesh_t* mesh);
 /// \memberof prismesh
 real_t prismesh_z2(prismesh_t* mesh);
 
+/// Returns true if the mesh has a locally-stored chunk with the given 
+/// xy and z indices.
+/// \param xy_index [in] The xy index of the chunk in question.
+/// \param z_index [in] The z index of the chunk in question.
+bool prismesh_has_chunk(prismesh_t* mesh, int xy_index, int z_index);
+
 /// Traverses the locally-stored chunks in the mesh.
 /// \param pos [in,out] Controls the traversal. Set to 0 to reset traversal.
 /// \param xy_index [out] Stores the xy index of the next chunk.

@@ -7,6 +7,7 @@
 
 #include "core/timer.h"
 #include "core/array.h"
+#include "core/unordered_map.h"
 #include "geometry/prismesh.h"
 #include "geometry/prismesh_field.h"
 #include "geometry/polymesh.h"
@@ -14,8 +15,6 @@
 #if POLYMEC_HAVE_MPI
 #include "core/partitioning.h"
 #endif
-
-DEFINE_ARRAY(chunk_array, prismesh_chunk_t*)
 
 // Chunk xy data. Shared across all "stacked" chunks.
 typedef struct 
@@ -34,22 +33,9 @@ typedef struct
 
 DEFINE_ARRAY(chunk_xy_data_array, chunk_xy_data_t*)
 
-static void free_chunk_xy_data(chunk_xy_data_t* xy_data)
+static chunk_xy_data_t* chunk_xy_data_new(planar_polymesh_t* mesh)
 {
-  polymec_free(xy_data->xy_nodes);
-  polymec_free(xy_data->xy_face_columns);
-  polymec_free(xy_data->column_xy_faces);
-  polymec_free(xy_data->column_xy_face_offsets);
-  polymec_free(xy_data);
-}
-
-static chunk_xy_data_array_t* create_chunk_xy_data(planar_polymesh_t* mesh,
-                                                   int64_t* partition_vector)
-{
-  chunk_xy_data_array_t* all_xy_data = chunk_xy_data_array_new();
-
   chunk_xy_data_t* xy_data = polymec_malloc(sizeof(chunk_xy_data_t));
-
   xy_data->num_columns = (size_t)mesh->num_cells;
 
   // cell -> xy face connectivity.
@@ -70,7 +56,35 @@ static chunk_xy_data_array_t* create_chunk_xy_data(planar_polymesh_t* mesh,
   xy_data->xy_nodes = polymec_malloc(sizeof(point2_t) * xy_data->num_xy_nodes);
   memcpy(xy_data->xy_nodes, mesh->nodes, sizeof(point2_t) * xy_data->num_xy_nodes);
 
-  chunk_xy_data_array_append_with_dtor(all_xy_data, xy_data, free_chunk_xy_data);
+  return xy_data;
+}
+
+static void chunk_xy_data_free(chunk_xy_data_t* xy_data)
+{
+  polymec_free(xy_data->xy_nodes);
+  polymec_free(xy_data->xy_face_columns);
+  polymec_free(xy_data->column_xy_faces);
+  polymec_free(xy_data->column_xy_face_offsets);
+  polymec_free(xy_data);
+}
+
+static chunk_xy_data_array_t* create_chunk_xy_data(planar_polymesh_t* mesh,
+                                                   int64_t* partition_vector)
+{
+  chunk_xy_data_array_t* all_xy_data = chunk_xy_data_array_new();
+  // FIXME
+
+  chunk_xy_data_t* xy_data = chunk_xy_data_new(mesh);
+  chunk_xy_data_array_append_with_dtor(all_xy_data, xy_data, chunk_xy_data_free);
+  return all_xy_data;
+}
+
+static chunk_xy_data_array_t* redistribute_chunk_xy_data(prismesh_t* old_mesh,
+                                                         int64_t* partition_vector,
+                                                         int64_t* sources)
+{
+  chunk_xy_data_array_t* all_xy_data = chunk_xy_data_array_new();
+  // FIXME
   return all_xy_data;
 }
 
@@ -89,12 +103,13 @@ struct prismesh_t
   int nproc, rank;
 
   planar_polymesh_t* columns;
-  chunk_xy_data_array_t* chunk_xy_data;
-  chunk_array_t* chunks;
-  int_array_t* xy_indices;
-  int_array_t* z_indices;
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
   real_t z1, z2;
+
+  // Chunk data.
+  chunk_xy_data_array_t* chunk_xy_data;
+  int_ptr_unordered_map_t* chunks;
+  int* chunk_indices;
 
   // This flag is set by prismesh_finalize() after a mesh has been assembled.
   bool finalized;
@@ -117,9 +132,8 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
 
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
   mesh->comm = comm;
-  mesh->chunks = chunk_array_new();
-  mesh->xy_indices = int_array_new();
-  mesh->z_indices = int_array_new();
+  mesh->chunks = int_ptr_unordered_map_new();
+  mesh->chunk_indices = NULL;
   mesh->num_xy_chunks = num_xy_chunks;
   mesh->num_z_chunks = num_z_chunks;
   mesh->nz_per_chunk = nz_per_chunk;
@@ -156,6 +170,11 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   return mesh;
 }
 
+static inline int chunk_index(prismesh_t* mesh, int xy_index, int z_index)
+{
+  return (int)(mesh->num_z_chunks * xy_index + z_index);
+}
+
 void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
 {
   ASSERT(!mesh->finalized);
@@ -188,37 +207,43 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
   chunk->z2 = z2;
 
   // Add this chunk to our list.
-  chunk_array_append_with_dtor(mesh->chunks, chunk, free_chunk);
-  int_array_append(mesh->xy_indices, xy_index);
-  int_array_append(mesh->z_indices, z_index);
+  int index = chunk_index(mesh, xy_index, z_index);
+  int_ptr_unordered_map_insert_with_v_dtor(mesh->chunks, index, chunk, DTOR(free_chunk));
 }
 
 void prismesh_finalize(prismesh_t* mesh)
 {
   ASSERT(!mesh->finalized);
 
-  // Sift through the xy data array and get rid of the entries we don't 
-  // use locally.
-  size_t num_xy_indices = mesh->xy_indices->size;
-  bool used[num_xy_indices];
-  memset(used, 0, sizeof(bool) * num_xy_indices);
-  for (size_t i = 0; i < num_xy_indices; ++i)
+  // Create a sorted list of chunk indices. And prune unused xy data.
+  mesh->chunk_indices = polymec_malloc(sizeof(int) * 2 * mesh->chunks->size);
+  size_t k = 0;
+  for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
   {
-    int xy_index = mesh->xy_indices->data[i];
-    used[xy_index] = true;
-  }
+    size_t num_z_chunks = 0;
+    for (size_t j = 0; j < mesh->num_z_chunks; ++j)
+    {
+      int index = chunk_index(mesh, (int)i, (int)j);
+      if (int_ptr_unordered_map_contains(mesh->chunks, index))
+      {
+        mesh->chunk_indices[2*k]   = (int)i;
+        mesh->chunk_indices[2*k+1] = (int)j;
+        ++k;
+        ++num_z_chunks;
+      }
+    }
 
-  for (size_t i = 0; i < mesh->chunk_xy_data->size; ++i)
-  {
-    if (!used[i])
+    // Prune xy data for this xy_index if we don't have any chunks here.
+    if (num_z_chunks == 0)
     {
       // Punch out this data on this process, and clear the corresponding 
       // destructor so it doesn't get double-freed.
-      free_chunk_xy_data(mesh->chunk_xy_data->data[i]);
+      chunk_xy_data_free(mesh->chunk_xy_data->data[i]);
       mesh->chunk_xy_data->data[i] = NULL;
       mesh->chunk_xy_data->dtors[i] = NULL;
     }
   }
+  ASSERT(k == mesh->chunks->size);
 
   // We're finished here.
   mesh->finalized = true;
@@ -255,8 +280,8 @@ prismesh_t* prismesh_new(MPI_Comm comm,
   {
     if ((i >= rank*chunks_per_proc) && (i < rank*(chunks_per_proc+1)))
     {
-      size_t xy_index = i / num_z_chunks;
-      size_t z_index = i % num_z_chunks;
+      int xy_index = (int)(i / num_z_chunks);
+      int z_index = (int)(i % num_z_chunks);
       prismesh_insert_chunk(mesh, xy_index, z_index);
     }
   }
@@ -279,10 +304,11 @@ void prismesh_free(prismesh_t* mesh)
   if (mesh->n_ex != NULL)
     polymec_release(mesh->n_ex);
   polymec_release(mesh->c_ex);
-  int_array_free(mesh->z_indices);
-  int_array_free(mesh->xy_indices);
-  chunk_array_free(mesh->chunks);
+
+  polymec_free(mesh->chunk_indices);
+  int_ptr_unordered_map_free(mesh->chunks);
   chunk_xy_data_array_free(mesh->chunk_xy_data);
+
   if (mesh->columns != NULL)
     planar_polymesh_free(mesh->columns);
   polymec_free(mesh);
@@ -306,6 +332,15 @@ size_t prismesh_num_xy_chunks(prismesh_t* mesh)
 size_t prismesh_num_z_chunks(prismesh_t* mesh)
 {
   return mesh->num_z_chunks;
+}
+
+bool prismesh_has_chunk(prismesh_t* mesh, int xy_index, int z_index)
+{
+  if ((xy_index < 0) || (xy_index >= (int)mesh->num_xy_chunks) ||
+      (z_index < 0) || (z_index >= (int)mesh->num_z_chunks))
+    return false;
+  int index = chunk_index(mesh, xy_index, z_index);
+  return int_ptr_unordered_map_contains(mesh->chunks, index);
 }
 
 real_t prismesh_z1(prismesh_t* mesh)
@@ -339,9 +374,11 @@ bool prismesh_next_chunk(prismesh_t* mesh, int* pos,
     return false;
   else
   {
-    *xy_index = mesh->xy_indices->data[*pos];
-    *z_index = mesh->z_indices->data[*pos];
-    *chunk = mesh->chunks->data[*pos];
+    int i= *pos;
+    *xy_index = mesh->chunk_indices[2*i];
+    *z_index = mesh->chunk_indices[2*i+1];
+    int index = chunk_index(mesh, *xy_index, *z_index);
+    *chunk = *int_ptr_unordered_map_get(mesh->chunks, index);
     ++(*pos);
     return true;
   }
@@ -408,11 +445,52 @@ exchanger_t* prismesh_node_exchanger(prismesh_t* mesh)
 
 #if POLYMEC_HAVE_MPI
 static void redistribute_prismesh(prismesh_t** mesh, 
-                                  MPI_Comm super_comm,
-                                  int64_t* partition)
+                                  int64_t* partition,
+                                  int64_t* sources)
 {
   START_FUNCTION_TIMER();
-  // FIXME
+  prismesh_t* old_mesh = *mesh;
+
+  // Create a new empty mesh.
+  prismesh_t* new_mesh = polymec_malloc(sizeof(prismesh_t));
+  new_mesh->comm = old_mesh->comm;
+  new_mesh->chunks = int_ptr_unordered_map_new();
+  new_mesh->chunk_indices = NULL;
+  new_mesh->num_xy_chunks = old_mesh->num_xy_chunks;
+  new_mesh->num_z_chunks = old_mesh->num_z_chunks;
+  new_mesh->nz_per_chunk = old_mesh->nz_per_chunk;
+  new_mesh->z1 = old_mesh->z1;
+  new_mesh->z2 = old_mesh->z2;
+  MPI_Comm_size(new_mesh->comm, &new_mesh->nproc);
+  MPI_Comm_rank(new_mesh->comm, &new_mesh->rank);
+  new_mesh->finalized = false;
+
+  // Initialize exchangers. Unless we ask for anything else, we only 
+  // set up the cell exchanger.
+  new_mesh->c_ex = exchanger_new(new_mesh->comm);
+  new_mesh->xyf_ex = NULL;
+  new_mesh->zf_ex = NULL;
+  new_mesh->xye_ex = NULL;
+  new_mesh->ze_ex = NULL;
+  new_mesh->n_ex = NULL;
+
+  // Create xy data for chunks.
+  new_mesh->chunk_xy_data = redistribute_chunk_xy_data(old_mesh, partition, sources);
+
+  // Insert the new patches as prescribed by the partition vector.
+  size_t num_chunks = new_mesh->num_xy_chunks * new_mesh->num_z_chunks;
+  for (size_t i = 0; i < num_chunks; ++i)
+  {
+    if (partition[i] == new_mesh->rank)
+    {
+      int xy_index = (int)(i / new_mesh->num_z_chunks);
+      int z_index = (int)(i % new_mesh->num_z_chunks);
+      prismesh_insert_chunk(new_mesh, xy_index, z_index);
+    }
+  }
+
+  // Replace the old mesh with the new one.
+  *mesh = new_mesh;
   STOP_FUNCTION_TIMER();
 }
 
@@ -421,7 +499,7 @@ static adj_graph_t* graph_from_prismesh_chunks(prismesh_t* mesh)
   // Create a graph whose vertices are the mesh's patches. NOTE
   // that we associate this graph with the MPI_COMM_SELF communicator 
   // because it's a global graph.
-  int num_chunks = mesh->num_xy_chunks * mesh->num_z_chunks;
+  size_t num_chunks = mesh->num_xy_chunks * mesh->num_z_chunks;
   adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, num_chunks);
 
 #if 0
@@ -662,13 +740,13 @@ void repartition_prismesh(prismesh_t** mesh,
   log_debug("repartition_prismesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
   int64_t* P = partition_graph(graph, old_mesh->comm, weights, imbalance_tol, true);
 
-  // Redistribute the mesh. 
-  log_debug("repartition_peximesh: Redistributing mesh.");
-  redistribute_prismesh(mesh, old_mesh->comm, P);
-
   // Build a sources vector whose ith component is the rank that used to own 
   // the ith patch.
   int64_t* sources = source_vector(old_mesh);
+
+  // Redistribute the mesh. 
+  log_debug("repartition_peximesh: Redistributing mesh.");
+  redistribute_prismesh(mesh, P, sources);
 
   // Redistribute the fields.
   if (num_fields > 0)
