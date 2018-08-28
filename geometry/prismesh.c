@@ -97,6 +97,8 @@ static void free_chunk(prismesh_chunk_t* chunk)
   polymec_free(chunk);
 }
 
+DEFINE_UNORDERED_MAP(chunk_map, int, prismesh_chunk_t*, int_hash, int_equals)
+
 struct prismesh_t 
 {
   MPI_Comm comm;
@@ -108,7 +110,7 @@ struct prismesh_t
 
   // Chunk data.
   chunk_xy_data_array_t* chunk_xy_data;
-  int_ptr_unordered_map_t* chunks;
+  chunk_map_t* chunks;
   int* chunk_indices;
 
   // This flag is set by prismesh_finalize() after a mesh has been assembled.
@@ -132,7 +134,7 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
 
   prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
   mesh->comm = comm;
-  mesh->chunks = int_ptr_unordered_map_new();
+  mesh->chunks = chunk_map_new();
   mesh->chunk_indices = NULL;
   mesh->num_xy_chunks = num_xy_chunks;
   mesh->num_z_chunks = num_z_chunks;
@@ -182,7 +184,7 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
   ASSERT(xy_index < mesh->num_xy_chunks);
   ASSERT(z_index >= 0);
   ASSERT(z_index < mesh->num_z_chunks);
-  // FIXME: Assert that we haven't already inserted this chunk!
+  ASSERT(!prismesh_has_chunk(mesh, xy_index, z_index));
 
   prismesh_chunk_t* chunk = polymec_malloc(sizeof(prismesh_chunk_t));
 
@@ -208,7 +210,7 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
 
   // Add this chunk to our list.
   int index = chunk_index(mesh, xy_index, z_index);
-  int_ptr_unordered_map_insert_with_v_dtor(mesh->chunks, index, chunk, DTOR(free_chunk));
+  chunk_map_insert_with_v_dtor(mesh->chunks, index, chunk, free_chunk);
 }
 
 void prismesh_finalize(prismesh_t* mesh)
@@ -224,7 +226,7 @@ void prismesh_finalize(prismesh_t* mesh)
     for (size_t j = 0; j < mesh->num_z_chunks; ++j)
     {
       int index = chunk_index(mesh, (int)i, (int)j);
-      if (int_ptr_unordered_map_contains(mesh->chunks, index))
+      if (chunk_map_contains(mesh->chunks, index))
       {
         mesh->chunk_indices[2*k]   = (int)i;
         mesh->chunk_indices[2*k+1] = (int)j;
@@ -306,7 +308,7 @@ void prismesh_free(prismesh_t* mesh)
   polymec_release(mesh->c_ex);
 
   polymec_free(mesh->chunk_indices);
-  int_ptr_unordered_map_free(mesh->chunks);
+  chunk_map_free(mesh->chunks);
   chunk_xy_data_array_free(mesh->chunk_xy_data);
 
   if (mesh->columns != NULL)
@@ -334,13 +336,16 @@ size_t prismesh_num_z_chunks(prismesh_t* mesh)
   return mesh->num_z_chunks;
 }
 
+prismesh_chunk_t* prismesh_chunk(prismesh_t* mesh, int xy_index, int z_index)
+{
+  int index = chunk_index(mesh, xy_index, z_index);
+  prismesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
+  return (chunk_p != NULL) ? *chunk_p : NULL;
+}
+
 bool prismesh_has_chunk(prismesh_t* mesh, int xy_index, int z_index)
 {
-  if ((xy_index < 0) || (xy_index >= (int)mesh->num_xy_chunks) ||
-      (z_index < 0) || (z_index >= (int)mesh->num_z_chunks))
-    return false;
-  int index = chunk_index(mesh, xy_index, z_index);
-  return int_ptr_unordered_map_contains(mesh->chunks, index);
+  return (prismesh_chunk(mesh, xy_index, z_index) != NULL);
 }
 
 real_t prismesh_z1(prismesh_t* mesh)
@@ -379,7 +384,7 @@ bool prismesh_next_chunk(prismesh_t* mesh, int* pos,
     *z_index = mesh->chunk_indices[2*i+1];
     int index = chunk_index(mesh, *xy_index, *z_index);
     if (chunk != NULL)
-      *chunk = *int_ptr_unordered_map_get(mesh->chunks, index);
+      *chunk = *chunk_map_get(mesh->chunks, index);
     ++(*pos);
     return true;
   }
@@ -455,7 +460,7 @@ static void redistribute_prismesh(prismesh_t** mesh,
   // Create a new empty mesh.
   prismesh_t* new_mesh = polymec_malloc(sizeof(prismesh_t));
   new_mesh->comm = old_mesh->comm;
-  new_mesh->chunks = int_ptr_unordered_map_new();
+  new_mesh->chunks = chunk_map_new();
   new_mesh->chunk_indices = NULL;
   new_mesh->num_xy_chunks = old_mesh->num_xy_chunks;
   new_mesh->num_z_chunks = old_mesh->num_z_chunks;
@@ -497,7 +502,7 @@ static void redistribute_prismesh(prismesh_t** mesh,
 
 static adj_graph_t* graph_from_prismesh_chunks(prismesh_t* mesh)
 {
-  // Create a graph whose vertices are the mesh's patches. NOTE
+  // Create a graph whose vertices are the mesh's chunks. NOTE
   // that we associate this graph with the MPI_COMM_SELF communicator 
   // because it's a global graph.
   size_t num_chunks = mesh->num_xy_chunks * mesh->num_z_chunks;
