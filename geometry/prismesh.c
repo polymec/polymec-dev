@@ -378,7 +378,8 @@ bool prismesh_next_chunk(prismesh_t* mesh, int* pos,
     *xy_index = mesh->chunk_indices[2*i];
     *z_index = mesh->chunk_indices[2*i+1];
     int index = chunk_index(mesh, *xy_index, *z_index);
-    *chunk = *int_ptr_unordered_map_get(mesh->chunks, index);
+    if (chunk != NULL)
+      *chunk = *int_ptr_unordered_map_get(mesh->chunks, index);
     ++(*pos);
     return true;
   }
@@ -579,57 +580,51 @@ static adj_graph_t* graph_from_prismesh_chunks(prismesh_t* mesh)
 
 static int64_t* source_vector(prismesh_t* mesh)
 {
-#if 0
   // Catalog all the chunks on this process.
   int_array_t* my_chunks = int_array_new();
-  for (int i = 0; i < mesh->npx; ++i)
+  for (int xy_index = 0; xy_index < (int)mesh->num_xy_chunks; ++xy_index)
   {
-    for (int j = 0; j < mesh->npy; ++j)
+    for (int z_index = 0; z_index < (int)mesh->num_z_chunks; ++z_index)
     {
-      for (int k = 0; k < mesh->npz; ++k)
-      {
-        if (unimesh_has_patch(mesh, i, j, k))
-          int_array_append(my_patches, patch_index(mesh, i, j, k));
-      }
+      if (prismesh_has_chunk(mesh, xy_index, z_index))
+        int_array_append(my_chunks, chunk_index(mesh, xy_index, z_index));
     }
   }
 
-  // Gather the numbers of patches owned by each process.
-  int num_my_patches = (int)my_patches->size;
-  int num_patches_for_proc[mesh->nproc];
-  MPI_Allgather(&num_my_patches, 1, MPI_INT, 
-                num_patches_for_proc, 1, MPI_INT, mesh->comm);
+  // Gather the numbers of chunks owned by each process.
+  int num_my_chunks = (int)my_chunks->size;
+  int num_chunks_for_proc[mesh->nproc];
+  MPI_Allgather(&num_my_chunks, 1, MPI_INT, 
+                num_chunks_for_proc, 1, MPI_INT, mesh->comm);
 
-  // Arrange for the storage of the patch indices for the patches stored 
+  // Arrange for the storage of the chunk indices for the patches stored 
   // on each process.
   int proc_offsets[mesh->nproc+1];
   proc_offsets[0] = 0;
   for (int p = 0; p < mesh->nproc; ++p)
-    proc_offsets[p+1] = proc_offsets[p] + num_patches_for_proc[p];
+    proc_offsets[p+1] = proc_offsets[p] + num_chunks_for_proc[p];
 
-  // Gæther the indices of the patches owned by all processes into a huge list.
-  int num_all_patches = mesh->npx * mesh->npy * mesh->npz;
-  ASSERT(num_all_patches == proc_offsets[mesh->nproc]);
-  int* all_patches = polymec_malloc(sizeof(int) * num_all_patches);
-  MPI_Allgatherv(my_patches->data, num_my_patches, MPI_INT, 
-                 all_patches, num_patches_for_proc, proc_offsets,
+  // Gather the indices of the chunks owned by all processes into a huge list.
+  int num_all_chunks = mesh->num_xy_chunks * mesh->num_z_chunks;
+  ASSERT(num_all_chunks == proc_offsets[mesh->nproc]);
+  int* all_chunks = polymec_malloc(sizeof(int) * num_all_chunks);
+  MPI_Allgatherv(my_chunks->data, num_my_chunks, MPI_INT, 
+                 all_chunks, num_chunks_for_proc, proc_offsets,
                  MPI_INT, mesh->comm);
 
   // Clean up a bit.
-  int_array_free(my_patches);
+  int_array_free(my_chunks);
 
   // Convert the huge list into a source vector.
-  int64_t* sources = polymec_malloc(sizeof(int64_t) * num_all_patches);
+  int64_t* sources = polymec_malloc(sizeof(int64_t) * num_all_chunks);
   for (int p = 0; p < mesh->nproc; ++p)
   {
     for (int offset = proc_offsets[p]; offset < proc_offsets[p+1]; ++offset)
-      sources[all_patches[offset]] = (int64_t)p;
+      sources[all_chunks[offset]] = (int64_t)p;
   }
 
-  polymec_free(all_patches);
+  polymec_free(all_chunks);
   return sources;
-#endif
-  return NULL;
 }
 
 static void redistribute_prismesh_field(prismesh_field_t** field, 
@@ -644,66 +639,61 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
   prismesh_field_t* new_field = prismesh_field_new(new_mesh,
                                                    prismesh_field_centering(old_field),
                                                    prismesh_field_num_components(old_field));
-#if 0
 
-  // Copy all local chunks from one field to the other.
-  unimesh_patch_t* patch;
-  int pos = 0, i, j, k;
-  while (unimesh_field_next_patch(new_field, &pos, &i, &j, &k, &patch, NULL))
+  // Copy all local chunk data from one field to the other.
+  prismesh_chunk_t* chunk;
+  prismesh_chunk_data_t* data;
+  int pos = 0, xy_index, z_index;
+  while (prismesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &chunk, &data))
   {
-    unimesh_patch_t* old_patch = unimesh_field_patch(old_field, i, j, k);
-    if (old_patch != NULL)
-      unimesh_patch_copy(old_patch, patch);
+    prismesh_chunk_data_t* old_data = prismesh_field_chunk_data(old_field, xy_index, z_index);
+    if (old_data != NULL)
+      prismesh_chunk_data_copy(old_data, data);
   }
 
-  // Post receives for each patch in the new field.
-  int num_new_local_patches = unimesh_field_num_patches(new_field);
-  MPI_Request recv_requests[num_new_local_patches];
+  // Post receives for each chunk in the new field.
+  int num_new_local_chunks = prismesh_field_num_chunks(new_field);
+  MPI_Request recv_requests[num_new_local_chunks];
   pos = 0;
   int num_recv_reqs = 0;
-  while (unimesh_field_next_patch(new_field, &pos, &i, &j, &k, &patch, NULL))
+  while (prismesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &chunk, &data))
   {
-    int p = patch_index(new_mesh, i, j, k);
-    if (partition[p] == new_mesh->rank)
+    int ch = chunk_index(new_mesh, xy_index, z_index);
+    if (partition[ch] == new_mesh->rank)
     {
-      size_t data_size = unimesh_patch_data_size(patch->centering, 
-                                                 patch->nx, patch->ny, patch->nz,
-                                                 patch->nc) / sizeof(real_t);
-      int err = MPI_Irecv(patch->data, (int)data_size, MPI_REAL_T, (int)sources[p],
+      size_t data_size = prismesh_chunk_data_size(data) / sizeof(real_t);
+      int err = MPI_Irecv(data->data, (int)data_size, MPI_REAL_T, (int)sources[ch],
                           0, new_mesh->comm, &(recv_requests[num_recv_reqs]));
       if (err != MPI_SUCCESS)
-        polymec_error("Error receiving field data from rank %d", (int)sources[p]);
+        polymec_error("Error receiving field data from rank %d", (int)sources[ch]);
       ++num_recv_reqs;
     }
   }
-  ASSERT(num_recv_reqs <= num_new_local_patches);
+  ASSERT(num_recv_reqs <= num_new_local_chunks);
 
   // Post sends.
-  int num_old_local_patches = unimesh_field_num_patches(old_field);
-  MPI_Request send_requests[num_old_local_patches];
+  int num_old_local_chunks = prismesh_field_num_chunks(old_field);
+  MPI_Request send_requests[num_old_local_chunks];
   pos = 0;
   int num_send_reqs = 0;
-  while (unimesh_field_next_patch(old_field, &pos, &i, &j, &k, &patch, NULL))
+  while (prismesh_field_next_chunk(old_field, &pos, &xy_index, &z_index, &chunk, &data))
   {
-    int p = patch_index(new_mesh, i, j, k);
-    if (sources[p] == new_mesh->rank)
+    int ch = chunk_index(new_mesh, xy_index, z_index);
+    if (sources[ch] == new_mesh->rank)
     {
-      size_t data_size = unimesh_patch_data_size(patch->centering, 
-                                                 patch->nx, patch->ny, patch->nz,
-                                                 patch->nc) / sizeof(real_t);
-      int err = MPI_Isend(patch->data, (int)data_size, MPI_REAL_T, (int)partition[p],
+      size_t data_size = prismesh_chunk_data_size(data) / sizeof(real_t);
+      int err = MPI_Isend(data->data, (int)data_size, MPI_REAL_T, (int)partition[ch],
                           0, new_mesh->comm, &(send_requests[num_send_reqs]));
       if (err != MPI_SUCCESS)
-        polymec_error("Error sending field data to rank %d", (int)partition[p]);
+        polymec_error("Error sending field data to rank %d", (int)partition[ch]);
       ++num_send_reqs;
     }
   }
-  ASSERT(num_send_reqs <= num_old_local_patches);
+  ASSERT(num_send_reqs <= num_old_local_chunks);
 
   // Wait for everything to finish.
   MPI_Waitall(num_send_reqs, send_requests, MPI_STATUSES_IGNORE);
   MPI_Waitall(num_recv_reqs, recv_requests, MPI_STATUSES_IGNORE);
-#endif
 
   // Replace the old field with the new one.
   *field = new_field;

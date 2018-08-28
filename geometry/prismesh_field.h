@@ -39,6 +39,18 @@ struct prismesh_chunk_data_t
 };
 typedef struct prismesh_chunk_data_t prismesh_chunk_data_t;
 
+/// Returns the number of bytes occupied by the chunk data.
+/// \memberof prismesh_chunk_data
+static inline size_t prismesh_chunk_data_size(prismesh_chunk_data_t* data)
+{
+  return sizeof(real_t) * data->xy_size * data->z_size * data->num_components;
+}
+
+/// Copies the data from this chunk to a destination chunk.
+/// \memberof prismesh_chunk_data
+void prismesh_chunk_data_copy(prismesh_chunk_data_t* data, 
+                              prismesh_chunk_data_t* dest);
+
 /// Constructs a new prismesh field with the given number of components
 /// on the given mesh.
 /// \memberof prismesh_field
@@ -49,6 +61,11 @@ prismesh_field_t* prismesh_field_new(prismesh_t* mesh,
 /// Destroys the given prismesh field.
 /// \memberof prismesh_field
 void prismesh_field_free(prismesh_field_t* field);
+
+/// Copies the data in this field to a destination field.
+/// \memberof prismesh_field
+void prismesh_field_copy(prismesh_field_t* field,
+                         prismesh_field_t* dest);
 
 /// Returns the centering for the field.
 /// \memberof prismesh_field
@@ -65,6 +82,13 @@ size_t prismesh_field_num_chunks(prismesh_field_t* field);
 /// Returns an internal pointer to the field's underlying prismesh.
 /// \memberof prismesh_field
 prismesh_t* prismesh_field_mesh(prismesh_field_t* field);
+
+/// Returns the chunk data for the chunk in this field identified by the 
+/// given xy and z indices.
+/// \memberof prismesh_field
+prismesh_chunk_data_t* prismesh_field_chunk_data(prismesh_field_t* field, 
+                                                 int xy_index,
+                                                 int z_index);
 
 /// Traverses locally-stored field data chunk by chunk.
 /// \param pos [in,out] Controls the traversal. Set to 0 to reset.

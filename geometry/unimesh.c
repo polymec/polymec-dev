@@ -1270,7 +1270,7 @@ static int64_t* source_vector(unimesh_t* mesh)
   for (int p = 0; p < mesh->nproc; ++p)
     proc_offsets[p+1] = proc_offsets[p] + num_patches_for_proc[p];
 
-  // Gæther the indices of the patches owned by all processes into a huge list.
+  // Gather the indices of the patches owned by all processes into a huge list.
   int num_all_patches = mesh->npx * mesh->npy * mesh->npz;
   ASSERT(num_all_patches == proc_offsets[mesh->nproc]);
   int* all_patches = polymec_malloc(sizeof(int) * num_all_patches);
