@@ -2,7 +2,7 @@
 cmake_minimum_required (VERSION 3.10.0)
 
 # Adjust CMake's module path.
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 # Set compilers. This must be done before enabling languages.
 include(set_up_platform)
@@ -357,7 +357,7 @@ set_target_properties(generate_headers PROPERTIES FOLDER Misc)
 # Now that we have gathered all our libraries, generate a polymec.cmake 
 # file that contains all the vital information.
 configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Templates/polymec.cmake.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/templates/polymec.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake"
   @ONLY
 )
@@ -398,10 +398,10 @@ install(FILES ${polymec_headers} DESTINATION include/polymec)
 
 # Install miscellaneous build/test files.
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/polymec.cmake DESTINATION share/polymec)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_executable.cmake DESTINATION share/polymec)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_library.cmake DESTINATION share/polymec)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/add_polymec_test.cmake DESTINATION share/polymec)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/FindValgrind.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_executable.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_library.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/add_polymec_test.cmake DESTINATION share/polymec)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/FindValgrind.cmake DESTINATION share/polymec)
 
 # Additional targets.
 
