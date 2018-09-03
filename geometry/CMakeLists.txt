@@ -15,6 +15,8 @@ add_polymec_library(polymec_geometry coord_mapping.c sd_func.c sdt_func.c
                     create_rectilinear_polymesh.c create_uniform_polymesh.c 
                     crop_polymesh.c
                     prismesh.c prismesh_field.c planar_polymesh.c
+                    create_quad_planar_polymesh.c create_hex_planar_polymesh.c 
+                    create_quad_prismesh.c create_hex_prismesh.c 
                     lua_geometry.c)
 add_dependencies(polymec_geometry all_3rdparty_libs)
 

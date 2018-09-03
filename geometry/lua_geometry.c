@@ -17,6 +17,12 @@
 #include "geometry/partition_polymesh.h"
 #include "geometry/create_uniform_polymesh.h"
 
+#include "geometry/create_quad_planar_polymesh.h"
+#include "geometry/create_hex_planar_polymesh.h"
+
+#include "geometry/create_quad_prismesh.h"
+#include "geometry/create_hex_prismesh.h"
+
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
@@ -1131,8 +1137,95 @@ static lua_class_method p3_methods[] = {
   {NULL, NULL, NULL}
 };
 
-// FIXME: No constructors for planar_polymeshes yet!
+static int pp_quad(lua_State* L)
+{
+  if (!lua_istable(L, 1))
+    luaL_error(L, "Argument must be a table with nx, ny, nz, bbox fields.");
+
+  lua_getfield(L, 1, "nx");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nx must be a positive integer.");
+  int nx = (int)lua_tointeger(L, -1);
+  if (nx < 1)
+    luaL_error(L, "nx must be positive.");
+
+  lua_getfield(L, 1, "ny");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "ny must be a positive integer.");
+  int ny = (int)lua_tointeger(L, -1);
+  if (ny < 1)
+    luaL_error(L, "ny must be positive.");
+
+  lua_getfield(L, 1, "bbox");
+  if (!lua_is_bbox(L, -1))
+    luaL_error(L, "bbox must be a bounding box (bbox).");
+  bbox_t* bbox = lua_to_bbox(L, -1);
+
+  bool periodic_in_x = false;
+  lua_getfield(L, 1, "periodic_in_x");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_x must be true or false.");
+  periodic_in_x = lua_toboolean(L, -1);
+
+  bool periodic_in_y = false;
+  lua_getfield(L, 1, "periodic_in_y");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_y must be true or false.");
+  periodic_in_y = lua_toboolean(L, -1);
+
+  planar_polymesh_t* mesh = create_quad_planar_polymesh(nx, ny, bbox, 
+                                                        periodic_in_x, 
+                                                        periodic_in_y);
+  lua_push_planar_polymesh(L, mesh);
+  return 1;
+}
+
+static int pp_hex(lua_State* L)
+{
+  if (!lua_istable(L, 1))
+    luaL_error(L, "Argument must be a table with nx, ny, nz, bbox fields.");
+
+  lua_getfield(L, 1, "nx");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nx must be a positive integer.");
+  int nx = (int)lua_tointeger(L, -1);
+  if (nx < 1)
+    luaL_error(L, "nx must be positive.");
+
+  lua_getfield(L, 1, "ny");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "ny must be a positive integer.");
+  int ny = (int)lua_tointeger(L, -1);
+  if (ny < 1)
+    luaL_error(L, "ny must be positive.");
+
+  lua_getfield(L, 1, "bbox");
+  if (!lua_is_bbox(L, -1))
+    luaL_error(L, "bbox must be a bounding box (bbox).");
+  bbox_t* bbox = lua_to_bbox(L, -1);
+
+  bool periodic_in_x = false;
+  lua_getfield(L, 1, "periodic_in_x");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_x must be true or false.");
+  periodic_in_x = lua_toboolean(L, -1);
+
+  bool periodic_in_y = false;
+  lua_getfield(L, 1, "periodic_in_y");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_y must be true or false.");
+  periodic_in_y = lua_toboolean(L, -1);
+
+  planar_polymesh_t* mesh = create_hex_planar_polymesh(nx, ny, bbox, 
+                                                       periodic_in_x, 
+                                                       periodic_in_y);
+  lua_push_planar_polymesh(L, mesh);
+  return 1;
+}
+
 static lua_module_function pp_funcs[] = {
+  {"quad", pp_quad, "planar_polymesh.quad{nx = NX, ny = NY, bbox = BBOX, periodic_in_x = false, periodic_in_y = false} -> New uniform quadrilateral planar polymesh."},
+  {"hex", pp_hex, "planar_polymesh.hex{nx = NX, ny = NY, bbox = BBOX, periodic_in_x = false, periodic_in_y = false} -> New uniform hexagonal planar polymesh."},
   {NULL, NULL, NULL}
 };
 
@@ -1611,8 +1704,122 @@ static int prismesh_repartition(lua_State* L)
   return 0;
 }
 
+static int prismesh_quad(lua_State* L)
+{
+  if (!lua_istable(L, 1))
+    luaL_error(L, "Argument must be a table with nx, ny, nz, bbox fields.");
+
+  lua_getfield(L, 1, "nx");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nx must be a positive integer.");
+  int nx = (int)lua_tointeger(L, -1);
+  if (nx < 1)
+    luaL_error(L, "nx must be positive.");
+
+  lua_getfield(L, 1, "ny");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "ny must be a positive integer.");
+  int ny = (int)lua_tointeger(L, -1);
+  if (ny < 1)
+    luaL_error(L, "ny must be positive.");
+
+  lua_getfield(L, 1, "nz");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nz must be a positive integer.");
+  int nz = (int)lua_tointeger(L, -1);
+  if (nz < 1)
+    luaL_error(L, "nz must be positive.");
+
+  lua_getfield(L, 1, "bbox");
+  if (!lua_is_bbox(L, -1))
+    luaL_error(L, "bbox must be a bounding box (bbox).");
+  bbox_t* bbox = lua_to_bbox(L, -1);
+
+  bool periodic_in_x = false;
+  lua_getfield(L, 1, "periodic_in_x");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_x must be true or false.");
+  periodic_in_x = lua_toboolean(L, -1);
+
+  bool periodic_in_y = false;
+  lua_getfield(L, 1, "periodic_in_y");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_y must be true or false.");
+  periodic_in_y = lua_toboolean(L, -1);
+
+  bool periodic_in_z = false;
+  lua_getfield(L, 1, "periodic_in_z");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_z must be true or false.");
+  periodic_in_z = lua_toboolean(L, -1);
+
+  prismesh_t* mesh = create_quad_prismesh(nx, ny, nz, bbox, 
+                                          periodic_in_x, periodic_in_y,
+                                          periodic_in_z);
+  lua_push_prismesh(L, mesh);
+  return 1;
+}
+
+static int prismesh_hex(lua_State* L)
+{
+  if (!lua_istable(L, 1))
+    luaL_error(L, "Argument must be a table with nx, ny, nz, bbox fields.");
+
+  lua_getfield(L, 1, "nx");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nx must be a positive integer.");
+  int nx = (int)lua_tointeger(L, -1);
+  if (nx < 1)
+    luaL_error(L, "nx must be positive.");
+
+  lua_getfield(L, 1, "ny");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "ny must be a positive integer.");
+  int ny = (int)lua_tointeger(L, -1);
+  if (ny < 1)
+    luaL_error(L, "ny must be positive.");
+
+  lua_getfield(L, 1, "nz");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nz must be a positive integer.");
+  int nz = (int)lua_tointeger(L, -1);
+  if (nz < 1)
+    luaL_error(L, "nz must be positive.");
+
+  lua_getfield(L, 1, "bbox");
+  if (!lua_is_bbox(L, -1))
+    luaL_error(L, "bbox must be a bounding box (bbox).");
+  bbox_t* bbox = lua_to_bbox(L, -1);
+
+  bool periodic_in_x = false;
+  lua_getfield(L, 1, "periodic_in_x");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_x must be true or false.");
+  periodic_in_x = lua_toboolean(L, -1);
+
+  bool periodic_in_y = false;
+  lua_getfield(L, 1, "periodic_in_y");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_y must be true or false.");
+  periodic_in_y = lua_toboolean(L, -1);
+
+  bool periodic_in_z = false;
+  lua_getfield(L, 1, "periodic_in_z");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_z must be true or false.");
+  periodic_in_z = lua_toboolean(L, -1);
+
+  prismesh_t* mesh = create_hex_prismesh(nx, ny, nz, bbox, 
+                                         periodic_in_x, periodic_in_y,
+                                         periodic_in_z);
+  lua_push_prismesh(L, mesh);
+  return 1;
+}
+
 static lua_module_function prismesh_funcs[] = {
-  {"repartition", prismesh_repartition, "mesh.repartition(m) -> Repartitions the prismesh m."},
+  {"quad", prismesh_quad, "prismesh.quad{comm = COMM, nx = NX, ny = NY, nz = NZ, periodic_in_x = false, periodic_in_y = false} -> New uniform quadrilateral prism mesh."},
+  {"hex", prismesh_hex, "prismesh.hex{comm = COMM, nx = NX, ny = NY, nz = NZ, periodic_in_x = false, periodic_in_y = false} -> New uniform hexagonal prism mesh."},
+  {"repartition", prismesh_repartition, "prismesh.repartition(m) -> Repartitions the prismesh m."},
   {NULL, NULL, NULL}
 };
 
