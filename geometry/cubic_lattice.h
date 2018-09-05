@@ -174,19 +174,5 @@ serializer_t* cubic_lattice_serializer(void);
 
 ///@}
 
-#if 0
-// These functions can be used to generate mappings between faces on cubic 
-// lattice meshes with periodic boundary conditions. 
-
-// Creates a periodic boundary condition, identifying x-faces with the given tags.
-periodic_bc_t* cubic_lattice_x_periodic_bc_new(const char* tag1, const char* tag2);
-
-// Creates a periodic boundary condition, identifying y-faces with the given tags.
-periodic_bc_t* cubic_lattice_y_periodic_bc_new(const char* tag1, const char* tag2);
-
-// Creates a periodic boundary condition, identifying z-faces with the given tags.
-periodic_bc_t* cubic_lattice_z_periodic_bc_new(const char* tag1, const char* tag2);
-#endif
-
 #endif
 

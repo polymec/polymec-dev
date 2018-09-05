@@ -45,20 +45,3 @@ serializer_t* cubic_lattice_serializer()
                         cl_byte_read, cl_byte_write, NULL);
 }
 
-#if 0
-periodic_bc_t* cubic_lattice_x_periodic_bc_new(const char* tag1, const char* tag2)
-{
-  return periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_x_periodic_map, NULL);
-}
-
-periodic_bc_t* cubic_lattice_y_periodic_bc_new(const char* tag1, const char* tag2)
-{
-  return periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_y_periodic_map, NULL);
-}
-
-periodic_bc_t* cubic_lattice_z_periodic_bc_new(const char* tag1, const char* tag2)
-{
-  return periodic_bc_new_with_map_func(tag1, tag2, cubic_lattice_generate_z_periodic_map, NULL);
-}
-#endif
-
