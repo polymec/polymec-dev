@@ -15,13 +15,13 @@
 
 /// This function creates and returns a prismesh consisting of nx x ny x nz
 /// hexagonal prism cells spanning the given bounding box. The box can be 
-/// periodic in x, y, and/or z. The cells on the xy boundary are cropped to 
+/// periodic in x and/or y. The cells on the xy boundary are cropped to 
 /// fit the bounding box unless the box is periodic on that boundary.
-prismesh_t* create_hex_prismesh(int nx, int ny, int nz,
+prismesh_t* create_hex_prismesh(MPI_Comm comm,
+                                size_t nx, size_t ny, size_t nz,
                                 bbox_t* bbox,
                                 bool periodic_in_x,
-                                bool periodic_in_y,
-                                bool periodic_in_z);
+                                bool periodic_in_y);
 
 ///@}
 

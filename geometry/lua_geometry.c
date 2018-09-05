@@ -1707,7 +1707,12 @@ static int prismesh_repartition(lua_State* L)
 static int prismesh_quad(lua_State* L)
 {
   if (!lua_istable(L, 1))
-    luaL_error(L, "Argument must be a table with nx, ny, nz, bbox fields.");
+    luaL_error(L, "Argument must be a table with comm, nx, ny, nz, bbox fields.");
+
+  lua_getfield(L, 1, "comm");
+  if (!lua_is_mpi_comm(L, -1))
+    luaL_error(L, "comm must be an mpi_comm.");
+  MPI_Comm comm = lua_to_mpi_comm(L, -1);
 
   lua_getfield(L, 1, "nx");
   if (!lua_isinteger(L, -1))
@@ -1747,15 +1752,8 @@ static int prismesh_quad(lua_State* L)
     luaL_error(L, "periodic_in_y must be true or false.");
   periodic_in_y = lua_toboolean(L, -1);
 
-  bool periodic_in_z = false;
-  lua_getfield(L, 1, "periodic_in_z");
-  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
-    luaL_error(L, "periodic_in_z must be true or false.");
-  periodic_in_z = lua_toboolean(L, -1);
-
-  prismesh_t* mesh = create_quad_prismesh(nx, ny, nz, bbox, 
-                                          periodic_in_x, periodic_in_y,
-                                          periodic_in_z);
+  prismesh_t* mesh = create_quad_prismesh(comm, nx, ny, nz, bbox, 
+                                          periodic_in_x, periodic_in_y);
   lua_push_prismesh(L, mesh);
   return 1;
 }
@@ -1763,7 +1761,12 @@ static int prismesh_quad(lua_State* L)
 static int prismesh_hex(lua_State* L)
 {
   if (!lua_istable(L, 1))
-    luaL_error(L, "Argument must be a table with nx, ny, nz, bbox fields.");
+    luaL_error(L, "Argument must be a table with comm, nx, ny, nz, bbox fields.");
+
+  lua_getfield(L, 1, "comm");
+  if (!lua_is_mpi_comm(L, -1))
+    luaL_error(L, "comm must be an mpi_comm.");
+  MPI_Comm comm = lua_to_mpi_comm(L, -1);
 
   lua_getfield(L, 1, "nx");
   if (!lua_isinteger(L, -1))
@@ -1803,15 +1806,8 @@ static int prismesh_hex(lua_State* L)
     luaL_error(L, "periodic_in_y must be true or false.");
   periodic_in_y = lua_toboolean(L, -1);
 
-  bool periodic_in_z = false;
-  lua_getfield(L, 1, "periodic_in_z");
-  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
-    luaL_error(L, "periodic_in_z must be true or false.");
-  periodic_in_z = lua_toboolean(L, -1);
-
-  prismesh_t* mesh = create_hex_prismesh(nx, ny, nz, bbox, 
-                                         periodic_in_x, periodic_in_y,
-                                         periodic_in_z);
+  prismesh_t* mesh = create_hex_prismesh(comm, nx, ny, nz, bbox, 
+                                         periodic_in_x, periodic_in_y);
   lua_push_prismesh(L, mesh);
   return 1;
 }

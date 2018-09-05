@@ -7,14 +7,14 @@
 
 #include "geometry/create_quad_planar_polymesh.h"
 
-planar_polymesh_t* create_quad_planar_polymesh(int nx, int ny, 
+planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny, 
                                                bbox_t* bbox,
                                                bool periodic_in_x,
                                                bool periodic_in_y)
 {
-  int num_cells = nx * ny;
-  int num_edges = (nx+1)*ny + nx*(ny+1);
-  int num_nodes = (nx+1) * (ny+1);
+  int num_cells = (int)(nx * ny);
+  int num_edges = (int)((nx+1)*ny + nx*(ny+1));
+  int num_nodes = (int)((nx+1) * (ny+1));
   int num_edges_per_cell = 4;
   planar_polymesh_t* mesh = planar_polymesh_new_with_cell_type(num_cells,
                                                                num_edges,

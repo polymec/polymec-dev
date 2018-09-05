@@ -17,7 +17,7 @@
 /// This function creates and returns a planar polymesh consisting of nx x ny 
 /// quadrilateral cells spanning the given bounding box. The box can be 
 /// periodic in x, y, or both.
-planar_polymesh_t* create_quad_planar_polymesh(int nx, int ny, 
+planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny, 
                                                bbox_t* bbox,
                                                bool periodic_in_x,
                                                bool periodic_in_y);

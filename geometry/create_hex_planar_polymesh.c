@@ -7,7 +7,7 @@
 
 #include "geometry/create_hex_planar_polymesh.h"
 
-planar_polymesh_t* create_hex_planar_polymesh(int nx, int ny, 
+planar_polymesh_t* create_hex_planar_polymesh(size_t nx, size_t ny, 
                                               bbox_t* bbox,
                                               bool periodic_in_x,
                                               bool periodic_in_y)

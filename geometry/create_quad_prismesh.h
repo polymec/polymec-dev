@@ -15,12 +15,12 @@
 
 /// This function creates and returns a prismesh consisting of nx x ny x nz
 /// quadrilateral prism cells spanning the given bounding box. The box can be 
-/// periodic in x, y, and/or z.
-prismesh_t* create_quad_prismesh(int nx, int ny, int nz,
+/// periodic in x and/or y.
+prismesh_t* create_quad_prismesh(MPI_Comm comm,
+                                 size_t nx, size_t ny, size_t nz,
                                  bbox_t* bbox,
                                  bool periodic_in_x,
-                                 bool periodic_in_y,
-                                 bool periodic_in_z);
+                                 bool periodic_in_y);
 
 ///@}
 

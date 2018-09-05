@@ -18,7 +18,7 @@
 /// regular hexagonal cells filling the given bounding box. The cells on the 
 /// boundary are cropped to fit the bounding box unless the box is periodic
 /// on that boundary.
-planar_polymesh_t* create_hex_planar_polymesh(int nx, int ny, 
+planar_polymesh_t* create_hex_planar_polymesh(size_t nx, size_t ny, 
                                               bbox_t* bbox,
                                               bool periodic_in_x,
                                               bool periodic_in_y);
