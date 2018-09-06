@@ -20,7 +20,8 @@ prismesh_t* create_quad_prismesh(MPI_Comm comm,
                                  size_t nx, size_t ny, size_t nz,
                                  bbox_t* bbox,
                                  bool periodic_in_x,
-                                 bool periodic_in_y);
+                                 bool periodic_in_y,
+                                 bool periodic_in_z);
 
 ///@}
 

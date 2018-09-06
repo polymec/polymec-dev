@@ -108,13 +108,14 @@ typedef struct prismesh_chunk_t prismesh_chunk_t;
 /// \param num_xy_chunks [in] The number of chunks in the distributed mesh within the xy plane.
 /// \param num_z_chunks [in] The number of chunks in the distributed mesh along the z axis.
 /// \param nz_per_chunk [in] The number of mesh cells along the z axis in a chunk.
+/// \param periodic_in_z [in] True if the mesh is periodic along the z axis, false if not.
 /// \returns A newly created prismesh containing no chunks.
 /// \memberof prismesh
 prismesh_t* create_empty_prismesh(MPI_Comm comm, 
                                   planar_polymesh_t* columns,
                                   real_t z1, real_t z2,
                                   size_t num_xy_chunks, size_t num_z_chunks,
-                                  size_t nz_per_chunk);
+                                  size_t nz_per_chunk, bool periodic_in_z);
 
 /// Inserts a new locally-stored chunk with the given xy and z indices into the mesh.
 /// \param xy_index [in] The index identifying the polygonal column that contains the new chunk.
@@ -146,13 +147,14 @@ void prismesh_finalize(prismesh_t* mesh);
 /// \param z1 [in] The z coordinate of the lower boundary of the mesh.
 /// \param z2 [in] The z coordinate of the upper boundary of the mesh.
 /// \param nz [in] The total number of cells along the z axis.
+/// \param periodic_in_z [in] True if the mesh is periodic along the z axis, false if not.
 /// \returns A newly created prismesh.
 /// \memberof prismesh
 /// \collective Collective on comm.
 prismesh_t* prismesh_new(MPI_Comm comm,
                          planar_polymesh_t* columns,
                          real_t z1, real_t z2,
-                         size_t nz);
+                         size_t nz, bool periodic_in_z);
  
 //------------------------------------------------------------------------
 //                          Usage methods
@@ -188,6 +190,10 @@ real_t prismesh_z1(prismesh_t* mesh);
 /// Returns the z coordinate of the top boundary of the mesh.
 /// \memberof prismesh
 real_t prismesh_z2(prismesh_t* mesh);
+
+/// Returns true if the mesh is periodic along the z axis, false if not.
+/// \memberof prismesh
+bool prismesh_is_periodic_in_z(prismesh_t* mesh);
 
 /// Returns true if the mesh has a locally-stored chunk with the given 
 /// xy and z indices.

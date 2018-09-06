@@ -12,11 +12,12 @@ prismesh_t* create_hex_prismesh(MPI_Comm comm,
                                 size_t nx, size_t ny, size_t nz,
                                 bbox_t* bbox,
                                 bool periodic_in_x,
-                                bool periodic_in_y)
+                                bool periodic_in_y,
+                                bool periodic_in_z)
 {
   planar_polymesh_t* columns = create_hex_planar_polymesh(nx, ny, bbox, 
                                                           periodic_in_x, 
                                                           periodic_in_y);
-  return prismesh_new(comm, columns, bbox->z1, bbox->z2, nz);
+  return prismesh_new(comm, columns, bbox->z1, bbox->z2, nz, periodic_in_z);
 }
 

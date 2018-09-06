@@ -113,6 +113,9 @@ struct prismesh_t
   chunk_map_t* chunks;
   int* chunk_indices;
 
+  // True if the mesh is periodic along the z axis, false if not.
+  bool periodic_in_z;
+
   // This flag is set by prismesh_finalize() after a mesh has been assembled.
   bool finalized;
 
@@ -124,7 +127,7 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
                                   planar_polymesh_t* columns,
                                   real_t z1, real_t z2,
                                   size_t num_xy_chunks, size_t num_z_chunks,
-                                  size_t nz_per_chunk)
+                                  size_t nz_per_chunk, bool periodic_in_z)
 {
   ASSERT(columns != NULL);
   ASSERT(z1 < z2);
@@ -143,6 +146,7 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   mesh->z2 = z2;
   MPI_Comm_size(comm, &mesh->nproc);
   MPI_Comm_rank(comm, &mesh->rank);
+  mesh->periodic_in_z = periodic_in_z;
   mesh->finalized = false;
 
   // Initialize exchangers. Unless we ask for anything else, we only 
@@ -254,7 +258,7 @@ void prismesh_finalize(prismesh_t* mesh)
 prismesh_t* prismesh_new(MPI_Comm comm,
                          planar_polymesh_t* columns,
                          real_t z1, real_t z2,
-                         size_t nz)
+                         size_t nz, bool periodic_in_z)
 {
   size_t num_xy_chunks = 1;
   size_t num_z_chunks = 1; 
@@ -275,7 +279,7 @@ prismesh_t* prismesh_new(MPI_Comm comm,
   size_t nz_per_chunk = nz / num_z_chunks;
   prismesh_t* mesh = create_empty_prismesh(comm, columns, z1, z2, 
                                            num_xy_chunks, num_z_chunks, 
-                                           nz_per_chunk);
+                                           nz_per_chunk, periodic_in_z);
   size_t tot_num_chunks = num_xy_chunks * num_z_chunks;
   size_t chunks_per_proc = tot_num_chunks / nproc;
   for (size_t i = 0; i < tot_num_chunks; ++i)
@@ -334,6 +338,11 @@ size_t prismesh_num_xy_chunks(prismesh_t* mesh)
 size_t prismesh_num_z_chunks(prismesh_t* mesh)
 {
   return mesh->num_z_chunks;
+}
+
+bool prismesh_is_periodic_in_z(prismesh_t* mesh)
+{
+  return mesh->periodic_in_z;
 }
 
 prismesh_chunk_t* prismesh_chunk(prismesh_t* mesh, int xy_index, int z_index)
