@@ -21,6 +21,8 @@ add_polymec_geometry_test(test_polymesh test_polymesh.c)
 add_polymec_geometry_test(test_polymesh_field test_polymesh_field.c)
 add_polymec_geometry_test(test_graph_from_polymesh_cells test_graph_from_polymesh_cells.c)
 add_polymec_geometry_test(test_unimesh_patch test_unimesh_patch.c)
+add_polymec_geometry_test(test_create_quad_planar_polymesh test_create_quad_planar_polymesh.c)
+add_polymec_geometry_test(test_create_hex_planar_polymesh test_create_hex_planar_polymesh.c)
 
 add_mpi_polymec_geometry_test(test_partition_point_cloud test_partition_point_cloud.c ../../geometry/create_point_lattice.c ../../geometry/cubic_lattice.c 1 2 3 4)
 add_mpi_polymec_geometry_test(test_repartition_point_cloud test_repartition_point_cloud.c 1 2 3 4)
@@ -32,6 +34,8 @@ add_mpi_polymec_geometry_test(test_repartition_polymesh test_repartition_polymes
 add_mpi_polymec_geometry_test(test_polymesh_node_exchangers test_polymesh_node_exchangers.c 1 2 3 4)
 add_mpi_polymec_geometry_test(test_unimesh test_unimesh.c 1 2 3 4)
 add_mpi_polymec_geometry_test(test_unimesh_field test_unimesh_field.c 1 2 3 4)
+add_mpi_polymec_geometry_test(test_create_quad_prismesh test_create_quad_prismesh.c 1 2 4)
+add_mpi_polymec_geometry_test(test_create_hex_prismesh test_create_hex_prismesh.c 1 2 4)
 
 include(add_driver_test)
 add_driver_with_libs(geometry_driver "polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" test_geometry_driver.c)

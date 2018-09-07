@@ -320,6 +320,108 @@ void prismesh_free(prismesh_t* mesh)
   polymec_free(mesh);
 }
 
+bool prismesh_verify_topology(prismesh_t* mesh, 
+                              void (*handler)(const char* format, ...))
+{
+  // Verify the topology of each chunk.
+  bool good = true;
+  prismesh_chunk_t* chunk;
+  int pos = 0, xy_index, z_index;
+  while (prismesh_next_chunk(mesh, &pos, &xy_index, &z_index, &chunk))
+  {
+    bool result = prismesh_chunk_verify_topology(chunk, handler);
+    if (!result)
+    {
+      good = false;
+      break;
+    }
+  }
+  return good;
+}
+
+bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
+                                    void (*handler)(const char* format, ...))
+{
+#if 0
+  // All cells must have at least 4 faces.
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    if (polymesh_cell_num_faces(mesh, c) < 4)
+    {
+      handler("polymesh_verify_topology: polyhedral cell %d has only %d faces.", 
+              c, polymesh_cell_num_faces(mesh, c));
+      return false;
+    }
+  }
+
+  // All faces must have at least 3 nodes/edges.
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    int ne = polymesh_face_num_edges(mesh, f);
+    if (ne == 0)
+    {
+      handler("polymesh_verify_topology: polygonal face %d has no edges!", f);
+      return false;
+    }
+    if (ne < 3)
+    {
+      handler("polymesh_verify_topology: polygonal face %d has only %d edges.", f, ne);
+      return false;
+    }
+  }
+
+  // Check cell-face topology.
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    int pos = 0, f;
+    while (polymesh_cell_next_face(mesh, c, &pos, &f))
+    {
+      if ((mesh->face_cells[2*f] != c) && (mesh->face_cells[2*f+1] != c))
+      {
+        handler("polymesh_verify_topology: cell %d has face %d but is not attached to it.", c, f);
+        return false;
+      }
+    }
+  }
+  for (int f = 0; f < mesh->num_faces; ++f)
+  {
+    int pos = 0, ff;
+    bool found_face = false;
+    while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
+    {
+      if (ff == f) 
+      {
+        found_face = true;
+        break;
+      }
+    }
+    if (!found_face)
+    {
+      handler("polymesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f]);
+      return false;
+    }
+    if (mesh->face_cells[2*f+1] != -1)
+    {
+      while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
+      {
+        if (ff == f) 
+        {
+          found_face = true;
+          break;
+        }
+      }
+      if (!found_face)
+      {
+        handler("polymesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f+1]);
+        return false;
+      }
+    }
+  }
+  return true;
+#endif
+  return false;
+}
+
 MPI_Comm prismesh_comm(prismesh_t* mesh)
 {
   return mesh->comm;

@@ -167,6 +167,15 @@ prismesh_t* prismesh_new(MPI_Comm comm,
 /// \memberof prismesh
 void prismesh_free(prismesh_t* mesh);
 
+/// Verifies the topological correctness of the prismesh, calling the given 
+/// (variadic) handler function with a formatted string containing a 
+/// description of any problems encountered. If the topology of the mesh is 
+/// correct, this function returns true and the handler function is not called.
+/// Otherwise, the function returns false.
+/// \memberof prismesh
+bool prismesh_verify_topology(prismesh_t* mesh, 
+                              void (*handler)(const char* format, ...));
+
 /// Returns the MPI communicator on which the prismesh is defined.
 /// \memberof prismesh
 MPI_Comm prismesh_comm(prismesh_t* mesh);
@@ -217,6 +226,15 @@ prismesh_chunk_t* prismesh_chunk(prismesh_t* mesh, int xy_index, int z_index);
 bool prismesh_next_chunk(prismesh_t* mesh, int* pos, 
                          int* xy_index, int* z_index,
                          prismesh_chunk_t** chunk);
+
+/// Verifies the topological correctness of the prismesh chunk, calling the 
+/// given (variadic) handler function with a formatted string containing a 
+/// description of any problems encountered. If the topology of the chunk is 
+/// correct, this function returns true and the handler function is not called.
+/// Otherwise, the function returns false.
+/// \memberof prismesh_chunk
+bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk, 
+                                    void (*handler)(const char* format, ...));
 
 /// Returns a newly created polygon that represents the geometry of the 
 /// given column in the chunk.
