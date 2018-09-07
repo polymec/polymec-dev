@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "geometry/create_quad_planar_polymesh.h"
-#include "geometry/cubic_lattice.h"
+#include "geometry/quad_lattice.h"
 
 planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny, 
                                                bbox_t* bbox,
@@ -26,21 +26,20 @@ planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny,
                                                                num_edges_per_cell);
 
   // Create a cubic lattice object for indexing.
-  cubic_lattice_t* lattice = cubic_lattice_new(nx, ny, 1);
+  quad_lattice_t* lattice = quad_lattice_new(nx, ny);
 
   // Now traverse the cells and use the lattice to assign edges and nodes.
   for (int c = 0; c < num_cells; ++c)
   {
-    // Figure out (i, j, k) indices for this cell.
-    index_t cell_index = (index_t)c, i, j, k;
-    cubic_lattice_get_cell_triple(lattice, cell_index, &i, &j, &k);
-    ASSERT(k == 0);
+    // Figure out (i, j) indices for this cell.
+    index_t cell_index = (index_t)c, i, j;
+    quad_lattice_get_cell_pair(lattice, cell_index, &i, &j);
 
     // Edges are just xy faces, really. Count em up.
-    index_t edges[4] = {cubic_lattice_x_face(lattice, i, j, k),
-                        cubic_lattice_x_face(lattice, i+1, j, k),
-                        cubic_lattice_y_face(lattice, i, j, k),
-                        cubic_lattice_y_face(lattice, i, j+1, k)};
+    index_t edges[4] = {quad_lattice_x_face(lattice, i, j),
+                        quad_lattice_x_face(lattice, i+1, j),
+                        quad_lattice_y_face(lattice, i, j),
+                        quad_lattice_y_face(lattice, i, j+1)};
     for (int e = 0; e < 4; ++e)
     {
       mesh->cell_edges[mesh->cell_edge_offsets[c] + e] = (int)edges[e];
@@ -51,10 +50,10 @@ planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny,
     }
 
     // We use the "bottom" nodes for the cell.
-    index_t nodes[4] = {cubic_lattice_node(lattice, i,   j,   k),
-                        cubic_lattice_node(lattice, i+1, j,   k),
-                        cubic_lattice_node(lattice, i+1, j+1, k),
-                        cubic_lattice_node(lattice, i,   j+1, k)};
+    index_t nodes[4] = {quad_lattice_node(lattice, i,   j),
+                        quad_lattice_node(lattice, i+1, j),
+                        quad_lattice_node(lattice, i+1, j+1),
+                        quad_lattice_node(lattice, i,   j+1)};
     for (int n = 0; n < 4; ++n)
     {
       mesh->edge_nodes[2*edges[n]] = (int)nodes[n];
@@ -69,7 +68,7 @@ planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny,
   {
     for (index_t j = 0; j <= (index_t)ny; ++j)
     {
-      index_t n = cubic_lattice_node(lattice, i, j, 0);
+      index_t n = quad_lattice_node(lattice, i, j);
       mesh->nodes[n].x = i*dx;
       mesh->nodes[n].y = j*dy;
     }

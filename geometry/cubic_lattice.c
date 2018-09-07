@@ -7,7 +7,6 @@
 
 #include "core/polymec.h"
 #include "geometry/cubic_lattice.h"
-#include "geometry/polymesh.h"
 
 cubic_lattice_t* cubic_lattice_new(index_t nx, index_t ny, index_t nz)
 {
