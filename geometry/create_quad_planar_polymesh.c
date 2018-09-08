@@ -36,10 +36,10 @@ planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny,
     quad_lattice_get_cell_pair(lattice, cell_index, &i, &j);
 
     // Edges are just xy faces, really. Count em up.
-    index_t edges[4] = {quad_lattice_x_face(lattice, i, j),
-                        quad_lattice_x_face(lattice, i+1, j),
-                        quad_lattice_y_face(lattice, i, j),
-                        quad_lattice_y_face(lattice, i, j+1)};
+    index_t edges[4] = {quad_lattice_x_edge(lattice, i, j),
+                        quad_lattice_x_edge(lattice, i+1, j),
+                        quad_lattice_y_edge(lattice, i, j),
+                        quad_lattice_y_edge(lattice, i, j+1)};
     for (int e = 0; e < 4; ++e)
     {
       mesh->cell_edges[mesh->cell_edge_offsets[c] + e] = (int)edges[e];

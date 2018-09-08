@@ -17,14 +17,17 @@
 /// \class quad_lattice
 /// This class defines an indexing scheme for a (2D) quadrilateral lattice.
 /// Objects of this type are garbage-collected.
-typedef struct 
+struct quad_lattice_t
 {
   // Number of cells in x, y, and z.
   index_t nx, ny;
-} quad_lattice_t;
+};
+typedef struct quad_lattice_t quad_lattice_t;
 
 /// Constructs a representation of a quad lattice with the given numbers of 
 /// cells in x and y.
+/// \param nx [in] The number of cells in the x direction.
+/// \param ny [in] The number of cells in the y direction.
 /// \memberof quad_lattice
 quad_lattice_t* quad_lattice_new(index_t nx, index_t ny);
 
@@ -35,39 +38,20 @@ static inline index_t quad_lattice_num_cells(quad_lattice_t* l)
   return l->nx * l->ny;
 }
 
-/// Returns the number of x-faces in the lattice.
+/// Returns the number of x edges (edges separating cells along the x axis)
+/// in the lattice.
 /// \memberof quad_lattice
-static inline index_t quad_lattice_num_x_faces(quad_lattice_t* l)
+static inline index_t quad_lattice_num_x_edges(quad_lattice_t* l)
 {
   return (l->nx+1) * l->ny;
 }
 
-/// Returns the number of y-faces in the lattice.
-/// \memberof quad_lattice
-static inline index_t quad_lattice_num_y_faces(quad_lattice_t* l)
-{
-  return l->nx * (l->ny+1);
-}
-
-/// Returns the total number of faces in the lattice.
-/// \memberof quad_lattice
-static inline index_t quad_lattice_num_faces(quad_lattice_t* l)
-{
-  return quad_lattice_num_x_faces(l) + quad_lattice_num_y_faces(l);
-}
-
-/// Returns the number of x-edges in the lattice.
-/// \memberof quad_lattice
-static inline index_t quad_lattice_num_x_edges(quad_lattice_t* l)
-{
-  return l->nx * (l->ny+1) * 2;
-}
-
-/// Returns the number of y-edges in the lattice.
+/// Returns the number of y edges (edges separating cells along the y axis) 
+/// in the lattice.
 /// \memberof quad_lattice
 static inline index_t quad_lattice_num_y_edges(quad_lattice_t* l)
 {
-  return (l->nx+1) * l->ny * 2;
+  return l->nx * (l->ny+1);
 }
 
 /// Returns the total number of edges in the lattice.
@@ -85,6 +69,8 @@ static inline index_t quad_lattice_num_nodes(quad_lattice_t* l)
 }
 
 // Returns the index of the cell corresponding to (i, j).
+/// \param i [in] The x index of the cell.
+/// \param j [in] The y index of the cell.
 /// \memberof quad_lattice
 static inline index_t quad_lattice_cell(quad_lattice_t* l, index_t i, index_t j)
 {
@@ -92,6 +78,9 @@ static inline index_t quad_lattice_cell(quad_lattice_t* l, index_t i, index_t j)
 }
 
 /// Computes the pair (i, j) corresponding to the cell with the given index.
+/// \param index [in] The index for a cell.
+/// \param i [out] Stores the x index of the cell.
+/// \param j [out] Stores the y index of the cell.
 /// \memberof quad_lattice
 static inline void quad_lattice_get_cell_pair(quad_lattice_t* l, index_t index, index_t* i, index_t* j)
 {
@@ -99,32 +88,18 @@ static inline void quad_lattice_get_cell_pair(quad_lattice_t* l, index_t index, 
   *i = index - l->nx*(*j);
 }
 
-/// Returns the index of the x-face corresponding to (i-1/2, j).
+/// Returns the index of the x edge corresponding to (i-1/2, j).
 /// \memberof quad_lattice
-static inline index_t quad_lattice_x_face(quad_lattice_t* l, index_t i, index_t j)
+static inline index_t quad_lattice_x_edge(quad_lattice_t* l, index_t i, index_t j)
 {
   return (l->nx+1)*j + i;
 }
 
-/// Returns the index of the y-face corresponding to (i, j-1/2).
-/// \memberof quad_lattice
-static inline index_t quad_lattice_y_face(quad_lattice_t* l, index_t i, index_t j)
-{
-  return quad_lattice_num_x_faces(l) + (l->nx)*j + i;
-}
-
-/// Returns the index of the x-edge corresponding to (i, j-1/2).
-/// \memberof quad_lattice
-static inline index_t quad_lattice_x_edge(quad_lattice_t* l, index_t i, index_t j)
-{
-  return (l->nx)*j + i;
-}
-
-/// Returns the index of the y-edge corresponding to (i-1/2, j).
+/// Returns the index of the y edge corresponding to (i, j-1/2).
 /// \memberof quad_lattice
 static inline index_t quad_lattice_y_edge(quad_lattice_t* l, index_t i, index_t j)
 {
-  return quad_lattice_num_x_edges(l) + (l->nx+1)*j + i;
+  return quad_lattice_num_x_edges(l) + (l->nx)*j + i;
 }
 
 /// Returns the index of the node corresponding to (i-1/2, j-1/2).
