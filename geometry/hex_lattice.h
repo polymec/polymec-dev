@@ -30,101 +30,142 @@ typedef enum
 /// x-aligned (with edges separating cells along the x axis) or y-aligned (with 
 /// edges separating cells along the y axis).
 ///
-/// A hex lattice is indexed using "doubled coordinates" as described here:
-/// https://www.redblobgames.com/grids/hexagons/#coordinates
-/// A hex is identified for a given pair (i, j) in the lattice The above page 
-/// deals with screen coordinates, so we flip the y axis in our implementation 
-/// of doubled coordinates. Here's how our coordinate system looks for an 
-/// x-aligned hex lattice:
+/// A hex lattice is indexed using axial coordinates, which are a reduction of 
+/// hexagonal cube coordinates to two dimensions, based on the constraint
+/// \f$q + r + s = 0\f$, where \f$q\f$, \f$r\f$, and \f$s\f$ are cube 
+/// coordinates. Axial coordinates are described pretty well here:
+/// https://www.redblobgames.com/grids/hexagons/#coordinates-axial
+/// We adopt the (q, r) convention described therein, flipping "r" axis 
+/// because the page's description is intended for screen coordinates.
 ///
-/// (picture coming)
-///
-/// And here's how it looks for a y-aligned hex lattice:
-///
-/// (picture coming)
+/// A hex lattice has a given radius: the number of cells that extend outward
+/// in each of the cube coordinate directions from (0, 0).
 struct hex_lattice_t
 {
-  // Alignment.
+  /// The alignment of the hex lattice.
   hex_lattice_align_t alignment;
-  // Number of cells in x, y, and z.
-  index_t nx, ny;
+  /// The radius of the hex lattice (in outward cells from the origin).
+  size_t radius;
 };
 typedef struct hex_lattice_t hex_lattice_t;
 
-/// Constructs a representation of a hex lattice with the given numbers of 
-/// cells in x and y.
+/// Constructs a representation of a hex lattice with the given alignment and 
+/// radius.
 /// \param alignment [in] The alignment of the hex lattice.
-/// \param nx [in] The number of hexagonal cells in the x direction.
-/// \param ny [in] The number of hexagonal cells in the y direction.
+/// \param radius [in] The radius of the hex lattice (the number of cells 
+///                    extending outward from the origin in each cube 
+///                    coordinate direction). Can be zero, though the resulting
+///                    lattice is pretty boring.
 /// \memberof hex_lattice
 hex_lattice_t* hex_lattice_new(hex_lattice_align_t alignment,
-                               index_t nx, 
-                               index_t ny);
+                               size_t radius);
 
-/// Returns the number of cells in the lattice.
-/// \memberof hex_lattice
-static inline index_t hex_lattice_num_cells(hex_lattice_t* l)
+/// Returns the number of hexagonal cells in the hex lattice.
+static inline size_t hex_lattice_num_cells(hex_lattice_t* l)
 {
-  return l->nx * l->ny;
+  size_t n = 1;
+  for (size_t r = 0; r < l->radius; ++r)
+    n += 6*(r+1);
+  return n;
 }
 
-/// Returns the number of edges in the lattice.
+/// Returns the number of hexagonal edges in the hex lattice.
+static inline size_t hex_lattice_num_edges(hex_lattice_t* l)
+{
+  size_t n = 6;
+  for (size_t r = 0; r < l->radius; ++r)
+    n += 6*4*(r+1);
+  return n;
+}
+
+/// Returns the number of hexagonal nodes in the hex lattice.
+static inline size_t hex_lattice_num_nodes(hex_lattice_t* l)
+{
+  size_t n = 6;
+  for (size_t r = 0; r < l->radius; ++r)
+    n += 6*4*(r+1);
+  return n;
+}
+
+/// Returns an index for the cell corresponding to the axial coordinates 
+/// (q, r).
+/// \param q [in] The first axial coordinate ("column") of the hexagonal cell.
+/// \param r [in] The second axial coordinate ("row") of the hexagonal cell.
 /// \memberof hex_lattice
-static inline index_t hex_lattice_num_edges(hex_lattice_t* l)
+static inline int hex_lattice_cell(hex_lattice_t* l, int q, int r)
 {
   return 0; // FIXME
 }
 
-/// Returns the number of nodes in the lattice.
-/// \memberof hex_lattice
-static inline index_t hex_lattice_num_nodes(hex_lattice_t* l)
-{
-  return (l->nx+1) * (l->ny+1);
-}
-
-// Returns the index of the cell corresponding to (i, j).
-/// \param i [in] The x index of the hexagonal cell.
-/// \param j [in] The y index of the hexagonal cell.
-/// \memberof hex_lattice
-static inline index_t hex_lattice_cell(hex_lattice_t* l, index_t i, index_t j)
-{
-  return l->nx*j + i;
-}
-
-/// Computes the pair (i, j) corresponding to the cell with the given index.
+/// Computes the pair (q, r) corresponding to the cell with the given index.
 /// \param index [in] The index for a hexagonal cell.
-/// \param i [out] Stores the x index of the hexagonal cell.
-/// \param j [out] Stores the y index of the hexagonal cell.
+/// \param q [out] Stores the first axial coordinate ("column") of the 
+///                hexagonal cell.
+/// \param r [out] Stores the second axial coordinate ("row") of the 
+///                hexagonal cell.
 /// \memberof hex_lattice
-static inline void hex_lattice_get_cell_pair(hex_lattice_t* l, index_t index, index_t* i, index_t* j)
+static inline void hex_lattice_get_cell_pair(hex_lattice_t* l, 
+                                             int index, int* q, int* r)
 {
-  *j = index/l->nx;
-  *i = index - l->nx*(*j);
+  // FIXME
 }
 
-/// Returns the index of the edge e for the hexagonal cell (i, j). The
-/// \param i [in] The x index of the hexagonal cell.
-/// \param j [in] The y index of the hexagonal cell.
-/// \param e [in] The edge index for the hexagonal cell. This index runs from 
-///               0 to 5, counterclockwise around the cell. Edge 0 is the 
-///               edge whose normal is parallel to the positive axis along
-///               which the lattice is aligned. 
-///               * For an x-aligned hex_lattice, edge 0 is the "+x" edge. 
-///               * For a y-aligned hex_lattice, edge 0 is the "+y" edge.
+/// Returns the index of the "+q" edge for the hexagonal cell (q, r). This 
+/// is the edge that connects (q, r) to (q+1, r).
+/// \param q [in] The first axial coordinate ("column") of the hexagonal cell.
+/// \param r [in] The second axial coordinate ("row") of the hexagonal cell.
 /// \memberof hex_lattice
-static inline index_t hex_lattice_edge(hex_lattice_t* l, 
-                                       index_t i, 
-                                       index_t j,
-                                       int e)
+static inline int hex_lattice_q_edge(hex_lattice_t* l, int q, int r) 
 {
   return 0; // FIXME
 }
 
-/// Returns the index of the node corresponding to (i-1/2, j-1/2).
+/// Returns the index of the "+r" edge for the hexagonal cell (q, r). This 
+/// is the edge that connects (q, r) to (q, r+1).
+/// \param q [in] The first axial coordinate ("column") of the hexagonal cell.
+/// \param r [in] The second axial coordinate ("row") of the hexagonal cell.
 /// \memberof hex_lattice
-static inline index_t hex_lattice_node(hex_lattice_t* l, index_t i, index_t j)
+static inline int hex_lattice_r_edge(hex_lattice_t* l, int q, int r) 
 {
-  return (l->nx+1)*j + i;
+  return 0; // FIXME
+}
+
+/// Returns the index of the "+s" edge for the hexagonal cell (q, r). This 
+/// is the edge that connects (q, r) to its neighbor along the third cube 
+/// coordinate direction. In terms of axial coordinates, q + r + s = 0, so 
+/// s = -q - r, and the +s edge connects (q, r) to (-q, -r). You might want 
+/// to look at some pictures of hex grids annotated with cube coordintes to 
+/// make sense of this.
+/// \param q [in] The first axial coordinate ("column") of the hexagonal cell.
+/// \param r [in] The second axial coordinate ("row") of the hexagonal cell.
+/// \memberof hex_lattice
+static inline int hex_lattice_s_edge(hex_lattice_t* l, int q, int r) 
+{
+  return 0; // FIXME
+}
+
+/// Returns the index of the "+qr" node for the hexagonal cell (q, r). This 
+/// node connects the cell's +q and +r edges.
+/// \memberof hex_lattice
+static inline int hex_lattice_qr_node(hex_lattice_t* l, int q, int r)
+{
+  return 0; // FIXME
+}
+
+/// Returns the index of the "+rs" node for the hexagonal cell (q, r). This 
+/// node connects the cell's +r and +s edges.
+/// \memberof hex_lattice
+static inline int hex_lattice_rs_node(hex_lattice_t* l, int q, int r)
+{
+  return 0; // FIXME
+}
+
+/// Returns the index of the "+sq" node for the hexagonal cell (q, r). This 
+/// node connects the cell's +s and +q edges.
+/// \memberof hex_lattice
+static inline int hex_lattice_sq_node(hex_lattice_t* l, int q, int r)
+{
+  return 0; // FIXME
 }
 
 /// Returns a serializer for cubic lattice objects.

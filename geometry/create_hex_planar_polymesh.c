@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "geometry/create_hex_planar_polymesh.h"
+#include "geometry/hex_lattice.h"
 
 planar_polymesh_t* create_hex_planar_polymesh(size_t nx, size_t ny, 
                                               bbox_t* bbox,

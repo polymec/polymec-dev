@@ -8,7 +8,7 @@
 #include "core/polymec.h"
 #include "geometry/quad_lattice.h"
 
-quad_lattice_t* quad_lattice_new(index_t nx, index_t ny)
+quad_lattice_t* quad_lattice_new(size_t nx, size_t ny)
 {
   ASSERT(nx > 0);
   ASSERT(ny > 0);
@@ -25,15 +25,15 @@ static size_t ql_byte_size(void* obj)
 
 static void* ql_byte_read(byte_array_t* bytes, size_t* offset)
 {
-  index_t data[2];
-  byte_array_read_index_ts(bytes, 2, data, offset);
+  size_t data[2];
+  byte_array_read_size_ts(bytes, 2, data, offset);
   return quad_lattice_new(data[0], data[1]);
 }
 
 static void ql_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
-  index_t* l = obj;
-  byte_array_write_index_ts(bytes, 2, l, offset);
+  size_t* l = obj;
+  byte_array_write_size_ts(bytes, 2, l, offset);
 }
 
 serializer_t* quad_lattice_serializer()

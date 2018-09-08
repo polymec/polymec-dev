@@ -8,37 +8,32 @@
 #include "core/polymec.h"
 #include "geometry/hex_lattice.h"
 
-hex_lattice_t* hex_lattice_new(hex_lattice_align_t alignment,
-                               index_t nx, 
-                               index_t ny)
+hex_lattice_t* hex_lattice_new(hex_lattice_align_t alignment, size_t radius)
 {
-  ASSERT(nx > 0);
-  ASSERT(ny > 0);
   hex_lattice_t* l = polymec_gc_malloc(sizeof(hex_lattice_t), NULL);
   l->alignment = alignment;
-  l->nx = nx;
-  l->ny = ny;
+  l->radius = radius;
   return l;
 }
 
 static size_t hl_byte_size(void* obj)
 {
-  return sizeof(hex_lattice_align_t) + 2*sizeof(index_t);
+  return sizeof(hex_lattice_align_t) + 2*sizeof(size_t);
 }
 
 static void* hl_byte_read(byte_array_t* bytes, size_t* offset)
 {
-  index_t data[3];
-  byte_array_read_index_ts(bytes, 3, data, offset);
+  size_t data[2];
+  byte_array_read_size_ts(bytes, 2, data, offset);
   hex_lattice_align_t align = (hex_lattice_align_t)data[0];
-  return hex_lattice_new(align, data[1], data[2]);
+  return hex_lattice_new(align, data[1]);
 }
 
 static void hl_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
   hex_lattice_t* l = obj;
-  index_t data[3] = {(index_t)l->alignment, l->nx, l->ny};
-  byte_array_write_index_ts(bytes, 3, data, offset);
+  size_t data[2] = {(size_t)l->alignment, l->radius};
+  byte_array_write_size_ts(bytes, 2, data, offset);
 }
 
 serializer_t* hex_lattice_serializer()
