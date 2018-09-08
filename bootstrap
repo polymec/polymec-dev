@@ -83,8 +83,14 @@ BUILD_TYPE=Debug
 #-----------------------------------------------------------------------------
 # Choose one of the following.
 
-# Good old-fashioned UNIX makefiles, like God intended.
+# Good old-fashioned UNIX makefiles.
 GENERATOR="Unix Makefiles"
+
+# Ninja, a speedy make replacement. Currently, this requires a ninja built 
+# from a CMake-specific branch that supports Fortran (gotta love the requirements
+# that Fortran imposes on EVERYTHING with its idiot modules):
+# https://github.com/Kitware/ninja/tree/features-for-fortran#readme
+#GENERATOR="Ninja"
 
 # Code::Blocks (with UNIX makefiles underneath).
 #GENERATOR="CodeBlocks - Unix Makefiles"
