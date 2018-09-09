@@ -158,10 +158,18 @@ static inline int hex_lattice_cell_node(hex_lattice_t* l, int q, int r, int dir)
 /// \param r [in] The second axial coordinate ("row") of the hexagonal cell.
 /// \param dir [in] The index of the direction for the cell's neighbor. This is an 
 ///                 integer between 0 and 5, inclusive.
+/// \param q1 [out] The first axial coordinate of the neighbor.
+/// \param r1 [out] The second axial coordinate of the neighbor.
 /// \memberof hex_lattice
-static inline int hex_lattice_cell_neighbor(hex_lattice_t* l, int q, int r, int dir) 
+static inline void hex_lattice_cell_get_neighbor(hex_lattice_t* l, 
+                                                 int q, int r, int dir,
+                                                 int* q1, int* r1) 
 {
-  return 0; // FIXME
+  // Taken from https://www.redblobgames.com/grids/hexagons/#neighbors-cube
+  static const int q_offsets[6] = {1, 1, 0, -1, -1, 0};
+  static const int r_offsets[6] = {-1, 0, 1, 1, 0, -1};
+  *q1 += q_offsets[dir];
+  *r1 += r_offsets[dir];
 }
 
 /// Returns a serializer for cubic lattice objects.

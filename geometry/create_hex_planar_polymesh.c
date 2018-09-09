@@ -49,7 +49,9 @@ planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
         mesh->edge_cells[2*edge] = cell;
       if (mesh->edge_cells[2*edge+1] == -1)
       {
-        int neighbor = hex_lattice_cell_neighbor(lattice, q, r, dir);
+        int q1, r1;
+        hex_lattice_cell_get_neighbor(lattice, q, r, dir, &q1, &r1);
+        int neighbor = hex_lattice_cell(lattice, q1, r1);
         mesh->edge_cells[2*edge] = neighbor;
       }
     }
