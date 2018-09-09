@@ -340,6 +340,7 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
   exchanger_set_receives(ex, recv_map);
 
   // Clean up.
+  polymec_release(lattice);
   index_int_unordered_map_free(local_faces);
   index_int_unordered_map_free(local_nodes);
   int_ptr_unordered_map_free(send_map);

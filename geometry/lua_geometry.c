@@ -1183,42 +1183,34 @@ static int pp_quad(lua_State* L)
 static int pp_hex(lua_State* L)
 {
   if (!lua_istable(L, 1))
-    luaL_error(L, "Argument must be a table with nx, ny, nz, bbox fields.");
+    luaL_error(L, "Argument must be a table with alignment and radius fields.");
 
-  lua_getfield(L, 1, "nx");
+  lua_getfield(L, 1, "alignment");
+  if (!lua_isstring(L, -1))
+    luaL_error(L, "alignment must be 'x' or 'y'.");
+  const char* alignment = lua_tostring(L, -1);
+  hex_lattice_align_t align = HEX_LATTICE_X_ALIGNED;
+  if (strcasecmp(alignment, "y") == 0)
+    align = HEX_LATTICE_Y_ALIGNED;
+  else if (strcasecmp(alignment, "x") != 0)
+    luaL_error(L, "alignment must be 'x' or 'y'.");
+
+  lua_getfield(L, 1, "radius");
   if (!lua_isinteger(L, -1))
-    luaL_error(L, "nx must be a positive integer.");
-  int nx = (int)lua_tointeger(L, -1);
-  if (nx < 1)
-    luaL_error(L, "nx must be positive.");
+    luaL_error(L, "radius must be a non-negative integer.");
+  int radius = (int)lua_tointeger(L, -1);
+  if (radius < 0)
+    luaL_error(L, "radius must be non-negative.");
 
-  lua_getfield(L, 1, "ny");
-  if (!lua_isinteger(L, -1))
-    luaL_error(L, "ny must be a positive integer.");
-  int ny = (int)lua_tointeger(L, -1);
-  if (ny < 1)
-    luaL_error(L, "ny must be positive.");
+  lua_getfield(L, 1, "h");
+  if (!lua_is_real(L, -1))
+    luaL_error(L, "h must be a positive real number.");
+  real_t h = lua_to_real(L, -1);
+  if (h <= 0.0)
+    luaL_error(L, "h must be positive.");
 
-  lua_getfield(L, 1, "bbox");
-  if (!lua_is_bbox(L, -1))
-    luaL_error(L, "bbox must be a bounding box (bbox).");
-  bbox_t* bbox = lua_to_bbox(L, -1);
-
-  bool periodic_in_x = false;
-  lua_getfield(L, 1, "periodic_in_x");
-  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
-    luaL_error(L, "periodic_in_x must be true or false.");
-  periodic_in_x = lua_toboolean(L, -1);
-
-  bool periodic_in_y = false;
-  lua_getfield(L, 1, "periodic_in_y");
-  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
-    luaL_error(L, "periodic_in_y must be true or false.");
-  periodic_in_y = lua_toboolean(L, -1);
-
-  planar_polymesh_t* mesh = create_hex_planar_polymesh(nx, ny, bbox, 
-                                                       periodic_in_x, 
-                                                       periodic_in_y);
+  planar_polymesh_t* mesh = create_hex_planar_polymesh(align, 
+                                                       (size_t)radius, h);
   lua_push_planar_polymesh(L, mesh);
   return 1;
 }
@@ -1768,26 +1760,36 @@ static int prismesh_quad(lua_State* L)
 static int prismesh_hex(lua_State* L)
 {
   if (!lua_istable(L, 1))
-    luaL_error(L, "Argument must be a table with comm, nx, ny, nz, bbox fields.");
+    luaL_error(L, "Argument must be a table with comm, alignment, radius, h, z1, z2, nz fields.");
 
   lua_getfield(L, 1, "comm");
   if (!lua_is_mpi_comm(L, -1))
     luaL_error(L, "comm must be an mpi_comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, -1);
 
-  lua_getfield(L, 1, "nx");
-  if (!lua_isinteger(L, -1))
-    luaL_error(L, "nx must be a positive integer.");
-  int nx = (int)lua_tointeger(L, -1);
-  if (nx < 1)
-    luaL_error(L, "nx must be positive.");
+  lua_getfield(L, 1, "alignment");
+  if (!lua_isstring(L, -1))
+    luaL_error(L, "alignment must be 'x' or 'y'.");
+  const char* alignment = lua_tostring(L, -1);
+  hex_lattice_align_t align = HEX_LATTICE_X_ALIGNED;
+  if (strcasecmp(alignment, "y") == 0)
+    align = HEX_LATTICE_Y_ALIGNED;
+  else if (strcasecmp(alignment, "x") != 0)
+    luaL_error(L, "alignment must be 'x' or 'y'.");
 
-  lua_getfield(L, 1, "ny");
+  lua_getfield(L, 1, "radius");
   if (!lua_isinteger(L, -1))
-    luaL_error(L, "ny must be a positive integer.");
-  int ny = (int)lua_tointeger(L, -1);
-  if (ny < 1)
-    luaL_error(L, "ny must be positive.");
+    luaL_error(L, "radius must be a non-negative integer.");
+  int radius = (int)lua_tointeger(L, -1);
+  if (radius < 0)
+    luaL_error(L, "radius must be non-negative.");
+
+  lua_getfield(L, 1, "h");
+  if (!lua_is_real(L, -1))
+    luaL_error(L, "h must be a positive real number.");
+  real_t h = lua_to_real(L, -1);
+  if (h <= 0.0)
+    luaL_error(L, "h must be positive.");
 
   lua_getfield(L, 1, "nz");
   if (!lua_isinteger(L, -1))
@@ -1796,22 +1798,17 @@ static int prismesh_hex(lua_State* L)
   if (nz < 1)
     luaL_error(L, "nz must be positive.");
 
-  lua_getfield(L, 1, "bbox");
-  if (!lua_is_bbox(L, -1))
-    luaL_error(L, "bbox must be a bounding box (bbox).");
-  bbox_t* bbox = lua_to_bbox(L, -1);
+  lua_getfield(L, 1, "z1");
+  if (!lua_is_real(L, -1))
+    luaL_error(L, "z1 must be a real number.");
+  real_t z1 = lua_to_real(L, -1);
 
-  bool periodic_in_x = false;
-  lua_getfield(L, 1, "periodic_in_x");
-  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
-    luaL_error(L, "periodic_in_x must be true or false.");
-  periodic_in_x = lua_toboolean(L, -1);
-
-  bool periodic_in_y = false;
-  lua_getfield(L, 1, "periodic_in_y");
-  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
-    luaL_error(L, "periodic_in_y must be true or false.");
-  periodic_in_y = lua_toboolean(L, -1);
+  lua_getfield(L, 1, "z2");
+  if (!lua_is_real(L, -1))
+    luaL_error(L, "z2 must be a real number.");
+  real_t z2 = lua_to_real(L, -1);
+  if (z2 <= z1)
+    luaL_error(L, "z2 must be greater than z1.");
 
   bool periodic_in_z = false;
   lua_getfield(L, 1, "periodic_in_z");
@@ -1819,8 +1816,9 @@ static int prismesh_hex(lua_State* L)
     luaL_error(L, "periodic_in_z must be true or false.");
   periodic_in_z = lua_toboolean(L, -1);
 
-  prismesh_t* mesh = create_hex_prismesh(comm, nx, ny, nz, bbox, 
-                                         periodic_in_x, periodic_in_y,
+  prismesh_t* mesh = create_hex_prismesh(comm, align,
+                                         (size_t)radius, h,
+                                         nz, z1, z2,
                                          periodic_in_z);
   lua_push_prismesh(L, mesh);
   return 1;

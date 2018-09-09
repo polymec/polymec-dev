@@ -12,12 +12,16 @@
 #include "cmocka.h"
 #include "geometry/create_hex_prismesh.h"
 
-static void test_create_hex_prismesh(void** state)
+static void test_create_hex_prismesh(void** state,
+                                     hex_lattice_align_t alignment)
 {
-  // Create a 10x10x10 uniform mesh.
+  // Create a uniform hex prismesh.
   MPI_Comm comm = MPI_COMM_WORLD;
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  prismesh_t* mesh = create_hex_prismesh(comm, 10, 10, 10, &bbox, false, false, false);
+  real_t h = 0.1, z1 = 0.0, z2 = 1.0;
+  size_t radius = 5, nz = 10;
+  prismesh_t* mesh = create_hex_prismesh(comm, alignment, 
+                                         radius, h, 
+                                         nz, z1, z2, false);
   assert_true(reals_equal(0.0, prismesh_z1(mesh)));
   assert_true(reals_equal(1.0, prismesh_z2(mesh)));
   assert_false(prismesh_is_periodic_in_z(mesh));
@@ -64,12 +68,23 @@ static void test_create_hex_prismesh(void** state)
   prismesh_free(mesh);
 }
 
+static void test_create_x_hex_prismesh(void** state)
+{
+  test_create_hex_prismesh(state, HEX_LATTICE_X_ALIGNED);
+}
+
+static void test_create_y_hex_prismesh(void** state)
+{
+  test_create_hex_prismesh(state, HEX_LATTICE_Y_ALIGNED);
+}
+
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_create_hex_prismesh)
+    cmocka_unit_test(test_create_y_hex_prismesh),
+    cmocka_unit_test(test_create_x_hex_prismesh)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

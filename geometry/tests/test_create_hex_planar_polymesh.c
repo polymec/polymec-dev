@@ -12,18 +12,30 @@
 #include "cmocka.h"
 #include "geometry/create_hex_planar_polymesh.h"
 
-static void test_create_hex_planar_polymesh(void** state)
+static void test_create_hex_planar_polymesh(void** state,
+                                            hex_lattice_align_t alignment)
 {
-  // Create a 10x10 set of uniform hexagons.
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  planar_polymesh_t* mesh = create_hex_planar_polymesh(10, 10, &bbox, false, false);
+  // Create a set of uniform hexes with the given alignment.
+  size_t radius = 5;
+  real_t h = 0.1;
+  planar_polymesh_t* mesh = create_hex_planar_polymesh(alignment, radius, h);
 
   // Check its connectivity.
-  assert_true(mesh->num_cells > 10*10);
-  assert_true(mesh->num_edges > 4*10*11);
-  assert_true(mesh->num_nodes > 11*11);
+  assert_true(mesh->num_cells == 10*10);
+  assert_true(mesh->num_edges == 4*10*11);
+  assert_true(mesh->num_nodes == 11*11);
 
   planar_polymesh_free(mesh);
+}
+
+static void test_create_x_hex_planar_polymesh(void** state)
+{
+  test_create_hex_planar_polymesh(state, HEX_LATTICE_X_ALIGNED);
+}
+
+static void test_create_y_hex_planar_polymesh(void** state)
+{
+  test_create_hex_planar_polymesh(state, HEX_LATTICE_Y_ALIGNED);
 }
 
 int main(int argc, char* argv[]) 
@@ -31,7 +43,8 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_create_hex_planar_polymesh)
+    cmocka_unit_test(test_create_x_hex_planar_polymesh),
+    cmocka_unit_test(test_create_y_hex_planar_polymesh)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -10,18 +10,18 @@
 
 #include "core/point.h"
 #include "geometry/planar_polymesh.h"
+#include "geometry/hex_lattice.h"
 
 /// \addtogroup geometry geometry
 ///@{
 
-/// This function creates and returns a planar polymesh consisting of nx x ny 
-/// regular hexagonal cells filling the given bounding box. The cells on the 
-/// boundary are cropped to fit the bounding box unless the box is periodic
-/// on that boundary.
-planar_polymesh_t* create_hex_planar_polymesh(size_t nx, size_t ny, 
-                                              bbox_t* bbox,
-                                              bool periodic_in_x,
-                                              bool periodic_in_y);
+/// This function creates and returns a planar polymesh consisting of a set 
+/// of hexagonal cells extending outward from a center cell.
+/// \param alignment [in] The alignment of the hexes in the mesh (x- or y-).
+/// \param radius [in] The number of hexes extending outward from the center hex. 
+/// \param h [in] The length of the side of each hexagon.
+planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
+                                              size_t radius, real_t h);
 
 ///@}
 
