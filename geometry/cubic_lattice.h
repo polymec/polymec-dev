@@ -170,6 +170,7 @@ static inline index_t cubic_lattice_node(cubic_lattice_t* l, index_t i, index_t 
 }
 
 /// Returns a serializer for cubic lattice objects.
+/// \memberof cubic_lattice
 serializer_t* cubic_lattice_serializer(void);
 
 ///@}

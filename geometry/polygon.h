@@ -51,11 +51,6 @@ static inline size_t polygon_num_edges(polygon_t* poly)
   return polygon_num_vertices(poly);
 }
 
-/// Returns the ordering of the vertices in the polygon in terms of 
-/// the original array of vertices given in the constructor.
-/// \memberof polygon
-int* polygon_ordering(polygon_t* poly);
-
 /// Allows the traversal of the vertices in the polygon.
 /// \memberof polygon
 bool polygon_next_vertex(polygon_t* poly, int* pos, point2_t* vertex);

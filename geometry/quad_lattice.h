@@ -110,6 +110,7 @@ static inline int quad_lattice_node(quad_lattice_t* l, int i, int j)
 }
 
 /// Returns a serializer for cubic lattice objects.
+/// \memberof quad_lattice
 serializer_t* quad_lattice_serializer(void);
 
 ///@}
