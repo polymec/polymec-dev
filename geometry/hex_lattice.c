@@ -13,6 +13,7 @@ hex_lattice_t* hex_lattice_new(hex_lattice_align_t alignment, size_t radius)
   hex_lattice_t* l = polymec_gc_malloc(sizeof(hex_lattice_t), NULL);
   l->alignment = alignment;
   l->radius = radius;
+  l->nc = hex_lattice_num_cells(l);
   return l;
 }
 
@@ -26,7 +27,9 @@ static void* hl_byte_read(byte_array_t* bytes, size_t* offset)
   size_t data[2];
   byte_array_read_size_ts(bytes, 2, data, offset);
   hex_lattice_align_t align = (hex_lattice_align_t)data[0];
-  return hex_lattice_new(align, data[1]);
+  hex_lattice_t* l = hex_lattice_new(align, data[1]);
+  l->nc = hex_lattice_num_cells(l);
+  return l;
 }
 
 static void hl_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
