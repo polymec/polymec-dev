@@ -47,8 +47,10 @@ struct hex_lattice_t
   hex_lattice_align_t alignment;
   /// The radius of the hex lattice (in outward cells from the origin).
   size_t radius;
-  /// Bookkeeping.
+
+  /// Bookkeeping stuff. Look away!
   size_t nc;
+  int* nc_for_r;
 };
 typedef struct hex_lattice_t hex_lattice_t;
 
@@ -66,10 +68,7 @@ hex_lattice_t* hex_lattice_new(hex_lattice_align_t alignment,
 /// Returns the number of hexagonal cells in the hex lattice.
 static inline size_t hex_lattice_num_cells(hex_lattice_t* l)
 {
-  size_t n = 1;
-  for (size_t r = 0; r < l->radius; ++r)
-    n += 6*(r+1);
-  return n;
+  return l->nc;
 }
 
 /// Returns the number of hexagonal edges in the hex lattice.
@@ -86,23 +85,6 @@ static inline size_t hex_lattice_num_nodes(hex_lattice_t* l)
 {
   // Same as the number of edges!
   return hex_lattice_num_edges(l);
-}
-
-/// Traverses the cells in the hex lattice starting at (0, 0) and spiraling outward.
-/// Returns true if another cell remains in the lattice traversal, false if not.
-/// \param pos [in,out] Controls the traversal. Set to zero to reset.
-/// \param q [out] Stores the first axial coordinate ("column") of the next cell.
-/// \param r [out] Stores the second axial coordinate ("row") of the next cell.
-/// \memberof hex_lattice
-static inline bool hex_lattice_next_cell(hex_lattice_t* l, int* pos, int* q, int* r)
-{
-  if (*pos >= l->nc)
-    return false;
-  else 
-  {
-    // FIXME
-    return true;
-  }
 }
 
 /// Returns an index for the cell corresponding to the axial coordinates 
@@ -165,12 +147,20 @@ static inline void hex_lattice_cell_get_neighbor(hex_lattice_t* l,
                                                  int q, int r, int dir,
                                                  int* q1, int* r1) 
 {
-  // Taken from https://www.redblobgames.com/grids/hexagons/#neighbors-cube
-  static const int q_offsets[6] = {1, 1, 0, -1, -1, 0};
-  static const int r_offsets[6] = {-1, 0, 1, 1, 0, -1};
+  // Taken from https://www.redblobgames.com/grids/hexagons/#neighbors-axial
+  static const int q_offsets[6] = {+1, +1,  0, -1, -1,  0};
+  static const int r_offsets[6] = { 0, -1, -1,  0, +1, +1};
   *q1 += q_offsets[dir];
   *r1 += r_offsets[dir];
 }
+
+/// Traverses the cells in the hex lattice starting at (0, 0) and spiraling outward.
+/// Returns true if another cell remains in the lattice traversal, false if not.
+/// \param pos [in,out] Controls the traversal. Set to zero to reset.
+/// \param q [out] Stores the first axial coordinate ("column") of the next cell.
+/// \param r [out] Stores the second axial coordinate ("row") of the next cell.
+/// \memberof hex_lattice
+bool hex_lattice_next_cell(hex_lattice_t* l, int* pos, int* q, int* r);
 
 /// Returns a serializer for cubic lattice objects.
 /// \memberof hex_lattice
