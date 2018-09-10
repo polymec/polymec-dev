@@ -41,6 +41,19 @@ typedef enum
 ///
 /// A hex lattice has a given radius: the number of cells that extend outward
 /// in each of the cube coordinate directions from (0, 0).
+///
+/// Edges, nodes, and neighboring cells for a cell (q, r) are identified by
+/// q, r, and a direction index dir. dir is an integer between 0 and 5, 
+/// inclusive. Its values correspond to these coordinate directions:
+/// * 0: +q axis
+/// * 1: +s axis
+/// * 2: +r axis
+/// * 3: -q axis
+/// * 4: -s axis
+/// * 5: -r axis
+/// This order results in a counter-clockwise traversal of edges, nodes, and 
+/// neighbors around a cell when you move through all the directions in
+/// ascending order.
 struct hex_lattice_t
 {
   /// The alignment of the hex lattice.
@@ -66,12 +79,14 @@ hex_lattice_t* hex_lattice_new(hex_lattice_align_t alignment,
                                size_t radius);
 
 /// Returns the number of hexagonal cells in the hex lattice.
+/// \memberof hex_lattice
 static inline size_t hex_lattice_num_cells(hex_lattice_t* l)
 {
   return l->nc;
 }
 
 /// Returns the number of hexagonal edges in the hex lattice.
+/// \memberof hex_lattice
 static inline size_t hex_lattice_num_edges(hex_lattice_t* l)
 {
   size_t n = 6;
@@ -81,6 +96,7 @@ static inline size_t hex_lattice_num_edges(hex_lattice_t* l)
 }
 
 /// Returns the number of hexagonal nodes in the hex lattice.
+/// \memberof hex_lattice
 static inline size_t hex_lattice_num_nodes(hex_lattice_t* l)
 {
   // Same as the number of edges!
@@ -138,8 +154,7 @@ static inline int hex_lattice_cell_node(hex_lattice_t* l, int q, int r, int dir)
 /// corresponding direction. 
 /// \param q [in] The first axial coordinate ("column") of the hexagonal cell.
 /// \param r [in] The second axial coordinate ("row") of the hexagonal cell.
-/// \param dir [in] The index of the direction for the cell's neighbor. This is an 
-///                 integer between 0 and 5, inclusive.
+/// \param dir [in] The index of the direction for the cell's neighbor. 
 /// \param q1 [out] The first axial coordinate of the neighbor.
 /// \param r1 [out] The second axial coordinate of the neighbor.
 /// \memberof hex_lattice

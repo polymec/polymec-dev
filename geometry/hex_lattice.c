@@ -54,7 +54,7 @@ bool hex_lattice_next_cell(hex_lattice_t* l, int* pos, int* q, int* r)
       if ((cell + 1) >= l->nc_for_r[radius])
       {
         // Move one cell "outward."
-        int dir = 0; // FIXME
+        int dir = 0; 
         hex_lattice_cell_get_neighbor(l, *q, *r, dir, q, r);
       }
       else
@@ -62,7 +62,7 @@ bool hex_lattice_next_cell(hex_lattice_t* l, int* pos, int* q, int* r)
         // We're staying in this ring, so figure out the direction we need 
         // to go next.
         int ring_offset = cell + 1 - l->nc_for_r[radius];
-        int dir = ring_offset / radius;
+        int dir = ring_offset / radius + 1;
 
         // Update q and r.
         hex_lattice_cell_get_neighbor(l, *q, *r, dir, q, r);
