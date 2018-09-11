@@ -73,6 +73,78 @@ bool hex_lattice_next_cell(hex_lattice_t* l, int* pos, int* q, int* r)
   }
 }
 
+int hex_lattice_cell(hex_lattice_t* l, int q, int r)
+{
+  // Find the distance of this point from the origin.
+  int dist = hex_lattice_distance(l, 0, 0, q, r);
+  if (dist == 0)
+    return 0;
+
+  // Unit radial displacement "vector".
+  static int rad_hat[2];
+  hex_lattice_get_displacement(l, 0, &rad_hat[0], &rad_hat[1]);
+
+  // Increment (q1, r1) till we reach (q, r), starting at the first position 
+  // at the right distance.
+  int q1 = dist * rad_hat[0];
+  int r1 = dist * rad_hat[1];
+  int index = l->nc_for_r[dist];
+  if ((q1 != q) || (r1 != r))
+  {
+    for (int d = 0; d < 6; ++d)
+    {
+      int dir = (d + 2) % 6;
+      for (int i = 0; i < dist; ++i)
+      {
+        hex_lattice_cell_get_neighbor(l, q1, r1, dir, &q1, &r1);
+        ++index;
+        if ((q1 == q) && (r1 == r))
+          break;
+      }
+    }
+  }
+
+  return index; 
+}
+
+void hex_lattice_get_cell_pair(hex_lattice_t* l, 
+                               int index, int* q, int* r)
+{
+  *q = 0; 
+  *r = 0;
+  if (index == 0)
+    return;
+
+  // Find the radius of the cell.
+  int radius = 0;
+  while (l->nc_for_r[radius+1] < index)
+    ++radius;
+
+  // Update q and r to reflect the radius.
+  static int rad_hat[2];
+  hex_lattice_get_displacement(l, 0, &rad_hat[0], &rad_hat[1]);
+  *q = radius * rad_hat[0];
+  *r = radius * rad_hat[1];
+
+  // Now increment (q, r) till we reach the desired index.
+  // at the right distance.
+  int current_index = l->nc_for_r[radius];
+  if (current_index != index)
+  {
+    for (int d = 0; d < 6; ++d)
+    {
+      int dir = (d + 2) % 6;
+      for (int i = 0; i < radius; ++i)
+      {
+        hex_lattice_cell_get_neighbor(l, *q, *r, dir, q, r);
+        ++current_index;
+        if (current_index == index)
+          break;
+      }
+    }
+  }
+}
+
 static size_t hl_byte_size(void* obj)
 {
   return sizeof(hex_lattice_align_t) + 2*sizeof(size_t);

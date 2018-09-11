@@ -91,7 +91,7 @@ static inline size_t hex_lattice_num_edges(hex_lattice_t* l)
 {
   size_t n = 6;
   for (size_t r = 0; r < l->radius; ++r)
-    n += 6*4*(r+1);
+    n += 6*3*(r+1); // FIXME: Not correct!
   return n;
 }
 
@@ -103,15 +103,60 @@ static inline size_t hex_lattice_num_nodes(hex_lattice_t* l)
   return hex_lattice_num_edges(l);
 }
 
+/// Fetches the (q, r) displacements corresponding to the given direction.
+/// \param dir [in] The direction (0-5) for which displacements are computed.
+/// \param dq [out] Stores the first axial coordinate displacement.
+/// \param dr [out] Stores the second axial coordinate displacement.
+/// \memberof hex_lattice
+static inline void hex_lattice_get_displacement(hex_lattice_t* l, 
+                                                int dir, int* dq, int* dr)
+{
+  ASSERT(dir >= 0);
+  ASSERT(dir < 6);
+
+  // Taken from https://www.redblobgames.com/grids/hexagons/#neighbors-axial
+  static const int q_disps[6] = {+1, +1,  0, -1, -1,  0};
+  static const int r_disps[6] = { 0, -1, -1,  0, +1, +1};
+  *dq = q_disps[dir];
+  *dr = r_disps[dir];
+}
+
+/// Returns the index of the cell that neighbors the hexagonal cell (q, r) in the 
+/// corresponding direction. 
+/// \param q [in] The first axial coordinate ("column") of the hexagonal cell.
+/// \param r [in] The second axial coordinate ("row") of the hexagonal cell.
+/// \param dir [in] The index of the direction for the cell's neighbor. 
+/// \param q1 [out] The first axial coordinate of the neighbor.
+/// \param r1 [out] The second axial coordinate of the neighbor.
+/// \memberof hex_lattice
+static inline void hex_lattice_cell_get_neighbor(hex_lattice_t* l, 
+                                                 int q, int r, int dir,
+                                                 int* q1, int* r1) 
+{
+  hex_lattice_get_displacement(l, dir, q1, r1);
+  *q1 += q;
+  *r1 += r;
+}
+
+/// Returns the Manhattan distance between the cells (q1, r1) and (q2, r2).
+/// \param q1 [in] The first axial coordinate displacement for the first cell.
+/// \param r1 [in] The second axial coordinate displacement for the first cell.
+/// \param q2 [in] The first axial coordinate displacement for the second cell.
+/// \param r2 [in] The second axial coordinate displacement for the second cell.
+/// \memberof hex_lattice
+static inline int hex_lattice_distance(hex_lattice_t* l, 
+                                       int q1, int r1,
+                                       int q2, int r2)
+{
+  return (ABS(q1 - q2) + ABS(q1 + r1 - q2 - r2) + ABS(r1 - r2)) / 2;
+}
+
 /// Returns an index for the cell corresponding to the axial coordinates 
 /// (q, r).
 /// \param q [in] The first axial coordinate ("column") of the hexagonal cell.
 /// \param r [in] The second axial coordinate ("row") of the hexagonal cell.
 /// \memberof hex_lattice
-static inline int hex_lattice_cell(hex_lattice_t* l, int q, int r)
-{
-  return 0; // FIXME
-}
+int hex_lattice_cell(hex_lattice_t* l, int q, int r);
 
 /// Computes the pair (q, r) corresponding to the cell with the given index.
 /// \param index [in] The index for a hexagonal cell.
@@ -120,11 +165,8 @@ static inline int hex_lattice_cell(hex_lattice_t* l, int q, int r)
 /// \param r [out] Stores the second axial coordinate ("row") of the 
 ///                hexagonal cell.
 /// \memberof hex_lattice
-static inline void hex_lattice_get_cell_pair(hex_lattice_t* l, 
-                                             int index, int* q, int* r)
-{
-  // FIXME
-}
+void hex_lattice_get_cell_pair(hex_lattice_t* l, 
+                               int index, int* q, int* r);
 
 /// Returns the index of the edge for the hexagonal cell (q, r) in the 
 /// corresponding direction. 
@@ -148,25 +190,6 @@ static inline int hex_lattice_cell_edge(hex_lattice_t* l, int q, int r, int dir)
 static inline int hex_lattice_cell_node(hex_lattice_t* l, int q, int r, int dir) 
 {
   return hex_lattice_cell_edge(l, q, r, dir);
-}
-
-/// Returns the index of the cell that neighbors the hexagonal cell (q, r) in the 
-/// corresponding direction. 
-/// \param q [in] The first axial coordinate ("column") of the hexagonal cell.
-/// \param r [in] The second axial coordinate ("row") of the hexagonal cell.
-/// \param dir [in] The index of the direction for the cell's neighbor. 
-/// \param q1 [out] The first axial coordinate of the neighbor.
-/// \param r1 [out] The second axial coordinate of the neighbor.
-/// \memberof hex_lattice
-static inline void hex_lattice_cell_get_neighbor(hex_lattice_t* l, 
-                                                 int q, int r, int dir,
-                                                 int* q1, int* r1) 
-{
-  // Taken from https://www.redblobgames.com/grids/hexagons/#neighbors-axial
-  static const int q_offsets[6] = {+1, +1,  0, -1, -1,  0};
-  static const int r_offsets[6] = { 0, -1, -1,  0, +1, +1};
-  *q1 += q_offsets[dir];
-  *r1 += r_offsets[dir];
 }
 
 /// Traverses the cells in the hex lattice starting at (0, 0) and spiraling outward.
