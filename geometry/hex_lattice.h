@@ -91,7 +91,7 @@ static inline size_t hex_lattice_num_edges(hex_lattice_t* l)
 {
   size_t n = 6;
   for (size_t r = 0; r < l->radius; ++r)
-    n += 6*3*(r+1); // FIXME: Not correct!
+    n += 6*(3+2*r); 
   return n;
 }
 
@@ -144,11 +144,29 @@ static inline void hex_lattice_cell_get_neighbor(hex_lattice_t* l,
 /// \param q2 [in] The first axial coordinate displacement for the second cell.
 /// \param r2 [in] The second axial coordinate displacement for the second cell.
 /// \memberof hex_lattice
-static inline int hex_lattice_distance(hex_lattice_t* l, 
-                                       int q1, int r1,
-                                       int q2, int r2)
+static inline int hex_lattice_cell_distance(hex_lattice_t* l, 
+                                            int q1, int r1,
+                                            int q2, int r2)
 {
   return (ABS(q1 - q2) + ABS(q1 + r1 - q2 - r2) + ABS(r1 - r2)) / 2;
+}
+
+/// Returns the direction of the "wedge" of the lattice in which the given 
+/// cell resides.
+/// \param q [in] The first axial coordinate displacement for the cell.
+/// \param r [in] The second axial coordinate displacement for the cell.
+/// \memberof hex_lattice
+static inline int hex_lattice_cell_wedge(hex_lattice_t* l, int q, int r)
+{
+  // FIXME: Need to figure out the relationship between q, r, s, and x, y, z.
+  int s = -q - r;
+  int q_turf = q - r;
+  int r_turf = r - s;
+  int s_turf = s - q;
+  int max = MAX(ABS(q_turf), MAX(ABS(r_turf), ABS(s_turf)));
+  return (max == q_turf) ? (q_turf > 0) ? 0 : 3
+                         : (max == r_turf) ? (r_turf > 0) ? 1 : 4
+                                           : (s_turf > 0) ? 2 : 5;
 }
 
 /// Returns an index for the cell corresponding to the axial coordinates 
@@ -175,10 +193,7 @@ void hex_lattice_get_cell_pair(hex_lattice_t* l,
 /// \param dir [in] The index of the direction for the cell's edge. This is an 
 ///                 integer between 0 and 5, inclusive.
 /// \memberof hex_lattice
-static inline int hex_lattice_cell_edge(hex_lattice_t* l, int q, int r, int dir) 
-{
-  return 0; // FIXME
-}
+int hex_lattice_cell_edge(hex_lattice_t* l, int q, int r, int dir);
 
 /// Returns the index of the first of the two nodes for the edge of the hexagonal 
 /// cell (q, r) in the corresponding direction. 

@@ -76,7 +76,7 @@ bool hex_lattice_next_cell(hex_lattice_t* l, int* pos, int* q, int* r)
 int hex_lattice_cell(hex_lattice_t* l, int q, int r)
 {
   // Find the distance of this point from the origin.
-  int dist = hex_lattice_distance(l, 0, 0, q, r);
+  int dist = hex_lattice_cell_distance(l, 0, 0, q, r);
   if (dist == 0)
     return 0;
 
@@ -143,6 +143,21 @@ void hex_lattice_get_cell_pair(hex_lattice_t* l,
       }
     }
   }
+}
+
+int hex_lattice_cell_edge(hex_lattice_t* l, int q, int r, int dir)
+{
+  // Find the distance of this point from the origin.
+  int dist = hex_lattice_cell_distance(l, 0, 0, q, r);
+  if (dist == 0)
+    return dir;
+
+  // Find the wedge that the cell is in.
+  int wedge = hex_lattice_cell_wedge(l, q, r);
+
+  // Find the edge by traversing our way there.
+  // FIXME
+  return dist*wedge + dir;
 }
 
 static size_t hl_byte_size(void* obj)
