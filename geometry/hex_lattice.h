@@ -36,8 +36,12 @@ typedef enum
 /// coordinates. The axial coordinates \f$q\f$ and \f$r\f$ are described 
 /// pretty well here:
 /// https://www.redblobgames.com/grids/hexagons/#coordinates-axial
-/// We adopt the (q, r) convention described therein, flipping "r" axis 
-/// because the page's description is intended for screen coordinates.
+/// In our (q, r, s) coordinate system:
+/// * q is the coordinate that increases with the "aligned" axis (x or y)
+/// * r is the coordinate that increases with the axis just counterclockwise
+////  to the q axis.
+/// * s is the third axis, aligned so that the +s axis is just counterclockwise
+///   of +r.
 ///
 /// A hex lattice has a given radius: the number of cells that extend outward
 /// in each of the cube coordinate directions from (0, 0).
@@ -46,11 +50,11 @@ typedef enum
 /// q, r, and a direction index dir. dir is an integer between 0 and 5, 
 /// inclusive. Its values correspond to these coordinate directions:
 /// * 0: +q axis
-/// * 1: +s axis
-/// * 2: +r axis
+/// * 1: +r axis
+/// * 2: +s axis
 /// * 3: -q axis
-/// * 4: -s axis
-/// * 5: -r axis
+/// * 4: -r axis
+/// * 5: -s axis
 /// This order results in a counter-clockwise traversal of edges, nodes, and 
 /// neighbors around a cell when you move through all the directions in
 /// ascending order.
