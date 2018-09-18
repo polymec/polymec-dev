@@ -10,10 +10,19 @@
 
 #include "core/point.h"
 #include "geometry/planar_polymesh.h"
-#include "geometry/hex_lattice.h"
 
 /// \addtogroup geometry geometry
 ///@{
+
+/// \enum hex_lattice_align_t
+/// This type identifies two possible alignments for hexagonal lattices.
+typedef enum
+{
+  /// An x-aligned lattice has edges separating cells along the x axis.
+  HEX_LATTICE_X_ALIGNED,
+  /// A y-aligned lattice has edges separating cells to the y axis.
+  HEX_LATTICE_Y_ALIGNED
+} hex_lattice_align_t;
 
 /// This function creates and returns a planar polymesh consisting of a set 
 /// of hexagonal cells extending outward from a center cell.

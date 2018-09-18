@@ -6,7 +6,78 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "geometry/create_quad_planar_polymesh.h"
-#include "geometry/quad_lattice.h"
+
+typedef struct 
+{
+  // Number of cells in x, y, and z.
+  size_t nx, ny;
+} quad_lattice_t;
+
+static quad_lattice_t* quad_lattice_new(size_t nx, size_t ny)
+{
+  ASSERT(nx > 0);
+  ASSERT(ny > 0);
+  quad_lattice_t* l = polymec_malloc(sizeof(quad_lattice_t));
+  l->nx = nx;
+  l->ny = ny;
+  return l;
+}
+
+static void quad_lattice_free(quad_lattice_t* l)
+{
+  polymec_free(l);
+}
+
+static inline size_t quad_lattice_num_cells(quad_lattice_t* l)
+{
+  return l->nx * l->ny;
+}
+
+static inline size_t quad_lattice_num_x_edges(quad_lattice_t* l)
+{
+  return (l->nx+1) * l->ny;
+}
+
+static inline size_t quad_lattice_num_y_edges(quad_lattice_t* l)
+{
+  return l->nx * (l->ny+1);
+}
+
+static inline size_t quad_lattice_num_edges(quad_lattice_t* l)
+{
+  return quad_lattice_num_x_edges(l) + quad_lattice_num_y_edges(l);
+}
+
+static inline size_t quad_lattice_num_nodes(quad_lattice_t* l)
+{
+  return (l->nx+1) * (l->ny+1);
+}
+
+static inline int quad_lattice_cell(quad_lattice_t* l, int i, int j)
+{
+  return (int)(l->nx*j + i);
+}
+
+static inline void quad_lattice_get_cell_pair(quad_lattice_t* l, int index, int* i, int* j)
+{
+  *j = (int)(index/l->nx);
+  *i = (int)(index - l->nx*(*j));
+}
+
+static inline int quad_lattice_x_edge(quad_lattice_t* l, int i, int j)
+{
+  return (int)(l->nx+1)*j + i;
+}
+
+static inline int quad_lattice_y_edge(quad_lattice_t* l, int i, int j)
+{
+  return (int)(quad_lattice_num_x_edges(l) + (l->nx)*j + i);
+}
+
+static inline int quad_lattice_node(quad_lattice_t* l, int i, int j)
+{
+  return (int)((l->nx+1)*j + i);
+}
 
 planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny, 
                                                bbox_t* bbox,
@@ -73,6 +144,9 @@ planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny,
       mesh->nodes[n].y = j*dy;
     }
   }
+
+  // Clean up.
+  quad_lattice_free(lattice);
 
   return mesh;
 }

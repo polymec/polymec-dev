@@ -9,7 +9,7 @@
 #define POLYMEC_CREATE_HEX_PRISMESH_H
 
 #include "geometry/prismesh.h"
-#include "geometry/hex_lattice.h"
+#include "geometry/create_hex_planar_polymesh.h"
 
 /// \addtogroup geometry geometry
 ///@{
