@@ -23,7 +23,7 @@
 #define SILO_FLOAT_TYPE DB_FLOAT
 #endif
 
-// These functions are implemented in polymec/core/silo_file.c, and used 
+// These functions are implemented in io/silo_file.c and used 
 // here, even though they are not part of polymec's API.
 extern MPI_Comm silo_file_comm(silo_file_t* file);
 extern DBfile* silo_file_dbfile(silo_file_t* file);

@@ -61,6 +61,16 @@ static inline void hex_get_neighbor(hex_t* hex,
   hex_add(hex, &(hex_directions[dir]), neighbor);
 }
 
+#if 0
+// Node spacings for alignments/directions, to be scaled by h.
+static const point2_t node_spacings[2][6] = {
+  // x-aligned hex lattice
+  {{}},
+  // y-aligned hex lattice
+  {{}}
+};
+#endif
+
 planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
                                               size_t radius, real_t h)
 {
@@ -103,7 +113,7 @@ planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
       // Traverse the ring of hexes at this radius.
       for (int dir = 0; dir < 6; ++dir)
       {
-        for (int phi = 0; phi < radius; ++phi, ++ncells)
+        for (int phi = 0; phi <= radius; ++phi, ++ncells)
         {
           // FIXME: Do stuff!
           // Move to the next hex in the ring.

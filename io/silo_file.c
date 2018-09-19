@@ -2036,6 +2036,167 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
   return cloud;
 }
 
+void silo_file_write_planar_polymesh(silo_file_t* file, 
+                                     const char* mesh_name,
+                                     planar_polymesh_t* mesh)
+{
+  START_FUNCTION_TIMER();
+  ASSERT(file->mode == DB_CLOBBER);
+
+  silo_file_push_domain_dir(file);
+
+  // This is optional for now, but we'll give it anyway.
+  char *coordnames[2];
+  coordnames[0] = (char*)"xcoords";
+  coordnames[1] = (char*)"ycoords";
+
+  // Node coordinates.
+  int num_nodes = mesh->num_nodes;
+  real_t* x = polymec_malloc(sizeof(real_t) * num_nodes);
+  real_t* y = polymec_malloc(sizeof(real_t) * num_nodes);
+  for (int i = 0; i < num_nodes; ++i)
+  {
+    x[i] = mesh->nodes[i].x;
+    y[i] = mesh->nodes[i].y;
+  }
+  real_t* coords[2];
+  coords[0] = x;
+  coords[1] = y;
+
+  // The polyhedral zone list is referred to in the options list.
+  DBoptlist* optlist = DBMakeOptlist(10);
+  char zonelist_name[FILENAME_MAX+1];
+  snprintf(zonelist_name, FILENAME_MAX, "%s_zonelist", mesh_name);
+  DBAddOption(optlist, DBOPT_PHZONELIST, zonelist_name);
+
+  // Stick in step/time information if needed.
+  if (file->step >= 0)
+    DBAddOption(optlist, DBOPT_CYCLE, &file->step);
+  if (reals_equal(file->time, -REAL_MAX))
+  {
+    double t = (double)file->time;
+    DBAddOption(optlist, DBOPT_DTIME, &t);
+  }
+
+  // Write out the (2D) planar poly(gonal) mesh.
+  // FIXME: For an example of how this is done, see 3rdparty/usilo/tests/ucd.c.
+  int num_cells = mesh->num_cells;
+  int result = DBPutUcdmesh(file->dbfile, (char*)mesh_name, 2, 
+                            (char const* const*)coordnames, coords,
+                            num_nodes, num_cells, 0, 0, SILO_FLOAT_TYPE, optlist);
+  if (result == -1)
+    polymec_error("silo_file_write_planar_polymesh: Could not write mesh '%s'.", mesh_name);
+
+  // Partial cleanup.
+  polymec_free(x);
+  polymec_free(y);
+
+  // Construct the silo face-node info.  We rely on the mesh having
+  // the faces nodes arranged counter-clockwise around the face.
+  int num_edges = mesh->num_edges;
+  int* face_node_counts = polymec_malloc(sizeof(int) * num_faces);
+  char* ext_faces = polymec_malloc(sizeof(char) * num_faces);
+  for (int i = 0; i < num_faces; ++i)
+  {
+    face_node_counts[i] = mesh->face_node_offsets[i+1] - mesh->face_node_offsets[i];
+    if (mesh->face_cells[2*i+1] == -1)
+      ext_faces[i] = 0x1;
+    else
+      ext_faces[i] = 0x0;
+  }
+
+  // Construct the silo cell-face info.  Silo uses the same 1's complement
+  // convention we use for indicating face orientation, so we can
+  // simply copy our faces.
+  int* cell_face_counts = polymec_malloc(sizeof(int) * (num_cells + mesh->num_ghost_cells));
+  memset(cell_face_counts, 0, sizeof(int) * (num_cells + mesh->num_ghost_cells));
+  for (int i = 0; i < num_cells; ++i)
+    cell_face_counts[i] = mesh->cell_face_offsets[i+1] - mesh->cell_face_offsets[i];
+
+  // Write the connectivity information.
+  result = DBPutPHZonelist(file->dbfile, zonelist_name, num_faces, face_node_counts,
+                           mesh->face_node_offsets[num_faces], mesh->face_nodes,
+                           ext_faces, num_cells + mesh->num_ghost_cells, cell_face_counts,
+                           mesh->cell_face_offsets[num_cells], mesh->cell_faces,
+                           0, 0, num_cells-1, optlist);
+  if (result == -1)
+    polymec_error("silo_file_write_polymesh: Could not write connectivity data for mesh '%s'.", mesh_name);
+
+  // Partial cleanup.
+  polymec_free(face_node_counts);
+  polymec_free(ext_faces);
+  polymec_free(cell_face_counts);
+
+  // Finally, write out the face_cells array.
+  {
+    char name[FILENAME_MAX+1];
+    snprintf(name, FILENAME_MAX, "%s_face_cells", mesh_name);
+    silo_file_write_int_array(file, name, mesh->face_cells, 2*mesh->num_faces);
+  }
+
+  // Write out tag information.
+  {
+    char tag_name[FILENAME_MAX+1];
+    snprintf(tag_name, FILENAME_MAX, "%s_node_tags", mesh_name);
+    silo_file_write_tags(file, mesh->node_tags, tag_name);
+    snprintf(tag_name, FILENAME_MAX, "%s_edge_tags", mesh_name);
+    silo_file_write_tags(file, mesh->edge_tags, tag_name);
+    snprintf(tag_name, FILENAME_MAX, "%s_face_tags", mesh_name);
+    silo_file_write_tags(file, mesh->face_tags, tag_name);
+    snprintf(tag_name, FILENAME_MAX, "%s_cell_tags", mesh_name);
+    silo_file_write_tags(file, mesh->cell_tags, tag_name);
+  }
+
+  // Write out exchanger information. 
+  {
+    char ex_name[FILENAME_MAX+1];
+    snprintf(ex_name, FILENAME_MAX, "%s_exchanger", mesh_name);
+    silo_file_write_exchanger(file, ex_name, polymesh_exchanger(mesh));
+  }
+
+  // Write out the number of mesh cells/faces/nodes/edges to special variables.
+  char num_cells_var[FILENAME_MAX+1], num_faces_var[FILENAME_MAX+1],
+       num_edges_var[FILENAME_MAX+1], num_nodes_var[FILENAME_MAX+1];
+  snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
+  snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
+  snprintf(num_edges_var, FILENAME_MAX, "%s_mesh_num_edges", mesh_name);
+  snprintf(num_nodes_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
+  int one = 1;
+  DBWrite(file->dbfile, num_cells_var, &mesh->num_cells, &one, 1, DB_INT);
+  DBWrite(file->dbfile, num_faces_var, &mesh->num_faces, &one, 1, DB_INT);
+  DBWrite(file->dbfile, num_edges_var, &mesh->num_edges, &one, 1, DB_INT);
+  DBWrite(file->dbfile, num_nodes_var, &mesh->num_nodes, &one, 1, DB_INT);
+  
+  // Clean up.
+  DBFreeOptlist(optlist);
+
+#if POLYMEC_HAVE_MPI
+  // For parallel environments, add a subdomain entry.
+  if (file->nproc > 1)
+    silo_file_add_subdomain_mesh(file, mesh_name, DB_UCDMESH, NULL);
+#endif
+
+  silo_file_pop_dir(file);
+
+  STOP_FUNCTION_TIMER();
+}
+
+planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file, 
+                                                  const char* mesh_name)
+{
+}
+
+bool silo_file_contains_planar_polymesh(silo_file_t* file, 
+                                        const char* mesh_name)
+{
+  bool result = false;
+  silo_file_push_domain_dir(file);
+  result = (DBInqVarExists(file->dbfile, cloud_name) && 
+            (DBInqVarType(file->dbfile, cloud_name) == DB_UCDMESH));
+  silo_file_pop_dir(file);
+  return result;
+}
+
 bool silo_file_contains_point_cloud(silo_file_t* file, const char* cloud_name)
 {
   bool result = false;
