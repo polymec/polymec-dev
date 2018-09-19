@@ -45,6 +45,11 @@ planar_polymesh_t* planar_polymesh_new(int num_cells, int num_edges, int num_nod
   mesh->nodes = polymec_malloc(sizeof(point2_t)*num_nodes);
   memset(mesh->nodes, 0, sizeof(point2_t)*num_nodes);
 
+  // Allocate tagging mechanisms.
+  mesh->cell_tags = tagger_new();
+  mesh->edge_tags = tagger_new();
+  mesh->node_tags = tagger_new();
+
   return mesh;
 }
 
@@ -65,6 +70,11 @@ planar_polymesh_t* planar_polymesh_new_with_cell_type(int num_cells,
 void planar_polymesh_free(planar_polymesh_t* mesh)
 {
   ASSERT(mesh != NULL);
+
+  // Destroy tags.
+  tagger_free(mesh->node_tags);
+  tagger_free(mesh->edge_tags);
+  tagger_free(mesh->cell_tags);
 
   // Destroy nodes.
   polymec_free(mesh->nodes);

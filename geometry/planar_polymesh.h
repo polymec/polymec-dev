@@ -11,6 +11,7 @@
 #include "core/polymec.h"
 #include "core/point2.h"
 #include "core/adj_graph.h"
+#include "geometry/tagger.h"
 
 /// \addtogroup geometry geometry
 ///@{
@@ -47,6 +48,14 @@ struct planar_polymesh_t
   int num_nodes;
   /// Coordinates of the mesh nodes, indexed from 0 to N-1.
   point2_t* nodes;
+
+  ///@{
+  /// Mesh tagging mechanisms.
+  tagger_t* cell_tags;
+  tagger_t* edge_tags;
+  tagger_t* node_tags;
+  ///@}
+
 };
 typedef struct planar_polymesh_t planar_polymesh_t;
 
@@ -55,8 +64,7 @@ typedef struct planar_polymesh_t planar_polymesh_t;
 /// of the mesh's topology and is only useful in the construction of mesh 
 /// generation algorithms. 
 /// \memberof planar_polymesh
-planar_polymesh_t* planar_polymesh_new(int num_cells, 
-                                       int num_edges, int num_nodes);
+planar_polymesh_t* planar_polymesh_new(int num_cells, int num_edges, int num_nodes);
 
 /// Constructs a new planar_polymesh with a single type of polytope.
 /// This function does not set up connectivity, but initializes its metadata 

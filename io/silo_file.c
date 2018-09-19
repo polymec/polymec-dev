@@ -2091,47 +2091,35 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
   polymec_free(x);
   polymec_free(y);
 
-  // Construct the silo face-node info.  We rely on the mesh having
-  // the faces nodes arranged counter-clockwise around the face.
+  // Construct the silo edge-node info.
   int num_edges = mesh->num_edges;
   int* face_node_counts = polymec_malloc(sizeof(int) * num_faces);
   char* ext_faces = polymec_malloc(sizeof(char) * num_faces);
   for (int i = 0; i < num_faces; ++i)
   {
     face_node_counts[i] = mesh->face_node_offsets[i+1] - mesh->face_node_offsets[i];
-    if (mesh->face_cells[2*i+1] == -1)
+    if (mesh->edge_cells[2*i+1] == -1)
       ext_faces[i] = 0x1;
     else
       ext_faces[i] = 0x0;
   }
 
-  // Construct the silo cell-face info.  Silo uses the same 1's complement
+  // Construct the silo cell-edge info.  Silo uses the same 1's complement
   // convention we use for indicating face orientation, so we can
   // simply copy our faces.
-  int* cell_face_counts = polymec_malloc(sizeof(int) * (num_cells + mesh->num_ghost_cells));
-  memset(cell_face_counts, 0, sizeof(int) * (num_cells + mesh->num_ghost_cells));
+  int* cell_edge_counts = polymec_calloc(sizeof(int) * num_cells);
   for (int i = 0; i < num_cells; ++i)
-    cell_face_counts[i] = mesh->cell_face_offsets[i+1] - mesh->cell_face_offsets[i];
-
-  // Write the connectivity information.
-  result = DBPutPHZonelist(file->dbfile, zonelist_name, num_faces, face_node_counts,
-                           mesh->face_node_offsets[num_faces], mesh->face_nodes,
-                           ext_faces, num_cells + mesh->num_ghost_cells, cell_face_counts,
-                           mesh->cell_face_offsets[num_cells], mesh->cell_faces,
-                           0, 0, num_cells-1, optlist);
-  if (result == -1)
-    polymec_error("silo_file_write_polymesh: Could not write connectivity data for mesh '%s'.", mesh_name);
+    cell_edge_counts[i] = mesh->cell_edge_offsets[i+1] - mesh->cell_edge_offsets[i];
 
   // Partial cleanup.
-  polymec_free(face_node_counts);
   polymec_free(ext_faces);
-  polymec_free(cell_face_counts);
+  polymec_free(cell_edge_counts);
 
-  // Finally, write out the face_cells array.
+  // Finally, write out the edge_cells array.
   {
     char name[FILENAME_MAX+1];
-    snprintf(name, FILENAME_MAX, "%s_face_cells", mesh_name);
-    silo_file_write_int_array(file, name, mesh->face_cells, 2*mesh->num_faces);
+    snprintf(name, FILENAME_MAX, "%s_edge_cells", mesh_name);
+    silo_file_write_int_array(file, name, mesh->edge_cells, 2*mesh->num_edges);
   }
 
   // Write out tag information.
@@ -2141,40 +2129,23 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
     silo_file_write_tags(file, mesh->node_tags, tag_name);
     snprintf(tag_name, FILENAME_MAX, "%s_edge_tags", mesh_name);
     silo_file_write_tags(file, mesh->edge_tags, tag_name);
-    snprintf(tag_name, FILENAME_MAX, "%s_face_tags", mesh_name);
-    silo_file_write_tags(file, mesh->face_tags, tag_name);
     snprintf(tag_name, FILENAME_MAX, "%s_cell_tags", mesh_name);
     silo_file_write_tags(file, mesh->cell_tags, tag_name);
   }
 
-  // Write out exchanger information. 
-  {
-    char ex_name[FILENAME_MAX+1];
-    snprintf(ex_name, FILENAME_MAX, "%s_exchanger", mesh_name);
-    silo_file_write_exchanger(file, ex_name, polymesh_exchanger(mesh));
-  }
-
   // Write out the number of mesh cells/faces/nodes/edges to special variables.
-  char num_cells_var[FILENAME_MAX+1], num_faces_var[FILENAME_MAX+1],
-       num_edges_var[FILENAME_MAX+1], num_nodes_var[FILENAME_MAX+1];
+  char num_cells_var[FILENAME_MAX+1], num_edges_var[FILENAME_MAX+1], 
+       num_nodes_var[FILENAME_MAX+1];
   snprintf(num_cells_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name);
-  snprintf(num_faces_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name);
   snprintf(num_edges_var, FILENAME_MAX, "%s_mesh_num_edges", mesh_name);
   snprintf(num_nodes_var, FILENAME_MAX, "%s_mesh_num_nodes", mesh_name);
   int one = 1;
   DBWrite(file->dbfile, num_cells_var, &mesh->num_cells, &one, 1, DB_INT);
-  DBWrite(file->dbfile, num_faces_var, &mesh->num_faces, &one, 1, DB_INT);
   DBWrite(file->dbfile, num_edges_var, &mesh->num_edges, &one, 1, DB_INT);
   DBWrite(file->dbfile, num_nodes_var, &mesh->num_nodes, &one, 1, DB_INT);
   
   // Clean up.
   DBFreeOptlist(optlist);
-
-#if POLYMEC_HAVE_MPI
-  // For parallel environments, add a subdomain entry.
-  if (file->nproc > 1)
-    silo_file_add_subdomain_mesh(file, mesh_name, DB_UCDMESH, NULL);
-#endif
 
   silo_file_pop_dir(file);
 
@@ -2184,6 +2155,79 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
 planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file, 
                                                   const char* mesh_name)
 {
+  START_FUNCTION_TIMER();
+  ASSERT(file->mode == DB_READ);
+
+  silo_file_push_domain_dir(file);
+
+  DBucdmesh* ucd_mesh = DBGetUcdmesh(file->dbfile, mesh_name);
+  if (ucd_mesh == NULL)
+    polymec_error("No mesh named '%s' was found within the Silo file.", mesh_name);
+  ASSERT(ucd_mesh->ndims == 3);
+
+  // Also get the polyhedral zone list.
+  char phzl_name[FILENAME_MAX+1];
+  snprintf(phzl_name, FILENAME_MAX, "%s_zonelist", mesh_name);
+  DBphzonelist* ph_zonelist = DBGetPHZonelist(file->dbfile, phzl_name);
+  if (ph_zonelist == NULL)
+    polymec_error("Mesh '%s' is not a polymec planar polygonal mesh.", mesh_name);
+
+  // Decipher the mesh object.
+  int num_cells = ph_zonelist->hi_offset + 1;
+  int num_edges;
+  int num_nodes = ucd_mesh->nnodes;
+  planar_polymesh_t* mesh = planar_polymesh_new(num_cells, num_edges, num_nodes);
+
+  // Set node positions.
+  real_t* x = ucd_mesh->coords[0];
+  real_t* y = ucd_mesh->coords[1];
+  for (int n = 0; n < num_nodes; ++n)
+  {
+    mesh->nodes[n].x = x[n];
+    mesh->nodes[n].y = y[n];
+  }
+
+  // Set up cell face counts and face node counts.
+  mesh->cell_edge_offsets[0] = 0;
+  for (int c = 0; c < num_cells; ++c)
+    mesh->cell_edge_offsets[c+1] = mesh->cell_edge_offsets[c] + ph_zonelist->facecnt[c];
+//  for (int e = 0; e < num_edges; ++e)
+//    mesh->face_node_offsets[f+1] = mesh->face_node_offsets[f] + ph_zonelist->nodecnt[f];
+  planar_polymesh_reserve_connectivity_storage(mesh);
+
+  // Read in the edge_cells array.
+  {
+    char name[FILENAME_MAX+1];
+    snprintf(name, FILENAME_MAX, "%s_edge_cells", mesh_name);
+    size_t num_edge_cells;
+    int* edge_cells = silo_file_read_int_array(file, name, &num_edge_cells);
+    ASSERT(num_edge_cells == 2*mesh->num_edges);
+    memcpy(mesh->edge_cells, edge_cells, sizeof(int) * 2 * mesh->num_edges);
+    polymec_free(edge_cells);
+  }
+
+  // Fill in cell edges.
+  memcpy(mesh->cell_edges, ph_zonelist->facelist, sizeof(int) * mesh->cell_edge_offsets[mesh->num_cells]);
+
+  // Read in tag information.
+  {
+    char tag_name[FILENAME_MAX+1];
+    snprintf(tag_name, FILENAME_MAX, "%s_node_tags", mesh_name);
+    silo_file_read_tags(file, tag_name, mesh->node_tags);
+    snprintf(tag_name, FILENAME_MAX, "%s_edge_tags", mesh_name);
+    silo_file_read_tags(file, tag_name, mesh->edge_tags);
+    snprintf(tag_name, FILENAME_MAX, "%s_cell_tags", mesh_name);
+    silo_file_read_tags(file, tag_name, mesh->cell_tags);
+  }
+
+  // Clean up.
+  DBFreeUcdmesh(ucd_mesh);
+  DBFreePHZonelist(ph_zonelist);
+
+  silo_file_pop_dir(file);
+
+  STOP_FUNCTION_TIMER();
+  return mesh;
 }
 
 bool silo_file_contains_planar_polymesh(silo_file_t* file, 
@@ -2191,8 +2235,8 @@ bool silo_file_contains_planar_polymesh(silo_file_t* file,
 {
   bool result = false;
   silo_file_push_domain_dir(file);
-  result = (DBInqVarExists(file->dbfile, cloud_name) && 
-            (DBInqVarType(file->dbfile, cloud_name) == DB_UCDMESH));
+  result = (DBInqVarExists(file->dbfile, mesh_name) && 
+            (DBInqVarType(file->dbfile, mesh_name) == DB_UCDMESH));
   silo_file_pop_dir(file);
   return result;
 }
