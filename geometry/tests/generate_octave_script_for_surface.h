@@ -26,7 +26,7 @@ static void generate_octave_script_for_surface(sd_func_t* surface,
   // Create a text file containing an Octave script that can be run to 
   // visualize this plot.
   FILE* fd = fopen(script_name, "w");
-  fprintf(fd, "%% %s - A script for visualizing a sphere.\n", script_name);
+  fprintf(fd, "%% %s - A script for visualizing a signed distance function.\n", script_name);
   fprintf(fd, "%% Run with octave --persist %s\n\n", script_name);
 
   // Write out X, Y, and Z arrays.
