@@ -2109,11 +2109,15 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
   polymec_free(x);
   polymec_free(y);
 
-  // Finally, write out the edge_cells array.
+  // Finally, write out the cell_edges and edge_cells arrays.
   {
-    char name[FILENAME_MAX+1];
-    snprintf(name, FILENAME_MAX, "%s_edge_cells", mesh_name);
-    silo_file_write_int_array(file, name, mesh->edge_cells, 2*mesh->num_edges);
+    char ce_name[FILENAME_MAX+1];
+    snprintf(ce_name, FILENAME_MAX, "%s_cell_edges", mesh_name);
+    silo_file_write_int_array(file, ce_name, mesh->cell_edges, mesh->cell_edge_offsets[mesh->num_cells]);
+
+    char ec_name[FILENAME_MAX+1];
+    snprintf(ec_name, FILENAME_MAX, "%s_edge_cells", mesh_name);
+    silo_file_write_int_array(file, ec_name, mesh->edge_cells, 2*mesh->num_edges);
   }
 
   // Write out tag information.
@@ -2157,18 +2161,12 @@ planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file,
   DBucdmesh* ucd_mesh = DBGetUcdmesh(file->dbfile, mesh_name);
   if (ucd_mesh == NULL)
     polymec_error("No mesh named '%s' was found within the Silo file.", mesh_name);
-  ASSERT(ucd_mesh->ndims == 3);
-
-  // Also get the polyhedral zone list.
-  char phzl_name[FILENAME_MAX+1];
-  snprintf(phzl_name, FILENAME_MAX, "%s_zonelist", mesh_name);
-  DBphzonelist* ph_zonelist = DBGetPHZonelist(file->dbfile, phzl_name);
-  if (ph_zonelist == NULL)
+  if (ucd_mesh->ndims != 3)
     polymec_error("Mesh '%s' is not a polymec planar polygonal mesh.", mesh_name);
 
   // Decipher the mesh object.
-  int num_cells = ph_zonelist->hi_offset + 1;
-  int num_edges;
+  int num_cells = ucd_mesh->zones->nzones;
+  int num_edges = ucd_mesh->faces->nfaces;
   int num_nodes = ucd_mesh->nnodes;
   planar_polymesh_t* mesh = planar_polymesh_new(num_cells, num_edges, num_nodes);
 
@@ -2184,10 +2182,19 @@ planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file,
   // Set up cell face counts and face node counts.
   mesh->cell_edge_offsets[0] = 0;
   for (int c = 0; c < num_cells; ++c)
-    mesh->cell_edge_offsets[c+1] = mesh->cell_edge_offsets[c] + ph_zonelist->facecnt[c];
-//  for (int e = 0; e < num_edges; ++e)
-//    mesh->face_node_offsets[f+1] = mesh->face_node_offsets[f] + ph_zonelist->nodecnt[f];
+    mesh->cell_edge_offsets[c+1] = mesh->cell_edge_offsets[c] + ucd_mesh->faces->shapesize[c];
   planar_polymesh_reserve_connectivity_storage(mesh);
+
+  // Read in the cell_edges array.
+  {
+    char name[FILENAME_MAX+1];
+    snprintf(name, FILENAME_MAX, "%s_cell_edges", mesh_name);
+    size_t num_cell_edges;
+    int* cell_edges = silo_file_read_int_array(file, name, &num_cell_edges);
+    ASSERT(num_cell_edges == mesh->cell_edge_offsets[mesh->num_cells]);
+    memcpy(mesh->cell_edges, cell_edges, sizeof(int) * num_edge_cells);
+    polymec_free(cell_edges);
+  }
 
   // Read in the edge_cells array.
   {
@@ -2199,9 +2206,6 @@ planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file,
     memcpy(mesh->edge_cells, edge_cells, sizeof(int) * 2 * mesh->num_edges);
     polymec_free(edge_cells);
   }
-
-  // Fill in cell edges.
-  memcpy(mesh->cell_edges, ph_zonelist->facelist, sizeof(int) * mesh->cell_edge_offsets[mesh->num_cells]);
 
   // Read in tag information.
   {
@@ -2216,8 +2220,6 @@ planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file,
 
   // Clean up.
   DBFreeUcdmesh(ucd_mesh);
-  DBFreePHZonelist(ph_zonelist);
-
   silo_file_pop_dir(file);
 
   STOP_FUNCTION_TIMER();
