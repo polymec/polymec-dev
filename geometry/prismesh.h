@@ -37,8 +37,8 @@ typedef enum
   PRISMESH_XYFACE = 1,
   PRISMESH_ZFACE = 2,
   PRISMESH_XYEDGE = 3,
-  PRISMESH_ZEDGE = 3,
-  PRISMESH_NODE = 3
+  PRISMESH_ZEDGE = 4,
+  PRISMESH_NODE = 5
 } prismesh_centering_t;
 
 typedef struct prismesh_column_t prismesh_column_t;
