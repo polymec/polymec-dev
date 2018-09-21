@@ -3,7 +3,7 @@ project(tests C)
 include_directories(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/include
+  ${cmocka-headers_SOURCE_DIR}
 )
 
 set(CMOCKA_TESTS
@@ -18,14 +18,17 @@ set(CMOCKA_TESTS
     test_exception_handler
     test_basics
     test_skip
+    test_strmatch
     test_setup_fail
     test_ordering
     test_ordering_fail
     test_returns
-    test_returns_fail)
+    test_returns_fail
+    test_wildcard)
 
 foreach(_CMOCKA_TEST ${CMOCKA_TESTS})
     add_cmocka_test(${_CMOCKA_TEST} ${_CMOCKA_TEST}.c ${CMOCKA_STATIC_LIBRARY})
+    target_compile_options(${_CMOCKA_TEST} PRIVATE ${DEFAULT_C_COMPILE_FLAGS})
 endforeach()
 
 ### Special Cases
@@ -33,6 +36,7 @@ if (${CMAKE_C_COMPILER_ID} MATCHES "(GNU|Clang)")
     set_source_files_properties(test_cmockery.c PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations")
 endif()
 add_cmocka_test(test_cmockery test_cmockery.c ${CMOCKA_STATIC_LIBRARY})
+target_compile_options(test_cmockery PRIVATE ${DEFAULT_C_COMPILE_FLAGS})
 
 ### Exceptions
 
@@ -80,7 +84,7 @@ else()
         test_exception_handler
             PROPERTIES
             PASS_REGULAR_EXPRESSION
-            "Test failed with exception: (Segmentation fault|Segmentation Fault|11)"
+            "Test failed with exception: (Segmentation fault|Segmentation Fault|11|Illegal instruction)"
     )
 endif (WIN32)
 
@@ -171,7 +175,7 @@ set(test_groups_tap_out
 set(test_skip_tap_out
     "not ok 1 # SKIP")
 set(test_setup_fail_tap_out
-    "not ok 1 - int_test_ignored Could not run the test - check test fixtures")
+    "not ok 1 - int_test_ignored Could not run test: Test setup failed")
 
 set(test_basics_subunit_out
     "^test: null_test_success"
@@ -185,7 +189,7 @@ set(test_skip_subunit_out
     "^test: test_check_skip"
     "skip: test_check_skip")
 set(test_setup_fail_subunit_out
-    "error: int_test_ignored \\[ Could not run the test - check test fixtures \\]")
+    "error: int_test_ignored \\[ Could not run test: Test setup failed \\]")
 
 set(test_basics_xml_out
     "<testsuite name=\"tests\" time=\"[0-9.]+\" tests=\"2\" failures=\"0\" errors=\"0\" skipped=\"0\" >"
