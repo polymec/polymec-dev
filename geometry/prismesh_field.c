@@ -13,6 +13,7 @@ static prismesh_chunk_data_t* prismesh_chunk_data_new(prismesh_chunk_t* chunk,
                                                       size_t num_components)
 {
   prismesh_chunk_data_t* data = polymec_malloc(sizeof(prismesh_chunk_data_t));
+  data->chunk = chunk;
   data->centering = centering;
   data->num_components = num_components;
 
@@ -63,6 +64,7 @@ static void prismesh_chunk_data_free(prismesh_chunk_data_t* data)
 void prismesh_chunk_data_copy(prismesh_chunk_data_t* data, 
                               prismesh_chunk_data_t* dest)
 {
+  ASSERT(dest->chunk == data->chunk);
   ASSERT(dest->centering == data->centering);
   ASSERT(dest->num_components == data->num_components);
   ASSERT(dest->xy_size == data->xy_size);
@@ -70,28 +72,7 @@ void prismesh_chunk_data_copy(prismesh_chunk_data_t* data,
   memcpy(dest->data, data->data, prismesh_chunk_data_size(data));
 }
 
-typedef struct
-{
-  prismesh_chunk_t* chunk;
-  prismesh_chunk_data_t* data;
-} chunk_data_t;
-
-static chunk_data_t* chunk_data_new(prismesh_chunk_t* chunk,
-                                    prismesh_chunk_data_t* data)
-{
-  chunk_data_t* ch_data = polymec_malloc(sizeof(chunk_data_t));
-  ch_data->chunk = chunk;
-  ch_data->data = data;
-  return ch_data;
-}
-
-static void chunk_data_free(chunk_data_t* data)
-{
-  prismesh_chunk_data_free(data->data);
-  polymec_free(data);
-}
-
-DEFINE_UNORDERED_MAP(chunk_data_map, int, chunk_data_t*, int_hash, int_equals)
+DEFINE_UNORDERED_MAP(chunk_data_map, int, prismesh_chunk_data_t*, int_hash, int_equals)
 
 struct prismesh_field_t 
 {
@@ -125,10 +106,10 @@ prismesh_field_t* prismesh_field_new(prismesh_t* mesh,
   prismesh_chunk_t* chunk;
   while (prismesh_next_chunk(mesh, &pos, &xy_index, &z_index, &chunk))
   {
-    prismesh_chunk_data_t* data = prismesh_chunk_data_new(chunk, centering, num_components);
-    chunk_data_t* ch_data = chunk_data_new(chunk, data);
     int ch_index = chunk_index(field, xy_index, z_index);
-    chunk_data_map_insert_with_v_dtor(field->chunks, ch_index, ch_data, chunk_data_free);
+    prismesh_chunk_data_t* data = prismesh_chunk_data_new(chunk, centering, num_components);
+    chunk_data_map_insert_with_v_dtor(field->chunks, ch_index, data, 
+                                      prismesh_chunk_data_free);
   }
 
   return field;
@@ -169,14 +150,14 @@ void prismesh_field_copy(prismesh_field_t* field,
   ASSERT(dest->num_xy_chunks == field->num_xy_chunks);
   ASSERT(dest->num_z_chunks == field->num_z_chunks);
   int pos = 0, ch_index;
-  chunk_data_t* src_data;
+  prismesh_chunk_data_t* src_data;
   while (chunk_data_map_next(field->chunks, &pos, &ch_index, &src_data))
   {
-    chunk_data_t** dest_data_p = chunk_data_map_get(dest->chunks, ch_index);
+    prismesh_chunk_data_t** dest_data_p = chunk_data_map_get(dest->chunks, ch_index);
     ASSERT(dest_data_p != NULL);
-    chunk_data_t* dest_data = *dest_data_p;
+    prismesh_chunk_data_t* dest_data = *dest_data_p;
     ASSERT(dest_data->chunk == src_data->chunk);
-    prismesh_chunk_data_copy(src_data->data, dest_data->data);
+    prismesh_chunk_data_copy(src_data, dest_data);
   }
 }
 
@@ -185,21 +166,24 @@ prismesh_chunk_data_t* prismesh_field_chunk_data(prismesh_field_t* field,
                                                  int z_index)
 {
   int index = chunk_index(field, xy_index, z_index);
-  chunk_data_t** ch_data_p = chunk_data_map_get(field->chunks, index);
-  if (ch_data_p != NULL)
-    return (*ch_data_p)->data;
+  prismesh_chunk_data_t** data_p = chunk_data_map_get(field->chunks, index);
+  if (data_p != NULL)
+    return *data_p;
   else
     return NULL;
 }
 
 bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos, 
                                int* xy_index, int* z_index,
-                               prismesh_chunk_t** chunk, 
-                               prismesh_chunk_data_t** data)
+                               prismesh_chunk_data_t** chunk_data)
 {
-  bool result = prismesh_next_chunk(field->mesh, pos, xy_index, z_index, chunk);
+  prismesh_chunk_t* chunk;
+  bool result = prismesh_next_chunk(field->mesh, pos, xy_index, z_index, &chunk);
   if (result)
-    *data = prismesh_field_chunk_data(field, *xy_index, *z_index);
+  {
+    *chunk_data = prismesh_field_chunk_data(field, *xy_index, *z_index);
+    ASSERT((*chunk_data)->chunk == chunk);
+  }
   return result;
 }
 

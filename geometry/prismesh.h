@@ -81,6 +81,10 @@ struct prismesh_chunk_t
   /// The total number of lateral (xy) edges at a single z location.
   size_t num_xy_edges;
 
+  /// The nodes attached to an xy edge. The first node for an edge is 
+  /// xy_edge_nodes[2*xy], and the second is xy_edge_nodes[2*xy+1].
+  int* xy_edge_nodes;
+
   /// The total number of nodes at a single z location.
   size_t num_xy_nodes;
 

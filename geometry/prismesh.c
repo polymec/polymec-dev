@@ -27,6 +27,7 @@ typedef struct
   int* xy_face_columns;
   size_t num_xy_faces;
   size_t num_xy_edges;
+  int* xy_edge_nodes;
   size_t num_xy_nodes;
   point2_t* xy_nodes;
 } chunk_xy_data_t;
@@ -50,8 +51,11 @@ static chunk_xy_data_t* chunk_xy_data_new(planar_polymesh_t* mesh)
   xy_data->xy_face_columns = polymec_malloc(sizeof(int) * 2 * xy_data->num_xy_faces);
   memcpy(xy_data->xy_face_columns, mesh->edge_cells, sizeof(int) * 2 * xy_data->num_xy_faces);
 
-  // Node xy coordinates.
+  // xy edge -> node connectivity.
   xy_data->num_xy_edges = (size_t)mesh->num_edges;
+  memcpy(xy_data->xy_edge_nodes, mesh->edge_nodes, sizeof(int) * 2 * xy_data->num_xy_edges);
+
+  // Node xy coordinates.
   xy_data->num_xy_nodes = (size_t)mesh->num_nodes;
   xy_data->xy_nodes = polymec_malloc(sizeof(point2_t) * xy_data->num_xy_nodes);
   memcpy(xy_data->xy_nodes, mesh->nodes, sizeof(point2_t) * xy_data->num_xy_nodes);
@@ -757,10 +761,9 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
                                                    prismesh_field_num_components(old_field));
 
   // Copy all local chunk data from one field to the other.
-  prismesh_chunk_t* chunk;
   prismesh_chunk_data_t* data;
   int pos = 0, xy_index, z_index;
-  while (prismesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &chunk, &data))
+  while (prismesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &data))
   {
     prismesh_chunk_data_t* old_data = prismesh_field_chunk_data(old_field, xy_index, z_index);
     if (old_data != NULL)
@@ -772,7 +775,7 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
   MPI_Request recv_requests[num_new_local_chunks];
   pos = 0;
   size_t num_recv_reqs = 0;
-  while (prismesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &chunk, &data))
+  while (prismesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &data))
   {
     int ch = chunk_index(new_mesh, xy_index, z_index);
     if (partition[ch] == new_mesh->rank)
@@ -792,7 +795,7 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
   MPI_Request send_requests[num_old_local_chunks];
   pos = 0;
   size_t num_send_reqs = 0;
-  while (prismesh_field_next_chunk(old_field, &pos, &xy_index, &z_index, &chunk, &data))
+  while (prismesh_field_next_chunk(old_field, &pos, &xy_index, &z_index, &data))
   {
     int ch = chunk_index(new_mesh, xy_index, z_index);
     if (sources[ch] == new_mesh->rank)

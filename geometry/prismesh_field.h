@@ -21,11 +21,15 @@ typedef struct prismesh_field_t prismesh_field_t;
 /// This type holds locally-stored field data for a chunk in a prismesh.
 struct prismesh_chunk_data_t
 {
+  /// The chunk for this chunk data. Provided for convenience.
+  prismesh_chunk_t* chunk;
+
   /// Data storage for the chunk. Use DECLARE_PRISMESH_*_ARRAY to provide 
   /// multidimensional array access to this data.
   void* data;
   
-  /// The number of data indices within the x-y plane.
+  /// The number of data indices within the x-y plane. This corresponds to 
+  /// a quantity in the chunk, depending on the centering.
   size_t xy_size;
 
   /// The number of data indices along the z axis.
@@ -94,14 +98,13 @@ prismesh_chunk_data_t* prismesh_field_chunk_data(prismesh_field_t* field,
 /// \param pos [in,out] Controls the traversal. Set to 0 to reset.
 /// \param xy_index [out] Stores the xy index of the next chunk.
 /// \param z_index [out] Stores the z index of the next chunk.
-/// \param chunk [out] Stores the chunk found in the traversal.
-/// \param data [out] Stores the chunk data associated with \ref chunk.
+/// \param chunk_data [out] Stores the chunk data for the chunk. Note that 
+///                         the chunk itself is available via chunk_data->chunk.
 /// \returns true if a locally-stored chunk is found, false if not.
 /// \memberof prismesh_field
 bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos, 
                                int* xy_index, int* z_index,
-                               prismesh_chunk_t** chunk, 
-                               prismesh_chunk_data_t** data);
+                               prismesh_chunk_data_t** chunk_data);
 
 ///@}
 
@@ -112,86 +115,77 @@ bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos,
 /// \def DECLARE_PRISMESH_CELL_ARRAY
 /// Allows access to prismesh cell data. Cell arrays are indexed the following 
 /// way:
-/// array[i][k][c] where i is the column index, k is the z index,
+/// array[xy][z][c] where i is the xy index, z is the z index,
 /// and c is the component.
-/// * i runs from 0 to chunk->xy_size-1 for interior cells, with ghost 
-///   cells beginning at chunk->xy_size and proceeding hence.
-/// * k runs from 1 to chunk->z_size for interior cells, with ghost
-///   values at 0 and chunk->z_size+1.
+/// * xy runs from 0 to chunk_data->chunk->num_columns-1 for interior cells, 
+///   with ghost cells beginning at chunk->num_columns and proceeding hence.
+/// * z runs from 1 to chunk_data->chunk->num_z_cells for interior cells, with 
+///   ghost values at 0 and chunk->z_size+1.
 /// * c runs from 0 to chunk->num_components-1.
-#define DECLARE_PRISMESH_CELL_ARRAY(array, chunk) \
-ASSERT(chunk->centering == PRISMESH_CELL); \
-DECLARE_3D_ARRAY(real_t, array, chunk->data, chunk->xy_size, chunk->z_size+2, chunk->num_components)
+#define DECLARE_PRISMESH_CELL_ARRAY(array, chunk_data) \
+ASSERT(chunk_data->centering == PRISMESH_CELL); \
+DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
 /// \def DECLARE_PRISMESH_XYFACE_ARRAY
-/// Allows access to prismesh data for faces with normal vectors in the x-y 
+/// Allows access to prismesh data for faces with normal vectors in the xy 
 /// plane. XY-face arrays are indexed the following way:
-/// array[i][k][c] with (i, k) identifying the ith xy-face at the kth 
-/// vertical position, and c as the component. 
-/// * i runs from 0 to chunk->xy_size-1.
-/// * k runs from 0 to chunk->z_size-1.
-/// * c runs from 0 to chunk->num_components-1.
-/// Use chunk->cell_xy_faces[m][n] to retrieve the index for the nth xy-face 
-/// of the mth cell.
-#define DECLARE_PRISMESH_XYFACE_ARRAY(array, chunk) \
-ASSERT(chunk->centering == PRISMESH_XYFACE); \
-DECLARE_3D_ARRAY(real_t, array, chunk->data, chunk->xy_size, chunk->z_size, chunk->num_components)
+/// array[xy][z][c] with (xy, z) identifying a face at the given xy and z position,
+/// and c as the component. 
+/// * xy runs from 0 to chunk_data->chunk->num_xy_faces-1.
+/// * z runs from 0 to chunk_data->chunk->num_z_cells-1.
+/// * c runs from 0 to chunk_data->num_components-1.
+#define DECLARE_PRISMESH_XYFACE_ARRAY(array, chunk_data) \
+ASSERT(chunk_data->centering == PRISMESH_XYFACE); \
+DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
 /// \def DECLARE_PRISMESH_ZFACE_ARRAY
 /// Allows access to prismesh data for faces with normal vectors in the 
 /// +/- z direction. Z-face arrays are indexed the following way:
-/// array[i][k][c] identifies the "bottom" z-face for the ith cell at 
-/// vertical level k, with c as the component.
-/// * i runs from 0 to chunk->xy_size-1.
-/// * k runs from 0 to chunk->z_size.
-/// * c runs from 0 to chunk->num_components-1.
-#define DECLARE_PRISMESH_ZFACE_ARRAY(array, chunk) \
-ASSERT(chunk->centering == PRISMESH_ZFACE); \
-DECLARE_3D_ARRAY(real_t, array, chunk->data, chunk->xy_size, chunk->z_size+1, chunk->num_components)
+/// array[xy][z][c] identifies the "bottom" z-face for the cell at (xy, z),
+/// with c as the component.
+/// * xy runs from 0 to chunk_data->chunk->num_columns-1.
+/// * z runs from 0 to chunk_data->chunk->num_z_cells.
+/// * c runs from 0 to chunk_data->num_components-1.
+#define DECLARE_PRISMESH_ZFACE_ARRAY(array, chunk_data) \
+ASSERT(chunk_data->centering == PRISMESH_ZFACE); \
+DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
 /// \def DECLARE_PRISMESH_XYEDGE_ARRAY
-/// Allows access to prismesh edge data for edges that lie in the x-y plane. 
+/// Allows access to prismesh edge data for edges that lie in the xy plane. 
 /// XY-edge arrays are indexed the following way:
-/// array[i][k][c] identifies the ith xy-edge in the set of xy-edges aligned 
-/// with the bottom of cells in the kth vertical position, with c as the 
+/// array[xy][k][c] identifies the xy-edge at the given xy position, running
+/// along the bottom of cells in the given z position, with c as the 
 /// component.
-/// * i runs from 0 to chunk->xy_size-1.
-/// * k runs from 0 to chunk->z_size.
-/// * c runs from 0 to chunk->num_components-1.
-/// Use chunk->zface_xyedges[m][n] to retrieve the index for the nth xy-edge 
-/// of the mth z-face.
-#define DECLARE_PRISMESH_XYEDGE_ARRAY(array, chunk) \
-ASSERT(chunk->centering == PRISMESH_XYEDGE); \
-DECLARE_3D_ARRAY(real_t, array, chunk->data, chunk->xy_size, chunk->z_size+1, chunk->num_components)
+/// * xy runs from 0 to chunk_data->chunk->num_xy_edges-1.
+/// * z runs from 0 to chunk_data->chunk->num_z_cells.
+/// * c runs from 0 to chunk_data->num_components-1.
+#define DECLARE_PRISMESH_XYEDGE_ARRAY(array, chunk_data) \
+ASSERT(chunk_data->centering == PRISMESH_XYEDGE); \
+DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
 /// \def DECLARE_PRISMESH_ZEDGE_ARRAY
 /// Allows access to prismesh edge data for edges that align with the z axis.
-/// Z-edge arrays are indexed the following way:
-/// array[i][k][c] identifies the ith z-edge for xy-faces in the kth vertical
-/// position, with c as the component.
-/// * i runs from 0 to chunk->xy_size-1.
-/// * k runs from 0 to chunk->z_size-1.
-/// * c runs from 0 to chunk->num_components-1.
-/// Z-edges are indexed the same as nodes, so use chunk->xy_face_nodes[m][n] to 
-/// retrieve the index for the nth z-edge of the mth xy-face.
-#define DECLARE_PRISMESH_ZEDGE_ARRAY(array, chunk) \
-ASSERT(chunk->centering == PRISMESH_ZEDGE); \
-DECLARE_3D_ARRAY(real_t, array, chunk->data, chunk->xy_size, chunk->z_size, chunk->num_components)
+/// z-edge arrays are indexed the following way:
+/// array[xy][z][c] identifies the z-edge at the given xy, running vertically along
+/// cells in the given z position, with c as the component.
+/// * xy runs from 0 to chunk_data->chunk->num_xy_nodes-1.
+/// * k runs from 0 to chunk_data->chunk->num_z_cells-1.
+/// * c runs from 0 to chunk_data->num_components-1.
+#define DECLARE_PRISMESH_ZEDGE_ARRAY(array, chunk_data) \
+ASSERT(chunk_data->centering == PRISMESH_ZEDGE); \
+DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
 /// \def DECLARE_PRISMESH_NODE_ARRAY
 /// Allows access to prismesh node data. Node arrays are indexed the 
 /// following way:
-/// array[i][k][c] identifies the ith node of the bottom z-face for the cell
-/// in the kth vertical position, with c as the component.
-/// * i runs from 0 to chunk->xy_size-1.
-/// * k runs from 0 to chunk->z_size.
+/// array[xy][k][c] identifies the node at the given xy position along the bottom 
+/// z-face for the cell at the given z position, with c as the component.
+/// * xy runs from 0 to chunk_data->chunk->num_xy_nodes-1.
+/// * z runs from 0 to chunk_data->chunk->num_z_cells.
 /// * c runs from 0 to chunk->num_components-1.
-/// Use chunk->xy_face_nodes[m][n] to retrieve the index for the nth node
-/// of the mth xy-face, and chunk->zface_nodes[m][n] to retrieve the index
-/// for the nth node of the mth z-face.
-#define DECLARE_PRISMESH_NODE_ARRAY(array, chunk) \
-ASSERT(chunk->centering == PRISMESH_NODE); \
-DECLARE_3D_ARRAY(real_t, array, chunk->data, chunk->xy_size, chunk->z_size+1, chunk->num_components)
+#define DECLARE_PRISMESH_NODE_ARRAY(array, chunk_data) \
+ASSERT(chunk_data->centering == PRISMESH_NODE); \
+DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
 ///@}
 
