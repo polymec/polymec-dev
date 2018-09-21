@@ -3,13 +3,13 @@ project(cmocka-library C)
 set(CMOCKA_PLATFORM_INCLUDE CACHE PATH "Path to include directory for cmocka_platform.h")
 
 set(CMOCKA_PUBLIC_INCLUDE_DIRS
-    ${CMAKE_SOURCE_DIR}/include
+    ${cmocka_SOURCE_DIR}/include
     ${CMOCKA_PLATFORM_INCLUDE}
     CACHE INTERNAL "cmocka public include directories"
 )
 
 set(CMOCKA_PRIVATE_INCLUDE_DIRS
-    ${CMAKE_BINARY_DIR}
+    ${cmocka_BINARY_DIR}
 )
 
 set(CMOCKA_SHARED_LIBRARY
@@ -51,7 +51,7 @@ if (CMOCKA_PLATFORM_INCLUDE)
 endif()
 
 add_library(${CMOCKA_SHARED_LIBRARY} SHARED ${cmocka_SRCS})
-
+target_compile_options(${CMOCKA_SHARED_LIBRARY} PRIVATE ${DEFAULT_C_COMPILE_FLAGS})
 target_link_libraries(${CMOCKA_SHARED_LIBRARY} ${CMOCKA_LINK_LIBRARIES})
 set_target_properties(
     ${CMOCKA_SHARED_LIBRARY}
@@ -83,6 +83,7 @@ install(
 
 if (WITH_STATIC_LIB)
     add_library(${CMOCKA_STATIC_LIBRARY} STATIC ${cmocka_SRCS})
+    target_compile_options(${CMOCKA_STATIC_LIBRARY} PRIVATE ${DEFAULT_C_COMPILE_FLAGS})
 
     set_target_properties(
         ${CMOCKA_STATIC_LIBRARY}
@@ -95,6 +96,15 @@ if (WITH_STATIC_LIB)
                     cmocka
     )
 
+    if (NOT WIN32)
+        set_target_properties(
+            ${CMOCKA_STATIC_LIBRARY}
+                PROPERTIES
+                    OUTPUT_NAME
+                        cmocka
+        )
+    endif()
+
     install(
         TARGETS ${CMOCKA_STATIC_LIBRARY}
         DESTINATION ${LIB_INSTALL_DIR}
@@ -102,17 +112,19 @@ if (WITH_STATIC_LIB)
     )
 endif (WITH_STATIC_LIB)
 
-if (POLICY CMP0026)
-    cmake_policy(SET CMP0026 OLD)
-endif()
+if (WIN32)
+    if (POLICY CMP0026)
+        cmake_policy(SET CMP0026 OLD)
+    endif()
 
 #
 # In order to run tests we will need to set the approriate environment
 # variable so that the test program can locate its dependent DLL's. First
 # we want to know what directory our dependent DLL was installed into:
 #
-get_target_property(_cmocka_dir cmocka_shared LOCATION_${CMOCKA_BUILD_TYPE})
-get_filename_component(_cmocka_path "${_cmocka_dir}" PATH)
-file(TO_NATIVE_PATH "${_cmocka_path}" _cmocka_path_native)
+    get_target_property(_cmocka_dir cmocka_shared LOCATION_${CMOCKA_BUILD_TYPE})
+    get_filename_component(_cmocka_path "${_cmocka_dir}" PATH)
+    file(TO_NATIVE_PATH "${_cmocka_path}" _cmocka_path_native)
 
-set(CMOCKA_DLL_PATH "${_cmocka_path_native}" PARENT_SCOPE)
+    set(CMOCKA_DLL_PATH "${_cmocka_path_native}" PARENT_SCOPE)
+endif()
