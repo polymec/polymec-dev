@@ -1041,8 +1041,7 @@ silo_file_t* silo_file_open(MPI_Comm comm,
   // Set compression if needed.
   silo_set_compression();
 
-  silo_file_t* file = polymec_malloc(sizeof(silo_file_t));
-  memset(file, 0, sizeof(silo_file_t));
+  silo_file_t* file = polymec_calloc(sizeof(silo_file_t));
   file->mode = DB_READ;
   file->step = -1;
   file->time = -REAL_MAX;
@@ -1531,8 +1530,7 @@ void silo_file_write_polymesh(silo_file_t* file,
   // Construct the silo cell-face info.  Silo uses the same 1's complement
   // convention we use for indicating face orientation, so we can
   // simply copy our faces.
-  int* cell_face_counts = polymec_malloc(sizeof(int) * (num_cells + mesh->num_ghost_cells));
-  memset(cell_face_counts, 0, sizeof(int) * (num_cells + mesh->num_ghost_cells));
+  int* cell_face_counts = polymec_calloc(sizeof(int) * (num_cells + mesh->num_ghost_cells));
   for (int i = 0; i < num_cells; ++i)
     cell_face_counts[i] = mesh->cell_face_offsets[i+1] - mesh->cell_face_offsets[i];
 
@@ -2192,7 +2190,7 @@ planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file,
     size_t num_cell_edges;
     int* cell_edges = silo_file_read_int_array(file, name, &num_cell_edges);
     ASSERT(num_cell_edges == mesh->cell_edge_offsets[mesh->num_cells]);
-    memcpy(mesh->cell_edges, cell_edges, sizeof(int) * num_edge_cells);
+    memcpy(mesh->cell_edges, cell_edges, sizeof(int) * num_cell_edges);
     polymec_free(cell_edges);
   }
 

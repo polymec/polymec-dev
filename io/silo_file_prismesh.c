@@ -96,7 +96,7 @@ prismesh_t* silo_file_read_prismesh(silo_file_t* file,
                                            num_xy_chunks, num_z_chunks, nz_per_chunk, 
                                            periodic);
 
-  // Fill it with patches whose indices we read from the file.
+  // Fill it with chunks whose indices we read from the file.
   int_array_t* xy_array = int_array_new();
   int_array_t* z_array = int_array_new();
   read_prismesh_chunk_indices(file, mesh_name, xy_array, z_array);
@@ -429,9 +429,9 @@ static void copy_out_prismesh_zface_component(prismesh_chunk_data_t* chunk,
   query_prismesh_vector_comps(chunk, field_metadata, mapping,
                               is_vector_comp, &first_vector_comp);
 
-  // Now copy the data from the patch.
+  // Now copy the data from the chunk.
   int l = 2*(chunk->nx+1)*(chunk->ny+1)*(chunk->nz+1);
-  DECLARE_PRISMESH_ZFACE_ARRAY(a, patch);
+  DECLARE_PRISMESH_ZFACE_ARRAY(a, chunk);
   if ((mapping != NULL) && is_vector_comp[c])
   {
     // We need to map this vector field before we write it out.
@@ -539,7 +539,7 @@ static void copy_out_prismesh_cell_component(prismesh_chunk_data_t* chunk,
 // This guy copies out the other centerings in an edge- or face-centered field, 
 // based on the centering in the given chunk, and sets the ready_to_write 
 // flag based on whether all centerings (x, y, and z) will be in the data
-// array after the patch's data is copied to it. This is very delicate logic 
+// array after the chunk's data is copied to it. This is very delicate logic 
 // and so I've stuffed it all into this function for concentrated head scratching.
 static void copy_out_other_centerings(silo_file_t* file,
                                       prismesh_chunk_data_t* chunk,
@@ -557,7 +557,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       (chunk->centering == PRISMESH_ZEDGE))
   {
     // First we try to copy the centerings other than the one in the 
-    // patch.
+    // chunk.
     if (chunk->centering != PRISMESH_XYEDGE)
     {
       snprintf(scratch_name, FILENAME_MAX, "%s_xy", field_component_name);
@@ -589,7 +589,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_xy", field_component_name);
         this_one = polymec_malloc(sizeof(real_t) * chunk->nx*(chunk->ny+1)*(chunk->nz+1));
-        DECLARE_PRISMESH_XYEDGE_ARRAY(a, patch);
+        DECLARE_PRISMESH_XYEDGE_ARRAY(a, chunk);
         int l = 0;
         for (int i = 0; i < chunk->nx; ++i)
           for (int j = 0; j <= chunk->ny; ++j)
@@ -600,7 +600,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_z", field_component_name);
         this_one = polymec_malloc(sizeof(real_t) * (chunk->nx+1)*(chunk->ny+1)*chunk->nz);
-        DECLARE_PRISMESH_ZEDGE_ARRAY(a, patch);
+        DECLARE_PRISMESH_ZEDGE_ARRAY(a, chunk);
         int l = 0;
         for (int i = 0; i <= chunk->nx; ++i)
           for (int j = 0; j <= chunk->ny; ++j)
@@ -620,8 +620,8 @@ static void copy_out_other_centerings(silo_file_t* file,
            (chunk->centering == PRISMESH_ZFACE))
   {
     // First we try to copy the centerings other than the one in the 
-    // patch.
-    if (chunk->centering != prismesh_XYFACE)
+    // chunk.
+    if (chunk->centering != PRISMESH_XYFACE)
     {
       snprintf(scratch_name, FILENAME_MAX, "%s_xy", field_component_name);
       real_t** other_p = (real_t**)string_ptr_unordered_map_get(scratch, scratch_name);
@@ -643,16 +643,16 @@ static void copy_out_other_centerings(silo_file_t* file,
         *ready_to_write = false;
     }
 
-    // Write the patch data to scratch if we're not going to write it 
+    // Write the chunk data to scratch if we're not going to write it 
     // immediately to the file.
     if (!(*ready_to_write))
     {
       real_t* this_one;
-      if (chunk->centering == prismesh_XYFACE)
+      if (chunk->centering == PRISMESH_XYFACE)
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_xy", field_component_name);
         this_one = polymec_malloc(sizeof(real_t) * (chunk->nx+1)*chunk->ny*chunk->nz);
-        DECLARE_PRISMESH_XYFACE_ARRAY(a, patch);
+        DECLARE_PRISMESH_XYFACE_ARRAY(a, chunk);
         int l = 0;
         for (int i = 0; i <= chunk->nx; ++i)
           for (int j = 0; j < chunk->ny; ++j)
@@ -663,7 +663,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_z", field_component_name);
         this_one = polymec_malloc(sizeof(real_t) * chunk->nx*chunk->ny*(chunk->nz+1));
-        DECLARE_PRISMESH_ZFACE_ARRAY(a, patch);
+        DECLARE_PRISMESH_ZFACE_ARRAY(a, chunk);
         int l = 0;
         for (int i = 0; i < chunk->nx; ++i)
           for (int j = 0; j < chunk->ny; ++j)
@@ -691,7 +691,7 @@ static void copy_out_other_centerings(silo_file_t* file,
 static void write_prismesh_chunk_data(silo_file_t* file,
                                       const char** field_component_names,
                                       const char* chunk_grid_name,
-                                      prismesh_chunk_data_t* data,
+                                      prismesh_chunk_data_t* chunk_data,
                                       silo_field_metadata_t** field_metadata,
                                       bbox_t* bbox,
                                       coord_mapping_t* mapping)
@@ -699,15 +699,16 @@ static void write_prismesh_chunk_data(silo_file_t* file,
   DBfile* dbfile = silo_file_dbfile(file);
 
   // Allocate an array to use for writing Silo data.
-  int dimensions[3] = {data->nx+1, data->ny+1, data->nz+1};
-  if (data->centering == PRISMESH_CELL)
+  int dimensions[3] = {chunk_data->nx+1, chunk_data->ny+1, chunk_data->nz+1};
+  if (chunk_data->centering == PRISMESH_CELL)
   {
-    dimensions[0] = data->nx;
-    dimensions[1] = data->ny;
-    dimensions[2] = data->nz;
+    dimensions[0] = chunk_data->nx;
+    dimensions[1] = chunk_data->ny;
+    dimensions[2] = chunk_data->nz;
   }
   size_t data_size;
-  if ((data->centering == PRISMESH_CELL) || (data->centering == PRISMESH_NODE))
+  if ((chunk_data->centering == PRISMESH_CELL) || 
+      (chunk_data->centering == PRISMESH_NODE))
     data_size = dimensions[0] * dimensions[1] * dimensions[2];
   else 
     data_size = 3 * dimensions[0] * dimensions[1] * dimensions[2];
@@ -715,44 +716,44 @@ static void write_prismesh_chunk_data(silo_file_t* file,
   int centering;
 
   // Now write each component.
-  for (int c = 0; c < data->num_components; ++c)
+  for (int c = 0; c < chunk_data->num_components; ++c)
   {
     // Copy the data in the component into our array.
     DBoptlist* optlist = (field_metadata != NULL) ? optlist_from_metadata(field_metadata[c]) : DBMakeOptlist(1);
     int one = 1;
     DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
     bool ready_to_write = false;
-    if (data->centering == PRISMESH_NODE) 
+    if (chunk_data->centering == PRISMESH_NODE) 
     {
       centering = DB_NODECENT;
-      copy_out_prismesh_node_component(data, field_metadata, c, bbox, mapping, data);
+      copy_out_prismesh_node_component(chunk_data, field_metadata, c, bbox, mapping, data);
       ready_to_write = true;
     }
-    else if ((data->centering == prismesh_XYEDGE) || 
+    else if ((data->centering == PRISMESH_XYEDGE) || 
              (data->centering == PRISMESH_ZEDGE))
     {
       centering = DB_EDGECENT;
-      copy_out_other_centerings(file, data, field_component_names[c], c, data, &ready_to_write);
-      if (data->centering == prismesh_XYEDGE)
-        copy_out_prismesh_xyedge_component(data, field_metadata, c, bbox, mapping, data);
+      copy_out_other_centerings(file, chunk_data, field_component_names[c], c, data, &ready_to_write);
+      if (data->centering == PRISMESH_XYEDGE)
+        copy_out_prismesh_xyedge_component(chunk_data, field_metadata, c, bbox, mapping, data);
       else // (data->centering == PRISMESH_ZEDGE)
-        copy_out_prismesh_zedge_component(data, field_metadata, c, bbox, mapping, data);
+        copy_out_prismesh_zedge_component(chunk_data, field_metadata, c, bbox, mapping, data);
     }
-    else if ((data->centering == prismesh_XYFACE) || 
+    else if ((data->centering == PRISMESH_XYFACE) || 
              (data->centering == PRISMESH_ZFACE))
     {
       centering = DB_FACECENT;
-      copy_out_other_centerings(file, data, field_component_names[c], c, data, &ready_to_write);
-      if (data->centering == prismesh_XYFACE)
-        copy_out_prismesh_xyface_component(data, field_metadata, c, bbox, mapping, data);
+      copy_out_other_centerings(file, chunk_data, field_component_names[c], c, data, &ready_to_write);
+      if (data->centering == PRISMESH_XYFACE)
+        copy_out_prismesh_xyface_component(chunk_data, field_metadata, c, bbox, mapping, data);
       else // (data->centering == PRISMESH_ZFACE)
-        copy_out_prismesh_zface_component(data, field_metadata, c, bbox, mapping, data);
+        copy_out_prismesh_zface_component(chunk_data, field_metadata, c, bbox, mapping, data);
     }
     else
     {
       ASSERT(data->centering == PRISMESH_CELL);
       centering = DB_ZONECENT;
-      copy_out_prismesh_cell_component(data, field_metadata, c, bbox, mapping, data);
+      copy_out_prismesh_cell_component(chunk_data, field_metadata, c, bbox, mapping, data);
       ready_to_write = true;
     }
     
@@ -780,7 +781,7 @@ void silo_file_write_prismesh_field(silo_file_t* file,
 
   silo_file_push_domain_dir(file);
 
-  int num_local_patches = prismesh_field_num_patches(field);
+  int num_local_chunks = prismesh_field_num_chunks(field);
   int num_components = prismesh_field_num_components(field);
 
   prismesh_t* mesh = prismesh_field_mesh(field);
@@ -789,24 +790,25 @@ void silo_file_write_prismesh_field(silo_file_t* file,
   prismesh_get_chunk_size(mesh, &nx, &ny, &nz);
 
   char* field_names[num_components];
-  char* multi_field_names[num_components][num_local_patches];
-  int multi_field_types[num_local_patches];
+  char* multi_field_names[num_components][num_local_chunks];
+  int multi_field_types[num_local_chunks];
 
-  prismesh_chunk_data_t* patch;
-  int pos = 0, i, j, k, l = 0;
+  prismesh_chunk_t* chunk;
+  prismesh_chunk_data_t* data;
+  int pos = 0, xy, z, l = 0;
   bbox_t bbox;
-  while (prismesh_field_next_patch(field, &pos, &i, &j, &k, &data, &bbox))
+  while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk, &data))
   {
-    // Write out the patch data itself.
+    // Write out the chunk data itself.
     for (int c = 0; c < num_components; ++c)
     {
       char field_name[FILENAME_MAX];
-      snprintf(field_name, FILENAME_MAX-1, "%s_%d_%d_%d", field_component_names[c], i, j, k);
+      snprintf(field_name, FILENAME_MAX-1, "%s_%d_%d", field_component_names[c], xy, z);
       field_names[c] = string_dup(field_name);
       multi_field_names[c][l] = string_dup(field_name);
     }
     char chunk_grid_name[FILENAME_MAX];
-    snprintf(chunk_grid_name, FILENAME_MAX-1, "%s_%d_%d_%d", mesh_name, i, j, k);
+    snprintf(chunk_grid_name, FILENAME_MAX-1, "%s_%d_%d", mesh_name, xy, z);
     write_prismesh_chunk_data(file, (const char**)field_names, chunk_grid_name,  
                               data, field_metadata, &bbox, mapping);
     multi_field_types[l] = DB_QUADVAR;
@@ -815,7 +817,7 @@ void silo_file_write_prismesh_field(silo_file_t* file,
     for (int c = 0; c < num_components; ++c)
       string_free(field_names[c]);
   }
-  ASSERT(l == num_local_patches);
+  ASSERT(l == num_local_chunks);
 
   // Finally, place multi-* entries into the Silo file.
   DBfile* dbfile = silo_file_dbfile(file);
@@ -824,7 +826,7 @@ void silo_file_write_prismesh_field(silo_file_t* file,
     // We need to associate this multi-variable with our multi-mesh.
     DBoptlist* optlist = DBMakeOptlist(4);
     DBAddOption(optlist, DBOPT_MMESH_NAME, (void*)mesh_name);
-    DBPutMultivar(dbfile, field_component_names[c], num_local_patches, (const char* const*)multi_field_names[c], multi_field_types, NULL);
+    DBPutMultivar(dbfile, field_component_names[c], num_local_chunks, (const char* const*)multi_field_names[c], multi_field_types, NULL);
     DBFreeOptlist(optlist);
 
     // Add subdomain information for this component.
@@ -833,7 +835,7 @@ void silo_file_write_prismesh_field(silo_file_t* file,
 
   // Clean up.
   for (int c = 0; c < num_components; ++c)
-    for (int p = 0; p < num_local_patches; ++p)
+    for (int p = 0; p < num_local_chunks; ++p)
       string_free(multi_field_names[c][p]);
 
   silo_file_pop_dir(file);
@@ -843,97 +845,97 @@ void silo_file_write_prismesh_field(silo_file_t* file,
 
 static void copy_in_prismesh_node_component(DBquadvar* var, 
                                             int c, 
-                                            prismesh_chunk_data_t* patch)
+                                            prismesh_chunk_data_t* chunk)
 {
-  ASSERT(var->dims[0] == data->nx + 1);
-  ASSERT(var->dims[1] == data->ny + 1);
-  ASSERT(var->dims[2] == data->nz + 1);
+  ASSERT(var->dims[0] == chunk->nx + 1);
+  ASSERT(var->dims[1] == chunk->ny + 1);
+  ASSERT(var->dims[2] == chunk->nz + 1);
   int l = 0;
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_PRISMESH_NODE_ARRAY(a, patch);
-  for (int i = 0; i <= data->nx; ++i)
-    for (int j = 0; j <= data->ny; ++j)
-      for (int k = 0; k <= data->nz; ++k, ++l)
+  DECLARE_PRISMESH_NODE_ARRAY(a, chunk);
+  for (int i = 0; i <= chunk->nx; ++i)
+    for (int j = 0; j <= chunk->ny; ++j)
+      for (int k = 0; k <= chunk->nz; ++k, ++l)
         a[i][j][k][c] = data[l];
 }
 
 static void copy_in_prismesh_xyedge_component(DBquadvar* var, 
                                               int c, 
-                                              prismesh_chunk_data_t* patch)
+                                              prismesh_chunk_data_t* chunk)
 {
-  ASSERT(var->dims[0] == data->nx + 1);
-  ASSERT(var->dims[1] == data->ny + 1);
-  ASSERT(var->dims[2] == data->nz + 1);
+  ASSERT(var->dims[0] == chunk->nx + 1);
+  ASSERT(var->dims[1] == chunk->ny + 1);
+  ASSERT(var->dims[2] == chunk->nz + 1);
   int l = 0;
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_PRISMESH_XYEDGE_ARRAY(a, patch);
-  for (int i = 0; i < data->nx; ++i)
-    for (int j = 0; j <= data->ny; ++j)
-      for (int k = 0; k <= data->nz; ++k, ++l)
+  DECLARE_PRISMESH_XYEDGE_ARRAY(a, chunk);
+  for (int i = 0; i < chunk->nx; ++i)
+    for (int j = 0; j <= chunk->ny; ++j)
+      for (int k = 0; k <= chunk->nz; ++k, ++l)
         a[i][j][k][c] = data[l];
 }
 
 static void copy_in_prismesh_zedge_component(DBquadvar* var, 
                                              int c, 
-                                             prismesh_chunk_data_t* patch)
+                                             prismesh_chunk_data_t* chunk)
 {
-  ASSERT(var->dims[0] == data->nx + 1);
-  ASSERT(var->dims[1] == data->ny + 1);
-  ASSERT(var->dims[2] == data->nz + 1);
+  ASSERT(var->dims[0] == chunk->nx + 1);
+  ASSERT(var->dims[1] == chunk->ny + 1);
+  ASSERT(var->dims[2] == chunk->nz + 1);
   int l = 2*var->dims[0]*var->dims[1]*var->dims[2];
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_PRISMESH_ZEDGE_ARRAY(a, patch);
-  for (int i = 0; i <= data->nx; ++i)
-    for (int j = 0; j <= data->ny; ++j)
-      for (int k = 0; k < data->nz; ++k, ++l)
+  DECLARE_PRISMESH_ZEDGE_ARRAY(a, chunk);
+  for (int i = 0; i <= chunk->nx; ++i)
+    for (int j = 0; j <= chunk->ny; ++j)
+      for (int k = 0; k < chunk->nz; ++k, ++l)
         a[i][j][k][c] = data[l];
 }
 
 static void copy_in_prismesh_xyface_component(DBquadvar* var, 
                                               int c, 
-                                              prismesh_chunk_data_t* patch)
+                                              prismesh_chunk_data_t* chunk)
 {
-  ASSERT(var->dims[0] == data->nx + 1);
-  ASSERT(var->dims[1] == data->ny + 1);
-  ASSERT(var->dims[2] == data->nz + 1);
+  ASSERT(var->dims[0] == chunk->nx + 1);
+  ASSERT(var->dims[1] == chunk->ny + 1);
+  ASSERT(var->dims[2] == chunk->nz + 1);
   int l = 0;
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_PRISMESH_XYFACE_ARRAY(a, patch);
-  for (int i = 0; i <= data->nx; ++i)
-    for (int j = 0; j < data->ny; ++j)
-      for (int k = 0; k < data->nz; ++k, ++l)
+  DECLARE_PRISMESH_XYFACE_ARRAY(a, chunk);
+  for (int i = 0; i <= chunk->nx; ++i)
+    for (int j = 0; j < chunk->ny; ++j)
+      for (int k = 0; k < chunk->nz; ++k, ++l)
         a[i][j][k][c] = data[l];
 }
 
 static void copy_in_prismesh_zface_component(DBquadvar* var, 
                                              int c, 
-                                             prismesh_chunk_data_t* patch)
+                                             prismesh_chunk_data_t* chunk)
 {
-  ASSERT(var->dims[0] == data->nx + 1);
-  ASSERT(var->dims[1] == data->ny + 1);
-  ASSERT(var->dims[2] == data->nz + 1);
+  ASSERT(var->dims[0] == chunk->nx + 1);
+  ASSERT(var->dims[1] == chunk->ny + 1);
+  ASSERT(var->dims[2] == chunk->nz + 1);
   int l = 2*var->dims[0]*var->dims[1]*var->dims[2];
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_PRISMESH_ZFACE_ARRAY(a, patch);
-  for (int i = 0; i < data->nx; ++i)
-    for (int j = 0; j < data->ny; ++j)
-      for (int k = 0; k <= data->nz; ++k, ++l)
+  DECLARE_PRISMESH_ZFACE_ARRAY(a, chunk);
+  for (int i = 0; i < chunk->nx; ++i)
+    for (int j = 0; j < chunk->ny; ++j)
+      for (int k = 0; k <= chunk->nz; ++k, ++l)
         a[i][j][k][c] = data[l];
 }
 
 static void copy_in_prismesh_cell_component(DBquadvar* var, 
                                             int c, 
-                                            prismesh_chunk_data_t* patch)
+                                            prismesh_chunk_data_t* chunk)
 {
-  ASSERT(var->dims[0] == data->nx);
-  ASSERT(var->dims[1] == data->ny);
-  ASSERT(var->dims[2] == data->nz);
+  ASSERT(var->dims[0] == chunk->nx);
+  ASSERT(var->dims[1] == chunk->ny);
+  ASSERT(var->dims[2] == chunk->nz);
   int l = 0;
   real_t* data = (real_t*)var->vals[0];
-  DECLARE_PRISMESH_CELL_ARRAY(a, patch);
-  for (int i = 1; i <= data->nx; ++i)
-    for (int j = 1; j <= data->ny; ++j)
-      for (int k = 1; k <= data->nz; ++k, ++l)
+  DECLARE_PRISMESH_CELL_ARRAY(a, chunk);
+  for (int i = 1; i <= chunk->nx; ++i)
+    for (int j = 1; j <= chunk->ny; ++j)
+      for (int k = 1; k <= chunk->nz; ++k, ++l)
         a[i][j][k][c] = data[l];
 }
 
@@ -957,22 +959,22 @@ static void read_prismesh_chunk_data(silo_file_t* file,
     {
       // Copy the data in the component into our array.
       case PRISMESH_NODE: 
-        copy_in_prismesh_node_component(var, c, patch);
+        copy_in_prismesh_node_component(var, c, data);
         break;
-      case prismesh_XYEDGE:
-        copy_in_prismesh_xyedge_component(var, c, patch);
+      case PRISMESH_XYEDGE:
+        copy_in_prismesh_xyedge_component(var, c, data);
         break;
       case PRISMESH_ZEDGE:
-        copy_in_prismesh_zedge_component(var, c, patch);
+        copy_in_prismesh_zedge_component(var, c, data);
         break;
-      case prismesh_XYFACE:
-        copy_in_prismesh_xyface_component(var, c, patch);
+      case PRISMESH_XYFACE:
+        copy_in_prismesh_xyface_component(var, c, data);
         break;
       case PRISMESH_ZFACE:
-        copy_in_prismesh_zface_component(var, c, patch);
+        copy_in_prismesh_zface_component(var, c, data);
         break;
       default:
-        copy_in_prismesh_cell_component(var, c, patch);
+        copy_in_prismesh_cell_component(var, c, data);
     }
 
     // Extract metadata.
@@ -996,15 +998,16 @@ void silo_file_read_prismesh_field(silo_file_t* file,
 {
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
+  prismesh_chunk_t* chunk;
   prismesh_chunk_data_t* data;
-  int pos = 0, i, j, k;
-  while (prismesh_field_next_patch(field, &pos, &i, &j, &k, &data, NULL))
+  int pos = 0, xy, z;
+  while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk, &data))
   {
     char* field_names[data->num_components];
     for (int c = 0; c < data->num_components; ++c)
     {
       char field_name[FILENAME_MAX+1];
-      snprintf(field_name, FILENAME_MAX, "%s_%d_%d_%d", field_component_names[c], i, j, k);
+      snprintf(field_name, FILENAME_MAX, "%s_%d_%d", field_component_names[c], xy, z);
       field_names[c] = string_dup(field_name);
     }
     read_prismesh_chunk_data(file, (const char**)field_names, mesh_name, 

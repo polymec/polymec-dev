@@ -135,7 +135,7 @@ DECLARE_3D_ARRAY(real_t, array, chunk->data, chunk->xy_size, chunk->z_size+2, ch
 /// of the mth cell.
 #define DECLARE_PRISMESH_XYFACE_ARRAY(array, chunk) \
 ASSERT(chunk->centering == PRISMESH_XYFACE); \
-DECLARE_3D_ARRAY(real_t, array, chunk->chunk, chunk->xy_size, chunk->z_size, chunk->num_components)
+DECLARE_3D_ARRAY(real_t, array, chunk->data, chunk->xy_size, chunk->z_size, chunk->num_components)
 
 /// \def DECLARE_PRISMESH_ZFACE_ARRAY
 /// Allows access to prismesh data for faces with normal vectors in the 
