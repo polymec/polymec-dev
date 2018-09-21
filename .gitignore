@@ -16,6 +16,7 @@
 *.ddl
 *.wri
 *.silo
+*.jar
 
 # Generated files
 build/
