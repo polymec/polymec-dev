@@ -709,9 +709,6 @@ static void write_prismesh_chunk_data(silo_file_t* file,
   for (int c = 0; c < chunk_data->num_components; ++c)
   {
     // Copy the data in the component into our array.
-    DBoptlist* optlist = (field_metadata != NULL) ? optlist_from_metadata(field_metadata[c]) : DBMakeOptlist(1);
-    int one = 1;
-    DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
     bool ready_to_write = false;
     if (chunk_data->centering == PRISMESH_NODE) 
     {
@@ -749,8 +746,25 @@ static void write_prismesh_chunk_data(silo_file_t* file,
       char data_name[FILENAME_MAX+1];
       snprintf(data_name, FILENAME_MAX, "%s_%s_%s", chunk_grid_name, field_component_names[c], centering_name[(int)chunk_data->centering]);
       silo_file_write_real_array(file, data_name, data, data_size);
+
+      // Pack the metadata into an array.
+      char md_name[FILENAME_MAX+1];
+      snprintf(md_name, FILENAME_MAX, "%s_md", data_name);
+      size_t label_size = strlen(field_metadata[c]->label);
+      size_t units_size = strlen(field_metadata[c]->units);
+      size_t md_size = 5 * sizeof(int) + label_size + units_size;
+      int md[md_size];
+      md[0] = (int)label_size; 
+      for (size_t i = 0; i < label_size; ++i)
+        md[1+i] = (int)(field_metadata[c]->label[i]);
+      md[label_size+1] = (int)units_size; 
+      for (size_t i = 0; i < units_size; ++i)
+        md[1+label_size+1+i] = (int)(field_metadata[c]->units[i]);
+      md[1+label_size+1+units_size] = (int)(field_metadata[c]->conserved);
+      md[1+label_size+1+units_size+1] = (int)(field_metadata[c]->extensive);
+      md[1+label_size+1+units_size+2] = (int)(field_metadata[c]->vector_component);
+      silo_file_write_int_array(file, md_name, md, md_size);
     }
-    optlist_free(optlist);
   }
 
   // Clean up.
@@ -904,16 +918,24 @@ static void read_prismesh_chunk_data(silo_file_t* file,
     }
 
     // Extract metadata.
-    // FIXME: Not implemented!
-#if 0
     if ((field_metadata != NULL) && (field_metadata[c] != NULL))
     {
-      field_metadata[c]->label = string_dup(var->label);
-      field_metadata[c]->units = string_dup(var->units);
-      field_metadata[c]->conserved = (var->conserved != 0);
-      field_metadata[c]->extensive = (var->extensive != 0);
+      // Unpack the metadata from an array.
+      char md_name[FILENAME_MAX+1];
+      snprintf(md_name, FILENAME_MAX, "%s_md", data_name);
+      size_t md_size;
+      int* md = silo_file_read_int_array(file, md_name, &md_size);
+      if (md != NULL)
+      {
+        size_t label_size = (int)md[0];
+        field_metadata[c]->label = string_ndup((char*)(&md[1]), label_size);
+        size_t units_size = (int)md[1+label_size];
+        field_metadata[c]->units = string_ndup((char*)(&md[1+label_size+1]), units_size);
+        field_metadata[c]->conserved = (int)(md[1+label_size+1+units_size]);
+        field_metadata[c]->extensive = (int)(md[1+label_size+1+units_size+1]);
+        field_metadata[c]->vector_component = (int)(md[1+label_size+1+units_size+2]);
+      }
     }
-#endif
 
     polymec_free(data);
   }
