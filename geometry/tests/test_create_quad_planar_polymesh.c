@@ -20,7 +20,7 @@ static void test_create_quad_planar_polymesh(void** state)
 
   // Check its connectivity.
   assert_int_equal(10*10, mesh->num_cells);
-  assert_int_equal(4*10*11, mesh->num_edges);
+  assert_int_equal(2*10*11, mesh->num_edges);
   assert_int_equal(11*11, mesh->num_nodes);
 
   planar_polymesh_free(mesh);
