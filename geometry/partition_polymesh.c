@@ -926,7 +926,7 @@ void distribute_polymesh(polymesh_t** mesh,
   // registered on all processes. See serializer.h for details.
   {
     serializer_t* s = int_array_serializer();
-    polymec_release(s);
+    (void)s;
   }
 
   polymesh_t* global_mesh = *mesh;
