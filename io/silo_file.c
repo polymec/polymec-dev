@@ -1612,7 +1612,12 @@ polymesh_t* silo_file_read_polymesh(silo_file_t* file,
 
   DBucdmesh* ucd_mesh = DBGetUcdmesh(file->dbfile, mesh_name);
   if (ucd_mesh == NULL)
-    polymec_error("No mesh named '%s' was found within the Silo file.", mesh_name);
+  {
+    log_urgent("No mesh named '%s' was found within the Silo file.", mesh_name);
+    silo_file_pop_dir(file);
+    STOP_FUNCTION_TIMER();
+    return NULL;
+  }
   ASSERT(ucd_mesh->ndims == 3);
 
   // Also get the polyhedral zone list.
@@ -1620,7 +1625,12 @@ polymesh_t* silo_file_read_polymesh(silo_file_t* file,
   snprintf(phzl_name, FILENAME_MAX, "%s_zonelist", mesh_name);
   DBphzonelist* ph_zonelist = DBGetPHZonelist(file->dbfile, phzl_name);
   if (ph_zonelist == NULL)
-    polymec_error("Mesh '%s' is not a polymec polyhedral mesh.", mesh_name);
+  {
+    log_urgent("Mesh '%s' is not a polymec polyhedral mesh.", mesh_name);
+    silo_file_pop_dir(file);
+    STOP_FUNCTION_TIMER();
+    return NULL;
+  }
 
   // Decipher the mesh object.
   int num_cells = ph_zonelist->hi_offset + 1;
@@ -1828,9 +1838,19 @@ real_t* silo_file_read_scalar_polymesh_field(silo_file_t* file,
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
   DBucdvar* var = DBGetUcdvar(file->dbfile, (char*)field_name);
   if (var == NULL)
-    polymec_error("Field '%s' was not found in the Silo file.", field_name);
+  {
+    log_urgent("Field '%s' was not found in the Silo file.", field_name);
+    silo_file_pop_dir(file);
+    STOP_FUNCTION_TIMER();
+    return NULL;
+  }
   if (var->centering != cent)
-    polymec_error("Field '%s' has the incorrect centering.", field_name);
+  {
+    log_urgent("Field '%s' has the incorrect centering.", field_name);
+    silo_file_pop_dir(file);
+    STOP_FUNCTION_TIMER();
+    return NULL;
+  }
   real_t* field = polymec_malloc(sizeof(real_t) * num_elems);
   memcpy(field, var->vals[0], sizeof(real_t) * num_elems);
   read_polymesh_metadata(file->dbfile, var, field_metadata);
@@ -2001,7 +2021,12 @@ point_cloud_t* silo_file_read_point_cloud(silo_file_t* file,
 
   DBpointmesh* pm = DBGetPointmesh(file->dbfile, (char*)cloud_name);
   if (pm == NULL)
-    polymec_error("Point mesh '%s' was not found in the Silo file.", cloud_name);
+  {
+    log_urgent("Point mesh '%s' was not found in the Silo file.", cloud_name);
+    silo_file_pop_dir(file);
+    STOP_FUNCTION_TIMER();
+    return NULL;
+  }
   ASSERT(num_points == pm->nels);
   point_t* points = polymec_malloc(sizeof(point_t) * num_points);
   real_t* x = pm->coords[0];
@@ -2092,8 +2117,10 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
   }
 
   // Write edges (2D faces) to the file.
+  int num_edge_nodes = 2;
   DBPutFacelist(file->dbfile, "fl", mesh->num_edges, 2, mesh->edge_nodes, 
-                2*mesh->num_edges, 0, NULL, NULL, NULL, 0, NULL, NULL, 0);
+                2*mesh->num_edges, 0, NULL, &num_edge_nodes, &(mesh->num_edges), 1, 
+                NULL, NULL, 0);
 
   // Write out the (2D) planar poly(gonal) mesh.
   int num_cells = mesh->num_cells;
@@ -2158,9 +2185,17 @@ planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file,
 
   DBucdmesh* ucd_mesh = DBGetUcdmesh(file->dbfile, mesh_name);
   if (ucd_mesh == NULL)
-    polymec_error("No mesh named '%s' was found within the Silo file.", mesh_name);
-  if (ucd_mesh->ndims != 3)
-    polymec_error("Mesh '%s' is not a polymec planar polygonal mesh.", mesh_name);
+  {
+    log_urgent("No mesh named '%s' was found within the Silo file.", mesh_name);
+    silo_file_pop_dir(file);
+    return NULL;
+  }
+  if (ucd_mesh->ndims != 2)
+  {
+    log_urgent("Mesh '%s' is not a polymec planar polygonal mesh.", mesh_name);
+    silo_file_pop_dir(file);
+    return NULL;
+  }
 
   // Decipher the mesh object.
   int num_cells = ucd_mesh->zones->nzones;
@@ -2180,7 +2215,7 @@ planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file,
   // Set up cell face counts and face node counts.
   mesh->cell_edge_offsets[0] = 0;
   for (int c = 0; c < num_cells; ++c)
-    mesh->cell_edge_offsets[c+1] = mesh->cell_edge_offsets[c] + ucd_mesh->faces->shapesize[c];
+    mesh->cell_edge_offsets[c+1] = mesh->cell_edge_offsets[c] + ucd_mesh->zones->shapesize[c];
   planar_polymesh_reserve_connectivity_storage(mesh);
 
   // Read in the cell_edges array.
@@ -2298,7 +2333,12 @@ real_t* silo_file_read_scalar_point_field(silo_file_t* file,
 
   DBmeshvar* var = DBGetPointvar(file->dbfile, (char*)field_name);
   if (var == NULL)
-    polymec_error("Field '%s' was not found in the Silo file.", field_name);
+  {
+    log_urgent("Field '%s' was not found in the Silo file.", field_name);
+    silo_file_pop_dir(file);
+    STOP_FUNCTION_TIMER();
+    return NULL;
+  }
   real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
   memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
   read_point_metadata(file->dbfile, var, field_metadata);
@@ -2484,7 +2524,8 @@ char* silo_file_read_string(silo_file_t* file,
   snprintf(string_data_name, FILENAME_MAX, "%s_string", string_name);
   if (!DBInqVarExists(file->dbfile, string_data_name))
   {
-    polymec_error("silo_file_read_string: Could not read string '%s'.", string_name);
+    log_urgent("silo_file_read_string: Could not read string '%s'.", string_name);
+    silo_file_pop_dir(file);
     return NULL;
   }
   int string_size = DBGetVarLength(file->dbfile, string_data_name);
@@ -2531,7 +2572,11 @@ real_t* silo_file_read_real_array(silo_file_t* file,
   snprintf(real_array_name, FILENAME_MAX, "%s_real_array", array_name);
   real_t* result = NULL;
   if (!DBInqVarExists(file->dbfile, real_array_name))
-    polymec_error("silo_file_read_real_array: Could not read array '%s'.", array_name);
+  {
+    log_urgent("silo_file_read_real_array: Could not read array '%s'.", array_name);
+    silo_file_pop_dir(file);
+    return NULL;
+  }
   *array_size = (size_t)DBGetVarLength(file->dbfile, real_array_name);
   if (*array_size > 0)
   {
@@ -2578,7 +2623,11 @@ int* silo_file_read_int_array(silo_file_t* file,
   snprintf(int_array_name, FILENAME_MAX, "%s_int_array", array_name);
   int* result = NULL;
   if (!DBInqVarExists(file->dbfile, int_array_name))
-    polymec_error("silo_file_read_int_array: Could not read array '%s'.", array_name);
+  {
+    log_urgent("silo_file_read_int_array: Could not read array '%s'.", array_name);
+    silo_file_pop_dir(file);
+    return NULL;
+  }
   *array_size = (size_t)DBGetVarLength(file->dbfile, int_array_name);
   if (*array_size > 0)
   {

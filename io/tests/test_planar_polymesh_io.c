@@ -30,7 +30,7 @@ static void test_plot_quad_mesh(void** state)
 
   // Now read the mesh from the file.
   real_t t;
-  silo = silo_file_open(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 0, &t);
+  silo = silo_file_open(MPI_COMM_WORLD, "quad_10x10", "", 0, &t);
   assert_true(reals_equal(t, 0.0));
   assert_true(silo_file_contains_planar_polymesh(silo, "mesh"));
   mesh = silo_file_read_planar_polymesh(silo, "mesh");
