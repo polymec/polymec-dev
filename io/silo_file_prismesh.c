@@ -35,10 +35,28 @@ extern string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
 
 static void write_prismesh_chunk_grid(silo_file_t* file,
                                       const char* chunk_grid_name,
-                                      int nx, int ny, int nz,
-                                      bbox_t* bbox,
+                                      prismesh_chunk_t* chunk,
                                       coord_mapping_t* mapping)
 {
+  char array_name[FILENAME_MAX+1];
+  snprintf(array_name, FILENAME_MAX, "%s_sizes", chunk_grid_name);
+  int sizes[5] = {(int)chunk->num_columns, (int)chunk->num_z_cells,
+                  (int)chunk->num_xy_faces, (int)chunk->num_xy_edges,
+                  (int)chunk->num_xy_nodes};
+  silo_file_write_int_array(file, array_name, sizes, 5);
+  snprintf(array_name, FILENAME_MAX, "%s_endpts", chunk_grid_name);
+  real_t endpts[2] = {chunk->z1, chunk->z2};
+  silo_file_write_real_array(file, array_name, endpts, 2);
+  snprintf(array_name, FILENAME_MAX, "%s_column_xy_face_offsets", chunk_grid_name);
+  silo_file_write_int_array(file, array_name, chunk->column_xy_face_offsets, chunk->num_columns+1);
+  snprintf(array_name, FILENAME_MAX, "%s_column_xy_faces", chunk_grid_name);
+  silo_file_write_int_array(file, array_name, chunk->column_xy_faces, chunk->column_xy_face_offsets[chunk->num_columns]);
+  snprintf(array_name, FILENAME_MAX, "%s_xy_face_columns", chunk_grid_name);
+  silo_file_write_int_array(file, array_name, chunk->xy_face_columns, 2*chunk->num_xy_faces);
+  snprintf(array_name, FILENAME_MAX, "%s_xy_edge_nodes", chunk_grid_name);
+  silo_file_write_int_array(file, array_name, chunk->xy_edge_nodes, 2*chunk->num_xy_edges);
+  snprintf(array_name, FILENAME_MAX, "%s_xy_nodes", chunk_grid_name);
+  silo_file_write_real_array(file, array_name, (real_t*)chunk->xy_nodes, 2*chunk->num_xy_nodes);
 }
 
 void silo_file_write_prismesh(silo_file_t* file, 
@@ -47,25 +65,61 @@ void silo_file_write_prismesh(silo_file_t* file,
                               coord_mapping_t* mapping)
 {
   START_FUNCTION_TIMER();
+  silo_file_push_domain_dir(file);
+
+  // Write z axis information for this mesh.
+  {
+    char array_name[FILENAME_MAX+1];
+    snprintf(array_name, FILENAME_MAX, "%s_endpts", mesh_name);
+    real_t endpts[2] = {prismesh_z1(mesh), prismesh_z2(mesh)};
+    silo_file_write_real_array(file, array_name, endpts, 2);
+    snprintf(array_name, FILENAME_MAX, "%s_periodic", mesh_name);
+    int periodic = (int)prismesh_is_periodic_in_z(mesh);
+    silo_file_write_int_array(file, array_name, &periodic, 1);
+  }
+
+  int num_local_chunks = prismesh_num_chunks(mesh);
+  size_t nz_per_chunk;
+  int pos = 0, xy, z, l = 0;
+  prismesh_chunk_t* chunk;
+  int_array_t* chunk_indices = int_array_new();
+  while (prismesh_next_chunk(mesh, &pos, &xy, &z, &chunk)) 
+  {
+    // Write out the grid for the chunk itself.
+    char chunk_grid_name[FILENAME_MAX+1];
+    snprintf(chunk_grid_name, FILENAME_MAX, "%s_%d_%d", mesh_name, xy, z);
+    write_prismesh_chunk_grid(file, chunk_grid_name, chunk, mapping);
+
+    // Jot down this (xy, z) tuple.
+    int_array_append(chunk_indices, xy);
+    int_array_append(chunk_indices, z);
+
+    nz_per_chunk = chunk->num_z_cells; 
+
+    ++l;
+  }
+  ASSERT(l == num_local_chunks);
+
+  // Record the indices of the chunks in the mesh.
+  {
+    char array_name[FILENAME_MAX+1];
+    snprintf(array_name, FILENAME_MAX, "%s_chunk_indices", mesh_name);
+    silo_file_write_int_array(file, array_name, chunk_indices->data, chunk_indices->size);
+    int_array_free(chunk_indices);
+  }
+
+  // Write chunk metadata.
+  size_t num_xy_chunks = prismesh_num_xy_chunks(mesh);
+  size_t num_z_chunks = prismesh_num_z_chunks(mesh); 
+  {
+    char array_name[FILENAME_MAX+1];
+    snprintf(array_name, FILENAME_MAX, "%s_chunk_md", mesh_name);
+    int chunk_md[3] = {(int)num_xy_chunks, (int)num_z_chunks, (int)nz_per_chunk};
+    silo_file_write_int_array(file, array_name, chunk_md, 3);
+  }
+
+  silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
-}
-
-static void read_prismesh_chunk_info(silo_file_t* file,
-                                     const char* mesh_name,
-                                     size_t* num_xy_chunks,
-                                     size_t* num_z_chunks, 
-                                     size_t* nz_per_chunk)
-{
-}
-
-static void read_prismesh_z_axis(silo_file_t* file, const char* mesh_name,
-                                 real_t* z1, real_t* z2, bool* periodic)
-{
-}
-
-static void read_prismesh_chunk_indices(silo_file_t* file, const char* mesh_name, 
-                                        int_array_t* xy_array, int_array_t* z_array)
-{
 }
 
 prismesh_t* silo_file_read_prismesh(silo_file_t* file, 
@@ -79,12 +133,39 @@ prismesh_t* silo_file_read_prismesh(silo_file_t* file,
   snprintf(columns_name, FILENAME_MAX, "%s_columns", mesh_name);
   planar_polymesh_t* columns = silo_file_read_planar_polymesh(file, columns_name);
 
-  // Read metadata for the mesh.
-  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
-  read_prismesh_chunk_info(file, mesh_name, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
+  // Read z axis information for this mesh.
   real_t z1, z2;
   bool periodic;
-  read_prismesh_z_axis(file, mesh_name, &z1, &z2, &periodic);
+  {
+    char array_name[FILENAME_MAX+1];
+    snprintf(array_name, FILENAME_MAX, "%s_endpts", mesh_name);
+    size_t size;
+    real_t* endpts = silo_file_read_real_array(file, array_name, &size);
+    ASSERT(size == 2);
+    z1 = endpts[0];
+    z2 = endpts[1];
+    polymec_free(endpts);
+
+    snprintf(array_name, FILENAME_MAX, "%s_periodic", mesh_name);
+    int* per = silo_file_read_int_array(file, array_name, &size);
+    ASSERT(size == 1);
+    periodic = (bool)per[0];
+    polymec_free(per);
+  }
+
+  // Read chunk metadata.
+  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  {
+    char array_name[FILENAME_MAX+1];
+    snprintf(array_name, FILENAME_MAX, "%s_chunk_md", mesh_name);
+    size_t size;
+    int* chunk_md = silo_file_read_int_array(file, array_name, &size);
+    ASSERT(size == 3);
+    num_xy_chunks = (size_t)chunk_md[0];
+    num_z_chunks = (size_t)chunk_md[1];
+    nz_per_chunk = (size_t)chunk_md[2];
+    polymec_free(chunk_md);
+  }
 
   // Create the mesh.
 #if POLYMEC_HAVE_MPI
@@ -97,13 +178,15 @@ prismesh_t* silo_file_read_prismesh(silo_file_t* file,
                                            periodic);
 
   // Fill it with chunks whose indices we read from the file.
-  int_array_t* xy_array = int_array_new();
-  int_array_t* z_array = int_array_new();
-  read_prismesh_chunk_indices(file, mesh_name, xy_array, z_array);
-  for (size_t c = 0; c < xy_array->size; ++c)
-    prismesh_insert_chunk(mesh, xy_array->data[c], z_array->data[c]);
-  int_array_free(xy_array);
-  int_array_free(z_array);
+  {
+    char array_name[FILENAME_MAX+1];
+    snprintf(array_name, FILENAME_MAX, "%s_chunk_indices", mesh_name);
+    size_t size;
+    int* chunk_indices = silo_file_read_int_array(file, array_name, &size);
+    for (size_t c = 0; c < size/2; ++c)
+      prismesh_insert_chunk(mesh, chunk_indices[2*c], chunk_indices[2*c+1]);
+    polymec_free(chunk_indices);
+  }
 
   prismesh_finalize(mesh);
 
@@ -177,7 +260,6 @@ static void query_prismesh_vector_comps(prismesh_chunk_data_t* chunk_data,
 static void copy_out_prismesh_node_component(prismesh_chunk_data_t* chunk_data,
                                              silo_field_metadata_t** field_metadata,
                                              int c,
-                                             bbox_t* bbox,
                                              coord_mapping_t* mapping,
                                              real_t* data)
 {
@@ -207,7 +289,7 @@ static void copy_out_prismesh_node_component(prismesh_chunk_data_t* chunk_data,
       x.y = chunk->xy_nodes[xy].y;
       for (int z = 0; z < chunk_data->z_size; ++z, ++l)
       {
-        x.z = bbox->z1 + z * dz;
+        x.z = chunk->z1 + z * dz;
         vector_t v = {.x = a[xy][z][c1], a[xy][z][c2], a[xy][z][c3]};
         vector_t v1;
         coord_mapping_map_vector(mapping, &x, &v, &v1);
@@ -233,7 +315,6 @@ static void copy_out_prismesh_node_component(prismesh_chunk_data_t* chunk_data,
 static void copy_out_prismesh_xyedge_component(prismesh_chunk_data_t* chunk_data,
                                                silo_field_metadata_t** field_metadata,
                                                int c,
-                                               bbox_t* bbox,
                                                coord_mapping_t* mapping,
                                                real_t* data)
 {
@@ -265,7 +346,7 @@ static void copy_out_prismesh_xyedge_component(prismesh_chunk_data_t* chunk_data
       x.y = 0.5 * (chunk->xy_nodes[n1].y + chunk->xy_nodes[n2].y);
       for (int z = 0; z < chunk_data->z_size; ++z, ++l)
       {
-        x.z = bbox->z1 + z * dz;
+        x.z = chunk->z1 + z * dz;
         vector_t v = {.x = a[xy][z][c1], a[xy][z][c2], a[xy][z][c3]};
         vector_t v1;
         coord_mapping_map_vector(mapping, &x, &v, &v1);
@@ -290,7 +371,6 @@ static void copy_out_prismesh_xyedge_component(prismesh_chunk_data_t* chunk_data
 static void copy_out_prismesh_zedge_component(prismesh_chunk_data_t* chunk_data,
                                               silo_field_metadata_t** field_metadata,
                                               int c,
-                                              bbox_t* bbox,
                                               coord_mapping_t* mapping,
                                               real_t* data)
 {
@@ -320,7 +400,7 @@ static void copy_out_prismesh_zedge_component(prismesh_chunk_data_t* chunk_data,
       x.y = chunk->xy_nodes[xy].y;
       for (int z = 0; z < chunk_data->z_size; ++z, ++l)
       {
-        x.z = bbox->z1 + (z+0.5) * dz;
+        x.z = chunk->z1 + (z+0.5) * dz;
         vector_t v = {.x = a[xy][z][c1], a[xy][z][c2], a[xy][z][c3]};
         vector_t v1;
         coord_mapping_map_vector(mapping, &x, &v, &v1);
@@ -345,7 +425,6 @@ static void copy_out_prismesh_zedge_component(prismesh_chunk_data_t* chunk_data,
 static void copy_out_prismesh_xyface_component(prismesh_chunk_data_t* chunk_data,
                                                silo_field_metadata_t** field_metadata,
                                                int c,
-                                               bbox_t* bbox,
                                                coord_mapping_t* mapping,
                                                real_t* data)
 {
@@ -381,7 +460,7 @@ static void copy_out_prismesh_xyface_component(prismesh_chunk_data_t* chunk_data
       x.y = 0.5 * (chunk->xy_nodes[n1].y + chunk->xy_nodes[n2].y);
       for (int z = 0; z < chunk_data->z_size; ++z, ++l)
       {
-        x.z = bbox->z1 + (z+0.5) * dz;
+        x.z = chunk->z1 + (z+0.5) * dz;
         vector_t v = {.x = a[xy][z][c1], a[xy][z][c2], a[xy][z][c3]};
         vector_t v1;
         coord_mapping_map_vector(mapping, &x, &v, &v1);
@@ -406,7 +485,6 @@ static void copy_out_prismesh_xyface_component(prismesh_chunk_data_t* chunk_data
 static void copy_out_prismesh_zface_component(prismesh_chunk_data_t* chunk_data,
                                               silo_field_metadata_t** field_metadata,
                                               int c,
-                                              bbox_t* bbox,
                                               coord_mapping_t* mapping,
                                               real_t* data)
 {
@@ -447,7 +525,7 @@ static void copy_out_prismesh_zface_component(prismesh_chunk_data_t* chunk_data,
 
       for (int z = 0; z < chunk_data->z_size; ++z, ++l)
       {
-        x.z = bbox->z1 + z * dz;
+        x.z = chunk->z1 + z * dz;
         vector_t v = {.x = a[xy][z][c1], a[xy][z][c2], a[xy][z][c3]};
         vector_t v1;
         coord_mapping_map_vector(mapping, &x, &v, &v1);
@@ -472,7 +550,6 @@ static void copy_out_prismesh_zface_component(prismesh_chunk_data_t* chunk_data,
 static void copy_out_prismesh_cell_component(prismesh_chunk_data_t* chunk_data,
                                              silo_field_metadata_t** field_metadata,
                                              int c,
-                                             bbox_t* bbox,
                                              coord_mapping_t* mapping,
                                              real_t* data)
 {
@@ -512,7 +589,7 @@ static void copy_out_prismesh_cell_component(prismesh_chunk_data_t* chunk_data,
 
       for (int z = 1; z <= chunk->num_z_cells; ++z, ++l)
       {
-        x.z = bbox->z1 + (z+0.5) * dz;
+        x.z = chunk->z1 + (z+0.5) * dz;
         vector_t v = {.x = a[xy][z][c1], a[xy][z][c2], a[xy][z][c3]};
         vector_t v1;
         coord_mapping_map_vector(mapping, &x, &v, &v1);
@@ -692,7 +769,6 @@ static void write_prismesh_chunk_data(silo_file_t* file,
                                       const char* chunk_grid_name,
                                       prismesh_chunk_data_t* chunk_data,
                                       silo_field_metadata_t** field_metadata,
-                                      bbox_t* bbox,
                                       coord_mapping_t* mapping)
 {
   // Because we can't really represent a prismesh faithfully in a SILO format,
@@ -712,7 +788,7 @@ static void write_prismesh_chunk_data(silo_file_t* file,
     bool ready_to_write = false;
     if (chunk_data->centering == PRISMESH_NODE) 
     {
-      copy_out_prismesh_node_component(chunk_data, field_metadata, c, bbox, mapping, data);
+      copy_out_prismesh_node_component(chunk_data, field_metadata, c, mapping, data);
       ready_to_write = true;
     }
     else if ((chunk_data->centering == PRISMESH_XYEDGE) || 
@@ -720,23 +796,23 @@ static void write_prismesh_chunk_data(silo_file_t* file,
     {
       copy_out_other_centerings(file, chunk_data, field_component_names[c], c, data, &ready_to_write);
       if (chunk_data->centering == PRISMESH_XYEDGE)
-        copy_out_prismesh_xyedge_component(chunk_data, field_metadata, c, bbox, mapping, data);
+        copy_out_prismesh_xyedge_component(chunk_data, field_metadata, c, mapping, data);
       else // (data->centering == PRISMESH_ZEDGE)
-        copy_out_prismesh_zedge_component(chunk_data, field_metadata, c, bbox, mapping, data);
+        copy_out_prismesh_zedge_component(chunk_data, field_metadata, c, mapping, data);
     }
     else if ((chunk_data->centering == PRISMESH_XYFACE) || 
              (chunk_data->centering == PRISMESH_ZFACE))
     {
       copy_out_other_centerings(file, chunk_data, field_component_names[c], c, data, &ready_to_write);
       if (chunk_data->centering == PRISMESH_XYFACE)
-        copy_out_prismesh_xyface_component(chunk_data, field_metadata, c, bbox, mapping, data);
+        copy_out_prismesh_xyface_component(chunk_data, field_metadata, c, mapping, data);
       else // (data->centering == PRISMESH_ZFACE)
-        copy_out_prismesh_zface_component(chunk_data, field_metadata, c, bbox, mapping, data);
+        copy_out_prismesh_zface_component(chunk_data, field_metadata, c, mapping, data);
     }
     else
     {
       ASSERT(chunk_data->centering == PRISMESH_CELL);
-      copy_out_prismesh_cell_component(chunk_data, field_metadata, c, bbox, mapping, data);
+      copy_out_prismesh_cell_component(chunk_data, field_metadata, c, mapping, data);
       ready_to_write = true;
     }
     
@@ -788,7 +864,6 @@ void silo_file_write_prismesh_field(silo_file_t* file,
   char* field_names[num_components];
   prismesh_chunk_data_t* data;
   int pos = 0, xy, z, l = 0;
-  bbox_t bbox;
   while (prismesh_field_next_chunk(field, &pos, &xy, &z, &data))
   {
     // Write out the chunk data itself.
@@ -801,7 +876,7 @@ void silo_file_write_prismesh_field(silo_file_t* file,
     char chunk_grid_name[FILENAME_MAX];
     snprintf(chunk_grid_name, FILENAME_MAX-1, "%s_%d_%d", mesh_name, xy, z);
     write_prismesh_chunk_data(file, (const char**)field_names, chunk_grid_name,  
-                              data, field_metadata, &bbox, mapping);
+                              data, field_metadata, mapping);
     ++l;
 
     for (int c = 0; c < num_components; ++c)
