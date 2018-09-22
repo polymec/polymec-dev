@@ -55,8 +55,7 @@ bd_matrix_t* var_bd_matrix_new(size_t num_block_rows,
   else
     A->block_size = -1;
   int N = A->D_offsets[A->num_block_rows];
-  A->D = polymec_malloc(sizeof(real_t) * N);
-  memset(A->D, 0, sizeof(real_t) * N);
+  A->D = polymec_calloc(sizeof(real_t) * N);
   return A;
 }
 

@@ -28,22 +28,20 @@ planar_polymesh_t* planar_polymesh_new(int num_cells, int num_edges, int num_nod
 
   // Allocate cell information.
   mesh->num_cells = num_cells;
-  mesh->cell_edge_offsets = polymec_malloc(sizeof(int)*(num_cells+1));
-  memset(mesh->cell_edge_offsets, 0, sizeof(int)*(num_cells+1));
+  mesh->cell_edge_offsets = polymec_calloc(sizeof(int)*(num_cells+1));
   mesh->cell_edge_cap = round_to_pow2(12 * num_cells);
-  mesh->cell_edges = polymec_malloc(sizeof(int)*(mesh->cell_edge_cap));
-  memset(mesh->cell_edges, 0, sizeof(int)*mesh->cell_edge_cap);
+  mesh->cell_edges = polymec_calloc(sizeof(int)*(mesh->cell_edge_cap));
 
   // Allocate edge information.
   mesh->num_edges = num_edges;
   mesh->edge_cells = polymec_malloc(sizeof(int)*2*num_edges);
   for (int e = 0; e < 2*mesh->num_edges; ++e)
     mesh->edge_cells[e] = -1;
+  mesh->edge_nodes = polymec_calloc(sizeof(int)*2*num_edges);
 
   // Allocate node information.
   mesh->num_nodes = num_nodes;
-  mesh->nodes = polymec_malloc(sizeof(point2_t)*num_nodes);
-  memset(mesh->nodes, 0, sizeof(point2_t)*num_nodes);
+  mesh->nodes = polymec_calloc(sizeof(point2_t)*num_nodes);
 
   // Allocate tagging mechanisms.
   mesh->cell_tags = tagger_new();

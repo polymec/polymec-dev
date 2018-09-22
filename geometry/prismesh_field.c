@@ -50,8 +50,7 @@ static prismesh_chunk_data_t* prismesh_chunk_data_new(prismesh_chunk_t* chunk,
     data->z_size = 2*chunk->num_z_cells;
   }
   size_t data_size = data->xy_size * data->z_size * num_components;
-  data->data = polymec_malloc(sizeof(real_t) * data_size);
-  memset(data->data, 0, sizeof(real_t) * data_size);
+  data->data = polymec_calloc(sizeof(real_t) * data_size);
   return data;
 }
 

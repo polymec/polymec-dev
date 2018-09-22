@@ -342,12 +342,9 @@ exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
   ex->receive_map = exchanger_map_new();
   ex->num_pending_msgs = 0;
   ex->pending_msg_cap = 32;
-  ex->pending_msgs = polymec_malloc(ex->pending_msg_cap * sizeof(mpi_message_t*));
-  memset(ex->pending_msgs, 0, ex->pending_msg_cap * sizeof(mpi_message_t*));
-  ex->orig_buffers = polymec_malloc(ex->pending_msg_cap * sizeof(void*));
-  memset(ex->orig_buffers, 0, ex->pending_msg_cap * sizeof(void*));
-  ex->transfer_counts = polymec_malloc(ex->pending_msg_cap * sizeof(int*));
-  memset(ex->transfer_counts, 0, ex->pending_msg_cap * sizeof(int*));
+  ex->pending_msgs = polymec_calloc(ex->pending_msg_cap * sizeof(mpi_message_t*));
+  ex->orig_buffers = polymec_calloc(ex->pending_msg_cap * sizeof(void*));
+  ex->transfer_counts = polymec_calloc(ex->pending_msg_cap * sizeof(int*));
   ex->max_send = -1;
   ex->max_receive = -1;
 

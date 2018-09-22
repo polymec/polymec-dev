@@ -83,8 +83,7 @@ static inline map_name##_t* map_name##_new_with_capacity(int N) \
   map->bucket_count = 1; \
   while (map->bucket_count <= minimum_bucket_count) \
     map->bucket_count <<= 1; \
-  map->buckets = (map_name##_entry_t**)polymec_malloc(map->bucket_count * sizeof(map_name##_entry_t*)); \
-  memset(map->buckets, 0, map->bucket_count * sizeof(map_name##_entry_t*)); \
+  map->buckets = (map_name##_entry_t**)polymec_calloc(map->bucket_count * sizeof(map_name##_entry_t*)); \
   ASSERT(map->buckets != NULL); \
   map->size = 0; \
   map->hash = hash_func; \
@@ -193,8 +192,7 @@ static inline void map_name##_expand(map_name##_t* map) \
   if (map->size > (map->bucket_count * 3/4)) \
   { \
     int new_count = map->bucket_count * 2; \
-    map_name##_entry_t** new_buckets = (map_name##_entry_t**)polymec_malloc(new_count * sizeof(map_name##_entry_t*)); \
-    memset(new_buckets, 0, new_count * sizeof(map_name##_entry_t*)); \
+    map_name##_entry_t** new_buckets = (map_name##_entry_t**)polymec_calloc(new_count * sizeof(map_name##_entry_t*)); \
     if (new_buckets == NULL) \
       return; \
     for (int i = 0; i < map->bucket_count; ++i) \

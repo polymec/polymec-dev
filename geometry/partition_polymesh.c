@@ -863,8 +863,7 @@ int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh,
   if (nprocs == 1)
   {
     // Dumb, but correct.
-    int64_t* global_partition = polymec_malloc(sizeof(int64_t) * global_mesh->num_cells);
-    memset(global_partition, 0, sizeof(int64_t) * global_mesh->num_cells);
+    int64_t* global_partition = polymec_calloc(sizeof(int64_t) * global_mesh->num_cells);
     STOP_FUNCTION_TIMER();
     return global_partition;
   }
@@ -892,8 +891,7 @@ int64_t* partition_vector_from_polymesh(polymesh_t* global_mesh,
 
 #else
   // This is dumb, but we were asked for it.
-  int64_t* global_partition = polymec_malloc(sizeof(int64_t) * global_mesh->num_cells);
-  memset(global_partition, 0, sizeof(int64_t) * global_mesh->num_cells);
+  int64_t* global_partition = polymec_calloc(sizeof(int64_t) * global_mesh->num_cells);
   return global_partition;
 #endif
 }

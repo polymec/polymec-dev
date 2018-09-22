@@ -59,23 +59,18 @@ polymesh_t* polymesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
   // Allocate cell information.
   mesh->num_cells = num_cells;
   mesh->num_ghost_cells = num_ghost_cells;
-  mesh->cell_face_offsets = polymec_malloc(sizeof(int)*(num_cells+1));
-  memset(mesh->cell_face_offsets, 0, sizeof(int)*(num_cells+1));
+  mesh->cell_face_offsets = polymec_calloc(sizeof(int)*(num_cells+1));
   int cell_face_cap = round_to_pow2(12 * num_cells);
-  mesh->cell_faces = polymec_malloc(sizeof(int)*(cell_face_cap));
-  memset(mesh->cell_faces, 0, sizeof(int)*cell_face_cap);
+  mesh->cell_faces = polymec_calloc(sizeof(int)*(cell_face_cap));
 
   // Allocate face information.
   mesh->num_faces = num_faces;
 
-  mesh->face_node_offsets = polymec_malloc(sizeof(int)*(num_faces+1));
-  memset(mesh->face_node_offsets, 0, sizeof(int)*(num_faces+1));
+  mesh->face_node_offsets = polymec_calloc(sizeof(int)*(num_faces+1));
   int face_node_cap = round_to_pow2(6 * num_faces);
-  mesh->face_nodes = polymec_malloc(sizeof(int)*(face_node_cap));
-  memset(mesh->face_nodes, 0, sizeof(int)*face_node_cap);
+  mesh->face_nodes = polymec_calloc(sizeof(int)*(face_node_cap));
 
-  mesh->face_edge_offsets = polymec_malloc(sizeof(int)*(num_faces+1));
-  memset(mesh->face_edge_offsets, 0, sizeof(int)*(num_faces+1));
+  mesh->face_edge_offsets = polymec_calloc(sizeof(int)*(num_faces+1));
   mesh->face_edges = NULL;
 
   mesh->face_cells = polymec_malloc(sizeof(int)*2*num_faces);
@@ -88,8 +83,7 @@ polymesh_t* polymesh_new(MPI_Comm comm, int num_cells, int num_ghost_cells,
 
   // Allocate node information.
   mesh->num_nodes = num_nodes;
-  mesh->nodes = polymec_malloc(sizeof(point_t)*num_nodes);
-  memset(mesh->nodes, 0, sizeof(point_t)*num_nodes);
+  mesh->nodes = polymec_calloc(sizeof(point_t)*num_nodes);
 
   // Allocate geometric data.
   int total_num_cells = num_cells + num_ghost_cells;

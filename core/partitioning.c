@@ -153,8 +153,7 @@ int64_t* partition_graph(adj_graph_t* global_graph,
   return global_partition;
 #else
   size_t num_global_vertices = adj_graph_num_vertices(global_graph);
-  int64_t* P = polymec_malloc(sizeof(int64_t)*num_global_vertices);
-  memset(P, 0, sizeof(int64_t)*num_global_vertices);
+  int64_t* P = polymec_calloc(sizeof(int64_t)*num_global_vertices);
   return P;
 #endif
 }
@@ -203,8 +202,7 @@ int64_t* partition_graph_n_ways(adj_graph_t* global_graph,
   return global_partition;
 #else
   size_t num_global_vertices = adj_graph_num_vertices(global_graph);
-  int64_t* P = polymec_malloc(sizeof(int64_t)*num_global_vertices);
-  memset(P, 0, sizeof(int64_t)*num_global_vertices);
+  int64_t* P = polymec_calloc(sizeof(int64_t)*num_global_vertices);
   return P;
 #endif
 }
@@ -230,8 +228,7 @@ int64_t* partition_points(point_t* points,
   if (nprocs == 1)
   {
     // Dumb, but correct.
-    int64_t* global_partition = polymec_malloc(sizeof(int64_t) * num_points);
-    memset(global_partition, 0, sizeof(int64_t) * num_points);
+    int64_t* global_partition = polymec_calloc(sizeof(int64_t) * num_points);
     STOP_FUNCTION_TIMER();
     return global_partition;
   }
@@ -343,8 +340,7 @@ int64_t* partition_points(point_t* points,
 
 #else
   // This is dumb, but we were asked for it.
-  int64_t* global_partition = polymec_malloc(sizeof(int64_t) * num_points);
-  memset(global_partition, 0, sizeof(int64_t) * num_points);
+  int64_t* global_partition = polymec_calloc(sizeof(int64_t) * num_points);
   return global_partition;
 #endif
 }
@@ -416,8 +412,7 @@ int64_t* repartition_graph(adj_graph_t* local_graph,
   return local_partition;
 #else
   size_t num_global_vertices = adj_graph_num_vertices(local_graph);
-  int64_t* P = polymec_malloc(sizeof(int64_t)*num_global_vertices);
-  memset(P, 0, sizeof(int64_t)*num_global_vertices);
+  int64_t* P = polymec_calloc(sizeof(int64_t)*num_global_vertices);
   return P;
 #endif
 }
@@ -851,8 +846,7 @@ int64_t* repartition_points(point_t* local_points,
   // On a single process, repartitioning has no meaning.
   if (nprocs == 1)
   {
-    int64_t* P = polymec_malloc(sizeof(int64_t)*num_local_points);
-    memset(P, 0, sizeof(int64_t)*num_local_points);
+    int64_t* P = polymec_calloc(sizeof(int64_t)*num_local_points);
     STOP_FUNCTION_TIMER();
     return P;
   }
@@ -906,8 +900,7 @@ int64_t* repartition_points(point_t* local_points,
   STOP_FUNCTION_TIMER();
   return local_partition;
 #else
-  int64_t* P = polymec_malloc(sizeof(int64_t)*num_local_points);
-  memset(P, 0, sizeof(int64_t)*num_local_points);
+  int64_t* P = polymec_calloc(sizeof(int64_t)*num_local_points);
   return P;
 #endif
 }

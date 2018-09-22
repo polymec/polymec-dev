@@ -71,10 +71,8 @@ adj_graph_t* adj_graph_new_with_dist(MPI_Comm comm,
 
   size_t num_local_vertices = (size_t)(vertex_dist[graph->rank+1] - vertex_dist[graph->rank]);
   graph->edge_cap = 4 * num_local_vertices;
-  graph->adjacency = polymec_malloc(sizeof(int) * graph->edge_cap);
-  memset(graph->adjacency, 0, sizeof(int) * graph->edge_cap);
-  graph->xadj = polymec_malloc(sizeof(int) * (num_local_vertices + 1));
-  memset(graph->xadj, 0, sizeof(int) * (num_local_vertices + 1));
+  graph->adjacency = polymec_calloc(sizeof(int) * graph->edge_cap);
+  graph->xadj = polymec_calloc(sizeof(int) * (num_local_vertices + 1));
 
   graph->max_vertex_index = -1;
   graph->manages_arrays = true;
@@ -733,8 +731,7 @@ adj_graph_coloring_t* adj_graph_coloring_new(adj_graph_t* graph,
   // Finally, transplant the coloring into our coloring object.
   adj_graph_coloring_t* coloring = polymec_malloc(sizeof(adj_graph_coloring_t));
   coloring->vertices = vertices;
-  coloring->offsets = polymec_malloc(sizeof(int) * (num_colors+1));
-  memset(coloring->offsets, 0, sizeof(int) * (num_colors+1));
+  coloring->offsets = polymec_calloc(sizeof(int) * (num_colors+1));
   coloring->num_colors = num_colors;
   for (int v = 0; v <= v_max; ++v)
   {

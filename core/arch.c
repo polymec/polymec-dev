@@ -130,11 +130,9 @@ static int memstream_write(void* context, const char *buf, int n)
     stream->allocated = newsize;
   }
 
+  // Ensure that everything beyond EOF is null.
   if (stream->eof < stream->pos)
-  {
-    // Ensure that everything beyond EOF is null.
     memset(cbuf + stream->eof, '\0', stream->pos - stream->eof);
-  }
 
   memcpy(cbuf + stream->pos, buf, n);
   stream->pos += n;
