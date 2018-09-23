@@ -2134,7 +2134,7 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
   polymec_free(x);
   polymec_free(y);
 
-  // Finally, write out the cell_edges and edge_cells arrays.
+  // Finally, write out the cell_edges, edge_cells, edge_nodes arrays.
   {
     char ce_name[FILENAME_MAX+1];
     snprintf(ce_name, FILENAME_MAX, "%s_cell_edges", mesh_name);
@@ -2143,6 +2143,10 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
     char ec_name[FILENAME_MAX+1];
     snprintf(ec_name, FILENAME_MAX, "%s_edge_cells", mesh_name);
     silo_file_write_int_array(file, ec_name, mesh->edge_cells, 2*mesh->num_edges);
+
+    char en_name[FILENAME_MAX+1];
+    snprintf(en_name, FILENAME_MAX, "%s_edge_nodes", mesh_name);
+    silo_file_write_int_array(file, en_name, mesh->edge_nodes, 2*mesh->num_edges);
   }
 
   // Write out tag information.
@@ -2238,6 +2242,17 @@ planar_polymesh_t* silo_file_read_planar_polymesh(silo_file_t* file,
     ASSERT(num_edge_cells == 2*mesh->num_edges);
     memcpy(mesh->edge_cells, edge_cells, sizeof(int) * 2 * mesh->num_edges);
     polymec_free(edge_cells);
+  }
+
+  // Read in the edge_nodes array.
+  {
+    char name[FILENAME_MAX+1];
+    snprintf(name, FILENAME_MAX, "%s_edge_nodes", mesh_name);
+    size_t num_edge_nodes;
+    int* edge_nodes = silo_file_read_int_array(file, name, &num_edge_nodes);
+    ASSERT(num_edge_nodes == 2*mesh->num_edges);
+    memcpy(mesh->edge_nodes, edge_nodes, sizeof(int) * 2 * mesh->num_edges);
+    polymec_free(edge_nodes);
   }
 
   // Read in tag information.
