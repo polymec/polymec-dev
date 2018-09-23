@@ -81,18 +81,6 @@ static void test_create_rectilinear_mesh_on_rank(void** state)
   }
 }
 
-static void test_plot_rectilinear_mesh(void** state)
-{
-  // Create a 4x4x4 rectilinear mesh.
-  real_t xs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
-  real_t ys[] = {0.0, 1.0, 2.0, 4.0, 8.0};
-  real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
-  polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 5);
-
-  // Clean up.
-  polymesh_free(mesh);
-}
-
 static void check_cell_face_connectivity(void** state, 
                                          polymesh_t* mesh,
                                          index_t* global_cell_indices, 
@@ -313,7 +301,6 @@ int main(int argc, char* argv[])
   {
     cmocka_unit_test(test_create_rectilinear_mesh),
     cmocka_unit_test(test_create_rectilinear_mesh_on_rank),
-    cmocka_unit_test(test_plot_rectilinear_mesh),
     cmocka_unit_test(test_problematic_meshes)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

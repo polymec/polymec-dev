@@ -53,6 +53,7 @@ static chunk_xy_data_t* chunk_xy_data_new(planar_polymesh_t* mesh)
 
   // xy edge -> node connectivity.
   xy_data->num_xy_edges = (size_t)mesh->num_edges;
+  xy_data->xy_edge_nodes = polymec_malloc(sizeof(int) * 2 * xy_data->num_xy_edges);
   memcpy(xy_data->xy_edge_nodes, mesh->edge_nodes, sizeof(int) * 2 * xy_data->num_xy_edges);
 
   // Node xy coordinates.
