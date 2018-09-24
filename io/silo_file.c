@@ -1724,12 +1724,12 @@ bool silo_file_contains_polymesh(silo_file_t* file, const char* mesh_name)
   return result;
 }
 
-void silo_file_write_scalar_polymesh_field(silo_file_t* file,
-                                           const char* field_name,
-                                           const char* mesh_name,
-                                           real_t* field_data,
-                                           polymesh_centering_t centering,
-                                           silo_field_metadata_t* field_metadata)
+static void silo_file_write_polymesh_field_comp(silo_file_t* file,
+                                                const char* field_name,
+                                                const char* mesh_name,
+                                                polymesh_centering_t centering,
+                                                real_t* field_data,
+                                                silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -1775,9 +1775,7 @@ void silo_file_write_scalar_polymesh_field(silo_file_t* file,
 void silo_file_write_polymesh_field(silo_file_t* file,
                                     const char** field_component_names,
                                     const char* mesh_name,
-                                    real_t* field_data,
-                                    int num_components,
-                                    polymesh_centering_t centering,
+                                    polymesh_field_t* field,
                                     silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
@@ -1787,7 +1785,7 @@ void silo_file_write_polymesh_field(silo_file_t* file,
   silo_file_push_domain_dir(file);
   char num_elems_var[FILENAME_MAX+1];
   int cent;
-  switch(centering)
+  switch(field->centering)
   {
     case POLYMESH_CELL: cent = DB_ZONECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name); break;
     case POLYMESH_FACE: cent = DB_FACECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name); break;
@@ -1798,25 +1796,23 @@ void silo_file_write_polymesh_field(silo_file_t* file,
   int num_elems;
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
   silo_file_pop_dir(file);
-  real_t* comp_data = polymec_malloc(sizeof(real_t) * num_elems); 
-  for (int c = 0; c < num_components; ++c)
+  DECLARE_POLYMESH_FIELD_ARRAY(field_data, field);
+  for (int c = 0; c < field->num_components; ++c)
   {
-    for (int i = 0; i < num_elems; ++i)
-      comp_data[i] = field_data[num_components*i+c];
     silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-    silo_file_write_scalar_polymesh_field(file, field_component_names[c], 
-                                          mesh_name, comp_data, centering, metadata);
+    silo_file_write_polymesh_field_comp(file, field_component_names[c], mesh_name,
+                                        field->centering, (real_t*)(field_data[c]), metadata);
   }
-  polymec_free(comp_data);
 
   STOP_FUNCTION_TIMER();
 }
 
-real_t* silo_file_read_scalar_polymesh_field(silo_file_t* file,
-                                             const char* field_name,
-                                             const char* mesh_name,
-                                             polymesh_centering_t centering,
-                                             silo_field_metadata_t* field_metadata)
+static bool silo_file_read_polymesh_field_comp(silo_file_t* file,
+                                               const char* field_name,
+                                               const char* mesh_name,
+                                               polymesh_centering_t centering,
+                                               real_t* field_data,
+                                               silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1842,31 +1838,29 @@ real_t* silo_file_read_scalar_polymesh_field(silo_file_t* file,
     log_urgent("Field '%s' was not found in the Silo file.", field_name);
     silo_file_pop_dir(file);
     STOP_FUNCTION_TIMER();
-    return NULL;
+    return false;
   }
   if (var->centering != cent)
   {
     log_urgent("Field '%s' has the incorrect centering.", field_name);
     silo_file_pop_dir(file);
     STOP_FUNCTION_TIMER();
-    return NULL;
+    return false;
   }
-  real_t* field = polymec_malloc(sizeof(real_t) * num_elems);
-  memcpy(field, var->vals[0], sizeof(real_t) * num_elems);
+  memcpy(field_data, var->vals[0], sizeof(real_t) * num_elems);
   read_polymesh_metadata(file->dbfile, var, field_metadata);
   DBFreeUcdvar(var);
 
   silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
-  return field;
+  return true;
 }
 
-real_t* silo_file_read_polymesh_field(silo_file_t* file,
-                                      const char** field_component_names,
-                                      const char* mesh_name,
-                                      int num_components,
-                                      polymesh_centering_t centering,
-                                      silo_field_metadata_t** field_metadata)
+void silo_file_read_polymesh_field(silo_file_t* file,
+                                   const char** field_component_names,
+                                   const char* mesh_name,
+                                   polymesh_field_t* field,
+                                   silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -1876,7 +1870,7 @@ real_t* silo_file_read_polymesh_field(silo_file_t* file,
   // How many elements does our mesh have?
   char num_elems_var[FILENAME_MAX+1];
   int cent = DB_ZONECENT;
-  switch(centering)
+  switch(field->centering)
   {
     case POLYMESH_CELL: cent = DB_ZONECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_cells", mesh_name); break;
     case POLYMESH_FACE: cent = DB_FACECENT; snprintf(num_elems_var, FILENAME_MAX, "%s_mesh_num_faces", mesh_name); break;
@@ -1889,17 +1883,14 @@ real_t* silo_file_read_polymesh_field(silo_file_t* file,
 
   silo_file_pop_dir(file);
 
-  real_t* field = polymec_malloc(sizeof(real_t) * num_elems * num_components);
-  for (int c = 0; c < num_components; ++c)
+  DECLARE_POLYMESH_FIELD_ARRAY(field_data, field);
+  for (int c = 0; c < field->num_components; ++c)
   {
     silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-    real_t* comp_data = silo_file_read_scalar_polymesh_field(file, field_component_names[c], mesh_name, centering, metadata);
-    for (int i = 0; i < num_elems; ++i)
-      field[num_components*i+c] = comp_data[i];
-    polymec_free(comp_data);
+    silo_file_read_polymesh_field_comp(file, field_component_names[c], mesh_name, 
+                                       field->centering, (real_t*)(field_data[c]), metadata);
   }
   STOP_FUNCTION_TIMER();
-  return field;
 }
 
 bool silo_file_contains_polymesh_field(silo_file_t* file, 
@@ -2295,11 +2286,11 @@ bool silo_file_contains_point_cloud(silo_file_t* file, const char* cloud_name)
   return result;
 }
 
-void silo_file_write_scalar_point_field(silo_file_t* file,
-                                        const char* field_name,
-                                        const char* cloud_name,
-                                        real_t* field_data,
-                                        silo_field_metadata_t* field_metadata)
+static void silo_file_write_point_field_comp(silo_file_t* file,
+                                             const char* field_name,
+                                             const char* cloud_name,
+                                             real_t* field_data,
+                                             silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_CLOBBER);
@@ -2336,10 +2327,11 @@ void silo_file_write_scalar_point_field(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-real_t* silo_file_read_scalar_point_field(silo_file_t* file,
-                                          const char* field_name,
-                                          const char* cloud_name,
-                                          silo_field_metadata_t* field_metadata)
+static bool silo_file_read_point_field_comp(silo_file_t* file,
+                                            const char* field_name,
+                                            const char* cloud_name,
+                                            real_t* field_data,
+                                            silo_field_metadata_t* field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -2352,22 +2344,20 @@ real_t* silo_file_read_scalar_point_field(silo_file_t* file,
     log_urgent("Field '%s' was not found in the Silo file.", field_name);
     silo_file_pop_dir(file);
     STOP_FUNCTION_TIMER();
-    return NULL;
+    return false;
   }
-  real_t* field = polymec_malloc(sizeof(real_t) * var->nels);
-  memcpy(field, var->vals[0], sizeof(real_t) * var->nels);
+  memcpy(field_data, var->vals[0], sizeof(real_t) * var->nels);
   read_point_metadata(file->dbfile, var, field_metadata);
   DBFreePointvar(var);
   silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
-  return field;
+  return true;
 }
 
 void silo_file_write_point_field(silo_file_t* file,
                                  const char** field_component_names,
                                  const char* cloud_name,
-                                 real_t* field_data,
-                                 int num_components,
+                                 point_cloud_field_t* field,
                                  silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
@@ -2384,25 +2374,21 @@ void silo_file_write_point_field(silo_file_t* file,
 
   silo_file_pop_dir(file);
 
-  real_t* comp_data = polymec_malloc(sizeof(real_t) * num_points); 
-  for (int c = 0; c < num_components; ++c)
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(field_data, field);
+  for (int c = 0; c < field->num_components; ++c)
   {
-    for (int i = 0; i < num_points; ++i)
-      comp_data[i] = field_data[num_components*i+c];
     silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-    silo_file_write_scalar_point_field(file, field_component_names[c], 
-                                       cloud_name, field_data, metadata);
+    silo_file_write_point_field_comp(file, field_component_names[c], 
+                                     cloud_name, (real_t*)(field_data[c]), metadata);
   }
-  polymec_free(comp_data);
-
   STOP_FUNCTION_TIMER();
 }
 
-real_t* silo_file_read_point_field(silo_file_t* file,
-                                   const char** field_component_names,
-                                   const char* cloud_name,
-                                   int num_components,
-                                   silo_field_metadata_t** field_metadata)
+void silo_file_read_point_field(silo_file_t* file,
+                                const char** field_component_names,
+                                const char* cloud_name,
+                                point_cloud_field_t* field,
+                                silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   ASSERT(file->mode == DB_READ);
@@ -2415,20 +2401,16 @@ real_t* silo_file_read_point_field(silo_file_t* file,
   ASSERT(DBInqVarExists(file->dbfile, num_points_var));
   int num_points;
   DBReadVar(file->dbfile, num_points_var, &num_points);
-  real_t* field = polymec_malloc(sizeof(real_t) * num_components * num_points); 
-  for (int c = 0; c < num_components; ++c)
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(field_data, field);
+  for (int c = 0; c < field->num_components; ++c)
   {
     silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
-    real_t* comp_data = silo_file_read_scalar_point_field(file, field_component_names[c], cloud_name, metadata);
-    for (int i = 0; i < num_points; ++i)
-      field[num_components*i+c] = comp_data[i];
-    polymec_free(comp_data);
+    silo_file_read_point_field_comp(file, field_component_names[c], cloud_name, (real_t*)(field_data[c]), metadata);
   }
 
   silo_file_pop_dir(file);
 
   STOP_FUNCTION_TIMER();
-  return field;
 }
 
 bool silo_file_contains_point_field(silo_file_t* file, 

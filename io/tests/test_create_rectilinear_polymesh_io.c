@@ -58,9 +58,10 @@ static void test_plot_rectilinear_mesh(void** state)
   polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 5);
 
   // Plot it.
-  real_t ones[4*4*4];
+  polymesh_field_t* ones = polymesh_field_new(mesh, POLYMESH_CELL, 1);
+  DECLARE_POLYMESH_FIELD_ARRAY(ones_data, ones);
   for (int c = 0; c < 4*4*4; ++c)
-    ones[c] = 1.0*c;
+    ones_data[c][0] = 1.0*c;
   silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
   silo_field_metadata_t* metadata = silo_field_metadata_new();
@@ -69,8 +70,8 @@ static void test_plot_rectilinear_mesh(void** state)
   metadata->conserved = true;
   metadata->extensive = false;
   metadata->vector_component = 2;
-  silo_file_write_scalar_polymesh_field(silo, "solution", "mesh", ones, 
-                                        POLYMESH_CELL, metadata);
+  const char* comp_names[] = {"solution"};
+  silo_file_write_polymesh_field(silo, comp_names, "mesh", ones, metadata);
 
   // Add some fields with different centerings.
   real_t nvals[3*mesh->num_nodes]; 
@@ -82,7 +83,7 @@ static void test_plot_rectilinear_mesh(void** state)
     nvals[3*n+2] = mesh->nodes[n].z;
   }
   silo_file_write_polymesh_field(silo, nnames, "mesh", nvals, 3, POLYMESH_NODE, NULL);
-
+  
   real_t fvals[mesh->num_faces];
   for (int f = 0; f < mesh->num_faces; ++f)
     fvals[f] = 1.0 * f;
@@ -97,9 +98,6 @@ static void test_plot_rectilinear_mesh(void** state)
 
   silo_file_close(silo);
 
-  // Clean up.
-  polymesh_free(mesh);
-
   // Now read the mesh from the file.
   metadata = silo_field_metadata_new();
   real_t t;
@@ -109,18 +107,16 @@ static void test_plot_rectilinear_mesh(void** state)
   mesh = silo_file_read_polymesh(silo, "mesh");
   assert_true(mesh->num_cells <= 4*4*4);
   assert_true(silo_file_contains_polymesh_field(silo, "solution", "mesh", POLYMESH_CELL));
-  real_t* ones1 = silo_file_read_scalar_polymesh_field(silo, "solution", "mesh", POLYMESH_CELL, metadata);
+  polymesh_field_t* ones1 = polymesh_field_new(mesh1, silo_file_read_scalar_polymesh_field(silo, "solution", "mesh", POLYMESH_CELL, metadata);
   for (int i = 0; i < mesh->num_cells; ++i)
-  {
     assert_true(reals_equal(ones1[i], ones[i]));
-  }
   assert_int_equal(0, strcmp(metadata->label, "solution"));
   assert_int_equal(0, strcmp(metadata->units, "quatloo"));
   assert_true(metadata->conserved);
   assert_false(metadata->extensive);
   assert_int_equal(2, metadata->vector_component);
   polymec_release(metadata);
-  polymec_free(ones1);
+  polymesh_field_free(ones1);
 
   // Check on the other fields.
   assert_true(silo_file_contains_polymesh_field(silo, "nx", "mesh", POLYMESH_NODE));
@@ -128,29 +124,29 @@ static void test_plot_rectilinear_mesh(void** state)
   assert_true(silo_file_contains_polymesh_field(silo, "nz", "mesh", POLYMESH_NODE));
   real_t* nvals1 = silo_file_read_polymesh_field(silo, nnames, "mesh", 3, POLYMESH_NODE, NULL);
   for (int n = 0; n < mesh->num_nodes; ++n)
-  {
     assert_true(reals_equal(nvals[n], nvals1[n]));
-  }
-  polymec_free(nvals1);
 
   assert_true(silo_file_contains_polymesh_field(silo, "fvals", "mesh", POLYMESH_FACE));
   real_t* fvals1 = silo_file_read_scalar_polymesh_field(silo, "fvals", "mesh", POLYMESH_FACE, NULL);
   for (int f = 0; f < mesh->num_faces; ++f)
-  {
     assert_true(reals_equal(fvals[f], fvals1[f]));
-  }
-  polymec_free(fvals1);
 
   assert_true(silo_file_contains_polymesh_field(silo, "evals", "mesh", POLYMESH_EDGE));
   real_t* evals1 = silo_file_read_scalar_polymesh_field(silo, "evals", "mesh", POLYMESH_EDGE, NULL);
   for (int e = 0; e < mesh->num_edges; ++e)
-  {
     assert_true(reals_equal(evals[e], evals1[e]));
-  }
   silo_file_close(silo);
 
   // Clean up.
-  polymec_free(evals1);
+  polymesh_field_free(ones1);
+  polymesh_field_free(ones);
+  polymesh_field_free(fvals1);
+  polymesh_field_free(fvals);
+  polymesh_field_free(evals1);
+  polymesh_field_free(evals);
+  polymesh_field_free(nvals1);
+  polymesh_field_free(nvals);
+  polymesh_free(mesh1);
   polymesh_free(mesh);
 }
 
