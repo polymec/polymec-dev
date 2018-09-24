@@ -55,8 +55,8 @@ void polymesh_field_free(polymesh_field_t* field);
 /// Compares all elements in the given component of the two given fields, 
 /// returning true if the pairwise comparison of each component element in 
 /// the two fields yields a "true" comparison, and false otherwise.
-/// Calling this function on two fields with different meshes or centerings is
-/// not allowed.
+/// Calling this function on two fields with different centerings or with 
+/// incompatiable meshes is not allowed.
 bool polymesh_field_compare_all(polymesh_field_t* field,
                                 polymesh_field_t* other_field,
                                 int component,
@@ -65,8 +65,8 @@ bool polymesh_field_compare_all(polymesh_field_t* field,
 /// Compares elements in the given component of the two given fields, 
 /// returning true if the pairwise comparison of ANY component element in 
 /// the two fields yields a "true" comparison, and false if none do so.
-/// Calling this function on two fields with different meshes or centerings is
-/// not allowed.
+/// Calling this function on two fields with different centerings or with 
+/// incompatiable meshes is not allowed.
 bool polymesh_field_compare_any(polymesh_field_t* field,
                                 polymesh_field_t* other_field,
                                 int component,
@@ -75,8 +75,8 @@ bool polymesh_field_compare_any(polymesh_field_t* field,
 /// Compares elements in the given component of the two given fields, 
 /// returning true if NO pairwise comparison of ANY component element in 
 /// the two fields yields a "true" comparison, and false if any do.
-/// Calling this function on two fields with different meshes or centerings is
-/// not allowed.
+/// Calling this function on two fields with different centerings or with 
+/// incompatiable meshes is not allowed.
 bool polymesh_field_compare_none(polymesh_field_t* field,
                                  polymesh_field_t* other_field,
                                  int component,

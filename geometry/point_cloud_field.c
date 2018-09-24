@@ -51,7 +51,7 @@ bool point_cloud_field_compare_all(point_cloud_field_t* field,
                                    bool (*comparator)(real_t val, real_t other_val))
 {
   // We need a fair comparison.
-  ASSERT(field->cloud == other_field->cloud);
+  ASSERT(field->num_local_values == other_field->num_local_values);
   ASSERT(field->num_components > (size_t)component);
   ASSERT(other_field->num_components > (size_t)component);
 
@@ -72,7 +72,7 @@ bool point_cloud_field_compare_any(point_cloud_field_t* field,
                                    bool (*comparator)(real_t val, real_t other_val))
 {
   // We need a fair comparison.
-  ASSERT(field->cloud == other_field->cloud);
+  ASSERT(field->num_local_values == other_field->num_local_values);
   ASSERT(field->num_components > (size_t)component);
   ASSERT(other_field->num_components > (size_t)component);
 
@@ -93,7 +93,7 @@ bool point_cloud_field_compare_none(point_cloud_field_t* field,
                                     bool (*comparator)(real_t val, real_t other_val))
 {
   // We need a fair comparison.
-  ASSERT(field->cloud == other_field->cloud);
+  ASSERT(field->num_local_values == other_field->num_local_values);
   ASSERT(field->num_components > (size_t)component);
   ASSERT(other_field->num_components > (size_t)component);
 

@@ -60,14 +60,18 @@ static void test_cylindrical_crop(void** state)
   }
 
   // Plot the cropped mesh.
-  real_t ones[Nx*Ny*Nz];
-  for (int c = 0; c < Nx*Ny*Nz; ++c)
-    ones[c] = 1.0*c;
   silo_file_t* silo = silo_file_new(cropped_mesh->comm, "cyl_cropped_mesh", "", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", cropped_mesh);
-  silo_file_write_scalar_polymesh_field(silo, "solution", "mesh", ones, POLYMESH_CELL, NULL);
+
+  polymesh_field_t* ones = polymesh_field_new(mesh, POLYMESH_CELL, 1);
+  DECLARE_POLYMESH_FIELD_ARRAY(data, ones);
+  for (int c = 0; c < Nx*Ny*Nz; ++c)
+    data[c] = 1.0*c;
+  const char* ones_name = {"ones"};
+  silo_file_write_polymesh_field(silo, ones_name, "mesh", ones, POLYMESH_CELL, NULL);
   silo_file_close(silo);
 
+  polymesh_field_free(ones);
   polymesh_free(cropped_mesh);
 }
 
@@ -85,14 +89,18 @@ static void test_spherical_crop(void** state)
   polymesh_free(mesh);
 
   // Plot the cropped mesh.
-  real_t ones[Nx*Ny*Nz];
-  for (int c = 0; c < Nx*Ny*Nz; ++c)
-    ones[c] = 1.0*c;
   silo_file_t* silo = silo_file_new(cropped_mesh->comm, "sph_cropped_mesh", "", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", cropped_mesh);
-  silo_file_write_scalar_polymesh_field(silo, "solution", "mesh", ones, POLYMESH_CELL, NULL);
+
+  polymesh_field_t* ones = polymesh_field_new(mesh, POLYMESH_CELL, 1);
+  DECLARE_POLYMESH_FIELD_ARRAY(data, ones);
+  for (int c = 0; c < Nx*Ny*Nz; ++c)
+    data[c] = 1.0*c;
+  const char* ones_name = {"ones"};
+  silo_file_write_polymesh_field(silo, ones_name, "mesh", ones, POLYMESH_CELL, NULL);
   silo_file_close(silo);
 
+  polymesh_field_free(ones);
   polymesh_free(cropped_mesh);
 }
 

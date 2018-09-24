@@ -48,9 +48,10 @@ static void test_partition_linear_cloud(void** state)
   }
 
   // Plot it.
-  real_t p[cloud->num_points];
+  point_cloud_field_t* p = point_cloud_field_new(cloud, 1);
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(p_data, p);
   for (int i = 0; i < cloud->num_points; ++i)
-    p[i] = 1.0*rank;
+    p_data[i][0] = 1.0*rank;
   char filename[FILENAME_MAX];
   snprintf(filename, FILENAME_MAX, "linear_cloud_partition_%d", N);
   silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0.0);
@@ -61,28 +62,23 @@ static void test_partition_linear_cloud(void** state)
   metadata->conserved = true;
   metadata->extensive = false;
   metadata->vector_component = 2;
-  char* field_names[1];
-  field_names[0] = string_dup("rank");
-  silo_file_write_point_field(silo, (const char**)field_names, "cloud", p, 1, &metadata);
+  const char* field_names = {"rank"};
+  silo_file_write_point_field(silo, field_names, "cloud", p, &metadata);
   silo_file_close(silo);
 
-  // Clean up.
-  point_cloud_free(cloud);
-
-  // Now read the cloud from the file.
+  // Now read the cloud from the file and make sure it's intact.
   metadata = silo_field_metadata_new();
   real_t t;
   silo = silo_file_open(MPI_COMM_WORLD, filename, filename, 0, &t);
   assert_true(reals_equal(t, 0.0));
   assert_true(silo_file_contains_point_cloud(silo, "cloud"));
-  cloud = silo_file_read_point_cloud(silo, "cloud");
-  assert_true(cloud->num_points <= N);
+  point_cloud_t* cloud1 = silo_file_read_point_cloud(silo, "cloud");
+  assert_true(cloud1->num_points == cloud->num_points);
   assert_true(silo_file_contains_point_field(silo, "rank", "cloud"));
-  real_t* p1 = silo_file_read_point_field(silo, (const char**)field_names, "cloud", 1, &metadata);
-  for (int i = 0; i < cloud->num_points; ++i)
-  {
-    assert_true(reals_equal(p1[i], p[i]));
-  }
+  point_cloud_field_t* p1 = point_cloud_field_new(cloud1, 1);
+  silo_file_read_point_field(silo, field_names, "cloud", p1, &metadata);
+  assert_true(point_cloud_field_compare_all(p1, p1, 0, reals_equal));
+
   assert_int_equal(0, strcmp(metadata->label, "rank"));
   assert_int_equal(0, strcmp(metadata->units, "quatloo"));
   assert_true(metadata->conserved);
@@ -91,9 +87,12 @@ static void test_partition_linear_cloud(void** state)
   metadata = NULL;
   silo_file_close(silo);
 
-  string_free(field_names[0]);
-  polymec_free(p1);
+  // Clean up.
+  point_cloud_field_free(p1);
+  point_cloud_field_free(p);
+  point_cloud_free(cloud1);
   point_cloud_free(cloud);
+
 }
 
 static void test_partition_planar_cloud(void** state)
@@ -117,17 +116,21 @@ static void test_partition_planar_cloud(void** state)
   assert_true(partition_point_cloud(&cloud, comm, NULL, 0.05, NULL, 0));
 
   // Plot it.
-  real_t p[cloud->num_points];
-  for (int i = 0; i < cloud->num_points; ++i)
-    p[i] = 1.0*rank;
   char filename[FILENAME_MAX];
   snprintf(filename, FILENAME_MAX, "planar_cloud_partition_%dx%d", nx, ny);
   silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
+
+  const char* field_names = {"rank"};
+  point_cloud_field_t* p = point_cloud_field_new(cloud, 1);
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(p_data, p);
+  for (int i = 0; i < cloud->num_points; ++i)
+    p_data[i][0] = 1.0*rank;
+  silo_file_write_point_field(silo, field_names, "cloud", p, NULL);
   silo_file_close(silo);
 
   // Clean up.
+  point_cloud_field_free(p);
   point_cloud_free(cloud);
 
   // Superficially check that the file is okay.
@@ -158,17 +161,21 @@ static void test_partition_cubic_cloud(void** state)
   assert_true(partition_point_cloud(&cloud, comm, NULL, 0.05, NULL, 0));
 
   // Plot it.
-  real_t p[cloud->num_points];
-  for (int i = 0; i < cloud->num_points; ++i)
-    p[i] = 1.0*rank;
   char filename[FILENAME_MAX];
   snprintf(filename, FILENAME_MAX, "cubic_cloud_partition_%dx%dx%d", nx, ny, nz);
   silo_file_t* silo = silo_file_new(comm, filename, filename, 1, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
+
+  const char* field_names = {"rank"};
+  point_cloud_field_t* p = point_cloud_field_new(cloud, 1);
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(p_data, p);
+  for (int i = 0; i < cloud->num_points; ++i)
+    p_data[i][0] = 1.0*rank;
+  silo_file_write_point_field(silo, field_names, "cloud", p, NULL);
   silo_file_close(silo);
 
   // Clean up.
+  point_cloud_field_free(p);
   point_cloud_free(cloud);
 
   // Superficially check that the file is okay.
