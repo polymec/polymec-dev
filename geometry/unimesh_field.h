@@ -147,6 +147,7 @@ bool unimesh_field_is_updating_patch_boundaries(unimesh_field_t* field);
 /// the two fields yields a "true" comparison, and false otherwise.
 /// Calling this function on two fields with different centerings or with 
 /// incompatible patches is not allowed.
+/// \memberof unimesh_field
 bool unimesh_field_compare_all(unimesh_field_t* field,
                                unimesh_field_t* other_field,
                                int component,
@@ -157,6 +158,7 @@ bool unimesh_field_compare_all(unimesh_field_t* field,
 /// the two fields yields a "true" comparison, and false if none do so.
 /// Calling this function on two fields with different centerings or with 
 /// incompatible patches is not allowed.
+/// \memberof unimesh_field
 bool unimesh_field_compare_any(unimesh_field_t* field,
                                unimesh_field_t* other_field,
                                int component,
@@ -167,6 +169,7 @@ bool unimesh_field_compare_any(unimesh_field_t* field,
 /// the two fields yields a "true" comparison, and false if any do.
 /// Calling this function on two fields with different centerings or with 
 /// incompatible patches is not allowed.
+/// \memberof unimesh_field
 bool unimesh_field_compare_none(unimesh_field_t* field,
                                 unimesh_field_t* other_field,
                                 int component,

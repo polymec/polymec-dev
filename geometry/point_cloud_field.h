@@ -52,6 +52,7 @@ void point_cloud_field_free(point_cloud_field_t* field);
 /// the two fields yields a "true" comparison, and false otherwise.
 /// Calling this function on two fields with incompatible point clouds is
 /// not allowed.
+/// \memberof point_cloud_field
 bool point_cloud_field_compare_all(point_cloud_field_t* field,
                                    point_cloud_field_t* other_field,
                                    int component,
@@ -62,6 +63,7 @@ bool point_cloud_field_compare_all(point_cloud_field_t* field,
 /// the two fields yields a "true" comparison, and false if none do so.
 /// Calling this function on two fields with incompatible point clouds is
 /// not allowed.
+/// \memberof point_cloud_field
 bool point_cloud_field_compare_any(point_cloud_field_t* field,
                                    point_cloud_field_t* other_field,
                                    int component,
@@ -72,6 +74,7 @@ bool point_cloud_field_compare_any(point_cloud_field_t* field,
 /// the two fields yields a "true" comparison, and false if any do.
 /// Calling this function on two fields with incompatible point clouds is
 /// not allowed.
+/// \memberof point_cloud_field
 bool point_cloud_field_compare_none(point_cloud_field_t* field,
                                     point_cloud_field_t* other_field,
                                     int component,
