@@ -8,6 +8,7 @@
 #ifndef POLYMEC_POLYMESH_FIELD_H
 #define POLYMEC_POLYMESH_FIELD_H
 
+#include "core/declare_nd_array.h"
 #include "geometry/polymesh.h"
 
 /// \addtogroup geometry geometry
@@ -27,11 +28,12 @@ typedef struct
   /// The number of components for a datum in the field.
   size_t num_components;
 
-  /// The number of locally-stored values in the field.
+  /// The number of locally-stored (possibly multi-component) values in the 
+  /// field.
   size_t num_local_values;
 
-  /// The number of ghost values in the field (which changes with the 
-  /// number of ghost points in the cloud).
+  /// The number of (possibly multi-component) ghost values in the field 
+  /// (which changes with the number of ghost cells in the mesh).
   size_t num_ghost_values;
 
   /// Data for the field, and its storage capacity.
@@ -49,6 +51,36 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
 /// Destroys the given polymesh field.
 /// \memberof polymesh_field
 void polymesh_field_free(polymesh_field_t* field);
+
+/// Compares all elements in the given component of the two given fields, 
+/// returning true if the pairwise comparison of each component element in 
+/// the two fields yields a "true" comparison, and false otherwise.
+/// Calling this function on two fields with different meshes or centerings is
+/// not allowed.
+bool polymesh_field_compare_all(polymesh_field_t* field,
+                                polymesh_field_t* other_field,
+                                int component,
+                                bool (*comparator)(real_t val, real_t other_val));
+
+/// Compares elements in the given component of the two given fields, 
+/// returning true if the pairwise comparison of ANY component element in 
+/// the two fields yields a "true" comparison, and false if none do so.
+/// Calling this function on two fields with different meshes or centerings is
+/// not allowed.
+bool polymesh_field_compare_any(polymesh_field_t* field,
+                                polymesh_field_t* other_field,
+                                int component,
+                                bool (*comparator)(real_t val, real_t other_val));
+
+/// Compares elements in the given component of the two given fields, 
+/// returning true if NO pairwise comparison of ANY component element in 
+/// the two fields yields a "true" comparison, and false if any do.
+/// Calling this function on two fields with different meshes or centerings is
+/// not allowed.
+bool polymesh_field_compare_none(polymesh_field_t* field,
+                                 polymesh_field_t* other_field,
+                                 int component,
+                                 bool (*comparator)(real_t val, real_t other_val));
 
 ///@}
 

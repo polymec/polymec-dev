@@ -8,6 +8,7 @@
 #ifndef POLYMEC_POINT_CLOUD_FIELD_H
 #define POLYMEC_POINT_CLOUD_FIELD_H
 
+#include "core/declare_nd_array.h"
 #include "geometry/point_cloud.h"
 
 /// \addtogroup geometry geometry
@@ -45,6 +46,36 @@ point_cloud_field_t* point_cloud_field_new(point_cloud_t* cloud,
 /// Destroys the given point cloud field.
 /// \memberof point_cloud_field
 void point_cloud_field_free(point_cloud_field_t* field);
+
+/// Compares all elements in the given component of the two given fields, 
+/// returning true if the pairwise comparison of each component element in 
+/// the two fields yields a "true" comparison, and false otherwise.
+/// Calling this function on two fields with different point clouds is
+/// not allowed.
+bool point_cloud_field_compare_all(point_cloud_field_t* field,
+                                   point_cloud_field_t* other_field,
+                                   int component,
+                                   bool (*comparator)(real_t val, real_t other_val));
+
+/// Compares elements in the given component of the two given fields, 
+/// returning true if the pairwise comparison of ANY component element in 
+/// the two fields yields a "true" comparison, and false if none do so.
+/// Calling this function on two fields with different point clouds is
+/// not allowed.
+bool point_cloud_field_compare_any(point_cloud_field_t* field,
+                                   point_cloud_field_t* other_field,
+                                   int component,
+                                   bool (*comparator)(real_t val, real_t other_val));
+
+/// Compares elements in the given component of the two given fields, 
+/// returning true if NO pairwise comparison of ANY component element in 
+/// the two fields yields a "true" comparison, and false if any do.
+/// Calling this function on two fields with different point clouds is
+/// not allowed.
+bool point_cloud_field_compare_none(point_cloud_field_t* field,
+                                    point_cloud_field_t* other_field,
+                                    int component,
+                                    bool (*comparator)(real_t val, real_t other_val));
 
 ///@}
 

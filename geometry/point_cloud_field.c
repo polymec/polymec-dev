@@ -45,3 +45,66 @@ void point_cloud_field_free(point_cloud_field_t* field)
   polymec_free(field);
 }
 
+bool point_cloud_field_compare_all(point_cloud_field_t* field,
+                                   point_cloud_field_t* other_field,
+                                   int component,
+                                   bool (*comparator)(real_t val, real_t other_val))
+{
+  // We need a fair comparison.
+  ASSERT(field->cloud == other_field->cloud);
+  ASSERT(field->num_components > (size_t)component);
+  ASSERT(other_field->num_components > (size_t)component);
+
+  bool all = true;
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(f, field);
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(f1, other_field);
+  for (size_t i = 0; i < field->num_local_values; ++i)
+  {
+    all = all && comparator(f[i][component], f1[i][component]);
+    if (!all) break;
+  }
+  return all;
+}
+
+bool point_cloud_field_compare_any(point_cloud_field_t* field,
+                                   point_cloud_field_t* other_field,
+                                   int component,
+                                   bool (*comparator)(real_t val, real_t other_val))
+{
+  // We need a fair comparison.
+  ASSERT(field->cloud == other_field->cloud);
+  ASSERT(field->num_components > (size_t)component);
+  ASSERT(other_field->num_components > (size_t)component);
+
+  bool any = false;
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(f, field);
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(f1, other_field);
+  for (size_t i = 0; i < field->num_local_values; ++i)
+  {
+    any = comparator(f[i][component], f1[i][component]);
+    if (any) break;
+  }
+  return any;
+}
+
+bool point_cloud_field_compare_none(point_cloud_field_t* field,
+                                    point_cloud_field_t* other_field,
+                                    int component,
+                                    bool (*comparator)(real_t val, real_t other_val))
+{
+  // We need a fair comparison.
+  ASSERT(field->cloud == other_field->cloud);
+  ASSERT(field->num_components > (size_t)component);
+  ASSERT(other_field->num_components > (size_t)component);
+
+  bool none = true;
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(f, field);
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(f1, other_field);
+  for (size_t i = 0; i < field->num_local_values; ++i)
+  {
+    none = !comparator(f[i][component], f1[i][component]);
+    if (!none) break;
+  }
+  return none;
+}
+
