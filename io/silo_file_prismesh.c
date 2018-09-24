@@ -74,13 +74,13 @@ void silo_file_write_prismesh(silo_file_t* file,
     real_t endpts[2] = {prismesh_z1(mesh), prismesh_z2(mesh)};
     silo_file_write_real_array(file, array_name, endpts, 2);
     snprintf(array_name, FILENAME_MAX, "%s_periodic", mesh_name);
-    int periodic = (int)prismesh_is_periodic_in_z(mesh);
+    int periodic = (int)(prismesh_is_periodic_in_z(mesh));
     silo_file_write_int_array(file, array_name, &periodic, 1);
   }
 
-  int num_local_chunks = prismesh_num_chunks(mesh);
-  size_t nz_per_chunk;
-  int pos = 0, xy, z, l = 0;
+  size_t num_local_chunks = prismesh_num_chunks(mesh);
+  size_t l = 0;
+  int pos = 0, xy, z;
   prismesh_chunk_t* chunk;
   int_array_t* chunk_indices = int_array_new();
   while (prismesh_next_chunk(mesh, &pos, &xy, &z, &chunk)) 
@@ -93,8 +93,6 @@ void silo_file_write_prismesh(silo_file_t* file,
     // Jot down this (xy, z) tuple.
     int_array_append(chunk_indices, xy);
     int_array_append(chunk_indices, z);
-
-    nz_per_chunk = chunk->num_z_cells; 
 
     ++l;
   }
@@ -109,8 +107,8 @@ void silo_file_write_prismesh(silo_file_t* file,
   }
 
   // Write chunk metadata.
-  size_t num_xy_chunks = prismesh_num_xy_chunks(mesh);
-  size_t num_z_chunks = prismesh_num_z_chunks(mesh); 
+  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  prismesh_get_chunk_info(mesh, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   {
     char array_name[FILENAME_MAX+1];
     snprintf(array_name, FILENAME_MAX, "%s_chunk_md", mesh_name);

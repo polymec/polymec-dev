@@ -325,6 +325,16 @@ void prismesh_free(prismesh_t* mesh)
   polymec_free(mesh);
 }
 
+void prismesh_get_chunk_info(prismesh_t* mesh, 
+                             size_t* num_xy_chunks,
+                             size_t* num_z_chunks,
+                             size_t* nz_per_chunk)
+{
+  *num_xy_chunks = mesh->num_xy_chunks;
+  *num_z_chunks = mesh->num_z_chunks;
+  *nz_per_chunk = mesh->nz_per_chunk;
+}
+
 bool prismesh_verify_topology(prismesh_t* mesh, 
                               void (*handler)(const char* format, ...))
 {
@@ -435,16 +445,6 @@ MPI_Comm prismesh_comm(prismesh_t* mesh)
 size_t prismesh_num_chunks(prismesh_t* mesh)
 {
   return mesh->chunks->size;
-}
-
-size_t prismesh_num_xy_chunks(prismesh_t* mesh)
-{
-  return mesh->num_xy_chunks;
-}
-
-size_t prismesh_num_z_chunks(prismesh_t* mesh)
-{
-  return mesh->num_z_chunks;
 }
 
 bool prismesh_is_periodic_in_z(prismesh_t* mesh)

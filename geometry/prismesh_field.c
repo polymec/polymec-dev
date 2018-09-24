@@ -97,8 +97,10 @@ prismesh_field_t* prismesh_field_new(prismesh_t* mesh,
   field->mesh = mesh;
   field->centering = centering;
   field->num_components = num_components;
-  field->num_xy_chunks = prismesh_num_xy_chunks(mesh);
-  field->num_z_chunks = prismesh_num_z_chunks(mesh);
+  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  prismesh_get_chunk_info(mesh, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
+  field->num_xy_chunks = num_xy_chunks;
+  field->num_z_chunks = num_z_chunks;
 
   // Create data for each of the chunks in the mesh.
   int pos = 0, xy_index, z_index;

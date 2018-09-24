@@ -1841,14 +1841,27 @@ static int pmesh_num_chunks(lua_State* L)
 static int pmesh_num_xy_chunks(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_pushinteger(L, prismesh_num_xy_chunks(m));
+  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  prismesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
+  lua_pushinteger(L, (lua_Integer)num_xy_chunks);
   return 1;
 }
 
 static int pmesh_num_z_chunks(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_pushinteger(L, prismesh_num_z_chunks(m));
+  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  prismesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
+  lua_pushinteger(L, (lua_Integer)num_z_chunks);
+  return 1;
+}
+
+static int pmesh_nz_per_chunk(lua_State* L)
+{
+  prismesh_t* m = lua_to_prismesh(L, 1);
+  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  prismesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
+  lua_pushinteger(L, (lua_Integer)nz_per_chunk);
   return 1;
 }
 
@@ -1870,6 +1883,7 @@ static lua_class_field prismesh_fields[] = {
   {"num_chunks", pmesh_num_chunks, NULL},
   {"num_xy_chunks", pmesh_num_xy_chunks, NULL},
   {"num_z_chunks", pmesh_num_z_chunks, NULL},
+  {"nz_per_chunk", pmesh_nz_per_chunk, NULL},
   {"z1", pmesh_z1, NULL},
   {"z2", pmesh_z2, NULL},
   {NULL, NULL, NULL}
@@ -1878,10 +1892,11 @@ static lua_class_field prismesh_fields[] = {
 static int prismesh_tostring(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_pushfstring(L, "prismesh (%d chunks, %d xy chunks, %d z chunks, z1 = %g, z2 = %g)", 
-                  (int)prismesh_num_chunks(m), (int)prismesh_num_xy_chunks(m),
-                  (int)prismesh_num_z_chunks(m), (double)prismesh_z1(m), 
-                  (double)prismesh_z2(m));
+  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  prismesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
+  lua_pushfstring(L, "prismesh (%d chunks, %d xy chunks, %d z chunks, nz = %d, z1 = %g, z2 = %g)", 
+                  (int)prismesh_num_chunks(m), (int)num_xy_chunks, (int)num_z_chunks, 
+                  (int)nz_per_chunk, (double)prismesh_z1(m), (double)prismesh_z2(m));
   return 1;
 }
 

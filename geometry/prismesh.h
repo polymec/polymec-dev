@@ -171,6 +171,16 @@ prismesh_t* prismesh_new(MPI_Comm comm,
 /// \memberof prismesh
 void prismesh_free(prismesh_t* mesh);
 
+/// Retrieves metadata for chunks in this prismesh.
+/// \param num_xy_chunks [out] The number of chunks within the xy plane.
+/// \param num_z_chunks [out] The number of chunks along the z axis.
+/// \param nz_per_chunk [out] The number of vertical cells per chunk.
+/// \memberof prismesh
+void prismesh_get_chunk_info(prismesh_t* mesh, 
+                             size_t* num_xy_chunks,
+                             size_t* num_z_chunks,
+                             size_t* nz_per_chunk);
+
 /// Verifies the topological correctness of the prismesh, calling the given 
 /// (variadic) handler function with a formatted string containing a 
 /// description of any problems encountered. If the topology of the mesh is 
@@ -187,14 +197,6 @@ MPI_Comm prismesh_comm(prismesh_t* mesh);
 /// Returns the number of locally-stored chunks in the prismesh.
 /// \memberof prismesh
 size_t prismesh_num_chunks(prismesh_t* mesh);
-
-/// Returns the total number of chunks that the mesh can store in the xy plane.
-/// \memberof prismesh
-size_t prismesh_num_xy_chunks(prismesh_t* mesh);
-
-/// Returns the total number of chunks that the mesh can store along the z axis.
-/// \memberof prismesh
-size_t prismesh_num_z_chunks(prismesh_t* mesh);
 
 /// Returns the z coordinate of the bottom boundary of the mesh.
 /// \memberof prismesh
