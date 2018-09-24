@@ -363,3 +363,75 @@ bool unimesh_field_is_updating_patch_boundaries(unimesh_field_t* field)
   return (field->token != -1);
 }
 
+bool unimesh_field_compare_all(unimesh_field_t* field,
+                               unimesh_field_t* other_field,
+                               int component,
+                               bool (*comparator)(real_t val, real_t other_val))
+{
+  // We need a fair comparison.
+  ASSERT(unimesh_field_centering(field) == unimesh_field_centering(other_field));
+  ASSERT(unimesh_field_num_patches(field) == unimesh_field_num_patches(other_field));
+  ASSERT(unimesh_field_num_components(field) > (size_t)component);
+  ASSERT(unimesh_field_num_components(other_field) > (size_t)component);
+
+  bool all = true;
+  int pos = 0, i, j, k;
+  unimesh_patch_t* patch;
+  while (unimesh_field_next_patch(field, &pos, &i, &j, &k, &patch, NULL))
+  {
+    unimesh_patch_t* other_patch = unimesh_field_patch(other_field, i, j, k);
+    ASSERT(other_patch != NULL);
+    all = all && unimesh_patch_compare_all(patch, other_patch, component, comparator); 
+    if (!all) break;
+  }
+  return all;
+}
+
+bool unimesh_field_compare_any(unimesh_field_t* field,
+                               unimesh_field_t* other_field,
+                               int component,
+                               bool (*comparator)(real_t val, real_t other_val))
+{
+  // We need a fair comparison.
+  ASSERT(unimesh_field_centering(field) == unimesh_field_centering(other_field));
+  ASSERT(unimesh_field_num_patches(field) == unimesh_field_num_patches(other_field));
+  ASSERT(unimesh_field_num_components(field) > (size_t)component);
+  ASSERT(unimesh_field_num_components(other_field) > (size_t)component);
+
+  bool any = false;
+  int pos = 0, i, j, k;
+  unimesh_patch_t* patch;
+  while (unimesh_field_next_patch(field, &pos, &i, &j, &k, &patch, NULL))
+  {
+    unimesh_patch_t* other_patch = unimesh_field_patch(other_field, i, j, k);
+    ASSERT(other_patch != NULL);
+    any = unimesh_patch_compare_any(patch, other_patch, component, comparator);
+    if (any) break;
+  }
+  return any;
+}
+
+bool unimesh_field_compare_none(unimesh_field_t* field,
+                                unimesh_field_t* other_field,
+                                int component,
+                                bool (*comparator)(real_t val, real_t other_val))
+{
+  // We need a fair comparison.
+  ASSERT(unimesh_field_centering(field) == unimesh_field_centering(other_field));
+  ASSERT(unimesh_field_num_patches(field) == unimesh_field_num_patches(other_field));
+  ASSERT(unimesh_field_num_components(field) > (size_t)component);
+  ASSERT(unimesh_field_num_components(other_field) > (size_t)component);
+
+  bool none = true;
+  int pos = 0, i, j, k;
+  unimesh_patch_t* patch;
+  while (unimesh_field_next_patch(field, &pos, &i, &j, &k, &patch, NULL))
+  {
+    unimesh_patch_t* other_patch = unimesh_field_patch(other_field, i, j, k);
+    ASSERT(other_patch != NULL);
+    none = unimesh_patch_compare_none(patch, other_patch, component, comparator);
+    if (!none) break;
+  }
+  return none;
+}
+

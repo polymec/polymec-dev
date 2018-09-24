@@ -241,6 +241,36 @@ static inline void unimesh_patch_box_shift(unimesh_patch_box_t* box,
 /// \memberof unimesh_patch_box
 void unimesh_patch_box_bisect(unimesh_patch_box_t* box, int axis, int half);
 
+/// Compares all elements in the given component of the two given patches, 
+/// returning true if the pairwise comparison of each component element in 
+/// the two patches yields a "true" comparison, and false otherwise.
+/// Calling this function on two patches with different centerings or with 
+/// incompatible dimensions is not allowed.
+bool unimesh_patch_compare_all(unimesh_patch_t* patch,
+                               unimesh_patch_t* other_patch,
+                               int component,
+                               bool (*comparator)(real_t val, real_t other_val));
+
+/// Compares elements in the given component of the two given patches, 
+/// returning true if the pairwise comparison of ANY component element in 
+/// the two patches yields a "true" comparison, and false if none do so.
+/// Calling this function on two patches with different centerings or with 
+/// incompatible dimensions is not allowed.
+bool unimesh_patch_compare_any(unimesh_patch_t* patch,
+                               unimesh_patch_t* other_patch,
+                               int component,
+                               bool (*comparator)(real_t val, real_t other_val));
+
+/// Compares elements in the given component of the two given patches, 
+/// returning true if NO pairwise comparison of ANY component element in 
+/// the two patches yields a "true" comparison, and false if any do.
+/// Calling this function on two patches with different centerings or with 
+/// incompatible dimensions is not allowed.
+bool unimesh_patch_compare_none(unimesh_patch_t* patch,
+                                unimesh_patch_t* other_patch,
+                                int component,
+                                bool (*comparator)(real_t val, real_t other_val));
+
 ///@}
 
 #endif

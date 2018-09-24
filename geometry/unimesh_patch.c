@@ -241,3 +241,161 @@ void unimesh_patch_box_bisect(unimesh_patch_box_t* box, int axis, int half)
   }
 }
 
+bool unimesh_patch_compare_all(unimesh_patch_t* patch,
+                               unimesh_patch_t* other_patch,
+                               int component,
+                               bool (*comparator)(real_t val, real_t other_val))
+{
+  ASSERT(patch->centering == other_patch->centering);
+  ASSERT(patch->nx == other_patch->nx);
+  ASSERT(patch->ny == other_patch->ny);
+  ASSERT(patch->nz == other_patch->nz);
+  ASSERT(patch->nc > component);
+  ASSERT(other_patch->nc > component);
+
+  bool all = true;
+  if (patch->centering == UNIMESH_CELL)
+  {
+    DECLARE_UNIMESH_CELL_ARRAY(f, patch);
+    DECLARE_UNIMESH_CELL_ARRAY(f1, other_patch);
+    for (int i = 1; i <= patch->nx; ++i)
+    {
+      for (int j = 1; j <= patch->ny; ++j)
+      {
+        for (int k = 1; k <= patch->nz; ++k)
+        {
+          all = all && comparator(f[i][j][k][component], f1[i][j][k][component]);
+          if (!all) break;
+        }
+      }
+    }
+  }
+  else if (patch->centering == UNIMESH_XFACE)
+  {
+  }
+  else if (patch->centering == UNIMESH_YFACE)
+  {
+  }
+  else if (patch->centering == UNIMESH_ZFACE)
+  {
+  }
+  else if (patch->centering == UNIMESH_XEDGE)
+  {
+  }
+  else if (patch->centering == UNIMESH_YEDGE)
+  {
+  }
+  else if (patch->centering == UNIMESH_ZEDGE)
+  {
+  }
+  else // if (patch->centering == UNIMESH_NODE)
+  {
+  }
+  return all;
+}
+
+bool unimesh_patch_compare_any(unimesh_patch_t* patch,
+                               unimesh_patch_t* other_patch,
+                               int component,
+                               bool (*comparator)(real_t val, real_t other_val))
+{
+  ASSERT(patch->centering == other_patch->centering);
+  ASSERT(patch->nx == other_patch->nx);
+  ASSERT(patch->ny == other_patch->ny);
+  ASSERT(patch->nz == other_patch->nz);
+  ASSERT(patch->nc > component);
+  ASSERT(other_patch->nc > component);
+
+  bool any = false;
+  if (patch->centering == UNIMESH_CELL)
+  {
+    DECLARE_UNIMESH_CELL_ARRAY(f, patch);
+    DECLARE_UNIMESH_CELL_ARRAY(f1, other_patch);
+    for (int i = 1; i <= patch->nx; ++i)
+    {
+      for (int j = 1; j <= patch->ny; ++j)
+      {
+        for (int k = 1; k <= patch->nz; ++k)
+        {
+          any = comparator(f[i][j][k][component], f1[i][j][k][component]);
+          if (any) break;
+        }
+      }
+    }
+  }
+  else if (patch->centering == UNIMESH_XFACE)
+  {
+  }
+  else if (patch->centering == UNIMESH_YFACE)
+  {
+  }
+  else if (patch->centering == UNIMESH_ZFACE)
+  {
+  }
+  else if (patch->centering == UNIMESH_XEDGE)
+  {
+  }
+  else if (patch->centering == UNIMESH_YEDGE)
+  {
+  }
+  else if (patch->centering == UNIMESH_ZEDGE)
+  {
+  }
+  else // if (patch->centering == UNIMESH_NODE)
+  {
+  }
+  return any;
+}
+
+bool unimesh_patch_compare_none(unimesh_patch_t* patch,
+                                unimesh_patch_t* other_patch,
+                                int component,
+                                bool (*comparator)(real_t val, real_t other_val))
+{
+  ASSERT(patch->centering == other_patch->centering);
+  ASSERT(patch->nx == other_patch->nx);
+  ASSERT(patch->ny == other_patch->ny);
+  ASSERT(patch->nz == other_patch->nz);
+  ASSERT(patch->nc > component);
+  ASSERT(other_patch->nc > component);
+
+  bool none = true;
+  if (patch->centering == UNIMESH_CELL)
+  {
+    DECLARE_UNIMESH_CELL_ARRAY(f, patch);
+    DECLARE_UNIMESH_CELL_ARRAY(f1, other_patch);
+    for (int i = 1; i <= patch->nx; ++i)
+    {
+      for (int j = 1; j <= patch->ny; ++j)
+      {
+        for (int k = 1; k <= patch->nz; ++k)
+        {
+          none = !comparator(f[i][j][k][component], f1[i][j][k][component]);
+          if (!none) break;
+        }
+      }
+    }
+  }
+  else if (patch->centering == UNIMESH_XFACE)
+  {
+  }
+  else if (patch->centering == UNIMESH_YFACE)
+  {
+  }
+  else if (patch->centering == UNIMESH_ZFACE)
+  {
+  }
+  else if (patch->centering == UNIMESH_XEDGE)
+  {
+  }
+  else if (patch->centering == UNIMESH_YEDGE)
+  {
+  }
+  else if (patch->centering == UNIMESH_ZEDGE)
+  {
+  }
+  else // if (patch->centering == UNIMESH_NODE)
+  {
+  }
+  return none;
+}

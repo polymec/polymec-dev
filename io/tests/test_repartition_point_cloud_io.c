@@ -135,9 +135,6 @@ static void test_repartition_linear_cloud(void** state,
   }
 
   // Plot it.
-  real_t p[cloud->num_points];
-  for (int i = 0; i < cloud->num_points; ++i)
-    p[i] = 1.0*rank;
   char balance_str[33];
   if (balanced)
     sprintf(balance_str, "balanced");
@@ -159,10 +156,17 @@ static void test_repartition_linear_cloud(void** state,
 
   silo_file_t* silo = silo_file_new(comm, dataset_name, dataset_name, 1, 0, 0.0);
   silo_file_write_point_cloud(silo, "cloud", cloud);
-  silo_file_write_scalar_point_field(silo, "rank", "cloud", p, NULL);
+
+  point_cloud_field_t* pfield = point_cloud_field_new(cloud, 1);
+  DECLARE_POINT_CLOUD_FIELD_ARRAY(p, pfield);
+  const char* pname[] = {"rank"};
+  for (int i = 0; i < cloud->num_points; ++i)
+    p[i][0] = 1.0*rank;
+  silo_file_write_point_field(silo, pname, "cloud", pfield, NULL);
   silo_file_close(silo);
 
   // Clean up.
+  point_cloud_field_free(pfield);
   point_cloud_free(cloud);
 
   // Superficially check that the file is okay.

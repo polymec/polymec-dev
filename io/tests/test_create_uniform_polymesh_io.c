@@ -13,39 +13,6 @@
 #include "geometry/create_uniform_polymesh.h"
 #include "io/silo_file.h"
 
-static void test_create_uniform_mesh(void** state)
-{
-  // Create a 10x10x10 uniform mesh.
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
-  assert_true(polymesh_verify_topology(mesh, polymec_error));
-
-  int nproc;
-  MPI_Comm_size(mesh->comm, &nproc);
-  int num_cells, num_faces, num_edges, num_nodes;
-  MPI_Allreduce(&mesh->num_cells, &num_cells, 1, MPI_INT, MPI_SUM, mesh->comm);
-  MPI_Allreduce(&mesh->num_faces, &num_faces, 1, MPI_INT, MPI_SUM, mesh->comm);
-  MPI_Allreduce(&mesh->num_edges, &num_edges, 1, MPI_INT, MPI_SUM, mesh->comm);
-  MPI_Allreduce(&mesh->num_nodes, &num_nodes, 1, MPI_INT, MPI_SUM, mesh->comm);
-  assert_int_equal(10*10*10, num_cells);
-  if (nproc > 1)
-  {
-    assert_true(mesh->num_ghost_cells > 0);
-    assert_true(num_faces > 3*10*10*11);
-    assert_true(num_edges > 3*10*11*11);
-    assert_true(num_nodes > 11*11*11);
-  }
-  else
-  {
-    assert_int_equal(0, mesh->num_ghost_cells);
-    assert_int_equal(3*10*10*11, num_faces);
-    assert_int_equal(3*10*11*11, num_edges);
-    assert_int_equal(11*11*11, num_nodes);
-  }
-
-  polymesh_free(mesh);
-}
-
 static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
 {
   // Create a uniform mesh.
@@ -53,15 +20,18 @@ static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, nx, ny, nz, &bbox);
 
-  // Plot it.
-  real_t ones[nx*ny*nz];
-  for (int c = 0; c < ny*ny*nz; ++c)
-    ones[c] = 1.0*c;
+  // Plot it and some field data.
   char prefix[FILENAME_MAX];
   snprintf(prefix, FILENAME_MAX, "uniform_mesh_%dx%dx%d_%df", nx, ny, nz, num_files);
   silo_file_t* silo = silo_file_new(mesh->comm, prefix, "", num_files, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
-  silo_file_write_scalar_polymesh_field(silo, "solution", "mesh", ones, POLYMESH_CELL, NULL);
+
+  polymesh_field_t* cfield = polymesh_field_new(mesh, POLYMESH_CELL, 1);
+  DECLARE_POLYMESH_FIELD_ARRAY(cvals, cfield);
+  const char* cnames[] = {"solution"};
+  for (int c = 0; c < 4*4*4; ++c)
+    cvals[c][0] = 1.0*c;
+  silo_file_write_polymesh_field(silo, cnames, "mesh", cfield, NULL);
   silo_file_close(silo);
 
   // Query the plot file to make sure its numbers are good.
@@ -107,7 +77,6 @@ int main(int argc, char* argv[])
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_create_uniform_mesh),
     cmocka_unit_test(test_plot_uniform_mesh_to_single_file),
     cmocka_unit_test(test_plot_uniform_mesh_to_n_files)
   };

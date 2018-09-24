@@ -194,17 +194,21 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   exchanger_verify(polymesh_exchanger(mesh), polymec_error);
 
   // Plot it.
-  real_t r[mesh->num_cells];
-  for (int c = 0; c < mesh->num_cells; ++c)
-    r[c] = 1.0*rank;
   char prefix[FILENAME_MAX];
   snprintf(prefix, FILENAME_MAX, "%dx%dx%d_uniform_mesh_repartition", nx, ny, nz);
   silo_file_t* silo = silo_file_new(mesh->comm, prefix, prefix, 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
-  silo_file_write_scalar_polymesh_field(silo, "rank", "mesh", r, POLYMESH_CELL, NULL);
+
+  polymesh_field_t* rfield = polymesh_field_new(mesh, POLYMESH_CELL, 1);
+  DECLARE_POLYMESH_FIELD_ARRAY(r, rfield);
+  for (int c = 0; c < mesh->num_cells; ++c)
+    r[c][0] = 1.0*rank;
+  const char* rname[] = {"rank"};
+  silo_file_write_polymesh_field(silo, rname, "mesh", rfield, NULL);
   silo_file_close(silo);
 
   // Clean up.
+  polymesh_field_free(rfield);
   polymesh_free(mesh);
 }
 

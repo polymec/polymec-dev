@@ -82,18 +82,22 @@ static void test_partition_linear_mesh(void** state)
   exchanger_verify(polymesh_exchanger(mesh), polymec_error);
 
   // Plot it.
-  real_t p[mesh->num_cells];
-  for (int c = 0; c < mesh->num_cells; ++c)
-    p[c] = 1.0*rank;
-  silo_field_metadata_t* p_metadata = silo_field_metadata_new();
-  p_metadata->label = string_dup("P");
-  p_metadata->conserved = true;
   silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
-  silo_file_write_scalar_polymesh_field(silo, "rank", "mesh", p, POLYMESH_CELL, p_metadata);
+
+  polymesh_field_t* rfield = polymesh_field_new(mesh, POLYMESH_CELL, 1);
+  DECLARE_POLYMESH_FIELD_ARRAY(r, rfield);
+  for (int c = 0; c < mesh->num_cells; ++c)
+    r[c][0] = 1.0*rank;
+  silo_field_metadata_t* r_metadata = silo_field_metadata_new();
+  r_metadata->label = string_dup("P");
+  r_metadata->conserved = true;
+  const char* rname[] = {"rank"};
+  silo_file_write_polymesh_field(silo, rname, "mesh", rfield, &r_metadata);
   silo_file_close(silo);
 
   // Clean up.
+  polymesh_field_free(rfield);
   polymesh_free(mesh);
 
   // Superficially check that the file is okay.
@@ -144,15 +148,19 @@ static void test_partition_slab_mesh(void** state)
   int nprocs, rank;
   MPI_Comm_size(mesh->comm, &nprocs);
   MPI_Comm_rank(mesh->comm, &rank);
-  real_t p[mesh->num_cells];
-  for (int c = 0; c < mesh->num_cells; ++c)
-    p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "slab_mesh_partition", "slab_mesh_partition", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
-  silo_file_write_scalar_polymesh_field(silo, "rank", "mesh", p, POLYMESH_CELL, NULL);
+
+  polymesh_field_t* rfield = polymesh_field_new(mesh, POLYMESH_CELL, 1);
+  DECLARE_POLYMESH_FIELD_ARRAY(r, rfield);
+  for (int c = 0; c < mesh->num_cells; ++c)
+    r[c][0] = 1.0*rank;
+  const char* rname[] = {"rank"};
+  silo_file_write_polymesh_field(silo, rname, "mesh", rfield, NULL);
   silo_file_close(silo);
 
   // Clean up.
+  polymesh_field_free(rfield);
   polymesh_free(mesh);
 
   // Superficially check that the file is okay.
@@ -203,12 +211,15 @@ static void test_partition_box_mesh(void** state)
   int nprocs, rank;
   MPI_Comm_size(mesh->comm, &nprocs);
   MPI_Comm_rank(mesh->comm, &rank);
-  real_t p[mesh->num_cells];
-  for (int c = 0; c < mesh->num_cells; ++c)
-    p[c] = 1.0*rank;
   silo_file_t* silo = silo_file_new(mesh->comm, "box_mesh_partition", "box_mesh_partition", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", mesh);
-  silo_file_write_scalar_polymesh_field(silo, "rank", "mesh", p, POLYMESH_CELL, NULL);
+
+  polymesh_field_t* rfield = polymesh_field_new(mesh, POLYMESH_CELL, 1);
+  DECLARE_POLYMESH_FIELD_ARRAY(r, rfield);
+  for (int c = 0; c < mesh->num_cells; ++c)
+    r[c][0] = 1.0*rank;
+  const char* rname[] = {"rank"};
+  silo_file_write_polymesh_field(silo, rname, "mesh", rfield, NULL);
   silo_file_close(silo);
 
   // Clean up.

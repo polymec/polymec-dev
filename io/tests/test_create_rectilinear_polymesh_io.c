@@ -22,21 +22,22 @@ static void test_plot_rectilinear_mesh(void** state)
   real_t zs[] = {0.0, 1.0, 2.0, 4.0, 8.0};
   polymesh_t* mesh = create_rectilinear_polymesh(MPI_COMM_WORLD, xs, 5, ys, 5, zs, 5);
 
-  // Plot it.
+  // Plot it and some field data.
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0.0);
+  silo_file_write_polymesh(silo, "mesh", mesh);
+
   polymesh_field_t* cfield = polymesh_field_new(mesh, POLYMESH_CELL, 1);
-  DECLARE_POLYMESH_FIELD_ARRAY(cvals, ones);
+  DECLARE_POLYMESH_FIELD_ARRAY(cvals, cfield);
   const char* cnames[] = {"solution"};
   for (int c = 0; c < 4*4*4; ++c)
     cvals[c][0] = 1.0*c;
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 1, 0, 0.0);
-  silo_file_write_polymesh(silo, "mesh", mesh);
   silo_field_metadata_t* metadata = silo_field_metadata_new();
   metadata->label = string_dup("solution");
   metadata->units = string_dup("quatloo");
   metadata->conserved = true;
   metadata->extensive = false;
   metadata->vector_component = 2;
-  silo_file_write_polymesh_field(silo, cnames, "mesh", cfield, metadata);
+  silo_file_write_polymesh_field(silo, cnames, "mesh", cfield, &metadata);
 
   // Add some fields with different centerings.
   polymesh_field_t* nfield = polymesh_field_new(mesh, POLYMESH_NODE, 3);
@@ -71,15 +72,15 @@ static void test_plot_rectilinear_mesh(void** state)
   silo = silo_file_open(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 0, &t);
   assert_true(reals_equal(t, 0.0));
   assert_true(silo_file_contains_polymesh(silo, "mesh"));
-  mesh1 = silo_file_read_polymesh(silo, "mesh");
-  assert_true(mesh1->num_cells <= 4*4*4);
+  polymesh_t* mesh1 = silo_file_read_polymesh(silo, "mesh");
+  assert_true(mesh1->num_cells == mesh->num_cells);
 
   // Check on the fields.
 
   // cell field
   assert_true(silo_file_contains_polymesh_field(silo, "solution", "mesh", POLYMESH_CELL));
   polymesh_field_t* cfield1 = polymesh_field_new(mesh, POLYMESH_CELL, 1);
-  silo_file_read_polymesh_field(silo, cnames, "mesh", cfield1, metadata);
+  silo_file_read_polymesh_field(silo, cnames, "mesh", cfield1, &metadata);
   assert_true(polymesh_field_compare_all(cfield1, cfield, 0, reals_equal));
 
   // cell field metadata
