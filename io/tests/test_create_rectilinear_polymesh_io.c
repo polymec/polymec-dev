@@ -126,31 +126,6 @@ static void test_plot_rectilinear_mesh(void** state)
   polymesh_free(mesh);
 }
 
-static void check_cell_face_connectivity(void** state, 
-                                         polymesh_t* mesh,
-                                         index_t* global_cell_indices, 
-                                         index_t global_cell_index, 
-                                         int cell_face_index, 
-                                         index_t global_opp_cell_index)
-{
-  ASSERT(cell_face_index >= 0);
-  ASSERT(cell_face_index < 6);
-
-  // Find the given global cell index within our array.
-  int cell_array_len = mesh->num_cells + mesh->num_ghost_cells;
-  index_t* cell_p = index_lsearch(global_cell_indices, cell_array_len, global_cell_index);
-  assert_true(cell_p != NULL);
-  int cell = (int)(cell_p - global_cell_indices);
-  int face = mesh->cell_faces[6*cell + cell_face_index];
-  if (face < 0) 
-    face = ~face;
-  int opp_cell = polymesh_face_opp_cell(mesh, face, cell);
-  if ((opp_cell == -1) && (global_opp_cell_index == (index_t)(-1)))
-    assert_int_equal(global_opp_cell_index, opp_cell);
-  else
-    assert_int_equal(global_opp_cell_index, global_cell_indices[opp_cell]); 
-}
-
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
