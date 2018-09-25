@@ -8,8 +8,9 @@
 #ifndef POLYMEC_UNIMESH_PATCH_H
 #define POLYMEC_UNIMESH_PATCH_H
 
-#include "geometry/unimesh.h"
 #include "core/declare_nd_array.h"
+#include "core/enumerable.h"
+#include "geometry/unimesh.h"
 
 /// \class unimesh_patch
 /// A unimesh_patch is a (3D) rectangular prism of identical cells on which 
@@ -208,6 +209,10 @@ void unimesh_patch_fill_boundary(unimesh_patch_t* patch,
                                  unimesh_boundary_t boundary,
                                  real_t* data);
 
+/// Enumerates values in the given unimesh patch.
+/// \memberof unimesh_patch
+real_enumerable_generator_t* unimesh_patch_enumerate(unimesh_patch_t* patch);
+
 /// Sets the given box to the set of elements that occupy the given patch.
 /// (For cells, this is the set of non-ghost cells in the patch.)
 /// \memberof unimesh_patch
@@ -240,36 +245,6 @@ static inline void unimesh_patch_box_shift(unimesh_patch_box_t* box,
 /// setting it to a nonzero value makes the box occupy its former upper half.
 /// \memberof unimesh_patch_box
 void unimesh_patch_box_bisect(unimesh_patch_box_t* box, int axis, int half);
-
-/// Compares all elements in the given component of the two given patches, 
-/// returning true if the pairwise comparison of each component element in 
-/// the two patches yields a "true" comparison, and false otherwise.
-/// Calling this function on two patches with different centerings or with 
-/// incompatible dimensions is not allowed.
-bool unimesh_patch_compare_all(unimesh_patch_t* patch,
-                               unimesh_patch_t* other_patch,
-                               int component,
-                               bool (*comparator)(real_t val, real_t other_val));
-
-/// Compares elements in the given component of the two given patches, 
-/// returning true if the pairwise comparison of ANY component element in 
-/// the two patches yields a "true" comparison, and false if none do so.
-/// Calling this function on two patches with different centerings or with 
-/// incompatible dimensions is not allowed.
-bool unimesh_patch_compare_any(unimesh_patch_t* patch,
-                               unimesh_patch_t* other_patch,
-                               int component,
-                               bool (*comparator)(real_t val, real_t other_val));
-
-/// Compares elements in the given component of the two given patches, 
-/// returning true if NO pairwise comparison of ANY component element in 
-/// the two patches yields a "true" comparison, and false if any do.
-/// Calling this function on two patches with different centerings or with 
-/// incompatible dimensions is not allowed.
-bool unimesh_patch_compare_none(unimesh_patch_t* patch,
-                                unimesh_patch_t* other_patch,
-                                int component,
-                                bool (*comparator)(real_t val, real_t other_val));
 
 ///@}
 

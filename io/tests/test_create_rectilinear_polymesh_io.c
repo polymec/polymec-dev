@@ -81,7 +81,9 @@ static void test_plot_rectilinear_mesh(void** state)
   assert_true(silo_file_contains_polymesh_field(silo, "solution", "mesh", POLYMESH_CELL));
   polymesh_field_t* cfield1 = polymesh_field_new(mesh, POLYMESH_CELL, 1);
   silo_file_read_polymesh_field(silo, cnames, "mesh", cfield1, &metadata);
-  assert_true(polymesh_field_compare_all(cfield1, cfield, 0, reals_equal));
+  assert_true(ALL(compare_values(polymesh_field_enumerate(cfield1), 
+                                 polymesh_field_enumerate(cfield), 
+                                 reals_equal)));
 
   // cell field metadata
   assert_int_equal(0, strcmp(metadata->label, "solution"));
@@ -97,20 +99,24 @@ static void test_plot_rectilinear_mesh(void** state)
   assert_true(silo_file_contains_polymesh_field(silo, "nz", "mesh", POLYMESH_NODE));
   polymesh_field_t* nfield1 = polymesh_field_new(mesh, POLYMESH_NODE, 3);
   silo_file_read_polymesh_field(silo, nnames, "mesh", nfield1, NULL);
-  assert_true(polymesh_field_compare_all(nfield1, nfield, 0, reals_equal));
-  assert_true(polymesh_field_compare_all(nfield1, nfield, 1, reals_equal));
-  assert_true(polymesh_field_compare_all(nfield1, nfield, 2, reals_equal));
+  assert_true(ALL(compare_values(polymesh_field_enumerate(nfield1), 
+                                 polymesh_field_enumerate(nfield), 
+                                 reals_equal)));
 
   // face field
   assert_true(silo_file_contains_polymesh_field(silo, "fvals", "mesh", POLYMESH_FACE));
   polymesh_field_t* ffield1 = polymesh_field_new(mesh, POLYMESH_FACE, 1);
   silo_file_read_polymesh_field(silo, fnames, "mesh", ffield1, NULL);
-  assert_true(polymesh_field_compare_all(ffield1, ffield, 0, reals_equal));
+  assert_true(ALL(compare_values(polymesh_field_enumerate(ffield1), 
+                                 polymesh_field_enumerate(ffield), 
+                                 reals_equal)));
 
   // edge field
   assert_true(silo_file_contains_polymesh_field(silo, "evals", "mesh", POLYMESH_EDGE));
   polymesh_field_t* efield1 = polymesh_field_new(mesh, POLYMESH_EDGE, 1);
-  assert_true(polymesh_field_compare_all(efield1, efield, 0, reals_equal));
+  assert_true(ALL(compare_values(polymesh_field_enumerate(efield1), 
+                                 polymesh_field_enumerate(efield), 
+                                 reals_equal)));
   silo_file_close(silo);
 
   // Clean up.

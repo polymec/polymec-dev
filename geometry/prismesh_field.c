@@ -188,102 +188,28 @@ bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos,
   return result;
 }
 
-bool prismesh_field_compare_all(prismesh_field_t* field,
-                                prismesh_field_t* other_field,
-                                int component,
-                                bool (*comparator)(real_t val, real_t other_val))
+real_enumerable_generator_t* prismesh_field_enumerate(prismesh_field_t* field)
 {
-  // We need a fair comparison.
-  ASSERT(prismesh_field_centering(field) == prismesh_field_centering(other_field));
-  ASSERT(prismesh_field_num_chunks(field) == prismesh_field_num_chunks(other_field));
-  ASSERT(prismesh_field_num_components(field) > (size_t)component);
-  ASSERT(prismesh_field_num_components(other_field) > (size_t)component);
-
-  bool all = true;
+  size_t num_values = 0;
   int pos = 0, xy, z;
   prismesh_chunk_data_t* chunk_data;
   while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk_data))
-  {
-    prismesh_chunk_data_t* other_chunk_data = prismesh_field_chunk_data(other_field, xy, z);
-    ASSERT(other_chunk_data != NULL);
-    all = all && prismesh_chunk_data_compare_any(chunk_data, other_chunk_data, component, comparator);
-    if (!all) break;
-  }
-  return all;
-}
+    num_values += prismesh_chunk_data_size(chunk_data) / sizeof(real_t);
 
-bool prismesh_field_compare_any(prismesh_field_t* field,
-                                prismesh_field_t* other_field,
-                                int component,
-                                bool (*comparator)(real_t val, real_t other_val))
-{
-  // We need a fair comparison.
-  ASSERT(prismesh_field_centering(field) == prismesh_field_centering(other_field));
-  ASSERT(prismesh_field_num_chunks(field) == prismesh_field_num_chunks(other_field));
-  ASSERT(prismesh_field_num_components(field) > (size_t)component);
-  ASSERT(prismesh_field_num_components(other_field) > (size_t)component);
-
-  bool any = false;
-  int pos = 0, xy, z;
-  prismesh_chunk_data_t* chunk_data;
+  size_t offset = 0;
+  real_t* array = polymec_malloc(sizeof(real_t) * num_values);
   while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk_data))
   {
-    prismesh_chunk_data_t* other_chunk_data = prismesh_field_chunk_data(other_field, xy, z);
-    ASSERT(other_chunk_data != NULL);
-    any = prismesh_chunk_data_compare_any(chunk_data, other_chunk_data, component, comparator);
-    if (any) break;
+    size_t data_size = prismesh_chunk_data_size(chunk_data);
+    memcpy(&array[offset], chunk_data->data, data_size);
+    offset += data_size / sizeof(real_t);
   }
-  return any;
+  return real_enumerable_generator_from_array(array, num_values, true);
 }
 
-bool prismesh_field_compare_none(prismesh_field_t* field,
-                                 prismesh_field_t* other_field,
-                                 int component,
-                                 bool (*comparator)(real_t val, real_t other_val))
+real_enumerable_generator_t* prismesh_chunk_data_enumerate(prismesh_chunk_data_t* chunk_data)
 {
-  // We need a fair comparison.
-  ASSERT(prismesh_field_centering(field) == prismesh_field_centering(other_field));
-  ASSERT(prismesh_field_num_chunks(field) == prismesh_field_num_chunks(other_field));
-  ASSERT(prismesh_field_num_components(field) > (size_t)component);
-  ASSERT(prismesh_field_num_components(other_field) > (size_t)component);
-
-  bool none = true;
-  int pos = 0, xy, z;
-  prismesh_chunk_data_t* chunk_data;
-  while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk_data))
-  {
-    prismesh_chunk_data_t* other_chunk_data = prismesh_field_chunk_data(other_field, xy, z);
-    ASSERT(other_chunk_data != NULL);
-    none = !prismesh_chunk_data_compare_any(chunk_data, other_chunk_data, component, comparator);
-    if (!none) break;
-  }
-  return none;
-}
-
-bool prismesh_chunk_data_compare_all(prismesh_chunk_data_t* chunk_data,
-                                     prismesh_chunk_data_t* other_chunk_data,
-                                     int component,
-                                     bool (*comparator)(real_t val, real_t other_val))
-{
-  // FIXME
-  return false;
-}
-
-bool prismesh_chunk_data_compare_any(prismesh_chunk_data_t* chunk_data,
-                                     prismesh_chunk_data_t* other_chunk_data,
-                                     int component,
-                                     bool (*comparator)(real_t val, real_t other_val))
-{
-  // FIXME
-  return false;
-}
-
-bool prismesh_chunk_data_compare_none(prismesh_chunk_data_t* chunk_data,
-                                      prismesh_chunk_data_t* other_chunk_data,
-                                      int component,
-                                      bool (*comparator)(real_t val, real_t other_val))
-{
-  // FIXME
-  return false;
+  size_t num_values = prismesh_chunk_data_size(chunk_data) / sizeof(real_t);
+  return real_enumerable_generator_from_array((real_t*)chunk_data->data, num_values, NULL);
 }
 

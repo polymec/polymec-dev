@@ -15,7 +15,7 @@ include(add_polymec_library)
 add_polymec_library(polymec_core polymec.c arch.c allocators.c logging.c timer.c memory_info.c
                     point.c point2.c tensor2.c hilbert.c kd_tree.c octree.c 
                     rng.c parallel_sort.c permutations.c adj_graph.c 
-                    sp_func.c st_func.c polynomial.c 
+                    sp_func.c st_func.c polynomial.c enumerable.c
                     least_squares.c options.c partitioning.c 
                     text_buffer.c serializer.c string_utils.c 
                     file_utils.c array_utils.c lookup1.c linear_algebra.c 

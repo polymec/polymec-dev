@@ -353,6 +353,10 @@ DEFINE_ARRAY(index_array, index_t)
 /// An array of real numbers.
 DEFINE_ARRAY(real_array, real_t)
 
+/// \class bool_array 
+/// An array of boolean values.
+DEFINE_ARRAY(bool_array, bool)
+
 /// \class string_array 
 /// An array of strings (char*).
 DEFINE_ARRAY(string_array, char*)

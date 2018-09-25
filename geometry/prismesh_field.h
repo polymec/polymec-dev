@@ -8,6 +8,7 @@
 #ifndef POLYMEC_PRISMESH_FIELD_H
 #define POLYMEC_PRISMESH_FIELD_H
 
+#include "core/enumerable.h"
 #include "geometry/prismesh.h"
 
 /// \addtogroup geometry geometry
@@ -106,38 +107,13 @@ bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos,
                                int* xy_index, int* z_index,
                                prismesh_chunk_data_t** chunk_data);
 
-/// Compares all elements in the given component of the two given fields, 
-/// returning true if the pairwise comparison of each component element in 
-/// the two fields yields a "true" comparison, and false otherwise.
-/// Calling this function on two fields with different centerings or with 
-/// incompatible chunks is not allowed.
+/// Enumerates values in the given prismesh field.
 /// \memberof prismesh_field
-bool prismesh_field_compare_all(prismesh_field_t* field,
-                                prismesh_field_t* other_field,
-                                int component,
-                                bool (*comparator)(real_t val, real_t other_val));
+real_enumerable_generator_t* prismesh_field_enumerate(prismesh_field_t* field);
 
-/// Compares elements in the given component of the two given fields, 
-/// returning true if the pairwise comparison of ANY component element in 
-/// the two fields yields a "true" comparison, and false if none do so.
-/// Calling this function on two fields with different centerings or with 
-/// incompatible chunks is not allowed.
-/// \memberof prismesh_field
-bool prismesh_field_compare_any(prismesh_field_t* field,
-                                prismesh_field_t* other_field,
-                                int component,
-                                bool (*comparator)(real_t val, real_t other_val));
-
-/// Compares elements in the given component of the two given fields, 
-/// returning true if NO pairwise comparison of ANY component element in 
-/// the two fields yields a "true" comparison, and false if any do.
-/// Calling this function on two fields with different centerings or with 
-/// incompatible chunks is not allowed.
-/// \memberof prismesh_field
-bool prismesh_field_compare_none(prismesh_field_t* field,
-                                 prismesh_field_t* other_field,
-                                 int component,
-                                 bool (*comparator)(real_t val, real_t other_val));
+/// Enumerates values in the given prismesh chunk data set.
+/// \memberof prismesh_chunk_data
+real_enumerable_generator_t* prismesh_chunk_data_enumerate(prismesh_chunk_data_t* chunk_data);
 
 /// Compares all elements in the given component of the two given sets of chunk data, 
 /// returning true if the pairwise comparison of each component element in 

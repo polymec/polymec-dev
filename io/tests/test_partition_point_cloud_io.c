@@ -77,7 +77,9 @@ static void test_partition_linear_cloud(void** state)
   assert_true(silo_file_contains_point_field(silo, "rank", "cloud"));
   point_cloud_field_t* p1 = point_cloud_field_new(cloud1, 1);
   silo_file_read_point_field(silo, field_names, "cloud", p1, &metadata);
-  assert_true(point_cloud_field_compare_all(p1, p1, 0, reals_equal));
+  assert_true(ANY(compare_values(point_cloud_field_enumerate(p1),
+                                 point_cloud_field_enumerate(p),
+                                 reals_equal)));
 
   assert_int_equal(0, strcmp(metadata->label, "rank"));
   assert_int_equal(0, strcmp(metadata->units, "quatloo"));
