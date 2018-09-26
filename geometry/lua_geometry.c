@@ -1868,14 +1868,30 @@ static int pmesh_nz_per_chunk(lua_State* L)
 static int pmesh_z1(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_push_real(L, prismesh_z1(m));
+  real_t z1, z2;
+  bool periodic;
+  prismesh_get_z_info(m, &z1, &z2, &periodic);
+  lua_push_real(L, z1);
   return 1;
 }
 
 static int pmesh_z2(lua_State* L)
 {
   prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_push_real(L, prismesh_z2(m));
+  real_t z1, z2;
+  bool periodic;
+  prismesh_get_z_info(m, &z1, &z2, &periodic);
+  lua_push_real(L, z2);
+  return 1;
+}
+
+static int pmesh_periodic_in_z(lua_State* L)
+{
+  prismesh_t* m = lua_to_prismesh(L, 1);
+  real_t z1, z2;
+  bool periodic;
+  prismesh_get_z_info(m, &z1, &z2, &periodic);
+  lua_pushboolean(L, periodic);
   return 1;
 }
 
@@ -1886,6 +1902,7 @@ static lua_class_field prismesh_fields[] = {
   {"nz_per_chunk", pmesh_nz_per_chunk, NULL},
   {"z1", pmesh_z1, NULL},
   {"z2", pmesh_z2, NULL},
+  {"periodic_in_z", pmesh_periodic_in_z, NULL},
   {NULL, NULL, NULL}
 };
 
@@ -1894,9 +1911,17 @@ static int prismesh_tostring(lua_State* L)
   prismesh_t* m = lua_to_prismesh(L, 1);
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
   prismesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
-  lua_pushfstring(L, "prismesh (%d chunks, %d xy chunks, %d z chunks, nz = %d, z1 = %g, z2 = %g)", 
+  real_t z1, z2;
+  bool periodic;
+  prismesh_get_z_info(m, &z1, &z2, &periodic);
+  char periodic_str[12];
+  if (periodic)
+    snprintf(periodic_str, 11, " (periodic)");
+  else
+    periodic_str[0] = '\0';
+  lua_pushfstring(L, "prismesh (%d chunks, %d xy chunks, %d z chunks, nz = %d, z1 = %g, z2 = %g%s)", 
                   (int)prismesh_num_chunks(m), (int)num_xy_chunks, (int)num_z_chunks, 
-                  (int)nz_per_chunk, (double)prismesh_z1(m), (double)prismesh_z2(m));
+                  (int)nz_per_chunk, (double)z1, z2, periodic_str);
   return 1;
 }
 

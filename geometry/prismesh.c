@@ -335,6 +335,16 @@ void prismesh_get_chunk_info(prismesh_t* mesh,
   *nz_per_chunk = mesh->nz_per_chunk;
 }
 
+void prismesh_get_z_info(prismesh_t* mesh, 
+                         real_t* z1,
+                         real_t* z2,
+                         bool* periodic)
+{
+  *z1 = mesh->z1;
+  *z2 = mesh->z2;
+  *periodic = mesh->periodic_in_z;
+}
+
 bool prismesh_verify_topology(prismesh_t* mesh, 
                               void (*handler)(const char* format, ...))
 {
@@ -447,11 +457,6 @@ size_t prismesh_num_chunks(prismesh_t* mesh)
   return mesh->chunks->size;
 }
 
-bool prismesh_is_periodic_in_z(prismesh_t* mesh)
-{
-  return mesh->periodic_in_z;
-}
-
 prismesh_chunk_t* prismesh_chunk(prismesh_t* mesh, int xy_index, int z_index)
 {
   int index = chunk_index(mesh, xy_index, z_index);
@@ -462,16 +467,6 @@ prismesh_chunk_t* prismesh_chunk(prismesh_t* mesh, int xy_index, int z_index)
 bool prismesh_has_chunk(prismesh_t* mesh, int xy_index, int z_index)
 {
   return (prismesh_chunk(mesh, xy_index, z_index) != NULL);
-}
-
-real_t prismesh_z1(prismesh_t* mesh)
-{
-  return mesh->z1;
-}
-
-real_t prismesh_z2(prismesh_t* mesh)
-{
-  return mesh->z2;
 }
 
 polygon_t* prismesh_chunk_polygon(prismesh_chunk_t* chunk, int column)

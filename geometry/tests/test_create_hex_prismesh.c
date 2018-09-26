@@ -22,9 +22,12 @@ static void test_create_hex_prismesh(void** state,
   prismesh_t* mesh = create_hex_prismesh(comm, alignment, 
                                          radius, h, 
                                          nz, z1, z2, false);
-  assert_true(reals_equal(0.0, prismesh_z1(mesh)));
-  assert_true(reals_equal(1.0, prismesh_z2(mesh)));
-  assert_false(prismesh_is_periodic_in_z(mesh));
+  real_t z1_, z2_;
+  bool periodic;
+  prismesh_get_z_info(mesh, &z1_, &z2_, &periodic);
+  assert_true(reals_equal(z1_, z1));
+  assert_true(reals_equal(z2_, z2));
+  assert_false(periodic);
   assert_true(prismesh_comm(mesh) == comm);
 
   // Verify the mesh's topology.

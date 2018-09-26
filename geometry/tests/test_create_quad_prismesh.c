@@ -18,9 +18,12 @@ static void test_create_quad_prismesh(void** state)
   MPI_Comm comm = MPI_COMM_WORLD;
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   prismesh_t* mesh = create_quad_prismesh(comm, 10, 10, 10, &bbox, false, false, false);
-  assert_true(reals_equal(0.0, prismesh_z1(mesh)));
-  assert_true(reals_equal(1.0, prismesh_z2(mesh)));
-  assert_false(prismesh_is_periodic_in_z(mesh));
+  real_t z1, z2;
+  bool periodic;
+  prismesh_get_z_info(mesh, &z1, &z2, &periodic);
+  assert_true(reals_equal(0.0, z1));
+  assert_true(reals_equal(1.0, z2));
+  assert_false(periodic);
   assert_true(prismesh_comm(mesh) == comm);
 
   // Verify the mesh's topology.

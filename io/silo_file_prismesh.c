@@ -69,13 +69,16 @@ void silo_file_write_prismesh(silo_file_t* file,
 
   // Write z axis information for this mesh.
   {
+    real_t z1, z2;
+    bool periodic;
+    prismesh_get_z_info(mesh, &z1, &z2, &periodic);
     char array_name[FILENAME_MAX+1];
     snprintf(array_name, FILENAME_MAX, "%s_endpts", mesh_name);
-    real_t endpts[2] = {prismesh_z1(mesh), prismesh_z2(mesh)};
+    real_t endpts[2] = {z1, z2};
     silo_file_write_real_array(file, array_name, endpts, 2);
     snprintf(array_name, FILENAME_MAX, "%s_periodic", mesh_name);
-    int periodic = (int)(prismesh_is_periodic_in_z(mesh));
-    silo_file_write_int_array(file, array_name, &periodic, 1);
+    int periodic_int = (int)(periodic);
+    silo_file_write_int_array(file, array_name, &periodic_int, 1);
   }
 
   size_t num_local_chunks = prismesh_num_chunks(mesh);

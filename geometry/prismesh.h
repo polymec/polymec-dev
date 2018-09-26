@@ -181,6 +181,16 @@ void prismesh_get_chunk_info(prismesh_t* mesh,
                              size_t* num_z_chunks,
                              size_t* nz_per_chunk);
 
+/// Retrieves metadata for the z axis in this prismesh.
+/// \param z1 [out] Stores the z coordinate of the lowest plane in the mesh.
+/// \param z2 [out] Stores the z coordinate of the highest plane in the mesh.
+/// \param periodic [out] Stores whether the z axis is periodic.
+/// \memberof prismesh
+void prismesh_get_z_info(prismesh_t* mesh, 
+                         real_t* z1,
+                         real_t* z2,
+                         bool* periodic);
+
 /// Verifies the topological correctness of the prismesh, calling the given 
 /// (variadic) handler function with a formatted string containing a 
 /// description of any problems encountered. If the topology of the mesh is 
@@ -197,18 +207,6 @@ MPI_Comm prismesh_comm(prismesh_t* mesh);
 /// Returns the number of locally-stored chunks in the prismesh.
 /// \memberof prismesh
 size_t prismesh_num_chunks(prismesh_t* mesh);
-
-/// Returns the z coordinate of the bottom boundary of the mesh.
-/// \memberof prismesh
-real_t prismesh_z1(prismesh_t* mesh);
-
-/// Returns the z coordinate of the top boundary of the mesh.
-/// \memberof prismesh
-real_t prismesh_z2(prismesh_t* mesh);
-
-/// Returns true if the mesh is periodic along the z axis, false if not.
-/// \memberof prismesh
-bool prismesh_is_periodic_in_z(prismesh_t* mesh);
 
 /// Returns true if the mesh has a locally-stored chunk with the given 
 /// xy and z indices.
