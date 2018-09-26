@@ -42,6 +42,8 @@ bool_array_t* enumerable_or(bool_array_t* values1, bool_array_t* values2)
   bool_array_t* result = bool_array_new_with_size(values1->size);
   for (size_t i = 0; i < result->size; ++i)
     result->data[i] = values1->data[i] || values2->data[i];
+  bool_array_free(values1);
+  bool_array_free(values2);
   return result;
 }
 
@@ -51,6 +53,8 @@ bool_array_t* enumerable_and(bool_array_t* values1, bool_array_t* values2)
   bool_array_t* result = bool_array_new_with_size(values1->size);
   for (size_t i = 0; i < result->size; ++i)
     result->data[i] = values1->data[i] && values2->data[i];
+  bool_array_free(values1);
+  bool_array_free(values2);
   return result;
 }
 
@@ -63,6 +67,8 @@ bool_array_t* enumerable_xor(bool_array_t* values1, bool_array_t* values2)
     result->data[i] = ((values1->data[i] && !values2->data[i]) || 
                        (!values1->data[i] && values2->data[i]));
   }
+  bool_array_free(values1);
+  bool_array_free(values2);
   return result;
 }
 
@@ -71,6 +77,7 @@ bool_array_t* enumerable_not(bool_array_t* values)
   bool_array_t* result = bool_array_new_with_size(values->size);
   for (size_t i = 0; i < result->size; ++i)
     result->data[i] = !values->data[i];
+  bool_array_free(values);
   return result;
 }
 
