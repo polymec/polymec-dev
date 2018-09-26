@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/enumerable.h"
 #include "core/unordered_map.h"
 #include "geometry/prismesh_field.h"
 

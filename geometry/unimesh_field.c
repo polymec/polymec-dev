@@ -8,6 +8,7 @@
 #include "core/timer.h"
 #include "core/array.h"
 #include "core/unordered_map.h"
+#include "core/enumerable.h"
 #include "geometry/unimesh_field.h"
 #include "geometry/unimesh_patch_bc.h"
 

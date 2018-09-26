@@ -8,7 +8,6 @@
 #ifndef POLYMEC_PRISMESH_FIELD_H
 #define POLYMEC_PRISMESH_FIELD_H
 
-#include "core/enumerable.h"
 #include "geometry/prismesh.h"
 
 /// \addtogroup geometry geometry
@@ -106,6 +105,8 @@ prismesh_chunk_data_t* prismesh_field_chunk_data(prismesh_field_t* field,
 bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos, 
                                int* xy_index, int* z_index,
                                prismesh_chunk_data_t** chunk_data);
+
+typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 
 /// Enumerates values in the given prismesh field.
 /// \memberof prismesh_field

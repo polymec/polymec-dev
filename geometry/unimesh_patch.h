@@ -9,7 +9,6 @@
 #define POLYMEC_UNIMESH_PATCH_H
 
 #include "core/declare_nd_array.h"
-#include "core/enumerable.h"
 #include "geometry/unimesh.h"
 
 /// \class unimesh_patch
@@ -208,6 +207,8 @@ void unimesh_patch_copy_box(unimesh_patch_t* patch,
 void unimesh_patch_fill_boundary(unimesh_patch_t* patch,
                                  unimesh_boundary_t boundary,
                                  real_t* data);
+
+typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 
 /// Enumerates values in the given unimesh patch.
 /// \memberof unimesh_patch

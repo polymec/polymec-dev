@@ -9,7 +9,6 @@
 #define POLYMEC_POLYMESH_FIELD_H
 
 #include "core/declare_nd_array.h"
-#include "core/enumerable.h"
 #include "geometry/polymesh.h"
 
 /// \addtogroup geometry geometry
@@ -52,6 +51,8 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
 /// Destroys the given polymesh field.
 /// \memberof polymesh_field
 void polymesh_field_free(polymesh_field_t* field);
+
+typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 
 /// Enumerates values in the given polymesh field.
 /// \memberof polymesh_field

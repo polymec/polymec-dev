@@ -11,6 +11,7 @@
 #include <string.h>
 #include "cmocka.h"
 #include "core/array_utils.h"
+#include "core/enumerable.h"
 #include "geometry/create_rectilinear_polymesh.h"
 #include "io/silo_file.h"
 

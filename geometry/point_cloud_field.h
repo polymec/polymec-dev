@@ -9,7 +9,6 @@
 #define POLYMEC_POINT_CLOUD_FIELD_H
 
 #include "core/declare_nd_array.h"
-#include "core/enumerable.h"
 #include "geometry/point_cloud.h"
 
 /// \addtogroup geometry geometry
@@ -47,6 +46,8 @@ point_cloud_field_t* point_cloud_field_new(point_cloud_t* cloud,
 /// Destroys the given point cloud field.
 /// \memberof point_cloud_field
 void point_cloud_field_free(point_cloud_field_t* field);
+
+typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 
 /// Enumerates values in the given point cloud field.
 /// \memberof point_cloud_field

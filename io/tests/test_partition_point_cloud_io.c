@@ -10,6 +10,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "cmocka.h"
+#include "core/enumerable.h"
 #include "geometry/partition_point_cloud.h"
 #include "geometry/create_point_lattice.h"
 #include "io/silo_file.h"

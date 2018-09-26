@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/enumerable.h"
 #include "geometry/unimesh_patch.h"
 
 size_t unimesh_patch_data_size(unimesh_centering_t centering,
