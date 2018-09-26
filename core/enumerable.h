@@ -101,7 +101,7 @@ bool_array_t* enumerable_not(bool_array_t* values);
 /// pairwise XOR of the originals.
 #define XOR(x, y) enumerable_xor(x, y)
 
-/// \macro NO
+/// \macro NOT
 /// Produces a boolean array whose values are the negation of those of the 
 /// argument.
 #define NOT(x) enumerable_not(x)
