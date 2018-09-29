@@ -7,6 +7,7 @@
 
 #include "core/timer.h"
 #include "core/array.h"
+#include "core/array_utils.h"
 #include "core/unordered_map.h"
 #include "geometry/prismesh.h"
 #include "geometry/prismesh_field.h"
@@ -20,8 +21,7 @@
 typedef struct 
 {
   size_t num_columns;
-  size_t num_z_cells;
-  real_t z1, z2;
+  size_t num_ghost_columns;
   int* column_xy_face_offsets;
   int* column_xy_faces;
   int* xy_face_columns;
@@ -30,29 +30,137 @@ typedef struct
   int* xy_edge_nodes;
   size_t num_xy_nodes;
   point2_t* xy_nodes;
+  exchanger_t* xy_exchanger;
 } chunk_xy_data_t;
 
 DEFINE_ARRAY(chunk_xy_data_array, chunk_xy_data_t*)
 
-static chunk_xy_data_t* chunk_xy_data_new(planar_polymesh_t* mesh)
+// Creates shared xy chunk data for the local process, generating information
+// for the locally-owned cells in the planar polymesh.
+static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
+                                          planar_polymesh_t* mesh,
+                                          int64_t* partition_vector,
+                                          int xy_index)
 {
   chunk_xy_data_t* xy_data = polymec_malloc(sizeof(chunk_xy_data_t));
-  xy_data->num_columns = (size_t)mesh->num_cells;
+  xy_data->num_columns = 0;
+  xy_data->num_ghost_columns = 0;
+  xy_data->num_xy_faces = 0;
+  xy_data->num_xy_edges = 0;
+  xy_data->num_xy_nodes = 0;
 
-  // cell -> xy face connectivity.
+  int rank;
+  MPI_Comm_rank(comm, &rank);
+
+  // Make a list of polygonal cells (columns) that correspond to the 
+  // given xy chunk index.
+  int_array_t* local_cols = int_array_new();
+  int_int_unordered_map_t* col_map = int_int_unordered_map_new(); // maps planar mesh columns to our chunk.
+  for (int c = 0; c < mesh->num_cells; ++c)
+  {
+    if ((int)partition_vector[c] == xy_index)
+    {
+      int_array_append(local_cols, c);
+      int_int_unordered_map_insert(col_map, c, xy_data->num_columns);
+      ++xy_data->num_columns;
+    }
+  }
+
+  // Allocate storage for xy faces attached to columns.
   xy_data->column_xy_face_offsets = polymec_malloc(sizeof(int) * (xy_data->num_columns+1));
-  memcpy(xy_data->column_xy_face_offsets, mesh->cell_edge_offsets, sizeof(int) * (xy_data->num_columns+1));
-
+  xy_data->column_xy_face_offsets[0] = 0;
+  for (int c = 0; c < xy_data->num_columns; ++c)
+  {
+    int cell = local_cols->data[c];
+    xy_data->column_xy_face_offsets[c+1] = xy_data->column_xy_face_offsets[c] + 
+                                           planar_polymesh_cell_num_edges(mesh, cell);
+  }
   xy_data->column_xy_faces = polymec_malloc(sizeof(int) * xy_data->column_xy_face_offsets[xy_data->num_columns]);
-  memcpy(xy_data->column_xy_faces, mesh->cell_edges, sizeof(int) * xy_data->column_xy_face_offsets[xy_data->num_columns]);
 
-  // xy face -> cell connectivity.
-  xy_data->num_xy_faces = (size_t)mesh->num_edges;
-  xy_data->xy_face_columns = polymec_malloc(sizeof(int) * 2 * xy_data->num_xy_faces);
-  memcpy(xy_data->xy_face_columns, mesh->edge_cells, sizeof(int) * 2 * xy_data->num_xy_faces);
+  // Now determine the connectivity in a single pass.
+  int_array_t* face_cols = int_array_new();
+  int_array_t* face_edges = int_array_new();
+  int_array_t* edge_nodes = int_array_new();
+  point2_array_t* node_positions = point2_array_new();
+  for (int c = 0; c < xy_data->num_columns; ++c)
+  {
+    int col = local_cols->data[c];
+
+    // Loop over the neighboring columns.
+    int epos = 0, edge, f = 0;
+    while (planar_polymesh_cell_next_edge(mesh, col, &epos, &edge))
+    {
+      // Create the xy face that connects these two columns.
+      if (mesh->edge_cells[2*edge] == col) 
+      {
+        // This is our first encounter with the edge, so we create a new xy face.
+        xy_data->column_xy_faces[xy_data->column_xy_face_offsets[c]+f] = xy_data->num_xy_faces;
+        ++xy_data->num_xy_faces;
+        int_array_append(face_cols, c);
+
+        // Hook up the neighboring column on the other side of our new face.
+        int nc, neighbor = mesh->edge_cells[2*edge+1];
+        bool neighbor_in_chunk = ((neighbor != -1) && 
+                                  (partition_vector[neighbor] == xy_index));
+        if (neighbor_in_chunk)
+        {
+          // The neighbor is in this chunk. Find its index in our list of 
+          // "local" columns.
+          int* pos = int_bsearch(local_cols->data, local_cols->size, neighbor);
+          nc = (int)(pos - local_cols->data);
+        }
+        else
+        {
+          // The neighbor is a ghost column, as far as this chunk is concerned.
+          nc = (int)(xy_data->num_columns + xy_data->num_ghost_columns);
+          ++xy_data->num_ghost_columns;
+        }
+        int_array_append(face_cols, nc);
+      }
+      else
+      {
+        // We've already created this face, so verify that our column is on 
+        // "the other side".
+        ASSERT(mesh->edge_cells[2*edge+1] == col);
+
+        // Fish out the xy face shared by this cell and its neighbor.
+        int neighbor_col = mesh->edge_cells[2*edge];
+        int num_col_faces = planar_polymesh_cell_num_edges(mesh, neighbor_col);
+        int orig_col = *int_int_unordered_map_get(col_map, neighbor_col);
+        for (int ff = 0; ff < num_col_faces; ++ff)
+        {
+          int orig_col_face = xy_data->column_xy_faces[xy_data->column_xy_face_offsets[orig_col]+f];
+          if (orig_col_face == face_cols->data[2*orig_col_face]) 
+          {
+            xy_data->column_xy_faces[xy_data->column_xy_face_offsets[c]+f] = orig_col_face;
+            break;
+          }
+        }
+      }
+
+      // Now create an xy edge corresponding to this face, connecting two nodes.
+
+      ++xy_data->num_xy_edges;
+    }
+  }
+  // Surrender the data from the various arrays.
+  ASSERT(xy_data->num_xy_faces == (face_cols->size / 2));
+  xy_data->xy_face_columns = face_cols->data;
+  int_array_release_data_and_free(face_cols);
+
+  xy_data->xy_edge_nodes = edge_nodes->data;
+  int_array_release_data_and_free(edge_nodes);
+
+  ASSERT(xy_data->num_xy_nodes == node_positions->size);
+  xy_data->xy_nodes = node_positions->data;
+  point2_array_release_data_and_free(node_positions);
+
+  // Create an exchanger for xy data.
+  xy_data->xy_exchanger = exchanger_new(comm);
+#if POLYMEC_HAVE_MPI
+#endif
 
   // xy edge -> node connectivity.
-  xy_data->num_xy_edges = (size_t)mesh->num_edges;
   xy_data->xy_edge_nodes = polymec_malloc(sizeof(int) * 2 * xy_data->num_xy_edges);
   memcpy(xy_data->xy_edge_nodes, mesh->edge_nodes, sizeof(int) * 2 * xy_data->num_xy_edges);
 
@@ -60,6 +168,10 @@ static chunk_xy_data_t* chunk_xy_data_new(planar_polymesh_t* mesh)
   xy_data->num_xy_nodes = (size_t)mesh->num_nodes;
   xy_data->xy_nodes = polymec_malloc(sizeof(point2_t) * xy_data->num_xy_nodes);
   memcpy(xy_data->xy_nodes, mesh->nodes, sizeof(point2_t) * xy_data->num_xy_nodes);
+
+  // Clean up.
+  int_int_unordered_map_free(col_map);
+  int_array_free(local_cols);
 
   return xy_data;
 }
@@ -70,18 +182,8 @@ static void chunk_xy_data_free(chunk_xy_data_t* xy_data)
   polymec_free(xy_data->xy_face_columns);
   polymec_free(xy_data->column_xy_faces);
   polymec_free(xy_data->column_xy_face_offsets);
+  polymec_release(xy_data->xy_exchanger);
   polymec_free(xy_data);
-}
-
-static chunk_xy_data_array_t* create_chunk_xy_data(planar_polymesh_t* mesh,
-                                                   int64_t* partition_vector)
-{
-  chunk_xy_data_array_t* all_xy_data = chunk_xy_data_array_new();
-  // FIXME
-
-  chunk_xy_data_t* xy_data = chunk_xy_data_new(mesh);
-  chunk_xy_data_array_append_with_dtor(all_xy_data, xy_data, chunk_xy_data_free);
-  return all_xy_data;
 }
 
 static chunk_xy_data_array_t* redistribute_chunk_xy_data(prismesh_t* old_mesh,
@@ -169,11 +271,23 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   int64_t* P = partition_graph_n_ways(graph, num_xy_chunks, NULL, 0.05);
   adj_graph_free(graph);
 #else
-  int64_t* P = polymec_calloc(sizeof(int64_t) * columns->num_cells);
+  // Manually and naively partition the graph into xy chunks.
+  // FIXME: If we end up experimenting with threads to do several chunks 
+  // FIXME: per process, perhaps we should use a space-filling curve here?
+  int64_t* P = polymec_malloc(sizeof(int64_t) * columns->num_cells);
+  int num_cols_per_chunk = columns->num_cells / num_xy_chunks;
+  for (int c = 0; c < columns->num_cells; ++c)
+    P[c] = (int64_t)(c / num_cols_per_chunk);
 #endif
 
   // Create xy data for chunks.
-  mesh->chunk_xy_data = create_chunk_xy_data(columns, P);
+  mesh->chunk_xy_data = chunk_xy_data_array_new();
+  for (int xy_index = 0; xy_index < (int)num_xy_chunks; ++xy_index)
+  {
+    chunk_xy_data_t* xy_data = chunk_xy_data_new(comm, columns, P, xy_index);
+    chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
+                                         chunk_xy_data_free);
+  }
 
   // Clean up.
   polymec_free(P);
