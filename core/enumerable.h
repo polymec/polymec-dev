@@ -19,16 +19,17 @@
 /// to the positive integers. This allows us to analyze and compare values 
 /// in enumerable objects in high-level ways.
 ///
-/// For example, we can use expressions that represent, for example:
+/// For example, we can use expressions that represent
 /// * whether any value in an enumeration is negative:
 ///       ANY(less_than(enumerable, 0.0))
 /// * whether all (real) values in two enumerable objects are equal:
 ///       ALL(compare_values(first_enumerable, second_enumerable, reals_equal))
+///
 /// and so on.
 ///
 /// All of the `enumerable` arguments above are represented by objects called 
-/// "enumerable generators". You can define a specific enumeration for any 
-/// data type by constructing an `enumerable_generator` from its data, and 
+/// _enumerable generators_. You can define a specific enumeration for any 
+/// data type by constructing an `enumerable_generator` from its data and 
 /// passing it to one of the enumerable-friendly functions in this file.
 ///@{
 
