@@ -381,7 +381,11 @@ static void delete_map_entry(int key, exchanger_channel_t* value)
   exchanger_channel_free(value);
 }
 
-void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices)
+void exchanger_set_send(exchanger_t* ex, 
+                        int remote_process, 
+                        int* indices, 
+                        int num_indices, 
+                        bool copy_indices)
 {
   ASSERT(remote_process >= 0);
   ASSERT(remote_process != ex->rank);
@@ -454,7 +458,11 @@ bool exchanger_get_send(exchanger_t* ex, int remote_process, int** indices, int*
   }
 }
 
-void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices)
+void exchanger_set_receive(exchanger_t* ex, 
+                           int remote_process, 
+                           int* indices, 
+                           int num_indices, 
+                           bool copy_indices)
 {
   ASSERT(remote_process >= 0);
   ASSERT(remote_process != ex->rank);

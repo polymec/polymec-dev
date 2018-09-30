@@ -38,16 +38,27 @@ exchanger_t* exchanger_clone(exchanger_t* ex);
 MPI_Comm exchanger_comm(exchanger_t* ex);
 
 /// Exchanges data of the given type in the given array with other processors.
+/// \param [in,out] data An array of data for which values is exchanged with (sent and received to
+///                      and from) other processes by this exchanger.
+/// \param [in] stride The stride (number of elements) of data exchanged at each index of the array.
+/// \param [in] tag The MPI tag used in the underlying exchange of data.
+/// \param [in] type The MPI type for the data being exchanged.
 /// \memberof exchanger
 void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type);
 
-/// Begins an asynchronous data exchange. This returns a unique token that can 
-/// be used to finish the exchange when passed to exchanger_finish_exchange().
+/// Begins an asynchronous data exchange. 
+/// \param [in] data An array of data for which values is exchanged with (sent and received to
+///                  and from) other processes by this exchanger.
+/// \param [in] stride The stride (number of elements) of data exchanged at each index of the array.
+/// \param [in] tag The MPI tag used in the underlying exchange of data.
+/// \param [in] type The MPI type for the data being exchanged.
+/// \returns a unique token that can be passed to \ref exchanger_finish_exchange to finish the exchange.
 /// \memberof exchanger
 int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type);
 
 /// Concludes the asynchronous exchange corresponding to the given token.
-/// This fills the array given in exchanger_start_exchange with the data it expects.
+/// This fills the array given in \ref exchanger_start_exchange with the data it expects.
+/// \param [in] token A token returned by \ref exchanger_start_exchange.
 /// \memberof exchanger
 void exchanger_finish_exchange(exchanger_t* ex, int token);
 
@@ -61,6 +72,13 @@ int exchanger_max_receive(exchanger_t* ex);
 
 /// Enables deadlock detection, setting the threshold to the given number of 
 /// seconds. Deadlocks will be reported to the given rank on the given stream.
+/// \param [in] threshold The number of seconds after which an exchanger transaction 
+///                       (a send or receive) is considered to have hung because of a 
+///                       deadlock condition.
+/// \param [in] output_rank The MPI rank on which any diagnostic output is reported
+///                         for a deadlock condition.
+/// \param [in] stream If non-NULL on the given output rank, specifies the stream to which 
+///                    diagnostic output is written.
 /// \memberof exchanger
 void exchanger_enable_deadlock_detection(exchanger_t* ex, 
                                          real_t threshold,
@@ -86,14 +104,25 @@ serializer_t* exchanger_serializer(void);
 /// Establishes a communication pattern in which this exchanger sends data at 
 /// the given indices of an array to the given remote process. Note that 
 /// remote_process must differ from the local rank on the exchanger's communicator.
+/// \param [in] remote_process The rank of the process to which the data at the given indices is 
+///                            sent. Must differ from the local rank on the exchanger's communicator.
+/// \param [in] indices The indices identifying locations in a data array to be sent to the remote process.
+/// \param [in] num_indices The number of indices in the indices array.
+/// \param [in] copy_indices If true, indices will be copied to this exchanger. If false, the exchanger 
+///                          assumes ownership of the indices array passed to this function.
 /// \memberof exchanger
-void exchanger_set_send(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices);
+void exchanger_set_send(exchanger_t* ex, 
+                        int remote_process, 
+                        int* indices, 
+                        int num_indices, 
+                        bool copy_indices);
 
 /// Establishes communications patterns in which this exchanger sends data at 
-/// the given indices of an array to various remote processes. Here, send_map 
-/// maps remote process ranks to int_arrays containing local indices identifying
-/// data that will be sent. Note that the remote_processes must differ from the 
-/// local rank on the exchanger's communicator.
+/// the given indices of an array to various remote processes. 
+/// \param [in] send_map A mapping of remote process ranks to \ref int_array objects 
+///                      containing local indices identifying data to be sent. 
+///                      Each remote_process must differ from the local rank on the 
+///                      exchanger's communicator.
 /// \memberof exchanger
 void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map);
 
@@ -114,26 +143,54 @@ int exchanger_num_sends(exchanger_t* ex);
 void exchanger_delete_send(exchanger_t* ex, int remote_process);
 
 /// Allows the traversal of the set of send indices for remote processes.
+/// \param pos [in,out] Controls the traversal. Set to 0 to reset.
+/// \param remote_process [out] Stores the remote process in the next send transaction.
+/// \param indices [out] Stores an internal pointer to the array of indices identifying data 
+///                      sent to the remote process.
+/// \param num_indices [out] Stores the length of the indices array.
+/// \returns true if another send transaction is available in the exchanger, false otherwise.
 /// \memberof exchanger
-bool exchanger_next_send(exchanger_t* ex, int* pos, int* remote_process, int** indices, int* num_indices);
+bool exchanger_next_send(exchanger_t* ex, 
+                         int* pos, 
+                         int* remote_process, 
+                         int** indices, 
+                         int* num_indices);
 
 /// Retrieves the indices and number of indices for a send transaction 
-/// with the given process, returning true if such a transaction exists, 
-/// false if not.
+/// with the given process.
+/// \param remote_process [in] The remote process in the specified send transaction.
+/// \param indices [out] Stores an internal pointer to the array of indices identifying data 
+///                      sent to the remote process.
+/// \param num_indices [out] Stores the length of the indices array.
+/// \returns true if such a transaction exists, false if not.
 /// \memberof exchanger
 bool exchanger_get_send(exchanger_t* ex, int remote_process, int** indices, int* num_indices);
 
 /// Establishes a communication pattern in which this exchanger receives data at 
 /// the given indices of an array from the given remote process. Note that
-/// remote_process must differ from the local rank on the exchanger's communicator.
+/// \param [in] remote_process The rank of the process from which the data at the given indices is 
+///                            received. Must differ from the local rank on the exchanger's communicator.
+/// \param [in] indices The indices identifying locations in a data array to be received from the remote 
+///                     process.
+/// \param [in] num_indices The number of indices in the indices array.
+/// \param [in] copy_indices If true, indices will be copied to this exchanger. If false, the exchanger 
+///                          assumes ownership of the indices array passed to this function.
 /// \memberof exchanger
-void exchanger_set_receive(exchanger_t* ex, int remote_process, int* indices, int num_indices, bool copy_indices);
+void exchanger_set_receive(exchanger_t* ex, 
+                           int remote_process, 
+                           int* indices, 
+                           int num_indices, 
+                           bool copy_indices);
 
 /// Establishes communications patterns in which this exchanger receives data at 
 /// the given indices of an array from various remote processes. Here, recv_map 
 /// maps remote process ranks to int_arrays containing local indices identifying
 /// locations where received data will be stored. Note that the remote_processes must differ from the 
 /// local rank on the exchanger's communicator.
+/// \param [in] recv_map A mapping of remote process ranks to \ref int_array objects 
+///                      containing local indices identifying data to be received. 
+///                      Each remote_process must differ from the local rank on the 
+///                      exchanger's communicator.
 /// \memberof exchanger
 void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map);
 
@@ -153,21 +210,35 @@ int exchanger_num_receives(exchanger_t* ex);
 void exchanger_delete_receive(exchanger_t* ex, int remote_process);
 
 /// Allows the traversal of the set of receive indices for remote processes.
+/// \param pos [in,out] Controls the traversal. Set to 0 to reset.
+/// \param remote_process [out] Stores the remote process in the next receive transaction.
+/// \param indices [out] Stores an internal pointer to the array of indices identifying data 
+///                      received from the remote process.
+/// \param num_indices [out] Stores the length of the indices array.
+/// \returns true if another receive transaction is available in the exchanger, false otherwise.
 /// \memberof exchanger
-bool exchanger_next_receive(exchanger_t* ex, int* pos, int* remote_process, int** indices, int* num_indices);
+bool exchanger_next_receive(exchanger_t* ex, 
+                            int* pos, 
+                            int* remote_process, 
+                            int** indices, 
+                            int* num_indices);
 
 /// Retrieves the indices and number of indices for a receive transaction 
-/// with the given process, returning true if such a transaction exists, 
-/// false if not.
+/// with the given process. 
+/// \param remote_process [in] The remote process in the specified receive transaction.
+/// \param indices [out] Stores an internal pointer to the array of indices identifying data 
+///                      sent to the remote process.
+/// \param num_indices [out] Stores the length of the indices array.
+/// \returns true if such a transaction exists, false if not.
 /// \memberof exchanger
 bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, int* num_indices);
 
-/// Verifies the consistency of the exchanger, returning true if the 
-/// verification succeeds, false if not. If the given handler is non-NULL and 
-/// the verification fails, the handler function is called with a descriptive 
-/// formatted string describing the error encountered. This funciton is 
-/// expensive and involves parallel communication, so make sure it is called 
+/// Verifies the consistency of the exchanger.
+/// This function is expensive and involves parallel communication. It must be called 
 /// by all processes on the communicator for the exchanger. 
+/// \param [in] handler A function that accepts a formatted string. If non-NULL, 
+/// this function is called with a string describing any errors encountered. 
+/// \returns true if the verification succeeds, false if not. 
 /// \memberof exchanger
 /// \collective Collective on the exchanger's communicator.
 bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...));
