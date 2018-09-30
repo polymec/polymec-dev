@@ -22,6 +22,7 @@ typedef struct
 {
   size_t num_columns;
   size_t num_ghost_columns;
+  int* ghost_xy_indices;
   int* column_xy_face_offsets;
   int* column_xy_faces;
   int* xy_face_columns;
@@ -30,7 +31,6 @@ typedef struct
   int* xy_edge_nodes;
   size_t num_xy_nodes;
   point2_t* xy_nodes;
-  exchanger_t* xy_exchanger;
 } chunk_xy_data_t;
 
 DEFINE_ARRAY(chunk_xy_data_array, chunk_xy_data_t*)
@@ -81,6 +81,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   int_array_t* face_cols = int_array_new();
   int_int_unordered_map_t* node_map = int_int_unordered_map_new(); // maps planar mesh nodes to chunk nodes
   int_array_t* edge_nodes = int_array_new();
+  int_array_t* ghost_xy_indices = int_array_new();
   for (int c = 0; c < xy_data->num_columns; ++c)
   {
     int col = local_cols->data[c];
@@ -111,8 +112,8 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
         else
         {
           // The neighbor is a ghost column, as far as this chunk is concerned.
-          nc = (int)(xy_data->num_columns + xy_data->num_ghost_columns);
-          ++xy_data->num_ghost_columns;
+          nc = (int)(xy_data->num_columns + ghost_xy_indices->size);
+          int_array_append(ghost_xy_indices, nc);
         }
         int_array_append(face_cols, nc);
 
@@ -173,6 +174,10 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   xy_data->num_xy_edges = edge_nodes->size;
   int_array_release_data_and_free(edge_nodes);
 
+  xy_data->ghost_xy_indices = ghost_xy_indices->data;
+  xy_data->num_ghost_columns = ghost_xy_indices->size;
+  int_array_release_data_and_free(ghost_xy_indices);
+
   // Set node positions.
   xy_data->num_xy_nodes = node_map->size;
   xy_data->xy_nodes = polymec_malloc(sizeof(point2_t) * node_map->size);
@@ -180,11 +185,6 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   while (int_int_unordered_map_next(node_map, &npos, &n, &node))
     xy_data->xy_nodes[node] = mesh->nodes[n];
   int_int_unordered_map_free(node_map);
-
-  // Create an exchanger for xy data.
-  xy_data->xy_exchanger = exchanger_new(comm);
-#if POLYMEC_HAVE_MPI
-#endif
 
   // xy edge -> node connectivity.
   xy_data->xy_edge_nodes = polymec_malloc(sizeof(int) * 2 * xy_data->num_xy_edges);
@@ -208,7 +208,6 @@ static void chunk_xy_data_free(chunk_xy_data_t* xy_data)
   polymec_free(xy_data->xy_face_columns);
   polymec_free(xy_data->column_xy_faces);
   polymec_free(xy_data->column_xy_face_offsets);
-  polymec_release(xy_data->xy_exchanger);
   polymec_free(xy_data);
 }
 
@@ -396,6 +395,9 @@ void prismesh_finalize(prismesh_t* mesh)
   }
   ASSERT(k == mesh->chunks->size);
 
+  // Set up the cell exchanger.
+  // FIXME
+
   // We're finished here.
   mesh->finalized = true;
 }
@@ -412,40 +414,35 @@ prismesh_t* prismesh_new(MPI_Comm comm,
   MPI_Comm_rank(comm, &rank);
   if (nproc > 1)
   {
-    // Figure out how many chunks we want in the xy and z "directions".
+    // Figure out how many chunks we want in the xy and z index spaces.
+    // Start by breaking the mesh up into the smallest feasible chunks.
+    // Then we grow them to maximize the number of cells on each process.
+    num_xy_chunks = MIN(columns->num_cells, nproc);
+    num_z_chunks = MIN(nz, nproc);
 
-    // First, estimate a very rough average of cells in the "x" direction.
-    int nx = (int)(sqrt(1.0 * columns->num_cells));
+#if 0
+    // Our objective is one isotropic chunk per process. An isotropic chunk
+    // has roughly the same number of cells in x, y, and z. In other words:
+    // nx == ny == nz. Since x and y are complicated, we use the product 
+    // nxny = nx*ny in our analysis. So "isotropic" means 
+    // sqrt(nxny) == nz or nxny == nz*nz.
+    size_t chunk_nxny = (size_t)(columns->num_cells / num_xy_chunks);
+    size_t chunk_nz = nz / num_z_chunks;
 
-    // Prefer partitioning along the z axis, but recognize when we've got 
-    // a certain mesh "shape".
-    if (nx >= (int)(sqrt(nproc)*nz))
+    // Start growing the chunks.
+    while (true)
     {
-      // It doesn't get much wider than this.
-      num_xy_chunks = nproc;
-      num_z_chunks = 1;
+      size_t prev_num_chunks = num_xy_chunks * num_z_chunks;
+
+      // If the aspect ratio of the chunks is skewed, make them more isotropic.
+      if (chunk_nxny > (size_t)(chunk_nz*chunk_nz
+
+      // If our number of chunks has reached nproc or our growth process has
+      // stalled, terminate the iteration.
+      if (((int)num_chunks == nproc) || (num_chunks == prev_num_chunks))
+        break;
     }
-    else if ((nx - nz) > (int)(0.1 * MIN(nx, nz)))
-    {
-      // nx is bigger than nz, so favor more xy chunks.
-      //real_t ratio = 1.0*nx/nz;
-    }
-    else if (ABS(nx - nz) < (int)(0.1 * MIN(nx, nz)))
-    {
-      // nx and nz are within 10 percent of each other, so distribute 
-      // evenly in xy and z space.
-    }
-    else if (nz < nproc*nx)
-    {
-      // nz is bigger than nx, so favor more z chunks.
-      //real_t ratio = 1.0*nz/nx;
-    }
-    else // nz >= nproc*nx
-    {
-      // It doesn't get much taller than this.
-      num_xy_chunks = 1;
-      num_z_chunks = nproc;
-    }
+#endif
   }
 
   // Now create an empty prismesh with the desired numbers of chunks, and 
@@ -792,7 +789,7 @@ static adj_graph_t* graph_from_prismesh_chunks(prismesh_t* mesh)
   adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, num_chunks);
 
 #if 0
-  // Allocate space in the graph for the edges (patch boundaries).
+  // Allocate space in the graph for the edges (chunk boundaries).
   for (int i = 0; i < mesh->npx; ++i)
   {
     int num_x_edges = (i == 0) ? (i == mesh->npx-1) ? mesh->periodic_in_x ? 2 
