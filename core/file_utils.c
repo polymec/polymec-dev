@@ -217,7 +217,7 @@ bool make_temp_directory(const char* dir_template, char* dirname)
   return (dir != NULL);
 }
 
-int remove_directory(const char* path)
+bool remove_directory(const char* path)
 {
   DIR* d = opendir(path);
   int path_len = (int)strlen(path);
@@ -259,6 +259,6 @@ int remove_directory(const char* path)
   if (!r)
    r = rmdir(path);
 
-  return r;
+  return (r == 0);
 }
 
