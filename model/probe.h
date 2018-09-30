@@ -14,22 +14,28 @@
 /// \addtogroup model model
 ///@{
 
-/// \struct probe_data 
+/// \struct probe_data_t 
 /// A single datum acquired by a probe.
 typedef struct 
 {
-  real_t time;    // time of acquisition
-  int rank;       // rank of array storing data (0 = scalar)
-  size_t* shape;  // shape[i] specifies ith dimension of data array
-  real_t* data;   // array itself
+  /// The simulation time at which the data was acquired.
+  real_t time;
+  /// The rank (number of dimensions) of the array storing the data (0 for a 
+  /// scalar value).
+  int rank;
+  // The shape of the multi-dimensional array (shape[i] specifies the ith 
+  /// dimension of the array).
+  size_t* shape;
+  /// The storage for the multidimensional array data.
+  real_t* data; 
 } probe_data_t;
 
 /// Allocates probe_data with the given characteristics.
-/// \memberof probe_data
+/// \memberof probe_data_t
 probe_data_t* probe_data_new(int rank, size_t* shape);
 
 /// Frees probe_data.
-/// \memberof probe_data
+/// \memberof probe_data_t
 void probe_data_free(probe_data_t* data);
 
 /// \class probe_data_array
@@ -40,7 +46,7 @@ DEFINE_ARRAY(probe_data_array, probe_data_t*)
 /// A probe is a virtual instrument that acquires data from a model.
 typedef struct probe_t probe_t;
 
-/// \class probe_vtable
+/// \struct probe_vtable
 /// This virtual table must be implemented by any probe.
 typedef struct 
 {
@@ -56,10 +62,15 @@ typedef struct
   void (*dtor)(void* context);
 } probe_vtable;
 
-/// Creates an instance of a probe that acquires a quantity of the given 
-/// name, placing its data into an array large enough to store all of its 
-/// contents. Here, rank and shape define the size of the array used to store
-/// a datum.
+/// Creates an instance of a probe that acquires a quantity.
+/// \param [in] name The name of the probe.
+/// \param [in] data_name The name of the data acquired by the probe.
+/// \param [in] rank The rank (number of dimensions) of the multidimensional array 
+///                  needed to store a datum.
+/// \param [in] shape An array containing the extents of the dimensions for the 
+///                   multidimensional array needed to store a datum.
+/// \param [in] context A context pointer used to store the probe's state.
+/// \param [in] vtable A virtual table that implements the probe's behavior.
 /// \memberof probe
 probe_t* probe_new(const char* name, 
                    const char* data_name,
