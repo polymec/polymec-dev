@@ -21,9 +21,9 @@
 ///
 /// For example, we can use expressions that represent
 /// * whether any value in an enumeration is negative:
-///       ANY(less_than(enumerable, 0.0))
+///       \ref ANY(\ref less_than(enumerable, 0.0))
 /// * whether all (real) values in two enumerable objects are equal:
-///       ALL(compare_values(first_enumerable, second_enumerable, reals_equal))
+///       \ref ALL(\ref compare_values(first_enumerable, second_enumerable, \ref reals_equal))
 ///
 /// and so on.
 ///

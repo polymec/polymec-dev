@@ -507,13 +507,13 @@ bool polymec_running_in_valgrind(void);
 
 static real_t _polymec_epsilon = REAL_EPSILON;
 
-/// This function returns true if |a - b| < epsilon, false otherwise. Here, 
-/// epsilon is polymec's floating point tolerance, set by default to REAL_EPSILON,
-/// and otherwise by set_real_epsilon.
+/// This function returns `true` if two real numbers are indistinguishable, 
+/// `false` if not. The distinguishability of two real numbers is set by 
+/// polymec's floating point tolerance (set by default to `REAL_EPSILON`,
+/// and set to specific values by \ref set_real_epsilon).
 /// \param [in] a The first real number.
 /// \param [in] b The second real number.
-/// \param [in] epsilon The tolerance \f$ \epsilon \f$.
-/// \returns true if |a - b| < epsilon, false otherwise. Here, 
+/// \returns `true` if |a - b| < epsilon, `false` otherwise.
 static inline bool reals_equal(real_t a, real_t b)
 {
   return (ABS(a - b) < _polymec_epsilon);

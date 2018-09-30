@@ -27,7 +27,7 @@ typedef struct
   /// Allocates and returns size bytes of memory.
   void* (*malloc)(void* context, size_t size);
 
-  /// Reallocates size bytes of the given chunk memory.
+  /// Reallocates size bytes of the given chunk of memory.
   void* (*realloc)(void* context, void* memory, size_t size);
 
   /// Frees the given chunk of memory.
