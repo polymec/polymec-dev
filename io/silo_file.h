@@ -32,18 +32,22 @@
 /// compression.
 void silo_enable_compression(int level);
 
-/// \struct silo_field_metadata
+/// \struct silo_field_metadata_t
 /// This type represents a collection of metadata for field variables in 
 /// Silo files. Objects of this type are garbage-collected.
 struct silo_field_metadata_t
 {
-  char* label;                // A visualization label. Owned by metadata.
-  char* units;                // Units of measure. Owned by metadata.
-  bool conserved;             // True if the field is conserved, false if not.
-  bool extensive;             // True if the field is extensive, false if not.
-  int vector_component;       // The index of the vector component that the 
-                              // field represents, or -1 if the field is not 
-                              // the component of a vector.
+  /// A visualization label. Owned by metadata.
+  char* label; 
+  /// Units of measure. Owned by metadata.
+  char* units; 
+  /// True if the field is conserved, false if not.
+  bool conserved; 
+  /// True if the field is extensive, false if not.
+  bool extensive; 
+  /// The index of the vector component that the field represents, or -1 if 
+  /// the field is not the component of a vector.
+  int vector_component; 
 };
 typedef struct silo_field_metadata_t silo_field_metadata_t;
 
