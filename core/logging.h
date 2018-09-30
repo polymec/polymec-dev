@@ -14,6 +14,8 @@
 ///@{
 
 /// \addtogroup logging core:logging
+/// Functions and types for logging messages to the screen and to files.
+/// Logging on one or more parallel processes is supported.
 ///@{
 
 /// \enum log_level_t

@@ -18,6 +18,7 @@ typedef struct lua_State lua_State;
 ///@{
 
 /// \addtogroup lua lua
+/// Functions for exposing types to the Lua interpreter.
 ///@{
 
 /// \struct lua_module_field
