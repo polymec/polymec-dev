@@ -79,9 +79,8 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
 
   // Now determine the connectivity in a single pass.
   int_array_t* face_cols = int_array_new();
-  int_array_t* face_edges = int_array_new();
+  int_int_unordered_map_t* node_map = int_int_unordered_map_new(); // maps planar mesh nodes to chunk nodes
   int_array_t* edge_nodes = int_array_new();
-  point2_array_t* node_positions = point2_array_new();
   for (int c = 0; c < xy_data->num_columns; ++c)
   {
     int col = local_cols->data[c];
@@ -116,6 +115,32 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
           ++xy_data->num_ghost_columns;
         }
         int_array_append(face_cols, nc);
+
+        // Read off the 2 nodes connecting the edge for the planar cell and 
+        // see if we've already added them.
+        int n1 = mesh->edge_nodes[2*edge];
+        int n2 = mesh->edge_nodes[2*edge+1];
+        int node1, node2;
+        int* node1_p = int_int_unordered_map_get(node_map, n1);
+        if (node1_p == NULL)
+        {
+          node1 = node_map->size;
+          int_int_unordered_map_insert(node_map, n1, node1);
+        }
+        else
+          node1 = *node1_p;
+        int* node2_p = int_int_unordered_map_get(node_map, n2);
+        if (node2_p == NULL)
+        {
+          node2 = node_map->size;
+          int_int_unordered_map_insert(node_map, n1, node2);
+        }
+        else
+          node2 = *node2_p;
+
+        // Now create an xy edge connecting these two nodes.
+        int_array_append(edge_nodes, node1);
+        int_array_append(edge_nodes, node2);
       }
       else
       {
@@ -137,10 +162,6 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
           }
         }
       }
-
-      // Now create an xy edge corresponding to this face, connecting two nodes.
-
-      ++xy_data->num_xy_edges;
     }
   }
   // Surrender the data from the various arrays.
@@ -149,11 +170,16 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   int_array_release_data_and_free(face_cols);
 
   xy_data->xy_edge_nodes = edge_nodes->data;
+  xy_data->num_xy_edges = edge_nodes->size;
   int_array_release_data_and_free(edge_nodes);
 
-  ASSERT(xy_data->num_xy_nodes == node_positions->size);
-  xy_data->xy_nodes = node_positions->data;
-  point2_array_release_data_and_free(node_positions);
+  // Set node positions.
+  xy_data->num_xy_nodes = node_map->size;
+  xy_data->xy_nodes = polymec_malloc(sizeof(point2_t) * node_map->size);
+  int npos = 0, n, node;
+  while (int_int_unordered_map_next(node_map, &npos, &n, &node))
+    xy_data->xy_nodes[node] = mesh->nodes[n];
+  int_int_unordered_map_free(node_map);
 
   // Create an exchanger for xy data.
   xy_data->xy_exchanger = exchanger_new(comm);
@@ -387,7 +413,39 @@ prismesh_t* prismesh_new(MPI_Comm comm,
   if (nproc > 1)
   {
     // Figure out how many chunks we want in the xy and z "directions".
-    // FIXME
+
+    // First, estimate a very rough average of cells in the "x" direction.
+    int nx = (int)(sqrt(1.0 * columns->num_cells));
+
+    // Prefer partitioning along the z axis, but recognize when we've got 
+    // a certain mesh "shape".
+    if (nx >= (int)(sqrt(nproc)*nz))
+    {
+      // It doesn't get much wider than this.
+      num_xy_chunks = nproc;
+      num_z_chunks = 1;
+    }
+    else if ((nx - nz) > (int)(0.1 * MIN(nx, nz)))
+    {
+      // nx is bigger than nz, so favor more xy chunks.
+      //real_t ratio = 1.0*nx/nz;
+    }
+    else if (ABS(nx - nz) < (int)(0.1 * MIN(nx, nz)))
+    {
+      // nx and nz are within 10 percent of each other, so distribute 
+      // evenly in xy and z space.
+    }
+    else if (nz < nproc*nx)
+    {
+      // nz is bigger than nx, so favor more z chunks.
+      //real_t ratio = 1.0*nz/nx;
+    }
+    else // nz >= nproc*nx
+    {
+      // It doesn't get much taller than this.
+      num_xy_chunks = 1;
+      num_z_chunks = nproc;
+    }
   }
 
   // Now create an empty prismesh with the desired numbers of chunks, and 
