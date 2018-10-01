@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/enumerable.h"
+#include "core/timer.h"
 #include "core/unordered_map.h"
 #include "geometry/prismesh_field.h"
 
@@ -17,6 +18,7 @@ static prismesh_chunk_data_t* prismesh_chunk_data_new(prismesh_chunk_t* chunk,
   data->chunk = chunk;
   data->centering = centering;
   data->num_components = num_components;
+  data->ex_token = -1;
 
   // Figure out the dimensions of our data.
   if (centering == PRISMESH_CELL)
@@ -72,6 +74,21 @@ void prismesh_chunk_data_copy(prismesh_chunk_data_t* data,
   memcpy(dest->data, data->data, prismesh_chunk_data_size(data));
 }
 
+static void prismesh_chunk_data_start_exchange(prismesh_chunk_data_t* chunk_data,
+                                               exchanger_t* ex)
+{
+  ASSERT(chunk_data->ex_token == -1);
+  // FIXME
+  chunk_data->ex_token = exchanger_start_exchange(ex, chunk_data->data, 1, 0, MPI_REAL_T);
+}
+
+static void prismesh_chunk_data_finish_exchange(prismesh_chunk_data_t* chunk_data,
+                                                exchanger_t* ex)
+{
+  exchanger_finish_exchange(ex, chunk_data->ex_token);
+  chunk_data->ex_token = -1;
+}
+
 DEFINE_UNORDERED_MAP(chunk_data_map, int, prismesh_chunk_data_t*, int_hash, int_equals)
 
 struct prismesh_field_t 
@@ -82,6 +99,8 @@ struct prismesh_field_t
 
   size_t num_xy_chunks, num_z_chunks;
   chunk_data_map_t* chunks;
+
+  bool is_exchanging;
 };
 
 static inline int chunk_index(prismesh_field_t* field, int xy_index, int z_index)
@@ -102,6 +121,7 @@ prismesh_field_t* prismesh_field_new(prismesh_t* mesh,
   prismesh_get_chunk_info(mesh, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   field->num_xy_chunks = num_xy_chunks;
   field->num_z_chunks = num_z_chunks;
+  field->is_exchanging = false;
 
   // Create data for each of the chunks in the mesh.
   int pos = 0, xy_index, z_index;
@@ -187,6 +207,48 @@ bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos,
     ASSERT((*chunk_data)->chunk == chunk);
   }
   return result;
+}
+
+void prismesh_field_exchange(prismesh_field_t* field)
+{
+  prismesh_field_start_exchange(field);
+  prismesh_field_finish_exchange(field);
+}
+
+extern exchanger_t* prismesh_chunk_cell_exchanger(prismesh_t* mesh, int xy_index, int z_index);
+void prismesh_field_start_exchange(prismesh_field_t* field)
+{
+  ASSERT(!prismesh_field_is_exchanging(field));
+  START_FUNCTION_TIMER();
+  field->is_exchanging = true;
+  int pos = 0, xy, z;
+  prismesh_chunk_data_t* chunk_data;
+  while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk_data))
+  {
+    exchanger_t* ex = prismesh_chunk_cell_exchanger(field->mesh, xy, z);
+    prismesh_chunk_data_start_exchange(chunk_data, ex);
+  }
+  STOP_FUNCTION_TIMER();
+}
+
+void prismesh_field_finish_exchange(prismesh_field_t* field)
+{
+  ASSERT(prismesh_field_is_exchanging(field));
+  START_FUNCTION_TIMER();
+  int pos = 0, xy, z;
+  prismesh_chunk_data_t* chunk_data;
+  while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk_data))
+  {
+    exchanger_t* ex = prismesh_chunk_cell_exchanger(field->mesh, xy, z);
+    prismesh_chunk_data_finish_exchange(chunk_data, ex);
+  }
+  field->is_exchanging = false;
+  STOP_FUNCTION_TIMER();
+}
+
+bool prismesh_field_is_exchanging(prismesh_field_t* field)
+{
+  return field->is_exchanging;
 }
 
 real_enumerable_generator_t* prismesh_field_enumerate(prismesh_field_t* field)

@@ -22,7 +22,6 @@ typedef struct
 {
   size_t num_columns;
   size_t num_ghost_columns;
-  int* ghost_xy_indices;
   int* column_xy_face_offsets;
   int* column_xy_faces;
   int* xy_face_columns;
@@ -31,6 +30,7 @@ typedef struct
   int* xy_edge_nodes;
   size_t num_xy_nodes;
   point2_t* xy_nodes;
+  exchanger_t* cell_ex;
 } chunk_xy_data_t;
 
 DEFINE_ARRAY(chunk_xy_data_array, chunk_xy_data_t*)
@@ -174,10 +174,6 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   xy_data->num_xy_edges = edge_nodes->size;
   int_array_release_data_and_free(edge_nodes);
 
-  xy_data->ghost_xy_indices = ghost_xy_indices->data;
-  xy_data->num_ghost_columns = ghost_xy_indices->size;
-  int_array_release_data_and_free(ghost_xy_indices);
-
   // Set node positions.
   xy_data->num_xy_nodes = node_map->size;
   xy_data->xy_nodes = polymec_malloc(sizeof(point2_t) * node_map->size);
@@ -194,6 +190,11 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   xy_data->num_xy_nodes = (size_t)mesh->num_nodes;
   xy_data->xy_nodes = polymec_malloc(sizeof(point2_t) * xy_data->num_xy_nodes);
   memcpy(xy_data->xy_nodes, mesh->nodes, sizeof(point2_t) * xy_data->num_xy_nodes);
+
+  // Set up a cell exchanger for this chunk.
+  xy_data->num_ghost_columns = ghost_xy_indices->size;
+  // FIXME
+  int_array_free(ghost_xy_indices);
 
   // Clean up.
   int_int_unordered_map_free(col_map);
@@ -251,8 +252,8 @@ struct prismesh_t
   // This flag is set by prismesh_finalize() after a mesh has been assembled.
   bool finalized;
 
-  // Exchangers for field data on each centering.
-  exchanger_t *c_ex, *xyf_ex, *zf_ex, *xye_ex, *ze_ex, *n_ex;
+  // Exchangers for field data.
+  int_ptr_unordered_map_t* cell_exchangers;
 };
 
 prismesh_t* create_empty_prismesh(MPI_Comm comm, 
@@ -281,15 +282,6 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   mesh->periodic_in_z = periodic_in_z;
   mesh->finalized = false;
 
-  // Initialize exchangers. Unless we ask for anything else, we only 
-  // set up the cell exchanger.
-  mesh->c_ex = exchanger_new(comm);
-  mesh->xyf_ex = NULL;
-  mesh->zf_ex = NULL;
-  mesh->xye_ex = NULL;
-  mesh->ze_ex = NULL;
-  mesh->n_ex = NULL;
-
   // Partition the planar polymesh.
 #if POLYMEC_HAVE_MPI
   adj_graph_t* graph = graph_from_planar_polymesh_cells(columns);
@@ -313,6 +305,9 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
     chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
                                          chunk_xy_data_free);
   }
+
+  // Initialize our exchanger maps.
+  mesh->cell_exchangers = int_ptr_unordered_map_new();
 
   // Clean up.
   polymec_free(P);
@@ -359,6 +354,8 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
   // Add this chunk to our list.
   int index = chunk_index(mesh, xy_index, z_index);
   chunk_map_insert_with_v_dtor(mesh->chunks, index, chunk, free_chunk);
+
+  // FIXME: Exchangers???
 }
 
 void prismesh_finalize(prismesh_t* mesh)
@@ -394,9 +391,6 @@ void prismesh_finalize(prismesh_t* mesh)
     }
   }
   ASSERT(k == mesh->chunks->size);
-
-  // Set up the cell exchanger.
-  // FIXME
 
   // We're finished here.
   mesh->finalized = true;
@@ -473,18 +467,7 @@ prismesh_t* prismesh_new(MPI_Comm comm,
 
 void prismesh_free(prismesh_t* mesh)
 {
-  if (mesh->xyf_ex != NULL)
-    polymec_release(mesh->xyf_ex);
-  if (mesh->zf_ex != NULL)
-    polymec_release(mesh->zf_ex);
-  if (mesh->xye_ex != NULL)
-    polymec_release(mesh->xye_ex);
-  if (mesh->ze_ex != NULL)
-    polymec_release(mesh->ze_ex);
-  if (mesh->n_ex != NULL)
-    polymec_release(mesh->n_ex);
-  polymec_release(mesh->c_ex);
-
+  int_ptr_unordered_map_free(mesh->cell_exchangers);
   polymec_free(mesh->chunk_indices);
   chunk_map_free(mesh->chunks);
   chunk_xy_data_array_free(mesh->chunk_xy_data);
@@ -670,65 +653,6 @@ bool prismesh_next_chunk(prismesh_t* mesh, int* pos,
   }
 }
 
-//------------------------------------------------------------------------
-// Exchanger accessors. Not public, but externally available.
-//------------------------------------------------------------------------
-exchanger_t* prismesh_cell_exchanger(prismesh_t* mesh);
-exchanger_t* prismesh_cell_exchanger(prismesh_t* mesh)
-{
-  return mesh->c_ex;
-}
-
-exchanger_t* prismesh_xyface_exchanger(prismesh_t* mesh);
-exchanger_t* prismesh_xyface_exchanger(prismesh_t* mesh)
-{
-  if (mesh->xyf_ex == NULL)
-  {
-    // FIXME
-  }
-  return mesh->xyf_ex;
-}
-
-exchanger_t* prismesh_zface_exchanger(prismesh_t* mesh);
-exchanger_t* prismesh_zface_exchanger(prismesh_t* mesh)
-{
-  if (mesh->zf_ex == NULL)
-  {
-    // FIXME
-  }
-  return mesh->zf_ex;
-}
-
-exchanger_t* prismesh_xyedge_exchanger(prismesh_t* mesh);
-exchanger_t* prismesh_xyedge_exchanger(prismesh_t* mesh)
-{
-  if (mesh->xye_ex == NULL)
-  {
-    // FIXME
-  }
-  return mesh->xye_ex;
-}
-
-exchanger_t* prismesh_zedge_exchanger(prismesh_t* mesh);
-exchanger_t* prismesh_zedge_exchanger(prismesh_t* mesh)
-{
-  if (mesh->ze_ex == NULL)
-  {
-    // FIXME
-  }
-  return mesh->ze_ex;
-}
-
-exchanger_t* prismesh_node_exchanger(prismesh_t* mesh);
-exchanger_t* prismesh_node_exchanger(prismesh_t* mesh)
-{
-  if (mesh->n_ex == NULL)
-  {
-    // FIXME
-  }
-  return mesh->n_ex;
-}
-
 #if POLYMEC_HAVE_MPI
 static void redistribute_prismesh(prismesh_t** mesh, 
                                   int64_t* partition,
@@ -750,15 +674,6 @@ static void redistribute_prismesh(prismesh_t** mesh,
   MPI_Comm_size(new_mesh->comm, &new_mesh->nproc);
   MPI_Comm_rank(new_mesh->comm, &new_mesh->rank);
   new_mesh->finalized = false;
-
-  // Initialize exchangers. Unless we ask for anything else, we only 
-  // set up the cell exchanger.
-  new_mesh->c_ex = exchanger_new(new_mesh->comm);
-  new_mesh->xyf_ex = NULL;
-  new_mesh->zf_ex = NULL;
-  new_mesh->xye_ex = NULL;
-  new_mesh->ze_ex = NULL;
-  new_mesh->n_ex = NULL;
 
   // Create xy data for chunks.
   new_mesh->chunk_xy_data = redistribute_chunk_xy_data(old_mesh, partition, sources);
@@ -1047,3 +962,10 @@ polymesh_t* prismesh_as_polymesh(prismesh_t* mesh)
   return NULL; // FIXME
 }
 
+// These functions provide access to exchangers for prismesh_fields.
+exchanger_t* prismesh_chunk_cell_exchanger(prismesh_t* mesh, int xy_index, int z_index);
+exchanger_t* prismesh_chunk_cell_exchanger(prismesh_t* mesh, int xy_index, int z_index)
+{
+  int index = chunk_index(mesh, xy_index, z_index);
+  return *int_ptr_unordered_map_get(mesh->cell_exchangers, index);
+}

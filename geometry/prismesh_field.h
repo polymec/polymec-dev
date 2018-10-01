@@ -40,6 +40,9 @@ struct prismesh_chunk_data_t
 
   /// The number of components for a datum in the field.
   size_t num_components;
+
+  /// Exchanger token used to control exchanges of this field.
+  int ex_token;
 };
 typedef struct prismesh_chunk_data_t prismesh_chunk_data_t;
 
@@ -106,6 +109,29 @@ bool prismesh_field_next_chunk(prismesh_field_t* field, int* pos,
                                int* xy_index, int* z_index,
                                prismesh_chunk_data_t** chunk_data);
 
+/// Synchronously exchanges boundary data in the chunks within this 
+/// field with that of adjoining chunks. For cell-centered data, this 
+/// means filling ghost cells. For face-, node-, and edge-centered data, it 
+/// means overwriting values on the boundary of each chunk with data from 
+/// other chunks.
+/// \memberof prismesh_field
+void prismesh_field_exchange(prismesh_field_t* field);
+
+/// Begins an asynchronous exchange of boundary data for the chunks in this 
+/// field.
+/// \memberof prismesh_field
+void prismesh_field_start_exchange(prismesh_field_t* field);
+
+/// Finishes an asynchronous exchange initiated with 
+/// \ref prismesh_field_start_exchange.
+/// \memberof prismesh_field
+void prismesh_field_finish_exchange(prismesh_field_t* field);
+
+/// Returns `true` if this field is in the middle of an asynchronous exchange,
+/// `false` if not.
+/// \memberof prismesh_field
+bool prismesh_field_is_exchanging(prismesh_field_t* field);
+
 typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 
 /// Enumerates values in the given prismesh field.
@@ -115,39 +141,6 @@ real_enumerable_generator_t* prismesh_field_enumerate(prismesh_field_t* field);
 /// Enumerates values in the given prismesh chunk data set.
 /// \memberof prismesh_chunk_data
 real_enumerable_generator_t* prismesh_chunk_data_enumerate(prismesh_chunk_data_t* chunk_data);
-
-/// Compares all elements in the given component of the two given sets of chunk data, 
-/// returning true if the pairwise comparison of each component element in 
-/// the two datasets yields a "true" comparison, and false otherwise.
-/// Calling this function on two datasets with different centerings or with 
-/// incompatible chunks is not allowed.
-/// \memberof prismesh_chunk_data
-bool prismesh_chunk_data_compare_all(prismesh_chunk_data_t* chunk_data,
-                                     prismesh_chunk_data_t* other_chunk_data,
-                                     int component,
-                                     bool (*comparator)(real_t val, real_t other_val));
-
-/// Compares elements in the given component of the two given sets of chunk data, 
-/// returning true if the pairwise comparison of ANY component element in 
-/// the two datasets yields a "true" comparison, and false if none do so.
-/// Calling this function on two datasets with different centerings or with 
-/// incompatible chunks is not allowed.
-/// \memberof prismesh_chunk_data
-bool prismesh_chunk_data_compare_any(prismesh_chunk_data_t* chunk_data,
-                                     prismesh_chunk_data_t* other_chunk_data,
-                                     int component,
-                                     bool (*comparator)(real_t val, real_t other_val));
-
-/// Compares elements in the given component of the two given sets of chunk data, 
-/// returning true if NO pairwise comparison of ANY component element in 
-/// the two datasets yields a "true" comparison, and false if any do.
-/// Calling this function on two datasets with different centerings or with 
-/// incompatible chunks is not allowed.
-/// \memberof prismesh_chunk_data
-bool prismesh_chunk_data_compare_none(prismesh_chunk_data_t* chunk_data,
-                                      prismesh_chunk_data_t* other_chunk_data,
-                                      int component,
-                                      bool (*comparator)(real_t val, real_t other_val));
 
 ///@}
 

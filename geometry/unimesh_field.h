@@ -133,7 +133,7 @@ void unimesh_field_start_updating_patch_boundaries(unimesh_field_t* field,
                                                    real_t t);
 
 /// Finishes an asynchronous patch boundary update initiated with 
-/// unimesh_field_start_updating_patch_boundaries.
+/// \ref unimesh_field_start_updating_patch_boundaries.
 /// \memberof unimesh_field
 void unimesh_field_finish_updating_patch_boundaries(unimesh_field_t* field);
 
