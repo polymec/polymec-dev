@@ -61,7 +61,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
     if ((int)partition_vector[c] == xy_index)
     {
       int_array_append(local_cols, c);
-      int_int_unordered_map_insert(col_map, c, xy_data->num_columns);
+      int_int_unordered_map_insert(col_map, c, (int)xy_data->num_columns);
       ++xy_data->num_columns;
     }
   }
@@ -94,7 +94,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
       if (mesh->edge_cells[2*edge] == col) 
       {
         // This is our first encounter with the edge, so we create a new xy face.
-        xy_data->column_xy_faces[xy_data->column_xy_face_offsets[c]+f] = xy_data->num_xy_faces;
+        xy_data->column_xy_faces[xy_data->column_xy_face_offsets[c]+f] = (int)(xy_data->num_xy_faces);
         ++xy_data->num_xy_faces;
         int_array_append(face_cols, c);
 
@@ -520,13 +520,13 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
                                     void (*handler)(const char* format, ...))
 {
 #if 0
-  // All cells must have at least 4 faces.
+  // All cells are prisms and must have at least 5 faces (3 xy faces + 2 z faces).
   for (int c = 0; c < mesh->num_cells; ++c)
   {
-    if (polymesh_cell_num_faces(mesh, c) < 4)
+    if (polymesh_cell_num_faces(mesh, c) < 5)
     {
-      handler("polymesh_verify_topology: polyhedral cell %d has only %d faces.", 
-              c, polymesh_cell_num_faces(mesh, c));
+      handler("polymesh_verify_topology: prism cell %d has only %d faces.", 
+              c, prismesh_cell_num_faces(mesh, c));
       return false;
     }
   }
