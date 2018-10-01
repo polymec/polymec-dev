@@ -347,7 +347,7 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
   real_t dz = (mesh->z2 - mesh->z1) / nz;
   real_t z1 = mesh->z1 + z_index * dz;
   real_t z2 = mesh->z1 + (z_index+1) * dz;
-  chunk->num_z_cells = nz;
+  chunk->num_z_cells = mesh->nz_per_chunk;
   chunk->z1 = z1;
   chunk->z2 = z2;
 
@@ -452,7 +452,7 @@ prismesh_t* prismesh_new(MPI_Comm comm,
   size_t chunks_per_proc = tot_num_chunks / nproc;
   for (size_t i = 0; i < tot_num_chunks; ++i)
   {
-    if ((i >= rank*chunks_per_proc) && (i < rank*(chunks_per_proc+1)))
+    if ((i >= rank*chunks_per_proc) && (i < (rank+1)*chunks_per_proc))
     {
       int xy_index = (int)(i / num_z_chunks);
       int z_index = (int)(i % num_z_chunks);
