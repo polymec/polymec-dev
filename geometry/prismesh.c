@@ -95,6 +95,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
       {
         // This is our first encounter with the edge, so we create a new xy face.
         xy_data->column_xy_faces[xy_data->column_xy_face_offsets[c]+f] = (int)(xy_data->num_xy_faces);
+        printf("Col %d <-- face %d\n", c, (int)(xy_data->num_xy_faces));
         ++xy_data->num_xy_faces;
         int_array_append(face_cols, c);
 
@@ -111,11 +112,21 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
         }
         else
         {
-          // The neighbor is a ghost column, as far as this chunk is concerned.
-          nc = (int)(xy_data->num_columns + ghost_xy_indices->size);
-          int_array_append(ghost_xy_indices, nc);
+          if (neighbor != -1)
+          {
+            // The neighbor is a ghost column, as far as this chunk is concerned.
+            nc = (int)(xy_data->num_columns + ghost_xy_indices->size);
+            int_array_append(ghost_xy_indices, nc);
+          }
+          else
+          {
+            // We're at an xy boundary.
+            nc = -1;
+          }
         }
         int_array_append(face_cols, nc);
+        printf("Face %d <-- col %d\n", face_cols->size/2-1, face_cols->data[face_cols->size-2]);
+        printf("Face %d <-- col %d\n", face_cols->size/2-1, face_cols->data[face_cols->size-1]);
 
         // Read off the 2 nodes connecting the edge for the planar cell and 
         // see if we've already added them.
@@ -215,10 +226,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(prismesh_t* old_mesh,
 
 static void free_chunk(prismesh_chunk_t* chunk)
 {
-  polymec_free(chunk->xy_nodes);
-  polymec_free(chunk->xy_face_columns);
-  polymec_free(chunk->column_xy_faces);
-  polymec_free(chunk->column_xy_face_offsets);
+  // The chunk's xy data is managed by the prismesh.
   polymec_free(chunk);
 }
 
@@ -552,7 +560,7 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
           (chunk->xy_face_columns[2*face+1] != c))
       {
         handler("prismesh_verify_topology: column %d has xy face %d in its list "
-                " of faces, but that face does not have that column in its list.", c, xy_faces[f]);
+                "of faces, but that face does not have that column in its list.", c, xy_faces[f]);
         return false;
       }
     }
