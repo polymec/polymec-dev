@@ -248,7 +248,7 @@ polygon_t* prismesh_chunk_polygon(prismesh_chunk_t* chunk, int column);
 /// Returns the number of xy faces for the given column in the chunk.
 /// \memberof prismesh_chunk
 static inline int prismesh_chunk_column_num_xy_faces(prismesh_chunk_t* chunk,
-                                                     int column)
+                                                     size_t column)
 {
   return chunk->column_xy_face_offsets[column+1] - chunk->column_xy_face_offsets[column];
 }
@@ -259,13 +259,13 @@ static inline int prismesh_chunk_column_num_xy_faces(prismesh_chunk_t* chunk,
 ///                       xy faces of the column.
 /// \memberof prismesh_chunk
 static inline void prismesh_chunk_column_get_xy_faces(prismesh_chunk_t* chunk,
-                                                      int column,
+                                                      size_t column,
                                                       int* xy_faces)
 {
   int start = chunk->column_xy_face_offsets[column];
   int end = chunk->column_xy_face_offsets[column+1];
   for (int f = start; f < end; ++f)
-    xy_faces[f] = chunk->column_xy_faces[f];
+    xy_faces[f-start] = chunk->column_xy_faces[f];
 }
 
 /// Returns the xy and z indices for the nodes of the given xy face at the 

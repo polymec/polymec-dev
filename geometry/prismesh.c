@@ -155,14 +155,15 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
         int orig_col = *int_int_unordered_map_get(col_map, neighbor_col);
         for (int ff = 0; ff < num_col_faces; ++ff)
         {
-          int orig_col_face = xy_data->column_xy_faces[xy_data->column_xy_face_offsets[orig_col]+f];
+          int orig_col_face = xy_data->column_xy_faces[xy_data->column_xy_face_offsets[orig_col]+ff];
           if (orig_col_face == face_cols->data[2*orig_col_face]) 
           {
-            xy_data->column_xy_faces[xy_data->column_xy_face_offsets[c]+f] = orig_col_face;
+            xy_data->column_xy_faces[xy_data->column_xy_face_offsets[c]+ff] = orig_col_face;
             break;
           }
         }
       }
+      ++f;
     }
   }
   // Surrender the data from the various arrays.
@@ -181,15 +182,6 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   while (int_int_unordered_map_next(node_map, &npos, &n, &node))
     xy_data->xy_nodes[node] = mesh->nodes[n];
   int_int_unordered_map_free(node_map);
-
-  // xy edge -> node connectivity.
-  xy_data->xy_edge_nodes = polymec_malloc(sizeof(int) * 2 * xy_data->num_xy_edges);
-  memcpy(xy_data->xy_edge_nodes, mesh->edge_nodes, sizeof(int) * 2 * xy_data->num_xy_edges);
-
-  // Node xy coordinates.
-  xy_data->num_xy_nodes = (size_t)mesh->num_nodes;
-  xy_data->xy_nodes = polymec_malloc(sizeof(point2_t) * xy_data->num_xy_nodes);
-  memcpy(xy_data->xy_nodes, mesh->nodes, sizeof(point2_t) * xy_data->num_xy_nodes);
 
   // Set up a cell exchanger for this chunk.
   xy_data->num_ghost_columns = ghost_xy_indices->size;
@@ -519,54 +511,62 @@ bool prismesh_verify_topology(prismesh_t* mesh,
 bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
                                     void (*handler)(const char* format, ...))
 {
-#if 0
   // All cells are prisms and must have at least 5 faces (3 xy faces + 2 z faces).
-  for (int c = 0; c < mesh->num_cells; ++c)
+  for (size_t c = 0; c < chunk->num_columns; ++c)
   {
-    if (polymesh_cell_num_faces(mesh, c) < 5)
+    if (prismesh_chunk_column_num_xy_faces(chunk, c) < 3)
     {
-      handler("polymesh_verify_topology: prism cell %d has only %d faces.", 
-              c, prismesh_cell_num_faces(mesh, c));
+      handler("polymesh_verify_topology: column %d has only %d faces per cell.", 
+              (int)c, prismesh_chunk_column_num_xy_faces(chunk, c) + 2);
       return false;
     }
   }
 
-  // All faces must have at least 3 nodes/edges.
-  for (int f = 0; f < mesh->num_faces; ++f)
+  // All z faces must have at least 3 nodes/edges.
+  int num_z_faces = (int)chunk->num_columns;
+  for (size_t f = 0; f < num_z_faces; ++f)
   {
-    int ne = polymesh_face_num_edges(mesh, f);
-    if (ne == 0)
+    int nn = prismesh_chunk_z_face_num_nodes(chunk, f);
+    if (nn == 0)
     {
-      handler("polymesh_verify_topology: polygonal face %d has no edges!", f);
+      handler("prismesh_verify_topology: column %d has a polygonal z face with no edges!", f);
       return false;
     }
-    if (ne < 3)
+    if (nn < 3)
     {
-      handler("polymesh_verify_topology: polygonal face %d has only %d edges.", f, ne);
+      handler("polymesh_verify_topology: column %d has a polygonal face %d with only %d nodes.", f, nn);
       return false;
     }
   }
 
-  // Check cell-face topology.
-  for (int c = 0; c < mesh->num_cells; ++c)
+  // Check xy cell-face topology.
+  for (size_t c = 0; c < chunk->num_columns; ++c)
   {
-    int pos = 0, f;
-    while (polymesh_cell_next_face(mesh, c, &pos, &f))
+    int num_xy_faces = prismesh_chunk_column_num_xy_faces(chunk, c);
+    int xy_faces[num_xy_faces];
+    prismesh_chunk_column_get_xy_faces(chunk, c, xy_faces);
+    for (int f = 0; f < num_xy_faces; ++f)
     {
-      if ((mesh->face_cells[2*f] != c) && (mesh->face_cells[2*f+1] != c))
+      int face = xy_faces[f];
+      if ((chunk->xy_face_columns[2*face] != c) && 
+          (chunk->xy_face_columns[2*face+1] != c))
       {
-        handler("polymesh_verify_topology: cell %d has face %d but is not attached to it.", c, f);
+        handler("prismesh_verify_topology: column %d has xy face %d in its list "
+                " of faces, but that face does not have that column in its list.", c, xy_faces[f]);
         return false;
       }
     }
   }
-  for (int f = 0; f < mesh->num_faces; ++f)
+  for (size_t f = 0; f < chunk->num_xy_faces; ++f)
   {
-    int pos = 0, ff;
+    int column = chunk->xy_face_columns[2*f];
+    int num_xy_faces = prismesh_chunk_column_num_xy_faces(chunk, column);
+    int xy_faces[num_xy_faces];
+    prismesh_chunk_column_get_xy_faces(chunk, column, xy_faces);
     bool found_face = false;
-    while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
+    for (int ff = 0; ff < num_xy_faces; ++ff)
     {
-      if (ff == f) 
+      if (xy_faces[ff] == f) 
       {
         found_face = true;
         break;
@@ -574,14 +574,18 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
     }
     if (!found_face)
     {
-      handler("polymesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f]);
+      handler("prismesh_verify_topology: xy face %d has column %d in its list of columns, but "
+              " that column does not have that face in its list.", f, chunk->xy_face_columns[2*f]);
       return false;
     }
-    if (mesh->face_cells[2*f+1] != -1)
+    if (chunk->xy_face_columns[2*f+1] != -1)
     {
-      while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
+      found_face = false;
+      num_xy_faces = prismesh_chunk_column_num_xy_faces(chunk, column);
+      prismesh_chunk_column_get_xy_faces(chunk, column, xy_faces);
+      for (int ff = 0; ff < num_xy_faces; ++ff)
       {
-        if (ff == f) 
+        if (xy_faces[ff] == f) 
         {
           found_face = true;
           break;
@@ -589,14 +593,13 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
       }
       if (!found_face)
       {
-        handler("polymesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f+1]);
+        handler("prismesh_verify_topology: xy face %d has column %d in its list of columns, "
+                "but that column does not have that xy face in its list of faces.", f, chunk->xy_face_columns[2*f+1]);
         return false;
       }
     }
   }
   return true;
-#endif
-  return false;
 }
 
 MPI_Comm prismesh_comm(prismesh_t* mesh)

@@ -203,7 +203,8 @@ bool polymesh_verify_topology(polymesh_t* mesh,
     {
       if ((mesh->face_cells[2*f] != c) && (mesh->face_cells[2*f+1] != c))
       {
-        handler("polymesh_verify_topology: cell %d has face %d but is not attached to it.", c, f);
+        handler("polymesh_verify_topology: cell %d has face %d in its list of faces, but that "
+                "face does not have that cell in its list of cells.", c, f);
         return false;
       }
     }
@@ -222,11 +223,13 @@ bool polymesh_verify_topology(polymesh_t* mesh,
     }
     if (!found_face)
     {
-      handler("polymesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f]);
+      handler("polymesh_verify_topology: face %d has cell %d in its list of cells, but that cell "
+              "does not have that face in its list of faces.", f, mesh->face_cells[2*f]);
       return false;
     }
     if (mesh->face_cells[2*f+1] != -1)
     {
+      found_face = false;
       while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
       {
         if (ff == f) 
@@ -237,7 +240,8 @@ bool polymesh_verify_topology(polymesh_t* mesh,
       }
       if (!found_face)
       {
-        handler("polymesh_verify_topology: face %d has cell %d but is not attached to it.", f, mesh->face_cells[2*f+1]);
+        handler("polymesh_verify_topology: face %d has cell %d in its list of cells, but that cell "
+                "does not have that face in its list of faces.", f, mesh->face_cells[2*f+1]);
         return false;
       }
     }
