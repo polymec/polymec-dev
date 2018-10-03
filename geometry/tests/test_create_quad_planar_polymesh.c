@@ -23,6 +23,9 @@ static void test_create_quad_planar_polymesh(void** state)
   assert_int_equal(2*10*11, mesh->num_edges);
   assert_int_equal(11*11, mesh->num_nodes);
 
+  // Verify its topology.
+  assert_true(planar_polymesh_verify_topology(mesh, polymec_error));
+
   planar_polymesh_free(mesh);
 }
 

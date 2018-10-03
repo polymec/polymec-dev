@@ -532,7 +532,7 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
 
   // All z faces must have at least 3 nodes/edges.
   int num_z_faces = (int)chunk->num_columns;
-  for (size_t f = 0; f < num_z_faces; ++f)
+  for (int f = 0; f < num_z_faces; ++f)
   {
     int nn = prismesh_chunk_z_face_num_nodes(chunk, f);
     if (nn == 0)
