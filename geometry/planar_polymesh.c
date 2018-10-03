@@ -109,7 +109,8 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     {
       if ((mesh->edge_cells[2*e] != c) && (mesh->edge_cells[2*e+1] != c))
       {
-        handler("planar_polymesh_verify_topology: cell %d has edge %d but is not attached to it.", c, e);
+        handler("planar_polymesh_verify_topology: cell %d has xy edge %d in its list "
+                "of edges, but that edge does not have that cell in its list.", c, e);
         return false;
       }
     }
@@ -128,12 +129,14 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     }
     if (!found_edge)
     {
-      handler("planar_polymesh_verify_topology: edge %d has cell %d but is not attached to it.", e, mesh->edge_cells[2*e]);
+      handler("planar_polymesh_verify_topology: edge %d has cell %d in its list of cells, but "
+              "that cell does not have that edge in its list.", e, mesh->edge_cells[2*e]);
       return false;
     }
+    found_edge = false;
     if (mesh->edge_cells[2*e+1] != -1)
     {
-      while (planar_polymesh_cell_next_edge(mesh, mesh->edge_cells[2*e], &pos, &ee))
+      while (planar_polymesh_cell_next_edge(mesh, mesh->edge_cells[2*e+1], &pos, &ee))
       {
         if (ee == e) 
         {
@@ -143,7 +146,8 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
       }
       if (!found_edge)
       {
-        handler("planar_polymesh_verify_topology: edge %d has cell %d but is not attached to it.", e, mesh->edge_cells[2*e+1]);
+        handler("planar_polymesh_verify_topology: edge %d has cell %d in its list of cells, but "
+                "that cell does not have that edge in its list.", e, mesh->edge_cells[2*e+1]);
         return false;
       }
     }

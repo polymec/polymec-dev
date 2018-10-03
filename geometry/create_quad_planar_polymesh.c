@@ -106,7 +106,7 @@ planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny,
     int cell_index = c, i, j;
     quad_lattice_get_cell_pair(lattice, cell_index, &i, &j);
 
-    // Edges are just xy faces, really. Count em up.
+    // Hook up the cell's edges.
     int edges[4] = {quad_lattice_x_edge(lattice, i, j),
                     quad_lattice_x_edge(lattice, i+1, j),
                     quad_lattice_y_edge(lattice, i, j),
@@ -120,7 +120,7 @@ planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny,
         mesh->edge_cells[2*edges[e]+1] = c;
     }
 
-    // We use the "bottom" nodes for the cell.
+    // Hook up each edge's nodes.
     int nodes[4] = {quad_lattice_node(lattice, i,   j),
                     quad_lattice_node(lattice, i+1, j),
                     quad_lattice_node(lattice, i+1, j+1),
@@ -128,7 +128,7 @@ planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny,
     for (int n = 0; n < 4; ++n)
     {
       mesh->edge_nodes[2*edges[n]] = nodes[n];
-      mesh->edge_nodes[2*edges[(n+1)%4]] = nodes[(n+1)%4];
+      mesh->edge_nodes[2*edges[n]+1] = nodes[(n+1)%4];
     }
   }
 

@@ -125,8 +125,8 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
           }
         }
         int_array_append(face_cols, nc);
-        printf("Face %d <-- col %d\n", face_cols->size/2-1, face_cols->data[face_cols->size-2]);
-        printf("Face %d <-- col %d\n", face_cols->size/2-1, face_cols->data[face_cols->size-1]);
+        printf("Face %d <-- col %d\n", (int)(face_cols->size/2-1), face_cols->data[face_cols->size-2]);
+        printf("Face %d <-- col %d\n", (int)(face_cols->size/2-1), face_cols->data[face_cols->size-1]);
 
         // Read off the 2 nodes connecting the edge for the planar cell and 
         // see if we've already added them.
@@ -583,14 +583,15 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
     if (!found_face)
     {
       handler("prismesh_verify_topology: xy face %d has column %d in its list of columns, but "
-              " that column does not have that face in its list.", f, chunk->xy_face_columns[2*f]);
+              "that column does not have that face in its list.", f, chunk->xy_face_columns[2*f]);
       return false;
     }
     if (chunk->xy_face_columns[2*f+1] != -1)
     {
       found_face = false;
-      num_xy_faces = prismesh_chunk_column_num_xy_faces(chunk, column);
-      prismesh_chunk_column_get_xy_faces(chunk, column, xy_faces);
+      int other_col = chunk->xy_face_columns[2*f+1];
+      num_xy_faces = prismesh_chunk_column_num_xy_faces(chunk, other_col);
+      prismesh_chunk_column_get_xy_faces(chunk, other_col, xy_faces);
       for (int ff = 0; ff < num_xy_faces; ++ff)
       {
         if (xy_faces[ff] == f) 
@@ -602,7 +603,7 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
       if (!found_face)
       {
         handler("prismesh_verify_topology: xy face %d has column %d in its list of columns, "
-                "but that column does not have that xy face in its list of faces.", f, chunk->xy_face_columns[2*f+1]);
+                "but that column does not have that xy face in its list of faces.", f, other_col);
         return false;
       }
     }
