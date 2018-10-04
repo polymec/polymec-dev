@@ -167,7 +167,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
         for (int ff = 0; ff < num_col_faces; ++ff)
         {
           int orig_col_face = xy_data->column_xy_faces[xy_data->column_xy_face_offsets[orig_col]+ff];
-          if (orig_col_face == face_cols->data[2*orig_col_face]) 
+          if (orig_col == face_cols->data[2*orig_col_face]) 
           {
             xy_data->column_xy_faces[xy_data->column_xy_face_offsets[c]+ff] = orig_col_face;
             break;
@@ -542,7 +542,7 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
     }
     if (nn < 3)
     {
-      handler("polymesh_verify_topology: column %d has a polygonal face %d with only %d nodes.", f, nn);
+      handler("prismesh_verify_topology: column %d has a polygonal face %d with only %d nodes.", f, nn);
       return false;
     }
   }
