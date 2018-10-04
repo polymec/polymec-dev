@@ -119,9 +119,13 @@ static inline bool planar_polymesh_cell_next_edge(planar_polymesh_t* mesh,
                                                   int* pos, 
                                                   int* edge)
 {
-  *edge = mesh->cell_edges[mesh->cell_edge_offsets[cell] + *pos];
-  ++(*pos);
-  return (*pos <= (mesh->cell_edge_offsets[cell+1] - mesh->cell_edge_offsets[cell]));
+  bool result = (*pos < (mesh->cell_edge_offsets[cell+1] - mesh->cell_edge_offsets[cell]));
+  if (result)
+  {
+    *edge = mesh->cell_edges[mesh->cell_edge_offsets[cell] + *pos];
+    ++(*pos);
+  }
+  return result;
 }
 
 /// Allows iteration over the neighboring cells attached to the given cell in 
