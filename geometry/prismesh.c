@@ -7,7 +7,6 @@
 
 #include "core/timer.h"
 #include "core/array.h"
-#include "core/array_utils.h"
 #include "core/unordered_map.h"
 #include "geometry/prismesh.h"
 #include "geometry/prismesh_field.h"
@@ -52,16 +51,17 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   int rank;
   MPI_Comm_rank(comm, &rank);
 
-  // Make a list of polygonal cells (columns) that correspond to the 
-  // given xy chunk index.
-  int_array_t* local_cols = int_array_new();
-  int_int_unordered_map_t* col_map = int_int_unordered_map_new(); // maps planar mesh columns to our chunk.
-  for (int c = 0; c < mesh->num_cells; ++c)
+  // Make a list of polygonal cells (which become columns in our chunks) that 
+  // correspond to the given xy chunk index.
+  int_array_t* local_cells = int_array_new(); // maps columns to planar mesh cells
+  int_int_unordered_map_t* cell_to_col_map = 
+    int_int_unordered_map_new(); // maps planar mesh cells to columns in our chunk
+  for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
-    if ((int)partition_vector[c] == xy_index)
+    if ((int)partition_vector[cell] == xy_index)
     {
-      int_array_append(local_cols, c);
-      int_int_unordered_map_insert(col_map, c, (int)xy_data->num_columns);
+      int_array_append(local_cells, cell);
+      int_int_unordered_map_insert(cell_to_col_map, cell, (int)xy_data->num_columns);
       ++xy_data->num_columns;
     }
   }
@@ -71,7 +71,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   xy_data->column_xy_face_offsets[0] = 0;
   for (int c = 0; c < xy_data->num_columns; ++c)
   {
-    int cell = local_cols->data[c];
+    int cell = local_cells->data[c];
     xy_data->column_xy_face_offsets[c+1] = xy_data->column_xy_face_offsets[c] + 
                                            planar_polymesh_cell_num_edges(mesh, cell);
   }
@@ -79,54 +79,54 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
 
   // Now determine the connectivity in a single pass.
   int_array_t* face_cols = int_array_new();
-  int_int_unordered_map_t* node_map = int_int_unordered_map_new(); // maps planar mesh nodes to chunk nodes
+  int_int_unordered_map_t* node_map = 
+    int_int_unordered_map_new(); // maps planar mesh nodes to chunk nodes
   int_array_t* edge_nodes = int_array_new();
   int_array_t* ghost_xy_indices = int_array_new();
-  for (int c = 0; c < xy_data->num_columns; ++c)
+  for (int col = 0; col < xy_data->num_columns; ++col)
   {
-    int col = local_cols->data[c];
+    // Get the polygonal cell corresponding to this column.
+    int cell = local_cells->data[col];
 
-    // Loop over the neighboring columns.
-    int epos = 0, edge, f = 0;
-    while (planar_polymesh_cell_next_edge(mesh, col, &epos, &edge))
+    // Loop over the neighboring cells.
+    int epos = 0, edge, col_face = 0;
+    while (planar_polymesh_cell_next_edge(mesh, cell, &epos, &edge))
     {
-      // Create the xy face that connects these two columns.
-      if (mesh->edge_cells[2*edge] == col) 
+      // Create the xy face that connects these two columns (from the edge
+      // connecting the two polygonal cells).
+      if (mesh->edge_cells[2*edge] == cell) 
       {
         // This is our first encounter with the edge, so we create a new xy face.
-        xy_data->column_xy_faces[xy_data->column_xy_face_offsets[c]+f] = (int)(xy_data->num_xy_faces);
-        printf("Col %d <-- face %d\n", c, (int)(xy_data->num_xy_faces));
+        xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col]+col_face] = 
+          (int)(xy_data->num_xy_faces);
         ++xy_data->num_xy_faces;
-        int_array_append(face_cols, c);
+        int_array_append(face_cols, col);
 
         // Hook up the neighboring column on the other side of our new face.
-        int nc, neighbor = mesh->edge_cells[2*edge+1];
-        bool neighbor_in_chunk = ((neighbor != -1) && 
-                                  (partition_vector[neighbor] == xy_index));
-        if (neighbor_in_chunk)
+        int neighbor_cell = mesh->edge_cells[2*edge+1];
+        int neighbor_col;
+        bool neighbor_col_in_chunk = ((neighbor_cell != -1) && 
+                                      (partition_vector[neighbor_cell] == xy_index));
+        if (neighbor_col_in_chunk)
         {
-          // The neighbor is in this chunk. Find its index in our list of 
-          // "local" columns.
-          int* pos = int_bsearch(local_cols->data, local_cols->size, neighbor);
-          nc = (int)(pos - local_cols->data);
+          // The neighbor column is in this chunk. 
+          neighbor_col = *int_int_unordered_map_get(cell_to_col_map, neighbor_cell);
         }
         else
         {
-          if (neighbor != -1)
+          if (neighbor_cell != -1)
           {
             // The neighbor is a ghost column, as far as this chunk is concerned.
-            nc = (int)(xy_data->num_columns + ghost_xy_indices->size);
-            int_array_append(ghost_xy_indices, nc);
+            neighbor_col = (int)(xy_data->num_columns + ghost_xy_indices->size);
+            int_array_append(ghost_xy_indices, neighbor_col);
           }
           else
           {
             // We're at an xy boundary.
-            nc = -1;
+            neighbor_col = -1;
           }
         }
-        int_array_append(face_cols, nc);
-        printf("Face %d <-- col %d\n", (int)(face_cols->size/2-1), face_cols->data[face_cols->size-2]);
-        printf("Face %d <-- col %d\n", (int)(face_cols->size/2-1), face_cols->data[face_cols->size-1]);
+        int_array_append(face_cols, neighbor_col);
 
         // Read off the 2 nodes connecting the edge for the planar cell and 
         // see if we've already added them.
@@ -156,27 +156,39 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
       }
       else
       {
-        // We've already created this face, so verify that our column is on 
-        // "the other side".
-        ASSERT(mesh->edge_cells[2*edge+1] == col);
+        // We've already created this face, so verify that the cell corresponding 
+        // to our column is on "the other side" of the planar mesh's edge.
+        ASSERT(mesh->edge_cells[2*edge+1] == cell);
 
-        // Fish out the xy face shared by this cell and its neighbor.
-        int neighbor_col = mesh->edge_cells[2*edge];
-        int num_col_faces = planar_polymesh_cell_num_edges(mesh, neighbor_col);
-        int orig_col = *int_int_unordered_map_get(col_map, neighbor_col);
-        for (int ff = 0; ff < num_col_faces; ++ff)
+        // Fish out the xy face shared by this column and its neighbor.
+        int neighbor_cell = mesh->edge_cells[2*edge];
+        int neighbor_col = *int_int_unordered_map_get(cell_to_col_map, neighbor_cell);
+        ASSERT(neighbor_col < col);
+
+        // Find the face shared by col and neighbor_col, and add it to col's 
+        // list of faces.
+        bool found_col = false;
+        int num_col_faces = planar_polymesh_cell_num_edges(mesh, neighbor_cell);
+        for (int f = 0; f < num_col_faces; ++f)
         {
-          int orig_col_face = xy_data->column_xy_faces[xy_data->column_xy_face_offsets[orig_col]+ff];
-          if (orig_col == face_cols->data[2*orig_col_face]) 
+          int neighbor_col_face = xy_data->column_xy_faces[xy_data->column_xy_face_offsets[neighbor_col]+f];
+          if ((neighbor_col == face_cols->data[2*neighbor_col_face]) &&
+              (col == face_cols->data[2*neighbor_col_face+1]))
           {
-            xy_data->column_xy_faces[xy_data->column_xy_face_offsets[c]+ff] = orig_col_face;
+            xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col]+col_face] = neighbor_col_face;
+            found_col = true;
             break;
           }
         }
+        ASSERT(found_col);
       }
-      ++f;
+      ++col_face;
     }
+
+    // Have we added a column face for every polygonal cell edge?
+    ASSERT(col_face == planar_polymesh_cell_num_edges(mesh, cell));
   }
+
   // Surrender the data from the various arrays.
   ASSERT(xy_data->num_xy_faces == (face_cols->size / 2));
   xy_data->xy_face_columns = face_cols->data;
@@ -200,8 +212,8 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   int_array_free(ghost_xy_indices);
 
   // Clean up.
-  int_int_unordered_map_free(col_map);
-  int_array_free(local_cols);
+  int_int_unordered_map_free(cell_to_col_map);
+  int_array_free(local_cells);
 
   return xy_data;
 }
