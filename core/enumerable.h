@@ -206,19 +206,27 @@ DEFINE_ENUMERABLE_GENERATOR(real_enumerable_generator, real_t)
 #define equal_to(x, y, cmp) _Generic((x), \
                      real_enumerable_generator_t*: real_equal_to)(x, y)
 
+/// Prints values produced by an enumerable generator to the given FILE object.
+/// \memberof enumerable
+#define fprintf_values(file, x) _Generic((x), \
+                     real_enumerable_generator_t*: fprintf_real_values)(file, x)
+
 #endif // ifndef __cplusplus
 
-// compare_values (real number version).
+// compare_values 
 bool_array_t* compare_real_values(real_enumerable_generator_t* g1,
                                   real_enumerable_generator_t* g2,
                                   bool (*compare)(real_t x, real_t y));
 
-// Ordering comparison functions for real numbers.
+// Ordering comparison functions
 bool_array_t* real_greater_than(real_enumerable_generator_t* g, real_t value);
 bool_array_t* real_greater_than_or_equal_to(real_enumerable_generator_t* g, real_t value);
 bool_array_t* real_less_than(real_enumerable_generator_t* g, real_t value);
 bool_array_t* real_less_than_or_equal_to(real_enumerable_generator_t* g, real_t value);
 bool_array_t* real_equal_to(real_enumerable_generator_t* g, real_t value);
+
+// fprintf_values 
+void fprintf_real_values(FILE* file, real_enumerable_generator_t* g);
 
 //
 ///@}

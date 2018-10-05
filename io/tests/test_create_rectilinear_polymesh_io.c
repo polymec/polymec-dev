@@ -115,6 +115,15 @@ static void test_plot_rectilinear_mesh(void** state)
   // edge field
   assert_true(silo_file_contains_polymesh_field(silo, "evals", "mesh", POLYMESH_EDGE));
   polymesh_field_t* efield1 = polymesh_field_new(mesh, POLYMESH_EDGE, 1);
+  fprintf_values(stdout, polymesh_field_enumerate(efield1));
+  fprintf_values(stdout, polymesh_field_enumerate(efield));
+  bool_array_t* cmp_vals = compare_values(polymesh_field_enumerate(efield1), 
+                                          polymesh_field_enumerate(efield), 
+                                          reals_equal);
+  for (size_t i = 0; i < cmp_vals->size; ++i)
+    printf("%d ", (int)cmp_vals->data[i]);
+  printf("\n");
+  printf("butthole: %d\n", ALL(cmp_vals));
   assert_true(ALL(compare_values(polymesh_field_enumerate(efield1), 
                                  polymesh_field_enumerate(efield), 
                                  reals_equal)));

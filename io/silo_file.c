@@ -1797,13 +1797,16 @@ void silo_file_write_polymesh_field(silo_file_t* file,
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
   silo_file_pop_dir(file);
   DECLARE_POLYMESH_FIELD_ARRAY(field_data, field);
+  real_t* comp_data = polymec_malloc(sizeof(real_t) * num_elems);
   for (int c = 0; c < field->num_components; ++c)
   {
     silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
+    for (int i = 0; i < num_elems; ++i)
+      comp_data[i] = field_data[i][c];
     silo_file_write_polymesh_field_comp(file, field_component_names[c], mesh_name,
-                                        field->centering, (real_t*)(field_data[c]), metadata);
+                                        field->centering, comp_data, metadata);
   }
-
+  polymec_free(comp_data);
   STOP_FUNCTION_TIMER();
 }
 
@@ -1884,12 +1887,16 @@ void silo_file_read_polymesh_field(silo_file_t* file,
   silo_file_pop_dir(file);
 
   DECLARE_POLYMESH_FIELD_ARRAY(field_data, field);
+  real_t* comp_data = polymec_malloc(sizeof(real_t) * num_elems);
   for (int c = 0; c < field->num_components; ++c)
   {
     silo_field_metadata_t* metadata = (field_metadata != NULL) ? field_metadata[c] : NULL;
     silo_file_read_polymesh_field_comp(file, field_component_names[c], mesh_name, 
-                                       field->centering, (real_t*)(field_data[c]), metadata);
+                                       field->centering, comp_data, metadata);
+    for (int i = 0; i < num_elems; ++i)
+      field_data[i][c] = comp_data[i];
   }
+  polymec_free(comp_data);
   STOP_FUNCTION_TIMER();
 }
 

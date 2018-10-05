@@ -205,3 +205,35 @@ DEFINE_ORDERING_CMP(less_than, real, real_t, real_lt)
 DEFINE_ORDERING_CMP(less_than_or_equal_to, real, real_t, real_lte)
 DEFINE_ORDERING_CMP(equal_to, real, real_t, reals_equal)
 
+// Generic function for printing values from generators
+#define DEFINE_FPRINTF_VALUES(datatype_prefix, datatype, format_str) \
+void fprintf_##datatype_prefix##_values(FILE* file, \
+                                        datatype_prefix##_enumerable_generator_t* g) \
+{ \
+  if (g->array != NULL) \
+  { \
+    for (size_t i = 0; i < g->num_values; ++i) \
+    { \
+      datatype x = g->array[i]; \
+      fprintf(file, format_str " ", x); \
+    } \
+  } \
+  else \
+  { \
+    size_t i = 0; \
+    while (true) \
+    { \
+      datatype x; \
+      bool g_has_val = g->generate(g->context, i, &x); \
+      if (!g_has_val) break; \
+      fprintf(file, format_str " ", x); \
+      ++i; \
+    } \
+  } \
+  fprintf(file, "\n"); \
+  polymec_release(g); \
+} \
+\
+
+DEFINE_FPRINTF_VALUES(real, real_t, "%g")
+
