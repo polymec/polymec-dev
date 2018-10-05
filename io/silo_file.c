@@ -1796,6 +1796,7 @@ void silo_file_write_polymesh_field(silo_file_t* file,
   int num_elems;
   DBReadVar(file->dbfile, num_elems_var, &num_elems);
   silo_file_pop_dir(file);
+
   DECLARE_POLYMESH_FIELD_ARRAY(field_data, field);
   real_t* comp_data = polymec_malloc(sizeof(real_t) * num_elems);
   for (int c = 0; c < field->num_components; ++c)

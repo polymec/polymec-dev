@@ -63,9 +63,9 @@ static void test_cylindrical_crop(void** state)
   silo_file_t* silo = silo_file_new(cropped_mesh->comm, "cyl_cropped_mesh", "", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", cropped_mesh);
 
-  polymesh_field_t* ones = polymesh_field_new(mesh, POLYMESH_CELL, 1);
+  polymesh_field_t* ones = polymesh_field_new(cropped_mesh, POLYMESH_CELL, 1);
   DECLARE_POLYMESH_FIELD_ARRAY(data, ones);
-  for (int c = 0; c < Nx*Ny*Nz; ++c)
+  for (int c = 0; c < cropped_mesh->num_cells; ++c)
     data[c][0] = 1.0*c;
   const char* ones_name[] = {"ones"};
   silo_file_write_polymesh_field(silo, ones_name, "mesh", ones, NULL);
@@ -92,9 +92,9 @@ static void test_spherical_crop(void** state)
   silo_file_t* silo = silo_file_new(cropped_mesh->comm, "sph_cropped_mesh", "", 1, 0, 0.0);
   silo_file_write_polymesh(silo, "mesh", cropped_mesh);
 
-  polymesh_field_t* ones = polymesh_field_new(mesh, POLYMESH_CELL, 1);
+  polymesh_field_t* ones = polymesh_field_new(cropped_mesh, POLYMESH_CELL, 1);
   DECLARE_POLYMESH_FIELD_ARRAY(data, ones);
-  for (int c = 0; c < Nx*Ny*Nz; ++c)
+  for (int c = 0; c < cropped_mesh->num_cells; ++c)
     data[c][0] = 1.0*c;
   const char* ones_name[] = {"ones"};
   silo_file_write_polymesh_field(silo, ones_name, "mesh", ones, NULL);

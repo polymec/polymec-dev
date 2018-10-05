@@ -30,7 +30,7 @@ static void test_plot_rectilinear_mesh(void** state)
   polymesh_field_t* cfield = polymesh_field_new(mesh, POLYMESH_CELL, 1);
   DECLARE_POLYMESH_FIELD_ARRAY(cvals, cfield);
   const char* cnames[] = {"solution"};
-  for (int c = 0; c < 4*4*4; ++c)
+  for (int c = 0; c < mesh->num_cells; ++c)
     cvals[c][0] = 1.0*c;
   silo_field_metadata_t* metadata = silo_field_metadata_new();
   metadata->label = string_dup("solution");
