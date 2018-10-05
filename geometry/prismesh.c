@@ -681,6 +681,10 @@ void prismesh_chunk_get_node(prismesh_chunk_t* chunk,
                              int xy_index, int z_index,
                              point_t* node_pos)
 {
+  ASSERT(xy_index >= 0);
+  ASSERT(xy_index < chunk->num_xy_nodes);
+  ASSERT(z_index >= 0);
+  ASSERT(z_index <= chunk->num_z_cells);
   point2_t* xy = &(chunk->xy_nodes[xy_index]);
   node_pos->x = xy->x;
   node_pos->y = xy->y;
