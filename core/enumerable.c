@@ -145,6 +145,7 @@ bool_array_t* compare_##datatype_prefix##_values(datatype_prefix##_enumerable_ge
 } \
 
 DEFINE_COMPARE_VALUES(real, real_t)
+DEFINE_COMPARE_VALUES(int, int)
 
 // Generic function for defining functions for ordering operators.
 #define DEFINE_ORDERING_CMP(cmp_name, datatype_prefix, datatype, cmp_func) \
@@ -179,6 +180,37 @@ bool_array_t* datatype_prefix##_##cmp_name(datatype_prefix##_enumerable_generato
 } \
 \
 
+static inline bool int_gt(int x, int y) 
+{
+  return (x > y);
+}
+
+static inline bool int_gte(int x, int y) 
+{
+  return (x >= y);
+}
+
+static inline bool int_lt(int x, int y) 
+{
+  return (x < y);
+}
+
+static inline bool int_lte(int x, int y) 
+{
+  return (x <= y);
+}
+
+static inline bool int_eq(int x, int y) 
+{
+  return (x == y);
+}
+
+DEFINE_ORDERING_CMP(greater_than, int, int, int_gt)
+DEFINE_ORDERING_CMP(greater_than_or_equal_to, int, int, int_gte)
+DEFINE_ORDERING_CMP(less_than, int, int, int_lt)
+DEFINE_ORDERING_CMP(less_than_or_equal_to, int, int, int_lte)
+DEFINE_ORDERING_CMP(equal_to, int, int, int_eq)
+
 static inline bool real_gt(real_t x, real_t y) 
 {
   return (x > y);
@@ -206,16 +238,17 @@ DEFINE_ORDERING_CMP(less_than_or_equal_to, real, real_t, real_lte)
 DEFINE_ORDERING_CMP(equal_to, real, real_t, reals_equal)
 
 // Generic function for printing values from generators
-#define DEFINE_FPRINTF_VALUES(datatype_prefix, datatype, format_str) \
-void fprintf_##datatype_prefix##_values(FILE* file, \
-                                        datatype_prefix##_enumerable_generator_t* g) \
+#define DEFINE_APPLY_TO_VALUES(datatype_prefix, datatype) \
+void apply_to_##datatype_prefix##_values(void (*func)(void* context, datatype value), \
+                                         void* context, \
+                                         datatype_prefix##_enumerable_generator_t* g) \
 { \
   if (g->array != NULL) \
   { \
     for (size_t i = 0; i < g->num_values; ++i) \
     { \
       datatype x = g->array[i]; \
-      fprintf(file, format_str " ", x); \
+      func(context, x); \
     } \
   } \
   else \
@@ -226,14 +259,14 @@ void fprintf_##datatype_prefix##_values(FILE* file, \
       datatype x; \
       bool g_has_val = g->generate(g->context, i, &x); \
       if (!g_has_val) break; \
-      fprintf(file, format_str " ", x); \
+      func(context, x); \
       ++i; \
     } \
   } \
-  fprintf(file, "\n"); \
   polymec_release(g); \
 } \
 \
 
-DEFINE_FPRINTF_VALUES(real, real_t, "%g")
+DEFINE_APPLY_TO_VALUES(int, int)
+DEFINE_APPLY_TO_VALUES(real, real_t)
 

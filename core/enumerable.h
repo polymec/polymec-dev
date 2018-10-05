@@ -165,6 +165,7 @@ static inline generator_name##_t* generator_name##_new(bool (*generate)(void* co
 } \
 
 // Define some enumerable generators.
+DEFINE_ENUMERABLE_GENERATOR(int_enumerable_generator, int)
 DEFINE_ENUMERABLE_GENERATOR(real_enumerable_generator, real_t)
 
 // Fancy type-generic macros aren't available to C++.
@@ -174,59 +175,82 @@ DEFINE_ENUMERABLE_GENERATOR(real_enumerable_generator, real_t)
 /// a pairwise comparator cmp(x, y) that returns true or false.
 /// \memberof enumerable
 #define compare_values(x, y, cmp) _Generic((x), \
+                       int_enumerable_generator_t*: compare_int_values, \
                        real_enumerable_generator_t*: compare_real_values)(x, y, cmp)
 
 /// Determines whether the values produced by an enumerable generator x are
 /// greater than the given fixed value.
 /// \memberof enumerable
 #define greater_than(x, y, cmp) _Generic((x), \
+                     int_enumerable_generator_t*: int_greater_than, \
                      real_enumerable_generator_t*: real_greater_than)(x, y)
 
 /// Determines whether the values produced by an enumerable generator x are
 /// greater than or equal to the given fixed value.
 /// \memberof enumerable
 #define greater_than_or_equal_to(x, y, cmp) _Generic((x), \
+                     int_enumerable_generator_t*: int_greater_than_or_equal_to, \
                      real_enumerable_generator_t*: real_greater_than_or_equal_to)(x, y)
 
 /// Determines whether the values produced by an enumerable generator x are
 /// less than the given fixed value.
 /// \memberof enumerable
 #define less_than(x, y, cmp) _Generic((x), \
+                     int_enumerable_generator_t*: int_less_than, \
                      real_enumerable_generator_t*: real_less_than)(x, y)
 
 /// Determines whether the values produced by an enumerable generator x are
 /// less than or equal to the given fixed value.
 /// \memberof enumerable
 #define less_than_or_equal_to(x, y, cmp) _Generic((x), \
+                     int_enumerable_generator_t*: int_less_than_or_equal_to, \
                      real_enumerable_generator_t*: real_less_than_or_equal_to)(x, y)
 
 /// Determines whether the values produced by an enumerable generator x are
 /// equal to the given fixed value.
 /// \memberof enumerable
 #define equal_to(x, y, cmp) _Generic((x), \
+                     int_enumerable_generator_t*: int_equal_to, \
                      real_enumerable_generator_t*: real_equal_to)(x, y)
 
-/// Prints values produced by an enumerable generator to the given FILE object.
+/// Applies the given function (with the given supplied context pointer) to each value 
+/// produced by an enumerable generator.
+/// \param func A function that takes a context pointer and a value
 /// \memberof enumerable
-#define fprintf_values(file, x) _Generic((x), \
-                     real_enumerable_generator_t*: fprintf_real_values)(file, x)
+#define apply_to_values(func, context, x) _Generic((x), \
+                     int_enumerable_generator_t*: apply_to_int_values, \
+                     real_enumerable_generator_t*: apply_to_real_values)(func, context, x)
 
 #endif // ifndef __cplusplus
 
 // compare_values 
+bool_array_t* compare_int_values(int_enumerable_generator_t* g1,
+                                 int_enumerable_generator_t* g2,
+                                 bool (*compare)(int x, int y));
 bool_array_t* compare_real_values(real_enumerable_generator_t* g1,
                                   real_enumerable_generator_t* g2,
                                   bool (*compare)(real_t x, real_t y));
 
 // Ordering comparison functions
+bool_array_t* int_greater_than(int_enumerable_generator_t* g, int value);
+bool_array_t* int_greater_than_or_equal_to(int_enumerable_generator_t* g, int value);
+bool_array_t* int_less_than(int_enumerable_generator_t* g, int value);
+bool_array_t* int_less_than_or_equal_to(int_enumerable_generator_t* g, int value);
+bool_array_t* int_equal_to(int_enumerable_generator_t* g, int value);
+
 bool_array_t* real_greater_than(real_enumerable_generator_t* g, real_t value);
 bool_array_t* real_greater_than_or_equal_to(real_enumerable_generator_t* g, real_t value);
 bool_array_t* real_less_than(real_enumerable_generator_t* g, real_t value);
 bool_array_t* real_less_than_or_equal_to(real_enumerable_generator_t* g, real_t value);
 bool_array_t* real_equal_to(real_enumerable_generator_t* g, real_t value);
 
-// fprintf_values 
-void fprintf_real_values(FILE* file, real_enumerable_generator_t* g);
+// apply_to_values 
+void apply_to_int_values(void (*func)(void* context, int value),
+                         void* context, 
+                         int_enumerable_generator_t* g);
+void apply_to_real_values(void (*func)(void* context, real_t value),
+                          void* context, 
+                          real_enumerable_generator_t* g);
 
 //
 ///@}

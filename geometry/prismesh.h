@@ -355,6 +355,15 @@ static inline void prismesh_chunk_z_face_get_nodes(prismesh_chunk_t* chunk,
   prismesh_chunk_column_get_xy_faces(chunk, z_face, nodes);
 }
 
+/// Retrieves the coordinates of the node with the given xy and z indices in this 
+/// chunk. 
+/// \param [in] xy_index The index identifying the position of the node in the xy plane.
+/// \param [in] z_index The index identifying the position of the node along the z axis.
+/// \param [out] node_pos Stores the coordinates of the node.
+void prismesh_chunk_get_node(prismesh_chunk_t* chunk, 
+                             int xy_index, int z_index,
+                             point_t* node_pos);
+
 typedef struct prismesh_field_t prismesh_field_t;
 
 /// Repartitions the given prismesh and redistributes data to each of the 

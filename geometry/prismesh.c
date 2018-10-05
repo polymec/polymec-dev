@@ -677,6 +677,17 @@ bool prismesh_next_chunk(prismesh_t* mesh, int* pos,
   }
 }
 
+void prismesh_chunk_get_node(prismesh_chunk_t* chunk, 
+                             int xy_index, int z_index,
+                             point_t* node_pos)
+{
+  point2_t* xy = &(chunk->xy_nodes[xy_index]);
+  node_pos->x = xy->x;
+  node_pos->y = xy->y;
+  real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
+  node_pos->z = chunk->z1 + z_index * dz;
+}
+
 #if POLYMEC_HAVE_MPI
 static void redistribute_prismesh(prismesh_t** mesh, 
                                   int64_t* partition,
