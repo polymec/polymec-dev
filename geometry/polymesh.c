@@ -195,7 +195,7 @@ bool polymesh_verify_topology(polymesh_t* mesh,
     }
   }
 
-  // Check cell-face topology.
+  // Make sure that all the faces attached to this cell have it in their list.
   for (int c = 0; c < mesh->num_cells; ++c)
   {
     int pos = 0, f;
@@ -209,6 +209,8 @@ bool polymesh_verify_topology(polymesh_t* mesh,
       }
     }
   }
+
+  // Now go over all faces and make sure that their cells can see them, too.
   for (int f = 0; f < mesh->num_faces; ++f)
   {
     int pos = 0, ff;
@@ -227,7 +229,9 @@ bool polymesh_verify_topology(polymesh_t* mesh,
               "does not have that face in its list of faces.", f, mesh->face_cells[2*f]);
       return false;
     }
-    if (mesh->face_cells[2*f+1] != -1)
+
+    // Check the cell on the other side, too (but only if its a non-ghost cell).
+    if ((mesh->face_cells[2*f+1] != -1) && (mesh->face_cells[2*f+1] < mesh->num_cells))
     {
       pos = 0;
       found_face = false;

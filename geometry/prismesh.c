@@ -555,7 +555,7 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
     }
   }
 
-  // Check xy cell-face topology.
+  // Make sure that all the xy faces attached to this cell have it in their list.
   for (size_t c = 0; c < chunk->num_columns; ++c)
   {
     int num_xy_faces = prismesh_chunk_column_num_xy_faces(chunk, c);
@@ -573,6 +573,8 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
       }
     }
   }
+
+  // Now go over all xy faces and make sure that their columns can see them, too.
   for (size_t f = 0; f < chunk->num_xy_faces; ++f)
   {
     int column = chunk->xy_face_columns[2*f];
@@ -594,7 +596,9 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
               "that column does not have that face in its list.", f, chunk->xy_face_columns[2*f]);
       return false;
     }
-    if (chunk->xy_face_columns[2*f+1] != -1)
+
+    // Check the column on the other side, too (but only if its a non-ghost column).
+    if ((chunk->xy_face_columns[2*f+1] != -1) && (chunk->xy_face_columns[2*f+1] < chunk->num_columns))
     {
       found_face = false;
       int other_col = chunk->xy_face_columns[2*f+1];

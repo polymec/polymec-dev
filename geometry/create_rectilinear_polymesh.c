@@ -23,17 +23,11 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
 
 #ifndef NDEBUG
   for (int i = 1; i < nxs; ++i)
-  {
     ASSERT(xs[i]-xs[i-1] > 0.0);
-  }
   for (int j = 1; j < nys; ++j)
-  {
     ASSERT(ys[j]-ys[j-1] > 0.0);
-  }
   for (int k = 1; k < nzs; ++k)
-  {
     ASSERT(zs[k]-zs[k-1] > 0.0);
-  }
 #endif
 
   // Numbers of cells in each direction.
@@ -110,16 +104,11 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
   }
 
   // Create the mesh.
-  polymesh_t* mesh = polymesh_new(comm, num_cells, num_ghost_cells, num_faces, num_nodes);
-
-  // Connectivity metadata.
-  mesh->cell_face_offsets[0] = 0;
-  for (int c = 0; c < mesh->num_cells; ++c)
-    mesh->cell_face_offsets[c+1] = mesh->cell_face_offsets[c] + 6;
-  mesh->face_node_offsets[0] = 0;
-  for (int f = 0; f < mesh->num_faces; ++f)
-    mesh->face_node_offsets[f+1] = mesh->face_node_offsets[f] + 4;
-  polymesh_reserve_connectivity_storage(mesh);
+  int num_faces_per_cell = 6, num_nodes_per_face = 4;
+  polymesh_t* mesh = polymesh_new_with_cell_type(comm, num_cells, num_ghost_cells, 
+                                                 num_faces, num_nodes, 
+                                                 num_faces_per_cell,
+                                                 num_nodes_per_face);
 
   int_unordered_set_t* processed_nodes = int_unordered_set_new();
   int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
