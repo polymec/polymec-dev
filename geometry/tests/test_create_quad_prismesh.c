@@ -38,8 +38,9 @@ static void test_create_quad_prismesh(void** state)
   {
     local_num_cells += (int)(chunk->num_columns * chunk->num_z_cells);
     local_num_faces += (int)(chunk->num_xy_faces * chunk->num_z_cells + 
-                             (chunk->num_z_cells + 1));
-    local_num_edges += (int)(chunk->num_xy_edges * (2 * chunk->num_z_cells + 1));
+                             (chunk->num_z_cells + 1) * chunk->num_columns);
+    local_num_edges += (int)(chunk->num_xy_edges * (chunk->num_z_cells + 1) + 
+                             chunk->num_xy_nodes * chunk->num_z_cells);
     local_num_nodes += (int)(chunk->num_xy_nodes * (chunk->num_z_cells + 1));
   }
 

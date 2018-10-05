@@ -195,7 +195,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   int_array_release_data_and_free(face_cols);
 
   xy_data->xy_edge_nodes = edge_nodes->data;
-  xy_data->num_xy_edges = edge_nodes->size;
+  xy_data->num_xy_edges = edge_nodes->size/2;
   int_array_release_data_and_free(edge_nodes);
 
   // Set node positions.
@@ -249,7 +249,6 @@ struct prismesh_t
   MPI_Comm comm;
   int nproc, rank;
 
-  planar_polymesh_t* columns;
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
   real_t z1, z2;
 
@@ -483,9 +482,6 @@ void prismesh_free(prismesh_t* mesh)
   polymec_free(mesh->chunk_indices);
   chunk_map_free(mesh->chunks);
   chunk_xy_data_array_free(mesh->chunk_xy_data);
-
-  if (mesh->columns != NULL)
-    planar_polymesh_free(mesh->columns);
   polymec_free(mesh);
 }
 

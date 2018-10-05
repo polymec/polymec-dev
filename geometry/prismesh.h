@@ -105,8 +105,7 @@ typedef struct prismesh_chunk_t prismesh_chunk_t;
 /// of the z axis, with cellular columns defined by the given planar polymesh.
 /// \param comm [in] The communicator on which the mesh is constructed.
 /// \param columns [in] A planar polygonal mesh that defines a set of connected
-///                     polygonal columns for the prismesh. Consumed by this 
-///                     function.
+///                     polygonal columns for the prismesh. 
 /// \param z1 [in] The z coordinate of the lower boundary of the mesh.
 /// \param z2 [in] The z coordinate of the upper boundary of the mesh.
 /// \param num_xy_chunks [in] The number of chunks in the distributed mesh within the xy plane.
