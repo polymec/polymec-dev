@@ -229,8 +229,9 @@ bool polymesh_verify_topology(polymesh_t* mesh,
     }
     if (mesh->face_cells[2*f+1] != -1)
     {
+      pos = 0;
       found_face = false;
-      while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f], &pos, &ff))
+      while (polymesh_cell_next_face(mesh, mesh->face_cells[2*f+1], &pos, &ff))
       {
         if (ff == f) 
         {
