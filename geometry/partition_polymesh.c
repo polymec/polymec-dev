@@ -256,9 +256,6 @@ static polymesh_t* create_submesh(MPI_Comm comm, polymesh_t* mesh,
   // Construct edges.
   polymesh_construct_edges(submesh);
 
-  // Verify the submesh's topological correctness.
-  ASSERT(polymesh_verify_topology(submesh, polymec_error));
-
   // Do geometry.
   polymesh_compute_geometry(submesh);
 
@@ -809,9 +806,7 @@ bool partition_polymesh(polymesh_t** mesh,
 #ifndef NDEBUG
   // Make sure there are enough cells to go around for the processes we're given.
   if (rank == 0)
-  {
     ASSERT((*mesh)->num_cells > nprocs);
-  }
 #endif
 
   // Map the graph to the different domains, producing a local partition vector.
@@ -1103,6 +1098,7 @@ void distribute_polymesh(polymesh_t** mesh,
   int_int_unordered_map_free(inverse_cell_map);
 
   // Remove the tags we used for ghost cells and global cell indices.
+  polymesh_delete_tag(local_mesh->face_tags, "parallel_boundary_faces");
   polymesh_delete_tag(local_mesh->cell_tags, "ghost_cell_indices");
   polymesh_delete_tag(local_mesh->cell_tags, "global_cell_indices");
 
