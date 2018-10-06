@@ -419,44 +419,30 @@ prismesh_t* prismesh_new(MPI_Comm comm,
   MPI_Comm_rank(comm, &rank);
   if (nproc > 1)
   {
-    // Figure out how many chunks we want in the xy and z index spaces.
-    // Start by breaking the mesh up into the smallest feasible chunks.
-    // Then we grow them to maximize the number of cells on each process.
-    num_xy_chunks = MIN(columns->num_cells, nproc);
-    num_z_chunks = MIN(nz, nproc);
+    // We minimize (nz*nz - nxy) subject to the constraint
+    // (Nz/nz)*(Nxy/nxy) = num_z_chunks * num_xy_chunks = nproc, where
+    //  nz is the number of z cells in a chunk, 
+    //  nxy is the number of xy cells in a chunk,
+    //  Nz is the number of z cells in the mesh, and 
+    //  Nxy is the number of xy cells in the entire xy plane. 
+    int Nz = (int)nz;
+    int Nxy = (int)columns->num_cells;
 
-    // Minimize (nz*nz - nxy)
-    // subject to (Nz/nz)*(Nxy/nxy) = nproc
-    // Nz/sqrt(nxy) * Nxy/nxy = nproc
-    // Nz*Nz/nxy * Nxy*Nxy/(nxy*nxy) = nproc*nproc
-    // Nz*Nxy*Nxy / (nxy*nxy*nxy) = nproc*nproc
-    // nxy*nxy*nxy = Nz*Nxy*Nxy/(nproc*nproc)
-    // nxy = (int)(pow(..., 1/3))
-
-#if 0
-    // Our objective is one isotropic chunk per process. An isotropic chunk
-    // has roughly the same number of cells in x, y, and z. In other words:
-    // nx == ny == nz. Since x and y are complicated, we use the product 
-    // nxny = nx*ny in our analysis. So "isotropic" means 
-    // sqrt(nxny) == nz or nxny == nz*nz.
-    size_t chunk_nxny = (size_t)(columns->num_cells / num_xy_chunks);
-    size_t chunk_nz = nz / num_z_chunks;
-
-    // Start growing the chunks.
-    while (true)
-    {
-      size_t prev_num_chunks = num_xy_chunks * num_z_chunks;
-
-      // If the aspect ratio of the chunks is skewed, make them more isotropic.
-      if (chunk_nxny > (size_t)(chunk_nz*chunk_nz
-
-      // If our number of chunks has reached nproc or our growth process has
-      // stalled, terminate the iteration.
-      if (((int)num_chunks == nproc) || (num_chunks == prev_num_chunks))
-        break;
-    }
-#endif
+    // Some simple algebra tell us num_z_chunks should be the integer closest 
+    // to the value pow(nproc*Nz*Nz/Nxy, 1.0/3.0).
+    num_z_chunks = (size_t)(pow(nproc*Nz*Nz/Nxy, 1.0/3.0));
+    
+    // Adjust num_z_chunks so it evenly divides nproc.
+    int remainder = (int)(nproc % num_z_chunks);
+    if (remainder < nproc/2)
+      num_z_chunks -= remainder;
+    else
+      num_z_chunks += remainder;
+    num_xy_chunks = nproc / num_z_chunks;
+    log_info("prismesh_new: Dividing %d x %d cells up into %d x %d chunks.",
+             Nxy, Nz, num_xy_chunks, num_z_chunks);
   }
+  ASSERT(num_xy_chunks * num_z_chunks == nproc);
 
   // Now create an empty prismesh with the desired numbers of chunks, and 
   // insert all the chunks on each process. We do a "naive" placement of 
