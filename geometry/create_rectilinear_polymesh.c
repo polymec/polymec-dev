@@ -292,31 +292,12 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
         // Okay, it's a proper ghost cell.
         mesh->face_cells[2*face+1] = ghost_cell_index;
 
-        // Generate send mappings.
+        // Generate the send mapping.
         int ghost_proc = (int)(MIN(neighboring_cells[ii] / cells_per_proc, nproc-1));
-        int_array_t** send_indices_p = exchanger_proc_map_get(send_map, ghost_proc);
-        int_array_t* send_indices = NULL;
-        if (send_indices_p == NULL)
-        {
-          send_indices = int_array_new();
-          exchanger_proc_map_insert_with_v_dtor(send_map, ghost_proc, send_indices, int_array_free);
-        }
-        else
-          send_indices = *send_indices_p;
-        int_array_append(send_indices, cell);
+        exchanger_proc_map_add_index(send_map, ghost_proc, cell);
 
-        // Generate receive mappings.
-        int_array_t** recv_indices_p = exchanger_proc_map_get(recv_map, ghost_proc);
-        int_array_t* recv_indices = NULL;
-        if (recv_indices_p == NULL)
-        {
-          recv_indices = int_array_new();
-          exchanger_proc_map_insert_with_v_dtor(recv_map, ghost_proc, recv_indices, int_array_free);
-        }
-        else
-          recv_indices = *recv_indices_p;
-        int_array_append(recv_indices, ghost_cell_index);
-
+        // Generate the receive mapping.
+        exchanger_proc_map_add_index(recv_map, ghost_proc, ghost_cell_index);
         ++ghost_cell_index;
       }
     }

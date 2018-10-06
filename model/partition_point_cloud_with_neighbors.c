@@ -83,50 +83,22 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
         // pi sends i to pj.
         if (sends[pi] == NULL)
           sends[pi] = exchanger_proc_map_new();
-        int_array_t** send_indices_p = exchanger_proc_map_get(sends[pi], pj);
-        if (send_indices_p == NULL)
-        {
-          int_array_t* send_indices = int_array_new();
-          exchanger_proc_map_insert_with_v_dtor(sends[pi], pj, send_indices, int_array_free);
-          send_indices_p = exchanger_proc_map_get(sends[pi], pj);
-        }
-        int_array_append(*send_indices_p, i);
+        exchanger_proc_map_add_index(sends[pi], pj, i);
 
         // pj sends j to pi.
         if (sends[pj] == NULL)
           sends[pj] = exchanger_proc_map_new();
-        send_indices_p = exchanger_proc_map_get(sends[pj], pi);
-        if (send_indices_p == NULL)
-        {
-          int_array_t* send_indices = int_array_new();
-          exchanger_proc_map_insert_with_v_dtor(sends[pj], pi, send_indices, int_array_free);
-          send_indices_p = exchanger_proc_map_get(sends[pj], pi);
-        }
-        int_array_append(*send_indices_p, j);
+        exchanger_proc_map_add_index(sends[pj], pi, j);
 
         // pi gets j from pj.
         if (receives[pi] == NULL)
           receives[pi] = exchanger_proc_map_new();
-        int_array_t** recv_indices_p = exchanger_proc_map_get(receives[pi], pj);
-        if (recv_indices_p == NULL)
-        {
-          int_array_t* recv_indices = int_array_new();
-          exchanger_proc_map_insert_with_v_dtor(receives[pi], pj, recv_indices, int_array_free);
-          recv_indices_p = exchanger_proc_map_get(receives[pi], pj);
-        }
-        int_array_append(*recv_indices_p, ghost_indices[pi]++);
+        exchanger_proc_map_add_index(receives[pi], pj, ghost_indices[pi]++);
 
         // pj gets i from pi.
         if (receives[pj] == NULL)
           receives[pj] = exchanger_proc_map_new();
-        recv_indices_p = exchanger_proc_map_get(receives[pj], pi);
-        if (recv_indices_p == NULL)
-        {
-          int_array_t* recv_indices = int_array_new();
-          exchanger_proc_map_insert_with_v_dtor(receives[pj], pi, recv_indices, int_array_free);
-          recv_indices_p = exchanger_proc_map_get(receives[pj], pi);
-        }
-        int_array_append(*recv_indices_p, ghost_indices[pj]++);
+        exchanger_proc_map_add_index(receives[pj], pi, ghost_indices[pj]++);
       }
     }
 

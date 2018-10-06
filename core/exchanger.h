@@ -27,6 +27,13 @@ typedef struct exchanger_t exchanger_t;
 /// arrays of indices.
 DEFINE_UNORDERED_MAP(exchanger_proc_map, int, int_array_t*, int_hash, int_equals)
 
+/// Adds an index to the set of indices associated with the given process
+/// in this exchanger_proc_map
+/// \param [in] process The process with which the new index is associated.
+/// \param [in] index The index added to the mapping.
+/// \memberof exchanger_proc_map
+void exchanger_proc_map_add_index(exchanger_proc_map_t* map, int process, int index);
+
 /// Constructs a new exchanger on the given communicator.
 /// \memberof exchanger
 exchanger_t* exchanger_new(MPI_Comm comm);

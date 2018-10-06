@@ -691,32 +691,12 @@ exchanger_t* polymesh_1v_face_exchanger_new(polymesh_t* mesh)
     int face_sender = MIN(face_procs[2*f], face_procs[2*f+1]);
     int face_receiver = MAX(face_procs[2*f], face_procs[2*f+1]);
     if (face_sender == rank)
-    {
-      int_array_t** send_p = exchanger_proc_map_get(send_map, face_receiver);
-      int_array_t* send = NULL;
-      if (send_p == NULL)
-      {
-        send = int_array_new();
-        exchanger_proc_map_insert_with_v_dtor(send_map, face_receiver, send, int_array_free);
-      }
-      else
-        send = *send_p;
-      int_array_append(send, f);
-    }
+      exchanger_proc_map_add_index(send_map, face_receiver, f);
     else
-    {
-      int_array_t** receive_p = exchanger_proc_map_get(send_map, face_sender);
-      int_array_t* receive = NULL;
-      if (receive_p == NULL)
-      {
-        receive = int_array_new();
-        exchanger_proc_map_insert_with_v_dtor(receive_map, face_sender, receive, int_array_free);
-      }
-      int_array_append(receive, f);
-    }
+      exchanger_proc_map_add_index(receive_map, face_sender, f);
   }
   exchanger_set_sends(ex, send_map);
-  exchanger_set_receives(ex, send_map);
+  exchanger_set_receives(ex, receive_map);
   face2_ex = NULL;
   return ex;
 }

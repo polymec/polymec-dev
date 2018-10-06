@@ -729,14 +729,8 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
       ASSERT(proc < nprocs);
 
       // Set up the sends and receives associated with this process.
-      if (!exchanger_proc_map_contains(send_map, proc))
-        exchanger_proc_map_insert_with_v_dtor(send_map, proc, int_array_new(), int_array_free);
-      int_array_t* send_indices = *exchanger_proc_map_get(send_map, proc);
-      int_array_append(send_indices, fused_mesh->face_cells[2*f]);
-      if (!exchanger_proc_map_contains(recv_map, proc))
-        exchanger_proc_map_insert_with_v_dtor(recv_map, proc, int_array_new(), int_array_free);
-      int_array_t* recv_indices = *exchanger_proc_map_get(recv_map, proc);
-      int_array_append(recv_indices, ghost_cell);
+      exchanger_proc_map_add_index(send_map, proc, fused_mesh->face_cells[2*f]);
+      exchanger_proc_map_add_index(recv_map, proc, ghost_cell);
 
       // Make sure we attach the correct ghost cell to the face.
       fused_mesh->face_cells[2*f+1] = ghost_cell;

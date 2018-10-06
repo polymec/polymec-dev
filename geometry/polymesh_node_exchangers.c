@@ -57,33 +57,13 @@ exchanger_t* polymesh_1v_node_exchanger_new(polymesh_t* mesh)
       {
         int node_receiver = node_procs[i];
         if (node_receiver != node_sender)
-        {
-          int_array_t** send_p = exchanger_proc_map_get(send_map, node_receiver);
-          int_array_t* send = NULL;
-          if (send_p == NULL)
-          {
-            send = int_array_new();
-            exchanger_proc_map_insert_with_v_dtor(send_map, node_receiver, send, int_array_free);
-          }
-          else
-            send = *send_p;
-          int_array_append(send, n);
-        }
+          exchanger_proc_map_add_index(send_map, node_receiver, n);
       }
     }
     else
     {
       ASSERT(node_sender < rank);
-      int_array_t** receive_p = exchanger_proc_map_get(receive_map, node_sender);
-      int_array_t* receive = NULL;
-      if (receive_p == NULL)
-      {
-        receive = int_array_new();
-        exchanger_proc_map_insert_with_v_dtor(receive_map, node_sender, receive, int_array_free);
-      }
-      else
-        receive = *receive_p;
-      int_array_append(receive, n);
+      exchanger_proc_map_add_index(receive_map, node_sender, n);
     }
   }
   exchanger_set_sends(ex, send_map);
@@ -374,22 +354,10 @@ exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets)
       // Send nodes:
       for (int i = 0; i < my_nodes->size; ++i)
       {
-        int_array_t* send_nodes = NULL;
         if (!int_unordered_set_contains(my_culled_node_sets[p], i))
         {
-          if (send_nodes == NULL)
-          {
-            int_array_t** send_nodes_p = exchanger_proc_map_get(send_map, proc);
-            if (send_nodes_p != NULL)
-              send_nodes = *send_nodes_p;
-            else
-            {
-              send_nodes = int_array_new();
-              exchanger_proc_map_insert_with_v_dtor(send_map, proc, send_nodes, int_array_free);
-            }
-          }
           int node = my_node_indices->data[i];
-          int_array_append(send_nodes, node_offsets[node]);
+          exchanger_proc_map_add_index(send_map, proc, node_offsets[node]);
         }
       }
       int_unordered_set_free(my_culled_node_sets[p]);
@@ -407,21 +375,8 @@ exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets)
       for (int i = 0; i < their_nodes->size; ++i)
       {
         int j = sorted_indices[i];
-        int_array_t* receive_nodes = NULL;
         if (!int_unordered_set_contains(their_culled_node_sets[p], j))
         {
-          if (receive_nodes == NULL)
-          {
-            int_array_t** receive_nodes_p = exchanger_proc_map_get(receive_map, proc);
-            if (receive_nodes_p != NULL)
-              receive_nodes = *receive_nodes_p;
-            else
-            {
-              receive_nodes = int_array_new();
-              exchanger_proc_map_insert_with_v_dtor(receive_map, proc, receive_nodes, int_array_free);
-            }
-          }
-
           // Find the node in "their_nodes" that matches our local node and 
           // append it to our list of receive nodes.
           int node = kd_tree_nearest(node_tree, &their_nodes->data[j]);
@@ -433,7 +388,7 @@ exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets)
             receive_index = *offset_p + 1;
           ASSERT(receive_index < node_offsets[node+1]);
           int_int_unordered_map_insert(receive_offsets, node, receive_index);
-          int_array_append(receive_nodes, receive_index);
+          exchanger_proc_map_add_index(receive_map, proc, receive_index);
         }
       }
 

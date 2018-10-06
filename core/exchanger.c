@@ -1220,3 +1220,17 @@ void exchanger_transfer_metadata(exchanger_t* ex,
   exchanger_finish_metadata_transfer(ex, token);
 }
 
+// This helper function gets rid of a lot of boilerplate code.
+void exchanger_proc_map_add_index(exchanger_proc_map_t* map, int process, int index)
+{
+  int_array_t** indices_p = exchanger_proc_map_get(map, process);
+  int_array_t* indices = NULL;
+  if (indices_p != NULL)
+    indices = *indices_p;
+  else
+  {
+    indices = int_array_new();
+    exchanger_proc_map_insert_with_v_dtor(map, process, indices, int_array_free);
+  }
+  int_array_append(indices, index);
+}
