@@ -715,8 +715,8 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
     polymesh_free(submeshes[m]);
 
   // Now fill the exchanger for the fused mesh with data.
-  int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new(); 
-  int_ptr_unordered_map_t* recv_map = int_ptr_unordered_map_new(); 
+  exchanger_proc_map_t* send_map = exchanger_proc_map_new(); 
+  exchanger_proc_map_t* recv_map = exchanger_proc_map_new(); 
   int ghost_cell = fused_mesh->num_cells;
   for (int f = 0; f < fused_mesh->num_faces; ++f)
   {
@@ -729,13 +729,13 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
       ASSERT(proc < nprocs);
 
       // Set up the sends and receives associated with this process.
-      if (!int_ptr_unordered_map_contains(send_map, proc))
-        int_ptr_unordered_map_insert_with_v_dtor(send_map, proc, int_array_new(), DTOR(int_array_free));
-      int_array_t* send_indices = *int_ptr_unordered_map_get(send_map, proc);
+      if (!exchanger_proc_map_contains(send_map, proc))
+        exchanger_proc_map_insert_with_v_dtor(send_map, proc, int_array_new(), int_array_free);
+      int_array_t* send_indices = *exchanger_proc_map_get(send_map, proc);
       int_array_append(send_indices, fused_mesh->face_cells[2*f]);
-      if (!int_ptr_unordered_map_contains(recv_map, proc))
-        int_ptr_unordered_map_insert_with_v_dtor(recv_map, proc, int_array_new(), DTOR(int_array_free));
-      int_array_t* recv_indices = *int_ptr_unordered_map_get(recv_map, proc);
+      if (!exchanger_proc_map_contains(recv_map, proc))
+        exchanger_proc_map_insert_with_v_dtor(recv_map, proc, int_array_new(), int_array_free);
+      int_array_t* recv_indices = *exchanger_proc_map_get(recv_map, proc);
       int_array_append(recv_indices, ghost_cell);
 
       // Make sure we attach the correct ghost cell to the face.
@@ -746,9 +746,6 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
   ASSERT(ghost_cell == (fused_mesh->num_cells + fused_mesh->num_ghost_cells));
   exchanger_t* fused_ex = polymesh_exchanger(fused_mesh);
   exchanger_set_sends(fused_ex, send_map);
-  int_ptr_unordered_map_free(send_map);
-  exchanger_set_receives(fused_ex, recv_map);
-  int_ptr_unordered_map_free(recv_map);
 
   // Now that we've corrected all of our face->cell connections, we can verify the 
   // topological correctness of the fused mesh.

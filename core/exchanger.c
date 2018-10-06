@@ -402,12 +402,13 @@ void exchanger_set_send(exchanger_t* ex,
   }
 }
 
-void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map)
+void exchanger_set_sends(exchanger_t* ex, exchanger_proc_map_t* send_map)
 {
   int pos = 0, send_proc;
   int_array_t* send_indices;
-  while (int_ptr_unordered_map_next(send_map, &pos, &send_proc, (void**)&send_indices))
-    exchanger_set_send(ex, send_proc, send_indices->data, (int)send_indices->size, true);   
+  while (exchanger_proc_map_next(send_map, &pos, &send_proc, &send_indices))
+    exchanger_set_send(ex, send_proc, send_indices->data, (int)send_indices->size, true);
+  exchanger_proc_map_free(send_map);
 }
 
 void exchanger_set_send_offset(exchanger_t* ex, ssize_t offset)
@@ -479,12 +480,13 @@ void exchanger_set_receive(exchanger_t* ex,
   }
 }
 
-void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map)
+void exchanger_set_receives(exchanger_t* ex, exchanger_proc_map_t* recv_map)
 {
   int pos = 0, recv_proc;
   int_array_t* recv_indices;
-  while (int_ptr_unordered_map_next(recv_map, &pos, &recv_proc, (void**)&recv_indices))
+  while (exchanger_proc_map_next(recv_map, &pos, &recv_proc, &recv_indices))
     exchanger_set_receive(ex, recv_proc, recv_indices->data, (int)recv_indices->size, true);   
+  exchanger_proc_map_free(recv_map);
 }
 
 void exchanger_set_receive_offset(exchanger_t* ex, ssize_t offset)

@@ -111,8 +111,8 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
                                                  num_nodes_per_face);
 
   int_unordered_set_t* processed_nodes = int_unordered_set_new();
-  int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
-  int_ptr_unordered_map_t* recv_map = int_ptr_unordered_map_new();
+  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* recv_map = exchanger_proc_map_new();
 
   int ghost_cell_index = num_cells;
   for (int cell = 0; cell < num_cells; ++cell)
@@ -294,24 +294,24 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
 
         // Generate send mappings.
         int ghost_proc = (int)(MIN(neighboring_cells[ii] / cells_per_proc, nproc-1));
-        int_array_t** send_indices_p = (int_array_t**)int_ptr_unordered_map_get(send_map, ghost_proc);
+        int_array_t** send_indices_p = exchanger_proc_map_get(send_map, ghost_proc);
         int_array_t* send_indices = NULL;
         if (send_indices_p == NULL)
         {
           send_indices = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(send_map, ghost_proc, send_indices, DTOR(int_array_free));
+          exchanger_proc_map_insert_with_v_dtor(send_map, ghost_proc, send_indices, int_array_free);
         }
         else
           send_indices = *send_indices_p;
         int_array_append(send_indices, cell);
 
         // Generate receive mappings.
-        int_array_t** recv_indices_p = (int_array_t**)int_ptr_unordered_map_get(recv_map, ghost_proc);
+        int_array_t** recv_indices_p = exchanger_proc_map_get(recv_map, ghost_proc);
         int_array_t* recv_indices = NULL;
         if (recv_indices_p == NULL)
         {
           recv_indices = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(recv_map, ghost_proc, recv_indices, DTOR(int_array_free));
+          exchanger_proc_map_insert_with_v_dtor(recv_map, ghost_proc, recv_indices, int_array_free);
         }
         else
           recv_indices = *recv_indices_p;
@@ -332,8 +332,6 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
   polymec_release(lattice);
   index_int_unordered_map_free(local_faces);
   index_int_unordered_map_free(local_nodes);
-  int_ptr_unordered_map_free(send_map);
-  int_ptr_unordered_map_free(recv_map);
   int_unordered_set_free(processed_nodes);
 
   // Construct edge information.

@@ -9,6 +9,7 @@
 #define POLYMEC_EXCHANGER_H
 
 #include "core/polymec.h"
+#include "core/array.h"
 #include "core/unordered_map.h"
 #include "core/serializer.h"
 
@@ -20,6 +21,11 @@
 /// data between processes in a point-to-point fashion. Objects of this type 
 /// are garbage collected.
 typedef struct exchanger_t exchanger_t;
+
+/// \class exchanger_proc_map
+/// An unordered map that maps (integer) processes to (int_array_t*) 
+/// arrays of indices.
+DEFINE_UNORDERED_MAP(exchanger_proc_map, int, int_array_t*, int_hash, int_equals)
 
 /// Constructs a new exchanger on the given communicator.
 /// \memberof exchanger
@@ -119,12 +125,12 @@ void exchanger_set_send(exchanger_t* ex,
 
 /// Establishes communications patterns in which this exchanger sends data at 
 /// the given indices of an array to various remote processes. 
-/// \param [in] send_map A mapping of remote process ranks to \ref int_array objects 
-///                      containing local indices identifying data to be sent. 
+/// \param [in] send_map A mapping of remote process ranks to arrays of 
+///                      local indices identifying data to be sent. 
 ///                      Each remote_process must differ from the local rank on the 
-///                      exchanger's communicator.
+///                      exchanger's communicator. Consumed by this function.
 /// \memberof exchanger
-void exchanger_set_sends(exchanger_t* ex, int_ptr_unordered_map_t* send_map);
+void exchanger_set_sends(exchanger_t* ex, exchanger_proc_map_t* send_map);
 
 /// Sets an offset for indices in data arrays that are sent to other processes.
 /// This can be used to allow multiple exchangers to exchange data correctly 
@@ -187,12 +193,12 @@ void exchanger_set_receive(exchanger_t* ex,
 /// maps remote process ranks to int_arrays containing local indices identifying
 /// locations where received data will be stored. Note that the remote_processes must differ from the 
 /// local rank on the exchanger's communicator.
-/// \param [in] recv_map A mapping of remote process ranks to \ref int_array objects 
-///                      containing local indices identifying data to be received. 
+/// \param [in] recv_map A mapping of remote process ranks to arrays of
+///                      local indices identifying data to be received. 
 ///                      Each remote_process must differ from the local rank on the 
-///                      exchanger's communicator.
+///                      exchanger's communicator. Consumed by this function.
 /// \memberof exchanger
-void exchanger_set_receives(exchanger_t* ex, int_ptr_unordered_map_t* recv_map);
+void exchanger_set_receives(exchanger_t* ex, exchanger_proc_map_t* recv_map);
 
 /// Sets an offset for indices in data arrays that are received from other 
 /// processes. This can be used to allow multiple exchangers to exchange data 

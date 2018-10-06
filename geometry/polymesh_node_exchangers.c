@@ -44,8 +44,8 @@ exchanger_t* polymesh_1v_node_exchanger_new(polymesh_t* mesh)
 #endif
 
   // Now set up our single-valued exchanger.
-  int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
-  int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
+  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
   for (int n = 0; n < mesh->num_nodes; ++n)
   {
     int node_sender = INT_MAX;
@@ -58,12 +58,12 @@ exchanger_t* polymesh_1v_node_exchanger_new(polymesh_t* mesh)
         int node_receiver = node_procs[i];
         if (node_receiver != node_sender)
         {
-          int_array_t** send_p = (int_array_t**)int_ptr_unordered_map_get(send_map, node_receiver);
+          int_array_t** send_p = exchanger_proc_map_get(send_map, node_receiver);
           int_array_t* send = NULL;
           if (send_p == NULL)
           {
             send = int_array_new();
-            int_ptr_unordered_map_insert_with_v_dtor(send_map, node_receiver, send, DTOR(int_array_free));
+            exchanger_proc_map_insert_with_v_dtor(send_map, node_receiver, send, int_array_free);
           }
           else
             send = *send_p;
@@ -74,12 +74,12 @@ exchanger_t* polymesh_1v_node_exchanger_new(polymesh_t* mesh)
     else
     {
       ASSERT(node_sender < rank);
-      int_array_t** receive_p = (int_array_t**)int_ptr_unordered_map_get(receive_map, node_sender);
+      int_array_t** receive_p = exchanger_proc_map_get(receive_map, node_sender);
       int_array_t* receive = NULL;
       if (receive_p == NULL)
       {
         receive = int_array_new();
-        int_ptr_unordered_map_insert_with_v_dtor(receive_map, node_sender, receive, DTOR(int_array_free));
+        exchanger_proc_map_insert_with_v_dtor(receive_map, node_sender, receive, int_array_free);
       }
       else
         receive = *receive_p;
@@ -88,8 +88,6 @@ exchanger_t* polymesh_1v_node_exchanger_new(polymesh_t* mesh)
   }
   exchanger_set_sends(ex, send_map);
   exchanger_set_receives(ex, receive_map);
-  int_ptr_unordered_map_free(send_map);
-  int_ptr_unordered_map_free(receive_map);
   noden_ex = NULL;
 #endif
   return ex;
@@ -366,8 +364,8 @@ exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets)
     }
 
     // Now set up the exchanger send/receive maps and the node offsets.
-    int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
-    int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
+    exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+    exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
     int_int_unordered_map_t* receive_offsets = int_int_unordered_map_new();
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
@@ -381,13 +379,13 @@ exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets)
         {
           if (send_nodes == NULL)
           {
-            int_array_t** send_nodes_p = (int_array_t**)int_ptr_unordered_map_get(send_map, proc);
+            int_array_t** send_nodes_p = exchanger_proc_map_get(send_map, proc);
             if (send_nodes_p != NULL)
               send_nodes = *send_nodes_p;
             else
             {
               send_nodes = int_array_new();
-              int_ptr_unordered_map_insert_with_v_dtor(send_map, proc, send_nodes, DTOR(int_array_free));
+              exchanger_proc_map_insert_with_v_dtor(send_map, proc, send_nodes, int_array_free);
             }
           }
           int node = my_node_indices->data[i];
@@ -414,13 +412,13 @@ exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets)
         {
           if (receive_nodes == NULL)
           {
-            int_array_t** receive_nodes_p = (int_array_t**)int_ptr_unordered_map_get(receive_map, proc);
+            int_array_t** receive_nodes_p = exchanger_proc_map_get(receive_map, proc);
             if (receive_nodes_p != NULL)
               receive_nodes = *receive_nodes_p;
             else
             {
               receive_nodes = int_array_new();
-              int_ptr_unordered_map_insert_with_v_dtor(receive_map, proc, receive_nodes, DTOR(int_array_free));
+              exchanger_proc_map_insert_with_v_dtor(receive_map, proc, receive_nodes, int_array_free);
             }
           }
 
@@ -463,8 +461,6 @@ exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets)
     // Add the maps to the exchanger.
     exchanger_set_sends(ex, send_map);
     exchanger_set_receives(ex, receive_map);
-    int_ptr_unordered_map_free(send_map);
-    int_ptr_unordered_map_free(receive_map);
   }
 
   // Clean up.

@@ -47,13 +47,13 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
     log_debug("neighbor_pairing_distribute: creating pair representations on rank 0.");
     int num_pairs[nprocs];
     int_array_t* pairs[nprocs];
-    int_ptr_unordered_map_t* sends[nprocs];
-    int_ptr_unordered_map_t* receives[nprocs];
+    exchanger_proc_map_t* sends[nprocs];
+    exchanger_proc_map_t* receives[nprocs];
     int ghost_indices[nprocs];
     memset(num_pairs, 0, sizeof(int) * nprocs);
     memset(pairs, 0, sizeof(int_array_t*) * nprocs);
-    memset(sends, 0, sizeof(int_ptr_unordered_map_t*) * nprocs);
-    memset(receives, 0, sizeof(int_ptr_unordered_map_t*) * nprocs);
+    memset(sends, 0, sizeof(exchanger_proc_map_t*) * nprocs);
+    memset(receives, 0, sizeof(exchanger_proc_map_t*) * nprocs);
     memset(ghost_indices, 0, sizeof(int) * nprocs);
     int pos = 0, i, j;
     while (neighbor_pairing_next(global_pairing, &pos, &i, &j))
@@ -82,49 +82,49 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
 
         // pi sends i to pj.
         if (sends[pi] == NULL)
-          sends[pi] = int_ptr_unordered_map_new();
-        int_array_t** send_indices_p = (int_array_t**)int_ptr_unordered_map_get(sends[pi], pj);
+          sends[pi] = exchanger_proc_map_new();
+        int_array_t** send_indices_p = exchanger_proc_map_get(sends[pi], pj);
         if (send_indices_p == NULL)
         {
           int_array_t* send_indices = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(sends[pi], pj, send_indices, DTOR(int_array_free));
-          send_indices_p = (int_array_t**)int_ptr_unordered_map_get(sends[pi], pj);
+          exchanger_proc_map_insert_with_v_dtor(sends[pi], pj, send_indices, int_array_free);
+          send_indices_p = exchanger_proc_map_get(sends[pi], pj);
         }
         int_array_append(*send_indices_p, i);
 
         // pj sends j to pi.
         if (sends[pj] == NULL)
-          sends[pj] = int_ptr_unordered_map_new();
-        send_indices_p = (int_array_t**)int_ptr_unordered_map_get(sends[pj], pi);
+          sends[pj] = exchanger_proc_map_new();
+        send_indices_p = exchanger_proc_map_get(sends[pj], pi);
         if (send_indices_p == NULL)
         {
           int_array_t* send_indices = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(sends[pj], pi, send_indices, DTOR(int_array_free));
-          send_indices_p = (int_array_t**)int_ptr_unordered_map_get(sends[pj], pi);
+          exchanger_proc_map_insert_with_v_dtor(sends[pj], pi, send_indices, int_array_free);
+          send_indices_p = exchanger_proc_map_get(sends[pj], pi);
         }
         int_array_append(*send_indices_p, j);
 
         // pi gets j from pj.
         if (receives[pi] == NULL)
-          receives[pi] = int_ptr_unordered_map_new();
-        int_array_t** recv_indices_p = (int_array_t**)int_ptr_unordered_map_get(receives[pi], pj);
+          receives[pi] = exchanger_proc_map_new();
+        int_array_t** recv_indices_p = exchanger_proc_map_get(receives[pi], pj);
         if (recv_indices_p == NULL)
         {
           int_array_t* recv_indices = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(receives[pi], pj, recv_indices, DTOR(int_array_free));
-          recv_indices_p = (int_array_t**)int_ptr_unordered_map_get(receives[pi], pj);
+          exchanger_proc_map_insert_with_v_dtor(receives[pi], pj, recv_indices, int_array_free);
+          recv_indices_p = exchanger_proc_map_get(receives[pi], pj);
         }
         int_array_append(*recv_indices_p, ghost_indices[pi]++);
 
         // pj gets i from pi.
         if (receives[pj] == NULL)
-          receives[pj] = int_ptr_unordered_map_new();
-        recv_indices_p = (int_array_t**)int_ptr_unordered_map_get(receives[pj], pi);
+          receives[pj] = exchanger_proc_map_new();
+        recv_indices_p = exchanger_proc_map_get(receives[pj], pi);
         if (recv_indices_p == NULL)
         {
           int_array_t* recv_indices = int_array_new();
-          int_ptr_unordered_map_insert_with_v_dtor(receives[pj], pi, recv_indices, DTOR(int_array_free));
-          recv_indices_p = (int_array_t**)int_ptr_unordered_map_get(receives[pj], pi);
+          exchanger_proc_map_insert_with_v_dtor(receives[pj], pi, recv_indices, int_array_free);
+          recv_indices_p = exchanger_proc_map_get(receives[pj], pi);
         }
         int_array_append(*recv_indices_p, ghost_indices[pj]++);
       }
@@ -143,15 +143,9 @@ static void neighbor_pairing_distribute(neighbor_pairing_t** neighbors,
       // Set up the exchanger for process p's pairing.
       exchanger_t* ex = exchanger_new_with_rank(comm, p);
       if (sends[p] != NULL)
-      {
         exchanger_set_sends(ex, sends[p]);
-        int_ptr_unordered_map_free(sends[p]);
-      }
       if (receives[p] != NULL)
-      {
         exchanger_set_receives(ex, receives[p]);
-        int_ptr_unordered_map_free(receives[p]);
-      }
 
       // NOTE: The neighbor pairings consume the array data we've generated, 
       // NOTE: so we call *_array_release_data_and_free() below to give it to 

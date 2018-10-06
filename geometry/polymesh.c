@@ -684,20 +684,20 @@ exchanger_t* polymesh_1v_face_exchanger_new(polymesh_t* mesh)
 
   // Now set up our single-valued exchanger.
   exchanger_t* ex = exchanger_new(mesh->comm);
-  int_ptr_unordered_map_t* send_map = int_ptr_unordered_map_new();
-  int_ptr_unordered_map_t* receive_map = int_ptr_unordered_map_new();
+  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
   for (int f = 0; f < mesh->num_faces; ++f)
   {
     int face_sender = MIN(face_procs[2*f], face_procs[2*f+1]);
     int face_receiver = MAX(face_procs[2*f], face_procs[2*f+1]);
     if (face_sender == rank)
     {
-      int_array_t** send_p = (int_array_t**)int_ptr_unordered_map_get(send_map, face_receiver);
+      int_array_t** send_p = exchanger_proc_map_get(send_map, face_receiver);
       int_array_t* send = NULL;
       if (send_p == NULL)
       {
         send = int_array_new();
-        int_ptr_unordered_map_insert_with_v_dtor(send_map, face_receiver, send, DTOR(int_array_free));
+        exchanger_proc_map_insert_with_v_dtor(send_map, face_receiver, send, int_array_free);
       }
       else
         send = *send_p;
@@ -705,20 +705,18 @@ exchanger_t* polymesh_1v_face_exchanger_new(polymesh_t* mesh)
     }
     else
     {
-      int_array_t** receive_p = (int_array_t**)int_ptr_unordered_map_get(send_map, face_sender);
+      int_array_t** receive_p = exchanger_proc_map_get(send_map, face_sender);
       int_array_t* receive = NULL;
       if (receive_p == NULL)
       {
         receive = int_array_new();
-        int_ptr_unordered_map_insert_with_v_dtor(receive_map, face_sender, receive, DTOR(int_array_free));
+        exchanger_proc_map_insert_with_v_dtor(receive_map, face_sender, receive, int_array_free);
       }
       int_array_append(receive, f);
     }
   }
   exchanger_set_sends(ex, send_map);
   exchanger_set_receives(ex, send_map);
-  int_ptr_unordered_map_free(send_map);
-  int_ptr_unordered_map_free(receive_map);
   face2_ex = NULL;
   return ex;
 }

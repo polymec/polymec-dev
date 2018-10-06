@@ -425,6 +425,14 @@ prismesh_t* prismesh_new(MPI_Comm comm,
     num_xy_chunks = MIN(columns->num_cells, nproc);
     num_z_chunks = MIN(nz, nproc);
 
+    // Minimize (nz*nz - nxy)
+    // subject to (Nz/nz)*(Nxy/nxy) = nproc
+    // Nz/sqrt(nxy) * Nxy/nxy = nproc
+    // Nz*Nz/nxy * Nxy*Nxy/(nxy*nxy) = nproc*nproc
+    // Nz*Nxy*Nxy / (nxy*nxy*nxy) = nproc*nproc
+    // nxy*nxy*nxy = Nz*Nxy*Nxy/(nproc*nproc)
+    // nxy = (int)(pow(..., 1/3))
+
 #if 0
     // Our objective is one isotropic chunk per process. An isotropic chunk
     // has roughly the same number of cells in x, y, and z. In other words:
