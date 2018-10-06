@@ -746,6 +746,7 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
   ASSERT(ghost_cell == (fused_mesh->num_cells + fused_mesh->num_ghost_cells));
   exchanger_t* fused_ex = polymesh_exchanger(fused_mesh);
   exchanger_set_sends(fused_ex, send_map);
+  exchanger_set_receives(fused_ex, recv_map);
 
   // Now that we've corrected all of our face->cell connections, we can verify the 
   // topological correctness of the fused mesh.
