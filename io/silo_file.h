@@ -350,7 +350,8 @@ bool silo_file_contains_point_field(silo_file_t* file,
                                     const char* cloud_name);
 
 /// Adds a scalar expression (a definition of a new scalar variable in terms 
-/// of existing variables) to this Silo file. See the Silo manual for
+/// of existing variables) to this Silo file. See the documentation for 
+/// `DBPutDefvars` in the Silo manual (3rdparty/usilo/silo-guide.pdf) for 
 /// expression (Defvar) syntax.
 /// \memberof silo_file
 void silo_file_write_scalar_expression(silo_file_t* file,
@@ -358,7 +359,8 @@ void silo_file_write_scalar_expression(silo_file_t* file,
                                        const char* definition);
 
 /// Adds a vector expression (a definition of a new vector variable in terms 
-/// of existing variables) to this Silo file. See the Silo manual for 
+/// of existing variables) to this Silo file. See the documentation for 
+/// `DBPutDefvars` in the Silo manual (3rdparty/usilo/silo-guide.pdf) for 
 /// expression (Defvar) syntax.
 /// \memberof silo_file
 void silo_file_write_vector_expression(silo_file_t* file,
@@ -366,7 +368,8 @@ void silo_file_write_vector_expression(silo_file_t* file,
                                        const char* definition);
 
 /// Adds a (rank 2) tensor expression (a definition of a new tensor variable 
-/// in terms of existing variables) to this Silo file. See the Silo manual for 
+/// in terms of existing variables) to this Silo file. See the documentation 
+/// for `DBPutDefvars` in the Silo manual (3rdparty/usilo/silo-guide.pdf) for 
 /// expression (Defvar) syntax.
 /// \memberof silo_file
 void silo_file_write_tensor_expression(silo_file_t* file,
