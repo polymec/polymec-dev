@@ -74,6 +74,7 @@ void prismesh_chunk_data_copy(prismesh_chunk_data_t* data,
   memcpy(dest->data, data->data, prismesh_chunk_data_size(data));
 }
 
+#if POLYMEC_HAVE_MPI
 static void prismesh_chunk_data_start_exchange(prismesh_chunk_data_t* chunk_data,
                                                exchanger_t* ex)
 {
@@ -88,6 +89,7 @@ static void prismesh_chunk_data_finish_exchange(prismesh_chunk_data_t* chunk_dat
   exchanger_finish_exchange(ex, chunk_data->ex_token);
   chunk_data->ex_token = -1;
 }
+#endif
 
 DEFINE_UNORDERED_MAP(chunk_data_map, int, prismesh_chunk_data_t*, int_hash, int_equals)
 
@@ -215,9 +217,13 @@ void prismesh_field_exchange(prismesh_field_t* field)
   prismesh_field_finish_exchange(field);
 }
 
-extern exchanger_t* prismesh_chunk_cell_exchanger(prismesh_t* mesh, int xy_index, int z_index);
+#if POLYMEC_HAVE_MPI
+extern exchanger_t* prismesh_chunk_exchanger(prismesh_chunk_t* mesh, 
+                                             prismesh_centering_t centering);
+#endif
 void prismesh_field_start_exchange(prismesh_field_t* field)
 {
+#if POLYMEC_HAVE_MPI
   ASSERT(!prismesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
   field->is_exchanging = true;
@@ -225,25 +231,28 @@ void prismesh_field_start_exchange(prismesh_field_t* field)
   prismesh_chunk_data_t* chunk_data;
   while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk_data))
   {
-    exchanger_t* ex = prismesh_chunk_cell_exchanger(field->mesh, xy, z);
+    exchanger_t* ex = prismesh_chunk_exchanger(chunk_data->chunk, field->centering);
     prismesh_chunk_data_start_exchange(chunk_data, ex);
   }
   STOP_FUNCTION_TIMER();
+#endif
 }
 
 void prismesh_field_finish_exchange(prismesh_field_t* field)
 {
+#if POLYMEC_HAVE_MPI
   ASSERT(prismesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
   int pos = 0, xy, z;
   prismesh_chunk_data_t* chunk_data;
   while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk_data))
   {
-    exchanger_t* ex = prismesh_chunk_cell_exchanger(field->mesh, xy, z);
+    exchanger_t* ex = prismesh_chunk_exchanger(chunk_data->chunk, field->centering);
     prismesh_chunk_data_finish_exchange(chunk_data, ex);
   }
   field->is_exchanging = false;
   STOP_FUNCTION_TIMER();
+#endif
 }
 
 bool prismesh_field_is_exchanging(prismesh_field_t* field)

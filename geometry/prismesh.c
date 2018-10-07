@@ -29,7 +29,9 @@ typedef struct
   int* xy_edge_nodes;
   size_t num_xy_nodes;
   point2_t* xy_nodes;
+#if POLYMEC_HAVE_MPI
   exchanger_t* cell_ex;
+#endif
 } chunk_xy_data_t;
 
 DEFINE_ARRAY(chunk_xy_data_array, chunk_xy_data_t*)
@@ -39,7 +41,7 @@ DEFINE_ARRAY(chunk_xy_data_array, chunk_xy_data_t*)
 static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
                                           planar_polymesh_t* mesh,
                                           int64_t* partition_vector,
-                                          int xy_index)
+                                          int xy_chunk_index)
 {
   chunk_xy_data_t* xy_data = polymec_malloc(sizeof(chunk_xy_data_t));
   xy_data->num_columns = 0;
@@ -58,7 +60,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
     int_int_unordered_map_new(); // maps planar mesh cells to columns in our chunk
   for (int cell = 0; cell < mesh->num_cells; ++cell)
   {
-    if ((int)partition_vector[cell] == xy_index)
+    if ((int)partition_vector[cell] == xy_chunk_index)
     {
       int_array_append(local_cells, cell);
       int_int_unordered_map_insert(cell_to_col_map, cell, (int)xy_data->num_columns);
@@ -77,12 +79,19 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   }
   xy_data->column_xy_faces = polymec_malloc(sizeof(int) * xy_data->column_xy_face_offsets[xy_data->num_columns]);
 
+  // Here we map planar mesh nodes to chunk nodes.
+  int_int_unordered_map_t* node_map = int_int_unordered_map_new(); 
+
+  // Here are send maps and receive maps we set up for our xy_data's 
+  // "exchanger." We're abusing the exchanger here a little bit, because we're
+  // using xy_indices in place of processes. The mapping from xy_index to 
+  // process happens when a chunk actually gets inserted into the prismesh.
+  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
+
   // Now determine the connectivity in a single pass.
   int_array_t* face_cols = int_array_new();
-  int_int_unordered_map_t* node_map = 
-    int_int_unordered_map_new(); // maps planar mesh nodes to chunk nodes
   int_array_t* edge_nodes = int_array_new();
-  int_array_t* ghost_xy_indices = int_array_new();
   for (int col = 0; col < xy_data->num_columns; ++col)
   {
     // Get the polygonal cell corresponding to this column.
@@ -105,8 +114,9 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
         // Hook up the neighboring column on the other side of our new face.
         int neighbor_cell = mesh->edge_cells[2*edge+1];
         int neighbor_col;
+        int neighbor_xy_index = (int)partition_vector[neighbor_cell];
         bool neighbor_col_in_chunk = ((neighbor_cell != -1) && 
-                                      (partition_vector[neighbor_cell] == xy_index));
+                                      (neighbor_xy_index == xy_chunk_index));
         if (neighbor_col_in_chunk)
         {
           // The neighbor column is in this chunk. 
@@ -114,13 +124,18 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
         }
         else
         {
+#if POLYMEC_HAVE_MPI
           if (neighbor_cell != -1)
           {
             // The neighbor is a ghost column, as far as this chunk is concerned.
-            neighbor_col = (int)(xy_data->num_columns + ghost_xy_indices->size);
-            int_array_append(ghost_xy_indices, neighbor_col);
+            neighbor_col = (int)(xy_data->num_columns + receive_map->size);
+
+            // Set up a parallel exchange between the columns.
+            exchanger_proc_map_add_index(send_map, neighbor_xy_index, col);
+            exchanger_proc_map_add_index(receive_map, neighbor_xy_index, neighbor_col);
           }
           else
+#endif
           {
             // We're at an xy boundary.
             neighbor_col = -1;
@@ -206,10 +221,12 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
     xy_data->xy_nodes[node] = mesh->nodes[n];
   int_int_unordered_map_free(node_map);
 
+#if POLYMEC_HAVE_MPI
   // Set up a cell exchanger for this chunk.
-  xy_data->num_ghost_columns = ghost_xy_indices->size;
-  // FIXME
-  int_array_free(ghost_xy_indices);
+  xy_data->cell_ex = exchanger_new(comm);
+  exchanger_set_sends(xy_data->cell_ex, send_map);
+  exchanger_set_receives(xy_data->cell_ex, receive_map);
+#endif
 
   // Clean up.
   int_int_unordered_map_free(cell_to_col_map);
@@ -220,6 +237,9 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
 
 static void chunk_xy_data_free(chunk_xy_data_t* xy_data)
 {
+#if POLYMEC_HAVE_MPI
+  polymec_release(xy_data->cell_ex);
+#endif
   polymec_free(xy_data->xy_nodes);
   polymec_free(xy_data->xy_face_columns);
   polymec_free(xy_data->column_xy_faces);
@@ -239,6 +259,9 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(prismesh_t* old_mesh,
 static void free_chunk(prismesh_chunk_t* chunk)
 {
   // The chunk's xy data is managed by the prismesh.
+#if POLYMEC_HAVE_MPI
+  polymec_release(chunk->cell_ex);
+#endif
   polymec_free(chunk);
 }
 
@@ -262,9 +285,6 @@ struct prismesh_t
 
   // This flag is set by prismesh_finalize() after a mesh has been assembled.
   bool finalized;
-
-  // Exchangers for field data.
-  int_ptr_unordered_map_t* cell_exchangers;
 };
 
 prismesh_t* create_empty_prismesh(MPI_Comm comm, 
@@ -310,15 +330,12 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
 
   // Create xy data for chunks.
   mesh->chunk_xy_data = chunk_xy_data_array_new();
-  for (int xy_index = 0; xy_index < (int)num_xy_chunks; ++xy_index)
+  for (int xy_chunk_index = 0; xy_chunk_index < (int)num_xy_chunks; ++xy_chunk_index)
   {
-    chunk_xy_data_t* xy_data = chunk_xy_data_new(comm, columns, P, xy_index);
+    chunk_xy_data_t* xy_data = chunk_xy_data_new(comm, columns, P, xy_chunk_index);
     chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
                                          chunk_xy_data_free);
   }
-
-  // Initialize our exchanger maps.
-  mesh->cell_exchangers = int_ptr_unordered_map_new();
 
   // Clean up.
   polymec_free(P);
@@ -352,6 +369,9 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
   chunk->num_xy_edges = xy_data->num_xy_edges;
   chunk->num_xy_nodes = xy_data->num_xy_nodes;
   chunk->xy_nodes = xy_data->xy_nodes;
+#if POLYMEC_HAVE_MPI
+  chunk->cell_ex = NULL;
+#endif
 
   // Chunk z data.
   size_t nz = mesh->nz_per_chunk * mesh->num_z_chunks;
@@ -365,8 +385,6 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
   // Add this chunk to our list.
   int index = chunk_index(mesh, xy_index, z_index);
   chunk_map_insert_with_v_dtor(mesh->chunks, index, chunk, free_chunk);
-
-  // FIXME: Exchangers???
 }
 
 void prismesh_finalize(prismesh_t* mesh)
@@ -402,6 +420,20 @@ void prismesh_finalize(prismesh_t* mesh)
     }
   }
   ASSERT(k == mesh->chunks->size);
+
+#if POLYMEC_HAVE_MPI
+  // Now that we've get the chunks in place on all processes, we can set up
+  // exchangers on each chunks. We know how the chunks are connected to 
+  // one another--we just need to find out who owns what and map our 
+  // connectivity information to owning processes.
+  // FIXME
+  {
+    int pos = 0, ch_index;
+    prismesh_chunk_t* chunk;
+    while (chunk_map_next(mesh->chunks, &pos, &ch_index, &chunk))
+      chunk->cell_ex = exchanger_new(mesh->comm);
+  }
+#endif
 
   // We're finished here.
   mesh->finalized = true;
@@ -472,7 +504,6 @@ prismesh_t* prismesh_new(MPI_Comm comm,
 
 void prismesh_free(prismesh_t* mesh)
 {
-  int_ptr_unordered_map_free(mesh->cell_exchangers);
   polymec_free(mesh->chunk_indices);
   chunk_map_free(mesh->chunks);
   chunk_xy_data_array_free(mesh->chunk_xy_data);
@@ -995,10 +1026,16 @@ polymesh_t* prismesh_as_polymesh(prismesh_t* mesh)
   return NULL; // FIXME
 }
 
-// These functions provide access to exchangers for prismesh_fields.
-exchanger_t* prismesh_chunk_cell_exchanger(prismesh_t* mesh, int xy_index, int z_index);
-exchanger_t* prismesh_chunk_cell_exchanger(prismesh_t* mesh, int xy_index, int z_index)
+#if POLYMEC_HAVE_MPI
+// This function provides access to exchangers for prismesh_fields.
+exchanger_t* prismesh_chunk_exchanger(prismesh_chunk_t* chunk, 
+                                      prismesh_centering_t centering);
+exchanger_t* prismesh_chunk_exchanger(prismesh_chunk_t* chunk, 
+                                      prismesh_centering_t centering)
 {
-  int index = chunk_index(mesh, xy_index, z_index);
-  return *int_ptr_unordered_map_get(mesh->cell_exchangers, index);
+  if (centering == PRISMESH_CELL)
+    return chunk->cell_ex;
+  else
+    return NULL; // FIXME
 }
+#endif

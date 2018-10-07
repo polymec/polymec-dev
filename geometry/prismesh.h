@@ -90,6 +90,9 @@ struct prismesh_chunk_t
 
   /// The positions of the nodes in this chunk (in the xy plane).
   point2_t* xy_nodes;
+
+  /// Parallel field exchangers. Probably best to leave these alone.
+  exchanger_t* cell_ex;
 };
 typedef struct prismesh_chunk_t prismesh_chunk_t;
 
@@ -97,7 +100,7 @@ typedef struct prismesh_chunk_t prismesh_chunk_t;
 //                          Construction methods
 //------------------------------------------------------------------------
 // The following methods are used to construct prismeshs.
-// prismesh_finalize() must be called after a mesh has been properly
+// \ref prismesh_finalize must be called after a mesh has been properly
 // constructed.
 //------------------------------------------------------------------------
 
@@ -130,6 +133,7 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index);
 /// before any of the mesh's usage methods (below) are invoked. Should only 
 /// be called once.
 /// \memberof prismesh
+/// \collective Collective on the mesh's communicator.
 void prismesh_finalize(prismesh_t* mesh);
 
 //------------------------------------------------------------------------
