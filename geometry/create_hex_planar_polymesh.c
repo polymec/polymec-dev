@@ -5,6 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "core/unordered_map.h"
 #include "geometry/create_hex_planar_polymesh.h"
 
 // Hex coordinate type (using axial coordinates as defined at
@@ -14,117 +15,63 @@ typedef struct
   int q, r;
 } hex_t;
 
-// Hex arithmetic.
-
-// c1 + c2 -> sum
-static void hex_add(const hex_t* c1, const hex_t* c2, hex_t* sum)
+static hex_t* hex_new(int q, int r)
 {
-  sum->q = c1->q + c2->q;
-  sum->r = c1->r + c2->r;
+  hex_t* hex = polymec_malloc(sizeof(hex_t));
+  hex->q = q;
+  hex->r = r;
+  return hex;
 }
 
-// c1 - c2 -> diff
-//static void hex_sub(const hex_t* c1, const hex_t* c2, hex_t* diff)
-//{
-//  diff->q = c1->q - c2->q;
-//  diff->r = c1->r - c2->r;
-//}
-
-// k * c -> prod
-static void hex_scale(const hex_t* hex, int k, hex_t* prod)
+static void hex_free(hex_t* hex)
 {
-  prod->q = k * hex->q;
-  prod->r = k * hex->r;
+  polymec_free(hex);
 }
 
-// Distance between two hex cells c1 and c2.
-static inline int hex_distance(hex_t* c1, hex_t* c2)
+static inline int hex_hash(hex_t* hex)
 {
-  return (ABS(c1->q - c2->q) + 
-          ABS(c1->q + c1->r - c2->q - c2->r) + 
-          ABS(c1->r - c2->r)) / 2;
+  return int_pair_hash((int*)hex);
 }
 
-// Direction vectors.
-static const hex_t hex_directions[6] = 
-  {{+1, 0}, {+1, -1}, {0, -1}, {-1, 0}, {-1, +1}, {0, +1}};
-
-//static inline void hex_get_dir(int dir, hex_t* dir_vector)
-//{
-//  return hex_directions[dir];
-//}
-
-static inline void hex_get_neighbor(hex_t* hex, 
-                                    int dir,
-                                    hex_t* neighbor)
+static inline bool hex_equals(hex_t* x, hex_t* y)
 {
-  hex_add(hex, &(hex_directions[dir]), neighbor);
+  return int_pair_equals((int*)x, (int*)y);
 }
 
-#if 0
-// Node spacings for alignments/directions, to be scaled by h.
-static const point2_t node_spacings[2][6] = {
-  // x-aligned hex lattice
-  {{}},
-  // y-aligned hex lattice
-  {{}}
-};
-#endif
+DEFINE_UNORDERED_MAP(hex_map, hex_t*, int, hex_hash, hex_equals)
+
+// Create a hexagonal array of, um, hexagons, with the given radius.
+static hex_map_t* hexagon(int radius)
+{
+  hex_map_t* hexes = hex_map_new();
+  int i = 0;
+  for (int q = -radius; q <= radius; ++q)
+  {
+    int r1 = MAX(-radius, -q - radius);
+    int r2 = MIN(radius, -q + radius);
+    for (int r = r1; r <= r2; ++r, ++i)
+      hex_map_insert_with_k_dtor(hexes, hex_new(q, r), i, hex_free);
+  }
+  return hexes;
+}
 
 planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
                                               size_t radius, real_t h)
 {
   ASSERT(h > 0.0);
 
-  // Traverse the cells, starting at the center and spiraling outward. 
-  // Add edges and nodes as we go.
-  int ncells = 0;
+  // Build a hexagonal array of hexes.
+  hex_map_t* hexes = hexagon(radius);
+  // FIXME
+
+  // Traverse the cells and pick off elements.
   int_array_t* cell_edges = int_array_new();
   int_array_t* edge_cells = int_array_new();
   int_array_t* edge_nodes = int_array_new();
   point2_array_t* nodes = point2_array_new();
-  if (radius == 0)
-  {
-    // The mesh contains a single hex.
-    ncells = 1;
-    point2_t n[2][6]; // FIXME
-    for (int e = 0; e < 6; ++e)
-    {
-      int_array_append(cell_edges, e);
-      int_array_append(edge_nodes, e);
-      int_array_append(edge_nodes, (e+1)%6);
-      int_array_append(edge_cells, 0);
-      int_array_append(edge_cells, -1);
-      point2_array_append(nodes, n[(int)alignment][e]);
-    }
-  }
-  else
-  {
-    // This traversal follows 
-    // https://www.redblobgames.com/grids/hexagons/#rings.
-    hex_t center = {0, 0};
-    for (int rad = 0; rad <= radius; ++rad)
-    {
-      // move outward along direction 4
-      hex_t hex, dr;
-      hex_scale(&hex_directions[4], rad, &dr);
-      hex_add(&center, &dr, &hex);
-
-      // Traverse the ring of hexes at this radius.
-      for (int dir = 0; dir < 6; ++dir)
-      {
-        for (int phi = 0; phi <= radius; ++phi, ++ncells)
-        {
-          // FIXME: Do stuff!
-          // Move to the next hex in the ring.
-          hex_get_neighbor(&hex, dir, &hex);
-        }
-      }
-    }
-  }
 
   // Create our planar polymesh.
-  planar_polymesh_t* mesh = planar_polymesh_new_with_cell_type(ncells,
+  planar_polymesh_t* mesh = planar_polymesh_new_with_cell_type((int)hexes->size,
                                                                (int)cell_edges->size,
                                                                (int)nodes->size, 
                                                                6);
@@ -138,6 +85,7 @@ planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
   int_array_free(edge_nodes);
   int_array_free(edge_cells);
   point2_array_free(nodes);
+  hex_map_free(hexes);
 
   return mesh;
 }
