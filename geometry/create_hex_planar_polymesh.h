@@ -19,9 +19,9 @@
 typedef enum
 {
   /// An x-aligned lattice has edges separating cells along the x axis.
-  HEX_LATTICE_X_ALIGNED,
+  HEX_LATTICE_X_ALIGNED = 0,
   /// A y-aligned lattice has edges separating cells to the y axis.
-  HEX_LATTICE_Y_ALIGNED
+  HEX_LATTICE_Y_ALIGNED = 1
 } hex_lattice_align_t;
 
 /// This function creates and returns a planar polymesh consisting of a set 
