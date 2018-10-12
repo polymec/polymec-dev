@@ -143,6 +143,9 @@ planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
       {
         if (edge_nodes->data[2*edge_index] == -1)
         {
+          // We must be in the first cell attached to this edge.
+          ASSERT(edge_cells->data[2*edge_index] == cell_index);
+
           // Create the first node for this edge.
           int n1 = (int)nodes->size;
           point2_t x1;
@@ -156,6 +159,14 @@ planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
           int prev_edge_index = cell_edges->data[6*cell_index+(dir+5)%6];
           ASSERT(edge_nodes->data[2*prev_edge_index+1] == -1);
           edge_nodes->data[2*prev_edge_index+1] = n1;
+
+          // If this edge connects this cell to a neighbor cell, hook up the node 
+          // to the other incident edge in that neighbor cell.
+          int neighbor_cell = edge_cells->data[2*edge_index+1];
+          if (neighbor_cell != -1)
+          {
+
+          }
         }
 
         // Create the second node for this edge (if needed).
