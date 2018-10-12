@@ -196,7 +196,7 @@ static inline int polymesh_cell_num_faces(polymesh_t* mesh, int cell)
 }
 
 /// Retrieves the faces attached to the given cell in the polymesh.
-/// \param faces [out] An array large enough to store all the faces for the given cell.
+/// \param [out] faces An array large enough to store all the faces for the given cell.
 /// \memberof polymesh
 static inline void polymesh_cell_get_faces(polymesh_t* mesh, int cell, int* faces)
 {
@@ -221,7 +221,7 @@ static inline bool polymesh_cell_next_face(polymesh_t* mesh, int cell, int* pos,
 }
 
 /// Retrieves the oriented faces attached to the given cell in the polymesh.
-/// \param faces [out] An array large enough to store all the faces for the given 
+/// \param [out] faces An array large enough to store all the faces for the given 
 ///                    cell. If the face is negative, it points inward relative
 ///                    to the cell, and its 1's complement is its index.
 /// \memberof polymesh
@@ -234,12 +234,15 @@ static inline void polymesh_cell_get_oriented_faces(polymesh_t* mesh, int cell, 
 }
 
 /// Allows iteration over the oriented faces attached to the given cell in the 
-/// polymesh. Set *pos to 0 to reset the iteration. Returns true if faces remain in 
-/// the cell, false otherwise. NOTE: the local index of the face within the 
-/// cell is *pos - 1 after the call. This method returns a non-negative face index 
-/// if the nodes in the face are to be traversed in order, or the (negative)
-/// two's complement to the actual face index if its nodes are to be traversed 
-/// in reverse order.
+/// polymesh. 
+/// \param [in] cell The cell whose faces are traversed.
+/// \param [in,out] pos Controls the iteration. Set *pos to 0 to reset. 
+/// \param [out] face Stores the next face in the traversal. Stores a non-negative face index 
+///                   if the nodes in the face are to be traversed in order, or the (negative)
+///                   one's complement to the actual face index if its nodes are to be traversed 
+///                   in reverse order.
+/// \returns true if faces remain in the cell, false otherwise. 
+/// \note The local index of the face within the cell is *pos - 1 after the call. 
 /// \memberof polymesh
 static inline bool polymesh_cell_next_oriented_face(polymesh_t* mesh, int cell, int* pos, int* face)
 {
@@ -296,7 +299,7 @@ static inline int polymesh_face_num_nodes(polymesh_t* mesh, int face)
 }
 
 /// Retrieves the nodes attached to the given face in the polymesh.
-/// \param nodes [out] An array large enough to store all the nodes for the given 
+/// \param [out] nodes An array large enough to store all the nodes for the given 
 ///                    face. 
 /// \memberof polymesh
 static inline void polymesh_face_get_nodes(polymesh_t* mesh, int face, int* nodes)
@@ -344,7 +347,7 @@ static inline int polymesh_face_num_edges(polymesh_t* mesh, int face)
 }
 
 /// Retrieves the edges attached to the given face in the polymesh.
-/// \param edges [out] An array large enough to store all the edges for the given 
+/// \param [out] edges An array large enough to store all the edges for the given 
 ///                    face. 
 /// \memberof polymesh
 static inline void polymesh_face_get_edges(polymesh_t* mesh, int face, int* edges)

@@ -100,6 +100,7 @@ planar_polymesh_t* planar_polymesh_clone(planar_polymesh_t* mesh);
 void planar_polymesh_reserve_connectivity_storage(planar_polymesh_t* mesh);
 
 /// Returns the number of edges attached to the given cell in the mesh.
+/// \param [in] cell The cell in question.
 /// \memberof planar_polymesh
 static inline int planar_polymesh_cell_num_edges(planar_polymesh_t* mesh, 
                                                  int cell)
@@ -109,8 +110,9 @@ static inline int planar_polymesh_cell_num_edges(planar_polymesh_t* mesh,
 
 /// Allows iteration over the edges attached to the given cell in the 
 /// planar_polymesh.
-/// \param pos [in,out] Controls the iteration. Set to 0 to reset the iteration. 
-/// \param edge [out] Stores the next non-negative edge index.
+/// \param [in] cell The cell whose edges are traversed.
+/// \param [in,out] pos Controls the iteration. Set to 0 to reset the iteration. 
+/// \param [out] edge Stores the next non-negative edge index.
 /// \returns true if edges remain in the cell, false otherwise. NOTE: 
 /// \note the local index of the edge within the cell is *pos - 1 after the call. 
 /// \memberof planar_polymesh
@@ -118,6 +120,33 @@ static inline bool planar_polymesh_cell_next_edge(planar_polymesh_t* mesh,
                                                   int cell, 
                                                   int* pos, 
                                                   int* edge)
+{
+  bool result = (*pos < (mesh->cell_edge_offsets[cell+1] - mesh->cell_edge_offsets[cell]));
+  if (result)
+  {
+    *edge = mesh->cell_edges[mesh->cell_edge_offsets[cell] + *pos];
+    if (*edge < 0)
+      *edge = ~(*edge);
+    ++(*pos);
+  }
+  return result;
+}
+
+/// Allows iteration over the oriented edges attached to the given cell in the 
+/// planar_polymesh.
+/// \param [in] cell The cell whose edges are traversed.
+/// \param [in,out] pos Controls the iteration. Set to 0 to reset the iteration. 
+/// \param [out] edge Stores the next edge in the traversal. Stores a non-negative edge index 
+///                   if the nodes in the edge are to be traversed in order, or the (negative)
+///                   one's complement to the actual face index if its nodes are to be traversed 
+///                   in reverse order.
+/// \returns true if edges remain in the cell, false otherwise. 
+/// \note the local index of the edge within the cell is *pos - 1 after the call. 
+/// \memberof planar_polymesh
+static inline bool planar_polymesh_cell_next_oriented_edge(planar_polymesh_t* mesh, 
+                                                           int cell, 
+                                                           int* pos, 
+                                                           int* edge)
 {
   bool result = (*pos < (mesh->cell_edge_offsets[cell+1] - mesh->cell_edge_offsets[cell]));
   if (result)
@@ -131,8 +160,9 @@ static inline bool planar_polymesh_cell_next_edge(planar_polymesh_t* mesh,
 /// Allows iteration over the neighboring cells attached to the given cell in 
 /// the planar_polymesh, in the same order as that given by 
 /// \ref planar_polymesh_cell_next_edge(). 
-/// \param pos [in,out] Controls the iteration. Set to 0 to reset the iteration. 
-/// \param neighbor_cell [out] Stores the index of the neighboring cell. If the 
+/// \param [in] cell The cell whose neighbors are traversed.
+/// \param [in,out] pos Controls the iteration. Set to 0 to reset the iteration. 
+/// \param [out] neighbor_cell Stores the index of the neighboring cell. If the 
 ///                            next neighbor for a cell is non-existent, 
 ///                            neighbor_cell stores -1.
 /// \returns true if the traversal over all faces of the cell is not complete, 

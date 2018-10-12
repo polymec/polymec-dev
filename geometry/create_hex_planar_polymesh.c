@@ -111,11 +111,11 @@ planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
 
         int neighbor_dir = (dir + 3) % 6;
 
-        // Add the edge to both hexes.
+        // Add the (oriented) edge to both hexes.
         int edge_index = (int)(edge_cells->size/2);
         cell_edges->data[6*cell_index+dir] = edge_index;
         if (neighbor_index != -1)
-          cell_edges->data[6*neighbor_index+neighbor_dir] = edge_index;
+          cell_edges->data[6*neighbor_index+neighbor_dir] = ~edge_index;
 
         // Add both hexes to the edge.
         int_array_append(edge_cells, cell_index);
@@ -134,74 +134,47 @@ planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
     edge_nodes->data[e] = -1;
   point2_array_t* nodes = point2_array_new();
   pos = 0;
-  for (size_t e = 0; e < num_edges; ++e)
+  while (hex_map_next(hex_map, &pos, &hex, &cell_index))
   {
-    // Create the edge's first node if we haven't already.
-    if (edge_nodes->data[2*e] == -1)
+    for (int dir = 0; dir < 6; ++dir)
     {
-      // Find the edges (up to 2) attached to this edge via its 
-      // first-node-to-be.
-      int num_other_edges = 0;
-      int other_edges[2];
-
-      // Create the node and add it to these edges.
-      int n1 = (int)nodes->size;
-      edge_nodes->data[2*e] = n1;
-      for (int ee = 0; ee < num_other_edges; ++ee)
+      int edge_index = cell_edges->data[6*cell_index+dir];
+      if (edge_index >= 0)
       {
-        int other_edge = other_edges[ee];
-        if (edge_nodes->data[2*other_edge] == -1)
-          edge_nodes->data[2*other_edge] = n1;
-        else
-          edge_nodes->data[2*other_edge+1] = n1;
-      }
+        if (edge_nodes->data[2*edge_index] == -1)
+        {
+          // Create the first node for this edge.
+          int n1 = (int)nodes->size;
+          point2_t x1;
+          hex_get_node_position(hex, dir, &x1);
+          point2_array_append(nodes, x1);
 
-      // Determine the node's position.
-      int cell = edge_cells->data[2*e];
-      int dir;
-      for (dir = 0; dir < 6; ++dir)
-      {
-        if (cell_edges->data[6*cell+dir] == e)
-          break;
-      }
-      hex_t cell_hex = hex_inv_map[cell];
-      point2_t x;
-      hex_get_node_position(&cell_hex, dir, &x);
-      point2_array_append(nodes, x);
-    }
+          // Hook up the node to this edge.
+          edge_nodes->data[2*edge_index] = n1;
 
-    // Create the edge's second node if we haven't already.
-    if (edge_nodes->data[2*e+1] == -1)
-    {
-      // Find the edges (up to 2) attached to this edge via its 
-      // second-node-to-be.
-      int num_other_edges = 0;
-      int other_edges[2];
+          // Hook up the node to the other edge it belongs to in this cell.
+          int prev_edge_index = cell_edges->data[6*cell_index+(dir+5)%6];
+          ASSERT(edge_nodes->data[2*prev_edge_index+1] == -1);
+          edge_nodes->data[2*prev_edge_index+1] = n1;
+        }
 
-      // Create the node and add it to these edges.
-      int n2 = (int)nodes->size;
-      edge_nodes->data[2*e+1] = n2;
-      for (int ee = 0; ee < num_other_edges; ++ee)
-      {
-        int other_edge = other_edges[ee];
-        if (edge_nodes->data[2*other_edge] == -1)
-          edge_nodes->data[2*other_edge] = n2;
-        else
-          edge_nodes->data[2*other_edge+1] = n2;
-      }
+        // Create the second node for this edge (if needed).
+        if (edge_nodes->data[2*edge_index+1] == -1)
+        {
+          int n2 = (int)nodes->size;
+          point2_t x2;
+          hex_get_node_position(hex, (dir+1)%6, &x2);
+          point2_array_append(nodes, x2);
 
-      // Determine the node's position.
-      int cell = edge_cells->data[2*e];
-      int dir;
-      for (dir = 0; dir < 6; ++dir)
-      {
-        if (cell_edges->data[6*cell+dir] == e)
-          break;
+          // Hook up the node to this edge.
+          edge_nodes->data[2*edge_index+1] = n2;
+
+          // Hook up the node to the other edge it belongs to in this cell.
+          int next_edge_index = cell_edges->data[6*cell_index+(dir+1)%6];
+          ASSERT(edge_nodes->data[2*next_edge_index+1] == -1);
+          edge_nodes->data[2*next_edge_index+1] = n2;
+        }
       }
-      hex_t cell_hex = hex_inv_map[cell];
-      point2_t x;
-      hex_get_node_position(&cell_hex, dir+1, &x);
-      point2_array_append(nodes, x);
     }
   }
 

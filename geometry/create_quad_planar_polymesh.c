@@ -113,13 +113,16 @@ planar_polymesh_t* create_quad_planar_polymesh(size_t nx, size_t ny,
                     quad_lattice_y_edge(lattice, i,     j)};
     for (int e = 0; e < 4; ++e)
     {
-      mesh->cell_edges[mesh->cell_edge_offsets[c] + e] = edges[e];
       if (mesh->edge_cells[2*edges[e]] == -1)
+      {
+        mesh->cell_edges[mesh->cell_edge_offsets[c] + e] = edges[e];
         mesh->edge_cells[2*edges[e]] = c;
+      }
       else
       {
         // An edge is attached to at most 2 cells.
         ASSERT(mesh->edge_cells[2*edges[e]+1] == -1);
+        mesh->cell_edges[mesh->cell_edge_offsets[c] + e] = ~(edges[e]);
         mesh->edge_cells[2*edges[e]+1] = c;
       }
     }
