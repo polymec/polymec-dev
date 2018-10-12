@@ -49,6 +49,12 @@ typedef struct
 
 /// Registers a set of fields and functions with the interpreter L in the 
 /// module with the given name.
+/// \param [in] L The Lua interpreter in which the module is registered.
+/// \param [in] module_name The name of the module being registered.
+/// \param [in] module_doc A string containing documentation for the module.
+/// \param [in] fields An array of fields (get/set functions) that expose data within 
+///                    the module.
+/// \param [in] functions An array of module functions.
 void lua_register_module(lua_State* L,
                          const char* module_name,
                          const char* module_doc,
@@ -57,6 +63,11 @@ void lua_register_module(lua_State* L,
 
 /// Registers a set of functions in a named table within a module. Useful for 
 /// factory functions.
+/// \param [in] L The Lua interpreter in which the module functions are registered.
+/// \param [in] module_name The module in which the functions are registered.
+/// \param [in] table_name The table within which the functions are registered.
+/// \param [in] table_doc A string containing documentation for the module function table.
+/// \param [in] funcs An array of module functions to be registered.
 void lua_register_module_function_table(lua_State* L,
                                         const char* module_name,
                                         const char* table_name,
@@ -100,9 +111,21 @@ typedef struct
 
 /// Registers a new Lua class with the interpreter L, giving it a name, 
 /// a set of static functions and a set of methods. The functions live in 
-/// a module named after the type. functions may be NULL; methods cannot be.
-/// The last argument is a C destructor function that frees the data 
-/// within the context pointer passed to lua_push_object.
+/// a module named after the type. 
+/// \param [in] L The Lua interpreter in which the Lua class is registered.
+/// \param [in] class_name The name of the Lua class. Must not correspond to an already-
+///                        registered Lua class.
+/// \param [in] class_doc A string containing documentation for the class.
+/// \param [in] functions An array of functions exposed within the module named after 
+///                       this class. Can be NULL if no module functions are desired.
+/// \param [in] fields An array of accessible fields with get/set functions, available 
+///                    on each object of this class's type. Can be NULL if these objects 
+///                    have no fields.
+/// \param [in] methods An array of methods callable on each object of this class's type.
+///                     Can be NULL if these objects have no methods.
+/// \param [in] c_dtor A C destructor function that frees the data in the context pointer
+///                    provided in the call to \ref lua_push_object that creates an object
+///                    of this class's type.
 void lua_register_class(lua_State* L,
                         const char* class_name,
                         const char* class_doc,
@@ -114,19 +137,28 @@ void lua_register_class(lua_State* L,
 /// Pushes a new (polymec) Lua object of the given class to the top of the 
 /// stack in the interpreter L, associating it with a context pointer and a 
 /// destructor to be called when the object is garbage-collected. 
+/// \param [in] L The Lua interpreter in which an object of the given type is to be created.
+/// \param [in] class_name The name of the class identifying the type of object to create.
+/// \param [in] context A pointer holding the initial state of the created object.
 void lua_push_object(lua_State* L,
                      const char* class_name,
                      void* context);
 
 /// Returns true if the object at the given index in the interpreter is of 
-/// the type identified by the given type name, false if not.
+/// the type identified by the given class name, false if not.
+/// \param [in] L The Lua interpreter in which the object is queried.
+/// \param [in] index The index of the object being queried within the interpreter L.
+/// \param [in] class_name The class identifying the type in question.
 bool lua_is_object(lua_State* L,
                    int index,
                    const char* class_name);
 
 /// Returns the context pointer associated with the (polymec) lua object of the 
-/// given type at the given index in the interpreter L, or NULL if the value at that index is 
-/// not of that type.
+/// given type at the given index in the interpreter L, or NULL if the value at 
+/// that index is not of that type.
+/// \param [in] L The Lua interpreter from which the object is retrieved.
+/// \param [in] index The index of the object being retrieved within the interpreter L.
+/// \param [in] class_name The class identifying the type of the object being retrieved.
 void* lua_to_object(lua_State* L,
                     int index,
                     const char* class_name);
@@ -134,12 +166,19 @@ void* lua_to_object(lua_State* L,
 /// This is a wrapper around lua_to_object that throws an error if the value at 
 /// the given index is not an object of the correct class. Analogous to 
 /// luaL_checkudata.
+/// \param [in] L The Lua interpreter in which the object is checked.
+/// \param [in] index The index of the object being checked within the interpreter L.
+/// \param [in] class_name The class identifying the type of the object being checked.
 void* lua_check_object(lua_State* L,
                        int index,
                        const char* class_name);
 
 /// This function transfers the ownership of the object with the given type 
 /// to C or to Lua. By default, Lua owns all objects pushed to the stack.
+/// \param [in] L The Lua interpreter to or from which the object's is transferred.
+/// \param [in] index The index of the object being transferred within the interpreter L.
+/// \param [in] class_name The class identifying the type of the object being transferred.
+/// \param [in] ownership The direction of transfer of ownership for the object.
 void lua_transfer_object(lua_State* L, 
                          int index,
                          const char* class_name,

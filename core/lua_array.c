@@ -79,7 +79,7 @@ size_t lua_array_elem_size(lua_array_data_t type)
 
 static int array_index(lua_State* L)
 {
-  lua_array_t* a = luaL_checkudata(L, 1, "array");
+  lua_array_t* a = lua_to_object(L, 1, "array");
   if (!lua_isinteger(L, 2) && lua_isstring(L, 2) && 
       (strcmp(lua_tostring(L, 2), "type") == 0))
   {
@@ -153,7 +153,7 @@ static int array_index(lua_State* L)
 
 static int array_newindex(lua_State* L)
 {
-  lua_array_t* a = luaL_checkudata(L, 1, "array");
+  lua_array_t* a = lua_to_object(L, 1, "array");
   if (!lua_isinteger(L, 2))
     luaL_error(L, "Array index must be an integer.");
   size_t index = (size_t)lua_tointeger(L, 2);
@@ -241,7 +241,7 @@ static int array_newindex(lua_State* L)
 
 static int array_len(lua_State* L)
 {
-  lua_array_t* a = luaL_checkudata(L, 1, "array");
+  lua_array_t* a = lua_to_object(L, 1, "array");
   lua_pushinteger(L, (lua_Integer)a->size);
   return 1;
 }
@@ -694,11 +694,11 @@ static void* array_from_type(lua_State* L, int index, lua_array_data_t type)
 
 static int array_concat(lua_State* L)
 {
-  lua_array_t* a = luaL_checkudata(L, 1, "array");
+  lua_array_t* a = lua_to_object(L, 1, "array");
   lua_array_data_t type = a->type;
   if (!lua_is_array(L, 2, type) && !lua_istable(L, 2))
     luaL_error(L, "Argument must be an array or a table.");
-  lua_array_t* a1 = luaL_checkudata(L, 2, "array");
+  lua_array_t* a1 = lua_to_object(L, 2, "array");
   void* ar1 = NULL;
   if (a1 == NULL)
     ar1 = array_from_type(L, 2, type);
@@ -837,9 +837,9 @@ static int array_concat(lua_State* L)
   return 1;
 }
 
-static int array_gc(lua_State* L)
+static void array_dtor(void* context)
 {
-  lua_array_t* a = luaL_checkudata(L, 1, "array");
+  lua_array_t* a = context;
   if (a->owns_data && (a->array != NULL))
   {
     if (a->type == LUA_ARRAY_BYTE)
@@ -865,12 +865,11 @@ static int array_gc(lua_State* L)
     else // if (a->type == LUA_ARRAY_SYM_TENSOR2)
       sym_tensor2_array_free((sym_tensor2_array_t*)a->array);
   }
-  return 0;
 }
 
 static void write_item(lua_State* L, int index, size_t i, char* str)
 {
-  lua_array_t* a = luaL_checkudata(L, index, "array");
+  lua_array_t* a = lua_to_object(L, index, "array");
 
   // Get the (i+1)th item in the array.
   lua_pushinteger(L, (lua_Integer)(i+1));
@@ -921,7 +920,7 @@ static void write_item(lua_State* L, int index, size_t i, char* str)
 
 static int array_tostring(lua_State* L)
 {
-  lua_array_t* a = luaL_checkudata(L, 1, "array");
+  lua_array_t* a = lua_to_object(L, 1, "array");
 
   char type_str[24];
   lua_array_get_type_str(a->type, type_str);
@@ -958,14 +957,13 @@ static int array_tostring(lua_State* L)
   return 1;
 }
 
-static luaL_Reg array_mm[] = {
-  {"__index", array_index},
-  {"__newindex", array_newindex},
-  {"__len", array_len},
-  {"__concat", array_concat},
-  {"__gc", array_gc},
-  {"__tostring", array_tostring},
-  {NULL, NULL}
+static lua_class_method array_methods[] = {
+  {"__index", array_index, NULL},
+  {"__newindex", array_newindex, NULL},
+  {"__len", array_len, NULL},
+  {"__concat", array_concat, NULL},
+  {"__tostring", array_tostring, NULL},
+  {NULL, NULL, NULL}
 };
 
 // This is exposed for lua_ndarray, too.
@@ -1022,24 +1020,23 @@ static int array_new(lua_State* L)
   return 1;
 }
 
-static luaL_Reg array_funcs[] = {
-  {"new", array_new},
-  {NULL, NULL}
+static lua_module_function array_funcs[] = {
+  {"new", array_new, NULL},
+  {NULL, NULL, NULL}
 };
 
-static int lua_open_array(lua_State* L)
+void lua_register_array(lua_State* L);
+void lua_register_array(lua_State* L)
 {
-  // Make the metatable and populate it.
-  luaL_newmetatable(L, "array");
-  luaL_setfuncs(L, array_mm, 0);
+  lua_register_class(L, "array", 
+                     "A type-savvy array class.",
+                     array_funcs,
+                     NULL,
+                     array_methods,
+                     array_dtor);
 
-  // Register the containing module for the constructor and 
-  // the data type descriptors.
-  luaL_checkversion(L);
-  lua_createtable(L, 0, 1);
-  luaL_setfuncs(L, array_funcs, 0);
-
-  // Add data type descriptors to the table.
+  // Add data type descriptors to the array table.
+  lua_getglobal(L, "array");
   lua_pushstring(L, "byte");
   lua_setfield(L, -2, "byte");
   lua_pushstring(L, "int");
@@ -1062,21 +1059,11 @@ static int lua_open_array(lua_State* L)
   lua_setfield(L, -2, "tensor2");
   lua_pushstring(L, "sym_tensor2");
   lua_setfield(L, -2, "sym_tensor2");
-
-  return 1;
-}
-
-void lua_register_array(lua_State* L);
-void lua_register_array(lua_State* L)
-{
-  luaL_requiref(L, "array", lua_open_array, 1);
 }
 
 void lua_push_array(lua_State* L, void* array, lua_array_data_t type, bool free_data)
 {
-  lua_array_t* a = lua_newuserdata(L, sizeof(lua_array_t));
-  luaL_getmetatable(L, "array");
-  lua_setmetatable(L, -2);
+  lua_array_t* a = polymec_malloc(sizeof(lua_array_t));
   if (type == LUA_ARRAY_BYTE)
   {
     byte_array_t* bytes = array;
@@ -1135,17 +1122,18 @@ void lua_push_array(lua_State* L, void* array, lua_array_data_t type, bool free_
   a->array = array;
   a->type = type;
   a->owns_data = free_data;
+  lua_push_object(L, "array", a);
 }
 
 bool lua_is_array(lua_State* L, int index, lua_array_data_t type)
 {
-  lua_array_t* a = luaL_testudata(L, index, "array");
+  lua_array_t* a = lua_to_object(L, index, "array");
   return ((a != NULL) && (type == a->type));
 }
 
 void* lua_to_array(lua_State* L, int index, lua_array_data_t type)
 {
-  lua_array_t* a = luaL_testudata(L, index, "array");
+  lua_array_t* a = lua_to_object(L, index, "array");
   if ((a != NULL) && (type == a->type))
     return a->array;
   else
@@ -1154,7 +1142,7 @@ void* lua_to_array(lua_State* L, int index, lua_array_data_t type)
 
 size_t lua_array_size(lua_State* L, int index)
 {
-  lua_array_t* a = luaL_testudata(L, index, "array");
+  lua_array_t* a = lua_to_object(L, index, "array");
   return a->size;
 }
 

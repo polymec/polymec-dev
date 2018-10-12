@@ -318,6 +318,7 @@ typedef struct
   char* name;
   lua_class_field* fields;
   lua_class_method* index;
+  lua_class_method* newindex;
 
   void* context;
   void (*dtor)(void*);
@@ -338,8 +339,13 @@ static int lua_class_index(lua_State* L)
 {
   // We are given the object and its attribute name.
   lua_class_t* c = lua_touserdata(L, 1);
-  const char* field = lua_tostring(L, 2);
 
+  // Do we have a user-defined __index metamethod?
+  if (c->index != NULL)
+    return c->index->method(L);
+
+  // The field must be a name, not a numeric index. Search the fields table.
+  const char* field = lua_tostring(L, 2);
   if (c->fields != NULL)
   {
     int i = 0;
@@ -347,10 +353,6 @@ static int lua_class_index(lua_State* L)
            (strcmp(c->fields[i].name, field) != 0)) ++i;
     if (c->fields[i].name != NULL) // Bingo!
       return c->fields[i].getter(L);
-
-    // Do we have a user-defined __index metamethod?
-    if (c->index != NULL)
-      return c->index->method(L);
   }
 
   // If we didn't find a field, forward the request to our metatable.
@@ -363,9 +365,14 @@ static int lua_class_newindex(lua_State* L)
 {
   // We are given the object, its field name, and a new field value.
   lua_class_t* c = lua_touserdata(L, 1);
+
+  // Do we have a user-defined __newindex metamethod?
+  if (c->newindex != NULL)
+    return c->newindex->method(L);
+
+  // The field must be a name, not a numeric index. Search the fields table.
   const char* field = lua_tostring(L, 2);
 
-  // Search the fields table.
   if (c->fields != NULL)
   {
     int i = 0;
@@ -410,14 +417,17 @@ static void destroy_class_fields_dict(void)
     string_ptr_unordered_map_free(lua_class_fields);
 }
 
-// Dictionary of user-defined __index metamethods by class name.
+// Dictionaries of user-defined __index and __newindex metamethods by class name.
 static string_ptr_unordered_map_t* lua_class_index_mms = NULL;
+static string_ptr_unordered_map_t* lua_class_newindex_mms = NULL;
 
 // This function is called at exit to destroy the above global objects.
 static void destroy_class_index_mms(void)
 {
   if (lua_class_index_mms != NULL)
     string_ptr_unordered_map_free(lua_class_index_mms);
+  if (lua_class_newindex_mms != NULL)
+    string_ptr_unordered_map_free(lua_class_newindex_mms);
 }
 
 static int lua_open_class(lua_State* L)
@@ -472,11 +482,12 @@ static int lua_open_class(lua_State* L)
     polymec_atexit(destroy_class_fields_dict);
   }
 
-  // Do the same for our user-defined __index metamethods.
+  // Do the same for our user-defined __index and __newindex metamethods.
   // if we haven't.
   if (lua_class_index_mms == NULL)
   {
     lua_class_index_mms = string_ptr_unordered_map_new();
+    lua_class_newindex_mms = string_ptr_unordered_map_new();
     polymec_atexit(destroy_class_index_mms);
   }
 
@@ -504,10 +515,10 @@ static int lua_open_class(lua_State* L)
   // Create a metatable for this type and populate it with metamethods.
   if (methods != NULL)
   {
-    int num_methods = 0, index_mm = -1, num_index_mm = 0;
+    int num_methods = 0, index_mm = -1, newindex_mm = -1, num_index_mm = 0;
     while (methods[num_methods].name != NULL)
     {
-      // Register any user-defined __index metamethod.
+      // Register any user-defined __index and __newindex metamethods.
       if (strcmp(methods[num_methods].name, "__index") == 0)
       {
         string_ptr_unordered_map_insert_with_k_dtor(lua_class_index_mms, 
@@ -515,7 +526,16 @@ static int lua_open_class(lua_State* L)
                                                     &methods[num_methods],
                                                     string_free);
         index_mm = num_methods;
-        num_index_mm = 1;
+        ++num_index_mm;
+      }
+      else if (strcmp(methods[num_methods].name, "__newindex") == 0)
+      {
+        string_ptr_unordered_map_insert_with_k_dtor(lua_class_newindex_mms, 
+                                                    string_dup(class_name),
+                                                    &methods[num_methods],
+                                                    string_free);
+        newindex_mm = num_methods;
+        ++num_index_mm;
       }
       ++num_methods;
     }
@@ -525,7 +545,9 @@ static int lua_open_class(lua_State* L)
     luaL_Reg m[num_methods+4];
     for (int i = 0; i < num_methods + num_index_mm; ++i)
     {
-      int j = ((index_mm >= 0) && (i >= index_mm)) ? i-1 : i;
+      int j = i;
+      if ((index_mm >= 0) && (i >= index_mm)) --j;
+      if ((newindex_mm >= 0) && (i >= newindex_mm)) --j;
       m[j].name = methods[i].name;
       m[j].func = methods[i].method;
     }
@@ -688,11 +710,18 @@ void lua_push_object(lua_State* L,
     obj->fields = *fields_p;
   else
     obj->fields = NULL;
+
   void** index_p = string_ptr_unordered_map_get(lua_class_index_mms, (char*)class_name);
   if (index_p != NULL)
     obj->index = (lua_class_method*)(*index_p);
   else
     obj->index = NULL;
+
+  void** newindex_p = string_ptr_unordered_map_get(lua_class_newindex_mms, (char*)class_name);
+  if (newindex_p != NULL)
+    obj->newindex = (lua_class_method*)(*newindex_p);
+  else
+    obj->newindex = NULL;
 
   // Assign data.
   obj->context = context;
