@@ -9,7 +9,6 @@
 #define POLYMEC_CREATE_HEX_PRISMESH_H
 
 #include "geometry/prismesh.h"
-#include "geometry/create_hex_planar_polymesh.h"
 
 /// \addtogroup geometry geometry
 ///@{
@@ -17,19 +16,20 @@
 /// This function creates and returns a prismesh consisting of a set of 
 /// hexagonal prism cells with the given number of cells extending outward 
 /// from a center hex, and with the given alignment. 
-/// \param comm [in] The MPI communicator on which the distributed prismesh 
+/// \param [in] comm The MPI communicator on which the distributed prismesh 
 ///                  is defined.
-/// \param alignment [in] The alignment of the hexes in the mesh (x- or y-).
-/// \param radius [in] The number of hexes extending outward from the center hex. 
-/// \param h [in] The length of the side of each hexagon.
-/// \param nz [in] The number of cells in the mesh along the z axis.
-/// \param z1 [in] The z coordinate of the bottom of the mesh.
-/// \param z2 [in] The z coordinate of the top of the mesh.
-/// \param periodic_in_z [in] True if the mesh is periodic along the z axis, 
+/// \param [in] radius The number of hexes extending outward from the center hex. 
+/// \param [in] h  The length of the side of each hexagon.
+/// \param [in] rotation The angle of rotation for the mesh (in radians), 
+///                      relative to a reference hex with a flat bottom and top
+///                      in the xy plane.
+/// \param [in] nz The number of cells in the mesh along the z axis.
+/// \param [in] z1 The z coordinate of the bottom of the mesh.
+/// \param [in] z2 The z coordinate of the top of the mesh.
+/// \param [in] periodic_in_z True if the mesh is periodic along the z axis, 
 ///                           false if not.
-prismesh_t* create_hex_prismesh(MPI_Comm comm,
-                                hex_lattice_align_t alignment,
-                                size_t radius, real_t h,
+prismesh_t* create_hex_prismesh(MPI_Comm comm, 
+                                size_t radius, real_t h, real_t rotation,
                                 size_t nz, real_t z1, real_t z2,
                                 bool periodic_in_z);
 

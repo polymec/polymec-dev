@@ -73,13 +73,12 @@ static inline void hex_map_get_neighbor(hex_map_t* hexes,
 
 static void hex_get_node_position(hex_t* hex, int direction, point2_t* x)
 {
-//static const real_t start_angles[2] = {0.0,       // x-aligned
-//                                       M_PI/2.0}; // y-aligned
   // FIXME
 }
 
-planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
-                                              size_t radius, real_t h)
+planar_polymesh_t* create_hex_planar_polymesh(size_t radius, 
+                                              real_t h,
+                                              real_t rotation)
 {
   ASSERT(h > 0.0);
 
@@ -165,7 +164,10 @@ planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
           int neighbor_cell = edge_cells->data[2*edge_index+1];
           if (neighbor_cell != -1)
           {
-
+            int opp_dir = (dir + 3) % 6;
+            int neighbor_edge_index = cell_edges->data[6*neighbor_cell+(opp_dir+1)%6];
+            ASSERT(edge_nodes->data[2*neighbor_edge_index] == -1);
+            edge_nodes->data[2*neighbor_edge_index] = n1;
           }
         }
 
@@ -184,6 +186,17 @@ planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
           int next_edge_index = cell_edges->data[6*cell_index+(dir+1)%6];
           ASSERT(edge_nodes->data[2*next_edge_index+1] == -1);
           edge_nodes->data[2*next_edge_index+1] = n2;
+
+          // If this edge connects this cell to a neighbor cell, hook up the node 
+          // to the other incident edge in that neighbor cell.
+          int neighbor_cell = edge_cells->data[2*edge_index+1];
+          if (neighbor_cell != -1)
+          {
+            int opp_dir = (dir + 3) % 6;
+            int neighbor_edge_index = cell_edges->data[6*neighbor_cell+(opp_dir-1)%6];
+            ASSERT(edge_nodes->data[2*neighbor_edge_index+1] == -1);
+            edge_nodes->data[2*neighbor_edge_index+1] = n2;
+          }
         }
       }
     }

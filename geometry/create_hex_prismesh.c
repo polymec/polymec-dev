@@ -9,15 +9,14 @@
 #include "geometry/create_hex_prismesh.h"
 
 prismesh_t* create_hex_prismesh(MPI_Comm comm,
-                                hex_lattice_align_t alignment,
-                                size_t radius, real_t h,
+                                size_t radius, real_t h, real_t rotation,
                                 size_t nz, real_t z1, real_t z2,
                                 bool periodic_in_z)
 {
   ASSERT(h > 0.0);
   ASSERT(z1 < z2);
   ASSERT(nz > 0);
-  planar_polymesh_t* columns = create_hex_planar_polymesh(alignment, radius, h);
+  planar_polymesh_t* columns = create_hex_planar_polymesh(radius, h, rotation);
   return prismesh_new(comm, columns, z1, z2, nz, periodic_in_z);
 }
 

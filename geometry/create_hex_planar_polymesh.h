@@ -14,23 +14,16 @@
 /// \addtogroup geometry geometry
 ///@{
 
-/// \enum hex_lattice_align_t
-/// This type identifies two possible alignments for hexagonal lattices.
-typedef enum
-{
-  /// An x-aligned lattice has edges separating cells along the x axis.
-  HEX_LATTICE_X_ALIGNED = 0,
-  /// A y-aligned lattice has edges separating cells to the y axis.
-  HEX_LATTICE_Y_ALIGNED = 1
-} hex_lattice_align_t;
-
 /// This function creates and returns a planar polymesh consisting of a set 
 /// of hexagonal cells extending outward from a center cell.
-/// \param alignment [in] The alignment of the hexes in the mesh (x- or y-).
-/// \param radius [in] The number of hexes extending outward from the center hex. 
-/// \param h [in] The length of the side of each hexagon.
-planar_polymesh_t* create_hex_planar_polymesh(hex_lattice_align_t alignment,
-                                              size_t radius, real_t h);
+/// \param [in] radius The number of hexes extending outward from the center hex. 
+/// \param [in] h The length of the side of each hexagon.
+/// \param [in] rotation The angle of rotation for the mesh (in radians), 
+///                      relative to a reference hex with a flat bottom and top
+///                      in the xy plane.
+planar_polymesh_t* create_hex_planar_polymesh(size_t radius, 
+                                              real_t h,
+                                              real_t rotation);
 
 ///@}
 

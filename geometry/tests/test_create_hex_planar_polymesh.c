@@ -12,13 +12,13 @@
 #include "cmocka.h"
 #include "geometry/create_hex_planar_polymesh.h"
 
-static void test_create_hex_planar_polymesh(void** state,
-                                            hex_lattice_align_t alignment)
+static void test_create_hex_planar_polymesh(void** state)
 {
-  // Create a set of uniform hexes with the given alignment.
+  // Create a set of uniform hexes.
   size_t radius = 5;
   real_t h = 0.1;
-  planar_polymesh_t* mesh = create_hex_planar_polymesh(alignment, radius, h);
+  real_t rotation = 0.0;
+  planar_polymesh_t* mesh = create_hex_planar_polymesh(radius, h, rotation);
 
   // Check its connectivity.
   assert_true(mesh->num_cells == 10*10);
@@ -28,23 +28,12 @@ static void test_create_hex_planar_polymesh(void** state,
   planar_polymesh_free(mesh);
 }
 
-static void test_create_x_hex_planar_polymesh(void** state)
-{
-  test_create_hex_planar_polymesh(state, HEX_LATTICE_X_ALIGNED);
-}
-
-static void test_create_y_hex_planar_polymesh(void** state)
-{
-  test_create_hex_planar_polymesh(state, HEX_LATTICE_Y_ALIGNED);
-}
-
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
   const struct CMUnitTest tests[] = 
   {
-    cmocka_unit_test(test_create_x_hex_planar_polymesh),
-    cmocka_unit_test(test_create_y_hex_planar_polymesh)
+    cmocka_unit_test(test_create_hex_planar_polymesh)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

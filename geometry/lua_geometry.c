@@ -1185,16 +1185,6 @@ static int pp_hex(lua_State* L)
   if (!lua_istable(L, 1))
     luaL_error(L, "Argument must be a table with alignment and radius fields.");
 
-  lua_getfield(L, 1, "alignment");
-  if (!lua_isstring(L, -1))
-    luaL_error(L, "alignment must be 'x' or 'y'.");
-  const char* alignment = lua_tostring(L, -1);
-  hex_lattice_align_t align = HEX_LATTICE_X_ALIGNED;
-  if (strcasecmp(alignment, "y") == 0)
-    align = HEX_LATTICE_Y_ALIGNED;
-  else if (strcasecmp(alignment, "x") != 0)
-    luaL_error(L, "alignment must be 'x' or 'y'.");
-
   lua_getfield(L, 1, "radius");
   if (!lua_isinteger(L, -1))
     luaL_error(L, "radius must be a non-negative integer.");
@@ -1209,8 +1199,12 @@ static int pp_hex(lua_State* L)
   if (h <= 0.0)
     luaL_error(L, "h must be positive.");
 
-  planar_polymesh_t* mesh = create_hex_planar_polymesh(align, 
-                                                       (size_t)radius, h);
+  lua_getfield(L, 1, "rotation");
+  if (!lua_is_real(L, -1))
+    luaL_error(L, "rotation must be a real number.");
+  real_t rotation = lua_to_real(L, -1);
+
+  planar_polymesh_t* mesh = create_hex_planar_polymesh((size_t)radius, h, rotation);
   lua_push_planar_polymesh(L, mesh);
   return 1;
 }
@@ -1767,16 +1761,6 @@ static int prismesh_hex(lua_State* L)
     luaL_error(L, "comm must be an mpi_comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, -1);
 
-  lua_getfield(L, 1, "alignment");
-  if (!lua_isstring(L, -1))
-    luaL_error(L, "alignment must be 'x' or 'y'.");
-  const char* alignment = lua_tostring(L, -1);
-  hex_lattice_align_t align = HEX_LATTICE_X_ALIGNED;
-  if (strcasecmp(alignment, "y") == 0)
-    align = HEX_LATTICE_Y_ALIGNED;
-  else if (strcasecmp(alignment, "x") != 0)
-    luaL_error(L, "alignment must be 'x' or 'y'.");
-
   lua_getfield(L, 1, "radius");
   if (!lua_isinteger(L, -1))
     luaL_error(L, "radius must be a non-negative integer.");
@@ -1790,6 +1774,11 @@ static int prismesh_hex(lua_State* L)
   real_t h = lua_to_real(L, -1);
   if (h <= 0.0)
     luaL_error(L, "h must be positive.");
+
+  lua_getfield(L, 1, "rotation");
+  if (!lua_is_real(L, -1))
+    luaL_error(L, "rotation must be a real number.");
+  real_t rotation = lua_to_real(L, -1);
 
   lua_getfield(L, 1, "nz");
   if (!lua_isinteger(L, -1))
@@ -1816,9 +1805,8 @@ static int prismesh_hex(lua_State* L)
     luaL_error(L, "periodic_in_z must be true or false.");
   periodic_in_z = lua_toboolean(L, -1);
 
-  prismesh_t* mesh = create_hex_prismesh(comm, align,
-                                         (size_t)radius, h,
-                                         nz, z1, z2,
+  prismesh_t* mesh = create_hex_prismesh(comm, (size_t)radius, h,
+                                         rotation, nz, z1, z2,
                                          periodic_in_z);
   lua_push_prismesh(L, mesh);
   return 1;
