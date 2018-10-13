@@ -709,7 +709,7 @@ static int array_concat(lua_State* L)
   {
     char type_str[24];
     lua_array_get_type_str(type, type_str);
-    luaL_error(L, "Argument could not be converted to an array (%s) be an array or a table.", type_str);
+    luaL_error(L, "Argument could not be converted to an array (%s).", type_str);
   }
 
   // Create a new array with the contents of ar1 concatenated to a->array.
