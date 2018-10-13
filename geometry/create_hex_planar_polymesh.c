@@ -71,9 +71,20 @@ static inline void hex_map_get_neighbor(hex_map_t* hexes,
   neighbor->r = hex->r + dr[direction];
 }
 
-static void hex_get_node_position(hex_t* hex, int direction, point2_t* x)
+static void hex_get_node_position(hex_t* hex, 
+                                  int direction, 
+                                  real_t h,
+                                  point2_t* x)
 {
-  // FIXME
+  // Find the hex's center.
+  const real_t sqrt3 = sqrt(3.0);
+  real_t x0 = h * 1.5 * hex->q;
+  real_t y0 = h * 0.5 * sqrt3 * hex->q + sqrt3 * hex->r;
+
+  // Get to the node from there.
+  real_t theta = (direction-1) * M_PI/3.0;
+  x->x = x0 + h*cos(theta);
+  x->y = y0 + h*sin(theta);
 }
 
 planar_polymesh_t* create_hex_planar_polymesh(size_t radius, 
@@ -144,58 +155,102 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
           // We must be in the first cell attached to this edge.
           ASSERT(edge_cells->data[2*edge_index] == cell_index);
 
-          // Create the first node for this edge.
-          int n1 = (int)nodes->size;
-          point2_t x1;
-          hex_get_node_position(hex, dir, &x1);
-          point2_array_append(nodes, x1);
-
-          // Hook up the node to this edge.
-          edge_nodes->data[2*edge_index] = n1;
-
-          // Hook up the node to the other edge it belongs to in this cell.
+          // If the previous edge in this cell already has a second node, use that one.
+          int n1 = -1;
           int prev_edge_index = cell_edges->data[6*cell_index+(dir+5)%6];
-          ASSERT(edge_nodes->data[2*prev_edge_index+1] == -1);
-          edge_nodes->data[2*prev_edge_index+1] = n1;
-
-          // If this edge connects this cell to a neighbor cell, hook up the node 
-          // to the other incident edge in that neighbor cell.
           int neighbor_cell = edge_cells->data[2*edge_index+1];
-          if (neighbor_cell != -1)
+          if (edge_nodes->data[2*prev_edge_index+1] != -1)
+          {
+            n1 = edge_nodes->data[2*prev_edge_index+1];
+            edge_cells->data[2*edge_index] = n1;
+          }
+          // If this edge connects this cell to a neighbor cell, check for its node.
+          else if (neighbor_cell != -1)
           {
             int opp_dir = (dir + 3) % 6;
             int neighbor_edge_index = cell_edges->data[6*neighbor_cell+(opp_dir+1)%6];
-            ASSERT(edge_nodes->data[2*neighbor_edge_index] == -1);
-            edge_nodes->data[2*neighbor_edge_index] = n1;
+            if (neighbor_edge_index < 0)
+              neighbor_edge_index = ~neighbor_edge_index;
+            if (edge_nodes->data[2*neighbor_edge_index] != -1)
+              n1 = edge_nodes->data[2*neighbor_edge_index];
           }
-        }
+          if (n1 == -1) // still haven't found it...
+          {
+            // Create the first node for this edge.
+            n1 = (int)nodes->size;
+            point2_t x1;
+            hex_get_node_position(hex, dir, h, &x1);
+            point2_array_append(nodes, x1);
 
-        // Create the second node for this edge (if needed).
-        if (edge_nodes->data[2*edge_index+1] == -1)
-        {
-          int n2 = (int)nodes->size;
-          point2_t x2;
-          hex_get_node_position(hex, (dir+1)%6, &x2);
-          point2_array_append(nodes, x2);
+            // Hook up the node to the previous edge in this cell.
+            edge_nodes->data[2*prev_edge_index+1] = n1;
+
+            // If this edge connects this cell to a neighbor cell, hook up the node 
+            // to the other incident edge in that neighbor cell.
+            if (neighbor_cell != -1)
+            {
+              int opp_dir = (dir + 3) % 6;
+              int neighbor_edge_index = cell_edges->data[6*neighbor_cell+(opp_dir+1)%6];
+              if (neighbor_edge_index < 0)
+                neighbor_edge_index = ~neighbor_edge_index;
+              ASSERT(edge_nodes->data[2*neighbor_edge_index] == -1);
+              edge_nodes->data[2*neighbor_edge_index] = n1;
+            }
+          }
 
           // Hook up the node to this edge.
-          edge_nodes->data[2*edge_index+1] = n2;
+          edge_nodes->data[2*edge_index] = n1;
+        }
 
-          // Hook up the node to the other edge it belongs to in this cell.
+        // Find the second node for this edge (if needed).
+        if (edge_nodes->data[2*edge_index+1] == -1)
+        {
+          // If the previous edge in this cell already has a second node, use that one.
+          int n2 = -1;
           int next_edge_index = cell_edges->data[6*cell_index+(dir+1)%6];
-          ASSERT(edge_nodes->data[2*next_edge_index+1] == -1);
-          edge_nodes->data[2*next_edge_index+1] = n2;
-
-          // If this edge connects this cell to a neighbor cell, hook up the node 
-          // to the other incident edge in that neighbor cell.
           int neighbor_cell = edge_cells->data[2*edge_index+1];
-          if (neighbor_cell != -1)
+          if (edge_nodes->data[2*next_edge_index+1] != -1)
+          {
+            n2 = edge_nodes->data[2*next_edge_index+1];
+            edge_cells->data[2*edge_index] = n2;
+          }
+          // If this edge connects this cell to a neighbor cell, check the 
+          // neighbor cell's incident edge.
+          else if (neighbor_cell != -1)
           {
             int opp_dir = (dir + 3) % 6;
             int neighbor_edge_index = cell_edges->data[6*neighbor_cell+(opp_dir-1)%6];
-            ASSERT(edge_nodes->data[2*neighbor_edge_index+1] == -1);
-            edge_nodes->data[2*neighbor_edge_index+1] = n2;
+            if (neighbor_edge_index < 0)
+              neighbor_edge_index = ~neighbor_edge_index;
+            if (edge_nodes->data[2*neighbor_edge_index+1] != -1)
+              n2 = edge_nodes->data[2*neighbor_edge_index+1];
           }
+          if (n2 == -1) // still looking...
+          {
+            // Create the second node for this edge.
+            n2 = (int)nodes->size;
+            point2_t x2;
+            hex_get_node_position(hex, (dir+1)%6, h, &x2);
+            point2_array_append(nodes, x2);
+
+            // Hook up the node to the other edge it belongs to in this cell.
+            ASSERT(edge_nodes->data[2*next_edge_index+1] == -1);
+            edge_nodes->data[2*next_edge_index+1] = n2;
+
+            // Attach the neighbor's incident edge to this cell.
+            if (neighbor_cell != -1)
+            {
+              int opp_dir = (dir + 3) % 6;
+              int neighbor_edge_index = cell_edges->data[6*neighbor_cell+(opp_dir-1)%6];
+              if (neighbor_edge_index < 0)
+                neighbor_edge_index = ~neighbor_edge_index;
+              ASSERT(edge_nodes->data[2*neighbor_edge_index+1] == -1);
+              edge_nodes->data[2*neighbor_edge_index+1] = n2;
+            }
+          }
+
+          // Hook up the node to this edge.
+          edge_nodes->data[2*edge_index+1] = n2;
         }
       }
     }

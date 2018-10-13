@@ -20,9 +20,9 @@ static void test_create_hex_planar_polymesh(void** state)
   planar_polymesh_t* mesh = create_hex_planar_polymesh(radius, h);
 
   // Check its connectivity.
-  assert_true(mesh->num_cells == 10*10);
-  assert_true(mesh->num_edges == 4*10*11);
-  assert_true(mesh->num_nodes == 11*11);
+  assert_true(mesh->num_cells == 91);
+  assert_true(mesh->num_edges == 546);
+  assert_true(mesh->num_nodes == 108);
 
   planar_polymesh_free(mesh);
 }
