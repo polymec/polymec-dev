@@ -113,6 +113,11 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
                 "of edges, but that edge does not have that cell in its list.", c, e);
         return false;
       }
+      if (e >= mesh->num_edges)
+      {
+        handler("planar_polymesh_verify_topology: cell %d has invalid xy edge %d (mesh has only %d edges).", c, e, mesh->num_edges);
+        return false;
+      }
     }
   }
   for (int e = 0; e < mesh->num_edges; ++e)
@@ -212,6 +217,8 @@ adj_graph_t* graph_from_planar_polymesh_cells(planar_polymesh_t* mesh)
     for (int j = mesh->cell_edge_offsets[i]; j < mesh->cell_edge_offsets[i+1]; ++j)
     {
       int e = mesh->cell_edges[j];
+      if (e < 0)
+        e = ~e;
       if (mesh->edge_cells[2*e+1] == -1)
         ++outer_edges;
     }

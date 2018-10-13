@@ -118,13 +118,14 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
         if (neighbor_index_p != NULL) // not on a boundary
           neighbor_index = *neighbor_index_p;
 
-        int neighbor_dir = (dir + 3) % 6;
-
         // Add the (oriented) edge to both hexes.
         int edge_index = (int)(edge_cells->size/2);
         cell_edges->data[6*cell_index+dir] = edge_index;
         if (neighbor_index != -1)
+        {
+          int neighbor_dir = (dir + 3) % 6;
           cell_edges->data[6*neighbor_index+neighbor_dir] = ~edge_index;
+        }
 
         // Add both hexes to the edge.
         int_array_append(edge_cells, cell_index);
@@ -158,6 +159,8 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
           // If the previous edge in this cell already has a second node, use that one.
           int n1 = -1;
           int prev_edge_index = cell_edges->data[6*cell_index+(dir+5)%6];
+          if (prev_edge_index < 0)
+            prev_edge_index = ~prev_edge_index;
           int neighbor_cell = edge_cells->data[2*edge_index+1];
           if (edge_nodes->data[2*prev_edge_index+1] != -1)
           {
@@ -208,6 +211,8 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
           // If the previous edge in this cell already has a second node, use that one.
           int n2 = -1;
           int next_edge_index = cell_edges->data[6*cell_index+(dir+1)%6];
+          if (next_edge_index < 0)
+            next_edge_index = ~next_edge_index;
           int neighbor_cell = edge_cells->data[2*edge_index+1];
           if (edge_nodes->data[2*next_edge_index+1] != -1)
           {
@@ -258,7 +263,7 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
 
   // Create our planar polymesh.
   planar_polymesh_t* mesh = planar_polymesh_new_with_cell_type((int)hex_map->size,
-                                                               (int)cell_edges->size,
+                                                               (int)num_edges,
                                                                (int)nodes->size, 
                                                                6);
   memcpy(mesh->cell_edges, cell_edges->data, cell_edges->size);
