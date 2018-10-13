@@ -17,8 +17,7 @@ static void test_create_hex_planar_polymesh(void** state)
   // Create a set of uniform hexes.
   size_t radius = 5;
   real_t h = 0.1;
-  real_t rotation = 0.0;
-  planar_polymesh_t* mesh = create_hex_planar_polymesh(radius, h, rotation);
+  planar_polymesh_t* mesh = create_hex_planar_polymesh(radius, h);
 
   // Check its connectivity.
   assert_true(mesh->num_cells == 10*10);

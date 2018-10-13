@@ -18,12 +18,8 @@
 /// of hexagonal cells extending outward from a center cell.
 /// \param [in] radius The number of hexes extending outward from the center hex. 
 /// \param [in] h The length of the side of each hexagon.
-/// \param [in] rotation The angle of rotation for the mesh (in radians), 
-///                      relative to a reference hex with a flat bottom and top
-///                      in the xy plane.
 planar_polymesh_t* create_hex_planar_polymesh(size_t radius, 
-                                              real_t h,
-                                              real_t rotation);
+                                              real_t h);
 
 ///@}
 

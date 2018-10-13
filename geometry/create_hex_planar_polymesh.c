@@ -77,8 +77,7 @@ static void hex_get_node_position(hex_t* hex, int direction, point2_t* x)
 }
 
 planar_polymesh_t* create_hex_planar_polymesh(size_t radius, 
-                                              real_t h,
-                                              real_t rotation)
+                                              real_t h)
 {
   ASSERT(h > 0.0);
 

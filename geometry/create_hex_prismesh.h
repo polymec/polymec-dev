@@ -20,16 +20,13 @@
 ///                  is defined.
 /// \param [in] radius The number of hexes extending outward from the center hex. 
 /// \param [in] h  The length of the side of each hexagon.
-/// \param [in] rotation The angle of rotation for the mesh (in radians), 
-///                      relative to a reference hex with a flat bottom and top
-///                      in the xy plane.
 /// \param [in] nz The number of cells in the mesh along the z axis.
 /// \param [in] z1 The z coordinate of the bottom of the mesh.
 /// \param [in] z2 The z coordinate of the top of the mesh.
 /// \param [in] periodic_in_z True if the mesh is periodic along the z axis, 
 ///                           false if not.
 prismesh_t* create_hex_prismesh(MPI_Comm comm, 
-                                size_t radius, real_t h, real_t rotation,
+                                size_t radius, real_t h, 
                                 size_t nz, real_t z1, real_t z2,
                                 bool periodic_in_z);
 

@@ -18,8 +18,7 @@ static void test_create_hex_prismesh(void** state)
   MPI_Comm comm = MPI_COMM_WORLD;
   real_t h = 0.1, z1 = 0.0, z2 = 1.0;
   size_t radius = 5, nz = 10;
-  real_t rotation = 0.0;
-  prismesh_t* mesh = create_hex_prismesh(comm, radius, h, rotation,
+  prismesh_t* mesh = create_hex_prismesh(comm, radius, h,
                                          nz, z1, z2, false);
   real_t z1_, z2_;
   bool periodic;
