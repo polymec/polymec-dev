@@ -12,6 +12,9 @@
 #include "cmocka.h"
 #include "geometry/create_hex_planar_polymesh.h"
 
+extern void write_plot_planar_polymesh_py(planar_polymesh_t* mesh,
+                                          const char* script_name);
+
 static void test_create_hex_planar_polymesh(void** state)
 {
   // Create a set of uniform hexes.
@@ -26,6 +29,9 @@ static void test_create_hex_planar_polymesh(void** state)
 
   // Verify its topology.
   assert_true(planar_polymesh_verify_topology(mesh, polymec_error));
+
+  // Write a Python/Matplotlib script to plot the mesh.
+  write_plot_planar_polymesh_py(mesh, "plot_planar_hexmesh.py");
 
   planar_polymesh_free(mesh);
 }
