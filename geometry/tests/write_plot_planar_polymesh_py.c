@@ -40,6 +40,7 @@ void write_plot_planar_polymesh_py(planar_polymesh_t* mesh,
       fprintf(file, "[nodes[%d], nodes[%d]]]\n", n1, n2);
   }
   fprintf(file, "lc = col.LineCollection(edges)\n");
+  fprintf(file, "lc.set_joinstyle('round');\n");
   fprintf(file, "fig, ax = plt.subplots()\n");
   fprintf(file, "ax.add_collection(lc)\n");
   fprintf(file, "ax.autoscale()\n");

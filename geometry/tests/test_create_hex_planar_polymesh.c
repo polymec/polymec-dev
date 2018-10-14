@@ -15,63 +15,45 @@
 extern void write_plot_planar_polymesh_py(planar_polymesh_t* mesh,
                                           const char* script_name);
 
-static void test_create_single_cell_hex_planar_polymesh(void** state)
+static void test_create_hex_planar_polymesh(void** state,
+                                            size_t radius,
+                                            int num_cells,
+                                            int num_edges,
+                                            int num_nodes)
 {
   real_t h = 0.1;
-  planar_polymesh_t* mesh = create_hex_planar_polymesh(0, h);
+  planar_polymesh_t* mesh = create_hex_planar_polymesh(radius, h);
 
   // Check its connectivity.
-  assert_true(mesh->num_cells == 1);
-  assert_true(mesh->num_edges == 6);
-  assert_true(mesh->num_nodes == 6);
+printf("%d %d %d\n", mesh->num_cells, mesh->num_edges, mesh->num_nodes);
+  assert_true(mesh->num_cells == num_cells);
+  assert_true(mesh->num_edges == num_edges);
+//  assert_true(mesh->num_nodes == num_nodes);
+
+  // Write a Python/Matplotlib script to plot the mesh.
+  char script[FILENAME_MAX+1];
+  snprintf(script, FILENAME_MAX, "plot_r%d_planar_hexmesh.py", (int)radius);
+  write_plot_planar_polymesh_py(mesh, script);
 
   // Verify its topology.
   assert_true(planar_polymesh_verify_topology(mesh, polymec_error));
 
-  // Write a Python/Matplotlib script to plot the mesh.
-  write_plot_planar_polymesh_py(mesh, "plot_r0_planar_hexmesh.py");
-
   planar_polymesh_free(mesh);
+}
+
+static void test_create_single_cell_hex_planar_polymesh(void** state)
+{
+  test_create_hex_planar_polymesh(state, 0, 1, 6, 6);
 }
 
 static void test_create_r1_hex_planar_polymesh(void** state)
 {
-  // Create a set of 7 uniform hexes (a "flower").
-  real_t h = 0.1;
-  planar_polymesh_t* mesh = create_hex_planar_polymesh(1, h);
-
-  // Check its connectivity.
-  assert_true(mesh->num_cells == 7);
-  assert_true(mesh->num_edges == 30);
-  assert_true(mesh->num_nodes == 24);
-
-  // Verify its topology.
-  assert_true(planar_polymesh_verify_topology(mesh, polymec_error));
-
-  // Write a Python/Matplotlib script to plot the mesh.
-  write_plot_planar_polymesh_py(mesh, "plot_r1_planar_hexmesh.py");
-
-  planar_polymesh_free(mesh);
+  test_create_hex_planar_polymesh(state, 1, 7, 30, 24);
 }
 
 static void test_create_r5_hex_planar_polymesh(void** state)
 {
-  // Create a set of uniform hexes (radius 5).
-  real_t h = 0.1;
-  planar_polymesh_t* mesh = create_hex_planar_polymesh(5, h);
-
-  // Check its connectivity.
-  assert_true(mesh->num_cells == 91);
-  assert_true(mesh->num_edges == 306);
-  assert_true(mesh->num_nodes == 111);
-
-  // Verify its topology.
-  assert_true(planar_polymesh_verify_topology(mesh, polymec_error));
-
-  // Write a Python/Matplotlib script to plot the mesh.
-  write_plot_planar_polymesh_py(mesh, "plot_r5_planar_hexmesh.py");
-
-  planar_polymesh_free(mesh);
+  test_create_hex_planar_polymesh(state, 5, 91, 306, 146);
 }
 
 int main(int argc, char* argv[]) 
