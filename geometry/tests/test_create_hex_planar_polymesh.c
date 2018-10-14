@@ -21,8 +21,8 @@ static void test_create_hex_planar_polymesh(void** state)
 
   // Check its connectivity.
   assert_true(mesh->num_cells == 91);
-  assert_true(mesh->num_edges == 307);
-  assert_true(mesh->num_nodes == 108);
+  assert_true(mesh->num_edges == 306);
+  assert_true(mesh->num_nodes == 111);
 
   // Verify its topology.
   assert_true(planar_polymesh_verify_topology(mesh, polymec_error));

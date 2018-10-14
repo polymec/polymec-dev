@@ -29,7 +29,7 @@ planar_polymesh_t* planar_polymesh_new(int num_cells, int num_edges, int num_nod
   // Allocate cell information.
   mesh->num_cells = num_cells;
   mesh->cell_edge_offsets = polymec_calloc(sizeof(int)*(num_cells+1));
-  mesh->cell_edge_cap = round_to_pow2(12 * num_cells);
+  mesh->cell_edge_cap = round_to_pow2(6 * num_cells);
   mesh->cell_edges = polymec_calloc(sizeof(int)*(mesh->cell_edge_cap));
 
   // Allocate edge information.
@@ -107,30 +107,36 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     int pos = 0, e;
     while (planar_polymesh_cell_next_edge(mesh, c, &pos, &e))
     {
-      if ((mesh->edge_cells[2*e] != c) && (mesh->edge_cells[2*e+1] != c))
-      {
-        handler("planar_polymesh_verify_topology: cell %d has xy edge %d in its list "
-                "of edges, but that edge does not have that cell in its list.", c, e);
-        return false;
-      }
       if (e >= mesh->num_edges)
       {
-        handler("planar_polymesh_verify_topology: cell %d has invalid xy edge %d (mesh has only %d edges).", c, e, mesh->num_edges);
+        handler("planar_polymesh_verify_topology: cell %d has invalid edge %d (mesh has only %d edges).", c, e, mesh->num_edges);
+        return false;
+      }
+      if ((mesh->edge_cells[2*e] != c) && (mesh->edge_cells[2*e+1] != c))
+      {
+        handler("planar_polymesh_verify_topology: cell %d has edge %d in its list "
+                "of edges, but that edge does not have that cell in its list.", c, e);
         return false;
       }
     }
   }
   for (int e = 0; e < mesh->num_edges; ++e)
   {
-    if (mesh->edge_cells[2*e] == -1)
+    int cell1 = mesh->edge_cells[2*e];
+    if (cell1 == -1)
     {
       handler("planar_polymesh_verify_topology: edge %d has no cells in its list.", e);
+      return false;
+    }
+    if (cell1 >= mesh->num_cells)
+    {
+      handler("planar_polymesh_verify_topology: edge %d has invalid cell %d (mesh has only %d cells).", e, cell1, mesh->num_cells);
       return false;
     }
 
     int pos = 0, ee;
     bool found_edge = false;
-    while (planar_polymesh_cell_next_edge(mesh, mesh->edge_cells[2*e], &pos, &ee))
+    while (planar_polymesh_cell_next_edge(mesh, cell1, &pos, &ee))
     {
       if (ee == e) 
       {
@@ -141,14 +147,22 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     if (!found_edge)
     {
       handler("planar_polymesh_verify_topology: edge %d has cell %d in its list of cells, but "
-              "that cell does not have that edge in its list.", e, mesh->edge_cells[2*e]);
+              "that cell does not have that edge in its list.", e, cell1);
       return false;
     }
-    if (mesh->edge_cells[2*e+1] != -1)
+
+    int cell2 = mesh->edge_cells[2*e+1];
+    if (cell2 != -1)
     {
+      if (cell2 >= mesh->num_cells)
+      {
+        handler("planar_polymesh_verify_topology: edge %d has invalid cell %d (mesh has only %d cells).", e, cell2, mesh->num_cells);
+        return false;
+      }
+
       pos = 0;
       found_edge = false;
-      while (planar_polymesh_cell_next_edge(mesh, mesh->edge_cells[2*e+1], &pos, &ee))
+      while (planar_polymesh_cell_next_edge(mesh, cell2, &pos, &ee))
       {
         if (ee == e) 
         {
@@ -159,7 +173,7 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
       if (!found_edge)
       {
         handler("planar_polymesh_verify_topology: edge %d has cell %d in its list of cells, but "
-                "that cell does not have that edge in its list.", e, mesh->edge_cells[2*e+1]);
+                "that cell does not have that edge in its list.", e, cell2);
         return false;
       }
     }

@@ -98,8 +98,9 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
   // Traverse the cells and pick off elements.
   hex_t hex_inv_map[hex_map->size];
   int_array_t* cell_edges = int_array_new_with_size(6*hex_map->size);
+  int no_edge = INT_MAX;
   for (size_t i = 0; i < cell_edges->size; ++i)
-    cell_edges->data[i] = -1;
+    cell_edges->data[i] = no_edge;
   int_array_t* edge_cells = int_array_new();
   int pos = 0, cell_index;
   hex_t* hex;
@@ -108,7 +109,7 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
     // Add edges for this cell.
     for (int dir = 0; dir < 6; ++dir)
     {
-      if (cell_edges->data[6*cell_index+dir] == -1) // no edge/node yet
+      if (cell_edges->data[6*cell_index+dir] == no_edge) // no edge yet
       {
         // Fetch the neighboring hex in this direction.
         hex_t n;
@@ -165,7 +166,7 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
           if (edge_nodes->data[2*prev_edge_index+1] != -1)
           {
             n1 = edge_nodes->data[2*prev_edge_index+1];
-            edge_cells->data[2*edge_index] = n1;
+            edge_nodes->data[2*edge_index] = n1;
           }
           // If this edge connects this cell to a neighbor cell, check for its node.
           else if (neighbor_cell != -1)
@@ -217,7 +218,7 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
           if (edge_nodes->data[2*next_edge_index+1] != -1)
           {
             n2 = edge_nodes->data[2*next_edge_index+1];
-            edge_cells->data[2*edge_index] = n2;
+            edge_nodes->data[2*edge_index] = n2;
           }
           // If this edge connects this cell to a neighbor cell, check the 
           // neighbor cell's incident edge.
@@ -266,9 +267,9 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
                                                                (int)num_edges,
                                                                (int)nodes->size, 
                                                                6);
-  memcpy(mesh->cell_edges, cell_edges->data, cell_edges->size);
-  memcpy(mesh->edge_nodes, edge_nodes->data, edge_nodes->size);
-  memcpy(mesh->edge_cells, edge_cells->data, edge_cells->size);
+  memcpy(mesh->cell_edges, cell_edges->data, sizeof(int) * cell_edges->size);
+  memcpy(mesh->edge_nodes, edge_nodes->data, sizeof(int) * edge_nodes->size);
+  memcpy(mesh->edge_cells, edge_cells->data, sizeof(int) * edge_cells->size);
   memcpy(mesh->nodes, nodes->data, sizeof(point2_t) * nodes->size);
 
   // Clean up.
