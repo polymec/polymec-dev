@@ -179,6 +179,28 @@ bool planar_polymesh_verify_topology(planar_polymesh_t* mesh,
     }
   }
 
+  // Check edge-node topology.
+  for (int e = 0; e < mesh->num_edges; ++e)
+  {
+    int n1 = mesh->edge_nodes[2*e];
+    int n2 = mesh->edge_nodes[2*e+1];
+    if (n1 == n2)
+    {
+      handler("planar_polymesh_verify_topology: edge %d has the same node (%d) at both ends!", e, n1);
+      return false;
+    }
+    else if ((n1 < 0) || (n1 >= mesh->num_nodes))
+    {
+      handler("planar_polymesh_verify_topology: edge %d has invalid first node %d (mesh has only %d nodes).", e, n1, mesh->num_nodes);
+      return false;
+    }
+    else if ((n2 < 0) || (n2 >= mesh->num_nodes))
+    {
+      handler("planar_polymesh_verify_topology: edge %d has invalid second node %d (mesh has only %d nodes).", e, n2, mesh->num_nodes);
+      return false;
+    }
+  }
+
   return true;
 }
 
