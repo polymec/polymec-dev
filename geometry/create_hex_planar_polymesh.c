@@ -160,7 +160,9 @@ printf(" edge #%d\n", dir);
         // Access the neighbor cell and determine the indices of the nodes that 
         // match the ones on this edge.
         int neighbor_cell = edge_cells->data[2*edge_index+1];
-        int neighbor_edge_index, neighbor_node1_index, neighbor_node2_index;
+        int neighbor_edge_index = no_edge, 
+            neighbor_node1_index = -1, 
+            neighbor_node2_index = -1;
         if (neighbor_cell != -1)
         {
           hex_t* nhex = &(hex_inv_map[neighbor_cell]);
