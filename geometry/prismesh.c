@@ -315,15 +315,9 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
 
   // Partition the planar polymesh.
 #if POLYMEC_HAVE_MPI
-  int64_t* P;
-  if (num_xy_chunks > 1)
-  {
-    adj_graph_t* graph = graph_from_planar_polymesh_cells(columns);
-    P = partition_graph_n_ways(graph, num_xy_chunks, NULL, 0.05);
-    adj_graph_free(graph);
-  }
-  else
-    P = polymec_calloc(sizeof(int64_t) * columns->num_cells);
+  adj_graph_t* graph = graph_from_planar_polymesh_cells(columns);
+  int64_t* P = partition_graph_n_ways(graph, num_xy_chunks, NULL, 0.05);
+  adj_graph_free(graph);
 #else
   // Manually and naively partition the graph into xy chunks.
   // FIXME: If we end up experimenting with threads to do several chunks 

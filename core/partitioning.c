@@ -165,15 +165,24 @@ int64_t* partition_graph_n_ways(adj_graph_t* global_graph,
 {
 #if POLYMEC_HAVE_MPI
   _Static_assert(sizeof(SCOTCH_Num) == sizeof(int64_t), "SCOTCH_Num must be 64-bit.");
-  START_FUNCTION_TIMER();
   ASSERT(global_graph != NULL);
+
+  START_FUNCTION_TIMER();
+  size_t num_global_vertices = adj_graph_num_vertices(global_graph);
+  int64_t* global_partition = polymec_calloc(sizeof(int64_t) * num_global_vertices);
+
+  if (n == 1)
+  {
+    // We're finished!
+    STOP_FUNCTION_TIMER();
+    return global_partition;
+  }
 
   // Extract the adjacency information.
   SCOTCH_Num *vtx_weights = NULL, *xadj = NULL, *adj = NULL, num_arcs = 0;
   extract_graph_info(global_graph, weights, &xadj, &adj, &num_arcs, &vtx_weights);
 
   // Build a graph.
-  size_t num_global_vertices = adj_graph_num_vertices(global_graph);
   SCOTCH_Dgraph dist_graph;
   SCOTCH_dgraphInit(&dist_graph, MPI_COMM_SELF);
   SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_global_vertices, (SCOTCH_Num)num_global_vertices,
@@ -181,7 +190,6 @@ int64_t* partition_graph_n_ways(adj_graph_t* global_graph,
                      adj, NULL, NULL);
 
   // Cut up the graph -> global partition vector.
-  int64_t* global_partition = polymec_malloc(sizeof(int64_t) * num_global_vertices);
   SCOTCH_Strat strategy;
   SCOTCH_stratInit(&strategy);
   SCOTCH_Num strat_flags = SCOTCH_STRATDEFAULT;
