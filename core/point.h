@@ -51,6 +51,16 @@ static inline real_t point_distance(point_t* x, point_t* y)
   return sqrt(point_square_distance(x, y));
 }
 
+/// Returns true if the two given points are within the given distance,
+/// false if not.
+/// \relates point
+static inline bool points_within_distance(point_t* x, 
+                                          point_t* y, 
+                                          real_t distance)
+{
+  return reals_nearly_equal(point_square_distance(x, y), distance*distance, 0.0);
+}
+
 /// Returns true if the two given points are coincidental to within polymec's
 /// floating point tolerance, false if not.
 /// \relates point

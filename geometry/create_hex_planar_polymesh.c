@@ -40,7 +40,6 @@ static inline bool hex_equals(hex_t* x, hex_t* y)
 }
 
 DEFINE_UNORDERED_MAP(hex_map, hex_t*, int, hex_hash, hex_equals)
-DEFINE_ARRAY(hex_array, hex_t*)
 
 // Create a hexagonal array of, um, hexagons, with the given radius.
 static hex_map_t* hexagon(int radius)
@@ -234,6 +233,15 @@ printf("Attached node %d as #2 for edge %d\n", n1, prev_edge_index);
 printf("Attached node %d as #2 for neighbor edge %d\n", n1, neighbor_edge_index);
             }
           }
+#ifndef NDEBUG
+          else
+          {
+            // Make sure that the node we found is actually in the right spot.
+            point2_t x1;
+            hex_get_node_position(hex, dir, h, &x1);
+            ASSERT(point2s_coincide(&x1, &(nodes->data[n1])));
+          }
+#endif
 
           // Hook up the node to this edge.
           ASSERT(n1 != -1);
@@ -293,6 +301,15 @@ printf("Attached node %d as #1 for edge %d\n", n2, next_edge_index);
 printf("Attached node %d as #1 for neighbor edge %d\n", n2, neighbor_edge_index);
             }
           }
+#ifndef NDEBUG
+          else
+          {
+            // Make sure that the node we found is actually in the right spot.
+            point2_t x2;
+            hex_get_node_position(hex, (dir+1)%6, h, &x2);
+            ASSERT(point2s_coincide(&x2, &(nodes->data[n2])));
+          }
+#endif
 
           // Hook up the node to this edge.
           ASSERT(n2 != -1);

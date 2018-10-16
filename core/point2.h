@@ -42,6 +42,24 @@ static inline real_t point2_distance(point2_t* x, point2_t* y)
   return sqrt(point2_square_distance(x, y));
 }
 
+/// Returns true if the two given points are within the given distance,
+/// false if not.
+/// \relates point
+static inline bool point2s_within_distance(point2_t* x, 
+                                           point2_t* y, 
+                                           real_t distance)
+{
+  return reals_nearly_equal(point2_square_distance(x, y), distance*distance, 0.0);
+}
+
+/// Returns true if the two given points are coincidental to within polymec's
+/// floating point tolerance, false if not.
+/// \relates point
+static inline bool point2s_coincide(point2_t* x, point2_t* y)
+{
+  return reals_equal(point2_distance(x, y), 0.0);
+}
+
 /// Copies the source point's components to those of the destination point.
 /// \memberof point2
 static inline void point2_copy(point2_t* dest, point2_t* source)
