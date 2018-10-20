@@ -58,6 +58,9 @@ typedef struct
   /// process for every probe.
   void (*acquire)(void* context, real_t t, probe_data_t* data);
 
+  /// Perform any needed postprocessing for data acquired.
+  void (*postprocess)(void* context, real_array_t* times, probe_data_array_t* data);
+
   /// Destructor.
   void (*dtor)(void* context);
 } probe_vtable;
@@ -97,8 +100,15 @@ void* probe_context(probe_t* probe);
 
 /// Returns a probe_data object containing newly acquired data at the given 
 /// time t.
+/// \param [in] t The simulation time at which the probe acquires its data.
 /// \memberof probe
 probe_data_t* probe_acquire(probe_t* probe, real_t t);
+
+/// Postprocesses the given data acquired by the probe at the given times.
+/// \param [in] times An array of times at which data was acquired.
+/// \param [in] data An array of data acquired.
+/// \memberof probe
+void probe_postprocess(probe_t* probe, real_array_t* times, probe_data_array_t* data);
 
 ///@}
 

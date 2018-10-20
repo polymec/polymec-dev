@@ -474,6 +474,18 @@ void model_finalize(model_t* model)
   if (model->vtable.finalize != NULL)
     model->vtable.finalize(model->context, model->step, model->time);
 
+  // Do any postprocessing required by probes.
+  int pos = 0;
+  probe_t* probe;
+  real_array_t* acq_times;
+  while (probe_map_next(model->probes, &pos, &probe, &acq_times))
+  {
+    char* data_name = probe_data_name(probe);
+    probe_data_array_t** data_p = probe_data_map_get(model->probe_data, data_name);
+    probe_data_array_t* data = (data_p != NULL) ? *data_p : NULL;
+    probe_postprocess(probe, acq_times, data);
+  }
+
   // Clear any plotting, saving, loading that has been requested.
   model->plot_every = -REAL_MAX;
   model->load_step = -1;

@@ -108,3 +108,9 @@ void probe_set_model(probe_t* probe, model_t* model)
     probe->vtable.set_model(probe_context(probe), model_context(model));
 }
 
+void probe_postprocess(probe_t* probe, real_array_t* times, probe_data_array_t* data)
+{
+  if (probe->vtable.postprocess != NULL)
+    probe->vtable.postprocess(probe->context, times, data);
+}
+
