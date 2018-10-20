@@ -21,6 +21,12 @@ end
 p1 = probe.new('randomizer', rv, {3})
 print(p1)
 
+-- Set up a callback to print out what we acquire.
+function printit(t, data)
+   print('p1: acquired ' .. #data .. ' numbers at time ' .. t)
+end
+p1:on_acquire(printit)
+
 for t=1,10 do
   v = p1:acquire(t)
   print(t, v)

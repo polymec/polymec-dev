@@ -110,6 +110,17 @@ probe_data_t* probe_acquire(probe_t* probe, real_t t);
 /// \memberof probe
 void probe_postprocess(probe_t* probe, real_array_t* times, probe_data_array_t* data);
 
+/// Adds the given function and context to the set of functions called when this 
+/// probe acquires a datum. The resources for the context must be managed elsewhere.
+/// \param [in] context A context pointer containing any state information for the function.
+/// \param [in] function A function to be called whenever \ref probe_acquire is called.
+/// \param [in] dtor A destructor for the context pointer, or NULL if none is needed.
+/// \memberof probe
+void probe_on_acquire(probe_t* probe, 
+                      void* context, 
+                      void (*function)(void* context, real_t t, probe_data_t* data),
+                      void (*dtor)(void* context));
+
 ///@}
 
 #endif

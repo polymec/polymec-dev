@@ -32,6 +32,22 @@ void probe_data_free(probe_data_t* data)
   polymec_free(data);
 }
 
+// Here's an acquisition callback.
+typedef struct
+{
+  void* context;
+  void (*function)(void* context, real_t t, probe_data_t* data);
+  void (*dtor)(void* context);
+} acq_callback_t;
+
+static void free_callback_context(acq_callback_t callback)
+{
+  if ((callback.context != NULL) && (callback.dtor != NULL))
+    callback.dtor(callback.context);
+}
+
+DEFINE_ARRAY(acq_callback_array, acq_callback_t)
+
 struct probe_t
 {
   char* name;
@@ -40,6 +56,7 @@ struct probe_t
   size_t* shape;
   void* context;
   probe_vtable vtable;
+  acq_callback_array_t* callbacks;
 };
 
 probe_t* probe_new(const char* name, 
@@ -65,11 +82,13 @@ probe_t* probe_new(const char* name,
     probe->shape[i] = shape[i];
   }
   probe->vtable = vtable;
+  probe->callbacks = acq_callback_array_new();
   return probe;
 }
 
 void probe_free(probe_t* probe)
 {
+  acq_callback_array_free(probe->callbacks);
   string_free(probe->name);
   string_free(probe->data_name);
   if ((probe->context != NULL) && (probe->vtable.dtor != NULL))
@@ -95,9 +114,19 @@ void* probe_context(probe_t* probe)
 
 probe_data_t* probe_acquire(probe_t* probe, real_t t)
 {
+  // Allocate storage for and acquire the data.
   probe_data_t* data = probe_data_new(probe->rank, probe->shape);
   probe->vtable.acquire(probe->context, t, data);
   data->time = t;
+
+  // Call any callbacks we have with the time and the data.
+  for (size_t i = 0; i < probe->callbacks->size; ++i)
+  {
+    acq_callback_t* callback = &(probe->callbacks->data[i]);
+    callback->function(callback->context, t, data);
+  }
+
+  // Return the data.
   return data;
 }
 
@@ -110,7 +139,16 @@ void probe_set_model(probe_t* probe, model_t* model)
 
 void probe_postprocess(probe_t* probe, real_array_t* times, probe_data_array_t* data)
 {
-  if (probe->vtable.postprocess != NULL)
+  if ((probe->vtable.postprocess != NULL) && (data != NULL))
     probe->vtable.postprocess(probe->context, times, data);
+}
+
+void probe_on_acquire(probe_t* probe, 
+                      void* context, 
+                      void (*function)(void* context, real_t t, probe_data_t* data),
+                      void (*dtor)(void* context))
+{
+  acq_callback_t callback = {.context = context, .function = function, .dtor = dtor};
+  acq_callback_array_append_with_dtor(probe->callbacks, callback, free_callback_context);
 }
 

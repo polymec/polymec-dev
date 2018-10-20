@@ -863,6 +863,50 @@ static int p_acquire(lua_State* L)
   return 1;
 }
 
+// This stuff wraps lua callbacks passed to probe_on_acquire.
+typedef struct
+{
+  lua_State* L;
+} lua_acq_func_t;
+
+static void lua_on_acquire(void* context, real_t t, probe_data_t* data)
+{
+  // Access the Lua function.
+  lua_acq_func_t* func = context;
+  lua_pushlightuserdata(func->L, func);
+  lua_gettable(func->L, LUA_REGISTRYINDEX);
+  ASSERT(lua_isfunction(func->L, -1));
+  
+  // Push the time and probe data onto the stack.
+  lua_push_real(func->L, t);
+  lua_push_probe_data(func->L, data);
+
+  // Call the function.
+  lua_call(func->L, 2, 0);
+}
+
+static int p_on_acquire(lua_State* L)
+{
+  probe_t* p = lua_to_probe(L, 1);
+  if (p == NULL)
+    return luaL_error(L, "Method must be invoked with a probe.");
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || !lua_isfunction(L, 2))
+    return luaL_error(L, "Argument must be a function that accepts a time and a probe_data.");
+
+  // Stash this function in Lua's registry.
+  lua_acq_func_t* f = polymec_malloc(sizeof(lua_acq_func_t));
+  f->L = L;
+  lua_pushlightuserdata(L, f);   // key   <-- f
+  lua_pushvalue(L, 2);           // value <-- callable object
+  lua_settable(L, LUA_REGISTRYINDEX);
+
+  // Add the context and acquisition function to the probe.
+  probe_on_acquire(p, f, lua_on_acquire, polymec_free);
+
+  return 0;
+}
+
 static int p_tostring(lua_State* L)
 {
   probe_t* p = lua_to_probe(L, 1);
@@ -874,6 +918,7 @@ static int p_tostring(lua_State* L)
 
 static lua_class_method probe_methods[] = {
   {"acquire", p_acquire, "probe:acquire(t) -> Acquires and returns probe data at time t."},
+  {"on_acquire", p_on_acquire, "probe:on_acquire(f) -> Adds the function f(t, data) to the set of functions called on each acquisition for this probe."},
   {"__tostring", p_tostring, NULL},
   {NULL, NULL, NULL}
 };
