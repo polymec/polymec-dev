@@ -151,47 +151,55 @@ printf("Cell %d (%d, %d)\n", cell_index, hex->q, hex->r);
     for (int dir = 0; dir < 6; ++dir)
     {
       int edge_index = cell_edges->data[6*cell_index+dir];
-      int node1_index, node2_index;
+      int edge_node1_index, edge_node2_index;
       if (edge_index < 0)
       {
         edge_index = ~edge_index;
-        node1_index = 2*edge_index+1;
-        node2_index = 2*edge_index;
+        edge_node1_index = 2*edge_index+1;
+        edge_node2_index = 2*edge_index;
       }
       else
       {
-        node1_index = 2*edge_index;
-        node2_index = 2*edge_index+1;
+        edge_node1_index = 2*edge_index;
+        edge_node2_index = 2*edge_index+1;
       }
 printf(" edge #%d\n", dir);
 
-      // Access the neighbor cell and determine the indices of the nodes that 
-      // match the ones on this edge.
+      // Access the neighbor cell and determine the edge indices of the 
+      // nodes incident on either side. 
       int neighbor_cell = edge_cells->data[2*edge_index+1];
-      int neighbor_edge_index = no_edge, 
-          neighbor_node1_index = -1, 
-          neighbor_node2_index = -1;
+      int neighbor_edge1_index = no_edge, neighbor_edge2_index = no_edge;
+      int neighbor_edge_node1_index = -1, 
+          neighbor_edge_node2_index = -1;
       if (neighbor_cell != -1)
       {
         hex_t* nhex = &(hex_inv_map[neighbor_cell]);
 printf(" Found neighbor cell (%d, %d)\n", nhex->q, nhex->r);
         int opp_dir = (dir + 3) % 6;
-        neighbor_edge_index = cell_edges->data[6*neighbor_cell+(opp_dir+1)%6];
-        if (neighbor_edge_index < 0)
+
+        // Find the edge incident to node 1 within the neighbor cell.
+        neighbor_edge1_index = cell_edges->data[6*neighbor_cell+(opp_dir+1)%6];
+        if (neighbor_edge1_index < 0)
         {
-          neighbor_edge_index = ~neighbor_edge_index;
-          neighbor_node1_index = 2*neighbor_edge_index+1;
-          neighbor_node2_index = 2*neighbor_edge_index;
+          neighbor_edge1_index = ~neighbor_edge1_index;
+          neighbor_edge_node1_index = 2*neighbor_edge1_index+1;
         }
         else
+          neighbor_edge_node1_index = 2*neighbor_edge1_index;
+
+        // Find the edge incident to node 2 within the neighbor cell.
+        neighbor_edge2_index = cell_edges->data[6*neighbor_cell+(opp_dir+5)%6];
+        if (neighbor_edge2_index < 0)
         {
-          neighbor_node1_index = 2*neighbor_edge_index;
-          neighbor_node2_index = 2*neighbor_edge_index+1;
+          neighbor_edge2_index = ~neighbor_edge2_index;
+          neighbor_edge_node2_index = 2*neighbor_edge2_index;
         }
+        else
+          neighbor_edge_node2_index = 2*neighbor_edge2_index+1;
       }
 
       // Find the first node for this edge.
-      if (edge_nodes->data[node1_index] == -1) // no first node yet
+      if (edge_nodes->data[edge_node1_index] == -1) // no first node yet
       {
         // Create the first node for this edge.
         int n1 = (int)nodes->size;
@@ -201,35 +209,34 @@ printf(" Found neighbor cell (%d, %d)\n", nhex->q, nhex->r);
 printf("Created node %d (#1) for edge %d\n", n1, edge_index);
 
         // Hook up the node to this edge.
-        edge_nodes->data[node1_index] = n1;
+        edge_nodes->data[edge_node1_index] = n1;
 
-        // Hook up the node to the previous edge in this cell.
+        // This node is the second node of the previous edge in this cell.
         int prev_edge_index = cell_edges->data[6*cell_index+(dir+5)%6];
-        int prev_node2_index;
+        int prev_edge_node2_index;
         if (prev_edge_index < 0)
         {
           prev_edge_index = ~prev_edge_index;
-          prev_node2_index = 2*prev_edge_index;
+          prev_edge_node2_index = 2*prev_edge_index;
         }
         else
-          prev_node2_index = 2*prev_edge_index+1;
-        ASSERT(edge_nodes->data[prev_node2_index] == -1);
-        edge_nodes->data[prev_node2_index] = n1;
-printf("Attached node %d as #2 for edge %d\n", n1, prev_edge_index);
-
-        // If this edge connects this cell to a neighbor cell, hook up the node 
-        // to the other incident edge in that neighbor cell.
-        if (neighbor_cell != -1)
-        {
-          ASSERT(edge_nodes->data[neighbor_node2_index] == -1);
-          edge_nodes->data[neighbor_node2_index] = n1;
-printf("Attached node %d as #2 for neighbor edge %d\n", n1, neighbor_edge_index);
-        }
+          prev_edge_node2_index = 2*prev_edge_index+1;
+printf("Attaching node %d as #2 for previous edge %d\n", n1, prev_edge_index);
+        ASSERT(edge_nodes->data[prev_edge_node2_index] == -1);
+        edge_nodes->data[prev_edge_node2_index] = n1;
       }
-else printf("Edge %d already had node #1: %d\n", edge_index, edge_nodes->data[2*edge_index]);
+      else printf("Edge %d already had node #1: %d\n", edge_index, edge_nodes->data[edge_node1_index]);
+
+      // If this edge connects this cell to a neighbor cell, hook up the node 
+      // to the other incident edge in that neighbor cell.
+      if ((neighbor_cell != -1) && (edge_nodes->data[neighbor_edge1_index] == -1))
+{
+printf("Attaching node %d to neighbor edge %d\n", edge_nodes->data[edge_node1_index], neighbor_edge1_index);
+        edge_nodes->data[neighbor_edge_node1_index] = edge_nodes->data[edge_node1_index];
+}
 
       // Find the second node for this edge (if needed).
-      if (edge_nodes->data[node2_index] == -1) // no second node yet
+      if (edge_nodes->data[edge_node2_index] == -1) // no second node yet
       {
         // Create the second node for this edge.
         int n2 = (int)nodes->size;
@@ -239,31 +246,30 @@ else printf("Edge %d already had node #1: %d\n", edge_index, edge_nodes->data[2*
 printf("Created node %d (#2) for edge %d\n", n2, edge_index);
 
         // Hook up the node to this edge.
-        edge_nodes->data[node2_index] = n2;
+        edge_nodes->data[edge_node2_index] = n2;
 
-        // Hook up the node to the other edge it belongs to in this cell.
+        // This node is the first node in the next edge of this cell.
         int next_edge_index = cell_edges->data[6*cell_index+(dir+1)%6];
-        int next_node1_index;
+        int next_edge_node1_index;
         if (next_edge_index < 0)
         {
           next_edge_index = ~next_edge_index;
-          next_node1_index = 2*next_edge_index+1;
+          next_edge_node1_index = 2*next_edge_index+1;
         }
         else
-          next_node1_index = 2*next_edge_index;
-        ASSERT(edge_nodes->data[next_node1_index] == -1);
-        edge_nodes->data[next_node1_index] = n2;
-printf("Attached node %d as #1 for edge %d\n", n2, next_edge_index);
-
-        // Attach the neighbor's incident edge to this cell.
-        if (neighbor_cell != -1)
-        {
-          ASSERT(edge_nodes->data[neighbor_node1_index] == -1);
-          edge_nodes->data[neighbor_node1_index] = n2;
-printf("Attached node %d as #1 for neighbor edge %d\n", n2, neighbor_edge_index);
-        }
+          next_edge_node1_index = 2*next_edge_index;
+printf("Attaching node %d as #1 for next edge %d\n", n2, next_edge_index);
+        ASSERT(edge_nodes->data[next_edge_node1_index] == -1);
+        edge_nodes->data[next_edge_node1_index] = n2;
       }
-else printf("Edge %d already had node #2: %d\n", edge_index, edge_nodes->data[2*edge_index+1]);
+else printf("Edge %d already had node #2: %d\n", edge_index, edge_nodes->data[edge_node2_index]);
+
+      // Attach the neighbor's incident edge to this cell.
+      if ((neighbor_cell != -1) && (edge_nodes->data[neighbor_edge_node2_index] == -1))
+{
+printf("Attaching node %d to neighbor edge %d\n", edge_nodes->data[edge_node2_index], neighbor_edge2_index);
+        edge_nodes->data[neighbor_edge_node2_index] = edge_nodes->data[edge_node2_index];
+}
     }
   }
 
