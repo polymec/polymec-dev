@@ -907,6 +907,37 @@ static int p_on_acquire(lua_State* L)
   return 0;
 }
 
+static int p_stream_on_acquire(lua_State* L)
+{
+  probe_t* p = lua_to_probe(L, 1);
+  if (p == NULL)
+    return luaL_error(L, "Method must be invoked with a probe.");
+  int num_args = lua_gettop(L);
+  if ((num_args != 2) || !lua_istable(L, 2))
+    return luaL_error(L, "Argument must be a table with a 'destination' (and possibly a 'port') key.");
+
+  const char* destination = NULL;
+  lua_getfield(L, 2, "destination");
+  if (!lua_isstring(L, -1))
+    return luaL_error(L, "destination must be an URL or a file path.");
+  destination = lua_tostring(L, -1);
+
+  int port = -1;
+  lua_getfield(L, 2, "port");
+  if (!lua_isnil(L, -1) && !lua_isinteger(L, -1))
+    return luaL_error(L, "If given, port must be a nonnegative integer.");
+  else
+  {
+    port = (int)lua_tointeger(L, -1);
+    if (port < 0)
+      return luaL_error(L, "port must be nonnegative.");
+  }
+
+  bool result = probe_stream_on_acquire(p, destination, port);
+  lua_pushboolean(L, result);
+  return 1;
+}
+
 static int p_tostring(lua_State* L)
 {
   probe_t* p = lua_to_probe(L, 1);
@@ -919,6 +950,7 @@ static int p_tostring(lua_State* L)
 static lua_class_method probe_methods[] = {
   {"acquire", p_acquire, "probe:acquire(t) -> Acquires and returns probe data at time t."},
   {"on_acquire", p_on_acquire, "probe:on_acquire(f) -> Adds the function f(t, data) to the set of functions called on each acquisition for this probe."},
+  {"stream_on_acquire", p_stream_on_acquire, "probe:stream_on_acquire{destination[, port]} -> Streams data from the probe to the given destination via UDP or a UNIX domain socket."},
   {"__tostring", p_tostring, NULL},
   {NULL, NULL, NULL}
 };

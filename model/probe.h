@@ -121,6 +121,27 @@ void probe_on_acquire(probe_t* probe,
                       void (*function)(void* context, real_t t, probe_data_t* data),
                       void (*dtor)(void* context));
 
+/// Tells the probe to stream its data to the given network address and port
+/// using a simple protocol.
+/// Each datagram contains the following information (in a sequence of bytes):
+/// 1. The length of the probe's data name
+/// 2. The characters in the probe's data name (including '\0')
+/// 3. The time of the acquisition.
+/// 4. The number of real numbers in the data.
+/// 5. The data, as a sequence of real numbers.
+/// \param [in] destination A properly formed destination address. If this is a 
+///                         well-formed URL, the probe streams data to that location
+///                         using UDP. Otherwise, if it's a valid file path, the 
+///                         probe transmits the data using UNIX domain sockets.
+/// \param [in] port The port used for UDP transmissions. Ignored if UNIX 
+///                  domain sockets are used.
+/// \returns true if the probe can successfully transmit data with the given 
+///               information, false otherwise.
+/// \memberof probe
+bool probe_stream_on_acquire(probe_t* probe, 
+                             const char* destination, 
+                             int port);
+
 ///@}
 
 #endif

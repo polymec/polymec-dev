@@ -152,3 +152,107 @@ void probe_on_acquire(probe_t* probe,
   acq_callback_array_append_with_dtor(probe->callbacks, callback, free_callback_context);
 }
 
+//------------------------------------------------------------------------
+//                              Streaming nonsense
+//------------------------------------------------------------------------
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+typedef struct
+{
+  int socket_fd;
+  struct sockaddr_in inet_addr;
+  struct sockaddr_un unix_addr;
+  int port;
+
+  char* data_name;
+  size_t data_size;
+} stream_context_t;
+
+static void free_stream(void* context)
+{
+  stream_context_t* stream = context;
+  close(stream->socket_fd);
+  polymec_free(stream);
+}
+
+static void stream_on_acquire(void* context, real_t t, probe_data_t* data)
+{
+  // The datagram consists of (in a sequence of bytes):
+  // 1. The length of the probe's data name
+  // 2. The characters in the probe's data name (including '\0')
+  // 3. The time of the acquisition.
+  // 4. The number of real numbers in the data.
+  // 5. The data.
+  stream_context_t* stream = context;
+  size_t data_name_len = strlen(stream->data_name);
+  size_t buff_size = sizeof(size_t) + sizeof(char) * (data_name_len+1) + sizeof(size_t) + sizeof(real_t) * (1 + stream->data_size);
+  char buff[buff_size];
+  memcpy(buff, &data_name_len, sizeof(size_t));
+  size_t offset = sizeof(size_t);
+  memcpy(&buff[offset], stream->data_name, sizeof(char) * data_name_len);
+  offset += sizeof(char) * data_name_len;
+  buff[offset] = '\0';
+  offset += sizeof(char);
+  memcpy(&buff[offset], &t, sizeof(real_t));
+  offset += sizeof(real_t);
+  memcpy(&buff[offset], &(stream->data_size), sizeof(size_t));
+  offset += sizeof(size_t);
+  memcpy(&buff[offset], data->data, sizeof(real_t) * stream->data_size);
+  offset += sizeof(real_t) * stream->data_size;
+  write(stream->socket_fd, buff, buff_size);
+}
+
+bool probe_stream_on_acquire(probe_t* probe, const char* destination, int port)
+{
+  stream_context_t* context = polymec_malloc(sizeof(stream_context_t));
+  context->data_name = probe->data_name;
+  context->data_size = 1;
+  for (int i = 0; i < probe->rank; ++i)
+    context->data_size *= probe->shape[i];
+
+  // Try connecting via UDP first.
+  int result;
+  context->socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (context->socket_fd <= 0)
+  {
+    polymec_free(context);
+    return false;
+  }
+  memset(&(context->inet_addr), 0, sizeof(struct sockaddr_in));
+  context->inet_addr.sin_family = AF_INET;
+  memcpy(&(context->inet_addr.sin_addr), destination, strlen(destination));
+  context->inet_addr.sin_port = htons(port);
+  result = connect(context->socket_fd, (struct sockaddr*)&context->inet_addr, sizeof(struct sockaddr_in));
+
+  // If that didn't work, try a UNIX domain socket.
+  if (result == -1)
+  {
+    context->socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (context->socket_fd <= 0)
+    {
+      polymec_free(context);
+      return false;
+    }
+    memset(&(context->unix_addr), 0, sizeof(struct sockaddr_un));
+    context->unix_addr.sun_family = AF_UNIX;
+    memcpy(context->unix_addr.sun_path, destination, strlen(destination));
+    result = connect(context->socket_fd, (struct sockaddr*)&context->unix_addr, sizeof(struct sockaddr_un));
+  }
+
+  if (result != -1)
+  {
+    probe_on_acquire(probe, context, stream_on_acquire, free_stream);
+    return true;
+  }
+  else
+  {
+    polymec_free(context);
+    return false;
+  }
+}
+
