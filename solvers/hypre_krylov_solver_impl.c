@@ -1830,6 +1830,12 @@ static void hypre_factory_dtor(void* context)
   polymec_free(factory);
 }
 
+// This is used to clean up libraries when the solver is destroyed.
+static void close_lib(void* lib)
+{
+  dlclose(lib);
+}
+
 // Use this to retrieve symbols from dynamically loaded libraries.
 #define FETCH_SYMBOL(dylib, symbol_name, function_ptr) \
   { \
@@ -1901,7 +1907,7 @@ krylov_factory_t* HypreFactory(const char* hypre_dir)
           if (factory->methods.symbol_name != NULL) \
           { \
             string_array_append_with_dtor(factory->hypre_lib_names, string_dup(all_hypre_libs->data[ilib]), string_free); \
-            ptr_array_append_with_dtor(factory->hypre_libs, lib, DTOR(dlclose)); \
+            ptr_array_append_with_dtor(factory->hypre_libs, lib, close_lib); \
             break; \
           } \
           else \
