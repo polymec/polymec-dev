@@ -182,28 +182,54 @@ static void free_stream(void* context)
 
 static void stream_on_acquire(void* context, real_t t, probe_data_t* data)
 {
-  // The datagram consists of (in a sequence of bytes):
-  // 1. The length of the probe's data name
-  // 2. The characters in the probe's data name (including '\0')
-  // 3. The time of the acquisition.
-  // 4. The number of real numbers in the data.
-  // 5. The data.
   stream_context_t* stream = context;
   size_t data_name_len = strlen(stream->data_name);
-  size_t buff_size = sizeof(size_t) + sizeof(char) * (data_name_len+1) + sizeof(size_t) + sizeof(real_t) * (1 + stream->data_size);
+  const char* header = "polymec-probe-stream";
+  size_t buff_size = sizeof(char)*strlen(header) + 
+                     sizeof(size_t) + sizeof(char) * data_name_len + 
+                     sizeof(size_t) + sizeof(real_t) * (1 + stream->data_size);
+
+  // Assemble the buffer.
   char buff[buff_size];
-  memcpy(buff, &data_name_len, sizeof(size_t));
-  size_t offset = sizeof(size_t);
+
+  // 1. The string "polymec-probe-stream" (excluding '\0').
+  memcpy(buff, header, sizeof(char) * strlen(header)); 
+  size_t offset = strlen(header);
+
+  // 2. A newline.
+  buff[offset] = '\n';
+  ++offset;
+
+  // 3. A size_t containing the length of the probe's data name.
+  memcpy(&buff[offset], &data_name_len, sizeof(size_t));
+  offset += sizeof(size_t);
+
+  // 4. The characters in the probe's data name (excluding '\0').
   memcpy(&buff[offset], stream->data_name, sizeof(char) * data_name_len);
   offset += sizeof(char) * data_name_len;
-  buff[offset] = '\0';
-  offset += sizeof(char);
+
+  // 5. A newline.
+  buff[offset] = '\n';
+  ++offset;
+
+  // 6. A real_t containing the time of the acquisition.
   memcpy(&buff[offset], &t, sizeof(real_t));
   offset += sizeof(real_t);
+
+  // 7. A size_t containing the number of real numbers in the data.
   memcpy(&buff[offset], &(stream->data_size), sizeof(size_t));
   offset += sizeof(size_t);
+
+  // 8. A number of real_t data.
   memcpy(&buff[offset], data->data, sizeof(real_t) * stream->data_size);
   offset += sizeof(real_t) * stream->data_size;
+
+  // 9. A newline.
+  buff[offset] = '\n';
+  ++offset;
+  ASSERT(offset == buff_size);
+
+  // Write the buffer to the stream.
   write(stream->socket_fd, buff, buff_size);
 }
 

@@ -124,19 +124,23 @@ void probe_on_acquire(probe_t* probe,
 /// Tells the probe to stream its data to the given network address and port
 /// using a simple protocol.
 /// Each datagram contains the following information (in a sequence of bytes):
-/// 1. The length of the probe's data name
-/// 2. The characters in the probe's data name (including '\0')
-/// 3. The time of the acquisition.
-/// 4. The number of real numbers in the data.
-/// 5. The data, as a sequence of real numbers.
+/// 1. The string "polymec-probe-stream" (excluding '\0').
+/// 2. A newline.
+/// 3. A size_t containing the length of the probe's data name.
+/// 4. The characters in the probe's data name (excluding '\0').
+/// 5. A newline.
+/// 6. A real_t containing the time of the acquisition.
+/// 7. A size_t containing the number of real numbers in the data.
+/// 8. A number of real_t data.
+/// 9. A newline.
 /// \param [in] destination A properly formed destination address. If this is a 
 ///                         well-formed URL, the probe streams data to that location
 ///                         using UDP. Otherwise, if it's a valid file path, the 
 ///                         probe transmits the data using UNIX domain sockets.
 /// \param [in] port The port used for UDP transmissions. Ignored if UNIX 
 ///                  domain sockets are used.
-/// \returns true if the probe can successfully transmit data with the given 
-///               information, false otherwise.
+/// \returns true if the probe will transmit data with the given information, 
+///               false otherwise.
 /// \memberof probe
 bool probe_stream_on_acquire(probe_t* probe, 
                              const char* destination, 
