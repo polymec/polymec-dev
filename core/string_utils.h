@@ -40,20 +40,28 @@ void string_free(char* s);
 
 /// This function allows one to traverse a string containing a number of 
 /// delimiters, reading off the tokens encountered in between the delimiters.
-/// It returns false if the string does not contain the given token, or if it has 
-/// been completely traversed. Otherwise it returns true. pos should be set to 0 
-/// to begin the traversal. The next token and its length are stored in *token and 
-/// *length, respectively.
+/// \param [in] s The string containing delimiters and tokens.
+/// \param [in] delimiter The delimiter that separates tokens in the string.
+/// \param [in,out] pos Set pos to 0 to begin the traversal. 
+/// \param [out] token Stores a internal pointer to the next token in the traversal.
+///                    This pointer is owned by the original string, so the caller must copy the 
+///                    data out of here to obtain a separate string.
+/// \param [out] length Stores the length of the next token in the traversal.
+/// \returns false if the string does not contain the given token, or if it has 
+/// been completely traversed. Otherwise returns true. 
 bool string_next_token(const char* s, const char* delimiter, int* pos, char** token, size_t* length);
 
 /// Returns the number of substrings (separated by the given delimiter)
 /// occur in the given string.
 int string_num_tokens(const char* s, const char* delimiter);
 
-/// Split a string into substrings using the given delimiter, and return 
-/// an array of newly-allocated strings. num_substrings will contain the 
-/// length of this array. If the delimitor is not found, the whole string will 
-/// be a single substring.
+/// Splits a string into substrings using the given delimiter, returning an array of substrings 
+/// found. If the delimitor is not found, the whole string will be a single substring and is 
+/// returned in an array of length 1.
+/// \param [in] s The string to split.
+/// \param [in] delimiter The delimiter separating the desired substrings.
+/// \param [out] num_substrings stores the length of the returned array of strings.
+/// \returns an array of newly-allocated strings created from the split.
 char** string_split(const char* s, const char* delimiter, int* num_substrings);
 
 /// This function allows one to remove whitespace from the front and back of 

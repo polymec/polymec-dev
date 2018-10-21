@@ -182,19 +182,21 @@ static void free_stream(void* context)
 
 static void stream_on_acquire(void* context, real_t t, probe_data_t* data)
 {
+  static const char* header = "polymec-probe-stream";
+  static size_t header_len = 20;
+
   stream_context_t* stream = context;
   size_t data_name_len = strlen(stream->data_name);
-  const char* header = "polymec-probe-stream";
-  size_t buff_size = sizeof(char)*strlen(header) + 
-                     sizeof(size_t) + sizeof(char) * data_name_len + 
-                     sizeof(size_t) + sizeof(real_t) * (1 + stream->data_size);
+  size_t buff_size = sizeof(char)*header_len + sizeof(char) + 
+                     sizeof(size_t) + sizeof(char) * data_name_len + sizeof(char) + 
+                     sizeof(size_t) + sizeof(real_t) * (1 + stream->data_size) + sizeof(char);
 
   // Assemble the buffer.
   char buff[buff_size];
 
   // 1. The string "polymec-probe-stream" (excluding '\0').
-  memcpy(buff, header, sizeof(char) * strlen(header)); 
-  size_t offset = strlen(header);
+  memcpy(buff, header, sizeof(char) * header_len); 
+  size_t offset = header_len;
 
   // 2. A newline.
   buff[offset] = '\n';

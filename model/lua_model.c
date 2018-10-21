@@ -924,16 +924,45 @@ static int p_stream_on_acquire(lua_State* L)
 
   int port = -1;
   lua_getfield(L, 2, "port");
-  if (!lua_isnil(L, -1) && !lua_isinteger(L, -1))
-    return luaL_error(L, "If given, port must be a nonnegative integer.");
-  else
+  if (!lua_isnil(L, -1)) 
   {
-    port = (int)lua_tointeger(L, -1);
-    if (port < 0)
-      return luaL_error(L, "port must be nonnegative.");
+    if (!lua_isinteger(L, -1))
+      return luaL_error(L, "If given, port must be a positive integer.");
+    else
+    {
+      port = (int)lua_tointeger(L, -1);
+      if (port <= 0)
+        return luaL_error(L, "port must be positive.");
+    }
   }
 
-  bool result = probe_stream_on_acquire(p, destination, port);
+  // If our destination includes a port, use it.
+  char host[strlen(destination)+1];
+  if (string_num_tokens(destination, ":") == 2)
+  {
+    int pos = 0;
+    size_t len;
+    char* host_ptr;
+    bool found = string_next_token(destination, ":", &pos, &host_ptr, &len);
+    ASSERT(found);
+    strncpy(host, host_ptr, len);
+    host[len] = '\0';
+    char* port_str;
+    found = string_next_token(destination, ":", &pos, &port_str, &len);
+    ASSERT(found);
+    if (!string_is_number(port_str))
+      return luaL_error(L, "Invalid port: %s", port_str);
+    else
+    {
+      port = atoi(port_str);
+      if (port <= 0)
+        return luaL_error(L, "port must be positive.");
+    }
+  }
+  else
+    strcpy(host, destination);
+
+  bool result = probe_stream_on_acquire(p, host, port);
   lua_pushboolean(L, result);
   return 1;
 }
