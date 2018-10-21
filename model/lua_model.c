@@ -950,7 +950,7 @@ static int p_tostring(lua_State* L)
 static lua_class_method probe_methods[] = {
   {"acquire", p_acquire, "probe:acquire(t) -> Acquires and returns probe data at time t."},
   {"on_acquire", p_on_acquire, "probe:on_acquire(f) -> Adds the function f(t, data) to the set of functions called on each acquisition for this probe."},
-  {"stream_on_acquire", p_stream_on_acquire, "probe:stream_on_acquire{destination[, port]} -> Streams data from the probe to the given destination via UDP or a UNIX domain socket."},
+  {"stream_on_acquire", p_stream_on_acquire, "probe:stream_on_acquire{destination[, port]} -> Streams data from the probe to the given destination via UDP or a UNIX socket."},
   {"__tostring", p_tostring, NULL},
   {NULL, NULL, NULL}
 };
