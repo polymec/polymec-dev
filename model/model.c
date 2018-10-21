@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <stdarg.h>
+#include <signal.h>
 #include "core/polymec.h"
 #include "core/unordered_set.h"
 #include "core/unordered_map.h"
@@ -36,6 +37,16 @@ static inline bool probe_equals(probe_t* p, probe_t* q)
 
 DEFINE_UNORDERED_MAP(probe_map, probe_t*, real_array_t*, probe_hash, probe_equals)
 DEFINE_UNORDERED_MAP(probe_data_map, char*, probe_data_array_t*, string_hash, string_equals)
+
+// This catches the SIGINT (Ctrl-C) signal and sets a flag for the model 
+// to respond appropriately.
+typedef void (*sighandler_t)(int sig);
+static bool _received_sigint = false;
+static bool _sigint_handler_set = false;
+static void handle_sigint(int signal)
+{
+  _received_sigint = true;
+}
 
 struct model_t 
 {
@@ -427,6 +438,21 @@ real_t model_min_dt(model_t* model)
 real_t model_advance(model_t* model, real_t max_dt)
 {
   START_FUNCTION_TIMER();
+
+  // If we're not inside model_advance(), set up our SIGINT handler.
+  sighandler_t prev_sigint_handler;
+  if (!_sigint_handler_set)
+    prev_sigint_handler = signal(SIGINT, handle_sigint);
+  else 
+  {
+    // If we've received a SIGINT, exit immediately.
+    if (_received_sigint)
+    {
+      STOP_FUNCTION_TIMER();
+      return 0.0;
+    }
+  }
+
   real_t pre_wall_time = MPI_Wtime();
   model->dt = model->vtable.advance(model->context, max_dt, model->time);
 
@@ -452,6 +478,10 @@ real_t model_advance(model_t* model, real_t max_dt)
   else
     model->sim_speed = REAL_MAX;
   model->wall_time = post_wall_time;
+
+  // Restore the previous SIGINT handler if we set it.
+  if (!_sigint_handler_set)
+    signal(SIGINT, prev_sigint_handler);
 
   STOP_FUNCTION_TIMER();
   return model->dt;
@@ -611,6 +641,10 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
   START_FUNCTION_TIMER();
   ASSERT(t2 >= t1);
 
+  // Set up our SIGINT handler.
+  sighandler_t prev_sigint_handler = signal(SIGINT, handle_sigint);
+  _sigint_handler_set = true;
+
   bool model_initialized = false;
   if (model->load_step == -1)
   {
@@ -648,7 +682,7 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
       model_acquire(model); // make sure probes can acquire data at t1.
 
     // Now run the calculation.
-    while ((model->time < t2) && (model->step < max_steps))
+    while ((model->time < t2) && (model->step < max_steps) && (!_received_sigint))
     {
       // Let the model tell us the maximum time step it can take.
       char reason[POLYMEC_MODEL_MAXDT_REASON_SIZE+1];
@@ -696,12 +730,21 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
       log_detail("%s: Max time step max_dt = %g\n (Reason: %s)", model->name, max_dt, reason);
       model_advance(model, max_dt);
     }
+    if (_received_sigint)
+    {
+      log_urgent("%s: Simulation interrupted at step %d.", model->name, model->step);
+      _received_sigint = false;
+    }
   }
 
   // Do any finalization.
   model_finalize(model);
-
   log_detail("%s: Run concluded at time %g.", model->name, model->time);
+
+  // Restore the previous SIGINT handler.
+  signal(SIGINT, prev_sigint_handler);
+  _sigint_handler_set = false;
+
   STOP_FUNCTION_TIMER();
 }
 
