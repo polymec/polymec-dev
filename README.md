@@ -51,8 +51,9 @@ The polymec library requires the following software for installation:
 * A working set of LAPACK/BLAS libraries
 * CMake 3.10+ (found at http://www.cmake.org)
 * GNU Make
+* A non-ancient version of Perl (for HDF5's installation process)
 * The Bourne Again SHell (bash)
-* A recent version of Git (if you're doing code development).
+* A recent version of Git (if you're doing code development)
 
 ### Building 
 
