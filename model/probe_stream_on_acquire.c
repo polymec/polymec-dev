@@ -95,7 +95,6 @@ bool probe_stream_on_acquire(probe_t* probe, const char* destination, int port)
       memset(&(context->inet_addr), 0, sizeof(context->inet_addr));
       context->inet_addr.sin_family = AF_INET;
       inet_pton(AF_INET, destination, &context->inet_addr.sin_addr);
-//      memcpy(&(context->inet_addr.sin_addr), destination, sizeof(char) * strlen(destination));
       context->inet_addr.sin_port = htons(port);
       int result = connect(context->socket_fd, (struct sockaddr*)&(context->inet_addr), sizeof(context->inet_addr));
       if (result != -1)
