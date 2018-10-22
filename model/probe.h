@@ -38,6 +38,10 @@ probe_data_t* probe_data_new(int rank, size_t* shape);
 /// \memberof probe_data_t
 void probe_data_free(probe_data_t* data);
 
+/// Returns the size (in numbers) of the probe data.
+/// \memberof probe_data_t
+size_t probe_data_size(probe_data_t* data);
+
 /// \class probe_data_array
 /// An array of probe data.
 DEFINE_ARRAY(probe_data_array, probe_data_t*)
@@ -124,15 +128,12 @@ void probe_on_acquire(probe_t* probe,
 /// Tells the probe to stream its data to the given network address and port
 /// using a simple protocol.
 /// Each datagram contains the following information (in a sequence of bytes):
-/// 1. The string "polymec-probe-stream" (excluding '\0').
-/// 2. A newline.
-/// 3. A size_t containing the length of the probe's data name.
+/// 1. The characters "polymec-probe-stream".
+/// 2. An int containing the length of the probe's data name.
+/// 3. An int containing the number of real numbers in the data (excluding time).
 /// 4. The characters in the probe's data name (excluding '\0').
-/// 5. A newline.
-/// 6. A real_t containing the time of the acquisition.
-/// 7. A size_t containing the number of real numbers in the data.
-/// 8. A number of real_t data.
-/// 9. A newline.
+/// 5. A real_t containing the time of the acquisition.
+/// 6. A sequence of real_t numbers composing the acquired data.
 /// \param [in] destination A properly formed destination address. If this is a 
 ///                         well-formed URL, the probe streams data to that location
 ///                         using UDP. Otherwise, if it's a valid file path, the 

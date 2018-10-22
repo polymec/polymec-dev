@@ -1,5 +1,5 @@
 include(add_polymec_library)
-add_polymec_library(polymec_model model.c probe.c
+add_polymec_library(polymec_model model.c probe.c probe_stream_on_acquire.c
                     stencil.c polymesh_stencils.c neighbor_pairing.c 
                     partition_point_cloud_with_neighbors.c
                     aux_state.c physical_constants.c lua_model.c)
