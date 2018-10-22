@@ -71,6 +71,9 @@ struct model_t
   // Diagnostics mode.
   model_diag_mode_t diag_mode;
 
+  // Intercept SIGINT and SIGTERM?
+  bool handle_signals;
+
   // Data related to a given simulation.
   char* sim_prefix; // Simulation naming prefix.
   char* sim_dir;    // Simulation directory.
@@ -159,6 +162,10 @@ model_t* model_new(const char* name,
   model->max_dt = REAL_MAX;
   model->min_dt = 0.0;
   model->diag_mode = MODEL_DIAG_NEAREST_STEP;
+ 
+  // By default, we make model steps uninterruptible by intercepting 
+  // SIGINT and SIGTERM.
+  model->handle_signals = true;
 
   // Set defaults for the simulation file prefix and directory.
   const char* script = lua_driver_script();
@@ -225,6 +232,11 @@ char* model_name(model_t* model)
 model_parallelism_t model_parallelism(model_t* model)
 {
   return model->parallelism;
+}
+
+void model_handle_signals(model_t* model, bool flag)
+{
+  model->handle_signals = flag;
 }
 
 extern void probe_set_model(probe_t* probe, model_t* model);
@@ -442,7 +454,7 @@ real_t model_advance(model_t* model, real_t max_dt)
   // If we're not inside model_advance(), set up our SIGINT handler.
   sighandler_t prev_sigint_handler = NULL;
   sighandler_t prev_sigterm_handler = NULL;
-  if (!_signal_handlers_set)
+  if (!_signal_handlers_set && model->handle_signals)
   {
     prev_sigint_handler = signal(SIGINT, handle_sigint_or_sigterm);
     prev_sigterm_handler = signal(SIGTERM, handle_sigint_or_sigterm);
@@ -484,7 +496,7 @@ real_t model_advance(model_t* model, real_t max_dt)
   model->wall_time = post_wall_time;
 
   // Restore the previous SIGINT handler if we set it.
-  if (!_signal_handlers_set)
+  if (!_signal_handlers_set && model->handle_signals)
   {
     signal(SIGINT, prev_sigint_handler);
     signal(SIGTERM, prev_sigterm_handler);
@@ -655,11 +667,16 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
   START_FUNCTION_TIMER();
   ASSERT(t2 >= t1);
 
-  // Set up our SIGINT handler.
-  _received_signal = 0;
-  sighandler_t prev_sigint_handler = signal(SIGINT, handle_sigint_or_sigterm);
-  sighandler_t prev_sigterm_handler = signal(SIGTERM, handle_sigint_or_sigterm);
-  _signal_handlers_set = true;
+  sighandler_t prev_sigint_handler = NULL;
+  sighandler_t prev_sigterm_handler = NULL;
+  if (model->handle_signals)
+  {
+    // Set up our SIGINT handler.
+    _received_signal = 0;
+    prev_sigint_handler = signal(SIGINT, handle_sigint_or_sigterm);
+    prev_sigterm_handler = signal(SIGTERM, handle_sigint_or_sigterm);
+    _signal_handlers_set = true;
+  }
 
   bool model_initialized = false;
   if (model->load_step == -1)
@@ -753,14 +770,17 @@ void model_run(model_t* model, real_t t1, real_t t2, int max_steps)
       log_urgent("%s: Simulation interrupted at step %d.", model->name, model->step);
   }
 
-  // Restore the previous SIGINT handler.
-  signal(SIGINT, prev_sigint_handler);
-  signal(SIGTERM, prev_sigterm_handler);
-  _signal_handlers_set = false;
+  if (model->handle_signals)
+  {
+    // Restore the previous SIGINT handler.
+    signal(SIGINT, prev_sigint_handler);
+    signal(SIGTERM, prev_sigterm_handler);
+    _signal_handlers_set = false;
 
-  // If we got a signal, propagate it.
-  if (_received_signal != 0)
-    raise(_received_signal);
+    // If we got a signal, propagate it.
+    if (_received_signal != 0)
+      raise(_received_signal);
+  }
 
   // Do any finalization.
   model_finalize(model);

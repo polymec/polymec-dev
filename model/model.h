@@ -145,6 +145,17 @@ probe_data_array_t* model_probe_data(model_t* model, const char* quantity);
 /// \memberof model
 model_parallelism_t model_parallelism(model_t* model);
 
+/// Sets a flag to decide whether this model intercepts the SIGINT and SIGTERM
+/// signals to make model steps (\ref model_advance) uninterruptible. By default,
+/// a model does intercept these signals. This helps with making simulations 
+/// more robust, but can cause problems, say, when debugging simulations with 
+/// infinite loops.
+/// \param [in] flag If true, the model will intercept SIGINT and SIGTERM, 
+///                  interrupting a simulation after the completion of a step.
+///                  If false, the model won't intercept these signals.
+/// \memberof model
+void model_handle_signals(model_t* model, bool flag);
+
 /// Adds a probe to the model which will acquire specific data at each of the 
 /// specified times. The model assumes ownership of the probe but copies the 
 /// array of times.
@@ -193,7 +204,8 @@ void model_set_min_dt(model_t* model, real_t min_dt);
 real_t model_min_dt(model_t* model);
 
 /// Advances the model by a single time step of maximum size max_dt.
-/// Sets up a signal handler to intercept SIGINT so that this step is 
+/// If signal handling is enabled for the model (by default or via \ref model_handle_signals), 
+/// the model intercepts SIGINT and SIGTERM signals so that this step is 
 /// uninterruptible.
 /// \param [in] max_dt The maximum size of the step to take.
 /// \returns the size of the actual time step.

@@ -455,6 +455,18 @@ static int m_run(lua_State* L)
   return 0; // No return value.
 }
 
+static int m_handle_signals(lua_State* L)
+{
+  model_t* m = lua_to_model(L, 1);
+  if (m == NULL)
+    return luaL_error(L, "Method must be invoked with a model.");
+  if (!lua_isboolean(L, 2))
+    return luaL_error(L, "Argument 1 must be a boolean flag.");
+  bool flag = lua_toboolean(L, 2);
+  model_handle_signals(m, flag);
+  return 0;
+}
+
 static int m_add_probe(lua_State* L)
 {
   model_t* m = lua_to_model(L, 1);
@@ -641,6 +653,7 @@ static lua_class_method model_methods[] = {
   {"plot", m_plot, "model:plot() -> Generates a plot for the given simulation step."},
   {"advance", m_advance, "model:advance(max_dt) -> Advances one step, returning the actual timestep taken."},
   {"run", m_run, "model:run{t1 = T1, t2 = T2, max_steps = N, prefix = PREFIX, directory = DIR, plot_every = PLOT_EVERY, save_every = SAVE_EVERY, load_step = LOAD_STEP, min_dt = MIN_DT, max_dt = MAX_DT} -> Runs the model from T1 to T2 or for MAX_STEPS."},
+  {"handle_signals", m_handle_signals, "model:handle_signals(flag) -> Sets whether the model intercepts SIGINT and SIGTERM during time stepping. On by default."},
   {"add_probe", m_add_probe, "model:add_probe(probe, times) -> Adds a probe that acquires data at the given list of times."},
   {"data", m_data, "model:data(data_name) -> Returns a table of acquired probe data, or a table of all data if no name is given."},
   {"__tostring", m_tostring, NULL},
