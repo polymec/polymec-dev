@@ -440,8 +440,8 @@ real_t model_advance(model_t* model, real_t max_dt)
   START_FUNCTION_TIMER();
 
   // If we're not inside model_advance(), set up our SIGINT handler.
-  sighandler_t prev_sigint_handler;
-  sighandler_t prev_sigterm_handler;
+  sighandler_t prev_sigint_handler = NULL;
+  sighandler_t prev_sigterm_handler = NULL;
   if (!_signal_handlers_set)
   {
     prev_sigint_handler = signal(SIGINT, handle_sigint_or_sigterm);
