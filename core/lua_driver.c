@@ -446,6 +446,13 @@ static void lua_error_handler(const char* message)
   luaL_error(L, "%s", message);
 }
 
+typedef void (*sighandler_t)(int);
+static void handle_sigint_or_sigterm(int sig)
+{
+  // Exit.
+  exit(sig);
+}
+
 int lua_driver(int argc,
                char** argv,
                int (*register_types_and_modules)(lua_State* L))
@@ -460,6 +467,10 @@ int lua_driver(int argc,
 
   // Start everything up.
   polymec_init(argc, argv);
+
+  // Intercept SIGTERM and SIGINT and cause them to exit cleanly.
+  sighandler_t def_sigterm_handler = signal(SIGTERM, handle_sigint_or_sigterm);
+  sighandler_t def_sigint_handler = signal(SIGINT, handle_sigint_or_sigterm);
 
   // Take note of our rank and number of processes.
   MPI_Comm_rank(MPI_COMM_WORLD, &_mpi_rank);
@@ -483,6 +494,10 @@ int lua_driver(int argc,
   // Execute pmain, which parses the file and/or begins an interactive session.
   int status = lua_pcall(L, 1, 1, 0);
   int result = lua_toboolean(L, -1);
+
+  // Reinstate the normal signal handlers.
+  signal(SIGINT, def_sigint_handler);
+  signal(SIGTERM, def_sigterm_handler);
 
   // Shut down and report any error(s).
   return (result && status == LUA_OK) ? EXIT_SUCCESS : EXIT_FAILURE;

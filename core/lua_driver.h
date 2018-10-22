@@ -20,9 +20,13 @@ typedef struct lua_State lua_State;
 ///@{
 
 /// This function implements a main function for a Lua driver. 
-/// register_types_and_modules is a function that calls the above functions to 
-/// register types and modules before firing up a Lua interpreter to parse 
-/// an input file or operate interactively. Its return value is ignored.
+/// It sets up handlers for SIGINT and SIGTERM to perform a clean shut down.
+/// \param [in] argc The number of parameters passed as command line arguments.
+/// \param [in] argv An array of command line arguments.
+/// \param [in] register_types_and_modules A function that performs any work 
+///             to register types and modules before starting a Lua interpreter.
+/// \returns EXIT_SUCCESS if the interpreter runs to completion without incident,
+///          EXIT_FAILURE otherwise.
 int lua_driver(int argc, 
                char** argv,
                int (*register_types_and_functions)(lua_State* L));

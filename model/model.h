@@ -192,8 +192,11 @@ void model_set_min_dt(model_t* model, real_t min_dt);
 /// \memberof model
 real_t model_min_dt(model_t* model);
 
-/// Advances the model by a single time step of maximum size max_dt, returning 
-/// the size of the actual time step.
+/// Advances the model by a single time step of maximum size max_dt.
+/// Sets up a signal handler to intercept SIGINT so that this step is 
+/// uninterruptible.
+/// \param [in] max_dt The maximum size of the step to take.
+/// \returns the size of the actual time step.
 /// \memberof model
 real_t model_advance(model_t* model, real_t max_dt);
 
@@ -222,7 +225,11 @@ void model_plot(model_t* model);
 void model_acquire(model_t* model);
 
 /// Runs a simulation of the model from time t1 to t2, or for a maximum of 
-/// max_steps.
+/// max_steps. Sets up a signal handler to intercept SIGINT so that a single
+/// step (a call to \ref model_advance) is uninterruptible.
+/// \param [in] t1 The start time for the run.
+/// \param [in] t2 The end time for the run. Must be greater than t1.
+/// \param [in] max_steps The maximum number of steps in the run.
 /// \memberof model
 void model_run(model_t* model, real_t t1, real_t t2, int max_steps);
 
