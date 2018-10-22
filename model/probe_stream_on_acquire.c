@@ -33,49 +33,37 @@ static void free_stream(void* context)
 
 static void stream_on_acquire(void* context, real_t t, probe_data_t* data)
 {
-  static const char* header = "polymec-probe-stream";
-  static size_t header_len = 20;
-
   stream_context_t* stream = context;
   if (stream->data_size == 0)
     stream->data_size = probe_data_size(data);
   ASSERT(stream->data_size == probe_data_size(data));
-  size_t data_name_len = strlen(stream->data_name);
-  size_t buff_size = sizeof(char)*header_len + 
-                     sizeof(int) + sizeof(int) + 
-                     sizeof(char)*data_name_len + 
-                     sizeof(real_t) * (1 + stream->data_size);
+  ASSERT(stream->data_size > 0);
 
-  // Assemble the buffer.
-  char buff[buff_size];
+  // Construct the string representation of the data.
+  char data_str[20 * stream->data_size], datum_str[20];
+  data_str[0] = '[';
+  size_t offset = 1;
+  for (size_t i = 0; i < stream->data_size-1; ++i)
+  {
+    sprintf(datum_str, "%g,", data->data[i]);
+    size_t len = strlen(datum_str);
+    memcpy(&data_str[offset], datum_str, len);
+    offset += len;
+  }
+  sprintf(&data_str[offset], "%g]%c", data->data[stream->data_size-1], '\0');
 
-  // 1. The string "polymec-probe-stream".
-  memcpy(buff, header, sizeof(char) * header_len); 
-  size_t offset = header_len;
+  // Figure out the size of the JSON payload.
+  const char* json_format_str = "{\"name\": \"%s\", \"time\": %g, \"data\": %s}";
+  size_t json_size = sizeof(char) * 
+                     (strlen(json_format_str) + strlen(stream->data_name) + \
+                      20 + strlen(data_str));
 
-  // 2. An int containing the length of the probe's data name.
-  int name_len = (int)data_name_len;
-  memcpy(&buff[offset], &name_len, sizeof(int));
-  offset += sizeof(int);
-
-  // 3. An int containing the number of real numbers in the data.
-  memcpy(&buff[offset], &(stream->data_size), sizeof(int));
-  offset += sizeof(int);
-
-  // 4. The characters in the probe's data name.
-  memcpy(&buff[offset], stream->data_name, sizeof(char) * data_name_len);
-  offset += sizeof(char) * data_name_len;
-
-  // 5. A real_t containing the time of the acquisition.
-  memcpy(&buff[offset], &t, sizeof(real_t));
-  offset += sizeof(real_t);
-
-  // 6. A sequence of real_t data.
-  memcpy(&buff[offset], data->data, sizeof(real_t) * stream->data_size);
-  offset += sizeof(real_t) * stream->data_size;
+  // Assemble the JSON object text representation.
+  char json[json_size];
+  sprintf(json, json_format_str, stream->data_name, t, data_str);
 
   // Write the buffer to the stream.
-  write(stream->socket_fd, buff, buff_size);
+  write(stream->socket_fd, json, json_size);
 }
 
 bool probe_stream_on_acquire(probe_t* probe, const char* destination, int port)

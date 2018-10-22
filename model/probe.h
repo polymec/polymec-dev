@@ -126,14 +126,11 @@ void probe_on_acquire(probe_t* probe,
                       void (*dtor)(void* context));
 
 /// Tells the probe to stream its data to the given network address and port
-/// using a simple protocol.
-/// Each datagram contains the following information (in a sequence of bytes):
-/// 1. The characters "polymec-probe-stream".
-/// 2. An int containing the length of the probe's data name.
-/// 3. An int containing the number of real numbers in the data (excluding time).
-/// 4. The characters in the probe's data name (excluding '\0').
-/// 5. A real_t containing the time of the acquisition.
-/// 6. A sequence of real_t numbers composing the acquired data.
+/// using a simple protocol. When the probe acquires data, it emits a datagram 
+/// containing a JSON object with the following contents:
+/// * "name": a field containing the name of the probe's data
+/// * "time": the time at which the data was acquired
+/// * "data": A list of numbers representing the data acquired
 /// \param [in] destination A properly formed destination address. If this is a 
 ///                         well-formed URL, the probe streams data to that location
 ///                         using UDP. Otherwise, if it's a valid file path, the 
