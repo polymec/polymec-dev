@@ -40,14 +40,12 @@ static void stream_on_acquire(void* context, real_t t, probe_data_t* data)
   ASSERT(stream->data_size > 0);
 
   // Construct the string representation of the data.
-  char data_str[20 * stream->data_size], datum_str[20];
+  char data_str[20 * stream->data_size];
   data_str[0] = '[';
   size_t offset = 1;
   for (size_t i = 0; i < stream->data_size-1; ++i)
   {
-    sprintf(datum_str, "%g,", data->data[i]);
-    size_t len = strlen(datum_str);
-    memcpy(&data_str[offset], datum_str, len);
+    int len = sprintf(&data_str[offset], "%g,", data->data[i]);
     offset += len;
   }
   sprintf(&data_str[offset], "%g]%c", data->data[stream->data_size-1], '\0');
@@ -63,7 +61,7 @@ static void stream_on_acquire(void* context, real_t t, probe_data_t* data)
   sprintf(json, json_format_str, stream->data_name, t, data_str);
 
   // Write the buffer to the stream.
-  write(stream->socket_fd, json, json_size);
+  write(stream->socket_fd, json, strlen(json));
 }
 
 bool probe_stream_on_acquire(probe_t* probe, const char* destination, int port)
