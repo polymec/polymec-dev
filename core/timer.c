@@ -76,6 +76,11 @@ void polymec_enable_timers()
   // Get threading information.
 }
 
+const char* polymec_timer_file()
+{
+  return (const char*)timer_report_file;
+}
+
 void polymec_set_timer_file(const char* timer_file)
 {
   strncpy(timer_report_file, timer_file, FILENAME_MAX);

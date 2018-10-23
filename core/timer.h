@@ -58,6 +58,7 @@
 //------------------------------------------------------------------------
 // Please do not use any of this stuff directly.
 void polymec_enable_timers(void);
+const char* polymec_timer_file(void);
 void polymec_set_timer_file(const char* timer_file);
 typedef struct polymec_timer_t polymec_timer_t;
 polymec_timer_t* polymec_timer_get(const char* name);

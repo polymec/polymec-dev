@@ -7,6 +7,7 @@
 
 #include "core/polymec.h"
 #include "core/options.h"
+#include "core/timer.h"
 #include "core/lua_core.h"
 
 #include "lua.h"
@@ -2294,9 +2295,56 @@ static int lua_register_logging(lua_State* L)
 {
   lua_register_module(L, "logging", "Settings for logging.",
                       logging_fields, NULL);
-
   return 0;
 }
+
+static int timers_get_enabled(lua_State* L)
+{
+  options_t* opts = options_argv();
+  char* timers_on = options_value(opts, "timers");
+  lua_pushboolean(L, (timers_on != NULL) && string_as_boolean(timers_on));
+  return 1;
+}
+
+static int timers_get_file(lua_State* L)
+{
+  options_t* opts = options_argv();
+  char* timers_on = options_value(opts, "timers");
+  if ((timers_on != NULL) && string_as_boolean(timers_on))
+    lua_pushstring(L, polymec_timer_file());
+  else
+    lua_pushnil(L);
+  return 1;
+}
+
+static int timers_set_file(lua_State* L)
+{
+  if (lua_isnil(L, 2))
+  {
+    // Set to default value.
+    polymec_set_timer_file("timer_report.txt");
+  }
+  else if (!lua_isstring(L, 2))
+    return luaL_error(L, "timers.file must be the name of a file.");
+  else
+    polymec_set_timer_file(lua_tostring(L, 2));
+  return 0;
+}
+
+static lua_module_field timers_fields[] = 
+{
+  {"enabled", timers_get_enabled, NULL},
+  {"file", timers_get_file, timers_set_file},
+  {NULL, NULL, NULL}
+};
+
+static int lua_register_timers(lua_State* L)
+{
+  lua_register_module(L, "timers", "Settings for timers.",
+                      timers_fields, NULL);
+  return 0;
+}
+
 int lua_register_core_modules(lua_State* L)
 {
   // Core types.
@@ -2311,6 +2359,7 @@ int lua_register_core_modules(lua_State* L)
   lua_register_constants(L);
   lua_register_mpi(L);
   lua_register_logging(L);
+  lua_register_timers(L);
 
   lua_register_class(L, "bbox", "A 3D bounding box.", bbox_funcs, bbox_fields, bbox_methods, NULL);
   lua_register_class(L, "sp_func", "A function in 3D space.", sp_funcs, sp_fields, sp_methods, NULL);
