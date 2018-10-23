@@ -622,7 +622,8 @@ static int lua_open_class(lua_State* L)
 // This helper registers the module on top of the stack in the module contained 
 // within that module name, if there are dots in the name. If the name has no 
 // dots, this function does nothing.
-static void register_in_parent_module(lua_State* L, const char* full_module_name)
+static void register_in_parent_module(lua_State* L, 
+                                      const char* full_module_name)
 {
   if (string_contains(full_module_name, "."))
   {
@@ -648,8 +649,10 @@ static void register_in_parent_module(lua_State* L, const char* full_module_name
     }
     else
     {
-      lua_pushvalue(L, -2); // Push our module up top.
-      lua_setfield(L, -2, &full_module_name[len+1]); // Register in the module.
+      // The parent module sits at index -1, and our module sits at -2.
+      lua_pushstring(L, &full_module_name[len+1]);
+      lua_pushvalue(L, -3); // Push our module up top.
+      lua_rawset(L, -3); // Register in the module directly.
     }
   }
 }

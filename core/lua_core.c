@@ -2139,25 +2139,42 @@ static int lua_register_constants(lua_State* L)
   return 0;
 }
 
+static int mpi_get_comm_world(lua_State* L)
+{
+  lua_push_mpi_comm(L, MPI_COMM_WORLD);
+  return 1;
+}
+
+static int mpi_get_comm_self(lua_State* L)
+{
+  lua_push_mpi_comm(L, MPI_COMM_SELF);
+  return 1;
+}
+
+static lua_module_field mpi_fields[] = 
+{
+  {"COMM_WORLD", mpi_get_comm_world, NULL},
+  {"COMM_SELF", mpi_get_comm_self, NULL},
+  {NULL, NULL, NULL}
+};
+
+static lua_module_function mpi_funcs[] = {
+  {NULL, NULL, NULL}
+};
+
 static int lua_register_mpi(lua_State* L)
 {
-  lua_newtable(L);
-  lua_setglobal(L, "mpi");
+  lua_register_module(L, "mpi", "Message Passing Interface (MPI) tools.",
+                      mpi_fields, mpi_funcs);
 
   // Register the communicator class.
   lua_register_class(L, "mpi.comm", "An MPI communicator.", 
                      mpi_comm_funcs, mpi_comm_fields, mpi_comm_methods, 
                      polymec_free);
 
-  // Now register MPI_COMM_WORLD and MPI_COMM_SELF objects.
-  lua_getglobal(L, "mpi");
-  lua_push_mpi_comm(L, MPI_COMM_WORLD);
-  lua_setfield(L, -2, "COMM_WORLD");
-  lua_push_mpi_comm(L, MPI_COMM_SELF);
-  lua_setfield(L, -2, "COMM_SELF");
-
   return 0;
 }
+
 
 static int l_get_level(lua_State* L)
 {
