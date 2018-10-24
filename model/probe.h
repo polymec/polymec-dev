@@ -23,7 +23,7 @@ typedef struct
   /// The rank (number of dimensions) of the array storing the data (0 for a 
   /// scalar value).
   int rank;
-  // The shape of the multi-dimensional array (shape[i] specifies the ith 
+  /// The shape of the multi-dimensional array (shape[i] specifies the ith 
   /// dimension of the array).
   size_t* shape;
   /// The storage for the multidimensional array data.
