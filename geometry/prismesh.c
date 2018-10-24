@@ -394,6 +394,7 @@ void prismesh_finalize(prismesh_t* mesh)
 #endif
 
   // We're finished here.
+  log_debug("prismesh_finalize: finalized with %d local chunks.", mesh->chunks->size);
   mesh->finalized = true;
 }
 
@@ -451,6 +452,7 @@ prismesh_t* prismesh_new(MPI_Comm comm,
     {
       int xy_index = (int)(i / num_z_chunks);
       int z_index = (int)(i % num_z_chunks);
+      log_debug("prismesh_new: Inserting chunk (%d, %d).", xy_index, z_index);
       prismesh_insert_chunk(mesh, xy_index, z_index);
     }
   }

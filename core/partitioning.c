@@ -112,8 +112,10 @@ int64_t* partition_graph(adj_graph_t* global_graph,
     // Build a graph on rank 0.
     SCOTCH_dgraphInit(&dist_graph, MPI_COMM_SELF);
     SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_global_vertices, (SCOTCH_Num)num_global_vertices,
-        xadj, NULL, vtx_weights, NULL, num_arcs, num_arcs,
-        adj, NULL, NULL);
+                       xadj, NULL, vtx_weights, NULL, num_arcs, num_arcs, adj, NULL, NULL);
+#ifndef NDEBUG
+    SCOTCH_dgraphCheck(&dist_graph);
+#endif
   }
 
   // Cut up the graph and generate the global partition vector.
@@ -184,21 +186,30 @@ int64_t* partition_graph_n_ways(adj_graph_t* global_graph,
 
   // Build a graph.
   SCOTCH_Dgraph dist_graph;
-  SCOTCH_dgraphInit(&dist_graph, MPI_COMM_SELF);
-  SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_global_vertices, (SCOTCH_Num)num_global_vertices,
-                     xadj, NULL, vtx_weights, NULL, num_arcs, num_arcs,
-                     adj, NULL, NULL);
+  int result = SCOTCH_dgraphInit(&dist_graph, MPI_COMM_SELF);
+  if (result != 0)
+    polymec_error("partition_graph_n_ways: Graph could not be initialized.");
+  result = SCOTCH_dgraphBuild(&dist_graph, 0, (SCOTCH_Num)num_global_vertices, 
+                              (SCOTCH_Num)num_global_vertices, xadj, NULL, 
+                              vtx_weights, NULL, num_arcs, num_arcs, adj, NULL, NULL);
+  if (result != 0)
+    polymec_error("partition_graph_n_ways: Graph could not be constructed.");
+#ifndef NDEBUG
+  SCOTCH_dgraphCheck(&dist_graph);
+#endif
 
   // Cut up the graph -> global partition vector.
   SCOTCH_Strat strategy;
   SCOTCH_stratInit(&strategy);
   SCOTCH_Num strat_flags = SCOTCH_STRATDEFAULT;
-  int result = SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, n, n, (double)imbalance_tol);
+  result = SCOTCH_stratDgraphMapBuild(&strategy, strat_flags, 1, n, (double)imbalance_tol);
   if (result != 0)
     polymec_error("Partitioning strategy could not be constructed.");
+  log_debug("partition_graph_n_ways: Partitioning strategy constructed for %d parts.", n);
   result = SCOTCH_dgraphPart(&dist_graph, n, &strategy, global_partition);
   if (result != 0)
     polymec_error("Partitioning failed.");
+  log_debug("partition_graph_n_ways: Computed partition vector.");
   SCOTCH_dgraphExit(&dist_graph);
   SCOTCH_stratExit(&strategy);
   if (vtx_weights != NULL)
