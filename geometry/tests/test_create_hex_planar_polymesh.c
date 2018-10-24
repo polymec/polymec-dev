@@ -25,10 +25,9 @@ static void test_create_hex_planar_polymesh(void** state,
   planar_polymesh_t* mesh = create_hex_planar_polymesh(radius, h);
 
   // Check its connectivity.
-printf("%d %d %d\n", mesh->num_cells, mesh->num_edges, mesh->num_nodes);
   assert_true(mesh->num_cells == num_cells);
   assert_true(mesh->num_edges == num_edges);
-//  assert_true(mesh->num_nodes == num_nodes);
+  assert_true(mesh->num_nodes == num_nodes);
 
   // Write a Python/Matplotlib script to plot the mesh.
   char script[FILENAME_MAX+1];
@@ -48,12 +47,12 @@ static void test_create_single_cell_hex_planar_polymesh(void** state)
 
 static void test_create_r1_hex_planar_polymesh(void** state)
 {
-  test_create_hex_planar_polymesh(state, 1, 7, 30, 24);
+  test_create_hex_planar_polymesh(state, 1, 7, 30, 27);
 }
 
 static void test_create_r5_hex_planar_polymesh(void** state)
 {
-  test_create_hex_planar_polymesh(state, 5, 91, 306, 146);
+  test_create_hex_planar_polymesh(state, 5, 91, 306, 232);
 }
 
 int main(int argc, char* argv[]) 
