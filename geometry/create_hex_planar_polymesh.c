@@ -187,7 +187,6 @@ planar_polymesh_t* create_hex_planar_polymesh(size_t radius,
       if (cell2 != -1)
       {
         int dir2 = (dir1 + 3) % 6;
-printf("%d vs %d vs %d\n", edge, cell_edges->data[6*cell2+dir2], edge);
         ASSERT(cell_edges->data[6*cell2+dir2] == ~edge);
         int next_opp_edge = cell_edges->data[6*cell2+(dir2+1)%6];
         int next_opp_edge_node1 = (next_opp_edge >= 0) ? 2*next_opp_edge
