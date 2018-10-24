@@ -92,116 +92,74 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   // Now determine the connectivity in a single pass.
   int_array_t* face_cols = int_array_new();
   int_array_t* edge_nodes = int_array_new();
-  for (int col = 0; col < xy_data->num_columns; ++col)
+  for (int edge = 0; edge < mesh->num_edges; ++edge)
   {
-    // Get the polygonal cell corresponding to this column.
-    int cell = local_cells->data[col];
+    int cell1 = mesh->edge_cells[2*edge];
+    int cell2 = mesh->edge_cells[2*edge+1];
 
-    // Loop over the neighboring cells.
-    int epos = 0, edge, col_face = 0;
-    while (planar_polymesh_cell_next_edge(mesh, cell, &epos, &edge))
+    int col1 = *int_int_unordered_map_get(cell_to_col_map, cell1);
+    int col2 = -1;
+    int* col2_p = NULL;
+    if (cell2 >= 0)
     {
-      // Create the xy face that connects these two columns (from the edge
-      // connecting the two polygonal cells).
-      if (mesh->edge_cells[2*edge] == cell) 
-      {
-        // This is our first encounter with the edge, so we create a new xy face.
-        xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col]+col_face] = 
-          (int)(xy_data->num_xy_faces);
-        ++xy_data->num_xy_faces;
-        int_array_append(face_cols, col);
-
-        // Hook up the neighboring column on the other side of our new face.
-        int neighbor_cell = mesh->edge_cells[2*edge+1];
-        int neighbor_col;
-        int neighbor_xy_index = (int)partition_vector[neighbor_cell];
-        bool neighbor_col_in_chunk = ((neighbor_cell != -1) && 
-                                      (neighbor_xy_index == xy_chunk_index));
-        if (neighbor_col_in_chunk)
-        {
-          // The neighbor column is in this chunk. 
-          neighbor_col = *int_int_unordered_map_get(cell_to_col_map, neighbor_cell);
-        }
-        else
-        {
-#if POLYMEC_HAVE_MPI
-          if (neighbor_cell != -1)
-          {
-            // The neighbor is a ghost column, as far as this chunk is concerned.
-            neighbor_col = (int)(xy_data->num_columns + receive_map->size);
-
-            // Set up a parallel exchange between the columns.
-            exchanger_proc_map_add_index(send_map, neighbor_xy_index, col);
-            exchanger_proc_map_add_index(receive_map, neighbor_xy_index, neighbor_col);
-          }
-          else
-#endif
-          {
-            // We're at an xy boundary.
-            neighbor_col = -1;
-          }
-        }
-        int_array_append(face_cols, neighbor_col);
-
-        // Read off the 2 nodes connecting the edge for the planar cell and 
-        // see if we've already added them.
-        int n1 = mesh->edge_nodes[2*edge];
-        int n2 = mesh->edge_nodes[2*edge+1];
-        int node1, node2;
-        int* node1_p = int_int_unordered_map_get(node_map, n1);
-        if (node1_p == NULL)
-        {
-          node1 = node_map->size;
-          int_int_unordered_map_insert(node_map, n1, node1);
-        }
-        else
-          node1 = *node1_p;
-        int* node2_p = int_int_unordered_map_get(node_map, n2);
-        if (node2_p == NULL)
-        {
-          node2 = node_map->size;
-          int_int_unordered_map_insert(node_map, n1, node2);
-        }
-        else
-          node2 = *node2_p;
-
-        // Now create an xy edge connecting these two nodes.
-        int_array_append(edge_nodes, node1);
-        int_array_append(edge_nodes, node2);
-      }
+      col2_p = int_int_unordered_map_get(cell_to_col_map, cell2);
+      if (col2_p != NULL)
+        col2 = *col2_p; // part of this chunk
       else
-      {
-        // We've already created this face, so verify that the cell corresponding 
-        // to our column is on "the other side" of the planar mesh's edge.
-        ASSERT(mesh->edge_cells[2*edge+1] == cell);
-
-        // Fish out the xy face shared by this column and its neighbor.
-        int neighbor_cell = mesh->edge_cells[2*edge];
-        int neighbor_col = *int_int_unordered_map_get(cell_to_col_map, neighbor_cell);
-        ASSERT(neighbor_col < col);
-
-        // Find the face shared by col and neighbor_col, and add it to col's 
-        // list of faces.
-        bool found_col = false;
-        int num_col_faces = planar_polymesh_cell_num_edges(mesh, neighbor_cell);
-        for (int f = 0; f < num_col_faces; ++f)
-        {
-          int neighbor_col_face = xy_data->column_xy_faces[xy_data->column_xy_face_offsets[neighbor_col]+f];
-          if ((neighbor_col == face_cols->data[2*neighbor_col_face]) &&
-              (col == face_cols->data[2*neighbor_col_face+1]))
-          {
-            xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col]+col_face] = neighbor_col_face;
-            found_col = true;
-            break;
-          }
-        }
-        ASSERT(found_col);
-      }
-      ++col_face;
+        col2 = (int)(xy_data->num_columns + receive_map->size); // ghost column
     }
 
-    // Have we added a column face for every polygonal cell edge?
-    ASSERT(col_face == planar_polymesh_cell_num_edges(mesh, cell));
+    // For the interior columns we identify which face this edge corresponds to.
+    int f1 = 0;
+    while (mesh->cell_edges[mesh->cell_edge_offsets[cell1]+f1] != edge) ++f1;
+    int f2 = 0;
+    if (col2 < xy_data->num_columns)
+      while (mesh->cell_edges[mesh->cell_edge_offsets[cell2]+f2] != ~edge) ++f2;
+
+    // Create a new xy face for this edge, and hook it up to columns 
+    // corresponding to the edge's adjacent planar cells.
+    int face = (int)(xy_data->num_xy_faces);
+    xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col1]+f1] = face;
+    int_array_append(face_cols, col1);
+    if (col2 < xy_data->num_columns)
+      xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col2]+f2] = ~face;
+#if POLYMEC_HAVE_MPI
+    else if (col2 != -1) // ghost column
+    {
+      // Set up a parallel exchange between the columns.
+      int neighbor_xy_index = (int)partition_vector[cell2];
+      exchanger_proc_map_add_index(send_map, neighbor_xy_index, col1);
+      exchanger_proc_map_add_index(receive_map, neighbor_xy_index, col2);
+    }
+#endif
+    int_array_append(face_cols, col2);
+    ++xy_data->num_xy_faces;
+
+    // Read off the 2 nodes connecting the edge for the planar cell and 
+    // see if we've already added them.
+    int n1 = mesh->edge_nodes[2*edge];
+    int n2 = mesh->edge_nodes[2*edge+1];
+    int node1, node2;
+    int* node1_p = int_int_unordered_map_get(node_map, n1);
+    if (node1_p == NULL)
+    {
+      node1 = node_map->size;
+      int_int_unordered_map_insert(node_map, n1, node1);
+    }
+    else
+      node1 = *node1_p;
+    int* node2_p = int_int_unordered_map_get(node_map, n2);
+    if (node2_p == NULL)
+    {
+      node2 = node_map->size;
+      int_int_unordered_map_insert(node_map, n1, node2);
+    }
+    else
+      node2 = *node2_p;
+
+    // Now create an xy edge connecting these two nodes.
+    int_array_append(edge_nodes, node1);
+    int_array_append(edge_nodes, node2);
   }
 
   // Surrender the data from the various arrays.

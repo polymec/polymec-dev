@@ -268,6 +268,28 @@ static inline void prismesh_chunk_column_get_xy_faces(prismesh_chunk_t* chunk,
   int start = chunk->column_xy_face_offsets[column];
   int end = chunk->column_xy_face_offsets[column+1];
   for (int f = start; f < end; ++f)
+  {
+    int face = chunk->column_xy_faces[f];
+    if (face < 0)
+      face = ~face;
+    xy_faces[f-start] = face;
+  }
+}
+
+/// Returns the "oriented" indices of the xy faces for the given column in the chunk.
+/// Returns a non-negative index for xy faces whose edges/nodes are to be traversed in 
+/// order, and the one's complement for xy faces for which the traversal order is reversed.
+/// \param column [in] The index for the column.
+/// \param xy_faces [out] An array big enough to store the (xy) indices of the
+///                       xy faces of the column.
+/// \memberof prismesh_chunk
+static inline void prismesh_chunk_column_get_oriented_xy_faces(prismesh_chunk_t* chunk,
+                                                               size_t column,
+                                                               int* xy_faces)
+{
+  int start = chunk->column_xy_face_offsets[column];
+  int end = chunk->column_xy_face_offsets[column+1];
+  for (int f = start; f < end; ++f)
     xy_faces[f-start] = chunk->column_xy_faces[f];
 }
 

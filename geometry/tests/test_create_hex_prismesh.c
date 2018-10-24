@@ -52,18 +52,18 @@ static void test_create_hex_prismesh(void** state)
   MPI_Allreduce(&local_num_nodes, &global_num_nodes, 1, MPI_INT, MPI_SUM, comm);
   int nproc;
   MPI_Comm_size(comm, &nproc);
-  assert_int_equal(10*10*10, global_num_cells);
+  assert_int_equal(910, global_num_cells);
   if (nproc > 1)
   {
-    assert_true(global_num_faces > 3*10*10*11);
-    assert_true(global_num_edges > 3*10*11*11);
-    assert_true(global_num_nodes > 11*11*11);
+    assert_true(global_num_faces > 3071);
+    assert_true(global_num_edges > 6426);
+    assert_true(global_num_nodes > 2376);
   }
   else
   {
-    assert_int_equal(3*10*10*11, global_num_faces);
-    assert_int_equal(3*10*11*11, global_num_edges);
-    assert_int_equal(11*11*11, global_num_nodes);
+    assert_int_equal(3071, global_num_faces);
+    assert_int_equal(6426, global_num_edges);
+    assert_int_equal(2376, global_num_nodes);
   }
 
   prismesh_free(mesh);
