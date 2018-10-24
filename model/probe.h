@@ -131,6 +131,7 @@ void probe_on_acquire(probe_t* probe,
 /// * "name": a field containing the name of the probe's data
 /// * "time": the time at which the data was acquired
 /// * "data": A list of numbers representing the data acquired
+///
 /// \param [in] destination A properly formed destination address. If this is a 
 ///                         well-formed URL, the probe streams data to that location
 ///                         using UDP. Otherwise, if it's a valid file path, the 
