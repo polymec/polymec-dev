@@ -1,85 +1,110 @@
+TO-BE-FILLED-IN     PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
+    * polymec: version 2.4.0
+    * New distributed mesh type: prismesh, a semi-structured extruded 
+      polygonal mesh.
+    * New planar polygonal (2D) mesh type, useful for constructing a prismesh.
+    * Improved support for 2D points and vectors.
+    * Reintroduced polygon and polyhedron classes.
+    * Silo files can now include prismesh and planar_polyesh data.
+    * Probes can now run postprocessing, and can even stream acquired data
+      over UDP or Unix sockets.
+    * Enumerables: generator expressions with quantifiers, for easier 
+      testing.
+    * Lua interpreter and model_run/model_advance now intercept SIGINT and 
+      SIGTERM, provide uninterruptible steps and clean exits.
+    * More type-generic math functions.
+    * Added exchanger_proc_map class to eliminate boilerplate code when 
+      constructing exhangers.
+    * Updated third-party libraries: cmocka, Sundials, HDF5, zlib.
+    * Improved code documentation.
+    * More features exposed to lua.
+    * Added partition_graph_n_ways for single-process decomposition.
+    * Reworked older Lua classes: they now use the new type system.
+    * Silo 4.10 user guide added to the repo.
+    * Python tool scripts now work with Python 3.
+    * Various bugfixes.
 Thu Jul 26 20:03:08 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.3.0
-      - Lua type system now just uses classes (no more record types).
-      - It's easier to add fields (with getters/setters) to classes and to modules.
-      - The Lua interface is a bit more comfortable, since objects can have 
-        fields now, and not just methods.
-      - Added a "doc" target that generates API documentation with Doxygen.
+    * Lua type system now just uses classes (no more record types).
+    * It's easier to add fields (with getters/setters) to classes and to modules.
+    * The Lua interface is a bit more comfortable, since objects can have 
+      fields now, and not just methods.
+    * Added a "doc" target that generates API documentation with Doxygen.
 Tue Jul 24 09:57:53 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.5
-      - Fixed various installation-related glitches.
-      - The lua dir() function is better:
-        - When called with no arguments, it lists the members of the global 
-          namespace.
-        - It alphabetizes the members it returns.
+    * Fixed various installation-related glitches.
+    * The lua dir() function is better:
+      - When called with no arguments, it lists the members of the global 
+        namespace.
+      - It alphabetizes the members it returns.
 Fri Jul  6 10:22:24 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.4
-      - Fixed a bug in x_array_reorder.
-      - Added unimesh_patch_box and other unimesh_patch creature comforts.
-      - Added an "easy" alternative for constructing unimesh_patch_bc types.
-      - More improved build instructions.
+    * Fixed a bug in x_array_reorder.
+    * Added unimesh_patch_box and other unimesh_patch creature comforts.
+    * Added an "easy" alternative for constructing unimesh_patch_bc types.
+    * More improved build instructions.
 Wed Jul  4 16:48:41 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.3
-      - Fixed a bug in unimesh observer calls.
-      - Fixed a bug in parsing the pause=X argument.
-      - Added CL support for enhanced MPI error handling.
-      - Added scoping to ASSERTs.
-      - Added support for Address Sanitizer.
-      - Improved comments and docs for building.
-      - Other minor bugfixes included.
+    * Fixed a bug in unimesh observer calls.
+    * Fixed a bug in parsing the pause=X argument.
+    * Added CL support for enhanced MPI error handling.
+    * Added scoping to ASSERTs.
+    * Added support for Address Sanitizer.
+    * Improved comments and docs for building.
+    * Other minor bugfixes included.
 Thu May 24 20:00:12 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.2
-      - Switched Travis CI Docker image to Ubuntu 18.04 LTS from 16.04 LTS.
-      - Added a couple of Valgrind suppressions.
-      - Refined polymec_atinit and polymec_atexit.
-      - Fixed a minor cleanup issue with Silo compression.
-      - Bumped HDF5 version to 1.10.2.
-      - Replaced 'make config' system with a simpler bootstrap process.
-      - Replaced update_version_h and generate_headers Python scripts with 
-        sh scripts, easing a build dependency.
+    * Switched Travis CI Docker image to Ubuntu 18.04 LTS from 16.04 LTS.
+    * Added a couple of Valgrind suppressions.
+    * Refined polymec_atinit and polymec_atexit.
+    * Fixed a minor cleanup issue with Silo compression.
+    * Bumped HDF5 version to 1.10.2.
+    * Replaced 'make config' system with a simpler bootstrap process.
+    * Replaced update_version_h and generate_headers Python scripts with 
+    * scripts, easing a build dependency.
 Sun May 13 21:53:54 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.1
-      - Removed remaining contents of 3rdparty/silo/ directory.
-      - HYPRE library discovery/error checking is improved.
-      - Bumped Sundials version to 3.1.1.
-      - Number of physical cores is now detected and used to run MPI tests.
+    * Removed remaining contents of 3rdparty/silo/ directory.
+    * HYPRE library discovery/error checking is improved.
+    * Bumped Sundials version to 3.1.1.
+    * Number of physical cores is now detected and used to run MPI tests.
 Thu May  3 6:29:35 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.2.0
-      - A low-level partitioning interface has been added.
-      - Existing partitioning interfaces for point_cloud and polymesh are 
-        simpler than before.
-      - The migrator class is gone.
-      - PETSc and HYPRE solvers are more robust, and are enabled for static 
-        builds.
-      - Polymec now uses Docker­enabled Travis CI builds.
-      - Adopted the abandonware Silo library for the moment (usilo).
-      - Bumped the Sundials library to version 3.1.
-      - Numerous bugfixes.
+    * A low-level partitioning interface has been added.
+    * Existing partitioning interfaces for point_cloud and polymesh are 
+      simpler than before.
+    * The migrator class is gone.
+    * PETSc and HYPRE solvers are more robust, and are enabled for static 
+      builds.
+    * Polymec now uses Docker­enabled Travis CI builds.
+    * Adopted the abandonware Silo library for the moment (usilo).
+    * Bumped the Sundials library to version 3.1.
+    * Numerous bugfixes.
 Sat Apr  7 17:35:33 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.1.1
-      - Fixed bugs in edge-centered unimesh_field exchanges.
-      - Fixed a bug that caused excessive memory usage for unimesh_fields.
-      - Added a fancy license badge to README.md.
+    * Fixed bugs in edge-centered unimesh_field exchanges.
+    * Fixed a bug that caused excessive memory usage for unimesh_fields.
+    * Added a fancy license badge to README.md.
 Mon Apr  2 00:07:19 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.1.0
-      - Added structured mesh classes unimesh, unimesh_field, unimesh_patch.
-      - Added silo_file support for unimesh_*.
-      - Various bugfixes and enhancements to core data structures.
-      - Updated Python tools for Python 3.
-      - Filled out the mpi_serial stub library.
-      - Added a directory stack to silo_file.
-      - Enhanced code coverage for existing assets.
-      - Minor enhancements and bugfixes to kd-trees.
+    * Added structured mesh classes unimesh, unimesh_field, unimesh_patch.
+    * Added silo_file support for unimesh_*.
+    * Various bugfixes and enhancements to core data structures.
+    * Updated Python tools for Python 3.
+    * Filled out the mpi_serial stub library.
+    * Added a directory stack to silo_file.
+    * Enhanced code coverage for existing assets.
+    * Minor enhancements and bugfixes to kd-trees.
 Thu Nov 30 13:38:42 PST 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.0.1
-      - Fixed a bug in garbage collection.
-      - Added diagnostic modes for models to control whether time steps 
-        are affected by plots and/or probe measurements.
-      - The io library now depends on all other libraries. Silo features 
-        have been consolidated into this library.
-      - Removed MPI tag arguments from silo_file_new, silo_file_open. This 
-        breaks compatibility, strictly speaking, but remains a very minor 
-        change.
+    * Fixed a bug in garbage collection.
+    * Added diagnostic modes for models to control whether time steps 
+      are affected by plots and/or probe measurements.
+    * The io library now depends on all other libraries. Silo features 
+      have been consolidated into this library.
+    * Removed MPI tag arguments from silo_file_new, silo_file_open. This 
+      breaks compatibility, strictly speaking, but remains a very minor 
+      change.
 Sun Nov 19 14:41:52 PST 2017  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.0.0
     * Implemented a proper Lua interpreter for writing input scripts.
