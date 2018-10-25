@@ -269,6 +269,8 @@ adj_graph_t* graph_from_planar_polymesh_cells(planar_polymesh_t* mesh)
     for (int j = mesh->cell_edge_offsets[i]; j < mesh->cell_edge_offsets[i+1]; ++j)
     {
       int e = mesh->cell_edges[j];
+      if (e < 0)
+        e = ~e;
       if (mesh->edge_cells[2*e+1] != -1)
       {
         int c = (i == mesh->edge_cells[2*e]) ? mesh->edge_cells[2*e+1] : mesh->edge_cells[2*e];

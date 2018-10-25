@@ -57,13 +57,13 @@ static void test_create_hex_prismesh(void** state)
   {
     assert_true(global_num_faces > 3071);
     assert_true(global_num_edges > 6426);
-    assert_true(global_num_nodes > 2376);
+    assert_true(global_num_nodes > 2552);
   }
   else
   {
     assert_int_equal(3071, global_num_faces);
     assert_int_equal(6426, global_num_edges);
-    assert_int_equal(2376, global_num_nodes);
+    assert_int_equal(2552, global_num_nodes);
   }
 
   prismesh_free(mesh);
