@@ -650,43 +650,62 @@ void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Da
 static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* msg)
 {
   START_FUNCTION_TIMER();
-  // If we are expecting data, post asynchronous receives. 
-  int j = 0;
+
+  int j = 0, idest_local = -1;
   for (int i = 0; i < msg->num_receives; ++i)
   {
-    ASSERT(ex->rank != msg->source_procs[i]);
-    int err = MPI_Irecv(msg->receive_buffers[i], 
-                        msg->stride * msg->receive_buffer_sizes[i],
-                        msg->type, msg->source_procs[i], msg->tag, ex->comm, 
-                        &(msg->requests[j++]));
-    if (err != MPI_SUCCESS)
+    if (ex->rank != msg->source_procs[i])
     {
-      int resultlen;
-      char str[MPI_MAX_ERROR_STRING];
-      MPI_Error_string(err, str, &resultlen);
-      char err_msg[1024];
-      snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
-          ex->rank, msg->source_procs[i], err, str);
-      polymec_error(err_msg);
+      // If we are expecting data, post an asynchronous receive. 
+      int err = MPI_Irecv(msg->receive_buffers[i], 
+                          msg->stride * msg->receive_buffer_sizes[i],
+                          msg->type, msg->source_procs[i], msg->tag, ex->comm, 
+                          &(msg->requests[j++]));
+      if (err != MPI_SUCCESS)
+      {
+        int resultlen;
+        char str[MPI_MAX_ERROR_STRING];
+        MPI_Error_string(err, str, &resultlen);
+        char err_msg[1024];
+        snprintf(err_msg, 1024, "%d: MPI Error posting receive from %d: %d\n(%s)\n", 
+            ex->rank, msg->source_procs[i], err, str);
+        polymec_error(err_msg);
+      }
+    }
+    else
+    {
+      // Mark down the index of the local copy.
+      idest_local = i;
     }
   }
 
   // Send the data asynchronously. 
   for (int i = 0; i < msg->num_sends; ++i)
   {
-    int err = MPI_Isend(msg->send_buffers[i], 
-                        msg->stride * msg->send_buffer_sizes[i], 
-                        msg->type, msg->dest_procs[i], msg->tag, ex->comm, 
-                        &(msg->requests[j++])); 
-    if (err != MPI_SUCCESS)
+    if (ex->rank != msg->dest_procs[i])
     {
-      int resultlen;
-      char str[MPI_MAX_ERROR_STRING];
-      MPI_Error_string(err, str, &resultlen);
-      char err_msg[1024];
-      snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
-          ex->rank, msg->dest_procs[i], err, str);
-      polymec_error(err_msg);
+      int err = MPI_Isend(msg->send_buffers[i], 
+                          msg->stride * msg->send_buffer_sizes[i], 
+                          msg->type, msg->dest_procs[i], msg->tag, ex->comm, 
+                          &(msg->requests[j++])); 
+      if (err != MPI_SUCCESS)
+      {
+        int resultlen;
+        char str[MPI_MAX_ERROR_STRING];
+        MPI_Error_string(err, str, &resultlen);
+        char err_msg[1024];
+        snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
+            ex->rank, msg->dest_procs[i], err, str);
+        polymec_error(err_msg);
+      }
+    }
+    else 
+    {
+      // Do any local copying.
+      ASSERT(idest_local != -1);
+      ASSERT(msg->receive_buffer_sizes[idest_local] == msg->send_buffer_sizes[i]);
+      memcpy(msg->receive_buffers[idest_local], msg->send_buffers[i], 
+             sizeof(real_t) * msg->stride * msg->send_buffer_sizes[i]);
     }
   }
   msg->num_requests = j;
@@ -924,18 +943,12 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   // Retrieve the message for the given token.
   mpi_message_t* msg = ex->pending_msgs[token];
   int err = exchanger_waitall(ex, msg);
-  if (err != MPI_SUCCESS) 
+  if (err == MPI_SUCCESS) 
   {
-    mpi_message_free(msg);
-    ex->pending_msgs[token] = NULL;
-    ex->orig_buffers[token] = NULL;
-    STOP_FUNCTION_TIMER();
-    return;
+    // Copy the received data into the original array.
+    void* orig_buffer = ex->orig_buffers[token];
+    mpi_message_unpack(msg, orig_buffer, ex->receive_offset, ex->receive_map);
   }
-
-  // Copy the received data into the original array.
-  void* orig_buffer = ex->orig_buffers[token];
-  mpi_message_unpack(msg, orig_buffer, ex->receive_offset, ex->receive_map);
 
   // Pull the message out of our list of pending messages and delete it.
   ex->pending_msgs[token] = NULL;

@@ -115,10 +115,9 @@ void exchanger_fprintf(exchanger_t* ex, FILE* stream);
 serializer_t* exchanger_serializer(void);
 
 /// Establishes a communication pattern in which this exchanger sends data at 
-/// the given indices of an array to the given remote process. Note that 
-/// remote_process must differ from the local rank on the exchanger's communicator.
+/// the given indices of an array to the given remote process. 
 /// \param [in] remote_process The rank of the process to which the data at the given indices is 
-///                            sent. Must differ from the local rank on the exchanger's communicator.
+///                            sent. 
 /// \param [in] indices The indices identifying locations in a data array to be sent to the remote process.
 /// \param [in] num_indices The number of indices in the indices array.
 /// \param [in] copy_indices If true, indices will be copied to this exchanger. If false, the exchanger 
@@ -134,8 +133,7 @@ void exchanger_set_send(exchanger_t* ex,
 /// the given indices of an array to various remote processes. 
 /// \param [in] send_map A mapping of remote process ranks to arrays of 
 ///                      local indices identifying data to be sent. 
-///                      Each remote_process must differ from the local rank on the 
-///                      exchanger's communicator. Consumed by this function.
+///                      Consumed by this function.
 /// \memberof exchanger
 void exchanger_set_sends(exchanger_t* ex, exchanger_proc_map_t* send_map);
 
@@ -180,9 +178,9 @@ bool exchanger_next_send(exchanger_t* ex,
 bool exchanger_get_send(exchanger_t* ex, int remote_process, int** indices, int* num_indices);
 
 /// Establishes a communication pattern in which this exchanger receives data at 
-/// the given indices of an array from the given remote process. Note that
+/// the given indices of an array from the given remote process.
 /// \param [in] remote_process The rank of the process from which the data at the given indices is 
-///                            received. Must differ from the local rank on the exchanger's communicator.
+///                            received. 
 /// \param [in] indices The indices identifying locations in a data array to be received from the remote 
 ///                     process.
 /// \param [in] num_indices The number of indices in the indices array.
@@ -196,14 +194,10 @@ void exchanger_set_receive(exchanger_t* ex,
                            bool copy_indices);
 
 /// Establishes communications patterns in which this exchanger receives data at 
-/// the given indices of an array from various remote processes. Here, recv_map 
-/// maps remote process ranks to int_arrays containing local indices identifying
-/// locations where received data will be stored. Note that the remote_processes must differ from the 
-/// local rank on the exchanger's communicator.
+/// the given indices of an array from various remote processes. 
 /// \param [in] recv_map A mapping of remote process ranks to arrays of
 ///                      local indices identifying data to be received. 
-///                      Each remote_process must differ from the local rank on the 
-///                      exchanger's communicator. Consumed by this function.
+///                      Consumed by this function.
 /// \memberof exchanger
 void exchanger_set_receives(exchanger_t* ex, exchanger_proc_map_t* recv_map);
 
