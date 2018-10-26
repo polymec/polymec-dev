@@ -1171,24 +1171,18 @@ static adj_graph_t* graph_from_unimesh_patches(unimesh_t* mesh)
   // Allocate space in the graph for the edges (patch boundaries).
   for (int i = 0; i < mesh->npx; ++i)
   {
-    int num_x_edges = (i == 0) ? (i == mesh->npx-1) ? mesh->periodic_in_x ? 2 
-                                                                          : 0
-                                                    : 1
-                               : (i == mesh->npx-1) ? 1
+    int num_x_edges = (i == 0) ? mesh->periodic_in_x ? 2 : 1
+                               : (i == mesh->npx-1) ? mesh->periodic_in_x ? 2 : 1 
                                                     : 2;
     for (int j = 0; j < mesh->npy; ++j)
     {
-      int num_y_edges = (j == 0) ? (j == mesh->npy-1) ? mesh->periodic_in_y ? 2 
-                                                                            : 0
-                                                      : 1
-                                 : (j == mesh->npy-1) ? 1
+      int num_y_edges = (j == 0) ? mesh->periodic_in_y ? 2 : 1
+                                 : (j == mesh->npy-1) ? mesh->periodic_in_z ? 2 : 1 
                                                       : 2;
       for (int k = 0; k < mesh->npz; ++k)
       {
-        int num_z_edges = (k == 0) ? (k == mesh->npz-1) ? mesh->periodic_in_z ? 2 
-                                                                              : 0
-                                                        : 1
-                                   : (k == mesh->npz-1) ? 1
+        int num_z_edges = (k == 0) ? mesh->periodic_in_z ? 2 : 1
+                                   : (k == mesh->npz-1) ? mesh->periodic_in_z ? 2 : 1 
                                                         : 2;
         int num_edges = num_x_edges + num_y_edges + num_z_edges;
         int p_index = patch_index(mesh, i, j, k);
