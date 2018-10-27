@@ -388,7 +388,6 @@ void exchanger_set_send(exchanger_t* ex,
                         bool copy_indices)
 {
   ASSERT(remote_process >= 0);
-  ASSERT(remote_process != ex->rank);
   ASSERT(remote_process < ex->nprocs);
   ASSERT(num_indices >= 0);
 
@@ -466,7 +465,6 @@ void exchanger_set_receive(exchanger_t* ex,
                            bool copy_indices)
 {
   ASSERT(remote_process >= 0);
-  ASSERT(remote_process != ex->rank);
   ASSERT(remote_process < ex->nprocs);
   ASSERT(num_indices >= 0);
 
