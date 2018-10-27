@@ -1230,6 +1230,8 @@ static lua_class_field mpi_comm_fields[] = {
 
 static int mpi_comm_tostring(lua_State* L)
 {
+  if (lua_gettop(L) == 0)
+    return luaL_error(L, "Method must be invoked with an mpi.comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, 1);
   if (comm == MPI_COMM_WORLD)
     lua_pushstring(L, "mpi.comm (MPI_COMM_WORLD)");
