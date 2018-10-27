@@ -19,6 +19,7 @@ TO-BE-FILLED-IN     PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * Improved code documentation.
     * More features exposed to lua.
     * Added partition_graph_n_ways for single-process decomposition.
+    * Exchangers can now perform local copies.
     * Reworked older Lua classes: they now use the new type system.
     * Silo 4.10 user guide added to the repo.
     * Python tool scripts now work with Python 3.
