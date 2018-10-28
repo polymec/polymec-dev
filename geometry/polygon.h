@@ -43,6 +43,13 @@ polygon_t* polygon_star(point2_t* x0, point2_t* points, size_t num_points);
 /// \memberof polygon
 size_t polygon_num_vertices(polygon_t* poly);
 
+/// Sets the vertices for an existing polygon.
+/// \param [in] vertices An array of 2D points representing the new vertices of the 
+///                      polygon.
+/// \param [in] num_vertices The number of vertices.
+/// \memberof polygon
+void polygon_set_vertices(polygon_t* poly, point2_t* vertices, size_t num_vertices);
+
 /// Returns the number of edges in the polygon (same as the number of 
 /// vertices).
 /// \memberof polygon

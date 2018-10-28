@@ -42,6 +42,9 @@ int64_t* partition_graph(adj_graph_t* global_graph,
 /// global partition vector. Unlike \ref partition_graph, this function 
 /// performs the partitioning on every process and returns the partition 
 /// vector on every process.
+/// \note Graph cutting isn't enabled on non-MPI builds. For these builds, this
+///       function performs a naive partitioning, which might not be what you want.
+///       consider using \ref partition_points_n_ways instead in this case.
 /// \param n [in] The number of pieces that graph will be cut into.
 /// \param weights [in] An array of weights for the graph's vertices, or NULL.
 /// \param imbalance_tol [in] A number between 0 and 1 representing the maximum 
@@ -65,6 +68,15 @@ int64_t* partition_points(point_t* points,
                           int* weights,
                           real_t imbalance_tol,
                           bool broadcast);
+
+/// Partitions a (serial) list of points n ways, creating and returning a partition 
+/// vector that assigns each point to one of the n pieces. This is a serial operation 
+/// involving no MPI communication.
+int64_t* partition_points_n_ways(point_t* points,
+                                 size_t num_points,
+                                 size_t n,
+                                 int* weights,
+                                 real_t imbalance_tol);
 
 /// Repartitions a local graph, creating and returning a local partition 
 /// vector with destination ranks included for ghost vertices.

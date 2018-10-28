@@ -60,10 +60,10 @@ polygon_t* polygon_new(point2_t* vertices, size_t num_vertices)
   ASSERT(vertices != NULL);
   ASSERT(num_vertices >= 3);
   polygon_t* poly = polymec_gc_malloc(sizeof(polygon_t), polygon_free);
-  poly->vertices = polymec_malloc(sizeof(point2_t)*num_vertices);
-  memcpy(poly->vertices, vertices, sizeof(point2_t)*num_vertices);
-  poly->num_vertices = num_vertices;
+  poly->vertices = NULL;
+  poly->num_vertices = 0;
   poly->area_computed = false;
+  polygon_set_vertices(poly, vertices, num_vertices);
   return poly;
 }
 
@@ -188,6 +188,14 @@ bool polygon_next_vertex(polygon_t* poly, int* pos, point2_t* vertex)
   *vertex = poly->vertices[*pos];
   ++(*pos);
   return true;
+}
+
+void polygon_set_vertices(polygon_t* poly, point2_t* vertices, size_t num_vertices)
+{
+  poly->vertices = polymec_realloc(poly->vertices, sizeof(point2_t)*num_vertices);
+  memcpy(poly->vertices, vertices, sizeof(point2_t)*num_vertices);
+  poly->num_vertices = num_vertices;
+  poly->area_computed = false;
 }
 
 real_t polygon_area(polygon_t* poly)

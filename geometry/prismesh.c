@@ -8,13 +8,10 @@
 #include "core/timer.h"
 #include "core/array.h"
 #include "core/unordered_map.h"
+#include "core/partitioning.h"
 #include "geometry/prismesh.h"
 #include "geometry/prismesh_field.h"
 #include "geometry/polymesh.h"
-
-#if POLYMEC_HAVE_MPI
-#include "core/partitioning.h"
-#endif
 
 // Chunk xy data. Shared across all "stacked" chunks.
 typedef struct 
@@ -281,13 +278,21 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   int64_t* P = partition_graph_n_ways(graph, num_xy_chunks, NULL, 0.05);
   adj_graph_free(graph);
 #else
-  // Manually and naively partition the graph into xy chunks.
-  // FIXME: If we end up experimenting with threads to do several chunks 
-  // FIXME: per process, perhaps we should use a space-filling curve here?
-  int64_t* P = polymec_malloc(sizeof(int64_t) * columns->num_cells);
-  int num_cols_per_chunk = columns->num_cells / num_xy_chunks;
-  for (int c = 0; c < columns->num_cells; ++c)
-    P[c] = (int64_t)(c / num_cols_per_chunk);
+  // Use a space-filling curve, since we haven't built graph cutting in.
+  point_t* centroids = polymec_malloc(sizeof(point_t) * columns->num_cells);
+  polygon_t* poly = planar_polymesh_cell_polygon(columns, 0);
+  for (int i = 0; i < columns->num_cells; ++i)
+  {
+    planar_polymesh_cell_get_polygon(columns, i, poly);
+    point2_t xc;
+    polygon_compute_centroid(poly, &xc);
+    centroids[i].x = xc.x;
+    centroids[i].y = xc.y;
+    centroids[i].z = 0.0;
+  }
+  int64_t* P = partition_points_n_ways(centroids, (size_t)columns->num_cells, num_xy_chunks);
+  polymec_free(centroids);
+  polymec_release(poly);
 #endif
 
   // Create xy data for chunks.

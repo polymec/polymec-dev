@@ -240,6 +240,53 @@ void planar_polymesh_reserve_connectivity_storage(planar_polymesh_t* mesh)
   }
 }
 
+void planar_polymesh_cell_get_nodes(planar_polymesh_t* mesh, 
+                                    int cell, 
+                                    int* nodes)
+{
+  ASSERT(cell >= 0);
+  ASSERT(cell < mesh->num_cells);
+  int n = 0;
+  for (int e = mesh->cell_edge_offsets[cell]; e < mesh->cell_edge_offsets[cell+1]; ++e, ++n)
+  {
+    if (e >= 0)
+      nodes[n] = mesh->edge_nodes[2*e];
+    else
+      nodes[n] = mesh->edge_nodes[2*(~e)+1];
+  }
+}
+
+polygon_t* planar_polymesh_cell_polygon(planar_polymesh_t* mesh, 
+                                        int cell)
+{
+  ASSERT(cell >= 0);
+  ASSERT(cell < mesh->num_cells);
+  size_t num_vertices = mesh->cell_edge_offsets[cell+1] - 
+                        mesh->cell_edge_offsets[cell];
+  int nodes[num_vertices];
+  planar_polymesh_cell_get_nodes(mesh, cell, nodes);
+  point2_t vertices[num_vertices];
+  for (size_t v = 0; v < num_vertices; ++v)
+    vertices[v] = mesh->nodes[nodes[v]];
+  return polygon_new(vertices, num_vertices);
+}
+
+void planar_polymesh_cell_get_polygon(planar_polymesh_t* mesh, 
+                                      int cell,
+                                      polygon_t* polygon)
+{
+  ASSERT(cell >= 0);
+  ASSERT(cell < mesh->num_cells);
+  size_t num_vertices = mesh->cell_edge_offsets[cell+1] - 
+                        mesh->cell_edge_offsets[cell];
+  int nodes[num_vertices];
+  planar_polymesh_cell_get_nodes(mesh, cell, nodes);
+  point2_t vertices[num_vertices];
+  for (size_t v = 0; v < num_vertices; ++v)
+    vertices[v] = mesh->nodes[nodes[v]];
+  polygon_set_vertices(polygon, vertices, num_vertices);
+}
+
 adj_graph_t* graph_from_planar_polymesh_cells(planar_polymesh_t* mesh)
 {
   // Create a graph whose vertices are the mesh's cells.

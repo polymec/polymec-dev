@@ -12,6 +12,7 @@
 #include "core/point2.h"
 #include "core/adj_graph.h"
 #include "geometry/tagger.h"
+#include "geometry/polygon.h"
 
 /// \addtogroup geometry geometry
 ///@{
@@ -199,6 +200,30 @@ static inline int planar_polymesh_cell_edge_for_neighbor(planar_polymesh_t* mesh
   }
   return -1;
 }
+
+/// Retrieves the nodes for the given cell, storing them in the given array.
+/// \param [in] cell The cell for which the polygon is retrieved.
+/// \param [out] nodes An array that stores the indices of the nodes for the cell, 
+///                    traversed in the same order as edges. The array must be large 
+///                    enough to fit all the nodes for the cell (which are the same 
+///                    in number as the cell's edges).
+/// \memberof planar_polymesh
+void planar_polymesh_cell_get_nodes(planar_polymesh_t* mesh, 
+                                    int cell, 
+                                    int* nodes);
+
+/// Returns a newly constructed polygon for the given cell.
+/// \param [in] cell The cell for which the polygon is retrieved.
+/// \memberof planar_polymesh
+polygon_t* planar_polymesh_cell_polygon(planar_polymesh_t* mesh, int cell);
+
+/// Retrieves the polygon for the given cell, storing it in the given polygon object.
+/// \param [in] cell The cell for which the polygon is retrieved.
+/// \param [out] polygon A polygon object in which to store the cell's geometry.
+/// \memberof planar_polymesh
+void planar_polymesh_cell_get_polygon(planar_polymesh_t* mesh, 
+                                      int cell, 
+                                      polygon_t* polygon);
 
 /// Returns true if cell1 and cell2 are neighbors that share an edge, 
 /// false otherwise.

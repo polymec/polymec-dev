@@ -220,8 +220,12 @@ int64_t* partition_graph_n_ways(adj_graph_t* global_graph,
   STOP_FUNCTION_TIMER();
   return global_partition;
 #else
+  // Do a naive partitioning.
   size_t num_global_vertices = adj_graph_num_vertices(global_graph);
-  int64_t* P = polymec_calloc(sizeof(int64_t)*num_global_vertices);
+  int64_t* P = polymec_malloc(sizeof(int64_t)*num_global_vertices);
+  int n_per_piece = num_global_vertices / n;
+  for (int i = 0; i < num_global_vertices; ++i)
+    P[i] = (int64_t)(i / n_per_piece);
   return P;
 #endif
 }
@@ -243,115 +247,22 @@ int64_t* partition_points(point_t* points,
   MPI_Comm_rank(comm, &rank);
   ASSERT((rank != 0) || (points != NULL));
 
-  // On a single process, partitioning has no meaning.
-  if (nprocs == 1)
-  {
-    // Dumb, but correct.
-    int64_t* global_partition = polymec_calloc(sizeof(int64_t) * num_points);
-    STOP_FUNCTION_TIMER();
-    return global_partition;
-  }
-
-#ifndef NDEBUG
-  // Make sure there are enough points to go around for the processes we're given.
-  if (rank == 0)
-  {
-    ASSERT(num_points > nprocs);
-  }
-#endif
-
   int64_t* global_partition = NULL;
-  size_t num_global_points = 0;
+
+  // Do an n-way partitioning on rank 0.
   if (rank == 0)
   {
-    num_global_points = num_points;
-
-    // Set up a Hilbert space filling curve that can map the given points to indices.
-    hilbert_t* hilbert = hilbert_from_points(points, num_global_points);
-
-    // Create an array of 3-tuples containing the 
-    // (point index, Hilbert index, weight) of each point. 
-    // Partitioning the points amounts to sorting this array and breaking it into parts whose 
-    // work is equal. Also sum up the work on the points.
-    index_t* part_array = polymec_malloc(sizeof(index_t) * 3 * num_global_points);
-    uint64_t total_work = 0;
-    if (weights != NULL)
-    {
-      for (int i = 0; i < num_global_points; ++i)
-      {
-        part_array[3*i]   = i;
-        part_array[3*i+1] = hilbert_index(hilbert, &points[i]);
-        part_array[3*i+2] = (index_t)weights[i];
-        total_work += weights[i];
-      }
-    }
-    else
-    {
-      for (int i = 0; i < num_global_points; ++i)
-      {
-        part_array[3*i]   = i;
-        part_array[3*i+1] = hilbert_index(hilbert, &points[i]);
-        part_array[3*i+2] = 1;
-      }
-      total_work = num_global_points;
-    }
-
-    // Sort the array.
-    qsort(part_array, num_global_points, 3*sizeof(index_t), hilbert_comp);
-
-    // Now we need to break it into parts of equal work.
-    real_t work_per_proc = 1.0 * total_work / nprocs;
-    int part_offsets[nprocs+1];
-    real_t part_work[nprocs+1];
-    part_offsets[0] = 0;
-    part_work[0] = 0.0;
-    for (int p = 0; p < nprocs; ++p)
-    {
-      int i = part_offsets[p];
-      real_t work = 0.0, last_weight = 0.0, cum_work = part_work[p];
-      while ((cum_work < ((p+1) * work_per_proc)) && 
-             (i < num_global_points))
-      {
-        last_weight = 1.0 * part_array[3*i+2];
-        work += last_weight;
-        cum_work += last_weight;
-        ++i;
-      }
-
-      // If we've obviously overloaded this process, back up one step.
-      if (((work - work_per_proc)/work_per_proc > imbalance_tol) && 
-          ((work_per_proc - (work - last_weight) <= imbalance_tol)))
-      {
-        --i;
-        work -= last_weight;
-      }
-      part_offsets[p+1] = i;
-      part_work[p+1] = cum_work;
-    }
-    
-    // Now we create the global partition vector and fill it.
-    global_partition = polymec_malloc(sizeof(int64_t) * num_global_points);
-    int k = 0;
-    for (int p = 0; p < nprocs; ++p)
-    {
-      for (int i = part_offsets[p]; i < part_offsets[p+1]; ++i, ++k)
-      {
-        index_t j = part_array[3*k];
-        global_partition[j] = p;
-      }
-    }
-    
-    // Clean up.
-    polymec_free(part_array);
+    global_partition = partition_points_n_ways(points, num_points, nprocs,
+                                               weights, imbalance_tol);
   }
 
   // Now broadcast the partition vector if we're asked to.
   if (broadcast)
   {
-    MPI_Bcast(&num_global_points, 1, MPI_SIZE_T, 0, comm);
+    MPI_Bcast(&num_points, 1, MPI_SIZE_T, 0, comm);
     if (rank != 0)
-      global_partition = polymec_malloc(sizeof(int64_t) * num_global_points);
-    MPI_Bcast(global_partition, (int)num_global_points, MPI_INT64_T, 0, comm);
+      global_partition = polymec_malloc(sizeof(int64_t) * num_points);
+    MPI_Bcast(global_partition, (int)num_points, MPI_INT64_T, 0, comm);
   }
 
   STOP_FUNCTION_TIMER();
@@ -362,6 +273,110 @@ int64_t* partition_points(point_t* points,
   int64_t* global_partition = polymec_calloc(sizeof(int64_t) * num_points);
   return global_partition;
 #endif
+}
+
+int64_t* partition_points_n_ways(point_t* points,
+                                 size_t num_points,
+                                 size_t n,
+                                 int* weights,
+                                 real_t imbalance_tol)
+{
+  START_FUNCTION_TIMER();
+  ASSERT((weights == NULL) || (imbalance_tol > 0.0));
+  ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
+
+  // Handle the trivial case.
+  if (n == 1)
+  {
+    int64_t* global_partition = polymec_calloc(sizeof(int64_t) * num_points);
+    STOP_FUNCTION_TIMER();
+    return global_partition;
+  }
+
+#ifndef NDEBUG
+  // Make sure there are enough points to go around for the number we're given.
+  ASSERT(num_points > n);
+#endif
+
+  // Set up a Hilbert space filling curve that can map the given points to indices.
+  hilbert_t* hilbert = hilbert_from_points(points, num_points);
+
+  // Create an array of 3-tuples containing the 
+  // (point index, Hilbert index, weight) of each point. 
+  // Partitioning the points amounts to sorting this array and breaking it into parts whose 
+  // work is equal. Also sum up the work on the points.
+  index_t* part_array = polymec_malloc(sizeof(index_t) * 3 * num_points);
+  uint64_t total_work = 0;
+  if (weights != NULL)
+  {
+    for (int i = 0; i < num_points; ++i)
+    {
+      part_array[3*i]   = i;
+      part_array[3*i+1] = hilbert_index(hilbert, &points[i]);
+      part_array[3*i+2] = (index_t)weights[i];
+      total_work += weights[i];
+    }
+  }
+  else
+  {
+    for (int i = 0; i < num_points; ++i)
+    {
+      part_array[3*i]   = i;
+      part_array[3*i+1] = hilbert_index(hilbert, &points[i]);
+      part_array[3*i+2] = 1;
+    }
+    total_work = num_points;
+  }
+
+  // Sort the array.
+  qsort(part_array, num_points, 3*sizeof(index_t), hilbert_comp);
+
+  // Now we need to break it into parts of equal work.
+  real_t work_per_proc = 1.0 * total_work / n;
+  int part_offsets[n+1];
+  real_t part_work[n+1];
+  part_offsets[0] = 0;
+  part_work[0] = 0.0;
+  for (int p = 0; p < n; ++p)
+  {
+    int i = part_offsets[p];
+    real_t work = 0.0, last_weight = 0.0, cum_work = part_work[p];
+    while ((cum_work < ((p+1) * work_per_proc)) && (i < num_points))
+    {
+      last_weight = 1.0 * part_array[3*i+2];
+      work += last_weight;
+      cum_work += last_weight;
+      ++i;
+    }
+
+    // If we've obviously overloaded this process, back up one step.
+    if (((work - work_per_proc)/work_per_proc > imbalance_tol) && 
+        ((work_per_proc - (work - last_weight) <= imbalance_tol)))
+    {
+      --i;
+      work -= last_weight;
+    }
+    part_offsets[p+1] = i;
+    part_work[p+1] = cum_work;
+  }
+   
+  // Now we create the global partition vector and fill it.
+  int64_t* global_partition = polymec_malloc(sizeof(int64_t) * num_points);
+  int k = 0;
+  for (int p = 0; p < n; ++p)
+  {
+    for (int i = part_offsets[p]; i < part_offsets[p+1]; ++i, ++k)
+    {
+      index_t j = part_array[3*k];
+      global_partition[j] = p;
+    }
+  }
+    
+  // Clean up.
+  polymec_free(part_array);
+
+  STOP_FUNCTION_TIMER();
+  return global_partition;
 }
 
 int64_t* repartition_graph(adj_graph_t* local_graph, 
