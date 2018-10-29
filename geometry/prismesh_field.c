@@ -10,15 +10,15 @@
 #include "core/unordered_map.h"
 #include "geometry/prismesh_field.h"
 
-static prismesh_chunk_data_t* prismesh_chunk_data_new(prismesh_chunk_t* chunk,
-                                                      prismesh_centering_t centering,
-                                                      size_t num_components)
+static prismesh_chunk_data_t* prismesh_chunk_data_with_buffer(prismesh_chunk_t* chunk,
+                                                              prismesh_centering_t centering,
+                                                              size_t num_components, 
+                                                              void* buffer)
 {
   prismesh_chunk_data_t* data = polymec_malloc(sizeof(prismesh_chunk_data_t));
   data->chunk = chunk;
   data->centering = centering;
   data->num_components = num_components;
-  data->ex_token = -1;
 
   // Figure out the dimensions of our data.
   if (centering == PRISMESH_CELL)
@@ -52,14 +52,12 @@ static prismesh_chunk_data_t* prismesh_chunk_data_new(prismesh_chunk_t* chunk,
     data->xy_size = chunk->num_xy_faces;
     data->z_size = 2*chunk->num_z_cells;
   }
-  size_t data_size = data->xy_size * data->z_size * num_components;
-  data->data = polymec_calloc(sizeof(real_t) * data_size);
+  data->data = buffer;
   return data;
 }
 
 static void prismesh_chunk_data_free(prismesh_chunk_data_t* data)
 {
-  polymec_free(data->data);
   polymec_free(data);
 }
 
@@ -74,23 +72,6 @@ void prismesh_chunk_data_copy(prismesh_chunk_data_t* data,
   memcpy(dest->data, data->data, prismesh_chunk_data_size(data));
 }
 
-#if POLYMEC_HAVE_MPI
-static void prismesh_chunk_data_start_exchange(prismesh_chunk_data_t* chunk_data,
-                                               exchanger_t* ex)
-{
-  ASSERT(chunk_data->ex_token == -1);
-  // FIXME
-  chunk_data->ex_token = exchanger_start_exchange(ex, chunk_data->data, 1, 0, MPI_REAL_T);
-}
-
-static void prismesh_chunk_data_finish_exchange(prismesh_chunk_data_t* chunk_data,
-                                                exchanger_t* ex)
-{
-  exchanger_finish_exchange(ex, chunk_data->ex_token);
-  chunk_data->ex_token = -1;
-}
-#endif
-
 DEFINE_UNORDERED_MAP(chunk_data_map, int, prismesh_chunk_data_t*, int_hash, int_equals)
 
 struct prismesh_field_t 
@@ -99,10 +80,16 @@ struct prismesh_field_t
   prismesh_centering_t centering;
   size_t num_components;
 
+  // Chunks and data storage.
   size_t num_xy_chunks, num_z_chunks;
   chunk_data_map_t* chunks;
+  void* buffer;
+  size_t bytes;
+  bool owns_buffer;
 
-  bool is_exchanging;
+  // Exchangers.
+  exchanger_t *xy_ex, *z_ex;
+  int xy_ex_token, z_ex_token;
 };
 
 static inline int chunk_index(prismesh_field_t* field, int xy_index, int z_index)
@@ -110,38 +97,73 @@ static inline int chunk_index(prismesh_field_t* field, int xy_index, int z_index
   return (int)(field->num_z_chunks * xy_index + z_index);
 }
 
-prismesh_field_t* prismesh_field_new(prismesh_t* mesh,
-                                     prismesh_centering_t centering,
-                                     size_t num_components)
+prismesh_field_t* prismesh_field_with_buffer(prismesh_t* mesh,
+                                             prismesh_centering_t centering,
+                                             size_t num_components,
+                                             void* buffer)
 {
+  START_FUNCTION_TIMER();
   ASSERT(num_components > 0);
   prismesh_field_t* field = polymec_malloc(sizeof(prismesh_field_t));
   field->mesh = mesh;
   field->centering = centering;
   field->num_components = num_components;
+
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
   prismesh_get_chunk_info(mesh, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   field->num_xy_chunks = num_xy_chunks;
   field->num_z_chunks = num_z_chunks;
-  field->is_exchanging = false;
 
-  // Create data for each of the chunks in the mesh.
+  field->chunks = chunk_data_map_new();
+  field->buffer = NULL;
+  field->bytes = 0;
+  field->owns_buffer = false;
+
+  // Set up exchangers and tokens.
+  // FIXME
+  field->xy_ex = NULL;
+  field->xy_ex_token = -1;
+  field->z_ex = NULL;
+  field->z_ex_token = -1;
+
+  // Now populate the chunks (with NULL buffers).
   int pos = 0, xy_index, z_index;
   prismesh_chunk_t* chunk;
   while (prismesh_next_chunk(mesh, &pos, &xy_index, &z_index, &chunk))
   {
     int ch_index = chunk_index(field, xy_index, z_index);
-    prismesh_chunk_data_t* data = prismesh_chunk_data_new(chunk, centering, num_components);
-    chunk_data_map_insert_with_v_dtor(field->chunks, ch_index, data, 
-                                      prismesh_chunk_data_free);
+    prismesh_chunk_data_t* chunk_data = prismesh_chunk_data_with_buffer(chunk, centering, num_components, NULL);
+    chunk_data_map_insert_with_v_dtor(field->chunks, ch_index, chunk_data, prismesh_chunk_data_free);
+    field->bytes += prismesh_chunk_data_size(chunk_data);
   }
 
+  // Use the given buffer.
+  prismesh_field_set_buffer(field, buffer, false);
+
+  STOP_FUNCTION_TIMER();
+  return field;
+}
+
+prismesh_field_t* prismesh_field_new(prismesh_t* mesh,
+                                     prismesh_centering_t centering,
+                                     size_t num_components)
+{
+  ASSERT(num_components > 0);
+  START_FUNCTION_TIMER();
+  prismesh_field_t* field = prismesh_field_with_buffer(mesh, centering, num_components, NULL);
+  void* buffer = polymec_malloc(field->bytes);
+  prismesh_field_set_buffer(field, buffer, true);
+  STOP_FUNCTION_TIMER();
   return field;
 }
 
 void prismesh_field_free(prismesh_field_t* field)
 {
   chunk_data_map_free(field->chunks);
+  if (field->owns_buffer)
+    polymec_free(field->buffer);
+  polymec_release(field->xy_ex);
+  polymec_release(field->z_ex);
   polymec_free(field);
 }
 
@@ -163,6 +185,33 @@ size_t prismesh_field_num_chunks(prismesh_field_t* field)
 prismesh_t* prismesh_field_mesh(prismesh_field_t* field)
 {
   return field->mesh;
+}
+
+void* prismesh_field_buffer(prismesh_field_t* field)
+{
+  return field->buffer;
+}
+
+void prismesh_field_set_buffer(prismesh_field_t* field, 
+                               void* buffer, 
+                               bool assume_control)
+{
+  START_FUNCTION_TIMER();
+  if ((field->buffer != NULL) && field->owns_buffer)
+    polymec_free(field->buffer);
+  field->buffer = buffer;
+  field->owns_buffer = assume_control;
+
+  // Point the patches at the buffer.
+  int pos = 0, xy_index, z_index;
+  prismesh_chunk_data_t* chunk_data;
+  size_t offset = 0;
+  while (prismesh_field_next_chunk(field, &pos, &xy_index, &z_index, &chunk_data))
+  {
+    chunk_data->data = &(((real_t*)buffer)[offset]);
+    offset += prismesh_chunk_data_size(chunk_data);
+  }
+  STOP_FUNCTION_TIMER();
 }
 
 void prismesh_field_copy(prismesh_field_t* field,
@@ -217,23 +266,18 @@ void prismesh_field_exchange(prismesh_field_t* field)
   prismesh_field_finish_exchange(field);
 }
 
-#if POLYMEC_HAVE_MPI
-extern exchanger_t* prismesh_chunk_exchanger(prismesh_chunk_t* mesh, 
-                                             prismesh_centering_t centering);
-#endif
 void prismesh_field_start_exchange(prismesh_field_t* field)
 {
 #if POLYMEC_HAVE_MPI
   ASSERT(!prismesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
-  field->is_exchanging = true;
-  int pos = 0, xy, z;
-  prismesh_chunk_data_t* chunk_data;
-  while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk_data))
-  {
-    exchanger_t* ex = prismesh_chunk_exchanger(chunk_data->chunk, field->centering);
-    prismesh_chunk_data_start_exchange(chunk_data, ex);
-  }
+
+  // Start the xy exchange.
+  int stride = 1; // FIXME
+  field->xy_ex_token = exchanger_start_exchange(field->xy_ex, field->buffer, stride, 0, MPI_REAL_T);
+
+  // Now start the z exchange.
+  field->z_ex_token = exchanger_start_exchange(field->z_ex, field->buffer, stride, 0, MPI_REAL_T);
   STOP_FUNCTION_TIMER();
 #endif
 }
@@ -243,21 +287,15 @@ void prismesh_field_finish_exchange(prismesh_field_t* field)
 #if POLYMEC_HAVE_MPI
   ASSERT(prismesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
-  int pos = 0, xy, z;
-  prismesh_chunk_data_t* chunk_data;
-  while (prismesh_field_next_chunk(field, &pos, &xy, &z, &chunk_data))
-  {
-    exchanger_t* ex = prismesh_chunk_exchanger(chunk_data->chunk, field->centering);
-    prismesh_chunk_data_finish_exchange(chunk_data, ex);
-  }
-  field->is_exchanging = false;
+  exchanger_finish_exchange(field->xy_ex, field->xy_ex_token);
+  exchanger_finish_exchange(field->z_ex, field->z_ex_token);
   STOP_FUNCTION_TIMER();
 #endif
 }
 
 bool prismesh_field_is_exchanging(prismesh_field_t* field)
 {
-  return field->is_exchanging;
+  return ((field->xy_ex_token != -1) || (field->z_ex_token != -1));
 }
 
 real_enumerable_generator_t* prismesh_field_enumerate(prismesh_field_t* field)

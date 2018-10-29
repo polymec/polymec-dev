@@ -40,9 +40,6 @@ struct prismesh_chunk_data_t
 
   /// The number of components for a datum in the field.
   size_t num_components;
-
-  /// Exchanger token used to control exchanges of this field.
-  int ex_token;
 };
 typedef struct prismesh_chunk_data_t prismesh_chunk_data_t;
 
@@ -60,14 +57,41 @@ void prismesh_chunk_data_copy(prismesh_chunk_data_t* data,
 
 /// Constructs a new prismesh field with the given number of components
 /// on the given mesh.
+/// \param [in] mesh The prismesh on which the field is created.
+/// \param [in] centering The centering of which the new field.
+/// \param [in] num_components The number of components in the new field.
 /// \memberof prismesh_field
 prismesh_field_t* prismesh_field_new(prismesh_t* mesh,
                                      prismesh_centering_t centering,
                                      size_t num_components);
 
+/// Constructs a new prismesh field that uses the given buffer for data storage.
+/// \param [in] mesh The prismesh on which the field is created.
+/// \param [in] centering The centering of which the new field.
+/// \param [in] num_components The number of components in the new field.
+/// \param [in] buffer The buffer to use for storing field data. Must be ample for storing all the 
+///                    field's data.
+/// \memberof prismesh_field
+prismesh_field_t* prismesh_field_with_buffer(prismesh_t* mesh,
+                                             prismesh_centering_t centering,
+                                             size_t num_components,
+                                             void* buffer);
+
 /// Destroys the given prismesh field.
 /// \memberof prismesh_field
 void prismesh_field_free(prismesh_field_t* field);
+
+/// Returns the buffer used to store the field's data.
+/// \memberof prismesh_field
+void* prismesh_field_buffer(prismesh_field_t* field);
+
+/// Sets the buffer used by the field to store its data.
+/// \param [in] buffer The buffer used by the field. Must be ample for storing the field's data.
+/// \param [in] assume_control If true, the field assumes ownership of the buffer. Otherwise it does not.
+/// \memberof prismesh_field
+void prismesh_field_set_buffer(prismesh_field_t* field, 
+                               void* buffer, 
+                               bool assume_control);
 
 /// Copies the data in this field to a destination field.
 /// \memberof prismesh_field

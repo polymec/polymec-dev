@@ -107,14 +107,13 @@ unimesh_field_t* unimesh_field_with_buffer(unimesh_t* mesh,
   // Now populate the patches (with NULL buffers).
   int px, py, pz;
   unimesh_get_patch_size(mesh, &px, &py, &pz);
-  int pos = 0, i, j, k, l = 0;
+  int pos = 0, i, j, k;
   while (unimesh_next_patch(mesh, &pos, &i, &j, &k, NULL))
   {
     int index = patch_index(field, i, j, k);
     int_ptr_unordered_map_insert_with_v_dtor(field->patches, index, 
       unimesh_patch_with_buffer(centering, px, py, pz, num_components, NULL),
       DTOR(unimesh_patch_free));
-    ++l;
   }
 
   // Figure out buffer offsets and use the given buffer.
