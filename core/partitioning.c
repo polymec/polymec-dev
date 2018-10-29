@@ -221,6 +221,7 @@ int64_t* partition_graph_n_ways(adj_graph_t* global_graph,
   return global_partition;
 #else
   // Do a naive partitioning.
+  log_urgent("partition_graph_n_ways: MPI disabled. Performing naive partitioning. This probably isn't what you want.");
   size_t num_global_vertices = adj_graph_num_vertices(global_graph);
   int64_t* P = polymec_malloc(sizeof(int64_t)*num_global_vertices);
   int n_per_piece = num_global_vertices / n;
