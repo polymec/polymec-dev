@@ -1680,7 +1680,7 @@ static int prismesh_repartition(lua_State* L)
   if (nprocs == 1)
     return 0;
 
-  // Perform the repartitioning and toss the migrator. FIXME: Add fields
+  // Perform the repartitioning. FIXME: Add fields
   repartition_prismesh(&mesh, NULL, imbalance_tol, NULL, 0);
   return 0;
 }
@@ -2079,7 +2079,7 @@ static int polymesh_repartition(lua_State* L)
   if (global_num_cells < nprocs)
     return luaL_error(L, "Insufficient number of cells (%zd) for number of processes (%d).", global_num_cells, nprocs);
 
-  // Perform the repartitioning and toss the migrator. FIXME: Add fields
+  // Perform the repartitioning. FIXME: Add fields
   bool result = repartition_polymesh(&mesh, NULL, imbalance_tol, NULL, 0);
   lua_pushboolean(L, result);
   return 1;
