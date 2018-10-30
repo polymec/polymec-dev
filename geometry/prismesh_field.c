@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "core/enumerable.h"
+#include "core/exchanger.h"
 #include "core/timer.h"
 #include "core/unordered_map.h"
 #include "geometry/prismesh_field.h"
@@ -99,12 +100,10 @@ static inline int chunk_index(prismesh_field_t* field, int xy_index, int z_index
   return (int)(field->num_z_chunks * xy_index + z_index);
 }
 
-#if POLYMEC_HAVE_MPI
 extern exchanger_t* prismesh_xy_exchanger(prismesh_t* mesh, 
                                           prismesh_centering_t centering);
 extern exchanger_t* prismesh_z_exchanger(prismesh_t* mesh, 
                                          prismesh_centering_t centering);
-#endif
 
 prismesh_field_t* prismesh_field_with_buffer(prismesh_t* mesh,
                                              prismesh_centering_t centering,
@@ -128,13 +127,11 @@ prismesh_field_t* prismesh_field_with_buffer(prismesh_t* mesh,
   field->bytes = 0;
   field->owns_buffer = false;
 
-#if POLYMEC_HAVE_MPI
   // Set up exchangers and tokens.
   field->xy_ex = prismesh_xy_exchanger(mesh, centering);
   field->xy_ex_token = -1;
   field->z_ex = prismesh_z_exchanger(mesh, centering);
   field->z_ex_token = -1;
-#endif
 
   // Now populate the chunks (with NULL buffers).
   int pos = 0, xy_index, z_index;
@@ -278,7 +275,6 @@ void prismesh_field_exchange(prismesh_field_t* field)
 
 void prismesh_field_start_exchange(prismesh_field_t* field)
 {
-#if POLYMEC_HAVE_MPI
   ASSERT(!prismesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
 
@@ -296,12 +292,10 @@ void prismesh_field_start_exchange(prismesh_field_t* field)
     field->z_ex_token = exchanger_start_exchange(field->z_ex, field->buffer, stride, 0, MPI_REAL_T);
   }
   STOP_FUNCTION_TIMER();
-#endif
 }
 
 void prismesh_field_finish_exchange(prismesh_field_t* field)
 {
-#if POLYMEC_HAVE_MPI
   ASSERT(prismesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
   if (field->xy_ex_token != -1)
@@ -309,7 +303,6 @@ void prismesh_field_finish_exchange(prismesh_field_t* field)
   if (field->z_ex_token != -1)
     exchanger_finish_exchange(field->z_ex, field->z_ex_token);
   STOP_FUNCTION_TIMER();
-#endif
 }
 
 bool prismesh_field_is_exchanging(prismesh_field_t* field)

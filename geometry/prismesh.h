@@ -9,7 +9,6 @@
 #define POLYMEC_PRISMESH_H
 
 #include "core/point.h"
-#include "core/exchanger.h"
 #include "geometry/planar_polymesh.h"
 #include "geometry/polygon.h"
 
@@ -90,9 +89,6 @@ struct prismesh_chunk_t
 
   /// The positions of the nodes in this chunk (in the xy plane).
   point2_t* xy_nodes;
-
-  /// Parallel field exchangers. Probably best to leave these alone.
-  exchanger_t* cell_ex;
 };
 typedef struct prismesh_chunk_t prismesh_chunk_t;
 
