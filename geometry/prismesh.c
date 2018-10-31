@@ -226,14 +226,12 @@ struct prismesh_t
   int* chunk_indices;
 
   // Exchangers.
-  exchanger_t* xy_cell_ex;
+  exchanger_t* cell_ex;
   exchanger_t* xy_face_ex;
-  exchanger_t* xy_edge_ex;
-  exchanger_t* xy_node_ex;
-  exchanger_t* z_cell_ex;
   exchanger_t* z_face_ex;
+  exchanger_t* xy_edge_ex;
   exchanger_t* z_edge_ex;
-  exchanger_t* z_node_ex;
+  exchanger_t* node_ex;
 
   // True if the mesh is periodic along the z axis, false if not.
   bool periodic_in_z;
@@ -301,14 +299,12 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   }
 
   // No exchangers yet.
-  mesh->xy_cell_ex = NULL;
+  mesh->cell_ex = NULL;
   mesh->xy_face_ex = NULL;
-  mesh->xy_edge_ex = NULL;
-  mesh->xy_node_ex = NULL;
-  mesh->z_cell_ex = NULL;
   mesh->z_face_ex = NULL;
+  mesh->xy_edge_ex = NULL;
   mesh->z_edge_ex = NULL;
-  mesh->z_node_ex = NULL;
+  mesh->node_ex = NULL;
 
   // Clean up.
   polymec_free(P);
@@ -465,22 +461,18 @@ void prismesh_free(prismesh_t* mesh)
   polymec_free(mesh->chunk_indices);
   chunk_map_free(mesh->chunks);
   chunk_xy_data_array_free(mesh->chunk_xy_data);
-  if (mesh->xy_cell_ex != NULL)
-    polymec_release(mesh->xy_cell_ex);
+  if (mesh->cell_ex != NULL)
+    polymec_release(mesh->cell_ex);
   if (mesh->xy_face_ex != NULL)
     polymec_release(mesh->xy_face_ex);
-  if (mesh->xy_edge_ex != NULL)
-    polymec_release(mesh->xy_edge_ex);
-  if (mesh->xy_node_ex != NULL)
-    polymec_release(mesh->xy_node_ex);
-  if (mesh->z_cell_ex != NULL)
-    polymec_release(mesh->z_cell_ex);
   if (mesh->z_face_ex != NULL)
     polymec_release(mesh->z_face_ex);
+  if (mesh->xy_edge_ex != NULL)
+    polymec_release(mesh->xy_edge_ex);
   if (mesh->z_edge_ex != NULL)
     polymec_release(mesh->z_edge_ex);
-  if (mesh->z_node_ex != NULL)
-    polymec_release(mesh->z_node_ex);
+  if (mesh->node_ex != NULL)
+    polymec_release(mesh->node_ex);
   polymec_free(mesh);
 }
 
@@ -1002,34 +994,22 @@ polymesh_t* prismesh_as_polymesh(prismesh_t* mesh)
 
 #if POLYMEC_HAVE_MPI
 // These functions provide access to exchangers for prismesh_fields.
-exchanger_t* prismesh_xy_exchanger(prismesh_t* mesh, 
-                                   prismesh_centering_t centering);
-exchanger_t* prismesh_xy_exchanger(prismesh_t* mesh, 
-                                   prismesh_centering_t centering)
+exchanger_t* prismesh_exchanger(prismesh_t* mesh, 
+                                prismesh_centering_t centering);
+exchanger_t* prismesh_exchanger(prismesh_t* mesh, 
+                                prismesh_centering_t centering)
 {
+  exchanger_t* ex = NULL;
   switch (centering)
   {
-    case PRISMESH_CELL: return mesh->xy_cell_ex;
-    case PRISMESH_XYFACE: return mesh->xy_face_ex;
-    case PRISMESH_ZEDGE: return mesh->xy_edge_ex;
-    case PRISMESH_NODE: return mesh->xy_node_ex;
-    default: return NULL; // no other exchanges needed!
+    case PRISMESH_CELL: ex = mesh->cell_ex; break;
+    case PRISMESH_XYFACE: ex = mesh->xy_face_ex; break;
+    case PRISMESH_ZFACE: ex = mesh->z_face_ex; break;
+    case PRISMESH_XYEDGE: ex = mesh->xy_edge_ex; break;
+    case PRISMESH_ZEDGE: ex = mesh->z_edge_ex; break;
+    case PRISMESH_NODE: ex = mesh->node_ex; break;
   }
-}
-
-exchanger_t* prismesh_z_exchanger(prismesh_t* mesh, 
-                                  prismesh_centering_t centering);
-exchanger_t* prismesh_z_exchanger(prismesh_t* mesh, 
-                                  prismesh_centering_t centering)
-{
-  switch (centering)
-  {
-    case PRISMESH_CELL: return mesh->z_cell_ex;
-    case PRISMESH_ZFACE: return mesh->z_face_ex;
-    case PRISMESH_XYEDGE: return mesh->z_edge_ex;
-    case PRISMESH_NODE: return mesh->z_node_ex;
-    default: return NULL; // no other exchanges needed!
-  }
+  return ex;
 }
 
 #endif

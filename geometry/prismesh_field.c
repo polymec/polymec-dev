@@ -90,8 +90,8 @@ struct prismesh_field_t
 
 #if POLYMEC_HAVE_MPI
   // Exchangers.
-  exchanger_t *xy_ex, *z_ex;
-  int xy_ex_token, z_ex_token;
+  exchanger_t *ex;
+  int ex_token;
 #endif
 };
 
@@ -100,10 +100,8 @@ static inline int chunk_index(prismesh_field_t* field, int xy_index, int z_index
   return (int)(field->num_z_chunks * xy_index + z_index);
 }
 
-extern exchanger_t* prismesh_xy_exchanger(prismesh_t* mesh, 
-                                          prismesh_centering_t centering);
-extern exchanger_t* prismesh_z_exchanger(prismesh_t* mesh, 
-                                         prismesh_centering_t centering);
+extern exchanger_t* prismesh_exchanger(prismesh_t* mesh, 
+                                       prismesh_centering_t centering);
 
 prismesh_field_t* prismesh_field_with_buffer(prismesh_t* mesh,
                                              prismesh_centering_t centering,
@@ -128,10 +126,8 @@ prismesh_field_t* prismesh_field_with_buffer(prismesh_t* mesh,
   field->owns_buffer = false;
 
   // Set up exchangers and tokens.
-  field->xy_ex = prismesh_xy_exchanger(mesh, centering);
-  field->xy_ex_token = -1;
-  field->z_ex = prismesh_z_exchanger(mesh, centering);
-  field->z_ex_token = -1;
+  field->ex = prismesh_exchanger(mesh, centering);
+  field->ex_token = -1;
 
   // Now populate the chunks (with NULL buffers).
   int pos = 0, xy_index, z_index;
@@ -169,8 +165,7 @@ void prismesh_field_free(prismesh_field_t* field)
   chunk_data_map_free(field->chunks);
   if (field->owns_buffer)
     polymec_free(field->buffer);
-  polymec_release(field->xy_ex);
-  polymec_release(field->z_ex);
+  polymec_release(field->ex);
   polymec_free(field);
 }
 
@@ -279,18 +274,8 @@ void prismesh_field_start_exchange(prismesh_field_t* field)
   START_FUNCTION_TIMER();
 
   // Start the xy exchange.
-  if (field->xy_ex != NULL)
-  {
-    int stride = 1; // FIXME
-    field->xy_ex_token = exchanger_start_exchange(field->xy_ex, field->buffer, stride, 0, MPI_REAL_T);
-  }
-
-  // Now start the z exchange.
-  if (field->z_ex != NULL)
-  {
-    int stride = 1; // FIXME
-    field->z_ex_token = exchanger_start_exchange(field->z_ex, field->buffer, stride, 0, MPI_REAL_T);
-  }
+  int stride = 1; // FIXME
+  field->ex_token = exchanger_start_exchange(field->ex, field->buffer, stride, 0, MPI_REAL_T);
   STOP_FUNCTION_TIMER();
 }
 
@@ -298,16 +283,14 @@ void prismesh_field_finish_exchange(prismesh_field_t* field)
 {
   ASSERT(prismesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
-  if (field->xy_ex_token != -1)
-    exchanger_finish_exchange(field->xy_ex, field->xy_ex_token);
-  if (field->z_ex_token != -1)
-    exchanger_finish_exchange(field->z_ex, field->z_ex_token);
+  if (field->ex_token != -1)
+    exchanger_finish_exchange(field->ex, field->ex_token);
   STOP_FUNCTION_TIMER();
 }
 
 bool prismesh_field_is_exchanging(prismesh_field_t* field)
 {
-  return ((field->xy_ex_token != -1) || (field->z_ex_token != -1));
+  return (field->ex_token != -1);
 }
 
 real_enumerable_generator_t* prismesh_field_enumerate(prismesh_field_t* field)
