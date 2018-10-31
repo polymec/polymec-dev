@@ -964,7 +964,7 @@ void repartition_prismesh(prismesh_t** mesh,
   int64_t* sources = source_vector(old_mesh);
 
   // Redistribute the mesh. 
-  log_debug("repartition_peximesh: Redistributing mesh.");
+  log_debug("repartition_prismmesh: Redistributing mesh.");
   redistribute_prismesh(mesh, P, sources);
 
   // Redistribute the fields.
