@@ -28,7 +28,7 @@ typedef struct
   size_t num_xy_nodes;
   point2_t* xy_nodes;
 
-  // Exchanger process maps--used to construct chunk exchangers.
+  // Exchanger process maps--used to construct exchangers.
   exchanger_proc_map_t* send_map;
   exchanger_proc_map_t* receive_map;
 } chunk_xy_data_t;
@@ -978,16 +978,13 @@ void repartition_prismesh(prismesh_t** mesh,
   ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
   ASSERT((fields != NULL) || (num_fields == 0));
 #if POLYMEC_HAVE_MPI
-  START_FUNCTION_TIMER();
 
   // On a single process, repartitioning has no meaning.
   prismesh_t* old_mesh = *mesh;
   if (old_mesh->nproc == 1) 
-  {
-    STOP_FUNCTION_TIMER();
     return;
-  }
 
+  START_FUNCTION_TIMER();
   // Map the mesh's graph to the new domains, producing a partition vector.
   // We need the partition vector on all processes in the communicator, so we 
   // scatter it from rank 0.
