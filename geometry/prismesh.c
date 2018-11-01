@@ -428,40 +428,103 @@ void prismesh_finalize(prismesh_t* mesh)
 {
   ASSERT(!mesh->finalized);
 
+  // Create a sorted list of chunk indices and compute chunk index offsets.
+  mesh->chunk_indices = polymec_malloc(sizeof(int) * 2 * mesh->chunks->size);
+  int chunk_offsets[mesh->chunks->size+1];
+  chunk_offsets[0] = 0;
+  {
+    size_t k = 0;
+    for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
+    {
+      size_t num_z_chunks = 0;
+      for (size_t j = 0; j < mesh->num_z_chunks; ++j)
+      {
+        int index = chunk_index(mesh, (int)i, (int)j);
+        prismesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
+        if (chunk_p != NULL)
+        {
+          prismesh_chunk_t* chunk    = *chunk_p;
+          chunk_offsets[k+1]         = chunk_offsets[k] + 
+                                       (int)(chunk->num_columns * chunk->num_z_cells);
+          mesh->chunk_indices[2*k]   = (int)i;
+          mesh->chunk_indices[2*k+1] = (int)j;
+          ++k;
+          ++num_z_chunks;
+        }
+      }
+    }
+    ASSERT(k == mesh->chunks->size);
+  }
+
 #if POLYMEC_HAVE_MPI
   // Figure out which processes own what chunks.
   int64_t* owners = source_vector(mesh);
 
-  // Assemble a cell exchanger.
+  // Assemble a cell exchanger by traversing the locally stored chunks.
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
   exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
-  for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
+  for (size_t i = 0; i < mesh->chunks->size; ++i)
   {
-    chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[i];
+    int xy = mesh->chunk_indices[2*i];
+    int z = mesh->chunk_indices[2*i+1];
+    int ch_index = chunk_index(mesh, xy, z);
+    prismesh_chunk_t* chunk = *chunk_map_get(mesh->chunks, ch_index);
+    int chunk_offset = chunk_offsets[i];
+
+    chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy];
     exchanger_proc_map_t* xy_sends = xy_data->send_map;
     exchanger_proc_map_t* xy_receives = xy_data->receive_map;
-    for (size_t j = 0; j < mesh->num_z_chunks; ++j)
-    {
-      // Hook up the xy sends/receives.
-      int pos = 0, neighbor_xy_index;
-      int_array_t* indices;
-      while (exchanger_proc_map_next(xy_sends, &pos, &neighbor_xy_index, &indices))
-      {
-      }
-      pos = 0;
-      while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
-      {
-      }
 
-      // Now hook up the z sends/receives.
-      if (j > 0)
+    // Hook up the xy sends/receives.
+    int pos = 0, neighbor_xy_index;
+    int_array_t* indices;
+    while (exchanger_proc_map_next(xy_sends, &pos, &neighbor_xy_index, &indices))
+    {
+      for (size_t k = 0; k < indices->size; ++k)
       {
-        for (size_t xy = 0; xy < xy_data->num_columns; ++xy)
-        {
-          for (size_t z = 0; z < mesh->nz_per_chunk; ++z)
-          {
-          }
-        }
+        int proc = owners[neighbor_xy_index];
+        int index = chunk_offset + chunk->num_z_cells * indices->data[k] + z;
+        exchanger_proc_map_add_index(send_map, proc, index);
+      }
+    }
+    pos = 0;
+    int cell_offset = 0;
+    while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
+    {
+      for (size_t k = 0; k < indices->size; ++k)
+      {
+        int proc = owners[neighbor_xy_index];
+        int index = chunk_offset + chunk->num_z_cells * cell_offset + z; // FIXME: Not right!
+        exchanger_proc_map_add_index(receive_map, proc, index);
+        ++cell_offset;
+      }
+    }
+
+    // Now hook up the z sends/receives.
+    if (z > 0)
+    {
+      for (size_t xy1 = 0; xy1 < xy_data->num_columns; ++xy1)
+      {
+        int ch1_index = chunk_index(mesh, xy1, z-1);
+        int proc = owners[ch1_index];
+        int send_index = chunk_offset + chunk->num_z_cells * xy1;
+        int receive_index = cell_offset; // FIXME: Not right!
+        exchanger_proc_map_add_index(send_map, proc, send_index);
+        exchanger_proc_map_add_index(receive_map, proc, receive_index);
+        ++cell_offset;
+      }
+    }
+    if (z < (mesh->num_z_chunks-1))
+    {
+      for (size_t xy1 = 0; xy1 < xy_data->num_columns; ++xy1)
+      {
+        int ch1_index = chunk_index(mesh, xy1, z+1);
+        int proc = owners[ch1_index];
+        int send_index = chunk_offset + chunk->num_z_cells * xy1 + chunk->num_z_cells - 1;
+        int receive_index = cell_offset; // FIXME: Not right!
+        exchanger_proc_map_add_index(send_map, proc, send_index);
+        exchanger_proc_map_add_index(receive_map, proc, receive_index);
+        ++cell_offset;
       }
     }
   }
@@ -471,9 +534,7 @@ void prismesh_finalize(prismesh_t* mesh)
   polymec_free(owners);
 #endif
 
-  // Create a sorted list of chunk indices and prune unused xy data.
-  mesh->chunk_indices = polymec_malloc(sizeof(int) * 2 * mesh->chunks->size);
-  size_t k = 0;
+  // Prune unused xy data.
   for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
   {
     size_t num_z_chunks = 0;
@@ -481,12 +542,7 @@ void prismesh_finalize(prismesh_t* mesh)
     {
       int index = chunk_index(mesh, (int)i, (int)j);
       if (chunk_map_contains(mesh->chunks, index))
-      {
-        mesh->chunk_indices[2*k]   = (int)i;
-        mesh->chunk_indices[2*k+1] = (int)j;
-        ++k;
         ++num_z_chunks;
-      }
     }
 
     // Prune xy data for this xy_index if we don't have any chunks here.
@@ -499,7 +555,6 @@ void prismesh_finalize(prismesh_t* mesh)
       mesh->chunk_xy_data->dtors[i] = NULL;
     }
   }
-  ASSERT(k == mesh->chunks->size);
 
   // We're finished here.
   log_debug("prismesh_finalize: finalized with %d local chunks.", mesh->chunks->size);
