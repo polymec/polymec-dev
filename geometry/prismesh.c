@@ -300,28 +300,28 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   mesh->chunk_xy_data = chunk_xy_data_array_new();
   size_t num_chunks = num_xy_chunks * num_z_chunks;
   mesh->chunk_graph = adj_graph_new(MPI_COMM_SELF, num_chunks);
-  for (int xy_chunk_index = 0; xy_chunk_index < (int)num_xy_chunks; ++xy_chunk_index)
+  for (int xy_index = 0; xy_index < (int)num_xy_chunks; ++xy_index)
   {
-    chunk_xy_data_t* xy_data = chunk_xy_data_new(comm, columns, P, xy_chunk_index);
+    chunk_xy_data_t* xy_data = chunk_xy_data_new(comm, columns, P, xy_index);
     chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
                                          chunk_xy_data_free);
 
     // Extract the neighboring chunks from this xy data and add edges to our graph.
-    for (int z_chunk_index = 0; z_chunk_index < (int)num_z_chunks; ++z_chunk_index)
+    for (int z_index = 0; z_index < (int)num_z_chunks; ++z_index)
     {
-      int ch_index = chunk_index(mesh, xy_chunk_index, z_chunk_index);
+      int ch_index = chunk_index(mesh, xy_index, z_index);
       int_array_t* indices;
       int num_xy_neighbors = (int)xy_data->send_map->size;
-      int num_z_neighbors = ((z_chunk_index == 0) || (z_chunk_index == (int)(num_z_chunks-1))) ? 1 : 2;
+      int num_z_neighbors = ((z_index == 0) || (z_index == (int)(num_z_chunks-1))) ? 1 : 2;
       adj_graph_set_num_edges(mesh->chunk_graph, ch_index, num_xy_neighbors + num_z_neighbors);
       int* edges = adj_graph_edges(mesh->chunk_graph, ch_index);
       int pos = 0, neighbor_xy_index, i = 0;
       while (exchanger_proc_map_next(xy_data->send_map, &pos, &neighbor_xy_index, &indices))
-        edges[i++] = chunk_index(mesh, neighbor_xy_index, z_chunk_index);
-      if (z_chunk_index > 0)
-        edges[i++] = chunk_index(mesh, xy_chunk_index, z_chunk_index-1);
-      if (z_chunk_index < (int)(num_z_chunks-1))
-        edges[i++] = chunk_index(mesh, xy_chunk_index, z_chunk_index+1);
+        edges[i++] = chunk_index(mesh, neighbor_xy_index, z_index);
+      if (z_index > 0)
+        edges[i++] = chunk_index(mesh, xy_index, z_index-1);
+      if (z_index < (int)(num_z_chunks-1))
+        edges[i++] = chunk_index(mesh, xy_index, z_index+1);
     }
   }
   polymec_free(P);
@@ -373,11 +373,105 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
   chunk_map_insert_with_v_dtor(mesh->chunks, index, chunk, free_chunk);
 }
 
+#if POLYMEC_HAVE_MPI
+static int64_t* source_vector(prismesh_t* mesh)
+{
+  // Catalog all the chunks on this process.
+  int_array_t* my_chunks = int_array_new();
+  for (int xy_index = 0; xy_index < (int)mesh->num_xy_chunks; ++xy_index)
+  {
+    for (int z_index = 0; z_index < (int)mesh->num_z_chunks; ++z_index)
+    {
+      if (prismesh_has_chunk(mesh, xy_index, z_index))
+        int_array_append(my_chunks, chunk_index(mesh, xy_index, z_index));
+    }
+  }
+
+  // Gather the numbers of chunks owned by each process.
+  int num_my_chunks = (int)my_chunks->size;
+  int num_chunks_for_proc[mesh->nproc];
+  MPI_Allgather(&num_my_chunks, 1, MPI_INT, 
+                num_chunks_for_proc, 1, MPI_INT, mesh->comm);
+
+  // Arrange for the storage of the chunk indices for the patches stored 
+  // on each process.
+  int proc_offsets[mesh->nproc+1];
+  proc_offsets[0] = 0;
+  for (int p = 0; p < mesh->nproc; ++p)
+    proc_offsets[p+1] = proc_offsets[p] + num_chunks_for_proc[p];
+
+  // Gather the indices of the chunks owned by all processes into a huge list.
+  int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
+  ASSERT(num_all_chunks == proc_offsets[mesh->nproc]);
+  int* all_chunks = polymec_malloc(sizeof(int) * num_all_chunks);
+  MPI_Allgatherv(my_chunks->data, num_my_chunks, MPI_INT, 
+                 all_chunks, num_chunks_for_proc, proc_offsets,
+                 MPI_INT, mesh->comm);
+
+  // Clean up a bit.
+  int_array_free(my_chunks);
+
+  // Convert the huge list into a source vector.
+  int64_t* sources = polymec_malloc(sizeof(int64_t) * num_all_chunks);
+  for (int p = 0; p < mesh->nproc; ++p)
+  {
+    for (int offset = proc_offsets[p]; offset < proc_offsets[p+1]; ++offset)
+      sources[all_chunks[offset]] = (int64_t)p;
+  }
+
+  polymec_free(all_chunks);
+  return sources;
+}
+#endif
+
 void prismesh_finalize(prismesh_t* mesh)
 {
   ASSERT(!mesh->finalized);
 
-  // Create a sorted list of chunk indices. And prune unused xy data.
+#if POLYMEC_HAVE_MPI
+  // Figure out which processes own what chunks.
+  int64_t* owners = source_vector(mesh);
+
+  // Assemble a cell exchanger.
+  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
+  for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
+  {
+    chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[i];
+    exchanger_proc_map_t* xy_sends = xy_data->send_map;
+    exchanger_proc_map_t* xy_receives = xy_data->receive_map;
+    for (size_t j = 0; j < mesh->num_z_chunks; ++j)
+    {
+      // Hook up the xy sends/receives.
+      int pos = 0, neighbor_xy_index;
+      int_array_t* indices;
+      while (exchanger_proc_map_next(xy_sends, &pos, &neighbor_xy_index, &indices))
+      {
+      }
+      pos = 0;
+      while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
+      {
+      }
+
+      // Now hook up the z sends/receives.
+      if (j > 0)
+      {
+        for (size_t xy = 0; xy < xy_data->num_columns; ++xy)
+        {
+          for (size_t z = 0; z < mesh->nz_per_chunk; ++z)
+          {
+          }
+        }
+      }
+    }
+  }
+  mesh->cell_ex = exchanger_new(mesh->comm);
+  exchanger_set_sends(mesh->cell_ex, send_map);
+  exchanger_set_sends(mesh->cell_ex, receive_map);
+  polymec_free(owners);
+#endif
+
+  // Create a sorted list of chunk indices and prune unused xy data.
   mesh->chunk_indices = polymec_malloc(sizeof(int) * 2 * mesh->chunks->size);
   size_t k = 0;
   for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
@@ -744,55 +838,6 @@ static void redistribute_prismesh(prismesh_t** mesh,
   // Replace the old mesh with the new one.
   *mesh = new_mesh;
   STOP_FUNCTION_TIMER();
-}
-
-static int64_t* source_vector(prismesh_t* mesh)
-{
-  // Catalog all the chunks on this process.
-  int_array_t* my_chunks = int_array_new();
-  for (int xy_index = 0; xy_index < (int)mesh->num_xy_chunks; ++xy_index)
-  {
-    for (int z_index = 0; z_index < (int)mesh->num_z_chunks; ++z_index)
-    {
-      if (prismesh_has_chunk(mesh, xy_index, z_index))
-        int_array_append(my_chunks, chunk_index(mesh, xy_index, z_index));
-    }
-  }
-
-  // Gather the numbers of chunks owned by each process.
-  int num_my_chunks = (int)my_chunks->size;
-  int num_chunks_for_proc[mesh->nproc];
-  MPI_Allgather(&num_my_chunks, 1, MPI_INT, 
-                num_chunks_for_proc, 1, MPI_INT, mesh->comm);
-
-  // Arrange for the storage of the chunk indices for the patches stored 
-  // on each process.
-  int proc_offsets[mesh->nproc+1];
-  proc_offsets[0] = 0;
-  for (int p = 0; p < mesh->nproc; ++p)
-    proc_offsets[p+1] = proc_offsets[p] + num_chunks_for_proc[p];
-
-  // Gather the indices of the chunks owned by all processes into a huge list.
-  int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
-  ASSERT(num_all_chunks == proc_offsets[mesh->nproc]);
-  int* all_chunks = polymec_malloc(sizeof(int) * num_all_chunks);
-  MPI_Allgatherv(my_chunks->data, num_my_chunks, MPI_INT, 
-                 all_chunks, num_chunks_for_proc, proc_offsets,
-                 MPI_INT, mesh->comm);
-
-  // Clean up a bit.
-  int_array_free(my_chunks);
-
-  // Convert the huge list into a source vector.
-  int64_t* sources = polymec_malloc(sizeof(int64_t) * num_all_chunks);
-  for (int p = 0; p < mesh->nproc; ++p)
-  {
-    for (int offset = proc_offsets[p]; offset < proc_offsets[p+1]; ++offset)
-      sources[all_chunks[offset]] = (int64_t)p;
-  }
-
-  polymec_free(all_chunks);
-  return sources;
 }
 
 static void redistribute_prismesh_field(prismesh_field_t** field, 
