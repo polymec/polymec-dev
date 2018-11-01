@@ -221,6 +221,7 @@ struct prismesh_t
   real_t z1, z2;
 
   // Chunk data.
+  adj_graph_t* chunk_graph;
   chunk_xy_data_array_t* chunk_xy_data;
   chunk_map_t* chunks;
   int* chunk_indices;
@@ -239,6 +240,11 @@ struct prismesh_t
   // This flag is set by prismesh_finalize() after a mesh has been assembled.
   bool finalized;
 };
+
+static inline int chunk_index(prismesh_t* mesh, int xy_index, int z_index)
+{
+  return (int)(mesh->num_z_chunks * xy_index + z_index);
+}
 
 prismesh_t* create_empty_prismesh(MPI_Comm comm, 
                                   planar_polymesh_t* columns,
@@ -268,9 +274,9 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
 
   // Partition the planar polymesh.
 #if POLYMEC_HAVE_MPI
-  adj_graph_t* graph = graph_from_planar_polymesh_cells(columns);
-  int64_t* P = partition_graph_n_ways(graph, num_xy_chunks, NULL, 0.05);
-  adj_graph_free(graph);
+  adj_graph_t* planar_graph = graph_from_planar_polymesh_cells(columns);
+  int64_t* P = partition_graph_n_ways(planar_graph, num_xy_chunks, NULL, 0.05);
+  adj_graph_free(planar_graph);
 #else
   // Use a space-filling curve, since we haven't built graph cutting in.
   point_t* centroids = polymec_malloc(sizeof(point_t) * columns->num_cells);
@@ -289,14 +295,36 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   polymec_release(poly);
 #endif
 
-  // Create xy data for chunks.
+  // Create xy data for chunks, and create a global graph whose vertices 
+  // are the mesh's chunks.
   mesh->chunk_xy_data = chunk_xy_data_array_new();
+  size_t num_chunks = num_xy_chunks * num_z_chunks;
+  mesh->chunk_graph = adj_graph_new(MPI_COMM_SELF, num_chunks);
   for (int xy_chunk_index = 0; xy_chunk_index < (int)num_xy_chunks; ++xy_chunk_index)
   {
     chunk_xy_data_t* xy_data = chunk_xy_data_new(comm, columns, P, xy_chunk_index);
     chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
                                          chunk_xy_data_free);
+
+    // Extract the neighboring chunks from this xy data and add edges to our graph.
+    for (int z_chunk_index = 0; z_chunk_index < (int)num_z_chunks; ++z_chunk_index)
+    {
+      int ch_index = chunk_index(mesh, xy_chunk_index, z_chunk_index);
+      int_array_t* indices;
+      int num_xy_neighbors = (int)xy_data->send_map->size;
+      int num_z_neighbors = ((z_chunk_index == 0) || (z_chunk_index == (int)(num_z_chunks-1))) ? 1 : 2;
+      adj_graph_set_num_edges(mesh->chunk_graph, ch_index, num_xy_neighbors + num_z_neighbors);
+      int* edges = adj_graph_edges(mesh->chunk_graph, ch_index);
+      int pos = 0, neighbor_xy_index, i = 0;
+      while (exchanger_proc_map_next(xy_data->send_map, &pos, &neighbor_xy_index, &indices))
+        edges[i++] = chunk_index(mesh, neighbor_xy_index, z_chunk_index);
+      if (z_chunk_index > 0)
+        edges[i++] = chunk_index(mesh, xy_chunk_index, z_chunk_index-1);
+      if (z_chunk_index < (int)(num_z_chunks-1))
+        edges[i++] = chunk_index(mesh, xy_chunk_index, z_chunk_index+1);
+    }
   }
+  polymec_free(P);
 
   // No exchangers yet.
   mesh->cell_ex = NULL;
@@ -306,15 +334,7 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   mesh->z_edge_ex = NULL;
   mesh->node_ex = NULL;
 
-  // Clean up.
-  polymec_free(P);
-
   return mesh;
-}
-
-static inline int chunk_index(prismesh_t* mesh, int xy_index, int z_index)
-{
-  return (int)(mesh->num_z_chunks * xy_index + z_index);
 }
 
 void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
@@ -461,6 +481,7 @@ void prismesh_free(prismesh_t* mesh)
   polymec_free(mesh->chunk_indices);
   chunk_map_free(mesh->chunks);
   chunk_xy_data_array_free(mesh->chunk_xy_data);
+  adj_graph_free(mesh->chunk_graph);
   if (mesh->cell_ex != NULL)
     polymec_release(mesh->cell_ex);
   if (mesh->xy_face_ex != NULL)
@@ -725,89 +746,6 @@ static void redistribute_prismesh(prismesh_t** mesh,
   STOP_FUNCTION_TIMER();
 }
 
-static adj_graph_t* graph_from_prismesh_chunks(prismesh_t* mesh)
-{
-  // Create a graph whose vertices are the mesh's chunks. NOTE
-  // that we associate this graph with the MPI_COMM_SELF communicator 
-  // because it's a global graph.
-  size_t num_chunks = mesh->num_xy_chunks * mesh->num_z_chunks;
-  adj_graph_t* g = adj_graph_new(MPI_COMM_SELF, num_chunks);
-
-#if 0
-  // Allocate space in the graph for the edges (chunk boundaries).
-  for (int i = 0; i < mesh->npx; ++i)
-  {
-    int num_x_edges = (i == 0) ? (i == mesh->npx-1) ? mesh->periodic_in_x ? 2 
-                                                                          : 0
-                                                    : 1
-                               : (i == mesh->npx-1) ? 1
-                                                    : 2;
-    for (int j = 0; j < mesh->npy; ++j)
-    {
-      int num_y_edges = (j == 0) ? (j == mesh->npy-1) ? mesh->periodic_in_y ? 2 
-                                                                            : 0
-                                                      : 1
-                                 : (j == mesh->npy-1) ? 1
-                                                      : 2;
-      for (int k = 0; k < mesh->npz; ++k)
-      {
-        int num_z_edges = (k == 0) ? (k == mesh->npz-1) ? mesh->periodic_in_z ? 2 
-                                                                              : 0
-                                                        : 1
-                                   : (k == mesh->npz-1) ? 1
-                                                        : 2;
-        int num_edges = num_x_edges + num_y_edges + num_z_edges;
-        int p_index = patch_index(mesh, i, j, k);
-        adj_graph_set_num_edges(g, p_index, num_edges);
-      }
-    }
-  }
-
-  // Now fill in the edges.
-  for (int i = 0; i < mesh->npx; ++i)
-  {
-    for (int j = 0; j < mesh->npy; ++j)
-    {
-      for (int k = 0; k < mesh->npz; ++k)
-      {
-        int p_index = patch_index(mesh, i, j, k);
-        int* edges = adj_graph_edges(g, p_index);
-        int offset = 0;
-
-        if ((i == 0) && mesh->periodic_in_x)
-          edges[offset++] = patch_index(mesh, mesh->npx-1, j, k);
-        else if (i > 0)
-          edges[offset++] = patch_index(mesh, i-1, j, k);
-        if ((i == mesh->npx-1) && mesh->periodic_in_x)
-          edges[offset++] = patch_index(mesh, 0, j, k);
-        else if (i < mesh->npx-1)
-          edges[offset++] = patch_index(mesh, i+1, j, k);
-
-        if ((j == 0) && mesh->periodic_in_y)
-          edges[offset++] = patch_index(mesh, i, mesh->npy-1, k);
-        else if (j > 0)
-          edges[offset++] = patch_index(mesh, i, j-1, k);
-        if ((j == mesh->npy-1) && mesh->periodic_in_y)
-          edges[offset++] = patch_index(mesh, i, 0, k);
-        else if (j < mesh->npy-1)
-          edges[offset++] = patch_index(mesh, i, j+1, k);
-
-        if ((k == 0) && mesh->periodic_in_z)
-          edges[offset++] = patch_index(mesh, i, j, mesh->npz-1);
-        else if (k > 0)
-          edges[offset++] = patch_index(mesh, i, j, k-1);
-        if ((k == mesh->npz-1) && mesh->periodic_in_z)
-          edges[offset++] = patch_index(mesh, i, j, 0);
-        else if (k < mesh->npz-1)
-          edges[offset++] = patch_index(mesh, i, j, k+1);
-      }
-    }
-  }
-#endif
-
-  return g;
-}
-
 static int64_t* source_vector(prismesh_t* mesh)
 {
   // Catalog all the chunks on this process.
@@ -950,14 +888,12 @@ void repartition_prismesh(prismesh_t** mesh,
     return;
   }
 
-  // Generate a distributed adjacency graph for the mesh's chunks.
-  adj_graph_t* graph = graph_from_prismesh_chunks(old_mesh);
-
-  // Map the graph to the different domains, producing a partition vector.
+  // Map the mesh's graph to the new domains, producing a partition vector.
   // We need the partition vector on all processes in the communicator, so we 
   // scatter it from rank 0.
   log_debug("repartition_prismesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
-  int64_t* P = partition_graph(graph, old_mesh->comm, weights, imbalance_tol, true);
+  int64_t* P = partition_graph(old_mesh->chunk_graph, old_mesh->comm, 
+                               weights, imbalance_tol, true);
 
   // Build a sources vector whose ith component is the rank that used to own 
   // the ith patch.
@@ -979,7 +915,6 @@ void repartition_prismesh(prismesh_t** mesh,
 
   // Clean up.
   prismesh_free(old_mesh);
-  adj_graph_free(graph);
   polymec_free(sources);
   polymec_free(P);
 
