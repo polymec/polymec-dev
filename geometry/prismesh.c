@@ -494,7 +494,7 @@ void prismesh_finalize(prismesh_t* mesh)
       for (size_t k = 0; k < indices->size; ++k)
       {
         int proc = owners[neighbor_xy_index];
-        int index = chunk_offset + chunk->num_z_cells * cell_offset + z; // FIXME: Not right!
+        int index = chunk_offset + chunk->num_z_cells * cell_offset + z;
         exchanger_proc_map_add_index(receive_map, proc, index);
         ++cell_offset;
       }
@@ -508,7 +508,7 @@ void prismesh_finalize(prismesh_t* mesh)
         int ch1_index = chunk_index(mesh, xy1, z-1);
         int proc = owners[ch1_index];
         int send_index = chunk_offset + chunk->num_z_cells * xy1;
-        int receive_index = cell_offset; // FIXME: Not right!
+        int receive_index = cell_offset; 
         exchanger_proc_map_add_index(send_map, proc, send_index);
         exchanger_proc_map_add_index(receive_map, proc, receive_index);
         ++cell_offset;
@@ -521,7 +521,7 @@ void prismesh_finalize(prismesh_t* mesh)
         int ch1_index = chunk_index(mesh, xy1, z+1);
         int proc = owners[ch1_index];
         int send_index = chunk_offset + chunk->num_z_cells * xy1 + chunk->num_z_cells - 1;
-        int receive_index = cell_offset; // FIXME: Not right!
+        int receive_index = cell_offset; 
         exchanger_proc_map_add_index(send_map, proc, send_index);
         exchanger_proc_map_add_index(receive_map, proc, receive_index);
         ++cell_offset;
