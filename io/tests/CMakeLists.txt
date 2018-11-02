@@ -19,5 +19,5 @@ add_mpi_polymec_io_test(test_crop_polymesh_io test_crop_polymesh_io.c 1 2 4)
 add_mpi_polymec_io_test(test_star_stencil_io test_star_stencil_io.c 1 2 3 4)
 add_mpi_polymec_io_test(test_silo_file_unimesh_methods test_silo_file_unimesh_methods.c 1 2 4)
 add_polymec_io_test(test_planar_polymesh_io test_planar_polymesh_io.c)
-add_mpi_polymec_io_test(test_prismesh_io test_prismesh_io.c 1 2 3 4)
+add_mpi_polymec_io_test(test_colmesh_io test_colmesh_io.c 1 2 3 4)
 

@@ -10,8 +10,8 @@
 #include "core/exchanger.h"
 #include "core/unordered_map.h"
 #include "core/partitioning.h"
-#include "geometry/prismesh.h"
-#include "geometry/prismesh_field.h"
+#include "geometry/colmesh.h"
+#include "geometry/colmesh_field.h"
 #include "geometry/polymesh.h"
 
 // Chunk xy data. Shared across all "stacked" chunks.
@@ -200,7 +200,7 @@ static void chunk_xy_data_free(chunk_xy_data_t* xy_data)
   polymec_free(xy_data);
 }
 
-static chunk_xy_data_array_t* redistribute_chunk_xy_data(prismesh_t* old_mesh,
+static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
                                                          int64_t* partition_vector,
                                                          int64_t* sources)
 {
@@ -209,15 +209,15 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(prismesh_t* old_mesh,
   return all_xy_data;
 }
 
-static void free_chunk(prismesh_chunk_t* chunk)
+static void free_chunk(colmesh_chunk_t* chunk)
 {
-  // The chunk's xy data is managed by the prismesh.
+  // The chunk's xy data is managed by the colmesh.
   polymec_free(chunk);
 }
 
-DEFINE_UNORDERED_MAP(chunk_map, int, prismesh_chunk_t*, int_hash, int_equals)
+DEFINE_UNORDERED_MAP(chunk_map, int, colmesh_chunk_t*, int_hash, int_equals)
 
-struct prismesh_t 
+struct colmesh_t 
 {
   MPI_Comm comm;
   int nproc, rank;
@@ -242,16 +242,16 @@ struct prismesh_t
   // True if the mesh is periodic along the z axis, false if not.
   bool periodic_in_z;
 
-  // This flag is set by prismesh_finalize() after a mesh has been assembled.
+  // This flag is set by colmesh_finalize() after a mesh has been assembled.
   bool finalized;
 };
 
-static inline int chunk_index(prismesh_t* mesh, int xy_index, int z_index)
+static inline int chunk_index(colmesh_t* mesh, int xy_index, int z_index)
 {
   return (int)(mesh->num_z_chunks * xy_index + z_index);
 }
 
-prismesh_t* create_empty_prismesh(MPI_Comm comm, 
+colmesh_t* create_empty_colmesh(MPI_Comm comm, 
                                   planar_polymesh_t* columns,
                                   real_t z1, real_t z2,
                                   size_t num_xy_chunks, size_t num_z_chunks,
@@ -263,7 +263,7 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   ASSERT(num_z_chunks > 0);
   ASSERT(nz_per_chunk > 0);
 
-  prismesh_t* mesh = polymec_malloc(sizeof(prismesh_t));
+  colmesh_t* mesh = polymec_malloc(sizeof(colmesh_t));
   mesh->comm = comm;
   mesh->chunks = chunk_map_new();
   mesh->chunk_indices = NULL;
@@ -342,16 +342,16 @@ prismesh_t* create_empty_prismesh(MPI_Comm comm,
   return mesh;
 }
 
-void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
+void colmesh_insert_chunk(colmesh_t* mesh, int xy_index, int z_index)
 {
   ASSERT(!mesh->finalized);
   ASSERT(xy_index >= 0);
   ASSERT(xy_index < mesh->num_xy_chunks);
   ASSERT(z_index >= 0);
   ASSERT(z_index < mesh->num_z_chunks);
-  ASSERT(!prismesh_has_chunk(mesh, xy_index, z_index));
+  ASSERT(!colmesh_has_chunk(mesh, xy_index, z_index));
 
-  prismesh_chunk_t* chunk = polymec_malloc(sizeof(prismesh_chunk_t));
+  colmesh_chunk_t* chunk = polymec_malloc(sizeof(colmesh_chunk_t));
 
   // Chunk xy data (points to data owned by mesh->chunk_xy_data).
   chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy_index];
@@ -379,7 +379,7 @@ void prismesh_insert_chunk(prismesh_t* mesh, int xy_index, int z_index)
 }
 
 #if POLYMEC_HAVE_MPI
-static int64_t* source_vector(prismesh_t* mesh)
+static int64_t* source_vector(colmesh_t* mesh)
 {
   // Catalog all the chunks on this process.
   int_array_t* my_chunks = int_array_new();
@@ -387,7 +387,7 @@ static int64_t* source_vector(prismesh_t* mesh)
   {
     for (int z_index = 0; z_index < (int)mesh->num_z_chunks; ++z_index)
     {
-      if (prismesh_has_chunk(mesh, xy_index, z_index))
+      if (colmesh_has_chunk(mesh, xy_index, z_index))
         int_array_append(my_chunks, chunk_index(mesh, xy_index, z_index));
     }
   }
@@ -429,7 +429,7 @@ static int64_t* source_vector(prismesh_t* mesh)
 }
 #endif
 
-void prismesh_finalize(prismesh_t* mesh)
+void colmesh_finalize(colmesh_t* mesh)
 {
   ASSERT(!mesh->finalized);
 
@@ -445,10 +445,10 @@ void prismesh_finalize(prismesh_t* mesh)
       for (size_t j = 0; j < mesh->num_z_chunks; ++j)
       {
         int index = chunk_index(mesh, (int)i, (int)j);
-        prismesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
+        colmesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
         if (chunk_p != NULL)
         {
-          prismesh_chunk_t* chunk    = *chunk_p;
+          colmesh_chunk_t* chunk    = *chunk_p;
           chunk_offsets[k+1]         = chunk_offsets[k] + 
                                        (int)(chunk->num_columns * chunk->num_z_cells);
           mesh->chunk_indices[2*k]   = (int)i;
@@ -473,7 +473,7 @@ void prismesh_finalize(prismesh_t* mesh)
     int xy = mesh->chunk_indices[2*i];
     int z = mesh->chunk_indices[2*i+1];
     int ch_index = chunk_index(mesh, xy, z);
-    prismesh_chunk_t* chunk = *chunk_map_get(mesh->chunks, ch_index);
+    colmesh_chunk_t* chunk = *chunk_map_get(mesh->chunks, ch_index);
     int chunk_offset = chunk_offsets[i];
 
     chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy];
@@ -487,8 +487,8 @@ void prismesh_finalize(prismesh_t* mesh)
     {
       for (size_t k = 0; k < indices->size; ++k)
       {
-        int proc = owners[neighbor_xy_index];
-        int index = chunk_offset + chunk->num_z_cells * indices->data[k] + z;
+        int proc = (int)(owners[neighbor_xy_index]);
+        int index = (int)(chunk_offset + chunk->num_z_cells * indices->data[k] + z);
         exchanger_proc_map_add_index(send_map, proc, index);
       }
     }
@@ -498,8 +498,8 @@ void prismesh_finalize(prismesh_t* mesh)
     {
       for (size_t k = 0; k < indices->size; ++k)
       {
-        int proc = owners[neighbor_xy_index];
-        int index = chunk_offset + chunk->num_z_cells * cell_offset + z;
+        int proc = (int)(owners[neighbor_xy_index]);
+        int index = (int)(chunk_offset + chunk->num_z_cells * cell_offset + z);
         exchanger_proc_map_add_index(receive_map, proc, index);
         ++cell_offset;
       }
@@ -510,9 +510,9 @@ void prismesh_finalize(prismesh_t* mesh)
     {
       for (size_t xy1 = 0; xy1 < xy_data->num_columns; ++xy1)
       {
-        int ch1_index = chunk_index(mesh, xy1, z-1);
-        int proc = owners[ch1_index];
-        int send_index = chunk_offset + chunk->num_z_cells * xy1;
+        int ch1_index = chunk_index(mesh, (int)xy1, z-1);
+        int proc = (int)(owners[ch1_index]);
+        int send_index = (int)(chunk_offset + chunk->num_z_cells * xy1);
         int receive_index = cell_offset; 
         exchanger_proc_map_add_index(send_map, proc, send_index);
         exchanger_proc_map_add_index(receive_map, proc, receive_index);
@@ -523,9 +523,9 @@ void prismesh_finalize(prismesh_t* mesh)
     {
       for (size_t xy1 = 0; xy1 < xy_data->num_columns; ++xy1)
       {
-        int ch1_index = chunk_index(mesh, xy1, z+1);
-        int proc = owners[ch1_index];
-        int send_index = chunk_offset + chunk->num_z_cells * xy1 + chunk->num_z_cells - 1;
+        int ch1_index = chunk_index(mesh, (int)xy1, z+1);
+        int proc = (int)(owners[ch1_index]);
+        int send_index = (int)(chunk_offset + chunk->num_z_cells * xy1 + chunk->num_z_cells - 1);
         int receive_index = cell_offset; 
         exchanger_proc_map_add_index(send_map, proc, send_index);
         exchanger_proc_map_add_index(receive_map, proc, receive_index);
@@ -562,11 +562,11 @@ void prismesh_finalize(prismesh_t* mesh)
   }
 
   // We're finished here.
-  log_debug("prismesh_finalize: finalized with %d local chunks.", mesh->chunks->size);
+  log_debug("colmesh_finalize: finalized with %d local chunks.", mesh->chunks->size);
   mesh->finalized = true;
 }
 
-prismesh_t* prismesh_new(MPI_Comm comm,
+colmesh_t* colmesh_new(MPI_Comm comm,
                          planar_polymesh_t* columns,
                          real_t z1, real_t z2,
                          size_t nz, bool periodic_in_z)
@@ -598,18 +598,18 @@ prismesh_t* prismesh_new(MPI_Comm comm,
     else
       num_z_chunks += remainder;
     num_xy_chunks = nproc / num_z_chunks;
-    log_info("prismesh_new: Dividing %d x %d cells up into %d x %d chunks.",
+    log_info("colmesh_new: Dividing %d x %d cells up into %d x %d chunks.",
              Nxy, Nz, num_xy_chunks, num_z_chunks);
   }
   ASSERT(num_xy_chunks * num_z_chunks == nproc);
 
-  // Now create an empty prismesh with the desired numbers of chunks, and 
+  // Now create an empty colmesh with the desired numbers of chunks, and 
   // insert all the chunks on each process. We do a "naive" placement of 
   // the chunks by allocating them sequentially to processes in a flattened 
   // index space I(xy_index, z_index) = num_z_chunks * xy_index + z_index.
   // This is definitely not ideal, but it's the easiest way to get a start.
   size_t nz_per_chunk = nz / num_z_chunks;
-  prismesh_t* mesh = create_empty_prismesh(comm, columns, z1, z2, 
+  colmesh_t* mesh = create_empty_colmesh(comm, columns, z1, z2, 
                                            num_xy_chunks, num_z_chunks, 
                                            nz_per_chunk, periodic_in_z);
   size_t tot_num_chunks = num_xy_chunks * num_z_chunks;
@@ -620,17 +620,17 @@ prismesh_t* prismesh_new(MPI_Comm comm,
     {
       int xy_index = (int)(i / num_z_chunks);
       int z_index = (int)(i % num_z_chunks);
-      log_debug("prismesh_new: Inserting chunk (%d, %d).", xy_index, z_index);
-      prismesh_insert_chunk(mesh, xy_index, z_index);
+      log_debug("colmesh_new: Inserting chunk (%d, %d).", xy_index, z_index);
+      colmesh_insert_chunk(mesh, xy_index, z_index);
     }
   }
 
   // Put the lid on it and ship it.
-  prismesh_finalize(mesh);
+  colmesh_finalize(mesh);
   return mesh;
 }
 
-void prismesh_free(prismesh_t* mesh)
+void colmesh_free(colmesh_t* mesh)
 {
   polymec_free(mesh->chunk_indices);
   chunk_map_free(mesh->chunks);
@@ -651,7 +651,7 @@ void prismesh_free(prismesh_t* mesh)
   polymec_free(mesh);
 }
 
-void prismesh_get_chunk_info(prismesh_t* mesh, 
+void colmesh_get_chunk_info(colmesh_t* mesh, 
                              size_t* num_xy_chunks,
                              size_t* num_z_chunks,
                              size_t* nz_per_chunk)
@@ -661,7 +661,7 @@ void prismesh_get_chunk_info(prismesh_t* mesh,
   *nz_per_chunk = mesh->nz_per_chunk;
 }
 
-void prismesh_get_z_info(prismesh_t* mesh, 
+void colmesh_get_z_info(colmesh_t* mesh, 
                          real_t* z1,
                          real_t* z2,
                          bool* periodic)
@@ -671,16 +671,16 @@ void prismesh_get_z_info(prismesh_t* mesh,
   *periodic = mesh->periodic_in_z;
 }
 
-bool prismesh_verify_topology(prismesh_t* mesh, 
+bool colmesh_verify_topology(colmesh_t* mesh, 
                               void (*handler)(const char* format, ...))
 {
   // Verify the topology of each chunk.
   bool good = true;
-  prismesh_chunk_t* chunk;
+  colmesh_chunk_t* chunk;
   int pos = 0, xy_index, z_index;
-  while (prismesh_next_chunk(mesh, &pos, &xy_index, &z_index, &chunk))
+  while (colmesh_next_chunk(mesh, &pos, &xy_index, &z_index, &chunk))
   {
-    bool result = prismesh_chunk_verify_topology(chunk, handler);
+    bool result = colmesh_chunk_verify_topology(chunk, handler);
     if (!result)
     {
       good = false;
@@ -690,16 +690,16 @@ bool prismesh_verify_topology(prismesh_t* mesh,
   return good;
 }
 
-bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
+bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
                                     void (*handler)(const char* format, ...))
 {
   // All cells are prisms and must have at least 5 faces (3 xy faces + 2 z faces).
   for (size_t c = 0; c < chunk->num_columns; ++c)
   {
-    if (prismesh_chunk_column_num_xy_faces(chunk, c) < 3)
+    if (colmesh_chunk_column_num_xy_faces(chunk, c) < 3)
     {
       handler("polymesh_verify_topology: column %d has only %d faces per cell.", 
-              (int)c, prismesh_chunk_column_num_xy_faces(chunk, c) + 2);
+              (int)c, colmesh_chunk_column_num_xy_faces(chunk, c) + 2);
       return false;
     }
   }
@@ -708,15 +708,15 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
   int num_z_faces = (int)chunk->num_columns;
   for (int f = 0; f < num_z_faces; ++f)
   {
-    int nn = prismesh_chunk_z_face_num_nodes(chunk, f);
+    int nn = colmesh_chunk_z_face_num_nodes(chunk, f);
     if (nn == 0)
     {
-      handler("prismesh_verify_topology: column %d has a polygonal z face with no edges!", f);
+      handler("colmesh_verify_topology: column %d has a polygonal z face with no edges!", f);
       return false;
     }
     if (nn < 3)
     {
-      handler("prismesh_verify_topology: column %d has a polygonal face %d with only %d nodes.", f, nn);
+      handler("colmesh_verify_topology: column %d has a polygonal face %d with only %d nodes.", f, nn);
       return false;
     }
   }
@@ -724,16 +724,16 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
   // Make sure that all the xy faces attached to this cell have it in their list.
   for (size_t c = 0; c < chunk->num_columns; ++c)
   {
-    int num_xy_faces = prismesh_chunk_column_num_xy_faces(chunk, c);
+    int num_xy_faces = colmesh_chunk_column_num_xy_faces(chunk, c);
     int xy_faces[num_xy_faces];
-    prismesh_chunk_column_get_xy_faces(chunk, c, xy_faces);
+    colmesh_chunk_column_get_xy_faces(chunk, c, xy_faces);
     for (int f = 0; f < num_xy_faces; ++f)
     {
       int face = xy_faces[f];
       if ((chunk->xy_face_columns[2*face] != c) && 
           (chunk->xy_face_columns[2*face+1] != c))
       {
-        handler("prismesh_verify_topology: column %d has xy face %d in its list "
+        handler("colmesh_verify_topology: column %d has xy face %d in its list "
                 "of faces, but that face does not have that column in its list.", c, xy_faces[f]);
         return false;
       }
@@ -744,9 +744,9 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
   for (size_t f = 0; f < chunk->num_xy_faces; ++f)
   {
     int column = chunk->xy_face_columns[2*f];
-    int num_xy_faces = prismesh_chunk_column_num_xy_faces(chunk, column);
+    int num_xy_faces = colmesh_chunk_column_num_xy_faces(chunk, column);
     int xy_faces[num_xy_faces];
-    prismesh_chunk_column_get_xy_faces(chunk, column, xy_faces);
+    colmesh_chunk_column_get_xy_faces(chunk, column, xy_faces);
     bool found_face = false;
     for (int ff = 0; ff < num_xy_faces; ++ff)
     {
@@ -758,7 +758,7 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
     }
     if (!found_face)
     {
-      handler("prismesh_verify_topology: xy face %d has column %d in its list of columns, but "
+      handler("colmesh_verify_topology: xy face %d has column %d in its list of columns, but "
               "that column does not have that face in its list.", f, chunk->xy_face_columns[2*f]);
       return false;
     }
@@ -768,8 +768,8 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
     {
       found_face = false;
       int other_col = chunk->xy_face_columns[2*f+1];
-      num_xy_faces = prismesh_chunk_column_num_xy_faces(chunk, other_col);
-      prismesh_chunk_column_get_xy_faces(chunk, other_col, xy_faces);
+      num_xy_faces = colmesh_chunk_column_num_xy_faces(chunk, other_col);
+      colmesh_chunk_column_get_xy_faces(chunk, other_col, xy_faces);
       for (int ff = 0; ff < num_xy_faces; ++ff)
       {
         if (xy_faces[ff] == f) 
@@ -780,7 +780,7 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
       }
       if (!found_face)
       {
-        handler("prismesh_verify_topology: xy face %d has column %d in its list of columns, "
+        handler("colmesh_verify_topology: xy face %d has column %d in its list of columns, "
                 "but that column does not have that xy face in its list of faces.", f, other_col);
         return false;
       }
@@ -789,44 +789,44 @@ bool prismesh_chunk_verify_topology(prismesh_chunk_t* chunk,
   return true;
 }
 
-MPI_Comm prismesh_comm(prismesh_t* mesh)
+MPI_Comm colmesh_comm(colmesh_t* mesh)
 {
   return mesh->comm;
 }
 
-size_t prismesh_num_chunks(prismesh_t* mesh)
+size_t colmesh_num_chunks(colmesh_t* mesh)
 {
   return mesh->chunks->size;
 }
 
-prismesh_chunk_t* prismesh_chunk(prismesh_t* mesh, int xy_index, int z_index)
+colmesh_chunk_t* colmesh_chunk(colmesh_t* mesh, int xy_index, int z_index)
 {
   int index = chunk_index(mesh, xy_index, z_index);
-  prismesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
+  colmesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
   return (chunk_p != NULL) ? *chunk_p : NULL;
 }
 
-bool prismesh_has_chunk(prismesh_t* mesh, int xy_index, int z_index)
+bool colmesh_has_chunk(colmesh_t* mesh, int xy_index, int z_index)
 {
-  return (prismesh_chunk(mesh, xy_index, z_index) != NULL);
+  return (colmesh_chunk(mesh, xy_index, z_index) != NULL);
 }
 
-polygon_t* prismesh_chunk_polygon(prismesh_chunk_t* chunk, int column)
+polygon_t* colmesh_chunk_polygon(colmesh_chunk_t* chunk, int column)
 {
   ASSERT(column < (int)chunk->num_columns);
   int z_face = column;
-  int num_nodes = prismesh_chunk_z_face_num_nodes(chunk, z_face);
+  int num_nodes = colmesh_chunk_z_face_num_nodes(chunk, z_face);
   int nodes[num_nodes];
-  prismesh_chunk_z_face_get_nodes(chunk, z_face, nodes);
+  colmesh_chunk_z_face_get_nodes(chunk, z_face, nodes);
   point2_t vertices[num_nodes];
   for (int n = 0; n < num_nodes; ++n)
     vertices[n] = chunk->xy_nodes[nodes[n]];
   return polygon_new(vertices, num_nodes);
 }
 
-bool prismesh_next_chunk(prismesh_t* mesh, int* pos, 
+bool colmesh_next_chunk(colmesh_t* mesh, int* pos, 
                          int* xy_index, int* z_index,
-                         prismesh_chunk_t** chunk)
+                         colmesh_chunk_t** chunk)
 {
   if (*pos >= (int)mesh->chunks->size)
     return false;
@@ -843,7 +843,7 @@ bool prismesh_next_chunk(prismesh_t* mesh, int* pos,
   }
 }
 
-void prismesh_chunk_get_node(prismesh_chunk_t* chunk, 
+void colmesh_chunk_get_node(colmesh_chunk_t* chunk, 
                              int xy_index, int z_index,
                              point_t* node_pos)
 {
@@ -859,15 +859,15 @@ void prismesh_chunk_get_node(prismesh_chunk_t* chunk,
 }
 
 #if POLYMEC_HAVE_MPI
-static void redistribute_prismesh(prismesh_t** mesh, 
+static void redistribute_colmesh(colmesh_t** mesh, 
                                   int64_t* partition,
                                   int64_t* sources)
 {
   START_FUNCTION_TIMER();
-  prismesh_t* old_mesh = *mesh;
+  colmesh_t* old_mesh = *mesh;
 
   // Create a new empty mesh.
-  prismesh_t* new_mesh = polymec_malloc(sizeof(prismesh_t));
+  colmesh_t* new_mesh = polymec_malloc(sizeof(colmesh_t));
   new_mesh->comm = old_mesh->comm;
   new_mesh->chunks = chunk_map_new();
   new_mesh->chunk_indices = NULL;
@@ -891,7 +891,7 @@ static void redistribute_prismesh(prismesh_t** mesh,
     {
       int xy_index = (int)(i / new_mesh->num_z_chunks);
       int z_index = (int)(i % new_mesh->num_z_chunks);
-      prismesh_insert_chunk(new_mesh, xy_index, z_index);
+      colmesh_insert_chunk(new_mesh, xy_index, z_index);
     }
   }
 
@@ -900,40 +900,40 @@ static void redistribute_prismesh(prismesh_t** mesh,
   STOP_FUNCTION_TIMER();
 }
 
-static void redistribute_prismesh_field(prismesh_field_t** field, 
+static void redistribute_colmesh_field(colmesh_field_t** field, 
                                         int64_t* partition,
                                         int64_t* sources,
-                                        prismesh_t* new_mesh)
+                                        colmesh_t* new_mesh)
 {
   START_FUNCTION_TIMER();
 
   // Create a new field from the old one.
-  prismesh_field_t* old_field = *field;
-  prismesh_field_t* new_field = prismesh_field_new(new_mesh,
-                                                   prismesh_field_centering(old_field),
-                                                   prismesh_field_num_components(old_field));
+  colmesh_field_t* old_field = *field;
+  colmesh_field_t* new_field = colmesh_field_new(new_mesh,
+                                                   colmesh_field_centering(old_field),
+                                                   colmesh_field_num_components(old_field));
 
   // Copy all local chunk data from one field to the other.
-  prismesh_chunk_data_t* data;
+  colmesh_chunk_data_t* data;
   int pos = 0, xy_index, z_index;
-  while (prismesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &data))
+  while (colmesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &data))
   {
-    prismesh_chunk_data_t* old_data = prismesh_field_chunk_data(old_field, xy_index, z_index);
+    colmesh_chunk_data_t* old_data = colmesh_field_chunk_data(old_field, xy_index, z_index);
     if (old_data != NULL)
-      prismesh_chunk_data_copy(old_data, data);
+      colmesh_chunk_data_copy(old_data, data);
   }
 
   // Post receives for each chunk in the new field.
-  size_t num_new_local_chunks = prismesh_field_num_chunks(new_field);
+  size_t num_new_local_chunks = colmesh_field_num_chunks(new_field);
   MPI_Request recv_requests[num_new_local_chunks];
   pos = 0;
   size_t num_recv_reqs = 0;
-  while (prismesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &data))
+  while (colmesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &data))
   {
     int ch = chunk_index(new_mesh, xy_index, z_index);
     if (partition[ch] == new_mesh->rank)
     {
-      size_t data_size = prismesh_chunk_data_size(data) / sizeof(real_t);
+      size_t data_size = colmesh_chunk_data_size(data) / sizeof(real_t);
       int err = MPI_Irecv(data->data, (int)data_size, MPI_REAL_T, (int)sources[ch],
                           0, new_mesh->comm, &(recv_requests[num_recv_reqs]));
       if (err != MPI_SUCCESS)
@@ -944,16 +944,16 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
   ASSERT(num_recv_reqs <= num_new_local_chunks);
 
   // Post sends.
-  size_t num_old_local_chunks = prismesh_field_num_chunks(old_field);
+  size_t num_old_local_chunks = colmesh_field_num_chunks(old_field);
   MPI_Request send_requests[num_old_local_chunks];
   pos = 0;
   size_t num_send_reqs = 0;
-  while (prismesh_field_next_chunk(old_field, &pos, &xy_index, &z_index, &data))
+  while (colmesh_field_next_chunk(old_field, &pos, &xy_index, &z_index, &data))
   {
     int ch = chunk_index(new_mesh, xy_index, z_index);
     if (sources[ch] == new_mesh->rank)
     {
-      size_t data_size = prismesh_chunk_data_size(data) / sizeof(real_t);
+      size_t data_size = colmesh_chunk_data_size(data) / sizeof(real_t);
       int err = MPI_Isend(data->data, (int)data_size, MPI_REAL_T, (int)partition[ch],
                           0, new_mesh->comm, &(send_requests[num_send_reqs]));
       if (err != MPI_SUCCESS)
@@ -973,10 +973,10 @@ static void redistribute_prismesh_field(prismesh_field_t** field,
 }
 #endif // POLYMEC_HAVE_MPI
 
-void repartition_prismesh(prismesh_t** mesh, 
+void repartition_colmesh(colmesh_t** mesh, 
                           int* weights,
                           real_t imbalance_tol,
-                          prismesh_field_t** fields,
+                          colmesh_field_t** fields,
                           size_t num_fields)
 {
   ASSERT((weights == NULL) || (imbalance_tol > 0.0));
@@ -985,7 +985,7 @@ void repartition_prismesh(prismesh_t** mesh,
 #if POLYMEC_HAVE_MPI
 
   // On a single process, repartitioning has no meaning.
-  prismesh_t* old_mesh = *mesh;
+  colmesh_t* old_mesh = *mesh;
   if (old_mesh->nproc == 1) 
     return;
 
@@ -993,7 +993,7 @@ void repartition_prismesh(prismesh_t** mesh,
   // Map the mesh's graph to the new domains, producing a partition vector.
   // We need the partition vector on all processes in the communicator, so we 
   // scatter it from rank 0.
-  log_debug("repartition_prismesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
+  log_debug("repartition_colmesh: Repartitioning mesh on %d subdomains.", old_mesh->nproc);
   int64_t* P = partition_graph(old_mesh->chunk_graph, old_mesh->comm, 
                                weights, imbalance_tol, true);
 
@@ -1003,20 +1003,20 @@ void repartition_prismesh(prismesh_t** mesh,
 
   // Redistribute the mesh. 
   log_debug("repartition_prismmesh: Redistributing mesh.");
-  redistribute_prismesh(mesh, P, sources);
+  redistribute_colmesh(mesh, P, sources);
 
   // Redistribute the fields.
   if (num_fields > 0)
-    log_debug("repartition_prismesh: Redistributing %d fields.", (int)num_fields);
+    log_debug("repartition_colmesh: Redistributing %d fields.", (int)num_fields);
   for (size_t f = 0; f < num_fields; ++f)
   {
-    prismesh_field_t* old_field = fields[f];
-    redistribute_prismesh_field(&(fields[f]), P, sources, *mesh);
-    prismesh_field_free(old_field);
+    colmesh_field_t* old_field = fields[f];
+    redistribute_colmesh_field(&(fields[f]), P, sources, *mesh);
+    colmesh_field_free(old_field);
   }
 
   // Clean up.
-  prismesh_free(old_mesh);
+  colmesh_free(old_mesh);
   polymec_free(sources);
   polymec_free(P);
 
@@ -1024,27 +1024,27 @@ void repartition_prismesh(prismesh_t** mesh,
 #endif
 }
 
-polymesh_t* prismesh_as_polymesh(prismesh_t* mesh)
+polymesh_t* colmesh_as_polymesh(colmesh_t* mesh)
 {
   return NULL; // FIXME
 }
 
 #if POLYMEC_HAVE_MPI
-// These functions provide access to exchangers for prismesh_fields.
-exchanger_t* prismesh_exchanger(prismesh_t* mesh, 
-                                prismesh_centering_t centering);
-exchanger_t* prismesh_exchanger(prismesh_t* mesh, 
-                                prismesh_centering_t centering)
+// These functions provide access to exchangers for colmesh_fields.
+exchanger_t* colmesh_exchanger(colmesh_t* mesh, 
+                                colmesh_centering_t centering);
+exchanger_t* colmesh_exchanger(colmesh_t* mesh, 
+                                colmesh_centering_t centering)
 {
   exchanger_t* ex = NULL;
   switch (centering)
   {
-    case PRISMESH_CELL: ex = mesh->cell_ex; break;
-    case PRISMESH_XYFACE: ex = mesh->xy_face_ex; break;
-    case PRISMESH_ZFACE: ex = mesh->z_face_ex; break;
-    case PRISMESH_XYEDGE: ex = mesh->xy_edge_ex; break;
-    case PRISMESH_ZEDGE: ex = mesh->z_edge_ex; break;
-    case PRISMESH_NODE: ex = mesh->node_ex; break;
+    case COLMESH_CELL: ex = mesh->cell_ex; break;
+    case COLMESH_XYFACE: ex = mesh->xy_face_ex; break;
+    case COLMESH_ZFACE: ex = mesh->z_face_ex; break;
+    case COLMESH_XYEDGE: ex = mesh->xy_edge_ex; break;
+    case COLMESH_ZEDGE: ex = mesh->z_edge_ex; break;
+    case COLMESH_NODE: ex = mesh->node_ex; break;
   }
   return ex;
 }

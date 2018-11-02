@@ -20,8 +20,8 @@
 #include "geometry/create_quad_planar_polymesh.h"
 #include "geometry/create_hex_planar_polymesh.h"
 
-#include "geometry/create_quad_prismesh.h"
-#include "geometry/create_hex_prismesh.h"
+#include "geometry/create_quad_colmesh.h"
+#include "geometry/create_hex_colmesh.h"
 
 #include "lua.h"
 #include "lualib.h"
@@ -1665,27 +1665,27 @@ static lua_class_method um_methods[] = {
   {NULL, NULL, NULL}
 };
 
-static int prismesh_repartition(lua_State* L)
+static int colmesh_repartition(lua_State* L)
 {
   // Check the arguments.
   int num_args = lua_gettop(L);
-  if ((num_args != 1) || !lua_is_prismesh(L, 1))
-    return luaL_error(L, "Argument must be a prismesh.");
-  prismesh_t* mesh = lua_to_prismesh(L, 1);
+  if ((num_args != 1) || !lua_is_colmesh(L, 1))
+    return luaL_error(L, "Argument must be a colmesh.");
+  colmesh_t* mesh = lua_to_colmesh(L, 1);
   real_t imbalance_tol = 0.05;
 
   // Bug out if there's only one process.
   int nprocs;
-  MPI_Comm_size(prismesh_comm(mesh), &nprocs);
+  MPI_Comm_size(colmesh_comm(mesh), &nprocs);
   if (nprocs == 1)
     return 0;
 
   // Perform the repartitioning. FIXME: Add fields
-  repartition_prismesh(&mesh, NULL, imbalance_tol, NULL, 0);
+  repartition_colmesh(&mesh, NULL, imbalance_tol, NULL, 0);
   return 0;
 }
 
-static int prismesh_quad(lua_State* L)
+static int colmesh_quad(lua_State* L)
 {
   if (!lua_istable(L, 1))
     luaL_error(L, "Argument must be a table with comm, nx, ny, nz, bbox fields.");
@@ -1739,14 +1739,14 @@ static int prismesh_quad(lua_State* L)
     luaL_error(L, "periodic_in_z must be true or false.");
   periodic_in_z = lua_toboolean(L, -1);
 
-  prismesh_t* mesh = create_quad_prismesh(comm, nx, ny, nz, bbox, 
+  colmesh_t* mesh = create_quad_colmesh(comm, nx, ny, nz, bbox, 
                                           periodic_in_x, periodic_in_y,
                                           periodic_in_z);
-  lua_push_prismesh(L, mesh);
+  lua_push_colmesh(L, mesh);
   return 1;
 }
 
-static int prismesh_hex(lua_State* L)
+static int colmesh_hex(lua_State* L)
 {
   if (!lua_istable(L, 1))
     luaL_error(L, "Argument must be a table with comm, alignment, radius, h, z1, z2, nz fields.");
@@ -1795,84 +1795,84 @@ static int prismesh_hex(lua_State* L)
     luaL_error(L, "periodic_in_z must be true or false.");
   periodic_in_z = lua_toboolean(L, -1);
 
-  prismesh_t* mesh = create_hex_prismesh(comm, (size_t)radius, h,
+  colmesh_t* mesh = create_hex_colmesh(comm, (size_t)radius, h,
                                          nz, z1, z2, periodic_in_z);
-  lua_push_prismesh(L, mesh);
+  lua_push_colmesh(L, mesh);
   return 1;
 }
 
-static lua_module_function prismesh_funcs[] = {
-  {"quad", prismesh_quad, "prismesh.quad{comm = COMM, nx = NX, ny = NY, nz = NZ, periodic_in_x = false, periodic_in_y = false} -> New uniform quadrilateral prism mesh."},
-  {"hex", prismesh_hex, "prismesh.hex{comm = COMM, nx = NX, ny = NY, nz = NZ, periodic_in_x = false, periodic_in_y = false} -> New uniform hexagonal prism mesh."},
-  {"repartition", prismesh_repartition, "prismesh.repartition(m) -> Repartitions the prismesh m."},
+static lua_module_function colmesh_funcs[] = {
+  {"quad", colmesh_quad, "colmesh.quad{comm = COMM, nx = NX, ny = NY, nz = NZ, periodic_in_x = false, periodic_in_y = false} -> New uniform quadrilateral prism mesh."},
+  {"hex", colmesh_hex, "colmesh.hex{comm = COMM, nx = NX, ny = NY, nz = NZ, periodic_in_x = false, periodic_in_y = false} -> New uniform hexagonal prism mesh."},
+  {"repartition", colmesh_repartition, "colmesh.repartition(m) -> Repartitions the colmesh m."},
   {NULL, NULL, NULL}
 };
 
 static int pmesh_num_chunks(lua_State* L)
 {
-  prismesh_t* m = lua_to_prismesh(L, 1);
-  lua_pushinteger(L, prismesh_num_chunks(m));
+  colmesh_t* m = lua_to_colmesh(L, 1);
+  lua_pushinteger(L, colmesh_num_chunks(m));
   return 1;
 }
 
 static int pmesh_num_xy_chunks(lua_State* L)
 {
-  prismesh_t* m = lua_to_prismesh(L, 1);
+  colmesh_t* m = lua_to_colmesh(L, 1);
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
-  prismesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
+  colmesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   lua_pushinteger(L, (lua_Integer)num_xy_chunks);
   return 1;
 }
 
 static int pmesh_num_z_chunks(lua_State* L)
 {
-  prismesh_t* m = lua_to_prismesh(L, 1);
+  colmesh_t* m = lua_to_colmesh(L, 1);
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
-  prismesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
+  colmesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   lua_pushinteger(L, (lua_Integer)num_z_chunks);
   return 1;
 }
 
 static int pmesh_nz_per_chunk(lua_State* L)
 {
-  prismesh_t* m = lua_to_prismesh(L, 1);
+  colmesh_t* m = lua_to_colmesh(L, 1);
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
-  prismesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
+  colmesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   lua_pushinteger(L, (lua_Integer)nz_per_chunk);
   return 1;
 }
 
 static int pmesh_z1(lua_State* L)
 {
-  prismesh_t* m = lua_to_prismesh(L, 1);
+  colmesh_t* m = lua_to_colmesh(L, 1);
   real_t z1, z2;
   bool periodic;
-  prismesh_get_z_info(m, &z1, &z2, &periodic);
+  colmesh_get_z_info(m, &z1, &z2, &periodic);
   lua_push_real(L, z1);
   return 1;
 }
 
 static int pmesh_z2(lua_State* L)
 {
-  prismesh_t* m = lua_to_prismesh(L, 1);
+  colmesh_t* m = lua_to_colmesh(L, 1);
   real_t z1, z2;
   bool periodic;
-  prismesh_get_z_info(m, &z1, &z2, &periodic);
+  colmesh_get_z_info(m, &z1, &z2, &periodic);
   lua_push_real(L, z2);
   return 1;
 }
 
 static int pmesh_periodic_in_z(lua_State* L)
 {
-  prismesh_t* m = lua_to_prismesh(L, 1);
+  colmesh_t* m = lua_to_colmesh(L, 1);
   real_t z1, z2;
   bool periodic;
-  prismesh_get_z_info(m, &z1, &z2, &periodic);
+  colmesh_get_z_info(m, &z1, &z2, &periodic);
   lua_pushboolean(L, periodic);
   return 1;
 }
 
-static lua_class_field prismesh_fields[] = {
+static lua_class_field colmesh_fields[] = {
   {"num_chunks", pmesh_num_chunks, NULL},
   {"num_xy_chunks", pmesh_num_xy_chunks, NULL},
   {"num_z_chunks", pmesh_num_z_chunks, NULL},
@@ -1883,27 +1883,27 @@ static lua_class_field prismesh_fields[] = {
   {NULL, NULL, NULL}
 };
 
-static int prismesh_tostring(lua_State* L)
+static int colmesh_tostring(lua_State* L)
 {
-  prismesh_t* m = lua_to_prismesh(L, 1);
+  colmesh_t* m = lua_to_colmesh(L, 1);
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
-  prismesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
+  colmesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   real_t z1, z2;
   bool periodic;
-  prismesh_get_z_info(m, &z1, &z2, &periodic);
+  colmesh_get_z_info(m, &z1, &z2, &periodic);
   char periodic_str[12];
   if (periodic)
     snprintf(periodic_str, 11, " (periodic)");
   else
     periodic_str[0] = '\0';
-  lua_pushfstring(L, "prismesh (%d chunks, %d xy chunks, %d z chunks, nz = %d, z1 = %g, z2 = %g%s)", 
-                  (int)prismesh_num_chunks(m), (int)num_xy_chunks, (int)num_z_chunks, 
+  lua_pushfstring(L, "colmesh (%d chunks, %d xy chunks, %d z chunks, nz = %d, z1 = %g, z2 = %g%s)", 
+                  (int)colmesh_num_chunks(m), (int)num_xy_chunks, (int)num_z_chunks, 
                   (int)nz_per_chunk, (double)z1, z2, periodic_str);
   return 1;
 }
 
-static lua_class_method prismesh_methods[] = {
-  {"__tostring", prismesh_tostring, NULL},
+static lua_class_method colmesh_methods[] = {
+  {"__tostring", colmesh_tostring, NULL},
   {NULL, NULL, NULL}
 };
 
@@ -2169,7 +2169,7 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, NULL, tagger_methods, NULL);
   lua_register_class(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_methods, DTOR(point_cloud_free));
   lua_register_class(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_methods, DTOR(unimesh_free));
-  lua_register_class(L, "prismesh", "A polygonal extruded (pex) mesh.", prismesh_funcs, prismesh_fields, prismesh_methods, DTOR(prismesh_free));
+  lua_register_class(L, "colmesh", "A polygonal extruded (pex) mesh.", colmesh_funcs, colmesh_fields, colmesh_methods, DTOR(colmesh_free));
   lua_register_class(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_methods, DTOR(polymesh_free));
   lua_register_class(L, "planar_polymesh", "A planar polygonal mesh.", pp_funcs, pp_fields, pp_methods, NULL);
 
@@ -2314,19 +2314,19 @@ unimesh_t* lua_to_unimesh(lua_State* L, int index)
   return (unimesh_t*)lua_to_object(L, index, "unimesh");
 }
 
-void lua_push_prismesh(lua_State* L, prismesh_t* m)
+void lua_push_colmesh(lua_State* L, colmesh_t* m)
 {
-  lua_push_object(L, "prismesh", m);
+  lua_push_object(L, "colmesh", m);
 }
 
-bool lua_is_prismesh(lua_State* L, int index)
+bool lua_is_colmesh(lua_State* L, int index)
 {
-  return lua_is_object(L, index, "prismesh");
+  return lua_is_object(L, index, "colmesh");
 }
 
-prismesh_t* lua_to_prismesh(lua_State* L, int index)
+colmesh_t* lua_to_colmesh(lua_State* L, int index)
 {
-  return (prismesh_t*)lua_to_object(L, index, "prismesh");
+  return (colmesh_t*)lua_to_object(L, index, "colmesh");
 }
 
 void lua_push_polymesh(lua_State* L, polymesh_t* m)

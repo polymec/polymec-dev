@@ -16,7 +16,7 @@
 #include "geometry/polyhedron.h"
 #include "geometry/point_cloud.h"
 #include "geometry/unimesh.h"
-#include "geometry/prismesh.h"
+#include "geometry/colmesh.h"
 #include "geometry/polymesh.h"
 #include "geometry/planar_polymesh.h"
 
@@ -123,16 +123,16 @@ bool lua_is_unimesh(lua_State* L, int index);
 /// if the item there is not a unimesh.
 unimesh_t* lua_to_unimesh(lua_State* L, int index);
 
-/// Pushes a prismesh m onto L's stack.
-void lua_push_prismesh(lua_State* L, prismesh_t* m);
+/// Pushes a colmesh m onto L's stack.
+void lua_push_colmesh(lua_State* L, colmesh_t* m);
 
-/// Returns true if the item at the given index on L's stack is a prismesh,
+/// Returns true if the item at the given index on L's stack is a colmesh,
 /// false if not.
-bool lua_is_prismesh(lua_State* L, int index);
+bool lua_is_colmesh(lua_State* L, int index);
 
-/// Returns the prismesh at the given index on L's stack, or NULL 
-/// if the item there is not a prismesh.
-prismesh_t* lua_to_prismesh(lua_State* L, int index);
+/// Returns the colmesh at the given index on L's stack, or NULL 
+/// if the item there is not a colmesh.
+colmesh_t* lua_to_colmesh(lua_State* L, int index);
 
 /// Pushes a polymesh m onto L's stack.
 void lua_push_polymesh(lua_State* L, polymesh_t* m);

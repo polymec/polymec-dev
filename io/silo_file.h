@@ -15,8 +15,8 @@
 #include "geometry/point_cloud_field.h"
 #include "geometry/unimesh.h"
 #include "geometry/unimesh_field.h"
-#include "geometry/prismesh.h"
-#include "geometry/prismesh_field.h"
+#include "geometry/colmesh.h"
+#include "geometry/colmesh_field.h"
 #include "geometry/planar_polymesh.h"
 #include "geometry/polymesh.h"
 #include "geometry/polymesh_field.h"
@@ -177,43 +177,43 @@ bool silo_file_contains_unimesh_field(silo_file_t* file,
                                       const char* mesh_name,
                                       unimesh_centering_t centering);
 
-/// Writes the given prism mesh (prismesh) to the given Silo file. If mapping 
+/// Writes the given prism mesh (colmesh) to the given Silo file. If mapping 
 /// is non-NULL, the nodes of the cells are mapped accordingly.
 /// \memberof silo_file
-void silo_file_write_prismesh(silo_file_t* file, 
+void silo_file_write_colmesh(silo_file_t* file, 
                               const char* mesh_name,
-                              prismesh_t* mesh,
+                              colmesh_t* mesh,
                               coord_mapping_t* mapping);
 
 /// Reads a prism mesh with the given name from the given Silo file. 
 /// \memberof silo_file
-prismesh_t* silo_file_read_prismesh(silo_file_t* file, 
+colmesh_t* silo_file_read_colmesh(silo_file_t* file, 
                                     const char* mesh_name);
 
 /// Returns true if the Silo file contains a prism mesh with the 
 /// given name, false if not. 
 /// \memberof silo_file
-bool silo_file_contains_prismesh(silo_file_t* file, 
+bool silo_file_contains_colmesh(silo_file_t* file, 
                                  const char* mesh_name);
 
 /// Writes the given prism mesh field to the given Silo file, 
 /// associating it with the entry for the mesh with the given name. If a 
 /// non-NULL mapping is given, the data will be mapped accordingly.
 /// 
-/// Because prismesh fields for edges and faces have different centerings that
+/// Because colmesh fields for edges and faces have different centerings that
 /// represent xy and z edges/faces, writing full edge and face fields to 
 /// Silo files is a little tricky. Say you have a face-centered field named 
 /// "flux" that you want to write to a Silo file. This means you have 2 
-/// prismesh_fields (xy_flux and z_flux, say) that you want to write into 
+/// colmesh_fields (xy_flux and z_flux, say) that you want to write into 
 /// one full face-centered field. To do this, you would call 
-/// silo_file_write_prismesh_field twice with the same field name, but with 
+/// silo_file_write_colmesh_field twice with the same field name, but with 
 /// the different fields. The silo_file, recognizing that they are face-centered
 /// fields, will preserve the existing information when writing each component.
 /// \memberof silo_file
-void silo_file_write_prismesh_field(silo_file_t* file, 
+void silo_file_write_colmesh_field(silo_file_t* file, 
                                     const char** field_component_names,
                                     const char* mesh_name,
-                                    prismesh_field_t* field,
+                                    colmesh_field_t* field,
                                     silo_field_metadata_t** field_metadata,
                                     coord_mapping_t* mapping);
 
@@ -223,20 +223,20 @@ void silo_file_write_prismesh_field(silo_file_t* file,
 /// argument, metadata for each field will be read into corresponding entries 
 /// there--otherwise it can be NULL.
 /// \memberof silo_file
-void silo_file_read_prismesh_field(silo_file_t* file, 
+void silo_file_read_colmesh_field(silo_file_t* file, 
                                    const char** field_component_names,
                                    const char* mesh_name,
-                                   prismesh_field_t* field,
+                                   colmesh_field_t* field,
                                    silo_field_metadata_t** field_metadata);
 
 /// Returns true if the Silo file contains a prism mesh field component
 /// (or component) with the given name, associated with mesh with the given 
 /// name, and with the given centering. Returns false otherwise.
 /// \memberof silo_file
-bool silo_file_contains_prismesh_field(silo_file_t* file, 
+bool silo_file_contains_colmesh_field(silo_file_t* file, 
                                        const char* field_name,
                                        const char* mesh_name,
-                                       prismesh_centering_t centering);
+                                       colmesh_centering_t centering);
 
 /// Writes a named arbitrary polyhedral mesh to the given Silo file.
 /// \memberof silo_file

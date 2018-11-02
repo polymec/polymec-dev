@@ -6,17 +6,17 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "geometry/create_hex_planar_polymesh.h"
-#include "geometry/create_hex_prismesh.h"
+#include "geometry/create_hex_colmesh.h"
 
-prismesh_t* create_hex_prismesh(MPI_Comm comm,
-                                size_t radius, real_t h,
-                                size_t nz, real_t z1, real_t z2,
-                                bool periodic_in_z)
+colmesh_t* create_hex_colmesh(MPI_Comm comm,
+                              size_t radius, real_t h,
+                              size_t nz, real_t z1, real_t z2,
+                              bool periodic_in_z)
 {
   ASSERT(h > 0.0);
   ASSERT(z1 < z2);
   ASSERT(nz > 0);
   planar_polymesh_t* columns = create_hex_planar_polymesh(radius, h);
-  return prismesh_new(comm, columns, z1, z2, nz, periodic_in_z);
+  return colmesh_new(comm, columns, z1, z2, nz, periodic_in_z);
 }
 
