@@ -53,7 +53,7 @@ static inline size_t colmesh_chunk_data_size(colmesh_chunk_data_t* data)
 /// Copies the data from this chunk to a destination chunk.
 /// \memberof colmesh_chunk_data
 void colmesh_chunk_data_copy(colmesh_chunk_data_t* data, 
-                              colmesh_chunk_data_t* dest);
+                             colmesh_chunk_data_t* dest);
 
 /// Constructs a new colmesh field with the given number of components
 /// on the given mesh.
@@ -62,8 +62,8 @@ void colmesh_chunk_data_copy(colmesh_chunk_data_t* data,
 /// \param [in] num_components The number of components in the new field.
 /// \memberof colmesh_field
 colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
-                                     colmesh_centering_t centering,
-                                     size_t num_components);
+                                   colmesh_centering_t centering,
+                                   size_t num_components);
 
 /// Constructs a new colmesh field that uses the given buffer for data storage.
 /// \param [in] mesh The colmesh on which the field is created.
@@ -73,9 +73,9 @@ colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
 ///                    field's data.
 /// \memberof colmesh_field
 colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
-                                             colmesh_centering_t centering,
-                                             size_t num_components,
-                                             void* buffer);
+                                           colmesh_centering_t centering,
+                                           size_t num_components,
+                                           void* buffer);
 
 /// Destroys the given colmesh field.
 /// \memberof colmesh_field
@@ -90,13 +90,12 @@ void* colmesh_field_buffer(colmesh_field_t* field);
 /// \param [in] assume_control If true, the field assumes ownership of the buffer. Otherwise it does not.
 /// \memberof colmesh_field
 void colmesh_field_set_buffer(colmesh_field_t* field, 
-                               void* buffer, 
-                               bool assume_control);
+                              void* buffer, 
+                              bool assume_control);
 
 /// Copies the data in this field to a destination field.
 /// \memberof colmesh_field
-void colmesh_field_copy(colmesh_field_t* field,
-                         colmesh_field_t* dest);
+void colmesh_field_copy(colmesh_field_t* field, colmesh_field_t* dest);
 
 /// Returns the centering for the field.
 /// \memberof colmesh_field
@@ -118,8 +117,8 @@ colmesh_t* colmesh_field_mesh(colmesh_field_t* field);
 /// given xy and z indices.
 /// \memberof colmesh_field
 colmesh_chunk_data_t* colmesh_field_chunk_data(colmesh_field_t* field, 
-                                                 int xy_index,
-                                                 int z_index);
+                                               int xy_index,
+                                               int z_index);
 
 /// Traverses locally-stored field data chunk by chunk.
 /// \param pos [in,out] Controls the traversal. Set to 0 to reset.
@@ -130,8 +129,8 @@ colmesh_chunk_data_t* colmesh_field_chunk_data(colmesh_field_t* field,
 /// \returns true if a locally-stored chunk is found, false if not.
 /// \memberof colmesh_field
 bool colmesh_field_next_chunk(colmesh_field_t* field, int* pos, 
-                               int* xy_index, int* z_index,
-                               colmesh_chunk_data_t** chunk_data);
+                              int* xy_index, int* z_index,
+                              colmesh_chunk_data_t** chunk_data);
 
 /// Synchronously exchanges boundary data in the chunks within this 
 /// field with that of adjoining chunks. For cell-centered data, this 

@@ -92,48 +92,60 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
     int cell2 = mesh->edge_cells[2*edge+1];
 
     int* col1_p = int_int_unordered_map_get(cell_to_col_map, cell1);
-    if (col1_p != NULL) // column is present locally
+    int* col2_p = int_int_unordered_map_get(cell_to_col_map, cell2);
+    if ((col1_p != NULL) || (col2_p != NULL)) // at least one column is present locally
     {
-      int col1 = *col1_p;
-      int col2 = -1;
-      int* col2_p = NULL;
-      if (cell2 >= 0)
-      {
-        col2_p = int_int_unordered_map_get(cell_to_col_map, cell2);
-        if (col2_p != NULL)
-          col2 = *col2_p; // part of this chunk
-        else
-          col2 = (int)(xy_data->num_columns + xy_data->receive_map->size); // ghost column
+      // The locally present column is column 1, by definition.
+      int col1;
+      bool cols_reversed = false;
+      if (col1_p != NULL) 
+        col1 = *col1_p; 
+      else
+      { 
+        col1 = *col2_p;
+        cols_reversed = true;
       }
+      int col2 = ((col1_p != NULL) && (col2_p != NULL)) ? *col2_p : -1;
+      if (col2 == -1) // ghost column
+        col2 = (int)(xy_data->num_columns + xy_data->receive_map->size); 
 
       // For the interior columns we identify which face this edge corresponds to.
-      // Create a new xy face for this edge, and hook it up to columns 
-      // corresponding to the edge's adjacent planar cells.
       int face = (int)(xy_data->num_xy_faces);
+      int f1 = 0;
+      int f2 = -1;
       {
-        int f1 = 0;
-        while (mesh->cell_edges[mesh->cell_edge_offsets[cell1]+f1] != edge) ++f1;
-        ASSERT(mesh->cell_edge_offsets[cell1+1] > (mesh->cell_edge_offsets[cell1] + f1));
-        xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col1]+f1] = face;
+        int cell = (cols_reversed) ? cell2 : cell1;
+        while ((mesh->cell_edges[mesh->cell_edge_offsets[cell]+f1] != edge) && 
+               (mesh->cell_edges[mesh->cell_edge_offsets[cell]+f1] != ~edge))
+          ++f1;
+        ASSERT(mesh->cell_edge_offsets[cell+1] > (mesh->cell_edge_offsets[cell] + f1));
       }
-      int_array_append(face_cols, col1);
-
       if (col2 < xy_data->num_columns)
       {
-        int f2 = 0;
-        while (mesh->cell_edges[mesh->cell_edge_offsets[cell2]+f2] != ~edge) ++f2;
-        ASSERT(mesh->cell_edge_offsets[cell2+1] > (mesh->cell_edge_offsets[cell2] + f2));
-        xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col2]+f2] = ~face;
+        f2 = 0;
+        int cell = (cols_reversed) ? cell1 : cell2;
+        while ((mesh->cell_edges[mesh->cell_edge_offsets[cell]+f2] != edge) &&
+               (mesh->cell_edges[mesh->cell_edge_offsets[cell]+f2] != ~edge)) 
+          ++f2;
+        ASSERT(mesh->cell_edge_offsets[cell+1] > (mesh->cell_edge_offsets[cell] + f2));
       }
 #if POLYMEC_HAVE_MPI
       else if (col2 != -1) // ghost column
       {
         // Set up a parallel exchange between the columns.
-        int neighbor_xy_index = (int)partition_vector[cell2];
+        int cell = (cols_reversed) ? cell2 : cell1;
+        int neighbor_xy_index = (int)partition_vector[cell];
         exchanger_proc_map_add_index(xy_data->send_map, neighbor_xy_index, col1);
         exchanger_proc_map_add_index(xy_data->receive_map, neighbor_xy_index, col2);
       }
 #endif
+
+      // Create a new xy face for this edge, and hook it up to columns 
+      // corresponding to the edge's adjacent planar cells.
+      xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col1]+f1] = face;
+      int_array_append(face_cols, col1);
+      if (f2 != -1)
+        xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col2]+f2] = ~face;
       int_array_append(face_cols, col2);
       ++xy_data->num_xy_faces;
 
@@ -205,7 +217,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
                                                          int64_t* sources)
 {
   chunk_xy_data_array_t* all_xy_data = chunk_xy_data_array_new();
-  // FIXME
+  // FIXMEhttps://chapel-lang.org
   return all_xy_data;
 }
 
@@ -252,10 +264,10 @@ static inline int chunk_index(colmesh_t* mesh, int xy_index, int z_index)
 }
 
 colmesh_t* create_empty_colmesh(MPI_Comm comm, 
-                                  planar_polymesh_t* columns,
-                                  real_t z1, real_t z2,
-                                  size_t num_xy_chunks, size_t num_z_chunks,
-                                  size_t nz_per_chunk, bool periodic_in_z)
+                                planar_polymesh_t* columns,
+                                real_t z1, real_t z2,
+                                size_t num_xy_chunks, size_t num_z_chunks,
+                                size_t nz_per_chunk, bool periodic_in_z)
 {
   ASSERT(columns != NULL);
   ASSERT(z1 < z2);
@@ -567,9 +579,9 @@ void colmesh_finalize(colmesh_t* mesh)
 }
 
 colmesh_t* colmesh_new(MPI_Comm comm,
-                         planar_polymesh_t* columns,
-                         real_t z1, real_t z2,
-                         size_t nz, bool periodic_in_z)
+                       planar_polymesh_t* columns,
+                       real_t z1, real_t z2,
+                       size_t nz, bool periodic_in_z)
 {
   size_t num_xy_chunks = 1;
   size_t num_z_chunks = 1; 
