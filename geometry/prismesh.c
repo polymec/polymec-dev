@@ -107,19 +107,24 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
       }
 
       // For the interior columns we identify which face this edge corresponds to.
-      int f1 = 0;
-      while (mesh->cell_edges[mesh->cell_edge_offsets[cell1]+f1] != edge) ++f1;
-      int f2 = 0;
-      if (col2 < xy_data->num_columns)
-        while (mesh->cell_edges[mesh->cell_edge_offsets[cell2]+f2] != ~edge) ++f2;
-
       // Create a new xy face for this edge, and hook it up to columns 
       // corresponding to the edge's adjacent planar cells.
       int face = (int)(xy_data->num_xy_faces);
-      xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col1]+f1] = face;
+      {
+        int f1 = 0;
+        while (mesh->cell_edges[mesh->cell_edge_offsets[cell1]+f1] != edge) ++f1;
+        ASSERT(mesh->cell_edge_offsets[cell1+1] > (mesh->cell_edge_offsets[cell1] + f1));
+        xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col1]+f1] = face;
+      }
       int_array_append(face_cols, col1);
+
       if (col2 < xy_data->num_columns)
+      {
+        int f2 = 0;
+        while (mesh->cell_edges[mesh->cell_edge_offsets[cell2]+f2] != ~edge) ++f2;
+        ASSERT(mesh->cell_edge_offsets[cell2+1] > (mesh->cell_edge_offsets[cell2] + f2));
         xy_data->column_xy_faces[xy_data->column_xy_face_offsets[col2]+f2] = ~face;
+      }
 #if POLYMEC_HAVE_MPI
       else if (col2 != -1) // ghost column
       {
