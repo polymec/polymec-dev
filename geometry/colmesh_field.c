@@ -125,9 +125,11 @@ colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
   field->bytes = 0;
   field->owns_buffer = false;
 
+#if POLYMEC_HAVE_MPI
   // Set up exchangers and tokens.
   field->ex = colmesh_exchanger(mesh, centering);
   field->ex_token = -1;
+#endif
 
   // Now populate the chunks (with NULL buffers).
   int pos = 0, xy_index, z_index;
@@ -148,8 +150,8 @@ colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
 }
 
 colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
-                                     colmesh_centering_t centering,
-                                     size_t num_components)
+                                   colmesh_centering_t centering,
+                                   size_t num_components)
 {
   ASSERT(num_components > 0);
   START_FUNCTION_TIMER();
@@ -165,7 +167,9 @@ void colmesh_field_free(colmesh_field_t* field)
   chunk_data_map_free(field->chunks);
   if (field->owns_buffer)
     polymec_free(field->buffer);
+#if POLYMEC_HAVE_MPI
   polymec_release(field->ex);
+#endif
   polymec_free(field);
 }
 
@@ -270,6 +274,7 @@ void colmesh_field_exchange(colmesh_field_t* field)
 
 void colmesh_field_start_exchange(colmesh_field_t* field)
 {
+#if POLYMEC_HAVE_MPI
   ASSERT(!colmesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
 
@@ -277,20 +282,27 @@ void colmesh_field_start_exchange(colmesh_field_t* field)
   int stride = 1; // FIXME
   field->ex_token = exchanger_start_exchange(field->ex, field->buffer, stride, 0, MPI_REAL_T);
   STOP_FUNCTION_TIMER();
+#endif
 }
 
 void colmesh_field_finish_exchange(colmesh_field_t* field)
 {
+#if POLYMEC_HAVE_MPI
   ASSERT(colmesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
   if (field->ex_token != -1)
     exchanger_finish_exchange(field->ex, field->ex_token);
   STOP_FUNCTION_TIMER();
+#endif
 }
 
 bool colmesh_field_is_exchanging(colmesh_field_t* field)
 {
+#if POLYMEC_HAVE_MPI
   return (field->ex_token != -1);
+#else
+  return false;
+#endif
 }
 
 real_enumerable_generator_t* colmesh_field_enumerate(colmesh_field_t* field)

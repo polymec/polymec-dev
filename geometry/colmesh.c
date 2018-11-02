@@ -217,7 +217,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
                                                          int64_t* sources)
 {
   chunk_xy_data_array_t* all_xy_data = chunk_xy_data_array_new();
-  // FIXMEhttps://chapel-lang.org
+  // FIXME
   return all_xy_data;
 }
 
@@ -307,7 +307,7 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
     centroids[i].y = xc.y;
     centroids[i].z = 0.0;
   }
-  int64_t* P = partition_points_n_ways(centroids, (size_t)columns->num_cells, num_xy_chunks);
+  int64_t* P = partition_points_n_ways(centroids, (size_t)columns->num_cells, num_xy_chunks, NULL, 0.0);
   polymec_free(centroids);
   polymec_release(poly);
 #endif
@@ -622,8 +622,8 @@ colmesh_t* colmesh_new(MPI_Comm comm,
   // This is definitely not ideal, but it's the easiest way to get a start.
   size_t nz_per_chunk = nz / num_z_chunks;
   colmesh_t* mesh = create_empty_colmesh(comm, columns, z1, z2, 
-                                           num_xy_chunks, num_z_chunks, 
-                                           nz_per_chunk, periodic_in_z);
+                                         num_xy_chunks, num_z_chunks, 
+                                         nz_per_chunk, periodic_in_z);
   size_t tot_num_chunks = num_xy_chunks * num_z_chunks;
   size_t chunks_per_proc = tot_num_chunks / nproc;
   for (size_t i = 0; i < tot_num_chunks; ++i)
@@ -664,9 +664,9 @@ void colmesh_free(colmesh_t* mesh)
 }
 
 void colmesh_get_chunk_info(colmesh_t* mesh, 
-                             size_t* num_xy_chunks,
-                             size_t* num_z_chunks,
-                             size_t* nz_per_chunk)
+                            size_t* num_xy_chunks,
+                            size_t* num_z_chunks,
+                            size_t* nz_per_chunk)
 {
   *num_xy_chunks = mesh->num_xy_chunks;
   *num_z_chunks = mesh->num_z_chunks;
@@ -674,9 +674,9 @@ void colmesh_get_chunk_info(colmesh_t* mesh,
 }
 
 void colmesh_get_z_info(colmesh_t* mesh, 
-                         real_t* z1,
-                         real_t* z2,
-                         bool* periodic)
+                        real_t* z1,
+                        real_t* z2,
+                        bool* periodic)
 {
   *z1 = mesh->z1;
   *z2 = mesh->z2;
@@ -684,7 +684,7 @@ void colmesh_get_z_info(colmesh_t* mesh,
 }
 
 bool colmesh_verify_topology(colmesh_t* mesh, 
-                              void (*handler)(const char* format, ...))
+                             void (*handler)(const char* format, ...))
 {
   // Verify the topology of each chunk.
   bool good = true;
@@ -703,7 +703,7 @@ bool colmesh_verify_topology(colmesh_t* mesh,
 }
 
 bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
-                                    void (*handler)(const char* format, ...))
+                                   void (*handler)(const char* format, ...))
 {
   // All cells are prisms and must have at least 5 faces (3 xy faces + 2 z faces).
   for (size_t c = 0; c < chunk->num_columns; ++c)
@@ -837,8 +837,8 @@ polygon_t* colmesh_chunk_polygon(colmesh_chunk_t* chunk, int column)
 }
 
 bool colmesh_next_chunk(colmesh_t* mesh, int* pos, 
-                         int* xy_index, int* z_index,
-                         colmesh_chunk_t** chunk)
+                        int* xy_index, int* z_index,
+                        colmesh_chunk_t** chunk)
 {
   if (*pos >= (int)mesh->chunks->size)
     return false;
@@ -856,8 +856,8 @@ bool colmesh_next_chunk(colmesh_t* mesh, int* pos,
 }
 
 void colmesh_chunk_get_node(colmesh_chunk_t* chunk, 
-                             int xy_index, int z_index,
-                             point_t* node_pos)
+                            int xy_index, int z_index,
+                            point_t* node_pos)
 {
   ASSERT(xy_index >= 0);
   ASSERT(xy_index < chunk->num_xy_nodes);
@@ -872,8 +872,8 @@ void colmesh_chunk_get_node(colmesh_chunk_t* chunk,
 
 #if POLYMEC_HAVE_MPI
 static void redistribute_colmesh(colmesh_t** mesh, 
-                                  int64_t* partition,
-                                  int64_t* sources)
+                                 int64_t* partition,
+                                 int64_t* sources)
 {
   START_FUNCTION_TIMER();
   colmesh_t* old_mesh = *mesh;
@@ -913,17 +913,17 @@ static void redistribute_colmesh(colmesh_t** mesh,
 }
 
 static void redistribute_colmesh_field(colmesh_field_t** field, 
-                                        int64_t* partition,
-                                        int64_t* sources,
-                                        colmesh_t* new_mesh)
+                                       int64_t* partition,
+                                       int64_t* sources,
+                                       colmesh_t* new_mesh)
 {
   START_FUNCTION_TIMER();
 
   // Create a new field from the old one.
   colmesh_field_t* old_field = *field;
   colmesh_field_t* new_field = colmesh_field_new(new_mesh,
-                                                   colmesh_field_centering(old_field),
-                                                   colmesh_field_num_components(old_field));
+                                                 colmesh_field_centering(old_field),
+                                                 colmesh_field_num_components(old_field));
 
   // Copy all local chunk data from one field to the other.
   colmesh_chunk_data_t* data;
@@ -986,10 +986,10 @@ static void redistribute_colmesh_field(colmesh_field_t** field,
 #endif // POLYMEC_HAVE_MPI
 
 void repartition_colmesh(colmesh_t** mesh, 
-                          int* weights,
-                          real_t imbalance_tol,
-                          colmesh_field_t** fields,
-                          size_t num_fields)
+                         int* weights,
+                         real_t imbalance_tol,
+                         colmesh_field_t** fields,
+                         size_t num_fields)
 {
   ASSERT((weights == NULL) || (imbalance_tol > 0.0));
   ASSERT((weights == NULL) || (imbalance_tol <= 1.0));
@@ -1043,10 +1043,8 @@ polymesh_t* colmesh_as_polymesh(colmesh_t* mesh)
 
 #if POLYMEC_HAVE_MPI
 // These functions provide access to exchangers for colmesh_fields.
-exchanger_t* colmesh_exchanger(colmesh_t* mesh, 
-                                colmesh_centering_t centering);
-exchanger_t* colmesh_exchanger(colmesh_t* mesh, 
-                                colmesh_centering_t centering)
+exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering);
+exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering)
 {
   exchanger_t* ex = NULL;
   switch (centering)

@@ -7,10 +7,10 @@
 #include "core/partitioning.h"
 #include "core/hilbert.h"
 #include "core/parallel_sort.h"
+#include "core/timer.h"
 
 #if POLYMEC_HAVE_MPI
 #include "ptscotch.h"
-#include "core/timer.h"
 #endif
 
 #if POLYMEC_HAVE_MPI
@@ -43,19 +43,6 @@ static hilbert_t* hilbert_from_points(point_t* points, size_t num_points)
   return hilbert_new(&bbox);
 }
 
-// This helper is a comparison function used to sort (Hilbert index, weight) tuples.
-// Only the Hilbert index factors into the ordering.
-static int hilbert_comp(const void* l, const void* r)
-{
-  const index_t* li = l;
-  const index_t* ri = r;
-  return (li[1] < ri[1]) ? -1
-                         : (li[1] > ri[1]) ? 1
-                                           : 0;
-}
-
-#endif
-
 static void extract_graph_info(adj_graph_t* graph,
                                int* weights,
                                SCOTCH_Num** xadj, 
@@ -80,6 +67,7 @@ static void extract_graph_info(adj_graph_t* graph,
       (*vtx_weights)[i] = (SCOTCH_Num)weights[i];
   }
 }
+#endif
 
 int64_t* partition_graph(adj_graph_t* global_graph, 
                          MPI_Comm comm,
@@ -224,7 +212,7 @@ int64_t* partition_graph_n_ways(adj_graph_t* global_graph,
   log_urgent("partition_graph_n_ways: MPI disabled. Performing naive partitioning. This probably isn't what you want.");
   size_t num_global_vertices = adj_graph_num_vertices(global_graph);
   int64_t* P = polymec_malloc(sizeof(int64_t)*num_global_vertices);
-  int n_per_piece = num_global_vertices / n;
+  int n_per_piece = (int)(num_global_vertices / n);
   for (int i = 0; i < num_global_vertices; ++i)
     P[i] = (int64_t)(i / n_per_piece);
   return P;
@@ -276,6 +264,17 @@ int64_t* partition_points(point_t* points,
 #endif
 }
 
+// This helper is a comparison function used to sort (Hilbert index, weight) tuples.
+// Only the Hilbert index factors into the ordering.
+static int hilbert_comp(const void* l, const void* r)
+{
+  const index_t* li = l;
+  const index_t* ri = r;
+  return (li[1] < ri[1]) ? -1
+                         : (li[1] > ri[1]) ? 1
+                                           : 0;
+}
+
 int64_t* partition_points_n_ways(point_t* points,
                                  size_t num_points,
                                  size_t n,
@@ -300,7 +299,11 @@ int64_t* partition_points_n_ways(point_t* points,
 #endif
 
   // Set up a Hilbert space filling curve that can map the given points to indices.
-  hilbert_t* hilbert = hilbert_from_points(points, num_points);
+  bbox_t bbox;
+  bbox_make_empty_set(&bbox);
+  for (size_t i = 0; i < num_points; ++i)
+    bbox_grow(&bbox, &points[i]);
+  hilbert_t* hilbert = hilbert_new(&bbox);
 
   // Create an array of 3-tuples containing the 
   // (point index, Hilbert index, weight) of each point. 
