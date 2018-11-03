@@ -322,7 +322,13 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
 
       // Count up edges.
       int num_xy_neighbors = (int)xy_data->send_map->size;
-      int num_z_neighbors = ((z_index == 0) || (z_index == (int)(num_z_chunks-1))) ? 1 : 2;
+      int num_z_neighbors;
+      if (num_z_chunks == 1)
+        num_z_neighbors = 0;
+      else if ((z_index == 0) || (z_index == (int)(num_z_chunks-1)))
+        num_z_neighbors = 1;
+      else 
+        num_z_neighbors = 2;
       adj_graph_set_num_edges(mesh->chunk_graph, ch_index, num_xy_neighbors + num_z_neighbors);
 
       // Add xy edges.
@@ -337,6 +343,8 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
         edges[i++] = chunk_index(mesh, xy_index, z_index-1);
       if (z_index < (int)(num_z_chunks-1))
         edges[i++] = chunk_index(mesh, xy_index, z_index+1);
+
+      ASSERT(i == num_xy_neighbors + num_z_neighbors);
     }
   }
   polymec_free(P);
@@ -527,7 +535,8 @@ void colmesh_finalize(colmesh_t* mesh)
       {
         int ch1_index = chunk_index(mesh, (int)xy1, z-1);
         int proc = (int)(owners[ch1_index]);
-        int send_index = (int)(chunk_offset + chunk->num_z_cells * xy1);
+        int z1 = 1;
+        int send_index = (int)(chunk_offset + chunk->num_z_cells * xy1 + z1);
         int receive_index = cell_offset; 
         exchanger_proc_map_add_index(send_map, proc, send_index);
         exchanger_proc_map_add_index(receive_map, proc, receive_index);
@@ -540,7 +549,8 @@ void colmesh_finalize(colmesh_t* mesh)
       {
         int ch1_index = chunk_index(mesh, (int)xy1, z+1);
         int proc = (int)(owners[ch1_index]);
-        int send_index = (int)(chunk_offset + chunk->num_z_cells * xy1 + chunk->num_z_cells - 1);
+        int z1 = chunk->num_z_cells;
+        int send_index = (int)(chunk_offset + chunk->num_z_cells * xy1 + z1);
         int receive_index = cell_offset; 
         exchanger_proc_map_add_index(send_map, proc, send_index);
         exchanger_proc_map_add_index(receive_map, proc, receive_index);
@@ -892,6 +902,8 @@ static void* xy_data_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_size_ts(bytes, 1, &xy_data->num_ghost_columns, offset);
   xy_data->column_xy_face_offsets = polymec_malloc((xy_data->num_columns + 1) * sizeof(int));
   byte_array_read_ints(bytes, xy_data->num_columns+1, xy_data->column_xy_face_offsets, offset);
+  xy_data->column_xy_faces = polymec_malloc(xy_data->column_xy_face_offsets[xy_data->num_columns] * sizeof(int));
+  byte_array_read_ints(bytes, xy_data->column_xy_faces[xy_data->column_xy_face_offsets[xy_data->num_columns]], xy_data->column_xy_faces, offset);
   byte_array_read_size_ts(bytes, 1, &xy_data->num_xy_faces, offset);
   xy_data->xy_face_columns = polymec_malloc(2*xy_data->num_xy_faces * sizeof(int));
   byte_array_read_ints(bytes, 2*xy_data->num_xy_faces, xy_data->xy_face_columns, offset);
@@ -910,6 +922,7 @@ static void xy_data_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_size_ts(bytes, 1, &xy_data->num_columns, offset);
   byte_array_write_size_ts(bytes, 1, &xy_data->num_ghost_columns, offset);
   byte_array_write_ints(bytes, xy_data->num_columns+1, xy_data->column_xy_face_offsets, offset);
+  byte_array_write_ints(bytes, xy_data->column_xy_faces[xy_data->column_xy_face_offsets[xy_data->num_columns]], xy_data->column_xy_faces, offset);
   byte_array_write_size_ts(bytes, 1, &xy_data->num_xy_faces, offset);
   byte_array_write_ints(bytes, 2*xy_data->num_xy_faces, xy_data->xy_face_columns, offset);
   byte_array_write_size_ts(bytes, 1, &xy_data->num_xy_edges, offset);
