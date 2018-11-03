@@ -599,7 +599,7 @@ colmesh_t* colmesh_new(MPI_Comm comm,
 
     // Some simple algebra tell us num_z_chunks should be the integer closest 
     // to the value pow(nproc*Nz*Nz/Nxy, 1.0/3.0).
-    num_z_chunks = (size_t)(pow(nproc*Nz*Nz/Nxy, 1.0/3.0));
+    num_z_chunks = MAX(1, (size_t)(pow(nproc*Nz*Nz/Nxy, 1.0/3.0)));
     
     // Adjust num_z_chunks so it evenly divides nproc.
     int remainder = (int)(nproc % num_z_chunks);
