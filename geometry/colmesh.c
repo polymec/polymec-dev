@@ -201,6 +201,29 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   return xy_data;
 }
 
+static chunk_xy_data_t* chunk_xy_data_clone(chunk_xy_data_t* xy_data)
+{
+  chunk_xy_data_t* clone = polymec_malloc(sizeof(chunk_xy_data_t));
+  clone->num_columns = xy_data->num_columns;
+  clone->num_ghost_columns = xy_data->num_ghost_columns;
+  clone->column_xy_face_offsets = polymec_malloc((xy_data->num_columns+1) * sizeof(int));
+  memcpy(clone->column_xy_face_offsets, xy_data->column_xy_face_offsets, (xy_data->num_columns+1) * sizeof(int));
+  clone->column_xy_faces = polymec_malloc(xy_data->column_xy_face_offsets[xy_data->num_columns] * sizeof(int));
+  memcpy(clone->column_xy_faces, xy_data->column_xy_faces, xy_data->column_xy_face_offsets[xy_data->num_columns] * sizeof(int));
+  clone->num_xy_faces = xy_data->num_xy_faces;
+  clone->xy_face_columns = polymec_malloc(2 * xy_data->num_xy_faces * sizeof(int));
+  memcpy(clone->xy_face_columns, xy_data->xy_face_columns, 2 * xy_data->num_xy_faces * sizeof(int));
+  clone->num_xy_edges = xy_data->num_xy_edges;
+  clone->xy_edge_nodes = polymec_malloc(2 * xy_data->num_xy_edges * sizeof(int));
+  memcpy(clone->xy_edge_nodes, xy_data->xy_edge_nodes, 2 * xy_data->num_xy_edges * sizeof(int));
+  clone->num_xy_nodes = xy_data->num_xy_nodes;
+  clone->xy_nodes = polymec_malloc(xy_data->num_xy_nodes * sizeof(point2_t));
+  memcpy(clone->xy_nodes, xy_data->xy_nodes, xy_data->num_xy_nodes * sizeof(point2_t));
+  clone->send_map = exchanger_proc_map_new();
+  clone->receive_map = exchanger_proc_map_new();
+  return clone;
+}
+
 static void chunk_xy_data_free(chunk_xy_data_t* xy_data)
 {
   polymec_free(xy_data->xy_nodes);
@@ -956,9 +979,9 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   int_array_t* dest_procs = int_array_new();
   for (size_t i = 0; i < old_mesh->num_xy_chunks; ++i)
   {
-    if (partition_vector[i] == old_mesh->rank)
+    if ((partition_vector[i] == old_mesh->rank) && (partition_vector[i] != source_vector[i]))
       insert_unique_sorted(source_procs, (int)(source_vector[i]));
-    if (source_vector[i] == old_mesh->rank)
+    if ((source_vector[i] == old_mesh->rank) && (partition_vector[i] != source_vector[i]))
       insert_unique_sorted(dest_procs, (int)(partition_vector[i]));
   }
 
@@ -1040,19 +1063,33 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   {
     if (partition_vector[i] == old_mesh->rank)
     {
-      // Fetch the buffer for this process.
-      size_t index = int_lower_bound(source_procs->data, source_procs->size, (int)(source_vector[i]));
-      byte_array_t* buffer = receive_buffers[index]; 
+      chunk_xy_data_t* xy_data = NULL;
+      if (partition_vector[i] == source_vector[i])
+      {
+        // Copy the xy data over directly.
+        xy_data = chunk_xy_data_clone(old_mesh->chunk_xy_data->data[i]);
+      }
+      else
+      {
+        // Fetch the buffer for this process.
+        size_t index = int_lower_bound(source_procs->data, source_procs->size, (int)(source_vector[i]));
+        byte_array_t* buffer = receive_buffers[index]; 
 
-      // Extract the next xy data thingy from the buffer.
-      chunk_xy_data_t* xy_data = serializer_read(ser, buffer, &(offsets[i]));
+        // Extract the next xy data thingy from the buffer.
+        xy_data = serializer_read(ser, buffer, &(offsets[i]));
+      }
+
+      // Stick the xy data into our list.
       chunk_xy_data_array_assign_with_dtor(all_xy_data, i, xy_data, chunk_xy_data_free);
-      byte_array_free(buffer);
     }
   }
 
   // Clean up the rest of the mess.
   polymec_release(ser);
+  for (size_t i = 0; i < source_procs->size; ++i)
+    byte_array_free(receive_buffers[i]);
+  for (size_t i = 0; i < dest_procs->size; ++i)
+    byte_array_free(send_buffers[i]);
   int_array_free(source_procs);
   int_array_free(dest_procs);
 
