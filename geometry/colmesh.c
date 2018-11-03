@@ -205,6 +205,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
 static void chunk_xy_data_free(chunk_xy_data_t* xy_data)
 {
   polymec_free(xy_data->xy_nodes);
+  polymec_free(xy_data->xy_edge_nodes);
   polymec_free(xy_data->xy_face_columns);
   polymec_free(xy_data->column_xy_faces);
   polymec_free(xy_data->column_xy_face_offsets);
@@ -366,6 +367,7 @@ void colmesh_insert_chunk(colmesh_t* mesh, int xy_index, int z_index)
   // Chunk xy data (points to data owned by mesh->chunk_xy_data).
   chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy_index];
   chunk->num_columns = xy_data->num_columns;
+  chunk->num_ghost_columns = xy_data->num_ghost_columns;
   chunk->column_xy_face_offsets = xy_data->column_xy_face_offsets;
   chunk->column_xy_faces = xy_data->column_xy_faces;
   chunk->num_xy_faces = xy_data->num_xy_faces;
@@ -545,7 +547,7 @@ void colmesh_finalize(colmesh_t* mesh)
   }
   mesh->cell_ex = exchanger_new(mesh->comm);
   exchanger_set_sends(mesh->cell_ex, send_map);
-  exchanger_set_sends(mesh->cell_ex, receive_map);
+  exchanger_set_receives(mesh->cell_ex, receive_map);
   polymec_free(owners);
 #endif
 

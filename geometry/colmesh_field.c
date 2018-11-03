@@ -12,9 +12,9 @@
 #include "geometry/colmesh_field.h"
 
 static colmesh_chunk_data_t* colmesh_chunk_data_with_buffer(colmesh_chunk_t* chunk,
-                                                              colmesh_centering_t centering,
-                                                              size_t num_components, 
-                                                              void* buffer)
+                                                            colmesh_centering_t centering,
+                                                            size_t num_components, 
+                                                            void* buffer)
 {
   colmesh_chunk_data_t* data = polymec_malloc(sizeof(colmesh_chunk_data_t));
   data->chunk = chunk;
@@ -24,8 +24,7 @@ static colmesh_chunk_data_t* colmesh_chunk_data_with_buffer(colmesh_chunk_t* chu
   // Figure out the dimensions of our data.
   if (centering == COLMESH_CELL)
   {
-    size_t num_ghost_xyvals = 0;
-    data->xy_size = chunk->num_columns + num_ghost_xyvals;
+    data->xy_size = chunk->num_columns + chunk->num_ghost_columns;
     data->z_size = chunk->num_z_cells + 2;
   }
   else if (centering == COLMESH_XYFACE)
@@ -63,7 +62,7 @@ static void colmesh_chunk_data_free(colmesh_chunk_data_t* data)
 }
 
 void colmesh_chunk_data_copy(colmesh_chunk_data_t* data, 
-                              colmesh_chunk_data_t* dest)
+                             colmesh_chunk_data_t* dest)
 {
   ASSERT(dest->chunk == data->chunk);
   ASSERT(dest->centering == data->centering);
@@ -88,11 +87,9 @@ struct colmesh_field_t
   size_t bytes;
   bool owns_buffer;
 
-#if POLYMEC_HAVE_MPI
   // Exchangers.
   exchanger_t *ex;
   int ex_token;
-#endif
 };
 
 static inline int chunk_index(colmesh_field_t* field, int xy_index, int z_index)
@@ -101,12 +98,12 @@ static inline int chunk_index(colmesh_field_t* field, int xy_index, int z_index)
 }
 
 extern exchanger_t* colmesh_exchanger(colmesh_t* mesh, 
-                                       colmesh_centering_t centering);
+                                      colmesh_centering_t centering);
 
 colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
-                                             colmesh_centering_t centering,
-                                             size_t num_components,
-                                             void* buffer)
+                                           colmesh_centering_t centering,
+                                           size_t num_components,
+                                           void* buffer)
 {
   START_FUNCTION_TIMER();
   ASSERT(num_components > 0);
@@ -125,11 +122,9 @@ colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
   field->bytes = 0;
   field->owns_buffer = false;
 
-#if POLYMEC_HAVE_MPI
   // Set up exchangers and tokens.
   field->ex = colmesh_exchanger(mesh, centering);
   field->ex_token = -1;
-#endif
 
   // Now populate the chunks (with NULL buffers).
   int pos = 0, xy_index, z_index;
@@ -167,9 +162,7 @@ void colmesh_field_free(colmesh_field_t* field)
   chunk_data_map_free(field->chunks);
   if (field->owns_buffer)
     polymec_free(field->buffer);
-#if POLYMEC_HAVE_MPI
   polymec_release(field->ex);
-#endif
   polymec_free(field);
 }
 
@@ -199,8 +192,8 @@ void* colmesh_field_buffer(colmesh_field_t* field)
 }
 
 void colmesh_field_set_buffer(colmesh_field_t* field, 
-                               void* buffer, 
-                               bool assume_control)
+                              void* buffer, 
+                              bool assume_control)
 {
   START_FUNCTION_TIMER();
   if ((field->buffer != NULL) && field->owns_buffer)
@@ -221,7 +214,7 @@ void colmesh_field_set_buffer(colmesh_field_t* field,
 }
 
 void colmesh_field_copy(colmesh_field_t* field,
-                         colmesh_field_t* dest)
+                        colmesh_field_t* dest)
 {
   ASSERT(dest->mesh == field->mesh);
   ASSERT(dest->centering == field->centering);
@@ -241,8 +234,8 @@ void colmesh_field_copy(colmesh_field_t* field,
 }
 
 colmesh_chunk_data_t* colmesh_field_chunk_data(colmesh_field_t* field, 
-                                                 int xy_index,
-                                                 int z_index)
+                                               int xy_index,
+                                               int z_index)
 {
   int index = chunk_index(field, xy_index, z_index);
   colmesh_chunk_data_t** data_p = chunk_data_map_get(field->chunks, index);
@@ -253,8 +246,8 @@ colmesh_chunk_data_t* colmesh_field_chunk_data(colmesh_field_t* field,
 }
 
 bool colmesh_field_next_chunk(colmesh_field_t* field, int* pos, 
-                               int* xy_index, int* z_index,
-                               colmesh_chunk_data_t** chunk_data)
+                              int* xy_index, int* z_index,
+                              colmesh_chunk_data_t** chunk_data)
 {
   colmesh_chunk_t* chunk;
   bool result = colmesh_next_chunk(field->mesh, pos, xy_index, z_index, &chunk);
@@ -274,7 +267,6 @@ void colmesh_field_exchange(colmesh_field_t* field)
 
 void colmesh_field_start_exchange(colmesh_field_t* field)
 {
-#if POLYMEC_HAVE_MPI
   ASSERT(!colmesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
 
@@ -282,27 +274,20 @@ void colmesh_field_start_exchange(colmesh_field_t* field)
   int stride = 1; // FIXME
   field->ex_token = exchanger_start_exchange(field->ex, field->buffer, stride, 0, MPI_REAL_T);
   STOP_FUNCTION_TIMER();
-#endif
 }
 
 void colmesh_field_finish_exchange(colmesh_field_t* field)
 {
-#if POLYMEC_HAVE_MPI
   ASSERT(colmesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
   if (field->ex_token != -1)
     exchanger_finish_exchange(field->ex, field->ex_token);
   STOP_FUNCTION_TIMER();
-#endif
 }
 
 bool colmesh_field_is_exchanging(colmesh_field_t* field)
 {
-#if POLYMEC_HAVE_MPI
   return (field->ex_token != -1);
-#else
-  return false;
-#endif
 }
 
 real_enumerable_generator_t* colmesh_field_enumerate(colmesh_field_t* field)

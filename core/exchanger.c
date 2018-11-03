@@ -700,7 +700,7 @@ static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* ms
     else 
     {
       // Do any local copying.
-      ASSERT(idest_local != -1);
+      ASSERT(idest_local != -1); // no local destination for this source?
       ASSERT(msg->receive_buffer_sizes[idest_local] == msg->send_buffer_sizes[i]);
       memcpy(msg->receive_buffers[idest_local], msg->send_buffers[i], 
              sizeof(real_t) * msg->stride * msg->send_buffer_sizes[i]);

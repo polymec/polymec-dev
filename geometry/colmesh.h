@@ -46,8 +46,11 @@ typedef struct colmesh_column_t colmesh_column_t;
 /// A group of columns within a colmesh.
 struct colmesh_chunk_t 
 {
-  /// The number of (polygonal) columns in this chunk.
+  /// The number of interior (polygonal) columns in this chunk.
   size_t num_columns;
+
+  /// The number of ghost (polygonal) columns in this chunk.
+  size_t num_ghost_columns;
 
   /// The number of vertical (z) cells in this chunk. Note that 
   /// * the number of "z" faces is \ref num_zcells + 1.
