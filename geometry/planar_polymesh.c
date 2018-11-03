@@ -249,15 +249,15 @@ void planar_polymesh_cell_get_nodes(planar_polymesh_t* mesh,
   int n = 0;
   for (int e = mesh->cell_edge_offsets[cell]; e < mesh->cell_edge_offsets[cell+1]; ++e, ++n)
   {
-    if (e >= 0)
-      nodes[n] = mesh->edge_nodes[2*e];
+    int edge = mesh->cell_edges[e];
+    if (edge >= 0)
+      nodes[n] = mesh->edge_nodes[2*edge];
     else
-      nodes[n] = mesh->edge_nodes[2*(~e)+1];
+      nodes[n] = mesh->edge_nodes[2*(~edge)+1];
   }
 }
 
-polygon_t* planar_polymesh_cell_polygon(planar_polymesh_t* mesh, 
-                                        int cell)
+polygon_t* planar_polymesh_cell_polygon(planar_polymesh_t* mesh, int cell)
 {
   ASSERT(cell >= 0);
   ASSERT(cell < mesh->num_cells);

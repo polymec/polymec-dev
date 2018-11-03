@@ -29,11 +29,9 @@ typedef struct
   size_t num_xy_nodes;
   point2_t* xy_nodes;
 
-#if POLYMEC_HAVE_MPI
   // Exchanger process maps--used to construct exchangers.
   exchanger_proc_map_t* send_map;
   exchanger_proc_map_t* receive_map;
-#endif
 } chunk_xy_data_t;
 
 DEFINE_ARRAY(chunk_xy_data_array, chunk_xy_data_t*)
@@ -51,10 +49,8 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   xy_data->num_xy_faces = 0;
   xy_data->num_xy_edges = 0;
   xy_data->num_xy_nodes = 0;
-#if POLYMEC_HAVE_MPI
   xy_data->send_map = exchanger_proc_map_new();
   xy_data->receive_map = exchanger_proc_map_new();
-#endif
 
   int rank;
   MPI_Comm_rank(comm, &rank);
@@ -212,10 +208,8 @@ static void chunk_xy_data_free(chunk_xy_data_t* xy_data)
   polymec_free(xy_data->xy_face_columns);
   polymec_free(xy_data->column_xy_faces);
   polymec_free(xy_data->column_xy_face_offsets);
-#if POLYMEC_HAVE_MPI
   exchanger_proc_map_free(xy_data->send_map);
   exchanger_proc_map_free(xy_data->receive_map);
-#endif
   polymec_free(xy_data);
 }
 
@@ -325,14 +319,20 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
     for (int z_index = 0; z_index < (int)num_z_chunks; ++z_index)
     {
       int ch_index = chunk_index(mesh, xy_index, z_index);
-      int_array_t* indices;
+
+      // Cound up edges.
       int num_xy_neighbors = (int)xy_data->send_map->size;
       int num_z_neighbors = ((z_index == 0) || (z_index == (int)(num_z_chunks-1))) ? 1 : 2;
       adj_graph_set_num_edges(mesh->chunk_graph, ch_index, num_xy_neighbors + num_z_neighbors);
+
+      // Add xy edges.
       int* edges = adj_graph_edges(mesh->chunk_graph, ch_index);
       int pos = 0, neighbor_xy_index, i = 0;
+      int_array_t* indices;
       while (exchanger_proc_map_next(xy_data->send_map, &pos, &neighbor_xy_index, &indices))
         edges[i++] = chunk_index(mesh, neighbor_xy_index, z_index);
+
+      // Add z edges.
       if (z_index > 0)
         edges[i++] = chunk_index(mesh, xy_index, z_index-1);
       if (z_index < (int)(num_z_chunks-1))
