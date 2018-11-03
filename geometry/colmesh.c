@@ -9,7 +9,6 @@
 #include "core/array.h"
 #include "core/array_utils.h"
 #include "core/exchanger.h"
-#include "core/ordered_set.h"
 #include "core/unordered_map.h"
 #include "core/partitioning.h"
 #include "geometry/colmesh.h"
@@ -920,6 +919,15 @@ static serializer_t* chunk_xy_data_serializer()
   return serializer_new("chunk_xy_data", xy_data_byte_size, xy_data_byte_read, xy_data_byte_write, NULL);
 }
 
+// This helper inserts an integer into an array in sorted order if it isn't 
+// already in the array. If it's already there, this function has no effect.
+static void insert_unique_sorted(int_array_t* array, int value)
+{
+  size_t index = int_lower_bound(array->data, array->size, value);
+  if ((index >= array->size) || (array->data[index] != value))
+    int_array_insert(array, index, value);
+}
+
 static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
                                                          int64_t* partition_vector,
                                                          int64_t* source_vector)
@@ -927,76 +935,76 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   START_FUNCTION_TIMER();
 
   // Who are we receiving from, and who are we sending to?
-  int_ordered_set_t* source_procs = int_ordered_set_new();
-  int_ordered_set_t* dest_procs = int_ordered_set_new();
+  int_array_t* source_procs = int_array_new();
+  int_array_t* dest_procs = int_array_new();
   for (size_t i = 0; i < old_mesh->num_xy_chunks; ++i)
   {
     if (partition_vector[i] == old_mesh->rank)
-      int_ordered_set_insert(source_procs, source_vector[i]);
+      insert_unique_sorted(source_procs, (int)(source_vector[i]));
     if (source_vector[i] == old_mesh->rank)
-      int_ordered_set_insert(dest_procs, partition_vector[i]);
+      insert_unique_sorted(dest_procs, (int)(partition_vector[i]));
   }
 
   // Pack up the xy data we're sending out.
   serializer_t* ser = chunk_xy_data_serializer();
   byte_array_t* send_buffers[dest_procs->size];
-  int pos = 0, proc, j = 0;
-  while (int_unordered_set_next(dest_procs, &pos, &proc))
+  for (size_t i = 0; i < dest_procs->size; ++i)
   {
+    int proc = dest_procs->data[i];
     size_t offset = 0;
     byte_array_t* buffer = byte_array_new();
-    for (size_t i = 0; i < old_mesh->num_xy_chunks; ++i)
+    for (size_t j = 0; j < old_mesh->num_xy_chunks; ++j)
     {
-      if ((source_vector[i] == old_mesh->rank) && (partition_vector[i] == proc))
-        serializer_write(ser, old_mesh->chunk_xy_data->data[i], buffer, &offset);
+      if ((source_vector[j] == old_mesh->rank) && (partition_vector[j] == proc))
+        serializer_write(ser, old_mesh->chunk_xy_data->data[j], buffer, &offset);
     }
-    send_buffers[j++] = buffer;
+    send_buffers[i] = buffer;
   }
 
   // Post receives for incoming data sizes.
   MPI_Request recv_requests[source_procs->size];
   int receive_sizes[source_procs->size];
-  pos = j = 0;
-  while (int_unordered_set_next(source_procs, &pos, &proc))
+  for (size_t i = 0; i < source_procs->size; ++i)
   {
-    int err = MPI_Irecv(&receive_sizes[j], 1, MPI_INT, proc, 0, old_mesh->comm, &recv_requests[j]);
+    int proc = source_procs->data[i];
+    int err = MPI_Irecv(&receive_sizes[i], 1, MPI_INT, proc, 0, old_mesh->comm, &recv_requests[i]);
     if (err != MPI_SUCCESS)
       polymec_error("Error receiving xy data size from rank %d", proc);
   }
 
   // Send out data sizes.
   MPI_Request send_requests[dest_procs->size];
-  pos = j = 0;
-  while (int_unordered_set_next(dest_procs, &pos, &proc))
+  for (size_t i = 0; i < dest_procs->size; ++i)
   {
-    int size = (int)(send_buffers[j]->size);
-    int err = MPI_Isend(&size, 1, MPI_INT, proc, 0, old_mesh->comm, &send_requests[j]);
+    int proc = dest_procs->data[i];
+    int size = (int)(send_buffers[i]->size);
+    int err = MPI_Isend(&size, 1, MPI_INT, proc, 0, old_mesh->comm, &send_requests[i]);
     if (err != MPI_SUCCESS)
       polymec_error("Error sending xy data size from rank %d", proc);
   }
 
   // Wait for everything to finish.
-  MPI_Waitall((int)send_procs->size, send_requests, MPI_STATUSES_IGNORE);
-  MPI_Waitall((int)receive_procs->size, recv_requests, MPI_STATUSES_IGNORE);
+  MPI_Waitall((int)dest_procs->size, send_requests, MPI_STATUSES_IGNORE);
+  MPI_Waitall((int)source_procs->size, recv_requests, MPI_STATUSES_IGNORE);
 
   // Post receives for incoming xy data.
-  pos = j = 0;
   byte_array_t* receive_buffers[source_procs->size];
-  while (int_unordered_set_next(source_procs, &pos, &proc))
+  for (size_t i = 0; i < source_procs->size; ++i)
   {
-    byte_array_t* buffer = byte_array_new_with_size(receive_sizes[j]);
-    int err = MPI_Irecv(buffer->data, receive_sizes[j], MPI_BYTE, proc, 0, old_mesh->comm, &recv_requests[j]);
+    int proc = source_procs->data[i];
+    byte_array_t* buffer = byte_array_new_with_size(receive_sizes[i]);
+    int err = MPI_Irecv(buffer->data, receive_sizes[i], MPI_BYTE, proc, 0, old_mesh->comm, &recv_requests[i]);
     if (err != MPI_SUCCESS)
       polymec_error("Error receiving xy data from rank %d", proc);
-    receive_buffers[j++] = buffer;
+    receive_buffers[i] = buffer;
   }
 
   // Send out xy data.
-  pos = j = 0;
-  while (int_unordered_set_next(dest_procs, &pos, &proc))
+  for (size_t i = 0; i < dest_procs->size; ++i)
   {
-    byte_array_t* buffer = send_buffers[j++];
-    int err = MPI_Isend(buffer->data, (int)(buffer->size), MPI_BYTE, proc, 0, old_mesh->comm, &recv_requests[j]);
+    int proc = source_procs->data[i];
+    byte_array_t* buffer = send_buffers[i];
+    int err = MPI_Isend(buffer->data, (int)(buffer->size), MPI_BYTE, proc, 0, old_mesh->comm, &recv_requests[i]);
     if (err != MPI_SUCCESS)
       polymec_error("Error sending xy data from rank %d", proc);
   }
@@ -1016,22 +1024,22 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   memset(offsets, 0, sizeof(size_t) * source_procs->size);
   for (size_t i = 0; i < old_mesh->num_xy_chunks; ++i)
   {
-    pos = j = 0;
     if (partition_vector[i] == old_mesh->rank)
     {
-      
-      byte_array_t* buffer = receive_buffers[j]; 
-      chunk_xy_data_t* xy_data = serializer_read(ser, buffer, &(offsets[j]));
-      all_xy_data->data[j]
+      // Fetch the buffer for this process.
+      size_t index = int_lower_bound(source_procs->data, source_procs->size, (int)(source_vector[i]));
+      byte_array_t* buffer = receive_buffers[index]; 
+
+      // Extract the next xy data thingy from the buffer.
+      all_xy_data->data[i] = serializer_read(ser, buffer, &(offsets[i]));
       byte_array_free(buffer);
     }
   }
 
   // Clean up the rest of the mess.
-  for (size_t i = 0; i < receive_procs->size; ++i)
   polymec_release(ser);
-  int_ordered_set_free(source_procs);
-  int_ordered_set_free(dest_procs);
+  int_array_free(source_procs);
+  int_array_free(dest_procs);
 
   STOP_FUNCTION_TIMER();
   return all_xy_data;
