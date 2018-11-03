@@ -8,6 +8,7 @@
 #ifndef POLYMEC_COLMESH_FIELD_H
 #define POLYMEC_COLMESH_FIELD_H
 
+#include "core/declare_nd_array.h"
 #include "geometry/colmesh.h"
 
 /// \addtogroup geometry geometry
