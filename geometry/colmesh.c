@@ -979,30 +979,28 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   }
 
   // Post receives for incoming data sizes.
-  MPI_Request recv_requests[source_procs->size];
+  MPI_Request requests[source_procs->size + dest_procs->size];
   int receive_sizes[source_procs->size];
   for (size_t i = 0; i < source_procs->size; ++i)
   {
     int proc = source_procs->data[i];
-    int err = MPI_Irecv(&receive_sizes[i], 1, MPI_INT, proc, 0, old_mesh->comm, &recv_requests[i]);
+    int err = MPI_Irecv(&receive_sizes[i], 1, MPI_INT, proc, 0, old_mesh->comm, &requests[i]);
     if (err != MPI_SUCCESS)
       polymec_error("Error receiving xy data size from rank %d", proc);
   }
 
   // Send out data sizes.
-  MPI_Request send_requests[dest_procs->size];
   for (size_t i = 0; i < dest_procs->size; ++i)
   {
     int proc = dest_procs->data[i];
     int size = (int)(send_buffers[i]->size);
-    int err = MPI_Isend(&size, 1, MPI_INT, proc, 0, old_mesh->comm, &send_requests[i]);
+    int err = MPI_Isend(&size, 1, MPI_INT, proc, 0, old_mesh->comm, &requests[source_procs->size + i]);
     if (err != MPI_SUCCESS)
       polymec_error("Error sending xy data size from rank %d", proc);
   }
 
   // Wait for everything to finish.
-  MPI_Waitall((int)dest_procs->size, send_requests, MPI_STATUSES_IGNORE);
-  MPI_Waitall((int)source_procs->size, recv_requests, MPI_STATUSES_IGNORE);
+  MPI_Waitall((int)(source_procs->size + dest_procs->size), requests, MPI_STATUSES_IGNORE);
 
   // Post receives for incoming xy data.
   byte_array_t* receive_buffers[source_procs->size];
@@ -1010,7 +1008,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   {
     int proc = source_procs->data[i];
     byte_array_t* buffer = byte_array_new_with_size(receive_sizes[i]);
-    int err = MPI_Irecv(buffer->data, receive_sizes[i], MPI_BYTE, proc, 0, old_mesh->comm, &recv_requests[i]);
+    int err = MPI_Irecv(buffer->data, receive_sizes[i], MPI_BYTE, proc, 0, old_mesh->comm, &requests[i]);
     if (err != MPI_SUCCESS)
       polymec_error("Error receiving xy data from rank %d", proc);
     receive_buffers[i] = buffer;
@@ -1021,14 +1019,13 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   {
     int proc = source_procs->data[i];
     byte_array_t* buffer = send_buffers[i];
-    int err = MPI_Isend(buffer->data, (int)(buffer->size), MPI_BYTE, proc, 0, old_mesh->comm, &recv_requests[i]);
+    int err = MPI_Isend(buffer->data, (int)(buffer->size), MPI_BYTE, proc, 0, old_mesh->comm, &requests[source_procs->size + i]);
     if (err != MPI_SUCCESS)
       polymec_error("Error sending xy data from rank %d", proc);
   }
 
   // Wait for everything to finish.
-  MPI_Waitall((int)dest_procs->size, send_requests, MPI_STATUSES_IGNORE);
-  MPI_Waitall((int)source_procs->size, recv_requests, MPI_STATUSES_IGNORE);
+  MPI_Waitall((int)(source_procs->size + dest_procs->size), requests, MPI_STATUSES_IGNORE);
 
   // We're finished with the send buffers.
   for (size_t i = 0; i < dest_procs->size; ++i)
