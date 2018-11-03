@@ -21,15 +21,11 @@
 # Generated files
 build/
 *.gcov
+3rdparty/hdf5/src/H5Edefin.h
+3rdparty/hdf5/src/H5Einit.h
+3rdparty/hdf5/src/H5Epubgen.h
+3rdparty/hdf5/src/H5Eterm.h
 
 # Machine files (maintained externally)
 machines/
-
-# Documentation kibble.
-docs/*.aux
-docs/*.bbl
-docs/*.blg
-docs/*.idx
-docs/*.log
-docs/*.pdf
 
