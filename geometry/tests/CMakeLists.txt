@@ -34,8 +34,7 @@ add_mpi_polymec_geometry_test(test_repartition_polymesh test_repartition_polymes
 add_mpi_polymec_geometry_test(test_polymesh_node_exchangers test_polymesh_node_exchangers.c 1 2 3 4)
 add_mpi_polymec_geometry_test(test_unimesh test_unimesh.c 1 2 3 4)
 add_mpi_polymec_geometry_test(test_unimesh_field test_unimesh_field.c 1 2 3 4)
-add_mpi_polymec_geometry_test(test_create_quad_colmesh test_create_quad_colmesh.c 1 2 4)
-add_mpi_polymec_geometry_test(test_create_hex_colmesh test_create_hex_colmesh.c 1 2 4)
+add_mpi_polymec_geometry_test(test_colmesh test_colmesh.c 1 2 4)
 
 include(add_driver_test)
 add_driver_with_libs(geometry_driver "polymec_geometry;polymec_core;${POLYMEC_BASE_LIBRARIES}" test_geometry_driver.c)

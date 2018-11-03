@@ -11,8 +11,7 @@
 #include <string.h>
 #include "cmocka.h"
 #include "core/array_utils.h"
-#include "geometry/create_quad_colmesh.h"
-#include "geometry/create_hex_colmesh.h"
+#include "geometry/colmesh.h"
 #include "io/silo_file.h"
 
 static void test_plot_quad_colmesh(void** state)

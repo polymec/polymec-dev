@@ -1031,7 +1031,8 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
       byte_array_t* buffer = receive_buffers[index]; 
 
       // Extract the next xy data thingy from the buffer.
-      all_xy_data->data[i] = serializer_read(ser, buffer, &(offsets[i]));
+      chunk_xy_data_t* xy_data = serializer_read(ser, buffer, &(offsets[i]));
+      chunk_xy_data_array_assign_with_dtor(all_xy_data, i, xy_data, chunk_xy_data_free);
       byte_array_free(buffer);
     }
   }

@@ -123,5 +123,9 @@ zs = xs
 mesh3 = polymesh.rectilinear{comm = mpi.COMM_WORLD, xs = xs, ys = ys, zs = zs}
 mesh4 = polymesh.rectilinear{comm = mpi.COMM_WORLD, rank = 0, xs = xs, ys = ys, zs = zs}
 
+-- Column meshes.
+cmesh1 = colmesh.quad{comm = mpi.COMM_WORLD, bbox = bbox.new{x1 = 0, x2 = 1, y1 = 0, y2 = 1, z1 = 0, z2 = 1}, nx = 10, ny = 10, nz = 10}
+cmesh2 = colmesh.hex{comm = mpi.COMM_WORLD, radius = 8, h = 0.1, nz = 10, z1 = 0, z2 = 1}
+
 -- Force probe garbage collection.
 collectgarbage("collect")

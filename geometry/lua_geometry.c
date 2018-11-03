@@ -20,8 +20,7 @@
 #include "geometry/create_quad_planar_polymesh.h"
 #include "geometry/create_hex_planar_polymesh.h"
 
-#include "geometry/create_quad_colmesh.h"
-#include "geometry/create_hex_colmesh.h"
+#include "geometry/colmesh.h"
 
 #include "lua.h"
 #include "lualib.h"
@@ -1685,6 +1684,51 @@ static int colmesh_repartition(lua_State* L)
   return 0;
 }
 
+static int colmesh_new_(lua_State* L)
+{
+  if (!lua_istable(L, 1))
+    luaL_error(L, "Argument must be a table with comm, columns, z1, z2, nz, periodic_in_z fields.");
+
+  lua_getfield(L, 1, "comm");
+  if (!lua_is_mpi_comm(L, -1))
+    luaL_error(L, "comm must be an mpi_comm.");
+  MPI_Comm comm = lua_to_mpi_comm(L, -1);
+
+  lua_getfield(L, 1, "columns");
+  if (!lua_is_planar_polymesh(L, -1))
+    luaL_error(L, "columns must be a planar polymesh.");
+  planar_polymesh_t* columns = lua_to_planar_polymesh(L, -1);
+
+  lua_getfield(L, 1, "nz");
+  if (!lua_isinteger(L, -1))
+    luaL_error(L, "nz must be a positive integer.");
+  int nz = (int)lua_tointeger(L, -1);
+  if (nz < 1)
+    luaL_error(L, "nz must be positive.");
+
+  lua_getfield(L, 1, "z1");
+  if (!lua_is_real(L, -1))
+    luaL_error(L, "z1 must be a real number.");
+  real_t z1 = lua_to_real(L, -1);
+
+  lua_getfield(L, 1, "z2");
+  if (!lua_is_real(L, -1))
+    luaL_error(L, "z2 must be a real number.");
+  real_t z2 = lua_to_real(L, -1);
+  if (z2 <= z1)
+    luaL_error(L, "z2 must be greater than z1.");
+
+  bool periodic_in_z = false;
+  lua_getfield(L, 1, "periodic_in_z");
+  if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+    luaL_error(L, "periodic_in_z must be true or false.");
+  periodic_in_z = lua_toboolean(L, -1);
+
+  colmesh_t* mesh = colmesh_new(comm, columns, z1, z2, nz, periodic_in_z);
+  lua_push_colmesh(L, mesh);
+  return 1;
+}
+
 static int colmesh_quad(lua_State* L)
 {
   if (!lua_istable(L, 1))
@@ -1739,9 +1783,10 @@ static int colmesh_quad(lua_State* L)
     luaL_error(L, "periodic_in_z must be true or false.");
   periodic_in_z = lua_toboolean(L, -1);
 
-  colmesh_t* mesh = create_quad_colmesh(comm, nx, ny, nz, bbox, 
-                                          periodic_in_x, periodic_in_y,
-                                          periodic_in_z);
+  planar_polymesh_t* columns = create_quad_planar_polymesh(nx, ny, bbox, 
+                                                           periodic_in_x, periodic_in_y);
+  colmesh_t* mesh = colmesh_new(comm, columns, bbox->z1, bbox->z2, nz, periodic_in_z);
+  planar_polymesh_free(columns);
   lua_push_colmesh(L, mesh);
   return 1;
 }
@@ -1749,7 +1794,7 @@ static int colmesh_quad(lua_State* L)
 static int colmesh_hex(lua_State* L)
 {
   if (!lua_istable(L, 1))
-    luaL_error(L, "Argument must be a table with comm, alignment, radius, h, z1, z2, nz fields.");
+    luaL_error(L, "Argument must be a table with comm, radius, h, z1, z2, nz fields.");
 
   lua_getfield(L, 1, "comm");
   if (!lua_is_mpi_comm(L, -1))
@@ -1795,15 +1840,17 @@ static int colmesh_hex(lua_State* L)
     luaL_error(L, "periodic_in_z must be true or false.");
   periodic_in_z = lua_toboolean(L, -1);
 
-  colmesh_t* mesh = create_hex_colmesh(comm, (size_t)radius, h,
-                                         nz, z1, z2, periodic_in_z);
+  planar_polymesh_t* columns = create_hex_planar_polymesh((size_t)radius, h);
+  colmesh_t* mesh = colmesh_new(comm, columns, z1, z2, nz, periodic_in_z);
+  planar_polymesh_free(columns);
   lua_push_colmesh(L, mesh);
   return 1;
 }
 
 static lua_module_function colmesh_funcs[] = {
-  {"quad", colmesh_quad, "colmesh.quad{comm = COMM, nx = NX, ny = NY, nz = NZ, periodic_in_x = false, periodic_in_y = false} -> New uniform quadrilateral prism mesh."},
-  {"hex", colmesh_hex, "colmesh.hex{comm = COMM, nx = NX, ny = NY, nz = NZ, periodic_in_x = false, periodic_in_y = false} -> New uniform hexagonal prism mesh."},
+  {"new", colmesh_new_, "colmesh.new{comm = COMM, columns = PLANAR_MESH, z1 = Z1, z2 = Z2, nz = NZ, periodic_in_z = false} -> New uniform quadrilateral prism mesh."},
+  {"quad", colmesh_quad, "colmesh.quad{comm = COMM, bbox = BBOX, nx = NX, ny = NY, nz = NZ, periodic_in_x = false, periodic_in_y = false, periodic_in_z = false} -> New uniform quadrilateral prism mesh."},
+  {"hex", colmesh_hex, "colmesh.hex{comm = COMM, radius = R, h = H, nz = NZ, z1 = Z1, z2 = Z2, periodic_in_z = false} -> New uniform hexagonal prism mesh."},
   {"repartition", colmesh_repartition, "colmesh.repartition(m) -> Repartitions the colmesh m."},
   {NULL, NULL, NULL}
 };
