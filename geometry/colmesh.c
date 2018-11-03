@@ -320,7 +320,7 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
     {
       int ch_index = chunk_index(mesh, xy_index, z_index);
 
-      // Cound up edges.
+      // Count up edges.
       int num_xy_neighbors = (int)xy_data->send_map->size;
       int num_z_neighbors = ((z_index == 0) || (z_index == (int)(num_z_chunks-1))) ? 1 : 2;
       adj_graph_set_num_edges(mesh->chunk_graph, ch_index, num_xy_neighbors + num_z_neighbors);
