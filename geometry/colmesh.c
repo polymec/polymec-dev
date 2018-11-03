@@ -130,7 +130,6 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
           ++f2;
         ASSERT(mesh->cell_edge_offsets[cell+1] > (mesh->cell_edge_offsets[cell] + f2));
       }
-#if POLYMEC_HAVE_MPI
       else if (col2 != -1) // ghost column
       {
         // Set up a parallel exchange between the columns.
@@ -138,8 +137,8 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
         int neighbor_xy_index = (int)partition_vector[cell];
         exchanger_proc_map_add_index(xy_data->send_map, neighbor_xy_index, col1);
         exchanger_proc_map_add_index(xy_data->receive_map, neighbor_xy_index, col2);
+        ++xy_data->num_ghost_columns;
       }
-#endif
 
       // Create a new xy face for this edge, and hook it up to columns 
       // corresponding to the edge's adjacent planar cells.
@@ -476,6 +475,10 @@ void colmesh_finalize(colmesh_t* mesh)
 #if POLYMEC_HAVE_MPI
   // Figure out which processes own what chunks.
   int64_t* owners = source_vector(mesh);
+#else
+  int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
+  int64_t* owners = polymec_calloc(sizeof(int) * num_all_chunks);
+#endif
 
   // Assemble a cell exchanger by traversing the locally stored chunks.
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
@@ -549,7 +552,6 @@ void colmesh_finalize(colmesh_t* mesh)
   exchanger_set_sends(mesh->cell_ex, send_map);
   exchanger_set_receives(mesh->cell_ex, receive_map);
   polymec_free(owners);
-#endif
 
   // Prune unused xy data.
   for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
@@ -1218,7 +1220,6 @@ polymesh_t* colmesh_as_polymesh(colmesh_t* mesh)
   return NULL; // FIXME
 }
 
-#if POLYMEC_HAVE_MPI
 // These functions provide access to exchangers for colmesh_fields.
 exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering);
 exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering)
@@ -1236,4 +1237,3 @@ exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering)
   return ex;
 }
 
-#endif

@@ -124,6 +124,7 @@ colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
 
   // Set up exchangers and tokens.
   field->ex = colmesh_exchanger(mesh, centering);
+  polymec_retain(field->ex);
   field->ex_token = -1;
 
   // Now populate the chunks (with NULL buffers).

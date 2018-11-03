@@ -61,7 +61,6 @@ typedef struct
   MPI_Request* requests;
 } mpi_message_t;
 
-#if POLYMEC_HAVE_MPI
 static size_t mpi_size(MPI_Datatype type)
 {
   size_t size = 0;
@@ -208,7 +207,6 @@ static void mpi_message_unpack(mpi_message_t* msg,
     ++i;
   }
 }
-#undef HANDLE_UNPACKING
 
 static void mpi_message_free(mpi_message_t* msg)
 {
@@ -275,8 +273,6 @@ static void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
   for (int i = 0; i < msg->num_receives; ++i)
     fprintf(stream, " %d: %d items\n", i, msg->receive_buffer_sizes[i]);
 }
-#endif
-
 #endif
 
 struct exchanger_t
@@ -644,7 +640,6 @@ void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Da
   STOP_FUNCTION_TIMER();
 }
 
-#if POLYMEC_HAVE_MPI
 static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* msg)
 {
   START_FUNCTION_TIMER();
@@ -652,6 +647,7 @@ static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* ms
   int j = 0, idest_local = -1;
   for (int i = 0; i < msg->num_receives; ++i)
   {
+#if POLYMEC_HAVE_MPI
     if (ex->rank != msg->source_procs[i])
     {
       // If we are expecting data, post an asynchronous receive. 
@@ -670,16 +666,15 @@ static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* ms
         polymec_error(err_msg);
       }
     }
-    else
-    {
-      // Mark down the index of the local copy.
+    else // Mark down the index of the local copy.
+#endif
       idest_local = i;
-    }
   }
 
   // Send the data asynchronously. 
   for (int i = 0; i < msg->num_sends; ++i)
   {
+#if POLYMEC_HAVE_MPI
     if (ex->rank != msg->dest_procs[i])
     {
       int err = MPI_Isend(msg->send_buffers[i], 
@@ -698,6 +693,7 @@ static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* ms
       }
     }
     else 
+#endif
     {
       // Do any local copying.
       ASSERT(idest_local != -1); // no local destination for this source?
@@ -725,11 +721,9 @@ static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* ms
   STOP_FUNCTION_TIMER();
   return token;
 }
-#endif
 
 int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type)
 {
-#if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
   // Create a message for this array.
   mpi_message_t* msg = mpi_message_new(type, stride, tag);
@@ -739,14 +733,11 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   int token = exchanger_send_message(ex, data, msg);
   STOP_FUNCTION_TIMER();
   return token;
-#else
-  return 0;
-#endif
 }
 
-#if POLYMEC_HAVE_MPI
 static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
 {
+#if POLYMEC_HAVE_MPI
   // Allocate storage for statuses of sends/receives.
   int num_requests = msg->num_requests;
   MPI_Status statuses[num_requests];
@@ -927,12 +918,13 @@ static int exchanger_waitall(exchanger_t* ex, mpi_message_t* msg)
 
   // That's it.
   return err;
-}
+#else
+  return 0;
 #endif
+}
 
 void exchanger_finish_exchange(exchanger_t* ex, int token) 
 {
-#if POLYMEC_HAVE_MPI
   START_FUNCTION_TIMER();
   ASSERT(token >= 0);
   ASSERT(token < ex->num_pending_msgs);
@@ -953,16 +945,16 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   ex->orig_buffers[token] = NULL;
   mpi_message_free(msg);
   STOP_FUNCTION_TIMER();
-#endif
 }
 
 void
 exchanger_fprintf(exchanger_t* ex, FILE* stream)
 {
-#if POLYMEC_HAVE_MPI
   fprintf(stream, "Exchanger(");
   if (ex->comm == MPI_COMM_WORLD)
     fprintf(stream, "MPI_COMM_WORLD");
+  else if (ex->comm == MPI_COMM_SELF)
+    fprintf(stream, "MPI_COMM_SELF");
   else
     fprintf(stream, "[user communicator]");
   fprintf(stream, ", rank %d):", ex->rank);
@@ -989,14 +981,10 @@ exchanger_fprintf(exchanger_t* ex, FILE* stream)
       fprintf(stream, " (%d elements)\n", c->num_indices);
     }
   }
-#else
-  fprintf(stream, "Exchanger(dummy)\n");
-#endif
 }
 
 static size_t ex_size(void* obj)
 {
-#if POLYMEC_HAVE_MPI
   exchanger_t* ex = obj;
   size_t size = 2 * sizeof(int);
   int pos = 0, proc, *indices, num_indices;
@@ -1006,16 +994,12 @@ static size_t ex_size(void* obj)
   while (exchanger_next_receive(ex, &pos, &proc, &indices, &num_indices))
     size += (2 + num_indices) * sizeof(int);
   return size;
-#else
-  return 0;
-#endif
 }
 
 static void* ex_read(byte_array_t* bytes, size_t* offset)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   exchanger_t* ex = exchanger_new(comm);
-#if POLYMEC_HAVE_MPI
   int num_sends, num_receives;
   MPI_Comm_rank(comm, &ex->rank);
   byte_array_read_ints(bytes, 1, &num_sends, offset);
@@ -1038,13 +1022,11 @@ static void* ex_read(byte_array_t* bytes, size_t* offset)
     byte_array_read_ints(bytes, num_indices, indices, offset);
     exchanger_set_receive(ex, proc, indices, num_indices, true);
   }
-#endif 
   return ex;
 }
 
 static void ex_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
-#if POLYMEC_HAVE_MPI
   exchanger_t* ex = obj;
 
   int pos = 0, proc, *indices, num_indices;
@@ -1063,7 +1045,6 @@ static void ex_write(void* obj, byte_array_t* bytes, size_t* offset)
     byte_array_write_ints(bytes, 1, &num_indices, offset);
     byte_array_write_ints(bytes, num_indices, indices, offset);
   }
-#endif
 }
 
 serializer_t* exchanger_serializer()

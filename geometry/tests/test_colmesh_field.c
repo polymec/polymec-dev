@@ -39,7 +39,7 @@ static void test_cell_field(void** state, colmesh_t* mesh)
   colmesh_get_z_info(mesh, &z1, &z2, &z_periodic);
   colmesh_field_t* field = colmesh_field_new(mesh, COLMESH_CELL, 2);
 
-  // Fill our field with chunk-specific values.
+  // Fill the interior cells in our field with chunk-specific values.
   int pos = 0, XY, Z;
   colmesh_chunk_data_t* chunk_data;
   while (colmesh_field_next_chunk(field, &pos, &XY, &Z, &chunk_data))
@@ -49,7 +49,7 @@ static void test_cell_field(void** state, colmesh_t* mesh)
     DECLARE_COLMESH_CELL_ARRAY(f, chunk_data);
     for (int xy = 0; xy < chunk_data->xy_size; ++xy)
     {
-      for (int z = 1; z <= chunk_data->z_size; ++z)
+      for (int z = 1; z < chunk_data->z_size-1; ++z)
       {
         f[xy][z][0] = 1.0 * XY;
         f[xy][z][1] = 1.0 * Z;
@@ -69,7 +69,7 @@ static void test_cell_field(void** state, colmesh_t* mesh)
     // interior values
     for (int xy = 0; xy < chunk_data->xy_size; ++xy)
     {
-      for (int z = 1; z <= chunk_data->z_size; ++z)
+      for (int z = 1; z < chunk_data->z_size-1; ++z)
       {
         assert_true(reals_equal(f[xy][z][0], 1.0 * XY));
         assert_true(reals_equal(f[xy][z][1], 1.0 * Z));
