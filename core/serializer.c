@@ -309,6 +309,20 @@ void byte_array_write_points(byte_array_t* byte_stream, size_t n, point_t* data,
   *offset += sizeof(point_t) * n;
 }
 
+void byte_array_read_point2s(byte_array_t* byte_stream, size_t n, point2_t* data, size_t* offset)
+{
+  ASSERT(*offset <= byte_stream->size - sizeof(point2_t) * n);
+  memcpy(data, &byte_stream->data[*offset], sizeof(point2_t) * n);
+  *offset += n * sizeof(point2_t);
+}
+
+void byte_array_write_point2s(byte_array_t* byte_stream, size_t n, point2_t* data, size_t* offset)
+{
+  byte_array_resize(byte_stream, *offset + n * sizeof(point2_t));
+  memcpy(&byte_stream->data[*offset], data, sizeof(point2_t) * n);
+  *offset += sizeof(point2_t) * n;
+}
+
 void byte_array_read_vectors(byte_array_t* byte_stream, size_t n, vector_t* data, size_t* offset)
 {
   ASSERT(*offset <= byte_stream->size - sizeof(vector_t) * n);

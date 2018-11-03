@@ -9,6 +9,7 @@
 #define POLYMEC_SERIALIZER_H
 
 #include "core/point.h"
+#include "core/point2.h"
 #include "core/array.h"
 
 /// \addtogroup core core
@@ -200,6 +201,15 @@ void byte_array_read_points(byte_array_t* byte_stream, size_t n, point_t* data, 
 /// Writes n points to the byte array at the given offset, updating the offset.
 /// \memberof byte_array
 void byte_array_write_points(byte_array_t* byte_stream, size_t n, point_t* data, size_t* offset);
+
+/// Reads n 2D points from the byte array at the given offset, 
+/// placing it into the data array and updating the offset.
+/// \memberof byte_array
+void byte_array_read_point2s(byte_array_t* byte_stream, size_t n, point2_t* data, size_t* offset);
+
+/// Writes n 2D points to the byte array at the given offset, updating the offset.
+/// \memberof byte_array
+void byte_array_write_point2s(byte_array_t* byte_stream, size_t n, point2_t* data, size_t* offset);
 
 /// Reads n vectors from the byte array at the given offset, 
 /// placing it into the data array and updating the offset.
