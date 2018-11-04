@@ -436,8 +436,8 @@ if (DOXYGEN_FOUND)
   set(DOXYGEN_SHOW_NAMESPACES NO)
   set(DOXYGEN_CALL_GRAPH YES)
   set(DOXYGEN_ALIASES 
-      [[collective=\xrefitem collective \"\" \"Collective functions\"]]
-      [[refcounted=\xrefitem refcounted \"\" \"Collective functions\"]]
+      [[collective="\xrefitem collective \"Collective functions\" \"Collective (MPI) functions\""]]
+      [[refcounted="\xrefitem refcounted \"Reference counted resources\" \"Reference counted resources\""]]
      )
   set(DOXYGEN_VERBATIM_VARS DOXYGEN_ALIASES)
   doxygen_add_docs(doc ${PROJECT_BINARY_DIR}/core/polymec.h;core;geometry;solvers;model;io
