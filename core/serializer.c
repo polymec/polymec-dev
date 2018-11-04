@@ -32,6 +32,7 @@ static void destroy_serializer_registry()
 static void serializer_free(serializer_t* s)
 {
   string_free(s->name);
+  polymec_free(s);
 }
 
 serializer_t* serializer_new(const char* name,

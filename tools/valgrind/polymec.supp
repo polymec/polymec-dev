@@ -83,6 +83,14 @@
    ...
 }
 {
+   opal_str_to_bool_Read1
+   Memcheck:Addr1
+   fun:opal_str_to_bool
+   ...
+   fun:PMPI_Comm_set_info
+   ...
+}
+{
    hwloc_Leak
    Memcheck:Leak
    ...

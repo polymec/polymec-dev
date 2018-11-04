@@ -223,6 +223,7 @@ static void test_partition_box_mesh(void** state)
   silo_file_close(silo);
 
   // Clean up.
+  polymesh_field_free(rfield);
   polymesh_free(mesh);
 
   // Superficially check that the file is okay.

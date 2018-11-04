@@ -128,12 +128,16 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
 #if POLYMEC_HAVE_MPI
   // Get the info object for this communicator.
   MPI_Info info;
-  MPI_Comm_get_info(mesh->comm, &info);
+  int err = MPI_Comm_get_info(mesh->comm, &info);
+  if (err != MPI_SUCCESS)
+    polymec_error("Could not retrieve info for comm.");
 
   // Retrieve the next unimesh ID, if present. If it's not there, use 0.
   char id_str[16];
   int present;
-  MPI_Info_get(info, "next_unimesh_id", 15, id_str, &present);
+  err = MPI_Info_get(info, "next_unimesh_id", 15, id_str, &present);
+  if (err != MPI_SUCCESS)
+    polymec_error("Could not retrieve next_unimesh_id property on comm info.");
   if (!present)
     mesh->unique_id = 0;
   else
@@ -141,10 +145,14 @@ unimesh_t* create_empty_unimesh(MPI_Comm comm, bbox_t* bbox,
 
   // Increment the ID and write it to the info object.
   snprintf(id_str, 15, "%d", mesh->unique_id+1);
-  MPI_Info_set(info, "next_unimesh_id", id_str);
+  err = MPI_Info_set(info, "next_unimesh_id", id_str);
+  if (err != MPI_SUCCESS)
+    polymec_error("Could set next_unimesh_id property on comm info.");
 
   // Stash the info in the communicator and clean up.
-  MPI_Comm_set_info(mesh->comm, info);
+  err = MPI_Comm_set_info(mesh->comm, info);
+  if (err != MPI_SUCCESS)
+    polymec_error("Could set next_unimesh_id property on comm.");
   MPI_Info_free(&info);
 #else
   // In the serial case, there's only one possible communicator.

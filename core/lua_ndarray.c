@@ -55,6 +55,7 @@ static void ndarray_dtor(void* context)
   polymec_free(a->shape);
   if (a->owns_data && (a->array != NULL))
     polymec_free(a->array);
+  polymec_free(a);
 }
 
 static int ndarray_tostring(lua_State* L)

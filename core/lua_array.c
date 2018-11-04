@@ -865,6 +865,7 @@ static void array_dtor(void* context)
     else // if (a->type == LUA_ARRAY_SYM_TENSOR2)
       sym_tensor2_array_free((sym_tensor2_array_t*)a->array);
   }
+  polymec_free(a);
 }
 
 static void write_item(lua_State* L, int index, size_t i, char* str)

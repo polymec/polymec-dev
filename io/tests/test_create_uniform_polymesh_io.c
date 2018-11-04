@@ -57,6 +57,7 @@ static void test_plot_uniform_mesh_with_num_files(void** state, int num_files)
   int_slist_free(cycles);
 
   // Clean up.
+  polymesh_field_free(cfield);
   polymesh_free(mesh);
 }
 

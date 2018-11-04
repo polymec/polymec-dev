@@ -447,20 +447,6 @@ static int lua_open_class(lua_State* L)
   lua_c_dtor_t* c_dtor = lua_touserdata(L, -1);
   lua_pop(L, 6);
 
-  // Clean up the registry.
-  lua_pushnil(L);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_name");
-  lua_pushnil(L);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_doc");
-  lua_pushnil(L);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_functions");
-  lua_pushnil(L);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_fields");
-  lua_pushnil(L);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_methods");
-  lua_pushnil(L);
-  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_c_dtor");
-
   // Create our global dictionary for C destructors if we haven't.
   if (lua_c_dtors == NULL)
   {
@@ -615,6 +601,20 @@ static int lua_open_class(lua_State* L)
 
   // Document this class.
   lua_set_docstring(L, -1, class_doc);
+
+  // Clean up the registry.
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_name");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_doc");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_functions");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_fields");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_methods");
+  lua_pushnil(L);
+  lua_setfield(L, LUA_REGISTRYINDEX, "lua_open_class_c_dtor");
 
   return 1;
 }
