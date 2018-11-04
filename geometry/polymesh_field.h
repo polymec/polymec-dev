@@ -39,6 +39,10 @@ typedef struct
   /// Data for the field, and its storage capacity.
   real_t* data;
   size_t capacity;
+
+  /// Parallel exchanger / token.
+  exchanger_t* ex;
+  int ex_token;
 } polymesh_field_t;
 
 /// Constructs a new polymesh field with the given number of components
@@ -51,6 +55,28 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
 /// Destroys the given polymesh field.
 /// \memberof polymesh_field
 void polymesh_field_free(polymesh_field_t* field);
+
+/// Synchronously exchanges boundary data in this field with that of 
+/// adjoining subdomains. For cell-centered data, this 
+/// means filling ghost cells. For face-, node-, and edge-centered data, it 
+/// means overwriting values on the boundary of each chunk with data from 
+/// other chunks.
+/// \memberof polymesh_field
+void polymesh_field_exchange(polymesh_field_t* field);
+
+/// Begins an asynchronous exchange of boundary data for this field.
+/// \memberof polymesh_field
+void polymesh_field_start_exchange(polymesh_field_t* field);
+
+/// Finishes an asynchronous exchange initiated with 
+/// \ref polymesh_field_start_exchange.
+/// \memberof polymesh_field
+void polymesh_field_finish_exchange(polymesh_field_t* field);
+
+/// Returns `true` if this field is in the middle of an asynchronous exchange,
+/// `false` if not.
+/// \memberof polymesh_field
+bool polymesh_field_is_exchanging(polymesh_field_t* field);
 
 typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 

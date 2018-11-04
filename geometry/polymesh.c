@@ -39,7 +39,7 @@ static polymesh_storage_t* polymesh_storage_new(MPI_Comm comm)
 // Frees the given storage mechanism.
 static void polymesh_storage_free(polymesh_storage_t* storage)
 {
-  storage->exchanger = NULL;
+  polymec_release(storage->exchanger);
   polymec_free(storage);
 }
 
@@ -294,16 +294,15 @@ polymesh_t* polymesh_clone(polymesh_t* mesh)
   return clone;
 }
 
-exchanger_t* polymesh_exchanger(polymesh_t* mesh)
+exchanger_t* polymesh_cell_exchanger(polymesh_t* mesh)
 {
   return mesh->storage->exchanger;
 }
 
-void polymesh_set_exchanger(polymesh_t* mesh, exchanger_t* ex)
+void polymesh_set_cell_exchanger(polymesh_t* mesh, exchanger_t* ex)
 {
   ASSERT(ex != NULL);
-  if (mesh->storage->exchanger != NULL)
-    mesh->storage->exchanger = NULL;
+  polymec_release(mesh->storage->exchanger);
   mesh->storage->exchanger = ex;
 }
 
@@ -557,12 +556,12 @@ static size_t polymesh_byte_size(void* obj)
                        serializer_size(tag_s, mesh->face_tags) + 
                        serializer_size(tag_s, mesh->edge_tags) + 
                        serializer_size(tag_s, mesh->node_tags);
-  tag_s = NULL;
+  polymec_release(tag_s);
 
   // Exchanger-related storage.
   serializer_t* ex_s = exchanger_serializer();
-  size_t ex_storage = serializer_size(ex_s, polymesh_exchanger(mesh));
-  ex_s = NULL;
+  size_t ex_storage = serializer_size(ex_s, polymesh_cell_exchanger(mesh));
+  polymec_release(ex_s);
 
   return basic_storage + tag_storage + ex_storage;
 }
@@ -617,7 +616,7 @@ static void* polymesh_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_ints(bytes, 1, &storage->cell_face_capacity, offset);
   byte_array_read_ints(bytes, 1, &storage->face_edge_capacity, offset);
   byte_array_read_ints(bytes, 1, &storage->face_node_capacity, offset);
-  storage->exchanger = NULL;
+  polymec_release(storage->exchanger);
   ser = exchanger_serializer();
   storage->exchanger = serializer_read(ser, bytes, offset);
 
@@ -659,8 +658,8 @@ static void polymesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_ints(bytes, 1, &storage->face_edge_capacity, offset);
   byte_array_write_ints(bytes, 1, &storage->face_node_capacity, offset);
   ser = exchanger_serializer();
-  serializer_write(ser, polymesh_exchanger(mesh), bytes, offset);
-  ser = NULL;
+  serializer_write(ser, polymesh_cell_exchanger(mesh), bytes, offset);
+  polymec_release(ser);
 }
 
 serializer_t* polymesh_serializer()
@@ -670,34 +669,41 @@ serializer_t* polymesh_serializer()
 
 exchanger_t* polymesh_1v_face_exchanger_new(polymesh_t* mesh)
 {
-  // First construct the 2-valued face exchanger.
-  exchanger_t* face2_ex = polymesh_2v_face_exchanger_new(mesh);
-
-  // Determine the owner of each face. We assign a face to the process on 
-  // which it is present, having the lowest rank.
-  int rank;
-  MPI_Comm_rank(mesh->comm, &rank);
-  int face_procs[2*mesh->num_faces];
-  for (int f = 0; f < mesh->num_faces; ++f)
-    face_procs[2*f] = rank;
-  exchanger_exchange(face2_ex, face_procs, 1, 0, MPI_INT);
-
-  // Now set up our single-valued exchanger.
   exchanger_t* ex = exchanger_new(mesh->comm);
-  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
-  exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
-  for (int f = 0; f < mesh->num_faces; ++f)
+#if POLYMEC_HAVE_MPI
+  int nproc;
+  MPI_Comm_size(mesh->comm, &nproc);
+  if (nproc > 1)
   {
-    int face_sender = MIN(face_procs[2*f], face_procs[2*f+1]);
-    int face_receiver = MAX(face_procs[2*f], face_procs[2*f+1]);
-    if (face_sender == rank)
-      exchanger_proc_map_add_index(send_map, face_receiver, f);
-    else
-      exchanger_proc_map_add_index(receive_map, face_sender, f);
+    // First construct the 2-valued face exchanger.
+    exchanger_t* face2_ex = polymesh_2v_face_exchanger_new(mesh);
+
+    // Determine the owner of each face. We assign a face to the process on 
+    // which it is present, having the lowest rank.
+    int rank;
+    MPI_Comm_rank(mesh->comm, &rank);
+    int face_procs[2*mesh->num_faces];
+    for (int f = 0; f < mesh->num_faces; ++f)
+      face_procs[2*f] = rank;
+    exchanger_exchange(face2_ex, face_procs, 1, 0, MPI_INT);
+
+    // Now set up our single-valued exchanger.
+    exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+    exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
+    for (int f = 0; f < mesh->num_faces; ++f)
+    {
+      int face_sender = MIN(face_procs[2*f], face_procs[2*f+1]);
+      int face_receiver = MAX(face_procs[2*f], face_procs[2*f+1]);
+      if (face_sender == rank)
+        exchanger_proc_map_add_index(send_map, face_receiver, f);
+      else
+        exchanger_proc_map_add_index(receive_map, face_sender, f);
+    }
+    exchanger_set_sends(ex, send_map);
+    exchanger_set_receives(ex, receive_map);
+    polymec_release(face2_ex);
   }
-  exchanger_set_sends(ex, send_map);
-  exchanger_set_receives(ex, receive_map);
-  face2_ex = NULL;
+#endif
   return ex;
 }
 
@@ -706,7 +712,7 @@ exchanger_t* polymesh_2v_face_exchanger_new(polymesh_t* mesh)
   exchanger_t* ex = exchanger_new(mesh->comm);
 #if POLYMEC_HAVE_MPI
   // Get the mesh cell exchanger.
-  exchanger_t* cell_ex = polymesh_exchanger(mesh);
+  exchanger_t* cell_ex = polymesh_cell_exchanger(mesh);
 
   // Traverse the send cells and create send "faces."
   int_array_t* send_faces = int_array_new();

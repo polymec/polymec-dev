@@ -272,7 +272,7 @@ void colmesh_field_start_exchange(colmesh_field_t* field)
   START_FUNCTION_TIMER();
 
   // Start the xy exchange.
-  int stride = 1; // FIXME
+  int stride = field->num_components;
   field->ex_token = exchanger_start_exchange(field->ex, field->buffer, stride, 0, MPI_REAL_T);
   STOP_FUNCTION_TIMER();
 }
@@ -283,6 +283,7 @@ void colmesh_field_finish_exchange(colmesh_field_t* field)
   START_FUNCTION_TIMER();
   if (field->ex_token != -1)
     exchanger_finish_exchange(field->ex, field->ex_token);
+  field->ex_token = -1;
   STOP_FUNCTION_TIMER();
 }
 

@@ -42,7 +42,7 @@ stencil_t* cell_star_stencil_new(polymesh_t* mesh, int radius)
 
   // First, we'll exchange the mesh cell centers to make sure they're 
   // consistent.
-  exchanger_t* cell_ex = polymesh_exchanger(mesh);
+  exchanger_t* cell_ex = polymesh_cell_exchanger(mesh);
   exchanger_exchange(cell_ex, mesh->cell_centers, 3, 0, MPI_REAL_T);
 
   // First we will make a mapping from each cell to its list of 
@@ -61,7 +61,7 @@ stencil_t* cell_star_stencil_new(polymesh_t* mesh, int radius)
   }
 
   // The exchanger for this stencil is the same as that for the mesh.
-  exchanger_t* ex = exchanger_clone(polymesh_exchanger(mesh));
+  exchanger_t* ex = exchanger_clone(polymesh_cell_exchanger(mesh));
 
   // Create the stencil from the sets.
   char name[1025];

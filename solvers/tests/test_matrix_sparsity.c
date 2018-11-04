@@ -45,7 +45,7 @@ static void test_graph_constructor(void** state)
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
   polymesh_t* mesh = create_uniform_polymesh(MPI_COMM_WORLD, 10, 10, 10, &bbox);
   adj_graph_t* g = graph_from_polymesh_cells(mesh);
-  exchanger_t* ex = polymesh_exchanger(mesh);
+  exchanger_t* ex = polymesh_cell_exchanger(mesh);
   matrix_sparsity_t* S = matrix_sparsity_from_graph(g, ex);
   assert_true(matrix_sparsity_comm(S) == mesh->comm);
   assert_int_equal(1000, matrix_sparsity_num_global_rows(S));

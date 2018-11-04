@@ -137,11 +137,12 @@ polymesh_t* polymesh_clone(polymesh_t* mesh);
 /// on cell-centered polymesh data. In serial configurations, this exchanger holds 
 /// no data and exchanges have no effect.
 /// \memberof polymesh
-exchanger_t* polymesh_exchanger(polymesh_t* mesh);
+exchanger_t* polymesh_cell_exchanger(polymesh_t* mesh);
 
-/// Sets the exchanger to be used by the polymesh, replacing any existing exchanger.
+/// Sets the cell exchanger to be used by the polymesh, replacing any 
+/// existing cell exchanger.
 /// \memberof polymesh
-void polymesh_set_exchanger(polymesh_t* mesh, exchanger_t* ex);
+void polymesh_set_cell_exchanger(polymesh_t* mesh, exchanger_t* ex);
 
 /// Returns a newly-allocated list of indices that will define a tags for 
 /// cells/faces/edges/nodes with the given descriptor. If the tag already 

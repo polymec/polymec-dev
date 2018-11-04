@@ -39,7 +39,7 @@ static void test_partition_linear_mesh(void** state)
   MPI_Comm_size(mesh->comm, &nprocs);
   if (nprocs > 1)
   {
-    exchanger_t* ex = polymesh_exchanger(mesh);
+    exchanger_t* ex = polymesh_cell_exchanger(mesh);
     int pos = 0, proc, *indices, num_indices;
     int num_sends = 0, num_receives = 0;
     while (exchanger_next_send(ex, &pos, &proc, &indices, &num_indices))
@@ -79,7 +79,7 @@ static void test_partition_linear_mesh(void** state)
   assert_true(face_areas_are_ok);
 
   // Check the resulting exchanger.
-  exchanger_verify(polymesh_exchanger(mesh), polymec_error);
+  exchanger_verify(polymesh_cell_exchanger(mesh), polymec_error);
 
   // Plot it.
   silo_file_t* silo = silo_file_new(mesh->comm, "linear_mesh_partition", "linear_mesh_partition", 1, 0, 0.0);

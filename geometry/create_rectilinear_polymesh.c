@@ -305,7 +305,7 @@ polymesh_t* create_rectilinear_polymesh(MPI_Comm comm,
   ASSERT(ghost_cell_index == num_cells + num_ghost_cells);
 
   // Now we set up the exchanger.
-  exchanger_t* ex = polymesh_exchanger(mesh);
+  exchanger_t* ex = polymesh_cell_exchanger(mesh);
   exchanger_set_sends(ex, send_map);
   exchanger_set_receives(ex, recv_map);
 
