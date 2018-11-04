@@ -17,7 +17,7 @@
 
 /// \class polynomial
 /// This type represents a polynomial function (in x, y, and z) of a given degree.
-/// Objects of this type are garbage-collected.
+/// \refcounted
 typedef struct polynomial_t polynomial_t;
 
 /// This returns the number of coefficients in the standard basis for 
@@ -137,7 +137,7 @@ void polynomial_fprintf(polynomial_t* p, FILE* stream);
 
 /// \class poly_basis
 /// This is a simple class that represents a non-standard polynomial basis.
-/// Objects of this type are garbage-collected.
+/// \refcounted
 typedef struct poly_basis_t poly_basis_t;
 
 /// Creates a new polynomial basis from the given set of polynomials.
@@ -188,7 +188,7 @@ bool poly_basis_equals(poly_basis_t* basis1, poly_basis_t* basis2);
 
 /// \class multicomp_poly_basis
 /// This is a simple class that represents a multi-component polynomial basis.
-/// Objects of this type are garbage-collected.
+/// \refcounted
 typedef struct multicomp_poly_basis_t multicomp_poly_basis_t;
 
 // Creates a new multi-component polynomial basis from the given array of

@@ -26,9 +26,9 @@ typedef struct
 } tensor2_t;
 
 /// Allocates a new tensor2 on the heap with the given components. Not 
-/// necessary if you are allocating a tensor2 on the stack. Objects of this 
-/// type are garbage-collected when allocated on the heap.
+/// necessary if you are allocating a tensor2 on the stack. 
 /// \memberof tensor2
+/// \refcounted
 tensor2_t* tensor2_new(real_t xx, real_t xy, real_t xz,
                        real_t yx, real_t yy, real_t yz,
                        real_t zx, real_t zy, real_t zz);
@@ -148,9 +148,9 @@ typedef struct
 } sym_tensor2_t;
 
 /// Allocates a new symmetric tensor2 on the heap with the given components. Not 
-/// necessary if you are allocating a symmetric tensor2 on the stack. Objects of 
-/// this type are garbage-collected when allocated on the heap.
+/// necessary if you are allocating a symmetric tensor2 on the stack. 
 /// \memberof sym_tensor2
+/// \refcounted
 sym_tensor2_t* sym_tensor2_new(real_t xx, real_t xy, real_t xz,
                                           real_t yy, real_t yz,
                                                      real_t zz);

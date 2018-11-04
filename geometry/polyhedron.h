@@ -14,7 +14,8 @@
 ///@{
 
 /// \class polyhedron
-/// A polyhedron in 3D space. Objects of this type are garbage-collected.
+/// A polyhedron in 3D space.
+/// \refcounted
 typedef struct polyhedron_t polyhedron_t;
 
 /// Creates a new polyhedron given a sequence of (polygonal) faces. These 

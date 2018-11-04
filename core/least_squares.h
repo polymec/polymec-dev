@@ -22,8 +22,8 @@
 void linear_regression(real_t* x, real_t* y, int N, real_t* A, real_t* B, real_t* sigma);
 
 /// \class ls_weight_func
-/// This type is a weight function used for least-squares systems. Objects 
-/// of this type are garbage-collected.
+/// This type is a weight function used for least-squares systems. 
+/// \refcounted
 typedef struct ls_weight_func_t ls_weight_func_t;
 
 /// This is the signature for least-squares weight functions. Arguments:

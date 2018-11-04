@@ -16,7 +16,8 @@
 /// \class hilbert
 /// This class implements a Hilbert (Peano) space-filling curve that can 
 /// map points in 3D space to integer indices which are ordered by spatial 
-/// proximity. Objects of this type are garbage-collected.
+/// proximity.
+/// \refcounted
 typedef struct hilbert_t hilbert_t;
 
 /// Creates a Hilbert space-filling curve that fills the space in the given 

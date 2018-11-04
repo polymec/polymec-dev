@@ -72,7 +72,7 @@ static void set_up_bcs_if_needed(unimesh_field_t* field)
         unimesh_field_set_patch_bc(field, pi, pj, pk, UNIMESH_Z2_BOUNDARY, zero_bc);
     }
   }
-  polymec_release(zero_bc);
+  release_ref(zero_bc);
 }
 
 static void test_cell_field(void** state, unimesh_t* mesh)

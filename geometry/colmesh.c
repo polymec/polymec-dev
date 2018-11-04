@@ -324,7 +324,7 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
   }
   int64_t* P = partition_points_n_ways(centroids, (size_t)columns->num_cells, num_xy_chunks, NULL, 0.0);
   polymec_free(centroids);
-  polymec_release(poly);
+  release_ref(poly);
 #endif
 
   // Create xy data for chunks, and create a global graph whose vertices 
@@ -684,17 +684,17 @@ void colmesh_free(colmesh_t* mesh)
   chunk_xy_data_array_free(mesh->chunk_xy_data);
   adj_graph_free(mesh->chunk_graph);
   if (mesh->cell_ex != NULL)
-    polymec_release(mesh->cell_ex);
+    release_ref(mesh->cell_ex);
   if (mesh->xy_face_ex != NULL)
-    polymec_release(mesh->xy_face_ex);
+    release_ref(mesh->xy_face_ex);
   if (mesh->z_face_ex != NULL)
-    polymec_release(mesh->z_face_ex);
+    release_ref(mesh->z_face_ex);
   if (mesh->xy_edge_ex != NULL)
-    polymec_release(mesh->xy_edge_ex);
+    release_ref(mesh->xy_edge_ex);
   if (mesh->z_edge_ex != NULL)
-    polymec_release(mesh->z_edge_ex);
+    release_ref(mesh->z_edge_ex);
   if (mesh->node_ex != NULL)
-    polymec_release(mesh->node_ex);
+    release_ref(mesh->node_ex);
   polymec_free(mesh);
 }
 
@@ -1092,7 +1092,6 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   }
 
   // Clean up the rest of the mess.
-  polymec_release(ser);
   for (size_t i = 0; i < source_procs->size; ++i)
     byte_array_free(receive_buffers[i]);
   for (size_t i = 0; i < dest_procs->size; ++i)

@@ -39,7 +39,7 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
       field->ex = polymesh_1v_node_exchanger_new(mesh);
   }
   if (field->ex != NULL)
-    polymec_retain(field->ex);
+    retain_ref(field->ex);
   field->ex_token = -1;
   field->num_ghost_values = (centering == POLYMESH_CELL) ? mesh->num_ghost_cells : 0;
   field->capacity = field->num_local_values + field->num_ghost_values;
@@ -51,7 +51,7 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
 void polymesh_field_free(polymesh_field_t* field)
 {
   if (field->ex != NULL)
-    polymec_release(field->ex);
+    release_ref(field->ex);
   polymec_free(field->data);
   polymec_free(field);
 }

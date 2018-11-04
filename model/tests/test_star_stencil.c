@@ -118,7 +118,6 @@ static void test_NXxNYxNZ_star_stencil(void** state,
                 stencil1);
   stencil_free(stencil1);
   byte_array_free(bytes);
-  polymec_release(S); 
 
   // Create a graph from the stencil.
   adj_graph_t* G = stencil_as_graph(stencil);

@@ -14,8 +14,8 @@
 ///@{
 
 /// \class polygon
-/// This class represents a polygon in the plane. Objects of this type are 
-/// garbage-collected.
+/// This class represents a polygon in the plane. 
+/// \refcounted
 typedef struct polygon_t polygon_t;
 
 /// Creates a new polygon in the plane given an ordered sequence of points 

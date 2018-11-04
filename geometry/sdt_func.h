@@ -16,7 +16,8 @@
 /// \class sdt_func
 /// This class represents a time-dependent signed distance function, a real-valued function 
 /// whose zero level set represents a moving surface or shape in space. It is represented by 
-/// space-time function (st_func) objects. sdt_func objects are garbage-collected.
+/// space-time function (st_func) objects.
+/// \refcounted
 typedef struct sdt_func_t sdt_func_t;
 
 /// \struct sdt_func_vtable

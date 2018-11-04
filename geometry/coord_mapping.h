@@ -21,7 +21,8 @@
 /// 3-dimensional space. Accordingly, this function cannot be homogeneous, and 
 /// its derivative is a 3x3 matrix called the Jacobian matrix. These specific 
 /// features argue for a class that is more specific than just "a 3-component 
-/// sp_func." Objects of this type are garbage-collected.
+/// sp_func." 
+/// \refcounted
 typedef struct coord_mapping_t coord_mapping_t;
 
 /// A function pointer type for mapping a point.

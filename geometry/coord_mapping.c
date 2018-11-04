@@ -28,7 +28,7 @@ coord_mapping_t* coord_mapping_new(const char* name, void* context, coord_mappin
   ASSERT(context != NULL);
   ASSERT(vtable.map_point != NULL);
   ASSERT(vtable.jacobian != NULL);
-  coord_mapping_t* m = polymec_gc_malloc(sizeof(coord_mapping_t), coord_mapping_free);
+  coord_mapping_t* m = polymec_refcounted_malloc(sizeof(coord_mapping_t), coord_mapping_free);
   m->name = string_dup(name);
   m->context = context;
   m->vtable = vtable;

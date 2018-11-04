@@ -34,7 +34,7 @@ st_func_t* st_func_new(const char* name, void* context, st_func_vtable vtable,
   ASSERT(context != NULL);
   ASSERT(vtable.eval != NULL);
   ASSERT(num_comp > 0);
-  st_func_t* f = polymec_gc_malloc(sizeof(st_func_t), st_func_free);
+  st_func_t* f = polymec_refcounted_malloc(sizeof(st_func_t), st_func_free);
   f->name = string_dup(name);
   f->context = context;
   f->vtable = vtable;
@@ -51,7 +51,7 @@ st_func_t* st_func_from_func(const char* name, st_eval_func func,
 {
   ASSERT(func != NULL);
   ASSERT(num_comp > 0);
-  st_func_t* f = polymec_gc_malloc(sizeof(st_func_t), st_func_free);
+  st_func_t* f = polymec_refcounted_malloc(sizeof(st_func_t), st_func_free);
   f->name = string_dup(name);
   f->context = NULL;
   f->vtable.eval = func;
@@ -72,7 +72,7 @@ static void eval_sp_func(void* context, point_t* x , real_t t, real_t* val)
 st_func_t* st_func_from_sp_func(sp_func_t* func)
 {
   ASSERT(func != NULL);
-  st_func_t* f = polymec_gc_malloc(sizeof(st_func_t), st_func_free);
+  st_func_t* f = polymec_refcounted_malloc(sizeof(st_func_t), st_func_free);
   f->name = string_dup(sp_func_name(func));
   f->context = func;
   f->vtable.eval = eval_sp_func;

@@ -18,7 +18,7 @@
 /// A "space" function (or "spatial" function) is an analytic function of 
 /// space only. This opaque type encapsulates the notion of such an analytic 
 /// function and any associated metadata (whether it is homogeneous or not, etc).
-/// sp_func objects are garbage-collected.
+/// \refcounted
 typedef struct sp_func_t sp_func_t;
 
 /// \enum sp_func_homogeneity_t

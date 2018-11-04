@@ -187,7 +187,7 @@ static void patch_bcs_free(unimesh_patch_bc_t** bcs)
   for (int b = 0; b < 6; ++b)
   {
     if (bcs[b] != NULL)
-      polymec_release(bcs[b]);
+      release_ref(bcs[b]);
   }
   polymec_free(bcs);
 }
@@ -208,7 +208,7 @@ static void unimesh_set_patch_bc(unimesh_t* mesh,
   }
   else
     bcs = *bcs_p;
-  polymec_retain(patch_bc);
+  retain_ref(patch_bc);
   int b = (int)patch_boundary;
   bcs[b] = patch_bc;
 }
@@ -388,11 +388,11 @@ void unimesh_free(unimesh_t* mesh)
     boundary_buffer_pool_free(mesh->boundary_buffers);
   patch_bc_map_free(mesh->patch_bcs);
   if (mesh->copy_bc != NULL)
-    polymec_release(mesh->copy_bc);
+    release_ref(mesh->copy_bc);
   if (mesh->periodic_bc != NULL)
-    polymec_release(mesh->periodic_bc);
+    release_ref(mesh->periodic_bc);
   if (mesh->remote_bc != NULL)
-    polymec_release(mesh->remote_bc);
+    release_ref(mesh->remote_bc);
   int_unordered_set_free(mesh->patches);
   if (mesh->patch_indices != NULL)
     polymec_free(mesh->patch_indices);

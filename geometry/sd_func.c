@@ -27,7 +27,7 @@ sd_func_t* sd_func_new(const char* name, void* context, sd_func_vtable vtable)
 {
   ASSERT(vtable.value != NULL);
   ASSERT(vtable.eval_grad != NULL);
-  sd_func_t* f = polymec_gc_malloc(sizeof(sd_func_t), sd_func_free);
+  sd_func_t* f = polymec_refcounted_malloc(sizeof(sd_func_t), sd_func_free);
   f->name = string_dup(name);
   f->context = context;
   f->vtable = vtable;

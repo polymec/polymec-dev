@@ -19,7 +19,8 @@
 /// state at a fixed spatial location. The nature of the state depends on the 
 /// particular algorithm using it. Really, it's just an opaque array of 
 /// numerical values that are indexed and retrieved in a manner defined by the 
-/// model using it. Objects of this type are garbage-collected.
+/// model using it.
+/// \refcounted
 typedef struct aux_state_t aux_state_t;
 
 /// \enum aux_state_var_t

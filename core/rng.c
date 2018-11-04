@@ -30,7 +30,7 @@ rng_t* rng_new(const char* name, void* context,
 {
   ASSERT(min < max);
   ASSERT(vtable.get != NULL);
-  rng_t* rng = polymec_gc_malloc(sizeof(rng_t), rng_free);
+  rng_t* rng = polymec_refcounted_malloc(sizeof(rng_t), rng_free);
   rng->name = string_dup(name);
   rng->context = context;
   rng->min = min;

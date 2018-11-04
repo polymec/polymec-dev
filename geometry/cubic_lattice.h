@@ -16,7 +16,7 @@
 
 /// \class cubic_lattice
 /// This class defines an indexing scheme for a cubic lattice.
-/// Objects of this type are garbage-collected.
+/// \refcounted
 typedef struct 
 {
   // Number of cells in x, y, and z.

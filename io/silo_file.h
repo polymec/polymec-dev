@@ -34,7 +34,8 @@ void silo_enable_compression(int level);
 
 /// \struct silo_field_metadata_t
 /// This type represents a collection of metadata for field variables in 
-/// Silo files. Objects of this type are garbage-collected.
+/// Silo files. 
+/// \refcounted
 struct silo_field_metadata_t
 {
   /// A visualization label. Owned by metadata.

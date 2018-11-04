@@ -19,7 +19,7 @@ static void key_dtor(int* key)
 
 static void patch_bc_dtor(unimesh_patch_bc_t* patch_bc)
 {
-  polymec_release(patch_bc);
+  release_ref(patch_bc);
 }
 
 DEFINE_UNORDERED_MAP(patch_bc_map, int*, unimesh_patch_bc_t*, int_pair_hash, int_pair_equals)
@@ -233,7 +233,7 @@ void unimesh_field_set_patch_bc(unimesh_field_t* field,
   int* key = polymec_malloc(sizeof(int) * 2);
   key[0] = index;
   key[1] = b;
-  polymec_retain(patch_bc);
+  retain_ref(patch_bc);
   patch_bc_map_insert_with_kv_dtors(field->patch_bcs, key, patch_bc, 
                                     key_dtor, patch_bc_dtor);
   STOP_FUNCTION_TIMER();

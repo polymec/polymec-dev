@@ -106,7 +106,7 @@ polynomial_t* polynomial_new(int degree, real_t* coeffs, point_t* x0)
 {
   ASSERT(degree >= 0);
   ASSERT(degree <= 4);
-  polynomial_t* p = polymec_gc_malloc(sizeof(polynomial_t), polynomial_free);
+  polynomial_t* p = polymec_refcounted_malloc(sizeof(polynomial_t), polynomial_free);
   p->degree = degree;
   p->coeffs = polymec_malloc(sizeof(real_t) * N_coeffs[degree]);
   memcpy(p->coeffs, coeffs, sizeof(real_t) * N_coeffs[degree]);
@@ -133,7 +133,7 @@ polynomial_t* polynomial_from_monomials(int degree, size_t num_monomials, real_t
 {
   ASSERT(degree >= 0);
   ASSERT(num_monomials > 0);
-  polynomial_t* p = polymec_gc_malloc(sizeof(polynomial_t), polynomial_free);
+  polynomial_t* p = polymec_refcounted_malloc(sizeof(polynomial_t), polynomial_free);
   p->degree = degree;
   p->coeffs = polymec_malloc(sizeof(real_t) * num_monomials);
   memcpy(p->coeffs, coeffs, sizeof(real_t) * num_monomials);
@@ -165,7 +165,7 @@ polynomial_t* polynomial_clone(polynomial_t* p)
 
 polynomial_t* scaled_polynomial_new(polynomial_t* p, real_t factor)
 {
-  polynomial_t* q = polymec_gc_malloc(sizeof(polynomial_t), polynomial_free);
+  polynomial_t* q = polymec_refcounted_malloc(sizeof(polynomial_t), polynomial_free);
   q->degree = p->degree;
   q->num_terms = p->num_terms;
   q->coeffs = polymec_malloc(sizeof(real_t) * q->num_terms);
@@ -571,7 +571,7 @@ static void poly_basis_free(void* ctx)
 poly_basis_t* poly_basis_new(int dimension, polynomial_t** polynomials)
 {
   ASSERT(dimension > 0);
-  poly_basis_t* basis = polymec_gc_malloc(sizeof(polynomial_t), poly_basis_free);
+  poly_basis_t* basis = polymec_refcounted_malloc(sizeof(polynomial_t), poly_basis_free);
   basis->dim = dimension;
   basis->polynomials = polymec_malloc(sizeof(polynomial_t*) * dimension);
   basis->degree = 0;
@@ -685,7 +685,7 @@ multicomp_poly_basis_t* multicomp_poly_basis_new(int num_components,
                                                  poly_basis_t** component_bases)
 {
   ASSERT(num_components > 0);
-  multicomp_poly_basis_t* basis = polymec_gc_malloc(sizeof(multicomp_poly_basis_t), multicomp_poly_basis_free);
+  multicomp_poly_basis_t* basis = polymec_refcounted_malloc(sizeof(multicomp_poly_basis_t), multicomp_poly_basis_free);
   basis->num_comp = num_components;
   basis->bases = polymec_malloc(sizeof(poly_basis_t*) * num_components);
   basis->degree = 0;

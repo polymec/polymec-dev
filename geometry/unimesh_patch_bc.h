@@ -18,8 +18,8 @@ typedef struct unimesh_patch_t unimesh_patch_t;
 
 /// \class unimesh_patch_bc
 /// A unimesh_patch_bc is a boundary condition that can update boundary data
-/// on one or more patches within a unimesh. Objects of this type are garbage 
-/// collected.
+/// on one or more patches within a unimesh.
+/// \refcounted
 typedef struct unimesh_patch_bc_t unimesh_patch_bc_t;
 
 /// This method should be implemented for each centering and boundary.

@@ -70,27 +70,45 @@ void* polymec_realloc(void* memory, size_t size);
 /// (or calling free() if the stack is empty).
 void polymec_free(void* memory);
 
-/// Returns memory that will be garbage-collected. This memory should not be 
-/// freed--use polymec_release instead of polymec_free 
-/// to tell the collector that you're finished with a garbage-collected 
-/// resource. When an object is collected, the supplied finalizer is 
-/// invoked.
-/// Garbage collection is appropriate for objects that are shared by many 
-/// systems, and that don't consume large amounts of resources. There is no 
-/// garbage-collected realloc (polymec_gc_realloc), since we don't encourage 
-/// garbage collection for data-intensive objects.
-void* polymec_gc_malloc(size_t size, void (*finalize)(void* memory));
+/// Returns storage for a resource to be reference-counted. Reference 
+/// counted (or "refcounted") resources keep track of the number of entities 
+/// using them. This number is the resource's reference count (or "refcount"). 
+/// A newly created refcounted resource has a refcount of 1. Refcounted 
+/// resources can be _borrowed_, _retained_, and _released_. 
+/// * Borrowing a refcounted object doesn't æffect its reference count. 
+///   Thuc, the borrower cannot assume the object is alive under all 
+///   circumstances, so borrowing refcounted objects is only safe when 
+///   it's known that the lifetime of a refcounted object is stable. It's 
+///   good manners to use the \ref borrow_ref annotation when you borrow 
+///   a refcounted objbect (but that function doesn't do anything).
+/// * Retaining a refcounted object increments that object's refcount. Do this
+///   with \ref retain_ref when you want to keep an object alive to guarantee 
+///   access to it.
+/// * Releasing a refcounted object decrements that object's refcount. Do this
+///   with \ref release_ref when you no longer need an object that you've 
+///   retained with \ref retain_ref.
+/// When a refcounted resource's refcount reaches 0, that resource is 
+/// destroyed. 
+/// \param [in] size The number of bytes to allocate for the refcounted 
+///                  resource.
+/// \param [in] dtor A destructor to be called on the refcounted resource 
+///                  when its refcount reaches zero.
+/// \refcounted
+void* polymec_refcounted_malloc(size_t size, void (*dtor)(void* memory));
 
-/// Call polymec_retain when you need to retain a reference to a garbage-
-/// collected object in a C data structure or context. Calling polymec_retain
-/// on a resource not allocated by polymec_gc_malloc throws a fatal 
-/// runtime error.
-void polymec_retain(void* memory);
+/// Articulates that a refcounted resource is being borrowed, returning the 
+/// pointer to the borrowed resource.
+/// \refcounted
+void* borrow_ref(void* refcounted_resource); 
 
-/// Call polymec_release when you are finished with a garbage-collected 
-/// resource so that it can be collected. Calling polymec_release on a 
-/// resource not allocated by polymec_gc_malloc throws a fatal runtime error.
-void polymec_release(void* memory);
+/// Retains a reference to a refcounted resource, incrementing its refcount 
+/// and returning a pointer to it.
+/// \refcounted
+void* retain_ref(void* refcounted_resource);
+
+/// Releases a reference to a refcounted resource, decrementing its refcount.
+/// \refcounted
+void release_ref(void* refcounted_resource);
 
 /// Pushes a new memory allocator to the allocator stack, using this allocator 
 /// to allocate all memory with polymec_malloc() until it is popped.

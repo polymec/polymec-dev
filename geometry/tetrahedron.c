@@ -21,7 +21,7 @@ struct tetrahedron_t
 
 tetrahedron_t* tetrahedron_new()
 {
-  tetrahedron_t* t = polymec_gc_malloc(sizeof(tetrahedron_t), NULL);
+  tetrahedron_t* t = polymec_refcounted_malloc(sizeof(tetrahedron_t), NULL);
   real_t L = 1.0;
   real_t sqrt3 = sqrt(3.0);
   point_set(&t->vertices[0], 0.0, 0.0, 0.0);

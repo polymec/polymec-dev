@@ -15,7 +15,8 @@
 
 /// \class rng
 /// This type represents a random number generator with a specific min, max, 
-/// and underlying algorithm. Objects of this type are garbage-collected.
+/// and underlying algorithm. 
+/// \refcounted
 typedef struct rng_t rng_t;
 
 /// \struct rng_vtable

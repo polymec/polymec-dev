@@ -109,6 +109,7 @@ bool_array_t* enumerable_not(bool_array_t* values);
 
 /// \def DEFINE_ENUMERABLE_GENERATOR
 /// Defines a generator class for various enumerable value types.
+/// \refcounted
 /// \memberof enumerable
 #define DEFINE_ENUMERABLE_GENERATOR(generator_name, value) \
 typedef value generator_name##_value_t; \
@@ -137,7 +138,7 @@ static inline void generator_name##_free(void* ctx) \
 \
 static inline generator_name##_t* generator_name##_from_array(value* values, size_t num_values, bool assume_ownership) \
 { \
-  generator_name##_t* gen = (generator_name##_t*)polymec_gc_malloc(sizeof(generator_name##_t), generator_name##_free); \
+  generator_name##_t* gen = (generator_name##_t*)polymec_refcounted_malloc(sizeof(generator_name##_t), generator_name##_free); \
   gen->position = 0; \
   gen->array = values; \
   gen->num_values = num_values; \

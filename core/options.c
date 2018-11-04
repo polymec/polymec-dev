@@ -36,7 +36,7 @@ static void destroy_kv(char* key, char* value)
 
 options_t* options_new(void)
 {
-  options_t* o = polymec_gc_malloc(sizeof(options_t), options_free);
+  options_t* o = polymec_refcounted_malloc(sizeof(options_t), options_free);
   o->args = string_array_new();
   o->params = string_string_unordered_map_new();
   return o;

@@ -18,8 +18,8 @@
 
 /// \class exchanger
 /// This type implements an MPI transmitter/receiver for exchanging 
-/// data between processes in a point-to-point fashion. Objects of this type 
-/// are garbage collected.
+/// data between processes in a point-to-point fashion. 
+/// \refcounted
 typedef struct exchanger_t exchanger_t;
 
 /// \class exchanger_proc_map

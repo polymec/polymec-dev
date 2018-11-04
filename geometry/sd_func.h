@@ -16,7 +16,8 @@
 /// \class sd_func
 /// This class represents a signed distance function, a real-valued function whose zero 
 /// level set represents a surface or shape in space. It is represented by spatial function 
-/// (sp_func) objects. sd_func objects are garbage-collected.
+/// (sp_func) objects.
+/// \refcounted
 typedef struct sd_func_t sd_func_t;
 
 /// \struct sd_func_vtable

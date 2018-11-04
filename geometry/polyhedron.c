@@ -33,7 +33,7 @@ polyhedron_t* polyhedron_new(point_t* vertices, size_t num_vertices,
                              int** faces, size_t* num_face_vertices, 
                              size_t num_faces)
 {
-  polyhedron_t* poly = polymec_gc_malloc(sizeof(polyhedron_t), polyhedron_free);
+  polyhedron_t* poly = polymec_refcounted_malloc(sizeof(polyhedron_t), polyhedron_free);
 
   // Copy in the vertices.
   poly->num_vertices = num_vertices;
@@ -150,7 +150,7 @@ static void compute_face_centroid(polyhedron_t* poly,
   polygon_t* face = polygon_new(points, nv);
   point2_t centroid2;
   polygon_compute_centroid(face, &centroid2);
-  polymec_release(face);
+  release_ref(face);
 
   // Embed the 2D centroid back in 3D space.
   plane_sd_func_embed(plane, &centroid2, centroid);
@@ -204,7 +204,7 @@ void polyhedron_compute_centroid(polyhedron_t* poly, point_t* centroid)
 
 polyhedron_t* polyhedron_clone(polyhedron_t* poly)
 {
-  polyhedron_t* clone = polymec_gc_malloc(sizeof(polyhedron_t), polyhedron_free);
+  polyhedron_t* clone = polymec_refcounted_malloc(sizeof(polyhedron_t), polyhedron_free);
   clone->num_vertices = poly->num_vertices;
   clone->vertices = polymec_malloc(sizeof(point_t) * poly->num_vertices);
   memcpy(clone->vertices, poly->vertices, sizeof(point_t) * poly->num_vertices);

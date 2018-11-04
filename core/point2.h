@@ -24,7 +24,7 @@ typedef struct
 
 /// Creates a new point with the given coordinates in the plane. 
 /// Not necessary if you are allocating a point on the stack.
-/// This point will be garbage-collected.
+/// \refcounted
 /// \memberof point2
 point2_t* point2_new(real_t x, real_t y);
 

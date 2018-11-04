@@ -139,8 +139,8 @@ bool_array_t* compare_##datatype_prefix##_values(datatype_prefix##_enumerable_ge
       ++i; \
     } \
   } \
-  polymec_release(g1); \
-  polymec_release(g2); \
+  release_ref(g1); \
+  release_ref(g2); \
   return result; \
 } \
 
@@ -175,7 +175,7 @@ bool_array_t* datatype_prefix##_##cmp_name(datatype_prefix##_enumerable_generato
       ++i; \
     } \
   } \
-  polymec_release(g); \
+  release_ref(g); \
   return result; \
 } \
 \
@@ -263,7 +263,7 @@ void apply_to_##datatype_prefix##_values(void (*func)(void* context, datatype va
       ++i; \
     } \
   } \
-  polymec_release(g); \
+  release_ref(g); \
 } \
 \
 

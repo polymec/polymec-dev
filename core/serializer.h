@@ -33,12 +33,21 @@ typedef void (*serializer_dtor_func)(void*);
 
 /// \class serializer
 /// This type represents an object that manipulates byte streams, reading 
-/// and/or writing objects from them. Objects of this type are garbage-collected.
+/// and/or writing objects from them. 
 typedef struct serializer_t serializer_t;
 
 /// Constructs a new serializer with behavior defined by the given functions.
-/// Every serializer should have a unique name so that it can be added to a 
-/// global registry of serializers.
+/// Every serializer has a unique name that identifies it within a global 
+/// registry of serializers.
+/// \param [in] The name of the serializer (usually the type it serializes).
+/// \param [in] size_func A function that returns the size of a given object 
+///                       to be serialized by the serializer.
+/// \param [in] read_func A function that reads the contents of a byte_array 
+///                       and produces a newly-created object.
+/// \param [in] write_func A function that writes the contents of an object to 
+///                        a byte_array.
+/// \param [in] destructor_func A function that allows a serializer to destroy
+///                        an object.
 /// \memberof serializer
 serializer_t* serializer_new(const char* name,
                              serializer_size_func size_func,
@@ -61,11 +70,18 @@ size_t serializer_size(serializer_t* s, void* object);
 
 /// Writes the given object to the byte stream at the given offset, changing 
 /// the offset in place.
+/// \param [in] object The object to be written to the byte stream.
+/// \param [in,out] byte_stream The byte stream that stores the written object.
+/// \param [in,out] offset Stores the offset in the byte stream to which the 
+///                        object is written.
 /// \memberof serializer
 void serializer_write(serializer_t* s, void* object, byte_array_t* byte_stream, size_t* offset);
 
 /// Returns an object read from the byte stream at the given offset, changing 
 /// the offset in place.
+/// \param [in,out] byte_stream The byte stream that stores the object to be read.
+/// \param [in,out] offset Stores the offset in the byte stream from which the 
+///                        object is read.
 /// \memberof serializer
 void* serializer_read(serializer_t* s, byte_array_t* byte_stream, size_t* offset);
 

@@ -25,7 +25,7 @@ static void test_options(void** state)
   assert_string_equal("v1", options_value(opt, "p1"));
   assert_string_equal("v2", options_value(opt, "p2"));
   assert_string_equal("v3", options_value(opt, "p3"));
-  polymec_release(opt);
+  release_ref(opt);
 }
 
 static void test_add_remove(void** state)
@@ -46,7 +46,7 @@ static void test_add_remove(void** state)
   options_add_argument(opt, "arg4");
   assert_int_equal(7, options_num_arguments(opt));
   assert_true(options_has_argument(opt, "arg4"));
-  polymec_release(opt);
+  release_ref(opt);
 }
 
 int main(int argc, char* argv[]) 

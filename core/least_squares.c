@@ -68,7 +68,7 @@ ls_weight_func_t* ls_weight_func_new(const char* name,
 {
   ASSERT(vtable.eval != NULL);
 
-  ls_weight_func_t* W = polymec_gc_malloc(sizeof(ls_weight_func_t), ls_weight_func_free);
+  ls_weight_func_t* W = polymec_refcounted_malloc(sizeof(ls_weight_func_t), ls_weight_func_free);
   W->name = string_dup(name);
   W->context = context;
   W->vtable = vtable;

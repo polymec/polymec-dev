@@ -9,14 +9,14 @@
 
 point2_t* point2_new(real_t x, real_t y)
 {
-  point2_t* p = polymec_gc_malloc(sizeof(point2_t), NULL);
+  point2_t* p = polymec_refcounted_malloc(sizeof(point2_t), NULL);
   p->x = x; p->y = y;
   return p;
 }
 
 vector2_t* vector2_new(real_t vx, real_t vy)
 {
-  vector2_t* v = polymec_gc_malloc(sizeof(vector2_t), NULL);
+  vector2_t* v = polymec_refcounted_malloc(sizeof(vector2_t), NULL);
   v->x = vx; v->y = vy;
   return v;
 }

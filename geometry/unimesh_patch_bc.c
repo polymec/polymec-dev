@@ -33,8 +33,8 @@ unimesh_patch_bc_t* unimesh_patch_bc_new(const char* name,
                                          unimesh_patch_bc_vtable vtable,
                                          unimesh_t* mesh)
 {
-  unimesh_patch_bc_t* bc = polymec_gc_malloc(sizeof(unimesh_patch_bc_t), 
-                                             unimesh_patch_bc_free);
+  unimesh_patch_bc_t* bc = polymec_refcounted_malloc(sizeof(unimesh_patch_bc_t), 
+                                                     unimesh_patch_bc_free);
   bc->name = string_dup(name);
   bc->context = context;
   for (int c = 0; c < 8; ++c)
@@ -160,8 +160,8 @@ unimesh_patch_bc_t* unimesh_patch_bc_new_easy(const char* name,
                                               unimesh_patch_bc_easy_vtable vtable,
                                               unimesh_t* mesh)
 {
-  unimesh_patch_bc_t* bc = polymec_gc_malloc(sizeof(unimesh_patch_bc_t), 
-                                             unimesh_patch_bc_free);
+  unimesh_patch_bc_t* bc = polymec_refcounted_malloc(sizeof(unimesh_patch_bc_t), 
+                                                     unimesh_patch_bc_free);
   bc->name = string_dup(name);
   bc->context = bc;
   for (int c = 0; c < 8; ++c)

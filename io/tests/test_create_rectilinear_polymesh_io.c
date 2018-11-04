@@ -92,7 +92,7 @@ static void test_plot_rectilinear_mesh(void** state)
   assert_true(metadata->conserved);
   assert_false(metadata->extensive);
   assert_int_equal(2, metadata->vector_component);
-  polymec_release(metadata);
+  release_ref(metadata);
 
   // node field
   assert_true(silo_file_contains_polymesh_field(silo, "nx", "mesh", POLYMESH_NODE));

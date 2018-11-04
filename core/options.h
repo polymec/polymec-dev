@@ -14,8 +14,8 @@
 ///@{
 
 /// \class options
-/// A type that stores command line options. Objects of this type are 
-/// garbage-collected.
+/// A type that stores command line options. 
+/// \refcounted
 typedef struct options_t options_t;
 
 /// Creates an empty options object. This is mostly for simplifying logic.

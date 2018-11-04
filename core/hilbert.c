@@ -21,7 +21,7 @@ static const int num_bits = 16;
 hilbert_t* hilbert_new(bbox_t* bbox)
 {
   int num_bins = 1 << num_bits;
-  hilbert_t* curve = polymec_gc_malloc(sizeof(hilbert_t), NULL);
+  hilbert_t* curve = polymec_refcounted_malloc(sizeof(hilbert_t), NULL);
   curve->bbox = *bbox;
   curve->dx = (bbox->x2 - bbox->x1) / (num_bins-1);
   curve->dy = (bbox->y2 - bbox->y1) / (num_bins-1);

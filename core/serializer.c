@@ -29,9 +29,8 @@ static void destroy_serializer_registry()
   serializer_registry_free(registry);
 }
 
-static void serializer_free(void* ctx)
+static void serializer_free(serializer_t* s)
 {
-  serializer_t* s = ctx;
   string_free(s->name);
 }
 
@@ -58,20 +57,18 @@ serializer_t* serializer_new(const char* name,
   serializer_t** s_ptr = serializer_registry_get(registry, (char*)name);
   if (s_ptr == NULL)
   {
-    s = polymec_gc_malloc(sizeof(serializer_t), serializer_free);
+    s = polymec_malloc(sizeof(serializer_t));
     s->name = string_dup(name);
     s->size = size_func;
     s->read = read_func;
     s->write = write_func;
     s->dtor = destructor_func;
-    serializer_registry_insert_with_k_dtor(registry, string_dup(name), s, string_free);
-    polymec_retain(s);
+    serializer_registry_insert_with_kv_dtors(registry, string_dup(name), s, string_free, serializer_free);
   }
   else
   {
     // Just fetch the entry in the table.
     s = *s_ptr;
-    polymec_retain(s);
   }
 
   return s;

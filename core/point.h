@@ -23,8 +23,8 @@ typedef struct
 } point_t;
 
 /// Allocates a new point on the heap with the given coordinates. Not 
-/// necessary if you are allocating a point on the stack. Objects of this 
-/// type are garbage-collected when allocated on the heap.
+/// necessary if you are allocating a point on the stack.
+/// \refcounted
 /// \memberof point
 point_t* point_new(real_t x, real_t y, real_t z);
 
@@ -90,8 +90,8 @@ typedef struct
 } vector_t;
 
 /// Allocates a new vector on the heap with the given components. Not 
-/// necessary if you are allocating a vector on the stack. Objects of this 
-/// type are garbage-collected when allocated on the heap.
+/// necessary if you are allocating a vector on the stack.
+/// \refcounted
 /// \memberof vector
 vector_t* vector_new(real_t vx, real_t vy, real_t vz);
 
@@ -201,12 +201,22 @@ bool points_are_coplanar(point_t* p1, point_t* p2, point_t* p3, point_t* p4);
 bool all_points_are_coplanar(point_t* points, int num_points);
 
 /// \class bbox
-/// A bounding box. Objects of this type are garbage-collected when allocated on the heap.
+/// A bounding box in three-dimensional space.
+/// \refcounted
 typedef struct
 {
-  real_t x1, x2;
-  real_t y1, y2;
-  real_t z1, z2;
+  /// Lower x bound.
+  real_t x1;
+  /// Upper x bound.
+  real_t x2;
+  /// Lower y bound.
+  real_t y1;
+  /// Upper y bound.
+  real_t y2;
+  /// Lower z bound.
+  real_t z1;
+  /// Upper z bound.
+  real_t z2;
 } bbox_t;
 
 /// Allocates a bounding box with the given extents on the heap. 

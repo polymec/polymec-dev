@@ -59,7 +59,7 @@ polygon_t* polygon_new(point2_t* vertices, size_t num_vertices)
 {
   ASSERT(vertices != NULL);
   ASSERT(num_vertices >= 3);
-  polygon_t* poly = polymec_gc_malloc(sizeof(polygon_t), polygon_free);
+  polygon_t* poly = polymec_refcounted_malloc(sizeof(polygon_t), polygon_free);
   poly->vertices = NULL;
   poly->num_vertices = 0;
   poly->area_computed = false;

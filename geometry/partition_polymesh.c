@@ -968,7 +968,6 @@ void distribute_polymesh(polymesh_t** mesh,
       byte_array_clear(bytes);
       polymesh_free(p_mesh);
     }
-    polymec_release(ser);
     byte_array_free(bytes);
   }
   else
@@ -991,7 +990,6 @@ void distribute_polymesh(polymesh_t** mesh,
     local_mesh = serializer_read(ser, bytes, &offset);
     
     byte_array_free(bytes);
-    polymec_release(ser);
   }
 
   *mesh = local_mesh;
@@ -1293,7 +1291,6 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
 
   // Clean up the send buffers and the serializer. We still need the 
   // receive buffer.
-  polymec_release(ser);
   for (size_t i = 0; i < num_sends; ++i)
     byte_array_free(send_buffers[i]);
 

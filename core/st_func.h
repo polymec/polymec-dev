@@ -20,7 +20,7 @@
 /// This opaque type encapsulates the notion of such an analytic function 
 /// and any associated metadata (whether it is homogeneous, constant in 
 /// time, etc).
-/// st_func objects are garbage-collected.
+/// \refcounted
 typedef struct st_func_t st_func_t;
 
 /// \enum st_func_homogeneity_t

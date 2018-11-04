@@ -32,7 +32,7 @@ sp_func_t* sp_func_new(const char* name, void* context, sp_func_vtable vtable,
   ASSERT(context != NULL);
   ASSERT(vtable.eval != NULL);
   ASSERT(num_comp > 0);
-  sp_func_t* f = polymec_gc_malloc(sizeof(sp_func_t), sp_func_free);
+  sp_func_t* f = polymec_refcounted_malloc(sizeof(sp_func_t), sp_func_free);
   f->name = string_dup(name);
   f->context = context;
   f->vtable = vtable;
@@ -47,7 +47,7 @@ sp_func_t* sp_func_from_func(const char* name, sp_eval_func func,
 {
   ASSERT(func != NULL);
   ASSERT(num_comp > 0);
-  sp_func_t* f = polymec_gc_malloc(sizeof(sp_func_t), sp_func_free);
+  sp_func_t* f = polymec_refcounted_malloc(sizeof(sp_func_t), sp_func_free);
   f->name = string_dup(name);
   f->context = NULL;
   f->vtable.eval = func;

@@ -129,8 +129,8 @@ static void silo_field_metadata_free(void* ctx)
 
 silo_field_metadata_t* silo_field_metadata_new()
 {
-  silo_field_metadata_t* metadata = polymec_gc_malloc(sizeof(silo_field_metadata_t),
-                                                      silo_field_metadata_free);
+  silo_field_metadata_t* metadata = polymec_refcounted_malloc(sizeof(silo_field_metadata_t),
+                                                              silo_field_metadata_free);
   metadata->label = NULL;
   metadata->units = NULL;
   metadata->conserved = false;

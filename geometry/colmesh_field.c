@@ -124,7 +124,7 @@ colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
 
   // Set up exchangers and tokens.
   field->ex = colmesh_exchanger(mesh, centering);
-  polymec_retain(field->ex);
+  retain_ref(field->ex);
   field->ex_token = -1;
 
   // Now populate the chunks (with NULL buffers).
@@ -163,7 +163,7 @@ void colmesh_field_free(colmesh_field_t* field)
   chunk_data_map_free(field->chunks);
   if (field->owns_buffer)
     polymec_free(field->buffer);
-  polymec_release(field->ex);
+  release_ref(field->ex);
   polymec_free(field);
 }
 

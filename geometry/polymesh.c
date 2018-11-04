@@ -39,7 +39,7 @@ static polymesh_storage_t* polymesh_storage_new(MPI_Comm comm)
 // Frees the given storage mechanism.
 static void polymesh_storage_free(polymesh_storage_t* storage)
 {
-  polymec_release(storage->exchanger);
+  release_ref(storage->exchanger);
   polymec_free(storage);
 }
 
@@ -302,7 +302,7 @@ exchanger_t* polymesh_cell_exchanger(polymesh_t* mesh)
 void polymesh_set_cell_exchanger(polymesh_t* mesh, exchanger_t* ex)
 {
   ASSERT(ex != NULL);
-  polymec_release(mesh->storage->exchanger);
+  release_ref(mesh->storage->exchanger);
   mesh->storage->exchanger = ex;
 }
 
@@ -556,12 +556,10 @@ static size_t polymesh_byte_size(void* obj)
                        serializer_size(tag_s, mesh->face_tags) + 
                        serializer_size(tag_s, mesh->edge_tags) + 
                        serializer_size(tag_s, mesh->node_tags);
-  polymec_release(tag_s);
 
   // Exchanger-related storage.
   serializer_t* ex_s = exchanger_serializer();
   size_t ex_storage = serializer_size(ex_s, polymesh_cell_exchanger(mesh));
-  polymec_release(ex_s);
 
   return basic_storage + tag_storage + ex_storage;
 }
@@ -616,7 +614,7 @@ static void* polymesh_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_ints(bytes, 1, &storage->cell_face_capacity, offset);
   byte_array_read_ints(bytes, 1, &storage->face_edge_capacity, offset);
   byte_array_read_ints(bytes, 1, &storage->face_node_capacity, offset);
-  polymec_release(storage->exchanger);
+  release_ref(storage->exchanger);
   ser = exchanger_serializer();
   storage->exchanger = serializer_read(ser, bytes, offset);
 
@@ -651,7 +649,6 @@ static void polymesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   serializer_write(ser, mesh->face_tags, bytes, offset);
   serializer_write(ser, mesh->edge_tags, bytes, offset);
   serializer_write(ser, mesh->node_tags, bytes, offset);
-  polymec_release(ser);
 
   // Storage/exchanger stuff.
   polymesh_storage_t* storage = mesh->storage;
@@ -660,7 +657,6 @@ static void polymesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_ints(bytes, 1, &storage->face_node_capacity, offset);
   ser = exchanger_serializer();
   serializer_write(ser, polymesh_cell_exchanger(mesh), bytes, offset);
-  polymec_release(ser);
 }
 
 serializer_t* polymesh_serializer()
@@ -702,7 +698,7 @@ exchanger_t* polymesh_1v_face_exchanger_new(polymesh_t* mesh)
     }
     exchanger_set_sends(ex, send_map);
     exchanger_set_receives(ex, receive_map);
-    polymec_release(face2_ex);
+    release_ref(face2_ex);
   }
 #endif
   return ex;

@@ -13,7 +13,7 @@ cubic_lattice_t* cubic_lattice_new(index_t nx, index_t ny, index_t nz)
   ASSERT(nx > 0);
   ASSERT(ny > 0);
   ASSERT(nz > 0);
-  cubic_lattice_t* l = polymec_gc_malloc(sizeof(cubic_lattice_t), NULL);
+  cubic_lattice_t* l = polymec_refcounted_malloc(sizeof(cubic_lattice_t), NULL);
   l->nx = nx;
   l->ny = ny;
   l->nz = nz;

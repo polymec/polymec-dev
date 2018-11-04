@@ -9,7 +9,7 @@
 
 point_t* point_new(real_t x, real_t y, real_t z)
 {
-  point_t* p = polymec_gc_malloc(sizeof(point_t), NULL);
+  point_t* p = polymec_refcounted_malloc(sizeof(point_t), NULL);
   p->x = x; p->y = y; p->z = z;
   return p;
 }
@@ -21,7 +21,7 @@ void point_fprintf(point_t* x, FILE* stream)
 
 vector_t* vector_new(real_t vx, real_t vy, real_t vz)
 {
-  vector_t* v = polymec_gc_malloc(sizeof(vector_t), NULL);
+  vector_t* v = polymec_refcounted_malloc(sizeof(vector_t), NULL);
   v->x = vx; v->y = vy; v->z = vz;
   return v;
 }
@@ -31,7 +31,7 @@ bbox_t* bbox_new(real_t x1, real_t x2, real_t y1, real_t y2, real_t z1, real_t z
   ASSERT(x1 < x2);
   ASSERT(y1 < y2);
   ASSERT(z1 < z2);
-  bbox_t* b = polymec_gc_malloc(sizeof(bbox_t), NULL);
+  bbox_t* b = polymec_refcounted_malloc(sizeof(bbox_t), NULL);
   b->x1 = x1;
   b->x2 = x2;
   b->y1 = y1;
@@ -48,7 +48,7 @@ bbox_t* bbox_clone(bbox_t* box)
 
 bbox_t* empty_set_bbox_new()
 {
-  bbox_t* b = polymec_gc_malloc(sizeof(bbox_t), NULL);
+  bbox_t* b = polymec_refcounted_malloc(sizeof(bbox_t), NULL);
   bbox_make_empty_set(b);
   return b;
 }

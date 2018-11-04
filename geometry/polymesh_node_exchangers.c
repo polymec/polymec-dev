@@ -68,7 +68,7 @@ exchanger_t* polymesh_1v_node_exchanger_new(polymesh_t* mesh)
   }
   exchanger_set_sends(ex, send_map);
   exchanger_set_receives(ex, receive_map);
-  polymec_release(noden_ex);
+  release_ref(noden_ex);
 #endif
   return ex;
 }

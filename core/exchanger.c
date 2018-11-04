@@ -325,7 +325,7 @@ static void exchanger_free(void* ctx)
 
 exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
 {
-  exchanger_t* ex = polymec_gc_malloc(sizeof(exchanger_t), exchanger_free);
+  exchanger_t* ex = polymec_refcounted_malloc(sizeof(exchanger_t), exchanger_free);
   ex->comm = comm;
   ex->rank = rank;
   MPI_Comm_size(comm, &(ex->nprocs));

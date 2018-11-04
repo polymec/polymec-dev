@@ -15,7 +15,7 @@
 
 /// \class tetrahedron
 /// This class represents a tetrahedron.
-/// Objects of this type are garbage-collected.
+/// \refcounted
 typedef struct tetrahedron_t tetrahedron_t;
 
 /// Creates a new tetrahedron whose vertices are set to a default 

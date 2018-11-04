@@ -26,7 +26,7 @@ static void aux_state_free(void* ctx)
 
 aux_state_t* aux_state_new()
 {
-  aux_state_t* state = polymec_gc_malloc(sizeof(aux_state_t), aux_state_free);
+  aux_state_t* state = polymec_refcounted_malloc(sizeof(aux_state_t), aux_state_free);
   state->types = int_array_new();
   state->indices = int_array_new();
   state->offsets = int_array_new();
