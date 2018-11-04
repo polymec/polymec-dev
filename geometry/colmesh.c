@@ -968,6 +968,13 @@ static void insert_unique_sorted(int_array_t* array, int value)
     int_array_insert(array, index, value);
 }
 
+static void recalc_xy_connectivity(int64_t* partition_vector,
+                                   int64_t* source_vector,
+                                   chunk_xy_data_array_t* xy_datas)
+{
+  // FIXME
+}
+
 static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
                                                          int64_t* partition_vector,
                                                          int64_t* source_vector)
@@ -1092,6 +1099,9 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
     byte_array_free(send_buffers[i]);
   int_array_free(source_procs);
   int_array_free(dest_procs);
+
+  // Figure out the chunk-to-chunk connectivity.
+  recalc_xy_connectivity(partition_vector, source_vector, all_xy_data);
 
   STOP_FUNCTION_TIMER();
   return all_xy_data;
