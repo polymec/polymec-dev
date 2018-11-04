@@ -20,6 +20,7 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
   field->mesh = mesh;
   field->centering = centering;
   field->num_components = num_components;
+  field->ex = NULL;
   switch (centering)
   {
     case POLYMESH_CELL: 
@@ -28,7 +29,7 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
       break;
     case POLYMESH_FACE: 
       field->num_local_values = mesh->num_faces; 
-      field->ex = polymesh_1v_face_exchanger_new(mesh);
+//      field->ex = polymesh_1v_face_exchanger_new(mesh);
       break;
     case POLYMESH_EDGE: 
       field->num_local_values = mesh->num_edges; 
@@ -36,7 +37,7 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
       break;
     case POLYMESH_NODE: 
       field->num_local_values = mesh->num_nodes;
-      field->ex = polymesh_1v_node_exchanger_new(mesh);
+//      field->ex = polymesh_1v_node_exchanger_new(mesh);
   }
   if (field->ex != NULL)
     retain_ref(field->ex);
@@ -64,7 +65,7 @@ void polymesh_field_exchange(polymesh_field_t* field)
 
 void polymesh_field_start_exchange(polymesh_field_t* field)
 {
-  ASSERT(field->centering != POLYMESH_EDGE);
+  ASSERT(field->ex != NULL);
   ASSERT(!polymesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
 

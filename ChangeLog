@@ -1,11 +1,11 @@
 TO-BE-FILLED-IN     PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.4.0
-    * New distributed mesh type: prismesh, a semi-structured extruded 
+    * New distributed mesh type: colmesh, a semi-structured extruded 
       polygonal mesh.
-    * New planar polygonal (2D) mesh type, useful for constructing a prismesh.
+    * New planar polygonal (2D) mesh type, useful for constructing a colmesh.
     * Improved support for 2D points and vectors.
     * Reintroduced polygon and polyhedron classes.
-    * Silo files can now include prismesh and planar_polyesh data.
+    * Silo files can now include colmesh and planar_polyesh data.
     * Probes can now run postprocessing, and can even stream acquired data
       over UDP or Unix sockets.
     * Enumerables: generator expressions with quantifiers, for easier 
@@ -22,9 +22,11 @@ TO-BE-FILLED-IN     PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
       single-process decomposition.
     * Exchangers can now perform local copies.
     * Reworked older Lua classes: they now use the new type system.
+    * Reworked managed C memory in terms of refcounting, not garbage collection.
+    * Serializers are now owned by their global registry.
     * Added Silo 4.10 user guide to the repo.
     * Python tool scripts now work with Python 3.
-    * Various bugfixes.
+    * Various bugfixes--too many to list.
 Thu Jul 26 20:03:08 PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * polymec: version 2.3.0
     * Lua type system now just uses classes (no more record types).
