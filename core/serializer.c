@@ -65,11 +65,13 @@ serializer_t* serializer_new(const char* name,
     s->write = write_func;
     s->dtor = destructor_func;
     serializer_registry_insert_with_k_dtor(registry, string_dup(name), s, string_free);
+    polymec_retain(s);
   }
   else
   {
     // Just fetch the entry in the table.
     s = *s_ptr;
+    polymec_retain(s);
   }
 
   return s;

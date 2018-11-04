@@ -651,6 +651,7 @@ static void polymesh_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   serializer_write(ser, mesh->face_tags, bytes, offset);
   serializer_write(ser, mesh->edge_tags, bytes, offset);
   serializer_write(ser, mesh->node_tags, bytes, offset);
+  polymec_release(ser);
 
   // Storage/exchanger stuff.
   polymesh_storage_t* storage = mesh->storage;
