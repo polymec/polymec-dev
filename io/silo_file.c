@@ -2108,7 +2108,13 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
       shapes[c] = DB_ZONETYPE_POLYGON;
       num_cell_edges[c] = mesh->cell_edge_offsets[c+1] - mesh->cell_edge_offsets[c];
       for (int n = 0; n < num_cell_edges[c]; ++n, ++l)
-        cell_nodes[l] = mesh->edge_nodes[2*mesh->cell_edges[n]];
+      {
+        int edge = mesh->cell_edges[l];
+        if (edge < 0)
+          cell_nodes[l] = mesh->edge_nodes[2*(~edge)+1];
+        else
+          cell_nodes[l] = mesh->edge_nodes[2*edge+1];
+      }
     }
     DBPutZonelist2(file->dbfile, "zl", mesh->num_cells, 2, 
         cell_nodes, total_num_cell_nodes, 0, 0, 0,
