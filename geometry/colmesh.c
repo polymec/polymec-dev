@@ -201,6 +201,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   return xy_data;
 }
 
+#if POLYMEC_HAVE_MPI
 static chunk_xy_data_t* chunk_xy_data_clone(chunk_xy_data_t* xy_data)
 {
   chunk_xy_data_t* clone = polymec_malloc(sizeof(chunk_xy_data_t));
@@ -223,6 +224,7 @@ static chunk_xy_data_t* chunk_xy_data_clone(chunk_xy_data_t* xy_data)
   clone->receive_map = exchanger_proc_map_new();
   return clone;
 }
+#endif
 
 static void chunk_xy_data_free(chunk_xy_data_t* xy_data)
 {

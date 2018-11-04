@@ -108,7 +108,8 @@ bool_array_t* compare_##datatype_prefix##_values(datatype_prefix##_enumerable_ge
       datatype y; \
       bool g2_has_val = g2->generate(g2->context, i, &y); \
       ASSERT(g2_has_val); \
-      result->data[i] = compare(x, y); \
+      if (g2_has_val) \
+        result->data[i] = compare(x, y); \
     } \
   } \
   else if ((g1->array == NULL) && (g2->array != NULL)) \
@@ -119,8 +120,11 @@ bool_array_t* compare_##datatype_prefix##_values(datatype_prefix##_enumerable_ge
       datatype x; \
       bool g1_has_val = g1->generate(g1->context, i, &x); \
       ASSERT(g1_has_val); \
-      datatype y = g2->array[i]; \
-      result->data[i] = compare(x, y); \
+      if (g1_has_val) \
+      { \
+        datatype y = g2->array[i]; \
+        result->data[i] = compare(x, y); \
+      } \
     } \
   } \
   else \
@@ -134,7 +138,7 @@ bool_array_t* compare_##datatype_prefix##_values(datatype_prefix##_enumerable_ge
       bool g2_has_val = g2->generate(g2->context, i, &y); \
       ASSERT((g1_has_val && g2_has_val) || \
              (!g1_has_val && !g2_has_val)); \
-      if (!g1_has_val) break; \
+      if (!g1_has_val || !g2_has_val) break; \
       bool_array_append(result, compare(x, y)); \
       ++i; \
     } \
