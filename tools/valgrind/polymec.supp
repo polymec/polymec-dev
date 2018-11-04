@@ -48,6 +48,13 @@
    ...
 }
 {
+   orte_Cond
+   Memcheck:Cond
+   ...
+   fun:orte_*
+   ...
+}
+{
    orte_Read4
    Memcheck:Addr4
    ...
@@ -87,6 +94,13 @@
    Memcheck:Leak
    ...
    obj:*orterun
+   ...
+}
+{
+   event_base_loop_Leak
+   Memcheck:Leak
+   ...
+   fun:event_base_loop
    ...
 }
 {
