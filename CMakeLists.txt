@@ -230,7 +230,7 @@ if (COVERAGE)
     message(FATAL_ERROR "lcov not found--can't report code coverage!")
   endif()
   find_program(GENHTML genhtml)
-  if (NOT GENHTML STREQUAL "GENHTML-NOTFOUND")
+  if (GENHTML STREQUAL "GENHTML-NOTFOUND")
     message(FATAL_ERROR "genhtml not found--can't format code coverage report!")
   endif()
 
