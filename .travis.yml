@@ -9,7 +9,7 @@ env:
   matrix:
     - BUILD_TYPE=Debug MPI=ON SHARED_LIBS=OFF PRECISION=double
     - BUILD_TYPE=Debug MPI=ON SHARED_LIBS=OFF PRECISION=single
-    - BUILD_TYPE=Debug MPI=ON SHARED_LIBS=ON PRECISION=double PETSC_DIR=/usr PETSC_ARCH="" HYPRE_DIR=/usr/lib/x86_64-linux-gnu
+    - BUILD_TYPE=Debug MPI=ON SHARED_LIBS=ON COVERAGE=ON PRECISION=double PETSC_DIR=/usr PETSC_ARCH="" HYPRE_DIR=/usr/lib/x86_64-linux-gnu
     - BUILD_TYPE=Debug MPI=OFF SHARED_LIBS=OFF PRECISION=double
     - BUILD_TYPE=Debug MPI=OFF SHARED_LIBS=OFF PRECISION=single
     - BUILD_TYPE=Debug MPI=OFF SHARED_LIBS=ON PRECISION=double
@@ -40,6 +40,9 @@ script:
   - docker exec -t polymec-build bash -c "cd travis/build;
     make -j3 install;
     make $TEST"
+
+after_success: 
+  - if [ "$COVERAGE" = "ON" ]; then docker exec -t polymec-build bash -c "make coverage; bash <(curl -s https://codecov.io/bash)"; fi
 
 after_failure: 
   - docker exec -t polymec-build bash -c "cd travis;
