@@ -70,7 +70,7 @@ void polymesh_field_start_exchange(polymesh_field_t* field)
   START_FUNCTION_TIMER();
 
   // Start the xy exchange.
-  int stride = field->num_components;
+  int stride = (int)field->num_components;
   field->ex_token = exchanger_start_exchange(field->ex, field->data, stride, 0, MPI_REAL_T);
   STOP_FUNCTION_TIMER();
 }

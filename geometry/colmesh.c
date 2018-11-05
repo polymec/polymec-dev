@@ -574,7 +574,7 @@ void colmesh_finalize(colmesh_t* mesh)
       {
         int ch1_index = chunk_index(mesh, (int)xy1, z+1);
         int proc = (int)(owners[ch1_index]);
-        int z1 = chunk->num_z_cells;
+        size_t z1 = chunk->num_z_cells;
         int send_index = (int)(chunk_offset + chunk->num_z_cells * xy1 + z1);
         int receive_index = cell_offset; 
         exchanger_proc_map_add_index(send_map, proc, send_index);
