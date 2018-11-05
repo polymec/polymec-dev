@@ -2096,16 +2096,18 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
   }
 
   // Write cells to the file.
+  char zonelist_name[FILENAME_MAX+1];
+  snprintf(zonelist_name, FILENAME_MAX, "%s_zonelist", mesh_name);
   {
-    int one = 1;
     int num_cell_edges[mesh->num_cells];
     int total_num_cell_nodes = mesh->cell_edge_offsets[mesh->num_cells];
     int cell_nodes[total_num_cell_nodes];
-    int shapes[mesh->num_cells];
+    int shapes[mesh->num_cells], ones[mesh->num_cells];
     int l = 0;
     for (int c = 0; c < mesh->num_cells; ++c)
     {
       shapes[c] = DB_ZONETYPE_POLYGON;
+      ones[c] = 1;
       num_cell_edges[c] = mesh->cell_edge_offsets[c+1] - mesh->cell_edge_offsets[c];
       for (int n = 0; n < num_cell_edges[c]; ++n, ++l)
       {
@@ -2113,17 +2115,19 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
         if (edge < 0)
           cell_nodes[l] = mesh->edge_nodes[2*(~edge)+1];
         else
-          cell_nodes[l] = mesh->edge_nodes[2*edge+1];
+          cell_nodes[l] = mesh->edge_nodes[2*edge];
       }
     }
-    DBPutZonelist2(file->dbfile, "zl", mesh->num_cells, 2, 
-        cell_nodes, total_num_cell_nodes, 0, 0, 0,
-        shapes, num_cell_edges, &one, mesh->num_cells, NULL);
+    DBPutZonelist2(file->dbfile, zonelist_name, mesh->num_cells, 2, 
+                   cell_nodes, total_num_cell_nodes, 0, 0, 0,
+                   shapes, num_cell_edges, ones, mesh->num_cells, NULL);
   }
 
   // Write edges (2D faces) to the file.
   int num_edge_nodes = 2;
-  DBPutFacelist(file->dbfile, "fl", mesh->num_edges, 2, mesh->edge_nodes, 
+  char facelist_name[FILENAME_MAX+1];
+  snprintf(facelist_name, FILENAME_MAX, "%s_facelist", mesh_name);
+  DBPutFacelist(file->dbfile, facelist_name, mesh->num_edges, 2, mesh->edge_nodes, 
                 2*mesh->num_edges, 0, NULL, &num_edge_nodes, &(mesh->num_edges), 1, 
                 NULL, NULL, 0);
 
@@ -2131,7 +2135,7 @@ void silo_file_write_planar_polymesh(silo_file_t* file,
   int num_cells = mesh->num_cells;
   int result = DBPutUcdmesh(file->dbfile, (char*)mesh_name, 2, 
                             (char const* const*)coordnames, coords,
-                            num_nodes, num_cells, "zl", "fl", SILO_FLOAT_TYPE, optlist);
+                            num_nodes, num_cells, zonelist_name, facelist_name, SILO_FLOAT_TYPE, optlist);
   if (result == -1)
     polymec_error("silo_file_write_planar_polymesh: Could not write mesh '%s'.", mesh_name);
 
