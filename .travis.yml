@@ -41,8 +41,8 @@ script:
     make -j3 install;
     make $TEST"
 
-after_success: 
-  - if [ "$COVERAGE" = "ON" ]; then docker exec -t polymec-build bash -c "cd travis/build; make coverage; bash <(curl -s https://codecov.io/bash)"; fi
+after_success:
+  - if [ "$COVERAGE" = "ON" ]; then CI_ENV=`bash <(curl -s https://codecov.io/env)`; docker exec $CI_ENV -t polymec-build bash -c "cd travis/build; make coverage; bash <(curl -s https://codecov.io/bash)"; fi
 
 after_failure: 
   - docker exec -t polymec-build bash -c "cd travis;
