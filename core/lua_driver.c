@@ -290,6 +290,20 @@ static int broadcast_chunk(lua_State *L)
   return LUA_OK;
 }
 
+static void broadcast_error(lua_State *L, int err) 
+{
+  ASSERT(_mpi_rank == 0);
+  if (_mpi_nprocs > 1)
+  {
+    // Broadcast a -1 to signify that an error occurred.
+    int n = -1;
+    MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Now broadcast the error code.
+    MPI_Bcast(&err, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  }
+}
+
 static int receive_chunk(lua_State *L) 
 {
   ASSERT(_mpi_rank != 0);
@@ -298,14 +312,23 @@ static int receive_chunk(lua_State *L)
   // Receive the broadcast from rank 0.
   int n;
   MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  char* buffer = polymec_malloc(sizeof(char) * (n+1));
-  MPI_Bcast(buffer, n, MPI_CHAR, 0, MPI_COMM_WORLD);
-  buffer[n] = '\0';
-
-  // Compile the buffer into an executable chunk.
-  int status = luaL_loadbuffer(L, (const char*)buffer, (size_t)n, "input");
-  polymec_free(buffer);
-  return status;
+  if (n >= 0) // no error!
+  {
+    char* buffer = polymec_malloc(sizeof(char) * (n+1));
+    MPI_Bcast(buffer, n, MPI_CHAR, 0, MPI_COMM_WORLD);
+    buffer[n] = '\0';
+    // Compile the buffer into an executable chunk.
+    int status = luaL_loadbuffer(L, (const char*)buffer, (size_t)n, "input");
+    polymec_free(buffer);
+    return status;
+  }
+  else
+  {
+    // Get the error code and return it.
+    int status;
+    MPI_Bcast(&status, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    return status;
+  }
 }
 
 // This function controls the main loop, and is called in Lua's protected mode.
@@ -352,6 +375,8 @@ static int pmain(lua_State* L)
       status = luaL_loadfile(L, (const char*)filename);
       if (status == LUA_OK)
         status = broadcast_chunk(L);
+      else
+        broadcast_error(L, status);
     }
     else
       status = receive_chunk(L);
@@ -361,7 +386,14 @@ static int pmain(lua_State* L)
     if (status == LUA_OK)
       status = lua_pcall(L, 0, LUA_MULTRET, 0);
     if (status != LUA_OK)
+    {
       report_error(L, status);
+      if (!interactive)
+      {
+        lua_pushboolean(L, false);
+        return 1;
+      }
+    }
   }
 
   // If we're interactive, surrender control.
