@@ -172,3 +172,6 @@ gol:init(0)
 assert(gol.step == 0)
 gol:plot()
 
+-- Take a step.
+gol:advance(1)
+

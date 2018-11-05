@@ -47,6 +47,7 @@ print(v1.x, v1.y, v1.z)
 v1.x = 1
 v1.y = 2
 v1.z = 3
+print(#v1, v1.mag, v1.mag2)
 
 -- Tensor ops.
 t1 = tensor2.new(1,2,3,4,5,6,7,8,9)
@@ -93,6 +94,15 @@ st1.zx = 7
 st1.zy = 8
 st1.zz = 9
 
+-- 2D point ops.
+p2 = point2.new(1,2)
+print(p2)
+print(point2.distance(p2, p2))
+print(#p2)
+print(p2.x, p2.y)
+p2.x = 1
+p2.y = 2
+
 -- MPI communicators.
 print(mpi.COMM_WORLD)
 print(mpi.COMM_WORLD.rank, mpi.COMM_WORLD.size)
@@ -101,7 +111,13 @@ print(mpi.COMM_SELF.rank, mpi.COMM_SELF.size)
 
 -- Bounding box ops.
 bb = bbox.new{x1=0, x2=1, y1=0, y2=1, z1=0, z2=1}
-print(bb)
+print(bb, bb.x1, bb.x2, bb.y1, bb.y2, bb.z1, bb.z2)
+bb.x1 = 0
+bb.x2 = 1
+bb.y1 = 0
+bb.y2 = 1
+bb.y1 = 0
+bb.y2 = 1
 print(bb:contains(p))
 
 -- Spatial functions.
@@ -111,6 +127,14 @@ print(#f)
 f.name = 'bob'
 assert(f.name == 'bob')
 print(f(p))
+
+-- Random number generator stuff.
+rngs = {rng.rand(), rng.host()}
+for i, rn in ipairs(rngs) do
+  print(rn.name, rn.min, rn.max)
+  rn:set_seed(123456)
+  print(rn:get(), rn:uniform(), rn:uniform_positive(), rn:uniform_int(rn.max))
+end
 
 -- Space-time functions.
 f = st_func.constant(1)
@@ -225,3 +249,7 @@ tab[true] = 'true'
 tab['tab'] = {a=1, b=2}
 tab[obj] = obj
 print(tab)
+
+-- Creature comforts.
+print(dir())
+print(help(mpi))
