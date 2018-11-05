@@ -81,7 +81,6 @@ void silo_file_write_colmesh(silo_file_t* file,
     silo_file_write_int_array(file, array_name, &periodic_int, 1);
   }
 
-  size_t num_local_chunks = colmesh_num_chunks(mesh);
   size_t l = 0;
   int pos = 0, xy, z;
   colmesh_chunk_t* chunk;
@@ -99,7 +98,7 @@ void silo_file_write_colmesh(silo_file_t* file,
 
     ++l;
   }
-  ASSERT(l == num_local_chunks);
+  ASSERT(l == colmesh_num_chunks(mesh));
 
   // Record the indices of the chunks in the mesh.
   {
@@ -859,7 +858,6 @@ void silo_file_write_colmesh_field(silo_file_t* file,
 
   silo_file_push_domain_dir(file);
 
-  size_t num_local_chunks = colmesh_field_num_chunks(field);
   size_t num_components = colmesh_field_num_components(field);
 
   char* field_names[num_components];
@@ -883,7 +881,7 @@ void silo_file_write_colmesh_field(silo_file_t* file,
     for (int c = 0; c < num_components; ++c)
       string_free(field_names[c]);
   }
-  ASSERT(l == num_local_chunks);
+  ASSERT(l == colmesh_field_num_chunks(field));
 
   silo_file_pop_dir(file);
 
