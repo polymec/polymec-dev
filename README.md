@@ -35,25 +35,30 @@ certain requirements are satisfied. Please read or read about the license.
 The 3rd-party libraries used by Polymec have their own licenses which are 
 described within the various source trees in the 3rdparty directory. Source 
 files have been minimally modified within these trees; typically they contain 
-files extracted directly from distribution tarballs. Instructions for 
-obtaining the distributions are given within.
+files extracted directly from distribution tarballs. You'll find instructions 
+for obtaining each library in its directory.
 
 ## Installing Polymec
 
+You can use polymec on Linux or macOS systems.
+
 ### Software Requirements
 
-The polymec library requires the following software for installation:
+The polymec library requires the following software:
 
 * A C compiler that adheres to (or aspires to) the C11 standard. 
   GCC 4.9+ and Clang 3.4+ work well.
 * A reasonable C++ compiler (for the C++ build/link test)
 * A Fortran compiler for LAPACK/BLAS and for special functions
+* MPI (OpenMPI or MPICH), if you plan on doing parallel computation
 * A working set of LAPACK/BLAS libraries
-* CMake 3.10+ (found at http://www.cmake.org)
+* CMake 3.10+ 
 * GNU Make
-* A non-ancient version of Perl (for HDF5's installation process)
+* A recent version of Perl (for HDF5's installation process)
 * The Bourne Again SHell (bash)
 * A recent version of Git (if you're doing code development)
+
+You can easily install these using your favorite package manager.
 
 ### Building 
 
@@ -93,8 +98,8 @@ Runs all unit tests for the library.
 make memcheck 
 ```
 
-Runs all unit tests for the library using a memory checking tool
-if you're on Linux and Valgrind is available.
+Runs all unit tests for the library using Valgrind if you're on Linux 
+and it's available.
 
 ```
 make clean 
