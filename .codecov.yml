@@ -10,4 +10,4 @@ coverage:
         target: 75%
     patch:            # coverage in pull request / commit(s)
       default:
-        target: 50% 
+        target: 0% 
