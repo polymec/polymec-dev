@@ -1,0 +1,6 @@
+# Codecov configuration file. 
+# See https://docs.codecov.io/docs
+coverage:
+  range: 50..80
+  round: down
+  precision: 2
