@@ -281,14 +281,14 @@ static int broadcast_chunk(lua_State *L)
     luaL_buffinit(L, &buffer);
     if (lua_dump(L, serialize_chunk, &buffer, strip) != 0)
       return luaL_error(L, "Could not serialize compiled input on rank 0.");
-    luaL_pushresult(&buffer);
 
     // Now broadcast the contents of the buffer to other ranks.
     int n = (int)buffer.n;
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(buffer.b, n, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-    // Pop the buffer off the top.
+    // Consolidate the stack and pop the buffer off the top.
+    luaL_pushresult(&buffer);
     lua_pop(L, 1);
   }
   return LUA_OK;
