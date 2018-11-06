@@ -286,6 +286,9 @@ static int broadcast_chunk(lua_State *L)
     int n = (int)buffer.n;
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(buffer.b, n, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+    // Pop the buffer off the top.
+    lua_pop(L, 1);
   }
   return LUA_OK;
 }

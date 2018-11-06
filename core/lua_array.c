@@ -543,7 +543,6 @@ static void* array_from_points(lua_State* L, int index)
 static void* array_from_vectors(lua_State* L, int index)
 {
   ASSERT(lua_istable(L, index));
-
   size_t len = lua_rawlen(L, index);
   if (len == 0) 
     return NULL;
@@ -567,7 +566,6 @@ static void* array_from_vectors(lua_State* L, int index)
       }
       else
       {
-
         lua_rawgeti(L, -1, 1);
         if (lua_isnumber(L, -1))
         {
