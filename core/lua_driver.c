@@ -281,6 +281,7 @@ static int broadcast_chunk(lua_State *L)
     luaL_buffinit(L, &buffer);
     if (lua_dump(L, serialize_chunk, &buffer, strip) != 0)
       return luaL_error(L, "Could not serialize compiled input on rank 0.");
+    luaL_pushresult(&buffer);
 
     // Now broadcast the contents of the buffer to other ranks.
     int n = (int)buffer.n;
