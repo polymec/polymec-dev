@@ -1,6 +1,13 @@
 # Codecov configuration file. 
 # See https://docs.codecov.io/docs
 coverage:
-  range: 50..80
+  range: 50..80  # red..green
   round: down
   precision: 2
+  status:             # definition of passing result
+    project:          # total coverage
+      default:
+        target: 75%
+    patch:            # coverage in pull request / commit(s)
+      default:
+        target: 50% 
