@@ -375,7 +375,8 @@ static void pause_if_requested()
       polymec_fatal_error("Cannot pause for a non-positive interval.");
     if (world_nprocs > 1)
     {
-      log_urgent("Pausing for %d seconds. PIDS: ", secs);
+      if (world_rank == 0)
+        log_urgent("Pausing for %d seconds. PIDS: ", secs);
       int pid = (int)getpid();
 #if POLYMEC_HAVE_MPI
       char hostname[MPI_MAX_PROCESSOR_NAME];
