@@ -928,7 +928,7 @@ static void* xy_data_byte_read(byte_array_t* bytes, size_t* offset)
   xy_data->column_xy_face_offsets = polymec_malloc((xy_data->num_columns + 1) * sizeof(int));
   byte_array_read_ints(bytes, xy_data->num_columns+1, xy_data->column_xy_face_offsets, offset);
   xy_data->column_xy_faces = polymec_malloc(xy_data->column_xy_face_offsets[xy_data->num_columns] * sizeof(int));
-  byte_array_read_ints(bytes, xy_data->column_xy_faces[xy_data->column_xy_face_offsets[xy_data->num_columns]], xy_data->column_xy_faces, offset);
+  byte_array_read_ints(bytes, xy_data->column_xy_face_offsets[xy_data->num_columns], xy_data->column_xy_faces, offset);
   byte_array_read_size_ts(bytes, 1, &xy_data->num_xy_faces, offset);
   xy_data->xy_face_columns = polymec_malloc(2*xy_data->num_xy_faces * sizeof(int));
   byte_array_read_ints(bytes, 2*xy_data->num_xy_faces, xy_data->xy_face_columns, offset);
@@ -947,7 +947,7 @@ static void xy_data_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_size_ts(bytes, 1, &xy_data->num_columns, offset);
   byte_array_write_size_ts(bytes, 1, &xy_data->num_ghost_columns, offset);
   byte_array_write_ints(bytes, xy_data->num_columns+1, xy_data->column_xy_face_offsets, offset);
-  byte_array_write_ints(bytes, xy_data->column_xy_faces[xy_data->column_xy_face_offsets[xy_data->num_columns]], xy_data->column_xy_faces, offset);
+  byte_array_write_ints(bytes, xy_data->column_xy_face_offsets[xy_data->num_columns], xy_data->column_xy_faces, offset);
   byte_array_write_size_ts(bytes, 1, &xy_data->num_xy_faces, offset);
   byte_array_write_ints(bytes, 2*xy_data->num_xy_faces, xy_data->xy_face_columns, offset);
   byte_array_write_size_ts(bytes, 1, &xy_data->num_xy_edges, offset);
@@ -1085,7 +1085,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
         byte_array_t* buffer = receive_buffers[index]; 
 
         // Extract the next xy data thingy from the buffer.
-        xy_data = serializer_read(ser, buffer, &(offsets[i]));
+        xy_data = serializer_read(ser, buffer, &(offsets[index]));
       }
 
       // Stick the xy data into our list.
