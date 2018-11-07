@@ -25,22 +25,17 @@ polymesh_field_t* polymesh_field_new(polymesh_t* mesh,
   {
     case POLYMESH_CELL: 
       field->num_local_values = mesh->num_cells; 
-      field->ex = polymesh_cell_exchanger(mesh);
       break;
     case POLYMESH_FACE: 
       field->num_local_values = mesh->num_faces; 
-//      field->ex = polymesh_1v_face_exchanger_new(mesh);
       break;
     case POLYMESH_EDGE: 
       field->num_local_values = mesh->num_edges; 
-      field->ex = NULL;
       break;
     case POLYMESH_NODE: 
       field->num_local_values = mesh->num_nodes;
-//      field->ex = polymesh_1v_node_exchanger_new(mesh);
   }
-  if (field->ex != NULL)
-    retain_ref(field->ex);
+
   field->ex_token = -1;
   field->num_ghost_values = (centering == POLYMESH_CELL) ? mesh->num_ghost_cells : 0;
   field->capacity = field->num_local_values + field->num_ghost_values;
@@ -65,9 +60,21 @@ void polymesh_field_exchange(polymesh_field_t* field)
 
 void polymesh_field_start_exchange(polymesh_field_t* field)
 {
-  ASSERT(field->ex != NULL);
+  ASSERT(field->centering != POLYMESH_EDGE); // no edge exchanges!
   ASSERT(!polymesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
+
+  // Do we have an exchanger yet?
+  if (field->ex == NULL)
+  {
+    if (field->centering == POLYMESH_CELL)
+      field->ex = polymesh_cell_exchanger(field->mesh);
+    else if (field->centering == POLYMESH_FACE) 
+      field->ex = polymesh_1v_face_exchanger_new(field->mesh);
+    else if (field->centering == POLYMESH_NODE)
+      field->ex = polymesh_1v_node_exchanger_new(field->mesh);
+    retain_ref(field->ex);
+  }
 
   // Start the xy exchange.
   int stride = (int)field->num_components;
