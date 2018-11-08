@@ -220,8 +220,8 @@ static chunk_xy_data_t* chunk_xy_data_clone(chunk_xy_data_t* xy_data)
   clone->num_xy_nodes = xy_data->num_xy_nodes;
   clone->xy_nodes = polymec_malloc(xy_data->num_xy_nodes * sizeof(point2_t));
   memcpy(clone->xy_nodes, xy_data->xy_nodes, xy_data->num_xy_nodes * sizeof(point2_t));
-  clone->send_map = exchanger_proc_map_new();
-  clone->receive_map = exchanger_proc_map_new();
+  clone->send_map = exchanger_proc_map_clone(xy_data->send_map, NULL, int_array_clone);
+  clone->receive_map = exchanger_proc_map_clone(xy_data->send_map, NULL, int_array_clone);
   return clone;
 }
 #endif
@@ -925,6 +925,9 @@ static size_t xy_data_byte_size(void* obj)
                 2 * xy_data->num_xy_faces * sizeof(int) +
                 2 * xy_data->num_xy_edges * sizeof(int) + 
                 xy_data->num_xy_nodes * sizeof(point2_t);
+  serializer_t* ser = exchanger_proc_map_serializer();
+  size += serializer_size(ser, xy_data->send_map);
+  size += serializer_size(ser, xy_data->receive_map);
   return size;
 }
 
@@ -946,8 +949,9 @@ static void* xy_data_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_size_ts(bytes, 1, &xy_data->num_xy_nodes, offset);
   xy_data->xy_nodes = polymec_malloc(xy_data->num_xy_nodes * sizeof(point2_t));
   byte_array_read_point2s(bytes, xy_data->num_xy_nodes, xy_data->xy_nodes, offset);
-  xy_data->send_map = exchanger_proc_map_new();
-  xy_data->receive_map = exchanger_proc_map_new();
+  serializer_t* ser = exchanger_proc_map_serializer();
+  xy_data->send_map = serializer_read(ser, bytes, offset);
+  xy_data->receive_map = serializer_read(ser, bytes, offset);
   return xy_data;
 }
 
@@ -964,6 +968,9 @@ static void xy_data_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
   byte_array_write_ints(bytes, 2*xy_data->num_xy_edges, xy_data->xy_edge_nodes, offset);
   byte_array_write_size_ts(bytes, 1, &xy_data->num_xy_nodes, offset);
   byte_array_write_point2s(bytes, xy_data->num_xy_nodes, xy_data->xy_nodes, offset);
+  serializer_t* ser = exchanger_proc_map_serializer();
+  serializer_write(ser, xy_data->send_map, bytes, offset);
+  serializer_write(ser, xy_data->receive_map, bytes, offset);
 }
 
 static serializer_t* chunk_xy_data_serializer()
@@ -978,13 +985,6 @@ static void insert_unique_sorted(int_array_t* array, int value)
   size_t index = int_lower_bound(array->data, array->size, value);
   if ((index >= array->size) || (array->data[index] != value))
     int_array_insert(array, index, value);
-}
-
-static void recalc_xy_connectivity(int64_t* partition_vector,
-                                   int64_t* source_vector,
-                                   chunk_xy_data_array_t* xy_datas)
-{
-  // FIXME
 }
 
 static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
@@ -1108,9 +1108,6 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
     byte_array_free(receive_buffers[i]);
   int_array_free(source_procs);
   int_array_free(dest_procs);
-
-  // Figure out the chunk-to-chunk connectivity.
-  recalc_xy_connectivity(partition_vector, source_vector, all_xy_data);
 
   STOP_FUNCTION_TIMER();
   return all_xy_data;
