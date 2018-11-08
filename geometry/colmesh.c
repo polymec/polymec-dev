@@ -1059,7 +1059,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   // Send out xy data.
   for (size_t i = 0; i < dest_procs->size; ++i)
   {
-    int proc = source_procs->data[i];
+    int proc = dest_procs->data[i];
     byte_array_t* buffer = send_buffers[i];
     int err = MPI_Isend(buffer->data, (int)(buffer->size), MPI_BYTE, proc, 0, old_mesh->comm, &requests[source_procs->size + i]);
     if (err != MPI_SUCCESS)
