@@ -13,14 +13,16 @@
 // A table is a sparse table (like a spreadsheet) that has rows consisting 
 // of sparse columns, each of which contains an element. One defines a 
 // table using DEFINE_TABLE(map_name, element_type).
-
+//
+// Table data must be of a primitive (integer, floating point) data type.
+//
 // Interface for a type x_table_t (with element type E) defined with
 // DEFINE_TABLE(x_table, E):
 // 
 // x_table_t* x_table_new() - Creates a new empty table.
 // x_table_t* x_table_new_with_capacity(int N) - Creates a new table with 
 //                                               initial capacity N (rows).
-// x_table_t* x_table_clone(x_table_t* t) - Creates a (shallow) copy of t.
+// x_table_t* x_table_clone(x_table_t* t) - Creates a deep copy of t.
 // void x_table_free(x_table_t* table) - Destroys the table.
 // void x_table_clear(x_table_t* table) - Empties the table.
 // x_table_row_t* x_table_get_row(x_table_t* table, int row) - Returns the row in the given table (itself an unordered map).
@@ -198,7 +200,7 @@ static inline bool table_name##_next_cell(table_name##_t* table, table_name##_ce
 static inline table_name##_t* table_name##_clone(table_name##_t* table) \
 { \
   table_name##_t* t = (table_name##_t*)polymec_malloc(sizeof(table_name##_t)); \
-  t->map = table_name##_map_clone(table->map); \
+  t->map = table_name##_map_clone(table->map, NULL, NULL); \
   t->num_rows = table->num_rows; \
   return t; \
 } \

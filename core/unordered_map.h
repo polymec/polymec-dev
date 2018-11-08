@@ -24,7 +24,9 @@
 // x_map_t* x_map_new(void) - Creates a new empty unordered map.
 // x_map_t* x_map_new_with_capacity(int N) - Creates a new empty hash map with 
 //                                           initial capacity N.
-// x_map_t* x_map_clone(x_map_t* m) - Creates a (shallow) copy of m.
+// x_map_t* x_map_clone(x_map_t* m, 
+//                      x_map_key_t (*key_clone_func)(x_map_key_t),
+//                      x_map_value_t (*val_clone_func)(x_map_value_t)) - Creates a deep copy of m, using the given clone functions to clone the keys and values.
 // void x_map_free(x_map_t* map) - Destroys the map.
 // void x_map_clear(x_map_t* map) - Empties the map.
 // x_map_value_t* x_map_get(x_map_t* map, x_map_key_t key) - Returns the value for the key, or NULL.
@@ -364,14 +366,28 @@ static inline bool map_name##_next(map_name##_t* map, int* pos, key_type* key, v
   return true; \
 } \
 \
-static inline map_name##_t* map_name##_clone(map_name##_t* map) \
+static inline map_name##_t* map_name##_clone(map_name##_t* map, \
+                                             map_name##_key_t (*key_clone_func)(map_name##_key_t), \
+                                             map_name##_value_t (*val_clone_func)(map_name##_value_t)) \
 { \
   map_name##_t* clone = map_name##_new_with_capacity(map->bucket_count); \
   int pos = 0; \
   map_name##_key_t key; \
   map_name##_value_t value; \
   while (map_name##_next(map, &pos, &key, &value)) \
-    map_name##_insert(clone, key, value); \
+  { \
+    map_name##_key_t key_clone; \
+    map_name##_value_t val_clone; \
+    if (key_clone_func != NULL) \
+      key_clone = key_clone_func(key); \
+    else \
+      key_clone = key; \
+    if (val_clone_func != NULL) \
+      val_clone = val_clone_func(value); \
+    else \
+      val_clone = value; \
+    map_name##_insert(clone, key_clone, val_clone); \
+  } \
   return clone; \
 } \
 \
