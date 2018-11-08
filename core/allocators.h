@@ -110,6 +110,10 @@ void* retain_ref(void* refcounted_resource);
 /// \refcounted
 void release_ref(void* refcounted_resource);
 
+/// Returns the reference count for a refcounted resource.
+/// \refcounted
+int ref_count(void* refcounted_resource);
+
 /// Pushes a new memory allocator to the allocator stack, using this allocator 
 /// to allocate all memory with polymec_malloc() until it is popped.
 void push_allocator(polymec_allocator_t* allocator);
