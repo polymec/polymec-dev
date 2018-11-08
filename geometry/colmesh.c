@@ -588,6 +588,14 @@ void colmesh_finalize(colmesh_t* mesh)
   exchanger_set_receives(mesh->cell_ex, receive_map);
   polymec_free(owners);
 
+  // Other exchangers. 
+  // FIXME
+  mesh->xy_face_ex = NULL;
+  mesh->z_face_ex = NULL;
+  mesh->xy_edge_ex = NULL;
+  mesh->z_edge_ex = NULL;
+  mesh->node_ex = NULL;
+
   // Prune unused xy data.
   for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
   {
@@ -600,7 +608,7 @@ void colmesh_finalize(colmesh_t* mesh)
     }
 
     // Prune xy data for this xy_index if we don't have any chunks here.
-    if (num_z_chunks == 0)
+    if ((num_z_chunks == 0) && (mesh->chunk_xy_data->data[i] != NULL))
     {
       // Punch out this data on this process, and clear the corresponding 
       // destructor so it doesn't get double-freed.
@@ -938,6 +946,8 @@ static void* xy_data_byte_read(byte_array_t* bytes, size_t* offset)
   byte_array_read_size_ts(bytes, 1, &xy_data->num_xy_nodes, offset);
   xy_data->xy_nodes = polymec_malloc(xy_data->num_xy_nodes * sizeof(point2_t));
   byte_array_read_point2s(bytes, xy_data->num_xy_nodes, xy_data->xy_nodes, offset);
+  xy_data->send_map = exchanger_proc_map_new();
+  xy_data->receive_map = exchanger_proc_map_new();
   return xy_data;
 }
 
@@ -1096,8 +1106,6 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   // Clean up the rest of the mess.
   for (size_t i = 0; i < source_procs->size; ++i)
     byte_array_free(receive_buffers[i]);
-  for (size_t i = 0; i < dest_procs->size; ++i)
-    byte_array_free(send_buffers[i]);
   int_array_free(source_procs);
   int_array_free(dest_procs);
 
@@ -1127,6 +1135,7 @@ static void redistribute_colmesh(colmesh_t** mesh,
   new_mesh->z2 = old_mesh->z2;
   MPI_Comm_size(new_mesh->comm, &new_mesh->nproc);
   MPI_Comm_rank(new_mesh->comm, &new_mesh->rank);
+  new_mesh->chunk_graph = adj_graph_clone(old_mesh->chunk_graph);
   new_mesh->finalized = false;
 
   // Create xy data for chunks.
@@ -1143,6 +1152,9 @@ static void redistribute_colmesh(colmesh_t** mesh,
       colmesh_insert_chunk(new_mesh, xy_index, z_index);
     }
   }
+
+  // Finalize the new mesh.
+  colmesh_finalize(new_mesh);
 
   // Replace the old mesh with the new one.
   *mesh = new_mesh;

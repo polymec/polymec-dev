@@ -64,7 +64,8 @@ static void colmesh_chunk_data_free(colmesh_chunk_data_t* data)
 void colmesh_chunk_data_copy(colmesh_chunk_data_t* data, 
                              colmesh_chunk_data_t* dest)
 {
-  ASSERT(dest->chunk == data->chunk);
+  ASSERT(dest->chunk->num_columns == data->chunk->num_columns);
+  ASSERT(dest->chunk->num_z_cells == data->chunk->num_z_cells);
   ASSERT(dest->centering == data->centering);
   ASSERT(dest->num_components == data->num_components);
   ASSERT(dest->xy_size == data->xy_size);
