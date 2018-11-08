@@ -1066,3 +1066,55 @@ void exchanger_proc_map_add_index(exchanger_proc_map_t* map, int process, int in
   }
   int_array_append(indices, index);
 }
+
+static size_t epm_size(void* obj)
+{
+  exchanger_proc_map_t* epm = obj;
+  size_t size = sizeof(int);
+  int pos = 0, proc;
+  int_array_t* indices;
+  while (exchanger_proc_map_next(epm, &pos, &proc, &indices))
+    size += (2 + indices->size) * sizeof(int);
+  return size;
+}
+
+static void* epm_read(byte_array_t* bytes, size_t* offset)
+{
+  exchanger_proc_map_t* epm = exchanger_proc_map_new();
+  int size;
+  byte_array_read_ints(bytes, 1, &size, offset);
+  for (int i = 0; i < size; ++i)
+  {
+    int proc, num_indices;
+    byte_array_read_ints(bytes, 1, &proc, offset);
+    byte_array_read_ints(bytes, 1, &num_indices, offset);
+    int indices[num_indices];
+    byte_array_read_ints(bytes, num_indices, indices, offset);
+    for (int j = 0; j < num_indices; ++j)
+      exchanger_proc_map_add_index(epm, proc, indices[j]);
+  }
+  return epm;
+}
+
+static void epm_write(void* obj, byte_array_t* bytes, size_t* offset)
+{
+  exchanger_proc_map_t* epm = obj;
+
+  int pos = 0, proc;
+  int_array_t* indices;
+  int size = (int)epm->size;
+  byte_array_write_ints(bytes, 1, &size, offset);
+  while (exchanger_proc_map_next(epm, &pos, &proc, &indices))
+  {
+    byte_array_write_ints(bytes, 1, &proc, offset);
+    int num_indices = (int)indices->size;
+    byte_array_write_ints(bytes, 1, &num_indices, offset);
+    byte_array_write_ints(bytes, num_indices, indices->data, offset);
+  }
+}
+
+serializer_t* exchanger_proc_map_serializer()
+{
+  return serializer_new("exchanger_proc_map", epm_size, epm_read, epm_write, NULL);
+}
+

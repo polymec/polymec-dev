@@ -34,6 +34,11 @@ DEFINE_UNORDERED_MAP(exchanger_proc_map, int, int_array_t*, int_hash, int_equals
 /// \memberof exchanger_proc_map
 void exchanger_proc_map_add_index(exchanger_proc_map_t* map, int process, int index);
 
+/// This creates a serializer object that can read and write exchanger_proc_map
+/// objects to byte streams.
+/// \memberof exchanger_proc_map
+serializer_t* exchanger_proc_map_serializer(void);
+
 /// Constructs a new exchanger on the given communicator.
 /// \memberof exchanger
 exchanger_t* exchanger_new(MPI_Comm comm);
