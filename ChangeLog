@@ -12,7 +12,7 @@ TO-BE-FILLED-IN     PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
       testing.
     * Lua interpreter and model_run/model_advance now intercept SIGINT and 
       SIGTERM, provide uninterruptible steps and clean exits.
-    * More type-generic math functions.
+    * Added more type-generic math functions.
     * Added exchanger_proc_map class to eliminate boilerplate code when 
       constructing exhangers.
     * Updated third-party libraries: cmocka, Sundials, HDF5, zlib.
@@ -24,6 +24,9 @@ TO-BE-FILLED-IN     PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * Reworked older Lua classes: they now use the new type system.
     * Reworked managed C memory in terms of refcounting, not garbage collection.
     * Serializers are now owned by their global registry.
+    * "Garbage collection" C allocation functions have been renamed to 
+      reflect that they actually perform reference counting.
+    * x_unordered_map_clone() and x_table_clone() now do deep copies.
     * Added Silo 4.10 user guide to the repo.
     * Python tool scripts now work with Python 3.
     * Various bugfixes--too many to list.
