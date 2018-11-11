@@ -13,40 +13,36 @@
 #include "core/comparators.h"
 #include "core/tuple.h"
 
-// An unordered map is a map that associates a key with a single value, 
-// using a hash to store them. One defines an unordered map using
-// DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, key_equals).
-
-// Interface for a type x_map_t (with key type K and 
-// value type V) defined with 
-// DEFINE_UNORDERED_MAP(x_map, K, V, x_hash, key_equals):
-// 
-// x_map_t* x_map_new(void) - Creates a new empty unordered map.
-// x_map_t* x_map_new_with_capacity(int N) - Creates a new empty hash map with 
-//                                           initial capacity N.
-// x_map_t* x_map_clone(x_map_t* m, 
-//                      x_map_key_t (*key_clone_func)(x_map_key_t),
-//                      x_map_value_t (*val_clone_func)(x_map_value_t)) - Creates a deep copy of m, using the given clone functions to clone the keys and values.
-// void x_map_free(x_map_t* map) - Destroys the map.
-// void x_map_clear(x_map_t* map) - Empties the map.
-// x_map_value_t* x_map_get(x_map_t* map, x_map_key_t key) - Returns the value for the key, or NULL.
-// bool x_map_contains(x_map_t* map, x_map_key_t key) - Returns true if the map contains the key, false if not.
-// void x_map_insert(x_map_t* map, x_map_key_t key, x_map_value_t value) - Sets the value for the given key.
-// void x_map_insert_with_kv_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_kv_dtor) - Sets the value for the given key and associates a destructor for the key/value pair.
-// void x_map_insert_with_kv_dtors(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_k_dtor, x_map_v_dtor) - Sets the value for the given key and associates separate destructors for the key and value.
-// void x_map_insert_with_k_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_k_dtor) - Sets the value for the given key and associates a destructor for the key.
-// void x_map_insert_with_v_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_v_dtor) - Sets the value for the given key and associates a destructor for the value.
-// key_type x_map_change_key(x_map_t* map, x_map_key_t old_key, x_map_key_t new_key) - Renames old_key to new_key, overwriting new_key if it exists. Returns old key.
-// void x_map_swap(x_map_t* map, x_map_key_t key1, x_map_key_t key2) - Swaps the values for key1 and key2, including destructors.
-// void x_map_delete(x_map_t* map, x_map_key_t key) - Deletes the value for the given key.
-// bool x_map_next(x_map_t* map, int* pos, x_map_key_t* key, x_map_value_t* value) - Allows the traversal of the maps keys and values.
-// bool x_map_empty(x_map_t* map) - Returns true if empty, false otherwise.
-
 /// \addtogroup core core
 ///@{
 
-/// \def DEFINE_UNORDERED_MAP
-/// Defines an unordered map for the given key and value types.
+/// \def DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, equals_func)
+/// Defines an unordered map for the given key and value types. The following 
+/// interface is defined for a map with map_name `x`.
+/// * `x_map_t* x_map_new(void)` - Creates a new empty unordered map.
+/// * `x_map_t* x_map_new_with_capacity(int N)` - Creates a new empty hash map with initial capacity N.
+/// * `x_map_t* x_map_clone(x_map_t* m, x_map_key_t (*key_clone_func)(x_map_key_t), x_map_value_t (*val_clone_func)(x_map_value_t))` - Creates a deep copy of m, using the given clone functions to clone the keys and values.
+/// * `void x_map_free(x_map_t* map)` - Destroys the map.
+/// * `void x_map_clear(x_map_t* map)` - Empties the map.
+/// * `x_map_value_t* x_map_get(x_map_t* map, x_map_key_t key)` - Returns the value for the key, or NULL.
+/// * `bool x_map_contains(x_map_t* map, x_map_key_t key)` - Returns true if the map contains the key, false if not.
+/// * `void x_map_insert(x_map_t* map, x_map_key_t key, x_map_value_t value)` - Sets the value for the given key.
+/// * `void x_map_insert_with_kv_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_kv_dtor)` - Sets the value for the given key and associates a destructor for the key/value pair.
+/// * `void x_map_insert_with_kv_dtors(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_k_dtor, x_map_v_dtor)` - Sets the value for the given key and associates separate destructors for the key and value.
+/// * `void x_map_insert_with_k_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_k_dtor)` - Sets the value for the given key and associates a destructor for the key.
+/// * `void x_map_insert_with_v_dtor(x_map_t* map, x_map_key_t key, x_map_value_t value, x_map_v_dtor)` - Sets the value for the given key and associates a destructor for the value.
+/// * `key_type x_map_change_key(x_map_t* map, x_map_key_t old_key, x_map_key_t new_key)` - Renames old_key to new_key, overwriting new_key if it exists. Returns old key.
+/// * `void x_map_swap(x_map_t* map, x_map_key_t key1, x_map_key_t key2)` - Swaps the values for key1 and key2, including destructors.
+/// * `void x_map_delete(x_map_t* map, x_map_key_t key)` - Deletes the value for the given key.
+/// * `bool x_map_next(x_map_t* map, int* pos, x_map_key_t* key, x_map_value_t* value)` - Allows the traversal of the maps keys and values.
+/// * `bool x_map_empty(x_map_t* map)` - Returns true if empty, false otherwise.
+/// \param map_name The name of the unordered map.
+/// \param key_type The data type used as a key in the map.
+/// \param value_type The data type used as a value in the map.
+/// \param hash_func A hash function mapping a key to an integer.
+/// \param equals_func A comparator function that accepts two key arguments and 
+///                    returns true if these arguments are equal, false otherwise.
+
 #define DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, equals_func) \
 typedef key_type map_name##_key_t; \
 typedef value_type map_name##_value_t; \

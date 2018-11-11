@@ -13,32 +13,31 @@
 #include "core/comparators.h"
 #include "core/tuple.h"
 
-// An unordered set is a container that stores unique values using a hash table.
-// One defines an unordered set using
-// DEFINE_UNORDERED_SET(set_name, element, hash_func, equals_func)
-//
-// Interface for a type x_set_t (with node type x_set_node_t 
-// and datum x) defined with 
-// DEFINE_UNORDERED_SET(x_set, x, x_hash, x_equals):
-// 
-// x_set_t* x_set_new() - Creates a new empty ordered set.
-// void x_set_free(x_set_t* set) - Destroys the set.
-// void x_set_clear(x_set_t* set) - Empties the set.
-// bool x_set_contains(x_set_t* set, x datum) - Returns true if the set contains the datum, false otherwise.
-// void x_set_insert(x_set_t* set, x datum) - Inserts a datum into the set.
-// void x_set_insert_with_dtor(x_set_t* set, x datum, x_dtor dtor) - Inserts a datum into the set with the given destructor.
-// void x_set_delete(x_set_t* set, x datum) - Deletes the datum from the set.
-// bool x_set_next(x_set_t* set, int* pos, x* datum) - Allows traversal of the set.
-// void x_set_union(x_set_t* set, x_set_t* other_set, x_set_t* union) - Differences this set with the other set, storing the result in intersection.
-// void x_set_intersection(x_set_t* set, x_set_t* other_set, x_set_t* intersection) - Intersects this set with the other set, storing the result in intersection.
-// void x_set_difference(x_set_t* set, x_set_t* other_set, x_set_t* difference) - Differences this set with the other set, storing the result in intersection.
-// bool x_set_empty(x_set_t* set) - Returns true if empty, false otherwise.
-
 /// \addtogroup core core
 ///@{
 
-/// \def DEFINE_UNORDERED_SET
-/// Defines an ordered set for the given element type.
+/// \def DEFINE_UNORDERED_SET(set_name, element, hash_func, equals_func)
+/// Defines an ordered set for the given element type. The following
+/// interface is defined for a set with map_name `x`.
+/// * `x_set_t* x_set_new()` - Creates a new empty ordered set.
+/// * `void x_set_free(x_set_t* set)` - Destroys the set.
+/// * `void x_set_clear(x_set_t* set)` - Empties the set.
+/// * `bool x_set_contains(x_set_t* set, x datum)` - Returns true if the set contains the datum, false otherwise.
+/// * `void x_set_insert(x_set_t* set, x datum)` - Inserts a datum into the set.
+/// * `void x_set_insert_with_dtor(x_set_t* set, x datum, x_dtor dtor)` - Inserts a datum into the set with the given destructor.
+/// * `void x_set_delete(x_set_t* set, x datum)` - Deletes the datum from the set.
+/// * `bool x_set_next(x_set_t* set, int* pos, x* datum)` - Allows traversal of the set.
+/// * `void x_set_union(x_set_t* set, x_set_t* other_set, x_set_t* union)` - Differences this set with the other set, storing the result in intersection.
+/// * `void x_set_intersection(x_set_t* set, x_set_t* other_set, x_set_t* intersection)` - Intersects this set with the other set, storing the result in intersection.
+/// * `void x_set_difference(x_set_t* set, x_set_t* other_set, x_set_t* difference)` - Differences this set with the other set, storing the result in intersection.
+/// * `bool x_set_empty(x_set_t* set)` - Returns true if empty, false otherwise.
+/// * `set->size` - The size of the set.
+/// \param set_name The name of the unordered set.
+/// \param element The data type stored by the set.
+/// \param hash_func A hash function mapping an element to an integer.
+/// \param equals_func A comparator function that accepts two elements and 
+///                    returns true if these elements are equal, false otherwise.
+
 #define DEFINE_UNORDERED_SET(set_name, element, hash_func, equals_func) \
 DEFINE_UNORDERED_MAP(set_name##_unordered_map, element, bool, hash_func, equals_func) \
 typedef element set_name##_element_t; \

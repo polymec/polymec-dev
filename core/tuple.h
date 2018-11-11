@@ -12,34 +12,27 @@
 #include "core/comparators.h"
 #include "core/hash_functions.h"
 
-// A tuple is an N-tuple of elements with some associated comparison 
-// functions. Really, the tuple interface manipulates arrays of 
-// length N in an object-oriented fashion. One defines the interface for 
-// a tuple with elements of a given type using
-// DEFINE_TUPLE(tuple_name, element, element_cmp)
-//
-// Interface for a tuple with datum x defined with 
-// DEFINE_TUPLE(x_tuple, x, x_cmp):
-//
-// x* x_tuple_new(int N) - Creates a new N-tuple with N uninitialized elements.
-// void x_tuple_free(x* tuple) - Frees the resources associated with the tuple.
-// int x_tuple_length(x* tuple) - Returns the length (N) of the tuple.
-// x* x_tuple_clone(x* tuple) - Creates a new copy of the given tuple.
-// void x_tuple_copy(x* src, x* dest) - Copies the elements of src to dest. The tuples 
-//                                      must be of equal length.
-// int x_tuple_cmp(x* tuple1, x* tuple2) - Returns -1 if tuple1 < tuple2, 
-//                                                  0 if tuple1 == tuple2,
-//                                                  1 if tuple1 > tuple2.
-// bool x_tuple_equals(x* tuple1, x* tuple2) - Returns true if tuple1 == tuple2, 
-//                                                     false otherwise.
-// int x_tuple_hash(x* tuple) - Returns a hash index for the given tuple.
-// tuple[i] - The ith value in the tuple.
-
 /// \addtogroup core core
 ///@{
 
-/// \def DEFINE_TUPLE
-/// Defines a tuple for the given element type.
+/// \def DEFINE_TUPLE(tuple_name, element, element_cmp)
+/// Defines a tuple for the given element type. A tuple is an N-tuple of elements 
+/// with some associated comparison functions. Really, the tuple interface 
+/// manipulates arrays of length N in an object-oriented fashion. The following
+/// interface is defined for a set with map_name `x`.
+/// * `x* x_tuple_new(int N)` - Creates a new N-tuple with N uninitialized elements.
+/// * `void x_tuple_free(x* tuple)` - Frees the resources associated with the tuple.
+/// * `int x_tuple_length(x* tuple)` - Returns the length (N) of the tuple.
+/// * `x* x_tuple_clone(x* tuple)` - Creates a new copy of the given tuple.
+/// * `void x_tuple_copy(x* src, x* dest)` - Copies the elements of src to dest. The tuples must be of equal length.
+/// * `int x_tuple_cmp(x* tuple1, x* tuple2)` - Returns -1 if tuple1 < tuple2, 0 if tuple1 == tuple2, 1 if tuple1 > tuple2.
+/// * `bool x_tuple_equals(x* tuple1, x* tuple2)` - Returns true if tuple1 == tuple2, false otherwise.
+/// * `int x_tuple_hash(x* tuple)` - Returns a hash index for the given tuple.
+/// * `tuple[i]` - The ith value in the tuple.
+/// \param tuple_name The name of the tuple.
+/// \param element The data type stored in the tuple.
+/// \param element_cmp A comparator function that accepts two elements and 
+///                    returns values specified in the `x_tuple_cmp` interface.
 #define DEFINE_TUPLE(tuple_name, element, element_cmp) \
 \
 typedef element tuple_name##_value_t; \
