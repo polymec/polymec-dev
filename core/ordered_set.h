@@ -85,6 +85,7 @@ static inline void set_name##_delete(set_name##_t* set, set_name##_element_t dat
 ///
 /// Member data for a set `set`:
 /// * set->size - The number of element in the set
+///
 /// \param set_name The name of the ordered set.
 /// \param element The data type stored by the set.
 /// \param comparator A comparator function that takes elements a, b, and 

@@ -41,11 +41,13 @@
 /// * `bool x_array_next(x_array_t* array, int* pos, x* element)` - Allows traversal over the items in the array.
 /// * `void x_array_reorder(x_array_t* array, size_t* permutation)` - Reorders the elements of the array using the permutation array (which must be the same length as the array).
 /// * `void x_array_release_data_and_free(x_array_t* array)` - Releases control of the array data, allowing another entity to assume responsibility. Also destroys this object. USE CAREFULLY!!!
+///
 /// Member data for an array `a`:
 /// * `a->data` - A pointer to an array containing the actual data.
 /// * `a->dtors` - A pointer to an array of destructors for data elements.
 /// * `a->size` - Number of elements in the array.
 /// * `a.capacity` - Number of elements in the array.
+///
 /// \param array_name The name of the array.
 /// \param element The data type stored in the array.
 

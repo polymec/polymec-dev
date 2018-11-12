@@ -31,6 +31,12 @@
 /// * `bool x_slist_next(x_slist_t* list, x_slist_node_t** pos, x* value)` - Allows the traversal of the linked list. Set *pos to NULL to begin iteration.
 /// * `bool x_slist_empty(x_slist_t* list)` - Returns true if empty, false otherwise.
 /// * `void x_slist_clear(x_slist_t* list)` - Clears the given list, making it empty.
+///
+/// Data members for a list `list`:
+/// * `list->front` - The node (with members `value`, `dtor`, and `next` at the front of the list.
+/// * `list->back` - The node at the back of the list.
+/// * `list->size` - The number of elements in the list.
+///
 /// \param list_name The name of the singly-linked list.
 /// \param element The data type stored in the list.
 #define DEFINE_SLIST(list_name, element) \

@@ -27,6 +27,7 @@
 ///
 /// Member data for an ordered map `map`:
 /// * `map->size` - The number of key-value pairs in the map.
+///
 /// \param map_name The name of the unordered map.
 /// \param key_type The data type used as a key in the map.
 /// \param value_type The data type used as a value in the map.

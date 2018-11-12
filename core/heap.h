@@ -28,9 +28,11 @@
 /// * `x x_heap_front(x_heap_t* heap)` - Returns the largest element in the heap.
 /// * `bool x_heap_empty(x_heap_t* heap)` - Returns true if the heap is empty, false otherwise.
 /// * `void x_heap_clear(x_heap_t* heap)` - Clears the contents of the heap.
+///
 /// Data members for a heap `heap`:
-/// * heap->size - The number of elements in the heap.
-/// * heap->capacity - The storage capacity for the heap.
+/// * `heap->size` - The number of elements in the heap.
+/// * `heap->capacity` - The storage capacity for the heap.
+///
 /// \param heap_name The name of the heap.
 /// \param element The data type stored in the heap.
 /// \param comparator A comparator function that takes two elements a, b, and

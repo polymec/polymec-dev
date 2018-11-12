@@ -32,6 +32,12 @@
 /// * `bool x_dlist_prev(x_dlist_t* list, x_dlist_node_t** pos, x* value)` - Allows a reversed traversal of the linked list.
 /// * `bool x_dlist_empty(x_dlist_t* list)` - Returns true if empty, false otherwise.
 /// * `void x_dlist_clear(x_dlist_t* list)` - Clears the given list, making it empty.
+///
+/// Data members for a list `list`:
+/// * `list->front` - The node (with members `value`, `dtor`, `prev`, and `next` at the front of the list.
+/// * `list->back` - The node at the back of the list.
+/// * `list->size` - The number of elements in the list.
+///
 /// \param list_name The name of the doubly-linked list.
 /// \param element The data type stored in the list.
 #define DEFINE_DLIST(list_name, element) \

@@ -35,6 +35,7 @@
 ///
 /// Member data for an unordered set `set`:
 /// * `set->size` - The number of elements in the set.
+///
 /// \param set_name The name of the unordered set.
 /// \param element The data type stored by the set.
 /// \param hash_func A hash function mapping an element to an integer.

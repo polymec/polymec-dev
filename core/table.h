@@ -40,6 +40,7 @@
 ///
 /// Member data for a table `table`:
 /// * `table->num_rows` - The number of rows in the table.
+///
 /// \param table_name The name of the table.
 /// \param value_type The data type stored in the table.
 #define DEFINE_TABLE(table_name, value_type) \

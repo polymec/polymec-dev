@@ -31,6 +31,7 @@
 /// 
 /// Data members for a tuple `tuple`:
 /// * `tuple[i]` - The ith value in the tuple.
+///
 /// \param tuple_name The name of the tuple.
 /// \param element The data type stored in the tuple.
 /// \param element_cmp A comparator function that accepts two elements and 

@@ -11,11 +11,14 @@
 #include "core/polymec.h"
 #include "core/comparators.h"
 
-// One defines tree and node types using
-// DEFINE_AVL_TREE(tree_name, element, comparator)
-//
 /// \addtogroup core core
 ///@{
+
+// This maximum function is used to keep AVL trees ordered.
+static int avl_tree_max(int x, int y)
+{
+  return ((x > y) ? x : y);
+}
 
 /// \def DEFINE_AVL_TREE(tree_name, element, element_cmp):
 /// Defines an AVL tree (a balanced binary tree) that can be used to implement 
@@ -29,18 +32,14 @@
 /// * `void x_tree_delete(x_tree_t* tree, x_tree_node_t* node)` - Deletes the node from the tree.
 /// * `void x_tree_node_visit(x_tree_node_t* node, x_tree_node_visitor visit, void*)` - Visits the given node and its subtree.
 /// * `int x_tree_size(x_tree_t* tree)` - Returns the number of nodes in the tree. Computed, not stored.
+///
+/// Data members for a tree `tree`:
+/// * `tree->root` - The node at the root of the tree.
+///
 /// \param tree_name The name of the AVL tree.
 /// \param element The data type stored in the tree.
 /// \param element_cmp A comparator function for two elements a and b that returns -1 if a < b, 0 if a == b, and 1 if a > b.
 
-// This maximum function is used to keep AVL trees ordered.
-static int avl_tree_max(int x, int y)
-{
-  return ((x > y) ? x : y);
-}
-
-/// \def DEFINE_AVL_TREE
-/// Defines an AVL tree for a given element type.
 #define DEFINE_AVL_TREE(tree_name, element, comparator) \
 typedef struct tree_name##_node_t tree_name##_node_t; \
 typedef element tree_name##_element_t; \

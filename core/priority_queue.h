@@ -27,6 +27,7 @@
 /// * `x x_priority_queue_front(x_priority_queue_t* queue)` - Returns the element with the largest priority in the queue.
 /// * `bool x_priority_queue_empty(x_priority_queue_t* queue)` - Returns true if the queue is empty, false otherwise.
 /// * `void x_priority_queue_clear(x_priority_queue_t* queue)` - Clears the contents of the queue.
+///
 /// \param queue_name The name of the priority queue.
 /// \param element The data type stored in the priority queue.
 #define DEFINE_PRIORITY_QUEUE(queue_name, element) \
