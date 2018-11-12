@@ -11,24 +11,27 @@
 #include "core/polymec.h"
 #include "core/comparators.h"
 
-// An AVL tree is a balanced binary tree that can be used to implement other data structures.
 // One defines tree and node types using
 // DEFINE_AVL_TREE(tree_name, element, comparator)
 //
-// Interface for a type x_tree_t (with node type x_tree_node_t and datum x) defined with 
-// DEFINE_AVL_TREE(x_tree, x, x_comparator):
-// 
-// x_tree_t* x_tree_new() - Creates a new empty tree.
-// void x_tree_free(x_tree_t* tree) - Destroys the tree.
-// void x_tree_clear(x_tree_t* tree) - Empties the tree.
-// x_tree_node_t* x_tree_find(x_tree_t* tree, x datum) - Finds the node containing the datum.
-// void x_tree_insert(x_tree_t* tree, x datum) - Inserts a datum into the tree.
-// void x_tree_delete(x_tree_t* tree, x_tree_node_t* node) - Deletes the node from the tree.
-// void x_tree_node_visit(x_tree_node_t* node, x_tree_node_visitor visit, void*) - Visits the given node and its subtree.
-// int x_tree_size(x_tree_t* tree) - Returns the number of nodes in the tree. Computed, not stored.
-
 /// \addtogroup core core
 ///@{
+
+/// \def DEFINE_AVL_TREE(tree_name, element, element_cmp):
+/// Defines an AVL tree (a balanced binary tree) that can be used to implement 
+/// other data structures. The following interface is defined for a tree with 
+/// tree_name `x_tree`.
+/// * `x_tree_t* x_tree_new()` - Creates a new empty tree.
+/// * `void x_tree_free(x_tree_t* tree)` - Destroys the tree.
+/// * `void x_tree_clear(x_tree_t* tree)` - Empties the tree.
+/// * `x_tree_node_t* x_tree_find(x_tree_t* tree, x datum)` - Finds the node containing the datum.
+/// * `void x_tree_insert(x_tree_t* tree, x datum)` - Inserts a datum into the tree.
+/// * `void x_tree_delete(x_tree_t* tree, x_tree_node_t* node)` - Deletes the node from the tree.
+/// * `void x_tree_node_visit(x_tree_node_t* node, x_tree_node_visitor visit, void*)` - Visits the given node and its subtree.
+/// * `int x_tree_size(x_tree_t* tree)` - Returns the number of nodes in the tree. Computed, not stored.
+/// \param tree_name The name of the AVL tree.
+/// \param element The data type stored in the tree.
+/// \param element_cmp A comparator function for two elements a and b that returns -1 if a < b, 0 if a == b, and 1 if a > b.
 
 // This maximum function is used to keep AVL trees ordered.
 static int avl_tree_max(int x, int y)

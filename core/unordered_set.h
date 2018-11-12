@@ -17,8 +17,8 @@
 ///@{
 
 /// \def DEFINE_UNORDERED_SET(set_name, element, hash_func, equals_func)
-/// Defines an ordered set for the given element type. The following
-/// interface is defined for a set with map_name `x`.
+/// Defines an unordered set for the given element type. The following
+/// interface is defined for a set with map_name `x_set`.
 /// * `x_set_t* x_set_new()` - Creates a new empty ordered set.
 /// * `void x_set_free(x_set_t* set)` - Destroys the set.
 /// * `void x_set_clear(x_set_t* set)` - Empties the set.
@@ -32,12 +32,14 @@
 /// * `void x_set_difference(x_set_t* set, x_set_t* other_set, x_set_t* difference)` - Differences this set with the other set, storing the result in intersection.
 /// * `bool x_set_empty(x_set_t* set)` - Returns true if empty, false otherwise.
 /// * `set->size` - The size of the set.
+///
+/// Member data for an unordered set `set`:
+/// * `set->size` - The number of elements in the set.
 /// \param set_name The name of the unordered set.
 /// \param element The data type stored by the set.
 /// \param hash_func A hash function mapping an element to an integer.
 /// \param equals_func A comparator function that accepts two elements and 
 ///                    returns true if these elements are equal, false otherwise.
-
 #define DEFINE_UNORDERED_SET(set_name, element, hash_func, equals_func) \
 DEFINE_UNORDERED_MAP(set_name##_unordered_map, element, bool, hash_func, equals_func) \
 typedef element set_name##_element_t; \

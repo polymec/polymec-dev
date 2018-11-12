@@ -11,34 +11,29 @@
 #include "core/polymec.h"
 #include "core/comparators.h"
 
-// An dlist is a doubly-linked list that stores homogeneous types.
-// One defines an dlist using
-// DEFINE_DLIST(list_name, element)
-//
-// Interface for a type x_dlist_t (with datum x) defined with 
-// DEFINE_DLIST(x_dlist, x):
-//
-// x_dlist_t* x_dlist_new() - Creates a new, empty dlist.
-// void x_dlist_free(dlist_t* list) - Destroys the list.
-// x_dlist_node_t* x_dlist_find(x_dlist_t* list, x value, x_dlist_cmp comparator) - Returns the node at which a value appears in the list.
-// void x_dlist_insert(x_dlist_t* list, x value, x_dlist_node_t* node) - Inserts an x into the list in front of the given node.
-// void x_dlist_insert_with_dtor(x_dlist_t* list, x value, x_dlist_node_t* node, destructor dtor) - Inserts an x into the list, using dtor to destroy it when finished.
-// void x_dlist_append(x_dlist_t* list, x value) - Appends an x to the end of the list.
-// void x_dlist_append_with_dtor(x_dlist_t* list, x value, destructor dtor) - Appends an x to the end of the list, using dtor to destroy when finished.
-// void x_dlist_push(x_dlist_t* list, x value) - Inserts an x at the front of the list.
-// void x_dlist_push_with_dtor(x_dlist_t* list, x value, x_dlist_dtor dtor) - Inserts an x at the front of the list with a destructor.
-// x x_dlist_pop(x_dlist_t* list, x_dlist_dtor* dtor) - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
-// void x_dlist_remove(x_dlist_t* list, x_dlist_node_t* node) - Removes a node from the list.
-// bool x_dlist_next(x_dlist_t* list, x_dlist_node_t** pos, x* value) - Allows the traversal of the linked list.
-// bool x_dlist_prev(x_dlist_t* list, x_dlist_node_t** pos, x* value) - Allows a reversed traversal of the linked list.
-// bool x_dlist_empty(x_dlist_t* list) - Returns true if empty, false otherwise.
-// void x_dlist_clear(x_dlist_t* list) - Clears the given list, making it empty.
-
 /// \addtogroup core core
 ///@{
 
-/// \def DEFINE_DLIST
-/// Defines a doubly-linked list for a given element type.
+/// \def DEFINE_DLIST(list_name, element)
+/// Defines a doubly-linked list for a given element type. The following 
+/// interface is defined for a list with name `x_dlist`.
+/// * `x_dlist_t* x_dlist_new()` - Creates a new, empty dlist.
+/// * `void x_dlist_free(dlist_t* list)` - Destroys the list.
+/// * `x_dlist_node_t* x_dlist_find(x_dlist_t* list, x value, x_dlist_cmp comparator)` - Returns the node at which a value appears in the list.
+/// * `void x_dlist_insert(x_dlist_t* list, x value, x_dlist_node_t* node)` - Inserts an x into the list in front of the given node.
+/// * `void x_dlist_insert_with_dtor(x_dlist_t* list, x value, x_dlist_node_t* node, destructor dtor)` - Inserts an x into the list, using dtor to destroy it when finished.
+/// * `void x_dlist_append(x_dlist_t* list, x value)` - Appends an x to the end of the list.
+/// * `void x_dlist_append_with_dtor(x_dlist_t* list, x value, destructor dtor)` - Appends an x to the end of the list, using dtor to destroy when finished.
+/// * `void x_dlist_push(x_dlist_t* list, x value)` - Inserts an x at the front of the list.
+/// * `void x_dlist_push_with_dtor(x_dlist_t* list, x value, x_dlist_dtor dtor)` - Inserts an x at the front of the list with a destructor.
+/// * `x x_dlist_pop(x_dlist_t* list, x_dlist_dtor* dtor)` - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
+/// * `void x_dlist_remove(x_dlist_t* list, x_dlist_node_t* node)` - Removes a node from the list.
+/// * `bool x_dlist_next(x_dlist_t* list, x_dlist_node_t** pos, x* value)` - Allows the traversal of the linked list.
+/// * `bool x_dlist_prev(x_dlist_t* list, x_dlist_node_t** pos, x* value)` - Allows a reversed traversal of the linked list.
+/// * `bool x_dlist_empty(x_dlist_t* list)` - Returns true if empty, false otherwise.
+/// * `void x_dlist_clear(x_dlist_t* list)` - Clears the given list, making it empty.
+/// \param list_name The name of the doubly-linked list.
+/// \param element The data type stored in the list.
 #define DEFINE_DLIST(list_name, element) \
 typedef struct list_name##_node_t list_name##_node_t; \
 typedef void (*list_name##_dtor)(element); \

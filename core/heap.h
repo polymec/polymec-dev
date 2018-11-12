@@ -11,29 +11,30 @@
 #include "core/comparators.h"
 #include "core/polymec.h"
 
-// A heap is a data structure that keeps its contents sorted.
-// One defines a heap using
-// DEFINE_HEAP(heap_name, element, comparator)
-//
-// Interface for a type x_heap_t (with element type x) defined with 
-// DEFINE_HEAP(x_heap, x, x_comparator):
-// 
-// x_heap_t* x_heap_new() - Creates a new empty heap.
-// x_heap_t* x_heap_with_comparator(comp) - Creates a new empty heap that uses the given comparator.
-// x_heap_t* x_heap_with_reversed_comparator(comp) - Creates a new empty heap that uses the given comparator, reversed.
-// void x_heap_free(x_heap_t* heap) - Destroys the heap.
-// void x_heap_push_with_dtor(x_heap_t* heap, x datum) - Inserts a datum into the heap with a destructor.
-// void x_heap_push(x_heap_t* heap, x datum) - Inserts a datum into the heap.
-// void x_heap_pop(x_heap_t* heap) - Removes the largest element from the heap.
-// x x_heap_front(x_heap_t* heap) - Returns the largest element in the heap.
-// bool x_heap_empty(x_heap_t* heap) - Returns true if the heap is empty, false otherwise.
-// void x_heap_clear(x_heap_t* heap) - Clears the contents of the heap.
-
 /// \addtogroup core core
 ///@{
 
-/// \def DEFINE_HEAP
-/// Defines a heap for a given element type.
+/// \def DEFINE_HEAP(heap_name, element, comparator)
+/// Defines a heap for a given element type. A heap is a data structure that 
+/// keeps its contents sorted. the following interface is defined for a heap 
+/// with name `x_heap`.
+/// * `x_heap_t* x_heap_new()` - Creates a new empty heap.
+/// * `x_heap_t* x_heap_with_comparator(comp)` - Creates a new empty heap that uses the given comparator.
+/// * `x_heap_t* x_heap_with_reversed_comparator(comp)` - Creates a new empty heap that uses the given comparator, reversed.
+/// * `void x_heap_free(x_heap_t* heap)` - Destroys the heap.
+/// * `void x_heap_push_with_dtor(x_heap_t* heap, x datum)` - Inserts a datum into the heap with a destructor.
+/// * `void x_heap_push(x_heap_t* heap, x datum)` - Inserts a datum into the heap.
+/// * `void x_heap_pop(x_heap_t* heap)` - Removes the largest element from the heap.
+/// * `x x_heap_front(x_heap_t* heap)` - Returns the largest element in the heap.
+/// * `bool x_heap_empty(x_heap_t* heap)` - Returns true if the heap is empty, false otherwise.
+/// * `void x_heap_clear(x_heap_t* heap)` - Clears the contents of the heap.
+/// Data members for a heap `heap`:
+/// * heap->size - The number of elements in the heap.
+/// * heap->capacity - The storage capacity for the heap.
+/// \param heap_name The name of the heap.
+/// \param element The data type stored in the heap.
+/// \param comparator A comparator function that takes two elements a, b, and
+///                   returns -1 if a < b, 0 if a == b, and 1 if a > b.
 #define DEFINE_HEAP(heap_name, element, comparator) \
 typedef element heap_name##_element_t; \
 typedef struct heap_name##_t heap_name##_t; \

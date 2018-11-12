@@ -11,33 +11,28 @@
 #include "core/polymec.h"
 #include "core/comparators.h"
 
-// An slist is a singly-linked list that stores homogeneous types.
-// One defines an slist using
-// DEFINE_SLIST(list_name, element)
-//
-// Interface for a type x_slist_t (with datum x) defined with 
-// DEFINE_SLIST(x_slist, x):
-//
-// x_slist_t* x_slist_new() - Creates a new, empty slist.
-// void x_slist_free(slist_t* list) - Destroys the list.
-// x_slist_node_t* x_slist_find(x_slist_t* list, x value, x_slist_cmp comparator) - Returns the node at which a value appears in the list.
-// void x_slist_insert(x_slist_t* list, x value, x_slist_node_t* node) - Inserts an x into the list in front of the given node.
-// void x_slist_insert_with_dtor(x_slist_t* list, x value, x_slist_node_t* node, destructor dtor) - Inserts an x into the list, using dtor to destroy it when finished.
-// void x_slist_append(x_slist_t* list, x value) - Appends an x to the end of the list.
-// void x_slist_append_with_dtor(x_slist_t* list, x value, destructor dtor) - Appends an x to the end of the list, using dtor to destroy when finished.
-// void x_slist_push(x_slist_t* list, x value) - Inserts an x at the front of the list.
-// void x_slist_push_with_dtor(x_slist_t* list, x value, x_slist_dtor dtor) - Inserts an x at the front of the list with a destructor.
-// x x_slist_pop(x_slist_t* list, x_slist_dtor* dtor) - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
-// void x_slist_remove(x_slist_t* list, x_slist_node_t* node) - Removes a node from the list.
-// bool x_slist_next(x_slist_t* list, x_slist_node_t** pos, x* value) - Allows the traversal of the linked list. Set *pos to NULL to begin iteration.
-// bool x_slist_empty(x_slist_t* list) - Returns true if empty, false otherwise.
-// void x_slist_clear(x_slist_t* list) - Clears the given list, making it empty.
-
 /// \addtogroup core core
 ///@{
 
-/// \def DEFINE_SLIST
-/// Defines a singly-linked list for an element type.
+/// \def DEFINE_SLIST(list_name, element)
+/// Defines a singly-linked list for an element type. The following interface
+/// is defined for a list with name `x_slist`.
+/// * `x_slist_t* x_slist_new()` - Creates a new, empty slist.
+/// * `void x_slist_free(slist_t* list)` - Destroys the list.
+/// * `x_slist_node_t* x_slist_find(x_slist_t* list, x value, x_slist_cmp comparator)` - Returns the node at which a value appears in the list.
+/// * `void x_slist_insert(x_slist_t* list, x value, x_slist_node_t* node)` - Inserts an x into the list in front of the given node.
+/// * `void x_slist_insert_with_dtor(x_slist_t* list, x value, x_slist_node_t* node, destructor dtor)` - Inserts an x into the list, using dtor to destroy it when finished.
+/// * `void x_slist_append(x_slist_t* list, x value)` - Appends an x to the end of the list.
+/// * `void x_slist_append_with_dtor(x_slist_t* list, x value, destructor dtor)` - Appends an x to the end of the list, using dtor to destroy when finished.
+/// * `void x_slist_push(x_slist_t* list, x value)` - Inserts an x at the front of the list.
+/// * `void x_slist_push_with_dtor(x_slist_t* list, x value, x_slist_dtor dtor)` - Inserts an x at the front of the list with a destructor.
+/// * `x x_slist_pop(x_slist_t* list, x_slist_dtor* dtor)` - Removes an x from the front of the list, returning it and its destructor (if dtor != NULL).
+/// * `void x_slist_remove(x_slist_t* list, x_slist_node_t* node)` - Removes a node from the list.
+/// * `bool x_slist_next(x_slist_t* list, x_slist_node_t** pos, x* value)` - Allows the traversal of the linked list. Set *pos to NULL to begin iteration.
+/// * `bool x_slist_empty(x_slist_t* list)` - Returns true if empty, false otherwise.
+/// * `void x_slist_clear(x_slist_t* list)` - Clears the given list, making it empty.
+/// \param list_name The name of the singly-linked list.
+/// \param element The data type stored in the list.
 #define DEFINE_SLIST(list_name, element) \
 typedef struct list_name##_node_t list_name##_node_t; \
 typedef void (*list_name##_dtor)(element); \

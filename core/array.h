@@ -10,50 +10,45 @@
 
 #include "core/polymec.h"
 
-// An array is a dynamically-resizable chunk of contiguous memory that 
-// stores a particular data type. It serves the same purpose as a C++ vector.
-// One defines an array using
-// DEFINE_ARRAY(array_name, element)
-//
-// Interface for a type x_array_t (with datum x) defined with 
-// DEFINE_ARRAY(x_array, x):
-//
-// x_array_t* x_array_new() - Creates a new, empty array on the heap.
-// x_array_t* x_array_new_with_size(size_t size) - Creates a new array of the given size on the heap.
-// x_array_t* x_array_new_with_capacity(size_t capacity) - Creates a new, empty array on the heap with the given capacity.
-// x_array_t* x_array_new_with_data(x* data, size_t size) - Creates an array around the given existing data.
-// x_array_t* x_array_clone(x_array_t* array) - Creates a copy of the given array.
-// x_array_t empty_x_array() - Creates a new, empty array on the stack.
-// void x_array_free(x_array_t* array) - Destroys the (heap-allocated) array.
-// x* x_array_find(x_array_t* array, x value, cmp_func comparator) - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
-// void x_array_append(x_array_t* array, x value) - Appends an x to the end of the array.
-// void x_array_append_with_dtor(x_array_t* array, x value, destructor dtor) - Appends an x to the end of the array, using dtor to destroy when finished.
-// void x_array_insert(x_array_t* array, size_t i, x value) - Inserts an x at position i within the array, resizing as necessary.
-// void x_array_insert_with_dtor(x_array_t* array, size_t i, x value, destructor dtor) - Inserts an x at position i within the array, using dtor to destroy when finished.
-// void x_array_assign(x_array_t* array, size_t i, x value) - Assigns an x to position i within the array.
-// void x_array_assign_with_dtor(x_array_t* array, size_t i, x value, destructor dtor) - Assigns an x to position i within the array, using dtor to destroy when finished.
-// void x_array_remove(x_array_t* array, size_t i) - Removes the ith element from the array, shifting the following elements forward by one.
-// void x_array_swap(x_array_t* array, size_t i, size_t j) - Swaps the ith and jth elements in the array.
-// bool x_array_empty(x_array_t* array) - Returns true if empty, false otherwise.
-// void x_array_clear(x_array_t* array) - Clears the given array, making it empty.
-// void x_array_resize(x_array_t* array, size_t new_size) - Resizes the array, keeping data intact if possible.
-// void x_array_reserve(x_array_t* array, size_t new_capacity) - Reserves storage for the given capacity within the array. No effect if the array already has sufficient storage.
-// bool x_array_next(x_array_t* array, int* pos, x* element) - Allows traversal over the items in the array.
-// void x_array_reorder(x_array_t* array, size_t* permutation) - Reorders the elements of the array using the permutation array (which must be the same length as the array).
-// void x_array_release_data_and_free(x_array_t* array) - Releases control of the array data, allowing another entity to assume responsibility. Also destroys this object. USE CAREFULLY!!!
-// 
-// Member data for an array a:
-// 
-// a.data - A pointer to an array containing the actual data.
-// a.dtors - A pointer to an array of destructors for data elements.
-// a.size - Number of elements in the array.
-// a.capacity - Number of elements in the array.
-
 /// \addtogroup core core
 ///@{
 
-/// \def DEFINE_ARRAY
-/// Defines an array for a given element type.
+/// \def DEFINE_ARRAY(array_name, element)
+/// Defines an array for a given element type. An array is a 
+/// dynamically-resizable chunk of contiguous memory that stores a particular 
+/// data type. It serves the same purpose as a C++ vector. The following
+/// interface is defined for an array with array_name `x_array`.
+/// * `x_array_t* x_array_new()` - Creates a new, empty array on the heap.
+/// * `x_array_t* x_array_new_with_size(size_t size)` - Creates a new array of the given size on the heap.
+/// * `x_array_t* x_array_new_with_capacity(size_t capacity)` - Creates a new, empty array on the heap with the given capacity.
+/// * `x_array_t* x_array_new_with_data(x* data, size_t size)` - Creates an array around the given existing data.
+/// * `x_array_t* x_array_clone(x_array_t* array)` - Creates a copy of the given array.
+/// * `x_array_t empty_x_array()` - Creates a new, empty array on the stack.
+/// * `void x_array_free(x_array_t* array)` - Destroys the (heap-allocated) array.
+/// * `x* x_array_find(x_array_t* array, x value, cmp_func comparator)` - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
+/// * `void x_array_append(x_array_t* array, x value)` - Appends an x to the end of the array.
+/// * `void x_array_append_with_dtor(x_array_t* array, x value, destructor dtor)` - Appends an x to the end of the array, using dtor to destroy when finished.
+/// * `void x_array_insert(x_array_t* array, size_t i, x value)` - Inserts an x at position i within the array, resizing as necessary.
+/// * `void x_array_insert_with_dtor(x_array_t* array, size_t i, x value, destructor dtor)` - Inserts an x at position i within the array, using dtor to destroy when finished.
+/// * `void x_array_assign(x_array_t* array, size_t i, x value)` - Assigns an x to position i within the array.
+/// * `void x_array_assign_with_dtor(x_array_t* array, size_t i, x value, destructor dtor)` - Assigns an x to position i within the array, using dtor to destroy when finished.
+/// * `void x_array_remove(x_array_t* array, size_t i)` - Removes the ith element from the array, shifting the following elements forward by one.
+/// * `void x_array_swap(x_array_t* array, size_t i, size_t j)` - Swaps the ith and jth elements in the array.
+/// * `bool x_array_empty(x_array_t* array)` - Returns true if empty, false otherwise.
+/// * `void x_array_clear(x_array_t* array)` - Clears the given array, making it empty.
+/// * `void x_array_resize(x_array_t* array, size_t new_size)` - Resizes the array, keeping data intact if possible.
+/// * `void x_array_reserve(x_array_t* array, size_t new_capacity)` - Reserves storage for the given capacity within the array. No effect if the array already has sufficient storage.
+/// * `bool x_array_next(x_array_t* array, int* pos, x* element)` - Allows traversal over the items in the array.
+/// * `void x_array_reorder(x_array_t* array, size_t* permutation)` - Reorders the elements of the array using the permutation array (which must be the same length as the array).
+/// * `void x_array_release_data_and_free(x_array_t* array)` - Releases control of the array data, allowing another entity to assume responsibility. Also destroys this object. USE CAREFULLY!!!
+/// Member data for an array `a`:
+/// * `a->data` - A pointer to an array containing the actual data.
+/// * `a->dtors` - A pointer to an array of destructors for data elements.
+/// * `a->size` - Number of elements in the array.
+/// * `a.capacity` - Number of elements in the array.
+/// \param array_name The name of the array.
+/// \param element The data type stored in the array.
+
 #define DEFINE_ARRAY(array_name, element) \
 typedef void (*array_name##_dtor)(element); \
 typedef struct \

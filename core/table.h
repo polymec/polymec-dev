@@ -10,40 +10,38 @@
 
 #include "core/unordered_map.h"
 
-// A table is a sparse table (like a spreadsheet) that has rows consisting 
-// of sparse columns, each of which contains an element. One defines a 
-// table using DEFINE_TABLE(map_name, element_type).
-//
-// Table data must be of a primitive (integer, floating point) data type.
-//
-// Interface for a type x_table_t (with element type E) defined with
-// DEFINE_TABLE(x_table, E):
-// 
-// x_table_t* x_table_new() - Creates a new empty table.
-// x_table_t* x_table_new_with_capacity(int N) - Creates a new table with 
-//                                               initial capacity N (rows).
-// x_table_t* x_table_clone(x_table_t* t) - Creates a deep copy of t.
-// void x_table_free(x_table_t* table) - Destroys the table.
-// void x_table_clear(x_table_t* table) - Empties the table.
-// x_table_row_t* x_table_get_row(x_table_t* table, int row) - Returns the row in the given table (itself an unordered map).
-// x_table_value_t* x_table_get(x_table_t* table, int row, int col) - Returns the element at the given row/column, or NULL.
-// bool x_table_contains_row(x_table_t* table, int row) - Returns true if the table contains the given row, false if not.
-// bool x_table_contains(x_table_t* table, int row, int col) - Returns true if the table contains an element at row/column, false if not.
-// void x_table_insert_row(x_table_t* table, int row, int num_cols, int* cols, x_table_value_t* values) - Inserts a row into the table.
-// void x_table_insert_row_with_dtor(x_table_t* table, int row, int num_cols, int* cols, x_table_value_t* values, x_table_value_dtor dtor) - Inserts a row into the table with a destructor.
-// void x_table_insert(x_table_t* table, int row, int col, x_table_value_t value) - Inserts a value at the given row/column.
-// void x_table_insert_with_dtor(x_table_t* table, int row, int col, x_table_value_t value, x_table_value_dtor dtor) - Inserts a value at the given row/column with a destructor.
-// void x_table_delete_row(x_table_t* table, int row) - Deletes the given row from the table.
-// void x_table_delete(x_table_t* table, int row, col) - Deletes the given element from the table.
-// bool x_table_next_row(x_table_t* table, int* pos, int* row, x_table_row_t** row_data) - Allows the traversal of the table rows.
-// bool x_table_next_cell(x_table_t* table, x_table_cell_pos_t* pos, int* row, int* col, x_table_value_t* value) - Allows the traversal of the table values.
-// x_table_cell_pos_t x_table_start(x_table_t* table) - Returns a new value position for use with x_table_next.
-
 /// \addtogroup core core
 ///@{
 
-/// \def DEFINE_TABLE
-/// Defines a table with a given value type.
+/// \def DEFINE_TABLE(map_name, element_type).
+/// Defines a table with a given element type. A table is a sparse table 
+/// (like a spreadsheet) that has rows consisting of sparse columns, each of 
+/// which contains a primitive element. Elements in a table must be primitive 
+/// data types. The following interface is defined for a table with name 
+/// `x_table`.
+/// * `x_table_t* x_table_new()` - Creates a new empty table.
+/// * `x_table_t* x_table_new_with_capacity(int N)` - Creates a new table with initial capacity N (rows).
+/// * `x_table_t* x_table_clone(x_table_t* t)` - Creates a deep copy of t.
+/// * `void x_table_free(x_table_t* table)` - Destroys the table.
+/// * `void x_table_clear(x_table_t* table)` - Empties the table.
+/// * `x_table_row_t* x_table_get_row(x_table_t* table, int row)` - Returns the row in the given table (itself an unordered map).
+/// * `x_table_value_t* x_table_get(x_table_t* table, int row, int col)` - Returns the element at the given row/column, or NULL.
+/// * `bool x_table_contains_row(x_table_t* table, int row)` - Returns true if the table contains the given row, false if not.
+/// * `bool x_table_contains(x_table_t* table, int row, int col)` - Returns true if the table contains an element at row/column, false if not.
+/// * `void x_table_insert_row(x_table_t* table, int row, int num_cols, int* cols, x_table_value_t* values)` - Inserts a row into the table.
+/// * `void x_table_insert_row_with_dtor(x_table_t* table, int row, int num_cols, int* cols, x_table_value_t* values, x_table_value_dtor dtor)` - Inserts a row into the table with a destructor.
+/// * `void x_table_insert(x_table_t* table, int row, int col, x_table_value_t value)` - Inserts a value at the given row/column.
+/// * `void x_table_insert_with_dtor(x_table_t* table, int row, int col, x_table_value_t value, x_table_value_dtor dtor)` - Inserts a value at the given row/column with a destructor.
+/// * `void x_table_delete_row(x_table_t* table, int row)` - Deletes the given row from the table.
+/// * `void x_table_delete(x_table_t* table, int row, col)` - Deletes the given element from the table.
+/// * `bool x_table_next_row(x_table_t* table, int* pos, int* row, x_table_row_t** row_data)` - Allows the traversal of the table rows.
+/// * `bool x_table_next_cell(x_table_t* table, x_table_cell_pos_t* pos, int* row, int* col, x_table_value_t* value)` - Allows the traversal of the table values.
+/// * `x_table_cell_pos_t x_table_start(x_table_t* table)` - Returns a new value position for use with x_table_next.
+///
+/// Member data for a table `table`:
+/// * `table->num_rows` - The number of rows in the table.
+/// \param table_name The name of the table.
+/// \param value_type The data type stored in the table.
 #define DEFINE_TABLE(table_name, value_type) \
 typedef value_type table_name##_value_t; \
 typedef void (*table_name##_value_dtor)(table_name##_value_t); \

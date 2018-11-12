@@ -28,6 +28,8 @@
 /// * `int x_tuple_cmp(x* tuple1, x* tuple2)` - Returns -1 if tuple1 < tuple2, 0 if tuple1 == tuple2, 1 if tuple1 > tuple2.
 /// * `bool x_tuple_equals(x* tuple1, x* tuple2)` - Returns true if tuple1 == tuple2, false otherwise.
 /// * `int x_tuple_hash(x* tuple)` - Returns a hash index for the given tuple.
+/// 
+/// Data members for a tuple `tuple`:
 /// * `tuple[i]` - The ith value in the tuple.
 /// \param tuple_name The name of the tuple.
 /// \param element The data type stored in the tuple.

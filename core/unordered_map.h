@@ -18,7 +18,7 @@
 
 /// \def DEFINE_UNORDERED_MAP(map_name, key_type, value_type, hash_func, equals_func)
 /// Defines an unordered map for the given key and value types. The following 
-/// interface is defined for a map with map_name `x`.
+/// interface is defined for a map with map_name `x_map`.
 /// * `x_map_t* x_map_new(void)` - Creates a new empty unordered map.
 /// * `x_map_t* x_map_new_with_capacity(int N)` - Creates a new empty hash map with initial capacity N.
 /// * `x_map_t* x_map_clone(x_map_t* m, x_map_key_t (*key_clone_func)(x_map_key_t), x_map_value_t (*val_clone_func)(x_map_value_t))` - Creates a deep copy of m, using the given clone functions to clone the keys and values.
@@ -36,6 +36,9 @@
 /// * `void x_map_delete(x_map_t* map, x_map_key_t key)` - Deletes the value for the given key.
 /// * `bool x_map_next(x_map_t* map, int* pos, x_map_key_t* key, x_map_value_t* value)` - Allows the traversal of the maps keys and values.
 /// * `bool x_map_empty(x_map_t* map)` - Returns true if empty, false otherwise.
+///
+/// Member data for an unordered map `map`:
+/// * `map->size` - The number of key-value pairs in the map.
 /// \param map_name The name of the unordered map.
 /// \param key_type The data type used as a key in the map.
 /// \param value_type The data type used as a value in the map.

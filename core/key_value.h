@@ -13,11 +13,14 @@
 /// \addtogroup core core
 ///@{
 
-/// \def DEFINE_KEY_VALUE
+/// \def DEFINE_KEY_VALUE(key_value_name, key_type, value_type)
 /// A key_value is a pair associating a key with a value. It is used by 
-/// map-like containers.
-/// One defines a key-value pair using
-/// DEFINE_KEY_VALUE(key_value_name, key_type, value_type)
+/// map-like containers. Data members for a key-value pair `kv`:
+/// * `kv->key` - The key in the pair
+/// * `kv->value` - The value in the pair
+/// \param key_value_name The name of the key-value pair type.
+/// \param key_type The data type for the key in the pair.
+/// \param value_type The data type for the value in the pair.
 #define DEFINE_KEY_VALUE(key_value_name, key_type, value_type) \
 typedef struct \
 { \
