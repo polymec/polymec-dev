@@ -93,9 +93,30 @@ print(plane2:project(x, 1))
 square = polygon.new({point2.new(0,0), point2.new(1,0), point2.new(1,1), point2.new(0,1)})
 square2 = polygon.new(point2.new(0,0), point2.new(1,0), point2.new(1,1), point2.new(0,1))
 print(square, square2)
-print(square.vertices, square2.vertices)
-print(square.area, square2.area)
-print(square.centroid, square2.centroid)
+assert(#square.vertices == 4)
+assert(#square2.vertices == 4)
+assert(reals_equal(square.area, 1.0))
+assert(reals_equal(square2.area, 1.0))
+assert(reals_equal(point2.distance(square.centroid, point2.new(0.5, 0.5)), 0))
+
+-- Polyhedron.
+v1 = point.new(0,0,0)
+v2 = point.new(1,0,0)
+v3 = point.new(1,1,0)
+v4 = point.new(0,1,0)
+v5 = point.new(0,0,1)
+v6 = point.new(1,0,1)
+v7 = point.new(1,1,1)
+v8 = point.new(0,1,1)
+cube = polyhedron.new({v1,v2,v3,v4,v5,v6,v7,v8}, -- vertices
+                      {{1,5,8,4},{2,3,7,6},      -- -/+ x faces
+                       {1,2,6,5},{3,4,8,7},      -- -/+ y faces
+                       {1,2,3,4},{5,6,7,8}})     -- -/+ z faces
+print(cube)
+assert(#cube.vertices == 8)
+assert(#cube.faces == 6)
+assert(reals_equal(cube.volume, 1.0))
+assert(reals_equal(point.distance(cube.centroid, point.new(0.5, 0.5, 0.5)), 0.0))
 
 -- Uniform cartesian meshes.
 box = bbox.new{x1 = 0, x2 = 1, y1 = 0, y2 = 1, z1 = 0, z2 = 1}

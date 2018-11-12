@@ -1025,6 +1025,7 @@ static int p3_new(lua_State* L)
             ++num_vertices;
             lua_pop(L, 1);
           }
+          ++j;
         }
         if (num_vertices < 4)
           luaL_error(L, "Face %d must contain at least 4 vertices.", i);
@@ -1042,8 +1043,8 @@ static int p3_new(lua_State* L)
   {
     size_t nv = num_face_vertices->data[f];
     faces[f] = polymec_malloc(sizeof(int) * nv);
-    memcpy(faces[f], &(face_array->data[offset]), sizeof(int) * nv);
-    offset += nv;
+    for (size_t fv = 0; fv < nv; ++fv, ++offset)
+      faces[f][fv] = face_array->data[offset]-1;
   }
   int_array_free(face_array);
 
