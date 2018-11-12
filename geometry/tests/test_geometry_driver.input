@@ -123,6 +123,7 @@ box = bbox.new{x1 = 0, x2 = 1, y1 = 0, y2 = 1, z1 = 0, z2 = 1}
 mesh = unimesh.new{comm = mpi.COMM_WORLD, bbox = box,
                    npx = 2, npy = 2, npz = 2, 
                    nx = 10, ny = 10, nz = 10}
+print(unimesh.bbox)
 sp = mesh.spacings
 assert(reals_equal(sp[1], 0.05))
 assert(reals_equal(sp[2], 0.05))
@@ -152,9 +153,27 @@ zs = xs
 mesh3 = polymesh.rectilinear{comm = mpi.COMM_WORLD, xs = xs, ys = ys, zs = zs}
 mesh4 = polymesh.rectilinear{comm = mpi.COMM_WORLD, rank = 0, xs = xs, ys = ys, zs = zs}
 
+-- Planar polymeshes.
+quad_ppm = planar_polymesh.quad{nx = 10, ny = 10, bbox = box}
+assert(quad_ppm.num_cells == 100)
+print(quad_ppm, quad_ppm.num_edges, quad_ppm.num_nodes)
+
+hex_ppm = planar_polymesh.hex{radius = 5, h = 0.1}
+print(hex_ppm, hex_ppm.num_cells, hex_ppm.num_edges, hex_ppm.num_nodes)
+
 -- Column meshes.
 cmesh1 = colmesh.quad{comm = mpi.COMM_WORLD, bbox = bbox.new{x1 = 0, x2 = 1, y1 = 0, y2 = 1, z1 = 0, z2 = 1}, nx = 10, ny = 10, nz = 10}
 cmesh2 = colmesh.hex{comm = mpi.COMM_WORLD, radius = 8, h = 0.1, nz = 10, z1 = 0, z2 = 1}
+
+-- Point cloud (and tags).
+pcloud = point_cloud.new(mpi.COMM_WORLD, {point.new(0, 0, 0), point.new(1, 0, 0), point.new(0, 1, 0), point.new(0, 0, 1)})
+assert(pcloud.num_points == 4)
+assert(pcloud.num_ghosts == 0)
+print(pcloud.tags)
+assert(not pcloud.tags:has_tag('nope'))
+assert(not pcloud.tags:tag('nope'))
+pcloud.tags:create_tag('firsty', {0})
+assert(pcloud.tags:has_tag('firsty'))
 
 -- Force probe garbage collection.
 collectgarbage("collect")

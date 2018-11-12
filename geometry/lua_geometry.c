@@ -1188,7 +1188,7 @@ static int pp_quad(lua_State* L)
 static int pp_hex(lua_State* L)
 {
   if (!lua_istable(L, 1))
-    luaL_error(L, "Argument must be a table with alignment and radius fields.");
+    luaL_error(L, "Argument must be a table with radius and h fields.");
 
   lua_getfield(L, 1, "radius");
   if (!lua_isinteger(L, -1))
@@ -1286,7 +1286,7 @@ static int t_create_tag(lua_State* L)
     int i = 1;
     while (true)
     {
-      lua_rawgeti(L, 2, i);
+      lua_rawgeti(L, 3, i);
       if (lua_isnil(L, -1))
       {
         lua_pop(L, 1);
