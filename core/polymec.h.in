@@ -505,7 +505,11 @@ int polymec_num_cores(void);
 /// false if not.
 bool polymec_running_in_valgrind(void);
 
-static real_t _polymec_epsilon = REAL_EPSILON;
+#if POLYMEC_HAVE_DOUBLE_PRECISION
+static real_t _polymec_epsilon = 100.0*REAL_EPSILON;
+#else
+static real_t _polymec_epsilon = 10.0*REAL_EPSILON;
+#endif
 
 /// This function returns `true` if two real numbers are indistinguishable, 
 /// `false` if not. The distinguishability of two real numbers is set by 

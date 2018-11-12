@@ -1889,6 +1889,30 @@ static int lua_reals_equal(lua_State* L)
   return 1;
 }
 
+// And here's reals_nearly_equal(a, b, epsilon).
+static int lua_reals_nearly_equal(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 3) || !lua_is_real(L, 1) || !lua_is_real(L, 2) || !lua_is_real(L, 3))
+    luaL_error(L, "reals_equal() accepts exactly three real arguments.");
+  real_t a = lua_to_real(L, 1);
+  real_t b = lua_to_real(L, 2);
+  real_t eps = lua_to_real(L, 3);
+  lua_pushboolean(L, reals_nearly_equal(a, b, eps));
+  return 1;
+}
+
+// This lets you set the tolerance for reals_equal() from Lua.
+static int lua_set_real_epsilon(lua_State* L)
+{
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) || !lua_is_real(L, 1))
+    luaL_error(L, "set_real_epsilon() accepts exactly one real arguments.");
+  real_t eps = lua_to_real(L, 1);
+  set_real_epsilon(eps);
+  return 0;
+}
+
 // Here's a dir() function just like Python's.
 static int lua_dir(lua_State* L)
 {
@@ -2030,12 +2054,26 @@ extern void lua_replace_tostring(lua_State* L);
 
 static void lua_register_util_funcs(lua_State* L)
 {
-  // reals_equal(a, b) returns true if a == b to without polymec's tolerance,
+  // reals_equal(a, b) returns true if a == b to within polymec's tolerance,
   // false if not.
   lua_pushcfunction(L, lua_reals_equal);
   lua_setglobal(L, "reals_equal");
   lua_getglobal(L, "reals_equal");
   lua_set_docstring(L, -1, "reals_equal(a, b) -> Returns true if a == b for a, b real, false if not.");
+  lua_pop(L, 1);
+
+  // reals_nearly_equal(a, b, eps) returns true if a == b to within eps,
+  // false if not.
+  lua_pushcfunction(L, lua_reals_nearly_equal);
+  lua_setglobal(L, "reals_nearly_equal");
+  lua_getglobal(L, "reals_nearly_equal");
+  lua_set_docstring(L, -1, "reals_nearly_equal(a, b, tolerance) -> Returns true if |a-b| < tolerance for a, b, tolerance real, false if not.");
+  lua_pop(L, 1);
+
+  lua_pushcfunction(L, lua_set_real_epsilon);
+  lua_setglobal(L, "set_real_epsilon");
+  lua_getglobal(L, "set_real_epsilon");
+  lua_set_docstring(L, -1, "set_real_epsilon(epsilon) -> Sets the floating point tolerance.");
   lua_pop(L, 1);
 
   // Python-like dir() function.

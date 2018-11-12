@@ -83,7 +83,7 @@ void plane_sd_func_embed(sd_func_t* plane, point2_t* y, point_t* x)
 {
   plane_t* p = sd_func_context(plane);
   x->x = p->x.x + p->e1.x * y->x + p->e2.x * y->y;
-  x->y = p->x.y + p->e1.y * y->x * p->e2.y + y->y;
-  x->z = p->x.z + p->e1.z * y->x * p->e2.z + y->y;
+  x->y = p->x.y + p->e1.y * y->x + p->e2.y * y->y;
+  x->z = p->x.z + p->e1.z * y->x + p->e2.z * y->y;
 }
 

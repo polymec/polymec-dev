@@ -154,6 +154,7 @@ static void compute_face_centroid(polyhedron_t* poly,
 
   // Embed the 2D centroid back in 3D space.
   plane_sd_func_embed(plane, &centroid2, centroid);
+  release_ref(plane);
 }
 
 real_t polyhedron_volume(polyhedron_t* poly)
@@ -183,6 +184,7 @@ real_t polyhedron_volume(polyhedron_t* poly)
       V += tetrahedron_volume(tet);
     }
   }
+  release_ref(tet);
   return V;
 }
 

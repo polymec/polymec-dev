@@ -254,3 +254,10 @@ print(tab)
 print(dir())
 print(help(mpi))
 
+-- Real number comparisons.
+assert(reals_equal(1.0, 1.0))
+assert(not reals_equal(1.0, 2.0))
+assert(reals_nearly_equal(1.0, 1.0 + 1e-6, 1e-5))
+set_real_epsilon(1e-5)
+assert(reals_equal(1.0, 1.0 + 1e-6))
+
