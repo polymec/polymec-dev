@@ -892,7 +892,7 @@ static int p2_new(lua_State* L)
     }
   }
   if (vertices->size < 3)
-    luaL_error(L, "Argument table must contain at least 3 vertices.");
+    luaL_error(L, "A polygon must contain at least 3 vertices.");
 
   lua_push_polygon(L, polygon_new(vertices->data, vertices->size));
   point2_array_free(vertices);
@@ -912,7 +912,8 @@ static int p2_get_vertices(lua_State* L)
   point2_t v;
   while (polygon_next_vertex(p, &pos, &v))
   {
-    lua_push_point2(L, &v);
+    point2_t* v1 = point2_new(v.x, v.y);
+    lua_push_point2(L, v1);
     lua_rawseti(L, -2, i);
     ++i;
   }
@@ -931,7 +932,8 @@ static int p2_get_centroid(lua_State* L)
   polygon_t* p = lua_to_polygon(L, 1);
   point2_t centroid;
   polygon_compute_centroid(p, &centroid);
-  lua_push_point2(L, &centroid);
+  point2_t* xc = point2_new(centroid.x, centroid.y);
+  lua_push_point2(L, xc);
   return 1;
 }
 
@@ -1072,7 +1074,8 @@ static int p3_get_vertices(lua_State* L)
   point_t v;
   while (polyhedron_next_vertex(p, &pos, &v))
   {
-    lua_push_point(L, &v);
+    point_t* v1 = point_new(v.x, v.y, v.z);
+    lua_push_point(L, v1);
     lua_rawseti(L, -2, i);
     ++i;
   }
@@ -1091,7 +1094,8 @@ static int p3_get_faces(lua_State* L)
     lua_newtable(L);
     for (size_t v = 0; v < num_face_vertices; ++v)
     {
-      lua_push_point(L, &face_vertices[v]);
+      point_t* v1 = point_new(face_vertices[v].x, face_vertices[v].y, face_vertices[v].z);
+      lua_push_point(L, v1);
       lua_rawseti(L, -2, (int)(v+1));
     }
     lua_rawseti(L, -2, i);
@@ -1112,7 +1116,8 @@ static int p3_get_centroid(lua_State* L)
   polyhedron_t* p = lua_to_polyhedron(L, 1);
   point_t centroid;
   polyhedron_compute_centroid(p, &centroid);
-  lua_push_point(L, &centroid);
+  point_t* xc = point_new(centroid.x, centroid.y, centroid.z);
+  lua_push_point(L, xc);
   return 1;
 }
 
@@ -1855,14 +1860,14 @@ static lua_module_function colmesh_funcs[] = {
   {NULL, NULL, NULL}
 };
 
-static int pmesh_num_chunks(lua_State* L)
+static int cmesh_num_chunks(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
   lua_pushinteger(L, colmesh_num_chunks(m));
   return 1;
 }
 
-static int pmesh_num_xy_chunks(lua_State* L)
+static int cmesh_num_xy_chunks(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
@@ -1871,7 +1876,7 @@ static int pmesh_num_xy_chunks(lua_State* L)
   return 1;
 }
 
-static int pmesh_num_z_chunks(lua_State* L)
+static int cmesh_num_z_chunks(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
@@ -1880,7 +1885,7 @@ static int pmesh_num_z_chunks(lua_State* L)
   return 1;
 }
 
-static int pmesh_nz_per_chunk(lua_State* L)
+static int cmesh_nz_per_chunk(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
   size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
@@ -1889,7 +1894,7 @@ static int pmesh_nz_per_chunk(lua_State* L)
   return 1;
 }
 
-static int pmesh_z1(lua_State* L)
+static int cmesh_z1(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
   real_t z1, z2;
@@ -1899,7 +1904,7 @@ static int pmesh_z1(lua_State* L)
   return 1;
 }
 
-static int pmesh_z2(lua_State* L)
+static int cmesh_z2(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
   real_t z1, z2;
@@ -1909,7 +1914,7 @@ static int pmesh_z2(lua_State* L)
   return 1;
 }
 
-static int pmesh_periodic_in_z(lua_State* L)
+static int cmesh_periodic_in_z(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
   real_t z1, z2;
@@ -1920,13 +1925,13 @@ static int pmesh_periodic_in_z(lua_State* L)
 }
 
 static lua_class_field colmesh_fields[] = {
-  {"num_chunks", pmesh_num_chunks, NULL},
-  {"num_xy_chunks", pmesh_num_xy_chunks, NULL},
-  {"num_z_chunks", pmesh_num_z_chunks, NULL},
-  {"nz_per_chunk", pmesh_nz_per_chunk, NULL},
-  {"z1", pmesh_z1, NULL},
-  {"z2", pmesh_z2, NULL},
-  {"periodic_in_z", pmesh_periodic_in_z, NULL},
+  {"num_chunks", cmesh_num_chunks, NULL},
+  {"num_xy_chunks", cmesh_num_xy_chunks, NULL},
+  {"num_z_chunks", cmesh_num_z_chunks, NULL},
+  {"nz_per_chunk", cmesh_nz_per_chunk, NULL},
+  {"z1", cmesh_z1, NULL},
+  {"z2", cmesh_z2, NULL},
+  {"periodic_in_z", cmesh_periodic_in_z, NULL},
   {NULL, NULL, NULL}
 };
 

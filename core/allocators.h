@@ -87,12 +87,14 @@ void polymec_free(void* memory);
 /// * Releasing a refcounted object decrements that object's refcount. Do this
 ///   with \ref release_ref when you no longer need an object that you've 
 ///   retained with \ref retain_ref.
+///
 /// When a refcounted resource's refcount reaches 0, that resource is 
 /// destroyed. 
 /// \param [in] size The number of bytes to allocate for the refcounted 
 ///                  resource.
 /// \param [in] dtor A destructor to be called on the refcounted resource 
 ///                  when its refcount reaches zero.
+///
 /// \refcounted
 void* polymec_refcounted_malloc(size_t size, void (*dtor)(void* memory));
 

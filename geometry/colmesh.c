@@ -473,38 +473,27 @@ static int64_t* source_vector(colmesh_t* mesh)
 }
 #endif
 
-void colmesh_finalize(colmesh_t* mesh)
+#if 0
+DEFINE_UNORDERED_MAP(proc_point2_map, int, point2_array_t*, int_hash, int_equals)
+static void proc_point2_map_add(proc_point2_map_t* map, 
+                                int process, point2_t* x)
 {
-  ASSERT(!mesh->finalized);
-
-  // Create a sorted list of chunk indices and compute chunk index offsets.
-  mesh->chunk_indices = polymec_malloc(sizeof(int) * 2 * mesh->chunks->size);
-  int chunk_offsets[mesh->chunks->size+1];
-  chunk_offsets[0] = 0;
+  point2_array_t** points_p = proc_point2_map_get(map, process);
+  point2_array_t* points = NULL;
+  if (points_p != NULL)
+    points = *points_p;
+  else
   {
-    size_t k = 0;
-    for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
-    {
-      size_t num_z_chunks = 0;
-      for (size_t j = 0; j < mesh->num_z_chunks; ++j)
-      {
-        int index = chunk_index(mesh, (int)i, (int)j);
-        colmesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
-        if (chunk_p != NULL)
-        {
-          colmesh_chunk_t* chunk    = *chunk_p;
-          chunk_offsets[k+1]         = chunk_offsets[k] + 
-                                       (int)(chunk->num_columns * chunk->num_z_cells);
-          mesh->chunk_indices[2*k]   = (int)i;
-          mesh->chunk_indices[2*k+1] = (int)j;
-          ++k;
-          ++num_z_chunks;
-        }
-      }
-    }
-    ASSERT(k == mesh->chunks->size);
+    points = point2_array_new();
+    proc_point2_map_insert_with_v_dtor(map, process, points, point2_array_free);
   }
+  point2_array_append(points, *x);
+}
+#endif
 
+static void create_exchangers(colmesh_t* mesh, int* chunk_offsets)
+{
+#if 0
 #if POLYMEC_HAVE_MPI
   // Figure out which processes own what chunks.
   int64_t* owners = source_vector(mesh);
@@ -513,9 +502,19 @@ void colmesh_finalize(colmesh_t* mesh)
   int64_t* owners = polymec_calloc(sizeof(int) * num_all_chunks);
 #endif
 
-  // Assemble a cell exchanger by traversing the locally stored chunks.
-  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
-  exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
+  // Assemble exchangers by traversing the locally stored chunks, assembling 
+  // send and receive indices, and ordering those indices by the spatial locations
+  // of their underlying elements. For cell and face exchangers, we sort the indices 
+  // by the location of the faces separating send and receive faces. For nodes, we
+  // use the nodal positions to sort the indices.
+  exchanger_proc_map_t* cell_send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* cell_receive_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* xy_face_send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* xy_face_receive_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* z_face_send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* z_face_receive_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* node_send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* node_receive_map = exchanger_proc_map_new();
   for (size_t i = 0; i < mesh->chunks->size; ++i)
   {
     int xy = mesh->chunk_indices[2*i];
@@ -583,18 +582,63 @@ void colmesh_finalize(colmesh_t* mesh)
       }
     }
   }
-  mesh->cell_ex = exchanger_new(mesh->comm);
-  exchanger_set_sends(mesh->cell_ex, send_map);
-  exchanger_set_receives(mesh->cell_ex, receive_map);
   polymec_free(owners);
 
-  // Other exchangers. 
-  // FIXME
-  mesh->xy_face_ex = NULL;
-  mesh->z_face_ex = NULL;
-  mesh->xy_edge_ex = NULL;
-  mesh->z_edge_ex = NULL;
-  mesh->node_ex = NULL;
+  // Now construct the exchangers.
+  mesh->cell_ex = exchanger_new(mesh->comm);
+  exchanger_set_sends(mesh->cell_ex, cell_send_map);
+  exchanger_set_receives(mesh->cell_ex, cell_receive_map);
+
+  mesh->xy_face_ex = exchanger_new(mesh->comm);
+  exchanger_set_sends(mesh->xy_face_ex, xy_face_send_map);
+  exchanger_set_receives(mesh->xy_face_ex, xy_face_receive_map);
+
+  mesh->z_face_ex = exchanger_new(mesh->comm);
+  exchanger_set_sends(mesh->z_face_ex, z_face_send_map);
+  exchanger_set_receives(mesh->z_face_ex, z_face_receive_map);
+
+  mesh->node_ex = exchanger_new(mesh->comm);
+  exchanger_set_sends(mesh->node_ex, node_send_map);
+  exchanger_set_receives(mesh->node_ex, node_receive_map);
+
+  // No edge exchanger for now.
+  mesh->edge_ex = NULL;
+#endif
+}
+
+void colmesh_finalize(colmesh_t* mesh)
+{
+  ASSERT(!mesh->finalized);
+
+  // Create a sorted list of chunk indices and compute chunk index offsets.
+  mesh->chunk_indices = polymec_malloc(sizeof(int) * 2 * mesh->chunks->size);
+  int chunk_offsets[mesh->chunks->size+1];
+  chunk_offsets[0] = 0;
+  {
+    size_t k = 0;
+    for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
+    {
+      size_t num_z_chunks = 0;
+      for (size_t j = 0; j < mesh->num_z_chunks; ++j)
+      {
+        int index = chunk_index(mesh, (int)i, (int)j);
+        colmesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
+        if (chunk_p != NULL)
+        {
+          colmesh_chunk_t* chunk    = *chunk_p;
+          chunk_offsets[k+1]         = chunk_offsets[k] + 
+                                       (int)(chunk->num_columns * chunk->num_z_cells);
+          mesh->chunk_indices[2*k]   = (int)i;
+          mesh->chunk_indices[2*k+1] = (int)j;
+          ++k;
+          ++num_z_chunks;
+        }
+      }
+    }
+    ASSERT(k == mesh->chunks->size);
+  }
+
+  create_exchangers(mesh, chunk_offsets);
 
   // Prune unused xy data.
   for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
