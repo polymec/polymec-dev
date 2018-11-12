@@ -111,7 +111,7 @@ v8 = point.new(0,1,1)
 cube = polyhedron.new({v1,v2,v3,v4,v5,v6,v7,v8}, -- vertices
                       {{1,5,8,4},{2,3,7,6},      -- -/+ x faces
                        {1,2,6,5},{3,4,8,7},      -- -/+ y faces
-                       {1,2,3,4},{5,6,7,8}})     -- -/+ z faces
+                       {4,3,2,1},{5,6,7,8}})     -- -/+ z faces
 print(cube)
 assert(#cube.vertices == 8)
 assert(#cube.faces == 6)

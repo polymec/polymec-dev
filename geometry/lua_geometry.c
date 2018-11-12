@@ -1027,8 +1027,8 @@ static int p3_new(lua_State* L)
           }
           ++j;
         }
-        if (num_vertices < 4)
-          luaL_error(L, "Face %d must contain at least 4 vertices.", i);
+        if (num_vertices < 3)
+          luaL_error(L, "Face %d must contain at least 3 vertices.", i);
         size_t_array_append(num_face_vertices, num_vertices);
         lua_pop(L, 1);
       }
