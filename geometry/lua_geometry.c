@@ -1279,6 +1279,7 @@ static int t_create_tag(lua_State* L)
     tag = tagger_create_tag(t, lua_tostring(L, 2), a->size);
     size = a->size;
     memcpy(tag, a->data, sizeof(int) * size);
+    int_array_free(a);
   }
   else
   {
@@ -2224,7 +2225,7 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_class(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_methods, DTOR(unimesh_free));
   lua_register_class(L, "colmesh", "A polygonal extruded (pex) mesh.", colmesh_funcs, colmesh_fields, colmesh_methods, DTOR(colmesh_free));
   lua_register_class(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_methods, DTOR(polymesh_free));
-  lua_register_class(L, "planar_polymesh", "A planar polygonal mesh.", pp_funcs, pp_fields, pp_methods, NULL);
+  lua_register_class(L, "planar_polymesh", "A planar polygonal mesh.", pp_funcs, pp_fields, pp_methods, DTOR(planar_polymesh_free));
 
   // Register a module of point factory methods.
   lua_register_module(L, "points", "Functions for generating points.", NULL, points_funcs);

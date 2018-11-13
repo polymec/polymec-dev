@@ -123,7 +123,7 @@ box = bbox.new{x1 = 0, x2 = 1, y1 = 0, y2 = 1, z1 = 0, z2 = 1}
 mesh = unimesh.new{comm = mpi.COMM_WORLD, bbox = box,
                    npx = 2, npy = 2, npz = 2, 
                    nx = 10, ny = 10, nz = 10}
-print(unimesh.bbox)
+print(mesh.bbox)
 sp = mesh.spacings
 assert(reals_equal(sp[1], 0.05))
 assert(reals_equal(sp[2], 0.05))

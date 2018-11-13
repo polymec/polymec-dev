@@ -202,6 +202,11 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
 }
 
 #if POLYMEC_HAVE_MPI
+static int_array_t* clone_int_array(int_array_t* array)
+{
+  return int_array_clone(array, NULL);
+}
+
 static chunk_xy_data_t* chunk_xy_data_clone(chunk_xy_data_t* xy_data)
 {
   chunk_xy_data_t* clone = polymec_malloc(sizeof(chunk_xy_data_t));
@@ -220,8 +225,8 @@ static chunk_xy_data_t* chunk_xy_data_clone(chunk_xy_data_t* xy_data)
   clone->num_xy_nodes = xy_data->num_xy_nodes;
   clone->xy_nodes = polymec_malloc(xy_data->num_xy_nodes * sizeof(point2_t));
   memcpy(clone->xy_nodes, xy_data->xy_nodes, xy_data->num_xy_nodes * sizeof(point2_t));
-  clone->send_map = exchanger_proc_map_clone(xy_data->send_map, NULL, int_array_clone);
-  clone->receive_map = exchanger_proc_map_clone(xy_data->send_map, NULL, int_array_clone);
+  clone->send_map = exchanger_proc_map_clone(xy_data->send_map, NULL, clone_int_array);
+  clone->receive_map = exchanger_proc_map_clone(xy_data->send_map, NULL, clone_int_array);
   return clone;
 }
 #endif

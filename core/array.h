@@ -22,7 +22,7 @@
 /// * `x_array_t* x_array_new_with_size(size_t size)` - Creates a new array of the given size on the heap.
 /// * `x_array_t* x_array_new_with_capacity(size_t capacity)` - Creates a new, empty array on the heap with the given capacity.
 /// * `x_array_t* x_array_new_with_data(x* data, size_t size)` - Creates an array around the given existing data.
-/// * `x_array_t* x_array_clone(x_array_t* array)` - Creates a copy of the given array.
+/// * `x_array_t* x_array_clone(x_array_t* array, x (*elem_clone_func)(x))` - Creates a deep copy of the given array using a function to copy each element.
 /// * `x_array_t empty_x_array()` - Creates a new, empty array on the stack.
 /// * `void x_array_free(x_array_t* array)` - Destroys the (heap-allocated) array.
 /// * `x* x_array_find(x_array_t* array, x value, cmp_func comparator)` - Performs a linear search within the array, returning the pointer to the found item or NULL if not found.
@@ -144,9 +144,16 @@ static inline array_name##_t* array_name##_new_with_data(element* data, size_t s
   return array; \
 } \
 \
-static inline array_name##_t* array_name##_clone(array_name##_t* array) \
+static inline array_name##_t* array_name##_clone(array_name##_t* array, element (*element_clone_func)(element)) \
 { \
-  array_name##_t* clone = array_name##_new_with_data(array->data, array->size); \
+  array_name##_t* clone = array_name##_new_with_size(array->size); \
+  if (element_clone_func == NULL) \
+    memcpy(clone->data, array->data, sizeof(element) * array->size); \
+  else \
+  { \
+    for (size_t i = 0; i < clone->size; ++i) \
+    clone->data[i] = element_clone_func(array->data[i]); \
+  } \
   if (array->dtors != NULL) \
   { \
     clone->dtors = (array_name##_dtor*)polymec_malloc(sizeof(array_name##_dtor) * clone->capacity); \
@@ -169,8 +176,8 @@ static inline void array_name##_free(array_name##_t* array) \
       polymec_free(array->dtors); \
     if (array->data != NULL) \
       polymec_free(array->data); \
-    polymec_free(array); \
   } \
+  polymec_free(array); \
 } \
 \
 static inline void array_name##_remove(array_name##_t* array, size_t i) \
