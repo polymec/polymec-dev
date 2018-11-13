@@ -17,8 +17,7 @@ if (UNIX)
     endif()
 
     add_c_compiler_flag("-std=gnu99" SUPPORTED_COMPILER_FLAGS)
-    add_c_compiler_flag("-pedantic" SUPPORTED_COMPILER_FLAGS)
-    add_c_compiler_flag("-pedantic-errors" SUPPORTED_COMPILER_FLAGS)
+    add_c_compiler_flag("-Wpedantic" SUPPORTED_COMPILER_FLAGS)
     add_c_compiler_flag("-Wall" SUPPORTED_COMPILER_FLAGS)
     add_c_compiler_flag("-Wshadow" SUPPORTED_COMPILER_FLAGS)
     add_c_compiler_flag("-Wmissing-prototypes" SUPPORTED_COMPILER_FLAGS)
@@ -63,9 +62,27 @@ if (UNIX)
         endif()
     endif()
 
-    check_c_compiler_flag_ssp("-fstack-protector" WITH_STACK_PROTECTOR)
-    if (WITH_STACK_PROTECTOR)
-        list(APPEND SUPPORTED_COMPILER_FLAGS "-fstack-protector")
+    check_c_compiler_flag_ssp("-fstack-protector-strong" WITH_STACK_PROTECTOR_STRONG)
+    if (WITH_STACK_PROTECTOR_STRONG)
+        list(APPEND SUPPORTED_COMPILER_FLAGS "-fstack-protector-strong")
+        # This is needed as Solaris has a seperate libssp
+        if (SOLARIS)
+            list(APPEND SUPPORTED_LINKER_FLAGS "-fstack-protector-strong")
+        endif()
+    else (WITH_STACK_PROTECTOR_STRONG)
+        check_c_compiler_flag_ssp("-fstack-protector" WITH_STACK_PROTECTOR)
+        if (WITH_STACK_PROTECTOR)
+            list(APPEND SUPPORTED_COMPILER_FLAGS "-fstack-protector")
+            # This is needed as Solaris has a seperate libssp
+            if (SOLARIS)
+                list(APPEND SUPPORTED_LINKER_FLAGS "-fstack-protector")
+            endif()
+        endif()
+    endif (WITH_STACK_PROTECTOR_STRONG)
+
+    check_c_compiler_flag_ssp("-fstack-clash-protection" WITH_STACK_CLASH_PROTECTION)
+    if (WITH_STACK_CLASH_PROTECTION)
+        list(APPEND SUPPORTED_COMPILER_FLAGS "-fstack-clash-protection")
     endif()
 
     if (PICKY_DEVELOPER)
@@ -84,10 +101,5 @@ if (MSVC)
     add_c_compiler_flag("/D _CRT_SECURE_NO_WARNINGS=1" SUPPORTED_COMPILER_FLAGS)
 endif()
 
-# This removes this annoying warning
-# "warning: 'BN_CTX_free' is deprecated: first deprecated in OS X 10.7 [-Wdeprecated-declarations]"
-if (OSX)
-    add_c_compiler_flag("-Wno-deprecated-declarations" SUPPORTED_COMPILER_FLAGS)
-endif()
-
 set(DEFAULT_C_COMPILE_FLAGS ${SUPPORTED_COMPILER_FLAGS} CACHE INTERNAL "Default C Compiler Flags" FORCE)
+set(DEFAULT_LINK_FLAGS ${SUPPORTED_LINKER_FLAGS} CACHE INTERNAL "Default C Linker Flags" FORCE)

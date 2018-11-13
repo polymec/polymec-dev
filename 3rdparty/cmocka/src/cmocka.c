@@ -388,9 +388,15 @@ struct CMUnitTestState {
 /* Exit the currently executing test. */
 static void exit_test(const int quit_application)
 {
-    const char *abort_test = getenv("CMOCKA_TEST_ABORT");
+    const char *env = getenv("CMOCKA_TEST_ABORT");
+    int abort_test = 0;
 
-    if (abort_test != NULL && abort_test[0] == '1') {
+    if (env != NULL && strlen(env) == 1) {
+        abort_test = (env[0] == '1');
+    }
+
+    if (global_skip_test == 0 &&
+        abort_test == 1) {
         print_error("%s", cm_error_message);
         abort();
     } else if (global_running_test) {
@@ -686,7 +692,7 @@ static int list_find(ListNode * const head, const void *value,
 
 /* Returns the first node of a list */
 static int list_first(ListNode * const head, ListNode **output) {
-    ListNode *target_node;
+    ListNode *target_node = NULL;
     assert_non_null(head);
     if (list_empty(head)) {
         return 0;
@@ -774,8 +780,8 @@ static void add_symbol_value(ListNode * const symbol_map_head,
 static int get_symbol_value(
         ListNode * const head, const char * const symbol_names[],
         const size_t number_of_symbol_names, void **output) {
-    const char* symbol_name;
-    ListNode *target_node;
+    const char* symbol_name = NULL;
+    ListNode *target_node = NULL;
     assert_non_null(head);
     assert_non_null(symbol_names);
     assert_true(number_of_symbol_names);
@@ -783,8 +789,8 @@ static int get_symbol_value(
     symbol_name = symbol_names[0];
 
     if (list_find(head, symbol_name, symbol_names_match, &target_node)) {
-        SymbolMapValue *map_value;
-        ListNode *child_list;
+        SymbolMapValue *map_value = NULL;
+        ListNode *child_list = NULL;
         int return_value = 0;
         assert_non_null(target_node);
         assert_non_null(target_node->value);
@@ -796,6 +802,10 @@ static int get_symbol_value(
             ListNode *value_node = NULL;
             return_value = list_first(child_list, &value_node);
             assert_true(return_value);
+            /* Add a check to silence clang analyzer */
+            if (return_value == 0) {
+                goto out;
+            }
             *output = (void*) value_node->value;
             return_value = value_node->refcount;
             if (value_node->refcount - 1 == 0) {
@@ -812,9 +822,9 @@ static int get_symbol_value(
             list_remove_free(target_node, free_symbol_map_value, (void*)0);
         }
         return return_value;
-    } else {
-        cm_print_error("No entries for symbol %s.\n", symbol_name);
     }
+out:
+    cm_print_error("No entries for symbol %s.\n", symbol_name);
     return 0;
 }
 
@@ -1597,7 +1607,7 @@ void _expect_any(
 void _check_expected(
         const char * const function_name, const char * const parameter_name,
         const char* file, const int line, const LargestIntegralType value) {
-    void *result;
+    void *result = NULL;
     const char* symbols[] = {function_name, parameter_name};
     const int rc = get_symbol_value(&global_function_parameter_map_head,
                                     symbols, 2, &result);
@@ -2500,7 +2510,7 @@ static void cmprintf_subunit(enum cm_printf_type type,
     case PRINTF_TEST_FAILURE:
         print_message("failure: %s", test_name);
         if (error_message != NULL) {
-            print_message(" [\n%s]\n", error_message);
+            print_message(" [\n%s\n]\n", error_message);
         }
         break;
     case PRINTF_TEST_SKIPPED:
@@ -3284,7 +3294,9 @@ int _run_group_tests(const UnitTest * const tests, const size_t number_of_tests)
     const ListNode * const check_point = check_point_allocated_blocks();
     const char **failed_names = NULL;
     void **current_state = NULL;
-    TestState group_state;
+    TestState group_state = {
+        .check_point = NULL,
+    };
 
     if (number_of_tests == 0) {
         return -1;
@@ -3417,4 +3429,3 @@ int _run_group_tests(const UnitTest * const tests, const size_t number_of_tests)
 
     return (int)total_failed;
 }
-

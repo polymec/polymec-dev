@@ -1,11 +1,13 @@
 #
 # Build the documentation
 #
+if (${CMAKE_VERSION} VERSION_GREATER "3.8.99")
+
 find_package(Doxygen)
 
 if (DOXYGEN_FOUND)
-    set(DOXYGEN_PROJECT_NAME ${APPLICATION_NAME})
-    set(DOXYGEN_PROJECT_NUMBER ${APPLICATION_VERSION})
+    set(DOXYGEN_PROJECT_NAME ${PROJECT_NAME})
+    set(DOXYGEN_PROJECT_NUMBER ${PROJECT_VERSION})
     set(DOXYGEN_PROJECT_BRIEF "Unit testing library with mock support")
 
     set(DOXYGEN_TAB_SIZE 4)
@@ -39,3 +41,5 @@ if (DOXYGEN_FOUND)
                      ${cmocka-headers_SOURCE_DIR}
                      ${CMAKE_CURRENT_SOURCE_DIR})
 endif(DOXYGEN_FOUND)
+
+endif() # CMAKE_VERSION

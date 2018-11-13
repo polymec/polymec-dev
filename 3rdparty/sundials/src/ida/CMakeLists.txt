@@ -65,12 +65,6 @@ SET(sunlinsol_SOURCES
   ${sundials_SOURCE_DIR}/src/sunlinsol_pcg/sunlinsol_pcg.c
   )
 
-# IF(PETSC_FOUND)
-#    # use MPI_MPICC as the compiler
-#    SET(CMAKE_C_COMPILER ${MPI_MPICC})
-#    LIST(APPEND ida_SOURCES ida_petsc.c)
-# ENDIF()
-
 # Add variable ida_HEADERS with the exported IDA header files
 SET(ida_HEADERS
   ida.h
@@ -102,7 +96,7 @@ IF(BUILD_STATIC_LIBS)
     PROPERTIES OUTPUT_NAME sundials_ida CLEAN_DIRECT_OUTPUT 1)
 
   # Install the IDA library
-  INSTALL(TARGETS sundials_ida_static DESTINATION lib)
+  INSTALL(TARGETS sundials_ida_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 ENDIF(BUILD_STATIC_LIBS)
 
@@ -126,7 +120,7 @@ IF(BUILD_SHARED_LIBS)
     PROPERTIES VERSION ${idalib_VERSION} SOVERSION ${idalib_SOVERSION})
 
   # Install the IDA library
-  INSTALL(TARGETS sundials_ida_shared DESTINATION lib)
+  INSTALL(TARGETS sundials_ida_shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 ENDIF(BUILD_SHARED_LIBS)
 

@@ -1,16 +1,24 @@
-project(cmocka C)
-
 # Required cmake version
-cmake_minimum_required(VERSION 3.3.0)
+cmake_minimum_required(VERSION 3.5.0)
+cmake_policy(SET CMP0048 NEW)
+
+# Specify search path for CMake modules to be loaded by include() 
+# and find_package()
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
+
+### Add defaults for cmake
+# These defaults need to be included before the project() call.
+include(DefineCMakeDefaults)
+
+# This will provide -DCMAKE_BUILD_TYPE=Profiling
+# and -DCMAKE_BUILD_TYPE=AddressSanitizer
+include(DefineCompilerFlags)
+include(DefinePlatformDefaults)
+
+project(cmocka VERSION 1.1.3 LANGUAGES C)
 
 # global needed variables
 set(APPLICATION_NAME ${PROJECT_NAME})
-
-set(APPLICATION_VERSION_MAJOR "1")
-set(APPLICATION_VERSION_MINOR "1")
-set(APPLICATION_VERSION_PATCH "2")
-
-set(APPLICATION_VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}.${APPLICATION_VERSION_PATCH}")
 
 # SOVERSION scheme: CURRENT.AGE.REVISION
 #   If there was an incompatible interface change:
@@ -19,21 +27,14 @@ set(APPLICATION_VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINO
 #     Increment AGE. Set REVISION to 0
 #   If the source code was changed, but there were no interface changes:
 #     Increment REVISION.
-set(LIBRARY_VERSION "0.5.0")
+set(LIBRARY_VERSION "0.5.1")
 set(LIBRARY_SOVERSION "0")
 
-# where to look first for cmake modules, before ${CMAKE_ROOT}/Modules/ is checked
-set(CMAKE_MODULE_PATH
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules
-)
-
-# add definitions
-include(DefineCMakeDefaults)
-include(DefinePlatformDefaults)
-include(DefineInstallationPaths)
+# include cmake files
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 include(DefineOptions.cmake)
 include(CPackConfig.cmake)
-include(CheckSymbolExists)
 include(CompilerChecks.cmake)
 
 # disallow in-source build
@@ -54,8 +55,8 @@ add_subdirectory(doc)
 add_subdirectory(include)
 add_subdirectory(src)
 
+include(AddCMockaTest)
 if (UNIT_TESTING)
-    include(AddCMockaTest)
     add_subdirectory(tests)
 endif (UNIT_TESTING)
 
@@ -67,7 +68,7 @@ install(
   FILES
     ${CMAKE_CURRENT_BINARY_DIR}/cmocka.pc
   DESTINATION
-    ${LIB_INSTALL_DIR}/pkgconfig
+  ${CMAKE_INSTALL_LIBDIR}/pkgconfig
   COMPONENT
     pkgconfig
 )
@@ -75,14 +76,25 @@ install(
 # cmake config files
 set(CMOCKA_LIBRARY_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX})
 
-configure_file(${PROJECT_NAME}-config.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake @ONLY)
-configure_file(${PROJECT_NAME}-config-version.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake @ONLY)
+set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE INTERNAL "")
+set(LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR} CACHE INTERNAL "")
+configure_package_config_file(${PROJECT_NAME}-config.cmake.in
+                              ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
+                              PATH_VARS
+                                  INCLUDE_INSTALL_DIR LIB_INSTALL_DIR
+                              INSTALL_DESTINATION
+                                  ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+
+write_basic_package_version_file(${PROJECT_NAME}-config-version.cmake
+                                 COMPATIBILITY
+                                     AnyNewerVersion)
+
 install(
     FILES
         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
     DESTINATION
-        ${CMAKE_INSTALL_DIR}/${PROJECT_NAME}
+        ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
     COMPONENT
         devel
 )
