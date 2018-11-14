@@ -5,12 +5,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "core/timer.h"
 #include "core/array.h"
 #include "core/array_utils.h"
 #include "core/exchanger.h"
-#include "core/unordered_map.h"
+#include "core/hilbert.h"
 #include "core/partitioning.h"
+#include "core/timer.h"
+#include "core/unordered_map.h"
 #include "geometry/colmesh.h"
 #include "geometry/colmesh_field.h"
 #include "geometry/polymesh.h"
@@ -478,27 +479,24 @@ static int64_t* source_vector(colmesh_t* mesh)
 }
 #endif
 
-#if 0
-DEFINE_UNORDERED_MAP(proc_point2_map, int, point2_array_t*, int_hash, int_equals)
-static void proc_point2_map_add(proc_point2_map_t* map, 
-                                int process, point2_t* x)
+DEFINE_UNORDERED_MAP(proc_point_map, int, point_array_t*, int_hash, int_equals)
+static void proc_point_map_add(proc_point_map_t* map, 
+                               int process, point_t* x)
 {
-  point2_array_t** points_p = proc_point2_map_get(map, process);
-  point2_array_t* points = NULL;
+  point_array_t** points_p = proc_point_map_get(map, process);
+  point_array_t* points = NULL;
   if (points_p != NULL)
     points = *points_p;
   else
   {
-    points = point2_array_new();
-    proc_point2_map_insert_with_v_dtor(map, process, points, point2_array_free);
+    points = point_array_new();
+    proc_point_map_insert_with_v_dtor(map, process, points, point_array_free);
   }
-  point2_array_append(points, *x);
+  point_array_append(points, *x);
 }
-#endif
 
-static void create_exchangers(colmesh_t* mesh, int* chunk_offsets)
+static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
 {
-#if 0
 #if POLYMEC_HAVE_MPI
   // Figure out which processes own what chunks.
   int64_t* owners = source_vector(mesh);
@@ -510,16 +508,10 @@ static void create_exchangers(colmesh_t* mesh, int* chunk_offsets)
   // Assemble exchangers by traversing the locally stored chunks, assembling 
   // send and receive indices, and ordering those indices by the spatial locations
   // of their underlying elements. For cell and face exchangers, we sort the indices 
-  // by the location of the faces separating send and receive faces. For nodes, we
-  // use the nodal positions to sort the indices.
-  exchanger_proc_map_t* cell_send_map = exchanger_proc_map_new();
-  exchanger_proc_map_t* cell_receive_map = exchanger_proc_map_new();
-  exchanger_proc_map_t* xy_face_send_map = exchanger_proc_map_new();
-  exchanger_proc_map_t* xy_face_receive_map = exchanger_proc_map_new();
-  exchanger_proc_map_t* z_face_send_map = exchanger_proc_map_new();
-  exchanger_proc_map_t* z_face_receive_map = exchanger_proc_map_new();
-  exchanger_proc_map_t* node_send_map = exchanger_proc_map_new();
-  exchanger_proc_map_t* node_receive_map = exchanger_proc_map_new();
+  // by the location of the faces separating send and receive faces. 
+  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
+  proc_point_map_t* point_map = proc_point_map_new();
   for (size_t i = 0; i < mesh->chunks->size; ++i)
   {
     int xy = mesh->chunk_indices[2*i];
@@ -542,6 +534,23 @@ static void create_exchangers(colmesh_t* mesh, int* chunk_offsets)
         int proc = (int)(owners[neighbor_xy_index]);
         int index = (int)(chunk_offset + chunk->num_z_cells * indices->data[k] + z);
         exchanger_proc_map_add_index(send_map, proc, index);
+        // FIXME: This isn't right! Need to traverse the columns.
+        point_t x = {.x = 0.0, .y = 0.0, .z = 0.0};
+        proc_point_map_add(point_map, proc, &x);
+      }
+
+      // Sort the points and indices using a space filling curve.
+      int pos1 = 0, proc;
+      int_array_t* ind;
+      while (exchanger_proc_map_next(send_map, &pos1, &proc, &ind))
+      {
+        point_array_t* pts = *proc_point_map_get(point_map, proc);
+        bbox_t bbox = {.x1 = 0.0, .x2 = 0.0, .y1 = 0.0, .y2 = 0.0, .z1 = 0.0, .z2 = 0.0};
+        for (size_t k = 0; k < ind->size; ++k)
+          bbox_grow(&bbox, &pts->data[k]);
+        hilbert_t* curve = hilbert_new(&bbox);
+        hilbert_sort_points(curve, pts->data, ind->data, ind->size);
+        release_ref(curve);
       }
     }
     pos = 0;
@@ -554,6 +563,20 @@ static void create_exchangers(colmesh_t* mesh, int* chunk_offsets)
         int index = (int)(chunk_offset + chunk->num_z_cells * cell_offset + z);
         exchanger_proc_map_add_index(receive_map, proc, index);
         ++cell_offset;
+      }
+
+      // Sort the points and indices using a space filling curve.
+      int pos1 = 0, proc;
+      int_array_t* ind;
+      while (exchanger_proc_map_next(receive_map, &pos1, &proc, &ind))
+      {
+        point_array_t* pts = *proc_point_map_get(point_map, proc);
+        bbox_t bbox = {.x1 = 0.0, .x2 = 0.0, .y1 = 0.0, .y2 = 0.0, .z1 = 0.0, .z2 = 0.0};
+        for (size_t k = 0; k < ind->size; ++k)
+          bbox_grow(&bbox, &pts->data[k]);
+        hilbert_t* curve = hilbert_new(&bbox);
+        hilbert_sort_points(curve, pts->data, ind->data, ind->size);
+        release_ref(curve);
       }
     }
 
@@ -588,27 +611,19 @@ static void create_exchangers(colmesh_t* mesh, int* chunk_offsets)
     }
   }
   polymec_free(owners);
+  proc_point_map_free(point_map);
 
   // Now construct the exchangers.
   mesh->cell_ex = exchanger_new(mesh->comm);
-  exchanger_set_sends(mesh->cell_ex, cell_send_map);
-  exchanger_set_receives(mesh->cell_ex, cell_receive_map);
+  exchanger_set_sends(mesh->cell_ex, send_map);
+  exchanger_set_receives(mesh->cell_ex, receive_map);
 
-  mesh->xy_face_ex = exchanger_new(mesh->comm);
-  exchanger_set_sends(mesh->xy_face_ex, xy_face_send_map);
-  exchanger_set_receives(mesh->xy_face_ex, xy_face_receive_map);
-
-  mesh->z_face_ex = exchanger_new(mesh->comm);
-  exchanger_set_sends(mesh->z_face_ex, z_face_send_map);
-  exchanger_set_receives(mesh->z_face_ex, z_face_receive_map);
-
-  mesh->node_ex = exchanger_new(mesh->comm);
-  exchanger_set_sends(mesh->node_ex, node_send_map);
-  exchanger_set_receives(mesh->node_ex, node_receive_map);
-
-  // No edge exchanger for now.
-  mesh->edge_ex = NULL;
-#endif
+  // No other exchangers yet.
+  mesh->xy_face_ex = NULL;
+  mesh->z_face_ex = NULL;
+  mesh->xy_edge_ex = NULL;
+  mesh->z_edge_ex = NULL;
+  mesh->node_ex = NULL;
 }
 
 void colmesh_finalize(colmesh_t* mesh)
@@ -643,7 +658,7 @@ void colmesh_finalize(colmesh_t* mesh)
     ASSERT(k == mesh->chunks->size);
   }
 
-  create_exchangers(mesh, chunk_offsets);
+  create_cell_ex(mesh, chunk_offsets);
 
   // Prune unused xy data.
   for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
