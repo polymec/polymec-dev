@@ -36,10 +36,17 @@ void hilbert_create_point(hilbert_t* curve, index_t index, point_t* x);
 
 /// Performs a quick sort of the list of points by mapping them to indices 
 /// using a Hilbert curve, reordering the indices corresponding to the points 
-/// as well. The points and indices are sorted in place. If indices is NULL, 
-/// no index reordering is performed.
+/// as well. The points and indices are sorted in place. 
+/// \param [in,out] points An array of points by which to sort.
+/// \param [in,out] indices An array of indices to sort in the order determined
+///                         by the points. If indices is NULL, this function
+///                         has no effect.
+/// \param [in] num_points The length of the indices and points arrays.
 /// \memberof hilbert
-void hilbert_sort_points(hilbert_t* curve, point_t* points, int* indices, int num_points);
+void hilbert_sort_points(hilbert_t* curve, 
+                         point_t* points, 
+                         int* indices, 
+                         size_t num_points);
 
 ///@}
 

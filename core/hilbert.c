@@ -148,18 +148,18 @@ static int hilbert_comp(const void* left, const void* right)
   return (i1 < i2) ? -1 : (i1 > i2) ? 1 : 0;
 }
 
-void hilbert_sort_points(hilbert_t* curve, point_t* points, int* indices, int num_points)
+void hilbert_sort_points(hilbert_t* curve, point_t* points, int* indices, size_t num_points)
 {
   hilbert_sort_t elems[num_points];
-  for (int i = 0; i < num_points; ++i)
+  for (size_t i = 0; i < num_points; ++i)
   {
     elems[i].curve = curve;
     if (indices != NULL)
       elems[i].index = indices[i];
     elems[i].x = points[i];
   }
-  qsort(elems, (size_t)num_points, sizeof(hilbert_sort_t), hilbert_comp);
-  for (int i = 0; i < num_points; ++i)
+  qsort(elems, num_points, sizeof(hilbert_sort_t), hilbert_comp);
+  for (size_t i = 0; i < num_points; ++i)
   {
     if (indices != NULL)
       indices[i] = elems[i].index;

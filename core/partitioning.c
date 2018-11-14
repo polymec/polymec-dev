@@ -334,6 +334,7 @@ int64_t* partition_points_n_ways(point_t* points,
 
   // Sort the array.
   qsort(part_array, num_points, 3*sizeof(index_t), hilbert_comp);
+  release_ref(hilbert);
 
   // Now we need to break it into parts of equal work.
   real_t work_per_proc = 1.0 * total_work / n;
@@ -916,6 +917,7 @@ int64_t* repartition_points(point_t* local_points,
   // of p+1.
   parallel_sort(comm, part_array, num_local_points, 
                 4*sizeof(index_t), hilbert_comp);
+  release_ref(hilbert);
 
   // Try to balance the workload and bug out if we fail.
   size_t balanced_num_points = num_local_points;
