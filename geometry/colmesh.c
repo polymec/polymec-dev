@@ -519,6 +519,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     int ch_index = chunk_index(mesh, xy, z);
     colmesh_chunk_t* chunk = *chunk_map_get(mesh->chunks, ch_index);
     int chunk_offset = chunk_offsets[i];
+    real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
 
     chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy];
     exchanger_proc_map_t* xy_sends = xy_data->send_map;
@@ -529,14 +530,19 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     int_array_t* indices;
     while (exchanger_proc_map_next(xy_sends, &pos, &neighbor_xy_index, &indices))
     {
-      for (size_t k = 0; k < indices->size; ++k)
+      // Loop over the xy indices in the map.
+      for (size_t j = 0; j < indices->size; ++j)
       {
         int proc = (int)(owners[neighbor_xy_index]);
-        int index = (int)(chunk_offset + chunk->num_z_cells * indices->data[k] + z);
-        exchanger_proc_map_add_index(send_map, proc, index);
-        // FIXME: This isn't right! Need to traverse the columns.
-        point_t x = {.x = 0.0, .y = 0.0, .z = 0.0};
-        proc_point_map_add(point_map, proc, &x);
+        int xy1 = indices->data[j];
+        point_t x = {.x = 0.0, .y = 0.0, .z = 0.0}; // FIXME
+        for (size_t zz = 0; zz < chunk->num_z_cells; ++zz)
+        {
+          int index = (int)(chunk_offset + chunk->num_z_cells * xy1 + zz);
+          exchanger_proc_map_add_index(send_map, proc, index);
+          x.z = chunk->z1 + zz * dz;
+          proc_point_map_add(point_map, proc, &x);
+        }
       }
 
       // Sort the points and indices using a space filling curve.
@@ -553,16 +559,23 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
         release_ref(curve);
       }
     }
+
     pos = 0;
     int cell_offset = 0;
     while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
     {
-      for (size_t k = 0; k < indices->size; ++k)
+      for (size_t j = 0; j < indices->size; ++j)
       {
         int proc = (int)(owners[neighbor_xy_index]);
-        int index = (int)(chunk_offset + chunk->num_z_cells * cell_offset + z);
-        exchanger_proc_map_add_index(receive_map, proc, index);
-        ++cell_offset;
+        point_t x = {.x = 0.0, .y = 0.0, .z = 0.0}; // FIXME
+        for (size_t zz = 0; zz < chunk->num_z_cells; ++zz)
+        {
+          int index = (int)(chunk_offset + chunk->num_z_cells * cell_offset);
+          exchanger_proc_map_add_index(receive_map, proc, index);
+          x.z = chunk->z1 + zz * dz;
+          proc_point_map_add(point_map, proc, &x);
+          ++cell_offset;
+        }
       }
 
       // Sort the points and indices using a space filling curve.
