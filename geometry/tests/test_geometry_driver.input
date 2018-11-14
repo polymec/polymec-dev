@@ -99,6 +99,15 @@ assert(reals_equal(square.area, 1.0))
 assert(reals_equal(square2.area, 1.0))
 assert(reals_equal(point2.distance(square.centroid, point2.new(0.5, 0.5)), 0))
 
+-- Clipped polygon.
+clipped_square = square:clone()
+assert(#clipped_square.vertices == 4)
+assert(reals_equal(clipped_square.area, 1.0))
+triangle = polygon.new(point2.new(0,0), point2.new(1,1), point2.new(0,1))
+clipped_square:clip(triangle)
+assert(#clipped_square.vertices == 3)
+assert(reals_equal(clipped_square.area, 0.5))
+
 -- Polyhedron.
 v1 = point.new(0,0,0)
 v2 = point.new(1,0,0)

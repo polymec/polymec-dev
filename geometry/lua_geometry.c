@@ -944,14 +944,40 @@ static lua_class_field p2_fields[] = {
   {NULL, NULL, NULL}
 };
 
+static int p2_clone(lua_State* L)
+{
+  polygon_t* p = lua_to_polygon(L, 1);
+  if (p == NULL)
+    luaL_error(L, "Method must be passed a polygon.");
+  lua_push_polygon(L, polygon_clone(p));
+  return 1;
+}
+
+static int p2_clip(lua_State* L)
+{
+  polygon_t* p = lua_to_polygon(L, 1);
+  if (p == NULL)
+    luaL_error(L, "Method must be passed a polygon.");
+  polygon_t* p1 = lua_to_polygon(L, 2);
+  if (p1 == NULL)
+    luaL_error(L, "Argument must be a polygon.");
+  polygon_clip(p, p1);
+  lua_push_polygon(L, p);
+  return 1;
+}
+
 static int p2_tostring(lua_State* L)
 {
   polygon_t* p = lua_to_polygon(L, 1);
   lua_pushfstring(L, "polygon (%d sides)", polygon_num_edges(p));
+  if (p == NULL)
+    luaL_error(L, "Method must be passed a polygon.");
   return 1;
 }
 
 static lua_class_method p2_methods[] = {
+  {"clone", p2_clone, "polygon:clone() -> new copy of this polygon."},
+  {"clip", p2_clip, "polygon:clip(other_polygon) -> clips this polygon using another polygon."},
   {"__tostring", p2_tostring, NULL},
   {NULL, NULL, NULL}
 };

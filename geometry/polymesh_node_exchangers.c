@@ -187,7 +187,8 @@ exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets)
       bbox_grow(&bbox, &(my_nodes->data[i]));
     hilbert_t* curve = hilbert_new(&bbox);
     hilbert_sort_points(curve, my_nodes->data, my_node_indices->data, 
-                        (int)my_nodes->size);
+                        my_nodes->size);
+    release_ref(curve);
   }
 
   // Now send/receive the positions of all nodes that can interact with 
