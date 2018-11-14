@@ -74,12 +74,6 @@ void polygon_compute_centroid(polygon_t* poly, point2_t* centroid);
 /// \memberof polygon
 polygon_t* polygon_clone(polygon_t* poly);
 
-/// Clips the given polygon by intersecting it with another. Here, poly is 
-/// the polygon that is to be clipped, and it is modified in place.
-/// This algorithm only works reliably if both polygons are convex.
-/// \memberof polygon
-void polygon_clip(polygon_t* poly, polygon_t* other);
-
 ///@}
 
 #endif
