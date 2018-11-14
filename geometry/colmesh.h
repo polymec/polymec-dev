@@ -408,10 +408,6 @@ void repartition_colmesh(colmesh_t** mesh,
 
 typedef struct polymesh_t polymesh_t;
 
-/// Returns a polymesh that represents the same geometry as this colmesh.
-/// \memberof colmesh
-polymesh_t* colmesh_as_polymesh(colmesh_t* mesh);
-
 ///@}
 
 #endif

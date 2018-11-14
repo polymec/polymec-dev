@@ -1359,11 +1359,6 @@ void repartition_colmesh(colmesh_t** mesh,
 #endif
 }
 
-polymesh_t* colmesh_as_polymesh(colmesh_t* mesh)
-{
-  return NULL; // FIXME
-}
-
 // These functions provide access to exchangers for colmesh_fields.
 exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering);
 exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering)
