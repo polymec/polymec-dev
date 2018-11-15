@@ -31,8 +31,8 @@ typedef struct
   point2_t* xy_nodes;
 
   // Exchanger process maps--used to construct exchangers.
-  exchanger_proc_map_t* send_map;
-  exchanger_proc_map_t* receive_map;
+  exchanger_proc_map_t* send_map;       // proc -> (send cell, edge) pairs
+  exchanger_proc_map_t* receive_map;    // proc -> (receive cell, edge) pairs
 } chunk_xy_data_t;
 
 DEFINE_ARRAY(chunk_xy_data_array, chunk_xy_data_t*)
@@ -136,8 +136,11 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
         // Set up a parallel exchange between the columns.
         int cell = (cols_reversed) ? cell2 : cell1;
         int neighbor_xy_index = (int)partition_vector[cell];
+        int xy_face = xy_data->num_xy_faces;
         exchanger_proc_map_add_index(xy_data->send_map, neighbor_xy_index, col1);
+        exchanger_proc_map_add_index(xy_data->send_map, neighbor_xy_index, xy_face);
         exchanger_proc_map_add_index(xy_data->receive_map, neighbor_xy_index, col2);
+        exchanger_proc_map_add_index(xy_data->receive_map, neighbor_xy_index, xy_face);
         ++xy_data->num_ghost_columns;
       }
 
@@ -531,11 +534,21 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     while (exchanger_proc_map_next(xy_sends, &pos, &neighbor_xy_index, &indices))
     {
       // Loop over the xy indices in the map.
-      for (size_t j = 0; j < indices->size; ++j)
+      size_t num_indices = indices->size/2;
+      for (size_t j = 0; j < num_indices; ++j)
       {
         int proc = (int)(owners[neighbor_xy_index]);
-        int xy1 = indices->data[j];
-        point_t x = {.x = 0.0, .y = 0.0, .z = 0.0}; // FIXME
+        int xy1 = indices->data[2*j];
+        int edge = indices->data[2*j+1];
+
+        // Get the x and y coordinates for the send cell's face.
+        int node_indices[2] = {xy_data->xy_edge_nodes[2*edge], xy_data->xy_edge_nodes[2*edge+1]};
+        point2_t nodes[2] = {xy_data->xy_nodes[node_indices[0]], xy_data->xy_nodes[node_indices[1]]};
+        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x), 
+                     .y = 0.5 * (nodes[0].y + nodes[1].y), 
+                     .z = 0.0}; 
+
+        // Traverse the column and add send indices/points.
         for (size_t zz = 0; zz < chunk->num_z_cells; ++zz)
         {
           int index = (int)(chunk_offset + chunk->num_z_cells * xy1 + zz);
@@ -564,10 +577,20 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     int cell_offset = 0;
     while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
     {
-      for (size_t j = 0; j < indices->size; ++j)
+      size_t num_indices = indices->size/2;
+      for (size_t j = 0; j < num_indices; ++j)
       {
         int proc = (int)(owners[neighbor_xy_index]);
-        point_t x = {.x = 0.0, .y = 0.0, .z = 0.0}; // FIXME
+        int edge = indices->data[2*j+1];
+
+        // Get the x and y coordinates for the receive cell's face.
+        int node_indices[2] = {xy_data->xy_edge_nodes[2*edge], xy_data->xy_edge_nodes[2*edge+1]};
+        point2_t nodes[2] = {xy_data->xy_nodes[node_indices[0]], xy_data->xy_nodes[node_indices[1]]};
+        point_t x = {.x = 0.5 * (nodes[0].x + nodes[1].x), 
+                     .y = 0.5 * (nodes[0].y + nodes[1].y), 
+                     .z = 0.0}; 
+
+        // Traverse the column and add send indices/points.
         for (size_t zz = 0; zz < chunk->num_z_cells; ++zz)
         {
           int index = (int)(chunk_offset + chunk->num_z_cells * cell_offset);
