@@ -442,7 +442,7 @@ static void test_edge_fields(void** state, colmesh_t* mesh)
   colmesh_patch_t* patch;
   while (colmesh_field_next_patch(x_field, &pos, &pi, &pj, &pk, &patch, NULL))
   {
-    DECLARE_colmesh_XEDGE_ARRAY(fx, patch);
+    DECLARE_COLMESH_XEDGE_ARRAY(fx, patch);
 
     // interior values
     for (int i = 1; i < patch->nx-1; ++i)
@@ -500,7 +500,7 @@ static void test_edge_fields(void** state, colmesh_t* mesh)
   pos = 0;
   while (colmesh_field_next_patch(y_field, &pos, &pi, &pj, &pk, &patch, NULL))
   {
-    DECLARE_colmesh_YEDGE_ARRAY(fy, patch);
+    DECLARE_COLMESH_YEDGE_ARRAY(fy, patch);
 
     // interior values
     for (int i = 1; i < patch->nx; ++i)
@@ -562,7 +562,7 @@ log_debug("(%d, %d, %d): %g != %g", i, patch->ny-1, k, fy[i][patch->ny-1][k][1],
   pos = 0;
   while (colmesh_field_next_patch(z_field, &pos, &pi, &pj, &pk, &patch, NULL))
   {
-    DECLARE_colmesh_ZEDGE_ARRAY(fz, patch);
+    DECLARE_COLMESH_ZEDGE_ARRAY(fz, patch);
 
     // interior values
     for (int i = 1; i < patch->nx; ++i)
@@ -645,7 +645,7 @@ static void test_node_field(void** state, colmesh_t* mesh)
   {
     assert_true(patch->centering == colmesh_NODE);
     assert_true(patch->nc == 3);
-    DECLARE_colmesh_NODE_ARRAY(f, patch);
+    DECLARE_COLMESH_NODE_ARRAY(f, patch);
     for (int i = 0; i <= patch->nx; ++i)
     {
       for (int j = 0; j <= patch->ny; ++j)
@@ -667,7 +667,7 @@ static void test_node_field(void** state, colmesh_t* mesh)
   pos = 0;
   while (colmesh_field_next_patch(field, &pos, &pi, &pj, &pk, &patch, NULL))
   {
-    DECLARE_colmesh_NODE_ARRAY(f, patch);
+    DECLARE_COLMESH_NODE_ARRAY(f, patch);
 
     // interior values
     for (int i = 1; i < patch->nx; ++i)
