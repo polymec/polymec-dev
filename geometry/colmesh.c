@@ -574,7 +574,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     }
 
     pos = 0;
-    int cell_offset = 0;
+    int cell_offset = (int)(chunk_offset + (chunk->num_z_cells+2) * chunk->num_columns);
     while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
     {
       size_t num_indices = indices->size/2;
@@ -593,7 +593,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
         // Traverse the column and add send indices/points.
         for (size_t zz = 0; zz < chunk->num_z_cells; ++zz)
         {
-          int index = (int)(chunk_offset + chunk->num_z_cells * cell_offset);
+          int index = (int)(chunk_offset + cell_offset);
           exchanger_proc_map_add_index(receive_map, proc, index);
           x.z = chunk->z1 + zz * dz;
           proc_point_map_add(point_map, proc, &x);
@@ -617,34 +617,36 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     }
 
     // Now hook up the z sends/receives.
-    if (z > 0)
+    if ((z > 0) || (mesh->periodic_in_z))
     {
       for (size_t xy1 = 0; xy1 < xy_data->num_columns; ++xy1)
       {
-        int ch1_index = chunk_index(mesh, (int)xy1, z-1);
+        int ch1_index = ((z == (mesh->num_z_chunks-1)) && mesh->periodic_in_z) ? 
+                          chunk_index(mesh, xy, mesh->num_z_chunks-1) : chunk_index(mesh, xy, z-1);
         int proc = (int)(owners[ch1_index]);
         int z1 = 1;
-        int send_index = (int)(chunk_offset + chunk->num_z_cells * xy1 + z1);
-        int receive_index = cell_offset; 
+        int send_index = (int)(chunk_offset + (chunk->num_z_cells+2) * xy1 + z1);
+        int receive_index = (int)(chunk_offset + (chunk->num_z_cells+2) * xy1 + z1 - 1);
         exchanger_proc_map_add_index(send_map, proc, send_index);
         exchanger_proc_map_add_index(receive_map, proc, receive_index);
-        ++cell_offset;
       }
     }
-    if (z < (mesh->num_z_chunks-1))
+
+    if ((z < (mesh->num_z_chunks-1)) || (mesh->periodic_in_z))
     {
       for (size_t xy1 = 0; xy1 < xy_data->num_columns; ++xy1)
       {
-        int ch1_index = chunk_index(mesh, (int)xy1, z+1);
+        int ch1_index = ((z == 0) && mesh->periodic_in_z) ? 
+          chunk_index(mesh, xy, 0) : chunk_index(mesh, xy, z+1);
         int proc = (int)(owners[ch1_index]);
         size_t z1 = chunk->num_z_cells;
-        int send_index = (int)(chunk_offset + chunk->num_z_cells * xy1 + z1);
-        int receive_index = cell_offset; 
+        int send_index = (int)(chunk_offset + (chunk->num_z_cells+2) * xy1 + z1);
+        int receive_index = (int)(chunk_offset + (chunk->num_z_cells+2) * xy1 + z1 + 1);
         exchanger_proc_map_add_index(send_map, proc, send_index);
         exchanger_proc_map_add_index(receive_map, proc, receive_index);
-        ++cell_offset;
       }
     }
+    ASSERT(cell_offset < chunk_offset + (chunk->num_z_cells+2) * (chunk->num_columns + chunk->num_ghost_columns));
   }
   polymec_free(owners);
   proc_point_map_free(point_map);

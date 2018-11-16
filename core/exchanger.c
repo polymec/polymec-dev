@@ -640,7 +640,7 @@ void exchanger_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Da
   STOP_FUNCTION_TIMER();
 }
 
-static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* msg)
+static int exchanger_send_message(exchanger_t* ex, mpi_message_t* msg)
 {
   START_FUNCTION_TIMER();
 
@@ -688,7 +688,7 @@ static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* ms
         MPI_Error_string(err, str, &resultlen);
         char err_msg[1024];
         snprintf(err_msg, 1024, "%d: MPI Error sending to %d: %d\n(%s)\n", 
-            ex->rank, msg->dest_procs[i], err, str);
+                 ex->rank, msg->dest_procs[i], err, str);
         polymec_error(err_msg);
       }
     }
@@ -699,7 +699,7 @@ static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* ms
       ASSERT(idest_local != -1); // no local destination for this source?
       ASSERT(msg->receive_buffer_sizes[idest_local] == msg->send_buffer_sizes[i]);
       memcpy(msg->receive_buffers[idest_local], msg->send_buffers[i], 
-             sizeof(real_t) * msg->stride * msg->send_buffer_sizes[i]);
+             mpi_size(msg->type) * msg->stride * msg->send_buffer_sizes[i]);
     }
   }
   msg->num_requests = j;
@@ -717,7 +717,6 @@ static int exchanger_send_message(exchanger_t* ex, void* data, mpi_message_t* ms
     ex->transfer_counts = polymec_realloc(ex->transfer_counts, ex->pending_msg_cap*sizeof(int*));
   }
   ex->pending_msgs[token] = msg;
-  ex->orig_buffers[token] = data;
   STOP_FUNCTION_TIMER();
   return token;
 }
@@ -730,7 +729,8 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   mpi_message_pack(msg, data, ex->send_offset, ex->send_map, ex->receive_map);
   
   // Begin the transmission and allocate a token for it.
-  int token = exchanger_send_message(ex, data, msg);
+  int token = exchanger_send_message(ex, msg);
+  ex->orig_buffers[token] = data;
   STOP_FUNCTION_TIMER();
   return token;
 }
