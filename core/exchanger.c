@@ -947,8 +947,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   STOP_FUNCTION_TIMER();
 }
 
-void
-exchanger_fprintf(exchanger_t* ex, FILE* stream)
+void exchanger_fprintf(exchanger_t* ex, FILE* stream)
 {
   fprintf(stream, "Exchanger(");
   if (ex->comm == MPI_COMM_WORLD)

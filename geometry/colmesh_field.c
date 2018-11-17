@@ -213,6 +213,7 @@ void colmesh_field_set_buffer(colmesh_field_t* field,
     chunk_data->data = &(((real_t*)buffer)[offset]);
     offset += colmesh_chunk_data_size(chunk_data) / sizeof(real_t);
   }
+  ASSERT(offset == (field->bytes / sizeof(real_t)));
   STOP_FUNCTION_TIMER();
 }
 

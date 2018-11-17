@@ -528,7 +528,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     exchanger_proc_map_t* xy_sends = xy_data->send_map;
     exchanger_proc_map_t* xy_receives = xy_data->receive_map;
 
-    // Hook up the xy sends/receives.
+    // Figure out the xy send cells.
     int pos = 0, neighbor_xy_index;
     int_array_t* indices;
     while (exchanger_proc_map_next(xy_sends, &pos, &neighbor_xy_index, &indices))
@@ -558,7 +558,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
         }
       }
 
-      // Sort the points and indices using a space filling curve.
+      // Sort the xy send indices/points using a space filling curve.
       int pos1 = 0, proc;
       int_array_t* ind;
       while (exchanger_proc_map_next(send_map, &pos1, &proc, &ind))
@@ -573,8 +573,9 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
       }
     }
 
+    // Figure out the xy receive cells.
     pos = 0;
-    int cell_offset = (int)(chunk_offset + (chunk->num_z_cells+2) * chunk->num_columns);
+    int cell_offset = (int)((chunk->num_z_cells+2) * chunk->num_columns);
     while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
     {
       size_t num_indices = indices->size/2;
@@ -590,10 +591,10 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
                      .y = 0.5 * (nodes[0].y + nodes[1].y), 
                      .z = 0.0}; 
 
-        // Traverse the column and add send indices/points.
+        // Traverse the column and add receive indices/points.
         for (size_t zz = 0; zz < chunk->num_z_cells; ++zz)
         {
-          int index = (int)(chunk_offset + cell_offset);
+          int index = (int)chunk_offset + cell_offset;
           exchanger_proc_map_add_index(receive_map, proc, index);
           x.z = chunk->z1 + zz * dz;
           proc_point_map_add(point_map, proc, &x);
@@ -601,7 +602,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
         }
       }
 
-      // Sort the points and indices using a space filling curve.
+      // Sort the xy receive indices/points using a space filling curve.
       int pos1 = 0, proc;
       int_array_t* ind;
       while (exchanger_proc_map_next(receive_map, &pos1, &proc, &ind))
@@ -619,7 +620,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     // Now hook up the z sends/receives.
     if ((z > 0) || (mesh->periodic_in_z))
     {
-      for (size_t xy1 = 0; xy1 < xy_data->num_columns; ++xy1)
+      for (size_t xy1 = 0; xy1 < chunk->num_columns; ++xy1)
       {
         int ch1_index = ((z == 0) && mesh->periodic_in_z) ? 
                         chunk_index(mesh, xy, mesh->num_z_chunks-1) : chunk_index(mesh, xy, z-1);
@@ -634,7 +635,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
 
     if ((z < (mesh->num_z_chunks-1)) || (mesh->periodic_in_z))
     {
-      for (size_t xy1 = 0; xy1 < xy_data->num_columns; ++xy1)
+      for (size_t xy1 = 0; xy1 < chunk->num_columns; ++xy1)
       {
         int ch1_index = ((z == (mesh->num_z_chunks-1)) && mesh->periodic_in_z) ? 
                         chunk_index(mesh, xy, 0) : chunk_index(mesh, xy, z+1);
@@ -685,7 +686,7 @@ void colmesh_finalize(colmesh_t* mesh)
         {
           colmesh_chunk_t* chunk    = *chunk_p;
           chunk_offsets[k+1]         = chunk_offsets[k] + 
-                                       (int)(chunk->num_columns * chunk->num_z_cells);
+                                       (int)((chunk->num_columns + chunk->num_ghost_columns) * (chunk->num_z_cells + 2));
           mesh->chunk_indices[2*k]   = (int)i;
           mesh->chunk_indices[2*k+1] = (int)j;
           ++k;
@@ -696,6 +697,7 @@ void colmesh_finalize(colmesh_t* mesh)
     ASSERT(k == mesh->chunks->size);
   }
 
+  // Create the cell exchanger for the mesh.
   create_cell_ex(mesh, chunk_offsets);
 
   // Prune unused xy data.

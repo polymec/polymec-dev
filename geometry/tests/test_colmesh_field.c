@@ -25,7 +25,7 @@ static colmesh_t* create_mesh(MPI_Comm comm,
   planar_polymesh_t* columns = create_quad_planar_polymesh(20, 20, &bbox, periodic_in_xy, periodic_in_xy);
   colmesh_t* mesh = NULL;
   if (_nproc > 1)
-    mesh = colmesh_new(comm, columns, bbox.z1, bbox.z2, 10, periodic_in_z);
+    mesh = colmesh_new(comm, columns, bbox.z1, bbox.z2, 20, periodic_in_z);
   else
   {
     mesh = create_empty_colmesh(comm, columns, bbox.z1, bbox.z2, 2, 2, 10, periodic_in_z);
@@ -68,8 +68,8 @@ static void test_cell_field(void** state, colmesh_t* mesh)
     {
       for (int z = 1; z <= chunk->num_z_cells; ++z)
       {
-        f[xy][z][0] = 1.0 * XY;
-        f[xy][z][1] = 1.0 * Z;
+        f[xy][z][0] = 1.0 * (XY + xy);
+        f[xy][z][1] = 1.0 * (Z + z);
       }
     }
   }
@@ -89,15 +89,34 @@ static void test_cell_field(void** state, colmesh_t* mesh)
     {
       for (int z = 1; z <= chunk->num_z_cells; ++z)
       {
-log_debug("%g vs %g", f[xy][z][0], 1.0 * XY);
-log_debug("%g vs %g", f[xy][z][1], 1.0 * Z);
-        assert_true(reals_equal(f[xy][z][0], 1.0 * XY));
-        assert_true(reals_equal(f[xy][z][1], 1.0 * Z));
+        assert_true(reals_equal(f[xy][z][0], 1.0 * (XY + xy)));
+        assert_true(reals_equal(f[xy][z][1], 1.0 * (Z + z)));
       }
     }
 
-    // ghost vælues
-    // FIXME!
+    // xy ghost vælues
+    for (int xy = chunk->num_columns; xy < chunk->num_columns + chunk->num_ghost_columns; ++xy)
+    {
+      for (int z = 1; z <= chunk->num_z_cells; ++z)
+      {
+log_debug("(%d, %d, 0): %g vs %g", xy, z, f[xy][z][0], 1.0 * (XY + xy));
+log_debug("(%d, %d, 1): %g vs %g", xy, z, f[xy][z][1], 1.0 * (Z + z));
+        assert_true(!reals_equal(f[xy][z][0], 1.0 * (XY + xy)));
+        assert_true(!reals_equal(f[xy][z][1], 1.0 * (Z + z)));
+      }
+    }
+
+    // z ghost vælues
+    for (int xy = 0; xy < chunk->num_columns; ++xy)
+    {
+      for (int z = 0; z != chunk->num_z_cells+1; z = chunk->num_z_cells+1)
+      {
+log_debug("(%d, %d, 0): %g vs %g", xy, z, f[xy][z][0], 1.0 * (XY + xy));
+log_debug("(%d, %d, 1): %g vs %g", xy, z, f[xy][z][1], 1.0 * (Z + z));
+        assert_true(!reals_equal(f[xy][z][0], 1.0 * (XY + xy)));
+        assert_true(!reals_equal(f[xy][z][1], 1.0 * (Z + z)));
+      }
+    }
   }
 
   // Repartition!
