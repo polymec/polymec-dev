@@ -133,7 +133,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
       }
       else if (col2 != -1) // ghost column
       {
-        // Set up a parallel exchange between the columns.
+        // Set up an exchange mapping between the columns.
         int cell = (cols_reversed) ? cell2 : cell1;
         int neighbor_xy_index = (int)partition_vector[cell];
         int xy_face = xy_data->num_xy_faces;
@@ -549,9 +549,9 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
                      .z = 0.0}; 
 
         // Traverse the column and add send indices/points.
-        for (size_t zz = 0; zz < chunk->num_z_cells; ++zz)
+        for (size_t zz = 1; zz <= chunk->num_z_cells; ++zz)
         {
-          int index = (int)(chunk_offset + chunk->num_z_cells * xy1 + zz);
+          int index = (int)(chunk_offset + (chunk->num_z_cells+2)*xy1 + zz);
           exchanger_proc_map_add_index(send_map, proc, index);
           x.z = chunk->z1 + zz * dz;
           proc_point_map_add(point_map, proc, &x);
