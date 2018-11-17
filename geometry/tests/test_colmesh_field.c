@@ -62,10 +62,11 @@ static void test_cell_field(void** state, colmesh_t* mesh)
   {
     assert_true(chunk_data->centering == COLMESH_CELL);
     assert_true(chunk_data->num_components == 2);
+    colmesh_chunk_t* chunk = chunk_data->chunk;
     DECLARE_COLMESH_CELL_ARRAY(f, chunk_data);
-    for (int xy = 0; xy < chunk_data->xy_size; ++xy)
+    for (int xy = 0; xy < chunk->num_columns; ++xy)
     {
-      for (int z = 1; z < chunk_data->z_size-1; ++z)
+      for (int z = 1; z <= chunk->num_z_cells; ++z)
       {
         f[xy][z][0] = 1.0 * XY;
         f[xy][z][1] = 1.0 * Z;
@@ -80,12 +81,13 @@ static void test_cell_field(void** state, colmesh_t* mesh)
   pos = 0;
   while (colmesh_field_next_chunk(field, &pos, &XY, &Z, &chunk_data))
   {
+    colmesh_chunk_t* chunk = chunk_data->chunk;
     DECLARE_COLMESH_CELL_ARRAY(f, chunk_data);
 
     // interior values
-    for (int xy = 0; xy < chunk_data->xy_size; ++xy)
+    for (int xy = 0; xy < chunk->num_columns; ++xy)
     {
-      for (int z = 1; z < chunk_data->z_size-1; ++z)
+      for (int z = 1; z <= chunk->num_z_cells; ++z)
       {
 log_debug("%g vs %g", f[xy][z][0], 1.0 * XY);
 log_debug("%g vs %g", f[xy][z][1], 1.0 * Z);
@@ -94,6 +96,7 @@ log_debug("%g vs %g", f[xy][z][1], 1.0 * Z);
       }
     }
 
+    // ghost vælues
     // FIXME!
   }
 

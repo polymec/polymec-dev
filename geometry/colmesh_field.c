@@ -104,7 +104,8 @@ extern exchanger_t* colmesh_exchanger(colmesh_t* mesh,
 colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
                                            colmesh_centering_t centering,
                                            size_t num_components,
-                                           void* buffer)
+                                           void* buffer,
+                                           bool assume_control)
 {
   START_FUNCTION_TIMER();
   ASSERT(num_components > 0);
@@ -140,7 +141,7 @@ colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
   }
 
   // Use the given buffer.
-  colmesh_field_set_buffer(field, buffer, false);
+  colmesh_field_set_buffer(field, buffer, assume_control);
 
   STOP_FUNCTION_TIMER();
   return field;
@@ -152,7 +153,7 @@ colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
 {
   ASSERT(num_components > 0);
   START_FUNCTION_TIMER();
-  colmesh_field_t* field = colmesh_field_with_buffer(mesh, centering, num_components, NULL);
+  colmesh_field_t* field = colmesh_field_with_buffer(mesh, centering, num_components, NULL, false);
   void* buffer = polymec_malloc(field->bytes);
   colmesh_field_set_buffer(field, buffer, true);
   STOP_FUNCTION_TIMER();
@@ -162,7 +163,7 @@ colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
 void colmesh_field_free(colmesh_field_t* field)
 {
   chunk_data_map_free(field->chunks);
-  if (field->owns_buffer)
+  if ((field->buffer != NULL) && field->owns_buffer)
     polymec_free(field->buffer);
   release_ref(field->ex);
   polymec_free(field);

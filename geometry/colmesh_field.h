@@ -72,11 +72,14 @@ colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
 /// \param [in] num_components The number of components in the new field.
 /// \param [in] buffer The buffer to use for storing field data. Must be ample for storing all the 
 ///                    field's data.
+/// \param [in] assume_control If true, the field assumes ownership of the 
+///                            buffer. Otherwise it does not.
 /// \memberof colmesh_field
 colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
                                            colmesh_centering_t centering,
                                            size_t num_components,
-                                           void* buffer);
+                                           void* buffer,
+                                           bool assume_control);
 
 /// Destroys the given colmesh field.
 /// \memberof colmesh_field
