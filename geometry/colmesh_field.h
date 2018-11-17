@@ -172,77 +172,77 @@ real_enumerable_generator_t* colmesh_chunk_data_enumerate(colmesh_chunk_data_t* 
 // These macros generate multidimensional arrays that can access the given
 // chunk data using C99 variable-length arrays.
 
-/// \def DECLARE_COLMESH_CELL_ARRAY
+/// \def DECLARE_COLMESH_CELL_ARRAY(array, chunk_data)
 /// Allows access to colmesh cell data. Cell arrays are indexed the following 
 /// way:
-/// array[xy][z][c] where i is the xy index, z is the z index,
-/// and c is the component.
-/// * xy runs from 0 to chunk_data->chunk->num_columns-1 for interior cells, 
-///   with ghost cells beginning at chunk->num_columns and proceeding hence.
-/// * z runs from 1 to chunk_data->chunk->num_z_cells for interior cells, with 
-///   ghost values at 0 and chunk->z_size+1.
-/// * c runs from 0 to chunk->num_components-1.
+/// `array[xy][z][c]` where `i` is the xy index, `z` is the z index,
+/// and `c` is the component.
+/// * `xy` runs from 0 to `chunk_data->chunk->num_columns-1` for interior cells, 
+///   with ghost cells beginning at `chunk->num_columns` and proceeding hence.
+/// * `z` runs from 1 to `chunk_data->chunk->num_z_cells` for interior cells, with 
+///   ghost values at 0 and `chunk_data->chunk->num_z_cells+1`.
+/// * `c` runs from 0 to chunk->num_components-1.
 #define DECLARE_COLMESH_CELL_ARRAY(array, chunk_data) \
 ASSERT(chunk_data->centering == COLMESH_CELL); \
 DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
-/// \def DECLARE_COLMESH_XYFACE_ARRAY
+/// \def DECLARE_COLMESH_XYFACE_ARRAY(array, chunk_data)
 /// Allows access to colmesh data for faces with normal vectors in the xy 
 /// plane. XY-face arrays are indexed the following way:
-/// array[xy][z][c] with (xy, z) identifying a face at the given xy and z position,
-/// and c as the component. 
-/// * xy runs from 0 to chunk_data->chunk->num_xy_faces-1.
-/// * z runs from 0 to chunk_data->chunk->num_z_cells-1.
-/// * c runs from 0 to chunk_data->num_components-1.
+/// `array[xy][z][c]` with (xy, z) identifying a face at the given xy and z position,
+/// and `c` as the component. 
+/// * `xy` runs from 0 to `chunk_data->chunk->num_xy_faces-1`.
+/// * `z` runs from 0 to `chunk_data->chunk->num_z_cells-1`.
+/// * `c` runs from 0 to `chunk_data->num_components-1`.
 #define DECLARE_COLMESH_XYFACE_ARRAY(array, chunk_data) \
 ASSERT(chunk_data->centering == COLMESH_XYFACE); \
 DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
-/// \def DECLARE_COLMESH_ZFACE_ARRAY
+/// \def DECLARE_COLMESH_ZFACE_ARRAY(array, chunk_data)
 /// Allows access to colmesh data for faces with normal vectors in the 
 /// +/- z direction. Z-face arrays are indexed the following way:
-/// array[xy][z][c] identifies the "bottom" z-face for the cell at (xy, z),
+/// `array[xy][z][c]` identifies the "bottom" z-face for the cell at (xy, z),
 /// with c as the component.
-/// * xy runs from 0 to chunk_data->chunk->num_columns-1.
-/// * z runs from 0 to chunk_data->chunk->num_z_cells.
-/// * c runs from 0 to chunk_data->num_components-1.
+/// * `xy` runs from 0 to `chunk_data->chunk->num_columns-1`.
+/// * `z` runs from 0 to `chunk_data->chunk->num_z_cells`.
+/// * `c` runs from 0 to `chunk_data->num_components-1`.
 #define DECLARE_COLMESH_ZFACE_ARRAY(array, chunk_data) \
 ASSERT(chunk_data->centering == COLMESH_ZFACE); \
 DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
-/// \def DECLARE_COLMESH_XYEDGE_ARRAY
+/// \def DECLARE_COLMESH_XYEDGE_ARRAY(array, chunk_data)
 /// Allows access to colmesh edge data for edges that lie in the xy plane. 
 /// XY-edge arrays are indexed the following way:
-/// array[xy][k][c] identifies the xy-edge at the given xy position, running
-/// along the bottom of cells in the given z position, with c as the 
+/// `array[xy][k][c]` identifies the xy-edge at the given xy position, running
+/// along the bottom of cells in the given z position, with `c` as the 
 /// component.
-/// * xy runs from 0 to chunk_data->chunk->num_xy_edges-1.
-/// * z runs from 0 to chunk_data->chunk->num_z_cells.
-/// * c runs from 0 to chunk_data->num_components-1.
+/// * `xy` runs from 0 to `chunk_data->chunk->num_xy_edges-1`.
+/// * `z` runs from 0 to `chunk_data->chunk->num_z_cells`.
+/// * `c` runs from 0 to `chunk_data->num_components-1`.
 #define DECLARE_COLMESH_XYEDGE_ARRAY(array, chunk_data) \
 ASSERT(chunk_data->centering == COLMESH_XYEDGE); \
 DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
-/// \def DECLARE_COLMESH_ZEDGE_ARRAY
+/// \def DECLARE_COLMESH_ZEDGE_ARRAY(array, chunk_data)
 /// Allows access to colmesh edge data for edges that align with the z axis.
 /// z-edge arrays are indexed the following way:
-/// array[xy][z][c] identifies the z-edge at the given xy, running vertically along
+/// `array[xy][z][c]` identifies the z-edge at the given xy, running vertically along
 /// cells in the given z position, with c as the component.
-/// * xy runs from 0 to chunk_data->chunk->num_xy_nodes-1.
-/// * k runs from 0 to chunk_data->chunk->num_z_cells-1.
-/// * c runs from 0 to chunk_data->num_components-1.
+/// * `xy` runs from 0 to `chunk_data->chunk->num_xy_nodes-1`.
+/// * `k` runs from 0 to `chunk_data->chunk->num_z_cells-1`.
+/// * `c` runs from 0 to `chunk_data->num_components-1`.
 #define DECLARE_COLMESH_ZEDGE_ARRAY(array, chunk_data) \
 ASSERT(chunk_data->centering == COLMESH_ZEDGE); \
 DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)
 
-/// \def DECLARE_COLMESH_NODE_ARRAY
+/// \def DECLARE_COLMESH_NODE_ARRAY(array, chunk_data)
 /// Allows access to colmesh node data. Node arrays are indexed the 
 /// following way:
-/// array[xy][k][c] identifies the node at the given xy position along the bottom 
+/// `array[xy][k][c]` identifies the node at the given xy position along the bottom 
 /// z-face for the cell at the given z position, with c as the component.
-/// * xy runs from 0 to chunk_data->chunk->num_xy_nodes-1.
-/// * z runs from 0 to chunk_data->chunk->num_z_cells.
-/// * c runs from 0 to chunk->num_components-1.
+/// * `xy` runs from 0 to `chunk_data->chunk->num_xy_nodes-1`.
+/// * `z` runs from 0 to `chunk_data->chunk->num_z_cells`.
+/// * `c` runs from 0 to `chunk->num_components-1`.
 #define DECLARE_COLMESH_NODE_ARRAY(array, chunk_data) \
 ASSERT(chunk_data->centering == COLMESH_NODE); \
 DECLARE_3D_ARRAY(real_t, array, chunk_data->data, chunk_data->xy_size, chunk_data->z_size, chunk_data->num_components)

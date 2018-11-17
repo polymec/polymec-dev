@@ -203,14 +203,14 @@ void colmesh_field_set_buffer(colmesh_field_t* field,
   field->buffer = buffer;
   field->owns_buffer = assume_control;
 
-  // Point the patches at the buffer.
+  // Point the chunks at the buffer.
   int pos = 0, xy_index, z_index;
   colmesh_chunk_data_t* chunk_data;
   size_t offset = 0;
   while (colmesh_field_next_chunk(field, &pos, &xy_index, &z_index, &chunk_data))
   {
     chunk_data->data = &(((real_t*)buffer)[offset]);
-    offset += colmesh_chunk_data_size(chunk_data);
+    offset += colmesh_chunk_data_size(chunk_data) / sizeof(real_t);
   }
   STOP_FUNCTION_TIMER();
 }
@@ -223,6 +223,7 @@ void colmesh_field_copy(colmesh_field_t* field,
   ASSERT(dest->num_components == field->num_components);
   ASSERT(dest->num_xy_chunks == field->num_xy_chunks);
   ASSERT(dest->num_z_chunks == field->num_z_chunks);
+  START_FUNCTION_TIMER();
   int pos = 0, ch_index;
   colmesh_chunk_data_t* src_data;
   while (chunk_data_map_next(field->chunks, &pos, &ch_index, &src_data))
@@ -233,6 +234,7 @@ void colmesh_field_copy(colmesh_field_t* field,
     ASSERT(dest_data->chunk == src_data->chunk);
     colmesh_chunk_data_copy(src_data, dest_data);
   }
+  STOP_FUNCTION_TIMER();
 }
 
 colmesh_chunk_data_t* colmesh_field_chunk_data(colmesh_field_t* field, 

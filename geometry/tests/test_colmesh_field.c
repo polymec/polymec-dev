@@ -14,22 +14,38 @@
 #include "geometry/create_quad_planar_polymesh.h"
 #include "geometry/colmesh_field.h"
 
-static colmesh_t* periodic_mesh(MPI_Comm comm)
+static int _nproc = -1;
+static int _rank = -1;
+
+static colmesh_t* create_mesh(MPI_Comm comm, 
+                              bool periodic_in_xy, 
+                              bool periodic_in_z)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  planar_polymesh_t* columns = create_quad_planar_polymesh(20, 20, &bbox, true, true);
-  colmesh_t* mesh = colmesh_new(comm, columns, bbox.z1, bbox.z2, 10, true);
+  planar_polymesh_t* columns = create_quad_planar_polymesh(20, 20, &bbox, periodic_in_xy, periodic_in_xy);
+  colmesh_t* mesh = NULL;
+  if (_nproc > 1)
+    mesh = colmesh_new(comm, columns, bbox.z1, bbox.z2, 10, periodic_in_z);
+  else
+  {
+    mesh = create_empty_colmesh(comm, columns, bbox.z1, bbox.z2, 2, 2, 10, periodic_in_z);
+    for (int XY = 0; XY < 2; ++XY)
+      for (int Z = 0; Z < 2; ++Z)
+        colmesh_insert_chunk(mesh, XY, Z);
+    colmesh_finalize(mesh);
+  }
   planar_polymesh_free(columns);
   return mesh;
 }
 
+static colmesh_t* periodic_mesh(MPI_Comm comm)
+{
+  return create_mesh(comm, true, true);
+}
+
 static colmesh_t* nonperiodic_mesh(MPI_Comm comm)
 {
-  bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  planar_polymesh_t* columns = create_quad_planar_polymesh(20, 20, &bbox, false, false);
-  colmesh_t* mesh = colmesh_new(comm, columns, bbox.z1, bbox.z2, 10, false);
-  planar_polymesh_free(columns);
-  return mesh;
+  return create_mesh(comm, false, false);
 }
 
 static void test_cell_field(void** state, colmesh_t* mesh)
@@ -73,8 +89,8 @@ static void test_cell_field(void** state, colmesh_t* mesh)
       {
 log_debug("%g vs %g", f[xy][z][0], 1.0 * XY);
 log_debug("%g vs %g", f[xy][z][1], 1.0 * Z);
-//        assert_true(reals_equal(f[xy][z][0], 1.0 * XY));
-//        assert_true(reals_equal(f[xy][z][1], 1.0 * Z));
+        assert_true(reals_equal(f[xy][z][0], 1.0 * XY));
+        assert_true(reals_equal(f[xy][z][1], 1.0 * Z));
       }
     }
 
@@ -842,6 +858,8 @@ static void test_parallel_nonperiodic_node_field(void** state)
 int main(int argc, char* argv[]) 
 {
   polymec_init(argc, argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &_nproc);
+  MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_serial_periodic_cell_field),

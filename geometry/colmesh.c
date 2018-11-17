@@ -621,8 +621,8 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     {
       for (size_t xy1 = 0; xy1 < xy_data->num_columns; ++xy1)
       {
-        int ch1_index = ((z == (mesh->num_z_chunks-1)) && mesh->periodic_in_z) ? 
-                          chunk_index(mesh, xy, mesh->num_z_chunks-1) : chunk_index(mesh, xy, z-1);
+        int ch1_index = ((z == 0) && mesh->periodic_in_z) ? 
+                        chunk_index(mesh, xy, mesh->num_z_chunks-1) : chunk_index(mesh, xy, z-1);
         int proc = (int)(owners[ch1_index]);
         int z1 = 1;
         int send_index = (int)(chunk_offset + (chunk->num_z_cells+2) * xy1 + z1);
@@ -636,8 +636,8 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     {
       for (size_t xy1 = 0; xy1 < xy_data->num_columns; ++xy1)
       {
-        int ch1_index = ((z == 0) && mesh->periodic_in_z) ? 
-          chunk_index(mesh, xy, 0) : chunk_index(mesh, xy, z+1);
+        int ch1_index = ((z == (mesh->num_z_chunks-1)) && mesh->periodic_in_z) ? 
+                        chunk_index(mesh, xy, 0) : chunk_index(mesh, xy, z+1);
         int proc = (int)(owners[ch1_index]);
         size_t z1 = chunk->num_z_cells;
         int send_index = (int)(chunk_offset + (chunk->num_z_cells+2) * xy1 + z1);
