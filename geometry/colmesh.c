@@ -506,7 +506,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
   int64_t* owners = source_vector(mesh);
 #else
   int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
-  int64_t* owners = polymec_calloc(sizeof(int) * num_all_chunks);
+  int64_t* owners = polymec_calloc(sizeof(int64_t) * num_all_chunks);
 #endif
 
   // Assemble exchangers by traversing the locally stored chunks, assembling 
