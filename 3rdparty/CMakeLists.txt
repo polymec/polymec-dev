@@ -52,7 +52,7 @@ ExternalProject_Add(cmocka_proj
                     LOG_INSTALL TRUE)
 add_library(cmocka STATIC IMPORTED GLOBAL)
 add_dependencies(cmocka cmocka_proj)
-set_target_properties(cmocka PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcmocka.a)
+set_target_properties(cmocka PROPERTIES IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libcmocka-static.a)
 set(POLYMEC_TP_LIBS cmocka;${POLYMEC_TP_LIBS})
 
 #----------------------------------------------------------------------------
