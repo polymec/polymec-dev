@@ -1874,7 +1874,7 @@ static int cmesh_num_chunks(lua_State* L)
 static int cmesh_num_xy_chunks(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
-  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  int num_xy_chunks, num_z_chunks, nz_per_chunk;
   colmesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   lua_pushinteger(L, (lua_Integer)num_xy_chunks);
   return 1;
@@ -1883,7 +1883,7 @@ static int cmesh_num_xy_chunks(lua_State* L)
 static int cmesh_num_z_chunks(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
-  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  int num_xy_chunks, num_z_chunks, nz_per_chunk;
   colmesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   lua_pushinteger(L, (lua_Integer)num_z_chunks);
   return 1;
@@ -1892,7 +1892,7 @@ static int cmesh_num_z_chunks(lua_State* L)
 static int cmesh_nz_per_chunk(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
-  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  int num_xy_chunks, num_z_chunks, nz_per_chunk;
   colmesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   lua_pushinteger(L, (lua_Integer)nz_per_chunk);
   return 1;
@@ -1942,7 +1942,7 @@ static lua_class_field colmesh_fields[] = {
 static int colmesh_tostring(lua_State* L)
 {
   colmesh_t* m = lua_to_colmesh(L, 1);
-  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  int num_xy_chunks, num_z_chunks, nz_per_chunk;
   colmesh_get_chunk_info(m, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   real_t z1, z2;
   bool periodic;

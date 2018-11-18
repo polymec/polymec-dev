@@ -19,15 +19,15 @@
 // Chunk xy data. Shared across all "stacked" chunks.
 typedef struct 
 {
-  size_t num_columns;
-  size_t num_ghost_columns;
+  int num_columns;
+  int num_ghost_columns;
   int* column_xy_face_offsets;
   int* column_xy_faces;
   int* xy_face_columns;
-  size_t num_xy_faces;
-  size_t num_xy_edges;
+  int num_xy_faces;
+  int num_xy_edges;
   int* xy_edge_nodes;
-  size_t num_xy_nodes;
+  int num_xy_nodes;
   point2_t* xy_nodes;
 
   // Exchanger process maps--used to construct exchangers.
@@ -260,7 +260,7 @@ struct colmesh_t
   MPI_Comm comm;
   int nproc, rank;
 
-  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  int num_xy_chunks, num_z_chunks, nz_per_chunk;
   real_t z1, z2;
 
   // Chunk data.
@@ -292,8 +292,8 @@ static inline int chunk_index(colmesh_t* mesh, int xy_index, int z_index)
 colmesh_t* create_empty_colmesh(MPI_Comm comm, 
                                 planar_polymesh_t* columns,
                                 real_t z1, real_t z2,
-                                size_t num_xy_chunks, size_t num_z_chunks,
-                                size_t nz_per_chunk, bool periodic_in_z)
+                                int num_xy_chunks, int num_z_chunks,
+                                int nz_per_chunk, bool periodic_in_z)
 {
   ASSERT(columns != NULL);
   ASSERT(z1 < z2);
@@ -341,7 +341,7 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
   // Create xy data for chunks, and create a global graph whose vertices 
   // are the mesh's chunks.
   mesh->chunk_xy_data = chunk_xy_data_array_new();
-  size_t num_chunks = num_xy_chunks * num_z_chunks;
+  int num_chunks = num_xy_chunks * num_z_chunks;
   mesh->chunk_graph = adj_graph_new(MPI_COMM_SELF, num_chunks);
   for (int xy_index = 0; xy_index < (int)num_xy_chunks; ++xy_index)
   {
@@ -418,7 +418,7 @@ void colmesh_insert_chunk(colmesh_t* mesh, int xy_index, int z_index)
   chunk->xy_nodes = xy_data->xy_nodes;
 
   // Chunk z data.
-  size_t nz = mesh->nz_per_chunk * mesh->num_z_chunks;
+  int nz = mesh->nz_per_chunk * mesh->num_z_chunks;
   real_t dz = (mesh->z2 - mesh->z1) / nz;
   real_t z1 = mesh->z1 + z_index * dz;
   real_t z2 = mesh->z1 + (z_index+1) * dz;
@@ -549,7 +549,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
                      .z = 0.0}; 
 
         // Traverse the column and add send indices/points.
-        for (size_t zz = 1; zz <= chunk->num_z_cells; ++zz)
+        for (int zz = 1; zz <= chunk->num_z_cells; ++zz)
         {
           int index = (int)(chunk_offset + (chunk->num_z_cells+2)*xy1 + zz);
           exchanger_proc_map_add_index(send_map, proc, index);
@@ -592,7 +592,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
                      .z = 0.0}; 
 
         // Traverse the column and add receive indices/points.
-        for (size_t zz = 0; zz < chunk->num_z_cells; ++zz)
+        for (int zz = 0; zz < chunk->num_z_cells; ++zz)
         {
           int index = (int)chunk_offset + cell_offset;
           exchanger_proc_map_add_index(receive_map, proc, index);
@@ -620,7 +620,7 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
     // Now hook up the z sends/receives.
     if ((z > 0) || (mesh->periodic_in_z))
     {
-      for (size_t xy1 = 0; xy1 < chunk->num_columns; ++xy1)
+      for (int xy1 = 0; xy1 < chunk->num_columns; ++xy1)
       {
         int ch1_index = ((z == 0) && mesh->periodic_in_z) ? 
                         chunk_index(mesh, xy, mesh->num_z_chunks-1) : chunk_index(mesh, xy, z-1);
@@ -635,12 +635,12 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
 
     if ((z < (mesh->num_z_chunks-1)) || (mesh->periodic_in_z))
     {
-      for (size_t xy1 = 0; xy1 < chunk->num_columns; ++xy1)
+      for (int xy1 = 0; xy1 < chunk->num_columns; ++xy1)
       {
         int ch1_index = ((z == (mesh->num_z_chunks-1)) && mesh->periodic_in_z) ? 
                         chunk_index(mesh, xy, 0) : chunk_index(mesh, xy, z+1);
         int proc = (int)(owners[ch1_index]);
-        size_t z1 = chunk->num_z_cells;
+        int z1 = chunk->num_z_cells;
         int send_index = (int)(chunk_offset + (chunk->num_z_cells+2) * xy1 + z1);
         int receive_index = (int)(chunk_offset + (chunk->num_z_cells+2) * xy1 + z1 + 1);
         exchanger_proc_map_add_index(send_map, proc, send_index);
@@ -674,11 +674,11 @@ void colmesh_finalize(colmesh_t* mesh)
   int chunk_offsets[mesh->chunks->size+1];
   chunk_offsets[0] = 0;
   {
-    size_t k = 0;
-    for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
+    int k = 0;
+    for (int i = 0; i < mesh->num_xy_chunks; ++i)
     {
-      size_t num_z_chunks = 0;
-      for (size_t j = 0; j < mesh->num_z_chunks; ++j)
+      int num_z_chunks = 0;
+      for (int j = 0; j < mesh->num_z_chunks; ++j)
       {
         int index = chunk_index(mesh, (int)i, (int)j);
         colmesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
@@ -701,10 +701,10 @@ void colmesh_finalize(colmesh_t* mesh)
   create_cell_ex(mesh, chunk_offsets);
 
   // Prune unused xy data.
-  for (size_t i = 0; i < mesh->num_xy_chunks; ++i)
+  for (int i = 0; i < mesh->num_xy_chunks; ++i)
   {
-    size_t num_z_chunks = 0;
-    for (size_t j = 0; j < mesh->num_z_chunks; ++j)
+    int num_z_chunks = 0;
+    for (int j = 0; j < mesh->num_z_chunks; ++j)
     {
       int index = chunk_index(mesh, (int)i, (int)j);
       if (chunk_map_contains(mesh->chunks, index))
@@ -730,10 +730,10 @@ void colmesh_finalize(colmesh_t* mesh)
 colmesh_t* colmesh_new(MPI_Comm comm,
                        planar_polymesh_t* columns,
                        real_t z1, real_t z2,
-                       size_t nz, bool periodic_in_z)
+                       int nz, bool periodic_in_z)
 {
-  size_t num_xy_chunks = 1;
-  size_t num_z_chunks = 1; 
+  int num_xy_chunks = 1;
+  int num_z_chunks = 1; 
   int nproc, rank;
   MPI_Comm_size(comm, &nproc);
   MPI_Comm_rank(comm, &rank);
@@ -750,7 +750,7 @@ colmesh_t* colmesh_new(MPI_Comm comm,
 
     // Some simple algebra tell us num_z_chunks should be the integer closest 
     // to the value pow(nproc*Nz*Nz/Nxy, 1.0/3.0).
-    num_z_chunks = MAX(1, (size_t)(pow(nproc*Nz*Nz/Nxy, 1.0/3.0)));
+    num_z_chunks = MAX(1, (int)(pow(nproc*Nz*Nz/Nxy, 1.0/3.0)));
     
     // Adjust num_z_chunks so it evenly divides nproc.
     int remainder = (int)(nproc % num_z_chunks);
@@ -769,13 +769,13 @@ colmesh_t* colmesh_new(MPI_Comm comm,
   // the chunks by allocating them sequentially to processes in a flattened 
   // index space I(xy_index, z_index) = num_z_chunks * xy_index + z_index.
   // This is definitely not ideal, but it's the easiest way to get a start.
-  size_t nz_per_chunk = nz / num_z_chunks;
+  int nz_per_chunk = nz / num_z_chunks;
   colmesh_t* mesh = create_empty_colmesh(comm, columns, z1, z2, 
                                          num_xy_chunks, num_z_chunks, 
                                          nz_per_chunk, periodic_in_z);
-  size_t tot_num_chunks = num_xy_chunks * num_z_chunks;
-  size_t chunks_per_proc = tot_num_chunks / nproc;
-  for (size_t i = 0; i < tot_num_chunks; ++i)
+  int tot_num_chunks = num_xy_chunks * num_z_chunks;
+  int chunks_per_proc = tot_num_chunks / nproc;
+  for (int i = 0; i < tot_num_chunks; ++i)
   {
     if ((i >= rank*chunks_per_proc) && (i < (rank+1)*chunks_per_proc))
     {
@@ -813,9 +813,9 @@ void colmesh_free(colmesh_t* mesh)
 }
 
 void colmesh_get_chunk_info(colmesh_t* mesh, 
-                            size_t* num_xy_chunks,
-                            size_t* num_z_chunks,
-                            size_t* nz_per_chunk)
+                            int* num_xy_chunks,
+                            int* num_z_chunks,
+                            int* nz_per_chunk)
 {
   *num_xy_chunks = mesh->num_xy_chunks;
   *num_z_chunks = mesh->num_z_chunks;
@@ -855,7 +855,7 @@ bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
                                    void (*handler)(const char* format, ...))
 {
   // All cells are prisms and must have at least 5 faces (3 xy faces + 2 z faces).
-  for (size_t c = 0; c < chunk->num_columns; ++c)
+  for (int c = 0; c < chunk->num_columns; ++c)
   {
     if (colmesh_chunk_column_num_xy_faces(chunk, c) < 3)
     {
@@ -883,7 +883,7 @@ bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
   }
 
   // Make sure that all the xy faces attached to this cell have it in their list.
-  for (size_t c = 0; c < chunk->num_columns; ++c)
+  for (int c = 0; c < chunk->num_columns; ++c)
   {
     int num_xy_faces = colmesh_chunk_column_num_xy_faces(chunk, c);
     int xy_faces[num_xy_faces];
@@ -902,7 +902,7 @@ bool colmesh_chunk_verify_topology(colmesh_chunk_t* chunk,
   }
 
   // Now go over all xy faces and make sure that their columns can see them, too.
-  for (size_t f = 0; f < chunk->num_xy_faces; ++f)
+  for (int f = 0; f < chunk->num_xy_faces; ++f)
   {
     int column = chunk->xy_face_columns[2*f];
     int num_xy_faces = colmesh_chunk_column_num_xy_faces(chunk, column);
@@ -955,9 +955,9 @@ MPI_Comm colmesh_comm(colmesh_t* mesh)
   return mesh->comm;
 }
 
-size_t colmesh_num_chunks(colmesh_t* mesh)
+int colmesh_num_chunks(colmesh_t* mesh)
 {
-  return mesh->chunks->size;
+  return (int)(mesh->chunks->size);
 }
 
 colmesh_chunk_t* colmesh_chunk(colmesh_t* mesh, int xy_index, int z_index)
@@ -1023,7 +1023,7 @@ void colmesh_chunk_get_node(colmesh_chunk_t* chunk,
 static size_t xy_data_byte_size(void* obj)
 {
   chunk_xy_data_t* xy_data = obj;
-  size_t size = 5 * sizeof(size_t) + 
+  size_t size = 5 * sizeof(int) + 
                 (xy_data->num_columns+1) * sizeof(int) + 
                 xy_data->column_xy_face_offsets[xy_data->num_columns] * sizeof(int) + 
                 2 * xy_data->num_xy_faces * sizeof(int) +
@@ -1038,19 +1038,19 @@ static size_t xy_data_byte_size(void* obj)
 static void* xy_data_byte_read(byte_array_t* bytes, size_t* offset)
 {
   chunk_xy_data_t* xy_data = polymec_malloc(sizeof(chunk_xy_data_t));
-  byte_array_read_size_ts(bytes, 1, &xy_data->num_columns, offset);
-  byte_array_read_size_ts(bytes, 1, &xy_data->num_ghost_columns, offset);
+  byte_array_read_ints(bytes, 1, &xy_data->num_columns, offset);
+  byte_array_read_ints(bytes, 1, &xy_data->num_ghost_columns, offset);
   xy_data->column_xy_face_offsets = polymec_malloc((xy_data->num_columns + 1) * sizeof(int));
   byte_array_read_ints(bytes, xy_data->num_columns+1, xy_data->column_xy_face_offsets, offset);
   xy_data->column_xy_faces = polymec_malloc(xy_data->column_xy_face_offsets[xy_data->num_columns] * sizeof(int));
   byte_array_read_ints(bytes, xy_data->column_xy_face_offsets[xy_data->num_columns], xy_data->column_xy_faces, offset);
-  byte_array_read_size_ts(bytes, 1, &xy_data->num_xy_faces, offset);
+  byte_array_read_ints(bytes, 1, &xy_data->num_xy_faces, offset);
   xy_data->xy_face_columns = polymec_malloc(2*xy_data->num_xy_faces * sizeof(int));
   byte_array_read_ints(bytes, 2*xy_data->num_xy_faces, xy_data->xy_face_columns, offset);
-  byte_array_read_size_ts(bytes, 1, &xy_data->num_xy_edges, offset);
+  byte_array_read_ints(bytes, 1, &xy_data->num_xy_edges, offset);
   xy_data->xy_edge_nodes = polymec_malloc(2*xy_data->num_xy_edges * sizeof(int));
   byte_array_read_ints(bytes, 2*xy_data->num_xy_edges, xy_data->xy_edge_nodes, offset);
-  byte_array_read_size_ts(bytes, 1, &xy_data->num_xy_nodes, offset);
+  byte_array_read_ints(bytes, 1, &xy_data->num_xy_nodes, offset);
   xy_data->xy_nodes = polymec_malloc(xy_data->num_xy_nodes * sizeof(point2_t));
   byte_array_read_point2s(bytes, xy_data->num_xy_nodes, xy_data->xy_nodes, offset);
   serializer_t* ser = exchanger_proc_map_serializer();
@@ -1062,15 +1062,15 @@ static void* xy_data_byte_read(byte_array_t* bytes, size_t* offset)
 static void xy_data_byte_write(void* obj, byte_array_t* bytes, size_t* offset)
 {
   chunk_xy_data_t* xy_data = obj;
-  byte_array_write_size_ts(bytes, 1, &xy_data->num_columns, offset);
-  byte_array_write_size_ts(bytes, 1, &xy_data->num_ghost_columns, offset);
+  byte_array_write_ints(bytes, 1, &xy_data->num_columns, offset);
+  byte_array_write_ints(bytes, 1, &xy_data->num_ghost_columns, offset);
   byte_array_write_ints(bytes, xy_data->num_columns+1, xy_data->column_xy_face_offsets, offset);
   byte_array_write_ints(bytes, xy_data->column_xy_face_offsets[xy_data->num_columns], xy_data->column_xy_faces, offset);
-  byte_array_write_size_ts(bytes, 1, &xy_data->num_xy_faces, offset);
+  byte_array_write_ints(bytes, 1, &xy_data->num_xy_faces, offset);
   byte_array_write_ints(bytes, 2*xy_data->num_xy_faces, xy_data->xy_face_columns, offset);
-  byte_array_write_size_ts(bytes, 1, &xy_data->num_xy_edges, offset);
+  byte_array_write_ints(bytes, 1, &xy_data->num_xy_edges, offset);
   byte_array_write_ints(bytes, 2*xy_data->num_xy_edges, xy_data->xy_edge_nodes, offset);
-  byte_array_write_size_ts(bytes, 1, &xy_data->num_xy_nodes, offset);
+  byte_array_write_ints(bytes, 1, &xy_data->num_xy_nodes, offset);
   byte_array_write_point2s(bytes, xy_data->num_xy_nodes, xy_data->xy_nodes, offset);
   serializer_t* ser = exchanger_proc_map_serializer();
   serializer_write(ser, xy_data->send_map, bytes, offset);
@@ -1100,7 +1100,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   // Who are we receiving from, and who are we sending to?
   int_array_t* source_procs = int_array_new();
   int_array_t* dest_procs = int_array_new();
-  for (size_t i = 0; i < old_mesh->num_xy_chunks; ++i)
+  for (int i = 0; i < old_mesh->num_xy_chunks; ++i)
   {
     if ((partition_vector[i] == old_mesh->rank) && (partition_vector[i] != source_vector[i]))
       insert_unique_sorted(source_procs, (int)(source_vector[i]));
@@ -1116,7 +1116,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
     int proc = dest_procs->data[i];
     size_t offset = 0;
     byte_array_t* buffer = byte_array_new();
-    for (size_t j = 0; j < old_mesh->num_xy_chunks; ++j)
+    for (int j = 0; j < old_mesh->num_xy_chunks; ++j)
     {
       if ((source_vector[j] == old_mesh->rank) && (partition_vector[j] == proc))
         serializer_write(ser, old_mesh->chunk_xy_data->data[j], buffer, &offset);
@@ -1182,7 +1182,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
   memset(all_xy_data->data, 0, all_xy_data->size * sizeof(chunk_xy_data_t*));
   size_t offsets[source_procs->size];
   memset(offsets, 0, sizeof(size_t) * source_procs->size);
-  for (size_t i = 0; i < old_mesh->num_xy_chunks; ++i)
+  for (int i = 0; i < old_mesh->num_xy_chunks; ++i)
   {
     if (partition_vector[i] == old_mesh->rank)
     {
@@ -1243,8 +1243,8 @@ static void redistribute_colmesh(colmesh_t** mesh,
   new_mesh->chunk_xy_data = redistribute_chunk_xy_data(old_mesh, partition, sources);
 
   // Insert the new patches as prescribed by the partition vector.
-  size_t num_chunks = new_mesh->num_xy_chunks * new_mesh->num_z_chunks;
-  for (size_t i = 0; i < num_chunks; ++i)
+  int num_chunks = new_mesh->num_xy_chunks * new_mesh->num_z_chunks;
+  for (int i = 0; i < num_chunks; ++i)
   {
     if (partition[i] == new_mesh->rank)
     {
@@ -1286,7 +1286,7 @@ static void redistribute_colmesh_field(colmesh_field_t** field,
   }
 
   // Post receives for each chunk in the new field.
-  size_t num_new_local_chunks = colmesh_field_num_chunks(new_field);
+  int num_new_local_chunks = colmesh_field_num_chunks(new_field);
   MPI_Request recv_requests[num_new_local_chunks];
   pos = 0;
   size_t num_recv_reqs = 0;
@@ -1306,7 +1306,7 @@ static void redistribute_colmesh_field(colmesh_field_t** field,
   ASSERT(num_recv_reqs <= num_new_local_chunks);
 
   // Post sends.
-  size_t num_old_local_chunks = colmesh_field_num_chunks(old_field);
+  int num_old_local_chunks = colmesh_field_num_chunks(old_field);
   MPI_Request send_requests[num_old_local_chunks];
   pos = 0;
   size_t num_send_reqs = 0;

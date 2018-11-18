@@ -114,7 +114,7 @@ colmesh_field_t* colmesh_field_with_buffer(colmesh_t* mesh,
   field->centering = centering;
   field->num_components = num_components;
 
-  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  int num_xy_chunks, num_z_chunks, nz_per_chunk;
   colmesh_get_chunk_info(mesh, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   field->num_xy_chunks = num_xy_chunks;
   field->num_z_chunks = num_z_chunks;

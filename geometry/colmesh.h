@@ -47,16 +47,16 @@ typedef struct colmesh_column_t colmesh_column_t;
 struct colmesh_chunk_t 
 {
   /// The number of interior (polygonal) columns in this chunk.
-  size_t num_columns;
+  int num_columns;
 
   /// The number of ghost (polygonal) columns in this chunk.
-  size_t num_ghost_columns;
+  int num_ghost_columns;
 
   /// The number of vertical (z) cells in this chunk. Note that 
   /// * the number of "z" faces is \ref num_zcells + 1.
   /// * the number of "z" edges is \ref num_zcells.
   /// * the number of "z" nodes is \ref num_zcells + 1.
-  size_t num_z_cells;
+  int num_z_cells;
 
   /// The z coordinate of the lower boundary of the chunk.
   real_t z1;
@@ -78,17 +78,17 @@ struct colmesh_chunk_t
   int* xy_face_columns;
 
   /// The total number of lateral (xy) faces at a single z location.
-  size_t num_xy_faces;
+  int num_xy_faces;
 
   /// The total number of lateral (xy) edges at a single z location.
-  size_t num_xy_edges;
+  int num_xy_edges;
 
   /// The nodes attached to an xy edge. The first node for an edge is 
   /// xy_edge_nodes[2*xy], and the second is xy_edge_nodes[2*xy+1].
   int* xy_edge_nodes;
 
   /// The total number of nodes at a single z location.
-  size_t num_xy_nodes;
+  int num_xy_nodes;
 
   /// The positions of the nodes in this chunk (in the xy plane).
   point2_t* xy_nodes;
@@ -119,8 +119,8 @@ typedef struct colmesh_chunk_t colmesh_chunk_t;
 colmesh_t* create_empty_colmesh(MPI_Comm comm, 
                                 planar_polymesh_t* columns,
                                 real_t z1, real_t z2,
-                                size_t num_xy_chunks, size_t num_z_chunks,
-                                size_t nz_per_chunk, bool periodic_in_z);
+                                int num_xy_chunks, int num_z_chunks,
+                                int nz_per_chunk, bool periodic_in_z);
 
 /// Inserts a new locally-stored chunk with the given xy and z indices into the mesh.
 /// \param xy_index [in] The index identifying the polygonal column that contains the new chunk.
@@ -160,7 +160,7 @@ void colmesh_finalize(colmesh_t* mesh);
 colmesh_t* colmesh_new(MPI_Comm comm,
                        planar_polymesh_t* columns,
                        real_t z1, real_t z2,
-                       size_t nz, bool periodic_in_z);
+                       int nz, bool periodic_in_z);
  
 //------------------------------------------------------------------------
 //                          Usage methods
@@ -179,9 +179,9 @@ void colmesh_free(colmesh_t* mesh);
 /// \param nz_per_chunk [out] The number of vertical cells per chunk.
 /// \memberof colmesh
 void colmesh_get_chunk_info(colmesh_t* mesh, 
-                            size_t* num_xy_chunks,
-                            size_t* num_z_chunks,
-                            size_t* nz_per_chunk);
+                            int* num_xy_chunks,
+                            int* num_z_chunks,
+                            int* nz_per_chunk);
 
 /// Retrieves metadata for the z axis in this colmesh.
 /// \param z1 [out] Stores the z coordinate of the lowest plane in the mesh.
@@ -208,7 +208,7 @@ MPI_Comm colmesh_comm(colmesh_t* mesh);
 
 /// Returns the number of locally-stored chunks in the colmesh.
 /// \memberof colmesh
-size_t colmesh_num_chunks(colmesh_t* mesh);
+int colmesh_num_chunks(colmesh_t* mesh);
 
 /// Returns true if the mesh has a locally-stored chunk with the given 
 /// xy and z indices.
@@ -250,7 +250,7 @@ polygon_t* colmesh_chunk_polygon(colmesh_chunk_t* chunk, int column);
 /// Returns the number of xy faces for the given column in the chunk.
 /// \memberof colmesh_chunk
 static inline int colmesh_chunk_column_num_xy_faces(colmesh_chunk_t* chunk,
-                                                    size_t column)
+                                                    int column)
 {
   return chunk->column_xy_face_offsets[column+1] - chunk->column_xy_face_offsets[column];
 }
@@ -261,7 +261,7 @@ static inline int colmesh_chunk_column_num_xy_faces(colmesh_chunk_t* chunk,
 ///                       xy faces of the column.
 /// \memberof colmesh_chunk
 static inline void colmesh_chunk_column_get_xy_faces(colmesh_chunk_t* chunk,
-                                                     size_t column,
+                                                     int column,
                                                      int* xy_faces)
 {
   int start = chunk->column_xy_face_offsets[column];
@@ -283,7 +283,7 @@ static inline void colmesh_chunk_column_get_xy_faces(colmesh_chunk_t* chunk,
 ///                       xy faces of the column.
 /// \memberof colmesh_chunk
 static inline void colmesh_chunk_column_get_oriented_xy_faces(colmesh_chunk_t* chunk,
-                                                              size_t column,
+                                                              int column,
                                                               int* xy_faces)
 {
   int start = chunk->column_xy_face_offsets[column];
@@ -377,7 +377,7 @@ static inline void colmesh_chunk_z_face_get_nodes(colmesh_chunk_t* chunk,
                                                   int* nodes)
 {
   // Nodes on z faces are indexed the same way as xy faces on columns.
-  colmesh_chunk_column_get_xy_faces(chunk, z_face, nodes);
+  colmesh_chunk_column_get_oriented_xy_faces(chunk, z_face, nodes);
 }
 
 /// Retrieves the coordinates of the node with the given xy and z indices in this 

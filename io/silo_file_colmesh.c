@@ -109,7 +109,7 @@ void silo_file_write_colmesh(silo_file_t* file,
   }
 
   // Write chunk metadata.
-  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  int num_xy_chunks, num_z_chunks, nz_per_chunk;
   colmesh_get_chunk_info(mesh, &num_xy_chunks, &num_z_chunks, &nz_per_chunk);
   {
     char array_name[FILENAME_MAX+1];

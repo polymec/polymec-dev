@@ -16,19 +16,22 @@
 
 static int _nproc = -1;
 static int _rank = -1;
+static int _nx = 10;
+static int _ny = 10;
+static int _nz = 10;
 
 static colmesh_t* create_mesh(MPI_Comm comm, 
                               bool periodic_in_xy, 
                               bool periodic_in_z)
 {
   bbox_t bbox = {.x1 = 0.0, .x2 = 1.0, .y1 = 0.0, .y2 = 1.0, .z1 = 0.0, .z2 = 1.0};
-  planar_polymesh_t* columns = create_quad_planar_polymesh(20, 20, &bbox, periodic_in_xy, periodic_in_xy);
+  planar_polymesh_t* columns = create_quad_planar_polymesh(_nx, _ny, &bbox, periodic_in_xy, periodic_in_xy);
   colmesh_t* mesh = NULL;
   if (_nproc > 1)
-    mesh = colmesh_new(comm, columns, bbox.z1, bbox.z2, 20, periodic_in_z);
+    mesh = colmesh_new(comm, columns, bbox.z1, bbox.z2, _nz, periodic_in_z);
   else
   {
-    mesh = create_empty_colmesh(comm, columns, bbox.z1, bbox.z2, 2, 2, 10, periodic_in_z);
+    mesh = create_empty_colmesh(comm, columns, bbox.z1, bbox.z2, 2, 2, _nz/2, periodic_in_z);
     for (int XY = 0; XY < 2; ++XY)
       for (int Z = 0; Z < 2; ++Z)
         colmesh_insert_chunk(mesh, XY, Z);
@@ -48,28 +51,47 @@ static colmesh_t* nonperiodic_mesh(MPI_Comm comm)
   return create_mesh(comm, false, false);
 }
 
+static void get_cell_centroid(colmesh_chunk_t* chunk, int xy, int z,
+                              point_t* centroid)
+{
+  int node_indices[4];
+  colmesh_chunk_z_face_get_nodes(chunk, xy, node_indices);
+  point2_t nodes[4] = {chunk->xy_nodes[node_indices[0]],
+                       chunk->xy_nodes[node_indices[1]],
+                       chunk->xy_nodes[node_indices[2]],
+                       chunk->xy_nodes[node_indices[3]]};
+  centroid->x = 0.25 * (nodes[0].x + nodes[1].x + nodes[2].x + nodes[3].x);
+  centroid->y = 0.25 * (nodes[0].y + nodes[1].y + nodes[2].y + nodes[3].y);
+
+  real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
+  centroid->z = dz * (z-0.5);
+}
+
 static void test_cell_field(void** state, colmesh_t* mesh)
 {
   real_t z1, z2;
   bool z_periodic;
   colmesh_get_z_info(mesh, &z1, &z2, &z_periodic);
-  colmesh_field_t* field = colmesh_field_new(mesh, COLMESH_CELL, 2);
+  colmesh_field_t* field = colmesh_field_new(mesh, COLMESH_CELL, 3);
 
-  // Fill the interior cells in our field with chunk-specific values.
+  // Fill the interior cells in our field with cell centroids.
   int pos = 0, XY, Z;
   colmesh_chunk_data_t* chunk_data;
   while (colmesh_field_next_chunk(field, &pos, &XY, &Z, &chunk_data))
   {
     assert_true(chunk_data->centering == COLMESH_CELL);
-    assert_true(chunk_data->num_components == 2);
+    assert_true(chunk_data->num_components == 3);
     colmesh_chunk_t* chunk = chunk_data->chunk;
     DECLARE_COLMESH_CELL_ARRAY(f, chunk_data);
     for (int xy = 0; xy < chunk->num_columns; ++xy)
     {
       for (int z = 1; z <= chunk->num_z_cells; ++z)
       {
-        f[xy][z][0] = 1.0 * (XY + xy);
-        f[xy][z][1] = 1.0 * (Z + z);
+        point_t xc;
+        get_cell_centroid(chunk, xy, z, &xc);
+        f[xy][z][0] = xc.x;
+        f[xy][z][1] = xc.y;
+        f[xy][z][2] = xc.z;
       }
     }
   }
@@ -84,37 +106,17 @@ static void test_cell_field(void** state, colmesh_t* mesh)
     colmesh_chunk_t* chunk = chunk_data->chunk;
     DECLARE_COLMESH_CELL_ARRAY(f, chunk_data);
 
-    // interior values
     for (int xy = 0; xy < chunk->num_columns; ++xy)
     {
       for (int z = 1; z <= chunk->num_z_cells; ++z)
       {
-        assert_true(reals_equal(f[xy][z][0], 1.0 * (XY + xy)));
-        assert_true(reals_equal(f[xy][z][1], 1.0 * (Z + z)));
-      }
-    }
-
-    // xy ghost vælues
-    for (int xy = chunk->num_columns; xy < chunk->num_columns + chunk->num_ghost_columns; ++xy)
-    {
-      for (int z = 1; z <= chunk->num_z_cells; ++z)
-      {
-log_debug("(%d, %d, 0): %g vs %g", xy, z, f[xy][z][0], 1.0 * (XY + xy));
-log_debug("(%d, %d, 1): %g vs %g", xy, z, f[xy][z][1], 1.0 * (Z + z));
-        assert_true(!reals_equal(f[xy][z][0], 1.0 * (XY + xy)));
-        assert_true(!reals_equal(f[xy][z][1], 1.0 * (Z + z)));
-      }
-    }
-
-    // z ghost vælues
-    for (int xy = 0; xy < chunk->num_columns; ++xy)
-    {
-      for (int z = 0; z != chunk->num_z_cells+1; z = chunk->num_z_cells+1)
-      {
-log_debug("(%d, %d, 0): %g vs %g", xy, z, f[xy][z][0], 1.0 * (XY + xy));
-log_debug("(%d, %d, 1): %g vs %g", xy, z, f[xy][z][1], 1.0 * (Z + z));
-        assert_true(!reals_equal(f[xy][z][0], 1.0 * (XY + xy)));
-        assert_true(!reals_equal(f[xy][z][1], 1.0 * (Z + z)));
+        // Verify the centroid of this cell.
+        point_t xc;
+        get_cell_centroid(chunk, xy, z, &xc);
+printf("%g, %g, %g\n", f[xy][z][0], f[xy][z][1], f[xy][z][2]);
+        assert_true(reals_equal(f[xy][z][0], xc.x));
+        assert_true(reals_equal(f[xy][z][1], xc.y));
+        assert_true(reals_equal(f[xy][z][2], xc.z));
       }
     }
   }
