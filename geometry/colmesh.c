@@ -1235,6 +1235,7 @@ static void redistribute_colmesh(colmesh_t** mesh,
   new_mesh->nz_per_chunk = old_mesh->nz_per_chunk;
   new_mesh->z1 = old_mesh->z1;
   new_mesh->z2 = old_mesh->z2;
+  new_mesh->periodic_in_z = old_mesh->periodic_in_z;
   MPI_Comm_size(new_mesh->comm, &new_mesh->nproc);
   MPI_Comm_rank(new_mesh->comm, &new_mesh->rank);
   new_mesh->chunk_graph = adj_graph_clone(old_mesh->chunk_graph);
