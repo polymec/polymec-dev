@@ -368,7 +368,9 @@ static inline bool map_name##_next(map_name##_t* map, int* pos, key_type* key, v
 \
 static inline map_name##_t* map_name##_clone(map_name##_t* map, \
                                              map_name##_key_t (*key_clone_func)(map_name##_key_t), \
-                                             map_name##_value_t (*val_clone_func)(map_name##_value_t)) \
+                                             map_name##_value_t (*val_clone_func)(map_name##_value_t), \
+                                             map_name##_k_dtor k_dtor, \
+                                             map_name##_v_dtor v_dtor) \
 { \
   map_name##_t* clone = map_name##_new_with_capacity(map->bucket_count); \
   int pos = 0; \
@@ -386,7 +388,7 @@ static inline map_name##_t* map_name##_clone(map_name##_t* map, \
       val_clone = val_clone_func(value); \
     else \
       val_clone = value; \
-    map_name##_insert(clone, key_clone, val_clone); \
+    map_name##_insert_with_kv_dtors(clone, key_clone, val_clone, k_dtor, v_dtor); \
   } \
   return clone; \
 } \

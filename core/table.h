@@ -199,7 +199,7 @@ static inline bool table_name##_next_cell(table_name##_t* table, table_name##_ce
 static inline table_name##_t* table_name##_clone(table_name##_t* table) \
 { \
   table_name##_t* t = (table_name##_t*)polymec_malloc(sizeof(table_name##_t)); \
-  t->map = table_name##_map_clone(table->map, NULL, NULL); \
+  t->map = table_name##_map_clone(table->map, NULL, NULL, NULL, NULL); \
   t->num_rows = table->num_rows; \
   return t; \
 } \

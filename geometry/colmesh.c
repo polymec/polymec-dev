@@ -229,8 +229,8 @@ static chunk_xy_data_t* chunk_xy_data_clone(chunk_xy_data_t* xy_data)
   clone->num_xy_nodes = xy_data->num_xy_nodes;
   clone->xy_nodes = polymec_malloc(xy_data->num_xy_nodes * sizeof(point2_t));
   memcpy(clone->xy_nodes, xy_data->xy_nodes, xy_data->num_xy_nodes * sizeof(point2_t));
-  clone->send_map = exchanger_proc_map_clone(xy_data->send_map, NULL, clone_int_array);
-  clone->receive_map = exchanger_proc_map_clone(xy_data->send_map, NULL, clone_int_array);
+  clone->send_map = exchanger_proc_map_clone(xy_data->send_map, NULL, clone_int_array, NULL, int_array_free);
+  clone->receive_map = exchanger_proc_map_clone(xy_data->send_map, NULL, clone_int_array, NULL, int_array_free);
   return clone;
 }
 #endif
