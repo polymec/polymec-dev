@@ -113,10 +113,18 @@ static void test_cell_field(void** state, colmesh_t* mesh)
         // Verify the centroid of this cell.
         point_t xc;
         get_cell_centroid(chunk, xy, z, &xc);
-printf("%g, %g, %g\n", f[xy][z][0], f[xy][z][1], f[xy][z][2]);
         assert_true(reals_equal(f[xy][z][0], xc.x));
         assert_true(reals_equal(f[xy][z][1], xc.y));
         assert_true(reals_equal(f[xy][z][2], xc.z));
+
+        // Verify the centroids of any neighbors.
+        int pos1 = 0, n;
+        while (colmesh_chunk_column_next_neighbor(chunk, xy, &pos1, &n))
+        {
+          point_t yc = {.x = f[n][z][0], .y = f[n][z][1], .z = f[n][z][2]};
+          real_t dx = 1.0/_nx;
+          assert_true(reals_equal(point_distance(&xc, &yc), dx));
+        }
       }
     }
   }

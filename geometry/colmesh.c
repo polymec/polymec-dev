@@ -414,6 +414,7 @@ void colmesh_insert_chunk(colmesh_t* mesh, int xy_index, int z_index)
   chunk->num_xy_faces = xy_data->num_xy_faces;
   chunk->xy_face_columns = xy_data->xy_face_columns;
   chunk->num_xy_edges = xy_data->num_xy_edges;
+  chunk->xy_edge_nodes = xy_data->xy_edge_nodes;
   chunk->num_xy_nodes = xy_data->num_xy_nodes;
   chunk->xy_nodes = xy_data->xy_nodes;
 
@@ -1403,3 +1404,24 @@ exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering)
   return ex;
 }
 
+void colmesh_chunk_z_face_get_nodes(colmesh_chunk_t* chunk,
+                                    int z_face,
+                                    int* nodes)
+{
+  // To gather nodes, we traverse the xy edges of this z face, which is 
+  // the same as traversing the xy faces of the column for the z face.
+  int nfaces = colmesh_chunk_column_num_xy_faces(chunk, z_face);
+  int faces[nfaces];
+  colmesh_chunk_column_get_xy_faces(chunk, z_face, faces);
+  for (int n = 0; n < nfaces; ++n)
+  {
+    int face = faces[n];
+    int nn = 0;
+    if (face < 0)
+    {
+      face = ~face;
+      nn = 1;
+    }
+    nodes[n] = chunk->xy_edge_nodes[2*face+nn];
+  }
+}

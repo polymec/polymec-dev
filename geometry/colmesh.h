@@ -83,8 +83,8 @@ struct colmesh_chunk_t
   /// The total number of lateral (xy) edges at a single z location.
   int num_xy_edges;
 
-  /// The nodes attached to an xy edge. The first node for an edge is 
-  /// xy_edge_nodes[2*xy], and the second is xy_edge_nodes[2*xy+1].
+  /// The nodes attached to an xy edge. The first node for an edge e is 
+  /// xy_edge_nodes[2*e], and the second is xy_edge_nodes[2*e+1].
   int* xy_edge_nodes;
 
   /// The total number of nodes at a single z location.
@@ -105,15 +105,15 @@ typedef struct colmesh_chunk_t colmesh_chunk_t;
 
 /// Creates a new empty colmesh level defined within the segment [z1, z2] of 
 /// of the z axis, with cellular columns defined by the given planar polymesh.
-/// \param comm [in] The communicator on which the mesh is constructed.
-/// \param columns [in] A planar polygonal mesh that defines a set of connected
+/// \param [in] comm The communicator on which the mesh is constructed.
+/// \param [in] columns A planar polygonal mesh that defines a set of connected
 ///                     polygonal columns for the colmesh. 
-/// \param z1 [in] The z coordinate of the lower boundary of the mesh.
-/// \param z2 [in] The z coordinate of the upper boundary of the mesh.
-/// \param num_xy_chunks [in] The number of chunks in the distributed mesh within the xy plane.
-/// \param num_z_chunks [in] The number of chunks in the distributed mesh along the z axis.
-/// \param nz_per_chunk [in] The number of mesh cells along the z axis in a chunk.
-/// \param periodic_in_z [in] True if the mesh is periodic along the z axis, false if not.
+/// \param [in] z1 The z coordinate of the lower boundary of the mesh.
+/// \param [in] z2 The z coordinate of the upper boundary of the mesh.
+/// \param [in] num_xy_chunks The number of chunks in the distributed mesh within the xy plane.
+/// \param [in] num_z_chunks The number of chunks in the distributed mesh along the z axis.
+/// \param [in] nz_per_chunk The number of mesh cells along the z axis in a chunk.
+/// \param [in] periodic_in_z True if the mesh is periodic along the z axis, false if not.
 /// \returns A newly created colmesh containing no chunks.
 /// \memberof colmesh
 colmesh_t* create_empty_colmesh(MPI_Comm comm, 
@@ -123,8 +123,8 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
                                 int nz_per_chunk, bool periodic_in_z);
 
 /// Inserts a new locally-stored chunk with the given xy and z indices into the mesh.
-/// \param xy_index [in] The index identifying the polygonal column that contains the new chunk.
-/// \param z_index [in] The index identifying the vertical (z) segment that contains the new chunk.
+/// \param [in] xy_index The index identifying the polygonal column that contains the new chunk.
+/// \param [in] z_index The index identifying the vertical (z) segment that contains the new chunk.
 /// \memberof colmesh
 void colmesh_insert_chunk(colmesh_t* mesh, int xy_index, int z_index);
 
@@ -146,14 +146,14 @@ void colmesh_finalize(colmesh_t* mesh);
 /// (global) planar polygonal mesh. The partitioning does not minimize 
 /// communication, so you might want to call \ref repartition_colmesh on the 
 /// resulting mesh.
-/// \param comm [in] The communicator on which the mesh is constructed.
-/// \param columns [in] A planar polygonal mesh that defines a set of connected
+/// \param [in] comm The communicator on which the mesh is constructed.
+/// \param [in] columns A planar polygonal mesh that defines a set of connected
 ///                     polygonal columns for the colmesh. Consumed by this
 ///                     function.
-/// \param z1 [in] The z coordinate of the lower boundary of the mesh.
-/// \param z2 [in] The z coordinate of the upper boundary of the mesh.
-/// \param nz [in] The total number of cells along the z axis.
-/// \param periodic_in_z [in] True if the mesh is periodic along the z axis, false if not.
+/// \param [in] z1 The z coordinate of the lower boundary of the mesh.
+/// \param [in] z2 The z coordinate of the upper boundary of the mesh.
+/// \param [in] nz The total number of cells along the z axis.
+/// \param [in] periodic_in_z True if the mesh is periodic along the z axis, false if not.
 /// \returns A newly created colmesh.
 /// \memberof colmesh
 /// \collective Collective on comm.
@@ -174,9 +174,9 @@ colmesh_t* colmesh_new(MPI_Comm comm,
 void colmesh_free(colmesh_t* mesh);
 
 /// Retrieves metadata for chunks in this colmesh.
-/// \param num_xy_chunks [out] The number of chunks within the xy plane.
-/// \param num_z_chunks [out] The number of chunks along the z axis.
-/// \param nz_per_chunk [out] The number of vertical cells per chunk.
+/// \param [out] num_xy_chunks The number of chunks within the xy plane.
+/// \param [out] num_z_chunks The number of chunks along the z axis.
+/// \param [out] nz_per_chunk The number of vertical cells per chunk.
 /// \memberof colmesh
 void colmesh_get_chunk_info(colmesh_t* mesh, 
                             int* num_xy_chunks,
@@ -184,9 +184,9 @@ void colmesh_get_chunk_info(colmesh_t* mesh,
                             int* nz_per_chunk);
 
 /// Retrieves metadata for the z axis in this colmesh.
-/// \param z1 [out] Stores the z coordinate of the lowest plane in the mesh.
-/// \param z2 [out] Stores the z coordinate of the highest plane in the mesh.
-/// \param periodic [out] Stores whether the z axis is periodic.
+/// \param [out] z1 Stores the z coordinate of the lowest plane in the mesh.
+/// \param [out] z2 Stores the z coordinate of the highest plane in the mesh.
+/// \param [out] periodic Stores whether the z axis is periodic.
 /// \memberof colmesh
 void colmesh_get_z_info(colmesh_t* mesh, 
                         real_t* z1,
@@ -212,21 +212,21 @@ int colmesh_num_chunks(colmesh_t* mesh);
 
 /// Returns true if the mesh has a locally-stored chunk with the given 
 /// xy and z indices.
-/// \param xy_index [in] The xy index of the chunk in question.
-/// \param z_index [in] The z index of the chunk in question.
+/// \param [in] xy_index The xy index of the chunk in question.
+/// \param [in] z_index The z index of the chunk in question.
 bool colmesh_has_chunk(colmesh_t* mesh, int xy_index, int z_index);
 
 /// Returns the locally-stored chunk at the given xy and z indices, or NULL
 /// this chunk is not locally-stored.
-/// \param xy_index [in] The xy index of the chunk in question.
-/// \param z_index [in] The z index of the chunk in question.
+/// \param [in] xy_index The xy index of the chunk in question.
+/// \param [in] z_index The z index of the chunk in question.
 colmesh_chunk_t* colmesh_chunk(colmesh_t* mesh, int xy_index, int z_index);
 
 /// Traverses the locally-stored chunks in the mesh.
-/// \param pos [in,out] Controls the traversal. Set to 0 to reset traversal.
-/// \param xy_index [out] Stores the xy index of the next chunk.
-/// \param z_index [out] Stores the z index of the next chunk.
-/// \param chunk [out] Stores the next chunk.
+/// \param [in,out] pos Controls the traversal. Set to 0 to reset traversal.
+/// \param [out] xy_index Stores the xy index of the next chunk.
+/// \param [out] z_index Stores the z index of the next chunk.
+/// \param [out] chunk Stores the next chunk.
 /// \returns true if more locally-stored chunks remain, false otherwise. 
 /// \memberof colmesh
 bool colmesh_next_chunk(colmesh_t* mesh, int* pos, 
@@ -256,8 +256,8 @@ static inline int colmesh_chunk_column_num_xy_faces(colmesh_chunk_t* chunk,
 }
 
 /// Returns the indices of the xy faces for the given column in the chunk.
-/// \param column [in] The index for the column.
-/// \param xy_faces [out] An array big enough to store the (xy) indices of the
+/// \param [in] column The index for the column.
+/// \param [out] xy_faces An array big enough to store the (xy) indices of the
 ///                       xy faces of the column.
 /// \memberof colmesh_chunk
 static inline void colmesh_chunk_column_get_xy_faces(colmesh_chunk_t* chunk,
@@ -278,8 +278,8 @@ static inline void colmesh_chunk_column_get_xy_faces(colmesh_chunk_t* chunk,
 /// Returns the "oriented" indices of the xy faces for the given column in the chunk.
 /// Returns a non-negative index for xy faces whose edges/nodes are to be traversed in 
 /// order, and the one's complement for xy faces for which the traversal order is reversed.
-/// \param column [in] The index for the column.
-/// \param xy_faces [out] An array big enough to store the (xy) indices of the
+/// \param [in] column The index for the column.
+/// \param [out] xy_faces An array big enough to store the (xy) indices of the
 ///                       xy faces of the column.
 /// \memberof colmesh_chunk
 static inline void colmesh_chunk_column_get_oriented_xy_faces(colmesh_chunk_t* chunk,
@@ -290,6 +290,34 @@ static inline void colmesh_chunk_column_get_oriented_xy_faces(colmesh_chunk_t* c
   int end = chunk->column_xy_face_offsets[column+1];
   for (int f = start; f < end; ++f)
     xy_faces[f-start] = chunk->column_xy_faces[f];
+}
+
+/// Traverses the neighboring columns of the given column in a chunk.
+/// order, and the one's complement for xy faces for which the traversal order is reversed.
+/// \param [in] column The index for the column.
+/// \param [in,out] pos Controls the traversal. Set to 0 to reset traversal.
+/// \param [out] neighboring_column Stores the index of the next neighboring column.
+/// \returns true if more neighboring columns remain, false if the traversal is complete.
+/// \memberof colmesh_chunk
+static inline bool colmesh_chunk_column_next_neighbor(colmesh_chunk_t* chunk, 
+                                                      int column, 
+                                                      int* pos, 
+                                                      int* neighbor_column)
+{
+  int start = chunk->column_xy_face_offsets[column];
+  int end = chunk->column_xy_face_offsets[column];
+  if (*pos < (end - start))
+  {
+    int face = chunk->column_xy_faces[start+(*pos)];
+    if (face < 0)
+      *neighbor_column = chunk->xy_face_columns[2*(~face)+1];
+    else
+      *neighbor_column = chunk->xy_face_columns[2*face];
+    ++(*pos);
+    return true;
+  }
+  else
+    return false;
 }
 
 /// Returns the xy and z indices for the nodes of the given xy face at the 
@@ -363,22 +391,18 @@ static inline void colmesh_chunk_xy_face_get_edges(colmesh_chunk_t* chunk,
 static inline int colmesh_chunk_z_face_num_nodes(colmesh_chunk_t* chunk,
                                                  int z_face)
 {
-  // Nodes on z faces are indexed the same way as xy faces on columns.
+  // There are as many nodes on a z face as there are xy faces on a column.
   return colmesh_chunk_column_num_xy_faces(chunk, z_face);
 }
 
 /// Returns the indices of the nodes for the given z face in the chunk.
-/// \param z_face [in] The index for the z face (same as the column index).
-/// \param nodes [out] An array big enough to store the indices of the
+/// \param [in] z_face The index for the z face (same as the column index).
+/// \param [out] nodes An array big enough to store the indices of the
 ///                    nodes of the z face.
 /// \memberof colmesh_chunk
-static inline void colmesh_chunk_z_face_get_nodes(colmesh_chunk_t* chunk,
-                                                  int z_face,
-                                                  int* nodes)
-{
-  // Nodes on z faces are indexed the same way as xy faces on columns.
-  colmesh_chunk_column_get_oriented_xy_faces(chunk, z_face, nodes);
-}
+void colmesh_chunk_z_face_get_nodes(colmesh_chunk_t* chunk,
+                                    int z_face,
+                                    int* nodes);
 
 /// Retrieves the coordinates of the node with the given xy and z indices in this 
 /// chunk. 
