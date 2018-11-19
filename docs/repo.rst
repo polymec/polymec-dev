@@ -24,7 +24,7 @@ Repository Location
 
 The primary development repository for Polymec is 
 
-https://github.com/polymec-dev/polymec-dev
+https://github.com/polymec/polymec-dev
 
 Git Workflow
 ============
