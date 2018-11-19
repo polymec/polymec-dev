@@ -15,34 +15,35 @@ Git repository.
 Overview
 ========
 
-To date, Polymec has been a small project, with most of its present 
-development done by a single person. This guide is not intended to be a 
-comprehensive developer guide--it is only to establish best practices for 
-maintaining the repository.
+So far, Polymec is a small project, with most development done by a single 
+person. This guide isn't intended to be a comprehensive developer guide--it's 
+mainly to establish best practices for maintaining the repository.
 
 Repository Location
 ===================
 
-The primary development repository for Polymec is presently 
+The primary development repository for Polymec is 
 
-https://bitbucket.org/jjphatt/polymec
+https://github.com/polymec-dev/polymec-dev
 
 Git Workflow
 ============
 
-In the interest of simplicity, we have adopted the workflow advocated for 
-by Peter Hintjens of ZeroMQ fame in http://hintjens.com/blog:24. This means 
-that the main repository will only contain a master branch and that all 
-development will occur in forks of this repository via pull requests. Forks 
-may govern development as their owners see fit.
+Polymec uses a forking workflow (https://www.atlassian.com/git/tutorials/comparing-workflows/forking-workflow),
+in which a contributor creates a fork of the primary repository, makes changes, 
+and creates a pull request to start the merge process. The forking workflow 
+is a simple and conservative flow that ensures that no changes are made to the 
+primary repo without pull requests, during which code reviews, testing, and 
+other diagnostics can be performed.
 
 Disallowed File Types
 =====================
 
-In general, binary files should not be stored within the repository. These 
-include (but are not limited to):
+In general, binary files aren't stored within the repository, since Git doesn't 
+have a good strategy for tracking changes in them. Binary files include
 
-* Compiled assets of any sort.
-* Documents (pdf), either from Polymec or in third-party libraries
-* Binary data files (hdf5, silo, gz) within third-party libraries
+* compiled assets of any sort.
+* documents (pdf), either from Polymec or in third-party libraries
+* binary data files (hdf5, silo, gz) within third-party libraries
 
+Binary files that don't change may be added if doing so simplifies development.

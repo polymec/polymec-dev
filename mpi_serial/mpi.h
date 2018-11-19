@@ -14,67 +14,69 @@
 // complete MPI replacement--it basically implements only the MPI bindings
 // needed to make Polymec work.
 
-#define MPI_Comm            int
-#define MPI_Group           int            
-#define MPI_Request         int          
-#define MPI_Datatype        int         
-#define MPI_Status          int           
-#define MPI_Op              int               
-#define MPI_Aint            int               
+#define MPI_Comm             int
+#define MPI_Group            int            
+#define MPI_Request          int          
+#define MPI_Datatype         int         
+#define MPI_Status           int           
+#define MPI_Op               int               
+#define MPI_Aint             int               
 
-#define MPI_COMM_NULL       0
-#define MPI_COMM_SELF       1
-#define MPI_COMM_WORLD      2       
+#define MPI_COMM_NULL        0
+#define MPI_COMM_SELF        1
+#define MPI_COMM_WORLD       2       
 
-#define MPI_DOUBLE          0           
-#define MPI_FLOAT           1           
-#define MPI_INT             2              
-#define MPI_SHORT           3              
-#define MPI_LONG_LONG_INT   4              
-#define MPI_LONG_LONG       4              
-#define MPI_CHAR            5             
-#define MPI_LONG            6             
-#define MPI_UNSIGNED_LONG   7
-#define MPI_BYTE            8             
-#define MPI_INT8_T          9             
-#define MPI_INT16_T         10             
-#define MPI_INT32_T         11             
-#define MPI_INT64_T         12
-#define MPI_UINT8_T         13 
-#define MPI_UINT16_T        14             
-#define MPI_UINT32_T        15             
-#define MPI_UINT64_T        16
+#define MPI_DOUBLE           0           
+#define MPI_FLOAT            1           
+#define MPI_INT              2              
+#define MPI_SHORT            3              
+#define MPI_LONG_LONG_INT    4              
+#define MPI_LONG_LONG        4              
+#define MPI_CHAR             5             
+#define MPI_LONG             6             
+#define MPI_UNSIGNED_LONG    7
+#define MPI_BYTE             8             
+#define MPI_INT8_T           9             
+#define MPI_INT16_T          10             
+#define MPI_INT32_T          11             
+#define MPI_INT64_T          12
+#define MPI_UINT8_T          13 
+#define MPI_UINT16_T         14             
+#define MPI_UINT32_T         15             
+#define MPI_UINT64_T         16
+#define MPI_C_FLOAT_COMPLEX  17          
+#define MPI_C_DOUBLE_COMPLEX 18 
 
 // For MPI_MINLOC, MPI_MAXLOC
-#define MPI_DOUBLE_INT      17
-#define MPI_FLOAT_INT       18
-#define MPI_2INT            19
-#define MPI_LONG_INT        19
-#define MPI_SHORT_INT       20
+#define MPI_DOUBLE_INT       19
+#define MPI_FLOAT_INT        20
+#define MPI_2INT             21
+#define MPI_LONG_INT         22
+#define MPI_SHORT_INT        23
 
-#define MPI_SUM             0              
-#define MPI_MIN             1              
-#define MPI_MIN_LOC         2
-#define MPI_MAX             3
-#define MPI_MAX_LOC         4
-#define MPI_LAND            5
-#define MPI_BAND            6
-#define MPI_LOR             7
-#define MPI_LXOR            8
-#define MPI_BOR             9
-#define MPI_BXOR            10
+#define MPI_SUM              0              
+#define MPI_MIN              1              
+#define MPI_MIN_LOC          2
+#define MPI_MAX              3
+#define MPI_MAX_LOC          4
+#define MPI_LAND             5
+#define MPI_BAND             6
+#define MPI_LOR              7
+#define MPI_LXOR             8
+#define MPI_BOR              9
+#define MPI_BXOR             10
 
-#define MPI_UNDEFINED       0        
-#define MPI_REQUEST_NULL    1        
-#define MPI_ANY_SOURCE      2        
-#define MPI_ANY_TAG         3
-#define MPI_SOURCE          4
-#define MPI_TAG             5
+#define MPI_UNDEFINED        0        
+#define MPI_REQUEST_NULL     1        
+#define MPI_ANY_SOURCE       2        
+#define MPI_ANY_TAG          3
+#define MPI_SOURCE           4
+#define MPI_TAG              5
 
-#define MPI_SUCCESS         0
+#define MPI_SUCCESS          0
 
-#define MPI_IN_PLACE        NULL
-#define MPI_STATUS_IGNORE   NULL
+#define MPI_IN_PLACE         NULL
+#define MPI_STATUS_IGNORE    NULL
 
 typedef void MPI_User_function(void *invec, void *inoutvec, int* len, MPI_Datatype *datatype);
 

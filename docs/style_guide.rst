@@ -10,10 +10,10 @@ Polymec Development Style Guide
 ===============================
 
 This document describes rules, guidelines, and best practices for writing 
-code for the Polymec library. The structure of this guide and parts of its 
-prose were inspired by Google's C++ style guide, which appears at 
+code for the Polymec library. The structure of this guide was inspired by 
+Google's C++ style guide, which appears at 
 
-https://google-styleguide.googlecode.com/svn/trunk/cppguide.html
+https://google.github.io/styleguide/cppguide.html
 
 .. contents:: Table of Contents
 
@@ -41,7 +41,7 @@ the language especially appealing:
   C++ core language.
 
 * C is the common "hub" for several high-level and low-level programming 
-  languages. Python, Ruby, C++, and Fortran all have standard mechanisms 
+  languages. Python, Ruby, Lua, C++, and Fortran all have standard mechanisms 
   for interfacing with it, for example.
 
 * Link compatibility between C compilers removes much of the need for an 
@@ -61,11 +61,11 @@ ISO standard, which at the time of this writing is the "C11" standard
 Source Code Organization
 ========================
 
-Polymec comprises five C libraries:
+Polymec consists of five C libraries:
 
 * The ``core`` library, which contains utilities, scientific data structures,
   and components that can be used in applications. This library is used by the 
-  other three Polymec libraries.
+  other libraries.
 
 * The ``geometry`` library, which consists of various implementations of 
   algorithms for mesh generation, implicit functions and space-time functions, 
@@ -96,21 +96,24 @@ file, and that header file would be named after the function.  In others, a
 header file may contain a set of related functions, and its name should 
 concisely reflect the purpose of those functions.
 
-Self-contained Headers 
+Self-Contained Headers 
 ----------------------
 
-Header files should be self-contained and have a .h suffix. In other words, 
-it should be possible to include a header file without regard for rules 
+Header files are self-contained and have a .h suffix. A "self-contained" header
+file can be included in a translation unit without regard for rules 
 relating to the order of its inclusion, or for other headers that are 
-"understood" to be included when it is used. Specifically, a header file 
-should use header guards, should include all the files that it needs, and 
-should not require any particular symbols to be defined.
+"understood" to be included when it is used. 
+
+Briefly, a header file
+* requires header guards
+* should include all the files that it needs
+* should not require any particular symbols to be defined
 
 Header Guards
 -------------
 
-A header file should have #define guards to prevent multiple inclusion. The 
-format of the guard should be ``POLYMEC_<HEADER_NAME>_H``, e.g.:
+A header file uses #define guards to prevent multiple inclusion. The 
+format of the guard is ``POLYMEC_<HEADER_NAME>_H``, e.g.:
 
 ``#ifndef POLYMEC_FOO_H
 #define POLYMEC_FOO_H``
@@ -119,7 +122,7 @@ format of the guard should be ``POLYMEC_<HEADER_NAME>_H``, e.g.:
 Polymec generates higher-level headers that are safe for inclusion in 
 C++ programs.
 
-Including Headers Within a Polymec Header 
+Including Headers within a Polymec Header 
 -----------------------------------------
 
 Any other header files included in the header should be included in the 
@@ -129,18 +132,18 @@ following order:
 2. Third-party library headers
 3. Polymec library headers.
 
-System-level headers must be enclosed in angle brackets, while third-party 
-library headers and Polymec headers should be enclosed in double quotes.
+System-level headers are enclosed in angle brackets, while third-party 
+library headers and Polymec headers are enclosed in double quotes.
 
 When including Polymec header files in a library that belongs to the Polymec
-library itself, one must specify the full path of the header file relative to 
+library itself, one specifies the full path of the header file relative to 
 the top level Polymec source directory in the ``#include`` directive, 
 e.g.
 
 ``#include "core/polymec.h``
 
-Classes 
--------
+Classes and Structs
+-------------------
 
 A "class" in Polymec is a struct with a set of associated functions. The 
 struct must only be declared in its header file--its body should NOT be 
@@ -149,36 +152,49 @@ The body should be defined in the source (.c) file associated with the header.
 Defining class bodies in source files is a common practice in C to reduce 
 code coupling, and it is emulated in the C++ "Pimpl" idiom.
 
+In the context of Polymec, a "struct" is a C struct containing data that can 
+be freely exposed. Structs have no behavior and internal state to manage. They 
+are defined in header files so that their data members are visible and accessible.
+Examples of structs are the ``point_t`` and ``vector_t`` types, which represent
+points and vectors in 3D space.
+
 Functions 
 ---------
 
-Any function that is part of Polymec's API should be declared within a 
-header file. A function may be "inlined" using the ``static inline``
-C construct. Functions with no arguments must be declared with ``void`` in 
-their argument list, per the C11 standard.
+Any function that is part of Polymec's API is declared within a header file. 
+A function may be "inlined" using the ``static inline`` C construct. Functions 
+with no arguments are declared with ``void`` in their argument list, in 
+accordance with the C11 standard.
 
 Global variables 
 ----------------
 
-No global variables should appear within a header file, apart from constants 
-(which are preferred to macros, since they can be checked by the compiler). 
-Mutable global variables should be restricted to translation units in which 
-they are manipulated. If a global data structure needs to exist, an appropriate 
-interface should be designed and implemented in terms of functions.
+Avoid global variables in header files, apart from constants (which are 
+preferred to macros, since they can be checked by the compiler). Mutable 
+global variables should be restricted to translation units in which they are 
+manipulated, and should be declared as ``static``. If you must expose a global 
+resource, design an appropriate interface so that it can be properly managed.
 
 Other Symbols 
 -------------
 
-Inlined functions should be used instead of macros where possible. Similarly, 
-constants should be used instead of macros where possible.
+Use inlined functions instead of macros where possible. Similarly, use 
+constants instead of macros where possible.
 
 Special Datatypes
 =================
 
-In Polymec, floating point variables should be stored using the 
-``real_t`` type. Integers representing indices that can assume 
-large values should be stored using the ``index_t`` type. Both of 
-these types are declared in ``core/polymec.h``.
+Polymec does a lot of stuff with real numbers, and sometimes even with 
+complex and imaginary ones. Use the ``real_t`` type to represent real 
+quantities, and the ``complex_t`` type. You can pass real numbers around with 
+MPI using ``MPI_REAL_T``, and complex numbers with ``MPI_COMPLEX_T``. These 
+types are defined properly for the level of precision for which Polymec is 
+configured.
+
+You might also want a 64-bit index type if you're assembling a distributed 
+linear system or a giant adjacency graph. The ``index_t`` type is guaranteed 
+to be 64-bit, and you can use the MPI type ``MPI_INDEX_T`` to pass it around 
+between processes.
 
 Polymec's ``core`` library contains several standard data structures such as 
 dynamic arrays, tuples, linked lists, unordered and ordered sets, unordered 
@@ -198,24 +214,22 @@ whereas the latter uses a threshold specified in the call.
 Scoping
 =======
 
-Static functions 
+Static Functions 
 ----------------
 
-A function that is used only within one translation unit should be declared 
-static so that its name does not appear in the list of symbols for the 
-Polymec library.
+A function that is used only within a single translation unit should be 
+declared static within that translation unit. This prevents its name from 
+appearing in the list of exported symbols for the Polymec library.
 
-Local variables 
+Local Variables 
 ---------------
 
-A local variable should be declared as close as possible to the location(s) 
-at which it is used. This makes it easier to identify problems involving 
-that variable.
+Declare a local variable as close as possible to where it is used. This makes 
+it easier to identify issues involving that variable.
 
-A variable should be initialized where it is declared, unless such an 
-initialization renders a code construction awkward or inefficient.
+Initialize a variable when you declare it wherever practical.
 
-Scoping operators
+Scoping Operators
 -----------------
 
 If a function has a large number of localized variables that perform work, 
@@ -228,75 +242,73 @@ Classes
 
 As mentioned in the section on header files, a Polymec class consists of a 
 struct representing that class, and an associated set of functions that
-are considered its methods. Class bodies are defined in source files 
-only, unless their internal structure is intended to be explicitly exposed to 
-developers. A class type should be "typedefed" so the 
-``struct`` keyword is not required to precede it.
+are considered its methods. Define class bodies in source files only, unless 
+their internal structure is intended to be explicitly exposed to developers. 
+"Typedef" your class type so the ``struct`` keyword can be omitted from its 
+type.
 
-The struct and functions defining a class are governed by the following set of 
+The struct and functions defining a class are governed by a few simple 
 conventions.
 
-Class type (struct) 
+Class Type (Struct) 
 -------------------
 
-The struct representing the class type should end in ``_t``. For 
-example, if we declare a "point" class, we might declare a struct
+The struct representing the class type ends in ``_t``. For example, if you 
+declare a "washing machine" class, you might declare a struct
 
-``typedef struct point_t;``
+``typedef struct washing_machine_t;``
 
-in a header file (point.h, say), and define the struct in a source file 
-(e.g. point.c).
+in a header file (``washing_machine.h``, say), and define the struct in a 
+source file (e.g. ``washing_machine.c``).
 
-Class constructor(s)
+Class Constructor(s)
 --------------------
 
-Typically, a class will have a single constructor function named 
-``<CLASS>_new`` that takes a number of arguments for initializing the class, 
-and returns a newly-allocated pointer to an instance of the corresponding 
-class struct. For example, we might define a constructor for our point class 
-thus:
+Typically, a class has a single constructor function named ``<CLASS>_new`` 
+that takes a number of arguments for initializing the class, and returns a 
+newly-allocated pointer to an instance of the corresponding class struct. 
+For example, we might define a constructor for our point class thus:
 
 ``point_t* point_new(real_t x, real_t y, real_t z);``
 
-Sometimes more than one constructor will be necessary, or a constructor that 
-converts another datatype to a given instance of a class will be convenient.
-In this case, each constructor should briefly convey its nature. For example, 
-a constructor that converts an array of ``real_t`` to a point might 
-be declared 
+Sometimes it's convenient to provide more than one constructor, or a 
+constructor that converts another datatype to a given instance of a class. 
+In these cases, name each constructor so that it briefly conveys its purpose. 
+For example, a constructor that converts an array of ``real_t`` to a point 
+might be declared 
 
 ``point_t* point_from_array(real_t* array);``
 
-A constructor function should take any arguments it needs to completely 
-initialize an variable of that class type, and return a pointer to such an 
-initialized variable. We refer to these variables as objects.
+A constructor function takes any arguments it needs to completely initialize 
+an variable of that class type, and returns a pointer to such an initialized 
+variable. We refer to these variables as objects.
 
 Class destructor 
 ----------------
 
-A single destructor function must be defined for any class that does not use 
-garbage collection. The destructor function must have no return type, and must 
-be named ``<CLASS>_free``. It must take as an argument a pointer 
-to the struct representing an instance of that class. For example:
+Define a single destructor function for any class that does not use reference 
+counting. The destructor function has no return type, and must be named 
+``<CLASS>_free``. The destructor take a single argument: a pointer to the 
+struct representing an instance of that class. For example:
 
 ``void point_free(point_t* point);``
 
-The destructor must completely deallocate any resources allocated to the 
+The destructor completely deallocates any resources allocated to the 
 argument object in its construction and during its lifetime.
 
 Methods 
 -------
 
-A method for a class should be named ``<CLASS>_<METHOD>`` and should 
-always take a pointer to the struct representing an instance of 
-that class as its first argument. For example, the following method returns 
-the distance between the given point and another point:
+Name a method for a class using that class's name as a prefix: 
+``<CLASS>_<METHOD>``. The first argument to a method is a pointer to the 
+struct representing an instance of that class. For example, the following 
+method returns the distance between the given point and another point:
 
 ``real_t point_distance(point_t* point, point_t* other);``
 
-Methods should be defined in a manner similar to the idioms found in modern 
-object-oriented programming languages such as C++ and Java. After the first 
-argument, arguments should be ordered with input values at the beginning 
-of the argument list followed by output values at the end.
+Define methods just as you would in contemporary object-oriented programming 
+languages like C++ and Java. If it's practical, lead the list of parameters 
+with input values, and put output parameters at the end.
 
 Polymorphism in C 
 -----------------
@@ -309,9 +321,9 @@ consists of:
 2. A virtual table (vtable) struct consisting of a set of function pointers 
    matching the interface for the class
 3. A constructor function that creates a descendant object using a context 
-   pointer, a vtable, and any other data needed.
+   pointer, a vtable, and any other data needed
 4. Any other functions needed to implement a destructor and/or methods for the 
-   polymorphic class.
+   polymorphic class
 
 This approach to polymorphism is called "prototype polymorphism," and is used 
 in some other programming languages such as Lua. The idea is that the behavior 
@@ -332,10 +344,10 @@ model.
 Structs as "Plain Old Datatypes" (PODs)
 =======================================
 
-Occasionally, it may be expedient to declare a struct representing a simple 
-container, or "Plain Old Datatype" (POD). In this case, no constructor or 
-destructor or methods are needed for manipulation unless such mechanisms make 
-the POD more convenient to use.
+Sometimes it's convenient to declare a struct representing a simple container, 
+or "Plain Old Datatype" (POD). In this case, no constructor or destructor or 
+methods are needed for manipulation unless such mechanisms make the POD more 
+convenient to use.
 
 Functions
 =========
@@ -349,17 +361,17 @@ Length of a Function Body
 There is no formal limit to the length of a Polymec function implementation. 
 If breaking up a function into separate functions is practical, feel free to 
 do so. However, creating lots of ancillary structure just to break up a long 
-function is counterproductive. Use your judgement.
+function can be counterproductive. Use your judgement.
 
-The function indeed may be poorly designed if it is difficult to break up. 
-On the other hand, if the function is performing a complicated task with lots 
-of tightly coupled steps, attempting to break it up may further obfuscate its 
-task.
+A function may be poorly designed if it is difficult to break up. On the other 
+hand, if the function performs a complicated task with lots of tightly-coupled 
+steps, attempting to break it up may make it even more confusing.
 
 At the end of the day, arguments about the optimal length of a function are 
-based in aesthetics and often exert strange and unnatural pressures on 
-code development, encouraging people to write code with few comments, lots of 
-side effects, and/or excessive numbers of tightly-coupled "sub-functions."
+aesthetic. These arguments often exert strange and unnatural pressures on code 
+development. At worst, they encourage people to write code with few comments, 
+lots of side effects, and/or excessive numbers of tightly-coupled 
+"sub-functions." Your mileage may vary.
 
 Memory Management
 =================
@@ -403,30 +415,46 @@ managing it with garbage collection.
 In any case, any functions/methods that perform ownership transfers should 
 describe the transfer in their documentation.
 
-Garbage Collection
+Reference Counting
 ------------------
 
 Classes representing small objects whose ownership is not clear-cut may use 
 a simple reference counting system supported by Lua. An object of a 
-garbage-collected type has no destructor in its API, since its destruction is 
+reference-counted type has no destructor in its API, since its destruction is 
 performed automatically some time after all references to it have been 
 destroyed.
 
-Use ``polymec_gc_malloc`` to allocate garbage-collected resources. Any 
-resources managed by the garbage-collected object should be allocated with 
-``polymec_malloc`` and freed with ``polymec_free``. The resources should be 
-freed in a private destructor supplied to ``polymec_gc_malloc``. 
+Use ``polymec_refcounted_malloc`` to allocate a reference-counted resource. 
+Allocate any resources managed by this reference-counted object as usual, with 
+``polymec_malloc``. Free these resources in with ``polymec_free`` in a private 
+destructor you supply to ``polymec_refcounted_malloc``. 
 
-In Lua, garbage-collected objects are managed automatically. In C, you need 
-to increment the reference count of an object you need to keep around. Do 
-this with ``polymec_retain``. When you're finished with an object and you 
-don't care when it gets collected, release it with ``polymec_release``.
+A newly-created reference-counted object starts with a reference count of 1. 
+If you want to retain a reference to an object ``o`` to prevent it from being 
+destroyed, increment its reference count like this:
 
-For an example of a simple garbage-collected type in Polymec, see the ``point``
-class in ``core/point.h`` (and its implementation in ``core/point.c``). For a 
-more elaborate example of a garbage-collected type that manages its own 
-resources, see the ``st_func`` class in ``core/st_func.h`` and 
-``core/st_func.c``.
+``retain_ref(o);``
+
+If you don't need to bump the reference count, but you want to annotate your 
+code to say you're "borrowing" the object ``o`` temporarily, you can be a good 
+citizen and use 
+
+``borrow_ref(o);``
+
+This statement doesn't actually do anything--it's just good manners. Finally, 
+when you're done with the reference-counted object, you can release it with 
+
+``release_ref(o);``
+
+Objects can be created in C or in the Lua interpreter, and these objects 
+can be transferred from one environment to the other. Lua maintains its own 
+resources with automatic garbage-collection and will respect the reference 
+count of resources you transfer to it. See ``lua_transfer_object`` for details
+on how to migrate an object one way or the other.
+
+For an example of a simple reference-counted type in Polymec, see the 
+``st_func`` class in ``core/st_func.h`` (and its implementation in 
+``core/st_func.c``). 
 
 Special Allocators
 ------------------
@@ -448,8 +476,8 @@ requesting memory from the operating system. These are:
   be more flexible.
 
 Allocators are controlled via an interface defined in ``core/allocators.h``. 
-You will need to experiment with these allocators to gain an understanding of 
-their benefits, drawbacks, and general capabilities.
+Experiment with these allocators to gain an understanding of their benefits, 
+drawbacks, and general capabilities.
 
 Naming
 ======
@@ -488,19 +516,16 @@ Use C++ style comments (``//``), which have been supported in C since the
 C99 standard. C-style comments (``/* */``) are clunkier and harder for 
 editors to parse correctly.
 
-Polymec does not use an inline documentation generator like Doxygen, so there 
-are no documentation markup tags. Class types, structs, and enumerated types 
-should be commented with a brief synopsis of their purpose. The comments 
-should precede the ``typedef`` for the type.
+To formally document a type or a function, use Doxygen's markup:
 
-A function should be commented with a brief description of the function, its 
-preconditions, postconditions, and return values where applicable. The 
-comments should precede the function declaration in header files.
+http://www.doxygen.org/
 
-It is not necessary to repeat comments for a class/function in its 
-implementation file if its declaration hsa been documented. However, classes 
-and functions that appear only within an implementation file should be 
-documented for completeness.
+In header files, describe your class types, structs, and enumerated types 
+briefly and clearly. Build the Doxygen documentation to get an idea of what 
+documentation typically looks like.
+
+You don't need to put any documentation markup into implementation source 
+files. Commenting your implementation code is always helpful, of course.
 
 Formatting
 ==========
