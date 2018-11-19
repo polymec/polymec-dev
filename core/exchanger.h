@@ -159,11 +159,11 @@ int exchanger_num_sends(exchanger_t* ex);
 void exchanger_delete_send(exchanger_t* ex, int remote_process);
 
 /// Allows the traversal of the set of send indices for remote processes.
-/// \param pos [in,out] Controls the traversal. Set to 0 to reset.
-/// \param remote_process [out] Stores the remote process in the next send transaction.
-/// \param indices [out] Stores an internal pointer to the array of indices identifying data 
+/// \param [in,out] pos Controls the traversal. Set to 0 to reset.
+/// \param [out] remote_process Stores the remote process in the next send transaction.
+/// \param [out] indices Stores an internal pointer to the array of indices identifying data 
 ///                      sent to the remote process.
-/// \param num_indices [out] Stores the length of the indices array.
+/// \param [out] num_indices Stores the length of the indices array.
 /// \returns true if another send transaction is available in the exchanger, false otherwise.
 /// \memberof exchanger
 bool exchanger_next_send(exchanger_t* ex, 
@@ -174,10 +174,10 @@ bool exchanger_next_send(exchanger_t* ex,
 
 /// Retrieves the indices and number of indices for a send transaction 
 /// with the given process.
-/// \param remote_process [in] The remote process in the specified send transaction.
-/// \param indices [out] Stores an internal pointer to the array of indices identifying data 
+/// \param [in] remote_process The remote process in the specified send transaction.
+/// \param [out] indices Stores an internal pointer to the array of indices identifying data 
 ///                      sent to the remote process.
-/// \param num_indices [out] Stores the length of the indices array.
+/// \param [out] num_indices Stores the length of the indices array.
 /// \returns true if such a transaction exists, false if not.
 /// \memberof exchanger
 bool exchanger_get_send(exchanger_t* ex, int remote_process, int** indices, int* num_indices);
@@ -222,11 +222,11 @@ int exchanger_num_receives(exchanger_t* ex);
 void exchanger_delete_receive(exchanger_t* ex, int remote_process);
 
 /// Allows the traversal of the set of receive indices for remote processes.
-/// \param pos [in,out] Controls the traversal. Set to 0 to reset.
-/// \param remote_process [out] Stores the remote process in the next receive transaction.
-/// \param indices [out] Stores an internal pointer to the array of indices identifying data 
+/// \param [in,out] pos Controls the traversal. Set to 0 to reset.
+/// \param [out] remote_process Stores the remote process in the next receive transaction.
+/// \param [out] indices Stores an internal pointer to the array of indices identifying data 
 ///                      received from the remote process.
-/// \param num_indices [out] Stores the length of the indices array.
+/// \param [out] num_indices Stores the length of the indices array.
 /// \returns true if another receive transaction is available in the exchanger, false otherwise.
 /// \memberof exchanger
 bool exchanger_next_receive(exchanger_t* ex, 
@@ -237,10 +237,10 @@ bool exchanger_next_receive(exchanger_t* ex,
 
 /// Retrieves the indices and number of indices for a receive transaction 
 /// with the given process. 
-/// \param remote_process [in] The remote process in the specified receive transaction.
-/// \param indices [out] Stores an internal pointer to the array of indices identifying data 
+/// \param [in] remote_process The remote process in the specified receive transaction.
+/// \param [out] indices Stores an internal pointer to the array of indices identifying data 
 ///                      sent to the remote process.
-/// \param num_indices [out] Stores the length of the indices array.
+/// \param [out] num_indices Stores the length of the indices array.
 /// \returns true if such a transaction exists, false if not.
 /// \memberof exchanger
 bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, int* num_indices);
