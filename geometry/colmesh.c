@@ -501,6 +501,8 @@ static void proc_point_map_add(proc_point_map_t* map,
 
 static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
 {
+  START_FUNCTION_TIMER();
+  ASSERT(mesh->cell_ex == NULL);
 #if POLYMEC_HAVE_MPI
   // Figure out which processes own what chunks.
   int64_t* owners = source_vector(mesh);
@@ -657,13 +659,37 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
   mesh->cell_ex = exchanger_new(mesh->comm);
   exchanger_set_sends(mesh->cell_ex, send_map);
   exchanger_set_receives(mesh->cell_ex, receive_map);
+  STOP_FUNCTION_TIMER();
+}
 
-  // No other exchangers yet.
-  mesh->xy_face_ex = NULL;
-  mesh->z_face_ex = NULL;
-  mesh->xy_edge_ex = NULL;
-  mesh->z_edge_ex = NULL;
-  mesh->node_ex = NULL;
+static void create_xy_face_ex(colmesh_t* mesh)
+{
+  START_FUNCTION_TIMER();
+  STOP_FUNCTION_TIMER();
+}
+
+static void create_z_face_ex(colmesh_t* mesh)
+{
+  START_FUNCTION_TIMER();
+  STOP_FUNCTION_TIMER();
+}
+
+static void create_xy_edge_ex(colmesh_t* mesh)
+{
+  START_FUNCTION_TIMER();
+  STOP_FUNCTION_TIMER();
+}
+
+static void create_z_edge_ex(colmesh_t* mesh)
+{
+  START_FUNCTION_TIMER();
+  STOP_FUNCTION_TIMER();
+}
+
+static void create_node_ex(colmesh_t* mesh)
+{
+  START_FUNCTION_TIMER();
+  STOP_FUNCTION_TIMER();
 }
 
 void colmesh_finalize(colmesh_t* mesh)
@@ -1240,6 +1266,12 @@ static void redistribute_colmesh(colmesh_t** mesh,
   MPI_Comm_rank(new_mesh->comm, &new_mesh->rank);
   new_mesh->chunk_graph = adj_graph_clone(old_mesh->chunk_graph);
   new_mesh->finalized = false;
+  new_mesh->cell_ex = NULL;
+  new_mesh->xy_face_ex = NULL;
+  new_mesh->z_face_ex = NULL;
+  new_mesh->xy_edge_ex = NULL;
+  new_mesh->z_edge_ex = NULL;
+  new_mesh->node_ex = NULL;
 
   // Create xy data for chunks.
   new_mesh->chunk_xy_data = redistribute_chunk_xy_data(old_mesh, partition, sources);
@@ -1395,12 +1427,34 @@ exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering)
   exchanger_t* ex = NULL;
   switch (centering)
   {
-    case COLMESH_CELL: ex = mesh->cell_ex; break;
-    case COLMESH_XYFACE: ex = mesh->xy_face_ex; break;
-    case COLMESH_ZFACE: ex = mesh->z_face_ex; break;
-    case COLMESH_XYEDGE: ex = mesh->xy_edge_ex; break;
-    case COLMESH_ZEDGE: ex = mesh->z_edge_ex; break;
-    case COLMESH_NODE: ex = mesh->node_ex; break;
+    case COLMESH_CELL: 
+      ex = mesh->cell_ex; 
+      break;
+    case COLMESH_XYFACE: 
+      if (mesh->xy_face_ex == NULL)
+        create_xy_face_ex(mesh);
+      ex = mesh->xy_face_ex; 
+      break;
+    case COLMESH_ZFACE: 
+      if (mesh->z_face_ex == NULL)
+        create_z_face_ex(mesh);
+      ex = mesh->z_face_ex; 
+      break;
+    case COLMESH_XYEDGE: 
+      if (mesh->xy_edge_ex == NULL)
+        create_xy_edge_ex(mesh);
+      ex = mesh->xy_edge_ex; 
+      break;
+    case COLMESH_ZEDGE: 
+      if (mesh->z_edge_ex == NULL)
+        create_z_edge_ex(mesh);
+      ex = mesh->z_edge_ex; 
+      break;
+    case COLMESH_NODE: 
+      if (mesh->node_ex == NULL)
+        create_node_ex(mesh);
+      ex = mesh->node_ex; 
+      break;
   }
   return ex;
 }
