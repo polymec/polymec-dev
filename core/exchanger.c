@@ -66,6 +66,8 @@ static size_t mpi_size(MPI_Datatype type)
   size_t size = 0;
   if (type == MPI_REAL_T)
     size = sizeof(real_t);
+  else if (type == MPI_COMPLEX_T)
+    size = sizeof(complex_t);
   else if (type == MPI_DOUBLE)
     size = sizeof(double);
   else if (type == MPI_FLOAT)
@@ -159,6 +161,7 @@ static void mpi_message_pack(mpi_message_t* msg,
     HANDLE_PACKING(msg, MPI_INT64_T, int64_t)
     HANDLE_PACKING(msg, MPI_CHAR, char)
     HANDLE_PACKING(msg, MPI_BYTE, uint8_t)
+    HANDLE_PACKING(msg, MPI_COMPLEX_T, complex_t)
     ++i;
   }
 
@@ -204,6 +207,7 @@ static void mpi_message_unpack(mpi_message_t* msg,
     HANDLE_UNPACKING(msg, MPI_INT64_T, int64_t)
     HANDLE_UNPACKING(msg, MPI_CHAR, char)
     HANDLE_UNPACKING(msg, MPI_BYTE, uint8_t)
+    HANDLE_UNPACKING(msg, MPI_COMPLEX_T, complex_t)
     ++i;
   }
 }
@@ -248,6 +252,8 @@ static void mpi_message_fprintf(mpi_message_t* msg, FILE* stream)
   char typeStr[1024];
   if (msg->type == MPI_REAL_T)
     strcpy(typeStr, "real");
+  else if (msg->type == MPI_COMPLEX_T)
+    strcpy(typeStr, "complex");
   else if (msg->type == MPI_DOUBLE)
     strcpy(typeStr, "double");
   else if (msg->type == MPI_FLOAT)
