@@ -665,12 +665,14 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
 static void create_xy_face_ex(colmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
+  ASSERT(mesh->cell_ex != NULL);
   STOP_FUNCTION_TIMER();
 }
 
 static void create_z_face_ex(colmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
+  ASSERT(mesh->cell_ex != NULL);
   STOP_FUNCTION_TIMER();
 }
 

@@ -711,7 +711,7 @@ exchanger_t* polymesh_2v_face_exchanger_new(polymesh_t* mesh)
   // Get the mesh cell exchanger.
   exchanger_t* cell_ex = polymesh_cell_exchanger(mesh);
 
-  // Traverse the send cells and create send "faces."
+  // Traverse the send/receive cells and create send and receive "faces."
   int_array_t* send_faces = int_array_new();
   int_array_t* receive_faces = int_array_new();
   int pos = 0, proc, *s_indices, s_size; 
