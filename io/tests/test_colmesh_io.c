@@ -241,7 +241,7 @@ static void test_write_hex_colmesh(void** state)
   // Create a mesh of hexagonal prisms.
   int radius = 10, nz = 10;
   real_t h = 0.1;
-  planar_polymesh_t* columns = create_hex_planar_polymesh((size_t)radius, h);
+  planar_polymesh_t* columns = create_hex_planar_polymesh(radius, h);
   colmesh_t* mesh = colmesh_new(MPI_COMM_WORLD, columns, 0.0, 1.0, nz, false);
   planar_polymesh_free(columns);
 

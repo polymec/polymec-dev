@@ -86,13 +86,13 @@ static void hex_get_node_position(hex_t* hex,
   x->y = y0 + h*sin(theta);
 }
 
-planar_polymesh_t* create_hex_planar_polymesh(size_t radius, 
-                                              real_t h)
+planar_polymesh_t* create_hex_planar_polymesh(int radius, real_t h)
 {
+  ASSERT(radius >= 0);
   ASSERT(h > 0.0);
 
   // Build a hexagonal array of hexes.
-  hex_map_t* hex_map = hexagon((int)radius);
+  hex_map_t* hex_map = hexagon(radius);
 
   // Traverse the cells and pick off elements.
   hex_t hex_inv_map[hex_map->size];

@@ -18,8 +18,7 @@
 /// of hexagonal cells extending outward from a center cell.
 /// \param [in] radius The number of hexes extending outward from the center hex. 
 /// \param [in] h The length of the side of each hexagon.
-planar_polymesh_t* create_hex_planar_polymesh(size_t radius, 
-                                              real_t h);
+planar_polymesh_t* create_hex_planar_polymesh(int radius, real_t h);
 
 ///@}
 

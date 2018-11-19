@@ -154,16 +154,16 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
   }
 
   // Read chunk metadata.
-  size_t num_xy_chunks, num_z_chunks, nz_per_chunk;
+  int num_xy_chunks, num_z_chunks, nz_per_chunk;
   {
     char array_name[FILENAME_MAX+1];
     snprintf(array_name, FILENAME_MAX, "%s_chunk_md", mesh_name);
     size_t size;
     int* chunk_md = silo_file_read_int_array(file, array_name, &size);
     ASSERT(size == 3);
-    num_xy_chunks = (size_t)chunk_md[0];
-    num_z_chunks = (size_t)chunk_md[1];
-    nz_per_chunk = (size_t)chunk_md[2];
+    num_xy_chunks = chunk_md[0];
+    num_z_chunks = chunk_md[1];
+    nz_per_chunk = chunk_md[2];
     polymec_free(chunk_md);
   }
 
@@ -174,8 +174,8 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
   MPI_Comm comm = MPI_COMM_WORLD;
 #endif
   colmesh_t* mesh = create_empty_colmesh(comm, columns, z1, z2, 
-                                           num_xy_chunks, num_z_chunks, nz_per_chunk, 
-                                           periodic);
+                                         num_xy_chunks, num_z_chunks, nz_per_chunk, 
+                                         periodic);
 
   // Fill it with chunks whose indices we read from the file.
   {

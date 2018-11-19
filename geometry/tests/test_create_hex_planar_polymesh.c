@@ -16,7 +16,7 @@ extern void write_plot_planar_polymesh_py(planar_polymesh_t* mesh,
                                           const char* script_name);
 
 static void test_create_hex_planar_polymesh(void** state,
-                                            size_t radius,
+                                            int radius,
                                             int num_cells,
                                             int num_edges,
                                             int num_nodes)
@@ -31,7 +31,7 @@ static void test_create_hex_planar_polymesh(void** state,
 
   // Write a Python/Matplotlib script to plot the mesh.
   char script[FILENAME_MAX+1];
-  snprintf(script, FILENAME_MAX, "plot_r%d_planar_hexmesh.py", (int)radius);
+  snprintf(script, FILENAME_MAX, "plot_r%d_planar_hexmesh.py", radius);
   write_plot_planar_polymesh_py(mesh, script);
 
   // Verify its topology.

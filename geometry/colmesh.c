@@ -187,7 +187,7 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   int_array_release_data_and_free(face_cols);
 
   xy_data->xy_edge_nodes = edge_nodes->data;
-  xy_data->num_xy_edges = edge_nodes->size/2;
+  xy_data->num_xy_edges = (int)(edge_nodes->size/2);
   int_array_release_data_and_free(edge_nodes);
 
   // Set node positions.
@@ -1320,7 +1320,7 @@ static void redistribute_colmesh_field(colmesh_field_t** field,
   }
 
   // Post receives for each chunk in the new field.
-  int num_new_local_chunks = colmesh_field_num_chunks(new_field);
+  int num_new_local_chunks = (int)colmesh_field_num_chunks(new_field);
   MPI_Request recv_requests[num_new_local_chunks];
   pos = 0;
   size_t num_recv_reqs = 0;
@@ -1340,7 +1340,7 @@ static void redistribute_colmesh_field(colmesh_field_t** field,
   ASSERT(num_recv_reqs <= num_new_local_chunks);
 
   // Post sends.
-  int num_old_local_chunks = colmesh_field_num_chunks(old_field);
+  int num_old_local_chunks = (int)colmesh_field_num_chunks(old_field);
   MPI_Request send_requests[num_old_local_chunks];
   pos = 0;
   size_t num_send_reqs = 0;

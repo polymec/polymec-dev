@@ -72,7 +72,7 @@ static void test_plot_quad_mesh(void** state)
 static void test_plot_hex_mesh(void** state)
 {
   // Create a set of uniform hexes.
-  size_t radius = 5;
+  int radius = 5;
   real_t h = 0.1;
   planar_polymesh_t* mesh = create_hex_planar_polymesh(radius, h);
 

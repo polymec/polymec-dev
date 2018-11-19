@@ -77,7 +77,7 @@ static void test_create_hex_colmesh(void** state)
   // Create a uniform hex colmesh.
   MPI_Comm comm = MPI_COMM_WORLD;
   real_t h = 0.1, z1 = 0.0, z2 = 1.0;
-  size_t radius = 5, nz = 10;
+  int radius = 5, nz = 10;
   planar_polymesh_t* columns = create_hex_planar_polymesh(radius, h);
   colmesh_t* mesh = colmesh_new(comm, columns, z1, z2, nz, false);
   planar_polymesh_free(columns);

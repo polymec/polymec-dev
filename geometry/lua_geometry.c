@@ -1206,7 +1206,7 @@ static int pp_hex(lua_State* L)
   if (h <= 0.0)
     luaL_error(L, "h must be positive.");
 
-  planar_polymesh_t* mesh = create_hex_planar_polymesh((size_t)radius, h);
+  planar_polymesh_t* mesh = create_hex_planar_polymesh(radius, h);
   lua_push_planar_polymesh(L, mesh);
   return 1;
 }
@@ -1849,7 +1849,7 @@ static int colmesh_hex(lua_State* L)
     luaL_error(L, "periodic_in_z must be true or false.");
   periodic_in_z = lua_toboolean(L, -1);
 
-  planar_polymesh_t* columns = create_hex_planar_polymesh((size_t)radius, h);
+  planar_polymesh_t* columns = create_hex_planar_polymesh(radius, h);
   colmesh_t* mesh = colmesh_new(comm, columns, z1, z2, nz, periodic_in_z);
   planar_polymesh_free(columns);
   lua_push_colmesh(L, mesh);
