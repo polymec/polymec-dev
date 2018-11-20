@@ -228,10 +228,10 @@ bool silo_file_contains_colmesh(silo_file_t* file,
 }
 
 static void query_colmesh_vector_comps(colmesh_chunk_data_t* chunk_data,
-                                        silo_field_metadata_t** field_metadata,
-                                        coord_mapping_t* mapping,
-                                        bool* is_vector_comp,
-                                        int* first_vector_comp)
+                                       silo_field_metadata_t** field_metadata,
+                                       coord_mapping_t* mapping,
+                                       bool* is_vector_comp,
+                                       int* first_vector_comp)
 {
   int num_vector_comps = 0;
   *first_vector_comp = -1;
@@ -258,10 +258,10 @@ static void query_colmesh_vector_comps(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_node_component(colmesh_chunk_data_t* chunk_data,
-                                             silo_field_metadata_t** field_metadata,
-                                             int c,
-                                             coord_mapping_t* mapping,
-                                             real_t* data)
+                                            silo_field_metadata_t** field_metadata,
+                                            int c,
+                                            coord_mapping_t* mapping,
+                                            real_t* data)
 {
   // If we're given a mapping and there are vector fields, we need to treat 
   // them specially.
@@ -313,10 +313,10 @@ static void copy_out_colmesh_node_component(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_xyedge_component(colmesh_chunk_data_t* chunk_data,
-                                               silo_field_metadata_t** field_metadata,
-                                               int c,
-                                               coord_mapping_t* mapping,
-                                               real_t* data)
+                                              silo_field_metadata_t** field_metadata,
+                                              int c,
+                                              coord_mapping_t* mapping,
+                                              real_t* data)
 {
   // If we're given a mapping and there are vector fields, we need to treat 
   // them specially.
@@ -369,10 +369,10 @@ static void copy_out_colmesh_xyedge_component(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_zedge_component(colmesh_chunk_data_t* chunk_data,
-                                              silo_field_metadata_t** field_metadata,
-                                              int c,
-                                              coord_mapping_t* mapping,
-                                              real_t* data)
+                                             silo_field_metadata_t** field_metadata,
+                                             int c,
+                                             coord_mapping_t* mapping,
+                                             real_t* data)
 {
   // If we're given a mapping and there are vector fields, we need to treat 
   // them specially.
@@ -423,10 +423,10 @@ static void copy_out_colmesh_zedge_component(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_xyface_component(colmesh_chunk_data_t* chunk_data,
-                                               silo_field_metadata_t** field_metadata,
-                                               int c,
-                                               coord_mapping_t* mapping,
-                                               real_t* data)
+                                              silo_field_metadata_t** field_metadata,
+                                              int c,
+                                              coord_mapping_t* mapping,
+                                              real_t* data)
 {
   // If we're given a mapping and there are vector fields, we need to treat 
   // them specially.
@@ -483,10 +483,10 @@ static void copy_out_colmesh_xyface_component(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_zface_component(colmesh_chunk_data_t* chunk_data,
-                                              silo_field_metadata_t** field_metadata,
-                                              int c,
-                                              coord_mapping_t* mapping,
-                                              real_t* data)
+                                             silo_field_metadata_t** field_metadata,
+                                             int c,
+                                             coord_mapping_t* mapping,
+                                             real_t* data)
 {
   // If we're given a mapping and there are vector fields, we need to treat 
   // them specially.
@@ -548,10 +548,10 @@ static void copy_out_colmesh_zface_component(colmesh_chunk_data_t* chunk_data,
 }
 
 static void copy_out_colmesh_cell_component(colmesh_chunk_data_t* chunk_data,
-                                             silo_field_metadata_t** field_metadata,
-                                             int c,
-                                             coord_mapping_t* mapping,
-                                             real_t* data)
+                                            silo_field_metadata_t** field_metadata,
+                                            int c,
+                                            coord_mapping_t* mapping,
+                                            real_t* data)
 {
   // If we're given a mapping and there are vector fields, we need to treat 
   // them specially.
@@ -761,11 +761,11 @@ static void copy_out_other_centerings(silo_file_t* file,
 static const char* centering_name[6] = {"cell", "xyface", "zface", "xyedge", "zedge", "node"};
 
 static void write_colmesh_chunk_data(silo_file_t* file,
-                                      const char** field_component_names,
-                                      const char* chunk_grid_name,
-                                      colmesh_chunk_data_t* chunk_data,
-                                      silo_field_metadata_t** field_metadata,
-                                      coord_mapping_t* mapping)
+                                     const char** field_component_names,
+                                     const char* chunk_grid_name,
+                                     colmesh_chunk_data_t* chunk_data,
+                                     silo_field_metadata_t** field_metadata,
+                                     coord_mapping_t* mapping)
 {
   // Because we can't really represent a colmesh faithfully in a SILO format,
   // we're really just dumping a bunch of data into an array.
@@ -899,8 +899,8 @@ static void copy_in_colmesh_node_component(real_t* data,
 }
 
 static void copy_in_colmesh_xyedge_component(real_t* data, 
-                                              int c, 
-                                              colmesh_chunk_data_t* chunk_data)
+                                             int c, 
+                                             colmesh_chunk_data_t* chunk_data)
 {
   int l = 0;
   DECLARE_COLMESH_XYEDGE_ARRAY(a, chunk_data);
@@ -910,8 +910,8 @@ static void copy_in_colmesh_xyedge_component(real_t* data,
 }
 
 static void copy_in_colmesh_zedge_component(real_t* data, 
-                                             int c, 
-                                             colmesh_chunk_data_t* chunk_data)
+                                            int c, 
+                                            colmesh_chunk_data_t* chunk_data)
 {
   size_t l = chunk_data->chunk->num_xy_edges;
   DECLARE_COLMESH_ZEDGE_ARRAY(a, chunk_data);
@@ -921,8 +921,8 @@ static void copy_in_colmesh_zedge_component(real_t* data,
 }
 
 static void copy_in_colmesh_xyface_component(real_t* data, 
-                                              int c, 
-                                              colmesh_chunk_data_t* chunk_data)
+                                             int c, 
+                                             colmesh_chunk_data_t* chunk_data)
 {
   int l = 0;
   DECLARE_COLMESH_XYFACE_ARRAY(a, chunk_data);
@@ -932,8 +932,8 @@ static void copy_in_colmesh_xyface_component(real_t* data,
 }
 
 static void copy_in_colmesh_zface_component(real_t* data, 
-                                             int c, 
-                                             colmesh_chunk_data_t* chunk_data)
+                                            int c, 
+                                            colmesh_chunk_data_t* chunk_data)
 {
   size_t l = chunk_data->chunk->num_xy_faces;
   DECLARE_COLMESH_ZFACE_ARRAY(a, chunk_data);
@@ -943,8 +943,8 @@ static void copy_in_colmesh_zface_component(real_t* data,
 }
 
 static void copy_in_colmesh_cell_component(real_t* data, 
-                                            int c, 
-                                            colmesh_chunk_data_t* chunk_data)
+                                           int c, 
+                                           colmesh_chunk_data_t* chunk_data)
 {
   int l = 0;
   DECLARE_COLMESH_CELL_ARRAY(a, chunk_data);
@@ -954,11 +954,11 @@ static void copy_in_colmesh_cell_component(real_t* data,
 }
 
 static void read_colmesh_chunk_data(silo_file_t* file,
-                                     const char** field_component_names,
-                                     const char* chunk_grid_name,
-                                     size_t num_components,
-                                     colmesh_chunk_data_t* chunk_data,
-                                     silo_field_metadata_t** field_metadata)
+                                    const char** field_component_names,
+                                    const char* chunk_grid_name,
+                                    size_t num_components,
+                                    colmesh_chunk_data_t* chunk_data,
+                                    silo_field_metadata_t** field_metadata)
 {
   // Fetch each component from the file.
   for (int c = 0; c < (int)num_components; ++c)
@@ -1015,10 +1015,10 @@ static void read_colmesh_chunk_data(silo_file_t* file,
 }
 
 void silo_file_read_colmesh_field(silo_file_t* file, 
-                                   const char** field_component_names,
-                                   const char* mesh_name,
-                                   colmesh_field_t* field,
-                                   silo_field_metadata_t** field_metadata)
+                                  const char** field_component_names,
+                                  const char* mesh_name,
+                                  colmesh_field_t* field,
+                                  silo_field_metadata_t** field_metadata)
 {
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
@@ -1043,9 +1043,9 @@ void silo_file_read_colmesh_field(silo_file_t* file,
 }
 
 bool silo_file_contains_colmesh_field(silo_file_t* file, 
-                                       const char* field_name,
-                                       const char* mesh_name,
-                                       colmesh_centering_t centering)
+                                      const char* field_name,
+                                      const char* mesh_name,
+                                      colmesh_centering_t centering)
 {
   // FIXME
   silo_file_push_domain_dir(file);

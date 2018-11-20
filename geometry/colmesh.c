@@ -394,6 +394,46 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
   return mesh;
 }
 
+colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm, 
+                                               planar_polymesh_t** local_fragments,
+                                               size_t num_local_fragments,
+                                               point2_inspector_t* inspector,
+                                               real_t z1, real_t z2,
+                                               int num_xy_chunks, int num_z_chunks,
+                                               int nz_per_chunk, bool periodic_in_z)
+{
+  ASSERT(z1 < z2);
+  ASSERT(num_xy_chunks > 0);
+  ASSERT(num_z_chunks > 0);
+  ASSERT(nz_per_chunk > 0);
+
+  colmesh_t* mesh = polymec_malloc(sizeof(colmesh_t));
+  mesh->comm = comm;
+  mesh->chunks = chunk_map_new();
+  mesh->chunk_indices = NULL;
+  mesh->num_xy_chunks = num_xy_chunks;
+  mesh->num_z_chunks = num_z_chunks;
+  mesh->nz_per_chunk = nz_per_chunk;
+  mesh->z1 = z1;
+  mesh->z2 = z2;
+  MPI_Comm_size(comm, &mesh->nproc);
+  MPI_Comm_rank(comm, &mesh->rank);
+  mesh->periodic_in_z = periodic_in_z;
+  mesh->finalized = false;
+
+  // FIXME
+
+  // No exchangers yet.
+  mesh->cell_ex = NULL;
+  mesh->xy_face_ex = NULL;
+  mesh->z_face_ex = NULL;
+  mesh->xy_edge_ex = NULL;
+  mesh->z_edge_ex = NULL;
+  mesh->node_ex = NULL;
+
+  return mesh;
+}
+
 void colmesh_insert_chunk(colmesh_t* mesh, int xy_index, int z_index)
 {
   ASSERT(!mesh->finalized);
@@ -818,6 +858,17 @@ colmesh_t* colmesh_new(MPI_Comm comm,
   // Put the lid on it and ship it.
   colmesh_finalize(mesh);
   return mesh;
+}
+
+colmesh_t* colmesh_new_from_fragments(MPI_Comm comm,
+                                      planar_polymesh_t** local_fragments,
+                                      size_t num_local_fragments,
+                                      point2_inspector_t* inspector,
+                                      real_t z1, real_t z2,
+                                      int nz, bool periodic_in_z)
+{
+  // FIXME
+  return NULL;
 }
 
 void colmesh_free(colmesh_t* mesh)

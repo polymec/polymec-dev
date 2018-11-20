@@ -107,7 +107,8 @@ typedef struct colmesh_chunk_t colmesh_chunk_t;
 /// of the z axis, with cellular columns defined by the given planar polymesh.
 /// \param [in] comm The communicator on which the mesh is constructed.
 /// \param [in] columns A planar polygonal mesh that defines a set of connected
-///                     polygonal columns for the colmesh. 
+///                     polygonal columns for the colmesh. Must be the same mesh on all 
+///                     processes.
 /// \param [in] z1 The z coordinate of the lower boundary of the mesh.
 /// \param [in] z2 The z coordinate of the upper boundary of the mesh.
 /// \param [in] num_xy_chunks The number of chunks in the distributed mesh within the xy plane.
@@ -121,6 +122,33 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
                                 real_t z1, real_t z2,
                                 int num_xy_chunks, int num_z_chunks,
                                 int nz_per_chunk, bool periodic_in_z);
+
+/// Creates a new empty colmesh level defined within the segment [z1, z2] of 
+/// of the z axis, with cellular columns defined by welding together the 
+/// given planar polymesh fragments to a single whole. You can use this to construct a colmesh
+/// with a number of columns that wouldn't fit into a single process's memory.
+/// \param [in] comm The communicator on which the mesh is constructed.
+/// \param [in] local_fragments An array of planar_polymesh fragments that, when welded together, 
+///             form a set of polygonal columns for the colmesh. local_fragments is a distributed
+///             array: each process contains one or more fragments that are merged into a single
+///             set of columns for the distributed colmesh.
+/// \param [in] num_local_fragments The number of fragments local to this process.
+/// \param [in] inspector A point2_inspector object that determines whether polygonal nodes should be merged.
+/// \param [in] z1 The z coordinate of the lower boundary of the mesh.
+/// \param [in] z2 The z coordinate of the upper boundary of the mesh.
+/// \param [in] num_xy_chunks The number of chunks in the distributed mesh within the xy plane.
+/// \param [in] num_z_chunks The number of chunks in the distributed mesh along the z axis.
+/// \param [in] nz_per_chunk The number of mesh cells along the z axis in a chunk.
+/// \param [in] periodic_in_z True if the mesh is periodic along the z axis, false if not.
+/// \returns A newly created colmesh containing no chunks.
+/// \memberof colmesh
+colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm, 
+                                               planar_polymesh_t** local_fragments,
+                                               size_t num_local_fragments,
+                                               point2_inspector_t* inspector,
+                                               real_t z1, real_t z2,
+                                               int num_xy_chunks, int num_z_chunks,
+                                               int nz_per_chunk, bool periodic_in_z);
 
 /// Inserts a new locally-stored chunk with the given xy and z indices into the mesh.
 /// \param [in] xy_index The index identifying the polygonal column that contains the new chunk.
@@ -161,6 +189,31 @@ colmesh_t* colmesh_new(MPI_Comm comm,
                        planar_polymesh_t* columns,
                        real_t z1, real_t z2,
                        int nz, bool periodic_in_z);
+ 
+/// Creates a colmesh consisting of polygonal columns from the given 
+/// (distributed) planar polygonal mesh fragments. The partitioning does not 
+/// minimize communication, so you might want to call \ref repartition_colmesh on the 
+/// resulting mesh.
+/// \param [in] comm The communicator on which the mesh is constructed.
+/// \param [in] local_fragments An array of planar_polymesh fragments that, when welded together, 
+///             form a set of polygonal columns for the colmesh. local_fragments is a distributed
+///             array: each process contains one or more fragments that are merged into a single
+///             set of columns for the distributed colmesh.
+/// \param [in] num_local_fragments The number of fragments local to this process.
+/// \param [in] inspector A point2_inspector object that determines whether polygonal nodes should be merged.
+/// \param [in] z1 The z coordinate of the lower boundary of the mesh.
+/// \param [in] z2 The z coordinate of the upper boundary of the mesh.
+/// \param [in] nz The total number of cells along the z axis.
+/// \param [in] periodic_in_z True if the mesh is periodic along the z axis, false if not.
+/// \returns A newly created colmesh.
+/// \memberof colmesh
+/// \collective Collective on comm.
+colmesh_t* colmesh_new_from_fragments(MPI_Comm comm,
+                                      planar_polymesh_t** local_fragments,
+                                      size_t num_local_fragments,
+                                      point2_inspector_t* inspector,
+                                      real_t z1, real_t z2,
+                                      int nz, bool periodic_in_z);
  
 //------------------------------------------------------------------------
 //                          Usage methods
