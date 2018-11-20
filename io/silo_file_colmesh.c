@@ -34,9 +34,9 @@ extern void silo_file_pop_dir(silo_file_t* file);
 extern string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
 
 static void write_colmesh_chunk_grid(silo_file_t* file,
-                                      const char* chunk_grid_name,
-                                      colmesh_chunk_t* chunk,
-                                      coord_mapping_t* mapping)
+                                     const char* chunk_grid_name,
+                                     colmesh_chunk_t* chunk,
+                                     coord_mapping_t* mapping)
 {
   char array_name[FILENAME_MAX+1];
   snprintf(array_name, FILENAME_MAX, "%s_sizes", chunk_grid_name);
@@ -60,9 +60,9 @@ static void write_colmesh_chunk_grid(silo_file_t* file,
 }
 
 void silo_file_write_colmesh(silo_file_t* file, 
-                              const char* mesh_name,
-                              colmesh_t* mesh,
-                              coord_mapping_t* mapping)
+                             const char* mesh_name,
+                             colmesh_t* mesh,
+                             coord_mapping_t* mapping)
 {
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
@@ -123,7 +123,7 @@ void silo_file_write_colmesh(silo_file_t* file,
 }
 
 colmesh_t* silo_file_read_colmesh(silo_file_t* file, 
-                                    const char* mesh_name)
+                                  const char* mesh_name)
 {
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
@@ -558,7 +558,7 @@ static void copy_out_colmesh_cell_component(colmesh_chunk_data_t* chunk_data,
   bool is_vector_comp[chunk_data->num_components];
   int first_vector_comp;
   query_colmesh_vector_comps(chunk_data, field_metadata, mapping,
-                              is_vector_comp, &first_vector_comp);
+                             is_vector_comp, &first_vector_comp);
 
   // Now copy the data.
   colmesh_chunk_t* chunk = chunk_data->chunk;
@@ -640,7 +640,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       snprintf(scratch_name, FILENAME_MAX, "%s_xy", field_component_name);
       real_t** other_p = (real_t**)string_ptr_unordered_map_get(scratch, scratch_name);
       if (other_p != NULL)
-        memcpy(data, *other_p, sizeof(real_t) * chunk->num_xy_edges);
+        memcpy(data, *other_p, sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
       else
         *ready_to_write = false;
     }
@@ -651,7 +651,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       if (other_p != NULL)
       {
         size_t offset = chunk->num_xy_edges;
-        memcpy(&data[offset], *other_p, sizeof(real_t) * chunk->num_z_cells);
+        memcpy(&data[offset], *other_p, sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
       }
       else
         *ready_to_write = false;
@@ -661,11 +661,10 @@ static void copy_out_other_centerings(silo_file_t* file,
     // immediately to the file.
     if (!(*ready_to_write))
     {
-      real_t* this_one;
+      real_t* this_one = polymec_malloc(sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
       if (chunk_data->centering == COLMESH_XYEDGE)
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_xy", field_component_name);
-        this_one = polymec_malloc(sizeof(real_t) * chunk->num_xy_edges);
         DECLARE_COLMESH_XYEDGE_ARRAY(a, chunk_data);
         int l = 0;
         for (int xy = 0; xy < chunk_data->xy_size; ++xy)
@@ -675,7 +674,6 @@ static void copy_out_other_centerings(silo_file_t* file,
       else
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_z", field_component_name);
-        this_one = polymec_malloc(sizeof(real_t) * chunk->num_z_cells);
         DECLARE_COLMESH_ZEDGE_ARRAY(a, chunk_data);
         int l = 0;
         for (int xy = 0; xy < chunk_data->xy_size; ++xy)
@@ -701,7 +699,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       snprintf(scratch_name, FILENAME_MAX, "%s_xy", field_component_name);
       real_t** other_p = (real_t**)string_ptr_unordered_map_get(scratch, scratch_name);
       if (other_p != NULL)
-        memcpy(data, *other_p, sizeof(real_t) * chunk->num_xy_faces);
+        memcpy(data, *other_p, sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
       else
         *ready_to_write = false;
     }
@@ -712,7 +710,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       if (other_p != NULL)
       {
         size_t offset = chunk->num_xy_faces;
-        memcpy(&data[offset], *other_p, sizeof(real_t) * (chunk->num_z_cells+1));
+        memcpy(&data[offset], *other_p, sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
       }
       else
         *ready_to_write = false;
@@ -722,11 +720,10 @@ static void copy_out_other_centerings(silo_file_t* file,
     // immediately to the file.
     if (!(*ready_to_write))
     {
-      real_t* this_one;
+      real_t* this_one = polymec_malloc(sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
       if (chunk_data->centering == COLMESH_XYFACE)
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_xy", field_component_name);
-        this_one = polymec_malloc(sizeof(real_t) * chunk->num_xy_faces);
         DECLARE_COLMESH_XYFACE_ARRAY(a, chunk_data);
         int l = 0;
         for (int xy = 0; xy < chunk_data->xy_size; ++xy)
@@ -736,7 +733,6 @@ static void copy_out_other_centerings(silo_file_t* file,
       else
       {
         snprintf(scratch_name, FILENAME_MAX, "%s_z", field_component_name);
-        this_one = polymec_malloc(sizeof(real_t) * (chunk->num_z_cells+1));
         DECLARE_COLMESH_ZFACE_ARRAY(a, chunk_data);
         int l = 0;
         for (int xy = 0; xy < chunk_data->xy_size; ++xy)
@@ -823,23 +819,26 @@ static void write_colmesh_chunk_data(silo_file_t* file,
       snprintf(data_name, FILENAME_MAX, "%s_%s_%s", chunk_grid_name, field_component_names[c], centering_name[(int)chunk_data->centering]);
       silo_file_write_real_array(file, data_name, data, data_size);
 
-      // Pack the metadata into an array.
-      char md_name[FILENAME_MAX+1];
-      snprintf(md_name, FILENAME_MAX, "%s_md", data_name);
-      size_t label_size = strlen(field_metadata[c]->label);
-      size_t units_size = strlen(field_metadata[c]->units);
-      size_t md_size = 5 * sizeof(int) + label_size + units_size;
-      int md[md_size];
-      md[0] = (int)label_size; 
-      for (size_t i = 0; i < label_size; ++i)
-        md[1+i] = (int)(field_metadata[c]->label[i]);
-      md[label_size+1] = (int)units_size; 
-      for (size_t i = 0; i < units_size; ++i)
-        md[1+label_size+1+i] = (int)(field_metadata[c]->units[i]);
-      md[1+label_size+1+units_size] = (int)(field_metadata[c]->conserved);
-      md[1+label_size+1+units_size+1] = (int)(field_metadata[c]->extensive);
-      md[1+label_size+1+units_size+2] = (int)(field_metadata[c]->vector_component);
-      silo_file_write_int_array(file, md_name, md, md_size);
+      // Pack any metadata into an array.
+      if ((field_metadata != NULL) && (field_metadata[c] != NULL))
+      {
+        char md_name[FILENAME_MAX+1];
+        snprintf(md_name, FILENAME_MAX, "%s_md", data_name);
+        size_t label_size = strlen(field_metadata[c]->label);
+        size_t units_size = strlen(field_metadata[c]->units);
+        size_t md_size = 5 * sizeof(int) + label_size + units_size;
+        int md[md_size];
+        md[0] = (int)label_size; 
+        for (size_t i = 0; i < label_size; ++i)
+          md[1+i] = (int)(field_metadata[c]->label[i]);
+        md[label_size+1] = (int)units_size; 
+        for (size_t i = 0; i < units_size; ++i)
+          md[1+label_size+1+i] = (int)(field_metadata[c]->units[i]);
+        md[1+label_size+1+units_size] = (int)(field_metadata[c]->conserved);
+        md[1+label_size+1+units_size+1] = (int)(field_metadata[c]->extensive);
+        md[1+label_size+1+units_size+2] = (int)(field_metadata[c]->vector_component);
+        silo_file_write_int_array(file, md_name, md, md_size);
+      }
     }
   }
 
@@ -848,11 +847,11 @@ static void write_colmesh_chunk_data(silo_file_t* file,
 }
 
 void silo_file_write_colmesh_field(silo_file_t* file, 
-                                    const char** field_component_names,
-                                    const char* mesh_name,
-                                    colmesh_field_t* field,
-                                    silo_field_metadata_t** field_metadata,
-                                    coord_mapping_t* mapping)
+                                   const char** field_component_names,
+                                   const char* mesh_name,
+                                   colmesh_field_t* field,
+                                   silo_field_metadata_t** field_metadata,
+                                   coord_mapping_t* mapping)
 {
   START_FUNCTION_TIMER();
 
@@ -875,7 +874,7 @@ void silo_file_write_colmesh_field(silo_file_t* file,
     char chunk_grid_name[FILENAME_MAX];
     snprintf(chunk_grid_name, FILENAME_MAX-1, "%s_%d_%d", mesh_name, xy, z);
     write_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name,  
-                              data, field_metadata, mapping);
+                             data, field_metadata, mapping);
     ++l;
 
     for (int c = 0; c < num_components; ++c)

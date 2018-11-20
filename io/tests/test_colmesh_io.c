@@ -46,7 +46,7 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
   // Add some fields with different centerings.
   colmesh_field_t* nfield = colmesh_field_new(mesh, COLMESH_NODE, 3);
   pos = 0;
-  while (colmesh_field_next_chunk(cfield, &pos, &XY, &Z, &chunk_data))
+  while (colmesh_field_next_chunk(nfield, &pos, &XY, &Z, &chunk_data))
   {
     DECLARE_COLMESH_NODE_ARRAY(nvals, chunk_data);
     colmesh_chunk_t* chunk = chunk_data->chunk;
