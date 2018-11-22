@@ -50,7 +50,7 @@ static void write_colmesh_chunk_grid(silo_file_t* file,
                                                     chunk->num_xy_nodes);
   memcpy(fragment->cell_edge_offsets, chunk->column_xy_face_offsets, sizeof(int) * (chunk->num_columns+1));
   planar_polymesh_reserve_connectivity_storage(fragment);
-  memcpy(fragment->cell_edges, chunk->column_xy_faces, sizeof(int) * chunk->column_xy_face_offsets[chunk->num_columns+1]);
+  memcpy(fragment->cell_edges, chunk->column_xy_faces, sizeof(int) * fragment->cell_edge_offsets[fragment->num_cells]);
   memcpy(fragment->edge_cells, chunk->xy_face_columns, 2 * sizeof(int) * chunk->num_xy_faces);
   memcpy(fragment->edge_nodes, chunk->xy_edge_nodes, 2 * sizeof(int) * chunk->num_xy_edges);
   memcpy(fragment->nodes, chunk->xy_nodes, sizeof(point2_t) * chunk->num_xy_nodes);
@@ -664,7 +664,7 @@ static void copy_out_colmesh_cell_component(colmesh_chunk_data_t* chunk_data,
     // Copy the field data verbatim.
     int l = 0;
     for (int xy = 0; xy < chunk_data->xy_size; ++xy)
-      for (int z = 1; z <= chunk->num_z_cells; ++z, ++l)
+      for (int z = 0; z <= chunk->num_z_cells+1; ++z, ++l)
         data[l] = a[xy][z][c];
   }
 }
@@ -911,11 +911,9 @@ void silo_file_write_colmesh_field(silo_file_t* file,
                                    coord_mapping_t* mapping)
 {
   START_FUNCTION_TIMER();
-
   silo_file_push_domain_dir(file);
 
   size_t num_components = colmesh_field_num_components(field);
-
   char* field_names[num_components];
   colmesh_chunk_data_t* data;
   int pos = 0, xy, z, l = 0;
@@ -1002,7 +1000,7 @@ static void copy_in_colmesh_cell_component(real_t* data,
   int l = 0;
   DECLARE_COLMESH_CELL_ARRAY(a, chunk_data);
   for (int xy = 0; xy < chunk_data->xy_size; ++xy)
-    for (int z = 1; z <= chunk_data->chunk->num_z_cells; ++z, ++l)
+    for (int z = 0; z <= chunk_data->chunk->num_z_cells+1; ++z, ++l)
       a[xy][z][c] = data[l];
 }
 

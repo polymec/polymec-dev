@@ -155,7 +155,7 @@ colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
   ASSERT(num_components > 0);
   START_FUNCTION_TIMER();
   colmesh_field_t* field = colmesh_field_with_buffer(mesh, centering, num_components, NULL, false);
-  void* buffer = polymec_malloc(field->bytes);
+  void* buffer = polymec_calloc(field->bytes);
   colmesh_field_set_buffer(field, buffer, true);
   STOP_FUNCTION_TIMER();
   return field;
