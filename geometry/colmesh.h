@@ -9,6 +9,7 @@
 #define POLYMEC_COLMESH_H
 
 #include "core/point.h"
+#include "core/exchanger.h"
 #include "geometry/planar_polymesh.h"
 #include "geometry/polygon.h"
 
@@ -95,6 +96,33 @@ struct colmesh_chunk_t
 };
 typedef struct colmesh_chunk_t colmesh_chunk_t;
 
+/// \class colmesh_fragment
+/// This opaque type holds a planar_polymesh and send/receive maps that connect it 
+/// to other planar polymesh objects.
+typedef struct colmesh_fragment_t colmesh_fragment_t;
+
+/// \class colmesh_fragment_map
+/// An distributed unordered map of xy indices to planar polymesh objects 
+/// representing fragments of a global planar polymesh. Used for constructing
+/// especially large colmeshes.
+DEFINE_UNORDERED_MAP(colmesh_fragment_map, int, colmesh_fragment_t*, int_hash, int_equals)
+
+/// Adds a fragment of a planar polymesh to the given colmesh_fragment_map, along with send and 
+/// receive maps that define how the fragment connects to others.
+/// \param [in] xy_index The xy index of the fragment within the global planar polymesh.
+/// \param [in] fragment A planar polymesh representing the fragment itself. This argument is consumed
+///                      by the map.
+/// \param [in] send_map An exchanger_proc_map that connects send cells in this fragment to 
+///                      other fragments on this or other processes. Consumed by the map.
+/// \param [in] receive_map An exchanger_proc_map that connects receive cells in this fragment to 
+///                         other fragments on this or other processes. Consumed by the map.
+/// \memberof colmesh_fragment_map
+void colmesh_fragment_map_add(colmesh_fragment_map_t* map,
+                              int xy_index,
+                              planar_polymesh_t* fragment,
+                              exchanger_proc_map_t* send_map,
+                              exchanger_proc_map_t* receive_map);
+
 //------------------------------------------------------------------------
 //                          Construction methods
 //------------------------------------------------------------------------
@@ -125,34 +153,30 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
 
 /// Creates a new empty colmesh defined within the segment [z1, z2] extruded 
 /// from the a planar mesh that forms the union of a distributed set of 
-/// fragments. To construct the planar mesh, the fragments on each process are 
-/// welded together at points identified by the given point2_inspector.
+/// fragments. 
 /// \param [in] comm The communicator on which the mesh is constructed.
-/// \param [in] local_fragments An array of planar_polymesh objects that 
-///             represent locally-stored fragments of the (global) planar 
-///             mesh. This is a distributed array: each process stores one 
-///             or more fragments locally. The fragments on different 
-///             processes may overlap.
-/// \param [in] num_local_fragments The number of fragments local to this process.
+/// \param [in] local_fragments An unordered map of integer xy indices to 
+///             planar_polymesh objects that represent locally-stored fragments 
+///             of the (global) planar mesh. This is a distributed map: each process 
+///             stores one or more fragments locally. The fragments on different 
+///             processes may overlap, and each one stores send/receive data that allows
+///             the distributed global mesh to be constructed.
 /// \param [in] z1 The z coordinate of the lower boundary of the mesh.
 /// \param [in] z2 The z coordinate of the upper boundary of the mesh.
 /// \param [in] num_xy_chunks The total number of chunks within the xy plane.
 /// \param [in] num_z_chunks The total number of chunks along the z axis.
 /// \param [in] nz_per_chunk The total number of cells along the z axis for each chunk.
 /// \param [in] periodic_in_z True if the mesh is periodic along the z axis, false if not.
-/// \param [in] inspector A point2_inspector object that determines whether polygonal nodes should be merged.
 /// \returns A newly created colmesh containing no chunks.
 /// \memberof colmesh
 /// \collective Collective on comm.
 colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm,
-                                               planar_polymesh_t** local_fragments,
-                                               size_t num_local_fragments,
+                                               colmesh_fragment_map_t* local_fragments,
                                                real_t z1, real_t z2,
                                                int num_xy_chunks, 
                                                int num_z_chunks, 
                                                int nz_per_chunk, 
-                                               bool periodic_in_z,
-                                               point2_inspector_t* inspector);
+                                               bool periodic_in_z);
  
 /// Inserts a new locally-stored chunk with the given xy and z indices into the mesh.
 /// \param [in] xy_index The index identifying the polygonal column that contains the new chunk.

@@ -33,26 +33,40 @@ extern void silo_file_push_domain_dir(silo_file_t* file);
 extern void silo_file_pop_dir(silo_file_t* file);
 extern string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
 
+extern exchanger_proc_map_t* colmesh_xy_data_send_map(colmesh_t* mesh, int xy_index);
+extern exchanger_proc_map_t* colmesh_xy_data_receive_map(colmesh_t* mesh, int xy_index);
+
 static void write_colmesh_chunk_grid(silo_file_t* file,
                                      const char* chunk_grid_name,
-                                     colmesh_chunk_t* chunk,
+                                     colmesh_t* mesh,
+                                     int xy_index, int z_index,
                                      coord_mapping_t* mapping)
 {
-  // Construct a planar polymesh representing the top face of the chunk, 
+  colmesh_chunk_t* chunk = colmesh_chunk(mesh, xy_index, z_index);
+  // Construct a planar polymesh fragment representing the top face of the chunk, 
   // and write it out.
-  planar_polymesh_t* chunk_top = planar_polymesh_new(chunk->num_columns,
-                                                     chunk->num_xy_faces,
-                                                     chunk->num_xy_nodes);
-  memcpy(chunk_top->cell_edge_offsets, chunk->column_xy_face_offsets, sizeof(int) * (chunk->num_columns+1));
-  planar_polymesh_reserve_connectivity_storage(chunk_top);
-  memcpy(chunk_top->cell_edges, chunk->column_xy_faces, sizeof(int) * chunk->column_xy_face_offsets[chunk->num_columns+1]);
-  memcpy(chunk_top->edge_cells, chunk->xy_face_columns, 2 * sizeof(int) * chunk->num_xy_faces);
-  memcpy(chunk_top->edge_nodes, chunk->xy_edge_nodes, 2 * sizeof(int) * chunk->num_xy_edges);
-  memcpy(chunk_top->nodes, chunk->xy_nodes, sizeof(point2_t) * chunk->num_xy_nodes);
+  planar_polymesh_t* fragment = planar_polymesh_new(chunk->num_columns,
+                                                    chunk->num_xy_faces,
+                                                    chunk->num_xy_nodes);
+  memcpy(fragment->cell_edge_offsets, chunk->column_xy_face_offsets, sizeof(int) * (chunk->num_columns+1));
+  planar_polymesh_reserve_connectivity_storage(fragment);
+  memcpy(fragment->cell_edges, chunk->column_xy_faces, sizeof(int) * chunk->column_xy_face_offsets[chunk->num_columns+1]);
+  memcpy(fragment->edge_cells, chunk->xy_face_columns, 2 * sizeof(int) * chunk->num_xy_faces);
+  memcpy(fragment->edge_nodes, chunk->xy_edge_nodes, 2 * sizeof(int) * chunk->num_xy_edges);
+  memcpy(fragment->nodes, chunk->xy_nodes, sizeof(point2_t) * chunk->num_xy_nodes);
   char pp_name[FILENAME_MAX+1];
   snprintf(pp_name, FILENAME_MAX, "%s_pp", chunk_grid_name);
-  silo_file_write_planar_polymesh(file, pp_name, chunk_top);
-  planar_polymesh_free(chunk_top);
+  silo_file_write_planar_polymesh(file, pp_name, fragment);
+  planar_polymesh_free(fragment);
+
+  // Write an exchanger that holds send and receive maps for the fragment.
+  char ex_name[FILENAME_MAX+1];
+  snprintf(ex_name, FILENAME_MAX, "%s_ex", chunk_grid_name);
+  exchanger_t* fragment_ex = exchanger_new(silo_file_comm(file));
+  exchanger_set_sends(fragment_ex, colmesh_xy_data_send_map(mesh, xy_index));
+  exchanger_set_receives(fragment_ex, colmesh_xy_data_receive_map(mesh, xy_index));
+  silo_file_write_exchanger(file, ex_name, fragment_ex);
+  release_ref(fragment_ex);
 
   // Write chunk metadata.
   char array_name[FILENAME_MAX+1];
@@ -97,7 +111,7 @@ void silo_file_write_colmesh(silo_file_t* file,
     // Write out the grid for the chunk itself.
     char chunk_grid_name[FILENAME_MAX+1];
     snprintf(chunk_grid_name, FILENAME_MAX, "%s_%d", mesh_name, xy);
-    write_colmesh_chunk_grid(file, chunk_grid_name, chunk, mapping);
+    write_colmesh_chunk_grid(file, chunk_grid_name, mesh, xy, z, mapping);
 
     // Jot down this (xy, z) tuple.
     int_array_append(chunk_indices, xy);
@@ -166,14 +180,33 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
   }
 
   // Read the mesh's column data.
-  int num_fragments = (int)(num_chunk_indices/2);
-  planar_polymesh_t* fragments[num_fragments];
-  for (int f = 0; f < num_fragments; ++f)
+  colmesh_fragment_map_t* fragments = colmesh_fragment_map_new();
+  for (int f = 0; f < num_chunk_indices/2; ++f)
   {
-    int xy = chunk_indices[f/2];
+    int xy = chunk_indices[2*f];
     char fragment_name[FILENAME_MAX+1];
     snprintf(fragment_name, FILENAME_MAX, "%s_%d_pp", mesh_name, xy);
-    fragments[f] = silo_file_read_planar_polymesh(file, fragment_name);
+    planar_polymesh_t* frag_mesh = silo_file_read_planar_polymesh(file, fragment_name);
+
+    char fragment_ex_name[FILENAME_MAX+1];
+    snprintf(fragment_ex_name, FILENAME_MAX, "%s_%d_ex", mesh_name, xy);
+    exchanger_t* fragment_ex = silo_file_read_exchanger(file, fragment_ex_name, silo_file_comm(file));
+
+    exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+    int pos = 0, proc, *indices, num_indices;
+    while (exchanger_next_send(fragment_ex, &pos, &proc, &indices, &num_indices))
+      for (int i = 0; i < num_indices; ++i)
+        exchanger_proc_map_add_index(send_map, proc, indices[i]);
+
+    exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
+    pos = 0;
+    while (exchanger_next_receive(fragment_ex, &pos, &proc, &indices, &num_indices))
+      for (int i = 0; i < num_indices; ++i)
+        exchanger_proc_map_add_index(receive_map, proc, indices[i]);
+    release_ref(fragment_ex);
+
+    // Add our fragment to the map.
+    colmesh_fragment_map_add(fragments, xy, frag_mesh, send_map, receive_map);
   }
 
   // Read z axis information for this mesh.
@@ -205,11 +238,9 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
 #else
   MPI_Comm comm = MPI_COMM_WORLD;
 #endif
-  colmesh_t* mesh = 
-    create_empty_colmesh_from_fragments(comm, 
-                                        fragments, (size_t)num_fragments, 
-                                        z1, z2, num_xy_chunks, num_z_chunks, 
-                                        nz_per_chunk, periodic, inspector);
+  colmesh_t* mesh = create_empty_colmesh_from_fragments(comm, fragments, z1, z2, 
+                                                        num_xy_chunks, num_z_chunks, 
+                                                        nz_per_chunk, periodic);
 
   // Insert our local chunks.
   for (size_t i = 0; i < num_chunk_indices/2; ++i)
@@ -221,8 +252,7 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
 
   // Clean up.
   release_ref(inspector);
-  for (int f = 0; f < num_fragments; ++f)
-    planar_polymesh_free(fragments[f]);
+  colmesh_fragment_map_free(fragments);
   polymec_free(chunk_indices);
 
   // Finish constructing the colmesh.

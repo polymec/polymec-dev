@@ -7,7 +7,6 @@
 
 #include "core/array.h"
 #include "core/array_utils.h"
-#include "core/exchanger.h"
 #include "core/hilbert.h"
 #include "core/partitioning.h"
 #include "core/timer.h"
@@ -15,6 +14,34 @@
 #include "geometry/colmesh.h"
 #include "geometry/colmesh_field.h"
 #include "geometry/polymesh.h"
+
+struct colmesh_fragment_t
+{
+  planar_polymesh_t* mesh;
+  exchanger_proc_map_t* send_map;
+  exchanger_proc_map_t* receive_map;
+};
+
+static void colmesh_fragment_free(colmesh_fragment_t* fragment)
+{
+  planar_polymesh_free(fragment->mesh);
+  exchanger_proc_map_free(fragment->send_map);
+  exchanger_proc_map_free(fragment->receive_map);
+  polymec_free(fragment);
+}
+
+void colmesh_fragment_map_add(colmesh_fragment_map_t* map,
+                              int xy_index,
+                              planar_polymesh_t* fragment,
+                              exchanger_proc_map_t* send_map,
+                              exchanger_proc_map_t* receive_map)
+{
+  colmesh_fragment_t* frag = polymec_malloc(sizeof(colmesh_fragment_t));
+  frag->mesh = fragment;
+  frag->send_map = send_map;
+  frag->receive_map = receive_map;
+  colmesh_fragment_map_insert_with_v_dtor(map, xy_index, frag, colmesh_fragment_free);
+}
 
 // Chunk xy data. Shared across all "stacked" chunks.
 typedef struct 
@@ -289,7 +316,7 @@ static inline int chunk_index(colmesh_t* mesh, int xy_index, int z_index)
   return (int)(mesh->num_z_chunks * xy_index + z_index);
 }
 
-static void colmesh_create_chunk_graph(colmesh_t* mesh, int64_t* P)
+static void colmesh_create_chunk_graph(colmesh_t* mesh)
 {
   ASSERT(mesh->chunk_graph == NULL);
   int num_chunks = mesh->num_xy_chunks * mesh->num_z_chunks;
@@ -348,6 +375,7 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
   mesh->comm = comm;
   mesh->chunks = chunk_map_new();
   mesh->chunk_indices = NULL;
+  mesh->chunk_graph = NULL;
   mesh->num_xy_chunks = num_xy_chunks;
   mesh->num_z_chunks = num_z_chunks;
   mesh->nz_per_chunk = nz_per_chunk;
@@ -356,6 +384,12 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
   MPI_Comm_size(comm, &mesh->nproc);
   MPI_Comm_rank(comm, &mesh->rank);
   mesh->periodic_in_z = periodic_in_z;
+  mesh->cell_ex = NULL;
+  mesh->xy_face_ex = NULL;
+  mesh->z_face_ex = NULL;
+  mesh->xy_edge_ex = NULL;
+  mesh->z_edge_ex = NULL;
+  mesh->node_ex = NULL;
   mesh->finalized = false;
 
   // Partition the planar polymesh.
@@ -389,43 +423,50 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
     chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
                                          chunk_xy_data_free);
   }
-
-  // Create a global graph whose vertices are the mesh's chunks.
-  colmesh_create_chunk_graph(mesh, P);
   polymec_free(P);
 
-  // No exchangers yet.
-  mesh->cell_ex = NULL;
-  mesh->xy_face_ex = NULL;
-  mesh->z_face_ex = NULL;
-  mesh->xy_edge_ex = NULL;
-  mesh->z_edge_ex = NULL;
-  mesh->node_ex = NULL;
+  // Create a global graph whose vertices are the mesh's chunks.
+  colmesh_create_chunk_graph(mesh);
 
   return mesh;
 }
 
+static chunk_xy_data_array_t* chunk_xy_data_from_fragments(MPI_Comm comm, 
+                                                           colmesh_fragment_map_t* fragments)
+{
+  chunk_xy_data_array_t* all_xy_data = chunk_xy_data_array_new();
+  // FIXME
+#if 0
+  int pos = 0, xy;
+  for (size_t xy = 0; xy_index < (int)num_xy_chunks; ++xy_index)
+  {
+    chunk_xy_data_t* xy_data = NULL; //FIXME: chunk_xy_data_new(comm, columns, P, xy_index);
+    chunk_xy_data_array_append_with_dtor(all_xy_data, xy_data, chunk_xy_data_free);
+  }
+#endif
+  return all_xy_data;
+}
+
 colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm,
-                                               planar_polymesh_t** local_fragments,
-                                               size_t num_local_fragments,
+                                               colmesh_fragment_map_t* local_fragments,
                                                real_t z1, real_t z2,
                                                int num_xy_chunks, 
                                                int num_z_chunks, 
                                                int nz_per_chunk, 
-                                               bool periodic_in_z,
-                                               point2_inspector_t* inspector)
+                                               bool periodic_in_z)
 {
   ASSERT(local_fragments != NULL);
+  ASSERT(local_fragments->size > 0);
   ASSERT(z1 < z2);
   ASSERT(num_xy_chunks > 0);
   ASSERT(num_z_chunks > 0);
   ASSERT(nz_per_chunk > 0);
-  ASSERT(inspector != NULL);
 
   colmesh_t* mesh = polymec_malloc(sizeof(colmesh_t));
   mesh->comm = comm;
   mesh->chunks = chunk_map_new();
   mesh->chunk_indices = NULL;
+  mesh->chunk_graph = NULL;
   mesh->num_xy_chunks = num_xy_chunks;
   mesh->num_z_chunks = num_z_chunks;
   mesh->nz_per_chunk = nz_per_chunk;
@@ -434,28 +475,19 @@ colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm,
   MPI_Comm_size(comm, &mesh->nproc);
   MPI_Comm_rank(comm, &mesh->rank);
   mesh->periodic_in_z = periodic_in_z;
-  mesh->finalized = false;
-
-  // Create xy data from fragments.
-  mesh->chunk_xy_data = chunk_xy_data_array_new();
-  for (int xy_index = 0; xy_index < (int)num_xy_chunks; ++xy_index)
-  {
-    chunk_xy_data_t* xy_data = NULL; //FIXME: chunk_xy_data_new(comm, columns, P, xy_index);
-    chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
-                                         chunk_xy_data_free);
-  }
-
-  // Build the chunk graph.
-  int64_t* P = NULL; // FIXME
-  colmesh_create_chunk_graph(mesh, P);
-
-  // No exchangers yet.
   mesh->cell_ex = NULL;
   mesh->xy_face_ex = NULL;
   mesh->z_face_ex = NULL;
   mesh->xy_edge_ex = NULL;
   mesh->z_edge_ex = NULL;
   mesh->node_ex = NULL;
+  mesh->finalized = false;
+
+  // Create xy data from the distributed fragments.
+  mesh->chunk_xy_data = chunk_xy_data_from_fragments(comm, local_fragments);
+
+  // Build the chunk graph.
+  colmesh_create_chunk_graph(mesh);
 
   return mesh;
 }
@@ -1548,3 +1580,19 @@ void colmesh_chunk_z_face_get_nodes(colmesh_chunk_t* chunk,
     nodes[n] = chunk->xy_edge_nodes[2*face+nn];
   }
 }
+
+// These aren't part of the public API.
+exchanger_proc_map_t* colmesh_xy_data_send_map(colmesh_t* mesh, int xy_index);
+exchanger_proc_map_t* colmesh_xy_data_send_map(colmesh_t* mesh, int xy_index)
+{
+  chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy_index];
+  return xy_data->send_map;
+}
+
+exchanger_proc_map_t* colmesh_xy_data_receive_map(colmesh_t* mesh, int xy_index);
+exchanger_proc_map_t* colmesh_xy_data_receive_map(colmesh_t* mesh, int xy_index)
+{
+  chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy_index];
+  return xy_data->receive_map;
+}
+
