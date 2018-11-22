@@ -143,11 +143,6 @@ void silo_file_write_colmesh(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
-static bool weld_pts(void* context, point2_t* p1, point2_t* p2)
-{
-  return point2s_coincide(p1, p2);
-}
-
 colmesh_t* silo_file_read_colmesh(silo_file_t* file, 
                                   const char* mesh_name)
 {
@@ -229,9 +224,6 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
     polymec_free(per);
   }
 
-  // We'll weld fragments together if the points exactly coincide.
-  point2_inspector_t* inspector = point2_inspector_new(NULL, weld_pts, NULL);
-
   // Create the mesh.
 #if POLYMEC_HAVE_MPI
   MPI_Comm comm = silo_file_comm(file);
@@ -245,14 +237,10 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
   // Insert our local chunks.
   for (size_t i = 0; i < num_chunk_indices/2; ++i)
   {
-    int xy_index = 2*i;
-    int z_index  = 2*i+1;
+    int xy_index = chunk_indices[2*i];
+    int z_index  = chunk_indices[2*i+1];
     colmesh_insert_chunk(mesh, xy_index, z_index);
   }
-
-  // Clean up.
-  release_ref(inspector);
-  colmesh_fragment_map_free(fragments);
   polymec_free(chunk_indices);
 
   // Finish constructing the colmesh.
@@ -267,29 +255,31 @@ bool silo_file_contains_colmesh(silo_file_t* file,
                                 const char* mesh_name)
 {
   silo_file_push_domain_dir(file);
-  DBfile* dbfile = silo_file_dbfile(file);
-  bool exists = (DBInqVarExists(dbfile, mesh_name) && 
-                 (DBInqVarType(dbfile, mesh_name) == DB_MULTIMESH));
+
+  // Read in the indices of the locally stored chunks:
+  // (xy0, z0), (xy1, z1), ...
+  size_t num_chunk_indices;
+  int* chunk_indices;
+  {
+    char array_name[FILENAME_MAX+1];
+    snprintf(array_name, FILENAME_MAX, "%s_chunk_indices", mesh_name);
+    chunk_indices = silo_file_read_int_array(file, array_name, 
+                                             &num_chunk_indices);
+  }
+  bool exists = (chunk_indices != NULL);
   if (exists)
   {
     // Check for the column data.
-    char columns_name[FILENAME_MAX+1];
-    snprintf(columns_name, FILENAME_MAX, "%s_columns", mesh_name);
-    exists = silo_file_contains_planar_polymesh(file, columns_name);
-    if (exists)
+    for (size_t i = 0; i < num_chunk_indices/2; ++i)
     {
-      static const char* data_fields[2] = 
-        {"chunk_sizes_int_array", 
-         "chunk_indices_int_array"};
-      for (int i = 0; i < 2; ++i)
-      {
-        char data_name[FILENAME_MAX+1];
-        snprintf(data_name, FILENAME_MAX, "%s_%s", mesh_name, data_fields[i]);
-        exists = DBInqVarExists(dbfile, data_name);
-        if (!exists) break;
-      }
+      int xy = chunk_indices[i/2];
+      char columns_name[FILENAME_MAX+1];
+      snprintf(columns_name, FILENAME_MAX, "%s_%d_pp", mesh_name, xy);
+      exists = silo_file_contains_planar_polymesh(file, columns_name);
+      if (!exists) break;
     }
   }
+  polymec_free(chunk_indices);
   silo_file_pop_dir(file);
   return exists;
 }
@@ -933,11 +923,7 @@ void silo_file_write_colmesh_field(silo_file_t* file,
   {
     // Write out the chunk data itself.
     for (int c = 0; c < num_components; ++c)
-    {
-      char field_name[FILENAME_MAX];
-      snprintf(field_name, FILENAME_MAX-1, "%s_%d_%d", field_component_names[c], xy, z);
-      field_names[c] = string_dup(field_name);
-    }
+      field_names[c] = string_dup(field_component_names[c]);
     char chunk_grid_name[FILENAME_MAX];
     snprintf(chunk_grid_name, FILENAME_MAX-1, "%s_%d_%d", mesh_name, xy, z);
     write_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name,  
@@ -1093,14 +1079,12 @@ void silo_file_read_colmesh_field(silo_file_t* file,
   int pos = 0, xy, z;
   while (colmesh_field_next_chunk(field, &pos, &xy, &z, &data))
   {
+    char chunk_grid_name[FILENAME_MAX+1];
+    snprintf(chunk_grid_name, FILENAME_MAX, "%s_%d_%d", mesh_name, xy, z);
     char* field_names[data->num_components];
     for (int c = 0; c < data->num_components; ++c)
-    {
-      char field_name[FILENAME_MAX+1];
-      snprintf(field_name, FILENAME_MAX, "%s_%d_%d", field_component_names[c], xy, z);
-      field_names[c] = string_dup(field_name);
-    }
-    read_colmesh_chunk_data(file, (const char**)field_names, mesh_name, 
+      field_names[c] = string_dup(field_component_names[c]);
+    read_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name, 
                              data->num_components, data, field_metadata);
     for (int c = 0; c < data->num_components; ++c)
       string_free(field_names[c]);
@@ -1114,11 +1098,35 @@ bool silo_file_contains_colmesh_field(silo_file_t* file,
                                       const char* mesh_name,
                                       colmesh_centering_t centering)
 {
-  // FIXME
   silo_file_push_domain_dir(file);
   DBfile* dbfile = silo_file_dbfile(file);
-  bool exists = (DBInqVarExists(dbfile, mesh_name) && 
-                 (DBInqVarType(dbfile, mesh_name) == DB_MULTIMESH));
+
+  // Read in the indices of the locally stored chunks:
+  // (xy0, z0), (xy1, z1), ...
+  size_t num_chunk_indices;
+  int* chunk_indices;
+  {
+    char array_name[FILENAME_MAX+1];
+    snprintf(array_name, FILENAME_MAX, "%s_chunk_indices", mesh_name);
+    chunk_indices = silo_file_read_int_array(file, array_name, 
+                                             &num_chunk_indices);
+  }
+  bool exists = (chunk_indices != NULL);
+  if (exists)
+  {
+    // Now make sure the field data exists locally.
+    for (size_t i = 0; i < num_chunk_indices/2; ++i)
+    {
+      int xy = chunk_indices[2*i];
+      int z = chunk_indices[2*i+1];
+      char data_name[FILENAME_MAX+1];
+      snprintf(data_name, FILENAME_MAX, "%s_%d_%d_%s_%s_real_array", mesh_name, xy, z, field_name, centering_name[(int)centering]);
+      exists = DBInqVarExists(dbfile, data_name);
+      if (!exists) break;
+    }
+  }
+  polymec_free(chunk_indices);
+
   silo_file_pop_dir(file);
   return exists;
 }

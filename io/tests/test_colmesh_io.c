@@ -126,9 +126,9 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
   // Now read the mesh from the file.
   metadata = silo_field_metadata_new();
   real_t t;
-  silo = silo_file_open(MPI_COMM_WORLD, "rectilinear_4x4x4", "", 0, &t);
+  silo = silo_file_open(MPI_COMM_WORLD, prefix, "", 0, &t);
   assert_true(reals_equal(t, 0.0));
-  assert_true(silo_file_contains_polymesh(silo, "mesh"));
+  assert_true(silo_file_contains_colmesh(silo, "mesh"));
   colmesh_t* mesh1 = silo_file_read_colmesh(silo, "mesh");
   assert_int_equal(colmesh_num_chunks(mesh1), colmesh_num_chunks(mesh));
   pos = 0;

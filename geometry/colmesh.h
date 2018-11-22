@@ -160,7 +160,8 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
 ///             of the (global) planar mesh. This is a distributed map: each process 
 ///             stores one or more fragments locally. The fragments on different 
 ///             processes may overlap, and each one stores send/receive data that allows
-///             the distributed global mesh to be constructed.
+///             the distributed global mesh to be constructed. This map is consumed 
+///             by this function.
 /// \param [in] z1 The z coordinate of the lower boundary of the mesh.
 /// \param [in] z2 The z coordinate of the upper boundary of the mesh.
 /// \param [in] num_xy_chunks The total number of chunks within the xy plane.

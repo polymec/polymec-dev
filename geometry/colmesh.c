@@ -25,8 +25,10 @@ struct colmesh_fragment_t
 static void colmesh_fragment_free(colmesh_fragment_t* fragment)
 {
   planar_polymesh_free(fragment->mesh);
-  exchanger_proc_map_free(fragment->send_map);
-  exchanger_proc_map_free(fragment->receive_map);
+  if (fragment->send_map != NULL)
+    exchanger_proc_map_free(fragment->send_map);
+  if (fragment->receive_map != NULL)
+    exchanger_proc_map_free(fragment->receive_map);
   polymec_free(fragment);
 }
 
@@ -66,10 +68,10 @@ DEFINE_ARRAY(chunk_xy_data_array, chunk_xy_data_t*)
 
 // Creates shared xy chunk data for the local process, generating information
 // for the locally-owned cells in the planar polymesh.
-static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
-                                          planar_polymesh_t* mesh,
-                                          int64_t* partition_vector,
-                                          int xy_chunk_index)
+static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
+                                                     planar_polymesh_t* mesh,
+                                                     int64_t* partition_vector,
+                                                     int xy_chunk_index)
 {
   chunk_xy_data_t* xy_data = polymec_malloc(sizeof(chunk_xy_data_t));
   xy_data->num_columns = 0;
@@ -229,6 +231,47 @@ static chunk_xy_data_t* chunk_xy_data_new(MPI_Comm comm,
   int_int_unordered_map_free(cell_to_col_map);
   int_array_free(local_cells);
 
+  return xy_data;
+}
+
+// Creates shared xy chunk data for the local process from the given fragment.
+static chunk_xy_data_t* chunk_xy_data_from_fragment(colmesh_fragment_t* fragment)
+{
+  planar_polymesh_t* mesh = fragment->mesh;
+  // Copy the locally stored over from the planar polymesh.
+  chunk_xy_data_t* xy_data = polymec_malloc(sizeof(chunk_xy_data_t));
+  xy_data->num_columns = mesh->num_cells;
+  xy_data->num_ghost_columns = 0;
+  xy_data->num_xy_faces = mesh->num_edges;
+  xy_data->num_xy_edges = mesh->num_edges;
+  xy_data->num_xy_nodes = mesh->num_nodes;
+  xy_data->column_xy_face_offsets = polymec_malloc(sizeof(int) * (xy_data->num_columns+1));
+  memcpy(xy_data->column_xy_face_offsets, mesh->cell_edge_offsets, sizeof(int) * (xy_data->num_columns+1));
+  xy_data->column_xy_faces = polymec_malloc(sizeof(int) * xy_data->column_xy_face_offsets[xy_data->num_columns]);
+  memcpy(xy_data->column_xy_faces, mesh->cell_edges, sizeof(int) * xy_data->column_xy_face_offsets[xy_data->num_columns]);
+  xy_data->xy_face_columns = polymec_malloc(sizeof(int) * 2 * xy_data->num_xy_faces);
+  memcpy(xy_data->xy_face_columns, mesh->edge_cells, sizeof(int) * 2 * xy_data->num_xy_faces);
+  xy_data->xy_edge_nodes = polymec_malloc(sizeof(int) * 2 * xy_data->num_xy_edges);
+  memcpy(xy_data->xy_edge_nodes, mesh->edge_nodes, sizeof(int) * 2 * xy_data->num_xy_edges);
+  xy_data->xy_nodes = polymec_malloc(sizeof(point2_t) * xy_data->num_xy_nodes);
+  memcpy(xy_data->xy_nodes, mesh->nodes, sizeof(point2_t) * xy_data->num_xy_nodes);
+
+  // Steal the send and receive maps.
+  xy_data->send_map = fragment->send_map;
+  fragment->send_map = NULL;
+  xy_data->receive_map = fragment->receive_map;
+  fragment->receive_map = NULL;
+
+  // Count up ghost cells.
+  int pos = 0, proc;
+  int_array_t* indices;
+  while (exchanger_proc_map_next(xy_data->receive_map, &pos, &proc, &indices))
+  {
+    ASSERT((indices->size % 2) == 0);
+    xy_data->num_ghost_columns += indices->size/2;
+  }
+
+  // That's it!
   return xy_data;
 }
 
@@ -419,7 +462,7 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
   mesh->chunk_xy_data = chunk_xy_data_array_new();
   for (int xy_index = 0; xy_index < (int)num_xy_chunks; ++xy_index)
   {
-    chunk_xy_data_t* xy_data = chunk_xy_data_new(comm, columns, P, xy_index);
+    chunk_xy_data_t* xy_data = chunk_xy_data_from_partition(comm, columns, P, xy_index);
     chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
                                          chunk_xy_data_free);
   }
@@ -429,22 +472,6 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
   colmesh_create_chunk_graph(mesh);
 
   return mesh;
-}
-
-static chunk_xy_data_array_t* chunk_xy_data_from_fragments(MPI_Comm comm, 
-                                                           colmesh_fragment_map_t* fragments)
-{
-  chunk_xy_data_array_t* all_xy_data = chunk_xy_data_array_new();
-  // FIXME
-#if 0
-  int pos = 0, xy;
-  for (size_t xy = 0; xy_index < (int)num_xy_chunks; ++xy_index)
-  {
-    chunk_xy_data_t* xy_data = NULL; //FIXME: chunk_xy_data_new(comm, columns, P, xy_index);
-    chunk_xy_data_array_append_with_dtor(all_xy_data, xy_data, chunk_xy_data_free);
-  }
-#endif
-  return all_xy_data;
 }
 
 colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm,
@@ -484,7 +511,18 @@ colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm,
   mesh->finalized = false;
 
   // Create xy data from the distributed fragments.
-  mesh->chunk_xy_data = chunk_xy_data_from_fragments(comm, local_fragments);
+  mesh->chunk_xy_data = chunk_xy_data_array_new();
+  int pos = 0, xy;
+  colmesh_fragment_t* fragment;
+  while (colmesh_fragment_map_next(local_fragments, &pos, &xy, &fragment))
+  {
+    chunk_xy_data_t* xy_data = chunk_xy_data_from_fragment(fragment);
+    chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
+                                         chunk_xy_data_free);
+  }
+
+  // Destroy the fragment map.
+  colmesh_fragment_map_free(local_fragments);
 
   // Build the chunk graph.
   colmesh_create_chunk_graph(mesh);
