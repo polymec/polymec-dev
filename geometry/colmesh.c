@@ -289,6 +289,49 @@ static inline int chunk_index(colmesh_t* mesh, int xy_index, int z_index)
   return (int)(mesh->num_z_chunks * xy_index + z_index);
 }
 
+static void colmesh_create_chunk_graph(colmesh_t* mesh, int64_t* P)
+{
+  ASSERT(mesh->chunk_graph == NULL);
+  int num_chunks = mesh->num_xy_chunks * mesh->num_z_chunks;
+  mesh->chunk_graph = adj_graph_new(MPI_COMM_SELF, num_chunks);
+  for (int xy_index = 0; xy_index < mesh->num_xy_chunks; ++xy_index)
+  {
+    chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy_index];
+
+    // Extract the neighboring chunks from this xy data and add edges to our graph.
+    for (int z_index = 0; z_index < mesh->num_z_chunks; ++z_index)
+    {
+      int ch_index = chunk_index(mesh, xy_index, z_index);
+
+      // Count up edges.
+      int num_xy_neighbors = (int)xy_data->send_map->size;
+      int num_z_neighbors;
+      if (mesh->num_z_chunks == 1)
+        num_z_neighbors = 0;
+      else if ((z_index == 0) || (z_index == (mesh->num_z_chunks-1)))
+        num_z_neighbors = 1;
+      else 
+        num_z_neighbors = 2;
+      adj_graph_set_num_edges(mesh->chunk_graph, ch_index, num_xy_neighbors + num_z_neighbors);
+
+      // Add xy edges.
+      int* edges = adj_graph_edges(mesh->chunk_graph, ch_index);
+      int pos = 0, neighbor_xy_index, i = 0;
+      int_array_t* indices;
+      while (exchanger_proc_map_next(xy_data->send_map, &pos, &neighbor_xy_index, &indices))
+        edges[i++] = chunk_index(mesh, neighbor_xy_index, z_index);
+
+      // Add z edges.
+      if (z_index > 0)
+        edges[i++] = chunk_index(mesh, xy_index, z_index-1);
+      if (z_index < (mesh->num_z_chunks-1))
+        edges[i++] = chunk_index(mesh, xy_index, z_index+1);
+
+      ASSERT(i == num_xy_neighbors + num_z_neighbors);
+    }
+  }
+}
+
 colmesh_t* create_empty_colmesh(MPI_Comm comm, 
                                 planar_polymesh_t* columns,
                                 real_t z1, real_t z2,
@@ -338,49 +381,17 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
   release_ref(poly);
 #endif
 
-  // Create xy data for chunks, and create a global graph whose vertices 
-  // are the mesh's chunks.
+  // Create xy data for chunks. 
   mesh->chunk_xy_data = chunk_xy_data_array_new();
-  int num_chunks = num_xy_chunks * num_z_chunks;
-  mesh->chunk_graph = adj_graph_new(MPI_COMM_SELF, num_chunks);
   for (int xy_index = 0; xy_index < (int)num_xy_chunks; ++xy_index)
   {
     chunk_xy_data_t* xy_data = chunk_xy_data_new(comm, columns, P, xy_index);
     chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
                                          chunk_xy_data_free);
-
-    // Extract the neighboring chunks from this xy data and add edges to our graph.
-    for (int z_index = 0; z_index < (int)num_z_chunks; ++z_index)
-    {
-      int ch_index = chunk_index(mesh, xy_index, z_index);
-
-      // Count up edges.
-      int num_xy_neighbors = (int)xy_data->send_map->size;
-      int num_z_neighbors;
-      if (num_z_chunks == 1)
-        num_z_neighbors = 0;
-      else if ((z_index == 0) || (z_index == (int)(num_z_chunks-1)))
-        num_z_neighbors = 1;
-      else 
-        num_z_neighbors = 2;
-      adj_graph_set_num_edges(mesh->chunk_graph, ch_index, num_xy_neighbors + num_z_neighbors);
-
-      // Add xy edges.
-      int* edges = adj_graph_edges(mesh->chunk_graph, ch_index);
-      int pos = 0, neighbor_xy_index, i = 0;
-      int_array_t* indices;
-      while (exchanger_proc_map_next(xy_data->send_map, &pos, &neighbor_xy_index, &indices))
-        edges[i++] = chunk_index(mesh, neighbor_xy_index, z_index);
-
-      // Add z edges.
-      if (z_index > 0)
-        edges[i++] = chunk_index(mesh, xy_index, z_index-1);
-      if (z_index < (int)(num_z_chunks-1))
-        edges[i++] = chunk_index(mesh, xy_index, z_index+1);
-
-      ASSERT(i == num_xy_neighbors + num_z_neighbors);
-    }
   }
+
+  // Create a global graph whose vertices are the mesh's chunks.
+  colmesh_create_chunk_graph(mesh, P);
   polymec_free(P);
 
   // No exchangers yet.
@@ -394,18 +405,22 @@ colmesh_t* create_empty_colmesh(MPI_Comm comm,
   return mesh;
 }
 
-colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm, 
+colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm,
                                                planar_polymesh_t** local_fragments,
                                                size_t num_local_fragments,
-                                               point2_inspector_t* inspector,
                                                real_t z1, real_t z2,
-                                               int num_xy_chunks, int num_z_chunks,
-                                               int nz_per_chunk, bool periodic_in_z)
+                                               int num_xy_chunks, 
+                                               int num_z_chunks, 
+                                               int nz_per_chunk, 
+                                               bool periodic_in_z,
+                                               point2_inspector_t* inspector)
 {
+  ASSERT(local_fragments != NULL);
   ASSERT(z1 < z2);
   ASSERT(num_xy_chunks > 0);
   ASSERT(num_z_chunks > 0);
   ASSERT(nz_per_chunk > 0);
+  ASSERT(inspector != NULL);
 
   colmesh_t* mesh = polymec_malloc(sizeof(colmesh_t));
   mesh->comm = comm;
@@ -421,7 +436,18 @@ colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm,
   mesh->periodic_in_z = periodic_in_z;
   mesh->finalized = false;
 
-  // FIXME
+  // Create xy data from fragments.
+  mesh->chunk_xy_data = chunk_xy_data_array_new();
+  for (int xy_index = 0; xy_index < (int)num_xy_chunks; ++xy_index)
+  {
+    chunk_xy_data_t* xy_data = NULL; //FIXME: chunk_xy_data_new(comm, columns, P, xy_index);
+    chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
+                                         chunk_xy_data_free);
+  }
+
+  // Build the chunk graph.
+  int64_t* P = NULL; // FIXME
+  colmesh_create_chunk_graph(mesh, P);
 
   // No exchangers yet.
   mesh->cell_ex = NULL;
@@ -858,17 +884,6 @@ colmesh_t* colmesh_new(MPI_Comm comm,
   // Put the lid on it and ship it.
   colmesh_finalize(mesh);
   return mesh;
-}
-
-colmesh_t* colmesh_new_from_fragments(MPI_Comm comm,
-                                      planar_polymesh_t** local_fragments,
-                                      size_t num_local_fragments,
-                                      point2_inspector_t* inspector,
-                                      real_t z1, real_t z2,
-                                      int nz, bool periodic_in_z)
-{
-  // FIXME
-  return NULL;
 }
 
 void colmesh_free(colmesh_t* mesh)

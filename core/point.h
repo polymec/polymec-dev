@@ -356,11 +356,35 @@ typedef enum
   INWARD_NORMAL
 } normal_orient_t;
 
+/// \class point_inspector_t
+/// This type encapsulates a method for determining whether two points in 3D
+/// are identical.
+/// \refcounted
+typedef struct point_inspector_t point_inspector_t;
+
+/// Constructs a point inspector with a context pointer, a function that determines
+/// whether two points in the plane are the same, and an optional context destructor.
+/// \param [in] context A pointer to a context used to store the state of the inspector.
+/// \param [in] pts_are_identical A pointer to a function that returns true if two points
+///                               are identical and false if not.
+/// \param [in] dtor A destructor function for the context.
+/// \member point_inspector
+point_inspector_t* point_inspector_new(void* context, 
+                                       bool (*pts_are_identical)(void* context, point_t* p1, point_t* p2),
+                                       void (*dtor)(void* context));
+
+/// Returns true if this point inspector determines that the two given points p1 and p2 are 
+/// identical, false if not.
+/// \param [in] p1 The first point in the comparison.
+/// \param [in] p2 The second point in the comparison.
+/// \related point_inspector
+bool points_are_identical(point_inspector_t* inspector, point_t* p1, point_t* p2);
+
+///@}
+
 // Arrays of points and vectors.
 DEFINE_ARRAY(point_array, point_t)
 DEFINE_ARRAY(vector_array, vector_t)
-
-///@}
 
 #endif
 

@@ -38,25 +38,32 @@ static void write_colmesh_chunk_grid(silo_file_t* file,
                                      colmesh_chunk_t* chunk,
                                      coord_mapping_t* mapping)
 {
+  // Construct a planar polymesh representing the top face of the chunk, 
+  // and write it out.
+  planar_polymesh_t* chunk_top = planar_polymesh_new(chunk->num_columns,
+                                                     chunk->num_xy_faces,
+                                                     chunk->num_xy_nodes);
+  memcpy(chunk_top->cell_edge_offsets, chunk->column_xy_face_offsets, sizeof(int) * (chunk->num_columns+1));
+  planar_polymesh_reserve_connectivity_storage(chunk_top);
+  memcpy(chunk_top->cell_edges, chunk->column_xy_faces, sizeof(int) * chunk->column_xy_face_offsets[chunk->num_columns+1]);
+  memcpy(chunk_top->edge_cells, chunk->xy_face_columns, 2 * sizeof(int) * chunk->num_xy_faces);
+  memcpy(chunk_top->edge_nodes, chunk->xy_edge_nodes, 2 * sizeof(int) * chunk->num_xy_edges);
+  memcpy(chunk_top->nodes, chunk->xy_nodes, sizeof(point2_t) * chunk->num_xy_nodes);
+  char pp_name[FILENAME_MAX+1];
+  snprintf(pp_name, FILENAME_MAX, "%s_pp", chunk_grid_name);
+  silo_file_write_planar_polymesh(file, pp_name, chunk_top);
+  planar_polymesh_free(chunk_top);
+
+  // Write chunk metadata.
   char array_name[FILENAME_MAX+1];
   snprintf(array_name, FILENAME_MAX, "%s_sizes", chunk_grid_name);
-  int sizes[5] = {(int)chunk->num_columns, (int)chunk->num_z_cells,
-                  (int)chunk->num_xy_faces, (int)chunk->num_xy_edges,
-                  (int)chunk->num_xy_nodes};
+  int sizes[5] = {chunk->num_columns, chunk->num_z_cells,
+                  chunk->num_xy_faces, chunk->num_xy_edges,
+                  chunk->num_xy_nodes};
   silo_file_write_int_array(file, array_name, sizes, 5);
   snprintf(array_name, FILENAME_MAX, "%s_endpts", chunk_grid_name);
   real_t endpts[2] = {chunk->z1, chunk->z2};
   silo_file_write_real_array(file, array_name, endpts, 2);
-  snprintf(array_name, FILENAME_MAX, "%s_column_xy_face_offsets", chunk_grid_name);
-  silo_file_write_int_array(file, array_name, chunk->column_xy_face_offsets, chunk->num_columns+1);
-  snprintf(array_name, FILENAME_MAX, "%s_column_xy_faces", chunk_grid_name);
-  silo_file_write_int_array(file, array_name, chunk->column_xy_faces, chunk->column_xy_face_offsets[chunk->num_columns]);
-  snprintf(array_name, FILENAME_MAX, "%s_xy_face_columns", chunk_grid_name);
-  silo_file_write_int_array(file, array_name, chunk->xy_face_columns, 2*chunk->num_xy_faces);
-  snprintf(array_name, FILENAME_MAX, "%s_xy_edge_nodes", chunk_grid_name);
-  silo_file_write_int_array(file, array_name, chunk->xy_edge_nodes, 2*chunk->num_xy_edges);
-  snprintf(array_name, FILENAME_MAX, "%s_xy_nodes", chunk_grid_name);
-  silo_file_write_real_array(file, array_name, (real_t*)chunk->xy_nodes, 2*chunk->num_xy_nodes);
 }
 
 void silo_file_write_colmesh(silo_file_t* file, 
@@ -89,7 +96,7 @@ void silo_file_write_colmesh(silo_file_t* file,
   {
     // Write out the grid for the chunk itself.
     char chunk_grid_name[FILENAME_MAX+1];
-    snprintf(chunk_grid_name, FILENAME_MAX, "%s_%d_%d", mesh_name, xy, z);
+    snprintf(chunk_grid_name, FILENAME_MAX, "%s_%d", mesh_name, xy);
     write_colmesh_chunk_grid(file, chunk_grid_name, chunk, mapping);
 
     // Jot down this (xy, z) tuple.
@@ -122,16 +129,52 @@ void silo_file_write_colmesh(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
+static bool weld_pts(void* context, point2_t* p1, point2_t* p2)
+{
+  return point2s_coincide(p1, p2);
+}
+
 colmesh_t* silo_file_read_colmesh(silo_file_t* file, 
                                   const char* mesh_name)
 {
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
 
+  // Read chunk metadata.
+  int num_xy_chunks, num_z_chunks, nz_per_chunk;
+  {
+    char array_name[FILENAME_MAX+1];
+    snprintf(array_name, FILENAME_MAX, "%s_chunk_md", mesh_name);
+    size_t size;
+    int* chunk_md = silo_file_read_int_array(file, array_name, &size);
+    ASSERT(size == 3);
+    num_xy_chunks = chunk_md[0];
+    num_z_chunks = chunk_md[1];
+    nz_per_chunk = chunk_md[2];
+    polymec_free(chunk_md);
+  }
+
+  // Read in the indices of the locally stored chunks:
+  // (xy0, z0), (xy1, z1), ...
+  size_t num_chunk_indices;
+  int* chunk_indices;
+  {
+    char array_name[FILENAME_MAX+1];
+    snprintf(array_name, FILENAME_MAX, "%s_chunk_indices", mesh_name);
+    chunk_indices = silo_file_read_int_array(file, array_name, 
+                                             &num_chunk_indices);
+  }
+
   // Read the mesh's column data.
-  char columns_name[FILENAME_MAX+1];
-  snprintf(columns_name, FILENAME_MAX, "%s_columns", mesh_name);
-  planar_polymesh_t* columns = silo_file_read_planar_polymesh(file, columns_name);
+  int num_fragments = (int)(num_chunk_indices/2);
+  planar_polymesh_t* fragments[num_fragments];
+  for (int f = 0; f < num_fragments; ++f)
+  {
+    int xy = chunk_indices[f/2];
+    char fragment_name[FILENAME_MAX+1];
+    snprintf(fragment_name, FILENAME_MAX, "%s_%d_pp", mesh_name, xy);
+    fragments[f] = silo_file_read_planar_polymesh(file, fragment_name);
+  }
 
   // Read z axis information for this mesh.
   real_t z1, z2;
@@ -153,19 +196,8 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
     polymec_free(per);
   }
 
-  // Read chunk metadata.
-  int num_xy_chunks, num_z_chunks, nz_per_chunk;
-  {
-    char array_name[FILENAME_MAX+1];
-    snprintf(array_name, FILENAME_MAX, "%s_chunk_md", mesh_name);
-    size_t size;
-    int* chunk_md = silo_file_read_int_array(file, array_name, &size);
-    ASSERT(size == 3);
-    num_xy_chunks = chunk_md[0];
-    num_z_chunks = chunk_md[1];
-    nz_per_chunk = chunk_md[2];
-    polymec_free(chunk_md);
-  }
+  // We'll weld fragments together if the points exactly coincide.
+  point2_inspector_t* inspector = point2_inspector_new(NULL, weld_pts, NULL);
 
   // Create the mesh.
 #if POLYMEC_HAVE_MPI
@@ -173,31 +205,36 @@ colmesh_t* silo_file_read_colmesh(silo_file_t* file,
 #else
   MPI_Comm comm = MPI_COMM_WORLD;
 #endif
-  colmesh_t* mesh = create_empty_colmesh(comm, columns, z1, z2, 
-                                         num_xy_chunks, num_z_chunks, nz_per_chunk, 
-                                         periodic);
+  colmesh_t* mesh = 
+    create_empty_colmesh_from_fragments(comm, 
+                                        fragments, (size_t)num_fragments, 
+                                        z1, z2, num_xy_chunks, num_z_chunks, 
+                                        nz_per_chunk, periodic, inspector);
 
-  // Fill it with chunks whose indices we read from the file.
+  // Insert our local chunks.
+  for (size_t i = 0; i < num_chunk_indices/2; ++i)
   {
-    char array_name[FILENAME_MAX+1];
-    snprintf(array_name, FILENAME_MAX, "%s_chunk_indices", mesh_name);
-    size_t size;
-    int* chunk_indices = silo_file_read_int_array(file, array_name, &size);
-    for (size_t c = 0; c < size/2; ++c)
-      colmesh_insert_chunk(mesh, chunk_indices[2*c], chunk_indices[2*c+1]);
-    polymec_free(chunk_indices);
+    int xy_index = 2*i;
+    int z_index  = 2*i+1;
+    colmesh_insert_chunk(mesh, xy_index, z_index);
   }
 
+  // Clean up.
+  release_ref(inspector);
+  for (int f = 0; f < num_fragments; ++f)
+    planar_polymesh_free(fragments[f]);
+  polymec_free(chunk_indices);
+
+  // Finish constructing the colmesh.
   colmesh_finalize(mesh);
 
   silo_file_pop_dir(file);
-
   STOP_FUNCTION_TIMER();
   return mesh;
 }
 
 bool silo_file_contains_colmesh(silo_file_t* file, 
-                                 const char* mesh_name)
+                                const char* mesh_name)
 {
   silo_file_push_domain_dir(file);
   DBfile* dbfile = silo_file_dbfile(file);
