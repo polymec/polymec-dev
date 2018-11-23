@@ -69,6 +69,7 @@ static inline void array_name##_reserve(array_name##_t* array, size_t new_capaci
   if (new_capacity > array->capacity) \
   { \
     array->data = (element*)polymec_realloc(array->data, sizeof(element) * new_capacity); \
+    memset(&(array->data[array->capacity]), 0, sizeof(element) * (new_capacity - array->capacity)); \
     array->capacity = new_capacity; \
     array->owns = true; \
   } \
