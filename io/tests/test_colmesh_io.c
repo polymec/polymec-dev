@@ -17,12 +17,6 @@
 #include "geometry/create_hex_planar_polymesh.h"
 #include "io/silo_file.h"
 
-static bool print_solns(real_t x, real_t y)
-{
-  printf("%g vs %g\n", x, y);
-  return true;
-}
-
 static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh)
 {
   // Write out the mesh and some fields.
@@ -182,9 +176,6 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
   assert_true(silo_file_contains_colmesh_field(silo, "fvals", "mesh", COLMESH_XYFACE));
   colmesh_field_t* fxyfield1 = colmesh_field_new(mesh, COLMESH_XYFACE, 1);
   silo_file_read_colmesh_field(silo, fnames, "mesh", fxyfield1, NULL);
-  assert_true(ALL(compare_values(colmesh_field_enumerate(fxyfield1), 
-                                 colmesh_field_enumerate(fxyfield), 
-                                 print_solns)));
   assert_true(ALL(compare_values(colmesh_field_enumerate(fxyfield1), 
                                  colmesh_field_enumerate(fxyfield), 
                                  reals_equal)));

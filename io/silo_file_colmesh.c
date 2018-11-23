@@ -36,6 +36,11 @@ extern string_ptr_unordered_map_t* silo_file_scratch(silo_file_t* file);
 extern exchanger_proc_map_t* colmesh_xy_data_send_map(colmesh_t* mesh, int xy_index);
 extern exchanger_proc_map_t* colmesh_xy_data_receive_map(colmesh_t* mesh, int xy_index);
 
+static int_array_t* clone_int_array(int_array_t* array)
+{
+  return int_array_clone(array, NULL);
+}
+
 static void write_colmesh_chunk_grid(silo_file_t* file,
                                      const char* chunk_grid_name,
                                      colmesh_t* mesh,
@@ -63,8 +68,10 @@ static void write_colmesh_chunk_grid(silo_file_t* file,
   char ex_name[FILENAME_MAX+1];
   snprintf(ex_name, FILENAME_MAX, "%s_ex", chunk_grid_name);
   exchanger_t* fragment_ex = exchanger_new(silo_file_comm(file));
-  exchanger_set_sends(fragment_ex, colmesh_xy_data_send_map(mesh, xy_index));
-  exchanger_set_receives(fragment_ex, colmesh_xy_data_receive_map(mesh, xy_index));
+  exchanger_proc_map_t* send_map = exchanger_proc_map_clone(colmesh_xy_data_send_map(mesh, xy_index), NULL, clone_int_array, NULL, int_array_free);
+  exchanger_set_sends(fragment_ex, send_map);
+  exchanger_proc_map_t* receive_map = exchanger_proc_map_clone(colmesh_xy_data_receive_map(mesh, xy_index), NULL, clone_int_array, NULL, int_array_free);
+  exchanger_set_receives(fragment_ex, receive_map);
   silo_file_write_exchanger(file, ex_name, fragment_ex);
   release_ref(fragment_ex);
 
@@ -697,7 +704,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       snprintf(scratch_name, FILENAME_MAX, "%s_xy", field_component_name);
       real_t** other_p = (real_t**)string_ptr_unordered_map_get(scratch, scratch_name);
       if (other_p != NULL)
-        memcpy(data, *other_p, sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
+        memcpy(data, *other_p, sizeof(real_t) * chunk->num_xy_edges * (chunk->num_z_cells+1));
       else
         *ready_to_write = false;
     }
@@ -708,7 +715,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       if (other_p != NULL)
       {
         size_t offset = chunk->num_xy_edges * (chunk->num_z_cells + 1);
-        memcpy(&data[offset], *other_p, sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
+        memcpy(&data[offset], *other_p, sizeof(real_t) * chunk->num_xy_nodes * chunk->num_z_cells);
       }
       else
         *ready_to_write = false;
@@ -756,7 +763,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       snprintf(scratch_name, FILENAME_MAX, "%s_xy", field_component_name);
       real_t** other_p = (real_t**)string_ptr_unordered_map_get(scratch, scratch_name);
       if (other_p != NULL)
-        memcpy(data, *other_p, sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
+        memcpy(data, *other_p, sizeof(real_t) * chunk->num_xy_faces * chunk->num_z_cells);
       else
         *ready_to_write = false;
     }
@@ -767,7 +774,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       if (other_p != NULL)
       {
         size_t offset = chunk->num_xy_faces * chunk->num_z_cells;
-        memcpy(&data[offset], *other_p, sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
+        memcpy(&data[offset], *other_p, sizeof(real_t) * chunk->num_columns * (chunk->num_z_cells+1));
       }
       else
         *ready_to_write = false;
@@ -784,7 +791,7 @@ static void copy_out_other_centerings(silo_file_t* file,
         DECLARE_COLMESH_XYFACE_ARRAY(a, chunk_data);
         int l = 0;
         for (int xy = 0; xy < chunk_data->xy_size; ++xy)
-          for (int z = 0; z < chunk_data->z_size; ++z)
+          for (int z = 0; z < chunk_data->z_size; ++z, ++l)
             this_one[l] = a[xy][z][c];
       }
       else
@@ -793,7 +800,7 @@ static void copy_out_other_centerings(silo_file_t* file,
         DECLARE_COLMESH_ZFACE_ARRAY(a, chunk_data);
         int l = 0;
         for (int xy = 0; xy < chunk_data->xy_size; ++xy)
-          for (int z = 0; z < chunk_data->z_size; ++z)
+          for (int z = 0; z < chunk_data->z_size; ++z, ++l)
             this_one[l] = a[xy][z][c];
       }
       string_ptr_unordered_map_insert_with_kv_dtors(scratch, 
@@ -939,8 +946,8 @@ void silo_file_write_colmesh_field(silo_file_t* file,
 }
 
 static void copy_in_colmesh_node_component(real_t* data, 
-                                            int c, 
-                                            colmesh_chunk_data_t* chunk_data)
+                                           int c, 
+                                           colmesh_chunk_data_t* chunk_data)
 {
   int l = 0;
   DECLARE_COLMESH_NODE_ARRAY(a, chunk_data);
