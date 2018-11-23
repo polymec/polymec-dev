@@ -35,22 +35,22 @@ static colmesh_chunk_data_t* colmesh_chunk_data_with_buffer(colmesh_chunk_t* chu
   else if (centering == COLMESH_ZFACE)
   {
     data->xy_size = chunk->num_columns;
-    data->z_size = 2*chunk->num_z_cells;
+    data->z_size = chunk->num_z_cells + 1;
   }
   else if (centering == COLMESH_XYEDGE)
   {
-    data->xy_size = 2*chunk->num_xy_faces;
-    data->z_size = 2*chunk->num_z_cells;
+    data->xy_size = chunk->num_xy_faces;
+    data->z_size = chunk->num_z_cells + 1;
   }
   else if (centering == COLMESH_ZEDGE)
   {
-    data->xy_size = 2*chunk->num_xy_faces;
-    data->z_size = 2*chunk->num_z_cells;
+    data->xy_size = chunk->num_xy_nodes;
+    data->z_size = chunk->num_z_cells;
   }
   else // (centering == COLMESH_NODE)
   {
-    data->xy_size = chunk->num_xy_faces;
-    data->z_size = 2*chunk->num_z_cells;
+    data->xy_size = chunk->num_xy_nodes;
+    data->z_size = chunk->num_z_cells + 1;
   }
   data->data = buffer;
   return data;
@@ -309,6 +309,7 @@ real_enumerable_generator_t* colmesh_field_enumerate(colmesh_field_t* field)
 
   size_t offset = 0;
   real_t* array = polymec_malloc(sizeof(real_t) * num_values);
+  pos = 0;
   while (colmesh_field_next_chunk(field, &pos, &xy, &z, &chunk_data))
   {
     size_t data_size = colmesh_chunk_data_size(chunk_data);

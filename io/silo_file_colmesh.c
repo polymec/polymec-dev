@@ -440,7 +440,7 @@ static void copy_out_colmesh_zedge_component(colmesh_chunk_data_t* chunk_data,
 
   // Now copy the data.
   colmesh_chunk_t* chunk = chunk_data->chunk;
-  size_t l = chunk->num_xy_edges;
+  size_t l = chunk->num_xy_edges * (chunk->num_z_cells + 1);
   DECLARE_COLMESH_ZEDGE_ARRAY(a, chunk_data);
   if ((mapping != NULL) && is_vector_comp[c])
   {
@@ -554,7 +554,7 @@ static void copy_out_colmesh_zface_component(colmesh_chunk_data_t* chunk_data,
 
   // Now copy the data from the chunk.
   colmesh_chunk_t* chunk = chunk_data->chunk;
-  size_t l = chunk->num_xy_faces;
+  size_t l = chunk->num_xy_faces * chunk->num_z_cells;
   DECLARE_COLMESH_ZFACE_ARRAY(a, chunk_data);
   if ((mapping != NULL) && is_vector_comp[c])
   {
@@ -664,14 +664,14 @@ static void copy_out_colmesh_cell_component(colmesh_chunk_data_t* chunk_data,
     // Copy the field data verbatim.
     int l = 0;
     for (int xy = 0; xy < chunk_data->xy_size; ++xy)
-      for (int z = 0; z <= chunk->num_z_cells+1; ++z, ++l)
+      for (int z = 0; z < chunk->num_z_cells+2; ++z, ++l)
         data[l] = a[xy][z][c];
   }
 }
 
 // This guy copies out the other centerings in an edge- or face-centered field, 
 // based on the centering in the given chunk, and sets the ready_to_write 
-// flag based on whether all centerings (x, y, and z) will be in the data
+// flag based on whether both centerings (xy and z) will be in the data
 // array after the chunk's data is copied to it. This is very delicate logic 
 // and so I've stuffed it all into this function for concentrated head scratching.
 static void copy_out_other_centerings(silo_file_t* file,
@@ -707,7 +707,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       real_t** other_p = (real_t**)string_ptr_unordered_map_get(scratch, scratch_name);
       if (other_p != NULL)
       {
-        size_t offset = chunk->num_xy_edges;
+        size_t offset = chunk->num_xy_edges * (chunk->num_z_cells + 1);
         memcpy(&data[offset], *other_p, sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
       }
       else
@@ -766,7 +766,7 @@ static void copy_out_other_centerings(silo_file_t* file,
       real_t** other_p = (real_t**)string_ptr_unordered_map_get(scratch, scratch_name);
       if (other_p != NULL)
       {
-        size_t offset = chunk->num_xy_faces;
+        size_t offset = chunk->num_xy_faces * chunk->num_z_cells;
         memcpy(&data[offset], *other_p, sizeof(real_t) * chunk_data->xy_size * chunk_data->z_size);
       }
       else
@@ -814,9 +814,6 @@ static void copy_out_other_centerings(silo_file_t* file,
   }
 }
 
-// Names associated with field centerings.
-static const char* centering_name[6] = {"cell", "xyface", "zface", "xyedge", "zedge", "node"};
-
 static void write_colmesh_chunk_data(silo_file_t* file,
                                      const char** field_component_names,
                                      const char* chunk_grid_name,
@@ -827,11 +824,21 @@ static void write_colmesh_chunk_data(silo_file_t* file,
   // Because we can't really represent a colmesh faithfully in a SILO format,
   // we're really just dumping a bunch of data into an array.
   size_t data_size;
+  colmesh_chunk_t* chunk = chunk_data->chunk;
   if ((chunk_data->centering == COLMESH_CELL) || 
       (chunk_data->centering == COLMESH_NODE))
     data_size = chunk_data->xy_size * chunk_data->z_size;
-  else 
-    data_size = 2 * chunk_data->xy_size * chunk_data->z_size;
+  else if ((chunk_data->centering == COLMESH_XYFACE) || 
+           (chunk_data->centering == COLMESH_ZFACE))
+  {
+    data_size = chunk->num_xy_faces * chunk->num_z_cells + 
+                chunk->num_columns * (chunk->num_z_cells+1);
+  }
+  else // edge centerings
+  {
+    data_size = chunk->num_xy_edges * (chunk->num_z_cells+1) + 
+                chunk->num_xy_nodes * chunk->num_z_cells;
+  }
   real_t* data = polymec_calloc(sizeof(real_t) * data_size);
 
   // Now write each component.
@@ -873,7 +880,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
     if (ready_to_write)
     {
       char data_name[FILENAME_MAX+1];
-      snprintf(data_name, FILENAME_MAX, "%s_%s_%s", chunk_grid_name, field_component_names[c], centering_name[(int)chunk_data->centering]);
+      snprintf(data_name, FILENAME_MAX, "%s_%s", chunk_grid_name, field_component_names[c]);
       silo_file_write_real_array(file, data_name, data, data_size);
 
       // Pack any metadata into an array.
@@ -883,7 +890,7 @@ static void write_colmesh_chunk_data(silo_file_t* file,
         snprintf(md_name, FILENAME_MAX, "%s_md", data_name);
         size_t label_size = strlen(field_metadata[c]->label);
         size_t units_size = strlen(field_metadata[c]->units);
-        size_t md_size = 5 * sizeof(int) + label_size + units_size;
+        size_t md_size = 5 + label_size + units_size;
         int md[md_size];
         md[0] = (int)label_size; 
         for (size_t i = 0; i < label_size; ++i)
@@ -913,23 +920,16 @@ void silo_file_write_colmesh_field(silo_file_t* file,
   START_FUNCTION_TIMER();
   silo_file_push_domain_dir(file);
 
-  size_t num_components = colmesh_field_num_components(field);
-  char* field_names[num_components];
   colmesh_chunk_data_t* data;
   int pos = 0, xy, z, l = 0;
   while (colmesh_field_next_chunk(field, &pos, &xy, &z, &data))
   {
     // Write out the chunk data itself.
-    for (int c = 0; c < num_components; ++c)
-      field_names[c] = string_dup(field_component_names[c]);
     char chunk_grid_name[FILENAME_MAX];
     snprintf(chunk_grid_name, FILENAME_MAX-1, "%s_%d_%d", mesh_name, xy, z);
-    write_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name,  
+    write_colmesh_chunk_data(file, field_component_names, chunk_grid_name,  
                              data, field_metadata, mapping);
     ++l;
-
-    for (int c = 0; c < num_components; ++c)
-      string_free(field_names[c]);
   }
   ASSERT(l == colmesh_field_num_chunks(field));
 
@@ -964,7 +964,7 @@ static void copy_in_colmesh_zedge_component(real_t* data,
                                             int c, 
                                             colmesh_chunk_data_t* chunk_data)
 {
-  size_t l = chunk_data->chunk->num_xy_edges;
+  size_t l = chunk_data->chunk->num_xy_edges * (chunk_data->chunk->num_z_cells+1);
   DECLARE_COLMESH_ZEDGE_ARRAY(a, chunk_data);
   for (int xy = 0; xy < chunk_data->xy_size; ++xy)
     for (int z = 0; z < chunk_data->z_size; ++z, ++l)
@@ -986,7 +986,7 @@ static void copy_in_colmesh_zface_component(real_t* data,
                                             int c, 
                                             colmesh_chunk_data_t* chunk_data)
 {
-  size_t l = chunk_data->chunk->num_xy_faces;
+  size_t l = chunk_data->chunk->num_xy_faces * chunk_data->chunk->num_z_cells;
   DECLARE_COLMESH_ZFACE_ARRAY(a, chunk_data);
   for (int xy = 0; xy < chunk_data->xy_size; ++xy)
     for (int z = 0; z < chunk_data->z_size; ++z, ++l)
@@ -1000,7 +1000,7 @@ static void copy_in_colmesh_cell_component(real_t* data,
   int l = 0;
   DECLARE_COLMESH_CELL_ARRAY(a, chunk_data);
   for (int xy = 0; xy < chunk_data->xy_size; ++xy)
-    for (int z = 0; z <= chunk_data->chunk->num_z_cells+1; ++z, ++l)
+    for (int z = 0; z < chunk_data->chunk->num_z_cells+2; ++z, ++l)
       a[xy][z][c] = data[l];
 }
 
@@ -1015,7 +1015,7 @@ static void read_colmesh_chunk_data(silo_file_t* file,
   for (int c = 0; c < (int)num_components; ++c)
   {
     char data_name[FILENAME_MAX+1];
-    snprintf(data_name, FILENAME_MAX, "%s_%s_%s", chunk_grid_name, field_component_names[c], centering_name[(int)chunk_data->centering]);
+    snprintf(data_name, FILENAME_MAX, "%s_%s", chunk_grid_name, field_component_names[c]);
     size_t data_size;
     real_t* data = silo_file_read_real_array(file, data_name, &data_size);
     ASSERT(data != NULL);
@@ -1052,9 +1052,15 @@ static void read_colmesh_chunk_data(silo_file_t* file,
       if (md != NULL)
       {
         size_t label_size = (int)md[0];
-        field_metadata[c]->label = string_ndup((char*)(&md[1]), label_size);
+        field_metadata[c]->label = polymec_malloc(sizeof(char) * (label_size+1));
+        for (size_t i = 0; i < label_size; ++i)
+          field_metadata[c]->label[i] = (char)md[1+i];
+        field_metadata[c]->label[label_size] = '\0';
         size_t units_size = (int)md[1+label_size];
-        field_metadata[c]->units = string_ndup((char*)(&md[1+label_size+1]), units_size);
+        field_metadata[c]->units = polymec_malloc(sizeof(char) * (units_size+1));
+        for (size_t i = 0; i < units_size; ++i)
+          field_metadata[c]->units[i] = (char)md[1+label_size+1+i];
+        field_metadata[c]->units[units_size] = '\0';
         field_metadata[c]->conserved = (int)(md[1+label_size+1+units_size]);
         field_metadata[c]->extensive = (int)(md[1+label_size+1+units_size+1]);
         field_metadata[c]->vector_component = (int)(md[1+label_size+1+units_size+2]);
@@ -1079,13 +1085,8 @@ void silo_file_read_colmesh_field(silo_file_t* file,
   {
     char chunk_grid_name[FILENAME_MAX+1];
     snprintf(chunk_grid_name, FILENAME_MAX, "%s_%d_%d", mesh_name, xy, z);
-    char* field_names[data->num_components];
-    for (int c = 0; c < data->num_components; ++c)
-      field_names[c] = string_dup(field_component_names[c]);
-    read_colmesh_chunk_data(file, (const char**)field_names, chunk_grid_name, 
-                             data->num_components, data, field_metadata);
-    for (int c = 0; c < data->num_components; ++c)
-      string_free(field_names[c]);
+    read_colmesh_chunk_data(file, field_component_names, chunk_grid_name, 
+                            data->num_components, data, field_metadata);
   }
   silo_file_pop_dir(file);
   STOP_FUNCTION_TIMER();
@@ -1118,7 +1119,7 @@ bool silo_file_contains_colmesh_field(silo_file_t* file,
       int xy = chunk_indices[2*i];
       int z = chunk_indices[2*i+1];
       char data_name[FILENAME_MAX+1];
-      snprintf(data_name, FILENAME_MAX, "%s_%d_%d_%s_%s_real_array", mesh_name, xy, z, field_name, centering_name[(int)centering]);
+      snprintf(data_name, FILENAME_MAX, "%s_%d_%d_%s_real_array", mesh_name, xy, z, field_name);
       exists = DBInqVarExists(dbfile, data_name);
       if (!exists) break;
     }
