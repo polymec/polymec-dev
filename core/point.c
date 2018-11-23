@@ -289,33 +289,3 @@ bool all_points_are_coplanar(point_t* points, int num_points)
   }
 }
 
-struct point_inspector_t 
-{
-  void* context;
-  bool (*pts_are_identical)(void* context, point_t* p1, point_t* p2);
-  void (*dtor)(void* context);
-};
-
-static void inspector_free(void* context)
-{
-  point_inspector_t* inspector = context;
-  if ((inspector->context != NULL) && (inspector->dtor != NULL))
-    inspector->dtor(inspector->context);
-}
-
-point_inspector_t* point_inspector_new(void* context, 
-                                       bool (*pts_are_identical)(void* context, point_t* p1, point_t* p2),
-                                       void (*dtor)(void* context))
-{
-  point_inspector_t* inspector = polymec_refcounted_malloc(sizeof(point_inspector_t), inspector_free);
-  inspector->context = context;
-  inspector->pts_are_identical = pts_are_identical;
-  inspector->dtor = dtor;
-  return inspector;
-}
-
-bool points_are_identical(point_inspector_t* inspector, point_t* p1, point_t* p2)
-{
-  return inspector->pts_are_identical(inspector->context, p1, p2);
-}
-

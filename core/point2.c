@@ -21,33 +21,3 @@ vector2_t* vector2_new(real_t vx, real_t vy)
   return v;
 }
 
-struct point2_inspector_t 
-{
-  void* context;
-  bool (*pts_are_identical)(void* context, point2_t* p1, point2_t* p2);
-  void (*dtor)(void* context);
-};
-
-static void inspector_free(void* context)
-{
-  point2_inspector_t* inspector = context;
-  if ((inspector->context != NULL) && (inspector->dtor != NULL))
-    inspector->dtor(inspector->context);
-}
-
-point2_inspector_t* point2_inspector_new(void* context, 
-                                         bool (*pts_are_identical)(void* context, point2_t* p1, point2_t* p2),
-                                         void (*dtor)(void* context))
-{
-  point2_inspector_t* inspector = polymec_refcounted_malloc(sizeof(point2_inspector_t), inspector_free);
-  inspector->context = context;
-  inspector->pts_are_identical = pts_are_identical;
-  inspector->dtor = dtor;
-  return inspector;
-}
-
-bool point2s_are_identical(point2_inspector_t* inspector, point2_t* p1, point2_t* p2)
-{
-  return inspector->pts_are_identical(inspector->context, p1, p2);
-}
-

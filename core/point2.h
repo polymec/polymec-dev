@@ -170,30 +170,6 @@ static inline bool point2_is_between(point2_t* p1, point2_t* p2, point2_t* p3)
   }
 }
 
-/// \class point2_inspector_t
-/// This type encapsulates a method for determining whether two points in the plane
-/// are identical.
-/// \refcounted
-typedef struct point2_inspector_t point2_inspector_t;
-
-/// Constructs a point2 inspector with a context pointer, a function that determines
-/// whether two points in the plane are the same, and an optional context destructor.
-/// \param [in] context A pointer to a context used to store the state of the inspector.
-/// \param [in] pts_are_identical A pointer to a function that returns true if two points
-///                               are identical and false if not.
-/// \param [in] dtor A destructor function for the context.
-/// \member point2_inspector
-point2_inspector_t* point2_inspector_new(void* context, 
-                                         bool (*pts_are_identical)(void* context, point2_t* p1, point2_t* p2),
-                                         void (*dtor)(void* context));
-
-/// Returns true if this point2 inspector determines that the two given points p1 and p2 are 
-/// identical, false if not.
-/// \param [in] p1 The first point in the comparison.
-/// \param [in] p2 The second point in the comparison.
-/// \related point2_inspector
-bool point2s_are_identical(point2_inspector_t* inspector, point2_t* p1, point2_t* p2);
-
 ///@}
 
 // Array of point2s.
