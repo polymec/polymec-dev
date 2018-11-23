@@ -21,6 +21,7 @@ TO-BE-FILLED-IN     PDT 2018  Jeffrey Johnson <jeffjohnson@pobox.com>
     * Added partition_graph_n_ways and partition_points_n_ways for 
       single-process decomposition.
     * Exchangers can now perform local copies.
+    * Added MPI_COMPLEX_T type for exchanging complex numbers.
     * Reworked older Lua classes: they now use the new type system.
     * Reworked managed C memory in terms of refcounting, not garbage collection.
     * Serializers are now owned by their global registry.
