@@ -669,6 +669,7 @@ static void create_cell_ex(colmesh_t* mesh)
           chunk_offsets[k+1] = chunk_offsets[k] + 
             (int)((chunk->num_columns + chunk->num_ghost_columns) * 
                   (chunk->num_z_cells + 2));
+          ++k;
         }
       }
     }
