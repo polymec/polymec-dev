@@ -366,38 +366,42 @@ static void colmesh_create_chunk_graph(colmesh_t* mesh)
   mesh->chunk_graph = adj_graph_new(MPI_COMM_SELF, num_chunks);
   for (int xy_index = 0; xy_index < mesh->num_xy_chunks; ++xy_index)
   {
-    chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy_index];
-
-    // Extract the neighboring chunks from this xy data and add edges to our graph.
-    for (int z_index = 0; z_index < mesh->num_z_chunks; ++z_index)
+    if (xy_index < mesh->chunk_xy_data->size)
     {
-      int ch_index = chunk_index(mesh, xy_index, z_index);
+      chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[xy_index];
+      if (xy_data == NULL) continue;
 
-      // Count up edges.
-      int num_xy_neighbors = (int)xy_data->send_map->size;
-      int num_z_neighbors;
-      if (mesh->num_z_chunks == 1)
-        num_z_neighbors = 0;
-      else if ((z_index == 0) || (z_index == (mesh->num_z_chunks-1)))
-        num_z_neighbors = 1;
-      else 
-        num_z_neighbors = 2;
-      adj_graph_set_num_edges(mesh->chunk_graph, ch_index, num_xy_neighbors + num_z_neighbors);
+      // Extract the neighboring chunks from this xy data and add edges to our graph.
+      for (int z_index = 0; z_index < mesh->num_z_chunks; ++z_index)
+      {
+        int ch_index = chunk_index(mesh, xy_index, z_index);
 
-      // Add xy edges.
-      int* edges = adj_graph_edges(mesh->chunk_graph, ch_index);
-      int pos = 0, neighbor_xy_index, i = 0;
-      int_array_t* indices;
-      while (exchanger_proc_map_next(xy_data->send_map, &pos, &neighbor_xy_index, &indices))
-        edges[i++] = chunk_index(mesh, neighbor_xy_index, z_index);
+        // Count up edges.
+        int num_xy_neighbors = (int)xy_data->send_map->size;
+        int num_z_neighbors;
+        if (mesh->num_z_chunks == 1)
+          num_z_neighbors = 0;
+        else if ((z_index == 0) || (z_index == (mesh->num_z_chunks-1)))
+          num_z_neighbors = 1;
+        else 
+          num_z_neighbors = 2;
+        adj_graph_set_num_edges(mesh->chunk_graph, ch_index, num_xy_neighbors + num_z_neighbors);
 
-      // Add z edges.
-      if (z_index > 0)
-        edges[i++] = chunk_index(mesh, xy_index, z_index-1);
-      if (z_index < (mesh->num_z_chunks-1))
-        edges[i++] = chunk_index(mesh, xy_index, z_index+1);
+        // Add xy edges.
+        int* edges = adj_graph_edges(mesh->chunk_graph, ch_index);
+        int pos = 0, neighbor_xy_index, i = 0;
+        int_array_t* indices;
+        while (exchanger_proc_map_next(xy_data->send_map, &pos, &neighbor_xy_index, &indices))
+          edges[i++] = chunk_index(mesh, neighbor_xy_index, z_index);
 
-      ASSERT(i == num_xy_neighbors + num_z_neighbors);
+        // Add z edges.
+        if (z_index > 0)
+          edges[i++] = chunk_index(mesh, xy_index, z_index-1);
+        if (z_index < (mesh->num_z_chunks-1))
+          edges[i++] = chunk_index(mesh, xy_index, z_index+1);
+
+        ASSERT(i == num_xy_neighbors + num_z_neighbors);
+      }
     }
   }
 }
@@ -517,8 +521,9 @@ colmesh_t* create_empty_colmesh_from_fragments(MPI_Comm comm,
   while (colmesh_fragment_map_next(local_fragments, &pos, &xy, &fragment))
   {
     chunk_xy_data_t* xy_data = chunk_xy_data_from_fragment(fragment);
-    chunk_xy_data_array_append_with_dtor(mesh->chunk_xy_data, xy_data, 
-                                         chunk_xy_data_free);
+    chunk_xy_data_array_resize(mesh->chunk_xy_data, MAX(mesh->chunk_xy_data->size, xy+1));
+    chunk_xy_data_array_assign_with_dtor(mesh->chunk_xy_data, xy, 
+                                         xy_data, chunk_xy_data_free);
   }
 
   // Destroy the fragment map.
@@ -895,9 +900,16 @@ void colmesh_finalize(colmesh_t* mesh)
     {
       // Punch out this data on this process, and clear the corresponding 
       // destructor so it doesn't get double-freed.
-      chunk_xy_data_free(mesh->chunk_xy_data->data[i]);
-      mesh->chunk_xy_data->data[i] = NULL;
-      mesh->chunk_xy_data->dtors[i] = NULL;
+      if (i < mesh->chunk_xy_data->size)
+      {
+        chunk_xy_data_t* xy_data = mesh->chunk_xy_data->data[i];
+        if (xy_data != NULL)
+        {
+          chunk_xy_data_free(xy_data);
+          mesh->chunk_xy_data->data[i] = NULL;
+          mesh->chunk_xy_data->dtors[i] = NULL;
+        }
+      }
     }
   }
 
@@ -1382,6 +1394,7 @@ static chunk_xy_data_array_t* redistribute_chunk_xy_data(colmesh_t* old_mesh,
       }
 
       // Stick the xy data into our list.
+      chunk_xy_data_array_resize(all_xy_data, MAX(all_xy_data->size, i+1));
       chunk_xy_data_array_assign_with_dtor(all_xy_data, i, xy_data, chunk_xy_data_free);
     }
   }

@@ -118,6 +118,8 @@ static inline void array_name##_resize(array_name##_t* array, size_t new_size) \
       } \
     } \
   } \
+  else if (new_size > array->size) \
+    memset(&array->data[array->size], 0, sizeof(element) * (new_size - array->size)); \
   array->size = new_size; \
 } \
 \

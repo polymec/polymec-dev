@@ -19,10 +19,7 @@
 
 static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh)
 {
-  // Write out the mesh and some fields.
-  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, prefix, "", 1, 0, 0.0);
-  silo_file_write_colmesh(silo, "mesh", mesh, NULL);
-
+  // Create fields of various centerings.
   colmesh_field_t* cfield = colmesh_field_new(mesh, COLMESH_CELL, 1);
   int pos = 0, XY, Z, c = 0;
   colmesh_chunk_data_t* chunk_data;
@@ -34,14 +31,6 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
       for (int z = 1; z <= chunk->num_z_cells; ++z, ++c)
         cvals[xy][z][0] = 1.0*c;
   }
-  const char* cnames[] = {"solution"};
-  silo_field_metadata_t* metadata = silo_field_metadata_new();
-  metadata->label = string_dup("solution");
-  metadata->units = string_dup("quatloo");
-  metadata->conserved = true;
-  metadata->extensive = false;
-  metadata->vector_component = 2;
-  silo_file_write_colmesh_field(silo, cnames, "mesh", cfield, &metadata, NULL);
 
   // Add some fields with different centerings.
   colmesh_field_t* nfield = colmesh_field_new(mesh, COLMESH_NODE, 3);
@@ -61,8 +50,6 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
       }
     }
   }
-  const char* nnames[] = {"nx", "ny", "nz"};
-  silo_file_write_colmesh_field(silo, nnames, "mesh", nfield, NULL, NULL);
   
   colmesh_field_t* fxyfield = colmesh_field_new(mesh, COLMESH_XYFACE, 1);
   int f = 0;
@@ -75,8 +62,6 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
       for (int z = 0; z < chunk->num_z_cells; ++z, ++f)
         fvals[xy][z][0] = 1.0 * f;
   }
-  const char* fnames[] = {"fvals"};
-  silo_file_write_colmesh_field(silo, fnames, "mesh", fxyfield, NULL, NULL);
 
   colmesh_field_t* fzfield = colmesh_field_new(mesh, COLMESH_ZFACE, 1);
   f = 0;
@@ -89,7 +74,6 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
       for (int z = 0; z <= chunk->num_z_cells; ++z, ++f)
         fvals[xy][z][0] = 1.0 * f;
   }
-  silo_file_write_colmesh_field(silo, fnames, "mesh", fzfield, NULL, NULL);
 
   colmesh_field_t* exyfield = colmesh_field_new(mesh, COLMESH_XYEDGE, 1);
   int e = 0;
@@ -102,8 +86,6 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
       for (int z = 0; z <= chunk->num_z_cells; ++z, ++e)
         evals[xy][z][0] = 1.0 * e;
   }
-  const char* enames[] = {"evals"};
-  silo_file_write_colmesh_field(silo, enames, "mesh", exyfield, NULL, NULL);
 
   colmesh_field_t* ezfield = colmesh_field_new(mesh, COLMESH_ZEDGE, 1);
   e = 0;
@@ -116,9 +98,26 @@ static void test_write_colmesh(void** state, const char* prefix, colmesh_t* mesh
       for (int z = 0; z < chunk->num_z_cells; ++z, ++e)
         evals[xy][z][0] = 1.0 * e;
   }
-  silo_file_write_colmesh_field(silo, enames, "mesh", ezfield, NULL, NULL);
 
-  // Write the file.
+  // Write out the mesh and the fields.
+  silo_file_t* silo = silo_file_new(MPI_COMM_WORLD, prefix, "", 1, 0, 0.0);
+  silo_file_write_colmesh(silo, "mesh", mesh, NULL);
+  const char* cnames[] = {"solution"};
+  silo_field_metadata_t* metadata = silo_field_metadata_new();
+  metadata->label = string_dup("solution");
+  metadata->units = string_dup("quatloo");
+  metadata->conserved = true;
+  metadata->extensive = false;
+  metadata->vector_component = 2;
+  silo_file_write_colmesh_field(silo, cnames, "mesh", cfield, &metadata, NULL);
+  const char* nnames[] = {"nx", "ny", "nz"};
+  silo_file_write_colmesh_field(silo, nnames, "mesh", nfield, NULL, NULL);
+  const char* fnames[] = {"fvals"};
+  silo_file_write_colmesh_field(silo, fnames, "mesh", fxyfield, NULL, NULL);
+  silo_file_write_colmesh_field(silo, fnames, "mesh", fzfield, NULL, NULL);
+  const char* enames[] = {"evals"};
+  silo_file_write_colmesh_field(silo, enames, "mesh", exyfield, NULL, NULL);
+  silo_file_write_colmesh_field(silo, enames, "mesh", ezfield, NULL, NULL);
   silo_file_close(silo);
 
   // Now read the mesh from the file.
