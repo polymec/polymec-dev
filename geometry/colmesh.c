@@ -635,7 +635,7 @@ static void proc_point_map_add(proc_point_map_t* map,
   point_array_append(points, *x);
 }
 
-static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
+static void create_cell_ex(colmesh_t* mesh)
 {
   START_FUNCTION_TIMER();
   ASSERT(mesh->cell_ex == NULL);
@@ -646,6 +646,28 @@ static void create_cell_ex(colmesh_t* mesh, int* chunk_offsets)
   int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
   int64_t* owners = polymec_calloc(sizeof(int64_t) * num_all_chunks);
 #endif
+
+  // Determine offsets for chunks in the list of chunks for this mesh.
+  int chunk_offsets[mesh->chunks->size+1];
+  chunk_offsets[0] = 0;
+  {
+    int k = 0;
+    for (int i = 0; i < mesh->num_xy_chunks; ++i)
+    {
+      for (int j = 0; j < mesh->num_z_chunks; ++j)
+      {
+        int index = chunk_index(mesh, (int)i, (int)j);
+        colmesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
+        if (chunk_p != NULL)
+        {
+          colmesh_chunk_t* chunk = *chunk_p;
+          chunk_offsets[k+1] = chunk_offsets[k] + 
+            (int)((chunk->num_columns + chunk->num_ghost_columns) * 
+                  (chunk->num_z_cells + 2));
+        }
+      }
+    }
+  }
 
   // Assemble exchangers by traversing the locally stored chunks, assembling 
   // send and receive indices, and ordering those indices by the spatial locations
@@ -836,8 +858,6 @@ void colmesh_finalize(colmesh_t* mesh)
 
   // Create a sorted list of chunk indices and compute chunk index offsets.
   mesh->chunk_indices = polymec_malloc(sizeof(int) * 2 * mesh->chunks->size);
-  int chunk_offsets[mesh->chunks->size+1];
-  chunk_offsets[0] = 0;
   {
     int k = 0;
     for (int i = 0; i < mesh->num_xy_chunks; ++i)
@@ -849,9 +869,6 @@ void colmesh_finalize(colmesh_t* mesh)
         colmesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
         if (chunk_p != NULL)
         {
-          colmesh_chunk_t* chunk    = *chunk_p;
-          chunk_offsets[k+1]         = chunk_offsets[k] + 
-                                       (int)((chunk->num_columns + chunk->num_ghost_columns) * (chunk->num_z_cells + 2));
           mesh->chunk_indices[2*k]   = (int)i;
           mesh->chunk_indices[2*k+1] = (int)j;
           ++k;
@@ -861,9 +878,6 @@ void colmesh_finalize(colmesh_t* mesh)
     }
     ASSERT(k == mesh->chunks->size);
   }
-
-  // Create the cell exchanger for the mesh.
-  create_cell_ex(mesh, chunk_offsets);
 
   // Prune unused xy data.
   for (int i = 0; i < mesh->num_xy_chunks; ++i)
@@ -1566,6 +1580,8 @@ exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering)
   switch (centering)
   {
     case COLMESH_CELL: 
+      if (mesh->cell_ex == NULL)
+        create_cell_ex(mesh);
       ex = mesh->cell_ex; 
       break;
     case COLMESH_XYFACE: 
