@@ -738,7 +738,7 @@ static polymesh_t* fuse_submeshes(polymesh_t** submeshes,
     }
   }
   ASSERT(ghost_cell == (fused_mesh->num_cells + fused_mesh->num_ghost_cells));
-  exchanger_t* fused_ex = polymesh_cell_exchanger(fused_mesh);
+  exchanger_t* fused_ex = polymesh_exchanger(fused_mesh, POLYMESH_CELL);
   exchanger_set_sends(fused_ex, send_map);
   exchanger_set_receives(fused_ex, recv_map);
 
@@ -1053,7 +1053,7 @@ void distribute_polymesh(polymesh_t** mesh,
   // Make sure everything lines up.
   ASSERT(next_ghost_index - local_mesh->num_cells == local_mesh->num_ghost_cells);
 
-  exchanger_t* ex = polymesh_cell_exchanger(local_mesh);
+  exchanger_t* ex = polymesh_exchanger(local_mesh, POLYMESH_CELL);
   int pos = 0, proc;
   int_array_t* indices;
   while (int_ptr_unordered_map_next(ghost_cell_indices, &pos, &proc, (void**)&indices))
@@ -1196,7 +1196,7 @@ static void redistribute_polymesh_with_graph(polymesh_t** mesh,
   // Make a parallel-aware version of our partition vector.
   int64_t partition[m->num_cells + m->num_ghost_cells];
   memcpy(partition, local_partition, sizeof(int64_t) * m->num_cells);
-  exchanger_t* mesh_ex = polymesh_cell_exchanger(m);
+  exchanger_t* mesh_ex = polymesh_exchanger(m, POLYMESH_CELL);
   exchanger_exchange(mesh_ex, partition, 1, 0, MPI_INT64_T);
 
   // Post receives for buffer sizes.
@@ -1383,7 +1383,7 @@ bool repartition_polymesh(polymesh_t** mesh,
             m->num_cells, (int)num_fields, nprocs);
 
   // Get the exchanger for the mesh.
-  exchanger_t* mesh_ex = polymesh_cell_exchanger(m);
+  exchanger_t* mesh_ex = polymesh_exchanger(m, POLYMESH_CELL);
 
   // Map the graph to the different domains, producing a local partition vector.
   int64_t* local_partition = repartition_graph(local_graph, mesh_ex, m->num_ghost_cells, weights, imbalance_tol);

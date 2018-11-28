@@ -191,7 +191,7 @@ static void test_repartition_uniform_mesh_of_size(void** state, int nx, int ny, 
   }
 
   // Check the resulting exchanger.
-  exchanger_verify(polymesh_cell_exchanger(mesh), polymec_error);
+  exchanger_verify(polymesh_exchanger(mesh, POLYMESH_CELL), polymec_error);
 
   // Plot it.
   char prefix[FILENAME_MAX];

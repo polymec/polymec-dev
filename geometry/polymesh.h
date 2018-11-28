@@ -134,15 +134,12 @@ bool polymesh_verify_topology(polymesh_t* mesh,
 polymesh_t* polymesh_clone(polymesh_t* mesh);
 
 /// Returns an exchanger object that can be used to perform parallel exchanges
-/// on cell-centered polymesh data. In serial configurations, this exchanger holds 
-/// no data and exchanges have no effect.
+/// on polymesh fields with the given centering. In serial configurations, 
+/// this exchanger holds no data, and exchanges have no effect.
+/// \param [in] centering The centering of the data handled by this exchanger.
 /// \memberof polymesh
-exchanger_t* polymesh_cell_exchanger(polymesh_t* mesh);
-
-/// Sets the cell exchanger to be used by the polymesh, replacing any 
-/// existing cell exchanger.
-/// \memberof polymesh
-void polymesh_set_cell_exchanger(polymesh_t* mesh, exchanger_t* ex);
+exchanger_t* polymesh_exchanger(polymesh_t* mesh, 
+                                polymesh_centering_t centering);
 
 /// Returns a newly-allocated list of indices that will define a tags for 
 /// cells/faces/edges/nodes with the given descriptor. If the tag already 
@@ -444,55 +441,6 @@ static inline bool polymesh_face_is_external(polymesh_t* mesh, int face)
 /// Returns a serializer object that can read/write polymeshes from/to byte arrays.
 /// \memberof polymesh
 serializer_t* polymesh_serializer(void);
-
-/// 1-value face exchanger: creates and returns a newly-allocated exchanger that allows the 
-/// exchange of a UNIQUE face-related value from local to remote processes. The array to be 
-/// exchanged should be of length stride * mesh->num_faces, and the data is 
-/// laid out thus:
-/// data[face*stride + s] is the sth value of the data associated with 
-/// the local face. The process with the lowest rank on which the face appears
-/// owns that face. Communication is required to construct this face exchanger.
-/// \relates polymesh
-exchanger_t* polymesh_1v_face_exchanger_new(polymesh_t* mesh);
-
-/// 2-value face exchanger: creates and returns a newly-allocated exchanger that allows the 
-/// exchange of BOTH face-related values from local to remote processes. The array to be 
-/// exchanged should be of length 2 * stride * mesh->num_faces, and the data is 
-/// laid out thus:
-/// data[(2*face+c)*stride + s] is the sth value of the data associated with 
-/// the cth (0th or 1st) value of the (local) face. Local values are associated 
-/// with cell 0 of local faces on parallel domain boundaries, and remote values
-/// are associated with cell 1.
-/// No communication is required to construct this face exchanger.
-/// \relates polymesh
-exchanger_t* polymesh_2v_face_exchanger_new(polymesh_t* mesh);
-
-/// 1-value node exchanger: creates and returns a newly-allocated exchanger that allows the 
-/// population of node-centered arrays with a unique value for each node shared between 
-/// processes. The process on which a node is represented with the lowest rank owns that node.
-/// \note Currently, in order to construct a node exchanger, one must begin with a mesh whose node positions 
-/// are geometrically consistent in the sense that each node on a domain is closest to or 
-/// colocated with exactly one node on one or more other domains. If this requirement is not 
-/// met, the node exchanger cannot be reliably created.
-/// Communication is required to construct such a node exchanger.
-/// \relates polymesh
-exchanger_t* polymesh_1v_node_exchanger_new(polymesh_t* mesh);
-
-/// n-value node exchanger: creates and returns a newly-allocated exchanger that allows the 
-/// exchange of multiple node-related values from local to remote processes, and populates 
-/// the given node_offsets array (of length mesh->num_nodes + 1) with offsets that describe 
-/// the layout of arrays to be arranged. The array to be exchanged should be of length 
-/// node_offsets[mesh->num_nodes] * stride, and is laid out as follows for an array A:
-/// * the local nodal value for node n is located at A[node_offsets[n-1]].
-/// * the values of A at indices node_offsets[n-1]+1 through node_offsets[n] - 1 contain the 
-///   remote values of the node n as they exist on other processes.
-/// \note Currently, in order to construct a node exchanger, one must begin with a mesh whose node positions 
-/// are geometrically consistent in the sense that each node on a domain is closest to or 
-/// colocated with exactly one node on one or more other domains. If this requirement is not 
-/// met, the node exchanger cannot be reliably created.
-/// Communication is required to construct such a node exchanger.
-/// \relates polymesh
-exchanger_t* polymesh_nv_node_exchanger_new(polymesh_t* mesh, int* node_offsets);
 
 /// This function constructs an adjacency graph expressing the connectivity of 
 /// the cells of the given polymesh.

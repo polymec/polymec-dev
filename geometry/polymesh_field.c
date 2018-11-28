@@ -67,12 +67,7 @@ void polymesh_field_start_exchange(polymesh_field_t* field)
   // Do we have an exchanger yet?
   if (field->ex == NULL)
   {
-    if (field->centering == POLYMESH_CELL)
-      field->ex = polymesh_cell_exchanger(field->mesh);
-    else if (field->centering == POLYMESH_FACE) 
-      field->ex = polymesh_1v_face_exchanger_new(field->mesh);
-    else if (field->centering == POLYMESH_NODE)
-      field->ex = polymesh_1v_node_exchanger_new(field->mesh);
+    field->ex = polymesh_exchanger(field->mesh, field->centering);
     retain_ref(field->ex);
   }
 

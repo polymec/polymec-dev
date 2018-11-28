@@ -124,7 +124,7 @@ static void test_3proc_4x4x1_mesh(void** state)
   index_t G[mesh->num_cells + mesh->num_ghost_cells];
   for (int i = 0; i < mesh->num_cells; ++i)
     G[i] = vtx_dist[rank] + i;
-  exchanger_exchange(polymesh_cell_exchanger(mesh), G, 1, 0, MPI_INDEX_T);
+  exchanger_exchange(polymesh_exchanger(mesh, POLYMESH_CELL), G, 1, 0, MPI_INDEX_T);
 
   // Here's the mesh:
   //

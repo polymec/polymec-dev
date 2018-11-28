@@ -195,8 +195,8 @@ polymesh_t* crop_polymesh(polymesh_t* mesh,
 
   // Create a new exchanger from the old one.
   {
-    exchanger_t* old_ex = polymesh_cell_exchanger(mesh);
-    exchanger_t* new_ex = polymesh_cell_exchanger(cropped_mesh);
+    exchanger_t* old_ex = polymesh_exchanger(mesh, POLYMESH_CELL);
+    exchanger_t* new_ex = polymesh_exchanger(cropped_mesh, POLYMESH_CELL);
     int pos = 0, remote, *indices, num_indices;
     while (exchanger_next_send(old_ex, &pos, &remote, &indices, &num_indices))
     {

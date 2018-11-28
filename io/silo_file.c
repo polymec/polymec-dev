@@ -1572,7 +1572,7 @@ void silo_file_write_polymesh(silo_file_t* file,
   {
     char ex_name[FILENAME_MAX+1];
     snprintf(ex_name, FILENAME_MAX, "%s_cell_exchanger", mesh_name);
-    silo_file_write_exchanger(file, ex_name, polymesh_cell_exchanger(mesh));
+    silo_file_write_exchanger(file, ex_name, polymesh_exchanger(mesh, POLYMESH_CELL));
   }
 
   // Write out the number of mesh cells/faces/nodes/edges to special variables.
@@ -1602,6 +1602,9 @@ void silo_file_write_polymesh(silo_file_t* file,
   STOP_FUNCTION_TIMER();
 }
 
+extern void polymesh_set_exchanger(polymesh_t* mesh, 
+                                   polymesh_centering_t centering,
+                                   exchanger_t* exchanger);
 polymesh_t* silo_file_read_polymesh(silo_file_t* file,
                                     const char* mesh_name)
 {
@@ -1701,7 +1704,7 @@ polymesh_t* silo_file_read_polymesh(silo_file_t* file,
   {
     char ex_name[FILENAME_MAX+1];
     snprintf(ex_name, FILENAME_MAX, "%s_cell_exchanger", mesh_name);
-    polymesh_set_cell_exchanger(mesh, silo_file_read_exchanger(file, ex_name, mesh->comm));
+    polymesh_set_exchanger(mesh, POLYMESH_CELL, silo_file_read_exchanger(file, ex_name, mesh->comm));
   }
 
   // Clean up.
