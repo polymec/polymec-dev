@@ -47,13 +47,13 @@ int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block);
 typedef enum
 {
   /// Connects a block to another block without rotating. 
-  BLOCKMESH_CXN_UNROTATED,
+  BLOCKMESH_CXN_UNROTATED = 0,
   /// Connects a block to another block, rotating counterclockwise by 1/4. 
-  BLOCKMESH_CXN_QUARTER_ROTATION,
+  BLOCKMESH_CXN_QUARTER_TURN = 1,
   /// Connects a block to another block, rotating counterclockwise by 1/2. 
-  BLOCKMESH_CXN_HALF_ROTATION,
+  BLOCKMESH_CXN_HALF_TURN = 2,
   /// Connects a block to another block, rotating counterclockwise by 3/4. 
-  BLOCKMESH_CXN_THREE_QUARTER_ROTATION
+  BLOCKMESH_CXN_THREE_QUARTER_TURN = 3
 } blockmesh_cxn_t;
 
 /// Connects two blocks with the given indices within a block mesh in a manner 

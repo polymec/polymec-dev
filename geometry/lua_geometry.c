@@ -1795,6 +1795,55 @@ static int bm_add_block(lua_State* L)
   return 0;
 }
 
+static int bm_connect_blocks(lua_State* L)
+{
+  blockmesh_t* m = lua_to_blockmesh(L, 1);
+  if (m == NULL)
+    luaL_error(L, "Method must be invoked with a blockmesh.");
+  
+  int num_args = lua_gettop(L);
+  if ((num_args != 5) && (num_args != 6))
+  {
+    luaL_error(L, "mesh:connect_blocks must be called with the following arguments: "
+                  "index1, boundary1, index2, boundary2[, connection]");
+  }
+  if (!lua_isinteger(L, 2))
+    return luaL_error(L, "Argument 1 must be a valid block index.");
+  if (!lua_isinteger(L, 3))
+    return luaL_error(L, "Argument 2 must be a valid block boundary.");
+  if (!lua_isinteger(L, 4))
+    return luaL_error(L, "Argument 3 must be a valid block index.");
+  if (!lua_isinteger(L, 5))
+    return luaL_error(L, "Argument 4 must be a valid block boundary.");
+  if (!lua_isnil(L, 6) && !lua_isinteger(L, 6))
+    return luaL_error(L, "Argument 5 must be a valid connection type.");
+  int index1 = lua_tointeger(L, 2); 
+  if ((index1 < 0) || ((size_t)index1 >= blockmesh_num_blocks(m)))
+    return luaL_error(L, "Invalid index for first block: %d.", index1);
+  int boundary1_int = lua_tointeger(L, 3); 
+  if ((boundary1_int < 0) || (boundary1_int >= 6))
+    return luaL_error(L, "Invalid block boundary for first block.");
+  unimesh_boundary_t boundary1 = (unimesh_boundary_t)boundary1_int;
+  int index2 = lua_tointeger(L, 4); 
+  if ((index2 < 0) || ((size_t)index2 >= blockmesh_num_blocks(m)))
+    return luaL_error(L, "Invalid index for second block: %d.", index2);
+  int boundary2_int = lua_tointeger(L, 5); 
+  if ((boundary2_int < 0) || (boundary2_int >= 6))
+    return luaL_error(L, "Invalid block boundary for second block.");
+  unimesh_boundary_t boundary2 = (unimesh_boundary_t)boundary2_int;
+
+  blockmesh_cxn_t connection = BLOCKMESH_CXN_UNROTATED;
+  if (!lua_isnil(L, 6))
+  {
+    int cxn_int = lua_tointeger(L, 6); 
+    if ((cxn_int < 0) || (cxn_int >= 4))
+      return luaL_error(L, "Invalid connection type.");
+    connection = (blockmesh_cxn_t)cxn_int;
+  }
+  blockmesh_connect_blocks(m, index1, boundary1, index2, boundary2, connection);
+  return 0;
+}
+
 static int bm_finalize(lua_State* L)
 {
   blockmesh_t* m = lua_to_blockmesh(L, 1);
@@ -1818,6 +1867,8 @@ static int bm_tostring(lua_State* L)
 static lua_class_method bm_methods[] = {
   {"block", bm_block, "mesh:block(index) -> Returns the block in the mesh with the given index."},
   {"add_block", bm_add_block, "mesh:add_block(block) - Adds a unimesh block to this mesh."},
+  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks(index1, index2, cxn) - Connects two blocks in this mesh "
+                                        "using the given connection type."},
   {"finalize", bm_finalize, "mesh:finalize() - Finalizes a block mesh after assembly."},
   {"__tostring", bm_tostring, NULL},
   {NULL, NULL, NULL}
@@ -2379,6 +2430,34 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_class(L, "colmesh", "A polygonal extruded (pex) mesh.", colmesh_funcs, colmesh_fields, colmesh_methods, DTOR(colmesh_free));
   lua_register_class(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_methods, DTOR(polymesh_free));
   lua_register_class(L, "planar_polymesh", "A planar polygonal mesh.", pp_funcs, pp_fields, pp_methods, DTOR(planar_polymesh_free));
+
+  // Register some helpful symbols for unimesh.
+  lua_getglobal(L, "unimesh");
+  lua_pushinteger(L, (int)UNIMESH_X1_BOUNDARY);
+  lua_setfield(L, -2, "x1_boundary");
+  lua_pushinteger(L, (int)UNIMESH_X2_BOUNDARY);
+  lua_setfield(L, -2, "x2_boundary");
+  lua_pushinteger(L, (int)UNIMESH_Y1_BOUNDARY);
+  lua_setfield(L, -2, "y1_boundary");
+  lua_pushinteger(L, (int)UNIMESH_Y2_BOUNDARY);
+  lua_setfield(L, -2, "y2_boundary");
+  lua_pushinteger(L, (int)UNIMESH_Z1_BOUNDARY);
+  lua_setfield(L, -2, "z1_boundary");
+  lua_pushinteger(L, (int)UNIMESH_Z2_BOUNDARY);
+  lua_setfield(L, -2, "z2_boundary");
+  lua_pop(L, 1);
+
+  // Register some helpful symbols for blockmesh.
+  lua_getglobal(L, "blockmesh");
+  lua_pushinteger(L, (int)BLOCKMESH_CXN_UNROTATED);
+  lua_setfield(L, -2, "cxn_unrotated");
+  lua_pushinteger(L, (int)BLOCKMESH_CXN_QUARTER_TURN);
+  lua_setfield(L, -2, "cxn_quarter_turn");
+  lua_pushinteger(L, (int)BLOCKMESH_CXN_HALF_TURN);
+  lua_setfield(L, -2, "cxn_half_turn");
+  lua_pushinteger(L, (int)BLOCKMESH_CXN_THREE_QUARTER_TURN);
+  lua_setfield(L, -2, "cxn_three_quarter_turn");
+  lua_pop(L, 1);
 
   // Register a module of point factory methods.
   lua_register_module(L, "points", "Functions for generating points.", NULL, points_funcs);
