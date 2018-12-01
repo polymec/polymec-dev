@@ -58,7 +58,7 @@ void colmesh_chunk_data_copy(colmesh_chunk_data_t* data,
 
 /// Constructs a new colmesh field with the given number of components
 /// on the given mesh.
-/// \param [in] mesh The colmesh on which the field is created.
+/// \param [in] mesh The colmesh on which the field is created. Must be finalized.
 /// \param [in] centering The centering of which the new field.
 /// \param [in] num_components The number of components in the new field.
 /// \memberof colmesh_field
@@ -67,7 +67,7 @@ colmesh_field_t* colmesh_field_new(colmesh_t* mesh,
                                    size_t num_components);
 
 /// Constructs a new colmesh field that uses the given buffer for data storage.
-/// \param [in] mesh The colmesh on which the field is created.
+/// \param [in] mesh The colmesh on which the field is created. Must be finalized.
 /// \param [in] centering The centering of which the new field.
 /// \param [in] num_components The number of components in the new field.
 /// \param [in] buffer The buffer to use for storing field data. Must be ample for storing all the 

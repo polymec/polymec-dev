@@ -322,6 +322,6 @@ real_enumerable_generator_t* colmesh_field_enumerate(colmesh_field_t* field)
 real_enumerable_generator_t* colmesh_chunk_data_enumerate(colmesh_chunk_data_t* chunk_data)
 {
   size_t num_values = colmesh_chunk_data_size(chunk_data) / sizeof(real_t);
-  return real_enumerable_generator_from_array((real_t*)chunk_data->data, num_values, NULL);
+  return real_enumerable_generator_from_array((real_t*)chunk_data->data, num_values, false);
 }
 

@@ -95,6 +95,6 @@ bool polymesh_field_is_exchanging(polymesh_field_t* field)
 real_enumerable_generator_t* polymesh_field_enumerate(polymesh_field_t* field)
 {
   size_t num_values = field->num_components * field->capacity;
-  return real_enumerable_generator_from_array(field->data, num_values, NULL);
+  return real_enumerable_generator_from_array(field->data, num_values, false);
 }
 

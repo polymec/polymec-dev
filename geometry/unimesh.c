@@ -387,6 +387,11 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
   return mesh;
 }
 
+bool unimesh_is_finalized(unimesh_t* mesh)
+{
+  return mesh->finalized;
+}
+
 void unimesh_free(unimesh_t* mesh)
 {
   unimesh_observer_array_free(mesh->observers);

@@ -111,6 +111,10 @@ unimesh_t* unimesh_new(MPI_Comm comm, bbox_t* bbox,
 // fully constructed and finalized.
 //------------------------------------------------------------------------
 
+/// Returns true if the given mesh is finalized, false otherwise.
+/// \memberof unimesh
+bool unimesh_is_finalized(unimesh_t* mesh);
+
 /// Destroys the given mesh and all of its patches.
 /// \memberof unimesh
 void unimesh_free(unimesh_t* mesh);

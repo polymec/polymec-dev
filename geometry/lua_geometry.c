@@ -1363,12 +1363,12 @@ static int pc_new(lua_State* L)
   int num_args = lua_gettop(L);
   if ((num_args != 2) && (num_args != 3))
   {
-    luaL_error(L, "Arguments must be an MPI communicator, a list of points, "
+    luaL_error(L, "Arguments must be an mpi.comm, a list of points, "
                   "and (optionally) a number of ghost points.");
   }
 
   if (!lua_is_mpi_comm(L, 1) )
-    luaL_error(L, "Argument 1 must be an MPI communicator.");
+    luaL_error(L, "Argument 1 must be an mpi.comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, 1);
 
   point_t* points = NULL;
@@ -1488,7 +1488,7 @@ static int um_new(lua_State* L)
 
   lua_getfield(L, 1, "comm");
   if (!lua_is_mpi_comm(L, -1))
-    luaL_error(L, "comm must be an mpi.comm object.");
+    luaL_error(L, "comm must be an mpi.comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, -1);
 
   lua_getfield(L, 1, "bbox");
@@ -1567,13 +1567,41 @@ static int um_new(lua_State* L)
   return 1;
 }
 
+static int um_repartition(lua_State* L)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) || !lua_is_unimesh(L, 1))
+    return luaL_error(L, "Argument must be a unimesh.");
+  unimesh_t* mesh = lua_to_unimesh(L, 1);
+  real_t imbalance_tol = 0.05;
+
+  // Bug out if there's only one process.
+  int nprocs;
+  MPI_Comm_size(unimesh_comm(mesh), &nprocs);
+  if (nprocs == 1)
+    return 0;
+
+  // Perform the repartitioning. FIXME: Add fields
+  repartition_unimesh(&mesh, NULL, imbalance_tol, NULL, 0);
+  return 0;
+}
+
 static lua_module_function um_funcs[] = {
   {"new", um_new, "unimesh.new{comm, bbox, npx, npy, npz, nx, ny, nz} -> "
                   "Creates a new uniform mesh on the communicator comm, which "
                   "fills the bounding box bbox with a lattice of npx x npy x npz "
                   "patches, each having nx x ny x nz identical cells."},
+  {"repartition", um_repartition, "unimesh.repartition(m) -> Repartitions the colmesh m."},
   {NULL, NULL, NULL}
 };
+
+static int um_is_finalized(lua_State* L)
+{
+  unimesh_t* m = lua_to_unimesh(L, 1);
+  lua_pushboolean(L, unimesh_is_finalized(m));
+  return 1;
+}
 
 static int um_bbox(lua_State* L)
 {
@@ -1652,6 +1680,7 @@ static int um_patches(lua_State* L)
 }
 
 static lua_class_field um_fields[] = {
+  {"is_finalized", um_is_finalized, NULL},
   {"bbox", um_bbox, NULL},
   {"spacings", um_spacings, NULL},
   {"extents", um_extents, NULL},
@@ -1673,25 +1702,126 @@ static lua_class_method um_methods[] = {
   {NULL, NULL, NULL}
 };
 
-static int colmesh_repartition(lua_State* L)
+static int bm_new_(lua_State* L)
+{
+  if (!lua_is_mpi_comm(L, 1))
+    luaL_error(L, "Argument must be an mpi.comm.");
+  MPI_Comm comm = lua_to_mpi_comm(L, 1);
+
+  blockmesh_t* mesh = blockmesh_new(comm);
+  lua_push_blockmesh(L, mesh);
+  return 1;
+}
+
+static int bm_repartition(lua_State* L)
 {
   // Check the arguments.
   int num_args = lua_gettop(L);
-  if ((num_args != 1) || !lua_is_colmesh(L, 1))
-    return luaL_error(L, "Argument must be a colmesh.");
-  colmesh_t* mesh = lua_to_colmesh(L, 1);
+  if ((num_args != 1) || !lua_is_blockmesh(L, 1))
+    return luaL_error(L, "Argument must be a blockmesh.");
+  blockmesh_t* mesh = lua_to_blockmesh(L, 1);
   real_t imbalance_tol = 0.05;
 
   // Bug out if there's only one process.
   int nprocs;
-  MPI_Comm_size(colmesh_comm(mesh), &nprocs);
+  MPI_Comm_size(blockmesh_comm(mesh), &nprocs);
   if (nprocs == 1)
     return 0;
 
   // Perform the repartitioning. FIXME: Add fields
-  repartition_colmesh(&mesh, NULL, imbalance_tol, NULL, 0);
+  repartition_blockmesh(&mesh, NULL, imbalance_tol, NULL, 0);
   return 0;
 }
+
+static lua_module_function bm_funcs[] = {
+  {"new", bm_new_, "blockmesh.new(comm) -> New empty block-structured mesh."},
+  {"repartition", bm_repartition, "blockmesh.repartition(m) -> Repartitions the blockmesh m."},
+  {NULL, NULL, NULL}
+};
+
+static int bm_is_finalized(lua_State* L)
+{
+  blockmesh_t* m = lua_to_blockmesh(L, 1);
+  lua_pushboolean(L, blockmesh_is_finalized(m));
+  return 1;
+}
+
+static int bm_num_blocks(lua_State* L)
+{
+  blockmesh_t* m = lua_to_blockmesh(L, 1);
+  lua_pushinteger(L, (lua_Integer)blockmesh_num_blocks(m));
+  return 1;
+}
+
+static int bm_comm(lua_State* L)
+{
+  blockmesh_t* m = lua_to_blockmesh(L, 1);
+  lua_push_mpi_comm(L, blockmesh_comm(m));
+  return 1;
+}
+
+static lua_class_field bm_fields[] = {
+  {"is_finalized", bm_is_finalized, NULL},
+  {"num_blocks", bm_num_blocks, NULL},
+  {"comm", bm_comm, NULL},
+  {NULL, NULL, NULL}
+};
+
+static int bm_block(lua_State* L)
+{
+  blockmesh_t* m = lua_to_blockmesh(L, 1);
+  if (m == NULL)
+    luaL_error(L, "Method must be invoked with a blockmesh.");
+  if (!lua_isinteger(L, 2))
+    return luaL_error(L, "Argument must be a block index.");
+  int index = (int)(lua_tointeger(L, 2));
+  if (index < 0) 
+    return luaL_error(L, "Block index must be non-negative.");
+  if ((size_t)index >= blockmesh_num_blocks(m)) 
+    return luaL_error(L, "Invalid block index: %d", index);
+  lua_push_unimesh(L, blockmesh_block(m, index));
+  return 1;
+}
+
+static int bm_add_block(lua_State* L)
+{
+  blockmesh_t* m = lua_to_blockmesh(L, 1);
+  if (m == NULL)
+    luaL_error(L, "Method must be invoked with a blockmesh.");
+  if (!lua_is_unimesh(L, 2))
+    return luaL_error(L, "Argument must be a unimesh.");
+  unimesh_t* block = lua_to_unimesh(L, 2);
+  blockmesh_add_block(m, block);
+  return 0;
+}
+
+static int bm_finalize(lua_State* L)
+{
+  blockmesh_t* m = lua_to_blockmesh(L, 1);
+  if (m == NULL)
+    luaL_error(L, "Method must be invoked with a blockmesh.");
+  if (blockmesh_is_finalized(m))
+    luaL_error(L, "Blockmesh has already been finalized!");
+  blockmesh_finalize(m);
+  return 0;
+}
+
+static int bm_tostring(lua_State* L)
+{
+  blockmesh_t* m = lua_to_blockmesh(L, 1);
+  if (m == NULL)
+    luaL_error(L, "Method must be invoked with a blockmesh.");
+  lua_pushfstring(L, "blockmesh (%d blocks)", (int)blockmesh_num_blocks(m));
+  return 1;
+}
+
+static lua_class_method bm_methods[] = {
+  {"block", bm_block, "mesh:block(index) -> Returns the block in the mesh with the given index."},
+  {"add_block", bm_add_block, "mesh:add_block(block) - Adds a unimesh block to this mesh."},
+  {"finalize", bm_finalize, "mesh:finalize() - Finalizes a block mesh after assembly."},
+  {"__tostring", bm_tostring, NULL},
+  {NULL, NULL, NULL}
+};
 
 static int colmesh_new_(lua_State* L)
 {
@@ -1700,7 +1830,7 @@ static int colmesh_new_(lua_State* L)
 
   lua_getfield(L, 1, "comm");
   if (!lua_is_mpi_comm(L, -1))
-    luaL_error(L, "comm must be an mpi_comm.");
+    luaL_error(L, "comm must be an mpi.comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, -1);
 
   lua_getfield(L, 1, "columns");
@@ -1745,7 +1875,7 @@ static int colmesh_quad(lua_State* L)
 
   lua_getfield(L, 1, "comm");
   if (!lua_is_mpi_comm(L, -1))
-    luaL_error(L, "comm must be an mpi_comm.");
+    luaL_error(L, "comm must be an mpi.comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, -1);
 
   lua_getfield(L, 1, "nx");
@@ -1807,7 +1937,7 @@ static int colmesh_hex(lua_State* L)
 
   lua_getfield(L, 1, "comm");
   if (!lua_is_mpi_comm(L, -1))
-    luaL_error(L, "comm must be an mpi_comm.");
+    luaL_error(L, "comm must be an mpi.comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, -1);
 
   lua_getfield(L, 1, "radius");
@@ -1854,6 +1984,26 @@ static int colmesh_hex(lua_State* L)
   planar_polymesh_free(columns);
   lua_push_colmesh(L, mesh);
   return 1;
+}
+
+static int colmesh_repartition(lua_State* L)
+{
+  // Check the arguments.
+  int num_args = lua_gettop(L);
+  if ((num_args != 1) || !lua_is_colmesh(L, 1))
+    return luaL_error(L, "Argument must be a colmesh.");
+  colmesh_t* mesh = lua_to_colmesh(L, 1);
+  real_t imbalance_tol = 0.05;
+
+  // Bug out if there's only one process.
+  int nprocs;
+  MPI_Comm_size(colmesh_comm(mesh), &nprocs);
+  if (nprocs == 1)
+    return 0;
+
+  // Perform the repartitioning. FIXME: Add fields
+  repartition_colmesh(&mesh, NULL, imbalance_tol, NULL, 0);
+  return 0;
 }
 
 static lua_module_function colmesh_funcs[] = {
@@ -1970,7 +2120,7 @@ static int polymesh_uniform(lua_State* L)
 
   lua_getfield(L, 1, "comm");
   if (!lua_is_mpi_comm(L, -1))
-    luaL_error(L, "comm must be an mpi.comm object.");
+    luaL_error(L, "comm must be an mpi.comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, -1);
 
   lua_getfield(L, 1, "nx");
@@ -2066,7 +2216,7 @@ static int polymesh_rectilinear(lua_State* L)
 
   lua_getfield(L, 1, "comm");
   if (!lua_is_mpi_comm(L, -1))
-    luaL_error(L, "comm must be an mpi.comm object.");
+    luaL_error(L, "comm must be an mpi.comm.");
   MPI_Comm comm = lua_to_mpi_comm(L, -1);
 
   lua_getfield(L, 1, "xs");
@@ -2225,6 +2375,7 @@ int lua_register_geometry_modules(lua_State* L)
   lua_register_class(L, "tagger", "An object that holds tags.", tagger_funcs, NULL, tagger_methods, NULL);
   lua_register_class(L, "point_cloud", "A point cloud in 3D space.", pc_funcs, pc_fields, pc_methods, DTOR(point_cloud_free));
   lua_register_class(L, "unimesh", "A uniform cartesian mesh.", um_funcs, um_fields, um_methods, DTOR(unimesh_free));
+  lua_register_class(L, "blockmesh", "A block-structured mesh.", bm_funcs, bm_fields, bm_methods, DTOR(blockmesh_free));
   lua_register_class(L, "colmesh", "A polygonal extruded (pex) mesh.", colmesh_funcs, colmesh_fields, colmesh_methods, DTOR(colmesh_free));
   lua_register_class(L, "polymesh", "An arbitrary polyhedral mesh.", polymesh_funcs, polymesh_fields, polymesh_methods, DTOR(polymesh_free));
   lua_register_class(L, "planar_polymesh", "A planar polygonal mesh.", pp_funcs, pp_fields, pp_methods, DTOR(planar_polymesh_free));
@@ -2368,6 +2519,21 @@ bool lua_is_unimesh(lua_State* L, int index)
 unimesh_t* lua_to_unimesh(lua_State* L, int index)
 {
   return (unimesh_t*)lua_to_object(L, index, "unimesh");
+}
+
+void lua_push_blockmesh(lua_State* L, blockmesh_t* m)
+{
+  lua_push_object(L, "blockmesh", m);
+}
+
+bool lua_is_blockmesh(lua_State* L, int index)
+{
+  return lua_is_object(L, index, "blockmesh");
+}
+
+blockmesh_t* lua_to_blockmesh(lua_State* L, int index)
+{
+  return (blockmesh_t*)lua_to_object(L, index, "blockmesh");
 }
 
 void lua_push_colmesh(lua_State* L, colmesh_t* m)

@@ -366,6 +366,6 @@ bool unimesh_field_is_updating_patch_boundaries(unimesh_field_t* field)
 real_enumerable_generator_t* unimesh_field_enumerate(unimesh_field_t* field)
 {
   size_t num_values = field->bytes / sizeof(real_t);
-  return real_enumerable_generator_from_array((real_t*)field->buffer, num_values, NULL);
+  return real_enumerable_generator_from_array((real_t*)field->buffer, num_values, false);
 }
 

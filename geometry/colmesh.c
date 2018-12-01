@@ -983,6 +983,11 @@ colmesh_t* colmesh_new(MPI_Comm comm,
   return mesh;
 }
 
+bool colmesh_is_finalized(colmesh_t* mesh)
+{
+  return mesh->finalized;
+}
+
 void colmesh_free(colmesh_t* mesh)
 {
   polymec_free(mesh->chunk_indices);

@@ -49,6 +49,6 @@ void point_cloud_field_free(point_cloud_field_t* field)
 real_enumerable_generator_t* point_cloud_field_enumerate(point_cloud_field_t* field)
 {
   size_t num_values = field->num_components * field->capacity;
-  return real_enumerable_generator_from_array(field->data, num_values, NULL);
+  return real_enumerable_generator_from_array(field->data, num_values, false);
 }
 

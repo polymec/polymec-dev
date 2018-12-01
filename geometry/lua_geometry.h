@@ -16,6 +16,7 @@
 #include "geometry/polyhedron.h"
 #include "geometry/point_cloud.h"
 #include "geometry/unimesh.h"
+#include "geometry/blockmesh.h"
 #include "geometry/colmesh.h"
 #include "geometry/polymesh.h"
 #include "geometry/planar_polymesh.h"
@@ -122,6 +123,17 @@ bool lua_is_unimesh(lua_State* L, int index);
 /// Returns the unimesh at the given index on L's stack, or NULL 
 /// if the item there is not a unimesh.
 unimesh_t* lua_to_unimesh(lua_State* L, int index);
+
+/// Pushes a blockmesh m onto L's stack.
+void lua_push_blockmesh(lua_State* L, blockmesh_t* m);
+
+/// Returns true if the item at the given index on L's stack is a blockmesh,
+/// false if not.
+bool lua_is_blockmesh(lua_State* L, int index);
+
+/// Returns the blockmesh at the given index on L's stack, or NULL 
+/// if the item there is not a unimesh.
+blockmesh_t* lua_to_blockmesh(lua_State* L, int index);
 
 /// Pushes a colmesh m onto L's stack.
 void lua_push_colmesh(lua_State* L, colmesh_t* m);

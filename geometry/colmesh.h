@@ -226,6 +226,10 @@ colmesh_t* colmesh_new(MPI_Comm comm,
 // fully constructed and finalized.
 //------------------------------------------------------------------------
 
+/// Returns true if the given mesh is finalized, false otherwise.
+/// \memberof colmesh
+bool colmesh_is_finalized(colmesh_t* mesh);
+
 /// Destroys the given mesh.
 /// \memberof colmesh
 void colmesh_free(colmesh_t* mesh);

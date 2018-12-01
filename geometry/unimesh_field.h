@@ -23,9 +23,13 @@ typedef struct unimesh_patch_bc_t unimesh_patch_bc_t;
 
 /// Creates a unimesh_field object associated with the given mesh, with 
 /// the given centering and number of components. This object manages its 
-/// own memory. NOTE that edge-centered and face-centered unimesh fields have 
-/// different centerings for x, y, and z edges and faces, since the numbers of 
-/// those faces in different directions themselves differ.
+/// own memory. 
+/// \param [in] mesh The mesh on which the field is defined. Must be finalized.
+/// \param [in] centering The centering of the field. Edge-centered and 
+///                       face-centered unimesh fields have different centerings 
+///                       for x, y, and z edges and faces, since the numbers of 
+///                       those faces in different directions themselves differ.
+/// \param [in] num_components The number of components in a field value.
 /// \memberof unimesh_field
 unimesh_field_t* unimesh_field_new(unimesh_t* mesh, 
                                    unimesh_centering_t centering,
@@ -141,6 +145,8 @@ void unimesh_field_finish_updating_patch_boundaries(unimesh_field_t* field);
 /// boundary update, false if not.
 /// \memberof unimesh_field
 bool unimesh_field_is_updating_patch_boundaries(unimesh_field_t* field);
+
+typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 
 /// Enumerates values in the given unimesh field.
 /// \memberof unimesh_field
