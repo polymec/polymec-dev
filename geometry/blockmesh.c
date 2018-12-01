@@ -52,15 +52,19 @@ int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block)
 {
   ASSERT(!mesh->finalized);
   ASSERT(block != NULL);
+  ASSERT(!unimesh_is_finalized(block));
   int index = (int)mesh->blocks->size;
   unimesh_array_append_with_dtor(mesh->blocks, block, unimesh_free);
   return index;
 }
 
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
-                              int index1, unimesh_boundary_t boundary1,
-                              int index2, unimesh_boundary_t boundary2,
-                              blockmesh_cxn_t connection)
+                              int index1, 
+                              unimesh_boundary_t boundary1,
+                              void* trans1,
+                              int index2, 
+                              unimesh_boundary_t boundary2,
+                              void* trans2)
 {
 }
 

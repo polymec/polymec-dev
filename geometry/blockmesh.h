@@ -37,7 +37,9 @@ typedef struct blockmesh_t blockmesh_t;
 blockmesh_t* blockmesh_new(MPI_Comm comm);
 
 /// Adds a new block to the blockmesh. 
-/// \param [in] block A \ref unimesh presenting a block.
+/// \param [in] block A \ref unimesh presenting a block. This unimesh must not 
+///                   yet be finalized, since boundary conditions may be added
+///                   to it when it is connected to other blocks.
 /// \returns the index of the new block.
 /// \memberof blockmesh
 int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block);
@@ -65,16 +67,25 @@ typedef enum
 ///                    within the mesh.
 /// \param [in] boundary1 The boundary of the first block to connect to the 
 ///                       second.
+/// \param [in] trans1 A transformation that defines how field boundary values 
+///                    are transferred from the first block to the second. If 
+///                    this argument is NULL, field values are copied directly
+///                    to the appropriate cell.
 /// \param [in] index2 The index of the second of the two blocks to be connected
 ///                    within the mesh.
 /// \param [in] boundary2 The boundary of the second_block to connect to the 
 ///                       second.
-/// \param [in] connection The type of connection between the two blocks.
+/// \param [in] trans2 A transformation that defines how field boundary values 
+///                    are transferred from the second block to the first. If 
+///                    this argument is NULL, field values are copied directly
+///                    to the appropriate cell.
 /// \memberof blockmesh
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
-                              int index1, unimesh_boundary_t boundary1,
+                              int index1, 
+                              unimesh_boundary_t boundary1,
+                              void* trans1,
                               int index2, unimesh_boundary_t boundary2,
-                              blockmesh_cxn_t connection);
+                              void* trans2);
 
 /// Finalizes the construction process for the block mesh. This must be called 
 /// before any of the mesh's usage methods are invoked. Should only 

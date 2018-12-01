@@ -1791,6 +1791,11 @@ static int bm_add_block(lua_State* L)
   if (!lua_is_unimesh(L, 2))
     return luaL_error(L, "Argument must be a unimesh.");
   unimesh_t* block = lua_to_unimesh(L, 2);
+  if (unimesh_is_finalized(block))
+  {
+    return luaL_error(L, "A unimesh block must not be finalized before being "
+                         "added to a blockmesh.");
+  }
   blockmesh_add_block(m, block);
   return 0;
 }
@@ -1802,45 +1807,57 @@ static int bm_connect_blocks(lua_State* L)
     luaL_error(L, "Method must be invoked with a blockmesh.");
   
   int num_args = lua_gettop(L);
-  if ((num_args != 5) && (num_args != 6))
+  if ((num_args != 2) || (!lua_istable(L, 2)))
   {
-    luaL_error(L, "mesh:connect_blocks must be called with the following arguments: "
-                  "index1, boundary1, index2, boundary2[, connection]");
+    luaL_error(L, "mesh:connect_blocks must be called with a table with fields: "
+                  "index1, boundary1, trans1, index2, boundary2, and trans2");
   }
-  if (!lua_isinteger(L, 2))
-    return luaL_error(L, "Argument 1 must be a valid block index.");
-  if (!lua_isinteger(L, 3))
-    return luaL_error(L, "Argument 2 must be a valid block boundary.");
-  if (!lua_isinteger(L, 4))
-    return luaL_error(L, "Argument 3 must be a valid block index.");
-  if (!lua_isinteger(L, 5))
-    return luaL_error(L, "Argument 4 must be a valid block boundary.");
-  if (!lua_isnil(L, 6) && !lua_isinteger(L, 6))
-    return luaL_error(L, "Argument 5 must be a valid connection type.");
-  int index1 = lua_tointeger(L, 2); 
+
+  lua_getfield(L, 2, "index1");
+  if (!lua_isinteger(L, -1))
+    return luaL_error(L, "index1 must be a valid block index.");
+  int index1 = lua_tointeger(L, -1); 
   if ((index1 < 0) || ((size_t)index1 >= blockmesh_num_blocks(m)))
     return luaL_error(L, "Invalid index for first block: %d.", index1);
+  lua_pop(L, 1);
+
+  lua_getfield(L, 2, "boundary1");
+  if (!lua_isinteger(L, -1))
+    return luaL_error(L, "boundary1 must be a valid block boundary.");
   int boundary1_int = lua_tointeger(L, 3); 
   if ((boundary1_int < 0) || (boundary1_int >= 6))
     return luaL_error(L, "Invalid block boundary for first block.");
   unimesh_boundary_t boundary1 = (unimesh_boundary_t)boundary1_int;
-  int index2 = lua_tointeger(L, 4); 
+  lua_pop(L, 1);
+
+  lua_getfield(L, 2, "trans1");
+  void* trans1 = NULL;
+  // FIXME
+  lua_pop(L, 1);
+
+  lua_getfield(L, 2, "index2");
+  if (!lua_isinteger(L, -1))
+    return luaL_error(L, "index2 must be a valid block index.");
+  int index2 = lua_tointeger(L, -1); 
   if ((index2 < 0) || ((size_t)index2 >= blockmesh_num_blocks(m)))
     return luaL_error(L, "Invalid index for second block: %d.", index2);
-  int boundary2_int = lua_tointeger(L, 5); 
+  lua_pop(L, 1);
+
+  lua_getfield(L, 2, "boundary2");
+  if (!lua_isinteger(L, -1))
+    return luaL_error(L, "boundary2 must be a valid block boundary.");
+  int boundary2_int = lua_tointeger(L, -1); 
   if ((boundary2_int < 0) || (boundary2_int >= 6))
     return luaL_error(L, "Invalid block boundary for second block.");
   unimesh_boundary_t boundary2 = (unimesh_boundary_t)boundary2_int;
+  lua_pop(L, 1);
 
-  blockmesh_cxn_t connection = BLOCKMESH_CXN_UNROTATED;
-  if (!lua_isnil(L, 6))
-  {
-    int cxn_int = lua_tointeger(L, 6); 
-    if ((cxn_int < 0) || (cxn_int >= 4))
-      return luaL_error(L, "Invalid connection type.");
-    connection = (blockmesh_cxn_t)cxn_int;
-  }
-  blockmesh_connect_blocks(m, index1, boundary1, index2, boundary2, connection);
+  lua_getfield(L, 2, "trans2");
+  void* trans2 = NULL;
+  lua_pop(L, 1);
+
+  blockmesh_connect_blocks(m, index1, boundary1, trans1, 
+                              index2, boundary2, trans2);
   return 0;
 }
 
@@ -1867,8 +1884,10 @@ static int bm_tostring(lua_State* L)
 static lua_class_method bm_methods[] = {
   {"block", bm_block, "mesh:block(index) -> Returns the block in the mesh with the given index."},
   {"add_block", bm_add_block, "mesh:add_block(block) - Adds a unimesh block to this mesh."},
-  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks(index1, index2, cxn) - Connects two blocks in this mesh "
-                                        "using the given connection type."},
+  {"connect_blocks", bm_connect_blocks, "mesh:connect_blocks{index1 = I1, boundary1 = B1, "
+                                        "trans1 = T1, index2 = I2, boundary2 = B2, trans2 = T2} "
+                                        "- Connects two blocks in this mesh, optionally providing "
+                                        "transformations T1 and T2 for fields transferred between blocks."},
   {"finalize", bm_finalize, "mesh:finalize() - Finalizes a block mesh after assembly."},
   {"__tostring", bm_tostring, NULL},
   {NULL, NULL, NULL}
@@ -2445,18 +2464,6 @@ int lua_register_geometry_modules(lua_State* L)
   lua_setfield(L, -2, "z1_boundary");
   lua_pushinteger(L, (int)UNIMESH_Z2_BOUNDARY);
   lua_setfield(L, -2, "z2_boundary");
-  lua_pop(L, 1);
-
-  // Register some helpful symbols for blockmesh.
-  lua_getglobal(L, "blockmesh");
-  lua_pushinteger(L, (int)BLOCKMESH_CXN_UNROTATED);
-  lua_setfield(L, -2, "cxn_unrotated");
-  lua_pushinteger(L, (int)BLOCKMESH_CXN_QUARTER_TURN);
-  lua_setfield(L, -2, "cxn_quarter_turn");
-  lua_pushinteger(L, (int)BLOCKMESH_CXN_HALF_TURN);
-  lua_setfield(L, -2, "cxn_half_turn");
-  lua_pushinteger(L, (int)BLOCKMESH_CXN_THREE_QUARTER_TURN);
-  lua_setfield(L, -2, "cxn_three_quarter_turn");
   lua_pop(L, 1);
 
   // Register a module of point factory methods.
