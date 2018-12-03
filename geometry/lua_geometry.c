@@ -13,13 +13,10 @@
 #include "geometry/union_sd_func.h"
 #include "geometry/intersection_sd_func.h"
 #include "geometry/difference_sd_func.h"
-
 #include "geometry/partition_polymesh.h"
 #include "geometry/create_uniform_polymesh.h"
-
 #include "geometry/create_quad_planar_polymesh.h"
 #include "geometry/create_hex_planar_polymesh.h"
-
 #include "geometry/colmesh.h"
 
 #include "lua.h"
@@ -1816,7 +1813,7 @@ static int bm_connect_blocks(lua_State* L)
   lua_getfield(L, 2, "index1");
   if (!lua_isinteger(L, -1))
     return luaL_error(L, "index1 must be a valid block index.");
-  int index1 = lua_tointeger(L, -1); 
+  int index1 = (int)lua_tointeger(L, -1); 
   if ((index1 < 0) || ((size_t)index1 >= blockmesh_num_blocks(m)))
     return luaL_error(L, "Invalid index for first block: %d.", index1);
   lua_pop(L, 1);
@@ -1824,7 +1821,7 @@ static int bm_connect_blocks(lua_State* L)
   lua_getfield(L, 2, "boundary1");
   if (!lua_isinteger(L, -1))
     return luaL_error(L, "boundary1 must be a valid block boundary.");
-  int boundary1_int = lua_tointeger(L, 3); 
+  int boundary1_int = (int)lua_tointeger(L, 3); 
   if ((boundary1_int < 0) || (boundary1_int >= 6))
     return luaL_error(L, "Invalid block boundary for first block.");
   unimesh_boundary_t boundary1 = (unimesh_boundary_t)boundary1_int;
@@ -1838,7 +1835,7 @@ static int bm_connect_blocks(lua_State* L)
   lua_getfield(L, 2, "index2");
   if (!lua_isinteger(L, -1))
     return luaL_error(L, "index2 must be a valid block index.");
-  int index2 = lua_tointeger(L, -1); 
+  int index2 = (int)lua_tointeger(L, -1); 
   if ((index2 < 0) || ((size_t)index2 >= blockmesh_num_blocks(m)))
     return luaL_error(L, "Invalid index for second block: %d.", index2);
   lua_pop(L, 1);
@@ -1846,7 +1843,7 @@ static int bm_connect_blocks(lua_State* L)
   lua_getfield(L, 2, "boundary2");
   if (!lua_isinteger(L, -1))
     return luaL_error(L, "boundary2 must be a valid block boundary.");
-  int boundary2_int = lua_tointeger(L, -1); 
+  int boundary2_int = (int)lua_tointeger(L, -1); 
   if ((boundary2_int < 0) || (boundary2_int >= 6))
     return luaL_error(L, "Invalid block boundary for second block.");
   unimesh_boundary_t boundary2 = (unimesh_boundary_t)boundary2_int;
