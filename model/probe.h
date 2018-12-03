@@ -126,18 +126,14 @@ void probe_on_acquire(probe_t* probe,
                       void (*dtor)(void* context));
 
 /// Tells the probe to stream its data to the given network address and port
-/// using a simple protocol. When the probe acquires data, it emits a datagram 
-/// containing a JSON object with the following contents:
+/// using a simple UDP protocol. When the probe acquires data, it emits a 
+/// datagram containing a JSON object with the following contents:
 /// * "name": a field containing the name of the probe's data
 /// * "time": the time at which the data was acquired
 /// * "data": A list of numbers representing the data acquired
 ///
-/// \param [in] destination A properly formed destination address. If this is a 
-///                         well-formed URL, the probe streams data to that location
-///                         using UDP. Otherwise, if it's a valid file path, the 
-///                         probe transmits the data using UNIX domain sockets.
-/// \param [in] port The port used for UDP transmissions. Ignored if UNIX 
-///                  domain sockets are used.
+/// \param [in] destination A properly formed destination URL. 
+/// \param [in] port The port to used for streaming.
 /// \returns true if the probe will transmit data with the given information, 
 ///               false otherwise.
 /// \memberof probe
