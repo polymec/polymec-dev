@@ -18,7 +18,6 @@ typedef struct
 {
   int socket_fd;
   struct sockaddr_in inet_addr;
-  struct sockaddr_un unix_addr;
 
   char* data_name;
   size_t data_size;
@@ -99,30 +98,8 @@ bool probe_stream_on_acquire(probe_t* probe, const char* destination, int port)
     else
       snprintf(err_msg, 128, "Failed to create an AF_INET socket.");
   }
-
-  // If we're still here, UDP didn't work out, or we aren't doing UDP.
-  // Try to use a UNIX socket.
-  context->socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
-  if (context->socket_fd > 0)
-  {
-    memset(&(context->unix_addr), 0, sizeof(context->unix_addr));
-    context->unix_addr.sun_family = AF_UNIX;
-    memcpy(context->unix_addr.sun_path, destination, sizeof(char) * strlen(destination));
-    int result = connect(context->socket_fd, (struct sockaddr*)&(context->unix_addr), sizeof(context->unix_addr));
-    if (result != -1)
-    {
-      log_info("Probe %s: streaming %s to %s via UNIX sockets", p_name, context->data_name, destination);
-      probe_on_acquire(probe, context, stream_on_acquire, free_stream);
-      return true;
-    }
-    else
-    {
-      snprintf(err_msg, 128, "connect() returned errno %d", errno);
-      close(context->socket_fd);
-    }
-  }
   else
-    snprintf(err_msg, 128, "Failed to create an AF_UNIX socket.");
+    snprintf(err_msg, 128, "Invalid port (%d).", port);
 
   // Better luck next time!
   log_info("Probe %s: Can't stream %s to %s (%s)", p_name, context->data_name, destination, err_msg);
