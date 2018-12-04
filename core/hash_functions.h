@@ -53,6 +53,18 @@ static inline int index_hash(index_t i)
   return djb2_xor_hash((unsigned char*)&i, sizeof(index_t));
 }
 
+/// 64-bit signed int hash function
+static inline int int64_hash(index_t i)
+{
+  return djb2_xor_hash((unsigned char*)&i, sizeof(int64_t));
+}
+
+/// 64-bit unsigned int hash function
+static inline int uint64_hash(index_t i)
+{
+  return djb2_xor_hash((unsigned char*)&i, sizeof(uint64_t));
+}
+
 /// Hash function for a pair of ints.
 static inline int int_pair_hash(int* i)
 {

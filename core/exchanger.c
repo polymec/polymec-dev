@@ -5,11 +5,63 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "exchanger.h"
+#include "core/array.h"
+#include "core/exchanger.h"
+#include "core/timer.h"
 #include "core/unordered_map.h"
 #include "core/unordered_set.h"
-#include "core/array.h"
-#include "core/timer.h"
+
+// Here's a virtual table for exchanger reduction operators.
+typedef struct
+{
+  double    (*reduce_double)(void* context, double* values, int* processes, size_t num_values);
+  float     (*reduce_float)(void* context, float* values, int* processes, size_t num_values);
+  complex_t (*reduce_complex)(void* context, complex_t* values, int* processes, size_t num_values);
+  int       (*reduce_int)(void* context, int* values, int* processes, size_t num_values);
+  long      (*reduce_long)(void* context, long* values, int* processes, size_t num_values);
+  long long (*reduce_long_long)(void* context, long long* values, int* processes, size_t num_values);
+  uint64_t  (*reduce_uint64)(void* context, uint64_t* values, int* processes, size_t num_values);
+  int64_t   (*reduce_int64)(void* context, int64_t* values, int* processes, size_t num_values);
+  char      (*reduce_char)(void* context, char* values, int* processes, size_t num_values);
+  uint8_t   (*reduce_byte)(void* context, uint8_t* values, int* processes, size_t num_values);
+  void (*dtor)(void* context);
+} exchanger_reducer_vtable;
+
+// And here's the reduction operator itself.
+struct exchanger_reducer_t
+{
+  char* name;
+  void* context;
+  exchanger_reducer_vtable vtable;
+};
+
+// Here's metadata for aggregated data.
+typedef struct
+{
+  size_t num_values;
+  int* indices;
+  int* procs;
+} agg_t;
+
+// And here's a mapping from a (receive proc, index) pair to an agg_t.
+// The two 32-bit integers are encoded in a single 64-bit integer key.
+DEFINE_UNORDERED_MAP(agg_map, uint64_t, agg_t*, uint64_hash, uint64_equals)
+
+// This retrieves an agg_t from an agg_map given a (receive proc, index) 
+// pair, or NULL if no such agg_t exists.
+static agg_t* agg_map_sources(agg_map_t* map, int proc, int index)
+{
+  ASSERT(proc >= 0);
+  ASSERT(index >= 0);
+  uint64_t key = ((uint64_t)proc << 32) + (uint64_t)index;
+  agg_t** sources_p = agg_map_get(map, key);
+  if (sources_p != NULL)
+  {
+    return *sources_p;
+  }
+  else
+    return NULL;
+}                             
 
 // This is a record of a single communications channel for an exchanger 
 // to send or receive data to or from a remote process.
@@ -64,14 +116,12 @@ typedef struct
 static size_t mpi_size(MPI_Datatype type)
 {
   size_t size = 0;
-  if (type == MPI_REAL_T)
-    size = sizeof(real_t);
-  else if (type == MPI_COMPLEX_T)
-    size = sizeof(complex_t);
-  else if (type == MPI_DOUBLE)
+  if (type == MPI_DOUBLE)
     size = sizeof(double);
   else if (type == MPI_FLOAT)
     size = sizeof(float);
+  else if (type == MPI_COMPLEX_T)
+    size = sizeof(complex_t);
   else if (type == MPI_INT)
     size = sizeof(int);
   else if (type == MPI_LONG)
@@ -112,7 +162,7 @@ static mpi_message_t* mpi_message_new(MPI_Datatype type, int stride, int tag)
   return msg;
 }
 
-#define HANDLE_PACKING(msg, mpi_type, c_type) \
+#define PACK(msg, mpi_type, c_type) \
   if (msg->type == mpi_type) \
   { \
     c_type* src = data; \
@@ -152,16 +202,17 @@ static void mpi_message_pack(mpi_message_t* msg,
     msg->send_buffer_sizes[i] = num_send_indices;
     msg->send_buffers[i] = polymec_malloc(num_send_indices*msg->data_size*stride);
 
-    HANDLE_PACKING(msg, MPI_REAL_T, real_t)
-    HANDLE_PACKING(msg, MPI_FLOAT, float)
-    HANDLE_PACKING(msg, MPI_INT, int)
-    HANDLE_PACKING(msg, MPI_LONG, long)
-    HANDLE_PACKING(msg, MPI_LONG_LONG, long long)
-    HANDLE_PACKING(msg, MPI_UINT64_T, uint64_t)
-    HANDLE_PACKING(msg, MPI_INT64_T, int64_t)
-    HANDLE_PACKING(msg, MPI_CHAR, char)
-    HANDLE_PACKING(msg, MPI_BYTE, uint8_t)
-    HANDLE_PACKING(msg, MPI_COMPLEX_T, complex_t)
+    PACK(msg, MPI_DOUBLE, double)
+    else PACK(msg, MPI_FLOAT, float)
+    else PACK(msg, MPI_INT, int)
+    else PACK(msg, MPI_LONG, long)
+    else PACK(msg, MPI_LONG_LONG, long long)
+    else PACK(msg, MPI_UINT64_T, uint64_t)
+    else PACK(msg, MPI_INT64_T, int64_t)
+    else PACK(msg, MPI_CHAR, char)
+    else PACK(msg, MPI_BYTE, uint8_t)
+    else PACK(msg, MPI_COMPLEX_T, complex_t)
+    else polymec_error("mpi_message_pack: unsupported type!");
     ++i;
   }
 
@@ -175,9 +226,9 @@ static void mpi_message_pack(mpi_message_t* msg,
   }
   msg->requests = polymec_malloc((num_sends+num_receives)*sizeof(MPI_Request));
 }
-#undef HANDLE_PACKING
+#undef PACK
 
-#define HANDLE_UNPACKING(msg, mpi_type, c_type) \
+#define UNPACK(msg, mpi_type, c_type) \
   if (msg->type == mpi_type) \
   { \
     c_type* src = msg->receive_buffers[i]; \
@@ -198,21 +249,22 @@ static void mpi_message_unpack(mpi_message_t* msg,
   {
     int* recv_indices = c->indices;
     int stride = msg->stride;
-    HANDLE_UNPACKING(msg, MPI_REAL_T, real_t)
-    HANDLE_UNPACKING(msg, MPI_FLOAT, float)
-    HANDLE_UNPACKING(msg, MPI_INT, int)
-    HANDLE_UNPACKING(msg, MPI_LONG, long)
-    HANDLE_UNPACKING(msg, MPI_LONG_LONG, long long)
-    HANDLE_UNPACKING(msg, MPI_UINT64_T, uint64_t)
-    HANDLE_UNPACKING(msg, MPI_INT64_T, int64_t)
-    HANDLE_UNPACKING(msg, MPI_CHAR, char)
-    HANDLE_UNPACKING(msg, MPI_BYTE, uint8_t)
-    HANDLE_UNPACKING(msg, MPI_COMPLEX_T, complex_t)
+    UNPACK(msg, MPI_DOUBLE, double)
+    else UNPACK(msg, MPI_FLOAT, float)
+    else UNPACK(msg, MPI_INT, int)
+    else UNPACK(msg, MPI_LONG, long)
+    else UNPACK(msg, MPI_LONG_LONG, long long)
+    else UNPACK(msg, MPI_UINT64_T, uint64_t)
+    else UNPACK(msg, MPI_INT64_T, int64_t)
+    else UNPACK(msg, MPI_CHAR, char)
+    else UNPACK(msg, MPI_BYTE, uint8_t)
+    else UNPACK(msg, MPI_COMPLEX_T, complex_t)
+    else polymec_error("mpi_message_unpack: unsupported type!");
     ++i;
   }
 }
 
-#define HANDLE_UNPACKING_AND_ACCUMULATION(msg, mpi_type, c_type) \
+#define UNPACK_AND_REDUCE(msg, mpi_type, c_type, method) \
   if (msg->type == mpi_type) \
   { \
     c_type* src = msg->receive_buffers[i]; \
@@ -220,15 +272,18 @@ static void mpi_message_unpack(mpi_message_t* msg,
     for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j) \
     { \
       int index = recv_indices[j]; \
-      accum_t* sources = accum_map_sources(accumulations, proc, j); \
-      if ((sources != NULL) && !int_unordered_set_contains(proc)) \
+      agg_t* sources = agg_map_sources(aggregates, proc, j); \
+      if (sources != NULL) \
       { \
+        size_t num_values = sources->num_values; \
         for (int s = 0; s < stride; ++s) \
         { \
-          c_type values[sources->num_values]; \
+          c_type values[num_values]; \
           for (int n = 0; n < num_values; ++n) \
-            values[n] = src[sources->stride*j+s]; \
-          dest[receive_offset+stride*index+s] = accumulator_value(sources->
+            values[n] = src[stride*sources->indices[n]+s]; \
+          dest[receive_offset+stride*index+s] = \
+            reducer->vtable.method(reducer->context, values, sources->procs, num_values); \
+        } \
       } \
       else \
       { \
@@ -238,34 +293,32 @@ static void mpi_message_unpack(mpi_message_t* msg,
     } \
   }
 
-static void mpi_message_unpack_and_accumulate(mpi_message_t* msg, 
-                                              void* data, 
-                                              ssize_t receive_offset,
-                                              exchanger_map_t* receive_map,
-                                              accumulator_t* accumulator,
-                                              accum_map_t* accumulations)
+static void mpi_message_unpack_and_reduce(mpi_message_t* msg, 
+                                          void* data, 
+                                          ssize_t receive_offset,
+                                          exchanger_map_t* receive_map,
+                                          exchanger_reducer_t* reducer,
+                                          agg_map_t* aggregates)
 {
   int pos = 0, proc, i = 0;
   exchanger_channel_t* c;
-  int_unordered_set* finished_procs = int_unordered_set_new();
   while (exchanger_map_next(receive_map, &pos, &proc, &c))
   {
     int* recv_indices = c->indices;
     int stride = msg->stride;
-    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_REAL_T, real_t)
-    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_FLOAT, float)
-    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_INT, int)
-    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_LONG, long)
-    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_LONG_LONG, long long)
-    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_UINT64_T, uint64_t)
-    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_INT64_T, int64_t)
-    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_CHAR, char)
-    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_BYTE, uint8_t)
-    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_COMPLEX_T, complex_t)
-    int_unordered_set_insert(finished_procs, proc);
+    UNPACK_AND_REDUCE(msg, MPI_DOUBLE, double, reduce_double)
+    else UNPACK_AND_REDUCE(msg, MPI_FLOAT, float, reduce_float)
+    else UNPACK_AND_REDUCE(msg, MPI_INT, int, reduce_int)
+    else UNPACK_AND_REDUCE(msg, MPI_LONG, long, reduce_long)
+    else UNPACK_AND_REDUCE(msg, MPI_LONG_LONG, long long, reduce_long_long)
+    else UNPACK_AND_REDUCE(msg, MPI_UINT64_T, uint64_t, reduce_uint64)
+    else UNPACK_AND_REDUCE(msg, MPI_INT64_T, int64_t, reduce_int64)
+    else UNPACK_AND_REDUCE(msg, MPI_CHAR, char, reduce_char)
+    else UNPACK_AND_REDUCE(msg, MPI_BYTE, uint8_t, reduce_byte)
+    else UNPACK_AND_REDUCE(msg, MPI_COMPLEX_T, complex_t, reduce_complex)
+    else polymec_error("mpi_message_unpack_and_reduce: unsupported type!");
     ++i;
   }
-  int_unordered_set_free(finished_procs);
 }
 
 static void mpi_message_free(mpi_message_t* msg)
@@ -363,14 +416,14 @@ struct exchanger_t
   int dl_output_rank;
   FILE* dl_output_stream;
 
-  // Accumulation function and map.
-  bool accumulates;
-  real_t (*accumulator)(real_t*, int*, int*, size_t);
+  // Reducer function and aggregates map.
+  exchanger_reducer_t* reducer;
+  agg_map_t* aggregates;
 };
 
 static void exchanger_clear(exchanger_t* ex)
 {
-  ex->accumulates = false;
+  agg_map_clear(ex->aggregates);
   exchanger_map_clear(ex->send_map);
   exchanger_map_clear(ex->receive_map);
 
@@ -390,8 +443,17 @@ static void exchanger_free(void* ctx)
   exchanger_map_free(ex->receive_map);
 }
 
+static void init_reducers(void);
 exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
 {
+  // If we haven't yet done so, initialize our built-in reducers.
+  static bool reducers_initialized = false;
+  if (!reducers_initialized)
+  {
+    init_reducers();
+    reducers_initialized = true;
+  }
+
   exchanger_t* ex = polymec_refcounted_malloc(sizeof(exchanger_t), exchanger_free);
   ex->comm = comm;
   ex->rank = rank;
@@ -410,8 +472,8 @@ exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
   ex->transfer_counts = polymec_calloc(ex->pending_msg_cap * sizeof(int*));
   ex->max_send = -1;
   ex->max_receive = -1;
-  ex->accumulates = false;
-  ex->accumulator = NULL;
+  ex->reducer = NULL;
+  ex->aggregates = agg_map_new();
 
   return ex;
 }
@@ -541,6 +603,11 @@ static void set_receive(exchanger_t* ex,
   }
 }
 
+static void find_aggregates(exchanger_t* ex)
+{
+  // FIXME
+}
+
 void exchanger_set_receive(exchanger_t* ex, 
                            int remote_process, 
                            int* indices, 
@@ -554,7 +621,7 @@ void exchanger_set_receive(exchanger_t* ex,
   if (num_indices > 0)
   {
     set_receive(ex, remote_process, indices, num_indices, copy_indices);
-    determine_accumulations(ex);
+    find_aggregates(ex);
   }
 }
 
@@ -564,7 +631,7 @@ void exchanger_set_receives(exchanger_t* ex, exchanger_proc_map_t* recv_map)
   int_array_t* recv_indices;
   while (exchanger_proc_map_next(recv_map, &pos, &recv_proc, &recv_indices))
     set_receive(ex, recv_proc, recv_indices->data, (int)recv_indices->size, true);   
-  determine_accumulations(ex);
+  find_aggregates(ex);
   exchanger_proc_map_free(recv_map);
 }
 
@@ -809,6 +876,14 @@ static int exchanger_send_message(exchanger_t* ex, mpi_message_t* msg)
 int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, MPI_Datatype type)
 {
   START_FUNCTION_TIMER();
+
+  // If we aggregate any data, we'd better have a reducer.
+  if ((ex->aggregates->size > 0) && (ex->reducer == NULL))
+  {
+    polymec_error("exchanger_start_exchange: exchanger aggregates data, "
+                  "but has no reducer set.");
+  }
+
   // Create a message for this array.
   mpi_message_t* msg = mpi_message_new(type, stride, tag);
   mpi_message_pack(msg, data, ex->send_offset, ex->send_map, ex->receive_map);
@@ -1021,16 +1096,18 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   if (err == MPI_SUCCESS) 
   {
     void* orig_buffer = ex->orig_buffers[token];
-    if ((ex->accumulations == NULL) || (ex->accumulations->size == 0))
+    if (ex->aggregates->size == 0)
     {
       // Copy the received data into the original array.
       mpi_message_unpack(msg, orig_buffer, ex->receive_offset, ex->receive_map);
     }
     else
     {
-      // Copy and accumulate the received data into the original array.
-      mpi_message_unpack_and_accumulate(msg, orig_buffer, ex->receive_offset, 
-                                        ex->receive_map, ex->accumulator);
+      ASSERT(ex->reducer != NULL);
+      // Copy and reduce the received data into the original array.
+      mpi_message_unpack_and_reduce(msg, orig_buffer, ex->receive_offset, 
+                                    ex->receive_map, ex->reducer,
+                                    ex->aggregates);
     }
   }
 
@@ -1211,16 +1288,267 @@ serializer_t* exchanger_proc_map_serializer()
   return serializer_new("exchanger_proc_map", epm_size, epm_read, epm_write, NULL);
 }
 
-bool exchanger_accumulates(exchanger_t* ex)
+bool exchanger_aggregates_data(exchanger_t* ex)
 {
-  return ex->accumulates;
+  return (ex->aggregates->size > 0);
 }
 
-void exchanger_set_accumulator(exchanger_t* ex,
-                               real_t (*accumulator)(void* values,
-                                                     int* indices,
-                                                     int* processes,
-                                                     size_t num_values))
+void exchanger_set_reducer(exchanger_t* ex,
+                           exchanger_reducer_t* reducer)
 {
-  ex->accumulator = accumulator;
+  ex->reducer = reducer;
 }
+
+//------------------------------------------------------------------------
+//                         Built-in reducers
+//------------------------------------------------------------------------
+
+static exchanger_reducer_t* exchanger_reducer_new(const char* name,
+                                                  void* context,
+                                                  exchanger_reducer_vtable vtable)
+{
+  exchanger_reducer_t* reducer = polymec_malloc(sizeof(exchanger_reducer_t));
+  reducer->name = string_dup(name);
+  reducer->context = context;
+  reducer->vtable = vtable;
+  return reducer;
+}
+
+static void exchanger_reducer_free(exchanger_reducer_t* reducer)
+{
+  if ((reducer->context != NULL) && (reducer->vtable.dtor != NULL))
+    reducer->vtable.dtor(reducer->context);
+  string_free(reducer->name);
+  polymec_free(reducer);
+}
+
+// Built-in reducers.
+exchanger_reducer_t* EXCHANGER_SUM = NULL;
+exchanger_reducer_t* EXCHANGER_PRODUCT = NULL;
+exchanger_reducer_t* EXCHANGER_MIN = NULL;
+exchanger_reducer_t* EXCHANGER_MAX = NULL;
+exchanger_reducer_t* EXCHANGER_MIN_RANK = NULL;
+exchanger_reducer_t* EXCHANGER_MAX_RANK = NULL;
+
+static void free_reducers(void)
+{
+  exchanger_reducer_free(EXCHANGER_SUM);
+  exchanger_reducer_free(EXCHANGER_PRODUCT);
+  exchanger_reducer_free(EXCHANGER_MIN);
+  exchanger_reducer_free(EXCHANGER_MAX);
+  exchanger_reducer_free(EXCHANGER_MIN_RANK);
+  exchanger_reducer_free(EXCHANGER_MAX_RANK);
+}
+
+#define DEFINE_SUM(func_name, c_type, zero) \
+static c_type func_name(void* context, c_type* values, int* processes, size_t num_values) \
+{ \
+  c_type result = zero; \
+  for (size_t i = 0; i < num_values; ++i) \
+    result += values[i]; \
+  return result; \
+} 
+DEFINE_SUM(sum_double, double, 0.0)
+DEFINE_SUM(sum_float, float, 0.0)
+DEFINE_SUM(sum_complex, complex_t, CMPLX(0.0, 0.0))
+DEFINE_SUM(sum_int, int, 0)
+DEFINE_SUM(sum_long, long, 0)
+DEFINE_SUM(sum_long_long, long long, 0)
+DEFINE_SUM(sum_uint64, uint64_t, 0)
+DEFINE_SUM(sum_int64, int64_t, 0)
+DEFINE_SUM(sum_char, char, 0)
+DEFINE_SUM(sum_byte, uint8_t, 0)
+
+#define DEFINE_PRODUCT(func_name, c_type, one) \
+static c_type func_name(void* context, c_type* values, int* processes, size_t num_values) \
+{ \
+  c_type result = one; \
+  for (size_t i = 0; i < num_values; ++i) \
+    result *= values[i]; \
+  return result; \
+} 
+DEFINE_PRODUCT(prod_double, double, 1.0)
+DEFINE_PRODUCT(prod_float, float, 1.0)
+DEFINE_PRODUCT(prod_complex, complex_t, CMPLX(1.0, 0.0))
+DEFINE_PRODUCT(prod_int, int, 1)
+DEFINE_PRODUCT(prod_long, long, 1)
+DEFINE_PRODUCT(prod_long_long, long long, 1)
+DEFINE_PRODUCT(prod_uint64, uint64_t, 1)
+DEFINE_PRODUCT(prod_int64, int64_t, 1)
+DEFINE_PRODUCT(prod_char, char, 1)
+DEFINE_PRODUCT(prod_byte, uint8_t, 1)
+
+#define DEFINE_MINMAX(func_name, c_type, start, min_or_max) \
+static c_type func_name(void* context, c_type* values, int* processes, size_t num_values) \
+{ \
+  c_type result = start; \
+  for (size_t i = 0; i < num_values; ++i) \
+    result = min_or_max(result, values[i]); \
+  return result; \
+} 
+DEFINE_MINMAX(min_double, double, DBL_MAX, MIN)
+DEFINE_MINMAX(min_float, float, FLT_MAX, MIN)
+DEFINE_MINMAX(min_int, int, INT_MAX, MIN)
+DEFINE_MINMAX(min_long, long, INT_MAX, MIN)
+DEFINE_MINMAX(min_long_long, long long, INT_MAX, MIN)
+DEFINE_MINMAX(min_uint64, uint64_t, INT_MAX, MIN)
+DEFINE_MINMAX(min_int64, int64_t, INT_MAX, MIN)
+DEFINE_MINMAX(min_char, char, 127, MIN)
+DEFINE_MINMAX(min_byte, uint8_t, 255, MIN)
+
+DEFINE_MINMAX(max_double, double, -DBL_MAX, MAX)
+DEFINE_MINMAX(max_float, float, -FLT_MAX, MAX)
+DEFINE_MINMAX(max_int, int, -INT_MAX, MAX)
+DEFINE_MINMAX(max_long, long, -INT_MAX, MAX)
+DEFINE_MINMAX(max_long_long, long long, -INT_MAX, MAX)
+DEFINE_MINMAX(max_uint64, uint64_t, -INT_MAX, MAX)
+DEFINE_MINMAX(max_int64, int64_t, -INT_MAX, MAX)
+DEFINE_MINMAX(max_char, char, -127, MAX)
+DEFINE_MINMAX(max_byte, uint8_t, 0, MAX)
+
+// For complex numbers, the MIN and MAX functions use the modulus.
+static complex_t min_complex(void* context, complex_t* values, int* processes, size_t num_values)
+{
+  complex_t result = CMPLX(FLT_MAX, 0.0); 
+  for (size_t i = 0; i < num_values; ++i) 
+    result = MIN(abs(result), abs(values[i])); 
+  return result; 
+}
+
+static complex_t max_complex(void* context, complex_t* values, int* processes, size_t num_values)
+{
+  complex_t result = CMPLX(0.0, 0.0); 
+  for (size_t i = 0; i < num_values; ++i) 
+    result = MAX(abs(result), abs(values[i])); 
+  return result; 
+}
+
+#define DEFINE_MIN_RANK(func_name, c_type) \
+static c_type func_name(void* context, c_type* values, int* processes, size_t num_values) \
+{ \
+  c_type result; \
+  int proc = INT_MAX; \
+  for (size_t i = 0; i < num_values; ++i) \
+  { \
+    if (processes[i] < proc) \
+    { \
+      proc = processes[i]; \
+      result = values[i]; \
+    } \
+  } \
+  return result; \
+} 
+DEFINE_MIN_RANK(minr_double, double)
+DEFINE_MIN_RANK(minr_float, float)
+DEFINE_MIN_RANK(minr_complex, complex_t)
+DEFINE_MIN_RANK(minr_int, int)
+DEFINE_MIN_RANK(minr_long, long)
+DEFINE_MIN_RANK(minr_long_long, long long)
+DEFINE_MIN_RANK(minr_uint64, uint64_t)
+DEFINE_MIN_RANK(minr_int64, int64_t)
+DEFINE_MIN_RANK(minr_char, char)
+DEFINE_MIN_RANK(minr_byte, uint8_t)
+
+#define DEFINE_MAX_RANK(func_name, c_type) \
+static c_type func_name(void* context, c_type* values, int* processes, size_t num_values) \
+{ \
+  c_type result; \
+  int proc = -INT_MAX; \
+  for (size_t i = 0; i < num_values; ++i) \
+  { \
+    if (processes[i] > proc) \
+    { \
+      proc = processes[i]; \
+      result = values[i]; \
+    } \
+  } \
+  return result; \
+} 
+DEFINE_MAX_RANK(maxr_double, double)
+DEFINE_MAX_RANK(maxr_float, float)
+DEFINE_MAX_RANK(maxr_complex, complex_t)
+DEFINE_MAX_RANK(maxr_int, int)
+DEFINE_MAX_RANK(maxr_long, long)
+DEFINE_MAX_RANK(maxr_long_long, long long)
+DEFINE_MAX_RANK(maxr_uint64, uint64_t)
+DEFINE_MAX_RANK(maxr_int64, int64_t)
+DEFINE_MAX_RANK(maxr_char, char)
+DEFINE_MAX_RANK(maxr_byte, uint8_t)
+
+static void init_reducers(void)
+{
+  exchanger_reducer_vtable sum_vtable = {.reduce_double = sum_double,
+                                         .reduce_float = sum_float,
+                                         .reduce_complex = sum_complex,
+                                         .reduce_int = sum_int,
+                                         .reduce_long = sum_long,
+                                         .reduce_long_long = sum_long_long,
+                                         .reduce_uint64 = sum_uint64,
+                                         .reduce_int64 = sum_int64,
+                                         .reduce_char = sum_char,
+                                         .reduce_byte = sum_byte};
+  EXCHANGER_SUM = exchanger_reducer_new("EXCHANGER_SUM", NULL, sum_vtable);
+
+  exchanger_reducer_vtable prod_vtable = {.reduce_double = prod_double,
+                                          .reduce_float = prod_float,
+                                          .reduce_complex = prod_complex,
+                                          .reduce_int = prod_int,
+                                          .reduce_long = prod_long,
+                                          .reduce_long_long = prod_long_long,
+                                          .reduce_uint64 = prod_uint64,
+                                          .reduce_int64 = prod_int64,
+                                          .reduce_char = prod_char,
+                                          .reduce_byte = prod_byte};
+  EXCHANGER_PRODUCT = exchanger_reducer_new("EXCHANGER_PRODUCT", NULL, prod_vtable);
+
+  exchanger_reducer_vtable min_vtable = {.reduce_double = min_double,
+                                         .reduce_float = min_float,
+                                         .reduce_complex = min_complex,
+                                         .reduce_int = min_int,
+                                         .reduce_long = min_long,
+                                         .reduce_long_long = min_long_long,
+                                         .reduce_uint64 = min_uint64,
+                                         .reduce_int64 = min_int64,
+                                         .reduce_char = min_char,
+                                         .reduce_byte = min_byte};
+  EXCHANGER_MIN = exchanger_reducer_new("EXCHANGER_MIN", NULL, min_vtable);
+
+  exchanger_reducer_vtable max_vtable = {.reduce_double = max_double,
+                                         .reduce_float = max_float,
+                                         .reduce_complex = max_complex,
+                                         .reduce_int = max_int,
+                                         .reduce_long = max_long,
+                                         .reduce_long_long = max_long_long,
+                                         .reduce_uint64 = max_uint64,
+                                         .reduce_int64 = max_int64,
+                                         .reduce_char = max_char,
+                                         .reduce_byte = max_byte};
+  EXCHANGER_MAX = exchanger_reducer_new("EXCHANGER_MAX", NULL, max_vtable);
+
+  exchanger_reducer_vtable minr_vtable = {.reduce_double = minr_double,
+                                          .reduce_float = minr_float,
+                                          .reduce_complex = minr_complex,
+                                          .reduce_int = minr_int,
+                                          .reduce_long = minr_long,
+                                          .reduce_long_long = minr_long_long,
+                                          .reduce_uint64 = minr_uint64,
+                                          .reduce_int64 = minr_int64,
+                                          .reduce_char = minr_char,
+                                          .reduce_byte = minr_byte};
+  EXCHANGER_MIN_RANK = exchanger_reducer_new("EXCHANGER_MIN_RANK", NULL, minr_vtable);
+
+  exchanger_reducer_vtable maxr_vtable = {.reduce_double = maxr_double,
+                                          .reduce_float = maxr_float,
+                                          .reduce_complex = maxr_complex,
+                                          .reduce_int = maxr_int,
+                                          .reduce_long = maxr_long,
+                                          .reduce_long_long = maxr_long_long,
+                                          .reduce_uint64 = maxr_uint64,
+                                          .reduce_int64 = maxr_int64,
+                                          .reduce_char = maxr_char,
+                                          .reduce_byte = maxr_byte};
+  EXCHANGER_MAX_RANK = exchanger_reducer_new("EXCHANGER_MAX_RANK", NULL, maxr_vtable);
+
+  polymec_atexit(free_reducers);
+}
+

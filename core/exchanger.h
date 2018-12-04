@@ -22,6 +22,39 @@
 /// \refcounted
 typedef struct exchanger_t exchanger_t;
 
+/// \class exchanger_reducer
+/// This represents an operator for reducing a set of numbers to a single 
+/// number in the context of parallel exchanges. Reducers are used to 
+/// handle exchanges in which several sources send values to a single 
+/// destination.
+typedef struct exchanger_reducer_t exchanger_reducer_t;
+
+/// This reducer forms the sum of its contributions.
+/// \related exchanger_reducer
+extern exchanger_reducer_t* EXCHANGER_SUM;
+
+/// This reducer forms the product of its contributions.
+/// \related exchanger_reducer
+extern exchanger_reducer_t* EXCHANGER_PRODUCT;
+
+/// This reducer produces the minimum value of its contributions.
+/// \related exchanger_reducer
+extern exchanger_reducer_t* EXCHANGER_MIN;
+
+/// This reducer produces the maximum value of its contributions.
+/// \related exchanger_reducer
+extern exchanger_reducer_t* EXCHANGER_MAX;
+
+/// This reducer produces the value contributed by the process with the
+/// minimum rank.
+/// \related exchanger_reducer
+extern exchanger_reducer_t* EXCHANGER_MIN_RANK;
+
+/// This reducer produces the value contributed by the process with the
+/// maximum rank.
+/// \related exchanger_reducer
+extern exchanger_reducer_t* EXCHANGER_MAX_RANK;
+
 /// \class exchanger_proc_map
 /// An unordered map that maps (integer) processes to (int_array_t*) 
 /// arrays of indices.
@@ -256,22 +289,22 @@ bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, i
 bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...));
 
 /// Returns true if this exchanger receives data to an index from more than 
-/// one source, false otherwise. If an exchanger accumulates data, you must 
-/// set the accumulator function with \ref exchanger_set_accumulator before 
+/// one source, false otherwise. If an exchanger aggregates data, you must 
+/// use \ref exchanger_set_reducer to define a reduction operator before 
 /// performing an exchange.
-bool exchanger_accumulates(exchanger_t* ex);
+bool exchanger_aggregates_data(exchanger_t* ex);
 
-/// Sets the accumulation function to use when values are accumulated to a
+/// Sets the reduction operator to use when values are accumulated to a
 /// given index in an array from several sources.
-/// \param [in] accumulator This function takes an array of real values with 
-///                         a specified size, along with their indices and 
-///                         originating processes, and returns a single value.
-///                         Can be set to NULL to disable accumulation.
-void exchanger_set_accumulator(exchanger_t* ex,
-                               real_t (*accumulator)(real_t* values,
-                                                     int* indices,
-                                                     int* processes,
-                                                     size_t num_values));
+/// \param [in] reducer A reduction operator that aggregates each set 
+///                     of values inbound to a local index to a single value. 
+///                     Available reducers are \ref EXCHANGER_SUM, 
+///                     \ref EXCHANGER_PRODUCT, \ref EXCHANGER_MIN, 
+///                     \ref EXCHANGER_MAX, \ref EXCHANGER_MINRANK, 
+///                     \ref EXCHANGER_MAXRANK. Can be set to NULL to disable 
+///                     reduction.
+void exchanger_set_reducer(exchanger_t* ex,
+                           exchanger_reducer_t* reducer);
 
 ///@}
 
