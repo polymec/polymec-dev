@@ -594,6 +594,7 @@ static void set_receive(exchanger_t* ex,
 
 static void find_aggregates(exchanger_t* ex)
 {
+  START_FUNCTION_TIMER();
   // Scour the receive map for aggregated values.
   int_int_unordered_map_t* receive_indices = int_int_unordered_map_new();
   int pos = 0, proc;
@@ -624,6 +625,7 @@ static void find_aggregates(exchanger_t* ex)
     }
   }
   int_int_unordered_map_free(receive_indices);
+  STOP_FUNCTION_TIMER();
 }
 
 void exchanger_set_receive(exchanger_t* ex, 
