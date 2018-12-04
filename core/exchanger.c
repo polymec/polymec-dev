@@ -35,34 +35,6 @@ struct exchanger_reducer_t
   exchanger_reducer_vtable vtable;
 };
 
-// Here's metadata for aggregated data.
-typedef struct
-{
-  size_t num_values;
-  int* indices;
-  int* procs;
-} agg_t;
-
-// And here's a mapping from a (receive proc, index) pair to an agg_t.
-// The two 32-bit integers are encoded in a single 64-bit integer key.
-DEFINE_UNORDERED_MAP(agg_map, uint64_t, agg_t*, uint64_hash, uint64_equals)
-
-// This retrieves an agg_t from an agg_map given a (receive proc, index) 
-// pair, or NULL if no such agg_t exists.
-static agg_t* agg_map_sources(agg_map_t* map, int proc, int index)
-{
-  ASSERT(proc >= 0);
-  ASSERT(index >= 0);
-  uint64_t key = ((uint64_t)proc << 32) + (uint64_t)index;
-  agg_t** sources_p = agg_map_get(map, key);
-  if (sources_p != NULL)
-  {
-    return *sources_p;
-  }
-  else
-    return NULL;
-}                             
-
 // This is a record of a single communications channel for an exchanger 
 // to send or receive data to or from a remote process.
 typedef struct
@@ -272,17 +244,32 @@ static void mpi_message_unpack(mpi_message_t* msg,
     for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j) \
     { \
       int index = recv_indices[j]; \
-      agg_t* sources = agg_map_sources(aggregates, proc, j); \
-      if (sources != NULL) \
+      int_array_t** procs_p = agg_map_get(aggregates, index); \
+      if (procs_p != NULL) \
       { \
-        size_t num_values = sources->num_values; \
-        for (int s = 0; s < stride; ++s) \
+        int_array_t* procs = *procs_p; \
+        size_t num_values = procs->size; \
+        c_type values[stride][num_values]; \
+        for (int n = 0; n < num_values; ++n) \
         { \
-          c_type values[num_values]; \
-          for (int n = 0; n < num_values; ++n) \
-            values[n] = src[stride*sources->indices[n]+s]; \
-          dest[receive_offset+stride*index+s] = \
-            reducer->vtable.method(reducer->context, values, sources->procs, num_values); \
+          if (proc == procs->data[n]) \
+          { \
+            for (int s = 0; s < stride; ++s) \
+              values[s][n] = src[stride*index+s]; \
+          } \
+          else \
+          { \
+            int k = 0; \
+            while (msg->source_procs[k] != proc) ++k; \
+            c_type* src1 = msg->receive_buffers[k]; \
+            for (int s = 0; s < stride; ++s) \
+              values[s][n] = src1[stride*index+s]; \
+          } \
+          for (int s = 0; s < stride; ++s) \
+          { \
+            dest[receive_offset+stride*index+s] = \
+              reducer->vtable.method(reducer->context, values[s], procs->data, num_values); \
+          }\
         } \
       } \
       else \
@@ -292,6 +279,8 @@ static void mpi_message_unpack(mpi_message_t* msg,
       } \
     } \
   }
+
+DEFINE_UNORDERED_MAP(agg_map, int, int_array_t*, int_hash, int_equals)
 
 static void mpi_message_unpack_and_reduce(mpi_message_t* msg, 
                                           void* data, 
@@ -416,14 +405,14 @@ struct exchanger_t
   int dl_output_rank;
   FILE* dl_output_stream;
 
-  // Reducer function and aggregates map.
+  // Reducer function and aggregates map linking receive index -> procs.
   exchanger_reducer_t* reducer;
-  agg_map_t* aggregates;
+  agg_map_t* agg_procs;
 };
 
 static void exchanger_clear(exchanger_t* ex)
 {
-  agg_map_clear(ex->aggregates);
+  agg_map_clear(ex->agg_procs);
   exchanger_map_clear(ex->send_map);
   exchanger_map_clear(ex->receive_map);
 
@@ -473,7 +462,7 @@ exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
   ex->max_send = -1;
   ex->max_receive = -1;
   ex->reducer = NULL;
-  ex->aggregates = agg_map_new();
+  ex->agg_procs = agg_map_new();
 
   return ex;
 }
@@ -605,7 +594,36 @@ static void set_receive(exchanger_t* ex,
 
 static void find_aggregates(exchanger_t* ex)
 {
-  // FIXME
+  // Scour the receive map for aggregated values.
+  int_int_unordered_map_t* receive_indices = int_int_unordered_map_new();
+  int pos = 0, proc;
+  exchanger_channel_t* c;
+  while (exchanger_map_next(ex->receive_map, &pos, &proc, &c))
+  {
+    for (int i = 0; i < c->num_indices; ++i)
+    {
+      int index = c->indices[i];
+      int* proc_p = int_int_unordered_map_get(receive_indices, index);
+      if (proc_p != NULL)
+      {
+        // We've already encountered this receive index, so start 
+        // aggregating the processes.
+        int_array_t** procs_p = agg_map_get(ex->agg_procs, index);
+        int_array_t* procs = NULL;
+        if (procs_p == NULL)
+        {
+          procs = int_array_new();
+          int_array_append(procs, *proc_p);
+        }
+        else
+          procs = *procs_p;
+        int_array_append(procs, proc);
+      }
+      else
+        int_int_unordered_map_insert(receive_indices, index, proc);
+    }
+  }
+  int_int_unordered_map_free(receive_indices);
 }
 
 void exchanger_set_receive(exchanger_t* ex, 
@@ -878,7 +896,7 @@ int exchanger_start_exchange(exchanger_t* ex, void* data, int stride, int tag, M
   START_FUNCTION_TIMER();
 
   // If we aggregate any data, we'd better have a reducer.
-  if ((ex->aggregates->size > 0) && (ex->reducer == NULL))
+  if ((ex->agg_procs->size > 0) && (ex->reducer == NULL))
   {
     polymec_error("exchanger_start_exchange: exchanger aggregates data, "
                   "but has no reducer set.");
@@ -1096,7 +1114,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   if (err == MPI_SUCCESS) 
   {
     void* orig_buffer = ex->orig_buffers[token];
-    if (ex->aggregates->size == 0)
+    if (ex->agg_procs->size == 0)
     {
       // Copy the received data into the original array.
       mpi_message_unpack(msg, orig_buffer, ex->receive_offset, ex->receive_map);
@@ -1107,7 +1125,7 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
       // Copy and reduce the received data into the original array.
       mpi_message_unpack_and_reduce(msg, orig_buffer, ex->receive_offset, 
                                     ex->receive_map, ex->reducer,
-                                    ex->aggregates);
+                                    ex->agg_procs);
     }
   }
 
@@ -1290,7 +1308,7 @@ serializer_t* exchanger_proc_map_serializer()
 
 bool exchanger_aggregates_data(exchanger_t* ex)
 {
-  return (ex->aggregates->size > 0);
+  return (ex->agg_procs->size > 0);
 }
 
 void exchanger_set_reducer(exchanger_t* ex,
