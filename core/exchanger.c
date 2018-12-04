@@ -212,6 +212,62 @@ static void mpi_message_unpack(mpi_message_t* msg,
   }
 }
 
+#define HANDLE_UNPACKING_AND_ACCUMULATION(msg, mpi_type, c_type) \
+  if (msg->type == mpi_type) \
+  { \
+    c_type* src = msg->receive_buffers[i]; \
+    c_type* dest = data; \
+    for (int j = 0; j < msg->receive_buffer_sizes[i]; ++j) \
+    { \
+      int index = recv_indices[j]; \
+      accum_t* sources = accum_map_sources(accumulations, proc, j); \
+      if ((sources != NULL) && !int_unordered_set_contains(proc)) \
+      { \
+        for (int s = 0; s < stride; ++s) \
+        { \
+          c_type values[sources->num_values]; \
+          for (int n = 0; n < num_values; ++n) \
+            values[n] = src[sources->stride*j+s]; \
+          dest[receive_offset+stride*index+s] = accumulator_value(sources->
+      } \
+      else \
+      { \
+        for (int s = 0; s < stride; ++s) \
+          dest[receive_offset+stride*index+s] = src[stride*j+s]; \
+      } \
+    } \
+  }
+
+static void mpi_message_unpack_and_accumulate(mpi_message_t* msg, 
+                                              void* data, 
+                                              ssize_t receive_offset,
+                                              exchanger_map_t* receive_map,
+                                              accumulator_t* accumulator,
+                                              accum_map_t* accumulations)
+{
+  int pos = 0, proc, i = 0;
+  exchanger_channel_t* c;
+  int_unordered_set* finished_procs = int_unordered_set_new();
+  while (exchanger_map_next(receive_map, &pos, &proc, &c))
+  {
+    int* recv_indices = c->indices;
+    int stride = msg->stride;
+    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_REAL_T, real_t)
+    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_FLOAT, float)
+    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_INT, int)
+    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_LONG, long)
+    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_LONG_LONG, long long)
+    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_UINT64_T, uint64_t)
+    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_INT64_T, int64_t)
+    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_CHAR, char)
+    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_BYTE, uint8_t)
+    HANDLE_UNPACKING_AND_ACCUMULATION(msg, MPI_COMPLEX_T, complex_t)
+    int_unordered_set_insert(finished_procs, proc);
+    ++i;
+  }
+  int_unordered_set_free(finished_procs);
+}
+
 static void mpi_message_free(mpi_message_t* msg)
 {
   if (msg->send_buffers != NULL)
@@ -306,10 +362,15 @@ struct exchanger_t
   real_t dl_thresh;
   int dl_output_rank;
   FILE* dl_output_stream;
+
+  // Accumulation function and map.
+  bool accumulates;
+  real_t (*accumulator)(real_t*, int*, int*, size_t);
 };
 
 static void exchanger_clear(exchanger_t* ex)
 {
+  ex->accumulates = false;
   exchanger_map_clear(ex->send_map);
   exchanger_map_clear(ex->receive_map);
 
@@ -349,6 +410,8 @@ exchanger_t* exchanger_new_with_rank(MPI_Comm comm, int rank)
   ex->transfer_counts = polymec_calloc(ex->pending_msg_cap * sizeof(int*));
   ex->max_send = -1;
   ex->max_receive = -1;
+  ex->accumulates = false;
+  ex->accumulator = NULL;
 
   return ex;
 }
@@ -460,6 +523,24 @@ bool exchanger_get_send(exchanger_t* ex, int remote_process, int** indices, int*
   }
 }
 
+static void set_receive(exchanger_t* ex, 
+                        int remote_process, 
+                        int* indices, 
+                        int num_indices, 
+                        bool copy_indices)
+{
+  if (num_indices > 0)
+  {
+    // Set up the mapping in our channel.
+    exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
+    exchanger_map_insert_with_kv_dtor(ex->receive_map, remote_process, c, delete_map_entry);
+
+    // Update the maximum remote process if needed.
+    if (remote_process > ex->max_receive)
+      ex->max_receive = remote_process;
+  }
+}
+
 void exchanger_set_receive(exchanger_t* ex, 
                            int remote_process, 
                            int* indices, 
@@ -472,11 +553,8 @@ void exchanger_set_receive(exchanger_t* ex,
 
   if (num_indices > 0)
   {
-    exchanger_channel_t* c = exchanger_channel_new(num_indices, indices, copy_indices);
-    exchanger_map_insert_with_kv_dtor(ex->receive_map, remote_process, c, delete_map_entry);
-
-    if (remote_process > ex->max_receive)
-      ex->max_receive = remote_process;
+    set_receive(ex, remote_process, indices, num_indices, copy_indices);
+    determine_accumulations(ex);
   }
 }
 
@@ -485,7 +563,8 @@ void exchanger_set_receives(exchanger_t* ex, exchanger_proc_map_t* recv_map)
   int pos = 0, recv_proc;
   int_array_t* recv_indices;
   while (exchanger_proc_map_next(recv_map, &pos, &recv_proc, &recv_indices))
-    exchanger_set_receive(ex, recv_proc, recv_indices->data, (int)recv_indices->size, true);   
+    set_receive(ex, recv_proc, recv_indices->data, (int)recv_indices->size, true);   
+  determine_accumulations(ex);
   exchanger_proc_map_free(recv_map);
 }
 
@@ -941,9 +1020,18 @@ void exchanger_finish_exchange(exchanger_t* ex, int token)
   int err = exchanger_waitall(ex, msg);
   if (err == MPI_SUCCESS) 
   {
-    // Copy the received data into the original array.
     void* orig_buffer = ex->orig_buffers[token];
-    mpi_message_unpack(msg, orig_buffer, ex->receive_offset, ex->receive_map);
+    if ((ex->accumulations == NULL) || (ex->accumulations->size == 0))
+    {
+      // Copy the received data into the original array.
+      mpi_message_unpack(msg, orig_buffer, ex->receive_offset, ex->receive_map);
+    }
+    else
+    {
+      // Copy and accumulate the received data into the original array.
+      mpi_message_unpack_and_accumulate(msg, orig_buffer, ex->receive_offset, 
+                                        ex->receive_map, ex->accumulator);
+    }
   }
 
   // Pull the message out of our list of pending messages and delete it.
@@ -1123,3 +1211,16 @@ serializer_t* exchanger_proc_map_serializer()
   return serializer_new("exchanger_proc_map", epm_size, epm_read, epm_write, NULL);
 }
 
+bool exchanger_accumulates(exchanger_t* ex)
+{
+  return ex->accumulates;
+}
+
+void exchanger_set_accumulator(exchanger_t* ex,
+                               real_t (*accumulator)(void* values,
+                                                     int* indices,
+                                                     int* processes,
+                                                     size_t num_values))
+{
+  ex->accumulator = accumulator;
+}

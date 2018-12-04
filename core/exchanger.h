@@ -255,6 +255,24 @@ bool exchanger_get_receive(exchanger_t* ex, int remote_process, int** indices, i
 /// \collective Collective on the exchanger's communicator.
 bool exchanger_verify(exchanger_t* ex, void (*handler)(const char* format, ...));
 
+/// Returns true if this exchanger receives data to an index from more than 
+/// one source, false otherwise. If an exchanger accumulates data, you must 
+/// set the accumulator function with \ref exchanger_set_accumulator before 
+/// performing an exchange.
+bool exchanger_accumulates(exchanger_t* ex);
+
+/// Sets the accumulation function to use when values are accumulated to a
+/// given index in an array from several sources.
+/// \param [in] accumulator This function takes an array of real values with 
+///                         a specified size, along with their indices and 
+///                         originating processes, and returns a single value.
+///                         Can be set to NULL to disable accumulation.
+void exchanger_set_accumulator(exchanger_t* ex,
+                               real_t (*accumulator)(real_t* values,
+                                                     int* indices,
+                                                     int* processes,
+                                                     size_t num_values));
+
 ///@}
 
 #endif
