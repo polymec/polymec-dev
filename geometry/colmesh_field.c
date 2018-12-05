@@ -299,6 +299,16 @@ bool colmesh_field_is_exchanging(colmesh_field_t* field)
   return (field->ex_token != -1);
 }
 
+void colmesh_field_set_exchanger(colmesh_field_t* field, exchanger_t* ex)
+{
+  if (field->ex != NULL)
+    release_ref(field->ex);
+  if (ex != NULL)
+    retain_ref(ex);
+  field->ex = ex;
+}
+
+
 real_enumerable_generator_t* colmesh_field_enumerate(colmesh_field_t* field)
 {
   size_t num_values = 0;

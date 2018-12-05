@@ -78,6 +78,12 @@ void polymesh_field_finish_exchange(polymesh_field_t* field);
 /// \memberof polymesh_field
 bool polymesh_field_is_exchanging(polymesh_field_t* field);
 
+/// Sets the exchanger used by the field for exchanges.
+/// Use this method instead of directly assigning a new exchanger to the field.
+/// \param [in] ex The exchanger to be used by this field.
+/// \memberof polymesh_field
+void polymesh_field_set_exchanger(polymesh_field_t* field, exchanger_t* ex);
+
 typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 
 /// Enumerates values in the given polymesh field.

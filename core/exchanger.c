@@ -250,27 +250,33 @@ static void mpi_message_unpack(mpi_message_t* msg,
         int_array_t* procs = *procs_p; \
         size_t num_values = procs->size; \
         c_type values[stride][num_values]; \
-        for (int n = 0; n < num_values; ++n) \
+        for (size_t n = 0; n < num_values; ++n) \
         { \
-          if (proc == procs->data[n]) \
+          int proc1 = procs->data[n]; \
+          if (proc == proc1) \
           { \
             for (int s = 0; s < stride; ++s) \
-              values[s][n] = src[stride*index+s]; \
+              values[s][n] = src[stride*j+s]; \
           } \
           else \
           { \
             int k = 0; \
-            while (msg->source_procs[k] != proc) ++k; \
+            while (msg->source_procs[k] != proc1) ++k; \
+            ASSERT(k < msg->num_receives); \
             c_type* src1 = msg->receive_buffers[k]; \
+            exchanger_channel_t* ch = *exchanger_map_get(receive_map, proc1); \
+            int l = 0; \
+            while (ch->indices[l] != index) ++l; \
+            ASSERT(l < ch->num_indices); \
             for (int s = 0; s < stride; ++s) \
-              values[s][n] = src1[stride*index+s]; \
+              values[s][n] = src1[stride*l+s]; \
           } \
-          for (int s = 0; s < stride; ++s) \
-          { \
-            dest[receive_offset+stride*index+s] = \
-              reducer->vtable.method(reducer->context, values[s], procs->data, num_values); \
-          }\
         } \
+        for (int s = 0; s < stride; ++s) \
+        { \
+          dest[receive_offset+stride*index+s] = \
+            reducer->vtable.method(reducer->context, values[s], procs->data, num_values); \
+        }\
       } \
       else \
       { \
@@ -430,6 +436,7 @@ static void exchanger_free(void* ctx)
   exchanger_clear(ex);
   exchanger_map_free(ex->send_map);
   exchanger_map_free(ex->receive_map);
+  agg_map_free(ex->agg_procs);
 }
 
 static void init_reducers(void);
@@ -595,8 +602,14 @@ static void set_receive(exchanger_t* ex,
 static void find_aggregates(exchanger_t* ex)
 {
   START_FUNCTION_TIMER();
-  // Scour the receive map for aggregated values.
+
+  // Clear existing aggregate entries.
+  agg_map_clear(ex->agg_procs);
+
+  // Keep track of receive indices we've already encountered here.
   int_int_unordered_map_t* receive_indices = int_int_unordered_map_new();
+
+  // Scour the receive map for aggregated values.
   int pos = 0, proc;
   exchanger_channel_t* c;
   while (exchanger_map_next(ex->receive_map, &pos, &proc, &c))
@@ -614,6 +627,7 @@ static void find_aggregates(exchanger_t* ex)
         if (procs_p == NULL)
         {
           procs = int_array_new();
+          agg_map_insert_with_v_dtor(ex->agg_procs, index, procs, int_array_free);
           int_array_append(procs, *proc_p);
         }
         else
@@ -1421,7 +1435,7 @@ DEFINE_MINMAX(max_float, float, -FLT_MAX, MAX)
 DEFINE_MINMAX(max_int, int, -INT_MAX, MAX)
 DEFINE_MINMAX(max_long, long, -INT_MAX, MAX)
 DEFINE_MINMAX(max_long_long, long long, -INT_MAX, MAX)
-DEFINE_MINMAX(max_uint64, uint64_t, -INT_MAX, MAX)
+DEFINE_MINMAX(max_uint64, uint64_t, 0, MAX)
 DEFINE_MINMAX(max_int64, int64_t, -INT_MAX, MAX)
 DEFINE_MINMAX(max_char, char, -127, MAX)
 DEFINE_MINMAX(max_byte, uint8_t, 0, MAX)
