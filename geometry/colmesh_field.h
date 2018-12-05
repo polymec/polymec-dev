@@ -159,6 +159,12 @@ void colmesh_field_finish_exchange(colmesh_field_t* field);
 /// \memberof colmesh_field
 bool colmesh_field_is_exchanging(colmesh_field_t* field);
 
+/// Sets the exchanger used by the field for exchanges.
+/// Use this method instead of directly assigning a new exchanger to the field.
+/// \param [in] ex The exchanger to be used by this field.
+/// \memberof colmesh_field
+void colmesh_field_set_exchanger(colmesh_field_t* field, exchanger_t* ex);
+
 typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 
 /// Enumerates values in the given colmesh field.

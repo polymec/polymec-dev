@@ -50,6 +50,18 @@ static inline bool int_equals(int x, int y)
 }
 
 /// Returns true if x == y, false if not.
+static inline bool int64_equals(int64_t x, int64_t y)
+{
+  return (x == y);
+}
+
+/// Returns true if x == y, false if not.
+static inline bool uint64_equals(uint64_t x, uint64_t y)
+{
+  return (x == y);
+}
+
+/// Returns true if x == y, false if not.
 static inline bool index_equals(index_t x, index_t y)
 {
   return (x == y);
