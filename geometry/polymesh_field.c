@@ -92,6 +92,15 @@ bool polymesh_field_is_exchanging(polymesh_field_t* field)
   return (field->ex_token != -1);
 }
 
+void polymesh_field_set_exchanger(polymesh_field_t* field, exchanger_t* ex)
+{
+  if (field->ex != NULL)
+    release_ref(field->ex);
+  if (ex != NULL)
+    retain_ref(ex);
+  field->ex = ex;
+}
+
 real_enumerable_generator_t* polymesh_field_enumerate(polymesh_field_t* field)
 {
   size_t num_values = field->num_components * field->capacity;
