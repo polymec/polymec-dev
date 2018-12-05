@@ -115,20 +115,31 @@
 #undef I
 #endif
 
-/// \def CMPLX
-/// Defines a complex number.
-#ifndef CMPLX
-#ifdef _Imaginary_I
-#define CMPLX(x,y) ((real_t)(x)+(complex_t)_Imaginary_I*(real_t)(y))
-#else
-#define CMPLX(x,y) ((real_t)(x)+(complex_t)_Complex_I*(real_t)(y))
-#endif
-#endif
+/// \def complex_new(x, y)
+/// Defines a complex number (x, y).
 
 #if POLYMEC_HAVE_DOUBLE_PRECISION
+
 typedef double complex complex_t;
+#ifdef CMPLX
+#define complex_new(x, y) CMPLX(x, y)
+#elif defined(_Imaginary_I)
+#define complex_new(x, y) ((x) + _Imaginary_I*(y))
 #else
+#define complex_new(x, y) ((x) + _Complex_I*(y))
+#endif
+
+#else
+
 typedef float complex complex_t;
+#ifdef CMPLXF
+#define complex_new(x, y) CMPLXF(x, y)
+#elif defined(_Imaginary_I)
+#define complex_new(x, y) ((x) + _Imaginary_I*(y))
+#else
+#define complex_new(x, y) ((x) + _Complex_I*(y))
+#endif
+
 #endif
 
 #endif

@@ -16,7 +16,8 @@ typedef struct
 {
   double    (*reduce_double)(void* context, double* values, int* processes, size_t num_values);
   float     (*reduce_float)(void* context, float* values, int* processes, size_t num_values);
-  complex_t (*reduce_complex)(void* context, complex_t* values, int* processes, size_t num_values);
+  double complex (*reduce_double_complex)(void* context, double complex* values, int* processes, size_t num_values);
+  float complex (*reduce_float_complex)(void* context, float complex* values, int* processes, size_t num_values);
   int       (*reduce_int)(void* context, int* values, int* processes, size_t num_values);
   long      (*reduce_long)(void* context, long* values, int* processes, size_t num_values);
   long long (*reduce_long_long)(void* context, long long* values, int* processes, size_t num_values);
@@ -183,7 +184,8 @@ static void mpi_message_pack(mpi_message_t* msg,
     else PACK(msg, MPI_INT64_T, int64_t)
     else PACK(msg, MPI_CHAR, char)
     else PACK(msg, MPI_BYTE, uint8_t)
-    else PACK(msg, MPI_COMPLEX_T, complex_t)
+    else PACK(msg, MPI_C_DOUBLE_COMPLEX, double complex)
+    else PACK(msg, MPI_C_FLOAT_COMPLEX, float complex)
     else polymec_error("mpi_message_pack: unsupported type!");
     ++i;
   }
@@ -230,7 +232,8 @@ static void mpi_message_unpack(mpi_message_t* msg,
     else UNPACK(msg, MPI_INT64_T, int64_t)
     else UNPACK(msg, MPI_CHAR, char)
     else UNPACK(msg, MPI_BYTE, uint8_t)
-    else UNPACK(msg, MPI_COMPLEX_T, complex_t)
+    else UNPACK(msg, MPI_C_DOUBLE_COMPLEX, double complex)
+    else UNPACK(msg, MPI_C_FLOAT_COMPLEX, float complex)
     else polymec_error("mpi_message_unpack: unsupported type!");
     ++i;
   }
@@ -310,7 +313,8 @@ static void mpi_message_unpack_and_reduce(mpi_message_t* msg,
     else UNPACK_AND_REDUCE(msg, MPI_INT64_T, int64_t, reduce_int64)
     else UNPACK_AND_REDUCE(msg, MPI_CHAR, char, reduce_char)
     else UNPACK_AND_REDUCE(msg, MPI_BYTE, uint8_t, reduce_byte)
-    else UNPACK_AND_REDUCE(msg, MPI_COMPLEX_T, complex_t, reduce_complex)
+    else UNPACK_AND_REDUCE(msg, MPI_C_DOUBLE_COMPLEX, double complex, reduce_double_complex)
+    else UNPACK_AND_REDUCE(msg, MPI_C_FLOAT_COMPLEX, float complex, reduce_float_complex)
     else polymec_error("mpi_message_unpack_and_reduce: unsupported type!");
     ++i;
   }
@@ -1384,7 +1388,8 @@ static c_type func_name(void* context, c_type* values, int* processes, size_t nu
 } 
 DEFINE_SUM(sum_double, double, 0.0)
 DEFINE_SUM(sum_float, float, 0.0)
-DEFINE_SUM(sum_complex, complex_t, CMPLX(0.0, 0.0))
+DEFINE_SUM(sum_double_complex, double complex, CMPLX(0.0, 0.0))
+DEFINE_SUM(sum_float_complex, float complex, CMPLXF(0.0, 0.0))
 DEFINE_SUM(sum_int, int, 0)
 DEFINE_SUM(sum_long, long, 0)
 DEFINE_SUM(sum_long_long, long long, 0)
@@ -1403,7 +1408,8 @@ static c_type func_name(void* context, c_type* values, int* processes, size_t nu
 } 
 DEFINE_PRODUCT(prod_double, double, 1.0)
 DEFINE_PRODUCT(prod_float, float, 1.0)
-DEFINE_PRODUCT(prod_complex, complex_t, CMPLX(1.0, 0.0))
+DEFINE_PRODUCT(prod_double_complex, double complex, CMPLX(1.0, 0.0))
+DEFINE_PRODUCT(prod_float_complex, float complex, CMPLXF(1.0, 0.0))
 DEFINE_PRODUCT(prod_int, int, 1)
 DEFINE_PRODUCT(prod_long, long, 1)
 DEFINE_PRODUCT(prod_long_long, long long, 1)
@@ -1441,28 +1447,44 @@ DEFINE_MINMAX(max_char, char, -127, MAX)
 DEFINE_MINMAX(max_byte, uint8_t, 0, MAX)
 
 // For complex numbers, the MIN and MAX functions use the modulus.
-static complex_t min_complex(void* context, complex_t* values, int* processes, size_t num_values)
+static double complex min_double_complex(void* context, double complex* values, int* processes, size_t num_values)
 {
-  complex_t result = CMPLX(FLT_MAX, 0.0); 
+  double complex result = CMPLX(DBL_MAX, 0.0); 
   for (size_t i = 0; i < num_values; ++i) 
-    result = MIN(abs(result), abs(values[i])); 
+    result = MIN(cabs(result), cabs(values[i])); 
   return result; 
 }
 
-static complex_t max_complex(void* context, complex_t* values, int* processes, size_t num_values)
+static double complex max_double_complex(void* context, double complex* values, int* processes, size_t num_values)
 {
-  complex_t result = CMPLX(0.0, 0.0); 
+  double complex result = CMPLX(0.0, 0.0); 
   for (size_t i = 0; i < num_values; ++i) 
-    result = MAX(abs(result), abs(values[i])); 
+    result = MAX(cabs(result), cabs(values[i])); 
+  return result; 
+}
+
+static float complex min_float_complex(void* context, float complex* values, int* processes, size_t num_values)
+{
+  float complex result = CMPLXF(FLT_MAX, 0.0); 
+  for (size_t i = 0; i < num_values; ++i) 
+    result = MIN(cabsf(result), cabsf(values[i])); 
+  return result; 
+}
+
+static float complex max_float_complex(void* context, float complex* values, int* processes, size_t num_values)
+{
+  float complex result = CMPLXF(0.0, 0.0); 
+  for (size_t i = 0; i < num_values; ++i) 
+    result = MAX(cabsf(result), cabsf(values[i])); 
   return result; 
 }
 
 #define DEFINE_MIN_RANK(func_name, c_type) \
 static c_type func_name(void* context, c_type* values, int* processes, size_t num_values) \
 { \
-  c_type result; \
-  int proc = INT_MAX; \
-  for (size_t i = 0; i < num_values; ++i) \
+  int proc = processes[0]; \
+  c_type result = values[0]; \
+  for (size_t i = 1; i < num_values; ++i) \
   { \
     if (processes[i] < proc) \
     { \
@@ -1474,7 +1496,8 @@ static c_type func_name(void* context, c_type* values, int* processes, size_t nu
 } 
 DEFINE_MIN_RANK(minr_double, double)
 DEFINE_MIN_RANK(minr_float, float)
-DEFINE_MIN_RANK(minr_complex, complex_t)
+DEFINE_MIN_RANK(minr_double_complex, double complex)
+DEFINE_MIN_RANK(minr_float_complex, float complex)
 DEFINE_MIN_RANK(minr_int, int)
 DEFINE_MIN_RANK(minr_long, long)
 DEFINE_MIN_RANK(minr_long_long, long long)
@@ -1486,9 +1509,9 @@ DEFINE_MIN_RANK(minr_byte, uint8_t)
 #define DEFINE_MAX_RANK(func_name, c_type) \
 static c_type func_name(void* context, c_type* values, int* processes, size_t num_values) \
 { \
-  c_type result; \
-  int proc = -INT_MAX; \
-  for (size_t i = 0; i < num_values; ++i) \
+  int proc = processes[0]; \
+  c_type result = values[0]; \
+  for (size_t i = 1; i < num_values; ++i) \
   { \
     if (processes[i] > proc) \
     { \
@@ -1500,7 +1523,8 @@ static c_type func_name(void* context, c_type* values, int* processes, size_t nu
 } 
 DEFINE_MAX_RANK(maxr_double, double)
 DEFINE_MAX_RANK(maxr_float, float)
-DEFINE_MAX_RANK(maxr_complex, complex_t)
+DEFINE_MAX_RANK(maxr_double_complex, double complex)
+DEFINE_MAX_RANK(maxr_float_complex, float complex)
 DEFINE_MAX_RANK(maxr_int, int)
 DEFINE_MAX_RANK(maxr_long, long)
 DEFINE_MAX_RANK(maxr_long_long, long long)
@@ -1513,7 +1537,8 @@ static void init_reducers(void)
 {
   exchanger_reducer_vtable sum_vtable = {.reduce_double = sum_double,
                                          .reduce_float = sum_float,
-                                         .reduce_complex = sum_complex,
+                                         .reduce_double_complex = sum_double_complex,
+                                         .reduce_float_complex = sum_float_complex,
                                          .reduce_int = sum_int,
                                          .reduce_long = sum_long,
                                          .reduce_long_long = sum_long_long,
@@ -1525,7 +1550,8 @@ static void init_reducers(void)
 
   exchanger_reducer_vtable prod_vtable = {.reduce_double = prod_double,
                                           .reduce_float = prod_float,
-                                          .reduce_complex = prod_complex,
+                                          .reduce_double_complex = prod_double_complex,
+                                          .reduce_float_complex = prod_float_complex,
                                           .reduce_int = prod_int,
                                           .reduce_long = prod_long,
                                           .reduce_long_long = prod_long_long,
@@ -1537,7 +1563,8 @@ static void init_reducers(void)
 
   exchanger_reducer_vtable min_vtable = {.reduce_double = min_double,
                                          .reduce_float = min_float,
-                                         .reduce_complex = min_complex,
+                                         .reduce_double_complex = min_double_complex,
+                                         .reduce_float_complex = min_float_complex,
                                          .reduce_int = min_int,
                                          .reduce_long = min_long,
                                          .reduce_long_long = min_long_long,
@@ -1549,7 +1576,8 @@ static void init_reducers(void)
 
   exchanger_reducer_vtable max_vtable = {.reduce_double = max_double,
                                          .reduce_float = max_float,
-                                         .reduce_complex = max_complex,
+                                         .reduce_double_complex = max_double_complex,
+                                         .reduce_float_complex = max_float_complex,
                                          .reduce_int = max_int,
                                          .reduce_long = max_long,
                                          .reduce_long_long = max_long_long,
@@ -1561,7 +1589,8 @@ static void init_reducers(void)
 
   exchanger_reducer_vtable minr_vtable = {.reduce_double = minr_double,
                                           .reduce_float = minr_float,
-                                          .reduce_complex = minr_complex,
+                                          .reduce_double_complex = minr_double_complex,
+                                          .reduce_float_complex = minr_float_complex,
                                           .reduce_int = minr_int,
                                           .reduce_long = minr_long,
                                           .reduce_long_long = minr_long_long,
@@ -1573,7 +1602,8 @@ static void init_reducers(void)
 
   exchanger_reducer_vtable maxr_vtable = {.reduce_double = maxr_double,
                                           .reduce_float = maxr_float,
-                                          .reduce_complex = maxr_complex,
+                                          .reduce_double_complex = maxr_double_complex,
+                                          .reduce_float_complex = maxr_float_complex,
                                           .reduce_int = maxr_int,
                                           .reduce_long = maxr_long,
                                           .reduce_long_long = maxr_long_long,

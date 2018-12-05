@@ -145,6 +145,7 @@ elseif (CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format-nonliteral -Wno-cast-qual -Wno-switch-enum -Wno-unknown-pragmas -Wno-source-uses-openmp")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unknown-warning-option -Wno-documentation-deprecated-sync -Wno-missing-noreturn")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-documentation -Wno-documentation-unknown-command")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-complex-component-init") # For CMPLX macro
   if (NOT HAVE_DOUBLE_PRECISION)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-double-promotion -Wno-conversion")
   endif()
