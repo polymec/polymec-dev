@@ -661,10 +661,10 @@ serializer_t* polymesh_serializer()
   return serializer_new("mesh", polymesh_byte_size, polymesh_byte_read, polymesh_byte_write, NULL);
 }
 
+#if POLYMEC_HAVE_MPI
 static exchanger_t* create_2_face_exchanger(polymesh_t* mesh)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
-#if POLYMEC_HAVE_MPI
   // Get the mesh cell exchanger.
   exchanger_t* cell_ex = polymesh_exchanger(mesh, POLYMESH_CELL);
 
@@ -713,9 +713,9 @@ static exchanger_t* create_2_face_exchanger(polymesh_t* mesh)
   }
   int_array_free(send_faces);
   int_array_free(receive_faces);
-#endif
   return ex;
 }
+#endif
 
 static exchanger_t* create_face_exchanger(polymesh_t* mesh)
 {
@@ -757,6 +757,7 @@ static exchanger_t* create_face_exchanger(polymesh_t* mesh)
   return ex;
 }
 
+#if POLYMEC_HAVE_MPI
 static exchanger_t* create_n_node_exchanger(polymesh_t* mesh, int* node_offsets)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
@@ -765,8 +766,6 @@ static exchanger_t* create_n_node_exchanger(polymesh_t* mesh, int* node_offsets)
   node_offsets[0] = 0;
   for (int n = 0; n <= mesh->num_nodes; ++n)
     node_offsets[n+1] = node_offsets[n] + 1;
-
-#if POLYMEC_HAVE_MPI
 
   int nprocs;
   MPI_Comm_size(mesh->comm, &nprocs);
@@ -1108,9 +1107,9 @@ static exchanger_t* create_n_node_exchanger(polymesh_t* mesh, int* node_offsets)
   int_ptr_unordered_map_free(neighbor_neighbor_nodes);
   int_array_free(all_neighbors_of_neighbors);
 
-#endif
   return ex;
 }
+#endif
 
 static exchanger_t* create_node_exchanger(polymesh_t* mesh)
 {
