@@ -777,23 +777,30 @@ static exchanger_t* create_edge_exchanger(polymesh_t* mesh)
       {
         int_array_t* n2_procs = *n2_procs_p;
 
-        // Jot down the index for this edge and compute its center position.
-        int_array_append(edge_indices, e);
-        point_t* x1 = &mesh->nodes[n1];
-        point_t* x2 = &mesh->nodes[n2];
-        point_t xe = {.x = 0.5*(x1->x + x2->x),
-                      .y = 0.5*(x1->y + x2->y),
-                      .z = 0.5*(x1->z + x2->z)};
-        point_array_append(edge_centers, xe);
-
         // The edge must be present on each of the processes we associate
         // with it, so we add the intersection of the two sets of processes
         // n1_procs and n2_procs.
+        bool first_entry = true;
         for (size_t i = 0; i < n1_procs->size; ++i)
         {
           int proc = n1_procs->data[i];
           if ((proc != rank) && (int_array_find(n2_procs, proc, int_cmp) != NULL))
+          {
+            if (first_entry)
+            {
+              // Jot down the index for this edge and compute its center position.
+              int_array_append(edge_indices, e);
+              point_t* x1 = &mesh->nodes[n1];
+              point_t* x2 = &mesh->nodes[n2];
+              point_t xe = {.x = 0.5*(x1->x + x2->x),
+                            .y = 0.5*(x1->y + x2->y),
+                            .z = 0.5*(x1->z + x2->z)};
+              point_array_append(edge_centers, xe);
+              first_entry = false;
+            }
+
             elem_proc_map_add_proc(edge_procs, e, proc);
+          }
         }
       }
     }
@@ -820,9 +827,9 @@ static exchanger_t* create_edge_exchanger(polymesh_t* mesh)
     for (size_t e = 0; e < edge_indices->size; ++e)
     {
       int edge = edge_indices->data[e];
-      int_array_t* procs = *elem_proc_map_get(edge_procs, edge);
       exchanger_proc_map_add_index(send_map, rank, edge);
       exchanger_proc_map_add_index(receive_map, rank, edge);
+      int_array_t* procs = *elem_proc_map_get(edge_procs, edge);
       for (size_t i = 0; i < procs->size; ++i)
       {
         exchanger_proc_map_add_index(send_map, procs->data[i], edge);
