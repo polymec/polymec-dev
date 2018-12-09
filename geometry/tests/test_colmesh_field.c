@@ -64,7 +64,7 @@ static void get_cell_centroid(colmesh_chunk_t* chunk, int xy, int z,
   centroid->y = 0.25 * (nodes[0].y + nodes[1].y + nodes[2].y + nodes[3].y);
 
   real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
-  centroid->z = dz * (z-0.5);
+  centroid->z = chunk->z1 + dz * (z-0.5);
 }
 
 static void test_cell_field(void** state, colmesh_t* mesh)
@@ -137,639 +137,321 @@ static void test_cell_field(void** state, colmesh_t* mesh)
   colmesh_free(mesh);
 }
 
-#if 0
+static void get_xy_face_centroid(colmesh_chunk_t* chunk, int xy, int z,
+                                 point_t* centroid)
+{
+  int node_xy_indices[4], node_z_indices[4];
+  colmesh_chunk_xy_face_get_nodes(chunk, xy, z, node_xy_indices, node_z_indices);
+  point2_t xy_nodes[4] = {chunk->xy_nodes[node_xy_indices[0]],
+                          chunk->xy_nodes[node_xy_indices[1]],
+                          chunk->xy_nodes[node_xy_indices[2]],
+                          chunk->xy_nodes[node_xy_indices[3]]};
+  centroid->x = 0.25 * (xy_nodes[0].x + xy_nodes[1].x + xy_nodes[2].x + xy_nodes[3].x);
+  centroid->y = 0.25 * (xy_nodes[0].y + xy_nodes[1].y + xy_nodes[2].y + xy_nodes[3].y);
+
+  real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
+  centroid->z = chunk->z1 + dz * (z+0.5);
+}
+
+static void get_z_face_centroid(colmesh_chunk_t* chunk, int xy, int z,
+                                point_t* centroid)
+{
+  int node_indices[4];
+  colmesh_chunk_z_face_get_nodes(chunk, xy, node_indices);
+  point2_t nodes[4] = {chunk->xy_nodes[node_indices[0]],
+                       chunk->xy_nodes[node_indices[1]],
+                       chunk->xy_nodes[node_indices[2]],
+                       chunk->xy_nodes[node_indices[3]]};
+  centroid->x = 0.25 * (nodes[0].x + nodes[1].x + nodes[2].x + nodes[3].x);
+  centroid->y = 0.25 * (nodes[0].y + nodes[1].y + nodes[2].y + nodes[3].y);
+
+  real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
+  centroid->z = chunk->z1 + dz * z;
+}
+
 static void test_face_fields(void** state, colmesh_t* mesh)
 {
-  int npx, npy, npz;
-  colmesh_get_extents(mesh, &npx, &npy, &npz);
-  bool x_periodic, y_periodic, z_periodic;
-  colmesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
-  colmesh_field_t* x_field = colmesh_field_new(mesh, colmesh_XFACE, 3);
-  colmesh_field_t* y_field = colmesh_field_new(mesh, colmesh_YFACE, 3);
-  colmesh_field_t* z_field = colmesh_field_new(mesh, colmesh_ZFACE, 3);
+  real_t z1, z2;
+  bool z_periodic;
+  colmesh_get_z_info(mesh, &z1, &z2, &z_periodic);
+  colmesh_field_t* xy_field = colmesh_field_new(mesh, COLMESH_XYFACE, 3);
+  colmesh_field_t* z_field = colmesh_field_new(mesh, COLMESH_ZFACE, 3);
 
-  set_up_bcs_if_needed(x_field);
-  set_up_bcs_if_needed(y_field);
-  set_up_bcs_if_needed(z_field);
-
-  // Fill our fields with patch-specific values.
-  int pos = 0, pi, pj, pk;
-  while (colmesh_next_patch(mesh, &pos, &pi, &pj, &pk, NULL))
+  // Fill our fields with chunk-specific values.
+  int pos = 0, XY, Z;
+  colmesh_chunk_data_t* chunk_data;
+  while (colmesh_field_next_chunk(xy_field, &pos, &XY, &Z, &chunk_data))
   {
-    colmesh_patch_t* x_patch = colmesh_field_patch(x_field, pi, pj, pk);
-    assert_true(x_patch != NULL);
-    assert_true(x_patch->centering == colmesh_XFACE);
-    assert_true(x_patch->nc == 3);
-
-    DECLARE_colmesh_XFACE_ARRAY(fx, x_patch);
-    for (int i = 0; i <= x_patch->nx; ++i)
+    assert_true(chunk_data->centering == COLMESH_XYFACE);
+    assert_true(chunk_data->num_components == 3);
+    colmesh_chunk_t* chunk = chunk_data->chunk;
+    DECLARE_COLMESH_XYFACE_ARRAY(f, chunk_data);
+    for (int xy = 0; xy < chunk->num_xy_faces; ++xy)
     {
-      for (int j = 0; j < x_patch->ny; ++j)
+      for (int z = 0; z < chunk->num_z_cells; ++z)
       {
-        for (int k = 0; k < x_patch->nz; ++k)
-        {
-          fx[i][j][k][0] = 1.0 * pi;
-          fx[i][j][k][1] = 1.0 * pj;
-          fx[i][j][k][2] = 1.0 * pk;
-        }
-      }
-    }
-
-    colmesh_patch_t* y_patch = colmesh_field_patch(y_field, pi, pj, pk);
-    assert_true(y_patch != NULL);
-    assert_true(y_patch->centering == colmesh_YFACE);
-    assert_true(y_patch->nc == 3);
-
-    DECLARE_colmesh_YFACE_ARRAY(fy, y_patch);
-    for (int i = 0; i < y_patch->nx; ++i)
-    {
-      for (int j = 0; j <= y_patch->ny; ++j)
-      {
-        for (int k = 0; k < y_patch->nz; ++k)
-        {
-          fy[i][j][k][0] = 1.0 * pi;
-          fy[i][j][k][1] = 1.0 * pj;
-          fy[i][j][k][2] = 1.0 * pk;
-        }
-      }
-    }
-
-    colmesh_patch_t* z_patch = colmesh_field_patch(z_field, pi, pj, pk);
-    assert_true(z_patch != NULL);
-    assert_true(z_patch->centering == colmesh_ZFACE);
-    assert_true(z_patch->nc == 3);
-
-    DECLARE_colmesh_ZFACE_ARRAY(fz, z_patch);
-    for (int i = 0; i < z_patch->nx; ++i)
-    {
-      for (int j = 0; j < z_patch->ny; ++j)
-      {
-        for (int k = 0; k <= z_patch->nz; ++k)
-        {
-          fz[i][j][k][0] = 1.0 * pi;
-          fz[i][j][k][1] = 1.0 * pj;
-          fz[i][j][k][2] = 1.0 * pk;
-        }
+        point_t xc;
+        get_xy_face_centroid(chunk, xy, z, &xc);
+        f[xy][z][0] = xc.x;
+        f[xy][z][1] = xc.y;
+        f[xy][z][2] = xc.z;
       }
     }
   }
 
-  // Update the patch boundaries in the fields.
-  colmesh_field_start_updating_patch_boundaries(x_field, 0.0);
-  colmesh_field_start_updating_patch_boundaries(y_field, 0.0);
-  colmesh_field_start_updating_patch_boundaries(z_field, 0.0);
-  colmesh_field_finish_updating_patch_boundaries(x_field);
-  colmesh_field_finish_updating_patch_boundaries(y_field);
-  colmesh_field_finish_updating_patch_boundaries(z_field);
-
-  // Check the patch boundary data.
-
-  // x faces
   pos = 0;
-  colmesh_patch_t* patch;
-  while (colmesh_field_next_patch(x_field, &pos, &pi, &pj, &pk, &patch, NULL))
+  while (colmesh_field_next_chunk(z_field, &pos, &XY, &Z, &chunk_data))
   {
-    DECLARE_colmesh_XFACE_ARRAY(fx, patch);
-
-    // interior values
-    for (int i = 1; i < patch->nx; ++i)
+    assert_true(chunk_data->centering == COLMESH_ZFACE);
+    assert_true(chunk_data->num_components == 3);
+    colmesh_chunk_t* chunk = chunk_data->chunk;
+    DECLARE_COLMESH_ZFACE_ARRAY(f, chunk_data);
+    for (int xy = 0; xy < chunk->num_columns; ++xy)
     {
-      for (int j = 1; j < patch->ny-1; ++j)
+      for (int z = 0; z <= chunk->num_z_cells; ++z)
       {
-        for (int k = 1; k < patch->nz-1; ++k)
-        {
-           assert_true(reals_equal(fx[i][j][k][0], 1.0 * pi));
-           assert_true(reals_equal(fx[i][j][k][1], 1.0 * pj));
-           assert_true(reals_equal(fx[i][j][k][2], 1.0 * pk));
-        }
-      }
-    }
-
-    // x boundaries
-    int pi_m = (pi > 0) ? pi - 1 
-                        : x_periodic ? npx-1 : 0;
-    int pi_p = (pi < npx-1) ? pi 
-                            : x_periodic ? pi : 0;
-    for (int j = 1; j < patch->ny-1; ++j)
-    {
-      for (int k = 1; k < patch->nz-1; ++k)
-      {
-        assert_true(reals_equal(fx[0][j][k][0], 1.0 * pi_m));
-        assert_true(reals_equal(fx[patch->nx][j][k][0], 1.0 * pi_p));
-      }
-    }
-
-    // y boundaries 
-    for (int i = 1; i < patch->nx; ++i)
-    {
-      for (int k = 1; k < patch->nz-1; ++k)
-      {
-        assert_true(reals_equal(fx[i][0][k][1], 1.0 * pj));
-        assert_true(reals_equal(fx[i][patch->ny-1][k][1], 1.0 * pj));
-      }
-    }
-
-    // z boundaries 
-    for (int i = 1; i < patch->nx; ++i)
-    {
-      for (int j = 1; j < patch->ny-1; ++j)
-      {
-        assert_true(reals_equal(fx[i][j][0][2], 1.0 * pk));
-        assert_true(reals_equal(fx[i][j][patch->nz-1][2], 1.0 * pk));
+        point_t xc;
+        get_z_face_centroid(chunk, xy, z, &xc);
+        f[xy][z][0] = xc.x;
+        f[xy][z][1] = xc.y;
+        f[xy][z][2] = xc.z;
       }
     }
   }
 
-  // y faces
+  // Perform field exchanges.
+  colmesh_field_exchange(xy_field);
+  colmesh_field_exchange(z_field);
+
+  // Check the field data.
   pos = 0;
-  while (colmesh_field_next_patch(y_field, &pos, &pi, &pj, &pk, &patch, NULL))
+  while (colmesh_field_next_chunk(xy_field, &pos, &XY, &Z, &chunk_data))
   {
-    DECLARE_colmesh_YFACE_ARRAY(fy, patch);
+    colmesh_chunk_t* chunk = chunk_data->chunk;
+    DECLARE_COLMESH_XYFACE_ARRAY(f, chunk_data);
 
-    // interior values
-    for (int i = 1; i < patch->nx-1; ++i)
+    for (int xy = 0; xy < chunk->num_xy_faces; ++xy)
     {
-      for (int j = 1; j < patch->ny; ++j)
+      for (int z = 0; z < chunk->num_z_cells; ++z)
       {
-        for (int k = 1; k < patch->nz-1; ++k)
-        {
-           assert_true(reals_equal(fy[i][j][k][0], 1.0 * pi));
-           assert_true(reals_equal(fy[i][j][k][1], 1.0 * pj));
-           assert_true(reals_equal(fy[i][j][k][2], 1.0 * pk));
-        }
-      }
-    }
-
-    // x boundaries
-    for (int j = 1; j < patch->ny; ++j)
-    {
-      for (int k = 1; k < patch->nz-1; ++k)
-      {
-        assert_true(reals_equal(fy[0][j][k][0], 1.0 * pi));
-        assert_true(reals_equal(fy[patch->nx-1][j][k][0], 1.0 * pi));
-      }
-    }
-
-    // y boundaries 
-    int pj_m = (pj > 0) ? pj - 1 
-                        : y_periodic ? npy-1 : 0;
-    int pj_p = (pj < npy-1) ? pj 
-                            : y_periodic ? pj : 0;
-    for (int i = 1; i < patch->nx-1; ++i)
-    {
-      for (int k = 1; k < patch->nz-1; ++k)
-      {
-        assert_true(reals_equal(fy[i][0][k][1], 1.0 * pj_m));
-        assert_true(reals_equal(fy[i][patch->ny][k][1], 1.0 * pj_p));
-      }
-    }
-
-    // z boundaries 
-    for (int i = 1; i < patch->nx-1; ++i)
-    {
-      for (int j = 1; j < patch->ny; ++j)
-      {
-        assert_true(reals_equal(fy[i][j][0][2], 1.0 * pk));
-        assert_true(reals_equal(fy[i][j][patch->nz-1][2], 1.0 * pk));
+        // Verify the centroid of this face.
+        point_t xc;
+        get_xy_face_centroid(chunk, xy, z, &xc);
+        assert_true(reals_equal(f[xy][z][0], xc.x));
+        assert_true(reals_equal(f[xy][z][1], xc.y));
+        assert_true(reals_equal(f[xy][z][2], xc.z));
       }
     }
   }
 
-  // z faces
   pos = 0;
-  while (colmesh_field_next_patch(z_field, &pos, &pi, &pj, &pk, &patch, NULL))
+  while (colmesh_field_next_chunk(z_field, &pos, &XY, &Z, &chunk_data))
   {
-    DECLARE_colmesh_ZFACE_ARRAY(fz, patch);
+    colmesh_chunk_t* chunk = chunk_data->chunk;
+    DECLARE_COLMESH_ZFACE_ARRAY(f, chunk_data);
 
-    // interior values
-    for (int i = 1; i < patch->nx-1; ++i)
+    for (int xy = 0; xy < chunk->num_columns; ++xy)
     {
-      for (int j = 1; j < patch->ny-1; ++j)
+      for (int z = 0; z <= chunk->num_z_cells; ++z)
       {
-        for (int k = 1; k < patch->nz; ++k)
-        {
-           assert_true(reals_equal(fz[i][j][k][0], 1.0 * pi));
-           assert_true(reals_equal(fz[i][j][k][1], 1.0 * pj));
-           assert_true(reals_equal(fz[i][j][k][2], 1.0 * pk));
-        }
-      }
-    }
-
-    // x boundaries
-    for (int j = 1; j < patch->ny-1; ++j)
-    {
-      for (int k = 1; k < patch->nz; ++k)
-      {
-        assert_true(reals_equal(fz[0][j][k][0], 1.0 * pi));
-        assert_true(reals_equal(fz[patch->nx-1][j][k][0], 1.0 * pi));
-      }
-    }
-
-    // y boundaries 
-    for (int i = 1; i < patch->nx-1; ++i)
-    {
-      for (int k = 1; k < patch->nz; ++k)
-      {
-        assert_true(reals_equal(fz[i][0][k][1], 1.0 * pj));
-        assert_true(reals_equal(fz[i][patch->ny-1][k][1], 1.0 * pj));
-      }
-    }
-
-    // z boundaries 
-    int pk_m = (pk > 0) ? pk - 1 
-                        : z_periodic ? npz-1 : 0;
-    int pk_p = (pk < npz-1) ? pk 
-                            : z_periodic ? pk : 0;
-    for (int i = 1; i < patch->nx-1; ++i)
-    {
-      for (int j = 1; j < patch->ny-1; ++j)
-      {
-        assert_true(reals_equal(fz[i][j][0][2], 1.0 * pk_m));
-        assert_true(reals_equal(fz[i][j][patch->nz][2], 1.0 * pk_p));
+        // Verify the centroid of this face.
+        point_t xc;
+        get_z_face_centroid(chunk, xy, z, &xc);
+        assert_true(reals_equal(f[xy][z][0], xc.x));
+        assert_true(reals_equal(f[xy][z][1], xc.y));
+        assert_true(reals_equal(f[xy][z][2], xc.z));
       }
     }
   }
 
   // Repartition!
-  colmesh_field_t* fields[3] = {x_field, y_field, z_field};
-  repartition_colmesh(&mesh, NULL, 0.05, fields, 3);
+  colmesh_field_t* fields[2] = {xy_field, z_field};
+  repartition_colmesh(&mesh, NULL, 0.05, fields, 2);
 
   // Clean up.
-  colmesh_field_free(fields[0]);
-  colmesh_field_free(fields[1]);
-  colmesh_field_free(fields[2]);
+  colmesh_field_free(xy_field);
+  colmesh_field_free(z_field);
   colmesh_free(mesh);
+}
+
+static void get_xy_edge_center(colmesh_chunk_t* chunk, int xy, int z,
+                               point_t* center)
+{
+  int node_xy_indices[4], node_z_indices[4];
+  colmesh_chunk_xy_face_get_nodes(chunk, xy, z, node_xy_indices, node_z_indices);
+  point2_t xy_nodes[4] = {chunk->xy_nodes[node_xy_indices[0]],
+                          chunk->xy_nodes[node_xy_indices[1]],
+                          chunk->xy_nodes[node_xy_indices[2]],
+                          chunk->xy_nodes[node_xy_indices[3]]};
+  center->x = 0.25 * (xy_nodes[0].x + xy_nodes[1].x + xy_nodes[2].x + xy_nodes[3].x);
+  center->y = 0.25 * (xy_nodes[0].y + xy_nodes[1].y + xy_nodes[2].y + xy_nodes[3].y);
+
+  real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
+  center->z = chunk->z1 + dz * z;
+}
+
+static void get_z_edge_center(colmesh_chunk_t* chunk, int xy, int z,
+                              point_t* center)
+{
+  center->x = chunk->xy_nodes[xy].x;
+  center->y = chunk->xy_nodes[xy].y;
+
+  real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
+  center->z = chunk->z1 + dz * (z+0.5);
 }
 
 static void test_edge_fields(void** state, colmesh_t* mesh)
 {
-  int npx, npy, npz;
-  colmesh_get_extents(mesh, &npx, &npy, &npz);
-  bool x_periodic, y_periodic, z_periodic;
-  colmesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
-  colmesh_field_t* x_field = colmesh_field_new(mesh, colmesh_XEDGE, 3);
-  colmesh_field_t* y_field = colmesh_field_new(mesh, colmesh_YEDGE, 3);
-  colmesh_field_t* z_field = colmesh_field_new(mesh, colmesh_ZEDGE, 3);
+  real_t z1, z2;
+  bool z_periodic;
+  colmesh_get_z_info(mesh, &z1, &z2, &z_periodic);
+  colmesh_field_t* xy_field = colmesh_field_new(mesh, COLMESH_XYEDGE, 3);
+  colmesh_field_t* z_field = colmesh_field_new(mesh, COLMESH_ZEDGE, 3);
 
-  set_up_bcs_if_needed(x_field);
-  set_up_bcs_if_needed(y_field);
-  set_up_bcs_if_needed(z_field);
-
-  // Fill our fields with patch-specific values.
-  int pos = 0, pi, pj, pk;
-  while (colmesh_next_patch(mesh, &pos, &pi, &pj, &pk, NULL))
+  // Fill our fields with chunk-specific values.
+  int pos = 0, XY, Z;
+  colmesh_chunk_data_t* chunk_data;
+  while (colmesh_field_next_chunk(xy_field, &pos, &XY, &Z, &chunk_data))
   {
-    colmesh_patch_t* x_patch = colmesh_field_patch(x_field, pi, pj, pk);
-    assert_true(x_patch != NULL);
-    assert_true(x_patch->centering == colmesh_XEDGE);
-    assert_true(x_patch->nc == 3);
-
-    DECLARE_colmesh_XEDGE_ARRAY(fx, x_patch);
-    for (int i = 0; i < x_patch->nx; ++i)
+    assert_true(chunk_data->centering == COLMESH_XYEDGE);
+    assert_true(chunk_data->num_components == 3);
+    colmesh_chunk_t* chunk = chunk_data->chunk;
+    DECLARE_COLMESH_XYEDGE_ARRAY(f, chunk_data);
+    for (int xy = 0; xy < chunk->num_xy_faces; ++xy)
     {
-      for (int j = 0; j <= x_patch->ny; ++j)
+      for (int z = 0; z <= chunk->num_z_cells; ++z)
       {
-        for (int k = 0; k <= x_patch->nz; ++k)
-        {
-          fx[i][j][k][0] = 1.0 * pi;
-          fx[i][j][k][1] = 1.0 * pj;
-          fx[i][j][k][2] = 1.0 * pk;
-        }
-      }
-    }
-
-    colmesh_patch_t* y_patch = colmesh_field_patch(y_field, pi, pj, pk);
-    assert_true(y_patch != NULL);
-    assert_true(y_patch->centering == colmesh_YEDGE);
-    assert_true(y_patch->nc == 3);
-
-    DECLARE_colmesh_YEDGE_ARRAY(fy, y_patch);
-    for (int i = 0; i <= y_patch->nx; ++i)
-    {
-      for (int j = 0; j < y_patch->ny; ++j)
-      {
-        for (int k = 0; k <= y_patch->nz; ++k)
-        {
-          fy[i][j][k][0] = 1.0 * pi;
-          fy[i][j][k][1] = 1.0 * pj;
-          fy[i][j][k][2] = 1.0 * pk;
-        }
-      }
-    }
-
-    colmesh_patch_t* z_patch = colmesh_field_patch(z_field, pi, pj, pk);
-    assert_true(z_patch != NULL);
-    assert_true(z_patch->centering == colmesh_ZEDGE);
-    assert_true(z_patch->nc == 3);
-
-    DECLARE_colmesh_ZEDGE_ARRAY(fz, z_patch);
-    for (int i = 0; i <= z_patch->nx; ++i)
-    {
-      for (int j = 0; j <= z_patch->ny; ++j)
-      {
-        for (int k = 0; k < z_patch->nz; ++k)
-        {
-          fz[i][j][k][0] = 1.0 * pi;
-          fz[i][j][k][1] = 1.0 * pj;
-          fz[i][j][k][2] = 1.0 * pk;
-        }
-      }
-    }
-  }
-
-  // Update the patch boundaries in the fields.
-  colmesh_field_start_updating_patch_boundaries(x_field, 0.0);
-  colmesh_field_start_updating_patch_boundaries(y_field, 0.0);
-  colmesh_field_start_updating_patch_boundaries(z_field, 0.0);
-  colmesh_field_finish_updating_patch_boundaries(x_field);
-  colmesh_field_finish_updating_patch_boundaries(y_field);
-  colmesh_field_finish_updating_patch_boundaries(z_field);
-
-  // Check the patch boundary data.
-  pos = 0;
-  colmesh_patch_t* patch;
-  while (colmesh_field_next_patch(x_field, &pos, &pi, &pj, &pk, &patch, NULL))
-  {
-    DECLARE_COLMESH_XEDGE_ARRAY(fx, patch);
-
-    // interior values
-    for (int i = 1; i < patch->nx-1; ++i)
-    {
-      for (int j = 1; j < patch->ny; ++j)
-      {
-        for (int k = 1; k < patch->nz; ++k)
-        {
-           assert_true(reals_equal(fx[i][j][k][0], 1.0 * pi));
-           assert_true(reals_equal(fx[i][j][k][1], 1.0 * pj));
-           assert_true(reals_equal(fx[i][j][k][2], 1.0 * pk));
-        }
-      }
-    }
-
-    // x boundaries
-    for (int j = 1; j < patch->ny; ++j)
-    {
-      for (int k = 1; k < patch->nz; ++k)
-      {
-        assert_true(reals_equal(fx[0][j][k][0], 1.0 * pi));
-        assert_true(reals_equal(fx[patch->nx-1][j][k][0], 1.0 * pi));
-      }
-    }
-
-    // y boundaries 
-    int pj_m = (pj > 0) ? pj - 1 
-                        : y_periodic ? npy-1 : 0;
-    int pj_p = (pj < npy-1) ? pj 
-                            : y_periodic ? pj : 0;
-    for (int i = 1; i < patch->nx-1; ++i)
-    {
-      for (int k = 1; k < patch->nz; ++k)
-      {
-        assert_true(reals_equal(fx[i][0][k][1], 1.0 * pj_m));
-        assert_true(reals_equal(fx[i][patch->ny][k][1], 1.0 * pj_p));
-      }
-    }
-
-    // z boundaries 
-    int pk_m = (pk > 0) ? pk - 1 
-                        : z_periodic ? npz - 1 : 0;
-    int pk_p = (pk < npz-1) ? pk  
-                            : z_periodic ? pk : 0;
-    for (int i = 1; i < patch->nx-1; ++i)
-    {
-      for (int j = 1; j < patch->ny; ++j)
-      {
-        assert_true(reals_equal(fx[i][j][0][2], 1.0 * pk_m));
-        assert_true(reals_equal(fx[i][j][patch->nz][2], 1.0 * pk_p));
+        point_t xc;
+        get_xy_edge_center(chunk, xy, z, &xc);
+        f[xy][z][0] = xc.x;
+        f[xy][z][1] = xc.y;
+        f[xy][z][2] = xc.z;
       }
     }
   }
 
   pos = 0;
-  while (colmesh_field_next_patch(y_field, &pos, &pi, &pj, &pk, &patch, NULL))
+  while (colmesh_field_next_chunk(z_field, &pos, &XY, &Z, &chunk_data))
   {
-    DECLARE_COLMESH_YEDGE_ARRAY(fy, patch);
-
-    // interior values
-    for (int i = 1; i < patch->nx; ++i)
+    assert_true(chunk_data->centering == COLMESH_ZEDGE);
+    assert_true(chunk_data->num_components == 3);
+    colmesh_chunk_t* chunk = chunk_data->chunk;
+    DECLARE_COLMESH_ZEDGE_ARRAY(f, chunk_data);
+    for (int xy = 0; xy < chunk->num_xy_nodes; ++xy)
     {
-      for (int j = 1; j < patch->ny-1; ++j)
+      for (int z = 0; z < chunk->num_z_cells; ++z)
       {
-        for (int k = 1; k < patch->nz; ++k)
-        {
-           assert_true(reals_equal(fy[i][j][k][0], 1.0 * pi));
-           assert_true(reals_equal(fy[i][j][k][1], 1.0 * pj));
-           assert_true(reals_equal(fy[i][j][k][2], 1.0 * pk));
-        }
+        point_t xc;
+        get_z_edge_center(chunk, xy, z, &xc);
+        f[xy][z][0] = xc.x;
+        f[xy][z][1] = xc.y;
+        f[xy][z][2] = xc.z;
       }
     }
+  }
 
-    // x boundaries
-    int pi_m = (pi > 0) ? pi - 1 
-                        : x_periodic ? npx-1 : 0;
-    int pi_p = (pi < npx-1) ? pi 
-                            : x_periodic ? pi : 0;
-    for (int j = 1; j < patch->ny-1; ++j)
-    {
-      for (int k = 1; k < patch->nz; ++k)
-      {
-        assert_true(reals_equal(fy[0][j][k][0], 1.0 * pi_m));
-        assert_true(reals_equal(fy[patch->nx][j][k][0], 1.0 * pi_p));
-      }
-    }
+  // Perform field exchanges.
+  colmesh_field_exchange(xy_field);
+  colmesh_field_exchange(z_field);
 
-    // y boundaries 
-    for (int i = 1; i < patch->nx; ++i)
-    {
-      for (int k = 1; k < patch->nz; ++k)
-      {
-if (!reals_equal(fy[i][0][k][1], 1.0 * pj))
-log_debug("(%d, %d, %d): %g != %g", i, 0, k, fy[i][0][k][1], 1.0 * pj);
-if (!reals_equal(fy[i][patch->ny-1][k][1], 1.0 * pj))
-log_debug("(%d, %d, %d): %g != %g", i, patch->ny-1, k, fy[i][patch->ny-1][k][1], 1.0 * pj);
-        assert_true(reals_equal(fy[i][0][k][1], 1.0 * pj));
-        assert_true(reals_equal(fy[i][patch->ny-1][k][1], 1.0 * pj));
-      }
-    }
+  // Check the field data.
+  pos = 0;
+  while (colmesh_field_next_chunk(xy_field, &pos, &XY, &Z, &chunk_data))
+  {
+    colmesh_chunk_t* chunk = chunk_data->chunk;
+    DECLARE_COLMESH_XYEDGE_ARRAY(f, chunk_data);
 
-    // z boundaries 
-    int pk_m = (pk > 0) ? pk - 1 
-                        : z_periodic ? npz - 1 : 0;
-    int pk_p = (pk < npz-1) ? pk  
-                            : z_periodic ? pk : 0;
-    for (int i = 1; i < patch->nx; ++i)
+    for (int xy = 0; xy < chunk->num_xy_faces; ++xy)
     {
-      for (int j = 1; j < patch->ny-1; ++j)
+      for (int z = 0; z <= chunk->num_z_cells; ++z)
       {
-        assert_true(reals_equal(fy[i][j][0][2], 1.0 * pk_m));
-        assert_true(reals_equal(fy[i][j][patch->nz][2], 1.0 * pk_p));
+        // Verify the centroid of this face.
+        point_t xc;
+        get_xy_edge_center(chunk, xy, z, &xc);
+        assert_true(reals_equal(f[xy][z][0], xc.x));
+        assert_true(reals_equal(f[xy][z][1], xc.y));
+        assert_true(reals_equal(f[xy][z][2], xc.z));
       }
     }
   }
 
   pos = 0;
-  while (colmesh_field_next_patch(z_field, &pos, &pi, &pj, &pk, &patch, NULL))
+  while (colmesh_field_next_chunk(z_field, &pos, &XY, &Z, &chunk_data))
   {
-    DECLARE_COLMESH_ZEDGE_ARRAY(fz, patch);
+    colmesh_chunk_t* chunk = chunk_data->chunk;
+    DECLARE_COLMESH_ZEDGE_ARRAY(f, chunk_data);
 
-    // interior values
-    for (int i = 1; i < patch->nx; ++i)
+    for (int xy = 0; xy < chunk->num_xy_nodes; ++xy)
     {
-      for (int j = 1; j < patch->ny; ++j)
+      for (int z = 0; z < chunk->num_z_cells; ++z)
       {
-        for (int k = 1; k < patch->nz-1; ++k)
-        {
-           assert_true(reals_equal(fz[i][j][k][0], 1.0 * pi));
-           assert_true(reals_equal(fz[i][j][k][1], 1.0 * pj));
-           assert_true(reals_equal(fz[i][j][k][2], 1.0 * pk));
-        }
-      }
-    }
-
-    // x boundaries
-    int pi_m = (pi > 0) ? pi - 1 
-                        : x_periodic ? npx - 1 : 0;
-    int pi_p = (pi < npx-1) ? pi  
-                            : x_periodic ? pi : 0;
-    for (int j = 1; j < patch->ny; ++j)
-    {
-      for (int k = 1; k < patch->nz-1; ++k)
-      {
-        assert_true(reals_equal(fz[0][j][k][0], 1.0 * pi_m));
-        assert_true(reals_equal(fz[patch->nx][j][k][0], 1.0 * pi_p));
-      }
-    }
-
-    // y boundaries 
-    int pj_m = (pj > 0) ? pj - 1 
-                        : y_periodic ? npy-1 : 0;
-    int pj_p = (pj < npy-1) ? pj 
-                            : y_periodic ? pj : 0;
-    for (int i = 1; i < patch->nx; ++i)
-    {
-      for (int k = 1; k < patch->nz-1; ++k)
-      {
-        assert_true(reals_equal(fz[i][0][k][1], 1.0 * pj_m));
-        assert_true(reals_equal(fz[i][patch->ny][k][1], 1.0 * pj_p));
-      }
-    }
-
-    // z boundaries 
-    for (int i = 1; i < patch->nx; ++i)
-    {
-      for (int j = 1; j < patch->ny; ++j)
-      {
-        assert_true(reals_equal(fz[i][j][0][2], 1.0 * pk));
-        assert_true(reals_equal(fz[i][j][patch->nz-1][2], 1.0 * pk));
+        // Verify the centroid of this face.
+        point_t xc;
+        get_z_edge_center(chunk, xy, z, &xc);
+        assert_true(reals_equal(f[xy][z][0], xc.x));
+        assert_true(reals_equal(f[xy][z][1], xc.y));
+        assert_true(reals_equal(f[xy][z][2], xc.z));
       }
     }
   }
 
   // Repartition!
-  colmesh_field_t* fields[3] = {x_field, y_field, z_field};
-  repartition_colmesh(&mesh, NULL, 0.05, fields, 3);
+  colmesh_field_t* fields[2] = {xy_field, z_field};
+  repartition_colmesh(&mesh, NULL, 0.05, fields, 2);
 
   // Clean up.
-  colmesh_field_free(fields[0]);
-  colmesh_field_free(fields[1]);
-  colmesh_field_free(fields[2]);
+  colmesh_field_free(xy_field);
+  colmesh_field_free(z_field);
   colmesh_free(mesh);
 }
 
 static void test_node_field(void** state, colmesh_t* mesh)
 {
-  int npx, npy, npz;
-  colmesh_get_extents(mesh, &npx, &npy, &npz);
-  bool x_periodic, y_periodic, z_periodic;
-  colmesh_get_periodicity(mesh, &x_periodic, &y_periodic, &z_periodic);
-  colmesh_field_t* field = colmesh_field_new(mesh, colmesh_NODE, 3);
+  real_t z1, z2;
+  bool z_periodic;
+  colmesh_get_z_info(mesh, &z1, &z2, &z_periodic);
+  colmesh_field_t* field = colmesh_field_new(mesh, COLMESH_NODE, 3);
 
-  set_up_bcs_if_needed(field);
-
-  // Fill our field with patch-specific values.
-  int pos = 0, pi, pj, pk;
-  colmesh_patch_t* patch;
-  while (colmesh_field_next_patch(field, &pos, &pi, &pj, &pk, &patch, NULL))
+  // Fill our fields with chunk-specific values.
+  int pos = 0, XY, Z;
+  colmesh_chunk_data_t* chunk_data;
+  while (colmesh_field_next_chunk(field, &pos, &XY, &Z, &chunk_data))
   {
-    assert_true(patch->centering == colmesh_NODE);
-    assert_true(patch->nc == 3);
-    DECLARE_COLMESH_NODE_ARRAY(f, patch);
-    for (int i = 0; i <= patch->nx; ++i)
+    assert_true(chunk_data->centering == COLMESH_NODE);
+    assert_true(chunk_data->num_components == 3);
+    colmesh_chunk_t* chunk = chunk_data->chunk;
+    real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
+    DECLARE_COLMESH_NODE_ARRAY(f, chunk_data);
+    for (int xy = 0; xy < chunk->num_xy_nodes; ++xy)
     {
-      for (int j = 0; j <= patch->ny; ++j)
+      for (int z = 0; z <= chunk->num_z_cells; ++z)
       {
-        for (int k = 0; k <= patch->nz; ++k)
-        {
-          f[i][j][k][0] = 1.0 * pi;
-          f[i][j][k][1] = 1.0 * pj;
-          f[i][j][k][2] = 1.0 * pk;
-        }
+        f[xy][z][0] = chunk->xy_nodes[xy].x;
+        f[xy][z][1] = chunk->xy_nodes[xy].y;
+        f[xy][z][2] = chunk->z1 + z * dz;
       }
     }
   }
 
-  // Update the patch boundaries in the field.
-  colmesh_field_update_patch_boundaries(field, 0.0);
+  // Perform a field exchange.
+  colmesh_field_exchange(field);
 
-  // Check the patch boundary data.
+  // Check the field data.
   pos = 0;
-  while (colmesh_field_next_patch(field, &pos, &pi, &pj, &pk, &patch, NULL))
+  while (colmesh_field_next_chunk(field, &pos, &XY, &Z, &chunk_data))
   {
-    DECLARE_COLMESH_NODE_ARRAY(f, patch);
+    colmesh_chunk_t* chunk = chunk_data->chunk;
+    real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
+    DECLARE_COLMESH_NODE_ARRAY(f, chunk_data);
 
-    // interior values
-    for (int i = 1; i < patch->nx; ++i)
+    for (int xy = 0; xy < chunk->num_xy_faces; ++xy)
     {
-      for (int j = 1; j < patch->ny; ++j)
+      for (int z = 0; z <= chunk->num_z_cells; ++z)
       {
-        for (int k = 1; k < patch->nz; ++k)
-        {
-           assert_true(reals_equal(f[i][j][k][0], 1.0 * pi));
-           assert_true(reals_equal(f[i][j][k][1], 1.0 * pj));
-           assert_true(reals_equal(f[i][j][k][2], 1.0 * pk));
-        }
-      }
-    }
-
-    // x boundaries
-    int pi_m = (pi > 0) ? pi - 1 
-                        : x_periodic ? npx-1 : 0;
-    int pi_p = (pi < npx-1) ? pi 
-                            : x_periodic ? pi : 0;
-    for (int j = 1; j < patch->ny; ++j)
-    {
-      for (int k = 1; k < patch->nz; ++k)
-      {
-        assert_true(reals_equal(f[0][j][k][0], 1.0 * pi_m));
-        assert_true(reals_equal(f[patch->nx][j][k][0], 1.0 * pi_p));
-      }
-    }
-
-    // y boundaries 
-    int pj_m = (pj > 0) ? pj - 1 
-                        : y_periodic ? npy-1 : 0;
-    int pj_p = (pj < npy-1) ? pj 
-                            : y_periodic ? pj : 0;
-    for (int i = 1; i < patch->nx; ++i)
-    {
-      for (int k = 1; k < patch->nz; ++k)
-      {
-        assert_true(reals_equal(f[i][0][k][1], 1.0 * pj_m));
-        assert_true(reals_equal(f[i][patch->ny][k][1], 1.0 * pj_p));
-      }
-    }
-
-    // z boundaries 
-    int pk_m = (pk > 0) ? pk - 1 
-                        : z_periodic ? npz-1 : 0;
-    int pk_p = (pk < npz-1) ? pk 
-                            : z_periodic ? pk : 0;
-    for (int i = 1; i < patch->nx; ++i)
-    {
-      for (int j = 1; j < patch->ny; ++j)
-      {
-        assert_true(reals_equal(f[i][j][0][2], 1.0 * pk_m));
-        assert_true(reals_equal(f[i][j][patch->nz][2], 1.0 * pk_p));
+        // Verify the centroid of this face.
+        assert_true(reals_equal(f[xy][z][0], chunk->xy_nodes[xy].x));
+        assert_true(reals_equal(f[xy][z][1], chunk->xy_nodes[xy].y));
+        assert_true(reals_equal(f[xy][z][2], chunk->z1 + z * dz));
       }
     }
   }
@@ -781,7 +463,6 @@ static void test_node_field(void** state, colmesh_t* mesh)
   colmesh_field_free(field);
   colmesh_free(mesh);
 }
-#endif
 
 static void test_serial_periodic_cell_field(void** state)
 {
@@ -789,7 +470,6 @@ static void test_serial_periodic_cell_field(void** state)
   test_cell_field(state, mesh);
 }
 
-#if 0
 static void test_serial_periodic_face_fields(void** state)
 {
   colmesh_t* mesh = periodic_mesh(MPI_COMM_SELF);
@@ -807,7 +487,6 @@ static void test_serial_periodic_node_field(void** state)
   colmesh_t* mesh = periodic_mesh(MPI_COMM_SELF);
   test_node_field(state, mesh);
 }
-#endif
 
 static void test_serial_nonperiodic_cell_field(void** state)
 {
@@ -815,7 +494,6 @@ static void test_serial_nonperiodic_cell_field(void** state)
   test_cell_field(state, mesh);
 }
 
-#if 0
 static void test_serial_nonperiodic_face_fields(void** state)
 {
   colmesh_t* mesh = nonperiodic_mesh(MPI_COMM_SELF);
@@ -833,7 +511,6 @@ static void test_serial_nonperiodic_node_field(void** state)
   colmesh_t* mesh = nonperiodic_mesh(MPI_COMM_SELF);
   test_node_field(state, mesh);
 }
-#endif
 
 static void test_parallel_periodic_cell_field(void** state)
 {
@@ -841,7 +518,6 @@ static void test_parallel_periodic_cell_field(void** state)
   test_cell_field(state, mesh);
 }
 
-#if 0
 static void test_parallel_periodic_face_fields(void** state)
 {
   colmesh_t* mesh = periodic_mesh(MPI_COMM_WORLD);
@@ -859,7 +535,6 @@ static void test_parallel_periodic_node_field(void** state)
   colmesh_t* mesh = periodic_mesh(MPI_COMM_WORLD);
   test_node_field(state, mesh);
 }
-#endif
 
 static void test_parallel_nonperiodic_cell_field(void** state)
 {
@@ -867,7 +542,6 @@ static void test_parallel_nonperiodic_cell_field(void** state)
   test_cell_field(state, mesh);
 }
 
-#if 0
 static void test_parallel_nonperiodic_face_fields(void** state)
 {
   colmesh_t* mesh = nonperiodic_mesh(MPI_COMM_WORLD);
@@ -885,7 +559,6 @@ static void test_parallel_nonperiodic_node_field(void** state)
   colmesh_t* mesh = nonperiodic_mesh(MPI_COMM_WORLD);
   test_node_field(state, mesh);
 }
-#endif
 
 int main(int argc, char* argv[]) 
 {
@@ -895,21 +568,21 @@ int main(int argc, char* argv[])
   const struct CMUnitTest tests[] = 
   {
     cmocka_unit_test(test_serial_periodic_cell_field),
-//    cmocka_unit_test(test_serial_periodic_face_fields),
-//    cmocka_unit_test(test_serial_periodic_edge_fields),
-//    cmocka_unit_test(test_serial_periodic_node_field),
+    cmocka_unit_test(test_serial_periodic_face_fields),
+    cmocka_unit_test(test_serial_periodic_edge_fields),
+    cmocka_unit_test(test_serial_periodic_node_field),
     cmocka_unit_test(test_serial_nonperiodic_cell_field),
-//    cmocka_unit_test(test_serial_nonperiodic_face_fields),
-//    cmocka_unit_test(test_serial_nonperiodic_edge_fields),
-//    cmocka_unit_test(test_serial_nonperiodic_node_field),
+    cmocka_unit_test(test_serial_nonperiodic_face_fields),
+    cmocka_unit_test(test_serial_nonperiodic_edge_fields),
+    cmocka_unit_test(test_serial_nonperiodic_node_field),
     cmocka_unit_test(test_parallel_periodic_cell_field),
-//    cmocka_unit_test(test_parallel_periodic_face_fields),
-//    cmocka_unit_test(test_parallel_periodic_edge_fields),
-//    cmocka_unit_test(test_parallel_periodic_node_field),
-    cmocka_unit_test(test_parallel_nonperiodic_cell_field)
-//    cmocka_unit_test(test_parallel_nonperiodic_face_fields),
-//    cmocka_unit_test(test_parallel_nonperiodic_edge_fields),
-//    cmocka_unit_test(test_parallel_nonperiodic_node_field)
+    cmocka_unit_test(test_parallel_periodic_face_fields),
+    cmocka_unit_test(test_parallel_periodic_edge_fields),
+    cmocka_unit_test(test_parallel_periodic_node_field),
+    cmocka_unit_test(test_parallel_nonperiodic_cell_field),
+    cmocka_unit_test(test_parallel_nonperiodic_face_fields),
+    cmocka_unit_test(test_parallel_nonperiodic_edge_fields),
+    cmocka_unit_test(test_parallel_nonperiodic_node_field)
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
