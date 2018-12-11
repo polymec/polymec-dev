@@ -645,49 +645,42 @@ static void find_chunk_offsets(colmesh_t* mesh,
                                int* chunk_offsets)
 {
   chunk_offsets[0] = 0;
+  int k = 0;
+  for (size_t i = 0; i < mesh->chunks->size; ++i)
   {
-    int k = 0;
-    for (int i = 0; i < mesh->num_xy_chunks; ++i)
+    int xy = mesh->chunk_indices[2*i];
+    int z = mesh->chunk_indices[2*i+1];
+    int index = chunk_index(mesh, xy, z);
+    colmesh_chunk_t* chunk = *chunk_map_get(mesh->chunks, index);
+    int nxy, nz;
+    switch (centering)
     {
-      for (int j = 0; j < mesh->num_z_chunks; ++j)
-      {
-        int index = chunk_index(mesh, (int)i, (int)j);
-        colmesh_chunk_t** chunk_p = chunk_map_get(mesh->chunks, index);
-        if (chunk_p != NULL)
-        {
-          colmesh_chunk_t* chunk = *chunk_p;
-          int nxy, nz;
-          switch (centering)
-          {
-            case COLMESH_CELL:   
-              nxy = chunk->num_columns + chunk->num_ghost_columns;
-              nz  = chunk->num_z_cells + 2; 
-              break;
-            case COLMESH_XYFACE: 
-              nxy = chunk->num_xy_faces;
-              nz = chunk->num_z_cells; 
-              break;
-            case COLMESH_ZFACE:  
-              nxy = chunk->num_columns;
-              nz = chunk->num_z_cells + 1; 
-              break;
-            case COLMESH_XYEDGE: 
-              nxy = chunk->num_xy_faces;
-              nz = chunk->num_z_cells + 1; 
-              break;
-            case COLMESH_ZEDGE:  
-              nxy = chunk->num_xy_nodes;
-              nz = chunk->num_z_cells; 
-              break;
-            case COLMESH_NODE:   
-              nxy = chunk->num_xy_nodes;
-              nz = chunk->num_z_cells + 1; 
-          }
-          chunk_offsets[k+1] = chunk_offsets[k] + nxy * nz;
-          ++k;
-        }
-      }
+      case COLMESH_CELL:   
+        nxy = chunk->num_columns + chunk->num_ghost_columns;
+        nz  = chunk->num_z_cells + 2; 
+        break;
+      case COLMESH_XYFACE: 
+        nxy = chunk->num_xy_faces;
+        nz = chunk->num_z_cells; 
+        break;
+      case COLMESH_ZFACE:  
+        nxy = chunk->num_columns;
+        nz = chunk->num_z_cells + 1; 
+        break;
+      case COLMESH_XYEDGE: 
+        nxy = chunk->num_xy_faces;
+        nz = chunk->num_z_cells + 1; 
+        break;
+      case COLMESH_ZEDGE:  
+        nxy = chunk->num_xy_nodes;
+        nz = chunk->num_z_cells; 
+        break;
+      case COLMESH_NODE:   
+        nxy = chunk->num_xy_nodes;
+        nz = chunk->num_z_cells + 1; 
     }
+    chunk_offsets[k+1] = chunk_offsets[k] + nxy * nz;
+    ++k;
   }
 }
 
@@ -928,6 +921,7 @@ static void create_xy_face_ex(colmesh_t* mesh)
           exchanger_proc_map_add_index(send_map, mesh->rank, index);
           exchanger_proc_map_add_index(send_map, proc, index);
           x.z = chunk->z1 + (zz+0.5) * dz;
+          proc_point_map_add(point_map, mesh->rank, &x);
           proc_point_map_add(point_map, proc, &x);
         }
       }
@@ -958,6 +952,7 @@ static void create_xy_face_ex(colmesh_t* mesh)
           exchanger_proc_map_add_index(receive_map, mesh->rank, index);
           exchanger_proc_map_add_index(receive_map, proc, index);
           x.z = chunk->z1 + (zz+0.5) * dz;
+          proc_point_map_add(point_map, mesh->rank, &x);
           proc_point_map_add(point_map, proc, &x);
         }
       }
