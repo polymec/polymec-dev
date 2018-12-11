@@ -924,7 +924,8 @@ static void create_xy_face_ex(colmesh_t* mesh)
         // Traverse the column and add send indices/points.
         for (int zz = 0; zz < chunk->num_z_cells; ++zz)
         {
-          int index = (int)(chunk_offset + (chunk->num_z_cells+2)*xy1 + zz);
+          int index = (int)(chunk_offset + chunk->num_z_cells*xy1 + zz);
+          exchanger_proc_map_add_index(send_map, mesh->rank, index);
           exchanger_proc_map_add_index(send_map, proc, index);
           x.z = chunk->z1 + (zz+0.5) * dz;
           proc_point_map_add(point_map, proc, &x);
@@ -934,13 +935,13 @@ static void create_xy_face_ex(colmesh_t* mesh)
 
     // Figure out the xy receive faces.
     pos = 0;
-    int face_offset = (int)(chunk->num_z_cells * chunk->num_xy_faces);
     while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
     {
       size_t num_indices = indices->size/2;
       for (size_t j = 0; j < num_indices; ++j)
       {
         int proc = (int)(owners[neighbor_xy_index]);
+        int xy1 = indices->data[2*j];
         int edge = indices->data[2*j+1];
 
         // Get the x and y coordinates for the receive face.
@@ -953,14 +954,13 @@ static void create_xy_face_ex(colmesh_t* mesh)
         // Traverse the column and add receive indices/points.
         for (int zz = 0; zz < chunk->num_z_cells; ++zz)
         {
-          int index = (int)chunk_offset + face_offset;
+          int index = (int)(chunk_offset + chunk->num_z_cells*xy1 + zz);
+          exchanger_proc_map_add_index(receive_map, mesh->rank, index);
           exchanger_proc_map_add_index(receive_map, proc, index);
           x.z = chunk->z1 + (zz+0.5) * dz;
           proc_point_map_add(point_map, proc, &x);
-          ++face_offset;
         }
       }
-      ASSERT(face_offset < chunk_offset + chunk->num_z_cells*chunk->num_xy_faces);
     }
   }
 
@@ -1109,7 +1109,8 @@ static void create_xy_edge_ex(colmesh_t* mesh)
         // Traverse the column and add send indices/points.
         for (int zz = 0; zz <= chunk->num_z_cells; ++zz)
         {
-          int index = (int)(chunk_offset + (chunk->num_z_cells+2)*xy1 + zz);
+          int index = (int)(chunk_offset + (chunk->num_z_cells+1)*xy1 + zz);
+          exchanger_proc_map_add_index(send_map, mesh->rank, index);
           exchanger_proc_map_add_index(send_map, proc, index);
           x.z = chunk->z1 + zz * dz;
           proc_point_map_add(point_map, proc, &x);
@@ -1119,13 +1120,13 @@ static void create_xy_edge_ex(colmesh_t* mesh)
 
     // Figure out the xy receive edges.
     pos = 0;
-    int edge_offset = (int)((chunk->num_z_cells+1) * chunk->num_xy_faces);
     while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
     {
       size_t num_indices = indices->size/2;
       for (size_t j = 0; j < num_indices; ++j)
       {
         int proc = (int)(owners[neighbor_xy_index]);
+        int xy1 = mesh->chunk_indices[2*j];
         int edge = indices->data[2*j+1];
 
         // Get the x and y coordinates for the receive cell's face.
@@ -1138,14 +1139,13 @@ static void create_xy_edge_ex(colmesh_t* mesh)
         // Traverse the column and add receive indices/points.
         for (int zz = 0; zz <= chunk->num_z_cells; ++zz)
         {
-          int index = (int)chunk_offset + edge_offset;
+          int index = (int)(chunk_offset + (chunk->num_z_cells+1)*xy1 + zz);
+          exchanger_proc_map_add_index(receive_map, mesh->rank, index);
           exchanger_proc_map_add_index(receive_map, proc, index);
           x.z = chunk->z1 + zz * dz;
           proc_point_map_add(point_map, proc, &x);
-          ++edge_offset;
         }
       }
-      ASSERT(edge_offset < chunk_offset + (chunk->num_z_cells+1)*chunk->num_xy_faces);
     }
   }
 

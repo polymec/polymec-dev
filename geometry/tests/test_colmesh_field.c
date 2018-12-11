@@ -237,6 +237,7 @@ static void test_face_fields(void** state, colmesh_t* mesh)
         // Verify the centroid of this face.
         point_t xc;
         get_xy_face_centroid(chunk, xy, z, &xc);
+printf("(%d, %d): (%g, %g, %g) vs (%g, %g, %g)\n", xy, z, f[xy][z][0], f[xy][z][1], f[xy][z][2], xc.x, xc.y, xc.z); 
         assert_true(reals_equal(f[xy][z][0], xc.x));
         assert_true(reals_equal(f[xy][z][1], xc.y));
         assert_true(reals_equal(f[xy][z][2], xc.z));
