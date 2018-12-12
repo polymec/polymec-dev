@@ -169,6 +169,7 @@ static void get_z_face_centroid(colmesh_chunk_t* chunk, int xy, int z,
   centroid->z = chunk->z1 + dz * z;
 }
 
+exchanger_t* colmesh_exchanger(colmesh_t* mesh, colmesh_centering_t centering);
 static void test_face_fields(void** state, colmesh_t* mesh)
 {
   real_t z1, z2;
@@ -219,6 +220,8 @@ static void test_face_fields(void** state, colmesh_t* mesh)
     }
   }
 
+exchanger_t* face_ex = colmesh_exchanger(mesh, COLMESH_XYFACE);
+exchanger_fprintf(face_ex, stdout);
   // Perform field exchanges.
   colmesh_field_exchange(xy_field);
   colmesh_field_exchange(z_field);
@@ -237,7 +240,7 @@ static void test_face_fields(void** state, colmesh_t* mesh)
         // Verify the centroid of this face.
         point_t xc;
         get_xy_face_centroid(chunk, xy, z, &xc);
-printf("(%d, %d): (%g, %g, %g) vs (%g, %g, %g)\n", xy, z, f[xy][z][0], f[xy][z][1], f[xy][z][2], xc.x, xc.y, xc.z); 
+printf("[%d, %d]/(%d, %d): (%g, %g, %g) vs (%g, %g, %g)\n", XY, Z, xy, z, f[xy][z][0], f[xy][z][1], f[xy][z][2], xc.x, xc.y, xc.z); 
         assert_true(reals_equal(f[xy][z][0], xc.x));
         assert_true(reals_equal(f[xy][z][1], xc.y));
         assert_true(reals_equal(f[xy][z][2], xc.z));
