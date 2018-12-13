@@ -16,9 +16,9 @@
 
 static int _nproc = -1;
 static int _rank = -1;
-static int _nx = 10;
-static int _ny = 10;
-static int _nz = 10;
+static int _nx = 2;
+static int _ny = 2;
+static int _nz = 1;
 
 static colmesh_t* create_mesh(MPI_Comm comm, 
                               bool periodic_in_xy, 
@@ -31,9 +31,9 @@ static colmesh_t* create_mesh(MPI_Comm comm,
     mesh = colmesh_new(comm, columns, bbox.z1, bbox.z2, _nz, periodic_in_z);
   else
   {
-    mesh = create_empty_colmesh(comm, columns, bbox.z1, bbox.z2, 2, 2, _nz/2, periodic_in_z);
-    for (int XY = 0; XY < 2; ++XY)
-      for (int Z = 0; Z < 2; ++Z)
+    mesh = create_empty_colmesh(comm, columns, bbox.z1, bbox.z2, 1, 1, _nz, periodic_in_z);
+    for (int XY = 0; XY < 1; ++XY)
+      for (int Z = 0; Z < 1; ++Z)
         colmesh_insert_chunk(mesh, XY, Z);
     colmesh_finalize(mesh);
   }

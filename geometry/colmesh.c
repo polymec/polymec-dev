@@ -137,8 +137,13 @@ static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
         cols_reversed = true;
       }
       int col2 = ((col1_p != NULL) && (col2_p != NULL)) ? *col2_p : -1;
-      if (col2 == -1) // ghost column
-        col2 = (int)(xy_data->num_columns + xy_data->receive_map->size); 
+      if (col2 == -1) 
+      {
+        // This column isn't mapped to this chunk, so either col1 is a 
+        // boundary column, or col2 is a ghost column (stored on another chunk).
+        if (cell2 != -1) // this column is stored on another chunk
+          col2 = (int)(xy_data->num_columns + xy_data->receive_map->size); 
+      }
 
       // For the interior columns we identify which face this edge corresponds to.
       int face = (int)(xy_data->num_xy_faces);
@@ -151,7 +156,7 @@ static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
           ++f1;
         ASSERT(mesh->cell_edge_offsets[cell+1] > (mesh->cell_edge_offsets[cell] + f1));
       }
-      if (col2 < xy_data->num_columns)
+      if ((col2 >= 0) && (col2 < xy_data->num_columns))
       {
         f2 = 0;
         int cell = (cols_reversed) ? cell1 : cell2;
@@ -1204,12 +1209,12 @@ static void create_xy_edge_ex(colmesh_t* mesh)
   proc_point_map_free(point_map);
 
   // Now construct the exchanger.
-  mesh->xy_face_ex = exchanger_new(mesh->comm);
-  exchanger_set_sends(mesh->xy_face_ex, send_map);
-  exchanger_set_receives(mesh->xy_face_ex, receive_map);
+  mesh->xy_edge_ex = exchanger_new(mesh->comm);
+  exchanger_set_sends(mesh->xy_edge_ex, send_map);
+  exchanger_set_receives(mesh->xy_edge_ex, receive_map);
 
   // By default, this exchanger uses the "min rank" reducer.
-  exchanger_set_reducer(mesh->xy_face_ex, EXCHANGER_MIN_RANK);
+  exchanger_set_reducer(mesh->xy_edge_ex, EXCHANGER_MIN_RANK);
   STOP_FUNCTION_TIMER();
 }
 

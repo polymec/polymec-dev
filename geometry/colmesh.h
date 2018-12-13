@@ -401,10 +401,10 @@ static inline void colmesh_chunk_xy_face_get_nodes(colmesh_chunk_t* chunk,
                                                    int* node_xy_indices,
                                                    int* node_z_indices)
 {
-  node_xy_indices[0] = xy_face_index;
-  node_xy_indices[1] = xy_face_index+1;
-  node_xy_indices[2] = xy_face_index+1;
-  node_xy_indices[3] = xy_face_index;
+  node_xy_indices[0] = chunk->xy_edge_nodes[2*xy_face_index];
+  node_xy_indices[1] = chunk->xy_edge_nodes[2*xy_face_index+1];
+  node_xy_indices[2] = chunk->xy_edge_nodes[2*xy_face_index+1];
+  node_xy_indices[3] = chunk->xy_edge_nodes[2*xy_face_index];
   node_z_indices[0] = z_index+1;
   node_z_indices[1] = z_index+1;
   node_z_indices[2] = z_index;
