@@ -607,7 +607,10 @@ static int64_t* source_vector(colmesh_t* mesh)
 
   // Gather the indices of the chunks owned by all processes into a huge list.
   int num_all_chunks = (int)(mesh->num_xy_chunks * mesh->num_z_chunks);
+
+  // If you trip this assertion, you have some missing chunks in your mesh.
   ASSERT(num_all_chunks == proc_offsets[mesh->nproc]);
+
   int* all_chunks = polymec_malloc(sizeof(int) * num_all_chunks);
   MPI_Allgatherv(my_chunks->data, num_my_chunks, MPI_INT, 
                  all_chunks, num_chunks_for_proc, proc_offsets,
