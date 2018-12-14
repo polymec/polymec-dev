@@ -682,6 +682,7 @@ static exchanger_t* create_face_exchanger(polymesh_t* mesh)
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
   exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
   int pos = 0, proc, *s_indices, s_size;
+  int_unordered_set_t* contributed_to_self = int_unordered_set_new();
   while (exchanger_next_send(cell_ex, &pos, &proc, &s_indices, &s_size))
   {
     // Get the receive transaction corresponding to this send one.
@@ -703,10 +704,14 @@ static exchanger_t* create_face_exchanger(polymesh_t* mesh)
         int neighbor = polymesh_face_opp_cell(mesh, face, s_cell);
         if (neighbor == r_cell)
         {
-          exchanger_proc_map_add_index(send_map, rank, face);
           exchanger_proc_map_add_index(send_map, proc, face);
-          exchanger_proc_map_add_index(receive_map, rank, face);
           exchanger_proc_map_add_index(receive_map, proc, face);
+          if (!int_unordered_set_contains(contributed_to_self, face))
+          {
+            exchanger_proc_map_add_index(send_map, rank, face);
+            exchanger_proc_map_add_index(receive_map, rank, face);
+            int_unordered_set_insert(contributed_to_self, face);
+          }
           break;
         }
       }
@@ -714,6 +719,7 @@ static exchanger_t* create_face_exchanger(polymesh_t* mesh)
   }
   exchanger_set_sends(ex, send_map);
   exchanger_set_receives(ex, receive_map);
+  int_unordered_set_free(contributed_to_self);
 
   // By default, this exchanger uses the "min rank" reducer.
   exchanger_set_reducer(ex, EXCHANGER_MIN_RANK);
@@ -824,11 +830,16 @@ static exchanger_t* create_edge_exchanger(polymesh_t* mesh)
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
   exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
   {
+    int_unordered_set_t* contributed_to_self = int_unordered_set_new();
     for (size_t e = 0; e < edge_indices->size; ++e)
     {
       int edge = edge_indices->data[e];
-      exchanger_proc_map_add_index(send_map, rank, edge);
-      exchanger_proc_map_add_index(receive_map, rank, edge);
+      if (!int_unordered_set_contains(contributed_to_self, edge))
+      {
+        exchanger_proc_map_add_index(send_map, rank, edge);
+        exchanger_proc_map_add_index(receive_map, rank, edge);
+        int_unordered_set_insert(contributed_to_self, edge);
+      }
       int_array_t* procs = *elem_proc_map_get(edge_procs, edge);
       for (size_t i = 0; i < procs->size; ++i)
       {
@@ -836,6 +847,7 @@ static exchanger_t* create_edge_exchanger(polymesh_t* mesh)
         exchanger_proc_map_add_index(receive_map, procs->data[i], edge);
       }
     }
+    int_unordered_set_free(contributed_to_self);
   }
   exchanger_set_sends(ex, send_map);
   exchanger_set_receives(ex, receive_map);
@@ -1099,6 +1111,7 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
     // Now set up the exchanger send/receive maps.
     exchanger_proc_map_t* send_map = exchanger_proc_map_new();
     exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
+    int_unordered_set_t* contributed_to_self = int_unordered_set_new();
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
@@ -1109,8 +1122,12 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
         int node = my_node_indices->data[i];
 
         // Set up the self contribution.
-        exchanger_proc_map_add_index(send_map, rank, node);
-        exchanger_proc_map_add_index(receive_map, rank, node);
+        if (!int_unordered_set_contains(contributed_to_self, node))
+        {
+          exchanger_proc_map_add_index(send_map, rank, node);
+          exchanger_proc_map_add_index(receive_map, rank, node);
+          int_unordered_set_insert(contributed_to_self, node);
+        }
 
         // Get other contributions.
         if (!int_unordered_set_contains(my_culled_node_sets[p], i))
@@ -1139,6 +1156,7 @@ static exchanger_t* create_node_exchanger(polymesh_t* mesh)
 
       int_unordered_set_free(their_culled_node_sets[p]);
     }
+    int_unordered_set_free(contributed_to_self);
 
     kd_tree_free(node_tree);
     int_array_free(my_node_indices);
