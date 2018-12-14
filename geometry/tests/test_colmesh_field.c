@@ -220,8 +220,6 @@ static void test_face_fields(void** state, colmesh_t* mesh)
     }
   }
 
-exchanger_t* face_ex = colmesh_exchanger(mesh, COLMESH_XYFACE);
-exchanger_fprintf(face_ex, stdout);
   // Perform field exchanges.
   colmesh_field_exchange(xy_field);
   colmesh_field_exchange(z_field);
@@ -233,7 +231,6 @@ exchanger_fprintf(face_ex, stdout);
     colmesh_chunk_t* chunk = chunk_data->chunk;
     DECLARE_COLMESH_XYFACE_ARRAY(f, chunk_data);
 
-printf("Chunk (%d, %d):\n", XY, Z);
     for (int xy = 0; xy < chunk->num_xy_faces; ++xy)
     {
       for (int z = 0; z < chunk->num_z_cells; ++z)
@@ -241,7 +238,6 @@ printf("Chunk (%d, %d):\n", XY, Z);
         // Verify the centroid of this face.
         point_t xc;
         get_xy_face_centroid(chunk, xy, z, &xc);
-printf(" (%d, %d): (%g, %g, %g) vs (%g, %g, %g)\n", xy, z, f[xy][z][0], f[xy][z][1], f[xy][z][2], xc.x, xc.y, xc.z); 
         assert_true(reals_equal(f[xy][z][0], xc.x));
         assert_true(reals_equal(f[xy][z][1], xc.y));
         assert_true(reals_equal(f[xy][z][2], xc.z));
@@ -366,7 +362,7 @@ static void test_edge_fields(void** state, colmesh_t* mesh)
     colmesh_chunk_t* chunk = chunk_data->chunk;
     DECLARE_COLMESH_XYEDGE_ARRAY(f, chunk_data);
 
-    for (int xy = 0; xy < chunk->num_xy_faces; ++xy)
+    for (int xy = 0; xy < chunk->num_xy_edges; ++xy)
     {
       for (int z = 0; z <= chunk->num_z_cells; ++z)
       {
@@ -449,7 +445,7 @@ static void test_node_field(void** state, colmesh_t* mesh)
     real_t dz = (chunk->z2 - chunk->z1) / chunk->num_z_cells;
     DECLARE_COLMESH_NODE_ARRAY(f, chunk_data);
 
-    for (int xy = 0; xy < chunk->num_xy_faces; ++xy)
+    for (int xy = 0; xy < chunk->num_xy_nodes; ++xy)
     {
       for (int z = 0; z <= chunk->num_z_cells; ++z)
       {
