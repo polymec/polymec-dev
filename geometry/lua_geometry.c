@@ -1797,6 +1797,44 @@ static int bm_add_block(lua_State* L)
   return 0;
 }
 
+static bool block_nodes_match_face(lua_State* L, int nodes[4])
+{
+  // Only certain combos of block faces are acceptible, so let's make sure
+  // no one's doing anything stupid.
+  int face_nodes[6][4] = {{0, 4, 3, 7},  // -x
+                          {1, 2, 6, 5},  // +x
+                          {0, 1, 5, 4},  // -y
+                          {2, 3, 7, 6},  // +y
+                          {0, 1, 2, 3},  // -z
+                          {4, 5, 6, 7}}; // +z
+
+  bool valid = false;
+  for (int f = 0; f < 6; ++f)
+  {
+    bool face_matches = true;
+    for (int n = 0; n < 4; ++n)
+    {
+      bool node_matches = false;
+      for (int nn = 0; nn < 4; ++nn)
+      {
+        if (nodes[n] == face_nodes[f][nn])
+        {
+          node_matches = true;
+          break;
+        }
+      }
+      if (!node_matches)
+        face_matches = false;
+    }
+    if (face_matches)
+    {
+      valid = true;
+      break;
+    }
+  }
+  return valid;
+}
+
 static int bm_connect_blocks(lua_State* L)
 {
   blockmesh_t* m = lua_to_blockmesh(L, 1);
@@ -1807,54 +1845,74 @@ static int bm_connect_blocks(lua_State* L)
   if ((num_args != 2) || (!lua_istable(L, 2)))
   {
     luaL_error(L, "mesh:connect_blocks must be called with a table with fields: "
-                  "index1, boundary1, trans1, index2, boundary2, and trans2");
+                  "block1_index, block1_nodes, trans1, block2_index, block2_nodes, and trans2");
   }
 
-  lua_getfield(L, 2, "index1");
+  lua_getfield(L, 2, "block1_index");
   if (!lua_isinteger(L, -1))
-    return luaL_error(L, "index1 must be a valid block index.");
+    return luaL_error(L, "block1_index must be a valid block index.");
   int index1 = (int)lua_tointeger(L, -1); 
   if ((index1 < 0) || ((size_t)index1 >= blockmesh_num_blocks(m)))
     return luaL_error(L, "Invalid index for first block: %d.", index1);
   lua_pop(L, 1);
 
-  lua_getfield(L, 2, "boundary1");
-  if (!lua_isinteger(L, -1))
-    return luaL_error(L, "boundary1 must be a valid block boundary.");
-  int boundary1_int = (int)lua_tointeger(L, 3); 
-  if ((boundary1_int < 0) || (boundary1_int >= 6))
-    return luaL_error(L, "Invalid block boundary for first block.");
-  unimesh_boundary_t boundary1 = (unimesh_boundary_t)boundary1_int;
-  lua_pop(L, 1);
+  int nodes1[4];
+  lua_getfield(L, 2, "block1_nodes");
+  if (!lua_istable(L, -1))
+    return luaL_error(L, "block1_nodes must be a list of 4 node indices.");
+  else
+  {
+    for (int i = 1; i <= 4; ++i)
+    {
+      lua_rawgeti(L, -1, i);
+      if (!lua_isinteger(L, -1))
+        return luaL_error(L, "block1_nodes must be a list of 4 node indices.");
+      nodes1[i-1] = (int)lua_tointeger(L, -1);
+      lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+  }
+  if (!block_nodes_match_face(L, nodes1))
+    return luaL_error(L, "block1_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes1[0], nodes1[1], nodes1[2], nodes1[3]);
 
   lua_getfield(L, 2, "trans1");
   void* trans1 = NULL;
   // FIXME
   lua_pop(L, 1);
 
-  lua_getfield(L, 2, "index2");
+  lua_getfield(L, 2, "block2_index");
   if (!lua_isinteger(L, -1))
-    return luaL_error(L, "index2 must be a valid block index.");
+    return luaL_error(L, "block2_index must be a valid block index.");
   int index2 = (int)lua_tointeger(L, -1); 
   if ((index2 < 0) || ((size_t)index2 >= blockmesh_num_blocks(m)))
     return luaL_error(L, "Invalid index for second block: %d.", index2);
   lua_pop(L, 1);
 
-  lua_getfield(L, 2, "boundary2");
-  if (!lua_isinteger(L, -1))
-    return luaL_error(L, "boundary2 must be a valid block boundary.");
-  int boundary2_int = (int)lua_tointeger(L, -1); 
-  if ((boundary2_int < 0) || (boundary2_int >= 6))
-    return luaL_error(L, "Invalid block boundary for second block.");
-  unimesh_boundary_t boundary2 = (unimesh_boundary_t)boundary2_int;
-  lua_pop(L, 1);
+  int nodes2[4];
+  lua_getfield(L, 2, "block2_nodes");
+  if (!lua_istable(L, -1))
+    return luaL_error(L, "block2_nodes must be a list of 4 node indices.");
+  else
+  {
+    for (int i = 1; i <= 4; ++i)
+    {
+      lua_rawgeti(L, -1, i);
+      if (!lua_isinteger(L, -1))
+        return luaL_error(L, "block2_nodes must be a list of 4 node indices.");
+      nodes2[i-1] = (int)lua_tointeger(L, -1);
+      lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+  }
+  if (!block_nodes_match_face(L, nodes2))
+    return luaL_error(L, "block2_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes2[0], nodes2[1], nodes2[2], nodes2[3]);
 
   lua_getfield(L, 2, "trans2");
   void* trans2 = NULL;
   lua_pop(L, 1);
 
-  blockmesh_connect_blocks(m, index1, boundary1, trans1, 
-                              index2, boundary2, trans2);
+  blockmesh_connect_blocks(m, index1, nodes1, trans1, 
+                              index2, nodes2, trans2);
   return 0;
 }
 

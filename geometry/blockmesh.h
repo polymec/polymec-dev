@@ -22,6 +22,14 @@
 /// A blockmesh is distributed across processes in an MPI communicator. Every 
 /// process contains all of the blocks in a blockmesh. Each of these blocks
 /// is domain-decomposed across these processes.
+///
+/// Blocks in a block mesh are stitched together by identifying nodes on the 
+/// common face between two blocks. Each block has 8 nodes. Looking down 
+/// (in the -z direction) on a block in the xy plane, nodes 0-3 traverse the 
+/// bottom block face counterclockwise, starting with the "lower left" node.
+/// Nodes 4-7 traverse the top block face in the same way. This is the standard
+/// way that nodes are indexed in hexahedral elements in the finite element 
+/// method.
 typedef struct blockmesh_t blockmesh_t;
 
 //------------------------------------------------------------------------
@@ -44,47 +52,37 @@ blockmesh_t* blockmesh_new(MPI_Comm comm);
 /// \memberof blockmesh
 int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block);
 
-/// \enum blockmesh_cxn_t
-/// Describes the way that two blocks are connected within a block mesh.
-typedef enum
-{
-  /// Connects a block to another block without rotating. 
-  BLOCKMESH_CXN_UNROTATED = 0,
-  /// Connects a block to another block, rotating counterclockwise by 1/4. 
-  BLOCKMESH_CXN_QUARTER_TURN = 1,
-  /// Connects a block to another block, rotating counterclockwise by 1/2. 
-  BLOCKMESH_CXN_HALF_TURN = 2,
-  /// Connects a block to another block, rotating counterclockwise by 3/4. 
-  BLOCKMESH_CXN_THREE_QUARTER_TURN = 3
-} blockmesh_cxn_t;
-
 /// Connects two blocks with the given indices within a block mesh in a manner 
-/// specified by parameters. Must be called on every process within the 
-/// mesh's communicator. The blocks must be connected in such a way that all 
-/// block dimensions are compatible. The two indices can refer to the same 
-/// block, in which case the block connects to itself.
-/// \param [in] index1 The index of the first of the two blocks to be connected
-///                    within the mesh.
-/// \param [in] boundary1 The boundary of the first block to connect to the 
-///                       second.
+/// specified by parameters. You must call this function on every process 
+/// within the mesh's communicator, and the blocks must be connected in such a 
+/// way that all block dimensions are compatible. The two indices can refer to 
+/// the same block, in which case the block connects to itself.
+/// \param [in] block1_index The index of the first of the two blocks to be 
+///                          connected within the mesh.
+/// \param [in] block1_nodes An array containing the 4 nodes in the first block
+///                          to be identified with the corresponding nodes 
+///                          in the second block (block2_nodes).
 /// \param [in] trans1 A transformation that defines how field boundary values 
 ///                    are transferred from the first block to the second. If 
 ///                    this argument is NULL, field values are copied directly
-///                    to the appropriate cell.
-/// \param [in] index2 The index of the second of the two blocks to be connected
-///                    within the mesh.
-/// \param [in] boundary2 The boundary of the second_block to connect to the 
-///                       second.
+///                    between blocks.
+/// \param [in] block2_index The index of the second of the two blocks to be 
+///                          connected within the mesh.
+/// \param [in] block2_nodes An array containing the 4 nodes in the second block
+///                          to be identified with the corresponding nodes 
+///                          in the first block (block1_nodes).
 /// \param [in] trans2 A transformation that defines how field boundary values 
 ///                    are transferred from the second block to the first. If 
 ///                    this argument is NULL, field values are copied directly
-///                    to the appropriate cell.
+///                    between blocks.
 /// \memberof blockmesh
+/// \collective
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
-                              int index1, 
-                              unimesh_boundary_t boundary1,
+                              int block1_index, 
+                              int block1_nodes[4],
                               void* trans1,
-                              int index2, unimesh_boundary_t boundary2,
+                              int block2_index,
+                              int block2_nodes[4],
                               void* trans2);
 
 /// Finalizes the construction process for the block mesh. This must be called 

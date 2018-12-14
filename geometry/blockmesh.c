@@ -59,11 +59,11 @@ int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block)
 }
 
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
-                              int index1, 
-                              unimesh_boundary_t boundary1,
+                              int block1_index, 
+                              int block1_nodes[4],
                               void* trans1,
-                              int index2, 
-                              unimesh_boundary_t boundary2,
+                              int block2_index,
+                              int block2_nodes[4],
                               void* trans2)
 {
 }
