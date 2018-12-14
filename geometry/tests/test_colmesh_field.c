@@ -270,8 +270,8 @@ static void test_face_fields(void** state, colmesh_t* mesh)
   repartition_colmesh(&mesh, NULL, 0.05, fields, 2);
 
   // Clean up.
-  colmesh_field_free(xy_field);
-  colmesh_field_free(z_field);
+  colmesh_field_free(fields[0]);
+  colmesh_field_free(fields[1]);
   colmesh_free(mesh);
 }
 
@@ -401,8 +401,8 @@ static void test_edge_fields(void** state, colmesh_t* mesh)
   repartition_colmesh(&mesh, NULL, 0.05, fields, 2);
 
   // Clean up.
-  colmesh_field_free(xy_field);
-  colmesh_field_free(z_field);
+  colmesh_field_free(fields[0]);
+  colmesh_field_free(fields[1]);
   colmesh_free(mesh);
 }
 

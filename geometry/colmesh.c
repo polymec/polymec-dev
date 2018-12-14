@@ -2278,7 +2278,7 @@ static void redistribute_colmesh_field(colmesh_field_t** field,
   int num_new_local_chunks = (int)colmesh_field_num_chunks(new_field);
   MPI_Request recv_requests[num_new_local_chunks];
   pos = 0;
-  size_t num_recv_reqs = 0;
+  int num_recv_reqs = 0;
   while (colmesh_field_next_chunk(new_field, &pos, &xy_index, &z_index, &data))
   {
     int ch = chunk_index(new_mesh, xy_index, z_index);
@@ -2298,7 +2298,7 @@ static void redistribute_colmesh_field(colmesh_field_t** field,
   int num_old_local_chunks = (int)colmesh_field_num_chunks(old_field);
   MPI_Request send_requests[num_old_local_chunks];
   pos = 0;
-  size_t num_send_reqs = 0;
+  int num_send_reqs = 0;
   while (colmesh_field_next_chunk(old_field, &pos, &xy_index, &z_index, &data))
   {
     int ch = chunk_index(new_mesh, xy_index, z_index);
@@ -2315,8 +2315,8 @@ static void redistribute_colmesh_field(colmesh_field_t** field,
   ASSERT(num_send_reqs <= num_old_local_chunks);
 
   // Wait for everything to finish.
-  MPI_Waitall((int)num_send_reqs, send_requests, MPI_STATUSES_IGNORE);
-  MPI_Waitall((int)num_recv_reqs, recv_requests, MPI_STATUSES_IGNORE);
+  MPI_Waitall(num_send_reqs, send_requests, MPI_STATUSES_IGNORE);
+  MPI_Waitall(num_recv_reqs, recv_requests, MPI_STATUSES_IGNORE);
 
   // Replace the old field with the new one.
   *field = new_field;
