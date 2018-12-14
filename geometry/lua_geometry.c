@@ -1797,44 +1797,6 @@ static int bm_add_block(lua_State* L)
   return 0;
 }
 
-static bool block_nodes_match_face(lua_State* L, int nodes[4])
-{
-  // Only certain combos of block faces are acceptible, so let's make sure
-  // no one's doing anything stupid.
-  int face_nodes[6][4] = {{0, 4, 3, 7},  // -x
-                          {1, 2, 6, 5},  // +x
-                          {0, 1, 5, 4},  // -y
-                          {2, 3, 7, 6},  // +y
-                          {0, 1, 2, 3},  // -z
-                          {4, 5, 6, 7}}; // +z
-
-  bool valid = false;
-  for (int f = 0; f < 6; ++f)
-  {
-    bool face_matches = true;
-    for (int n = 0; n < 4; ++n)
-    {
-      bool node_matches = false;
-      for (int nn = 0; nn < 4; ++nn)
-      {
-        if (nodes[n] == face_nodes[f][nn])
-        {
-          node_matches = true;
-          break;
-        }
-      }
-      if (!node_matches)
-        face_matches = false;
-    }
-    if (face_matches)
-    {
-      valid = true;
-      break;
-    }
-  }
-  return valid;
-}
-
 static int bm_connect_blocks(lua_State* L)
 {
   blockmesh_t* m = lua_to_blockmesh(L, 1);
@@ -1872,7 +1834,7 @@ static int bm_connect_blocks(lua_State* L)
     }
     lua_pop(L, 1);
   }
-  if (!block_nodes_match_face(L, nodes1))
+  if (blockmesh_face_for_nodes(m, nodes1) == -1)
     return luaL_error(L, "block1_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes1[0], nodes1[1], nodes1[2], nodes1[3]);
 
   lua_getfield(L, 2, "trans1");
@@ -1904,7 +1866,7 @@ static int bm_connect_blocks(lua_State* L)
     }
     lua_pop(L, 1);
   }
-  if (!block_nodes_match_face(L, nodes2))
+  if (blockmesh_face_for_nodes(m, nodes1) == -1)
     return luaL_error(L, "block2_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes2[0], nodes2[1], nodes2[2], nodes2[3]);
 
   lua_getfield(L, 2, "trans2");

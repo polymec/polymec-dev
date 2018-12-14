@@ -52,6 +52,13 @@ blockmesh_t* blockmesh_new(MPI_Comm comm);
 /// \memberof blockmesh
 int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block);
 
+/// Returns the face associated with the given set of block nodes, or -1 
+/// if the nodes do not match any of the block's faces. 
+/// \param [in] block_nodes An array of 4 block nodes that supposedly match those
+///                         in one of the block's 6 faces. The order in which 
+///                         the nodes are specified doesn't matter.
+int blockmesh_face_for_nodes(blockmesh_t* mesh, int block_nodes[4]);
+
 /// Connects two blocks with the given indices within a block mesh in a manner 
 /// specified by parameters. You must call this function on every process 
 /// within the mesh's communicator, and the blocks must be connected in such a 

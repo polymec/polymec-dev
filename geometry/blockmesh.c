@@ -58,6 +58,44 @@ int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block)
   return index;
 }
 
+int blockmesh_face_for_nodes(blockmesh_t* mesh, int block_nodes[4])
+{
+  // Only certain combos of block faces are acceptible, so let's make sure
+  // no one's doing anything stupid.
+  int face_nodes[6][4] = {{0, 4, 3, 7},  // -x
+                          {1, 2, 6, 5},  // +x
+                          {0, 1, 5, 4},  // -y
+                          {2, 3, 7, 6},  // +y
+                          {0, 1, 2, 3},  // -z
+                          {4, 5, 6, 7}}; // +z
+
+  int face = -1;
+  for (int f = 0; f < 6; ++f)
+  {
+    bool face_matches = true;
+    for (int n = 0; n < 4; ++n)
+    {
+      bool node_matches = false;
+      for (int nn = 0; nn < 4; ++nn)
+      {
+        if (block_nodes[n] == face_nodes[f][nn])
+        {
+          node_matches = true;
+          break;
+        }
+      }
+      if (!node_matches)
+        face_matches = false;
+    }
+    if (face_matches)
+    {
+      face = f;
+      break;
+    }
+  }
+  return face;
+}
+
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
                               int block1_index, 
                               int block1_nodes[4],
