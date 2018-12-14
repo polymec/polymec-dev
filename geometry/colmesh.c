@@ -1031,11 +1031,12 @@ static void create_xy_face_ex(colmesh_t* mesh)
       }
     }
   }
+  int_unordered_set_free(contributed_to_self);
+  polymec_free(owners);
 
   // Sort the receive faces.
   sort_indices(point_map, receive_map);
   proc_point_map_free(point_map);
-  int_unordered_set_free(contributed_to_self);
 
   // Now construct the exchanger.
   mesh->xy_face_ex = exchanger_new(mesh->comm);
@@ -1270,11 +1271,12 @@ static void create_xy_edge_ex(colmesh_t* mesh)
       }
     }
   }
+  int_unordered_set_free(contributed_to_self);
+  polymec_free(owners);
 
   // Sort the receive edges.
   sort_indices(point_map, receive_map);
   proc_point_map_free(point_map);
-  int_unordered_set_free(contributed_to_self);
 
   // Now construct the exchanger.
   mesh->xy_edge_ex = exchanger_new(mesh->comm);
@@ -1445,12 +1447,13 @@ static void create_z_edge_ex(colmesh_t* mesh)
       }
     }
   }
+  int_unordered_set_free(processed_edge);
+  int_unordered_set_free(contributed_to_self);
+  polymec_free(owners);
 
   // Sort the receive nodes.
   sort_indices(point_map, receive_map);
   proc_point_map_free(point_map);
-  int_unordered_set_free(processed_edge);
-  int_unordered_set_free(contributed_to_self);
 
   // Now construct the exchanger.
   mesh->z_edge_ex = exchanger_new(mesh->comm);
@@ -1625,12 +1628,13 @@ static void create_node_ex(colmesh_t* mesh)
       }
     }
   }
+  int_unordered_set_free(processed_node);
+  int_unordered_set_free(contributed_to_self);
+  polymec_free(owners);
 
   // Sort the receive nodes.
   sort_indices(point_map, receive_map);
   proc_point_map_free(point_map);
-  int_unordered_set_free(processed_node);
-  int_unordered_set_free(contributed_to_self);
 
   // Now construct the exchanger.
   mesh->node_ex = exchanger_new(mesh->comm);
