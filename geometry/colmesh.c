@@ -702,6 +702,10 @@ static void sort_indices(proc_point_map_t* point_map,
   while (exchanger_proc_map_next(index_map, &pos, &proc, &ind))
   {
     point_array_t* pts = *proc_point_map_get(point_map, proc);
+
+    // Make sure we have the same number of points and indices!
+    ASSERT(pts->size == ind->size);
+
     bbox_t bbox = {.x1 = 0.0, .x2 = 0.0, .y1 = 0.0, .y2 = 0.0, .z1 = 0.0, .z2 = 0.0};
     for (size_t k = 0; k < ind->size; ++k)
       bbox_grow(&bbox, &pts->data[k]);
@@ -943,10 +947,13 @@ static void create_xy_face_ex(colmesh_t* mesh)
         {
           int index = (int)(chunk_offset + chunk->num_z_cells*xy1 + zz);
           exchanger_proc_map_add_index(send_map, mesh->rank, index);
-          exchanger_proc_map_add_index(send_map, proc, index);
           x.z = chunk->z1 + (zz+0.5) * dz;
           proc_point_map_add(point_map, mesh->rank, &x);
-          proc_point_map_add(point_map, proc, &x);
+          if (proc != mesh->rank)
+          {
+            exchanger_proc_map_add_index(send_map, proc, index);
+            proc_point_map_add(point_map, proc, &x);
+          }
         }
       }
     }
@@ -994,10 +1001,13 @@ static void create_xy_face_ex(colmesh_t* mesh)
         {
           int index = (int)(chunk_offset + chunk->num_z_cells*xy1 + zz);
           exchanger_proc_map_add_index(receive_map, mesh->rank, index);
-          exchanger_proc_map_add_index(receive_map, proc, index);
           x.z = chunk->z1 + (zz+0.5) * dz;
           proc_point_map_add(point_map, mesh->rank, &x);
-          proc_point_map_add(point_map, proc, &x);
+          if (proc != mesh->rank)
+          {
+            proc_point_map_add(point_map, proc, &x);
+            exchanger_proc_map_add_index(receive_map, proc, index);
+          }
         }
       }
     }
@@ -1055,8 +1065,11 @@ static void create_z_face_ex(colmesh_t* mesh)
         int index = (int)(chunk_offset + (chunk->num_z_cells+1) * xy1 + z1);
         exchanger_proc_map_add_index(send_map, mesh->rank, index);
         exchanger_proc_map_add_index(receive_map, mesh->rank, index);
-        exchanger_proc_map_add_index(send_map, proc, index);
-        exchanger_proc_map_add_index(receive_map, proc, index);
+        if (proc != mesh->rank)
+        {
+          exchanger_proc_map_add_index(send_map, proc, index);
+          exchanger_proc_map_add_index(receive_map, proc, index);
+        }
       }
     }
 
@@ -1071,8 +1084,11 @@ static void create_z_face_ex(colmesh_t* mesh)
         int index = (int)(chunk_offset + (chunk->num_z_cells+1) * xy1 + z1);
         exchanger_proc_map_add_index(send_map, mesh->rank, index);
         exchanger_proc_map_add_index(receive_map, mesh->rank, index);
-        exchanger_proc_map_add_index(send_map, proc, index);
-        exchanger_proc_map_add_index(receive_map, proc, index);
+        if (proc != mesh->rank)
+        {
+          exchanger_proc_map_add_index(send_map, proc, index);
+          exchanger_proc_map_add_index(receive_map, proc, index);
+        }
       }
     }
   }
@@ -1149,15 +1165,19 @@ static void create_xy_edge_ex(colmesh_t* mesh)
         {
           int index = (int)(chunk_offset + (chunk->num_z_cells+1)*xy1 + zz);
           exchanger_proc_map_add_index(send_map, mesh->rank, index);
-          exchanger_proc_map_add_index(send_map, proc, index);
           x.z = chunk->z1 + zz * dz;
-          proc_point_map_add(point_map, proc, &x);
+          proc_point_map_add(point_map, mesh->rank, &x);
+          if (proc != mesh->rank)
+          {
+            exchanger_proc_map_add_index(send_map, proc, index);
+            proc_point_map_add(point_map, proc, &x);
+          }
         }
       }
     }
   }
 
-  // Sort the send indices/points.
+  // Sort the send edges.
   sort_indices(point_map, send_map);
 
   // Set up receive edges.
@@ -1199,9 +1219,13 @@ static void create_xy_edge_ex(colmesh_t* mesh)
         {
           int index = (int)(chunk_offset + (chunk->num_z_cells+1)*xy1 + zz);
           exchanger_proc_map_add_index(receive_map, mesh->rank, index);
-          exchanger_proc_map_add_index(receive_map, proc, index);
           x.z = chunk->z1 + zz * dz;
-          proc_point_map_add(point_map, proc, &x);
+          proc_point_map_add(point_map, mesh->rank, &x);
+          if (proc != mesh->rank)
+          {
+            exchanger_proc_map_add_index(receive_map, proc, index);
+            proc_point_map_add(point_map, proc, &x);
+          }
         }
       }
     }
@@ -1340,7 +1364,8 @@ void colmesh_finalize(colmesh_t* mesh)
   }
 
   // We're finished here.
-  log_debug("colmesh_finalize: finalized with %d local chunks.", mesh->chunks->size);
+  log_debug("colmesh_finalize: finalized with %d (%d x %d) local chunks.", mesh->chunks->size,
+            mesh->num_xy_chunks, mesh->num_z_chunks);
   mesh->finalized = true;
 }
 
