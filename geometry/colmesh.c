@@ -10,7 +10,7 @@
 #include "core/hilbert.h"
 #include "core/partitioning.h"
 #include "core/timer.h"
-#include "core/unordered_map.h"
+#include "core/unordered_set.h"
 #include "geometry/colmesh.h"
 #include "geometry/colmesh_field.h"
 #include "geometry/polymesh.h"
@@ -222,6 +222,7 @@ static chunk_xy_data_t* chunk_xy_data_from_partition(MPI_Comm comm,
 
   xy_data->xy_edge_nodes = edge_nodes->data;
   xy_data->num_xy_edges = (int)(edge_nodes->size/2);
+  ASSERT(xy_data->num_xy_edges == xy_data->num_xy_faces);
   int_array_release_data_and_free(edge_nodes);
 
   // Set node positions.
@@ -734,8 +735,8 @@ static void create_cell_ex(colmesh_t* mesh)
 
   // Assemble exchangers by traversing the locally stored chunks, assembling 
   // send and receive indices, and ordering those indices by the spatial locations
-  // of their underlying elements. For cell and face exchangers, we sort the indices 
-  // by the location of the faces separating send and receive faces. 
+  // of their underlying elements. For cell exchangers, we sort the indices by the 
+  // location of the faces separating send and receive cells. 
 
   // Set up send cells.
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
@@ -847,6 +848,7 @@ static void create_cell_ex(colmesh_t* mesh)
     colmesh_chunk_t* chunk = *chunk_map_get(mesh->chunks, ch_index);
     int chunk_offset = chunk_offsets[i];
 
+    // Upper neighbor.
     if ((z > 0) || (mesh->periodic_in_z))
     {
       for (int xy1 = 0; xy1 < chunk->num_columns; ++xy1)
@@ -862,6 +864,7 @@ static void create_cell_ex(colmesh_t* mesh)
       }
     }
 
+    // Lower neighbor.
     if ((z < (mesh->num_z_chunks-1)) || (mesh->periodic_in_z))
     {
       for (int xy1 = 0; xy1 < chunk->num_columns; ++xy1)
@@ -904,12 +907,12 @@ static void create_xy_face_ex(colmesh_t* mesh)
 
   // Assemble exchangers by traversing the locally stored chunks, assembling 
   // send and receive indices, and ordering those indices by the spatial locations
-  // of their underlying elements. For cell and face exchangers, we sort the indices 
-  // by the location of the faces separating send and receive faces. 
+  // of their underlying elements. 
 
   // Set up send faces.
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
   proc_point_map_t* point_map = proc_point_map_new();
+  int_unordered_set_t* contributed_to_self = int_unordered_set_new();
   for (size_t i = 0; i < mesh->chunks->size; ++i)
   {
     int xy = mesh->chunk_indices[2*i];
@@ -925,6 +928,7 @@ static void create_xy_face_ex(colmesh_t* mesh)
     // Figure out the send faces.
     int pos = 0, neighbor_xy_index;
     int_array_t* indices;
+    int_unordered_set_clear(contributed_to_self);
     while (exchanger_proc_map_next(xy_sends, &pos, &neighbor_xy_index, &indices))
     {
       // Loop over the xy indices in the map.
@@ -932,8 +936,7 @@ static void create_xy_face_ex(colmesh_t* mesh)
       for (size_t j = 0; j < num_indices; ++j)
       {
         int proc = (int)(owners[neighbor_xy_index]);
-        int xy1 = indices->data[2*j];
-        int edge = indices->data[2*j+1];
+        int face = indices->data[2*j+1], edge = face;
 
         // Get the x and y coordinates for the send face.
         int node_indices[2] = {xy_data->xy_edge_nodes[2*edge], xy_data->xy_edge_nodes[2*edge+1]};
@@ -945,10 +948,18 @@ static void create_xy_face_ex(colmesh_t* mesh)
         // Traverse the column and add send indices/points.
         for (int zz = 0; zz < chunk->num_z_cells; ++zz)
         {
-          int index = (int)(chunk_offset + chunk->num_z_cells*xy1 + zz);
-          exchanger_proc_map_add_index(send_map, mesh->rank, index);
+          int index = (int)(chunk_offset + chunk->num_z_cells*face + zz);
           x.z = chunk->z1 + (zz+0.5) * dz;
-          proc_point_map_add(point_map, mesh->rank, &x);
+
+          // Self contribution.
+          if (!int_unordered_set_contains(contributed_to_self, index))
+          {
+            exchanger_proc_map_add_index(send_map, mesh->rank, index);
+            proc_point_map_add(point_map, mesh->rank, &x);
+            int_unordered_set_insert(contributed_to_self, index);
+          }
+
+          // Contribution to neighboring process.
           if (proc != mesh->rank)
           {
             exchanger_proc_map_add_index(send_map, proc, index);
@@ -980,14 +991,14 @@ static void create_xy_face_ex(colmesh_t* mesh)
     // Figure out the xy receive faces.
     int pos = 0, neighbor_xy_index;
     int_array_t* indices;
+    int_unordered_set_clear(contributed_to_self);
     while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
     {
       size_t num_indices = indices->size/2;
       for (size_t j = 0; j < num_indices; ++j)
       {
         int proc = (int)(owners[neighbor_xy_index]);
-        int xy1 = indices->data[2*j];
-        int edge = indices->data[2*j+1];
+        int face = indices->data[2*j+1], edge = face;
 
         // Get the x and y coordinates for the receive face.
         int node_indices[2] = {xy_data->xy_edge_nodes[2*edge], xy_data->xy_edge_nodes[2*edge+1]};
@@ -999,10 +1010,18 @@ static void create_xy_face_ex(colmesh_t* mesh)
         // Traverse the column and add receive indices/points.
         for (int zz = 0; zz < chunk->num_z_cells; ++zz)
         {
-          int index = (int)(chunk_offset + chunk->num_z_cells*xy1 + zz);
-          exchanger_proc_map_add_index(receive_map, mesh->rank, index);
+          int index = (int)(chunk_offset + chunk->num_z_cells*face + zz);
           x.z = chunk->z1 + (zz+0.5) * dz;
-          proc_point_map_add(point_map, mesh->rank, &x);
+
+          // Self contribution.
+          if (!int_unordered_set_contains(contributed_to_self, index))
+          {
+            exchanger_proc_map_add_index(receive_map, mesh->rank, index);
+            proc_point_map_add(point_map, mesh->rank, &x);
+            int_unordered_set_insert(contributed_to_self, index);
+          }
+
+          // Contribution to neighboring process.
           if (proc != mesh->rank)
           {
             proc_point_map_add(point_map, proc, &x);
@@ -1016,6 +1035,7 @@ static void create_xy_face_ex(colmesh_t* mesh)
   // Sort the receive faces.
   sort_indices(point_map, receive_map);
   proc_point_map_free(point_map);
+  int_unordered_set_free(contributed_to_self);
 
   // Now construct the exchanger.
   mesh->xy_face_ex = exchanger_new(mesh->comm);
@@ -1054,6 +1074,7 @@ static void create_z_face_ex(colmesh_t* mesh)
     colmesh_chunk_t* chunk = *chunk_map_get(mesh->chunks, ch_index);
     int chunk_offset = chunk_offsets[i];
 
+    // Upper neighbor.
     if ((z > 0) || (mesh->periodic_in_z))
     {
       for (int xy1 = 0; xy1 < chunk->num_columns; ++xy1)
@@ -1063,8 +1084,12 @@ static void create_z_face_ex(colmesh_t* mesh)
         int proc = (int)(owners[ch1_index]);
         int z1 = 0;
         int index = (int)(chunk_offset + (chunk->num_z_cells+1) * xy1 + z1);
+
+        // Self contribution.
         exchanger_proc_map_add_index(send_map, mesh->rank, index);
         exchanger_proc_map_add_index(receive_map, mesh->rank, index);
+
+        // Contribution to neighboring process.
         if (proc != mesh->rank)
         {
           exchanger_proc_map_add_index(send_map, proc, index);
@@ -1073,6 +1098,7 @@ static void create_z_face_ex(colmesh_t* mesh)
       }
     }
 
+    // Lower neighbor.
     if ((z < (mesh->num_z_chunks-1)) || (mesh->periodic_in_z))
     {
       for (int xy1 = 0; xy1 < chunk->num_columns; ++xy1)
@@ -1122,12 +1148,12 @@ static void create_xy_edge_ex(colmesh_t* mesh)
 
   // Assemble exchangers by traversing the locally stored chunks, assembling 
   // send and receive indices, and ordering those indices by the spatial locations
-  // of their underlying elements. For cell and face exchangers, we sort the indices 
-  // by the location of the faces separating send and receive faces. 
+  // of their underlying elements. 
 
   // Set up send edges.
   exchanger_proc_map_t* send_map = exchanger_proc_map_new();
   proc_point_map_t* point_map = proc_point_map_new();
+  int_unordered_set_t* contributed_to_self = int_unordered_set_new();
   for (size_t i = 0; i < mesh->chunks->size; ++i)
   {
     int xy = mesh->chunk_indices[2*i];
@@ -1143,6 +1169,7 @@ static void create_xy_edge_ex(colmesh_t* mesh)
     // Figure out the send edges.
     int pos = 0, neighbor_xy_index;
     int_array_t* indices;
+    int_unordered_set_clear(contributed_to_self);
     while (exchanger_proc_map_next(xy_sends, &pos, &neighbor_xy_index, &indices))
     {
       // Loop over the xy indices in the map.
@@ -1150,7 +1177,6 @@ static void create_xy_edge_ex(colmesh_t* mesh)
       for (size_t j = 0; j < num_indices; ++j)
       {
         int proc = (int)(owners[neighbor_xy_index]);
-        int xy1 = indices->data[2*j];
         int edge = indices->data[2*j+1];
 
         // Get the x and y coordinates for the send edge.
@@ -1163,10 +1189,17 @@ static void create_xy_edge_ex(colmesh_t* mesh)
         // Traverse the column and add send indices/points.
         for (int zz = 0; zz <= chunk->num_z_cells; ++zz)
         {
-          int index = (int)(chunk_offset + (chunk->num_z_cells+1)*xy1 + zz);
-          exchanger_proc_map_add_index(send_map, mesh->rank, index);
+          int index = (int)(chunk_offset + (chunk->num_z_cells+1)*edge + zz);
           x.z = chunk->z1 + zz * dz;
-          proc_point_map_add(point_map, mesh->rank, &x);
+
+          // Self contribution.
+          if (!int_unordered_set_contains(contributed_to_self, index))
+          {
+            exchanger_proc_map_add_index(send_map, mesh->rank, index);
+            proc_point_map_add(point_map, mesh->rank, &x);
+          }
+
+          // Contribution to neighboring process.
           if (proc != mesh->rank)
           {
             exchanger_proc_map_add_index(send_map, proc, index);
@@ -1198,13 +1231,13 @@ static void create_xy_edge_ex(colmesh_t* mesh)
     // Figure out the xy receive edges.
     int pos = 0, neighbor_xy_index;
     int_array_t* indices;
+    int_unordered_set_clear(contributed_to_self);
     while (exchanger_proc_map_next(xy_receives, &pos, &neighbor_xy_index, &indices))
     {
       size_t num_indices = indices->size/2;
       for (size_t j = 0; j < num_indices; ++j)
       {
         int proc = (int)(owners[neighbor_xy_index]);
-        int xy1 = mesh->chunk_indices[2*j];
         int edge = indices->data[2*j+1];
 
         // Get the x and y coordinates for the receive cell's face.
@@ -1217,10 +1250,17 @@ static void create_xy_edge_ex(colmesh_t* mesh)
         // Traverse the column and add receive indices/points.
         for (int zz = 0; zz <= chunk->num_z_cells; ++zz)
         {
-          int index = (int)(chunk_offset + (chunk->num_z_cells+1)*xy1 + zz);
-          exchanger_proc_map_add_index(receive_map, mesh->rank, index);
+          int index = (int)(chunk_offset + (chunk->num_z_cells+1)*edge + zz);
           x.z = chunk->z1 + zz * dz;
-          proc_point_map_add(point_map, mesh->rank, &x);
+
+          // Self contribution.
+          if (!int_unordered_set_contains(contributed_to_self, index))
+          {
+            exchanger_proc_map_add_index(receive_map, mesh->rank, index);
+            proc_point_map_add(point_map, mesh->rank, &x);
+          }
+
+          // Contribution to neighboring process.
           if (proc != mesh->rank)
           {
             exchanger_proc_map_add_index(receive_map, proc, index);
@@ -1234,6 +1274,7 @@ static void create_xy_edge_ex(colmesh_t* mesh)
   // Sort the xy send and receive indices/points using space filling curves.
   sort_indices(point_map, receive_map);
   proc_point_map_free(point_map);
+  int_unordered_set_free(contributed_to_self);
 
   // Now construct the exchanger.
   mesh->xy_edge_ex = exchanger_new(mesh->comm);

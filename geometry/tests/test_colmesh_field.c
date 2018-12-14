@@ -16,9 +16,9 @@
 
 static int _nproc = -1;
 static int _rank = -1;
-static int _nx = 2;
-static int _ny = 2;
-static int _nz = 2;
+static int _nx = 10;
+static int _ny = 10;
+static int _nz = 10;
 
 static colmesh_t* create_mesh(MPI_Comm comm, 
                               bool periodic_in_xy, 
