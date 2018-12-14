@@ -661,27 +661,35 @@ serializer_t* polymesh_serializer()
   return serializer_new("mesh", polymesh_byte_size, polymesh_byte_read, polymesh_byte_write, NULL);
 }
 
-#if POLYMEC_HAVE_MPI
-static exchanger_t* create_2_face_exchanger(polymesh_t* mesh)
+static exchanger_t* create_face_exchanger(polymesh_t* mesh)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
+
+#if POLYMEC_HAVE_MPI
+
+  int nprocs;
+  MPI_Comm_size(mesh->comm, &nprocs);
+  if (nprocs == 1)
+    return ex;
+
+  int rank;
+  MPI_Comm_rank(mesh->comm, &rank);
+
   // Get the mesh cell exchanger.
   exchanger_t* cell_ex = polymesh_exchanger(mesh, POLYMESH_CELL);
 
   // Traverse the send/receive cells and create send and receive "faces."
-  int_array_t* send_faces = int_array_new();
-  int_array_t* receive_faces = int_array_new();
-  int pos = 0, proc, *s_indices, s_size; 
+  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
+  int pos = 0, proc, *s_indices, s_size;
+  int_unordered_set_t* contributed_to_self = int_unordered_set_new();
   while (exchanger_next_send(cell_ex, &pos, &proc, &s_indices, &s_size))
   {
-    int_array_clear(send_faces);
-    int_array_clear(receive_faces);
-
     // Get the receive transaction corresponding to this send one.
     int *r_indices, r_size; 
     bool have_it = exchanger_get_receive(cell_ex, proc, &r_indices, &r_size);
     if (!have_it)
-      polymec_error("create_2_face_exchanger: Couldn't establish communication!");
+      polymec_error("create_face_exchanger: Couldn't establish communication!");
 
     // Now find the face separating each pair of cells.
     ASSERT(r_size == s_size);
@@ -696,76 +704,175 @@ static exchanger_t* create_2_face_exchanger(polymesh_t* mesh)
         int neighbor = polymesh_face_opp_cell(mesh, face, s_cell);
         if (neighbor == r_cell)
         {
-          int_array_append(send_faces, 2*face);
-          int_array_append(receive_faces, 2*face+1);
+          exchanger_proc_map_add_index(send_map, proc, face);
+          exchanger_proc_map_add_index(receive_map, proc, face);
+          if (!int_unordered_set_contains(contributed_to_self, face))
+          {
+            exchanger_proc_map_add_index(send_map, rank, face);
+            exchanger_proc_map_add_index(receive_map, rank, face);
+            int_unordered_set_insert(contributed_to_self, face);
+          }
           break;
         }
       }
     }
-    ASSERT(send_faces->size == s_size);
-    ASSERT(receive_faces->size == r_size);
-
-    // Set up the exchange.
-    if (send_faces->size > 0)
-      exchanger_set_send(ex, proc, send_faces->data, (int)send_faces->size, true);
-    if (receive_faces->size > 0)
-      exchanger_set_receive(ex, proc, receive_faces->data, (int)receive_faces->size, true);
   }
-  int_array_free(send_faces);
-  int_array_free(receive_faces);
+  exchanger_set_sends(ex, send_map);
+  exchanger_set_receives(ex, receive_map);
+  int_unordered_set_free(contributed_to_self);
+
+  // By default, this exchanger uses the "min rank" reducer.
+  exchanger_set_reducer(ex, EXCHANGER_MIN_RANK);
+#endif
   return ex;
 }
-#endif
 
-static exchanger_t* create_face_exchanger(polymesh_t* mesh)
+static exchanger_t* create_edge_exchanger(polymesh_t* mesh)
 {
+  // If we haven't constructed edges yet, do so now.
+  if (mesh->num_edges == 0)
+    polymesh_construct_edges(mesh);
+
   exchanger_t* ex = exchanger_new(mesh->comm);
 #if POLYMEC_HAVE_MPI
-  int nproc;
-  MPI_Comm_size(mesh->comm, &nproc);
-  if (nproc > 1)
+  int nprocs;
+  MPI_Comm_size(mesh->comm, &nprocs);
+  if (nprocs == 1)
+    return ex;
+
+  int rank;
+  MPI_Comm_rank(mesh->comm, &rank);
+
+  // The process that owns an edge is the process with minimum MPI rank 
+  // associated with a node attached to the edge.
+  // Traverse the nodes and associate them with their owning processes.
+  // NOTE: We abuse an exchanger_proc_map here to map node indices -> 
+  // lists of processes.
+#define elem_proc_map_t exchanger_proc_map_t
+#define elem_proc_map_new exchanger_proc_map_new
+#define elem_proc_map_get exchanger_proc_map_get
+#define elem_proc_map_next exchanger_proc_map_next
+#define elem_proc_map_add_proc exchanger_proc_map_add_index
+#define elem_proc_map_free exchanger_proc_map_free
+  exchanger_t* node_ex = polymesh_exchanger(mesh, POLYMESH_NODE);
+  elem_proc_map_t* node_procs = elem_proc_map_new();
   {
-    // First construct the 2-valued face exchanger.
-    exchanger_t* face2_ex = create_2_face_exchanger(mesh);
-
-    // Determine the owner of each face. We assign a face to the process on 
-    // which it is present, having the lowest rank.
-    int rank;
-    MPI_Comm_rank(mesh->comm, &rank);
-    int face_procs[2*mesh->num_faces];
-    for (int f = 0; f < mesh->num_faces; ++f)
-      face_procs[2*f] = rank;
-    exchanger_exchange(face2_ex, face_procs, 1, 0, MPI_INT);
-
-    // Now set up our single-valued exchanger.
-    exchanger_proc_map_t* send_map = exchanger_proc_map_new();
-    exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
-    for (int f = 0; f < mesh->num_faces; ++f)
+    int pos = 0, proc, *indices, num_indices;
+    while (exchanger_next_receive(node_ex, &pos, &proc, &indices, &num_indices))
     {
-      int face_sender = MIN(face_procs[2*f], face_procs[2*f+1]);
-      int face_receiver = MAX(face_procs[2*f], face_procs[2*f+1]);
-      if (face_sender == rank)
-        exchanger_proc_map_add_index(send_map, face_receiver, f);
-      else
-        exchanger_proc_map_add_index(receive_map, face_sender, f);
+      for (int i = 0; i < num_indices; ++i)
+        elem_proc_map_add_proc(node_procs, indices[i], proc);
     }
-    exchanger_set_sends(ex, send_map);
-    exchanger_set_receives(ex, receive_map);
-    release_ref(face2_ex);
   }
+
+  // Now go over our edges and associate them with the processes on 
+  // which the edge lives.
+  elem_proc_map_t* edge_procs = elem_proc_map_new();
+  int_array_t* edge_indices = int_array_new();
+  point_array_t* edge_centers = point_array_new();
+  for (int e = 0; e < mesh->num_edges; ++e)
+  {
+    int n1 = mesh->edge_nodes[2*e];
+    int_array_t** n1_procs_p = elem_proc_map_get(node_procs, n1);
+    if (n1_procs_p != NULL)
+    {
+      int_array_t* n1_procs = *n1_procs_p;
+      int n2 = mesh->edge_nodes[2*e+1];
+      int_array_t** n2_procs_p = elem_proc_map_get(node_procs, n2);
+      if (n2_procs_p != NULL)
+      {
+        int_array_t* n2_procs = *n2_procs_p;
+
+        // The edge must be present on each of the processes we associate
+        // with it, so we add the intersection of the two sets of processes
+        // n1_procs and n2_procs.
+        bool first_entry = true;
+        for (size_t i = 0; i < n1_procs->size; ++i)
+        {
+          int proc = n1_procs->data[i];
+          if ((proc != rank) && (int_array_find(n2_procs, proc, int_cmp) != NULL))
+          {
+            if (first_entry)
+            {
+              // Jot down the index for this edge and compute its center position.
+              int_array_append(edge_indices, e);
+              point_t* x1 = &mesh->nodes[n1];
+              point_t* x2 = &mesh->nodes[n2];
+              point_t xe = {.x = 0.5*(x1->x + x2->x),
+                            .y = 0.5*(x1->y + x2->y),
+                            .z = 0.5*(x1->z + x2->z)};
+              point_array_append(edge_centers, xe);
+              first_entry = false;
+            }
+
+            elem_proc_map_add_proc(edge_procs, e, proc);
+          }
+        }
+      }
+    }
+  }
+  elem_proc_map_free(node_procs);
+
+  // Sort our edge indices so that they are in Hilbert order.
+  {
+    bbox_t bbox = {.x1 = REAL_MAX, .x2 = -REAL_MAX,
+                   .y1 = REAL_MAX, .y2 = -REAL_MAX,
+                   .z1 = REAL_MAX, .z2 = -REAL_MAX};
+    for (int i = 0; i < edge_centers->size; ++i)
+      bbox_grow(&bbox, &(edge_centers->data[i]));
+    hilbert_t* curve = hilbert_new(&bbox);
+    hilbert_sort_points(curve, edge_centers->data, edge_indices->data, 
+                        edge_centers->size);
+    release_ref(curve);
+  }
+
+  // Construct the send and receive maps for edges and build the exchanger.
+  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
+  exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
+  {
+    int_unordered_set_t* contributed_to_self = int_unordered_set_new();
+    for (size_t e = 0; e < edge_indices->size; ++e)
+    {
+      int edge = edge_indices->data[e];
+      if (!int_unordered_set_contains(contributed_to_self, edge))
+      {
+        exchanger_proc_map_add_index(send_map, rank, edge);
+        exchanger_proc_map_add_index(receive_map, rank, edge);
+        int_unordered_set_insert(contributed_to_self, edge);
+      }
+      int_array_t* procs = *elem_proc_map_get(edge_procs, edge);
+      for (size_t i = 0; i < procs->size; ++i)
+      {
+        exchanger_proc_map_add_index(send_map, procs->data[i], edge);
+        exchanger_proc_map_add_index(receive_map, procs->data[i], edge);
+      }
+    }
+    int_unordered_set_free(contributed_to_self);
+  }
+  exchanger_set_sends(ex, send_map);
+  exchanger_set_receives(ex, receive_map);
+
+  // By default, this exchanger uses the "min rank" reducer.
+  exchanger_set_reducer(ex, EXCHANGER_MIN_RANK);
+
+  // Clean up.
+  point_array_free(edge_centers);
+  int_array_free(edge_indices);
+  elem_proc_map_free(edge_procs);
+#undef node_proc_map_t
+#undef node_proc_map_new 
+#undef node_proc_map_get 
+#undef node_proc_map_add_proc 
+#undef node_proc_map_free 
+
 #endif
   return ex;
 }
 
-#if POLYMEC_HAVE_MPI
-static exchanger_t* create_n_node_exchanger(polymesh_t* mesh, int* node_offsets)
+static exchanger_t* create_node_exchanger(polymesh_t* mesh)
 {
   exchanger_t* ex = exchanger_new(mesh->comm);
-
-  // Initialize the node offsets array.
-  node_offsets[0] = 0;
-  for (int n = 0; n <= mesh->num_nodes; ++n)
-    node_offsets[n+1] = node_offsets[n] + 1;
+#if POLYMEC_HAVE_MPI
 
   int nprocs;
   MPI_Comm_size(mesh->comm, &nprocs);
@@ -775,11 +882,9 @@ static exchanger_t* create_n_node_exchanger(polymesh_t* mesh, int* node_offsets)
   int rank;
   MPI_Comm_rank(mesh->comm, &rank);
 
-  // Create a 2-valued face exchanger.
-  exchanger_t* face_ex = create_2_face_exchanger(mesh);
-
   // Generate a list of all the neighbors of our set of neighbors.
   int_array_t* all_neighbors_of_neighbors = int_array_new();
+  exchanger_t* face_ex = polymesh_exchanger(mesh, POLYMESH_FACE);
   int num_neighbors = exchanger_num_sends(face_ex);
   int neighbors[num_neighbors];
   {
@@ -846,7 +951,7 @@ static exchanger_t* create_n_node_exchanger(polymesh_t* mesh, int* node_offsets)
     {
       for (int f = 0; f < size; ++f)
       {
-        int face = indices[f]/2; // see docs on face exchanger!
+        int face = indices[f];
         int npos = 0, node;
         while (polymesh_face_next_node(mesh, face, &npos, &node))
           int_unordered_set_insert(node_set, node);
@@ -860,7 +965,6 @@ static exchanger_t* create_n_node_exchanger(polymesh_t* mesh, int* node_offsets)
     }
     int_unordered_set_free(node_set);
   }
-  release_ref(face_ex);
 
   // Sort our nodes so that they are in Hilbert order.
   {
@@ -1001,56 +1105,37 @@ static exchanger_t* create_n_node_exchanger(polymesh_t* mesh, int* node_offsets)
       int_array_free(culled_nodes[p]);
     }
 
-    // First, figure out the node offsets so that we can consistently 
-    // create receive nodes.
+    // Create a kd tree that stores all the nodes in 3D space.
     kd_tree_t* node_tree = kd_tree_new(mesh->nodes, mesh->num_nodes);
-    for (int p = 0; p < num_neighbor_neighbors; ++p)
-    {
-      int proc = all_neighbors_of_neighbors->data[p];
-      point_array_t* their_nodes = *int_ptr_unordered_map_get(neighbor_neighbor_nodes, proc);
-      int sorted_indices[their_nodes->size];
-      for (int i = 0; i < their_nodes->size; ++i)
-        sorted_indices[i] = i;
-      int_qsort(sorted_indices, their_nodes->size);
 
-      for (int i = 0; i < their_nodes->size; ++i)
-      {
-        int j = sorted_indices[i];
-        if (!int_unordered_set_contains(their_culled_node_sets[p], j))
-        {
-          // Find the node in "their_nodes" that matches our local node.
-          int node = kd_tree_nearest(node_tree, &their_nodes->data[j]);
-
-          // Bump back all the nodes behind it.
-          for (int n = node+1; n <= mesh->num_nodes; ++n)
-            ++node_offsets[n];
-        }
-      }
-    }
-
-    // Now set up the exchanger send/receive maps and the node offsets.
+    // Now set up the exchanger send/receive maps.
     exchanger_proc_map_t* send_map = exchanger_proc_map_new();
     exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
-    int_int_unordered_map_t* receive_offsets = int_int_unordered_map_new();
+    int_unordered_set_t* contributed_to_self = int_unordered_set_new();
     for (int p = 0; p < num_neighbor_neighbors; ++p)
     {
       int proc = all_neighbors_of_neighbors->data[p];
 
-      // Send nodes:
+      // Set up send nodes:
       for (int i = 0; i < my_nodes->size; ++i)
       {
-        if (!int_unordered_set_contains(my_culled_node_sets[p], i))
+        int node = my_node_indices->data[i];
+
+        // Set up the self contribution.
+        if (!int_unordered_set_contains(contributed_to_self, node))
         {
-          int node = my_node_indices->data[i];
-          exchanger_proc_map_add_index(send_map, proc, node_offsets[node]);
+          exchanger_proc_map_add_index(send_map, rank, node);
+          exchanger_proc_map_add_index(receive_map, rank, node);
+          int_unordered_set_insert(contributed_to_self, node);
         }
+
+        // Get other contributions.
+        if (!int_unordered_set_contains(my_culled_node_sets[p], i))
+          exchanger_proc_map_add_index(send_map, proc, node);
       }
       int_unordered_set_free(my_culled_node_sets[p]);
 
-      // Received nodes: received values from nodes go into the slots just 
-      // above the local nodal value in an exchanged array. Of course, we 
-      // have to sort these nodes by their indices so that we don't mess up 
-      // the ordering of offsets.
+      // Set up receive nodes.
       point_array_t* their_nodes = *int_ptr_unordered_map_get(neighbor_neighbor_nodes, proc);
       int sorted_indices[their_nodes->size];
       for (int i = 0; i < their_nodes->size; ++i)
@@ -1063,36 +1148,15 @@ static exchanger_t* create_n_node_exchanger(polymesh_t* mesh, int* node_offsets)
         if (!int_unordered_set_contains(their_culled_node_sets[p], j))
         {
           // Find the node in "their_nodes" that matches our local node and 
-          // append it to our list of receive nodes.
+          // add it to our list of receive nodes.
           int node = kd_tree_nearest(node_tree, &their_nodes->data[j]);
-          int* offset_p = int_int_unordered_map_get(receive_offsets, node);
-          int receive_index;
-          if (offset_p == NULL)
-            receive_index = node_offsets[node] + 1;
-          else
-            receive_index = *offset_p + 1;
-          ASSERT(receive_index < node_offsets[node+1]);
-          int_int_unordered_map_insert(receive_offsets, node, receive_index);
-          exchanger_proc_map_add_index(receive_map, proc, receive_index);
+          exchanger_proc_map_add_index(receive_map, proc, node);
         }
       }
 
       int_unordered_set_free(their_culled_node_sets[p]);
     }
-
-#ifndef NDEBUG
-    // Check the node offsets.
-    for (int n = 0; n < mesh->num_nodes; ++n)
-    {
-      int* offset_p = int_int_unordered_map_get(receive_offsets, n);
-      if (offset_p != NULL)
-      {
-        ASSERT(*offset_p == node_offsets[n+1] - 1);
-      }
-    }
-#endif
-
-    int_int_unordered_map_free(receive_offsets);
+    int_unordered_set_free(contributed_to_self);
 
     kd_tree_free(node_tree);
     int_array_free(my_node_indices);
@@ -1107,68 +1171,8 @@ static exchanger_t* create_n_node_exchanger(polymesh_t* mesh, int* node_offsets)
   int_ptr_unordered_map_free(neighbor_neighbor_nodes);
   int_array_free(all_neighbors_of_neighbors);
 
-  return ex;
-}
-#endif
-
-static exchanger_t* create_node_exchanger(polymesh_t* mesh)
-{
-  exchanger_t* ex = exchanger_new(mesh->comm);
-#if POLYMEC_HAVE_MPI
-
-  int nprocs;
-  MPI_Comm_size(mesh->comm, &nprocs);
-  if (nprocs == 1)
-    return ex;
-
-  // First construct the n-valued face exchanger and the associated offsets.
-  int offsets[mesh->num_nodes+1];
-  exchanger_t* noden_ex = create_n_node_exchanger(mesh, offsets);
-
-  // Determine the owner of each node. We assign a face to the process on 
-  // which it is present, having the lowest rank.
-  int rank;
-  MPI_Comm_rank(mesh->comm, &rank);
-  int node_procs[offsets[mesh->num_nodes]];
-  for (int n = 0; n < mesh->num_nodes; ++n)
-  {
-    for (int i = offsets[n]; i < offsets[n+1]; ++i)
-      node_procs[i] = rank;
-  }
-  exchanger_exchange(noden_ex, node_procs, 1, 0, MPI_INT);
-#ifndef NDEBUG
-  for (int n = 0; n < offsets[mesh->num_nodes]; ++n)
-  {
-    ASSERT(node_procs[n] < nprocs);
-  }
-#endif
-
-  // Now set up our single-valued exchanger.
-  exchanger_proc_map_t* send_map = exchanger_proc_map_new();
-  exchanger_proc_map_t* receive_map = exchanger_proc_map_new();
-  for (int n = 0; n < mesh->num_nodes; ++n)
-  {
-    int node_sender = INT_MAX;
-    for (int i = offsets[n]; i < offsets[n+1]; ++i)
-      node_sender = MIN(node_sender, node_procs[i]);
-    if (node_sender == rank)
-    {
-      for (int i = offsets[n]; i < offsets[n+1]; ++i)
-      {
-        int node_receiver = node_procs[i];
-        if (node_receiver != node_sender)
-          exchanger_proc_map_add_index(send_map, node_receiver, n);
-      }
-    }
-    else
-    {
-      ASSERT(node_sender < rank);
-      exchanger_proc_map_add_index(receive_map, node_sender, n);
-    }
-  }
-  exchanger_set_sends(ex, send_map);
-  exchanger_set_receives(ex, receive_map);
-  release_ref(noden_ex);
+  // By default, this exchanger uses the "min rank" reducer.
+  exchanger_set_reducer(ex, EXCHANGER_MIN_RANK);
 #endif
   return ex;
 }
@@ -1223,8 +1227,9 @@ exchanger_t* polymesh_exchanger(polymesh_t* mesh,
   if ((centering == POLYMESH_FACE) &&
       (mesh->storage->exchangers[(int)centering] == NULL))
     mesh->storage->exchangers[(int)centering] = create_face_exchanger(mesh);
-  else if (centering == POLYMESH_EDGE)
-    polymec_error("polymesh: edge-centered field exchanges are not supported!");
+  else if ((centering == POLYMESH_EDGE) &&
+           (mesh->storage->exchangers[(int)centering] == NULL))
+    mesh->storage->exchangers[(int)centering] = create_edge_exchanger(mesh);
   else if ((centering == POLYMESH_NODE) && 
            (mesh->storage->exchangers[(int)centering] == NULL))
     mesh->storage->exchangers[(int)centering] = create_node_exchanger(mesh);

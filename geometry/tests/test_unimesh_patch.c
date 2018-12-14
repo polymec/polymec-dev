@@ -37,6 +37,34 @@ static void test_unimesh_cell_patch(void** state)
     }
   }
 
+  unimesh_patch_box_t box;
+  unimesh_patch_get_box(patch, &box);
+  assert_int_equal(box.i1, 1);
+  assert_int_equal(box.i2, patch->nx+1);
+  assert_int_equal(box.j1, 1);
+  assert_int_equal(box.j2, patch->ny+1);
+  assert_int_equal(box.k1, 1);
+  assert_int_equal(box.k2, patch->nz+1);
+
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X1_BOUNDARY, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X2_BOUNDARY, &box);
+  assert_int_equal(box.i1, patch->nx+1);
+  assert_int_equal(box.i2, patch->nx+2);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y1_BOUNDARY, &box);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y2_BOUNDARY, &box);
+  assert_int_equal(box.j1, patch->ny+1);
+  assert_int_equal(box.j2, patch->ny+2);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z1_BOUNDARY, &box);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z2_BOUNDARY, &box);
+  assert_int_equal(box.k1, patch->nz+1);
+  assert_int_equal(box.k2, patch->nz+2);
+
   unimesh_patch_t* patch1 = unimesh_patch_clone(patch);
   assert_true(patch1->centering == UNIMESH_CELL);
   assert_int_equal(10, patch1->nx);
@@ -79,6 +107,34 @@ static void test_unimesh_xface_patch(void** state)
       }
     }
   }
+
+  unimesh_patch_box_t box;
+  unimesh_patch_get_box(patch, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, patch->nx+1);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, patch->ny);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, patch->nz);
+
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X1_BOUNDARY, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X2_BOUNDARY, &box);
+  assert_int_equal(box.i1, patch->nx);
+  assert_int_equal(box.i2, patch->nx+1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y1_BOUNDARY, &box);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y2_BOUNDARY, &box);
+  assert_int_equal(box.j1, patch->ny-1);
+  assert_int_equal(box.j2, patch->ny);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z1_BOUNDARY, &box);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z2_BOUNDARY, &box);
+  assert_int_equal(box.k1, patch->nz-1);
+  assert_int_equal(box.k2, patch->nz);
 
   unimesh_patch_t* patch1 = unimesh_patch_clone(patch);
   assert_true(patch1->centering == UNIMESH_XFACE);
@@ -123,6 +179,34 @@ static void test_unimesh_yface_patch(void** state)
     }
   }
 
+  unimesh_patch_box_t box;
+  unimesh_patch_get_box(patch, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, patch->nx);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, patch->ny+1);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, patch->nz);
+
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X1_BOUNDARY, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X2_BOUNDARY, &box);
+  assert_int_equal(box.i1, patch->nx-1);
+  assert_int_equal(box.i2, patch->nx);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y1_BOUNDARY, &box);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y2_BOUNDARY, &box);
+  assert_int_equal(box.j1, patch->ny);
+  assert_int_equal(box.j2, patch->ny+1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z1_BOUNDARY, &box);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z2_BOUNDARY, &box);
+  assert_int_equal(box.k1, patch->nz-1);
+  assert_int_equal(box.k2, patch->nz);
+
   unimesh_patch_t* patch1 = unimesh_patch_clone(patch);
   assert_true(patch1->centering == UNIMESH_YFACE);
   assert_int_equal(10, patch1->nx);
@@ -165,6 +249,34 @@ static void test_unimesh_zface_patch(void** state)
       }
     }
   }
+
+  unimesh_patch_box_t box;
+  unimesh_patch_get_box(patch, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, patch->nx);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, patch->ny);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, patch->nz+1);
+
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X1_BOUNDARY, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X2_BOUNDARY, &box);
+  assert_int_equal(box.i1, patch->nx-1);
+  assert_int_equal(box.i2, patch->nx);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y1_BOUNDARY, &box);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y2_BOUNDARY, &box);
+  assert_int_equal(box.j1, patch->ny-1);
+  assert_int_equal(box.j2, patch->ny);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z1_BOUNDARY, &box);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z2_BOUNDARY, &box);
+  assert_int_equal(box.k1, patch->nz);
+  assert_int_equal(box.k2, patch->nz+1);
 
   unimesh_patch_t* patch1 = unimesh_patch_clone(patch);
   assert_true(patch1->centering == UNIMESH_ZFACE);
@@ -209,6 +321,34 @@ static void test_unimesh_xedge_patch(void** state)
     }
   }
 
+  unimesh_patch_box_t box;
+  unimesh_patch_get_box(patch, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, patch->nx);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, patch->ny+1);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, patch->nz+1);
+
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X1_BOUNDARY, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X2_BOUNDARY, &box);
+  assert_int_equal(box.i1, patch->nx-1);
+  assert_int_equal(box.i2, patch->nx);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y1_BOUNDARY, &box);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y2_BOUNDARY, &box);
+  assert_int_equal(box.j1, patch->ny);
+  assert_int_equal(box.j2, patch->ny+1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z1_BOUNDARY, &box);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z2_BOUNDARY, &box);
+  assert_int_equal(box.k1, patch->nz);
+  assert_int_equal(box.k2, patch->nz+1);
+
   unimesh_patch_t* patch1 = unimesh_patch_clone(patch);
   assert_true(patch1->centering == UNIMESH_XEDGE);
   assert_int_equal(10, patch1->nx);
@@ -251,6 +391,34 @@ static void test_unimesh_yedge_patch(void** state)
       }
     }
   }
+
+  unimesh_patch_box_t box;
+  unimesh_patch_get_box(patch, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, patch->nx+1);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, patch->ny);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, patch->nz+1);
+
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X1_BOUNDARY, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X2_BOUNDARY, &box);
+  assert_int_equal(box.i1, patch->nx);
+  assert_int_equal(box.i2, patch->nx+1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y1_BOUNDARY, &box);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y2_BOUNDARY, &box);
+  assert_int_equal(box.j1, patch->ny-1);
+  assert_int_equal(box.j2, patch->ny);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z1_BOUNDARY, &box);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z2_BOUNDARY, &box);
+  assert_int_equal(box.k1, patch->nz);
+  assert_int_equal(box.k2, patch->nz+1);
 
   unimesh_patch_t* patch1 = unimesh_patch_clone(patch);
   assert_true(patch1->centering == UNIMESH_YEDGE);
@@ -295,6 +463,34 @@ static void test_unimesh_zedge_patch(void** state)
     }
   }
 
+  unimesh_patch_box_t box;
+  unimesh_patch_get_box(patch, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, patch->nx+1);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, patch->ny+1);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, patch->nz);
+
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X1_BOUNDARY, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X2_BOUNDARY, &box);
+  assert_int_equal(box.i1, patch->nx);
+  assert_int_equal(box.i2, patch->nx+1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y1_BOUNDARY, &box);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y2_BOUNDARY, &box);
+  assert_int_equal(box.j1, patch->ny);
+  assert_int_equal(box.j2, patch->ny+1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z1_BOUNDARY, &box);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z2_BOUNDARY, &box);
+  assert_int_equal(box.k1, patch->nz-1);
+  assert_int_equal(box.k2, patch->nz);
+
   unimesh_patch_t* patch1 = unimesh_patch_clone(patch);
   assert_true(patch1->centering == UNIMESH_ZEDGE);
   assert_int_equal(10, patch1->nx);
@@ -337,6 +533,34 @@ static void test_unimesh_node_patch(void** state)
       }
     }
   }
+
+  unimesh_patch_box_t box;
+  unimesh_patch_get_box(patch, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, patch->nx+1);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, patch->ny+1);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, patch->nz+1);
+
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X1_BOUNDARY, &box);
+  assert_int_equal(box.i1, 0);
+  assert_int_equal(box.i2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_X2_BOUNDARY, &box);
+  assert_int_equal(box.i1, patch->nx);
+  assert_int_equal(box.i2, patch->nx+1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y1_BOUNDARY, &box);
+  assert_int_equal(box.j1, 0);
+  assert_int_equal(box.j2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Y2_BOUNDARY, &box);
+  assert_int_equal(box.j1, patch->ny);
+  assert_int_equal(box.j2, patch->ny+1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z1_BOUNDARY, &box);
+  assert_int_equal(box.k1, 0);
+  assert_int_equal(box.k2, 1);
+  unimesh_patch_get_boundary_box(patch, UNIMESH_Z2_BOUNDARY, &box);
+  assert_int_equal(box.k1, patch->nz);
+  assert_int_equal(box.k2, patch->nz+1);
 
   unimesh_patch_t* patch1 = unimesh_patch_clone(patch);
   assert_true(patch1->centering == UNIMESH_NODE);

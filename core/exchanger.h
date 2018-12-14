@@ -300,8 +300,8 @@ bool exchanger_aggregates_data(exchanger_t* ex);
 ///                     of values inbound to a local index to a single value. 
 ///                     Available reducers are \ref EXCHANGER_SUM, 
 ///                     \ref EXCHANGER_PRODUCT, \ref EXCHANGER_MIN, 
-///                     \ref EXCHANGER_MAX, \ref EXCHANGER_MINRANK, 
-///                     \ref EXCHANGER_MAXRANK. Can be set to NULL to disable 
+///                     \ref EXCHANGER_MAX, \ref EXCHANGER_MIN_RANK, 
+///                     \ref EXCHANGER_MAX_RANK. Can be set to NULL to disable 
 ///                     reduction.
 void exchanger_set_reducer(exchanger_t* ex,
                            exchanger_reducer_t* reducer);

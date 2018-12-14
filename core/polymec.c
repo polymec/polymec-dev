@@ -154,7 +154,8 @@ static void shutdown()
 #endif
 
   // Call shutdown functions in reverse order.
-  log_debug("polymec: Calling %zu shutdown functions.", _atexit_funcs->size);
+  if (_atexit_funcs->size > 0)
+    log_debug("polymec: Calling %zu shutdown functions.", _atexit_funcs->size);
   for (size_t i = 0; i < _atexit_funcs->size; ++i)
     _atexit_funcs->data[_atexit_funcs->size-i-1]();
 
@@ -536,7 +537,8 @@ void polymec_init(int argc, char** argv)
 #endif
 
     // Call initialization functions.
-    log_debug("polymec: Calling %zu initialization functions.", _atinit_funcs->size);
+    if (_atinit_funcs->size > 0)
+      log_debug("polymec: Calling %zu initialization functions.", _atinit_funcs->size);
     for (size_t i = 0; i < _atinit_funcs->size; ++i)
       _atinit_funcs->data[i](argc, argv);
 

@@ -31,8 +31,7 @@ add_mpi_polymec_geometry_test(test_create_rectilinear_polymesh test_create_recti
 add_mpi_polymec_geometry_test(test_crop_polymesh test_crop_polymesh.c 1 2 4)
 add_mpi_polymec_geometry_test(test_partition_polymesh test_partition_polymesh.c 1 2 3 4)
 add_mpi_polymec_geometry_test(test_repartition_polymesh test_repartition_polymesh.c 1 2 3 4)
-# FIXME
-#add_mpi_polymec_geometry_test(test_polymesh_node_exchangers test_polymesh_node_exchangers.c 1 2 3 4)
+add_mpi_polymec_geometry_test(test_polymesh_exchangers test_polymesh_exchangers.c 1 2 3 4)
 add_mpi_polymec_geometry_test(test_unimesh test_unimesh.c 1 2 3 4)
 add_mpi_polymec_geometry_test(test_unimesh_field test_unimesh_field.c 1 2 3 4)
 add_mpi_polymec_geometry_test(test_colmesh test_colmesh.c 1 2 4)

@@ -278,6 +278,13 @@ void colmesh_field_start_exchange(colmesh_field_t* field)
   ASSERT(!colmesh_field_is_exchanging(field));
   START_FUNCTION_TIMER();
 
+  // Do we have an exchanger yet?
+  if (field->ex == NULL)
+  {
+    field->ex = colmesh_exchanger(field->mesh, field->centering);
+    retain_ref(field->ex);
+  }
+
   // Start the xy exchange.
   int stride = (int)field->num_components;
   field->ex_token = exchanger_start_exchange(field->ex, field->buffer, stride, 0, MPI_REAL_T);
