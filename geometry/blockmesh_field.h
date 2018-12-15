@@ -9,6 +9,7 @@
 #define POLYMEC_BLOCKMESH_FIELD_H
 
 #include "geometry/blockmesh.h"
+#include "geometry/blockmesh_transfer.h"
 
 typedef struct unimesh_field_t unimesh_field_t;
 
@@ -87,6 +88,28 @@ void blockmesh_field_finish_updating_boundaries(blockmesh_field_t* field);
 /// boundary update, false if not.
 /// \memberof blockmesh_field
 bool blockmesh_field_is_updating_boundaries(blockmesh_field_t* field);
+
+/// Sets the transfer operator that this field uses to transfer its data 
+/// between the two blocks in the blockmesh with the given indices.
+/// The field retains a reference to the transfer operator.
+/// \param [in] block1_index The index of the first of the two blocks.
+/// \param [in] block2_index The index of the second of the two blocks.
+/// \param [in] transfer_op The operator used to transfer this field's 
+///                         data between the two specified blocks.
+/// \memberof blockmesh_field
+void blockmesh_field_set_transfer(blockmesh_field_t* field,
+                                  int block1_index, int block2_index,
+                                  blockmesh_transfer_t* transfer_op);
+
+/// Returns the transfer operator this field uses to transfer data between 
+/// the two bloks with the given indices, or NULL if the field has no 
+/// specified transfer operator (set by \ref blockmesh_field_set_transfer).
+/// \param [in] block1_index The index of the first of the two blocks.
+/// \param [in] block2_index The index of the second of the two blocks.
+/// \memberof blockmesh_field
+blockmesh_transfer_t* blockmesh_field_transfer_op(blockmesh_field_t* field,
+                                                  int block1_index, 
+                                                  int block2_index);
 
 typedef struct real_enumerable_generator_t real_enumerable_generator_t;
 

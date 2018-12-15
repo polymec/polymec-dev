@@ -69,28 +69,18 @@ int blockmesh_face_for_nodes(blockmesh_t* mesh, int block_nodes[4]);
 /// \param [in] block1_nodes An array containing the 4 nodes in the first block
 ///                          to be identified with the corresponding nodes 
 ///                          in the second block (block2_nodes).
-/// \param [in] trans1 A transformation that defines how field boundary values 
-///                    are transferred from the first block to the second. If 
-///                    this argument is NULL, field values are copied directly
-///                    between blocks.
 /// \param [in] block2_index The index of the second of the two blocks to be 
 ///                          connected within the mesh.
 /// \param [in] block2_nodes An array containing the 4 nodes in the second block
 ///                          to be identified with the corresponding nodes 
 ///                          in the first block (block1_nodes).
-/// \param [in] trans2 A transformation that defines how field boundary values 
-///                    are transferred from the second block to the first. If 
-///                    this argument is NULL, field values are copied directly
-///                    between blocks.
 /// \memberof blockmesh
 /// \collective
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
                               int block1_index, 
                               int block1_nodes[4],
-                              void* trans1,
                               int block2_index,
-                              int block2_nodes[4],
-                              void* trans2);
+                              int block2_nodes[4]);
 
 /// Finalizes the construction process for the block mesh. This must be called 
 /// before any of the mesh's usage methods are invoked. Should only 

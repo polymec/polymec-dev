@@ -99,10 +99,8 @@ int blockmesh_face_for_nodes(blockmesh_t* mesh, int block_nodes[4])
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
                               int block1_index, 
                               int block1_nodes[4],
-                              void* trans1,
                               int block2_index,
-                              int block2_nodes[4],
-                              void* trans2)
+                              int block2_nodes[4])
 {
 }
 

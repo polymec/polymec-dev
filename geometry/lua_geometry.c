@@ -1807,7 +1807,7 @@ static int bm_connect_blocks(lua_State* L)
   if ((num_args != 2) || (!lua_istable(L, 2)))
   {
     luaL_error(L, "mesh:connect_blocks must be called with a table with fields: "
-                  "block1_index, block1_nodes, trans1, block2_index, block2_nodes, and trans2");
+                  "block1_index, block1_nodes, block2_index, and block2_nodes");
   }
 
   lua_getfield(L, 2, "block1_index");
@@ -1837,11 +1837,6 @@ static int bm_connect_blocks(lua_State* L)
   if (blockmesh_face_for_nodes(m, nodes1) == -1)
     return luaL_error(L, "block1_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes1[0], nodes1[1], nodes1[2], nodes1[3]);
 
-  lua_getfield(L, 2, "trans1");
-  void* trans1 = NULL;
-  // FIXME
-  lua_pop(L, 1);
-
   lua_getfield(L, 2, "block2_index");
   if (!lua_isinteger(L, -1))
     return luaL_error(L, "block2_index must be a valid block index.");
@@ -1869,12 +1864,7 @@ static int bm_connect_blocks(lua_State* L)
   if (blockmesh_face_for_nodes(m, nodes1) == -1)
     return luaL_error(L, "block2_nodes don't correspond to a block face: {%d, %d, %d, %d}", nodes2[0], nodes2[1], nodes2[2], nodes2[3]);
 
-  lua_getfield(L, 2, "trans2");
-  void* trans2 = NULL;
-  lua_pop(L, 1);
-
-  blockmesh_connect_blocks(m, index1, nodes1, trans1, 
-                              index2, nodes2, trans2);
+  blockmesh_connect_blocks(m, index1, nodes1, index2, nodes2);
   return 0;
 }
 
