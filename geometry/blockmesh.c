@@ -95,7 +95,7 @@ int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block)
   return index;
 }
 
-int blockmesh_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4])
+int blockmesh_block_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4])
 {
   // Only certain combos of block faces are acceptible, so let's make sure
   // no one's doing anything stupid.
@@ -140,14 +140,59 @@ static cxn_twist_t determine_twist(int block1_nodes[4],
   return NO_TURN;
 }
 
+bool blockmesh_blocks_can_connect(blockmesh_t* mesh, 
+                                  int block1_index, 
+                                  int block1_nodes[4],
+                                  int block2_index,
+                                  int block2_nodes[4])
+{
+  int b1 = blockmesh_boundary_for_nodes(mesh, block1_nodes);
+  if (b1 == -1) return false;
+  int b2 = blockmesh_boundary_for_nodes(mesh, block2_nodes);
+  if (b2 == -1) return false;
+
+  // Now make sure the dimensions work out. Patch sizes and patch dimensions
+  // for the shared boundary must be identical.
+  cxn_twist_t twist = determine_twist(block1_nodes, block2_nodes);
+
+  unimesh_t* block1 = mesh->blocks->data[block1_index];
+  int npx1, npy1, npz1;
+  unimesh_get_extents(block1, &npx1, &npy1, &npz1);
+  int nx1, ny1, nz1;
+  unimesh_get_patch_size(block1, &nx1, &ny1, &nz1);
+  unimesh_t* block2 = mesh->blocks->data[block2_index];
+  int npx2, npy2, npz2;
+  unimesh_get_extents(block2, &npx2, &npy2, &npz2);
+  int nx2, ny2, nz2;
+  unimesh_get_patch_size(block2, &nx2, &ny2, &nz2);
+
+  // Which dimensions are we concerned with? 
+  int NX1, NX2, NPX1, NPX2, NY1, NY2, NPY1, NPY2;
+  // FIXME
+
+  if ((twist == NO_TURN) || (twist == HALF_TURN))
+  {
+    if ((NX1 != NX2) || (NPX1 != NPX2) || (NY1 != NY1) || (NPY1 != NPY2))
+      return false;
+  }
+  else 
+  {
+    if ((NX1 != NY2) || (NPX1 != NPY2) || (NY1 != NX1) || (NPY1 != NXY2))
+      return false;
+  }
+
+  // I guess everything's okay.
+  return true;
+}
+
 void blockmesh_connect_blocks(blockmesh_t* mesh, 
                               int block1_index, int block1_nodes[4],
                               int block2_index, int block2_nodes[4])
 {
+  ASSERT(blockmesh_blocks_can_connect(mesh, block1_index, block1_nodes,
+                                            block2_index, block2_nodes));
   int b1 = blockmesh_boundary_for_nodes(mesh, block1_nodes);
-  ASSERT(b1 != -1);
   int b2 = blockmesh_boundary_for_nodes(mesh, block2_nodes);
-  ASSERT(b2 != -1);
   cxn_twist_t twist = determine_twist(block1_nodes, block2_nodes);
 
   // Find or add a connection for each block.

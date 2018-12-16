@@ -60,13 +60,33 @@ int blockmesh_add_block(blockmesh_t* mesh, unimesh_t* block);
 /// \returns An integer between 0 and 5 that can be cast to a unimesh_boundary_t, or -1 
 ///          if the given nodes don't match with those on a block boundary.
 /// \memberof blockmesh
-int blockmesh_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4]);
+int blockmesh_block_boundary_for_nodes(blockmesh_t* mesh, int block_nodes[4]);
+
+/// Returns true if the two blocks with the given indices within the blockmesh
+/// can be connected successfully, false if not.
+/// \param [in] block1_index The index of the first of the two blocks to be 
+///                          connected within the mesh.
+/// \param [in] block1_nodes An array containing the 4 nodes in the first block
+///                          to be identified with the corresponding nodes 
+///                          in the second block (block2_nodes).
+/// \param [in] block2_index The index of the second of the two blocks to be 
+///                          connected within the mesh.
+/// \param [in] block2_nodes An array containing the 4 nodes in the second block
+///                          to be identified with the corresponding nodes 
+///                          in the first block (block1_nodes).
+/// \memberof blockmesh
+bool blockmesh_blocks_can_connect(blockmesh_t* mesh, 
+                                  int block1_index, 
+                                  int block1_nodes[4],
+                                  int block2_index,
+                                  int block2_nodes[4]);
 
 /// Connects two blocks with the given indices within a block mesh in a manner 
 /// specified by parameters. You must call this function on every process 
 /// within the mesh's communicator, and the blocks must be connected in such a 
 /// way that all block dimensions are compatible. The two indices can refer to 
 /// the same block, in which case the block connects to itself.
+/// \note This function assumes that the blocks can be successfully connected.
 /// \param [in] block1_index The index of the first of the two blocks to be 
 ///                          connected within the mesh.
 /// \param [in] block1_nodes An array containing the 4 nodes in the first block
