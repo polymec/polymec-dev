@@ -85,42 +85,42 @@ ode_solver_t* ink_bdf_ode_solver_new(int order,
 /// Specifies that the INK BDF solver should use the Preconditioned 
 /// Conjugate Gradient (PCG) method.
 /// \relates ode_solver
-void ink_bdf_ode_solver_use_pcg(ode_solver_t* ink_bdf_ode_integ);
+void ink_bdf_ode_solver_use_pcg(ode_solver_t* ink_bdf_ode_solver);
 
 /// Specifies that the INK BDF solver should use the Generalized 
 /// Minimum Residual (GMRES) method with the specified maximum Krylov subspace
 /// dimension.
 /// \relates ode_solver
-void ink_bdf_ode_solver_use_gmres(ode_solver_t* ink_bdf_ode_integ,
+void ink_bdf_ode_solver_use_gmres(ode_solver_t* ink_bdf_ode_solver,
                                   int max_krylov_dim);
 
 /// Specifies that the INK BDF solver should use the Stabilized 
 /// Bi-Conjugate Gradient (BiCGSTAB) method.
 /// \relates ode_solver
-void ink_bdf_ode_solver_use_bicgstab(ode_solver_t* ink_bdf_ode_integ);
+void ink_bdf_ode_solver_use_bicgstab(ode_solver_t* ink_bdf_ode_solver);
 
 /// Specifies that the INK BDF solver should use the given "special" 
 /// Krylov solver with the given options.
 /// \relates ode_solver
-void ink_bdf_ode_solver_use_special(ode_solver_t* ink_bdf_ode_integ,
+void ink_bdf_ode_solver_use_special(ode_solver_t* ink_bdf_ode_solver,
                                     const char* solver_name,
                                     string_string_unordered_map_t* options);
 
 /// Specifies that the INK BDF solver should use the preconditioner with 
 /// the given name, set with the given options.
 /// \relates ode_solver
-void ink_bdf_ode_solver_set_pc(ode_solver_t* ink_bdf_ode_integ,
+void ink_bdf_ode_solver_set_pc(ode_solver_t* ink_bdf_ode_solver,
                                const char* pc_name, 
                                string_string_unordered_map_t* options);
 
 /// Sets the block size for the INK BDF solver.
 /// \relates ode_solver
-void ink_bdf_ode_solver_set_block_size(ode_solver_t* ink_bdf_ode_integ,
+void ink_bdf_ode_solver_set_block_size(ode_solver_t* ink_bdf_ode_solver,
                                        int block_size);
 
 /// Returns the context pointer for the given INK BDF solver.
 /// \relates ode_solver
-void* ink_bdf_ode_solver_context(ode_solver_t* ink_bdf_ode_integ);
+void* ink_bdf_ode_solver_context(ode_solver_t* ink_bdf_ode_solver);
 
 /// \enum bdf_conv_status_t
 /// Convergence failure status codes, used by the BDF solver machinery below to determine whether 
@@ -137,7 +137,7 @@ typedef enum
 /// it solves the linear systems that underlie the BDF method. These methods are:
 /// * rhs_func -- Used to compute the right-hand side of the ODE.
 /// * reset_func -- Used to reset the state of the solver to integrate U at time t, as 
-///                 invoked by ode_solver_reset(integ, t, U).
+///                 invoked by ode_solver_reset(solver, t, U).
 /// * setup_func -- Used to calculate and store a representation of the linear operator 
 ///                 I - gamma * J, where I is the identity operator, J is the Jacobian, and 
 ///                 gamma is a positive scale factor related to the time step. This operator

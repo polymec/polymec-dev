@@ -10,7 +10,6 @@
 #include "solvers/dae_solver.h"
 
 #include "ida/ida.h"
-#include "ida/ida_spils.h"
 
 // JFNK stuff.
 #include "sunlinsol/sunlinsol_spgmr.h"
@@ -369,17 +368,17 @@ dae_solver_t* jfnk_dae_solver_new(int order,
     integ->ls = SUNSPGMR(integ->U, PREC_LEFT, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
     SUNSPGMRSetGSType(integ->ls, MODIFIED_GS);
-    IDASpilsSetLinearSolver(integ->ida, integ->ls);
+    IDASetLinearSolver(integ->ida, integ->ls, NULL);
   }
   else if (solver_type == JFNK_DAE_BICGSTAB)
   {
     integ->ls = SUNSPBCGS(integ->U, PREC_LEFT, max_krylov_dim);
-    IDASpilsSetLinearSolver(integ->ida, integ->ls);
+    IDASetLinearSolver(integ->ida, integ->ls, NULL);
   }
   else
   {
     integ->ls = SUNSPTFQMR(integ->U, PREC_LEFT, max_krylov_dim);
-    IDASpilsSetLinearSolver(integ->ida, integ->ls);
+    IDASetLinearSolver(integ->ida, integ->ls, NULL);
   }
 
   // Set up the equation types and constraints.
@@ -387,10 +386,10 @@ dae_solver_t* jfnk_dae_solver_new(int order,
 
   // Set up the Jacobian function if given.
   if (integ->Jy != NULL)
-    IDASpilsSetJacTimes(integ->ida, set_up_Jy, eval_Jy);
+    IDASetJacTimes(integ->ida, set_up_Jy, eval_Jy);
 
   // Set up preconditioner machinery.
-  IDASpilsSetPreconditioner(integ->ida, set_up_preconditioner,
+  IDASetPreconditioner(integ->ida, set_up_preconditioner,
                             solve_preconditioner_system);
 
   // Set some default tolerances:
@@ -836,10 +835,10 @@ void dae_solver_get_diagnostics(dae_solver_t* integ,
   IDAGetNumNonlinSolvConvFails(integ->ida, &diagnostics->num_nonlinear_solve_convergence_failures);
   if (integ->solve_func == NULL) // JFNK mode
   {
-    IDASpilsGetNumLinIters(integ->ida, &diagnostics->num_linear_solve_iterations);
-    IDASpilsGetNumPrecEvals(integ->ida, &diagnostics->num_preconditioner_evaluations);
-    IDASpilsGetNumPrecSolves(integ->ida, &diagnostics->num_preconditioner_solves);
-    IDASpilsGetNumConvFails(integ->ida, &diagnostics->num_linear_solve_convergence_failures);
+    IDAGetNumLinIters(integ->ida, &diagnostics->num_linear_solve_iterations);
+    IDAGetNumPrecEvals(integ->ida, &diagnostics->num_preconditioner_evaluations);
+    IDAGetNumPrecSolves(integ->ida, &diagnostics->num_preconditioner_solves);
+    IDAGetNumLinConvFails(integ->ida, &diagnostics->num_linear_solve_convergence_failures);
   }
   else
   {

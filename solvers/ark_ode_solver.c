@@ -15,10 +15,9 @@
 #pragma clang diagnostic ignored "-Wstrict-prototypes"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-prototypes"
-#include "arkode/arkode.h"
+#include "arkode/arkode_arkstep.h"
 #pragma clang diagnostic pop
 #pragma GCC diagnostic pop
-#include "arkode/arkode_spils.h"
 
 // JFNK stuff.
 #include "sunlinsol/sunlinsol_spgmr.h"
@@ -26,8 +25,7 @@
 #include "sunlinsol/sunlinsol_spbcgs.h"
 #include "sunlinsol/sunlinsol_sptfqmr.h"
 
-// Stuff for generalized ARK solvers.
-#include "arkode/arkode_impl.h"
+#include "sunnonlinsol/sunnonlinsol_newton.h"
 
 struct ark_ode_observer_t 
 {
@@ -195,7 +193,7 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* U)
   if (t2 > integ->t)
   {
     // Integrate to at least t -> t + max_dt.
-    status = ARKode(integ->arkode, t2, integ->U, &integ->t, ARK_ONE_STEP);
+    status = ARKStepEvolve(integ->arkode, t2, integ->U, &integ->t, ARK_ONE_STEP);
     if ((status != ARK_SUCCESS) && (status != ARK_TSTOP_RETURN))
     {
       integ->status_message = get_status_message(status, integ->t);
@@ -210,7 +208,7 @@ static bool ark_step(void* context, real_t max_dt, real_t* t, real_t* U)
   // If we integrated past t2, interpolate to t2.
   if (integ->t > t2)
   {
-    status = ARKodeGetDky(integ->arkode, t2, 0, integ->U);
+    status = ARKStepGetDky(integ->arkode, t2, 0, integ->U);
     *t = t2;
   }
   else
@@ -250,11 +248,11 @@ static bool ark_advance(void* context, real_t t1, real_t t2, real_t* U)
   memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
 
   // (Re-)initialize and set our end time.
-  ARKodeReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
-  ARKodeSetStopTime(integ->arkode, t2);
+  ARKStepReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
+  ARKStepSetStopTime(integ->arkode, t2);
   
   // Integrate.
-  int status = ARKode(integ->arkode, t2, integ->U, &integ->t, ARK_NORMAL);
+  int status = ARKStepEvolve(integ->arkode, t2, integ->U, &integ->t, ARK_NORMAL);
   
   // Clear the present status.
   if (integ->status_message != NULL)
@@ -289,7 +287,7 @@ static void ark_reset(void* context, real_t t, real_t* U)
   memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
   ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
   ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
-  ARKodeReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
+  ARKStepReInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
   integ->t = t;
 }
 
@@ -306,7 +304,7 @@ static void ark_dtor(void* context)
   if (integ->ls != NULL)
     SUNLinSolFree(integ->ls);
   N_VDestroy(integ->U);
-  ARKodeFree(&integ->arkode);
+  ARKStepFree(&integ->arkode);
 
   // Kill the rest.
   if (integ->status_message != NULL)
@@ -459,23 +457,25 @@ ode_solver_t* functional_ark_ode_solver_new(int order,
   integ->U = N_VNew(integ->comm, integ->num_local_values);
   integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
   integ->ls = NULL;
-  integ->arkode = ARKodeCreate();
-  ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
-  ARKodeSetOrder(integ->arkode, order);
-  ARKodeSetUserData(integ->arkode, integ);
-  if ((integ->fe != NULL) && (integ->stable_dt != NULL))
-    ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
-  if (integ->fi != NULL)
-    ARKodeSetFixedPoint(integ->arkode, max_anderson_accel_dim);
   ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
   ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
-  ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
+  integ->arkode = ARKStepCreate(eval_fe, eval_fi, 0.0, integ->U);
+  ARKStepSetErrFile(integ->arkode, log_stream(LOG_URGENT));
+  ARKStepSetOrder(integ->arkode, order);
+  ARKStepSetUserData(integ->arkode, integ);
+  if ((integ->fe != NULL) && (integ->stable_dt != NULL))
+    ARKStepSetStabilityFn(integ->arkode, stable_dt, integ);
+  if (integ->fi != NULL)
+  {
+    SUNNonlinearSolver nls = SUNNonlinSol_Newton(integ->U);
+    ARKStepSetNonlinearSolver(integ->arkode, nls);
+  }
   if (fi_func == NULL)
-    ARKodeSetExplicit(integ->arkode);
+    ARKStepSetExplicit(integ->arkode);
   else if (fe_func == NULL)
-    ARKodeSetImplicit(integ->arkode);
+    ARKStepSetImplicit(integ->arkode);
   else
-    ARKodeSetImEx(integ->arkode);
+    ARKStepSetImEx(integ->arkode);
 
   ode_solver_vtable vtable = {.step = ark_step, .advance = ark_advance, .reset = ark_reset, .dtor = ark_dtor};
   char name[1024];
@@ -542,21 +542,20 @@ ode_solver_t* jfnk_ark_ode_solver_new(int order,
   // Set up ARKode and accessories.
   integ->U = N_VNew(integ->comm, integ->num_local_values);
   integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
-  integ->arkode = ARKodeCreate();
-  ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
-  ARKodeSetOrder(integ->arkode, order);
-  ARKodeSetUserData(integ->arkode, integ);
-  if (integ->stable_dt != NULL)
-    ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
-  if (fi_is_linear)
-    ARKodeSetLinear(integ->arkode, fi_is_time_dependent);
   ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
   ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
-  ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
+  integ->arkode = ARKStepCreate(eval_fe, eval_fi, 0.0, integ->U);
+  ARKStepSetErrFile(integ->arkode, log_stream(LOG_URGENT));
+  ARKStepSetOrder(integ->arkode, order);
+  ARKStepSetUserData(integ->arkode, integ);
+  if (integ->stable_dt != NULL)
+    ARKStepSetStabilityFn(integ->arkode, stable_dt, integ);
+  if (fi_is_linear)
+    ARKStepSetLinear(integ->arkode, fi_is_time_dependent);
   if (fe_func == NULL)
-    ARKodeSetImplicit(integ->arkode);
+    ARKStepSetImplicit(integ->arkode);
   else
-    ARKodeSetImEx(integ->arkode);
+    ARKStepSetImEx(integ->arkode);
 
   newton_pc_side_t newton_side = newton_pc_side(precond);
   int side;
@@ -578,31 +577,31 @@ ode_solver_t* jfnk_ark_ode_solver_new(int order,
     integ->ls = SUNSPGMR(integ->U, side, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
     SUNSPGMRSetGSType(integ->ls, MODIFIED_GS);
-    ARKSpilsSetLinearSolver(integ->arkode, integ->ls);
+    ARKStepSetLinearSolver(integ->arkode, integ->ls, NULL);
   }
   else if (solver_type == JFNK_ARK_FGMRES)
   {
     integ->ls = SUNSPFGMR(integ->U, side, max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
     SUNSPFGMRSetGSType(integ->ls, MODIFIED_GS);
-    ARKSpilsSetLinearSolver(integ->arkode, integ->ls);
+    ARKStepSetLinearSolver(integ->arkode, integ->ls, NULL);
   }
   else if (solver_type == JFNK_ARK_BICGSTAB)
   {
     integ->ls = SUNSPBCGS(integ->U, side, max_krylov_dim);
-    ARKSpilsSetLinearSolver(integ->arkode, integ->ls);
+    ARKStepSetLinearSolver(integ->arkode, integ->ls, NULL);
   }
   else
   {
     integ->ls = SUNSPTFQMR(integ->U, side, max_krylov_dim);
-    ARKSpilsSetLinearSolver(integ->arkode, integ->ls);
+    ARKStepSetLinearSolver(integ->arkode, integ->ls, NULL);
   }
 
   // Set up the Jacobian function and preconditioner.
   if (Jy_func != NULL)
-    ARKSpilsSetJacTimes(integ->arkode, set_up_Jy, eval_Jy);
+    ARKStepSetJacTimes(integ->arkode, set_up_Jy, eval_Jy);
   integ->precond = precond;
-  ARKSpilsSetPreconditioner(integ->arkode, set_up_preconditioner,
+  ARKStepSetPreconditioner(integ->arkode, set_up_preconditioner,
                             solve_preconditioner_system);
 
   ode_solver_vtable vtable = {.step = ark_step, .advance = ark_advance, .reset = ark_reset, .dtor = ark_dtor};
@@ -622,11 +621,12 @@ ode_solver_t* jfnk_ark_ode_solver_new(int order,
   // Enable debugging diagnostics if logging permits.
   FILE* info_stream = log_stream(LOG_DEBUG);
   if (info_stream != NULL)
-    ARKodeSetDiagnostics(integ->arkode, info_stream);
+    ARKStepSetDiagnostics(integ->arkode, info_stream);
 
   return I;
 }
 
+#if 0
 //------------------------------------------------------------------------
 //                    Custom ARK solver stuff
 //------------------------------------------------------------------------
@@ -761,25 +761,24 @@ ode_solver_t* ark_ode_solver_new(const char* name,
   integ->observers = ptr_array_new();
   integ->error_weights = NULL;
 
-  // Set up ARKode and accessories.
+  // Set up ARKStep and accessories.
   integ->U = N_VNew(integ->comm, integ->num_local_values);
   integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
-  integ->arkode = ARKodeCreate();
-  integ->ls = NULL;
-  ARKodeSetErrFile(integ->arkode, log_stream(LOG_URGENT));
-  ARKodeSetOrder(integ->arkode, order);
-  ARKodeSetUserData(integ->arkode, integ);
-  if (integ->stable_dt != NULL)
-    ARKodeSetStabilityFn(integ->arkode, stable_dt, integ);
-  if (fi_is_linear)
-    ARKodeSetLinear(integ->arkode, fi_is_time_dependent);
   ARKRhsFn eval_fe = (integ->fe != NULL) ? evaluate_fe : NULL;
   ARKRhsFn eval_fi = (integ->fi != NULL) ? evaluate_fi : NULL;
-  ARKodeInit(integ->arkode, eval_fe, eval_fi, 0.0, integ->U);
+  integ->arkode = ARKStepCreate(eval_fe, eval_fi, 0.0, integ->U);
+  integ->ls = NULL;
+  ARKStepSetErrFile(integ->arkode, log_stream(LOG_URGENT));
+  ARKStepSetOrder(integ->arkode, order);
+  ARKStepSetUserData(integ->arkode, integ);
+  if (integ->stable_dt != NULL)
+    ARKStepSetStabilityFn(integ->arkode, stable_dt, integ);
+  if (fi_is_linear)
+    ARKStepSetLinear(integ->arkode, fi_is_time_dependent);
   if (fe_func == NULL)
-    ARKodeSetImplicit(integ->arkode);
+    ARKStepSetImplicit(integ->arkode);
   else
-    ARKodeSetImEx(integ->arkode);
+    ARKStepSetImEx(integ->arkode);
 
   // Set up the solver.
   integ->reset_func = reset_func;
@@ -807,10 +806,11 @@ ode_solver_t* ark_ode_solver_new(const char* name,
   // Enable debugging diagnostics if logging permits.
   FILE* info_stream = log_stream(LOG_DEBUG);
   if (info_stream != NULL)
-    ARKodeSetDiagnostics(ark_mem, info_stream);
+    ARKStepSetDiagnostics(ark_mem, info_stream);
 
   return I;
 }
+#endif
 
 void* ark_ode_solver_context(ode_solver_t* solver)
 {
@@ -835,13 +835,13 @@ void ark_ode_solver_set_step_controls(ode_solver_t* solver,
   ASSERT(max_accuracy_cut_factor < 1.0);
   ASSERT((cfl_fraction > 0.0) || (integ->fe == NULL));
   ASSERT((cfl_fraction <= 1.0) || (integ->fe == NULL));
-  ARKodeSetMaxGrowth(integ->arkode, max_growth);
-  ARKodeSetMaxFirstGrowth(integ->arkode, max_initial_growth);
-  ARKodeSetMaxCFailGrowth(integ->arkode, max_convergence_cut_factor);
-  ARKodeSetMaxEFailGrowth(integ->arkode, max_accuracy_cut_factor);
-  ARKodeSetSafetyFactor(integ->arkode, safety_factor);
+  ARKStepSetMaxGrowth(integ->arkode, max_growth);
+  ARKStepSetMaxFirstGrowth(integ->arkode, max_initial_growth);
+  ARKStepSetMaxCFailGrowth(integ->arkode, max_convergence_cut_factor);
+  ARKStepSetMaxEFailGrowth(integ->arkode, max_accuracy_cut_factor);
+  ARKStepSetSafetyFactor(integ->arkode, safety_factor);
   if (integ->fe != NULL)
-    ARKodeSetCFLFraction(integ->arkode, cfl_fraction);
+    ARKStepSetCFLFraction(integ->arkode, cfl_fraction);
 }
 
 void ark_ode_solver_set_predictor(ode_solver_t* solver, 
@@ -857,7 +857,7 @@ void ark_ode_solver_set_predictor(ode_solver_t* solver,
     case ARK_CUTOFF_PREDICTOR: pred = 3; break;
     case ARK_BOOTSTRAP_PREDICTOR: pred = 4;
   }
-  ARKodeSetPredictorMethod(integ->arkode, pred);
+  ARKStepSetPredictorMethod(integ->arkode, pred);
 }
 
 void ark_ode_solver_set_max_err_test_failures(ode_solver_t* solver,
@@ -865,7 +865,7 @@ void ark_ode_solver_set_max_err_test_failures(ode_solver_t* solver,
 {
   ASSERT(max_failures > 0);
   ark_ode_t* integ = ode_solver_context(solver);
-  ARKodeSetMaxErrTestFails(integ->arkode, max_failures);
+  ARKStepSetMaxErrTestFails(integ->arkode, max_failures);
 }
 
 void ark_ode_solver_set_max_nonlinear_iterations(ode_solver_t* solver,
@@ -873,7 +873,7 @@ void ark_ode_solver_set_max_nonlinear_iterations(ode_solver_t* solver,
 {
   ASSERT(max_iterations > 0);
   ark_ode_t* integ = ode_solver_context(solver);
-  ARKodeSetMaxNonlinIters(integ->arkode, max_iterations);
+  ARKStepSetMaxNonlinIters(integ->arkode, max_iterations);
 }
 
 void ark_ode_solver_set_nonlinear_convergence_coeff(ode_solver_t* solver,
@@ -881,7 +881,7 @@ void ark_ode_solver_set_nonlinear_convergence_coeff(ode_solver_t* solver,
 {
   ASSERT(coefficient > 0.0);
   ark_ode_t* integ = ode_solver_context(solver);
-  ARKodeSetNonlinConvCoef(integ->arkode, coefficient);
+  ARKStepSetNonlinConvCoef(integ->arkode, coefficient);
 }
 
 void ark_ode_solver_set_tolerances(ode_solver_t* solver,
@@ -901,7 +901,7 @@ void ark_ode_solver_set_tolerances(ode_solver_t* solver,
   }
 
   // Set the tolerances.
-  ARKodeSStolerances(integ->arkode, relative_tol, absolute_tol);
+  ARKStepSStolerances(integ->arkode, relative_tol, absolute_tol);
 }
 
 // Constant error weight adaptor function.
@@ -954,7 +954,7 @@ void ark_ode_solver_set_error_weight_function(ode_solver_t* solver,
   ark_ode_t* integ = ode_solver_context(solver);
   ASSERT(compute_weights != NULL);
   integ->compute_weights = compute_weights;
-  ARKodeWFtolerances(integ->arkode, compute_error_weights);
+  ARKStepWFtolerances(integ->arkode, compute_error_weights);
 }
 
 void ark_ode_solver_eval_fe(ode_solver_t* solver, real_t t, real_t* U, real_t* fe)
@@ -1001,28 +1001,27 @@ void ark_ode_solver_get_diagnostics(ode_solver_t* solver,
 {
   ark_ode_t* integ = ode_solver_context(solver);
   diagnostics->status_message = integ->status_message; // borrowed!
-  ARKodeGetIntegratorStats(integ->arkode, 
-                           &diagnostics->num_steps,
-                           &diagnostics->num_explicit_steps,
-                           &diagnostics->num_accuracy_steps,
-                           &diagnostics->num_step_attempts,
-                           &diagnostics->num_fe_evaluations, 
-                           &diagnostics->num_fi_evaluations, 
-                           &diagnostics->num_linear_solve_setups, 
-                           &diagnostics->num_error_test_failures, 
-                           &diagnostics->initial_step_size, 
-                           &diagnostics->last_step_size, 
-                           &diagnostics->next_step_size, 
-                           &diagnostics->t);
-  ARKodeGetNonlinSolvStats(integ->arkode, 
-                           &diagnostics->num_nonlinear_solve_iterations,
-                           &diagnostics->num_nonlinear_solve_convergence_failures);
+  ARKStepGetStepStats(integ->arkode, 
+                      &diagnostics->num_steps,
+                      &diagnostics->initial_step_size, 
+                      &diagnostics->last_step_size, 
+                      &diagnostics->next_step_size, 
+                      &diagnostics->t);
+  ARKStepGetNumExpSteps(integ->arkode, &diagnostics->num_explicit_steps);
+  ARKStepGetNumAccSteps(integ->arkode, &diagnostics->num_accuracy_steps);
+  ARKStepGetNumStepAttempts(integ->arkode, &diagnostics->num_step_attempts);
+  ARKStepGetNumRhsEvals(integ->arkode, &diagnostics->num_fe_evaluations, 
+                        &diagnostics->num_fi_evaluations);
+  ARKStepGetNumLinSolvSetups(integ->arkode, &diagnostics->num_linear_solve_setups); 
+  ARKStepGetNumErrTestFails(integ->arkode, &diagnostics->num_error_test_failures);
+  ARKStepGetNumNonlinSolvIters(integ->arkode, &diagnostics->num_nonlinear_solve_iterations);
+  ARKStepGetNumNonlinSolvConvFails(integ->arkode, &diagnostics->num_nonlinear_solve_convergence_failures);
   if (integ->solve_func == NULL) // JFNK
   {
-    ARKSpilsGetNumLinIters(integ->arkode, &diagnostics->num_linear_solve_iterations);
-    ARKSpilsGetNumPrecEvals(integ->arkode, &diagnostics->num_preconditioner_evaluations);
-    ARKSpilsGetNumPrecSolves(integ->arkode, &diagnostics->num_preconditioner_solves);
-    ARKSpilsGetNumConvFails(integ->arkode, &diagnostics->num_linear_solve_convergence_failures);
+    ARKStepGetNumLinIters(integ->arkode, &diagnostics->num_linear_solve_iterations);
+    ARKStepGetNumPrecEvals(integ->arkode, &diagnostics->num_preconditioner_evaluations);
+    ARKStepGetNumPrecSolves(integ->arkode, &diagnostics->num_preconditioner_solves);
+    ARKStepGetNumLinConvFails(integ->arkode, &diagnostics->num_linear_solve_convergence_failures);
   }
   else
   {
@@ -1091,6 +1090,7 @@ void ark_ode_solver_add_observer(ode_solver_t* solver,
   ptr_array_append_with_dtor(integ->observers, observer, DTOR(ark_ode_observer_free));
 }
 
+#if 0
 //------------------------------------------------------------------------
 //                  Inexact Newton-Krylov solver stuff
 //------------------------------------------------------------------------
@@ -1434,3 +1434,4 @@ void* ink_ark_ode_solver_context(ode_solver_t* ink_ark_ode_integ)
   ink_ark_ode_t* ink = ark_ode_solver_context(ink_ark_ode_integ);
   return ink->context;
 }
+#endif

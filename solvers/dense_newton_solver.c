@@ -12,7 +12,6 @@
 #include "sunmatrix/sunmatrix_dense.h"
 #include "sunlinsol/sunlinsol_dense.h"
 #include "kinsol/kinsol.h"
-#include "kinsol/kinsol_direct.h"
 
 struct dense_newton_solver_t 
 {
@@ -84,11 +83,11 @@ dense_newton_solver_t* dense_newton_solver_new_with_jacobian(int dimension,
   // Set up a dense linear solver.
   solver->J = SUNDenseMatrix(dimension, dimension);
   solver->ls = SUNDenseLinearSolver(solver->x, solver->J);
-  KINDlsSetLinearSolver(solver->kinsol, solver->ls, solver->J);
+  KINSetLinearSolver(solver->kinsol, solver->ls, solver->J);
 
   // Do we have a Jacobian function?
   if (solver->sys_jac != NULL)
-    KINDlsSetJacFn(solver->kinsol, eval_system_jac);
+    KINSetJacFn(solver->kinsol, eval_system_jac);
 
   // Use exact Newton?
   // KINSetMaxSetupCalls(solver->kinsol, 1);

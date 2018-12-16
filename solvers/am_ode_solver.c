@@ -11,13 +11,15 @@
 #include "solvers/am_ode_solver.h"
 #include "solvers/newton_pc.h"
 #include "cvode/cvode.h"
-#include "cvode/cvode_spils.h"
 
 // JFNK stuff.
 #include "sunlinsol/sunlinsol_spgmr.h"
 #include "sunlinsol/sunlinsol_spfgmr.h"
 #include "sunlinsol/sunlinsol_spbcgs.h"
 #include "sunlinsol/sunlinsol_sptfqmr.h"
+
+#include "sunnonlinsol/sunnonlinsol_fixedpoint.h"
+#include "sunnonlinsol/sunnonlinsol_newton.h"
 
 struct am_ode_observer_t 
 {
@@ -95,23 +97,23 @@ static char* get_status_message(int status, real_t current_time)
 static int am_evaluate_rhs(real_t t, N_Vector U, N_Vector U_dot, void* context)
 {
   START_FUNCTION_TIMER();
-  am_ode_t* integ = context;
+  am_ode_t* solver = context;
   real_t* xx = NV_DATA(U);
   real_t* xxd = NV_DATA(U_dot);
 
   // Evaluate the RHS using a solution vector with ghosts.
-  memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
-  int status = integ->rhs(integ->context, t, integ->U_with_ghosts, xxd);
+  memcpy(solver->U_with_ghosts, xx, sizeof(real_t) * solver->num_local_values);
+  int status = solver->rhs(solver->context, t, solver->U_with_ghosts, xxd);
   if (status == 0)
   {
     // Copy the local result into our solution vector.
-    memcpy(xx, integ->U_with_ghosts, sizeof(real_t) * integ->num_local_values);
+    memcpy(xx, solver->U_with_ghosts, sizeof(real_t) * solver->num_local_values);
   }
 
   // Tell our observers we've computed the right hand side.
-  for (int i = 0; i < integ->observers->size; ++i)
+  for (int i = 0; i < solver->observers->size; ++i)
   {
-    am_ode_observer_t* obs = integ->observers->data[i];
+    am_ode_observer_t* obs = solver->observers->data[i];
     if (obs->rhs_computed != NULL)
       obs->rhs_computed(obs->context, t, xx, xxd);
   }
@@ -123,53 +125,53 @@ static int am_evaluate_rhs(real_t t, N_Vector U, N_Vector U_dot, void* context)
 static bool am_step(void* context, real_t max_dt, real_t* t, real_t* U)
 {
   START_FUNCTION_TIMER();
-  am_ode_t* integ = context;
+  am_ode_t* solver = context;
   int status = CV_SUCCESS;
 
   // If *t + max_dt is less than the time to which we've already integrated, 
   // we don't need to integrate; we only need to interpolate backward.
   real_t t2 = *t + max_dt;
-  if (t2 > integ->t)
+  if (t2 > solver->t)
   {
-    // Integrate to at least t -> t + max_dt.
-    status = CVode(integ->cvode, t2, integ->U, &integ->t, CV_ONE_STEP);
+    // solver to at least t -> t + max_dt.
+    status = CVode(solver->cvode, t2, solver->U, &solver->t, CV_ONE_STEP);
     if ((status != CV_SUCCESS) && (status != CV_TSTOP_RETURN))
     {
-      integ->status_message = get_status_message(status, integ->t);
+      solver->status_message = get_status_message(status, solver->t);
       STOP_FUNCTION_TIMER();
       return false;
     }
-    if ((t2 - *t) < (integ->t - *t))
-      log_detail("am_ode_solver: took internal step dt = %g", integ->t - *t);
+    if ((t2 - *t) < (solver->t - *t))
+      log_detail("am_ode_solver: took internal step dt = %g", solver->t - *t);
   }
 
   // If we integrated past t2, interpolate to t2.
-  if (integ->t > t2)
+  if (solver->t > t2)
   {
-    status = CVodeGetDky(integ->cvode, t2, 0, integ->U);
+    status = CVodeGetDky(solver->cvode, t2, 0, solver->U);
     *t = t2;
   }
   else
-    *t = integ->t;
+    *t = solver->t;
   
   // Clear the present status.
-  if (integ->status_message != NULL)
+  if (solver->status_message != NULL)
   {
-    polymec_free(integ->status_message);
-    integ->status_message = NULL;
+    polymec_free(solver->status_message);
+    solver->status_message = NULL;
   }
 
   // Did it work?
   if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(U, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U, NV_DATA(solver->U), sizeof(real_t) * solver->num_local_values); 
     STOP_FUNCTION_TIMER();
     return true;
   }
   else
   {
-    integ->status_message = get_status_message(status, integ->t);
+    solver->status_message = get_status_message(status, solver->t);
     STOP_FUNCTION_TIMER();
     return false;
   }
@@ -177,74 +179,74 @@ static bool am_step(void* context, real_t max_dt, real_t* t, real_t* U)
 
 static bool am_advance(void* context, real_t t1, real_t t2, real_t* U)
 {
-  am_ode_t* integ = context;
-  integ->t = t1;
-  CVodeReInit(integ->cvode, t1, integ->U);
-  CVodeSetStopTime(integ->cvode, t2);
+  am_ode_t* solver = context;
+  solver->t = t1;
+  CVodeReInit(solver->cvode, t1, solver->U);
+  CVodeSetStopTime(solver->cvode, t2);
   
   // Copy in the solution.
-  memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
+  memcpy(NV_DATA(solver->U), U, sizeof(real_t) * solver->num_local_values); 
 
   // Integrate.
-  int status = CVode(integ->cvode, t2, integ->U, &integ->t, CV_NORMAL);
+  int status = CVode(solver->cvode, t2, solver->U, &solver->t, CV_NORMAL);
   
   // Clear the present status.
-  if (integ->status_message != NULL)
+  if (solver->status_message != NULL)
   {
-    polymec_free(integ->status_message);
-    integ->status_message = NULL;
+    polymec_free(solver->status_message);
+    solver->status_message = NULL;
   }
 
   // Did it work?
   if ((status == CV_SUCCESS) || (status == CV_TSTOP_RETURN))
   {
     // Copy out the solution.
-    memcpy(U, NV_DATA(integ->U), sizeof(real_t) * integ->num_local_values); 
+    memcpy(U, NV_DATA(solver->U), sizeof(real_t) * solver->num_local_values); 
     return true;
   }
   else
   {
-    integ->status_message = get_status_message(status, integ->t);
+    solver->status_message = get_status_message(status, solver->t);
     return false;
   }
 }
 
 static void am_reset(void* context, real_t t, real_t* U)
 {
-  am_ode_t* integ = context;
+  am_ode_t* solver = context;
 
   // Reset the preconditioner.
-  if (integ->precond != NULL)
-    newton_pc_reset(integ->precond, t);
+  if (solver->precond != NULL)
+    newton_pc_reset(solver->precond, t);
 
   // Copy in the solution and reinitialize.
-  memcpy(NV_DATA(integ->U), U, sizeof(real_t) * integ->num_local_values); 
-  CVodeReInit(integ->cvode, t, integ->U);
-  integ->t = t;
+  memcpy(NV_DATA(solver->U), U, sizeof(real_t) * solver->num_local_values); 
+  CVodeReInit(solver->cvode, t, solver->U);
+  solver->t = t;
 }
 
 static void am_dtor(void* context)
 {
-  am_ode_t* integ = context;
+  am_ode_t* solver = context;
 
   // Kill the preconditioner stuff.
-  if (integ->precond != NULL)
-    newton_pc_free(integ->precond);
+  if (solver->precond != NULL)
+    newton_pc_free(solver->precond);
 
   // Kill the CVode stuff.
-  polymec_free(integ->U_with_ghosts);
-  N_VDestroy(integ->U);
-  CVodeFree(&integ->cvode);
+  polymec_free(solver->U_with_ghosts);
+  N_VDestroy(solver->U);
+  CVodeFree(&solver->cvode);
 
   // Kill the rest.
-  if (integ->status_message != NULL)
-    polymec_free(integ->status_message);
-  if ((integ->context != NULL) && (integ->dtor != NULL))
-    integ->dtor(integ->context);
-  ptr_array_free(integ->observers);
-  if (integ->error_weights != NULL)
-    polymec_free(integ->error_weights);
-  polymec_free(integ);
+  if (solver->status_message != NULL)
+    polymec_free(solver->status_message);
+  if ((solver->context != NULL) && (solver->dtor != NULL))
+    solver->dtor(solver->context);
+  ptr_array_free(solver->observers);
+  if (solver->error_weights != NULL)
+    polymec_free(solver->error_weights);
+  polymec_free(solver);
 }
 
 ode_solver_t* functional_am_ode_solver_new(int order, 
@@ -261,33 +263,36 @@ ode_solver_t* functional_am_ode_solver_new(int order,
   ASSERT(num_remote_values >= 0);
   ASSERT(rhs != NULL);
 
-  am_ode_t* integ = polymec_malloc(sizeof(am_ode_t));
-  integ->comm = comm;
-  integ->num_local_values = num_local_values;
-  integ->num_remote_values = num_remote_values;
-  integ->context = context;
-  integ->rhs = rhs;
-  integ->dtor = dtor;
-  integ->status_message = NULL;
-  integ->max_krylov_dim = 0;
-  integ->Jy = NULL;
-  integ->precond = NULL;
-  integ->observers = ptr_array_new();
-  integ->error_weights = NULL;
+  am_ode_t* solver = polymec_malloc(sizeof(am_ode_t));
+  solver->comm = comm;
+  solver->num_local_values = num_local_values;
+  solver->num_remote_values = num_remote_values;
+  solver->context = context;
+  solver->rhs = rhs;
+  solver->dtor = dtor;
+  solver->status_message = NULL;
+  solver->max_krylov_dim = 0;
+  solver->Jy = NULL;
+  solver->precond = NULL;
+  solver->observers = ptr_array_new();
+  solver->error_weights = NULL;
 
   // Set up KINSol and accessories.
-  integ->U = N_VNew(integ->comm, integ->num_local_values);
-  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
-  integ->cvode = CVodeCreate(CV_ADAMS, CV_FUNCTIONAL);
-  CVodeSetMaxOrd(integ->cvode, order);
-  CVodeSetUserData(integ->cvode, integ);
-  CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->U);
+  solver->U = N_VNew(solver->comm, solver->num_local_values);
+  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->cvode = CVodeCreate(CV_ADAMS);
+  CVodeSetMaxOrd(solver->cvode, order);
+  CVodeSetUserData(solver->cvode, solver);
+  CVodeInit(solver->cvode, am_evaluate_rhs, 0.0, solver->U);
+  int num_accels; // FIXME: Number of Anderson acceleration vectors!
+  SUNNonlinearSolver nls = SUNNonlinSol_FixedPoint(solver->U, num_accels);
+  CVodeSetNonlinearSolver(solver->cvode, nls);
 
   ode_solver_vtable vtable = {.step = am_step, .advance = am_advance, .reset = am_reset, .dtor = am_dtor};
   char name[1024];
   snprintf(name, 1024, "Functional Adams-Moulton (order %d)", order);
-  ode_solver_t* I = ode_solver_new(name, integ, vtable, order,
-                                           num_local_values + num_remote_values);
+  ode_solver_t* I = ode_solver_new(name, solver, vtable, order,
+                                   num_local_values + num_remote_values);
 
   // Set default tolerances.
   // relative error of 1e-4 means errors are controlled to 0.01%.
@@ -303,12 +308,12 @@ static int set_up_preconditioner(real_t t, N_Vector U, N_Vector F,
                                  real_t gamma, void* context)
 {
   START_FUNCTION_TIMER();
-  am_ode_t* integ = context;
+  am_ode_t* solver = context;
   if (!jacobian_is_current)
   {
     // Compute the approximate Jacobian using a solution vector with ghosts.
-    memcpy(integ->U_with_ghosts, NV_DATA(U), sizeof(real_t) * integ->num_local_values);
-    newton_pc_setup(integ->precond, 1.0, -gamma, 0.0, t, integ->U_with_ghosts, NULL);
+    memcpy(solver->U_with_ghosts, NV_DATA(U), sizeof(real_t) * solver->num_local_values);
+    newton_pc_setup(solver->precond, 1.0, -gamma, 0.0, t, solver->U_with_ghosts, NULL);
     *jacobian_was_updated = 1;
   }
   else
@@ -328,12 +333,12 @@ static int solve_preconditioner_system(real_t t, N_Vector U, N_Vector F,
   START_FUNCTION_TIMER();
   ASSERT(lr == 1); // Left preconditioning only.
 
-  am_ode_t* integ = context;
+  am_ode_t* solver = context;
   
   // FIXME: Apply scaling if needed.
 
   // Solve it.
-  int status = (newton_pc_solve(integ->precond, t, NV_DATA(U), NULL,
+  int status = (newton_pc_solve(solver->precond, t, NV_DATA(U), NULL,
                                 NV_DATA(r), NV_DATA(r))) ? 0 : 1;
   STOP_FUNCTION_TIMER();
   return status;
@@ -350,7 +355,7 @@ static int set_up_Jy(real_t t, N_Vector y, N_Vector Jy, void* context)
 static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector U, N_Vector U_dot, void* context, N_Vector tmp)
 {
   START_FUNCTION_TIMER();
-  am_ode_t* integ = context;
+  am_ode_t* solver = context;
   real_t* xx = NV_DATA(U);
   real_t* yy = NV_DATA(y);
   real_t* my_rhs = NV_DATA(U_dot);
@@ -358,13 +363,13 @@ static int eval_Jy(N_Vector y, N_Vector Jy, real_t t, N_Vector U, N_Vector U_dot
   real_t* jjy = NV_DATA(Jy);
 
   // Make sure we use ghosts.
-  memcpy(integ->U_with_ghosts, xx, sizeof(real_t) * integ->num_local_values);
-  int status = integ->Jy(integ->context, t, integ->U_with_ghosts, my_rhs, yy, temp, jjy);
+  memcpy(solver->U_with_ghosts, xx, sizeof(real_t) * solver->num_local_values);
+  int status = solver->Jy(solver->context, t, solver->U_with_ghosts, my_rhs, yy, temp, jjy);
 
   // Tell our observers we've computed the right hand side.
-  for (int i = 0; i < integ->observers->size; ++i)
+  for (int i = 0; i < solver->observers->size; ++i)
   {
-    am_ode_observer_t* obs = integ->observers->data[i];
+    am_ode_observer_t* obs = solver->observers->data[i];
     if (obs->Jy_computed != NULL)
       obs->Jy_computed(obs->context, t, xx, my_rhs, yy, jjy);
   }
@@ -394,28 +399,30 @@ ode_solver_t* jfnk_am_ode_solver_new(int order,
   ASSERT(max_krylov_dim > 3);
   ASSERT(!newton_pc_coefficients_fixed(precond));
 
-  am_ode_t* integ = polymec_malloc(sizeof(am_ode_t));
-  integ->comm = comm;
-  integ->num_local_values = num_local_values;
-  integ->num_remote_values = num_remote_values;
-  integ->context = context;
-  integ->rhs = rhs_func;
-  integ->dtor = dtor;
-  integ->status_message = NULL;
-  integ->max_krylov_dim = max_krylov_dim;
-  integ->Jy = Jy_func;
-  integ->t = 0.0;
-  integ->observers = ptr_array_new();
+  am_ode_t* solver = polymec_malloc(sizeof(am_ode_t));
+  solver->comm = comm;
+  solver->num_local_values = num_local_values;
+  solver->num_remote_values = num_remote_values;
+  solver->context = context;
+  solver->rhs = rhs_func;
+  solver->dtor = dtor;
+  solver->status_message = NULL;
+  solver->max_krylov_dim = max_krylov_dim;
+  solver->Jy = Jy_func;
+  solver->t = 0.0;
+  solver->observers = ptr_array_new();
 
   // Set up KINSol and accessories.
-  integ->U = N_VNew(integ->comm, integ->num_local_values);
-  integ->U_with_ghosts = polymec_malloc(sizeof(real_t) * (integ->num_local_values + integ->num_remote_values));
-  integ->cvode = CVodeCreate(CV_ADAMS, CV_NEWTON);
-  CVodeSetMaxOrd(integ->cvode, order);
-  CVodeSetUserData(integ->cvode, integ);
-  CVodeInit(integ->cvode, am_evaluate_rhs, 0.0, integ->U);
+  solver->U = N_VNew(solver->comm, solver->num_local_values);
+  solver->U_with_ghosts = polymec_malloc(sizeof(real_t) * (solver->num_local_values + solver->num_remote_values));
+  solver->cvode = CVodeCreate(CV_ADAMS);
+  CVodeSetMaxOrd(solver->cvode, order);
+  CVodeSetUserData(solver->cvode, solver);
+  CVodeInit(solver->cvode, am_evaluate_rhs, 0.0, solver->U);
+  SUNNonlinearSolver nls = SUNNonlinSol_Newton(solver->U);
+  CVodeSetNonlinearSolver(solver->cvode, nls);
 
-  newton_pc_side_t newton_side = newton_pc_side(integ->precond);
+  newton_pc_side_t newton_side = newton_pc_side(solver->precond);
   int side;
   switch (newton_side)
   {
@@ -432,33 +439,33 @@ ode_solver_t* jfnk_am_ode_solver_new(int order,
   // Set up the solver type.
   if (solver_type == JFNK_AM_GMRES)
   {
-    SUNLinearSolver ls = SUNSPGMR(integ->U, side, integ->max_krylov_dim);
+    SUNLinearSolver ls = SUNSPGMR(solver->U, side, solver->max_krylov_dim);
     // We use modified Gram-Schmidt orthogonalization.
     SUNSPGMRSetGSType(ls, MODIFIED_GS);
-    CVSpilsSetLinearSolver(integ->cvode, ls);
+    CVodeSetLinearSolver(solver->cvode, ls, NULL);
   }
   else if (solver_type == JFNK_AM_BICGSTAB)
   {
-    SUNLinearSolver ls = SUNSPBCGS(integ->U, side, integ->max_krylov_dim);
-    CVSpilsSetLinearSolver(integ->cvode, ls);
+    SUNLinearSolver ls = SUNSPBCGS(solver->U, side, solver->max_krylov_dim);
+    CVodeSetLinearSolver(solver->cvode, ls, NULL);
   }
   else
   {
-    SUNLinearSolver ls = SUNSPTFQMR(integ->U, side, integ->max_krylov_dim);
-    CVSpilsSetLinearSolver(integ->cvode, ls);
+    SUNLinearSolver ls = SUNSPTFQMR(solver->U, side, solver->max_krylov_dim);
+    CVodeSetLinearSolver(solver->cvode, ls, NULL);
   }
 
   // Set up the Jacobian function and preconditioner.
   if (Jy_func != NULL)
-    CVSpilsSetJacTimes(integ->cvode, set_up_Jy, eval_Jy);
-  integ->precond = precond;
-  CVSpilsSetPreconditioner(integ->cvode, set_up_preconditioner,
+    CVodeSetJacTimes(solver->cvode, set_up_Jy, eval_Jy);
+  solver->precond = precond;
+  CVodeSetPreconditioner(solver->cvode, set_up_preconditioner,
                            solve_preconditioner_system);
 
   ode_solver_vtable vtable = {.step = am_step, .advance = am_advance, .dtor = am_dtor};
   char name[1024];
   snprintf(name, 1024, "JFNK Adams-Moulton (order %d)", order);
-  ode_solver_t* I = ode_solver_new(name, integ, vtable, order,
+  ode_solver_t* I = ode_solver_new(name, solver, vtable, order,
                                    num_local_values + num_remote_values);
 
   // Set default tolerances.
@@ -471,32 +478,32 @@ ode_solver_t* jfnk_am_ode_solver_new(int order,
 
 void* am_ode_solver_context(ode_solver_t* solver)
 {
-  am_ode_t* integ = ode_solver_context(solver);
-  return integ->context;
+  am_ode_t* am = ode_solver_context(solver);
+  return am->context;
 }
 
 void am_ode_solver_set_max_err_test_failures(ode_solver_t* solver,
                                              int max_failures)
 {
   ASSERT(max_failures > 0);
-  am_ode_t* integ = ode_solver_context(solver);
-  CVodeSetMaxErrTestFails(integ->cvode, max_failures);
+  am_ode_t* am = ode_solver_context(solver);
+  CVodeSetMaxErrTestFails(am->cvode, max_failures);
 }
 
 void am_ode_solver_set_max_nonlinear_iterations(ode_solver_t* solver,
                                                 int max_iterations)
 {
   ASSERT(max_iterations > 0);
-  am_ode_t* integ = ode_solver_context(solver);
-  CVodeSetMaxNonlinIters(integ->cvode, max_iterations);
+  am_ode_t* am = ode_solver_context(solver);
+  CVodeSetMaxNonlinIters(am->cvode, max_iterations);
 }
 
 void am_ode_solver_set_nonlinear_convergence_coeff(ode_solver_t* solver,
                                                    real_t coefficient)
 {
   ASSERT(coefficient > 0.0);
-  am_ode_t* integ = ode_solver_context(solver);
-  CVodeSetNonlinConvCoef(integ->cvode, (double)coefficient);
+  am_ode_t* am = ode_solver_context(solver);
+  CVodeSetNonlinConvCoef(am->cvode, (double)coefficient);
 }
 
 void am_ode_solver_set_tolerances(ode_solver_t* solver,
@@ -505,35 +512,35 @@ void am_ode_solver_set_tolerances(ode_solver_t* solver,
   ASSERT(relative_tol > 0.0);
   ASSERT(absolute_tol > 0.0);
 
-  am_ode_t* integ = ode_solver_context(solver);
+  am_ode_t* am = ode_solver_context(solver);
 
   // Clear any existing error weight function.
-  integ->compute_weights = NULL;
-  if (integ->error_weights != NULL)
+  am->compute_weights = NULL;
+  if (am->error_weights != NULL)
   {
-    polymec_free(integ->error_weights);
-    integ->error_weights = NULL;
+    polymec_free(am->error_weights);
+    am->error_weights = NULL;
   }
 
   // Set the tolerances.
-  CVodeSStolerances(integ->cvode, relative_tol, absolute_tol);
+  CVodeSStolerances(am->cvode, relative_tol, absolute_tol);
 }
 
 // Constant error weight adaptor function.
 static void use_constant_weights(void* context, real_t* y, real_t* weights)
 {
-  am_ode_t* integ = context;
-  ASSERT(integ->error_weights != NULL);
-  memcpy(weights, integ->error_weights, sizeof(real_t) * integ->num_local_values);
+  am_ode_t* solver = context;
+  ASSERT(solver->error_weights != NULL);
+  memcpy(weights, solver->error_weights, sizeof(real_t) * solver->num_local_values);
 }
 
 void am_ode_solver_set_error_weights(ode_solver_t* solver, real_t* weights)
 {
-  am_ode_t* integ = ode_solver_context(solver);
+  am_ode_t* am = ode_solver_context(solver);
 #ifndef NDEBUG
   // Check for non-negativity and total positivity.
   real_t total = 0.0;
-  for (int i = 0; i < integ->num_local_values; ++i)
+  for (int i = 0; i < am->num_local_values; ++i)
   {
     ASSERT(weights[i] >= 0.0);
     total += weights[i];
@@ -541,17 +548,17 @@ void am_ode_solver_set_error_weights(ode_solver_t* solver, real_t* weights)
   ASSERT(total > 0.0);
 #endif
 
-  if (integ->error_weights == NULL)
-    integ->error_weights = polymec_malloc(sizeof(real_t) * integ->num_local_values);
-  memcpy(integ->error_weights, weights, sizeof(real_t) * integ->num_local_values);
+  if (am->error_weights == NULL)
+    am->error_weights = polymec_malloc(sizeof(real_t) * am->num_local_values);
+  memcpy(am->error_weights, weights, sizeof(real_t) * am->num_local_values);
   am_ode_solver_set_error_weight_function(solver, use_constant_weights);
 }
 
 // Error weight adaptor function.
 static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
 {
-  am_ode_t* integ = context;
-  integ->compute_weights(integ->context, NV_DATA(y), NV_DATA(ewt));
+  am_ode_t* am = context;
+  am->compute_weights(am->context, NV_DATA(y), NV_DATA(ewt));
 
   // Check that all the weights are non-negative.
   int N = (int)NV_LOCLENGTH(y);
@@ -566,45 +573,45 @@ static int compute_error_weights(N_Vector y, N_Vector ewt, void* context)
 void am_ode_solver_set_error_weight_function(ode_solver_t* solver,
                                              void (*compute_weights)(void* context, real_t* y, real_t* weights))
 {
-  am_ode_t* integ = ode_solver_context(solver);
+  am_ode_t* am = ode_solver_context(solver);
   ASSERT(compute_weights != NULL);
-  integ->compute_weights = compute_weights;
-  CVodeWFtolerances(integ->cvode, compute_error_weights);
+  am->compute_weights = compute_weights;
+  CVodeWFtolerances(am->cvode, compute_error_weights);
 }
 
 void am_ode_solver_eval_rhs(ode_solver_t* solver, real_t t, real_t* U, real_t* U_dot)
 {
-  am_ode_t* integ = ode_solver_context(solver);
-  integ->rhs(integ->context, t, U, U_dot);
+  am_ode_t* am = ode_solver_context(solver);
+  am->rhs(am->context, t, U, U_dot);
 }
 
 newton_pc_t* am_ode_solver_preconditioner(ode_solver_t* solver)
 {
-  am_ode_t* integ = ode_solver_context(solver);
-  return integ->precond;
+  am_ode_t* am = ode_solver_context(solver);
+  return am->precond;
 }
 
 void am_ode_solver_get_diagnostics(ode_solver_t* solver, 
                                    am_ode_solver_diagnostics_t* diagnostics)
 {
-  am_ode_t* integ = ode_solver_context(solver);
-  diagnostics->status_message = integ->status_message; // borrowed!
-  CVodeGetNumSteps(integ->cvode, &diagnostics->num_steps);
-  CVodeGetLastOrder(integ->cvode, &diagnostics->order_of_last_step);
-  CVodeGetCurrentOrder(integ->cvode, &diagnostics->order_of_next_step);
-  CVodeGetLastStep(integ->cvode, &diagnostics->last_step_size);
-  CVodeGetCurrentStep(integ->cvode, &diagnostics->next_step_size);
-  CVodeGetNumRhsEvals(integ->cvode, &diagnostics->num_rhs_evaluations);
-  CVodeGetNumErrTestFails(integ->cvode, &diagnostics->num_error_test_failures);
-  CVodeGetNumNonlinSolvIters(integ->cvode, &diagnostics->num_nonlinear_solve_iterations);
-  CVodeGetNumNonlinSolvConvFails(integ->cvode, &diagnostics->num_nonlinear_solve_convergence_failures);
-  if (integ->max_krylov_dim > 0)
+  am_ode_t* am = ode_solver_context(solver);
+  diagnostics->status_message = am->status_message; // borrowed!
+  CVodeGetNumSteps(am->cvode, &diagnostics->num_steps);
+  CVodeGetLastOrder(am->cvode, &diagnostics->order_of_last_step);
+  CVodeGetCurrentOrder(am->cvode, &diagnostics->order_of_next_step);
+  CVodeGetLastStep(am->cvode, &diagnostics->last_step_size);
+  CVodeGetCurrentStep(am->cvode, &diagnostics->next_step_size);
+  CVodeGetNumRhsEvals(am->cvode, &diagnostics->num_rhs_evaluations);
+  CVodeGetNumErrTestFails(am->cvode, &diagnostics->num_error_test_failures);
+  CVodeGetNumNonlinSolvIters(am->cvode, &diagnostics->num_nonlinear_solve_iterations);
+  CVodeGetNumNonlinSolvConvFails(am->cvode, &diagnostics->num_nonlinear_solve_convergence_failures);
+  if (am->max_krylov_dim > 0)
   {
-    CVodeGetNumLinSolvSetups(integ->cvode, &diagnostics->num_linear_solve_setups);
-    CVSpilsGetNumLinIters(integ->cvode, &diagnostics->num_linear_solve_iterations);
-    CVSpilsGetNumPrecEvals(integ->cvode, &diagnostics->num_preconditioner_evaluations);
-    CVSpilsGetNumPrecSolves(integ->cvode, &diagnostics->num_preconditioner_solves);
-    CVSpilsGetNumConvFails(integ->cvode, &diagnostics->num_linear_solve_convergence_failures);
+    CVodeGetNumLinSolvSetups(am->cvode, &diagnostics->num_linear_solve_setups);
+    CVodeGetNumLinIters(am->cvode, &diagnostics->num_linear_solve_iterations);
+    CVodeGetNumPrecEvals(am->cvode, &diagnostics->num_preconditioner_evaluations);
+    CVodeGetNumPrecSolves(am->cvode, &diagnostics->num_preconditioner_solves);
+    CVodeGetNumLinConvFails(am->cvode, &diagnostics->num_linear_solve_convergence_failures);
   }
   else 
   {
@@ -667,7 +674,7 @@ static void am_ode_observer_free(am_ode_observer_t* observer)
 void am_ode_solver_add_observer(ode_solver_t* solver,
                                 am_ode_observer_t* observer)
 {
-  am_ode_t* integ = ode_solver_context(solver);
-  ptr_array_append_with_dtor(integ->observers, observer, DTOR(am_ode_observer_free));
+  am_ode_t* am = ode_solver_context(solver);
+  ptr_array_append_with_dtor(am->observers, observer, DTOR(am_ode_observer_free));
 }
 
